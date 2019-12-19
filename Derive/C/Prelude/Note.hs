@@ -88,7 +88,7 @@ note_call :: Derive.CallName -> Doc.Doc -> Tags.Tags -> GenerateNote
     -> Derive.Generator Derive.Note
 note_call name prepend_doc tags generate =
     Derive.generator Module.prelude name tags prepended $
-    Sig.call0  $ Sub.inverting $ apply_instrument_controls . generate
+    Sig.call0 $ Sub.inverting $ apply_instrument_controls . generate
     where
     prepended
         | prepend_doc == "" = generator_doc

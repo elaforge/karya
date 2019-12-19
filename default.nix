@@ -1,8 +1,9 @@
 # Incomplete nix to gather all the dependencies.
 # See TODO nix: for current status.
+# https://www.srid.ca/haskell-nix.html
 
 # Examples:
-# nix-shell --attr buildEnv --arg withIm true --arg withDocs true
+# nix-shell -command zsh --attr buildEnv --arg withIm true --arg withDocs true
 # nix-store -r $(nix-instantiate --attr libsamplerate)
 # nix build -f default.nix --arg withIm true --arg withDocs true buildEnv
 

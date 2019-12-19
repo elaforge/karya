@@ -59,6 +59,8 @@ UNSORTED
       "name"
   * Can I coerce PControlRef to Pitch, and ControlRef to Num?
   - it would be nice if I could coerce VPitch to NoteNumber
+    . Implementation is in the 'typecheck-instances' branch, but it leads
+      to awkward orphans, so I'm not sure I like it.
     . Then I can simplify Synth.Faust.Code.c_initialize.
     . That requires pushing Derive.resolve_pitch into Internal so Typecheck
       can use it, which in turn brings controls_at.
@@ -1023,11 +1025,6 @@ TASKS:
       read-only block or track.
     . Simplify scale implementation 'Why are scales so complicated'
     . Something better than ControlFunctions for randomized signals.
-      . I might be able to solve this if I can figure how to get literals in
-        Sig.Parser defaults to work.  If I coerce to Typecheck.Function
-        from signal or a val call, then I can replace with a val call.  The
-        problem is that the default then becomes a Function, which means it
-        loses ShowVal and hence documentation.
       . See NOTE [fix-control-functions]
     . Im
   Tests:
@@ -1281,6 +1278,156 @@ oriented signals
             signals later.
         / Add Flags.block_end, and use Negative when at block_end.
         . Can I replace ConstantPitch with this?
+
+ControlFunction:
+  . NOTE [fix-control-functions]
+  current thoughts:
+    . I want to unify controls (and pitches) such that I can ask for
+      a Typecheck.Function or a single value and all constants and signals are
+      accounted for.
+    . I might be able to solve this if I can figure how to get literals in
+      Sig.Parser defaults to work.  If I coerce to Typecheck.Function from
+      signal or a val call, then I can replace ControlFunction with a val
+      call.  The problem is that the default then becomes a Function, which
+      means it loses ShowVal and hence documentation.
+    . I still want to write e.g. a number literal for a default, so it should
+      coerce from that.
+    . How should it ideally be?
+      . It should be part of control signals.  They display as a center-line
+        plus the random range.  They can do math with other controls.  For
+        this, I need: signal is a line segment, plus optional below and above
+        segments.  Those are cosmetic, but are derived from the values used to
+        create the signal.  The actual value is an object that supports
+        'at :: RealTime -> Y', 'segments :: RealTime -> RealTime -> [Y]',
+        along with the ones in Perform.Signal for transformation.
+      . The implementation is Vector (Y, Y, Y), so it can sent to the UI
+        efficiently.  However, transformations to that could happen lazily,
+        since only some track signals are sent to the UI.  Then there's a
+        'Y -> Y', or maybe 'Derive.Dynamic -> RealTime -> Y -> Y', which is
+        used for 'at', and captures the randomization.  Actually I probably
+        can't use the real Derive.Dynamic because due to circular imports, I'd
+        have to put the Signal definition into Derive.Monad.  I could use
+        a reduced Dynamic, but then I'm back to reinventing DeriveM.  If
+        I really wanted to commit to that, I could make the various function
+        polymorphic on a function / lens to get the specific field, like
+        'zoom', but I think that's too much.
+      . The "error bars" are purely cosmetic, so I can add those later (or
+        not).  Then I change 'Monad.state_controls' to
+        'Map Control Signal', where ControlFunction is
+        (Vector Y, RealTime -> Deriver Y).  This is the like the current
+        design, except I make it hard to accidentally look at the wrong
+        control by putting the signal underneath.  That means they get
+        replaced together, but that actually may be inconvenient, because
+        I want to set the randomization (e.g. in global transform) before
+        I set the control (in a track).  So maybe the current design is
+        actually good.
+      . In that case, I can still try to make the implementation Deriver, but
+        the problem there is Val/Deriver.  What if I make Deriver a type
+        argument for Val, and the complete Val type is in Derive?  In that
+        case, a lot of things that depended on DeriveT now depend on
+        Derive.Monad, but I don't know how bad that would be.
+      . I think all these things are orthogonal to coerce/Typecheck.Function.
+      . If I wanted to have "error bars", I could ask ControlFunction for
+        (low, high) at each point, and if I had the graphics, even
+        a distribution for a gradient.  I could memoize it in two other
+        signals, if it's too inefficient.
+    coerce:
+      . Write Typecheck Function... I have it.  The issue is I can't use it
+        without defaulting via e.g. const 4.
+
+  control functions:
+    I'm unhappy with control functions in general - NOTE [fix-control-functions]
+      . More details in DeriveT NOTE [control-function]
+      . They duplicate Deriver but can't use it.
+      . They add another layer on top of controls that you have to take into
+        account manually.
+      . Also, depending on the pos means the signal is no longer a continuous
+        function, and can't be displayed as a line.
+      . Making calls all take Typecheck.Function was my attempt to abstract
+        that away, but I wound up giving up on that because then the default of
+        an optional arg would have to be a Function which is then unshowable.
+        To solve this I would have to make a total 'coerce' for Typecheck.
+      . Also, ControlFunctions are *not* functions, in that they don't
+        describe a continuous function like a Signal does.  This is especially
+        glaring if I do PitchFunction as the pitch equivalent of Function,
+        but then ControlFunction and PitchFunction are completely different
+        things.
+      . Well, they are functions in that each input has a consistent output,
+        so they can be represented by Typecheck.Function, they're just not
+        continuous functions.  They have the weird property that they never
+        become continuous, no matter how close you look.
+      uses:
+        . Randomization, with various ranges and distributions.
+        . Some CFs like cf-swing could just be another signal, I only do it as
+          a function for efficiency, which is due to my choice to make signals
+          fully sampled.
+        . A way to pass an interpolation function.  This is a disjoint use
+          since it doesn't need any of the DeriveT.Dynamic state and isn't
+          useful as a normal CF.
+    - Could use rank to modify dyn and emphasize or de-emphasize notes on
+      important beats.
+    . With 'real' and 'score' and the signal conversion functions, I gradually
+      rewrite more and more functions from Deriver to functions with a
+      TrackLang.Dynamic argument.  Also they're going to start to want an
+      exception, and why not logging too, and I'm right back to Deriver.
+    . Why can't I make ControlFunction into a Deriver?
+      ControlFunction moves to Deriver.Monad, so Val must also.
+      Now control function stuff must be exported from Deriver, not TrackLang
+      and Score.  But also Val can't be exported from TrackLang, and there are
+      tons of users for TrackLang.Val.  Maybe I can split TrackLang into a low
+      level version.  In fact I already have, everything Deriver uses
+      TrackLang for can come from DeriveT, except Typecheck.  Monad.val_call
+      must move to Lib.
+      . Environ, Pitch, and Val all move into Derive.  And Score.Event.
+        This is getting to be pretty much everything.
+      . Another option is to make Derivers polymorphic.  I can put the
+        fields in TrackLang.Dynamic in a typeclass.
+  ControlFunctions are still super confusing. NOTE [fix-control-functions]
+    . Yet another confusing thing is that they don't work for arbitrary
+      signals given to notes.  I think it would be better to override '' to
+      get e.g. %location as %location + rnd ...
+    . E.g.  '%strength=.5 | %strength=(cf-rnd ...)' means it looks like
+      %strength is .5, but it's actually not, and the only way to get rid of
+      the CF is %strength=_.
+    . Also the whole implementation is a mess.  Isn't there some other way to
+      randomize signals?
+    . I could pass a Quoted, and then control functions are val calls that
+      return Quoteds: (cf-rnd control 0 1)
+    . Then I want to be able to treat those as signals, or coerce them both
+      to the same thing.  Really that's a SignalFunction, or maybe just
+      RealTime -> Deriver Y.  So this turns into the problem of how to coerce
+      various types into SignalFunction, but not have to have an opaque
+      SignalFunction for all the defaults.
+    . I could have a Convert typeclass.  In fact maybe it would be cleaner to
+      split Typecheck and Convert?
+      Typecheck: Val -> Maybe a, Convert: a -> b
+      Convert would be: Int -> SignalFunction.
+    . I think this won't work because the intermediate 'a' will be
+      ambiguous.
+    . I can always have a Default class that is used only for Sig defaults,
+      and provides both ShowVal and the coercion.  It would mean I have to
+      duplicate everything in Typecheck, unless I use an overlapping
+      typeclass.  Or I could default to... what exactly?
+    . The problem with `Convert a b` is that 'a' needs a type annotation,
+      which would make signatures annoying to write.  Normally I don't need
+      them because they are the Typecheck val, which already needs to be
+      fixed.
+    . Or I could have defaults be either a Typecheck val, or
+      (Doc, Typecheck val), and then have an explicit constructor for Function
+      which promotes various types to (Doc, Function).
+    . I think this decouples the default type and the arg type... no it
+      doesn't, it's only if I want to take a Function.  So maybe I have a
+      constructor 'Typecheck.function :: Y -> DocFunction'
+    . Or, maybe I can have Sig functions take a 'WithDoc a', and there's a
+      'instance ShowVal a => ToWithDoc a', and an overlapping instance for
+      something already WithDoc, for non ShowVal instances.  Actually
+      I probably don't need this, put a method in Typecheck and leave it
+      default if ShowVal?
+
+    . The haskell side can have many types, whatever is most convenient.
+      But the tracklang side should have just a numeric type, where literals
+      and controls are the same.
+  . ControlFunction should be renamed, but to what?  ControlMod is taken.
 
 Util.Segment: linear: linear piecewise signal: signal-discontinuity:
   . Problems I'm trying to solve:
@@ -3061,6 +3208,7 @@ shakefile: build:
       - nix-shell: /run/current-system/sw/bin winds up in path before the
         buildInputs
         . Because I run zsh after bash setup and it changes the path around.
+    . https://github.com/dhall-lang/dhall-haskell/blob/master/nix/shared.nix
     propagate deps to the shakefile:
       - package paths for haddock
       . Env vars would be easier from nix, while Local/ShakeConfig.hs is
@@ -5605,44 +5753,6 @@ Derive:
     - continuous tempo warping for signals
       tempo: "2" -> "1", "2", cont: "2" -> "i, 1", should emit a bent line
 
-  control functions:
-    I'm unhappy with control functions in general - NOTE [fix-control-functions]
-      . More details in BaseTypes NOTE [control-function]
-      . They duplicate Deriver but can't use it
-      . they add another layer on top of controls that you have to take into
-        account manually.
-      . Also, depending on the pos means the signal is no longer a continuous
-        function, and can't be displayed as a line.
-      . Making calls all take Call.Function was my attempt to abstract that
-        away, but I wound up giving up on that because then the default of an
-        optional arg would have to be a Function which is then unshowable.
-        To solve this I would have to make a total 'coerce' for Typecheck.
-      uses:
-        . Randomization, with various ranges and distributions.
-        . Some CFs like cf-swing could just be another signal, I only do it as
-          a function for efficiency, which is due to my choice to make signals
-          fully sampled.
-        . A way to pass an interpolation function.  This is a disjoint use
-          since it doesn't need any of the BaseTypes.Dynamic state and isn't
-          useful as a normal CF.
-    - Could use rank to modify dyn and emphasize or de-emphasize notes on
-      important beats.
-    . With 'real' and 'score' and the signal conversion functions, I gradually
-      rewrite more and more functions from Deriver to functions with a
-      TrackLang.Dynamic argument.  Also they're going to start to want an
-      exception, and why not logging too, and I'm right back to Deriver.
-    . Why can't I make ControlFunction into a Deriver?
-      ControlFunction moves to Deriver.Monad, so Val must also.
-      Now control function stuff must be exported from Deriver, not TrackLang
-      and Score.  But also Val can't be exported from TrackLang, and there are
-      tons of users for TrackLang.Val.  Maybe I can split TrackLang into a low
-      level version.  In fact I already have, everything Deriver uses
-      TrackLang for can come from BaseTypes, except Typecheck.  Monad.val_call
-      must move to Lib.
-      . Environ, Pitch, and Val all move into Derive.  And Score.Event.
-        This is getting to be pretty much everything.
-      . Another option is to make Derivers polymorphic.  I can put the
-        fields in TrackLang.Dynamic in a typeclass.
 
 text score: tscore:
   . doc/dev_notes/text-score.md

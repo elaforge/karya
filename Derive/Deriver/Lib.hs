@@ -98,7 +98,6 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
-import qualified Util.CallStack as CallStack
 import qualified Util.Doc as Doc
 import qualified Util.Log as Log
 import qualified Util.Maps as Maps
