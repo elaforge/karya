@@ -19,7 +19,7 @@ import           Util.Test
 
 
 test_integrate = do
-    let f = first (map extract . concatMap flatten) . integrate
+    let f = second (map extract . concatMap flatten) . integrate
         integrate = Convert.integrate (lookup_attrs, Pitch.twelve) tracknums
         plak = Attrs.attr "plak"
         lookup_attrs = const $ Map.fromList [(plak, "plak")]
@@ -28,19 +28,19 @@ test_integrate = do
         extract (Convert.Track title events) =
             (title, map UiTest.extract_event events)
     equal (f [event (0, 1, "4c", [], inst)])
-        ([(">inst", [(0, 1, "")]), ("*", [(0, 0, "4c")])], [])
+        ([], [(">inst", [(0, 1, "")]), ("*", [(0, 0, "4c")])])
     -- No pitch track, has a control track.
     equal (f [no_pitch (0, 1, [("dyn", [(0, 0), (2, 1)])])])
-        ( [ (">inst", [(0, 1, "")])
+        ( []
+        , [ (">inst", [(0, 1, "")])
           , ("dyn", [(0, 0, "`0x`00"), (2, 0, "`0x`ff")])
           ]
-        , []
         )
     -- Attributes get mapped back to their call.
     let set = Score.modify_attributes . const
     equal (f [set plak (no_pitch (0, 1, []))])
-        ( [(">inst", [(0, 1, "plak")])]
-        , []
+        ( []
+        , [(">inst", [(0, 1, "plak")])]
         )
 
     -- Duplicate controls are suppressed.
@@ -48,20 +48,20 @@ test_integrate = do
             [ no_pitch (0, 1, [("dyn", [(0, 1), (1, 1), (2, 0)])])
             , no_pitch (3, 1, [("dyn", [(3, 0)])])
             ])
-        ( [ (">inst", [(0, 1, ""), (3, 1, "")])
+        ( []
+        , [ (">inst", [(0, 1, ""), (3, 1, "")])
           , ("dyn", [(0, 0, "`0x`ff"), (2, 0, "`0x`00")])
           ]
-        , []
         )
     -- But duplicate pitches are only suppressed when they're on the same note.
     equal (f
             [ pitches (0, 1, [(0, "4c"), (1, "4c"), (2, "4d")])
             , pitches (3, 1, [(3, "4d")])
             ])
-        ( [ (">inst", [(0, 1, ""), (3, 1, "")])
+        ( []
+        , [ (">inst", [(0, 1, ""), (3, 1, "")])
           , ("*", [(0, 0, "4c"), (2, 0, "4d"), (3, 0, "4d")])
           ]
-        , []
         )
     where
     no_pitch (start, dur, controls) =

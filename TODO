@@ -3356,10 +3356,16 @@ integrate: integration:
         go into the Score.event_text, which then goes into the integrated
         event text.
 
+    * integrate should put voices and attrs in track titles
+      Cmd.Integrate.Convert
+    - include attrs in integrate
+      . But I want to use zero-dur or 'm' for +mute.  Can I have the generator
+        put the intended integration in a field?
     - attrs that the instrument understands can turn into +attr calls, if
       they're not in the CallMap, e.g. save/test/wayang
-    - adding a +soft stroke means it gets both less dyn and +soft again, so
+    / adding a +soft stroke means it gets both less dyn and +soft again, so
       it's extra soft
+      . Now I omit the dyn track by default.
     - bug: can't delete a derived track, it just gets regenerated
     - bug: can't undo past a integrate create, it just creates a new one
       Maybe I could not record the integrate step?
@@ -3368,7 +3374,7 @@ integrate: integration:
     - Ensure cascading track integration works.
     - If integrate is committing changes to a track, can that bite me if
       a "canceled" derivation comes through?  Think about this later.
-    - quantization
+    / quantization
   generated parts:
     . The idea is that I write a part, e.g. for rambat.  Then a score
       integration creates several tracks in a separate block.  I can still see
@@ -5252,7 +5258,7 @@ Cmd:
       a bit of a hassle.
 
 Derive:
-  random::
+  random:
     . https://alexey.kuleshevi.ch/blog/2019/12/21/random-benchmarks/
     . randomR goes through Integer, so it's slow
     . I use mersenne-random-pure64, which is ok for speed, but not splittable.

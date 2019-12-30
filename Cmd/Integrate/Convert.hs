@@ -2,12 +2,12 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+-- | The 'convert' function and support.
 module Cmd.Integrate.Convert where
 import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
-import qualified Data.Tuple as Tuple
 
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
@@ -58,6 +58,8 @@ type Tracks = [(Track, [Track])]
 type Config = (LookupCall, Pitch.ScaleId)
 type LookupCall = ScoreT.Instrument -> Common.CallMap
 
+-- | Convert 'Score.Event's to 'Tracks'.  This involves splitting overlapping
+-- events into tracks, and trying to map low level notation back to high level.
 convert :: Cmd.M m => BlockId -> Stream.Stream Score.Event -> m Tracks
 convert source_block stream = do
     lookup_inst <- Cmd.get_lookup_instrument
@@ -66,7 +68,7 @@ convert source_block stream = do
     default_scale_id <- Perf.default_scale_id
     tracknums <- Map.fromList <$> Ui.tracknums_of source_block
     let (events, logs) = Stream.partition stream
-        (tracks, errs) = integrate (lookup_call, default_scale_id)
+        (errs, tracks) = integrate (lookup_call, default_scale_id)
             tracknums events
     mapM_ (Log.write . Log.add_prefix "integrate") logs
     -- If something failed to derive I shouldn't integrate that into the block.
@@ -80,10 +82,9 @@ convert source_block stream = do
 --
 -- TODO optionally quantize the ui events
 integrate :: Config -> Map TrackId TrackNum -> [Score.Event]
-    -> (Tracks, [Text])
-    -- ^ (tracks, errs)
+    -> ([Text], Tracks) -- ^ (errs, tracks)
 integrate config tracknums =
-    Tuple.swap . Either.partitionEithers . map (integrate_track config)
+    Either.partitionEithers . map (integrate_track config)
     . allocate_tracks tracknums
 
 -- | Allocate the events to separate tracks.
@@ -96,9 +97,11 @@ allocate_tracks tracknums = concatMap overlap . Seq.keyed_group_sort group_key
     -- order as the original.
     group_key :: Score.Event -> TrackKey
     group_key event =
-        (tracknum_of =<< track_of event, Score.event_instrument event,
-            PSignal.sig_scale_id (Score.event_pitch event),
-            event_voice event)
+        ( tracknum_of =<< track_of event
+        , Score.event_instrument event
+        , PSignal.sig_scale_id (Score.event_pitch event)
+        , event_voice event
+        )
     tracknum_of tid = Map.lookup tid tracknums
 
 -- | Split events into separate lists of non-overlapping events.
@@ -115,8 +118,8 @@ split_overlapping events = track : split_overlapping rest
         (overlapping, rest) =
             break ((>= Score.event_end event) . Score.event_start) events
 
-event_voice :: Score.Event -> Voice
-event_voice = fromMaybe 0 . Env.maybe_val EnvKey.voice . Score.event_environ
+event_voice :: Score.Event -> Maybe Voice
+event_voice = Env.maybe_val EnvKey.voice . Score.event_environ
 
 track_of :: Score.Event -> Maybe TrackId
 track_of = Seq.head . mapMaybe Stack.track_of . Stack.innermost
@@ -124,27 +127,32 @@ track_of = Seq.head . mapMaybe Stack.track_of . Stack.innermost
 
 -- | This determines how tracks are split when integration recreates track
 -- structure.
-type TrackKey = (Maybe TrackNum, ScoreT.Instrument, Pitch.ScaleId, Voice)
+type TrackKey = (Maybe TrackNum, ScoreT.Instrument, Pitch.ScaleId, Maybe Voice)
 type Voice = Int
 
 integrate_track :: Config -> (TrackKey, [Score.Event])
     -> Either Text (Track, [Track])
 integrate_track (lookup_call, default_scale_id)
-        ((_, inst, scale_id, _), events) = do
+        ((_, inst, scale_id, voice), events) = do
     pitch_track <- if no_pitch_signals events then return []
         else case pitch_events default_scale_id scale_id events of
             (track, []) -> return [track]
             (_, errs) -> Left $ Text.intercalate "; " errs
-    return (note_events inst (lookup_call inst) events,
-        pitch_track ++ control_events events)
+    return
+        ( note_events inst voice (lookup_call inst) events
+        , pitch_track ++ control_events events
+        )
 
 -- ** note
 
-note_events :: ScoreT.Instrument -> Common.CallMap -> [Score.Event]
-    -> Track
-note_events inst call_map events =
+note_events :: ScoreT.Instrument -> Maybe Voice -> Common.CallMap
+    -> [Score.Event] -> Track
+note_events inst voice call_map events =
     make_track note_title (map (note_event call_map) events)
-    where note_title = ParseTitle.instrument_to_title inst
+    where
+    note_title = ParseTitle.instrument_to_title inst <> case voice of
+        Nothing -> ""
+        Just v -> " | v=" <> ShowVal.show_val v
 
 note_event :: Common.CallMap -> Score.Event -> Event.Event
 note_event call_map event = ui_event (Score.event_stack event)

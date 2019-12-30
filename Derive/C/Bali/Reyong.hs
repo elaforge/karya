@@ -323,10 +323,11 @@ c_norot default_prepare =
                 orientation (Args.range args)
         sustain <- case sustain_params of
             Nothing -> return mempty
-            Just (initial_final, range) -> realize_positions
-                (realize_notes range orientation initial_final
-                    show_pitch Gangsa.Repeat note_dur)
-                voices norot_patterns pitch
+            Just (initial_final, range) ->
+                realize_positions
+                    (realize_notes range orientation initial_final
+                        show_pitch Gangsa.Repeat note_dur)
+                    voices norot_patterns pitch
         prepare <- case (,) <$> next_pitch <*> prepare_params of
             Nothing -> return Nothing
             Just (next, (initial_final, range)) -> Just <$> realize_positions
