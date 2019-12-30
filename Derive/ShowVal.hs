@@ -6,12 +6,14 @@
 -- It's similar to the opposite of 'Derive.Typecheck.Typecheck'.
 module Derive.ShowVal where
 import qualified Data.Ratio as Ratio
+import qualified Data.Set as Set
 import qualified Data.Text as Text
+
 import qualified Numeric
 
 import qualified Util.Doc as Doc
 import qualified Util.Num as Num
-import Global hiding (pretty)
+import           Global hiding (pretty)
 
 
 -- | Instances of ShowVal can be turned back into tracklang syntax.  Everything
@@ -47,6 +49,8 @@ doc = Doc.literal . show_val
 instance ShowVal a => ShowVal [a] where
     show_val [] = "(list)"
     show_val xs = "(list " <> Text.unwords (map show_val xs) <> ")"
+instance ShowVal a => ShowVal (Set a) where
+    show_val = show_val . Set.toList
 
 instance ShowVal Int where
     show_val = showt
@@ -59,7 +63,9 @@ instance ShowVal (Ratio.Ratio Int) where
         show_val (Ratio.numerator r) <> "/" <> show_val (Ratio.denominator r)
 
 instance ShowVal a => ShowVal (Maybe a) where
-    show_val Nothing = "Nothing"
+    -- This is a bit sketchy because while _ can mean Nothing, it actually
+    -- means use the default, which may not be Nothing.
+    show_val Nothing = "_"
     show_val (Just a) = show_val a
 
 instance (ShowVal a, ShowVal b) => ShowVal (Either a b) where

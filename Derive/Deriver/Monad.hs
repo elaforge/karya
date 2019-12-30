@@ -269,7 +269,7 @@ instance Pretty TypeErrorT where
         , case mb_received of
             Just received -> " but got " <> pretty (ValType.type_of received)
                 <> ": " <> pretty received
-            Nothing -> ""
+            Nothing -> " but got no value"
         , maybe "" show_derive_error derive_error
         ]
         where

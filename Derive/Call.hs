@@ -373,8 +373,7 @@ note = Eval.eval_one_call True $ Expr.call0 Symbols.null_note
 -- not if you don't want to be overridden by sub-tracks.  See 'placed_note'
 -- if you want to inherit the time, but not the rest.
 reapply_note :: Derive.NoteArgs -> Derive.NoteDeriver
-reapply_note args =
-    Eval.reapply_call (Args.context args) Symbols.null_note []
+reapply_note args = Eval.reapply_call (Args.context args) Symbols.null_note []
 
 -- | Override the pitch signal and generate a single note.
 pitched_note :: PSignal.Pitch -> Derive.NoteDeriver

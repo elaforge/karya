@@ -703,7 +703,7 @@ with_controls controls
 remove_controls :: [ScoreT.Control] -> Deriver a -> Deriver a
 remove_controls controls
     | null controls = id
-    | otherwise = Internal.local $ \state-> state
+    | otherwise = Internal.local $ \state -> state
         { state_controls = Maps.delete_keys controls (state_controls state)
         , state_control_functions =
             Maps.delete_keys controls (state_control_functions state)

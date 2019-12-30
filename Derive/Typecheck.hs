@@ -8,6 +8,7 @@ import qualified Data.Char as Char
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Ratio as Ratio
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified Util.Texts as Texts
@@ -280,6 +281,12 @@ instance Typecheck a => Typecheck [a] where
     from_val v = (:[]) <$> from_val v
     to_type _ = ValType.TList $ to_type (Proxy :: Proxy a)
 instance ToVal a => ToVal [a] where to_val = VList . map to_val
+
+instance (Typecheck a, Ord a) => Typecheck (Set a) where
+    from_val = fmap Set.fromList . from_val
+    to_type _ = ValType.TList $ to_type (Proxy :: Proxy a)
+instance ToVal a => ToVal (Set a) where
+    to_val = VList . map to_val . Set.toList
 
 instance Typecheck a => Typecheck (NonEmpty a) where
     from_val val = check NonEmpty.nonEmpty (from_val val)
