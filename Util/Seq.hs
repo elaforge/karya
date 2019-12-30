@@ -534,11 +534,8 @@ rotate xs = maybe [] (: rotate (map List.tail xs)) (mapM head xs)
 rotate2 :: [[a]] -> [[Maybe a]]
 rotate2 xs
     | all Maybe.isNothing heads = []
-    | otherwise = heads : rotate2 (map tl xs)
-    where
-    heads = map head xs
-    tl [] = []
-    tl (_:xs) = xs
+    | otherwise = heads : rotate2 (map (drop 1) xs)
+    where heads = map head xs
 
 
 -- ** extracting sublists

@@ -225,6 +225,9 @@ rename ns = do
         new_dir = FilePath.replaceFileName (FilePath.takeDirectory path)
             (untxt (Id.un_namespace ns))
 
+fix :: Cmd.M m => m [Text]
+fix = Ui.fix_state
+
 -- * load
 
 load_midi :: FilePath -> Cmd.CmdL BlockId
