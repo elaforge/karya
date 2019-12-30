@@ -5,13 +5,20 @@
 module Derive.C.Prelude.ControlFunction_test where
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-import Util.Test
-
-import qualified Ui.UiTest as UiTest
 import qualified Cmd.Ruler.Meter as Meter
+import qualified Derive.Call as Call
+import qualified Derive.Call.CallTest as CallTest
+import qualified Derive.Controls as Controls
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
-import Global
+import qualified Derive.ScoreT as ScoreT
+
+import qualified Perform.Signal as Signal
+import qualified Ui.UiTest as UiTest
+
+import           Global
+import           Util.Test
 
 
 test_cf_rnd = do
@@ -22,8 +29,27 @@ test_cf_rnd = do
     let (durs, logs) = run "(cf-rnd .5 1.5)" 5
     equal logs []
     check ("not the same: " <> pretty durs) $ not (all (== head durs) durs)
-    check ("in range 0.8--1.2: " <> pretty durs) $
-        all (Num.inRange 0.8 1.2) durs
+    check ("in range 0.5--1.5: " <> pretty durs) $
+        all (Num.inRange 0.5 1.5) durs
+    pprint durs
+
+test_cf_rnd_transformer = do
+    -- A transformer should create a function with random based on position.
+    let run notes = DeriveTest.extract extract $
+            DeriveTest.derive_tracks_setup trans "%c = (cf-rnd 1 2) | t"
+                [(">", [(n, 1, "") | n <- Seq.range' 0 notes 1])]
+        trans = CallTest.with_note_transformer "t" $ CallTest.transformer $
+            \_args deriver -> do
+                c_at <- Call.to_function $ DeriveT.LiteralControl "c"
+                fmap (set_dyn c_at) <$> deriver
+        set_dyn c_at event = Score.set_control Controls.dynamic
+            (ScoreT.untyped (Signal.constant (c_at (Score.event_start event))))
+            event
+        extract = Score.initial_dynamic
+    let (dyns, logs) = run 4
+    equal logs []
+    check ("not the same: " <> pretty dyns) $ not (all (== head dyns) dyns)
+    check ("in range 1--2: " <> pretty dyns) $ all (Num.inRange 1 2) dyns
 
 test_cf_swing = do
     let run marks amount tracks events = DeriveTest.extract Score.event_start $

@@ -85,7 +85,8 @@ c_cf_rnd combine = val_call "cf-rnd"
     ) $ \(low, high, distribution) _args -> return $!
         DeriveT.ControlFunction "cf-rnd" $ \control dyn pos ->
             ScoreT.untyped $ combine
-                (cf_rnd distribution low high (random_stream (dyn_seed dyn)))
+                (cf_rnd distribution low high
+                    (random_stream pos (dyn_seed dyn)))
                 (dyn_control dyn control pos)
 
 c_cf_rnd_around :: (Signal.Y -> Signal.Y -> Signal.Y) -> Derive.ValCall
@@ -102,7 +103,7 @@ c_cf_rnd_around combine = val_call "cf-rnd-a"
         DeriveT.ControlFunction "cf-rnd-a" $ \control dyn pos ->
             ScoreT.untyped $ combine
                 (cf_rnd distribution (center-range) (center+range)
-                    (random_stream (dyn_seed dyn)))
+                    (random_stream pos (dyn_seed dyn)))
                 (dyn_control dyn control pos)
 
 c_cf_rnd01 :: Derive.ValCall
@@ -121,9 +122,10 @@ cf_rnd dist low high rnds = Num.scale low high $ case dist of
         | otherwise -> v + 0.5
         where v = Call.make_normal 1 rnds
 
-random_stream :: Double -> [Double]
-random_stream =
+random_stream :: RealTime -> Double -> [Double]
+random_stream pos =
     List.unfoldr (Just . Pure64.randomDouble) . Pure64.pureMT . floor
+    . (+ RealTime.to_seconds pos)
 
 
 -- * cf-swing
