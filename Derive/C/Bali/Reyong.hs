@@ -715,7 +715,7 @@ hand_damp damped_insts dur_at =
         | Score.event_instrument event `Set.notMember` damped_insts = [event]
     infer_damp (event, Just next) | too_close event next = [event]
     infer_damp (event, _) = damp event
-    damp event = event : maybe [] (:[]) (set_damp 1 event)
+    damp event = [event, make_damp 0 1 event]
     too_close event next =
         (Score.event_start next - Score.event_end event)
             <= dur_at (Score.event_end event)
@@ -729,19 +729,24 @@ c_infer_damp = Derive.transformer module_ "infer-damp" Tags.postproc
     \ up.\
     \\nThe output is additional notes with `+mute` and zero duration at note\
     \ end.")
-    $ Sig.callt ((,)
+    $ Sig.callt ((,,)
         <$> Sig.required "insts" "Apply damping to these instruments."
         <*> Sig.defaulted "dur" (Sig.control "damp-dur" 0.15)
             "This is how fast the player is able to damp. A note is only damped\
             \ if there is a hand available which has this much time to move\
             \ into position for the damp stroke, and then move into position\
             \ for its next note afterwards."
-    ) $ \(insts, dur) _args deriver -> do
+        <*> Sig.defaulted "early" (Sig.control "early" 0.025)
+            "Damp this much before the next note, if it would be simultaneous\
+            \ with the next start."
+    ) $ \(insts, dur, early) _args deriver -> do
         dur <- Call.to_function dur
+        early <- Call.to_function early
         -- infer_damp preserves order, so Post.apply is safe.  TODO Is there a
         -- way to express this statically?
         Post.apply_m (Derive.run_logs
-            . infer_damp_voices (Set.fromList insts) (RealTime.seconds . dur))
+            . infer_damp_voices (Set.fromList insts) (RealTime.seconds . dur)
+                    (RealTime.seconds . early))
                 =<< deriver
 
 -- | Multiply this by 'Controls.dynamic' for the dynamic of +mute notes created
@@ -753,10 +758,10 @@ damp_control = "damp"
 -- note needs a free hand to damp.  That can be the same hand if the next note
 -- with that hand is a sufficiently long time from now, or the opposite hand if
 -- it is not too busy.
-infer_damp_voices :: Set ScoreT.Instrument -> (RealTime -> RealTime)
-    -- ^ duration required to damp
-    -> [Score.Event] -> Log.LogId [Score.Event]
-infer_damp_voices damped_insts dur_at events = do
+infer_damp_voices :: Set ScoreT.Instrument
+    -> (RealTime -> RealTime) -- ^ duration required to damp
+    -> (RealTime -> RealTime) -> [Score.Event] -> Log.LogId [Score.Event]
+infer_damp_voices damped_insts dur_at early_at events = do
     unless (null skipped) $
         Log.warn $ "skipped events without pitch: "
             <> Score.short_events skipped
@@ -766,30 +771,38 @@ infer_damp_voices damped_insts dur_at events = do
         . unzip . map infer1 . Seq.keyed_group_sort Post.voice_key $ events
     infer1 ((inst, _voice), events)
         | inst `Set.notMember` damped_insts = (events, [])
-        | otherwise = (,skipped) $ Seq.merge_on Score.event_start events
-            (mapMaybe (uncurry set_damp) (zip damps events))
-        where (damps, skipped) = infer_damp dur_at events
+        | otherwise = (,skipped) $ Seq.merge_on Score.event_start events $ do
+            (Just damp, (event, next)) <- zip damps (Seq.zip_next events)
+            -- Only apply early_at if this damp would be simultaneous with the
+            -- next one.
+            let early = case next of
+                    Just n | Score.event_end event >= Score.event_start n ->
+                        early_at (Score.event_start event)
+                    _ -> 0
+            return $ make_damp early damp event
+        where
+        (damps, skipped) = infer_damp dur_at events
 
--- | Possibly create a damped note at the end of the given note.
-set_damp :: Signal.Y -> Score.Event -> Maybe Score.Event
-set_damp damp_dyn event
-    | damp > 0 = Just $
-        Score.add_attributes Attrs.mute $ Score.set_dynamic damp $ event
-            { Score.event_start = Score.event_end event
-            , Score.event_duration = 0
-            }
-    | otherwise = Nothing
+-- | Create a damped note at the end of the given note.
+make_damp :: RealTime -> Signal.Y -> Score.Event -> Score.Event
+make_damp early damp_dyn event =
+    Score.add_attributes Attrs.mute $ Score.set_dynamic damp $ event
+        { Score.event_start = Score.event_end event - early
+        , Score.event_duration = 0
+        }
     where
     damp = damp_dyn * maybe 1 ScoreT.typed_val
         (Score.control_at (Score.event_end event) damp_control event)
 
 infer_damp :: (RealTime -> RealTime) -> [Score.Event]
-    -> ([Signal.Y], [Score.Event])
+    -> ([Maybe Signal.Y], [Score.Event])
+    -- ^ dump level for each event, or Nothing if undamped
 infer_damp dur_at =
     first (snd . List.mapAccumL infer (0, 0) . Seq.zip_nexts) . assign_hands
     where
     -- TODO also infer damp level
-    infer prev ((hand, event), nexts) = (hands_state, if damp then 1 else 0)
+    infer prev ((hand, event), nexts) =
+        (hands_state, if damp then Just 1 else Nothing)
         where
         damp = Score.has_attribute damped event
             || (could_damp event

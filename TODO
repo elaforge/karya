@@ -1281,6 +1281,21 @@ oriented signals
 
 ControlFunction:
   . NOTE [fix-control-functions]
+  examples:
+    . Sig.defaulted "dur" (Sig.control "damp-dur" 0.15) "doc"
+      . The arg then has Control.to_function called on it.
+      . I would like to say 'Sig.defaulted "dur" (const 0.15)' and get a
+        Typecheck.Function, which is defaulted from %call-damp.  If it infers
+        as, say RealTime, then it's still defaulted from %call-damp at the
+        start pos.
+      . This way all numeric values can be signals uniformly.
+      . Also I'd like to be able default RealTime functions or
+        TransposeFunctions, e.g. see (unused)
+        Typecheck.DefaultRealTimeFunction.
+      . Also I'd like to default with ControlFunctions, so I can put
+        randomization on it, without having to copy that into every score.
+      . Also I want duration function.  Actually maybe duration is the
+        default.  RealTime duration has to be converted.
   current thoughts:
     . I want to unify controls (and pitches) such that I can ask for
       a Typecheck.Function or a single value and all constants and signals are
@@ -2636,10 +2651,13 @@ synth: im:
         . Shouldn't thru obey the tuning?  It does, but I don't set tuning for
           reyong.  I guess I should!
       kilitan:
-        . I need to adjust +mute so they don't sound louder than open.
-        . often damping comes a bit before the next note
-        . mute notes need volume adjustment
+        * I need to adjust +mute so they don't sound louder than open.
+        - Often damping comes a bit before the next note
+          . Really though?  Or just that recording?  Would randomization cover
+            it?
+        * mute notes need volume adjustment
         . there are natural light accents, e.g. on beats
+        - Compare automatic version to tabuh telu version.
       Dynamic calibration:
         . Alternate reference sample with the testee, adjust testee until they
           sound the same.  Record the negated number as the offset.  Reaktor
@@ -5234,6 +5252,33 @@ Cmd:
       a bit of a hassle.
 
 Derive:
+  random::
+    . https://alexey.kuleshevi.ch/blog/2019/12/21/random-benchmarks/
+    . randomR goes through Integer, so it's slow
+    . I use mersenne-random-pure64, which is ok for speed, but not splittable.
+    . splitmix is fastest, but use Word64
+      https://hackage.haskell.org/package/splitmix
+      I don't use splitting, but it seems like I might.  It's unlikely that
+      random performance is significant for my use though.
+    . I don't use the Random typeclass though, so I don't go through Integer.
+    . Many distriutions at:
+      https://hackage.haskell.org/package/random-fu
+      https://hackage.haskell.org/package/statistics
+      This is probably all total overkill though, I just want something like
+      a normal distribution, but bounded and cheap to calculate.
+    fancier randomization
+      . How much a note differs depends on its neighbors, so it's not an even
+        distribution.  Use brownian noise, or a fractal subdivision scheme.
+        But it's also constrained in how far it can wander from the base
+        value.  Regardless, I think this means I need history, so it can't be
+        a stateless control function.
+      . Divide on instrument and hand, so each part gets its own individuality.
+      - randomization should be centered on a value, with variance as a signal,
+        so I can turn accuracy up or down.
+      - Randomness could have some hysteresis, so I can e.g. reduce omit chance,
+        but not get isolated notes.  At the extreme setting, it means it turns
+        on in a slightly random spot, but stays on after that.
+        . Is there a simpler way to get this effect?
   - A block with logical range called at time 0 gets messed up.
   idiom
     - In string-idiom, the end of the attack curve always coincides with the
@@ -5246,19 +5291,6 @@ Derive:
         var for a range on one track?
       . I can add a 'sekar-pattern = abc', but I need to repeat it whenever
         there is a gap.
-  fancier randomization
-    . How much a note differs depends on its neighbors, so it's not an even
-      distribution.  Use brownian noise, or a fractal subdivision scheme.  But
-      it's also constrained in how far it can wander from the base value.
-      Regardless, I think this means I need history, so it can't be
-      a stateless control function.
-    . Divide on instrument and hand, so each part gets its own individuality.
-    - randomization should be centered on a value, with variance as a signal,
-      so I can turn accuracy up or down.
-    - Randomness could have some hysteresis, so I can e.g. reduce omit chance,
-      but not get isolated notes.  At the extreme setting, it means it turns
-      on in a slightly random spot, but stays on after that.
-      . Is there a simpler way to get this effect?
   tracklang: TrackLang:
     - It seems there's no way to explicitly pass Nothing if the default is
       Just, because _ turns into set the default.

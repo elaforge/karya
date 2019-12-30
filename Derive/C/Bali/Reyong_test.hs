@@ -15,6 +15,7 @@ import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
+import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
@@ -32,10 +33,15 @@ title_cancel :: Text
 title_cancel = title <> " | cancel-kotekan 5"
 
 title_damp :: Double -> Text
-title_damp dur = title_cancel <> " | infer-damp i1 " <> showt dur
+title_damp dur = title_damp_all dur 0
+
+title_damp_all :: Double -> Double -> Text
+title_damp_all dur early =
+    title_cancel <> " | infer-damp i1 "
+        <> Text.unwords [ShowVal.show_val dur, ShowVal.show_val early]
 
 title_realize :: Text
-title_realize = title <> " | realize-reyong i1"
+title_realize = title <> " | infer-damp-early=0 | realize-reyong i1"
 
 test_articulation = do
     let run = e_voice 1 DeriveTest.e_start_note
@@ -224,6 +230,15 @@ test_c_infer_damp = do
         ([(0, "4i", '-'), (1, "4i", '-'), (2, "4i", '+')], [])
     equal (run [(0, 1, "4i")]) ([(0, "4i", '-'), (1, "4i", '+')], [])
 
+test_c_infer_damp_early = do
+    let run = DeriveTest.extract e_damped_event
+            . DeriveTest.derive_tracks (title_damp_all 1 0.5)
+            . UiTest.note_track
+    equal (run [(0, 1, "4i"), (1, 1, "4o")])
+        ([(0, "4i", '-'), (0.5, "4i", '+'), (1, "4o", '-'), (2, "4o", '+')], [])
+    equal (run [(0, 1, "4i"), (2, 1, "4i")])
+        ([(0, "4i", '-'), (1, "4i", '+'), (2, "4i", '-'), (3, "4i", '+')], [])
+
 test_c_infer_damp_ngoret = do
     let run = DeriveTest.extract e_damped_event
             . DeriveTest.derive_tracks title_realize
@@ -291,7 +306,8 @@ e_damp_dyn e
     | otherwise = Nothing
 
 test_infer_damp = do
-    let f dur = fst . Reyong.infer_damp (const dur) . mkevents
+    let f dur = map (fromMaybe 0) . fst . Reyong.infer_damp (const dur)
+            . mkevents
     -- Damp with the other hand.
     equal (f 1 [(0, "4c"), (1, "4d"), (2, "4e")]) [1, 1, 1]
     -- 4e can't be damped because both hands are busy.
