@@ -19,7 +19,7 @@ test_integrate_track = do
     let res = DeriveTest.derive_tracks_setup (with_damage [2]) ""
             [ ("c1", [(0, 0, ".5")])
             , ("c2", [(0, 0, ".75")])
-            , (">i2 | < (list dyn c1)", [(0, 1, "")])
+            , (">i2 | < (list c2)", [(0, 1, "")])
             , ("*", [(0, 0, "4c")])
             , (">i2", [(0, 2, "")]) -- appears in non-integrated output
             ]

@@ -91,12 +91,10 @@ c_track_integrate = Derive.transformer Module.prelude "track-integrate" mempty
     \ While an integrated block's output is likely to be playable, and\
     \ you can chose whether or not to play it, an integrated track\
     \ is part of a block, so it plays whether you want it or not."
-    ) $ Sig.callt ((,)
-        <$> Sig.defaulted "remove-controls" (Set.singleton Controls.dynamic)
-            "Remove these controls before evaluating the track."
-        <*> Sig.defaulted "keep-controls" Nothing
+    ) $ Sig.callt (
+        Sig.defaulted "keep-controls" Set.empty
             "If non-empty, remove all but these controls."
-    ) $ \(remove_controls, keep_controls) _args deriver -> do
+    ) $ \keep_controls _args deriver -> do
         stack <- Internal.get_stack
         case (frame_of Stack.block_of stack, frame_of Stack.track_of stack) of
             (Just block_id, Just track_id) -> do
@@ -117,15 +115,14 @@ c_track_integrate = Derive.transformer Module.prelude "track-integrate" mempty
                 -- damage.  But the track cache now serves this purpose, since
                 -- it intentionally doesn't retain 'Derive.collect_integrated'.
                 track_integrate block_id track_id $
-                    fmap (strip_event remove_controls keep_controls) events
+                    fmap (strip_event keep_controls) events
             _ -> return ()
         return Stream.empty
 
-strip_event :: Set ScoreT.Control -> Maybe (Set ScoreT.Control) -> Score.Event
-    -> Score.Event
-strip_event remove keep event = event
-    { Score.event_controls = maybe id (flip Map.restrictKeys) keep $
-        flip Map.withoutKeys remove $ Score.event_controls event
+strip_event :: Set ScoreT.Control -> Score.Event -> Score.Event
+strip_event keep event = event
+    { Score.event_controls = flip Map.restrictKeys keep $
+        Score.event_controls event
     }
 
 track_integrate :: BlockId -> TrackId -> Stream.Stream Score.Event
