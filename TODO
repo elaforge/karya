@@ -3356,13 +3356,20 @@ integrate: integration:
         go into the Score.event_text, which then goes into the integrated
         event text.
 
+    - track delete should get rid of integrate destinations
+      . Does that mean it will want to recreate them?
     * integrate should put voices and attrs in track titles
       Cmd.Integrate.Convert
     - include attrs in integrate
       . But I want to use zero-dur or 'm' for +mute.  Can I have the generator
         put the intended integration in a field?
-    - attrs that the instrument understands can turn into +attr calls, if
-      they're not in the CallMap, e.g. save/test/wayang
+      . I can, but it puts redundant +mute on zero-dur notes.
+      . Also, due to lack of dyn track, the mute is too loud.  Maybe map back
+        to 'm', which should already has dyn in it.
+    - reyong has extra notes
+      . They're uncancelled weak notes.  It took a long time to figure that
+        out.  I could put flags in as comments to help in the future.  Or
+        maybe get rid of the weak note thing for kotekan?
     / adding a +soft stroke means it gets both less dyn and +soft again, so
       it's extra soft
       . Now I omit the dyn track by default.

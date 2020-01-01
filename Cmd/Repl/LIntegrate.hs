@@ -18,6 +18,7 @@ import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Ui as Ui
 
+import           Global
 import           Types
 
 
@@ -89,7 +90,14 @@ sel_revert = do
 
 -- * inspect
 
-sel_edits :: Cmd.CmdL ([Event.IndexKey], [Merge.Edit])
+-- | Show the integration state in an abbreviated way.
+pretty :: Cmd.M m => m [(TrackId, (Block.Source, Text))]
+pretty = do
+    block <- Ui.get_block =<< Cmd.get_focused_block
+    return $ map (fmap (fmap Block.short_event_index)) $
+        Block.destination_to_source block
+
+sel_edits :: Cmd.M m => m ([Event.IndexKey], [Merge.Edit])
 sel_edits = do
     (block_id, _, track_id, _) <- Selection.get_insert
     edits block_id track_id

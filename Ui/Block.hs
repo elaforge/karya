@@ -9,7 +9,7 @@ module Ui.Block (
     , dest_track_ids, empty_destination
     , Source(..), destination_to_source
     , ManualDestinations, SourceKey
-    , EventIndex
+    , EventIndex, short_event_index
     , integrate_skeleton
     , block_tracklike_ids, block_track_ids, block_ruler_ids
     , block
@@ -224,6 +224,14 @@ empty_destination key note controls = NoteDestination
 -- integrated block.  By taking its difference against the current contents of
 -- the block I can figure out user edits.
 type EventIndex = Map Event.IndexKey Event.Event
+
+short_event_index :: EventIndex -> Text
+short_event_index index
+    | Map.null index = "((empty))"
+    | otherwise = "((" <> showt (Map.size index) <> " "
+        <> pretty (fst (Map.findMin index))
+        <> "--" <> pretty (fst (Map.findMax index))
+        <> "))"
 
 instance Pretty NoteDestination where
     format (NoteDestination key note controls) = Pretty.record "NoteDestination"
