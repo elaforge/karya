@@ -3358,14 +3358,19 @@ integrate: integration:
 
     - track delete should get rid of integrate destinations
       . Does that mean it will want to recreate them?
+      . Yes.  I guess I want to fix when I delete the source track, or block.
     * integrate should put voices and attrs in track titles
       Cmd.Integrate.Convert
-    - include attrs in integrate
+    * include attrs in integrate
       . But I want to use zero-dur or 'm' for +mute.  Can I have the generator
         put the intended integration in a field?
       . I can, but it puts redundant +mute on zero-dur notes.
       . Also, due to lack of dyn track, the mute is too loud.  Maybe map back
         to 'm', which should already has dyn in it.
+      . Actually, zero-dur has that meaning.  So make reyong emit zero-dur.
+      . Actualy zero-dur already means damping, so maybe +mute after all.  Or
+        put 'm' in the CallMap for +mute.
+      . But zero-dur for noltol is accurate, it shouldn't have +mute also.
     - reyong has extra notes
       . They're uncancelled weak notes.  It took a long time to figure that
         out.  I could put flags in as comments to help in the future.  Or

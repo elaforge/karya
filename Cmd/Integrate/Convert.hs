@@ -168,8 +168,15 @@ note_event :: Common.CallMap -> Score.Event -> Event.Event
 note_event call_map event = ui_event (Score.event_stack event)
     (RealTime.to_score (Score.event_start event))
     (RealTime.to_score (Score.event_duration event))
-    (Expr.unsym $
-        Map.findWithDefault "" (Score.event_attributes event) call_map)
+    (note_call call_map event)
+
+note_call :: Common.CallMap -> Score.Event -> Text
+note_call call_map event = case Map.lookup attrs call_map of
+    Nothing -> ""
+    Just sym -> Expr.unsym sym
+    where
+    attrs = Score.event_attributes event
+
 
 -- ** pitch
 

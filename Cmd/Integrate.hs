@@ -58,10 +58,6 @@ import qualified Data.Text as Text
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-import qualified Ui.Block as Block
-import qualified Ui.Ui as Ui
-import qualified Ui.Update as Update
-
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Integrate.Convert as Convert
@@ -69,8 +65,12 @@ import qualified Cmd.Integrate.Merge as Merge
 import qualified Cmd.Msg as Msg
 
 import qualified Derive.Derive as Derive
-import Global
-import Types
+import qualified Ui.Block as Block
+import qualified Ui.Ui as Ui
+import qualified Ui.Update as Update
+
+import           Global
+import           Types
 
 
 -- | Derive integrate takes the result of a derivation and merges it into

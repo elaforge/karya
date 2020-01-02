@@ -673,6 +673,9 @@ make_db synth_patches = fst $ Inst.db $ map make synth_patches
     where
     make (name, patches) = make_synth name (map MidiInst.make_patch patches)
 
+make_db1 :: MidiInst.Patch -> Cmd.InstrumentDb
+make_db1 patch = fst $ Inst.db [make_synth "s" [patch]]
+
 make_synth :: InstTypes.SynthName -> [MidiInst.Patch] -> MidiInst.Synth
 make_synth name patches = MidiInst.synth name "Test Synth" patches
 

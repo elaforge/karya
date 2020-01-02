@@ -362,8 +362,8 @@ reapply_generator_normalized args = reapply_generator $ args
 -- | Apply an expr with an explicit Context.  You can use this to reuse the
 -- current call's Context, but be careful because it will also inherit the
 -- 'Derive.ctx_sub_tracks', which means if inversion hasn't happened yet, which
--- may be what you or may be surprising.  For instance, it will likely override
--- any pitch you try to set.
+-- may be what you want or may be surprising.  For instance, it will likely
+-- override any pitch you try to set.
 reapply :: Derive.CallableExpr d => Derive.Context d -> DeriveT.Expr
     -> Derive.Deriver (Stream.Stream d)
 reapply = eval_expr True

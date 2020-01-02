@@ -70,11 +70,13 @@ import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Derive as Derive
+import qualified Derive.Expr as Expr
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackWarp as TrackWarp
 
@@ -1214,6 +1216,9 @@ set_status key val = do
 
 -- ** lookup instrument
 
+-- | This is an instrument as looked up by 'lookup_instrument' or
+-- 'get_lookup_instrument'.  This merges compiled-in and runtime instrument
+-- data.
 data ResolvedInstrument = ResolvedInstrument {
     inst_instrument :: !Inst
     , inst_qualified :: !InstTypes.Qualified
@@ -1236,6 +1241,8 @@ instance Pretty ResolvedInstrument where
             , ("backend", Pretty.format backend)
             ]
 
+-- | This merges the compiled-id 'Inst.Backend' and the per-score
+-- 'UiConfig.Backend'.
 data Backend = Midi !Midi.Patch.Patch !Midi.Patch.Config | Im !Im.Patch.Patch
     deriving (Show)
 
@@ -1289,16 +1296,22 @@ get_lookup_instrument = fmap (either (const Nothing) Just .) $
 
 -- | This memoizes instrument resolution in case you're going to do it a lot.
 -- 'resolve_instrument' has to merge some things so it's not exactly free.
+-- The spine-strict Map makes this less efficient for one-off lookups, but so
+-- far all uses are mapping the lookup across many events.
+--
+-- Of course, the memoization only works as long as the memo table persists,
+-- which should happen if you use 'get_lookup_instrument' and reuse the
+-- function it returns.
 state_lookup_instrument :: Ui.State -> State -> ScoreT.Instrument
     -> Either Text ResolvedInstrument
-state_lookup_instrument ui_state cmd_state =
-    \inst -> fromMaybe (Left $ "no alloc for " <> pretty inst) $
-        Map.lookup inst memo
+state_lookup_instrument ui_state cmd_state = \inst ->
+    fromMaybe (Left $ "no alloc for " <> pretty inst) $ Map.lookup inst memo
     where
     memo = resolve <$> (Ui.config#Ui.allocations_map #$ ui_state)
     resolve alloc = resolve_instrument db alloc
         where db = config_instrument_db (state_config cmd_state)
 
+-- | See 'ResolvedInstrument'.
 resolve_instrument :: InstrumentDb -> UiConfig.Allocation
     -> Either Text ResolvedInstrument
 resolve_instrument db alloc = do
@@ -1314,7 +1327,7 @@ resolve_instrument db alloc = do
         (inst_backend, alloc_backend) -> Left $
             "inconsistent backends: " <> pretty (inst_backend, alloc_backend)
     return $ ResolvedInstrument
-        { inst_instrument = inst
+        { inst_instrument = merge_call_map backend inst
         , inst_qualified = qualified
         , inst_common_config =
             merge_environ (Inst.inst_common inst) (UiConfig.alloc_config alloc)
@@ -1329,6 +1342,21 @@ resolve_instrument db alloc = do
         -> Common.Config
     merge_environ common =
         Common.cenviron %= Just . fromMaybe (Common.common_environ common)
+    -- Put the attrs the instrument understands in the CallMap as +attr calls.
+    -- If there isn't already a higher level call in there, then at least we
+    -- don't lose the attrs entirely.
+    merge_call_map backend =
+        Inst.common#Common.call_map %= (<> attr_calls (inst_attrs backend))
+    attr_calls attrs = Map.fromList
+        [ (attr, Expr.Symbol $ ShowVal.show_val attr)
+        | attr <- attrs, attr /= mempty
+        ]
+    inst_attrs = \case
+        Just (Midi patch _) ->
+            Common.mapped_attributes $ Midi.Patch.patch_attribute_map patch
+        Just (Im patch) ->
+            Common.mapped_attributes $ Im.Patch.patch_attribute_map patch
+        Nothing -> mempty
 
 -- ** lookup qualified name
 

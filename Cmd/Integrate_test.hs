@@ -6,7 +6,22 @@ module Cmd.Integrate_test where
 import qualified Data.List as List
 import qualified Data.Map as Map
 
-import Util.Test
+import qualified App.Config as Config
+import qualified Cmd.Cmd as Cmd
+import qualified Cmd.CmdTest as CmdTest
+import qualified Cmd.Create as Create
+import qualified Cmd.Instrument.MidiInst as MidiInst
+import qualified Cmd.Integrate as Integrate
+import qualified Cmd.Integrate.Convert as Convert
+import qualified Cmd.ResponderTest as ResponderTest
+
+import qualified Derive.Attrs as Attrs
+import qualified Derive.Derive as Derive
+import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Stack as Stack
+
+import qualified Instrument.Common as Common
+import qualified Perform.Midi.Patch as Patch
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
@@ -14,20 +29,9 @@ import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 
-import qualified Cmd.Cmd as Cmd
-import qualified Cmd.CmdTest as CmdTest
-import qualified Cmd.Create as Create
-import qualified Cmd.Integrate as Integrate
-import qualified Cmd.Integrate.Convert as Convert
-import qualified Cmd.ResponderTest as ResponderTest
-
-import qualified Derive.Derive as Derive
-import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.Stack as Stack
-
-import qualified App.Config as Config
-import Global
-import Types
+import           Global
+import           Types
+import           Util.Test
 
 
 -- * derive integration
@@ -86,6 +90,32 @@ test_block_integrate2 = do
     equal (pitch_track res) $ Just
         [ (0, 0, "4c"), (0.25, 0, "4d"), (0.5, 0, "4a"), (0.75, 0, "4f")
         , (1, 0, "4g")
+        ]
+
+test_block_integrate_call_map = do
+    let cmd_state = CmdTest.mk_cmd_state $ UiTest.make_db1 $
+            MidiInst.attribute_map #= Patch.single_keyswitches
+                [(Attrs.attr "attr2", 42)] $
+            MidiInst.common#Common.call_map #= Map.fromList
+                [ (Attrs.attr "attr1", "one")
+                ] $
+            MidiInst.make_patch $ Patch.patch (-2, 2) "1"
+    let states = second (const cmd_state) $ mkstates "<<"
+            ( "i1"
+            , [ (0, 1, "+attr1 -- 4c"), (1, 1, "+attr2 -- 4d")
+              , (2, 1, "+attr3 -- 4e")
+              ]
+            , []
+            )
+    res <- start states $ return ()
+    equal (e_tracks res)
+        [ ( "b1 -- <<"
+          , UiTest.inst_note_track1 "i1"
+            ["+attr1 -- 4c", "+attr2 -- 4d", "+attr3 -- 4e"]
+          )
+        , ( "b2"
+          , UiTest.inst_note_track1 "i1" ["one -- 4c", "+attr2 -- 4d", "4e"]
+          )
         ]
 
 test_track_integrate = do

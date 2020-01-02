@@ -231,14 +231,14 @@ thread_tracks tracks modify_cmd_state cmds =
     where (_, ustate) = UiTest.run_mkview tracks
 
 default_cmd_state :: Cmd.State
-default_cmd_state = (Cmd.initial_state cmd_config)
+default_cmd_state = mk_cmd_state UiTest.default_db
+
+mk_cmd_state :: Cmd.InstrumentDb -> Cmd.State
+mk_cmd_state db = (Cmd.initial_state (DeriveTest.cmd_config db))
     { Cmd.state_focused_view = Just UiTest.default_view_id
     , Cmd.state_edit = default_edit_state
     , Cmd.state_play = default_play_state
     }
-
-cmd_config :: Cmd.Config
-cmd_config = DeriveTest.cmd_config UiTest.default_db
 
 default_play_state :: Cmd.PlayState
 default_play_state =
