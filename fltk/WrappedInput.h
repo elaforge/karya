@@ -21,7 +21,7 @@
 // will return its new height and the parent should resize it appropriately.
 class WrappedInput : public Fl_Multiline_Input {
 public:
-    WrappedInput(int x, int y, int w, int h, bool strip);
+    WrappedInput(int x, int y, int w, int h, bool strip, int max_width);
     void resize(int x, int y, int w, int h) override;
     // Use this to set newline-free unwrapped text.
     void set_text(const char *text);
@@ -33,11 +33,15 @@ public:
         return last_text != value();
     }
     int text_height() const;
+    int suggested_width() const;
     int handle(int evt) override;
 private:
     bool wrap_text();
     // Strip spaces from the text on unfocus.
     const bool strip;
+    // Don't let suggested_width expand past this.  If 0, suggested_width()
+    // always returns w().
+    const int max_width;
     // Keep the previous text, to revert on escape.
     std::string last_text;
 };

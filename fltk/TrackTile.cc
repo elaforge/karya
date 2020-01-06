@@ -91,9 +91,7 @@ TrackTile::floating_open(int tracknum, ScoreTime pos, const char *text,
     ypos = std::max(0, std::min(h(), ypos));
     int xpos = tracks() == 0 ? x() : track_at(tracknum)->x();
     // The OS will make sure the window doesn't go off the right edge.
-    const int width = std::max(
-        int(Config::Block::floating_input_min_width),
-        tracks() == 0 ? 60 : track_at(tracknum)->w() - 3);
+    const int width = tracks() == 0 ? 60 : track_at(tracknum)->w() - 3;
 
     // +3 gets the input right below the trigger line of an event at this
     // position.
@@ -102,10 +100,11 @@ TrackTile::floating_open(int tracknum, ScoreTime pos, const char *text,
     int max_y = this->y() + this->h() - Config::font_size::input - 4;
     ypos = std::min(ypos, max_y);
     xpos += 2;
+    int max_w = window()->w() - xpos;
     this->floating_input = new FloatingInput(
         window()->x() + xpos, window()->y() + ypos,
         width, Config::Block::track_title_height,
-        window(), text, false);
+        window(), text, false, max_w);
     floating_input->callback(floating_input_done_cb, static_cast<void *>(this));
 
     int len = strlen(text);

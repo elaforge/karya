@@ -4,6 +4,7 @@
 
 #include <memory>
 #include <FL/Fl.H>
+#include <FL/Fl_draw.H>
 
 #include "MsgCollector.h"
 #include "config.h"
@@ -22,8 +23,9 @@ enum {
 };
 
 
-WrappedInput::WrappedInput(int x, int y, int w, int h, bool strip) :
-    Fl_Multiline_Input(x, y, w, h), strip(strip)
+WrappedInput::WrappedInput(int x, int y, int w, int h, bool strip,
+        int max_width) :
+    Fl_Multiline_Input(x, y, w, h), strip(strip), max_width(max_width)
 {
     color(FL_WHITE);
     textsize(Config::font_size::input);
@@ -80,6 +82,34 @@ WrappedInput::text_height() const
     }
     fl_font(Config::font, Config::font_size::input);
     return (newlines + 1) * fl_height() + vertical_padding;
+}
+
+
+int
+WrappedInput::suggested_width() const
+{
+    if (this->max_width == 0)
+        return w();
+    double width = 0;
+    const char *start = this->value();
+    const char *end = this->value();
+    fl_font(Config::font, Config::font_size::input);
+    // Measure the distance between each |.
+    for (;;) {
+        while (*end != '\0' && *end != '|')
+            end++;
+        if (*end == '|')
+            end++;
+        if (start == end)
+            break;
+        // DEBUG("max: " << max_width << " width: " <<
+        //     fl_width('m') + fl_width(start, end - start));
+        width = std::max(width, fl_width('m') + fl_width(start, end - start));
+        width = std::min(double(max_width), width);
+        start = end;
+    }
+    // measure width between |s
+    return std::max(w(), int(ceil(width)));
 }
 
 
@@ -186,7 +216,8 @@ WrappedInput::wrap_text()
 
     char *start_of_line = text;
     char *prev_space = nullptr;
-    int max_width = this->w() - horizontal_padding;
+    const int max_width =
+        std::max(this->w(), this->suggested_width()) - horizontal_padding;
 
     // DEBUG("wrap '" << text << "' " << (end - text) << " w " << max_width);
 

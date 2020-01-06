@@ -12,7 +12,7 @@
 class FloatingInput : public Fl_Double_Window {
 public:
     FloatingInput(int x, int y, int w, int h, Fl_Window *owner,
-        const char *text, bool strip);
+        const char *text, bool strip, int max_width);
     void cursor_position(int cursor, int mark) {
         input.position(cursor, mark);
     }

@@ -13,9 +13,9 @@
 
 
 FloatingInput::FloatingInput(int x, int y, int w, int h,
-        Fl_Window *owner, const char *text, bool strip)
+        Fl_Window *owner, const char *text, bool strip, int max_width)
     : Fl_Double_Window(x, y, w, h),
-        input(0, 0, w, h, strip), owner_(owner), ready(false)
+        input(0, 0, w, h, strip, max_width), owner_(owner), ready(false)
 {
     end();
     resizable(this);
@@ -24,7 +24,7 @@ FloatingInput::FloatingInput(int x, int y, int w, int h,
     when(0); // Only do the callback when I explicitly want it.
     if (text && *text)
         input.set_text(text);
-    size(w, input.text_height());
+    size(input.suggested_width(), input.text_height());
     show();
     // For some reason, the 'input' gets an extra focus / unfocus sequence
     // before the show().  Since I use unfocus to detect when editing is
@@ -46,9 +46,10 @@ FloatingInput::wrapped_input_cb_dispatch(Fl_Widget *_w, void *arg)
 void
 FloatingInput::wrapped_input_cb()
 {
+    int width = input.suggested_width();
     int height = input.text_height();
-    if (height != h()) {
-        size(w(), height);
+    if (width != w() || height != h()) {
+        size(width, height);
     }
     if (ready && &input != Fl::focus()) {
         do_callback();

@@ -29,6 +29,8 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  - Playing unsplit pasang instrument was confusing because no sound and no
+    error.  Notes with no instrument should warn.
   * Can I have a default movement for pitch set?
     . I could add a parameter, but I want it to only apply when it doesn't
       start a note.
@@ -3344,6 +3346,14 @@ integrate: integration:
         not carry over state from other notes.
       . But I think I don't really want to omit all redundant pitches, because
         I like to see them for notes which just happen to have the same pitch.
+      . It's because of the lack of cancel-kotekan, but now the norot prepare
+        is incorrect.
+    - deleting the '<' doesn't clear the destinations, and clearing them still
+      doesn't clear the red lines.  What makes those?
+      . From the destinations, but those don't get deleted unless explicitly.
+      . To delete explicitly, I would have to clear dests that don't appear in
+        the derive output.  But be careful about errors, maybe only clear if
+        there are no >Log.Warn msgs, or have some more explicit signal.
     * Can I omit or invert controls that correspond to the defaults?  I don't
       want to get the extra dyn track.  Maybe clear the controls before
       evaluating the track?
@@ -4458,6 +4468,10 @@ performance:
       can I make this more efficient?
 
 fltk:
+  * Track title should expand more.  Maybe make it dependent on the longest
+    word inside?
+    . It does some weird looking growing when a wrap || sequence expands, but
+      it's probably ok.
   - Floating input in the wrong place for negative events with multiple lines.
     . Because it assumes the text goes downwards.
     . Since haskell doesn't know how the text is wrapped, it can't know where

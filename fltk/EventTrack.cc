@@ -243,11 +243,12 @@ EventTrack::focus_title()
     if (floating_input)
         return;
     Fl_Window *w = window();
+    // position of the right edge of the window
+    int max_w = w->w() - title_input.x();
     this->floating_input = new FloatingInput(
         w->x() + title_input.x(), w->y() + title_input.y(),
-        std::max(int(Config::Block::floating_input_min_width), title_input.w()),
-        Config::Block::track_title_height,
-        window(), title_input.value(), true);
+        title_input.w(), Config::Block::track_title_height,
+        w, title_input.value(), true, max_w);
     floating_input->callback(floating_input_done_cb, static_cast<void *>(this));
     int len = strlen(title_input.value());
     floating_input->cursor_position(len, len);
