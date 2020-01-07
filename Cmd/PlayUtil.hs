@@ -349,7 +349,7 @@ make_midi_lookup lookup_inst = Convert.MidiLookup
     , lookup_control_defaults = \inst -> fromMaybe mempty $ do
         inst <- lookup_inst inst
         defaults <- case Cmd.inst_backend inst of
-            Just (Cmd.Midi _ config) -> Patch.config_control_defaults $
+            Cmd.Midi _ config -> Patch.config_control_defaults $
                 Patch.config_settings config
             _ -> Nothing
         return defaults

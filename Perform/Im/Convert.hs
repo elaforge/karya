@@ -71,7 +71,7 @@ convert :: BlockId -> (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> [Score.Event] -> [LEvent.LEvent Note.Note]
 convert block_id = ConvertUtil.convert $ \event resolved ->
     case Cmd.inst_backend resolved of
-        Just (Cmd.Im patch) -> convert_event block_id event patch patch_name
+        Cmd.Im patch -> convert_event block_id event patch patch_name
             where InstTypes.Qualified _ patch_name = Cmd.inst_qualified resolved
         _ -> []
 

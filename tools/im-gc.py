@@ -41,7 +41,7 @@ def main():
             remaining = ', remaining: ' + str(dir_size(default_root))
         else:
             remaining = ''
-        print('%s: %d insts, deleted %d files, total %.2fmb%s'
+        print('%s: %d insts, deleted %d files, freed %.2fmb%s'
             % (sys.argv[0], dir_count, file_count,
                 float(total_size) / 1024 / 1024, remaining))
 

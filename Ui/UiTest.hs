@@ -48,6 +48,7 @@ import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stack as Stack
 
 import qualified Perform.Midi.Patch as Patch
+import qualified Perform.Lilypond.Constants as Lilypond.Constants
 import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
 import qualified App.Config as Config
@@ -659,19 +660,18 @@ wdev_name = "wdev"
 -- * instrument db
 
 default_db :: Cmd.InstrumentDb
-default_db = make_db
-    [ ("s", map make_patch ["1", "2", "3"])
-    -- Lilypond.Constants.ly_synth
-    , ("ly", [make_patch "global"])
-    ]
+default_db = make_db [("s", map make_patch ["1", "2", "3"])]
 
 make_patch :: InstTypes.Name -> Patch.Patch
 make_patch name = Patch.patch (-2, 2) name
 
 make_db :: [(Text, [Patch.Patch])] -> Cmd.InstrumentDb
-make_db synth_patches = fst $ Inst.db $ map make synth_patches
+make_db synth_patches = fst $ Inst.db $ ly : map make synth_patches
     where
     make (name, patches) = make_synth name (map MidiInst.make_patch patches)
+    -- Always add ly-global, lilypond tests want it, and it doesn't hurt the
+    -- other ones.
+    ly = Lilypond.Constants.ly_synth Cmd.empty_code
 
 make_db1 :: MidiInst.Patch -> Cmd.InstrumentDb
 make_db1 patch = fst $ Inst.db [make_synth "s" [patch]]

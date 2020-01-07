@@ -29,7 +29,7 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
-  - Playing unsplit pasang instrument was confusing because no sound and no
+  * Playing unsplit pasang instrument was confusing because no sound and no
     error.  Notes with no instrument should warn.
   * Can I have a default movement for pitch set?
     . I could add a parameter, but I want it to only apply when it doesn't
@@ -3354,6 +3354,10 @@ integrate: integration:
       . To delete explicitly, I would have to clear dests that don't appear in
         the derive output.  But be careful about errors, maybe only clear if
         there are no >Log.Warn msgs, or have some more explicit signal.
+      . It's not so simple though, because I don't get perf_integrated when
+        there was no damage.  Ordinarily this is good!  I guess I would have
+        to emit something that means integration is still alive, but
+        unchanged.
     * Can I omit or invert controls that correspond to the defaults?  I don't
       want to get the extra dyn track.  Maybe clear the controls before
       evaluating the track?

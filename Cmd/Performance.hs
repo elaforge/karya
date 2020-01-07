@@ -262,6 +262,8 @@ evaluate_performance im_config lookup_inst wait send_status score_path
     send_status block_id Msg.Deriving
     -- I just force the logs here, and wait for a play to actually write them.
     ((), metric) <- Thread.timeAction $ return $! Msg.force_performance perf
+    forM_ (check_dummy lookup_inst (Msg.perf_events perf)) $ \event ->
+        Log.warn $ "note with dummy instrument: " <> Score.short_event event
     when (Thread.metricWall metric > 1) $
         Log.notice $ "derived " <> showt block_id <> " in "
             <> Thread.showMetric metric
@@ -293,6 +295,24 @@ evaluate_performance im_config lookup_inst wait send_status score_path
             Process.callProcess "tools/im-gc.py" [output_dir]
         send_status block_id $ Msg.ImStatus block_id Set.empty $
             Msg.ImComplete failed
+
+-- | Return events with a 'Inst.Dummy' backend.  These shouldn't have made it
+-- through to actual performance.
+check_dummy :: (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument)
+    -> Vector.Vector Score.Event -> [Score.Event]
+check_dummy lookup_inst = snd . Vector.foldl' go (Set.empty, [])
+    where
+    go (seen, warns) event
+        | Set.member inst seen = (seen, warns)
+        | otherwise =
+            ( Set.insert inst seen
+            , if is_dummy inst then event : warns else warns
+            )
+        where
+        inst = Score.event_instrument event
+    is_dummy inst = case Cmd.inst_backend <$> lookup_inst inst of
+        Just Cmd.Dummy -> True
+        _ -> False
 
 state_wants_waveform :: Ui.State -> TrackId -> Bool
 state_wants_waveform state track_id = maybe False Track.track_waveform $

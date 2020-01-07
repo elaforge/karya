@@ -138,7 +138,8 @@ import           Types
 -- * derive
 
 -- This should probably be in Internal, but can't due to a circular dependency
--- with 'real'.
+-- with 'real'.  TODO except not any more.  But Internal is lower level, so
+-- maybe it should have less stuff in it anyway?
 
 -- | Package up the results of a derivation.
 data Result = Result {

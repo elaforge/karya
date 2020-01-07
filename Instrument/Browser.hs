@@ -170,6 +170,7 @@ common_fields :: [Tag.Tag] -> Common.Common Cmd.InstrumentCode -> [(Text, Text)]
 common_fields tags common =
     [ ("Environ", if env == mempty then "" else pretty env)
     , ("Flags", Text.intercalate ", " $ map showt $ Set.toList flags)
+    , ("Call map", if Map.null call_map then "" else pretty call_map)
     -- code
     , ("Cmds", show_cmds code)
     , ("Note generators",
@@ -194,6 +195,7 @@ common_fields tags common =
         , common_environ = env
         , common_doc = Doc.Doc doc
         , common_flags = flags
+        , common_call_map = call_map
         } = common
 
 instrument_fields :: InstTypes.Name -> Patch.Patch -> [(Text, Text)]

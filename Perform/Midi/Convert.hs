@@ -65,7 +65,7 @@ convert :: RealTime -> MidiLookup
     -> [Score.Event] -> [LEvent.LEvent Types.Event]
 convert srate lookup = ConvertUtil.convert $ \event resolved ->
     case Cmd.inst_backend resolved of
-        Just (Cmd.Midi patch config) ->
+        Cmd.Midi patch config ->
             convert_event srate lookup event patch config
         _ -> []
 

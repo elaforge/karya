@@ -53,7 +53,7 @@ convert config = ConvertUtil.convert event1 lookup_inst . filter_instruments
             (Common.common Cmd.empty_code)
         , inst_qualified = InstTypes.Qualified "ly" "ly-fake-inst"
         , inst_common_config = Common.empty_config
-        , inst_backend = Nothing
+        , inst_backend = Cmd.Dummy
         }
     event1 event _resolved =
         convert_event (Types.config_quarter_duration config) event

@@ -1223,7 +1223,7 @@ data ResolvedInstrument = ResolvedInstrument {
     inst_instrument :: !Inst
     , inst_qualified :: !InstTypes.Qualified
     , inst_common_config :: !Common.Config
-    , inst_backend :: !(Maybe Backend)
+    , inst_backend :: !Backend
     } deriving (Show)
 
 inst_synth :: ResolvedInstrument -> InstTypes.SynthName
@@ -1243,16 +1243,20 @@ instance Pretty ResolvedInstrument where
 
 -- | This merges the compiled-id 'Inst.Backend' and the per-score
 -- 'UiConfig.Backend'.
-data Backend = Midi !Midi.Patch.Patch !Midi.Patch.Config | Im !Im.Patch.Patch
+data Backend =
+    Midi !Midi.Patch.Patch !Midi.Patch.Config
+    | Im !Im.Patch.Patch
+    | Dummy
     deriving (Show)
 
 instance Pretty Backend where
     format (Midi patch config) = Pretty.format (patch, config)
     format (Im patch) = Pretty.format patch
+    format Dummy = "Dummy"
 
 midi_instrument :: ResolvedInstrument -> Maybe (Patch.Patch, Patch.Config)
 midi_instrument inst = case inst_backend inst of
-    Just (Midi patch config) -> Just (patch, config)
+    Midi patch config -> Just (patch, config)
     _ -> Nothing
 
 get_midi_instrument :: (CallStack.Stack, M m) => ScoreT.Instrument
@@ -1267,7 +1271,8 @@ lookup_midi_config inst = justm (lookup_backend inst) $ \case
     _ -> return Nothing
 
 lookup_backend :: M m => ScoreT.Instrument -> m (Maybe Backend)
-lookup_backend inst = justm (lookup_instrument inst) (return . inst_backend)
+lookup_backend inst = justm (lookup_instrument inst) $
+    return . Just . inst_backend
 
 lookup_instrument :: M m => ScoreT.Instrument -> m (Maybe ResolvedInstrument)
 lookup_instrument inst = do
@@ -1320,9 +1325,15 @@ resolve_instrument db alloc = do
         inst_lookup qualified db
     backend <- case (Inst.inst_backend inst, UiConfig.alloc_backend alloc) of
         (Inst.Midi patch, UiConfig.Midi config) ->
-            return $ Just $ Midi patch (Patch.merge_defaults patch config)
-        (Inst.Im patch, UiConfig.Im) -> return $ Just (Im patch)
-        (_, UiConfig.Dummy) -> return Nothing
+            return $ Midi patch (Patch.merge_defaults patch config)
+        (Inst.Im patch, UiConfig.Im) -> return $ Im patch
+        (_, UiConfig.Dummy) -> return Dummy
+
+        -- TODO I'd like to do this instead, but unfortunately I use non-Dummy
+        -- dummy instruments like sc-pemade-pasang, for API convenience.  I
+        -- should fix that maybe.
+        -- (Inst.Dummy, UiConfig.Dummy) -> return Dummy
+
         -- 'UiConfig.verify_allocation' should have prevented this.
         (inst_backend, alloc_backend) -> Left $
             "inconsistent backends: " <> pretty (inst_backend, alloc_backend)
@@ -1352,11 +1363,11 @@ resolve_instrument db alloc = do
         | attr <- attrs, attr /= mempty
         ]
     inst_attrs = \case
-        Just (Midi patch _) ->
+        Midi patch _ ->
             Common.mapped_attributes $ Midi.Patch.patch_attribute_map patch
-        Just (Im patch) ->
+        Im patch ->
             Common.mapped_attributes $ Im.Patch.patch_attribute_map patch
-        Nothing -> mempty
+        Dummy -> mempty
 
 -- ** lookup qualified name
 
