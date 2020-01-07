@@ -377,18 +377,23 @@ start states action = last <$> until_complete states action
 
 -- | Keep on getting results until all derives complete.
 continue :: ResponderTest.Result -> IO ResponderTest.Result
-continue = fmap last . ResponderTest.continue_all 1
+continue = fmap last . ResponderTest.continue_all [] 1
 
 -- | Run another cmd on the state returned from a previous one.
 next :: ResponderTest.Result -> Cmd.CmdT IO a -> IO ResponderTest.Result
 next = start . ResponderTest.result_states
+
+next_without :: [BlockId] -> ResponderTest.Result -> Cmd.CmdT IO a
+    -> IO ResponderTest.Result
+next_without blocks_gone res = fmap last
+    . ResponderTest.respond_all blocks_gone 1 (ResponderTest.result_states res)
 
 nexts :: ResponderTest.Result -> Cmd.CmdT IO a -> IO [ResponderTest.Result]
 nexts = until_complete . ResponderTest.result_states
 
 until_complete :: ResponderTest.States -> Cmd.CmdT IO a
     -> IO [ResponderTest.Result]
-until_complete = ResponderTest.respond_all 1
+until_complete = ResponderTest.respond_all [] 1
 
 e_tracks :: ResponderTest.Result -> [UiTest.BlockSpec]
 e_tracks = UiTest.extract_blocks . ResponderTest.result_ui_state

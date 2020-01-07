@@ -59,4 +59,4 @@ test_respond = do
         ]
 
 respond :: ResponderTest.States -> Cmd.CmdT IO a -> IO [ResponderTest.Result]
-respond = ResponderTest.respond_all 2
+respond = ResponderTest.respond_all [] 2

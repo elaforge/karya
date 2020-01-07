@@ -171,23 +171,30 @@ get_perf chan = do
 --
 -- It's dangerous to look for a particular DeriveComplete because the order
 -- in which derive threads complete is non-deterministic.
-respond_all :: Thread.Seconds -> States -> Cmd.CmdT IO a -> IO [Result]
-respond_all timeout states cmd = do
+respond_all :: [BlockId] -- ^ subtract from the expected derivation set
+    -> Thread.Seconds -> States -> Cmd.CmdT IO a -> IO [Result]
+respond_all blocks_gone timeout states cmd = do
     putStrLn "---------- new cmd"
     result <- respond_cmd states cmd
-    (result:) <$> continue_all timeout result
+    (result:) <$> continue_all blocks_gone timeout result
 
-continue_all :: Thread.Seconds -> Result -> IO [Result]
-continue_all timeout prev_result = go Set.empty (result_states prev_result)
+-- | Like 'respond_all', continue until all expected derivations are seen.
+continue_all :: [BlockId] -- ^ subtract from the expected derivation set
+    -> Thread.Seconds -> Result -> IO [Result]
+continue_all blocks_gone timeout prev_result =
+    go Set.empty (result_states prev_result)
     where
     loopback = result_loopback prev_result
     expected_blocks = Performance.derive_blocks (result_ui_state prev_result)
+        `Set.difference` Set.fromList blocks_gone
     go complete_blocks states
         | complete_blocks == expected_blocks = return []
         | otherwise = do
             maybe_msg <- read_msg timeout loopback
-            Text.IO.putStrLn $ "ResponderTest.continue: "
-                <> maybe "timed out!" pretty maybe_msg
+            Text.IO.putStrLn $ "ResponderTest.continue: " <> case maybe_msg of
+                Nothing -> "timed out, waiting for " <> pretty expected_blocks
+                    <> ", only got " <> pretty complete_blocks
+                Just msg -> pretty msg
             case maybe_msg of
                 Nothing -> return []
                 Just msg -> do
