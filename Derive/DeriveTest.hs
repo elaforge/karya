@@ -465,7 +465,7 @@ im_allocs allocs =
 
 lookup_qualified :: Cmd.InstrumentDb -> InstTypes.Qualified
     -> Maybe Cmd.Inst
-lookup_qualified db qual = Cmd.inst_lookup qual db
+lookup_qualified db qual = Inst.lookup qual db
 
 with_allocations :: UiConfig.Allocations -> Setup
 with_allocations allocs = with_ui $ Ui.config#Ui.allocations %= (allocs <>)
@@ -550,7 +550,7 @@ default_convert_lookup =
 
 synths_lookup_qualified :: [MidiInst.Synth] -> InstTypes.Qualified
     -> Maybe Cmd.Inst
-synths_lookup_qualified synth = \qualified -> Cmd.inst_lookup qualified db
+synths_lookup_qualified synth = \qualified -> Inst.lookup qualified db
     where db = synths_to_db synth
 
 synths_to_convert_lookup :: UiConfig.Allocations -> [MidiInst.Synth] -> Lookup

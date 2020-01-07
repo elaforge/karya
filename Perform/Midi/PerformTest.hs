@@ -37,7 +37,7 @@ read_perf_events events = do
 
 lookup_patch :: Cmd.InstrumentDb -> InstTypes.Qualified -> Maybe Types.Patch
 lookup_patch db qualified = do
-    patch <- Inst.inst_midi =<< Cmd.inst_lookup qualified db
+    patch <- Inst.inst_midi =<< Inst.lookup qualified db
     let score_inst = ScoreT.Instrument (InstTypes.show_qualified qualified)
     return $ Types.patch_from_settings score_inst mempty patch
 

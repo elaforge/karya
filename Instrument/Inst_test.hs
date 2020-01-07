@@ -15,7 +15,7 @@ import Util.Test
 test_lookup = do
     let db = fst $ Inst.db [Kontakt.synth]
     let f synth name = Inst.inst_midi
-            =<< Inst.lookup Cmd.empty_code (InstTypes.Qualified synth name) db
+            =<< Inst.lookup (InstTypes.Qualified synth name) db
 
     let kontakt_inst name = Patch.patch Kontakt.pb_range name
     equal (Patch.patch_name <$> f "kontakt" "hang") $ Just "hang"

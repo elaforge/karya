@@ -126,10 +126,9 @@ synths (Db db) = Map.toList db
 lookup_synth :: InstTypes.SynthName -> Db code -> Maybe (Synth code)
 lookup_synth synth (Db db) = Map.lookup synth db
 
-lookup :: code -> InstTypes.Qualified -> Db code -> Maybe (Inst code)
-lookup empty_code q@(InstTypes.Qualified synth name) (Db db)
-    | q == InstTypes.dummy = Just $ Inst Dummy (Common.common empty_code)
-    | otherwise = Map.lookup name . synth_insts =<< Map.lookup synth db
+lookup :: InstTypes.Qualified -> Db code -> Maybe (Inst code)
+lookup (InstTypes.Qualified synth name) (Db db) =
+    Map.lookup name . synth_insts =<< Map.lookup synth db
 
 -- | Unchecked synth declaration.  'db' will check it for duplicates and other
 -- problems.  (name, doc, patches)
