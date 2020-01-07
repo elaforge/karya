@@ -108,7 +108,6 @@ WrappedInput::suggested_width() const
         width = std::min(double(max_width), width);
         start = end;
     }
-    // measure width between |s
     return std::max(w(), int(ceil(width)));
 }
 

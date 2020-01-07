@@ -21,7 +21,7 @@ report getProgress =
         Concurrent.threadDelay $ 1 * 10^6
         loop region
     format progress = Printf.printf
-        (banner "skip %03d / built %03d / todo %03d -- %.1fs")
+        (banner "skip % 3d / built % 3d / todo % 3d -- %.1fs")
         (Shake.countSkipped progress) (Shake.countBuilt progress)
         (Shake.countTodo progress) (fst (Shake.timeTodo progress))
         ++ if snd (Shake.timeTodo progress) == 0 then ""
