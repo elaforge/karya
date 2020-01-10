@@ -1321,8 +1321,12 @@ resolve_instrument :: InstrumentDb -> UiConfig.Allocation
     -> Either Text ResolvedInstrument
 resolve_instrument db alloc = do
     let qualified = UiConfig.alloc_qualified alloc
-    inst <- justErr ("patch not in db: " <> pretty qualified) $
-        Inst.lookup qualified db
+    inst <- case (Inst.lookup qualified db, UiConfig.alloc_backend alloc) of
+        (Just inst, _) -> Right inst
+        -- Dummy instruments don't need a db entry.
+        (Nothing, UiConfig.Dummy) ->
+            Right $ Inst.Inst Inst.Dummy (Common.common empty_code)
+        (Nothing, _) -> Left $ "patch not in db: " <> pretty qualified
     backend <- case (Inst.inst_backend inst, UiConfig.alloc_backend alloc) of
         (Inst.Midi patch, UiConfig.Midi config) ->
             return $ Midi patch (Patch.merge_defaults patch config)
