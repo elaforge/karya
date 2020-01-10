@@ -346,7 +346,8 @@ UNSORTED
     would help.
   - what if I added a 'default-interpolator' argument so Control.c_set and
     Pitch.c_set could make curves by default?
-
+    . '*PITCH = xyz' does this for pitch calls, but this is a special
+      behaviour for Derive.val_to_pitch, and wouldn't work for controls.
   - pnovla @pno1 32.25t mordent broken, probably too much note overlap
   - generic deriving Monoid?
     . Probably not hard with generics-sop, but what about stories of
@@ -3385,6 +3386,8 @@ integrate: integration:
       . Actualy zero-dur already means damping, so maybe +mute after all.  Or
         put 'm' in the CallMap for +mute.
       . But zero-dur for noltol is accurate, it shouldn't have +mute also.
+      . I can't use zero-dur from postproc because then it doesn't mute when
+        not integrated, because it's a copy, not an eval.
     - reyong has extra notes
       . They're uncancelled weak notes.  It took a long time to figure that
         out.  I could put flags in as comments to help in the future.  Or

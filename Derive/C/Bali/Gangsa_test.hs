@@ -511,7 +511,8 @@ e_digit = pitch_digit . DeriveTest.e_pitch
 
 e_digit_mute :: Score.Event -> Text
 e_digit_mute e = pitch_digit (DeriveTest.e_pitch e)
-    <> if Score.has_attribute Attrs.mute e then "+" else ""
+    <> if Score.event_duration e == 0 then "+" else ""
+    -- Bali instruments should interpret a zero-dur note as a muted stroke.
 
 -- | Count pitches starting from 4c=1.
 pitch_digit :: Text -> Text

@@ -1223,29 +1223,38 @@ c_realize_noltol = Derive.transformer module_ "realize-noltol"
 
 realize_noltol_call :: Stream.Stream Score.Event -> Derive.NoteDeriver
 realize_noltol_call =
-    Post.emap_asc_m_ fst realize . Post.next_by Score.event_instrument
+    Post.emap_s_ fst realize . Post.next_by Score.event_instrument
     where
     realize (event, next) = do
         (event, maybe_arg) <- Derive.require_right id $
             Score.take_arg noltol_arg event
-        return $ case maybe_arg of
-            Nothing -> [event]
+        case maybe_arg of
+            Nothing -> return $ Stream.from_event event
             Just arg -> realize_noltol arg event next
 
 -- | If the next note of the same instrument is below a threshold, the note's
 -- off time is replaced with a +mute.
-realize_noltol :: NoltolArg -> Score.Event -> Maybe Score.Event -> [Score.Event]
-realize_noltol (threshold, max_dur, damp_dyn) event next
-    | should_noltol threshold max_dur next = [event, muted]
-    | otherwise = [event]
+realize_noltol :: NoltolArg -> Score.Event -> Maybe Score.Event
+    -> Derive.NoteDeriver
+realize_noltol (threshold, max_dur, damp_dyn) event next =
+    return (Stream.from_event event) <> muted
     where
-    -- TODO reapply a note with dur 0 to create the mute
-    muted = Score.add_attributes Attrs.mute $
-        Score.modify_dynamic (*damp_dyn) $ Score.duration (const 0) $
-        Score.move (+ Score.event_duration event) $ Score.copy event
-    should_noltol threshold max_dur maybe_next =
+    muted
+        | should_noltol = do
+            start <- Derive.score (Score.event_end event)
+            pitch <- Derive.require "no pitch" $
+                Score.pitch_at (Score.event_start event) event
+            -- I used to copy the note and apply +mute, but this is low level
+            -- and wouldn't take the instrument's zero-dur config.  Also it
+            -- meant that integration would come out with +mute.
+            Derive.with_instrument (Score.event_instrument event) $
+                Call.with_pitch pitch $
+                Call.multiply_dynamic damp_dyn $
+                Derive.place start 0 Call.note
+        | otherwise = mempty
+    should_noltol =
         Score.event_duration event RealTime.<= max_dur
-        && maybe True ((>= threshold) . space) maybe_next
+        && maybe True ((>= threshold) . space) next
     space next = Score.event_start next - Score.event_end event
 
 -- ** cancel-pasang

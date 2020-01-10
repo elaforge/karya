@@ -191,6 +191,16 @@ emap_asc_m_ :: (a -> Score.Event) -> (a -> Derive.Deriver [Score.Event])
 emap_asc_m_ event_of f =
     fmap snd <$> emap_asc_m event_of (\() e -> (,) () <$> f e) ()
 
+-- | Postprocess each event with a NoteDeriver.  This is necessary if you need
+-- to generate more notes, e.g. with 'Call.note'.
+emap_s_ :: (a -> Score.Event) -> (a -> Derive.NoteDeriver) -> Stream a
+    -> Derive.NoteDeriver
+emap_s_ event_of f = concatMapM go . Stream.to_list
+    where
+    go (LEvent.Log log) = return $ Stream.from_logs [log]
+    go (LEvent.Event a) = fromMaybe mempty <$>
+        Derive.with_event (event_of a) (f a)
+
 -- * only
 
 -- | Only process the events that match, otherwise pass unchanged.
