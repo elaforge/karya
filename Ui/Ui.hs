@@ -642,6 +642,10 @@ destroy_block block_id = do
             in c { config_root = if config_root c == Just block_id
                 then Nothing else config_root c }
         }
+    blocks <- gets (Map.toList . state_blocks)
+    -- Remove integration destinations of any blocks that were generated from
+    -- this one.
+    mapM_ (uncurry fix_integrated_block) blocks
 
 block_of :: M m => ViewId -> m Block.Block
 block_of view_id = get_block . Block.view_block =<< get_view view_id
@@ -900,6 +904,9 @@ remove_track block_id tracknum = do
         }
     unsafe_modify $ \st ->
         st { state_views = Map.union views (state_views st) }
+    -- Clear any orphaned integration destinations.
+    fix_integrated_tracks block_id =<< get_block block_id
+    return ()
 
 -- | Move a track from one tracknum to another.
 move_track :: M m => BlockId -> TrackNum -> TrackNum -> m ()
@@ -1699,21 +1706,28 @@ fix_merged block_id (tracknum, track) = do
 
 -- | Drop block_integrated if the source BlockId doesn't exist, and strip out
 -- TrackDestinations whose TrackIds aren't in this block.
+-- 'Event.clear_integration' on any events that no longer have a source.
 fix_integrated_block :: M m => BlockId -> Block.Block -> m [Text]
 fix_integrated_block block_id block = do
     blocks <- gets state_blocks
-    let (integrated, errs) = fix blocks (Block.block_integrated block)
+    let (source_gone, integrated, errs) =
+            fix blocks (Block.block_integrated block)
     unless (null errs) $
         modify_block block_id $ \block -> block
             { Block.block_integrated = integrated }
+    when source_gone $
+        mapM_ clear_integration (Block.block_track_ids block)
     return errs
     where
     track_ids = Block.block_track_ids block
-    fix _ Nothing = (Nothing, [])
+    fix _ Nothing = (False, Nothing, [])
     fix blocks (Just (source_id, dests)) = case Map.lookup source_id blocks of
         Nothing ->
-            (Nothing, ["removed invalid integrated block: " <> showt source_id])
-        Just source -> (Just (source_id, valid), errs)
+            ( True
+            , Nothing
+            , ["removed invalid integrated block: " <> showt source_id]
+            )
+        Just source -> (False, Just (source_id, valid), errs)
             where
             (valid, errs) = fix_track_destinations
                 ("block of " <> showt source_id)
@@ -1721,17 +1735,24 @@ fix_integrated_block block_id block = do
 
 -- | Drop integrated tracks whose source TrackId isn't in this block, and
 -- TrackDestinations whose TrackIds aren't in this block.
+-- 'Event.clear_integration' on any events that no longer have a source.
 --
 -- TODO
 -- - No TrackIds duplicated between DeriveDestinations.
 -- - No TrackIds duplicated across integrated tracks.
 fix_integrated_tracks :: M m => BlockId -> Block.Block -> m [Text]
 fix_integrated_tracks block_id block = do
-    let (dests, errs) = bimap Maybe.catMaybes concat $ unzip $ map fix
-            (Block.block_integrated_tracks block)
-    unless (null errs) $
+    let gone = concat
+            [ Block.dest_track_ids dests
+            | (track_id, dests) <- Block.block_integrated_tracks block
+            , track_id `notElem` track_ids
+            ]
+    let (dests, errs) = bimap Maybe.catMaybes concat $ unzip $
+            map fix (Block.block_integrated_tracks block)
+    unless (null errs) $ do
         modify_block block_id $ \block -> block
             { Block.block_integrated_tracks = dests }
+        mapM_ clear_integration gone
     return errs
     where
     track_ids = Block.block_track_ids block
@@ -1748,7 +1769,7 @@ fix_track_destinations :: Text -> [TrackId] -> [TrackId]
 fix_track_destinations err_msg source_track_ids track_ids d = case d of
     Block.DeriveDestinations dests ->
         ( Block.DeriveDestinations valid
-        , errs (map Block.dest_track_ids invalid)
+        , errs (map Block.note_dest_track_ids invalid)
         )
         where (valid, invalid) = List.partition derive_valid dests
     Block.ScoreDestinations dests ->
@@ -1759,9 +1780,13 @@ fix_track_destinations err_msg source_track_ids track_ids d = case d of
         <> ": track destination has track ids not in the right block: "
         <> pretty dest | dest <- invalid]
     score_track_ids (source_id, (dest_id, _)) = (source_id, dest_id)
-    derive_valid = all (`elem` track_ids) . Block.dest_track_ids
+    derive_valid = all (`elem` track_ids) . Block.note_dest_track_ids
     score_valid (source_id, (dest_id, _index)) =
         source_id `elem` source_track_ids && dest_id `elem` track_ids
+
+clear_integration :: M m => TrackId -> m ()
+clear_integration track_id = modify_events track_id $
+    Events.map_events Event.clear_integration
 
 block_event_tracknums :: Block.Block -> [(TrackNum, TrackId)]
 block_event_tracknums block =

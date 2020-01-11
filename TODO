@@ -3335,6 +3335,8 @@ incremental save: git:
 integrate: integration:
   - LIntegrate.edits only works for Block.block_integrated
   score integrate:
+    - adding a control track below doesn't integrate properly
+      . See commented out part of Merge_test.test_score_integrate
     - cascading score integrates
       . Is there really a use for this, other than consistency?
       . Yes, I want to do this for generated parts.
@@ -3371,7 +3373,7 @@ integrate: integration:
         go into the Score.event_text, which then goes into the integrated
         event text.
 
-    - track delete should get rid of integrate destinations
+    * track delete should get rid of integrate destinations
       . Does that mean it will want to recreate them?
       . Yes.  I guess I want to fix when I delete the source track, or block.
     * integrate should put voices and attrs in track titles
@@ -3398,7 +3400,7 @@ integrate: integration:
     - bug: can't delete a derived track, it just gets regenerated
     - bug: can't undo past a integrate create, it just creates a new one
       Maybe I could not record the integrate step?
-    - bug: create tracks, remove <, re-add <, does it work?
+    / bug: create tracks, remove <, re-add <, does it work?
       Removing < should break the integrate links.
     - Ensure cascading track integration works.
     - If integrate is committing changes to a track, can that bite me if

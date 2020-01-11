@@ -6,7 +6,7 @@ module Ui.Block (
     -- * Block
     Block(..)
     , Meta, TrackDestinations(..), ScoreDestinations, NoteDestination(..)
-    , dest_track_ids, empty_destination
+    , dest_track_ids, note_dest_track_ids, empty_destination
     , Source(..), destination_to_source
     , ManualDestinations, SourceKey
     , EventIndex, short_event_index
@@ -166,6 +166,10 @@ data TrackDestinations =
     | ScoreDestinations !ScoreDestinations
     deriving (Eq, Show, Read)
 
+dest_track_ids :: TrackDestinations -> [TrackId]
+dest_track_ids (DeriveDestinations dests) = concatMap note_dest_track_ids dests
+dest_track_ids (ScoreDestinations dests) = map (fst . snd) dests
+
 {- | Score derivation creates destination tracks 1:1 with their source tracks,
     so I can key them with their source TrackIds.
 
@@ -208,8 +212,8 @@ data NoteDestination = NoteDestination {
     , dest_controls :: !(Map Text (TrackId, EventIndex))
     } deriving (Eq, Show, Read)
 
-dest_track_ids :: NoteDestination -> [TrackId]
-dest_track_ids (NoteDestination _ note controls) =
+note_dest_track_ids :: NoteDestination -> [TrackId]
+note_dest_track_ids (NoteDestination _ note controls) =
     fst note : map fst (Map.elems controls)
 
 -- | Create an empty destination for the first integration.

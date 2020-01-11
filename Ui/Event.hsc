@@ -25,6 +25,7 @@ module Ui.Event (
     -- * types
     Event
     , Stack(..), IndexKey, event
+    , clear_integration
     -- * access
     , start, duration, text, style, stack
     , start_, duration_, text_, style_, stack_, end_
@@ -128,6 +129,10 @@ event start dur text = Event
     , _style = Config.default_style
     , _stack = Nothing
     }
+
+-- | Recreate the event without the integrated-from metadata.
+clear_integration :: Event -> Event
+clear_integration e = event (start e) (duration e) (text e)
 
 -- * access
 
