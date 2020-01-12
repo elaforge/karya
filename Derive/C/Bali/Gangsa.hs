@@ -531,8 +531,9 @@ prepare_sustain has_prepare note_dur (maybe_initial, final) orient
     prepare_dur = note_dur * 3
     prepare_dur1 = note_dur * 4
 
--- | Prepare for the next pitch if this note touches the next one.
 infer_prepare :: Derive.PassedArgs a -> Maybe Bool
+    -- ^ True to prepare, False to not, Nothing to prepare if this note touches
+    -- the next one.
     -> Derive.Deriver (Maybe PSignal.Pitch)
 infer_prepare _ (Just False) = return Nothing
 infer_prepare args (Just True) = Args.lookup_next_pitch args

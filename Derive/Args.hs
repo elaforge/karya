@@ -9,13 +9,8 @@ import qualified Data.Map as Map
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-import qualified Ui.Event as Event
-import qualified Ui.Events as Events
-import qualified Ui.Track as Track
-import qualified Ui.Types as Types
-
 import qualified Derive.Derive as Derive
-import Derive.Derive (PassedArgs, Context)
+import           Derive.Derive (Context, PassedArgs)
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Eval as Eval
@@ -26,9 +21,16 @@ import qualified Derive.Score as Score
 import qualified Derive.Stream as Stream
 
 import qualified Perform.Pitch as Pitch
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
-import Global
-import Types
+
+import qualified Ui.Event as Event
+import qualified Ui.Events as Events
+import qualified Ui.Track as Track
+import qualified Ui.Types as Types
+
+import           Global
+import           Types
 
 
 context :: PassedArgs a -> Context a
@@ -124,24 +126,22 @@ prev_note = do
 
 -- | Pitch at the time of the next event in this track.
 lookup_next_pitch :: PassedArgs a -> Derive.Deriver (Maybe PSignal.Pitch)
-lookup_next_pitch =
-    maybe (return Nothing) (lookup_pitch_at <=< Derive.real) . next_start
+lookup_next_pitch = maybe (return Nothing) lookup_pitch_at . next_start
 
 lookup_prev_pitch :: PassedArgs a -> Derive.Deriver (Maybe PSignal.Pitch)
-lookup_prev_pitch =
-    maybe (return Nothing) (lookup_pitch_at <=< Derive.real) . prev_start
+lookup_prev_pitch = maybe (return Nothing) lookup_pitch_at . prev_start
 
 -- | Pitch at the time of the next note event of this track's
 -- 'Derive.state_note_track'.
 lookup_next_note_pitch :: ScoreTime -> Derive.Deriver (Maybe PSignal.Pitch)
 lookup_next_note_pitch start =
     justm (note_after start <$> get_note_events) $
-    lookup_pitch_at <=< Derive.real . Event.start
+    lookup_pitch_at . Event.start
 
 lookup_prev_note_pitch :: ScoreTime -> Derive.Deriver (Maybe PSignal.Pitch)
 lookup_prev_note_pitch start =
     justm (note_before start <$> get_note_events) $
-    lookup_pitch_at <=< Derive.real . Event.start
+    lookup_pitch_at . Event.start
 
 note_before :: TrackTime -> Events.Events -> Maybe Event.Event
 note_before p = Events.last . fst . Events.split_exclude p
@@ -160,20 +160,24 @@ get_note_events = do
 -- As documented by 'Derive.state_pitch_map', the pitch map is unset while
 -- evaluating the pitch map, so pitch calls that use this shouldn't be
 -- surprised if it's Nothing.
-lookup_pitch_at :: RealTime -> Derive.Deriver (Maybe PSignal.Pitch)
+lookup_pitch_at :: TrackTime -> Derive.Deriver (Maybe PSignal.Pitch)
 lookup_pitch_at pos = justm (Internal.get_dynamic Derive.state_pitch_map) $
     \(maybe_sig, logs) -> do
         mapM_ (Log.write . Log.add_prefix ("lookup_pitch_at " <> pretty pos)) $
             filter ((>=Log.Warn) . Log.msg_priority) logs
-        return $ PSignal.at pos =<< maybe_sig
+        -- PSignal is actually in TrackTime, see 'Derive.state_pitch_map'.
+        return $ PSignal.at (RealTime.from_score pos) =<< maybe_sig
 
 -- | Like 'lookup_pitch_at', except for parsed pitches.  Normally you'd pass
 -- 'Derive.Call.get_pitch_functions' to make a 'Pitch.Pitch'.
-lookup_parsed_pitch_at :: (Pitch.Note -> Maybe a) -> RealTime
+lookup_parsed_pitch_at :: (Pitch.Note -> Maybe a) -> TrackTime
     -> Derive.Deriver (Maybe a)
 lookup_parsed_pitch_at parse_pitch pos =
     justm (lookup_pitch_at pos) $ \pitch -> do
-        note <- Pitches.pitch_note =<< Derive.resolve_pitch pos pitch
+        rpos <- Derive.real pos
+        -- TODO transposes may be out of sync because state_pitch_map is in
+        -- TrackTime.
+        note <- Pitches.pitch_note =<< Derive.resolve_pitch rpos pitch
         Just <$> Derive.require "unparseable pitch" (parse_pitch note)
 
 -- ** eval
@@ -194,9 +198,9 @@ eval ctx event prev = case Parse.parse_expr (Event.text event) of
             , Derive.ctx_event_end = Event.start $ Derive.ctx_event ctx
             }
 
--- | Get the pitch at the time of the next event.  Since the pitch hasn't
--- been evaluated yet, it has to be evaluated here.  So if it depends on the
--- previous pitch, you won't get a pitch back.
+-- | Get the pitch at the time of the next event, when evaluating a pitch
+-- track.  Since the pitch hasn't been evaluated yet, it has to be evaluated
+-- here.  So if it depends on the previous pitch, you won't get a pitch back.
 --
 -- Actually, the pitch likely *has* been evaluated, I just can't get at it
 -- here.  If it's uninverted then I have the whole pitch track, and if it's

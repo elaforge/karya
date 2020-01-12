@@ -5735,6 +5735,25 @@ Derive:
           attr to +loose-mute or +tight-mute to explicitly configure.
         - kbd entry for /, X, O, + etc.?
         kilitan: norot:
+          * prepare is wrong for integration
+            . Internal.in_real_time messes up next pitch via
+              Gangsa.infer_prepare -> Args.lookup_next_pitch
+            . Because next pitch position becomes 1s, but the pitch map still
+              has it at 1.53s.
+            . Comes from Derive.state_pitch_map, because it's evaluated in
+              tempo.
+            . I need to either reset state_pitch_map when the tempo changes,
+              or use another method for next pitch.
+            . Args.eval_next_pitch doesn't work because I'm in the note track,
+              and it's for the pitch track.
+            . It might be more efficient to have state_pitch_map be a
+              Map ScoreTime Pitch, or [(ScoreTime, Pitch)], so I only evaluate
+              the pitches I need to, instead of all of them the first time
+              there is a next pitch.
+            . Also, Args.lookup_next_pitch should be next pitch segment, which
+              is distinct from Args.next_note_pitch.
+            . Or, how about derive the state_pitch_map in real time, and then
+              address it with TrackTime?
           . How to do norot for real?
             . Each voice is semi-independent, and may have different
               preparation patterns and times.  But then sometimes they

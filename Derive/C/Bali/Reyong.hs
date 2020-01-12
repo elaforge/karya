@@ -330,10 +330,11 @@ c_norot default_prepare =
                     voices norot_patterns pitch
         prepare <- case (,) <$> next_pitch <*> prepare_params of
             Nothing -> return Nothing
-            Just (next, (initial_final, range)) -> Just <$> realize_positions
-                (realize_notes range orientation initial_final
-                    show_pitch Gangsa.Once note_dur)
-                voices norot_prepare_patterns next
+            Just (next, (initial_final, range)) ->
+                Just <$> realize_positions
+                    (realize_notes range orientation initial_final
+                        show_pitch Gangsa.Once note_dur)
+                    voices norot_prepare_patterns next
         maybe sustain (sustain<>) prepare
 
 realize_positions :: ((Voice, note) -> Derive.NoteDeriver)
@@ -463,10 +464,9 @@ infer_prepare :: Derive.PassedArgs a -> Maybe Bool
     -> Derive.Deriver (Maybe Pitch.Pitch)
 infer_prepare args prepare = do
     (parse_pitch, _, _) <- Call.get_pitch_functions
-    justm (Gangsa.infer_prepare args prepare) $ \_ -> do
-        maybe (return Nothing)
-            (Args.lookup_parsed_pitch_at parse_pitch <=< Derive.real) $
-                Args.next_start args
+    justm (Gangsa.infer_prepare args prepare) $ \_ ->
+        maybe (return Nothing) (Args.lookup_parsed_pitch_at parse_pitch)
+            (Args.next_start args)
 
 -- * articulation
 

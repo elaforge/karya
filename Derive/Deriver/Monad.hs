@@ -530,6 +530,10 @@ data Dynamic = Dynamic {
         pitches.  It's lazily evaluated so there's no extra derivation if you
         don't need it.
 
+        The PSignal is in TrackTime, not RealTime.  This is because the call
+        may run in an altered Warp (e.g. integrate runs Internal.in_real_time)
+        which would render the PSignal times inaccurate.
+
         This is cleared when evaluating for itself, so there's no recursion.
         This means given two "next pitch"es in a row, they will both get
         Nothing.  Then on real evaluation, the 2nd will get the next pitch, but
@@ -609,9 +613,7 @@ initial_dynamic environ = Dynamic
 -- somehow retains the previous derivation, and then the previous, and so on.
 -- This makes each derivation leak more space.
 strip_dynamic :: Dynamic -> Dynamic
-strip_dynamic dyn = dyn
-    { state_pitch_map = Nothing
-    }
+strip_dynamic dyn = dyn { state_pitch_map = Nothing }
 
 -- | Initial control environment.
 initial_controls :: DeriveT.ControlMap

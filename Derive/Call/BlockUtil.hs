@@ -265,11 +265,11 @@ derive_pitch_map state pitch_track = case result of
             { Derive.state_pitch_map = Nothing }
         }
     derive pitch_track = do
-        (events, logs) <- Stream.partition <$>
-            Control.d_control_track config pitch_track capture
+        (events, logs) <- Stream.partition <$> Internal.in_real_time
+            (Control.d_control_track config pitch_track capture)
         mapM_ Log.write logs
         Derive.require "get_pitch_map: no event" $
-            Score.event_pitch <$> (Seq.head events)
+            Score.event_pitch <$> Seq.head events
     config = Control.Config
         { config_toplevel_tempo = False
         , config_use_cache = False
