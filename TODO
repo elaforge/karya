@@ -3390,7 +3390,7 @@ integrate: integration:
       . But zero-dur for noltol is accurate, it shouldn't have +mute also.
       . I can't use zero-dur from postproc because then it doesn't mute when
         not integrated, because it's a copy, not an eval.
-    - reyong has extra notes
+    * reyong has extra notes
       . They're uncancelled weak notes.  It took a long time to figure that
         out.  I could put flags in as comments to help in the future.  Or
         maybe get rid of the weak note thing for kotekan?

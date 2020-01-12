@@ -19,6 +19,7 @@ import qualified Data.Text as Text
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+import qualified Util.Texts as Texts
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
@@ -171,11 +172,14 @@ note_event call_map event = ui_event (Score.event_stack event)
     (note_call call_map event)
 
 note_call :: Common.CallMap -> Score.Event -> Text
-note_call call_map event = case Map.lookup attrs call_map of
-    Nothing -> ""
-    Just sym -> Expr.unsym sym
+note_call call_map event = Texts.join2
+    (maybe "" Expr.unsym (Map.lookup attrs call_map))
+    -- Append flags to help with debugging.  The presence of a flag probably
+    -- means some postproc step wasn't applied.
+    (if flags == mempty then "" else " -- " <> pretty flags)
     where
     attrs = Score.event_attributes event
+    flags = Score.event_flags event
 
 
 -- ** pitch
