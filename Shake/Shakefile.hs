@@ -9,6 +9,7 @@
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ViewPatterns #-}
 -- | Shakefile for seq and associated binaries.
@@ -984,14 +985,26 @@ matchPrefix prefixes pattern fn =
         Just rest -> pattern ?== dropWhile (=='/') rest
 
 dispatch :: (Mode -> Config) -> [String] -> Shake.Rules ()
-dispatch modeConfig targets = do
-    handled <- mapM hardcoded targets
-    Shake.want [target | (False, target) <- zip handled targets]
+dispatch modeConfig targets
+    | null targets = error $ "no mk targets, valid targets are:\n" <> unlines
+        [ "- any target in build/{debug,opt,test,profile}/xyz"
+        , "- tests-xyz where xyz is a RunTests-xyz target"
+        , "- one of: " <> unwords (Map.keys specialTargets)
+        ]
+    | otherwise = do
+        handled <- mapM hardcoded targets
+        Shake.want [target | (False, target) <- zip handled targets]
     where
     allBinaries = map hsName hsBinaries ++ map C.binName ccBinaries
-    hardcoded target = case target of
+    hardcoded target
+        | Just run <- Map.lookup target specialTargets = run
+        | Just tests <- dropPrefix "tests-" target = action $ do
+            need [runTestsTarget (Just tests)]
+            Util.system "tools/run_tests" [runTestsTarget (Just tests)]
+        | otherwise = return False
+    specialTargets = Map.fromList
         -- I should probably run this in keepGoing mode, -k.
-        "validate" -> action $ do
+        [ ("validate",) $ action $ do
             -- Unfortunately, verify_performance is the only binary in
             -- opt, which causes most of the opt tree to build.  I could build
             -- a debug one, but debug deriving is really slow.
@@ -1000,44 +1013,41 @@ dispatch modeConfig targets = do
             allTests
             Util.shell $ opt "verify_performance --out=build/verify\
                 \ save/complete/*"
-        "verify" -> action $ do
+        , ("verify",) $ action $ do
             let opt = (modeToDir Opt </>)
             need [opt "verify_performance"]
             Util.shell $ opt "verify_performance --out=build/verify\
                 \ save/complete/*"
         -- Compile everything, like validate but when I don't want to test.
-        "typecheck" -> action $ needEverything []
+        , ("typecheck",) $ action $ needEverything []
         -- Like typecheck, but compile everything as Test, which speeds things
         -- up a lot.  This is for running on CI, so also omit things I know
         -- won't build there.
-        "typecheck-ci" -> action needEverythingCI
-        "binaries" -> do
+        , ("typecheck-ci",) $ action needEverythingCI
+        , ("binaries",) $ do
             Shake.want $ map (modeToDir Opt </>) allBinaries
             return True
-        "clean" -> action $ do
+        , ("clean",) $ action $ do
             -- The shake database will remain because shake creates it after the
             -- shakefile runs, but that's probably ok.
             Util.system "rm" ["-rf", build]
             Util.system "mkdir" [build]
-        "doc" -> action $ makeAllDocumentation modeConfig
-        "haddock" -> action $ makeHaddock modeConfig
-        "hlint" -> action $ hlint (modeConfig Debug)
-        "md" -> action $ need . map docToHtml =<< getMarkdown
-        "profile" -> action $ do
+        , ("doc",) $ action $ makeAllDocumentation modeConfig
+        , ("haddock",) $ action $ makeHaddock modeConfig
+        , ("hlint",) $ action $ hlint (modeConfig Debug)
+        , ("md",) $ action $ need . map docToHtml =<< getMarkdown
+        , ("profile",) $ action $ do
             need [runProfile]
             let with_scc = "-fprof-auto-top"
                     `elem` hcFlags (configFlags (modeConfig Profile))
             Util.system "tools/summarize_profile.py"
                 [if with_scc then "scc" else "no-scc"]
-        "show-debug" -> action $ liftIO $ PPrint.pprint (modeConfig Debug)
-        "show-opt" -> action $ liftIO $ PPrint.pprint (modeConfig Opt)
-        "tests" -> action allTests
+        , ("show-debug",) $ action $ liftIO $ PPrint.pprint (modeConfig Debug)
+        , ("show-opt",) $ action $ liftIO $ PPrint.pprint (modeConfig Opt)
+        , ("tests",) $ action allTests
         -- Run tests with no tags.
-        "tests-normal" -> action $ fastTests
-        (dropPrefix "tests-" -> Just tests) -> action $ do
-            need [runTestsTarget (Just tests)]
-            Util.system "tools/run_tests" [runTestsTarget (Just tests)]
-        _ -> return False
+        , ("tests-normal",) $ action fastTests
+        ]
     action act = Shake.action act >> return True
     runTestsTarget tests = runTests ++ maybe "" ('-':) tests
     needEverything more = do

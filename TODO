@@ -1826,6 +1826,11 @@ instruments:
           . What other differences are there?  gcc vs clang maybe...  but no,
             I crash as long as I link to nix arpack.  Of course nix arpack might
             have been compiled with gcc?
+      . I think it worked as soon as I used brew arpack.
+      . This is alarming though:
+        post-installation fixup
+          patching script interpreter paths in /nix/store/sjy5zlnl0pgbzyniwsbrz398hf11xz74-mkl-2019.3.199
+          error: install_name_tool: changing install names or rpaths can't be redone for: /nix/store/sjy5zlnl0pgbzyniwsbrz398hf11xz74-mkl-2019.3.199/lib/libmkl_cdft_core.dylib (for architecture x86_64) because larger updated load commands do not fit (the program must be relinked, and you may need to use -headerpad or -headerpad_max_install_names)
   zynsubaddfx:
     . The old binaries don't have VST.  The new ones do, but the UI seems
       buggy, most UI elements don't respond to the mouse.
@@ -2655,7 +2660,7 @@ synth: im:
           reyong.  I guess I should!
       kilitan:
         * I need to adjust +mute so they don't sound louder than open.
-        - Often damping comes a bit before the next note
+        * Often damping comes a bit before the next note
           . Really though?  Or just that recording?  Would randomization cover
             it?
         * mute notes need volume adjustment
@@ -3135,7 +3140,7 @@ synth: im:
       - const on inputs:
         compute(int count, const FAUSTFLOAT** input, FAUSTFLOAT** output)
         . Same deal, might break subclasses.
-      - Have a way to save and restore state.  E.g. stick instance variables in
+      * Have a way to save and restore state.  E.g. stick instance variables in
         a bytestring.
         . I think the way to do this is put state variables in a struct inside
           the class.  Then update all variable references to state.x.
@@ -3215,7 +3220,7 @@ synth: im:
       waveguides" paper.
 
 shakefile: build:
-  / shakefile does nothing with no arg, it should complain
+  * shakefile does nothing with no arg, it should complain
   / shakefile -v should print version, it doesn't
     . because it prints at Normal, and I'm at Quiet.
     . To avoid shake's internal output, '# ...' lines
@@ -3394,6 +3399,8 @@ integrate: integration:
       . They're uncancelled weak notes.  It took a long time to figure that
         out.  I could put flags in as comments to help in the future.  Or
         maybe get rid of the weak note thing for kotekan?
+      . This is easy to do but noisy.  It's ok to have {final} left over.
+        Maybe I could have a debugging mode for integrate?
     / adding a +soft stroke means it gets both less dyn and +soft again, so
       it's extra soft
       . Now I omit the dyn track by default.
@@ -4497,13 +4504,21 @@ fltk:
       OpenGL, and that way I don't have to play with getting event ranges,
       I can just scan the whole range on every draw.
     . Other libraries for 2d rendering:
-      . cairo, skia, webrender, https://blend2d.com/
-      . fltk already has cairo support, try Fl_Cairo demo
-      . Skia is a 2d library, like cairo, and it has a OpenGL backend.
-        I guess it provides fancier features on top.  But if I don't need
-        those features, then I should just use OpenGL directly.
-      . On the other hand, if OS X wants to deprecate OpenGL... but then if my
-        needs are simple, can I just write a Metal backend?
+      cairo:
+        . fltk already has cairo support, try Fl_Cairo demo
+      skia
+        . Skia is a 2d library, like cairo, and it has a OpenGL backend.
+          I guess it provides fancier features on top.  But if I don't need
+          those features, then I should just use OpenGL directly.
+        . On the other hand, if OS X wants to deprecate OpenGL... but then if my
+          needs are simple, can I just write a Metal backend?
+      webrender
+      https://blend2d.com/
+        No support for fonts?
+    . Also it gets really chunky when it's busy rendering.  I guess because it
+      has to do callbacks.  I should send over all the event data at once, and
+      drawing and scrolling shouldn't require callbacks.
+    . How to benchmark slow scrolling?
   - Maybe I could ship over a chunk of playback data in advance, and let the
     UI interpolate playback cursors.
     . If I could keep the warp as linear segments then I just need to ship the
@@ -5759,17 +5774,23 @@ Derive:
               preparation patterns and times.  But then sometimes they
               coordinate.
             . Variations are random, but frequency is controlled by
-              "kewayahan".
+              "kawayahan".
           variants:
             - controlled by variant control
             - omit notes
+              . Especailly emit downbeats.
+            - possible mute or not for first two prepare notes
+            - invert two notes, especially on downbeat or prepare.
+              This only happens on the upper note.
             - hardcoded variants, e.g. p1 on dong
             - Delayed note, e.g. on ding, oiioioi
             - Pickup can be iioi style, but parts that don't have the pitch
               often play the normal kilitan, or a passing tone.
+            . I might be able to do all of these by hardcoding variant
+              fragments, unless I get permutations.
           above speed threshold:
-            - omit notes
-            - Entirely different fast patterns.
+            - omit more notes
+            - Entirely different fast patterns, but what exactly?
           - Also I want to be able to control the dyn.  There should be
             a single control for +mute dyn.  Actually I already have that
             if I multiply %damp, right?  Still, explicit +mute notes and
