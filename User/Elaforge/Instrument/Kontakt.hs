@@ -192,6 +192,16 @@ sonic_couture =
     [ patch "ebow"
         [(1, "harm"), (21, Controls.lpf), (22, Controls.q), (23, Controls.hpf)]
     , guzheng
+    , MidiInst.pressure $ MidiInst.nn_range (NN.cs4, NN.fs6) $
+        patch "sheng" [(1, Controls.breath)]
+    -- It's actually [NN.a4, NN.b4, NN.cs5, NN.d5, NN.e5, NN.fs5, NN.g5,
+    -- NN.gs5, NN.a5, NN.b5, NN.c6, NN.cs6, NN.d6, NN.e6, NN.fs6], but I don't
+    -- have the ability to set discontinuous pitches yet.
+    , MidiInst.pressure $ MidiInst.nn_range (NN.a4, NN.fs6) $
+        patch "sho" [(1, Controls.breath)]
+    -- Discontinuous range: [NN.g3, NN.a3, NN.as3, NN.c4, NN.d4, NN.ds4,
+    -- NN.f4, NN.g4, NN.a4, NN.as4, NN.c5, NN.d5, NN.ds5, NN.f5, NN.g5]
+    , MidiInst.nn_range (NN.g3, NN.g5) $ patch "khaen" []
     ]
 
 guzheng :: MidiInst.Patch
