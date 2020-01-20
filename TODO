@@ -29,6 +29,33 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  - segfault disabling track
+    . had multiple views
+    . Can make it happen when disable with multiple views.
+    . Happened twice, but can't repro now.  It's clearly waveforms, how can
+      I instrument it to find it next time?
+    . Crash info in console, User Reports:
+      . nullptr exception
+      0   0x00000001093d2c10
+        PeakCache::MixedEntry::add(
+        std::__1::shared_ptr<PeakCache::Entry const>) + 736
+      1  0x00000001093c974d
+        EventTrack::set_waveform(int, PeakCache::Params const&) + 461
+      2  0x00000001093c6f60
+        Block::set_waveform(int, int, PeakCache::Params const&) + 64
+      3 0x0000000107f5c113 set_waveform + 419
+  - waveforms are inaccurate when play multiply /= 1
+  * move tracks with shift click should include the collapsed pitch track
+    . Actually it does work, but I have to click on top of the collapsed pitch
+      track.  I should make it so moving to the track will move to a collapsed
+      pitch track to the right.  I don't want to separate a track from its
+      merge.
+    . But only when moving right.  Is there an easier way to express this?
+      The principle is that a merged track shouldn't be separated from its
+      collapsed neighbor.  So if I do click on a merged track by accident, I
+      still want to not separate.  I would do that by increasing for move
+      right or decreasing for move left to avoid coming between a merge.  Not
+      splitting on move from is already handled by select.
   * Playing unsplit pasang instrument was confusing because no sound and no
     error.  Notes with no instrument should warn.
   * Can I have a default movement for pitch set?
@@ -5900,6 +5927,12 @@ text score: tscore:
     . I want to integrate ky and tscore so I can edit them together.  Maybe
       make tscore into a section of the ky file?  This will make syntax
       highlighting more complicated if tscore further diverges from ky.
+  mascii has some nice ideas
+    . https://github.com/arikast/mascii-source
+    . automatic durations, calculated from required barlines
+    . letter case for pitch direction
+    - I should be able to try this out as another rhythm mode.  Use numeric
+      suffix 2 to double duration, or :2 to halve it, instead of the __ thing.
   bug:
     * ruler duration doesn't seem to change
     - if I delete a block, I get

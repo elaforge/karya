@@ -244,18 +244,31 @@ cmd_move_tracks :: Cmd.M m => Msg.Msg -> m ()
 cmd_move_tracks msg = do
     (block_id, tracknums, _, _) <- Selection.tracks
     clicked <- Cmd.abort_unless $ clicked_track msg
-    move_tracks block_id tracknums clicked
-    -- Shift from the max tracknum or the minimum tracknum, depending on
-    -- the move direction.
-    whenJust (Seq.minimum_on abs $ map (clicked-) tracknums) $
+    dest <- move_tracks block_id tracknums clicked
+    -- Shift selection so it's still covering the tracks that moved.
+    whenJust (Seq.minimum_on abs $ map (dest-) tracknums) $
         Selection.shift False Selection.Move
 
-move_tracks :: Ui.M m => BlockId -> [TrackNum] -> TrackNum -> m ()
-move_tracks block_id sources dest =
-    mapM_ (uncurry (Ui.move_track block_id)) moves
-    where
-    moves -- Start at the last source, then insert at the dest counting down.
-        | any (<dest) sources =
-            zip (List.sortBy (flip compare) sources) [dest, dest-1 ..]
+move_tracks :: Ui.M m => BlockId -> [TrackNum] -> TrackNum -> m TrackNum
+move_tracks block_id sources dest = do
+    -- Avoid splitting a track from its merged neighbor.
+    dest <- if Just dest > Seq.maximum sources
+        then ifM (is_merged_from_right block_id dest)
+            (return (dest+1)) (return dest)
+        else ifM (is_merged_from_right block_id (dest-1))
+            (return (dest-1)) (return dest)
+    mapM_ (uncurry (Ui.move_track block_id)) $ if any (<dest) sources
+        -- Start at the last source, then insert at the dest counting down.
+        then zip (List.sortBy (flip compare) sources) [dest, dest-1 ..]
         -- Start at the first source, then insert at the dest counting up.
-        | otherwise = zip (List.sort sources) [dest ..]
+        else zip (List.sort sources) [dest ..]
+    return dest
+
+-- | True if this has a merged track to its right.  Presumably that track will
+-- be collapsed, but I don't check that.
+is_merged_from_right :: Ui.M m => BlockId -> TrackNum -> m Bool
+is_merged_from_right block_id tracknum = do
+    merged <- Block.track_merged <$>
+        Ui.get_block_track_at block_id tracknum
+    tracknums <- mapMaybeM (Ui.tracknum_of block_id) (Set.toList merged)
+    return $ any (== tracknum+1) tracknums
