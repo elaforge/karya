@@ -338,9 +338,8 @@ test_manual_integrate = do
             Integrate.manual_integrate key (mktrack note) (map mktrack controls)
         extract = first snd . UiTest.dump_block UiTest.default_block_id
     let initial = UiTest.exec Ui.empty $ do
-            (block_id, [tid1, tid2]) <- UiTest.mkblock
-                (UiTest.default_block_name, [(">", []), (">", [])])
-            Ui.set_integrated_manual block_id key $ Just
+            [tid1, tid2] <- UiTest.mkblock [(">", []), (">", [])]
+            Ui.set_integrated_manual UiTest.default_block_id key $ Just
                 [ Block.empty_destination "k1" tid1 []
                 , Block.empty_destination "k2" tid2 []
                 ]

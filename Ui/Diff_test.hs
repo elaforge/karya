@@ -48,9 +48,8 @@ test_display_track = do
     -- TODO add more tests if I modify Diff
 
 test_merge_updates = do
-    let ((_, [tid1, tid2]), st) = UiTest.run Ui.empty $ do
-            tids <- UiTest.mkblock (UiTest.default_block_name,
-                [(">", []), ("*", [])])
+    let ([tid1, tid2], st) = UiTest.run Ui.empty $ do
+            tids <- UiTest.mkblock [(">", []), ("*", [])]
             Ui.merge_track bid 1 2
             return tids
     equal (Diff.diff [Update.CmdTrackAllEvents tid2] st st) $

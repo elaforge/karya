@@ -168,7 +168,7 @@ test_score_integrate_delete = do
     let events cs =
             [(n, 1, Text.singleton c) | (n, c) <- zip (Seq.range_ 0 2) cs]
     state <- run Ui.empty $ UiTest.mkblock
-        (UiTest.default_block_name, [(">", events "ab"), ("c1", events "12")])
+        [(">", events "ab"), ("c1", events "12")]
     equal (UiTest.extract_tracks state)
         [ (">", events "ab"), ("c1", events "12")
         , (">", events "ab"), ("c1", events "12")
@@ -202,7 +202,7 @@ test_score_integrate = do
         extract = UiTest.extract_tracks
 
     state <- run Ui.empty $ UiTest.mkblock
-        (UiTest.default_block_name, [(">", events "ab"), ("c1", events "12")])
+        [(">", events "ab"), ("c1", events "12")]
     equal (extract state)
         [ (">", events "ab"), ("c1", events "12")
         , (">", events "ab"), ("c1", events "12")

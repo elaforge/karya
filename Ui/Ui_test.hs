@@ -16,8 +16,7 @@ import Global
 test_toggle_skeleton_edge = do
     let bid = UiTest.default_block_id
     let run allow edge = first pretty $ Ui.eval Ui.empty $ do
-            UiTest.mkblock (UiTest.default_block_name,
-                [("t" <> showt n, []) | n <- [1..3]])
+            UiTest.mkblock [("t" <> showt n, []) | n <- [1..3]]
             Ui.set_skeleton bid Skeleton.empty
             Ui.add_edges bid [(1, 2), (2, 3)]
             Ui.toggle_skeleton_edge allow bid edge
@@ -30,8 +29,7 @@ test_toggle_skeleton_edge = do
 test_skeleton_cycles = do
     let bid = UiTest.default_block_id
     let run ntracks m = first pretty $ Ui.eval Ui.empty $ do
-            UiTest.mkblock (UiTest.default_block_name,
-                [("t" <> showt n, []) | n <- [0..ntracks]])
+            UiTest.mkblock [("t" <> showt n, []) | n <- [0..ntracks]]
             Ui.set_skeleton bid Skeleton.empty
             m
     equal (run 1 (Ui.toggle_skeleton_edge False bid (1, 1))) (Right False)

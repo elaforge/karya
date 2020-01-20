@@ -118,9 +118,9 @@ ascend_descend state start step = UiTest.eval state $ do
 
 default_ui_state :: Ui.State
 default_ui_state = UiTest.exec Ui.empty $ do
-    UiTest.mkblock (UiTest.default_block_name,
+    UiTest.mkblock
         [ (">", [(0, 1, "a"), (2, 1, "b")])
         , ("c", [(0, 0, "1"), (5, 0, "2")])
-        ])
+        ]
     Ui.modify_ruler UiTest.default_ruler_id $
         const $ Right (UiTest.mkruler_44 7 1)

@@ -231,11 +231,6 @@ eval state m = case Ui.eval state m of
     Left err -> errorStack $ "state error: " <> showt err
     Right val -> val
 
-run_mkblock :: [TrackSpec] -> ([TrackId], Ui.State)
-run_mkblock tracks = (tids, state)
-    where
-    ((_, tids), state) = run Ui.empty (mkblock (default_block_name, tracks))
-
 run_mkview :: [TrackSpec] -> ([TrackId], Ui.State)
 run_mkview tracks = run Ui.empty $ mkblock_view (default_block_name, tracks)
 
@@ -243,13 +238,19 @@ run_mkblocks :: [BlockSpec] -> ([BlockId], Ui.State)
 run_mkblocks = run Ui.empty . mkblocks
 
 mkblocks :: Ui.M m => [BlockSpec] -> m [BlockId]
-mkblocks blocks = mapM (fmap fst . mkblock) blocks
+mkblocks blocks = mapM (fmap fst . mkblock_named) blocks
 
 mkviews :: Ui.M m => [BlockSpec] -> m [ViewId]
 mkviews blocks = mapM mkview =<< mkblocks blocks
 
-mkblock :: Ui.M m => BlockSpec -> m (BlockId, [TrackId])
-mkblock (spec, tracks) = do
+run_mkblock :: [TrackSpec] -> ([TrackId], Ui.State)
+run_mkblock = run Ui.empty . mkblock
+
+mkblock :: Ui.M m => [TrackSpec] -> m [TrackId]
+mkblock = fmap snd . mkblock_named . (default_block_name,)
+
+mkblock_named :: Ui.M m => BlockSpec -> m (BlockId, [TrackId])
+mkblock_named (spec, tracks) = do
     let (block_id, title, has_ruler) = parse_block_spec spec
     ruler_id <- if has_ruler
         then do
@@ -277,7 +278,7 @@ mkblock_marklist marklist block_id title tracks = do
 
 mkblocks_skel :: Ui.M m => [(BlockSpec, [Skeleton.Edge])] -> m ()
 mkblocks_skel blocks = forM_ blocks $ \(block, skel) -> do
-    (block_id, track_ids) <- mkblock block
+    (block_id, track_ids) <- mkblock_named block
     Ui.set_skeleton block_id (Skeleton.make skel)
     return (block_id, track_ids)
 
@@ -319,7 +320,7 @@ mkview block_id = do
         Block.view block block_id default_rect default_zoom
 
 mkblock_view :: Ui.M m => BlockSpec -> m [TrackId]
-mkblock_view block_spec = (snd <$> mkblock block_spec) <* mkview block_id
+mkblock_view block_spec = (snd <$> mkblock_named block_spec) <* mkview block_id
     where (block_id, _, _) = parse_block_spec (fst block_spec)
 
 mk_vid :: BlockId -> ViewId

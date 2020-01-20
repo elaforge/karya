@@ -200,7 +200,7 @@ test_set_track_flags = do
 
 test_set_track_width = do
     state <- io_human "two views" $ run Ui.empty $ do
-        UiTest.mkblock (t_block, [(">", [])])
+        UiTest.mkblocks [(t_block, [(">", [])])]
         create_view "v1" =<< make_view UiTest.default_block_id
             UiTest.default_rect UiTest.default_zoom
         create_view "v2" =<< make_view UiTest.default_block_id

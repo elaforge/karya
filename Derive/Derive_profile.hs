@@ -148,7 +148,7 @@ make_nested bottom_tracks size depth bottom_size = do
 
 mkblock :: Ui.M m => [UiTest.TrackSpec] -> m ()
 mkblock tracks = do
-    UiTest.mkblock (UiTest.default_block_name, tracks)
+    UiTest.mkblock tracks
     tinfo <- TrackTree.tracks_of UiTest.default_block_id
     -- Track slicing makes things much slower.  I should profile that too, but
     -- let's profile without it first.

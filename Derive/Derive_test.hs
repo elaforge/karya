@@ -431,12 +431,11 @@ test_shift_controls = do
         Right ([(2, 1), (4, 2), (6, 0)], ([(2, 60)], []))
 
 test_tempo_funcs1 = do
-    let ((bid, [t_tid, tid1]), ui_state) = UiTest.run Ui.empty $
-            UiTest.mkblock ("b0", tracks)
-        tracks =
+    let ([t_tid, tid1], ui_state) = UiTest.run_mkblock
             [ ("tempo", [(0, 0, "2")])
             , (">i1", [(0, 8, "--b1"), (8, 8, "--b2"), (16, 1, "--b3")])
             ]
+        bid = UiTest.default_block_id
     let res = DeriveTest.derive_block ui_state bid
     equal (DeriveTest.r_log_strings res) []
 
@@ -449,13 +448,15 @@ test_tempo_funcs1 = do
         (map ((:[]) . RealTime.seconds) (Seq.range 0 5 1))
 
 test_tempo_funcs2 = do
-    let ((bid, [t_tid1, tid1, t_tid2, tid2]), ui_state) =
-            UiTest.run Ui.empty $ UiTest.mkblock $ (,) "b0" $
+    let ([t_tid1, tid1, t_tid2, tid2], ui_state) =
+            UiTest.run_mkblock
+            -- UiTest.run Ui.empty $ UiTest.mkblocks $ (:[]) $ ("b0",) $
                 [ ("tempo", [(0, 0, "2")])
                 , (">i1", [(0, 8, "--b1"), (8, 8, "--b2"), (16, 1, "--b3")])
                 , ("tempo", [(0, 0, "1")])
                 , (">i2", [(0, 16, "--2b1")])
                 ]
+        bid = UiTest.default_block_id
     let res = DeriveTest.derive_block ui_state bid
     equal (DeriveTest.r_log_strings res) []
     equal (map (r_tempo res bid t_tid1) (Seq.range 0 10 2))
