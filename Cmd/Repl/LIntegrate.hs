@@ -87,6 +87,11 @@ sel_revert = do
         , track_id `elem` track_ids
         ]
 
+delete_manual :: Cmd.M m => Block.SourceKey -> m ()
+delete_manual key = do
+    block_id <- Cmd.get_focused_block
+    Ui.set_integrated_manual block_id key Nothing
+
 
 -- * inspect
 

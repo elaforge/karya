@@ -227,16 +227,17 @@ deallocate inst = Ui.modify_config $ Ui.allocations_map %= Map.delete inst
 -- | Merge the given configs into the existing ones.  This also merges
 -- 'Patch.patch_defaults' into 'Patch.config_settings'.  This way functions
 -- that create Allocations don't have to find the relevant Patch.
-merge :: Cmd.M m => UiConfig.Allocations -> m ()
-merge (UiConfig.Allocations alloc_map) = do
+merge :: Cmd.M m => Bool -> UiConfig.Allocations -> m ()
+merge override (UiConfig.Allocations alloc_map) = do
     let (names, allocs) = unzip (Map.toList alloc_map)
     insts <- mapM Cmd.get_alloc_qualified allocs
     existing <- Ui.get_config (Ui.allocations #$)
     let errors = mapMaybe (verify existing) (zip3 names allocs insts)
     unless (null errors) $
         Cmd.throw $ "merged allocations: " <> Text.intercalate "\n" errors
+    let new_allocs = UiConfig.Allocations (Map.fromList (zip names allocs))
     Ui.modify_config $ Ui.allocations
-        %= (UiConfig.Allocations (Map.fromList (zip names allocs)) <>)
+        %= if override then (new_allocs<>) else (<>new_allocs)
     where
     verify allocs (name, alloc, inst) =
         UiConfig.verify_allocation allocs (Inst.inst_backend inst) name alloc
@@ -244,7 +245,7 @@ merge (UiConfig.Allocations alloc_map) = do
 replace :: Cmd.M m => UiConfig.Allocations -> m ()
 replace allocs = do
     Ui.modify_config $ Ui.allocations #= mempty
-    merge allocs
+    merge True allocs
 
 -- * modify
 
@@ -491,7 +492,14 @@ save :: FilePath -> Cmd.CmdL ()
 save = Save.save_allocations
 
 load :: FilePath -> Cmd.CmdL ()
-load = Save.load_allocations
+load fname = do
+    allocs <- Save.load_allocations fname
+    Ui.modify_config $ Ui.allocations #= allocs
+
+-- | Load and merge instruments.  If there are name collisions, the
+-- already-allocated instrument wins.
+load_merge :: FilePath -> Cmd.CmdL ()
+load_merge fname = merge False =<< Save.load_allocations fname
 
 -- | Send a CC MIDI message on the given device.  This is for synths that use
 -- MIDI learn.

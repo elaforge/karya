@@ -34,8 +34,10 @@ create name = do
     whenJust (NoteTrack.to_block_id blocks ns (Just caller) name) $
         void . Create.view
 
-cover :: Cmd.M m => ViewId -> m [ViewId]
-cover = ViewConfig.views_covering
+-- | For the current window, open enough views at the current zoom to see the
+-- score from the current time until the end of the block.
+cover :: Cmd.M m => m [ViewId]
+cover = ViewConfig.views_covering =<< Cmd.get_focused_view
 
 -- * arrange
 

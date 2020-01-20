@@ -58,6 +58,7 @@ import qualified Cmd.Serialize
 import qualified Ui.Id as Id
 import qualified Ui.Transform as Transform
 import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
 
 import           Global
 
@@ -357,15 +358,14 @@ save_allocations fname = do
     rethrow_io "save_allocations" $ liftIO $ void $
         Serialize.serialize Cmd.Serialize.allocations_magic fname allocs
 
-load_allocations :: FilePath -> Cmd.CmdT IO ()
+load_allocations :: FilePath -> Cmd.CmdT IO UiConfig.Allocations
 load_allocations fname = do
     fname <- expand_filename fname
     Log.notice $ "load instrument allocations from " <> showt fname
     let mkmsg err = "unserializing instrument allocations " <> showt fname
             <> ": " <> pretty err
-    allocs <- Cmd.require_right mkmsg
+    Cmd.require_right mkmsg
         =<< liftIO (Serialize.unserialize Cmd.Serialize.allocations_magic fname)
-    Ui.modify_config $ Ui.allocations #= allocs
 
 -- * misc
 
