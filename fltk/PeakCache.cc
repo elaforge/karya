@@ -55,21 +55,23 @@ PeakCache::MixedEntry::add(std::shared_ptr<const Entry> entry)
 {
     ASSERT(this->start == entry->start);
     if (this->peaks_n.empty()) {
-        if (!this->peaks1.get()) {
+        if (!this->peaks1) {
             this->peaks1 = entry->peaks;
         } else {
             this->peaks_n = *peaks1;
             // These can have different sizes if one has run out of samples.
             peaks_n.resize(std::max(peaks1->size(), entry->peaks->size()));
             peaks1.reset();
-            for (int i = 0; i < peaks_n.size(); i++)
-                peaks_n[i] += (*entry->peaks)[i];
+            const std::vector<float> &samples = *entry->peaks;
+            for (int i = 0; i < samples.size(); i++)
+                peaks_n[i] += samples[i];
         }
     } else {
         // These can have different sizes if one has run out of samples.
         peaks_n.resize(std::max(peaks_n.size(), entry->peaks->size()));
-        for (int i = 0; i < entry->peaks->size(); i++)
-            peaks_n[i] += (*entry->peaks)[i];
+        const std::vector<float> &samples = *entry->peaks;
+        for (int i = 0; i < samples.size(); i++)
+            peaks_n[i] += samples[i];
     }
     sources.push_back(entry);
     this->_max_peak = peaks().empty()
@@ -205,7 +207,7 @@ load_file(const std::string &filename, const std::vector<double> &ratios)
 std::shared_ptr<const PeakCache::Entry>
 PeakCache::load(const Params &params)
 {
-    auto found = cache.find(params);
+    auto found = this->cache.find(params);
     std::shared_ptr<Entry> entry;
     if (found != cache.end()) {
         // DEBUG("entry exists " << params.filename

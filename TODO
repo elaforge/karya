@@ -29,21 +29,26 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
-  - segfault disabling track
+  * segfault disabling track
     . had multiple views
     . Can make it happen when disable with multiple views.
     . Happened twice, but can't repro now.  It's clearly waveforms, how can
       I instrument it to find it next time?
-    . Crash info in console, User Reports:
+    . Crash info in console, User Reports:  ../scrap/crash
       . nullptr exception
-      0   0x00000001093d2c10
-        PeakCache::MixedEntry::add(
+      0 PeakCache::MixedEntry::add(
         std::__1::shared_ptr<PeakCache::Entry const>) + 736
-      1  0x00000001093c974d
-        EventTrack::set_waveform(int, PeakCache::Params const&) + 461
-      2  0x00000001093c6f60
-        Block::set_waveform(int, int, PeakCache::Params const&) + 64
+      1 EventTrack::set_waveform(int, PeakCache::Params const&) + 461
+      2 Block::set_waveform(int, int, PeakCache::Params const&) + 64
       3 0x0000000107f5c113 set_waveform + 419
+    . The only things I can find that could be null are the shared_ptrs, but
+      it seems unlikely, I think they're only null if explicitly reset, or
+      uninitialized.
+    . ASSERT(entry->peaks.get()); // DEBUG
+      Could be null if load_file returned null?  load_file never returns null.
+    . Otherwise, all I can think of is memory corruption, in the shared_ptr or
+      vectors.  Maybe optimization inlines a dereference?
+
   - waveforms are inaccurate when play multiply /= 1
   * move tracks with shift click should include the collapsed pitch track
     . Actually it does work, but I have to click on top of the collapsed pitch
@@ -1077,6 +1082,7 @@ TASKS:
     . Prettier events, smooth scrolling etc.  OpenGL?
     . TrackSignals could use y position and color / transparency.
     . Window management: automatic tiling, window manager configuration.
+      OS X: https://github.com/rxhanson/Rectangle
     . Switch logview and browser to Fl_Html_Display.
   Linux:
     - Increased scroll sensitivity for the scroll wheel.  Or is that an
@@ -4533,19 +4539,70 @@ fltk:
     . Other libraries for 2d rendering:
       cairo:
         . fltk already has cairo support, try Fl_Cairo demo
-      skia
+        . Just make a Fl_Cairo_Window, then call
+          set_draw_cb(Fl_Cairo_Window *, cairo_t *)
+      skia:
         . Skia is a 2d library, like cairo, and it has a OpenGL backend.
           I guess it provides fancier features on top.  But if I don't need
           those features, then I should just use OpenGL directly.
         . On the other hand, if OS X wants to deprecate OpenGL... but then if my
           needs are simple, can I just write a Metal backend?
-      webrender
+      webrender:
+        . Rendering engine in rust for servo.
       https://blend2d.com/
-        No support for fonts?
+        . High performance, but immature.
+        . No support for fonts?
     . Also it gets really chunky when it's busy rendering.  I guess because it
       has to do callbacks.  I should send over all the event data at once, and
       drawing and scrolling shouldn't require callbacks.
-    . How to benchmark slow scrolling?
+    - How to benchmark slow scrolling?
+      . I should put start and end times on a full draw.
+  no callbacks:
+    . I'll probably want complete data in c++ regardless, so I could do that
+      with the current drawing setup.  I think this is actually totally
+      orthogonal.
+    - Each EventTrack gets a mutable vector<Event> and draws from that.
+    - Haskell copies over events instead of sending a new callback.
+      . The main concern is that this will lead to a hiccup after a full
+        update.  Currently a full update is cheap on the update, and then
+        I only pay for visible events via the callback.
+      . So the current approach should be more efficient in theory because it
+        reads fewer events.  But it's probably less consistent in practice,
+        because it continually rereads events from haskell, which may be off
+        on a GC.  Whereas copying eagerly relies on full copy
+        (BlockC.update_entire_track) being uncommon, and when it does happen,
+        it's quick to copy all events.  I can still get interrupted by other
+        threads, but hopefully the copying happens during the derive delay.
+      Who does update_entire_track?
+        . Update.BlockTrack - This is uncollapse, merge, etc.  But I think
+          I don't need an update any more if I store the events by TrackId.
+          But this means the EventTrack itself will have to have merged
+          TrackIds.
+        . Update.TrackAllEvents and Cmd.TrackAllEvents
+          . Change the skeleton, may change event styles.
+          . Change track title, may change event styles.
+          . State.put, loading scores
+          . Ui.create_track
+          . Ui.modify_events - ModifyEvents, Factor, BlockResize,
+            Integrate.Merge
+        . Update.TrackRender - This is for adding control render, I don't
+          need to update events.
+        . Update.Ruler - Also no longer necessary.  Actually rulers are
+          already done by copying, so maybe I should also have
+          map<RulerId, ...>.  Or do I?  No, ruler marklists aren't shared by
+          RulerId, which seems inefficient!
+      . So I think whole track copies will be rare.  And the idea that it's
+        during the derive delay is compelling.  But I should still instrument
+        rendering so I can see where the time is being spent.
+
+    - Share the events based on TrackId.
+      . Since haskell will update by TrackId, I think I need a global
+        map<TrackId, weak_ptr<vector<Event>>> which actually gets mutated.
+      . An update will mutate the map, then call draw() on all tracks that
+        refer to it.  I can either have a separate
+        map<TrackId, vector<EventTrack *>> which ~EventTrack will have to
+        manage, or have a public EventTrack->track_id, and a way to loop
+        through all tracks.
   - Maybe I could ship over a chunk of playback data in advance, and let the
     UI interpolate playback cursors.
     . If I could keep the warp as linear segments then I just need to ship the
