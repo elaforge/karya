@@ -424,8 +424,8 @@ e_19_11_11_namita_dimita = date 2019 11 11 $ ganesh $ exercise $
     where
     end s = su $ n.__.kt.o.k.o.t.o.k.on.__.kt.s.k
     invert = su $
-         o.t.o.k.on.__.kt.o.k.on.__.kt.o.k
-        .p.t.p.k.n .__.kt.p.k.n .__.kt.o.k
+         o.t.o.k.on.__.kt.o.k.on.__.kt.p.k
+        .p.t.p.k.n .__.kt.o.k.on.__.kt.o.k
     rh = n.l.d.d.l.d.d.l
     lh = o.__3.o.__3.o.__
 

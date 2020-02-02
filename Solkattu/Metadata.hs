@@ -56,7 +56,7 @@ makeDate y m d = either Solkattu.throw id $ checkDate y m d
 
 checkDate :: Int -> Int -> Int -> Either Text Calendar.Day
 checkDate y m d
-    | Num.inRange 2012 2020 y && Num.inRange 1 13 m && Num.inRange 1 32 d =
+    | Num.inRange 2012 2030 y && Num.inRange 1 13 m && Num.inRange 1 32 d =
         Right $ Calendar.fromGregorian (fromIntegral y) m d
     | otherwise = Left $ "invalid date: " <> showt (y, m, d)
 

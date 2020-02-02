@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE RecordWildCards #-}
--- | Solkattu scores from 2018.
+-- | Solkattu scores from 2019.
 module Solkattu.Score.Solkattu2019 where
 import           Prelude hiding ((.), (^), repeat)
 
