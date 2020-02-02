@@ -26,9 +26,12 @@ initialize(Config::FreeHaskellFunPtr finalize)
 void
 ui_wait()
 {
+    util::timing("haskell");
+    util::timing_flush();
     // Wait for 100 seconcds or until interrupted by an event or ui_awake().
     // TODO remind myself why this is 100 and comment
     Fl::wait(100);
+    util::timing("start");
 }
 
 void

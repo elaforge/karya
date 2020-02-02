@@ -91,8 +91,10 @@ draw_text(const char *text, int len, IPoint pos, bool measure,
         return 0;
 
     pos = pos + IPoint(align.x * fl_size(), align.y * fl_size());
-    if (!measure)
+    if (!measure) {
         fl_draw(rotate, text, len, pos.x, pos.y);
+        util::timing("fl_draw");
+    }
     return fl_width(text, len);
 }
 

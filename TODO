@@ -4528,6 +4528,34 @@ fltk:
       wrapping upwards, so it can get it right during input as well.
     . It seems like too much hassle for a cosmetic issue.
   better drawing
+    write to Raph Levien:
+      . https://news.ycombinator.com/item?id=16267202
+      . https://raphlinus.github.io/personal/2018/08/28/a-new-adventure.html
+    tracing:
+      . Tracing chrome://tracing
+      . I want to trace the whole event loop.  Where is the entry point?
+        Fl::wait() -> run Fltk actions -> get_ui_msgs -> writeTChan
+        Presumably fltk then does the draw after I go back into wait()?
+      . start -> [haskell] -> wait -> [draw] -> Block::draw -> [wait ui]
+        fltk might skip [draw] and hence Block::draw.  E.g. for a cursor move.
+      . Most time in draw_upper_layer 0.004, then ruler_overlay 0.002,
+        then find_events 0.002.  But sometimes find_events was 0.03!  So it
+        probably is a liability to scrolling.
+      . draw_track is 0.005 to 0.007
+        without draw_text: 0.004 to 0.007
+        without wrap_text: 0.002 to 0.003
+      . So wrap_text is expensive.
+      . haskell is usually cheap, but once it was 0.72.  So that's probably
+        the cause of scroll hiccups.  Haskell is running UI actions (which are
+        fltk calls), and then gets ui actions and writes them to STM.  The
+        latter should be cheap, unless there's a major GC.
+      . If I write ghc events, maybe I can find out what haskell is doing in
+        the longer gap.  But of course just visually, it gets quite clunky
+        when it's deriving.
+      ? Are the fltk actions fully forced by Fltk.send_action?  I guess not,
+        because they're monad sequences, and could evaluate who knows what
+        inside.  I could find them and make sure they're rnf'ing the data
+        before it goes to Fltk.send_action.
     . All this incremental redraw stuff is fussy and seems like it should be
       unnecessary.  I should be able to lay it out and have someone else handle
       selection overlay and scrolling.
@@ -4552,16 +4580,20 @@ fltk:
       https://blend2d.com/
         . High performance, but immature.
         . No support for fonts?
-    . Also it gets really chunky when it's busy rendering.  I guess because it
-      has to do callbacks.  I should send over all the event data at once, and
-      drawing and scrolling shouldn't require callbacks.
-    - How to benchmark slow scrolling?
-      . I should put start and end times on a full draw.
+      https://github.com/ocornut/imgui
+        . Has backends for to vulkan, metal, opengl.
+  ? Will using GPU rendering be harder on battery life?
   no callbacks:
     . I'll probably want complete data in c++ regardless, so I could do that
       with the current drawing setup.  I think this is actually totally
       orthogonal.
+    * Instrument rendering so I can see where the time is being spent.
+    - Write a program to parse the output.
     - Each EventTrack gets a mutable vector<Event> and draws from that.
+      . Convert to diffs, filter out 0s.
+      . Sum times at each track, and at each TrackTile.
+      . Looks like find_events is pretty cheap.  draw_upper_layer, then
+        ruler_overlay.
     - Haskell copies over events instead of sending a new callback.
       . The main concern is that this will lead to a hiccup after a full
         update.  Currently a full update is cheap on the update, and then
@@ -4594,7 +4626,6 @@ fltk:
       . So I think whole track copies will be rare.  And the idea that it's
         during the derive delay is compelling.  But I should still instrument
         rendering so I can see where the time is being spent.
-
     - Share the events based on TrackId.
       . Since haskell will update by TrackId, I think I need a global
         map<TrackId, weak_ptr<vector<Event>>> which actually gets mutated.

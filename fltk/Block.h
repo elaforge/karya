@@ -217,6 +217,9 @@ private:
     static void track_tile_cb(Fl_Widget *w, void *vp);
     static void title_cb_dispatch(Fl_Widget *w, void *vp);
     void title_cb();
+
+protected:
+    void draw() override;
 };
 
 class BlockWindow : public Fl_Double_Window {

@@ -729,6 +729,7 @@ Block::title_cb_dispatch(Fl_Widget *_w, void *vp)
     self->title_cb();
 }
 
+
 void
 Block::title_cb()
 {
@@ -753,6 +754,14 @@ Block::title_cb()
         set_widget_sizes();
         MsgCollector::get()->block(UiMsg::msg_resize, this);
     }
+}
+
+
+void
+Block::draw()
+{
+    Fl_Group::draw();
+    util::timing("Block::draw");
 }
 
 

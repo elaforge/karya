@@ -4,9 +4,11 @@
 
 #pragma once
 
+#include <chrono>
 #include <execinfo.h>
 #include <iostream>
 #include <set>
+#include <fstream>
 #include <string.h>
 #include <string>
 #include <utility>
@@ -67,9 +69,44 @@ operator<<(std::ostream &os, const AssertionError &a)
 }
 
 
-// Numeric /////////////////////////////
-
 namespace util {
+
+// timing //////////////////////////////
+
+class Timing {
+public:
+    enum { enabled = false };
+    static Timing *get();
+    void timing(const char *name, int val);
+    void flush();
+private:
+    typedef std::chrono::time_point<std::chrono::steady_clock> time;
+    struct Event {
+        Event(time time, const char *name, int val)
+            : time(time), name(name), val(val)
+        {}
+        time time;
+        const char *name;
+        int val;
+    };
+    std::ofstream fp;
+    time start;
+    std::vector<Event> events;
+};
+
+// If enabled, write name and timestamp to a file.
+inline void timing(const char *name, int val = 0) {
+    if (Timing::enabled)
+        Timing::get()->timing(name, val);
+}
+
+inline void timing_flush() {
+    if (Timing::enabled)
+        Timing::get()->flush();
+    // open a file if necessary, flush collected events to file
+}
+
+// Numeric /////////////////////////////
 
 // Restrict 'v' to be in the given range, like composed min and max.
 // If 'max' is less than 'min', the result will be 'min'.

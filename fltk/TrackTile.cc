@@ -281,6 +281,7 @@ TrackTile::draw()
     if (floating_input != nullptr) {
         draw_child(*floating_input);
     }
+    util::timing("TrackTile::draw");
 }
 
 
