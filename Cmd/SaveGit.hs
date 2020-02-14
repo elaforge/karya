@@ -24,7 +24,7 @@ module Cmd.SaveGit (
 #endif
 ) where
 import qualified Control.Exception as Exception
-import Data.ByteString (ByteString)
+import           Data.ByteString (ByteString)
 import qualified Data.Char as Char
 import qualified Data.Either as Either
 import qualified Data.List as List
@@ -32,19 +32,22 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
+import qualified GHC.Float as Float
 import qualified Numeric
 import qualified System.FilePath as FilePath
-import System.FilePath ((</>))
+import           System.FilePath ((</>))
 import qualified System.IO.Error as IO.Error
 import qualified System.Process as Process
 
 import qualified Util.File as File
 import qualified Util.Git as Git
-import Util.GitTypes (Commit, Repo)
+import           Util.GitTypes (Commit, Repo)
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 
+import           Cmd.SaveGitTypes (SaveHistory(..))
+import qualified Cmd.Serialize
 import qualified Ui.Block as Block
 import qualified Ui.Diff as Diff
 import qualified Ui.Events as Events
@@ -54,10 +57,8 @@ import qualified Ui.Track as Track
 import qualified Ui.Ui as Ui
 import qualified Ui.Update as Update
 
-import Cmd.SaveGitTypes (SaveHistory(..))
-import qualified Cmd.Serialize
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- | History loaded from disk.  It only has CmdUpdates so you can feed them to
@@ -217,7 +218,7 @@ instance Serialize.Serialize EventsUpdate where
         <*> Serialize.get
 
 score_to_hex :: ScoreTime -> String
-score_to_hex = pad . flip Numeric.showHex "" . Serialize.encode_double
+score_to_hex = pad . flip Numeric.showHex "" . Float.castDoubleToWord64
     . ScoreTime.to_double
     where pad s = replicate (16 - length s) '0' ++ s
 

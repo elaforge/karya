@@ -15,20 +15,30 @@
     around the large and buggy default implementation.
 -}
 module Util.Serialize (
-    module Util.Serialize
-    , Get, Put
-    , getWord8, putWord8
+    encode, decode
+    , Serialize(..)
+    -- * magic
+    , Magic(..)
+    , magicBytes
+    , serialize, serialize_rotate
+    , UnserializeError(..)
+    , unserialize
+    -- * util
+    , get_tag, put_tag, bad_tag
+    , get_enum, put_enum, to_enum
+    -- * versions
+    , get_version, put_version, bad_version
 ) where
 import qualified Control.Exception as Exception
 import qualified Data.Array.IArray as IArray
 import qualified Data.ByteString as ByteString
-import Data.ByteString (ByteString)
+import           Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as Char8
 import qualified Data.Int as Int
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Serialize as Serialize
-import Data.Serialize (Get, Put, getWord8, putWord8)
+import           Data.Serialize (getWord8, putWord8, Get, Put)
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text.Encoding
@@ -39,14 +49,15 @@ import qualified Data.Vector.Unboxed as Unboxed
 import qualified Data.Word as Word
 
 import qualified Foreign
+import qualified GHC.Float as Float
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import qualified System.IO.Error as IO.Error
-import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.CallStack as CallStack
 import qualified Util.File as File
-import Global
+
+import           Global
 
 
 encode :: Serialize a => a -> ByteString
@@ -135,34 +146,12 @@ instance Serialize Word.Word64 where
     get = Serialize.getWord64le
 
 instance Serialize Double where
-    put = put . encode_double
-    get = decode_double <$> get
+    put = put . Float.castDoubleToWord64
+    get = Float.castWord64ToDouble <$> get
 
 instance Serialize Float where
-    put = put . encode_float
-    get = decode_float <$> get
-
-encode_double :: Double -> Word.Word64
-encode_double = _encodef
-
-encode_float :: Float -> Word.Word32
-encode_float = _encodef
-
-_encodef :: (Foreign.Storable float, Foreign.Storable word) => float -> word
-_encodef d = Unsafe.unsafePerformIO $ Foreign.alloca $ \buf -> do
-    Foreign.poke (Foreign.castPtr buf) d
-    Foreign.peek buf
-
-decode_double :: Word.Word64 -> Double
-decode_double = _decodef
-
-decode_float :: Word.Word32 -> Float
-decode_float = _decodef
-
-_decodef :: (Foreign.Storable float, Foreign.Storable word) => word -> float
-_decodef word = Unsafe.unsafePerformIO $ Foreign.alloca $ \buf -> do
-    Foreign.poke (Foreign.castPtr buf) word
-    Foreign.peek buf
+    put = put . Float.castFloatToWord32
+    get = Float.castWord32ToFloat <$> get
 
 -- * util
 
@@ -175,12 +164,12 @@ put_tag = putWord8
 bad_tag :: String -> Word.Word8 -> Get a
 bad_tag typ tag = fail $ "unknown tag for " ++ typ ++ ": " ++ show tag
 
-put_enum :: Enum a => a -> Serialize.Put
-put_enum = put . fromEnum
-
 get_enum :: (Bounded a, Enum a) => Serialize.Get a
 get_enum = get >>= \n ->
     maybe (fail $ "enum value out of range: " ++ show n) return (to_enum n)
+
+put_enum :: Enum a => a -> Serialize.Put
+put_enum = put . fromEnum
 
 -- | A safe version of 'toEnum'.
 to_enum :: forall a. (Enum a, Bounded a) => Int -> Maybe a
@@ -303,11 +292,11 @@ instance Serialize CallStack.Caller where
 
 -- * versions
 
-put_version :: Word.Word8 -> Put
-put_version = putWord8
-
 get_version :: Get Word.Word8
 get_version = getWord8
+
+put_version :: Word.Word8 -> Put
+put_version = putWord8
 
 bad_version :: CallStack.Stack => String -> Word.Word8 -> a
 bad_version typ ver = errorStack $
