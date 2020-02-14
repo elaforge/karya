@@ -75,7 +75,7 @@ namespace util {
 
 class Timing {
 public:
-    enum { enabled = false };
+    enum { level = 1 };
     static Timing *get();
     void timing(const char *name, int val);
     void flush();
@@ -95,15 +95,13 @@ private:
 };
 
 // If enabled, write name and timestamp to a file.
-inline void timing(const char *name, int val = 0) {
-    if (Timing::enabled)
+inline void timing(int level, const char *name, int val = 0) {
+    if (Timing::level >= level)
         Timing::get()->timing(name, val);
 }
 
 inline void timing_flush() {
-    if (Timing::enabled)
-        Timing::get()->flush();
-    // open a file if necessary, flush collected events to file
+    Timing::get()->flush();
 }
 
 // Numeric /////////////////////////////

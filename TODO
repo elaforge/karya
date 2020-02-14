@@ -1755,7 +1755,6 @@ instruments:
   ? Follow references in tambura dafx paper.
     Wasn't there something about pluck modelling?
   mesh2faust:
-    . try it for reyong, gangsa
     . The bells sound ok, but the marimba model is terrible.  Turning up t60,
       the spectrum sounds nothing like the right pitch.
     . Strike position changes the already-ringing instrument.  I guess I'll
@@ -1764,20 +1763,24 @@ instruments:
     make models:
       . There are 3D scanning services, google "3d scanning services bay area"
       . Prices maybe $150 and up.
-      . But maybe stanford has this ability?  Ask JOS if CCRMA has done this
+      . But maybe Stanford has this ability?  Ask JOS if CCRMA has done this
         for instruments before.
       . But I should be able to measure with calipers, then hand-draw
         a profile.
     - Try with reyong profile.
+      . Have to figure out the 3d programs enough to make a SOR.
+    - Try with gangsa profile.
     ? How can I get spectrogram of a real recording, to compare against
       computed modes?
       . Lots of software can do spectrograms, what's a good one?
-    . Then ask Romain:
-      . Any plans to add decay times?  Each mode should have a different decay
-        time, so isn't setting one for them all really inaccurate?
+    Ask Romain:
+      . How to add decay times?  Each mode should have a different decay,
+        time, so isn't setting one for them all inaccurate?
       . How about how the strike position affects the ringing sound, is that
         fundamentally part of it?
       . Any examples of use other than the bells?
+      . Changing strike position modifies already ringing sound, but I think
+        that's just an artifact of how the faust realization works?
     build mesh2faust
       . /nix/store/3mz7af1vnpr0z3r8ssfiqvlchjll60s3-mesh2faust/bin/mesh2faust \
         --infile marimbaBar.obj --nsynthmodes 50 --nfemmodes 200 \
@@ -1864,6 +1867,17 @@ instruments:
         post-installation fixup
           patching script interpreter paths in /nix/store/sjy5zlnl0pgbzyniwsbrz398hf11xz74-mkl-2019.3.199
           error: install_name_tool: changing install names or rpaths can't be redone for: /nix/store/sjy5zlnl0pgbzyniwsbrz398hf11xz74-mkl-2019.3.199/lib/libmkl_cdft_core.dylib (for architecture x86_64) because larger updated load commands do not fit (the program must be relinked, and you may need to use -headerpad or -headerpad_max_install_names)
+      . even if nix uses brew libarpack.a, I get:
+        ld: warning: object file
+          (/nix/store/d9i5jrymmbbrk40s0gp7jn98d4s0ia9c-libarpack.a(dstqrb.o))
+          was built for newer OSX version (10.13) than being linked (10.12)
+        Undefined symbols for architecture x86_64:
+          "__gfortran_st_write", referenced from:
+              _dsaupd_ in d9i5jrymmbbrk40s0gp7jn98d4s0ia9c-libarpack.a(dsaupd.o)
+          etc.
+      . turns out I have to link to arpack dynamically, who knows why static
+        linking has that problem.
+
   zynsubaddfx:
     . The old binaries don't have VST.  The new ones do, but the UI seems
       buggy, most UI elements don't respond to the mouse.
@@ -4527,6 +4541,18 @@ fltk:
       to put the input.  I think I'd want the input itself to know it's
       wrapping upwards, so it can get it right during input as well.
     . It seems like too much hassle for a cosmetic issue.
+  slow scrolling
+    hiccups in haskell:
+      . haskell is usually cheap, but once it was 0.72.  So that's probably
+        the cause of scroll hiccups.  Haskell is running UI actions (which are
+        fltk calls), and then gets ui actions and writes them to STM.  The
+        latter should be cheap, unless there's a major GC.
+      . If I write ghc events, maybe I can find out what haskell is doing in
+        the longer gap.  But of course just visually, it gets quite clunky
+        when it's deriving.
+      - Always time the haskell duration, and log when it's too long.
+      - Look for possible thunks in the Fltk action, rnf them out.
+    . Text is what makes it expensive.
   better drawing
     write to Raph Levien:
       . https://news.ycombinator.com/item?id=16267202
@@ -4536,7 +4562,7 @@ fltk:
       . I want to trace the whole event loop.  Where is the entry point?
         Fl::wait() -> run Fltk actions -> get_ui_msgs -> writeTChan
         Presumably fltk then does the draw after I go back into wait()?
-      . start -> [haskell] -> wait -> [draw] -> Block::draw -> [wait ui]
+      . start -> [haskell] -> haskell -> [draw] -> Block::draw -> [wait ui]
         fltk might skip [draw] and hence Block::draw.  E.g. for a cursor move.
       . Most time in draw_upper_layer 0.004, then ruler_overlay 0.002,
         then find_events 0.002.  But sometimes find_events was 0.03!  So it
@@ -4545,13 +4571,6 @@ fltk:
         without draw_text: 0.004 to 0.007
         without wrap_text: 0.002 to 0.003
       . So wrap_text is expensive.
-      . haskell is usually cheap, but once it was 0.72.  So that's probably
-        the cause of scroll hiccups.  Haskell is running UI actions (which are
-        fltk calls), and then gets ui actions and writes them to STM.  The
-        latter should be cheap, unless there's a major GC.
-      . If I write ghc events, maybe I can find out what haskell is doing in
-        the longer gap.  But of course just visually, it gets quite clunky
-        when it's deriving.
       ? Are the fltk actions fully forced by Fltk.send_action?  I guess not,
         because they're monad sequences, and could evaluate who knows what
         inside.  I could find them and make sure they're rnf'ing the data
@@ -4559,7 +4578,6 @@ fltk:
     . All this incremental redraw stuff is fussy and seems like it should be
       unnecessary.  I should be able to lay it out and have someone else handle
       selection overlay and scrolling.
-    . How hard would an OpenGL version be?
     . Or why not get rid of the callback, and just keep the complete track in
       c++, like I do with the signals.  I think I need to do that anyway for
       OpenGL, and that way I don't have to play with getting event ranges,
@@ -5616,313 +5634,341 @@ Derive:
       block, though perhaps that's a side-effect of having blocks which are
       too large.  More compellingly, chords can automatically fiddle with dyn
       and start time, and can also interpret chord symbols.
-    mridangam:
-      * why doesn't binding to 'Z' work?
-        . Because I use Msg.char, which is unshifted.  Msg.text is shifted, but
-          then I don't get it for KeyUp.
-      reconcile tracklang and solkattu notation:
-        * od instead of do
-          . thoppi goes on the left
-        use p in addition to or instead of +?
-          . Then I don't have the nice - notation for soft tha.  I guess I could
-            keep using '-', but it no longer has the visual correspondence.
-          . Except I already use 'p' for the pattern call.  This isn't
-            ambiguous in solkattu because patterns are p5, not "p 5".  I could
-            do the same in tracklang, but it seems silly to bypass the
-            perfectly good argument syntax.
-          . Maybe call it pt then?  Or pn?  No, that's p+n.  Ok, pa then.
-          . But '-+*' is really nice looking for soft, medium, loud.
-            I don't mind taking * from dry thoppi because I never use it.
-            Is the tracklang and solkattu discrepancy really so bad?  They
-            have different constraints, e.g. for solkattu haskell ident for
-            simple strokes, but full unicode is fine for output.
-        * This is going to break all existing mridangam scores, so maybe
-          I should have an upgrade function to fix them easily?
-        * Also new strokes like Min and Thoppi Touch, Tha Fingertips,
-          Tha Fingers.
-      - Automatic inference for Ki vs. Mi, e.g. in sarvalaghu.  E.g.
-        dxd -> dld, but dxpx -> dkpk.  Also it can change based on speed and
-        emphasis.
-      - connect kendang, reyong, etc. to 'tir' and 'seq' calls.
-      - make india.mridangam seq call align to the end for -0 dur
-      . It would be nice to alternate mridangam and kendang tirmanam, e.g.:
-        mridangam, kendang, both.  But I'd need to either write the tirmanam
-        in solkattu dsl and give it a name, or have a mini solkattu dsl, e.g.
-        with syllable breaking:
-        . tri-mk 'kitakitataka nakadit_ talang_ talang_ ta' lang_
-      . reyong: takadinna -> cccc, nakadit -> i12, talang -> +O
-        . c = cek, k = kempyung, 0123 -> relative scale degree, .+ -> byut,
-          oO -> byong
-        . I could also have shift up, shift down annotations, like speed or
-          nadai.
-      - Perhaps mridangam should automatically transpose the octave to be within
-        its range.
-        . I can use something like Cmd.Instrument.Bali.wrap
-      * tha is too loud... I can compensate by using -, but maybe the scale is
-        off.  Velocity should be logical, so if you play all at the same
-        velocity it's like the same dynamic for all strokes.
-        . Or I could make + be 0.5, and * be full volume.
-      sarvalaghu
-        - get them from Score or MridangamScore.
-        - adjust to the talam
-        - subdivide at slower speeds
-    pakhawaj bols
-      . Score integrate to convert bols to low level calls
-        . Actually score integrate doesn't work like that, it just copies the
-          input.  It would have to be derive integration.
-      . Or maybe just interpret the bols directly, but due to context
-        sensitivity they need to be all processed together, not as separate
-        calls.
-        . In general I don't have a way to interpret a track as a whole.  This
-          is the "track call" thing I was thinking about a long time ago.
-      - Add an input mode for bols.
-    bali:
-      infer gender damping:
-        . Also don't damp repeated pitches.
-          . Though with rambat this might have the effect of always choosing
-            the long sample.  Still, doubled short notes will be ok.  Even
-            short samples are usually around 3s.
-        . I should be able to remove the explicit duration changes in ngoret.
-          For that to work, I also need to say you can't damp even a neighbor
-          if the notes are too quick.  But it's a certain technique, so maybe
-          I shouldn't try to generalize.  Also jit-jeng is undamped but not
-          just because it's too fast.
-        notes:
-          . The basic task is to set the duration for each note appropriately.
-          . Firstly I want to mark notes with explicit duration and not touch
-            those, and mark explicitly undamped notes, to extend them to the
-            next damp.
-          . So the first pass marks as infer-able.  Notes that touch the next
-            note (with a certain threshold) are infer-able.
-        - First infer hands:
-          . If there are (or will be) two notes ringing, then left for low and
-            right for high.
-          . If there is one note, then pick based on the center of the range.
-        - Infer damping based on assigned hands:
-          . A note is damped when there is a hand available to do so.
-          . You can always damp a neighbor of 1 or 2, >2 requires a bit of
-            time to move the hand there and back.
-          . You can damp two neighboring notes simultaneously.
-        - Damping is different for gangsa style.
-          . I think it's in the jumps, so gangsa can damp arbitrarily long
-            jumps, instead of just 1 or 2, but can only do one at a time.
-      - loop in save/bali/teruna-jaya leads to long notes
-      - >kantilan | unison prevents nyog from working
-      - kajar: automatic hand muting as with reyong.
-      legong scale:
-        - pick better nns for pemero notes 4 and 7
-        - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
-      kotekan: gangsa:
-        - >gangsa instrument, which is pemade + kantilan
-          . It can be a alias of `multiple`:
-            gangsa = multiple "(inst=pemade) "(%t-oct=1 | inst=kantilan)
-        - nyog polos first can be inferred based on whether it's a major ruler
-          division.  But should I?  I can just write 's+' to be explicit.
-        - Simplify reyong norot in the same way as gangsa norot.  I also
-          want to add the prepare_start feature.
-          - Can I remove Once now?
-        Kotekan kernel notation can be hard to use:
-          . The kotekan call can be hard to use for irregular sections like:
-            . |       |       |
-               3-23-3-23-23-23-5
-              2-12-2-12-12-1234-34-4-3
-              |       |       |
-              -3-23-3-23-23-21-
-              2-12-2-12-12-1-10
-              |
-            . 4-3-4-3-44
-              12-212-211
-          . Maybe just a literal "once" kotekan call?
-            Start at 0.
-          . Maybe it's not "once" but "normal alignment", so maybe I can unify
-            this with orientation.  But I think I need an explicit Positive
-            orientation call like 'ko', rather than using event orientation.
-          . For end orientation I still want to align to the end, but can I
-            do that just by rotating the kernel?
-          . I could say rotate or not based on the leading 'k'.
-            (1)-12-1-21
-          . Actually, maybe rotation isn't the problem.  Instead I have places
-            where the inference rules don't work because the pitch is moving:
-                 3-23-21
-              (2)-12-1-10
-            . Can I infer?  (2)-12-1-10  -> ... not sure
-            . Or write both? ke '-12-1-10' '3-23-21-'
-            . I can, but it still takes longer than just writing it out.  And
-              if it's not pitch-independent, there's not much benefit to the
-              specialized kotekan notation.
-        - k '-21-21-21-21-12-' infers with 1 below the pitch.  It should be
-          . 43-43-43-43-434- 3-43-43-43-434-3
-            1-21-21-21-21-12 -12-12-12-12-1-21
+  mridangam:
+    * why doesn't binding to 'Z' work?
+      . Because I use Msg.char, which is unshifted.  Msg.text is shifted, but
+        then I don't get it for KeyUp.
+    reconcile tracklang and solkattu notation:
+      * od instead of do
+        . thoppi goes on the left
+      use p in addition to or instead of +?
+        . Then I don't have the nice - notation for soft tha.  I guess I could
+          keep using '-', but it no longer has the visual correspondence.
+        . Except I already use 'p' for the pattern call.  This isn't
+          ambiguous in solkattu because patterns are p5, not "p 5".  I could
+          do the same in tracklang, but it seems silly to bypass the
+          perfectly good argument syntax.
+        . Maybe call it pt then?  Or pn?  No, that's p+n.  Ok, pa then.
+        . But '-+*' is really nice looking for soft, medium, loud.
+          I don't mind taking * from dry thoppi because I never use it.
+          Is the tracklang and solkattu discrepancy really so bad?  They
+          have different constraints, e.g. for solkattu haskell ident for
+          simple strokes, but full unicode is fine for output.
+      * This is going to break all existing mridangam scores, so maybe
+        I should have an upgrade function to fix them easily?
+      * Also new strokes like Min and Thoppi Touch, Tha Fingertips,
+        Tha Fingers.
+    - Automatic inference for Ki vs. Mi, e.g. in sarvalaghu.  E.g.
+      dxd -> dld, but dxpx -> dkpk.  Also it can change based on speed and
+      emphasis.
+    - connect kendang, reyong, etc. to 'tir' and 'seq' calls.
+    - make india.mridangam seq call align to the end for -0 dur
+    . It would be nice to alternate mridangam and kendang tirmanam, e.g.:
+      mridangam, kendang, both.  But I'd need to either write the tirmanam
+      in solkattu dsl and give it a name, or have a mini solkattu dsl, e.g.
+      with syllable breaking:
+      . tri-mk 'kitakitataka nakadit_ talang_ talang_ ta' lang_
+    . reyong: takadinna -> cccc, nakadit -> i12, talang -> +O
+      . c = cek, k = kempyung, 0123 -> relative scale degree, .+ -> byut,
+        oO -> byong
+      . I could also have shift up, shift down annotations, like speed or
+        nadai.
+    - Perhaps mridangam should automatically transpose the octave to be within
+      its range.
+      . I can use something like Cmd.Instrument.Bali.wrap
+    * tha is too loud... I can compensate by using -, but maybe the scale is
+      off.  Velocity should be logical, so if you play all at the same
+      velocity it's like the same dynamic for all strokes.
+      . Or I could make + be 0.5, and * be full volume.
+    sarvalaghu
+      - get them from Score or MridangamScore.
+      - adjust to the talam
+      - subdivide at slower speeds
+  pakhawaj bols
+    . Score integrate to convert bols to low level calls
+      . Actually score integrate doesn't work like that, it just copies the
+        input.  It would have to be derive integration.
+    . Or maybe just interpret the bols directly, but due to context
+      sensitivity they need to be all processed together, not as separate
+      calls.
+      . In general I don't have a way to interpret a track as a whole.  This
+        is the "track call" thing I was thinking about a long time ago.
+    - Add an input mode for bols.
+  bali:
+    infer gender damping:
+      . Also don't damp repeated pitches.
+        . Though with rambat this might have the effect of always choosing
+          the long sample.  Still, doubled short notes will be ok.  Even
+          short samples are usually around 3s.
+      . I should be able to remove the explicit duration changes in ngoret.
+        For that to work, I also need to say you can't damp even a neighbor
+        if the notes are too quick.  But it's a certain technique, so maybe
+        I shouldn't try to generalize.  Also jit-jeng is undamped but not
+        just because it's too fast.
+      notes:
+        . The basic task is to set the duration for each note appropriately.
+        . Firstly I want to mark notes with explicit duration and not touch
+          those, and mark explicitly undamped notes, to extend them to the
+          next damp.
+        . So the first pass marks as infer-able.  Notes that touch the next
+          note (with a certain threshold) are infer-able.
+      - First infer hands:
+        . If there are (or will be) two notes ringing, then left for low and
+          right for high.
+        . If there is one note, then pick based on the center of the range.
+      - Infer damping based on assigned hands:
+        . A note is damped when there is a hand available to do so.
+        . You can always damp a neighbor of 1 or 2, >2 requires a bit of
+          time to move the hand there and back.
+        . You can damp two neighboring notes simultaneously.
+      - Damping is different for gangsa style.
+        . I think it's in the jumps, so gangsa can damp arbitrarily long
+          jumps, instead of just 1 or 2, but can only do one at a time.
+    - loop in save/bali/teruna-jaya leads to long notes
+    - >kantilan | unison prevents nyog from working
+    - kajar: automatic hand muting as with reyong.
+    legong scale:
+      - pick better nns for pemero notes 4 and 7
+      - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
+    kotekan: gangsa:
+      - >gangsa instrument, which is pemade + kantilan
+        . It can be a alias of `multiple`:
+          gangsa = multiple "(inst=pemade) "(%t-oct=1 | inst=kantilan)
+      - nyog polos first can be inferred based on whether it's a major ruler
+        division.  But should I?  I can just write 's+' to be explicit.
+      - Simplify reyong norot in the same way as gangsa norot.  I also
+        want to add the prepare_start feature.
+        - Can I remove Once now?
+      Kotekan kernel notation can be hard to use:
+        . The kotekan call can be hard to use for irregular sections like:
+          . |       |       |
+             3-23-3-23-23-23-5
+            2-12-2-12-12-1234-34-4-3
+            |       |       |
+            -3-23-3-23-23-21-
+            2-12-2-12-12-1-10
+            |
+          . 4-3-4-3-44
+            12-212-211
+        . Maybe just a literal "once" kotekan call?
+          Start at 0.
+        . Maybe it's not "once" but "normal alignment", so maybe I can unify
+          this with orientation.  But I think I need an explicit Positive
+          orientation call like 'ko', rather than using event orientation.
+        . For end orientation I still want to align to the end, but can I
+          do that just by rotating the kernel?
+        . I could say rotate or not based on the leading 'k'.
+          (1)-12-1-21
+        . Actually, maybe rotation isn't the problem.  Instead I have places
+          where the inference rules don't work because the pitch is moving:
+               3-23-21
+            (2)-12-1-10
+          . Can I infer?  (2)-12-1-10  -> ... not sure
+          . Or write both? ke '-12-1-10' '3-23-21-'
+          . I can, but it still takes longer than just writing it out.  And
+            if it's not pitch-independent, there's not much benefit to the
+            specialized kotekan notation.
+      - k '-21-21-21-21-12-' infers with 1 below the pitch.  It should be
+        . 43-43-43-43-434- 3-43-43-43-434-3
+          1-21-21-21-21-12 -12-12-12-12-1-21
 
-                            56-56-56-56-565-2
-            2-32-32-32-32-23 23-23-23-23-2-32
-          . Write as:
-             -21-21-21-21-12- 12-12-12-12-1-21
-          . Maybe it would be more predictable to say that 1 is always the
-            pitch.  Then I can know if sangsih is above or below by looking at
-            pitches.
-            . 2-32-32-32-3232- 32-32-32-32-323-
-              21-21-21-21-2-21 6-16-16-16-16-612
-          . I can get it work, but it takes a lot of thinking.
-        - Maybe have a character extend previous note.
-        - Another option is to write the polos notes directly, and then
-          a parent call that infers sangsih.  This avoids the problem where
-          I have to figure out how many little numbers.
-          . But if I'm going to do that, why not just use +p, +s, and +k to
-            write the whole thing explicitly?
-          . Well, that's quite a bit more fiddly.
-        - in norot -> nyog transition, the last norot note cancels the first
-          nyog note.
-          . sangsih 6i cancels out the explicit 5e
-          . Since {final} cancels normal notes, this is working as intended, and
-            I can fix with final=f or 'strong', but it's surprising.  Maybe
-            I should only have a final for negative events?
-        - make gangsa and reyong norot and noltol dispatch to 'm' instead of
-          directly applying +mute.  Or should I have a call for a weak note, and
-          leave 'm' for an explicitly muted note?
-        - gangsa zero dur mutes too loud
-          . Really I need loose and tight mute, but I'll have to do my own
-            samples, or maybe add a loose mute as open with just envelope.
-        - noltol puts a mute stroke after a final note.
-          . It's becasue it has a lower threshold, but not an upper one.
-            But really it's not the threshold, but the form, noltol should be
-            during kotekan.  So maybe I should really build this into kotekan
-            calls.
-        - clip should be end-weighted.  If I used a negative duration I could
-          make it based on that...
-          . Wait, isn't that what Clip is?
-        - generate all possible kernels following some playability rules,
-          e.g. no more than 2 notes in a row, only one rest
-          . I could then use that to automatically select a pattern for
-            a given destination, with some constraints like playability from
-            the previous pattern (no fast jumps), above vs. below, telu vs.
-            empat.
-          . Then do that to make a random kotekan for ngubeng and majalan.
-        - in Gangsa.realize_kotekan_pattern, pass Nothing as the start to not
-          limit the start
-        - inst postproc can interpret +mute as either just a mute, or open, or
-          in between depending on %mute.
-          . Then I don't need a configurable mute for
-            Gangsa.gangsa_norot_arrival.
-          . Reapply the 'm' call instead, and override that as appropriate.
-        - an optional special pattern which switching between kotekan and back,
-          e.g. 112-2-2-
-      wayang in octaves
-        . pemade: >p=>p-umbang | >s=>p-isep
-          kantilan: >p=>k-umbang | >s=>k-isep | %t-diatonic=5
-        . I could do it with >wayang-both that emits >wayang-p and >wayang-k. Or
-          just call the score twice, once with transpose +1 oct.
-        . I definitely want two calls because then kantilan randomizes
-          differently.
-        . Or I could create the kantilan as a integration of the pemade, so it
-          can still be modified. I think this would want a "score integration"
-          which just copies and merges the events directly, and doesn't do
-          the intermediate derivation.
-        . I could add inst aliases, e.g. >umbang = >p-umbang, etc.
-          Or a note-track call: '>umbang = "(>p-umbang)'
-          This can't be done with call aliasing because it's actually
-          'note-title >inst', and anyway wouldn't help with 'inst = >x'.
-        . The intended way to do this is have > instrument, and then set it in
-          the caller.  But then you can't put >1 inst on the same block.
-        . But this way doesn't work if I want differences in the kantilan
-          version.  I would have to do correspondingly more copy and paste to
-          replace the bit I want to change.
-        . Ideally I'd like something like integration: everything is
-          duplicated with no extra work, but an integration is available to
-          edit.  But it would be a kind of "deep integration", where
-          I duplicate the entire structure, from score on down.  Score
-          integration could theoretically do that.
-      trompong:
-        * octaves shouldn't be able to infer damping
-          . E.g. (6e 6o 6o, 5e - 5o)
-        - I need a better way to notate a section as lower octave.
-          . vv doesn't work is a note parent.
-          . This is similar to octaves notation for gender rambat.
-        - split to ngembat
-          . There are several ngembat variations:
-            . fast:
-              5 61    35 61
-                 1        1
-            . slow:
-              561   53561
-               21      21
-        * double note, like oo in kajar
-          . tabuh-gari, @b4 2.5t
-      reyong:
-        - divide infer-damp into infer-hands, and then use hand-damp.
-          That way I can put an integrate after infer-hands, as
-          a visualization if nothing else.
-        - Damp level is way too high, I have to put %damp=.2 everywhere.
-        - remove kilit, isn't it just norot now?
-        - for infer-damp, also infer damp level
-          . Damp gets louder when notes are closer, or faster.
-          . Also longer note is a quieter damp, or just say if the length is
-            over a threshold don't damp at all.
-        - How to configure open and closed damping?  I can currently do it
-          by adding +open, but that might be too broad because it also applies
-          to +cek.  Or I could always damp closed if that sounds good.
-          Or I could infer it based on speed.  Otherwise, I can change the
-          attr to +loose-mute or +tight-mute to explicitly configure.
-        - kbd entry for /, X, O, + etc.?
-        kilitan: norot:
-          * prepare is wrong for integration
-            . Internal.in_real_time messes up next pitch via
-              Gangsa.infer_prepare -> Args.lookup_next_pitch
-            . Because next pitch position becomes 1s, but the pitch map still
-              has it at 1.53s.
-            . Comes from Derive.state_pitch_map, because it's evaluated in
-              tempo.
-            . I need to either reset state_pitch_map when the tempo changes,
-              or use another method for next pitch.
-            . Args.eval_next_pitch doesn't work because I'm in the note track,
-              and it's for the pitch track.
-            . It might be more efficient to have state_pitch_map be a
-              Map ScoreTime Pitch, or [(ScoreTime, Pitch)], so I only evaluate
-              the pitches I need to, instead of all of them the first time
-              there is a next pitch.
-            . Also, Args.lookup_next_pitch should be next pitch segment, which
-              is distinct from Args.next_note_pitch.
-            . Or, how about derive the state_pitch_map in real time, and then
-              address it with TrackTime?
-          . How to do norot for real?
-            . Each voice is semi-independent, and may have different
-              preparation patterns and times.  But then sometimes they
-              coordinate.
-            . Variations are random, but frequency is controlled by
-              "kawayahan".
-          variants:
-            - controlled by variant control
-            - omit notes
-              . Especailly emit downbeats.
+                          56-56-56-56-565-2
+          2-32-32-32-32-23 23-23-23-23-2-32
+        . Write as:
+           -21-21-21-21-12- 12-12-12-12-1-21
+        . Maybe it would be more predictable to say that 1 is always the
+          pitch.  Then I can know if sangsih is above or below by looking at
+          pitches.
+          . 2-32-32-32-3232- 32-32-32-32-323-
+            21-21-21-21-2-21 6-16-16-16-16-612
+        . I can get it work, but it takes a lot of thinking.
+      - Maybe have a character extend previous note.
+      - Another option is to write the polos notes directly, and then
+        a parent call that infers sangsih.  This avoids the problem where
+        I have to figure out how many little numbers.
+        . But if I'm going to do that, why not just use +p, +s, and +k to
+          write the whole thing explicitly?
+        . Well, that's quite a bit more fiddly.
+      - in norot -> nyog transition, the last norot note cancels the first
+        nyog note.
+        . sangsih 6i cancels out the explicit 5e
+        . Since {final} cancels normal notes, this is working as intended, and
+          I can fix with final=f or 'strong', but it's surprising.  Maybe
+          I should only have a final for negative events?
+      - make gangsa and reyong norot and noltol dispatch to 'm' instead of
+        directly applying +mute.  Or should I have a call for a weak note, and
+        leave 'm' for an explicitly muted note?
+      - gangsa zero dur mutes too loud
+        . Really I need loose and tight mute, but I'll have to do my own
+          samples, or maybe add a loose mute as open with just envelope.
+      - noltol puts a mute stroke after a final note.
+        . It's becasue it has a lower threshold, but not an upper one.
+          But really it's not the threshold, but the form, noltol should be
+          during kotekan.  So maybe I should really build this into kotekan
+          calls.
+      - clip should be end-weighted.  If I used a negative duration I could
+        make it based on that...
+        . Wait, isn't that what Clip is?
+      - generate all possible kernels following some playability rules,
+        e.g. no more than 2 notes in a row, only one rest
+        . I could then use that to automatically select a pattern for
+          a given destination, with some constraints like playability from
+          the previous pattern (no fast jumps), above vs. below, telu vs.
+          empat.
+        . Then do that to make a random kotekan for ngubeng and majalan.
+      - in Gangsa.realize_kotekan_pattern, pass Nothing as the start to not
+        limit the start
+      - inst postproc can interpret +mute as either just a mute, or open, or
+        in between depending on %mute.
+        . Then I don't need a configurable mute for
+          Gangsa.gangsa_norot_arrival.
+        . Reapply the 'm' call instead, and override that as appropriate.
+      - an optional special pattern which switching between kotekan and back,
+        e.g. 112-2-2-
+    wayang in octaves
+      . pemade: >p=>p-umbang | >s=>p-isep
+        kantilan: >p=>k-umbang | >s=>k-isep | %t-diatonic=5
+      . I could do it with >wayang-both that emits >wayang-p and >wayang-k. Or
+        just call the score twice, once with transpose +1 oct.
+      . I definitely want two calls because then kantilan randomizes
+        differently.
+      . Or I could create the kantilan as a integration of the pemade, so it
+        can still be modified. I think this would want a "score integration"
+        which just copies and merges the events directly, and doesn't do
+        the intermediate derivation.
+      . I could add inst aliases, e.g. >umbang = >p-umbang, etc.
+        Or a note-track call: '>umbang = "(>p-umbang)'
+        This can't be done with call aliasing because it's actually
+        'note-title >inst', and anyway wouldn't help with 'inst = >x'.
+      . The intended way to do this is have > instrument, and then set it in
+        the caller.  But then you can't put >1 inst on the same block.
+      . But this way doesn't work if I want differences in the kantilan
+        version.  I would have to do correspondingly more copy and paste to
+        replace the bit I want to change.
+      . Ideally I'd like something like integration: everything is
+        duplicated with no extra work, but an integration is available to
+        edit.  But it would be a kind of "deep integration", where
+        I duplicate the entire structure, from score on down.  Score
+        integration could theoretically do that.
+    trompong:
+      * octaves shouldn't be able to infer damping
+        . E.g. (6e 6o 6o, 5e - 5o)
+      - I need a better way to notate a section as lower octave.
+        . vv doesn't work is a note parent.
+        . This is similar to octaves notation for gender rambat.
+      - split to ngembat
+        . There are several ngembat variations:
+          . fast:
+            5 61    35 61
+               1        1
+          . slow:
+            561   53561
+             21      21
+      * double note, like oo in kajar
+        . tabuh-gari, @b4 2.5t
+    reyong:
+      - divide infer-damp into infer-hands, and then use hand-damp.
+        That way I can put an integrate after infer-hands, as
+        a visualization if nothing else.
+      - Damp level is way too high, I have to put %damp=.2 everywhere.
+      - remove kilit, isn't it just norot now?
+      - for infer-damp, also infer damp level
+        . Damp gets louder when notes are closer, or faster.
+        . Also longer note is a quieter damp, or just say if the length is
+          over a threshold don't damp at all.
+      - How to configure open and closed damping?  I can currently do it
+        by adding +open, but that might be too broad because it also applies
+        to +cek.  Or I could always damp closed if that sounds good.
+        Or I could infer it based on speed.  Otherwise, I can change the
+        attr to +loose-mute or +tight-mute to explicitly configure.
+      - kbd entry for /, X, O, + etc.?
+      kilitan: norot:
+        * prepare is wrong for integration
+          . Internal.in_real_time messes up next pitch via
+            Gangsa.infer_prepare -> Args.lookup_next_pitch
+          . Because next pitch position becomes 1s, but the pitch map still
+            has it at 1.53s.
+          . Comes from Derive.state_pitch_map, because it's evaluated in
+            tempo.
+          . I need to either reset state_pitch_map when the tempo changes,
+            or use another method for next pitch.
+          . Args.eval_next_pitch doesn't work because I'm in the note track,
+            and it's for the pitch track.
+          . It might be more efficient to have state_pitch_map be a
+            Map ScoreTime Pitch, or [(ScoreTime, Pitch)], so I only evaluate
+            the pitches I need to, instead of all of them the first time
+            there is a next pitch.
+          . Also, Args.lookup_next_pitch should be next pitch segment, which
+            is distinct from Args.next_note_pitch.
+          . Or, how about derive the state_pitch_map in real time, and then
+            address it with TrackTime?
+        . How to do norot for real?
+          . Each voice is semi-independent, and may have different
+            preparation patterns and times.  But then sometimes they
+            coordinate.
+          . Variations are random, but frequency is controlled by
+            "kawayahan".
+        variants:
+          - controlled by variant control
+          - omit notes
+            . Especailly emit downbeats.
+            . It either becomes a gap, or previous note is lengthened.
+          alternating patterns:
             - possible mute or not for first two prepare notes
             - invert two notes, especially on downbeat or prepare.
               This only happens on the upper note.
             - hardcoded variants, e.g. p1 on dong
             - Delayed note, e.g. on ding, oiioioi
-            - Pickup can be iioi style, but parts that don't have the pitch
-              often play the normal kilitan, or a passing tone.
-            . I might be able to do all of these by hardcoding variant
-              fragments, unless I get permutations.
-          above speed threshold:
-            - omit more notes
-            - Entirely different fast patterns, but what exactly?
-          - Also I want to be able to control the dyn.  There should be
-            a single control for +mute dyn.  Actually I already have that
-            if I multiply %damp, right?  Still, explicit +mute notes and
-            kilitan +mute notes are stronger than damping, so I need two
-            I think.  Damping should default to a fraction of +mute dyn.
-          - write an alternate style of kilitan, e.g. with a 6 note scale in
-            tisram
-        kotekan
-          - reyong-voices doesn't seem to affect 'k' 'k//' and 'k\\', but does
-            k_\ and k//\\ (and shouldn't the last be k/\ for consistency with
-            gangsa?).
-          - support high dung for position 4
-      gender:
-        - rambat damping emulation: notes ring on by default until they can be
-          damped.  Damp at the first opportunity, where opportunity is defined
-          as a break with no notes for a certain amount of time.  Can only damp
-          two neighboring notes at a time.
+              ? What's this?
+          . Make patterns based on matching pitches, e.g.
+            [ ("212_", ["012_"])
+            , ("1010", ["1100", ..])
+            ]
+          . This still isn't enough though, because alternating may also be
+            2020 or 0101
+          - Pickup can be iioi style, but parts that don't have the pitch
+            often play the normal kilitan, or a passing tone.
+          . I might be able to do all of these by hardcoding variant
+            fragments, unless I get permutations.
+            . I think I do get permutations, so let's do it programmatically.
+          variations:
+            ding:
+            Iioi oioi
+            Iioo iioi -- flip, more likely on strong beats
+            Iio- oioi
+            Iio- iioi
+                 oio- -- drop beat, more likely on strong beats
+                 ooii -- flip
+                 _ioi -- drop note, uncommon, except maybe when fast
+            . any muted can be unmuted
+
+            - some prepare can be longer:
+              . dang:
+                aa uaea eaea
+                33 2313 1313
+              . dong:
+                33 2232 3232
+
+        above speed threshold:
+          - omit more notes
+          - Entirely different fast patterns, but what exactly?
+        - Also I want to be able to control the dyn.  There should be
+          a single control for +mute dyn.  Actually I already have that
+          if I multiply %damp, right?  Still, explicit +mute notes and
+          kilitan +mute notes are stronger than damping, so I need two
+          I think.  Damping should default to a fraction of +mute dyn.
+        - write an alternate style of kilitan, e.g. with a 6 note scale in
+          tisram
+      kotekan
+        - reyong-voices doesn't seem to affect 'k' 'k//' and 'k\\', but does
+          k_\ and k//\\ (and shouldn't the last be k/\ for consistency with
+          gangsa?).
+        - support high dung for position 4
+    gender:
+      - rambat damping emulation: notes ring on by default until they can be
+        damped.  Damp at the first opportunity, where opportunity is defined
+        as a break with no notes for a certain amount of time.  Can only damp
+        two neighboring notes at a time.
   india: gamakam:
     . Get rid of gamakam1-4:
       - Remove gamakam4.

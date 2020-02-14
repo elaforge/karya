@@ -172,6 +172,8 @@ load_file(const std::string &filename, const std::vector<double> &ratios)
     // How many frames to consume in this period
     double srate = sampling_rate / reduced_sampling_rate;
     double period = srate * period_at(ratios, frame);
+    // This could happen if someone put a 0 in ratios.
+    ASSERT(period > 0);
     // DEBUG("period " << srate << " * "
     //     << period_at(ratios, frame) << " = " << period);
     unsigned int index = 0;

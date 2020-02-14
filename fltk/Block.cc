@@ -761,7 +761,7 @@ void
 Block::draw()
 {
     Fl_Group::draw();
-    util::timing("Block::draw");
+    util::timing(1, "Block::draw");
 }
 
 

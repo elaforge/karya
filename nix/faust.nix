@@ -53,7 +53,9 @@ in {
       mkdir -p $out/bin
       cp src/mesh2faust $out/bin
     '';
-    arpack = nixpkgs.arpack;
+    # The nixpkgs one makes segfaulting binaries.
+    # arpack = nixpkgs.arpack;
+    arpack = /usr/local/Cellar/arpack/3.7.0_3/libexec;
     mkl = nixpkgs.mkl;
     buildInputs = with nixpkgs; [
       zlib

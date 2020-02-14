@@ -2,16 +2,14 @@
 // This program is distributed under the terms of the GNU General Public
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-/*
-C procedural interface to the UI level.
-*/
-
 #include <utility>
 #include <vector>
 #include "c_interface.h"
 #include "util.h"
 #include "f_util.h"
 
+
+// C procedural interface to the UI level.
 extern "C" {
 
 // UI Event
@@ -26,12 +24,14 @@ initialize(Config::FreeHaskellFunPtr finalize)
 void
 ui_wait()
 {
-    util::timing("haskell");
+    util::timing(1, "haskell");
     util::timing_flush();
     // Wait for 100 seconcds or until interrupted by an event or ui_awake().
-    // TODO remind myself why this is 100 and comment
+    // It will then do the haskell loop Fltk.fltk_event_loop, which will
+    // perform fltk API calls.  Then when it comes back to Fl::wait, fltk will
+    // perform any necessary drawing.
     Fl::wait(100);
-    util::timing("start");
+    util::timing(1, "start");
 }
 
 void

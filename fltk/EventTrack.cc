@@ -395,7 +395,7 @@ EventTrack::draw()
     if (draw_area.w <= 0 || draw_area.h <= 0)
         return;
 
-    util::timing("EventTrack::draw", draw_area.h);
+    util::timing(2, "EventTrack::draw", draw_area.h);
     // DEBUG("draw " << get_title() << ": " << f_util::show_damage(damage())
     //     << ": " << draw_area << " " << SHOW_RANGE(draw_area));
     // When ruler_overlay.draw() is called it will redundantly clip again
@@ -416,7 +416,7 @@ EventTrack::draw()
 
     this->draw_area();
     damaged_area.w = damaged_area.h = 0;
-    util::timing("EventTrack::draw_area");
+    util::timing(2, "EventTrack::draw_area");
 }
 
 
@@ -536,7 +536,7 @@ EventTrack::draw_area()
     Event *events;
     int *ranks;
     int count = this->config.find_events(&start, &end, &events, &ranks);
-    util::timing("EventTrack::find_events");
+    util::timing(2, "EventTrack::find_events");
     // If I comment it, I get an unused function warning.
     if (false)
         show_found_events(start, end, events, count);
@@ -560,23 +560,23 @@ EventTrack::draw_area()
     // Actually start drawing.
 
     this->draw_event_boxes(events, ranks, count, triggers);
-    util::timing("EventTrack::draw_event_boxes");
+    util::timing(2, "EventTrack::draw_event_boxes");
     this->draw_waveforms(clip.y, clip.b(), start);
-    util::timing("EventTrack::draw_waveforms");
+    util::timing(2, "EventTrack::draw_waveforms");
     this->draw_signal(clip.y, clip.b(), start);
-    util::timing("EventTrack::draw_signal");
+    util::timing(2, "EventTrack::draw_signal");
 
     IRect box(x(), track_start(), w(), h() - (y()-track_start()));
     this->ruler_overlay.draw(box, zoom, clip);
-    util::timing("EventTrack::ruler_overlay");
+    util::timing(2, "EventTrack::ruler_overlay");
 
     for (int i = 0; i < count; i++) {
         Align align = ranks[i] > 0 ? Right : Left;
         draw_upper_layer(i, events, align, boxes, triggers);
     }
-    util::timing("EventTrack::draw_upper_layer");
+    util::timing(2, "EventTrack::draw_upper_layer");
     selection_overlay.draw(x(), track_start(), w(), zoom);
-    util::timing("EventTrack::selection_overlay");
+    util::timing(2, "EventTrack::selection_overlay");
 
     // Free text, allocated on the haskell side.
     if (count) {
@@ -1092,7 +1092,7 @@ EventTrack::draw_upper_layer(
             : event_style->text_color).fl());
 
     const int drawable = drawable_pixels(index, events, boxes);
-    util::timing("drawable_pixels");
+    util::timing(2, "drawable_pixels");
     TEXT("drawable pixels for " << events[index] << ": " << drawable);
 
     const int track_min = this->track_start() - zoom.to_pixels(zoom.offset);
@@ -1115,7 +1115,7 @@ EventTrack::draw_upper_layer(
     draw_trigger(
         drawable > 0, x()+1, triggers[index], w()-2, event, align,
         prev_limit, track_max);
-    util::timing("draw_trigger");
+    util::timing(2, "draw_trigger");
 
     // for (int i = 0; i < boxes[index].lines.size(); i++) {
     //     TEXT("text box: " << i << ": " << boxes[index].lines[i]);
@@ -1176,7 +1176,7 @@ EventTrack::draw_upper_layer(
             }
         }
     }
-    util::timing("draw_text_line");
+    util::timing(2, "draw_text_line");
 }
 
 string

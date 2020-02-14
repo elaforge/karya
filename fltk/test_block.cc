@@ -16,8 +16,14 @@
 #include "f_util.h"
 
 
-enum Events { Negative, Symbols, Normal };
-static const Events t1_use_events = Normal;
+enum Events {
+    Normal,
+    Negative,
+    Symbols,
+    Many,
+    Waveform
+};
+static const Events t1_use_events = Many;
 // Turn this off just draw a single track.
 static const bool many_tracks = false;
 
@@ -48,7 +54,7 @@ Marklist *m44_set(ScoreTime *last_pos)
     char name[32];
     Color major = Color(116, 70, 0, 90);
     Color minor = Color(225, 100, 50, 90);
-    ScoreTime each_mark(1);
+    ScoreTime each_mark(8);
 
     int length = 64;
     PosMark *marks = (PosMark *) calloc(sizeof(PosMark), length);
@@ -117,7 +123,7 @@ void t1_set()
         e.push_back(EventInfo(0,
             Event(ScoreTime(64), ScoreTime(0), "`bold+italic/bold`", style)));
         break;
-    case Normal: {
+    case Normal:
         e.push_back(EventInfo(0,
             Event(ScoreTime(0), ScoreTime(16), "`arp-down`", style)));
         e.push_back(EventInfo(0,
@@ -151,7 +157,13 @@ void t1_set()
         e.push_back(EventInfo(0,
             Event(ScoreTime(64*8), ScoreTime(0), "end", style)));
         break;
-     } }
+    case Many:
+        for (int i = 0; i < 128; i++) {
+            e.push_back(EventInfo(0,
+                Event(ScoreTime(i*8), ScoreTime(8), "c4", style)));
+        }
+        break;
+    }
 }
 
 int
@@ -429,8 +441,33 @@ main(int argc, char **argv)
     view.testing = true;
     // view.border(0);
 
-    if (many_tracks) {
-        view.block.insert_track(0, Tracklike(&ruler), 20);
+    view.block.insert_track(0, Tracklike(&ruler), 20);
+    if (t1_use_events == Waveform) {
+        view.block.insert_track(1, Tracklike(&track1, &no_ruler), 40);
+        std::vector<double> ratios;
+        ratios.push_back(1/64.0);
+        view.block.set_waveform(
+            1, 0, PeakCache::Params(audio_chunk0, ScoreTime(0), ratios));
+        view.block.set_waveform(
+            1, 1, PeakCache::Params(audio_chunk1, ScoreTime(4*64), ratios));
+
+        view.block.insert_track(2, Tracklike(&track1, &no_ruler), 40);
+        std::vector<double> ratios2;
+        ratios2.push_back(1);
+        view.block.set_waveform(
+            2, 0, PeakCache::Params(audio_chunk0, ScoreTime(4*64), ratios2));
+
+        // view.block.set_waveform(
+        //     1, 1, PeakCache::Params(audio_chunk1, ScoreTime(4), ratios));
+        // view.block.set_waveform(
+        //     1, 1, PeakCache::Params(audio_chunk1_rev, ScoreTime(4), ratios));
+
+        PeakCache::get()->gc();
+    } else if (t1_use_events == Many) {
+        for (int i = 1; i < 24; i++) {
+            view.block.insert_track(i, Tracklike(&track1, &ruler), 30);
+        }
+    } else if (many_tracks) {
         view.block.insert_track(1, Tracklike(&empty_track, &ruler), 60);
         view.block.insert_track(2, Tracklike(&track1, &ruler), 130);
 
@@ -459,27 +496,15 @@ main(int argc, char **argv)
         dtrack.event_brightness = .75;
         view.block.set_display_track(2, dtrack);
     } else {
-        view.block.insert_track(0, Tracklike(&ruler), 20);
         view.block.insert_track(1, Tracklike(&track1, &no_ruler), 40);
         view.block.track_at(1)->set_title("track title");
-
         view.block.set_track_signal(1, *control_track_signal());
-        std::vector<double> ratios;
-        view.block.set_waveform(
-            1, 0, PeakCache::Params(audio_chunk0, ScoreTime(0), ratios));
-        view.block.set_waveform(
-            1, 1, PeakCache::Params(audio_chunk1, ScoreTime(4), ratios));
-        view.block.set_waveform(
-            1, 1, PeakCache::Params(audio_chunk1_rev, ScoreTime(4), ratios));
-
-        PeakCache::get()->gc();
     }
     view.block.set_title("clocky blocky");
 
     Fl::add_timeout(1, timeout_func, nullptr);
 
-    // view.block.set_zoom(Zoom(ScoreTime(0), 1.6));
-    view.block.set_zoom(Zoom(ScoreTime(0), 60));
+    view.block.set_zoom(Zoom(ScoreTime(0), 1.6));
 
     std::vector<Selection> sels;
     sels.push_back(

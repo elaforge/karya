@@ -24,6 +24,8 @@ Timing::timing(const char *name, int val)
 void
 Timing::flush()
 {
+    if (events.empty())
+        return;
     if (!fp.is_open()) {
         fp.open("seq.events", std::ofstream::out | std::ofstream::app);
         ASSERT(fp.is_open());
@@ -33,12 +35,8 @@ Timing::flush()
         // auto now = std::chrono::steady_clock::now();
         std::chrono::duration<double> dur = event.time - start;
         fp << dur.count() << ' ' << event.name << ' ' << event.val << '\n';
-        // fwrite(event.first, strlen(event.first), 1, fp);
-        // fwrite("", 1, 1, fp);
-        // fwrite(&event.second, sizeof(int), 1, fp);
     }
     fp.flush();
-    // fflush(fp);
     events.clear();
     events.reserve(256);
 }
