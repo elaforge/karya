@@ -282,7 +282,7 @@ evaluate_performance im_config lookup_inst wait send_status score_path
         Just config -> watch_subprocesses block_id config
             (Cmd.perf_inv_tempo perf)
             (state_wants_waveform (Cmd.perf_ui_state perf))
-            score_path adjust0
+            score_path adjust0 play_multiplier
             (send_status block_id)
             (Set.fromList procs)
         Nothing -> return False
@@ -320,13 +320,14 @@ state_wants_waveform state track_id = maybe False Track.track_waveform $
 
 type Process = (FilePath, [String])
 
+-- TODO too many args, can I factor out part?
 -- | Watch each subprocess, return when they all exit.
 watch_subprocesses :: BlockId -> Config.Config -> Transport.InverseTempoFunction
-    -> (TrackId -> Bool) -> FilePath -> RealTime
+    -> (TrackId -> Bool) -> FilePath -> RealTime -> RealTime
     -> (Msg.DeriveStatus -> IO ())
     -> Set Process -> IO Bool
 watch_subprocesses root_block_id config inv_tempo wants_waveform score_path
-        adjust0 send_status procs
+        adjust0 play_multiplier send_status procs
     | Set.null procs = return False
     | otherwise = Util.Process.multipleOutput (Set.toList procs) $ \chan ->
         Control.loop1 (procs, False) $ \loop (procs, failed) -> if
@@ -358,7 +359,7 @@ watch_subprocesses root_block_id config inv_tempo wants_waveform score_path
             | Config._blockId msg /= root_block_id -> return False
             | otherwise -> emit_status $
                 make_status inv_tempo wants_waveform (Config.imDir config)
-                    score_path adjust0 msg
+                    score_path adjust0 play_multiplier msg
 
     emit_status (ImStatus status) = do
         status <- case status of
@@ -387,9 +388,8 @@ data ImStatus =
     deriving (Show)
 
 make_status :: Transport.InverseTempoFunction -> (TrackId -> Bool) -> FilePath
-    -> FilePath -> RealTime -> Config.Message
-    -> ImStatus
-make_status inv_tempo wants_waveform im_dir score_path adjust0
+    -> FilePath -> RealTime -> RealTime -> Config.Message -> ImStatus
+make_status inv_tempo wants_waveform im_dir score_path adjust0 play_multiplier
         (Config.Message block_id track_ids instrument payload) =
     case payload of
         Config.RenderingRange start end ->
@@ -422,8 +422,8 @@ make_status inv_tempo wants_waveform im_dir score_path adjust0
             { _filename = Config.chunkPath im_dir score_path block_id
                 instrument chunknum
             , _chunknum = chunknum
-            , _start = start - adjust0
-            , _ratios = [ratio]
+            , _start = start * RealTime.to_score play_multiplier - adjust0
+            , _ratios = [ratio / RealTime.to_seconds play_multiplier]
             }
     time_at chunknum = RealTime.seconds $
         fromIntegral $ chunknum * Config.chunkSeconds

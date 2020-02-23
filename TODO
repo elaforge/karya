@@ -48,8 +48,7 @@ UNSORTED
       Could be null if load_file returned null?  load_file never returns null.
     . Otherwise, all I can think of is memory corruption, in the shared_ptr or
       vectors.  Maybe optimization inlines a dereference?
-
-  - waveforms are inaccurate when play multiply /= 1
+  * waveforms are inaccurate when play multiply /= 1
   * move tracks with shift click should include the collapsed pitch track
     . Actually it does work, but I have to click on top of the collapsed pitch
       track.  I should make it so moving to the track will move to a collapsed
@@ -5909,8 +5908,7 @@ Derive:
           . Variations are random, but frequency is controlled by
             "kawayahan".
         variants:
-          - controlled by variant control
-          - omit notes
+          . omit notes
             . Especailly emit downbeats.
             . It either becomes a gap, or previous note is lengthened.
           alternating patterns:
@@ -5926,7 +5924,7 @@ Derive:
             ]
           . This still isn't enough though, because alternating may also be
             2020 or 0101
-          - Pickup can be iioi style, but parts that don't have the pitch
+          . Pickup can be iioi style, but parts that don't have the pitch
             often play the normal kilitan, or a passing tone.
           . I might be able to do all of these by hardcoding variant
             fragments, unless I get permutations.
