@@ -279,10 +279,10 @@ evaluate_performance im_config lookup_inst wait send_status score_path
         (perf { Cmd.perf_events = events })
         (if null procs then Msg.ImUnnecessary else Msg.ImStarted)
     failed <- case im_config of
-        Just config -> watch_subprocesses block_id config
-            (Cmd.perf_inv_tempo perf)
-            (state_wants_waveform (Cmd.perf_ui_state perf))
-            score_path adjust0 play_multiplier
+        Just config -> watch_subprocesses block_id
+            (make_status (Cmd.perf_inv_tempo perf)
+                (state_wants_waveform (Cmd.perf_ui_state perf))
+                (Config.imDir config) score_path adjust0 play_multiplier)
             (send_status block_id)
             (Set.fromList procs)
         Nothing -> return False
@@ -320,14 +320,10 @@ state_wants_waveform state track_id = maybe False Track.track_waveform $
 
 type Process = (FilePath, [String])
 
--- TODO too many args, can I factor out part?
 -- | Watch each subprocess, return when they all exit.
-watch_subprocesses :: BlockId -> Config.Config -> Transport.InverseTempoFunction
-    -> (TrackId -> Bool) -> FilePath -> RealTime -> RealTime
-    -> (Msg.DeriveStatus -> IO ())
-    -> Set Process -> IO Bool
-watch_subprocesses root_block_id config inv_tempo wants_waveform score_path
-        adjust0 play_multiplier send_status procs
+watch_subprocesses :: BlockId -> (Config.Message -> ImStatus)
+    -> (Msg.DeriveStatus -> IO ()) -> Set Process -> IO Bool
+watch_subprocesses root_block_id make_status send_status procs
     | Set.null procs = return False
     | otherwise = Util.Process.multipleOutput (Set.toList procs) $ \chan ->
         Control.loop1 (procs, False) $ \loop (procs, failed) -> if
@@ -357,9 +353,7 @@ watch_subprocesses root_block_id config inv_tempo wants_waveform score_path
             -- for each block as its own toplevel.  If a block is child of
             -- another, I can see its prorgess in the parent.
             | Config._blockId msg /= root_block_id -> return False
-            | otherwise -> emit_status $
-                make_status inv_tempo wants_waveform (Config.imDir config)
-                    score_path adjust0 play_multiplier msg
+            | otherwise -> emit_status $ make_status msg
 
     emit_status (ImStatus status) = do
         status <- case status of
@@ -367,8 +361,7 @@ watch_subprocesses root_block_id config inv_tempo wants_waveform score_path
             -- hits if I use the symlinks, which all look like 000.wav.
             Msg.ImStatus block_id track_ids
                     (Msg.ImWaveformsCompleted waveforms) -> do
-                fns <- mapM (resolve_link . Track._filename)
-                    waveforms
+                fns <- mapM (resolve_link . Track._filename) waveforms
                 return $ Msg.ImStatus block_id track_ids $
                     Msg.ImWaveformsCompleted
                         [ wave { Track._filename = fn }
@@ -387,6 +380,7 @@ data ImStatus =
     ImStatus Msg.DeriveStatus | ImWarn Log.Msg | ImFail Log.Msg | ImNothing
     deriving (Show)
 
+-- | Convert the status output from an im subprocess to an 'ImStatus'.
 make_status :: Transport.InverseTempoFunction -> (TrackId -> Bool) -> FilePath
     -> FilePath -> RealTime -> RealTime -> Config.Message -> ImStatus
 make_status inv_tempo wants_waveform im_dir score_path adjust0 play_multiplier

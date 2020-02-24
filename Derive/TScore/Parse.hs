@@ -2,16 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{- | Parse the tscore language:
-
-    > %scale=sargam
-    > root = %default-call [melody/0 melody]
-    > melody = %dur=mult [
-    >     >inst1 | a1 | b2 [ c~ c // e f ]/ |
-    >     //
-    >     >inst2 | p1 | m |
-    > ]
--}
+-- | Parse the tscore language.
 module Derive.TScore.Parse where
 import qualified Data.Char as Char
 import qualified Data.List as List
