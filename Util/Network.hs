@@ -11,7 +11,6 @@ import qualified Foreign.C as C
 import qualified Network.Socket as Socket
 import qualified Network.Socket.Internal as Socket.Internal
 import qualified System.IO as IO
-import qualified System.Posix.IO as Posix.IO
 
 
 newtype Addr = Unix FilePath
@@ -23,9 +22,7 @@ listen (Unix fname) = do
     -- Make sure subprocesses don't inherit this.  Otherwise a subprocess such
     -- as lilypond causes the REPL command to block until the subprocess
     -- completes.
-    -- Socket.setCloseOnExecIfNeeded $ Socket.fdSocket socket
-    Posix.IO.setFdOption (fromIntegral (Socket.fdSocket socket))
-        Posix.IO.CloseOnExec True
+    Socket.withFdSocket socket Socket.setCloseOnExecIfNeeded
     Socket.bind socket (Socket.SockAddrUnix fname)
     Socket.listen socket 1
     return socket

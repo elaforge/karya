@@ -755,8 +755,8 @@ ghcGlobalFlags :: [Flag]
 ghcGlobalFlags =
     -- There's no particular reason for --nomacro, except I don't use
     -- them, and I don't want to start unless for good reason.
-    ["-pgmP", "cpphs", "-optP", "--nomacro", "-optP", "--cpp"]
-    ++ ghcLanguageFlags
+    ["-pgmP", "cpphs --nomacro --cpp"] ++ ghcLanguageFlags
+    -- https://gitlab.haskell.org/ghc/ghc/issues/17185
 
 -- | Language extensions which are globally enabled.
 ghcLanguageFlags :: [Flag]

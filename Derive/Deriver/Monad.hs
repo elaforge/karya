@@ -5,8 +5,6 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-} -- for super-classes of Callable
 {-# LANGUAGE DeriveFunctor #-}
--- Let 'MkScopePriority' take a type constructor.
-{-# LANGUAGE LiberalTypeSynonyms #-}
 {-# LANGUAGE ConstraintKinds #-}
 {- | Implementation for the Deriver monad.
 
@@ -709,15 +707,19 @@ instance Pretty (CallMap call) where
 -- Perhaps this should be called Namespaces, but Id.Namespace is already taken
 -- and Scopes is shorter.
 type Scopes = ScopesT
-    (MkScopePriority Generator)
-    (MkScopePriority Transformer)
-    (MkScopePriority TrackCall)
+    (Scope
+        (ScopePriority (Generator Note))
+        (ScopePriority (Generator Control))
+        (ScopePriority (Generator Pitch)))
+    (Scope
+        (ScopePriority (Transformer Note))
+        (ScopePriority (Transformer Control))
+        (ScopePriority (Transformer Pitch)))
+    (Scope
+        (ScopePriority (TrackCall Note))
+        (ScopePriority (TrackCall Control))
+        (ScopePriority (TrackCall Pitch)))
     (ScopePriority ValCall)
-
-type MkScopePriority kind = Scope
-    (ScopePriority (kind Note))
-    (ScopePriority (kind Control))
-    (ScopePriority (kind Pitch))
 
 -- | TODO this could probably now do with a more general name
 -- maybe CallType for this, and CallKind for 'Scope'?

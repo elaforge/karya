@@ -4,4 +4,4 @@ objs=(
     build/test/debug/Util/vectorc.cc.o
 )
 
-exec tools/do-ghci build/debug/ghci-flags "$@"
+exec tools/do-ghci build/debug/ghci-flags $objs "$@"

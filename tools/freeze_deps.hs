@@ -2,6 +2,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 -- | Run this to freeze cabal deps and write to .config files.
+--
+-- I used to use this to filter out the bootlibs to be portable across
+-- different versions of ghc, but now that it seems easier to just require
+-- a single ghc version.  So now I just do a `cabal freeze`.
 import qualified Data.Text as Text
 import Data.Text (Text)
 import qualified Data.Text.IO as Text.IO

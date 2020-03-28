@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE LiberalTypeSynonyms #-}
 -- | Utilities for the Library type.
 module Derive.Library (
     -- * make
@@ -32,16 +31,23 @@ import Global
 -- | The holds the libary of statically-declared calls.  It gets compiled to
 -- 'Derive.Builtins' by 'compile'.
 type Library = Derive.ScopesT
-    (MkScope Derive.Generator)
-    (MkScope Derive.Transformer)
-    (MkScope Derive.TrackCall)
+    (Derive.Scope
+        [Entry (Derive.Generator Derive.Note)]
+        [Entry (Derive.Generator Derive.Control)]
+        [Entry (Derive.Generator Derive.Pitch)])
+    (Derive.Scope
+        [Entry (Derive.Transformer Derive.Note)]
+        [Entry (Derive.Transformer Derive.Control)]
+        [Entry (Derive.Transformer Derive.Pitch)])
+    (Derive.Scope
+        [Entry (Derive.TrackCall Derive.Note)]
+        [Entry (Derive.TrackCall Derive.Control)]
+        [Entry (Derive.TrackCall Derive.Pitch)])
     [Entry Derive.ValCall]
 
-type MkScope kind =
-    Derive.Scope [Entry (kind Derive.Note)] [Entry (kind Derive.Control)]
-        [Entry (kind Derive.Pitch)]
-
-data Entry call = Single !Expr.Symbol !call | Pattern !(Derive.PatternCall call)
+data Entry call =
+    Single !Expr.Symbol !call
+    | Pattern !(Derive.PatternCall call)
 
 instance Show Library where show _ = "((Library))"
 instance Pretty (Entry call) where

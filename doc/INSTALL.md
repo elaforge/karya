@@ -1,7 +1,7 @@
 ## Installation
 
-- Install GHC.  At least 8.0 and 8.4.4 should work.  8.2 definitely does not
-work.  It should compile fine, but the REPL won't work.  Details at
+- Install GHC.  I'm using 8.8 now and I dropped support for previous versions.
+8.2 definitely does not work, details at
 <https://ghc.haskell.org/trac/ghc/ticket/13604>.
 
 - Install [non-haskell dependencies](#non-haskell-dependencies).
@@ -41,7 +41,7 @@ not iphone-ly.  Or don't do that.  This is just reminder to myself.
     in a non-standard place, e.g. `~/homebrew`, then `cabal install
     --only-dependencies` won't find it.  You'll need to add flags, e.g.:
 
-        cabal install --extra-include-dirs=$HOME/homebrew/include \
+        cabal v1-install --extra-include-dirs=$HOME/homebrew/include \
             --extra-lib-dirs=$HOME/homebrew/lib --only-dependencies
 
 - lilypond for the lilypond backend.  This is optional.  If you never try to
@@ -85,13 +85,12 @@ and it doesn't know how to do dependencies between them, so first run:
     cabal install alex happy
     cabal install c2hs cpphs
 
-I think when I can rely on Cabal >=2.0 and nix-style builds, `cabal install`
-will finally handle this automatically.
+New cabal with nix-style builds might have fixed this.
 
 To install the needed haskell dependencies, type:
 
     cabal sandbox init  # if you're afraid to screw up your haskell installation
-    cabal install --only-dependencies
+    cabal v1-install --only-dependencies
 
 The actual build is with shake, but there's a dummy cabal file with just
 dependencies to make install easier.

@@ -257,7 +257,8 @@ UNSORTED
       saving those.
     ? It's the first cmd only, what is it doing that's more work?
     . Try with 8.0.2.  Yes, still happens there.
-  - Check out pretty-show or pretty-simple or ghci-pretty
+  - prettyprint:
+    . Check out pretty-show or pretty-simple or ghci-pretty
     . https://www.reddit.com/r/haskell/comments/8ilw75/there_are_too_many_prettyprinting_libraries/
     . http://teh.id.au/posts/2017/02/13/interactive-print/index.html
     . https://www.reddit.com/r/haskell/comments/76fvsq/replacing_ghcis_prettyprinter/
@@ -1221,6 +1222,30 @@ UNIFY:
         . Translate the pipeline syntax into that call.
 
 ----------------------------------------------------------------------
+
+upgrade to ghc 8.8:
+  / ghcit no longer loads .o: changed flags
+    . But different with ghc: it loads .o, but still interprets a bunch of
+      things when I ':l *'.
+    . -ddump-hi-diffs
+    . Module flags have changed 70c3e48540276626e4989d431c3a7ad4
+      -> a6669bafdc252c7504c7513ca70aacbd
+    . Wait but now it does, try a rebuild.
+  * tests hang:
+    . normal-Cmd.CallDoc_test.test_doc_html
+    . It was prettyprint.
+  - macro redefined warning when compiling hsc2hs generated file
+    . Because hsc2hs embeds it in the file with -optc
+    . Harmless but annoying.
+  + bug with cpphs: https://gitlab.haskell.org/ghc/ghc/issues/17185
+    . I can put spaces in -pgmP.
+    . Commented on the issue, but the workaround seems ok.
+  * Using Derive.Deriver.Monad.Scope now requires LiberalTypeSynonyms
+    . Put it in global -X, but it would be nicer to remove the need for it.
+    . Just expand a few synonyms and it's fine.
+  later:
+    - clean up unused imports
+    - Util.SourceControl doesn't need to support darcs any more
 
 documentation:
   - strict markdown parser, and extensible:

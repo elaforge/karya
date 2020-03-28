@@ -75,7 +75,8 @@ parseXml xml =
 
 -- | Parse darcs date format, e.g. "20180127222545".
 parseDate :: Text -> Either Error Time.UTCTime
-parseDate = Time.parseTimeM False Time.defaultTimeLocale "%Y%m%d%H%M%S"
+parseDate = maybe (Left "no parse") Right
+    . Time.parseTimeM False Time.defaultTimeLocale "%Y%m%d%H%M%S"
     . Text.unpack
 
 unquote :: Text -> Text
