@@ -3,9 +3,8 @@
 
 -- | Run this to freeze cabal deps and write to .config files.
 --
--- I used to use this to filter out the bootlibs to be portable across
--- different versions of ghc, but now that it seems easier to just require
--- a single ghc version.  So now I just do a `cabal freeze`.
+-- This is just like cabal v1-freeze, except that it filters out bootlibs,
+-- to give a chance at being portable across different versions of ghc.
 import qualified Data.Text as Text
 import Data.Text (Text)
 import qualified Data.Text.IO as Text.IO
@@ -28,7 +27,7 @@ freeze global cabalFile freezeFile = do
     tmp <- Temp.mkdtemp "/tmp/freeze_deps"
     constraints <- Directory.withCurrentDirectory tmp $ do
         Text.IO.writeFile "fake-project.cabal" cabal
-        Process.callProcess "cabal" ["freeze"]
+        Process.callProcess "cabal" ["v1-freeze"]
         parseConstraints . Text.lines <$> Text.IO.readFile "cabal.config"
     Text.IO.writeFile freezeFile $ Text.unlines $
         ("constraints:":) $

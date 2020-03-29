@@ -1224,6 +1224,20 @@ UNIFY:
 ----------------------------------------------------------------------
 
 upgrade to ghc 8.8:
+  * write new freeze files
+    . Let's not bother with tools/freeze_deps.hs, and just require one ghc
+      version.
+  - Use nix-style packages
+    . https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/packages.html#package-environments
+    . Either use -package-env flag or write .ghc.environment.arch-os-version
+    . Then stop passing flags on the cmdline.
+    . Install deps with: cabal build --only-dep
+    . But it's broken, hlibgit2 fails on '#include <openssl/sha.h>', and
+      --extra-include-dirs=/usr/local/opt/openssl/include
+      --extra-lib-dirs=/usr/local/opt/openssl/lib
+      has no effect, and I can't build it manually due to the cabal version
+      mismatch.
+    . How are you supposed to install deps in the v2 world?
   / ghcit no longer loads .o: changed flags
     . But different with ghc: it loads .o, but still interprets a bunch of
       things when I ':l *'.
