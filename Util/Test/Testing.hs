@@ -206,7 +206,7 @@ pretty_compare :: Show a =>
     -> a -> a -> Bool -- ^ True if as are equal
     -> Text
 pretty_compare equal inequal expect_equal a b is_equal
-    | is_equal = equal <> " " <> ellipse (showt a)
+    | is_equal == expect_equal = equal <> " " <> ellipse (showt a)
     | otherwise = fmt_lines inequal
         (Text.lines $ highlight_lines color diff_a pretty_a)
         (Text.lines $ highlight_lines color diff_b pretty_b)
@@ -215,8 +215,8 @@ pretty_compare equal inequal expect_equal a b is_equal
     (diff_a, diff_b) = diff_ranges pretty_a pretty_b
     pretty_a = pshowt a
     pretty_b = pshowt b
-    -- Equal values are usually not interesting, so abbreviate if they're too
-    -- long.
+    -- Expected results are usually not interesting, so abbreviate if they're
+    -- too long.
     ellipse s
         | len > maxlen = Text.take maxlen s <> "... {" <> showt len <> "}"
         | otherwise = s
@@ -437,14 +437,12 @@ hedgehog prop = do
 format_hedgehog_report :: Report.Report Report.Result -> IO (Bool, Text)
 format_hedgehog_report report = do
     name <- Text.unpack . config_test_name <$> IORef.readIORef test_config
-    str <- Report.renderResult color
+    str <- Report.renderResult Internal.Config.EnableColor
         (Just (Internal.Property.PropertyName name)) report
     return $ (, Text.pack str) $ case Report.reportStatus report of
         Report.OK -> True
         Report.GaveUp -> False
         Report.Failed {} -> False
-    where
-    color = Just Internal.Config.EnableColor
 
 -- * QuickCheck
 
