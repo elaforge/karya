@@ -1245,7 +1245,7 @@ upgrade to ghc 8.8:
     . Just expand a few synonyms and it's fine.
   later:
     - clean up unused imports
-    - Util.SourceControl doesn't need to support darcs any more
+    * Util.SourceControl doesn't need to support darcs any more
 
 documentation:
   - strict markdown parser, and extensible:

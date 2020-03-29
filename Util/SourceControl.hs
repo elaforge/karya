@@ -5,23 +5,16 @@
 {-# LANGUAGE OverloadedStrings #-}
 -- | Functions to deal with local source control.
 module Util.SourceControl (Entry(..), current, showDate) where
-import Data.Monoid ((<>))
 import qualified Data.Text as Text
-import Data.Text (Text)
+import           Data.Text (Text)
 import qualified Data.Time as Time
 import qualified Data.Time.Clock.POSIX as Clock.POSIX
 
-import qualified System.Directory as Directory
 import qualified System.Exit as Exit
-import System.FilePath ((</>))
 import qualified System.Process as Process
 
 import qualified Util.ParseText as ParseText
-import qualified Util.Regex as Regex
-import qualified Util.Texts as Texts
 
-
-data SCM = Darcs | Git deriving (Show, Eq)
 
 type Error = String
 
@@ -33,77 +26,12 @@ data Entry = Entry {
     } deriving (Show)
 
 current :: FilePath -> IO (Either Error Entry)
-current dir = do
-    scm <- inferScm dir
-    case scm of
-        Darcs -> currentPatchDarcs dir
-        Git -> currentPatchGit dir
+current = currentPatchGit
 
 showDate :: Time.UTCTime -> Text
 showDate = Text.pack
     . Time.formatTime Time.defaultTimeLocale
         (Time.iso8601DateFormat (Just "%H:%M:%S"))
-
-inferScm :: FilePath -> IO SCM
-inferScm dir = do
-    git <- Directory.doesDirectoryExist (dir </> ".git")
-    return $ if git then Git else Darcs
-
--- * darcs
-
-currentPatchDarcs :: FilePath -> IO (Either Error Entry)
-currentPatchDarcs dir = (parseXml . Text.pack =<<) <$> getCurrentPatchDarcs dir
-
-{- Example output:
-    <changelog>
-    <patch author='qdunkan@gmail.com' date='20161014175123' local_date='Fri Oct 14 10:51:23 PDT 2016' inverted='False' hash='ac46ad4bde5e6fa1a5a742ab6f6ae9415b2fdbfe'>
-        <name>add LInst.set_addr</name>
-        <comment>Ignore-this: 50324106664282aff81117720fd11f1f</comment>
-    </patch>
-    </changelog>
--}
-parseXml :: Text -> Either Error Entry
-parseXml xml =
-    Entry <$> attr "author"
-        <*> (parseDate =<< attr "date")
-        <*> attr "hash"
-        <*> field "name"
-    where
-    attr name = matchOne ("\\b" <> name <> "='([^']*)'") xml
-    field name = unquote <$>
-        matchOne ("<" <> name <> ">([^<]*)</" <> name <> ">") xml
-
--- | Parse darcs date format, e.g. "20180127222545".
-parseDate :: Text -> Either Error Time.UTCTime
-parseDate = maybe (Left "no parse") Right
-    . Time.parseTimeM False Time.defaultTimeLocale "%Y%m%d%H%M%S"
-    . Text.unpack
-
-unquote :: Text -> Text
-unquote = Texts.replaceMany $ map (\(k, v) -> ("&" <> k <> ";", v))
-    [ ("apos", "'")
-    , ("lt", "<")
-    , ("gt", ">")
-    , ("amp", "&")
-    ]
-
-matchOne :: String -> Text -> Either Error Text
-matchOne regex text = do
-    cRegex <- Regex.compileOptions [Regex.Multiline] regex
-    case Regex.groups cRegex text of
-        [(_, [group])] -> Right group
-        matches -> Left $ "expected exactly one match: " <> show matches
-
-getCurrentPatchDarcs :: FilePath -> IO (Either Error String)
-getCurrentPatchDarcs dir = do
-    (exit, stdout, stderr) <- Process.readCreateProcessWithExitCode
-        ((Process.proc "darcs" ["log", "--last=1", "--xml-output"])
-            { Process.cwd = Just dir })
-        ""
-    return $ case exit of
-        Exit.ExitFailure n ->
-            Left $ "darcs failed with " <> show n <> ": " <> stderr
-        Exit.ExitSuccess -> Right stdout
 
 -- * git
 
