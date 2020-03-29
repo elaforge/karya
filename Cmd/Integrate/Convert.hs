@@ -48,6 +48,11 @@ import           Global
 import           Types
 
 
+-- | Include flags as a comment in generated events, for debugging.  It
+-- clutters the output though.  TODO: need a better way
+debug :: Bool
+debug = False
+
 type Error = Text
 type Title = Text
 
@@ -176,7 +181,7 @@ note_call call_map event = Texts.join2
     (maybe "" Expr.unsym (Map.lookup attrs call_map))
     -- Append flags to help with debugging.  The presence of a flag probably
     -- means some postproc step wasn't applied.
-    (if flags == mempty then "" else " -- " <> pretty flags)
+    (if debug || flags == mempty then "" else " -- " <> pretty flags)
     where
     attrs = Score.event_attributes event
     flags = Score.event_flags event
