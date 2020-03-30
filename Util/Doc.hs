@@ -13,7 +13,6 @@ module Util.Doc (
     , HtmlState, get_html_state
 ) where
 import qualified Data.Char as Char
-import Data.Semigroup ((<>), Semigroup)
 import qualified Data.Set as Set
 import qualified Data.String as String
 import qualified Data.Text as Text

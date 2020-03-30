@@ -1258,7 +1258,7 @@ upgrade to ghc 8.8:
     . Put it in global -X, but it would be nicer to remove the need for it.
     . Just expand a few synonyms and it's fine.
   later:
-    - clean up unused imports
+    * clean up unused imports
     * Util.SourceControl doesn't need to support darcs any more
 
 documentation:

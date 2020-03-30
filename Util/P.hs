@@ -9,7 +9,6 @@ module Util.P (
 ) where
 import           Prelude hiding (takeWhile)
 import           Data.Text (Text)
-import           Text.Megaparsec ((<?>))
 
 import           Text.Megaparsec
 import           Text.Megaparsec.Char

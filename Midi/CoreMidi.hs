@@ -16,7 +16,6 @@ import qualified Data.ByteString as ByteString
 import qualified Data.IORef as IORef
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import           Data.Text (Text)
 
 import           Foreign hiding (void)
 

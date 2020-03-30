@@ -7,7 +7,6 @@ import qualified Data.Vector as Vector
 
 import qualified Util.LazyVector as LazyVector
 import Util.Test
-import Global
 
 
 -- property: if you construct out of mixed singletons and fromLists, it will

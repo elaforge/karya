@@ -9,7 +9,6 @@ import qualified GHC.TypeLits as TypeLits
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as File
-import Global
 
 
 t_mix out = write out $ Audio.mix

@@ -5,14 +5,13 @@
 module Derive.Scale.Just_test where
 import qualified Data.Text as Text
 
-import Util.Test
-import qualified Ui.UiTest as UiTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
+import qualified Ui.UiTest as UiTest
 
-import Global
+import           Util.Test
 
 
 test_make_just7 = do

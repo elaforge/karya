@@ -8,7 +8,6 @@ import qualified Data.Text as Text
 import Util.Test
 import qualified Cmd.ModifyEvents as ModifyEvents
 import Cmd.ModifyEvents (Replacement(..), w, ws, ws1)
-import Global
 
 
 test_substitute = do

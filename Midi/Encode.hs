@@ -5,7 +5,6 @@
 module Midi.Encode (decode, encode, sox_byte, eox_byte) where
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Unsafe as Unsafe
-import Data.Monoid ((<>))
 import Data.Word (Word8)
 
 import Midi.Midi

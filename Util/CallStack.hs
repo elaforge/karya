@@ -8,7 +8,6 @@
 module Util.CallStack where
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Trans as Trans
-import Data.Monoid ((<>))
 import qualified Data.Text as Text
 import Data.Text (Text)
 import qualified GHC.Stack as Stack

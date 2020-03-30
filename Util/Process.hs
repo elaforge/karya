@@ -11,13 +11,11 @@ import qualified Control.Concurrent.Async as Async
 import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
-import           Control.Monad (forever, void)
 import qualified Control.Monad.Fix as Fix
 
 import qualified Data.ByteString as ByteString
 import qualified Data.String as String
 import qualified Data.Text as Text
-import           Data.Text (Text)
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Time as Time
 

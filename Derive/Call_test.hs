@@ -5,13 +5,14 @@
 module Derive.Call_test where
 import qualified Data.List.NonEmpty as NonEmpty
 
-import Util.Test
-import qualified Ui.Ui as Ui
 import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.EnvKey as EnvKey
-import Global
+
+import qualified Ui.Ui as Ui
+
+import           Util.Test
 
 
 test_random = do

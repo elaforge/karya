@@ -27,7 +27,6 @@ module Util.Format (
 import           Prelude hiding (unlines)
 import qualified Data.Char.WCWidth as WCWidth
 import qualified Data.List as List
-import           Data.Semigroup ((<>), Semigroup)
 import qualified Data.String as String
 import qualified Data.Text as Text
 import           Data.Text (Text)

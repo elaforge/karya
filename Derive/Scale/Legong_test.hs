@@ -6,7 +6,6 @@ module Derive.Scale.Legong_test where
 import qualified Data.Map as Map
 import qualified Data.Vector as Vector
 
-import Util.Test
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Legong as Legong
@@ -14,7 +13,8 @@ import qualified Derive.Scale.McPhee as McPhee
 import qualified Derive.Scale.ScaleTest as ScaleTest
 
 import qualified Perform.Pitch as Pitch
-import Global
+
+import           Util.Test
 
 
 test_note_to_call = do

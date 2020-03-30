@@ -3,11 +3,11 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.C.Bali.Gong_test where
-import Util.Test
-import qualified Ui.UiTest as UiTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
-import Global
+import qualified Ui.UiTest as UiTest
+
+import           Util.Test
 
 
 test_jegog = do

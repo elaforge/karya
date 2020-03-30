@@ -8,7 +8,6 @@ import           Prelude hiding (String)
 import qualified Data.List as List
 import qualified Data.Tuple as Tuple
 
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveT as DeriveT

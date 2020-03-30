@@ -34,7 +34,6 @@ import qualified Derive.Typecheck as Typecheck
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
-import           Global
 import           Types
 
 

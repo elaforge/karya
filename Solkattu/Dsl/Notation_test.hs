@@ -10,7 +10,7 @@ import qualified Data.Tuple as Tuple
 import qualified Util.Num as Num
 import qualified Solkattu.Dsl.Solkattu as G
 import           Solkattu.Dsl.Solkattu
-       (__, di, din, gin, ka, ki, na, sd, su, ta, taka)
+       (di, din, gin, ka, ki, na, ta, taka)
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.S as S

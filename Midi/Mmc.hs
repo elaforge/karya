@@ -7,7 +7,6 @@
 -- specially formatted SystemExclusive msgs.
 module Midi.Mmc where
 import qualified Data.ByteString as B
-import Data.Monoid ((<>))
 import Data.Word (Word8)
 
 import qualified Midi.Midi as Midi

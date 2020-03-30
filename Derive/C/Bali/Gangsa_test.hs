@@ -7,7 +7,6 @@ import qualified Data.List as List
 import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
-import qualified Derive.Attrs as Attrs
 import qualified Derive.C.Bali.Gangsa as Gangsa
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest

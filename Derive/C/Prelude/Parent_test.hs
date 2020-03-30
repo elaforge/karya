@@ -14,7 +14,6 @@ import qualified Derive.Score as Score
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
 import qualified Ui.UiTest as UiTest
 
-import           Global
 import           Util.Test
 
 

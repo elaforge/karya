@@ -16,8 +16,6 @@ import qualified Derive.Sig as Sig
 
 import qualified Synth.Sampler.Patch.Lib.Code as Code
 
-import           Global
-
 
 code :: ImInst.Code
 code = mconcat

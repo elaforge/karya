@@ -11,7 +11,6 @@ module Util.LazyVector (
 ) where
 import qualified Control.Monad.ST as ST
 import qualified Control.Monad.ST.Unsafe as ST.Unsafe
-import Data.Semigroup (Semigroup, (<>))
 import qualified Data.Vector as Vector
 import qualified Data.Vector.Mutable as Mutable
 

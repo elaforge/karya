@@ -56,7 +56,6 @@ import qualified Data.Algorithm.Diff as Diff
 import qualified Data.IORef as IORef
 import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
-import Data.Monoid ((<>))
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import Data.Text (Text)

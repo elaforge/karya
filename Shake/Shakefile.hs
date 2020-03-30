@@ -22,7 +22,6 @@ import qualified Data.Hashable as Hashable
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import           Data.Semigroup ((<>), Semigroup)
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Typeable as Typeable

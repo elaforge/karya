@@ -27,8 +27,6 @@ import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Signal as Signal
 
-import           Global
-
 
 -- | This is a specialization of 'transform_notes' that adds Attributes.
 attributed_note :: Module.Module -> Attrs.Attributes

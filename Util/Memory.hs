@@ -9,7 +9,6 @@
 -- TODO the SizeOf part can maybe be replaced by the weigh package.
 module Util.Memory where
 import qualified Data.Map as Map
-import           Data.Monoid ((<>))
 import qualified Data.Word as Word
 
 import qualified Foreign

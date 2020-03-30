@@ -20,7 +20,6 @@ import qualified Control.Exception as Exception
 import qualified Control.Monad.Trans as Trans
 
 import qualified Data.IORef as IORef
-import Data.Monoid ((<>))
 import qualified Data.Text as Text
 import Data.Text (Text)
 import qualified Data.Text.IO as Text.IO

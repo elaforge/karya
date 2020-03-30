@@ -15,7 +15,6 @@ import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import           Data.Monoid ((<>))
 import qualified Data.Set as Set
 import qualified Data.String as String
 import qualified Data.Text as Text

@@ -57,7 +57,6 @@ module Perform.Signal (
     , integrate
     , flat_duration
 ) where
-import qualified Prelude
 import Prelude hiding (head, last, maximum, minimum, null, drop)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Vector.Storable as Vector

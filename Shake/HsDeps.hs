@@ -12,7 +12,6 @@ module Shake.HsDeps (
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Exception as Exception
 import Control.Monad
-import Data.Monoid ((<>))
 import qualified Control.Monad.Trans as Trans
 
 import qualified Data.ByteString.Char8 as B

@@ -5,13 +5,12 @@
 module Derive.Scale.Edo_test where
 import qualified Data.Text as Text
 
-import Util.Test
-import qualified Ui.UiTest as UiTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Perform.NN as NN
+import qualified Ui.UiTest as UiTest
 
-import Global
+import           Util.Test
 
 
 test_edo = do

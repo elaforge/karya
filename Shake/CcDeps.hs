@@ -9,7 +9,6 @@ import qualified Control.Monad.Trans as Trans
 import qualified Data.ByteString.Char8 as B
 import qualified Data.Char as Char
 import qualified Data.Either as Either
-import Data.Monoid ((<>))
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set

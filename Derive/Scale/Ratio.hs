@@ -30,8 +30,6 @@ import           Derive.Sig (defaulted)
 
 import qualified Perform.Pitch as Pitch
 
-import           Global
-
 
 scales :: [Scale.Definition]
 scales = map Scale.Simple [scale]

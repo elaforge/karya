@@ -13,7 +13,6 @@ import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
 
 import qualified Perform.Pitch as Pitch
-import Global
 
 
 scales :: [Scale.Definition]

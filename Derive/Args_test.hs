@@ -11,7 +11,6 @@ import qualified Derive.DeriveTest as DeriveTest
 
 import qualified Ui.UiTest as UiTest
 
-import           Global
 import           Util.Test
 
 

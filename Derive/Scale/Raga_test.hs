@@ -4,11 +4,11 @@
 
 module Derive.Scale.Raga_test where
 import qualified Util.Seq as Seq
-import Util.Test
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Perform.NN as NN
-import Global
+
+import           Util.Test
 
 
 test_pitch = do

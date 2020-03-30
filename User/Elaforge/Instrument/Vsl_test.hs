@@ -5,20 +5,20 @@
 module User.Elaforge.Instrument.Vsl_test where
 import qualified Data.List as List
 
-import Util.Test
-import qualified Midi.Key as Key
-import qualified Midi.Midi as Midi
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Attrs as Attrs
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 
-import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.Common as Common
+import qualified Midi.Key as Key
+import qualified Midi.Midi as Midi
+import qualified Perform.Midi.Patch as Patch
 import qualified User.Elaforge.Instrument.Vsl as Vsl
 import qualified User.Elaforge.Instrument.VslInst as VslInst
-import Global
+
+import           Util.Test
 
 
 test_attr_priority = do

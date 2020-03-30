@@ -15,7 +15,6 @@ import           Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.Ordered as Ordered
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import           Data.Monoid ((<>))
 import qualified Data.Ord as Ord
 import qualified Data.Set as Set
 

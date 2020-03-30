@@ -8,9 +8,9 @@ import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.Map as Map
 
 import qualified Util.Log as Log
-import Util.Test
 import qualified LogView.Process as Process
-import Global
+
+import           Util.Test
 
 
 test_process_msg = do

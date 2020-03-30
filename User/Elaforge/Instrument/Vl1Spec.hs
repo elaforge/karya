@@ -27,7 +27,6 @@ import qualified Data.ByteString.Char8 as Char8
 import qualified Midi.Midi as Midi
 import qualified Instrument.Sysex as Sysex
 import Instrument.Sysex (Specs, Spec(..), unsigned, bool, enum, ranged, signed)
-import Global
 
 
 vl1_header :: Int -> ByteString

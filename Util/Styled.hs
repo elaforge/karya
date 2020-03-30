@@ -36,7 +36,6 @@ import qualified Data.Colour as Colour
 import qualified Data.Colour.Names as Colour.Names
 import qualified Data.Colour.SRGB as SRGB
 import qualified Data.List as List
-import Data.Semigroup (Semigroup(..))
 import qualified Data.String as String
 import qualified Data.Text as Text
 import Data.Text (Text)

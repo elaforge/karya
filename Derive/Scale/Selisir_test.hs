@@ -6,14 +6,14 @@ module Derive.Scale.Selisir_test where
 import qualified Data.Map as Map
 import qualified Data.Vector as Vector
 
-import Util.Test
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.ScaleTest as ScaleTest
 import qualified Derive.Scale.Selisir as Selisir
 
 import qualified Perform.Pitch as Pitch
-import Global
+
+import           Util.Test
 
 
 test_note_to_call = do

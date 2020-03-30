@@ -15,7 +15,6 @@ import qualified Cmd.Ruler.Modify as Ruler.Modify
 import qualified Cmd.Ruler.RulerUtil as RulerUtil
 import qualified Cmd.Selection as Selection
 
-import Global
 import Types
 
 

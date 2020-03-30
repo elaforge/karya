@@ -23,7 +23,6 @@ import qualified Derive.Typecheck as Typecheck
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
-import           Global
 import           Types
 
 

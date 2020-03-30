@@ -3,8 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.C.Prelude.Grace_test where
-import Util.Test
-import qualified Ui.UiTest as UiTest
 import qualified Derive.Attrs as Attrs
 import qualified Derive.C.Prelude.Articulation as Articulation
 import qualified Derive.Call.CallTest as CallTest
@@ -16,7 +14,9 @@ import qualified Perform.Lilypond.LilypondTest as LilypondTest
 import qualified Perform.NN as NN
 import qualified Perform.RealTime as RealTime
 
-import Global
+import qualified Ui.UiTest as UiTest
+
+import           Util.Test
 
 
 -- * note calls

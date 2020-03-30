@@ -7,11 +7,10 @@ import qualified Data.ByteString.Lazy as ByteString.Lazy
 import qualified System.IO as IO
 
 import qualified Util.Log as Log
-import Util.Test
 import qualified Util.Thread as Thread
-
 import qualified LogView.Tail as Tail
-import Global
+
+import           Global
 
 
 -- TODO

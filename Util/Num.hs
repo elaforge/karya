@@ -15,7 +15,6 @@ import           Data.Bifunctor (second)
 import qualified Data.Bits as Bits
 import qualified Data.Fixed as Fixed
 import qualified Data.List as List
-import           Data.Monoid ((<>))
 import qualified Data.Text as Text
 import           Data.Text (Text)
 import qualified Data.Text.Lazy as Text.Lazy

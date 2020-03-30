@@ -25,7 +25,6 @@ import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Trans as Trans
 
-import           Data.Monoid ((<>))
 import qualified Data.Text as Text
 import           Data.Text (Text)
 import qualified Data.Text.IO as Text.IO

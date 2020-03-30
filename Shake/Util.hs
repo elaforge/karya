@@ -25,7 +25,6 @@ import qualified Data.Char as Char
 import qualified Data.Function as Function
 import qualified Data.IORef as IORef
 import qualified Data.Maybe as Maybe
-import           Data.Monoid ((<>))
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Time as Time

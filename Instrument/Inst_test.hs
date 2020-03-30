@@ -3,13 +3,12 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Instrument.Inst_test where
-import qualified Cmd.Cmd as Cmd
 import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
 import qualified Perform.Midi.Patch as Patch
 import qualified User.Elaforge.Instrument.Kontakt as Kontakt
 
-import Util.Test
+import           Util.Test
 
 
 test_lookup = do

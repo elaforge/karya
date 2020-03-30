@@ -10,7 +10,6 @@ module Util.Ranges (
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
-import Data.Semigroup (Semigroup, (<>))
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
