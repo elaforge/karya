@@ -5150,12 +5150,12 @@ solkattu:
         in multiple sections, or multiple times.  That seems not right,
         because they really are per-section, and in fact the point of sections
         is to have that stuff.
-      . The ideal is an implicit 'section' on each element of the list.
-        It would be like fromSequence, but added automatically.  But maps have
-        to go under, so it really requires dynamic typing.
-      . What about an Either?  I would still need the automatic fromSequence
-        so I don't need an explicit annotation, otherwise it's the same as the
-        current 'section'.
+      . Or a ToSection class, but that just means I could use 'x2' and omit
+        'section', but that's not worth it.
+      . The ideal is an implicit 'section' on each element of the list,
+        unless there is one.  Like automatic coercion, or dynamic types.  But
+        haskell doesn't have either.
+      . Maybe I just shorten 'section' to 's' and live with it.
     - if I have 'section' get CallStack and put section on each element,
       then I can tag sections with line numbers.
       . This won't work with 'map section', and I want to get rid of noisy

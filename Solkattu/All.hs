@@ -93,8 +93,9 @@ korvais = map Korvai.inferMetadata
     , setLocation ("Solkattu.Score.Mridangam2019",415,"e_19_11_11_namita_dimita") Solkattu.Score.Mridangam2019.e_19_11_11_namita_dimita
     , setLocation ("Solkattu.Score.Mridangam2019",432,"e_19_11_11_sarva") Solkattu.Score.Mridangam2019.e_19_11_11_sarva
     , setLocation ("Solkattu.Score.Mridangam2020",10,"sarva_20_01_27") Solkattu.Score.Mridangam2020.sarva_20_01_27
-    , setLocation ("Solkattu.Score.Mridangam2020",46,"sarva_20_02_10") Solkattu.Score.Mridangam2020.sarva_20_02_10
-    , setLocation ("Solkattu.Score.Mridangam2020",70,"e_20_02_24") Solkattu.Score.Mridangam2020.e_20_02_24
+    , setLocation ("Solkattu.Score.Mridangam2020",47,"sarva_20_02_10") Solkattu.Score.Mridangam2020.sarva_20_02_10
+    , setLocation ("Solkattu.Score.Mridangam2020",78,"sarva_20_02_27") Solkattu.Score.Mridangam2020.sarva_20_02_27
+    , setLocation ("Solkattu.Score.Mridangam2020",109,"e_20_02_24") Solkattu.Score.Mridangam2020.e_20_02_24
     , setLocation ("Solkattu.Score.MridangamSarva",19,"kir1") Solkattu.Score.MridangamSarva.kir1
     , setLocation ("Solkattu.Score.MridangamSarva",24,"kir2") Solkattu.Score.MridangamSarva.kir2
     , setLocation ("Solkattu.Score.MridangamSarva",44,"kir3") Solkattu.Score.MridangamSarva.kir3
