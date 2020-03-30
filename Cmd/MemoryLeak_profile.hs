@@ -93,7 +93,7 @@ thread :: ResponderTest.States -> [Cmd.CmdT IO ()]
 thread states (mod:mods) = do
     states <- return $ strip_states states
     (latency, result) <- strip_results <$>
-        ResponderTest.respond_all timeout states mod
+        ResponderTest.respond_all [] timeout states mod
     force_performances result
     mem <- Memory.rtsAllocated
     ((latency, mem):) <$> thread (ResponderTest.result_states result) mods

@@ -34,7 +34,7 @@ profile_file = do
 perform :: Cmd.Config -> FilePath -> IO [ResponderTest.Result]
 perform cmd_config fname = do
     let states = (Ui.empty, Cmd.initial_state cmd_config)
-    let continue = ResponderTest.continue_all 8
+    let continue = ResponderTest.continue_all [] 8
     result <- ResponderTest.respond_cmd states $ Save.load fname
     results1 <- continue result
     -- The first one is cancelled because of loading the defs file.
