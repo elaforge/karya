@@ -158,10 +158,7 @@ show_addrs addrs = semicolon_list
     | (wdev, addrs) <- Seq.keyed_group_sort fst addrs
     ]
 
-comma_list, semicolon_list :: [Text] -> Text
-comma_list [] = "[]"
-comma_list xs = Text.intercalate ", " xs
-
+semicolon_list :: [Text] -> Text
 semicolon_list [] = "[]"
 semicolon_list xs = Text.intercalate "; " xs
 

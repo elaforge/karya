@@ -50,9 +50,6 @@ attr = Attributes . Set.singleton
 attrs :: [Text] -> Attributes
 attrs = Attributes . Set.fromList
 
-from_set :: Set Attribute -> Attributes
-from_set = Attributes
-
 to_set :: Attributes -> Set Attribute
 to_set (Attributes attrs) = attrs
 

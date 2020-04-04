@@ -1224,6 +1224,10 @@ UNIFY:
 ----------------------------------------------------------------------
 
 upgrade to ghc 8.8:
+  + try weeder
+    . compile with -fwrite-ide-info, maybe just in Opt mode
+    . Tons of false positives.  It doesn't say what set of hie files it uses.
+      It probably doesn't understand that there are multiple ones.
   * write new freeze files
     . Let's not bother with tools/freeze_deps.hs, and just require one ghc
       version.
@@ -1771,12 +1775,14 @@ gamakam:
         or further extension?
 
 vector: performance:
-  ? is 'V.toList (V.cons x xs)' the same as 'x : V.toList xs'?
-    . If it is then I don't need Perform.Signal.clip_before_segments
+  Is 'V.toList (V.cons x xs)' the same as 'x : V.toList xs'?
+    . Not exactly, but the first one doesn't actually construct the vector.
+    - If it is then I don't need Perform.Signal.clip_before_segments
   . fromList doesn't measure the list, it does exponential resizing
-  ? Segment.to_samples:
+  Segment.to_samples:
     . Does 'V.toList . V.map f' fuse the map into toList?  It should, so
       'head . V.toList . V.map f' should be efficient.
+    . Yes, it does.
   ? Do these have the same performance?
     . map TimeVector.to_pair . Vector.toList
         . Vector.filter out_of_range . Segment.to_vector
@@ -1793,6 +1799,9 @@ instruments:
   ? Follow references in tambura dafx paper.
     Wasn't there something about pluck modelling?
   mesh2faust:
+    . faust generates invalid C: 'inf.0f'
+      . because of 7.27787e+32
+    . generated nExPos is unused
     . The bells sound ok, but the marimba model is terrible.  Turning up t60,
       the spectrum sounds nothing like the right pitch.
     . Strike position changes the already-ringing instrument.  I guess I'll
@@ -1805,20 +1814,35 @@ instruments:
         for instruments before.
       . But I should be able to measure with calipers, then hand-draw
         a profile.
-    - Try with reyong profile.
-      . Have to figure out the 3d programs enough to make a SOR.
+    + Try with reyong profile.
+      . It has to be scaled, otherwise it's hopelessly low pitch.
+      . Try resampling to a more regular mesh?
+        Much better sound after resampling to 0.75, but faces are up to
+        82732, taking 12:45.  Pitch too high.
+      . Try with 142k, resample to 0.7 -> 94044 faces
+        Took 14:40.  Pitch is much too low now, about an octave.
+      . 100,000 - resample with 0.5, then Quadric Collapse Edge Decimation to
+        100,000 faces
+        . Took 15m
     - Try with gangsa profile.
     ? How can I get spectrogram of a real recording, to compare against
       computed modes?
       . Lots of software can do spectrograms, what's a good one?
     Ask Romain:
+      . Output sound is nothing like what I expect.  Advice?
       . How to add decay times?  Each mode should have a different decay,
         time, so isn't setting one for them all inaccurate?
-      . How about how the strike position affects the ringing sound, is that
-        fundamentally part of it?
-      . Any examples of use other than the bells?
-      . Changing strike position modifies already ringing sound, but I think
-        that's just an artifact of how the faust realization works?
+      . Changing the strike position affects the ringing sound because it
+        reconfigures the resonators.  But I should be able to have that only
+        affect how much energy goes into resonators, right?
+      . Any examples of use other than those bells?
+      . Did the faust output sound like the real bells?
+    How does the faust implementation work?
+      . pm.modeFilter(freq, t60, gain)
+      . For each modeFreq, make a pm.modeFilter with that frequency.
+      . modeT60s is derived from the frequency divided by some constant,
+        which is modesFreqs[highestModeIndex] / modesFreqs[lowestModeIndex].
+      . modeGains is just a 2d array gains[pos][mode]
     build mesh2faust
       . /nix/store/3mz7af1vnpr0z3r8ssfiqvlchjll60s3-mesh2faust/bin/mesh2faust \
         --infile marimbaBar.obj --nsynthmodes 50 --nfemmodes 200 \
@@ -2387,6 +2411,9 @@ synth: im:
     - What about writing play_cache in rust?  Just for fun I guess, though if
       it gains semi-sampler features then I'll wind up with more logic.  But
       I do need to bind to libsamplerate and libsndfile.
+      . https://github.com/RustAudio/vst-rs
+      . https://areweaudioyet.com/
+      . https://github.com/RustAudio
     / save cache as flac?  Since I use libsndfile I think it should Just Work.
       . probably afplay stops working though, because Apple.  But libsndfile
         maybe comes with a demo player?
@@ -4580,39 +4607,43 @@ fltk:
       wrapping upwards, so it can get it right during input as well.
     . It seems like too much hassle for a cosmetic issue.
   slow scrolling
-    hiccups in haskell:
-      . haskell is usually cheap, but once it was 0.72.  So that's probably
-        the cause of scroll hiccups.  Haskell is running UI actions (which are
-        fltk calls), and then gets ui actions and writes them to STM.  The
-        latter should be cheap, unless there's a major GC.
-      . If I write ghc events, maybe I can find out what haskell is doing in
-        the longer gap.  But of course just visually, it gets quite clunky
-        when it's deriving.
-      - Always time the haskell duration, and log when it's too long.
-      - Look for possible thunks in the Fltk action, rnf them out.
-    . Text is what makes it expensive.
+    . Tracing chrome://tracing
+    . I want to trace the whole event loop.  Where is the entry point?
+      Fl::wait() -> run Fltk actions -> get_ui_msgs -> writeTChan
+      Presumably fltk then does the draw after I go back into wait()?
+    . start -> [haskell] -> haskell -> [draw] -> Block::draw -> [wait ui]
+      fltk might skip [draw] and hence Block::draw.  E.g. for a cursor move.
+    . Most time in draw_upper_layer 0.004, then ruler_overlay 0.002,
+      then find_events 0.002.  But sometimes find_events was 0.03!  So it
+      probably is a liability to scrolling.
+    . draw_track is 0.005 to 0.007
+      without draw_text: 0.004 to 0.007
+      without wrap_text: 0.002 to 0.003
+    . No, it's fl_draw that's expensive.  I'm not sure there's any way around
+      that, except by optimizing scrolling.
+    . Alternately, I wonder if I could draw it all in advance, and then use
+      Fl_Scroll.  Or at least draw in chunks?  It would be nice to avoid
+      drawing lots off off-screen stuff when zoomed in.  It means changing
+      zoom levels might take a lot of time?  I also want to update
+      incrementally when adding changing something.
+  hiccups in haskell:
+    . haskell is usually cheap, but once it was 0.72.  So that's probably
+      the cause of scroll hiccups.  Haskell is running UI actions (which are
+      fltk calls), and then gets ui actions and writes them to STM.  The
+      latter should be cheap, unless there's a major GC.
+    . If I write ghc events, maybe I can find out what haskell is doing in
+      the longer gap.  But of course just visually, it gets quite clunky
+      when it's deriving.
+    ? Are the fltk actions fully forced by Fltk.send_action?  I guess not,
+      because they're monad sequences, and could evaluate who knows what
+      inside.  I could find them and make sure they're rnf'ing the data
+      before it goes to Fltk.send_action.
+    - Always time the haskell duration, and log when it's too long.
+    - Look for possible thunks in the Fltk action, rnf them out.
   better drawing
     write to Raph Levien:
       . https://news.ycombinator.com/item?id=16267202
       . https://raphlinus.github.io/personal/2018/08/28/a-new-adventure.html
-    tracing:
-      . Tracing chrome://tracing
-      . I want to trace the whole event loop.  Where is the entry point?
-        Fl::wait() -> run Fltk actions -> get_ui_msgs -> writeTChan
-        Presumably fltk then does the draw after I go back into wait()?
-      . start -> [haskell] -> haskell -> [draw] -> Block::draw -> [wait ui]
-        fltk might skip [draw] and hence Block::draw.  E.g. for a cursor move.
-      . Most time in draw_upper_layer 0.004, then ruler_overlay 0.002,
-        then find_events 0.002.  But sometimes find_events was 0.03!  So it
-        probably is a liability to scrolling.
-      . draw_track is 0.005 to 0.007
-        without draw_text: 0.004 to 0.007
-        without wrap_text: 0.002 to 0.003
-      . So wrap_text is expensive.
-      ? Are the fltk actions fully forced by Fltk.send_action?  I guess not,
-        because they're monad sequences, and could evaluate who knows what
-        inside.  I could find them and make sure they're rnf'ing the data
-        before it goes to Fltk.send_action.
     . All this incremental redraw stuff is fussy and seems like it should be
       unnecessary.  I should be able to lay it out and have someone else handle
       selection overlay and scrolling.
@@ -4620,7 +4651,7 @@ fltk:
       c++, like I do with the signals.  I think I need to do that anyway for
       OpenGL, and that way I don't have to play with getting event ranges,
       I can just scan the whole range on every draw.
-    . Other libraries for 2d rendering:
+    Other libraries for 2d rendering:
       cairo:
         . fltk already has cairo support, try Fl_Cairo demo
         . Just make a Fl_Cairo_Window, then call
@@ -4631,6 +4662,10 @@ fltk:
           those features, then I should just use OpenGL directly.
         . On the other hand, if OS X wants to deprecate OpenGL... but then if my
           needs are simple, can I just write a Metal backend?
+        . Skia doesn't include font selection, or kerning.  But it can be
+          hooked up with another library:
+          https://skia.org/user/tips#font-hinting
+        . https://github.com/toptensoftware/RichTextKit - but I think it's C#.
       webrender:
         . Rendering engine in rust for servo.
       https://blend2d.com/

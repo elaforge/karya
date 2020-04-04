@@ -9,7 +9,7 @@
 -- I used to have a separate Absolute path, but the conversions get awkward.
 module App.Path (
     AppDir(..), get_app_dir
-    , Relative, relative, unrelative, (</>)
+    , Relative, relative, (</>)
     , to_absolute, get_absolute
     -- * Canonical
     , Canonical, make_canonical, canonical, to_path
@@ -37,11 +37,6 @@ newtype Relative = Relative FilePath
 
 relative :: FilePath -> Relative
 relative = Relative
-
--- | Normally you should use 'to_absolute', but sometimes I need the Realtive
--- path as a string.
-unrelative :: Relative -> FilePath
-unrelative (Relative path) = path
 
 (</>) :: Relative -> Relative -> Relative
 Relative a </> Relative b = Relative (a FilePath.</> b)

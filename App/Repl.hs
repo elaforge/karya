@@ -22,8 +22,7 @@
     @:h@ or @:H@ will open an editor on the history.  You can find a line, edit
     it, and use ZZ to write it back.
 -}
-module App.Repl where
-import qualified Control.Concurrent.MVar as MVar
+module App.Repl (main) where
 import qualified Control.Exception as Exception
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Text as Text
@@ -78,8 +77,6 @@ complete_identefier addr =
         words <- ReplProtocol.query_completion addr (txt prefix)
         return $ map (Haskeline.simpleCompletion . untxt) words
     word_break_chars = " \t\n(),;[]`{}!#$%&*+/<=>?@\\^|-~"
-
-type CurrentHistory = MVar.MVar (Maybe FilePath)
 
 main :: IO ()
 main = ReplProtocol.initialize $ do

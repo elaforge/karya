@@ -1571,6 +1571,7 @@ makeDataLinks = do
 ghcFlags :: Config -> [Flag]
 ghcFlags config = concat $
     [ "-outputdir", oDir config, "-osuf", ".hs.o"
+    , "-fwrite-ide-info", "-hiedir", buildDir config </> "hie"
     , "-i" ++ List.intercalate ":" [oDir config, hscDir config, chsDir config]
     ] :
     [ ghcGlobalFlags

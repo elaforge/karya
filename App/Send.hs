@@ -74,12 +74,6 @@ query :: Text -> IO Text
 query = fmap ReplProtocol.format_result
     . ReplProtocol.query_cmd Config.repl_socket
 
-printLogs :: [Text] -> IO ()
-printLogs [] = return ()
-printLogs logs = do
-    Text.IO.hPutStrLn IO.stderr "\nLogs:"
-    mapM_ (Text.IO.hPutStrLn IO.stderr) logs
-
 timed :: DeepSeq.NFData a => IO a -> IO (a, Double)
 timed action = do
     start <- now

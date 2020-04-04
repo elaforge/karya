@@ -6,7 +6,54 @@
     More specialized ones, like copy and paste and control or note track
     commands, go in their own modules.
 -}
-module Cmd.Edit where
+module Cmd.Edit (
+    -- * global editing state
+    cmd_toggle_val_edit
+    , cmd_toggle_method_edit
+    , cmd_toggle_kbd_entry
+    , cmd_toggle_val_edit_kbd_entry
+    , set_step_rank
+    , set_step
+    , toggle_absolute_relative_step
+    , cmd_toggle_note_orientation
+    , cmd_modify_octave
+    , toggle_advance
+    , toggle_chord
+
+    -- * event start and duration
+    , cmd_move_event_forward
+    , cmd_move_event_backward
+    , cmd_set_duration
+    , cmd_toggle_zero_timestep
+    , cmd_set_start
+    , modify_dur
+    , cmd_join_events
+    , cmd_split_events
+    , cmd_insert_time
+    , cmd_delete_time
+    , delete_block_time
+    , cmd_clear_selected
+    , clear_range
+    , cmd_clear_and_advance
+    , toggle_note_duration
+    , cmd_set_call_duration
+    , cmd_invert_orientation
+
+    -- * modify text
+    , cmd_toggle_commented
+    , strip_call
+
+    -- * record action
+    , save_last_action_to
+    , run_action_at
+
+    -- * floating text input
+    , handle_floating_input
+    , append_text
+    , prepend_text
+    , replace_last_call
+    , replace_first_call
+) where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
@@ -55,9 +102,6 @@ cmd_toggle_method_edit = modify_edit_mode $ \m -> case m of
     Cmd.ValEdit -> Cmd.MethodEdit
     _ -> m
 
-get_mode :: Cmd.M m => m Cmd.EditMode
-get_mode = Cmd.gets (Cmd.state_edit_mode . Cmd.state_edit)
-
 -- | Toggle kbd entry mode, putting a K in the edit box as a reminder.  This is
 -- orthogonal to the previous edit modes.
 cmd_toggle_kbd_entry :: Cmd.M m => m ()
@@ -90,6 +134,9 @@ set_step_rank deflt rank = Cmd.modify_edit_state $ \st ->
         TimeStep.time_step (TimeStep.RelativeMark names rank)
     set _ = deflt
 
+set_step :: Cmd.M m => TimeStep.TimeStep -> m ()
+set_step step = Cmd.modify_edit_state $ \st -> st { Cmd.state_time_step = step }
+
 -- | Toggle between absolute and relative mark step.
 toggle_absolute_relative_step :: Cmd.M m => m ()
 toggle_absolute_relative_step = Cmd.modify_edit_state $ \st ->
@@ -101,9 +148,6 @@ toggle_absolute_relative_step = Cmd.modify_edit_state $ \st ->
         [TimeStep.RelativeMark names rank] ->
             TimeStep.time_step (TimeStep.AbsoluteMark names rank)
         _ -> step
-
-set_step :: Cmd.M m => TimeStep.TimeStep -> m ()
-set_step step = Cmd.modify_edit_state $ \st -> st { Cmd.state_time_step = step }
 
 cmd_toggle_note_orientation :: Cmd.M m => m ()
 cmd_toggle_note_orientation = Cmd.modify_edit_state $ \st -> st
@@ -592,7 +636,7 @@ strip_call = do
         ModifyEvents.text $ ModifyEvents.pipeline $ drop 1
     ModifyEvents.advance_if_point
 
--- ** record action
+-- * record action
 
 -- | If you create a new event, and there is explicit duration, then use it.
 make_action :: Maybe Text -> Text -> Maybe TrackTime -> Cmd.Action
@@ -643,7 +687,7 @@ run_action action = do
             Nothing -> (Nothing, False)
             Just old -> (Just $ old <> text, True)
 
--- ** floating text input
+-- * floating text input
 
 append_text :: Cmd.M m => m Cmd.Status
 append_text = open_floating (\text -> (Text.length text, Text.length text))
