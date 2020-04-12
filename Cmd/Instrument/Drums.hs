@@ -7,10 +7,11 @@
 -- calls.
 module Cmd.Instrument.Drums where
 import qualified Util.Pretty as Pretty
-import Derive.Attrs
 import qualified Derive.Expr as Expr
 import qualified Perform.Signal as Signal
-import Global
+
+import           Derive.Attrs
+import           Global
 
 
 -- | Description of a generic drum set.  There are many drum set instruments,
@@ -30,6 +31,9 @@ data Note = Note {
 
 -- | An arbitrary symbol.  A group can stop other groups from sounding.
 type Group = Text
+
+-- | Pair each stopping group with the list of groups it stops.
+type Stops = [(Group, [Group])]
 
 note :: Char -> Expr.Symbol -> Attributes -> Note
 note char name attrs = Note

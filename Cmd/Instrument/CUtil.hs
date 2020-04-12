@@ -231,9 +231,9 @@ keyswitches inputs = \msg -> do
 -- own symbol.
 simple_drum :: Thru -> Maybe ScoreT.Control -> [(Drums.Note, Midi.Key)]
     -> MidiInst.Patch -> MidiInst.Patch
-simple_drum thru tune_control note_keys patch =
+simple_drum thru tuning_control note_keys patch =
     MidiInst.code #= code $ drum_patch note_keys patch
-    where code = drum_code thru tune_control (map fst note_keys)
+    where code = drum_code thru tuning_control (map fst note_keys)
 
 -- ** code
 
@@ -265,8 +265,7 @@ drum_patch note_keys =
 
 im_drum_patch :: [Drums.Note] -> ImInst.Patch -> ImInst.Patch
 im_drum_patch notes =
-    ImInst.triggered
-    . (ImInst.common#Common.call_map #= make_call_map notes)
+    ImInst.triggered . (ImInst.common#Common.call_map #= make_call_map notes)
 
 -- | (keyswitch, low, high, root_pitch).  The root pitch is the pitch at the
 -- bottom of the key range, and winds up in 'Patch.PitchedKeymap'.
@@ -365,9 +364,9 @@ drum_calls :: Maybe ([Attrs.Attributes], Pitch.NoteNumber)
     -- strokes move with the pitch.
     -> Maybe ScoreT.Control -> [Drums.Note]
     -> [(Expr.Symbol, Derive.Generator Derive.Note)]
-drum_calls pitched_strokes maybe_tuning_control = map $ \note ->
+drum_calls pitched_strokes tuning_control = map $ \note ->
     ( Drums._name note
-    , drum_call maybe_tuning_control (Drums._dynamic note)
+    , drum_call tuning_control (Drums._dynamic note)
         (Drums._attributes note) (set_pitch (Drums._attributes note))
     )
     where
@@ -380,7 +379,7 @@ drum_calls pitched_strokes maybe_tuning_control = map $ \note ->
 drum_call :: Maybe ScoreT.Control -> Signal.Y -> Attrs.Attributes
     -> (Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Derive.Generator Derive.Note
-drum_call maybe_tuning_control dyn attrs transform =
+drum_call tuning_control dyn attrs transform =
     Derive.generator Module.instrument name Tags.attr doc generate
     where
     name = Derive.CallName $ "drum attrs: " <> ShowVal.show_val attrs
@@ -388,16 +387,16 @@ drum_call maybe_tuning_control dyn attrs transform =
         Call.multiply_dynamic dyn $ Call.add_attributes attrs $
             with_tuning args $ transform $
             Note.default_note Note.no_duration_attributes args
-    with_tuning args = maybe id (tuning_control args) maybe_tuning_control
-    doc = case maybe_tuning_control of
+    with_tuning args = maybe id (apply_tuning_control args) tuning_control
+    doc = case tuning_control of
         Nothing -> ""
         Just control -> "This instrument is unpitched, but its tuning can be\
             \ adjusted with " <> ShowVal.doc control <> ", in semitones\
             \ from the natural pitch."
 
-tuning_control :: Derive.NoteArgs -> ScoreT.Control -> Derive.Deriver a
+apply_tuning_control :: Derive.NoteArgs -> ScoreT.Control -> Derive.Deriver a
     -> Derive.Deriver a
-tuning_control args control deriver = do
+apply_tuning_control args control deriver = do
     tuning <- fromMaybe 0 <$>
         (Derive.untyped_control_at control =<< Args.real_start args)
     let nn = NN.middle_c + Pitch.nn tuning

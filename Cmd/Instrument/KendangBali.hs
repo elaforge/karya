@@ -39,11 +39,11 @@ pasang_code =
 -- and checks for collisions... but I think I don't need it for im?
 tunggal_notes :: [Drums.Note]
 tunggal_notes = do
-    (char, note@(Note _ attrs), group) <- tunggal_strokes
+    (key, note@(Note _ attrs), group) <- tunggal_strokes
     return $ Drums.Note
         { _name = to_call note
         , _attributes = attrs
-        , _char = char
+        , _char = key
         , _dynamic = if Attrs.contain attrs Attrs.soft then soft_dyn else 1
         , _group = group
         }
@@ -52,7 +52,7 @@ soft_dyn :: Double
 soft_dyn = 0.4
 
 tunggal_strokes :: [(Char, Note, Drums.Group)]
-stops :: [(Drums.Group, [Drums.Group])]
+stops :: Drums.Stops
 (stops, tunggal_strokes) = (stops,) $ map to_note
     [ ('b', Plak, plak,         both)
     -- left
@@ -76,7 +76,7 @@ stops :: [(Drums.Group, [Drums.Group])]
     , (';', Tek, tek <> soft,   right_closed)
     ]
     where
-    to_note (k, stroke, attrs, group) = (k, Note stroke attrs, group)
+    to_note (key, stroke, attrs, group) = (key, Note stroke attrs, group)
     left = Attrs.left
     soft = Attrs.soft
     stops =

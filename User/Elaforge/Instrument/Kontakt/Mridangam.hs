@@ -60,10 +60,12 @@ write_ksp :: IO ()
 write_ksp = mapM_ (uncurry Util.write)
     -- Util.drum_mute_ksp ignores the root pitch so I don't need to worry about
     -- 'notes_g'.
-    [ ("mridangam.ksp.txt", Util.drum_mute_ksp "mridangam"
-        notes_d Mridangam.stops)
-    , ("mridangam-old.ksp.txt", Util.drum_mute_ksp "mridangam"
-        pitched_notes_old Mridangam.stops)
+    [ ( "mridangam.ksp.txt"
+      , Util.drum_mute_ksp "mridangam" notes_d Mridangam.stops
+      )
+    , ( "mridangam-old.ksp.txt"
+      , Util.drum_mute_ksp "mridangam" pitched_notes_old Mridangam.stops
+      )
     ]
 
 pitched_notes_old :: CUtil.PitchedNotes

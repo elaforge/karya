@@ -14,7 +14,6 @@ import qualified Data.Time as Time
 import qualified System.Console.GetOpt as GetOpt
 import qualified System.Environment as Environment
 import qualified System.Exit
-import qualified System.IO as IO
 
 import qualified Text.Printf as Printf
 
@@ -22,7 +21,7 @@ import qualified Util.Seq as Seq
 import qualified App.Config as Config
 import qualified App.ReplProtocol as ReplProtocol
 
-import Global
+import           Global
 
 
 data Flag = Help | Timing

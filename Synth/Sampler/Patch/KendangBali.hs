@@ -3,18 +3,12 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Synth.Sampler.Patch.KendangBali where
-import qualified Data.List as List
-import qualified Data.Map as Map
 import qualified Data.Set as Set
-
 import           System.FilePath ((</>))
 
-import qualified Util.Maps as Maps
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-
 import qualified Cmd.Instrument.CUtil as CUtil
-import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Cmd.Instrument.KendangBali as K
 
@@ -23,6 +17,7 @@ import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.Common as Common
 import qualified Perform.Im.Patch as Im.Patch
 import qualified Synth.Sampler.Patch as Patch
+import qualified Synth.Sampler.Patch.Lib.Drum as Drum
 import qualified Synth.Sampler.Patch.Lib.Util as Util
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Control as Control
@@ -41,8 +36,8 @@ patches = pasang : map (Patch.DbPatch . make) [Wadon, Lanang]
     make tuning = (Patch.patch name)
         { Patch._dir = dir
         , Patch._convert = convert tuning
-        , Patch._preprocess = inferDuration
-        , Patch._karyaPatch = CUtil.im_drum_patch K.tunggal_notes $
+        , Patch._preprocess = Drum.inferDuration strokeMap
+        , Patch._karyaPatch = CUtil.im_drum_patch (Drum._strokes strokeMap) $
             ImInst.code #= code $
             ImInst.make_patch $ Im.Patch.patch
                 { Im.Patch.patch_controls = mconcat
@@ -55,7 +50,7 @@ patches = pasang : map (Patch.DbPatch . make) [Wadon, Lanang]
         where
         name = patchName <> "-" <> txt (Util.showLower tuning)
         code = CUtil.drum_code thru (Just "kendang-tune")
-            K.tunggal_notes
+            (Drum._strokes strokeMap)
         thru = Util.imThruFunction dir (convert tuning)
     dir = untxt patchName
 
@@ -88,13 +83,16 @@ patchName = "kendang-bali"
 data Tuning = Wadon | Lanang
     deriving (Eq, Show)
 
+strokeMap :: Drum.StrokeMap Articulation
+strokeMap = Drum.strokeMap K.stops K.tunggal_notes attributeMap
+
 data Articulation =
     Plak -- both
     | De | DeStaccato | DeThumb | DeClosed -- right
     | Dag | DagStaccato | Tek
     | Tut | Ka
     | Pak | Pang | TutL | DeL -- left
-    deriving (Eq, Show, Enum, Bounded)
+    deriving (Eq, Ord, Show, Enum, Bounded)
 
 articulationToAttrs :: Articulation -> Attrs.Attributes
 articulationToAttrs = \case
@@ -154,37 +152,11 @@ maxDyn = 1.15
 muteTime :: RealTime
 muteTime = 0.05
 
--- TODO common drum code, except it uses K.stops, K.tunggal_notes etc.
-
--- | Notes ring until stopped by their stop note.
-inferDuration :: [Note.Note] -> [Note.Note]
-inferDuration = map infer . Util.nexts
-    where
-    infer (note, nexts) =
-        note { Note.duration = inferEnd note nexts - Note.start note }
-
-inferEnd :: Note.Note -> [Note.Note] -> RealTime
-inferEnd note nexts = case List.find ((`elem` stops) . noteGroup) nexts of
-    Nothing -> Sample.forever
-    Just stop -> Note.start stop
-    where
-    stops = fromMaybe [] $ Map.lookup (noteGroup note) stoppedBy
-    noteGroup = groupOf . Note.attributes
-
-stoppedBy :: Map Drums.Group [Drums.Group]
-stoppedBy = Maps.multimap $
-    concatMap (\(group, stops) -> map (, group) stops) K.stops
-
-groupOf :: Attrs.Attributes -> Drums.Group
-groupOf attrs = maybe "" Drums._group $
-    List.find ((`Attrs.contain` attrs) . Drums._attributes) K.tunggal_notes
-
-
 makeSampleLists :: IO ()
 makeSampleLists = do
-    Util.makeFileList (untxt patchName </> "legong/wadon")
+    Drum.makeFileList (untxt patchName </> "legong/wadon")
         (map show (Util.enumAll :: [Articulation])) "legongWadonSamples"
-    Util.makeFileList (untxt patchName </> "legong/lanang")
+    Drum.makeFileList (untxt patchName </> "legong/lanang")
         (map show (Util.enumAll :: [Articulation])) "legongLanangSamples"
 
 

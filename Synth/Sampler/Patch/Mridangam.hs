@@ -3,14 +3,10 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Synth.Sampler.Patch.Mridangam where
-import qualified Data.List as List
-import qualified Data.Map as Map
 import           System.FilePath ((</>))
 
-import qualified Util.Maps as Maps
 import qualified Util.Num as Num
 import qualified Cmd.Instrument.CUtil as CUtil
-import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Cmd.Instrument.Mridangam as Mridangam
 
@@ -20,6 +16,7 @@ import qualified Perform.Im.Patch as Im.Patch
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Patch.Lib.Code as Code
+import qualified Synth.Sampler.Patch.Lib.Drum as Drum
 import qualified Synth.Sampler.Patch.Lib.Util as Util
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Control as Control
@@ -34,8 +31,8 @@ patches :: [Patch.DbPatch]
 patches = (:[]) $ Patch.DbPatch $ (Patch.patch patchName)
     { Patch._dir = dir
     , Patch._convert = convert
-    , Patch._preprocess = inferDuration
-    , Patch._karyaPatch = CUtil.im_drum_patch Mridangam.all_notes $
+    , Patch._preprocess = Drum.inferDuration strokeMap
+    , Patch._karyaPatch = CUtil.im_drum_patch (Drum._strokes strokeMap) $
         ImInst.code #= code $
         ImInst.make_patch $ Im.Patch.patch
             { Im.Patch.patch_controls = mconcat
@@ -54,28 +51,8 @@ patches = (:[]) $ Patch.DbPatch $ (Patch.patch patchName)
 patchName :: Text
 patchName = "mridangam-d"
 
--- | Notes ring until stopped by their stop note.
-inferDuration :: [Note.Note] -> [Note.Note]
-inferDuration = map infer . Util.nexts
-    where
-    infer (note, nexts) =
-        note { Note.duration = inferEnd note nexts - Note.start note }
-
-inferEnd :: Note.Note -> [Note.Note] -> RealTime
-inferEnd note nexts = case List.find ((`elem` stops) . noteGroup) nexts of
-    Nothing -> Sample.forever
-    Just stop -> Note.start stop
-    where
-    stops = fromMaybe [] $ Map.lookup (noteGroup note) stoppedBy
-    noteGroup = groupOf . Note.attributes
-
-stoppedBy :: Map Drums.Group [Drums.Group]
-stoppedBy = Maps.multimap $
-    concatMap (\(group, stops) -> map (, group) stops) Mridangam.stops
-
-groupOf :: Attrs.Attributes -> Drums.Group
-groupOf attrs = maybe "" Drums._group $
-    List.find ((`Attrs.contain` attrs) . Drums._attributes) Mridangam.all_notes
+strokeMap :: Drum.StrokeMap Articulation
+strokeMap = Drum.strokeMap Mridangam.stops Mridangam.all_notes attributeMap
 
 attributeMap :: Common.AttributeMap Articulation
 attributeMap = Common.attribute_map
@@ -131,11 +108,11 @@ muteTime = 0.05
 data Articulation = Tha | Thom | Gumki | GumkiUp
     | Ki | Ta | Nam | Din | Chapu | Dheem
     | Kin | Tan
-    deriving (Eq, Show, Enum, Bounded)
+    deriving (Eq, Ord, Show, Enum, Bounded)
 
 -- | Generate 'articulationSamples'.
 makeArticulationSamples :: IO ()
-makeArticulationSamples = Util.makeFileList (untxt patchName)
+makeArticulationSamples = Drum.makeFileList (untxt patchName)
     (map show (Util.enumAll :: [Articulation])) "articulationSamples"
 
 articulationSamples :: Articulation -> [FilePath]

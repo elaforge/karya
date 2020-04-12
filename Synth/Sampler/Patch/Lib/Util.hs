@@ -10,9 +10,6 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
-import qualified System.Directory as Directory
-import           System.FilePath ((</>))
-
 import qualified Util.Maps as Maps
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
@@ -24,7 +21,6 @@ import qualified Instrument.Common as Common
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Sample as Sample
-import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Osc as Osc
@@ -144,34 +140,6 @@ thruFunction sampleDir convert attrs pitch velocity = do
             ]
         }
     return [Sample.toOsc sampleDir sample]
-
--- * misc
-
--- | Generate haskell code for an Articulation -> [FilePath] function.
---
--- This expects a subdirectory for each articulation, whose name is the same
--- as the Articulation constructor, and sorts by the 4th field e.g.
--- {Thom,Nam,...}/x-x-x-$vel-...
---
--- This could be done with TH but it's constant so it's simpler to copy paste
--- into the source.
-makeFileList :: FilePath -> [FilePath] -> String -> IO ()
-makeFileList dir articulations variableName = do
-    putStrLn $ variableName <> " :: Articulation -> [FilePath]"
-    putStrLn $ variableName <> " = \\case"
-    forM_ articulations $ \art -> do
-        fns <- Seq.sort_on filenameVelocity <$>
-            Directory.listDirectory (Config.unsafeSamplerRoot </> dir </> art)
-        putStrLn $ "    " <> art <> " ->"
-        let indent = replicate 8 ' '
-        putStrLn $ indent <> "[ " <> show (head fns)
-        mapM_ (\fn -> putStrLn $ indent <> ", " <> show fn) (tail fns)
-        putStrLn $ indent <> "]"
-
-filenameVelocity :: FilePath -> Int
-filenameVelocity fname = case Seq.split "-" fname of
-    _ : _ : _ : lowVel : _ -> read lowVel
-    _ -> error fname
 
 -- * util
 

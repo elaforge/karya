@@ -73,7 +73,8 @@ c_det vague_pitch = Derive.generator Module.instrument name Tags.attr doc $
         -- The pitch control may already be in the environ, but not if it was
         -- given as a literal or default arg only.
         pitch <- Call.control_at pitch =<< Args.real_start args
-        Call.add_attributes attrs $ CUtil.tuning_control args tuning_control $
+        Call.add_attributes attrs $
+            CUtil.apply_tuning_control args tuning_control $
             Derive.with_constant_control pitch_control pitch $
             Note.default_note Note.no_duration_attributes args
     where

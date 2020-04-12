@@ -18,6 +18,9 @@ import qualified Data.Set as Set
 import qualified Util.Seq as Seq
 
 
+getM :: (Ord k, Monoid a) => Map k a -> k -> a
+getM m k = Map.findWithDefault mempty k m
+
 filter_key :: (k -> Bool) -> Map k a -> Map k a
 filter_key f = Map.filterWithKey (\k _ -> f k)
 

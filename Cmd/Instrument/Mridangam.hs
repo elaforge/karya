@@ -64,7 +64,7 @@ all_notes = left_notes ++ right_notes
 -- vowels for open sounds, consonants for closed ones.  Soft strokes look like
 -- a simpler version of their equivalent loud strokes.
 left_notes, right_notes :: [Drums.Note]
-stops :: [(Drums.Group, [Drums.Group])]
+stops :: Drums.Stops
 (left_notes, right_notes, stops) = (left_notes, right_notes, stops)
     where
     left_notes = concat
