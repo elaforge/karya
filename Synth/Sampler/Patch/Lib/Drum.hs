@@ -75,7 +75,7 @@ filenameSortKey fname =
 data StrokeMap art = StrokeMap {
     -- | Map each articulation to the articulations that stop it.
     _stops :: Map art (Set art)
-    , _strokes :: [Drums.Note]
+    , _strokes :: [Drums.Stroke]
     , _attributeMap :: Common.AttributeMap art
     } deriving (Show)
 
@@ -90,7 +90,7 @@ strokeMapTable stops table = StrokeMap
         [(attrs, art) | (_, _, attrs, art, _) <- table]
     }
     where
-    makeStroke (key, call, attrs, _, group) = Drums.Note
+    makeStroke (key, call, attrs, _, group) = Drums.Stroke
         { _name = call
         , _attributes = attrs
         , _char = key
@@ -101,7 +101,7 @@ strokeMapTable stops table = StrokeMap
 -- | Make a StrokeMap from separate strokes and AttributeMap.  This happens
 -- when instruments parts are factored apart, due to having both MIDI and
 -- im versions.
-strokeMap :: Ord art => Drums.Stops -> [Drums.Note]
+strokeMap :: Ord art => Drums.Stops -> [Drums.Stroke]
     -> Common.AttributeMap art -> StrokeMap art
 strokeMap stops strokes attributeMap = StrokeMap
     { _stops = stopMap artToGroup stops

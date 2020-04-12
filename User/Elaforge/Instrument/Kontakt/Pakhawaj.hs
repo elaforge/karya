@@ -22,15 +22,15 @@ import Global
 
 
 patches :: [MidiInst.Patch]
-patches = [MidiInst.code #= code $ patch "pakhawaj" pitched_notes]
+patches = [MidiInst.code #= code $ patch "pakhawaj" pitched_strokes]
     where
-    patch name notes = CUtil.pitched_drum_patch notes $
+    patch name strokes = CUtil.pitched_drum_patch strokes $
         MidiInst.named_patch (-24, 24) name []
-    code = Mridangam.make_code CUtil.MidiThru pitched_strokes NN.c4 Nothing
-        all_notes both_calls
+    code = Mridangam.make_code CUtil.MidiThru pitched_attributes NN.c4 Nothing
+        all_strokes both_calls
 
-pitched_notes :: CUtil.PitchedNotes
-(pitched_notes, _pitched_notes) = CUtil.drum_pitched_notes all_notes $
+pitched_strokes :: CUtil.PitchedStrokes
+(pitched_strokes, _pitched_strokes) = CUtil.drum_pitched_strokes all_strokes $
     CUtil.make_cc_keymap Key2.c_1 12 Key2.fs2
         [ [attr Ka]
         , [attr Ge]
@@ -47,7 +47,7 @@ pitched_notes :: CUtil.PitchedNotes
 -- | Create calls for all simultaneous left and right hand combinations, and
 -- key bindings for a few common ones.
 both_calls :: [(Expr.Symbol, [Expr.Symbol], Maybe Char)]
-both_calls = Mridangam.make_both left_notes right_notes special_names
+both_calls = Mridangam.make_both left_strokes right_strokes special_names
     [ ("D", 'c')
     , ("T", 'f')
     , ("E", 'v')
@@ -61,15 +61,15 @@ both_calls = Mridangam.make_both left_notes right_notes special_names
 
 write_ksp :: IO ()
 write_ksp = mapM_ (uncurry Util.write)
-    [ ("pakhawaj.ksp.txt", Util.drum_mute_ksp "pakhawaj" pitched_notes stops)
+    [ ("pakhawaj.ksp.txt", Util.drum_mute_ksp "pakhawaj" pitched_strokes stops)
     ]
 
 -- | The symbols follow the same scheme as mridangam.
-left_notes, right_notes :: [Drums.Note]
-stops :: [(Drums.Group, [Drums.Group])]
-(left_notes, right_notes, stops) = (left_notes, right_notes, stops)
+left_strokes, right_strokes :: [Drums.Stroke]
+stops :: Drums.Stops
+(left_strokes, right_strokes, stops) = (left_strokes, right_strokes, stops)
     where
-    left_notes = concat
+    left_strokes = concat
         [ group l_closed
             [ n 'a' "-" (attr Ka) 0.5
             , n 'z' "+" (attr Ka) 1
@@ -79,7 +79,7 @@ stops :: [(Drums.Group, [Drums.Group])]
             , n 'x' "o" (attr Ge) 1
             ]
         ]
-    right_notes = concat
+    right_strokes = concat
         [ group r_closed
             [ n '1' "l" (attr Tet) 0.5
             , n 'q' "k" (attr Tet) 1
@@ -110,14 +110,14 @@ stops :: [(Drums.Group, [Drums.Group])]
     l_closed = "l-closed"
     l_open = "l-open"
     group name = map $ \n -> n { Drums._group = name }
-    n = Drums.note_dyn
+    n = Drums.stroke_dyn
     attr = Pakhawaj.stroke_to_attribute
 
-pitched_strokes :: [Attrs.Attributes]
-pitched_strokes = map Pakhawaj.stroke_to_attribute [Ge, Na, Ta, Di]
+pitched_attributes :: [Attrs.Attributes]
+pitched_attributes = map Pakhawaj.stroke_to_attribute [Ge, Na, Ta, Di]
 
-all_notes :: [Drums.Note]
-all_notes = left_notes ++ right_notes
+all_strokes :: [Drums.Stroke]
+all_strokes = left_strokes ++ right_strokes
 
 -- mridangam strokes
 din = Attrs.attr "din"

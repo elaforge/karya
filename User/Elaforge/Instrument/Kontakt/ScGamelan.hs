@@ -83,7 +83,7 @@ patches = map add_doc $
         , (n 'q' "p" kempur,            Key2.a2)
         , (n 'w' "m" kemong,            Key2.a3)
         ]
-        where n = Drums.note
+        where n = Drums.stroke
     kempli_kajar_notes =
         [ (n 'z' "+"    kempli,                 Key2.d3)
         , (n 'a' "`O+`" (kempli <> open),       Key2.ds3)
@@ -98,7 +98,7 @@ patches = map add_doc $
         , (n 'e' "P"    (kajar <> Attrs.rim),   Key2.g4)
         -- Soniccouture also has a low kajar variant.
         ]
-        where n = Drums.note
+        where n = Drums.stroke
     open = Attrs.open
 
 gong = Attrs.attr "gong"

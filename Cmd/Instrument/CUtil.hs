@@ -69,7 +69,7 @@ insert_call thru =
         . map (bimap Keymap.physical_key to_expr) . Map.toList
     where to_expr call = Expr.generator0 call
 
-notes_to_calls :: [Drums.Note] -> Map Char Expr.Symbol
+notes_to_calls :: [Drums.Stroke] -> Map Char Expr.Symbol
 notes_to_calls notes =
     Map.fromList [(Drums._char n, Drums._name n) | n <- notes]
 
@@ -229,11 +229,11 @@ keyswitches inputs = \msg -> do
 -- | Create an unpitched drum instrument.  This is an instrument with an
 -- enumeration of symbols and no pitch or duration.  Each key maps to its
 -- own symbol.
-simple_drum :: Thru -> Maybe ScoreT.Control -> [(Drums.Note, Midi.Key)]
+simple_drum :: Thru -> Maybe ScoreT.Control -> [(Drums.Stroke, Midi.Key)]
     -> MidiInst.Patch -> MidiInst.Patch
-simple_drum thru tuning_control note_keys patch =
-    MidiInst.code #= code $ drum_patch note_keys patch
-    where code = drum_code thru tuning_control (map fst note_keys)
+simple_drum thru tuning_control stroke_keys patch =
+    MidiInst.code #= code $ drum_patch stroke_keys patch
+    where code = drum_code thru tuning_control (map fst stroke_keys)
 
 -- ** code
 
@@ -244,33 +244,33 @@ drum_code :: Thru
     -- offsets above or below the natural pitch.  Actual pitched drums which
     -- are tuned to a definite note should use 'pitched_drum_patch' and a
     -- pitch track.
-    -> [Drums.Note] -> MidiInst.Code
+    -> [Drums.Stroke] -> MidiInst.Code
 drum_code thru tuning_control notes =
     MidiInst.note_generators (drum_calls Nothing tuning_control notes)
     <> MidiInst.cmd (drum_cmd thru notes)
 
-drum_cmd :: Cmd.M m => Thru -> [Drums.Note] -> Msg.Msg -> m Cmd.Status
+drum_cmd :: Cmd.M m => Thru -> [Drums.Stroke] -> Msg.Msg -> m Cmd.Status
 drum_cmd thru = insert_call thru . notes_to_calls
 
 -- ** patch
 
-drum_patch :: [(Drums.Note, Midi.Key)] -> MidiInst.Patch -> MidiInst.Patch
-drum_patch note_keys =
+drum_patch :: [(Drums.Stroke, Midi.Key)] -> MidiInst.Patch -> MidiInst.Patch
+drum_patch stroke_keys =
     MidiInst.triggered
-    . (MidiInst.common#Common.call_map #= make_call_map (map fst note_keys))
+    . (MidiInst.common#Common.call_map #= make_call_map (map fst stroke_keys))
     . (MidiInst.patch#Patch.attribute_map #= keymap)
     where
     keymap = Patch.unpitched_keymap
-        [(Drums._attributes note, key) | (note, key) <- note_keys]
+        [(Drums._attributes stroke, key) | (stroke, key) <- stroke_keys]
 
-im_drum_patch :: [Drums.Note] -> ImInst.Patch -> ImInst.Patch
+im_drum_patch :: [Drums.Stroke] -> ImInst.Patch -> ImInst.Patch
 im_drum_patch notes =
     ImInst.triggered . (ImInst.common#Common.call_map #= make_call_map notes)
 
 -- | (keyswitch, low, high, root_pitch).  The root pitch is the pitch at the
 -- bottom of the key range, and winds up in 'Patch.PitchedKeymap'.
 type KeyswitchRange = ([Patch.Keyswitch], Midi.Key, Midi.Key, Midi.Key)
-type PitchedNotes = [(Drums.Note, KeyswitchRange)]
+type PitchedStrokes = [(Drums.Stroke, KeyswitchRange)]
 
 -- | Make a KeyswitchRange for each grouped Attributes set.  Attributes in the
 -- same group get the same range and are differentiated by keyswitch.
@@ -321,32 +321,33 @@ make_cc_keymap base_key range root_pitch =
     base_cc = 102
 
 -- | Annotate a Patch with an 'Patch.AttributeMap' from the given
--- PitchedNotes.
-pitched_drum_patch :: PitchedNotes -> MidiInst.Patch -> MidiInst.Patch
-pitched_drum_patch notes =
+-- PitchedStrokes.
+pitched_drum_patch :: PitchedStrokes -> MidiInst.Patch -> MidiInst.Patch
+pitched_drum_patch strokes =
     MidiInst.triggered
-    . (MidiInst.common#Common.call_map #= make_call_map (map fst notes))
-    . (MidiInst.patch#Patch.attribute_map #= make_attribute_map notes)
+    . (MidiInst.common#Common.call_map #= make_call_map (map fst strokes))
+    . (MidiInst.patch#Patch.attribute_map #= make_attribute_map strokes)
 
-make_call_map :: [Drums.Note] -> Common.CallMap
+make_call_map :: [Drums.Stroke] -> Common.CallMap
 make_call_map = Map.fromList . map (\n -> (Drums._attributes n, Drums._name n))
 
-make_attribute_map :: PitchedNotes -> Patch.AttributeMap
-make_attribute_map notes = Common.attribute_map $ Seq.unique
+make_attribute_map :: PitchedStrokes -> Patch.AttributeMap
+make_attribute_map strokes = Common.attribute_map $ Seq.unique
     -- It's ok to have Notes with the same (attr, keyswitch), for instance if
     -- there are loud and soft versions, but make_attribute_map will see them
     -- as overlapping attrs, so filter out duplicates.
-    [ (Drums._attributes note, (ks, Just (Patch.PitchedKeymap low high root)))
-    | (note, (ks, low, high, root)) <- notes
+    [ (Drums._attributes stroke, (ks, Just (Patch.PitchedKeymap low high root)))
+    | (stroke, (ks, low, high, root)) <- strokes
     ]
 
--- | Make PitchedNotes by pairing each 'Drums.Note' with its 'KeyswitchRange'.
-drum_pitched_notes :: [Drums.Note] -> Map Attrs.Attributes KeyswitchRange
-    -> (PitchedNotes, ([Drums.Note], [Attrs.Attributes]))
+-- | Make PitchedStrokes by pairing each 'Drums.Stroke' with its
+-- 'KeyswitchRange'.
+drum_pitched_strokes :: [Drums.Stroke] -> Map Attrs.Attributes KeyswitchRange
+    -> (PitchedStrokes, ([Drums.Stroke], [Attrs.Attributes]))
     -- ^ Also return the notes with no mapping (so they can't be played), and
     -- keymap ranges with no corresponding notes (so there is no call to
     -- play them).
-drum_pitched_notes notes keymap = (found, (not_found, unused))
+drum_pitched_strokes notes keymap = (found, (not_found, unused))
     where
     unused = filter (`notElem` note_attrs) (Map.keys keymap)
     note_attrs = map Drums._attributes notes
@@ -362,12 +363,12 @@ drum_calls :: Maybe ([Attrs.Attributes], Pitch.NoteNumber)
     -- ^ If Just, only strokes which are a superset of one of these move with
     -- the pitch, otherwise the stay at the given NoteNumber.  If Nothing, all
     -- strokes move with the pitch.
-    -> Maybe ScoreT.Control -> [Drums.Note]
+    -> Maybe ScoreT.Control -> [Drums.Stroke]
     -> [(Expr.Symbol, Derive.Generator Derive.Note)]
-drum_calls pitched_strokes tuning_control = map $ \note ->
-    ( Drums._name note
-    , drum_call tuning_control (Drums._dynamic note)
-        (Drums._attributes note) (set_pitch (Drums._attributes note))
+drum_calls pitched_strokes tuning_control = map $ \stroke ->
+    ( Drums._name stroke
+    , drum_call tuning_control (Drums._dynamic stroke)
+        (Drums._attributes stroke) (set_pitch (Drums._attributes stroke))
     )
     where
     set_pitch attrs = case pitched_strokes of
@@ -405,7 +406,7 @@ apply_tuning_control args control deriver = do
 -- * util
 
 -- | Given a map describing how Attributes are mapped to the MIDI key range,
--- take a key binding to a 'PitchedNotes'.  The reason these are separate is
+-- take a key binding to a 'PitchedStrokes'.  The reason these are separate is
 -- that the map describes how a particular patch maps attributes, while the
 -- key binding describes the capabilities of the instrument itself.
 --
@@ -414,15 +415,15 @@ apply_tuning_control args control deriver = do
 resolve_strokes :: Signal.Y -> Map Attrs.Attributes KeyswitchRange
     -> [(Char, Expr.Symbol, Attrs.Attributes, Drums.Group)]
     -- ^ (key_binding, emits_text, call_attributes, stop_group)
-    -> (PitchedNotes, [Text]) -- ^ also return errors
+    -> (PitchedStrokes, [Text]) -- ^ also return errors
 resolve_strokes soft_dyn keymap =
     check_dups . Either.partitionEithers . map resolve
     where
     resolve (char, call, attrs, group) =
-        maybe (Left $ "unmapped: " <> pretty attrs) (Right . (note,)) $
+        maybe (Left $ "unmapped: " <> pretty attrs) (Right . (stroke,)) $
             Map.lookup (Attrs.remove Attrs.soft attrs) keymap
         where
-        note = (Drums.note_dyn char call attrs dyn) { Drums._group = group }
+        stroke = (Drums.stroke_dyn char call attrs dyn) { Drums._group = group }
         dyn = if Attrs.contain attrs Attrs.soft then soft_dyn else 1
     check_dups (msgs, notes) = (notes3, dup_msgs ++ msgs)
         where

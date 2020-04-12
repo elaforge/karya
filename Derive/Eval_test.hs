@@ -43,8 +43,8 @@ test_reapply_generator = do
     with = CallTest.with_note_generators $
         ("ab", DUtil.multiple_call "ab" ["a", "b"])
         : CUtil.drum_calls Nothing Nothing
-            [ Drums.note 'a' "a" (Attrs.attr "a")
-            , Drums.note 'b' "b" (Attrs.attr "b")
+            [ Drums.stroke 'a' "a" (Attrs.attr "a")
+            , Drums.stroke 'b' "b" (Attrs.attr "b")
             ]
 
 test_block_id_to_call = do

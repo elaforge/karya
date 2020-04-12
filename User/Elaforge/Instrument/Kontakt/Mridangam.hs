@@ -25,25 +25,25 @@ import Global
 
 patches :: [MidiInst.Patch]
 patches =
-    [ code NN.d4 $ patch "mridangam-d" notes_d
-    , code NN.g4 $ patch "mridangam-g" notes_g
-    , code NN.g4 $ patch "mridangam-old" pitched_notes_old
+    [ code NN.d4 $ patch "mridangam-d" strokes_d
+    , code NN.g4 $ patch "mridangam-g" strokes_g
+    , code NN.g4 $ patch "mridangam-old" pitched_strokes_old
     ]
     where
-    patch name notes = CUtil.pitched_drum_patch notes $
+    patch name strokes = CUtil.pitched_drum_patch strokes $
         MidiInst.named_patch (-24, 24) name []
     code natural_nn = MidiInst.code
         #= Mridangam.code CUtil.MidiThru natural_nn Nothing
 
-notes_d, notes_g :: CUtil.PitchedNotes
-(notes_d, _unmapped_notes_d) = make_notes Key.gs3
-(notes_g, _unmapped_notes_g) = make_notes Key.d4
+strokes_d, strokes_g :: CUtil.PitchedStrokes
+(strokes_d, _unmapped_strokes_d) = make_strokes Key.gs3
+(strokes_g, _unmapped_strokes_g) = make_strokes Key.d4
     -- The given pitch is the natural pitch of the instrument.  The root note
     -- is the bottom of the pitch range.
 
-make_notes :: Midi.Key
-    -> (CUtil.PitchedNotes, ([Drums.Note], [Attrs.Attributes]))
-make_notes root_nn = CUtil.drum_pitched_notes Mridangam.all_notes $
+make_strokes :: Midi.Key
+    -> (CUtil.PitchedStrokes, ([Drums.Stroke], [Attrs.Attributes]))
+make_strokes root_nn = CUtil.drum_pitched_strokes Mridangam.all_strokes $
     CUtil.make_cc_keymap Key2.c_1 12 root_nn
         [ [M.tha]
         , [M.thom, M.gumki, M.gumki <> Attrs.up, M.thom <> Attrs.dry]
@@ -59,18 +59,18 @@ make_notes root_nn = CUtil.drum_pitched_notes Mridangam.all_notes $
 write_ksp :: IO ()
 write_ksp = mapM_ (uncurry Util.write)
     -- Util.drum_mute_ksp ignores the root pitch so I don't need to worry about
-    -- 'notes_g'.
+    -- 'strokes_g'.
     [ ( "mridangam.ksp.txt"
-      , Util.drum_mute_ksp "mridangam" notes_d Mridangam.stops
+      , Util.drum_mute_ksp "mridangam" strokes_d Mridangam.stops
       )
     , ( "mridangam-old.ksp.txt"
-      , Util.drum_mute_ksp "mridangam" pitched_notes_old Mridangam.stops
+      , Util.drum_mute_ksp "mridangam" pitched_strokes_old Mridangam.stops
       )
     ]
 
-pitched_notes_old :: CUtil.PitchedNotes
-(pitched_notes_old, _pitched_notes_old) =
-    CUtil.drum_pitched_notes Mridangam.all_notes $ Map.fromList $ map make
+pitched_strokes_old :: CUtil.PitchedStrokes
+(pitched_strokes_old, _pitched_strokes_old) =
+    CUtil.drum_pitched_strokes Mridangam.all_strokes $ Map.fromList $ map make
     -- left
     [ (M.tha, (Key.g_1, Key.e0))
     , (M.thom, (Key.g0, Key.e1))

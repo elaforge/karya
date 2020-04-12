@@ -19,7 +19,7 @@ import           Global
 -- standardize call names, attributes, and keymap key.  Of course there will be
 -- drum sets that don't fit in (e.g. have two or three snares), but at least
 -- this provides a standard base.
-data Note = Note {
+data Stroke = Stroke {
     _name :: !Expr.Symbol
     , _attributes :: !Attributes
     , _char :: !Char
@@ -35,8 +35,8 @@ type Group = Text
 -- | Pair each stopping group with the list of groups it stops.
 type Stops = [(Group, [Group])]
 
-note :: Char -> Expr.Symbol -> Attributes -> Note
-note char name attrs = Note
+stroke :: Char -> Expr.Symbol -> Attributes -> Stroke
+stroke char name attrs = Stroke
     { _name = name
     , _attributes = attrs
     , _char = char
@@ -44,11 +44,11 @@ note char name attrs = Note
     , _group = ""
     }
 
-note_dyn :: Char -> Expr.Symbol -> Attributes -> Signal.Y -> Note
-note_dyn char name attrs dyn = (note char name attrs) { _dynamic = dyn }
+stroke_dyn :: Char -> Expr.Symbol -> Attributes -> Signal.Y -> Stroke
+stroke_dyn char name attrs dyn = (stroke char name attrs) { _dynamic = dyn }
 
-instance Pretty Note where
-    format (Note name attrs char dyn group) = Pretty.record "Note"
+instance Pretty Stroke where
+    format (Stroke name attrs char dyn group) = Pretty.record "Stroke"
         [ ("name", Pretty.format name)
         , ("attrs", Pretty.format attrs)
         , ("char", Pretty.format char)
@@ -56,21 +56,21 @@ instance Pretty Note where
         , ("group", Pretty.format group)
         ]
 
-c_bd    = note 'z' "bd"     bd
-c_bd2   = note 's' "bd2"    (bd <> v2)
-c_sn    = note 'x' "sn"     snare
-c_sn2   = note 'd' "sn2"    (snare <> v2)
-c_rim   = note 'v' "rim"    rim
-c_ltom  = note 'b' "ltom"   (tom <> low)
-c_mtom  = note 'n' "mtom"   (tom <> middle)
-c_htom  = note 'm' "htom"   (tom <> high)
+c_bd    = stroke 'z' "bd"     bd
+c_bd2   = stroke 's' "bd2"    (bd <> v2)
+c_sn    = stroke 'x' "sn"     snare
+c_sn2   = stroke 'd' "sn2"    (snare <> v2)
+c_rim   = stroke 'v' "rim"    rim
+c_ltom  = stroke 'b' "ltom"   (tom <> low)
+c_mtom  = stroke 'n' "mtom"   (tom <> middle)
+c_htom  = stroke 'm' "htom"   (tom <> high)
 
 -- Also doubles as closed hh, if both exist.
-c_hh    = note 'q' "hh"     hh
-c_ohh   = note 'w' "ohh"    (open <> hh)
-c_phh   = note 'e' "phh"    (pedal <> hh)
+c_hh    = stroke 'q' "hh"     hh
+c_ohh   = stroke 'w' "ohh"    (open <> hh)
+c_phh   = stroke 'e' "phh"    (pedal <> hh)
 
-c_ride  = note 't' "ride"   ride
-c_crash = note 'y' "crash"  crash
+c_ride  = stroke 't' "ride"   ride
+c_crash = stroke 'y' "crash"  crash
 
 -- TODO other drum style ornaments like double strikes, rolls, etc.

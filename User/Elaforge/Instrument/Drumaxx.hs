@@ -23,15 +23,15 @@ synth = MidiInst.synth "drumaxx" "Imagine-Line Drumaxx" patches
 patches :: [MidiInst.Patch]
 patches =
     [ MidiInst.code #= CUtil.drum_code CUtil.MidiThru Nothing
-            (map fst note_keys) $
-        CUtil.drum_patch note_keys $ MidiInst.default_patch pb_range []
+            (map fst stroke_keys) $
+        CUtil.drum_patch stroke_keys $ MidiInst.default_patch pb_range []
     , MidiInst.code #= composite_code $
         MidiInst.doc #= composite_doc $
         MidiInst.named_patch pb_range "comb" []
     ]
     where
     composite_code = MidiInst.note_generators
-        [(call, composite call) | call <- map (Drums._name . fst) note_keys]
+        [(call, composite call) | call <- map (Drums._name . fst) stroke_keys]
     composite call = DUtil.redirect_pitch "comb" ""
         (Just (Set.fromList ["mix", "fbk"])) call Nothing
     composite_doc = "This drum takes a pitch signal, which is then sent\
@@ -42,13 +42,13 @@ patches =
 -- | The octave numbers on the drumaxx are one greater than the standard
 -- usage.  This is for \"Acoustic 2 FG\".  I'll have to come up with
 -- a standard mapping later.
-note_keys :: [(Drums.Note, Midi.Key)]
-note_keys =
+stroke_keys :: [(Drums.Stroke, Midi.Key)]
+stroke_keys =
     [ (Drums.c_bd, c2)
     , (Drums.c_bd2, b1)
     , (Drums.c_sn, d2)
     , (Drums.c_sn2, e2)
-    , (Drums.note 'c' "sn3" (snare <> v3), ds2)
+    , (Drums.stroke 'c' "sn3" (snare <> v3), ds2)
     , (Drums.c_rim, cs2)
     , (Drums.c_ltom, g2)
     , (Drums.c_mtom, b2)

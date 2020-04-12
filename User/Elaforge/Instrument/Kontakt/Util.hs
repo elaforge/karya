@@ -64,10 +64,10 @@ tuning_template =
 -- built-in mechanism lets you assign notes to a group, and limit voices in the
 -- group, which means that two of the same strokes in a row will mute each
 -- other.
-drum_mute_ksp :: Text -> CUtil.PitchedNotes -> [(Drums.Group, [Drums.Group])]
+drum_mute_ksp :: Text -> CUtil.PitchedStrokes -> [(Drums.Group, [Drums.Group])]
     -- ^ each Group along with a set of Groups that it stops
     -> Either Text Text
-drum_mute_ksp instrument notes stop_groups = do
+drum_mute_ksp instrument strokes stop_groups = do
     stop_group_ids <- make_stop_groups stop_groups groups
     let values = Map.fromList
             [ ("INSTRUMENT", instrument)
@@ -80,32 +80,33 @@ drum_mute_ksp instrument notes stop_groups = do
     interpolate values drum_mute_template
     where
     (pitch_to_keyswitch, pitch_to_group, groups, max_keyswitches) =
-        drum_mute_values notes
+        drum_mute_values strokes
 
-drum_mute_values :: CUtil.PitchedNotes -> ([Int], [Int], [Drums.Group], Int)
-drum_mute_values notes =
-    (pitch_to_keyswitch, pitch_to_group, groups, length keyswitch_notes)
+drum_mute_values :: CUtil.PitchedStrokes -> ([Int], [Int], [Drums.Group], Int)
+drum_mute_values strokes =
+    (pitch_to_keyswitch, pitch_to_group, groups, length keyswitch_strokes)
     where
-    pitch_to_group = Vector.toList $ mconcat $ map make keyswitch_notes
-    make ks_notes = midi_pitch_array none
+    pitch_to_group = Vector.toList $ mconcat $ map make keyswitch_strokes
+    make ks_strokes = midi_pitch_array none
         [ ((Midi.from_key s, Midi.from_key e), group_id group)
-        | (group, (s, e)) <- ks_notes
+        | (group, (s, e)) <- ks_strokes
         ]
     pitch_to_keyswitch = Vector.toList $ Vector.replicate 128 none
         Vector.// zip (map Midi.from_key keyswitches) [0..]
-    (keyswitches, keyswitch_notes) = unzip $ Map.toAscList keyswitch_to_notes
+    (keyswitches, keyswitch_strokes) =
+        unzip $ Map.toAscList keyswitch_to_strokes
     -- If this instrument doesn't use keyswitches (it could use
     -- 'Patch.ControlSwitch'es), then they all wind up with 0.  I need
     -- at least one keyswitch so pitch_to_group isn't empty, and pretending
     -- there's one at 0 is fine since it never changes.  This is fine, assuming
     -- that overlapping groups all belong to the same stop gorup.
-    keyswitch_to_notes = Maps.multimap
-        [ (ks_of keyswitch, (Drums._group note, (low, high)))
-        | (note, (keyswitch, low, high, _)) <- notes
+    keyswitch_to_strokes = Maps.multimap
+        [ (ks_of keyswitch, (Drums._group stroke, (low, high)))
+        | (stroke, (keyswitch, low, high, _)) <- strokes
         ]
     ks_of (Patch.Keyswitch ks : _) = ks
     ks_of _ = 0
-    groups = Seq.drop_dups id (List.sort (map (Drums._group . fst) notes))
+    groups = Seq.drop_dups id (List.sort (map (Drums._group . fst) strokes))
     group_to_id = Map.fromList $ zip groups [0..]
     group_id g = Map.findWithDefault none g group_to_id
 

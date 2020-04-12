@@ -37,10 +37,10 @@ pasang_code =
 
 -- TODO the kontakt one uses CUtil.resolve_strokes, which also takes a keymap
 -- and checks for collisions... but I think I don't need it for im?
-tunggal_notes :: [Drums.Note]
-tunggal_notes = do
-    (key, note@(Note _ attrs), group) <- tunggal_strokes
-    return $ Drums.Note
+tunggal_strokes :: [Drums.Stroke]
+tunggal_strokes = do
+    (key, note@(Note _ attrs), group) <- tunggal_table
+    return $ Drums.Stroke
         { _name = to_call note
         , _attributes = attrs
         , _char = key
@@ -51,9 +51,9 @@ tunggal_notes = do
 soft_dyn :: Double
 soft_dyn = 0.4
 
-tunggal_strokes :: [(Char, Note, Drums.Group)]
+tunggal_table :: [(Char, Note, Drums.Group)]
 stops :: Drums.Stops
-(stops, tunggal_strokes) = (stops,) $ map to_note
+(stops, tunggal_table) = (stops,) $ map to_note
     [ ('b', Plak, plak,         both)
     -- left
     , ('1', Pak, pak <> soft,   left_closed)

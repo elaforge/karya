@@ -44,7 +44,7 @@ test_kendang = do
 
 test_pasang_calls = do
     -- every pasang call dispatch to a valid tunggal call
-    let tunggal = [K.to_call note | (_, note, _) <- K.tunggal_strokes]
+    let tunggal = [K.to_call note | (_, note, _) <- K.tunggal_table]
     forM_ K.pasang_calls $ \(_, _, pstroke) ->
         forM_ (K.notes_of pstroke) $ \note -> do
             let sym = K.to_call note

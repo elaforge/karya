@@ -28,23 +28,23 @@ import           Global
 
 patches :: [MidiInst.Patch]
 patches =
-    [ MidiInst.code #= tunggal_code $ CUtil.pitched_drum_patch tunggal_notes $
+    [ MidiInst.code #= tunggal_code $ CUtil.pitched_drum_patch tunggal_strokes $
         patch "kendang-bali"
-    , MidiInst.code #= tunggal_code $ CUtil.drum_patch old_tunggal_notes $
+    , MidiInst.code #= tunggal_code $ CUtil.drum_patch old_tunggal_strokes $
         patch "kendang-bali-old"
     , MidiInst.code #= K.pasang_code $ MidiInst.triggered $
         patch "kendang-bali-pasang"
     ]
     where
     tunggal_code = CUtil.drum_code CUtil.MidiThru (Just "kendang-tune")
-        (map fst tunggal_notes)
+        (map fst tunggal_strokes)
     patch name = MidiInst.named_patch (-24, 24) name []
 
-tunggal_notes :: CUtil.PitchedNotes
-(tunggal_notes, resolve_errors) =
+tunggal_strokes :: CUtil.PitchedStrokes
+(tunggal_strokes, resolve_errors) =
     CUtil.resolve_strokes K.soft_dyn tunggal_keymap
         [ (char, K.to_call note, attrs, group)
-        | (char, note@(K.Note _ attrs), group) <- K.tunggal_strokes
+        | (char, note@(K.Note _ attrs), group) <- K.tunggal_table
         ]
 
 tunggal_keymap :: Map Attrs.Attributes CUtil.KeyswitchRange
@@ -61,8 +61,8 @@ tunggal_keymap = CUtil.make_keymap (Just Key2.e_2) Key2.c_1 12 Key.fs3
     ]
 
 -- | Mapping for the old kendang patches.
-old_tunggal_notes :: [(Drums.Note, Midi.Key)]
-old_tunggal_notes = map (first make_note)
+old_tunggal_strokes :: [(Drums.Stroke, Midi.Key)]
+old_tunggal_strokes = map (first stroke)
     [ (K.plak, Key.g1)
     -- left
     , (K.pak, Key.c5)
@@ -84,18 +84,18 @@ old_tunggal_notes = map (first make_note)
     , (K.tek, Key.c1)
     ]
     where
-    make_note attrs =
-        Drums.note_dyn char (K.to_call (K.Note stroke attrs)) attrs
+    stroke attrs =
+        Drums.stroke_dyn char (K.to_call (K.Note stroke attrs)) attrs
             (if Attrs.contain attrs soft then K.soft_dyn else 1)
         where
         Just (char, (K.Note stroke _), _) =
-            List.find ((==attrs) . attrs_of) K.tunggal_strokes
+            List.find ((==attrs) . attrs_of) K.tunggal_table
     attrs_of (_, (K.Note _ a), _) = a
 
 write_ksp :: IO ()
 write_ksp = mapM_ (uncurry Util.write)
     [ ("kendang-bali.ksp",
-        Util.drum_mute_ksp "kendang bali" tunggal_notes K.stops)
+        Util.drum_mute_ksp "kendang bali" tunggal_strokes K.stops)
     ]
 
 -- * config

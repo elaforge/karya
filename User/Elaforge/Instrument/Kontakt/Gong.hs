@@ -41,27 +41,27 @@ patch name = MidiInst.named_patch (-24, 24) name []
 kajar_patch :: MidiInst.Patch
 kajar_patch =
     MidiInst.code #= code $
-        CUtil.pitched_drum_patch kajar_pitched_notes $ patch "kajar"
+        CUtil.pitched_drum_patch kajar_pitched_strokes $ patch "kajar"
     where
     code = MidiInst.cmd (CUtil.insert_call CUtil.MidiThru char_to_call)
         <> MidiInst.note_generators generators
     generators = concat
-        [ CUtil.drum_calls Nothing (Just tuning_control) notes
+        [ CUtil.drum_calls Nothing (Just tuning_control) strokes
         , [(sym, call) | (_, sym, call) <- kajar_special]
         , [("k", Gong.make_cycle "kajar" (Just (Left "o"))
             (Just (Left Meter.Q)))]
         ]
     char_to_call = Map.fromList $ concat
-        [ [(Drums._char n, Drums._name n) | n <- notes]
+        [ [(Drums._char s, Drums._name s) | s <- strokes]
         , [(char, sym) | (char, sym, _) <- kajar_special]
         ]
-    notes = map fst kajar_pitched_notes
+    strokes = map fst kajar_pitched_strokes
 
 tuning_control :: ScoreT.Control
 tuning_control = "kajar-tune"
 
-kajar_pitched_notes :: CUtil.PitchedNotes
-(kajar_pitched_notes, kajar_resolve_errors) =
+kajar_pitched_strokes :: CUtil.PitchedStrokes
+(kajar_pitched_strokes, kajar_resolve_errors) =
     CUtil.resolve_strokes 0.35 keymap kajar_strokes
 
 kajar_special :: [(Char, Expr.Symbol, Derive.Generator Derive.Note)]
@@ -115,5 +115,5 @@ keymap = CUtil.make_keymap2 Nothing 24 6 12 Key.c4
 write_ksp :: IO ()
 write_ksp = mapM_ (uncurry Util.write)
     [ ("kajar.ksp.txt",
-        Util.drum_mute_ksp "kajar" kajar_pitched_notes kajar_stops)
+        Util.drum_mute_ksp "kajar" kajar_pitched_strokes kajar_stops)
     ]

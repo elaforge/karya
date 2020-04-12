@@ -52,7 +52,7 @@ patchName :: Text
 patchName = "mridangam-d"
 
 strokeMap :: Drum.StrokeMap Articulation
-strokeMap = Drum.strokeMap Mridangam.stops Mridangam.all_notes attributeMap
+strokeMap = Drum.strokeMap Mridangam.stops Mridangam.all_strokes attributeMap
 
 attributeMap :: Common.AttributeMap Articulation
 attributeMap = Common.attribute_map

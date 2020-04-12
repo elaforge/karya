@@ -1,7 +1,7 @@
 -- Make sure the D module is always in scope.
 -- In ghc 8.8, this now causes all D's deps to be interpreted.
 -- It's not actually that useful, so let's leave it out for now.
--- :def! l (\args -> return $ ":load " ++ args ++ " D\n:module +D")
+:def! l (\args -> return $ ":load " ++ args ++ " D\n:module +D")
 
 -- Interactive tools for Solkattu/Score/*.hs
 :{

@@ -29,6 +29,7 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  * rename Drums.Note to Drums.Stroke, too many things called Note
   * segfault disabling track
     . had multiple views
     . Can make it happen when disable with multiple views.
@@ -1837,6 +1838,8 @@ instruments:
         affect how much energy goes into resonators, right?
       . Any examples of use other than those bells?
       . Did the faust output sound like the real bells?
+      . Does faust use restrict / -fstrict-aliasing?
+        https://cellperformance.beyond3d.com/articles/2006/05/demystifying-the-restrict-keyword.html
     How does the faust implementation work?
       . pm.modeFilter(freq, t60, gain)
       . For each modeFreq, make a pm.modeFilter with that frequency.
@@ -1957,6 +1960,10 @@ instruments:
       . It doesn't need gcc.  I should do the compile with nix though.
 
 synth: im:
+  strict aliasing:
+    . https://cellperformance.beyond3d.com/articles/2006/05/demystifying-the-restrict-keyword.html
+    . https://ourmachinery.com/post/writing-a-low-level-sound-system/
+    - compile with -fstrict-aliasing and -Wstrict-aliasing
   - Make some profiles for memory use and time.
   fix ugly and unsafe non-copying state:
     . NOTE [audio-state]
@@ -4337,6 +4344,7 @@ performance:
     . Can I use compact regions for the REPL loaded modules memory?
     . compactWithSharing is slower but retains internal sharing, test to see
       if it's worth it.
+    . https://tech.channable.com/posts/2020-04-07-lessons-in-managing-haskell-memory.html
   - Reduce memory used by REPL.  NOTE [reduce-repl-memory]
     . About 200mb.
     . GHC reads interfaces maybe with ghc/compiler/utils/Binary.hs:/readBinMem
@@ -5104,6 +5112,10 @@ REPL: repl:
     could also get rid of the need for Cmd.Lang.Environ to import everything.
 
 solkattu:
+  notation conveniences:
+    - s = section, g = group
+    - r2, r3, r4, r5, r6 = repeat n
+    - Then I can make tri like r3, but groups the sequence, as does tri_.
   - replace is useful to express variations
     . e.g. Mridangam2019.c_19_06_24_a
     . This can perhaps solve "reduction with irregular bits" and
@@ -5203,6 +5215,7 @@ solkattu:
     . They're right, I'm confused.
   format: output:
     html:
+      - link to source
       - index.html: sort by date, source
       - writeParts
       - Offset rests make empty cells like <td><b> </b></td><td colspan=7> </td>
@@ -5228,6 +5241,7 @@ solkattu:
       - Can I align by structure?
         . E.g. reductions or tri would line up vertically.
     terminal:
+      - re-display ruler when it changes scale, e.g. sarva_20_02_27
       - Solkattu2018.yt_mannargudi1 still seems messed up, it ends at
         arudi but starts on 2, not 4.
         . Acutally this is due to differing normalization.  The next section

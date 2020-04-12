@@ -30,15 +30,16 @@ import           Global
 
 patches :: [MidiInst.Patch]
 patches =
-    [ MidiInst.code #= code $ CUtil.pitched_drum_patch pitched_notes $
+    [ MidiInst.code #= code $ CUtil.pitched_drum_patch pitched_strokes $
         patch "kendang-sunda"
     ]
     where
     patch name = MidiInst.named_patch (-24, 24) name [(4, pitch_control)]
-    notes = map fst pitched_notes
-    code = MidiInst.cmd (CUtil.drum_cmd CUtil.MidiThru notes)
+    strokes = map fst pitched_strokes
+    code = MidiInst.cmd (CUtil.drum_cmd CUtil.MidiThru strokes)
         <> MidiInst.note_generators
-            (replace_det $ CUtil.drum_calls Nothing (Just tuning_control) notes)
+            (replace_det $
+                CUtil.drum_calls Nothing (Just tuning_control) strokes)
 
 replace_det :: [(Expr.Symbol, Derive.Generator Derive.Note)]
     -> [(Expr.Symbol, Derive.Generator Derive.Note)]
@@ -102,8 +103,8 @@ tuning_control = "kendang-tune"
 pitch_control :: ScoreT.Control
 pitch_control = "pitch"
 
-pitched_notes :: CUtil.PitchedNotes
-(pitched_notes, resolve_errors) = CUtil.resolve_strokes 0.3 keymap strokes
+pitched_strokes :: CUtil.PitchedStrokes
+(pitched_strokes, resolve_errors) = CUtil.resolve_strokes 0.3 keymap strokes
 
 strokes :: [(Char, Expr.Symbol, Attrs.Attributes, Drums.Group)]
 stops :: [(Drums.Group, [Drums.Group])]
@@ -182,7 +183,7 @@ keymap = CUtil.make_keymap2 Nothing 8 6 12 Key.c4
 write_ksp :: IO ()
 write_ksp = mapM_ (uncurry Util.write)
     [ ("kendang-sunda.ksp",
-        Util.drum_mute_ksp "kendang sunda" pitched_notes stops)
+        Util.drum_mute_ksp "kendang sunda" pitched_strokes stops)
     ]
 
 -- indung, kiri

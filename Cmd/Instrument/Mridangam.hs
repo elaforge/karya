@@ -32,7 +32,7 @@ import           Global
 code :: CUtil.Thru -> Pitch.NoteNumber
     -> Maybe (Derive.TransformerF Derive.Note) -> ImInst.Code
 code thru natural_nn transform =
-    make_code thru pitched_strokes natural_nn transform all_notes both_calls
+    make_code thru pitched_strokes natural_nn transform all_strokes both_calls
 
 -- | Single symbols for two strokes together.  thom+x becomes a capital X,
 -- and there are a few ad-hoc capital letters for more common tha+x
@@ -57,13 +57,13 @@ pitched_strokes =
     , dheem
     ]
 
-all_notes :: [Drums.Note]
-all_notes = left_notes ++ right_notes
+all_strokes :: [Drums.Stroke]
+all_strokes = left_notes ++ right_notes
 
 -- | The convention is symbols for thoppi, and letters for valantalai.  Also,
 -- vowels for open sounds, consonants for closed ones.  Soft strokes look like
 -- a simpler version of their equivalent loud strokes.
-left_notes, right_notes :: [Drums.Note]
+left_notes, right_notes :: [Drums.Stroke]
 stops :: Drums.Stops
 (left_notes, right_notes, stops) = (left_notes, right_notes, stops)
     where
@@ -124,7 +124,7 @@ stops :: Drums.Stops
     t_closed = "t-closed"
     t_open = "t-open"
     group name = map $ \n -> n { Drums._group = name }
-    n = Drums.note_dyn
+    n = Drums.stroke_dyn
 
 tha = Attrs.attr "tha"
 thom = Attrs.attr "thom"
@@ -152,8 +152,8 @@ fingertips = Attrs.attr "fingertips"
 
 -- | Make code for a pitched two-handed drum.  This isn't mridangam-specific.
 make_code :: CUtil.Thru -> [Attrs.Attributes] -> Pitch.NoteNumber
-    -> Maybe (Derive.TransformerF Derive.Note)
-    -> [Drums.Note] -> [(Expr.Symbol, [Expr.Symbol], Maybe Char)] -> ImInst.Code
+    -> Maybe (Derive.TransformerF Derive.Note) -> [Drums.Stroke]
+    -> [(Expr.Symbol, [Expr.Symbol], Maybe Char)] -> ImInst.Code
 make_code thru pitched_strokes natural_nn transform notes both = mconcat
     [ ImInst.note_generators generators
     , ImInst.val_calls vals
@@ -177,7 +177,7 @@ make_code thru pitched_strokes natural_nn transform notes both = mconcat
 
 -- | Create calls for all simultaneous left and right hand combinations, and
 -- key bindings for a few common ones.
-make_both :: [Drums.Note] -> [Drums.Note]
+make_both :: [Drums.Stroke] -> [Drums.Stroke]
     -> [(Expr.Symbol, [Expr.Symbol])] -- ^ special names for pairs
     -> [(Expr.Symbol, Char)] -> [(Expr.Symbol, [Expr.Symbol], Maybe Char)]
 make_both left right special_names keys =

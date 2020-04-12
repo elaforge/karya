@@ -49,13 +49,13 @@ insert_call tracks tracknum val_edit msg =
         CmdTest.set_sel tracknum 0 tracknum 0
         CUtil.insert_call CUtil.MidiThru char_to_call msg
     where
-    (ustate, cstate) = CmdTest.set_synths_simple [make_synth note_keys]
+    (ustate, cstate) = CmdTest.set_synths_simple [make_synth stroke_keys]
         [("i1", "synth/1")] (CmdTest.make_tracks tracks)
         CmdTest.default_cmd_state
-    char_to_call = CUtil.notes_to_calls (map fst note_keys)
-    note_keys =
-        [ (Drums.note 'a' "anote" (Attrs.attr "a"), Key.c2)
-        , (Drums.note 'b' "bnote" (Attrs.attr "b"), Key.d2)
+    char_to_call = CUtil.notes_to_calls (map fst stroke_keys)
+    stroke_keys =
+        [ (Drums.stroke 'a' "anote" (Attrs.attr "a"), Key.c2)
+        , (Drums.stroke 'b' "bnote" (Attrs.attr "b"), Key.d2)
         ]
     extract r = (CmdTest.trace_logs (CmdTest.e_tracks r), CmdTest.e_midi r)
 
@@ -105,12 +105,12 @@ test_make_cc_keymap = do
 drum_synth :: MidiInst.Synth
 drum_synth = make_synth [(Drums.c_bd, Key.c2), (Drums.c_sn, Key.d2)]
 
-make_synth :: [(Drums.Note, Midi.Key)] -> MidiInst.Synth
-make_synth note_keys = UiTest.make_synth "synth" [patch]
+make_synth :: [(Drums.Stroke, Midi.Key)] -> MidiInst.Synth
+make_synth stroke_keys = UiTest.make_synth "synth" [patch]
     where
     patch = MidiInst.code #= code $
-        CUtil.drum_patch note_keys $ MidiInst.named_patch (-24, 24) "1" []
+        CUtil.drum_patch stroke_keys $ MidiInst.named_patch (-24, 24) "1" []
     code =
         MidiInst.note_generators
-            (CUtil.drum_calls Nothing Nothing (map fst note_keys))
-        <> MidiInst.cmd (CUtil.drum_cmd CUtil.MidiThru (map fst note_keys))
+            (CUtil.drum_calls Nothing Nothing (map fst stroke_keys))
+        <> MidiInst.cmd (CUtil.drum_cmd CUtil.MidiThru (map fst stroke_keys))
