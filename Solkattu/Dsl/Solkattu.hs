@@ -337,6 +337,10 @@ realizeSargam = _printInstrument Korvai.sargam
 realizeKon :: Korvai -> IO ()
 realizeKon = Terminal.printKonnakol (wide Terminal.defaultConfig)
 
+realizeKon_ :: Int -> Korvai -> IO ()
+realizeKon_ width = Terminal.printKonnakol
+    (Terminal.defaultConfig { Terminal._terminalWidth = width })
+
 -- | 'realizeParts' specialized to mridangam, and disbale the usual
 -- 'Interactive.printInstrument' lint and write diff stuff.
 realizePartsM :: Terminal.Config -> [Part] -> IO ()

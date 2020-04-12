@@ -80,41 +80,57 @@ sarva_20_02_27 = date 2020 2 27 $ ganesh $ sarvalaghu $ korvai adi $
     map (smap (nadai 5))
     [ s $ repeat 6 (d_n_nd_n.ktpk)
         . d.y.n.ktpk.d.y.n.ktpk
-        . (n.ktok.on.ktok . su (o.t.o.k.o.t.o.k))
-    , s $ o.__5.__5.k .d_n_nd_n & o_o_o .ktok
+        . n.ktok.on.ktok . su (o.t.o.k.o.t.o.k)
+    , s $ o.__5.__5.k .d_N_ND_N.ktok
         . o&d_n_nd_n.ktpk.d_n_nd_n.ktok
-    , x2 $ s $ repeat 2 (d_n_nd_n & o_o_o .ktok)
-        . o&d_n_nd_n.ktpk . (n.ktok.on.ktpk . su nakatiku) -- x2
-    , s $ d_n_nd_n & o_o_o .ktpk . n.ktok.on.ktpk.su nakatiku
-        . d_n_nd_n         .ktpk . n.ktok.on.ktpk.su nakatiku
-    , s $ d_n_nd_n & o_o_o .ktok . o. tri_ __ (tri (ktkt.o))
-    , s $ k.__5.__5.k .d_n_nd_n & o_o_o .ktok
-        . o&d_n_nd_n.ktpk.d_n_nd_n.ktok
-        . repeat 2 (d_n_nd_n & o_o_o . ktok)
-        . o&d_n_nd_n.ktpk.d_n_nd_n.ktok
-    , s $  repeat 2 (d_n_nd_n & o_o_o . ktok)
-      . o & (repeat 3 d_n_n . d.__.n.o.on)
-    , s $ repeat 2 $ repeat 3 d_n_n . d.__.n.o.on
-    , s $ repeat 4 $ d_n_n . d.__.n.o.on
-    , s $ repeat 3 (d.__.n.o.on) . d.__.n.o . tri (group (k.o.o.k.n.p.k))
+    , x2 $ s $ r2 (d_N_ND_N.ktok)
+        . o&d_n_nd_n.ktpk . (n.ktok.on.ktpk . su nakatiku)
+    , s $ d_N_ND_N.ktpk . n.ktok.on.ktpk.su nakatiku
+        . d_n_nd_n.ktpk . n.ktok.on.ktpk.su nakatiku
+    , s $ d_N_ND_N .ktok . o. tri_ __ (tri (ktkt.o))
+    , s $ k.__5.__5.k .d_N_ND_N.ktok . o&d_n_nd_n.ktpk.d_n_nd_n.ktok
+        . r2 (d_N_ND_N.ktok)         . o&d_n_nd_n.ktpk.d_n_nd_n.ktok
+    , s $ r2 (d_N_ND_N.ktok) . o & (tri d_n_n . d.__.n.o.p&k)
+    , s $ repeat 2 $ repeat 3 d_n_n . d.__.n.o.p&k
+    , s $ repeat 4 $ d_n_n . d.__.n.o.p&k
+    , s $ repeat 3 (d.__.n.o.k&p) . d.__.n.o . tri (group (k.o.o.k.n.p.k))
+
+    , s $ o.__5.__5.k .d_N_ND_N.ktok . o&d_n_nd_n.ktpk.d_n_nd_n.ktok
+    , s $ r2 (d_N_ND_N.ktok) . o&d_n_nd_n.ktpk . od.__.k.t.__.k.__.n.__.o
+    , s $ d_N_ND_N.ktok .od.__.k.t.__.k.__.n.__.o
+        . d_n_nd_n.ktpk . d.__.k.t.__.k.__.n.__.o
+    , s $ d_N_ND_N.ktok .od.__.takitatatakadinna
+        . d_n_nd_n.ktpk . d.__.takitatatakadinna
+    , s $ r2 $ r2 takitatatakadinna.o.__.k.__ -- 8 2 8 2
+    , s $ r2 $ takitatatakadinna.od.__.p.k.__.t.__.k.__.ktkt.o -- (8 3 9) * 2
+    , s $ on.k . takitatatakadinna.od.__.p. tri (k.__.t.__.k.__.ktkt.o)
+        -- 2 8 3 999
     ]
     where
+    takitatatakadinna = group $ on.t.k.p&k.n.o.o.k
     ktok = su (k.t.o.k)
     ktpk = su (k.t.p.k)
     ktkt = su (k.t.k.t)
     d_n_nd_n = d.y.n.y.n.d.y.n
-    o_o_o    = o.__.o.__.o.o.__.o
+    d_N_ND_N = d_n_nd_n & ooo
+    ooo    = o.__.o.__.o.o.__.o
     d_n_n = d.__.n.y.n
+    r2 = repeat 2
 
 e_20_02_24 :: Korvai
 e_20_02_24 = date 2020 2 24 $ ganesh $ exercise $ korvaiS1 adi $
     tri_ (od.__4) (su ktok.t.o.su (ktok.kook))
 
-{-
-    exercise:
-    tha - kitakita taka dikutarikitataka nakadit - tang - taka dikutarikitataka
-    di; thom; nam
--}
+e_20_03_27 :: Korvai
+e_20_03_27 = date 2020 2 27 $ source "anand" $ exercise $ korvaiS adi $
+    map (su • cycle)
+    [ n.p.k.__.u.__.pk.nakatiku
+    , n.p.k.__.u.__.o.k.n.o.u.o.k.t.o.k
+    , kp.ktkt.o.k . n.o.k.o&t.k.o.o&t.k
+    ]
+    where
+    cycle = prefixes [prefix p, prefix k, prefix o, prefix n]
+    prefix stroke = stroke.__.ktkt.pk.nakatiku
 
 {-
     thani:

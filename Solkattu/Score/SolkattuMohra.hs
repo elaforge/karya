@@ -18,23 +18,36 @@ makeMohras :: Tala.Tala -> Korvai.StrokeMaps -> (Sequence -> Sequence)
     -> [((Sequence, Sequence, Sequence), (Sequence, Sequence, Sequence))]
     -> Korvai
 makeMohras tala smaps transform =
-    mohra • korvai tala smaps • map (section • make)
+    mohra • korvai tala smaps • map (section • make transform)
+
+make :: (a -> SequenceT sollu) -> ((a, a, a), (a, a, a)) -> SequenceT sollu
+make transform ((a1_, a2_, a3_), (b1_, b2_, b3_)) =
+      a123.b1 . a123.b1
+    . a123.b2
+    . a1.b2 . a3.b3
     where
-    make ((a1_, a2_, a3_), (b1_, b2_, b3_)) =
-          a123.b1 . a123.b1
-        . a123.b2
-        . a1.b2 . a3.b3
-        where
-        a123 = a1.a2.a3
-        (a1, a2, a3) = (t a1_, t a2_, t a3_)
-        (b1, b2, b3) = (t b1_, t b2_, t b3_)
-        t = group • transform
+    a123 = a1.a2.a3
+    (a1, a2, a3) = (t a1_, t a2_, t a3_)
+    (b1, b2, b3) = (t b1_, t b2_, t b3_)
+    t = group • transform
 
 makeMohra :: Tala.Tala -> Korvai.StrokeMaps -> (Sequence -> Sequence)
     -> (Sequence, Sequence, Sequence)
     -> (Sequence, Sequence, Sequence) -> Korvai
 makeMohra tala smaps transform as bs =
     makeMohras tala smaps transform [(as, bs)]
+
+-- | Mohra with a matching korvai.
+makeMohraKorvai :: Tala.Tala -> Korvai.StrokeMaps -> (Sequence -> Sequence)
+    -> (Sequence, Sequence, Sequence)
+    -> (Sequence, Sequence, Sequence)
+    -> Sequence
+    -> Korvai
+makeMohraKorvai tala smaps transform as bs korvai_ =
+    mohra $ korvai tala smaps
+        [ withTypeS "mohra" $ section (make transform (as, bs))
+        , withTypeS "korvai" $ section korvai_
+        ]
 
 -- | Alternate melkalam and kirkalam.
 makeMohras2 :: Tala.Tala -> Korvai.StrokeMaps -> (Sequence -> Sequence)
