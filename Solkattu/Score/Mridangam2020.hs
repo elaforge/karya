@@ -73,7 +73,6 @@ sarva_20_02_10 = date 2020 2 10 $ ganesh $ sarvalaghu $ korvai adi
     ptknpk = su (p.t.k.n.p.k)
     ktok = su (k.t.o.k)
     ktpk = su (k.t.p.k)
-    r2 = repeat 2
 
 sarva_20_02_27 :: Korvai
 sarva_20_02_27 = date 2020 2 27 $ ganesh $ sarvalaghu $ korvai adi $
@@ -115,7 +114,6 @@ sarva_20_02_27 = date 2020 2 27 $ ganesh $ sarvalaghu $ korvai adi $
     d_N_ND_N = d_n_nd_n & ooo
     ooo    = o.__.o.__.o.o.__.o
     d_n_n = d.__.n.y.n
-    r2 = repeat 2
 
 e_20_02_24 :: Korvai
 e_20_02_24 = date 2020 2 24 $ ganesh $ exercise $ korvaiS1 adi $

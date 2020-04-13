@@ -9,7 +9,7 @@ import Solkattu.Dsl.Mridangam
 
 e_naka :: Korvai
 e_naka = sarvalaghu $ ganesh $ date 2019 3 14 $ korvai1 adi $ section $
-    n.k.o.od.__.k.on.k . o & repeat 3 (n.k.p.d.__.k.n.k)
+    n.k.o.od.__.k.on.k . o & r3 (n.k.p.d.__.k.n.k)
 
 e_19_03_20 :: Korvai
 e_19_03_20 = ganesh $ date 2019 3 20 $ sarvalaghu $ korvaiS adi $
@@ -20,7 +20,7 @@ e_19_03_20 = ganesh $ date 2019 3 20 $ sarvalaghu $ korvaiS adi $
     , nadai 5 $ nadinga 4
     , nadai 6 $ nadinga 5
     -- chatusram to kandam: +4 beats at the end so 16 -> 20.
-    , nadai 5 $ repeat 2 $ t1 . t2 . od.__.k.__
+    , nadai 5 $ r2 $ t1 . t2 . od.__.k.__
     ]
     where
     t1 = on.__3.k.n.o.o.k
@@ -40,8 +40,8 @@ e_19_04_01 = sarvalaghu $ ganesh $ date 2019 4 1 $ korvai adi $ map section
     , initial . tri_ __ ookook
     , initial . tri123 od ook
     , initial . tri123 __ ook
-    , initial . repeat 3 ook.su k.repeat 4 ook
-    , initial . repeat 3 ook.su __.repeat 4 ook
+    , initial . r3 ook.su k.r4 ook
+    , initial . r3 ook.su __.r4 ook
     -- 4+5+6+7
     -- because: 62626 = 22 -> 2*11 -> 2 * (5+6) -> 4+7 + 5+6 -> 4567
     , initial . su (o.o.k.__ .o.o.__.k.__ .o.__.o.__.k.__ . o.o.__.o.__.k.__)
@@ -70,23 +70,23 @@ e_19_04_15 = date 2019 4 15 $ ganesh $ exercise $
     comment "practice left hand independance" $
     korvaiS adi
     [ rh
-    , rh & repeat 4 (o.__4)
-    , rh & repeat 7 (o.__)
-    , rh & (o.o.__3.repeat 5 (o.__))
-    , rh & (o.o.__3.o.o.__3.repeat 3 (o.__))
+    , rh & r4 (o.__4)
+    , rh & r7 (o.__)
+    , rh & (o.o.__3.r5 (o.__))
+    , rh & (o.o.__3.o.o.__3.r3 (o.__))
     , rh & strM "o_oo_oo_oo_oo"
     ]
     where
-    rh = repeat 8 $ n.k.t.k
+    rh = r8 $ n.k.t.k
 
 e_19_05_06_a :: Korvai
 e_19_05_06_a = date 2019 5 6 $ ganesh $ comment "leads to e_19_05_06" $
     korvaiS adi $ map (nadai 6)
     [ group t1 . alt t1 . tri (p.n.y.d)
-    , group t1 . repeat 3 (alt t1)
-        . repeat 3 (alt (o.n.y.od.__.k.od.__))
-        . repeat 3 (alt (o.n.y.od.__.k))
-        . repeat 3 (alt (o.n.y.d))
+    , group t1 . r3 (alt t1)
+        . r3 (alt (o.n.y.od.__.k.od.__))
+        . r3 (alt (o.n.y.od.__.k))
+        . r3 (alt (o.n.y.d))
     ]
     where
     t1 = o.n.y.od.__.k.od.__.on.y.d.__
@@ -96,10 +96,10 @@ e_19_05_06_b :: Korvai
 e_19_05_06_b = date 2019 5 6 $ ganesh $ comment "tisram, built on 7s and 5s" $
     korvaiS adi $ map (nadai 6)
     [ p1 . p2 . p3 . p4
-    , repeat 3 p1 . a7.a5
+    , r3 p1 . a7.a5
       . p1 . a7.a5 . p3 . a7.a5
       . p1 . tri a7 . tri a5
-    , repeat 3 p1 . b7.b5
+    , r3 p1 . b7.b5
       . p1' . b7.b5 . p1' . b7.b5
       . p1' . tri b7 . tri b5
     , t7.t5e.od.__3 . p3_.t5e.od.__3
@@ -137,8 +137,8 @@ e_19_05_20b2 = date 2019 5 20 $ ganesh $ korvaiS adi
     , t1 . sarva 1 . t1 . sarva 1 . t1 . sarva 3
     , t1 . sarva 1 . t2 . sarva 1 . t2 . sarva 3
     , o_kokook . ookokook . t1 . sarva 1 . t1 . sarva 3
-    , o_kokook . repeat 3 ookokook . t1 . sarva 3
-    , o_kokook . repeat 4 ookokook . repeat 4 (su $ group $ o.k.o.k.k.o)
+    , o_kokook . r3 ookokook . t1 . sarva 3
+    , o_kokook . r4 ookokook . r4 (su $ group $ o.k.o.k.k.o)
     ]
     where
     ookokook = group $ su $ o.o.k.o.k.o.o.k
@@ -163,7 +163,7 @@ make_nakadit_talang_ga t1_ = date 2019 5 20 $ ganesh $ korvaiS adi
     , t1.__.k .t1.__.t1.__ .t1 . sarva 3
     , tri $ tri (t1.__) . tri_ __ p5
     , t1 . sarva 3 . t1'.t1 . sarva 2.25
-    , repeat 2 $ t1'.t1 . sarva 2.25
+    , r2 $ t1'.t1 . sarva 2.25
     , t1'.t1.k.t1 . sarva 1 . t1 . sarva 3
     , t1x3 . talang 1 . t1 . sarva 3
     , trin (od.__) (t1x3 . talang 1) (t1x3 . talang 2) (t1x3 . talang 3)
@@ -186,7 +186,7 @@ e_5x4_4x3 = date 2019 6 3 $ exercise $ ganesh $ korvaiS adi
              (su (on.y.j.y.oj.y.j.y). nd_kpd)
                       (su (on.y.j.y). nd_kpd)
     , make1 (su $ d.__.p.y.j.y.d.__.p.k.d.__.j.y.j.y)
-        (su $ repeat 2 $ d.__.p.y.j.y)
+        (su $ r2 $ d.__.p.y.j.y)
     , make (strM "n_ndnynd" & strM "o_oo_oo_")
         (strM "nyndnynd" & strM "o_oo_oo_") (on.y.on.on.od.l)
     , make (strM "n_ndnynd" & strM "o_oo_oo_")
@@ -194,20 +194,20 @@ e_5x4_4x3 = date 2019 6 3 $ exercise $ ganesh $ korvaiS adi
     ]
     where
     make1 t4 t3 = make t4 t4 t3
-    make t4a t4 t3 = group t4a . repeat 4 (group t4) . repeat 4 (group t3)
+    make t4a t4 t3 = group t4a . r4 (group t4) . r4 (group t3)
     oj = o&j
 
 -- ktkto_
--- repeat 3 ktkto_ . repeat 3 ktpkpktkno
+-- r3 ktkto_ . r3 ktpkpktkno
 
 e_19_06_10a :: Korvai
 e_19_06_10a = date 2019 6 10 $ ganesh $ exercise $ korvaiS adi
-    [ repeat 8 t1
-    , repeat 4 t1 . t1 . repeat 4 t2
-    , repeat 4 t1 . t1 . repeat 3 t2 . repeat 2 t3
-    , t1 . repeat 4 t2 . t1 . repeat 3 t2 . repeat 2 t3
-    , repeat 2 $ repeat 5 t4 . repeat 4 t3
-    , repeat 5 t4 . tri_ (od.__4) (repeat 4 t3)
+    [ r8 t1
+    , r4 t1 . t1 . r4 t2
+    , r4 t1 . t1 . r3 t2 . r2 t3
+    , t1 . r4 t2 . t1 . r3 t2 . r2 t3
+    , r2 $ r5 t4 . r4 t3
+    , r5 t4 . tri_ (od.__4) (r4 t3)
     ]
     where
     t1_ = su $ on.__.o.k.od.__.pk.n.o.o.k.od.__.o.k
@@ -218,15 +218,15 @@ e_19_06_10a = date 2019 6 10 $ ganesh $ exercise $ korvaiS adi
 
 e_19_06_10b :: Korvai
 e_19_06_10b = date 2019 6 10 $ ganesh $ exercise $ korvaiS adi $ map su
-    [ (rh.rh') & lh . rh' . rh' . repeat 4 rh'
-    , (rh.rh') & lh . repeat 4 (group (on.__.l.d.__.l.n.p.l.d.__.l))
+    [ (rh.rh') & lh . rh' . rh' . r4 rh'
+    , (rh.rh') & lh . r4 (group (on.__.l.d.__.l.n.p.l.d.__.l))
     , x5x4 (n.p.l.d.__.l.d.__) (n.p.l.d.__.l)
     , x5x4 (n.__.d.__.p.l.d.__) (n.__.d.__.p.l)
     , x5x4 (n.__.d.__.p.y.j.y) (n.__.d.__.p.l)
     , x5x4 (n.y.d.__.p.y.j.y) (n.y.d.__.p.y)
     ]
     where
-    x5x4 t1 t2 = repeat 5 t1 . repeat 4 (group t2)
+    x5x4 t1 t2 = r5 t1 . r4 (group t2)
     rh = n.__.l.d.__.l.d.__
     rh' = n.__.l.d.p.l.d.__
     lh = strM "o__o__o_o"
@@ -243,8 +243,8 @@ e_19_06_17 = date 2019 6 17 $ ganesh $ exercise $ korvaiS adi
     ]
     where
     t1 end1 end2 = su $
-        repeat 5 (group (o.n.y.od.__.l.od.__.on.y.d.end1))
-        . repeat 4 (group (o.n.y.od.__.l.od.__.end2))
+        r5 (group (o.n.y.od.__.l.od.__.on.y.d.end1))
+        . r4 (group (o.n.y.od.__.l.od.__.end2))
 
 c_19_06_24_a :: Korvai
 c_19_06_24_a = date 2019 6 24 $ ganesh $
@@ -252,7 +252,7 @@ c_19_06_24_a = date 2019 6 24 $ ganesh $
     [ x2 $ section $ sarvaD_ 6 . su t12
     , section $ n6 (d.__8 . t12).d.__8 . su t12
     , section $ n6 (d.__8.t12).d.__4 . su t1 . n6 (d.__4.t1)
-    , section $ repeat 2 $ d.__4.su t1 . n6 (d.__4.t1)
+    , section $ r2 $ d.__4.su t1 . n6 (d.__4.t1)
     , section $ n6 $ d.__4.t1.d.__4 . t1 . tri t1
     , ending $
         -- TODO I should be able to do this variation automatically with a
@@ -289,7 +289,7 @@ c_19_06_24_b = date 2019 6 24 $ ganesh $
     [ section $ sarvaD_ 6 . t12
     , x2 $ section $ n3 (od.__4 . t12) . n4 (od.__8 . t12)
     , section $ n3 (od.__4 . t12) . n4 (od.__4 . t2) . n3 (od.__.t2)
-    , section $ repeat 2 $ od.__4.t2 . n3 (od.__.t2)
+    , section $ r2 $ od.__4.t2 . n3 (od.__.t2)
     , section $ n3 $ od.__.t2.od.__.t2 . tri t2
     , ending $
         t12.o.__.k.__ . n3 (od.__4.t.k.k.o.o.k.o.__.k.__.od)
@@ -310,11 +310,11 @@ c_19_06_24_b = date 2019 6 24 $ ganesh $
 
 e_19_06_24 :: Korvai
 e_19_06_24 = date 2019 6 24 $ ganesh $ korvaiS adi $ map su
-    [ repeat 8 t12
-    , repeat 6 t12 . t1.t1.t2.t2
-    , repeat 5 t12 . t1.t1.t1.t2.t2.t2
-    , repeat 5 t12 . od.__.t2.k.od.__.t2.p.k.od.__.t2
-    , repeat 5 t12 . od.__.k.od.__.p.k.od.__.t2.t2.t2
+    [ r8 t12
+    , r6 t12 . t1.t1.t2.t2
+    , r5 t12 . t1.t1.t1.t2.t2.t2
+    , r5 t12 . od.__.t2.k.od.__.t2.p.k.od.__.t2
+    , r5 t12 . od.__.k.od.__.p.k.od.__.t2.t2.t2
     ]
     where
     t12 = t1.t2
@@ -322,17 +322,15 @@ e_19_06_24 = date 2019 6 24 $ ganesh $ korvaiS adi $ map su
     t2 = group ktkno
 
 -- chatusram / tisram exercise:
--- nadai 4 (repeat 2 (k.od.__.ktkno)) . nadai 6 (repeat 3 (k.od.__.ktkno))
+-- nadai 4 (r2 (k.od.__.ktkno)) . nadai 6 (r3 (k.od.__.ktkno))
 
 e_19_08_05_gumiki :: Korvai
 e_19_08_05_gumiki = date 2019 8 5 $ ganesh $ exercise $ korvaiS adi
-    [ su $ repeat 2 $
+    [ su $ r2 $
           o'.__.kt.kt.p.k.n.n.o'.__.d.__4
          .__.__.kt.kt.p.k.n.n.o'.__.d.__4
-    , su $ repeat 2 $
-          o'.__.kt.kt.p.k . repeat 3 (n.n.o'.__.d.__4)
-    , su $ repeat 2 $
-          o'.__.kt.kt.p.k . repeat 5 (n.n.o'.__).d.__4
+    , su $ r2 $ o'.__.kt.kt.p.k . r3 (n.n.o'.__.d.__4)
+    , su $ r2 $ o'.__.kt.kt.p.k . r5 (n.n.o'.__).d.__4
     ]
 
 -- search youtube:
@@ -383,8 +381,7 @@ c_19_08_26 = date 2019 8 26 $ ganesh $ korvaiS adi $ map (nadai 6)
 
 e_19_09_23 :: Korvai
 e_19_09_23 = date 2019 9 23 $ ganesh $ exercise $ korvaiS1 adi $
-    repeat 2 $ repeat 4 rh
-        & (o'.__.o.o'.__.__.p_.__.__.__.o.o'.__.__.o.__)
+    r2 $ r4 rh & (o'.__.o.o'.__.__.p_.__.__.__.o.o'.__.__.o.__)
     where
     rh = d.l'.__.l'
     -- rh2 = d.l'.lt d.l'
@@ -393,9 +390,9 @@ e_19_09_23 = date 2019 9 23 $ ganesh $ exercise $ korvaiS1 adi $
 c_19_09_23 :: Korvai
 c_19_09_23 = date 2019 9 23 $ ganesh $ trikalam $
     similarTo "Solkattu2017" "c_17_07_13" $ korvaiS adi
-    [ repeat 2 purvangam, utarangam
-    , nadai 5 $ repeat 3 purvangam . utarangam
-    , nadai 6 $ repeat 4 purvangam . utarangam
+    [ r2 purvangam, utarangam
+    , nadai 5 $ r3 purvangam . utarangam
+    , nadai 6 $ r4 purvangam . utarangam
     ]
     where
     purvangam = v.__4.k.o.od.__.on.__.on.__.od.__
@@ -404,10 +401,10 @@ c_19_09_23 = date 2019 9 23 $ ganesh $ trikalam $
 
 e_19_09_30_gumiki :: Korvai
 e_19_09_30_gumiki = date 2019 9 30 $ ganesh $ exercise $ korvaiS adi
-    [ repeat 2 (o'.__.kt.kt.pk.nakatiku)
-        . repeat 3 (o'.__.kt.kt.pk) . nakatiku
-        . repeat 2 (o'.__.kt.kt) . o'.__.kt . (o'.__.kt.kt.pk.nakatiku)
-        . repeat 3 (o'.__.kt.kt) . o'.__.kt.pk.nakatiku
+    [ r2 (o'.__.kt.kt.pk.nakatiku)
+        . r3 (o'.__.kt.kt.pk) . nakatiku
+        . r2 (o'.__.kt.kt) . o'.__.kt . (o'.__.kt.kt.pk.nakatiku)
+        . r3 (o'.__.kt.kt) . o'.__.kt.pk.nakatiku
     , sd (on.od.on.p'&d.n.od.on.d).o'.__.kt.kt.pk.nakatiku
     ]
 
@@ -431,6 +428,6 @@ e_19_11_11_namita_dimita = date 2019 11 11 $ ganesh $ exercise $
 
 e_19_11_11_sarva :: Korvai
 e_19_11_11_sarva = date 2019 11 11 $ ganesh $ sarvalaghu $ korvaiS1 adi $
-    repeat 2 $ o.k.o.o&t.k.on.su ktpk . p.k.o.o&t.k.on.su ktok
+    r2 $ o.k.o.o&t.k.on.su ktpk . p.k.o.o&t.k.on.su ktok
 
 -- revise kandom exercises from way back

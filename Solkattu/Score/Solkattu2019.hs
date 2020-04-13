@@ -92,8 +92,8 @@ c_19_07_15 = date 2019 7 15 $ ganesh $ korvai adi mridangam $
     -- ta.dinga.tat.__
 
     sarva = sarvaD sarvaS
-    sarvaS = repeat 2 $ na.dimi.nami.na.dimi.nami.na.dimi.nam.kttk
-    sarvaPlainS = repeat 2 $ na.dimi.nami.na.dimi.nami.na.dimi.na.dimi
+    sarvaS = r2 $ na.dimi.nami.na.dimi.nami.na.dimi.nam.kttk
+    sarvaPlainS = r2 $ na.dimi.nami.na.dimi.nami.na.dimi.na.dimi
     dimi = di.mi; nami = na.mi
     -- TODO din.__8 as usual when coming back into sarva
     -- TODO sarva going into ending does na.dimi instead of nam.kttk.
@@ -119,7 +119,7 @@ e_19_09_23_kandam :: Korvai
 e_19_09_23_kandam = date 2019 9 23 $ ganesh $
     comment "practice for kandam part of trikalam" $
     similarTo "Solkattu2017" "c_17_07_13" $ korvaiS adi mempty
-    [ nadai 5 $ sd $ repeat 3 purvangam . utarangam
+    [ nadai 5 $ sd $ r3 purvangam . utarangam
     ]
     where
     purvangam = group takadinna.group takadinna.group takita.group tdgnt
@@ -154,7 +154,7 @@ c_19_10_28_kandam = date 2019 10 28 $ source "Patri Satish Kumar" $
     korvaiS adi mridangam $
     map (nadai 5)
     [ suffixes (takadinna.din.__.takita.din.__.taka.din.__)
-        [ta.din.__4, repeat 2 (ta.din.__4), repeat 3 (ta.din.__4)]
+        [ta.din.__4, r2 (ta.din.__4), r3 (ta.din.__4)]
         . sd p5 . p5
         . kp.sd p5 . kp.p5 . __ . kp.p5
         . kpnp.sd p5 . tri_ __ (kpnp.p5)
@@ -187,6 +187,6 @@ e_19_11_11_kandam =
 
 -- Kandam exercises:
 -- join __ (replicate 6 p5)
--- repeat 5 (taka.__.din.na.__)
--- repeat 5 (ta.__.ka.din.__.na.__)
--- repeat 5 [tadin.__.tat.__.din.__, takadinna.takita, ...]
+-- r5 (taka.__.din.na.__)
+-- r5 (ta.__.ka.din.__.na.__)
+-- r5 [tadin.__.tat.__.din.__, takadinna.takita, ...]

@@ -47,7 +47,7 @@ c_14_01_14 = date 2014 1 14 $ ganesh $ korvaiS adi mridangam
         . sarvaSam adi (dropM 1 theme)
         . sarvaA_ 4 theme . sarvaA_ 4 (dropM 1 theme)
         . __a 2 theme . __a 2 (dropM 1 theme)
-        . __a 2 theme . repeat 2 (__ . dropM 3 theme)
+        . __a 2 theme . r2 (__ . dropM 3 theme)
     , tri_ (tam.__) reduce -- TODO u, i, u substitution
     , trin (tam.__) reduce reduce expand
     , tri_ (tam.__) expand
@@ -66,7 +66,7 @@ c_14_01_14 = date 2014 1 14 $ ganesh $ korvaiS adi mridangam
     reduce = reduceTo 2 1 theme
     expand = mconcat $ List.reverse $ reduceToL 2 1 theme
 
-    utarangam gap = repeat 3 (tat.__n gap .di.__n gap . dropM 1 theme . tam.__2)
+    utarangam gap = r3 (tat.__n gap .di.__n gap . dropM 1 theme . tam.__2)
     reduce1 karv = prefixes (reduceToL 1 1 theme) karv
     expand1 karv = prefixes (List.reverse (reduceToL 1 1 theme)) karv
 
@@ -117,13 +117,13 @@ c_14_02_05 = date 2014 2 5 $ ganesh $ korvaiS adi mridangam $
 c_14_02_20 :: Korvai
 c_14_02_20 = date 2014 2 20 $ ganesh $ exercise $ korvaiS adi mridangam $
         map (nadai 6)
-    [     repeat 7 sarva . din_dhodhoka
-        . repeat 2 (repeat 3 sarva . din_dhodhoka)
-        . repeat 4 (sarva . din_dhodhoka)
-        . repeat 7 din_dhodhoka . repeat 2 dhodhoka
-    ,     repeat 6 sarva . ta_katakita.takadinna
-        . repeat 2 (repeat 2 sarva . ta_katakita.takadinna)
-        . repeat 4 (ta_katakita.takadinna)
+    [     r7 sarva . din_dhodhoka
+        . r2 (r3 sarva . din_dhodhoka)
+        . r4 (sarva . din_dhodhoka)
+        . r7 din_dhodhoka . r2 dhodhoka
+    ,     r6 sarva . ta_katakita.takadinna
+        . r2 (r2 sarva . ta_katakita.takadinna)
+        . r4 (ta_katakita.takadinna)
     ,     tri_ (din.__6) (ta_katakita.takadinna)
         . ta_katakita.takadinna.din.__6 . ta_katakita.takadinna.din.__3
             . taka.takadinna.din.__3
@@ -179,7 +179,7 @@ m_ta_katakita =
 c_14_03_13 :: Korvai
 c_14_03_13 = date 2014 3 13 $ ganesh $ korvaiS adi mridangam
     [ sarvaD_ 4 . t1.din . sarvaD_ 3
-    . repeat 2 (t1.din . sarvaD_ 3)
+    . r2 (t1.din . sarvaD_ 3)
     , concatMap sequence [t1, t2, t3]
     ]
     where
@@ -201,14 +201,14 @@ c_14_03_13 = date 2014 3 13 $ ganesh $ korvaiS adi mridangam
 c_14_03_26 :: Korvai
 c_14_03_26 = date 2014 3 26 $ ganesh $ similarTo "Solkattu2014" "c_14_03_13" $
         korvaiS adi mridangam $
-    [ t1 . sarvaD_ 7 . repeat 2 (t1 . sarvaD_ 3)
-        . repeat 2 (t1 . sarvaD_ 1) . t1 . sarvaD_ 3
-        . repeat 3 (t1.__) . ka . t1 . sarvaD_ 3
-        . t1.__.ka . repeat 2 (t1.__) . t1 . sarvaD_ 3
+    [ t1 . sarvaD_ 7 . r2 (t1 . sarvaD_ 3)
+        . r2 (t1 . sarvaD_ 1) . t1 . sarvaD_ 3
+        . r3 (t1.__) . ka . t1 . sarvaD_ 3
+        . t1.__.ka . r2 (t1.__) . t1 . sarvaD_ 3
     ] ++ map sequence [t1, t2, t3, t4, t5]
     where
     -- Same sarva as c_14_03_13.  TODO sarva
-    sequence p = tri_ (dheem.__3) (repeat 3 (p.__) . tri p5)
+    sequence p = tri_ (dheem.__3) (r3 (p.__) . tri p5)
     t1 = group $ na.na.na.din
     t2 = group $ su $ dhom.__.taka.taka.din.__
     t3 = group $ su $ tam.__.taka.na.ka.din.__
@@ -280,7 +280,7 @@ c_14_06_06 :: Korvai
 c_14_06_06 = date 2014 6 6 $ ganesh $ comment "chatusra tisram" $
     korvaiS adi mridangam
     -- sarva is nami dimi nami dimi
-    [ repeat 2 (sarvaD_ 5 . nadin4)
+    [ r2 (sarvaD_ 5 . nadin4)
         . din.__4 . nadin4.din.__4 . spread 3 tadindintat
 
     , purvangam (tat.__3) (tat.__3.dit.__3)
@@ -307,7 +307,7 @@ c_14_06_06 = date 2014 6 6 $ ganesh $ comment "chatusra tisram" $
     purvangam2 = t . tat.__3.t . tat.__3.dit.__3.t
         where t = spread 3 (tat.din.din) . tat.__.din.__6
 
-    nadin4 = repeat 4 (na.din.__)
+    nadin4 = r4 (na.din.__)
     mridangam = makeMridangam
         [ (na.din, on.d)
         , (din, od)

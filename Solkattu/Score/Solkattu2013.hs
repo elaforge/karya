@@ -37,7 +37,7 @@ c_13_08_14 = ganesh $ date 2013 8 14 $ korvaiS adi (mridangam <> kendang)
       . dropM 6 (theme 3 3) . trin ta_din__ (tri p7) (tri p6) (tri p5)
 
     ,     group (theme 4 1) . pat7 . tam.__4
-      . dropM 4 (theme 4 2) . repeat 2 pat8 . tam.__4
+      . dropM 4 (theme 4 2) . r2 pat8 . tam.__4
       . dropM 8 (theme 4 3)
         . trin (dheem . __4) (tri pat9) (tri pat8) (tri pat7)
     ]
@@ -107,7 +107,7 @@ c_13_11_12 = date 2013 11 12 $ ganesh $ korvaiS adi mridangam
     where
     sequence =
         theme . dropM 2 theme . taka.dheem.__4 . dropM 4 theme
-            . repeat 2 (taka.dheem.__4)
+            . r2 (taka.dheem.__4)
             . spread 3 tdgnt . spread 2 tdgnt . tri_ __ tdgnt
     theme = tat.__.dit.__.takadinna.taka.dheem.__4
     mridangam = makeMridangam
@@ -122,11 +122,11 @@ c_13_12_11 = date 2013 12 11 $ ganesh $ korvaiS adi mridangam
     [ sarvaD_ 8 . sarvaSam adi theme14
         . sarvaSam adi theme14, sarvaSam adi theme14
         . __a 4 theme14 . __a 4 theme14
-        . __a 4 theme14 . repeat 2 (__.__.tat.__.ka.din.na.__)
+        . __a 4 theme14 . r2 (__.__.tat.__.ka.din.na.__)
     -- development for three together
     , mconcat [sarvaD_ 8 . sarvaSam adi t | t <- themes]
         . mconcat [sarvaSam adi t | t <- themes]
-        . repeat 2 (__a 4 theme14 . __a 4 theme16)
+        . r2 (__a 4 theme14 . __a 4 theme16)
     , structure theme14 (din.__6)
     , structure theme16 (din.__4)
     , structure theme18 (din.__2)
@@ -362,8 +362,8 @@ t4s2 = ganesh $ korvaiS adi mridangam $ map (nadai 6)
     where
     purvangam1 =
         ta_katakita.takadinna . takita . tam.__6
-        . ta_katakita.takadinna . repeat 2 (takita) . tam.__6
-        . ta_katakita.takadinna . repeat 3 (takita) . tam.__6
+        . ta_katakita.takadinna . r2 (takita) . tam.__6
+        . ta_katakita.takadinna . r3 (takita) . tam.__6
     purvangam2 gap = tri (ta_katakita.takadinna . takita.__2 . tam.__n gap)
     mridangam = makeMridangam $
         [ (takita, on.p.k)
@@ -437,13 +437,13 @@ t5s = ganesh $ korvaiS adi mridangam $ map (nadai 6 • (purvangam.))
 -- wait 2, repeat until tan7: od.__.p.k.n.o.o.k
 --
 -- wait 2, tri_ (thom.__0) (takadinna)
---      . repeat 2 (ta.__3.ta.takadinna)
+--      . r2 (ta.__3.ta.takadinna)
 
 misra_lead :: Korvai -- but add one akshara, so it lands on 1.
 misra_lead = korvaiS1 adi mridangam $ su $
     __M 8 . tri_ (tam.__) takadinna
-    . repeat 2 (ta.__3.ta.takadinna)
-    . trin (tam.__3) (ta.din.na) (repeat 2 (ta.din.na)) (repeat 3 (ta.din.na))
+    . r2 (ta.__3.ta.takadinna)
+    . trin (tam.__3) (ta.din.na) (r2 (ta.din.na)) (r3 (ta.din.na))
     where
     mridangam = makeMridangam
        [ (ta.ta.takadinna, od.k.n.o.o.k)
@@ -456,8 +456,8 @@ koraippu_misra_no_karvai = koraippu $ ganesh $ korvaiS adi mridangam $ map su
     [ mconcatMap long [1..7] -- 2 avartanam
     , mconcatMap (mconcatMap short) [[1, 2], [3, 4], [5, 6], [7, 7]] -- 1 avart
     , group2 [half n . half (min 7 (n+1)) | n <- [1,3..7]] -- 1/2 avartanam
-    , repeat 8 (__.p7)
-    , __ . repeat 5 p7 . nadai 3 (tri p7)
+    , r8 (__.p7)
+    , __ . r5 p7 . nadai 3 (tri p7)
     -- to mohra korvai sequence
     ]
     where
@@ -499,8 +499,8 @@ koraippu_misra = koraippu $ ganesh $ korvaiS adi mridangam $ map su
     [ mconcatMap long [1..7] -- 2 avartanam
     , mconcatMap (mconcatMap short) [[1, 2], [3, 4], [5, 6], [7, 7]] -- 1 avart
     , group2 [half n . half (min 7 (n+1)) | n <- [1,3..7]] -- 1/2 avartanam
-    , repeat 8 (__.p7)
-    , __ . repeat 5 p7 . nadai 3 (tri p7)
+    , r8 (__.p7)
+    , __ . r5 p7 . nadai 3 (tri p7)
     -- to mohra korvai sequence
     ]
     where

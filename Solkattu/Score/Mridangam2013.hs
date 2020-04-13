@@ -29,7 +29,7 @@ dinnagina_sequence_old = date 2013 9 11 $ ganesh $ sequenceT $ korvaiS1 adi $
     -- the pattern is theme on sam and arudi, ptheme otherwise.
     , trin (od.__) (theme.me) (ptheme.me) (ptheme.me)
     , trin (od.__) theme (ptheme.me) (ptheme.me.me)
-    , repeat 2 (theme.od.__4 . eme.od.__4 . eme . od.__4)
+    , r2 (theme.od.__4 . eme.od.__4 . eme . od.__4)
         . theme.od.__4 . eme.od.__ . me.od.__.me
 
     -- 1st variation
@@ -117,14 +117,14 @@ dinnagina_sequences = date 2013 9 11 $ korvai adi
         (o.o.k.n.o.k)
         (p.p.k.n.p.k)
     , dateS 2019 4 8 $ section $ mconcat $ make_dinna
-        (repeat 2 (o.k.o.n.su (kt.o.k)) . o.n.su (kt.o.k)) o o
+        (r2 (o.k.o.n.su (kt.o.k)) . o.n.su (kt.o.k)) o o
         (o.k.o.n.su (kt.p.k))
         (p.k.p.n.su (kt.o.k))
     , dateS 2019 4 29 $ section $ mconcat $
         -- TODO this is an awkward way to do exceptions, but I can't think of
         -- anything more clever.  Ideally I'd want to have 'make_dinna's where
         -- clause in scope, but that would require a macro.
-        let theme_ = (o.t.k.n.p.k. repeat 2 (o&t.k.n.p.k))
+        let theme_ = (o.t.k.n.p.k. r2 (o&t.k.n.p.k))
             theme = group theme_
             ptheme = group $ p `replaceStart` theme_
             me = o.n.p.k
@@ -145,7 +145,7 @@ make_dinna theme_ repl sep theme'_ ptheme'_ = map (su • (sam.))
     -- 1   2   3   4   X   O   X   O   |
     -- o o o o o p p p p p p o o o o o |
     -- +-----+-----+---+-----+-----+---
-    , repeat 2 $ split 12 id closed theme . split 4 closed id theme
+    , r2 $ split 12 id closed theme . split 4 closed id theme
     , trip (sep.__8) id
     , theme.sep.__8 . ptheme.sep.__4 . eme.sep.__4 . eme
     , theme.sep.__8 . ptheme.sep.__4 . eme.sep.__2 . me.sep.__2 . me
@@ -185,8 +185,8 @@ t_17_02_13 = date 2017 2 13 $ ganesh $ sarvalaghu $ korvaiS adi $ map (nadai 6)
 din_nadin :: Korvai
 din_nadin = sarvalaghu $ ganesh $ korvaiS (beats 4)
     [ od.__.on.od.l.od.on.l.od.l.on.od.l.od.on.l
-    , su $ repeat 2 $ d.__.p.k.n.l.d.__.p.l.d.__.n.__.l.__
-    , su $ repeat 2 $ d.__.p.k.n.l.d.l.p.l.d.l.n.l.p.l
+    , su $ r2 $ d.__.p.k.n.l.d.__.p.l.d.__.n.__.l.__
+    , su $ r2 $ d.__.p.k.n.l.d.l.p.l.d.l.n.l.p.l
     ]
 
 nadin_ka :: Korvai
@@ -201,13 +201,13 @@ nadindin = sarvalaghu $ korvaiS adi $ map sd
     , template $ su (su (k.t.o.k) . o.k) . o . k
     -- TODO if I have a notation for alternatives I could put it in here
     -- melkalam
-    , su $ inter l $ repeat 4 rh & (repeat 8 o . o.__4 . __ . repeat 3 o)
+    , su $ inter l $ r4 rh & (r8 o . o.__4 . __ . r3 o)
     -- TODO For the others, I should have a way to intersperse at a certain
     -- speed, or maybe mix together two sequences.  Or maybe I can infer 'l'
     -- for melkalam?
     ]
     where
-    template var = (lh & rh) . var . (rh . rh) & (o.__4 . __ . repeat 3 o)
+    template var = (lh & rh) . var . (rh . rh) & (o.__4 . __ . r3 o)
     rh = n.d.d.n
     lh = o.o.o.o
 
@@ -244,7 +244,7 @@ namita_dimita_seq = korvaiS adi $
     sequence t end =
           (lh&rh) . (lh&rh) . o&rh . t
         . (lh&rh) . t . o&rh . t
-        . repeat 4 t
+        . r4 t
         . tri_ (od.__.k.p.k) end
     t1 =     group $ n.l.d.od.n.o.od.__
     t1_end = group $ n.l.d.od.n .__.od.l.od.n.__ .od.l.od.n.__ .od.l
@@ -268,7 +268,7 @@ namita_dimita_dimi =
 
 janahan_exercise :: Korvai
 janahan_exercise = exercise $ janahan $ korvaiS1 adi $
-    o&d.__4 . repeat 7 (n.p.k.t.p.k.t.p) . k.t.p.k
+    o&d.__4 . r7 (n.p.k.t.p.k.t.p) . k.t.p.k
 
 nakanadin :: Korvai
 nakanadin = sarvalaghu $ korvaiS1 (beats 2) $ su $
@@ -315,8 +315,8 @@ farans = faran $ korvaiS adi $ map su $ concat
     make fill1 fill2 pattern =
         long . long
         . group pattern . group pattern . long
-        . repeat 2 short . fill1 . long
-        . repeat 3 short . fill2 . nakatiku
+        . r2 short . fill1 . long
+        . r3 short . fill2 . nakatiku
         where
         long = group pattern . nakatiku
         short = takeM 6 pattern
@@ -325,19 +325,19 @@ farans = faran $ korvaiS adi $ map su $ concat
 
 eddupu6 :: Korvai
 eddupu6 = korvaiS (beats 3)
-    [ repeat 2 (k.__.p.__.k.__)
-    , repeat 2 (od.__.p.k.n.o)
-    , repeat 3 (k.o.o.k)
-    , repeat 2 (o.o.t.__.k.__)
+    [ r2 (k.__.p.__.k.__)
+    , r2 (od.__.p.k.n.o)
+    , r3 (k.o.o.k)
+    , r2 (o.o.t.__.k.__)
     , k.p.k.__.t.__.k.t.__.k.n.o
     , __.__.u.__3.k.o.o&t.k.n.o.k
-    , su $ repeat 2 nang_kita
+    , su $ r2 nang_kita
     ]
 
 eddupu10 :: Korvai
 eddupu10 = korvaiS (beats 5)
-    [ repeat 2 $ u.__3.k.o.o&t.k.n.o.k
-    , __.__ . repeat 3 p6
+    [ r2 $ u.__3.k.o.o&t.k.n.o.k
+    , __.__ . r3 p6
     ]
 
 nang_kita :: Sequence

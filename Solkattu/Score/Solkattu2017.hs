@@ -36,7 +36,7 @@ koraippu_janahan =
     ++ let kitakita = su (kita.kita.taka)
         in sam.tam.__3 . kitakita . tam.__3
             . kitakita . su (nakatiku . nang_kita_nakatiku) . tam.__3
-            . kitakita . su (nakatiku . repeat 2 nang_kita_nakatiku . nakatiku)
+            . kitakita . su (nakatiku . r2 nang_kita_nakatiku . nakatiku)
             . su nang_kita_nakatiku
             . taka.din.__.tat.__.thom.__4
     where
@@ -129,7 +129,7 @@ c_17_09_25 = ganesh $ date 2017 9 25 $ similarTo "Solkattu2017" "c_17_03_20" $
     [ sarvaD_ 3 . theme
     , mconcat [v `replaceStart` theme_ . __.__. dropM 6 theme | v <- variants]
     , dropM 4 theme . sequence
-    , dropM 8 theme . repeat 3 sequence
+    , dropM 8 theme . r3 sequence
     , rdropM (6+2+6+2) sequence
     ]
     where
@@ -250,7 +250,7 @@ c_17_05_10 = date 2017 5 10 $ ganesh $ korvaiS1 adi insts $
 c_17_05_11 :: Korvai
 c_17_05_11 = date 2017 5 11 $ source "sriram" $
     korvaiS1 adi (mridangam<>sargam) $ nadai 7 $
-    circum (repeat 2 (takadinna.takita)) (accumulate
+    circum (r2 (takadinna.takita)) (accumulate
         [ din.__.ta.din.__.tat.__
         , takita.din.__.tat.__
         , thom.thom.ka.din.__.tat.__
@@ -285,7 +285,7 @@ c_17_05_19_janahan :: Korvai
 c_17_05_19_janahan =
     date 2017 5 15 $ source "janahan" $ korvaiS1 adi mridangam $
     1^tat_din_din_tam 4 3 . tat_din_din_tam 4 2 . tat_din_din_tam 3 2
-        . repeat 2 (tat.__4.tam.__2.ta) . tat.__3
+        . r2 (tat.__4.tam.__2.ta) . tat.__3
         . tri (group (takadinna.takita))
     where
     tat_din_din_tam a b =
@@ -362,16 +362,16 @@ c_17_06_19 = date 2017 6 19 $ ganesh $ korvaiS1 adi inst $
 c_17_06_19_koraippu :: Korvai
 c_17_06_19_koraippu = date 2017 6 19 $ ganesh $ koraippu $
     korvaiS adi mridangam $ map (restD 2 .)
-    [ repeat 2 $ tanga7 . __ . tat.__4.din.__4.din.__4 . kp.tdgnt
-    , repeat 2 $ tri (tat.__4.din.__3) . kp.tdgnt
-    , repeat 2 $ tri (tat.__4) . tri (din.__3) . kp.tdgnt
-    , repeat 2 $ tri (tat.__3) . tri (din.__4) . kp.tdgnt
+    [ r2 $ tanga7 . __ . tat.__4.din.__4.din.__4 . kp.tdgnt
+    , r2 $ tri (tat.__4.din.__3) . kp.tdgnt
+    , r2 $ tri (tat.__4) . tri (din.__3) . kp.tdgnt
+    , r2 $ tri (tat.__3) . tri (din.__4) . kp.tdgnt
 
     -- 6 + 15
-    , repeat 2 $ nadai 6 (tanga7.ga) . tat.__5.din.__5.din.__5 . kp.tdgnt
+    , r2 $ nadai 6 (tanga7.ga) . tat.__5.din.__5.din.__5 . kp.tdgnt
 
     -- 334353
-    , repeat 2 $ tanga.dinga . ta.tanga.dinga . taka.tanga.dinga . kp.tdgnt
+    , r2 $ tanga.dinga . ta.tanga.dinga . taka.tanga.dinga . kp.tdgnt
     ]
     where
     tanga7 = tanga.dinga.din.__
@@ -520,7 +520,7 @@ c_17_08_29 = date 2017 8 29 $ ganesh $
     korvaiS Tala.misra_chapu (mridangam<>kendang1)
     [ sarvaD_ 7 . sarvaD_ 3   . develop.na.__.din
     , dit.__4 . sarvaD_ 2 . develop . na.__
-    , repeat 2 $ dit.__4 . sarvaD_ 2 . tri develop . na.__
+    , r2 $ dit.__4 . sarvaD_ 2 . tri develop . na.__
 
     , sequence theme1
     , sequence theme2
@@ -585,14 +585,14 @@ c_17_10_23 = date 2017 10 23 $ ganesh $
     , sequence (theme2a.theme2b)
     , mconcatMap (sarvaA_ 16) [theme, kitataka.theme, kitakita.kitakita.theme]
         . sarvaA_ 8 (kitataka.theme) . sarvaA_ 8 (kitakita.kitataka.theme)
-    , din.__8 . repeat 3 (theme2a.tat.__7) . theme -- repeat 2
-    , din.__8 . repeat 3 (theme2a_o.theme2a) . theme -- repeat 2
+    , din.__8 . r3 (theme2a.tat.__7) . theme -- repeat 2
+    , din.__8 . r3 (theme2a_o.theme2a) . theme -- repeat 2
     , din.__4 . theme2a_o.theme2a . theme -- repeat 2
     , din.__2 . tri_ (din.__2) (theme2a.theme2b)
         . sandi theme2b (tri_ __ (theme2b))
-    , theme2a.theme2b . repeat 3 (tat.__3.din.__3)
-        . kitataka . theme2a.theme2b . repeat 3 (tat.__2.din.__3)
-        . kitakita.kitataka . theme2a.theme2b . repeat 3 (tat.din.__3)
+    , theme2a.theme2b . r3 (tat.__3.din.__3)
+        . kitataka . theme2a.theme2b . r3 (tat.__2.din.__3)
+        . kitakita.kitataka . theme2a.theme2b . r3 (tat.din.__3)
         . spread 3 tdgnt . spread 2 tdgnt
         . trin (tat.__.tat.__3.tam.__.tam.__3) (tri p5) (tri p6) (tri p7)
     -- alternate endings
@@ -661,21 +661,21 @@ c_17_12_11 = date 2017 12 11 $ ganesh $ korvaiS adi mridangam
 speaking1 :: Korvai
 speaking1 = ganesh $ exercise $ korvaiS Tala.any_beats mridangam $
     -- 5s, 15 beats
-    [ repeat 4 $ t5.t5 . su (t5.t5)
-    , repeat 4 $ nadai 6 (in3 (g tdgnt.g tdgnt)) . su (t5.t5)
+    [ r4 $ t5.t5 . su (t5.t5)
+    , r4 $ nadai 6 (in3 (g tdgnt.g tdgnt)) . su (t5.t5)
 
     -- 7s, 21 beats
-    , repeat 4 $ t7.t7 . su (t7.t7)
-    , repeat 4 $ nadai 6 (in3 (g (taka.tdgnt) . g (taka.tdgnt))) . su (t7.t7)
+    , r4 $ t7.t7 . su (t7.t7)
+    , r4 $ nadai 6 (in3 (g (taka.tdgnt) . g (taka.tdgnt))) . su (t7.t7)
     -- 9s, 27 beats
-    , repeat 4 $ t9.t9 . su (t9.t9)
-    , repeat 4 $ nadai 6 (in3 (g (taka.tiku.tdgnt) . g (taka.tiku.tdgnt)))
+    , r4 $ t9.t9 . su (t9.t9)
+    , r4 $ nadai 6 (in3 (g (taka.tiku.tdgnt) . g (taka.tiku.tdgnt)))
         . su (t9.t9)
     ]
     where
     -- sequence t =
-    --     [ repeat 4 $ t.t . su (t.t)
-    --     , repeat 4 $ nadai 6 (group (in3 t) . group (in3' t)) . su (t.t)
+    --     [ r4 $ t.t . su (t.t)
+    --     , r4 $ nadai 6 (group (in3 t) . group (in3' t)) . su (t.t)
     --     ]
     --     where
     --     in3' (a:b:cs) = [a, b] . __ . in3 cs

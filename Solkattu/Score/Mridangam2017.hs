@@ -10,13 +10,13 @@ import Solkattu.Dsl.Mridangam
 
 c_17_07_10 :: Korvai
 c_17_07_10 = exercise $ date 2017 7 10 $ ganesh $ korvaiS1 adi $ su $
-    o.__.k.o.k.o.o.k . repeat 4 (o.o.k.o.k.o.o.k) . repeat 4 (o.k.k.o.o.k)
+    o.__.k.o.k.o.o.k . r4 (o.o.k.o.k.o.o.k) . r4 (o.k.k.o.o.k)
 
 e_1 :: Korvai
 e_1 = ganesh $ date 2017 9 18 $ exercise $ korvaiS adi
-    [ pkt . t.k.t.k . d.n.pk . t.k.t.k . repeat 3 (d.n.pk)
-    , pkt . repeat 3 (t.k.t.k . d.n.pk)
-    , su (repeat 6 pkt) . nakatiku
+    [ pkt . t.k.t.k . d.n.pk . t.k.t.k . r3 (d.n.pk)
+    , pkt . r3 (t.k.t.k . d.n.pk)
+    , su (r6 pkt) . nakatiku
     ]
     where
     pkt = p.kt.p.kt.pk
@@ -38,7 +38,7 @@ e_2 = ganesh $ date 2017 11 13 $ exercise $ korvaiS adi $
     fast x = x.__.ktkt.pk.n.__.pk.d.__.pk
 
     t1 x = x.__.ktkt.pk.pk.n.pk.d.pk
-    t2 x = x.__.ktkt.pk . repeat 3 (pk.n.pk.d.pk)
+    t2 x = x.__.ktkt.pk . r3 (pk.n.pk.d.pk)
 
-    t_sarva = o.k.n.o.k.d.o.k . repeat 3 (pk.n.pk.d.pk)
+    t_sarva = o.k.n.o.k.d.o.k . r3 (pk.n.pk.d.pk)
     tk = t.k

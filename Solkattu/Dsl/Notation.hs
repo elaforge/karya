@@ -261,6 +261,15 @@ tsep seq sep1 sep2 = seq <> sep1 <> seq <> sep2 <> seq
 repeat :: Monoid a => Int -> a -> a
 repeat n p = mconcat (replicate n p)
 
+r2, r3, r4, r5, r6, r7, r8 :: Monoid a => a -> a
+r2 = repeat 2
+r3 = repeat 3
+r4 = repeat 4
+r5 = repeat 5
+r6 = repeat 6
+r7 = repeat 7
+r8 = repeat 8
+
 join :: SequenceT sollu -> [SequenceT sollu] -> SequenceT sollu
 join = List.intercalate
 

@@ -21,25 +21,23 @@ e_323_1 = exercise $ date 2018 3 19 $ ganesh $
     , make (n.k.d.__.n.k) (n.k.d.__)
     ]
     where
-    make t3 t2 = repeat 2 (t3.t2.t3) & lh
+    make t3 t2 = r2 (t3.t2.t3) & lh
     lh = sd $ o.__.__.o.__.p.__.__ . __.__.__.o.__.o.__.__
 
 e_323_2 :: Korvai
 e_323_2 = exercise $ date 2018 4 13 $ ganesh $ korvai adi $ variations
-    [ repeat 2 $ rh & lh1
-    , repeat 2 $ rh & lh2
+    [ r2 $ rh & lh1
+    , r2 $ rh & lh2
     ]
     where
-    rh = repeat 2 $ n.k.__.k.t.k.__.k
+    rh = r2 $ n.k.__.k.t.k.__.k
     lh1 = sd $ o.o.o.p.__.o.o.o
     lh2 = o.__.o.o.__3.p.__4.o.o.__3.o.__
 
 e_18_03_19 :: Korvai
 e_18_03_19 = exercise $ date 2018 3 19 $ ganesh $ korvai adi $ variations
-    [ repeat 2 (v.__.p.kt.k.d.p . su (v.p.kt.p.kt.p))
-        . repeat 2 (su (v.p.kt.p.kt.p))
-    , repeat 2 (d.__.p.kt.p.d.p . su (t.k.o.o.ktpk))
-        . repeat 2 (su (t.k.o.o.ktpk))
+    [ r2 (v.__.p.kt.k.d.p . su (v.p.kt.p.kt.p)) . r2 (su (v.p.kt.p.kt.p))
+    , r2 (d.__.p.kt.p.d.p . su (t.k.o.o.ktpk))  . r2 (su (t.k.o.o.ktpk))
     ]
 
 e_18_03_28 :: Korvai
@@ -49,9 +47,9 @@ e_18_03_28 = exercise $ date 2018 3 27 $ ganesh $ korvaiS1 Tala.misra_chapu $
 
 e_18_05_25 :: Korvai
 e_18_05_25 = exercise $ date 2018 5 25 $ ganesh $ korvai adi $ variations
-    [ repeat 3 ktkt . k.o.o.k . repeat 2 (od.o.o.u.__.o.o.k)
-    , repeat 2 ktkt . k.k.t.k . k.o.o.k . repeat 2 (od.o.o.u.__.o.o.k)
-    , repeat 2 ktkt . k.k.t.k . k.o.o.k . od.o.o.u.__.o.o.u.__.o.o.u.__.o.o.k
+    [ r3 ktkt . k.o.o.k . r2 (od.o.o.u.__.o.o.k)
+    , r2 ktkt . k.k.t.k . k.o.o.k . r2 (od.o.o.u.__.o.o.k)
+    , r2 ktkt . k.k.t.k . k.o.o.k . od.o.o.u.__.o.o.u.__.o.o.u.__.o.o.k
     ]
 
 tir_18_05_25 :: Korvai
@@ -101,10 +99,10 @@ e_18_06_22 = exercise $ date 2018 6 22 $ korvai adi $ variations
     -- TODO then 1 2 3 variations
 
     , make3 (k.o.o.k.o.o.k)
-    , make123 (k . repeat 3 (o.o.k))
+    , make123 (k . r3 (o.o.k))
 
     , make3 (o.n. su (kt.o.k) . on . su (kt.o.k))
-    , make123 (o.n. su (kt.o.k) . repeat 2 (on . su (kt.o.k)))
+    , make123 (o.n. su (kt.o.k) . r2 (on . su (kt.o.k)))
     , make3 (k.__.t.__.k.n.o)
     ]
     where
@@ -158,18 +156,18 @@ c_18_07_02_sarva = sudhindra $ korvai Tala.misra_chapu $ variations
 e_misra_tisram :: Korvai
 e_misra_tisram = exercise $ date 2018 9 11 $ ganesh $
     korvai Tala.misra_chapu $ variations $ map sd $ map (nadai 6)
-    [ repeat 5 (kt.k) . tk.kook
-    , repeat 5 ndk . n.k.n.n.d.k
-    , (o.__3.p) & repeat 5 ndk . n.k.on.on.od.k
-    , o & ndk . n.k.on.on.od.k . (o.__3.p) & repeat 2 ndk . n.k.on.on.od.k
-    , o & ndk . repeat 3 (n.k.on.on.od.k)
-    , on.od.k . repeat 3 (on.k.on.on.od.k)
-    , on.od.k . repeat 2 (on.k.on.on.od.k) . o&nang_kita
-    , o & repeat 5 ndk . nang_kita
-    , o & ndk . nang_kita . o & repeat 2 ndk . nang_kita
-    , o & ndk . repeat 3 nang_kita
-    , su (n.p.kt.pk) . repeat 3 nang_kita
-    , su (n.p.kt.pk) . nang_kita . repeat 2 (su (n.p.kt.pk)) . nang_kita
+    [ r5 (kt.k) . tk.kook
+    , r5 ndk . n.k.n.n.d.k
+    , (o.__3.p) & r5 ndk . n.k.on.on.od.k
+    , o & ndk . n.k.on.on.od.k . (o.__3.p) & r2 ndk . n.k.on.on.od.k
+    , o & ndk . r3 (n.k.on.on.od.k)
+    , on.od.k . r3 (on.k.on.on.od.k)
+    , on.od.k . r2 (on.k.on.on.od.k) . o&nang_kita
+    , o & r5 ndk . nang_kita
+    , o & ndk . nang_kita . o & r2 ndk . nang_kita
+    , o & ndk . r3 nang_kita
+    , su (n.p.kt.pk) . r3 nang_kita
+    , su (n.p.kt.pk) . nang_kita . r2 (su (n.p.kt.pk)) . nang_kita
     ]
     where
     nang_kita = n . su (pk.nakatiku)
@@ -180,13 +178,13 @@ e_18_11_12 = exercise $ date 2018 11 12 $ ganesh $ korvai Tala.misra_chapu $
     variations
     [ kook.sarvaD_ 6 . kook.sarvaD_ 6
     , pattern1 $ kook.od.__4 . kook.od.__4
-    , pattern1 $ repeat 2 (kook.o.__.k.__)
-    , pattern1 $ repeat 2 (kook.o.k.o.k)
-    , pattern1 $ repeat 2 (o.k.o.k.kook)
-    , pattern1 $ repeat 3 okko . kook
-    , pattern1 $ repeat 2 okko . repeat 2 kook
+    , pattern1 $ r2 (kook.o.__.k.__)
+    , pattern1 $ r2 (kook.o.k.o.k)
+    , pattern1 $ r2 (o.k.o.k.kook)
+    , pattern1 $ r3 okko . kook
+    , pattern1 $ r2 okko . r2 kook
     , pattern1 $ kook.okko.okko.kook
-    , pattern1 $ repeat 2 (k.o.o.k.o.o.__.k)
+    , pattern1 $ r2 (k.o.o.k.o.o.__.k)
     , pattern1 $ k.o.o.k.o.o.__.k.o.o.__.k.o.o.__.k
     , pattern1 $ o.k.o.k.kook.o.o.__.k.o.o.__.k
     , pattern1 $ okko.o.o.__.k.kook.kook
@@ -198,22 +196,22 @@ e_18_11_12 = exercise $ date 2018 11 12 $ ganesh $ korvai Tala.misra_chapu $
 
 e_18_11_19 :: Korvai
 e_18_11_19 = sarvalaghu $ date 2018 11 19 $ ganesh $ korvai adi $ variations
-    [ repeat 4 $ n.l.d.l.n.d.l.d
-    , repeat 4 $ n.l.d.l.n.d.su (p.l).d
-    , repeat 4 $ n.l.d.l.su (n.y.p.l).d.su (p.l)
-    , repeat 4 $ n.l.d.su (p.l.n.y.p.l).d.su (p.l)
-    , repeat 2 $ su $ repeat 3 (n.y.p.l.d.__.p.l) . (n.y.p.l.d.__.j.y)
-    , repeat 4 $ su $ d.__.p.y.j.l.d.__.p.l.d.__.n.y.p.l
-    , repeat 4 $ su $ d.__.p.y.j.l.d.__.p.k.t.k.n.y.p.l
-    , repeat 4 $ su $ d.__.p.y.j.l.d.__.p.k.d.y.j.l.p.l
+    [ r4 $ n.l.d.l.n.d.l.d
+    , r4 $ n.l.d.l.n.d.su (p.l).d
+    , r4 $ n.l.d.l.su (n.y.p.l).d.su (p.l)
+    , r4 $ n.l.d.su (p.l.n.y.p.l).d.su (p.l)
+    , r2 $ su $ r3 (n.y.p.l.d.__.p.l) . (n.y.p.l.d.__.j.y)
+    , r4 $ su $ d.__.p.y.j.l.d.__.p.l.d.__.n.y.p.l
+    , r4 $ su $ d.__.p.y.j.l.d.__.p.k.t.k.n.y.p.l
+    , r4 $ su $ d.__.p.y.j.l.d.__.p.k.d.y.j.l.p.l
     ]
 
 e_18_12_08 :: Korvai
 e_18_12_08 = exercise $ date 2018 12 8 $ ganesh $ korvai adi $ variations
-    [ repeat 3 (p.k.p.k.n.o.o.k) . end
-    , repeat 3 (su (p.t.p.k.p.t.p.k).n.o.o.k) . end
-    , repeat 3 (su (p.k.t.k.p.k.t.k).n.o.o.k) . end
-    , repeat 3 (su (p.k.t.k).p.k . n.o.o.k) . end
+    [ r3 (p.k.p.k.n.o.o.k) . end
+    , r3 (su (p.t.p.k.p.t.p.k).n.o.o.k) . end
+    , r3 (su (p.k.t.k.p.k.t.k).n.o.o.k) . end
+    , r3 (su (p.k.t.k).p.k . n.o.o.k) . end
     ]
     where end = n.p.k.__.p.u.__.k
 
@@ -226,7 +224,7 @@ e_18_12_08_b = exercise $ date 2018 12 8 $ ganesh $ korvai adi $ variations
 
 p5_variations :: Korvai
 p5_variations = exercise $ korvai adi $ variations $
-    map (sd • nadai 5 • repeat 4)
+    map (sd • nadai 5 • r4)
     [ k.t.k.n.o
     , k.t.k.su kt.o
     , k.t.k.su (k.n).o
@@ -244,19 +242,19 @@ exercises_18_12_19 =
     , K e_18_11_19 (Index 5) --  n.j.p.j.d.__ -- 60mm, go to 80 or 90
     , K e_18_12_19 All
     , K p5_variations All -- 120mm to 160mm
-    -- , Left $ repeat 2 (k.o.o.k.o.k) . k.o.o.k -- 120mm to 140
+    -- , Left $ r2 (k.o.o.k.o.k) . k.o.o.k -- 120mm to 140
     ]
 
 e_npkt :: Korvai
 e_npkt = exercise $ ganesh $ korvai1 adi $ section $
-    repeat 2 $ su $ repeat 2 (n.p.k . tri (t.p.k)) . nakatiku
+    r2 $ su $ r2 (n.p.k . tri (t.p.k)) . nakatiku
 
 e_18_12_19 :: Korvai -- 65mm, to 85mm
 e_18_12_19 = exercise $ date 2018 12 19 $ ganesh $ korvai adi $ variations
-    [ repeat 4 $ (o.o.__.o.o) & (rh.rh) . rh . n.o. su (kt.o.k)
-    , repeat 8 $ (o.o.__.o) & rh . n.o. su (kt.o.k)
-    , repeat 4 $ (o.o) & rh2 . rh2 . rh2 . su (n.o.od.__.kt.o.k)
-    , repeat 8 $ (o.o) & rh2 . su (n.o.od.__.kt.o.k)
+    [ r4 $ (o.o.__.o.o) & (rh.rh) . rh . n.o. su (kt.o.k)
+    , r8 $ (o.o.__.o) & rh . n.o. su (kt.o.k)
+    , r4 $ (o.o) & rh2 . rh2 . rh2 . su (n.o.od.__.kt.o.k)
+    , r8 $ (o.o) & rh2 . su (n.o.od.__.kt.o.k)
     ]
     where
     rh = n.d.l.d
