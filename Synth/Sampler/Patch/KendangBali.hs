@@ -6,7 +6,6 @@ module Synth.Sampler.Patch.KendangBali where
 import qualified Data.Set as Set
 import           System.FilePath ((</>))
 
-import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.ImInst as ImInst
@@ -15,19 +14,13 @@ import qualified Cmd.Instrument.KendangBali as K
 import qualified Derive.Attrs as Attrs
 import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.Common as Common
-import qualified Perform.Im.Patch as Im.Patch
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Patch.Lib.Drum as Drum
 import qualified Synth.Sampler.Patch.Lib.Util as Util
-import qualified Synth.Sampler.Sample as Sample
-import qualified Synth.Shared.Control as Control
-import qualified Synth.Shared.Note as Note
-import qualified Synth.Shared.Signal as Signal
 
 import qualified Ui.UiConfig as UiConfig
 
 import           Global
-import           Synth.Types
 
 
 patches :: [Patch.DbPatch]
@@ -35,23 +28,18 @@ patches = pasang : map (Patch.DbPatch . make) [Wadon, Lanang]
     where
     make tuning = (Patch.patch name)
         { Patch._dir = dir
-        , Patch._convert = convert tuning
+        , Patch._convert = convert
         , Patch._preprocess = Drum.inferDuration strokeMap
         , Patch._karyaPatch = CUtil.im_drum_patch (Drum._strokes strokeMap) $
-            ImInst.code #= code $
-            ImInst.make_patch $ Im.Patch.patch
-                { Im.Patch.patch_controls = mconcat
-                    [ Control.supportDyn
-                    , Control.supportVariation
-                    ]
-                , Im.Patch.patch_attribute_map = const () <$> attributeMap
-                }
+            ImInst.code #= code $ Drum.patch cmap
         }
         where
+        cmap = convertMap tuning
+        convert = Drum.convert cmap
         name = patchName <> "-" <> txt (Util.showLower tuning)
         code = CUtil.drum_code thru (Just "kendang-tune")
             (Drum._strokes strokeMap)
-        thru = Util.imThruFunction dir (convert tuning)
+        thru = Util.imThruFunction dir convert
     dir = untxt patchName
 
     -- TODO thru doesn't work for this, because I have to evaluate the call,
@@ -115,38 +103,19 @@ attributeMap :: Common.AttributeMap Articulation
 attributeMap =
     Common.attribute_map (Seq.key_on articulationToAttrs Util.enumAll)
 
--- Structure:
--- legong/{lanang,wadon}/$attr/variable-samples.wav
-convert :: Tuning -> Note.Note -> Patch.ConvertM Sample.Sample
-convert tuning note = do
-    articulation <- Util.articulation attributeMap (Note.attributes note)
-    let dynVal = Note.initial0 Control.dynamic note
-    -- TODO also shared with other drums like this
-    let var = maybe 0 (subtract 1 . (*2)) $ Note.initial Control.variation note
-    let dir = "legong" </> Util.showLower tuning </> Util.showLower articulation
-    let getSamples = case tuning of
-            Wadon -> legongWadonSamples
-            Lanang -> legongLanangSamples
-    let filename = dir
-            </> Util.pickDynamicVariation variationRange
-                (getSamples articulation) dynVal var
-    let noteDyn = Num.scale minDyn maxDyn dynVal
-    return $ (Sample.make filename)
-        { Sample.envelope = Util.asr noteDyn muteTime note }
-
--- | A note may pick a sample of this much dyn difference on either side.
-variationRange :: Signal.Y
-variationRange = 0.15
-
-minDyn :: Signal.Y
-minDyn = 0.4
-
-maxDyn :: Signal.Y
-maxDyn = 1.15
-
--- | Time to mute at the end of a note.
-muteTime :: RealTime
-muteTime = 0.05
+convertMap :: Tuning -> Drum.ConvertMap Articulation
+convertMap tuning = Drum.ConvertMap
+    { _dynRange = (0.4, 1.15)
+    , _variationRange = 0.15
+    , _naturalNn = Nothing
+    , _muteTime = 0.05
+    , _convertAttributeMap = attributeMap
+    , _articulationSamples = case tuning of
+        Wadon -> legongWadonSamples
+        Lanang -> legongLanangSamples
+    -- Directory structure: legong/{lanang,wadon}/$attr/variable-samples.wav
+    , _dirPrefix = "legong" </> Util.showLower tuning
+    }
 
 makeSampleLists :: IO ()
 makeSampleLists = do

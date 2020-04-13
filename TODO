@@ -2442,7 +2442,7 @@ synth: im:
         out of sync.
       . What's so bad about global though?
   sampler: sampler-im:
-    - factor common drum parts into Lib.Drum
+    * factor common drum parts into Lib.Drum
       . From Mridangam, KendangBali, LittleGong
     sampler-im/sample:
       * support for ad-hoc samples, for daw-like usage
