@@ -5264,8 +5264,8 @@ solkattu:
       - Can I align by structure?
         . E.g. reductions or tri would line up vertically.
     terminal:
-      - re-display ruler when it changes scale, e.g. sarva_20_02_27
-      - Solkattu2018.yt_mannargudi1 still seems messed up, it ends at
+      * re-display ruler when it changes scale, e.g. sarva_20_02_27
+      * Solkattu2018.yt_mannargudi1 still seems messed up, it ends at
         arudi but starts on 2, not 4.
         . Acutally this is due to differing normalization.  The next section
           is actually at a different speed.

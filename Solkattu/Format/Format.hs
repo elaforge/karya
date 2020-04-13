@@ -215,16 +215,17 @@ pairWithRuler rulerEach prevRuler tala strokeWidth =
     inherit Nothing (ruler, line) = (Just ruler, (ruler, line))
     inherit (Just prev) (ruler, line) = (Just cur, (cur, line))
         where !cur = inheritRuler prev ruler
-    -- Strip rulers when they are unchanged.  "Changed" is by structure, not
-    -- mark text, so a wrapped ruler with the same structure will also be
-    -- suppressed.
+    -- Strip rulers when they are unchanged.  Since 'inferRuler' always
+    -- starts from the beginning of the 'Tala.tala_labels', if a ruler is
+    -- wrapped it will have the same labels, even though the second one
+    -- is starting at the midpoint.  This is actually what I want, because
+    -- otherwise, wrapping the avartanam would always defeat ruler suppression.
     strip (prev, lineNumber) (ruler, line) =
         ( (Just ruler, 1 + if wanted then 0 else lineNumber)
         , (if wanted then Just (ruler ++ [("|", 0)]) else Nothing, line)
         )
         where
-        wanted = lineNumber `mod` rulerEach == 0
-            || Just (map snd ruler) /= (map snd <$> prev)
+        wanted =  lineNumber `mod` rulerEach == 0 || Just ruler /= prev
 
 -- | Fix the problem in 'inferRuler' by re-using the previous ruler if this one
 -- is a subset of it.
@@ -268,6 +269,8 @@ inferRuler tala strokeWidth =
     -- Marker for a nadai change.  It has a colon to separate it from the ruler
     -- mark, in case it coincides with one.
     nadaiChange n = ":" <> showt n
+    -- Mark mark midpoints with dots if they're far enough apart, and do in
+    -- fact have an integral midpoint.
     insertDots (label, states)
         | (spaces * strokeWidth > 8) && spaces `mod` 2 == 0 =
             [(label, pre) , (".", post)]
