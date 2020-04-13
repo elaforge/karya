@@ -32,6 +32,7 @@ import qualified Synth.Shared.Signal as Signal
 import           Global
 import           Synth.Types
 
+
 render :: Resample.Config -> RealTime -> Sample.Sample -> IO AUtil.Audio
 render config start (Sample.Sample filename offset envelope pan ratios) = do
     (close, audio) <- File.readFromClose offset filename

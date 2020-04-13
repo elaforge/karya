@@ -44,11 +44,11 @@ patches = (:[]) $ Patch.DbPatch $ (Patch.patch patchName)
     thru = Util.imThruFunction dir convert
     dir = untxt patchName
 
-data Articulation = OpenCenter | MuteCenter | OpenEdge | MuteEdge
-    deriving (Eq, Ord, Show, Enum, Bounded)
-
 patchName :: Text
 patchName = "little-gong"
+
+data Articulation = OpenCenter | MuteCenter | OpenEdge | MuteEdge
+    deriving (Eq, Ord, Show, Enum, Bounded)
 
 attributeMap :: Common.AttributeMap Articulation
 attributeMap = Drum._attributeMap smap
@@ -76,10 +76,7 @@ convert note = do
     noteNn <- Util.initialPitch note
     let noteDyn = Num.scale minDyn maxDyn dynVal
     return $ (Sample.make filename)
-        { Sample.envelope = Signal.from_pairs
-            [ (Note.start note, noteDyn), (Note.end note, noteDyn)
-            , (Note.end note + muteTime, 0)
-            ]
+        { Sample.envelope = Util.asr noteDyn muteTime note
         , Sample.ratios = Signal.constant $ Sample.pitchToRatio naturalNn noteNn
         }
 

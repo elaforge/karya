@@ -81,10 +81,7 @@ convert note = do
     noteNn <- Util.initialPitch note
     let noteDyn = Num.scale minDyn maxDyn dynVal
     return $ (Sample.make filename)
-        { Sample.envelope = Signal.from_pairs
-            [ (Note.start note, noteDyn), (Note.end note, noteDyn)
-            , (Note.end note + muteTime, 0)
-            ]
+        { Sample.envelope = Util.asr noteDyn muteTime note
         , Sample.ratios = Signal.constant $ Sample.pitchToRatio naturalNn noteNn
         }
 

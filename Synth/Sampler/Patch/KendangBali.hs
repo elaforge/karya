@@ -132,11 +132,7 @@ convert tuning note = do
                 (getSamples articulation) dynVal var
     let noteDyn = Num.scale minDyn maxDyn dynVal
     return $ (Sample.make filename)
-        { Sample.envelope = Signal.from_pairs
-            [ (Note.start note, noteDyn), (Note.end note, noteDyn)
-            , (Note.end note + muteTime, 0)
-            ]
-        }
+        { Sample.envelope = Util.asr noteDyn muteTime note }
 
 -- | A note may pick a sample of this much dyn difference on either side.
 variationRange :: Signal.Y

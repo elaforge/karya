@@ -29,6 +29,8 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  - tempo could have bpm:
+    . 75bpm -> 75/60.  Or 75bpm q -> ts q / 60.
   * rename Drums.Note to Drums.Stroke, too many things called Note
   * segfault disabling track
     . had multiple views
@@ -1960,7 +1962,9 @@ instruments:
       . It doesn't need gcc.  I should do the compile with nix though.
 
 synth: im:
-  strict aliasing:
+  optimize low level sapmles: avx: simd:
+    - use simd in play_cache
+    - use simd in Util.Audio
     . https://cellperformance.beyond3d.com/articles/2006/05/demystifying-the-restrict-keyword.html
     . https://ourmachinery.com/post/writing-a-low-level-sound-system/
     - compile with -fstrict-aliasing and -Wstrict-aliasing
@@ -2438,6 +2442,25 @@ synth: im:
         out of sync.
       . What's so bad about global though?
   sampler: sampler-im:
+    - factor common drum parts into Lib.Drum
+      . From Mridangam, KendangBali, LittleGong
+    sampler-im/sample:
+      * support for ad-hoc samples, for daw-like usage
+        . I can put the sample name in the note, e.g.
+          s 'some-name'
+        . A generic sample patch that takes sample name in Note.element.
+      - I'll want warp points, or at least realign points.  But at this point,
+        shouldn't I be working in the DAW?
+        . DAW advantages is UI designed for this, stretch, warp points, etc.
+        . karya advantage is no MTC to sync, sample visible inline.  Those are
+          not such big advantages.
+        . It would definitely be better if I were doing lots of offsets, e.g.
+          for drum sequences / break beats.
+        . Also I can do per-sample effects, which is easier than awkward DAW
+          style, but only if you go past standard  "reverb on everything".
+      - support start offset, ratio adjust
+      - support time stretch and pitch shift
+        . Have to bind to rubberband first.
     - libresample is hard to use.  Alternatives?
       requirements:
         . required: Variable ratios, where it's interpolated per-sample.

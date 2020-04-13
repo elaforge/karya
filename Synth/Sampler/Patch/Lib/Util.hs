@@ -19,6 +19,7 @@ import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Attrs as Attrs
 import qualified Instrument.Common as Common
 import qualified Perform.Pitch as Pitch
+import qualified Perform.RealTime as RealTime
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Control as Control
@@ -118,6 +119,15 @@ pickDynamicVariation variationRange samples dyn var =
 pickVariation :: [a] -> Double -> a
 pickVariation xs val =
     xs !! round (Num.clamp 0 1 val * fromIntegral (length xs - 1))
+
+-- ** envelope
+
+-- | Simple attack-sustain-release envelope.
+asr :: Signal.Y -> RealTime.RealTime -> Note.Note -> Signal.Signal
+asr dyn muteTime note = Signal.from_pairs
+    [ (Note.start note, dyn), (Note.end note, dyn)
+    , (Note.end note + muteTime, 0)
+    ]
 
 -- * thru
 
