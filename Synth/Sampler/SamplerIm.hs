@@ -248,8 +248,11 @@ convertNotes db notes =
                   ]
                 )
     where
-    -- Print out progress msgs, but I could probably ignore them.
-    emit _payload = return ()
+    emit = \case
+        Config.Warn _ err -> put err
+        Config.Failure err -> put err
+        _ -> return ()
+        where put = Text.IO.putStrLn . ("warning while converting: "<>)
 
 inRange :: (RealTime, RealTime) -> [(Note.Note, a)] -> [(Note.Note, a)]
 inRange (start, end) = filter $ \(n, _) ->
