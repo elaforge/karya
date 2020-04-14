@@ -141,6 +141,3 @@ e_20_03_27 = date 2020 2 27 $ source "anand" $ exercise $ korvaiS adi $
     diku 3x
     mohra
 -}
-
-s :: Sequence -> Section
-s = section

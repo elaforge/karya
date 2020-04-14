@@ -530,7 +530,7 @@ c_17_08_29 = date 2017 8 29 $ ganesh $
     sequence t =
         tri_ (tat.__4.tam.__8) (t4.t3.t2)
         . sandi (t3.t2) (tri_ (tat.__4.tam.__8) (t3.t2))
-        . sandi t2      (tri_ (tat.__.tam.__8) (tri_m (tat.__4.tam.__4) t2))
+        . sandi t2      (tri_ (tat.__.tam.__8) (tri_nomid (tat.__4.tam.__4) t2))
         . tat.__.tam
         where [t4, t3, t2] = take 3 $ reduceToL 0 2 t
     -- (4  3  2)  2  4

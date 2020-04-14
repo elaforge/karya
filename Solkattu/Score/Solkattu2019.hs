@@ -12,7 +12,7 @@ import           Solkattu.Dsl.Solkattu
 
 -- TODO I think I did this one before
 c_19_04_15 :: Korvai
-c_19_04_15 = date 2019 4 15 $ ganesh $ korvai adi mridangam $ map section
+c_19_04_15 = date 2019 4 15 $ ganesh $ korvaiS adi mridangam
     [ join (dhom.__3)
         [ start.end
         , dropM 2 (start.end)
@@ -64,12 +64,12 @@ c_19_06_17 = date 2019 6 17 $ ganesh $ korvaiS adi mridangam
 --
 c_19_07_15 :: Korvai
 c_19_07_15 = date 2019 7 15 $ ganesh $ korvai adi mridangam $
-    let var th = section $ sarva 8 . sarva 4 . din.__4 . th in
+    let var th = s $ sarva 8 . sarva 4 . din.__4 . th in
     [ var th0a
     , var th0b
     , var th0c
-    , x2 $ section $ sarva 4 . din.__4 . th0a
-    , section $ sarvaD sarvaPlainS 8
+    , x2 $ s $ sarva 4 . din.__4 . th0a
+    , s $ sarvaD sarvaPlainS 8
     , ending $ su $
         th1 . ta.dinga
         . dropM 2 (rdropM 2 th1) . ta.dinga

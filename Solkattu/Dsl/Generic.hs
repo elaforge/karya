@@ -13,7 +13,8 @@
     > infixr 6 . -- same as (<>)
 -}
 module Solkattu.Dsl.Generic (
-    (.), (•), ø
+    s
+    , (.), (•), ø
     , htmlWriteAll
     -- * notation
     , karvai
@@ -54,8 +55,9 @@ import           Util.Pretty (pprint)
 import qualified Solkattu.Format.Format as Format
 import           Solkattu.Format.Format (Abstraction)
 import qualified Solkattu.Format.Html as Html
+import qualified Solkattu.Korvai as Korvai
 import           Solkattu.Korvai (Korvai)
-import           Solkattu.Part (realizeParts, Part(..), Index(..), index)
+import           Solkattu.Part (index, realizeParts, Part(..), Index(..))
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import           Solkattu.S (Duration, Matra, Nadai)
@@ -69,6 +71,16 @@ import           Solkattu.Dsl.Metadata
 import           Solkattu.Dsl.Notation
 import           Solkattu.Dsl.Section
 
+
+-- | Declare a 'Section' of a 'Korvai'.
+--
+-- I tried to think of various ways to avoid having to explicitly wrap every
+-- section, but they all seem really heavyweight, like a typeclass and replace
+-- list literals with a custom (:) operator, or leaky, like embed section in
+-- the Sequence and just pull out the topmost one.  So I'll settle for explicit
+-- noise, but shorten the name.
+s :: SequenceT sollu -> Korvai.Section sollu
+s = section
 
 -- | Combine 'Sequence's.  This is just another name for (<>).
 (.) :: Monoid a => a -> a -> a

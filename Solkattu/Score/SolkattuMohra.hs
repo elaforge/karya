@@ -45,8 +45,8 @@ makeMohraKorvai :: Tala.Tala -> Korvai.StrokeMaps -> (Sequence -> Sequence)
     -> Korvai
 makeMohraKorvai tala smaps transform as bs korvai_ =
     mohra $ korvai tala smaps
-        [ withTypeS "mohra" $ section (make transform (as, bs))
-        , withTypeS "korvai" $ section korvai_
+        [ withTypeS "mohra" $ s $ make transform (as, bs)
+        , withTypeS "korvai" $ s korvai_
         ]
 
 -- | Alternate melkalam and kirkalam.

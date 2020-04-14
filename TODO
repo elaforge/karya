@@ -1964,7 +1964,15 @@ instruments:
 synth: im:
   optimize low level sapmles: avx: simd:
     - use simd in play_cache
+      . It's probbaly IO bound, so kind of pointless, but still good for
+        learning.
     - use simd in Util.Audio
+      . What do I do that could use it?  Multiplication and things?  Does
+        vector already do those?  If not, surely there are array libraries
+        that do?
+      . Not vector: https://github.com/haskell/vector/issues/251
+      . State of simd:
+        https://www.reddit.com/r/haskell/comments/7wsb54/state_of_simd_support_for_ghc/
     . https://cellperformance.beyond3d.com/articles/2006/05/demystifying-the-restrict-keyword.html
     . https://ourmachinery.com/post/writing-a-low-level-sound-system/
     - compile with -fstrict-aliasing and -Wstrict-aliasing
@@ -3362,6 +3370,12 @@ synth: im:
       waveguides" paper.
 
 shakefile: build:
+  reduce dependencies:
+    - haskell-src, use another pretty printer
+    - QuickCheck, use hedgehog instead
+    + semigroups
+    - for indirect deps I need some way to get the paths
+      . e.g. whence goes js-jquery, js-flot?  Probably shake.
   * shakefile does nothing with no arg, it should complain
   / shakefile -v should print version, it doesn't
     . because it prints at Normal, and I'm at Quiet.
@@ -5136,9 +5150,12 @@ REPL: repl:
 
 solkattu:
   notation conveniences:
-    - s = section, g = group
-    - r2, r3, r4, r5, r6 = repeat n
+    * s = section
+    - g = group
+    * r2, r3, r4, r5, r6 = repeat n
     - Then I can make tri like r3, but groups the sequence, as does tri_.
+      . Find existing uses and delete group, or ensure group make sense.
+      . Only apply group if it's not already a group (or pattern or whatever).
   - replace is useful to express variations
     . e.g. Mridangam2019.c_19_06_24_a
     . This can perhaps solve "reduction with irregular bits" and
@@ -5209,7 +5226,7 @@ solkattu:
     . newtype SequenceT sollu =
         ExceptT Error (ReaderT Tempo Identity) [S.Note Group sollu]
   sections:
-    - sections are syntactically noisy
+    * sections are syntactically noisy
       . I have to put 'section' on everything, just so I can have one with
         e.g. 'x2'.
       . Also they break maps, like 'map (nadai 6)' has to become

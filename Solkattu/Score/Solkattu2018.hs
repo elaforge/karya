@@ -405,13 +405,13 @@ misra_tani =
 misra_tani1 :: Korvai
 misra_tani1 = date 2018 7 16 $ sudhindra $
     korvai Tala.misra_chapu (mridangam<>kendang)
-    [ x2 $ section $ sd2 $
+    [ x2 $ s $ sd2 $
         tam.__3.tam.__.tam.__
       . tam.__3.tam.__.su (taka.jonu)
-    , section $ sd2 $
+    , s $ sd2 $
         na.din.na.na.din.din.na.din.__n 7
         . na.din.na.su (na.na).din.din.na.din.__n 7
-    , section $ (7*4) ==> takadugutarikita
+    , s $ (7*4) ==> takadugutarikita
     ]
     where
     mridangam = makeMridangam
@@ -429,14 +429,14 @@ misra_tani1 = date 2018 7 16 $ sudhindra $
 
 misra_tani2 :: Korvai
 misra_tani2 = date 2018 7 16 $ sudhindra $ korvai Tala.misra_chapu mridangam
-    [ x4 $ section $ sd $ taka.ta.ta.din.__6.tatadin_
-    , x4 $ section $ sd $ taka.ta.ta.din.__4.taka.tatadin_
-    , x3 $ section $ sd $ taka.r3 tatadin_
-    , section $ sd (taka.r3 tatadin_)
-    , x2 $ section $ taka.taka . sd (r3 tatadin_)
-    , x4 $ section $ taka.taka . sd tatadin_ . taka.taka.din.__4 . sd tatadin_
-    , x4 $ section $ taka.taka . sd tatadin_ . r2 (taka.taka.din.__4)
-    , x3 $ section $ taka.taka.taka.taka.din.__4 . r2 (taka.taka.din.__4)
+    [ x4 $ s $ sd $ taka.ta.ta.din.__6.tatadin_
+    , x4 $ s $ sd $ taka.ta.ta.din.__4.taka.tatadin_
+    , x3 $ s $ sd $ taka.r3 tatadin_
+    , s $ sd (taka.r3 tatadin_)
+    , x2 $ s $ taka.taka . sd (r3 tatadin_)
+    , x4 $ s $ taka.taka . sd tatadin_ . taka.taka.din.__4 . sd tatadin_
+    , x4 $ s $ taka.taka . sd tatadin_ . r2 (taka.taka.din.__4)
+    , x3 $ s $ taka.taka.taka.taka.din.__4 . r2 (taka.taka.din.__4)
     , ending $ tri (taka.taka.din.__4) . tri_ (din.__4) takadugutarikita
     ]
     where
@@ -482,7 +482,7 @@ misra_to_mohra1b = date 2018 7 2 $ sudhindra $
     , ending $ theme.takadinna.din.__6.tat.__4
         . theme . r2 takadinna.din.__6 . tat.__4.dit.__4
         . theme . trin (tam.__n 16)
-            (tri_ (din.__6) (tri takadinna))
+            (tri_ (din.__6) (r3 takadinna))
             (tri_ (din.__6) (r2 takadinna))
             (tri_ (din.__6) takadinna)
     ]
@@ -524,16 +524,16 @@ misra_to_mohra1b = date 2018 7 2 $ sudhindra $
 to_mohra_farans :: Korvai
 to_mohra_farans = date 2018 7 2 $ sudhindra $ faran $
     korvai Tala.misra_chapu mridangam
-    [ section $ sarva 14
-    , x2 $ section $ sarva (7+4) . tri (talang.__.gu)
-    , x2 $ section $ sarva (7+4) . tri (gu.gu.na.na)
-    , section $ r2 $ sarva 4 . tri dinnakitataka
-    , section $ r2 $ sarva 4 . r2 takadinnakitataka
-    , x2 $ section $ sarva 4 . r2 takadinnakitataka
+    [ s $ sarva 14
+    , x2 $ s $ sarva (7+4) . tri (talang.__.gu)
+    , x2 $ s $ sarva (7+4) . tri (gu.gu.na.na)
+    , s $ r2 $ sarva 4 . tri dinnakitataka
+    , s $ r2 $ sarva 4 . r2 takadinnakitataka
+    , x2 $ s $ sarva 4 . r2 takadinnakitataka
       . r4 takadinnakitataka . dinnakitataka
-    , section $ sarva 4 . r2 takadinnakitataka
+    , s $ sarva 4 . r2 takadinnakitataka
       . r3 (r2 takadinnakitataka . r4 dinnakitataka)
-    , section $ tri_ (din.__4) (r4 dinnakitataka)
+    , s $ tri_ (din.__4) (r4 dinnakitataka)
     ]
     where
     dinnakitataka = group $ din.na.kttk
@@ -577,18 +577,18 @@ misra_to_mohra3 = date 2018 7 2 $ sudhindra $
 misra_to_mohra4 :: Korvai
 misra_to_mohra4 = date 2018 7 2 $ sudhindra $
     korvai Tala.misra_chapu mridangam
-    [ section $ restD 3 . tat.__.tat.__.kitataka.dikutarikitataka
+    [ s $ restD 3 . tat.__.tat.__.kitataka.dikutarikitataka
         . tri123 (thom.__4) dikutarikitataka
-    , x2 $ section $ r4 (din_gu_ . tarikitataka) . dim.__4 . tat.__4
-    , x2 $ section $ din_gu_ . tri_ (dim.__4) tarikitataka . din_gu_
+    , x2 $ s $ r4 (din_gu_ . tarikitataka) . dim.__4 . tat.__4
+    , x2 $ s $ din_gu_ . tri_ (dim.__4) tarikitataka . din_gu_
         . taka.dikutarikitataka . dim.__4 . tat.__4
-    , x2 $ section $ r2 (prefixes [dim, thom] (__.taka.dikutarikitataka))
+    , x2 $ s $ r2 (prefixes [dim, thom] (__.taka.dikutarikitataka))
         . dikutarikitataka
-    , section $ r7 $ gugunana_trkt
-    , x2 $ section $ r3 (gu.gu.na.na) . gugunana_trkt
-    , x2 $ section $ r2 (gu.gu.na.nang.__.gu) . gugunana_trkt
-    , x2 $ section $ r2 (gu.gu.na.na.taka) . gugunana_trkt
-    , section $ r3 gugunana_trkt . tri_ (dim.__8) gugunana_trkt
+    , s $ r7 $ gugunana_trkt
+    , x2 $ s $ r3 (gu.gu.na.na) . gugunana_trkt
+    , x2 $ s $ r2 (gu.gu.na.nang.__.gu) . gugunana_trkt
+    , x2 $ s $ r2 (gu.gu.na.na.taka) . gugunana_trkt
+    , s $ r3 gugunana_trkt . tri_ (dim.__8) gugunana_trkt
     ]
     where
     din_gu_ = din.__4.gu.__
@@ -635,7 +635,7 @@ misra_mohras = date 2018 7 11 $ sudhindra $
 
 misra_muktayi1 :: Korvai
 misra_muktayi1 = date 2018 7 11 $ sudhindra $
-    korvai1 Tala.misra_chapu mridangam $ section $
+    korvaiS1 Tala.misra_chapu mridangam $
     reduceTo 4 2 theme . tri_ (sd __) (sd (ta.__.di.__.p5))
     where
     theme = tat.__.dit.__.tat.__.tat.__.kita.thom.__4
@@ -661,9 +661,9 @@ trikalam1 = date 2018 7 16 $ trikalam $ sudhindra $ korvai adi mridangam
         tam.__4.theme0.di.__6.p6.__3.p6
         . ta.takita.theme0.di.__6.p6.__3.p6
         . tam.__4.theme0.di.__4
-    , startOn 4 $ endOn 4 $ section $ theme
-    , startOn 4 $ endOn 4 $ section $ r2 $ nadai 6 theme
-    , startOn 4 $ section $ r3 $ su theme
+    , startOn 4 $ endOn 4 $ s $ theme
+    , startOn 4 $ endOn 4 $ s $ r2 $ nadai 6 theme
+    , startOn 4 $ s $ r3 $ su theme
     ]
     where
     theme = tam.__4.theme0.di.__6.p6
@@ -679,8 +679,7 @@ trikalam1 = date 2018 7 16 $ trikalam $ sudhindra $ korvai adi mridangam
     -- At higher speed, tadi kitathom becomes tadi kitaka.
 
 trikalam2 :: Korvai
-trikalam2 = date 2018 7 16 $ trikalam $ sudhindra $
-    korvai adi mridangam $ map section
+trikalam2 = date 2018 7 16 $ trikalam $ sudhindra $ korvaiS adi mridangam
     [ restD 2 . seq . r2 (nadai 6 seq) . r3 (su seq)
     ]
     where
@@ -692,7 +691,7 @@ trikalam2 = date 2018 7 16 $ trikalam $ sudhindra $
 
 e_sarva1 :: Korvai
 e_sarva1 = sarvalaghu $ date 2018 7 16 $ sudhindra $
-    korvai Tala.misra_chapu mridangam $ map section $ map (nadai 3)
+    korvaiS Tala.misra_chapu mridangam $ map (nadai 3)
     [ din.__.gu.takita.din.__.gu . r2 (din.__.gu.takita)
     ]
     where
@@ -703,7 +702,7 @@ e_sarva1 = sarvalaghu $ date 2018 7 16 $ sudhindra $
 
 e_sarva2 :: Korvai
 e_sarva2 = sarvalaghu $ date 2018 7 25 $ sudhindra $
-        korvai Tala.misra_chapu mridangam $ map section
+    korvaiS Tala.misra_chapu mridangam
     [ sarva
     , sarva `replaceEnd` group (ta.takita.takadinna)
     , tri (taka.taka.din.__.kita) . tri_ (tam.__4) (group (ta.takita.takadinna))
@@ -718,8 +717,7 @@ e_sarva2 = sarvalaghu $ date 2018 7 25 $ sudhindra $
         ]
 
 e_misra_tisra :: Korvai
-e_misra_tisra = exercise $ korvai Tala.misra_chapu mempty $
-    map section $ map (nadai 3)
+e_misra_tisra = exercise $ korvaiS Tala.misra_chapu mempty $ map (nadai 3)
     [ r7 takita
     , r2 takita . tri (group p5)
     ,    takita . tri (group p6)
@@ -759,26 +757,26 @@ adi_tani_misra =
 
 adi_tani1 :: Korvai
 adi_tani1 = date 2018 8 3 $ sudhindra $ korvai adi mridangam
-    [ section $ r6 (tam.__4) . tri_ din tkdn
-    , section $ r2 $ r2 (tam.__4) . tri_ din tkdn
-    , section $ tri_ (din.__4) (tri_ din tkdn)
-    , section $ sd (na.din.din.na) . na.na.sd (din.din.na)
+    [ s $ r6 (tam.__4) . tri_ din tkdn
+    , s $ r2 $ r2 (tam.__4) . tri_ din tkdn
+    , s $ tri_ (din.__4) (tri_ din tkdn)
+    , s $ sd (na.din.din.na) . na.na.sd (din.din.na)
         . kttk. sd (din.din.na) . talang_gu
-    , x2 $ section $ r2 $ sd (na.din.din.na) . talang_gu
-    , section $ tri_ (din.__4) talang_gu
-    , x2 $ section $ sarva2 6 . su (faran1.nakatiku)
-    , section $ r2 (sarva2 2 . su (faran1.nakatiku))
+    , x2 $ s $ r2 $ sd (na.din.din.na) . talang_gu
+    , s $ tri_ (din.__4) talang_gu
+    , x2 $ s $ sarva2 6 . su (faran1.nakatiku)
+    , s $ r2 (sarva2 2 . su (faran1.nakatiku))
         . r4 (su (faran1.nakatiku))
         . tri_ (din.__4) (su (faran1.nakatiku))
-    , section $ r2 (sarva3a.sarva3')
+    , s $ r2 (sarva3a.sarva3')
         . r2 (sarva3b.sarva3')
         . r2 (sarva3c.sarva3')
         . r2 (sarva3d.sarva3')
-    , section $ sarva3b.sarva3' . sarva3b . su (faran2.nakatiku)
+    , s $ sarva3b.sarva3' . sarva3b . su (faran2.nakatiku)
         . r2 (sarva3b . su (faran2.nakatiku))
-    , section $ r4 (su (faran2.nakatiku))
+    , s $ r4 (su (faran2.nakatiku))
         . tri_ (din.__4) (su (faran2.nakatiku))
-    -- , endOn 4 $ section $
+    -- , endOn 4 $ s $
     --     r2 (su (faran2.nakatiku))
     --     . tri_ (din.__4) (su (faran2.nakatiku))
     ]
@@ -816,7 +814,7 @@ adi_tani1 = date 2018 8 3 $ sudhindra $ korvai adi mridangam
 
 e_sarva1_tisra :: Korvai
 e_sarva1_tisra = exercise $ date 2018 7 25 $ sudhindra $
-    korvai adi mridangam $ map section $ map (nadai 6)
+    korvaiS adi mridangam $ map (nadai 6)
     [ restD (4*1.5) . __.__ . tri_ (din.__5) takadinna
     , r5 din_gutakita . din.__.gu . tri p5
     , r5 din_gutakita . tri p6
@@ -841,7 +839,7 @@ e_sarva1_tisra = exercise $ date 2018 7 25 $ sudhindra $
 e_adi_tisra_misra1, e_adi_tisra_misra2 :: Korvai
 (e_adi_tisra_misra1, e_adi_tisra_misra2) =
     ( date 2019 2 26 $ ganesh $ let sarva = sarva1 in
-        korvai Tala.misra_chapu mridangam $ map (smap (nadai 3)) $ map section
+        korvaiS Tala.misra_chapu mridangam $ map (nadai 3)
         [ sarva 7
         , sarva 6 . tarikitadiku
         , sarva 2 . tarikitadiku . sarva 3 . tarikitadiku
@@ -852,7 +850,7 @@ e_adi_tisra_misra1, e_adi_tisra_misra2 :: Korvai
         ] ++ ending
 
     , date 2019 4 14 $ ganesh $ let sarva = sarva2 in
-        korvai Tala.misra_chapu mridangam $ map (smap (nadai 3)) $ map section
+        korvaiS Tala.misra_chapu mridangam $ map (nadai 3)
         [ sarva 7
         , sarva 6 . tarikitadiku
         , sarva 2.5 . tarikitadiku . sarva 2.5 . tarikitadiku
@@ -872,7 +870,7 @@ e_adi_tisra_misra1, e_adi_tisra_misra2 :: Korvai
     sarva_with end = sarva2 5 . end
         . sarva2 1.5 . end . sarva2 1.5 . end
 
-    ending = map section
+    ending =
         [ r5 takadinnakttk . tri dinnakttk
         , r5 takadinnakttk . din_trktkt
         , r2 $ takadinnakttk . tang.kttk . din_trktkt
@@ -921,28 +919,27 @@ e_adi_tisra_misra1, e_adi_tisra_misra2 :: Korvai
 e_adi_tisra :: Korvai
 e_adi_tisra = exercise $ date 2018 7 30 $ sudhindra $
     korvai adi mridangam $ map (smap (nadai 6))
-    [ section $ sarva 8
-    , x2 $ section $ sarva 7 . tarikitadiku
-    , section $ r2 $ sarva 3 . tarikitadiku
-    , section $ sarva 1.tarikitadiku.sarva 1.tarikitadiku
+    [ s $ sarva 8
+    , x2 $ s $ sarva 7 . tarikitadiku
+    , s $ r2 $ sarva 3 . tarikitadiku
+    , s $ sarva 1.tarikitadiku.sarva 1.tarikitadiku
         . tri_ (tang.__.gu) tarikitadiku
 
-    , x2 $ section $ sarva 6 . tri dinnakttk
-    , section $ r2 (sarva 2 . tri dinnakttk)
-    , section $ sarva 2 . r3 (tri dinnakttk)
-    , x2 $ section $ sarva 6 . trktkt3
-    , section $ r3 (sarva 2 . trktkt3) . trktkt3 . trktkt3
-    , x2 $ section $ sarva 6 . r2 takadinnakttk
-    , section $ r2 $ sarva 2 . r2 takadinnakttk
-    , section $ r8 takadinnakttk
-    , x2 $ section $ r6 takadinnakttk . tri dinnakttk
-    , section $ r6 takadinnakttk . trktkt3
-    , section $ r6 takadinnakttk . din_trktkt
-    , section $ r2 $ r2 takadinnakttk . din_trktkt
-    , x2 $ section $ r4 $ din_trktkt
-    , x2 $ section $ r2 $ din.__ . r4 trktkt . tarikitadiku
-    , section $ r4 tarikitadiku
-        . tri (tri_ (tam.__3) tarikitadiku)
+    , x2 $ s $ sarva 6 . tri dinnakttk
+    , s $ r2 (sarva 2 . tri dinnakttk)
+    , s $ sarva 2 . r3 (tri dinnakttk)
+    , x2 $ s $ sarva 6 . trktkt3
+    , s $ r3 (sarva 2 . trktkt3) . trktkt3 . trktkt3
+    , x2 $ s $ sarva 6 . r2 takadinnakttk
+    , s $ r2 $ sarva 2 . r2 takadinnakttk
+    , s $ r8 takadinnakttk
+    , x2 $ s $ r6 takadinnakttk . tri dinnakttk
+    , s $ r6 takadinnakttk . trktkt3
+    , s $ r6 takadinnakttk . din_trktkt
+    , s $ r2 $ r2 takadinnakttk . din_trktkt
+    , x2 $ s $ r4 $ din_trktkt
+    , x2 $ s $ r2 $ din.__ . r4 trktkt . tarikitadiku
+    , s $ r4 tarikitadiku . tri (tri_ (tam.__3) tarikitadiku)
     ]
     where
     -- Duration is off due to map nadai 6.  TODO this is pretty awkward.
@@ -974,7 +971,7 @@ e_adi_tisra = exercise $ date 2018 7 30 $ sudhindra $
 
 c_18_08_03 :: Korvai
 c_18_08_03 = date 2018 8 3 $ sudhindra $
-    korvai1 adi mridangam $ section $ nadai 6 $
+    korvaiS1 adi mridangam $ nadai 6 $
     dit_tang.din.__.tat.__.din.__4
     . dit_tang.din.__3.tat.__3.din.__4
     . dit_tang.din.__4.tat.__4.din.__4
@@ -990,7 +987,7 @@ c_18_08_03 = date 2018 8 3 $ sudhindra $
 
 c_18_08_03_misra :: Korvai
 c_18_08_03_misra = date 2019 2 26 $ ganesh $
-    korvai1 Tala.misra_chapu mridangam $ section $ nadai 3 $
+    korvaiS1 Tala.misra_chapu mridangam $ nadai 3 $
     takita_tang.din.__3.tat.__3.din.__3
     . takita_tang.din.__4.tat.__4.din.__4
     . takita_tang.din.__5.tat.__5.din.__5
@@ -1006,7 +1003,7 @@ c_18_08_03_misra = date 2019 2 26 $ ganesh $
         ]
 
 adi_tani2 :: Korvai
-adi_tani2 = date 2018 8 3 $ sudhindra $ korvai adi mridangam $ map section
+adi_tani2 = date 2018 8 3 $ sudhindra $ korvaiS adi mridangam
     [ restD 4 . su (tri_ (tam.__4) nakatiku)
     , r2 $ r2 (din.__.gu.trkt.tk) . dim.__.tat.__
     , r2 $ din.__.gu . tri_ (dim.__) (trkt.tk)
@@ -1040,8 +1037,8 @@ adi_tani2 = date 2018 8 3 $ sudhindra $ korvai adi mridangam $ map section
         ]
 
 adi_tani2_misra :: Korvai
-adi_tani2_misra = date 2019 4 6 $ ganesh $ korvai Tala.misra_chapu mridangam $
-    map (section • sd)
+adi_tani2_misra = date 2019 4 6 $ ganesh $ korvaiS Tala.misra_chapu mridangam $
+    map sd
     [ r4 (din.__.gu.trkt.tk) . dim.__.tat.__
         . r4 (2^din.__.gu.trkt.tk) . su dikutarikitataka
     , su $ tri (faran1.dikutarikitataka) . dikutarikitataka
@@ -1069,12 +1066,12 @@ adi_tani2_misra = date 2019 4 6 $ ganesh $ korvai Tala.misra_chapu mridangam $
 
 adi_muktayi :: Korvai
 adi_muktayi = date 2018 8 3 $ sudhindra $ korvai adi mridangam
-    [ x3 $ section $ su $
+    [ x3 $ s $ su $
       t0 . oknp.t0 . ktktoknp.t0
         . tri (sd p6) .__.__. oknp.tri (sd (tat.__.p6))
         .__.__. ktktoknp.tri (sd (tat.__.di.__.p6))
     -- same thing as above, but with other ending
-    , x3 $ commentS "ganesh's variation" $ section $ su $
+    , x3 $ commentS "ganesh's variation" $ s $ su $
       t0 . oknp.t0 . ktktoknp.t0
         . tri (sd p6) .__.__. oknp.tri (sd (tat.__.p6))
         .__.__. ktktoknp. tisram13 (sd (tat.__.di.__.p6))
@@ -1092,7 +1089,7 @@ adi_muktayi = date 2018 8 3 $ sudhindra $ korvai adi mridangam
 
 adi_muktayi_misra :: Korvai
 adi_muktayi_misra = date 2019 2 26 $ ganesh $ korvai Tala.misra_chapu mridangam
-    [ x3 $ section $ t0 6 . t0 8 . t0 10
+    [ x3 $ s $ t0 6 . t0 8 . t0 10
         . tri (sd p6) .__.__. oknp.tri (sd (tat.__.p6))
         .__.__. ktktoknp.tri (sd (tat.__.di.__.p6))
     ]
@@ -1127,9 +1124,9 @@ misra_trikalam = trikalam $ date 2018 8 20 $ ganesh $
 
         . tat.__3.din_nana.din.__.p6.tam.__4.p6
         . ta.taka.din_nana.din.__.p6.dim.__4.p6
-    , section $ theme
-    , section $ nadai 6 theme
-    , section $ su theme
+    , s $ theme
+    , s $ nadai 6 theme
+    , s $ su theme
     ]
     where
     theme = mconcat $ map (group • sd)

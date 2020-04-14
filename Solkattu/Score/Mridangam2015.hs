@@ -13,7 +13,7 @@ import Solkattu.Dsl.Mridangam
 c_1 :: Korvai
 c_1 = akash $ date 2015 1 1 $ tekha $
     comment "rupak hindustani = 2 * misra chapu" $
-    korvai Tala.misra_chapu $ map section
+    korvaiS Tala.misra_chapu
     [ sd $ i. __.i. __.n. __.od.__.  n.__.od.__. n. __
     , sd $ p&i.k.p&i.__.n.k .od.o&k.p&n.k.od.o&k.p&n.k
     , sd $ od.__.k.od.__.k  .od.o&k.p&n.k.od.o&k.p&n.k
@@ -22,7 +22,7 @@ c_1 = akash $ date 2015 1 1 $ tekha $
 
 c_2 :: Korvai
 c_2 = akash $ date 2015 1 1 $ tekha $
-    korvai adi $ map section $ map (nadai 6 • sd)
+    korvaiS adi $ map (nadai 6 • sd)
     [ r2 $ r2 (n.d.n.n.d.k) & (o.__.o.o.p.__ . __.__.o.o.__.__)
     , r3 (on.ktpk.p&n.ktok) . on.p&n.__.on.p&n.__
     ]
@@ -32,7 +32,7 @@ c_2 = akash $ date 2015 1 1 $ tekha $
 
 c_3 :: Korvai
 c_3 = akash $ date 2015 1 1 $ tekha $ comment "14 beats" $
-    korvai Tala.misra_chapu $ map section
+    korvaiS Tala.misra_chapu
     [ sd $ on.od.__.on.on.od.__.n.p&d.__.on.on.od.__
     , sd $ r2 (n.d.l.n.l.d.l) & (o.__3.o.__.o.__.p.__3.o.__.o.__)
     , sarvaD_ 5 . r2 (nadai 6 (n.p.kt.pk))

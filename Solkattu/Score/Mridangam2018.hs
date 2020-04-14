@@ -246,7 +246,7 @@ exercises_18_12_19 =
     ]
 
 e_npkt :: Korvai
-e_npkt = exercise $ ganesh $ korvai1 adi $ section $
+e_npkt = exercise $ ganesh $ korvaiS1 adi $
     r2 $ su $ r2 (n.p.k . tri (t.p.k)) . nakatiku
 
 e_18_12_19 :: Korvai -- 65mm, to 85mm

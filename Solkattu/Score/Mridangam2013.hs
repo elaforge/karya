@@ -86,41 +86,41 @@ dinnagina_sequence_old = date 2013 9 11 $ ganesh $ sequenceT $ korvaiS1 adi $
 -- or __ for takataka dinnatat
 dinnagina_sequences :: Korvai
 dinnagina_sequences = date 2013 9 11 $ korvai adi
-    [ section $ mconcat $ make_dinna
+    [ s $ mconcat $ make_dinna
         (o.__.k.__.o.k.t.k.o.k.t.k.o.k.t.k) t o
         (o.k.t.k.o.k)
         (p.k.t.k.p.k)
-    , section $ mconcat $ make_dinna
+    , s $ mconcat $ make_dinna
         (o.__.k.__.o.k.t.k.o.k.t.k.o.k.o.k) t o
         (t.k.o.k.o.k) -- maybe? TODO verify
         (t.k.p.k.p.k)
-    , dateS 2013 9 18 $ section $ mconcat $ make_dinna
+    , dateS 2013 9 18 $ s $ mconcat $ make_dinna
         (o.__.k.__.o.k.t.k.o.k.o.k.o.u.__.k) t o
         (k.o.o.u.__.k)
         (k.o.p.u.__.k)
     -- TODO drop following dhom, but only if it was preceded by a theme,
     -- not sarva.
-    , dateS 2013 10 9 $ section $ mconcat $ make_dinna
+    , dateS 2013 10 9 $ s $ mconcat $ make_dinna
         (o.__.k.__.o.k.t.k.o.k.t.k.o.k.k.__) t __
         (o.k.k.__.__.__)
         (p.k.k.__.__.__)
-    , dateS 2013 10 24 $ section $ mconcat $ make_dinna
+    , dateS 2013 10 24 $ s $ mconcat $ make_dinna
         (o.__.k.__.o.k.t.k.o.k.o.k.o.k.k.o) t o
         (o.k.o.k.k.o)
         (p.k.p.k.k.o)
-    , dateS 2013 10 29 $ section $ mconcat $ make_dinna
+    , dateS 2013 10 29 $ s $ mconcat $ make_dinna
         (o.__.k.__.o.o.k.n.o.o.k.n.o.o.k.n) p o
         (o.o.k.n.o.k)
         (p.p.k.n.p.k)
-    , dateS 2013 10 29 $ section $ mconcat $ make_dinna
+    , dateS 2013 10 29 $ s $ mconcat $ make_dinna
         (o.__.k.n.o.o.k.n.o.__.k.n.o.o.k.n) p o
         (o.o.k.n.o.k)
         (p.p.k.n.p.k)
-    , dateS 2019 4 8 $ section $ mconcat $ make_dinna
+    , dateS 2019 4 8 $ s $ mconcat $ make_dinna
         (r2 (o.k.o.n.su (kt.o.k)) . o.n.su (kt.o.k)) o o
         (o.k.o.n.su (kt.p.k))
         (p.k.p.n.su (kt.o.k))
-    , dateS 2019 4 29 $ section $ mconcat $
+    , dateS 2019 4 29 $ s $ mconcat $
         -- TODO this is an awkward way to do exceptions, but I can't think of
         -- anything more clever.  Ideally I'd want to have 'make_dinna's where
         -- clause in scope, but that would require a macro.

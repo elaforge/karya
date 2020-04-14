@@ -233,11 +233,11 @@ sandi dropped = dropM_ (matrasOf dropped)
 tri :: SequenceT sollu -> SequenceT sollu
 tri = tri_ mempty
 
--- | Repeat thrice, with the given separator.  The _m variant doesn't
+-- | Repeat thrice, with the given separator.  The _nomid variant doesn't
 -- add the 'mid' tag, which is useful for nested calls.
-tri_, tri_m :: SequenceT sollu -> SequenceT sollu -> SequenceT sollu
+tri_, tri_nomid :: SequenceT sollu -> SequenceT sollu -> SequenceT sollu
 tri_ sep a = a <> sep <> a <> trySetTag mid sep <> a
-tri_m sep a = a <> sep <> a <> sep <> a
+tri_nomid sep a = a <> sep <> a <> sep <> a
 
 tri123 :: SequenceT sollu -> SequenceT sollu -> SequenceT sollu
 tri123 sep a = a <> sep <> a<>a <> sep <> a<>a<>a

@@ -8,7 +8,7 @@ import Solkattu.Dsl.Mridangam
 
 
 e_naka :: Korvai
-e_naka = sarvalaghu $ ganesh $ date 2019 3 14 $ korvai1 adi $ section $
+e_naka = sarvalaghu $ ganesh $ date 2019 3 14 $ korvaiS1 adi $
     n.k.o.od.__.k.on.k . o & r3 (n.k.p.d.__.k.n.k)
 
 e_19_03_20 :: Korvai
@@ -249,11 +249,11 @@ e_19_06_17 = date 2019 6 17 $ ganesh $ exercise $ korvaiS adi
 c_19_06_24_a :: Korvai
 c_19_06_24_a = date 2019 6 24 $ ganesh $
     similarTo "Mridangam2019" "c_19_06_24_b"  $ korvai adi
-    [ x2 $ section $ sarvaD_ 6 . su t12
-    , section $ n6 (d.__8 . t12).d.__8 . su t12
-    , section $ n6 (d.__8.t12).d.__4 . su t1 . n6 (d.__4.t1)
-    , section $ r2 $ d.__4.su t1 . n6 (d.__4.t1)
-    , section $ n6 $ d.__4.t1.d.__4 . t1 . tri t1
+    [ x2 $ s $ sarvaD_ 6 . su t12
+    , s $ n6 (d.__8 . t12).d.__8 . su t12
+    , s $ n6 (d.__8.t12).d.__4 . su t1 . n6 (d.__4.t1)
+    , s $ r2 $ d.__4.su t1 . n6 (d.__4.t1)
+    , s $ n6 $ d.__4.t1.d.__4 . t1 . tri t1
     , ending $
         -- TODO I should be able to do this variation automatically with a
         -- replace, see below.
@@ -286,11 +286,11 @@ c_19_06_24_a = date 2019 6 24 $ ganesh $
 c_19_06_24_b :: Korvai
 c_19_06_24_b = date 2019 6 24 $ ganesh $
     similarTo "Mridangam2019" "c_19_06_24_a" $ korvai adi
-    [ section $ sarvaD_ 6 . t12
-    , x2 $ section $ n3 (od.__4 . t12) . n4 (od.__8 . t12)
-    , section $ n3 (od.__4 . t12) . n4 (od.__4 . t2) . n3 (od.__.t2)
-    , section $ r2 $ od.__4.t2 . n3 (od.__.t2)
-    , section $ n3 $ od.__.t2.od.__.t2 . tri t2
+    [ s $ sarvaD_ 6 . t12
+    , x2 $ s $ n3 (od.__4 . t12) . n4 (od.__8 . t12)
+    , s $ n3 (od.__4 . t12) . n4 (od.__4 . t2) . n3 (od.__.t2)
+    , s $ r2 $ od.__4.t2 . n3 (od.__.t2)
+    , s $ n3 $ od.__.t2.od.__.t2 . tri t2
     , ending $
         t12.o.__.k.__ . n3 (od.__4.t.k.k.o.o.k.o.__.k.__.od)
         . n4 (__5.t2.o.__.k.__) . n3 (od.__4.o.__.k.__.od.__4)
