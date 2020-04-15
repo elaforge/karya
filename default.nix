@@ -99,11 +99,6 @@ in rec {
   wantPkg = pkg:
     # nix gets the "ghc" package confused with the compiler.
     pkg != "ghc"
-    # writer-cps-mtl 0.1.1.6 gets
-    # writer-cps-transformers, which wants transformers >=0.5.6.0
-    # but ghc 8.4.4 has transformers-0.5.5.0
-    # So I have to use writer-cps-transformers <=0.5.5.0
-    # && pkg != "writer-cps-mtl";
     ;
 
   hackage = ghc.ghcWithPackages (pkgs: map (pkg: pkgs."${pkg}") (

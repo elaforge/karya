@@ -3373,7 +3373,7 @@ shakefile: build:
   reduce dependencies:
     - haskell-src, use another pretty printer
     - QuickCheck, use hedgehog instead
-    + semigroups
+    * semigroups
     - for indirect deps I need some way to get the paths
       . e.g. whence goes js-jquery, js-flot?  Probably shake.
   * shakefile does nothing with no arg, it should complain

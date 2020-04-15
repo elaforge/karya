@@ -79,7 +79,7 @@ basicPackages = concat
     , w "deepseq data-ordlist cereal random text stm network"
     , [("transformers", ">=0.4"), ("mtl", ">=2.2.1")]
     , w "writer-cps-mtl"
-    , w "vector utf8-string semigroups"
+    , w "vector utf8-string"
     , [("extra", ">=1.3")]
     , w "c-storable"
     -- shakefile
@@ -93,7 +93,6 @@ basicPackages = concat
     , w "async" -- Util.Process
     , w "dlist" -- Util.TimeVector
     , w "hedgehog" -- Util.Test
-    -- , w "math-functions" -- Util.Num
     , w "pretty haskell-src" -- Util.PPrint
     , w "wcwidth" -- Util.Format
     , w "zlib" -- Util.File
@@ -102,8 +101,7 @@ basicPackages = concat
     , w "attoparsec" -- Derive: tracklang parsing
     , w "hlibgit2"
     , [("fclabels", ">=2")]
-    , [("ghc", ">=7.10")] -- REPL
-    , w "ghc-paths haskeline terminfo" -- REPL
+    , w "ghc ghc-paths haskeline terminfo" -- REPL
     -- Derive: score randomization
     , w "mersenne-random-pure64 digest random-shuffle"
     -- Has better errors that attoparsec.  TODO: try replacing attoparsec with
