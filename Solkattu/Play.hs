@@ -2,8 +2,14 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 -- | Convert solkattu to audio via karya score, and play it.
-module Solkattu.Play where
+module Solkattu.Play (
+    play_m
+#ifdef TESTING
+    , module Solkattu.Play
+#endif
+) where
 import qualified Control.Concurrent.Async as Async
 import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Concurrent.MVar as MVar
@@ -61,6 +67,7 @@ import           Global
 import           Types
 
 
+-- | Play mridangam realization for the korvai.
 play_m :: RealTime -> Korvai.Korvai -> IO ()
 play_m = play_instrument Korvai.mridangam
     (InstTypes.Qualified "sampler" "mridangam-d")

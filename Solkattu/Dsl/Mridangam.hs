@@ -12,7 +12,6 @@ module Solkattu.Dsl.Mridangam (
     module Solkattu.Dsl.Mridangam
     , module Solkattu.Dsl.Generic
     , module Solkattu.Dsl.Interactive
-    , play_m
 ) where
 import           Prelude hiding ((.))
 
@@ -31,7 +30,6 @@ import qualified Solkattu.Tala as Tala
 
 import           Global
 import           Solkattu.Dsl.Generic
-import           Solkattu.Play (play_m)
 
 
 type Sequence = SequenceT Stroke

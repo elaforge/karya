@@ -5149,6 +5149,8 @@ REPL: repl:
     could also get rid of the need for Cmd.Lang.Environ to import everything.
 
 solkattu:
+  * the dep on Solkattu.Play.play_m is just too heavy for repl use
+    . But I'd like to be able to add it in when I want it
   notation conveniences:
     * s = section
     - g = group
@@ -5205,7 +5207,7 @@ solkattu:
         4: din.__.din.__ etc., 5: din.__.din.__3 etc.
       . tk, tktu - these fill 1 and 2 respectively
   - Transcribing ad-hoc things and sarvalaghu mixed with korvai is awkward.
-  - Duration is supposedly absolute, but it only works at the toplevel.
+  - Duration is supposedly absolute, but it only works at the top level.
     So it's awkward when everything is in tisram, I do 'map (nadai 6)' and now
     sarvaD is wrong.
     . One way is to store as Duration, and then do a Duration normalization
@@ -5303,8 +5305,10 @@ solkattu:
       automatically.  If I have my own sampler it's easy though.  I can either
       run karya headless, or just bypass and generate im notes directly via
       the solkattu library.
-  - How can I do a reduction with irregular bits?  E.g. replace the
+  / How can I do a reduction with irregular bits?  E.g. replace the
     4 matra version tat.__.din.__ with ta.ka.din.__.
+    . I think I just write out the prefixes manually.  I can use dropM if I
+      really want the solkattu map to work out.
   . Solkattu2017.c_17_07_13 is showing the difficulty of the
     (solkattu, stroke_map) approach, because there are too many meanings
     for taka and din.  Really if it's meant to be useful for different
@@ -5397,6 +5401,7 @@ solkattu:
     instrument, keyed by string, e.g. for different mridangists
     realizations.
   - Duration assertions, e.g. matra 4 (ta.ka.din.na)
+    . Good for both documentation and checking.
   pakhawaj:
     - integrate pakhawaj bols
       . I think I need "kre" support.
