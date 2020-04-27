@@ -24,8 +24,24 @@ type NoteT sollu = S.Note Solkattu.Group (Solkattu.Note sollu)
 type Stroke = Realize.Stroke Mridangam.Stroke
 
 merge :: CallStack.Stack => [NoteT Stroke] -> [NoteT Stroke] -> [NoteT Stroke]
-merge as bs = Notation.speed maxSpeed $ map merge1 pairs
+merge as bs = case (as, bs) of
+    ([S.Note (Solkattu.Note a)], bs) -> single (Solkattu._sollu a) bs
+    (as, [S.Note (Solkattu.Note b)]) -> single (Solkattu._sollu b) as
+    _ -> Notation.speed maxSpeed $ map merge1 pairs
     where
+    -- As a special case, if I'm merging a single stroke with a sequence,
+    -- retain the structure of the sequence.  This way it won't destroy a
+    -- group to modify the first stroke.
+    single :: Stroke -> [NoteT Stroke] -> [NoteT Stroke]
+    single stroke [] = [makeNote1 stroke]
+    single stroke (a:as) = (:as) $ case a of
+        S.Note (Solkattu.Note n) ->
+            makeNote1 $ Mridangam.bothRStrokes stroke (Solkattu._sollu n)
+        S.Note (Solkattu.Space _) -> makeNote1 stroke
+        S.Note n -> Solkattu.throw $ "can't merge with " <> pretty n
+        S.TempoChange change subs -> S.TempoChange change (single stroke subs)
+        S.Group g subs -> S.Group g (single stroke subs)
+
     -- At this point TempoChanges and Groups should have been flattened away.
     merge1 (Seq.First a) = a
     merge1 (Seq.Second b) = b

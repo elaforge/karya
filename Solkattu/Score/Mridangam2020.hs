@@ -95,15 +95,21 @@ sarva_20_02_27 = date 2020 2 27 $ ganesh $ sarvalaghu $ korvai adi $
     , s $ repeat 3 (d.__.n.o.k&p) . d.__.n.o . tri (group (k.o.o.k.n.p.k))
 
     , s $ o.__5.__5.k .d_N_ND_N.ktok . o&d_n_nd_n.ktpk.d_n_nd_n.ktok
-    , s $ r2 (d_N_ND_N.ktok) . o&d_n_nd_n.ktpk . od.__.k.t.__.k.__.n.__.o
-    , s $ d_N_ND_N.ktok .od.__.k.t.__.k.__.n.__.o
-        . d_n_nd_n.ktpk . d.__.k.t.__.k.__.n.__.o
-    , s $ d_N_ND_N.ktok .od.__.takitatatakadinna
-        . d_n_nd_n.ktpk . d.__.takitatatakadinna
+    , s $ r2 (d_N_ND_N.ktok) . o&d_n_nd_n.ktpk . d.p.k.t.__.k.__.n.__.o
+    , s $  d_N_ND_N.ktpk .d.p.k.t.__.k.__.n.__.o
+        .o&d_n_nd_n.ktpk .d.p.k.t.__.k.__.n.__.o
+    , s $  d_N_ND_N.ktok .od.__.takitatatakadinna
+        .o&d_n_nd_n.ktpk . d.__.takitatatakadinna
     , s $ r2 $ r2 takitatatakadinna.o.__.k.__ -- 8 2 8 2
     , s $ r2 $ takitatatakadinna.od.__.p.k.__.t.__.k.__.ktkt.o -- (8 3 9) * 2
-    , s $ on.k . takitatatakadinna.od.__.p. tri (k.__.t.__.k.__.ktkt.o)
         -- 2 8 3 999
+    , s $ on.k . takitatatakadinna.od.__.p. tri (k.__.t.__.k.__.ktkt.o)
+    , let nkktk = n.k.k.t.k in
+        s $ k.__5 . __5.k.od.__.k.t.k. r4 nkktk . k.o.o.k.o
+             . r2 (o&v.__.k.t.k. r2 nkktk . k.o.o.k.o)
+    -- tisram in kandam, effectively 7.5 nadai
+    , s $ nadai 15 $ stride 2 $
+        r2 $ o & r4 (group (d.__.p.k.t.k)) . od.__.k.o.o.k
     ]
     where
     takitatatakadinna = group $ on.t.k.p&k.n.o.o.k
@@ -114,6 +120,9 @@ sarva_20_02_27 = date 2020 2 27 $ ganesh $ sarvalaghu $ korvai adi $
     d_N_ND_N = d_n_nd_n & ooo
     ooo    = o.__.o.__.o.o.__.o
     d_n_n = d.__.n.y.n
+    -- make beginning o oo thing cleaner
+    -- pull back on namita dimita
+    -- isolate okotokot ending to make it cleaner
 
 e_20_02_24 :: Korvai
 e_20_02_24 = date 2020 2 24 $ ganesh $ exercise $ korvaiS1 adi $
@@ -124,7 +133,8 @@ e_20_03_27 = date 2020 2 27 $ source "anand" $ exercise $ korvaiS adi $
     map (su • cycle)
     [ n.p.k.__.u.__.pk.nakatiku
     , n.p.k.__.u.__.o.k.n.o.u.o.k.t.o.k
-    , kp.ktkt.o.k . n.o.k.o&t.k.o.o&t.k
+    , n.p.ktkt.o.k . n.o.k.o&t.k.o.o&t.k
+    , on.__.kt.k.o.o&t.k . n.o.kt.k.o.o&t.k
     ]
     where
     cycle = prefixes [prefix p, prefix k, prefix o, prefix n]
