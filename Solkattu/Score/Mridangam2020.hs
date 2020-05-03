@@ -105,11 +105,18 @@ sarva_20_02_27 = date 2020 2 27 $ ganesh $ sarvalaghu $ korvai adi $
         -- 2 8 3 999
     , s $ on.k . takitatatakadinna.od.__.p. tri (k.__.t.__.k.__.ktkt.o)
     , let nkktk = n.k.k.t.k in
-        s $ k.__5 . __5.k.od.__.k.t.k. r4 nkktk . k.o.o.k.o
+        s $ k.__5 . __6.__6.__5.k.od.__.k.t.k. r2 nkktk . k.o.o.k.o
              . r2 (o&v.__.k.t.k. r2 nkktk . k.o.o.k.o)
     -- tisram in kandam, effectively 7.5 nadai
-    , s $ nadai 15 $ stride 2 $
-        r2 $ o & r4 (group (d.__.p.k.t.k)) . od.__.k.o.o.k
+    , s $ nadai 15 $ stride 2 $ -- 12:24
+        let d_ktk = group (d.__.p.k.t.k)
+            d_kook = d.__.k.o.o.k
+        in r2 (o & r4 d_ktk . d_kook) . r4 (d_ktk . d_kook) . r2 d_kook
+    , s $ k.__5 .__M (5*2 + 3).k.__ -- 12:35 -- recording is this way I think
+        . r3 (o & r3 (k.t.k.n.k) . o.v.o.k.__)
+    , x3 $ s $ od.__4 . tsep (ktkno.ktkno) (u.__5) (i.__5)
+        . prefixes [ø, kp, kpnp] (group (k.p.k.od.__.ktkno))
+    -- to farans and mohra
     ]
     where
     takitatatakadinna = group $ on.t.k.p&k.n.o.o.k

@@ -95,8 +95,8 @@ korvais = map Korvai.inferMetadata
     , setLocation ("Solkattu.Score.Mridangam2020",10,"sarva_20_01_27") Solkattu.Score.Mridangam2020.sarva_20_01_27
     , setLocation ("Solkattu.Score.Mridangam2020",47,"sarva_20_02_10") Solkattu.Score.Mridangam2020.sarva_20_02_10
     , setLocation ("Solkattu.Score.Mridangam2020",77,"sarva_20_02_27") Solkattu.Score.Mridangam2020.sarva_20_02_27
-    , setLocation ("Solkattu.Score.Mridangam2020",127,"e_20_02_24") Solkattu.Score.Mridangam2020.e_20_02_24
-    , setLocation ("Solkattu.Score.Mridangam2020",131,"e_20_03_27") Solkattu.Score.Mridangam2020.e_20_03_27
+    , setLocation ("Solkattu.Score.Mridangam2020",134,"e_20_02_24") Solkattu.Score.Mridangam2020.e_20_02_24
+    , setLocation ("Solkattu.Score.Mridangam2020",138,"e_20_03_27") Solkattu.Score.Mridangam2020.e_20_03_27
     , setLocation ("Solkattu.Score.MridangamSarva",19,"kir1") Solkattu.Score.MridangamSarva.kir1
     , setLocation ("Solkattu.Score.MridangamSarva",24,"kir2") Solkattu.Score.MridangamSarva.kir2
     , setLocation ("Solkattu.Score.MridangamSarva",44,"kir3") Solkattu.Score.MridangamSarva.kir3
