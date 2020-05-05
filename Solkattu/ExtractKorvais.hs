@@ -20,6 +20,7 @@ main = do
         (extract . ExtractHs.typeDeclarations . ExtractHs.stripComments)
         generate
 
+-- | Extract "something :: Korvai" lines.
 extract :: [(Int, (Text, Text))] -> [(Int, Text)] -- ^ (lineno, variableName)
 extract = mapMaybe $ \(lineno, (variable, type_)) -> if type_ == "Korvai"
     then Just (lineno, variable) else Nothing

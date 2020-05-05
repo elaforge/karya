@@ -830,47 +830,26 @@ e_sarva1_tisra = exercise $ date 2018 7 25 $ sudhindra $
         , (din, od)
         ]
 
--- takadimi takajonu
--- where l is only slighly on saddam
--- n.l.d.d
--- increase the speed
--- also n.d.d.d
-
-e_adi_tisra_misra1, e_adi_tisra_misra2 :: Korvai
-(e_adi_tisra_misra1, e_adi_tisra_misra2) =
-    ( date 2019 2 26 $ ganesh $ let sarva = sarva1 in
-        korvaiS Tala.misra_chapu mridangam $ map (nadai 3)
-        [ sarva 7
-        , sarva 6 . tarikitadiku
-        , sarva 2 . tarikitadiku . sarva 3 . tarikitadiku
-        , sarva 1 . tarikitadiku . sarva 1 . tarikitadiku
-            . sarva 1 . tarikitadiku
-            . tarikitadiku . sarva 1 . tarikitadiku . sarva 1
-            . tri_ (din.__3) tarikitadiku
-        ] ++ ending
-
-    , date 2019 4 14 $ ganesh $ let sarva = sarva2 in
-        korvaiS Tala.misra_chapu mridangam $ map (nadai 3)
-        [ sarva 7
-        , sarva 6 . tarikitadiku
-        , sarva 2.5 . tarikitadiku . sarva 2.5 . tarikitadiku
-        , sarva 1 . tarikitadiku . sarva 1 . tarikitadiku
-            . sarva 1 . tarikitadiku
-            . tarikitadiku . sarva 1 . tarikitadiku . sarva 1
-            . tri_ (din.__3) tarikitadiku
-        , sarva_with (tri dinnakttk)
-        , sarva_with trktkt3
-        , sarva_with (r2 takadinnakttk)
-        ] ++ ending
-    )
+e_adi_tisra_misra2 :: Korvai
+e_adi_tisra_misra2 = date 2019 4 14 $ ganesh $
+    korvaiS Tala.misra_chapu mridangam $ map (nadai 3)
+    [ sarva 7
+    , sarva 6 . tarikitadiku
+    , sarva 2.5 . tarikitadiku . sarva 2.5 . tarikitadiku
+    , sarva 1 . tarikitadiku . sarva 1 . tarikitadiku
+        . sarva 1 . tarikitadiku
+        . tarikitadiku . sarva 1 . tarikitadiku . sarva 1
+        . tri_ (din.__3) tarikitadiku
+    , sarvaWith (tri dinnakttk)
+    , sarvaWith trktkt3
+    , sarvaWith (r2 takadinnakttk)
+    ] ++ ending
     where
-    sarva2 dur = sarvaD sarva2Sollu (dur * 1.5)
-    sarva2Sollu = r2 $ taka.ta.ta.dim.__.ta.dim.__ . r2 (taka.ta.ta.dim.__)
-
-    sarva_with end = sarva2 5 . end
-        . sarva2 1.5 . end . sarva2 1.5 . end
-
-    ending =
+    sarva dur = sarvaD sarvaSollu (dur * 1.5)
+    sarvaSollu = r2 $ taka.ta.ta.dim.__.ta.dim.__ . r2 (taka.ta.ta.dim.__)
+    sarvaWith end = sarva 5 . end
+        . sarva 1.5 . end . sarva 1.5 . end
+    ending = map (nadai 3)
         [ r5 takadinnakttk . tri dinnakttk
         , r5 takadinnakttk . din_trktkt
         , r2 $ takadinnakttk . tang.kttk . din_trktkt
@@ -880,11 +859,6 @@ e_adi_tisra_misra1, e_adi_tisra_misra2 :: Korvai
         ]
         where tarikita = takeM 3 tarikitadiku
 
-    -- TODO share the where-clause with e_adi_tirsa, except this adds tang.kttk
-
-    -- Duration is off due to map nadai 6.  TODO this is pretty awkward.
-    sarva1 dur = sarvaD sarvaSollu (dur * 1.5)
-    sarvaSollu = r4 $ taka.ta.ta.dim.__
     tarikitadiku = named "6npkt" $ su $ tari.kita.taka.diku.kita.taka
     dinnakttk = group $ din.na.kttk
     trktkt3 = tri trktkt
@@ -894,12 +868,10 @@ e_adi_tisra_misra1, e_adi_tisra_misra2 :: Korvai
     -- will prevent the full din_trktkt match.
     din_trktkt = din.__.trkt.kttk.tarikitadiku
     mridangam = makeMridangam
-        [ (sarvaSollu, let rh = n.k.n.n.d.__ in
-              rh & strM "o_ooo_" . rh & strM "__ooo_" . rh & o . rh)
-        , (tarikitadiku, n.p.k.t.p.k.t.p.k.t.p.k)
+        [ (tarikitadiku, n.p.k.t.p.k.t.p.k.t.p.k)
         , (dinnakttk, o.n.k.t.o.k)
         , (taka.dinnakttk, o.k.o.n.k.t.o.k)
-        , (taka, o.k)
+        -- , (taka, o.k)
         -- High speed variant of trktkt drops the tha.
         -- Say din.__.tari.kita.kita.taka,
         -- play din.__.nang.__.kita.kita.taka
@@ -908,7 +880,7 @@ e_adi_tisra_misra1, e_adi_tisra_misra2 :: Korvai
         , (din, od)
 
         , (tang.kttk, on.k.t.o.k)
-        , (sarva2Sollu,
+        , (sarvaSollu,
               strM "n_nnd_nd_" & strM "o_ooo_oo_"
             . strM "n_nnd_n_nnd_" & strM "o_ooo_o_ooo_"
             . strM "n_nnd_nd_" & o
