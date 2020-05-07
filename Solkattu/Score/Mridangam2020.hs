@@ -147,6 +147,16 @@ e_20_03_27 = date 2020 2 27 $ source "anand" $ exercise $ korvaiS adi $
     cycle = prefixes [prefix p, prefix k, prefix o, prefix n]
     prefix stroke = stroke.__.ktkt.pk.nakatiku
 
+e_20_05_01 :: Korvai
+e_20_05_01 = date 2020 5 1 $ source "anand" $ exercise $ korvaiS adi
+    [ r2 $ rh & strM "ó_oó_oó"
+    , r2 $ rh & strM "ó_oó_oó____p__p"
+    , r2 $ rh & strM "oóoo_oo_oóoo"
+    , r2 $ rh & strM "oóoo_oo_oóoo_pp"
+    ]
+    where
+    rh = r4 $ n.k.t.k
+
 {-
     thani:
     tang -- kitakitataka

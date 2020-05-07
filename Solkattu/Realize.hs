@@ -446,21 +446,26 @@ type Realized stroke = S.Flat (Group (Stroke stroke)) (Note stroke)
 
 realize :: (Pretty sollu, Ord sollu)
     => StrokeMap stroke -> ToStrokes sollu stroke
-    -> [S.Flat Solkattu.Group (Solkattu.Note sollu)]
+    -> Tala.Tala -> [S.Flat Solkattu.Group (Solkattu.Note sollu)]
     -> (UF.UntilFail Error (Realized stroke), Set (SolluMapKey sollu))
 realize smap = realize_ (realizePattern (smapPatternMap smap))
-    -- TODO just pass PatternMap, since I don't parameterize anymore
-    -- well, except Korvai.matchedSollus
+    -- TODO just pass PatternMap, since I don't parameterize anymore.
+    -- Well, except Korvai.matchedSollus.
 
 realize_ :: (Pretty sollu, Ord sollu)
     => RealizePattern S.Tempo stroke -> ToStrokes sollu stroke
-    -> [S.Flat Solkattu.Group (Solkattu.Note sollu)]
+    -> Tala.Tala -> [S.Flat Solkattu.Group (Solkattu.Note sollu)]
     -> (UF.UntilFail Error (Realized stroke), Set (SolluMapKey sollu))
-realize_ realizePattern toStrokes =
+realize_ realizePattern toStrokes tala =
+    -- The writer keeps track of the set of sollu patterns I've used, so I can
+    -- warn about unused ones.
     Writer.CPS.runWriter
-        . fmap (UF.concatMap convertGroups) . UF.processM realize1
+        . fmap (UF.concatMap convertGroups)
+        . UF.processM realize1
+        . flatToState (S.stateFrom tala 0) -- TODO use eddupu
     where
-    realize1 note@(S.FNote tempo n) notes = case n of
+    flatToState state = snd . S.flatToState Solkattu.flatDuration tala state
+    realize1 (state, note@(S.FNote tempo n)) notes = case n of
         Solkattu.Alignment n -> return $ (,notes) $
             UF.singleton $ S.FNote tempo (Alignment n)
         Solkattu.Space space -> return $ (,notes) $
@@ -476,13 +481,14 @@ realize_ realizePattern toStrokes =
                 , _name = Nothing
                 , _type = Solkattu.GPattern
                 }
-        Solkattu.Note {} -> case findSequence toStrokes (note : notes) of
-            Left err -> return (UF.Fail err, notes)
-            Right (matched, (strokes, remain)) -> do
-                Writer.tell $ Set.singleton matched
-                return (UF.fromList strokes, remain)
-    realize1 (S.FGroup tempo group children) notes = do
-        (,notes) <$> realizeGroup tempo group children
+        Solkattu.Note {} ->
+            case findSequence toStrokes ((state, note) : notes) of
+                Left err -> return (UF.Fail err, notes)
+                Right (matched, (strokes, remain)) -> do
+                    Writer.tell $ Set.singleton matched
+                    return (UF.fromList strokes, remain)
+    realize1 (state, S.FGroup tempo group children) notes =
+        (,notes) <$> realizeGroup tempo group (flatToState state children)
     realizeGroup tempo
             (Solkattu.GMeta m@(Solkattu.Meta (Just matras) _ Solkattu.GSarva))
             children
@@ -491,7 +497,7 @@ realize_ realizePattern toStrokes =
             -- relies on an explicit Abstract since it flattens out groups.
             UF.singleton $ S.FGroup tempo (Solkattu.GMeta m)
                 [S.FNote tempo (Abstract m)]
-        | otherwise = case realizeSarva toStrokes tempo matras children of
+        | otherwise = case realizeSarva toStrokes tala tempo matras children of
             Left err -> return $ UF.Fail $ "sarva: " <> err
             Right (matched, strokes) -> do
                 Writer.tell $ Set.singleton matched
@@ -511,19 +517,29 @@ realize_ realizePattern toStrokes =
 
 -- | Realize a 'Solkattu.GSarva' group, by matching the sollus, and then
 -- cycling the strokes for the given duration.
-realizeSarva :: Pretty sollu => ToStrokes sollu stroke -> S.Tempo
-    -> S.Matra -> [S.Flat g (Solkattu.Note sollu)]
+realizeSarva :: Pretty sollu => ToStrokes sollu stroke -> Tala.Tala -> S.Tempo
+    -> S.Matra -> [(S.State, S.Flat g (Solkattu.Note sollu))]
     -> Either Error (SolluMapKey sollu, [S.Flat g (Note stroke)])
-realizeSarva toStrokes tempo matras children = do
+realizeSarva _ _ _ _ [] = Left "empty sarva group"
+realizeSarva toStrokes tala tempo matras children@((state, _) : _) = do
     (matched, (strokes, left)) <- findSequence toStrokes children
     -- Trailing rests are ok, as long as I include them in the output.
     rests <- tryJust
         ("incomplete match: " <> pretty matched
-            <> ", left: " <> pretty (S.flattenedNotes left))
-        (mapM getRest left)
-    (_left, (strokes, _)) <- splitStrokes dur (cycle (strokes ++ rests))
+            <> ", left: " <> pretty (S.flattenedNotes (map snd left)))
+        (mapM (getRest . snd) left)
+    let cycleDur = fromIntegral (length strokes + length rests)
+            * S.matraDuration tempo
+    -- Sarva should be relative to sam, so shift the cycle by the offset from
+    -- sam.  The fmod isn't necessary, but should be more efficient if the
+    -- cycle is short because then I don't have to generate and throw away
+    -- extra cycles.
+    (_, (_, strokes)) <- splitStrokes (offset `Num.fmod` cycleDur)
+        (cycle (strokes ++ rests))
+    (_, (strokes, _)) <- splitStrokes dur strokes
     return (matched, strokes)
     where
+    offset = S.stateAbsoluteMatra tala state
     getRest (S.FNote tempo (Solkattu.Space space)) =
         Just $ S.FNote tempo (Space space)
     getRest _ = Nothing
@@ -581,6 +597,7 @@ splitStrokes :: S.Duration -> [S.Flat g (Note stroke)]
         ( S.Duration
         , ([S.Flat g (Note stroke)], [S.Flat g (Note stroke)])
         )
+        -- ^ (unusedDur, (pre, post))
 splitStrokes dur [] = Right (dur, ([], []))
 splitStrokes dur notes | dur <= 0 = Right (dur, ([], notes))
 splitStrokes dur (note : notes) = case note of
@@ -623,13 +640,14 @@ makeSpace tempo space dur = map make <$> S.decompose s0_matras
 -- | Find the longest matching sequence and return the match and unconsumed
 -- notes.
 findSequence :: Pretty sollu => ToStrokes sollu stroke
-    -> [S.Flat g (Solkattu.Note sollu)]
+    -> [(state, S.Flat g (Solkattu.Note sollu))]
     -> Either Error
         ( SolluMapKey sollu
         , ( [S.Flat g (Note stroke)]
-          , [S.Flat g (Solkattu.Note sollu)]
+          , [(state, S.Flat g (Solkattu.Note sollu))]
           )
         )
+        -- ^ (matched, (strokes, remaining))
 findSequence toStrokes notes =
     case bestMatch tag sollus toStrokes of
         Nothing -> Left $ "sequence not found: " <> pretty sollus
@@ -637,7 +655,7 @@ findSequence toStrokes notes =
             Right (matched, replaceSollus strokes notes)
     where
     -- Collect only sollus and rests.  This stops at a group boundary.
-    pre = fst $ Seq.span_while noteOf notes
+    pre = fst $ Seq.span_while (noteOf . snd) notes
     sollus = map Solkattu._sollu $ mapMaybe snd pre
     noteOf (S.FNote tempo n) = (tempo,) <$> case n of
         Solkattu.Note n -> Just $ Just n
@@ -650,15 +668,15 @@ findSequence toStrokes notes =
 -- | Match each stroke to a Sollu, copying over Rests without consuming
 -- a stroke.
 replaceSollus :: [Maybe (Stroke stroke)] -- ^ Nothing means a rest
-    -> [S.Flat g (Solkattu.Note sollu)]
-    -> ([S.Flat g (Note stroke)], [S.Flat g (Solkattu.Note sollu)])
+    -> [(state, S.Flat g (Solkattu.Note sollu))]
+    -> ([S.Flat g (Note stroke)], [(state, S.Flat g (Solkattu.Note sollu))])
 replaceSollus [] ns = ([], ns)
     -- I should be out of strokes before I get here, so this shouldn't happen.
     -- I could pass [(S.Tempo, Solkattu.Note sollu)], but then I have to
     -- recreate a S.FGroup for everything in the tail, which is potentially
     -- quadratic.
-replaceSollus (_ : _) ns@(S.FGroup {} : _) = ([], ns)
-replaceSollus (stroke : strokes) (S.FNote tempo n : ns) = case n of
+replaceSollus (_ : _) ns@((_, S.FGroup {}) : _) = ([], ns)
+replaceSollus (stroke : strokes) ((_, S.FNote tempo n) : ns) = case n of
     Solkattu.Note _ ->
         first (S.FNote tempo rnote :) $ replaceSollus strokes ns
         where rnote = maybe (Space Solkattu.Rest) Note stroke

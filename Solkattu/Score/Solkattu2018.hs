@@ -871,7 +871,6 @@ e_adi_tisra_misra2 = date 2019 4 14 $ ganesh $
         [ (tarikitadiku, n.p.k.t.p.k.t.p.k.t.p.k)
         , (dinnakttk, o.n.k.t.o.k)
         , (taka.dinnakttk, o.k.o.n.k.t.o.k)
-        -- , (taka, o.k)
         -- High speed variant of trktkt drops the tha.
         -- Say din.__.tari.kita.kita.taka,
         -- play din.__.nang.__.kita.kita.taka

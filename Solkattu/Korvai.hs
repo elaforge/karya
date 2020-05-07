@@ -284,7 +284,7 @@ realizeInstrument :: (Ord sollu, Pretty sollu, Solkattu.Notation stroke)
     -> Section sollu -> Either Error ([Flat stroke], Error)
 realizeInstrument toStrokes inst tala section = do
     realized <- Realize.formatError $ fst $
-        Realize.realize inst toStrokes $
+        Realize.realize inst toStrokes tala $
         flatten (sectionSequence section)
     let alignError = Realize.verifyAlignment tala
             (sectionStart section) (sectionEnd section)
@@ -299,18 +299,20 @@ realizeInstrument toStrokes inst tala section = do
 allMatchedSollus :: Instrument stroke -> Korvai
     -> Set (Realize.SolluMapKey Solkattu.Sollu)
 allMatchedSollus instrument korvai = case korvaiSections korvai of
-    Sollu sections ->
-        mconcatMap (matchedSollus (instFromSollu instrument solluMap)) sections
+    Sollu sections -> mconcatMap
+        (matchedSollus (instFromSollu instrument solluMap) (korvaiTala korvai))
+        sections
     Mridangam {} -> mempty
     where
     solluMap = either mempty Realize.smapSolluMap smap
     smap = instStrokeMap instrument (korvaiStrokeMaps korvai)
 
 matchedSollus :: (Pretty sollu, Ord sollu)
-    => Realize.ToStrokes sollu stroke -> Section sollu
+    => Realize.ToStrokes sollu stroke -> Tala.Tala -> Section sollu
     -> Set (Realize.SolluMapKey sollu)
-matchedSollus toStrokes =
-    snd . Realize.realize_ dummyPattern toStrokes . flatten . sectionSequence
+matchedSollus toStrokes tala =
+    snd . Realize.realize_ dummyPattern toStrokes tala . flatten
+        . sectionSequence
     where
     -- Since I'm just looking for used sollus, I can just map all patterns to
     -- rests.  I probably don't have to bother to get the duration right, but

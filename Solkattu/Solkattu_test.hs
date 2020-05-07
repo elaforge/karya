@@ -43,6 +43,13 @@ test_durationOf = do
     equal (f (G.nadai 7 (tas 7))) 1
     equal (f (G.nadai 7 $ G.dropM 2 (tas 9))) 1
 
+test_flatDuration = do
+    let f = map Solkattu.flatDuration . S.flatten
+    equal (f ta) [1/4]
+    equal (f $ G.pat 5) [5/4]
+    equal (f $ G.dropM 1 (ta <> ki <> ta)) [2/4]
+    equal (f $ G.sarvaM (ta <> di) 5) [5/4]
+
 test_cancelKarvai = do
     let f = Text.unwords . map pretty . S.flattenedNotes
             . Solkattu.cancelKarvai . S.flatten

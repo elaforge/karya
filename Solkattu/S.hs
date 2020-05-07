@@ -26,11 +26,16 @@ module Solkattu.S (
     , Flat(..)
     , filterFlat, mapGroupFlat
     , notes, flatten, flattenWith, flattenedNotes
-    , tempoToState, withDurations
-    , tempoNotes, flatDuration, maxSpeed
+    , flatToState
+    , withDurations
+    , tempoNotes
+    , maxSpeed
+    , tempoToState
     , Stroke(..), normalizeSpeed, flattenSpeed
     -- * State
-    , State(..), statePosition, stateMatraPosition, showPosition
+    , State(..), statePosition, stateMatraPosition, stateAbsoluteMatra
+    , stateFrom
+    , showPosition
     -- * functions
     , durationOf, noteDuration, noteFMatra, fmatraDuration, durationFMatra
     , matraFMatra
@@ -210,6 +215,10 @@ filterNotes f = mapMaybe $ \case
 data Flat g a = FGroup !Tempo !g ![Flat g a] | FNote !Tempo !a
     deriving (Eq, Show, Functor)
 
+flatTempo :: Flat g a -> Tempo
+flatTempo (FGroup t _ _) = t
+flatTempo (FNote t _) = t
+
 instance (Pretty g, Pretty a) => Pretty (Flat g a) where
     pretty (FGroup tempo g notes) = pretty (tempo, g, notes)
     pretty (FNote tempo note) = pretty (tempo, note)
@@ -256,14 +265,6 @@ tempoNotes = concatMap $ \n -> case n of
     FGroup _ _ children  -> tempoNotes children
     FNote tempo note -> [(tempo, note)]
 
--- | This should be equivalent to but more efficient than
--- @sum . map (uncurry noteDuration) . tempoNotes@
-flatDuration :: HasMatras a => [Flat g a] -> Duration
-flatDuration = List.foldl' dur 0
-    where
-    dur accum (FGroup _ _ children) = List.foldl' dur accum children
-    dur accum (FNote tempo note) = accum + noteDuration tempo note
-
 maxSpeed :: [Flat g a] -> Speed
 maxSpeed = maximum . (_speed defaultTempo :) . map _speed . tempoOf
     where
@@ -273,6 +274,10 @@ maxSpeed = maximum . (_speed defaultTempo :) . map _speed . tempoOf
     -- If I use tempoNotes, I miss the Tempos at FGroups, which turn out to be
     -- important.
 
+-- | Convert events with Tempo into events with absolute positions in 'State'.
+--
+-- TODO: I think this is wrong, I need Solkattu.flatDuration
+-- No wait, I think it's correct, because there are no Groups.
 tempoToState :: HasMatras a => Tala.Tala -> Duration -- ^ start time
     -> [(Tempo, a)]
     -> (State, [(State, a)])
@@ -284,7 +289,23 @@ tempoToState tala start = List.mapAccumL toState (stateFrom tala start)
         )
         where dur = noteDuration tempo note
 
+-- | Convert events with Tempo into events with absolute positions in 'State'.
+--
+-- I need to look in the group to know what the actual duration is,
+-- unfortunately.
+flatToState :: (Flat g a -> Duration) -> Tala.Tala -> State
+    -> [Flat g a] -> (State, [(State, Flat g a)])
+flatToState flatDuration tala st = List.mapAccumL toState st
+    where
+    toState state flat =
+        ( advanceStateBy tala (flatDuration flat) state
+        , (state { stateTempo = flatTempo flat }, flat)
+        )
+
 -- | Calculate Duration for each note.
+--
+-- Unlike 'flatToState' this goes note-by-note, so it doesn't need a
+-- flatDuration.
 withDurations :: HasMatras a => [Flat g a] -> [Flat g (Duration, a)]
 withDurations = map $ \n -> case n of
     FGroup tempo g children -> FGroup tempo g (withDurations children)
@@ -434,8 +455,15 @@ statePosition :: State -> (Int, Tala.Akshara, Duration)
 statePosition state =
     (stateAvartanam state, stateAkshara state, stateMatra state)
 
+-- | Number of aksharas relative to the avartanam.
 stateMatraPosition :: State -> Duration
 stateMatraPosition state = fromIntegral (stateAkshara state) + stateMatra state
+
+-- | Absolute number of aksharas from the beginning of the sequence.
+stateAbsoluteMatra :: Tala.Tala -> State -> Duration
+stateAbsoluteMatra tala state =
+    fromIntegral (stateAvartanam state * Tala.tala_aksharas tala)
+        + stateMatraPosition state
 
 -- | Show avartanam, akshara, and matra as avartanam:akshara+n/d.
 showPosition :: State -> Text

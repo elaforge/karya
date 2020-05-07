@@ -4,24 +4,24 @@
 
 {-# LANGUAGE RecordWildCards #-}
 module Solkattu.Realize_test where
-import Prelude hiding ((^))
+import           Prelude hiding ((^))
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
+import qualified Solkattu.Dsl.Solkattu as G
+import           Solkattu.Dsl.Solkattu
+       (__, di, din, ga, ka, ki, na, ta, tang, tha, thom, (^))
 import qualified Solkattu.Instrument.Mridangam as M
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
-import Solkattu.Solkattu (Note(..), Sollu(..))
-import qualified Solkattu.Dsl.Solkattu as G
-import Solkattu.Dsl.Solkattu
-       ((^), __, ta, di, ki, tha, thom, tang, ga, din, na, ka)
+import           Solkattu.Solkattu (Note(..), Sollu(..))
 import qualified Solkattu.Tala as Tala
 
-import Global
-import Util.Test
+import           Global
+import           Util.Test
 
 
 test_realize = do
@@ -163,11 +163,13 @@ test_realizeSarva = do
             [ (ta <> din, [n, d])
             , (ta <> ka <> __, [p, k, __])
             ] where M.Strokes {..} = M.notes
-        sarvaM = G.sarvaM
     equal (f []) (Right "")
-    equal (f [sarvaM (ta <> din) 5]) (Right "n d n d n")
-    left_like (f [sarvaM (ta <> din <> ta) 5]) "incomplete match"
-    equal (f [sarvaM (ta <> ka <> __) 5]) (Right "p k _ p k")
+    equal (f [G.sarvaM (ta <> din) 5]) (Right "n d n d n")
+    left_like (f [G.sarvaM (ta <> din <> ta) 5]) "incomplete match"
+    equal (f [G.sarvaM (ta <> ka <> __) 5]) (Right "p k _ p k")
+    equal (f [G.sarvaM (ta <> din) 5]) (Right "n d n d n")
+    -- sarva is relative to sam
+    right_equal (f [__, G.sarvaM (ta <> din) 3]) "_ d n d"
 
 eWords :: Pretty b => Either a [b] -> Either a Text
 eWords = fmap (Text.unwords . map pretty)
@@ -197,13 +199,13 @@ test_realizeTag = do
 sollu :: Sollu -> Note Sollu
 sollu s = Solkattu.Note (Solkattu.note s)
 
-pattern :: S.Matra -> Solkattu.Note stroke
+pattern :: S.Matra -> Solkattu.Note Sollu
 pattern = Solkattu.Pattern . Solkattu.pattern
 
 test_realizePatterns = do
     let f pmap seq = Realize.formatError $ fst $
             Realize.realize_ (Realize.realizePattern pmap)
-                (Realize.realizeSollu solluMap) (S.flatten seq)
+                (Realize.realizeSollu solluMap) Tala.adi_tala (S.flatten seq)
     let eStrokes = eWords . fmap S.flattenedNotes
     equal (eStrokes $ f (M.families567 !! 0) G.p5)
         (Right "k t k n o")
@@ -365,6 +367,7 @@ realizeSmap :: Solkattu.Notation stroke => Realize.StrokeMap stroke
 realizeSmap smap =
     Realize.formatError . fst
     . Realize.realize smap (Realize.realizeSollu (Realize.smapSolluMap smap))
+        Tala.adi_tala
     . S.flatten
 
 solluMap :: Realize.SolluMap M.Stroke

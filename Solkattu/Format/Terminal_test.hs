@@ -398,7 +398,7 @@ realizeP :: Maybe (Realize.PatternMap M.Stroke)
     -> Either Text [Format.Flat M.Stroke]
 realizeP pmap smap = fmap Format.mapGroups
     . Realize.formatError . fst
-    . Realize.realize_ pattern (Realize.realizeSollu smap)
+    . Realize.realize_ pattern (Realize.realizeSollu smap) Tala.adi_tala
     . S.flatten
     where
     pattern = Realize.realizePattern $ fromMaybe M.defaultPatterns pmap

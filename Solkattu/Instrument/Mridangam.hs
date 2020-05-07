@@ -230,7 +230,7 @@ notations = Map.fromList $ (extras++) $ Seq.map_maybe_fst isChar $
     isChar t = case untxt t of
         [c] -> Just c
         _ -> Nothing
-    lhs = [Tha Palm, Thom Low]
+    lhs = [Tha Palm, Thom Low, Thom Up]
     rhs = [minBound .. maxBound]
 
 -- * postprocess

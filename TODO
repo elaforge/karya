@@ -4558,7 +4558,7 @@ performance:
   make composed transforms more efficient
     . Composed transforms have to keep the whole event stream in memory since
       they can't interleave.
-    . Would it then be possible to deforest the intermediate lists?  Bulit-in
+    . Would it then be possible to deforest the intermediate lists?  Built-in
       deforestation won't work because of the intervening call machinery, but
       maybe I can recreate it manually.
     - First, figure out how to measure the amount of memory used by
@@ -5149,8 +5149,25 @@ REPL: repl:
     could also get rid of the need for Cmd.Lang.Environ to import everything.
 
 solkattu:
+  / can I represent tisram in kandam?
+    . 10 matras in 2 aksharams -> 15 in 2 aksharams, or 7.5 / aksharam.
+      This is new I think because now I can have matras that don't line up to
+      aksharams.
+    . If I can use FMatras then it's just change the default speed to
+      2/3.  But the integral Matra becomes 15 in 2.
+    . Can I use this same thing to replace stride?  That's pretty underused.
+    . If Nadai becomes a ratio, then it becomes 7 1/2 nadai.  What exactly
+      does stride do?
+    . Or could I use nadai 15, stride 2?
+    . Stride is good enough.
+  * with o & group ..., I lose the group
+    . Because MridangamNotation.merge explicitly strips groups.  I think it
+      has to, because it's unclear what to do with them in general.
+    . Is it reasonable to special case [single] & seq to just modify the first
+      part of seq?
   * the dep on Solkattu.Play.play_m is just too heavy for repl use
     . But I'd like to be able to add it in when I want it
+    . Added with :PL macro.
   notation conveniences:
     * s = section
     - g = group
@@ -5162,7 +5179,7 @@ solkattu:
     . e.g. Mridangam2019.c_19_06_24_a
     . This can perhaps solve "reduction with irregular bits" and
       "replacements" below.
-  solkattu search feature:
+  search:
     . create an event with a duration and solkattu
     . e.g. tat_taka takadinna nakadit_talang_ga
     . This turns into a search for phrases with that duration (or power
@@ -5283,6 +5300,8 @@ solkattu:
       - Can I align by structure?
         . E.g. reductions or tri would line up vertically.
     terminal:
+      - Why does there seem to be an additional realize after printing the
+        output?  Debug in realize fires again before "unmatched:".
       * re-display ruler when it changes scale, e.g. sarva_20_02_27
       * Solkattu2018.yt_mannargudi1 still seems messed up, it ends at
         arudi but starts on 2, not 4.
@@ -5333,7 +5352,7 @@ solkattu:
         clip and Clip.
     - LSol.insert_* doesn't clear and replace existing notes
   sarvalaghu:
-    - sarva cycle should be absolute from sam
+    * sarva cycle should be absolute from sam
       . sarva is realized in Realize.realize, so it needs S.State for each
         note.
       . The duration for sarva groups is wrong, because S.noteDuration gets it
@@ -5341,11 +5360,21 @@ solkattu:
       . Can I get the HasMatras instance to look at Meta?
       . I think no, because it only depends on the note field, not group.
         Pattern is the only non 0 or 1 matras.  Also it's integral matras.
-      . Rests work because I drop in however many I need at whatever speeds
-        they need to be.
-      . I could do something like a Pattern, but I'd need to stick sollus in
-        it.  So maybe make sarva not a group at all, but something like
-        a Pattern.
+      . Sarva breaks the mold in that its duration is in the GMeta, while the
+        children just have the duration of one cycle.  The sollus have to be
+        in the children because that's where the sollu type parameter goes.
+      . So I think sarva needs to move to Solkattu.Note, alongside Pattern.
+      . But then I have to have [Note sollu] in it, which is the whole nested
+        Note thing that I bent over backwards to avoid with Group.
+      . But why?  I don't remember why.
+        There are details in NOTE [nested-groups], but there's too much
+        detail.  But unless I want to revisit all that and painfully relearn
+        all those lessons, I'm resigned to not being able to get duration
+        without knowing Group.
+      . Groups with dropped sollus also have the wrong duration, because
+        I have to subtract _split duration which, again, is in Group.
+      . Is that so bad though?  Maybe duration should only be defined on the
+        full 'Solkattu.Note Group sollu'.
     - automatic sarvalaghu variation
       . In Mridangam2018.e_323s, all of the 3 and 2 groups are mix and match,
         and the order is also mix and match.  There should be some way to
