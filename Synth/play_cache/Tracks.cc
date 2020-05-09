@@ -85,6 +85,18 @@ Tracks::Tracks(std::ostream &log, int channels, int sample_rate,
 }
 
 
+static void
+mix(int channels, sf_count_t frames,
+    // In theory restrict lets it optimize better because it knows there's no
+    // dependency between the pointers.
+    float * __restrict__ output, const float * __restrict__ input)
+{
+    for (sf_count_t i = 0; i < frames * channels; i++) {
+        output[i] += input[i];
+    }
+}
+
+
 bool
 Tracks::read(int channels, sf_count_t frames, float **out)
 {
@@ -94,9 +106,7 @@ Tracks::read(int channels, sf_count_t frames, float **out)
     for (const auto &audio : audios) {
         float *s_buffer;
         if (!audio->read(channels, frames, &s_buffer)) {
-            for (sf_count_t i = 0; i < frames * channels; i++) {
-                buffer[i] += s_buffer[i];
-            }
+            mix(channels, frames, buffer.data(), s_buffer);
             done = false;
         }
     }
