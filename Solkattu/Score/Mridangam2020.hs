@@ -7,6 +7,16 @@ import Prelude hiding ((.), repeat)
 import Solkattu.Dsl.Mridangam
 
 
+sarva_tani :: [Part] -- realizePartsM patterns misra_tani
+sarva_tani =
+    [ K sarva_20_01_27 All
+    , Comment "namita dimita dimi"
+    , K sarva_20_02_10 All
+    , K sarva_20_02_27 All
+    , Comment "farans"
+    , K sarva_20_05_08 All
+    ]
+
 sarva_20_01_27 :: Korvai
 sarva_20_01_27 = date 2020 1 27 $ ganesh $ sarvalaghu $ korvai adi
     [ x4 $ s $ nddn & _oo . nddn & o'
@@ -104,19 +114,17 @@ sarva_20_02_27 = date 2020 2 27 $ ganesh $ sarvalaghu $ korvai adi $
     , s $ r2 $ takitatatakadinna.od.__.p.k.__.t.__.k.__.ktkt.o -- (8 3 9) * 2
         -- 2 8 3 999
     , s $ on.k . takitatatakadinna.od.__.p. tri (k.__.t.__.k.__.ktkt.o)
-    , let nkktk = n.k.k.t.k in
-        s $ k.__5 . __6.__6.__5.k.od.__.k.t.k. r2 nkktk . k.o.o.k.o
-             . r2 (o&v.__.k.t.k. r2 nkktk . k.o.o.k.o)
+    , s $ k.__5 . __M (5*2).__5.k.od.__.k.t.k. r2 (n.k.k.t.k) . n.o.o.k.o
+        . r2 (o&v.__.k.t.k. r2 (n.k.k.t.k) . n.o.o.k.o)
     -- tisram in kandam, effectively 7.5 nadai
     , s $ nadai 15 $ stride 2 $ -- 12:24
         let d_ktk = group (d.__.p.k.t.k)
             d_kook = d.__.k.o.o.k
-        in r2 (o & r4 d_ktk . d_kook) . r4 (d_ktk . d_kook) . r2 d_kook
-    , s $ k.__5 .__M (5*2 + 3).k.__ -- 12:35 -- recording is this way I think
-        . r3 (o & r3 (k.t.k.n.k) . o.v.o.k.__)
+        in r2 (o & r4 d_ktk . d_kook) . r4 (o&d_ktk . d_kook) . r2 (o&d_kook)
+    , s $ r3 (o&v.__.k.t.k. r2 (n.k.k.t.k) . n.o.o.k.o)
+        . r2 (o&v.__.k.t.k . n.o.o.k.o)
     , x3 $ s $ od.__4 . tsep (ktkno.ktkno) (u.__5) (i.__5)
         . prefixes [ø, kp, kpnp] (group (k.p.k.od.__.ktkno))
-    -- to farans and mohra
     ]
     where
     takitatatakadinna = group $ on.t.k.p&k.n.o.o.k
@@ -130,6 +138,13 @@ sarva_20_02_27 = date 2020 2 27 $ ganesh $ sarvalaghu $ korvai adi $
     -- make beginning o oo thing cleaner
     -- pull back on namita dimita
     -- isolate okotokot ending to make it cleaner
+
+-- To farans and mohra.
+sarva_20_05_08 :: Korvai
+sarva_20_05_08 = date 2020 5 8 $ sarvalaghu $ korvai adi
+    [ s $ od.__3.k.n.o.o.k . r3 (on.t.k.p&k.n.o.o.k)
+        . r4 (od.o.o.v.__.o.o.k)
+    ]
 
 e_20_02_24 :: Korvai
 e_20_02_24 = date 2020 2 24 $ ganesh $ exercise $ korvaiS1 adi $
