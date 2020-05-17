@@ -5,6 +5,7 @@
 {-# LANGUAGE RecordWildCards, DeriveFunctor #-}
 -- | Realize an abstract solkattu Notes to concrete mridangam 'Note's.
 module Solkattu.Instrument.Mridangam where
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
@@ -17,7 +18,7 @@ import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Technique as Technique
 
-import Global
+import           Global
 
 
 data Stroke = Thoppi !Thoppi | Valantalai !Valantalai | Both !Thoppi !Valantalai
@@ -217,12 +218,14 @@ fromString = mapMaybeM parse
 notations :: Map Char Stroke
 notations = Map.fromList $ (extras++) $ Seq.map_maybe_fst isChar $
     Seq.key_on Solkattu.notation $ concat
-        [ map Thoppi lhs
+        [ map Thoppi (lhs ++ [Thom Up])
         , map Valantalai rhs
-        -- Omit Min, because it gets omitted on a Both.
-        , [Both lh rh | lh <- lhs, rh <- rhs, rh /= Min]
+        -- Omit Min, because it gets omitted on a Both.  Omit other little
+        -- strokes too.
+        , [Both lh rh | lh <- lhs, rh <- rhs, rh `notElem` [Kin, Min, Tan]]
         ]
     where
+    -- Two ways to write these.
     extras =
         [ ('y', y strokes)
         , ('j', j strokes)
@@ -230,8 +233,14 @@ notations = Map.fromList $ (extras++) $ Seq.map_maybe_fst isChar $
     isChar t = case untxt t of
         [c] -> Just c
         _ -> Nothing
-    lhs = [Tha Palm, Thom Low, Thom Up]
+    lhs = [Tha Palm, Thom Low]
     rhs = [minBound .. maxBound]
+
+printNotations :: IO ()
+printNotations = mapM_ putStrLn
+    [ [k] <> ": " <> show v
+    | (k, v) <- List.sortOn snd (Map.toList notations)
+    ]
 
 -- * postprocess
 
