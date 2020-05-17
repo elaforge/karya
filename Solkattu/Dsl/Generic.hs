@@ -48,7 +48,6 @@ module Solkattu.Dsl.Generic (
 ) where
 import qualified Prelude
 import           Prelude hiding ((.), (^), repeat)
-import qualified Data.Monoid as Monoid
 
 import qualified Util.CallStack as CallStack
 import           Util.Pretty (pprint)
@@ -84,7 +83,7 @@ s = section
 
 -- | Combine 'Sequence's.  This is just another name for (<>).
 (.) :: Monoid a => a -> a -> a
-(.) = (Monoid.<>)
+(.) = (<>)
 infixr 6 . -- same as <>
 
 -- | Composition is still useful though.
@@ -117,7 +116,7 @@ karvai = modifySingleNote $ Solkattu.modifyNote $
 akshara :: Akshara -> SequenceT sollu
 akshara n = makeNote (Solkattu.Alignment n)
 
--- | Align at sam.
+-- | Assert that the following sollu is on sam.
 sam :: SequenceT sollu
 sam = akshara 0
 

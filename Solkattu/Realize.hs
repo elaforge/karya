@@ -468,15 +468,17 @@ realize_ realizePattern toStrokes tala =
     where
     flatToState state = snd . S.flatToState Solkattu.flatDuration tala state
     realize1 (state, note@(S.FNote tempo n)) notes = case n of
-        Solkattu.Alignment n -> return $ (,notes) $
-            UF.singleton $ S.FNote tempo (Alignment n)
-        Solkattu.Space space -> return $ (,notes) $
-            UF.singleton $ S.FNote tempo (Space space)
-        Solkattu.Pattern p@(Solkattu.PatternM matras) ->
-            return $ (,notes) $ case realizePattern tempo p of
+        Solkattu.Alignment n -> return
+            (UF.singleton $ S.FNote tempo (Alignment n), notes)
+        Solkattu.Space space -> return
+            (UF.singleton $ S.FNote tempo (Space space), notes)
+        Solkattu.Pattern p@(Solkattu.PatternM matras) -> return
+            ( case realizePattern tempo p of
                 Left err -> UF.Fail err
                 Right tempoNotes -> UF.singleton $ S.FGroup tempo group $
                     map (uncurry S.FNote) tempoNotes
+            , notes
+            )
             where
             group = Solkattu.GMeta $ Solkattu.Meta
                 { _matras = Just matras
@@ -683,7 +685,7 @@ replaceSollus (stroke : strokes) ((_, S.FNote tempo n) : ns) = case n of
         first (S.FNote tempo rnote :) $ replaceSollus strokes ns
         where rnote = maybe (Space Solkattu.Rest) Note stroke
     Solkattu.Space space -> first (S.FNote tempo (Space space) :) next
-    Solkattu.Alignment {} -> next
+    Solkattu.Alignment a -> first (S.FNote tempo (Alignment a) :) next
     -- This shouldn't happen because Seq.spanWhile noteOf should have
     -- stopped when it saw this.
     Solkattu.Pattern {} -> next
@@ -705,18 +707,20 @@ data ToStrokes sollu stroke = ToStrokes {
         -> Maybe [Maybe (Stroke stroke)]
     }
 
+-- | If the sollu and stroke are the same, I can just copy the sollu.  This is
+-- for "monomorphic" single instrument scores, such as for mridangam.
 realizeStroke :: ToStrokes (Stroke stroke) stroke
 realizeStroke = ToStrokes
+    -- realizeSarva wants a match that uses all the sollus, so convert as many
+    -- as given, assuming sarva sollus don't get longer than this.
+    -- TODO this is pretty ugly, isn't there a better way?
     { _longestKey = 100
     , _getStrokes = const $ Just . map Just
     }
 
--- | If the sollu and stroke are the same, I can just copy the sollu.  This is
--- for "monomorphic" single instrument scores, such as for mridangam.
+-- | Like 'realizeStroke' but without the 'Stroke' wrapper.
 realizeSimpleStroke :: ToStrokes stroke stroke
 realizeSimpleStroke = ToStrokes
-    -- realize for GSarva expects an exact match, so to make it happy I can
-    -- convert as many as I'm given.  TODO grody hack
     { _longestKey = 100
     , _getStrokes = const $ Just . map (Just . stroke)
     }
