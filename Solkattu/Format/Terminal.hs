@@ -21,7 +21,6 @@ import qualified Util.File as File
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.Styled as Styled
-import qualified Util.Texts as Texts
 
 import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Korvai as Korvai
@@ -104,7 +103,10 @@ korvaiTags :: Korvai.Korvai -> [Tags.Tags]
 korvaiTags = map Korvai.sectionTags . Korvai.genericSections
 
 formatResults :: Solkattu.Notation stroke => Config -> Korvai.Korvai
-    -> [(Tags.Tags, Either Error ([Format.Flat stroke], Error))]
+    -> [ ( Tags.Tags
+         , Either Error ([Format.Flat stroke], Maybe Realize.AlignError)
+         )
+       ]
     -> ([Text], Bool)
 formatResults config korvai results =
     ( snd . List.mapAccumL show1 (Nothing, 0) . zip [1..] $ results
@@ -113,12 +115,17 @@ formatResults config korvai results =
     where
     show1 _ (_section, (_, Left err)) =
         ((Nothing, 0), Text.replicate leader " " <> "ERROR:\n" <> err)
-    show1 prevRuler (section, (tags, Right (notes, warning))) =
+    show1 prevRuler (section, (tags, Right (notes, alignError))) =
         ( nextRuler
-        , Texts.joinWith "\n" (sectionFmt section tags lines) warning
+        , sectionFmt section tags lines <> case alignError of
+            Nothing -> ""
+            Just (Realize.AlignError Nothing msg) -> "\n" <> msg
+            Just (Realize.AlignError (Just i) msg) ->
+                "\n" <> Text.replicate (leader + strokeWidth * i) " "
+                <> "^ " <> msg
         )
         where
-        (nextRuler, lines) =
+        (strokeWidth, (nextRuler, lines)) =
             format config prevRuler (Korvai.korvaiTala korvai) notes
     -- If I want to normalize speed across all sections, then this is the place
     -- to get it.  I originally tried this, but from looking at the results I
@@ -164,11 +171,12 @@ data LineType = Ruler | AvartanamStart | AvartanamContinue
 -- a multiple line ruler too, which might be too much clutter.  I'll have to
 -- see how it works out in practice.
 format :: Solkattu.Notation stroke => Config -> PrevRuler -> Tala.Tala
-    -> [Format.Flat stroke] -> (PrevRuler, [(LineType, Styled.Styled)])
+    -> [Format.Flat stroke] -> (Int, (PrevRuler, [(LineType, Styled.Styled)]))
 format config prevRuler tala notes =
+    (strokeWidth,) $
     second (concatMap formatAvartanam) $
-        Format.pairWithRuler (_rulerEach config) prevRuler tala strokeWidth
-            avartanamLines
+    Format.pairWithRuler (_rulerEach config) prevRuler tala strokeWidth
+        avartanamLines
     where
     formatAvartanam = concatMap formatRulerLine . zip (True : repeat False)
     formatRulerLine (isFirst, (mbRuler, line)) = concat

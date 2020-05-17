@@ -172,8 +172,10 @@ sectionHtmls inst config korvai =
         Left err -> (prevRuler, "<p> ERROR: " <> Doc.html err)
         Right (notes, warn) -> (nextRuler,) $ mconcat
             [ formatTable tala i section avartanams
-            , if Text.null warn then ""
-                else "<tr><td colspan=100> WARNING: " <> Doc.html warn
+            , case warn of
+                Nothing -> ""
+                Just (Realize.AlignError _i msg) ->
+                    "<tr><td colspan=100> WARNING: " <> Doc.html msg
                     <> "</td></tr>"
             ]
             where

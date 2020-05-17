@@ -12,8 +12,6 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stream as Stream
 
-import           Global
-
 
 profile_cancel = do
     let f = Postproc.group_and_cancel

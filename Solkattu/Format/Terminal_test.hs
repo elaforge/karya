@@ -103,18 +103,18 @@ test_format_ruler = do
     equalT1 (run (tas 2 8)) $ Right
         ( "X:2 O   X   O   |\n\
           \K k K k K k K k"
-        , ""
+        , Nothing
         )
     equalT1 (run (tas 2 16)) $ Right
         ( "X:2 O   X   O   |\n\
           \K k K k K k K k\n\
           \K k K k K k K k"
-        , ""
+        , Nothing
         )
     equalT1 (run (tas 3 12)) $ Right
         ( "X:3   O     X     O     |\n\
           \K k k K k k K k k K k k"
-        , ""
+        , Nothing
         )
 
     equalT1 (run (tas 2 12 <> tas 3 6)) $ Right
@@ -122,14 +122,14 @@ test_format_ruler = do
           \K k K k K k K k\n\
           \X:2 O   X:3   O     |\n\
           \K k K k K k k K k k"
-        , ""
+        , Nothing
         )
     -- A final stroke won't cause the ruler to reappear.
     equalT1 (run (tas 2 16 <> G.ta)) $ Right
         ( "X:2 O   X   O   |\n\
           \K k K k K k K k\n\
           \K k K k K k K k K"
-        , ""
+        , Nothing
         )
     equalT (fst <$> run (tas 4 2)) $ Right
         "X:4 |\n\
@@ -190,7 +190,7 @@ test_format_ruler_rulerEach = do
           \KkkkKkkkKkkkKkkk\n\
           \0:4 1   2   3   |\n\
           \KkkkKkkkKkkkKkkk"
-        , ""
+        , Nothing
         )
 
 equalT :: CallStack.Stack => Either Text Text -> Either Text Text -> IO Bool
@@ -290,14 +290,14 @@ test_formatNadaiChange = do
             fmap (first (stripAnsi . formatAbstraction mempty 50 tala))
             . kRealize tala
     let sequence = G.su (G.__ <> G.repeat 5 G.p7) <> G.nadai 6 (G.tri G.p7)
-    let (out, warn) = expect_right $ f Tala.adi_tala sequence
+    let (out, alignError) = expect_right $ f Tala.adi_tala sequence
     equal_fmt Text.unlines (Text.lines out)
         [ "0:4     1       2       3       |"
         , "_k_t_knok t knok_t_knok t knok_t"
         , "0:4 :6.   1     .     2     .     3     .     |"
         , "_knok _ t _ k n o k _ t _ k n o k _ t _ k n o"
         ]
-    equal warn ""
+    equal alignError Nothing
     -- 0123456701234567012345670123456701234560123450123450123450
     -- 0       1       2       3       4   |  5     6     7     8
     -- _k_t_knok_t_knok_t_knok_t_knok_t_knok_t_knok_t_knok_t_kno
@@ -334,11 +334,10 @@ format = formatAbstraction Format.defaultAbstraction
 
 formatAbstraction :: Solkattu.Notation stroke => Format.Abstraction -> Int
     -> Tala.Tala -> [S.Flat Solkattu.Meta (Realize.Note stroke)] -> Text
-formatAbstraction abstraction width tala notes =
+formatAbstraction abstraction width tala =
     Text.intercalate "\n" . map Text.strip
-    . map (Styled.toText . snd) . snd
+    . map (Styled.toText . snd) . snd . snd
     . Terminal.format config (Nothing, 0) tala
-    $ notes
     where
     config = Terminal.defaultConfig
         { Terminal._terminalWidth = width
@@ -365,11 +364,11 @@ capitalizeEmphasis = stripAnsi
         (\_ [t] -> Text.replace "-" "=" (Text.toUpper t))
 
 kRealize :: Tala.Tala -> Korvai.Sequence
-    -> Either Text ([Format.Flat M.Stroke], Text)
+    -> Either Text ([Format.Flat M.Stroke], Maybe Realize.AlignError)
 kRealize tala = kRealizes tala . (:[])
 
 kRealizes :: Tala.Tala -> [Korvai.Sequence]
-    -> Either Text ([Format.Flat M.Stroke], Text)
+    -> Either Text ([Format.Flat M.Stroke], Maybe Realize.AlignError)
 kRealizes tala =
     fmap (first Format.mapGroups) . head . Korvai.realize Korvai.mridangam
     . Korvai.korvaiInferSections tala defaultStrokeMap

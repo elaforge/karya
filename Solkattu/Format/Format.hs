@@ -84,8 +84,8 @@ data Highlight = StartHighlight | Highlight | EndHighlight
 type Flat stroke = S.Flat Solkattu.Meta (Realize.Note stroke)
 
 -- | Reduce 'Realize.Group's to local 'Group's.
-convertGroups :: [Either Korvai.Error ([Korvai.Flat stroke], Korvai.Error)]
-    -> [Either Korvai.Error ([Flat stroke], Korvai.Error)]
+convertGroups :: [Either Korvai.Error ([Korvai.Flat stroke], warnings)]
+    -> [Either Korvai.Error ([Flat stroke], warnings)]
 convertGroups = map (fmap (first mapGroups))
 
 mapGroups :: [S.Flat (Realize.Group stroke) a] -> [S.Flat Solkattu.Meta a]

@@ -263,7 +263,7 @@ type Flat stroke =
 
 -- | Realize a Korvai on a particular instrument.
 realize :: Solkattu.Notation stroke => Instrument stroke -> Korvai
-    -> [Either Error ([Flat stroke], Error)]
+    -> [Either Error ([Flat stroke], Maybe Realize.AlignError)]
 realize instrument korvai =
     case instStrokeMap instrument (korvaiStrokeMaps korvai) of
         Left err -> [Left err]
@@ -281,20 +281,16 @@ realize instrument korvai =
 
 realizeInstrument :: (Ord sollu, Pretty sollu, Solkattu.Notation stroke)
     => Realize.ToStrokes sollu stroke -> Realize.StrokeMap stroke -> Tala.Tala
-    -> Section sollu -> Either Error ([Flat stroke], Error)
+    -> Section sollu -> Either Error ([Flat stroke], Maybe Realize.AlignError)
 realizeInstrument toStrokes inst tala section = do
     realized <- Realize.formatError $ fst $
-        Realize.realize inst toStrokes tala $
-        flatten (sectionSequence section)
+        Realize.realize inst toStrokes tala $ flatten $
+        sectionSequence section
     let alignError = Realize.verifyAlignment tala
             (sectionStart section) (sectionEnd section)
             (S.tempoNotes realized)
     startSpace <- spaces (inferNadai realized) (sectionStart section)
-    return
-        ( startSpace ++ realized
-        , maybe "" (\(i, msg) -> showt i <> ": " <> msg) alignError
-        )
-    -- TODO maybe put a carat in the output where the error index is
+    return (startSpace ++ realized, alignError)
 
 allMatchedSollus :: Instrument stroke -> Korvai
     -> Set (Realize.SolluMapKey Solkattu.Sollu)
@@ -326,6 +322,8 @@ inferNadai = S._nadai . maybe S.defaultTempo fst . Seq.head . S.tempoNotes
 flatten :: [S.Note g (Solkattu.Note sollu)] -> [S.Flat g (Solkattu.Note sollu)]
 flatten = Solkattu.cancelKarvai . S.flatten
 
+-- | Generate enough 'Solkattu.Offset' spaces to align the score to the given
+-- start Duration.
 spaces :: S.Nadai -> S.Duration -> Either Error [S.Flat g (Realize.Note sollu)]
 spaces nadai dur = do
     -- Cancel out the nadai.  So dur is now in s0 matras.

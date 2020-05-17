@@ -32,12 +32,13 @@ test_realize = do
         p5s n = mconcat $ replicate n G.p5
     equal (f (tkdn 4)) $ Right
         ( map ("s0n4:"<>) (chars "kook")
-        , "4: should end on sam, actually ends on 1:1, or sam - 1"
+        , Just $ Realize.AlignError Nothing
+            "should end on sam, actually ends on 1:1, or sam - 1"
         )
     equal (f (G.nadai 5 (p5s 2))) $
-        Right (map ("s0n5:"<>) (chars "ktknoktkno"), "")
+        Right (map ("s0n5:"<>) (chars "ktknoktkno"), Nothing)
     equal (f (G.sd (tkdn 8))) $
-        Right (map ("s-1n4:"<>) (chars "kookkook"), "")
+        Right (map ("s-1n4:"<>) (chars "kookkook"), Nothing)
 
 test_realizeTechnique = do
     let f strokes = fmap extract . head
@@ -84,6 +85,5 @@ makeMridangam strokes = mempty
     where
     defaults = map (bimap mconcat mconcat)
         [ ([ta, ka, din, na], [k, o, o, k])
-        -- , ([G.pat 4], [p, k, o, n])
         ]
         where Mridangam.Strokes {..} = Mridangam.notes

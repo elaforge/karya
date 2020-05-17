@@ -252,14 +252,10 @@ test_verifyAlignment = do
     let f = verifyAlignment tdktSmap G.adi 0 0
         tdkt = cycle $ ta <> di <> ki <> ta
     equal (f []) (Right Nothing)
-    equal (f (take 4 tdkt)) $ Right $ Just
-        ( 4
-        , "should end on sam, actually ends on 1:1, or sam - 7"
-        )
-    equal (f (take 6 tdkt)) $ Right $ Just
-        (6
-        , "should end on sam, actually ends on 1:1+1/2, or sam - 6+1/2"
-        )
+    equal (f (take 4 tdkt)) $ Right $ Just $ Realize.AlignError Nothing
+        "should end on sam, actually ends on 1:1, or sam - 7"
+    equal (f (take 6 tdkt)) $ Right $ Just $ Realize.AlignError Nothing
+        "should end on sam, actually ends on 1:1+1/2, or sam - 6+1/2"
     equal (f (take (8*4) tdkt)) (Right Nothing)
     equal (f (G.speed (-2) $ take 8 tdkt)) (Right Nothing)
     -- Ok to end on sam, even with trailing rests.
@@ -269,17 +265,17 @@ test_verifyAlignment = do
 
     equal (f (G.speed (-2) $ take 4 tdkt <> G.akshara 4 <> take 4 tdkt))
         (Right Nothing)
-    equal (f (take 3 tdkt <> G.akshara 4 <> take 5 tdkt)) $ Right
-        (Just (3, "expected akshara 4, but at 1:3/4"))
+    equal (f (take 3 tdkt <> G.akshara 4 <> take 5 tdkt)) $ Right $ Just $
+        Realize.AlignError (Just 3) "expected akshara 4, but at 1:3/4"
 
 test_verifyAlignment_eddupu = do
     let f = verifyAlignment tdktSmap G.adi
         tdkt = cycle $ ta <> di <> ki <> ta
-    equal (f 0 1 (take 8 tdkt)) $ Right $ Just
-        (8, "should end on sam+1, actually ends on 1:2, or sam - 6")
+    equal (f 0 1 (take 8 tdkt)) $ Right $ Just $ Realize.AlignError
+        Nothing "should end on sam+1, actually ends on 1:2, or sam - 6"
     equal (f 0 1 (take 4 tdkt)) $ Right Nothing
-    equal (f 0 (-1) (take 4 tdkt)) $ Right $ Just
-        (4, "should end on sam-1, actually ends on 1:1, or sam - 7")
+    equal (f 0 (-1) (take 4 tdkt)) $ Right $ Just $ Realize.AlignError
+        Nothing "should end on sam-1, actually ends on 1:1, or sam - 7"
     equal (f 0 (-1) (take (4*7) tdkt)) $ Right Nothing
 
     equal (f 0 0 (take (8*4) tdkt)) $ Right Nothing
@@ -289,8 +285,9 @@ test_verifyAlignmentNadaiChange = do
     let f = verifyAlignment tdktSmap G.adi 0 0
         tdkt = ta <> di <> ki <> ta
     -- Change nadai in the middle of an akshara.
-    equal (f (take 2 tdkt <> G.nadai 6 (take 3 tdkt))) $ Right $ Just
-        (5, "should end on sam, actually ends on 1:1, or sam - 7")
+    equal (f (take 2 tdkt <> G.nadai 6 (take 3 tdkt))) $ Right $ Just $
+        Realize.AlignError Nothing
+            "should end on sam, actually ends on 1:1, or sam - 7"
 
     -- More complicated example:
     -- 0 __ Ta __ di __ ki th tm
@@ -319,7 +316,7 @@ tdktSmap = makeMridangam
 
 verifyAlignment :: Solkattu.Notation stroke => Realize.StrokeMap stroke
     -> Tala.Tala -> S.Duration -> S.Duration -> Korvai.Sequence
-    -> Either Text (Maybe (Int, Text))
+    -> Either Text (Maybe Realize.AlignError)
 verifyAlignment smap tala startOn endOn =
     fmap (Realize.verifyAlignment tala startOn endOn . S.tempoNotes)
         . realizeSmap smap

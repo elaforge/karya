@@ -188,10 +188,14 @@ noteDuration tempo = (* S.matraDuration tempo) . fromIntegral . S.matrasOf
 
 -- * verifyAlignment
 
+-- | Stroke index and warning text.
+data AlignError = AlignError (Maybe Int) !Text
+    deriving (Show, Eq)
+
 -- | Verify that the notes start and end at sam, and the given Alignments
 -- fall where expected.
 verifyAlignment :: Tala.Tala -> S.Duration -> S.Duration
-    -> [(S.Tempo, Note stroke)] -> Maybe (Int, Error)
+    -> [(S.Tempo, Note stroke)] -> Maybe AlignError
     -- ^ (index where the error occured, error)
 verifyAlignment tala startOn endOn notes
     | tala == Tala.any_beats = Nothing
@@ -201,12 +205,9 @@ verifyAlignment tala startOn endOn notes
     -- Either finalState one is at 0, or the last non-rest note is.
     checkEnd
         | atEnd finalState || maybe False atEnd finalNote = Nothing
-        | otherwise = Just
-            ( length states
-            , "should end on sam" <> endMsg
-                <> ", actually ends on " <> S.showPosition finalState
-                <> ", or sam - " <> pretty left
-            )
+        | otherwise = Just $ AlignError Nothing $
+            "should end on sam" <> endMsg <> ", actually ends on "
+            <> S.showPosition finalState <> ", or sam - " <> pretty left
         where
         endMsg
             | endOn == 0 = ""
@@ -217,8 +218,9 @@ verifyAlignment tala startOn endOn notes
             - S.stateMatraPosition finalState
     verify (i, (state, Alignment akshara))
         | atAkshara akshara state = Nothing
-        | otherwise = Just (i, "expected akshara " <> showt akshara
-            <> ", but at " <> S.showPosition state)
+        | otherwise = Just $ AlignError (Just i) $
+            "expected akshara " <> showt akshara <> ", but at "
+            <> S.showPosition state
     verify _ = Nothing
     isSpace (Space _) = True
     isSpace _ = False
