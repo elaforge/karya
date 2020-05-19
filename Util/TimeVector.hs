@@ -95,12 +95,6 @@ from_pairs = V.fromList . map (uncurry Sample)
 to_pairs :: V.Vector v (Sample y) => v (Sample y) -> [(X, y)]
 to_pairs = map to_pair . V.toList
 
--- | Like 'to_pairs', but filter out explicit discontinuities, so each
--- X is unique.  This is for tests, where they're just clutter if I'm not
--- explicitly testing them.  NOTE [signal-discontinuity]
-unsignal_unique :: V.Vector v (Sample y) => v (Sample y) -> [(X, y)]
-unsignal_unique = Seq.drop_initial_dups fst . to_pairs
-
 -- | Set the signal value, with a discontinuity.  See
 -- NOTE [signal-discontinuity].
 set :: V.Vector v (Sample y) => Maybe y -> X -> y -> v (Sample y)

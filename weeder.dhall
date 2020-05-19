@@ -29,6 +29,13 @@
     -- misc
     , "Cmd\\.Simple\\..*"
 
+    -- util libraries
+    , "Util\\.Styled\\..*"
+    , "Util\\.Rect\\..*"
+    , "Util\\.Then\\..*"
+    , "Util\\.Debug\\..*"
+    , "Ui\\.Color\\.*"
+
     ]
 , type-class-roots = True
 }

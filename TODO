@@ -1231,20 +1231,10 @@ upgrade to ghc 8.8:
     . compile with -fwrite-ide-info, maybe just in Opt mode
     . Tons of false positives.  It doesn't say what set of hie files it uses.
       It probably doesn't understand that there are multiple ones.
+    . Also has duplicate hits.
   * write new freeze files
     . Let's not bother with tools/freeze_deps.hs, and just require one ghc
       version.
-  - Use nix-style packages
-    . https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/packages.html#package-environments
-    . Either use -package-env flag or write .ghc.environment.arch-os-version
-    . Then stop passing flags on the cmdline.
-    . Install deps with: cabal build --only-dep
-    . But it's broken, hlibgit2 fails on '#include <openssl/sha.h>', and
-      --extra-include-dirs=/usr/local/opt/openssl/include
-      --extra-lib-dirs=/usr/local/opt/openssl/lib
-      has no effect, and I can't build it manually due to the cabal version
-      mismatch.
-    . How are you supposed to install deps in the v2 world?
   / ghcit no longer loads .o: changed flags
     . But different with ghc: it loads .o, but still interprets a bunch of
       things when I ':l *'.
@@ -1261,12 +1251,6 @@ upgrade to ghc 8.8:
   + bug with cpphs: https://gitlab.haskell.org/ghc/ghc/issues/17185
     . I can put spaces in -pgmP.
     . Commented on the issue, but the workaround seems ok.
-  * Using Derive.Deriver.Monad.Scope now requires LiberalTypeSynonyms
-    . Put it in global -X, but it would be nicer to remove the need for it.
-    . Just expand a few synonyms and it's fine.
-  later:
-    * clean up unused imports
-    * Util.SourceControl doesn't need to support darcs any more
 
 documentation:
   - strict markdown parser, and extensible:
@@ -1976,6 +1960,10 @@ synth: im:
     . https://cellperformance.beyond3d.com/articles/2006/05/demystifying-the-restrict-keyword.html
     . https://ourmachinery.com/post/writing-a-low-level-sound-system/
     - compile with -fstrict-aliasing and -Wstrict-aliasing
+      . Clang apparently doesn't implement -Wstrict-aliasing.  It could lead
+        to undefined behaviour, so don't do it unless I have profiling.
+      . I might be using type punning for libsamplerate and faust state
+        restore.  Not sure if that violates strict aliasing.
   - Make some profiles for memory use and time.
   fix ugly and unsafe non-copying state:
     . NOTE [audio-state]
@@ -3391,6 +3379,18 @@ shakefile: build:
         buildInputs
         . Because I run zsh after bash setup and it changes the path around.
     . https://github.com/dhall-lang/dhall-haskell/blob/master/nix/shared.nix
+    - Use nix-style packages
+      . https://tek.brick.do/7ad58a17-59f7-44b2-9faf-aed58ebc98a9
+      . https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/packages.html#package-environments
+      . Either use -package-env flag or write .ghc.environment.arch-os-version
+      . Then stop passing flags on the cmdline.
+      . Install deps with: cabal build --only-dep
+      . But it's broken, hlibgit2 fails on '#include <openssl/sha.h>', and
+        --extra-include-dirs=/usr/local/opt/openssl/include
+        --extra-lib-dirs=/usr/local/opt/openssl/lib
+        has no effect, and I can't build it manually due to the cabal version
+        mismatch.
+      . How are you supposed to install deps in the v2 world?
     propagate deps to the shakefile:
       - package paths for haddock
       . Env vars would be easier from nix, while Local/ShakeConfig.hs is

@@ -45,11 +45,6 @@ find p trees = case List.find (p . rootLabel) trees of
 find_with_parents :: (a -> Bool) -> [Tree a] -> Maybe (Tree a, [Tree a])
 find_with_parents f = List.find (f . Tree.rootLabel . fst) . paths
 
--- | Find the first leaf, always taking the leftmost branch.
-first_leaf :: Tree a -> a
-first_leaf (Node a []) = a
-first_leaf (Node _ (child : _)) = first_leaf child
-
 -- | Get all leaves.  The list will never be null.
 leaves :: Tree a -> [a]
 leaves = Foldable.toList

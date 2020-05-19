@@ -82,11 +82,6 @@ infer_column text rest
 
 -- * casual parsing
 
-maybe_read :: Read a => String -> Maybe a
-maybe_read str = case reads str of
-    (a, "") : _ -> Just a
-    _ -> Nothing
-
 maybe_parse :: Parser a -> Text -> Maybe a
 maybe_parse parser text = either (const Nothing) Just (parse_all parser text)
 

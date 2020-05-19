@@ -321,11 +321,6 @@ takeQueue (Queue mvar) = MVar.modifyMVar mvar $ \as -> return $ case as of
     [] -> ([], Nothing)
     a : as -> (as, Just a)
 
-whileJust :: Monad m => m (Maybe a) -> (a -> m ()) -> m ()
-whileJust get action = Fix.fix $ \loop -> get >>= \case
-    Nothing -> return ()
-    Just a -> action a >> loop
-
 -- * check output
 
 -- | Empty the directory, but don't remove it entirely, in case it's /tmp or
