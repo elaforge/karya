@@ -3373,24 +3373,28 @@ shakefile: build:
   * shakefile -V verbose gets messed up by concurrent-output
   - run with --lint-fsatrace:
     . https://well-typed.com/blog/2019/08/exploring-cloud-builds-in-hadrian/
+  - Use nix-style "v2" packages
+    . https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/packages.html#package-environments
+    . Either use -package-env flag or write .ghc.environment.arch-os-version
+    . Then stop passing flags on the cmdline.
+    . Install deps with: cabal build --only-dep
+    . But it's broken, hlibgit2 fails on '#include <openssl/sha.h>', and
+      --extra-include-dirs=/usr/local/opt/openssl/include
+      --extra-lib-dirs=/usr/local/opt/openssl/lib
+      has no effect, and I can't build it manually due to the cabal version
+      mismatch.
+    . How are you supposed to install deps in the v2 world?
   nix:
     nixos:
       - nix-shell: /run/current-system/sw/bin winds up in path before the
         buildInputs
         . Because I run zsh after bash setup and it changes the path around.
     . https://github.com/dhall-lang/dhall-haskell/blob/master/nix/shared.nix
-    - Use nix-style packages
+    * get hackage deps from nix
+      . https://maxfieldchen.com/drafts/2020-05-16-Functional-Fika-Haskell-Nix-Cabal.html
+        . It looks like callHackageDirect works, but I need hashes:
+          http://hackage.haskell.org/package/Diff-0.4.0/Diff-0.4.0.tar.gz
       . https://tek.brick.do/7ad58a17-59f7-44b2-9faf-aed58ebc98a9
-      . https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/packages.html#package-environments
-      . Either use -package-env flag or write .ghc.environment.arch-os-version
-      . Then stop passing flags on the cmdline.
-      . Install deps with: cabal build --only-dep
-      . But it's broken, hlibgit2 fails on '#include <openssl/sha.h>', and
-        --extra-include-dirs=/usr/local/opt/openssl/include
-        --extra-lib-dirs=/usr/local/opt/openssl/lib
-        has no effect, and I can't build it manually due to the cabal version
-        mismatch.
-      . How are you supposed to install deps in the v2 world?
     propagate deps to the shakefile:
       - package paths for haddock
       . Env vars would be easier from nix, while Local/ShakeConfig.hs is
@@ -3412,7 +3416,7 @@ shakefile: build:
     / Is there a way to configure lilypond to not drag in a whole tex?
       . It should be only necessary to build lilypond, I should be able to
         download it if I use a supported nixpkgs.
-    - can I use nix for just non-haskell deps, and leave haskell as a local
+    / can I use nix for just non-haskell deps, and leave haskell as a local
       install?
       . That means use cabal to install, but get fonts, libs, faust via
         nix-env or nix-env -i.
@@ -4209,7 +4213,6 @@ performance:
   . https://github.com/tobami/codespeed can make a web page with perf graphs
   . https://github.com/nh2/haskell-cpu-instruction-counter
     . But only works on linux.
-  . perf stat ...
   signal:
     - clip_before and clip_after usually require changing the signal
       . I could eliminate this with _start and _extent fields.

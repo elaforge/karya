@@ -13,37 +13,75 @@
 , withIm ? false # TODO sync this with Shake.Config.enableIm
 , withEkg ? false # ekg is really heavy
 , withDocs ? false
-, profiling ? false # enable profiling in dependent libraries
+, profiling ? true # enable profiling in dependent libraries
 }:
 
 let
-  ghcVersion = "ghc864";
+  nixpkgs = import nix/nixpkgs.nix { inherit config; };
+
+  ghcVersion = "ghc882"; # ghc883 is not in 1909 yet
+
+  ghc = nixpkgs.haskell.packages."${ghcVersion}";
+
+  hackageSrcs = import nix/hackage.nix { inherit nixpkgs; };
+
   config = let
-    overrideCabal = nixpkgs.haskell.lib.overrideCabal;
-    override = old: {
-      med-module = overrideCabal old.med-module (drv: {
-        # patches = [nix/med-module.patch];
-        broken = false;
-      });
+    # This should work better than jailbreak-cabal, but apparently needs
+    # brand-new Cabal (3.0.1.0 lacks it, 3.2.0.0 has it).
+    # jailbreak = drv: nixpkgs.haskell.lib.appendConfigureFlags drv
+    #   ["--allow-older" "--allow-newer"];
+
+    patchHackage = {
+      # Otherwise zlib is circular because nixpkgs doesn't differentiate
+      # haskell and C deps.
+      zlib = { inherit (nixpkgs) zlib; };
+      # Apparently missing this dep.
+      digest = { inherit (nixpkgs) zlib; };
     };
+    overrideHackage = old:
+      let
+        toDrv = name: src:
+          let drv = old.callCabal2nix name src (patchHackage."${name}" or {});
+          in with nixpkgs.haskell.lib;
+            (if profiling then (x: x) else disableLibraryProfiling)
+            (dontCheck drv);
+      in builtins.mapAttrs toDrv hackageSrcs;
+
   in {
     # For nixpkgs.mkl, for mesh2faust.
     allowUnfree = true;
-    # allowBroken = true;
+
     packageOverrides = pkgs: {
       haskell = pkgs.haskell // {
         packages = pkgs.haskell.packages // {
           "${ghcVersion}" = pkgs.haskell.packages."${ghcVersion}".override {
-            overrides = new: old: override old;
+            overrides = new: old: overrideHackage old;
           };
         };
       };
     };
+    # Not working for some reason.
+    # overlays = [overlay];
   };
 
-  nixpkgs = import nix/nixpkgs.nix { inherit config; };
-
-  ghc = nixpkgs.haskell.packages."${ghcVersion}";
+  # overlay = nixpkgsSelf: nixpkgsSuper:
+  #   let
+  #     inherit (nixpkgsSelf) pkgs;
+  #     # pkgs = self.pkgs;
+  #     hsPkgs = nixpkgsSuper.haskell.packages.${ghcVersion}.override {
+  #       overrides = self: super: {
+  #         Diff = pkgs.haskell.lib.dontCheck (
+  #           self.callHackage "Diff" "0.4.0" {}
+  #         );
+  #       };
+  #     };
+  #   in {
+  #     haskell = nixpkgsSuper.haskell // {
+  #       packages = nixpkgsSuper.haskell.packages // {
+  #         "${ghcVersion}" = hsPkgs;
+  #       };
+  #     };
+  #   };
 
   # util
   guard = bool: list: if bool then list else [];
@@ -108,6 +146,11 @@ in rec {
       (guard withEkg ["ekg"])
     ])
   ));
+
+  # hackage = ghc.ghcWithPackages (pkgs: with pkgs; [
+  #   Diff MonadRandom QuickCheck
+  #   tagged
+  # ]);
 
   deps = builtins.concatLists [
     basicDeps

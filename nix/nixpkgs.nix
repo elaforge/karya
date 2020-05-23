@@ -1,9 +1,10 @@
-# /nix/store/cy3b2hsy2dk9cb17dvkn4ninca7ffrl1-nixpkgs-19.09
 let
-  commit = "4ad6f1404a8cd69a11f16edba09cc569e5012e42";
+  # https://github.com/NixOS/nixpkgs/commits/nixos-19.09
+  # head on 2020-05-23
+  commit = "2efedf8fc74e8056f81bd18899276b085becf6dc";
   nixpkgs = builtins.fetchTarball {
     name = "nixpkgs-19.09";
     url = "https://github.com/nixos/nixpkgs/archive/${commit}.tar.gz";
-    sha256 = "1pclh0hvma66g3yxrrh9rlzpscqk5ylypnmiczz1bwwrl8n21q3h";
+    sha256 = "0bn4r1qivvmh6klnq2y2pz18m0kd93gna8vkm3mkkavmpphkhd4w";
   };
 in import nixpkgs
