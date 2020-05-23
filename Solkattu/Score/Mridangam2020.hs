@@ -142,8 +142,33 @@ sarva_20_02_27 = date 2020 2 27 $ ganesh $ sarvalaghu $ korvai adi $
 -- To farans and mohra.
 sarva_20_05_08 :: Korvai
 sarva_20_05_08 = date 2020 5 8 $ sarvalaghu $ korvai adi
+    -- transition to farans
     [ s $ od.__3.k.n.o.o.k . r3 (on.t.k.p&k.n.o.o.k)
-        . r4 (od.o.o.v.__.o.o.k)
+        . sam . r4 (od.o.o.v.__.o.o.k)
+        . sam . od.o.o.v.p.k.n.k.d.n.k.d.k.k.__.k.__.i.__.i.__
+            . k.n.k.t.k.v.su (pk.nakatiku)
+    , let rnaka = group $ u.p.k.t.p.k.t.p in
+        s $ su $ r2 (od.__4 . r2 rnaka.u.__.pk.nakatiku)
+        . sam . r2 (pk.o.__.u.__.pk.nakatiku)
+            . pk.o.__.u.__.pk.pk.o.__.u.__ . pk.sd (p.k.__.k.__.i.__.i)
+    -- farans
+    , s $ nadai 6 $
+        sd (__.v.p.k.t.k.v) . pk.nakatiku . pk.pk . sd (o.k.t.k.v) . pk.nakatiku
+        . sam . o.u.__.k.o.u.__.k.nakatiku.nakatiku
+              . o.k.p.k.p.k.t.k.nakatiku.nakatiku
+        . sam . o.o.k.n.p.k.t.n.nakatiku.nakatiku
+              . p.k.o.o.k.t.p.k.nakatiku.nakatiku
+    , s $ nadai 6 $
+        n.p.u.__.k.__ . pk.nakatiku . n.p.u.p.k.t.p.u
+        . __.k.p.k . sd (o.u.p.k.u) . pk.nakatiku
+    -- mohra
+    , s $ nadai 6 $
+        r2 (od.__.p.k.nakatiku . r2 (n.__.p.k.nakatiku) . r3 (p.k.o.__))
+          . od.__.p.k.nakatiku . r2 (n.__.p.k.nakatiku) . p.u.__.k.o.__
+          . n.__.p.k.nakatiku . p.u.__.k.o.__
+          . n.__.p.k.nakatiku . r3 (p.u.__.k.o.__.k.__)
+    -- mohra korvai
+    , s $ nadai 6 $ r3 $ k.__.od.__4.pk.od.__3.k.pk.od.__3.tri p5
     ]
 
 e_20_02_24 :: Korvai
