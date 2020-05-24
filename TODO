@@ -3400,6 +3400,7 @@ shakefile: build:
       . Env vars would be easier from nix, while Local/ShakeConfig.hs is
         easier without.  Nix could create a Local/ShakeConfig.hs though.
       . Create from $setup, and tools/nix-enter will have the shell run it.
+      . But shouldn't it temporary replace the existing one, like PATH?
     / figure out how to pin hackage package versions.
       . I need this for writer-cps-mtl at least.
       . https://github.com/sol/tinc/tree/nixpkgs

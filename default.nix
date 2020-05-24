@@ -179,22 +179,24 @@ in rec {
   buildEnv = nixpkgs.stdenv.mkDerivation {
     name = "buildEnv";
     builder = "${nixpkgs.bash}/bin/bash";
-    args = [(builtins.toFile "buildEnv-builder.sh" ''
+    args = ["-eu" (builtins.toFile "buildEnv-builder.sh" ''
       # TODO surely I can use a standard builder script instead.
       PATH=""
       for p in $buildInputs; do
-          export PATH=$p/bin''${PATH:+:}$PATH
+        export PATH=$p/bin''${PATH:+:}$PATH
       done
+      echo "IN THE BUILDER"
 
-      set -eux
       mkdir $out
       cd $out
       for src in $srcs; do
-          ln -s $src $(basename $src)
+        ln -s $src $(basename $src)
       done
     '')];
     srcs = deps;
+    # These wind up in PATH in nix-shell, probably built-in nix-shell magic.
     buildInputs = [nixpkgs.coreutils] ++ deps;
+
     # tools/nix-enter will run this.
     setup = nixpkgs.writeScript "setup.sh" ''
       # Don't replace an explicit config.

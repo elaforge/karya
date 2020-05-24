@@ -1,11 +1,10 @@
 #!/usr/bin/env zsh
-# Enter a nix shell.  NESTED_ZSH makes my zshrc change the prompt.
+# Enter a nix shell.
 
-export NESTED_ZSH=1
 args=(
     --attr buildEnv
     --arg withIm true --arg withDocs true
-    --run '$setup && zsh'
+    --run '$setup && exec zsh'
 )
 echo nix-shell $args
 exec nix-shell $args
