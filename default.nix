@@ -105,7 +105,10 @@ in rec {
     git
     hackage
     zsh
-  ];
+    # Compile-time deps.
+    ghc.cpphs
+    ghc.fast-tags
+  ] ++ guard nixpkgs.stdenv.isLinux [nixpkgs.libjack2];
 
   fontDeps = with nixpkgs; [
     noto-fonts
@@ -156,8 +159,7 @@ in rec {
   ));
 
   # hackage = ghc.ghcWithPackages (pkgs: with pkgs; [
-  #   Diff MonadRandom QuickCheck
-  #   tagged
+  #   Diff
   # ]);
 
   deps = builtins.concatLists [

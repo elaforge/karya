@@ -634,7 +634,10 @@ configure = do
     -- warnings because ghc doesn't understand -Wl.  It seems -Wl passes a flag
     -- to the linker, and -Bsymbolic-functions is an ELF thing.
     fltkLds <- filter (/="-Wl,-Bsymbolic-functions") . words <$>
-        run (Config.fltkConfig localConfig) ["--ldflags"]
+        run (Config.fltkConfig localConfig) ["--ldstaticflags"]
+        -- If I use --ldflags, I get some -Wl,-rpath stuff on nixos, which
+        -- ghc doesn't like.  Static linking solves it for now, but I suppose
+        -- I should wrap these up in --optld or something.
     fltkVersion <- takeWhile (/='\n') <$>
         run (Config.fltkConfig localConfig) ["--version"]
     ghcLib <- run ghcBinary ["--print-libdir"]
@@ -1528,6 +1531,9 @@ linkHs config rtsFlags output packages objs =
             | "clang-1000.10.44" `List.isInfixOf` ccVersion config
             ]
         -- Libs have to go last, or traditional unix ld can't see them.
+        -- TODO: this means all binaries link fltk, not just who use it.
+        -- In fact all the binaries link all the C libs.  I need the shakefile
+        -- refactor to fix this.
         , C.libLink (_libfltk (cLibs config))
         , if not (Config.enableIm localConfig) then []
             else C.libLink libsamplerate

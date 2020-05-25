@@ -3358,6 +3358,7 @@ synth: im:
       waveguides" paper.
 
 shakefile: build:
+  - pass -Wl,-rpath stuff from fltk-config through to ghc via -optld.
   reduce dependencies:
     - haskell-src, use another pretty printer
     - QuickCheck, use hedgehog instead
@@ -3450,6 +3451,12 @@ shakefile: build:
       e.g. -lsamplerate
       If I can get it to work with fltk, then I can get rid of the
       Ui.BlockCStub hackery.
+    . enableIm = False is broken because someone is importing Util.Audio.
+      It's always going to be hard to keep working unless I do CI in nix,
+      or have a real package system.  I could also split Util.Audio into
+      a separate cabal package, but those are so annoying to use.
+    . I have one global link line, so all binaries link all C libraries, which
+      has been harmless so far, but is messy at least, and maybe slow.
   - in HsDeps and CcDeps, if I need every intermediate file, then
     I think I don't need Generated.
   - determine Shakefile.cppFiles automatically.
