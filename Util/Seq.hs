@@ -498,6 +498,7 @@ partition2 f1 f2 xs = (as, bs, xs3)
     (as, xs2) = List.partition f1 xs
     (bs, xs3) = List.partition f2 xs2
 
+-- | Partition and transform at the same time.
 partition_on :: (a -> Maybe b) -> [a] -> ([b], [a])
 partition_on f = go
     where

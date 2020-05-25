@@ -625,21 +625,8 @@ configure :: IO (Mode -> Config)
 configure = do
     env <- Environment.getEnvironment
     let midi = midiFromEnv env
-    let wantedFltk w = any (\c -> ('-':c:"") `List.isPrefixOf` w) ['I', 'D']
-    -- fltk-config --cflags started putting -g and -O2 in the flags, which
-    -- messes up hsc2hs, which wants only CPP flags.
-    fltkCs <- filter wantedFltk . words <$>
-        run (Config.fltkConfig localConfig) ["--cflags"]
-    -- The libfltk1.3-dev provided on ubuntu trusty has this, which leads to
-    -- warnings because ghc doesn't understand -Wl.  It seems -Wl passes a flag
-    -- to the linker, and -Bsymbolic-functions is an ELF thing.
-    fltkLds <- filter (/="-Wl,-Bsymbolic-functions") . words <$>
-        run (Config.fltkConfig localConfig) ["--ldstaticflags"]
-        -- If I use --ldflags, I get some -Wl,-rpath stuff on nixos, which
-        -- ghc doesn't like.  Static linking solves it for now, but I suppose
-        -- I should wrap these up in --optld or something.
-    fltkVersion <- takeWhile (/='\n') <$>
-        run (Config.fltkConfig localConfig) ["--version"]
+    (fltkVersion, fltkCs, fltkLds) <-
+        configureFltk (Config.fltkConfig localConfig)
     ghcLib <- run ghcBinary ["--print-libdir"]
     let ghcVersion = parseGhcVersion ghcLib
     ccVersion <- run "cc" ["--version"]
@@ -747,6 +734,23 @@ configure = do
             { midiLd = if midi /= JackMidi then [] else ["-ljack"]
             , define = ["-D__linux__"]
             }
+    run cmd args = strip <$> Process.readProcess cmd args ""
+
+configureFltk :: FilePath -> IO (String, [Flag], [Flag])
+configureFltk fltkConfig = do
+    fltkVersion <- run fltkConfig ["--version"]
+    fltkCs <- filter wantCflag . words <$> run fltkConfig ["--cflags"]
+    fltkLds <- map wrapLd . words <$>
+        run (Config.fltkConfig localConfig) ["--ldflags"]
+    return (fltkVersion, fltkCs, fltkLds)
+    where
+    -- fltk-config --cflags started putting -g and -O2 in the flags, which
+    -- messes up hsc2hs, which wants only CPP flags.
+    wantCflag w = any (\c -> ('-':c:"") `List.isPrefixOf` w) ['I', 'D']
+    -- I get -Wl,-rpath,/nix/store/... stuff from nix.
+    wrapLd flag
+        | "-Wl," `List.isPrefixOf` flag = "-optl=" <> flag
+        | otherwise = flag
     run cmd args = strip <$> Process.readProcess cmd args ""
 
 -- | Flags used by both ghc and haddock.  This is unlike 'hcFlags', which is
