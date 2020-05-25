@@ -82,15 +82,15 @@ public:
 private:
     typedef std::chrono::time_point<std::chrono::steady_clock> time;
     struct Event {
-        Event(time time, const char *name, int val)
+        Event(Timing::time time, const char *name, int val)
             : time(time), name(name), val(val)
         {}
-        time time;
+        Timing::time time;
         const char *name;
         int val;
     };
     std::ofstream fp;
-    time start;
+    Timing::time start;
     std::vector<Event> events;
 };
 

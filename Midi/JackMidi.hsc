@@ -256,7 +256,7 @@ check msg errp = error_str msg errp >>= \case
 
 error_str :: Text -> CString -> IO (Maybe Error)
 error_str msg errp
-    | err == nullPtr = return Nothing
+    | errp == nullPtr = return Nothing
     | otherwise = do
-        error_msg <- peekCString err
+        error_msg <- peekCString errp
         return $ Just $ "JACK error: " <> msg <> ": " <> txt error_msg

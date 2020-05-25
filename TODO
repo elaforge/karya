@@ -3385,10 +3385,7 @@ shakefile: build:
       mismatch.
     . How are you supposed to install deps in the v2 world?
   nix:
-    nixos:
-      - nix-shell: /run/current-system/sw/bin winds up in path before the
-        buildInputs
-        . Because I run zsh after bash setup and it changes the path around.
+    - faust has to build with faustLib on its --pathslist.
     . https://github.com/dhall-lang/dhall-haskell/blob/master/nix/shared.nix
     * get hackage deps from nix
       . https://maxfieldchen.com/drafts/2020-05-16-Functional-Fika-Haskell-Nix-Cabal.html
@@ -3411,7 +3408,7 @@ shakefile: build:
       . Or just use the latest ghc and the problem should go away.
       . The path of least resistance seems to be to make sure it works with
         the pinned nixpkgs.
-    - linux, need jack1 or jack2
+    * linux, need jack1 or jack2
     ? Can I can run ghci with the pkgs?  I guess nix-shell should set that up,
       but why is there '--disable-library-for-ghci' in the configureFlags?
     / Is there a way to configure lilypond to not drag in a whole tex?

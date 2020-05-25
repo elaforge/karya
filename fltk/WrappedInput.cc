@@ -4,7 +4,7 @@
 
 #include <memory>
 #include <FL/Fl.H>
-#include <FL/Fl_draw.H>
+#include <FL/fl_draw.H>
 
 #include "MsgCollector.h"
 #include "config.h"
