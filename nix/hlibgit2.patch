@@ -1,0 +1,13 @@
+diff --git a/hlibgit2.cabal b/hlibgit2.cabal
+index 3116284..06f8a5f 100644
+--- a/hlibgit2.cabal
++++ b/hlibgit2.cabal
+@@ -212,7 +212,7 @@ Library
+     libgit2/src
+     libgit2/deps/http-parser
+ 
+-  cc-options: -DGIT_THREADS -D_FILE_OFFSET_BITS=64 -DGIT_SSL -Wno-format
++  cc-options: -DGIT_THREADS -D_FILE_OFFSET_BITS=64 -DGIT_SSL -Wno-format -Wno-format-security
+   if os(windows)
+     cpp-options: -DWINDOWS
+     cc-options: -DGIT_WIN32 -DWIN32 -DWIN32_SHA1 -D_DEBUG -D_WIN32_WINNT=0x0501 -DGIT_WINHTTP

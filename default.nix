@@ -3,9 +3,9 @@
 # https://www.srid.ca/haskell-nix.html
 
 # Examples:
-# nix-shell -command zsh --attr buildEnv --arg withIm true --arg withDocs true
-# nix-store -r $(nix-instantiate --attr libsamplerate)
-# nix build -f default.nix --arg withIm true --arg withDocs true buildEnv
+# nix-shell --attr buildEnv --run '$setup'
+# or tools/nix-enter
+# nix build -L -f default.nix --arg withIm true --arg withDocs true buildEnv
 
 # Building lilypond drags in all of texlive.  It's also marked broken on
 # darwin for 19.09.
@@ -31,17 +31,25 @@ let
     # jailbreak = drv: nixpkgs.haskell.lib.appendConfigureFlags drv
     #   ["--allow-older" "--allow-newer"];
 
-    patchHackage = {
+    patchHackage = old: {
       # Otherwise zlib is circular because nixpkgs doesn't differentiate
       # haskell and C deps.
       zlib = { inherit (nixpkgs) zlib; };
       # Apparently missing this dep.
       digest = { inherit (nixpkgs) zlib; };
+      hlibgit2 = {
+        mkDerivation = args: old.mkDerivation (args // {
+          # New gcc doesn't like -Wno-format without -Wno-format-security.
+          patches = [nix/hlibgit2.patch];
+        });
+      };
     };
     overrideHackage = old:
       let
         toDrv = name: src:
-          let drv = old.callCabal2nix name src (patchHackage."${name}" or {});
+          let
+            drv = old.callCabal2nix name src
+              ((patchHackage old)."${name}" or {});
           in with nixpkgs.haskell.lib;
             (if profiling then (x: x) else disableLibraryProfiling)
             (dontCheck drv);
@@ -185,7 +193,6 @@ in rec {
       for p in $buildInputs; do
         export PATH=$p/bin''${PATH:+:}$PATH
       done
-      echo "IN THE BUILDER"
 
       mkdir $out
       cd $out
