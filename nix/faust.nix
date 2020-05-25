@@ -1,6 +1,5 @@
-# nix-store -r $(nix-instantiate nix/faust.nix -A faust)
-# nix build -f nix/faust.nix faust
-{ nixpkgs ? import <nixpkgs> {} }:
+# nix build -L -f nix/faust.nix faust
+{ nixpkgs ? import ./nixpkgs.nix {} }:
 let
   stdenv = nixpkgs.stdenv;
   llvm = nixpkgs.llvm_5;
@@ -17,8 +16,6 @@ let
     ref = "master";
   };
 in {
-  # nix-instantiate nix/faust.nix -A faustLib --eval
-  faustLib = faustLib.outPath;
   faust = stdenv.mkDerivation {
     name = "faust";
     src = faustSrc;
@@ -32,9 +29,15 @@ in {
     ];
     phases = "unpackPhase buildPhase installPhase";
     buildPhase = "make";
+    faustLib = faustLib.outPath;
     installPhase = ''
       mkdir $out
       PREFIX=$out make install
+      # I don't know why, but install puts architecture files
+      # in share/faust, but looks for them in architecture, in addition to
+      # share/faust.  But it only looks for the stdlib in share/faust.
+      mv $out/share/faust $out/architecture
+      cp -R $faustLib $out/share/faust
     '';
   };
 

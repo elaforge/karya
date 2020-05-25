@@ -134,7 +134,7 @@ in rec {
     configureFlags = ["--enable-shared=no" "--enable-static=yes"];
   };
 
-  faust = import nix/faust.nix { inherit nixpkgs; };
+  faust = import nix/faust.nix {};
 
   imDeps = [
     faust.faust
