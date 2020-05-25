@@ -13,7 +13,9 @@ def main():
     bootlibs = get_bootlibs()
     pkgs = []
     for line in sys.stdin:
-        m = re.match(r'\s+(\S+) ==([0-9.]+),?$', line)
+        if line.startswith('constraints: '):
+            line = line[len('constraints: '):]
+        m = re.match(r'\s*(\S+) ==([0-9.]+),?$', line)
         if not m:
             continue
         pkg, version = m.groups()

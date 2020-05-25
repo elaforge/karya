@@ -1,5 +1,13 @@
 [
   {
+    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/Diff/0.4.0/Diff.cabal",
+    "cabalHash": "0ir87j535x69rx6ib12rzsyj8ypzpsdm9zagfwc5lmcg97nvxkxm",
+    "pkg": "Diff",
+    "src": "http://hackage.haskell.org/package/Diff-0.4.0/Diff-0.4.0.tar.gz",
+    "srcHash": "1phz4cz7i53jx3d1bj0xnx8vpkk482g4ph044zv5c6ssirnzq3ng",
+    "ver": "0.4.0"
+  },
+  {
     "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/HUnit/1.6.0.0/HUnit.cabal",
     "cabalHash": "164jhr3i0jk0zwd922khcb5488m97wkap88l282div2bi1yb4540",
     "pkg": "HUnit",
