@@ -25,6 +25,10 @@ let
 
   hackageSrcs = import nix/hackage.nix { inherit nixpkgs; };
 
+  # Minimal compile just for build-time binary deps.
+  haskellBinary = drv: with nixpkgs.haskell.lib;
+    dontCheck (disableLibraryProfiling (disableExecutableProfiling drv));
+
   config = let
     # This should work better than jailbreak-cabal, but apparently needs
     # brand-new Cabal (3.0.1.0 lacks it, 3.2.0.0 has it).
@@ -106,8 +110,8 @@ in rec {
     hackage
     zsh
     # Compile-time deps.
-    ghc.cpphs
-    ghc.fast-tags
+    (haskellBinary ghc.cpphs)
+    (haskellBinary ghc.fast-tags)
   ] ++ guard nixpkgs.stdenv.isLinux [nixpkgs.libjack2];
 
   fontDeps = with nixpkgs; [
