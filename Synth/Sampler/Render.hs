@@ -41,6 +41,7 @@ data Config = Config {
     _quality :: !Resample.Quality
     , _chunkSize :: !Audio.Frames
     , _blockSize :: !Audio.Frames
+    -- | Optionally suppress structured progress messages, used by karya.
     , _emitProgress :: !Bool
     }
 
@@ -51,7 +52,6 @@ defaultConfig quality = Config
     { _quality = quality
     , _chunkSize = Config.chunkSize
     , _blockSize = Config.blockSize
-    -- | Optionally suppress structured progress messages, used by karya.
     , _emitProgress = True
     }
 

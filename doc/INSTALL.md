@@ -1,26 +1,31 @@
 ## the nix way
 
+On linux, install either jack1 or jack2.  JACK support is mostly untested and
+probably doesn't work, since I don't do music on linux.  Get in touch if you
+can help with linux support.
+
 Install nix and cachix.  I upload build results to `cachix` so if you use
 that you can avoid building them.  Of course if you like building you can
 skip all the `cachix` steps:
 
-    # Standard nix install, skip if you already have nix:
+    ### Standard nix install, skip if you already have nix:
     bash <(curl -L https://nixos.org/nix/install)
     # On my laptop, nix installed with a max-jobs of 32, which is nuts on a
     # laptop with only 4 cores, and totally wedges it up.
     # Edit /etc/nix/nix.conf and possibly get max-jobs under control.
 
-    # Install cachix, skip if you like building
+    ### Install cachix, skip if you like building:
     nix-env -iA cachix -f https://cachix.org/api/v1/install
     # Configure nix to use my cachix cache.
     # sudo is necessary because it wants to modify /etc/nix/nix.conf.
     sudo cachix use elaforge
-    # get nix-daemon to see the new config:
+    # Get nix-daemon to see the new config.  This may be unnecessary if
+    # you did a single user nix install above:
     systemd-linux> sudo systemctl restart nix-daemon
     osx> sudo launchctl stop org.nixos.nix-daemon
     osx> sudo launchctl start org.nixos.nix-daemon
 
-    # Actually do the install/build:
+    ### Actually do the install:
     tools/nix-enter
 
 This will download tons of stuff, and drop you in a subshell where that stuff
@@ -34,6 +39,14 @@ moment.  I'll probably just make the everything build the only build, now that
 nix makes it easy.
 
 Now do the rest of the build steps, same as "the traditional way" below:
+
+- Install the "bravura" font:
+
+    nix build -f default.nix fontDeps
+    osx> cp $(find -L result* -name '*.otf') ~/Library/Fonts # or use FontBook
+    linux> cp $(find -L result* -name '*.otf') ~/.fonts
+    # I don't actually know how to install fonts on linux.  The above doesn't
+    # work on nixos, instead add openlilylib-fonts.bravura to configuration.nix.
 
 - Run `tools/setup-empty`.  Read it if you want, it's short.
 
@@ -53,6 +66,8 @@ non-MIDI by bypassing the DAW and just play the output audio directly,
 - Go read `doc/quickstart.md`.
 
 - Read `doc/DEVELOPMENT.md` if you want to do some of that.
+
+Ignore the rest of this file!
 
 ## the traditional way
 
@@ -123,12 +138,6 @@ symbols.
 reason, the fonts on linux sometimes have backslashes in their names, and
 sometimes not.  If there is a complaint at startup about the font not being
 found you might have to edit a font name in `App/Config.hsc`.
-
-## Linux
-
-- Either jack1 or jack2.  JACK support is mostly untested and probably doesn't
-work, since I don't do music on linux.  Get in touch if you can help with linux
-support.
 
 ## Haskell dependencies
 

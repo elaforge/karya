@@ -7,7 +7,3 @@ export hs_dir=User/Elaforge
 export hs_package=User.Elaforge
 
 tools/do-setup
-
-if [[ ! -e ness-data ]]; then
-    ln -s $data/ness-data
-fi

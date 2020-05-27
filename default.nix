@@ -122,7 +122,8 @@ in rec {
   ]);
 
   fontDeps = with nixpkgs; [
-    noto-fonts
+    # I don't really use these, but there they are in case I do someday.
+    # noto-fonts
     openlilylib-fonts.bravura
   ];
 
