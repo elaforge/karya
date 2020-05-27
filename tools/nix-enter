@@ -4,7 +4,7 @@
 args=(
     --attr buildEnv
     --arg withIm true --arg withDocs true
-    --run '$setup && exec zsh'
+    --run '$setup && exec '$SHELL
 )
 echo nix-shell $args
 exec nix-shell $args

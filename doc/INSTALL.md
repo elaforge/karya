@@ -1,4 +1,62 @@
-## Installation
+## the nix way
+
+Install nix and cachix.  I upload build results to `cachix` so if you use
+that you can avoid building them.  Of course if you like building you can
+skip all the `cachix` steps:
+
+    # Standard nix install, skip if you already have nix:
+    bash <(curl -L https://nixos.org/nix/install)
+    # On my laptop, nix installed with a max-jobs of 32, which is nuts on a
+    # laptop with only 4 cores, and totally wedges it up.
+    # Edit /etc/nix/nix.conf and possibly get max-jobs under control.
+
+    # Install cachix, skip if you like building
+    nix-env -iA cachix -f https://cachix.org/api/v1/install
+    # Configure nix to use my cachix cache.
+    # sudo is necessary because it wants to modify /etc/nix/nix.conf.
+    sudo cachix use elaforge
+    # get nix-daemon to see the new config:
+    systemd-linux> sudo systemctl restart nix-daemon
+    osx> sudo launchctl stop org.nixos.nix-daemon
+    osx> sudo launchctl start org.nixos.nix-daemon
+
+    # Actually do the install/build:
+    tools/nix-enter
+
+This will download tons of stuff, and drop you in a subshell where that stuff
+is available.  After this you'll need to run `tools/nix-enter` whenever you
+want to build.  I use a special color on `PS1` when `SHLVL` > 1 to indicate
+the subshell.
+
+This gets the "everything" build including "im" below.  Since my build file
+is a mess, the non-im build is broken and I don't feel like fixing it at the
+moment.  I'll probably just make the everything build the only build, now that
+nix makes it easy.
+
+Now do the rest of the build steps, same as "the traditional way" below:
+
+- Run `tools/setup-empty`.  Read it if you want, it's short.
+
+- `tools/nix-enter` has already created a `Local/ShakeConfig.hs`.  Read it if
+you want.
+
+- Build shakefile: `bin/mkmk`
+
+- Build optimized binaries: `bin/mk binaries`.  It will try to link to CoreMIDI
+on the mac and to JACK on linux.  If for some reason you don't have either of
+those, you can run `midi=stub bin/mk` to link the stub MIDI driver, but now it
+will never produce any MIDI so what was the point?  Even with the "im" backend,
+it uses MIDI to tell the DAW when to start playing.  You could go totally
+non-MIDI by bypassing the DAW and just play the output audio directly,
+`build/opt/stream_audio` will do that.
+
+- Go read `doc/quickstart.md`.
+
+- Read `doc/DEVELOPMENT.md` if you want to do some of that.
+
+## the traditional way
+
+This is a lot more work than the nix way!
 
 - Install GHC.  I'm using 8.8 now and I dropped support for previous versions.
 8.2 definitely does not work, details at
@@ -115,15 +173,6 @@ I don't use stack, but I added some basic support so hopefully this should work:
 From here on, you will need to `export use_stack=t`.  Then when you run
 `bin/mkmk` and `bin/mk`, it will use `stack path` to find where to get the
 stack-flavored ghc and packages.
-
-### nix way
-
-`default.nix` describes the dependencies.  It's not totally plumbed into the
-shake config yet though.  See nix: in TODO for what remains to be done.
-
-Eventually this way should replace the other ways for at least the non-haskell
-deps, because it's more convenient to install patched libraries, and more
-reliable when it comes to exact versions.
 
 ## 音, Im, Synth
 

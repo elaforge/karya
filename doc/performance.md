@@ -8,7 +8,7 @@ General instrument details are in [instrument.md](instrument.md.html).
 
 ## MIDI
 
-At the derive level, a 'Derive.BaseTypes.Instrument' is simply a text string,
+At the derive level, a 'Derive.ScoreT.Instrument' is simply a text string,
 but the first step in performance is to look up all those instruments in the
 [instrument db](#instrument-db), and in the per-score configuration, which is
 'Ui.UiConfig.config_allocations', which maps instruments to

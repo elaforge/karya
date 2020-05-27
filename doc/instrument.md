@@ -63,7 +63,7 @@ set or clear various configuration fields.
 ## Derive
 
 At the derive level, an instrument is mostly just a string
-'Derive.ScoreTypes.Instrument'.  However, a few other bits of instrument config
+'Derive.ScoreT.Instrument'.  However, a few other bits of instrument config
 apply, as defined by 'Derive.Deriver.Monad.Instrument'.  Specifically, a note
 track with a title `>xyz` will wind up calling
 'Derive.Deriver.Lib.with_instrument' on `>xyz`.  A note track with an empty

@@ -3358,7 +3358,7 @@ synth: im:
       waveguides" paper.
 
 shakefile: build:
-  - pass -Wl,-rpath stuff from fltk-config through to ghc via -optld.
+  * pass -Wl,-rpath stuff from fltk-config through to ghc via -optld.
   reduce dependencies:
     - haskell-src, use another pretty printer
     - QuickCheck, use hedgehog instead
@@ -3386,7 +3386,13 @@ shakefile: build:
       mismatch.
     . How are you supposed to install deps in the v2 world?
   nix:
-    - faust has to build with faustLib on its --pathslist.
+    * link in nix: framework not found CoreMIDI
+      . Probably because I'm using nix-built clang, which might need system
+        frameworks explicitly declared.
+    * repl not working: Could not find module 'Data.Aeson'
+      Probably I need to export GHC_PACKAGE_PATH or something.
+    * faust has to build with faustLib on its --pathslist.
+    * upload to cachix so I don't have to recompile?
     . https://github.com/dhall-lang/dhall-haskell/blob/master/nix/shared.nix
     * get hackage deps from nix
       . https://maxfieldchen.com/drafts/2020-05-16-Functional-Fika-Haskell-Nix-Cabal.html
