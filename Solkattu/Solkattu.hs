@@ -314,6 +314,15 @@ _durationOf convert = go
             convert tempo $ S.matraDuration tempo * fromIntegral matras
         S.Group (GMeta (Meta Nothing _ _)) notes -> go tempo notes
 
+-- | Unfortunately, with Reduction and GSarva groups, the notes don't reflect
+-- the actual durations, so for 'Group'-bearing 'S.Flat', I need a special
+-- function.  I tried really hard to prevent this but failed.  The sollus have
+-- to go in the note field, and with reductions and sarva, they no longer
+-- correspond exactly to realized strokes.  I would have to two note slots,
+-- one for a space-filling @Group FMatras@, and another for the sollus, but
+-- since groups can be nested, it gets really head-hurting for my tiny brain.
+--
+-- See NOTE [nested-groups] for chaotic details.
 flatDuration :: S.HasMatras a => S.Flat Group a -> S.Duration
 flatDuration (S.FNote tempo note) = S.noteDuration tempo note
 flatDuration (S.FGroup tempo group notes) = case group of

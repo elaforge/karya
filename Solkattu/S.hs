@@ -304,8 +304,10 @@ flatToState flatDuration tala st = List.mapAccumL toState st
 
 -- | Calculate Duration for each note.
 --
--- Unlike 'flatToState' this goes note-by-note, so it doesn't need a
--- flatDuration.
+-- TODO this is wrong in general because unfortunately groups can affect
+-- duration, as in 'flatToState'.  I think I only call it after Koravi.realize,
+-- at which point the notes do reflect the duration, but of course that's not
+-- reflected in the types.  'Solkattu.Solkattu.flatDuration' has some details.
 withDurations :: HasMatras a => [Flat g a] -> [Flat g (Duration, a)]
 withDurations = map $ \n -> case n of
     FGroup tempo g children -> FGroup tempo g (withDurations children)

@@ -487,7 +487,7 @@ realize_ realizePattern toStrokes tala =
                 Left err -> return (UF.Fail err, notes)
                 Right (matched, (strokes, remain)) -> do
                     Writer.tell $ Set.singleton matched
-                    return (UF.fromList strokes, remain)
+                    return (UF.fromList (map (uncurry S.FNote) strokes), remain)
     realize1 (state, S.FGroup tempo group children) notes =
         (,notes) <$> realizeGroup tempo group (flatToState state children)
     realizeGroup tempo
@@ -529,23 +529,19 @@ realizeSarva toStrokes tala tempo matras children@((state, _) : _) = do
         ("incomplete match: " <> pretty matched
             <> ", left: " <> pretty (S.flattenedNotes (map snd left)))
         (mapM (getRest . snd) left)
-    -- Use of Solkattu.flatDuration forces the group to be Solkattu.Group, but
-    -- findSequence never returns groups so it's unnecessary.
-    -- TODO fix findSequence
-    let cycleDur = Num.sum (map Solkattu.flatDuration strokes)
-            + Num.sum (map Solkattu.flatDuration rests)
+    let cycleDur = Num.sum (map (uncurry S.noteDuration) strokes)
+            + Num.sum (map (uncurry S.noteDuration) rests)
     -- Sarva should be relative to sam, so shift the cycle by the offset from
     -- sam.  The fmod isn't necessary, but should be more efficient if the
     -- cycle is short because then I don't have to generate and throw away
     -- extra cycles.
-    (_, (_, strokes)) <- splitStrokes (offset `Num.fmod` cycleDur)
-        (cycle (strokes ++ rests))
+    (_, (_, strokes)) <- splitStrokes (offset `Num.fmod` cycleDur) $
+        map (uncurry S.FNote) $ cycle (strokes ++ rests)
     (_, (strokes, _)) <- splitStrokes dur strokes
     return (matched, strokes)
     where
     offset = S.stateAbsoluteMatra tala state
-    getRest (S.FNote tempo (Solkattu.Space space)) =
-        Just $ S.FNote tempo (Space space)
+    getRest (S.FNote tempo (Solkattu.Space space)) = Just (tempo, Space space)
     getRest _ = Nothing
     dur = S.matraDuration tempo * fromIntegral matras
 
@@ -643,13 +639,11 @@ makeSpace tempo space dur = map make <$> S.decompose s0_matras
 
 -- | Find the longest matching sequence and return the match and unconsumed
 -- notes.
--- TODO this never returns groups, which it expresess with g2.
--- Return [(Tempo, Note)] instead.
 findSequence :: Pretty sollu => ToStrokes sollu stroke
     -> [(state, S.Flat g (Solkattu.Note sollu))]
     -> Either Error
         ( SolluMapKey sollu
-        , ( [S.Flat g2 (Note stroke)]
+        , ( [(S.Tempo, Note stroke)]
           , [(state, S.Flat g (Solkattu.Note sollu))]
           )
         )
@@ -675,7 +669,7 @@ findSequence toStrokes notes =
 -- a stroke.
 replaceSollus :: [Maybe (Stroke stroke)] -- ^ Nothing means a rest
     -> [(state, S.Flat g (Solkattu.Note sollu))]
-    -> ([S.Flat g2 (Note stroke)], [(state, S.Flat g (Solkattu.Note sollu))])
+    -> ([(S.Tempo, Note stroke)], [(state, S.Flat g (Solkattu.Note sollu))])
 replaceSollus [] ns = ([], ns)
     -- I should be out of strokes before I get here, so this shouldn't happen.
     -- I could pass [(S.Tempo, Solkattu.Note sollu)], but then I have to
@@ -683,10 +677,10 @@ replaceSollus [] ns = ([], ns)
     -- quadratic.
 replaceSollus (_ : _) ns@((_, S.FGroup {}) : _) = ([], ns)
 replaceSollus (stroke : strokes) ((_, S.FNote tempo n) : ns) = case n of
-    Solkattu.Note _ -> first (S.FNote tempo rnote :) $ replaceSollus strokes ns
+    Solkattu.Note _ -> first ((tempo, rnote) :) $ replaceSollus strokes ns
         where rnote = maybe (Space Solkattu.Rest) Note stroke
-    Solkattu.Space space -> first (S.FNote tempo (Space space) :) next
-    Solkattu.Alignment a -> first (S.FNote tempo (Alignment a) :) next
+    Solkattu.Space space -> first ((tempo, Space space) :) next
+    Solkattu.Alignment a -> first ((tempo, Alignment a) :) next
     -- This shouldn't happen because Seq.spanWhile noteOf should have
     -- stopped when it saw this.
     Solkattu.Pattern {} -> next
