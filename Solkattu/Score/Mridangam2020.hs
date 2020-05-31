@@ -7,9 +7,40 @@ import Prelude hiding ((.), repeat)
 import Solkattu.Dsl.Mridangam
 
 
+-- * exercises
+
+e_20_02_24 :: Korvai
+e_20_02_24 = date 2020 2 24 $ ganesh $ exercise $ korvaiS1 adi $
+    tri_ (od.__4) (su ktok.t.o.su (ktok.kook))
+
+e_20_03_27 :: Korvai
+e_20_03_27 = date 2020 2 27 $ source "anand" $ exercise $ korvaiS adi $
+    map (su • cycle)
+    [ n.p.k.__.u.__.pk.nakatiku
+    , n.p.k.__.u.__.o.k.n.o.u.o.k.t.o.k
+    , n.p.ktkt.o.k . n.o.k.o&t.k.o.o&t.k
+    , on.__.kt.k.o.o&t.k . n.o.kt.k.o.o&t.k
+    ]
+    where
+    cycle = prefixes [prefix p, prefix k, prefix o, prefix n]
+    prefix stroke = stroke.__.ktkt.pk.nakatiku
+
+e_20_05_01 :: Korvai
+e_20_05_01 = date 2020 5 1 $ source "anand" $ exercise $ korvaiS adi
+    [ r2 $ rh & strM "ó_oó_oó"
+    , r2 $ rh & strM "ó_oó_oó____p__p"
+    , r2 $ rh & strM "oóoo_oo_oóoo"
+    , r2 $ rh & strM "oóoo_oo_oóoo_pp"
+    ]
+    where
+    rh = r4 $ n.k.t.k
+
+-- * sarva tani
+
 sarva_tani :: [Part] -- realizePartsM patterns misra_tani
 sarva_tani =
-    [ K sarva_20_01_27 All
+    [ K sarva_20_05_29  All
+    , K sarva_20_01_27 All
     , Comment "namita dimita dimi"
     , K sarva_20_02_10 All
     , K sarva_20_02_27 All
@@ -121,10 +152,9 @@ sarva_20_02_27 = date 2020 2 27 $ ganesh $ sarvalaghu $ korvai adi $
         let d_ktk = group (d.__.p.k.t.k)
             d_kook = d.__.k.o.o.k
         in r2 (o & r4 d_ktk . d_kook) . r4 (o&d_ktk . d_kook) . r2 (o&d_kook)
-    , s $ r3 (o&v.__.k.t.k. r2 (n.k.k.t.k) . n.o.o.k.o)
-        . r2 (o&v.__.k.t.k . n.o.o.k.o)
-    , x3 $ s $ od.__4 . tsep (ktkno.ktkno) (u.__5) (i.__5)
-        . prefixes [ø, kp, kpnp] (group (k.p.k.od.__.ktkno))
+    , s $ r4 (o&v.__.k.t.k. r2 (n.k.k.t.k) . n.o.o.k.o)
+    , x3 $ s $ od.__4 . tsep (p5.p5) (u.__5) (i.__5)
+        . prefixes [ø, kp, kpnp] (group (k.p.k.od.__.p5))
     ]
     where
     takitatatakadinna = group $ on.t.k.p&k.n.o.o.k
@@ -167,35 +197,26 @@ sarva_20_05_08 = date 2020 5 8 $ sarvalaghu $ korvai adi
           . od.__.p.k.nakatiku . r2 (n.__.p.k.nakatiku) . p.u.__.k.o.__
           . n.__.p.k.nakatiku . p.u.__.k.o.__
           . n.__.p.k.nakatiku . r3 (p.u.__.k.o.__.k.__)
-    -- mohra korvai
+    -- mohra korvai -- 2+4 + 2+3 + 3+3 = 17
     , s $ nadai 6 $ r3 $ k.__.od.__4.pk.od.__3.k.pk.od.__3.tri p5
+    -- alternates, for practice:
+    , s $ nadai 6 $ r3 $ sd (p.k.od.__.k.od.__) . od.__3 . tri p5
+    , s $ nadai 6 $ r3 $ k.__.od.__.pk.od.__.pk.od.__ . tri_ __ p6 -- Also 567
     ]
 
-e_20_02_24 :: Korvai
-e_20_02_24 = date 2020 2 24 $ ganesh $ exercise $ korvaiS1 adi $
-    tri_ (od.__4) (su ktok.t.o.su (ktok.kook))
-
-e_20_03_27 :: Korvai
-e_20_03_27 = date 2020 2 27 $ source "anand" $ exercise $ korvaiS adi $
-    map (su • cycle)
-    [ n.p.k.__.u.__.pk.nakatiku
-    , n.p.k.__.u.__.o.k.n.o.u.o.k.t.o.k
-    , n.p.ktkt.o.k . n.o.k.o&t.k.o.o&t.k
-    , on.__.kt.k.o.o&t.k . n.o.kt.k.o.o&t.k
-    ]
-    where
-    cycle = prefixes [prefix p, prefix k, prefix o, prefix n]
-    prefix stroke = stroke.__.ktkt.pk.nakatiku
-
-e_20_05_01 :: Korvai
-e_20_05_01 = date 2020 5 1 $ source "anand" $ exercise $ korvaiS adi
-    [ r2 $ rh & strM "ó_oó_oó"
-    , r2 $ rh & strM "ó_oó_oó____p__p"
-    , r2 $ rh & strM "oóoo_oo_oóoo"
-    , r2 $ rh & strM "oóoo_oo_oóoo_pp"
+sarva_20_05_29 :: Korvai
+sarva_20_05_29 = date 2020 5 29 $ korvai adi
+    [ s $ sarva 7 . end
+        . sam . start . sarva 6 . end
+        . sam . r2 (start . sarva 2 . end)
+        . sam . r4 (start . end)
+    -- In the recording, he has 2 matra karvai, and lands on eddupu +0.5.
+    , s $ r2 (start.end) . end.o'&d . end.o'&d . nadai 3 (su __.end)
     ]
     where
-    rh = r4 $ n.k.t.k
+    sarva = sarvaD (n.od.od.on.su (on.on).od.od.on . on.d.d.n.n.d.d.n)
+    start = o'.su (o.d).od.on
+    end = su $ r4 $ o'&d . d
 
 {-
     thani:
