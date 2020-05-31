@@ -5367,6 +5367,11 @@ solkattu:
     - LSol.insert_* doesn't clear and replace existing notes
   sarvalaghu:
     * sarva cycle should be absolute from sam
+      * Still buggy.
+        . Seems to happen when on avartanam>1
+        . cycleDur is incorrect, it's 4+1/4, should be 4.
+        . Because 17 strokes, but 2 are double speed.
+        . cycleDur is incorrect because of tempo changes inside sarva.
       . sarva is realized in Realize.realize, so it needs S.State for each
         note.
       . The duration for sarva groups is wrong, because S.noteDuration gets it

@@ -314,7 +314,7 @@ _durationOf convert = go
             convert tempo $ S.matraDuration tempo * fromIntegral matras
         S.Group (GMeta (Meta Nothing _ _)) notes -> go tempo notes
 
-flatDuration :: S.Flat Group (Note sollu) -> S.Duration
+flatDuration :: S.HasMatras a => S.Flat Group a -> S.Duration
 flatDuration (S.FNote tempo note) = S.noteDuration tempo note
 flatDuration (S.FGroup tempo group notes) = case group of
     GReduction (Reduction splitAt side) -> case side of
