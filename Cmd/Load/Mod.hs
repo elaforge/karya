@@ -305,8 +305,11 @@ commands_to_controls = mapMaybe convert . (\xs -> map (xs,) xs)
             | null [() | M.VolumeSlide _ <- cmds] ->
                 Just (Single, c_dyn, ShowVal.show_hex_val val)
             | otherwise -> Nothing
-        M.Command cmd val ->
-            Just (Single, "cmd", "--|" <> Num.hex 2 cmd <> Num.hex 2 val)
+        M.Command name val -> Just
+            ( Single
+            , "cmd"
+            , "--|" <> name <> if val == 0 then "" else " " <> Num.hex 2 val
+            )
         _ -> Nothing
 
 c_dyn, c_pitch :: Control

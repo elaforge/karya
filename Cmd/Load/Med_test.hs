@@ -16,9 +16,9 @@ test_default_zeroes = do
     equal (f [(1, []), (2, []), (0, [])]) [(1, []), (2, []), (2, [])]
 
     let f2 = map snd . f . map (1,)
-    equal (f2 [[M.Command 1 1], [M.Command 1 0]])
-        [[M.Command 1 1], [M.Command 1 1]]
-    equal (f2 [[M.Command 1 1, M.Command 2 2], [M.Command 1 0, M.Command 2 0]])
-        [[M.Command 1 1, M.Command 2 2], [M.Command 1 1, M.Command 2 2]]
-    equal (f2 [[M.Volume 1, M.Command 1 1], [M.Volume 0, M.Command 1 0]])
-        [[M.Volume 1, M.Command 1 1], [M.Volume 0, M.Command 1 1]]
+    let c1 = M.Command "1"
+        c2 = M.Command "2"
+    equal (f2 [[c1 1], [c1 0]]) [[c1 1], [c1 1]]
+    equal (f2 [[c1 1, c2 2], [c1 0, c2 0]]) [[c1 1, c2 2], [c1 1, c2 2]]
+    equal (f2 [[M.Volume 1, c1 1], [M.Volume 0, c1 0]])
+        [[M.Volume 1, c1 1], [M.Volume 0, c1 1]]

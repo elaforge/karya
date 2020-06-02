@@ -23,7 +23,7 @@ import Types
 
 load = do
     mod <- Med.load mempty "underwater"
-    let bs = M._blocks mod
+    -- let b = M._blocks mod !! 0
     -- pprint b
     -- pprint $ Mod.convert_block initial_state b
 
