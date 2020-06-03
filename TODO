@@ -29,7 +29,7 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
-  - tempo could have bpm:
+  * tempo could have bpm:
     . 75bpm -> 75/60.  Or 75bpm q -> ts q / 60.
   * rename Drums.Note to Drums.Stroke, too many things called Note
   * segfault disabling track

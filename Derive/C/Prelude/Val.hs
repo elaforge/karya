@@ -49,6 +49,7 @@ library :: Library.Library
 library = Library.vals
     [ (">", c_next_val)
     , ("<", c_prev_val)
+    , ("bpm", c_bpm)
     , ("env", c_env)
     , ("ts", c_timestep)
     , ("ts/", c_timestep_reciprocal)
@@ -112,6 +113,11 @@ c_prev_val = val_call "prev-val" Tags.prev
                 maybe (Derive.throw "no previous pitch")
                     (return . DeriveT.VPitch) (PSignal.at start sig)
             _ -> Derive.throw "no previous value"
+
+c_bpm :: Derive.ValCall
+c_bpm = val_call "bpm" mempty "Convert bpm to tempo.  This is just (/60)."
+    $ Sig.call (Sig.required "bpm" "")
+    $ \bpm _args -> return $ (bpm :: Double) / 60
 
 c_env :: Derive.ValCall
 c_env = val_call "env" mempty
