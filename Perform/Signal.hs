@@ -50,6 +50,7 @@ module Perform.Signal (
     -- ** scalar transformation
     , scalar_max
     , scalar_add, scalar_subtract, scalar_multiply, scalar_divide
+    , scalar_scale
     , map_x, map_y, map_y_linear, map_err
 
     -- * special functions
@@ -276,7 +277,7 @@ sig_subtract sig1 sig2
     | Just v <- constant_val sig2, v == 0 = sig1
     | otherwise = linear_operator Nothing (-) sig1 sig2
 
--- TODO I think this is linear?
+-- TODO I think this is linear?  Because Num.scale is just add and multiply?
 sig_scale :: Control -> Control -> Control
 sig_scale = linear_operator (Just 1) scale
 
@@ -312,6 +313,9 @@ scalar_add n = map_y_linear (+n)
 scalar_subtract n = map_y_linear (subtract n)
 scalar_multiply n = map_y_linear (*n)
 scalar_divide n = map_y_linear (/n)
+
+scalar_scale :: Y -> Signal kind -> Signal kind
+scalar_scale n = map_y_linear (scale n)
 
 -- | Clip signal to never go below the given value.
 --

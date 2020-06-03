@@ -14,18 +14,24 @@ import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
 import qualified Cmd.Instrument.ImInst as ImInst
+import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
+import qualified Derive.Call.Sub as Sub
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Sig as Sig
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Im.Patch as Im.Patch
+import qualified Perform.Pitch as Pitch
+import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Patch.Lib.Util as Util
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
+import qualified Synth.Shared.Signal as Signal
 
 import           Global
 
@@ -41,9 +47,11 @@ patches = map Patch.DbPatch
         , Patch._karyaPatch =
             ImInst.code #= code $
             ImInst.make_patch $ Im.Patch.patch
-                { Im.Patch.patch_controls =
-                    Control.supportDyn
-                    <> Control.supportSampleStartOffset
+                { Im.Patch.patch_controls = mconcat
+                    [ Control.supportDyn
+                    , Control.supportSampleStartOffset
+                    , Control.support pitchOffset "Pitch offset, in nn."
+                    ]
                 }
         }
         where
@@ -56,9 +64,12 @@ patches = map Patch.DbPatch
 c_break :: Map Beat Frame -> Map Stroke Frame -> Derive.Generator Derive.Note
 c_break beatMap strokeMap =
     Derive.generator Module.instrument "break" mempty doc $
-    Sig.call (
-        Sig.required "beat" "Offset beat or named stroke."
-    ) $ \beatOrStroke args -> do
+    Sig.call ((,,)
+        <$> Sig.required "beat" "Offset beat or named stroke."
+        <*> Sig.defaulted "pre" (Typecheck.score 0)
+            "Move note start back by this much, along with the offset."
+        <*> Sig.defaulted "pitch" 0 "Pitch offset."
+    ) $ \(beatOrStroke, pre, pitch) -> Sub.inverting $ \args -> do
         frame <- case beatOrStroke of
             Left beat -> Derive.require ("beat out of range: " <> pretty beat) $
                 findFrame beatMap beat
@@ -66,22 +77,35 @@ c_break beatMap strokeMap =
                 Derive.require ("unknown stroke: " <> stroke <> ", valid: "
                     <> pretty (Map.keys strokeMap)) $
                 Map.lookup stroke strokeMap
+        let (start, dur) = Args.extent args
+        pre <- Call.score_duration start pre
+        rpre <- Call.real_duration start pre
         Derive.with_constant_control
                 (Controls.from_shared Control.sampleStartOffset)
-                (fromIntegral frame) $
-            Call.placed_note args
+                (fromIntegral frame - fromIntegral (AUtil.toFrames rpre)) $
+            Derive.with_constant_control
+                (Controls.from_shared pitchOffset) pitch $
+            Derive.place (start - pre) (dur + pre) Call.note
     where
     doc = "Play a sample at a certain offset.\n\nNamed beats: "
         <> Doc.Doc (Text.unwords (Map.keys strokeMap))
 
+pitchOffset :: Control.Control
+pitchOffset = "pitch-offset"
+
 convert :: FilePath -> Note.Note -> Patch.ConvertM Sample.Sample
-convert filename note = do
-    let dynVal = Note.initial0 Control.dynamic note
-    let offset = floor $ Note.initial0 Control.sampleStartOffset note
-    return $ (Sample.make filename)
-        { Sample.envelope = Util.asr dynVal 0.15 note
-        , Sample.offset = offset
-        }
+convert filename note = return $ (Sample.make filename)
+    { Sample.envelope = Util.dynEnvelope minDyn 0.15 note
+    , Sample.offset = offset
+    , Sample.ratios = Signal.constant $
+        Sample.pitchToRatio 60 (60 + Pitch.nn pitch)
+    }
+    where
+    offset = floor $ Note.initial0 Control.sampleStartOffset note
+    pitch = Note.initial0 pitchOffset note
+
+minDyn :: Signal.Y
+minDyn = 0.5
 
 findFrame :: Map Beat Frame -> Beat -> Maybe Frame
 findFrame beats beat = case at of

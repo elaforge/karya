@@ -2704,11 +2704,12 @@ synth: im:
       . Another alternative is that the scale could take instrument into
         account.
     break:
+      - emit named strokes as calls
       * basic implementation
         . implement start-offset
-      - dyn curve
-      - pitch adjust
-      - an option to start play a bit before
+      * dyn curve
+      * pitch adjust
+      * an option to start play a bit before
     rambat:
       * 3a +calung is much louder than neighbor pitches
         . data/sampler/rambat/isep/3a-calung-mf-v1.flac

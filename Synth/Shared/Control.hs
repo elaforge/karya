@@ -80,17 +80,20 @@ sampleStartOffset = "sample-start-offset"
 
 type Supported = Map Control Text
 
+support :: Control -> Text -> Supported
+support = Map.singleton
+
 supportPitch :: Supported
-supportPitch = Map.singleton pitch "Pitch signal."
+supportPitch = support pitch "Pitch signal."
 
 supportDyn :: Supported
-supportDyn = Map.singleton dynamic $
+supportDyn = support dynamic $
     "Dynamic signal.  dB scale, where 0 is " <> pretty minimumDb <> " dB."
 
 supportVariation :: Supported
-supportVariation = Map.singleton
+supportVariation = support
     variation "Random integer, to choose between variant samples."
 
 supportSampleStartOffset :: Supported
-supportSampleStartOffset = Map.singleton
+supportSampleStartOffset = support
     sampleStartOffset "Sample start offset, in frames."

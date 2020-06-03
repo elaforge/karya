@@ -122,11 +122,22 @@ pickVariation xs val =
 
 -- ** envelope
 
+dynEnvelope :: Signal.Y -> RealTime.RealTime -> Note.Note -> Signal.Signal
+dynEnvelope minDyn releaseTime note =
+    env <> Signal.from_pairs [(end, Signal.at end env), (end + releaseTime, 0)]
+    where
+    end = Note.end note
+    env = Signal.scalar_scale minDyn $
+        Signal.drop_before (Note.start note) $
+        Signal.clip_after (Note.end note) $
+        Map.findWithDefault mempty Control.dynamic $
+        Note.controls note
+
 -- | Simple attack-sustain-release envelope.
 asr :: Signal.Y -> RealTime.RealTime -> Note.Note -> Signal.Signal
-asr dyn muteTime note = Signal.from_pairs
+asr dyn releaseTime note = Signal.from_pairs
     [ (Note.start note, dyn), (Note.end note, dyn)
-    , (Note.end note + muteTime, 0)
+    , (Note.end note + releaseTime, 0)
     ]
 
 -- * thru
