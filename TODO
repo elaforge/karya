@@ -2704,7 +2704,10 @@ synth: im:
       . Another alternative is that the scale could take instrument into
         account.
     break:
-      - emit named strokes as calls
+      - it would probably be easier to use if I didn't unroll the measures,
+        but gave 2 args for measure and beat.
+      - make it so kbd entry doesn't put in pitches
+      * emit named strokes as calls
       * basic implementation
         . implement start-offset
       * dyn curve

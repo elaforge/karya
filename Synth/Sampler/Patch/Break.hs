@@ -9,10 +9,8 @@ import qualified Data.Map as Map
 import qualified Data.Ratio as Ratio
 import qualified Data.Text as Text
 
-import qualified Util.Doc as Doc
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
@@ -20,6 +18,7 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.Expr as Expr
 import qualified Derive.Sig as Sig
 import qualified Derive.Typecheck as Typecheck
 
@@ -55,28 +54,29 @@ patches = map Patch.DbPatch
                 }
         }
         where
-        code = ImInst.note_generators [("n", c_break beatMap strokeMap)]
+        code = ImInst.note_generators $
+            ("n", c_break Nothing beatMap) :
+            [ (Expr.Symbol stroke, c_break (Just frame) beatMap)
+            | (_, frame, stroke) <- beats
+            ]
         beatMap = Map.fromList [(beat, frame) | (beat, frame, _) <- beats]
-        strokeMap = Map.fromList [(stroke, frame) | (_, frame, stroke) <- beats]
 
 -- | Take a beat arg or named start time, and look up the corresponding start
 -- offset.
-c_break :: Map Beat Frame -> Map Stroke Frame -> Derive.Generator Derive.Note
-c_break beatMap strokeMap =
+c_break :: Maybe Frame -> Map Beat Frame -> Derive.Generator Derive.Note
+c_break mbFrame beatMap =
     Derive.generator Module.instrument "break" mempty doc $
     Sig.call ((,,)
-        <$> Sig.required "beat" "Offset beat or named stroke."
+        <$> maybe (Left <$> Sig.required "beat" "Offset beat.") (pure . Right)
+            mbFrame
         <*> Sig.defaulted "pre" (Typecheck.score 0)
             "Move note start back by this much, along with the offset."
         <*> Sig.defaulted "pitch" 0 "Pitch offset."
-    ) $ \(beatOrStroke, pre, pitch) -> Sub.inverting $ \args -> do
-        frame <- case beatOrStroke of
+    ) $ \(beatOrFrame, pre, pitch) -> Sub.inverting $ \args -> do
+        frame <- case beatOrFrame of
             Left beat -> Derive.require ("beat out of range: " <> pretty beat) $
                 findFrame beatMap beat
-            Right stroke ->
-                Derive.require ("unknown stroke: " <> stroke <> ", valid: "
-                    <> pretty (Map.keys strokeMap)) $
-                Map.lookup stroke strokeMap
+            Right frame -> return frame
         let (start, dur) = Args.extent args
         pre <- Call.score_duration start pre
         rpre <- Call.real_duration start pre
@@ -87,8 +87,7 @@ c_break beatMap strokeMap =
                 (Controls.from_shared pitchOffset) pitch $
             Derive.place (start - pre) (dur + pre) Call.note
     where
-    doc = "Play a sample at a certain offset.\n\nNamed beats: "
-        <> Doc.Doc (Text.unwords (Map.keys strokeMap))
+    doc = "Play a sample at a certain offset."
 
 pitchOffset :: Control.Control
 pitchOffset = "pitch-offset"
