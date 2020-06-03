@@ -209,11 +209,11 @@ overlapping pos events
     where (pre, post) = bimap descending ascending $ split pos events
 
 head :: Events -> Maybe Event.Event
-head (Events events) = snd <$> Maps.min events
+head (Events events) = snd <$> Map.lookupMin events
 
 -- | Final event, if there is one.
 last :: Events -> Maybe Event.Event
-last (Events events) = snd <$> Maps.max events
+last (Events events) = snd <$> Map.lookupMax events
 
 -- ** split
 
@@ -256,9 +256,9 @@ around start end events = Events $ above $ below within
     (Events pre, Events within, Events post) =
         split_range (Range start end) events
     below m
-        | Just (Key lowest _, _) <- Maps.min within, lowest == start = m
-        | otherwise = maybe m (\(k, e) -> Map.insert k e m) (Maps.max pre)
-    above m = maybe m (\(k, e) -> Map.insert k e m) (Maps.min post)
+        | Just (Key lowest _, _) <- Map.lookupMin within, lowest == start = m
+        | otherwise = maybe m (\(k, e) -> Map.insert k e m) (Map.lookupMax pre)
+    above m = maybe m (\(k, e) -> Map.insert k e m) (Map.lookupMin post)
 
 -- *** List [Event]
 
@@ -352,11 +352,11 @@ _split_overlapping start end events = (pre2, within3, post2)
     where
     (Events pre, Events within, Events post) =
         split_range (Range start end) (Events events)
-    (pre2, within2) = case Maps.max pre of
+    (pre2, within2) = case Map.lookupMax pre of
         Just (k, e) | Event.overlaps start e ->
             (Map.delete k pre, Map.insert k e within)
         _ -> (pre, within)
-    (post2, within3) = case Maps.min post of
+    (post2, within3) = case Map.lookupMin post of
         Just (k, e) | Event.overlaps end e ->
             (Map.delete k post, Map.insert k e within2)
         _ -> (post, within2)

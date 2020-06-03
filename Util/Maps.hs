@@ -115,17 +115,6 @@ unique_unions = flip List.foldl' (Map.empty, Map.empty) $
         let (collect2, rejected2) = unique_union collect fm
         in (collect2, Map.union rejected rejected2)
 
--- | Safe versions of findMin and findMax.
-min :: Map k a -> Maybe (k, a)
-min fm
-    | Map.null fm = Nothing
-    | otherwise = Just (Map.findMin fm)
-
-max :: Map k a -> Maybe (k, a)
-max fm
-    | Map.null fm = Nothing
-    | otherwise = Just (Map.findMax fm)
-
 -- | The Data.Map Monoid instance is just a plain union, and doesn't mappend
 -- the values.
 mappend :: (Ord k, Monoid.Monoid a) => Map k a -> Map k a -> Map k a
