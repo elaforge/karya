@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+-- | A generic way to play a sample by name.
 module Synth.Sampler.Patch.Sample where
 import qualified Control.Monad.Except as Except
 import qualified Data.Text as Text
@@ -9,7 +10,6 @@ import qualified Data.Text as Text
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
-import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Sig as Sig
@@ -43,7 +43,7 @@ patchName = "sample"
 -- TODO start offset, pitch adjust
 -- time stretch?  I need rubberband in sampler though.
 c_sample :: Derive.Generator Derive.Note
-c_sample = Derive.generator Module.instrument "sample" Tags.attr doc $
+c_sample = Derive.generator Module.instrument "sample" mempty doc $
     Sig.call ((,,)
         <$> Sig.required "name" "name of sample"
         <*> Sig.required "dir" "directory of sample"

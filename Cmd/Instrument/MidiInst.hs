@@ -171,13 +171,16 @@ both name calls =
     Both name (Library.generator calls) (Library.transformer calls)
 
 -- | Add the given call as the null note call to the note track.  This also
--- binds @n@, since @n@ is supposed to be the \"named\" way to call \"\".
+-- binds 'Symbols.default_note', since that's supposed to be the \"named\" way
+-- to call \"\".
 null_call :: Derive.Generator Derive.Note -> Code
 null_call = note_calls . null_calls
 
 null_calls :: Derive.Generator Derive.Note -> [Call Derive.Note]
 null_calls call =
-    [generator Symbols.null_note call, generator Symbols.default_note call]
+    [ generator Symbols.null_note call
+    , generator Symbols.default_note call
+    ]
 
 note_calls :: [Call Derive.Note] -> Code
 note_calls calls =

@@ -1245,9 +1245,6 @@ upgrade to ghc 8.8:
   * tests hang:
     . normal-Cmd.CallDoc_test.test_doc_html
     . It was prettyprint.
-  - macro redefined warning when compiling hsc2hs generated file
-    . Because hsc2hs embeds it in the file with -optc
-    . Harmless but annoying.
   + bug with cpphs: https://gitlab.haskell.org/ghc/ghc/issues/17185
     . I can put spaces in -pgmP.
     . Commented on the issue, but the workaround seems ok.
@@ -2706,6 +2703,12 @@ synth: im:
       their native scales.  That way other instruments could use them too.
       . Another alternative is that the scale could take instrument into
         account.
+    break:
+      * basic implementation
+        . implement start-offset
+      - dyn curve
+      - pitch adjust
+      - an option to start play a bit before
     rambat:
       * 3a +calung is much louder than neighbor pitches
         . data/sampler/rambat/isep/3a-calung-mf-v1.flac
@@ -3358,6 +3361,17 @@ synth: im:
       waveguides" paper.
 
 shakefile: build:
+  - fix the redefine error:
+    . macro redefined warning when compiling hsc2hs generated file
+      . Because hsc2hs embeds it in the file with -optc
+      . Harmless but annoying.
+    . error is:
+      In file included from <built-in>:361:0: error:
+      <command line>:12:9: error:
+           warning: 'BUILD_DIR' macro redefined [-Wmacro-redefined]
+      #define BUILD_DIR "build/opt"
+      <command line>:8:9: error:  note: previous definition is here
+      #define BUILD_DIR "build/debug"
   * pass -Wl,-rpath stuff from fltk-config through to ghc via -optld.
   reduce dependencies:
     - haskell-src, use another pretty printer
@@ -3386,6 +3400,7 @@ shakefile: build:
       mismatch.
     . How are you supposed to install deps in the v2 world?
   nix:
+    . https://app.cachix.org/cache/elaforge
     * link in nix: framework not found CoreMIDI
       . Probably because I'm using nix-built clang, which might need system
         frameworks explicitly declared.
@@ -4654,6 +4669,27 @@ performance:
     - at_linear is called a lot by compose, by compose_warp, by d_warp
       can I make this more efficient?
 
+rust-gui:
+  . try out druid for proof of concept
+  - make a mock-up in druid: block, single track, events
+    . How to do scrolling?
+    . See how it works with lots of events and text.
+  - integrate into shakefile, I think I just dispatch to cargo build
+  - call from haskell
+  - implement track tile
+  pro:
+    . More active development than fltk.
+    . Modern drawing, including gradients and transparency.
+    . No GPU acceleration, but likely to eventually get it.
+    . Rust should be nicer than C++.
+  con:
+    . Generally unstable and immature, probably need to keep up with
+      updates.
+    . Will need to implement mostly the same stuff I needed for fltk:
+      MoveTile, SymbolTable, etc.
+    . No IME at the moment, will proabbly come eventually.
+    . Dependency on rust.
+
 fltk:
   * Track title should expand more.  Maybe make it dependent on the longest
     word inside?
@@ -4665,7 +4701,16 @@ fltk:
       to put the input.  I think I'd want the input itself to know it's
       wrapping upwards, so it can get it right during input as well.
     . It seems like too much hassle for a cosmetic issue.
+  + scrolling gets stuck when I have horizontal scrolling, it won't go
+    horizontal and vertical at the same time.
+    . This appears to be a fltk problem, druid doesn't do this.
+    . Also druid gets (f64, f64), fltk is integral.
+      But it's always integral, so the problem is just the either/or.
+    . How does two-finger get turned into mousewheel?
+    . https://github.com/fltk/fltk/pull/86
   slow scrolling
+    - What if I just draw everything and then put the blit back in
+      SimpleScroll?
     . Tracing chrome://tracing
     . I want to trace the whole event loop.  Where is the entry point?
       Fl::wait() -> run Fltk actions -> get_ui_msgs -> writeTChan
@@ -4699,7 +4744,8 @@ fltk:
       before it goes to Fltk.send_action.
     - Always time the haskell duration, and log when it's too long.
     - Look for possible thunks in the Fltk action, rnf them out.
-  better drawing
+  better drawing:
+    see rust-gui:
     write to Raph Levien:
       . https://news.ycombinator.com/item?id=16267202
       . https://raphlinus.github.io/personal/2018/08/28/a-new-adventure.html

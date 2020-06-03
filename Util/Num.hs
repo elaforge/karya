@@ -224,6 +224,9 @@ d2i d = floor (clamp minInt maxInt d)
     maxInt = fromIntegral (maxBound :: Int)
     minInt = fromIntegral (minBound :: Int)
 
+i2d :: Int -> Double
+i2d = fromIntegral
+
 -- Versions of floor and round that don't go through an int conversion.
 foreign import ccall unsafe "floor" floorD :: Double -> Double
 foreign import ccall unsafe "floorf" floorF :: Float -> Float

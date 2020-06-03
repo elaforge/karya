@@ -73,6 +73,9 @@ variation = "variation"
 mute :: Control
 mute = "mute"
 
+sampleStartOffset :: Control
+sampleStartOffset = "sample-start-offset"
+
 -- * Supported
 
 type Supported = Map Control Text
@@ -87,3 +90,7 @@ supportDyn = Map.singleton dynamic $
 supportVariation :: Supported
 supportVariation = Map.singleton
     variation "Random integer, to choose between variant samples."
+
+supportSampleStartOffset :: Supported
+supportSampleStartOffset = Map.singleton
+    sampleStartOffset "Sample start offset, in frames."
