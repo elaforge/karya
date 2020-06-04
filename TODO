@@ -2435,6 +2435,16 @@ synth: im:
         out of sync.
       . What's so bad about global though?
   sampler: sampler-im:
+    ? anything to learn from HISE?
+      . Uses HLAC, which is like flac, but less compression and supposed to
+        decode faster:
+        https://forum.hise.audio/topic/236/hise-lossless-audio-codec-is-ready
+        . It's tangled up in juce stuff, so would need copying out.
+        . Measure wav vs. flac performance first.  Also I can just decompress.
+        . It also has a mmap reader, maybe I should do that, if disk IO is the
+          main bottleneck.
+      . Looks like resampler is just hold previous value, not even linear
+        interpolate: StreamingSamplerVoice.cpp interpolateMonoSamples
     * factor common drum parts into Lib.Drum
       . From Mridangam, KendangBali, LittleGong
     sampler-im/sample:
@@ -2704,9 +2714,49 @@ synth: im:
       . Another alternative is that the scale could take instrument into
         account.
     break:
-      - it would probably be easier to use if I didn't unroll the measures,
+      . reason "recycle" looks like a commercial product that does something
+        like this.
+        . It seems more basic, except the gui and finding attacks
+          automatically.  Not sure if that's any different from reaper's
+          "dynamic splits".
+      * it would probably be easier to use if I didn't unroll the measures,
         but gave 2 args for measure and beat.
+        . It's annoying when I'm working in measure 1, no good for single
+          measure samples.
+        . I could reverse the order, though it seems less intuitive.
+        . n 16 -> n 8 2 because (2-1 * 8 + 8) = 16
+          Starting at 1 makes the math confusing.  Maybe measure should start
+          at 0?  Then I have to update the labels too.  But then also beat
+          should too, for consistency?
+          . I don't mind couting 0 to 7.
+        . The extra arg is annoying, I wind up with 'n 2 _ _ 1' for +1 pitch,
+          even when a break is only one measure.
+        . Could I do measure.beat syntax?  1.4 or just 4.
+        . That looks nice, but what about fractional beats?  Can't do 1.1.25.
+          I could add support, or for 1,1.25, but that's a new kind of literal.
+          I could generalize to measure:beat, or just tuples of numbers.  But
+          there's no other use for it at the moment.
+        . It's beat*10, so .1 -> 1/10 -> 1.  So .125 -> 1.25?
+        . This works.  I'm still not sure about 1-based though.  Actually it's
+          necessary for my wacky fractional notation, since 2.0 -> (1, 2)
+          while 2.1 -> (2, 1).
+      - Putting pre=1 crashes the sampler: 'n 2 _ 1'
+        ---  Synth/Sampler/SamplerIm.hs:294 - untitled/b1 {"untitled/b1.t2"}
+        Synth/Sampler/Render.hs:169: assertion: overlappingStart should be
+        []: [Note { start = 9553f, duration = 35272f, sample = Sample
+        { filename
+        = "/Users/elaforge/src/seq/main/data/sampler/break/medeski.wav",
+        offset = 133729f, envelope = Signal 0s <.43s:1, .86s:1, 1.01s:0>,
+        pan = Signal.constant 0, ratios = Signal.constant 1 }, hash
+        = 49IrLEGidfpHNAEKKpcN-g }]
       - make it so kbd entry doesn't put in pitches
+        . Drums normally do this by overriding kbd entry, but in this case
+          there are no strokes to enter.
+        . Maybe I should just disable kbd entry then?
+        . It might be nice to map named strokes to keys though, and do
+          a playback.  Or maybe map to 1/8 steps?  And input a named stroke if
+          it coincides.
+      . what about tabla and mridangam?
       * emit named strokes as calls
       * basic implementation
         . implement start-offset

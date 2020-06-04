@@ -4,7 +4,7 @@
 
 -- | This is like the @sample@ patch, but with special support for breaking up
 -- beats and naming them.
-module Synth.Sampler.Patch.Break where
+module Synth.Sampler.Patch.Break (patches) where
 import qualified Data.Map as Map
 import qualified Data.Ratio as Ratio
 import qualified Data.Text as Text
@@ -40,7 +40,7 @@ patches = map Patch.DbPatch
     [ make "medeski" medeski
     ]
     where
-    make name beats = (Patch.patch ("break-" <> name))
+    make name (perMeasure, beats) = (Patch.patch ("break-" <> name))
         { Patch._dir = "break"
         , Patch._convert = convert (untxt (name <> ".wav"))
         , Patch._karyaPatch =
@@ -54,28 +54,26 @@ patches = map Patch.DbPatch
                 }
         }
         where
-        code = ImInst.note_generators $
-            ("n", c_break Nothing beatMap) :
-            [ (Expr.Symbol stroke, c_break (Just frame) beatMap)
+        code = ImInst.note_generators $ ("n", break Nothing) :
+            [ (Expr.Symbol stroke, break (Just frame))
             | (_, frame, stroke) <- beats
             ]
-        beatMap = Map.fromList [(beat, frame) | (beat, frame, _) <- beats]
+        beatMap = makeBeatMap perMeasure beats
+        break = c_break beatMap perMeasure
 
 -- | Take a beat arg or named start time, and look up the corresponding start
 -- offset.
-c_break :: Maybe Frame -> Map Beat Frame -> Derive.Generator Derive.Note
-c_break mbFrame beatMap =
+c_break :: Map Beat Frame -> Beat -> Maybe Frame -> Derive.Generator Derive.Note
+c_break beatMap perMeasure mbFrame =
     Derive.generator Module.instrument "break" mempty doc $
     Sig.call ((,,)
-        <$> maybe (Left <$> Sig.required "beat" "Offset beat.") (pure . Right)
-            mbFrame
+        <$> maybe (Left <$> beat_arg) (pure . Right) mbFrame
         <*> Sig.defaulted "pre" (Typecheck.score 0)
             "Move note start back by this much, along with the offset."
         <*> Sig.defaulted "pitch" 0 "Pitch offset."
     ) $ \(beatOrFrame, pre, pitch) -> Sub.inverting $ \args -> do
         frame <- case beatOrFrame of
-            Left beat -> Derive.require ("beat out of range: " <> pretty beat) $
-                findFrame beatMap beat
+            Left beat -> lookupBeat beatMap beat
             Right frame -> return frame
         let (start, dur) = Args.extent args
         pre <- Call.score_duration start pre
@@ -87,7 +85,33 @@ c_break mbFrame beatMap =
                 (Controls.from_shared pitchOffset) pitch $
             Derive.place (start - pre) (dur + pre) Call.note
     where
+    beat_arg = Sig.required "beat" "Offset measure.beat. This abuses\
+        \ decimal notation: 4 -> (1, 4), 4.1 -> (4, 1), 4.15 -> (4, 1.5)."
     doc = "Play a sample at a certain offset."
+
+    lookupBeat beatMap beatFraction =
+        Derive.require
+            ("(measure, beat) out of range: " <> pretty (measure, beat)
+                <> " " <> pretty b <> " " <> pretty (Map.keys beatMap)) $
+            findFrame beatMap b
+        where
+        (measure, beat) = decodeBeat beatFraction
+        b = max 0 (fromIntegral (measure-1)) * perMeasure + beat
+
+-- |
+-- 6.0 -> (1, 6)
+-- 1.6 -> (1, 6)
+-- 6.1 -> (6, 1)
+-- 6.125 -> (6, 1.25)
+decodeBeat :: Beat -> (Measure, Beat)
+decodeBeat beatFraction
+    | beat == 0 = (1, fromIntegral measure)
+    | otherwise =
+        ( if measure == 0 then 1 else measure
+        , if beat == 0 then 1 else beat * 10
+        )
+    where
+    (measure, beat) = properFraction beatFraction
 
 pitchOffset :: Control.Control
 pitchOffset = "pitch-offset"
@@ -121,40 +145,40 @@ findFrame beats beat = case at of
 
 -- * implementation
 
+type Measure = Int
+type Beat = Ratio.Ratio Int
+type Frame = Int
+type Stroke = Text
+
+addMeasures :: [(Beat, Frame, Stroke)] -> [((Measure, Beat), Frame, Stroke)]
+addMeasures = concatMap add . zip [1..]
+    . Seq.split_between (\(a, _, _) (b, _, _) -> b < a)
+    where
+    add (m, beats) =
+        [((m, beat), frame, stroke) | (beat, frame, stroke) <- beats]
 
 -- | Make Strokes unique by labelling them according to position in the
 -- measure.
-labelStrokes :: [(Beat, frame, Stroke)] -> [(Beat, frame, Stroke)]
-labelStrokes =
-    concatMap label . zip [1..]
-        . Seq.split_between (\(a, _, _) (b, _, _) -> b < a)
+labelStrokes :: [((Measure, Beat), frame, Stroke)]
+    -> [((Measure, Beat), frame, Stroke)]
+labelStrokes = map $ \((measure, beat), frame, stroke) ->
+    ((measure, beat), frame, stroke <> suffix measure beat)
     where
-    label (measure, beats) =
-        [ (beat, frame, stroke <> suffix measure beat)
-        | (beat, frame, stroke) <- beats
-        ]
     suffix measure beat = showt measure
         <> if beat == 1 then "" else "-" <> encode beat
     encode = Text.dropWhileEnd (=='0') . Text.replace "." "" . showt
         . (realToFrac :: Beat -> Double)
 
-type Frame = Int
-type Beat = Ratio.Ratio Int
-type Stroke = Text
-
-unrollMeasures :: Beat -> [(Beat, frame, stroke)] -> [(Beat, frame, stroke)]
-unrollMeasures perMeasure = go 0 0
-    where
-    go _ _ [] = []
-    go prevMeasure prev ((beat, frame, stroke) : beats) =
-        (beat + perMeasure * measure, frame, stroke) : go measure beat beats
-        where
-        measure = prevMeasure + if beat < prev then 1 else 0
+makeBeatMap :: Beat -> [((Measure, Beat), Frame, stroke)] -> Map Beat Frame
+makeBeatMap perMeasure beats = Map.fromList
+    [ (fromIntegral (measure-1) * perMeasure + beat, frame)
+    | ((measure, beat), frame, _) <- beats
+    ]
 
 -- 0.433202947845805 per beat, so 138.5032126359318 bpm, say 138.5
 -- tempo 1 is 60bpm, 2 = 120bpm, so 60n = 138.5 = 138.5/60
-medeski :: [(Beat, Frame, Stroke)]
-medeski = unrollMeasures 8 $ labelStrokes
+medeski :: (Beat, [((Measure, Beat), Frame, Stroke)])
+medeski = (8,) $ labelStrokes $ addMeasures
     [ (1,   0,      bd)
     , (2,   20296,  sn)
     , (3.5, 49024,  bd)
