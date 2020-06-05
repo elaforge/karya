@@ -42,6 +42,8 @@ write :: RealTime -> RealTime -> BlockId
     -> Vector.Vector Score.Event -> IO ()
 write adjust0 play_multiplier block_id lookup_inst filename events = do
     notes <- LEvent.write_logs $ convert block_id lookup_inst $
+        -- TODO fix sorted Derive.Stream: so I can remove this.
+        Seq.sort_on Score.event_start $
         Vector.toList events
     -- The so-called play multiplier is actually a divider.
     Note.serialize filename $ map clean_controls $

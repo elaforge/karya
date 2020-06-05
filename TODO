@@ -29,6 +29,18 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  - sorted Derive.Stream:
+    . Implement the Sorted flag in Derive.Stream
+    . I could have calls that can move note starts register by flipping a flag
+      in Collect, then the track will set Unsorted.
+    . Or just sort it... The Sorted flag is only worth it if I can elide sorts
+      because intermediate postprocs don't care.  I might not have that many
+      to matter, and List.sort should be efficient anyway on almost-sorted
+      inputs.
+    . Either that or check for order on each call?  But at that point
+      shouldn't I just sort it?  Maybe the most reasonable is to just sort
+      each track always.
+    . Then MergeList by track?
   * tempo could have bpm:
     . 75bpm -> 75/60.  Or 75bpm q -> ts q / 60.
   * rename Drums.Note to Drums.Stroke, too many things called Note
@@ -1941,6 +1953,8 @@ instruments:
       ? The official build scripts want to compile with gcc.  Try without, to
         see what exactly is gcc-specific in there.
       . It doesn't need gcc.  I should do the compile with nix though.
+  vsts that support mpe:
+    . http://www.musicdevelopments.com/syne.html
 
 synth: im:
   optimize low level sapmles: avx: simd:
@@ -2740,15 +2754,16 @@ synth: im:
         . This works.  I'm still not sure about 1-based though.  Actually it's
           necessary for my wacky fractional notation, since 2.0 -> (1, 2)
           while 2.1 -> (2, 1).
-      - Putting pre=1 crashes the sampler: 'n 2 _ 1'
-        ---  Synth/Sampler/SamplerIm.hs:294 - untitled/b1 {"untitled/b1.t2"}
-        Synth/Sampler/Render.hs:169: assertion: overlappingStart should be
-        []: [Note { start = 9553f, duration = 35272f, sample = Sample
-        { filename
-        = "/Users/elaforge/src/seq/main/data/sampler/break/medeski.wav",
-        offset = 133729f, envelope = Signal 0s <.43s:1, .86s:1, 1.01s:0>,
-        pan = Signal.constant 0, ratios = Signal.constant 1 }, hash
-        = 49IrLEGidfpHNAEKKpcN-g }]
+      * Putting pre=1 crashes the sampler: 'n 2 _ 1'
+        . Synth/Sampler/SamplerIm.hs:294 - untitled/b1 {"untitled/b1.t2"}
+          Synth/Sampler/Render.hs:169: assertion: overlappingStart should be
+          []: [Note { start = 9553f, duration = 35272f, sample = Sample
+          { filename = "", offset = 133729f, envelope = Signal 0s <.43s:1,
+          .86s:1, 1.01s:0>, pan = Signal.constant 0, ratios = Signal.constant
+          1 }, hash = 49IrLEGidfpHNAEKKpcN-g }]
+        . It's probably because the notes are out of order.  I guess
+          Perform.Im.Convert should sort them, but also sampler should give
+          a better error when it sees them.
       - make it so kbd entry doesn't put in pitches
         . Drums normally do this by overriding kbd entry, but in this case
           there are no strokes to enter.
@@ -2756,6 +2771,7 @@ synth: im:
         . It might be nice to map named strokes to keys though, and do
           a playback.  Or maybe map to 1/8 steps?  And input a named stroke if
           it coincides.
+      - add amen break
       . what about tabla and mridangam?
       * emit named strokes as calls
       * basic implementation

@@ -17,6 +17,7 @@ module Derive.Stream (
     , sort
     , merge_asc_lists
     , merge_log, merge_logs
+    , levent_key
     -- ** specific transformations
     , first, first_last
     -- ** zip

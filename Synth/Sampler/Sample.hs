@@ -4,6 +4,7 @@
 
 module Synth.Sampler.Sample where
 import qualified Data.Map as Map
+import qualified System.FilePath as FilePath
 import           System.FilePath ((</>))
 
 import qualified Util.Audio.Audio as Audio
@@ -90,6 +91,13 @@ instance Pretty Sample where
         , ("pan", Pretty.format pan)
         , ("ratios", Pretty.format ratios)
         ]
+
+-- | Like Pretty Note, but shorter.
+prettyNote :: Note -> Text
+prettyNote note = pretty
+    ( start note, duration note, hash note
+    , FilePath.takeFileName (filename (sample note))
+    )
 
 instance Serialize.Serialize Sample where
     put (Sample a b c d e) =

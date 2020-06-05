@@ -10,6 +10,7 @@ import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.IORef as IORef
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
+import qualified Data.Text as Text
 
 import qualified Sound.File.Sndfile as Sndfile
 import qualified Streaming.Prelude as S
@@ -62,7 +63,8 @@ write :: Config -> FilePath -> Set Id.TrackId -> [Sample.Note]
     -- ^ (writtenChunks, totalChunks)
 write config outputDir trackIds notes = catch $ do
     (skipped, hashes, mbState) <- Checkpoint.skipCheckpoints outputDir $
-        Checkpoint.noteHashes (_chunkSize config) (map toSpan notes)
+        Checkpoint.noteHashes (_chunkSize config) $
+        map toSpan notes
     let startFrame = fromIntegral (length skipped) * _chunkSize config
         start = AUtil.toSeconds startFrame
     mapM_ (Checkpoint.linkOutput outputDir) skipped
@@ -165,9 +167,13 @@ render config outputDir initialStates notifyState trackIds notes start =
                 let (overlappingStart, overlappingChunk, futureNotes) =
                         overlappingNotes now blockSize notes
                 -- If notes started in the past, they should already be
-                -- 'playing'.
+                -- 'playing'.  The input notes should have been sorted prior
+                -- to serialization, and convert should have checked
+                -- post-preprocess.
                 Audio.assert (null overlappingStart) $
-                    "overlappingStart should be []: " <> pretty overlappingStart
+                    "notes out of order, I'm at " <> pretty now
+                    <> " but saw notes at: "
+                    <> Text.unwords (map Sample.prettyNote overlappingStart)
                 (playing, metric) <- renderBlock (Just metric) now playing
                     overlappingChunk (null futureNotes)
                 loop (metric, now + blockSize, playing, futureNotes)

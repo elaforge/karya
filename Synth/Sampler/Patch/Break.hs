@@ -72,9 +72,7 @@ c_break beatMap perMeasure mbFrame =
             "Move note start back by this much, along with the offset."
         <*> Sig.defaulted "pitch" 0 "Pitch offset."
     ) $ \(beatOrFrame, pre, pitch) -> Sub.inverting $ \args -> do
-        frame <- case beatOrFrame of
-            Left beat -> lookupBeat beatMap beat
-            Right frame -> return frame
+        frame <- either (lookupBeat beatMap) return beatOrFrame
         let (start, dur) = Args.extent args
         pre <- Call.score_duration start pre
         rpre <- Call.real_duration start pre

@@ -7,6 +7,7 @@ module Synth.Sampler.SamplerIm (main) where
 import qualified Control.Concurrent.Async as Async
 import qualified Control.Exception as Exception
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
@@ -240,7 +241,7 @@ convertNotes db notes =
         Nothing -> return []
         Just patch -> fmap (map (patch,)) $ forM notes $ \(inst, notes) -> do
             let converted = convert db patch notes
-            sampleNotes <- mapM (makeSampleNote emit) converted
+            sampleNotes <- makeSampleNotes emit converted
             return
                 ( inst
                 , [ (note, snote)
@@ -282,12 +283,14 @@ process emitProgress db quality notes outputDir
         Async.forConcurrently_ grouped $ \(patchName, notes) ->
             whenJustM (getPatch db patchName) $ \patch ->
                 Async.forConcurrently_ notes $ \(inst, notes) ->
-                    let trackIds = trackIdsOf notes
-                        emit = emitMessage trackIds inst
-                    in realize emit trackIds config outputDir inst
-                        =<< mapMaybeM (makeSampleNote emit)
-                            (convert db patch notes)
+                    processInst patch inst notes
     where
+    processInst patch inst notes =
+        realize emit trackIds config outputDir inst . Maybe.catMaybes
+            =<< makeSampleNotes emit (convert db patch notes)
+        where
+        trackIds = trackIdsOf notes
+        emit = emitMessage trackIds inst
     config = (Render.defaultConfig quality)
         { Render._emitProgress = emitProgress }
     emitMessage trackIds instrument payload
@@ -299,7 +302,7 @@ process emitProgress db quality notes outputDir
             }
         | otherwise = return ()
 
-    trackIdsOf notes = Set.fromList $ mapMaybe Note.trackId notes
+    trackIdsOf = Set.fromList . mapMaybe Note.trackId
     grouped = byPatchInst notes
     instruments = Set.fromList $ concatMap (map fst . snd) grouped
 
@@ -332,15 +335,24 @@ convert db patch =
     update (Left err, note) = (Left err, [], note)
     patchDir = Patch._rootDir db </> Patch._dir patch
 
+makeSampleNotes :: (Config.Payload -> IO ())
+    -> [(Either Error Sample.Sample, [Log.Msg], Note.Note)]
+    -> IO [Maybe Sample.Note]
+makeSampleNotes emitMessage converted =
+    mapM (uncurry (makeSampleNote emitMessage))
+        (zip (0 : map start converted) converted)
+    where start (_, _, note) = Note.start note
+
 -- TODO do this incrementally?  A stream?
 makeSampleNote :: (Config.Payload -> IO ())
+    -> RealTime
     -> (Either Error Sample.Sample, [Log.Msg], Note.Note)
     -> IO (Maybe Sample.Note)
-makeSampleNote emitMessage (Left err, logs, note) = do
+makeSampleNote emitMessage _ (Left err, logs, note) = do
     mapM_ Log.write logs
     emitMessage $ Config.Warn (Note.stack note) err
     return Nothing
-makeSampleNote emitMessage (Right sample, logs, note) = do
+makeSampleNote emitMessage prevStart (Right sample, logs, note) = do
     mapM_ Log.write logs
     Exception.try (actualDuration (Note.start note) sample) >>= \case
         Left exc -> do
@@ -350,8 +362,14 @@ makeSampleNote emitMessage (Right sample, logs, note) = do
         Right dur | dur <= 0 -> do
             -- Omit samples with 0 duration.  This can happen naturally if they
             -- have 0 volume.
-            emitMessage $
-                Config.Warn (Note.stack note) "sample with <=0 duration"
+            emitMessage $ Config.Warn (Note.stack note)
+                "sample with <=0 duration"
+            return Nothing
+        -- The notes should have been sorted prior to serialization.
+        _ | Note.start note < prevStart -> do
+            emitMessage $ Config.Warn (Note.stack note) $
+                "note start " <> pretty (Note.start note)
+                <> " < previous " <> pretty prevStart
             return Nothing
         Right dur -> do
             -- Round the frame up.  Otherwise, since frames are integral, I
