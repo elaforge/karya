@@ -11,13 +11,17 @@ import qualified Data.Text as Text
 
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.ImInst as ImInst
+import qualified Cmd.PhysicalKey as PhysicalKey
+
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Expr as Expr
 import qualified Derive.Sig as Sig
 import qualified Derive.Typecheck as Typecheck
@@ -41,10 +45,11 @@ patches = map Patch.DbPatch
     ]
     where
     make name (perMeasure, beats) = (Patch.patch ("break-" <> name))
-        { Patch._dir = "break"
-        , Patch._convert = convert (untxt (name <> ".wav"))
+        { Patch._dir = dir
+        , Patch._convert = convert sample
         , Patch._karyaPatch =
-            ImInst.code #= code $
+            -- (ImInst.common#Common.call_map #= make_call_map strokes)
+            ImInst.code #= (call_code <> drum_code) $
             ImInst.make_patch $ Im.Patch.patch
                 { Im.Patch.patch_controls = mconcat
                     [ Control.supportDyn
@@ -54,12 +59,55 @@ patches = map Patch.DbPatch
                 }
         }
         where
-        code = ImInst.note_generators $ ("n", break Nothing) :
+        sample = untxt $ name <> ".wav"
+        call_code = ImInst.note_generators $ ("n", break Nothing) :
             [ (Expr.Symbol stroke, break (Just frame))
             | (_, frame, stroke) <- beats
             ]
+        drum_code = ImInst.cmd $ CUtil.insert_expr thru (Map.fromList strokes)
+        -- TODO incremental should be based on perMeasure and overall range,
+        -- or just hardcoded per break.
+        strokes = makeStrokes (1/2) perMeasure beats
+        thru = Util.imThruFunction dir (convert sample)
         beatMap = makeBeatMap perMeasure beats
         break = c_break beatMap perMeasure
+    dir = "break"
+
+physicalKeys :: [(Measure, Beat)] -> [((Measure, Beat), Char)]
+physicalKeys beats = concat
+    [ zip (map (measure,) beats) keys
+    | (keys, (measure, beats)) <- zip byOctave byMeasure
+    ]
+    where
+    byMeasure = Seq.group_fst beats
+    byOctave = map (map fst) $ Seq.group_adjacent (Pitch.pitch_octave . snd) $
+        filter ((>=0) . Pitch.pitch_accidentals . snd) $
+        Seq.sort_on snd $ Map.toList $ PhysicalKey.pitch_map
+
+-- | I can fit 8 per octave, and with black notes that's 16.
+makeStrokes :: Beat -> Beat -> [((Measure, Beat), Frame, Stroke)]
+    -> [(Char, DeriveT.Expr)]
+makeStrokes increment perMeasure beats =
+    [(key, toExpr mbeat) | (mbeat, key) <- physicalKeys allBeats]
+    -- Since I want to interpret octaves, would it be easier to use
+    -- InputNote then map pitches?
+    -- CUtil.insert_expr works by completely replacing kbd entry, so it doesn't
+    -- look at the octave control, which is actually usually right.
+    -- If I want to reuse it, I'll have to add optional octave support.
+    where
+    toExpr mbeat = maybe (makeExpr mbeat) (Expr.generator0 . Expr.Symbol) $
+        Map.lookup mbeat strokeMap
+    inRange = maybe (const False) (\(m, _) -> (<=m)) $ Map.lookupMax strokeMap
+    allBeats = takeWhile inRange
+        [ (measure, beat)
+        | measure <- [1..], beat <- Seq.range' 1 (perMeasure+1) increment
+        ]
+    strokeMap = Map.fromList [(beat, stroke) | (beat, _, stroke) <- beats]
+
+makeExpr :: (Measure, Beat) -> DeriveT.Expr
+makeExpr (measure, beat) = Expr.generator $ Expr.call "n" [DeriveT.num num]
+    where num = fromIntegral measure + realToFrac (beat / 10)
+    -- 1.25 -> 0.125
 
 -- | Take a beat arg or named start time, and look up the corresponding start
 -- offset.

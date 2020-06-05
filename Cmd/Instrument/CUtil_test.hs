@@ -52,7 +52,7 @@ insert_call tracks tracknum val_edit msg =
     (ustate, cstate) = CmdTest.set_synths_simple [make_synth stroke_keys]
         [("i1", "synth/1")] (CmdTest.make_tracks tracks)
         CmdTest.default_cmd_state
-    char_to_call = CUtil.notes_to_calls (map fst stroke_keys)
+    char_to_call = CUtil.strokes_to_calls (map fst stroke_keys)
     stroke_keys =
         [ (Drums.stroke 'a' "anote" (Attrs.attr "a"), Key.c2)
         , (Drums.stroke 'b' "bnote" (Attrs.attr "b"), Key.d2)

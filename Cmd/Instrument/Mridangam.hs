@@ -7,7 +7,6 @@
 module Cmd.Instrument.Mridangam where
 import           Prelude hiding (min, tan)
 import qualified Data.Char as Char
-import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Cmd.Instrument.CUtil as CUtil
@@ -170,7 +169,7 @@ make_code thru pitched_strokes natural_nn transform notes both = mconcat
             doc (PSignal.nn_pitch natural_nn))
         ]
         where doc = "Emit the drum's recorded pitch. Use like `#=(natural)`."
-    char_to_call = Map.fromList $ concat
+    char_to_call = concat
         [ [(Drums._char n, Drums._name n) | n <- notes]
         , [(char, call) | (call, _, Just char) <- both]
         ]

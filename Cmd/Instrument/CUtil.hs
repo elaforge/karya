@@ -18,12 +18,11 @@ import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Cmd.Instrument.MidiInst as MidiInst
-import qualified Cmd.Keymap as Keymap
 import qualified Cmd.MidiThru as MidiThru
 import qualified Cmd.Msg as Msg
-import qualified Cmd.NoteEntry as NoteEntry
 import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.Perf as Perf
+import qualified Cmd.PhysicalKey as PhysicalKey
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.Args as Args
@@ -62,16 +61,15 @@ type Call = Text
 
 -- * eval call
 
-insert_call :: Cmd.M m => Thru -> Map Char Expr.Symbol -> Msg.Msg
+insert_call :: Cmd.M m => Thru -> [(Char, Expr.Symbol)] -> Msg.Msg
     -> m Cmd.Status
 insert_call thru =
     insert_expr thru . Map.fromList
-        . map (bimap Keymap.physical_key to_expr) . Map.toList
+        . map (bimap PhysicalKey.physical_key to_expr)
     where to_expr call = Expr.generator0 call
 
-notes_to_calls :: [Drums.Stroke] -> Map Char Expr.Symbol
-notes_to_calls notes =
-    Map.fromList [(Drums._char n, Drums._name n) | n <- notes]
+strokes_to_calls :: [Drums.Stroke] -> [(Char, Expr.Symbol)]
+strokes_to_calls strokes = [(Drums._char s, Drums._name s) | s <- strokes]
 
 -- | Select the flavor of thru to use when inserting an expression.  This
 -- selects either 'expr_midi_thru' or 'expr_im_thru'.
@@ -97,7 +95,7 @@ insert_expr thru char_to_expr msg = do
         -- put the NoteEntry stuff in as a default instrument cmd, so I could
         -- just replace it entirely.
         Nothing
-            | Map.member char NoteEntry.kbd_map -> return Cmd.Done
+            | Map.member char PhysicalKey.pitch_map -> return Cmd.Done
             | otherwise -> return Cmd.Continue
         Just expr -> do
             case thru of
@@ -237,7 +235,7 @@ simple_drum thru tuning_control stroke_keys patch =
 
 -- ** code
 
--- | Construct code from drum notes.  This is both the deriver calls to
+-- | Construct code from drum strokes.  This is both the deriver calls to
 -- interpret the stroke names, and the cmds to enter them.
 drum_code :: Thru
     -> Maybe ScoreT.Control -- ^ If given, this control indicates semitone
@@ -245,12 +243,12 @@ drum_code :: Thru
     -- are tuned to a definite note should use 'pitched_drum_patch' and a
     -- pitch track.
     -> [Drums.Stroke] -> MidiInst.Code
-drum_code thru tuning_control notes =
-    MidiInst.note_generators (drum_calls Nothing tuning_control notes)
-    <> MidiInst.cmd (drum_cmd thru notes)
+drum_code thru tuning_control strokes =
+    MidiInst.note_generators (drum_calls Nothing tuning_control strokes)
+    <> MidiInst.cmd (drum_cmd thru strokes)
 
 drum_cmd :: Cmd.M m => Thru -> [Drums.Stroke] -> Msg.Msg -> m Cmd.Status
-drum_cmd thru = insert_call thru . notes_to_calls
+drum_cmd thru = insert_call thru . strokes_to_calls
 
 -- ** patch
 
@@ -264,8 +262,8 @@ drum_patch stroke_keys =
         [(Drums._attributes stroke, key) | (stroke, key) <- stroke_keys]
 
 im_drum_patch :: [Drums.Stroke] -> ImInst.Patch -> ImInst.Patch
-im_drum_patch notes =
-    ImInst.triggered . (ImInst.common#Common.call_map #= make_call_map notes)
+im_drum_patch strokes =
+    ImInst.triggered . (ImInst.common#Common.call_map #= make_call_map strokes)
 
 -- | (keyswitch, low, high, root_pitch).  The root pitch is the pitch at the
 -- bottom of the key range, and winds up in 'Patch.PitchedKeymap'.
@@ -344,18 +342,18 @@ make_attribute_map strokes = Common.attribute_map $ Seq.unique
 -- 'KeyswitchRange'.
 drum_pitched_strokes :: [Drums.Stroke] -> Map Attrs.Attributes KeyswitchRange
     -> (PitchedStrokes, ([Drums.Stroke], [Attrs.Attributes]))
-    -- ^ Also return the notes with no mapping (so they can't be played), and
-    -- keymap ranges with no corresponding notes (so there is no call to
+    -- ^ Also return the strokes with no mapping (so they can't be played), and
+    -- keymap ranges with no corresponding strokes (so there is no call to
     -- play them).
-drum_pitched_strokes notes keymap = (found, (not_found, unused))
+drum_pitched_strokes strokes keymap = (found, (not_found, unused))
     where
-    unused = filter (`notElem` note_attrs) (Map.keys keymap)
-    note_attrs = map Drums._attributes notes
-    (not_found, found) = Either.partitionEithers $ map find notes
+    unused = filter (`notElem` stroke_attrs) (Map.keys keymap)
+    stroke_attrs = map Drums._attributes strokes
+    (not_found, found) = Either.partitionEithers $ map find strokes
     find n = maybe (Left n) (Right . (,) n)
         (Map.lookup (Drums._attributes n) keymap)
 
--- | Create 0 duration calls from the given drum notes.
+-- | Create 0 duration calls from the given drum strokes.
 --
 -- This should probably go in DUtil, but that would make it depend on
 -- "Cmd.Instrument.Drums".
@@ -425,10 +423,10 @@ resolve_strokes soft_dyn keymap =
         where
         stroke = (Drums.stroke_dyn char call attrs dyn) { Drums._group = group }
         dyn = if Attrs.contain attrs Attrs.soft then soft_dyn else 1
-    check_dups (msgs, notes) = (notes3, dup_msgs ++ msgs)
+    check_dups (msgs, strokes) = (strokes3, dup_msgs ++ msgs)
         where
         dup_msgs = map ((">1 call with same name: "<>) . extract) by_name
             ++ map ((">1 call mapped to same key: "<>) . extract) by_key
         extract = pretty . map fst . (\(x, xs) -> x : xs)
-        (notes2, by_name) = Seq.partition_dups (Drums._name . fst) notes
-        (notes3, by_key) = Seq.partition_dups (Drums._char . fst) notes2
+        (strokes2, by_name) = Seq.partition_dups (Drums._name . fst) strokes
+        (strokes3, by_key) = Seq.partition_dups (Drums._char . fst) strokes2

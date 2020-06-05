@@ -2771,6 +2771,13 @@ synth: im:
         . It might be nice to map named strokes to keys though, and do
           a playback.  Or maybe map to 1/8 steps?  And input a named stroke if
           it coincides.
+        * on upper manual, start at q, not 1
+          . also no mapping for 8.5 on 'l'
+        - playback doesn't do sample start offset
+          . Becasue thru only supports (atts, pitch, velocity)
+          . Can I generalize to arbitrary (constant) controls?
+          . The OSC message needs start offset.
+        - support octaves
       - add amen break
       . what about tabla and mridangam?
       * emit named strokes as calls

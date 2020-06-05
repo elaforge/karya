@@ -17,6 +17,7 @@ import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Keymap as Keymap
 import qualified Cmd.Msg as Msg
+import qualified Cmd.PhysicalKey as PhysicalKey
 
 import qualified Derive.Controls as Controls
 import qualified Midi.Midi as Midi
@@ -121,7 +122,7 @@ kbd_input _ _ _ = Nothing
 key_to_input :: Bool -> Pitch.Octave -> Bool -> Key.Key
     -> Maybe [InputNote.Input]
 key_to_input is_pressure octave is_down (Key.Char c) = do
-    pitch <- Map.lookup c kbd_map
+    pitch <- Map.lookup c PhysicalKey.pitch_map
     return $ inputs_of (Pitch.add_octave octave pitch)
     where
     inputs_of pitch = case InputNote.from_ascii is_down pitch of
@@ -132,24 +133,6 @@ key_to_input is_pressure octave is_down (Key.Char c) = do
         input -> [input]
     breath note_id val = InputNote.Control note_id Controls.breath val
 key_to_input _ _ _ _ = Nothing
-
-kbd_map :: Map Char Pitch.Pitch
-kbd_map = Map.fromList $ concat
-    -- I leave '-' free since it's mapped to change octave.
-    [ [('1', Pitch.Pitch 1 (Pitch.Degree 0 (-1)))]
-    , keys 1 "234567890" 1
-    , keys 1 "qwertyuiop" 0
-    -- 'a' is also the append cmd.
-    -- This omits symbol characters so they can retain their edit bindings.
-    , keys 0 "sdfghjkl;" 1
-    , keys 0 "zxcvbnm,." 0
-    ]
-    where
-    keys oct letters accs =
-        [ (c, Pitch.Pitch oct $ Pitch.Degree pc accs)
-        -- The mapping should happen at compile time, even though it doesn't.
-        | (pc, c) <- zip [0..] (map Keymap.physical_key letters)
-        ]
 
 -- ** midi
 

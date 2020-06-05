@@ -5,10 +5,10 @@
 {-# LANGUAGE ViewPatterns #-}
 {- | Support for efficient keymaps.
 
-    The sequece of Cmds which return Continue or Done is flexible, but probably
-    inefficient in the presence of hundreds of commands.  In addition, it can't
-    warn about Cmds that respond to overlapping Msgs, e.g. respond to the same
-    key.
+    The sequence of Cmds which return Continue or Done is flexible, but
+    probably inefficient in the presence of hundreds of commands.  In addition,
+    it can't warn about Cmds that respond to overlapping Msgs, e.g. respond to
+    the same key.
 
     Keymaps provide an efficient way to respond to a useful subset of Msgs,
     i.e.  those which are considered 'key down' type msgs.  The exact
@@ -29,22 +29,20 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
-import qualified Util.CallStack as CallStack
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-
-import qualified Midi.Midi as Midi
-import qualified Ui.Key as Key
-import qualified Ui.Types as Types
-import qualified Ui.UiMsg as UiMsg
-
+import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.KeyLayouts as KeyLayouts
 import qualified Cmd.Msg as Msg
 
 import qualified Local.KeyLayout
-import qualified App.Config as Config
-import Global
+import qualified Midi.Midi as Midi
+import qualified Ui.Key as Key
+import qualified Ui.Types as Types
+import qualified Ui.UiMsg as UiMsg
+
+import           Global
 
 
 -- * binding
@@ -346,21 +344,3 @@ show_bindable show_repeatable b = case b of
     click_times 1 = "double-"
     click_times 2 = "triple-"
     click_times n = showt n <> "-"
-
--- * key layout
-
--- | Map a physical key, written relative to USA qwerty layout, to whatever
--- character that key actually emits (if the layout is already USA qwerty then
--- it's id of course).  This is for layouts which should be done based on
--- physical key position, like piano-style keyboards.  It makes the
--- overlapping-ness of non-mapped keys hard to predict though.
---
--- Since it's intended to map literal key characters, there is no accomodation
--- for failure.  Really this should be done at compile time, so it's
--- conceptually a compile time error.
---
--- TODO isn't there some way I can get this at compile time?  template haskell?
-physical_key :: CallStack.Stack => Char -> Char
-physical_key c =
-    fromMaybe (errorStack $ "Keymap.physical_key " <> showt c <> " not found") $
-    KeyLayouts.from_qwerty Local.KeyLayout.layout c

@@ -7,8 +7,6 @@ module User.Elaforge.Instrument.Kontakt.Gong (
     patches, write_ksp
     , kajar_resolve_errors
 ) where
-import qualified Data.Map as Map
-
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.MidiInst as MidiInst
@@ -51,7 +49,7 @@ kajar_patch =
         , [("k", Gong.make_cycle "kajar" (Just (Left "o"))
             (Just (Left Meter.Q)))]
         ]
-    char_to_call = Map.fromList $ concat
+    char_to_call = concat
         [ [(Drums._char s, Drums._name s) | s <- strokes]
         , [(char, sym) | (char, sym, _) <- kajar_special]
         ]

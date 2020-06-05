@@ -4,7 +4,6 @@
 
 -- | Instrument definitions for kendang Bali, shared between instruments.
 module Cmd.Instrument.KendangBali where
-import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import qualified Cmd.Cmd as Cmd
@@ -123,7 +122,7 @@ pasang_env = Pasang
     <*> Sig.required_environ "lanang" Sig.Unprefixed "Lanang instrument."
 
 pasang_cmd :: Cmd.M m => Msg.Msg -> m Cmd.Status
-pasang_cmd = CUtil.insert_call CUtil.MidiThru $ Map.fromList
+pasang_cmd = CUtil.insert_call CUtil.MidiThru
     [(char, name) | (char, name, _) <- pasang_calls]
 
 c_pasang_calls :: [(Expr.Symbol, Derive.Generator Derive.Note)]

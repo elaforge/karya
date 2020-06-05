@@ -58,6 +58,7 @@ import           Cmd.Keymap
         command_char, plain_char, plain_key, really_control, shift_char,
         SimpleMod(..))
 import qualified Cmd.Msg as Msg
+import qualified Cmd.PhysicalKey as PhysicalKey
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Play as Play
 import qualified Cmd.Ruler
@@ -136,8 +137,8 @@ undo_bindings = concat
 -- See how annoying it is to make a keymap by hand?
 quit_bindings :: [Keymap.Binding (Cmd.CmdT IO)]
 quit_bindings =
-    bind_key_status [PrimaryCommand] (Key.Char (Keymap.physical_key 'q')) "quit"
-        (Play.cmd_stop >> return Cmd.Quit)
+    bind_key_status [PrimaryCommand] (Key.Char (PhysicalKey.physical_key 'q'))
+        "quit" (Play.cmd_stop >> return Cmd.Quit)
 
 -- * pure cmds
 
@@ -175,7 +176,7 @@ play_bindings = concat
     sel = [Shift]
     prev = []
     local = Key.Enter
-    root = Key.Char (Keymap.physical_key '\'')
+    root = Key.Char (PhysicalKey.physical_key '\'')
 
 -- | I bind the mouse by device rather than function, since I can't detect
 -- overlaps as easily for mouse bindings.
@@ -454,9 +455,9 @@ event_bindings = concat
 
     -- There are placed to avoid conflict with 'Cmd.state_kbd_entry' for either
     -- pitched instruments or specialized keymaps like drums.
-    , bind_key_status [] (Key.Char (Keymap.physical_key '/'))
+    , bind_key_status [] (Key.Char (PhysicalKey.physical_key '/'))
         "append text" Edit.append_text
-    , bind_key_status [] (Key.Char (Keymap.physical_key '?'))
+    , bind_key_status [] (Key.Char (PhysicalKey.physical_key '?'))
         "replace last call" Edit.replace_last_call
     , bind_key_status [] (Key.Char 'i') "prepend text" Edit.prepend_text
     , bind_key_status [] (Key.Char 'I') "replace first call"
