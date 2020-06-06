@@ -625,6 +625,9 @@ instance ShowVal.ShowVal (Expr.Call Val) where
         _ -> Nothing
 instance ShowVal.ShowVal (Expr.Term Val) where show_val = Expr.show_val_term
 
+instance Pretty (Expr.Call Val) where pretty = ShowVal.show_val
+instance Pretty (Expr.Term Val) where pretty = ShowVal.show_val
+
 calls_equal :: Call -> Call -> Maybe Bool
 calls_equal (Expr.Call sym1 args1) (Expr.Call sym2 args2)
     | sym1 /= sym2 = Just False

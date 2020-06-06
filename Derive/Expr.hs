@@ -50,6 +50,11 @@ instance ShowVal (Call MiniVal) where
         _ -> Nothing
 instance ShowVal (Term MiniVal) where show_val = show_val_term
 
+instance Pretty (Call Text) where pretty = show_val
+instance Pretty (Term Text) where pretty = show_val
+instance Pretty (Call MiniVal) where pretty = show_val
+instance Pretty (Term MiniVal) where pretty = show_val
+
 -- Previously I used 'instance ShowVal val => ShowVal (Expr val)', but that
 -- doesn't let me have a specialized version for Call Val, unless I want to do
 -- overlapping instances, which I don't.
