@@ -152,12 +152,13 @@ imThruFunction dir = CUtil.ImThru . thruFunction dir
 
 thruFunction :: FilePath -> (Note.Note -> Patch.ConvertM Sample.Sample)
     -> Osc.ThruFunction
-thruFunction sampleDir convert attrs pitch velocity = do
+thruFunction sampleDir convert (Osc.Note pitch velocity attrs offset) = do
     (sample, _logs) <- Patch.runConvert $ convert $ (Note.note "" "" 0 1)
         { Note.attributes = attrs
         , Note.controls = Map.fromList
             [ (Control.pitch, Signal.constant (Pitch.nn_to_double pitch))
             , (Control.dynamic, Signal.constant velocity)
+            , (Control.sampleStartOffset, Signal.constant (fromIntegral offset))
             ]
         }
     return [Sample.toOsc sampleDir sample]

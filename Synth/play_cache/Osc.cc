@@ -84,7 +84,7 @@ Osc::new_server()
     lo_server server =
         lo_server_new_with_proto(STR(OSC_PORT), LO_UDP, handle_error);
     if (server) {
-        lo_server_add_method(server, "/play", "sdd", Osc::handle_play, this);
+        lo_server_add_method(server, "/play", "shdd", Osc::handle_play, this);
         lo_server_add_method(server, "/stop", "", Osc::handle_stop, this);
     }
     return server;
@@ -114,17 +114,21 @@ Osc::handle_play(
     int argc, void *data, void *user_data)
 {
     Osc *self = static_cast<Osc *>(user_data);
-    self->play(&argv[0]->s, argv[1]->d, argv[2]->d);
+    // This corresponds to the message sent by Synth.Shared.Osc.play.
+    // The magic type letters here have to correspond to the type letters in
+    // lo_server_add_method above.
+    self->play(&argv[0]->s, argv[1]->h, argv[2]->d, argv[3]->d);
     return 0;
 }
 
 
 void
-Osc::play(const char *path, double ratio, double vol)
+Osc::play(const char *path, int64_t offset, double ratio, double vol)
 {
-    LOG("play: " << path << " ratio:" << ratio << " vol:" << vol);
+    LOG("play: " << path << " offset: " << offset << " ratio:" << ratio
+        << " vol:" << vol);
     this->volume = vol;
-    streamer->start(path, ratio);
+    streamer->start(path, offset, ratio);
 }
 
 

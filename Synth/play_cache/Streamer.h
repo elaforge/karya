@@ -102,11 +102,12 @@ class ResampleStreamer : public Streamer {
 public:
     ResampleStreamer(std::ostream &log, int channels, int sample_rate,
             int max_frames);
-    void start(const std::string &fname, double ratio);
+    void start(const std::string &fname, int64_t offset, double ratio);
     void stop();
 
 private:
     std::string fname;
+    int64_t offset;
     double ratio;
     Audio *initialize() override;
 };

@@ -2773,10 +2773,11 @@ synth: im:
           it coincides.
         * on upper manual, start at q, not 1
           . also no mapping for 8.5 on 'l'
-        - playback doesn't do sample start offset
-          . Becasue thru only supports (atts, pitch, velocity)
+        * playback doesn't do sample start offset
+          . Becasue thru only supports (attrs, pitch, velocity)
           . Can I generalize to arbitrary (constant) controls?
-          . The OSC message needs start offset.
+          * The OSC message needs start offset.
+          * Now Lib.Util.thruFunction needs to make a Note with offset.
         - support octaves
       - add amen break
       . what about tabla and mridangam?

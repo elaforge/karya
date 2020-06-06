@@ -37,7 +37,7 @@ private:
     static int handle_play(
         const char *path, const char *types, lo_arg **argv,
         int argc, void *data, void *self);
-    void play(const char *path, double ratio, double vol);
+    void play(const char *path, int64_t offset, double ratio, double vol);
 
     static int handle_stop(
         const char *path, const char *types, lo_arg **argv,

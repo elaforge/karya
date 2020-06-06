@@ -131,6 +131,7 @@ srate = 1/8
 toOsc :: FilePath -> Sample -> Osc.Play
 toOsc sampleDir sample = Osc.Play
     { _sample = Config.unsafeSamplerRoot </> sampleDir </> filename sample
+    , _offset = fromIntegral $ offset sample
     , _ratio = Signal.at start $ ratios sample
     , _volume = Signal.at start $ envelope sample
     }

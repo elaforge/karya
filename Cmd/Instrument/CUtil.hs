@@ -32,6 +32,8 @@ import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
+import qualified Synth.Shared.Control as Control
+import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Expr as Expr
@@ -121,13 +123,12 @@ insert_expr thru char_to_expr msg = do
 
 expr_im_thru :: Cmd.M m => Osc.ThruFunction -> DeriveT.Expr -> m [Cmd.Thru]
 expr_im_thru thru_f expr = do
-    (nn, dyn, attrs) <- expr_attributes expr
-    plays <- Cmd.require_right ("thru_f: "<>) $ thru_f attrs nn dyn
+    note <- eval_thru_note expr
+    plays <- Cmd.require_right ("thru_f: "<>) $ thru_f note
     return $ map (Cmd.ImThru . Osc.play) plays
 
-expr_attributes :: Cmd.M m => DeriveT.Expr
-    -> m (Pitch.NoteNumber, Signal.Y, Attrs.Attributes)
-expr_attributes expr = do
+eval_thru_note :: Cmd.M m => DeriveT.Expr -> m Osc.Note
+eval_thru_note expr = do
     (block_id, _, track_id, pos) <- Selection.get_insert
     result <- LEvent.write_snd_prefix "CUtil.expr_attributes"
         =<< Perf.derive_expr block_id track_id pos expr
@@ -135,11 +136,15 @@ expr_attributes expr = do
     case events of
         [] -> Cmd.throw $ "expected events when evaluating: "
             <> ShowVal.show_val expr
-        [event] -> return
-            ( fromMaybe 0 (Score.initial_nn event)
-            , Score.initial_dynamic event
-            , Score.event_attributes event
-            )
+        [event] -> return $ Osc.Note
+            { _pitch = fromMaybe 0 (Score.initial_nn event)
+            , _velocity = Score.initial_dynamic event
+            , _attributes = Score.event_attributes event
+            , _startOffset = maybe 0 (floor . ScoreT.typed_val) $
+                Score.control_at (Score.event_start event)
+                    (Controls.from_shared Control.sampleStartOffset)
+                    event
+            }
         events -> Cmd.throw $ "multiple events when evaluating: "
             <> ShowVal.show_val expr
             <> ": " <> Text.intercalate ", " (map Score.short_event events)

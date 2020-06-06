@@ -185,9 +185,10 @@ ResampleStreamer::ResampleStreamer(
 }
 
 void
-ResampleStreamer::start(const string &fname, double ratio)
+ResampleStreamer::start(const string &fname, int64_t offset, double ratio)
 {
     this->fname.assign(fname);
+    this->offset = offset;
     this->ratio = ratio;
     this->restart();
 }
@@ -208,7 +209,7 @@ ResampleStreamer::initialize()
     if (fname.empty()) {
         audio = new AudioEmpty();
     } else {
-        audio = new SampleFile(log, channels, true, sample_rate, fname, 0);
+        audio = new SampleFile(log, channels, true, sample_rate, fname, offset);
         if (ratio != 1)
             audio = new Resample(log, channels, ratio, audio);
     }

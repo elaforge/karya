@@ -7,7 +7,10 @@
 -- for im.  Since each im patch may respond in its own way to a Note, this
 -- relies on the patch itself exporting a 'ThruFunction' to find the
 -- appropriate sample.
-module Synth.Shared.Osc (ThruFunction, Play(..), send, play, stop) where
+module Synth.Shared.Osc (
+    ThruFunction, Note(..)
+    , Play(..), send, play, stop
+) where
 import qualified Data.ByteString.Char8 as ByteString.Char8
 import qualified Sound.OSC as OSC
 import qualified Sound.OSC.Transport.FD as OSC.Transport.FD
@@ -22,13 +25,21 @@ import Global
 
 -- | This is a specialized version of 'Cmd.Cmd.ThruFunction'.  Being more
 -- specialized means I don't have to directly depend on "Cmd.Cmd" from here.
-type ThruFunction = Attrs.Attributes -> Pitch.NoteNumber -> Double -- velocity
-    -> Either Error [Play]
+type ThruFunction = Note -> Either Error [Play]
+
+data Note = Note {
+    _pitch :: !Pitch.NoteNumber
+    , _velocity :: !Double
+    , _attributes :: !Attrs.Attributes
+    , _startOffset :: !Int
+    } deriving (Show)
 
 type Error = Text
+type Frames = Int
 
 data Play = Play {
     _sample :: !FilePath
+    , _offset :: !Frames
     , _ratio :: !Double
     , _volume :: !Double
     } deriving (Eq, Show)
@@ -41,9 +52,9 @@ send msg =
     open = OSC.Transport.FD.UDP.openUDP "127.0.0.1" Config.oscPort
 
 play :: Play -> OSC.Message
-play (Play sample ratio volume) = OSC.message "/play"
+play (Play sample offset ratio volume) = OSC.message "/play"
     [ OSC.ASCII_String (ByteString.Char8.pack sample)
-    , OSC.Double ratio, OSC.Double volume
+    , OSC.Int64 (fromIntegral offset), OSC.Double ratio, OSC.Double volume
     ]
 
 stop :: OSC.Message

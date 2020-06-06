@@ -109,7 +109,7 @@ thru thru_f = MidiInst.thru convert
         inst <- Cmd.abort_unless =<< EditUtil.lookup_instrument
         MidiThru.convert_input inst scale input >>= \case
             InputNote.NoteOn _ pitch velocity ->
-                case thru_f attrs pitch velocity of
+                case thru_f (Osc.Note pitch velocity attrs 0) of
                     Left err -> Cmd.throw err
                     Right plays -> return $ map (Cmd.ImThru . Osc.play) plays
             _ -> return []
