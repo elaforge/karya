@@ -78,3 +78,23 @@ withTag k v = Korvai.addSectionTags (Tags.tag k v)
 
 variations :: [Korvai.SequenceT sollu] -> [Section sollu]
 variations = map (var . Korvai.section)
+
+{- NOTE [solkattu-sections]
+    sections are syntactically noisy
+    . I have to put 'section' on everything, just so I can have one with
+      e.g. 'x2'.
+    . Also they break maps, like 'map (nadai 6)' has to become
+      'map (smap (nadai 6))'
+    . The simplest thing is to put the section data inside Sequence, and
+      then pull it out, like Alignment.
+    . It means I could embed section metadata in sollus and have it show up
+      in multiple sections, or multiple times.  That seems not right,
+      because they really are per-section, and in fact the point of sections
+      is to have that stuff.
+    . Or a ToSection class, but that just means I could use 'x2' and omit
+      'section', but that's not worth it.
+    . The ideal is an implicit 'section' on each element of the list,
+      unless there is one.  Like automatic coercion, or dynamic types.  But
+      haskell doesn't have either.
+    . Maybe I just shorten 'section' to 's' and live with it.
+-}

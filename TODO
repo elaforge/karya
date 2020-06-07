@@ -41,71 +41,17 @@ UNSORTED
       shouldn't I just sort it?  Maybe the most reasonable is to just sort
       each track always.
     . Then MergeList by track?
-  * tempo could have bpm:
-    . 75bpm -> 75/60.  Or 75bpm q -> ts q / 60.
-  * rename Drums.Note to Drums.Stroke, too many things called Note
-  * segfault disabling track
-    . had multiple views
-    . Can make it happen when disable with multiple views.
-    . Happened twice, but can't repro now.  It's clearly waveforms, how can
-      I instrument it to find it next time?
-    . Crash info in console, User Reports:  ../scrap/crash
-      . nullptr exception
-      0 PeakCache::MixedEntry::add(
-        std::__1::shared_ptr<PeakCache::Entry const>) + 736
-      1 EventTrack::set_waveform(int, PeakCache::Params const&) + 461
-      2 Block::set_waveform(int, int, PeakCache::Params const&) + 64
-      3 0x0000000107f5c113 set_waveform + 419
-    . The only things I can find that could be null are the shared_ptrs, but
-      it seems unlikely, I think they're only null if explicitly reset, or
-      uninitialized.
-    . ASSERT(entry->peaks.get()); // DEBUG
-      Could be null if load_file returned null?  load_file never returns null.
-    . Otherwise, all I can think of is memory corruption, in the shared_ptr or
-      vectors.  Maybe optimization inlines a dereference?
-  * waveforms are inaccurate when play multiply /= 1
-  * move tracks with shift click should include the collapsed pitch track
-    . Actually it does work, but I have to click on top of the collapsed pitch
-      track.  I should make it so moving to the track will move to a collapsed
-      pitch track to the right.  I don't want to separate a track from its
-      merge.
-    . But only when moving right.  Is there an easier way to express this?
-      The principle is that a merged track shouldn't be separated from its
-      collapsed neighbor.  So if I do click on a merged track by accident, I
-      still want to not separate.  I would do that by increasing for move
-      right or decreasing for move left to avoid coming between a merge.  Not
-      splitting on move from is already handled by select.
-  * Playing unsplit pasang instrument was confusing because no sound and no
-    error.  Notes with no instrument should warn.
-  * Can I have a default movement for pitch set?
-    . I could add a parameter, but I want it to only apply when it doesn't
-      start a note.
-    . Those calls come from Derive.Call.ScaleDegree.scale_degree
-    . But that's a ValCall.
-    . Deriver.Lib.with_scale, to make a PatternCall.
-    . But also there's a set pitch namespace directly, so they're separate.
-    . Then it's val_to_pitch, which directly does a set.
-    . It could look up the call on the spot
-    . How can I tell if it's an attack?  I can look for event in args.
-      The prev note event is actually the previous note, it's not this one.
-  * The KbdEntry behaviour where it puts in .79 for control tracks is really
-    useless.  Change that to do nothing, or to put a note in the owning note
-    track.
-    - Could I get it to not do a note at all, so numbers work?
-      . I do a fallthrough, does it get stopped?
-      . NoteEntry.cmds_with_input catches the keydown msg, and replaces it
-        with an Input.
-      . I would have to say if it ended with Continue, then try again with
-        the original key.  Would that have confusing side-effects?  I would
-        prefer if I could have ControlTrack.edit_normalized explicitly signal
-        to retry with the Msg.
-      . I think commands would fall through in addition to playing a note,
-        e.g. jk will do a thru and still move the cursor, which I don't want.
-      . I don't want this that much, so leave it be for now.
-  * Do I not get the call name in ArgErrors for val calls?
-    . E.g. in Play: Error: ArgError: expected another argument at argument
-      "name"
-  * Can I coerce PControlRef to Pitch, and ControlRef to Num?
+  - have kbd entry on a control track let numbers through
+    . I do a fallthrough, does it get stopped?
+    . NoteEntry.cmds_with_input catches the keydown msg, and replaces it
+      with an Input.
+    . I would have to say if it ended with Continue, then try again with
+      the original key.  Would that have confusing side-effects?  I would
+      prefer if I could have ControlTrack.edit_normalized explicitly signal
+      to retry with the Msg.
+    . I think commands would fall through in addition to playing a note,
+      e.g. jk will do a thru and still move the cursor, which I don't want.
+    . I don't want this that much, so leave it be for now.
   - it would be nice if I could coerce VPitch to NoteNumber
     . Implementation is in the 'typecheck-instances' branch, but it leads
       to awkward orphans, so I'm not sure I like it.
@@ -124,28 +70,7 @@ UNSORTED
       typecheck, but it's not the only one!
     . I could move down the instances for those specific things.  It's pretty
       ad-hoc.
-    * Why does #abc parse as a PControl, but # parse as PControlRef?
   - Can I merge PControl with Control?
-  * Crash when setting tempo:
-    assertion: assertion failed at fltk/PeakCache.cc:69 add():
-      'this->peaks_n.size() == entry->peaks->size()'
-    . fltk/PeakCache.cc:70 24 != 18
-    . This means I wanted to mix in a chunk with a different size.
-    . They're at the end, so probably just one ran out of samples.
-  * wayang/merak-ngelo has non 1 ratios samples, why?
-    . It's only kantilans:
-      Signal 0s <.006s:86.9nn,6p(wayang-srg), .2s:86.9nn,6p(wayang-srg)>
-    . That's correct for laras_sawan_kantilan, pengisep, high ding.
-    . But shouldn't I be using symbolic pitch anyway?
-      No, I haven't set it up I guess.
-    . For some reason this pitchen note 81, not 100.
-    . Probably looking at the wrong one.  Pitch is 67.6
-      This is because it's using the generic wayang scale, kantilan is
-      different in that octave.
-    . So use symbolic pitch.  And now it doesn't like srg.
-      I could use Pitch.Pitch.  Or translate srg to ioe.  Or teach wayang to
-      understand srg directly, though then I need a scale env var.
-      Or I could do it in tscore, but then I have to read ioe on the track.
   - can I tweak individual scale degrees?
     . E.g. ma + 0.25nn, ri + 0.2nn.
     . Maybe just an env var for scale degree would do it.
@@ -490,10 +415,6 @@ UNSORTED
           I'd have to do something about exceptions, maybe put it in as
           a Metadata too.  If I can make the whole derivation fully streaming
           then this might be a big win.
-  * Adding a new track puts a bit of extra padding on the right side.
-    . Create.widen gets it too high, but Views.resize_to_fit gets it right.
-      w = Num.sum $ map Block.display_track_width (Block.block_tracks block)
-    . But Create also uses Views.contents_rect!
   tabuh gari:
     - octaves notation for trompong
     - octaves for gender rambat
@@ -1238,29 +1159,6 @@ UNIFY:
 
 ----------------------------------------------------------------------
 
-upgrade to ghc 8.8:
-  + try weeder
-    . compile with -fwrite-ide-info, maybe just in Opt mode
-    . Tons of false positives.  It doesn't say what set of hie files it uses.
-      It probably doesn't understand that there are multiple ones.
-    . Also has duplicate hits.
-  * write new freeze files
-    . Let's not bother with tools/freeze_deps.hs, and just require one ghc
-      version.
-  / ghcit no longer loads .o: changed flags
-    . But different with ghc: it loads .o, but still interprets a bunch of
-      things when I ':l *'.
-    . -ddump-hi-diffs
-    . Module flags have changed 70c3e48540276626e4989d431c3a7ad4
-      -> a6669bafdc252c7504c7513ca70aacbd
-    . Wait but now it does, try a rebuild.
-  * tests hang:
-    . normal-Cmd.CallDoc_test.test_doc_html
-    . It was prettyprint.
-  + bug with cpphs: https://gitlab.haskell.org/ghc/ghc/issues/17185
-    . I can put spaces in -pgmP.
-    . Commented on the issue, but the workaround seems ok.
-
 documentation:
   - strict markdown parser, and extensible:
     . with https://markkarpov.com/post/announcing-mmark.html
@@ -1578,30 +1476,6 @@ Util.Segment: linear: linear piecewise signal: signal-discontinuity:
       implementation from piecewise-constant', but I have to go to 'linear:
       make Segment.drop_discontinuity_at insert an extra sample', since that
       fixes a serious bug.
-    . There are:
-      * update Derive.Note.extract_track_signal to use new clip_before / clip_after
-      * linear: update Block.trim_controls to use drop_discontinuity_at
-      / linear: remove yet more unused functions from Signal and PSignal
-      / linear: implement clip_bounds, export head and last, misc cleanups
-      / linear: in Pretty Signal, put a + in front of positive offsets
-      * linear: fix buggy offset handling in Util.Segment
-      / linear: add Segment.to_piecewise_constant
-      / remove TimeVector.interleave
-      / linear: clean up curves and generate ControlFunctions from curve descriptions
-      / use ControlUtil.make_curve_call with cf-jump, and add cf-const
-      * linear: fix Segment.drop_after to only emit the first sample in a discontinuity
-      / linear: fix buggy Segment.concat
-      / linear: add various small functions to Perform.Signal
-      / linear: rename map_y to map_y_linear and add a map_y that resamples
-      / linear: fix buggy Signal.scalar_max, and remove scalar_min
-      / linear: fix bug in Segment.map_y, where it didn't retain discontinuities
-      / linear: add Segment.num_clip_after
-      / solkattu: ...
-      + switch the signal implementation from piecewise-constant to piecewise-linear
-      / linear: get rid of infer linear in fltk
-        ...
-      ? linear: make Segment.drop_discontinuity_at insert an extra sample to avoid changing the slope
-
     . Do a SCC profile to see where the time goes.  Maybe do one before to see
       if something new has come up?
     . Try to get that back.  Maybe the 'clip_before, clip_after' change above.
@@ -2301,11 +2175,6 @@ synth: im:
           I haven't been motivated to complete the above.
         * But first: make render incremental.  I need to do the whole save
           states thing for this.
-    * come up with some means to expire old chunks
-      . I want to keep the last one because then I can toggle two things
-        quickly, but after that it's increasingly unlikely to need them.
-      . It's valid to remove the whole directory occasionally.
-      . Or I can delete everything with mtime >1hr ago and no symlinks.
     - Restart skipping chunks if the state converges again.
       . How likely is this to happen?
       . Probably it will never happen if there are any IIR effects, though
@@ -2459,13 +2328,7 @@ synth: im:
           main bottleneck.
       . Looks like resampler is just hold previous value, not even linear
         interpolate: StreamingSamplerVoice.cpp interpolateMonoSamples
-    * factor common drum parts into Lib.Drum
-      . From Mridangam, KendangBali, LittleGong
     sampler-im/sample:
-      * support for ad-hoc samples, for daw-like usage
-        . I can put the sample name in the note, e.g.
-          s 'some-name'
-        . A generic sample patch that takes sample name in Note.element.
       - I'll want warp points, or at least realign points.  But at this point,
         shouldn't I be working in the DAW?
         . DAW advantages is UI designed for this, stretch, warp points, etc.
@@ -2500,114 +2363,6 @@ synth: im:
           . save and restore state - implemented, but hacky
           . readable source - matter of taste
           . configure per-sample ratio calculation
-
-    * assertion: no resample state, but ratios is not 1: Signal.constant .999
-      . round off, it's close enough!
-      . I guess the problem is that RenderSample does round, but
-        Render.startSample doesn't know that.
-    * and again:
-      . no resample state, but ratios is not 1-ish: Signal.constant 1.013:
-        Note (2.69s -- 4.20)
-          { start = 118731f, duration = 66598f
-          , sample = Sample
-            { filename = "data/sampler/reyong/55-65-108-mute+closed+v3.flac"
-            , offset = 0f, envelope = Signal.constant .75
-            , pan = Signal.constant -.25, ratios = Signal.constant 1.013
-            }
-          , hash = hmylP20PJkpslxJv5IW18w
-          }
-        Note
-          { patch = "reyong", instrument = "reyong"
-          , trackId = (tid "untitled/awak.t13"), element = "", start = 2.69s
-          , duration = 0s
-          , controls =
-              { dyn: Signal.constant .5, pan: Signal.constant -.25
-              , pitch: Signal.constant 67.48, variation: Signal.constant .798
-              }
-          , attributes = +mute
-          , ...
-          }
-      . Why no state?  It was previously and is currently symbolic-pitch=f.
-      . To debug these, I need to know what the state was written in response
-        to.
-      . One possibility is I saved the wrong state.  I can verify by saving
-        hash with the NoResample, so I can check for that hash in the previous
-        notes.
-      . Previous seemed the same, and with a ratio of 1.1013, so it should
-        have had a state.  This was just a change in envelope at 4.03+
-      . I should be able to replay by rendering against old notes.
-      . The first time it does emit NoResample <mempty>.
-      . It happens twice, the second time is mempty.
-        154350f (3.5): "55-65-108-mute+closed+v3.flac":58347f
-        165375f (3.75): NoResample ""
-      . Neither are checkpoints though!?  Because the checkpoint is at 4, at
-        it saves the last value.
-      . This happens when it's done, should it be done?
-      . Resample runs out of samples, emits empty state.  But shouldn't the
-        Playing have then been filtered out?
-        _noteRange goes to 4.2s, but I already ran out at 3.75s.
-        Which is correct?
-      . That Audio.isEmpty in Render.pull seems unsafe... and indeed the
-        problem goes away when I remove it.
-      . Why can't I put the state in the audio stream?  I guess it's less
-        efficient in that I'm only using it on chunk boundaries, but it's just
-        an extra unused pointer in a pair.  The main thing is that I wind up
-        with another Audio type, or I have to generalize Audio to include an
-        arbitrary payload.
-    * ensure it's ok if samples end a bit before predicted
-      . Previously I checked if the stream was complete with AUtil.next.
-        But since I'm using IORefs for the state, this is unsafe, since it
-        advances the resampler state too far.
-      . But now this approach can be wrong if the sample happens to end
-        exactly on a chunk boundary.  Or the _noteRange is slightly wrong,
-        which happens too.  I should make sure it's harmless.
-    * notes still playing
-      . notes still playing at 1455300f(33s):
-        [Playing:k3KoeULPIDEFDt9_8ulvGQ(1221231f(27.69s)--1452958f(32.94s))]
-
-        Note 27.69s + 5.25s => 32.94s
-          [orig: (27.69s, 972.3s) untitled/awak.t23 trompong]
-        { start = 1221231f, duration = 231727f
-        , sample =
-            Sample
-                { filename = "data/sampler/reyong/57-65-108-open+v2.flac"
-                , offset = 0f
-                , envelope =
-                    Signal 0s < -100000000000s:0, 27.69s:0, 27.69s:.962
-                    , 1000s:.962, 1000.08s:0
-                    >
-                , pan = Signal.constant 0
-                , ratios = Signal.constant 1.0168921424934574
-                }
-        , hash = k3KoeULPIDEFDt9_8ulvGQ
-        }
-
-      . minimal:
-        rr im/bug; for n in 2 1 0; do
-          build/opt/sampler-im im/bug-notes/sampler.$n im/bug
-        done
-        build/opt/sampler-im im/bug-notes/sampler im/bug
-
-      . The problem is that it saves with a certain offset, then loads with
-        that offset, and then resample produces too many samples.
-      . The offset is the used samples, which is however much resample chose
-        to consume.
-      . What is "too many"?  Could it be the right number?
-        . If it's the right number, then my duration guess is wrong.
-        . Otherwise, I saved state in the wrong spot, and there should be
-          a jump in the sample.
-        . Duration guess is easy though, since it's constant.  Verify anyway:
-          base dur: 227877, predictFileDuration: 231727, actual dur: 231727
-      . Restore is already wrong.  I saved 25000f and loaded 15000f, then
-        saved 10000f.
-      . Shouldn't it have incremented?  Maybe it doesn't add the restore
-        offset?
-      . sampler.2
-        restore state: Nothing
-        write serialize: (1223775f, "15000f")
-        state: "ozXprWyEwlGd4ppazi4SEA"
-      . sampler.1:
-        restore state: "57-65-108-open+v2.flac":15000f
 
     -  AUtil.volume does dbToLinear per-sample, which is inefficient.
       . Do it to the Signal, before realizeSignal.
@@ -2711,14 +2466,6 @@ synth: im:
       - Sample should stream the envelope.
       - RenderSample.applyEnvelope should be able to check for constant within
         the sample's duration.
-      * Efficiently skip long silent gaps.
-        . To avoid writing empty checkpoints, I could link to a canonical
-          empty sample.
-        . Or it might be better to make a broken link, and have play_cache
-          know to skip those, that way it doesn't have to read a file.
-        . Link to "<silence>" or something to imply it's broken on purpose.
-        . I already do this at the synthesis level, due to Audio.silence2, but
-          I still write a file.
       - if libsamplerate could handle the pitch curve directly, I wouldn't
         have to resample in Convert.makeSample, and it could be per-sample.
         . hz -> nn is nonlinear, and then hz -> ratio is nonlinear, so I have to
@@ -2733,74 +2480,9 @@ synth: im:
         . It seems more basic, except the gui and finding attacks
           automatically.  Not sure if that's any different from reaper's
           "dynamic splits".
-      * it would probably be easier to use if I didn't unroll the measures,
-        but gave 2 args for measure and beat.
-        . It's annoying when I'm working in measure 1, no good for single
-          measure samples.
-        . I could reverse the order, though it seems less intuitive.
-        . n 16 -> n 8 2 because (2-1 * 8 + 8) = 16
-          Starting at 1 makes the math confusing.  Maybe measure should start
-          at 0?  Then I have to update the labels too.  But then also beat
-          should too, for consistency?
-          . I don't mind couting 0 to 7.
-        . The extra arg is annoying, I wind up with 'n 2 _ _ 1' for +1 pitch,
-          even when a break is only one measure.
-        . Could I do measure.beat syntax?  1.4 or just 4.
-        . That looks nice, but what about fractional beats?  Can't do 1.1.25.
-          I could add support, or for 1,1.25, but that's a new kind of literal.
-          I could generalize to measure:beat, or just tuples of numbers.  But
-          there's no other use for it at the moment.
-        . It's beat*10, so .1 -> 1/10 -> 1.  So .125 -> 1.25?
-        . This works.  I'm still not sure about 1-based though.  Actually it's
-          necessary for my wacky fractional notation, since 2.0 -> (1, 2)
-          while 2.1 -> (2, 1).
-      * Putting pre=1 crashes the sampler: 'n 2 _ 1'
-        . Synth/Sampler/SamplerIm.hs:294 - untitled/b1 {"untitled/b1.t2"}
-          Synth/Sampler/Render.hs:169: assertion: overlappingStart should be
-          []: [Note { start = 9553f, duration = 35272f, sample = Sample
-          { filename = "", offset = 133729f, envelope = Signal 0s <.43s:1,
-          .86s:1, 1.01s:0>, pan = Signal.constant 0, ratios = Signal.constant
-          1 }, hash = 49IrLEGidfpHNAEKKpcN-g }]
-        . It's probably because the notes are out of order.  I guess
-          Perform.Im.Convert should sort them, but also sampler should give
-          a better error when it sees them.
-      - make it so kbd entry doesn't put in pitches
-        . Drums normally do this by overriding kbd entry, but in this case
-          there are no strokes to enter.
-        . Maybe I should just disable kbd entry then?
-        . It might be nice to map named strokes to keys though, and do
-          a playback.  Or maybe map to 1/8 steps?  And input a named stroke if
-          it coincides.
-        * on upper manual, start at q, not 1
-          . also no mapping for 8.5 on 'l'
-        * playback doesn't do sample start offset
-          . Becasue thru only supports (attrs, pitch, velocity)
-          . Can I generalize to arbitrary (constant) controls?
-          * The OSC message needs start offset.
-          * Now Lib.Util.thruFunction needs to make a Note with offset.
         - support octaves
-      * add amen break
       . what about tabla and mridangam?
-      * emit named strokes as calls
-      * basic implementation
-        . implement start-offset
-      * dyn curve
-      * pitch adjust
-      * an option to start play a bit before
     rambat:
-      * 3a +calung is much louder than neighbor pitches
-        . data/sampler/rambat/isep/3a-calung-mf-v1.flac
-        . data/sampler/rambat/umbang/3a-calung-mf-v1.flac
-        . I want to do the dynamics checking thing: cycle through the starts
-          of each sample in a systematic way:
-            (pitch, tuning, articulation, dyn, var)
-        . Maybe I can make a generic thing to render all samples, in the order
-          of my choosing, and then just look at the audio file as I see fit.
-        . And output an index of time to sample name.
-        . I think it just happens to sound louder... these seem to have been
-          normalized, maybe it just normalizes louder?
-        . I have to do it in context or it's not audible, so I need to make
-          Notes.
       - No thru for >ra.  I guess this is the same problem that caused me to
         want to refactor how thru is handled.  refactor thru:
         . Alternately as a short term fix, I could make a sampler/rambat dummy
@@ -2871,18 +2553,7 @@ synth: im:
             instrument, the others continue to use the same Cmd.Track
             mechanism.
     reyong:
-      * thru pitch is off from played pitch
-        . 4i: thru: 59.91nn -> 48-65-108-open+v1.flac, 1.054
-        . That's the difference between symbolic-pitch!  Is that expected?
-        . scale: (59.91, 60.40), recorded: 60.83, because it's pengisep.
-        . Shouldn't thru obey the tuning?  It does, but I don't set tuning for
-          reyong.  I guess I should!
       kilitan:
-        * I need to adjust +mute so they don't sound louder than open.
-        * Often damping comes a bit before the next note
-          . Really though?  Or just that recording?  Would randomization cover
-            it?
-        * mute notes need volume adjustment
         . there are natural light accents, e.g. on beats
         - Compare automatic version to tabuh telu version.
       Dynamic calibration:
@@ -2964,20 +2635,6 @@ synth: im:
         . This way I can make use of the cache.
         . This non-interactive pipeline would be the same basis for all text
           score.
-        * Cmdline program that can stream and mix ###.wav, and start it as
-          soon as I see the first progress msg.
-        . Maybe adjust chunk size smaller for lower latency?
-        * tha is too loud, use a medium version by default.
-          . Or maybe it's a problem with my samples, I'd like to do new
-            samples anyway.
-        * Convenient way to play from Solkattu.Dsl.
-          . It's easy, but makes imports go from 66 to 375.  I can't see an
-            easy way around it, because it's Derive.
-          . Why is Derive so big though?  I guess I have all of the calls.
-            I can't think of any easy way to not load those, short of dynamic
-            loading when looking up the symbol.  And still much of the weight
-            is probably Typecheck, Sig, etc.  Derive/C is 87/246.
-        * Add a metronome.
         - p is now too soft!  Where did I adjust that?
     - record mridangam sequences like kita and dikutarikitataka and use
       rubberband to fit them into shape
@@ -3025,19 +2682,6 @@ synth: im:
       . I could also use rubberband pitch shifting instead of resampling.
       . Per-patch signal network so I can incorporate faust effects.
   faust:
-    * dump mode for debugging, like with sampler
-      . It's not as easy though, since there's no intermediate note stream.
-      . Instead, I can render to control breakpoints, and print them out
-        over time in some way.
-      . That's what debugControls is, but if it were breakpoints they could go
-        to the terminal.
-    * Put some sort of version on saved states, so I can ignore them when the
-      dsp changes.
-      . I could have shake put a fingerprint in the Patch constructor.
-      . Or I could put the patch name in the filename or directory name, and
-        delete all cache files when the dsp changes, along with the previews.
-      . Since I turn '_' into '-' in patch names, I could look for
-        **/*_$patch/checkpoint, and delete the whole directory.
     - I compile faust C by including build/faust_all.cc, which gets slower as
       I get more of them.  Instead I should compile the .c files individually
       and then link as usually.
@@ -3094,50 +2738,6 @@ synth: im:
         with each other.  That seems quite a bit more complicated to express
         though.
     ui controls:
-      * Controls are not sample accurate, so they have sproing.  Maybe things
-        like pitch and dynamic should be input controls.
-        . Alternately I could try to make it so attacks have controls set
-          exactly, but really I have to set slightly before the note and it
-          sounds really fussy.
-        . It would be better to make proper inputs easier to use, which means
-          per-element.
-        . The problem is that all the attack controls could have this
-          property, so it winds up being a lot.
-        . An ideal system would be all per-sample, but with the ability to
-          cache previous values.  Faust doesn't do this, probably because like
-          everything else it's focused on realtime.
-        . I should be able to turn up control speed, tune the smoothing time
-          to that, and then subtract one cycle from all controls, so they're
-          guaranteed to arrive in time.
-      * Subtract one control block size from samples.
-        . Test to make sure they actually do reach the desired value by note
-          on.
-      * Will the optimization of dropping the control when it goes constant
-        be a problem with state?  I.e. control value is part of the state, so
-        it gets restored, but now the control is unset.  It should get the
-        default value, but instead it gets the last value.
-        . I don't think so, because the value will be in the state.
-      . I have to sample the controls at each time, and set the appropriate
-        control.
-      . #1: keep Map Control Widget in Instrument, where Widget has a
-        Ptr FaustFloat.  Then DriverC.render takes Map Control Signal and
-        pokes the appropriate ones before calling faust render.
-      . #2: c++ Patch keeps a sorted Widget list, and hands out
-        the controls in the same order.  DriverC takes float *controls in the
-        right order, and sets all the controls.  It can use NaN to not set.
-        I still have to keep Widgets in the Instrument so I can extract the
-        right controls, but I only have to look them up once per Note, rather
-        than once per audio chunk.
-      * Let's do #1 since it seems simpler in the beginning.  I need the same
-        stuff for #2 so I can switch to that later if I want.
-      * I have to make audio chunks small to have controls be responsive.
-        . I also maybe have to make notes line up with them, so I don't get
-          artifacts.
-        . But I think since controls have to be interpolated, I will always
-          get artifacts anyway, so those kinds of controls are just not
-          appropriate, they have to go in inputs.  Also, if they correspond to
-          physical parameters such as string length, you have to set those
-          a little before the note anyway.
     - create control signals more efficiently on a render resume
       . I used to drop notes until the one before start, but that's not safe,
         because they might have non-overlapping control sets, and an element
@@ -3157,12 +2757,6 @@ synth: im:
       . This also means I don't use faust's built-in default values, but have
         to export them out to karya so it can set them explicitly.
     tambura:
-      * Make a variant without the risset string effect, since I don't always
-        want it.
-        . It's a lot faster without it, but the sympathy seems to be much
-          reduced.  Maybe it's just a volume thing, since there are 1/9 as
-          many waveguides?
-      * try out string-idiom
       - implement a tambura call that cycles strings, perhaps semi-randomly
       - It seems out of tune, and different strings have different tuning?
         . Tune against sine.
@@ -3186,15 +2780,6 @@ synth: im:
           dependent damping.  'damp' under high-freq-loss affects this,
           experiment with it.
         . high-freq-loss has no audible effect.
-        * Use decay for now.  If I put a decay down signal at the end of the
-          note, then the faust signal merging will clip them off when the same
-          string is reused.
-        * Turning off triggered messed up attacks, probably the gate signal.
-          . I'll probably want a separate gate-only triggered for instruments
-            with a separate damp action.
-          . But figure out why the notes seem to be merged
-            non-deterministically, shouldn't they be consistent?
-          . No, they are consistent.
         - Can I append a soft note with fuzzy material to simulate finger
           buzz?
         . So I want a postproc that will append a decay-down multiply.  So
@@ -3259,9 +2844,6 @@ synth: im:
         starting after a silence, even if there is one available.
       . In any case, this got a lot harder than I thought.  I still want to do
         silence efficiently, but maybe I should wait for a full suspend.
-    * Do explicit leading silence for sampler too.
-      . I think it's already there due to using Audio.silence when Playing is
-        [], I just need to have Audio.File write them.
     + Suspend instrument rendering if gate and signal goes to 0.
       . Maybe I need to bring back Audio.Chunk for this.  Or V.empty in the
         output NAudio?
@@ -3270,53 +2852,6 @@ synth: im:
       . If I want to deactivate the dsp in the middle, I'd need to wait for
         silence, and then clear the state, which means I need to implement the
         stateless notes thing first.
-
-    * Maybe constant controls could use UI controls, then I don't need to fill
-      up the buffer.
-      . But then I have to deal with two kinds of controls.
-      . And I can just set constant buffers and leave them.
-    / Extend the guitar single string model into a multi-string instrument.
-    * Figure out decay time instead of hardcoding it.
-      . How to know when to drop notes?  I think I have to use a heuristic
-        like >1s of audio under a threshold after note off.
-      . I think this has to go in the driver.  Implement a gate signal, and
-        the driver renders until the output gets low enough and gate is 0.
-      . For instruments that play multiple notes, I can use this to suspend
-        processing.
-    * Instruments with explicit voice assignments (e.g. strings) use Attribues
-      to assign the string, and create a set number of Instruments which are
-      reused.
-      . Actually I should use Note.element, since it's exclusive.
-    * MIDI thru for im instruments.  Tie to a MIDI instrument for thru.
-      . If I support faust controls, I can reuse existing OSC or MIDI bindings
-        for an accurate thru.  But I'd have to build the faust library as a
-        VST and then have some way to address it.  MIDI would be more
-        convenient for reusing existing thru, but OSC could be more convenient
-        for communicating with the thru-VST, so I could just address patches
-        by name and I don't to fuss with MIDI channels.
-    plan:
-      . Faust has a bunch of *.dsp files.
-      . shakefile runs faust to generate .cc from the result, and then collect
-        into a map of (name, *dsp)
-      . Export a Load function that introspects all of those for the inst db.
-        If there is karya code, it gets attached by name just like Sampler.
-      . faust_driver loads Notes, and maps PatchName to dsp pointers.
-      . Based on patch config (polyphonic, strings, etc.), allocate a certain
-        number of dsps by cloning them, and allocate Notes among them.
-      . Call compute dsp startFrame endFrame controlsp outputp for each time
-        range, and mix the output into a wav.
-      ? How does FAUST handle global things like a reverb bus?  I guess I have
-        to pipe around the samples myself.  But what if you have multiple
-        strings with resonance?  I guess it has to have inputs for each one,
-        as one giant list of input channels.  But since they're all
-        interleaved samples, I can't just leave some empty, or not easily at
-        least.
-        . A polyphonic instrument could export controls like pitch-1 pitch-2
-          etc.  But does it know to turn off the ones that aren't in use?
-      ?  Where does the state go?  I.e. how do I save and restore energy in
-        strings, etc?
-        . It looks like the state winds up in instance variables, so I should
-          be able to just save those.
     . https://ccrma.stanford.edu/~rmichon/faustDay2017/
     . http://faust.grame.fr/faustplayground/
 
@@ -3359,12 +2894,6 @@ synth: im:
       - const on inputs:
         compute(int count, const FAUSTFLOAT** input, FAUSTFLOAT** output)
         . Same deal, might break subclasses.
-      * Have a way to save and restore state.  E.g. stick instance variables in
-        a bytestring.
-        . I think the way to do this is put state variables in a struct inside
-          the class.  Then update all variable references to state.x.
-        . It's too annoying to edit C++, especially heavily OO-pattern faust
-          C++.  I just used the C backend and wrapped it in my own C++ class.
   csound:
     . Use csound-expression?
     . writeSnd "A.aiff" $ setDur 10 $ osc 440
@@ -3450,20 +2979,16 @@ shakefile: build:
       #define BUILD_DIR "build/opt"
       <command line>:8:9: error:  note: previous definition is here
       #define BUILD_DIR "build/debug"
-  * pass -Wl,-rpath stuff from fltk-config through to ghc via -optld.
   reduce dependencies:
     - haskell-src, use another pretty printer
     - QuickCheck, use hedgehog instead
-    * semigroups
     - for indirect deps I need some way to get the paths
       . e.g. whence goes js-jquery, js-flot?  Probably shake.
-  * shakefile does nothing with no arg, it should complain
   / shakefile -v should print version, it doesn't
     . because it prints at Normal, and I'm at Quiet.
     . To avoid shake's internal output, '# ...' lines
     . Who is printing those?  It's Shake.traced.
     . It's easier to use Quiet, otherwise shake wants to print too much stuff.
-  * shakefile -V verbose gets messed up by concurrent-output
   - run with --lint-fsatrace:
     . https://well-typed.com/blog/2019/08/exploring-cloud-builds-in-hadrian/
   - Use nix-style "v2" packages
@@ -3479,38 +3004,12 @@ shakefile: build:
     . How are you supposed to install deps in the v2 world?
   nix:
     . https://app.cachix.org/cache/elaforge
-    * link in nix: framework not found CoreMIDI
-      . Probably because I'm using nix-built clang, which might need system
-        frameworks explicitly declared.
-    * repl not working: Could not find module 'Data.Aeson'
-      Probably I need to export GHC_PACKAGE_PATH or something.
-    * faust has to build with faustLib on its --pathslist.
-    * upload to cachix so I don't have to recompile?
-    . https://github.com/dhall-lang/dhall-haskell/blob/master/nix/shared.nix
-    * get hackage deps from nix
-      . https://maxfieldchen.com/drafts/2020-05-16-Functional-Fika-Haskell-Nix-Cabal.html
-        . It looks like callHackageDirect works, but I need hashes:
-          http://hackage.haskell.org/package/Diff-0.4.0/Diff-0.4.0.tar.gz
-      . https://tek.brick.do/7ad58a17-59f7-44b2-9faf-aed58ebc98a9
     propagate deps to the shakefile:
       - package paths for haddock
       . Env vars would be easier from nix, while Local/ShakeConfig.hs is
         easier without.  Nix could create a Local/ShakeConfig.hs though.
       . Create from $setup, and tools/nix-enter will have the shell run it.
       . But shouldn't it temporary replace the existing one, like PATH?
-    / figure out how to pin hackage package versions.
-      . I need this for writer-cps-mtl at least.
-      . https://github.com/sol/tinc/tree/nixpkgs
-      . https://github.com/Gabriel439/haskell-nix
-      . https://github.com/adetokunbo/haskell-overridez
-      . They probably all boil down to cabal2nix nonsense.  Would it be
-        simpler to just make sure I can work with a nixpkgs snapshot?
-      . Or just use the latest ghc and the problem should go away.
-      . The path of least resistance seems to be to make sure it works with
-        the pinned nixpkgs.
-    * linux, need jack1 or jack2
-    ? Can I can run ghci with the pkgs?  I guess nix-shell should set that up,
-      but why is there '--disable-library-for-ghci' in the configureFlags?
     / Is there a way to configure lilypond to not drag in a whole tex?
       . It should be only necessary to build lilypond, I should be able to
         download it if I use a supported nixpkgs.
@@ -3630,44 +3129,6 @@ integrate: integration:
         there was no damage.  Ordinarily this is good!  I guess I would have
         to emit something that means integration is still alive, but
         unchanged.
-    * Can I omit or invert controls that correspond to the defaults?  I don't
-      want to get the extra dyn track.  Maybe clear the controls before
-      evaluating the track?
-      . This is analogous to how I have to clear the tempo track.
-      . Probably can't clear them all, because they affect derivation, so
-        maybe I have to take a list.
-    . From generated parts: below, it seems like derive integrate might be too
-      low level.  E.g. what if I also want to retain '?
-      . Maybe I could have a mode where note calls are not evaluated, but just
-        go into the Score.event_text, which then goes into the integrated
-        event text.
-
-    * track delete should get rid of integrate destinations
-      . Does that mean it will want to recreate them?
-      . Yes.  I guess I want to fix when I delete the source track, or block.
-    * integrate should put voices and attrs in track titles
-      Cmd.Integrate.Convert
-    * include attrs in integrate
-      . But I want to use zero-dur or 'm' for +mute.  Can I have the generator
-        put the intended integration in a field?
-      . I can, but it puts redundant +mute on zero-dur notes.
-      . Also, due to lack of dyn track, the mute is too loud.  Maybe map back
-        to 'm', which should already has dyn in it.
-      . Actually, zero-dur has that meaning.  So make reyong emit zero-dur.
-      . Actualy zero-dur already means damping, so maybe +mute after all.  Or
-        put 'm' in the CallMap for +mute.
-      . But zero-dur for noltol is accurate, it shouldn't have +mute also.
-      . I can't use zero-dur from postproc because then it doesn't mute when
-        not integrated, because it's a copy, not an eval.
-    * reyong has extra notes
-      . They're uncancelled weak notes.  It took a long time to figure that
-        out.  I could put flags in as comments to help in the future.  Or
-        maybe get rid of the weak note thing for kotekan?
-      . This is easy to do but noisy.  It's ok to have {final} left over.
-        Maybe I could have a debugging mode for integrate?
-    / adding a +soft stroke means it gets both less dyn and +soft again, so
-      it's extra soft
-      . Now I omit the dyn track by default.
     - bug: can't delete a derived track, it just gets regenerated
     - bug: can't undo past a integrate create, it just creates a new one
       Maybe I could not record the integrate step?
@@ -3676,7 +3137,6 @@ integrate: integration:
     - Ensure cascading track integration works.
     - If integrate is committing changes to a track, can that bite me if
       a "canceled" derivation comes through?  Think about this later.
-    / quantization
   generated parts:
     . The idea is that I write a part, e.g. for rambat.  Then a score
       integration creates several tracks in a separate block.  I can still see
@@ -4021,6 +3481,9 @@ external:
     - Need to add <||> to attoparsec.
   + send a patch to improve Random.Shuffle?
     . I did a very long time ago, but author unresponsive.
+  + bug with cpphs: https://gitlab.haskell.org/ghc/ghc/issues/17185
+    . I can put spaces in -pgmP.
+    . Commented on the issue, but the workaround seems ok.
 
 local: plugins:
   . http://simonmar.github.io/posts/2017-10-17-hotswapping-haskell.html
@@ -4769,10 +4232,6 @@ rust-gui:
     . Dependency on rust.
 
 fltk:
-  * Track title should expand more.  Maybe make it dependent on the longest
-    word inside?
-    . It does some weird looking growing when a wrap || sequence expands, but
-      it's probably ok.
   - Floating input in the wrong place for negative events with multiple lines.
     . Because it assumes the text goes downwards.
     . Since haskell doesn't know how the text is wrapped, it can't know where
@@ -4862,7 +4321,7 @@ fltk:
       with the current drawing setup.  I think this is actually totally
       orthogonal.
     * Instrument rendering so I can see where the time is being spent.
-    - Write a program to parse the output.
+    * Write a program to parse the output.
     - Each EventTrack gets a mutable vector<Event> and draws from that.
       . Convert to diffs, filter out 0s.
       . Sum times at each track, and at each TrackTile.
@@ -5287,29 +4746,8 @@ REPL: repl:
     could also get rid of the need for Cmd.Lang.Environ to import everything.
 
 solkattu:
-  / can I represent tisram in kandam?
-    . 10 matras in 2 aksharams -> 15 in 2 aksharams, or 7.5 / aksharam.
-      This is new I think because now I can have matras that don't line up to
-      aksharams.
-    . If I can use FMatras then it's just change the default speed to
-      2/3.  But the integral Matra becomes 15 in 2.
-    . Can I use this same thing to replace stride?  That's pretty underused.
-    . If Nadai becomes a ratio, then it becomes 7 1/2 nadai.  What exactly
-      does stride do?
-    . Or could I use nadai 15, stride 2?
-    . Stride is good enough.
-  * with o & group ..., I lose the group
-    . Because MridangamNotation.merge explicitly strips groups.  I think it
-      has to, because it's unclear what to do with them in general.
-    . Is it reasonable to special case [single] & seq to just modify the first
-      part of seq?
-  * the dep on Solkattu.Play.play_m is just too heavy for repl use
-    . But I'd like to be able to add it in when I want it
-    . Added with :PL macro.
   notation conveniences:
-    * s = section
     - g = group
-    * r2, r3, r4, r5, r6 = repeat n
     - Then I can make tri like r3, but groups the sequence, as does tri_.
       . Find existing uses and delete group, or ensure group make sense.
       . Only apply group if it's not already a group (or pattern or whatever).
@@ -5383,23 +4821,6 @@ solkattu:
     . newtype SequenceT sollu =
         ExceptT Error (ReaderT Tempo Identity) [S.Note Group sollu]
   sections:
-    * sections are syntactically noisy
-      . I have to put 'section' on everything, just so I can have one with
-        e.g. 'x2'.
-      . Also they break maps, like 'map (nadai 6)' has to become
-        'map (smap (nadai 6))'
-      . The simplest thing is to put the section data inside Sequence, and
-        then pull it out, like Alignment.
-      . It means I could embed section metadata in sollus and have it show up
-        in multiple sections, or multiple times.  That seems not right,
-        because they really are per-section, and in fact the point of sections
-        is to have that stuff.
-      . Or a ToSection class, but that just means I could use 'x2' and omit
-        'section', but that's not worth it.
-      . The ideal is an implicit 'section' on each element of the list,
-        unless there is one.  Like automatic coercion, or dynamic types.  But
-        haskell doesn't have either.
-      . Maybe I just shorten 'section' to 's' and live with it.
     - if I have 'section' get CallStack and put section on each element,
       then I can tag sections with line numbers.
       . This won't work with 'map section', and I want to get rid of noisy
@@ -5440,12 +4861,6 @@ solkattu:
     terminal:
       - Why does there seem to be an additional realize after printing the
         output?  Debug in realize fires again before "unmatched:".
-      * re-display ruler when it changes scale, e.g. sarva_20_02_27
-      * Solkattu2018.yt_mannargudi1 still seems messed up, it ends at
-        arudi but starts on 2, not 4.
-        . Acutally this is due to differing normalization.  The next section
-          is actually at a different speed.
-        . Shouldn't there be an intermediate ruler though?
   What would a web UI look like?
     . Have a field for the where block, a field for mridangam (or other)
       strokes, and korvai fields.  Separate entry for name and tags.
@@ -5462,10 +4877,6 @@ solkattu:
       automatically.  If I have my own sampler it's easy though.  I can either
       run karya headless, or just bypass and generate im notes directly via
       the solkattu library.
-  / How can I do a reduction with irregular bits?  E.g. replace the
-    4 matra version tat.__.din.__ with ta.ka.din.__.
-    . I think I just write out the prefixes manually.  I can use dropM if I
-      really want the solkattu map to work out.
   . Solkattu2017.c_17_07_13 is showing the difficulty of the
     (solkattu, stroke_map) approach, because there are too many meanings
     for taka and din.  Really if it's meant to be useful for different
@@ -5490,34 +4901,6 @@ solkattu:
         clip and Clip.
     - LSol.insert_* doesn't clear and replace existing notes
   sarvalaghu:
-    * sarva cycle should be absolute from sam
-      * Still buggy.
-        . Seems to happen when on avartanam>1
-        . cycleDur is incorrect, it's 4+1/4, should be 4.
-        . Because 17 strokes, but 2 are double speed.
-        . cycleDur is incorrect because of tempo changes inside sarva.
-      . sarva is realized in Realize.realize, so it needs S.State for each
-        note.
-      . The duration for sarva groups is wrong, because S.noteDuration gets it
-        from the sollus, but the actual duration is inside Meta _matras.
-      . Can I get the HasMatras instance to look at Meta?
-      . I think no, because it only depends on the note field, not group.
-        Pattern is the only non 0 or 1 matras.  Also it's integral matras.
-      . Sarva breaks the mold in that its duration is in the GMeta, while the
-        children just have the duration of one cycle.  The sollus have to be
-        in the children because that's where the sollu type parameter goes.
-      . So I think sarva needs to move to Solkattu.Note, alongside Pattern.
-      . But then I have to have [Note sollu] in it, which is the whole nested
-        Note thing that I bent over backwards to avoid with Group.
-      . But why?  I don't remember why.
-        There are details in NOTE [nested-groups], but there's too much
-        detail.  But unless I want to revisit all that and painfully relearn
-        all those lessons, I'm resigned to not being able to get duration
-        without knowing Group.
-      . Groups with dropped sollus also have the wrong duration, because
-        I have to subtract _split duration which, again, is in Group.
-      . Is that so bad though?  Maybe duration should only be defined on the
-        full 'Solkattu.Note Group sollu'.
     - automatic sarvalaghu variation
       . In Mridangam2018.e_323s, all of the 3 and 2 groups are mix and match,
         and the order is also mix and match.  There should be some way to
@@ -5939,12 +5322,7 @@ Derive:
       too large.  More compellingly, chords can automatically fiddle with dyn
       and start time, and can also interpret chord symbols.
   mridangam:
-    * why doesn't binding to 'Z' work?
-      . Because I use Msg.char, which is unshifted.  Msg.text is shifted, but
-        then I don't get it for KeyUp.
     reconcile tracklang and solkattu notation:
-      * od instead of do
-        . thoppi goes on the left
       use p in addition to or instead of +?
         . Then I don't have the nice - notation for soft tha.  I guess I could
           keep using '-', but it no longer has the visual correspondence.
@@ -5958,10 +5336,6 @@ Derive:
           Is the tracklang and solkattu discrepancy really so bad?  They
           have different constraints, e.g. for solkattu haskell ident for
           simple strokes, but full unicode is fine for output.
-      * This is going to break all existing mridangam scores, so maybe
-        I should have an upgrade function to fix them easily?
-      * Also new strokes like Min and Thoppi Touch, Tha Fingertips,
-        Tha Fingers.
     - Automatic inference for Ki vs. Mi, e.g. in sarvalaghu.  E.g.
       dxd -> dld, but dxpx -> dkpk.  Also it can change based on speed and
       emphasis.
@@ -5980,10 +5354,6 @@ Derive:
     - Perhaps mridangam should automatically transpose the octave to be within
       its range.
       . I can use something like Cmd.Instrument.Bali.wrap
-    * tha is too loud... I can compensate by using -, but maybe the scale is
-      off.  Velocity should be logical, so if you play all at the same
-      velocity it's like the same dynamic for all strokes.
-      . Or I could make + be 0.5, and * be full volume.
     sarvalaghu
       - get them from Score or MridangamScore.
       - adjust to the talam
@@ -6187,25 +5557,6 @@ Derive:
         attr to +loose-mute or +tight-mute to explicitly configure.
       - kbd entry for /, X, O, + etc.?
       kilitan: norot:
-        * prepare is wrong for integration
-          . Internal.in_real_time messes up next pitch via
-            Gangsa.infer_prepare -> Args.lookup_next_pitch
-          . Because next pitch position becomes 1s, but the pitch map still
-            has it at 1.53s.
-          . Comes from Derive.state_pitch_map, because it's evaluated in
-            tempo.
-          . I need to either reset state_pitch_map when the tempo changes,
-            or use another method for next pitch.
-          . Args.eval_next_pitch doesn't work because I'm in the note track,
-            and it's for the pitch track.
-          . It might be more efficient to have state_pitch_map be a
-            Map ScoreTime Pitch, or [(ScoreTime, Pitch)], so I only evaluate
-            the pitches I need to, instead of all of them the first time
-            there is a next pitch.
-          . Also, Args.lookup_next_pitch should be next pitch segment, which
-            is distinct from Args.next_note_pitch.
-          . Or, how about derive the state_pitch_map in real time, and then
-            address it with TrackTime?
         . How to do norot for real?
           . Each voice is semi-independent, and may have different
             preparation patterns and times.  But then sometimes they
@@ -6371,7 +5722,6 @@ text score: tscore:
     - I should be able to try this out as another rhythm mode.  Use numeric
       suffix 2 to double duration, or :2 to halve it, instead of the __ thing.
   bug:
-    * ruler duration doesn't seem to change
     - if I delete a block, I get
       keys collided in "state_blocks": [(bid "faust/test")]
       . I can't reproduce this now, deleting the block just disconnects from
@@ -6388,8 +5738,6 @@ text score: tscore:
       Diff should be able to do it.
     . I can do the diff, then for each Second, look for a matching First.
       If it exists, rename the tracks, and the NoteDestinations.
-    * Transform.map_track_ids doesn't map NoteDestinations, which is a bug!
-    * Transform.map_block_ids should map Block.block_integrated too.
     . In fact I have to rename even Boths, since a move will shift everyone
       else.
     . Could I do this in Merge.pair_tracks?  Then it will work for derive
