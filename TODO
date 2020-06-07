@@ -2779,7 +2779,7 @@ synth: im:
           * The OSC message needs start offset.
           * Now Lib.Util.thruFunction needs to make a Note with offset.
         - support octaves
-      - add amen break
+      * add amen break
       . what about tabla and mridangam?
       * emit named strokes as calls
       * basic implementation

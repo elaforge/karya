@@ -9,8 +9,10 @@ import qualified Data.Map as Map
 import qualified Data.Ratio as Ratio
 import qualified Data.Text as Text
 
+import qualified Util.Doc as Doc
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Cmd.PhysicalKey as PhysicalKey
@@ -32,6 +34,7 @@ import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Patch.Lib.Util as Util
 import qualified Synth.Sampler.Sample as Sample
+import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
@@ -42,13 +45,15 @@ import           Global
 patches :: [Patch.DbPatch]
 patches = map Patch.DbPatch
     [ make "medeski" medeski
+    , make "amen" amen
     ]
     where
     make name (perMeasure, beats) = (Patch.patch ("break-" <> name))
         { Patch._dir = dir
         , Patch._convert = convert sample
         , Patch._karyaPatch =
-            -- (ImInst.common#Common.call_map #= make_call_map strokes)
+            ImInst.doc #= Doc.Doc
+                ("BPM per stroke:\n" <> guessBpm (perMeasure, beats)) $
             ImInst.code #= (call_code <> drum_code) $
             ImInst.make_patch $ Im.Patch.patch
                 { Im.Patch.patch_controls = mconcat
@@ -73,28 +78,20 @@ patches = map Patch.DbPatch
         break = c_break beatMap perMeasure
     dir = "break"
 
-physicalKeys :: [(Measure, Beat)] -> [((Measure, Beat), Char)]
-physicalKeys beats = concat
-    [ zip (map (measure,) beats) keys
-    | (keys, (measure, beats)) <- zip byOctave byMeasure
-    ]
-    where
-    byMeasure = Seq.group_fst beats
-    byOctave = map (map fst) $ Seq.group_adjacent (Pitch.pitch_octave . snd) $
-        filter ((>=0) . Pitch.pitch_accidentals . snd) $
-        Seq.sort_on snd $ Map.toList $ PhysicalKey.pitch_map
+-- * cmd
 
 -- | I can fit 8 per octave, and with black notes that's 16.
 makeStrokes :: Beat -> Beat -> [((Measure, Beat), Frame, Stroke)]
     -> [(Char, DeriveT.Expr)]
 makeStrokes increment perMeasure beats =
-    [(key, toExpr mbeat) | (mbeat, key) <- physicalKeys allBeats]
+    [(key, toExpr mbeat) | (mbeat, key) <- physicalKeys steps allBeats]
     -- Since I want to interpret octaves, would it be easier to use
     -- InputNote then map pitches?
     -- CUtil.insert_expr works by completely replacing kbd entry, so it doesn't
     -- look at the octave control, which is actually usually right.
     -- If I want to reuse it, I'll have to add optional octave support.
     where
+    steps = floor (perMeasure / increment)
     toExpr mbeat = maybe (makeExpr mbeat) (Expr.generator0 . Expr.Symbol) $
         Map.lookup mbeat strokeMap
     inRange = maybe (const False) (\(m, _) -> (<=m)) $ Map.lookupMax strokeMap
@@ -108,6 +105,31 @@ makeExpr :: (Measure, Beat) -> DeriveT.Expr
 makeExpr (measure, beat) = Expr.generator $ Expr.call "n" [DeriveT.num num]
     where num = fromIntegral measure + realToFrac (beat / 10)
     -- 1.25 -> 0.125
+
+physicalKeys :: Int -> [(Measure, Beat)] -> [((Measure, Beat), Char)]
+physicalKeys steps beats = concat
+    [ zip (map (measure,) beats) keys
+    | (keys, (measure, beats)) <- zip (keysByMeasure steps) byMeasure
+    ]
+    where
+    byMeasure = Seq.group_fst beats
+
+-- | Get keys to map for each measure.  This fits an integral measure's worth
+-- into the bottom and top rows.
+keysByMeasure :: Int -> [[Char]]
+keysByMeasure steps = concatMap (equalDivisions steps) $
+    map (map fst) $ Seq.group_adjacent (Pitch.pitch_octave . snd) $
+    -- '1' is a special case with -1 accidental.
+    filter ((>=0) . Pitch.pitch_accidentals . snd) $
+    Seq.sort_on snd $ Map.toList PhysicalKey.pitch_map
+
+equalDivisions :: Int -> [a] -> [[a]]
+equalDivisions n xs
+    | length pre == n = pre : equalDivisions n post
+    | otherwise = []
+    where (pre, post) = splitAt n xs
+
+-- * call
 
 -- | Take a beat arg or named start time, and look up the corresponding start
 -- offset.
@@ -221,6 +243,21 @@ makeBeatMap perMeasure beats = Map.fromList
     | ((measure, beat), frame, _) <- beats
     ]
 
+-- | Get inferred bpm from each stroke.
+guessBpm :: (Beat, [((Measure, Beat), Frame, Stroke)]) -> Text
+guessBpm beats =
+    Text.unlines . (++[last strokes]) . map fmt
+    . zip strokes . map guess . pairs . Map.toAscList . uncurry makeBeatMap $
+        beats
+    where
+    fmt (stroke, bpm) =
+        Text.justifyLeft 8 ' ' stroke <> " - " <> Num.showFloat 2 bpm
+    strokes = [stroke | (_, _, stroke) <- snd beats]
+    pairs xs = zip xs (drop 1 xs)
+    guess ((beat0, frame0), (beat1, frame1)) = (60/) $
+        (fromIntegral (frame1 - frame0) / realToFrac (beat1 - beat0))
+            / fromIntegral Config.samplingRate
+
 -- 0.433202947845805 per beat, so 138.5032126359318 bpm, say 138.5
 -- tempo 1 is 60bpm, 2 = 120bpm, so 60n = 138.5 = 138.5/60
 medeski :: (Beat, [((Measure, Beat), Frame, Stroke)])
@@ -257,6 +294,31 @@ medeski = (8,) $ labelStrokes $ addMeasures
     , (5,   529638, bd)
 
     , (1,   604380, bd)
+    ]
+    where
+    bd = "bd"
+    sn = "sn"
+
+-- 4 beats: 77360, 77432
+-- = 136.81489141675286, 136.6876743465234
+-- let's say bpm = 136.7
+amen :: (Beat, [((Measure, Beat), Frame, Stroke)])
+amen = (4,) $ labelStrokes $ addMeasures
+    [ (1,   0,      bd)
+    , (2,   19594,  sn)
+    , (3.5, 48536,  bd)
+    , (4,   57820,  sn)
+    , (1,   77630,  bd)
+    , (2,   97128,  sn)
+    , (3.5, 125932, bd)
+    , (4,   135294, sn)
+    , (1,   154792, bd)
+    , (2,   174050, sn)
+    , (3.5, 202312, bd)
+    , (4.5, 221422, sn)
+    , (2,   249952, sn)
+    , (3.5, 278326, bd)
+    , (4.5, 297470, sn)
     ]
     where
     bd = "bd"
