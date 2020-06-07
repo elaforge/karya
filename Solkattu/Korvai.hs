@@ -263,15 +263,14 @@ type Flat stroke =
 
 -- | Realize a Korvai on a particular instrument.
 realize :: Solkattu.Notation stroke => Instrument stroke -> Korvai
-    -> [Either Error ([Flat stroke], Maybe Realize.AlignError)]
+    -> [Either Error ([Flat stroke], [Realize.Warning])]
 realize instrument korvai =
     case instStrokeMap instrument (korvaiStrokeMaps korvai) of
         Left err -> [Left err]
         Right smap -> case korvaiSections korvai of
-            Sollu sections ->
-                map (realize1
-                        (instFromSollu instrument (Realize.smapSolluMap smap)))
-                    sections
+            Sollu sections -> map (realize1 toStrokes) sections
+                where
+                toStrokes = instFromSollu instrument (Realize.smapSolluMap smap)
             Mridangam sections -> case instFromMridangam instrument of
                 Nothing -> [Left "no sequence, wrong instrument type"]
                 Just toStrokes -> map (realize1 toStrokes) sections
@@ -281,16 +280,17 @@ realize instrument korvai =
 
 realizeInstrument :: (Ord sollu, Pretty sollu, Solkattu.Notation stroke)
     => Realize.ToStrokes sollu stroke -> Realize.StrokeMap stroke -> Tala.Tala
-    -> Section sollu -> Either Error ([Flat stroke], Maybe Realize.AlignError)
-realizeInstrument toStrokes inst tala section = do
+    -> Section sollu -> Either Error ([Flat stroke], [Realize.Warning])
+realizeInstrument toStrokes smap tala section = do
     realized <- Realize.formatError $ fst $
-        Realize.realize inst toStrokes tala $ flatten $
+        Realize.realize smap toStrokes tala $ flatten $
         sectionSequence section
-    let alignError = Realize.verifyAlignment tala
+    let alignWarn = Realize.checkAlignment tala
             (sectionStart section) (sectionEnd section)
             (S.tempoNotes realized)
+    (realized, durationWarns) <- return $ Realize.checkDuration realized
     startSpace <- spaces (inferNadai realized) (sectionStart section)
-    return (startSpace ++ realized, alignError)
+    return (startSpace ++ realized, maybe [] (:[]) alignWarn ++ durationWarns)
 
 allMatchedSollus :: Instrument stroke -> Korvai
     -> Set (Realize.SolluMapKey Solkattu.Sollu)

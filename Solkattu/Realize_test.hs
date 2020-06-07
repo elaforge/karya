@@ -9,6 +9,7 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
+import qualified Solkattu.Dsl.Mridangam as R
 import qualified Solkattu.Dsl.Solkattu as G
 import           Solkattu.Dsl.Solkattu
        (__, di, din, ga, ka, ki, na, ta, tang, tha, thom, (^))
@@ -25,7 +26,7 @@ import           Util.Test
 
 
 test_realize = do
-    let f = eWords . fmap S.flattenedNotes . realizeSmap smap . mconcat
+    let f = eWords . fmap S.flattenedNotes . realizeStrokeMap smap . mconcat
         smap = makeMridangam
             [ (ta <> din, k <> od)
             , (na <> din, n <> od)
@@ -43,7 +44,7 @@ test_realize = do
     equal (f [din, __, ga, ta, din]) (Right "D _ _ k D")
 
 test_realizeGroups = do
-    let f = eWords . realizeN smap
+    let f = eWords . realizeSollu smap
         smap = checkSolluMap
             [ (taka, [k, t])
             , (din, [od])
@@ -98,7 +99,7 @@ test_realizeGroupsOutput = do
     equal (f $ G.rdropM 1 taka) (Right "([t], After)(k)")
 
 test_realizeGroupsNested = do
-    let f = fmap (mconcatMap pretty) . realizeN smap
+    let f = fmap (mconcatMap pretty) . realizeSollu smap
         smap = checkSolluMap [(nakita, [n, k, t])]
             where M.Strokes {..} = M.notes
         nakita = na <> ki <> ta
@@ -158,7 +159,7 @@ test_realizeGroupsNested = do
     equal (f $ G.dropM 1 $ nakita <> G.dropM 1 nakita) $ Right "ktkt"
 
 test_realizeSarva = do
-    let f = eWords . realizeN smap . mconcat
+    let f = eWords . realizeSollu smap . mconcat
         smap = checkSolluMap
             [ (ta <> din, [n, d])
             , (ta <> ka <> __, [p, k, __])
@@ -171,11 +172,8 @@ test_realizeSarva = do
     -- sarva is relative to sam
     right_equal (f [__, G.sarvaM (ta <> din) 3]) "_ d n d"
 
-eWords :: Pretty b => Either a [b] -> Either a Text
-eWords = fmap (Text.unwords . map pretty)
-
 test_realizeEmphasis = do
-    let f = second (map (fmap pretty)) . realizeN smap . mconcat
+    let f = second (map (fmap pretty)) . realizeSollu smap . mconcat
         smap = checkSolluMap [(ta <> di, [G.hv k, G.lt t])]
             where M.Strokes {..} = M.notes
     equal (f [ta, di]) $ Right
@@ -184,7 +182,7 @@ test_realizeEmphasis = do
         ]
 
 test_realizeTag = do
-    let f = eWords . realizeN smap
+    let f = eWords . realizeSollu smap
         smap = checkSolluMap
             [ (ta <> ta, [p, p])
             , (ta, [k])
@@ -246,15 +244,22 @@ test_solluMap = do
     left_like (f [(tang <> __, [k, t])]) "rest sollu given non-rest stroke"
     left_like (f [(ta <> [S.Note $ pattern 5], [k])]) "only have plain sollus"
 
--- * verifyAlignment
+test_checkD = do
+    let f = prettyStrokes . realizeM Tala.any_beats
+    right_equal (f (G.checkD 4 (R.k <> R.t)))
+        ("k t", [Realize.Warning (Just 0) "expected 4 aksharas, but was 1/2"])
+    right_equal (f (G.checkD 1 (R.k <> R.t <> R.p <> R.k)))
+        ("k t p k", [])
 
-test_verifyAlignment = do
-    let f = verifyAlignment tdktSmap G.adi 0 0
+-- * checkAlignment
+
+test_checkAlignment = do
+    let f = checkAlignment tdktSmap G.adi 0 0
         tdkt = cycle $ ta <> di <> ki <> ta
     equal (f []) (Right Nothing)
-    equal (f (take 4 tdkt)) $ Right $ Just $ Realize.AlignError Nothing
+    equal (f (take 4 tdkt)) $ Right $ Just $ Realize.Warning Nothing
         "should end on sam, actually ends on 1:1, or sam - 7"
-    equal (f (take 6 tdkt)) $ Right $ Just $ Realize.AlignError Nothing
+    equal (f (take 6 tdkt)) $ Right $ Just $ Realize.Warning Nothing
         "should end on sam, actually ends on 1:1+1/2, or sam - 6+1/2"
     equal (f (take (8*4) tdkt)) (Right Nothing)
     equal (f (G.speed (-2) $ take 8 tdkt)) (Right Nothing)
@@ -266,27 +271,27 @@ test_verifyAlignment = do
     equal (f (G.speed (-2) $ take 4 tdkt <> G.akshara 4 <> take 4 tdkt))
         (Right Nothing)
     equal (f (take 3 tdkt <> G.akshara 4 <> take 5 tdkt)) $ Right $ Just $
-        Realize.AlignError (Just 3) "expected akshara 4, but at 1:3/4"
+        Realize.Warning (Just 3) "expected akshara 4, but at 1:3/4"
 
-test_verifyAlignment_eddupu = do
-    let f = verifyAlignment tdktSmap G.adi
+test_checkAlignment_eddupu = do
+    let f = checkAlignment tdktSmap G.adi
         tdkt = cycle $ ta <> di <> ki <> ta
-    equal (f 0 1 (take 8 tdkt)) $ Right $ Just $ Realize.AlignError
+    equal (f 0 1 (take 8 tdkt)) $ Right $ Just $ Realize.Warning
         Nothing "should end on sam+1, actually ends on 1:2, or sam - 6"
     equal (f 0 1 (take 4 tdkt)) $ Right Nothing
-    equal (f 0 (-1) (take 4 tdkt)) $ Right $ Just $ Realize.AlignError
+    equal (f 0 (-1) (take 4 tdkt)) $ Right $ Just $ Realize.Warning
         Nothing "should end on sam-1, actually ends on 1:1, or sam - 7"
     equal (f 0 (-1) (take (4*7) tdkt)) $ Right Nothing
 
     equal (f 0 0 (take (8*4) tdkt)) $ Right Nothing
     equal (f 1 1 (take (8*4) tdkt)) $ Right Nothing
 
-test_verifyAlignmentNadaiChange = do
-    let f = verifyAlignment tdktSmap G.adi 0 0
+test_checkAlignmentNadaiChange = do
+    let f = checkAlignment tdktSmap G.adi 0 0
         tdkt = ta <> di <> ki <> ta
     -- Change nadai in the middle of an akshara.
     equal (f (take 2 tdkt <> G.nadai 6 (take 3 tdkt))) $ Right $ Just $
-        Realize.AlignError Nothing
+        Realize.Warning Nothing
             "should end on sam, actually ends on 1:1, or sam - 7"
 
     -- More complicated example:
@@ -314,14 +319,27 @@ tdktSmap = makeMridangam
     ]
     where M.Strokes {..} = M.notes
 
-verifyAlignment :: Solkattu.Notation stroke => Realize.StrokeMap stroke
+checkAlignment :: Solkattu.Notation stroke => Realize.StrokeMap stroke
     -> Tala.Tala -> S.Duration -> S.Duration -> Korvai.Sequence
-    -> Either Text (Maybe Realize.AlignError)
-verifyAlignment smap tala startOn endOn =
-    fmap (Realize.verifyAlignment tala startOn endOn . S.tempoNotes)
-        . realizeSmap smap
+    -> Either Text (Maybe Realize.Warning)
+checkAlignment smap tala startOn endOn =
+    fmap (Realize.checkAlignment tala startOn endOn . S.tempoNotes)
+        . realizeStrokeMap smap
 
 -- * util
+
+eWords :: Pretty b => Either a [b] -> Either a Text
+eWords = fmap (Text.unwords . map pretty)
+
+prettyStrokes :: Either err ([Korvai.Flat M.Stroke], [Realize.Warning])
+    -> Either err (Text, [Realize.Warning])
+prettyStrokes = second (first (Text.unwords . map pretty . S.flattenedNotes))
+
+-- | Realize a mridangam stroke score.
+realizeM :: Tala.Tala -> Korvai.SequenceT (Realize.Stroke M.Stroke)
+    -> Either Korvai.Error ([Korvai.Flat M.Stroke], [Realize.Warning])
+realizeM tala =
+    Korvai.realizeInstrument Realize.realizeStroke mempty tala . Korvai.section
 
 checkSolluMap :: CallStack.Stack =>
     [ ( [S.Note g (Note Sollu)]
@@ -341,16 +359,17 @@ makeSolluMap =
 makeMridangam :: G.StrokeMap M.Stroke -> Realize.StrokeMap M.Stroke
 makeMridangam = expect_right . Korvai.smapMridangam . G.makeMridangam0
 
--- TODO better name
-realizeN :: Solkattu.Notation stroke => Realize.SolluMap stroke
+-- | Realize sollus.  Since this doesn't go through 'Korvai.realizeInstrument',
+-- it omits the post-realize checks, so no 'Realize.Warning's.
+realizeSollu :: Solkattu.Notation stroke => Realize.SolluMap stroke
     -> [S.Note Solkattu.Group (Note Sollu)]
     -> Either Text [Realize.Note stroke]
-realizeN smap = fmap S.flattenedNotes . realizeSolluMap smap
+realizeSollu smap = fmap S.flattenedNotes . realizeSolluMap smap
 
 realizeSolluMap :: Solkattu.Notation stroke => Realize.SolluMap stroke
     -> [S.Note Solkattu.Group (Note Sollu)]
     -> Either Text [Realize.Realized stroke]
-realizeSolluMap solluMap = realizeSmap smap
+realizeSolluMap solluMap = realizeStrokeMap smap
     where
     smap = Realize.StrokeMap
         { smapSolluMap = solluMap
@@ -358,10 +377,10 @@ realizeSolluMap solluMap = realizeSmap smap
         , smapPatternMap = mempty
         }
 
-realizeSmap :: Solkattu.Notation stroke => Realize.StrokeMap stroke
+realizeStrokeMap :: Solkattu.Notation stroke => Realize.StrokeMap stroke
     -> [S.Note Solkattu.Group (Note Sollu)]
     -> Either Text [Realize.Realized stroke]
-realizeSmap smap =
+realizeStrokeMap smap =
     Realize.formatError . fst
     . Realize.realize smap (Realize.realizeSollu (Realize.smapSolluMap smap))
         Tala.adi_tala

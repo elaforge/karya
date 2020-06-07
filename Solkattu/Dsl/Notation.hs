@@ -422,15 +422,16 @@ stride :: S.Stride -> [S.Note g sollu] -> [S.Note g sollu]
 stride _ [] = []
 stride n seq = [S.TempoChange (S.Stride n) seq]
 
+-- * groups
+
 -- | Mark a theme group.
 group :: SequenceT sollu -> SequenceT sollu
-group = (:[]) . S.Group (Solkattu.GMeta (Solkattu.meta Solkattu.GTheme))
+group = _groupWith (Solkattu.meta Solkattu.GTheme)
 
 -- | Mark a pattern group.  These are like patterns, except with a specific
 -- realization.
 pattern :: SequenceT sollu -> SequenceT sollu
-pattern = (:[])
-    . S.Group (Solkattu.GMeta (Solkattu.meta Solkattu.GExplicitPattern))
+pattern = _groupWith (Solkattu.meta Solkattu.GExplicitPattern)
 
 reduction :: FMatra -> Solkattu.Side -> SequenceT sollu -> SequenceT sollu
 reduction split side = (:[]) . S.Group group
@@ -445,8 +446,14 @@ named :: Text -> SequenceT sollu -> SequenceT sollu
 named = namedT Solkattu.GTheme
 
 namedT :: Solkattu.GroupType -> Text -> SequenceT sollu -> SequenceT sollu
-namedT gtype name = (:[]) . S.Group (Solkattu.GMeta group)
-    where group = (Solkattu.meta gtype) { Solkattu._name = Just name }
+namedT gtype name =
+    _groupWith $ (Solkattu.meta gtype) { Solkattu._name = Just name }
+
+checkD :: S.Duration -> SequenceT sollu -> SequenceT sollu
+checkD dur = _groupWith $ Solkattu.meta (Solkattu.GCheckDuration dur)
+
+_groupWith :: Solkattu.Meta -> SequenceT sollu -> SequenceT sollu
+_groupWith meta seq = [S.Group (Solkattu.GMeta meta) seq]
 
 -- ** tags
 

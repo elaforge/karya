@@ -111,7 +111,7 @@ karvai :: (CallStack.Stack, Pretty sollu) => SequenceT sollu -> SequenceT sollu
 karvai = modifySingleNote $ Solkattu.modifyNote $
     \note -> note { Solkattu._karvai = True }
 
--- ** directives
+-- * check alignment
 
 akshara :: Akshara -> SequenceT sollu
 akshara n = makeNote (Solkattu.Alignment n)

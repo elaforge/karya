@@ -170,18 +170,15 @@ sectionHtmls inst config korvai =
     sectionNotes = Format.convertGroups (Korvai.realize inst korvai)
     show1 prevRuler (i, section, notes) = case notes of
         Left err -> (prevRuler, "<p> ERROR: " <> Doc.html err)
-        Right (notes, warn) -> (nextRuler,) $ mconcat
-            [ formatTable tala i section avartanams
-            , case warn of
-                Nothing -> ""
-                Just (Realize.AlignError _i msg) ->
-                    "<tr><td colspan=100> WARNING: " <> Doc.html msg
-                    <> "</td></tr>"
-            ]
+        Right (notes, warnings) -> (nextRuler,) $ Texts.unlines $
+            formatTable tala i section avartanams : map showWarning warnings
             where
             (nextRuler, avartanams) =
                 formatAvartanams config toSpeed prevRuler tala notes
             tala = Korvai.korvaiTala korvai
+    showWarning (Realize.Warning _i msg) =
+        "<tr><td colspan=100> WARNING: " <> Doc.html msg
+        <> "</td></tr>"
 
     toSpeed = maximum $ 0 : map S.maxSpeed (mapMaybe notesOf sectionNotes)
     notesOf (Right (notes, _)) = Just notes
@@ -285,7 +282,7 @@ _metadataCss =
 typeCss :: Text
 typeCss = Text.unlines $ concat
     [ styles gtype (cssColor start) (cssColor end)
-    | ((start, end), gtype) <- Seq.key_on typeColors [minBound .. maxBound]
+    | ((start, end), gtype) <- Seq.key_on typeColors Solkattu.groupTypes
     ]
     where
     styles gtype start end =
@@ -316,6 +313,8 @@ typeColors = \case
     Solkattu.GPattern -> patternc
     Solkattu.GExplicitPattern -> patternc
     Solkattu.GSarva -> both $ rgb 0.7 0.85 0.7
+    -- This shouldn't be here, so make it red.
+    Solkattu.GCheckDuration {} -> both $ rgb 0.75 0 0
     where
     patternc = (rgb 0.65 0.65 0.8, rgb 0.8 0.8 0.95)
     both n = (n, n)

@@ -104,7 +104,7 @@ korvaiTags = map Korvai.sectionTags . Korvai.genericSections
 
 formatResults :: Solkattu.Notation stroke => Config -> Korvai.Korvai
     -> [ ( Tags.Tags
-         , Either Error ([Format.Flat stroke], Maybe Realize.AlignError)
+         , Either Error ([Format.Flat stroke], [Realize.Warning])
          )
        ]
     -> ([Text], Bool)
@@ -115,18 +115,20 @@ formatResults config korvai results =
     where
     show1 _ (_section, (_, Left err)) =
         ((Nothing, 0), Text.replicate leader " " <> "ERROR:\n" <> err)
-    show1 prevRuler (section, (tags, Right (notes, alignError))) =
+    show1 prevRuler (section, (tags, Right (notes, warnings))) =
         ( nextRuler
-        , sectionFmt section tags lines <> case alignError of
-            Nothing -> ""
-            Just (Realize.AlignError Nothing msg) -> "\n" <> msg
-            Just (Realize.AlignError (Just i) msg) ->
-                "\n" <> Text.replicate (leader + strokeWidth * i) " "
-                <> "^ " <> msg
+        , Text.stripEnd $ Text.unlines $ sectionFmt section tags lines
+            : map (showWarning strokeWidth) warnings
         )
         where
         (strokeWidth, (nextRuler, lines)) =
             format config prevRuler (Korvai.korvaiTala korvai) notes
+    showWarning _ (Realize.Warning Nothing msg) = msg
+    showWarning strokeWidth (Realize.Warning (Just i) msg) =
+        Text.replicate (leader + strokeWidth * i) " " <> "^ " <> msg
+        -- TODO the ^ only lines up if there is only one line.  Otherwise
+        -- I have to divMod i by strokes per line, and use that to insert
+        -- in the formatted output
     -- If I want to normalize speed across all sections, then this is the place
     -- to get it.  I originally tried this, but from looking at the results I
     -- think I like when the notation can get more compact.
@@ -306,6 +308,8 @@ makeSymbols strokeWidth tala angas = go
             Solkattu.GPattern -> patternc
             Solkattu.GExplicitPattern -> patternc
             Solkattu.GSarva -> setHighlights2 (Styled.rgb 0.5 0.65 0.5)
+            -- This shouldn't be here, so make it red.
+            Solkattu.GCheckDuration {} -> setHighlights2 (Styled.rgb 0.75 0 0)
     patternc = setHighlights2 (Styled.rgb 0.65 0.65 0.8)
     gray n = Styled.rgb n n n
     setHighlights2 color = setHighlights color color

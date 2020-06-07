@@ -123,8 +123,8 @@ data Reduction = Reduction {
 data Meta = Meta {
     -- | This is the logical number of Matras the group has.  It has to be
     -- stored because the number of matras is only accurate relative to the
-    -- tempo context.  TODO I have that in the tempo of the S.Group, so maybe
-    -- this is unnecessary after all?
+    -- tempo context.  For GSarva, this actually defines the duration, which
+    -- is pretty unfortunate.  See 'flatDuration'.
     _matras :: !(Maybe S.Matra)
     -- | Normally name is derived from _matras and _type, but some groups want
     -- to override that.
@@ -145,7 +145,16 @@ data GroupType =
     -- | A pattern with sollus already given.
     | GExplicitPattern
     | GSarva
-    deriving (Eq, Ord, Show, Enum, Bounded)
+    -- | Check that this group has the duration in '_matras'.  This group type
+    -- should be stripped out after the check.
+    | GCheckDuration !S.Duration
+    deriving (Eq, Ord, Show)
+
+-- | All GroupTypes that should be seen by render.  GCheckDuration should
+-- have been removed by 'Realize.checkDuration'.  I could express that in the
+-- type, but it seems too noisy for now.
+groupTypes :: [GroupType]
+groupTypes = [GTheme, GFiller, GPattern, GExplicitPattern, GSarva]
 
 instance Pretty GroupType where pretty = showt
 

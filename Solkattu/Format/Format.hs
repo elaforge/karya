@@ -73,7 +73,7 @@ defaultAbstraction = mconcat
 allAbstract :: Abstraction
 allAbstract = Abstraction $ Set.fromList
     [ (gtype, named)
-    | gtype <- [minBound .. maxBound], named <- [Unnamed, Named]
+    | gtype <- Solkattu.groupTypes, named <- [Unnamed, Named]
     ]
 
 data Highlight = StartHighlight | Highlight | EndHighlight

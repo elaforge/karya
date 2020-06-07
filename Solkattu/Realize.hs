@@ -19,6 +19,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
+import qualified Util.Logger as Logger
 import qualified Util.Maps as Maps
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
@@ -55,8 +56,8 @@ data Note stroke =
     -- These are created at the Format level, not here.
     | Abstract !Solkattu.Meta
     -- | This is 'Solkattu.Alignment'.  It shouldn't be here, but since I now
-    -- drop groups in realize via 'stripGroups', I have to do
-    -- 'verifyAlignment' on the output of 'realize', which means I need to
+    -- drop groups in realize via 'convertGroups', I have to do
+    -- 'checkAlignment' on the output of 'realize', which means I need to
     -- preserve the Alignments.
     | Alignment !Tala.Akshara
     deriving (Eq, Show, Functor)
@@ -170,6 +171,9 @@ typeName = \case
     Solkattu.GPattern -> "p"
     Solkattu.GExplicitPattern -> "p"
     Solkattu.GSarva -> "sarva"
+    -- This should have been filtered out by 'checkDuration', and shouldn't
+    -- make it to render.
+    Solkattu.GCheckDuration _ -> "check"
 
 -- | Used to replace two rests.
 doubleRest :: Char
@@ -183,18 +187,17 @@ instance Pretty stroke => Pretty (Note stroke) where
         Abstract a -> pretty a
         Alignment n -> "@" <> showt n
 
--- * verifyAlignment
+-- * checkAlignment
 
 -- | Stroke index and warning text.
-data AlignError = AlignError (Maybe Int) !Text
+data Warning = Warning (Maybe Int) !Text
     deriving (Show, Eq)
 
 -- | Verify that the notes start and end at sam, and the given Alignments
 -- fall where expected.
-verifyAlignment :: Tala.Tala -> S.Duration -> S.Duration
-    -> [(S.Tempo, Note stroke)] -> Maybe AlignError
-    -- ^ (index where the error occured, error)
-verifyAlignment tala startOn endOn notes
+checkAlignment :: Tala.Tala -> S.Duration -> S.Duration
+    -> [(S.Tempo, Note stroke)] -> Maybe Warning
+checkAlignment tala startOn endOn notes
     | tala == Tala.any_beats = Nothing
     | otherwise = msum (map verify (zip [0..] states)) <|> checkEnd
     where
@@ -202,7 +205,7 @@ verifyAlignment tala startOn endOn notes
     -- Either finalState one is at 0, or the last non-rest note is.
     checkEnd
         | atEnd finalState || maybe False atEnd finalNote = Nothing
-        | otherwise = Just $ AlignError Nothing $
+        | otherwise = Just $ Warning Nothing $
             "should end on sam" <> endMsg <> ", actually ends on "
             <> S.showPosition finalState <> ", or sam - " <> pretty left
         where
@@ -215,7 +218,7 @@ verifyAlignment tala startOn endOn notes
             - S.stateMatraPosition finalState
     verify (i, (state, Alignment akshara))
         | atAkshara akshara state = Nothing
-        | otherwise = Just $ AlignError (Just i) $
+        | otherwise = Just $ Warning (Just i) $
             "expected akshara " <> showt akshara <> ", but at "
             <> S.showPosition state
     verify _ = Nothing
@@ -227,6 +230,31 @@ verifyAlignment tala startOn endOn notes
         where akshara = S.stateMatraPosition state
     atAkshara akshara state =
         S.stateAkshara state == akshara && S.stateMatra state == 0
+
+-- | Check 'Solkattu.GCheckDuration', and filter them out.
+checkDuration :: [Realized stroke] -> ([Realized stroke], [Warning])
+checkDuration = bimap snd List.reverse . Logger.runId . go 0
+    where
+    go i [] = return (i, [])
+    go i (n : ns) = case n of
+        S.FNote {} -> second (n:) <$> go (i+1) ns
+        S.FGroup _tempo
+                (GMeta (Solkattu.Meta { _type = Solkattu.GCheckDuration dur }))
+                children -> do
+            let actual = flatDuration children
+            unless (actual == dur) $ Logger.log $ Warning (Just i) $
+                "expected " <> pretty dur <> " aksharas, but was "
+                <> pretty actual
+            (i, children) <- go i children
+            second (children++) <$> go i ns
+        S.FGroup tempo g children -> do
+            (i, children) <- go i children
+            second (S.FGroup tempo g children :) <$> go i ns
+
+-- | Like 'Solkattu.flatDuration', but much simpler because for 'Realized'
+-- I don't need the groups for duration.
+flatDuration :: [Realized stroke] -> S.Duration
+flatDuration = Num.sum . map (uncurry S.noteDuration) . S.tempoNotes
 
 -- * StrokeMap
 

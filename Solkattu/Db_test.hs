@@ -71,9 +71,9 @@ realize :: Solkattu.Notation stroke => Korvai.Instrument stroke -> Korvai.Korvai
     -> Either [Text] [[Realize.Note stroke]]
 realize inst korvai
     | not (null errors) = Left errors
-    | not (null alignErrors) = Left $ map showt alignErrors
+    | not (null warnings) = Left $ map showt warnings
     | otherwise = Right $ map S.flattenedNotes notes
     where
     (errors, results) = Either.partitionEithers $
         Korvai.realize inst korvai
-    (notes, alignErrors) = second (mapMaybe id) $ unzip results
+    (notes, warnings) = second concat $ unzip results

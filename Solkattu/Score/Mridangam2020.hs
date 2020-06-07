@@ -50,7 +50,7 @@ sarva_tani =
     ]
 
 sarva_20_01_27 :: Korvai
-sarva_20_01_27 = date 2020 1 27 $ ganesh $ sarvalaghu $ korvai adi
+sarva_20_01_27 = date 2020 1 27 $ ganesh $ korvai adi
     [ x4 $ s $ nddn & _oo . nddn & o'
     , x4 $ s $ (__.k) `replaceStart` nddn & o'oo . nddn & o'
     , x4 $ s $ (__.k) `replaceStart` nd_n  & o'oo  . nd_n & o'
@@ -87,7 +87,7 @@ sarva_20_01_27 = date 2020 1 27 $ ganesh $ sarvalaghu $ korvai adi
     yjy = y.j.y
 
 sarva_20_02_10 :: Korvai
-sarva_20_02_10 = date 2020 2 10 $ ganesh $ sarvalaghu $ korvai adi
+sarva_20_02_10 = date 2020 2 10 $ ganesh $ korvai adi
     [ x2 $ s $ (nd_n_nd_.n.d.y) & oo_o_oo_ . (nd_n_nd_.n.d.y) & (o.o')
     , x2 $ s $ (nd_n_nd_.n.ktok) & oo_o_oo_' . (nd_n_nd_.n.ktok) & (o.o')
     , s $ (nd_n_nd_.n.ktok) & oo_o_oo_' . (nd_n_nd_.n.pkd) & (o.o')
@@ -117,7 +117,7 @@ sarva_20_02_10 = date 2020 2 10 $ ganesh $ sarvalaghu $ korvai adi
     ktpk = su (k.t.p.k)
 
 sarva_20_02_27 :: Korvai
-sarva_20_02_27 = date 2020 2 27 $ ganesh $ sarvalaghu $ korvai adi $
+sarva_20_02_27 = date 2020 2 27 $ ganesh $ korvai adi $
     map (smap (nadai 5))
     [ s $ repeat 6 (d_n_nd_n.ktpk)
         . d.y.n.ktpk.d.y.n.ktpk
@@ -172,7 +172,7 @@ sarva_20_02_27 = date 2020 2 27 $ ganesh $ sarvalaghu $ korvai adi $
 
 -- To farans and mohra.
 sarva_20_05_08 :: Korvai
-sarva_20_05_08 = date 2020 5 8 $ sarvalaghu $ korvai adi
+sarva_20_05_08 = date 2020 5 8 $ ganesh $ korvai adi
     -- transition to farans
     [ s $ od.__3.k.n.o.o.k . r3 (on.t.k.p&k.n.o.o.k)
         . sam . r4 (od.o.o.v.__.o.o.k)
@@ -206,7 +206,7 @@ sarva_20_05_08 = date 2020 5 8 $ sarvalaghu $ korvai adi
     ]
 
 sarva_20_05_29 :: Korvai
-sarva_20_05_29 = date 2020 5 29 $ korvai adi
+sarva_20_05_29 = date 2020 5 29 $ ganesh $ korvai adi
     [ s $ sarva 7 . end
         . sam . start . sarva 6 . end
         . sam . r2 (start . sarva 2 . end)
@@ -221,21 +221,21 @@ sarva_20_05_29 = date 2020 5 29 $ korvai adi
 
 -- 7 reductions
 sarva_20_06_05 :: Korvai
-sarva_20_06_05 = date 2020 6 5 $ korvaiS1 adi $
+sarva_20_06_05 = date 2020 6 5 $ ganesh $ korvaiS1 adi $
     -- 8*7 + 8 = 8 = 4 avartanams
-      g (v.v.__         .su (d.o).od.od.on   . on.d.d.n.d.d.n)
-    . g (v.v.__         .su (n.n).d.d.n      . n .d.d.su (n.o.o.v.o.o.o.v))
-    . g (su (o.k).od.__ .su (on.on).od.od.od
+      g7 (v.v.__         .su (d.o).od.od.on   . on.d.d.n.d.d.n)
+    . g7 (v.v.__         .su (n.n).d.d.n      . n .d.d.su (n.o.o.v.o.o.o.v))
+    . g7 (su (o.k).od.__ .su (on.on).od.od.od
                             . on.od.od.su (n.o.o.v.o.su (__.k).o.v))
-    . g (su (o.k).od.__ .su ( n.od).od.od.od . su (n.o).od.od. oktk4)
-    . g (su (o'.k).od.__.su ( n.od).od.od.od . on.od.__      . oktk4)
-    . g (r2 $ o'.od.__  .oktk4)
-    . g (r2 $ o'.od.__  .oktk4)
-    . g (o'.od.__       .oktk4 . o'.o'.__.oktk4)
+    . g7 (su (o.k).od.__ .su ( n.od).od.od.od . su (n.o).od.od. oktk4)
+    . g7 (su (o'.k).od.__.su ( n.od).od.od.od . on.od.__      . oktk4)
+    . g7 (r2 $ o'.od.__  .oktk4)
+    . g7 (r2 $ o'.od.__  .oktk4)
+    . g7 (o'.od.__       .oktk4 . o'.o'.__.oktk4)
     . o'.__n 6       .oktk4 . su (su (r8 (o'.__.t))) -- 6 + 4 + 8*(3/4)
     where
     oktk4 = su (su (r4 (o'.k.t.k)))
-    g = group
+    g7 = checkD (7/2) • group
 
 {-
     thani:

@@ -276,11 +276,12 @@ maxSpeed = maximum . (_speed defaultTempo :) . map _speed . tempoOf
 
 -- | Convert events with Tempo into events with absolute positions in 'State'.
 --
--- TODO: I think this is wrong, I need Solkattu.flatDuration
--- No wait, I think it's correct, because there are no Groups.
+-- This is only correct when the group doesn't affect duration.  Since there's
+-- no group in here, presumably it's already been stripped out, which of you
+-- should only have done if it's no longer needed, which is the case post
+-- realize.
 tempoToState :: HasMatras a => Tala.Tala -> Duration -- ^ start time
-    -> [(Tempo, a)]
-    -> (State, [(State, a)])
+    -> [(Tempo, a)] -> (State, [(State, a)])
 tempoToState tala start = List.mapAccumL toState (stateFrom tala start)
     where
     toState state (tempo, note) =

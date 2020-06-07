@@ -4859,6 +4859,9 @@ solkattu:
       - Can I align by structure?
         . E.g. reductions or tri would line up vertically.
     terminal:
+      - The warning carat only lines up if there is only one line.
+        . Otherwise I have to divMod i by strokes per line, and use that to
+          insert in the formatted output
       - Why does there seem to be an additional realize after printing the
         output?  Debug in realize fires again before "unmatched:".
   What would a web UI look like?
@@ -4955,8 +4958,10 @@ solkattu:
   - I should be able to add multiple realizations of the same
     instrument, keyed by string, e.g. for different mridangists
     realizations.
-  - Duration assertions, e.g. matra 4 (ta.ka.din.na)
+  * Duration assertions, e.g. matra 4 (ta.ka.din.na)
     . Good for both documentation and checking.
+    . checkM?  assertM?
+    . Implement as a group
   pakhawaj:
     - integrate pakhawaj bols
       . I think I need "kre" support.
