@@ -39,7 +39,8 @@ e_20_05_01 = date 2020 5 1 $ source "anand" $ exercise $ korvaiS adi
 
 sarva_tani :: [Part] -- realizePartsM patterns misra_tani
 sarva_tani =
-    [ K sarva_20_05_29  All
+    [ K sarva_20_05_29 All
+    , K sarva_20_06_05 All
     , K sarva_20_01_27 All
     , Comment "namita dimita dimi"
     , K sarva_20_02_10 All
@@ -217,6 +218,24 @@ sarva_20_05_29 = date 2020 5 29 $ korvai adi
     sarva = sarvaD (n.od.od.on.su (on.on).od.od.on . on.d.d.n.n.d.d.n)
     start = o'.su (o.d).od.on
     end = su $ r4 $ o'&d . d
+
+-- 7 reductions
+sarva_20_06_05 :: Korvai
+sarva_20_06_05 = date 2020 6 5 $ korvaiS1 adi $
+    -- 8*7 + 8 = 8 = 4 avartanams
+      g (v.v.__         .su (d.o).od.od.on   . on.d.d.n.d.d.n)
+    . g (v.v.__         .su (n.n).d.d.n      . n .d.d.su (n.o.o.v.o.o.o.v))
+    . g (su (o.k).od.__ .su (on.on).od.od.od
+                            . on.od.od.su (n.o.o.v.o.su (__.k).o.v))
+    . g (su (o.k).od.__ .su ( n.od).od.od.od . su (n.o).od.od. oktk4)
+    . g (su (o'.k).od.__.su ( n.od).od.od.od . on.od.__      . oktk4)
+    . g (r2 $ o'.od.__  .oktk4)
+    . g (r2 $ o'.od.__  .oktk4)
+    . g (o'.od.__       .oktk4 . o'.o'.__.oktk4)
+    . o'.__n 6       .oktk4 . su (su (r8 (o'.__.t))) -- 6 + 4 + 8*(3/4)
+    where
+    oktk4 = su (su (r4 (o'.k.t.k)))
+    g = group
 
 {-
     thani:
