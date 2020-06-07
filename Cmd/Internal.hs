@@ -508,7 +508,7 @@ sync_selection_status view_id maybe_sel = case maybe_sel of
 selection_status :: Sel.Selection -> Maybe RealTime -> Maybe RealTime -> Text
 selection_status sel start_secs end_secs =
     show_range show_score (Sel.min sel) (Sel.max sel) <> "t"
-    `Texts.join2` case get start_secs end_secs of
+    `Texts.unwords2` case get start_secs end_secs of
         Just (start, end) -> show_range show_real start end <> "s"
         Nothing -> ""
     where

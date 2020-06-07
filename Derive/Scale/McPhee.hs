@@ -38,8 +38,7 @@ extract low high laras = (dashes sname, (hz_to_nn low high laras, doc))
         | otherwise = "From McPhee's \"Music in Bali\", from "
             <> Doc.Doc (Text.toTitle (origin laras)) <> "."
     sname
-        | Text.null (name laras) =
-            Texts.joinWith "-" (genre laras) (origin laras)
+        | Text.null (name laras) = Texts.join2 "-" (genre laras) (origin laras)
         | otherwise = name laras
     dashes = Text.map (\c -> if c == ' ' then '-' else c)
 

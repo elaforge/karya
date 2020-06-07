@@ -551,7 +551,7 @@ formatError = format . UF.toList
     where
     format (result, Nothing) = Right result
     format (pre, Just err) = Left $
-        Texts.joinWith "\n" (errorNotation (S.flattenedNotes pre)) err
+        Texts.unlines2 (errorNotation (S.flattenedNotes pre)) err
     errorNotation = Text.unwords . map (justifyLeft 2 ' ' . Solkattu.notation)
 
 {- | Given a group like

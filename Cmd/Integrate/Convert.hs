@@ -177,7 +177,7 @@ note_event call_map event = ui_event (Score.event_stack event)
     (note_call call_map event)
 
 note_call :: Common.CallMap -> Score.Event -> Text
-note_call call_map event = Texts.join2
+note_call call_map event = Texts.unwords2
     (maybe "" Expr.unsym (Map.lookup attrs call_map))
     -- Append flags to help with debugging.  The presence of a flag probably
     -- means some postproc step wasn't applied.

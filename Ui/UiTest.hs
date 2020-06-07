@@ -461,7 +461,7 @@ extract_tracks = extract_tracks_of default_block_id
 
 extract_blocks :: Ui.State -> [BlockSpec]
 extract_blocks state =
-    [ (Texts.joinWith " -- " (Id.ident_name bid) title, tracks)
+    [ (Texts.join2 " -- " (Id.ident_name bid) title, tracks)
     | (bid, title, tracks) <- extract_block_ids state
     ]
 

@@ -193,13 +193,12 @@ instance Pretty Error where
     pretty (Error (Pos pos) msg) = pretty pos <> ": " <> msg
 
 show_error :: Text -> Error -> Text
-show_error source (Error pos msg) =
-    Texts.joinWith "\n" msg $ fromMaybe "" $ do
-        (line_num, char_num, line) <- find_pos source pos
-        return $ Text.unlines
-            [ Text.justifyRight 3 ' ' (showt line_num) <> " | " <> line
-            , Text.replicate (3 + 3 + char_num) " " <> "^"
-            ]
+show_error source (Error pos msg) = Texts.unlines2 msg $ fromMaybe "" $ do
+    (line_num, char_num, line) <- find_pos source pos
+    return $ Text.unlines
+        [ Text.justifyRight 3 ' ' (showt line_num) <> " | " <> line
+        , Text.replicate (3 + 3 + char_num) " " <> "^"
+        ]
 
 -- | Find the line and position on that line.
 find_pos :: Text -> Pos -> Maybe (Int, Int, Text)

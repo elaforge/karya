@@ -80,11 +80,15 @@ replaceMany replace = mconcat . go
         | otherwise = pre : to : go (Text.drop (Text.length from) post)
 
 -- | Join the two pieces with a space, if they are non-empty.
-join2 :: Textlike a => a -> a -> a
-join2 = joinWith (fromText " ")
+unwords2 :: Textlike a => a -> a -> a
+unwords2 = join2 (fromText " ")
 
-joinWith :: Textlike a => a -> a -> a -> a
-joinWith sep a b = join sep $ filter (not . Text.null . toText) [a, b]
+unlines2 :: Textlike a => a -> a -> a
+unlines2 = join2 (fromText "\n")
+
+-- | The 2 variants join two texts, but omit the separator if one is null.
+join2 :: Textlike a => a -> a -> a -> a
+join2 sep a b = join sep $ filter (not . Text.null . toText) [a, b]
 
 join :: Textlike a => a -> [a] -> a
 join sep = fromText . Text.intercalate (toText sep) . map toText

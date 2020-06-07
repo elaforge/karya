@@ -43,5 +43,5 @@ ascii_kbd (oct, pc, accs) = CmdTest.ascii_kbd $ CmdTest.pitch oct pc accs
 note_to_call :: Text -> Text -> [Text] -> ([Maybe Pitch.NoteNumber], [Text])
 note_to_call scale title =
     DeriveTest.extract Score.initial_nn
-    . DeriveTest.derive_tracks (Texts.joinWith " | " ("scale=" <> scale) title)
+    . DeriveTest.derive_tracks (Texts.join2 " | " ("scale=" <> scale) title)
     . UiTest.note_track1

@@ -107,7 +107,7 @@ instance Pretty Type where
     pretty (TEither a b) = pretty a <> " or " <> pretty b
     pretty (TPair a b) = "(" <> pretty a <> ", " <> pretty b <> ")"
     pretty (TNum typ val) = append_parens "Num" $
-        Texts.joinWith ", " (pretty typ) (pretty val)
+        Texts.join2 ", " (pretty typ) (pretty val)
     pretty (TStr enums) = append_parens "Str" $ maybe "" Text.unwords enums
     -- There is no corresponding Val type for these, so I might as well be
     -- clear about what they mean.

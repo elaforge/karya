@@ -129,7 +129,7 @@ cache_logs block_id = do
     perf <- Cmd.get_performance block_id
     let logs = filter wanted $ Cmd.perf_logs perf
     return $ Text.unlines
-        [ Texts.joinWith ": " (format_stack msg) (Log.msg_text msg)
+        [ Texts.join2 ": " (format_stack msg) (Log.msg_text msg)
         | msg <- logs
         ]
     where

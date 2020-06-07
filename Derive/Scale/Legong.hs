@@ -73,7 +73,7 @@ make_scale_set config (Pitch.ScaleId prefix) doc =
         (inst_scale_map (balinese_notation kantilan))
     ]
     where
-    id_with suffix = Pitch.ScaleId $ Texts.joinWith "-" prefix suffix
+    id_with suffix = Pitch.ScaleId $ Texts.join2 "-" prefix suffix
     inst_doc name = Scales.add_doc $
         "This is centered around the " <> name <> " range."
     scale_map fmt = BaliScales.scale_map config fmt Nothing

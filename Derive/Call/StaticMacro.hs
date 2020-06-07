@@ -169,7 +169,7 @@ extract_args (Call call args) = extract (Derive.call_doc call) args
 -- ** doc
 
 make_doc :: Doc.Doc -> [Doc.Doc] -> Doc.Doc
-make_doc doc calls = Texts.joinWith "\n" doc $
+make_doc doc calls = Texts.unlines2 doc $
     "A static macro for: `" <> Texts.join " | " calls <> "`.\
     \\nEach `$` is lifted to be an argument of this macro.\
     \\nThis directly calls the underlying sub-calls, so it's not dependent on\

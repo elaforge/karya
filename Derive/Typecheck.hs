@@ -111,7 +111,7 @@ typecheck :: forall a. Typecheck a => Text -> ScoreTime -> DeriveT.Val
 typecheck msg pos val = from_val_eval pos val >>= \case
     Just a -> return a
     Nothing -> Derive.throw $
-        Texts.joinWith ": " msg $ type_error_msg (Proxy :: Proxy a) val
+        Texts.join2 ": " msg $ type_error_msg (Proxy :: Proxy a) val
     -- TODO throw a TypeError directly?
 
 -- | Typecheck a simple value, with no evaluation.  This means you can't

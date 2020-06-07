@@ -156,5 +156,5 @@ ordinal n = Doc.Doc $ showt n <> case n of
 
 make_doc :: Doc.Doc -> Parse.Expr -> Doc.Doc
 make_doc (Doc.Doc doc) expr = Doc.Doc $
-    Texts.joinWith "\n" ("A macro for: " <> expr_doc <> ".") doc
+    Texts.unlines2 ("A macro for: " <> expr_doc <> ".") doc
     where (Doc.Doc expr_doc) = ShowVal.doc expr

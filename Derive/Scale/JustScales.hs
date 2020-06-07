@@ -139,7 +139,7 @@ group_relative_keys = mapMaybe fmt . Seq.group_stable snd
 
 show_ratios :: Map Tuning Ratios -> Text
 show_ratios tunings = Text.intercalate "; "
-    [ Texts.joinWith ": " tuning (ratios r)
+    [ Texts.join2 ": " tuning (ratios r)
     | (tuning, r) <- Map.toList tunings
     ]
     where
