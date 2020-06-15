@@ -11,6 +11,7 @@
 void
 SimpleScroll::resize(int x, int y, int w, int h)
 {
+    ASSERT(children() == 1);
     IPoint diff(w - this->w(), h - this->h());
     Fl_Widget *c = child(0);
     c->resize(x + offset.x, y + offset.y, c->w() + diff.x, c->h() + diff.y);
@@ -20,6 +21,7 @@ SimpleScroll::resize(int x, int y, int w, int h)
 void
 SimpleScroll::set_offset(IPoint offset)
 {
+    ASSERT(children() == 1);
     IPoint shift(offset.x - this->offset.x, offset.y - this->offset.y);
     this->offset = offset;
     // When scrolling in negative x and y (so the child's x and y are getting
@@ -31,7 +33,7 @@ SimpleScroll::set_offset(IPoint offset)
         c->x() + shift.x, c->y() + shift.y,
         c->w() - shift.x, c->h() - shift.y);
     this->damage(FL_DAMAGE_SCROLL);
-    // DEBUG("offset: " << show_damage(damage()));
+    // DEBUG("offset " << offset << ": " << f_util::show_children(this));
 }
 
 
@@ -39,11 +41,5 @@ void
 SimpleScroll::draw()
 {
     f_util::ClipArea clip(f_util::rect(this));
-    if (this->damage() & FL_DAMAGE_SCROLL) {
-        // TODO: implement proper scrolling
-        // fl_scroll(...);
-        Fl_Group::draw();
-    } else {
-        Fl_Group::draw();
-    }
+    Fl_Group::draw();
 }

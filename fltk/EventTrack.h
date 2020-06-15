@@ -13,7 +13,11 @@
 #include <memory>
 #include <vector>
 
+#include <FL/Fl_RGB_Image.H>
+#include <FL/Fl_Widget.H>
+
 #include "AbbreviatedInput.h"
+#include "CachedScroll.h"
 #include "Event.h"
 #include "FloatingInput.h"
 #include "PeakCache.h"
@@ -123,8 +127,11 @@ public:
     virtual void set_title_focus() override;
     virtual void set_selection(int selnum, const std::vector<Selection> &sels)
         override;
+    virtual void set_zoom(const Zoom &new_zoom) override;
     virtual void set_event_brightness(double d) override;
-    virtual ScoreTime time_end() const override;
+    virtual ScoreTime time_end() const override {
+        return body.time_end();
+    }
     virtual void update(const Tracklike &track, ScoreTime start, ScoreTime end)
         override;
     // For the moment, only EventTracks can draw a signal.
@@ -152,41 +159,76 @@ protected:
     void draw() override;
 
 private:
-    void draw_area();
-    void draw_waveforms(int min_y, int max_y, ScoreTime start);
-    void draw_signal(int min_y, int max_y, ScoreTime start);
-    void draw_event_boxes(
-        const Event *events, const int *ranks, int count,
-        const std::vector<int> &offsets);
-    void draw_upper_layer(
-        int index, const Event *events, Align align,
-        const std::vector<TextBox> &boxes, const std::vector<int> &triggers);
+    // Draw the contents of the track.  This is a sub-widget so it can be under
+    // the body_scroll.
+    class Body : public Fl_Widget {
+    public:
+        Body(const EventTrackConfig &config, const RulerConfig &ruler_config);
+        ScoreTime time_end() const;
+        void update(const Tracklike &track);
+        void set_zoom(const Zoom &new_zoom);
+
+        Zoom zoom;
+        EventTrackConfig config; // Can't be const, I write to it.
+        double brightness;
+        RulerOverlay ruler_overlay;
+    protected:
+        void draw() override;
+    private:
+        void update_size();
+        void draw_event_boxes(
+            const Event *events, const int *ranks, int count,
+            const std::vector<int> &offsets);
+        void draw_signal(int min_y, int max_y, ScoreTime start);
+        void draw_waveforms(int min_y, int max_y, ScoreTime start);
+        void draw_upper_layer(
+            int index, const Event *events, Align align,
+            const std::vector<TextBox> &boxes,
+            const std::vector<int> &triggers);
+
+        // Moved from Track::track_start.
+        int track_start() { return y() + 2; }
+        int track_end() { return y() + h() - 2; }
+
+    public:
+        // Downsampled waveform peak cache for each chunk, indexed by chunknum.
+        std::vector<std::unique_ptr<PeakCache::MixedEntry>> peak_entries;
+
+        // Keep track of the maximum peak.  I scale peaks automatically because
+        // the the track is narrow so I want to see as much detail as possible,
+        // but I still want to see relative loudness differences.
+        //
+        // I used to have a global peak in PeakCache, but a single block with
+        // high amplitude would make the rest become tiny.
+        float max_peak;
+    };
+
     void static title_input_focus_cb(Fl_Widget *_w, void *arg);
     void static floating_input_done_cb(Fl_Widget *_w, void *arg);
     void focus_title();
     void unfocus_title();
+    // I can't override redraw() since it's not virtual.  I could override it
+    // anyway, but it seems sketchy.
+    void invalidate() {
+        redraw();
+        body_scroll.invalidate();
+    }
 
-    EventTrackConfig config;
-    double brightness;
-    Color bg_color;
-    // Downsampled waveform peak cache for each chunk, indexed by chunknum.
-    std::vector<std::unique_ptr<PeakCache::MixedEntry>> peak_entries;
-
-    // Keep track of the maximum peak.  I scale peaks automatically because the
-    // the track is narrow so I want to see as much detail as possible, but
-    // I still want to see relative loudness differences.
-    //
-    // I used to have a global peak in PeakCache, but a single block with high
-    // amplitude would make the rest become tiny.
-    float max_peak;
+    std::unique_ptr<Fl_RGB_Image> draw_cache;
 
     // This only ever displays the text, since as soon as you try to focus on
     // it, 'floating_input' will pop up in front.
+    //
+    // Also, even though the title_input is inside the EventTrack object,
+    // the widget is the child of and managed (size and position) by the
+    // TrackTile.
     AbbreviatedInput title_input;
-    Fl_Box bg_box;
-    RulerOverlay ruler_overlay;
     SelectionOverlay selection_overlay;
     FloatingInput *floating_input;
+
+    CachedScroll body_scroll;
+    Body body;
+
 };
 
 std::ostream &operator<<(std::ostream &os, const EventTrack::TextBox &box);

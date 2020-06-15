@@ -4246,8 +4246,222 @@ fltk:
     . How does two-finger get turned into mousewheel?
     . https://github.com/fltk/fltk/pull/86
   slow scrolling
-    - What if I just draw everything and then put the blit back in
-      SimpleScroll?
+    Draw everything and then put the blit back in SimpleScroll.
+      . It's track_scroll.
+      . Fl_Scroll works by only drawing the visible bit, then drawing the
+        slivers of the children.  I can't do that because floating point.
+        Instead I need to draw everything into a buffer, then just blit in the
+        relevant part of the buffer.  What is the fltk way to draw to buffer?
+      . How does druid do it?
+        . Scroll::scroll sets scroll_offset and child.set_viewport_offset()
+          then paint():
+          ctx.transform(Affine::translate(-self.scroll_offset));
+          let visible = ctx.region().to_rect() + self.scroll_offset;
+          ctx.with_child_ctx(
+            visible, |ctx| self.child.paint_raw(ctx, data, env))
+        . How then does that affect the child?  Does it redraw from scratch?
+          What is paint_raw()?
+          Calls self.inner.paint with a PaintCtx with empty z_ops.
+          So it's really all about that Affine::translate, from kurbo.  But it
+          seems like this just sets matrices, maybe it's really in PaintCtx,
+          which is really a Piet, which is really a CoreGraphicsContext, which
+          is from piet-coregraphics.
+        . So, I don't really know.  Maybe ask on the zulip.
+      . Draw into a Fl_Image_Surface, then use that.
+        . It remains valid until zoom changes.
+        . Set the draw region to include the entire bounds of the children,
+          then make_current() on the image surface, then draw.  Then just blit
+          out the relevant part of the image.
+      . Why does it draw over track titles?
+        . Because they are part of TrackTile.
+        . So maybe I have to change the structure:
+          Fl_Group track_group;
+            SeqScrollbar track_sb;
+            [ track titles ]
+            CachedScroll track_scroll;
+              [ track bodies ]
+        . But this means Tracks no longer manage their titles, which is
+          rather a bit of rearrangement.  How about each Track maintains its
+          own CachedScroll?  This way the Zoom stuff stays the same.  Also
+          drawing is simplified because it's always everything.  Selection can
+          be more efficient because I omit selection from the image, and apply
+          it afterwards.  Effectively I'm doing my own compositing.
+        . What about track scroll though?  This is convenient if I do
+          scrolling above TrackTile, but not if I move it into tracks.  But
+          selections are convenient for per-track, but at TrackTile means
+          I have to continually redraw all of them.
+        . Maybe I just use SimpleScroll like before, it doesn't even notice
+          the change, since it's just a cache layer inside Track.
+      * Move scroll cache to inside Track.
+        . Not necessary for Divider.
+        . Don't bother with RulerTrack either at the moment.
+        . EventTrack::draw now draws the complete track, minus selections,
+          and caches it in an image.  Then just draw the image according to
+          the zoom.offset, and put the selection on top.
+        . Changing zoom.offset does FL_DAMAGE_SCROLL, which won't invalidate
+          the cache.  Everything else forces a recache.
+        . I want surface.draw(child), but the track is not a widget.  I could
+          make it one, or see what surface.draw does to make it work.
+          It's actually Fl_Widget_Surface::draw, via inheritance.
+          . Fl_Surface_Device::push_current(this);
+          . widget->damage();
+          . fiddle dx,dy with origin()
+          . translate(), which is platform_surface->translate()
+          . widget->draw()
+          . Fl_Surface_Device::pop_current();
+        . Write EventTrack::Body widget, which is everything except the
+          selection overlay, and removes all the time range stuff.
+        . It has to be resized to be the full track size.  Maybe it should
+          start at (x, y) = (0, 0)?
+        . Maybe I wrap the Body widget in an CachedScroll, which handles the
+          redraw?  Then it's just another widget.
+        * The size is wrong.  When the event track changes size, I have to
+          resize the Body inside the CachedScroll.
+          . This is on update config I think.
+          . Size is now right, but it's still black.  Should the child start
+            at (0, 0) or at (x, y)?  At (0, 0) there is something over the
+            text input.
+          . Draw all blue?
+          . I get blue on the track title when I draw from (0, 0), so it's as
+            if the child doesn't get drawn to the surface.
+          . But it worked before!  What's different now?
+
+        . Cover in green.  Make surface and cover in half-white.  Draw child,
+          which is all blue.
+        . No green, so the surface does cover the widget properly.
+        . But the child is masked out by the black of the surface, so it's
+          like it draws everywhere except the surface.
+        . Clip rect at (26, 33, 274, 445), but body is (0, 0, 80, 512)
+        . But fl_pop_clip() has no effect.
+        . I'm not clipping anywhere, must be added by fltk.
+          Fl_Widget_Surface::draw doesn't clip either, unless it's a window.
+        . But Fl_Widget_Surface::draw does clip at (0, 0), which implies that
+          should be correct.
+        . The clip is also in CachedScroll, so it's just carried over.
+        . Aha, I'm setting it in SimpleScroll.  But removing it seems to have
+          no effect.
+        . I saw it work when I put over TrackTile.
+        . But now it doesn't work.  What changed!?
+        . I was linking in fltk1.3!  It probably has buggy Fl_Image_Surface!
+        . I want the child of CachedScroll to still be able to draw at (x, y),
+          not (0, 0).  ::draw() takes offsets, set to -x(), -y().
+        . Actually it seems like it already is!?
+        . Scroll works but I get green on the scrolled section.  Green is
+          from CachedScroll::draw, so I think it means the image is not big
+          enough.
+        . But even including the ruler it's still 512: (events:512,
+          ruler:504).  Why does the scrollbar think it's longer?
+        . From TrackTile::time_end, which is just max of track->time_end().
+        . Ok maybe 512 is correct, it's >451.  Why isn't the image drawn
+          there?
+        . Fixed part of it by using child for surface dimensions.  But the
+          scrollbar is still past 512, why?  What is it normally?
+        . Zoom is wrong, it's 1, but test_block sets to 1.6.
+        . I didn't set Body::zoom.  It's confusing because Track has it too.
+          Remove?  Divider doesn't need it, ruler could.  But it just sets
+          damage, which is correct.
+      * Ok, basically works, just a few pixels cut off at the bottom, and
+        a few pixels of extra green at the bottom.
+        . Using track_start() and track_end() consistently might be related.
+        . Yes, I went to 0 which seems fine.
+        . But probably the ruler does +2 because it's misaligend with +0.
+      * Why is the "end" text so far above the trigger?
+        . track_end() waw missing +y().
+      * Track scroll draws out of bounds.
+        . SimpleScroll has to clip.
+      * Redraw children when damage other than FL_DAMAGE_SCROLL.
+        . Also no redraw when just the selection changes.
+        . Scrolling is getting DAMAGE_ALL, who is doing that?
+        . What's the difference between redraw() and damage()?
+        . EventTrack::draw is still child+scroll, then it goes into
+          Fl_Group::draw.   Does child get promoted?
+        . It looks like Fl_Group redraws everything unless it's only
+          FL_DAMAGE_CHILD.
+        . In Track::set_zoom, setting FL_DAMAGE_SCROLL on this was incorrect,
+          it must go on the CachedScroll.
+      / Reuse the image cache when the size didn't change.
+        . The allocation is in Fl_Quartz_Image_Surface_Driver::image(), no
+          point trying to dig that out.
+      * Setting the selection forces a redraw.
+      * Scrolling while the selection moves still winds up redrawing!
+        . Maybe because I get both DAMAGE_SELECTION and FL_DAMAGE_SCROLL?
+        . Yes, though it's FL_DAMAGE_CHILD.
+      * Signal is a bit offset, probably -2.
+      * Figure out how much memory consumed by the image caches.
+        . Not too big, e.g. 80x823 = 192kb.
+      * Horizontal scroll does a redraw.
+        . Gets FL_DAMAGE_ALL.  It should damage tracks with FL_DAMAGE_SCROLL.
+        . It's probably due to SimpleScroll, which damages itself with
+          FL_DAMAGE_SCROLL.
+        . It moves the children, so they need to redraw, but CachedScroll
+          doesn't have to invalidate.  The way to do that is to damage it with
+          FL_DAMAGE_SCROLL.  I think I have to do that at least, because if
+          I don't damage at all, then it won't redraw at all.
+        . But this breaks modularity, because now the SimpleScroll has to
+          reach deep inside to damage the CachedScrolls down there.
+        . Having an optimized way to redraw after a move is a property of
+          CachedScroll.  It should be able to notice that it only moved.
+        . Who inflicts damage after a move?  Could CachedScroll detect that
+          and reduce the damage to FL_DAMAGE_SCROLL?
+        . Simple scroll moves and resizes the MoveTile, which moves the
+          tracks, but doesn't damage them, except the padding Fl_Box.
+          But by the time CachedScroll draws, it's ALL.
+          Where does that happen?
+        . EventTrack has ALL, why?  Since it has ALL, it redraws children.
+        . SimpleScroll sets SCROLL, which is not CHILD, so it forces a redraw
+          of all children.
+        . Could I invert the logic and say CachedScroll only redraws when
+          damaged specially?  But ALL is already all bits, so I don't think it
+          could use damage.
+        . Call CachedScroll::invalidate?  Now I need to make sure resizes and
+          things do that.
+        . How does Fl_Group::draw work?
+          . If anything other than FL_DAMAGE_CHILD is set, draw box and label,
+            damage all and force redraw all children: draw_child()
+          . Otherwise, redraw children with damage and not clipped:
+            update_child().
+          . Damaging a widget causes FL_DAMAGE_CHILD on all its parents.
+      * Dragging track tiles is also really slow.
+        . It's probably redrawing all tracks, not just the size changed one.
+        . If I redraw only the one track, it should be as fast as it was
+          before, except it's the whole track, not just the visible subset.
+        . The way around this would be to render tiles.
+      * Redraw when scrolled is wrong.
+        . Either the image is drawn wrong, or the blit is wrong.  I don't see
+          how the blit can be wrong because it's the same.
+        . Maybe the EventTrack::Body::draw_* still looks at zoom.offset?
+        . Yes, that's it.
+      * Too much space on the bottom.
+        . Or too much scroll down, it goes off the bottom of the image.
+        . It has to take the max track length, which can extend past the ruler.
+        . I could set the EventTrack::Body sizes from the TrackTile, or
+          I could leave them different sizes and have CachedScroll fill in
+          below the image.
+        . The second way is simpler and saves some insignificant memory.  It
+          means I don't get the track bg_color unless I want to pass it to the
+          CachedScroll... which I could do actually.
+      / EventTrack can skip draw if it's out of the clip boundary.
+        . I think Fl_Group should already take care of that.
+      - Have RulerTrack use CachedScroll too.
+      - RulerOverlay and SelectionOverlay don't need the box and clip args.
+      - Get rid of Track::damage_range and Track::DAMAGE_RANGE
+      - Remove Track::zoom?
+
+      scroll with tiles:
+        - Zoom is noticeably slower now.  Previously it would be ok speed when
+          only displaying a subset.  I have to use tiles for this.
+        - Redraws caused by waveform updates are really slow.
+          . Maybe I can make the waveform stuff its own layer, which gets
+            updated incrementally, and doesn't cause the whole redraw.
+          . Not so slow now that I invalidate explicitly.
+        - If the callback always gets all the events, I may as well just
+          ship them over with the update, and never mind the callback.
+          . But I still like the idea of only shipping changed regions... maybe
+            I wind up with mutable events in tracks after all.
+
+      - Since I depend on 1.4 now I want to make sure to use the nix version.
+        . So I need to build 1.4 in nix.
+
     . Tracing chrome://tracing
     . I want to trace the whole event loop.  Where is the entry point?
       Fl::wait() -> run Fltk actions -> get_ui_msgs -> writeTChan

@@ -341,8 +341,8 @@ Block::set_zoom_attr(const Zoom &new_zoom)
     if (clamped == this->zoom)
         return;
     this->zoom = clamped;
-    this->track_tile.set_zoom(zoom);
-    this->ruler_track->set_zoom(zoom);
+    this->track_tile.set_zoom(clamped);
+    this->ruler_track->set_zoom(clamped);
 }
 
 

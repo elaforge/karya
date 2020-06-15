@@ -4,22 +4,21 @@
 
 #pragma once
 
-/*
-Fl_Scroll does random extraneous crap like wanting to keep track of scrollbars
-and not resizing its children.  This is just the bare minimum scrolling widget,
-that also resizes like a normal Fl_Group.
-
-Actualy, for now it's just Fl_Scroll that modifies resize();
-*/
-
 #include <FL/Fl_Scroll.H>
 
 #include "global.h"
 
-// This class assumes it has only one child, which is the same size as itself.
-// When it resizes, the child will be resized along its right and bottom edges.
-// Unfortunately there's no real way to enforce a single child, so don't do
-// that.
+/*
+   This is a scroll that expects a single child, and scrolls by moving it.
+   The child will be resized so as to cover the entire size.  It's assumed
+   that the child will be stretchy on its right and bottom edges.
+
+   Fl_Scroll has automatic scrollbars, and it uses fl_scroll to move its
+   children without redrawing them, but then requires them to be able to
+   draw incrementally to draw the revealed sliver.  Unfortunately I can't
+   do that... I forget exactly why but I think due to floating point rounding
+   to pixels, since events have floating point positions.
+*/
 class SimpleScroll : public Fl_Group {
 public:
     SimpleScroll(int x, int y, int w, int h) :

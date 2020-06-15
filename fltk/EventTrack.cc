@@ -99,7 +99,7 @@ int
 TrackSignal::pixel_time_at(const Zoom &zoom, int i) const
 {
     ASSERT_MSG(signal, "pixel_time_at on empty track signal");
-    return zoom.to_pixels(from_real(signal[i].time) - zoom.offset);
+    return zoom.to_pixels(from_real(signal[i].time));
 }
 
 
@@ -150,23 +150,18 @@ operator<<(std::ostream &os, const TrackSignal &sig)
 
 // EventTrack ///////
 
-EventTrack::EventTrack(const EventTrackConfig &config,
+EventTrack::EventTrack(
+        const EventTrackConfig &config,
         const RulerConfig &ruler_config) :
     Track("events"),
-    config(config), brightness(1), bg_color(config.bg_color),
     title_input(0, 0, 1, 1),
-    bg_box(0, 0, 1, 1),
-    ruler_overlay(ruler_config, false),
-    floating_input(nullptr)
+    floating_input(nullptr),
+    body_scroll(0, 0, 1, 1),
+        body(config, ruler_config)
 {
     end(); // make sure no one else falls in
-    this->add(bg_box);
-    // FL_FLAT_BOX means there is no vertical line dividing tracks.  This
-    // reduces clutter, and the visual gap seems to be enough to distinguish
-    // track from track, especially if there are things on it.
-    bg_box.box(FL_FLAT_BOX);
-    bg_box.color(config.bg_color.brightness(this->brightness).fl());
-
+    this->add(body_scroll);
+    body_scroll.add(body);
     title_input.callback(title_input_focus_cb, static_cast<void *>(this));
 }
 
@@ -174,10 +169,14 @@ EventTrack::EventTrack(const EventTrackConfig &config,
 void
 EventTrack::resize(int x, int y, int w, int h)
 {
-    // Don't call Fl_Group::resize because I just did the sizes myself.
-    // TODO wait, what?
-    Fl_Widget::resize(x, y, w, h);
-    this->bg_box.resize(x, y, w, h);
+    bool changed = w != this->w() || h != this->h();
+    Track::resize(x, y, w, h);
+    // CachedScroll doesn't propagate size changes to its child, so I have to
+    // do it manually for width.
+    body.resize(x, y, w, body.h());
+    if (changed)
+        invalidate();
+
 }
 
 // title ////////////////
@@ -198,15 +197,61 @@ EventTrack::set_title_focus()
 }
 
 
-// TODO: duplicated with RulerTrack, move this into Track?
 void
 EventTrack::set_selection(int selnum, const std::vector<Selection> &news)
 {
-    for (auto &sel : selection_overlay.get(selnum))
-        damage_range(sel.low(), sel.high(), true);
     selection_overlay.set(selnum, news);
-    for (auto &sel : news)
-        damage_range(sel.low(), sel.high(), true);
+    // selection_overlay isn't a Fl_Widget, so I can't redraw() it.  Instead, I
+    // add a special kind of damage.
+    this->damage(Track::DAMAGE_SELECTION);
+}
+
+void
+EventTrack::set_zoom(const Zoom &new_zoom)
+{
+    if (new_zoom == this->zoom)
+        return;
+    else if (this->zoom.factor != new_zoom.factor)
+        invalidate();
+    // Otherwise just offset changed and CachedScroll can avoid a redraw.
+    this->zoom = new_zoom;
+    body_scroll.set_offset(IPoint(0, -new_zoom.to_pixels(new_zoom.offset)));
+    body.set_zoom(new_zoom);
+}
+
+
+void
+EventTrack::set_event_brightness(double d)
+{
+    body.brightness = d;
+    body_scroll.set_bg(body.config.bg_color.brightness(body.brightness));
+    body_scroll.invalidate();
+}
+
+
+void
+EventTrack::update(const Tracklike &track, ScoreTime start, ScoreTime end)
+{
+    ASSERT_MSG(track.track, "updated an event track with a non-event config");
+    body.update(track);
+    body_scroll.set_bg(body.config.bg_color.brightness(body.brightness));
+    invalidate();
+}
+
+
+void
+EventTrack::set_track_signal(const TrackSignal &tsig)
+{
+    if (body.config.track_signal.empty() && tsig.empty())
+        return;
+    body.config.track_signal.free_signals();
+    // Copy over the pointers, I'm taking ownership now.
+    body.config.track_signal = tsig;
+    if (!body.config.track_signal.empty()
+            && body.config.render.style == RenderConfig::render_none) {
+        DEBUG("WARNING: got a track signal even though RenderStyle is none");
+    }
+    invalidate();
 }
 
 
@@ -267,62 +312,6 @@ EventTrack::unfocus_title()
     do_callback();
 }
 
-/////////////////////////
-
-
-void
-EventTrack::set_event_brightness(double d)
-{
-    this->brightness = d;
-    this->bg_box.color(this->bg_color.brightness(this->brightness).fl());
-    this->redraw();
-}
-
-
-ScoreTime
-EventTrack::time_end() const
-{
-    return std::max(this->config.time_end, this->ruler_overlay.time_end());
-}
-
-
-void
-EventTrack::update(const Tracklike &track, ScoreTime start, ScoreTime end)
-{
-    ASSERT_MSG(track.track, "updated an event track with a non-event config");
-    this->damage_range(start, end, false);
-
-    if (track.ruler)
-        this->ruler_overlay.set_config(false, *track.ruler);
-    if (this->config.bg_color != track.track->bg_color) {
-        this->bg_color = track.track->bg_color;
-        this->set_event_brightness(this->brightness);
-    }
-
-    TrackSignal tsig = this->config.track_signal;
-    Config::free_haskell_fun_ptr(
-        reinterpret_cast<void *>(this->config.find_events));
-    this->config = *track.track;
-    // Copy the previous track signal over even though it might be out of date
-    // now.  At the least I can't forget the pointers or there's a leak.
-    this->config.track_signal = tsig;
-}
-
-void
-EventTrack::set_track_signal(const TrackSignal &tsig)
-{
-    if (this->config.track_signal.empty() && tsig.empty())
-        return;
-    this->config.track_signal.free_signals();
-    // Copy over the pointers, I'm taking ownership now.
-    this->config.track_signal = tsig;
-    this->redraw();
-    if (!config.track_signal.empty()
-            && this->config.render.style == RenderConfig::render_none) {
-        DEBUG("WARNING: got a track signal even though RenderStyle is none");
-    }
-}
-
 
 static float
 get_max_peak(
@@ -342,19 +331,19 @@ EventTrack::set_waveform(int chunknum, const PeakCache::Params &params)
 {
     // chunknum=-1 means clear all.
     if (chunknum < 0) {
-        this->peak_entries.clear();
+        body.peak_entries.clear();
     } else {
-        if (chunknum >= peak_entries.size())
-            this->peak_entries.resize(size_t(chunknum+1));
-        if (!peak_entries[chunknum].get())
-            peak_entries[chunknum].reset(
+        if (chunknum >= body.peak_entries.size())
+            body.peak_entries.resize(size_t(chunknum+1));
+        if (!body.peak_entries[chunknum].get())
+            body.peak_entries[chunknum].reset(
                 new PeakCache::MixedEntry(params.start));
-        peak_entries[chunknum]->add(PeakCache::get()->load(params));
+        body.peak_entries[chunknum]->add(PeakCache::get()->load(params));
     }
-    float new_peak = get_max_peak(peak_entries);
-    if (new_peak != this->max_peak)
-        this->max_peak = new_peak;
-    this->redraw();
+    float new_peak = get_max_peak(body.peak_entries);
+    if (new_peak != body.max_peak)
+        body.max_peak = new_peak;
+    invalidate();
 }
 
 
@@ -362,61 +351,23 @@ void
 EventTrack::finalize_callbacks()
 {
     Config::free_haskell_fun_ptr(
-        reinterpret_cast<void *>(this->config.find_events));
-    this->config.track_signal.free_signals();
-    this->ruler_overlay.delete_config();
+        reinterpret_cast<void *>(body.config.find_events));
+    body.config.track_signal.free_signals();
+    body.ruler_overlay.delete_config();
 }
 
 
-// TODO: parts of this are the same as RulerTrack::draw
-// This just figures out the area to draw, the actual work is done in
-// draw_area().
 void
 EventTrack::draw()
 {
-    IRect draw_area = f_util::rect(this);
-    // DEBUG("damage: " << f_util::show_damage(damage()));
-
-    // I used to look for FL_DAMAGE_SCROLL and use fl_scroll() for a fast
-    // blit, but it was too hard to get right.  The biggest problem is that
-    // events are at floats which are then rounded to ints for pixel positions.
-    if (damage() == Track::DAMAGE_RANGE) {
-        // DEBUG("intersection draw_area with damaged_area: "
-        //     << SHOW_RANGE(draw_area) << " \\/ "
-        //     << SHOW_RANGE(damaged_area) << " = "
-        //     << SHOW_RANGE(draw_area.intersect(damaged_area)));
-        draw_area = draw_area.intersect(this->damaged_area);
-    } else {
-        // I could technically handle SCROLL, but I'd have to tweak the ruler's
-        // damaged_area to account for the scroll and that's too much bother
-        // right now.
-        this->damage(FL_DAMAGE_ALL);
+    // The selection moved, so get the cache to redraw, but not recache.
+    if ((damage() & ~FL_DAMAGE_CHILD) == Track::DAMAGE_SELECTION) {
+        this->clear_damage();
+        body_scroll.damage(FL_DAMAGE_SCROLL);
     }
-    if (draw_area.w <= 0 || draw_area.h <= 0)
-        return;
-
-    util::timing(2, "EventTrack::draw", draw_area.h);
-    // DEBUG("draw " << get_title() << ": " << f_util::show_damage(damage())
-    //     << ": " << draw_area << " " << SHOW_RANGE(draw_area));
-    // When ruler_overlay.draw() is called it will redundantly clip again
-    // on damage_range, but that's ok because it needs the clip when called
-    // from RulerTrack::draw().
-    f_util::ClipArea clip_area(draw_area);
-
-    // TODO It might be cleaner to eliminate bg_box and just call fl_rectf
-    // and fl_draw_box myself.  But this draws the all-mighty bevel too.
-    this->draw_child(this->bg_box);
-
-    // This is more than one pixel, but otherwise I draw on top of the
-    // bevel on retina displays.
-    IRect inside_bevel = f_util::rect(this);
-    inside_bevel.x += 2; inside_bevel.w -= 3;
-    inside_bevel.y += 2; inside_bevel.h -= 3;
-    f_util::ClipArea clip_area2(inside_bevel);
-
-    this->draw_area();
-    damaged_area.w = damaged_area.h = 0;
-    util::timing(2, "EventTrack::draw_area");
+    Track::draw();
+    selection_overlay.draw(x(), track_start(), w(), zoom);
+    util::timing(2, "EventTrack::selection_overlay");
 }
 
 
@@ -509,27 +460,93 @@ compute_text_box(
 }
 
 
+string
+EventTrack::dump() const
+{
+    std::ostringstream out;
+    out << "type event title " << f_util::show_string(this->get_title());
+    return out.str();
+}
+
+std::ostream &
+operator<<(std::ostream &os, const EventTrack::TextBox &box)
+{
+    os << "TextBox " << (box.align == EventTrack::Left ? "Left" : "Right")
+        << '\n';
+    for (auto const &line : box.lines) {
+        os << "    '" << line.first << "' " << line.second << '\n';
+    }
+    return os;
+}
+
+
+// Body ////////////////////////////////
+
+EventTrack::Body::Body(
+        const EventTrackConfig &config,
+        const RulerConfig &ruler_config) :
+    Fl_Widget(0, 0, 1, 1),
+    config(config), brightness(1),
+    ruler_overlay(ruler_config, false)
+{
+    update_size();
+}
+
+
+ScoreTime
+EventTrack::Body::time_end() const
+{
+    return std::max(config.time_end, ruler_overlay.time_end());
+}
+
+void
+EventTrack::Body::update(const Tracklike &track)
+{
+    ASSERT_MSG(track.track, "updated an event track with a non-event config");
+
+    if (track.ruler)
+        ruler_overlay.set_config(false, *track.ruler);
+
+    TrackSignal tsig = this->config.track_signal;
+    Config::free_haskell_fun_ptr(
+        reinterpret_cast<void *>(this->config.find_events));
+    this->config = *track.track;
+    update_size();
+    // Copy the previous track signal over even though it might be out of date
+    // now.  At the least I can't forget the pointers or there's a leak.
+    this->config.track_signal = tsig;
+}
+
+
+void
+EventTrack::Body::set_zoom(const Zoom &new_zoom)
+{
+    bool factor_changed = zoom.factor != new_zoom.factor;
+    this->zoom = new_zoom;
+    if (factor_changed)
+        this->update_size();
+}
+
+void
+EventTrack::Body::update_size()
+{
+    // I'm not sure why +4, but otherwise it's not quite long enough.
+    // Maybe it has to do with the +2 in track_start()?
+    this->resize(x(), y(), w(), zoom.to_pixels(time_end()) + 4);
+}
+
 // Drawing order:
 // EventTrack: bg -> events -> wave -> signal -> ruler -> text -> trigger -> sel
 // RulerTrack: bg ->                             ruler ->                 -> sel
 void
-EventTrack::draw_area()
+EventTrack::Body::draw()
 {
-    IRect clip = f_util::clip_rect(f_util::rect(this));
-    // Expand by a pixel, otherwise I miss little slivers on retina displays.
-    clip.y--;
-    clip.h++;
-    const int y_start = this->track_start();
-    const int wrap_width = w() - 3; // minus some padding to avoid the bevel
+    fl_color(config.bg_color.brightness(this->brightness).fl());
+    fl_rectf(x(), y(), w(), h());
 
-    // Calculate bounds.
-
-    const ScoreTime start = this->zoom.to_time(clip.y - y_start) + zoom.offset;
-    const ScoreTime end = start + this->zoom.to_time(clip.h);
-    // DEBUG("START " << clip.y << " - " << y_start << " to time "
-    //     << zoom.to_time(clip.y - y_start));
-    // start = start + this->zoom.offset;
-    // end = end + this->zoom.offset;
+    const ScoreTime start = ScoreTime(0);
+    // TODO I can just ship over the events eagerly now, instead of a callback.
+    const ScoreTime end = time_end();
 
     // The results are sorted by (event_start, rank), so lower ranks always
     // come first.
@@ -537,37 +554,34 @@ EventTrack::draw_area()
     int *ranks;
     int count = this->config.find_events(&start, &end, &events, &ranks);
     util::timing(2, "EventTrack::find_events");
-    // If I comment it, I get an unused function warning.
-    if (false)
-        show_found_events(start, end, events, count);
 
     vector<TextBox> boxes(count);
     vector<int> triggers(count);
 
-    const int track_min = track_start() - zoom.to_pixels(zoom.offset);
-    const int track_max = std::max(
-        this->y() + this->h(), track_min + zoom.to_pixels(time_end()));
+    const int wrap_width = w() - 3; // minus some padding to avoid the edge
+
     for (int i = 0; i < count; i++) {
-        triggers[i] = y_start
-            + this->zoom.to_pixels(events[i].start - this->zoom.offset);
+        triggers[i] = track_start() + this->zoom.to_pixels(events[i].start);
         const SymbolTable::Wrapped wrapped(wrap_text(events[i], wrap_width));
         Align align = ranks[i] > 0 ? Right : Left;
         boxes[i] = compute_text_box(
             events[i], wrapped, x(), triggers[i], wrap_width, align,
-            track_min, track_max);
+            track_start(), track_end());
     }
+
 
     // Actually start drawing.
 
     this->draw_event_boxes(events, ranks, count, triggers);
     util::timing(2, "EventTrack::draw_event_boxes");
-    this->draw_waveforms(clip.y, clip.b(), start);
+    this->draw_waveforms(track_start(), track_end(), start);
     util::timing(2, "EventTrack::draw_waveforms");
-    this->draw_signal(clip.y, clip.b(), start);
+    this->draw_signal(track_start(), track_end(), start);
     util::timing(2, "EventTrack::draw_signal");
 
     IRect box(x(), track_start(), w(), h() - (y()-track_start()));
-    this->ruler_overlay.draw(box, zoom, clip);
+    // TODO later ruler_overlay will always draw from 0
+    this->ruler_overlay.draw(box, Zoom(ScoreTime(0), zoom.factor), box);
     util::timing(2, "EventTrack::ruler_overlay");
 
     for (int i = 0; i < count; i++) {
@@ -575,8 +589,6 @@ EventTrack::draw_area()
         draw_upper_layer(i, events, align, boxes, triggers);
     }
     util::timing(2, "EventTrack::draw_upper_layer");
-    selection_overlay.draw(x(), track_start(), w(), zoom);
-    util::timing(2, "EventTrack::selection_overlay");
 
     // Free text, allocated on the haskell side.
     if (count) {
@@ -593,7 +605,7 @@ EventTrack::draw_area()
 // Draw event boxes.  Rank >0 boxes are not drawn since I'd have to figure out
 // overlaps and they're meant to be used with control tracks anyway.
 void
-EventTrack::draw_event_boxes(
+EventTrack::Body::draw_event_boxes(
     const Event *events, const int *ranks, int count,
     const vector<int> &triggers)
 {
@@ -659,7 +671,7 @@ get_next_start(
 
 // min_y and max_y are already in absolute pixels
 void
-EventTrack::draw_waveforms(int min_y, int max_y, ScoreTime start)
+EventTrack::Body::draw_waveforms(int min_y, int max_y, ScoreTime start)
 {
     const float amplitude_scale = max_peak == 0 ? 1 : 1 / max_peak;
     if (peak_entries.empty())
@@ -699,7 +711,7 @@ EventTrack::draw_waveforms(int min_y, int max_y, ScoreTime start)
                 break;
             if (peak_entries[chunknum].get()) {
                 time = peak_entries[chunknum]->start;
-                y = zoom.to_pixels_d(time - zoom.offset) + track_start();
+                y = zoom.to_pixels_d(time) + track_start();
                 next_start = get_next_start(peak_entries, chunknum+1);
                 cache = peak_entries[chunknum]->at_zoom(zoom.factor);
             } else {
@@ -766,7 +778,7 @@ draw_segment(RenderConfig::RenderStyle style, int min_x,
 
 
 void
-EventTrack::draw_signal(int min_y, int max_y, ScoreTime start)
+EventTrack::Body::draw_signal(int min_y, int max_y, ScoreTime start)
 {
     if (config.render.style == RenderConfig::render_none)
         return;
@@ -1054,7 +1066,7 @@ draw_text_line(
 
 // Draw the stuff that goes on top of the event boxes: trigger line and text.
 void
-EventTrack::draw_upper_layer(
+EventTrack::Body::draw_upper_layer(
     int index, const Event *events, Align align,
     const vector<TextBox> &boxes, const vector<int> &triggers)
 {
@@ -1095,7 +1107,7 @@ EventTrack::draw_upper_layer(
     util::timing(2, "drawable_pixels");
     TEXT("drawable pixels for " << events[index] << ": " << drawable);
 
-    const int track_min = this->track_start() - zoom.to_pixels(zoom.offset);
+    const int track_min = this->track_start();
     const int track_max = track_min + zoom.to_pixels(time_end());
 
     // Don't draw above 0 since I can't scroll further up to see it.  Also
@@ -1177,23 +1189,4 @@ EventTrack::draw_upper_layer(
         }
     }
     util::timing(2, "draw_text_line");
-}
-
-string
-EventTrack::dump() const
-{
-    std::ostringstream out;
-    out << "type event title " << f_util::show_string(this->get_title());
-    return out.str();
-}
-
-std::ostream &
-operator<<(std::ostream &os, const EventTrack::TextBox &box)
-{
-    os << "TextBox " << (box.align == EventTrack::Left ? "Left" : "Right")
-        << '\n';
-    for (auto const &line : box.lines) {
-        os << "    '" << line.first << "' " << line.second << '\n';
-    }
-    return os;
 }

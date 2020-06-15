@@ -120,7 +120,8 @@ protected:
     // Mark a segment of the track as needing to be redrawn.
     void damage_range(ScoreTime start, ScoreTime end, bool selection);
 
-    enum { DAMAGE_RANGE = FL_DAMAGE_USER1 };
+    enum { DAMAGE_RANGE = FL_DAMAGE_USER1 }; // TODO remove
+    enum { DAMAGE_SELECTION = FL_DAMAGE_USER2 };
     // This area needs to be redrawn.
     IRect damaged_area;
     Zoom zoom;

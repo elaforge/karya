@@ -544,6 +544,7 @@ fltkDeps :: Config -> [FilePath]
 fltkDeps config = map (srcToObj config . ("fltk"</>))
     [ "AbbreviatedInput.cc"
     , "Block.cc"
+    , "CachedScroll.cc"
     , "Color.cc"
     , "EventTrack.cc"
     , "FloatingInput.cc"
@@ -707,7 +708,9 @@ configure = do
             , case mode of
                 Opt -> ["-O2"]
                 _ -> []
-            , ["-Wall", "-std=c++11"]
+            , ["-Wall"]
+            -- I'd like to turn on -Wold-style-cast, but faust uses it a lot
+            , ["-std=c++11"]
             , ["-fPIC"] -- necessary for ghci loading to work in 7.8
             -- Turn on Effective C++ warnings, which includes uninitialized
             -- variables.  Unfortunately it's very noisy with lots of false

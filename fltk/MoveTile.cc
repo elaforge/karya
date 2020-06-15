@@ -39,7 +39,8 @@ MoveTile::resize(int x, int y, int w, int h)
         if (c.b() == edge.y)
             new_c.h = std::max(1, (this->y() + h) - c.y);
         if (new_c != c) {
-            // DEBUG("c" << i << f_util::rect(child(i)) << " to " << new_c);
+            // DEBUG("c" << i << ": " << f_util::rect(child(i)) << " to "
+            //     << new_c);
             this->child(i)->resize(new_c.x, new_c.y, new_c.w, new_c.h);
         }
     }
