@@ -11,8 +11,6 @@
 #include "SelectionOverlay.h" // for selection_point_size
 
 
-#define SHOW_RANGE(r) (r).y << "--" << (r).b()
-
 int
 Track::handle(int evt)
 {
@@ -25,52 +23,6 @@ Track::handle(int evt)
         return 1;
     }
     return Fl_Group::handle(evt);
-}
-
-
-void
-Track::set_zoom(const Zoom &new_zoom)
-{
-    if (new_zoom == this->zoom)
-        return;
-    if (this->zoom.factor == new_zoom.factor)
-        this->damage(FL_DAMAGE_SCROLL);
-    else
-        this->damage(FL_DAMAGE_ALL);
-    this->zoom = new_zoom;
-}
-
-
-void
-Track::damage_range(ScoreTime start, ScoreTime end, bool selection)
-{
-    IRect r = f_util::rect(this);
-    // If selection==false, then it's an event update, and redraw everything.
-    // I don't know the extent of the text of the event, and I don't really
-    // need to optimize this anyway since it's uncommon.
-    //
-    // Selection update optimization may not matter either, in which case I
-    // could totally get rid of damage range, but as long as it seems to work
-    // I'll keep it, and selections update frequently due to playback anyway.
-    if (!selection || (start == ScoreTime(-1) && end == ScoreTime(-1))) {
-        ; // leave it covering the whole widget
-    } else {
-        r.y += this->zoom.to_pixels(start - this->zoom.offset);
-        r.h = this->zoom.to_pixels(end - start);
-        // Extend the damage area to cover the bevel arrow thing in
-        // draw_selections().
-        r.y -= SelectionOverlay::selection_point_size;
-        // +2, otherwise retina displays get a hanging pixel.
-        r.h += SelectionOverlay::selection_point_size * 2 + 2;
-    }
-
-    // DEBUG("zoom " << zoom << ": " << start << " - " << zoom.offset);
-    // DEBUG("damage_range(" << start << ", " << end << ", " << selection<<"): "
-    //     << SHOW_RANGE(damaged_area) << " + " << SHOW_RANGE(r)
-    //     << " = " << SHOW_RANGE(damaged_area.union_(r)));
-    this->damaged_area = this->damaged_area.union_(r);
-    // Ensure that the next draw() call redraws the damaged_area.
-    this->damage(Track::DAMAGE_RANGE);
 }
 
 

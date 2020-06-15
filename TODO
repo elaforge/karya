@@ -4442,22 +4442,24 @@ fltk:
           CachedScroll... which I could do actually.
       / EventTrack can skip draw if it's out of the clip boundary.
         . I think Fl_Group should already take care of that.
-      - Have RulerTrack use CachedScroll too.
+      * Have RulerTrack use CachedScroll too.
       - RulerOverlay and SelectionOverlay don't need the box and clip args.
-      - Get rid of Track::damage_range and Track::DAMAGE_RANGE
-      - Remove Track::zoom?
+      * Get rid of Track::damage_range and Track::DAMAGE_RANGE
+      * Remove Track::zoom?
 
       scroll with tiles:
-        - Zoom is noticeably slower now.  Previously it would be ok speed when
+        . Zoom is noticeably slower now.  Previously it would be ok speed when
           only displaying a subset.  I have to use tiles for this.
-        - Redraws caused by waveform updates are really slow.
+        . Redraws caused by waveform updates are really slow.
           . Maybe I can make the waveform stuff its own layer, which gets
             updated incrementally, and doesn't cause the whole redraw.
           . Not so slow now that I invalidate explicitly.
-        - If the callback always gets all the events, I may as well just
+        . If the callback always gets all the events, I may as well just
           ship them over with the update, and never mind the callback.
           . But I still like the idea of only shipping changed regions... maybe
             I wind up with mutable events in tracks after all.
+        . But isn't this just moving back to incremental, and won't I get the
+          same artifacts?
 
       - Since I depend on 1.4 now I want to make sure to use the nix version.
         . So I need to build 1.4 in nix.

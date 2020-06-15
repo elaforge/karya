@@ -11,22 +11,31 @@
 #include "RulerTrack.h"
 
 
-// Hack for debugging.
-#define SHOW_RANGE(r) (r).y << "--" << (r).b()
-
 // RulerTrack
 
 RulerTrack::RulerTrack(const RulerConfig &config) :
     Track("ruler"),
-    title_box(0),
-    bg_box(0, 0, 1, 1),
-    ruler_overlay(config, true)
+    title_box(nullptr),
+    body_scroll(0, 0, 1, 1),
+        body(config)
 {
-    this->add(bg_box);
     end();
+    this->add(body_scroll);
+    body_scroll.add(body);
+    body_scroll.set_bg(config.bg);
+}
 
-    bg_box.box(FL_THIN_DOWN_BOX);
-    bg_box.color(config.bg.fl());
+
+void
+RulerTrack::resize(int x, int y, int w, int h)
+{
+    bool changed = w != this->w() || h != this->h();
+    Track::resize(x, y, w, h);
+    // CachedScroll doesn't propagate size changes to its child, so I have to
+    // do it manually for width.
+    body.resize(x, y, w, body.h());
+    if (changed)
+        invalidate();
 }
 
 
@@ -38,7 +47,7 @@ RulerTrack::title_widget()
     if (!this->title_box) {
         this->title_box = new Fl_Box(0, 0, 1, 1);
         title_box->box(FL_FLAT_BOX);
-        title_box->color(this->ruler_overlay.config.bg.fl());
+        title_box->color(body.ruler_overlay.config.bg.fl());
     }
     return *this->title_box;
 }
@@ -49,67 +58,38 @@ RulerTrack::update(const Tracklike &track, ScoreTime start, ScoreTime end)
 {
     ASSERT_MSG(track.ruler && !track.track,
         "updated a ruler track with an event track config");
-    this->damage_range(start, end, false);
 
-    this->ruler_overlay.set_config(true, *track.ruler);
-    if (track.ruler->bg.fl() != bg_box.color()) {
-        bg_box.color(track.ruler->bg.fl());
-        bg_box.redraw();
-        if (title_box) {
-            title_box->color(track.ruler->bg.fl());
-            title_box->redraw();
-        }
+    body.ruler_overlay.set_config(true, *track.ruler);
+    body.update_size();
+    body_scroll.set_bg(track.ruler->bg);
+    if (title_box) {
+        title_box->color(track.ruler->bg.fl());
+        title_box->redraw();
     }
+    invalidate();
 }
+
 
 void
 RulerTrack::finalize_callbacks()
 {
-    ruler_overlay.delete_config();
+    body.ruler_overlay.delete_config();
 }
 
-// TODO: parts of this are the same as EventTrack::draw
+
 // Drawing order:
-// EventTrack: bg -> events -> ruler -> text -> trigger -> selection
-// RulerTrack: bg ->           ruler ->                    selection
+// EventTrack: bg -> events -> wave -> signal -> ruler -> text -> trigger -> sel
+// RulerTrack: bg ->                             ruler ->                 -> sel
 void
 RulerTrack::draw()
 {
-    IRect draw_area = f_util::rect(this);
-
-    // I used to look for FL_DAMAGE_SCROLL and use fl_scroll() for a fast
-    // blit, but it was too hard to get right.  The biggest problem is that
-    // events are at floats which are then rounded to ints for pixel positions.
-    // DEBUG("damage: " << f_util::show_damage(damage()));
-    if (damage() == FL_DAMAGE_CHILD || damage() == Track::DAMAGE_RANGE) {
-        // Only CHILD damage means a selection was set.  But since I overlap
-        // with the child, I have to draw too.
-        // DEBUG("intersection with child: "
-        //     << SHOW_RANGE(draw_area) << " + "
-        //     << SHOW_RANGE(damaged_area) << " = "
-        //     << SHOW_RANGE(draw_area.intersect(damaged_area)));
-        draw_area = draw_area.intersect(this->damaged_area);
-    } else {
-        this->damage(FL_DAMAGE_ALL);
+    // The selection moved, so get the cache to redraw, but not recache.
+    if ((damage() & ~FL_DAMAGE_CHILD) == Track::DAMAGE_SELECTION) {
+        this->clear_damage();
+        body_scroll.damage(FL_DAMAGE_SCROLL);
     }
-    if (draw_area.w <= 0 || draw_area.h <= 0)
-        return;
-
-    // Prevent marks at the top and bottom from drawing outside the ruler.
-    f_util::ClipArea clip_area(draw_area);
-    this->draw_child(this->bg_box);
-
-    // This is more than one pixel, but otherwise I draw on top of the bevel on
-    // retina displays.
-    IRect inside_bevel = f_util::rect(this);
-    inside_bevel.x += 2; inside_bevel.w -= 3;
-    inside_bevel.y += 2; inside_bevel.h -= 3;
-    f_util::ClipArea clip_area2(inside_bevel);
-
-    IRect box(x(), track_start(), w(), h() - (y()-track_start()));
-    this->ruler_overlay.draw(box, zoom, inside_bevel);
-    this->selection_overlay.draw(x(), track_start(), w(), zoom);
-    this->damaged_area.w = this->damaged_area.h = 0;
+    Track::draw();
+    selection_overlay.draw(x(), track_start(body), w(), body.zoom);
 }
 
 
@@ -117,11 +97,29 @@ RulerTrack::draw()
 void
 RulerTrack::set_selection(int selnum, const std::vector<Selection> &news)
 {
-    for (auto &sel : selection_overlay.get(selnum))
-        damage_range(sel.low(), sel.high(), true);
     selection_overlay.set(selnum, news);
-    for (auto &sel : news)
-        damage_range(sel.low(), sel.high(), true);
+    // selection_overlay isn't a Fl_Widget, so I can't redraw() it.  Instead, I
+    // add a special kind of damage.
+    this->damage(Track::DAMAGE_SELECTION);
+}
+
+
+void
+RulerTrack::set_zoom(const Zoom &new_zoom)
+{
+    if (new_zoom == body.zoom)
+        return;
+    bool factor_changed = new_zoom.factor != body.zoom.factor;
+
+    if (factor_changed)
+        invalidate();
+    // Otherwise just offset changed and CachedScroll can avoid a redraw.
+    // this->zoom = new_zoom;
+    body_scroll.set_offset(IPoint(0, -new_zoom.to_pixels(new_zoom.offset)));
+
+    body.zoom = new_zoom;
+    if (factor_changed)
+        body.update_size();
 }
 
 
@@ -129,4 +127,37 @@ std::string
 RulerTrack::dump() const
 {
     return "type ruler";
+}
+
+
+// Body ////////////////////////////////
+
+
+RulerTrack::Body::Body(const RulerConfig &config) :
+    Fl_Widget(0, 0, 1, 1),
+    ruler_overlay(config, true)
+{
+    update_size();
+}
+
+
+void
+RulerTrack::Body::draw()
+{
+    fl_color(ruler_overlay.config.bg.fl());
+    fl_rectf(x(), y(), w(), h());
+
+    // TODO later ruler_overlay will always draw from 0
+    IRect box(x(), track_start(*this),
+        w(), track_end(*this) - track_start(*this));
+    this->ruler_overlay.draw(box, Zoom(ScoreTime(0), zoom.factor), box);
+}
+
+
+void
+RulerTrack::Body::update_size()
+{
+    // I'm not sure why +4, but otherwise it's not quite long enough.
+    // Maybe it has to do with the +2 in track_start()?
+    this->resize(x(), y(), w(), zoom.to_pixels(time_end()) + 4);
 }

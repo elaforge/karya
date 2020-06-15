@@ -186,10 +186,6 @@ private:
             const std::vector<TextBox> &boxes,
             const std::vector<int> &triggers);
 
-        // Moved from Track::track_start.
-        int track_start() { return y() + 2; }
-        int track_end() { return y() + h() - 2; }
-
     public:
         // Downsampled waveform peak cache for each chunk, indexed by chunknum.
         std::vector<std::unique_ptr<PeakCache::MixedEntry>> peak_entries;

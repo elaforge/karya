@@ -81,13 +81,10 @@ public:
         // DEBUG("deleted track " << this);
     }
     int handle(int evt) override;
-    // Y position of the track start.  Use this instead of y() to avoid
-    // colliding with the track bevel.
-    int track_start() { return y() + 2; }
 
     virtual void set_selection(int selnum, const std::vector<Selection> &sels)
     {}
-    virtual void set_zoom(const Zoom &new_zoom);
+    virtual void set_zoom(const Zoom &new_zoom) {}
     virtual bool track_resizable() const { return true; }
     virtual void set_event_brightness(double d) {}
 
@@ -117,14 +114,14 @@ public:
     virtual void set_title_focus() {}
 
 protected:
-    // Mark a segment of the track as needing to be redrawn.
-    void damage_range(ScoreTime start, ScoreTime end, bool selection);
+    enum { DAMAGE_SELECTION = FL_DAMAGE_USER1 };
 
-    enum { DAMAGE_RANGE = FL_DAMAGE_USER1 }; // TODO remove
-    enum { DAMAGE_SELECTION = FL_DAMAGE_USER2 };
-    // This area needs to be redrawn.
-    IRect damaged_area;
-    Zoom zoom;
+    // Y position of where to start and stop drawing.  These are so everyone
+    // can agree on the number of pixels to leave as a divider.  They take
+    // a Fl_Widget because they work on the inner Body widgets, not Track,
+    // since the Body may be much taller than the Track.
+    static int track_start(const Fl_Widget &w) { return w.y() + 2; }
+    static int track_end(const Fl_Widget &w) { return w.y() + w.h() - 2; }
 };
 
 

@@ -27,9 +27,6 @@ using std::vector;
 // #define TEXT(X) DEBUG(X)
 #define TEXT(X) ;
 
-// Hack for debugging.
-#define SHOW_RANGE(r) (r).y << "--" << (r).b()
-
 // The color of events at a non-zero rank is scaled by this.  This should be
 // high enough to make them easily distinguishable, but not so high they are
 // too low-contrast to read.
@@ -162,6 +159,7 @@ EventTrack::EventTrack(
     end(); // make sure no one else falls in
     this->add(body_scroll);
     body_scroll.add(body);
+    body_scroll.set_bg(body.config.bg_color.brightness(body.brightness));
     title_input.callback(title_input_focus_cb, static_cast<void *>(this));
 }
 
@@ -176,7 +174,6 @@ EventTrack::resize(int x, int y, int w, int h)
     body.resize(x, y, w, body.h());
     if (changed)
         invalidate();
-
 }
 
 // title ////////////////
@@ -206,15 +203,15 @@ EventTrack::set_selection(int selnum, const std::vector<Selection> &news)
     this->damage(Track::DAMAGE_SELECTION);
 }
 
+
 void
 EventTrack::set_zoom(const Zoom &new_zoom)
 {
-    if (new_zoom == this->zoom)
+    if (new_zoom == body.zoom)
         return;
-    else if (this->zoom.factor != new_zoom.factor)
+    else if (new_zoom.factor != body.zoom.factor)
         invalidate();
     // Otherwise just offset changed and CachedScroll can avoid a redraw.
-    this->zoom = new_zoom;
     body_scroll.set_offset(IPoint(0, -new_zoom.to_pixels(new_zoom.offset)));
     body.set_zoom(new_zoom);
 }
@@ -366,7 +363,7 @@ EventTrack::draw()
         body_scroll.damage(FL_DAMAGE_SCROLL);
     }
     Track::draw();
-    selection_overlay.draw(x(), track_start(), w(), zoom);
+    selection_overlay.draw(x(), track_start(*this), w(), body.zoom);
     util::timing(2, "EventTrack::selection_overlay");
 }
 
@@ -527,6 +524,7 @@ EventTrack::Body::set_zoom(const Zoom &new_zoom)
         this->update_size();
 }
 
+
 void
 EventTrack::Body::update_size()
 {
@@ -534,6 +532,7 @@ EventTrack::Body::update_size()
     // Maybe it has to do with the +2 in track_start()?
     this->resize(x(), y(), w(), zoom.to_pixels(time_end()) + 4);
 }
+
 
 // Drawing order:
 // EventTrack: bg -> events -> wave -> signal -> ruler -> text -> trigger -> sel
@@ -544,15 +543,15 @@ EventTrack::Body::draw()
     fl_color(config.bg_color.brightness(this->brightness).fl());
     fl_rectf(x(), y(), w(), h());
 
-    const ScoreTime start = ScoreTime(0);
+    const ScoreTime t_start = ScoreTime(0);
     // TODO I can just ship over the events eagerly now, instead of a callback.
-    const ScoreTime end = time_end();
+    const ScoreTime t_end = time_end();
 
     // The results are sorted by (event_start, rank), so lower ranks always
     // come first.
     Event *events;
     int *ranks;
-    int count = this->config.find_events(&start, &end, &events, &ranks);
+    int count = this->config.find_events(&t_start, &t_end, &events, &ranks);
     util::timing(2, "EventTrack::find_events");
 
     vector<TextBox> boxes(count);
@@ -560,13 +559,15 @@ EventTrack::Body::draw()
 
     const int wrap_width = w() - 3; // minus some padding to avoid the edge
 
+    const int start = track_start(*this);
+    const int end = track_end(*this);
     for (int i = 0; i < count; i++) {
-        triggers[i] = track_start() + this->zoom.to_pixels(events[i].start);
+        triggers[i] = start + this->zoom.to_pixels(events[i].start);
         const SymbolTable::Wrapped wrapped(wrap_text(events[i], wrap_width));
         Align align = ranks[i] > 0 ? Right : Left;
         boxes[i] = compute_text_box(
             events[i], wrapped, x(), triggers[i], wrap_width, align,
-            track_start(), track_end());
+            start, end);
     }
 
 
@@ -574,12 +575,12 @@ EventTrack::Body::draw()
 
     this->draw_event_boxes(events, ranks, count, triggers);
     util::timing(2, "EventTrack::draw_event_boxes");
-    this->draw_waveforms(track_start(), track_end(), start);
+    this->draw_waveforms(start, end, t_start);
     util::timing(2, "EventTrack::draw_waveforms");
-    this->draw_signal(track_start(), track_end(), start);
+    this->draw_signal(start, end, t_start);
     util::timing(2, "EventTrack::draw_signal");
 
-    IRect box(x(), track_start(), w(), h() - (y()-track_start()));
+    IRect box(x(), start, w(), end - start);
     // TODO later ruler_overlay will always draw from 0
     this->ruler_overlay.draw(box, Zoom(ScoreTime(0), zoom.factor), box);
     util::timing(2, "EventTrack::ruler_overlay");
@@ -711,7 +712,7 @@ EventTrack::Body::draw_waveforms(int min_y, int max_y, ScoreTime start)
                 break;
             if (peak_entries[chunknum].get()) {
                 time = peak_entries[chunknum]->start;
-                y = zoom.to_pixels_d(time) + track_start();
+                y = zoom.to_pixels_d(time) + track_start(*this);
                 next_start = get_next_start(peak_entries, chunknum+1);
                 cache = peak_entries[chunknum]->at_zoom(zoom.factor);
             } else {
@@ -788,7 +789,7 @@ EventTrack::Body::draw_signal(int min_y, int max_y, ScoreTime start)
     if (found == tsig.length)
         return;
 
-    const int y = this->track_start();
+    const int y = track_start(*this);
     // TODO alpha not supported, I'd need a non-portable drawing routine for
     // it.
     const Fl_Color signal_color =
@@ -1107,7 +1108,7 @@ EventTrack::Body::draw_upper_layer(
     util::timing(2, "drawable_pixels");
     TEXT("drawable pixels for " << events[index] << ": " << drawable);
 
-    const int track_min = this->track_start();
+    const int track_min = track_start(*this);
     const int track_max = track_min + zoom.to_pixels(time_end());
 
     // Don't draw above 0 since I can't scroll further up to see it.  Also
