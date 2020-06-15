@@ -202,15 +202,14 @@ show_widget(const Fl_Widget *w)
 {
     std::ostringstream out;
     out << typeid(*w).name() << ": ";
-    out << rect(*w) << " label=";
+    out << rect(*w);
     if (w->label())
-        out << '"' << w->label() << '"';
-    else
-        out << "NULL";
+        out << " label=" << '"' << w->label() << '"';
     const Fl_Input_ *input = dynamic_cast<const Fl_Input_ *>(w);
     if (input)
         out << " input=\"" << input->value() << '"';
-    out << " dmg=" << show_damage(w->damage());
+    if (w->damage())
+        out << " dmg=" << show_damage(w->damage());
     static std::string outs;
     outs = out.str();
     return outs.c_str();
