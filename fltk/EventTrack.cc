@@ -357,6 +357,7 @@ EventTrack::finalize_callbacks()
 void
 EventTrack::draw()
 {
+    util::timing(2, "EventTrack::draw-start");
     // The selection moved, so get the cache to redraw, but not recache.
     if ((damage() & ~FL_DAMAGE_CHILD) == Track::DAMAGE_SELECTION) {
         this->clear_damage();

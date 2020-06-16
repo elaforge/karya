@@ -115,18 +115,13 @@ rewind_to_prev_visible(const PosMark *begin, const PosMark *cur, double zoom)
 void
 RulerOverlay::draw(const IRect &box, const Zoom &zoom, const IRect &clip)
 {
-    // IRect clip = f_util::clip_rect(f_util::rect(this));
-    // DEBUG("clip: " << clip);
     if (clip.w == 0 || clip.h == 0)
         return;
-    // int y = this->y() + 2; // TODO track_start()
 
     ScoreTime start = zoom.to_time(clip.y - box.y);
     ScoreTime end = start + zoom.to_time(clip.h);
     start = start + zoom.offset;
     end = end + zoom.offset;
-    // DEBUG("RULER CLIP: " << start << "--" << end << ", "
-    //         << SHOW_RANGE(clip));
 
     // Later marklists will draw over earlier ones.
     for (auto &mlist : config.marklists) {

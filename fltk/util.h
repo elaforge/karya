@@ -75,7 +75,7 @@ namespace util {
 
 class Timing {
 public:
-    enum { level = 1 };
+    enum { level = 2 };
     static Timing *get();
     void timing(const char *name, int val);
     void flush();

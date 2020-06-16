@@ -74,6 +74,7 @@ public:
     // doesn't use it.
     Color bg;
 
+    // char because haskell FFI is C, so no bool.
     // So I can share marklists but have different display styles.
     char show_names;
     // Use the alpha channel in the Mark colors.  Otherwise, they are opaque.

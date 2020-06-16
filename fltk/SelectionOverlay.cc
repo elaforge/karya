@@ -55,7 +55,6 @@ void
 SelectionOverlay::draw(int x, int y, int w, const Zoom &zoom)
 {
     IRect sel_rect;
-    // int y = this->track_start();
     for (const std::vector<Selection> &sels : this->selections) {
         for (const Selection &sel : sels) {
             if (sel.empty())

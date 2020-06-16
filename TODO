@@ -4443,9 +4443,52 @@ fltk:
       / EventTrack can skip draw if it's out of the clip boundary.
         . I think Fl_Group should already take care of that.
       * Have RulerTrack use CachedScroll too.
-      - RulerOverlay and SelectionOverlay don't need the box and clip args.
+      / RulerOverlay and SelectionOverlay don't need the box and clip args.
+        . But I'm not sure I want to delete support for incremental draw,
+          since I don't think ruler had a problem with it.
       * Get rid of Track::damage_range and Track::DAMAGE_RANGE
       * Remove Track::zoom?
+      Get rid of the find events callback, ship over events directly.
+        . I wanted to avoid having state in C++, but it's unavoidably present
+          in the image on the screen.
+        . The current situation replaces it entirely, so easier to use but not
+          efficient?  Still, until now I used incremental replace via damage
+          ranges, and it's been working ok.
+        . But is copying the events actually a significant cost, even when
+          only one has changed?
+        . Even if it's not, replacing the callback with marshalling all events
+          at once is simpler and probably faster.
+        - Pass events directly, no callback.
+        - Store events in the EventTrack, and just pass the updated region.
+          . This is nice for zoom, which means no event change.  But the
+            common editing case, just one event changes.
+        . I think it can remain this way even if I do tiles, because it's
+          still simpler to have the events in c++.
+        . For events, is it worth interning the text?
+          . That would require refcounts or an arena allocation for all the
+            events.
+          . It would slow down marshalling but maybe worth it due to the
+            reduction of data:
+            . Put each text in a HashMap to consecutive indices.
+            . Then marshal as array of char*, or even just one big one with
+              null separations, and replace event texts with pointers into
+              that.
+            . Then deallocate with a single free() when it gets replaced.
+            . This will get in the way of incremental update though, so
+              maybe don't bother.  Incremental update is probably a bigger
+              win than making the complete update faster.
+          . At least I can replace "" with a static "", or just nullptr.
+      . New stats:
+        . Draw track: 0.02ish
+          draw block 0.37, 0.46, 0.36, 0.38, 0.63, 0.74
+        . But with cache: 0.02
+        inside a redraw:
+          find_events: 0.002
+          ruler_overlay: 0.003
+          find_events just once: 0.05
+          find_events creeps up to 0.014, 0.008 at the end.  Not sure why it
+          would be longer when zoomed in.
+        . So I think find_events time is significant, so worth reducing.
 
       scroll with tiles:
         . Zoom is noticeably slower now.  Previously it would be ok speed when
