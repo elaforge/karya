@@ -64,6 +64,19 @@ let
     allowUnfree = true;
 
     packageOverrides = pkgs: {
+      # I want some unreleased fixes, for mousewheel and Fl_Image_Surface.
+      fltk14 =
+        let commit = "6481f954153d5419f82e3259bdaa9427dfc8bdc2";
+        in pkgs.fltk14.overrideDerivation (old: {
+          name = "fltk-1.4-${commit}";
+          src = builtins.fetchGit {
+            url = "https://github.com/fltk/fltk.git";
+            rev = commit;
+            ref = "master";
+          };
+          configureFlags = [];
+          nativeBuildInputs = [pkgs.autoconf] ++ old.nativeBuildInputs;
+        });
       haskell = pkgs.haskell // {
         packages = pkgs.haskell.packages // {
           "${ghcVersion}" = pkgs.haskell.packages."${ghcVersion}".override {
@@ -104,8 +117,9 @@ let
 
   hsBool = b: if b then "True" else "False";
 in rec {
+  fltk = nixpkgs.fltk14;
+
   basicDeps = with nixpkgs; [
-    fltk
     git
     hackage
     zsh
@@ -195,6 +209,7 @@ in rec {
             { C.libLink = ["${libsamplerate}/lib/libsamplerate.a"]
             , C.libCompile = ["-I${libsamplerate}/include"]
             }
+        , fltkConfig = "${fltk}/bin/fltk-config";
         }
   '';
 

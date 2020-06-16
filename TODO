@@ -4461,7 +4461,7 @@ fltk:
         . But isn't this just moving back to incremental, and won't I get the
           same artifacts?
 
-      - Since I depend on 1.4 now I want to make sure to use the nix version.
+      * Since I depend on 1.4 now I want to make sure to use the nix version.
         . So I need to build 1.4 in nix.
 
     . Tracing chrome://tracing
