@@ -41,6 +41,8 @@ sarva_tani :: [Part] -- realizePartsM patterns misra_tani
 sarva_tani =
     [ K sarva_20_05_29 All
     , K sarva_20_06_05 All
+    , K sarva_20_06_12 All
+    , K sarva_20_06_12_reduction All
     , K sarva_20_01_27 All
     , Comment "namita dimita dimi"
     , K sarva_20_02_10 All
@@ -205,6 +207,11 @@ sarva_20_05_08 = date 2020 5 8 $ ganesh $ korvai adi
     , s $ nadai 6 $ r3 $ k.__.od.__.pk.od.__.pk.od.__ . tri_ __ p6 -- Also 567
     ]
 
+-- TODO
+-- n d d n enters gradually
+-- reduce dddd faster
+-- then reduce with oktkoktkt etc.
+-- can reduce then leave a gap before sam
 sarva_20_05_29 :: Korvai
 sarva_20_05_29 = date 2020 5 29 $ ganesh $ korvai adi
     [ s $ sarva 7 . end
@@ -220,22 +227,45 @@ sarva_20_05_29 = date 2020 5 29 $ ganesh $ korvai adi
     end = su $ r4 $ o'&d . d
 
 -- 7 reductions
+-- TODO starts and ends on arudi
+-- also prepare with some sarvalaghu that does vv_ stuff.
 sarva_20_06_05 :: Korvai
 sarva_20_06_05 = date 2020 6 5 $ ganesh $ korvaiS1 adi $
     -- 8*7 + 8 = 8 = 4 avartanams
       g7 (v.v.__         .su (d.o).od.od.on   . on.d.d.n.d.d.n)
-    . g7 (v.v.__         .su (n.n).d.d.n      . n .d.d.su (n.o.o.v.o.o.o.v))
-    . g7 (su (o.k).od.__ .su (on.on).od.od.od
-                            . on.od.od.su (n.o.o.v.o.su (__.k).o.v))
-    . g7 (su (o.k).od.__ .su ( n.od).od.od.od . su (n.o).od.od. oktk4)
-    . g7 (su (o'.k).od.__.su ( n.od).od.od.od . on.od.__      . oktk4)
+    . g7 (v.v.__         .su (on.o).od.od.on . on.d.d.su (n.o.o.v.o.o.o.v))
+    . g7 (su (o.k).od.__ .su (on.o).od.od.od
+                            . on.d. d.su (n.o.o.v.o.su (__.k).o.v))
+    . g7 (su (o.k).od.__ .su (on.o).od.od.od . su (on.o).od.od. oktk4)
+    . g7 (su (o'.k).od.__.su (on.o).od.od.od . on.od.__      . oktk4)
     . g7 (r2 $ o'.od.__  .oktk4)
     . g7 (r2 $ o'.od.__  .oktk4)
     . g7 (o'.od.__       .oktk4 . o'.o'.__.oktk4)
+    -- ^ slow gumiki
     . o'.__n 6       .oktk4 . su (su (r8 (o'.__.t))) -- 6 + 4 + 8*(3/4)
     where
     oktk4 = su (su (r4 (o'.k.t.k)))
     g7 = checkD (7/2) • group
+
+sarva_20_06_12 :: Korvai
+sarva_20_06_12 = date 2020 6 12 $ ganesh $ korvaiS adi
+    [ sarva 6 . k.o.su (o.v.__.k).o.k.su (o.v.__.k)
+    , o.k.od.__ . sarva 5 . su ktpk . t.o.su (ktpk.kook)
+    , begin . sarva 4 . su (ktpk.p.t.p.k.p.t.o.__.kook)
+    , begin . sarva 4 . su (ktpk.p.t.o.__.p.t.o.__.kook)
+    ]
+    where
+    -- melkalam sarva
+    sarva = sarvaD $
+        (inter l (n.d.d.n) .n.n. inter l (d.d.n)) & strM "o_o_o_o_ooo_o_o"
+        . o & inter l (n.d.d.n.n.d.d.n).l
+    begin = od.__.od.__.o.l.on.l
+
+sarva_20_06_12_reduction :: Korvai
+sarva_20_06_12_reduction = korvaiS adi
+    [ nadai 6 $ sarvaD mempty 6
+        . sd (tri (kook.od.__3)) . tri (kook.od.__3) . su (tri_ (od.__3) kook)
+    ]
 
 {-
     thani:
