@@ -3004,6 +3004,13 @@ shakefile: build:
     . How are you supposed to install deps in the v2 world?
   nix:
     . https://app.cachix.org/cache/elaforge
+    * shake doesn't pick up on changes to Local/ShakeConfig.hs
+      . Probably because it's a symlink to the nix store, and I have
+        Shake.shakeChange = Shake.ChangeModtime, due to ghci.
+    * nix fltk build link problem
+      . "_OBJC_CLASS_$_NSDATA", referenced from:
+          objc-class-ref in libfltk.a(Fl_MacOS_Sys_Menu_Bar.o)
+      . Do I get the same problems building with the nixpkgs one?
     propagate deps to the shakefile:
       - package paths for haddock
       . Env vars would be easier from nix, while Local/ShakeConfig.hs is

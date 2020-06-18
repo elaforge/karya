@@ -694,6 +694,7 @@ configure = do
             , ["-dynamic" | mode /= Profile]
             , ["-prof" | mode == Profile]
             , map ("-L"<>) (Config.globalLibDirs localConfig)
+            , map ("-optl"<>) (Config.extraLinkFlags localConfig)
             ]
         , sandboxFlags = case sandbox of
             Nothing -> []
@@ -862,6 +863,7 @@ main = Concurrent.withConcurrentOutput $ Regions.displayConsoleRegions $ do
             need objs
             let flags = cLibDirs (configFlags config)
                     ++ C.binCompileFlags binary config
+                    ++ Config.extraLinkFlags localConfig
                     ++ C.binLinkFlags binary config
             Util.cmdline $ linkCc flags fn objs
             C.binPostproc binary fn

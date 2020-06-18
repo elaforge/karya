@@ -26,6 +26,8 @@ data Config = Config {
     -- | Extra flags passed to both C++ and Haskell compiles.  I use them
     -- to enable some purely local hacks, e.g. hacked version of libfltk.
     , extraDefines :: [Flag]
+    -- | Both C++ and ghc (via -optl) get these flags.
+    , extraLinkFlags :: [Flag]
 
     -- paths
 
@@ -48,6 +50,7 @@ defaultConfig = Config
     , enableEventLog = False
     , enableIm = False
     , extraDefines = []
+    , extraLinkFlags = []
     , fltkConfig = "fltk-config"
     , libsamplerate = C.ExternalLibrary
         { C.libLink = ["/usr/local/src/libsamplerate/src/.libs/libsamplerate.a"]
