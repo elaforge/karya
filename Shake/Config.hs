@@ -35,6 +35,7 @@ data Config = Config {
     -- probably be in /usr/local/bin.
     , fltkConfig :: FilePath
     , libsamplerate :: C.ExternalLibrary
+    , rubberband :: C.ExternalLibrary
     -- | Extra -I flags that all compiles get, including haskell cpp and
     -- hsc2hs.  Without the -I:  ["/Users/me/homebrew/include"]
     , globalIncludes :: [FilePath]
@@ -56,6 +57,7 @@ defaultConfig = Config
         { C.libLink = ["/usr/local/src/libsamplerate/src/.libs/libsamplerate.a"]
         , C.libCompile = ["-I/usr/local/src/libsamplerate"]
         }
+    , rubberband = C.library "rubberband"
     , globalIncludes = []
     , globalLibDirs = []
     }

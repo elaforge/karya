@@ -3,8 +3,11 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE DataKinds, KindSignatures, TypeOperators, TypeApplications #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeOperators #-}
 {- | This is a basic library for audio streaming.  It uses the @streaming@
     package to interleave streaming and IO, and represents signals as a stream
     of Vectors of 'Sample's, which is hardcoded to Float.  There are separate
@@ -38,7 +41,7 @@ module Util.Audio.Audio (
     -- * channels
     , mergeChannels, extractChannel, splitChannels
     , expandChannels, expandV
-    , mixChannels, interleaveV, deinterleaveV
+    , mixChannels, interleaveV, deinterleaveB, deinterleaveV
     -- ** non-interleaved
     , nonInterleaved, interleaved
     , synchronizeToSize
@@ -456,12 +459,8 @@ extractChannel idx = Audio . S.map extract . _stream
 -- | De-interleave the audio.
 splitChannels :: forall m rate chan. (Monad m, KnownNat chan)
     => Audio m rate chan -> NAudio m rate
-splitChannels = NAudio chan . S.map split . _stream
-    where
-    split (Constant count val) =
-        replicate chan $ Constant (count `div` chan) val
-    split (Block v) = map Block $ deinterleaveV chan v
-    chan = natVal (Proxy @chan)
+splitChannels = NAudio chan . S.map (deinterleaveB chan) . _stream
+    where chan = natVal (Proxy @chan)
 
 -- | Take a single channel signal to multiple channels by copying samples.
 --
@@ -488,6 +487,11 @@ mixChannels (Audio audio) = Audio $ S.map mix audio
     mix (Constant count val) = Constant (count `div` chan) val
     mix (Block v) = Block $ mixV 0 $ deinterleaveV chan v
     chan = natVal (Proxy @chan)
+
+deinterleaveB :: Channels -> Block -> [Block]
+deinterleaveB chan (Constant count val) =
+    replicate chan $ Constant (count `div` chan) val
+deinterleaveB chan (Block v) = map Block $ deinterleaveV chan v
 
 deinterleaveV :: V.Storable a => Channels -> V.Vector a -> [V.Vector a]
 deinterleaveV channels v

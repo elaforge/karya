@@ -116,7 +116,17 @@ let
   readLines = fn: lines (builtins.readFile fn);
 
   hsBool = b: if b then "True" else "False";
+
+  inherit (nixpkgs.stdenv) isDarwin;
 in rec {
+  # nixpkgs.rubberband only works on linux.
+  rubberband = if isDarwin
+    then nixpkgs.callPackage nix/rubberband-darwin.nix {
+        inherit (nixpkgs.darwin.apple_sdk.frameworks)
+          Accelerate CoreGraphics CoreVideo;
+      }
+    else nixpkgs.rubberband;
+
   fltk = nixpkgs.fltk14;
 
   basicDeps = with nixpkgs; [
@@ -128,7 +138,7 @@ in rec {
     (haskellBinary ghc.fast-tags)
   ] ++ guard stdenv.isLinux [
     libjack2
-  ] ++ guard stdenv.isDarwin (with darwin.apple_sdk.frameworks; [
+  ] ++ guard isDarwin (with darwin.apple_sdk.frameworks; [
     Cocoa
     CoreAudio
     CoreFoundation
@@ -169,6 +179,7 @@ in rec {
     nixpkgs.liblo
     # This is a build dep, not a library dep.
     ghc.c2hs
+    rubberband
   ];
 
   wantPkg = pkg:
@@ -199,7 +210,7 @@ in rec {
   # Make a nix-shell that can run `mkmk` and `mk`.
   shakeConfig =
     # https://github.com/NixOS/nixpkgs/issues/24237
-    let extraLinkFlags = if nixpkgs.stdenv.isDarwin
+    let extraLinkFlags = if isDarwin
       then ''
         -- nixpkgs bug on darwin: https://github.com/NixOS/nixpkgs/issues/24237
         , extraLinkFlags = ["-F/System/Library/Frameworks"]
@@ -217,6 +228,10 @@ in rec {
           , libsamplerate = C.ExternalLibrary
               { C.libLink = ["${libsamplerate}/lib/libsamplerate.a"]
               , C.libCompile = ["-I${libsamplerate}/include"]
+              }
+          , rubberband = C.ExternalLibrary
+              { C.libLink = ["${rubberband}/lib/librubberband.a"]
+              , C.libCompile = ["-I${rubberband}/include"]
               }
           , fltkConfig = "${fltk}/bin/fltk-config"
           ${extraLinkFlags}

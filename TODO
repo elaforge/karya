@@ -2475,12 +2475,16 @@ synth: im:
       . Another alternative is that the scale could take instrument into
         account.
     break:
+      - what about samples at a different sampling rate?
+        . I think I can just treat it as 44.1k?  Or maybe offset the ratio
+          automatically.
+      - support octaves
+      - rubberband
       . reason "recycle" looks like a commercial product that does something
         like this.
         . It seems more basic, except the gui and finding attacks
           automatically.  Not sure if that's any different from reaper's
           "dynamic splits".
-        - support octaves
       . what about tabla and mridangam?
     rambat:
       - No thru for >ra.  I guess this is the same problem that caused me to
@@ -2639,9 +2643,26 @@ synth: im:
     - record mridangam sequences like kita and dikutarikitataka and use
       rubberband to fit them into shape
       . Compare with rendering via samples and see what's different.
-    - bind to rubberband library for pitch change without time change
+    rubberband:
+      . bind to rubberband library for pitch change without time change
       . https://breakfastquay.com/rubberband/
       . I'll only really use it if I have, say, mridangam sequences.
+      * get rubberband from nix
+      * write Audio binding
+        . Offline mode needs to collect the whole sample, study it, then
+          produce as one block, so it defeats streaming.
+        . What are benefits for Offline?
+        . In streaming mode, I need to shift by get_latency.
+        . In offline, set_expected_input_duration, to ensure output is
+          correct.
+      - support set_key_frame_map(), for offline only
+      - write streaming binding
+        . This is likely faster, or at least more memory efficient, and
+          I maybe don't need the quality increase, if there is one.
+      - integrate into sampler
+        . An easy way is to add pitch/time ratio as an optional control.
+        . But if I want to warp then maybe I would use set_key_frame_map, and
+          then cache the warped version?
     - convolution
       . What are the options?  jconvolver,
         http://tomszilagyi.github.io/plugins/ir.lv2/
@@ -6797,6 +6818,12 @@ planning / research
         is fixed, then the grace note must adapt by picking another higher
         note.
       . Carnatic ornaments change when time is reduced.
+    constraint solving:
+      . Procedural generation:
+        https://www.youtube.com/watch?v=nkIMTc1wPaI&feature=youtu.be
+      . "Wave Function Collapse", uses propagators, which is cells that modify
+        neighbors in a monotonic way.
+      . SMT solvers seem related.
 
   think about grammar for ornaments
     . Notes have a syntax: there are ornaments or articulations only valid at

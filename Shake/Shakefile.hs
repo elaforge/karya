@@ -647,32 +647,35 @@ configure = do
                 , libCompile = fltkCs
                 }
             }
-        , configFlags = setCcFlags mode $
-            setConfigFlags sandbox mode ghcVersion
-                (lookup "GHC_PACKAGE_PATH" env) (osFlags midi)
+        , configFlags = setGlobalCcFlags mode $ mconcat
+            [ configFlags sandbox mode ghcVersion
+                (lookup "GHC_PACKAGE_PATH" env)
+            , osFlags midi
+            ]
         , ghcVersion = ghcVersion
         , ccVersion = ccVersion
         , rootDir = rootDir
         }
     where
-    setConfigFlags sandbox mode ghcVersion ghcPackagePath flags =
-        flags
+    configFlags sandbox mode ghcVersion ghcPackagePath = mempty
         { define = concat
             [ ["-DTESTING" | mode `elem` [Test, Profile]]
             , ["-DSTUB_OUT_FLTK" | mode == Test]
             , ["-DBUILD_DIR=\"" ++ modeToDir mode ++ "\""]
             , ["-DGHC_VERSION=" ++ ghcVersionMacro ghcVersion]
-            , define flags
             , Config.extraDefines localConfig
             ]
-        , cInclude =
-            map ("-I"<>) [".", "" ++ modeToDir mode, "fltk"]
+        , cInclude = concat
+            [ map ("-I"<>) [".", "" ++ modeToDir mode, "fltk"]
             -- Put this first to make sure I don't see the system header.
             -- TODO this breaks the idea of modular libraries, but the haskell
             -- flags really have to be global, because any difference in CPP
             -- flags causes ghc to not want to load .o files.
-            ++ concat [C.libCompile libsamplerate | Config.enableIm localConfig]
-            ++ map ("-I"<>) (Config.globalIncludes localConfig)
+            , concat [C.libCompile libsamplerate | Config.enableIm localConfig]
+            , concat [C.libCompile (Config.rubberband localConfig)
+                | Config.enableIm localConfig]
+            , map ("-I"<>) (Config.globalIncludes localConfig)
+            ]
         , cLibDirs = map ("-L"<>) $ Config.globalLibDirs localConfig
         , hcFlags = concat
             -- This is necessary for ghci loading to work in 7.8.
@@ -702,7 +705,10 @@ configure = do
         , packageDbFlags = map ("-package-db="<>) $
             maybe [] (Seq.split ":") ghcPackagePath
         }
-    setCcFlags mode flags = flags
+    -- This one breaks the monoid pattern because it groups other flags,
+    -- which is because the flags are a mess and not in any kind of normal
+    -- form.
+    setGlobalCcFlags mode flags = flags
         { globalCcFlags = concat
             [ define flags
             , cInclude flags
@@ -730,15 +736,18 @@ configure = do
             -- { define = ["-DMAC_OS_X_VERSION_MAX_ALLOWED=1060",
             --     "-DMAC_OS_X_VERSION_MIN_REQUIRED=1050"]
             { define = ["-D__APPLE__"]
-            , midiLd = if midi /= CoreMidi then [] else
-                words $ "-framework CoreFoundation "
-                    ++ "-framework CoreMIDI -framework CoreAudio"
+            , midiLd = if midi /= CoreMidi then []
+                else frameworks ["CoreFoundation", "CoreMIDI", "CoreAudio"]
+            -- librubberband uses this.  TODO I really need modular libraries!
+            , hLinkFlags = if not (Config.enableIm localConfig) then []
+                else frameworks ["Accelerate"]
             }
         Util.Linux -> mempty
             { midiLd = if midi /= JackMidi then [] else ["-ljack"]
             , define = ["-D__linux__"]
             }
     run cmd args = strip <$> Process.readProcess cmd args ""
+    frameworks = concatMap (\f -> ["-framework", f])
 
 configureFltk :: FilePath -> IO (String, [Flag], [Flag])
 configureFltk fltkConfig = do
@@ -1544,8 +1553,9 @@ linkHs config rtsFlags output packages objs =
         -- In fact all the binaries link all the C libs.  I need the shakefile
         -- refactor to fix this.
         , C.libLink (_libfltk (cLibs config))
-        , if not (Config.enableIm localConfig) then []
-            else C.libLink libsamplerate
+        , concat [C.libLink libsamplerate | Config.enableIm localConfig]
+        , concat [C.libLink (Config.rubberband localConfig)
+            | Config.enableIm localConfig]
         , ["-o", output]
         ]
     )
@@ -1706,14 +1716,15 @@ c2hs :: Config -> FilePath -> FilePath -> Util.Cmdline
 c2hs config hs chs =
     ( "c2hs"
     , hs
-    , [ "c2hs"
-      , "--output-dir=" <> chsDir config
-      , "--cppopts="
-        <> unwords (filter (`notElem` platformDefines) (define flags))
-        -- TODO if I use c2hs more extensively I might also want
-        -- cInclude flags ++ _libfltk flags, as with hsc2hs
-      , chs
-      ]
+    , concat
+        [ ["c2hs"]
+        , map ("--cppopts="<>) $
+            filter (`notElem` platformDefines) (define flags)
+          ++ cInclude flags
+        , [ "--output-dir=" <> chsDir config
+          , chs
+          ]
+        ]
     )
     where flags = configFlags config
 
