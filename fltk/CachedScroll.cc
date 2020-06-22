@@ -30,6 +30,8 @@ CachedScroll::set_offset(IPoint offset)
 void
 CachedScroll::draw()
 {
+    // Previously I checked for FL_DAMAGE_SCROLL, but now I only invalidate
+    // explicitly.
     if (!image || !valid) {
         this->redraw();
         valid = true;

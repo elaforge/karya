@@ -65,10 +65,12 @@ type Call = Text
 
 insert_call :: Cmd.M m => Thru -> [(Char, Expr.Symbol)] -> Msg.Msg
     -> m Cmd.Status
-insert_call thru =
-    insert_expr thru . Map.fromList
-        . map (bimap PhysicalKey.physical_key to_expr)
-    where to_expr call = Expr.generator0 call
+insert_call thru char_syms =
+    insert_expr thru (\_ char -> Map.lookup char char_to_expr)
+    where
+    to_expr call = Expr.generator0 call
+    char_to_expr = Map.fromList $
+        map (bimap PhysicalKey.physical_key to_expr) char_syms
 
 strokes_to_calls :: [Drums.Stroke] -> [(Char, Expr.Symbol)]
 strokes_to_calls strokes = [(Drums._char s, Drums._name s) | s <- strokes]
@@ -84,12 +86,13 @@ data Thru = MidiThru | ImThru !Osc.ThruFunction
 -- the insertion point.  Since this shadows the default note entry cmd, it
 -- has to handle thru on its own.
 insert_expr :: Cmd.M m => Thru -- ^ Evaluate the expression and emit MIDI thru.
-    -> Map Char DeriveT.Expr -> Msg.Msg -> m Cmd.Status
+    -> (Pitch.Octave -> Char -> Maybe DeriveT.Expr) -> Msg.Msg -> m Cmd.Status
 insert_expr thru char_to_expr msg = do
     unlessM Cmd.is_kbd_entry Cmd.abort
     EditUtil.fallthrough msg
     (kstate, char) <- Cmd.abort_unless $ Msg.char msg
-    case Map.lookup char char_to_expr of
+    octave <- Cmd.gets $ Cmd.state_kbd_entry_octave . Cmd.state_edit
+    case char_to_expr octave char of
         -- Only swallow keys that note entry would have caught, otherwise
         -- space would be swallowed here.
         --

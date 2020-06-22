@@ -10,10 +10,10 @@
 
 #include "global.h"
 
-// This class assumes it has only one child, which is the same size as itself.
-// When it resizes, the child will be resized along its right and bottom edges.
-// Unfortunately there's no real way to enforce a single child, so don't do
-// that.
+
+// This class assumes it has only one child, which will typically be larger
+// than its parent.  On the first draw, the child will be cached in an image,
+// and subsequent draws will reuse that image, until explicitly invalidated.
 class CachedScroll : public Fl_Group {
 public:
     CachedScroll(int x, int y, int w, int h) :

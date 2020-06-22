@@ -2478,7 +2478,7 @@ synth: im:
       - what about samples at a different sampling rate?
         . I think I can just treat it as 44.1k?  Or maybe offset the ratio
           automatically.
-      - support octaves
+      * support octaves
       - rubberband
       . reason "recycle" looks like a commercial product that does something
         like this.

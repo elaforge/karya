@@ -2,9 +2,15 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 -- | This is like the @sample@ patch, but with special support for breaking up
 -- beats and naming them.
-module Synth.Sampler.Patch.Break (patches) where
+module Synth.Sampler.Patch.Break (
+    patches
+#ifdef TESTING
+    , module Synth.Sampler.Patch.Break
+#endif
+) where
 import qualified Data.Map as Map
 import qualified Data.Ratio as Ratio
 import qualified Data.Text as Text
@@ -13,6 +19,7 @@ import qualified Util.Doc as Doc
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
+import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Cmd.PhysicalKey as PhysicalKey
@@ -69,27 +76,57 @@ patches = map Patch.DbPatch
             [ (Expr.Symbol stroke, break (Just frame))
             | (_, frame, stroke) <- beats
             ]
-        drum_code = ImInst.cmd $ CUtil.insert_expr thru (Map.fromList strokes)
-        -- TODO incremental should be based on perMeasure and overall range,
-        -- or just hardcoded per break.
-        strokes = makeStrokes (1/2) perMeasure beats
+        drum_code = ImInst.cmd $ CUtil.insert_expr thru
+            (lookupStroke increment perMeasure
+                (Map.fromList [(beat, stroke) | (beat, _, stroke) <- beats]))
         thru = Util.imThruFunction dir (convert sample)
         beatMap = makeBeatMap perMeasure beats
         break = c_break beatMap perMeasure
+        -- TODO increment should be based on perMeasure and overall range,
+        -- or just hardcoded per break.
+        increment = 1/2
     dir = "break"
 
 -- * cmd
 
+lookupStroke :: Beat -> Beat -> Map (Measure, Beat) Text
+    -> Pitch.Octave -> Char -> Maybe DeriveT.Expr
+lookupStroke increment perMeasure strokeMap = \octave char ->
+    adjustedExpr octave =<< Map.lookup char charToBeat
+    where
+    adjustedExpr octave (measure, beat)
+        -- Ignore octave.
+        | not multipleOctaves = Just $ toExpr (measure, beat)
+        | adjusted <= 0 = Nothing
+        | Just (adjusted, beat) > (fst <$> Map.lookupMax strokeMap) = Nothing
+        | otherwise = Just $ toExpr (adjusted, beat)
+        where
+        -- I originally intended octave to move by 2 measures if 2 measures
+        -- fit on a row, but I think I don't mind moving just 1 measure.
+        adjusted = (octave - baseOctave) + measure
+    charToBeat = Map.fromList $ physicalKeys steps allBeats
+    steps = floor (perMeasure / increment)
+    toExpr mbeat = maybe (makeExpr mbeat) (Expr.generator0 . Expr.Symbol) $
+        Map.lookup mbeat strokeMap
+    inRange = maybe (const False) (\(m, _) -> (<=m)) $ Map.lookupMax strokeMap
+    allBeats = takeWhile inRange
+        [ (measure, beat)
+        | measure <- [1..], beat <- Seq.range' 1 (perMeasure+1) increment
+        ]
+    multipleOctaves = maybe 1 (fst . fst) (Map.lookupMax strokeMap) > 2
+    baseOctave = Cmd.state_kbd_entry_octave Cmd.initial_edit_state
+
 -- | I can fit 8 per octave, and with black notes that's 16.
-makeStrokes :: Beat -> Beat -> [((Measure, Beat), Frame, Stroke)]
-    -> [(Char, DeriveT.Expr)]
-makeStrokes increment perMeasure beats =
-    [(key, toExpr mbeat) | (mbeat, key) <- physicalKeys steps allBeats]
-    -- Since I want to interpret octaves, would it be easier to use
-    -- InputNote then map pitches?
-    -- CUtil.insert_expr works by completely replacing kbd entry, so it doesn't
-    -- look at the octave control, which is actually usually right.
-    -- If I want to reuse it, I'll have to add optional octave support.
+-- Octave is ignored if not multipleOctaves.
+-- I map (Octave, Char), but if not multipleOctaves I just hardcode to base
+-- octave.
+makeStrokes :: Beat -> Beat -> Map (Measure, Beat) Stroke
+    -> Map Char DeriveT.Expr
+makeStrokes increment perMeasure strokeMap =
+    Map.fromList
+        [ (key, toExpr mbeat)
+        | (key, mbeat) <- physicalKeys steps allBeats
+        ]
     where
     steps = floor (perMeasure / increment)
     toExpr mbeat = maybe (makeExpr mbeat) (Expr.generator0 . Expr.Symbol) $
@@ -99,16 +136,15 @@ makeStrokes increment perMeasure beats =
         [ (measure, beat)
         | measure <- [1..], beat <- Seq.range' 1 (perMeasure+1) increment
         ]
-    strokeMap = Map.fromList [(beat, stroke) | (beat, _, stroke) <- beats]
 
 makeExpr :: (Measure, Beat) -> DeriveT.Expr
 makeExpr (measure, beat) = Expr.generator $ Expr.call "n" [DeriveT.num num]
     where num = fromIntegral measure + realToFrac (beat / 10)
     -- 1.25 -> 0.125
 
-physicalKeys :: Int -> [(Measure, Beat)] -> [((Measure, Beat), Char)]
+physicalKeys :: Int -> [(Measure, Beat)] -> [(Char, (Measure, Beat))]
 physicalKeys steps beats = concat
-    [ zip (map (measure,) beats) keys
+    [ zip keys (map (measure,) beats)
     | (keys, (measure, beats)) <- zip (keysByMeasure steps) byMeasure
     ]
     where
@@ -156,15 +192,19 @@ c_break beatMap perMeasure mbFrame =
     beat_arg = Sig.required "beat" "Offset measure.beat. This abuses\
         \ decimal notation: 4 -> (1, 4), 4.1 -> (4, 1), 4.15 -> (4, 1.5)."
     doc = "Play a sample at a certain offset."
-
     lookupBeat beatMap beatFraction =
         Derive.require
-            ("(measure, beat) out of range: " <> pretty (measure, beat)
-                <> " " <> pretty b <> " " <> pretty (Map.keys beatMap)) $
-            findFrame beatMap b
+            (pretty (measure, beat) <> " out of range: " <> "(1, 1) -- "
+                <> pretty (maxBeat beatMap perMeasure, perMeasure)) $
+            if beat >= perMeasure + 1 then Nothing else findFrame beatMap b
+            -- beat > perMeasure otherwise work, but it's confusing.
         where
         (measure, beat) = decodeBeat beatFraction
         b = max 0 (fromIntegral (measure-1)) * perMeasure + beat
+
+maxBeat :: Map Beat frame -> Beat -> Int
+maxBeat beatMap perMeasure =
+    maybe 1 (floor . (/ perMeasure) . fst) (Map.lookupMax beatMap)
 
 -- |
 -- 6.0 -> (1, 6)
