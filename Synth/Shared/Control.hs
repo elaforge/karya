@@ -76,6 +76,26 @@ mute = "mute"
 sampleStartOffset :: Control
 sampleStartOffset = "sample-start-offset"
 
+supportSampleStartOffset :: Supported
+supportSampleStartOffset = support
+    sampleStartOffset "Sample start offset, in frames."
+
+-- | Inflict time stretch on the sample.
+sampleTimeStretch :: Control
+sampleTimeStretch = "sample-time-stretch"
+
+supportSampleTimeStretch :: Supported
+supportSampleTimeStretch = support
+    sampleTimeStretch "Time stretch ratio."
+
+-- | Inflict pitch shift on the sample.  Units are Pitch.NoteNumbers.
+samplePitchShift :: Control
+samplePitchShift = "sample-pitch-shift"
+
+supportSamplePitchShift :: Supported
+supportSamplePitchShift = support
+    samplePitchShift "Pitch shift, in nn."
+
 -- * Supported
 
 type Supported = Map Control Text
@@ -93,7 +113,3 @@ supportDyn = support dynamic $
 supportVariation :: Supported
 supportVariation = support
     variation "Random integer, to choose between variant samples."
-
-supportSampleStartOffset :: Supported
-supportSampleStartOffset = support
-    sampleStartOffset "Sample start offset, in frames."

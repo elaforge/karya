@@ -63,6 +63,8 @@ patches = map (Patch.DbPatch . make) allBreaks
                     [ Control.supportDyn
                     , Control.supportSampleStartOffset
                     , Control.support pitchOffset "Pitch offset, in nn."
+                    , Control.supportSampleTimeStretch
+                    , Control.supportSamplePitchShift
                     ]
                 }
         }
@@ -208,6 +210,14 @@ convert filename pitchAdjust note = return $ (Sample.make filename)
     , Sample.offset = offset
     , Sample.ratios = Signal.constant $
         Sample.relativePitchToRatio (Pitch.nn pitch + pitchAdjust)
+    , Sample.stretch = Sample.Stretch
+        { stretchMode = Sample.StretchPercussive
+        , timeRatio = fromMaybe 1 $
+            Note.initial Control.sampleTimeStretch note
+        , pitchRatio =
+            maybe 1 (recip . Sample.relativePitchToRatio . Pitch.nn) $
+            Note.initial Control.samplePitchShift note
+        }
     }
     where
     offset = floor $ Note.initial0 Control.sampleStartOffset note

@@ -2482,7 +2482,13 @@ synth: im:
           srate.  Or use audacity or something.
         . Or maybe just rewrite the file to change its srate.
       * support octaves
-      - rubberband
+      rubberband:
+        - BPM control that adjusts based on inferred bpm.
+          . I can adjust bpm with either pitch change, or time stretch.
+          - First guess a single bpm, throw away outliers and mean.
+          - Then add bpm via srate control, that tweaks pitchAdjust.
+          - Then add bpm via time stretch, that tweaks timeRatio.
+        - Pitch offset that doesn't affect tempo.
       . reason "recycle" looks like a commercial product that does something
         like this.
         . It seems more basic, except the gui and finding attacks
@@ -2662,10 +2668,23 @@ synth: im:
       - write streaming binding
         . This is likely faster, or at least more memory efficient, and
           I maybe don't need the quality increase, if there is one.
-      - integrate into sampler
+      * integrate into sampler
         . An easy way is to add pitch/time ratio as an optional control.
         . But if I want to warp then maybe I would use set_key_frame_map, and
           then cache the warped version?
+        . Offline won't work with state saving, because it will collapse all
+          of the caller's chunks into one.
+        . Online could work, but I'd need to save and restore rubberband's
+          state, along with the fiddly stuff I do in resample.
+        . But the sampler should be able to do caching per-sample.  It's just
+          a totally different kind of caching than I do already...
+        . I think I need to process thes sample as a whole, as a separate
+          step, then stream it.
+        . Or just do it before resampling, after file read!  Caching that
+          would just be an optimization.
+        . It makes the duration guess wrong though.
+        . I can resume File.read seamlessly with an offset, but what about
+          rubberband's internal state?
     - convolution
       . What are the options?  jconvolver,
         http://tomszilagyi.github.io/plugins/ir.lv2/

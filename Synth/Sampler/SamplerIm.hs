@@ -389,6 +389,7 @@ makeSampleNote emitMessage prevStart (Right sample, logs, note) = do
 actualDuration :: RealTime -> Sample.Sample -> IO Audio.Frames
 actualDuration start sample = do
     fileDur <- RenderSample.predictFileDuration
+        (Sample.timeRatio (Sample.stretch sample))
         (Signal.shift (-start) (Sample.ratios sample))
         (Sample.filename sample)
     let envDur = AUtil.toFrames <$>

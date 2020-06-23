@@ -61,7 +61,19 @@ data Sample = Sample {
     , pan :: !Signal.Signal
     -- | Sample rate conversion ratio.  This controls the pitch.
     , ratios :: !Signal.Signal
+    , stretch :: !Stretch
     } deriving (Show)
+
+data Stretch = Stretch {
+    stretchMode :: !StretchMode
+    , timeRatio :: !Signal.Y
+    , pitchRatio :: !Signal.Y
+    } deriving (Show)
+
+-- | This maps to [Rubberband.Option].  It's indirect to avoid a dependency on
+-- RubberbandC, and hence the C library.
+data StretchMode = StretchDefault | StretchPercussive
+    deriving (Show, Enum, Bounded)
 
 make :: SamplePath -> Sample
 make filename = Sample
@@ -70,6 +82,11 @@ make filename = Sample
     , envelope = Signal.constant 1
     , pan = Signal.constant 0
     , ratios = Signal.constant 1
+    , stretch = Stretch
+        { stretchMode = StretchDefault
+        , timeRatio = 1
+        , pitchRatio = 1
+        }
     }
 
 modifyFilename :: (SamplePath -> SamplePath) -> Sample -> Sample
@@ -84,12 +101,21 @@ instance Pretty Note where
         ]
 
 instance Pretty Sample where
-    format (Sample filename offset envelope pan ratios) = Pretty.record "Sample"
-        [ ("filename", Pretty.format filename)
-        , ("offset", Pretty.format offset)
-        , ("envelope", Pretty.format envelope)
-        , ("pan", Pretty.format pan)
-        , ("ratios", Pretty.format ratios)
+    format (Sample filename offset envelope pan ratios stretch) =
+        Pretty.record "Sample"
+            [ ("filename", Pretty.format filename)
+            , ("offset", Pretty.format offset)
+            , ("envelope", Pretty.format envelope)
+            , ("pan", Pretty.format pan)
+            , ("ratios", Pretty.format ratios)
+            , ("stretch", Pretty.format stretch)
+            ]
+
+instance Pretty Stretch where
+    format (Stretch mode time pitch) = Pretty.record "Stretch"
+        [ ("stretchMode", Pretty.text (showt mode))
+        , ("timeRatio", Pretty.format time)
+        , ("pitchRatio", Pretty.format pitch)
         ]
 
 -- | Like Pretty Note, but shorter.
@@ -100,10 +126,18 @@ prettyNote note = pretty
     )
 
 instance Serialize.Serialize Sample where
-    put (Sample a b c d e) =
+    put (Sample a b c d e f) =
         Serialize.put a >> Serialize.put b >> Serialize.put c >> Serialize.put d
-        >> Serialize.put e
+        >> Serialize.put e >> Serialize.put f
     get = fail "no get for Sample"
+
+instance Serialize.Serialize Stretch where
+    put (Stretch a b c) = Serialize.put a >> Serialize.put b >> Serialize.put c
+    get = fail "no get for Stretch"
+
+instance Serialize.Serialize StretchMode where
+    put = Serialize.put_enum
+    get = Serialize.get_enum
 
 -- | The duration of a note which plays the entire sample.  This should be
 -- longer than any sample, and will be clipped to sample duration.
@@ -112,10 +146,12 @@ forever = 1000
 
 -- * util
 
+-- | This is the resampling ratio, which is inverse to the pitch ratio, which
+-- is pretty confusing.  E.g.  When I go up *2, I should be skipping every
+-- other sample.  So srate should be *2.  Number of frames is /2.  So the
+-- resampling ratio for +12nn is 1/2, while the pitch ratio is 2.
 pitchToRatio :: Pitch.NoteNumber -> Pitch.NoteNumber -> Signal.Y
 pitchToRatio sampleNn nn = Pitch.nn_to_hz sampleNn / Pitch.nn_to_hz nn
-    -- When I go up *2, I should be skipping every other sample.  So srate
-    -- should be *2.  Number of frames is /2.  Ratio is 0.5.
 
 relativePitchToRatio :: Pitch.NoteNumber -> Signal.Y
 relativePitchToRatio offset = pitchToRatio 60 (60 + offset)

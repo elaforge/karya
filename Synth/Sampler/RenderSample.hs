@@ -19,6 +19,7 @@ import           GHC.TypeLits (KnownNat)
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as File
 import qualified Util.Audio.Resample as Resample
+import qualified Util.Audio.Rubberband as Rubberband
 import qualified Util.Num as Num
 import qualified Util.Segment as Segment
 import qualified Util.Test.ApproxEq as ApproxEq
@@ -34,12 +35,18 @@ import           Synth.Types
 
 
 render :: Resample.Config -> RealTime -> Sample.Sample -> IO AUtil.Audio
-render config start (Sample.Sample filename offset envelope pan ratios) = do
+render config start (Sample.Sample filename offset envelope pan ratios
+        stretch) = do
     (close, audio) <- File.readFromClose offset filename
     return $
         applyPan nowS pan $
         applyEnvelope close nowS envelope $
-        resample config ratios start audio
+        resample config ratios start $
+        -- This has to go right after file read, since it doesn't stream and
+        -- doesn't have saveable state.  TODO I don't restore rubberband's
+        -- internal state though, so it seems like this could yield artifacts.
+        applyRubberband stretch $
+        audio
     where
     nowS = AUtil.toSeconds now
     -- The sample stream thinks it's starting at a relative frame 0, so I need
@@ -124,14 +131,39 @@ envelopeDuration start = go . Signal.to_pairs_desc
     go ((x, 0) : _) = Just $ max 0 (x - start)
     go _ = Nothing
 
+-- * rubberband
+
+applyRubberband :: Sample.Stretch -> AUtil.Audio -> AUtil.Audio
+applyRubberband (Sample.Stretch mode timeRatio pitchRatio) audio
+    | stretchThreshold timeRatio && stretchThreshold pitchRatio = audio
+    | otherwise = Rubberband.offline config audio
+    where
+    config = Rubberband.config
+        { Rubberband._options = modeToOptions mode
+        , Rubberband._timeRatio = timeRatio
+        , Rubberband._pitchRatio = pitchRatio
+        }
+
+modeToOptions :: Sample.StretchMode -> [Rubberband.Option]
+modeToOptions = \case
+    Sample.StretchDefault -> []
+    Sample.StretchPercussive -> Rubberband.percussiveOptions
+
+stretchThreshold :: Double -> Bool
+stretchThreshold = ApproxEq.eq 0.01 1
+
 -- * duration
 
 -- | Predict how long a sample will be if resampled with the given ratio
 -- signal.
-predictFileDuration :: Signal.Signal -> FilePath -> IO Audio.Frames
-predictFileDuration ratios fname =
-    fmap (predictDuration ratios) $ File.throwEnoent fname
-        =<< File.duration fname
+predictFileDuration :: Double -> Signal.Signal -> FilePath -> IO Audio.Frames
+predictFileDuration timeRatio ratios fname =
+    fmap (stretch . predictDuration ratios) $
+        File.throwEnoent fname =<< File.duration fname
+    where
+    stretch
+        | stretchThreshold timeRatio = id
+        | otherwise = round . (*timeRatio) . fromIntegral
 
 type FramesF = Double
 
