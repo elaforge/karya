@@ -9,36 +9,41 @@
 -- channels the same.
 module Util.Audio.ResampleMain where
 import qualified Control.Monad.Trans.Resource as Resource
+import qualified Data.List as List
+import qualified Data.Text as Text
 import qualified GHC.TypeLits as TypeLits
+import qualified System.Directory as Directory
 import qualified System.Environment as Environment
-import System.FilePath ((</>))
 import qualified Text.Read as Read
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as File
 import qualified Util.Audio.Resample as Resample
 
-import Global
+import           Global
 
 
 main :: IO ()
 main = do
-    args <- Environment.getArgs
-    (outDir, srate, fnames) <- case args of
-        outDir : (Read.readMaybe -> Just srate) : fnames ->
-            return (outDir, srate, fnames)
-        _ -> errorIO "usage: resample outDir srate fname fname ..."
-    mapM_ (resampleFile outDir srate) fnames
+    (flags, args) <- List.partition ("--" `List.isPrefixOf`) <$>
+        Environment.getArgs
+    (srate, input, output) <- case args of
+        [Read.readMaybe -> Just srate, input, output] ->
+            return (srate, input, output)
+        _ -> errorIO "usage: resample [ --set ] srate input output"
+    let replace resample = do
+            process resample srate input (output <> ".tmp")
+            Directory.renameFile (output <> ".tmp") output
+    case flags of
+        [] -> replace True
+        ["--set"] -> replace False
+        _ -> errorIO $ "unknown flags: " <> Text.unwords (map txt flags)
 
-resampleFile :: FilePath -> Int -> FilePath -> IO ()
-resampleFile outDir srate input = do
-    putStrLn input
-    resample srate input (outDir </> input)
-
-resample :: Int -> FilePath -> FilePath -> IO ()
-resample srate input output = case Audio.someNat srate of
+process :: Bool -> Int -> FilePath -> FilePath -> IO ()
+process resample srate input output = case Audio.someNat srate of
     TypeLits.SomeNat (_ :: Proxy outRate) -> File.readUnknown input >>= \case
         (format, Audio.UnknownAudio (audio :: Audio.AudioIO inRate inChan)) ->
             Resource.runResourceT $
-            File.write @outRate @inChan format output $
-            Resample.resampleRate Resample.SincBestQuality audio
+            File.write @outRate @inChan format output $ if resample
+                then Resample.resampleRate Resample.SincBestQuality audio
+                else Audio.castRate audio

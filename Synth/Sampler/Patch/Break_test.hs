@@ -12,11 +12,12 @@ import           Util.Test
 
 
 test_lookupStroke = do
-    let f octave char = pretty <$> Break.lookupStroke increment perMeasure
-            (Map.fromList [(beat, stroke) | (beat, _, stroke) <- beats])
-            octave char
-        (perMeasure, beats) = Break.medeski
-        increment = 1/2
+    let f octave char = pretty <$>
+            Break.lookupStroke (Break._increment break)
+                (Break._perMeasure break) strokeMap octave char
+        strokeMap = Map.fromList
+            [(beat, stroke) | (beat, stroke, _) <- Break._beats break]
+        break = Break.medeski
         c1 = ';'
         c2 = '\''
     equal (f 2 c1) Nothing

@@ -50,17 +50,13 @@ import           Global
 
 
 patches :: [Patch.DbPatch]
-patches = map Patch.DbPatch
-    [ make "medeski" medeski
-    , make "amen" amen
-    ]
+patches = map (Patch.DbPatch . make) allBreaks
     where
-    make name (perMeasure, beats) = (Patch.patch ("break-" <> name))
+    make break = (Patch.patch ("break-" <> _name break))
         { Patch._dir = dir
-        , Patch._convert = convert sample
+        , Patch._convert = convert sample (_pitchAdjust break)
         , Patch._karyaPatch =
-            ImInst.doc #= Doc.Doc
-                ("BPM per stroke:\n" <> guessBpm (perMeasure, beats)) $
+            ImInst.doc #= Doc.Doc ("BPM per stroke:\n" <> guessBpm break) $
             ImInst.code #= (call_code <> drum_code) $
             ImInst.make_patch $ Im.Patch.patch
                 { Im.Patch.patch_controls = mconcat
@@ -71,24 +67,25 @@ patches = map Patch.DbPatch
                 }
         }
         where
-        sample = untxt $ name <> ".wav"
-        call_code = ImInst.note_generators $ ("n", break Nothing) :
-            [ (Expr.Symbol stroke, break (Just frame))
-            | (_, frame, stroke) <- beats
+        sample = untxt $ _name break <> ".wav"
+        call_code = ImInst.note_generators $ ("n", breakCall Nothing) :
+            [ (Expr.Symbol stroke, breakCall (Just frame))
+            | (_, stroke, frame) <- _beats break
             ]
         drum_code = ImInst.cmd $ CUtil.insert_expr thru
-            (lookupStroke increment perMeasure
-                (Map.fromList [(beat, stroke) | (beat, _, stroke) <- beats]))
-        thru = Util.imThruFunction dir (convert sample)
-        beatMap = makeBeatMap perMeasure beats
-        break = c_break beatMap perMeasure
-        -- TODO increment should be based on perMeasure and overall range,
-        -- or just hardcoded per break.
-        increment = 1/2
+            (lookupStroke (_increment break) (_perMeasure break) strokeMap)
+            where
+            strokeMap = Map.fromList
+                [(beat, stroke) | (beat, stroke, _) <- _beats break]
+        thru = Util.imThruFunction dir (convert sample (_pitchAdjust break))
+        beatMap = makeBeatMap break
+        breakCall = c_break beatMap (_perMeasure break)
     dir = "break"
 
 -- * cmd
 
+-- | I can fit 8 per octave, and with black notes that's 16.
+-- Octave is ignored if not multipleOctaves.
 lookupStroke :: Beat -> Beat -> Map (Measure, Beat) Text
     -> Pitch.Octave -> Char -> Maybe DeriveT.Expr
 lookupStroke increment perMeasure strokeMap = \octave char ->
@@ -115,27 +112,6 @@ lookupStroke increment perMeasure strokeMap = \octave char ->
         ]
     multipleOctaves = maybe 1 (fst . fst) (Map.lookupMax strokeMap) > 2
     baseOctave = Cmd.state_kbd_entry_octave Cmd.initial_edit_state
-
--- | I can fit 8 per octave, and with black notes that's 16.
--- Octave is ignored if not multipleOctaves.
--- I map (Octave, Char), but if not multipleOctaves I just hardcode to base
--- octave.
-makeStrokes :: Beat -> Beat -> Map (Measure, Beat) Stroke
-    -> Map Char DeriveT.Expr
-makeStrokes increment perMeasure strokeMap =
-    Map.fromList
-        [ (key, toExpr mbeat)
-        | (key, mbeat) <- physicalKeys steps allBeats
-        ]
-    where
-    steps = floor (perMeasure / increment)
-    toExpr mbeat = maybe (makeExpr mbeat) (Expr.generator0 . Expr.Symbol) $
-        Map.lookup mbeat strokeMap
-    inRange = maybe (const False) (\(m, _) -> (<=m)) $ Map.lookupMax strokeMap
-    allBeats = takeWhile inRange
-        [ (measure, beat)
-        | measure <- [1..], beat <- Seq.range' 1 (perMeasure+1) increment
-        ]
 
 makeExpr :: (Measure, Beat) -> DeriveT.Expr
 makeExpr (measure, beat) = Expr.generator $ Expr.call "n" [DeriveT.num num]
@@ -186,7 +162,8 @@ c_break beatMap perMeasure mbFrame =
                 (Controls.from_shared Control.sampleStartOffset)
                 (fromIntegral frame - fromIntegral (AUtil.toFrames rpre)) $
             Derive.with_constant_control
-                (Controls.from_shared pitchOffset) pitch $
+                (Controls.from_shared pitchOffset)
+                (Pitch.nn_to_double pitch) $
             Derive.place (start - pre) (dur + pre) Call.note
     where
     beat_arg = Sig.required "beat" "Offset measure.beat. This abuses\
@@ -224,12 +201,13 @@ decodeBeat beatFraction
 pitchOffset :: Control.Control
 pitchOffset = "pitch-offset"
 
-convert :: FilePath -> Note.Note -> Patch.ConvertM Sample.Sample
-convert filename note = return $ (Sample.make filename)
+convert :: FilePath -> Pitch.NoteNumber -> Note.Note
+    -> Patch.ConvertM Sample.Sample
+convert filename pitchAdjust note = return $ (Sample.make filename)
     { Sample.envelope = Util.dynEnvelope minDyn 0.15 note
     , Sample.offset = offset
     , Sample.ratios = Signal.constant $
-        Sample.pitchToRatio 60 (60 + Pitch.nn pitch)
+        Sample.relativePitchToRatio (Pitch.nn pitch + pitchAdjust)
     }
     where
     offset = floor $ Note.initial0 Control.sampleStartOffset note
@@ -258,108 +236,151 @@ type Beat = Ratio.Ratio Int
 type Frame = Int
 type Stroke = Text
 
-addMeasures :: [(Beat, Frame, Stroke)] -> [((Measure, Beat), Frame, Stroke)]
+addMeasures :: [(Beat, Stroke, Frame)] -> [((Measure, Beat), Stroke, Frame)]
 addMeasures = concatMap add . zip [1..]
     . Seq.split_between (\(a, _, _) (b, _, _) -> b < a)
     where
     add (m, beats) =
-        [((m, beat), frame, stroke) | (beat, frame, stroke) <- beats]
+        [((m, beat), stroke, frame) | (beat, stroke, frame) <- beats]
 
 -- | Make Strokes unique by labelling them according to position in the
 -- measure.
-labelStrokes :: [((Measure, Beat), frame, Stroke)]
-    -> [((Measure, Beat), frame, Stroke)]
-labelStrokes = map $ \((measure, beat), frame, stroke) ->
-    ((measure, beat), frame, stroke <> suffix measure beat)
+labelStrokes :: [((Measure, Beat), Stroke, frame)]
+    -> [((Measure, Beat), Stroke, frame)]
+labelStrokes = map $ \((measure, beat), stroke, frame) ->
+    ((measure, beat), stroke <> suffix measure beat, frame)
     where
     suffix measure beat = showt measure
         <> if beat == 1 then "" else "-" <> encode beat
     encode = Text.dropWhileEnd (=='0') . Text.replace "." "" . showt
         . (realToFrac :: Beat -> Double)
 
-makeBeatMap :: Beat -> [((Measure, Beat), Frame, stroke)] -> Map Beat Frame
-makeBeatMap perMeasure beats = Map.fromList
-    [ (fromIntegral (measure-1) * perMeasure + beat, frame)
-    | ((measure, beat), frame, _) <- beats
+makeBeatMap :: Break -> Map Beat Frame
+makeBeatMap break = Map.fromList
+    [ (fromIntegral (measure-1) * _perMeasure break + beat, frame)
+    | ((measure, beat), _, frame) <- _beats break
     ]
 
 -- | Get inferred bpm from each stroke.
-guessBpm :: (Beat, [((Measure, Beat), Frame, Stroke)]) -> Text
-guessBpm beats =
+guessBpm :: Break -> Text
+guessBpm break =
     Text.unlines . (++[last strokes]) . map fmt
-    . zip strokes . map guess . pairs . Map.toAscList . uncurry makeBeatMap $
-        beats
+    . zip strokes . map guess . pairs . Map.toAscList . makeBeatMap $ break
     where
     fmt (stroke, bpm) =
         Text.justifyLeft 8 ' ' stroke <> " - " <> Num.showFloat 2 bpm
-    strokes = [stroke | (_, _, stroke) <- snd beats]
+    strokes = [stroke | (_, stroke, _) <- _beats break]
     pairs xs = zip xs (drop 1 xs)
     guess ((beat0, frame0), (beat1, frame1)) = (60/) $
         (fromIntegral (frame1 - frame0) / realToFrac (beat1 - beat0))
             / fromIntegral Config.samplingRate
+            * ratioAdjust
+    ratioAdjust = Sample.relativePitchToRatio (_pitchAdjust break)
 
--- 0.433202947845805 per beat, so 138.5032126359318 bpm, say 138.5
--- tempo 1 is 60bpm, 2 = 120bpm, so 60n = 138.5 = 138.5/60
-medeski :: (Beat, [((Measure, Beat), Frame, Stroke)])
-medeski = (8,) $ labelStrokes $ addMeasures
-    [ (1,   0,      bd)
-    , (2,   20296,  sn)
-    , (3.5, 49024,  bd)
-    , (4.5, 68024,  sn)
-    , (6,   95982,  sn)
-    , (7.5, 124482, bd)
-    , (8,   133878, sn)
-    , (8.5, 143584, bd)
+data Break = Break {
+    _name :: Text
+    , _beats :: ![((Measure, Beat), Stroke, Frame)]
+    , _perMeasure :: !Beat
+    , _increment :: !Beat
+    , _pitchAdjust :: !Pitch.NoteNumber
+    } deriving (Show)
 
-    , (1,   152834, bd)
-    , (2,   172572, sn)
-    , (3.5, 201002, bd)
-    , (4.5, 220438, sn)
-    , (6,   248210, sn)
-    , (7.5, 275986, bd)
+makeBreak :: Text -> Beat -> [(Beat, Stroke, Frame)] -> Break
+makeBreak name perMeasure beats = Break
+    { _name = name
+    , _beats = labelStrokes (addMeasures beats)
+    , _perMeasure = perMeasure
+    , _increment = 1/2
+    , _pitchAdjust = 0
+    }
 
-    , (1,   303488, bd)
-    , (2,   322988, sn)
-    , (3.5, 351232, bd)
-    , (4.5, 370402, sn)
-    , (6,   398044, sn)
-    , (7.5, 426150, bd)
-    , (8,   435612, sn)
-    , (8.5, 445314, bd)
+pitchAdjust :: Pitch.NoteNumber -> Break -> Break
+pitchAdjust nn break = break { _pitchAdjust = nn }
 
-    , (1,   454530, bd)
-    , (2,   473836, sn)
-    , (3.5, 502050, bd)
-    , (4.5, 521034, sn)
-    , (5,   529638, bd)
+bd, sn, hh :: Stroke
+bd = "bd"
+sn = "sn"
+hh = "hh"
 
-    , (1,   604380, bd)
+allBreaks :: [Break]
+allBreaks = [medeski, amen, massaker1, massaker2]
+
+medeski :: Break
+medeski = makeBreak "medeski" 8
+    [ (1,   bd, 0)
+    , (2,   sn, 20296)
+    , (3.5, bd, 49024)
+    , (4.5, sn, 68024)
+    , (6,   sn, 95982)
+    , (7.5, bd, 124482)
+    , (8,   sn, 133878)
+    , (8.5, bd, 143584)
+
+    , (1,   bd, 152834)
+    , (2,   sn, 172572)
+    , (3.5, bd, 201002)
+    , (4.5, sn, 220438)
+    , (6,   sn, 248210)
+    , (7.5, bd, 275986)
+
+    , (1,   bd, 303488)
+    , (2,   sn, 322988)
+    , (3.5, bd, 351232)
+    , (4.5, sn, 370402)
+    , (6,   sn, 398044)
+    , (7.5, bd, 426150)
+    , (8,   sn, 435612)
+    , (8.5, bd, 445314)
+
+    , (1,   bd, 454530)
+    , (2,   sn, 473836)
+    , (3.5, bd, 502050)
+    , (4.5, sn, 521034)
+    , (5,   bd, 529638)
+
+    , (1,   bd, 604380)
     ]
-    where
-    bd = "bd"
-    sn = "sn"
 
--- 4 beats: 77360, 77432
--- = 136.81489141675286, 136.6876743465234
--- let's say bpm = 136.7
-amen :: (Beat, [((Measure, Beat), Frame, Stroke)])
-amen = (4,) $ labelStrokes $ addMeasures
-    [ (1,   0,      bd)
-    , (2,   19594,  sn)
-    , (3.5, 48536,  bd)
-    , (4,   57820,  sn)
-    , (1,   77630,  bd)
-    , (2,   97128,  sn)
-    , (3.5, 125932, bd)
-    , (4,   135294, sn)
-    , (1,   154792, bd)
-    , (2,   174050, sn)
-    , (3.5, 202312, bd)
-    , (4.5, 221422, sn)
-    , (2,   249952, sn)
-    , (3.5, 278326, bd)
-    , (4.5, 297470, sn)
+amen :: Break
+amen = makeBreak "amen" 4
+    [ (1,   bd, 0)
+    , (2,   sn, 19594)
+    , (3.5, bd, 48536)
+    , (4,   sn, 57820)
+    , (1,   bd, 77630)
+    , (2,   sn, 97128)
+    , (3.5, bd, 125932)
+    , (4,   sn, 135294)
+    , (1,   bd, 154792)
+    , (2,   sn, 174050)
+    , (3.5, bd, 202312)
+    , (4.5, sn, 221422)
+    , (2,   sn, 249952)
+    , (3.5, bd, 278326)
+    , (4.5, sn, 297470)
     ]
-    where
-    bd = "bd"
-    sn = "sn"
+
+massaker1 :: Break
+massaker1 = pitchAdjust (-12) $ makeBreak "massaker1" 4
+    [ (1,   bd, 0)
+    , (2,   sn, 7880)
+    , (3.5, bd, 19790)
+    , (4,   sn, 23704)
+    , (1.5, bd, 35640)
+    , (2,   sn, 39600)
+    , (3.5, bd, 51480)
+    , (4,   sn, 55348)
+    ]
+
+massaker2 :: Break
+massaker2 = pitchAdjust (-12) $ makeBreak "massaker2" 4
+    [ (1,   bd, 0)
+    , (2,   bd, 7682)
+    , (3,   sn, 15530)
+    , (4.5, sn, 27062)
+    , (1,   hh, 31070)
+    , (2,   sn, 38532)
+    , (3,   sn, 45738)
+    , (4,   hh, 53672)
+    , (4.5, sn, 57217)
+    ]

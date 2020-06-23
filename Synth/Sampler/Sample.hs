@@ -117,6 +117,10 @@ pitchToRatio sampleNn nn = Pitch.nn_to_hz sampleNn / Pitch.nn_to_hz nn
     -- When I go up *2, I should be skipping every other sample.  So srate
     -- should be *2.  Number of frames is /2.  Ratio is 0.5.
 
+relativePitchToRatio :: Pitch.NoteNumber -> Signal.Y
+relativePitchToRatio offset = pitchToRatio 60 (60 + offset)
+    -- Surely there's a way to do this without the fake pitch?
+
 ratioToPitch :: Pitch.NoteNumber -> Pitch.Hz -> Pitch.NoteNumber
 ratioToPitch sampleNn ratio = Pitch.hz_to_nn $ Pitch.nn_to_hz sampleNn / ratio
 

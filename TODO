@@ -2475,9 +2475,12 @@ synth: im:
       . Another alternative is that the scale could take instrument into
         account.
     break:
-      - what about samples at a different sampling rate?
+      * what about samples at a different sampling rate?
         . I think I can just treat it as 44.1k?  Or maybe offset the ratio
           automatically.
+        . But the frame counter in reaper will be wrong, I have to set its
+          srate.  Or use audacity or something.
+        . Or maybe just rewrite the file to change its srate.
       * support octaves
       - rubberband
       . reason "recycle" looks like a commercial product that does something
