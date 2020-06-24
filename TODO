@@ -1831,6 +1831,11 @@ instruments:
     . http://www.musicdevelopments.com/syne.html
 
 synth: im:
+  * setting tempo to 0 starts rendering im, which then gets to 1000+ chunks,
+    which then crashes in Checkpoint.hs linkOutput, isOutputLink
+  - Maybe I could have the tempo track default to 1 instead of almost 0.
+    . 0 tempo is always a mistake.  It's just a harmless one with midi because
+      midi renders audio lazily.
   optimize low level sapmles: avx: simd:
     - use simd in play_cache
       . It's probbaly IO bound, so kind of pointless, but still good for

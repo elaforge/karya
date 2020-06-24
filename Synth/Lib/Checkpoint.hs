@@ -146,13 +146,18 @@ write emitProgress outputDir trackIds skippedCount chunkSize hashes getState
 
 getFilename :: FilePath -> IO State -> (Config.ChunkNum, Note.Hash)
     -> IO FilePath
-getFilename outputDir getState (chunknum, hash) = do
-    state <- getState
-    let fname = outputDir </> checkpointDir </> filenameOf chunknum hash state
-    -- XXX 'state' is actually an unsafe pointer to the underlying C state, so
-    -- I have to make sure I'm done with it before returning.  This is super
-    -- sketchy, but it works now and it is non-copying.
-    fname `DeepSeq.deepseq` return fname
+getFilename outputDir getState (chunknum, hash)
+    -- This can happen if tempo is set really slow.
+    | chunknum >= maxChunk =
+        Audio.throwIO $ "chunk num over limit: " <> showt chunknum
+    | otherwise = do
+        state <- getState
+        let fname = outputDir </> checkpointDir
+                </> filenameOf chunknum hash state
+        -- XXX 'state' is actually an unsafe pointer to the underlying C state,
+        -- so I have to make sure I'm done with it before returning.  This is
+        -- super sketchy, but it works now and it is non-copying.
+        fname `DeepSeq.deepseq` return fname
 
 {- | Write synth state to the checkpointDir.  The filename is derived from the
     audio chunk filename, which presumably has already been written.
@@ -226,6 +231,12 @@ filenameOf2 chunknum hash encodedState =
         [ zeroPad 3 chunknum
         , ByteString.Char8.pack $ Note.encodeHash hash
         ]) <> "." <> encodedState <> ".wav"
+
+-- | Crash after this chunk number.  It's not an inherent limitation, but
+-- it indicates that something has probably gone off the rails.  Also
+-- 'isOutputLink' doesn't want to parse more than 3 digits.
+maxChunk :: Config.ChunkNum
+maxChunk = 500
 
 -- | 'Num.zeroPad' for ByteString.
 zeroPad :: Show a => Int -> a -> ByteString.ByteString
