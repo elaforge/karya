@@ -29,7 +29,9 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
-  - bpm call should work in tempo track
+  * bpm call should work in tempo track
+    . It's a val call, don't those work in control tracks?
+    . No, that's pitch tracks.
   - too much boilerplate for enums:
     . instance Typecheck.Typecheck E
       instance Typecheck.TypecheckSymbol E

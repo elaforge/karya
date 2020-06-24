@@ -48,6 +48,7 @@ library = mconcat
 
         -- misc
         , ("bp>", c_breakpoint_next)
+        , ("bpm", c_bpm)
         , ("n", c_neighbor)
         , ("d", c_down)
         , ("df", c_down_from)
@@ -196,6 +197,14 @@ c_breakpoint_next = generator1 "breakpoint" mempty
         srate <- Call.get_srate
         return $ ControlUtil.breakpoints srate ControlUtil.Linear $
             ControlUtil.distribute start end (NonEmpty.toList vals)
+
+c_bpm :: Derive.Generator Derive.Control
+c_bpm = generator1 "bpm" mempty
+    "Set a tempo value for the given bpm, which is just (/60)."
+    $ Sig.call (Sig.required "bpm" "")
+    $ \val args -> do
+        pos <- Args.real_start args
+        return $! Signal.from_sample pos (val / 60)
 
 c_neighbor :: Derive.Generator Derive.Control
 c_neighbor = generator1 "neighbor" mempty
