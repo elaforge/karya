@@ -29,6 +29,21 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  - bpm call should work in tempo track
+  - too much boilerplate for enums:
+    . instance Typecheck.Typecheck E
+      instance Typecheck.TypecheckSymbol E
+      instance Typecheck.ToVal E
+      instance ShowVal.ShowVal E where show_val = Typecheck.enum_show_val
+    . I should be able to write just one thing.
+    ? Can I use ConstraintKinds and put the alias in the deriving list?
+  - val=%control fails with confusing error:
+    . merge is only supported when assigning to a control or untyped numeric
+      env: %
+    . It really means to add spaces, because =% is not a valid merge.
+    . Maybe only accept =? for valid merge symbols like +, -, *.
+    . The underlying problem is having to do call-val = %call-val in the first
+      place, due to the Env vs. controls distinction.
   - sorted Derive.Stream:
     . Implement the Sorted flag in Derive.Stream
     . I could have calls that can move note starts register by flipping a flag
@@ -2488,12 +2503,12 @@ synth: im:
         . Or maybe just rewrite the file to change its srate.
       * support octaves
       rubberband:
-        - BPM control that adjusts based on inferred bpm.
+        * BPM control that adjusts based on inferred bpm.
           . I can adjust bpm with either pitch change, or time stretch.
-          - First guess a single bpm, throw away outliers and mean.
-          - Then add bpm via srate control, that tweaks pitchAdjust.
-          - Then add bpm via time stretch, that tweaks timeRatio.
-        - Pitch offset that doesn't affect tempo.
+          * Guess a single bpm, throw away outliers and mean.
+          * bpm via srate control, that tweaks pitchAdjust.
+          * bpm via time stretch, that tweaks timeRatio.
+        * Pitch offset that doesn't affect tempo.
       . reason "recycle" looks like a commercial product that does something
         like this.
         . It seems more basic, except the gui and finding attacks

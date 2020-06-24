@@ -14,6 +14,7 @@ module Synth.Sampler.Patch.Break (
 import qualified Data.Map as Map
 import qualified Data.Ratio as Ratio
 import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
 
 import qualified Util.Doc as Doc
 import qualified Util.Num as Num
@@ -32,6 +33,7 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Expr as Expr
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Typecheck as Typecheck
 
@@ -56,7 +58,8 @@ patches = map (Patch.DbPatch . make) allBreaks
         { Patch._dir = dir
         , Patch._convert = convert sample (_pitchAdjust break)
         , Patch._karyaPatch =
-            ImInst.doc #= Doc.Doc ("BPM per stroke:\n" <> guessBpm break) $
+            ImInst.doc #= Doc.Doc
+                ("Inferred BPM: " <> Num.showFloat 2 (breakBpm break)) $
             ImInst.code #= (call_code <> drum_code) $
             ImInst.make_patch $ Im.Patch.patch
                 { Im.Patch.patch_controls = mconcat
@@ -81,7 +84,7 @@ patches = map (Patch.DbPatch . make) allBreaks
                 [(beat, stroke) | (beat, stroke, _) <- _beats break]
         thru = Util.imThruFunction dir (convert sample (_pitchAdjust break))
         beatMap = makeBeatMap break
-        breakCall = c_break beatMap (_perMeasure break)
+        breakCall = c_break (breakBpm break) beatMap (_perMeasure break)
     dir = "break"
 
 -- * cmd
@@ -145,27 +148,41 @@ equalDivisions n xs
 
 -- * call
 
+data BpmMode = Pitch | Stretch
+    deriving (Eq, Enum, Bounded, Show)
+
+instance Typecheck.Typecheck BpmMode
+instance Typecheck.TypecheckSymbol BpmMode
+instance Typecheck.ToVal BpmMode
+instance ShowVal.ShowVal BpmMode where show_val = Typecheck.enum_show_val
+
 -- | Take a beat arg or named start time, and look up the corresponding start
 -- offset.
-c_break :: Map Beat Frame -> Beat -> Maybe Frame -> Derive.Generator Derive.Note
-c_break beatMap perMeasure mbFrame =
+c_break :: Double -> Map Beat Frame -> Beat -> Maybe Frame
+    -> Derive.Generator Derive.Note
+c_break naturalBpm beatMap perMeasure mbFrame =
     Derive.generator Module.instrument "break" mempty doc $
-    Sig.call ((,,)
+    Sig.call ((,,,,,)
         <$> maybe (Left <$> beat_arg) (pure . Right) mbFrame
         <*> Sig.defaulted "pre" (Typecheck.score 0)
             "Move note start back by this much, along with the offset."
         <*> Sig.defaulted "pitch" 0 "Pitch offset."
-    ) $ \(beatOrFrame, pre, pitch) -> Sub.inverting $ \args -> do
+        <*> Sig.defaulted "pitch-shift" 0 "Pitch offset, not affecting time."
+        <*> Sig.defaulted "bpm" naturalBpm "Set BPM."
+        <*> Sig.defaulted "bpm-mode" Pitch
+            "How to adjust bpm, by changing pitch, or stretching time."
+    ) $ \(beatOrFrame, pre, pitch, pitchShift, bpm, bpmMode) ->
+    Sub.inverting $ \args -> do
         frame <- either (lookupBeat beatMap) return beatOrFrame
         let (start, dur) = Args.extent args
         pre <- Call.score_duration start pre
         rpre <- Call.real_duration start pre
-        Derive.with_constant_control
-                (Controls.from_shared Control.sampleStartOffset)
+        let (bpmPitch, bpmStretch) = adjustBpm naturalBpm bpm bpmMode
+        withControl Control.sampleStartOffset
                 (fromIntegral frame - fromIntegral (AUtil.toFrames rpre)) $
-            Derive.with_constant_control
-                (Controls.from_shared pitchOffset)
-                (Pitch.nn_to_double pitch) $
+            withControl pitchOffset (Pitch.nn_to_double (pitch + bpmPitch)) $
+            bpmStretch $
+            withControl Control.samplePitchShift pitchShift $
             Derive.place (start - pre) (dur + pre) Call.note
     where
     beat_arg = Sig.required "beat" "Offset measure.beat. This abuses\
@@ -176,10 +193,26 @@ c_break beatMap perMeasure mbFrame =
             (pretty (measure, beat) <> " out of range: " <> "(1, 1) -- "
                 <> pretty (maxBeat beatMap perMeasure, perMeasure)) $
             if beat >= perMeasure + 1 then Nothing else findFrame beatMap b
-            -- beat > perMeasure otherwise work, but it's confusing.
+            -- beat > perMeasure would work, but it's confusing.
         where
         (measure, beat) = decodeBeat beatFraction
         b = max 0 (fromIntegral (measure-1)) * perMeasure + beat
+
+withControl :: Control.Control -> Signal.Y -> Derive.Deriver a
+    -> Derive.Deriver a
+withControl control =
+    Derive.with_constant_control (Controls.from_shared control)
+
+adjustBpm :: Double -> Double -> BpmMode
+    -> (Pitch.NoteNumber, Derive.Deriver a -> Derive.Deriver a)
+adjustBpm naturalBpm bpm = \case
+    Pitch -> (bpmPitchAdjust naturalBpm bpm, id)
+    Stretch -> (0,) $ withControl Control.sampleTimeStretch (naturalBpm / bpm)
+
+-- bpm to *2 means +12
+-- bpm / naturalBpm = 2 => ratio
+bpmPitchAdjust :: Double -> Double -> Pitch.NoteNumber
+bpmPitchAdjust naturalBpm bpm = Sample.ratioToPitch $ bpm / naturalBpm
 
 maxBeat :: Map Beat frame -> Beat -> Int
 maxBeat beatMap perMeasure =
@@ -271,21 +304,46 @@ makeBeatMap break = Map.fromList
     | ((measure, beat), _, frame) <- _beats break
     ]
 
+-- * bpm
+
+printBpms :: IO ()
+printBpms = forM_ allBreaks $ \break -> do
+    Text.IO.putStrLn $ "---- " <> _name break
+    Text.IO.putStrLn $ showBpms break
+
 -- | Get inferred bpm from each stroke.
-guessBpm :: Break -> Text
-guessBpm break =
-    Text.unlines . (++[last strokes]) . map fmt
-    . zip strokes . map guess . pairs . Map.toAscList . makeBeatMap $ break
+showBpms :: Break -> Text
+showBpms break =
+    Text.unlines . (++[last strokes, bpm]) . map fmt . zip strokes . breakBpms $
+        break
     where
+    bpm = "Inferred BPM: " <> Num.showFloat 2 (breakBpm break)
     fmt (stroke, bpm) =
         Text.justifyLeft 8 ' ' stroke <> " - " <> Num.showFloat 2 bpm
     strokes = [stroke | (_, stroke, _) <- _beats break]
-    pairs xs = zip xs (drop 1 xs)
+
+breakBpm :: Break -> Double
+breakBpm = centralMean . breakBpms
+
+-- | Try to get a good mean by discarding outliers.
+centralMean :: [Double] -> Double
+centralMean bpms = mean $ filter (not . outlier) bpms
+    where
+    mean xs = Num.sum xs / fromIntegral (length xs)
+    outlier bpm = bpm < low + quartile || bpm > high - quartile
+    quartile = (high - low) / 4
+    low = minimum bpms
+    high = maximum bpms
+
+breakBpms :: Break -> [Double]
+breakBpms break = map guess . pairs . Map.toAscList . makeBeatMap $ break
+    where
     guess ((beat0, frame0), (beat1, frame1)) = (60/) $
         (fromIntegral (frame1 - frame0) / realToFrac (beat1 - beat0))
             / fromIntegral Config.samplingRate
             * ratioAdjust
     ratioAdjust = Sample.relativePitchToRatio (_pitchAdjust break)
+    pairs xs = zip xs (drop 1 xs)
 
 data Break = Break {
     _name :: Text

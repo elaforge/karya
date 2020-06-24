@@ -153,17 +153,20 @@ forever = 1000
 pitchToRatio :: Pitch.NoteNumber -> Pitch.NoteNumber -> Signal.Y
 pitchToRatio sampleNn nn = Pitch.nn_to_hz sampleNn / Pitch.nn_to_hz nn
 
-relativePitchToRatio :: Pitch.NoteNumber -> Signal.Y
-relativePitchToRatio offset = pitchToRatio 60 (60 + offset)
-    -- Surely there's a way to do this without the fake pitch?
-
-ratioToPitch :: Pitch.NoteNumber -> Pitch.Hz -> Pitch.NoteNumber
-ratioToPitch sampleNn ratio = Pitch.hz_to_nn $ Pitch.nn_to_hz sampleNn / ratio
-
 pitchToRatioSignal :: Pitch.NoteNumber -> Note.Note -> Signal.Signal
 pitchToRatioSignal sampleNn =
     Signal.map_y srate (pitchToRatio sampleNn . Pitch.nn) . fromMaybe mempty
     . Map.lookup Control.pitch . Note.controls
+
+relativePitchToRatio :: Pitch.NoteNumber -> Signal.Y
+relativePitchToRatio offset = pitchToRatio 60 (60 + offset)
+    -- Surely there's a way to do this without the fake pitch?
+    -- Yes, invert ratioToPitch, but I should consistently use pitch ratio,
+    -- and rename pitchToRatio to pitchToResampleRatio
+
+-- | This is pitch ratio, not resample ratio!
+ratioToPitch :: Double -> Pitch.NoteNumber
+ratioToPitch ratio = Pitch.nn $ logBase 2 ratio * 12
 
 srate :: RealTime
 srate = 1/8
