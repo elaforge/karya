@@ -43,6 +43,8 @@ sarva_tani =
     , K sarva_20_06_05 All
     , K sarva_20_06_12 All
     , K sarva_20_06_12_reduction All
+    , K sarva_20_06_19_endings All
+    , K sarva_20_06_19 All
     , K sarva_20_01_27 All
     , Comment "namita dimita dimi"
     , K sarva_20_02_10 All
@@ -262,10 +264,39 @@ sarva_20_06_12 = date 2020 6 12 $ ganesh $ korvaiS adi
     begin = od.__.od.__.o.l.on.l
 
 sarva_20_06_12_reduction :: Korvai
-sarva_20_06_12_reduction = korvaiS adi
+sarva_20_06_12_reduction = date 2020 6 12 $ korvaiS adi
     [ nadai 6 $ sarvaD mempty 6
         . sd (tri (kook.od.__3)) . tri (kook.od.__3) . su (tri_ (od.__3) kook)
     ]
+
+sarva_20_06_19_endings :: Korvai
+sarva_20_06_19_endings = date 2020 6 19 $ korvaiS adi
+    [ sarva 4 . __ . r5 (n.d.__)
+    , sarva 6 .__. su (p.k.n.o.o.k . o.t.o.k.o.t.o.k)
+    , sarva 6 . su (k.t.o.k.o.v.__.k.o.k.o.k.o.v.__.k)
+    ]
+    where
+    sarva = sarvaD mempty
+
+sarva_20_06_19 :: Korvai
+sarva_20_06_19 = date 2020 6 19 $ korvaiS adi
+    -- 222 333 444
+    [ tri_ __ (pk.od) . tri_ __ (k.pk.od) . tri_ __ (k.k.pk.od)
+    -- 234 234 234
+    , tri $ trin __ (pk.od) (k.pk.od) (k.k.pk.od)
+
+    , tri_ __ pknpv . tri_ __ (o.pknpv) . tri_ __ (o.v.pknpv)
+    , tri_ __ ktpko . tri_ __ (k.ktpko) . tri_ __ (k.k.ktpko)
+
+    , sd $ __.__ . tri (g (k.__3.o.__)) . tri (g (su (k.__3.o.__)))
+        . tri (g (su (su (k.__3.o.__))))
+        . tri (g (su (su ktkno)))
+    ]
+    where
+    g = group
+    pknpv = su (su (p.k.n.p)).v
+    ktpko = su (su ktpk).o
+    pk = su (p.k)
 
 {-
     thani:
