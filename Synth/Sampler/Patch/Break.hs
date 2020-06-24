@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveAnyClass #-}
 -- | This is like the @sample@ patch, but with special support for breaking up
 -- beats and naming them.
 module Synth.Sampler.Patch.Break (
@@ -149,12 +150,8 @@ equalDivisions n xs
 -- * call
 
 data BpmMode = Pitch | Stretch
-    deriving (Eq, Enum, Bounded, Show)
-
-instance Typecheck.Typecheck BpmMode
-instance Typecheck.TypecheckSymbol BpmMode
-instance Typecheck.ToVal BpmMode
-instance ShowVal.ShowVal BpmMode where show_val = Typecheck.enum_show_val
+    deriving (Eq, Enum, Bounded, Show, ShowVal.ShowVal, Typecheck.Typecheck,
+        Typecheck.ToVal)
 
 -- | Take a beat arg or named start time, and look up the corresponding start
 -- offset.

@@ -131,7 +131,6 @@ data HarmonicType = Natural | Artificial
     deriving (Eq, Show, Bounded, Enum)
 
 instance Typecheck.Typecheck HarmonicType
-instance Typecheck.TypecheckSymbol HarmonicType
 instance ShowVal.ShowVal HarmonicType where
     show_val Natural = "nat"
     show_val Artificial = "art"

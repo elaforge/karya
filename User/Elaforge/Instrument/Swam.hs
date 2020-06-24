@@ -5,7 +5,6 @@
 -- | Audio Modeling's SWAM.
 module User.Elaforge.Instrument.Swam (synth) where
 import qualified Data.Map as Map
-import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
@@ -247,9 +246,8 @@ data BowDirection = Down | Up | Alternate
     deriving (Eq, Show, Enum, Bounded)
 
 instance Typecheck.Typecheck BowDirection
-instance Typecheck.TypecheckSymbol BowDirection
 instance Typecheck.ToVal BowDirection
-instance ShowVal.ShowVal BowDirection where show_val = Text.toLower . showt
+instance ShowVal.ShowVal BowDirection
 
 control_call :: Expr.Symbol -> Doc.Doc -> ScoreT.Control
     -> Signal.Y -> MidiInst.Call Derive.Note

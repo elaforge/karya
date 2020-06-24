@@ -2,9 +2,12 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE DefaultSignatures #-}
+{-# OPTIONS_GHC -Wno-redundant-constraints #-} -- ShowVal.show_val
 -- | The 'show_val' method turns haskell values back to tracklang expressions.
 -- It's similar to the opposite of 'Derive.Typecheck.Typecheck'.
 module Derive.ShowVal where
+import qualified Data.Char as Char
 import qualified Data.Ratio as Ratio
 import qualified Data.Set as Set
 import qualified Data.Text as Text
@@ -17,12 +20,16 @@ import           Global hiding (pretty)
 
 
 -- | Instances of ShowVal can be turned back into tracklang syntax.  Everything
--- produced by show_val should be parseable by "Derive.ParseBs", except values
+-- produced by show_val should be parseable by "Derive.Parse", except values
 -- that have no literal syntax, such as VPitch.
 --
 -- At least one place that relies on this is 'Derive.Call.Note.inverting'.
 class ShowVal a where
     show_val :: a -> Text
+    -- This intentionally has redundant constraints, which correspond to
+    -- Typecheck.TEnum.  Any old Showable is unlikely to be Typecheckable.
+    default show_val :: (Show a, Enum a, Bounded a) => a -> Text
+    show_val = Text.pack . map Char.toLower . show
 
 hex_prefix :: Text
 hex_prefix = "`0x`"
@@ -43,8 +50,8 @@ is_hex_val = (hex_prefix `Text.isPrefixOf`)
 doc :: ShowVal a => a -> Doc.Doc
 doc = Doc.literal . show_val
 
--- Really these instances should go in Derive.ParseBs, but it imports
--- Derive.TrackLang, which needs them.
+-- Really these instances should go in "Derive.Parse", but it imports
+-- "Derive.DeriveT", which needs them.
 
 instance ShowVal a => ShowVal [a] where
     show_val [] = "(list)"

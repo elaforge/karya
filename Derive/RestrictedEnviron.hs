@@ -90,8 +90,8 @@ instance Pretty Val where format = Pretty.format . convert_val
 -- | This duplicates 'TrackLang.Typecheck', but then so does this whole module.
 -- In any case, it's convenient for creaing 'Environ's.
 --
--- TODO But I wish I could reuse Typecheck.ToVal TypecheckSymbol ToVal,
--- otherwise I have to add an extra instance declaration for each type.
+-- TODO But I wish I could reuse Typecheck.ToVal, otherwise I have to add an
+-- extra instance declaration for each type.
 class ToVal a where
     to_val :: a -> Val
     default to_val :: ShowVal.ShowVal a => a -> Val

@@ -445,10 +445,10 @@ modify_doc modify (Derive.DocumentedCall name doc) =
 no_enharmonics :: Derive.Enharmonics
 no_enharmonics _ _ = Right []
 
--- | Read and parse an environ value, or throw a ScaleError.
-read_environ :: (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
-    (a -> Maybe val) -> Maybe val
-    -- ^ if Just, a missing value gets this, otherwise it's an error
+-- | Like 'read_environ_', but with a simpler parser.
+read_environ :: (Typecheck.Typecheck a, ShowVal.ShowVal a)
+    => (a -> Maybe val)
+    -> Maybe val -- ^ if Just, a missing value gets this, otherwise error
     -> Env.Key -> Env.Environ -> Either DeriveT.PitchError val
 read_environ parse maybe_deflt =
     read_environ_ (maybe (Left Nothing) Right . parse) (Right <$> maybe_deflt)
@@ -467,8 +467,11 @@ read_environ_default parse maybe_deflt name =
             "can't parse default: " <> ShowVal.show_val val
     environ_error = Left . DeriveT.EnvironError name . Just
 
-read_environ_ :: (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
-    (a -> Either (Maybe Text) val) -> Maybe (Either PSignal.PitchError val)
+-- | Read and parse an environ value, or throw a ScaleError.
+-- This takes a parse function in addition to the usual Typecheck, because
+-- scales and keys don't use use Typecheck, beyond ensuring it's a string.
+read_environ_ :: (Typecheck.Typecheck a, ShowVal.ShowVal a)
+    => (a -> Either (Maybe Text) val) -> Maybe (Either PSignal.PitchError val)
     -> Env.Key -> Env.Environ -> Either DeriveT.PitchError val
 read_environ_ parse maybe_deflt name env = case Env.get_val name env of
     Left (Env.WrongType expected) ->
@@ -483,12 +486,6 @@ read_environ_ parse maybe_deflt name env = case Env.get_val name env of
         Left msg -> environ_error $ ShowVal.show_val val <> ": "
             <> fromMaybe "can't parse" msg
     environ_error = Left . DeriveT.EnvironError name . Just
-
--- | This is 'read_environ', but for instances of 'Typecheck.TypecheckSymbol'.
-parse_environ :: Typecheck.TypecheckSymbol val => Maybe val
-    -- ^ if Just, a missing value gets this, otherwise it's an error
-    -> Env.Key -> Env.Environ -> Either DeriveT.PitchError val
-parse_environ = read_environ Typecheck.parse_symbol
 
 
 -- ** keys

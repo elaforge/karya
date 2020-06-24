@@ -13,6 +13,7 @@ import qualified Derive.Call as Call
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
@@ -27,8 +28,8 @@ import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.Lilypond.Convert as Convert
 import qualified Perform.Lilypond.Types as Types
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- * utils for ly calls
@@ -142,17 +143,17 @@ instance Pretty pos => Pretty (Position pos) where
     pretty (SetEnviron key) = "SetEnviron " <> pretty key
     pretty (Position p) = pretty p
 
-instance Typecheck.Typecheck (Position Constants.CodePosition)
-instance Typecheck.TypecheckSymbol (Position Constants.CodePosition) where
-    parse_symbol = (`Map.lookup` code_position_names) . Expr.unstr
-    symbol_values _ = Just $ Map.keys code_position_names
+instance Typecheck.Typecheck (Position Constants.CodePosition) where
+    from_val = Typecheck.from_val_symbol code_position_names
+    to_type Proxy = Typecheck.to_type_symbol (Map.keys code_position_names)
 
 code_position_names :: Map Text (Position Constants.CodePosition)
 code_position_names =
     Map.fromList $ Seq.key_on ShowVal.show_val $
         map Position Constants.all_positions
 
-instance Typecheck.ToVal (Position Constants.CodePosition)
+instance Typecheck.ToVal (Position Constants.CodePosition) where
+    to_val = DeriveT.VStr . Expr.Str . ShowVal.show_val
 
 instance ShowVal.ShowVal (Position Constants.CodePosition) where
     show_val = Texts.dropPrefix "ly-" . key_of

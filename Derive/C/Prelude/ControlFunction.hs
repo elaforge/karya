@@ -69,9 +69,8 @@ data Distribution =
     | Bimodal
     deriving (Bounded, Eq, Enum, Show)
 
-instance ShowVal.ShowVal Distribution where show_val = Typecheck.enum_show_val
+instance ShowVal.ShowVal Distribution
 instance Typecheck.Typecheck Distribution
-instance Typecheck.TypecheckSymbol Distribution
 
 c_cf_rnd :: (Signal.Y -> Signal.Y -> Signal.Y) -> Derive.ValCall
 c_cf_rnd combine = val_call "cf-rnd"

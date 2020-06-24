@@ -642,7 +642,6 @@ data UpDown = Up | Down deriving (Show, Enum, Bounded, Eq, Ord)
 
 instance Pretty UpDown where pretty = showt
 instance Typecheck.Typecheck UpDown
-instance Typecheck.TypecheckSymbol UpDown
 instance ShowVal.ShowVal UpDown where
     show_val Up = "u"
     show_val Down = "d"

@@ -319,7 +319,6 @@ instance ShowVal.ShowVal SustainMode where
         On -> "t"
         OffOn -> "ft"
 instance Typecheck.Typecheck SustainMode
-instance Typecheck.TypecheckSymbol SustainMode
 
 c_ly_span :: Library.Calls Derive.Note
 c_ly_span = emit "ly-span"

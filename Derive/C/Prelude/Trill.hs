@@ -241,9 +241,8 @@ data TrillStyle = Tr | Span | Tremolo
     deriving (Show, Eq, Enum, Bounded)
 
 instance Typecheck.Typecheck TrillStyle
-instance Typecheck.TypecheckSymbol TrillStyle
 instance Typecheck.ToVal TrillStyle
-instance ShowVal.ShowVal TrillStyle where show_val = Typecheck.enum_show_val
+instance ShowVal.ShowVal TrillStyle
 
 note_trill_ly :: TrillStyle -> Derive.PassedArgs a -> Neighbor
     -> Derive.NoteDeriver
@@ -675,9 +674,8 @@ trill_speed_arg =
 -- Neighbor.  Unison-Neighbor is more convenient for the implementation but
 -- High-Low I think is more musically intuitive.
 data Direction = High | Low deriving (Bounded, Eq, Enum, Show)
-instance ShowVal.ShowVal Direction where show_val = Typecheck.enum_show_val
+instance ShowVal.ShowVal Direction
 instance Typecheck.Typecheck Direction
-instance Typecheck.TypecheckSymbol Direction
 
 -- | This is the like 'Direction', but in terms of the unison and neighbor
 -- pitches, instead of high and low.
@@ -762,9 +760,8 @@ data Adjust =
     | Stretch
     deriving (Bounded, Eq, Enum, Show)
 
-instance ShowVal.ShowVal Adjust where show_val = Typecheck.enum_show_val
+instance ShowVal.ShowVal Adjust
 instance Typecheck.Typecheck Adjust
-instance Typecheck.TypecheckSymbol Adjust
 
 adjust_env :: Sig.Parser Adjust
 adjust_env = Sig.environ "adjust" Sig.Both Shorten

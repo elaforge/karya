@@ -1080,15 +1080,12 @@ data NorotStyle =
     | Diamond
     deriving (Bounded, Eq, Enum, Show)
 
-instance ShowVal.ShowVal NorotStyle where show_val = Typecheck.enum_show_val
+instance ShowVal.ShowVal NorotStyle
 instance Typecheck.Typecheck NorotStyle
-instance Typecheck.TypecheckSymbol NorotStyle
 
 data KotekanStyle = Telu | Pat deriving (Bounded, Eq, Enum, Show)
-instance ShowVal.ShowVal KotekanStyle where
-    show_val = Typecheck.enum_show_val
+instance ShowVal.ShowVal KotekanStyle
 instance Typecheck.Typecheck KotekanStyle
-instance Typecheck.TypecheckSymbol KotekanStyle
 
 -- * postproc
 

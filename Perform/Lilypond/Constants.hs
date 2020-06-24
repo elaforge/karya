@@ -44,7 +44,6 @@ data FreeCodePosition = FreePrepend | FreeAppend
     deriving (Eq, Ord, Show, Enum, Bounded)
 
 instance Typecheck.Typecheck FreeCodePosition
-instance Typecheck.TypecheckSymbol FreeCodePosition
 instance Typecheck.ToVal FreeCodePosition
 
 instance ShowVal.ShowVal FreeCodePosition where

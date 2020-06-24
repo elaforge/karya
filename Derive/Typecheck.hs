@@ -3,14 +3,14 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE DefaultSignatures, DeriveFunctor #-}
+{-# LANGUAGE ConstraintKinds #-}
 module Derive.Typecheck where
-import qualified Data.Char as Char
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Ratio as Ratio
 import qualified Data.Set as Set
-import qualified Data.Text as Text
 
+import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
 import qualified Cmd.Ruler.Meter as Meter
 import qualified Derive.Attrs as Attrs
@@ -159,17 +159,20 @@ check f (Val a) = Val $ case a of
     Derive {} -> Failure -- can't really check one of these
 check f (Eval fa) = Eval (\t -> (f =<<) <$> fa t)
 
+-- | I can automatically derive a Typecheck for enum types.  So a simple enum
+-- can get a Typecheck by "just" deriving these plus Typecheck.
+type TEnum a = (ShowVal.ShowVal a, Bounded a, Enum a)
+
 -- | This is the class of values which can be converted to from
 -- a 'Val'.
 class Typecheck a where
     from_val :: Val -> Checked a
-    default from_val :: TypecheckSymbol a => Val -> Checked a
-    from_val (VStr str) = Val $ maybe Failure Success $ parse_symbol str
-    from_val _ = failure
+    default from_val :: TEnum a => Val -> Checked a
+    from_val = from_val_symbol enum_map
 
     to_type :: Proxy a -> ValType.Type
-    default to_type :: TypecheckSymbol a => Proxy a -> ValType.Type
-    to_type proxy = ValType.TStr (symbol_values proxy)
+    default to_type :: TEnum a => Proxy a -> ValType.Type
+    to_type Proxy = to_type_symbol [minBound :: a .. maxBound]
 
     from_subtrack :: SubT.Track -> Maybe a
     from_subtrack = const Nothing
@@ -194,40 +197,28 @@ eval parse val = Eval $ \_ -> case from_val_simple val of
     Nothing -> return Nothing
     Just x -> Just <$> parse x
 
+-- | This is the inverse of Typecheck's 'from_val'.
 class ToVal a where
     to_val :: a -> Val
-    -- This could be just ShowVal and thus a plain default method, but I want
-    -- it to only apply when the type is explicitly in TypecheckSymbol, since
-    -- it's not valid in general.
-    default to_val :: TypecheckSymbol a => a -> Val
+    -- This has overly constrictive constraints because generally only TEnum
+    -- types correspond to a Str via show_val.
+    default to_val :: TEnum a => a -> Val
     to_val = VStr . Expr.Str . ShowVal.show_val
 
-{- | This is for text strings which are parsed to call-specific types.  You
-    can declare an instance and the default Typecheck instance will allow you
-    to incorporate the type directly into the signature of the call.
+to_type_symbol :: ShowVal.ShowVal a => [a] -> ValType.Type
+to_type_symbol = ValType.TStr . Just . map ShowVal.show_val
 
-    If your type is a Bounded Enum, you get a default parser, and the enum
-    values go in the 'ValType.TStr' so the docs can mention them.
+from_val_symbol :: Map Text a -> Val -> Checked a
+from_val_symbol syms = \case
+    VStr (Expr.Str str) -> Val $ maybe Failure Success $ Map.lookup str syms
+    _ -> failure
+    -- Debug claims that syms is captured and evaluated only once even without
+    -- the explicit lambda, but let's do it anyway, I think it has implications
+    -- for inlining.
 
-    So the type needs to be in (Bounded, Enum, ShowVal, TypecheckSymbol,
-    Typecheck), though all of these can use default implementations.
--}
-class ShowVal.ShowVal a => TypecheckSymbol a where
-    parse_symbol :: Expr.Str -> Maybe a
-    default parse_symbol :: (Bounded a, Enum a) => Expr.Str -> Maybe a
-    parse_symbol = make_parse_enum [minBound :: a .. maxBound]
-
-    symbol_values :: Proxy a -> Maybe [Text]
-    default symbol_values :: (Bounded a, Enum a) => Proxy a -> Maybe [Text]
-    symbol_values _ = Just $ map ShowVal.show_val [minBound :: a .. maxBound]
-
-make_parse_enum :: ShowVal.ShowVal a => [a] -> (Expr.Str -> Maybe a)
-make_parse_enum vals = flip Map.lookup m
-    where m = Map.fromList (zip (map (Expr.Str . ShowVal.show_val) vals) vals)
-
--- | Make a ShowVal from a Show instance.
-enum_show_val :: Show a => a -> Text
-enum_show_val = Text.pack . map Char.toLower . show
+enum_map :: forall a. TEnum a => Map Text a
+enum_map = Map.fromList $ Seq.key_on ShowVal.show_val vals
+    where vals = [minBound :: a .. maxBound]
 
 num_to_type :: TypecheckNum a => Proxy a -> ValType.Type
 num_to_type proxy = ValType.TNum (num_type proxy) ValType.TAny
@@ -236,13 +227,10 @@ class Typecheck a => TypecheckNum a where
     num_type :: Proxy a -> ValType.NumType
 
 instance Typecheck Bool
-instance TypecheckSymbol Bool
 instance ToVal Bool
 
-instance ShowVal.ShowVal Meter.RankName where
-    show_val = enum_show_val
+instance ShowVal.ShowVal Meter.RankName
 instance Typecheck Meter.RankName
-instance TypecheckSymbol Meter.RankName
 
 -- * Typecheck instances
 

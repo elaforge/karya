@@ -286,10 +286,8 @@ data Tuning = Umbang | Isep deriving (Eq, Ord, Enum, Bounded, Show)
 
 instance Pretty Tuning where pretty = showt
 instance Typecheck.Typecheck Tuning
-instance Typecheck.TypecheckSymbol Tuning
 instance RestrictedEnviron.ToVal Tuning
-instance ShowVal.ShowVal Tuning where
-    show_val = Typecheck.enum_show_val
+instance ShowVal.ShowVal Tuning
 
 -- | If ombak is unset, use the hardcoded tunings.  Otherwise, create new
 -- umbang and isep tunings based on the given number.
@@ -305,7 +303,7 @@ semis_to_nn layout laras default_laras =
             (Just default_laras) laras_key env
         let fsemis = fsemis_ - fromIntegral offset
             offset = laras_offset layout laras
-        tuning <- Scales.parse_environ (Just Umbang) EnvKey.tuning env
+        tuning <- Scales.read_environ Just (Just Umbang) EnvKey.tuning env
         let err = DeriveT.out_of_range_error fsemis
                 (0, Vector.length (laras_umbang laras))
         justErr err $ case Map.lookup c_ombak controls of

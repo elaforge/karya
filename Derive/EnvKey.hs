@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Define a few inhabitants of Environ which are used by the built-in set of
--- calls.  Expected types are in 'Derive.TrackLang.hardcoded_types'.
+-- calls.  Expected types are in 'Derive.Env.hardcoded_types'.
 module Derive.EnvKey where
 import Data.Text (Text)
 

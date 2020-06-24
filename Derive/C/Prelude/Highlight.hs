@@ -47,10 +47,8 @@ c_highlight = Derive.transformer Module.prelude "highlight" mempty
     $ Sig.callt (Sig.required "highlight" "Highlight code.")
     $ \highlight _ deriver -> Post.emap1_ (add_highlight highlight) <$> deriver
 
-instance ShowVal.ShowVal Color.Highlight where
-    show_val = Typecheck.enum_show_val
+instance ShowVal.ShowVal Color.Highlight
 instance Typecheck.Typecheck Color.Highlight
-instance Typecheck.TypecheckSymbol Color.Highlight
 
 
 -- * open strings
