@@ -215,10 +215,17 @@ p_equal_generic rhs_term = do
     spaces
     A.char '='
     sym <- A.option Nothing $ Just . Text.singleton
-        <$> A.satisfy (A.inClass "-!@#$%^&*+:?/<>")
+        <$> A.satisfy (A.inClass merge_symbols)
     spaces
     rhs <- A.many1 rhs_term
     return (Expr.Str lhs, Expr.Str <$> sym, rhs)
+
+-- | Valid symbols after =.  This should correspond to the keys in
+-- Equal.symbol_to_merge.  It could have more symbols, but then that syntax
+-- becomes unavailable.  E.g. previously % was in the list, but then
+-- @x=%control@ has to be written @x = %control@.
+merge_symbols :: [Char]
+merge_symbols = "-+*@"
 
 p_call :: Bool -> A.Parser (Expr.Call DeriveT.Val)
 p_call toplevel = Expr.Call

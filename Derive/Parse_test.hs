@@ -215,7 +215,7 @@ test_p_equal = do
     let eq_syms = Call "=" . map (Literal . VStr)
     equal (f "a = b c") $ Right (eq_syms ["a", "b", "c"])
     equal (f "i=+a") $ Right (eq_syms ["i", "a", "+"])
-    equal (f "i =< a b") $ Right (eq_syms ["i", "a", "b", "<"])
+    equal (f "i =@ a b") $ Right (eq_syms ["i", "a", "b", "@"])
 
     left_like (f "a = ()") "parse error"
     left_like (f "a=") "not enough input"

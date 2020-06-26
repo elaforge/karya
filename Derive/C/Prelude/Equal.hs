@@ -247,8 +247,7 @@ parse_equal _ lhs rhs
     is_pitch (DeriveT.VPControlRef (DeriveT.LiteralControl c)) = Just c
     is_pitch _ = Nothing
 parse_equal Set lhs val = Right $ Derive.with_val lhs val
-parse_equal (Merge merge) lhs
-        (DeriveT.VNum (ScoreT.Typed ScoreT.Untyped val)) =
+parse_equal (Merge merge) lhs (DeriveT.VNum (ScoreT.Typed ScoreT.Untyped val)) =
     Right $ \deriver -> do
         merger <- Derive.get_control_merge merge
         Derive.with_merged_numeric_val merger lhs val deriver

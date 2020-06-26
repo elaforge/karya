@@ -47,13 +47,14 @@ UNSORTED
       If I could do Typecheck without TypecheckSymbol?
     . It's better, but only gets rid of TypecheckSymbol.
     . But I think that's as good as I can do, short of generics.
-  - val=%control fails with confusing error:
+  * val=%control fails with confusing error:
     . merge is only supported when assigning to a control or untyped numeric
       env: %
     . It really means to add spaces, because =% is not a valid merge.
     . Maybe only accept =? for valid merge symbols like +, -, *.
     . The underlying problem is having to do call-val = %call-val in the first
       place, due to the Env vs. controls distinction.
+    . It's this: A.satisfy (A.inClass "-!@#$%^&*+:?/<>")
   - sorted Derive.Stream:
     . Implement the Sorted flag in Derive.Stream
     . I could have calls that can move note starts register by flipping a flag
