@@ -1986,7 +1986,8 @@ synth: im:
             look it up in Perform.Im.Convert or something.
           . Patch and synth declarations are not in IO.  But since effects
             are linked in statically, querying them can use unsafePerformIO.
-        - no apparent effect, log its breakpoints
+        * no apparent effect, log its breakpoints
+          . The dsp was wrong.
         - it doesn't rederive when effect controls changed
           . Probably because its notes are not included in the hash with the
             Sample.Notes.  I guess this is a reason to put controls in
