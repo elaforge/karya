@@ -16,7 +16,7 @@ import qualified Synth.Lib.AUtil as AUtil
 import           Util.Test
 
 
--- test_process :: Test
+test_process :: Test
 test_process = do
     let Just (Right patch) = Map.lookup "test-delay" EffectC.patches
     let f = process patch

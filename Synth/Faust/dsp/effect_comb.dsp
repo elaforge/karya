@@ -4,7 +4,7 @@ declare description "Comb filter to add a pitch.";
 pitch = hslider("pitch[unit: nn]", 60, 1, 127, 0.01);
 
 // gain could be decay in seconds
-gain = hslider("gain", 0.75, 0, 1, 0.01);
+gain = hslider("gain", 0, 0, 1, 0.01);
 
 process = comb, comb
 with {

@@ -32,9 +32,12 @@ import qualified System.IO.Unsafe as Unsafe
 import qualified Util.PPrint as PPrint
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
-import Util.Test
 import qualified Util.Test.Testing as Testing
 
+import qualified App.Config as Config
+import qualified App.LoadConfig as LoadConfig
+import qualified Cmd.Internal as Internal
+import           Derive.TestInstances ()
 import qualified Ui.Block as Block
 import qualified Ui.BlockC as BlockC
 import qualified Ui.Color as Color
@@ -52,16 +55,13 @@ import qualified Ui.Transform as Transform
 import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
-import Ui.UiTest (mkid)
+import           Ui.UiTest (mkid)
 import qualified Ui.Update as Update
 import qualified Ui.Zoom as Zoom
 
-import qualified Cmd.Internal as Internal
-import Derive.TestInstances ()
-import qualified App.Config as Config
-import qualified App.LoadConfig as LoadConfig
-import Global
-import Types
+import           Global
+import           Types
+import           Util.Test
 
 
 -- TODO
@@ -417,9 +417,9 @@ insert_track bid tracknum tracklike_id width =
 
 -- | (msg describing what is going to happen, action, patterns to match
 -- against each view dump)
-type Test a = (String, Ui.StateT IO a, [[(String, String)]])
+type STest a = (String, Ui.StateT IO a, [[(String, String)]])
 
-thread :: IO Ui.State -> [Test a] -> IO Ui.State
+thread :: IO Ui.State -> [STest a] -> IO Ui.State
 thread setup tests = do
     state <- setup
     (\f -> foldM f state tests) $ \state (desc, action, expected) -> do

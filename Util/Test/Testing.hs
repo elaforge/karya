@@ -9,7 +9,8 @@
 {-# LANGUAGE NamedFieldPuns, DisambiguateRecordFields #-}
 -- | Basic testing utilities.
 module Util.Test.Testing (
-    Config(..), modify_test_config, with_test_name
+    Test
+    , Config(..), modify_test_config, with_test_name
     -- * metadata
     , ModuleMeta(..), moduleMeta, Tag(..)
     -- * assertions
@@ -91,6 +92,9 @@ import qualified Util.Seq as Seq
 import qualified Util.Test.ApproxEq as ApproxEq
 
 
+
+type Test = IO Bool
+
 {-# NOINLINE test_config #-}
 test_config :: IORef.IORef Config
 test_config = Unsafe.unsafePerformIO $ IORef.newIORef $ Config
@@ -118,14 +122,14 @@ data Config = Config {
     , config_human_agreeable :: !Bool
     } deriving (Show)
 
-check :: Stack => Text -> Bool -> IO Bool
+check :: Stack => Text -> Bool -> Test
 check msg False = failure ("failed: " <> msg)
 check msg True = success msg
 
 -- | Check against a function.  Use like:
 --
 -- > check_val (f x) $ \case -> ...
-check_val :: Show a => Stack => a -> (a -> Bool) -> IO Bool
+check_val :: Show a => Stack => a -> (a -> Bool) -> Test
 check_val val f
     | f val = success $ "ok: " <> pshowt val
     | otherwise = failure $ "failed: " <> pshowt val
@@ -156,13 +160,13 @@ data Tag =
 
 -- * equal and diff
 
-equal :: (Stack, Show a, Eq a) => a -> a -> IO Bool
+equal :: (Stack, Show a, Eq a) => a -> a -> Test
 equal a b
     | a == b = success $ cmp True
     | otherwise = failure $ cmp False
     where cmp = pretty_compare "==" "/=" True a b
 
-equal_fmt :: (Stack, Eq a, Show a) => (a -> Text) -> a -> a -> IO Bool
+equal_fmt :: (Stack, Eq a, Show a) => (a -> Text) -> a -> a -> Test
 equal_fmt fmt a b = do
     ok <- equal a b
     let (pa, pb) = (fmt a, fmt b)
@@ -180,19 +184,19 @@ equal_fmt fmt a b = do
 -- | Assert these things are equal after applying a function.  Print without
 -- the function if they're not equal.  This is for cases when the extract
 -- function loses information it would be nice to see if the test fails.
-equal_on :: (Stack, Eq b, Show a, Show b) => (a -> b) -> a -> b -> IO Bool
+equal_on :: (Stack, Eq b, Show a, Show b) => (a -> b) -> a -> b -> Test
 equal_on f a b = do
     ok <- equal (f a) b
     unless ok $ Text.IO.putStrLn (pshowt a)
     return ok
 
-not_equal :: (Stack, Show a, Eq a) => a -> a -> IO Bool
+not_equal :: (Stack, Show a, Eq a) => a -> a -> Test
 not_equal a b
     | a == b = failure $ cmp True
     | otherwise = success $ cmp False
     where cmp = pretty_compare "==" "/=" False a b
 
-right_equal :: (Stack, Show err, Show a, Eq a) => Either err a -> a -> IO Bool
+right_equal :: (Stack, Show err, Show a, Eq a) => Either err a -> a -> Test
 right_equal (Right a) b = equal a b
 right_equal (Left err) _ = failure $ "Left: " <> pshowt err
 
@@ -295,7 +299,7 @@ data Numbered a = Numbered {
 
 -- * approximately equal
 
-equalf :: (Stack, Show a, ApproxEq.ApproxEq a) => Double -> a -> a -> IO Bool
+equalf :: (Stack, Show a, ApproxEq.ApproxEq a) => Double -> a -> a -> Test
 equalf eta a b
     | ApproxEq.eq eta a b = success $ pretty True
     | otherwise = failure $ pretty False
@@ -309,8 +313,7 @@ instance TextLike Text where to_text = id
 
 -- | Strings in the first list match patterns in the second list, using
 -- 'pattern_matches'.
-strings_like :: forall txt. (Stack, TextLike txt) => [txt] -> [Pattern]
-    -> IO Bool
+strings_like :: forall txt. (Stack, TextLike txt) => [txt] -> [Pattern] -> Test
 strings_like gotten_ expected
     | all is_both diffs = success $ fmt_lines "=~" gotten expected
     | otherwise = failure $ fmt_lines "/~"
@@ -339,7 +342,7 @@ fmt_lines operator xs ys = ("\n"<>) $ Text.stripEnd $
 
 -- | It's common for Left to be an error msg, or be something that can be
 -- converted to one.
-left_like :: (Stack, Show a, TextLike txt) => Either txt a -> Pattern -> IO Bool
+left_like :: (Stack, Show a, TextLike txt) => Either txt a -> Pattern -> Test
 left_like gotten expected = case gotten of
     Left msg
         | pattern_matches expected msg -> success $
@@ -349,7 +352,7 @@ left_like gotten expected = case gotten of
     Right a ->
         failure $ "Right (" <> showt a <> ") !~ Left " <> to_text expected
 
-match :: (Stack, TextLike txt) => txt -> Pattern -> IO Bool
+match :: (Stack, TextLike txt) => txt -> Pattern -> Test
 match gotten pattern =
     (if matches then success else failure) $
         fmt_lines (if matches then "=~" else "!~")
@@ -378,7 +381,7 @@ pattern_to_regex =
     mkstar (c : cs) = c : mkstar cs
 
 -- | The given pure value should throw an exception that matches the predicate.
-throws :: (Stack, Show a) => a -> Pattern -> IO Bool
+throws :: (Stack, Show a) => a -> Pattern -> Test
 throws val exc_pattern =
     (Exception.evaluate val >> failure ("didn't throw: " <> showt val))
     `Exception.catch` \(exc :: Exception.SomeException) ->
@@ -387,7 +390,7 @@ throws val exc_pattern =
             else failure $ "exception <" <> showt exc <> "> didn't match "
                 <> exc_pattern
 
-io_equal :: (Stack, Eq a, Show a) => IO a -> a -> IO Bool
+io_equal :: (Stack, Eq a, Show a) => IO a -> a -> Test
 io_equal io_val expected = do
     val <- io_val
     equal val expected
@@ -420,7 +423,7 @@ expect_right (Right v) = v
 
 -- * hedgehog
 
-hedgehog :: Hedgehog.Property -> IO Bool
+hedgehog :: Hedgehog.Property -> Test
 hedgehog prop = do
     seed <- Internal.Seed.random
     report <- Internal.Runner.checkReport config size seed
@@ -446,7 +449,7 @@ format_hedgehog_report report = do
 -- * QuickCheck
 
 -- | Run a quickcheck property.
-quickcheck :: (Stack, QuickCheck.Testable prop) => prop -> IO Bool
+quickcheck :: (Stack, QuickCheck.Testable prop) => prop -> Test
 quickcheck prop = do
     (ok, msg) <- format_quickcheck_result <$>
         QuickCheck.quickCheckWithResult args prop
@@ -473,13 +476,13 @@ q_equal a b = QuickCheck.counterexample
 -- stdout, and it's best these appear in context.
 
 -- | Print a msg with a special tag indicating a passing test.
-success :: Stack => Text -> IO Bool
+success :: Stack => Text -> Test
 success msg = do
     print_test_line Stack.callStack success_color "++-> " msg
     return True
 
 -- | Print a msg with a special tag indicating a failing test.
-failure :: Stack => Text -> IO Bool
+failure :: Stack => Text -> Test
 failure msg = do
     print_test_line Stack.callStack failure_color "__-> " msg
     return False

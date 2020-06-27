@@ -5,9 +5,9 @@
 -- | Exports from "Util.Test.Testing".  This is meant to be imported
 -- unqualified.
 module Util.Test.Global (module Util.Test.Testing) where
-import Util.Test.Testing
-       (ModuleMeta(ModuleMeta), check, check_val, equal, equal_fmt, equal_on,
-        right_equal, not_equal, equalf, strings_like, left_like, match, throws,
-        io_equal, io_human, pause, success, failure, expect_right,
-        hedgehog, property, (===), (/==),
-        quickcheck, q_equal, prettyp, pprint)
+import           Util.Test.Testing
+       (check, check_val, equal, equal_fmt, equal_on, equalf, expect_right,
+        failure, hedgehog, io_equal, io_human, left_like, match, not_equal,
+        pause, pprint, prettyp, property, q_equal, quickcheck, right_equal,
+        strings_like, success, throws, (/==), (===), Test,
+        ModuleMeta(ModuleMeta))

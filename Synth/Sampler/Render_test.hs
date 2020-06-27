@@ -33,6 +33,7 @@ import           Synth.Types
 import           Util.Test
 
 
+test_write_noop :: Test
 test_write_noop = do
     dir <- Testing.tmp_dir "write"
     let write = write_ dir
@@ -43,6 +44,7 @@ test_write_noop = do
     left_like result "file not found"
     io_equal (listWavs dir) []
 
+test_write_simple :: Test
 test_write_simple = do
     (write, dir) <- tmpDb
     -- A single note that spans two checkpoints.  Dur is determined by the
@@ -51,6 +53,7 @@ test_write_simple = do
     io_equal (length <$> listWavs dir) 2
     io_equal (readSamples dir) triangle
 
+test_effect :: Test
 test_effect = do
     (_, dir) <- tmpDb
     let write mbEffect = writeQuality Resample.ZeroOrderHold mbEffect dir
@@ -84,6 +87,7 @@ makeEffect name notes = do
         , _effectNotes = notes
         }
 
+_test_state_deterministic :: IO ()
 _test_state_deterministic = do
     -- Ensure successive runs with the same inputs have the same state from
     -- libsamplerate.  Disabled because I have to run it in separate processes
@@ -107,11 +111,13 @@ loadState :: FilePath -> IO (Either Render.Error [Render.State])
 loadState fname = Render.unserializeStates . Checkpoint.State <$>
     ByteString.readFile fname
 
+test_write_simple_offset :: Test
 test_write_simple_offset = do
     (write, dir) <- tmpDb
     io_equal (write [mkNote1 dir 3]) (Right (3, 3))
     io_equal (readSamples dir) (replicate 3 0 ++ triangle ++ [0])
 
+test_write_silent_chunk :: Test
 test_write_silent_chunk = do
     (write, dir) <- tmpDb
     io_equal (write [mkNote1 dir 5]) (Right (4, 4))
@@ -126,6 +132,7 @@ durations :: FilePath -> IO [Audio.Frames]
 durations dir = mapM (\fname -> File.throwEnoent fname =<< File.duration fname)
     =<< listWavs dir
 
+test_write_freq :: Test
 test_write_freq = do
     (write, dir) <- tmpDb
     -- Freq*2 is half as many samples.
@@ -140,6 +147,7 @@ test_write_freq = do
 -- through Checkpoint too.  And I'd still want to keep the file-oriented tests
 -- around, to exercise those functions more, so... let's keep the tmp files.
 
+test_write_ratios :: Test
 test_write_ratios = do
     (write, dir) <- tmpDb
 
@@ -178,6 +186,7 @@ test_write_ratios = do
 -}
 
 
+test_write_incremental :: Test
 test_write_incremental = do
     -- Resume after changing a later note, results same as rerender from
     -- scratch.
@@ -213,6 +222,7 @@ test_write_incremental = do
     nonIncremental <- renderSamples newNotes
     equal nonIncremental expected
 
+test_resume_at_boundary :: Test
 test_resume_at_boundary = do
     (write, dir) <- tmpDb
     let note = mkNoteDur dir
@@ -227,6 +237,7 @@ renderSamples notes = do
     write_ dir notes
     readSamples dir
 
+test_overlappingNotes :: Test
 test_overlappingNotes = do
     let f start size = extract
             . Render.overlappingNotes
