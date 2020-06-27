@@ -27,6 +27,7 @@ import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
 import qualified Synth.Faust.DriverC as DriverC
+import qualified Synth.Faust.EffectC as EffectC
 import qualified Synth.Faust.Preview as Preview
 import qualified Synth.Faust.Render as Render
 import qualified Synth.Lib.Checkpoint as Checkpoint
@@ -48,6 +49,14 @@ main = do
     Signals.installHandler Signals.sigTERM
         (Signals.CatchOnce (Concurrent.killThread thread)) Nothing
     case args of
+        ["print-effects"] -> do
+            patches <- EffectC.getPatches
+            forM_ (Map.toList patches) $ \(name, epatch) -> do
+                Text.IO.putStrLn $ "=== " <> name <> " ==="
+                case epatch of
+                    Left err -> Text.IO.putStrLn $ "ERROR: " <> err
+                    Right patch -> printEffect patch
+                putStrLn ""
         ["print-patches"] -> forM_ (Map.toList patches) $ \(name, epatch) -> do
             Text.IO.putStrLn $ "=== " <> name <> " ==="
             case epatch of
@@ -87,8 +96,12 @@ main = do
             put $ "input: " <> pretty c <> ": " <> pretty config
         forM_ (Map.toList (DriverC._controls patch)) $ \(c, (_, config)) ->
             put $ "control: " <> showControl c <> ": " <> pretty config
-        where
-        put = Text.IO.putStrLn
+    printEffect patch = do
+        put $ EffectC._doc patch
+        forM_ (Map.toList (EffectC._controls patch)) $ \(c, (_, doc)) ->
+            put $ "control: " <> pretty c <> ": " <> doc
+
+    put = Text.IO.putStrLn
 
 usage :: String -> IO a
 usage msg = do

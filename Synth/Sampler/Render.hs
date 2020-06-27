@@ -9,6 +9,7 @@ import qualified Control.Exception as Exception
 import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.IORef as IORef
 import qualified Data.List as List
+import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
@@ -19,29 +20,35 @@ import qualified System.IO.Error as IO.Error
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.Resample as Resample
-import qualified Util.Control as Control
+import qualified Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 import qualified Util.Thread as Thread
 
+import qualified Synth.Faust.Effect as Effect
+import qualified Synth.Faust.RenderUtil as RenderUtil
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Lib.Checkpoint as Checkpoint
+import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.RenderSample as RenderSample
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Config as Config
+import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
 
 import qualified Ui.Id as Id
 
 import           Global
+import           Synth.Types
 
 
 data Config = Config {
     _quality :: !Resample.Quality
     , _chunkSize :: !Audio.Frames
     , _blockSize :: !Audio.Frames
+    , _controlsPerBlock :: !Audio.Frames
     -- | Optionally suppress structured progress messages, used by karya.
     , _emitProgress :: !Bool
     }
@@ -53,15 +60,25 @@ defaultConfig quality = Config
     { _quality = quality
     , _chunkSize = Config.chunkSize
     , _blockSize = Config.blockSize
+    , _controlsPerBlock = 75 -- from Faust.Render
     , _emitProgress = True
+    }
+
+-- | An instrument level faust processor.
+data InstrumentEffect = InstrumentEffect {
+    _effectPatch :: !Effect.Patch
+    , _effectConfig :: !Patch.EffectConfig
+    -- | The effect uses controls separate from the samples, so it needs the
+    -- original notes.
+    , _effectNotes :: ![Note.Note]
     }
 
 -- TODO lots of this is duplicated with Faust.Render.write, factor out the
 -- repeated parts.
-write :: Config -> FilePath -> Set Id.TrackId -> [Sample.Note]
-    -> IO (Either Error (Config.ChunkNum, Config.ChunkNum))
+write :: Config -> FilePath -> Set Id.TrackId -> Maybe InstrumentEffect
+    -> [Sample.Note] -> IO (Either Error (Config.ChunkNum, Config.ChunkNum))
     -- ^ (writtenChunks, totalChunks)
-write config outputDir trackIds notes = catch $ do
+write config outputDir trackIds mbEffect notes = catch $ do
     (skipped, hashes, mbState) <- Checkpoint.skipCheckpoints outputDir $
         Checkpoint.noteHashes (_chunkSize config) $
         map toSpan notes
@@ -95,8 +112,8 @@ write config outputDir trackIds notes = catch $ do
             result <- Checkpoint.write (_emitProgress config) outputDir
                     trackIds (length skipped) (_chunkSize config) hashes
                     getState $
-                render config outputDir initialStates notifyState trackIds
-                    notes startFrame
+                renderAll config outputDir initialStates notifyState trackIds
+                    mbEffect notes startFrame
             case result of
                 Right (_, total) ->
                     Checkpoint.clearRemainingOutput outputDir total
@@ -149,20 +166,29 @@ failedPlaying note = Playing
 prettyF :: Audio.Frames -> Text
 prettyF frame = pretty frame <> "(" <> pretty (AUtil.toSeconds frame) <> ")"
 
-render :: Config -> FilePath -> [State] -> (Checkpoint.State -> IO ())
+renderAll :: Config -> FilePath -> [State] -> (Checkpoint.State -> IO ())
+    -> Set Id.TrackId -> Maybe InstrumentEffect
+    -> [Sample.Note] -> Audio.Frames -> AUtil.Audio
+renderAll config outputDir initialStates notifyState trackIds mbEffect notes
+        start =
+    maybe id (applyEffect config start) mbEffect $
+    renderNotes config outputDir initialStates notifyState trackIds notes start
+
+renderNotes :: Config -> FilePath -> [State] -> (Checkpoint.State -> IO ())
     -> Set Id.TrackId -> [Sample.Note] -> Audio.Frames -> AUtil.Audio
-render config outputDir initialStates notifyState trackIds notes start =
+renderNotes config outputDir initialStates notifyState trackIds allNotes start =
         Audio.Audio $ do
     -- The first chunk is different because I have to resume already playing
     -- samples.
     let (overlappingStart, overlappingChunk, futureNotes) =
-            overlappingNotes start blockSize notes
+            overlappingNotes start blockSize allNotes
     playing <- liftIO $
         resumeSamples config start initialStates overlappingStart
     (playing, metric) <- renderBlock Nothing start playing overlappingChunk
         (null futureNotes)
-    Control.loop1 (metric, start + blockSize, playing, futureNotes) $
+    Util.Control.loop1 (metric, start + blockSize, playing, futureNotes) $
         \loop (metric, now, playing, notes) ->
+            -- The only time null playing is ok is if there are no notes at all.
             unless (null playing && null notes) $ do
                 let (overlappingStart, overlappingChunk, futureNotes) =
                         overlappingNotes now blockSize notes
@@ -449,6 +475,36 @@ serializeStates playing =
     -- then sort again by Sample.hash to match them back up.  This is because I
     -- don't enforce invariants on the order of simultaneous notes, so they may
     -- vary across renders.
+
+
+-- * effect
+
+applyEffect :: Config -> Audio.Frames -> InstrumentEffect -> AUtil.Audio
+    -> AUtil.Audio
+applyEffect config start effect =
+    Effect.process econfig (_effectPatch effect) mbState notifyState controls
+    where
+    econfig = Effect.config (_blockSize config) (_controlsPerBlock config)
+    mbState = Nothing
+    notifyState _ = return ()
+    controls = renderControls econfig
+        (Map.keys (Effect._controls (_effectPatch effect)))
+        (_effectNotes effect) (AUtil.toSeconds start)
+
+renderControls :: Monad m => Effect.Config -> [Control.Control] -> [Note.Note]
+    -> RealTime -> Map Control.Control (Audio.Audio m rate 1)
+renderControls config controls notes start =
+    RenderUtil.renderControl (Effect.controlRate config) start <$>
+    extractControls (Effect._controlSize config) controls notes
+
+extractControls :: Audio.Frames -> [Control.Control] -> [Note.Note]
+    -> Map Control.Control [(Double, Double)]
+extractControls controlSize controls notes =
+    Map.fromList $ filter (not . null . snd) $
+        zip controls $ map get controls
+    where
+    get control = RenderUtil.controlBreakpoints controlSize control notes
+
 
 {- NOTE [audio-state]
 

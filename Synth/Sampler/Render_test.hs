@@ -16,13 +16,14 @@ import qualified Util.Audio.File as File
 import qualified Util.Audio.Resample as Resample
 import qualified Util.Test.Testing as Testing
 
-import qualified Perform.NN as NN
+import qualified Synth.Faust.Effect as Effect
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Lib.Checkpoint as Checkpoint
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Render as Render
 import qualified Synth.Sampler.RenderSample as RenderSample
 import qualified Synth.Sampler.Sample as Sample
+import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
 
@@ -49,10 +50,41 @@ test_write_simple = do
     io_equal (length <$> listWavs dir) 2
     io_equal (readSamples dir) triangle
 
+test_effect = do
+    (_, dir) <- tmpDb
+    let write mbEffect = writeQuality Resample.ZeroOrderHold mbEffect dir
+    -- io_equal (write Nothing [mkNote1 dir 0]) (Right (2, 2))
+    -- io_equal (readSamples dir) triangle
+
+    effect <- makeEffect "effect-test-delay" [controlNote 0 1 "delay" [(0, 3)]]
+    io_equal (write (Just effect) [mkNote1 dir 0]) (Right (2, 2))
+    io_equal (readSamples dir) ([0, 0, 0] ++ take 5 triangle)
+        -- TODO the end gets clipped because Effect.process doesn't wait for
+        -- decay
+
+controlNote :: RealTime -> RealTime -> Control.Control
+    -> [(Signal.X, Signal.Y)] -> Note.Note
+controlNote start dur control vals =
+    Note.withControl control (Signal.from_pairs vals) $
+    Note.testNote start dur
+
+makeEffect :: Text -> [Note.Note] -> IO Render.InstrumentEffect
+makeEffect name notes = do
+    patch <- maybe (errorIO ("no effect: " <> name)) return =<< Effect.get name
+    return $ Render.InstrumentEffect
+        { _effectPatch = patch
+        , _effectConfig = Patch.EffectConfig
+            { _effectName = name
+            , _renameControls = mempty
+            }
+        , _effectNotes = notes
+        }
+
 _test_state_deterministic = do
     -- Ensure successive runs with the same inputs have the same state from
     -- libsamplerate.  Disabled because I have to run it in separate processes
-    -- by hand to be sure.
+    -- by hand to be sure.  Previously libsamplerate was non-deterministic, but
+    -- it only showed up across process changes, due to memory layout.
     st1 <- getStates
     st2 <- getStates
     prettyp $ zip st1 st2
@@ -60,7 +92,7 @@ _test_state_deterministic = do
 getStates :: IO [Either Render.Error [Render.State]]
 getStates = do
     (_, dir) <- tmpDb
-    let write = writeQuality Resample.SincMediumQuality dir
+    let write = writeQuality Resample.SincMediumQuality Nothing dir
     io_equal (write [mkNote dir 0 2]) (Right (4, 4))
     let checkpoint = dir </> Checkpoint.checkpointDir
     fns <- List.sort . filter (".state." `List.isInfixOf`) <$>
@@ -227,16 +259,18 @@ rmPrefixes dir prefixes =
         =<< Directory.listDirectory dir
 
 write_ :: FilePath -> [Sample.Note] -> IO (Either Text (Int, Int))
-write_ = writeQuality Resample.ZeroOrderHold
+write_ = writeQuality Resample.ZeroOrderHold Nothing
 
-writeQuality :: Resample.Quality -> FilePath -> [Sample.Note]
-    -> IO (Either Text (Int, Int))
-writeQuality quality outDir = Render.write config outDir mempty
+writeQuality :: Resample.Quality -> Maybe Render.InstrumentEffect
+    -> FilePath -> [Sample.Note] -> IO (Either Text (Int, Int))
+writeQuality quality mbEffect outDir =
+    Render.write config outDir mempty mbEffect
     where
     config = Render.Config
         { _quality = quality
         , _chunkSize = chunkSize
         , _blockSize = chunkSize
+        , _controlsPerBlock = 2
         , _emitProgress = False
         }
 
@@ -246,10 +280,11 @@ patchDir = "patch"
 chunkSize :: Audio.Frames
 chunkSize = 4
 
-mkDb :: FilePath -> Patch.Db
-mkDb dir = Patch.db (dir </> patchDir)
-    [Patch.DbPatch $ Patch.simple "test" "tri.wav" NN.c4]
+-- mkDb :: FilePath -> Patch.Db
+-- mkDb dir = Patch.db (dir </> patchDir)
+--     [Patch.DbPatch $ Patch.simple "test" "tri.wav" NN.c4]
 
+-- | Write a test sample into the db dir.
 writeDb :: FilePath -> IO ()
 writeDb dbDir = do
     let patch = dbDir </> patchDir
@@ -291,7 +326,7 @@ mkNoteRatios dbDir start ratios_ = Sample.Note
     sec = AUtil.toSeconds
     -- I don't put the pitch on, but it just affects hash, which is unlikely to
     -- be relevant in a test.
-    note = Note.note "patch" "inst" (sec start) (sec dur)
+    note = Note.testNote (sec start) (sec dur)
     ratios = Signal.from_pairs $ map (first sec) ratios_
 
 -- | Like 'mkNoteRatios', except set a shorter duration than the sample.
@@ -309,7 +344,7 @@ mkNoteDur dbDir start dur = Sample.Note
     }
     where
     sec = AUtil.toSeconds
-    note = Note.note "patch" "inst" (sec start) (sec dur)
+    note = Note.testNote (sec start) (sec dur)
 
 -- * TODO copy paste with Faust.Render_test
 

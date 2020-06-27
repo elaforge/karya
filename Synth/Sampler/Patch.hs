@@ -7,6 +7,7 @@ import qualified Control.Monad.Except as Except
 import qualified Control.Monad.Identity as Identity
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
@@ -51,6 +52,7 @@ data Patch = Patch {
     -- | Find a sample.
     , _convert :: Note.Note -> ConvertM Sample.Sample
     , _preprocess :: [Note.Note] -> [Note.Note]
+    , _effect :: !(Maybe EffectConfig)
     -- | Karya configuration.
     --
     -- Putting code here means that the sampler has to link in a large portion
@@ -71,6 +73,7 @@ patch name = Patch
     , _dir = untxt name
     , _convert = const $ Except.throwError "not implemented"
     , _preprocess = id
+    , _effect = Nothing
     , _karyaPatch = ImInst.make_patch Im.Patch.patch
     }
 
@@ -115,3 +118,32 @@ standardControls = Map.fromList
     [ (Control.volume, "Low level volume, in dB.")
     , (Control.pan, "Pan, where -1 is left, and 1 is right.")
     ]
+
+
+-- * EffectConfig
+
+data EffectConfig = EffectConfig {
+    _effectName :: Text
+    , _renameControls :: !(Map Control.Control Control.Control)
+    } deriving (Show)
+
+-- | Check that rename sources exist.  Check that renamed controls don't
+-- overlap patch controls.
+checkControls :: Patch -> Set Control.Control -> EffectConfig -> [Text]
+checkControls patch effectControls effectConfig = concat
+    [ ["rename sources not in effect: " <> pretty unknownRenameFrom
+        | not (null unknownRenameFrom) ]
+    , ["effect controls overlap with patch: " <> pretty patchOverlaps
+        | not (null patchOverlaps)]
+    ]
+    where
+    renameControls = _renameControls effectConfig
+    unknownRenameFrom =
+        Map.keysSet renameControls `Set.difference` effectControls
+    renamed = Set.map (\c -> Map.findWithDefault c c renameControls)
+        effectControls
+    patchOverlaps = Set.intersection renamed patchControls
+
+    -- effectControls = Map.keysSet $ Effect._controls effect
+    patchControls = Map.keysSet $ Im.Patch.patch_controls $
+        ImInst.patch_patch $ _karyaPatch patch

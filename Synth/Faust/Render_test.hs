@@ -231,7 +231,7 @@ test_renderControls = do
     let f impulseGate start notes =
             filter (not . null . snd) $ Map.toList $ fmap toSamples1 $
                 renderControls impulseGate (map mknote notes) start
-        mknote (s, e, elem, cs) = (Note.note "" "" (s / cr) (e / cr))
+        mknote (s, e, elem, cs) = (Note.testNote (s / cr) (e / cr))
             { Note.element = elem
             , Note.controls = Signal.from_pairs <$>
                 Map.fromList ((Control.dynamic, [(0, 1)]) : cs)
@@ -306,7 +306,7 @@ test_gateBreakpoints = do
 
 test_controlBreakpoints = do
     let f = Render.controlBreakpoints 1 False "c" . map make
-        make (s, e, cs) = (Note.note "" "" s e)
+        make (s, e, cs) = (Note.testNote s e)
             { Note.controls = Map.singleton "c" (Signal.from_pairs cs) }
     -- No controls means don't set anything, which will keep the defaults.
     equal (f []) []

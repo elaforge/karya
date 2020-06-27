@@ -22,22 +22,20 @@ import qualified System.FilePath as FilePath
 import qualified System.IO.Error as IO.Error
 
 import qualified Util.Audio.Audio as Audio
-import qualified Util.CallStack as CallStack
 import qualified Util.Control
 import qualified Util.Log as Log
-import qualified Util.Maps as Maps
 import qualified Util.Num as Num
 import qualified Util.Segment as Segment
 import qualified Util.Seq as Seq
 
 import qualified Perform.RealTime as RealTime
 import qualified Synth.Faust.DriverC as DriverC
+import qualified Synth.Faust.RenderUtil as RenderUtil
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Lib.Checkpoint as Checkpoint
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
-import qualified Synth.Shared.Signal as Signal
 
 import qualified Ui.Id as Id
 
@@ -120,11 +118,14 @@ toSpan note = Checkpoint.Span
 
 -- * render
 
+-- Since _controlSize and _controlsPerBlock overlap, this isn't in normal
+-- form.
 data Config = Config {
     _chunkSize :: !Audio.Frames
     , _blockSize :: !Audio.Frames
+    -- | This is _blockSize / _controlsPerBlock
     , _controlSize :: !Audio.Frames
-    -- | This is _chunkSize / _controlSize.
+    -- | This is _blockSize / _controlSize
     , _controlsPerBlock :: !Audio.Frames
     -- | Force an end if the signal hasn't gone to zero before this.
     , _maxDecay :: !RealTime
@@ -181,8 +182,8 @@ renderPatch emitMessage patch config mbState notifyState notes start_ =
         render emitMessage patch mbState notifyState
             controls inputs (AUtil.toFrames start) (AUtil.toFrames final) config
     where
-    -- TODO it's actually broken because it needs to avoid loading state after
-    -- a silence.
+    -- TODO useLeadingSilence is broken because it needs to avoid loading state
+    -- after a silence.
     useLeadingSilence = False
     (silence, silenceS)
         | not useLeadingSilence = (mempty, 0)
@@ -233,7 +234,7 @@ initialize size inst controls = do
     _ <- DriverC.render size 1 inst controlVals inputSamples
     return ()
     where
-    controlVals = findControls (DriverC._controls inst)
+    controlVals = RenderUtil.findControls (DriverC._controls inst)
         (Audio.Constant 1 <$> controls)
     -- I don't pass any inputs, but they might not need initialization anyway,
     -- since they don't need interpolation.
@@ -258,9 +259,7 @@ render emitMessage patch mbState notifyState controls inputs start end config =
     Audio.NAudio (DriverC._outputs patch) $ do
         (key, inst) <- lift $
             Resource.allocate (DriverC.allocate patch) DriverC.destroy
-        case mbState of
-            Just state -> liftIO $ DriverC.putState state inst
-            Nothing -> return ()
+        whenJust mbState $ liftIO . DriverC.putState inst
 
             -- -- TODO this doesn't seem to be necessary since I can use
             -- -- si.polySmooth.  But leave it here in case I need it after all.
@@ -280,7 +279,7 @@ render emitMessage patch mbState notifyState controls inputs start end config =
             \loop (start, controls, inputs) -> do
                 -- Audio.zeroPadN should have made this infinite.
                 (inputSamples, nextInputs) <-
-                    maybe (CallStack.errorIO "end of endless stream") return
+                    maybe (Audio.throwIO "end of endless stream") return
                         =<< lift (S.uncons inputs)
                 -- For inputs I try to create the right block size, and then
                 -- DriverC.render will assert that they are the expected block
@@ -289,85 +288,54 @@ render emitMessage patch mbState notifyState controls inputs start end config =
                 -- upstream doesn't have to synchronize.  Maybe controls should
                 -- do the efficient thing too.
                 (controls, nextControls) <- lift $
-                    takeControls (_controlsPerBlock config) controls
-                result <- renderBlock inst controls inputSamples start
+                    RenderUtil.takeControls (_controlsPerBlock config) controls
+                result <- renderBlock emitMessage config notifyState inst
+                    controls inputSamples start end
                 case result of
                     Nothing -> Resource.release key
                     Just nextStart -> loop (nextStart, nextControls, nextInputs)
+
+renderBlock :: MonadIO m => (Config.Payload -> IO ()) -> Config
+    -> (Checkpoint.State -> IO ()) -> DriverC.Instrument
+    -> Map DriverC.Control Audio.Block
+    -> [Audio.Block]
+    -> Audio.Frames -> Audio.Frames
+    -> S.Stream (S.Of [Audio.Block]) m (Maybe Audio.Frames)
+renderBlock emitMessage config notifyState inst controls inputSamples start end
+    | start >= end + maxDecay = return Nothing
+    | otherwise = do
+        liftIO $ emitMessage $ Config.RenderingRange
+            (AUtil.toSeconds start)
+            (AUtil.toSeconds (start + _blockSize config))
+        let controlVals = RenderUtil.findControls (DriverC._controls inst)
+                controls
+        -- Debug.tracepM "controls"
+        --     ( DriverC._name inst
+        --     , start
+        --     , map (\(c, _, val) -> (c, val)) $
+        --       Maps.zip_intersection (DriverC._controls inst) controls
+        --     )
+        outputs <- liftIO $ DriverC.render
+            (_controlSize config) (_controlsPerBlock config) inst
+            controlVals (map Audio.blockVector inputSamples)
+        -- XXX Since this uses unsafeGetState, readers of notifyState
+        -- have to entirely use the state before returning.  See
+        -- Checkpoint.getFilename and Checkpoint.writeBs.
+        liftIO $ notifyState =<< DriverC.unsafeGetState inst
+        S.yield $ map Audio.Block outputs
+        case outputs of
+            -- This should have already been checked by DriverC.getPatches.
+            [] -> Audio.throwIO "patch with 0 outputs"
+            output : _
+                | frames == 0 || chunkEnd >= end + maxDecay
+                        || chunkEnd >= end && isBasicallySilent output ->
+                    return Nothing
+                | otherwise -> return $ Just chunkEnd
+                where
+                chunkEnd = start + frames
+                frames = Audio.Frames $ V.length output
     where
-    renderBlock inst controls inputSamples start
-        | start >= end + maxDecay = return Nothing
-        | otherwise = do
-            liftIO $ emitMessage $ Config.RenderingRange
-                (AUtil.toSeconds start)
-                (AUtil.toSeconds (start + _blockSize config))
-            let controlVals = findControls (DriverC._controls inst) controls
-            -- Debug.tracepM "controls"
-            --     ( DriverC._name inst
-            --     , start
-            --     , map (\(c, _, val) -> (c, val)) $
-            --       Maps.zip_intersection (DriverC._controls inst) controls
-            --     )
-            outputs <- liftIO $ DriverC.render
-                (_controlSize config) (_controlsPerBlock config) inst
-                controlVals (map Audio.blockVector inputSamples)
-            -- XXX Since this uses unsafeGetState, readers of notifyState
-            -- have to entirely use the state before returning.  See
-            -- Checkpoint.getFilename and Checkpoint.writeBs.
-            liftIO $ notifyState =<< DriverC.unsafeGetState inst
-            S.yield $ map Audio.Block outputs
-            case outputs of
-                -- This should have already been checked by DriverC.getPatches.
-                [] -> CallStack.errorIO "patch with 0 outputs"
-                output : _
-                    | frames == 0 || chunkEnd >= end + maxDecay
-                            || chunkEnd >= end && isBasicallySilent output ->
-                        return Nothing
-                    | otherwise -> return $ Just chunkEnd
-                    where
-                    chunkEnd = start + frames
-                    frames = Audio.Frames $ V.length output
     maxDecay = AUtil.toFrames $ _maxDecay config
-
-findControls :: Map DriverC.Control (ptr, config)
-    -> Map DriverC.Control block -> [(ptr, block)]
-findControls controls vals = map get $ Maps.zip_intersection controls vals
-    where get (_, (ptr, _), block) = (ptr, block)
-
--- | Pull a chunk from each of the controls.  Omit the control if its signal
--- has run out.  This is ok because controls naturally retain their last value.
-takeControls :: Audio.Frames -> Map DriverC.Control AUtil.Audio1
-    -> Resource.ResourceT IO
-        ( Map DriverC.Control Audio.Block
-        , Map DriverC.Control AUtil.Audio1
-        )
-takeControls frames controlStreams = do
-    nexts <- mapM (takeExtend frames) streams
-    return
-        ( Map.fromList
-            [(c, block) | (c, Just (block, _)) <- zip controls nexts]
-        , Map.fromList
-            [(c, stream) | (c, Just (_, stream)) <- zip controls nexts]
-        )
-    where
-    (controls, streams) = unzip $ Map.toList controlStreams
-
--- | 'Audio.splitAt', but extend the final sample.  I need this because
--- DriverC.render relies on all control blocks being the same length, for
--- simplicity.
-takeExtend :: Monad m => Audio.Frames -> Audio.Audio m rate 1
-    -> m (Maybe (Audio.Block, Audio.Audio m rate 1))
-takeExtend frames audio = do
-    (blocks_, audio) <- Audio.splitAt frames audio
-    let blocks = filter (not . Audio.isEmptyBlock) blocks_
-    let missing = Audio.framesCount (Proxy @1) $
-            frames - Num.sum (map (Audio.blockFrames (Proxy @1)) blocks)
-    let final = case last blocks of
-            Audio.Constant _ val -> val
-            Audio.Block v -> V.last v
-    return $ if null blocks then Nothing
-        else if missing == 0 then Just (mconcat blocks, audio)
-        else Just (mconcat (blocks ++ [Audio.Constant missing final]), audio)
 
 isBasicallySilent :: V.Vector Audio.Sample -> Bool
 isBasicallySilent samples = rms samples < Audio.dbToLinear (-82)
@@ -382,17 +350,8 @@ rms block =
 renderControls :: Monad m => Config -> DriverC.PatchT ptr cptr -> [Note.Note]
     -> RealTime -> Map DriverC.Control (Audio.Audio m rate 1)
 renderControls config patch notes start =
-    renderControl (_controlRate config) start <$>
+    RenderUtil.renderControl (_controlRate config) start <$>
     controlsBreakpoints (_controlSize config) patch notes
-
-renderControl :: Monad m => Int -> RealTime -> [(Double, Double)]
-    -> Audio.Audio m rate 1
-renderControl controlRate start = case Audio.someNat controlRate of
-    TypeLits.SomeNat (_ :: Proxy cRate) ->
-        -- Audio.linear gets its breakpoints in seconds, so I have to do this
-        -- little dance.  Maybe it could use frames?
-        Audio.castRate . Audio.linear @_ @cRate False . shiftBack
-    where shiftBack = map $ first $ subtract $ RealTime.to_seconds start
 
 -- | Render the supported controls down to audio rate signals.  This causes the
 -- stream to be synchronized by '_blockSize', which should determine 'render'
@@ -462,17 +421,7 @@ controlBreakpoints :: Audio.Frames -> Bool -> Control.Control -> [Note.Note]
 controlBreakpoints controlSize impulseGate control
     | control == Control.gate =
         Segment.simplify . gateBreakpoints controlSize impulseGate
-    | otherwise = Segment.simplify . concat . mapMaybe get . Seq.zip_next
-    where
-    -- See NOTE [faust-controls].
-    tweak = map $ first $ subtract controlSizeS
-    get (note, next) = do
-        signal <- Map.lookup control (Note.controls note)
-        return $ (if controlSize == 1 then id else tweak) $
-            roundBreakpoints controlSize $ Signal.to_pairs $
-            maybe id (Signal.clip_after_keep_last . Note.start) next $
-            Signal.clip_before (Note.start note) signal
-    controlSizeS = RealTime.to_seconds $ AUtil.toSeconds controlSize
+    | otherwise = RenderUtil.controlBreakpoints controlSize control
 
 -- | Make a signal with a rising edge on the note attack.  The value is from
 -- Control.dynamic, which means a note with dyn=0 won't get an attack at all.
@@ -484,12 +433,13 @@ controlBreakpoints controlSize impulseGate control
 -- cares about attacks of notes that touch.
 gateBreakpoints :: Audio.Frames -> Bool -> [Note.Note] -> [(Double, Double)]
 gateBreakpoints controlSize impulseGate =
-    roundBreakpoints controlSize . if impulseGate then impulse else hold
+    RenderUtil.roundBreakpoints controlSize
+        . if impulseGate then impulse else hold
     where
     -- An "impulse" must still be at least one control size or it might get
     -- skipped.
     impulse = concatMap $ \n ->
-        let s = roundTo controlSizeS (Note.start n)
+        let s = RenderUtil.roundTo controlSizeS (Note.start n)
             e = s + controlSizeS
             dyn = fromMaybe 0 $ Note.initial Control.dynamic n
         in if dyn <= 0 then [] else [(s, 0), (s, dyn), (e, dyn), (e, 0)]
@@ -507,18 +457,6 @@ gateBreakpoints controlSize impulseGate =
         dyn = fromMaybe 0 $ Note.initial Control.dynamic n
         (end : rest) = dropUntil (\n1 n2 -> Note.end n1 < Note.start n2)
             (n:ns)
-
--- | Round controls to controlSize boundaries.  See NOTE [faust-controls].
-roundBreakpoints :: Audio.Frames -> [(RealTime, Signal.Y)] -> [(Double, Double)]
-roundBreakpoints controlSize
-    | controlSize == 1 = map (first RealTime.to_seconds)
-    | otherwise = map (first (RealTime.to_seconds . roundTo size))
-    where
-    size = AUtil.toSeconds controlSize
-
-roundTo :: RealTime -> RealTime -> RealTime
-roundTo factor = RealTime.seconds
-    . Num.roundToD (RealTime.to_seconds factor) . RealTime.to_seconds
 
 -- | Drop until this element and the next one matches.
 dropUntil :: (a -> a -> Bool) -> [a] -> [a]

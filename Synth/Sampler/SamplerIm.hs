@@ -33,6 +33,7 @@ import qualified Util.Thread as Thread
 
 import qualified Derive.Attrs as Attrs
 import qualified Perform.RealTime as RealTime
+import qualified Synth.Faust.Effect as Effect
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Lib.Checkpoint as Checkpoint
 import qualified Synth.Sampler.Calibrate as Calibrate
@@ -181,6 +182,8 @@ readTracks s =
 
 type Error = Text
 
+-- * dump
+
 -- | Show the final Sample.Notes, which would have been rendered.
 dump :: Bool -> Maybe (RealTime, RealTime) -> Maybe (Set Id.TrackId)
     -> Patch.Db -> [Note.Note] -> IO ()
@@ -239,15 +242,16 @@ convertNotes db notes =
     fmap concat $ forM (byPatchInst notes) $ \(patchName, notes) ->
     getPatch db patchName >>= \case
         Nothing -> return []
-        Just patch -> fmap (map (patch,)) $ forM notes $ \(inst, notes) -> do
-            let converted = convert db patch notes
-            sampleNotes <- makeSampleNotes emit converted
-            return
-                ( inst
-                , [ (note, snote)
-                  | ((_, _, note), Just snote) <- zip converted sampleNotes
-                  ]
-                )
+        Just (patch, _) -> fmap (map (patch,)) $ forM notes $
+            \(inst, notes) -> do
+                let converted = convert db patch notes
+                sampleNotes <- makeSampleNotes emit converted
+                return
+                    ( inst
+                    , [ (note, snote)
+                      | ((_, _, note), Just snote) <- zip converted sampleNotes
+                      ]
+                    )
     where
     emit = \case
         Config.Warn _ err -> put err
@@ -273,6 +277,9 @@ dumpHashes notes = zip3 (Seq.range_ 0 size) (drop 1 (Seq.range_ 0 size)) hashes
         Checkpoint.overlappingHashes 0 size $
         map Render.toSpan notes
 
+
+-- * process
+
 process :: Bool -> Patch.Db -> Resample.Quality -> [Note.Note] -> FilePath
     -> IO ()
 process emitProgress db quality notes outputDir
@@ -281,13 +288,14 @@ process emitProgress db quality notes outputDir
     | otherwise = do
         Checkpoint.clearUnusedInstruments outputDir instruments
         Async.forConcurrently_ grouped $ \(patchName, notes) ->
-            whenJustM (getPatch db patchName) $ \patch ->
+            whenJustM (getPatch db patchName) $ \(patch, mbEffect) ->
                 Async.forConcurrently_ notes $ \(inst, notes) ->
-                    processInst patch inst notes
+                    processInst patch inst mbEffect notes
     where
-    processInst patch inst notes =
-        realize emit trackIds config outputDir inst . Maybe.catMaybes
-            =<< makeSampleNotes emit (convert db patch notes)
+    processInst patch inst mbEffect notes =
+        realize emit trackIds config outputDir inst
+                (instEffect notes <$> mbEffect)
+            . Maybe.catMaybes =<< makeSampleNotes emit (convert db patch notes)
         where
         trackIds = trackIdsOf notes
         emit = emitMessage trackIds inst
@@ -306,8 +314,15 @@ process emitProgress db quality notes outputDir
     grouped = byPatchInst notes
     instruments = Set.fromList $ concatMap (map fst . snd) grouped
 
-getPatch :: Log.LogMonad m => Patch.Db -> Note.PatchName
-    -> m (Maybe Patch.Patch)
+    instEffect notes (patch, config) = Render.InstrumentEffect
+        { _effectPatch = patch
+        , _effectConfig = config
+        , _effectNotes = notes
+        }
+
+
+getPatch :: Patch.Db -> Note.PatchName
+    -> IO (Maybe (Patch.Patch, Maybe (Effect.Patch, Patch.EffectConfig)))
 getPatch db name = case Map.lookup name (Patch._patches db) of
     Nothing -> do
         Log.warn $ "patch not found: " <> name
@@ -315,7 +330,21 @@ getPatch db name = case Map.lookup name (Patch._patches db) of
     Just (Patch.DbDummy {}) -> do
         Log.warn $ "dummy patch: " <> name
         return Nothing
-    Just (Patch.DbPatch patch) -> return $ Just patch
+    Just (Patch.DbPatch patch) -> case Patch._effect patch of
+        Nothing -> return $ Just (patch, Nothing)
+        Just effectConf -> Effect.get (Patch._effectName effectConf) >>= \case
+            Nothing -> do
+                Log.warn $ name <> ": effect not found: "
+                    <> Patch._effectName effectConf
+                return Nothing
+            Just effect
+                | not (null warnings) -> do
+                    mapM_ (Log.warn . ((name <> ": ") <>)) warnings
+                    return Nothing
+                | otherwise -> return $ Just (patch, Just (effect, effectConf))
+                where
+                warnings = Patch.checkControls patch
+                    (Map.keysSet (Effect._controls effect)) effectConf
 
 byPatchInst :: [Note.Note]
     -> [(Note.PatchName, [(Note.InstrumentName, [Note.Note])])]
@@ -399,12 +428,13 @@ actualDuration start sample = do
         Nothing -> fileDur
 
 realize :: (Config.Payload -> IO ()) -> Set Id.TrackId -> Render.Config
-    -> FilePath -> Note.InstrumentName -> [Sample.Note] -> IO ()
-realize emitMessage trackIds config outputDir instrument notes = do
+    -> FilePath -> Note.InstrumentName -> Maybe Render.InstrumentEffect
+    -> [Sample.Note] -> IO ()
+realize emitMessage trackIds config outputDir instrument mbEffect notes = do
     let instDir = outputDir </> untxt instrument
     Directory.createDirectoryIfMissing True instDir
     (result, elapsed) <- Thread.timeActionText $
-        Render.write config instDir trackIds notes
+        Render.write config instDir trackIds mbEffect notes
     case result of
         Left err -> do
             Log.error $ instrument <> ": writing " <> txt instDir

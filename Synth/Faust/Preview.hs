@@ -83,5 +83,4 @@ standardNotes element = zip nns (map (makeNote element) nns)
 makeNote :: Note.Element -> Pitch.NoteNumber -> Note.Note
 makeNote element nn =
     Note.withControl Control.dynamic (Signal.constant 0.75) $
-    (Note.withPitch nn $ Note.note "patch" "inst" 0 1)
-    { Note.element = element }
+    (Note.withPitch nn $ Note.testNote 0 1) { Note.element = element }

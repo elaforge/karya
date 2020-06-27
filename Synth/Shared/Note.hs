@@ -99,6 +99,9 @@ note patch instrument start duration = Note
     , stack = Stack.empty
     }
 
+testNote :: RealTime -> RealTime -> Note
+testNote = note "patch" "inst"
+
 initialPitch :: Note -> Maybe Pitch.NoteNumber
 initialPitch note = if nn == Just 0 then Nothing else nn
     where nn = Pitch.nn <$> initial Control.pitch note

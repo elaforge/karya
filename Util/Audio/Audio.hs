@@ -624,8 +624,6 @@ takeN frames naudio
                     left = framesCount_ chan (min frames end - now)
         where chan = _nchannels naudio
 
-    -- , _nstream :: S.Stream (S.Of [Block]) m ()
-
 -- | Extend blocks shorter than the given size with zeros, and pad the end with
 -- zeros forever.  Composed with 'nonInterleaved', which may leave a short
 -- final block, the output should be infinite and have uniform block size.
@@ -639,7 +637,6 @@ zeroPadN size_ naudio = naudio { _nstream = S.unfoldr unfold (_nstream naudio) }
     pad (Constant count val) | val == 0 = Constant (max size count) 0
     pad block
         | blockCount block >= size = block
-        | V.null v = Constant size 0
         | otherwise = Block $ v <> V.replicate (size - V.length v) 0
         where v = blockVector block
     size = framesCount (Proxy @1) size_

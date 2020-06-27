@@ -43,8 +43,12 @@ render config start (Sample.Sample filename offset envelope pan ratios
         applyEnvelope close nowS envelope $
         resample config ratios start $
         -- This has to go right after file read, since it doesn't stream and
-        -- doesn't have saveable state.  TODO I don't restore rubberband's
-        -- internal state though, so it seems like this could yield artifacts.
+        -- doesn't have saveable state.  The lack of streaming though means
+        -- that I read the entire sample into memory, and also don't get the
+        -- early-abort if applyEnvelope goes to 0.
+        --
+        -- TODO I don't restore rubberband's internal state though, so it seems
+        -- like this could yield artifacts.
         applyRubberband stretch $
         audio
     where

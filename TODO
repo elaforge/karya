@@ -1927,6 +1927,61 @@ synth: im:
     - starts are getting cut off again
       . Give more lead time to load the samples?
   merge faust-im and sampler-im:
+    integrate faust processing into sampler:
+      One way is per-sample, with an independent processor for each sample.
+        . In this case it goes in RenderSample.render.  Each note has its own
+          faust state.
+        . Appropriate for effects I want to scope per-note: comb filter,
+          individual reverb, etc.
+        . It breaks duration calculation because a processor might extend the
+          duration indefinitely!  I could get around by forcing each processor
+          to export t60 decay value, and cutting off after that.  This means
+          that a processor will extend each sample duration by some static
+          amount.
+        . Of course many processors are not so simple, but it's a performance
+          tradeoff: longer decay means more rerendering, shorter decay means
+          notes are cut off.  This is like MIDI decay, except stricter because
+          it actually has to cut off the notes.
+        . The faust state has to get integrated into the per-note state.
+        . This way each note responds to independent faust controls.  The
+          controls go into Sample, from convert.
+      Another way is one processor for the instrument.
+        . In this case, it goes on the output of Render.render.
+        . The faust state is saved and restored along side the note states.
+        . Controls are instrument-global, so they have to be extracted from
+          each Sample and merged, like faust-im has to do.
+      . Let's do one processor first.
+      I'll need an Audio binding for faust as processor.
+        . I want to reuse Patch.h
+        . But PatchT is not quite right, I don't need _impulseGate and
+          _inputControls, but input count should be 1 or 2.
+        * Add EffectC, which has the API for effects
+        * differentiate effect / instrument, and filter appropriately
+        * write comb filter as example
+        * handle mono/stereo:
+          . mono->mono is applied to each channel
+          . mono->stereo means inputs are mixed, if necessary
+          . stereo->stereo means inputs are split, if necessary
+          . stereo->mono means outputs are duplicated, if necessary
+          . Actually faust can do this stuff easily, why not just make them
+            all stereo?
+        - rename DriverC to InstrumentC, driver.cc to patch.cc?
+        * lookup effect by name, then make an Audio processor for it
+      - integrate into Sampler:
+        . Since it's per-patch, the name of the effect has to go in the Patch,
+          and it gets looked up along with the patch.
+        when looking up patch:
+          * look up effect
+          * check for control collisions
+        * extract and merge
+        * convert controls to Audio1
+        + effect defeats end detection
+          . When the source runs out of samples, it should stop also.
+          . But it has to apply the same rms or maxDecay thing as faust-im
+            does.
+        - merge effect state
+        - implement and test control rename
+
     - First extend faust-im to be an Audio processor, so it can take inputs.
       . I wind up with separate generator and transformers.
       . A generator goes until env goes to 0 and the signal decays to -96dB
@@ -2505,6 +2560,15 @@ synth: im:
       . Another alternative is that the scale could take instrument into
         account.
     break:
+      - do the comb filter thing
+        . I'd want to do it with faust, so this requires inserting faust as
+          a step in sampler, if not just merging them.
+        . The difference is that faust in sampler is a transformer.  I don't
+          need that for plain faust, because any transforms can just go in the
+          instrument.
+        . Unless I want to apply an effect to multiple instruments, but
+          I think I want to do that at tha DAW level anyway.
+        . This would let me add a pitch control to each individual sample.
       * what about samples at a different sampling rate?
         . I think I can just treat it as 44.1k?  Or maybe offset the ratio
           automatically.
@@ -3847,6 +3911,9 @@ cleanup:
     Note tracks can't get a GetLastSample at all.
 
 performance:
+  - try INLINEABLE for the functions in DeriveM.
+    . I think no good though, because DeriveM is already concrete, so there
+      are no dictionaries to specialize.
   . Speedscope for flamegraphs from ghc-events:
     https://mpickering.github.io/posts/2019-11-07-hs-speedscope.html
     . Requires ghc 8.10.
