@@ -8,7 +8,7 @@ module Synth.Faust.EffectC (
     EffectT(_name, _doc, _controls)
     , Patch, Effect
     -- * Patch
-    , getPatches, getPatch
+    , patches
     -- * Effect
     , allocate, destroy
     , render
@@ -19,8 +19,9 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Vector.Storable as V
 
+import qualified System.IO.Unsafe as Unsafe
+
 import qualified Util.Audio.Audio as Audio
-import qualified Util.Seq as Seq
 import qualified Synth.Faust.PatchC as PatchC
 import qualified Synth.Lib.Checkpoint as Checkpoint
 import qualified Synth.Shared.Control as Control
@@ -45,23 +46,18 @@ type Effect = EffectT PatchC.InstrumentP (Ptr Float)
 
 -- * Patch
 
--- | Get all patches and their names.
-getPatches :: IO (Map Text (Either Text Patch))
-getPatches = do
-    names <- filter ("effect-" `Text.isPrefixOf`) . map fst <$>
+-- | All configured effects.
+patches :: Map Text (Either Text Patch)
+patches = Unsafe.unsafePerformIO $ do
+    namePatches <- filter (("effect-" `Text.isPrefixOf`) . fst) <$>
         PatchC.patches
-    patches <- mapM getPatch names
-    return $ Map.fromList $ Seq.map_maybe_snd id $ zip names patches
+    return $ Map.fromList $
+        zip (map fst namePatches) (map (uncurry getPatchP) namePatches)
+    -- unsafePerformIO is ok for these since they are just looking up static
+    -- data from C.
 
-getPatch :: Text -> IO (Maybe (Either Text Patch))
-getPatch name = do
-    namePatches <- PatchC.patches
-    case lookup name namePatches of
-        Nothing -> return Nothing
-        Just patch -> Just <$> getPatchP name patch
-
-getPatchP :: Text -> PatchC.PatchP -> IO (Either Text Patch)
-getPatchP name patch = do
+getPatchP :: Text -> PatchC.PatchP -> Either Text Patch
+getPatchP name patch = Unsafe.unsafePerformIO $ do
     meta <- PatchC.getMetadata patch
     ui <- PatchC.getUiControls patch
     let inputs = PatchC.patchInputs patch

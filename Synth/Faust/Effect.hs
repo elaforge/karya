@@ -5,7 +5,6 @@
 -- | High level binding to faust dsps, treated as audio effect processors.
 module Synth.Faust.Effect (
     Patch, EffectT(..)
-    , get
     , Config(..), controlRate
     , config
     , process
@@ -27,13 +26,6 @@ import qualified Synth.Shared.Control as Control
 
 import           Global
 
-
-
-get :: Text -> IO (Maybe Patch)
-get name = EffectC.getPatch name >>= \case
-    Nothing -> return Nothing
-    Just (Left err) -> Audio.throwIO $ "patch " <> name <> ": " <> err
-    Just (Right patch) -> return $ Just patch
 
 -- TODO this has to be initialized to be consistent with the sampler
 data Config = Config {
@@ -95,6 +87,10 @@ renderBlock :: Config -> (Checkpoint.State -> IO ())
 renderBlock config notifyState effect controls input = do
     let controlVals = RenderUtil.findControls (EffectC._controls effect)
             controls
+    -- Debug.tracepM "controls"
+    --     ( map (\(c, _, val) -> (c, val)) $
+    --       Maps.zip_intersection (EffectC._controls effect) controls
+    --     )
     outputs <- liftIO $ EffectC.render
         (_controlSize config) (_controlsPerBlock config) effect
         controlVals (map Audio.blockVector input)

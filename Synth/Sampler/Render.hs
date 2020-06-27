@@ -485,7 +485,7 @@ applyEffect config start effect =
     Effect.process econfig (_effectPatch effect) mbState notifyState controls
     where
     econfig = Effect.config (_blockSize config) (_controlsPerBlock config)
-    mbState = Nothing
+    mbState = Nothing -- TODO
     notifyState _ = return ()
     controls = renderControls econfig
         (Map.keys (Effect._controls (_effectPatch effect)))

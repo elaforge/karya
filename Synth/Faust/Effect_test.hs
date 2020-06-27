@@ -18,7 +18,7 @@ import           Util.Test
 
 -- test_process :: Test
 test_process = do
-    Just patch <- Effect.get "effect-test-delay"
+    let Just (Right patch) = Map.lookup "effect-test-delay" EffectC.patches
     let f = process patch
     io_equal (f [] [[1..8]] 4) [1..8]
     io_equal (f [[1]] [[1..8]] 4) ([0, 0] ++ [1..6])

@@ -6,6 +6,7 @@ module Synth.Sampler.Render_test where
 import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.ByteString as ByteString
 import qualified Data.List as List
+import qualified Data.Map as Map
 import qualified Data.Vector.Storable as Vector
 
 import qualified System.Directory as Directory
@@ -16,7 +17,7 @@ import qualified Util.Audio.File as File
 import qualified Util.Audio.Resample as Resample
 import qualified Util.Test.Testing as Testing
 
-import qualified Synth.Faust.Effect as Effect
+import qualified Synth.Faust.EffectC as EffectC
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Lib.Checkpoint as Checkpoint
 import qualified Synth.Sampler.Patch as Patch
@@ -70,7 +71,10 @@ controlNote start dur control vals =
 
 makeEffect :: Text -> [Note.Note] -> IO Render.InstrumentEffect
 makeEffect name notes = do
-    patch <- maybe (errorIO ("no effect: " <> name)) return =<< Effect.get name
+    patch <- case Map.lookup name EffectC.patches of
+        Just (Right patch) -> return patch
+        Just (Left err) -> errorIO $ "effect " <> name <> ": " <> err
+        Nothing -> errorIO $ "no effect: " <> name
     return $ Render.InstrumentEffect
         { _effectPatch = patch
         , _effectConfig = Patch.EffectConfig

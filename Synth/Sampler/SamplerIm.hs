@@ -34,6 +34,7 @@ import qualified Util.Thread as Thread
 import qualified Derive.Attrs as Attrs
 import qualified Perform.RealTime as RealTime
 import qualified Synth.Faust.Effect as Effect
+import qualified Synth.Faust.EffectC as EffectC
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Lib.Checkpoint as Checkpoint
 import qualified Synth.Sampler.Calibrate as Calibrate
@@ -332,12 +333,14 @@ getPatch db name = case Map.lookup name (Patch._patches db) of
         return Nothing
     Just (Patch.DbPatch patch) -> case Patch._effect patch of
         Nothing -> return $ Just (patch, Nothing)
-        Just effectConf -> Effect.get (Patch._effectName effectConf) >>= \case
+        Just effectConf -> case Map.lookup ename EffectC.patches  of
             Nothing -> do
-                Log.warn $ name <> ": effect not found: "
-                    <> Patch._effectName effectConf
+                Log.warn $ name <> ": effect not found: " <> ename
                 return Nothing
-            Just effect
+            Just (Left err) -> do
+                Log.warn $ name <> ": effect " <> ename <> " error: " <> err
+                return Nothing
+            Just (Right effect)
                 | not (null warnings) -> do
                     mapM_ (Log.warn . ((name <> ": ") <>)) warnings
                     return Nothing
@@ -345,6 +348,7 @@ getPatch db name = case Map.lookup name (Patch._patches db) of
                 where
                 warnings = Patch.checkControls patch
                     (Map.keysSet (Effect._controls effect)) effectConf
+            where ename = Patch._effectName effectConf
 
 byPatchInst :: [Note.Note]
     -> [(Note.PatchName, [(Note.InstrumentName, [Note.Note])])]

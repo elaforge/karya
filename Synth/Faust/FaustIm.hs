@@ -49,9 +49,8 @@ main = do
     Signals.installHandler Signals.sigTERM
         (Signals.CatchOnce (Concurrent.killThread thread)) Nothing
     case args of
-        ["print-effects"] -> do
-            patches <- EffectC.getPatches
-            forM_ (Map.toList patches) $ \(name, epatch) -> do
+        ["print-effects"] ->
+            forM_ (Map.toList EffectC.patches) $ \(name, epatch) -> do
                 Text.IO.putStrLn $ "=== " <> name <> " ==="
                 case epatch of
                     Left err -> Text.IO.putStrLn $ "ERROR: " <> err

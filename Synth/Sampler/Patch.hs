@@ -127,6 +127,12 @@ data EffectConfig = EffectConfig {
     , _renameControls :: !(Map Control.Control Control.Control)
     } deriving (Show)
 
+effect :: Text -> EffectConfig
+effect name = EffectConfig
+    { _effectName = name
+    , _renameControls = mempty
+    }
+
 -- | Check that rename sources exist.  Check that renamed controls don't
 -- overlap patch controls.
 checkControls :: Patch -> Set Control.Control -> EffectConfig -> [Text]

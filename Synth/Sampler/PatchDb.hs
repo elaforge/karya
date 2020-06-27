@@ -10,6 +10,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Instrument.Inst as Inst
 import qualified Perform.Im.Patch as Im.Patch
+import qualified Synth.Faust.EffectC as EffectC
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Patch.Break as Break
 import qualified Synth.Sampler.Patch.KendangBali as KendangBali
@@ -22,6 +23,7 @@ import qualified Synth.Sampler.Patch.Sample as Sample
 import qualified Synth.Sampler.Patch.Wayang as Wayang
 import qualified Synth.Sampler.Patch.Zheng as Zheng
 import qualified Synth.Shared.Config as Config
+import qualified Synth.Shared.Control as Control
 
 import           Global
 
@@ -48,8 +50,11 @@ synth = Inst.SynthDecl Config.samplerName "音 sampler" $
     where
     make (Patch.DbPatch p) = Inst.Inst
         { inst_backend = Inst.Im $ patch
-            { Im.Patch.patch_controls = Im.Patch.patch_controls patch
-                <> Patch.standardControls
+            { Im.Patch.patch_controls = mconcat
+                [ maybe mempty effectControls (Patch._effect p)
+                , Im.Patch.patch_controls patch
+                , Patch.standardControls
+                ]
             }
         , inst_common = ImInst.make_code <$> common
         }
@@ -58,3 +63,13 @@ synth = Inst.SynthDecl Config.samplerName "音 sampler" $
         { inst_backend = Inst.Dummy
         , inst_common = ImInst.make_code <$> common
         }
+
+effectControls :: Patch.EffectConfig -> Map Control.Control Text
+effectControls (Patch.EffectConfig name renames) =
+    case Map.lookup name EffectC.patches of
+        Nothing -> mempty
+        Just (Left _) -> mempty
+        Just (Right effect) ->
+            Map.mapKeys (\c -> Map.findWithDefault c c renames) $
+                (("Effect: " <> name <> ": ") <>) . snd <$>
+                EffectC._controls effect
