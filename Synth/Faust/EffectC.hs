@@ -52,7 +52,8 @@ patches = Unsafe.unsafePerformIO $ do
     namePatches <- filter (("effect-" `Text.isPrefixOf`) . fst) <$>
         PatchC.patches
     return $ Map.fromList $
-        zip (map fst namePatches) (map (uncurry getPatchP) namePatches)
+        zip (map (Text.drop (Text.length "effect-") . fst) namePatches)
+            (map (uncurry getPatchP) namePatches)
     -- unsafePerformIO is ok for these since they are just looking up static
     -- data from C.
 

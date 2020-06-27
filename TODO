@@ -1979,7 +1979,7 @@ synth: im:
           . When the source runs out of samples, it should stop also.
           . But it has to apply the same rms or maxDecay thing as faust-im
             does.
-        - the effect- name prefix is going to get annoying
+        * the effect- name prefix is going to get annoying
           . Either have another way to signal effects, or strip it off.
         * the effect's controls need to go into supported
           . Later when I can dynamically configure the effect, I'll need to

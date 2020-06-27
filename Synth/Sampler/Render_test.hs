@@ -57,7 +57,7 @@ test_effect = do
     -- io_equal (write Nothing [mkNote1 dir 0]) (Right (2, 2))
     -- io_equal (readSamples dir) triangle
 
-    effect <- makeEffect "effect-test-delay" [controlNote 0 1 "delay" [(0, 3)]]
+    effect <- makeEffect "test-delay" [controlNote 0 1 "delay" [(0, 3)]]
     io_equal (write (Just effect) [mkNote1 dir 0]) (Right (2, 2))
     io_equal (readSamples dir) ([0, 0, 0] ++ take 5 triangle)
         -- TODO the end gets clipped because Effect.process doesn't wait for

@@ -58,7 +58,7 @@ patches = map (Patch.DbPatch . make) allBreaks
     make break = (Patch.patch ("break-" <> _name break))
         { Patch._dir = dir
         , Patch._convert = convert sample (_pitchAdjust break)
-        , Patch._effect = Just $ Patch.effect "effect-comb"
+        , Patch._effect = Just $ Patch.effect "comb"
         , Patch._karyaPatch =
             ImInst.doc #= Doc.Doc
                 ("Inferred BPM: " <> Num.showFloat 2 (breakBpm break)) $
