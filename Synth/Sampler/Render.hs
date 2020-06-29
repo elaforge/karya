@@ -22,11 +22,13 @@ import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.Resample as Resample
 import qualified Util.Control
 import qualified Util.Log as Log
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 import qualified Util.Thread as Thread
 
 import qualified Synth.Faust.Effect as Effect
+import qualified Synth.Faust.EffectC as EffectC
 import qualified Synth.Faust.RenderUtil as RenderUtil
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Lib.Checkpoint as Checkpoint
@@ -68,9 +70,6 @@ defaultConfig quality = Config
 data InstrumentEffect = InstrumentEffect {
     _effectPatch :: !Effect.Patch
     , _effectConfig :: !Patch.EffectConfig
-    -- | The effect uses controls separate from the samples, so it needs the
-    -- original notes.
-    , _effectNotes :: ![Note.Note]
     }
 
 -- TODO lots of this is duplicated with Faust.Render.write, factor out the
@@ -79,7 +78,8 @@ write :: Config -> FilePath -> Set Id.TrackId -> Maybe InstrumentEffect
     -> [Sample.Note] -> IO (Either Error (Config.ChunkNum, Config.ChunkNum))
     -- ^ (writtenChunks, totalChunks)
 write config outputDir trackIds mbEffect notes = catch $ do
-    (skipped, hashes, mbState) <- Checkpoint.skipCheckpoints outputDir $
+    (skipped, hashes, mbState) <-
+        Checkpoint.skipCheckpoints outputDir (serializeState emptyState) $
         Checkpoint.noteHashes (_chunkSize config) $
         map toSpan notes
     let startFrame = fromIntegral (length skipped) * _chunkSize config
@@ -93,27 +93,22 @@ write config outputDir trackIds mbEffect notes = catch $ do
             , _payload = Config.WaveformsCompleted [0 .. length skipped - 1]
             }
 
-    case maybe (Right []) unserializeStates mbState of
+    case maybe (Right emptyState) unserializeState mbState of
         Left err -> return $ Left $
             "unserializing " <> pretty mbState <> ": " <> err
-        Right initialStates -> do
+        Right initialState -> do
             Log.debug $ txt outputDir <> ": skipped " <> pretty skipped
                 <> ", resume at " <> pretty (take 1 hashes)
-                <> " states: " <> pretty initialStates
+                <> " states: " <> pretty initialState
                 <> " start: " <> pretty start
             -- See NOTE [audio-state].
-            stateRef <- IORef.newIORef $
-                fromMaybe (Checkpoint.State mempty) mbState
-            -- The streaming should be single threaded so I shouldn't need
-            -- atomicWriteIORef, but since I'm relying on write->read ordering,
-            -- this makes me feel a bit better anyway.
-            let notifyState = IORef.atomicWriteIORef stateRef
-                getState = IORef.readIORef stateRef
+            stateRef <- IORef.newIORef initialState
+            let getState = serializeState <$> IORef.readIORef stateRef
             result <- Checkpoint.write (_emitProgress config) outputDir
                     trackIds (length skipped) (_chunkSize config) hashes
                     getState $
-                renderAll config outputDir initialStates notifyState trackIds
-                    mbEffect notes startFrame
+                renderAll config outputDir initialState stateRef trackIds
+                    mbEffect startFrame notes
             case result of
                 Right (_, total) ->
                     Checkpoint.clearRemainingOutput outputDir total
@@ -144,7 +139,7 @@ toSpan note = Checkpoint.Span
 data Playing = Playing {
     _noteHash :: !Note.Hash
     -- | Get the current state of the resample.  NOTE [audio-state]
-    , _getState :: IO State
+    , _getState :: IO PlayState
     , _audio :: !AUtil.Audio
     , _noteRange :: !(Audio.Frames, Audio.Frames)
     }
@@ -163,46 +158,57 @@ failedPlaying note = Playing
     , _noteRange = (0, 0)
     }
 
-prettyF :: Audio.Frames -> Text
-prettyF frame = pretty frame <> "(" <> pretty (AUtil.toSeconds frame) <> ")"
-
-renderAll :: Config -> FilePath -> [State] -> (Checkpoint.State -> IO ())
+renderAll :: Config -> FilePath -> State -> IORef.IORef State
     -> Set Id.TrackId -> Maybe InstrumentEffect
-    -> [Sample.Note] -> Audio.Frames -> AUtil.Audio
-renderAll config outputDir initialStates notifyState trackIds mbEffect notes
-        start =
-    maybe id (applyEffect config start) mbEffect $
-    renderNotes config outputDir initialStates notifyState trackIds notes start
+    -> Audio.Frames -> [Sample.Note] -> AUtil.Audio
+renderAll config outputDir (State playStates mbEffectState) stateRef
+        trackIds mbEffect start notes =
+    maybe id (applyEffect config start mbEffectState notifyEffect notesHere)
+            mbEffect $
+        renderNotes config outputDir playStates notifyPlay trackIds start
+            overlappingStart overlappingChunk futureNotes
+    where
+    notesHere = overlappingStart ++ overlappingChunk ++ futureNotes
+    (overlappingStart, overlappingChunk, futureNotes) =
+        overlappingNotes start (_blockSize config) notes
+    -- The streaming should be single threaded so I shouldn't need
+    -- atomicModifyIORef, but since I'm relying on write->read ordering,
+    -- this makes me feel a bit better anyway.
+    notifyPlay playStates = IORef.atomicModifyIORef' stateRef $ \state ->
+        (state { _playStates = playStates }, ())
+    notifyEffect st = IORef.atomicModifyIORef' stateRef $ \state ->
+        (state { _effectState = Just st }, ())
 
-renderNotes :: Config -> FilePath -> [State] -> (Checkpoint.State -> IO ())
-    -> Set Id.TrackId -> [Sample.Note] -> Audio.Frames -> AUtil.Audio
-renderNotes config outputDir initialStates notifyState trackIds allNotes start =
-        Audio.Audio $ do
-    -- The first chunk is different because I have to resume already playing
-    -- samples.
-    let (overlappingStart, overlappingChunk, futureNotes) =
-            overlappingNotes start blockSize allNotes
-    playing <- liftIO $
-        resumeSamples config start initialStates overlappingStart
-    (playing, metric) <- renderBlock Nothing start playing overlappingChunk
-        (null futureNotes)
-    Util.Control.loop1 (metric, start + blockSize, playing, futureNotes) $
-        \loop (metric, now, playing, notes) ->
-            -- The only time null playing is ok is if there are no notes at all.
-            unless (null playing && null notes) $ do
-                let (overlappingStart, overlappingChunk, futureNotes) =
-                        overlappingNotes now blockSize notes
-                -- If notes started in the past, they should already be
-                -- 'playing'.  The input notes should have been sorted prior
-                -- to serialization, and convert should have checked
-                -- post-preprocess.
-                Audio.assert (null overlappingStart) $
-                    "notes out of order, I'm at " <> pretty now
-                    <> " but saw notes at: "
-                    <> Text.unwords (map Sample.prettyNote overlappingStart)
-                (playing, metric) <- renderBlock (Just metric) now playing
-                    overlappingChunk (null futureNotes)
-                loop (metric, now + blockSize, playing, futureNotes)
+renderNotes :: Config -> FilePath -> [PlayState] -> ([PlayState] -> IO ())
+    -> Set Id.TrackId -> Audio.Frames
+    -> [Sample.Note] -> [Sample.Note] -> [Sample.Note]
+    -> AUtil.Audio
+renderNotes config outputDir initialStates notifyState trackIds start
+        overlappingStart overlappingChunk futureNotes =
+    Audio.Audio $ do
+        -- The first chunk is different because I have to resume already
+        -- playing samples.
+        playing <- liftIO $
+            resumeSamples config start initialStates overlappingStart
+        (playing, metric) <- renderBlock Nothing start playing overlappingChunk
+            (null futureNotes)
+        Util.Control.loop1 (metric, start + blockSize, playing, futureNotes) $
+            \loop (metric, now, playing, notes) ->
+                -- Quit when nothing is playing and nothing will play.
+                unless (null playing && null notes) $ do
+                    let (overlappingStart, overlappingChunk, futureNotes) =
+                            overlappingNotes now blockSize notes
+                    -- If notes started in the past, they should already be
+                    -- 'playing'.  The input notes should have been sorted prior
+                    -- to serialization, and convert should have checked
+                    -- post-preprocess.
+                    Audio.assert (null overlappingStart) $
+                        "notes out of order, I'm at " <> pretty now
+                        <> " but saw notes at: "
+                        <> Text.unwords (map Sample.prettyNote overlappingStart)
+                    (playing, metric) <- renderBlock (Just metric) now playing
+                        overlappingChunk (null futureNotes)
+                    loop (metric, now + blockSize, playing, futureNotes)
     where
     blockSize = _blockSize config
     renderBlock prevMetric now playing overlappingChunk noFuture = do
@@ -210,7 +216,7 @@ renderNotes config outputDir initialStates notifyState trackIds allNotes start =
             mapM (startSample config now Nothing) overlappingChunk
         metric <- progress prevMetric now playing starting
         (blocks, playing) <- lift $ pull blockSize now (playing ++ starting)
-        liftIO $ notifyState =<< serializeStates playing
+        liftIO $ notifyState =<< getPlayStates playing
         -- Record playing states for the start of the next chunk.
         let playingTooLong = filter ((<now) . snd . _noteRange) playing
         -- This means RenderSample.predictFileDuration was wrong.
@@ -225,9 +231,8 @@ renderNotes config outputDir initialStates notifyState trackIds allNotes start =
         -- emit anything.
         unless (null blocks && null playing && noFuture) $ if null blocks
             -- Since I'm inside Audio.Audio, I don't have srate available, so
-            -- I have to set it for Audio.silence2.
-            then Audio._stream @_ @Config.SamplingRate $
-                Audio.take blockSize (Audio.silence @_ @2)
+            -- I have to set it for Audio.silence.
+            then S.yield $ Audio.Constant (AUtil.framesCount2 blockSize) 0
             else S.yield $ Audio.Block $
                 Audio.mixV (AUtil.framesCount2 blockSize)
                     (map Audio.blockVector blocks)
@@ -292,7 +297,7 @@ pull blockSize now = fmap (trim . unzip) . mapM get
                 else Just $ playing { _audio = audio }
             )
 
-resumeSamples :: Config -> Audio.Frames -> [State] -> [Sample.Note]
+resumeSamples :: Config -> Audio.Frames -> [PlayState] -> [Sample.Note]
     -> IO [Playing]
 resumeSamples config now states notes = do
     Audio.assert (length states == length notes) $
@@ -313,7 +318,7 @@ eNote n =
     )
 
 -- | Convert 'Sample.Note' to a 'Playing'.
-startSample :: Config -> Audio.Frames -> Maybe State
+startSample :: Config -> Audio.Frames -> Maybe PlayState
     -- ^ If Just Just, resume a playing sample which should have started <=now,
     -- otherwise start a new one which should start >= now.  If Just NoResample,
     -- this is a resuming sample, but it wasn't resampled, so there's no
@@ -416,7 +421,43 @@ overlappingNotes start blockSize notes =
     passed n = Sample.end n < start && Sample.start n < start
     end = start + blockSize
 
-data State =
+-- * State
+
+data State = State {
+    -- | These must be sorted in _noteHash order, since the resume will then
+    -- sort again by Sample.hash to match them back up.  This is because I
+    -- don't enforce invariants on the order of simultaneous notes, so they may
+    -- vary across renders.  'getPlayStates' does this.
+    _playStates :: [PlayState]
+    , _effectState :: Maybe EffectC.State
+    }
+
+emptyState :: State
+emptyState = State [] Nothing
+
+serializeState :: State -> Checkpoint.State
+serializeState = Checkpoint.State . Serialize.encode
+
+unserializeState :: Checkpoint.State -> Either Error State
+unserializeState (Checkpoint.State bytes) = first txt $ Serialize.decode bytes
+
+getPlayStates :: [Playing] -> IO [PlayState]
+getPlayStates = mapM _getState . Seq.sort_on _noteHash
+
+instance Pretty State where
+    format (State play effect) = Pretty.record "State"
+        [ ("playStates", Pretty.format play)
+        , ("effectState", Pretty.format effect)
+        ]
+
+instance Serialize.Serialize State where
+    put (State plays effect) = Serialize.put plays >> Serialize.put effect
+    get = State <$> Serialize.get <*> Serialize.get
+
+data PlayState =
+    -- | If there is no resampling, the state will be NoResample.  It's
+    -- necessary to save that explicitly, so I can still line up notes with
+    -- states in 'resumeSamples'.
     NoResample
     | Resample !ResampleState
     -- | There was a resample, but it's complete.  If this shows up, something
@@ -425,12 +466,12 @@ data State =
     | Complete
     deriving (Eq, Show)
 
-instance Pretty State where
+instance Pretty PlayState where
     pretty NoResample = "NoResample"
     pretty Complete = "Complete"
     pretty (Resample state) = pretty state
 
-instance Serialize.Serialize State where
+instance Serialize.Serialize PlayState where
     put NoResample = Serialize.put_tag 0
     put (Resample state) = Serialize.put_tag 1 >> Serialize.put state
     put Complete = Serialize.put_tag 2
@@ -438,7 +479,7 @@ instance Serialize.Serialize State where
         0 -> return NoResample
         1 -> Resample <$> Serialize.get
         2 -> return Complete
-        n -> Serialize.bad_tag "Render.State" n
+        n -> Serialize.bad_tag "Render.PlayState" n
 
 -- | The saved state of a note that had to resample.
 data ResampleState = ResampleState {
@@ -461,49 +502,46 @@ instance Serialize.Serialize ResampleState where
     get = ResampleState <$> Serialize.get <*> Serialize.get <*> Serialize.get
 
 -- | These will be sorted in order of Note hash.
-unserializeStates :: Checkpoint.State -> Either Error [State]
+unserializeStates :: Checkpoint.State -> Either Error [PlayState]
 unserializeStates (Checkpoint.State bytes) = first txt $ Serialize.decode bytes
-
--- | If there is no resampling, the state will be NoResample.  It's necessary
--- to save that explicitly, so I can still line up notes with states in
--- 'resumeSamples'.
-serializeStates :: [Playing] -> IO Checkpoint.State
-serializeStates playing =
-    Checkpoint.State . Serialize.encode <$>
-        mapM _getState (Seq.sort_on _noteHash playing)
-    -- Sort the notes by hash before saving their states, since the resume will
-    -- then sort again by Sample.hash to match them back up.  This is because I
-    -- don't enforce invariants on the order of simultaneous notes, so they may
-    -- vary across renders.
 
 
 -- * effect
 
-applyEffect :: Config -> Audio.Frames -> InstrumentEffect -> AUtil.Audio
-    -> AUtil.Audio
-applyEffect config start effect =
+applyEffect :: Config -> Audio.Frames -> Maybe EffectC.State
+    -> (EffectC.State -> IO ()) -> [Sample.Note]
+    -> InstrumentEffect -> AUtil.Audio -> AUtil.Audio
+applyEffect config start mbState notifyState notes effect =
+    -- TODO warn if mbState is Nothing!
     Effect.process econfig (_effectPatch effect) mbState notifyState controls
     where
     econfig = Effect.config (_blockSize config) (_controlsPerBlock config)
-    mbState = Nothing -- TODO
-    notifyState _ = return ()
     controls = renderControls econfig
         (Map.keys (Effect._controls (_effectPatch effect)))
-        (_effectNotes effect) (AUtil.toSeconds start)
+        (AUtil.toSeconds start)
+        notes
 
-renderControls :: Monad m => Effect.Config -> [Control.Control] -> [Note.Note]
-    -> RealTime -> Map Control.Control (Audio.Audio m rate 1)
-renderControls config controls notes start =
+renderControls :: Monad m => Effect.Config -> [Control.Control] -> RealTime
+    -> [Sample.Note] -> Map Control.Control (Audio.Audio m rate 1)
+renderControls config controls start notes =
     RenderUtil.renderControl (Effect.controlRate config) start <$>
     extractControls (Effect._controlSize config) controls notes
 
-extractControls :: Audio.Frames -> [Control.Control] -> [Note.Note]
+extractControls :: Audio.Frames -> [Control.Control] -> [Sample.Note]
     -> Map Control.Control [(Double, Double)]
 extractControls controlSize controls notes =
-    Map.fromList $ filter (not . null . snd) $
-        zip controls $ map get controls
+    Map.fromList $ filter (not . null . snd) $ zip controls (map get controls)
     where
-    get control = RenderUtil.controlBreakpoints controlSize control notes
+    get control = RenderUtil.controlBreakpoints controlSize control
+        [ (AUtil.toSeconds (Sample.start n), Sample.effectControls n)
+        | n <- notes
+        ]
+
+
+-- * util
+
+prettyF :: Audio.Frames -> Text
+prettyF frame = pretty frame <> "(" <> pretty (AUtil.toSeconds frame) <> ")"
 
 
 {- NOTE [audio-state]
@@ -527,11 +565,11 @@ extractControls controlSize controls notes =
     compose well.  In the sampler case, Resample gets
     a 'Resample._notifyState', which the loop in 'render' reads via the
     '_getState' fields, and merges to a 'Checkpoint.State' (via
-    'serializeStates').  Then 'Checkpoint.write' reads that at the end of
+    'getPlayStates').  Then 'Checkpoint.write' reads that at the end of
     each chunk, in the callback from 'File.writeCheckpoints'.  Since this is
     the push model, I get a state for each block, but only use it on each
     chunk.  That's probably ok, since state is (dangerously) copy-free, and
-    'serializeStates' is lazy.
+    'State' is lazy.
 
     A way to get away from these IORefs entirely would be that Audio streams
     (IO (Maybe State), Vector Sample).  It would complicate all of the audio

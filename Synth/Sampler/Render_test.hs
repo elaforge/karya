@@ -55,37 +55,50 @@ test_write_simple = do
 
 test_effect :: Test
 test_effect = do
+    (dir, write) <- testEffect
+    let note start val = mkNoteEffect dir start "delay" [(0, val)]
+    io_equal (write [note 0 0]) $ Right (2, 2)
+    io_equal (readSamples dir) triangle
+    -- Changing the effect control changes the note hashes.
+    io_equal (write [note 0 2]) $ Right (2, 2)
+    -- TODO take 6 due to Effect.process bug
+    io_equal (readSamples dir) ([0, 0] ++ take 6 triangle)
+
+test_effect_gain :: Test
+test_effect_gain = do
+    (dir, write) <- testEffect
+    let note start val = mkNoteEffect dir start "gain" [(0, val)]
+    io_equal (write [note 0 2]) $ Right (2, 2)
+    io_equal (readSamples dir) $ map (*2) triangle
+
+test_effect_2notes :: Test
+test_effect_2notes = do
+    (dir, write) <- testEffect
+    let note start val = mkNoteEffect dir start "gain" [(0, val)]
+    let zeros n = replicate n 0
+    -- 2 notes, and the effect control changes.
+
+    io_equal (write [note 0 2, note 8 3]) (Right (4, 4))
+    io_equal (readSamples dir) $ zipWith (+)
+        (map (*2) $ triangle ++ repeat 0)
+        (map (*3) $ zeros 8 ++ triangle)
+
+    io_equal (write [note 0 2, note 8 4]) (Right (2, 4))
+    io_equal (readSamples dir) $ zipWith (+)
+        (map (*2) $ triangle ++ repeat 0)
+        (map (*4) $ zeros 8 ++ triangle)
+
+    io_equal (write [note 0 2, note 4 4]) (Right (2, 3))
+    io_equal (readSamples dir) $ zipWith (+)
+        (map (*2) (take 4 triangle) ++ map (*4) (drop 4 triangle) ++ repeat 0)
+        (map (*4) $ zeros 4 ++ triangle)
+
+testEffect :: IO (FilePath, [Sample.Note] -> IO (Either Text (Int, Int)))
+testEffect = do
     (_, dir) <- tmpDb
-    let write mbEffect = writeQuality Resample.ZeroOrderHold mbEffect dir
-    -- io_equal (write Nothing [mkNote1 dir 0]) (Right (2, 2))
-    -- io_equal (readSamples dir) triangle
-
-    effect <- makeEffect "test-delay" [controlNote 0 1 "delay" [(0, 3)]]
-    io_equal (write (Just effect) [mkNote1 dir 0]) (Right (2, 2))
-    io_equal (readSamples dir) ([0, 0, 0] ++ take 5 triangle)
-        -- TODO the end gets clipped because Effect.process doesn't wait for
-        -- decay
-
-controlNote :: RealTime -> RealTime -> Control.Control
-    -> [(Signal.X, Signal.Y)] -> Note.Note
-controlNote start dur control vals =
-    Note.withControl control (Signal.from_pairs vals) $
-    Note.testNote start dur
-
-makeEffect :: Text -> [Note.Note] -> IO Render.InstrumentEffect
-makeEffect name notes = do
-    patch <- case Map.lookup name EffectC.patches of
-        Just (Right patch) -> return patch
-        Just (Left err) -> errorIO $ "effect " <> name <> ": " <> err
-        Nothing -> errorIO $ "no effect: " <> name
-    return $ Render.InstrumentEffect
-        { _effectPatch = patch
-        , _effectConfig = Patch.EffectConfig
-            { _effectName = name
-            , _renameControls = mempty
-            }
-        , _effectNotes = notes
-        }
+    effect <- makeEffect "test-delay"
+    let write = writeQuality Resample.ZeroOrderHold (Just effect) dir
+    return (dir, write)
 
 _test_state_deterministic :: IO ()
 _test_state_deterministic = do
@@ -97,7 +110,7 @@ _test_state_deterministic = do
     st2 <- getStates
     prettyp $ zip st1 st2
 
-getStates :: IO [Either Render.Error [Render.State]]
+getStates :: IO [Either Render.Error Render.State]
 getStates = do
     (_, dir) <- tmpDb
     let write = writeQuality Resample.SincMediumQuality Nothing dir
@@ -107,8 +120,8 @@ getStates = do
         Directory.listDirectory checkpoint
     mapM (loadState . (checkpoint</>)) fns
 
-loadState :: FilePath -> IO (Either Render.Error [Render.State])
-loadState fname = Render.unserializeStates . Checkpoint.State <$>
+loadState :: FilePath -> IO (Either Render.Error Render.State)
+loadState fname = Render.unserializeState . Checkpoint.State <$>
     ByteString.readFile fname
 
 test_write_simple_offset :: Test
@@ -185,7 +198,6 @@ test_write_ratios = do
     . 4 - rat 2: (1, 3) 0   -> 1 1 0
 -}
 
-
 test_write_incremental :: Test
 test_write_incremental = do
     -- Resume after changing a later note, results same as rerender from
@@ -207,7 +219,6 @@ test_write_incremental = do
             [ mkNote1 dir 0
             , mkNote1 dir 6
             ]
-
     io_equal (write oldNotes) (Right (3, 3))
     io_equal (readSamples dir)
         (zipWith (+) (triangle ++ repeat 0) (replicate 4 0 ++ triangle))
@@ -285,7 +296,10 @@ writeQuality quality mbEffect outDir =
         { _quality = quality
         , _chunkSize = chunkSize
         , _blockSize = chunkSize
-        , _controlsPerBlock = 2
+        -- In the real world, this is some fraction of chunkSize, but that
+        -- makes control change times a bit inaccurate due to the annoying
+        -- latency fiddling.
+        , _controlsPerBlock = chunkSize
         , _emitProgress = False
         }
 
@@ -329,37 +343,60 @@ mkNote dbDir start ratio = mkNoteRatios dbDir start [(start, ratio)]
 
 mkNoteRatios :: FilePath -> Audio.Frames -> [(Audio.Frames, Double)]
     -> Sample.Note
-mkNoteRatios dbDir start ratios_ = Sample.Note
-    { start = start
-    , duration =
-        RenderSample.predictDuration (Signal.shift (- sec start) ratios) dur
-    , hash = Note.hash note
-    , sample = (Sample.make (triFilename dbDir)) { Sample.ratios = ratios }
-    }
-    where
-    dur = Audio.Frames $ length triangle
-    sec = AUtil.toSeconds
-    -- I don't put the pitch on, but it just affects hash, which is unlikely to
-    -- be relevant in a test.
-    note = Note.testNote (sec start) (sec dur)
-    ratios = Signal.from_pairs $ map (first sec) ratios_
+mkNoteRatios dbDir start ratios_ = mkNoteAll dbDir start ratios_ mempty
 
 -- | Like 'mkNoteRatios', except set a shorter duration than the sample.
 -- Otherwise since there's no envelope, the duration is always as long as the
 -- sample, modulo ratios.
 mkNoteDur :: FilePath -> Audio.Frames -> Audio.Frames -> Sample.Note
-mkNoteDur dbDir start dur = Sample.Note
-    { start = start
-    , duration = dur
-    , hash = Note.hash note
-    , sample = (Sample.make (triFilename dbDir))
-        { Sample.envelope = Signal.from_pairs
-            [(sec start, 1), (sec (start + dur), 1), (sec (start + dur), 0)]
-        }
-    }
+mkNoteDur dbDir start dur =
+    Sample.note start dur mempty
+        ((Sample.make (triFilename dbDir))
+            { Sample.envelope = Signal.from_pairs
+                [(sec start, 1), (sec (start + dur), 1), (sec (start + dur), 0)]
+            })
     where
     sec = AUtil.toSeconds
-    note = Note.testNote (sec start) (sec dur)
+
+mkNoteAll :: FilePath -> Audio.Frames -> [(Audio.Frames, Double)]
+    -> Map Control.Control Signal.Signal -> Sample.Note
+mkNoteAll dbDir start ratios_ effectControls =
+    Sample.note start
+        (RenderSample.predictDuration (Signal.shift (- sec start) ratios) dur)
+        effectControls
+        ((Sample.make (triFilename dbDir)) { Sample.ratios = ratios })
+    where
+    dur = Audio.Frames $ length triangle
+    sec = AUtil.toSeconds
+    ratios = Signal.from_pairs $ map (first sec) ratios_
+
+-- * effect
+
+mkNoteEffect :: FilePath -> Audio.Frames -> Control.Control
+    -> [(Signal.X, Signal.Y)] -> Sample.Note
+mkNoteEffect dbDir start control vals =
+    mkNoteAll dbDir start [(start, 1)]
+        (Map.singleton control (Signal.from_pairs vals))
+
+makeEffect :: Text -> IO Render.InstrumentEffect
+makeEffect name = do
+    patch <- case Map.lookup name EffectC.patches of
+        Just (Right patch) -> return patch
+        Just (Left err) -> errorIO $ "effect " <> name <> ": " <> err
+        Nothing -> errorIO $ "no effect: " <> name
+    return $ Render.InstrumentEffect
+        { _effectPatch = patch
+        , _effectConfig = Patch.EffectConfig
+            { _effectName = name
+            , _renameControls = mempty
+            }
+        }
+
+controlNote :: RealTime -> RealTime -> Control.Control
+    -> [(Signal.X, Signal.Y)] -> Note.Note
+controlNote start dur control vals =
+    Note.withControl control (Signal.from_pairs vals) $
+    Note.testNote start dur
 
 -- * TODO copy paste with Faust.Render_test
 

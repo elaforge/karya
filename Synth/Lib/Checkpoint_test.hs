@@ -56,7 +56,9 @@ test_groupOverlapping = do
         [[(1, 2)], [(1, 2), (2, 1), (3, 2)], [(3, 2), (4, 1)]]
 
 test_findLastState = do
-    let f files = Checkpoint.findLastState (Set.fromList files)
+    let f files =
+            Checkpoint.findLastState (Set.fromList files)
+                (Checkpoint.State mempty)
             . map (second (Note.Hash))
     let mkstate = Checkpoint.encodeState . Checkpoint.State
     let fn chunk hash state =

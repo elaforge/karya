@@ -179,3 +179,6 @@ instance Monoid Hash where
     mconcat xs =
         Hash . MD5.hashlazy . ByteString.Lazy.fromChunks . map unhash $ xs
         where unhash (Hash h) = h
+
+fingerprintBytes :: ByteString.ByteString -> String
+fingerprintBytes = ByteString.Char8.unpack . fingerprint . MD5.hash

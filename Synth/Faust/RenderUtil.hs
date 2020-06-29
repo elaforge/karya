@@ -21,7 +21,6 @@ import qualified Perform.RealTime as RealTime
 import           Perform.RealTime (RealTime)
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Shared.Control as Control
-import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
 
 import           Global
@@ -76,17 +75,18 @@ renderControl controlRate start = case Audio.someNat controlRate of
         Audio.castRate . Audio.linear @_ @cRate False . shiftBack
     where shiftBack = map $ first $ subtract $ RealTime.to_seconds start
 
-controlBreakpoints :: Audio.Frames -> Control.Control -> [Note.Note]
+controlBreakpoints :: Audio.Frames -> Control.Control
+    -> [(RealTime, Map Control.Control Signal.Signal)]
     -> [(Double, Double)]
 controlBreakpoints controlSize control =
     Segment.simplify . concat . mapMaybe get . Seq.zip_next
     where
-    get (note, next) = do
-        signal <- Map.lookup control (Note.controls note)
+    get ((start, controls), next) = do
+        signal <- Map.lookup control controls
         return $ (if controlSize == 1 then id else tweak) $
             roundBreakpoints controlSize $ Signal.to_pairs $
-            maybe id (Signal.clip_after_keep_last . Note.start) next $
-            Signal.clip_before (Note.start note) signal
+            maybe id (Signal.clip_after_keep_last . fst) next $
+            Signal.clip_before start signal
     controlSizeS = RealTime.to_seconds $ AUtil.toSeconds controlSize
     -- See NOTE [faust-controls].
     tweak = map $ first $ subtract controlSizeS

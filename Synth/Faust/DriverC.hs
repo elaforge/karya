@@ -228,12 +228,13 @@ render controlSize controlsPerBlock inst =
 -- * state
 
 getState :: Instrument -> IO Checkpoint.State
-getState = PatchC.getState . _ptr
+getState = fmap Checkpoint.State . PatchC.getState . _ptr
 
 -- | 'getState', but without copying, if you promise to finish with the State
 -- before you call 'render', which will change it.
 unsafeGetState :: Instrument -> IO Checkpoint.State
-unsafeGetState = PatchC.unsafeGetState . _ptr
+unsafeGetState = fmap Checkpoint.State . PatchC.unsafeGetState . _ptr
 
 putState :: Instrument -> Checkpoint.State -> IO ()
-putState inst state = PatchC.putState state (_name inst) (_ptr inst)
+putState inst (Checkpoint.State state) =
+    PatchC.putState state (_name inst) (_ptr inst)

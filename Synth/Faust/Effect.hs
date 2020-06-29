@@ -20,7 +20,6 @@ import qualified Synth.Faust.EffectC as EffectC
 import           Synth.Faust.EffectC (Patch, EffectT(..))
 import qualified Synth.Faust.RenderUtil as RenderUtil
 import qualified Synth.Lib.AUtil as AUtil
-import qualified Synth.Lib.Checkpoint as Checkpoint
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
 
@@ -29,7 +28,6 @@ import           Global
 
 -- TODO this has to be initialized to be consistent with the sampler
 data Config = Config {
-    -- _chunkSize :: !Audio.Frames -- TODO unused
     _blockSize :: !Audio.Frames
     -- | This is _blockSize / _controlsPerBlock
     , _controlSize :: !Audio.Frames
@@ -59,8 +57,8 @@ config blockSize controlsPerBlock = Config
 
 process :: Config
     -> Patch
-    -> Maybe Checkpoint.State
-    -> (Checkpoint.State -> IO ()) -- ^ notify new state after each audio chunk
+    -> Maybe EffectC.State
+    -> (EffectC.State -> IO ()) -- ^ notify new state after each audio chunk
     -> Map Control.Control AUtil.Audio1
     -> AUtil.Audio -> AUtil.Audio
 process config patch mbState notifyState controls input = Audio.Audio $ do
@@ -73,18 +71,23 @@ process config patch mbState notifyState controls input = Audio.Audio $ do
         Audio.splitChannels input
     Util.Control.loop1 (controls, input) $ \loop (controls, input) ->
         lift (S.uncons input) >>= \case
-            Just (inputSamples, input) -> do
+            Just (inputBlocks, input) -> do
                 (controls, nextControls) <- lift $
                     RenderUtil.takeControls (_controlsPerBlock config) controls
-                renderBlock config notifyState effect controls inputSamples
+                -- Debug.tracepM "inputs" (map trim inputBlocks)
+                renderBlock config notifyState effect controls inputBlocks
                 loop (nextControls, input)
             Nothing -> return ()
             -- TODO keep processing until isBasicallySilent or > maxDecay
 
-renderBlock :: Config -> (Checkpoint.State -> IO ())
+-- trim :: Audio.Block -> Audio.Block
+-- trim (Audio.Block v) = Audio.Block (V.take 4 v)
+-- trim b = b
+
+renderBlock :: Config -> (EffectC.State -> IO ())
     -> EffectC.Effect -> Map Control.Control Audio.Block
     -> [Audio.Block] -> S.Stream (S.Of Audio.Block) (Resource.ResourceT IO) ()
-renderBlock config notifyState effect controls input = do
+renderBlock config notifyState effect controls inputBlocks = do
     let controlVals = RenderUtil.findControls (EffectC._controls effect)
             controls
     -- Debug.tracepM "controls"
@@ -93,7 +96,7 @@ renderBlock config notifyState effect controls input = do
     --     )
     outputs <- liftIO $ EffectC.render
         (_controlSize config) (_controlsPerBlock config) effect
-        controlVals (map Audio.blockVector input)
+        controlVals (map Audio.blockVector inputBlocks)
     -- XXX Since this uses unsafeGetState, readers of notifyState have to
     -- entirely use the state before returning.  See Checkpoint.getFilename and
     -- Checkpoint.writeBs.

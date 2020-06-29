@@ -46,8 +46,8 @@ write adjust0 play_multiplier block_id lookup_inst filename events = do
         Seq.sort_on Score.event_start $
         Vector.toList events
     -- The so-called play multiplier is actually a divider.
-    Note.serialize filename $ map clean_controls $
-        multiply_time adjust0 (1/play_multiplier) notes
+    Note.serialize filename $ multiply_time adjust0 (1/play_multiplier) $
+        map trim_controls notes
     return ()
 
 multiply_time :: RealTime -> RealTime -> [Note.Note] -> [Note.Note]
@@ -59,15 +59,21 @@ multiply_time adjust0 n
         , Note.controls = Signal.map_x (*n) <$> Note.controls note
         }
 
--- | Normalize constant signals to have a single sample.  It's more efficient
--- to serialize fewer samples, and fewer bogus breakpoints can make the
--- synthesizer more efficient.
-clean_controls :: Note.Note -> Note.Note
-clean_controls note = note { Note.controls = clean <$> Note.controls note }
-    where
-    clean sig = case Signal.constant_val_from (Note.start note) sig of
-        Nothing -> sig
-        Just y -> Signal.constant y
+-- | Trim signals down to the note ranges.  It's more efficient to serialize
+-- fewer samples, and leads to less rerendering since note hashes are based
+-- on all their controls, whether or not they're in range.
+--
+-- Also normalize constant signals to a single sample, fewer bogus breakpoints
+-- can make the synthesizer more efficient.
+trim_controls :: Note.Note -> Note.Note
+trim_controls note =
+    note { Note.controls = trim_control note <$> Note.controls note }
+
+trim_control :: Note.Note -> Signal.Signal -> Signal.Signal
+trim_control note sig = case Signal.constant_val_from (Note.start note) sig of
+    Nothing -> Signal.drop_after (Note.end note) $
+        Signal.drop_before (Note.start note) sig
+    Just y -> Signal.constant y
 
 convert :: BlockId -> (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> [Score.Event] -> [LEvent.LEvent Note.Note]

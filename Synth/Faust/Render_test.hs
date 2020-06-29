@@ -78,7 +78,8 @@ test_write_incremental = do
             . ((dir </> Checkpoint.checkpointDir) </>)) states)
         [40, 40, 40]
 
-    let skipCheckpoints = Checkpoint.skipCheckpoints dir
+    let skipCheckpoints =
+            Checkpoint.skipCheckpoints dir (Checkpoint.State mempty)
             . Checkpoint.noteHashes chunkSize . map Render.toSpan
     -- Test skipCheckpoints directly.
     (_, remainingHashes, state) <- skipCheckpoints newNotes

@@ -50,9 +50,10 @@ type Error = Text
 write :: Config -> FilePath -> Set Id.TrackId -> DriverC.Patch -> [Note.Note]
     -> IO (Either Error (Int, Int)) -- ^ (renderedChunks, totalChunks)
 write config outputDir trackIds patch notes = catch $ do
-    (skipped, hashes, mbState) <- Checkpoint.skipCheckpoints outputDir $
+    (skipped, hashes, mbState) <-
+        Checkpoint.skipCheckpoints outputDir emptyState $
         Checkpoint.noteHashes chunkSize (map toSpan notes)
-    stateRef <- IORef.newIORef $ fromMaybe (Checkpoint.State mempty) mbState
+    stateRef <- IORef.newIORef $ fromMaybe emptyState mbState
     let startFrame = fromIntegral (length skipped) * _chunkSize config
         start = AUtil.toSeconds startFrame
     Log.debug $ "skipped " <> pretty skipped
@@ -88,6 +89,7 @@ write config outputDir trackIds patch notes = catch $ do
             , _payload = payload
             }
         | otherwise = return ()
+    emptyState = Checkpoint.State mempty
 
 -- | Emit a warning if the patch expects element-address controls and a note
 -- doesn't have an element, or vice versa.
@@ -422,6 +424,7 @@ controlBreakpoints controlSize impulseGate control
     | control == Control.gate =
         Segment.simplify . gateBreakpoints controlSize impulseGate
     | otherwise = RenderUtil.controlBreakpoints controlSize control
+        . map (\n -> (Note.start n, Note.controls n))
 
 -- | Make a signal with a rising edge on the note attack.  The value is from
 -- Control.dynamic, which means a note with dyn=0 won't get an attack at all.

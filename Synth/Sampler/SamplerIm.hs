@@ -46,6 +46,7 @@ import qualified Synth.Sampler.Render as Render
 import qualified Synth.Sampler.RenderSample as RenderSample
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Config as Config
+import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
 
@@ -243,10 +244,10 @@ convertNotes db notes =
     fmap concat $ forM (byPatchInst notes) $ \(patchName, notes) ->
     getPatch db patchName >>= \case
         Nothing -> return []
-        Just (patch, _) -> fmap (map (patch,)) $ forM notes $
+        Just (patch, mbEffect) -> fmap (map (patch,)) $ forM notes $
             \(inst, notes) -> do
                 let converted = convert db patch notes
-                sampleNotes <- makeSampleNotes emit converted
+                sampleNotes <- makeSampleNotes emit mbEffect converted
                 return
                     ( inst
                     , [ (note, snote)
@@ -294,9 +295,9 @@ process emitProgress db quality notes outputDir
                     processInst patch inst mbEffect notes
     where
     processInst patch inst mbEffect notes =
-        realize emit trackIds config outputDir inst
-                (instEffect notes <$> mbEffect)
-            . Maybe.catMaybes =<< makeSampleNotes emit (convert db patch notes)
+        realize emit trackIds config outputDir inst mbEffect
+            . Maybe.catMaybes =<< makeSampleNotes emit mbEffect
+                (convert db patch notes)
         where
         trackIds = trackIdsOf notes
         emit = emitMessage trackIds inst
@@ -315,15 +316,9 @@ process emitProgress db quality notes outputDir
     grouped = byPatchInst notes
     instruments = Set.fromList $ concatMap (map fst . snd) grouped
 
-    instEffect notes (patch, config) = Render.InstrumentEffect
-        { _effectPatch = patch
-        , _effectConfig = config
-        , _effectNotes = notes
-        }
-
 
 getPatch :: Patch.Db -> Note.PatchName
-    -> IO (Maybe (Patch.Patch, Maybe (Effect.Patch, Patch.EffectConfig)))
+    -> IO (Maybe (Patch.Patch, Maybe Render.InstrumentEffect))
 getPatch db name = case Map.lookup name (Patch._patches db) of
     Nothing -> do
         Log.warn $ "patch not found: " <> name
@@ -344,7 +339,13 @@ getPatch db name = case Map.lookup name (Patch._patches db) of
                 | not (null warnings) -> do
                     mapM_ (Log.warn . ((name <> ": ") <>)) warnings
                     return Nothing
-                | otherwise -> return $ Just (patch, Just (effect, effectConf))
+                | otherwise -> return $ Just
+                    ( patch
+                    , Just $ Render.InstrumentEffect
+                        { _effectPatch = effect
+                        , _effectConfig = effectConf
+                        }
+                    )
                 where
                 warnings = Patch.checkControls patch
                     (Map.keysSet (Effect._controls effect)) effectConf
@@ -369,23 +370,25 @@ convert db patch =
     patchDir = Patch._rootDir db </> Patch._dir patch
 
 makeSampleNotes :: (Config.Payload -> IO ())
+    -> Maybe Render.InstrumentEffect
     -> [(Either Error Sample.Sample, [Log.Msg], Note.Note)]
     -> IO [Maybe Sample.Note]
-makeSampleNotes emitMessage converted =
-    mapM (uncurry (makeSampleNote emitMessage))
+makeSampleNotes emitMessage mbEffect converted =
+    mapM (uncurry (makeSampleNote emitMessage mbEffect))
         (zip (0 : map start converted) converted)
     where start (_, _, note) = Note.start note
 
 -- TODO do this incrementally?  A stream?
 makeSampleNote :: (Config.Payload -> IO ())
+    -> Maybe Render.InstrumentEffect
     -> RealTime
     -> (Either Error Sample.Sample, [Log.Msg], Note.Note)
     -> IO (Maybe Sample.Note)
-makeSampleNote emitMessage _ (Left err, logs, note) = do
+makeSampleNote emitMessage _ _ (Left err, logs, note) = do
     mapM_ Log.write logs
     emitMessage $ Config.Warn (Note.stack note) err
     return Nothing
-makeSampleNote emitMessage prevStart (Right sample, logs, note) = do
+makeSampleNote emitMessage mbEffect prevStart (Right sample, logs, note) = do
     mapM_ Log.write logs
     Exception.try (actualDuration (Note.start note) sample) >>= \case
         Left exc -> do
@@ -404,18 +407,25 @@ makeSampleNote emitMessage prevStart (Right sample, logs, note) = do
                 "note start " <> pretty (Note.start note)
                 <> " < previous " <> pretty prevStart
             return Nothing
-        Right dur -> do
+        Right dur -> return $ Just $
+            Sample.note start dur (effectControls mbEffect note) sample
+            where
             -- Round the frame up.  Otherwise, since frames are integral, I
             -- might round a note to start before its signal, at which point I
             -- get an extraneous 0.
-            let start = Audio.secondsToFramesCeil Config.samplingRate
-                    (RealTime.to_seconds (Note.start note))
-            return $ Just $ Sample.Note
-                { start = start
-                , duration = dur
-                , sample = sample
-                , hash = Sample.makeHash start (Just dur) sample
-                }
+            start = Audio.secondsToFramesCeil Config.samplingRate
+                (RealTime.to_seconds (Note.start note))
+
+effectControls :: Maybe Render.InstrumentEffect -> Note.Note
+    -> Map Control.Control Signal.Signal
+effectControls Nothing _ = mempty
+effectControls (Just (Render.InstrumentEffect effect config)) note =
+    Map.intersection (rename (Note.controls note)) (EffectC._controls effect)
+    where
+    rename
+        | Map.null renames = id
+        | otherwise = Map.mapKeys (\c -> Map.findWithDefault c c renames)
+    renames = Patch._renameControls config
 
 -- | It's important to get an accurate duration, because that determines
 -- overlap, which affects caching.

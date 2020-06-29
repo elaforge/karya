@@ -283,7 +283,6 @@ takeS = takeCloseS (return ())
 -- the input file in a timely way, because the take can't tell upstream that
 -- it will never demand another chunk.  This appears to be a problem with all
 -- pull-based streaming libraries, including pipes and conduit.
-
 takeCloseS :: forall m rate chan. (Monad m, KnownNat rate, KnownNat chan)
     => m () -> Seconds -> Audio m rate chan -> Audio m rate chan
 takeCloseS close seconds audio

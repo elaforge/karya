@@ -7,6 +7,7 @@
 module Synth.Faust.EffectC (
     EffectT(_name, _doc, _controls)
     , Patch, Effect
+    , State
     -- * Patch
     , patches
     -- * Effect
@@ -15,6 +16,7 @@ module Synth.Faust.EffectC (
     -- ** state
     , getState, unsafeGetState, putState
 ) where
+import qualified Data.ByteString as ByteString
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Vector.Storable as V
@@ -22,9 +24,10 @@ import qualified Data.Vector.Storable as V
 import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.Audio.Audio as Audio
+import qualified Util.Serialize as Serialize
 import qualified Synth.Faust.PatchC as PatchC
-import qualified Synth.Lib.Checkpoint as Checkpoint
 import qualified Synth.Shared.Control as Control
+import qualified Synth.Shared.Note as Note
 
 import           ForeignC
 import           Global
@@ -111,13 +114,20 @@ render controlSize controlsPerBlock effect =
 
 -- ** state
 
-getState :: Effect -> IO Checkpoint.State
-getState = PatchC.getState . _ptr
+newtype State = State ByteString.ByteString
+    deriving (Serialize.Serialize)
+
+instance Pretty State where
+    pretty (State bytes) = txt $ Note.fingerprintBytes bytes
+
+getState :: Effect -> IO State
+getState = fmap State . PatchC.getState . _ptr
 
 -- | 'getState', but without copying, if you promise to finish with the State
 -- before you call 'render', which will change it.
-unsafeGetState :: Effect -> IO Checkpoint.State
-unsafeGetState = PatchC.unsafeGetState . _ptr
+unsafeGetState :: Effect -> IO State
+unsafeGetState = fmap State . PatchC.unsafeGetState . _ptr
 
-putState :: Effect -> Checkpoint.State -> IO ()
-putState effect state = PatchC.putState state (_name effect) (_ptr effect)
+putState :: Effect -> State -> IO ()
+putState effect (State state) =
+    PatchC.putState state (_name effect) (_ptr effect)

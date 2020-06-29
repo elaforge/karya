@@ -17,7 +17,6 @@ import qualified Foreign
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.CUtil as CUtil
-import qualified Synth.Lib.Checkpoint as Checkpoint
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
 
@@ -210,24 +209,24 @@ foreign import ccall "faust_render"
 
 -- ** state
 
-getState :: InstrumentP -> IO Checkpoint.State
+getState :: InstrumentP -> IO ByteString.ByteString
 getState inst = alloca $ \statepp -> do
     c_faust_get_state inst statepp
     statep <- peek statepp
-    Checkpoint.State <$> ByteString.packCStringLen
+    ByteString.packCStringLen
         (statep, fromIntegral $ c_faust_get_state_size inst)
 
 -- | 'getState', but without copying, if you promise to finish with the State
 -- before you call 'render', which will change it.
-unsafeGetState :: InstrumentP -> IO Checkpoint.State
+unsafeGetState :: InstrumentP -> IO ByteString.ByteString
 unsafeGetState inst = alloca $ \statepp -> do
     c_faust_get_state inst statepp
     statep <- peek statepp
-    Checkpoint.State <$> ByteString.Unsafe.unsafePackCStringLen
+    ByteString.Unsafe.unsafePackCStringLen
         (statep, fromIntegral $ c_faust_get_state_size inst)
 
-putState :: Checkpoint.State -> Text -> InstrumentP -> IO ()
-putState (Checkpoint.State state) name inst =
+putState :: ByteString.ByteString -> Text -> InstrumentP -> IO ()
+putState state name inst =
     ByteString.Unsafe.unsafeUseAsCStringLen state $ \(statep, size) -> do
         let psize = c_faust_get_state_size inst
         unless (fromIntegral size == psize) $

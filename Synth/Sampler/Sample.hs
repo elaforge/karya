@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Synth.Sampler.Sample where
+import qualified Data.ByteString as ByteString
 import qualified Data.Map as Map
 import qualified System.FilePath as FilePath
 import           System.FilePath ((</>))
@@ -33,20 +34,35 @@ data Note = Note {
     -- the requested 'Note.duration'.
     -- TODO maybe move 'duration' to Sample then.
     , duration :: !Audio.Frames
+    , effectControls :: Map Control.Control Signal.Signal
     , sample :: Sample
-    -- | Hash of (start, duration, sample).  Putting it here means I can
-    -- memoize its creation but also that changing Note will make it out of
-    -- sync.
+    -- | Hash of (start, duration, effectControls, sample).  Putting it here
+    -- means I can memoize its creation but also that changing Note will make
+    -- it out of sync.
     , hash :: Note.Hash
     } deriving (Show)
 
 end :: Note -> Audio.Frames
 end note = start note + duration note
 
-makeHash :: Audio.Frames -> Maybe Audio.Frames -> Sample -> Note.Hash
-makeHash start dur sample =
-    Note.hashBytes $ Serialize.encode (start, dur, sample)
+note :: Audio.Frames -> Audio.Frames -> Map Control.Control Signal.Signal
+    -> Sample -> Note
+note start dur effectControls sample = Note
+    { start = start
+    , duration = dur
+    , effectControls = effectControls
+    , sample = sample
+    , hash = makeHash start dur effectControls sample
+    }
+
+makeHash :: Audio.Frames -> Audio.Frames -> Map Control.Control Signal.Signal
+    -> Sample -> Note.Hash
+makeHash start dur effectControls sample = mconcat $
+    map Note.hashBytes [e start, e dur, e effectControls, e sample]
     -- TODO ensure envelope and ratios are clipped to (start, duration)?
+    where
+    e :: Serialize.Serialize a => a -> ByteString.ByteString
+    e = Serialize.encode
 
 -- | The actual sample played by a 'Note'.
 data Sample = Sample {
@@ -93,9 +109,10 @@ modifyFilename :: (SamplePath -> SamplePath) -> Sample -> Sample
 modifyFilename modify sample = sample { filename = modify (filename sample) }
 
 instance Pretty Note where
-    format (Note start dur sample hash) = Pretty.record "Note"
+    format (Note start dur effectControls sample hash) = Pretty.record "Note"
         [ ("start", Pretty.format start)
         , ("duration", Pretty.format dur)
+        , ("effectControls", Pretty.format effectControls)
         , ("sample", Pretty.format sample)
         , ("hash", Pretty.format hash)
         ]

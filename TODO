@@ -1988,15 +1988,46 @@ synth: im:
             are linked in statically, querying them can use unsafePerformIO.
         * no apparent effect, log its breakpoints
           . The dsp was wrong.
-        - it doesn't rederive when effect controls changed
+        * effect state
+          . I need Effect not Patch to get state.  But Effect is not exported
+            from Effect.render.
+          . It's not resuming because it's not writing effect states, as
+            expected.
+          . Wait, but I am writing effect states, and there's no effect
+            anyway.
+          . hashes: 000.$hash.$state.state.$endState
+            old notes:
+            v5lxItbGWvkZS9qvPlyxWQ wXEdVSj1zSo4DPbeNPVMoQ JOhY_BBTHE4Oyr1h4ZMH2A
+            v5lxItbGWvkZS9qvPlyxWQ.Pygpsv_oQ01n-YoqmJaGUg.state.3D7Q4EGJTims_bj28NfLBg
+            new notes:
+            v5lxItbGWvkZS9qvPlyxWQ bnUujhHHii-x6m1nIgMbig Y5OWdTAvEjsQlhEETxkwMA
+            v5lxItbGWvkZS9qvPlyxWQ.Pygpsv_oQ01n-YoqmJaGUg.state.3D7Q4EGJTims_bj28NfLBg
+            . Why doesn't it skip the first one?
+            . Note hashes are the same, must be the state.
+            . Checkpoint used State mempty, but what does Render.write used
+              its own state.
+        * it doesn't rederive when effect controls changed
           . Probably because its notes are not included in the hash with the
             Sample.Notes.  I guess this is a reason to put controls in
             Sample.Notes?
           . I'll need to do something like this anyway for state.
-        - I want to be able to rename pitch to e.g. comb-filter pitch
-          . I think it should just work, since it's turned into a pitch
-            control?
-        - merge effect state
+          . I could put controls in Sample.Note but I want to use the same
+            clipped bits that make up the merged controls.  How does faust do
+            this?
+          . It just uses Note.hash directly... I wonder if that's why it
+            rederives even when out-of-range controls changed?  Any clipping
+            should be done in Perform.Im though, to avoid serializing too
+            much.
+          . It rederives now, but always rederives everything.  Maybe due to
+            control ranges?
+          . First strip irrelevant controls.
+          . Each note has the entire pitch track.
+        * all inputs should be block size 11025f: [5000f, 5000f]
+          . Probably due to silent gap?
+          . 5000 is the Audio.defaultChunk.  Maybe they're zeros?
+          . These are inputs, not controls.
+          . Replace complicated Audio.take with directly yield Constant of the
+            right size.
         - implement and test control rename
         - How can I configure an effect onto an existing patch, apart from
           hardcoding?
@@ -2009,6 +2040,14 @@ synth: im:
           . Would it be better to move to explicitly serializing an instrument
             config?
         - Effect.process should allow the effect to decay
+        - If the effect gain is 0, I can remove it entirely.
+          . I guess this is only possible if it's 0 for the whole piece, and
+            in that case I might as well use the dynamic config and remove it.
+          . There could be a block-level optimization to just pass input to
+            output.
+          . I'd have to know which control correspods to true gain.  For
+            traditional effects which are mixed in, that can just be the
+            effect gain, which is controlled outside of faust.
 
     - First extend faust-im to be an Audio processor, so it can take inputs.
       . I wind up with separate generator and transformers.

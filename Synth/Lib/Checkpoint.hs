@@ -7,7 +7,6 @@
 module Synth.Lib.Checkpoint where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Monad.Trans.Resource as Resource
-import qualified Crypto.Hash.MD5 as MD5
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Char8 as ByteString.Char8
 import qualified Data.List as List
@@ -54,20 +53,21 @@ instance Pretty State where
     pretty = txt . encodeState
 
 encodeState :: State -> String
-encodeState = ByteString.Char8.unpack . Note.fingerprint . MD5.hash . unstate
-    where unstate (State bs) = bs
+encodeState (State bytes) = Note.fingerprintBytes bytes
 
 -- * checkpoints
 
 -- | Find where the checkpoints begin to differ from the given 'Note.Hash's.
-skipCheckpoints :: FilePath -> [(Config.ChunkNum, Note.Hash)]
+skipCheckpoints :: FilePath -> State
+    -> [(Config.ChunkNum, Note.Hash)]
     -> IO ([FilePath], [(Config.ChunkNum, Note.Hash)], Maybe State)
     -- ^ (skipped chunks, remaining notes, state at that point)
-skipCheckpoints outputDir hashes = do
+skipCheckpoints outputDir initialState hashes = do
+    -- Debug.put "hashes" (map (second Note.encodeHash) hashes)
     Directory.createDirectoryIfMissing False (outputDir </> checkpointDir)
     files <- Directory.listDirectory (outputDir </> checkpointDir)
     let (skipped, (remainingHashes, stateFname)) =
-            findLastState (Set.fromList files) hashes
+            findLastState (Set.fromList files) initialState hashes
     mbState <- if null stateFname
         then return Nothing
         else Just . State
@@ -79,12 +79,11 @@ skipCheckpoints outputDir hashes = do
 -- Since the output state of the previous filename needs to match the input
 -- state of the next one as described in 'writeState', this has to follow the
 -- files in sequence.
-findLastState :: Set FilePath -> [(Config.ChunkNum, Note.Hash)]
+findLastState :: Set FilePath -> State -> [(Config.ChunkNum, Note.Hash)]
     -> ([FilePath], ([(Config.ChunkNum, Note.Hash)], FilePath))
     -- ^ ([skipped], (remainingHashes, resumeState))
-findLastState files = go "" initialState
+findLastState files = go "" . encodeState
     where
-    initialState = encodeState $ State mempty
     go prevStateFname state ((chunknum, hash) : hashes)
         | fname `Set.member` files = case Set.lookupGT prefix files of
             Just stateFname | prefix `List.isPrefixOf` stateFname ->
