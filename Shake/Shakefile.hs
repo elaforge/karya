@@ -430,7 +430,7 @@ hsToCc = Map.fromList $
     , ("LogView/LogViewC.hsc", ["LogView/interface.cc"])
     , ("Instrument/BrowserC.hsc", ["Instrument/interface.cc"])
     , ("Util/Fltk.hs", ["Util/fltk_interface.cc"])
-    , ("Synth/Faust/PatchC.hs", map ("Synth/Faust"</>) ["driver.cc"])
+    , ("Synth/Faust/PatchC.hs", map ("Synth/Faust"</>) ["patch_c.cc"])
     , ("Util/VectorC.hs", ["Util/vectorc.cc"])
     ] ++
     [ (hsc, ["Ui/c_interface.cc"])

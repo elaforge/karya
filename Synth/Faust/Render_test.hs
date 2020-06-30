@@ -23,7 +23,7 @@ import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 
-import qualified Synth.Faust.DriverC as DriverC
+import qualified Synth.Faust.InstrumentC as InstrumentC
 import qualified Synth.Faust.Render as Render
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Lib.Checkpoint as Checkpoint
@@ -158,7 +158,7 @@ test_write_controls = do
 
 -- TODO test volume and dyn
 
-renderSamples :: DriverC.Patch -> [Note.Note] -> IO [Float]
+renderSamples :: InstrumentC.Patch -> [Note.Note] -> IO [Float]
 renderSamples patch notes = do
     dir <- Testing.tmp_dir "renderSamples"
     io_equal (Render.write config dir mempty patch notes) (Right (3, 3))
@@ -195,9 +195,9 @@ controlSize = Render._controlSize config
 chunkCount :: Int
 chunkCount = Audio.framesCount (Proxy @2) chunkSize
 
-getPatch :: Text -> IO DriverC.Patch
+getPatch :: Text -> IO InstrumentC.Patch
 getPatch name = do
-    patches <- mapM (either errorIO return) =<< DriverC.getPatches
+    patches <- mapM (either errorIO return) =<< InstrumentC.getPatches
     return $ fromMaybe (error $ "no patch: " <> show name) $
         Map.lookup name patches
 
@@ -262,11 +262,11 @@ test_renderControls = do
         ]
 
 renderControls :: Bool -> [Note.Note] -> RealTime
-    -> Map DriverC.Control AUtil.Audio1
+    -> Map InstrumentC.Control AUtil.Audio1
 renderControls impulseGate notes start =
     Render.renderControls Render.defaultConfig patch notes start
     where
-    patch = DriverC.Patch
+    patch = InstrumentC.Patch
         { _name = "test"
         , _doc = "doc"
         , _impulseGate = impulseGate
@@ -280,7 +280,7 @@ renderControls impulseGate notes start =
         , _outputs = 2
         , _ptr = ()
         }
-    cconfig = DriverC.ControlConfig
+    cconfig = InstrumentC.ControlConfig
         { _constant = False
         , _description = ""
         }

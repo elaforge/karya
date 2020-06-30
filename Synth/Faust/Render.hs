@@ -29,7 +29,7 @@ import qualified Util.Segment as Segment
 import qualified Util.Seq as Seq
 
 import qualified Perform.RealTime as RealTime
-import qualified Synth.Faust.DriverC as DriverC
+import qualified Synth.Faust.InstrumentC as InstrumentC
 import qualified Synth.Faust.RenderUtil as RenderUtil
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Lib.Checkpoint as Checkpoint
@@ -47,8 +47,9 @@ type Error = Text
 
 -- * write
 
-write :: Config -> FilePath -> Set Id.TrackId -> DriverC.Patch -> [Note.Note]
-    -> IO (Either Error (Int, Int)) -- ^ (renderedChunks, totalChunks)
+write :: Config -> FilePath -> Set Id.TrackId -> InstrumentC.Patch
+    -> [Note.Note] -> IO (Either Error (Int, Int))
+    -- ^ (renderedChunks, totalChunks)
 write config outputDir trackIds patch notes = catch $ do
     (skipped, hashes, mbState) <-
         Checkpoint.skipCheckpoints outputDir emptyState $
@@ -93,7 +94,7 @@ write config outputDir trackIds patch notes = catch $ do
 
 -- | Emit a warning if the patch expects element-address controls and a note
 -- doesn't have an element, or vice versa.
-checkElements :: (Config.Payload -> IO ()) -> DriverC.Patch -> [Note.Note]
+checkElements :: (Config.Payload -> IO ()) -> InstrumentC.Patch -> [Note.Note]
     -> IO ()
 checkElements emitMessage patch = mapM_ check
     where
@@ -109,7 +110,7 @@ checkElements emitMessage patch = mapM_ check
         elt = Note.element note
         warn msg = emitMessage $ Config.Warn (Note.stack note) msg
     elements = Set.fromList $ filter (/="") $ map fst $ Map.keys $
-        DriverC._controls patch
+        InstrumentC._controls patch
 
 toSpan :: Note.Note -> Checkpoint.Span
 toSpan note = Checkpoint.Span
@@ -176,7 +177,7 @@ _controlRate config = Num.assertIntegral $
 -- | Render notes belonging to a single FAUST patch.  Since they render on
 -- a single element, they should either not overlap, or be ok if overlaps
 -- cut each other off.
-renderPatch :: (Config.Payload -> IO ()) -> DriverC.Patch -> Config
+renderPatch :: (Config.Payload -> IO ()) -> InstrumentC.Patch -> Config
     -> Maybe Checkpoint.State -> (Checkpoint.State -> IO ()) -> [Note.Note]
     -> RealTime -> AUtil.Audio
 renderPatch emitMessage patch config mbState notifyState notes start_ =
@@ -223,26 +224,26 @@ interleave :: AUtil.NAudio -> AUtil.Audio
 interleave naudio = case Audio.interleaved naudio of
     Right audio -> audio
     -- All faust instruments are required to have 1 or 2 outputs.  This should
-    -- have been verified by DriverC.getPatch.
+    -- have been verified by InstrumentC.getPatch.
     Left err -> Audio.throw $ "expected 1 or 2 outputs: " <> err
 
 -- | Faust has internal state, and it all starts at 0, and because controls are
 -- designed for realtime, they interpolate after the value changed instead of
 -- before, I have to initialize then render for long enough to avoid attack
 -- artifacts.
-initialize :: Audio.Frames -> DriverC.Instrument
-    -> Map DriverC.Control Float -> IO ()
+initialize :: Audio.Frames -> InstrumentC.Instrument
+    -> Map InstrumentC.Control Float -> IO ()
 initialize size inst controls = do
-    _ <- DriverC.render size 1 inst controlVals inputSamples
+    _ <- InstrumentC.render size 1 inst controlVals inputSamples
     return ()
     where
-    controlVals = RenderUtil.findControls (DriverC._controls inst)
+    controlVals = RenderUtil.findControls (InstrumentC._controls inst)
         (Audio.Constant 1 <$> controls)
     -- I don't pass any inputs, but they might not need initialization anyway,
     -- since they don't need interpolation.
-    inputSamples = replicate (length (DriverC._inputControls inst)) $
+    inputSamples = replicate (length (InstrumentC._inputControls inst)) $
         V.replicate (fromIntegral size) 0
-    -- inputSamples = map (get . fst) (DriverC._inputControls inst)
+    -- inputSamples = map (get . fst) (InstrumentC._inputControls inst)
     -- get control = V.replicate (fromIntegral size) val
     --     where val = Map.findWithDefault 0 ("", control) controls
     --     -- TODO: inputs don't support Elements yet.
@@ -252,16 +253,18 @@ initialize size inst controls = do
 -- Chunk size is determined by the size of the @inputs@ chunks, or
 -- Audio.blockSize if they're empty or run out.  The inputs will go to zero
 -- if they end before the given time.
-render :: (Config.Payload -> IO ()) -> DriverC.Patch -> Maybe Checkpoint.State
+render :: (Config.Payload -> IO ())
+    -> InstrumentC.Patch
+    -> Maybe Checkpoint.State
     -> (Checkpoint.State -> IO ()) -- ^ notify new state after each audio chunk
-    -> Map DriverC.Control AUtil.Audio1
+    -> Map InstrumentC.Control AUtil.Audio1
     -> AUtil.NAudio -> Audio.Frames -> Audio.Frames -- ^ logical end time
     -> Config -> AUtil.NAudio
 render emitMessage patch mbState notifyState controls inputs start end config =
-    Audio.NAudio (DriverC._outputs patch) $ do
+    Audio.NAudio (InstrumentC._outputs patch) $ do
         (key, inst) <- lift $
-            Resource.allocate (DriverC.allocate patch) DriverC.destroy
-        whenJust mbState $ liftIO . DriverC.putState inst
+            Resource.allocate (InstrumentC.allocate patch) InstrumentC.destroy
+        whenJust mbState $ liftIO . InstrumentC.putState inst
 
             -- -- TODO this doesn't seem to be necessary since I can use
             -- -- si.polySmooth.  But leave it here in case I need it after all.
@@ -284,11 +287,11 @@ render emitMessage patch mbState notifyState controls inputs start end config =
                     maybe (Audio.throwIO "end of endless stream") return
                         =<< lift (S.uncons inputs)
                 -- For inputs I try to create the right block size, and then
-                -- DriverC.render will assert that they are the expected block
-                -- size.  This is more finicky but should be more efficient.
-                -- For controls, I take the correct number of frames so
-                -- upstream doesn't have to synchronize.  Maybe controls should
-                -- do the efficient thing too.
+                -- InstrumentC.render will assert that they are the expected
+                -- block size.  This is more finicky but should be more
+                -- efficient.  For controls, I take the correct number of
+                -- frames so upstream doesn't have to synchronize.  Maybe
+                -- controls should do the efficient thing too.
                 (controls, nextControls) <- lift $
                     RenderUtil.takeControls (_controlsPerBlock config) controls
                 result <- renderBlock emitMessage config notifyState inst
@@ -298,8 +301,8 @@ render emitMessage patch mbState notifyState controls inputs start end config =
                     Just nextStart -> loop (nextStart, nextControls, nextInputs)
 
 renderBlock :: MonadIO m => (Config.Payload -> IO ()) -> Config
-    -> (Checkpoint.State -> IO ()) -> DriverC.Instrument
-    -> Map DriverC.Control Audio.Block
+    -> (Checkpoint.State -> IO ()) -> InstrumentC.Instrument
+    -> Map InstrumentC.Control Audio.Block
     -> [Audio.Block]
     -> Audio.Frames -> Audio.Frames
     -> S.Stream (S.Of [Audio.Block]) m (Maybe Audio.Frames)
@@ -309,24 +312,24 @@ renderBlock emitMessage config notifyState inst controls inputSamples start end
         liftIO $ emitMessage $ Config.RenderingRange
             (AUtil.toSeconds start)
             (AUtil.toSeconds (start + _blockSize config))
-        let controlVals = RenderUtil.findControls (DriverC._controls inst)
+        let controlVals = RenderUtil.findControls (InstrumentC._controls inst)
                 controls
         -- Debug.tracepM "controls"
-        --     ( DriverC._name inst
+        --     ( InstrumentC._name inst
         --     , start
         --     , map (\(c, _, val) -> (c, val)) $
-        --       Maps.zip_intersection (DriverC._controls inst) controls
+        --       Maps.zip_intersection (InstrumentC._controls inst) controls
         --     )
-        outputs <- liftIO $ DriverC.render
+        outputs <- liftIO $ InstrumentC.render
             (_controlSize config) (_controlsPerBlock config) inst
             controlVals (map Audio.blockVector inputSamples)
         -- XXX Since this uses unsafeGetState, readers of notifyState
         -- have to entirely use the state before returning.  See
         -- Checkpoint.getFilename and Checkpoint.writeBs.
-        liftIO $ notifyState =<< DriverC.unsafeGetState inst
+        liftIO $ notifyState =<< InstrumentC.unsafeGetState inst
         S.yield $ map Audio.Block outputs
         case outputs of
-            -- This should have already been checked by DriverC.getPatches.
+            -- This should have already been checked by InstrumentC.getPatches.
             [] -> Audio.throwIO "patch with 0 outputs"
             output : _
                 | frames == 0 || chunkEnd >= end + maxDecay
@@ -349,8 +352,9 @@ rms block =
 
 -- ** render breakpoints
 
-renderControls :: Monad m => Config -> DriverC.PatchT ptr cptr -> [Note.Note]
-    -> RealTime -> Map DriverC.Control (Audio.Audio m rate 1)
+renderControls :: Monad m => Config -> InstrumentC.PatchT ptr cptr
+    -> [Note.Note] -> RealTime
+    -> Map InstrumentC.Control (Audio.Audio m rate 1)
 renderControls config patch notes start =
     RenderUtil.renderControl (_controlRate config) start <$>
     controlsBreakpoints (_controlSize config) patch notes
@@ -359,7 +363,7 @@ renderControls config patch notes start =
 -- stream to be synchronized by '_blockSize', which should determine 'render'
 -- chunk sizes, which should be a factor of '_chunkSize'.
 renderInputs :: (Monad m, TypeLits.KnownNat rate) => Config -> Audio.Frames
-    -> DriverC.PatchT ptr cptr -> [Note.Note] -> RealTime
+    -> InstrumentC.PatchT ptr cptr -> [Note.Note] -> RealTime
     -> Audio.NAudio m rate
 renderInputs config align patch notes start =
     Audio.nonInterleaved align (_blockSize config) $
@@ -375,25 +379,26 @@ renderInput start bps
 
 -- ** extract breakpoints
 
-inputsBreakpoints :: DriverC.PatchT ptr cptr -> [Note.Note]
+inputsBreakpoints :: InstrumentC.PatchT ptr cptr -> [Note.Note]
     -> [[(Double, Double)]]
 inputsBreakpoints patch notes =
     [ controlBreakpoints 1 impulseGate control notes
-    | control <- map fst $ DriverC._inputControls patch
+    | control <- map fst $ InstrumentC._inputControls patch
     ]
     where
-    impulseGate = DriverC._impulseGate patch
+    impulseGate = InstrumentC._impulseGate patch
 
-controlsBreakpoints :: Audio.Frames -> DriverC.PatchT ptr cptr -> [Note.Note]
-    -> Map DriverC.Control [(Double, Double)]
+controlsBreakpoints :: Audio.Frames -> InstrumentC.PatchT ptr cptr
+    -> [Note.Note] -> Map InstrumentC.Control [(Double, Double)]
 controlsBreakpoints controlSize patch notes =
     extractControls controlSize impulseGate
-        (Map.keysSet (DriverC._controls patch)) (tweakNotes controlSize notes)
+        (Map.keysSet (InstrumentC._controls patch))
+        (tweakNotes controlSize notes)
     where
-    impulseGate = DriverC._impulseGate patch
+    impulseGate = InstrumentC._impulseGate patch
 
-extractControls :: Audio.Frames -> Bool -> Set DriverC.Control -> [Note.Note]
-    -> Map DriverC.Control [(Double, Double)]
+extractControls :: Audio.Frames -> Bool -> Set InstrumentC.Control
+    -> [Note.Note] -> Map InstrumentC.Control [(Double, Double)]
 extractControls controlSize impulseGate controls allNotes =
     Map.fromList $ filter (not . null . snd) $
         map (get "" allNotes) withoutElement ++ mapMaybe getE withElement

@@ -6,7 +6,7 @@
 #include <vector>
 #include <utility>
 
-#include "driver.h"
+#include "patch_c.h"
 
 #include "build/faust_all.cc"
 

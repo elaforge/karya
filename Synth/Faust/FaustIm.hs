@@ -26,7 +26,7 @@ import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
-import qualified Synth.Faust.DriverC as DriverC
+import qualified Synth.Faust.InstrumentC as InstrumentC
 import qualified Synth.Faust.EffectC as EffectC
 import qualified Synth.Faust.Preview as Preview
 import qualified Synth.Faust.Render as Render
@@ -43,7 +43,7 @@ main = do
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
         (flags, args, []) -> return (flags, args)
         (_, _, errs) -> usage $ "flag errors:\n" ++ Seq.join ", " errs
-    patches <- DriverC.getPatches
+    patches <- InstrumentC.getPatches
     thread <- Concurrent.myThreadId
     -- Make sure I get some output if the process is killed.
     Signals.installHandler Signals.sigTERM
@@ -88,12 +88,12 @@ main = do
         _ -> usage ""
     where
     printPatch patch = do
-        put $ DriverC._doc patch
-        when (DriverC._impulseGate patch) $
+        put $ InstrumentC._doc patch
+        when (InstrumentC._impulseGate patch) $
             put "flags: impulse-gate"
-        forM_ (DriverC._inputControls patch) $ \(c, config) ->
+        forM_ (InstrumentC._inputControls patch) $ \(c, config) ->
             put $ "input: " <> pretty c <> ": " <> pretty config
-        forM_ (Map.toList (DriverC._controls patch)) $ \(c, (_, config)) ->
+        forM_ (Map.toList (InstrumentC._controls patch)) $ \(c, (_, config)) ->
             put $ "control: " <> showControl c <> ": " <> pretty config
     printEffect patch = do
         put $ EffectC._doc patch
@@ -121,11 +121,11 @@ options =
     [ GetOpt.Option [] ["progress"] (GetOpt.NoArg Progress) "emit json progress"
     ]
 
-showControl :: DriverC.Control -> Text
+showControl :: InstrumentC.Control -> Text
 showControl ("", c) = pretty c
 showControl (elt, c) = elt <> ":" <> pretty c
 
-dump :: Map Note.PatchName DriverC.Patch -> [Note.Note] -> IO ()
+dump :: Map Note.PatchName InstrumentC.Patch -> [Note.Note] -> IO ()
 dump patches notes = do
     let (notFound, patchInstNotes) = lookupPatches patches notes
     unless (null notFound) $
@@ -155,7 +155,7 @@ dump patches notes = do
         ]
 
 extractBreakpoints
-    :: [(DriverC.Patch, Note.InstrumentName, [Note.Note])]
+    :: [(InstrumentC.Patch, Note.InstrumentName, [Note.Note])]
     -> [(Note.InstrumentName, [(Text, [(Double, Double)])])]
 extractBreakpoints patchInstNotes = filter (not . null . snd)
     [(inst, extract patch notes) | (patch, inst, notes) <- patchInstNotes]
@@ -167,10 +167,10 @@ extractBreakpoints patchInstNotes = filter (not . null . snd)
         inputs = Render.inputsBreakpoints patch notes
         controls = Render.controlsBreakpoints
             (Render._controlSize Render.defaultConfig) patch notes
-        inputNames = map fst $ DriverC._inputControls patch
+        inputNames = map fst $ InstrumentC._inputControls patch
 
-process :: Bool -> Map Note.PatchName DriverC.Patch -> [Note.Note] -> FilePath
-    -> IO ()
+process :: Bool -> Map Note.PatchName InstrumentC.Patch -> [Note.Note]
+    -> FilePath -> IO ()
 process emitProgress patches notes outputDir = do
     Log.notice $ "processing " <> showt (length notes) <> " notes"
     let (notFound, patchInstNotes) = lookupPatches patches notes
@@ -187,7 +187,7 @@ process emitProgress patches notes outputDir = do
             -- is safe.  tools/clear_faust will use this to clear obsolete
             -- checkpoints.
             let output = outputDir
-                    </> untxt (inst <> "_" <> DriverC._name patch)
+                    </> untxt (inst <> "_" <> InstrumentC._name patch)
             Log.notice $ inst <> " notes: " <> showt (length notes) <> " -> "
                 <> txt output
             Directory.createDirectoryIfMissing True output

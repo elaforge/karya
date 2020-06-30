@@ -1965,7 +1965,7 @@ synth: im:
           . stereo->mono means outputs are duplicated, if necessary
           . Actually faust can do this stuff easily, why not just make them
             all stereo?
-        - rename DriverC to InstrumentC, driver.cc to patch.cc?
+        * rename DriverC to InstrumentC, driver.cc to patch.cc?
         * lookup effect by name, then make an Audio processor for it
       integrate into Sampler:
         . Since it's per-patch, the name of the effect has to go in the Patch,

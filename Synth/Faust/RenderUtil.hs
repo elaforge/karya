@@ -47,7 +47,7 @@ takeControls frames controlStreams = do
     (controls, streams) = unzip $ Map.toList controlStreams
 
 -- | 'Audio.splitAt', but extend the final sample.  I need this because
--- DriverC.render relies on all control blocks being the same length, for
+-- PatchC.render relies on all control blocks being the same length, for
 -- simplicity.
 takeExtend :: Monad m => Audio.Frames -> Audio.Audio m rate 1
     -> m (Maybe (Audio.Block, Audio.Audio m rate 1))

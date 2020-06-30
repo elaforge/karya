@@ -4,8 +4,8 @@
 
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeApplications #-}
--- | Low level binding to the Patch c++ object, which represents any faust
--- dsp, both instruments and effects processors.
+-- | Low level binding to patch_c.cc and the Patch c++ object, which represents
+-- any faust dsp, both instruments and effects processors.
 module Synth.Faust.PatchC where
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Unsafe as ByteString.Unsafe

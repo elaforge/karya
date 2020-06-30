@@ -19,7 +19,7 @@ import qualified Instrument.InstTypes as InstTypes
 import qualified Perform.Im.Patch as Patch
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Faust.Code as Code
-import qualified Synth.Faust.DriverC as DriverC
+import qualified Synth.Faust.InstrumentC as InstrumentC
 import qualified Synth.Faust.Preview as Preview
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
@@ -38,7 +38,7 @@ warnings :: [Text]
     imDir <- Config.imDir <$> Config.getConfig
     -- These are in IO, but should be safe, because they are just reading
     -- static data.  In fact the FFI functions could probably omit the IO.
-    pmap <- DriverC.getPatches
+    pmap <- InstrumentC.getPatches
     let errors =
             [ "faust/" <> name <> ": " <> err
             | (name, Left err) <- Map.toList pmap
@@ -60,21 +60,21 @@ patchCode = Map.fromList
         [ ImInst.transformer "terminate" (Code.note_terminate "decay" 0.01)
         ]
 
-makePatch :: FilePath -> DriverC.Patch -> ImInst.Patch
+makePatch :: FilePath -> InstrumentC.Patch -> ImInst.Patch
 makePatch imDir patch =
-    ImInst.doc #= Doc.Doc (DriverC._doc patch) $
+    ImInst.doc #= Doc.Doc (InstrumentC._doc patch) $
     code constantPitch constantControls $
     ImInst.make_patch $ Patch.patch
         { Patch.patch_controls = (pretty <$> controls) <> standardControls
         , Patch.patch_elements = Set.fromList $ filter (/="") $ map fst $
-            Map.keys $ DriverC._controls patch
+            Map.keys $ InstrumentC._controls patch
         }
     where
-    constantControls = map fst $ filter (DriverC._constant . snd) $
+    constantControls = map fst $ filter (InstrumentC._constant . snd) $
         filter ((/=Control.pitch) . fst) $ Map.toList controls
-    constantPitch = maybe False DriverC._constant $
+    constantPitch = maybe False InstrumentC._constant $
         Map.lookup Control.pitch controls
-    controls = DriverC.imControls patch
+    controls = InstrumentC.imControls patch
     code constantPitch constantControls = (ImInst.code #=) $ mconcat
         [ if constantPitch || not (null constantControls)
             then ImInst.null_call $
@@ -82,13 +82,13 @@ makePatch imDir patch =
                     (Set.fromList (map control constantControls))
             else mempty
         , thruCode pitchToSample
-        , case DriverC._elementFrom patch of
+        , case InstrumentC._elementFrom patch of
             Nothing -> mempty
             Just elementFrom -> ImInst.postproc $
                 DUtil.element_from_id elementFrom
-        , Map.findWithDefault mempty (DriverC._name patch) patchCode
+        , Map.findWithDefault mempty (InstrumentC._name patch) patchCode
         ]
-    pitchToSample = Preview.pitchToSample imDir (DriverC._name patch)
+    pitchToSample = Preview.pitchToSample imDir (InstrumentC._name patch)
 
 control :: Control.Control -> ScoreT.Control
 control (Control.Control c) = ScoreT.Control c

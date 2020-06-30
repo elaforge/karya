@@ -17,7 +17,7 @@ import qualified Util.Thread as Thread
 
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
-import qualified Synth.Faust.DriverC as DriverC
+import qualified Synth.Faust.InstrumentC as InstrumentC
 import qualified Synth.Faust.Render as Render
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Shared.Config as Config
@@ -41,23 +41,23 @@ cacheDir imDir patchName = imDir </> "preview" </> untxt patchName
     (pitch, dynamic, attributes) and render the whole matrix, but for now I
     only have pitch.
 -}
-render :: DriverC.Patch -> IO ()
+render :: InstrumentC.Patch -> IO ()
 render patch = do
     imDir <- Config.imDir <$> Config.getConfig
-    let out = cacheDir imDir (DriverC._name patch)
+    let out = cacheDir imDir (InstrumentC._name patch)
     unlessM (Directory.doesDirectoryExist out) $ do
         Directory.createDirectoryIfMissing True out
         let element = fromMaybe "" $ Seq.head $ filter (/="") $ map fst $
-                Map.keys $ DriverC._controls patch
+                Map.keys $ InstrumentC._controls patch
         Thread.forCpu_ (standardNotes element) $ \(nn, note) -> do
             Log.with_stdio_lock $
-                Text.IO.putStrLn $ DriverC._name patch <> ": " <> pretty nn
+                Text.IO.putStrLn $ InstrumentC._name patch <> ": " <> pretty nn
             renderNote (out </> noteFilename nn) patch note
 
 noteFilename :: Pitch.NoteNumber -> FilePath
 noteFilename nn = prettys nn <> ".wav"
 
-renderNote :: FilePath -> DriverC.Patch -> Note.Note -> IO ()
+renderNote :: FilePath -> InstrumentC.Patch -> Note.Note -> IO ()
 renderNote fname patch note = Resource.runResourceT $
     Audio.File.write AUtil.outputFormat fname $
     Render.renderPatch emitMessage patch Render.defaultConfig Nothing
