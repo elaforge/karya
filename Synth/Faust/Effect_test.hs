@@ -20,14 +20,14 @@ test_process :: Test
 test_process = do
     let Just (Right patch) = Map.lookup "test-delay" EffectC.patches
     let f = process patch
-    io_equal (f [] [[1..8]] 4) [1..8]
-    io_equal (f [[1]] [[1..8]] 4) ([0, 0] ++ [1..6])
-        -- TODO process cuts off the decay
+    io_equal (f [] [[1..8]]) [1..8]
+    -- Round up to block size.
+    io_equal (f [[1]] [[1..8]]) ([0, 0] ++ [1..8] ++ replicate (8-2) 0)
 
 process :: EffectC.Patch -> [[Audio.Sample]] -> [[Audio.Sample]]
-    -> Audio.Frames -> IO [Audio.Sample]
-process patch delay input frames =
-    toSamples frames $ Effect.process config patch Nothing (const (return ()))
+    -> IO [Audio.Sample]
+process patch delay input =
+    toSamples $ Effect.process config patch Nothing (const (return ()))
         (Map.singleton "delay" (Audio.fromSampleLists delay))
         (Audio.fromSampleLists input)
 
@@ -36,9 +36,10 @@ config = Effect.Config
     { _blockSize = 4
     , _controlSize = 4 `Num.assertDiv` controlsPerBlock
     , _controlsPerBlock = controlsPerBlock
+    , _maxDecay = 8
     }
     where controlsPerBlock = 2
 
-toSamples :: Audio.Frames -> AUtil.Audio -> IO [Audio.Sample]
-toSamples frames = fmap (concatMap V.toList) . Resource.runResourceT
-    . Audio.toSamples . Audio.take frames
+toSamples :: AUtil.Audio -> IO [Audio.Sample]
+toSamples = fmap (concatMap V.toList) . Resource.runResourceT
+    . Audio.toSamples . Audio.take 500 -- protect against infinite stream

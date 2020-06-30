@@ -26,6 +26,16 @@ import qualified Synth.Shared.Signal as Signal
 import           Global
 
 
+isBasicallySilent :: V.Vector Audio.Sample -> Bool
+isBasicallySilent samples = rms samples < Audio.dbToLinear (-82)
+    -- I arrived at the dB by just trying it and seeing how it sounds.
+
+rms :: V.Vector Float -> Float
+rms block =
+    sqrt $ V.sum (V.map (\n -> n*n) block) / fromIntegral (V.length block)
+
+-- * controls
+
 findControls :: Ord control => Map control (ptr, config)
     -> Map control block -> [(ptr, block)]
 findControls controls vals = map get $ Maps.zip_intersection controls vals
@@ -62,9 +72,6 @@ takeExtend frames audio = do
     return $ if null blocks then Nothing
         else if missing == 0 then Just (mconcat blocks, audio)
         else Just (mconcat (blocks ++ [Audio.Constant missing final]), audio)
-
-
--- * controls
 
 renderControl :: Monad m => Int -> RealTime -> [(Double, Double)]
     -> Audio.Audio m rate 1

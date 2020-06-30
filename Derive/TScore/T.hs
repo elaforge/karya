@@ -119,11 +119,10 @@ map_note f = \case
     TNote pos note -> TNote pos <$> f note
     TRest pos a -> pure $ TRest pos a
 
--- | Opposide from Ruler.Rank, higher numbers mean larger divisions.
+-- | Opposite from Ruler.Rank, higher numbers mean larger divisions.
 type Rank = Int
 
-data Barline = Barline Rank
-    | AssertCoincident
+data Barline = Barline Rank | AssertCoincident
     deriving (Eq, Show)
 
 data Note call pitch dur = Note {

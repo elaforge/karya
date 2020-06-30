@@ -60,9 +60,8 @@ test_effect = do
     io_equal (write [note 0 0]) $ Right (2, 2)
     io_equal (readSamples dir) triangle
     -- Changing the effect control changes the note hashes.
-    io_equal (write [note 0 2]) $ Right (2, 2)
-    -- TODO take 6 due to Effect.process bug
-    io_equal (readSamples dir) ([0, 0] ++ take 6 triangle)
+    io_equal (write [note 0 2]) $ Right (3, 3)
+    io_equal (readSamples dir) ([0, 0] ++ triangle ++ [0, 0])
 
 test_effect_gain :: Test
 test_effect_gain = do

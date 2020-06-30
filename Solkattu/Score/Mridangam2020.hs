@@ -242,8 +242,7 @@ sarva_20_06_05 = date 2020 6 5 $ ganesh $ korvaiS1 adi $
     . g7 (su (o'.k).od.__.su (on.o).od.od.od . on.od.__      . oktk4)
     . g7 (r2 $ o'.od.__  .oktk4)
     . g7 (r2 $ o'.od.__  .oktk4)
-    . g7 (o'.od.__       .oktk4 . o'.o'.__.oktk4)
-    -- ^ slow gumiki
+    . g7 (o'.od.__       .oktk4 . o'.o'.__.oktk4) -- TODO slow gumiki
     . o'.__n 6       .oktk4 . su (su (r8 (o'.__.t))) -- 6 + 4 + 8*(3/4)
     where
     oktk4 = su (su (r4 (o'.k.t.k)))

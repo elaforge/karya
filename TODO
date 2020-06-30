@@ -2039,8 +2039,9 @@ synth: im:
             do the same thing here.
           . Would it be better to move to explicitly serializing an instrument
             config?
-        - Effect.process should allow the effect to decay
-        - If the effect gain is 0, I can remove it entirely.
+        * Effect.process should allow the effect to decay
+        - Have a separate effect-gain, or wet/dry mix.
+          . If it's 0 I can remove the effect entirely.
           . I guess this is only possible if it's 0 for the whole piece, and
             in that case I might as well use the dynamic config and remove it.
           . There could be a block-level optimization to just pass input to
@@ -2049,7 +2050,7 @@ synth: im:
             traditional effects which are mixed in, that can just be the
             effect gain, which is controlled outside of faust.
 
-    - First extend faust-im to be an Audio processor, so it can take inputs.
+    / First extend faust-im to be an Audio processor, so it can take inputs.
       . I wind up with separate generator and transformers.
       . A generator goes until env goes to 0 and the signal decays to -96dB
       . A transformer goes until the source signal runs out and the signal
@@ -2067,7 +2068,7 @@ synth: im:
       . If the input is a sample, it has a definite end.  In fact, I could
         supply it ahead of time.
       . So transformer render gets an explicit end.
-    - Make a type distinction between generator and transformer Patch and
+    * Make a type distinction between generator and transformer Patch and
       Instrument.
     . Integrate sampler-im's multiple voice ability with faust.
     . Patches now have to define a signal network, but it can probably be

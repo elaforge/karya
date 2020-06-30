@@ -131,7 +131,7 @@ data Config = Config {
     -- | This is _blockSize / _controlSize
     , _controlsPerBlock :: !Audio.Frames
     -- | Force an end if the signal hasn't gone to zero before this.
-    , _maxDecay :: !RealTime
+    , _maxDecay :: !Audio.Frames
     , _emitProgress :: !Bool
     } deriving (Show)
 
@@ -156,7 +156,7 @@ defaultConfig = Config
     , _blockSize = Config.blockSize
     , _controlSize = Config.blockSize `Num.assertDiv` controlsPerBlock -- 147
     , _controlsPerBlock = controlsPerBlock
-    , _maxDecay = 32
+    , _maxDecay = AUtil.toFrames 32
     , _emitProgress = False
     }
     where controlsPerBlock = 75
@@ -307,7 +307,7 @@ renderBlock :: MonadIO m => (Config.Payload -> IO ()) -> Config
     -> Audio.Frames -> Audio.Frames
     -> S.Stream (S.Of [Audio.Block]) m (Maybe Audio.Frames)
 renderBlock emitMessage config notifyState inst controls inputSamples start end
-    | start >= end + maxDecay = return Nothing
+    | start >= end + _maxDecay config = return Nothing
     | otherwise = do
         liftIO $ emitMessage $ Config.RenderingRange
             (AUtil.toSeconds start)
@@ -332,23 +332,15 @@ renderBlock emitMessage config notifyState inst controls inputSamples start end
             -- This should have already been checked by InstrumentC.getPatches.
             [] -> Audio.throwIO "patch with 0 outputs"
             output : _
-                | frames == 0 || chunkEnd >= end + maxDecay
-                        || chunkEnd >= end && isBasicallySilent output ->
+                | frames == 0
+                        || chunkEnd >= end + _maxDecay config
+                        || chunkEnd >= end
+                            && RenderUtil.isBasicallySilent output ->
                     return Nothing
                 | otherwise -> return $ Just chunkEnd
                 where
                 chunkEnd = start + frames
                 frames = Audio.Frames $ V.length output
-    where
-    maxDecay = AUtil.toFrames $ _maxDecay config
-
-isBasicallySilent :: V.Vector Audio.Sample -> Bool
-isBasicallySilent samples = rms samples < Audio.dbToLinear (-82)
-    -- I arrived at the dB by just trying it and seeing how it sounds.
-
-rms :: V.Vector Float -> Float
-rms block =
-    sqrt $ V.sum (V.map (\n -> n*n) block) / fromIntegral (V.length block)
 
 -- ** render breakpoints
 
