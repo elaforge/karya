@@ -423,9 +423,9 @@ effectControls (Just (Render.InstrumentEffect effect config)) note =
     Map.intersection (rename (Note.controls note)) (EffectC._controls effect)
     where
     rename
-        | Map.null renames = id
-        | otherwise = Map.mapKeys (\c -> Map.findWithDefault c c renames)
-    renames = Patch._renameControls config
+        | Map.null (Patch._toEffectControl config) = id
+        | otherwise = Map.mapKeys $ \c ->
+            Map.findWithDefault c c (Patch._toEffectControl config)
 
 -- | It's important to get an accurate duration, because that determines
 -- overlap, which affects caching.

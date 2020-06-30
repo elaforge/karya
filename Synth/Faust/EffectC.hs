@@ -9,7 +9,7 @@ module Synth.Faust.EffectC (
     , Patch, Effect
     , State
     -- * Patch
-    , patches
+    , get, patches
     -- * Effect
     , allocate, destroy
     , render
@@ -48,6 +48,12 @@ type Effect = EffectT PatchC.InstrumentP (Ptr Float)
 
 
 -- * Patch
+
+get :: Text -> IO Patch
+get name = case Map.lookup name patches of
+    Just (Right patch) -> return patch
+    Just (Left err) -> errorIO $ "effect " <> name <> ": " <> err
+    Nothing -> errorIO $ "no effect: " <> name
 
 -- | All configured effects.
 patches :: Map Text (Either Text Patch)

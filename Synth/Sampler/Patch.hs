@@ -10,7 +10,9 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import qualified Util.Log as Log
+import qualified Util.Maps as Maps
 import qualified Util.Seq as Seq
+
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Instrument.Common as Common
 import qualified Perform.Im.Patch as Im.Patch
@@ -124,32 +126,35 @@ standardControls = Map.fromList
 
 data EffectConfig = EffectConfig {
     _effectName :: Text
-    , _renameControls :: !(Map Control.Control Control.Control)
+    -- | Map event controls to effect controls.  So if the effect exports
+    -- "effect-feedback" and we want to refer to it as "depth", then
+    -- ("depth", "effect-feedback").
+    , _toEffectControl :: !(Map Control.Control Control.Control)
     } deriving (Show)
 
 effect :: Text -> EffectConfig
 effect name = EffectConfig
     { _effectName = name
-    , _renameControls = mempty
+    , _toEffectControl = mempty
     }
 
 -- | Check that rename sources exist.  Check that renamed controls don't
 -- overlap patch controls.
 checkControls :: Patch -> Set Control.Control -> EffectConfig -> [Text]
 checkControls patch effectControls effectConfig = concat
-    [ ["rename sources not in effect: " <> pretty unknownRenameFrom
-        | not (null unknownRenameFrom) ]
-    , ["effect controls overlap with patch: " <> pretty patchOverlaps
-        | not (null patchOverlaps)]
+    [ [ "rename sources not in effect: " <> pretty unknownRenameFrom
+      | not (null unknownRenameFrom)
+      ]
+    , [ "effect controls overlap with patch: " <> pretty patchOverlaps
+      | not (null patchOverlaps)
+      ]
     ]
     where
-    renameControls = _renameControls effectConfig
+    toScoreControl = Maps.invert $ _toEffectControl effectConfig
     unknownRenameFrom =
-        Map.keysSet renameControls `Set.difference` effectControls
-    renamed = Set.map (\c -> Map.findWithDefault c c renameControls)
-        effectControls
+        Map.keysSet toScoreControl `Set.difference` effectControls
+    renamed =
+        Set.map (\c -> Map.findWithDefault c c toScoreControl) effectControls
     patchOverlaps = Set.intersection renamed patchControls
-
-    -- effectControls = Map.keysSet $ Effect._controls effect
     patchControls = Map.keysSet $ Im.Patch.patch_controls $
         ImInst.patch_patch $ _karyaPatch patch

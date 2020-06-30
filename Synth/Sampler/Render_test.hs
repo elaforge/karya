@@ -379,16 +379,10 @@ mkNoteEffect dbDir start control vals =
 
 makeEffect :: Text -> IO Render.InstrumentEffect
 makeEffect name = do
-    patch <- case Map.lookup name EffectC.patches of
-        Just (Right patch) -> return patch
-        Just (Left err) -> errorIO $ "effect " <> name <> ": " <> err
-        Nothing -> errorIO $ "no effect: " <> name
+    patch <- EffectC.get name
     return $ Render.InstrumentEffect
         { _effectPatch = patch
-        , _effectConfig = Patch.EffectConfig
-            { _effectName = name
-            , _renameControls = mempty
-            }
+        , _effectConfig = Patch.effect name
         }
 
 controlNote :: RealTime -> RealTime -> Control.Control

@@ -1917,6 +1917,7 @@ synth: im:
         Once I have memory and time profiles, see if there's a significant
         difference between unsafe and safe.
   bug:
+    - faust is losing earlier chunks, e.g. I wind up with 008, 009, 010.wav
     + A no-op change to tempo rerenders everything, e.g. insert a ' somewhere.
       . Controls in general are causing previous notes to rerender.
       . It's because I don't trim the signals before doing the hash.
@@ -2028,7 +2029,9 @@ synth: im:
           . These are inputs, not controls.
           . Replace complicated Audio.take with directly yield Constant of the
             right size.
-        - implement and test control rename
+        * implement and test control rename
+        - maybe rename effect controls to have the effect name as a prefix to
+          avoid collisions?
         - How can I configure an effect onto an existing patch, apart from
           hardcoding?
           . I'd want to be able to apply it as a dynamic config.
@@ -2628,7 +2631,8 @@ synth: im:
       . Another alternative is that the scale could take instrument into
         account.
     break:
-      - do the comb filter thing
+      - make a 'bd' or 'sn' than randomly picks one
+      * do the comb filter thing
         . I'd want to do it with faust, so this requires inserting faust as
           a step in sampler, if not just merging them.
         . The difference is that faust in sampler is a transformer.  I don't
@@ -2910,6 +2914,8 @@ synth: im:
         driver.cc.
         . need ["build/opt/obj/build/faust/blow_bottle.cc.o", ...]
           Util.system "ar" $ ["-rs", "build/faust.a"] ++ objs
+    - Once I have individual faust processors, can I load and reload them
+      dynamically?  Then recompile either with C or use faust's LLVM backend.
     - per-instrument note range for render-preview
       . Or I could only render when loading a score with one as an instrument.
       . Or really lazy means I would only make when I did a MIDI thru, and

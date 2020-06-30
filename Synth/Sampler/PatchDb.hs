@@ -6,6 +6,7 @@
 module Synth.Sampler.PatchDb (db, synth) where
 import qualified Data.Map as Map
 
+import qualified Util.Maps as Maps
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Instrument.Inst as Inst
@@ -65,11 +66,12 @@ synth = Inst.SynthDecl Config.samplerName "音 sampler" $
         }
 
 effectControls :: Patch.EffectConfig -> Map Control.Control Text
-effectControls (Patch.EffectConfig name renames) =
+effectControls (Patch.EffectConfig name toEffectControl) =
     case Map.lookup name EffectC.patches of
-        Nothing -> mempty
-        Just (Left _) -> mempty
         Just (Right effect) ->
-            Map.mapKeys (\c -> Map.findWithDefault c c renames) $
+            Map.mapKeys (\c -> Map.findWithDefault c c toScoreControl) $
                 (("Effect: " <> name <> ": ") <>) . snd <$>
                 EffectC._controls effect
+        _ -> mempty
+    where
+    toScoreControl = Maps.invert toEffectControl
