@@ -160,8 +160,7 @@ event_and_note_step = do
         Nothing -> return Nothing
         Just (Info.Note {}) -> return Nothing
         Just (Info.Pitch Nothing) -> return Nothing
-        Just (Info.Pitch (Just note)) ->
-            return $ Just $ Ui.track_tracknum note
+        Just (Info.Pitch (Just note)) -> return $ Just $ Ui.track_tracknum note
         Just (Info.Control tracks) -> firstJusts (map note_tracknum_of tracks)
     let tracknums = TimeStep.TrackNums $
             [tracknum] ++ maybe [] (:[]) note_tracknum

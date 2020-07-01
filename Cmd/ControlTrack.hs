@@ -122,7 +122,7 @@ modify_num key event =
     'cmd_tempo_val_edit' only catches the keys it will use, passing the rest
     through.  It's already confusing enough which keys are caught by which
     editing mode, it would be even worse if it also depended on text of the
-    event being editing.  TODO perhaps I should go further and catch alphanum
+    event being edited.  TODO perhaps I should go further and catch alphanum
     for the tempo track too, for consistency.
 -}
 modify_hex :: EditUtil.Key -> Modify
@@ -224,9 +224,6 @@ modify_event_at pos f = EditUtil.modify_event_at pos True False
 -- method.  E.g. given @.5 0@, the @0@ will be considered the val while @.5@ is
 -- the method.  This isn't a problem for control calls, which are just numbers
 -- and don't take arguments.
---
--- TODO The event is already bytestring, why don't I just directly give it to
--- lex1?
 parse :: Text -> Event
 parse s
     | Text.null post = Event "" pre ""

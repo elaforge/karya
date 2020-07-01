@@ -58,10 +58,11 @@ get_pos = do
 get_or_create_event :: Ui.M m => Bool -> TrackId -> TrackTime -> TrackTime
     -> m (Event.Event, Bool)
 get_or_create_event modify_dur track_id pos dur = do
-    event <- Events.at pos (Event.orientation_of dur) <$> Ui.get_events track_id
+    mb_event <- Events.at pos (Event.orientation_of dur) <$>
+        Ui.get_events track_id
     let modify = if modify_dur then Event.duration_ #= dur else id
     return $ maybe (Event.event pos dur "", True) (\evt -> (modify evt, False))
-        event
+        mb_event
 
 -- | Modify event text.
 type Modify = Maybe Text

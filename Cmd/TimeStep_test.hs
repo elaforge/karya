@@ -4,13 +4,15 @@
 
 module Cmd.TimeStep_test where
 import qualified Util.Seq as Seq
-import Util.Test
+import qualified Cmd.TimeStep as TimeStep
+import           Cmd.TimeStep (Step(..), MarklistMatch(..), Tracks(..))
+import qualified Ui.Event as Event
 import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
-import qualified Cmd.TimeStep as TimeStep
-import Cmd.TimeStep (Step(..), MarklistMatch(..), Tracks(..))
-import Global
-import Types
+
+import           Global
+import           Types
+import           Util.Test
 
 
 test_show_parse_time_step = do

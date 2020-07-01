@@ -1,9 +1,15 @@
 #!/usr/bin/env zsh
 # Sohpisticated mixdown technology using sox.
 
-set -eux
+set -eu
+if [[ $# -ne 1 ]]; then
+    echo "usage: $0 im/cache/score/path/block"
+    exit 1
+fi
 base_dir=$1
 out=im/mix
+
+set -x
 
 rm -rf $out
 mkdir -p $out

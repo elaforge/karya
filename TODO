@@ -29,6 +29,40 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  / bug: editing control at a particular spot only edits one higit.
+    . Also it turns into an interpolate when it should be set.
+    . Maybe has to do with being at 1/3?
+    . modify_event thinks it's "" each time.
+    . The question is why 'w' puts the selection on a value that doesn't see
+      the event?
+      (Key 53.333333333333336 Positive,
+       Event{_start = 53.333333333333336, _duration = 0.0, _text = "`0x`00",
+             _style = StyleId 0, _stack = Nothing}),
+      Selection{start_track = 5, start_pos = 53.33333333333333, cur_track = 5,
+          cur_pos = 53.33333333333333, orientation = Positive}
+    . TimeStep correctly gives 36.
+    . 53.33333333333333 is EventEnd, what's up with that when _duration=0?
+    . But only when multiple TrackNums
+    . It's due to the tiny gap between end of event on the other track.
+      Why then doesn't EditUtil create a new event?
+    . This is due to Event.round in Events.insert.  That in turn is to ensure
+      that adding 1/3 comes to 1.  So I don't want to get rid of that.
+    . What would it take to use rationals for TrackTime?
+  - consider switching TrackTime to rational
+    . Reason why is if I multiply events by say (2/3) I easily wind up with
+      start+dur just barely not lining up to the start of the next event.
+      And then since Events are rounded but selections aren't, I get confusing
+      behaviour when edit wants to make a new event that nonetheless
+      overwrites an existing one.
+    . If I had a TrackTime / ScoreTime distinction I could do a conversion
+      there, but why not make all of ScoreTime rational?  I don't know any
+      cases where they're truly at complicated times.
+  - Selection.events can't find _mix_vectors
+    . I should put these things in ghci-flags, but who is importing
+      Util.Audio?
+    . And it only happens in debug mode, something is different about linking
+      there.
+    . How to ask for dependency chain in shake?
   * bpm call should work in tempo track
     . It's a val call, don't those work in control tracks?
     . No, that's pitch tracks.
@@ -1918,6 +1952,10 @@ synth: im:
         difference between unsafe and safe.
   bug:
     - faust is losing earlier chunks, e.g. I wind up with 008, 009, 010.wav
+      . Checkpoint.clearRemainingOutput could do this.  No, that's not it.
+      . It's when both faust-im and sampler-im run on the same output.
+      . It's Checkpoint.clearUnusedInstruments.  It can't do that without
+        the global list of instruments.  So I think it has to move to seq.
     + A no-op change to tempo rerenders everything, e.g. insert a ' somewhere.
       . Controls in general are causing previous notes to rerender.
       . It's because I don't trim the signals before doing the hash.
@@ -6165,7 +6203,6 @@ Derive:
     - saturation limit, e.g. flatten sine wave but without clipping
     - continuous tempo warping for signals
       tempo: "2" -> "1", "2", cont: "2" -> "i, 1", should emit a bent line
-
 
 text score: tscore:
   . doc/dev_notes/text-score.md

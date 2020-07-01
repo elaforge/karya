@@ -13,7 +13,9 @@ prio-module-low: GHC.Environment GHC.Read GHC.MVar
 prio-package-high:
 prio-package-low: haskell98 ghc ghc-prim comonad basement
 
-qualify-as: Data.HashMap.Strict as HashMap
+qualify-as:
+    Data.HashMap.Strict as HashMap;
+    Data.Vector.Storable as V
 unqualified: System.FilePath ((</>))
 
 language: BangPatterns DisambiguateRecordFields FlexibleContexts

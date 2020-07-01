@@ -49,7 +49,7 @@ import           Types
 
 -- | A TimeStep is the union of a set of Steps.
 newtype TimeStep = TimeStep [Step]
-    deriving (Eq, Show, Read)
+    deriving (Eq, Show)
 
 time_step :: Step -> TimeStep
 time_step = TimeStep . (:[])
@@ -94,14 +94,14 @@ data Step =
     -- negative.
     | EventStart Tracks
     | EventEnd Tracks
-    deriving (Eq, Show, Read)
+    deriving (Eq, Show)
 
 -- | Events of which tracks the event time step should use.
 data Tracks = CurrentTrack | AllTracks | TrackNums [TrackNum]
-    deriving (Eq, Show, Read)
+    deriving (Eq, Show)
 
 data MarklistMatch = AllMarklists | NamedMarklists [Ruler.Name]
-    deriving (Eq, Show, Read)
+    deriving (Eq, Show)
 
 -- | Another way to express a 'step_from' of 1 or -1.
 data Direction = Advance | Rewind deriving (Eq, Show)
@@ -288,7 +288,7 @@ descending_points block_id tracknum start step =
 
 track_events :: Ui.M m => Direction -> Bool
     -> BlockId -> TrackNum -> TrackTime -> Tracks -> m [TrackTime]
-track_events dir event_start block_id tracknum start tracks = case tracks of
+track_events dir event_start block_id tracknum start = \case
     AllTracks -> do
         track_ids <- Ui.track_ids_of block_id
         merge_points dir <$> mapM get_times track_ids
