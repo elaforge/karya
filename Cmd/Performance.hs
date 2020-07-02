@@ -447,8 +447,12 @@ evaluate_im :: Config.Config
 evaluate_im config lookup_inst score_path adjust0 play_multiplier block_id
         events = do
     cmds <- Maybe.catMaybes <$> mapM write_notes by_synth
+    Config.clearUnusedInstruments output_dir instruments
     return (cmds, fromMaybe mempty $ lookup Nothing by_synth)
     where
+    instruments = Vector.foldl'
+        (flip (Set.insert . ScoreT.instrument_name . Score.event_instrument))
+        mempty events
     by_synth = Util.Vector.partition_on im_synth events
     im_synth event = case lookup_inst (Score.event_instrument event) of
         Just inst -> case Cmd.inst_instrument inst of

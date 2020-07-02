@@ -10,16 +10,21 @@ module Synth.Shared.Config where
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy.Char8 as ByteString.Lazy.Char8
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified GHC.Generics as Generics
 import qualified GHC.Stack
+import qualified System.Directory as Directory
 import           System.FilePath ((</>))
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
 
+import qualified Text.Read as Read
+
 import qualified Util.Audio.AudioT as AudioT
+import qualified Util.File as File
 import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
@@ -28,6 +33,7 @@ import qualified Util.Texts as Texts
 import qualified App.Config as Config
 import qualified App.Path as Path
 import qualified Derive.Stack as Stack
+import qualified Synth.Shared.Note as Note
 import qualified Ui.Id as Id
 
 import           Global
@@ -200,6 +206,13 @@ chunkPath imDir scorePath blockId instrument chunknum =
         </> untxt instrument
         </> untxt (Num.zeroPad 3 chunknum <> ".wav")
 
+-- | This relies on the format from 'chunkPath'.
+isOutputLink :: FilePath -> Maybe ChunkNum
+isOutputLink (c1:c2:c3 : ".wav")
+    | Just n <- Read.readMaybe [c1, c2, c3] = Just n
+    | otherwise = Nothing
+isOutputLink _ = Nothing
+
 -- | This is text sent over MIDI to tell play_cache which directory to play
 -- from.  Relative to imDir/cacheDir.
 playFilename :: FilePath -> Id.BlockId -> FilePath
@@ -208,6 +221,21 @@ playFilename scorePath blockId = scorePath </> idFilename blockId
 idFilename :: Id.Ident a => a -> FilePath
 idFilename id = untxt $ Id.un_namespace ns <> "/" <> name
     where (ns, name) = Id.un_id $ Id.unpack_id id
+
+-- | Delete output links for instruments that have disappeared entirely.
+-- This often happens when I disable a track.
+clearUnusedInstruments :: FilePath -> Set Note.InstrumentName -> IO ()
+clearUnusedInstruments outputDir instruments = do
+    dirs <- filterM (Directory.doesDirectoryExist . (outputDir</>))
+        =<< listDir outputDir
+    let unused = filter ((`Set.notMember` instruments) . txt) dirs
+    forM_ unused $ \dir -> do
+        links <- filter (Maybe.isJust . isOutputLink) <$>
+            listDir (outputDir </> dir)
+        mapM_ (Directory.removeFile . ((outputDir </> dir) </>)) links
+
+listDir :: FilePath -> IO [FilePath]
+listDir = fmap (fromMaybe []) . File.ignoreEnoent . Directory.listDirectory
 
 -- * progress
 

@@ -10,15 +10,12 @@ import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Char8 as ByteString.Char8
 import qualified Data.List as List
-import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Time as Time
 
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import           System.FilePath ((</>))
-
-import qualified Text.Read as Read
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
@@ -192,7 +189,7 @@ linkOutput outputDir fname = do
         (current <> ".tmp")
     Directory.renameFile (current <> ".tmp") current
     return $ fromMaybe (error $ "no parse: " <> show current) $
-        isOutputLink $ FilePath.takeFileName current
+        Config.isOutputLink $ FilePath.takeFileName current
 
 -- | Remove any remaining output symlinks past the final chunk.
 clearRemainingOutput :: FilePath -> Config.ChunkNum -> IO ()
@@ -206,13 +203,7 @@ clearRemainingOutput outputDir start = do
 
 outputPast :: Config.ChunkNum -> [FilePath] -> [FilePath]
 outputPast start =
-    map snd . filter ((>=start) . fst) . Seq.key_on_just isOutputLink
-
-isOutputLink :: FilePath -> Maybe Config.ChunkNum
-isOutputLink (c1:c2:c3 : ".wav")
-    | Just n <- Read.readMaybe [c1, c2, c3] = Just n
-    | otherwise = Nothing
-isOutputLink _ = Nothing
+    map snd . filter ((>=start) . fst) . Seq.key_on_just Config.isOutputLink
 
 filenameToOutput :: FilePath -> FilePath
 filenameToOutput fname = case Seq.split "." fname of
@@ -233,7 +224,7 @@ filenameOf2 chunknum hash encodedState =
 
 -- | Crash after this chunk number.  It's not an inherent limitation, but
 -- it indicates that something has probably gone off the rails.  Also
--- 'isOutputLink' doesn't want to parse more than 3 digits.
+-- 'Config.isOutputLink' doesn't want to parse more than 3 digits.
 maxChunk :: Config.ChunkNum
 maxChunk = 500
 
@@ -242,23 +233,6 @@ zeroPad :: Show a => Int -> a -> ByteString.ByteString
 zeroPad digits n =
     ByteString.Char8.replicate (digits - ByteString.length s) '0' <> s
     where s = ByteString.Char8.pack (show n)
-
--- * initialize
-
--- | Delete output links for instruments that have disappeared entirely.
--- This often happens when I disable a track.
-clearUnusedInstruments :: FilePath -> Set Note.InstrumentName -> IO ()
-clearUnusedInstruments instDir instruments = do
-    dirs <- filterM (Directory.doesDirectoryExist . (instDir</>))
-        =<< listDir instDir
-    let unused = filter ((`Set.notMember` instruments) . txt) dirs
-    forM_ unused $ \dir -> do
-        links <- filter (Maybe.isJust . isOutputLink) <$>
-            listDir (instDir </> dir)
-        mapM_ (Directory.removeFile . ((instDir </> dir) </>)) links
-
-listDir :: FilePath -> IO [FilePath]
-listDir = fmap (fromMaybe []) . File.ignoreEnoent . Directory.listDirectory
 
 
 -- * hash

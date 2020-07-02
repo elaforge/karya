@@ -287,17 +287,14 @@ process :: Bool -> Patch.Db -> Resample.Quality -> [Note.Note] -> FilePath
 process emitProgress db quality notes outputDir
     | n : _ <- notes, Note.start n < 0 =
         errorIO $ "notes start <0: " <> pretty n
-    | otherwise = do
-        Checkpoint.clearUnusedInstruments outputDir instruments
-        Async.forConcurrently_ grouped $ \(patchName, notes) ->
-            whenJustM (getPatch db patchName) $ \(patch, mbEffect) ->
-                Async.forConcurrently_ notes $ \(inst, notes) ->
-                    processInst patch inst mbEffect notes
+    | otherwise = Async.forConcurrently_ grouped $ \(patchName, notes) ->
+        whenJustM (getPatch db patchName) $ \(patch, mbEffect) ->
+            Async.forConcurrently_ notes $ \(inst, notes) ->
+                processInst patch inst mbEffect notes
     where
     processInst patch inst mbEffect notes =
-        realize emit trackIds config outputDir inst mbEffect
-            . Maybe.catMaybes =<< makeSampleNotes emit mbEffect
-                (convert db patch notes)
+        realize emit trackIds config outputDir inst mbEffect . Maybe.catMaybes
+            =<< makeSampleNotes emit mbEffect (convert db patch notes)
         where
         trackIds = trackIdsOf notes
         emit = emitMessage trackIds inst
@@ -311,10 +308,8 @@ process emitProgress db quality notes outputDir
             , _payload = payload
             }
         | otherwise = return ()
-
     trackIdsOf = Set.fromList . mapMaybe Note.trackId
     grouped = byPatchInst notes
-    instruments = Set.fromList $ concatMap (map fst . snd) grouped
 
 
 getPatch :: Patch.Db -> Note.PatchName

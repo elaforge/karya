@@ -45,7 +45,7 @@ write adjust0 play_multiplier block_id lookup_inst filename events = do
         -- TODO fix sorted Derive.Stream: so I can remove this.
         Seq.sort_on Score.event_start $
         Vector.toList events
-    -- The so-called play multiplier is actually a divider.
+    -- The play multiplier is a speed multiplier, so it's a note time divider.
     Note.serialize filename $ multiply_time adjust0 (1/play_multiplier) $
         map trim_controls notes
     return ()

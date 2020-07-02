@@ -26,11 +26,10 @@ import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
-import qualified Synth.Faust.InstrumentC as InstrumentC
 import qualified Synth.Faust.EffectC as EffectC
+import qualified Synth.Faust.InstrumentC as InstrumentC
 import qualified Synth.Faust.Preview as Preview
 import qualified Synth.Faust.Render as Render
-import qualified Synth.Lib.Checkpoint as Checkpoint
 import qualified Synth.Shared.Note as Note
 
 import           Global
@@ -179,8 +178,6 @@ process emitProgress patches notes outputDir = do
     -- Signals.installHandler above will make SIGINT throw.
     let async :: Exception.AsyncException -> IO ()
         async exc = Log.error $ "exception: " <> showt exc
-    let instruments = Set.fromList $ map fst $ concatMap snd patchInstNotes
-    Checkpoint.clearUnusedInstruments outputDir instruments
     Exception.handle async $ Async.forConcurrently_ (flatten patchInstNotes) $
         \(patch, inst, notes) -> do
             -- Put the patch name after _.  Instruments never have '_', so this

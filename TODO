@@ -1951,8 +1951,7 @@ synth: im:
         Once I have memory and time profiles, see if there's a significant
         difference between unsafe and safe.
   bug:
-    - faust is losing earlier chunks, e.g. I wind up with 008, 009, 010.wav
-      . Checkpoint.clearRemainingOutput could do this.  No, that's not it.
+    * faust is losing earlier chunks, e.g. I wind up with 008, 009, 010.wav
       . It's when both faust-im and sampler-im run on the same output.
       . It's Checkpoint.clearUnusedInstruments.  It can't do that without
         the global list of instruments.  So I think it has to move to seq.
