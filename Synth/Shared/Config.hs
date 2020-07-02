@@ -9,6 +9,7 @@
 module Synth.Shared.Config where
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy.Char8 as ByteString.Lazy.Char8
+import qualified Data.HashSet as HashSet
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
@@ -224,11 +225,11 @@ idFilename id = untxt $ Id.un_namespace ns <> "/" <> name
 
 -- | Delete output links for instruments that have disappeared entirely.
 -- This often happens when I disable a track.
-clearUnusedInstruments :: FilePath -> Set Note.InstrumentName -> IO ()
+clearUnusedInstruments :: FilePath -> HashSet Note.InstrumentName -> IO ()
 clearUnusedInstruments outputDir instruments = do
     dirs <- filterM (Directory.doesDirectoryExist . (outputDir</>))
         =<< listDir outputDir
-    let unused = filter ((`Set.notMember` instruments) . txt) dirs
+    let unused = filter (not . (`HashSet.member` instruments) . txt) dirs
     forM_ unused $ \dir -> do
         links <- filter (Maybe.isJust . isOutputLink) <$>
             listDir (outputDir </> dir)

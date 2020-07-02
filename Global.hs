@@ -5,7 +5,7 @@
 {-# LANGUAGE CPP #-}
 -- | A local Prelude, meant to be imported unqualified.
 module Global (
-    Proxy(..), Map, Set
+    Proxy(..), Map, Set, HashMap, HashSet
     , (<|>)
     , first, second, bimap
     , Monoid(..), Semigroup(..)
@@ -53,6 +53,8 @@ import Data.List (foldl')
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Map (Map)
 import Data.Set (Set)
+import Data.HashMap.Strict (HashMap)
+import Data.HashSet (HashSet)
 import Data.Maybe (mapMaybe, fromMaybe)
 import Data.Semigroup (Semigroup(..))
 import qualified Data.Text as Text

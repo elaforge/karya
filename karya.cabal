@@ -79,6 +79,7 @@ library
         time,
         transformers >=0.4,
         unix,
+        unordered-containers,
         utf8-string,
         vector,
         wcwidth,

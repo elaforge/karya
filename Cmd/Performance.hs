@@ -17,6 +17,7 @@ import qualified Control.Concurrent.Async as Async
 import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Monad.State.Strict as Monad.State
 
+import qualified Data.HashSet as HashSet
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
@@ -300,12 +301,12 @@ evaluate_performance im_config lookup_inst wait send_status score_path
 -- through to actual performance.
 check_dummy :: (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> Vector.Vector Score.Event -> [Score.Event]
-check_dummy lookup_inst = snd . Vector.foldl' go (Set.empty, [])
+check_dummy lookup_inst = snd . Vector.foldl' go (HashSet.empty, [])
     where
     go (seen, warns) event
-        | Set.member inst seen = (seen, warns)
+        | HashSet.member inst seen = (seen, warns)
         | otherwise =
-            ( Set.insert inst seen
+            ( HashSet.insert inst seen
             , if is_dummy inst then event : warns else warns
             )
         where
@@ -451,7 +452,8 @@ evaluate_im config lookup_inst score_path adjust0 play_multiplier block_id
     return (cmds, fromMaybe mempty $ lookup Nothing by_synth)
     where
     instruments = Vector.foldl'
-        (flip (Set.insert . ScoreT.instrument_name . Score.event_instrument))
+        (flip (HashSet.insert . ScoreT.instrument_name
+            . Score.event_instrument))
         mempty events
     by_synth = Util.Vector.partition_on im_synth events
     im_synth event = case lookup_inst (Score.event_instrument event) of

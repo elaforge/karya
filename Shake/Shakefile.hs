@@ -77,6 +77,7 @@ basicPackages = concat
     , w "directory filepath process bytestring time unix array ghc-prim"
     --  basic
     , w "deepseq data-ordlist cereal random text stm network"
+    , w "unordered-containers"
     , [("transformers", ">=0.4"), ("mtl", ">=2.2.1")]
     , w "writer-cps-mtl"
     , w "vector utf8-string"
