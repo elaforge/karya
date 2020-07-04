@@ -29,6 +29,17 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  green mold:
+    * if I can load IT then I can import green mold
+      . The original Cmd.Load.Mod used a sexpr format from a modified xmp.
+      . Maybe bind directly to libxmp?
+      . https://github.com/cmatsuoka/libxmp
+      . https://github.com/cmatsuoka/libxmp/blob/master/docs/libxmp.rst
+      . The original idea is good: xmp loads everything, make it emit sexpr
+        common format, then parse that.
+    - get it rendering
+      . I like the section starting at b168
+      . But the block numbers seem different?
   / bug: editing control at a particular spot only edits one higit.
     . Also it turns into an interpolate when it should be set.
     . Maybe has to do with being at 1/3?

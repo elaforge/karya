@@ -211,7 +211,7 @@ keyswitch_map (Common.AttributeMap amap) =
 
 -- | Keep a cache of the end of the last event, to make it easier to find
 -- a free track.
-type SplitState = IntMap.IntMap (RealTime, NoteTrack)
+type SplitState = IntMap (RealTime, NoteTrack)
 
 -- | For each note, assign to the lowest track which doesn't have an overlap.
 split_track :: [Midi] -> ([NoteTrack], [(RealTime, Midi.Key)])

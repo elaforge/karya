@@ -5,7 +5,10 @@
 {-# LANGUAGE CPP #-}
 -- | A local Prelude, meant to be imported unqualified.
 module Global (
-    Proxy(..), Map, Set, HashMap, HashSet
+    Proxy(..)
+    , Map, Set
+    , IntMap, IntSet
+    , HashMap, HashSet
     , (<|>)
     , first, second, bimap
     , Monoid(..), Semigroup(..)
@@ -36,34 +39,37 @@ module Global (
     , module Data.Foldable
     , MonadIO, lift, liftIO
     -- * nonempty
-    , module Data.List.NonEmpty
+    , NonEmpty((:|))
     -- * text
     , Text.Text
     , txt, untxt, showt
 ) where
-import Control.Applicative ((<|>))
-import Control.Monad
-       ((<=<), (>=>), ap, filterM, foldM, forM, forM_, forever, guard,
-        liftM, mplus, msum, mzero, replicateM, replicateM_, when, unless, void,
-        zipWithM, zipWithM_)
-import Control.Monad.Trans (MonadIO, lift, liftIO)
-import Data.Proxy (Proxy(..))
+import           Control.Applicative ((<|>))
+import           Control.Monad
+       (ap, filterM, foldM, forM, forM_, forever, guard, liftM, mplus, msum,
+        mzero, replicateM, replicateM_, unless, void, when, zipWithM, zipWithM_,
+        (<=<), (>=>))
+import           Control.Monad.Trans (lift, liftIO, MonadIO)
 
-import Data.List (foldl')
-import Data.List.NonEmpty (NonEmpty(..))
-import Data.Map (Map)
-import Data.Set (Set)
-import Data.HashMap.Strict (HashMap)
-import Data.HashSet (HashSet)
-import Data.Maybe (mapMaybe, fromMaybe)
-import Data.Semigroup (Semigroup(..))
+import           Data.Foldable (foldMap, Foldable)
+import           Data.HashMap.Strict (HashMap)
+import           Data.HashSet (HashSet)
+import           Data.IntMap (IntMap)
+import           Data.IntSet (IntSet)
+import           Data.List (foldl')
+import           Data.List.NonEmpty (NonEmpty((:|)))
+import           Data.Map (Map)
+import           Data.Maybe (fromMaybe, mapMaybe)
+import           Data.Proxy (Proxy(..))
+import           Data.Semigroup (Semigroup(..))
+import           Data.Set (Set)
 import qualified Data.Text as Text
-import Data.Traversable (Traversable, traverse)
-import Data.Foldable (Foldable, foldMap)
+import           Data.Traversable (traverse, Traversable)
 
-import Util.Lens
-import Util.Pretty (Pretty, pretty, prettys)
-import Util.Control
+import           Util.Pretty (pretty, prettys, Pretty)
+
+import           Util.Control
+import           Util.Lens
 
 
 -- | Utilities to make it easier to convert things to Text.  These are

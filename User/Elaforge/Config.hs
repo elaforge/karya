@@ -21,6 +21,8 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Controller as Controller
 import qualified Cmd.Load.Med as Load.Med
 import qualified Cmd.Load.Mod as Load.Mod
+import qualified Cmd.Load.ModSexpr as ModSexpr
+import qualified Cmd.Load.ModT as ModT
 import qualified Cmd.Msg as Msg
 
 import qualified Derive.C.All as C.All
@@ -30,7 +32,7 @@ import qualified Ui.Ui as Ui
 import qualified User.Elaforge.Config.Hobbes as Hobbes
 import qualified User.Elaforge.Config.Tammananny as Tammananny
 
-import Global
+import           Global
 
 
 load_static_config :: IO StaticConfig.StaticConfig
@@ -49,7 +51,8 @@ load_static_config = do
 
 parse_args :: [String] -> Either Text (Cmd.CmdT IO Cmd.Status)
 parse_args = \case
-    ["med", fn] -> Right $ load_med fn
+    ["med", fname] -> Right $ load_med fname
+    ["mod-sexpr", fname] -> Right $ load_mod_sexpr fname
     args -> ParseArgs.parse_args args
 
 oxygen8_v2 :: Controller.TransportConfig
@@ -87,16 +90,24 @@ default_midi = StaticConfig.Midi
     }
     where iac n = "IAC Driver " <> showt n
 
--- * med
+-- * mod
+
+load_mod_sexpr :: FilePath -> Cmd.CmdT IO Cmd.Status
+load_mod_sexpr fname =
+    convert_mod fname =<< Cmd.require_right id =<< liftIO (ModSexpr.load fname)
 
 load_med :: FilePath -> Cmd.CmdT IO Cmd.Status
-load_med fn = do
-    let inst_map = Map.findWithDefault mempty (FilePath.takeFileName fn)
-            inst_maps
-    mod <- liftIO $ Load.Med.load inst_map fn
-    state <- Cmd.require_right pretty $ Load.Mod.convert (fn_to_ns fn) mod
+load_med fname = convert_mod fname =<< liftIO (Load.Med.load fname)
+
+convert_mod :: Cmd.M m => FilePath -> ModT.Module -> m Cmd.Status
+convert_mod fname mod = do
+    state <- Cmd.require_right pretty $ Load.Mod.convert (fn_to_ns fname) $
+        ModT.map_instruments inst_map mod
     Ui.put state
     return Cmd.Done
+    where
+    inst_map = Map.findWithDefault mempty (FilePath.takeFileName fname)
+            inst_maps
 
 fn_to_ns :: FilePath -> Id.Namespace
 fn_to_ns = Id.namespace . txt . head . Seq.split "." . FilePath.takeFileName
@@ -141,4 +152,12 @@ inst_maps = Map.fromList
         , ("BstTom", "tom")
         , ("SundanceJazzHit", "hit")
         ])
+    , ("green-mold.sexp",) $ Map.fromList
+        [ ("chip 1 -", "c1")
+        , ("chip 2 --", "c2")
+        , ("chip 3 ---", "c3")
+        , ("b 1 -", "b1")
+        , ("b 2 --", "b2")
+        , ("b 3 ---", "b3")
+        ]
     ]

@@ -199,6 +199,10 @@ in rec {
   #   Diff
   # ]);
 
+  mod_to_sexpr = nixpkgs.callPackage nix/mod_to_sexpr.nix {};
+
+  #### aggregate deps
+
   deps = builtins.concatLists [
     basicDeps
     fontDeps

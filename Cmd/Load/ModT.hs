@@ -3,9 +3,11 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Types for modules.  Theoretically tracker-independent.
-module Cmd.Load.ModTypes where
+module Cmd.Load.ModT where
 import qualified Data.Bits as Bits
 import           Data.Bits ((.&.))
+import qualified Data.IntMap as IntMap
+import qualified Data.List as List
 import qualified Data.Map as Map
 import           Data.Word (Word8)
 
@@ -17,10 +19,11 @@ import           Global
 
 
 data Module = Module {
-    _instruments :: [Instrument]
+    _instruments :: IntMap Instrument
     , _default_tempo :: !Tempo
     , _blocks :: [Block]
-    , _block_order :: [(Text, [Int])]
+    -- | Name of sequence, '_blocks' indices.
+    , _block_order :: Map Text [Int]
     } deriving (Eq, Show)
 
 data Tempo = Tempo {
@@ -33,11 +36,24 @@ data Instrument = Instrument {
     , _volume :: !(Maybe Double)
     } deriving (Eq, Show)
 
+map_instruments :: Map Text Text -> Module -> Module
+map_instruments inst_map mod = mod { _instruments = set <$> _instruments mod }
+    where
+    set inst = inst
+        { _instrument_name =
+            ScoreT.Instrument $ Map.findWithDefault inst_name inst_name inst_map
+        } where inst_name = ScoreT.instrument_name $ _instrument_name inst
+
 data Block = Block {
-    -- | These are by-track.
-    _tracks :: [[Line]]
+    -- | These are by-track.  Use an IntMap because empty lines are common.
+    _tracks :: [Track]
     , _block_length :: !Int
     } deriving (Eq, Show)
+
+type Track = IntMap Line
+
+make_track :: [(Int, Line)] -> Track
+make_track = carry_zeroes . IntMap.fromList
 
 data Line = Line {
     _pitch :: !(Maybe Pitch.NoteNumber)
@@ -57,6 +73,7 @@ data Command =
     | SetFrames !Int
     | Volume !Double -- ^ 0 to 1
     | VolumeSlide !Int -- ^ positive for up, negative for down
+    | VolumeSlideFine !Int
     | CutBlock
     | CutNote
     | DelayRepeat !Int !Int -- ^ delay frames, repeat each n frames
@@ -133,3 +150,25 @@ volume = (/0x64) . fromIntegral
 
 split4 :: Word8 -> (Int, Int)
 split4 w = (fromIntegral $ Bits.shiftR w 4 .&. 0xf, fromIntegral $ w .&. 0xf)
+
+-- | A Command arg of 0 is often a shorthand to carry forward the previous
+-- value.  Eliminate this by doing the carry.
+carry_zeroes :: Track -> Track
+carry_zeroes =
+    IntMap.fromAscList . snd . List.mapAccumL set (0, []) . IntMap.toAscList
+    where
+    set (inst, prev_cmds) (row, line) =
+        ((_instrument line2, cmds), (row, line2 { _commands = cmds }))
+        where
+        line2 = set_inst inst line
+        cmds = map (set_default prev_cmds) (_commands line)
+    set_default prev_cmds cmd =
+        fromMaybe cmd $ msum (map (flip carry_arg cmd) prev_cmds)
+    -- If the prev_cmd was the same type, and this one has a 0, then
+    -- replace with the prev_cmd.
+    carry_arg (Command c1 arg) (Command c2 0) | c1 == c2 = Just $ Command c1 arg
+    carry_arg (VolumeSlide arg) (VolumeSlide 0) = Just $ VolumeSlide arg
+    carry_arg _ _ = Nothing
+    set_inst inst line
+        | _instrument line == 0 = line { _instrument = inst }
+        | otherwise = line
