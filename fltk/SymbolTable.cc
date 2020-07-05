@@ -62,6 +62,10 @@ SymbolTable::fonts() const
 void
 SymbolTable::insert(const string &name, const Symbol &sym)
 {
+    if (sym.invalid()) {
+        DEBUG("ignoring Symbol with invalid font for " << name);
+        return;
+    }
     SymbolMap::iterator it = this->symbol_map.find(name);
     if (it != symbol_map.end()) {
         // Clear it out of the box_cache.

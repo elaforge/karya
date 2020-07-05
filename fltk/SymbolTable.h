@@ -44,10 +44,10 @@ public:
                 geom::DPoint align = DPoint(), int rotate = 0) :
             utf8(utf8), font(font), size(size),
             align_x(align.x), align_y(align.y), rotate(rotate)
-        {
-            // Make sure font_not_found doesn't creep in.
-            ASSERT(font >= 0);
-        }
+        {}
+        // True if the font was font_not_found, which means you can't draw this
+        // Glyph.
+        bool invalid() const { return font < 0; }
         // This is owned by the glyph and must be freed explicitly.
         const char *utf8;
         Font font;
@@ -77,6 +77,14 @@ public:
             glyphs.push_back(g1);
             glyphs.push_back(g2);
             glyphs.push_back(g3);
+        }
+        // SymbolTable::insert will skip any invalid Glyph.
+        bool invalid() const {
+            for (const Glyph &g : glyphs) {
+                if (g.invalid())
+                    return true;
+            }
+            return false;
         }
         // Turn off automatic y placement.  If the glyphs have descenders and
         // you want them to actually descend, turn this on.
