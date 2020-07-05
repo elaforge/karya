@@ -5,7 +5,8 @@
 {-# LANGUAGE DefaultSignatures #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-} -- ShowVal.show_val
 -- | The 'show_val' method turns haskell values back to tracklang expressions.
--- It's similar to the opposite of 'Derive.Typecheck.Typecheck'.
+-- It should be the inverse of 'Derive.Typecheck.from_val' .
+-- 'Derive.Parse.parse_val'.
 module Derive.ShowVal where
 import qualified Data.Char as Char
 import qualified Data.Ratio as Ratio

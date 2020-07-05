@@ -48,11 +48,11 @@ to_module val = do
     blocks <- forM patterns $ \pattern -> do
         tracks <- list pattern
         (lens, tracks) <- unzip <$> mapM (get_track <=< list) tracks
-        return $ ModT.Block tracks (maximum (0:lens))
+        return $ ModT.Block (maximum (0:lens)) tracks
     return $ ModT.Module
         { _instruments = IntMap.fromList insts
         , _default_tempo = ModT.Tempo bpm spd
-        , _block_order = Map.singleton "default" order
+        , _block_order = Map.singleton "score" order
         , _blocks = blocks
         }
 

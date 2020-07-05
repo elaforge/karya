@@ -37,9 +37,13 @@ UNSORTED
       . https://github.com/cmatsuoka/libxmp/blob/master/docs/libxmp.rst
       . The original idea is good: xmp loads everything, make it emit sexpr
         common format, then parse that.
+    * it doesn't seem to clip events after a CutBlock
+    * instruments seem to be off
+    * implement 'd' as df, not `from=xx | d n`
+    * what is cmd 29? I: tremor ontime x offtime y, FX_TREMOR
     - get it rendering
       . I like the section starting at b168
-      . But the block numbers seem different?
+      . Subtract 1 from block numbers, Create.block starts at b1.
   / bug: editing control at a particular spot only edits one higit.
     . Also it turns into an interpolate when it should be set.
     . Maybe has to do with being at 1/3?

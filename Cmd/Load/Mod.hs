@@ -203,7 +203,8 @@ type LineNum = Int
 -- |
 -- - Lookup instrument.
 convert_track :: State -> LineNum -> IntMap ModT.Line -> [Note]
-convert_track state block_len = go . IntMap.toAscList
+convert_track state block_len =
+    go . takeWhile ((<block_len) . fst) . IntMap.toAscList
     where
     go ((_, ModT.Line Nothing _ _) : lines) = go lines
     go ((linenum, ModT.Line (Just pitch) instnum cmds) : lines) =
@@ -226,7 +227,7 @@ convert_track state block_len = go . IntMap.toAscList
 -- - Interpret timing cmds like 1f.
 convert_note :: LineNum -> ModT.Tempo -> ModT.Instrument -> LineNum
     -> Pitch.NoteNumber -> [ModT.Command] -> [(LineNum, ModT.Line)] -> Note
-convert_note block_len tempo instrument linenum pitch cmds lines = Note
+convert_note block_len tempo instrument linenum pitch cmds future_lines = Note
     { _start = start
     , _duration = end - start
     , _instrument = instrument
@@ -234,11 +235,11 @@ convert_note block_len tempo instrument linenum pitch cmds lines = Note
     , _pitch = pitch
     , _controls = Map.fromListWith (Seq.merge_on Event.start) $
         convert_commands instrument start cmds $
-        takeWhile ((==Nothing) . cut_note) lines
+        takeWhile ((==Nothing) . cut_note) future_lines
     }
     where
     start = line_start linenum
-    end = fromMaybe (line_start block_len) $ msum (map cut_note lines)
+    end = fromMaybe (line_start block_len) $ msum (map cut_note future_lines)
 
 note_call :: Int -> [ModT.Command] -> Text
 note_call frames cmds =
@@ -269,16 +270,17 @@ group_controls controls =
     where
     make_control (Left control, vals) =
         (control, [Event.event start 0 call | (start, (_, _, call)) <- vals])
-    make_control (Right (control, call), vals) =
+    make_control (Right (_k, control), vals) =
         ( control
         , [Event.event t (last run + one_line - t) call | run@(t:_) <- runs]
         )
         where
+        (_, _, call) = snd $ head vals
         runs = Seq.split_between (\t1 t2 -> t2 > t1 + one_line) (map fst vals)
         one_line = 1 / fromIntegral lines_per_t
     -- All Singles are in one group so they each get a 0 dur event.
     key (Single, control, _) = Left control
-    key (Grouped, control, call) = Right (control, call)
+    key (Grouped k, control, _call) = Right (k, control)
 
 type Control = Text
 data Call = Call !Text !Double
@@ -286,7 +288,9 @@ data Call = Call !Text !Double
 
 -- | Single cmds emit a single 0 dur event.  Grouped cmds emit an event with
 -- the given duration as long as they stay the same.
-data CommandType = Single | Grouped
+data CommandType = Single
+    -- | Take a group key since VolumeSlide can group df with d.
+    | Grouped !Text
     deriving (Eq, Ord, Show)
 
 commands_to_controls :: [ModT.Command] -> [(CommandType, Control, Text)]
@@ -295,14 +299,17 @@ commands_to_controls = mapMaybe convert . (\xs -> map (xs,) xs)
     convert (cmds, c) = case c of
         -- The slope is not accurate, and I'd need a ScoreTime slope for 'u'
         -- and 'd' to make it accurate.  Too much bother.
-        ModT.VolumeSlide val
-            | vol : _ <- [vol | ModT.Volume vol <- cmds] -> Just
-                ( Grouped
-                , c_dyn
-                , "from=" <> ShowVal.show_hex_val vol
-                    <> " | " <> c <> " " <> show_val (abs val)
-                )
-            | otherwise -> Just (Grouped, c_dyn, c <> " " <> show_val (abs val))
+        ModT.VolumeSlide val -> Just
+            ( Grouped (show_val val)
+            , c_dyn
+            , Text.unwords $ case [vol | ModT.Volume vol <- cmds] of
+                vol : _ ->
+                    [ c <> "f"
+                    , ShowVal.show_hex_val vol
+                    , show_val (abs val)
+                    ]
+                [] -> [c, show_val (abs val)]
+            )
             where c = if val >= 0 then "u" else "d"
         ModT.Volume val
             | null [() | ModT.VolumeSlide _ <- cmds] ->
@@ -311,7 +318,7 @@ commands_to_controls = mapMaybe convert . (\xs -> map (xs,) xs)
         ModT.Command name val -> Just
             ( Single
             , "cmd"
-            , "--|" <> name <> if val == 0 then "" else " " <> Num.hex 2 val
+            , "--| " <> name <> if val == 0 then "" else " " <> Num.hex 2 val
             )
         _ -> Nothing
 

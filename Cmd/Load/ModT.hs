@@ -45,11 +45,11 @@ map_instruments inst_map mod = mod { _instruments = set <$> _instruments mod }
         } where inst_name = ScoreT.instrument_name $ _instrument_name inst
 
 data Block = Block {
-    -- | These are by-track.  Use an IntMap because empty lines are common.
-    _tracks :: [Track]
-    , _block_length :: !Int
+    _block_length :: !Int
+    , _tracks :: [Track]
     } deriving (Eq, Show)
 
+-- | Empty lines are common, so this uses IntMap as a sparse array.
 type Track = IntMap Line
 
 make_track :: [(Int, Line)] -> Track

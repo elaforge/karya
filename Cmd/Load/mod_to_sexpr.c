@@ -64,6 +64,9 @@ static const char *fx_name(unsigned char fx, unsigned char param)
     case FX_SPEED:
         return "speed";
 
+    case FX_TREMOR:
+        return "tremor"; // xy ontime x, offtime y
+
     case FX_S3M_SPEED:
         return "s3m_speed";
     case FX_S3M_BPM:
@@ -140,7 +143,7 @@ int main(int argc, char **argv)
     printf("(instruments\n");
     for (int i = 0; i < mod->ins; i++) {
         if (mod->xxi[i].nsm > 0) {
-            printf("  (%d \"%32s\")\n", i, mod->xxi[i].name);
+            printf("  (%d \"%32s\")\n", i+1, mod->xxi[i].name);
         }
     }
     printf(")\n");
@@ -159,7 +162,7 @@ int main(int argc, char **argv)
     printf("(patterns\n");
     for (int i = 0; i < mod->pat; i++) {
         struct xmp_pattern *pat = mod->xxp[i];
-        printf("  (\n");
+        printf("  ( ; %d\n", i + 1); // block names start at 1
         for (int chan = 0; chan < mod->chn; chan++) {
             print_track(mod->xxt[pat->index[chan]]);
         }
