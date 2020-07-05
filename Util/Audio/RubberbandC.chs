@@ -9,7 +9,7 @@ import           Foreign (Ptr, castPtr)
 import qualified Foreign.C as C
 
 
-#include <rubberband-c.h>
+#include <rubberband/rubberband-c.h>
 
 type Frames = C.CUInt
 

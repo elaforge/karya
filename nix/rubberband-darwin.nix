@@ -18,8 +18,9 @@ stdenv.mkDerivation {
     make -f Makefile.osx static dynamic
   '';
   installPhase = ''
-    mkdir -p $out/include $out/lib
-    cp rubberband/rubberband-c.h rubberband/RubberBandStretcher.h $out/include
+    mkdir -p $out/include/rubberband $out/lib
+    cp rubberband/rubberband-c.h rubberband/RubberBandStretcher.h \
+      $out/include/rubberband
     cp lib/*.a lib/*.dylib $out/lib
   '';
 
