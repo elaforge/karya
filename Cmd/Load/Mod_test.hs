@@ -31,10 +31,7 @@ test_convert = do
             [ (8, [ [(0, (Just 60, 1, []))] ])
             , (8, [ [(1, (Just 62, 2, [ModT.Volume 0.5]))] ])
             ])
-        [ ( "b1"
-          , [ (">s1", [(0, 1, "")]), ("*", [(0, 0, "4c")])
-            , ("dyn", [(0, 0, "`0x`ff")])
-            ]
+        [ ( "b1", [(">s1", [(0, 1, "")]), ("*", [(0, 0, "4c")])]
           )
         , ( "b2"
           , [ (">s2", [(1/8, 7/8, "")]), ("*", [(1/8, 0, "4d")])
@@ -43,7 +40,7 @@ test_convert = do
           )
         , ("score", [(">", [(0, 1, "b1"), (1, 1, "b2")])])
         ]
-    -- CutBlock drops notes at and after it.
+    -- CutBlock drops notes at and after it, but after the line its own.
     right_equal
         (f
             [ ( 8
@@ -51,13 +48,14 @@ test_convert = do
                   , (2, (Nothing, 1, [ModT.VolumeSlide 1]))
                   , (6, (Nothing, 1, [ModT.VolumeSlide 1]))
                   ]
-                , [(4, (Just 80, 1, [ModT.CutBlock])), (6, (Just 80, 1, []))]
+                , [(3, (Just 72, 1, [ModT.CutBlock])), (6, (Just 80, 1, []))]
                 ]
               )
             ])
         [ ( "b1"
           , [ (">s1", [(0, 0.5, "")]), ("*", [(0, 0, "4c")])
             , ("dyn", [(0, 0, "`0x`ff"), (2/8, 1/8, "u 1")])
+            , (">s1", [(3/8, 1/8, "")]), ("*", [(3/8, 0, "5c")])
             ]
           )
         , ("score", [(">", [(0, 0.5, "b1")])])

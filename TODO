@@ -41,9 +41,11 @@ UNSORTED
     * instruments seem to be off
     * implement 'd' as df, not `from=xx | d n`
     * what is cmd 29? I: tremor ontime x offtime y, FX_TREMOR
-    - get it rendering
+    * I think break breaks *after* the row, not on.
+    + get it rendering
       . I like the section starting at b168
       . Subtract 1 from block numbers, Create.block starts at b1.
+      . Per-instrument transposition, b123 is at a low octave.
   / bug: editing control at a particular spot only edits one higit.
     . Also it turns into an interpolate when it should be set.
     . Maybe has to do with being at 1/3?
@@ -4554,7 +4556,7 @@ fltk:
       to put the input.  I think I'd want the input itself to know it's
       wrapping upwards, so it can get it right during input as well.
     . It seems like too much hassle for a cosmetic issue.
-  + scrolling gets stuck when I have horizontal scrolling, it won't go
+  * scrolling gets stuck when I have horizontal scrolling, it won't go
     horizontal and vertical at the same time.
     . This appears to be a fltk problem, druid doesn't do this.
     . Also druid gets (f64, f64), fltk is integral.

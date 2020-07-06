@@ -12,6 +12,7 @@ import qualified Data.Text as Text
 
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+
 import qualified Cmd.Create as Create
 import qualified Cmd.Load.ModT as ModT
 import qualified Cmd.Ruler.Meter as Meter
@@ -129,7 +130,7 @@ convert_block state block =
         Seq.minimum $ mapMaybe track_len (ModT._tracks block)
     track_len = Seq.head . mapMaybe cut_block . IntMap.toAscList
     cut_block (linenum, line)
-        | ModT.CutBlock `elem` ModT._commands line = Just linenum
+        | ModT.CutBlock `elem` ModT._commands line = Just (linenum+1)
         | otherwise = Nothing
 
 make_skeleton :: [[track]] -> Skeleton.Skeleton
@@ -159,15 +160,18 @@ merge_notes notes =
     instruments = Seq.unique $ map (ModT._instrument_name . _instrument) notes
 
 clean_track :: (Text, [Event.Event]) -> Maybe (Text, [Event.Event])
+clean_track (_, []) = Nothing
 clean_track (title, events)
-    | null events = Nothing
     | ParseTitle.is_note_track title || ParseTitle.is_pitch_track title =
         Just (title, events)
-    | otherwise = Just (title, Seq.drop_with idempotent events)
+    -- Remove control tracks that are just 1.
+    | ParseTitle.is_control_track title && map Event.text clean == ["`0x`ff"] =
+        Nothing
+    | otherwise = Just (title, clean)
     where
+    clean = Seq.drop_with idempotent events
     idempotent e1 e2 = "`0x`" `Text.isPrefixOf` a && a == b
-        where
-        (a, b) = (Event.text e1, Event.text e2)
+        where (a, b) = (Event.text e1, Event.text e2)
 
 note_event :: Bool -> Note -> Event.Event
 note_event set_instrument n = Event.event (_start n) (_duration n) call
