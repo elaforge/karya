@@ -45,6 +45,7 @@ sarva_tani =
     , K sarva_20_06_12_reduction All
     , K sarva_20_06_19_endings All
     , K sarva_20_06_19 All
+    , K sarva_20_06_19_reduce5 All
     , K sarva_20_01_27 All
     , Comment "namita dimita dimi"
     , K sarva_20_02_10 All
@@ -209,19 +210,14 @@ sarva_20_05_08 = date 2020 5 8 $ ganesh $ korvai adi
     , s $ nadai 6 $ r3 $ k.__.od.__.pk.od.__.pk.od.__ . tri_ __ p6 -- Also 567
     ]
 
--- TODO
 -- n d d n enters gradually
--- reduce dddd faster
--- then reduce with oktkoktkt etc.
--- can reduce then leave a gap before sam
 sarva_20_05_29 :: Korvai
-sarva_20_05_29 = date 2020 5 29 $ ganesh $ korvai adi
-    [ s $ sarva 7 . end
-        . sam . start . sarva 6 . end
-        . sam . r2 (start . sarva 2 . end)
-        . sam . r4 (start . end)
+sarva_20_05_29 = date 2020 5 29 $ ganesh $ korvaiS adi
+    [ sarva 7 . end
+      . sam . r2 (start . sarva 2 . end)
+      . sam . r4 (start . end)
     -- In the recording, he has 2 matra karvai, and lands on eddupu +0.5.
-    , s $ r2 (start.end) . end.o'&d . end.o'&d . nadai 3 (su __.end)
+    , sarva 4 . end.o'&d . end.o'&d . nadai 3 (su __.end)
     ]
     where
     sarva = sarvaD (n.od.od.on.su (on.on).od.od.on . on.d.d.n.n.d.d.n)
@@ -230,6 +226,8 @@ sarva_20_05_29 = date 2020 5 29 $ ganesh $ korvai adi
 
 -- 7 reductions
 -- TODO starts and ends on arudi
+-- sarva laghu before 7s, don't use thom
+-- pv pv - - to emphasize
 -- also prepare with some sarvalaghu that does vv_ stuff.
 sarva_20_06_05 :: Korvai
 sarva_20_06_05 = date 2020 6 5 $ ganesh $ korvaiS1 adi $
@@ -286,16 +284,40 @@ sarva_20_06_19 = date 2020 6 19 $ korvaiS adi
 
     , tri_ __ pknpv . tri_ __ (o.pknpv) . tri_ __ (o.v.pknpv)
     , tri_ __ ktpko . tri_ __ (k.ktpko) . tri_ __ (k.k.ktpko)
-
-    , sd $ __.__ . tri (g (k.__3.o.__)) . tri (g (su (k.__3.o.__)))
-        . tri (g (su (su (k.__3.o.__))))
-        . tri (g (su (su ktkno)))
     ]
     where
-    g = group
     pknpv = su (su (p.k.n.p)).v
     ktpko = su (su ktpk).o
     pk = su (p.k)
+
+sarva_20_06_19_reduce5 :: Korvai
+sarva_20_06_19_reduce5 = date 2020 6 19 $ korvaiS adi $
+    -- 5 + 5/2 + 5/2/2 + 5/2/2/2 * 2 =
+    -- 5 + 5/2 + 5/2/2 + 5/2/2 =
+    -- 5 + 5/2 + 5/2 =
+    -- 10 * 3 = 30
+    [ sd $ sd $ __.__. r3 (
+          g (k.__3.od.__)
+        . g (su (k.__3.od.__))
+        . g (su (su (k.__3.od.__)))
+        . g (su (su (su (k.p.k.od.__.ktkno))))
+        )
+    ]
+    where
+    g = group
+
+e_20_07_03 :: Korvai
+e_20_07_03 = date 2020 7 3 $ korvaiS adi
+    [ su $ prefix . r7 (o.o.o.v) . o.o.o.k
+    , su $ prefix . r6 (o.o.o.v) . r3 (o.o&v).o.k
+    , su $ prefix . r4 (o.o.o.v) . r7 (o.o&v).o.k
+    , su $ prefix . r4 (o.__.v.__.pknpv)
+    , su $ prefix . r4 (o.__.pknpv) . r2 pknpv
+    , su $ prefix . r8 pknpv
+    ]
+    where
+    pknpv = su (p.k.n.p).v.__
+    prefix = p.__.ktkt.pk.nakatiku .n.p.k.__.u.__.pk.nakatiku
 
 {-
     thani:
