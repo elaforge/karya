@@ -3267,6 +3267,49 @@ shakefile: build:
     . How are you supposed to install deps in the v2 world?
   nix:
     . https://app.cachix.org/cache/elaforge
+    * my patched fltk doesn't put the right flags in fltk-config --ldflags
+      . -L/nix/store/bsfg5y1qf63vh5pryz947vk2brga3la7-fltk-1.4.x-r13121/lib
+        -Wl,-rpath,/nix/store/bsfg5y1qf63vh5pryz947vk2brga3la7-fltk-1.4.x-r13121/lib
+        -lfltk -lXrender -lXfixes -lXext -lXft -lfontconfig -lpthread -ldl -lm
+        -lX11
+      . But mine lacks the rpath stuff... is that necessary?
+      . But they both lack X11, I guess I have to add that as a separate dep.
+        I need Xrender, Xfixes, Xext, Xft, fontconfig
+      . This happens even with the standard nixpkgs.fltk, so I'm not sure how
+        it ever worked.
+      . What about other fltk-using things in nixpkgs?
+        audio/giada doesn't link Xft...
+        . fltk's own fluid links, how?
+      . I'm missing xlibsWrapper in propagatedBuildInputs, what is that?
+        I wind up with x libs in propagated-build-inputs, presumably that is
+        supposed to wind up on the -L line somehow.
+      . It links them with -l, no -L line.  Nix must have some magic for that.
+        Some build hook maybe?
+      . Ah, it's NIX_LDFLAGS, which the nix gcc wrapper reads.
+        Maybe ghc doesn't run the wrapped gcc?
+      . It doesn't make it into NIX_LDFLAGS unless it's on buildEnv's srcs.
+      . ccWrapper_addCVars is from
+        /nix/store/291ldi6fqsbmkbvbs8is4mcg3jb64ld4-gcc-wrapper-8.3.0/nix-support/setup-hook
+      . bintoolsWrapper_addLDVars is from
+        /nix/store/gwwycf3w6cbj0gd2mpgblrdjc24f3cys-binutils-wrapper-2.31.1/nix-support/setup-hook
+      . It looks like it adds bintoolsWrapper_addLDVars function to the hooks,
+        which then runs on each input, which stuffs -L in NIX_LDFLAGS if there
+        is a $drv/lib dir.
+      . Then activatePackage (from setup)? runs the hooks, including that one.
+    * link failure on fftw for rubberband
+      . Perhaps nix librubberband does't put it in the propagatedBuildDeps?
+      . It doesn't, but but putting fftw in my deps doesn't work either.
+      . Maybe because of static linking?  Try dynamic linking rubberband.
+      . Why does -LXft wind up in NIX_LDFLAGS (twice!) while rubberband's fftw
+        dep doesn't?
+      . What exactly is the mechanism for something to get into NIX_LDFLAGS?
+        _addRpathPrefix $out
+        . It must be an input hook run by buildInputs.
+      . nixpkgs rubberband doesn't have a nix-support/propagated-build-inputs,
+        maybe this means it doesn't propagate the fftw dep?
+      . Adding fftw to deps works for the -L line, but doesn't put on the -l
+        flag.
+      . Using -l instead of directly naming the .a file fixes it.
     * shake doesn't pick up on changes to Local/ShakeConfig.hs
       . Probably because it's a symlink to the nix store, and I have
         Shake.shakeChange = Shake.ChangeModtime, due to ghci.
