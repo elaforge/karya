@@ -52,6 +52,7 @@ library = mconcat
         , ("n", c_neighbor)
         , ("d", c_down)
         , ("df", c_down_from)
+        , ("uf", c_up_from)
         , ("u", c_up)
 
         -- not sure which one I'll like better
@@ -254,6 +255,15 @@ c_down_from = generator1 "df" mempty
     <*> Sig.defaulted "limit" 0 "Stop at this value."
     ) $ \(from, speed, limit) args ->
         make_slope args (Just limit) Nothing (Just from) (-speed)
+
+c_up_from :: Derive.Generator Derive.Control
+c_up_from = generator1 "uf" mempty "Like df, but up."
+    $ Sig.call ((,,)
+    <$> Sig.defaulted "from" 0 "Start at this value."
+    <*> Sig.defaulted "speed" 1 "Ascend this amount per second."
+    <*> Sig.defaulted "limit" 1 "Stop at this value."
+    ) $ \(from, speed, limit) args ->
+        make_slope args (Just limit) Nothing (Just from) speed
 
 make_slope :: Derive.ControlArgs -> Maybe Signal.Y -> Maybe Signal.Y
     -> Maybe Signal.Y -> Double -> Derive.Deriver Signal.Control

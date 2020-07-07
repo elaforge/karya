@@ -67,14 +67,21 @@ get_track vals = Left $ "expected track, got " <> pretty (map val_type vals)
 
 -- (row nn instrument vol (fx1 fx1param) (fx2 fx2param))
 to_line :: [Val] -> Either Error (Int, ModT.Line)
-to_line [idx, nn, inst, vol, fx1, fx2] = do
+to_line [idx, pitch, inst, vol, fx1, fx2] = do
     idx <- num idx
-    pitch <- (\n -> if n == 0 then Nothing else Just (Pitch.nn n)) <$> num nn
+    pitch <- num pitch
     inst <- num inst
     vol <- num vol
     fxs <- mapMaybeM to_cmd [fx1, fx2]
-    let cmds = [ModT.Volume $ fromIntegral (vol - 1) / 64 | vol > 0] ++ fxs
-    return (idx, ModT.Line pitch inst cmds)
+    let cmds = concat
+            [ [ModT.Volume $ fromIntegral (vol - 1) / 64 | vol > 0]
+            , fxs
+            -- In IT 130 is ^^^, which is CutNote.
+            , [ModT.CutNote | pitch == 130]
+            ]
+    return $ (idx,) $ ModT.Line
+        (if 0 < pitch && pitch < 128 then Just (Pitch.nn pitch) else Nothing)
+        inst cmds
 to_line val = Left $ "expected note, got " <> pretty (map val_type val)
 
 to_cmd :: Val -> Either Error (Maybe ModT.Command)

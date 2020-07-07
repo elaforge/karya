@@ -42,6 +42,12 @@ UNSORTED
     * implement 'd' as df, not `from=xx | d n`
     * what is cmd 29? I: tremor ontime x offtime y, FX_TREMOR
     * I think break breaks *after* the row, not on.
+    * uf call doesn't exist
+    * got instrument 0 on b154, track 1
+      . 0 instrument should carry
+      inst 0 pitch 130, it's ^^^, which is cut note I think
+    - support d and u for pitch
+    - support vibrato
     + get it rendering
       . I like the section starting at b168
       . Subtract 1 from block numbers, Create.block starts at b1.
