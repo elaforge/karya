@@ -4,6 +4,7 @@
 
 -- | Convert 'Score.Event's to the low-level event format, 'Note.Note'.
 module Perform.Im.Convert (write, convert) where
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector
@@ -47,7 +48,7 @@ write adjust0 play_multiplier block_id lookup_inst filename events = do
         Vector.toList events
     -- The play multiplier is a speed multiplier, so it's a note time divider.
     Note.serialize filename $ multiply_time adjust0 (1/play_multiplier) $
-        map trim_controls notes
+        map (uncurry trim_controls) $ Seq.zip_nexts notes
     return ()
 
 multiply_time :: RealTime -> RealTime -> [Note.Note] -> [Note.Note]
@@ -65,15 +66,20 @@ multiply_time adjust0 n
 --
 -- Also normalize constant signals to a single sample, fewer bogus breakpoints
 -- can make the synthesizer more efficient.
-trim_controls :: Note.Note -> Note.Note
-trim_controls note =
-    note { Note.controls = trim_control note <$> Note.controls note }
+trim_controls :: Note.Note -> [Note.Note] -> Note.Note
+trim_controls note nexts =
+    note { Note.controls = trim_control note nexts <$> Note.controls note }
 
-trim_control :: Note.Note -> Signal.Signal -> Signal.Signal
-trim_control note sig = case Signal.constant_val_from (Note.start note) sig of
-    Nothing -> Signal.drop_after (Note.end note) $
-        Signal.drop_before (Note.start note) sig
-    Just y -> Signal.constant y
+trim_control :: Note.Note -> [Note.Note] -> Signal.Signal -> Signal.Signal
+trim_control note nexts sig =
+    case Signal.constant_val_from (Note.start note) sig of
+        Nothing -> case List.find ((== key note) . key) nexts of
+            Nothing -> Signal.drop_before (Note.start note) sig
+            Just next -> Signal.drop_after (Note.start next) $
+                Signal.drop_before (Note.start note) sig
+        Just y -> Signal.constant y
+    where
+    key n = (Note.instrument n, Note.element n)
 
 convert :: BlockId -> (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> [Score.Event] -> [LEvent.LEvent Note.Note]

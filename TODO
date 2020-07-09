@@ -46,12 +46,26 @@ UNSORTED
     * got instrument 0 on b154, track 1
       . 0 instrument should carry
       inst 0 pitch 130, it's ^^^, which is cut note I think
+    - support per-instrument transpose?
+      . Or maybe I should use LEvent for that.
+      . LPitch.transpose_o 1
+      . But I need a by-instrument selector.
+      . But maybe I don't even need this, use final instruments first.
+      . What are the relative octaves of the original samples?
     - support d and u for pitch
     - support vibrato
     + get it rendering
       . I like the section starting at b168
+      . Or from recording: 12:09
       . Subtract 1 from block numbers, Create.block starts at b1.
       . Per-instrument transposition, b123 is at a low octave.
+    instruments:
+      - get a sine, how hard can it be
+        . faust?
+      - try fm8 and use different control settings for instruments
+        . Can I map multiple instruments to the same one but with different
+          controls?
+        . Maybe alias them to one, but with different transformer?
   / bug: editing control at a particular spot only edits one higit.
     . Also it turns into an interpolate when it should be set.
     . Maybe has to do with being at 1/3?
@@ -1914,6 +1928,13 @@ instruments:
     . http://www.musicdevelopments.com/syne.html
 
 synth: im:
+  * trimming trailing controls is too eager, I need until the start of the
+    next note.
+    . Breaking zheng-idiom in save/test/faust/tambura
+    . Can I have a test for this?
+  - It seems like im-gc.py is too eager
+    . If I disable an old track, it deletes it right away.
+    . Shouldn't it have touched all the timestamps when it hit that track?
   * setting tempo to 0 starts rendering im, which then gets to 1000+ chunks,
     which then crashes in Checkpoint.hs linkOutput, isOutputLink
   - Maybe I could have the tempo track default to 1 instead of almost 0.
@@ -4088,6 +4109,22 @@ cleanup:
     Note tracks can't get a GetLastSample at all.
 
 performance:
+  - dragging scroll is laggy
+    . Happens on a big block.  Happens with or without a ruler.
+    . Happens even on a small block when there are lots of other blocks, goes
+      away as soon as I delete the others.  Maybe it's diff going through all
+      blocks?
+    . Events don't capture the lag, maybe because it's in cmd?  I have to get
+      an event starting at the fltk event.
+    . Hmm but I think I have everything in the loop...
+    . Unless the async cmd respond loop is getting behind!  I need timing
+      on that too!
+    . I do have timing, Responder.trace puts it in the event log!
+    . So I can ressurect the eventlog stuff from way back.  Also I think I saw
+      references to others using chrome event tracing too.
+      . Maybe on ghc mailing list?
+    . But it's probably diff, because it seems to scale with overall score
+      size, not edited block size.
   - try INLINEABLE for the functions in DeriveM.
     . I think no good though, because DeriveM is already concrete, so there
       are no dictionaries to specialize.
