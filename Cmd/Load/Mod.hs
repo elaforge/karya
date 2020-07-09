@@ -98,6 +98,7 @@ convert ns mod = Ui.exec Ui.empty $ do
 ky :: Text
 ky = Text.unlines
     [ "note generator:"
+    -- convert uses `i` call to set instrument.
     , "i = inst = $inst |"
     ]
 

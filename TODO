@@ -29,7 +29,7 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
-  green mold:
+  green mold: mod:
     * if I can load IT then I can import green mold
       . The original Cmd.Load.Mod used a sexpr format from a modified xmp.
       . Maybe bind directly to libxmp?
@@ -46,7 +46,7 @@ UNSORTED
     * got instrument 0 on b154, track 1
       . 0 instrument should carry
       inst 0 pitch 130, it's ^^^, which is cut note I think
-    - support per-instrument transpose?
+    * support per-instrument transpose?
       . Or maybe I should use LEvent for that.
       . LPitch.transpose_o 1
       . But I need a by-instrument selector.

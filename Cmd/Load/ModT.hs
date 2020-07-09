@@ -12,6 +12,7 @@ import qualified Data.Map as Map
 import           Data.Word (Word8)
 
 import qualified Util.Num as Num
+import qualified Util.Seq as Seq
 import qualified Derive.ScoreT as ScoreT
 import qualified Perform.Pitch as Pitch
 
@@ -35,14 +36,6 @@ data Instrument = Instrument {
     _instrument_name :: !ScoreT.Instrument
     , _volume :: !(Maybe Double)
     } deriving (Eq, Show)
-
-map_instruments :: Map Text Text -> Module -> Module
-map_instruments inst_map mod = mod { _instruments = set <$> _instruments mod }
-    where
-    set inst = inst
-        { _instrument_name =
-            ScoreT.Instrument $ Map.findWithDefault inst_name inst_name inst_map
-        } where inst_name = ScoreT.instrument_name $ _instrument_name inst
 
 data Block = Block {
     _block_length :: !Int
@@ -172,3 +165,34 @@ carry_zeroes =
     set_inst inst line
         | _instrument line == 0 = line { _instrument = inst }
         | otherwise = line
+
+-- * transform
+
+map_instruments :: Map Text Text -> Module -> Module
+map_instruments inst_map mod = mod { _instruments = set <$> _instruments mod }
+    where
+    set inst = inst
+        { _instrument_name =
+            ScoreT.Instrument $ Map.findWithDefault inst_name inst_name inst_map
+        } where inst_name = ScoreT.instrument_name $ _instrument_name inst
+
+transpose_instruments :: Map ScoreT.Instrument Pitch.NoteNumber
+    -> Module -> Module
+transpose_instruments transpose mod = flip modify_lines mod $ \line ->
+    case (_pitch line, Map.lookup (_instrument line) by_num) of
+        (Just nn, Just steps) -> line { _pitch = Just $ nn + steps }
+        _ -> line
+    where
+    by_num = Map.fromList $ Seq.map_maybe_fst (flip Map.lookup inst_to_num) $
+        Map.toList transpose
+    inst_to_num = Map.fromList
+        [ (_instrument_name inst, n)
+        | (n, inst) <- IntMap.toList (_instruments mod)
+        ]
+
+modify_lines :: (Line -> Line) -> Module -> Module
+modify_lines f = modify_tracks (fmap f)
+
+modify_tracks :: (Track -> Track) -> Module -> Module
+modify_tracks f mod = mod { _blocks = map tracks (_blocks mod) }
+    where tracks block = block { _tracks = map f (_tracks block) }
