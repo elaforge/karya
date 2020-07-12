@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE NamedFieldPuns #-}
 -- | Functions for larger scale transformations on a State.
 module Ui.Transform where
 import qualified Data.List as List
@@ -230,3 +231,32 @@ intern_stats table =
     total_hits = Num.sum (Map.elems table) - Map.size table
     stats (text, hits) = size * (hits - 1)
         where size = Text.length text * 2 + 3 * 4 -- pointer + length + start
+
+-- * stats
+
+data Stats = Stats {
+    _blocks :: Int
+    , _tracks :: Int
+    , _events :: Int
+    } deriving (Show)
+
+show_stats :: Ui.State -> Text
+show_stats state = Text.unlines
+    [ "blocks: " <> showt _blocks
+    , "tracks: " <> showt _tracks
+        <> " (" <> Num.showFloat 2 per_block <>  " per block)"
+    , "events: " <> showt _events
+        <> " (" <> Num.showFloat 2 per_event <> " per track)"
+    ]
+    where
+    per_block = fromIntegral _tracks / fromIntegral _blocks
+    per_event = fromIntegral _events / fromIntegral _tracks
+    Stats { _blocks, _tracks, _events } = stats state
+
+stats :: Ui.State -> Stats
+stats state = Stats
+    { _blocks = Map.size (Ui.state_blocks state)
+    , _tracks = Map.size (Ui.state_tracks state)
+    , _events = Num.sum $ map (Events.length . Track.track_events) $
+        Map.elems $ Ui.state_tracks state
+    }

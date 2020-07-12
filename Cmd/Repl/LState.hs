@@ -73,6 +73,9 @@ summary = do
         , ("tracks", f tracks), ("rulers", f rulers)
         ]
 
+stats :: Cmd.CmdL Text
+stats = Transform.show_stats <$> Ui.get
+
 -- * configure
 
 get_config :: Cmd.CmdL Ui.Config
