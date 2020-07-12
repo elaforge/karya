@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE NamedFieldPuns #-}
 -- | Convert ghc eventlog to json for <chrome://tracing>.
 module App.ConvertEventLog (main) where
 import qualified Data.Aeson as Aeson
@@ -30,6 +31,10 @@ main :: IO ()
 main = do
     args <- Environment.getArgs
     case args of
+        ["--print", input] -> Events.printEventsIncremental False input
+        ["--user", input] ->
+            dumpUser -- . Seq.sort_on Events.evTime
+                =<< readEvents input
         [input] -> do
             events <- readEvents input
             print (length events)
@@ -48,6 +53,15 @@ readEvents = fmap (Events.events . Events.dat) . readLog
 readLog :: FilePath -> IO Events.EventLog
 readLog = either (CallStack.errorIO . txt) return
     <=< Events.readEventLogFromFile
+
+-- | Write user events in a format for tools/parse_timing.py.
+dumpUser :: [Events.Event] -> IO ()
+dumpUser events = forM_ events $ \case
+    Events.Event { evTime, Events.evSpec = Events.UserMessage msg } ->
+        putStrLn $ unwords [show (nsToSec evTime), msg]
+    Events.Event { evTime, Events.evSpec = Events.UserMarker msg } ->
+        putStrLn $ unwords [show (nsToSec evTime), msg]
+    _ -> return ()
 
 write :: FilePath -> [Event] -> IO ()
 write fname events = ByteString.Lazy.writeFile fname $
@@ -206,7 +220,7 @@ cGhc = "ghc"
 data Event = Event {
     _processId :: !Int
     , _threadId :: !Int
-    , _timestamp :: !Microsecond
+    , _timestamp :: !Nanosecond
     , _detail :: !Detail
     } deriving (Eq, Show)
 
@@ -227,7 +241,10 @@ data Detail = Detail {
 
 phase = Lens.lens _phase (\f r -> r { _phase = f (_phase r) })
 
-type Microsecond = Word.Word64
+type Nanosecond = Word.Word64
+
+nsToSec :: Nanosecond -> Double
+nsToSec = (/1_000_000_000) . fromIntegral
 
 instance Aeson.ToJSON Event where
     toEncoding (Event pid tid ts (Detail cats name phase_ args)) =
@@ -291,7 +308,7 @@ instance Convert Duration where
         End -> ("E", [])
 
 -- tdur=thread clock duration.  Also could have stack or sf.
-data Complete = Complete !(Maybe Microsecond) deriving (Eq, Show)
+data Complete = Complete !(Maybe Nanosecond) deriving (Eq, Show)
 
 instance Convert Complete where
     convert (Complete dur) =

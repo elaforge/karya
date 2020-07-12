@@ -10,6 +10,7 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Util.Log as Log
+import qualified Util.Trace as Trace
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Integrate as Integrate
 import qualified Cmd.Internal as Internal
@@ -47,10 +48,14 @@ sync sync_func ui_from ui_to cmd_state cmd_updates play_monitor_state = do
                 Log.warn $ "verify fixed issues: "
                     <> Text.intercalate "; " warns
             return state
+    Trace.trace "sync.verify"
 
     let (ui_updates, display_updates) = Diff.diff cmd_updates ui_from ui_to
+    Trace.force (ui_updates, display_updates)
+    Trace.trace "sync.diff"
     -- Debug.fullM (Debug.putp "ui_updates") ui_updates
     -- Debug.fullM (Debug.putp "display_updates") display_updates
+
     (ui_to, ui_updates, display_updates) <-
         case Integrate.score_integrate ui_updates ui_to of
             Left err -> do
@@ -62,11 +67,14 @@ sync sync_func ui_from ui_to cmd_state cmd_updates play_monitor_state = do
                         Diff.diff updates ui_to state
                 return (state, ui_updates ++ ui_updates',
                     display_updates ++ display_updates')
+    Trace.force (ui_updates, display_updates)
+    Trace.trace "sync.score_integrate"
 
     when (any modified_view ui_updates) $
         MVar.modifyMVar_ play_monitor_state (const (return ui_to))
     err <- sync_func (get_track_signals cmd_state) Internal.set_style
         ui_to display_updates
+    Trace.trace "sync.sync"
     whenJust err $ \err ->
         Log.error $ "syncing updates: " <> pretty err
     return (ui_updates, ui_to, cmd_state)

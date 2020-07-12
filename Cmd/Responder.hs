@@ -31,13 +31,13 @@ import qualified Control.Monad.State.Strict as Monad.State
 
 import qualified Data.Map as Map
 import qualified Data.Text.IO as Text.IO
-import qualified Debug.Trace as Trace
 import qualified Network.Socket as Socket
 import qualified System.IO as IO
 
 import qualified Util.Debug as Debug
 import qualified Util.Log as Log
 import qualified Util.Thread as Thread
+import qualified Util.Trace as Trace
 
 import qualified App.Config as Config
 import qualified App.Path as Path
@@ -124,7 +124,7 @@ responder config git_user ui_chan msg_reader midi_interface setup_cmd
     let cmd_state = setup_state $ Cmd.initial_state $
             StaticConfig.cmd_config app_dir save_dir midi_interface config
                 git_user
-    trace "respond initialize"
+    Trace.trace "respond_initialize"
     state <- run_setup_cmd setup_cmd $ State
         { state_static_config = config
         , state_ui = ui_state
@@ -216,9 +216,9 @@ timeout = 5
 
 respond_loop :: State -> MsgReader -> IO ()
 respond_loop state msg_reader = do
-    trace "wait"
+    Trace.trace "wait"
     msg <- msg_reader `Exception.onException` kill_threads state
-    trace $ "respond " <> untxt (Msg.show_short msg)
+    Trace.trace $ "respond " <> untxt (Msg.show_short msg)
     when (Cmd.state_debug_ui_msgs (state_cmd state)) $
         Debug.putp "msg" msg
     result <- Exception.try $ Thread.timeout timeout $ respond state msg
@@ -288,42 +288,43 @@ save_updates updates = Monad.State.modify $ \st ->
 -}
 run_responder :: State -> ResponderM Result -> IO (Bool, State)
 run_responder state action = do
-    (val, RState _ ui_from ui_to cmd_from cmd_to cmd_updates)
+    (val, RState _ ui_from ui_to cmd_from cmd_to cmd_update)
         <- Monad.State.runStateT action (make_rstate state)
     case val of
         Left err -> do
             Log.warn (pretty err)
             -- Exception rolls back changes to ui_state and cmd_state.
             return (False, state { state_ui = ui_from, state_cmd = cmd_from })
-        Right status -> post_cmd state ui_from ui_to cmd_to cmd_updates status
+        Right status -> post_cmd state ui_from ui_to cmd_to cmd_update status
 
 -- | Do all the miscellaneous things that need to be done after a command
 -- completes.  This doesn't happen if the cmd threw an exception.
 post_cmd :: State -> Ui.State -> Ui.State -> Cmd.State
     -> [Update.CmdUpdate] -> Cmd.Status -> IO (Bool, State)
 post_cmd state ui_from ui_to cmd_to cmd_updates status = do
+    Trace.trace "cmd"
     -- Load external definitions and cache them in Cmd.State, so cmds don't
     -- have a dependency on IO.
-    trace "ky"
-    cmd_to <- Ky.update_cache ui_to cmd_to
-    cmd_to <- handle_special_status (state_ui_channel state) ui_to cmd_to
+    !cmd_to <- Ky.update_cache ui_to cmd_to
+    Trace.trace "ky"
+    !cmd_to <- handle_special_status (state_ui_channel state) ui_to cmd_to
         (state_transport_info state) status
-    cmd_to <- return $ fix_cmd_state ui_to cmd_to
-    trace "sync"
+    !cmd_to <- return $ fix_cmd_state ui_to cmd_to
     (updates, ui_to, cmd_to) <- ResponderSync.sync (state_sync state)
         ui_from ui_to cmd_to cmd_updates
         (Transport.info_state (state_transport_info state))
+    Trace.trace "sync"
 
-    trace "derive"
     cmd_to <- do
         -- Kick off the background derivation threads.
         let damage = Diff.derive_diff (state_ui state) ui_to updates
         cmd_state <- Performance.update_performance
             (send_derive_status (state_loopback state)) ui_to cmd_to damage
         return $ cmd_state { Cmd.state_derive_immediately = mempty }
+    Trace.trace "derive_diff"
 
-    trace "undo"
     cmd_to <- Undo.maintain_history ui_to cmd_to updates
+    Trace.trace "undo"
     when (is_quit status) $
         Save.save_views cmd_to ui_to
             `Exception.catch` \(exc :: Exception.IOException) ->
@@ -346,37 +347,37 @@ post_cmd state ui_from ui_to cmd_to cmd_updates status = do
 
 handle_special_status :: Fltk.Channel -> Ui.State -> Cmd.State
     -> Transport.Info -> Cmd.Status -> IO Cmd.State
-handle_special_status ui_chan ui_state cmd_state transport_info status =
-    case status of
-        Cmd.PlayMidi args -> do
-            play_ctl <- PlayC.play ui_chan ui_state transport_info args
-            return $! cmd_state
-                { Cmd.state_play = (Cmd.state_play cmd_state)
-                    { Cmd.state_play_control = Just play_ctl }
-                }
-        Cmd.FloatingInput action -> do
-            Fltk.send_action ui_chan "floating_input" $
-                Sync.floating_input ui_state action
-            return $! cmd_state
-                { Cmd.state_edit = (Cmd.state_edit cmd_state)
-                    { Cmd.state_floating_input = True }
-                }
-        _ -> return cmd_state
+handle_special_status ui_chan ui_state cmd_state transport_info = \case
+    Cmd.PlayMidi args -> do
+        play_ctl <- PlayC.play ui_chan ui_state transport_info args
+        return $! cmd_state
+            { Cmd.state_play = (Cmd.state_play cmd_state)
+                { Cmd.state_play_control = Just play_ctl }
+            }
+    Cmd.FloatingInput action -> do
+        Fltk.send_action ui_chan "floating_input" $
+            Sync.floating_input ui_state action
+        return $! cmd_state
+            { Cmd.state_edit = (Cmd.state_edit cmd_state)
+                { Cmd.state_floating_input = True }
+            }
+    _ -> return cmd_state
 
 respond :: State -> Msg.Msg -> IO (Bool, State)
 respond state msg = run_responder state $ do
-    trace "keys"
     record_keys msg
+    Trace.trace "keys"
     -- Normal cmds abort as son as one returns a non-Continue.
     result <- fmap unerror $ Except.runExceptT $ do
-        trace "ui_updates"
         record_ui_updates msg
-        trace "cmds"
+        Trace.trace "ui_updates"
         run_core_cmds msg
+        Trace.trace "core_cmds"
         return $ Right Cmd.Done
     case result of
         Right _ -> run_sync_status
         Left _ -> return ()
+    Trace.trace "sync_status"
     return result
     where unerror = either (\(Done r) -> r) id
 
@@ -520,10 +521,3 @@ write_thru midi_writer = \case
 not_continue :: Cmd.Status -> Bool
 not_continue Cmd.Continue = False
 not_continue _ = True
-
--- * util
-
--- | Write a trace entry.  This goes in the eventlog, and can be read by
--- threadscope or chrome, after App.ConvertEventLog
-trace :: MonadIO m => String -> m ()
-trace = liftIO . Trace.traceEventIO

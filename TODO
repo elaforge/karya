@@ -4125,6 +4125,70 @@ performance:
       . Maybe on ghc mailing list?
     . But it's probably diff, because it seems to scale with overall score
       size, not edited block size.
+    * Use eventlogs with parse_timing.py
+    * Those timestamps can't really be microseconds, they have 14 and 23s.
+      eventlog2html source implies they are ns.
+    . Run with heap profile and use eventlog2html.
+      . It shows traceMarker but not traceEvent, the difference is not
+        documented but, in EventLog/Events.hs:
+        -- Messages and UserMessages correspond to high-frequency "traceEvent"
+          or "traceEventIO" events from Debug.Trace and
+        -- are only included if "--include-trace-events" has been specified.
+        -- For low-frequency events "traceMarker" or "traceMarkerIO" should be
+          used, which generate "UserMarker" events.
+      - But it doesn't show the marker text like it claims, so it's hard to
+        use.
+    ? sync_status and sync are definitely the slow ones.  What are they doing?
+      . Normal respond time is 0.5 -- 1
+      . Removing sync_status takes from 45 -> 30
+      . Inside sync, it's:
+        6.7 sync.verify
+        8   sync.diff
+        9.2 sync.sync
+        7.7 derive_diff
+      . One sync.sync took 179, why?
+    ? sync.verify 6.7
+    ? sync.diff 8
+    ? sync.sync 9.2
+      . Why so long?  It should just be processing an Update.Selection.
+      . [ View ((vid "untitled/b1.v1"))
+          (Selection (0) (Selection+(2, 1.5t)--(2, 2.5t))) ]
+      . It's all in check_updates . Update.sort . Update.collapse_updates
+      . No, it's actually in sync.score_integrate
+    ? derive_diff 7.7
+    So the problems are in:
+      * Ui.quick_verify
+      - Diff.diff
+      - Integrate.score_integrate
+      . I probably have to change them to do work based on UI updates, not on
+        the entire state.
+      . How big is the state anyway?  Maybe the checks are quite expensive if
+        it's only a couple thousand tracks...
+        blocks: 201
+        tracks: 3979 (19.8 per block)
+        events: 57836 (14.54 per track)
+      . This seems small?  quick_verify is only verifying that IDs are in the
+        Maps, which is... 4k lookups I guess is a lot even at n log n
+        (should they be HashMaps?).
+      . Better to go all-in on Update.CmdUpdate, and only check what needs it.
+      . To avoid diffing all blocks, tracks, rulers, I need to collect which
+        ones were touched.
+      - update everyone to use new monoid Update.CmdUpdate
+      - make sure Ui sets view, block, track, ruler damage
+      . Should I have a special selection damage?
+        Currently it shows up as view damage.
+      - Sync.sync no longer needs to collapse track updates?
+      . Ui.StateT is now strict, will that make a difference?
+      - Diff.diff should also use view damage
+      ? Should CmdUpdate mark Ui.state_config damage?
+      ? Would it be more efficient to collapse CmdUpdate and Ui.State into
+        a strict pair?
+        . Probably... what does a fully inlined mtl layer become to (>>=)?
+
+      - research if it's less efficient to mappend mempty vs. direct modify
+        . This also applies to Derive Collect
+    - log total respond latency, and log if over a limit
+
   - try INLINEABLE for the functions in DeriveM.
     . I think no good though, because DeriveM is already concrete, so there
       are no dictionaries to specialize.

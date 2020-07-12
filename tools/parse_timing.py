@@ -4,61 +4,102 @@
 
 import sys, os, re
 
-# Omit timings shorter than this.
-min_diff = 0.001
 
-start = 'start'
-draw_block = 'Block::draw'
-draw_track_start = 'EventTrack::draw-start'
-draw_track_end = "EventTrack::selection_overlay"
+class Fltk:
+    start = 'start'
 
-# Either skip things I don't want, on whitelist things I do.
-# Not sure which is better.
+    # Omit timings shorter than this.
+    min_diff = 0.001
 
-skip = set([
-    "fl_draw", "draw_text_line", "drawable_pixels", "draw_trigger",
-])
+    draw_block = 'Block::draw'
+    draw_track_start = 'EventTrack::draw-start'
+    draw_track_end = 'EventTrack::selection_overlay'
 
-wanted = set([
-    'EventTrack::find_events',
-    'EventTrack::ruler_overlay',
-    'EventTrack::draw_upper_layer',
-]).union(set([start, draw_block, draw_track_start, draw_track_end]))
+    # Either skip things I don't want, on whitelist things I do.
+    # Not sure which is better.
+
+    skip = set([
+        'fl_draw', 'draw_text_line', 'drawable_pixels', 'draw_trigger',
+    ])
+
+    wanted = set([
+        'EventTrack::find_events',
+        'EventTrack::ruler_overlay',
+        'EventTrack::draw_upper_layer',
+    ]).union(set([start, draw_block, draw_track_start, draw_track_end]))
+
+class Cmd:
+    # Omit timings shorter than this.
+    min_diff = 0.001
+    start = 'respond'
+    end = 'wait'
+    skip = set([])
+
+def main():
+    cmd_mode(open(sys.argv[1]))
+
+def cmd_mode(file):
+    prev_ts = None
+    start = None
+    mode = Cmd
+    for line in file:
+        ts, name, val = parse(line)
+        diff = ts - prev_ts if prev_ts else 0
+
+        out = [fmt(diff), name]
+        if name == mode.start:
+            print(' '.join(out), '-' * 10, ts, val)
+            start = ts
+            prev_ts = ts
+            continue
+        if name in mode.skip:
+            continue
+        elif name == mode.end and start:
+            out.append(fmt(ts - start))
+        if diff > mode.min_diff:
+            print(' '.join(out))
+            prev_ts = ts
+
 
 # start -> [haskell] -> wait -> [draw] -> Block::draw -> [wait ui]
 # fltk might skip [draw] and hence Block::draw.  E.g. for a cursor move.
-
-def main():
+def fltk_mode(file):
     prev_ts = None
     prev_by = {}
-    for line in open(sys.argv[1]):
-        ts, name, val = line.split()
-        ts = float(ts)
-        val = int(val)
-        if name == start:
+    mode = Fltk
+    for line in file:
+        ts, name, _val = parse(line)
+        if name == mode.start:
             prev_ts = None
         if prev_ts is None:
             prev_ts = ts
-            prev_by = {draw_block: ts}
+            prev_by = {mode.draw_block: ts}
             print('-' * 30)
             continue
         diff = ts - prev_ts
 
         out = [fmt(diff), name]
         # time to do a complete draw
-        if name == draw_block:
-            out.extend([draw_block, fmt(ts - prev_by[draw_block])])
-        elif name == draw_track_start:
-            prev_by[draw_track_start] = ts
+        if name == mode.draw_block:
+            out.extend([mode.draw_block, fmt(ts - prev_by[mode.draw_block])])
+        elif name == mode.draw_track_start:
+            prev_by[mode.draw_track_start] = ts
         elif name == draw_track_end:
-            out.extend([draw_track_start, fmt(ts - prev_by[draw_track_start])])
-        elif name in skip:
+            out.extend([
+                mode.draw_track_start, fmt(ts - prev_by[mode.draw_track_start])
+            ])
+        elif name in mode.skip:
             continue
         if len(out) > 2:
             out.insert(2, '======>')
-        if diff > min_diff or len(out) > 2: # or True:
+        if diff > mode.min_diff or len(out) > 2: # or True:
             print(' '.join(out))
             prev_ts = ts
+
+
+def parse(line):
+    ts, name, *val = line.split()
+    return float(ts), name, ' '.join(val)
 
 
 def fmt(diff):
