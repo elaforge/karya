@@ -26,8 +26,7 @@ import Types
 test_display_track = do
     let ([tid1, tid2], st1) = UiTest.run_mkblock [(">", []), ("*", [])]
         rid = UiTest.default_ruler_id
-        st2 = UiTest.exec st1 (Ui.merge_track bid 1 2)
-    let (ui_updates, display_updates) = Diff.diff [] st1 st2
+    let (ui_updates, display_updates) = diff st1 $ Ui.merge_track bid 1 2
     equal ui_updates
         [ Update.Block bid $ Update.BlockTrack 1 $
             Block.Track (Block.TId tid1 rid) 30 mempty (Set.singleton tid2)
@@ -52,7 +51,9 @@ test_merge_updates = do
             tids <- UiTest.mkblock [(">", []), ("*", [])]
             Ui.merge_track bid 1 2
             return tids
-    equal (Diff.diff [Update.CmdTrackAllEvents tid2] st st) $
+    let update = mempty
+            { Update._tracks = Map.singleton tid2 Ranges.everything }
+    equal (Diff.diff update st st) $
         ( [Update.Track tid2 Update.TrackAllEvents]
         , [ Update.Track tid2 Update.TrackAllEvents
           , Update.Track tid1 Update.TrackAllEvents
@@ -69,8 +70,8 @@ test_track_flags = do
         ]
 
 diff :: Ui.State -> Ui.StateId a -> ([Update.UiUpdate], [Update.DisplayUpdate])
-diff state1 modify = Diff.diff updates state1 state2
-    where (_, state2, updates) = expect_right $ Ui.run_id state1 modify
+diff state1 modify = Diff.diff update state1 state2
+    where (_, state2, update) = expect_right $ Ui.run_id state1 modify
 
 
 -- * derive_diff

@@ -80,12 +80,12 @@ undo = do
     where
     do_undo hist cur prev rest = do
         Log.notice $ "undo " <> hist_name cur <> " -> " <> hist_name prev
-        let updates = Cmd.hist_updates prev
+        let update = Cmd.hist_update prev
         Cmd.modify $ \st -> st
             { Cmd.state_history = Cmd.History
                 { Cmd.hist_past = rest
                 , Cmd.hist_present = prev
-                , Cmd.hist_future = cur { Cmd.hist_updates = updates }
+                , Cmd.hist_future = cur { Cmd.hist_update = update }
                     : Cmd.hist_future hist
                 , Cmd.hist_last_cmd = Just Cmd.UndoRedo
                 }
@@ -95,7 +95,7 @@ undo = do
             }
         -- This should be safe because these are just saved previous states.
         Ui.unsafe_modify $ merge_undo_states (Cmd.hist_state prev)
-        mapM_ Ui.update updates
+        Ui.update update
     load_prev repo = load_history "load_previous_history" $
         SaveGit.load_previous_history repo
 
@@ -117,8 +117,8 @@ redo = do
         Cmd.modify $ \st -> st
             { Cmd.state_history = Cmd.History
                 { Cmd.hist_past =
-                    cur { Cmd.hist_updates = Cmd.hist_updates next } : past
-                , Cmd.hist_present = next { Cmd.hist_updates = [] }
+                    cur { Cmd.hist_update = Cmd.hist_update next } : past
+                , Cmd.hist_present = next { Cmd.hist_update = mempty }
                 , Cmd.hist_future = rest
                 , Cmd.hist_last_cmd = Just Cmd.UndoRedo
                 }
@@ -128,7 +128,7 @@ redo = do
             }
         -- This should be safe because these are just saved previous states.
         Ui.unsafe_modify $ merge_undo_states (Cmd.hist_state next)
-        mapM_ Ui.update (Cmd.hist_updates next)
+        Ui.update $ Cmd.hist_update next
     load_next repo = load_history "load_next_history" $
         SaveGit.load_next_history repo
 
@@ -255,8 +255,8 @@ bump_updates old_cur (new_cur : news) =
     (present, zipWith bump (new_cur : entries) entries)
     where
     entries = news ++ [old_cur]
-    present = new_cur { Cmd.hist_updates = [] }
-    bump p c = c { Cmd.hist_updates = Cmd.hist_updates p }
+    present = new_cur { Cmd.hist_update = mempty }
+    bump p c = c { Cmd.hist_update = Cmd.hist_update p }
 
 -- | Convert 'SaveGit.SaveHistory's to 'Cmd.HistoryEntry's by writing the
 -- commits to disk.
@@ -286,9 +286,8 @@ commit_entries user repo prev_commit (hist0:hists) = do
 history_entry :: Maybe SaveGit.Commit -> SaveGit.SaveHistory -> Cmd.HistoryEntry
 history_entry commit (SaveGit.SaveHistory state _ updates names) =
     -- Recover the CmdUpdates out of the UiUpdates.  I only have to remember
-    -- the updates diff won't recreate for me.
-    Cmd.HistoryEntry state (mapMaybe Update.to_cmd updates)
-        names commit
+    -- the updates that diff won't recreate for me.
+    Cmd.HistoryEntry state (mconcatMap Update.to_cmd updates) names commit
 
 -- | Integrate the latest updates into the history.  This could mean
 -- accumulating them if history record is suppressed, or putting them into
@@ -301,7 +300,12 @@ update_history updates ui_state cmd_state
         -- history and record the current state as a commit.
         let new_hist = Cmd.History
                 { Cmd.hist_past = []
-                , Cmd.hist_present = Cmd.HistoryEntry ui_state [] names commit
+                , Cmd.hist_present = Cmd.HistoryEntry
+                    { hist_state = ui_state
+                    , hist_update = mempty
+                    , hist_names = names
+                    , hist_commit = commit
+                    }
                 , Cmd.hist_future = []
                 , Cmd.hist_last_cmd = Nothing
                 }

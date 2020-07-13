@@ -504,13 +504,13 @@ run st1 m = do
     return st2
 
 sync_states :: Ui.State -> Ui.State -> IO ()
-sync_states st1 st2 = sync st1 st2 []
+sync_states st1 st2 = sync st1 st2 mempty
 
-sync :: Ui.State -> Ui.State -> [Update.CmdUpdate] -> IO ()
-sync st1 st2 cmd_updates = do
-    let (_cupdates, dupdates) = Diff.diff cmd_updates st1 st2
+sync :: Ui.State -> Ui.State -> Update.CmdUpdate -> IO ()
+sync st1 st2 cmd_update = do
+    let (_cupdates, dupdates) = Diff.diff cmd_update st1 st2
     putStr "cmd updates: "
-    pprint cmd_updates
+    pprint cmd_update
     putStr "updates: "
     pprint dupdates
     result <- Sync.sync global_ui_channel Map.empty Internal.set_style st2

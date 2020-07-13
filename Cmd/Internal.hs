@@ -277,8 +277,8 @@ track_bg track
 sync_status :: Ui.State -> Cmd.State -> Cmd.CmdId Cmd.Status
 sync_status ui_from cmd_from = do
     ui_to <- Ui.get
-    cmd_updates <- Ui.get_updates
-    Cmd.modify $ update_saved cmd_updates ui_from ui_to
+    cmd_update <- Ui.get_update
+    Cmd.modify $ update_saved cmd_update ui_from ui_to
 
     cmd_to <- Cmd.get
     let updates = view_updates ui_from ui_to
@@ -305,12 +305,12 @@ sync_status ui_from cmd_from = do
 
 -- | Flip 'Cmd.state_saved' if the score has changed.  "Cmd.Save" will turn it
 -- back on after a save.
-update_saved :: [Update.CmdUpdate] -> Ui.State -> Ui.State -> Cmd.State
+update_saved :: Update.CmdUpdate -> Ui.State -> Ui.State -> Cmd.State
     -> Cmd.State
-update_saved updates ui_from ui_to cmd_state = case Cmd.state_saved cmd_state of
+update_saved update ui_from ui_to cmd_state = case Cmd.state_saved cmd_state of
     Nothing -> cmd_state { Cmd.state_saved = Just True }
     Just True | Maybe.isNothing (can_checkpoint cmd_state)
-            && Diff.score_changed ui_from ui_to updates ->
+            && Diff.score_changed ui_from ui_to update ->
         cmd_state { Cmd.state_saved = Just False }
     Just _ -> cmd_state
     -- TODO

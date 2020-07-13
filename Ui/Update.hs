@@ -2,13 +2,18 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE StrictData #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {- | Updates are diffs against Ui.State and are used in a number of contexts.
     They are produced by "Ui.Diff".  The different uses all require slightly
     different data, and I capture the major differences in separate types.
 -}
 module Ui.Update where
 import qualified Control.DeepSeq as DeepSeq
+import qualified Data.Map as Map
+import qualified Data.Set as Set
 
+import qualified Util.Maps as Maps
 import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
 import qualified Util.Rect as Rect
@@ -25,8 +30,8 @@ import qualified Ui.Types as Types
 import qualified Ui.UiConfig as UiConfig
 import qualified Ui.Zoom as Zoom
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- | 'DisplayUpdate's are sent to the UI to update the windows.  Since the UI
@@ -38,83 +43,107 @@ type DisplayUpdate = Update Block.DisplayTrack ()
 -- used for incremental save, and by the deriver to determine ScoreDamage.
 type UiUpdate = Update Block.Track State
 
--- | For efficiency, TrackEvents updates are collected directly in "Ui.State"
--- as the changes are made.  This is because I'm afraid a complete diff against
--- all the events in a score would be too expensive to run after every cmd.  To
--- express that there are only a few kinds of these updates, and since they are
--- the only ones saved with their cmds, they are given their own type,
--- 'CmdUpdate'.  These are also saved with the undo history.
-data CmdUpdate =
-    CmdTrackEvents TrackId ScoreTime ScoreTime
-    | CmdTrackAllEvents TrackId
-    | CmdRuler RulerId
-    | CmdBringToFront ViewId
+-- | This collects damaged Ui.State elements, manually added by the various
+-- Ui functions.  I use "Ui.Diff" to get the exact changes, but it's too
+-- slow to compare the entire Ui.State, so CmdUpdate is used to restrict the
+-- diff to just parts that may have changed.
+--
+-- There are also a few mutations that correspond directly 'UiUpdate's which
+-- I just emit directly rather than relying on diff.  Those are converted from
+-- CmdUpdate by 'to_ui'.
+data CmdUpdate = CmdUpdate {
+    _views :: Set ViewId
+    , _blocks :: Set BlockId
+    , _tracks :: Map TrackId (Ranges.Ranges TrackTime)
+    , _rulers :: Set RulerId
+    , _bring_to_front :: Set ViewId
     -- | If the TrackNum is set, set keyboard focus on that track's title.
     -- Otherwise, focus on the block title.
-    | CmdTitleFocus ViewId (Maybe TrackNum)
-    deriving (Eq, Show)
+    , _title_focus :: Maybe (ViewId, Maybe TrackNum)
+    } deriving (Eq, Show)
+
+instance Semigroup CmdUpdate where
+    (<>)    (CmdUpdate v1 b1 t1 r1 bring1 title1)
+            (CmdUpdate v2 b2 t2 r2 bring2 title2) =
+        CmdUpdate (v1<>v2) (b1<>b2) (Maps.mappend t1 t2) (r1<>r2)
+            (bring1<>bring2) (title1<|>title2)
+
+instance Monoid CmdUpdate where
+    mempty = CmdUpdate mempty mempty mempty mempty mempty Nothing
+    mappend = (<>)
+
+instance Pretty CmdUpdate where
+    format (CmdUpdate views blocks tracks rulers bring_to_front title_focus) =
+        Pretty.record "CmdUpdate"
+            [ ("views", Pretty.format views)
+            , ("blocks", Pretty.format blocks)
+            , ("tracks", Pretty.format tracks)
+            , ("rulers", Pretty.format rulers)
+            , ("bring_to_front", Pretty.format bring_to_front)
+            , ("title_focus", Pretty.format title_focus)
+            ]
 
 data Update t u =
-    View !ViewId !View
-    | Block !BlockId !(Block t)
-    | Track !TrackId !Track
+    View ViewId View
+    | Block BlockId (Block t)
+    | Track TrackId Track
     -- | Since I expect rulers to be changed infrequently, the only kind of
     -- ruler update is a full update.
-    | Ruler !RulerId
-    | State !u
+    | Ruler RulerId
+    | State u
     deriving (Eq, Show)
 
 data View =
     CreateView
     | DestroyView
-    | ViewSize !Rect.Rect
-    | Status !(Map (Int, Text) Text) !Color.Color -- ^ background color
-    | TrackScroll !Types.Width
-    | Zoom !Zoom.Zoom
-    | Selection !Sel.Num !(Maybe Sel.Selection)
+    | ViewSize Rect.Rect
+    | Status (Map (Int, Text) Text) Color.Color -- ^ background color
+    | TrackScroll Types.Width
+    | Zoom Zoom.Zoom
+    | Selection Sel.Num (Maybe Sel.Selection)
     -- | Bring the window to the front.  Unlike most other updates, this is
     -- recorded directly and is not reflected in Ui.State.
     | BringToFront
     -- | Similar to BringToFront, but sets keyboard focus in a track title.
     -- If the TrackNum is not given, focus on the block title.
-    | TitleFocus !(Maybe TrackNum)
+    | TitleFocus (Maybe TrackNum)
     deriving (Eq, Show)
 
 data Block t =
-    BlockTitle !Text
-    | BlockConfig !Block.Config
+    BlockTitle Text
+    | BlockConfig Block.Config
     -- | The second is the \"integrate skeleton\", which is drawn in the same
     -- place.  It could be Skeleton too, but since it never was a skeleton it
     -- seems pointless to convert it to one just so it can be flattened again.
     -- Arguably it's the first arg which should be edges, but at least this way
     -- the two args can't be mixed up.
-    | BlockSkeleton !Skeleton.Skeleton ![(Color.Color, [(TrackNum, TrackNum)])]
-    | RemoveTrack !TrackNum
-    | InsertTrack !TrackNum !t
+    | BlockSkeleton Skeleton.Skeleton [(Color.Color, [(TrackNum, TrackNum)])]
+    | RemoveTrack TrackNum
+    | InsertTrack TrackNum t
     -- | Unlike 'Track', these settings are local to the block, not global to
     -- this track in all its blocks.
-    | BlockTrack !TrackNum !t
+    | BlockTrack TrackNum t
     deriving (Eq, Show)
 
 data Track =
     -- | Low pos, high pos.
-    TrackEvents !ScoreTime !ScoreTime
+    TrackEvents ScoreTime ScoreTime
     -- | Update the entire track.
     | TrackAllEvents
-    | TrackTitle !Text
-    | TrackBg !Color.Color
-    | TrackRender !Track.RenderConfig
+    | TrackTitle Text
+    | TrackBg Color.Color
+    | TrackRender Track.RenderConfig
     deriving (Eq, Show)
 
 -- | These are updates to 'Ui.Ui.State' that have no UI presence.
 data State =
-    Config !UiConfig.Config
-    | CreateBlock !BlockId !Block.Block
-    | DestroyBlock !BlockId
-    | CreateTrack !TrackId !Track.Track
-    | DestroyTrack !TrackId
-    | CreateRuler !RulerId !Ruler.Ruler
-    | DestroyRuler !RulerId
+    Config UiConfig.Config
+    | CreateBlock BlockId Block.Block
+    | DestroyBlock BlockId
+    | CreateTrack TrackId Track.Track
+    | DestroyTrack TrackId
+    | CreateRuler RulerId Ruler.Ruler
+    | DestroyRuler RulerId
     deriving (Eq, Show)
 
 instance DeepSeq.NFData (Update t u) where
@@ -193,9 +222,6 @@ instance Pretty State where
         DestroyRuler ruler_id -> Pretty.constructor "DestroyRuler"
             [Pretty.format ruler_id]
 
-instance Pretty CmdUpdate where
-    pretty = showt
-
 update_id :: Update t State -> Maybe Id.Id
 update_id u = case u of
     View view_id _ -> ident view_id
@@ -229,21 +255,28 @@ to_display (Track tid update) = Just $ Track tid update
 to_display (Ruler rid) = Just $ Ruler rid
 to_display (State {}) = Nothing
 
-to_ui :: CmdUpdate -> UiUpdate
-to_ui (CmdTrackEvents track_id s e) = Track track_id (TrackEvents s e)
-to_ui (CmdTrackAllEvents track_id) = Track track_id TrackAllEvents
-to_ui (CmdRuler ruler_id) = Ruler ruler_id
-to_ui (CmdBringToFront view_id) = View view_id BringToFront
-to_ui (CmdTitleFocus view_id tracknum) = View view_id (TitleFocus tracknum)
+to_ui :: CmdUpdate -> [UiUpdate]
+to_ui (CmdUpdate { _tracks, _rulers, _bring_to_front, _title_focus }) = concat
+    [ [ Track tid $ maybe TrackAllEvents (uncurry TrackEvents) mb_range
+      | (tid, range) <- Map.toList _tracks
+      , Just mb_range <- [Ranges.extract1 range]
+      ]
+    , map Ruler (Set.toList _rulers)
+    , map (flip View BringToFront) (Set.toList _bring_to_front)
+    , maybe [] (\(vid, tracknum) -> [View vid (TitleFocus tracknum)])
+        _title_focus
+    ]
+    -- views and blocks not converted, but they tell diff where to look.
 
 -- | Pull the CmdUpdate out of a UiUpdate, if any.  Discard BringToFront and
 -- TitleFocus since they're just instructions to Sync and I don't need to
 -- remember them.
-to_cmd :: UiUpdate -> Maybe CmdUpdate
-to_cmd (Track track_id (TrackEvents s e)) = Just $ CmdTrackEvents track_id s e
-to_cmd (Track track_id TrackAllEvents) = Just $ CmdTrackAllEvents track_id
-to_cmd (Ruler ruler_id) = Just $ CmdRuler ruler_id
-to_cmd _ = Nothing
+to_cmd :: UiUpdate -> CmdUpdate
+to_cmd = \case
+    Track track_id (TrackEvents s e) ->
+        mempty { _tracks = Map.singleton track_id (Ranges.range s e) }
+    Ruler ruler_id -> mempty { _rulers = Set.singleton ruler_id }
+    _ -> mempty
 
 -- * functions
 
@@ -265,12 +298,8 @@ is_view_update update = case update of
 
 -- | True if this CmdUpdate implies score damage.
 is_score_update :: CmdUpdate -> Bool
-is_score_update update = case update of
-    CmdTrackEvents {} -> True
-    CmdTrackAllEvents {} -> True
-    CmdRuler {} -> True
-    CmdBringToFront {} -> False
-    CmdTitleFocus {} -> False
+is_score_update (CmdUpdate { _tracks, _rulers }) =
+    not (Map.null _tracks) || not (Set.null _rulers)
 
 -- | TrackUpdates can overlap.  Merge them together here.  Technically I can
 -- also cancel out all TrackUpdates that only apply to newly created views, but

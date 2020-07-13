@@ -30,6 +30,7 @@ import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified GHC.Float as Float
@@ -63,7 +64,7 @@ import           Types
 
 -- | History loaded from disk.  It only has CmdUpdates so you can feed them to
 -- diff.
-data LoadHistory = LoadHistory !Ui.State !Commit ![Update.CmdUpdate] ![Text]
+data LoadHistory = LoadHistory !Ui.State !Commit !Update.CmdUpdate ![Text]
     deriving (Show)
 
 is_git :: FilePath -> Bool
@@ -281,11 +282,11 @@ load_history repo state from_commit to_commit = do
     result <- load_from repo from_commit (Just to_commit) state
     case result of
         Left err -> return $ Left err
-        Right (new_state, cmd_updates) -> return $ Right $ Just
-            (LoadHistory new_state to_commit cmd_updates names)
+        Right (new_state, cmd_update) -> return $ Right $ Just
+            (LoadHistory new_state to_commit cmd_update names)
 
 load_from :: Git.Repo -> Commit -> Maybe Commit -> Ui.State
-    -> IO (Either Text (Ui.State, [Update.CmdUpdate]))
+    -> IO (Either Text (Ui.State, Update.CmdUpdate))
 load_from repo commit_from maybe_commit_to state = do
     commit_to <- default_head repo maybe_commit_to
     mods <- Git.diff_commits repo commit_from commit_to
@@ -410,10 +411,10 @@ undump_map mkid dir =
         (,) (path_to_id mkid ns name) <$> decode (txt name) bytes
 
 undump_diff :: Ui.State -> [Git.Modification]
-    -> Either Text (Ui.State, [Update.CmdUpdate])
-undump_diff state = foldM apply (state, [])
+    -> Either Text (Ui.State, Update.CmdUpdate)
+undump_diff state = foldM apply (state, mempty)
     where
-    apply (state, updates) (Git.Remove path) = case split path of
+    apply (state, update) (Git.Remove path) = case split path of
         ["blocks", ns, name] -> delete ns name Id.BlockId Ui.blocks
         ["tracks", ns, name] -> delete ns name Id.TrackId Ui.tracks
         ["rulers", ns, name] -> delete ns name Id.RulerId Ui.rulers
@@ -422,31 +423,31 @@ undump_diff state = foldM apply (state, [])
         delete ns name mkid lens = do
             let ident = path_to_id mkid ns name
             vals <- delete_key ident (lens #$ state)
-            return ((lens #= vals) state, updates)
-    apply (state, updates) (Git.Add path bytes) = case split path of
-        ["blocks", ns, name] -> add ns name Id.BlockId Ui.blocks
+            return ((lens #= vals) state, update)
+    apply (state, update) (Git.Add path bytes) = case split path of
+        ["blocks", ns, name] -> (, update) <$> add ns name Id.BlockId Ui.blocks
         ["tracks", ns, name] -> do
-            (state_to, updates) <- add ns name Id.TrackId Ui.tracks
+            state_to <- add ns name Id.TrackId Ui.tracks
             let tid = path_to_id Id.TrackId ns name
-            -- I don't save the CmdUpdates with the checkpoint, so to avoid
+            -- I don't save the CmdUpdate with the checkpoint, so to avoid
             -- having to rederive the entire track I do a little mini-diff
             -- just on the track.  It shouldn't be too expensive because it's
             -- only on one track at a time.
             let event_updates = Diff.track_diff state state_to tid
-            return (state_to, event_updates ++ updates)
+            return (state_to, event_updates <> update)
         ["rulers", ns, name] -> do
-            (state_to, updates) <- add ns name Id.RulerId Ui.rulers
-            let rid = path_to_id Id.RulerId ns name
-            return (state_to, Update.CmdRuler rid : updates)
+            state_to <- add ns name Id.RulerId Ui.rulers
+            let rid = Set.singleton $ path_to_id Id.RulerId ns name
+            return (state_to, mempty { Update._rulers = rid } <> update)
         ["config"] -> do
             val <- decode (txt path) bytes
-            return ((Ui.config #= val) state, updates)
+            return ((Ui.config #= val) state, update)
         _ -> Left $ "unknown file modified: " <> showt path
         where
         add ns name mkid lens = do
             let ident = path_to_id mkid ns name
             val <- decode (txt path) bytes
-            return ((lens %= Map.insert ident val) state, updates)
+            return $ (lens %= Map.insert ident val) state
     split = FilePath.splitDirectories
 
 class Ident id where id_to_path :: id -> FilePath

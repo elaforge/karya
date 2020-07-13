@@ -56,7 +56,7 @@ data Result val = Result {
     result_val :: Either Text (Maybe val)
     , result_cmd_state :: Cmd.State
     , result_ui_state :: Ui.State
-    , result_updates :: [Update.CmdUpdate]
+    , result_update :: Update.CmdUpdate
     , result_logs :: [Log.Msg]
     , result_thru :: [Cmd.Thru]
     }
@@ -92,7 +92,7 @@ run_tracks_with_performance tracks =
 run_with_performance :: Ui.State -> Cmd.State -> Cmd.CmdT IO a
     -> IO (Result a)
 run_with_performance ustate cstate cmd = do
-    cstate <- update_performance Ui.empty ustate cstate []
+    cstate <- update_performance Ui.empty ustate cstate mempty
     run_io ustate cstate cmd
 
 make_tracks :: [UiTest.TrackSpec] -> Ui.State
@@ -106,21 +106,21 @@ make_tracks_ruler = snd . make
 
 -- | Run a cmd and return everything you could possibly be interested in.
 run :: Ui.State -> Cmd.State -> Cmd.CmdId a -> Result a
-run ustate1 cstate1 cmd = Result val cstate2 ustate2 updates logs midi_msgs
+run ustate1 cstate1 cmd = Result val cstate2 ustate2 update logs midi_msgs
     where
     (cstate2, midi_msgs, logs, result) = Cmd.run_id ustate1 cstate1 cmd
-    (val, ustate2, updates) = case result of
-        Left err -> (Left (pretty err), ustate1, [])
-        Right (v, ustate2, updates) -> (Right v, ustate2, updates)
+    (val, ustate2, update) = case result of
+        Left err -> (Left (pretty err), ustate1, mempty)
+        Right (v, ustate2, update) -> (Right v, ustate2, update)
 
 run_io :: Ui.State -> Cmd.State -> Cmd.CmdT IO a -> IO (Result a)
 run_io ustate1 cstate1 cmd = do
     (cstate2, thru, logs, result) <-
         Cmd.run Nothing ustate1 cstate1 (Just <$> cmd)
-    let (val, ustate2, updates) = case result of
-            Left err -> (Left (pretty err), ustate1, [])
-            Right (v, ustate2, updates) -> (Right v, ustate2, updates)
-    return $ Result val cstate2 ustate2 updates logs thru
+    let (val, ustate2, update) = case result of
+            Left err -> (Left (pretty err), ustate1, mempty)
+            Right (v, ustate2, update) -> (Right v, ustate2, update)
+    return $ Result val cstate2 ustate2 update logs thru
 
 run_ui :: Ui.State -> Cmd.CmdId a -> Result a
 run_ui ustate = run ustate default_cmd_state
@@ -151,7 +151,7 @@ run_again res = run (result_ui_state res) (result_cmd_state res)
 update_perf :: Ui.State -> Result val -> IO (Result val)
 update_perf ui_from res = do
     cmd_state <- update_performance ui_from (result_ui_state res)
-        (result_cmd_state res) (result_updates res)
+        (result_cmd_state res) (result_update res)
     return $ res { result_cmd_state = cmd_state }
 
 -- | Run a DeriveTest extractor on a CmdTest Result.
@@ -186,9 +186,9 @@ extract_derive_result res =
 -- manually runs that part of the responder, and is needed for tests that rely
 -- on the performances.
 update_performance :: Ui.State -> Ui.State -> Cmd.State
-    -> [Update.CmdUpdate] -> IO Cmd.State
-update_performance ui_from ui_to cmd_state cmd_updates = do
-    let (ui_updates, _) = Diff.diff cmd_updates ui_from ui_to
+    -> Update.CmdUpdate -> IO Cmd.State
+update_performance ui_from ui_to cmd_state cmd_update = do
+    let (ui_updates, _) = Diff.diff cmd_update ui_from ui_to
     chan <- Chan.newChan
     let damage = Diff.derive_diff ui_from ui_to ui_updates
     cstate <- Performance.update_performance

@@ -6,7 +6,6 @@ module Cmd.TimeStep_test where
 import qualified Util.Seq as Seq
 import qualified Cmd.TimeStep as TimeStep
 import           Cmd.TimeStep (Step(..), MarklistMatch(..), Tracks(..))
-import qualified Ui.Event as Event
 import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 

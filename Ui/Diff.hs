@@ -26,6 +26,8 @@ import qualified Util.Maps as Maps
 import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
 
+import qualified App.Config as Config
+import qualified Derive.Deriver.Monad as Derive
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
@@ -35,10 +37,8 @@ import qualified Ui.Track as Track
 import qualified Ui.Ui as Ui
 import qualified Ui.Update as Update
 
-import qualified Derive.Deriver.Monad as Derive
-import qualified App.Config as Config
-import Global
-import Types
+import           Global
+import           Types
 
 
 type DiffM a = Logger.LoggerT (Either Update.UiUpdate Update.DisplayUpdate)
@@ -57,29 +57,33 @@ run :: DiffM () -> ([Update.UiUpdate], [Update.DisplayUpdate])
 run = Either.partitionEithers . Identity.runIdentity . Logger.exec
 
 -- | Emit a list of the necessary 'Update's to turn @st1@ into @st2@.
-diff :: [Update.CmdUpdate] -> Ui.State -> Ui.State
+diff :: Update.CmdUpdate -> Ui.State -> Ui.State
     -> ([Update.UiUpdate], [Update.DisplayUpdate])
-diff cmd_updates st1 st2 = postproc cmd_updates st2 $ run $ do
+diff update st1 st2 = postproc update st2 $ run $ do
+    let intersect get keys = Maps.zip_intersection
+            (Maps.intersect_set (get st1) (keys update))
+            (Maps.intersect_set (get st2) (keys update))
+
+    -- TODO also intersect views
     diff_views st1 st2 (Ui.state_views st1) (Ui.state_views st2)
-    mapM_ (uncurry3 diff_block) $
-        Maps.zip_intersection (Ui.state_blocks st1) (Ui.state_blocks st2)
+    mapM_ (uncurry3 diff_block) $ intersect Ui.state_blocks Update._blocks
     mapM_ (uncurry3 (diff_track st2)) $
-        Maps.zip_intersection (Ui.state_tracks st1) (Ui.state_tracks st2)
+        intersect Ui.state_tracks (Map.keysSet . Update._tracks)
     -- I don't diff rulers, since they have lots of things in them and rarely
     -- change.  But that means I need the CmdUpdate hack, and modifications
     -- must be done through Ui.modify_ruler.
-    diff_state st1 st2
+    diff_state update st1 st2
 
 -- | Here's where the three different kinds of updates come together.
 -- CmdUpdates are converted into UiUpdates, and then all of them converted
 -- to DisplayUpdates.
-postproc :: [Update.CmdUpdate] -> Ui.State
+postproc :: Update.CmdUpdate -> Ui.State
     -> ([Update.UiUpdate], [Update.DisplayUpdate])
     -> ([Update.UiUpdate], [Update.DisplayUpdate])
-postproc cmd_updates to_state (ui_updates, display_updates) =
+postproc cmd_update to_state (ui_updates, display_updates) =
     (cancel_updates ui, display ++ refresh_selections to_state display)
     where
-    ui = map Update.to_ui cmd_updates ++ ui_updates
+    ui = Update.to_ui cmd_update ++ ui_updates
     display = display_updates ++ to_display (merge_updates to_state ui)
     to_display = mapMaybe Update.to_display
 
@@ -283,24 +287,29 @@ sibling_tracks state track_id = either (const []) id $ Ui.eval state $ do
 
 -- ** state
 
-diff_state :: Ui.State -> Ui.State -> DiffM ()
-diff_state st1 st2 = do
+diff_state :: Update.CmdUpdate -> Ui.State -> Ui.State -> DiffM ()
+diff_state update st1 st2 = do
     let emit = change . Update.State
-    let pairs f = Maps.pairs (f st1) (f st2)
+    let pairs keys f = Maps.pairs
+            (Maps.intersect_set (f st1) (keys update))
+            (Maps.intersect_set (f st2) (keys update))
     when (Ui.state_config st1 /= Ui.state_config st2) $
         emit $ Update.Config (Ui.state_config st2)
-    forM_ (pairs Ui.state_blocks) $ \(block_id, paired) -> case paired of
-        Seq.Second block -> emit $ Update.CreateBlock block_id block
-        Seq.First _ -> emit $ Update.DestroyBlock block_id
-        _ -> return ()
-    forM_ (pairs Ui.state_tracks) $ \(track_id, paired) -> case paired of
-        Seq.Second track -> emit $ Update.CreateTrack track_id track
-        Seq.First _ -> emit $ Update.DestroyTrack track_id
-        _ -> return ()
-    forM_ (pairs Ui.state_rulers) $ \(ruler_id, paired) -> case paired of
-        Seq.Second ruler -> emit $ Update.CreateRuler ruler_id ruler
-        Seq.First _ -> emit $ Update.DestroyRuler ruler_id
-        _ -> return ()
+    forM_ (pairs Update._blocks Ui.state_blocks) $ \(block_id, paired) ->
+        case paired of
+            Seq.Second block -> emit $ Update.CreateBlock block_id block
+            Seq.First _ -> emit $ Update.DestroyBlock block_id
+            _ -> return ()
+    forM_ (pairs (Map.keysSet . Update._tracks) Ui.state_tracks) $
+        \(track_id, paired) -> case paired of
+            Seq.Second track -> emit $ Update.CreateTrack track_id track
+            Seq.First _ -> emit $ Update.DestroyTrack track_id
+            _ -> return ()
+    forM_ (pairs Update._rulers Ui.state_rulers) $ \(ruler_id, paired) ->
+        case paired of
+            Seq.Second ruler -> emit $ Update.CreateRuler ruler_id ruler
+            Seq.First _ -> emit $ Update.DestroyRuler ruler_id
+            _ -> return ()
 
 -- * derive diff
 
@@ -420,9 +429,9 @@ derive_diff_track track_id track1 track2 =
 -- | This is like 'derive_diff', but it only needs to return a Bool.  It's also
 -- more sensitive in that it's looking for any change that you might want to
 -- save to disk, not just changes that could require rederivation.
-score_changed :: Ui.State -> Ui.State -> [Update.CmdUpdate] -> Bool
-score_changed st1 st2 updates = or
-    [ any Update.is_score_update updates
+score_changed :: Ui.State -> Ui.State -> Update.CmdUpdate -> Bool
+score_changed st1 st2 update = or
+    [ Update.is_score_update update
     , unequal_on (Map.keys . Ui.state_blocks) st1 st2
     , unequal_on (Map.keys . Ui.state_tracks) st1 st2
     , any (\(_, b1, b2) -> strip b1 /= strip b2) $
@@ -435,27 +444,24 @@ score_changed st1 st2 updates = or
 
 -- * events diff
 
--- | Diff the events on one track.  This will only emit 'CmdTrackEvents',
--- and won't emit anything if the track title changed, or was created or
--- deleted.  Those diffs should be picked up by the main 'diff'.
-track_diff :: Ui.State -> Ui.State -> TrackId -> [Update.CmdUpdate]
+-- | Diff the events on one track.  This will only emit track damage, and won't
+-- emit anything if the track title changed, or was created or deleted.  Those
+-- diffs should be picked up by the main 'diff'.
+track_diff :: Ui.State -> Ui.State -> TrackId -> Update.CmdUpdate
 track_diff st1 st2 tid = case (Map.lookup tid t1, Map.lookup tid t2) of
-    (Just _, Nothing) -> []
-    (Nothing, Just _) -> []
-    (Just t1, Just t2)
-        | Track.track_title t1 == Track.track_title t2 ->
-            diff_track_events tid (Track.track_events t1)
-                (Track.track_events t2)
-        | otherwise -> []
-    (Nothing, Nothing) -> []
+    -- TODO why does it compare track_title here?
+    (Just t1, Just t2) | Track.track_title t1 == Track.track_title t2 -> mempty
+        { Update._tracks = Map.singleton tid $
+            diff_track_events (Track.track_events t1) (Track.track_events t2)
+        }
+    _ -> mempty
     where
     t1 = Ui.state_tracks st1
     t2 = Ui.state_tracks st2
 
-diff_track_events :: TrackId -> Events.Events -> Events.Events
-    -> [Update.CmdUpdate]
-diff_track_events tid e1 e2 =
-    map update $ Ranges.merge_sorted $ mapMaybe diff $
+diff_track_events :: Events.Events -> Events.Events -> Ranges.Ranges TrackTime
+diff_track_events e1 e2 =
+    Ranges.sorted_ranges $ mapMaybe diff $
         Seq.pair_sorted_on Event.start
             (Events.ascending e1) (Events.ascending e2)
     where
@@ -464,7 +470,6 @@ diff_track_events tid e1 e2 =
     diff (Seq.Both e1 e2)
         | e1 == e2 = Nothing
         | otherwise = Just (Event.start e1, max (Event.end e1) (Event.end e2))
-    update (s, e) = Update.CmdTrackEvents tid s e
 
 
 -- * util

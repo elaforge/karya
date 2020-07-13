@@ -44,6 +44,8 @@ import qualified Data.Text as Text
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
+import qualified Util.Trace as Trace
+
 import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.ParseTitle as ParseTitle
@@ -74,18 +76,20 @@ sync :: Fltk.Channel -> Track.TrackSignals -> Track.SetStyleHigh
 sync ui_chan track_signals set_style state updates = do
     updates <- check_updates state $
         Update.sort (Update.collapse_updates updates)
+    Trace.trace "sync.sort"
     -- Debug.fullM (Debug.putp "sync updates") updates
-    let action = sync_actions track_signals set_style updates
-    case Ui.run_id state action of
+    case Ui.run_id state $ sync_actions track_signals set_style updates of
         Left err -> return $ Just err
         -- I reuse Ui.StateT for convenience, but run_update should
         -- not modify the State and hence shouldn't produce any updates.
         -- TODO Try to split StateT into ReadStateT and ReadWriteStateT to
         -- express this in the type?
         Right (actions, _, _) -> do
+            Trace.trace "sync.sync_actions"
             unless (null actions) $
                 Fltk.send_action ui_chan ("sync " <> showt (length actions))
                     (sequence_ actions)
+            Trace.trace "sync.send"
             return Nothing
 
 -- | Filter out updates that will cause the BlockC level to throw an exception,

@@ -4138,18 +4138,17 @@ performance:
           used, which generate "UserMarker" events.
       - But it doesn't show the marker text like it claims, so it's hard to
         use.
-    ? sync_status and sync are definitely the slow ones.  What are they doing?
+    . sync_status and sync are definitely the slow ones.  What are they doing?
       . Normal respond time is 0.5 -- 1
       . Removing sync_status takes from 45 -> 30
-      . Inside sync, it's:
+      . Stats:
+        13.5686 sync_status
         6.7 sync.verify
         8   sync.diff
         9.2 sync.sync
         7.7 derive_diff
       . One sync.sync took 179, why?
-    ? sync.verify 6.7
-    ? sync.diff 8
-    ? sync.sync 9.2
+    . sync.sync 9.2
       . Why so long?  It should just be processing an Update.Selection.
       . [ View ((vid "untitled/b1.v1"))
           (Selection (0) (Selection+(2, 1.5t)--(2, 2.5t))) ]
@@ -4157,8 +4156,9 @@ performance:
       . No, it's actually in sync.score_integrate
     ? derive_diff 7.7
     So the problems are in:
+      - Internal.sync_status
       * Ui.quick_verify
-      - Diff.diff
+      * Diff.diff
       - Integrate.score_integrate
       . I probably have to change them to do work based on UI updates, not on
         the entire state.
@@ -4173,10 +4173,14 @@ performance:
       . Better to go all-in on Update.CmdUpdate, and only check what needs it.
       . To avoid diffing all blocks, tracks, rulers, I need to collect which
         ones were touched.
-      - update everyone to use new monoid Update.CmdUpdate
-      - make sure Ui sets view, block, track, ruler damage
+      * update everyone to use new monoid Update.CmdUpdate
+      * make sure Ui sets view, block, track, ruler damage
       . Should I have a special selection damage?
         Currently it shows up as view damage.
+      * I'm getting more cache invalidation, I assume because I'm not tracking
+        damage ranges.  I should preserve that for caching, even if fltk
+        doesn't support it at the moment.
+
       - Sync.sync no longer needs to collapse track updates?
       . Ui.StateT is now strict, will that make a difference?
       - Diff.diff should also use view damage
@@ -4184,9 +4188,16 @@ performance:
       ? Would it be more efficient to collapse CmdUpdate and Ui.State into
         a strict pair?
         . Probably... what does a fully inlined mtl layer become to (>>=)?
-
       - research if it's less efficient to mappend mempty vs. direct modify
         . This also applies to Derive Collect
+      . New times:
+        17.5420 sync_status
+        0.0065 sync.verify
+        0.0653 sync.diff
+        0.0183 sync.score_integrate
+        7.3165 derive_diff
+      . They all went down except derive_diff and sync_status went up!
+        Sometimes it's very high: 109.7406 sync_status
     - log total respond latency, and log if over a limit
 
   - try INLINEABLE for the functions in DeriveM.

@@ -128,8 +128,8 @@ test_undo_merge = Git.initialize $ do
         (Rect.xywh 40 40 100 100)
 
 track_update :: TrackNum -> ScoreTime -> ScoreTime -> Update.DisplayUpdate
-track_update tracknum from to = Update.Track (UiTest.mk_tid tracknum)
-    (Update.TrackEvents from to)
+track_update tracknum from to =
+    Update.Track (UiTest.mk_tid tracknum) (Update.TrackEvents from to)
 
 test_load_previous_history = Git.initialize $ do
     repo <- get_repo
@@ -292,7 +292,7 @@ e_ui :: ResponderTest.Result -> Ui.State
 e_ui = CmdTest.result_ui_state . ResponderTest.result_cmd
 
 e_hist_updates :: ResponderTest.Result
-    -> ([[Update.CmdUpdate]], [Update.CmdUpdate], [[Update.CmdUpdate]])
+    -> ([Update.CmdUpdate], Update.CmdUpdate, [Update.CmdUpdate])
 e_hist_updates = hist_updates . e_hist
 
 e_hist :: ResponderTest.Result -> Cmd.History
@@ -303,10 +303,12 @@ e_hist_collect = Cmd.state_history_collect . CmdTest.result_cmd_state
     . ResponderTest.result_cmd
 
 hist_updates :: Cmd.History
-    -> ([[Update.CmdUpdate]], [Update.CmdUpdate], [[Update.CmdUpdate]])
+    -> ([Update.CmdUpdate], Update.CmdUpdate, [Update.CmdUpdate])
 hist_updates (Cmd.History past present future _undo_redo) =
-    (map Cmd.hist_updates past, Cmd.hist_updates present,
-        map Cmd.hist_updates future)
+    ( map Cmd.hist_update past
+    , Cmd.hist_update present
+    , map Cmd.hist_update future
+    )
 
 e_updates :: ResponderTest.Result -> [Update.DisplayUpdate]
 e_updates = filter (not . is_view_update) . ResponderTest.result_updates

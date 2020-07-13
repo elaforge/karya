@@ -427,8 +427,8 @@ track_and_widen focus view_id tracknum = do
     track_id <- track block_id tracknum "" Events.empty
     widen view_id
     tracknum <- clip_tracknum block_id tracknum
-    when focus $
-        Ui.update $ Update.CmdTitleFocus view_id (Just tracknum)
+    when focus $ Ui.update $
+        mempty { Update._title_focus = Just (view_id, Just tracknum) }
     return track_id
 
 -- | Expand the view horizontally to to fit all tracks.

@@ -33,12 +33,12 @@ type Sync = Track.TrackSignals -> Track.SetStyleHigh -> Ui.State
 sync :: Sync
     -> Ui.State -- ^ state before Cmd was run
     -> Ui.State -- ^ current state
-    -> Cmd.State -> [Update.CmdUpdate] -> MVar.MVar Ui.State
+    -> Cmd.State -> Update.CmdUpdate -> MVar.MVar Ui.State
     -> IO ([Update.UiUpdate], Ui.State, Cmd.State)
     -- ^ Sync uses 'Update.DisplayUpdate's, but the diff also produces
     -- UiUpdates, which are needed for incremental save and score damage.
-sync sync_func ui_from ui_to cmd_state cmd_updates play_monitor_state = do
-    ui_to <- case Ui.quick_verify ui_to of
+sync sync_func ui_from ui_to cmd_state cmd_update play_monitor_state = do
+    ui_to <- case Ui.quick_verify cmd_update ui_to of
         Left err -> do
             Log.error $ "cmd caused a verify error, rejecting state change: "
                 <> txt err
@@ -50,9 +50,10 @@ sync sync_func ui_from ui_to cmd_state cmd_updates play_monitor_state = do
             return state
     Trace.trace "sync.verify"
 
-    let (ui_updates, display_updates) = Diff.diff cmd_updates ui_from ui_to
+    let (ui_updates, display_updates) = Diff.diff cmd_update ui_from ui_to
     Trace.force (ui_updates, display_updates)
     Trace.trace "sync.diff"
+    -- Debug.fullM (Debug.putp "cmd_update") cmd_update
     -- Debug.fullM (Debug.putp "ui_updates") ui_updates
     -- Debug.fullM (Debug.putp "display_updates") display_updates
 

@@ -4,7 +4,7 @@
 
 -- | Ranges are half-open.
 module Util.Ranges (
-    Ranges, extract, pair_map
+    Ranges, extract, extract1, pair_map
     , ranges, sorted_ranges, merge_sorted, range, point, everything, nothing
     , overlapping, overlapping_closed, intersection, invert
 ) where
@@ -40,6 +40,13 @@ instance DeepSeq.NFData n => DeepSeq.NFData (Ranges n) where
 extract :: Ranges n -> Maybe [(n, n)]
 extract (Ranges pairs) = Just pairs
 extract Everything = Nothing
+
+-- | Nothing means no ranges, Just Nothing means Everything.
+extract1 :: Ranges n -> Maybe (Maybe (n, n))
+extract1 (Ranges pairs) = case (Seq.head pairs, Seq.last pairs) of
+    (Just (s, _), Just (_, e)) -> Just $ Just (s, e)
+    _ -> Nothing
+extract1 Everything = Just Nothing
 
 pair_map :: Ord b => ((a, a) -> (b, b)) -> Ranges a -> Ranges b
 pair_map f r = case extract r of

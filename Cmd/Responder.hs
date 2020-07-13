@@ -249,12 +249,18 @@ data RState = RState {
     , rstate_cmd_from :: !Cmd.State
     , rstate_cmd_to :: !Cmd.State
     -- | Collect updates from each cmd.
-    , rstate_updates :: ![Update.CmdUpdate]
+    , rstate_update :: !Update.CmdUpdate
     }
 
 make_rstate :: State -> RState
-make_rstate state = RState state (state_ui state) (state_ui state)
-    (state_cmd state) (state_cmd state) []
+make_rstate state = RState
+    { rstate_state = state
+    , rstate_ui_from = state_ui state
+    , rstate_ui_to = state_ui state
+    , rstate_cmd_from = state_cmd state
+    , rstate_cmd_to = state_cmd state
+    , rstate_update = mempty
+    }
 
 type ResponderM = Monad.State.StateT RState IO
 
@@ -262,9 +268,9 @@ newtype Done = Done Result
 
 type Result = Either Ui.Error Cmd.Status
 
-save_updates :: [Update.CmdUpdate] -> ResponderM ()
-save_updates updates = Monad.State.modify $ \st ->
-    st { rstate_updates = updates ++ rstate_updates st }
+save_update :: Update.CmdUpdate -> ResponderM ()
+save_update update = Monad.State.modify $ \st ->
+    st { rstate_update = update <> rstate_update st }
 
 -- ** run
 
@@ -300,8 +306,8 @@ run_responder state action = do
 -- | Do all the miscellaneous things that need to be done after a command
 -- completes.  This doesn't happen if the cmd threw an exception.
 post_cmd :: State -> Ui.State -> Ui.State -> Cmd.State
-    -> [Update.CmdUpdate] -> Cmd.Status -> IO (Bool, State)
-post_cmd state ui_from ui_to cmd_to cmd_updates status = do
+    -> Update.CmdUpdate -> Cmd.Status -> IO (Bool, State)
+post_cmd state ui_from ui_to cmd_to cmd_update status = do
     Trace.trace "cmd"
     -- Load external definitions and cache them in Cmd.State, so cmds don't
     -- have a dependency on IO.
@@ -311,7 +317,7 @@ post_cmd state ui_from ui_to cmd_to cmd_updates status = do
         (state_transport_info state) status
     !cmd_to <- return $ fix_cmd_state ui_to cmd_to
     (updates, ui_to, cmd_to) <- ResponderSync.sync (state_sync state)
-        ui_from ui_to cmd_to cmd_updates
+        ui_from ui_to cmd_to cmd_update
         (Transport.info_state (state_transport_info state))
     Trace.trace "sync"
 
@@ -509,8 +515,8 @@ run_cmd cmd = do
         mapM_ (write_thru (Cmd.state_midi_writer (rstate_cmd_to rstate))) thru
     case result of
         Left err -> return (Left err, cmd_state)
-        Right (status, ui_state, updates) -> do
-            save_updates updates
+        Right (status, ui_state, update) -> do
+            save_update update
             return (Right (status, ui_state), cmd_state)
 
 write_thru :: (Interface.Message -> IO ()) -> Cmd.Thru -> IO ()

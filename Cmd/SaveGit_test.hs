@@ -3,22 +3,25 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.SaveGit_test where
+import qualified Data.Map as Map
+
 import qualified Util.Git as Git
-import Util.Test
+import qualified Util.Ranges as Ranges
 import qualified Util.Test.Testing as Testing
 
+import qualified Cmd.Create as Create
+import qualified Cmd.SaveGit as SaveGit
 import qualified Ui.Diff as Diff
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
-import qualified Ui.Ui as Ui
 import qualified Ui.Track as Track
+import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 import qualified Ui.Update as Update
 
-import qualified Cmd.Create as Create
-import qualified Cmd.SaveGit as SaveGit
-import Global
+import           Global
+import           Util.Test
 
 
 test_do_save = Git.initialize $ do
@@ -61,19 +64,22 @@ test_checkpoint = Git.initialize $ do
     io_equal (SaveGit.load repo (Just commit4)) $
         Right (state4, commit4, ["destroy"])
 
-    let update num = Update.CmdTrackEvents (UiTest.mk_tid num)
+    let update num start end = mempty
+            { Update._tracks =
+                Map.singleton (UiTest.mk_tid num) (Ranges.range start end)
+            }
     -- Make sure incremental loads work.
     io_equal (load_from repo commit1 (Just commit2) state1)
         -- UiTest.insert_event 1 (2, 2, "hi")
-        (Right (state2, [update 1 2 4]))
+        (Right (state2, update 1 2 4))
     io_equal (load_from repo commit2 (Just commit3) state2)
         -- destroy_track 2, create_track 2, but generate no updates
         -- because normal diff will catch that.
-        (Right (state3, []))
+        (Right (state3, mempty))
     io_equal (load_from repo commit3 (Just commit4) state3)
-        (Right (state4, []))
+        (Right (state4, mempty))
     io_equal (load_from repo commit1 (Just commit4) state1)
-        (Right (state4, [update 1 2 4]))
+        (Right (state4, update 1 2 4))
 
 test_ruler_checkpoint = Git.initialize $ do
     repo <- new_repo
@@ -104,10 +110,10 @@ check_sequence actions = do
     forM_ (zip state_commits (drop 1 state_commits)) $
         \((state1, commit1), (state2, commit2)) -> do
             io_equal (load_from repo commit1 (Just commit2) state1)
-                (Right (state2, []))
+                (Right (state2, mempty))
 
 load_from :: Git.Repo -> SaveGit.Commit -> Maybe SaveGit.Commit -> Ui.State
-    -> IO (Either Text (Ui.State, [Update.CmdUpdate]))
+    -> IO (Either Text (Ui.State, Update.CmdUpdate))
 load_from repo commit_from maybe_commit_to state =
     fmap (first strip_views) <$>
         SaveGit.load_from repo commit_from maybe_commit_to state
@@ -124,7 +130,7 @@ check_load_from :: FilePath -> (Ui.State, SaveGit.Commit)
     -> (Ui.State, SaveGit.Commit) -> IO Bool
 check_load_from repo (state1, commit1) (state2, commit2) =
     io_equal (load_from repo commit1 (Just commit2) state1)
-        (Right (state2, []))
+        (Right (state2, mempty))
 
 checkpoint_sequence :: Git.Repo -> [(Text, Ui.StateId ())]
     -> IO [(Ui.State, SaveGit.Commit)]

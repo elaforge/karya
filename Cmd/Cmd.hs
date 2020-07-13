@@ -180,7 +180,7 @@ type Result a =
     ( State
     , [Thru]
     , [Log.Msg]
-    , Either Ui.Error (a, Ui.State, [Update.CmdUpdate])
+    , Either Ui.Error (a, Ui.State, Update.CmdUpdate)
     )
 
 run :: Monad m => a -> RunCmd m m a
@@ -193,7 +193,7 @@ run abort_val ustate cstate cmd = do
     -- Normally 'abort_val' will be Continue, but obviously if 'cmd' doesn't
     -- return Status it can't be.
     return $ case ui_result of
-        Left Ui.Abort -> (cstate, [], logs, Right (abort_val, ustate, []))
+        Left Ui.Abort -> (cstate, [], logs, Right (abort_val, ustate, mempty))
         Left _ -> (cstate, [], logs, ui_result)
         _ -> (cstate2, midi, logs, ui_result)
 
@@ -234,12 +234,12 @@ lift_id cmd = do
     mapM_ Log.write logs
     case result of
         Left err -> Ui.throw_error err
-        Right (val, ui_state, updates) -> case val of
+        Right (val, ui_state, update) -> case val of
             Nothing -> abort
             Just val -> do
                 put cmd_state
                 mapM_ write_thru thru
-                mapM_ Ui.update updates
+                Ui.update update
                 Ui.unsafe_put ui_state
                 return val
 
@@ -320,7 +320,7 @@ instance Monad m => Ui.M (CmdT m) where
     get = CmdT Ui.get
     unsafe_put st = CmdT (Ui.unsafe_put st)
     update upd = CmdT (Ui.update upd)
-    get_updates = CmdT Ui.get_updates
+    get_update = CmdT Ui.get_update
     throw_error msg = CmdT (Ui.throw_error msg)
 
 -- ** exceptions
@@ -1010,7 +1010,7 @@ data HistoryEntry = HistoryEntry {
     -- HistoryEntry is in the future, the updates take it to the past, which
     -- are the updated emitted by the cmd.  So don't be confused if it looks
     -- like a HistoryEntry has the wrong updates.
-    , hist_updates :: ![Update.CmdUpdate]
+    , hist_update :: !Update.CmdUpdate
     -- | Cmds involved creating this entry.
     , hist_names :: ![Text]
     -- | The Commit where this entry was saved.  Nothing if the entry is
@@ -1019,7 +1019,12 @@ data HistoryEntry = HistoryEntry {
     } deriving (Show)
 
 empty_history_entry :: Ui.State -> HistoryEntry
-empty_history_entry state = HistoryEntry state [] [] Nothing
+empty_history_entry state = HistoryEntry
+    { hist_state = state
+    , hist_update = mempty
+    , hist_names = []
+    , hist_commit = Nothing
+    }
 
 instance Pretty History where
     format (History past present future last_cmd) = Pretty.record "History"
@@ -1171,7 +1176,7 @@ focus view_id = do
         Nothing ->
             Ui.throw $ "Cmd.focus on non-existent view: " <> showt view_id
         _ -> return ()
-    Ui.update (Update.CmdBringToFront view_id)
+    Ui.update $ mempty { Update._bring_to_front = Set.singleton view_id }
 
 -- | In some circumstances I don't want to abort if there's no focused block.
 lookup_focused_block :: M m => m (Maybe BlockId)

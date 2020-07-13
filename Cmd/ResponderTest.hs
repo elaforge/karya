@@ -95,7 +95,7 @@ mk_cmd_state ui_state view_id = CmdTest.default_cmd_state
     -- Normally this is created by the setup cmd, so pretend I did one.
     , Cmd.state_history = Cmd.History [] present [] Nothing
     }
-    where present = Cmd.HistoryEntry ui_state [] ["setup"] Nothing
+    where present = Cmd.HistoryEntry ui_state mempty ["setup"] Nothing
 
 
 -- * result
@@ -282,7 +282,7 @@ respond1 reuse_loopback (ui_state, cmd_state) maybe_cmd msg = do
             { CmdTest.result_val = Right Nothing
             , CmdTest.result_cmd_state = Responder.state_cmd rstate
             , CmdTest.result_ui_state = Responder.state_ui rstate
-            , CmdTest.result_updates = []
+            , CmdTest.result_update = mempty
             , CmdTest.result_logs = []
             , CmdTest.result_thru = map Cmd.MidiThru midi
             }
