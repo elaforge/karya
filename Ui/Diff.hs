@@ -432,15 +432,8 @@ derive_diff_track track_id track1 track2 =
 score_changed :: Ui.State -> Ui.State -> Update.CmdUpdate -> Bool
 score_changed st1 st2 update = or
     [ Update.is_score_update update
-    , unequal_on (Map.keys . Ui.state_blocks) st1 st2
-    , unequal_on (Map.keys . Ui.state_tracks) st1 st2
-    , any (\(_, b1, b2) -> strip b1 /= strip b2) $
-        Maps.zip_intersection (Ui.state_blocks st1) (Ui.state_blocks st2)
-    , any (\(_, t1, t2) -> t1 /= t2) $
-        Maps.zip_intersection (Ui.state_tracks st1) (Ui.state_tracks st2)
     , Ui.state_config st1 /= Ui.state_config st2
     ]
-    where strip b = b { Block.block_config = Block.default_config }
 
 -- * events diff
 

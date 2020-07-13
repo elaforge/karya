@@ -313,19 +313,6 @@ update_saved update ui_from ui_to cmd_state = case Cmd.state_saved cmd_state of
             && Diff.score_changed ui_from ui_to update ->
         cmd_state { Cmd.state_saved = Just False }
     Just _ -> cmd_state
-    -- TODO
-    -- This involves yet another state diff, and I already have a ton of those.
-    -- What I don't like is that this takes time linear in the size of the whole
-    -- score, in the common case when there has been no change.  Fortunately I
-    -- don't have to do it after state_saved is already false.
-    --
-    -- Probably the most reasonable way around this would be to split
-    -- Ui.unsafe_put into separate functions for views and
-    -- Block.block_config, and for the rest of the score state.  The second one
-    -- can then turn off 'Cmd.state_saved' unconditionally.  Unfortunately it
-    -- seems invasive to make this change, especially if I want to enforce it
-    -- with types, so unless this extra diff turns out to cause UI lag I won't
-    -- bother.
 
 -- | Return Just if there will be a git checkpoint.  'update_saved' has to
 -- predict this because by the time 'Cmd.Undo.save_history' runs, it's too

@@ -4109,7 +4109,7 @@ cleanup:
     Note tracks can't get a GetLastSample at all.
 
 performance:
-  - dragging scroll is laggy
+  * dragging scroll is laggy
     . Happens on a big block.  Happens with or without a ruler.
     . Happens even on a small block when there are lots of other blocks, goes
       away as soon as I delete the others.  Maybe it's diff going through all
@@ -4131,12 +4131,12 @@ performance:
     . Run with heap profile and use eventlog2html.
       . It shows traceMarker but not traceEvent, the difference is not
         documented but, in EventLog/Events.hs:
-        -- Messages and UserMessages correspond to high-frequency "traceEvent"
-          or "traceEventIO" events from Debug.Trace and
-        -- are only included if "--include-trace-events" has been specified.
-        -- For low-frequency events "traceMarker" or "traceMarkerIO" should be
-          used, which generate "UserMarker" events.
-      - But it doesn't show the marker text like it claims, so it's hard to
+        Messages and UserMessages correspond to high-frequency "traceEvent" or
+        "traceEventIO" events from Debug.Trace and are only included if
+        "--include-trace-events" has been specified.  For low-frequency events
+        "traceMarker" or "traceMarkerIO" should be used, which generate
+        "UserMarker" events.
+      . But it doesn't show the marker text like it claims, so it's hard to
         use.
     . sync_status and sync are definitely the slow ones.  What are they doing?
       . Normal respond time is 0.5 -- 1
@@ -4156,7 +4156,7 @@ performance:
       . No, it's actually in sync.score_integrate
     ? derive_diff 7.7
     So the problems are in:
-      - Internal.sync_status
+      * Internal.sync_status
       * Ui.quick_verify
       * Diff.diff
       - Integrate.score_integrate
@@ -4184,7 +4184,8 @@ performance:
       - Sync.sync no longer needs to collapse track updates?
       . Ui.StateT is now strict, will that make a difference?
       - Diff.diff should also use view damage
-      ? Should CmdUpdate mark Ui.state_config damage?
+      - Should CmdUpdate mark Ui.state_config damage?
+        . I could remove the compares in Diff.score_changed and Diff.diff
       ? Would it be more efficient to collapse CmdUpdate and Ui.State into
         a strict pair?
         . Probably... what does a fully inlined mtl layer become to (>>=)?
