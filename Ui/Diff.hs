@@ -57,30 +57,30 @@ run :: DiffM () -> ([Update.UiUpdate], [Update.DisplayUpdate])
 run = Either.partitionEithers . Identity.runIdentity . Logger.exec
 
 -- | Emit a list of the necessary 'Update's to turn @st1@ into @st2@.
-diff :: Update.CmdUpdate -> Ui.State -> Ui.State
+diff :: Update.UiDamage -> Ui.State -> Ui.State
     -> ([Update.UiUpdate], [Update.DisplayUpdate])
-diff update st1 st2 = postproc update st2 $ run $ do
+diff damage st1 st2 = postproc damage st2 $ run $ do
     let intersect get keys =
-            damaged Maps.zip_intersection st1 st2 get (keys update)
-    diff_views st1 st2 update
+            damaged Maps.zip_intersection st1 st2 get (keys damage)
+    diff_views st1 st2 damage
     mapM_ (uncurry3 diff_block) $ intersect Ui.state_blocks Update._blocks
     mapM_ (uncurry3 (diff_track st2)) $
         intersect Ui.state_tracks (Map.keysSet . Update._tracks)
     -- I don't diff rulers, since they have lots of things in them and rarely
-    -- change.  But that means I need the CmdUpdate hack, and modifications
+    -- change.  But that means I need the UiDamage hack, and modifications
     -- must be done through Ui.modify_ruler.
-    diff_state update st1 st2
+    diff_state damage st1 st2
 
 -- | Here's where the three different kinds of updates come together.
 -- CmdUpdates are converted into UiUpdates, and then all of them converted
 -- to DisplayUpdates.
-postproc :: Update.CmdUpdate -> Ui.State
+postproc :: Update.UiDamage -> Ui.State
     -> ([Update.UiUpdate], [Update.DisplayUpdate])
     -> ([Update.UiUpdate], [Update.DisplayUpdate])
-postproc cmd_update to_state (ui_updates, display_updates) =
+postproc damage to_state (ui_updates, display_updates) =
     (cancel_updates ui, display ++ refresh_selections to_state display)
     where
-    ui = Update.to_ui cmd_update ++ ui_updates
+    ui = Update.to_ui damage ++ ui_updates
     display = display_updates ++ to_display (merge_updates to_state ui)
     to_display = mapMaybe Update.to_display
 
@@ -165,10 +165,10 @@ merge_updates state updates = updates ++ concatMap propagate updates
 
 -- ** view
 
-diff_views :: Ui.State -> Ui.State -> Update.CmdUpdate -> DiffM ()
-diff_views st1 st2 update =
+diff_views :: Ui.State -> Ui.State -> Update.UiDamage -> DiffM ()
+diff_views st1 st2 damage =
     mapM_ (uncurry (diff_view_pair st1 st2)) $
-        damaged Maps.pairs st1 st2 Ui.state_views (Update._views update)
+        damaged Maps.pairs st1 st2 Ui.state_views (Update._views damage)
 
 diff_view_pair :: Ui.State -> Ui.State -> ViewId
     -> Seq.Paired Block.View Block.View -> DiffM ()
@@ -251,7 +251,7 @@ diff_block block_id block1 block2 = do
 
     let dpairs = Seq.diff_index_on Block.dtracklike_id dtracks1 dtracks2
     forM_ dpairs $ \(i2, paired) -> case paired of
-        -- Insert and remove are emitted for cmd updates above, but
+        -- Insert and remove are emitted for UiDamage above, but
         -- the Update.to_display conversion filters them out.
         Seq.First _ -> change_display $
             Update.Block block_id (Update.RemoveTrack i2)
@@ -288,10 +288,10 @@ sibling_tracks state track_id = either (const []) id $ Ui.eval state $ do
 
 -- ** state
 
-diff_state :: Update.CmdUpdate -> Ui.State -> Ui.State -> DiffM ()
-diff_state update st1 st2 = do
+diff_state :: Update.UiDamage -> Ui.State -> Ui.State -> DiffM ()
+diff_state damage st1 st2 = do
     let emit = change . Update.State
-    let pairs get keys = damaged Maps.pairs st1 st2 get (keys update)
+    let pairs get keys = damaged Maps.pairs st1 st2 get (keys damage)
     when (Ui.state_config st1 /= Ui.state_config st2) $
         emit $ Update.Config (Ui.state_config st2)
     forM_ (pairs Ui.state_blocks Update._blocks) $ \(block_id, paired) ->
@@ -323,9 +323,9 @@ run_derive_diff = snd . Identity.runIdentity . Writer.runWriterT
 -- This is repeating some work done in 'diff', but is fundamentally different
 -- because it cares about nonvisible changes, e.g. track title change on
 -- a block without a view.
-derive_diff :: Ui.State -> Ui.State -> Update.CmdUpdate -> [Update.UiUpdate]
+derive_diff :: Ui.State -> Ui.State -> Update.UiDamage -> [Update.UiUpdate]
     -> Derive.ScoreDamage
-derive_diff st1 st2 cmd_update updates = postproc $ run_derive_diff $
+derive_diff st1 st2 damage updates = postproc $ run_derive_diff $
     -- If the config has changed, then everything is damaged.
     if unequal_on Ui.state_config st1 st2
     then Writer.tell $ mempty
@@ -335,14 +335,13 @@ derive_diff st1 st2 cmd_update updates = postproc $ run_derive_diff $
         }
     else do
         mapM_ (uncurry derive_diff_block) $
-            damaged Maps.pairs st1 st2 Ui.state_blocks
-                (Update._blocks cmd_update)
+            damaged Maps.pairs st1 st2 Ui.state_blocks (Update._blocks damage)
         -- This doesn't check for added or removed tracks, because for them to
         -- have any effect they must be added to or removed from a block, which
         -- 'derive_diff_block' will catch.
         mapM_ (uncurry3 derive_diff_track) $
             damaged Maps.zip_intersection st1 st2 Ui.state_tracks
-                (Map.keysSet (Update._tracks cmd_update))
+                (Map.keysSet (Update._tracks damage))
     where
     postproc = postproc_damage st2 . (updates_damage block_rulers updates <>)
     block_rulers = Maps.multimap
@@ -439,9 +438,9 @@ derive_diff_track track_id track1 track2 =
 -- | This is like 'derive_diff', but it only needs to return a Bool.  It's also
 -- more sensitive in that it's looking for any change that you might want to
 -- save to disk, not just changes that could require rederivation.
-score_changed :: Ui.State -> Ui.State -> Update.CmdUpdate -> Bool
-score_changed st1 st2 update = or
-    [ Update.is_score_update update
+score_changed :: Ui.State -> Ui.State -> Update.UiDamage -> Bool
+score_changed st1 st2 damage = or
+    [ Update.is_score_damage damage
     , Ui.state_config st1 /= Ui.state_config st2
     ]
 
@@ -450,7 +449,7 @@ score_changed st1 st2 update = or
 -- | Diff the events on one track.  This will only emit track damage, and won't
 -- emit anything if the track title changed, or was created or deleted.  Those
 -- diffs should be picked up by the main 'diff'.
-track_diff :: Ui.State -> Ui.State -> TrackId -> Update.CmdUpdate
+track_diff :: Ui.State -> Ui.State -> TrackId -> Update.UiDamage
 track_diff st1 st2 tid = case (Map.lookup tid t1, Map.lookup tid t2) of
     -- TODO why does it compare track_title here?
     (Just t1, Just t2) | Track.track_title t1 == Track.track_title t2 -> mempty

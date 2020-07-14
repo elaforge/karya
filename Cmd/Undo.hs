@@ -80,12 +80,12 @@ undo = do
     where
     do_undo hist cur prev rest = do
         Log.notice $ "undo " <> hist_name cur <> " -> " <> hist_name prev
-        let update = Cmd.hist_update prev
+        let damage = Cmd.hist_damage prev
         Cmd.modify $ \st -> st
             { Cmd.state_history = Cmd.History
                 { Cmd.hist_past = rest
                 , Cmd.hist_present = prev
-                , Cmd.hist_future = cur { Cmd.hist_update = update }
+                , Cmd.hist_future = cur { Cmd.hist_damage = damage }
                     : Cmd.hist_future hist
                 , Cmd.hist_last_cmd = Just Cmd.UndoRedo
                 }
@@ -95,7 +95,7 @@ undo = do
             }
         -- This should be safe because these are just saved previous states.
         Ui.unsafe_modify $ merge_undo_states (Cmd.hist_state prev)
-        Ui.update update
+        Ui.damage damage
     load_prev repo = load_history "load_previous_history" $
         SaveGit.load_previous_history repo
 
@@ -117,8 +117,8 @@ redo = do
         Cmd.modify $ \st -> st
             { Cmd.state_history = Cmd.History
                 { Cmd.hist_past =
-                    cur { Cmd.hist_update = Cmd.hist_update next } : past
-                , Cmd.hist_present = next { Cmd.hist_update = mempty }
+                    cur { Cmd.hist_damage = Cmd.hist_damage next } : past
+                , Cmd.hist_present = next { Cmd.hist_damage = mempty }
                 , Cmd.hist_future = rest
                 , Cmd.hist_last_cmd = Just Cmd.UndoRedo
                 }
@@ -128,7 +128,7 @@ redo = do
             }
         -- This should be safe because these are just saved previous states.
         Ui.unsafe_modify $ merge_undo_states (Cmd.hist_state next)
-        Ui.update $ Cmd.hist_update next
+        Ui.damage $ Cmd.hist_damage next
     load_next repo = load_history "load_next_history" $
         SaveGit.load_next_history repo
 
@@ -151,8 +151,8 @@ load_history name load hist = case Cmd.hist_commit hist of
             Right Nothing -> return []
             Right (Just hist) -> return [entry hist]
     where
-    entry (SaveGit.LoadHistory state commit updates names) =
-        Cmd.HistoryEntry state updates names (Just commit)
+    entry (SaveGit.LoadHistory state commit damage names) =
+        Cmd.HistoryEntry state damage names (Just commit)
 
 -- | There are certain parts of the state that I don't want to undo, so
 -- inherit them from the old state.  It's confusing when undo moves a window,
@@ -255,8 +255,8 @@ bump_updates old_cur (new_cur : news) =
     (present, zipWith bump (new_cur : entries) entries)
     where
     entries = news ++ [old_cur]
-    present = new_cur { Cmd.hist_update = mempty }
-    bump p c = c { Cmd.hist_update = Cmd.hist_update p }
+    present = new_cur { Cmd.hist_damage = mempty }
+    bump p c = c { Cmd.hist_damage = Cmd.hist_damage p }
 
 -- | Convert 'SaveGit.SaveHistory's to 'Cmd.HistoryEntry's by writing the
 -- commits to disk.
@@ -287,7 +287,7 @@ history_entry :: Maybe SaveGit.Commit -> SaveGit.SaveHistory -> Cmd.HistoryEntry
 history_entry commit (SaveGit.SaveHistory state _ updates names) =
     -- Recover the CmdUpdates out of the UiUpdates.  I only have to remember
     -- the updates that diff won't recreate for me.
-    Cmd.HistoryEntry state (mconcatMap Update.to_cmd updates) names commit
+    Cmd.HistoryEntry state (mconcatMap Update.to_damage updates) names commit
 
 -- | Integrate the latest updates into the history.  This could mean
 -- accumulating them if history record is suppressed, or putting them into
@@ -302,7 +302,7 @@ update_history updates ui_state cmd_state
                 { Cmd.hist_past = []
                 , Cmd.hist_present = Cmd.HistoryEntry
                     { hist_state = ui_state
-                    , hist_update = mempty
+                    , hist_damage = mempty
                     , hist_names = names
                     , hist_commit = commit
                     }

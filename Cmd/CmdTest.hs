@@ -56,7 +56,7 @@ data Result val = Result {
     result_val :: Either Text (Maybe val)
     , result_cmd_state :: Cmd.State
     , result_ui_state :: Ui.State
-    , result_update :: Update.CmdUpdate
+    , result_ui_damage :: Update.UiDamage
     , result_logs :: [Log.Msg]
     , result_thru :: [Cmd.Thru]
     }
@@ -151,7 +151,7 @@ run_again res = run (result_ui_state res) (result_cmd_state res)
 update_perf :: Ui.State -> Result val -> IO (Result val)
 update_perf ui_from res = do
     cmd_state <- update_performance ui_from (result_ui_state res)
-        (result_cmd_state res) (result_update res)
+        (result_cmd_state res) (result_ui_damage res)
     return $ res { result_cmd_state = cmd_state }
 
 -- | Run a DeriveTest extractor on a CmdTest Result.
@@ -186,11 +186,11 @@ extract_derive_result res =
 -- manually runs that part of the responder, and is needed for tests that rely
 -- on the performances.
 update_performance :: Ui.State -> Ui.State -> Cmd.State
-    -> Update.CmdUpdate -> IO Cmd.State
-update_performance ui_from ui_to cmd_state cmd_update = do
-    let (ui_updates, _) = Diff.diff cmd_update ui_from ui_to
+    -> Update.UiDamage -> IO Cmd.State
+update_performance ui_from ui_to cmd_state ui_damage = do
+    let (ui_updates, _) = Diff.diff ui_damage ui_from ui_to
     chan <- Chan.newChan
-    let damage = Diff.derive_diff ui_from ui_to cmd_update ui_updates
+    let damage = Diff.derive_diff ui_from ui_to ui_damage ui_updates
     cstate <- Performance.update_performance
         (\bid status -> Chan.writeChan chan (bid, status))
         ui_to (set_immediate cmd_state) damage

@@ -150,12 +150,12 @@ run_cmdio cmd = do
             Left err -> return
                 (ReplProtocol.raw $ "State error: " <> pretty err, Cmd.Done)
             Right (ReplProtocol.CmdResult response eval_logs, ui_state,
-                    update) -> do
+                    damage) -> do
                 mapM_ Cmd.write_thru thru
                 Cmd.put $ cmd_state { Cmd.state_repl_status = Cmd.Continue }
-                -- Should be safe, because I'm writing the update.
+                -- Should be safe, because I'm writing the damage.
                 Ui.unsafe_put ui_state
-                Ui.update update
+                Ui.damage damage
                 mapM_ Log.write eval_logs
                 return
                     ( ReplProtocol.CmdResult response (eval_logs ++ logs)

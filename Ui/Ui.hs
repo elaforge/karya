@@ -36,7 +36,7 @@ module Ui.Ui (
     -- * address types
     , Track(..), Range(..), TrackInfo(..)
     -- * StateT monad
-    , M, StateT, StateId, get, unsafe_put, update, get_update
+    , M, StateT, StateId, get, unsafe_put, damage, get_damage
     , throw_error, throw
     , run, run_id, eval, eval_rethrow, exec, exec_rethrow
     , gets, unsafe_modify, put, modify
@@ -285,7 +285,7 @@ instance Pretty TrackInfo where
 
 -- * StateT monad
 
--- | 'Update.CmdUpdate' is recorded directly instead of being calculated from
+-- | 'Update.UiDamage' is recorded directly instead of being calculated from
 -- the state diff.
 --
 -- Is there any way it could get out of sync with the actual change?  I don't
@@ -293,7 +293,7 @@ instance Pretty TrackInfo where
 -- associated with the same track, and an operation to move event positions
 -- will simply generate another TrackUpdate over the whole track.
 type StateStack m = State.StateT State
-    (State.StateT Update.CmdUpdate
+    (State.StateT Update.UiDamage
         (Except.ExceptT Error m))
 newtype StateT m a = StateT (StateStack m a)
     deriving (Functor, Monad, MonadIO, Except.MonadError Error, Applicative)
@@ -313,30 +313,30 @@ class (Applicative m, Monad m) => M m where
     -- | This directly modifies the state, and can break internal invariants.
     -- 'put' is slower but safer since it checks those invariants.
     unsafe_put :: State -> m ()
-    update :: Update.CmdUpdate -> m ()
-    get_update :: m Update.CmdUpdate
+    damage :: Update.UiDamage -> m ()
+    get_damage :: m Update.UiDamage
     throw_error :: Error -> m a
 
 instance Monad m => M (StateT m) where
     get = StateT State.get
     unsafe_put st = StateT (State.put st)
-    update upd = (StateT . lift) (State.modify' (upd<>))
-    get_update = (StateT . lift) State.get
+    damage upd = (StateT . lift) (State.modify' (upd<>))
+    get_damage = (StateT . lift) State.get
     throw_error = StateT . lift . lift . Except.throwError
 
 -- Basic level membership in the MTL club.
 instance M m => M (State.StateT state m) where
     get = lift get
     unsafe_put = lift . unsafe_put
-    update = lift . update
-    get_update = lift get_update
+    damage = lift . damage
+    get_damage = lift get_damage
     throw_error = lift . throw_error
 
 instance M m => M (Except.ExceptT exc m) where
     get = lift get
     unsafe_put = lift . unsafe_put
-    update = lift . update
-    get_update = lift get_update
+    damage = lift . damage
+    get_damage = lift get_damage
     throw_error = lift . throw_error
 
 throw :: (CallStack.Stack, M m) => Text -> m a
@@ -372,7 +372,7 @@ modify f = do
 update_all :: M m => m ()
 update_all = do
     st <- get
-    update $ mempty { Update._blocks = Map.keysSet (state_blocks st) }
+    damage $ mempty { Update._blocks = Map.keysSet (state_blocks st) }
 
 -- | Run the given StateT with the given initial state, and return a new
 -- state along with updates.  Normally updates are produced by 'Ui.Diff.diff',
@@ -382,15 +382,15 @@ update_all = do
 --
 -- See the StateStack comment for more.
 run :: Monad m => State -> StateT m a
-    -> m (Either Error (a, State, Update.CmdUpdate))
+    -> m (Either Error (a, State, Update.UiDamage))
 run state action = do
     res <- (Except.runExceptT . flip State.runStateT mempty
         . flip State.runStateT state . (\(StateT x) -> x)) action
     return $ case res of
         Left err -> Left err
-        Right ((val, state), update) -> Right (val, state, update)
+        Right ((val, state), damage) -> Right (val, state, damage)
 
-run_id :: State -> StateId a -> Either Error (a, State, Update.CmdUpdate)
+run_id :: State -> StateId a -> Either Error (a, State, Update.UiDamage)
 run_id state m = Identity.runIdentity (run state m)
 
 -- | A form of 'run' that returns only the val and automatically runs in
@@ -512,14 +512,14 @@ all_view_ids = gets (Map.keys . state_views)
 create_view :: M m => Id.Id -> Block.View -> m ViewId
 create_view id view = do
     view <- _update_view_status view
-    insert (Id.ViewId id) view updated_view state_views $ \views st ->
+    insert (Id.ViewId id) view damage_view state_views $ \views st ->
         st { state_views = views }
 
 destroy_view :: M m => ViewId -> m ()
 destroy_view view_id = do
     unsafe_modify $ \st ->
         st { state_views = Map.delete view_id (state_views st) }
-    updated_view view_id
+    damage_view view_id
 
 put_views :: M m => Map ViewId Block.View -> m ()
 put_views view_map = do
@@ -527,7 +527,7 @@ put_views view_map = do
     views <- mapM _update_view_status views
     unsafe_modify $ \st -> st
         { state_views = Map.fromList (zip view_ids views) }
-    mapM_ updated_view view_ids
+    mapM_ damage_view view_ids
 
 -- | Set a status variable on a view.
 set_view_status :: M m => ViewId -> (Int, Text) -> Maybe Text -> m ()
@@ -597,7 +597,7 @@ update_view :: M m => ViewId -> Block.View -> m ()
 update_view view_id view = do
     unsafe_modify $ \st -> st
         { state_views = Map.adjust (const view) view_id (state_views st) }
-    updated_view view_id
+    damage_view view_id
 
 -- * block
 
@@ -621,7 +621,7 @@ all_block_track_ids =
 -- Throw if the BlockId already exists.
 create_config_block :: M m => Id.Id -> Block.Block -> m BlockId
 create_config_block id block =
-    insert (Id.BlockId id) block updated_block state_blocks $ \blocks st -> st
+    insert (Id.BlockId id) block damage_block state_blocks $ \blocks st -> st
         { state_blocks = blocks
         , state_config = let c = state_config st
             in c { config_root = if Map.size blocks == 1
@@ -647,7 +647,7 @@ destroy_block block_id = do
                 then Nothing else config_root c
             }
         }
-    updated_block block_id
+    damage_block block_id
     blocks <- gets (Map.toList . state_blocks)
     -- Remove integration destinations of any blocks that were generated from
     -- this one.
@@ -888,7 +888,7 @@ insert_track block_id tracknum track = do
         }
     unsafe_modify $ \st ->
         st { state_views = Map.union views' (state_views st) }
-    mapM_ updated_view (Map.keys views')
+    mapM_ damage_view (Map.keys views')
     where
     is_ruler t = case Block.tracklike_id t of
         Block.RId {} -> True
@@ -910,7 +910,7 @@ remove_track block_id tracknum = do
         }
     unsafe_modify $ \st ->
         st { state_views = Map.union views (state_views st) }
-    mapM_ updated_view (Map.keys views)
+    mapM_ damage_view (Map.keys views)
     -- Clear any orphaned integration destinations.
     fix_integrated_tracks block_id =<< get_block block_id
     return ()
@@ -1228,7 +1228,7 @@ set_block :: M m => BlockId -> Block.Block -> m ()
 set_block block_id block = do
     unsafe_modify $ \st -> st
         { state_blocks = Map.adjust (const block) block_id (state_blocks st) }
-    updated_block block_id
+    damage_block block_id
 
 -- * track
 
@@ -1246,7 +1246,7 @@ all_track_ids = gets (Map.keys . state_tracks)
 -- Throw if the TrackId already exists.
 create_track :: M m => Id.Id -> Track.Track -> m TrackId
 create_track id track =
-    insert (Id.TrackId id) track updated_track state_tracks $ \tracks st ->
+    insert (Id.TrackId id) track damage_track state_tracks $ \tracks st ->
         st { state_tracks = tracks }
 
 -- | Destroy the track and remove it from all the blocks it's in.  No-op if
@@ -1258,7 +1258,7 @@ destroy_track track_id = do
         remove_track block_id tracknum
     unsafe_modify $ \st ->
         st { state_tracks = Map.delete track_id (state_tracks st) }
-    updated_track track_id
+    damage_track track_id
 
 get_track_title :: M m => TrackId -> m Text
 get_track_title = (Track.track_title <$>) . get_track
@@ -1438,7 +1438,7 @@ modify_track track_id f = do
     get_track track_id -- Throw if track_id doesn't exist.
     unsafe_modify $ \st ->
         st { state_tracks = Map.adjust f track_id (state_tracks st) }
-    updated_track track_id
+    damage_track track_id
 
 _modify_events :: M m => TrackId
     -> (Events.Events -> (Events.Events, Ranges.Ranges TrackTime))
@@ -1454,7 +1454,7 @@ _modify_events track_id f = do
     -- REPL expressions, but it seems better for memory in general to keep
     -- State in normal form.
     DeepSeq.deepseq new_events $
-        update $ mempty { Update._tracks = Map.singleton track_id ranges }
+        damage $ mempty { Update._tracks = Map.singleton track_id ranges }
 
 events_range :: [Event.Event] -> Ranges.Ranges TrackTime
 events_range events = case minmax events of
@@ -1487,7 +1487,7 @@ create_ruler :: M m => Id.Id -> Ruler.Ruler -> m RulerId
 create_ruler id ruler
     -- no_ruler is global and assumed to always exist.
     | id == Id.unpack_id no_ruler = throw "can't insert no-ruler"
-    | otherwise = insert (Id.RulerId id) ruler updated_ruler state_rulers $
+    | otherwise = insert (Id.RulerId id) ruler damage_ruler state_rulers $
         \rulers st -> st { state_rulers = rulers }
 
 -- | Destroy the ruler and remove it from all the blocks it's in.
@@ -1503,7 +1503,7 @@ destroy_ruler ruler_id = do
             map deruler (Seq.enumerate (Block.block_tracks block)) }
     unsafe_modify $ \st ->
         st { state_rulers = Map.delete ruler_id (state_rulers st) }
-    updated_ruler ruler_id
+    damage_ruler ruler_id
 
 modify_ruler :: M m => RulerId -> (Ruler.Ruler -> Either Text Ruler.Ruler)
     -> m ()
@@ -1515,7 +1515,7 @@ modify_ruler ruler_id modify = do
     modified <- require_right (msg<>) $ modify ruler
     unsafe_modify $ \st ->
         st { state_rulers = Map.insert ruler_id modified (state_rulers st) }
-    updated_ruler ruler_id
+    damage_ruler ruler_id
 
 ruler_of :: M m => BlockId -> m RulerId
 ruler_of block_id = require ("no ruler in " <> showt block_id)
@@ -1622,21 +1622,21 @@ verify state = case run_id state fix_state of
 -- module.
 --
 -- TODO a better approach would be to make sure Sync can't be broken by State.
-quick_verify :: Update.CmdUpdate -> State -> Either String (State, [Text])
-quick_verify update state = case run_id state quick_fix of
+quick_verify :: Update.UiDamage -> State -> Either String (State, [Text])
+quick_verify damage state = case run_id state quick_fix of
     Left err -> Left $ prettys err
     Right (errs, state, _) -> Right (state, errs)
     where
     quick_fix = do
         st <- get
         mapM_ verify_block $ Map.elems $
-            Map.restrictKeys (state_blocks st) (Update._blocks update)
+            Map.restrictKeys (state_blocks st) (Update._blocks damage)
         -- Disappearing views can happen if you undo past a block rename.
         -- In that case I should track the rename rather than disappearing
         -- the view, but in any case I don't want dangling ViewIds and
         -- disappearing the view is relatively harmless.
         concatMapM (uncurry verify_view) $ Map.toList $
-            Map.restrictKeys (state_views st) (Update._views update)
+            Map.restrictKeys (state_views st) (Update._views damage)
     verify_block block = do
         mapM_ get_track (Block.block_track_ids block)
         mapM_ get_ruler (Block.block_ruler_ids block)
@@ -1817,20 +1817,20 @@ namespace ns = do
         throw $ "invalid characters in namespace: " <> showt ns
     return $ Id.namespace ns
 
--- * update
+-- * damage
 
-updated_view :: M m => ViewId -> m ()
-updated_view view_id =
-    update $ mempty { Update._views = Set.singleton view_id }
+damage_view :: M m => ViewId -> m ()
+damage_view view_id =
+    damage $ mempty { Update._views = Set.singleton view_id }
 
-updated_block :: M m => BlockId -> m ()
-updated_block block_id =
-    update $ mempty { Update._blocks = Set.singleton block_id }
+damage_block :: M m => BlockId -> m ()
+damage_block block_id =
+    damage $ mempty { Update._blocks = Set.singleton block_id }
 
-updated_track :: M m => TrackId -> m ()
-updated_track track_id = update $ mempty
+damage_track :: M m => TrackId -> m ()
+damage_track track_id = damage $ mempty
     { Update._tracks = Map.singleton track_id Ranges.everything }
 
-updated_ruler :: M m => RulerId -> m ()
-updated_ruler ruler_id =
-    update $ mempty { Update._rulers = Set.singleton ruler_id }
+damage_ruler :: M m => RulerId -> m ()
+damage_ruler ruler_id =
+    damage $ mempty { Update._rulers = Set.singleton ruler_id }

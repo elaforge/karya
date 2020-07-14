@@ -4161,7 +4161,7 @@ performance:
       - Integrate.score_integrate
         . Both needs_block_score_integrate and needs_track_score_integrate
           look at all blocks.
-      - derive_diff
+      * derive_diff
       . I probably have to change them to do work based on UI updates, not on
         the entire state.
       . How big is the state anyway?  Maybe the checks are quite expensive if
@@ -4188,7 +4188,12 @@ performance:
         0.0653 sync.diff
         0.0183 sync.score_integrate
         7.3165 derive_diff
-
+      . Newer times:
+        0.2990 sync_status
+        0.0050 sync.verify
+        0.0160 sync.diff
+        0.0027 sync.sort
+        0.3360 derive_diff
     - Sync.sync no longer needs to collapse track updates?
     . Ui.StateT is now strict, will that make a difference?
       . Maybe, but performance tracking is only for derivation, not cmd, so
@@ -4199,7 +4204,7 @@ performance:
     ? Would it be more efficient to collapse CmdUpdate and Ui.State into
       a strict pair?
       . Probably... what does a fully inlined mtl layer become to (>>=)?
-    - Update.CmdUpdate is more like UiDamage now, rename it.
+    * Update.CmdUpdate is more like UiDamage now, rename it.
     - research if it's less efficient to mappend mempty vs. direct modify
       . This also applies to Derive Collect
     . They all went down except derive_diff and sync_status went up!

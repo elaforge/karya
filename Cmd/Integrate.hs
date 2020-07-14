@@ -154,7 +154,7 @@ integrate_block source_id tracks = do
 -- | For each block with 'Block.ScoreDestinations', figure out if their sources
 -- have damage, and if so, re-integrate.
 score_integrate :: [Update.UiUpdate] -> Ui.State
-    -> Either Ui.Error ([Log.Msg], Ui.State, Update.CmdUpdate)
+    -> Either Ui.Error ([Log.Msg], Ui.State, Update.UiDamage)
 score_integrate updates state = Ui.run_id state $ do
     -- These both use the passed state instead of using Ui.get when figuring
     -- out if there are updates that require integration.  This way, a

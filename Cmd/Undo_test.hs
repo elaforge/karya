@@ -138,7 +138,7 @@ test_load_previous_history = Git.initialize $ do
     res <- next res $ Cmd.name "+x" $ insert_event 0 "x"
     res <- next res $ Cmd.name "+y" $ insert_event 1 "y"
     -- pprint (e_commits res)
-    -- pprint (e_hist_updates res)
+    -- pprint (e_hist_damage res)
 
     equal (extract_ui res) "xy"
     res <- ResponderTest.respond_cmd (ResponderTest.mkstates []) $
@@ -291,9 +291,9 @@ ui_notes tracknum ui_state
 e_ui :: ResponderTest.Result -> Ui.State
 e_ui = CmdTest.result_ui_state . ResponderTest.result_cmd
 
-e_hist_updates :: ResponderTest.Result
-    -> ([Update.CmdUpdate], Update.CmdUpdate, [Update.CmdUpdate])
-e_hist_updates = hist_updates . e_hist
+e_hist_damage :: ResponderTest.Result
+    -> ([Update.UiDamage], Update.UiDamage, [Update.UiDamage])
+e_hist_damage = hist_damage . e_hist
 
 e_hist :: ResponderTest.Result -> Cmd.History
 e_hist = Cmd.state_history . CmdTest.result_cmd_state . ResponderTest.result_cmd
@@ -302,12 +302,12 @@ e_hist_collect :: ResponderTest.Result -> Cmd.HistoryCollect
 e_hist_collect = Cmd.state_history_collect . CmdTest.result_cmd_state
     . ResponderTest.result_cmd
 
-hist_updates :: Cmd.History
-    -> ([Update.CmdUpdate], Update.CmdUpdate, [Update.CmdUpdate])
-hist_updates (Cmd.History past present future _undo_redo) =
-    ( map Cmd.hist_update past
-    , Cmd.hist_update present
-    , map Cmd.hist_update future
+hist_damage :: Cmd.History
+    -> ([Update.UiDamage], Update.UiDamage, [Update.UiDamage])
+hist_damage (Cmd.History past present future _undo_redo) =
+    ( map Cmd.hist_damage past
+    , Cmd.hist_damage present
+    , map Cmd.hist_damage future
     )
 
 e_updates :: ResponderTest.Result -> [Update.DisplayUpdate]

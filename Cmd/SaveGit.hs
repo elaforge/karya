@@ -64,7 +64,7 @@ import           Types
 
 -- | History loaded from disk.  It only has CmdUpdates so you can feed them to
 -- diff.
-data LoadHistory = LoadHistory !Ui.State !Commit !Update.CmdUpdate ![Text]
+data LoadHistory = LoadHistory !Ui.State !Commit !Update.UiDamage ![Text]
     deriving (Show)
 
 is_git :: FilePath -> Bool
@@ -282,11 +282,11 @@ load_history repo state from_commit to_commit = do
     result <- load_from repo from_commit (Just to_commit) state
     case result of
         Left err -> return $ Left err
-        Right (new_state, cmd_update) -> return $ Right $ Just
-            (LoadHistory new_state to_commit cmd_update names)
+        Right (new_state, damage) -> return $ Right $ Just $
+            LoadHistory new_state to_commit damage names
 
 load_from :: Git.Repo -> Commit -> Maybe Commit -> Ui.State
-    -> IO (Either Text (Ui.State, Update.CmdUpdate))
+    -> IO (Either Text (Ui.State, Update.UiDamage))
 load_from repo commit_from maybe_commit_to state = do
     commit_to <- default_head repo maybe_commit_to
     mods <- Git.diff_commits repo commit_from commit_to
@@ -411,7 +411,7 @@ undump_map mkid dir =
         (,) (path_to_id mkid ns name) <$> decode (txt name) bytes
 
 undump_diff :: Ui.State -> [Git.Modification]
-    -> Either Text (Ui.State, Update.CmdUpdate)
+    -> Either Text (Ui.State, Update.UiDamage)
 undump_diff state = foldM apply (state, mempty)
     where
     apply (state, update) (Git.Remove path) = case split path of
@@ -429,7 +429,7 @@ undump_diff state = foldM apply (state, mempty)
         ["tracks", ns, name] -> do
             state_to <- add ns name Id.TrackId Ui.tracks
             let tid = path_to_id Id.TrackId ns name
-            -- I don't save the CmdUpdate with the checkpoint, so to avoid
+            -- I don't save the UiDamage with the checkpoint, so to avoid
             -- having to rederive the entire track I do a little mini-diff
             -- just on the track.  It shouldn't be too expensive because it's
             -- only on one track at a time.

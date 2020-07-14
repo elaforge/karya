@@ -45,13 +45,13 @@ type UiUpdate = Update Block.Track State
 
 -- | This collects damaged Ui.State elements, manually added by the various
 -- Ui functions.  I use "Ui.Diff" to get the exact changes, but it's too
--- slow to compare the entire Ui.State, so CmdUpdate is used to restrict the
+-- slow to compare the entire Ui.State, so UiDamage is used to restrict the
 -- diff to just parts that may have changed.
 --
 -- There are also a few mutations that correspond directly 'UiUpdate's which
 -- I just emit directly rather than relying on diff.  Those are converted from
--- CmdUpdate by 'to_ui'.
-data CmdUpdate = CmdUpdate {
+-- UiDamage by 'to_ui'.
+data UiDamage = UiDamage {
     _views :: Set ViewId
     , _blocks :: Set BlockId
     , _tracks :: Map TrackId (Ranges.Ranges TrackTime)
@@ -62,19 +62,19 @@ data CmdUpdate = CmdUpdate {
     , _title_focus :: Maybe (ViewId, Maybe TrackNum)
     } deriving (Eq, Show)
 
-instance Semigroup CmdUpdate where
-    (<>)    (CmdUpdate v1 b1 t1 r1 bring1 title1)
-            (CmdUpdate v2 b2 t2 r2 bring2 title2) =
-        CmdUpdate (v1<>v2) (b1<>b2) (Maps.mappend t1 t2) (r1<>r2)
+instance Semigroup UiDamage where
+    (<>)    (UiDamage v1 b1 t1 r1 bring1 title1)
+            (UiDamage v2 b2 t2 r2 bring2 title2) =
+        UiDamage (v1<>v2) (b1<>b2) (Maps.mappend t1 t2) (r1<>r2)
             (bring1<>bring2) (title1<|>title2)
 
-instance Monoid CmdUpdate where
-    mempty = CmdUpdate mempty mempty mempty mempty mempty Nothing
+instance Monoid UiDamage where
+    mempty = UiDamage mempty mempty mempty mempty mempty Nothing
     mappend = (<>)
 
-instance Pretty CmdUpdate where
-    format (CmdUpdate views blocks tracks rulers bring_to_front title_focus) =
-        Pretty.record "CmdUpdate"
+instance Pretty UiDamage where
+    format (UiDamage views blocks tracks rulers bring_to_front title_focus) =
+        Pretty.record "UiDamage"
             [ ("views", Pretty.format views)
             , ("blocks", Pretty.format blocks)
             , ("tracks", Pretty.format tracks)
@@ -255,8 +255,8 @@ to_display (Track tid update) = Just $ Track tid update
 to_display (Ruler rid) = Just $ Ruler rid
 to_display (State {}) = Nothing
 
-to_ui :: CmdUpdate -> [UiUpdate]
-to_ui (CmdUpdate { _tracks, _rulers, _bring_to_front, _title_focus }) = concat
+to_ui :: UiDamage -> [UiUpdate]
+to_ui (UiDamage { _tracks, _rulers, _bring_to_front, _title_focus }) = concat
     [ [ Track tid $ maybe TrackAllEvents (uncurry TrackEvents) mb_range
       | (tid, range) <- Map.toList _tracks
       , Just mb_range <- [Ranges.extract1 range]
@@ -268,11 +268,11 @@ to_ui (CmdUpdate { _tracks, _rulers, _bring_to_front, _title_focus }) = concat
     ]
     -- views and blocks not converted, but they tell diff where to look.
 
--- | Pull the CmdUpdate out of a UiUpdate, if any.  Discard BringToFront and
+-- | Pull the UiDamage out of a UiUpdate, if any.  Discard BringToFront and
 -- TitleFocus since they're just instructions to Sync and I don't need to
 -- remember them.
-to_cmd :: UiUpdate -> CmdUpdate
-to_cmd = \case
+to_damage :: UiUpdate -> UiDamage
+to_damage = \case
     Track track_id (TrackEvents s e) ->
         mempty { _tracks = Map.singleton track_id (Ranges.range s e) }
     Ruler ruler_id -> mempty { _rulers = Set.singleton ruler_id }
@@ -296,9 +296,9 @@ is_view_update update = case update of
         _ -> False
     _ -> False
 
--- | True if this CmdUpdate implies score damage.
-is_score_update :: CmdUpdate -> Bool
-is_score_update (CmdUpdate { _tracks, _rulers }) =
+-- | True if this UiDamage implies score damage.
+is_score_damage :: UiDamage -> Bool
+is_score_damage (UiDamage { _tracks, _rulers }) =
     not (Map.null _tracks) || not (Set.null _rulers)
 
 -- | TrackUpdates can overlap.  Merge them together here.  Technically I can

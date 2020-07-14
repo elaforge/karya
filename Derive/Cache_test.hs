@@ -881,10 +881,10 @@ uncache (Derive.Cache cache) = cache
 -- * run
 
 -- UiTest.run discards the Updates, which I need.
-run :: Ui.State -> Ui.StateId a -> (a, Ui.State, Update.CmdUpdate)
+run :: Ui.State -> Ui.StateId a -> (a, Ui.State, Update.UiDamage)
 run state m = case result of
-        Left err -> error $ "state error: " <> show err
-        Right (val, state', updates) -> (val, state', updates)
+    Left err -> error $ "state error: " <> show err
+    Right (val, state', updates) -> (val, state', updates)
     where result = Identity.runIdentity (Ui.run state m)
 
 -- | Derive with and without the cache, and make sure the cache fired and the
@@ -914,9 +914,9 @@ run_cached :: BlockId -> Derive.Result -> Ui.State -> Ui.StateId a
 run_cached root_id result state1 modify =
     derive_block_cache (Derive.r_cache result) damage state2 root_id
     where
-    (_, state2, cmd_update) = run state1 modify
-    (updates, _) = Diff.diff cmd_update state1 state2
-    damage = Diff.derive_diff state1 state2 cmd_update updates
+    (_, state2, ui_damage) = run state1 modify
+    (updates, _) = Diff.diff ui_damage state1 state2
+    damage = Diff.derive_diff state1 state2 ui_damage updates
 
 derive_block_cache :: Derive.Cache -> Derive.ScoreDamage -> Ui.State
     -> BlockId -> Derive.Result
@@ -927,11 +927,11 @@ get_root_id :: Ui.State -> BlockId
 get_root_id state = UiTest.eval state Ui.get_root_id
 
 score_damage :: Ui.StateId a -> Ui.StateId b -> Derive.ScoreDamage
-score_damage create modify = Diff.derive_diff state1 state2 cmd_update updates
+score_damage create modify = Diff.derive_diff state1 state2 ui_damage updates
     where
     (_, state1) = UiTest.run Ui.empty create
-    (_, state2, cmd_update) = run state1 modify
-    (updates, _) = Diff.diff cmd_update state1 state2
+    (_, state2, ui_damage) = run state1 modify
+    (updates, _) = Diff.diff ui_damage state1 state2
 
 -- | 'diff_events' returns this when there were no events to diff.
 expect_no_events :: [Either DiffEvent DiffEvent]

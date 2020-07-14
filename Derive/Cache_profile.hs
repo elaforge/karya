@@ -58,9 +58,9 @@ rederive initial_state modifications = do
     where
     go _ _ [] = return ()
     go state1 cache (modify:rest) = do
-        let (_, state2, cmd_updates) = Cache_test.run state1 modify
+        let (_, state2, ui_damage) = Cache_test.run state1 modify
         cached <- time_section "cached" $
-            eval_derivation cache state1 state2 cmd_updates
+            eval_derivation cache state1 state2 ui_damage
         uncached <- time_section "uncached" $ do
             let result = DeriveTest.derive_block_standard mempty
                     DeriveTest.default_cmd_state mempty mempty state2
@@ -80,11 +80,11 @@ time_section title op = do
 
 eval_derivation :: Derive.Cache -> Ui.State -> Ui.State
     -> [Update.CmdUpdate] -> IO Derive.Result
-eval_derivation cache state1 state2 cmd_updates = do
+eval_derivation cache state1 state2 ui_damage = do
     Thread.force $ Derive.r_events result
     return result
     where
-    (ui_updates, _) = Diff.diff cmd_updates state1 state2
+    (ui_updates, _) = Diff.diff ui_damage state1 state2
     damage = Diff.derive_diff state1 state2 ui_updates
     result = DeriveTest.derive_block_standard mempty
         DeriveTest.default_cmd_state cache damage state2 (UiTest.bid "b1")

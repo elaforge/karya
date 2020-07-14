@@ -140,7 +140,7 @@ cmd_add_block_title _ = do
     title <- Ui.get_block_title block_id
     when (Text.null title) $
         Ui.set_block_title block_id " "
-    Ui.update $ mempty { Update._title_focus = Just (view_id, Nothing) }
+    Ui.damage $ mempty { Update._title_focus = Just (view_id, Nothing) }
 
 -- * collapse / expand tracks
 

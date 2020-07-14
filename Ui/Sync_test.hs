@@ -499,18 +499,18 @@ create_ruler a b = Ui.create_ruler (mkid a) b
 run :: Ui.State -> Ui.StateT IO a -> IO Ui.State
 run st1 m = do
     res <- Ui.run st1 m
-    let (_val, st2, cmd_updates) = expect_right res
-    sync st1 st2 cmd_updates
+    let (_val, st2, damage) = expect_right res
+    sync st1 st2 damage
     return st2
 
 sync_states :: Ui.State -> Ui.State -> IO ()
 sync_states st1 st2 = sync st1 st2 mempty
 
-sync :: Ui.State -> Ui.State -> Update.CmdUpdate -> IO ()
-sync st1 st2 cmd_update = do
-    let (_cupdates, dupdates) = Diff.diff cmd_update st1 st2
-    putStr "cmd updates: "
-    pprint cmd_update
+sync :: Ui.State -> Ui.State -> Update.UiDamage -> IO ()
+sync st1 st2 damage = do
+    let (_cupdates, dupdates) = Diff.diff damage st1 st2
+    putStr "ui damage: "
+    pprint damage
     putStr "updates: "
     pprint dupdates
     result <- Sync.sync global_ui_channel Map.empty Internal.set_style st2

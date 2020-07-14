@@ -277,11 +277,11 @@ track_bg track
 sync_status :: Ui.State -> Cmd.State -> Cmd.CmdId Cmd.Status
 sync_status ui_from cmd_from = do
     ui_to <- Ui.get
-    cmd_update <- Ui.get_update
-    Cmd.modify $ update_saved cmd_update ui_from ui_to
+    damage <- Ui.get_damage
+    Cmd.modify $ update_saved damage ui_from ui_to
 
     cmd_to <- Cmd.get
-    let updates = fst $ Diff.run $ Diff.diff_views ui_from ui_to cmd_update
+    let updates = fst $ Diff.run $ Diff.diff_views ui_from ui_to damage
         new_views = mapMaybe create_view updates
         edit_state = Cmd.state_edit cmd_to
     when (not (null new_views) || Cmd.state_edit cmd_from /= edit_state
@@ -305,12 +305,12 @@ sync_status ui_from cmd_from = do
 
 -- | Flip 'Cmd.state_saved' if the score has changed.  "Cmd.Save" will turn it
 -- back on after a save.
-update_saved :: Update.CmdUpdate -> Ui.State -> Ui.State -> Cmd.State
+update_saved :: Update.UiDamage -> Ui.State -> Ui.State -> Cmd.State
     -> Cmd.State
-update_saved update ui_from ui_to cmd_state = case Cmd.state_saved cmd_state of
+update_saved damage ui_from ui_to cmd_state = case Cmd.state_saved cmd_state of
     Nothing -> cmd_state { Cmd.state_saved = Just True }
     Just True | Maybe.isNothing (can_checkpoint cmd_state)
-            && Diff.score_changed ui_from ui_to update ->
+            && Diff.score_changed ui_from ui_to damage ->
         cmd_state { Cmd.state_saved = Just False }
     Just _ -> cmd_state
 

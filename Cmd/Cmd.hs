@@ -180,7 +180,7 @@ type Result a =
     ( State
     , [Thru]
     , [Log.Msg]
-    , Either Ui.Error (a, Ui.State, Update.CmdUpdate)
+    , Either Ui.Error (a, Ui.State, Update.UiDamage)
     )
 
 run :: Monad m => a -> RunCmd m m a
@@ -205,7 +205,7 @@ run_ ui_state cmd_state cmd = do
         run Nothing ui_state cmd_state (liftM Just cmd)
     return $ (, logs) $ case result of
         Left err -> Left $ prettys err
-        Right (val, ui_state, _updates) -> case val of
+        Right (val, ui_state, _damage) -> case val of
             Nothing -> Left "aborted"
             Just v -> Right (v, cmd_state, ui_state)
 
@@ -234,12 +234,12 @@ lift_id cmd = do
     mapM_ Log.write logs
     case result of
         Left err -> Ui.throw_error err
-        Right (val, ui_state, update) -> case val of
+        Right (val, ui_state, damage) -> case val of
             Nothing -> abort
             Just val -> do
                 put cmd_state
                 mapM_ write_thru thru
-                Ui.update update
+                Ui.damage damage
                 Ui.unsafe_put ui_state
                 return val
 
@@ -319,8 +319,8 @@ instance Monad m => Log.LogMonad (CmdT m) where
 instance Monad m => Ui.M (CmdT m) where
     get = CmdT Ui.get
     unsafe_put st = CmdT (Ui.unsafe_put st)
-    update upd = CmdT (Ui.update upd)
-    get_update = CmdT Ui.get_update
+    damage upd = CmdT (Ui.damage upd)
+    get_damage = CmdT Ui.get_damage
     throw_error msg = CmdT (Ui.throw_error msg)
 
 -- ** exceptions
@@ -1010,7 +1010,7 @@ data HistoryEntry = HistoryEntry {
     -- HistoryEntry is in the future, the updates take it to the past, which
     -- are the updated emitted by the cmd.  So don't be confused if it looks
     -- like a HistoryEntry has the wrong updates.
-    , hist_update :: !Update.CmdUpdate
+    , hist_damage :: !Update.UiDamage
     -- | Cmds involved creating this entry.
     , hist_names :: ![Text]
     -- | The Commit where this entry was saved.  Nothing if the entry is
@@ -1021,7 +1021,7 @@ data HistoryEntry = HistoryEntry {
 empty_history_entry :: Ui.State -> HistoryEntry
 empty_history_entry state = HistoryEntry
     { hist_state = state
-    , hist_update = mempty
+    , hist_damage = mempty
     , hist_names = []
     , hist_commit = Nothing
     }
@@ -1035,9 +1035,9 @@ instance Pretty History where
         ]
 
 instance Pretty HistoryEntry where
-    format (HistoryEntry _state updates commands commit) =
+    format (HistoryEntry _state damage commands commit) =
         Pretty.format commit Pretty.<+> Pretty.textList commands
-        Pretty.<+> Pretty.format updates
+        Pretty.<+> Pretty.format damage
 
 instance Pretty HistoryConfig where
     format (HistoryConfig keep last_commit) = Pretty.record "HistoryConfig"
@@ -1133,7 +1133,7 @@ get_performance block_id = abort_unless =<< lookup_performance block_id
 -- It's in IO because it wants to kill any threads still deriving.
 --
 -- TODO I'm not actually sure if this is safe.  A stale DeriveComplete
--- coming in should be ignored, right?  Why not Ui.update_all_tracks?
+-- coming in should be ignored, right?  Why not Ui.update_all?
 invalidate_performances :: CmdT IO ()
 invalidate_performances = do
     liftIO . kill_performance_threads =<< get
@@ -1176,7 +1176,7 @@ focus view_id = do
         Nothing ->
             Ui.throw $ "Cmd.focus on non-existent view: " <> showt view_id
         _ -> return ()
-    Ui.update $ mempty { Update._bring_to_front = Set.singleton view_id }
+    Ui.damage $ mempty { Update._bring_to_front = Set.singleton view_id }
 
 -- | In some circumstances I don't want to abort if there's no focused block.
 lookup_focused_block :: M m => m (Maybe BlockId)

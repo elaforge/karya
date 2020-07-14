@@ -282,7 +282,7 @@ respond1 reuse_loopback (ui_state, cmd_state) maybe_cmd msg = do
             { CmdTest.result_val = Right Nothing
             , CmdTest.result_cmd_state = Responder.state_cmd rstate
             , CmdTest.result_ui_state = Responder.state_ui rstate
-            , CmdTest.result_update = mempty
+            , CmdTest.result_ui_damage = mempty
             , CmdTest.result_logs = []
             , CmdTest.result_thru = map Cmd.MidiThru midi
             }

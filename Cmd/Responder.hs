@@ -249,7 +249,7 @@ data RState = RState {
     , rstate_cmd_from :: !Cmd.State
     , rstate_cmd_to :: !Cmd.State
     -- | Collect updates from each cmd.
-    , rstate_update :: !Update.CmdUpdate
+    , rstate_ui_damage :: !Update.UiDamage
     }
 
 make_rstate :: State -> RState
@@ -259,7 +259,7 @@ make_rstate state = RState
     , rstate_ui_to = state_ui state
     , rstate_cmd_from = state_cmd state
     , rstate_cmd_to = state_cmd state
-    , rstate_update = mempty
+    , rstate_ui_damage = mempty
     }
 
 type ResponderM = Monad.State.StateT RState IO
@@ -268,9 +268,9 @@ newtype Done = Done Result
 
 type Result = Either Ui.Error Cmd.Status
 
-save_update :: Update.CmdUpdate -> ResponderM ()
-save_update update = Monad.State.modify $ \st ->
-    st { rstate_update = update <> rstate_update st }
+save_update :: Update.UiDamage -> ResponderM ()
+save_update damage = Monad.State.modify $ \st ->
+    st { rstate_ui_damage = damage <> rstate_ui_damage st }
 
 -- ** run
 
@@ -294,20 +294,20 @@ save_update update = Monad.State.modify $ \st ->
 -}
 run_responder :: State -> ResponderM Result -> IO (Bool, State)
 run_responder state action = do
-    (val, RState _ ui_from ui_to cmd_from cmd_to cmd_update)
+    (val, RState _ ui_from ui_to cmd_from cmd_to ui_damage)
         <- Monad.State.runStateT action (make_rstate state)
     case val of
         Left err -> do
             Log.warn (pretty err)
             -- Exception rolls back changes to ui_state and cmd_state.
             return (False, state { state_ui = ui_from, state_cmd = cmd_from })
-        Right status -> post_cmd state ui_from ui_to cmd_to cmd_update status
+        Right status -> post_cmd state ui_from ui_to cmd_to ui_damage status
 
 -- | Do all the miscellaneous things that need to be done after a command
 -- completes.  This doesn't happen if the cmd threw an exception.
 post_cmd :: State -> Ui.State -> Ui.State -> Cmd.State
-    -> Update.CmdUpdate -> Cmd.Status -> IO (Bool, State)
-post_cmd state ui_from ui_to cmd_to cmd_update status = do
+    -> Update.UiDamage -> Cmd.Status -> IO (Bool, State)
+post_cmd state ui_from ui_to cmd_to ui_damage status = do
     Trace.trace "cmd"
     -- Load external definitions and cache them in Cmd.State, so cmds don't
     -- have a dependency on IO.
@@ -317,13 +317,13 @@ post_cmd state ui_from ui_to cmd_to cmd_update status = do
         (state_transport_info state) status
     !cmd_to <- return $ fix_cmd_state ui_to cmd_to
     (updates, ui_to, cmd_to) <- ResponderSync.sync (state_sync state)
-        ui_from ui_to cmd_to cmd_update
+        ui_from ui_to cmd_to ui_damage
         (Transport.info_state (state_transport_info state))
     Trace.trace "sync"
 
     cmd_to <- do
         -- Kick off the background derivation threads.
-        let damage = Diff.derive_diff (state_ui state) ui_to cmd_update updates
+        let damage = Diff.derive_diff (state_ui state) ui_to ui_damage updates
         cmd_state <- Performance.update_performance
             (send_derive_status (state_loopback state)) ui_to cmd_to damage
         return $ cmd_state { Cmd.state_derive_immediately = mempty }

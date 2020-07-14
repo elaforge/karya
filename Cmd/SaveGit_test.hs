@@ -64,14 +64,14 @@ test_checkpoint = Git.initialize $ do
     io_equal (SaveGit.load repo (Just commit4)) $
         Right (state4, commit4, ["destroy"])
 
-    let update num start end = mempty
+    let damage num start end = mempty
             { Update._tracks =
                 Map.singleton (UiTest.mk_tid num) (Ranges.range start end)
             }
     -- Make sure incremental loads work.
     io_equal (load_from repo commit1 (Just commit2) state1)
         -- UiTest.insert_event 1 (2, 2, "hi")
-        (Right (state2, update 1 2 4))
+        (Right (state2, damage 1 2 4))
     io_equal (load_from repo commit2 (Just commit3) state2)
         -- destroy_track 2, create_track 2, but generate no updates
         -- because normal diff will catch that.
@@ -79,7 +79,7 @@ test_checkpoint = Git.initialize $ do
     io_equal (load_from repo commit3 (Just commit4) state3)
         (Right (state4, mempty))
     io_equal (load_from repo commit1 (Just commit4) state1)
-        (Right (state4, update 1 2 4))
+        (Right (state4, damage 1 2 4))
 
 test_ruler_checkpoint = Git.initialize $ do
     repo <- new_repo
@@ -113,7 +113,7 @@ check_sequence actions = do
                 (Right (state2, mempty))
 
 load_from :: Git.Repo -> SaveGit.Commit -> Maybe SaveGit.Commit -> Ui.State
-    -> IO (Either Text (Ui.State, Update.CmdUpdate))
+    -> IO (Either Text (Ui.State, Update.UiDamage))
 load_from repo commit_from maybe_commit_to state =
     fmap (first strip_views) <$>
         SaveGit.load_from repo commit_from maybe_commit_to state
@@ -147,10 +147,10 @@ checkpoint_sequence repo actions = apply (Ui.empty, Nothing) actions
 diff :: Ui.State -> Ui.StateId a -> (Ui.State, [Update.UiUpdate])
 diff state modify = (state2, ui_updates)
     where
-    (ui_updates, _) = Diff.diff cmd_updates state state2
-    (state2, cmd_updates) = case Ui.run_id state modify of
+    (ui_updates, _) = Diff.diff damage state state2
+    (state2, damage) = case Ui.run_id state modify of
         Left err -> error $ "Ui.run: " ++ show err
-        Right (_, state, cmd_updates) -> (state, cmd_updates)
+        Right (_, state, damage) -> (state, damage)
 
 mkview :: [UiTest.TrackSpec] -> Ui.StateId ()
 mkview tracks = void $ UiTest.mkblock_view (UiTest.default_block_name, tracks)

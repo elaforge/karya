@@ -33,12 +33,12 @@ type Sync = Track.TrackSignals -> Track.SetStyleHigh -> Ui.State
 sync :: Sync
     -> Ui.State -- ^ state before Cmd was run
     -> Ui.State -- ^ current state
-    -> Cmd.State -> Update.CmdUpdate -> MVar.MVar Ui.State
+    -> Cmd.State -> Update.UiDamage -> MVar.MVar Ui.State
     -> IO ([Update.UiUpdate], Ui.State, Cmd.State)
     -- ^ Sync uses 'Update.DisplayUpdate's, but the diff also produces
     -- UiUpdates, which are needed for incremental save and score damage.
-sync sync_func ui_from ui_to cmd_state cmd_update play_monitor_state = do
-    ui_to <- case Ui.quick_verify cmd_update ui_to of
+sync sync_func ui_from ui_to damage ui_damage play_monitor_state = do
+    ui_to <- case Ui.quick_verify ui_damage ui_to of
         Left err -> do
             Log.error $ "cmd caused a verify error, rejecting state change: "
                 <> txt err
@@ -50,10 +50,10 @@ sync sync_func ui_from ui_to cmd_state cmd_update play_monitor_state = do
             return state
     Trace.trace "sync.verify"
 
-    let (ui_updates, display_updates) = Diff.diff cmd_update ui_from ui_to
+    let (ui_updates, display_updates) = Diff.diff ui_damage ui_from ui_to
     Trace.force (ui_updates, display_updates)
     Trace.trace "sync.diff"
-    -- Debug.fullM (Debug.putp "cmd_update") cmd_update
+    -- Debug.fullM (Debug.putp "ui_damage") ui_damage
     -- Debug.fullM (Debug.putp "ui_updates") ui_updates
     -- Debug.fullM (Debug.putp "display_updates") display_updates
 
@@ -66,19 +66,22 @@ sync sync_func ui_from ui_to cmd_state cmd_update play_monitor_state = do
                 mapM_ Log.write logs
                 let (ui_updates', display_updates') =
                         Diff.diff updates ui_to state
-                return (state, ui_updates ++ ui_updates',
-                    display_updates ++ display_updates')
+                return
+                    ( state
+                    , ui_updates ++ ui_updates'
+                    , display_updates ++ display_updates'
+                    )
     Trace.force (ui_updates, display_updates)
     Trace.trace "sync.score_integrate"
 
     when (any modified_view ui_updates) $
         MVar.modifyMVar_ play_monitor_state (const (return ui_to))
-    err <- sync_func (get_track_signals cmd_state) Internal.set_style
+    err <- sync_func (get_track_signals damage) Internal.set_style
         ui_to display_updates
     Trace.trace "sync.sync"
     whenJust err $ \err ->
         Log.error $ "syncing updates: " <> pretty err
-    return (ui_updates, ui_to, cmd_state)
+    return (ui_updates, ui_to, damage)
 
 -- | Get all track signals already derived.  TrackSignals are only collected
 -- for top level derives, so there should only be signals for visible windows.
