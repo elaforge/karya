@@ -70,6 +70,33 @@ send_action ui_chan description act = do
     MVar.modifyMVar_ ui_chan $ return . ((act, description) :)
     awake
 
+{- NOTE [ui-loop-timing]
+    util::timing emits timing events for the UI event loop, but it's confusing
+    becasue things happen inside Fl::wait():
+
+        Fl::wait() enter                [libfltk]
+        "Block::draw"                   [c++]
+        waiting for OS event            [OS] <-- blocking
+        events collect in MsgCollector  [c++]
+        "evt-xyz"
+        Fl::wait() return
+        "events"
+        handle_actions (mutate fltk data via FFI)       [haskell]
+        get UI msgs from MsgCollector, put on msg_chan  [haskell]
+        "haskell"
+        Fl::wait() enter
+
+    So the single cycle goes "events", "haskell", "Block::draw".
+
+    UI latency can come from:
+    . handle_actions, if not already in normal form
+    . Block::draw()
+
+    Cmds run in their own async loop, which can also suffer from latency.  In
+    that case, the UI is still responsive in theory, but not in practice since
+    even selections go through cmd.
+-}
+
 -- | The FLTK event loop.
 fltk_event_loop :: Channel -> STM.TChan UiMsg.UiMsg -> IO ()
 fltk_event_loop ui_chan msg_chan = do

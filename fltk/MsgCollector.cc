@@ -39,7 +39,7 @@ UiMsg::free()
 std::ostream &
 operator<<(std::ostream &os, const UiMsg &m)
 {
-    os << '<' << UiMsg::msg_type_names()[m.type] << ' ' << m.context << ' ';
+    os << '<' << UiMsg::msg_type_name(m.type) << ' ' << m.context << ' ';
     switch (m.type) {
     case UiMsg::msg_event:
         os << m.event;
@@ -486,6 +486,19 @@ MsgCollector::push(UiMsg &m)
             }
         }
     }
+
+    if (util::Timing::level >= 2) {
+        static char name[64];
+        name[0] = '\0';
+        strcpy(name, "evt-");
+        if (m.type == UiMsg::msg_event) {
+            strcat(name, f_util::show_event(m.event.event));
+        } else {
+            strcat(name, UiMsg::msg_type_name(m.type));
+        }
+        util::timing(2, name);
+    }
+
     this->msgs.push_back(m);
     if (this->log_collected)
         std::cout << m << '\n';

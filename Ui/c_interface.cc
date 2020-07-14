@@ -24,14 +24,18 @@ initialize(Config::FreeHaskellFunPtr finalize)
 void
 ui_wait()
 {
+    // It does the haskell event loop before coming back to wait, so whatever
+    // it was just doing is haskell.
+    // NOTE [ui-loop-timing]
     util::timing(1, "haskell");
     util::timing_flush();
     // Wait for 100 seconcds or until interrupted by an event or ui_awake().
+    // Fltk will then draw internally
     // It will then do the haskell loop Fltk.fltk_event_loop, which will
     // perform fltk API calls.  Then when it comes back to Fl::wait, fltk will
     // perform any necessary drawing.
     Fl::wait(100);
-    util::timing(1, "start");
+    util::timing(1, "events");
 }
 
 void

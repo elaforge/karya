@@ -71,14 +71,15 @@ struct UiMsg {
         // have been added or removed.
         msg_screen_size
     };
-    static const char **msg_type_names() {
+    // This array has to line up with enum above.
+    static const char *msg_type_name(MsgType type) {
         static const char *names[] =
             { "event", "input"
             , "track_scroll", "time_scroll", "view_resize"
             , "track_width", "close"
             , "screen_size"
             };
-        return names;
+        return names[type];
     }
 
     MsgType type; // Type tag.

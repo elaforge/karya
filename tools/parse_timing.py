@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Parse the output of util::timing.
+
+    See NOTE [ui-loop-timing].
 """
 
 import sys, os, re
 
 
 class Fltk:
-    start = 'start'
-
     # Omit timings shorter than this.
     min_diff = 0.001
 
@@ -61,15 +61,14 @@ def cmd_mode(file):
             prev_ts = ts
 
 
-# start -> [haskell] -> wait -> [draw] -> Block::draw -> [wait ui]
-# fltk might skip [draw] and hence Block::draw.  E.g. for a cursor move.
+# See NOTE [ui-loop-timing].
 def fltk_mode(file):
     prev_ts = None
     prev_by = {}
     mode = Fltk
     for line in file:
         ts, name, _val = parse(line)
-        if name == mode.start:
+        if name.startswith('evt-') or name == 'events':
             prev_ts = None
         if prev_ts is None:
             prev_ts = ts

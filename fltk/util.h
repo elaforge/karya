@@ -75,7 +75,9 @@ namespace util {
 
 class Timing {
 public:
-    enum { level = 2 };
+    // Verbosity level, higher is more verbose.  This is a constant so timing
+    // calls above it should get removed entirely.
+    enum { level = 0 };
     static Timing *get();
     void timing(const char *name, int val);
     void flush();
@@ -96,7 +98,7 @@ private:
 
 // If enabled, write name and timestamp to a file.
 inline void timing(int level, const char *name, int val = 0) {
-    if (Timing::level >= level)
+    if (level < Timing::level)
         Timing::get()->timing(name, val);
 }
 
