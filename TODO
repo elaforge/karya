@@ -59,13 +59,6 @@ UNSORTED
       . Or from recording: 12:09
       . Subtract 1 from block numbers, Create.block starts at b1.
       . Per-instrument transposition, b123 is at a low octave.
-    instruments:
-      - get a sine, how hard can it be
-        . faust?
-      - try fm8 and use different control settings for instruments
-        . Can I map multiple instruments to the same one but with different
-          controls?
-        . Maybe alias them to one, but with different transformer?
   / bug: editing control at a particular spot only edits one higit.
     . Also it turns into an interpolate when it should be set.
     . Maybe has to do with being at 1/3?
@@ -4109,6 +4102,18 @@ cleanup:
     Note tracks can't get a GetLastSample at all.
 
 performance:
+  - Integrate.score_integrate is linear in score size
+    . needs_track_score_integrate
+      . Needs TrackId -> [Block], which is also Ui.blocks_with_track_id.
+      . Cache: track_to_containing_blocks :: Map TrackId [Block]
+    . needs_block_score_integrate
+      . Does a linear search for blocks with ScoreDestinations.
+      . Cache: block_to_integrate_sources :: Map BlockId [BlockId]
+    . I could put these in Ui.state_cache, which is not saved and loaded,
+      but initialized by Ui.put, and updated by the various functions
+      that invalidate it.
+    . But since this only happens on event modification, it's not so bad as
+      the scroll lag.
   * dragging scroll is laggy
     . Happens on a big block.  Happens with or without a ruler.
     . Happens even on a small block when there are lots of other blocks, goes
@@ -4158,9 +4163,6 @@ performance:
       * Internal.sync_status
       * Ui.quick_verify
       * Diff.diff
-      - Integrate.score_integrate
-        . Both needs_block_score_integrate and needs_track_score_integrate
-          look at all blocks.
       * derive_diff
       . I probably have to change them to do work based on UI updates, not on
         the entire state.
@@ -4194,7 +4196,7 @@ performance:
         0.0160 sync.diff
         0.0027 sync.sort
         0.3360 derive_diff
-    - Sync.sync no longer needs to collapse track updates?
+    - Sync.sync no longer needs to collapse track updates
     . Ui.StateT is now strict, will that make a difference?
       . Maybe, but performance tracking is only for derivation, not cmd, so
         I don't have an easy way to tell.
@@ -4207,10 +4209,7 @@ performance:
     * Update.CmdUpdate is more like UiDamage now, rename it.
     - research if it's less efficient to mappend mempty vs. direct modify
       . This also applies to Derive Collect
-    . They all went down except derive_diff and sync_status went up!
-      Sometimes it's very high: 109.7406 sync_status
     - log total respond latency, and log if over a limit
-
   - try INLINEABLE for the functions in DeriveM.
     . I think no good though, because DeriveM is already concrete, so there
       are no dictionaries to specialize.

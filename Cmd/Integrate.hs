@@ -54,6 +54,7 @@
 module Cmd.Integrate (cmd_integrate, score_integrate, manual_integrate) where
 import qualified Data.Either as Either
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified Util.Log as Log
@@ -209,18 +210,17 @@ replace key new xs = new ++ filter ((/=key) . fst) xs
 -- | Blocks which are block score integrate sources and have damage.
 needs_block_score_integrate :: [Update.UiUpdate] -> Ui.State -> [BlockId]
 needs_block_score_integrate updates state =
-    Seq.unique $ filter needs $ Map.keys $ Ui.state_blocks state
+    filter has_integrated $ Map.keys $ flip Map.restrictKeys damaged_blocks $
+        Ui.state_blocks state
     where
-    -- True if the block is damaged, and other blocks exist with it as an
-    -- integrated source.
-    needs block_id = block_id `elem` damaged_blocks && has_integrated block_id
-    damaged_blocks = mapMaybe block_changed updates
+    -- TODO this is a linear search through all blocks
     has_integrated block_id = not $ null
         [ ()
         | Just (dest_block_id, Block.ScoreDestinations {}) <-
             map Block.block_integrated $ Map.elems (Ui.state_blocks state)
         , block_id == dest_block_id
         ]
+    damaged_blocks = Set.fromList $ mapMaybe block_changed updates
     block_changed (Update.Block bid _) = Just bid
     block_changed _ = Nothing
 
@@ -234,6 +234,8 @@ needs_track_score_integrate updates state = Seq.unique $
         [ (block_id, track_id) | (block_id, block) <- blocks_with track_id
         , has_integrated block track_id
         ]
+    -- TODO this is a linear search through all blocks, as is
+    -- Ui.blocks_with_track_id.
     blocks_with track_id = filter (has_track track_id . snd) $ Map.toList $
         Ui.state_blocks state
     has_track track_id block = track_id `elem` Block.block_track_ids block
