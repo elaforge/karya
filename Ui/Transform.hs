@@ -240,6 +240,14 @@ data Stats = Stats {
     , _events :: Int
     } deriving (Show)
 
+short_stats :: Ui.State -> Text
+short_stats state = Text.unwords
+    [ "blocks:" <> showt _blocks
+    , "tracks:" <> showt _tracks
+    , "events:" <> showt _events
+    ]
+    where Stats { _blocks, _tracks, _events } = stats state
+
 show_stats :: Ui.State -> Text
 show_stats state = Text.unlines
     [ "blocks: " <> showt _blocks

@@ -115,10 +115,10 @@ load_template fn = do
 -- containing either a git repo @save.git@, or a state @save.state@.  If
 -- both are present, the git repo is preferred.
 infer_save_type :: FilePath -> IO (Either Text Cmd.SaveFile)
-infer_save_type path = fmap prepend $ cond
+infer_save_type path = fmap prepend $ condM
     [ (return $ SaveGit.is_git path,
         Right . Cmd.SaveRepo <$> Path.canonical path)
-    , (is_dir path, cond
+    , (is_dir path, condM
         [ (is_dir git_fn, Right . Cmd.SaveRepo <$> Path.canonical git_fn)
         , (is_file state_fn, Right . Cmd.SaveState <$> Path.canonical state_fn)
         ] $ return $ Left $ "directory contains neither " <> txt git_fn
@@ -134,10 +134,10 @@ infer_save_type path = fmap prepend $ cond
     is_file = Directory.doesFileExist
 
 -- | Like guard cases but with monadic conditions.
-cond :: Monad m => [(m Bool, m a)] -> m a -> m a
-cond [] consequent = consequent
-cond ((condition, result) : rest) consequent =
-    ifM condition result (cond rest consequent)
+condM :: Monad m => [(m Bool, m a)] -> m a -> m a
+condM [] consequent = consequent
+condM ((condition, result) : rest) consequent =
+    ifM condition result (condM rest consequent)
 
 -- * expand path
 
@@ -187,8 +187,9 @@ write_current_state fname = do
     state <- Ui.get
     ((), metric) <- rethrow_io "write_current_state" $
         Thread.timeAction $ write_state fname state
-    Log.notice $ "wrote state to " <> showt fname <> ", took "
-        <> Thread.showMetric metric
+    Log.notice $ "wrote state to " <> showt fname
+        <> " " <> Transform.short_stats state
+        <> ", took " <> Thread.showMetric metric
     return fname
 
 write_state :: FilePath -> Ui.State -> IO ()
@@ -207,9 +208,12 @@ read_state :: FilePath -> Cmd.CmdT IO (Ui.State, StateSaveFile)
 read_state fname = do
     let mkmsg err = "load " <> txt fname <> ": " <> pretty err
     writable <- liftIO $ File.writable fname
+    (state, metric) <- Thread.timeAction $
+        Cmd.require_right mkmsg =<< liftIO (read_state_ fname)
     Log.notice $ "read state from " <> showt fname
-        <> if writable then "" else " (ro)"
-    state <- Cmd.require_right mkmsg =<< liftIO (read_state_ fname)
+        <> (if writable then " " else " (ro) ")
+        <> Transform.short_stats state
+        <> ", took " <> Thread.showMetric metric
     return (state, Just
         (if writable then Cmd.ReadWrite else Cmd.ReadOnly, SaveState fname))
 
