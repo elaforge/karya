@@ -146,7 +146,6 @@ import qualified GHC.Stack
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Lens as Lens
-import qualified Util.Maps as Maps
 import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
 import qualified Util.Rect as Rect
@@ -1631,13 +1630,13 @@ quick_verify update state = case run_id state quick_fix of
     quick_fix = do
         st <- get
         mapM_ verify_block $ Map.elems $
-            Maps.intersect_set (state_blocks st) (Update._blocks update)
+            Map.restrictKeys (state_blocks st) (Update._blocks update)
         -- Disappearing views can happen if you undo past a block rename.
         -- In that case I should track the rename rather than disappearing
         -- the view, but in any case I don't want dangling ViewIds and
         -- disappearing the view is relatively harmless.
         concatMapM (uncurry verify_view) $ Map.toList $
-            Maps.intersect_set (state_views st) (Update._views update)
+            Map.restrictKeys (state_views st) (Update._views update)
     verify_block block = do
         mapM_ get_track (Block.block_track_ids block)
         mapM_ get_ruler (Block.block_ruler_ids block)

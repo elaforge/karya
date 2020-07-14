@@ -127,6 +127,3 @@ mconcat ms = Map.fromList [(k, Monoid.mconcat (get k)) | k <- ks]
     where
     ks = Set.toList $ Set.unions $ map Map.keysSet ms
     get k = Maybe.mapMaybe (Map.lookup k) ms
-
-intersect_set :: Ord k => Map k a -> Set.Set k -> Map k a
-intersect_set m keys = Map.intersection m (Map.fromSet (const ()) keys)

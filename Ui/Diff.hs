@@ -356,7 +356,7 @@ derive_diff st1 st2 cmd_update updates = postproc $ run_derive_diff $
 damaged :: Ord k => (Map k a -> Map k a -> val) -> state -> state
     -> (state -> Map k a) -> Set k -> val
 damaged f st1 st2 get keys =
-    f (Maps.intersect_set (get st1) keys) (Maps.intersect_set (get st2) keys)
+    f (Map.restrictKeys (get st1) keys) (Map.restrictKeys (get st2) keys)
 
 -- | Fill in 'Derive.sdamage_track_blocks'.
 postproc_damage :: Ui.State -> Derive.ScoreDamage -> Derive.ScoreDamage
