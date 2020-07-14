@@ -60,12 +60,9 @@ run = Either.partitionEithers . Identity.runIdentity . Logger.exec
 diff :: Update.CmdUpdate -> Ui.State -> Ui.State
     -> ([Update.UiUpdate], [Update.DisplayUpdate])
 diff update st1 st2 = postproc update st2 $ run $ do
-    let intersect get keys = Maps.zip_intersection
-            (Maps.intersect_set (get st1) (keys update))
-            (Maps.intersect_set (get st2) (keys update))
-
-    -- TODO also intersect views
-    diff_views st1 st2 (Ui.state_views st1) (Ui.state_views st2)
+    let intersect get keys =
+            damaged Maps.zip_intersection st1 st2 get (keys update)
+    diff_views st1 st2 update
     mapM_ (uncurry3 diff_block) $ intersect Ui.state_blocks Update._blocks
     mapM_ (uncurry3 (diff_track st2)) $
         intersect Ui.state_tracks (Map.keysSet . Update._tracks)
@@ -168,17 +165,21 @@ merge_updates state updates = updates ++ concatMap propagate updates
 
 -- ** view
 
-diff_views :: Ui.State -> Ui.State -> Map ViewId Block.View
-    -> Map ViewId Block.View -> DiffM ()
-diff_views st1 st2 views1 views2 =
-    forM_ (Maps.pairs views1 views2) $ \(view_id, paired) -> case paired of
-        Seq.Second _ -> change $ Update.View view_id Update.CreateView
-        Seq.First _ -> change $ Update.View view_id Update.DestroyView
-        Seq.Both view1 view2
-            | Block.view_block view1 /= Block.view_block view2 -> do
-                change $ Update.View view_id Update.DestroyView
-                change $ Update.View view_id Update.CreateView
-            | otherwise -> diff_view st1 st2 view_id view1 view2
+diff_views :: Ui.State -> Ui.State -> Update.CmdUpdate -> DiffM ()
+diff_views st1 st2 update =
+    mapM_ (uncurry (diff_view_pair st1 st2)) $
+        damaged Maps.pairs st1 st2 Ui.state_views (Update._views update)
+
+diff_view_pair :: Ui.State -> Ui.State -> ViewId
+    -> Seq.Paired Block.View Block.View -> DiffM ()
+diff_view_pair st1 st2 view_id = \case
+    Seq.Second _ -> change $ Update.View view_id Update.CreateView
+    Seq.First _ -> change $ Update.View view_id Update.DestroyView
+    Seq.Both view1 view2
+        | Block.view_block view1 /= Block.view_block view2 -> do
+            change $ Update.View view_id Update.DestroyView
+            change $ Update.View view_id Update.CreateView
+        | otherwise -> diff_view st1 st2 view_id view1 view2
 
 diff_view :: Ui.State -> Ui.State -> ViewId -> Block.View -> Block.View
     -> DiffM ()
@@ -290,22 +291,20 @@ sibling_tracks state track_id = either (const []) id $ Ui.eval state $ do
 diff_state :: Update.CmdUpdate -> Ui.State -> Ui.State -> DiffM ()
 diff_state update st1 st2 = do
     let emit = change . Update.State
-    let pairs keys f = Maps.pairs
-            (Maps.intersect_set (f st1) (keys update))
-            (Maps.intersect_set (f st2) (keys update))
+    let pairs get keys = damaged Maps.pairs st1 st2 get (keys update)
     when (Ui.state_config st1 /= Ui.state_config st2) $
         emit $ Update.Config (Ui.state_config st2)
-    forM_ (pairs Update._blocks Ui.state_blocks) $ \(block_id, paired) ->
+    forM_ (pairs Ui.state_blocks Update._blocks) $ \(block_id, paired) ->
         case paired of
             Seq.Second block -> emit $ Update.CreateBlock block_id block
             Seq.First _ -> emit $ Update.DestroyBlock block_id
             _ -> return ()
-    forM_ (pairs (Map.keysSet . Update._tracks) Ui.state_tracks) $
+    forM_ (pairs Ui.state_tracks (Map.keysSet . Update._tracks)) $
         \(track_id, paired) -> case paired of
             Seq.Second track -> emit $ Update.CreateTrack track_id track
             Seq.First _ -> emit $ Update.DestroyTrack track_id
             _ -> return ()
-    forM_ (pairs Update._rulers Ui.state_rulers) $ \(ruler_id, paired) ->
+    forM_ (pairs Ui.state_rulers Update._rulers) $ \(ruler_id, paired) ->
         case paired of
             Seq.Second ruler -> emit $ Update.CreateRuler ruler_id ruler
             Seq.First _ -> emit $ Update.DestroyRuler ruler_id
@@ -324,22 +323,26 @@ run_derive_diff = snd . Identity.runIdentity . Writer.runWriterT
 -- This is repeating some work done in 'diff', but is fundamentally different
 -- because it cares about nonvisible changes, e.g. track title change on
 -- a block without a view.
-derive_diff :: Ui.State -> Ui.State -> [Update.UiUpdate] -> Derive.ScoreDamage
-derive_diff st1 st2 updates = postproc $ run_derive_diff $
+derive_diff :: Ui.State -> Ui.State -> Update.CmdUpdate -> [Update.UiUpdate]
+    -> Derive.ScoreDamage
+derive_diff st1 st2 cmd_update updates = postproc $ run_derive_diff $
     -- If the config has changed, then everything is damaged.
     if unequal_on Ui.state_config st1 st2
     then Writer.tell $ mempty
-        { Derive.sdamage_blocks = Map.keysSet (Ui.state_blocks st1)
+        { Derive.sdamage_blocks =
+            Map.keysSet (Ui.state_blocks st1)
             <> Map.keysSet (Ui.state_blocks st2)
         }
     else do
         mapM_ (uncurry derive_diff_block) $
-            Maps.pairs (Ui.state_blocks st1) (Ui.state_blocks st2)
+            damaged Maps.pairs st1 st2 Ui.state_blocks
+                (Update._blocks cmd_update)
         -- This doesn't check for added or removed tracks, because for them to
         -- have any effect they must be added to or removed from a block, which
         -- 'derive_diff_block' will catch.
         mapM_ (uncurry3 derive_diff_track) $
-            Maps.zip_intersection (Ui.state_tracks st1) (Ui.state_tracks st2)
+            damaged Maps.zip_intersection st1 st2 Ui.state_tracks
+                (Map.keysSet (Update._tracks cmd_update))
     where
     postproc = postproc_damage st2 . (updates_damage block_rulers updates <>)
     block_rulers = Maps.multimap
@@ -347,6 +350,13 @@ derive_diff st1 st2 updates = postproc $ run_derive_diff $
         | (block_id, block) <- Map.toList (Ui.state_blocks st2)
         , ruler_id <- Block.block_ruler_ids block
         ]
+
+-- | Apply a function to only the damaged parts of the state, as expressed
+-- by a Set of keys.
+damaged :: Ord k => (Map k a -> Map k a -> val) -> state -> state
+    -> (state -> Map k a) -> Set k -> val
+damaged f st1 st2 get keys =
+    f (Maps.intersect_set (get st1) keys) (Maps.intersect_set (get st2) keys)
 
 -- | Fill in 'Derive.sdamage_track_blocks'.
 postproc_damage :: Ui.State -> Derive.ScoreDamage -> Derive.ScoreDamage
@@ -375,7 +385,7 @@ updates_damage block_rulers updates = mempty
 
 derive_diff_block :: BlockId -> Seq.Paired Block.Block Block.Block
     -> DeriveDiffM ()
-derive_diff_block block_id pair = case pair of
+derive_diff_block block_id = \case
     Seq.Both block1 block2 -> do
         let unequal f = unequal_on f block1 block2
         when (unequal (Text.strip . Block.block_title)

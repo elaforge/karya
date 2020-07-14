@@ -190,7 +190,7 @@ update_performance :: Ui.State -> Ui.State -> Cmd.State
 update_performance ui_from ui_to cmd_state cmd_update = do
     let (ui_updates, _) = Diff.diff cmd_update ui_from ui_to
     chan <- Chan.newChan
-    let damage = Diff.derive_diff ui_from ui_to ui_updates
+    let damage = Diff.derive_diff ui_from ui_to cmd_update ui_updates
     cstate <- Performance.update_performance
         (\bid status -> Chan.writeChan chan (bid, status))
         ui_to (set_immediate cmd_state) damage

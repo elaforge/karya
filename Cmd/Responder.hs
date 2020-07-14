@@ -323,7 +323,7 @@ post_cmd state ui_from ui_to cmd_to cmd_update status = do
 
     cmd_to <- do
         -- Kick off the background derivation threads.
-        let damage = Diff.derive_diff (state_ui state) ui_to updates
+        let damage = Diff.derive_diff (state_ui state) ui_to cmd_update updates
         cmd_state <- Performance.update_performance
             (send_derive_status (state_loopback state)) ui_to cmd_to damage
         return $ cmd_state { Cmd.state_derive_immediately = mempty }

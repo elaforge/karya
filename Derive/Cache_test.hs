@@ -916,7 +916,7 @@ run_cached root_id result state1 modify =
     where
     (_, state2, cmd_update) = run state1 modify
     (updates, _) = Diff.diff cmd_update state1 state2
-    damage = Diff.derive_diff state1 state2 updates
+    damage = Diff.derive_diff state1 state2 cmd_update updates
 
 derive_block_cache :: Derive.Cache -> Derive.ScoreDamage -> Ui.State
     -> BlockId -> Derive.Result
@@ -927,7 +927,7 @@ get_root_id :: Ui.State -> BlockId
 get_root_id state = UiTest.eval state Ui.get_root_id
 
 score_damage :: Ui.StateId a -> Ui.StateId b -> Derive.ScoreDamage
-score_damage create modify = Diff.derive_diff state1 state2 updates
+score_damage create modify = Diff.derive_diff state1 state2 cmd_update updates
     where
     (_, state1) = UiTest.run Ui.empty create
     (_, state2, cmd_update) = run state1 modify

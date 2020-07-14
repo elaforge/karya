@@ -81,7 +81,7 @@ test_derive_diff = do
             [ ("tempo", [(0, 0, ".5")])
             , (">i", [(0, 1, ""), (1, 1, "")])
             ]
-    let f modify = Diff.derive_diff ustate (UiTest.exec ustate modify) []
+    let f = derive_diff ustate
     -- Track damage.
     equal (f (Ui.set_track_title tid2 ">i2"))
         (mkdamage [(tid2, Ranges.everything)] [bid] [])
@@ -113,7 +113,7 @@ test_derive_diff_track_flags = do
             [ ("tempo", [(0, 0, "1")])
             , (">i", [(0, 1, ""), (1, 1, "")])
             ]
-    let f modify = Diff.derive_diff ustate (UiTest.exec ustate modify) []
+    let f = derive_diff ustate
     equal (f (Ui.add_track_flag bid 2 Block.Collapse)) (mkdamage [] [] [bid])
     equal (f (Ui.add_track_flag bid 2 Block.Solo)) (mkdamage [] [] [])
     equal (f (Ui.add_track_flag bid 2 Block.Disable)) (mkdamage [] [] [bid])
@@ -123,7 +123,7 @@ test_derive_diff_updates = do
             [ ("tempo", [(0, 0, ".5")])
             , (">i", [(0, 1, ""), (1, 1, "")])
             ]
-    let f = Diff.derive_diff ustate ustate
+    let f = Diff.derive_diff ustate ustate mempty
     equal (f [Update.Track tid2 (Update.TrackEvents 1 2)])
         (mkdamage [(tid2, Ranges.range 1 2)] [bid] [])
 
@@ -135,3 +135,7 @@ mkdamage :: [(TrackId, Ranges.Ranges ScoreTime)] -> [BlockId] -> [BlockId]
 mkdamage tracks track_blocks blocks =
     Derive.ScoreDamage (Map.fromList tracks)
         (Set.fromList track_blocks) (Set.fromList blocks)
+
+derive_diff :: Ui.State -> Ui.StateId a -> Derive.ScoreDamage
+derive_diff state1 modify = Diff.derive_diff state1 state2 update []
+    where Right (_, state2, update) = Ui.run_id state1 modify

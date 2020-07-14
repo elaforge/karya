@@ -281,7 +281,7 @@ sync_status ui_from cmd_from = do
     Cmd.modify $ update_saved cmd_update ui_from ui_to
 
     cmd_to <- Cmd.get
-    let updates = view_updates ui_from ui_to
+    let updates = fst $ Diff.run $ Diff.diff_views ui_from ui_to cmd_update
         new_views = mapMaybe create_view updates
         edit_state = Cmd.state_edit cmd_to
     when (not (null new_views) || Cmd.state_edit cmd_from /= edit_state
@@ -327,11 +327,6 @@ can_checkpoint cmd_state = case (Cmd.state_save_file cmd_state, prev) of
     _ -> Nothing
     where
     prev = Cmd.hist_last_commit $ Cmd.state_history_config cmd_state
-
-view_updates :: Ui.State -> Ui.State -> [Update.UiUpdate]
-view_updates ui_from ui_to = fst $ Diff.run $
-    Diff.diff_views ui_from ui_to
-        (Ui.state_views ui_from) (Ui.state_views ui_to)
 
 -- ** hooks
 

@@ -4154,12 +4154,14 @@ performance:
           (Selection (0) (Selection+(2, 1.5t)--(2, 2.5t))) ]
       . It's all in check_updates . Update.sort . Update.collapse_updates
       . No, it's actually in sync.score_integrate
-    ? derive_diff 7.7
     So the problems are in:
       * Internal.sync_status
       * Ui.quick_verify
       * Diff.diff
       - Integrate.score_integrate
+        . Both needs_block_score_integrate and needs_track_score_integrate
+          look at all blocks.
+      - derive_diff
       . I probably have to change them to do work based on UI updates, not on
         the entire state.
       . How big is the state anyway?  Maybe the checks are quite expensive if
@@ -4180,25 +4182,28 @@ performance:
       * I'm getting more cache invalidation, I assume because I'm not tracking
         damage ranges.  I should preserve that for caching, even if fltk
         doesn't support it at the moment.
-
-      - Sync.sync no longer needs to collapse track updates?
-      . Ui.StateT is now strict, will that make a difference?
-      - Diff.diff should also use view damage
-      - Should CmdUpdate mark Ui.state_config damage?
-        . I could remove the compares in Diff.score_changed and Diff.diff
-      ? Would it be more efficient to collapse CmdUpdate and Ui.State into
-        a strict pair?
-        . Probably... what does a fully inlined mtl layer become to (>>=)?
-      - research if it's less efficient to mappend mempty vs. direct modify
-        . This also applies to Derive Collect
       . New times:
         17.5420 sync_status
         0.0065 sync.verify
         0.0653 sync.diff
         0.0183 sync.score_integrate
         7.3165 derive_diff
-      . They all went down except derive_diff and sync_status went up!
-        Sometimes it's very high: 109.7406 sync_status
+
+    - Sync.sync no longer needs to collapse track updates?
+    . Ui.StateT is now strict, will that make a difference?
+      . Maybe, but performance tracking is only for derivation, not cmd, so
+        I don't have an easy way to tell.
+    * Diff.diff should also use view damage
+    - Should CmdUpdate mark Ui.state_config damage?
+      . I could remove the compares in Diff.score_changed and Diff.diff
+    ? Would it be more efficient to collapse CmdUpdate and Ui.State into
+      a strict pair?
+      . Probably... what does a fully inlined mtl layer become to (>>=)?
+    - Update.CmdUpdate is more like UiDamage now, rename it.
+    - research if it's less efficient to mappend mempty vs. direct modify
+      . This also applies to Derive Collect
+    . They all went down except derive_diff and sync_status went up!
+      Sometimes it's very high: 109.7406 sync_status
     - log total respond latency, and log if over a limit
 
   - try INLINEABLE for the functions in DeriveM.
