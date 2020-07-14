@@ -7,7 +7,7 @@ if [[ $# -ne 1 ]]; then
     exit 1
 fi
 base_dir=$1
-out=im/mix
+out=im/mix/$(basename $base_dir)
 
 set -x
 
@@ -17,6 +17,7 @@ mkdir -p $out
 for inst in $base_dir/*; do
     sox -V1 $inst/*.wav $out/$(basename $inst).wav
 done
+
 outs=($out/*.wav)
 if [[ ${#outs} -gt 1 ]]; then
     sox --combine mix $out/*.wav $out/mixed.wav
