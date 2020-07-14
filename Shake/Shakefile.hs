@@ -793,6 +793,8 @@ ghcLanguageFlags = map ("-X"++)
     , "GeneralizedNewtypeDeriving"
     , "LambdaCase"
     , "MultiWayIf"
+    -- Allow _s in numbers. Harmless, and the _s are nice.
+    , "NumericUnderscores"
     -- Without this, it becomes really annoying to use Text everywhere.
     , "OverloadedStrings"
     , "ScopedTypeVariables"
