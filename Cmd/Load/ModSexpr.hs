@@ -65,7 +65,7 @@ get_track (VSymbol "track" : VNum rows : notes) = do
     return (rows, ModT.make_track lines)
 get_track vals = Left $ "expected track, got " <> pretty (map val_type vals)
 
--- (row nn instrument vol (fx1 fx1param) (fx2 fx2param))
+-- (row pitch inst vol (fx1 fx1param) (fx2 fx2param))
 to_line :: [Val] -> Either Error (Int, ModT.Line)
 to_line [idx, pitch, inst, vol, fx1, fx2] = do
     idx <- num idx
@@ -73,15 +73,19 @@ to_line [idx, pitch, inst, vol, fx1, fx2] = do
     inst <- num inst
     vol <- num vol
     fxs <- mapMaybeM to_cmd [fx1, fx2]
-    let cmds = concat
+    return $ (idx,) $ ModT.Line
+        { _pitch = if 0 < pitch && pitch < 128
+            -- c4 in schism tracker shows up as 49, instead of 60.
+            then Just $ Pitch.nn $ pitch + 11
+            else Nothing
+        , _instrument = inst
+        , _commands = concat
             [ [ModT.Volume $ fromIntegral (vol - 1) / 64 | vol > 0]
             , fxs
             -- In IT 130 is ^^^, which is CutNote.
             , [ModT.CutNote | pitch == 130]
             ]
-    return $ (idx,) $ ModT.Line
-        (if 0 < pitch && pitch < 128 then Just (Pitch.nn pitch) else Nothing)
-        inst cmds
+        }
 to_line val = Left $ "expected note, got " <> pretty (map val_type val)
 
 to_cmd :: Val -> Either Error (Maybe ModT.Command)
@@ -93,10 +97,10 @@ to_cmd val = Left $ "expected fx, got " <> val_type val
 fx_to_cmd :: Text -> Int -> ModT.Command
 fx_to_cmd fx arg = case fx of
     "volslide" -> case split4 arg of
-        (0xf, n) -> ModT.VolumeSlideFine (-n)
-        (n, 0xf) -> ModT.VolumeSlideFine (n)
-        (0, n) -> ModT.VolumeSlide (-n)
-        (n, 0) -> ModT.VolumeSlide n
+        (0xf, n) -> ModT.VolumeSlide $ - fromIntegral n / 10
+        (n, 0xf) -> ModT.VolumeSlide $ fromIntegral n / 10
+        (0, n) -> ModT.VolumeSlide $ - fromIntegral n
+        (n, 0) -> ModT.VolumeSlide $ fromIntegral n
         _ -> unknown
     "it_break" -> ModT.CutBlock
     _ -> unknown

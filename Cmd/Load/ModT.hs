@@ -65,8 +65,7 @@ data Command =
     Command !Text !Word8
     | SetFrames !Int
     | Volume !Double -- ^ 0 to 1
-    | VolumeSlide !Int -- ^ positive for up, negative for down
-    | VolumeSlideFine !Int
+    | VolumeSlide !Double -- ^ positive for up, negative for down
     | CutBlock
     | CutNote
     | DelayRepeat !Int !Int -- ^ delay frames, repeat each n frames

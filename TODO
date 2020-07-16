@@ -29,7 +29,17 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  - bug: cmd-shift-r is moving windows around.
+    . Also cmd-shift-l is not placing them.
+  - bug: logview: error parsing "": can't decode json
+    . It should say where in the file this happens.
+  - bug: ever since the slow scrolling: change, I sometimes get a light gray
+    background on track titles.
   green mold: mod:
+    * fix pitch
+    * d1f and d1f is fine volume slide
+    / I still get 0 inst, when it's supposed to carry from a previous block.
+      . Leave it as an error, so I can find and fix it.
     * if I can load IT then I can import green mold
       . The original Cmd.Load.Mod used a sexpr format from a modified xmp.
       . Maybe bind directly to libxmp?
@@ -4599,14 +4609,14 @@ performance:
   . Signal.sig_op has 4.8% alloc, from Control.cotrol_call ->
     Derive.with_relative_control -> Perform.sig_multiply
     . So default multiplication for dyn is expensive.
-  scrolling through giant blocks is slow
-    - drawing is stil slow, I'll have to look at the fltk layer
+  * scrolling through giant blocks is slow
+    . drawing is stil slow, I'll have to look at the fltk layer
       It happens when the block is wide.  Use test_block to see if it's just
       fltk.
       . It's fltk.  Not alpha draw though.
       Scrolling is weirdly chunky near the top when fl_scroll() is on.
       Curiously it doesn't seem to help at all.
-    - Would it be faster to call fl_scroll once for all the tracks?  I could
+    . Would it be faster to call fl_scroll once for all the tracks?  I could
       also theoretically call find_events all at once too, though that
       shows up low on the profile, so maybe it's not a big deal.
     . The thing is, it seems like fl_scroll doesn't actually help scrolling
@@ -4691,7 +4701,7 @@ fltk:
       But it's always integral, so the problem is just the either/or.
     . How does two-finger get turned into mousewheel?
     . https://github.com/fltk/fltk/pull/86
-  slow scrolling
+  slow scrolling:
     Draw everything and then put the blit back in SimpleScroll.
       . It's track_scroll.
       . Fl_Scroll works by only drawing the visible bit, then drawing the

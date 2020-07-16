@@ -337,6 +337,9 @@ copy_scale from to = do
     scale <- Cmd.require "no scale" =<< get_scale (Util.instrument from)
     set_scale scale to
 
+pressure :: Ui.M m => Instrument -> m ()
+pressure = add_flag Patch.Pressure
+
 add_flag :: Ui.M m => Patch.Flag -> Instrument -> m ()
 add_flag flag = modify_midi_config_ $
     Patch.settings#Patch.flags %= Just . Patch.add_flag flag . fromMaybe mempty
