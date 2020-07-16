@@ -268,8 +268,8 @@ newtype Done = Done Result
 
 type Result = Either Ui.Error Cmd.Status
 
-save_update :: Update.UiDamage -> ResponderM ()
-save_update damage = Monad.State.modify $ \st ->
+save_damage :: Update.UiDamage -> ResponderM ()
+save_damage damage = Monad.State.modify $ \st ->
     st { rstate_ui_damage = damage <> rstate_ui_damage st }
 
 -- ** run
@@ -428,6 +428,7 @@ run_sync_status = do
     rstate <- Monad.State.get
     result <- run_continue False "sync_status" $ Left $
         Internal.sync_status (rstate_ui_from rstate) (rstate_cmd_from rstate)
+            (rstate_ui_damage rstate)
     whenJust result $ \(_, ui_state, cmd_state) -> Monad.State.modify $ \st ->
         st { rstate_ui_to = ui_state, rstate_cmd_to = cmd_state }
 
@@ -515,8 +516,8 @@ run_cmd cmd = do
         mapM_ (write_thru (Cmd.state_midi_writer (rstate_cmd_to rstate))) thru
     case result of
         Left err -> return (Left err, cmd_state)
-        Right (status, ui_state, update) -> do
-            save_update update
+        Right (status, ui_state, damage) -> do
+            save_damage damage
             return (Right (status, ui_state), cmd_state)
 
 write_thru :: (Interface.Message -> IO ()) -> Cmd.Thru -> IO ()

@@ -29,8 +29,11 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  - is there a Factor to glue together two blocks?
+    . How about split a block?
+  * bug: I lost the selection display
   - bug: cmd-shift-r is moving windows around.
-    . Also cmd-shift-l is not placing them.
+  - bug: cmd-shift-l is getting confused.
   - bug: logview: error parsing "": can't decode json
     . It should say where in the file this happens.
   - bug: ever since the slow scrolling: change, I sometimes get a light gray

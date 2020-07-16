@@ -274,10 +274,9 @@ track_bg track
 -- * sync
 
 -- | This is called after every non-failing cmd.
-sync_status :: Ui.State -> Cmd.State -> Cmd.CmdId Cmd.Status
-sync_status ui_from cmd_from = do
+sync_status :: Ui.State -> Cmd.State -> Update.UiDamage -> Cmd.CmdId Cmd.Status
+sync_status ui_from cmd_from damage = do
     ui_to <- Ui.get
-    damage <- Ui.get_damage
     Cmd.modify $ update_saved damage ui_from ui_to
 
     cmd_to <- Cmd.get
@@ -468,7 +467,7 @@ sync_zoom_status _ = return ()
 -- * selection
 
 sync_selection_status :: Cmd.M m => ViewId -> Maybe Cmd.TrackSelection -> m ()
-sync_selection_status view_id maybe_sel = case maybe_sel of
+sync_selection_status view_id = \case
     Nothing -> do
         set Config.status_selection Nothing
         set Config.status_track_id Nothing
