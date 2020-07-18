@@ -35,8 +35,14 @@ UNSORTED
   - is there a Factor to glue together two blocks?
     . How about split a block?
   * bug: I lost the selection display
-  - bug: cmd-shift-r is moving windows around.
-  - bug: cmd-shift-l is getting confused.
+  * bug: cmd-shift-r is moving windows around.
+    . Also cmd-shift-l is getting confused.
+    . Block.view_rect isn't getting updated.
+    . No UiMsg.UpdateViewResize
+    . How did I ever get those?  fltk isn't sending them.
+    . fltk-1.3.5 did, so maybe this is a regression.
+    . Caused by c66caf5dce9331fd3e011873711a768adb28cf9d, sent msg to
+      fltkcoredev.
   - bug: logview: error parsing "": can't decode json
     . It should say where in the file this happens.
   - bug: ever since the slow scrolling: change, I sometimes get a light gray

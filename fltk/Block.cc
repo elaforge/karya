@@ -143,15 +143,15 @@ Block::handle(int evt)
 
 
 void
-Block::resize(int X, int Y, int W, int H)
+Block::resize(int x, int y, int w, int h)
 {
     int old_w = this->w();
-    Fl_Group::resize(X, Y, W, H);
-    status_line.size(w() - mac_resizer_width, status_line.h());
+    Fl_Group::resize(x, y, w, h);
+    status_line.size(this->w() - mac_resizer_width, status_line.h());
 
     // Only check for title height changes if width has changed.  Otherwise,
     // the position(0, 0) call in set_widget_sizes causes recursion.
-    if (old_w != W && title.visible() && title.h() != title.text_height())
+    if (old_w != w && title.visible() && title.h() != title.text_height())
         set_widget_sizes();
 
     // If I'm growing, I will have changed the visible area, so recalculate
