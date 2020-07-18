@@ -373,7 +373,7 @@ drum_calls :: Maybe ([Attrs.Attributes], Pitch.NoteNumber)
     -> [(Expr.Symbol, Derive.Generator Derive.Note)]
 drum_calls pitched_strokes tuning_control = map $ \stroke ->
     ( Drums._name stroke
-    , drum_call tuning_control (Drums._dynamic stroke)
+    , drum_call (Drums._name stroke) tuning_control (Drums._dynamic stroke)
         (Drums._attributes stroke) (set_pitch (Drums._attributes stroke))
     )
     where
@@ -383,15 +383,16 @@ drum_calls pitched_strokes tuning_control = map $ \stroke ->
         _ -> id
     is_pitched pitched attrs = any (Attrs.contain attrs) pitched
 
-drum_call :: Maybe ScoreT.Control -> Signal.Y -> Attrs.Attributes
-    -> (Derive.NoteDeriver -> Derive.NoteDeriver)
+drum_call :: Expr.Symbol -> Maybe ScoreT.Control -> Signal.Y
+    -> Attrs.Attributes -> (Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Derive.Generator Derive.Note
-drum_call tuning_control dyn attrs transform =
-    Derive.generator Module.instrument name Tags.attr doc generate
+drum_call (Expr.Symbol name) tuning_control stroke_dyn attrs transform =
+    Derive.generator Module.instrument (Derive.CallName name) Tags.attr doc
+        generate
     where
-    name = Derive.CallName $ "drum attrs: " <> ShowVal.show_val attrs
-    generate = Sig.call Sig.no_args $ \() -> Sub.inverting $ \args ->
-        Call.multiply_dynamic dyn $ Call.add_attributes attrs $
+    generate = Sig.call (Sig.defaulted "dyn" 1 "Dyn multiplier.") $ \dyn ->
+        Sub.inverting $ \args ->
+        Call.multiply_dynamic (stroke_dyn * dyn) $ Call.add_attributes attrs $
             with_tuning args $ transform $
             Note.default_note Note.no_duration_attributes args
     with_tuning args = maybe id (apply_tuning_control args) tuning_control

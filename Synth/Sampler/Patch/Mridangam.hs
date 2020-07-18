@@ -66,7 +66,7 @@ convertMap = Drum.ConvertMap
     }
 
 naturalNn :: Pitch.NoteNumber
-naturalNn = 62.1
+naturalNn = 62.65
 
 data Articulation = Tha | Thom | Gumki | GumkiUp
     | Ki | Ta | Nam | Din | Chapu | Dheem

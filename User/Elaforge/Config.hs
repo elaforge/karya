@@ -26,7 +26,9 @@ import qualified Cmd.Load.ModT as ModT
 import qualified Cmd.Msg as Msg
 
 import qualified Derive.C.All as C.All
+import qualified Derive.ScoreT as ScoreT
 import qualified Midi.Key as Key
+import qualified Perform.Pitch as Pitch
 import qualified Ui.Id as Id
 import qualified Ui.Ui as Ui
 import qualified User.Elaforge.Config.Hobbes as Hobbes
@@ -102,12 +104,15 @@ load_med fname = convert_mod fname =<< liftIO (Load.Med.load fname)
 convert_mod :: Cmd.M m => FilePath -> ModT.Module -> m Cmd.Status
 convert_mod fname mod = do
     state <- Cmd.require_right pretty $ Load.Mod.convert (fn_to_ns fname) $
+        ModT.transpose_instruments transpose $
         ModT.map_instruments inst_map mod
     Ui.put state
     return Cmd.Done
     where
     inst_map = Map.findWithDefault mempty (FilePath.takeFileName fname)
-            inst_maps
+        inst_maps
+    transpose = Map.findWithDefault mempty (FilePath.takeFileName fname)
+        transpose_maps
 
 fn_to_ns :: FilePath -> Id.Namespace
 fn_to_ns = Id.namespace . txt . head . Seq.split "." . FilePath.takeFileName
@@ -159,5 +164,14 @@ inst_maps = Map.fromList
         , ("b 1 -", "b1")
         , ("b 2 --", "b2")
         , ("b 3 ---", "b3")
+        ]
+    ]
+
+transpose_maps :: Map FilePath (Map ScoreT.Instrument Pitch.NoteNumber)
+transpose_maps = Map.fromList
+    [ ("green-mold.sexp",) $ Map.fromList
+        [ ("b1", -12*3)
+        , ("b2", -12*3)
+        , ("b3", -12*3)
         ]
     ]

@@ -55,7 +55,7 @@ replace_det = (calls++) . filter ((`notElem` map fst calls) . fst)
 
 -- | Just like the default, except force 'pitch_control' to 0.
 c_dong :: Derive.Generator Derive.Note
-c_dong = CUtil.drum_call (Just tuning_control) dyn dong $
+c_dong = CUtil.drum_call "o" (Just tuning_control) dyn dong $
     Derive.with_constant_control pitch_control 0
     where dyn = 1
 

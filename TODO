@@ -2904,6 +2904,16 @@ synth: im:
         . So only do the pitch curve merge if Note.element is set, and look
           for equal Note.elements.
     mridangam:
+      * pitch 1/4 too high
+      * , should be softer
+        . Can I set default volume on strokes with an env var?
+        . Yes, but I can't assign ,-dyn without quoting.
+          I can use the attr name, like kin-dyn, but then I have to look that
+          up.
+        . But I do have quoting!  ',-dyn' = ... will work!
+      - o is too high pitched, I need to re-record
+        . It would be nice to get a really low pitch long like with pakhawaj.
+      - sampler levels too sensitive, only the a0-ff range is really usable.
       render from solkattu:
         . Convert to a score first, so I can apply ky transforms.
         . Then perform via im, and invoke sampler-im.
