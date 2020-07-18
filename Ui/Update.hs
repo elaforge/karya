@@ -335,24 +335,6 @@ is_score_damage :: UiDamage -> Bool
 is_score_damage (UiDamage { _tracks, _rulers }) =
     not (Map.null _tracks) || not (Set.null _rulers)
 
--- | TrackUpdates can overlap.  Merge them together here.  Technically I can
--- also cancel out all TrackUpdates that only apply to newly created views, but
--- this optimization is probably not worth it.
-collapse_updates :: [Update t u] -> [Update t u]
-collapse_updates updates = collapse tracks ++ rest
-    where
-    collapse = concatMap (to_track . second mconcat) . Seq.group_fst
-    to_track (track_id, range) = case Ranges.extract range of
-        Nothing -> [Track track_id TrackAllEvents]
-        Just rs -> map (Track track_id . uncurry TrackEvents) rs
-
-    (tracks, rest) = Seq.partition_on track_range updates
-    track_range (Track track_id (TrackEvents s e)) =
-        Just (track_id, Ranges.range s e)
-    track_range (Track track_id TrackAllEvents) =
-        Just (track_id, Ranges.everything)
-    track_range _ = Nothing
-
 -- | Does an update imply a change which would require rederiving?
 track_changed :: UiUpdate -> Maybe (TrackId, Ranges.Ranges ScoreTime)
 track_changed (Track tid update) = case update of

@@ -4146,6 +4146,12 @@ performance:
       that invalidate it.
     . But since this only happens on event modification, it's not so bad as
       the scroll lag.
+  - implement or find a cps-transformed ExceptT for Ui.M.
+  - Update.UiDamage could mark Ui.state_config damage
+    . I could remove the compares in Diff.score_changed and Diff.diff
+  - For Update.UiDamage, research if it's less efficient to mappend mempty vs.
+      direct modify
+    . This also applies to Derive Collect
   * dragging scroll is laggy
     . Happens on a big block.  Happens with or without a ruler.
     . Happens even on a small block when there are lots of other blocks, goes
@@ -4228,19 +4234,25 @@ performance:
         0.0160 sync.diff
         0.0027 sync.sort
         0.3360 derive_diff
-    - Sync.sync no longer needs to collapse track updates
+    * Sync.sync no longer needs to collapse track updates
     . Ui.StateT is now strict, will that make a difference?
       . Maybe, but performance tracking is only for derivation, not cmd, so
         I don't have an easy way to tell.
     * Diff.diff should also use view damage
-    - Should CmdUpdate mark Ui.state_config damage?
-      . I could remove the compares in Diff.score_changed and Diff.diff
-    ? Would it be more efficient to collapse CmdUpdate and Ui.State into
+    . Would it be more efficient to collapse CmdUpdate and Ui.State into
       a strict pair?
       . Probably... what does a fully inlined mtl layer become to (>>=)?
+      . Nested states turn into a function of two args, paired state turns
+        into one arg of a pair... I think my test was too small since
+        everything inlines.
+      . So actually probably nested update is same efficient, if not more.
+        The values wind up as function calls, which means ghc can decide if
+        it wants to pass on the stack or in registers, while a tuple is always
+        heap-allocated.
+      . What about that ExceptT though?  I think that's definitely
+        inefficient.
+      . Why isn't there a exceptt-cps package?
     * Update.CmdUpdate is more like UiDamage now, rename it.
-    - research if it's less efficient to mappend mempty vs. direct modify
-      . This also applies to Derive Collect
     - log total respond latency, and log if over a limit
   - try INLINEABLE for the functions in DeriveM.
     . I think no good though, because DeriveM is already concrete, so there
@@ -4710,6 +4722,11 @@ rust-gui:
     . Dependency on rust.
 
 fltk:
+  - It could be useful to display a keyboard along with cmd for each key.
+    . For cmds, it's cmd name.  For kbd entry, it's call entered (drums) or
+      pitch (scales).
+    . I need either a blank image of a keyboard, or to draw one myself.
+    . How about I just draw it, then I can fill in the keycaps as appropriate.
   - Floating input in the wrong place for negative events with multiple lines.
     . Because it assumes the text goes downwards.
     . Since haskell doesn't know how the text is wrapped, it can't know where
@@ -4967,7 +4984,6 @@ fltk:
           find_events creeps up to 0.014, 0.008 at the end.  Not sure why it
           would be longer when zoomed in.
         . So I think find_events time is significant, so worth reducing.
-
       scroll with tiles:
         . Zoom is noticeably slower now.  Previously it would be ok speed when
           only displaying a subset.  I have to use tiles for this.

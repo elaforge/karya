@@ -74,8 +74,7 @@ import           Types
 sync :: Fltk.Channel -> Track.TrackSignals -> Track.SetStyleHigh
     -> Ui.State -> [Update.DisplayUpdate] -> IO (Maybe Ui.Error)
 sync ui_chan track_signals set_style state updates = do
-    updates <- check_updates state $
-        Update.sort (Update.collapse_updates updates)
+    updates <- check_updates state $ Update.sort updates
     Trace.trace "sync.sort"
     -- Debug.fullM (Debug.putp "sync updates") updates
     case Ui.run_id state $ sync_actions track_signals set_style updates of
