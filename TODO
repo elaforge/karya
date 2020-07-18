@@ -29,6 +29,9 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  * update is messed up for undo
+    . Surely this is due to the UiDamage change.
+    . Happens when I undo a track add.
   - is there a Factor to glue together two blocks?
     . How about split a block?
   * bug: I lost the selection display

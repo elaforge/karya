@@ -1453,8 +1453,7 @@ _modify_events track_id f = do
     -- main reason is to force out any IO exceptions that might be hiding in
     -- REPL expressions, but it seems better for memory in general to keep
     -- State in normal form.
-    DeepSeq.deepseq new_events $
-        damage $ mempty { Update._tracks = Map.singleton track_id ranges }
+    DeepSeq.deepseq new_events $ damage $ Update.track_damage track_id ranges
 
 events_range :: [Event.Event] -> Ranges.Ranges TrackTime
 events_range events = case minmax events of
@@ -1820,17 +1819,13 @@ namespace ns = do
 -- * damage
 
 damage_view :: M m => ViewId -> m ()
-damage_view view_id =
-    damage $ mempty { Update._views = Set.singleton view_id }
+damage_view = damage . Update.view_damage
 
 damage_block :: M m => BlockId -> m ()
-damage_block block_id =
-    damage $ mempty { Update._blocks = Set.singleton block_id }
+damage_block = damage . Update.block_damage
 
 damage_track :: M m => TrackId -> m ()
-damage_track track_id = damage $ mempty
-    { Update._tracks = Map.singleton track_id Ranges.everything }
+damage_track track_id = damage $ Update.track_damage track_id Ranges.everything
 
 damage_ruler :: M m => RulerId -> m ()
-damage_ruler ruler_id =
-    damage $ mempty { Update._rulers = Set.singleton ruler_id }
+damage_ruler = damage . Update.ruler_damage

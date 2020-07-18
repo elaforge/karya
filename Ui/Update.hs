@@ -83,6 +83,19 @@ instance Pretty UiDamage where
             , ("title_focus", Pretty.format title_focus)
             ]
 
+view_damage :: ViewId -> UiDamage
+view_damage id = mempty { _views = Set.singleton id }
+
+block_damage :: BlockId -> UiDamage
+block_damage id = mempty { _blocks = Set.singleton id }
+
+track_damage :: TrackId -> Ranges.Ranges TrackTime -> UiDamage
+track_damage id range = mempty { _tracks = Map.singleton id range }
+
+ruler_damage :: RulerId -> UiDamage
+ruler_damage id = mempty { _rulers = Set.singleton id }
+
+
 data Update t u =
     View ViewId View
     | Block BlockId (Block t)
@@ -268,15 +281,36 @@ to_ui (UiDamage { _tracks, _rulers, _bring_to_front, _title_focus }) = concat
     ]
     -- views and blocks not converted, but they tell diff where to look.
 
--- | Pull the UiDamage out of a UiUpdate, if any.  Discard BringToFront and
--- TitleFocus since they're just instructions to Sync and I don't need to
--- remember them.
+-- | Reduce a UiUpdate to its corresponding UiDamage.  UiUpdates are more
+-- specific, so this is discarding information, which I'll have to recover
+-- later via Diff.
+--
+-- This seems silly, and maybe it is.  It's because I originally used only diff
+-- for updates, but then added UiDamage to make diff more efficient.  Perhaps
+-- I should move entirely to collecting updates and get rid of diff.  But as
+-- long as diff is fairly efficient, when directed to the appropriate places
+-- via UiDamage, then it still seems less error prone to do the diff.
 to_damage :: UiUpdate -> UiDamage
 to_damage = \case
-    Track track_id (TrackEvents s e) ->
-        mempty { _tracks = Map.singleton track_id (Ranges.range s e) }
-    Ruler ruler_id -> mempty { _rulers = Set.singleton ruler_id }
-    _ -> mempty
+    View view_id view -> case view of
+        -- I can discard BringToFront and TitleFocus because they're just
+        -- instructions to Sync and don't indicate UI damage.
+        BringToFront {} -> mempty
+        TitleFocus {} -> mempty
+        _ -> view_damage view_id
+    Block block_id _ -> block_damage block_id
+    Track track_id track -> track_damage track_id $ case track of
+        TrackEvents s e -> Ranges.range s e
+        _ -> Ranges.everything
+    Ruler ruler_id -> ruler_damage ruler_id
+    State state -> case state of
+        Config {} -> mempty
+        CreateBlock block_id _ -> block_damage block_id
+        DestroyBlock block_id -> block_damage block_id
+        CreateTrack track_id _ -> track_damage track_id Ranges.everything
+        DestroyTrack track_id -> track_damage track_id Ranges.everything
+        CreateRuler ruler_id _ -> ruler_damage ruler_id
+        DestroyRuler ruler_id -> ruler_damage ruler_id
 
 -- * functions
 

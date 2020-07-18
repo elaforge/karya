@@ -218,7 +218,7 @@ save_history cmd_state hist collect uncommitted = do
         Just (repo, prev_commit) ->
             commit_entries user (Path.to_path repo) prev_commit uncommitted
         _ -> return $ map (history_entry Nothing) uncommitted
-    let (present, past) = bump_updates (Cmd.hist_present hist) entries
+    let (present, past) = bump_damage (Cmd.hist_present hist) entries
     return $ cmd_state
         { Cmd.state_history = hist
             { Cmd.hist_past = take keep (past ++ Cmd.hist_past hist)
@@ -236,19 +236,20 @@ save_history cmd_state hist collect uncommitted = do
     where
     keep = Cmd.hist_keep (Cmd.state_history_config cmd_state)
 
--- only do this if I would have written something.  For that I need the diffs.
+-- | Only do this if I would have written something.  For that I need the
+-- diffs.
 check_save_history :: Cmd.State -> IO (Maybe Text)
 check_save_history cmd_state = case Internal.can_checkpoint cmd_state of
     Just (repo, _) -> ifM (File.writable (Path.to_path repo)) (return Nothing)
         (return $ Just $ "repo not writable: " <> showt repo)
     Nothing -> return Nothing
 
--- | The present is expected to have no updates, so bump the updates off the
+-- | The present is expected to have no damage, so bump the damage off the
 -- new present onto the old present, as described in [undo-and-updates].
-bump_updates :: Cmd.HistoryEntry -> [Cmd.HistoryEntry]
+bump_damage :: Cmd.HistoryEntry -> [Cmd.HistoryEntry]
     -> (Cmd.HistoryEntry, [Cmd.HistoryEntry])
-bump_updates old_cur [] = (old_cur, [])
-bump_updates old_cur (new_cur : news) =
+bump_damage old_cur [] = (old_cur, [])
+bump_damage old_cur (new_cur : news) =
     -- All I want to do is bump the updates from new_cur to old_cur, but
     -- suppressed records means there can be multiple histories recorded at
     -- once, which makes this a bit more of a hassle.
