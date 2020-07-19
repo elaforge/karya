@@ -61,25 +61,24 @@ module Ui.BlockC (
 -- The double hashes quote them for hsc2hs.  I have to delay the CPP since
 -- hsc2hs never has STUB_OUT_FLTK defined.
 ##ifdef STUB_OUT_FLTK
-import Ui.BlockCStub
+import           Ui.BlockCStub
 ##else
 import qualified Control.Exception as Exception
 import qualified Data.Map as Map
-import ForeignC
 
 import qualified Util.CUtil as CUtil
 import qualified Util.Rect as Rect
 
 import qualified Ui.Color as Color
 import qualified Ui.Fltk as Fltk
-import Ui.Fltk (Fltk)
+import           Ui.Fltk (Fltk)
 import qualified Ui.Types as Types
 import qualified Ui.Zoom as Zoom
 
 import qualified Ui.Block as Block
 import qualified Ui.Events as Events
 import qualified Ui.PtrMap as PtrMap
-import Ui.PtrMap (CView)
+import           Ui.PtrMap (CView)
 import qualified Ui.Ruler as Ruler
 import qualified Ui.RulerC as RulerC
 import qualified Ui.ScoreTime as ScoreTime
@@ -89,8 +88,10 @@ import qualified Ui.Track as Track
 import qualified Ui.TrackC as TrackC
 
 import qualified App.Config as Config
-import Types
-import Global
+
+import           ForeignC
+import           Global
+import           Types
 
 #include "Ui/c_interface.h"
 

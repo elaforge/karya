@@ -4749,8 +4749,56 @@ fltk:
       . Might even be viable to take the first letters of the first two words
         as mnemonic.  Then 2-3 chars for pitch.
       . Space and enter have more space.
-    - haskell binding
+    * haskell binding
+    - I don't want to call it keymap, there is already Cmd.Keymap.
+      . Maybe keycaps?
+    * Hook it into Cmd
+      . I think I can do a diff type thing, put Bindings in a KeymapT, and
+        then have Cmd.state_keymap :: Maybe Bindings.  If that changes from
+        Nothing to Just, create a window.  If the window is already present,
+        compare the Bindings and reset them if they changed.
+      . This way I can avoid importing KeymapC except in Sync.
+      . I can't put the window pointer in Cmd.State because I can't return
+        from a Fltk.send_action.  I guess that's why I have the PtrMap.
+    * Crash when I focus on the window.  Maybe due to MsgCollector.
+      . Logging UiMsgs makes it wedge after:
+        <event {f='%dyn=.75' normal tracknum=2 p=0.698182t } FL_RELEASE
+          mods=NONE button=1 clicks=0 is_click=t xy=(70, 107)>
+        Ui/UiMsgC.hsc:26: ui_msgs:
+          Mouse: MouseUp 1 [] (70,107) click: True 0
+          {focus=(vid "untitled/b1.v1") track=2:track:.698t}
+      . Crashes even when I don't unpack UiMgs though, so maybe not related.
+      . Since Layout ownership goes to fltk, I have to use 'new', not 'with'
+    * don't accept keyboard focus
+      . I get MsgCollect::event_handler(FL_DRAG), which it isn't expecting.
+      . It's from Fl::add_handler, because Keymap::handle rejects FL_DRAG.
+      . Except I always get it, so just eat it in KeymapWindow::handle.
+    - don't accept mouse focus
+      . I can reject FL_ENTER, but then I don't get FL_MOVE.
+      . Maybe I can forward FL_MOVE from BlockWindow::handle.
+      . Even if I reject FL_ENTER, I still get mouse focus, from the OS.
+        Maybe this is a OS X restriction?
+      . Or maybe a general restriction: Fl_Widget::deactivate says:
+        Currently you cannot deactivate Fl_Window widgets.
+      . If I reject in the widget, then I don't get FL_DRAG.
+      . But I remember when I tweaked the OS X level window create flags,
+        I could get a window that didn't take focus.
+    remove the border:
+      . border(false) removes the border, but now there's no way to move it.
+      . I can make it all draggable by having handle() move on drag.
+      - I should close the keymap window when all others are closed.
+      - With no kbd focus and no border I still want a GUI way to close it
+        . I guess I can put a red X inside or something.
+        . But then Cmd.Responder needs to check if it got deleted, and remove
+          PtrMap._keymap in that case!
+        . But there's no way to tell if a pointer is valid, I'd need it to
+          point to intermediate storage which delete can set to null.
+        . Is there a way to reuse shared_ptr / weak_ptr for this?
+        . Or do the same thing as BlockWindow, which is emit an event when it
+          gets closed.
     - higher level Ui.Keymap to put compose layout
+      . add a cmd to reload the keymap window using offsets from a file
+      . Or maybe just in the LKeymap!
     - Cmd support to set write keymap config.
     - KeymapWindow goes in Cmd.State
   - Floating input in the wrong place for negative events with multiple lines.

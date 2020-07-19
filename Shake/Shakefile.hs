@@ -419,7 +419,7 @@ generatedSrc = HsDeps.Generated
 nameToMain :: Map.Map FilePath FilePath
 nameToMain = Map.fromList [(hsName b, hsMain b) | b <- hsBinaries]
 
--- | Haskell files that use the FFI likely have dependencies on C++ source.
+-- | Haskell files that use the FFI have dependencies on C++ source.
 -- I could figure this out automatically by looking for @foreign import ...@
 -- and searching for a neighboring .cc file with those symbols, but it's
 -- simpler to give the dependency explicitly.  TODO a somewhat more modular way
@@ -433,11 +433,12 @@ hsToCc = Map.fromList $
     , ("Util/Fltk.hs", ["Util/fltk_interface.cc"])
     , ("Synth/Faust/PatchC.hs", map ("Synth/Faust"</>) ["patch_c.cc"])
     , ("Util/VectorC.hs", ["Util/vectorc.cc"])
-    ] ++
-    [ (hsc, ["Ui/c_interface.cc"])
-    | hsc <- ["Ui/BlockC.hsc", "Ui/RulerC.hsc", "Ui/StyleC.hsc",
-              "Ui/SymbolC.hsc", "Ui/TrackC.hsc", "Ui/UiMsgC.hsc"]
-    ]
+    ] ++ map (, ["Ui/c_interface.cc"]) c_interface
+    where
+    c_interface =
+        [ "Ui/BlockC.hsc", "Ui/KeymapC.hsc", "Ui/RulerC.hsc", "Ui/StyleC.hsc"
+        , "Ui/SymbolC.hsc", "Ui/TrackC.hsc", "Ui/UiMsgC.hsc"
+        ]
 
 criterionHsSuffix :: FilePath
 criterionHsSuffix = "_criterion.hs"

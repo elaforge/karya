@@ -5,6 +5,7 @@
 -- | The 'Rect' type.
 module Util.Rect (
     Rect(Rect)
+    , Point
     -- * access
     , x, y, w, h, r, b
     , upper_left, lower_left, upper_right, lower_right
@@ -19,8 +20,10 @@ module Util.Rect (
     , distance, intersection, overlaps, touches, point_distance
     , contains_point, touches_point
 ) where
-import ForeignC
 import qualified Util.Pretty as Pretty
+import qualified Util.CUtil as CUtil
+
+import           ForeignC
 
 
 data Rect = Rect { x :: Int, y :: Int, w :: Int, h :: Int }
@@ -111,18 +114,35 @@ touches_point :: Rect -> Point -> Bool
 touches_point rect (x_, y_) =
     x rect <= x_ && x_ <= r rect && y rect <= y_ && y_ <= b rect
 
+
 #include "Ui/c_interface.h"
 
--- | It should be in "Util.Rect", but hscs are annoying to work with, and
--- I think this is where the storable instance is actually used.
 instance CStorable Rect where
     sizeOf _ = #size IRect
     alignment _ = alignment (0 :: CInt)
-    poke = error "Rect poke unimplemented"
-    peek rectp = do
-        x <- (#peek IRect, x) rectp :: IO CInt
-        y <- (#peek IRect, y) rectp :: IO CInt
-        w <- (#peek IRect, w) rectp :: IO CInt
-        h <- (#peek IRect, h) rectp :: IO CInt
+    poke p (Rect x y w h) = do
+        (#poke IRect, x) p (i x)
+        (#poke IRect, y) p (i y)
+        (#poke IRect, w) p (i w)
+        (#poke IRect, h) p (i h)
+        where i = CUtil.c_int
+    peek p = do
+        x <- (#peek IRect, x) p :: IO CInt
+        y <- (#peek IRect, y) p :: IO CInt
+        w <- (#peek IRect, w) p :: IO CInt
+        h <- (#peek IRect, h) p :: IO CInt
         return $ xywh (i x) (i y) (i w) (i h)
+        where i = fromIntegral
+
+instance CStorable Point where
+    sizeOf _ = #size IPoint
+    alignment _ = alignment (0 :: CInt)
+    poke p (x, y) = do
+        (#poke IPoint, x) p (i x)
+        (#poke IPoint, y) p (i y)
+        where i = CUtil.c_int
+    peek p = do
+        x <- (#peek IPoint, x) p :: IO CInt
+        y <- (#peek IPoint, y) p :: IO CInt
+        return (i x, i y)
         where i = fromIntegral

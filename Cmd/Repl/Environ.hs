@@ -39,6 +39,7 @@ import qualified Cmd.Repl.LDebug as LDebug
 import qualified Cmd.Repl.LEvent as LEvent
 import qualified Cmd.Repl.LInst as LInst
 import qualified Cmd.Repl.LIntegrate as LIntegrate
+import qualified Cmd.Repl.LKeymap as LKeymap
 import qualified Cmd.Repl.LLily as LLily
 import qualified Cmd.Repl.LNote as LNote
 import qualified Cmd.Repl.LPerf as LPerf

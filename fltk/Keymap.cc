@@ -16,6 +16,13 @@ Keymap::Keymap(int x, int y, int w, int h, const Layout *layout) :
 {
 }
 
+Keymap::~Keymap()
+{
+    delete layout;
+    for (Binding *b : bindings)
+        delete b;
+}
+
 
 void
 Keymap::set_bindings(const std::vector<Binding *> &bindings)
@@ -40,9 +47,10 @@ Keymap::highlighted() const
 int
 Keymap::handle(int evt)
 {
-    if (evt == FL_ENTER) {
-        return true;
-    } else if (evt == FL_MOVE) {
+    switch (evt) {
+    case FL_ENTER:
+        return true; // I want FL_MOVE.
+    case FL_MOVE: {
         IPoint p(Fl::event_x(), Fl::event_y());
         for (int i = 0; i < layout->rects_len; i++) {
             const IRect &rect = layout->rects[i];
@@ -55,10 +63,11 @@ Keymap::handle(int evt)
                 break;
             }
         }
-    } else if (evt == FL_KEYDOWN && Fl::event_key() == FL_Escape) {
-        window()->hide();
+        return true;
     }
-    return false;
+    default:
+        return false;
+    }
 }
 
 
@@ -88,9 +97,6 @@ Keymap::draw()
     for (const Binding *binding : bindings) {
         fl_draw(binding->text, binding->point.x, binding->point.y);
     }
-    if (0 <= highlight_index && highlight_index < bindings.size()) {
-        // TODO display bindings[highlight_index].doc in the gutter
-    }
 }
 
 enum {
@@ -99,14 +105,13 @@ enum {
 
 KeymapWindow::KeymapWindow(int x, int y, int w, int h, const char *title,
         const Keymap::Layout *layout) :
-    Fl_Double_Window(x, y, w, h, title),
-    keymap(0, 0, w, h - doc_h, layout),
-    doc(0, h - doc_h, w, doc_h)
+    Fl_Double_Window(x, y, w, h + doc_h, title),
+    keymap(0, 0, w, h, layout),
+    doc(0, h, w, doc_h)
 {
+    // border(false);
     resizable(nullptr); // window cannot be resized
     keymap.callback(KeymapWindow::keymap_cb, static_cast<void *>(this));
-    // TODO can I get rid of the border, or have the minimal title bar?
-    // TODO alternately, make it resizable and scrollable
     doc.textsize(Config::font_size::input);
     doc.box(FL_FLAT_BOX);
     doc.color(layout->bg_color.brightness(0.85).fl());
@@ -126,14 +131,23 @@ KeymapWindow::keymap_cb(Fl_Widget *w, void *vp)
 int
 KeymapWindow::handle(int evt)
 {
-    bool testing = true;
-    // DEBUG("evt " << f_util::show_event(evt));
-    if (testing && evt == FL_KEYDOWN && Fl::event_key() == FL_Escape) {
-        // This is kind of dumb, but I'm used to using this to quit test_block.
-        this->hide();
+    switch (evt) {
+    case FL_ENTER:
+        // This should opt out of focus, but doesn't work on OS X, or maybe not
+        // for windows.
+        // return false;
+        return true; // to receive FL_MOVE
+    case FL_MOVE:
+        return Fl_Double_Window::handle(evt);
+    case FL_PUSH:
+    case FL_FOCUS:
+        return false;
+    case FL_DRAG:
+        // https://fltk.gitlab.io/fltk/events.html says I won't get this
+        // unless I return true for FL_PUSH, but that's not true on OS X.
+        // Return true to eat it so Fl::add_handler doesn't get it.
         return true;
-    } else {
-        Fl_Double_Window::handle(evt);
-        return true; // TODO tmp for testing
+    default:
+        return false;
     }
 }

@@ -17,9 +17,11 @@ import qualified Data.Text.Encoding.Error as Encoding.Error
 import qualified Data.Word as Word
 
 import qualified Foreign
-import Foreign.C
+import qualified ForeignC
 
 import qualified Util.Num as Num
+
+import           Foreign.C
 
 
 -- * convert
@@ -106,3 +108,11 @@ freeFunPtr :: Foreign.FunPtr a -> IO ()
 freeFunPtr fptr = do
     -- putStrLn $ "- " ++ show fptr
     Foreign.freeHaskellFunPtr fptr
+
+-- | This should be in c-storable, but updating via hackage is such a pain I'll
+-- inline it for now.
+new :: ForeignC.CStorable a => a -> IO (Foreign.Ptr a)
+new val  = do
+    ptr <- ForeignC.malloc
+    ForeignC.poke ptr val
+    return ptr

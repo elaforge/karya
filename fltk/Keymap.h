@@ -56,11 +56,7 @@ public:
     };
 
     Keymap(int x, int y, int w, int h, const Layout *layout);
-    ~Keymap() {
-        delete layout;
-        for (Binding *b : bindings)
-            delete b;
-    }
+    ~Keymap();
     // The bindings should be the same length and in the same order as
     // Layout::rects.
     void set_bindings(const std::vector<Binding *> &bindings);

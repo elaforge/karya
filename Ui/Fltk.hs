@@ -64,7 +64,7 @@ foreign import ccall "wrapper"
     c_make_free_fun_ptr :: FunPtrFinalizer a
         -> IO (Foreign.FunPtr (FunPtrFinalizer a))
 
--- | Send the UI to the ui thread and run it, returning its result.
+-- | Send the UI to the ui thread to run asynchronously.
 send_action :: Channel -> Text -> Fltk () -> IO ()
 send_action ui_chan description act = do
     MVar.modifyMVar_ ui_chan $ return . ((act, description) :)

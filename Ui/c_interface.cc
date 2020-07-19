@@ -376,4 +376,38 @@ dump_view(const BlockWindow *view)
     return view->block.dump();
 }
 
+
+// keymap
+
+KeymapWindow *
+keymap_create(int x, int y, int w, int h, const Keymap::Layout *layout)
+{
+    KeymapWindow *window = new KeymapWindow(x, y, w, h, "", layout);
+    window->show();
+    return window;
+}
+
+void
+keymap_destroy(KeymapWindow *window)
+{
+    window->hide();
+    Fl::delete_widget(window);
+}
+
+void
+keymap_update(
+    KeymapWindow *window, const Keymap::Binding *bindings, int bindings_len)
+{
+    std::vector<Keymap::Binding *> v;
+    v.reserve(bindings_len);
+    for (int i = 0; i < bindings_len; i++) {
+        // I already have allocated Bindings flat in the array, but they were
+        // allocated with malloc, not new, and haskell has ownership.  Since
+        // I'm going to deallocate with delete, I should reallocate with new.
+        v.push_back(new Keymap::Binding(bindings[i]));
+    }
+
+    window->set_bindings(v);
+}
+
 }

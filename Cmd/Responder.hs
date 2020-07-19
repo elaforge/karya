@@ -331,6 +331,8 @@ post_cmd state ui_from ui_to cmd_to ui_damage status = do
 
     cmd_to <- Undo.maintain_history ui_to cmd_to updates
     Trace.trace "undo"
+    cmd_to <- sync_keymap (state_ui_channel state) cmd_to
+    Trace.trace "sync_keymap"
     when (is_quit status) $
         Save.save_views cmd_to ui_to
             `Exception.catch` \(exc :: Exception.IOException) ->
@@ -386,6 +388,17 @@ respond state msg = run_responder state $ do
     Trace.trace "sync_status"
     return result
     where unerror = either (\(Done r) -> r) id
+
+-- * keymap
+
+sync_keymap :: Fltk.Channel -> Cmd.State -> IO Cmd.State
+sync_keymap ui_chan cmd_to = case Cmd.state_keymap cmd_to of
+    Nothing -> return cmd_to
+    Just (Cmd.KeymapUpdate mb_layout bindings) -> do
+        whenJust mb_layout $ \(pos, layout) ->
+            Sync.create_keymap ui_chan pos layout
+        Sync.update_keymap ui_chan bindings
+        return $ cmd_to { Cmd.state_keymap = Nothing }
 
 -- ** special cmds
 

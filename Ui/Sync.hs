@@ -35,6 +35,8 @@ module Ui.Sync (
     , set_im_progress, clear_im_progress
     , set_waveforms, clear_waveforms, gc_waveforms
     , floating_input
+    -- ** keymap
+    , create_keymap, destroy_keymap, update_keymap
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
@@ -55,6 +57,8 @@ import qualified Ui.Color as Color
 import qualified Ui.Events as Events
 import qualified Ui.Fltk as Fltk
 import qualified Ui.Id as Id
+import qualified Ui.KeymapC as KeymapC
+import qualified Ui.KeymapT as KeymapT
 import qualified Ui.PtrMap as PtrMap
 import qualified Ui.Sel as Sel
 import qualified Ui.Track as Track
@@ -243,6 +247,22 @@ floating_input _ (Cmd.FloatingOpen view_id tracknum at text selection) =
 floating_input state (Cmd.FloatingInsert text) =
     BlockC.floating_insert (Map.keys (Ui.state_views state)) text
 
+-- ** keymap
+
+create_keymap :: Fltk.Channel -> (Int, Int) -> KeymapT.Layout -> IO ()
+create_keymap ui_chan pos layout = do
+    destroy_keymap ui_chan
+    Fltk.send_action ui_chan "create_keymap" $ do
+        win <- KeymapC.create pos layout
+        Fltk.fltk $ PtrMap.set_keymap $ Just win
+
+destroy_keymap :: Fltk.Channel -> IO ()
+destroy_keymap ui_chan = whenJustM PtrMap.lookup_keymap $
+    Fltk.send_action ui_chan "destroy_keymap" . KeymapC.destroy
+
+update_keymap :: Fltk.Channel -> KeymapT.Bindings -> IO ()
+update_keymap ui_chan bindings = whenJustM PtrMap.lookup_keymap $ \win ->
+    Fltk.send_action ui_chan "update_keymap" $ KeymapC.update win bindings
 
 -- * run_update
 
