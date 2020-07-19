@@ -4,7 +4,7 @@
 
 #include "Block.h"
 #include "EventTrack.h"
-#include "Keymap.h"
+#include "Keycaps.h"
 #include "MsgCollector.h"
 #include "SkeletonDisplay.h"
 #include "SymbolTable.h"
@@ -97,11 +97,11 @@ void insert_style(StyleId id, EventStyle *style);
 const char *i_show_children(const BlockWindow *w, int nlevels);
 const char *dump_view(const BlockWindow *view);
 
-// keymap
+// keycaps
 
-KeymapWindow *keymap_create(
-    int x, int y, int w, int h, const Keymap::Layout *layout);
-void keymap_destroy(KeymapWindow *window);
-void keymap_update(
-    KeymapWindow *window, const Keymap::Binding *bindings, int bindings_len);
+KeycapsWindow *keycaps_create(
+    int x, int y, int w, int h, const Keycaps::Layout *layout);
+void keycaps_destroy(KeycapsWindow *window);
+void keycaps_update(
+    KeycapsWindow *window, const Keycaps::Binding *bindings, int bindings_len);
 }

@@ -105,7 +105,7 @@ import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Key as Key
-import qualified Ui.KeymapT as KeymapT
+import qualified Ui.KeycapsT as KeycapsT
 import qualified Ui.Sel as Sel
 import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
@@ -405,7 +405,7 @@ data State = State {
     , state_focused_view :: !(Maybe ViewId)
     -- | This contains a Rect for each screen.
     , state_screens :: ![Rect.Rect]
-    , state_keymap :: !(Maybe KeymapUpdate)
+    , state_keycaps :: !(Maybe KeycapsUpdate)
 
     -- | This is similar to 'Ui.Block.view_status', except that it's global
     -- instead of per-view.  So changes are logged with a special prefix so
@@ -435,8 +435,8 @@ data SaveFile = SaveState !Path.Canonical | SaveRepo !Path.Canonical
     deriving (Show, Eq)
 data Writable = ReadWrite | ReadOnly deriving (Show, Eq)
 
-data KeymapUpdate =
-    KeymapUpdate (Maybe ((Int, Int), KeymapT.Layout)) KeymapT.Bindings
+data KeycapsUpdate =
+    KeycapsUpdate (Maybe ((Int, Int), KeycapsT.Layout)) KeycapsT.Bindings
     deriving (Show)
 
 -- | Absolute directory of the save file.
@@ -505,7 +505,7 @@ initial_state config = State
     , state_keys_down = Map.empty
     , state_focused_view = Nothing
     , state_screens = []
-    , state_keymap = Nothing
+    , state_keycaps = Nothing
     , state_global_status = Map.empty
     , state_play = initial_play_state
     , state_hooks = mempty

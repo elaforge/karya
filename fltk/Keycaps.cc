@@ -4,19 +4,19 @@
 
 #include <FL/fl_draw.H>
 
-#include "Keymap.h"
+#include "Keycaps.h"
 #include "config.h"
 #include "f_util.h"
 
 
-Keymap::Keymap(int x, int y, int w, int h, const Layout *layout) :
+Keycaps::Keycaps(int x, int y, int w, int h, const Layout *layout) :
     Fl_Widget(x, y, w, h),
     layout(layout),
     highlight_index(-1)
 {
 }
 
-Keymap::~Keymap()
+Keycaps::~Keycaps()
 {
     delete layout;
     for (Binding *b : bindings)
@@ -25,7 +25,7 @@ Keymap::~Keymap()
 
 
 void
-Keymap::set_bindings(const std::vector<Binding *> &bindings)
+Keycaps::set_bindings(const std::vector<Binding *> &bindings)
 {
     for (Binding *b : this->bindings)
         delete b;
@@ -35,7 +35,7 @@ Keymap::set_bindings(const std::vector<Binding *> &bindings)
 
 
 const char *
-Keymap::highlighted() const
+Keycaps::highlighted() const
 {
     if (0 <= highlight_index && highlight_index < bindings.size()) {
         return bindings[highlight_index]->doc;
@@ -45,7 +45,7 @@ Keymap::highlighted() const
 
 
 int
-Keymap::handle(int evt)
+Keycaps::handle(int evt)
 {
     switch (evt) {
     case FL_ENTER:
@@ -72,7 +72,7 @@ Keymap::handle(int evt)
 
 
 void
-Keymap::draw()
+Keycaps::draw()
 {
     fl_color(layout->bg_color.fl());
     fl_rectf(x(), y(), w(), h());
@@ -84,7 +84,7 @@ Keymap::draw()
         const IRect &rect = layout->rects[i];
         fl_rectf(rect.x, rect.y, rect.w, rect.h);
     }
-    fl_font(Config::font, Config::font_size::keymap_label);
+    fl_font(Config::font, Config::font_size::keycaps_label);
     for (int i = 0; i < layout->labels_len; i++) {
         const char t[] = {layout->labels_chars[i], '\0'};
         const IPoint &p = layout->labels_points[i];
@@ -93,7 +93,7 @@ Keymap::draw()
     }
     // draw bindings
     fl_color(layout->binding_color.fl());
-    fl_font(Config::font, Config::font_size::keymap_binding);
+    fl_font(Config::font, Config::font_size::keycaps_binding);
     for (const Binding *binding : bindings) {
         fl_draw(binding->text, binding->point.x, binding->point.y);
     }
@@ -103,15 +103,15 @@ enum {
     doc_h = Config::Block::track_title_height
 };
 
-KeymapWindow::KeymapWindow(int x, int y, int w, int h, const char *title,
-        const Keymap::Layout *layout) :
+KeycapsWindow::KeycapsWindow(int x, int y, int w, int h, const char *title,
+        const Keycaps::Layout *layout) :
     Fl_Double_Window(x, y, w, h + doc_h, title),
-    keymap(0, 0, w, h, layout),
+    keycaps(0, 0, w, h, layout),
     doc(0, h, w, doc_h)
 {
     // border(false);
     resizable(nullptr); // window cannot be resized
-    keymap.callback(KeymapWindow::keymap_cb, static_cast<void *>(this));
+    keycaps.callback(KeycapsWindow::keycaps_cb, static_cast<void *>(this));
     doc.textsize(Config::font_size::input);
     doc.box(FL_FLAT_BOX);
     doc.color(layout->bg_color.brightness(0.85).fl());
@@ -121,15 +121,15 @@ KeymapWindow::KeymapWindow(int x, int y, int w, int h, const char *title,
 
 
 void
-KeymapWindow::keymap_cb(Fl_Widget *w, void *vp)
+KeycapsWindow::keycaps_cb(Fl_Widget *w, void *vp)
 {
-    KeymapWindow *self = static_cast<KeymapWindow *>(vp);
-    self->doc.value(self->keymap.highlighted());
+    KeycapsWindow *self = static_cast<KeycapsWindow *>(vp);
+    self->doc.value(self->keycaps.highlighted());
 }
 
 
 int
-KeymapWindow::handle(int evt)
+KeycapsWindow::handle(int evt)
 {
     switch (evt) {
     case FL_ENTER:

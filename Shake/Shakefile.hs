@@ -436,7 +436,7 @@ hsToCc = Map.fromList $
     ] ++ map (, ["Ui/c_interface.cc"]) c_interface
     where
     c_interface =
-        [ "Ui/BlockC.hsc", "Ui/KeymapC.hsc", "Ui/RulerC.hsc", "Ui/StyleC.hsc"
+        [ "Ui/BlockC.hsc", "Ui/KeycapsC.hsc", "Ui/RulerC.hsc", "Ui/StyleC.hsc"
         , "Ui/SymbolC.hsc", "Ui/TrackC.hsc", "Ui/UiMsgC.hsc"
         ]
 
@@ -550,7 +550,7 @@ fltkDeps config = map (srcToObj config . ("fltk"</>))
     , "Color.cc"
     , "EventTrack.cc"
     , "FloatingInput.cc"
-    , "Keymap.cc"
+    , "Keycaps.cc"
     , "MoveTile.cc"
     , "MsgCollector.cc"
     , "PeakCache.cc"

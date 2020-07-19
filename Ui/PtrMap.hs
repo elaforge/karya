@@ -11,8 +11,8 @@ module Ui.PtrMap (
     -- * views
     , CView, modify, get_map, get, lookup, lookup_id
     , view_exists
-    -- * keymap
-    , lookup_keymap, set_keymap
+    -- * keycaps
+    , lookup_keycaps, set_keycaps
 ) where
 import           Prelude hiding (lookup)
 import qualified Control.Concurrent.MVar as MVar
@@ -25,7 +25,7 @@ import qualified Data.Typeable as Typeable
 import           ForeignC (Ptr)
 import qualified System.IO.Unsafe as Unsafe
 
-import qualified Ui.KeymapT as KeymapT
+import qualified Ui.KeycapsT as KeycapsT
 
 import           Global
 import           Types
@@ -53,12 +53,12 @@ data CView
 global_windows :: MVar.MVar Windows
 global_windows = Unsafe.unsafePerformIO $ MVar.newMVar $ Windows
     { _blocks = Map.empty
-    , _keymap = Nothing
+    , _keycaps = Nothing
     }
 
 data Windows = Windows {
     _blocks :: Map ViewId (Ptr CView)
-    , _keymap :: Maybe (Ptr KeymapT.CWindow)
+    , _keycaps :: Maybe (Ptr KeycapsT.CWindow)
     }
 
 modify :: (Map ViewId (Ptr CView) -> IO (Map ViewId (Ptr CView))) -> IO ()
@@ -93,11 +93,11 @@ lookup_id viewp = do
 view_exists :: ViewId -> IO Bool
 view_exists = fmap Maybe.isJust . lookup
 
--- * keymap
+-- * keycaps
 
-lookup_keymap :: IO (Maybe (Ptr KeymapT.CWindow))
-lookup_keymap = _keymap <$> MVar.readMVar global_windows
+lookup_keycaps :: IO (Maybe (Ptr KeycapsT.CWindow))
+lookup_keycaps = _keycaps <$> MVar.readMVar global_windows
 
-set_keymap :: Maybe (Ptr KeymapT.CWindow) -> IO ()
-set_keymap keymap = MVar.modifyMVar_ global_windows $ \windows ->
-    return $ windows { _keymap = keymap }
+set_keycaps :: Maybe (Ptr KeycapsT.CWindow) -> IO ()
+set_keycaps keycaps = MVar.modifyMVar_ global_windows $ \windows ->
+    return $ windows { _keycaps = keycaps }

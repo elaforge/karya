@@ -16,8 +16,8 @@
 #include "global.h"
 
 
-// Show a keymap, which is just a bunch of boxes with text in them.
-class Keymap : public Fl_Widget {
+// Show keycaps, which is just a bunch of boxes with text in them.
+class Keycaps : public Fl_Widget {
 public:
     struct Layout {
         Color bg_color;
@@ -55,8 +55,8 @@ public:
         };
     };
 
-    Keymap(int x, int y, int w, int h, const Layout *layout);
-    ~Keymap();
+    Keycaps(int x, int y, int w, int h, const Layout *layout);
+    ~Keycaps();
     // The bindings should be the same length and in the same order as
     // Layout::rects.
     void set_bindings(const std::vector<Binding *> &bindings);
@@ -73,17 +73,17 @@ private:
 };
 
 
-class KeymapWindow : public Fl_Double_Window {
+class KeycapsWindow : public Fl_Double_Window {
 public:
-    KeymapWindow(int x, int y, int w, int h, const char *title,
-        const Keymap::Layout *layout);
-    void set_bindings(const std::vector<Keymap::Binding *> &bindings) {
-        keymap.set_bindings(bindings);
+    KeycapsWindow(int x, int y, int w, int h, const char *title,
+        const Keycaps::Layout *layout);
+    void set_bindings(const std::vector<Keycaps::Binding *> &bindings) {
+        keycaps.set_bindings(bindings);
     }
     int handle(int evt) override;
 private:
-    static void keymap_cb(Fl_Widget *w, void *vp);
+    static void keycaps_cb(Fl_Widget *w, void *vp);
 
-    Keymap keymap;
+    Keycaps keycaps;
     Fl_Output doc;
 };

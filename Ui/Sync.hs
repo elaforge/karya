@@ -35,8 +35,8 @@ module Ui.Sync (
     , set_im_progress, clear_im_progress
     , set_waveforms, clear_waveforms, gc_waveforms
     , floating_input
-    -- ** keymap
-    , create_keymap, destroy_keymap, update_keymap
+    -- ** keycaps
+    , create_keycaps, destroy_keycaps, update_keycaps
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
@@ -57,8 +57,8 @@ import qualified Ui.Color as Color
 import qualified Ui.Events as Events
 import qualified Ui.Fltk as Fltk
 import qualified Ui.Id as Id
-import qualified Ui.KeymapC as KeymapC
-import qualified Ui.KeymapT as KeymapT
+import qualified Ui.KeycapsC as KeycapsC
+import qualified Ui.KeycapsT as KeycapsT
 import qualified Ui.PtrMap as PtrMap
 import qualified Ui.Sel as Sel
 import qualified Ui.Track as Track
@@ -247,22 +247,22 @@ floating_input _ (Cmd.FloatingOpen view_id tracknum at text selection) =
 floating_input state (Cmd.FloatingInsert text) =
     BlockC.floating_insert (Map.keys (Ui.state_views state)) text
 
--- ** keymap
+-- ** keycaps
 
-create_keymap :: Fltk.Channel -> (Int, Int) -> KeymapT.Layout -> IO ()
-create_keymap ui_chan pos layout = do
-    destroy_keymap ui_chan
-    Fltk.send_action ui_chan "create_keymap" $ do
-        win <- KeymapC.create pos layout
-        Fltk.fltk $ PtrMap.set_keymap $ Just win
+create_keycaps :: Fltk.Channel -> (Int, Int) -> KeycapsT.Layout -> IO ()
+create_keycaps ui_chan pos layout = do
+    destroy_keycaps ui_chan
+    Fltk.send_action ui_chan "create_keycaps" $ do
+        win <- KeycapsC.create pos layout
+        Fltk.fltk $ PtrMap.set_keycaps $ Just win
 
-destroy_keymap :: Fltk.Channel -> IO ()
-destroy_keymap ui_chan = whenJustM PtrMap.lookup_keymap $
-    Fltk.send_action ui_chan "destroy_keymap" . KeymapC.destroy
+destroy_keycaps :: Fltk.Channel -> IO ()
+destroy_keycaps ui_chan = whenJustM PtrMap.lookup_keycaps $
+    Fltk.send_action ui_chan "destroy_keycaps" . KeycapsC.destroy
 
-update_keymap :: Fltk.Channel -> KeymapT.Bindings -> IO ()
-update_keymap ui_chan bindings = whenJustM PtrMap.lookup_keymap $ \win ->
-    Fltk.send_action ui_chan "update_keymap" $ KeymapC.update win bindings
+update_keycaps :: Fltk.Channel -> KeycapsT.Bindings -> IO ()
+update_keycaps ui_chan bindings = whenJustM PtrMap.lookup_keycaps $ \win ->
+    Fltk.send_action ui_chan "update_keycaps" $ KeycapsC.update win bindings
 
 -- * run_update
 

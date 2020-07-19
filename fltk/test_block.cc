@@ -9,7 +9,7 @@
 
 #include "Block.h"
 #include "EventTrack.h"
-#include "Keymap.h"
+#include "Keycaps.h"
 #include "MsgCollector.h"
 #include "RulerTrack.h"
 #include "SkeletonDisplay.h"
@@ -27,7 +27,7 @@ enum Events {
 static const Events t1_use_events = Many;
 // Turn this off just draw a single track.
 static const bool many_tracks = false;
-static const bool show_keymap = true;
+static const bool show_keycaps = true;
 
 // Visible windows.
 static std::vector<BlockWindow *> windows;
@@ -397,10 +397,10 @@ timeout_func(void *unused)
     Fl::repeat_timeout(1, timeout_func, nullptr);
 }
 
-static Keymap::Layout *
-keymap_layout()
+static Keycaps::Layout *
+keycaps_layout()
 {
-    Keymap::Layout *layout = new Keymap::Layout();
+    Keycaps::Layout *layout = new Keycaps::Layout();
     auto &a = *layout;
     a.bg_color = Color::white;
     a.keycap_color = Color::white.brightness(0.75);
@@ -424,16 +424,16 @@ keymap_layout()
     return layout;
 }
 
-static std::vector<Keymap::Binding *>
-keymap_bindings()
+static std::vector<Keycaps::Binding *>
+keycaps_bindings()
 {
-    std::vector<Keymap::Binding *> bs;
-    bs.push_back(new Keymap::Binding(
+    std::vector<Keycaps::Binding *> bs;
+    bs.push_back(new Keycaps::Binding(
         IPoint(20, 25),
         strdup("4c"),
         strdup("pitch 4c")
     ));
-    bs.push_back(new Keymap::Binding(
+    bs.push_back(new Keycaps::Binding(
         IPoint(50, 25),
         strdup("4d"),
         strdup("pitch 4d")
@@ -579,12 +579,12 @@ main(int argc, char **argv)
     // return 0;
     add_symbols();
 
-    // keymap
-    if (show_keymap) {
-        KeymapWindow *k = new KeymapWindow(
-            200, 200, 200, 100, "keymap", keymap_layout());
-        k->set_bindings(keymap_bindings());
-        k->set_bindings(keymap_bindings());
+    // keycaps
+    if (show_keycaps) {
+        KeycapsWindow *k = new KeycapsWindow(
+            200, 200, 200, 100, "keycaps", keycaps_layout());
+        k->set_bindings(keycaps_bindings());
+        k->set_bindings(keycaps_bindings());
         k->show();
     }
 

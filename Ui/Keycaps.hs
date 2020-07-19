@@ -2,25 +2,24 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Higher level wrapper around KeymapC.
-module Ui.Keymap where
+-- | Higher level wrapper around KeycapsC.
+module Ui.Keycaps where
 import qualified Util.Rect as Rect
 import qualified Ui.Color as Color
-import qualified Ui.KeymapT as KeymapT
+import qualified Ui.KeycapsT as KeycapsT
 
 import           Global
 
 
 {-
     Hold layouts for e.g. macbook_layout.
-    Then construct KeymapT.DrawKeymap and DrawConfig by looking up keycaps in a
-    map.
+    Then construct KeycapsT.DrawKeycaps and DrawConfig by looking up keycaps in
+    a map.
 
     Util function to read from a file and dynamically create a new one.
 
     Use Local.KeyLayout, Cmd.KeyLayouts, Cmd.PhysicalKey
     to display physical keyboard.
-
 -}
 
 type Bindings = Map Char (Text, Text)
@@ -35,8 +34,8 @@ macbook_rects =
     -- then apply KeyLayouts
 
 
-make_layout :: [Rect.Rect] -> [(Rect.Point, Char)] -> KeymapT.Layout
-make_layout rects labels = KeymapT.Layout
+make_layout :: [Rect.Rect] -> [(Rect.Point, Char)] -> KeycapsT.Layout
+make_layout rects labels = KeycapsT.Layout
     { lt_size = (w, h)
     , lt_bg_color = Color.white
     , lt_keycap_color = Color.gray8

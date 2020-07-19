@@ -2,9 +2,9 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Types used by "Ui.KeymapC".  It's a separate module to avoid the FFI
+-- | Types used by "Ui.KeycapsC".  It's a separate module to avoid the FFI
 -- dependency when possible.
-module Ui.KeymapT where
+module Ui.KeycapsT where
 import qualified Util.Rect as Rect
 import qualified Ui.Color as Color
 

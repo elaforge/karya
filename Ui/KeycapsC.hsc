@@ -3,13 +3,13 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE NamedFieldPuns #-}
--- | Low level fltk binding for drawing the keymap.
-module Ui.KeymapC (create, destroy, update) where
+-- | Low level fltk binding for drawing the keycaps.
+module Ui.KeycapsC (create, destroy, update) where
 import qualified Util.CUtil as CUtil
 import qualified Ui.Fltk as Fltk
 
 import           ForeignC
-import           Ui.KeymapT
+import           Ui.KeycapsT
 
 #include "Ui/c_interface.h"
 
@@ -22,24 +22,25 @@ create (x, y) layout = Fltk.fltk $ do
     (w, h) = lt_size layout
     i = CUtil.c_int
 
--- KeymapWindow *keymap_create(
---     int x, int y, int w, int h, const Keymap::Layout *layout);
-foreign import ccall "keymap_create"
+-- KeycapsWindow *keycaps_create(
+--     int x, int y, int w, int h, const Keycaps::Layout *layout);
+foreign import ccall "keycaps_create"
     c_create :: CInt -> CInt -> CInt -> CInt -> Ptr Layout -> IO (Ptr CWindow)
 
 destroy :: Ptr CWindow -> Fltk.Fltk ()
 destroy = Fltk.fltk . c_destroy
 
-foreign import ccall "keymap_destroy" c_destroy :: Ptr CWindow -> IO ()
+foreign import ccall "keycaps_destroy" c_destroy :: Ptr CWindow -> IO ()
 
 update :: Ptr CWindow -> Bindings -> Fltk.Fltk ()
 update winp (Bindings bindings) = Fltk.fltk $
     withArrayLen bindings $ \bindings_len bindingsp ->
         c_update winp bindingsp (CUtil.c_int bindings_len)
 
--- void keymap_update(
---     KeymapWindow *window, const Keymap::Binding *bindings, int bindings_len);
-foreign import ccall "keymap_update"
+-- void keycaps_update(
+--     KeycapsWindow *window, const Keycaps::Binding *bindings,
+--     int bindings_len);
+foreign import ccall "keycaps_update"
     c_update :: Ptr CWindow -> Ptr Binding -> CInt -> IO ()
 
 
@@ -62,25 +63,25 @@ foreign import ccall "keymap_update"
     }
 -}
 instance CStorable Layout where
-    sizeOf _ = #size Keymap::Layout
+    sizeOf _ = #size Keycaps::Layout
     alignment _ = alignment nullPtr
     poke p (Layout
             { lt_bg_color, lt_keycap_color, lt_highlight_color
             , lt_label_color, lt_binding_color
             , lt_rects, lt_labels
             }) = do
-        (#poke Keymap::Layout, bg_color) p lt_bg_color
-        (#poke Keymap::Layout, keycap_color) p lt_keycap_color
-        (#poke Keymap::Layout, highlight_color) p lt_highlight_color
-        (#poke Keymap::Layout, label_color) p lt_label_color
-        (#poke Keymap::Layout, binding_color) p lt_binding_color
-        (#poke Keymap::Layout, rects) p =<< newArray lt_rects
-        (#poke Keymap::Layout, rects_len) p (CUtil.c_int (length lt_rects))
+        (#poke Keycaps::Layout, bg_color) p lt_bg_color
+        (#poke Keycaps::Layout, keycap_color) p lt_keycap_color
+        (#poke Keycaps::Layout, highlight_color) p lt_highlight_color
+        (#poke Keycaps::Layout, label_color) p lt_label_color
+        (#poke Keycaps::Layout, binding_color) p lt_binding_color
+        (#poke Keycaps::Layout, rects) p =<< newArray lt_rects
+        (#poke Keycaps::Layout, rects_len) p (CUtil.c_int (length lt_rects))
         let (points, chars) = unzip lt_labels
-        (#poke Keymap::Layout, labels_points) p =<< newArray points
-        (#poke Keymap::Layout, labels_chars) p
+        (#poke Keycaps::Layout, labels_points) p =<< newArray points
+        (#poke Keycaps::Layout, labels_chars) p
             =<< newArray (map CUtil.c_char chars)
-        (#poke Keymap::Layout, labels_len) p (CUtil.c_int (length lt_labels))
+        (#poke Keycaps::Layout, labels_len) p (CUtil.c_int (length lt_labels))
 
 {-
     struct Binding {
@@ -92,9 +93,9 @@ instance CStorable Layout where
     }
 -}
 instance CStorable Binding where
-    sizeOf _ = #size Keymap::Binding
+    sizeOf _ = #size Keycaps::Binding
     alignment _ = alignment nullPtr
     poke p (Binding { b_point, b_text, b_doc }) = do
-        (#poke Keymap::Binding, point) p b_point
-        (#poke Keymap::Binding, text) p =<< CUtil.textToCString0 b_text
-        (#poke Keymap::Binding, doc) p =<< CUtil.textToCString0 b_doc
+        (#poke Keycaps::Binding, point) p b_point
+        (#poke Keycaps::Binding, text) p =<< CUtil.textToCString0 b_text
+        (#poke Keycaps::Binding, doc) p =<< CUtil.textToCString0 b_doc

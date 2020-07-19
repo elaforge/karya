@@ -75,10 +75,10 @@ namespace font_size {
         // Title drawn in the SkeletonDisplay.
         skeleton_title = 10,
 
-        // Keycap char for Keymap.
-        keymap_label = 12,
-        // Binding text for Keymap.
-        keymap_binding = 14
+        // Keycap char for Keycaps.
+        keycaps_label = 12,
+        // Binding text for Keycaps.
+        keycaps_binding = 14
     };
 };
 
