@@ -13,6 +13,7 @@
 #include <FL/Fl_Widget.H>
 #include <FL/Fl_Group.H>
 #include <FL/Fl_Input_.H>
+#include <FL/names.h>
 
 #include "f_util.h"
 
@@ -85,40 +86,16 @@ show_key(int key)
 
 
 const char *
-show_event(int ev)
+show_event(int evt)
 {
-    switch (ev) {
-    case FL_NO_EVENT: return "nothing";
-    case FL_PUSH: return "push";
-    case FL_DRAG: return "drag";
-    case FL_RELEASE: return "release";
-    case FL_MOVE: return "move";
-    case FL_MOUSEWHEEL: return "mousewheel";
-    case FL_ENTER: return "enter";
-    case FL_LEAVE: return "leave";
-    case FL_FOCUS: return "focus";
-    case FL_UNFOCUS: return "unfocus";
-
-    case FL_KEYDOWN: return "keydown";
-    case FL_KEYUP: return "keyup";
-    case FL_SHORTCUT: return "shortcut";
-    case FL_DEACTIVATE: return "deactivate";
-    case FL_ACTIVATE: return "activate";
-    case FL_HIDE: return "hide";
-    case FL_SHOW: return "show";
-
-    case FL_SCREEN_CONFIGURATION_CHANGED: return "screen configuration";
-    }
-    static char buf[127];
-    snprintf(buf, 127, "unknown:%d", ev);
-    return buf;
+    return fl_eventnames[evt];
 }
 
 const char *
-show_event_info(int ev)
+show_event_info(int evt)
 {
     static char buf[128];
-    switch (ev) {
+    switch (evt) {
     case FL_PUSH: case FL_DRAG: case FL_RELEASE: case FL_MOVE:
     case FL_MOUSEWHEEL:
         snprintf(buf, sizeof buf, "(%d, %d)", Fl::event_x(), Fl::event_y());
