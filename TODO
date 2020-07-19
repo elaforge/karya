@@ -4727,6 +4727,32 @@ fltk:
       pitch (scales).
     . I need either a blank image of a keyboard, or to draw one myself.
     . How about I just draw it, then I can fill in the keycaps as appropriate.
+    . Draw a set of rects of the given sizes, and then draw text at the given
+      positions.  I should be able to configure it from haskell and then do it
+      dynamically to tweak things.
+    . Then draw keycaps as light gray text, maybe in the corner, with the
+      binding as dark text on top.
+    . If the binding is too big, how to show it?  I could use first few
+      letters, and then tooltip.  Or if I don't like tooltip, then display the
+      last mouseover rect with a color highlight and put text in a gutter at
+      the bottom.
+    . I want to change them when modifiers are held, for that I need
+      a record_keys hook that sets bindings as appropriate.
+    things to display:
+      . global cmds for keymap: toggle chord, toggle advance
+      . track cmds: add ^, add -
+      . pitch when in kbd entry: 4c#
+      . drum when in kbd entry: k t od
+    * fltk implementation
+      . Do I need a gutter with additional docs?
+      . Probably, I can only fit a few characters in the keycap.
+      . Might even be viable to take the first letters of the first two words
+        as mnemonic.  Then 2-3 chars for pitch.
+      . Space and enter have more space.
+    - haskell binding
+    - higher level Ui.Keymap to put compose layout
+    - Cmd support to set write keymap config.
+    - KeymapWindow goes in Cmd.State
   - Floating input in the wrong place for negative events with multiple lines.
     . Because it assumes the text goes downwards.
     . Since haskell doesn't know how the text is wrapped, it can't know where

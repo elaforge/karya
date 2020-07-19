@@ -73,7 +73,12 @@ namespace font_size {
         // Per-track status, drawn in the SkeletonDisplay.
         track_status = 12,
         // Title drawn in the SkeletonDisplay.
-        skeleton_title = 10
+        skeleton_title = 10,
+
+        // Keycap char for Keymap.
+        keymap_label = 12,
+        // Binding text for Keymap.
+        keymap_binding = 14
     };
 };
 

@@ -138,7 +138,8 @@ set_context(UiMsg::Context &c, BlockWindow *view)
         } else {
             c.focus = dynamic_cast<BlockWindow *>(focus);
         }
-        ASSERT(c.focus);
+        // c.focus could be nullptr if it's the keymap window.
+        // ASSERT(c.focus);
     }
 }
 

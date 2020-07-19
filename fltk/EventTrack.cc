@@ -8,6 +8,8 @@
 #include <sstream>
 #include <math.h>
 
+#include <FL/fl_draw.H>
+
 #include "FloatingInput.h"
 #include "SymbolTable.h"
 #include "config.h"

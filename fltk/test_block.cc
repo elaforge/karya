@@ -9,6 +9,7 @@
 
 #include "Block.h"
 #include "EventTrack.h"
+#include "Keymap.h"
 #include "MsgCollector.h"
 #include "RulerTrack.h"
 #include "SkeletonDisplay.h"
@@ -26,6 +27,7 @@ enum Events {
 static const Events t1_use_events = Many;
 // Turn this off just draw a single track.
 static const bool many_tracks = false;
+static const bool show_keymap = true;
 
 // Visible windows.
 static std::vector<BlockWindow *> windows;
@@ -395,6 +397,50 @@ timeout_func(void *unused)
     Fl::repeat_timeout(1, timeout_func, nullptr);
 }
 
+static Keymap::Layout *
+keymap_layout()
+{
+    Keymap::Layout *layout = new Keymap::Layout();
+    auto &a = *layout;
+    a.bg_color = Color::white;
+    a.keycap_color = Color::white.brightness(0.75);
+    a.highlight_color = Color(0xa0, 0xa0, 0xff);
+    a.label_color = Color::black;
+    a.binding_color = Color::black;
+
+    a.rects_len = 2;
+    a.rects = (IRect *) calloc(a.rects_len, sizeof(IRect));
+    a.rects[0] = IRect(10, 10, 25, 25);
+    a.rects[1] = IRect(40, 10, 25, 25);
+
+    a.labels_len = 2;
+    a.labels_points = (IPoint *) calloc(a.labels_len, sizeof(IPoint));
+    a.labels_chars = (char *) calloc(a.labels_len, sizeof(char));
+    a.labels_points[0] = IPoint(15, 20);
+    a.labels_chars[0] = 'q';
+    a.labels_points[1] = IPoint(45, 20);
+    a.labels_chars[1] = 'w';
+
+    return layout;
+}
+
+static std::vector<Keymap::Binding *>
+keymap_bindings()
+{
+    std::vector<Keymap::Binding *> bs;
+    bs.push_back(new Keymap::Binding(
+        IPoint(20, 25),
+        strdup("4c"),
+        strdup("pitch 4c")
+    ));
+    bs.push_back(new Keymap::Binding(
+        IPoint(50, 25),
+        strdup("4d"),
+        strdup("pitch 4d")
+    ));
+    return bs;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -532,6 +578,15 @@ main(int argc, char **argv)
     // show_fonts();
     // return 0;
     add_symbols();
+
+    // keymap
+    if (show_keymap) {
+        KeymapWindow *k = new KeymapWindow(
+            200, 200, 200, 100, "keymap", keymap_layout());
+        k->set_bindings(keymap_bindings());
+        k->set_bindings(keymap_bindings());
+        k->show();
+    }
 
     // view.show();
     //
