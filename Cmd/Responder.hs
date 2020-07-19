@@ -316,7 +316,7 @@ post_cmd state ui_from ui_to cmd_to ui_damage status = do
     !cmd_to <- handle_special_status (state_ui_channel state) ui_to cmd_to
         (state_transport_info state) status
     !cmd_to <- return $ fix_cmd_state ui_to cmd_to
-    (updates, ui_to, cmd_to) <- ResponderSync.sync (state_sync state)
+    (updates, ui_to) <- ResponderSync.sync (state_sync state)
         ui_from ui_to cmd_to ui_damage
         (Transport.info_state (state_transport_info state))
     Trace.trace "sync"

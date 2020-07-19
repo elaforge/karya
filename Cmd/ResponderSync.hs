@@ -34,10 +34,10 @@ sync :: Sync
     -> Ui.State -- ^ state before Cmd was run
     -> Ui.State -- ^ current state
     -> Cmd.State -> Update.UiDamage -> MVar.MVar Ui.State
-    -> IO ([Update.UiUpdate], Ui.State, Cmd.State)
+    -> IO ([Update.UiUpdate], Ui.State)
     -- ^ Sync uses 'Update.DisplayUpdate's, but the diff also produces
     -- UiUpdates, which are needed for incremental save and score damage.
-sync sync_func ui_from ui_to damage ui_damage play_monitor_state = do
+sync sync_func ui_from ui_to cmd_to ui_damage play_monitor_state = do
     ui_to <- case Ui.quick_verify ui_damage ui_to of
         Left err -> do
             Log.error $ "cmd caused a verify error, rejecting state change: "
@@ -76,12 +76,12 @@ sync sync_func ui_from ui_to damage ui_damage play_monitor_state = do
 
     when (any modified_view ui_updates) $
         MVar.modifyMVar_ play_monitor_state (const (return ui_to))
-    err <- sync_func (get_track_signals damage) Internal.set_style
+    err <- sync_func (get_track_signals cmd_to) Internal.set_style
         ui_to display_updates
     Trace.trace "sync.sync"
     whenJust err $ \err ->
         Log.error $ "syncing updates: " <> pretty err
-    return (ui_updates, ui_to, damage)
+    return (ui_updates, ui_to)
 
 -- | Get all track signals already derived.  TrackSignals are only collected
 -- for top level derives, so there should only be signals for visible windows.
