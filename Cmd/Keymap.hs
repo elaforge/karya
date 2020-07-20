@@ -225,7 +225,8 @@ simple_to_mods simple =
 
 type Binding m = (KeySpec, CmdSpec m)
 
-data KeySpec = KeySpec (Set Cmd.Modifier) Bindable deriving (Eq, Ord, Show)
+data KeySpec = KeySpec (Set Cmd.Modifier) Bindable
+    deriving (Eq, Ord, Show)
 
 key_spec :: [Cmd.Modifier] -> Bindable -> KeySpec
 key_spec mods bindable = KeySpec (Set.fromList mods) bindable

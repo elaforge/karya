@@ -9,15 +9,17 @@
 -- Ultimately this is necessary because some keys are mapped based on their
 -- physical location.
 module Cmd.KeyLayouts (
-    Layout, layout, to_unshifted, to_shifted, from_qwerty
+    Layout, layout, to_unshifted, to_shifted, from_qwerty, to_qwerty
     , qwerty, dvorak
     , qwerty_unshifted, qwerty_shifted
     , qwerty_unshifted_rows, qwerty_shifted_rows
 ) where
 import qualified Data.Map as Map
 
+import qualified Util.Maps as Maps
 import qualified Util.Seq as Seq
-import Global
+
+import           Global
 
 
 data Layout = Layout {
@@ -26,6 +28,7 @@ data Layout = Layout {
     , map_to_shifted :: Map Char Char
     -- | Map from the layout to qwerty.
     , map_from_qwerty :: Map Char Char
+    , map_to_qwerty :: Map Char Char
     } deriving (Show)
 
 to_unshifted :: Layout -> Char -> Maybe Char
@@ -36,6 +39,9 @@ to_shifted layout c = Map.lookup c (map_to_shifted layout)
 
 from_qwerty :: Layout -> Char -> Maybe Char
 from_qwerty layout c = Map.lookup c (map_from_qwerty layout)
+
+to_qwerty :: Layout -> Char -> Maybe Char
+to_qwerty layout c = Map.lookup c (map_to_qwerty layout)
 
 layout :: String -> [Char] -> [Char] -> Layout
 layout name unshifted shifted
@@ -49,10 +55,13 @@ layout name unshifted shifted
     | otherwise = Layout
         { map_to_unshifted = Map.fromList $ zip shifted unshifted
         , map_to_shifted = Map.fromList $ zip unshifted shifted
-        , map_from_qwerty = Map.fromList $
-            zip (qwerty_unshifted ++ qwerty_shifted) (unshifted ++ shifted)
+        , map_from_qwerty = from_qwerty
+        , map_to_qwerty = Maps.invert from_qwerty
         }
-    where prefix = showt name <> ": "
+    where
+    from_qwerty = Map.fromList $
+        zip (qwerty_unshifted ++ qwerty_shifted) (unshifted ++ shifted)
+    prefix = showt name <> ": "
 
 qwerty_unshifted, qwerty_shifted :: [Char]
 qwerty_unshifted = concat qwerty_unshifted_rows

@@ -2,15 +2,20 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Ui.Key (Key(..), Modifier(..), decode_key, decode_modifiers) where
+module Ui.Key (
+    Key(..), Modifier(..)
+    , to_label, to_mac_label
+    , decode_key, decode_modifiers
+) where
 import Prelude hiding (Char, Left, Right)
 import Data.Bits ((.&.))
 import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Text as Text
-import Foreign.C
 import qualified System.Info
-import Global
+
+import           Foreign.C
+import           Global
 
 -- Actually I just need FL/Fl_Enumerations.H
 #include "Ui/c_interface.h"
@@ -26,6 +31,7 @@ data Key = Char Char.Char
     | ShiftL | ShiftR | ControlL | ControlR | KCapsLock | AltL | AltR
     | MetaL | MetaR | Menu | KNumLock | KPEnter
     | Keypad Char.Char
+    | Function -- fn key on macbook
     | Unknown Int
     deriving (Eq, Ord, Read, Show)
 
@@ -36,6 +42,33 @@ instance Pretty Key where
     pretty (Char ' ') = "␣" -- unicode space symbol
     pretty (Char c) = Text.singleton c
     pretty key = Text.toLower $ showt key
+
+to_label :: Key -> Text
+to_label = \case
+    Char ' ' -> "space"
+    Char char -> Text.singleton char
+    ControlL -> "ctl"
+    ControlR -> "ctlr"
+    Keypad char -> "kp-" <> Text.singleton char
+    Unknown n -> "?" <> showt n
+    Escape -> "esc"
+    Delete -> "del"
+    Function -> "fn"
+    KCapsLock -> "caps"
+    Left -> "←"
+    Up -> "↑"
+    Down -> "↓"
+    Right -> "→"
+    key -> Text.toLower (showt key)
+
+to_mac_label :: Key -> Text
+to_mac_label = \case
+    AltL -> "optl"
+    AltR -> "optr"
+    MetaL -> "cmdl"
+    MetaR -> "cmdr"
+    Backspace -> "del"
+    key -> to_label key
 
 decode_key :: CInt -> Key
 decode_key code

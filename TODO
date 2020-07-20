@@ -4794,15 +4794,16 @@ fltk:
         . Is there a way to reuse shared_ptr / weak_ptr for this?
         . Or do the same thing as BlockWindow, which is emit an event when it
           gets closed.
-    + higher level Ui.Keycaps to compose layout
+    * higher level Ui.Keycaps to compose layout
       . add a cmd to reload the keycaps window using offsets from a file
       . Or maybe just in the LKeycaps!
-    - Cmd support to write keycaps config.
+    + Cmd support to write keycaps config.
       Use different colors for different modes:
         . global cmds for keymap: toggle chord, toggle advance
         . track cmds: add ^, add -
         . pitch when in kbd entry: 4c#
         . drum when in kbd entry: k t od
+    - change config for held modifiers
   - Floating input in the wrong place for negative events with multiple lines.
     . Because it assumes the text goes downwards.
     . Since haskell doesn't know how the text is wrapped, it can't know where
