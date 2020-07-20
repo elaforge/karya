@@ -6,18 +6,18 @@ module Cmd.Keymap_test where
 import qualified Data.Map as Map
 
 import qualified Util.Log as Log
-import Util.Test
-import qualified Ui.Key as Key
-import qualified Ui.Ui as Ui
-import qualified Ui.UiMsg as UiMsg
-
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Keymap as Keymap
 import qualified Cmd.Msg as Msg
 
 import qualified Derive.DeriveTest as DeriveTest
-import Global
+import qualified Ui.Key as Key
+import qualified Ui.Ui as Ui
+import qualified Ui.UiMsg as UiMsg
+
+import           Global
+import           Util.Test
 
 
 test_make_cmd_map = do
@@ -41,7 +41,7 @@ test_make_cmd = do
 
     equal (run_char [Key.Shift] '3') (did_run "s-3" "cmd1")
     -- The control key varies by platform.
-    let Just (control:_) = lookup Keymap.PrimaryCommand Keymap.simple_mod_map
+    let Just control = Map.lookup Keymap.PrimaryCommand Keymap.simple_mod_map
     equal (run_char [control] '1') (did_run "c-1" "cmd1")
     equal (run_char [control, Key.Shift] '1') (did_run "cs-1" "cmd1")
 
