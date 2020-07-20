@@ -111,7 +111,7 @@ KeycapsWindow::KeycapsWindow(int x, int y, int w, int h, const char *title,
     keycaps(0, 0, w, h, layout),
     doc(0, h, w, doc_h)
 {
-    // border(false);
+    border(false);
     resizable(nullptr); // window cannot be resized
     keycaps.callback(KeycapsWindow::keycaps_cb, static_cast<void *>(this));
     doc.textsize(Config::font_size::input);
@@ -133,6 +133,8 @@ KeycapsWindow::keycaps_cb(Fl_Widget *w, void *vp)
 int
 KeycapsWindow::handle(int evt)
 {
+    static IPoint mouse_down;
+    static IPoint root;
     switch (evt) {
     case FL_ENTER:
         // This should opt out of focus, but doesn't work on OS X, or maybe not
@@ -142,13 +144,19 @@ KeycapsWindow::handle(int evt)
     case FL_MOVE:
         return Fl_Double_Window::handle(evt);
     case FL_PUSH:
-    case FL_FOCUS:
-        return false;
-    case FL_DRAG:
-        // https://fltk.gitlab.io/fltk/events.html says I won't get this
-        // unless I return true for FL_PUSH, but that's not true on OS X.
-        // Return true to eat it so Fl::add_handler doesn't get it.
+        mouse_down = IPoint(Fl::event_x_root(), Fl::event_y_root());
+        root = IPoint(x_root(), y_root());
         return true;
+    case FL_DRAG: {
+        // Move the whole window when dragged anywhere inside it.
+        IPoint delta(
+            IPoint(Fl::event_x_root(), Fl::event_y_root()) - mouse_down);
+        this->position(root.x + delta.x, root.y + delta.y);
+        return true;
+    }
+    case FL_FOCUS:
+        // Don't accept keyboard focus.
+        return false;
     default:
         return false;
     }
