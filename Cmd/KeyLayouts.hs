@@ -12,6 +12,7 @@ module Cmd.KeyLayouts (
     Layout, layout, to_unshifted, to_shifted, from_qwerty
     , qwerty, dvorak
     , qwerty_unshifted, qwerty_shifted
+    , qwerty_unshifted_rows, qwerty_shifted_rows
 ) where
 import qualified Data.Map as Map
 
@@ -54,13 +55,17 @@ layout name unshifted shifted
     where prefix = showt name <> ": "
 
 qwerty_unshifted, qwerty_shifted :: [Char]
-qwerty_unshifted = concat
+qwerty_unshifted = concat qwerty_unshifted_rows
+qwerty_shifted = concat qwerty_shifted_rows
+
+qwerty_unshifted_rows, qwerty_shifted_rows :: [[Char]]
+qwerty_unshifted_rows =
     [ "`1234567890-="
     , "qwertyuiop[]\\"
     , "asdfghjkl;'"
     , "zxcvbnm,./"
     ]
-qwerty_shifted = concat
+qwerty_shifted_rows =
     [ "~!@#$%^&*()_+"
     , "QWERTYUIOP{}|"
     , "ASDFGHJKL:\""

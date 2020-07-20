@@ -317,7 +317,7 @@ poke_event :: Ptr Event -> Event -> IO ()
 poke_event eventp (Event start dur text (Style.StyleId style_id) _) = do
     -- Must be freed by the caller, EventTrack::draw_area.
     textp <- if Text.null text
-        then return nullPtr else CUtil.textToCString0 text
+        then return nullPtr else CUtil.newCString0 text
     (#poke Event, start) eventp start
     (#poke Event, duration) eventp dur
     (#poke Event, text) eventp textp

@@ -38,7 +38,8 @@ const char *
 Keycaps::highlighted() const
 {
     if (0 <= highlight_index && highlight_index < bindings.size()) {
-        return bindings[highlight_index]->doc;
+        const char *t = bindings[highlight_index]->doc;
+        return t ? t : "";
     }
     return nullptr;
 }
@@ -86,16 +87,17 @@ Keycaps::draw()
     }
     fl_font(Config::font, Config::font_size::keycaps_label);
     for (int i = 0; i < layout->labels_len; i++) {
-        const char t[] = {layout->labels_chars[i], '\0'};
         const IPoint &p = layout->labels_points[i];
         fl_color(layout->label_color.fl());
-        fl_draw(t, p.x, p.y);
+        if (layout->labels_texts[i])
+            fl_draw(layout->labels_texts[i], p.x, p.y);
     }
     // draw bindings
     fl_color(layout->binding_color.fl());
     fl_font(Config::font, Config::font_size::keycaps_binding);
     for (const Binding *binding : bindings) {
-        fl_draw(binding->text, binding->point.x, binding->point.y);
+        if (binding->text)
+            fl_draw(binding->text, binding->point.x, binding->point.y);
     }
 }
 

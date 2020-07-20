@@ -76,9 +76,9 @@ namespace font_size {
         skeleton_title = 10,
 
         // Keycap char for Keycaps.
-        keycaps_label = 12,
+        keycaps_label = 9,
         // Binding text for Keycaps.
-        keycaps_binding = 14
+        keycaps_binding = 12
     };
 };
 

@@ -250,19 +250,16 @@ floating_input state (Cmd.FloatingInsert text) =
 -- ** keycaps
 
 create_keycaps :: Fltk.Channel -> (Int, Int) -> KeycapsT.Layout -> IO ()
-create_keycaps ui_chan pos layout = do
-    destroy_keycaps ui_chan
-    Fltk.send_action ui_chan "create_keycaps" $ do
-        win <- KeycapsC.create pos layout
-        Fltk.fltk $ PtrMap.set_keycaps $ Just win
+create_keycaps ui_chan pos layout =
+    Fltk.send_action ui_chan "create_keycaps" $ KeycapsC.create pos layout
 
 destroy_keycaps :: Fltk.Channel -> IO ()
-destroy_keycaps ui_chan = whenJustM PtrMap.lookup_keycaps $
-    Fltk.send_action ui_chan "destroy_keycaps" . KeycapsC.destroy
+destroy_keycaps ui_chan =
+    Fltk.send_action ui_chan "destroy_keycaps" KeycapsC.destroy
 
 update_keycaps :: Fltk.Channel -> KeycapsT.Bindings -> IO ()
-update_keycaps ui_chan bindings = whenJustM PtrMap.lookup_keycaps $ \win ->
-    Fltk.send_action ui_chan "update_keycaps" $ KeycapsC.update win bindings
+update_keycaps ui_chan bindings =
+    Fltk.send_action ui_chan "update_keycaps" $ KeycapsC.update bindings
 
 -- * run_update
 

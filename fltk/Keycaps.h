@@ -23,20 +23,22 @@ public:
         Color bg_color;
         Color keycap_color; // Base keycap color.
         Color highlight_color; // Change keycap color on mouse over.
-        Color label_color; // Color of labels_chars.
+        Color label_color; // Color of labels_texts.
         Color binding_color; // Color of Binding::text.
 
         IRect *rects;
         int rects_len;
 
         IPoint *labels_points;
-        char *labels_chars;
+        const char **labels_texts;
         int labels_len;
 
         ~Layout() {
             free((void *) rects);
             free((void *) labels_points);
-            free((void *) labels_chars);
+            for (int i = 0; i < labels_len; i++)
+                free((void *) labels_texts[i]);
+            free((void *) labels_texts);
         };
     };
     struct Binding {

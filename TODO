@@ -4739,11 +4739,6 @@ fltk:
       the bottom.
     . I want to change them when modifiers are held, for that I need
       a record_keys hook that sets bindings as appropriate.
-    things to display:
-      . global cmds for keymap: toggle chord, toggle advance
-      . track cmds: add ^, add -
-      . pitch when in kbd entry: 4c#
-      . drum when in kbd entry: k t od
     * fltk implementation
       . Do I need a gutter with additional docs?
       . Probably, I can only fit a few characters in the keycap.
@@ -4774,6 +4769,8 @@ fltk:
       . I get MsgCollect::event_handler(FL_DRAG), which it isn't expecting.
       . It's from Fl::add_handler, because Keycaps::handle rejects FL_DRAG.
       . Except I always get it, so just eat it in KeycapsWindow::handle.
+    * I need a string, not char, for the labels.
+    - I'll probably want per-key color
     - don't accept mouse focus
       . I can reject FL_ENTER, but then I don't get FL_MOVE.
       . Maybe I can forward FL_MOVE from BlockWindow::handle.
@@ -4797,11 +4794,15 @@ fltk:
         . Is there a way to reuse shared_ptr / weak_ptr for this?
         . Or do the same thing as BlockWindow, which is emit an event when it
           gets closed.
-    - higher level Ui.Keycaps to put compose layout
+    + higher level Ui.Keycaps to compose layout
       . add a cmd to reload the keycaps window using offsets from a file
       . Or maybe just in the LKeycaps!
-    - Cmd support to set write keycaps config.
-    - KeycapsWindow goes in Cmd.State
+    - Cmd support to write keycaps config.
+      Use different colors for different modes:
+        . global cmds for keymap: toggle chord, toggle advance
+        . track cmds: add ^, add -
+        . pitch when in kbd entry: 4c#
+        . drum when in kbd entry: k t od
   - Floating input in the wrong place for negative events with multiple lines.
     . Because it assumes the text goes downwards.
     . Since haskell doesn't know how the text is wrapped, it can't know where

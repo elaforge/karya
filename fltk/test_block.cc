@@ -415,11 +415,11 @@ keycaps_layout()
 
     a.labels_len = 2;
     a.labels_points = (IPoint *) calloc(a.labels_len, sizeof(IPoint));
-    a.labels_chars = (char *) calloc(a.labels_len, sizeof(char));
+    a.labels_texts = (const char **) calloc(a.labels_len, sizeof(char *));
     a.labels_points[0] = IPoint(15, 20);
-    a.labels_chars[0] = 'q';
+    a.labels_texts[0] = strdup("q");
     a.labels_points[1] = IPoint(45, 20);
-    a.labels_chars[1] = 'w';
+    a.labels_texts[1] = strdup("w");
 
     return layout;
 }

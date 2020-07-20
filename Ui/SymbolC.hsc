@@ -80,7 +80,7 @@ instance Storable GlyphC where
     alignment _ = alignment (0 :: CDouble)
     peek = error "GlyphC peek"
     poke glyphp (GlyphC text font size align_x align_y rotate) = do
-        encoded <- CUtil.textToCString0 text
+        encoded <- CUtil.newCString0 text
         (#poke SymbolTable::Glyph, utf8) glyphp encoded
         (#poke SymbolTable::Glyph, font) glyphp font
         (#poke SymbolTable::Glyph, size) glyphp (CUtil.c_int size)

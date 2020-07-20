@@ -5,19 +5,27 @@
 {-# LANGUAGE NamedFieldPuns #-}
 -- | Low level fltk binding for drawing the keycaps.
 module Ui.KeycapsC (create, destroy, update) where
+import qualified Data.Map as Map
 import qualified Util.CUtil as CUtil
+import qualified Util.Rect as Rect
 import qualified Ui.Fltk as Fltk
+import qualified Ui.PtrMap as PtrMap
 
+import           Global
 import           ForeignC
 import           Ui.KeycapsT
 
 #include "Ui/c_interface.h"
 
 
-create :: (Int, Int) -> Layout -> Fltk.Fltk (Ptr CWindow)
+-- | The PtrMap only has room for a single keycaps window, so will destroy
+-- any existing window.
+create :: (Int, Int) -> Layout -> Fltk.Fltk ()
 create (x, y) layout = Fltk.fltk $ do
+    destroy_
     layoutp <- CUtil.new layout -- The widget will take ownership.
-    c_create (i x) (i y) (i w) (i h) layoutp
+    win <- c_create (i x) (i y) (i w) (i h) layoutp
+    PtrMap.set_keycaps $ Just win
     where
     (w, h) = lt_size layout
     i = CUtil.c_int
@@ -27,15 +35,21 @@ create (x, y) layout = Fltk.fltk $ do
 foreign import ccall "keycaps_create"
     c_create :: CInt -> CInt -> CInt -> CInt -> Ptr Layout -> IO (Ptr CWindow)
 
-destroy :: Ptr CWindow -> Fltk.Fltk ()
-destroy = Fltk.fltk . c_destroy
+destroy :: Fltk.Fltk ()
+destroy = Fltk.fltk destroy_
+
+destroy_ :: IO ()
+destroy_ = whenJustM PtrMap.lookup_keycaps $ \win -> do
+    c_destroy win
+    PtrMap.set_keycaps Nothing
 
 foreign import ccall "keycaps_destroy" c_destroy :: Ptr CWindow -> IO ()
 
-update :: Ptr CWindow -> Bindings -> Fltk.Fltk ()
-update winp (Bindings bindings) = Fltk.fltk $
-    withArrayLen bindings $ \bindings_len bindingsp ->
-        c_update winp bindingsp (CUtil.c_int bindings_len)
+update :: Bindings -> Fltk.Fltk ()
+update (Bindings bindings) = Fltk.fltk $
+    whenJustM PtrMap.lookup_keycaps $ \win -> do
+        withArrayLen bindings $ \bindings_len bindingsp ->
+            c_update win bindingsp (CUtil.c_int bindings_len)
 
 -- void keycaps_update(
 --     KeycapsWindow *window, const Keycaps::Binding *bindings,
@@ -51,14 +65,14 @@ foreign import ccall "keycaps_update"
         Color bg_color;
         Color keycap_color; // Base keycap color.
         Color highlight_color; // Change keycap color on mouse over.
-        Color label_color; // Color of labels_chars.
+        Color label_color; // Color of labels_texts.
         Color binding_color; // Color of Binding::text.
 
         IRect *rects;
         int rects_len;
 
         IPoint *labels_points;
-        char *labels_chars;
+        const char **labels_texts;
         int labels_len;
     }
 -}
@@ -68,20 +82,28 @@ instance CStorable Layout where
     poke p (Layout
             { lt_bg_color, lt_keycap_color, lt_highlight_color
             , lt_label_color, lt_binding_color
-            , lt_rects, lt_labels
+            , lt_labels
             }) = do
+        let rects = Map.elems lt_labels
+            labels = Map.keys lt_labels
+            points =
+                [ (x + fst label_offset, y + snd label_offset)
+                | (x, y) <- map Rect.upper_left rects
+                ]
         (#poke Keycaps::Layout, bg_color) p lt_bg_color
         (#poke Keycaps::Layout, keycap_color) p lt_keycap_color
         (#poke Keycaps::Layout, highlight_color) p lt_highlight_color
         (#poke Keycaps::Layout, label_color) p lt_label_color
         (#poke Keycaps::Layout, binding_color) p lt_binding_color
-        (#poke Keycaps::Layout, rects) p =<< newArray lt_rects
-        (#poke Keycaps::Layout, rects_len) p (CUtil.c_int (length lt_rects))
-        let (points, chars) = unzip lt_labels
+        (#poke Keycaps::Layout, rects) p =<< newArray rects
+        (#poke Keycaps::Layout, rects_len) p $ CUtil.c_int (Map.size lt_labels)
+        labelps <- mapM CUtil.newCStringNull0 labels
         (#poke Keycaps::Layout, labels_points) p =<< newArray points
-        (#poke Keycaps::Layout, labels_chars) p
-            =<< newArray (map CUtil.c_char chars)
-        (#poke Keycaps::Layout, labels_len) p (CUtil.c_int (length lt_labels))
+        (#poke Keycaps::Layout, labels_texts) p =<< newArray labelps
+        (#poke Keycaps::Layout, labels_len) p $ CUtil.c_int (length lt_labels)
+
+label_offset :: (Int, Int)
+label_offset = (1, 8)
 
 {-
     struct Binding {
@@ -97,5 +119,5 @@ instance CStorable Binding where
     alignment _ = alignment nullPtr
     poke p (Binding { b_point, b_text, b_doc }) = do
         (#poke Keycaps::Binding, point) p b_point
-        (#poke Keycaps::Binding, text) p =<< CUtil.textToCString0 b_text
-        (#poke Keycaps::Binding, doc) p =<< CUtil.textToCString0 b_doc
+        (#poke Keycaps::Binding, text) p =<< CUtil.newCStringNull0 b_text
+        (#poke Keycaps::Binding, doc) p =<< CUtil.newCStringNull0 b_doc

@@ -18,8 +18,7 @@ data Layout = Layout {
     , lt_highlight_color :: Color.Color
     , lt_label_color :: Color.Color
     , lt_binding_color :: Color.Color
-    , lt_rects :: [Rect.Rect]
-    , lt_labels :: [(Rect.Point, Char)]
+    , lt_labels :: Map Text Rect.Rect
     } deriving (Show)
 
 newtype Bindings = Bindings [Binding]

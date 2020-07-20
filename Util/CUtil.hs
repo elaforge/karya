@@ -22,6 +22,7 @@ import qualified ForeignC
 import qualified Util.Num as Num
 
 import           Foreign.C
+import           Global
 
 
 -- * convert
@@ -69,18 +70,25 @@ bytesToCString0 bs = Unsafe.unsafeUseAsCStringLen bs $ \(str, len) -> do
 --
 -- This copies the string twice, but I think I'd need a encodeUtf8 that can
 -- write directly to a pointer to solve that.
-textToCString0 :: Text.Text -> IO CString
-textToCString0 = bytesToCString0 . Encoding.encodeUtf8
+newCString0 :: Text -> IO CString
+newCString0 = bytesToCString0 . Encoding.encodeUtf8
 
-peekCString :: CString -> IO Text.Text
+-- | Like 'newCString0', but optimize "" to nullptr.  The C++ side has to
+-- be prepared for this.
+newCStringNull0 :: Text -> IO CString
+newCStringNull0 t
+    | Text.null t = return Foreign.nullPtr
+    | otherwise = newCString0 t
+
+peekCString :: CString -> IO Text
 peekCString cstr
     | cstr == Foreign.nullPtr = return Text.empty
     | otherwise = fmap decodeUtf8 $ ByteString.packCString cstr
 
-withText :: Text.Text -> (CString -> IO a) -> IO a
+withText :: Text -> (CString -> IO a) -> IO a
 withText = ByteString.useAsCString . Encoding.encodeUtf8
 
-decodeUtf8 :: ByteString.ByteString -> Text.Text
+decodeUtf8 :: ByteString.ByteString -> Text
 decodeUtf8 = Encoding.decodeUtf8With Encoding.Error.lenientDecode
 
 -- * ForeignPtr
