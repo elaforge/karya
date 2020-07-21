@@ -78,13 +78,13 @@ time_section title op = do
     Printf.printf "%.2f\n" (realToFrac (Thread.metricCpu metric) :: Double)
     return val
 
-eval_derivation :: Derive.Cache -> Ui.State -> Ui.State
-    -> [Update.CmdUpdate] -> IO Derive.Result
+eval_derivation :: Derive.Cache -> Ui.State -> Ui.State -> Update.UiDamage
+    -> IO Derive.Result
 eval_derivation cache state1 state2 ui_damage = do
     Thread.force $ Derive.r_events result
     return result
     where
     (ui_updates, _) = Diff.diff ui_damage state1 state2
-    damage = Diff.derive_diff state1 state2 ui_updates
+    damage = Diff.derive_diff state1 state2 ui_damage ui_updates
     result = DeriveTest.derive_block_standard mempty
         DeriveTest.default_cmd_state cache damage state2 (UiTest.bid "b1")
