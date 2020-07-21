@@ -4797,7 +4797,8 @@ fltk:
       . Is there a way to reuse shared_ptr / weak_ptr for this?
       . Or do the same thing as BlockWindow, which is emit an event when it
         gets closed.
-    - I should close the keycaps window when all others are closed.
+    / I should close the keycaps window when all others are closed.
+      . This is unnecessary for seq, because I quit explicitly.
     * higher level Ui.Keycaps to compose layout
       . add a cmd to reload the keycaps window using offsets from a file
       . Or maybe just in the LKeycaps!
@@ -4824,7 +4825,7 @@ fltk:
       . drum when in kbd entry: k t od
         . This is instrument cmds.
         . Can't be introspected?
-    - change config for held modifiers
+    * change config for held modifiers
   - Floating input in the wrong place for negative events with multiple lines.
     . Because it assumes the text goes downwards.
     . Since haskell doesn't know how the text is wrapped, it can't know where

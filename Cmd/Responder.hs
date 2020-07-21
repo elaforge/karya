@@ -57,6 +57,7 @@ import qualified Cmd.ResponderSync as ResponderSync
 import qualified Cmd.Ruler.Meter as Meter
 import qualified Cmd.Save as Save
 import qualified Cmd.SaveGit as SaveGit
+import qualified Cmd.SyncKeycaps as SyncKeycaps
 import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.Track as Track
 import qualified Cmd.Undo as Undo
@@ -246,6 +247,8 @@ data RState = RState {
     , rstate_ui_from :: !Ui.State
     -- | Post rollback UI state, and diff to this state.
     , rstate_ui_to :: !Ui.State
+    -- | Cmd.state_keys_down from before record_keys.
+    , rstate_cmd_pre_keys :: !(Map Cmd.Modifier Cmd.Modifier)
     , rstate_cmd_from :: !Cmd.State
     , rstate_cmd_to :: !Cmd.State
     -- | Collect updates from each cmd.
@@ -257,6 +260,7 @@ make_rstate state = RState
     { rstate_state = state
     , rstate_ui_from = state_ui state
     , rstate_ui_to = state_ui state
+    , rstate_cmd_pre_keys = Cmd.state_keys_down $ state_cmd state
     , rstate_cmd_from = state_cmd state
     , rstate_cmd_to = state_cmd state
     , rstate_ui_damage = mempty
@@ -294,7 +298,7 @@ save_damage damage = Monad.State.modify $ \st ->
 -}
 run_responder :: State -> ResponderM Result -> IO (Bool, State)
 run_responder state action = do
-    (val, RState _ ui_from ui_to cmd_from cmd_to ui_damage)
+    (val, RState _ ui_from ui_to _pre_keys cmd_from cmd_to ui_damage)
         <- Monad.State.runStateT action (make_rstate state)
     case val of
         Left err -> do
@@ -392,13 +396,22 @@ respond state msg = run_responder state $ do
 -- * keycaps
 
 sync_keycaps :: Fltk.Channel -> Cmd.State -> IO Cmd.State
-sync_keycaps ui_chan cmd_to = case Cmd.state_keycaps cmd_to of
+sync_keycaps ui_chan cmd_to = case Cmd.state_keycaps_update cmd_to of
     Nothing -> return cmd_to
-    Just (Cmd.KeycapsUpdate mb_layout bindings) -> do
-        whenJust mb_layout $ \(pos, layout) ->
-            Sync.create_keycaps ui_chan pos layout
+    Just (Cmd.KeycapsUpdate mb_window bindings) -> do
+        layout <- case mb_window of
+            Nothing -> return $ Cmd.state_keycaps cmd_to
+            Just (Cmd.KeycapsOpen pos layout) -> do
+                Sync.create_keycaps ui_chan pos layout
+                return $ Just layout
+            Just Cmd.KeycapsClose -> do
+                Sync.destroy_keycaps ui_chan
+                return Nothing
         Sync.update_keycaps ui_chan bindings
-        return $ cmd_to { Cmd.state_keycaps = Nothing }
+        return $ cmd_to
+            { Cmd.state_keycaps = layout
+            , Cmd.state_keycaps_update = Nothing
+            }
 
 -- ** special cmds
 
@@ -439,7 +452,8 @@ record_ui_updates msg = do
 run_sync_status :: ResponderM ()
 run_sync_status = do
     rstate <- Monad.State.get
-    result <- run_continue False "sync_status" $ Left $
+    result <- run_continue False "sync_status" $ Left $ do
+        SyncKeycaps.update (rstate_cmd_pre_keys rstate)
         Internal.sync_status (rstate_ui_from rstate) (rstate_cmd_from rstate)
             (rstate_ui_damage rstate)
     whenJust result $ \(_, ui_state, cmd_state) -> Monad.State.modify $ \st ->
