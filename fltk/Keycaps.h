@@ -64,6 +64,7 @@ public:
     void set_bindings(const std::vector<Binding *> &bindings);
     const char *highlighted() const;
     int handle(int evt) override;
+    void handle_point(const IPoint pos);
 protected:
     void draw() override;
 private:
@@ -79,10 +80,9 @@ class KeycapsWindow : public Fl_Double_Window {
 public:
     KeycapsWindow(int x, int y, int w, int h, const char *title,
         const Keycaps::Layout *layout);
-    void set_bindings(const std::vector<Keycaps::Binding *> &bindings) {
-        keycaps.set_bindings(bindings);
-    }
+    void set_bindings(const std::vector<Keycaps::Binding *> &bindings);
     int handle(int evt) override;
+    void handle_point(const IPoint pos) { keycaps.handle_point(pos); }
 private:
     static void keycaps_cb(Fl_Widget *w, void *vp);
 

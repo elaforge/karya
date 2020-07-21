@@ -51,23 +51,28 @@ Keycaps::handle(int evt)
     switch (evt) {
     case FL_ENTER:
         return true; // I want FL_MOVE.
-    case FL_MOVE: {
-        IPoint p(Fl::event_x(), Fl::event_y());
-        for (int i = 0; i < layout->rects_len; i++) {
-            const IRect &rect = layout->rects[i];
-            if (rect.contains(p)) {
-                if (highlight_index != i) {
-                    highlight_index = i;
-                    redraw();
-                    do_callback();
-                }
-                break;
-            }
-        }
+    case FL_MOVE:
+        handle_point(f_util::mouse_pos());
         return true;
-    }
     default:
         return false;
+    }
+}
+
+
+void
+Keycaps::handle_point(const IPoint pos)
+{
+    for (int i = 0; i < layout->rects_len; i++) {
+        const IRect &rect = layout->rects[i];
+        if (rect.contains(pos)) {
+            if (highlight_index != i) {
+                highlight_index = i;
+                redraw();
+                do_callback();
+            }
+            break;
+        }
     }
 }
 
@@ -130,6 +135,14 @@ KeycapsWindow::keycaps_cb(Fl_Widget *w, void *vp)
 }
 
 
+void
+KeycapsWindow::set_bindings(const std::vector<Keycaps::Binding *> &bindings)
+{
+    keycaps.set_bindings(bindings);
+    doc.value(keycaps.highlighted());
+}
+
+
 int
 KeycapsWindow::handle(int evt)
 {
@@ -144,13 +157,12 @@ KeycapsWindow::handle(int evt)
     case FL_MOVE:
         return Fl_Double_Window::handle(evt);
     case FL_PUSH:
-        mouse_down = IPoint(Fl::event_x_root(), Fl::event_y_root());
+        mouse_down = f_util::root_mouse_pos();
         root = IPoint(x_root(), y_root());
         return true;
     case FL_DRAG: {
         // Move the whole window when dragged anywhere inside it.
-        IPoint delta(
-            IPoint(Fl::event_x_root(), Fl::event_y_root()) - mouse_down);
+        IPoint delta = f_util::root_mouse_pos() - mouse_down;
         this->position(root.x + delta.x, root.y + delta.y);
         return true;
     }

@@ -8,6 +8,7 @@
 #include "EventTrack.h"
 #include "MsgCollector.h"
 #include "RulerTrack.h"
+#include "Keycaps.h"
 #include "Track.h"
 #include "f_util.h"
 #include "utf8.h"
@@ -902,27 +903,53 @@ check_focus(int evt)
 static void check_focus(int) {}
 #endif
 
+
+// Dispatch FL_MOVE to any KeycapsWindow, so it can highlight without mouse
+// focus.
+static void
+dispatch_to_keycaps(IPoint mouse)
+{
+    for (Fl_Window *w = Fl::first_window(); w; w = Fl::next_window(w)) {
+        KeycapsWindow *keys = dynamic_cast<KeycapsWindow *>(w);
+        if (keys && f_util::rect(keys).contains(mouse)) {
+            IPoint pos = mouse - IPoint(keys->x(), keys->y());
+            keys->handle_point(pos);
+        }
+    }
+}
+
+
 int
 BlockWindow::handle(int evt)
 {
     check_focus(evt);
-    if (evt == FL_SHOW) {
+
+    switch (evt) {
+    case FL_SHOW:
         // Send an initial resize to inform the haskell layer about dimensions.
         MsgCollector::get()->view(UiMsg::msg_resize, this);
-    } else if (evt == FL_FOCUS) {
+        break;
+    case FL_FOCUS:
         highlight_focused(this);
         // This is sent *before* the widget becomes Fl::focus().
         MsgCollector::get()->focus(this);
         return true;
-    }
-    if (this->testing && evt == FL_KEYDOWN && Fl::event_key() == FL_Escape) {
-        // This is kind of dumb, but I'm used to using this to quit test_block.
-        this->hide();
-    }
-    if (evt == FL_KEYDOWN || evt == FL_KEYUP) {
+    case FL_KEYDOWN:
+    case FL_KEYUP:
+        if (this->testing && Fl::event_key() == FL_Escape) {
+            // This is kind of dumb, but I'm used to using this to quit
+            // test_block.
+            this->hide();
+        }
         // The fact I got it means I have focus.
         MsgCollector::get()->event(evt);
         return true;
+    case FL_MOVE: {
+        IPoint pos = f_util::root_mouse_pos();
+        if (!f_util::rect(this).contains(pos))
+            dispatch_to_keycaps(pos);
+        break;
+        }
     }
 
     bool accepted = false;

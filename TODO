@@ -4771,6 +4771,8 @@ fltk:
       . Except I always get it, so just eat it in KeycapsWindow::handle.
     * I need a string, not char, for the labels.
     - I'll probably want per-key color
+      . That means bindings need colors.  Use the index to figure out rect.
+    - highlight pressed key?
     - don't accept mouse focus
       . I can reject FL_ENTER, but then I don't get FL_MOVE.
       . Maybe I can forward FL_MOVE from BlockWindow::handle.
@@ -4781,28 +4783,47 @@ fltk:
       . If I reject in the widget, then I don't get FL_DRAG.
       . But I remember when I tweaked the OS X level window create flags,
         I could get a window that didn't take focus.
-    remove the border:
+      . That works, but is there any way to refuse mouse focus for the window?
+    * highlight even when I don't have focus
+    * remove the border:
       . border(false) removes the border, but now there's no way to move it.
       . I can make it all draggable by having handle() move on drag.
-      - I should close the keycaps window when all others are closed.
-      - With no kbd focus and no border I still want a GUI way to close it
-        . I guess I can put a red X inside or something.
-        . But then Cmd.Responder needs to check if it got deleted, and remove
-          PtrMap._keycaps in that case!
-        . But there's no way to tell if a pointer is valid, I'd need it to
-          point to intermediate storage which delete can set to null.
-        . Is there a way to reuse shared_ptr / weak_ptr for this?
-        . Or do the same thing as BlockWindow, which is emit an event when it
-          gets closed.
+    - With no kbd focus and no border I still want a GUI way to close it
+      . I guess I can put a red X inside or something.
+      . But then Cmd.Responder needs to check if it got deleted, and remove
+        PtrMap._keycaps in that case!
+      . But there's no way to tell if a pointer is valid, I'd need it to
+        point to intermediate storage which delete can set to null.
+      . Is there a way to reuse shared_ptr / weak_ptr for this?
+      . Or do the same thing as BlockWindow, which is emit an event when it
+        gets closed.
+    - I should close the keycaps window when all others are closed.
     * higher level Ui.Keycaps to compose layout
       . add a cmd to reload the keycaps window using offsets from a file
       . Or maybe just in the LKeycaps!
-    + Cmd support to write keycaps config.
-      Use different colors for different modes:
-        . global cmds for keymap: toggle chord, toggle advance
-        . track cmds: add ^, add -
-        . pitch when in kbd entry: 4c#
-        . drum when in kbd entry: k t od
+    - get active key bindings
+      . I'll need to make cmds introspectable for this.  So instead of
+        Keymap.make_cmd, a Cmd will need to be a data type that has either
+        a Keymap.CmdMap, or (doc, function).
+      . Then go through the list:
+        GlobalKeymap.pure_cmds, GlobalKeymap.io_cmds, Track.track_cmd
+      . Track.track_cmd actually calls Track.get_track_cmds
+      Or a less principled way:
+        . Get global as per now.  Do a special Track.track_cmds to figure out
+          which keymaps apply.  Ask for current scale and get pitches.
+        . I'll still need a way to introspect into instrument cmds.
+      How to get pitches?
+        . KbdEntry works by inspecting Msg, emitting an InputNote, which is
+          then transformed via scale or whatever.
+        . Maybe short circuit it all by asking LPerf for the current scale?
+    Use different colors for different modes:
+      . global cmds for keymap: toggle chord, toggle advance
+      . track cmds: add ^, add -
+        . NoteTrackKeymap.make_keymap
+      . pitch when in kbd entry: 4c#
+      . drum when in kbd entry: k t od
+        . This is instrument cmds.
+        . Can't be introspected?
     - change config for held modifiers
   - Floating input in the wrong place for negative events with multiple lines.
     . Because it assumes the text goes downwards.

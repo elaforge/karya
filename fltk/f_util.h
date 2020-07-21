@@ -31,6 +31,12 @@ mouse_pos()
     return IPoint(Fl::event_x(), Fl::event_y());
 }
 
+inline IPoint
+root_mouse_pos()
+{
+    return IPoint(Fl::event_x_root(), Fl::event_y_root());
+}
+
 
 // printing stuff for debugging
 
