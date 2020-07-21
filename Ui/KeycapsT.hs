@@ -18,8 +18,12 @@ data Layout = Layout {
     , lt_highlight_color :: Color.Color
     , lt_label_color :: Color.Color
     , lt_binding_color :: Color.Color
-    , lt_labels :: Map Text Rect.Rect
+    , lt_labels :: Map Keycap Rect.Rect
     } deriving (Show)
+
+type Keycap = Text
+type KeyDoc = Text
+type Doc = Text
 
 newtype Bindings = Bindings [Binding]
     deriving (Show)
@@ -27,9 +31,10 @@ newtype Bindings = Bindings [Binding]
 data Binding = Binding {
     b_point :: Rect.Point
     -- | Short text to draw.
-    , b_text :: Text
+    , b_text :: KeyDoc
     -- | Longer text that shows up in tooltip or the gutter on mouseover.
-    , b_doc :: Text
+    , b_doc :: Doc
+    , b_color :: Maybe Color.Color
     } deriving (Show)
 
 -- | Phantom type for ptr to the window object.

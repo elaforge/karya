@@ -47,9 +47,11 @@ public:
         const char *text;
         // A longer description for the binding, utf8 encoded.
         const char *doc;
+        // Replace Layout::keycap_color if != Color::black.
+        Color color;
 
-        Binding(IPoint point, const char *text, const char *doc) :
-            point(point), text(text), doc(doc)
+        Binding(IPoint point, const char *text, const char *doc, Color c) :
+            point(point), text(text), doc(doc), color(c)
         {}
         ~Binding() {
             free((void *) text);

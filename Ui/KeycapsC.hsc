@@ -8,6 +8,8 @@ module Ui.KeycapsC (create, destroy, update) where
 import qualified Data.Map as Map
 import qualified Util.CUtil as CUtil
 import qualified Util.Rect as Rect
+
+import qualified Ui.Color as Color
 import qualified Ui.Fltk as Fltk
 import qualified Ui.PtrMap as PtrMap
 
@@ -112,12 +114,15 @@ label_offset = (1, 8)
         const char *text;
         // A longer description for the binding, utf8 encoded.
         const char *doc;
+        // Replace Layout::keycap_color if != Color::black.
+        Color color;
     }
 -}
 instance CStorable Binding where
     sizeOf _ = #size Keycaps::Binding
     alignment _ = alignment nullPtr
-    poke p (Binding { b_point, b_text, b_doc }) = do
+    poke p (Binding { b_point, b_text, b_doc, b_color }) = do
         (#poke Keycaps::Binding, point) p b_point
         (#poke Keycaps::Binding, text) p =<< CUtil.newCStringNull0 b_text
         (#poke Keycaps::Binding, doc) p =<< CUtil.newCStringNull0 b_doc
+        (#poke Keycaps::Binding, color) p $ fromMaybe Color.black b_color

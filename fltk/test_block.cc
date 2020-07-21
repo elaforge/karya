@@ -431,12 +431,14 @@ keycaps_bindings()
     bs.push_back(new Keycaps::Binding(
         IPoint(20, 25),
         strdup("4c"),
-        strdup("pitch 4c")
+        strdup("pitch 4c"),
+        Color::black
     ));
     bs.push_back(new Keycaps::Binding(
         IPoint(50, 25),
         strdup("4d"),
-        strdup("pitch 4d")
+        strdup("pitch 4d"),
+        Color(0xff, 0xa0, 0xa0)
     ));
     return bs;
 }

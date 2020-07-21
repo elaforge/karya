@@ -4770,7 +4770,7 @@ fltk:
       . It's from Fl::add_handler, because Keycaps::handle rejects FL_DRAG.
       . Except I always get it, so just eat it in KeycapsWindow::handle.
     * I need a string, not char, for the labels.
-    - I'll probably want per-key color
+    * I'll probably want per-key color
       . That means bindings need colors.  Use the index to figure out rect.
     - highlight pressed key?
     - don't accept mouse focus

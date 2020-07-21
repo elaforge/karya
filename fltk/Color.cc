@@ -5,8 +5,8 @@
 #include "Color.h"
 
 
-const Color Color::black = Color(0, 0, 0, 0);
-const Color Color::white = Color(255, 255, 255, 0);
+const Color Color::black = Color(0, 0, 0);
+const Color Color::white = Color(255, 255, 255);
 
 // 0-1 scales to black, 1-2 scales to white.
 Color

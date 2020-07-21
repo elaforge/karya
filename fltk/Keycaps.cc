@@ -85,8 +85,12 @@ Keycaps::draw()
 
     // draw layout
     for (int i = 0; i < layout->rects_len; i++) {
-        fl_color(i == highlight_index
-            ? layout->highlight_color.fl() : layout->keycap_color.fl());
+        if (i == highlight_index)
+            fl_color(layout->highlight_color.fl());
+        else if (i < bindings.size() && bindings[i]->color != Color::black)
+            fl_color(bindings[i]->color.fl());
+        else
+            fl_color(layout->keycap_color.fl());
         const IRect &rect = layout->rects[i];
         fl_rectf(rect.x, rect.y, rect.w, rect.h);
     }

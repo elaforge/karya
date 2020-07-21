@@ -12,7 +12,7 @@ struct Color {
     Color(unsigned char r, unsigned char g, unsigned char b,
             unsigned char a=0xff)
         : r(r), g(g), b(b), a(a) {}
-    explicit Color() : r(0), g(0), b(0), a(0) {}
+    explicit Color() : r(0), g(0), b(0), a(0xff) {}
     static Color from_doubles(double r, double g, double b, double a) {
         return Color(util::clamp(0.0, 255.0, r), util::clamp(0.0, 255.0, g),
             util::clamp(0.0, 255.0, b), util::clamp(0.0, 255.0, a));
