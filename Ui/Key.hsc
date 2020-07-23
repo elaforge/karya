@@ -4,7 +4,7 @@
 
 module Ui.Key (
     Key(..), Modifier(..)
-    , to_label, to_mac_label
+    , to_label, to_mac_label, show_mac_mod
     , decode_key, decode_modifiers
 ) where
 import Prelude hiding (Char, Left, Right)
@@ -69,6 +69,12 @@ to_mac_label = \case
     MetaR -> "cmdr"
     Backspace -> "del"
     key -> to_label key
+
+show_mac_mod :: Modifier -> Text
+show_mac_mod = \case
+    Alt -> "opt"
+    Meta -> "cmd"
+    mod -> txt $ map Char.toLower $ show mod
 
 decode_key :: CInt -> Key
 decode_key code

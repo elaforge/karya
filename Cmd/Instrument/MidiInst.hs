@@ -101,7 +101,7 @@ make_code (Code library postproc cmds thru) =
     Cmd.InstrumentCode
         { inst_calls = compile_library library
         , inst_postproc = postproc
-        , inst_cmds = cmds
+        , inst_cmds = map (Cmd.handler "TODO") cmds
         , inst_thru = thru
         }
 

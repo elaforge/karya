@@ -83,26 +83,25 @@ import           Global
 
 -- | Cmds that don't use IO.  Exported from the module for the responder.
 pure_cmds :: [Msg.Msg -> Cmd.CmdId Cmd.Status]
-pure_cmds = [Keymap.make_cmd (fst (Keymap.make_cmd_map pure_bindings))]
+pure_cmds = [Keymap.make_cmd (fst (Keymap.make_keymap pure_bindings))]
 
 -- | Cmds that use IO.  This should be a limited to the small set of cmds that
 -- need it.
 io_cmds :: [Msg.Msg -> Cmd.CmdT IO Cmd.Status]
-io_cmds = [Keymap.make_cmd (fst (Keymap.make_cmd_map io_bindings))]
+io_cmds = [Keymap.make_cmd (fst (Keymap.make_keymap io_bindings))]
 
 -- | This is not useful for execution since the cmds themselves have been
 -- stripped of their code, but it's still useful to find keymap collisions and
 -- print a global keymap.  They're stripped to make them all the same type, so
--- they can all go into the same CmdMap, so collision detection and
+-- they can all go into the same Keymap, so collision detection and
 -- documentation doesn't have to care about 'pure_cmds' vs 'io_cmds'.
-all_cmd_map :: Keymap.CmdMap (Cmd.CmdT Identity.Identity)
+all_cmd_map :: Cmd.Keymap Cmd.CmdId
 cmd_map_errors :: [Text]
 (all_cmd_map, cmd_map_errors) =
-    -- Pure cmds bind before IO cmds since they are extendable.
-    Keymap.make_cmd_map (pure_bindings ++ map strip io_bindings)
+    Keymap.make_keymap (pure_bindings ++ map strip io_bindings)
     where
-    strip = second $ \(Keymap.CmdSpec name _) ->
-        Keymap.CmdSpec name (const (return Cmd.Done))
+    strip = second $ \(Cmd.CmdSpec name _) ->
+        Cmd.CmdSpec name (const (return Cmd.Done))
 
 -- * io cmds
 
@@ -182,39 +181,39 @@ play_bindings = concat
 -- overlaps as easily for mouse bindings.
 mouse_bindings :: Cmd.M m => [Keymap.Binding m]
 mouse_bindings = concat
-    [ bind_drag [] btn Keymap.OnTrack "snap drag selection"
+    [ bind_drag [] btn Cmd.OnTrack "snap drag selection"
         (Selection.cmd_snap_selection btn False)
-    , bind_drag [Shift] btn Keymap.OnTrack "snap drag selection"
+    , bind_drag [Shift] btn Cmd.OnTrack "snap drag selection"
         (Selection.cmd_snap_selection btn True)
-    , bind_drag [PrimaryCommand] btn Keymap.OnTrack "drag selection"
+    , bind_drag [PrimaryCommand] btn Cmd.OnTrack "drag selection"
         (Selection.cmd_mouse_selection btn False)
-    , bind_drag [Shift, PrimaryCommand] btn Keymap.OnTrack "extend selection"
+    , bind_drag [Shift, PrimaryCommand] btn Cmd.OnTrack "extend selection"
         (Selection.cmd_mouse_selection btn True)
-    , Keymap.bind_release [] btn Keymap.OnTrack "mouse release"
+    , Keymap.bind_release [] btn Cmd.OnTrack "mouse release"
         (const Selection.record_history)
 
-    , bind_click [] btn Keymap.OnTrack 2 "open block"
+    , bind_click [] btn Cmd.OnTrack 2 "open block"
         (const (BlockConfig.cmd_open_block False))
-    , bind_click [PrimaryCommand] btn Keymap.OnTrack 2 "open block"
+    , bind_click [PrimaryCommand] btn Cmd.OnTrack 2 "open block"
         (const (BlockConfig.cmd_open_block True))
 
     -- TODO without a track_drag equivalent for skeleton clicks, this
     -- will interfere with the OnTrack bind_drag when you drag into the
     -- track.
-    , bind_drag [] btn Keymap.OnSkeleton "select track"
+    , bind_drag [] btn Cmd.OnSkeleton "select track"
         (Selection.cmd_select_track btn)
-    , bind_click [] btn Keymap.OnSkeleton 2 "add block title"
+    , bind_click [] btn Cmd.OnSkeleton 2 "add block title"
         BlockConfig.cmd_add_block_title
-    , bind_click [PrimaryCommand] btn Keymap.OnSkeleton 1
+    , bind_click [PrimaryCommand] btn Cmd.OnSkeleton 1
         "toggle skeleton edge" BlockConfig.cmd_toggle_edge
-    , bind_click [Shift] btn Keymap.OnSkeleton 1 "move tracks"
+    , bind_click [Shift] btn Cmd.OnSkeleton 1 "move tracks"
         BlockConfig.cmd_move_tracks
-    , bind_click [SecondaryCommand] btn Keymap.OnSkeleton 1 "toggle mute"
+    , bind_click [SecondaryCommand] btn Cmd.OnSkeleton 1 "toggle mute"
         BlockConfig.cmd_mute_or_unsolo
-    , bind_click [SecondaryCommand] btn Keymap.OnSkeleton 2 "toggle solo"
+    , bind_click [SecondaryCommand] btn Cmd.OnSkeleton 2 "toggle solo"
         BlockConfig.cmd_set_solo
 
-    , bind_click [Shift] btn Keymap.OnDivider 1 "expand collapsed"
+    , bind_click [Shift] btn Cmd.OnDivider 1 "expand collapsed"
         BlockConfig.cmd_expand_track
     ]
     where

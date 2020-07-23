@@ -10,7 +10,6 @@ module Cmd.Track (track_cmd, event_and_note_step) where
 import qualified Control.Monad.Except as Except
 
 import qualified Util.Log as Log
-import qualified Ui.Ui as Ui
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ControlTrack as ControlTrack
 import qualified Cmd.Edit as Edit
@@ -29,8 +28,10 @@ import qualified Cmd.TimeStep as TimeStep
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
-import Global
-import Types
+import qualified Ui.Ui as Ui
+
+import           Global
+import           Types
 
 
 track_cmd :: Msg.Msg -> Cmd.CmdId Cmd.Status
@@ -60,8 +61,11 @@ get_track_cmds = do
         maybe_track_id
     let icmds = case (track_title, maybe_resolved) of
             (Just title, Just resolved) | ParseTitle.is_note_track title ->
-                Cmd.inst_cmds $ Common.common_code $ Inst.inst_common $
-                    Cmd.inst_instrument resolved
+                map get $ Cmd.inst_cmds $ Common.common_code $
+                    Inst.inst_common $ Cmd.inst_instrument resolved
+                where
+                -- TODO until this is updated
+                get (Cmd.Handler (Cmd.CmdSpec _ cmd)) = cmd
             _ -> []
     edit_state <- Cmd.gets Cmd.state_edit
     let edit_mode = Cmd.state_edit_mode edit_state
@@ -141,10 +145,7 @@ track_cmds edit_mode track = case Info.track_type track of
 -- | Track-specific keymaps.
 keymap_cmds :: Cmd.M m => Info.Track -> m [Msg.Msg -> Cmd.CmdId Cmd.Status]
 keymap_cmds track = case Info.track_type track of
-    Info.Note {} -> do
-        let (cmd_map, warns) = NoteTrackKeymap.make_keymap
-        forM_ warns $ \warn -> Log.warn $ "NoteTrackKeymap: " <> warn
-        return [Keymap.make_cmd cmd_map]
+    Info.Note {} -> return [Keymap.make_cmd NoteTrackKeymap.keymap]
     _ -> return []
 
 

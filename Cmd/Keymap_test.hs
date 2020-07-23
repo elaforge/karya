@@ -20,15 +20,15 @@ import           Global
 import           Util.Test
 
 
-test_make_cmd_map = do
-    let (_, errors) = Keymap.make_cmd_map binds
+test_make_keymap = do
+    let (_, errors) = Keymap.make_keymap binds
     strings_like (map untxt errors) ["cmds overlap* [1: 1, 1: 12]"]
 
 test_make_cmd = do
-    let (cmd_map, _) = Keymap.make_cmd_map binds
+    let (cmd_map, _) = Keymap.make_keymap binds
     let cmd = Keymap.make_cmd cmd_map
     let no_run = []
-        did_run cname cmdlog = ["running command " <> showt cname, cmdlog]
+        did_run cname cmdlog = ["running command: " <> cname, cmdlog]
         aborted = Right (Nothing, [])
     let run mods msg = extract_logs (run_cmd cmd mods msg)
     let run_char mods char = run (map Cmd.KeyMod mods) (CmdTest.key_down char)
@@ -63,7 +63,7 @@ test_make_cmd = do
         (did_run "drag-3" "cmd1")
 
 test_key_repeat = do
-    let (cmd_map, _) = Keymap.make_cmd_map $ concat
+    let (cmd_map, _) = Keymap.make_keymap $ concat
             [ Keymap.plain_char '1' "1" cmd1
             , Keymap.bind_repeatable [] (Key.Char '2') "2" cmd2
             ]
@@ -72,10 +72,10 @@ test_key_repeat = do
             (CmdTest.make_key
                 (if repeat then UiMsg.KeyRepeat else UiMsg.KeyDown)
                 (Key.Char char))
-    equal (run False '1') ["running command \"1\"", "cmd1"]
+    equal (run False '1') ["running command: 1", "cmd1"]
     equal (run True '1') []
-    equal (run False '2') ["running command \"2\"", "cmd2"]
-    equal (run True '2') ["running command \"2\"", "cmd2"]
+    equal (run False '2') ["running command: 2", "cmd2"]
+    equal (run True '2') ["running command: 2", "cmd2"]
 
 
 extract_logs :: CmdTest.Result val -> [Text]
@@ -106,7 +106,7 @@ binds = concat
     , Keymap.bind_key [Keymap.PrimaryCommand] (Key.Char '1') "c-1" cmd1
     , Keymap.bind_key [Keymap.Shift, Keymap.PrimaryCommand] (Key.Char '1')
         "cs-1" cmd1
-    , Keymap.bind_click [Keymap.Mouse 1] 2 Keymap.OnTrack 1 "chord-12"
+    , Keymap.bind_click [Keymap.Mouse 1] 2 Cmd.OnTrack 1 "chord-12"
         (const cmd1)
-    , Keymap.bind_drag [] 3 Keymap.OnTrack "drag-3" (const cmd1)
+    , Keymap.bind_drag [] 3 Cmd.OnTrack "drag-3" (const cmd1)
     ]

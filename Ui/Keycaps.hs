@@ -68,18 +68,14 @@ make_layout labels = KeycapsT.Layout
     w = 5 + maximum (0 : map Rect.r (Map.elems labels))
     h = 5 + maximum (0 : map Rect.b (Map.elems labels))
 
-make_bindings :: KeycapsT.Layout -> Map Text (Text, Text) -> [KeycapsT.Binding]
-make_bindings layout label_to_doc =
-    map make (Map.toAscList (KeycapsT.lt_labels layout))
+resolve_bindings :: KeycapsT.Layout -> KeycapsT.Bindings -> KeycapsT.RawBindings
+resolve_bindings layout bindings =
+    KeycapsT.RawBindings $ map make $ Map.toAscList $ KeycapsT.lt_labels layout
     where
-    make (label, rect) = KeycapsT.Binding
-        { b_point = second (+offset) (Rect.upper_left rect)
-        , b_text = maybe "" fst doc
-        , b_doc = maybe "" snd doc
-        , b_color = Nothing
-        }
+    make (label, rect) =
+        KeycapsT.RawBinding (second (+offset) (Rect.upper_left rect)) $
+            Map.findWithDefault KeycapsT.no_binding label bindings
         where
-        doc = Map.lookup label label_to_doc
         offset
             | label `elem` map Key.to_mac_label arrows = 5
             | otherwise = 15

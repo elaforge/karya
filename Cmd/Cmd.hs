@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE ViewPatterns #-}
 {- | Core CmdT monad that cmds run in.
 
     A Cmd is what user actions turn into.  The main thing they do is edit
@@ -116,6 +117,142 @@ import qualified Ui.Update as Update
 import           Global
 import           Types
 
+
+-- * Handler
+
+-- | This is the toplevel object representing a cmd.  Fundamentally it's
+-- just Msg -> Status, but it's also wrapped up in some documentation,
+-- so cmds can be introspected.
+data Handler m = Keymap !(Keymap m) | Handler !(CmdSpec m)
+type HandlerId = Handler CmdId
+
+handler :: Text -> (Msg.Msg -> m Status) -> Handler m
+handler doc cmd = Handler (CmdSpec doc cmd)
+
+call :: M m => Handler m -> Msg.Msg -> m Status
+call handler msg = case handler of
+    Handler cspec -> run cspec
+    Keymap keymap -> do
+        bindable <- abort_unless (msg_to_bindable msg)
+        mods <- mods_down
+        maybe (return Continue) run $
+            Map.lookup (KeySpec mods bindable) keymap
+    where
+    run (CmdSpec n cmd) = do
+        Log.debug $ "running command: " <> n
+        name n (cmd msg)
+
+-- | Return the mods currently down, stripping out non-modifier keys and notes,
+-- so that overlapping keys will still match.  Mouse mods are not filtered, so
+-- each mouse chord can be bound individually.
+mods_down :: M m => m (Set Modifier)
+mods_down = Set.fromList <$> fmap (filter is_mod . Map.keys) keys_down
+    where
+    is_mod (KeyMod {}) = True
+    is_mod (MidiMod {}) = False
+    is_mod (MouseMod {}) = True
+
+-- | Pair a Cmd with a descriptive string that can be used for logging, undo,
+-- etc.
+data CmdSpec m = CmdSpec !Text !(Msg.Msg -> m Status)
+
+type Keymap m = Map KeySpec (CmdSpec m)
+
+data KeySpec = KeySpec !(Set Modifier) !Bindable
+    deriving (Eq, Ord, Show)
+
+data Bindable =
+    -- | Key IsRepeat Key
+    Key Bool Key.Key
+    -- | Click MouseButton Clicks
+    | Click Types.MouseButton MouseOn Int
+    | Drag Types.MouseButton MouseOn
+    -- | Mouse button release.
+    | Release Types.MouseButton MouseOn
+    -- | Channel can be used to restrict bindings to a certain keyboard.  This
+    -- should probably be something more abstract though, such as a device
+    -- which can be set by the static config.
+    | Note Midi.Channel Midi.Key
+    deriving (Eq, Ord, Show)
+
+-- | Where a click or drag occurred.
+data MouseOn = OnTrack | OnDivider | OnSkeleton | Elsewhere
+    deriving (Eq, Ord, Show)
+
+msg_to_bindable :: Msg.Msg -> Maybe Bindable
+msg_to_bindable msg = case msg of
+    (get_key -> Just (is_repeat, key)) -> Just $ Key is_repeat key
+    (Msg.mouse -> Just mouse) -> case UiMsg.mouse_state mouse of
+        UiMsg.MouseDown btn ->
+            Just $ Click btn on (UiMsg.mouse_clicks mouse)
+        UiMsg.MouseDrag btn -> Just $ Drag btn on
+        UiMsg.MouseUp btn -> Just $ Release btn on
+        _ -> Nothing
+    (Msg.midi -> Just (Midi.ChannelMessage chan (Midi.NoteOn key _))) ->
+        Just $ Note chan key
+    _ -> Nothing
+    where
+    on = maybe Elsewhere mouse_on (Msg.context msg)
+    get_key msg = case Msg.key msg of
+        Just (UiMsg.KeyDown, k) -> Just (False, k)
+        Just (UiMsg.KeyRepeat, k) -> Just (True, k)
+        _ -> Nothing
+
+mouse_on :: UiMsg.Context -> MouseOn
+mouse_on = maybe Elsewhere on . UiMsg.ctx_track
+    where
+    on (_, UiMsg.Track {}) = OnTrack
+    on (_, UiMsg.Divider) = OnDivider
+    on (_, UiMsg.SkeletonDisplay) = OnSkeleton
+
+-- ** pretty instances
+
+instance Pretty (Handler m) where
+    format = \case
+        Handler cspec -> Pretty.format cspec
+        Keymap keymap -> Pretty.format keymap
+
+instance Pretty (CmdSpec m) where
+    pretty (CmdSpec doc _) = "cmd:" <> doc
+
+instance Pretty KeySpec where
+    pretty (KeySpec mods bindable) =
+        Seq.join2 " " (show_mods mods) (show_bindable True bindable)
+        where show_mods = Text.intercalate " + " . map show_mod . Set.toList
+
+show_mod :: Modifier -> Text
+show_mod m = case m of
+    -- TODO this is only true on OS X
+    KeyMod mod -> Key.show_mac_mod mod
+    MouseMod button _ -> "mouse " <> showt button
+    MidiMod chan key -> "midi " <> showt key <> " chan " <> showt chan
+
+instance Pretty Bindable where
+    pretty = show_bindable True
+
+show_bindable :: Bool -> Bindable -> Text
+show_bindable show_repeatable b = case b of
+    Key is_repeat key -> pretty key
+        <> if show_repeatable && is_repeat then " (repeatable)" else ""
+    Click button on times -> click_times times <> "click "
+        <> showt button <> " on " <> pretty on
+    Drag button on -> "drag " <> showt button <> " on " <> pretty on
+    Release button on -> "release " <> showt button <> " on " <> pretty on
+    Note chan key -> "midi " <> showt key <> " channel " <> showt chan
+    where
+    click_times 0 = ""
+    click_times 1 = "double-"
+    click_times 2 = "triple-"
+    click_times n = showt n <> "-"
+
+instance Pretty MouseOn where
+    pretty OnTrack = "track"
+    pretty OnDivider = "divider"
+    pretty OnSkeleton = "skeleton"
+    pretty Elsewhere = "elsewhere"
+
+
+-- * run CmdT
 
 type CmdId = CmdT Identity.Identity
 
@@ -436,7 +573,7 @@ data SaveFile = SaveState !Path.Canonical | SaveRepo !Path.Canonical
     deriving (Show, Eq)
 data Writable = ReadWrite | ReadOnly deriving (Show, Eq)
 
-data KeycapsUpdate = KeycapsUpdate (Maybe KeycapsWindow) KeycapsT.Bindings
+data KeycapsUpdate = KeycapsUpdate (Maybe KeycapsWindow) KeycapsT.RawBindings
     deriving (Show)
 data KeycapsWindow = KeycapsOpen (Int, Int) KeycapsT.Layout | KeycapsClose
     deriving (Show)
@@ -885,7 +1022,7 @@ perf_closest_warp = TrackWarp.closest_warp . perf_warps
 data InstrumentCode = InstrumentCode {
     inst_calls :: !Derive.InstrumentCalls
     , inst_postproc :: !InstrumentPostproc
-    , inst_cmds :: ![Msg.Msg -> CmdId Status]
+    , inst_cmds :: ![HandlerId]
     -- | An optional specialized cmd to write Thru.  This is separate from
     -- 'inst_cmds' so it can be run wherever the instrument needs special thru,
     -- not just in the instrument's note track.  This way custom thru works in

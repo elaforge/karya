@@ -15,7 +15,6 @@ import qualified Data.Set as Set
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.InputNote as InputNote
-import qualified Cmd.Keymap as Keymap
 import qualified Cmd.Msg as Msg
 import qualified Cmd.PhysicalKey as PhysicalKey
 
@@ -52,8 +51,9 @@ import           Global
 -}
 cmds_with_input :: Cmd.M m => Bool -> Maybe Patch.Config
     -> [Msg.Msg -> m Cmd.Status] -> (Msg.Msg -> m Cmd.Status)
-cmds_with_input kbd_entry maybe_config cmds msg =
-    msg_to_inputs kbd_entry maybe_config msg >>= \case
+cmds_with_input kbd_entry maybe_config cmds msg
+    | not kbd_entry = Cmd.sequence_cmds cmds msg
+    | otherwise = msg_to_inputs maybe_config msg >>= \case
         Nothing -> Cmd.sequence_cmds cmds msg
         Just inputs -> foldr Cmd.merge_status Cmd.Done <$> mapM send inputs
     where
@@ -79,11 +79,11 @@ run_cmds_with_input cmds msg = do
 -- the Msg is not convertible to InputNotes (and therefore other cmds should
 -- get it), and Just [] if it is but didn't emit any InputNotes (and therefore
 -- this other cmds shouldn't get it).
-msg_to_inputs :: Cmd.M m => Bool -> Maybe Patch.Config -> Msg.Msg
+msg_to_inputs :: Cmd.M m => Maybe Patch.Config -> Msg.Msg
     -> m (Maybe [InputNote.Input])
-msg_to_inputs kbd_entry maybe_config msg = do
+msg_to_inputs maybe_config msg = do
     has_mods <- are_modifiers_down
-    new_msgs <- if kbd_entry && not has_mods
+    new_msgs <- if not has_mods
         then do
             octave <- Cmd.gets (Cmd.state_kbd_entry_octave . Cmd.state_edit)
             let is_pressure = maybe False
@@ -93,7 +93,7 @@ msg_to_inputs kbd_entry maybe_config msg = do
     maybe (midi_input msg) (return . Just) new_msgs
 
 are_modifiers_down :: Cmd.M m => m Bool
-are_modifiers_down = fmap (not . Set.null) Keymap.mods_down
+are_modifiers_down = fmap (not . Set.null) Cmd.mods_down
 
 -- ** kbd
 
@@ -115,8 +115,7 @@ kbd_input is_pressure octave (Msg.key -> Just (down, key)) = case down of
         | otherwise -> Nothing
     _ -> mb_inputs
     where
-    mb_inputs = -- (fmap . fmap) Msg.InputNote $
-        key_to_input is_pressure octave (down == UiMsg.KeyDown) key
+    mb_inputs = key_to_input is_pressure octave (down == UiMsg.KeyDown) key
 kbd_input _ _ _ = Nothing
 
 key_to_input :: Bool -> Pitch.Octave -> Bool -> Key.Key

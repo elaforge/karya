@@ -257,7 +257,7 @@ destroy_keycaps :: Fltk.Channel -> IO ()
 destroy_keycaps ui_chan =
     Fltk.send_action ui_chan "destroy_keycaps" KeycapsC.destroy
 
-update_keycaps :: Fltk.Channel -> KeycapsT.Bindings -> IO ()
+update_keycaps :: Fltk.Channel -> KeycapsT.RawBindings -> IO ()
 update_keycaps ui_chan bindings =
     Fltk.send_action ui_chan "update_keycaps" $ KeycapsC.update bindings
 

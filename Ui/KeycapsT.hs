@@ -22,20 +22,33 @@ data Layout = Layout {
     } deriving (Show)
 
 type Keycap = Text
+-- | Binding text that shows up on the keycap.
 type KeyDoc = Text
+-- | Longer binding text that shows up on mouseover.
 type Doc = Text
 
-newtype Bindings = Bindings [Binding]
-    deriving (Show)
+type Bindings = Map Keycap Binding
 
 data Binding = Binding {
-    b_point :: Rect.Point
-    -- | Short text to draw.
+    b_color :: Maybe Color.Color
     , b_text :: KeyDoc
-    -- | Longer text that shows up in tooltip or the gutter on mouseover.
     , b_doc :: Doc
-    , b_color :: Maybe Color.Color
     } deriving (Show)
+
+-- | Since Bindings have to have the same indices of 'lt_labels', I need dummy
+-- ones to fill out the array.
+no_binding :: Binding
+no_binding = Binding
+    { b_color = Nothing
+    , b_text = ""
+    , b_doc = ""
+    }
+
+-- | Low level type, for sending to fltk.
+newtype RawBindings = RawBindings [RawBinding]
+    deriving (Show)
+data RawBinding = RawBinding Rect.Point Binding
+    deriving (Show)
 
 -- | Phantom type for ptr to the window object.
 data CWindow

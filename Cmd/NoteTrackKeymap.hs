@@ -13,8 +13,9 @@ import qualified Derive.ParseTitle as ParseTitle
 import Global
 
 
-make_keymap :: Cmd.M m => (Keymap.CmdMap m, [Text])
-make_keymap = Keymap.make_cmd_map $ concat $
+keymap :: Cmd.Keymap Cmd.CmdId
+errors :: [Text]
+(keymap, errors) = Keymap.make_keymap $ concat $
     map add_transform
         [('.', "."), ('v', "v"), ('6', "^"), ('=', "+"), ('-', "-")]
     where

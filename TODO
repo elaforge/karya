@@ -4802,7 +4802,25 @@ fltk:
     * higher level Ui.Keycaps to compose layout
       . add a cmd to reload the keycaps window using offsets from a file
       . Or maybe just in the LKeycaps!
-    - get active key bindings
+    get active key bindings
+      * global keymap - gray
+      * pitch track keymap - Config.note_color
+      - per-instrument keymap - what color?
+        . Modify Cmd.Instrument.MidiInst inst_cmds
+        - Update instruments.
+        - update browser to show cmds
+      - pitches - Config.pitch_color
+        . KbdEntry works by inspecting Msg, emitting an InputNote, which is
+          then transformed via scale or whatever.
+        . Maybe short circuit it all by asking LPerf for the current scale?
+        . I have to get edit_mode and octave, get inputs from
+          NoteEntry.kbd_input, then look that up in the scale.
+        . But worst is have to do it for all keys, it's not designed for that.
+        . Eventually I need to call Derive.scale_input_to_note ::
+          DeriveT.Environ -> Pitch.Input -> Either DeriveT.PitchError Pitch.Note
+        . Get Map Key Pitch.Input, then map through scale_input_to_note.
+        . If that's slow, maybe I can cache:
+          Map ScaleId (Map Pitch.Octave (Map Key Pitch.Note))
       . I'll need to make cmds introspectable for this.  So instead of
         Keymap.make_cmd, a Cmd will need to be a data type that has either
         a Keymap.CmdMap, or (doc, function).
@@ -4813,10 +4831,17 @@ fltk:
         . Get global as per now.  Do a special Track.track_cmds to figure out
           which keymaps apply.  Ask for current scale and get pitches.
         . I'll still need a way to introspect into instrument cmds.
-      How to get pitches?
-        . KbdEntry works by inspecting Msg, emitting an InputNote, which is
-          then transformed via scale or whatever.
-        . Maybe short circuit it all by asking LPerf for the current scale?
+        . And I think I need this anyway for pitches.
+      . I don't necessarily care about names of cmds which aren't keymaps, but
+        I should have a doc for them anyway.  And if they're programmatic,
+        like NoteEntry, they could document the list of keys they do map.
+      . Track.get_track_cmds has to return [Handler]
+      . That means this also has to return Handler:
+        Cmd.inst_cmds $ Common.common_code $ Inst.inst_common $
+            Cmd.inst_instrument resolved
+      . Cmd.InstrumentCode means Handler and hence Keymap have to move to Cmd.
+        Unless I can do some big refactor and split out major things, but
+        it'll probably be another Derive.Deriver.
     Use different colors for different modes:
       . global cmds for keymap: toggle chord, toggle advance
       . track cmds: add ^, add -

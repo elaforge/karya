@@ -15,8 +15,10 @@ import qualified Data.Tree as Tree
 
 import qualified Text.Printf as Printf
 
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Tree as Tree
+
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
 import qualified Derive.ParseTitle as ParseTitle
@@ -53,6 +55,15 @@ data TrackType =
     -- is one.
     | Control [Ui.TrackInfo]
     deriving (Show, Eq)
+
+instance Pretty TrackType where
+    format = \case
+        Note controls children -> Pretty.record "Note"
+            [ ("controls", Pretty.format controls)
+            , ("children", Pretty.format children)
+            ]
+        Pitch tinfo -> "Pitch" Pretty.<+> Pretty.format tinfo
+        Control children -> "Control" Pretty.<+> Pretty.format children
 
 get_track_type :: Ui.M m => BlockId -> TrackNum -> m Track
 get_track_type block_id tracknum = Ui.require

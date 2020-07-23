@@ -47,8 +47,8 @@ destroy_ = whenJustM PtrMap.lookup_keycaps $ \win -> do
 
 foreign import ccall "keycaps_destroy" c_destroy :: Ptr CWindow -> IO ()
 
-update :: Bindings -> Fltk.Fltk ()
-update (Bindings bindings) = Fltk.fltk $
+update :: RawBindings -> Fltk.Fltk ()
+update (RawBindings bindings) = Fltk.fltk $
     whenJustM PtrMap.lookup_keycaps $ \win -> do
         withArrayLen bindings $ \bindings_len bindingsp ->
             c_update win bindingsp (CUtil.c_int bindings_len)
@@ -57,7 +57,7 @@ update (Bindings bindings) = Fltk.fltk $
 --     KeycapsWindow *window, const Keycaps::Binding *bindings,
 --     int bindings_len);
 foreign import ccall "keycaps_update"
-    c_update :: Ptr CWindow -> Ptr Binding -> CInt -> IO ()
+    c_update :: Ptr CWindow -> Ptr RawBinding -> CInt -> IO ()
 
 
 -- * instances
@@ -118,11 +118,11 @@ label_offset = (1, 8)
         Color color;
     }
 -}
-instance CStorable Binding where
+instance CStorable RawBinding where
     sizeOf _ = #size Keycaps::Binding
     alignment _ = alignment nullPtr
-    poke p (Binding { b_point, b_text, b_doc, b_color }) = do
-        (#poke Keycaps::Binding, point) p b_point
+    poke p (RawBinding point (Binding { b_text, b_doc, b_color })) = do
+        (#poke Keycaps::Binding, point) p point
         (#poke Keycaps::Binding, text) p =<< CUtil.newCStringNull0 b_text
         (#poke Keycaps::Binding, doc) p =<< CUtil.newCStringNull0 b_doc
         (#poke Keycaps::Binding, color) p $ fromMaybe Color.black b_color
