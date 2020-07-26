@@ -29,7 +29,7 @@ pasang_code :: MidiInst.Code
 pasang_code =
     MidiInst.note_transformers [("realize", c_realize_kendang)]
     <> MidiInst.note_generators c_pasang_calls
-    <> MidiInst.handler pasang_cmd
+    <> MidiInst.cmd pasang_cmd
 
 -- * tunggal
 

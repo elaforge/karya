@@ -113,4 +113,4 @@ make_synth stroke_keys = UiTest.make_synth "synth" [patch]
     code =
         MidiInst.note_generators
             (CUtil.drum_calls Nothing Nothing (map fst stroke_keys))
-        <> MidiInst.handler (CUtil.drum_cmd CUtil.MidiThru (map fst stroke_keys))
+        <> MidiInst.cmd (CUtil.drum_cmd CUtil.MidiThru (map fst stroke_keys))

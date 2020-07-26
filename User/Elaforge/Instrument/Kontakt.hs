@@ -13,7 +13,6 @@ import qualified Data.Tuple as Tuple
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.MidiInst as MidiInst
-import qualified Cmd.Msg as Msg
 import qualified Cmd.PhysicalKey as PhysicalKey
 
 import qualified Derive.Attrs as Attrs
@@ -253,7 +252,7 @@ hang_code =
         ]
     <> MidiInst.cmd hang_cmd
 
-hang_cmd :: Cmd.M m => Msg.Msg -> m Cmd.Status
+hang_cmd :: Cmd.M m => Cmd.Handler m
 hang_cmd = CUtil.keyswitches [(PhysicalKey.physical_key char, text, key)
     | (_, key, Just text, Just char) <- hang_strokes]
 

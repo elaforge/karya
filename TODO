@@ -4821,7 +4821,7 @@ fltk:
           * Cmd.Track needs to propagate that.
           * SyncKeycaps needs to pick it up.
           * update other instruments to use ImInst.handler
-          - remove MidiInst.cmd, ImInst.cmd, or rename handler to cmd
+          * remove MidiInst.cmd, ImInst.cmd, or rename handler to cmd
           - split shift based on case
           - don't merge case in the first place... it is convenient though
         . Since they use EditUtils.fallthrough, they map to [] and [Shift],

@@ -11,7 +11,7 @@ module Cmd.Instrument.MidiInst (
     , generator, transformer, both, note_calls
     , note_generators, note_transformers, val_calls
     , null_call, null_calls
-    , postproc, cmd, handler, thru
+    , postproc, cmd, thru
 
     -- * Patch
     , Patch(..), patch, common
@@ -52,7 +52,6 @@ import qualified Util.Seq as Seq
 import qualified App.Config as Config
 import qualified App.Path as Path
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Msg as Msg
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
@@ -202,11 +201,8 @@ val_calls calls = mempty { code_library = Library.vals calls }
 postproc :: Cmd.InstrumentPostproc -> Code
 postproc post = mempty { code_postproc = post }
 
-cmd :: (Msg.Msg -> Cmd.CmdId Cmd.Status) -> Code
-cmd c = handler (Cmd.handler "TODO" c)
-
-handler :: Cmd.HandlerId -> Code
-handler c = mempty { code_cmds = [c] }
+cmd :: Cmd.HandlerId -> Code
+cmd c = mempty { code_cmds = [c] }
 
 thru :: Cmd.ThruFunction -> Code
 thru f = mempty { code_thru = Just f }

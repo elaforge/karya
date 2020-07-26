@@ -16,9 +16,9 @@ import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import           Cmd.Instrument.MidiInst
-       (allocations, both, cmd, generator, handler, inst_range, make_code,
-        note_calls, note_generators, note_transformers, null_call, postproc,
-        transformer, val_calls, Code)
+       (allocations, both, cmd, generator, inst_range, make_code, note_calls,
+        note_generators, note_transformers, null_call, postproc, transformer,
+        val_calls, Code)
 import qualified Cmd.MidiThru as MidiThru
 
 import qualified Derive.EnvKey as EnvKey

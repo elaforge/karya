@@ -84,7 +84,7 @@ patches = map (Patch.DbPatch . make) allBreaks
             [ (Expr.Symbol stroke, breakCall (Just frame))
             | (_, stroke, frame) <- _beats break
             ]
-        drum_code = ImInst.handler $ CUtil.insert_expr thru
+        drum_code = ImInst.cmd $ CUtil.insert_expr thru
             (lookupStroke (_increment break) (_perMeasure break) strokeMap)
             where
             strokeMap = Map.fromList

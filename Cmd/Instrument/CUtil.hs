@@ -229,9 +229,8 @@ expr_to_midi block_id track_id pos expr = do
     I could use that to play an example note.  Wait until I have a "play
     current line" framework up for that.
 -}
-keyswitches :: Cmd.M m => [(Char, Expr.Symbol, Midi.Key)] -> Msg.Msg
-    -> m Cmd.Status
-keyswitches inputs = \msg -> do
+keyswitches :: Cmd.M m => [(Char, Expr.Symbol, Midi.Key)] -> Cmd.Handler m
+keyswitches inputs = handler $ \msg -> do
     EditUtil.fallthrough msg
     char <- Cmd.abort_unless $ Msg.char_down msg
     (call, key) <- Cmd.abort_unless $ Map.lookup char to_call
@@ -240,6 +239,8 @@ keyswitches inputs = \msg -> do
     Cmd.set_note_text (Expr.unsym call)
     return Cmd.Done
     where
+    handler = Cmd.Handler (Just note_entry_map) . Cmd.NamedCmd "keyswitches"
+    note_entry_map = Cmd.WithoutOctave $ Expr.unsym . fst <$> to_call
     to_call = Map.fromList [(char, (call, key)) | (char, call, key) <- inputs]
 
 
@@ -266,7 +267,7 @@ drum_code :: Thru
     -> [Drums.Stroke] -> MidiInst.Code
 drum_code thru tuning_control strokes =
     MidiInst.note_generators (drum_calls Nothing tuning_control strokes)
-    <> MidiInst.handler (drum_cmd thru strokes)
+    <> MidiInst.cmd (drum_cmd thru strokes)
 
 drum_cmd :: Cmd.M m => Thru -> [Drums.Stroke] -> Cmd.Handler m
 drum_cmd thru = insert_call thru . strokes_to_calls
