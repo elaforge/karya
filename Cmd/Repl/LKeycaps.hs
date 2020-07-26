@@ -20,4 +20,5 @@ get_bindings = SyncKeycaps.get_bindings $ Cmd.KeycapsState
     , kc_is_kbd_entry = False
     , kc_track_type = Nothing
     , kc_instrument = Nothing
+    , kc_scale_id = Nothing
     }

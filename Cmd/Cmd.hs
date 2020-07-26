@@ -610,6 +610,7 @@ data KeycapsState = KeycapsState {
     , kc_is_kbd_entry :: Bool
     , kc_track_type :: Maybe ParseTitle.Type
     , kc_instrument :: Maybe ScoreT.Instrument
+    , kc_scale_id :: Maybe Pitch.ScaleId
     } deriving (Show, Eq)
 
 -- | Absolute directory of the save file.

@@ -4805,7 +4805,7 @@ fltk:
     get active key bindings
       * global keymap - gray
       * pitch track keymap - Config.note_color
-      - per-instrument keymap - what color?
+      + per-instrument keymap - what color?
         . Modify Cmd.Instrument.MidiInst inst_cmds
         + Update instruments.
           . For mridangam:
@@ -4824,6 +4824,7 @@ fltk:
           * remove MidiInst.cmd, ImInst.cmd, or rename handler to cmd
           - split shift based on case
           - don't merge case in the first place... it is convenient though
+            . I do it in Keymap though, maybe use the same split?
         . Since they use EditUtils.fallthrough, they map to [] and [Shift],
           but none others.
         . But I think I've baked shift into the Char?  Which now seems like
@@ -4835,7 +4836,7 @@ fltk:
       * update browser to show cmds
       - remove Keymap.make_cmd in favor of Cmd.call?
         . Maybe not, if I'm doing SyncKeymap the "ad-hoc" way.
-      - pitches - Config.pitch_color
+      * pitches - Config.pitch_color
         . KbdEntry works by inspecting Msg, emitting an InputNote, which is
           then transformed via scale or whatever.
         . Maybe short circuit it all by asking LPerf for the current scale?

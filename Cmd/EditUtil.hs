@@ -6,6 +6,7 @@
 -- | Utilities for editing events.
 module Cmd.EditUtil where
 import qualified Data.Char as Char
+import qualified Data.Either as Either
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
@@ -211,6 +212,15 @@ input_to_note input = do
         Left err -> Cmd.throw $ "input_to_note " <> pretty input <> " for "
             <> pretty (Scale.scale_id scale) <> ": " <> pretty err
         Right note -> return note
+
+-- | Like 'input_to_note', but more efficient for multiple inputs.
+inputs_to_notes :: Cmd.M m => [(key, Pitch.Input)] -> m [(key, Pitch.Note)]
+inputs_to_notes key_inputs = do
+    track <- Selection.track
+    scale <- Perf.get_scale track
+    env <- Perf.get_environ track
+    return $ Either.rights $
+        map (traverse (Scale.scale_input_to_note scale env)) key_inputs
 
 -- * modify
 
