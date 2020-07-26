@@ -100,8 +100,8 @@ cmd_map_errors :: [Text]
 (all_cmd_map, cmd_map_errors) =
     Keymap.make_keymap (pure_bindings ++ map strip io_bindings)
     where
-    strip = second $ \(Cmd.CmdSpec name _) ->
-        Cmd.CmdSpec name (const (return Cmd.Done))
+    strip = second $ \(Cmd.NamedCmd name _) ->
+        Cmd.NamedCmd name (const (return Cmd.Done))
 
 -- * io cmds
 

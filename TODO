@@ -4807,8 +4807,31 @@ fltk:
       * pitch track keymap - Config.note_color
       - per-instrument keymap - what color?
         . Modify Cmd.Instrument.MidiInst inst_cmds
-        - Update instruments.
-        - update browser to show cmds
+        + Update instruments.
+          . For mridangam:
+            ImInst.cmd (CUtil.insert_call thru char_to_call)
+            CUtil.insert_expr takes: Pitch.Octave -> Char -> Maybe DeriveT.Expr
+          . It needs to export a Keymap of some description, but it does need
+            octaves.  Pitches will also be like this.
+          . I can't use the function because I need to get all inputs.
+          . Map Char Text | Map (Octave, Char) Text
+            Map (Maybe Octave) (Map Char Text)
+          * Instruments can now export a docs via ImInst.handler instead of
+            ImInst.cmd.
+          * Cmd.Track needs to propagate that.
+          * SyncKeycaps needs to pick it up.
+          - update other instruments to use ImInst.handler
+          - split shift based on case
+          - don't merge case in the first place... it is convenient though
+        . Since they use EditUtils.fallthrough, they map to [] and [Shift],
+          but none others.
+        . But I think I've baked shift into the Char?  Which now seems like
+          the wrong thing, due to symbols... but the instrument stuff is
+          always physically based... which I guess still means don't bake in
+          shift!
+      - update browser to show cmds
+      - remove Keymap.make_cmd in favor of Cmd.call?
+        . Maybe not, if I'm doing SyncKeymap the "ad-hoc" way.
       - pitches - Config.pitch_color
         . KbdEntry works by inspecting Msg, emitting an InputNote, which is
           then transformed via scale or whatever.

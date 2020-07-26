@@ -52,26 +52,25 @@ get_track_cmds = do
     -- will be no track cmds.
     block_id <- Cmd.get_focused_block
     tracknum <- Cmd.abort_unless =<< Cmd.get_insert_tracknum
-    maybe_track_id <- Ui.event_track_at block_id tracknum
+    mb_track_id <- Ui.event_track_at block_id tracknum
+    -- TODO this is overkill, use ParseTitle.track_type
     track <- Cmd.abort_unless =<< Info.lookup_track_type block_id tracknum
 
-    maybe_resolved <- maybe (return Nothing) (lookup_inst block_id)
-        maybe_track_id
-    track_title <- maybe (return Nothing) (fmap Just . Ui.get_track_title)
-        maybe_track_id
-    let icmds = case (track_title, maybe_resolved) of
+    mb_resolved <- maybe (return Nothing) (lookup_inst block_id) mb_track_id
+    mb_title <- traverse Ui.get_track_title mb_track_id
+    let from_inst = case (mb_title, mb_resolved) of
             (Just title, Just resolved) | ParseTitle.is_note_track title ->
                 map get $ Cmd.inst_cmds $ Common.common_code $
                     Inst.inst_common $ Cmd.inst_instrument resolved
                 where
                 -- TODO until this is updated
-                get (Cmd.Handler (Cmd.CmdSpec _ cmd)) = cmd
+                get (Cmd.Handler _ (Cmd.NamedCmd _ cmd)) = cmd
             _ -> []
     edit_state <- Cmd.gets Cmd.state_edit
     let edit_mode = Cmd.state_edit_mode edit_state
     let with_input = NoteEntry.cmds_with_input
             (Cmd.state_kbd_entry edit_state)
-            (fmap snd . Cmd.midi_instrument =<< maybe_resolved)
+            (fmap snd . Cmd.midi_instrument =<< mb_resolved)
         tcmds = track_cmds edit_mode track
     let floating_input_cmd = Edit.handle_floating_input $
             case Info.track_type track of
@@ -94,7 +93,7 @@ get_track_cmds = do
     -- kbd entry then they will want the underlying keystrokes, as drum
     -- mappings do.  If they want 'Pitch.Input's, they can call
     -- 'NoteEntry.cmds_with_input'.
-    return $ icmds ++ floating_input_cmd
+    return $ from_inst ++ floating_input_cmd
         : with_input (input_cmds edit_mode track)
         : tcmds ++ kcmds
 

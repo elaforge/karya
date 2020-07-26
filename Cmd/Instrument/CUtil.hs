@@ -32,7 +32,6 @@ import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
-import qualified Synth.Shared.Control as Control
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveT as DeriveT
@@ -51,22 +50,29 @@ import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
+import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Osc as Osc
+import qualified Ui.KeycapsT as KeycapsT
 import qualified Ui.UiMsg as UiMsg
 
 import           Global
 import           Types
 
 
--- | Text of the event to create.
-type Call = Text
-
 -- * eval call
 
-insert_call :: Cmd.M m => Thru -> [(Char, Expr.Symbol)] -> Msg.Msg
-    -> m Cmd.Status
+insert_call :: Cmd.M m => Thru -> [(Char, Expr.Symbol)]
+    -> Msg.Msg -> m Cmd.Status
 insert_call thru char_syms =
     insert_expr thru (\_ char -> Map.lookup char char_to_expr)
+    where
+    to_expr call = Expr.generator0 call
+    char_to_expr = Map.fromList $
+        map (bimap PhysicalKey.physical_key to_expr) char_syms
+
+insert_call2 :: Cmd.M m => Thru -> [(Char, Expr.Symbol)] -> Cmd.Handler m
+insert_call2 thru char_syms =
+    insert_expr2 thru $ Cmd.WithoutOctave char_to_expr
     where
     to_expr call = Expr.generator0 call
     char_to_expr = Map.fromList $
@@ -86,7 +92,8 @@ data Thru = MidiThru | ImThru !Osc.ThruFunction
 -- the insertion point.  Since this shadows the default note entry cmd, it
 -- has to handle thru on its own.
 insert_expr :: Cmd.M m => Thru -- ^ Evaluate the expression and emit MIDI thru.
-    -> (Pitch.Octave -> Char -> Maybe DeriveT.Expr) -> Msg.Msg -> m Cmd.Status
+    -> (Pitch.Octave -> Char -> Maybe DeriveT.Expr)
+    -> Msg.Msg -> m Cmd.Status
 insert_expr thru char_to_expr msg = do
     unlessM Cmd.is_kbd_entry Cmd.abort
     EditUtil.fallthrough msg
@@ -123,6 +130,61 @@ insert_expr thru char_to_expr msg = do
         where
         suppressed = Cmd.suppress_history Cmd.ValEdit
             ("keymap: " <> ShowVal.show_val expr)
+
+insert_expr2 :: Cmd.M m => Thru -- ^ Evaluate the expression and emit MIDI thru.
+    -> Cmd.NoteEntryMap DeriveT.Expr
+    -> Cmd.Handler m
+insert_expr2 thru note_entry_map = handler $ \msg -> do
+    unlessM Cmd.is_kbd_entry Cmd.abort
+    EditUtil.fallthrough msg
+    (kstate, char) <- Cmd.abort_unless $ Msg.char msg
+    octave <- Cmd.gets $ Cmd.state_kbd_entry_octave . Cmd.state_edit
+    case Cmd.note_entry_lookup octave char note_entry_map of
+        Nothing
+            -- Eat keys that normally would be eaten by kbd entry.  Otherwise
+            -- it'll fall through to normal kbd entry and try to enter a
+            -- pitched note.
+            --
+            -- TODO another possibly cleaner way to accomplish this would be to
+            -- put the NoteEntry stuff in as a default instrument cmd, so I
+            -- could just replace it entirely.  But I still want to mask out
+            -- those PhysicalKey.pitch_map keys because it seems to confusing
+            -- to fall through to an editing key.
+            | Map.member char PhysicalKey.pitch_map -> return Cmd.Done
+            | otherwise -> return Cmd.Continue
+        Just expr -> do
+            case thru of
+                MidiThru -> expr_midi_thru kstate expr
+                ImThru thru_f -> case kstate of
+                    UiMsg.KeyDown ->
+                        mapM_ Cmd.write_thru =<< expr_im_thru thru_f expr
+                    _ -> return ()
+            case kstate of
+                UiMsg.KeyDown -> keydown expr
+                _ -> return ()
+            return Cmd.Done
+    where
+    handler = Cmd.Handler
+        (Just $ merge_kbd_entry "" $ to_keycap <$> note_entry_map)
+        . Cmd.NamedCmd "insert_expr"
+    keydown expr = do
+        Cmd.set_status Config.status_note $ Just $ ShowVal.show_val expr
+        whenM Cmd.is_val_edit $ suppressed $ do
+            pos <- EditUtil.get_pos
+            NoteTrack.modify_event_at pos False True $
+                const (Just (ShowVal.show_val expr), True)
+        where
+        suppressed = Cmd.suppress_history Cmd.ValEdit
+            ("keymap: " <> ShowVal.show_val expr)
+
+to_keycap :: DeriveT.Expr -> KeycapsT.KeyDoc
+to_keycap = Expr.show_val_expr
+
+merge_kbd_entry :: a -> Cmd.NoteEntryMap a -> Cmd.NoteEntryMap a
+merge_kbd_entry val = \case
+    Cmd.WithOctave m -> Cmd.WithOctave $ (`Map.union` empty) <$> m
+    Cmd.WithoutOctave m -> Cmd.WithoutOctave $ Map.union m empty
+    where empty = const val <$> PhysicalKey.pitch_map
 
 expr_im_thru :: Cmd.M m => Osc.ThruFunction -> DeriveT.Expr -> m [Cmd.Thru]
 expr_im_thru thru_f expr = do

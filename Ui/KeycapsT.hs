@@ -35,6 +35,10 @@ data Binding = Binding {
     , b_doc :: Doc
     } deriving (Show)
 
+instance Pretty Binding where
+    pretty (Binding mb_color text doc) =
+        text <> "(" <> doc <> ")[" <> pretty mb_color <> "]"
+
 -- | Since Bindings have to have the same indices of 'lt_labels', I need dummy
 -- ones to fill out the array.
 no_binding :: Binding

@@ -44,7 +44,7 @@ import           Global
 
 -- * binding
 
-type Binding m = (Cmd.KeySpec, Cmd.CmdSpec m)
+type Binding m = (Cmd.KeySpec, Cmd.NamedCmd m)
 
 -- | Bind a Key with no modifiers.
 plain_key :: Cmd.M m => Key.Key -> Text -> m () -> [Binding m]
@@ -114,8 +114,10 @@ bind smods bindable desc cmd =
 -- A capital letter is shorthand for Shift + Char.toLower c.
 bind_status :: [SimpleMod] -> Cmd.Bindable -> Text -> (Msg.Msg -> m Cmd.Status)
     -> [Binding m]
-bind_status smods_ bindable_ desc cmd =
-    [ (key_spec (expand_mods bindable smods) bind, Cmd.CmdSpec desc cmd)
+bind_status smods_ bindable_ name cmd =
+    [ ( key_spec (expand_mods bindable smods) bind
+      , Cmd.NamedCmd name cmd
+      )
     | bind <- expand_bindable bindable
     ]
     where
@@ -152,7 +154,7 @@ make_cmd cmd_map msg = do
     mods <- Cmd.mods_down
     case Map.lookup (Cmd.KeySpec mods bindable) cmd_map of
         Nothing -> return Cmd.Continue
-        Just (Cmd.CmdSpec name cmd) -> do
+        Just (Cmd.NamedCmd name cmd) -> do
             Log.debug $ "running command: " <> name
             Cmd.name name (cmd msg)
 
@@ -211,7 +213,8 @@ overlaps :: [Binding m] -> [[Text]]
 overlaps bindings =
     [map cmd_name grp | grp <- Seq.group_sort fst bindings, length grp > 1]
     where
-    cmd_name (kspec, Cmd.CmdSpec name _) = pretty kspec <> ": " <> name
+    cmd_name (kspec, Cmd.NamedCmd name _) =
+        pretty kspec <> ": " <> name
 
 -- | A binding that accepts a KeyRepeat should also accept a KeyDown.
 expand_bindable :: Cmd.Bindable -> [Cmd.Bindable]

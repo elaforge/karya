@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE ViewPatterns #-}
 {- | Core CmdT monad that cmds run in.
 
@@ -72,6 +73,7 @@ import qualified Cmd.TimeStep as TimeStep
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Derive as Derive
 import qualified Derive.Expr as Expr
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.All as Scale.All
@@ -123,22 +125,24 @@ import           Types
 -- | This is the toplevel object representing a cmd.  Fundamentally it's
 -- just Msg -> Status, but it's also wrapped up in some documentation,
 -- so cmds can be introspected.
-data Handler m = Keymap !(Keymap m) | Handler !(CmdSpec m)
+data Handler m =
+    Keymap !(Keymap m)
+    | Handler !(Maybe (NoteEntryMap KeycapsT.KeyDoc)) !(NamedCmd m)
 type HandlerId = Handler CmdId
 
 handler :: Text -> (Msg.Msg -> m Status) -> Handler m
-handler doc cmd = Handler (CmdSpec doc cmd)
+handler name cmd = Handler Nothing (NamedCmd name cmd)
 
 call :: M m => Handler m -> Msg.Msg -> m Status
 call handler msg = case handler of
-    Handler cspec -> run cspec
+    Handler _ cmd -> run cmd
     Keymap keymap -> do
         bindable <- abort_unless (msg_to_bindable msg)
         mods <- mods_down
         maybe (return Continue) run $
             Map.lookup (KeySpec mods bindable) keymap
     where
-    run (CmdSpec n cmd) = do
+    run (NamedCmd n cmd) = do
         Log.debug $ "running command: " <> n
         name n (cmd msg)
 
@@ -152,11 +156,27 @@ mods_down = Set.fromList <$> fmap (filter is_mod . Map.keys) keys_down
     is_mod (MidiMod {}) = False
     is_mod (MouseMod {}) = True
 
--- | Pair a Cmd with a descriptive string that can be used for logging, undo,
--- etc.
-data CmdSpec m = CmdSpec !Text !(Msg.Msg -> m Status)
+-- | Pair a Cmd with a Doc that can be used for logging, undo, etc.
+data NamedCmd m = NamedCmd {
+    cmd_name :: !Text
+    , cmd_call :: !(Msg.Msg -> m Status)
+    }
 
-type Keymap m = Map KeySpec (CmdSpec m)
+-- | NoteEntry might depend on base octave, and might have different
+-- mappings for unshifted or shifted.
+data NoteEntryMap a =
+    WithOctave (Map Pitch.Octave (Map Char a))
+    | WithoutOctave (Map Char a)
+    deriving (Show, Functor)
+
+note_entry_lookup :: Pitch.Octave -> Char -> NoteEntryMap a -> Maybe a
+note_entry_lookup octave char = \case
+    WithOctave m -> Map.lookup char =<< Map.lookup octave m
+    WithoutOctave m -> Map.lookup char m
+
+-- ** Keymap
+
+type Keymap m = Map KeySpec (NamedCmd m)
 
 data KeySpec = KeySpec !(Set Modifier) !Bindable
     deriving (Eq, Ord, Show)
@@ -209,11 +229,11 @@ mouse_on = maybe Elsewhere on . UiMsg.ctx_track
 
 instance Pretty (Handler m) where
     format = \case
-        Handler cspec -> Pretty.format cspec
+        Handler _ cmd -> Pretty.format cmd
         Keymap keymap -> Pretty.format keymap
 
-instance Pretty (CmdSpec m) where
-    pretty (CmdSpec doc _) = "cmd:" <> doc
+instance Pretty (NamedCmd m) where
+    pretty (NamedCmd name _) = "cmd:" <> name
 
 instance Pretty KeySpec where
     pretty (KeySpec mods bindable) =
@@ -542,7 +562,9 @@ data State = State {
     , state_focused_view :: !(Maybe ViewId)
     -- | This contains a Rect for each screen.
     , state_screens :: ![Rect.Rect]
-    , state_keycaps :: !(Maybe KeycapsT.Layout)
+    -- | Just indicates that the keycaps window is open.  The window is global,
+    -- stored in "Ui.PtrMap", so I don't need to store it here.
+    , state_keycaps :: !(Maybe KeycapsState)
     , state_keycaps_update :: !(Maybe KeycapsUpdate)
 
     -- | This is similar to 'Ui.Block.view_status', except that it's global
@@ -573,10 +595,22 @@ data SaveFile = SaveState !Path.Canonical | SaveRepo !Path.Canonical
     deriving (Show, Eq)
 data Writable = ReadWrite | ReadOnly deriving (Show, Eq)
 
-data KeycapsUpdate = KeycapsUpdate (Maybe KeycapsWindow) KeycapsT.RawBindings
+data KeycapsUpdate =
+    KeycapsUpdate KeycapsState (Maybe ((Int, Int), KeycapsT.Layout))
+        KeycapsT.RawBindings
+    | KeycapsClose
     deriving (Show)
-data KeycapsWindow = KeycapsOpen (Int, Int) KeycapsT.Layout | KeycapsClose
-    deriving (Show)
+
+-- | The set of things that can affect a keycaps window.  So when this changes,
+-- the window has to be updated.  I assume the KeycapsT.Layout is constant, so
+-- it's not in here, which allows me to cache global keymaps in CAFs.
+data KeycapsState = KeycapsState {
+    kc_mods :: Set Modifier
+    , kc_octave :: Pitch.Octave
+    , kc_is_kbd_entry :: Bool
+    , kc_track_type :: Maybe ParseTitle.Type
+    , kc_instrument :: Maybe ScoreT.Instrument
+    } deriving (Show, Eq)
 
 -- | Absolute directory of the save file.
 state_save_dir :: State -> Maybe FilePath
@@ -1309,7 +1343,7 @@ get_focused_view :: M m => m ViewId
 get_focused_view = gets state_focused_view >>= abort_unless
 
 get_focused_block :: M m => m BlockId
-get_focused_block = fmap Block.view_block (get_focused_view >>= Ui.get_view)
+get_focused_block = Block.view_block <$> (Ui.get_view =<< get_focused_view)
 
 lookup_focused_view :: M m => m (Maybe ViewId)
 lookup_focused_view = gets state_focused_view

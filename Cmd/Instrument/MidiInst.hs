@@ -11,7 +11,7 @@ module Cmd.Instrument.MidiInst (
     , generator, transformer, both, note_calls
     , note_generators, note_transformers, val_calls
     , null_call, null_calls
-    , postproc, cmd, thru
+    , postproc, cmd, handler, thru
 
     -- * Patch
     , Patch(..), patch, common
@@ -97,13 +97,12 @@ make_inst (Patch patch common) = Inst.Inst
     }
 
 make_code :: Code -> Cmd.InstrumentCode
-make_code (Code library postproc cmds thru) =
-    Cmd.InstrumentCode
-        { inst_calls = compile_library library
-        , inst_postproc = postproc
-        , inst_cmds = map (Cmd.handler "TODO") cmds
-        , inst_thru = thru
-        }
+make_code (Code library postproc cmds thru) = Cmd.InstrumentCode
+    { inst_calls = compile_library library
+    , inst_postproc = postproc
+    , inst_cmds = cmds
+    , inst_thru = thru
+    }
 
 -- | InstrumentCalls doesn't have modules, so just pull everything out of every
 -- module.
@@ -128,7 +127,7 @@ compile_library = convert . fst . Library.compile
 data Code = Code {
     code_library :: !Library.Library
     , code_postproc :: !Cmd.InstrumentPostproc
-    , code_cmds :: ![Msg.Msg -> Cmd.CmdId Cmd.Status]
+    , code_cmds :: ![Cmd.HandlerId]
     , code_thru :: !(Maybe Cmd.ThruFunction)
     }
 
@@ -204,7 +203,10 @@ postproc :: Cmd.InstrumentPostproc -> Code
 postproc post = mempty { code_postproc = post }
 
 cmd :: (Msg.Msg -> Cmd.CmdId Cmd.Status) -> Code
-cmd c = mempty { code_cmds = [c] }
+cmd c = handler (Cmd.handler "TODO" c)
+
+handler :: Cmd.HandlerId -> Code
+handler c = mempty { code_cmds = [c] }
 
 thru :: Cmd.ThruFunction -> Code
 thru f = mempty { code_thru = Just f }
