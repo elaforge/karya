@@ -4830,7 +4830,8 @@ fltk:
           the wrong thing, due to symbols... but the instrument stuff is
           always physically based... which I guess still means don't bake in
           shift!
-      - Make KeyDoc smaller if it's >2 chars.
+      * Make KeyDoc smaller if it's >2 chars.
+        . Just always smaller is simpler.
       * update browser to show cmds
       - remove Keymap.make_cmd in favor of Cmd.call?
         . Maybe not, if I'm doing SyncKeymap the "ad-hoc" way.

@@ -53,7 +53,6 @@ mac_labels = Map.fromList $ concat label_rects ++ arrows
     h2 = h `div` 2
     gap = 5
 
-
 make_layout :: Map Key.Key Rect.Rect -> KeycapsT.Layout
 make_layout labels = KeycapsT.Layout
     { lt_size = (w, h)
