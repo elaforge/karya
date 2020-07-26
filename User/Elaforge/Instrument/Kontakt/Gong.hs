@@ -41,7 +41,7 @@ kajar_patch =
     MidiInst.code #= code $
         CUtil.pitched_drum_patch kajar_pitched_strokes $ patch "kajar"
     where
-    code = MidiInst.cmd (CUtil.insert_call CUtil.MidiThru char_to_call)
+    code = MidiInst.handler (CUtil.insert_call CUtil.MidiThru char_to_call)
         <> MidiInst.note_generators generators
     generators = concat
         [ CUtil.drum_calls Nothing (Just tuning_control) strokes

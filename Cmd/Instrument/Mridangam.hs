@@ -156,7 +156,7 @@ make_code :: CUtil.Thru -> [Attrs.Attributes] -> Pitch.NoteNumber
 make_code thru pitched_strokes natural_nn transform notes both = mconcat
     [ ImInst.note_generators generators
     , ImInst.val_calls vals
-    , ImInst.handler (CUtil.insert_call2 thru char_to_call)
+    , ImInst.handler (CUtil.insert_call thru char_to_call)
     ]
     where
     add t = map (second (Make.modify_generator_ "" t))

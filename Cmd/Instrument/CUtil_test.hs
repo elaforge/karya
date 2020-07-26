@@ -47,7 +47,7 @@ insert_call tracks tracknum val_edit msg =
     fmap extract $ CmdTest.run_with_performance ustate cstate $ do
         Cmd.modify_edit_state (set_edit_mode val_edit)
         CmdTest.set_sel tracknum 0 tracknum 0
-        CUtil.insert_call CUtil.MidiThru char_to_call msg
+        Cmd.call (CUtil.insert_call CUtil.MidiThru char_to_call) msg
     where
     (ustate, cstate) = CmdTest.set_synths_simple [make_synth stroke_keys]
         [("i1", "synth/1")] (CmdTest.make_tracks tracks)
@@ -113,4 +113,4 @@ make_synth stroke_keys = UiTest.make_synth "synth" [patch]
     code =
         MidiInst.note_generators
             (CUtil.drum_calls Nothing Nothing (map fst stroke_keys))
-        <> MidiInst.cmd (CUtil.drum_cmd CUtil.MidiThru (map fst stroke_keys))
+        <> MidiInst.handler (CUtil.drum_cmd CUtil.MidiThru (map fst stroke_keys))

@@ -84,7 +84,7 @@ patches = map (Patch.DbPatch . make) allBreaks
             [ (Expr.Symbol stroke, breakCall (Just frame))
             | (_, stroke, frame) <- _beats break
             ]
-        drum_code = ImInst.cmd $ CUtil.insert_expr thru
+        drum_code = ImInst.handler $ CUtil.insert_expr thru
             (lookupStroke (_increment break) (_perMeasure break) strokeMap)
             where
             strokeMap = Map.fromList
@@ -97,22 +97,25 @@ patches = map (Patch.DbPatch . make) allBreaks
 -- * cmd
 
 -- | I can fit 8 per octave, and with black notes that's 16.
--- Octave is ignored if not multipleOctaves.
 lookupStroke :: Beat -> Beat -> Map (Measure, Beat) Text
-    -> Pitch.Octave -> Char -> Maybe DeriveT.Expr
-lookupStroke increment perMeasure strokeMap = \octave char ->
-    adjustedExpr octave =<< Map.lookup char charToBeat
+    -> Cmd.NoteEntryMap DeriveT.Expr
+lookupStroke increment perMeasure strokeMap
+    | fst maxBeat > 2 = Cmd.WithOctave $ Map.fromList
+        [ (oct, Map.mapMaybe (exprAtOctave oct) charToBeat)
+        | oct <- [baseOctave - 1 .. baseOctave + fst maxBeat - 1]
+        ]
+    | otherwise = Cmd.WithoutOctave $ toExpr <$> charToBeat
     where
-    adjustedExpr octave (measure, beat)
-        -- Ignore octave.
-        | not multipleOctaves = Just $ toExpr (measure, beat)
+    -- Octave shifts the measure of the beat returned by charToBeat.
+    exprAtOctave octave (measure, beat)
         | adjusted <= 0 = Nothing
-        | Just (adjusted, beat) > (fst <$> Map.lookupMax strokeMap) = Nothing
+        | (adjusted, beat) > maxBeat = Nothing
         | otherwise = Just $ toExpr (adjusted, beat)
         where
         -- I originally intended octave to move by 2 measures if 2 measures
         -- fit on a row, but I think I don't mind moving just 1 measure.
         adjusted = (octave - baseOctave) + measure
+    maxBeat = maybe (1, 1) fst $ Map.lookupMax strokeMap
     charToBeat = Map.fromList $ physicalKeys steps allBeats
     steps = floor (perMeasure / increment)
     toExpr mbeat = maybe (makeExpr mbeat) (Expr.generator0 . Expr.Symbol) $
@@ -122,7 +125,6 @@ lookupStroke increment perMeasure strokeMap = \octave char ->
         [ (measure, beat)
         | measure <- [1..], beat <- Seq.range' 1 (perMeasure+1) increment
         ]
-    multipleOctaves = maybe 1 (fst . fst) (Map.lookupMax strokeMap) > 2
     baseOctave = Cmd.state_kbd_entry_octave Cmd.initial_edit_state
 
 makeExpr :: (Measure, Beat) -> DeriveT.Expr

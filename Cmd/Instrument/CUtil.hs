@@ -61,18 +61,9 @@ import           Types
 
 -- * eval call
 
-insert_call :: Cmd.M m => Thru -> [(Char, Expr.Symbol)]
-    -> Msg.Msg -> m Cmd.Status
+insert_call :: Cmd.M m => Thru -> [(Char, Expr.Symbol)] -> Cmd.Handler m
 insert_call thru char_syms =
-    insert_expr thru (\_ char -> Map.lookup char char_to_expr)
-    where
-    to_expr call = Expr.generator0 call
-    char_to_expr = Map.fromList $
-        map (bimap PhysicalKey.physical_key to_expr) char_syms
-
-insert_call2 :: Cmd.M m => Thru -> [(Char, Expr.Symbol)] -> Cmd.Handler m
-insert_call2 thru char_syms =
-    insert_expr2 thru $ Cmd.WithoutOctave char_to_expr
+    insert_expr thru $ Cmd.WithoutOctave char_to_expr
     where
     to_expr call = Expr.generator0 call
     char_to_expr = Map.fromList $
@@ -92,49 +83,9 @@ data Thru = MidiThru | ImThru !Osc.ThruFunction
 -- the insertion point.  Since this shadows the default note entry cmd, it
 -- has to handle thru on its own.
 insert_expr :: Cmd.M m => Thru -- ^ Evaluate the expression and emit MIDI thru.
-    -> (Pitch.Octave -> Char -> Maybe DeriveT.Expr)
-    -> Msg.Msg -> m Cmd.Status
-insert_expr thru char_to_expr msg = do
-    unlessM Cmd.is_kbd_entry Cmd.abort
-    EditUtil.fallthrough msg
-    (kstate, char) <- Cmd.abort_unless $ Msg.char msg
-    octave <- Cmd.gets $ Cmd.state_kbd_entry_octave . Cmd.state_edit
-    case char_to_expr octave char of
-        -- Only swallow keys that note entry would have caught, otherwise
-        -- space would be swallowed here.
-        --
-        -- TODO another possibly cleaner way to accomplish this would be to
-        -- put the NoteEntry stuff in as a default instrument cmd, so I could
-        -- just replace it entirely.
-        Nothing
-            | Map.member char PhysicalKey.pitch_map -> return Cmd.Done
-            | otherwise -> return Cmd.Continue
-        Just expr -> do
-            case thru of
-                MidiThru -> expr_midi_thru kstate expr
-                ImThru thru_f -> case kstate of
-                    UiMsg.KeyDown ->
-                        mapM_ Cmd.write_thru =<< expr_im_thru thru_f expr
-                    _ -> return ()
-            case kstate of
-                UiMsg.KeyDown -> keydown expr
-                _ -> return ()
-            return Cmd.Done
-    where
-    keydown expr = do
-        Cmd.set_status Config.status_note $ Just $ ShowVal.show_val expr
-        whenM Cmd.is_val_edit $ suppressed $ do
-            pos <- EditUtil.get_pos
-            NoteTrack.modify_event_at pos False True $
-                const (Just (ShowVal.show_val expr), True)
-        where
-        suppressed = Cmd.suppress_history Cmd.ValEdit
-            ("keymap: " <> ShowVal.show_val expr)
-
-insert_expr2 :: Cmd.M m => Thru -- ^ Evaluate the expression and emit MIDI thru.
     -> Cmd.NoteEntryMap DeriveT.Expr
     -> Cmd.Handler m
-insert_expr2 thru note_entry_map = handler $ \msg -> do
+insert_expr thru note_entry_map = handler $ \msg -> do
     unlessM Cmd.is_kbd_entry Cmd.abort
     EditUtil.fallthrough msg
     (kstate, char) <- Cmd.abort_unless $ Msg.char msg
@@ -315,9 +266,9 @@ drum_code :: Thru
     -> [Drums.Stroke] -> MidiInst.Code
 drum_code thru tuning_control strokes =
     MidiInst.note_generators (drum_calls Nothing tuning_control strokes)
-    <> MidiInst.cmd (drum_cmd thru strokes)
+    <> MidiInst.handler (drum_cmd thru strokes)
 
-drum_cmd :: Cmd.M m => Thru -> [Drums.Stroke] -> Msg.Msg -> m Cmd.Status
+drum_cmd :: Cmd.M m => Thru -> [Drums.Stroke] -> Cmd.Handler m
 drum_cmd thru = insert_call thru . strokes_to_calls
 
 -- ** patch

@@ -5,16 +5,19 @@
 module Synth.Sampler.Patch.Break_test where
 import qualified Data.Map as Map
 
+import qualified Cmd.Cmd as Cmd
 import qualified Synth.Sampler.Patch.Break as Break
 
 import           Global
 import           Util.Test
 
 
+test_lookupStroke :: Test
 test_lookupStroke = do
-    let f octave char = pretty <$>
-            Break.lookupStroke (Break._increment break)
-                (Break._perMeasure break) strokeMap octave char
+    let f octave char = pretty <$> Cmd.note_entry_lookup octave char m
+            where
+            m = Break.lookupStroke (Break._increment break)
+                (Break._perMeasure break) strokeMap
         strokeMap = Map.fromList
             [(beat, stroke) | (beat, stroke, _) <- Break._beats break]
         break = Break.medeski

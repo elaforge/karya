@@ -10,7 +10,6 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.MidiInst as MidiInst
-import qualified Cmd.Msg as Msg
 
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Module as Module
@@ -30,7 +29,7 @@ pasang_code :: MidiInst.Code
 pasang_code =
     MidiInst.note_transformers [("realize", c_realize_kendang)]
     <> MidiInst.note_generators c_pasang_calls
-    <> MidiInst.cmd pasang_cmd
+    <> MidiInst.handler pasang_cmd
 
 -- * tunggal
 
@@ -121,7 +120,7 @@ pasang_env = Pasang
     <$> Sig.required_environ "wadon" Sig.Unprefixed "Wadon instrument."
     <*> Sig.required_environ "lanang" Sig.Unprefixed "Lanang instrument."
 
-pasang_cmd :: Cmd.M m => Msg.Msg -> m Cmd.Status
+pasang_cmd :: Cmd.M m => Cmd.Handler m
 pasang_cmd = CUtil.insert_call CUtil.MidiThru
     [(char, name) | (char, name, _) <- pasang_calls]
 

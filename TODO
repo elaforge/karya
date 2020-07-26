@@ -4820,7 +4820,8 @@ fltk:
             ImInst.cmd.
           * Cmd.Track needs to propagate that.
           * SyncKeycaps needs to pick it up.
-          - update other instruments to use ImInst.handler
+          * update other instruments to use ImInst.handler
+          - remove MidiInst.cmd, ImInst.cmd, or rename handler to cmd
           - split shift based on case
           - don't merge case in the first place... it is convenient though
         . Since they use EditUtils.fallthrough, they map to [] and [Shift],
@@ -4829,6 +4830,7 @@ fltk:
           the wrong thing, due to symbols... but the instrument stuff is
           always physically based... which I guess still means don't bake in
           shift!
+      - Make KeyDoc smaller if it's >2 chars.
       - update browser to show cmds
       - remove Keymap.make_cmd in favor of Cmd.call?
         . Maybe not, if I'm doing SyncKeymap the "ad-hoc" way.
