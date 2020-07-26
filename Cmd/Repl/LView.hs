@@ -49,7 +49,7 @@ arrange = do
 
 arrange_screen :: (Int, Int) -> Cmd.CmdL ()
 arrange_screen point = do
-    screen <- Cmd.get_screen point
+    screen <- Cmd.get_screen $ Just point
     view_rects <- filter (Rect.overlaps screen . snd)
         . map (second Block.view_rect) . Map.toList . Ui.state_views
         <$> Ui.get

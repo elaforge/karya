@@ -560,7 +560,9 @@ data State = State {
     -- | The block and track that have focus.  Commands that address
     -- a particular block or track will address these.
     , state_focused_view :: !(Maybe ViewId)
-    -- | This contains a Rect for each screen.
+    -- | This contains a Rect for each screen.  The first one is the default
+    -- one, if a default is needed, though normally views should show up next
+    -- to other views.
     , state_screens :: ![Rect.Rect]
     -- | Just indicates that the keycaps window is open.  The window is global,
     -- stored in "Ui.PtrMap", so I don't need to store it here.
@@ -1294,15 +1296,16 @@ modify_play_state :: M m => (PlayState -> PlayState) -> m ()
 modify_play_state f = modify $ \st ->
     st { state_play = f (state_play st) }
 
--- | Return the rect of the screen closest to the given point.
-get_screen :: M m => (Int, Int) -> m Rect.Rect
-get_screen point = do
+-- | Return the rect of the screen closest to the given point, or the default.
+get_screen :: M m => Maybe (Int, Int) -> m Rect.Rect
+get_screen mb_point = do
     screens <- gets state_screens
     -- There are no screens yet during setup, so pick something somewhat
     -- reasonable so windows don't all try to crunch themselves down to
     -- nothing.
-    return $ fromMaybe (Rect.xywh 0 0 800 600) $
-        Seq.minimum_on (Rect.distance point) screens
+    return $ fromMaybe (Rect.xywh 0 0 800 600) $ case mb_point of
+        Nothing -> Seq.head screens
+        Just point -> Seq.minimum_on (Rect.distance point) screens
 
 lookup_performance :: M m => BlockId -> m (Maybe Performance)
 lookup_performance block_id =

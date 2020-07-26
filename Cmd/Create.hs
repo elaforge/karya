@@ -243,7 +243,7 @@ view :: Cmd.M m => BlockId -> m ViewId
 view block_id = do
     view_id <- unfitted_view block_id
     Views.maximize_and_zoom view_id
-    screen <- maybe (Cmd.get_screen (0, 0)) view_screen
+    screen <- maybe (Cmd.get_screen Nothing) view_screen
         =<< Cmd.lookup_focused_view
     rect <- Block.view_rect <$> Ui.get_view view_id
     others <- Ui.gets $ filter (\r -> r /= rect && Rect.overlaps r screen)
@@ -262,7 +262,8 @@ view_or_focus block_id = do
 
 view_screen :: Cmd.M m => ViewId -> m Rect.Rect
 view_screen view_id =
-    Cmd.get_screen . Rect.upper_left . Block.view_rect =<< Ui.get_view view_id
+    Cmd.get_screen . Just . Rect.upper_left . Block.view_rect
+        =<< Ui.get_view view_id
 
 block_view :: Cmd.M m => RulerId -> m ViewId
 block_view ruler_id = block ruler_id >>= view

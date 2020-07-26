@@ -10,6 +10,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
+import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
@@ -43,10 +44,12 @@ open :: Cmd.M m => m ()
 open = do
     state <- keycaps_state
     bindings <- get_bindings state
-    set_update $ Cmd.KeycapsUpdate state (Just ((200, 200), layout))
-        (Keycaps.resolve_bindings layout bindings)
-    -- TODO put it in the bottom right corner, to minimize conflict with
+    -- Put the window in the bottom right corner, to minimize conflict with
     -- ViewConfig.horizontal_tile.
+    (sx, sy) <- Rect.lower_right <$> Cmd.get_screen Nothing
+    let pos = let (x, y) = KeycapsT.lt_size layout in (sx-x, sy-y)
+    set_update $ Cmd.KeycapsUpdate state (Just (pos, layout))
+        (Keycaps.resolve_bindings layout bindings)
 
 close :: Cmd.M m => m ()
 close = set_update Cmd.KeycapsClose

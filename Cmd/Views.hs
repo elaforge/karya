@@ -66,7 +66,7 @@ resize_to_fit :: Cmd.M m => Bool -- ^ maximize the window vertically
     -> ViewId -> m ()
 resize_to_fit maximize view_id = do
     view <- Ui.get_view view_id
-    screen <- Cmd.get_screen (Rect.upper_left (Block.view_rect view))
+    screen <- Cmd.get_screen $ Just (Rect.upper_left (Block.view_rect view))
     rect <- contents_rect view
     Ui.set_view_rect view_id $ Rect.intersection screen $ scootch screen $
         if maximize then max_height screen rect else rect
