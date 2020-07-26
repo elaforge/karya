@@ -4831,7 +4831,7 @@ fltk:
           always physically based... which I guess still means don't bake in
           shift!
       - Make KeyDoc smaller if it's >2 chars.
-      - update browser to show cmds
+      * update browser to show cmds
       - remove Keymap.make_cmd in favor of Cmd.call?
         . Maybe not, if I'm doing SyncKeymap the "ad-hoc" way.
       - pitches - Config.pitch_color

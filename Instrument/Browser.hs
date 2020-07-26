@@ -278,14 +278,20 @@ show_control_map cmap =
         | (cont, num) <- Map.toList cmap]
 
 show_cmds :: Cmd.InstrumentCode -> Text
-show_cmds code = Text.unwords $ filter (not . Text.null)
-    [ if null cmds then ""
-        else showt (length cmds) <> " cmds (cmds can't be introspected yet)"
-    , case Cmd.inst_thru code of
-        Nothing -> ""
-        Just {} -> "[custom thru]"
+show_cmds code = Text.unlines $ concat
+    [ map show_handler (Cmd.inst_cmds code)
+    , maybe [] (const ["[custom thru]"]) $ Cmd.inst_thru code
     ]
-    where cmds = Cmd.inst_cmds code
+
+show_handler :: Cmd.Handler m -> Text
+show_handler = \case
+    Cmd.Handler (Just note_entry) cmd ->
+        Cmd.cmd_name cmd <> ": " <> case note_entry of
+            Cmd.WithoutOctave m -> list $ Map.elems m
+            Cmd.WithOctave m -> list $ concatMap Map.elems $ Map.elems m
+        where list xs = "[" <> Text.unwords (filter (not . Text.null) xs) <> "]"
+    Cmd.Handler Nothing cmd -> Cmd.cmd_name cmd
+    Cmd.Keymap keymap -> pretty $ map Cmd.cmd_name $ Map.elems keymap
 
 show_call_bindings :: [CallDoc.CallBindings] -> Text
 show_call_bindings = Lazy.toStrict . Format.render "\t" 10000
@@ -299,10 +305,10 @@ show_tags tags =
     Text.unwords [quote k <> "=" <> quote v | (k, v) <- Seq.sort_on fst tags]
 
 show_initialize :: Patch.InitializePatch -> Text
-show_initialize Patch.NoInitialization = ""
-show_initialize (Patch.InitializeMessage msg) = "Message: " <> msg
-show_initialize (Patch.InitializeMidi msgs) =
-    Text.unlines (map pretty msgs)
+show_initialize = \case
+    Patch.NoInitialization -> ""
+    Patch.InitializeMessage msg -> "Message: " <> msg
+    Patch.InitializeMidi msgs -> Text.unlines (map pretty msgs)
 
 quote :: Text -> Text
 quote s
