@@ -185,8 +185,27 @@ to_logical label = case Text.unpack label of
         Text.singleton c2
     _ -> label
 
+-- | Make a short mnemonic that can fit in on a keycap.
 abbreviate :: Text -> KeycapsT.KeyDoc
-abbreviate = Text.pack . map Text.head . take 3 . Text.words
+abbreviate =
+    Text.pack . map symbolize . take 3 . filter (`Set.notMember` boring)
+    . Text.words
+    where
+    symbolize w = Map.findWithDefault (Text.head w) w word_symbol
+    boring = Set.fromList ["to", "in", "or", "from", "then"]
+
+word_symbol :: Map Text Char
+word_symbol = Map.fromList $ concatMap (\(ks, v) -> map (,v) ks)
+    [ (["rewind", "up", "above"], '↑')
+    , (["advance", "down", "below"], '↓')
+    , (["left", "previous"], '←')
+    , (["right", "next"], '→')
+    , (["play"], '▸')
+    , (["stop"], '￭')
+    , (["top"], '上')
+    , (["bottom"], '下')
+    ]
+
 
 key_spec_label :: Set Cmd.Modifier -> Cmd.KeySpec -> Maybe KeycapsT.Keycap
 key_spec_label mods (Cmd.KeySpec smods bindable) | mods == smods =

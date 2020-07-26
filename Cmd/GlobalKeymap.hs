@@ -109,7 +109,7 @@ io_bindings :: [Keymap.Binding (Cmd.CmdT IO)]
 io_bindings = concat
     [ file_bindings, undo_bindings, quit_bindings
     -- This actually belongs in 'play_bindings', but needs to be in IO.
-    , plain_char ' ' "stop, selection to point" context_stop
+    , plain_char ' ' "stop then selection to point" context_stop
     ]
 
 context_stop :: Cmd.CmdT IO ()
@@ -233,12 +233,12 @@ selection_bindings = concat
 
     , bind_repeatable [] Key.Right "shift selection right" $
         Selection.shift True move 1
-    , bind_repeatable [Shift] Key.Right "extend shift selection right" $
+    , bind_repeatable [Shift] Key.Right "extend selection right" $
         Selection.shift True Selection.Extend 1
 
     , bind_repeatable [] Key.Left "shift selection left" $
         Selection.shift True move (-1)
-    , bind_repeatable [Shift] Key.Left "extend shift selection left" $
+    , bind_repeatable [Shift] Key.Left "extend selection left" $
         Selection.shift True Selection.Extend (-1)
 
     , repeatable_char 'h' "move selection left" $
@@ -258,26 +258,26 @@ selection_bindings = concat
     , repeatable_char 'K' "move selection rewind" $
         Selection.step TimeStep.Rewind Selection.Extend
     -- Mnemonic: next, previous.
-    , repeatable_char 'n' "move selection right to next note track" $
+    , repeatable_char 'n' "move to next note track" $
         Selection.jump_to_track move =<< Cmd.abort_unless
             =<< Selection.find_note_track Selection.R False
-    , repeatable_char 'p' "move selection left to previous note track" $
+    , repeatable_char 'p' "move to previous note track" $
         Selection.jump_to_track move =<< Cmd.abort_unless
             =<< Selection.find_note_track Selection.L False
-    , plain_char 'N' "expand selection until before the next note track" $
+    , plain_char 'N' "expand to next note track" $
         Selection.jump_to_track Selection.Extend =<< Cmd.abort_unless
             =<< Selection.find_note_track Selection.R True
-    , plain_char 'P' "expand selection until the previous note track" $
+    , plain_char 'P' "expand to previous note track" $
         Selection.jump_to_track Selection.Extend =<< Cmd.abort_unless
             =<< Selection.find_note_track Selection.L True
 
-    , repeatable_char 'w' "move selection to next event" $
+    , repeatable_char 'w' "move to next event" $
         Selection.step_with 1 move =<< Track.event_and_note_step
-    , repeatable_char 'W' "extend selection to next event" $
+    , repeatable_char 'W' "extend to next event" $
         Selection.step_with 1 Selection.Extend =<< Track.event_and_note_step
-    , repeatable_char 'b' "move selection to previous event" $
+    , repeatable_char 'b' "move to previous event" $
         Selection.step_with (-1) move =<< Track.event_and_note_step
-    , repeatable_char 'B' "extend selection to previous event" $
+    , repeatable_char 'B' "extend to previous event" $
         Selection.step_with (-1) Selection.Extend =<< Track.event_and_note_step
 
     , bind_key [PrimaryCommand] (Key.Char 'a') "select track / all"
@@ -340,14 +340,14 @@ view_config_bindings = concat
     , secondary 'J' "block focus down" $ ViewConfig.move_focus ViewConfig.South
     , secondary 'K' "block focus up" $ ViewConfig.move_focus ViewConfig.North
     , secondary 'L' "block focus right" $ ViewConfig.move_focus ViewConfig.East
-    , secondary 'W' "destroy view" (Ui.destroy_view =<< Cmd.get_focused_view)
+    , secondary 'W' "close view" (Ui.destroy_view =<< Cmd.get_focused_view)
 
-    , secondary 'f' "scroll forward" $ ViewConfig.scroll_pages 0.75
-    , secondary 'b' "scroll backward" $ ViewConfig.scroll_pages (-0.75)
+    , secondary 'f' "scroll advance" $ ViewConfig.scroll_pages 0.75
+    , secondary 'b' "scroll rewind" $ ViewConfig.scroll_pages (-0.75)
     , bind_key [] Key.Home "scroll home" ViewConfig.scroll_to_home
     , bind_key [] Key.End "scroll end" ViewConfig.scroll_to_end
-    , bind_key [] Key.PageDown "scroll forward" $ ViewConfig.scroll_pages 0.75
-    , bind_key [] Key.PageUp "scroll backward" $ ViewConfig.scroll_pages (-0.75)
+    , bind_key [] Key.PageDown "scroll advance" $ ViewConfig.scroll_pages 0.75
+    , bind_key [] Key.PageUp "scroll rewind" $ ViewConfig.scroll_pages (-0.75)
     ]
     where secondary c = bind_key [SecondaryCommand] (Key.Char c)
 
@@ -505,8 +505,6 @@ create_bindings = concat
 
     , command_char 'N' "create view"
         (void $ Create.view =<< Cmd.get_focused_block)
-    -- For the moment, never destroy blocks when closing the view.
-    , command_char 'W' "destroy view" (Ui.destroy_view =<< Cmd.get_focused_view)
     , command_char 'b' "create block"
         (void $ Create.view =<< Create.block =<< Ui.block_ruler
             =<< Cmd.get_focused_block)
