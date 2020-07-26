@@ -27,6 +27,7 @@ import qualified Util.Log as Log
 import qualified Util.Process as Process
 import qualified Util.Thread as Thread
 
+import qualified Ui.BlockC as BlockC
 import qualified Ui.Fltk as Fltk
 import qualified Midi.Midi as Midi
 import qualified Midi.Interface as Interface
@@ -150,9 +151,11 @@ main = initialize $ \midi_interface repl_socket -> do
 
     git_user <- either (\err -> Log.error err >> Process.exit 1) return
         =<< SaveGit.get_user
+    -- Get screens synchronously, so setup_cmd can see them.
+    screens <- BlockC.get_screens
     Thread.startLogged "responder" $ do
         let loopback msg = STM.atomically (TChan.writeTChan loopback_chan msg)
-        Responder.responder static_config git_user ui_chan get_msg
+        Responder.responder static_config git_user screens ui_chan get_msg
             midi_interface setup_cmd session loopback
         `Exception.catch` (\(exc :: Exception.SomeException) ->
             Log.error $ "responder thread died from exception: " <> showt exc)

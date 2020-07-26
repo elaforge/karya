@@ -24,6 +24,7 @@ void ui_awake();
 int get_ui_msgs(UiMsg **msgs);
 void clear_ui_msgs();
 
+int get_screens(IRect **screens);
 
 // Block view
 

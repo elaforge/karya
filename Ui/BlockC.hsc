@@ -33,8 +33,10 @@
 -}
 {-# LANGUAGE CPP #-}
 module Ui.BlockC (
+    -- * query
+    get_screens
     -- * view creation
-    create_view, destroy_view, get_view_status
+    , create_view, destroy_view, get_view_status
     -- ** set other attributes
     , set_size
     , set_zoom
@@ -113,6 +115,19 @@ fltk name args action = do
 annotate :: String -> IO a -> IO a
 annotate name action = Exception.catch action $ \(PtrMap.FltkException exc) ->
     Exception.throwIO $ PtrMap.FltkException $ name <> ": " <> exc
+
+-- * query
+
+get_screens :: IO [Rect.Rect]
+get_screens = alloca $ \screenspp -> do
+    count <- c_get_screens screenspp
+    screensp <- peek screenspp
+    screens <- peekArray count screensp
+    free screensp
+    return screens
+
+foreign import ccall "get_screens"
+    c_get_screens :: Ptr (Ptr Rect.Rect) -> IO Int
 
 -- * view creation
 

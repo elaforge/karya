@@ -36,6 +36,7 @@ import qualified System.IO as IO
 
 import qualified Util.Debug as Debug
 import qualified Util.Log as Log
+import qualified Util.Rect as Rect
 import qualified Util.Thread as Thread
 import qualified Util.Trace as Trace
 
@@ -112,17 +113,17 @@ state_transport_info state = Transport.Info
 type MsgReader = IO Msg.Msg
 type Loopback = Msg.Msg -> IO ()
 
-responder :: StaticConfig.StaticConfig -> SaveGit.User -> Fltk.Channel
-    -> MsgReader -> Interface.Interface -> Cmd.CmdT IO Cmd.Status
-    -> Repl.Session -> Loopback -> IO ()
-responder config git_user ui_chan msg_reader midi_interface setup_cmd
+responder :: StaticConfig.StaticConfig -> SaveGit.User -> [Rect.Rect]
+    -> Fltk.Channel -> MsgReader -> Interface.Interface
+    -> Cmd.CmdT IO Cmd.Status -> Repl.Session -> Loopback -> IO ()
+responder config git_user screens ui_chan msg_reader midi_interface setup_cmd
         repl_session loopback = do
     Log.debug "start responder"
     ui_state <- Ui.create
     monitor_state <- MVar.newMVar ui_state
     app_dir <- Path.get_app_dir
     save_dir <- Path.canonical $ Path.to_absolute app_dir Config.save_dir
-    let cmd_state = setup_state $ Cmd.initial_state $
+    let cmd_state = setup_state screens $ Cmd.initial_state $
             StaticConfig.cmd_config app_dir save_dir midi_interface config
                 git_user
     Trace.trace "respond_initialize"
@@ -141,14 +142,15 @@ responder config git_user ui_chan msg_reader midi_interface setup_cmd
 -- | TODO This should probably go in StaticConfig, or better StaticConfig could
 -- just directly provide the Cmd.State.  But it needs to take app_dir and
 -- interface as args, so... too much work for now.
-setup_state :: Cmd.State -> Cmd.State
-setup_state state = state
+setup_state :: [Rect.Rect] -> Cmd.State -> Cmd.State
+setup_state screens state = state
     { Cmd.state_edit = (Cmd.state_edit state)
         { Cmd.state_time_step = TimeStep.time_step $
             TimeStep.AbsoluteMark TimeStep.AllMarklists Meter.r_4
         }
     , Cmd.state_hooks = (Cmd.state_hooks state)
         { Cmd.hooks_selection = Internal.default_selection_hooks }
+    , Cmd.state_screens = screens
     }
 
 -- | A special run-and-sync that runs before the respond loop gets started.

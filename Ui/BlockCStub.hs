@@ -25,6 +25,11 @@ import Global
 import Types
 
 
+-- * query
+
+get_screens :: IO [Rect.Rect]
+get_screens = return [Rect.xywh 0 0 800 600]
+
 -- * view creation
 
 create_view :: ViewId -> Text -> Rect.Rect -> Block.Config -> Fltk ()

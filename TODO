@@ -4723,22 +4723,29 @@ rust-gui:
 
 fltk:
   keycaps:
-    . It could be useful to display a keyboard along with cmd for each key.
-    . For cmds, it's cmd name.  For kbd entry, it's call entered (drums) or
-      pitch (scales).
-    . I need either a blank image of a keyboard, or to draw one myself.
-    . How about I just draw it, then I can fill in the keycaps as appropriate.
-    . Draw a set of rects of the given sizes, and then draw text at the given
-      positions.  I should be able to configure it from haskell and then do it
-      dynamically to tweak things.
-    . Then draw keycaps as light gray text, maybe in the corner, with the
-      binding as dark text on top.
-    . If the binding is too big, how to show it?  I could use first few
-      letters, and then tooltip.  Or if I don't like tooltip, then display the
-      last mouseover rect with a color highlight and put text in a gutter at
-      the bottom.
-    . I want to change them when modifiers are held, for that I need
-      a record_keys hook that sets bindings as appropriate.
+    notes:
+      . It could be useful to display a keyboard along with cmd for each key.
+      . For cmds, it's cmd name.  For kbd entry, it's call entered (drums) or
+        pitch (scales).
+      . I need either a blank image of a keyboard, or to draw one myself.
+      . How about I just draw it, then I can fill in the keycaps as appropriate.
+      . Draw a set of rects of the given sizes, and then draw text at the given
+        positions.  I should be able to configure it from haskell and then do it
+        dynamically to tweak things.
+      . Then draw keycaps as light gray text, maybe in the corner, with the
+        binding as dark text on top.
+      . If the binding is too big, how to show it?  I could use first few
+        letters, and then tooltip.  Or if I don't like tooltip, then display the
+        last mouseover rect with a color highlight and put text in a gutter at
+        the bottom.
+      . I want to change them when modifiers are held, for that I need
+        a record_keys hook that sets bindings as appropriate.
+    * open window on start
+      . I need the screens, which come from fltk later.
+      . Can I delay init until I get them?  Not having them can cause other
+        awkwardness.
+      . Or just ask fltk.
+    - replace highlight color with a brighter version of the underlying color
     * fltk implementation
       . Do I need a gutter with additional docs?
       . Probably, I can only fit a few characters in the keycap.
@@ -4806,8 +4813,12 @@ fltk:
       * global keymap - gray
       * pitch track keymap - Config.note_color
       + per-instrument keymap - what color?
+        - split shift based on case
+          . Or, don't merge case in the first place.
+          . It is convenient though, and  do it in Keymap though, maybe use
+            the same split?
         . Modify Cmd.Instrument.MidiInst inst_cmds
-        + Update instruments.
+        * Update instruments.
           . For mridangam:
             ImInst.cmd (CUtil.insert_call thru char_to_call)
             CUtil.insert_expr takes: Pitch.Octave -> Char -> Maybe DeriveT.Expr
@@ -4822,9 +4833,6 @@ fltk:
           * SyncKeycaps needs to pick it up.
           * update other instruments to use ImInst.handler
           * remove MidiInst.cmd, ImInst.cmd, or rename handler to cmd
-          - split shift based on case
-          - don't merge case in the first place... it is convenient though
-            . I do it in Keymap though, maybe use the same split?
         . Since they use EditUtils.fallthrough, they map to [] and [Shift],
           but none others.
         . But I think I've baked shift into the Char?  Which now seems like
@@ -4869,14 +4877,6 @@ fltk:
       . Cmd.InstrumentCode means Handler and hence Keymap have to move to Cmd.
         Unless I can do some big refactor and split out major things, but
         it'll probably be another Derive.Deriver.
-    Use different colors for different modes:
-      . global cmds for keymap: toggle chord, toggle advance
-      . track cmds: add ^, add -
-        . NoteTrackKeymap.make_keymap
-      . pitch when in kbd entry: 4c#
-      . drum when in kbd entry: k t od
-        . This is instrument cmds.
-        . Can't be introspected?
     * change config for held modifiers
   - Floating input in the wrong place for negative events with multiple lines.
     . Because it assumes the text goes downwards.

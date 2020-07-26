@@ -27,7 +27,7 @@ load_static_config = do
         { instrument_db = instrument_db
         , global_cmds = global_cmds
         , builtins = C.All.builtins
-        , setup_cmd = ParseArgs.parse_args
+        , setup_cmd = ParseArgs.open_keycaps ParseArgs.parse_args
         , midi = midi
         , highlight_colors = Config.highlight_colors
         }

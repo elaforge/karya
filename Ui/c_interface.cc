@@ -58,6 +58,19 @@ clear_ui_msgs()
     MsgCollector::get()->clear();
 }
 
+int
+get_screens(IRect **screens)
+{
+    int count = Fl::screen_count();
+    *screens = (IRect *) calloc(count, sizeof(IRect));
+    for (int i = 0; i < count; i++) {
+        int x, y, w, h;
+        Fl::screen_work_area(x, y, w, h, i);
+        (*screens)[i] = IRect(x, y, w, h);
+    }
+    return count;
+}
+
 
 // Block view
 
