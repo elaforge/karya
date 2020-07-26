@@ -4740,12 +4740,15 @@ fltk:
         the bottom.
       . I want to change them when modifiers are held, for that I need
         a record_keys hook that sets bindings as appropriate.
+    - remove Keymap.make_cmd in favor of Cmd.call?
+      . Maybe not, if I'm doing SyncKeymap the "ad-hoc" way.
     * open window on start
       . I need the screens, which come from fltk later.
       . Can I delay init until I get them?  Not having them can cause other
         awkwardness.
       . Or just ask fltk.
-    - replace highlight color with a brighter version of the underlying color
+    / replace highlight color with a brighter version of the underlying color
+      . Not distinct enough.
     * fltk implementation
       . Do I need a gutter with additional docs?
       . Probably, I can only fit a few characters in the keycap.
@@ -4780,7 +4783,7 @@ fltk:
     * I'll probably want per-key color
       . That means bindings need colors.  Use the index to figure out rect.
     - highlight pressed key?
-    - don't accept mouse focus
+    + don't accept mouse focus
       . I can reject FL_ENTER, but then I don't get FL_MOVE.
       . Maybe I can forward FL_MOVE from BlockWindow::handle.
       . Even if I reject FL_ENTER, I still get mouse focus, from the OS.
@@ -4791,6 +4794,10 @@ fltk:
       . But I remember when I tweaked the OS X level window create flags,
         I could get a window that didn't take focus.
       . That works, but is there any way to refuse mouse focus for the window?
+      . I think it's not possible. NSBorderlessWindowMask in Fl_cocoa.mm
+        Fl_Cocoa_Window_Driver::makeWindow should do it, but fltk also sets
+        canBecomeKeyWindow.
+      . Sent mail to fltk.
     * highlight even when I don't have focus
     * remove the border:
       . border(false) removes the border, but now there's no way to move it.
@@ -4812,8 +4819,8 @@ fltk:
     get active key bindings
       * global keymap - gray
       * pitch track keymap - Config.note_color
-      + per-instrument keymap - what color?
-        - split shift based on case
+      * per-instrument keymap - what color?
+        * split shift based on case
           . Or, don't merge case in the first place.
           . It is convenient though, and  do it in Keymap though, maybe use
             the same split?
@@ -4842,8 +4849,6 @@ fltk:
       * Make KeyDoc smaller if it's >2 chars.
         . Just always smaller is simpler.
       * update browser to show cmds
-      - remove Keymap.make_cmd in favor of Cmd.call?
-        . Maybe not, if I'm doing SyncKeymap the "ad-hoc" way.
       * pitches - Config.pitch_color
         . KbdEntry works by inspecting Msg, emitting an InputNote, which is
           then transformed via scale or whatever.

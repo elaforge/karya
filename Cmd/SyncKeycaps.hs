@@ -96,21 +96,27 @@ key_mods :: Map Cmd.Modifier Cmd.Modifier -> Set Cmd.Modifier
 key_mods keys_down =
     Set.fromList [Cmd.KeyMod m | Cmd.KeyMod m <- Map.keys keys_down]
 
--- No caching for now, but if it's slow I should be able to have either a
--- cache 'Map BlockId (Map TrackNum KeycapsT.Bindings)' or maybe
--- 'Map {Instrument,TrackType,ScaleId} KeycapsT.Bindings', that way I don't
--- have to invalidate.
+-- | Get the applicable bindings for the KeycapsState.
+--
+-- This duplicates Cmd.Track, and the checks duplicate the checks inside
+-- the underlying calls like EditUtil.fallthrough and Cmd.is_kbd_entry.  It's
+-- not exactly ideal, but it seemed more practical than, say, trying to get
+-- all Cmds into the Keymap mold.  The kbd_entry ones would waste a lot of
+-- allocation on each cmd constructing a Map just to look up a single key.
+--
+-- But the duplication means that the keycaps can be inaccurate, especially the
+-- exact shadowing situtaion may be incorrect.
 get_bindings :: Cmd.M m => Cmd.KeycapsState -> m KeycapsT.Bindings
 get_bindings (Cmd.KeycapsState
         { kc_mods, kc_octave, kc_is_kbd_entry, kc_track_type, kc_instrument
         , kc_scale_id
         }) = do
-    -- TODO this duplicates the work in Cmd.Track
     inst_bindings <- case (kc_is_kbd_entry, kc_track_type, kc_instrument) of
-        (True, Just ParseTitle.NoteTrack, Just inst) | Set.null kc_mods ->
-            -- TODO also shift is ok
-            get_instrument_bindings inst
-        _ -> return []
+        (True, Just ParseTitle.NoteTrack, Just inst)
+            | kc_mods `elem` [mempty, shift] ->
+                merge_note_entry (kc_mods == shift) kc_octave <$>
+                    get_instrument_bindings inst
+        _ -> return mempty
     -- TODO this is analogous to the list in Track.get_track_cmds.
     return $ Map.unions $ reverse
         [ Map.findWithDefault mempty kc_mods global_bindings
@@ -118,35 +124,45 @@ get_bindings (Cmd.KeycapsState
             Just ParseTitle.NoteTrack ->
                 Map.findWithDefault mempty kc_mods note_track_bindings
             _ -> mempty
-        , if not kc_is_kbd_entry then mempty else case kc_track_type of
-            Just ParseTitle.PitchTrack -> pitch_bindings
-            Just ParseTitle.NoteTrack -> pitch_bindings
-            _ -> mempty
-        , merge_note_entry kc_octave inst_bindings
+        , if not (kc_is_kbd_entry && Set.null kc_mods) then mempty
+            else case kc_track_type of
+                Just ParseTitle.PitchTrack -> pitch_bindings
+                Just ParseTitle.NoteTrack -> pitch_bindings
+                _ -> mempty
+        , inst_bindings
         ]
     where
+    shift = Set.singleton $ Cmd.KeyMod Key.Shift
     pitch_bindings = fromMaybe mempty $ Map.lookup kc_octave
         =<< (\scale_id -> Map.lookup scale_id scale_to_bindings)
         =<< kc_scale_id
 
-merge_note_entry :: Pitch.Octave -> [Cmd.NoteEntryMap KeycapsT.Binding]
+merge_note_entry :: Bool -> Pitch.Octave -> [Cmd.NoteEntryMap KeycapsT.Binding]
     -> KeycapsT.Bindings
-merge_note_entry octave = Map.unions . map get
+merge_note_entry shifted octave = Map.unions . map get
     where
     get = \case
         Cmd.WithOctave m -> convert $ Map.findWithDefault mempty octave m
         Cmd.WithoutOctave m -> convert m
-    convert = Map.mapKeys (to_logical . char_to_keycap)
+    convert = Map.fromList
+        . Seq.map_maybe_fst (fmap (to_logical . char_to_keycap) . unshift)
+        . Map.toList
+    -- Like Cmd.Keymap, I used shifted characters as a shorthand for Shift +
+    -- unshifted.  This is possible since I know the exact key layout.
+    unshift
+        | shifted = KeyLayouts.to_unshifted Local.KeyLayout.layout
+        | otherwise = Just
 
 char_to_keycap :: Char -> KeycapsT.Keycap
 char_to_keycap = Key.to_mac_label . Key.Char
 
 -- ** instrument bindings
 
+-- | Get bindings for the given instrument.  This isn't cached for now, but
+-- it wouldn't be hard to keep a Map Instrument Bindings cache if it's slow.
 get_instrument_bindings :: Cmd.M m => ScoreT.Instrument
     -> m [Cmd.NoteEntryMap KeycapsT.Binding]
 get_instrument_bindings inst = do
-    -- TODO this duplicates the work in Cmd.Track
     resolved <- Cmd.lookup_instrument inst
     let handlers = maybe []
             (Cmd.inst_cmds . Common.common_code . Inst.inst_common
