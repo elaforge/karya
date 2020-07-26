@@ -7490,6 +7490,138 @@ planning / research
   . If I implement a VST host or patch a DAW to accept VST controls like MIDI
     controls can I get low latency high res controls?
 
+ideas from renoise:
+  Pattern Editor:
+    Track colors and track groups.
+      Renoise uses a swatch at the top.
+      . I could set the background of the track title.  Set a note track and all
+        controls below it at once, to distinguish instruments.
+      . Or set color by instrument, and then putting in that instrument
+        automatically sets the color.
+      . Renoise can collapse a group, I could do that by instrument.
+      . But if I want a track group I need another UI feature, and structure in
+        Ui.State.  I could use the skeleton for this, but I'd have to make
+        a dummy control track, say with the group name.  The problem is that
+        it consumes horizontal space.  I'd really want the group name to go
+        above the skeleton.
+      . But I'd like to force a skeleton edge to go to the group, to simplify
+        it, and so I can always add a track controlling a group.
+      . So skeleton display becomes two level: above groups that points to
+        groups, which then have text label, and below, where edges come out of
+        the group label to individual tracks.  If groups can be nested then
+        this gets even more complicated, basically a full graph up there.
+        Too much!
+      . DAWs do this by having a mini-track representing the folder, and then
+        indenting below that.  They can squeeze in the text because they go
+        horizontally.
+    Drag and drop to move tracks.
+      This is easier to remember and use than the shift-click thing.
+  Pattern Sequencer:
+    . Calls are more flexible, but it's convenient to add an order
+      automatically.
+    . I could do this via tscore, just for the "score" block:
+      "score = [b1 b2 ...]"
+    . Clone block seems useful, maybe I could have a cmd that copies the block
+      and inserts it into the order.
+    . Section headers let you put text in between.  I would do that with
+      hierarchy, or in tscore just use a comment.
+    . Renoise has a way to reorder patterns on the fly, for a live-performance
+      kind of thing.  Karya derivation is not set up to interpret on the fly,
+      but it could.  I'd need to have some mode where when it gets done
+      playing a block, it can check a channel for new blocks to derive and
+      play.  This is fundamentally realtime though, and won't work with im.
+    . Looping patterns: I can do this with hierarchy.
+    . In general, I can get all the renoise features but more simply by
+      make tscore easy to use for the "score" root block.
+  Pattern Matrix:
+    . This is a way to manipulate blocks at the track level.  I don't have
+      the ability to reach inside blocks like that, but can get the same
+      effect with calls.  It's more work though.
+    . I could get the effect by automatically refactoring blocks to have calls
+      per instrument, and then just copy pasting that block, with
+      modifications.
+    . Or I could have a general transformer to mute tracks within a block, and
+      then the score uses that.
+    . It also has a graphical miniaturiztion of the score, using colors and
+      maybe zoomed out tracks.  It would be nice to get the same thing, by
+      including some kind of representation of a block inside a block call.
+  Advanced Edit:
+    . Subsumed by REPL.
+  Instruments:
+    . It could be nice to have a GUI representation of the layout of the kbd
+      input, appropriate to scale or instrument.  In fact, it could have all
+      keybindings when not in edit mode, as documentation.
+  Sampler:
+    . sampler-im can do all this, but without the GUI.  I don't have anything
+      for looping.
+  Phrase Editor:
+    . I think it's all subsumed by calls.
+  Sampler Waveform / Sampler keyzones:
+    . Audio editing, this can be a separate program.  Too bad audacity is so
+      clunky.
+    . There is some integration with the score, e.g. start offsets.  Also
+      keyzones display graphically, it would be nice to have this to generate
+      patches for sampler-im.
+  Sampler Modulation:
+    . This seems to be synthesizer stuff.  For controls, like fancy LFO stuff,
+      I put that in the score.  Response to controls would go in sampler-im.
+  Effects:
+    . I would do this in faust, either by writing a custom effect, or by
+      having some separate compose langugae to build them on the fly.
+  Plugins:
+    . This goes in the DAW.  It's awkward that I can't coordinate midi port
+      / channel assignments automatically.  If I had my own VST host I could
+      do that, but would lose all the other DAW features.
+  MIDI:
+    . Renoise can get audio back from the MIDI synth... I guess I use the DAW
+      for this as usual.
+  Lots of GUI elements:
+    . I don't want to do these in general because it would be a lot of work.
+      But I can pick some that seem high value.
+    . GUI for config could be independent: either a totally separate process
+      that communicates via REPL, or in process but a separate window that
+      communicates via its own queue.  Effectively this is like the via-REPL
+      option except it's using in memory calls instead of text RPC.
+    . GUI for drawing curves.  It may be easier to tweak by hand than typing
+      in breakpoints and coefficients.  But dragging little spline handles is
+      probably a waste of time, there should be higher level ways to say it.
+      Dragging the breakpoints themselves though could be useful.
+  Effects routing:
+    . It would be nice to have effects by group, track, block, instrument, and
+      note.  Currently I only have by-note for im, and then by instrument or
+      group of instruments, but in the DAW.
+    . Doing an effect for im at the transformer level should be theoretically
+      possible, but it would have to trigger its group of notes to be rendered
+      together, so the audio graph would become an arbitrary graph, not just
+      the flat 'notes -> synth -> file per inst' thing I have now.
+    . Per-note could be supported at the sampler-im or faust-im level though,
+      if I automatically converted them into a named effect.
+    . And then I could maybe do multiple notes by grouping all notes with the
+      same effect into an audio stream.  So that would be constructing the
+      graph inside the synth, but implicitly based on effect name.
+
+FFI:
+  There is no good solution for talking to C++ from haskell.
+
+  Each struct is declared multiple times:
+  - In a C++ idiomatic style in Keymap.h
+  - In a Haskell idiomatic style in KeymapC.hs
+  - Translated into SOA style in c_interface.h.  This is not even C
+    idiomatic, because the haskell FFI can't pass structs.  It can construct
+    them via CStorable, but this supports only static allocation, so it's
+    no good if you have a string in there.
+  - C function declaration translated into haskell FFI foreign import style.
+    c2hs could do this mechanically, but hsc2hs is too primitive.
+
+  Then it's marshalled, and hence copied, twice:
+  - From haskell to the c_interface.h signature.
+  - Inside c_interface.cc from C to C++ object.
+
+  Ok let's go back to C-style structs.
+  Then I only have it declared in two places, and both in struct style.
+  Bindings can use withArray.
+  C++ has to use explicit C-style deallocation.
+
 ness:
   Questions:
     multiplate:
