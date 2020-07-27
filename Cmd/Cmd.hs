@@ -1268,6 +1268,12 @@ data Modifier = KeyMod Key.Modifier
     | MidiMod Midi.Channel Midi.Key
     deriving (Eq, Ord, Show, Read)
 
+instance Pretty Modifier where
+    pretty = \case
+        KeyMod mod -> pretty mod
+        MouseMod button mb_track -> "MouseMod" <> pretty (button, mb_track)
+        MidiMod chan key -> "MidiMod" <> pretty (chan, key)
+
 mouse_mod_btn :: Modifier -> Maybe Types.MouseButton
 mouse_mod_btn (MouseMod btn _) = Just btn
 mouse_mod_btn _ = Nothing

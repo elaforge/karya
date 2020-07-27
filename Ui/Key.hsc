@@ -43,6 +43,8 @@ instance Pretty Key where
     pretty (Char c) = Text.singleton c
     pretty key = Text.toLower $ showt key
 
+instance Pretty Modifier where pretty = showt
+
 to_label :: Key -> Text
 to_label = \case
     Char ' ' -> "space"

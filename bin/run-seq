@@ -28,10 +28,19 @@ fi
 
 mkdir -p log
 
-# Get rid of OS X window restore state.  It doesn't actually work, but it makes
-# an annoying "restore state?" dialog on startup after a crash.
-dir=~/Library/Saved\ Application\ State
-rm -rf $dir/elaforge.seq.{seq,logview,browser}.savedState
+case $(uname) in
+Darwin)
+    # Get rid of OS X window restore state.  It doesn't actually work, but it
+    # makes an annoying "restore state?" dialog on startup after a crash.
+    dir=~/Library/Saved\ Application\ State
+    rm -rf $dir/elaforge.seq.{seq,logview,browser}.savedState
+    ;;
+[Ll]inux)
+    # FLTK is supposed to detect this, but probably I don't have DPI set up on
+    # X.
+    export FLTK_SCALING_FACTOR=2
+    ;;
+esac
 
 build/$mode/logview $geometry &
 
