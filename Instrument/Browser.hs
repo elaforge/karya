@@ -289,7 +289,10 @@ show_handler = \case
         Cmd.cmd_name cmd <> ": " <> case note_entry of
             Cmd.WithoutOctave m -> list $ Map.elems m
             Cmd.WithOctave m -> list $ concatMap Map.elems $ Map.elems m
-        where list xs = "[" <> Text.unwords (filter (not . Text.null) xs) <> "]"
+        where
+        list xs = "["
+            <> Text.unwords (Seq.unique (filter (not . Text.null) xs))
+            <> "]"
     Cmd.Handler Nothing cmd -> Cmd.cmd_name cmd
     Cmd.Keymap keymap -> pretty $ map Cmd.cmd_name $ Map.elems keymap
 

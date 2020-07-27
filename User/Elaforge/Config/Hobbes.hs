@@ -3,25 +3,22 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module User.Elaforge.Config.Hobbes where
-import qualified Cmd.Cmd as Cmd
-import qualified Instrument.Inst as Inst
 import qualified App.StaticConfig as StaticConfig
-import Global
+import qualified Cmd.Cmd as Cmd
+
+import           Global
 
 
 midi_config :: Cmd.InstrumentDb -> StaticConfig.Midi
-midi_config db = StaticConfig.Midi
+midi_config _db = StaticConfig.Midi
     { rdev_map = StaticConfig.make_rdev_map rdev_map
-    , wdev_map = StaticConfig.make_wdev_map $
-        -- Give all the softsynths a default mapping so they're easy to play
-        -- with.
-        [(dev, iac 1) | dev <- Inst.synth_names db] ++ wdev_map
+    , wdev_map = StaticConfig.make_wdev_map wdev_map
     , read_devices = StaticConfig.make_read_devices read_devices
     }
 
 iac, tapco, network :: Int -> Text
 iac n = "IAC Driver " <> showt n
-tapco n = "Tapco Port " <> showt n
+tapco n = "Tapco Link MIDI USB Ver 2.2 Port " <> showt n
 network n = "Network hobbes" <> showt n
 
 wdev_map :: [(Text, Text)]

@@ -14,7 +14,9 @@ import qualified Control.Concurrent.STM.TChan as TChan
 import qualified Control.Exception as Exception
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
+import qualified Data.Tuple as Tuple
 import qualified Network.Socket as Socket
 import qualified System.Environment
 import qualified System.IO as IO
@@ -24,6 +26,7 @@ import qualified System.Remote.Monitoring
 
 import qualified Util.Git as Git
 import qualified Util.Log as Log
+import qualified Util.Maps as Maps
 import qualified Util.Process as Process
 import qualified Util.Thread as Thread
 
@@ -110,12 +113,14 @@ main = initialize $ \midi_interface repl_socket -> do
 
     let _x = _x -- satellites are out tonight
 
-    let open_read = StaticConfig.read_devices (StaticConfig.midi static_config)
+    let midi = StaticConfig.midi static_config
+    let open_read = StaticConfig.read_devices midi
     rdevs <- Interface.read_devices midi_interface
     mapM_ (Interface.connect_read_device midi_interface) (Set.toList open_read)
     wdevs <- Interface.write_devices midi_interface
     forM_ (map fst wdevs) (Interface.connect_write_device midi_interface)
     print_devs open_read rdevs wdevs
+        (StaticConfig.rdev_map midi) (StaticConfig.wdev_map midi)
 
     setup_cmd <- either errorIO return . StaticConfig.setup_cmd static_config
         =<< System.Environment.getArgs
@@ -131,8 +136,7 @@ main = initialize $ \midi_interface repl_socket -> do
     loopback_chan <- STM.newTChanIO
     msg_chan <- STM.newTChanIO
     get_msg <- Responder.create_msg_reader
-        (remap_read_message (StaticConfig.rdev_map
-            (StaticConfig.midi static_config)))
+        (remap_read_message (StaticConfig.rdev_map midi))
         (Interface.read_channel midi_interface) repl_socket msg_chan
         loopback_chan
 
@@ -205,16 +209,28 @@ remap_read_message :: Map Midi.ReadDevice Midi.ReadDevice
 remap_read_message dev_map rmsg@(Midi.ReadMessage { Midi.rmsg_dev = dev }) =
     rmsg { Midi.rmsg_dev = Map.findWithDefault dev dev dev_map }
 
-print_devs :: Set Midi.ReadDevice -> [(Midi.ReadDevice, [Midi.ReadDevice])]
-    -> [(Midi.WriteDevice, [Midi.WriteDevice])] -> IO ()
-print_devs opened_rdevs rdevs wdevs = do
+print_devs :: Set Midi.ReadDevice
+    -> [(Midi.ReadDevice, [Midi.ReadDevice])]
+    -> [(Midi.WriteDevice, [Midi.WriteDevice])]
+    -> Map Midi.ReadDevice Midi.ReadDevice
+    -> Map Midi.WriteDevice Midi.WriteDevice
+    -> IO ()
+print_devs opened_rdevs rdevs wdevs rdev_map wdev_map = do
     putStrLn "read devs:"
-    forM_ rdevs $ \(rdev, aliases) ->
-        let prefix = if opened rdev aliases then "* " else "  "
-        in putStrLn $ prefix ++ prettys rdev ++ " " ++ prettys aliases
+    forM_ rdevs $ \(rdev, aliases) -> Text.IO.putStrLn $ Text.unwords $
+        filter (not . Text.null)
+        [ if any (`Set.member` opened_rdevs) (rdev : aliases) then "*" else " "
+        , pretty rdev
+        , if null aliases then "" else pretty aliases
+        , maybe "" (("-> "<>) . pretty) $ Map.lookup rdev rdev_map
+        ]
     putStrLn "write devs:"
-    forM_ wdevs $ \(wdev, aliases) ->
-        putStrLn $ "* " ++ prettys wdev ++ " " ++ prettys aliases
-    where
-    opened rdev aliases = rdev `Set.member` opened_rdevs
-        || any (`Set.member` opened_rdevs) aliases
+    forM_ wdevs $ \(wdev, aliases) -> Text.IO.putStrLn $ Text.unwords $
+        filter (not . Text.null)
+        [ "*"
+        , pretty wdev
+        , if null aliases then "" else pretty aliases
+        , maybe "" (("<- "<>) . Text.intercalate ", " . map pretty) $
+            Map.lookup wdev wdev_to_names
+        ]
+    where wdev_to_names = Maps.multimap $ map Tuple.swap $ Map.toList wdev_map
