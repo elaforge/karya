@@ -120,7 +120,9 @@ KeycapsWindow::KeycapsWindow(int x, int y, int w, int h, const char *title,
     keycaps(0, 0, w, h, layout),
     doc(0, h, w, doc_h)
 {
-    border(false);
+    // "Non-modal" is fltk's way to say "stays on top."
+    set_flag(Fl_Window::NON_MODAL | Fl_Window::NOBORDER);
+
     resizable(nullptr); // window cannot be resized
     keycaps.callback(KeycapsWindow::keycaps_cb, static_cast<void *>(this));
     doc.textsize(Config::font_size::input);
@@ -155,9 +157,9 @@ KeycapsWindow::handle(int evt)
     switch (evt) {
     case FL_ENTER:
         // This should opt out of focus, but doesn't work on OS X, or maybe not
-        // for windows.
-        // return false;
-        return true; // to receive FL_MOVE
+        // for windows.  In fact, I never get this.
+        return false;
+        // return true; // to receive FL_MOVE
     case FL_MOVE:
         return Fl_Double_Window::handle(evt);
     case FL_PUSH:
