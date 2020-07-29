@@ -204,28 +204,33 @@ type Ruler = [(Text, Int)]
 type PrevRuler = (Maybe Ruler, Int)
 type Line sym = [(S.State, sym)]
 
-pairWithRuler :: Int -> PrevRuler -> Tala.Tala -> Int -> [[Line sym]]
-    -> (PrevRuler, [[(Maybe Ruler, Line sym)]])
+pairWithRuler :: Int -> PrevRuler -> Tala.Tala -> Int
+    -> [[Line sym]] -> (PrevRuler, [[(Maybe Ruler, Line sym)]])
 pairWithRuler rulerEach prevRuler tala strokeWidth =
     List.mapAccumL (List.mapAccumL strip) prevRuler
     . snd . List.mapAccumL (List.mapAccumL inherit) (fst prevRuler)
     . map (map addRuler)
     where
-    addRuler line = (inferRuler tala strokeWidth (map fst line), line)
+    addRuler line =
+        ( inferRuler akshara tala strokeWidth (map fst line)
+        , line
+        )
+        where akshara = maybe 0 (S.stateAkshara . fst) $ Seq.head line
+
     inherit Nothing (ruler, line) = (Just ruler, (ruler, line))
     inherit (Just prev) (ruler, line) = (Just cur, (cur, line))
         where !cur = inheritRuler prev ruler
-    -- Strip rulers when they are unchanged.  Since 'inferRuler' always
-    -- starts from the beginning of the 'Tala.tala_labels', if a ruler is
-    -- wrapped it will have the same labels, even though the second one
-    -- is starting at the midpoint.  This is actually what I want, because
-    -- otherwise, wrapping the avartanam would always defeat ruler suppression.
+    -- Strip rulers when they are unchanged.  "Changed" is by structure, not
+    -- mark text, so a wrapped ruler with the same structure will also be
+    -- suppressed.
     strip (prev, lineNumber) (ruler, line) =
         ( (Just ruler, 1 + if wanted then 0 else lineNumber)
         , (if wanted then Just (ruler ++ [("|", 0)]) else Nothing, line)
         )
         where
-        wanted =  lineNumber `mod` rulerEach == 0 || Just ruler /= prev
+        wanted =  lineNumber `mod` rulerEach == 0
+            || Just (structure ruler) /= (structure <$> prev)
+    structure = map (\(mark, width) -> (mark == ".", width))
 
 -- | Fix the problem in 'inferRuler' by re-using the previous ruler if this one
 -- is a subset of it.
@@ -239,13 +244,13 @@ inheritRuler prev cur
 -- to figure out the mark spacing.  Otherwise I wouldn't know where nadai
 -- changes occur.  But it does mean I can't generate ruler if I run out of
 -- strokes, which is a bit annoying for incomplete korvais or ones with eddupu.
-inferRuler :: Tala.Tala -> Int -> [S.State] -> Ruler
-inferRuler tala strokeWidth =
+inferRuler :: Tala.Akshara -> Tala.Tala -> Int -> [S.State] -> Ruler
+inferRuler startAkshara tala strokeWidth =
     merge
     . map (second length)
     . concat . snd . List.mapAccumL insertNadai 0
     . concatMap insertDots
-    . zip (Tala.tala_labels tala)
+    . zip (drop startAkshara (Tala.tala_labels tala))
     . dropWhile null
     . Seq.split_before onAkshara
     where

@@ -171,7 +171,7 @@ test_spellRests = do
     equalT (run 80 (G.ta <> G.__4 <> G.ta)) $ Right "k _ ‗   k"
 
 test_inferRuler = do
-    let f = Format.inferRuler tala4 2
+    let f = Format.inferRuler 0 tala4 2
             . map fst . S.flattenedNotes . Format.normalizeSpeed 0 tala4 . fst
             . expect_right
             . kRealize tala4
@@ -294,7 +294,7 @@ test_formatNadaiChange = do
     equal_fmt Text.unlines (Text.lines out)
         [ "0:4     1       2       3       |"
         , "_k_t_knok t knok_t_knok t knok_t"
-        , "0:4 :6.   1     .     2     .     3     .     |"
+        , "X:4 :6.   O     .     X     .     O     .     |"
         , "_knok _ t _ k n o k _ t _ k n o k _ t _ k n o"
         ]
     equal warnings []

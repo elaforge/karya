@@ -568,7 +568,7 @@ realizeSarva toStrokes tala tempo matras children@((state, _) : _) = do
     (_, (strokes, _)) <- splitStrokes dur strokes
     return (matched, strokes)
     where
-    offset = S.stateAbsoluteMatra tala state
+    offset = S.stateAbsoluteAkshara tala state
     getRest (S.FNote tempo (Solkattu.Space space)) = Just (tempo, Space space)
     getRest _ = Nothing
     dur = S.matraDuration tempo * fromIntegral matras

@@ -180,27 +180,32 @@ format config prevRuler tala notes =
     Format.pairWithRuler (_rulerEach config) prevRuler tala strokeWidth
         avartanamLines
     where
-    formatAvartanam = concatMap formatRulerLine . zip (True : repeat False)
-    formatRulerLine (isFirst, (mbRuler, line)) = concat
+    formatAvartanam = concatMap formatRulerLine
+    formatRulerLine (mbRuler, line) = concat
         [ case mbRuler of
             Nothing -> []
             Just ruler -> [(Ruler, formatRuler strokeWidth ruler)]
         , [(if isFirst then AvartanamStart else AvartanamContinue,
             formatLine (map snd line))]
         ]
+        where
+        isFirst = maybe True ((==0) . S.stateMatraPosition . fst)
+            (Seq.head line)
 
     avartanamLines :: [[Line]] -- [avartanam] [[line]] [[[sym]]]
     (avartanamLines, strokeWidth) = case _overrideStrokeWidth config of
         Just n -> (fmt n width tala notes, n)
         Nothing -> case fmt 1 width tala notes of
-            [line] : _
-                | Num.sum (map (symLength . snd) line) <= width `div` 2 ->
-                    (fmt 2 width tala notes, 2)
+            [line] : _ | lineWidth line <= width `div` 2 ->
+                (fmt 2 width tala notes, 2)
             result -> (result, 1)
         where fmt = formatLines (_abstraction config)
     formatLine :: [Symbol] -> Styled.Styled
     formatLine = mconcat . map formatSymbol
     width = _terminalWidth config
+
+lineWidth :: Line -> Int
+lineWidth = Num.sum . map (symLength . snd)
 
 formatRuler :: Int -> Format.Ruler -> Styled.Styled
 formatRuler strokeWidth =
@@ -245,7 +250,8 @@ formatLines :: Solkattu.Notation stroke => Format.Abstraction -> Int
     -> Int -> Tala.Tala -> [Format.Flat stroke] -> [[[(S.State, Symbol)]]]
 formatLines abstraction strokeWidth width tala notes =
     map (map (Format.mapSnd (spellRests strokeWidth)))
-        . Format.formatFinalAvartanam isRest . map (breakLine width)
+        . Format.formatFinalAvartanam isRest
+        . map (breakLine width)
         . Format.breakAvartanams
         . overlapSymbols strokeWidth
         . concatMap (makeSymbols strokeWidth tala angas)
@@ -292,7 +298,7 @@ makeSymbols :: Solkattu.Notation stroke => Int -> Tala.Tala -> Set Tala.Akshara
 makeSymbols strokeWidth tala angas = go
     where
     go (S.FNote _ (state, note)) =
-        (:[]) $ (state,) $ make state $ case note of
+        (:[]) $ (state,) $ makeSymbol state $ case note of
             S.Attack a -> (False,) $
                 Realize.justifyLeft strokeWidth (Solkattu.extension a)
                     (Solkattu.notation a)
@@ -325,15 +331,15 @@ makeSymbols strokeWidth tala angas = go
             -- innermost group's highlight will show, which seems to be most
             -- useful in practice.
             Just _ -> sym
-    make state (isSustain, text) = Symbol
+    makeSymbol state (isSustain, text) = Symbol
         { _text = text
         , _isSustain = isSustain
         , _emphasize = shouldEmphasize tala angas state
         , _highlight = Nothing
         }
 
--- | Chapus are generally fast, so only emphasize the angas.  Other talas are
--- slower, and without such a strong beat, so emphasize every akshara.
+-- | Chapu talams are generally fast, so only emphasize the angas.  Other talas
+-- are slower, and without such a strong beat, so emphasize every akshara.
 shouldEmphasize :: Tala.Tala -> Set Tala.Akshara -> S.State -> Bool
 shouldEmphasize tala angas state
     | isChapu = Format.onAnga angas state
@@ -354,8 +360,7 @@ breakLine maxWidth notes
     where
     width = Num.sum $ map (symLength . snd) notes
     aksharas = Seq.count (Format.onAkshara . fst) notes
-    breakAt akshara =
-        pairToList . break ((==akshara) . S.stateAkshara . fst)
+    breakAt akshara = pairToList . break ((==akshara) . S.stateAkshara . fst)
     pairToList (a, b) = [a, b]
 
 -- | Yet another word-breaking algorithm.  I must have 3 or 4 of these by now.

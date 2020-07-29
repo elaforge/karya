@@ -419,7 +419,7 @@ makeSymbols = go
 formatTable :: Tala.Tala -> Int -> Korvai.Section ()
     -> [(Maybe Format.Ruler, [(S.State, Symbol)])] -> Doc.Html
 formatTable tala _sectionIndex section rows =
-    mconcatMap ((<>"\n") . row) . zipFirstFinal $ rows
+    mconcatMap row . zipFirstFinal $ rows
     where
     td (tags, body) = Doc.tag_attrs "td" tags (Just body)
     row (isFirst, (mbRuler, cells), isFinal) = Texts.join "\n" $

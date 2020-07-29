@@ -5768,9 +5768,29 @@ solkattu:
       - Can I align by structure?
         . E.g. reductions or tri would line up vertically.
     terminal:
-      - wrapped ruler is the wrong half in Mridangam2020.sarva_20_06_05
+      * wrapped ruler is the wrong half in Mridangam2020.sarva_20_06_05
         . This happens whenever it wants to display the ruler.
-      - But also there's no need for a rule redisplay for the final note.
+        . if not isFirst, then I need to know how many strokes to drop
+          I have S.State, but I need to turn into strokes, then *strokeWidth
+          Format.normalizeSpeed gets toSpeed, expands and splits States
+          Then it's just each one of those gets strokeWidth spaces.
+          So toSpeed is the factor.
+          normal: speed, strokeWidth: (0, 2) akshara gets 8
+          2x: (1, 1) -> akshara 8
+          4x: (2, 1) -> akshara 16
+          so: 2^speed * strokeWidth is matra * 4 is akshara
+        . now I have spaces per matra, but S.State has aksharas, and I don't
+          know how many matras per akshara.  I want flat matras.
+        . I should be able to count the number of flat notes.
+        . In fact, since ruler and notes are aligned, why not just do it
+          textually?
+        . Except that the ruler itself is clipped shorter!  So who does that?
+        . No one, the rest of the ruler just isn't generated!
+          Format.inferRuler just zips on the states, which are already
+          line-split, in Terminal.formatLines, specifically breakLines.
+        . For this, I think inferRuler would have to be smarter and use the
+          S.States as a start offset.
+      / But also there's no need for a rule redisplay for the final note.
       - The warning carat only lines up if there is only one line.
         . Otherwise I have to divMod i by strokes per line, and use that to
           insert in the formatted output

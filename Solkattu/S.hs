@@ -33,7 +33,7 @@ module Solkattu.S (
     , tempoToState
     , Stroke(..), normalizeSpeed, flattenSpeed
     -- * State
-    , State(..), statePosition, stateMatraPosition, stateAbsoluteMatra
+    , State(..), statePosition, stateMatraPosition, stateAbsoluteAkshara
     , stateFrom
     , showPosition
     -- * functions
@@ -463,8 +463,8 @@ stateMatraPosition :: State -> Duration
 stateMatraPosition state = fromIntegral (stateAkshara state) + stateMatra state
 
 -- | Absolute number of aksharas from the beginning of the sequence.
-stateAbsoluteMatra :: Tala.Tala -> State -> Duration
-stateAbsoluteMatra tala state =
+stateAbsoluteAkshara :: Tala.Tala -> State -> Duration
+stateAbsoluteAkshara tala state =
     fromIntegral (stateAvartanam state * Tala.tala_aksharas tala)
         + stateMatraPosition state
 
