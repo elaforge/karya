@@ -104,7 +104,7 @@ c_17_03_20 :: Korvai
 c_17_03_20 = date 2017 3 20 $ ganesh $ comment "Trichy Sankaran plays this a\
     \ lot, see section in Laya Vinyas, adi talam solo." $
     korvaiS1 adi (mridangam <> kendang <> reyong) $ su $
-        reduceTo 4 2 theme . sd (sd p6) . sd p6 . tri_ (__2.ga) p6
+        reduceTo 4 2 theme . sd (sd p6) . sd p6 . tri_ (__.__) p6
     where
     theme = tat.__.taka.takadinna.na.ka.dit.__.talang.__.ga
     -- I'm not sure if I prefer smaller fragments that are easier to read, or
@@ -116,11 +116,9 @@ c_17_03_20 = date 2017 3 20 $ ganesh $ comment "Trichy Sankaran plays this a\
         ]
     kendang = makeKendang1
         [ (theme, p.__.p.k.p.a.o.p.t.o.p.__.o.u.__.p)
-        , (ga, a)
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
     reyong = makeReyong
         [ (theme, b.__.k.k.x.k.k.k.i.r2.r3.__.b.o.__.b)
-        , (ga, b)
         ] where Reyong.Strokes {..} = Reyong.notes
 
 c_17_09_25 :: Korvai

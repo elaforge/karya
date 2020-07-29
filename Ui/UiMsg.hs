@@ -78,8 +78,8 @@ data UiUpdate =
 -- | MsgType.msg_event, which is a fltk event.
 data MsgEvent =
     Mouse !MouseEvent
-    -- | The Char is the text that this key wants to enter, if any.  They Key
-    -- is just the keycap, without taking shift into account.
+    -- | The Char is the text that this key wants to enter, if any.  The Key is
+    -- just the keycap, without taking shift or other modifiers into account.
     | Kbd KbdState [Key.Modifier] Key.Key (Maybe Char)
     | AuxMsg AuxMsg
     | Unhandled Int

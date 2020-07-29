@@ -5768,6 +5768,9 @@ solkattu:
       - Can I align by structure?
         . E.g. reductions or tri would line up vertically.
     terminal:
+      - wrapped ruler is the wrong half in Mridangam2020.sarva_20_06_05
+        . This happens whenever it wants to display the ruler.
+      - But also there's no need for a rule redisplay for the final note.
       - The warning carat only lines up if there is only one line.
         . Otherwise I have to divMod i by strokes per line, and use that to
           insert in the formatted output
