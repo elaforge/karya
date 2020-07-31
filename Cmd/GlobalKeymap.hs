@@ -41,7 +41,9 @@
     timestamps, which are later passed to the integrator to convert into
     events.
 -}
-module Cmd.GlobalKeymap (pure_cmds, io_cmds, all_cmd_map, cmd_map_errors) where
+module Cmd.GlobalKeymap (
+    pure_keymap, io_keymap, all_cmd_map, cmd_map_errors
+) where
 import qualified Control.Monad.Identity as Identity
 
 import qualified App.Config as Config
@@ -57,7 +59,6 @@ import           Cmd.Keymap
        (bind_click, bind_drag, bind_key, bind_key_status, bind_repeatable,
         command_char, plain_char, plain_key, really_control, shift_char,
         SimpleMod(..))
-import qualified Cmd.Msg as Msg
 import qualified Cmd.PhysicalKey as PhysicalKey
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Play as Play
@@ -81,14 +82,11 @@ import qualified Ui.Ui as Ui
 import           Global
 
 
--- | Cmds that don't use IO.  Exported from the module for the responder.
-pure_cmds :: [Msg.Msg -> Cmd.CmdId Cmd.Status]
-pure_cmds = [Keymap.make_cmd (fst (Keymap.make_keymap pure_bindings))]
+pure_keymap :: Cmd.Handler Cmd.CmdId
+pure_keymap = Cmd.Keymap $ fst $ Keymap.make_keymap pure_bindings
 
--- | Cmds that use IO.  This should be a limited to the small set of cmds that
--- need it.
-io_cmds :: [Msg.Msg -> Cmd.CmdT IO Cmd.Status]
-io_cmds = [Keymap.make_cmd (fst (Keymap.make_keymap io_bindings))]
+io_keymap :: Cmd.Handler (Cmd.CmdT IO)
+io_keymap = Cmd.Keymap $ fst $ Keymap.make_keymap io_bindings
 
 -- | This is not useful for execution since the cmds themselves have been
 -- stripped of their code, but it's still useful to find keymap collisions and
@@ -105,6 +103,8 @@ cmd_map_errors :: [Text]
 
 -- * io cmds
 
+-- | Cmds that use IO.  This should be a limited to the small set of cmds that
+-- need it.
 io_bindings :: [Keymap.Binding (Cmd.CmdT IO)]
 io_bindings = concat
     [ file_bindings, undo_bindings, quit_bindings
@@ -141,6 +141,7 @@ quit_bindings =
 
 -- * pure cmds
 
+-- | Cmds that don't use IO.  Exported from the module for the responder.
 pure_bindings :: [Keymap.Binding (Cmd.CmdT Identity.Identity)]
 pure_bindings = concat
     [ play_bindings, mouse_bindings, selection_bindings, step_play_bindings

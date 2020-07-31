@@ -467,7 +467,7 @@ run_core_cmds msg = do
         (StaticConfig.global_cmds (state_static_config state))
     -- Focus commands and the rest of the pure commands come first so text
     -- entry can override io bound commands.
-    let pure_cmds = hardcoded_cmds ++ GlobalKeymap.pure_cmds
+    let pure_cmds = hardcoded_cmds ++ [Cmd.call GlobalKeymap.pure_keymap]
     mapM_ (run_throw . Left . ($msg)) pure_cmds
     -- Certain commands require IO.  Rather than make everything IO,
     -- I hardcode them in a special list that gets run in IO.
@@ -490,7 +490,8 @@ hardcoded_io_cmds :: Fltk.Channel -> Repl.Session
 hardcoded_io_cmds ui_chan repl_session =
     [ Repl.respond repl_session
     , PlayC.cmd_play_msg ui_chan
-    ] ++ GlobalKeymap.io_cmds
+    , Cmd.call GlobalKeymap.io_keymap
+    ]
 
 -- ** run cmds
 

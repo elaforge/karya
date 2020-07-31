@@ -134,17 +134,17 @@ handler :: Text -> (Msg.Msg -> m Status) -> Handler m
 handler name cmd = Handler Nothing (NamedCmd name cmd)
 
 call :: M m => Handler m -> Msg.Msg -> m Status
-call handler msg = case handler of
-    Handler _ cmd -> run cmd
-    Keymap keymap -> do
-        bindable <- abort_unless (msg_to_bindable msg)
-        mods <- mods_down
-        maybe (return Continue) run $
-            Map.lookup (KeySpec mods bindable) keymap
-    where
-    run (NamedCmd n cmd) = do
-        Log.debug $ "running command: " <> n
-        name n (cmd msg)
+call handler = \msg ->
+    let run (NamedCmd n cmd) = do
+            Log.debug $ "running command: " <> n
+            name n (cmd msg)
+    in case handler of
+        Handler _ cmd -> run cmd
+        Keymap keymap -> do
+            bindable <- abort_unless (msg_to_bindable msg)
+            mods <- mods_down
+            maybe (return Continue) run $
+                Map.lookup (KeySpec mods bindable) keymap
 
 -- | Return the mods currently down, stripping out non-modifier keys and notes,
 -- so that overlapping keys will still match.  Mouse mods are not filtered, so

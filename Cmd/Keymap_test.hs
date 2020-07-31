@@ -25,15 +25,15 @@ test_make_keymap = do
     strings_like (map untxt errors) ["cmds overlap* [1: 1, 1: 12]"]
 
 test_make_cmd = do
-    let (cmd_map, _) = Keymap.make_keymap binds
-    let cmd = Keymap.make_cmd cmd_map
+    let (keymap, _) = Keymap.make_keymap binds
+    let cmd = Cmd.call $ Cmd.Keymap keymap
     let no_run = []
         did_run cname cmdlog = ["running command: " <> cname, cmdlog]
         aborted = Right (Nothing, [])
     let run mods msg = extract_logs (run_cmd cmd mods msg)
     let run_char mods char = run (map Cmd.KeyMod mods) (CmdTest.key_down char)
-    -- pprint $ zip (Map.keys cmd_map)
-    --     (map (\(Keymap.CmdSpec name _) -> name) (Map.elems cmd_map))
+    -- pprint $ zip (Map.keys keymap)
+    --     (map (\(Keymap.CmdSpec name _) -> name) (Map.elems keymap))
     equal (run_char [] 'a') no_run
     equal (run_char [] '1') (did_run "12" "cmd1") -- last cmd wins
     equal (run_char [] '2') (did_run "2" "cmd2")
@@ -63,11 +63,11 @@ test_make_cmd = do
         (did_run "drag-3" "cmd1")
 
 test_key_repeat = do
-    let (cmd_map, _) = Keymap.make_keymap $ concat
+    let (keymap, _) = Keymap.make_keymap $ concat
             [ Keymap.plain_char '1' "1" cmd1
             , Keymap.bind_repeatable [] (Key.Char '2') "2" cmd2
             ]
-    let cmd = Keymap.make_cmd cmd_map
+    let cmd = Cmd.call $ Cmd.Keymap keymap
     let run repeat char = extract_logs $ run_cmd cmd []
             (CmdTest.make_key
                 (if repeat then UiMsg.KeyRepeat else UiMsg.KeyDown)

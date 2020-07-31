@@ -28,7 +28,6 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
-import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
@@ -141,22 +140,6 @@ make_keymap bindings = (Map.fromList bindings, warns)
     warns = map warn (overlaps bindings)
     warn cmds = "cmds overlap, picking the last one: ["
         <> Text.intercalate ", " cmds <> "]"
-
--- TODO remove
--- | Create a cmd that dispatches into the given Keymap.
---
--- To look up a cmd, the Msg is restricted to a 'Bindable'.  Then modifiers
--- that are allowed to overlap (such as keys) are stripped out of the mods and
--- the KeySpec is looked up in the keymap.
-make_cmd :: Cmd.M m => Cmd.Keymap m -> Msg.Msg -> m Cmd.Status
-make_cmd cmd_map msg = do
-    bindable <- Cmd.abort_unless (Cmd.msg_to_bindable msg)
-    mods <- Cmd.mods_down
-    case Map.lookup (Cmd.KeySpec mods bindable) cmd_map of
-        Nothing -> return Cmd.Continue
-        Just (Cmd.NamedCmd name cmd) -> do
-            Log.debug $ "running command: " <> name
-            Cmd.name name (cmd msg)
 
 -- ** SimpleMod
 

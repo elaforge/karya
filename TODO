@@ -4740,7 +4740,7 @@ fltk:
         the bottom.
       . I want to change them when modifiers are held, for that I need
         a record_keys hook that sets bindings as appropriate.
-    - remove Keymap.make_cmd in favor of Cmd.call?
+    * remove Keymap.make_cmd in favor of Cmd.call?
       . Maybe not, if I'm doing SyncKeymap the "ad-hoc" way.
     * open window on start
       . I need the screens, which come from fltk later.
