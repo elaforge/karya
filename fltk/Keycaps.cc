@@ -122,6 +122,8 @@ KeycapsWindow::KeycapsWindow(int x, int y, int w, int h, const char *title,
 {
     // "Non-modal" is fltk's way to say "stays on top."
     set_flag(Fl_Window::NON_MODAL | Fl_Window::NOBORDER);
+    // Refuse to take focus.
+    set_output();
 
     resizable(nullptr); // window cannot be resized
     keycaps.callback(KeycapsWindow::keycaps_cb, static_cast<void *>(this));

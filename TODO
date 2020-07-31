@@ -4783,7 +4783,7 @@ fltk:
     * I'll probably want per-key color
       . That means bindings need colors.  Use the index to figure out rect.
     - highlight pressed key?
-    + don't accept mouse focus
+    * don't accept mouse focus
       . I can reject FL_ENTER, but then I don't get FL_MOVE.
       . Maybe I can forward FL_MOVE from BlockWindow::handle.
       . Even if I reject FL_ENTER, I still get mouse focus, from the OS.
