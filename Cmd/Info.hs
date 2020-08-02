@@ -25,6 +25,7 @@ import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.ScoreT as ScoreT
 import qualified Perform.Midi.Patch as Patch
 import qualified Ui.Block as Block
+import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Ui as Ui
@@ -125,6 +126,20 @@ note_of_pitch block_id tracknum = do
     return $ case maybe_track of
         Just (Track _ (Pitch note)) -> note
         _ -> Nothing
+
+-- | True if this has any note track children.  It should be the same as
+-- 'get_track_type' then match Track _ children | not (null children),
+-- but more efficient.
+has_note_children :: Ui.M m => BlockId -> TrackNum -> m Bool
+has_note_children block_id tracknum = do
+    skel <- Ui.get_skeleton block_id
+    go skel tracknum
+    where
+    go skel tracknum = do
+        let cs = Skeleton.children skel tracknum
+        orM $ map is_note cs ++ map (go skel) cs
+    is_note tnum = ParseTitle.is_note_track <$>
+        (Ui.get_track_title =<< Ui.get_event_track_at block_id tnum)
 
 
 -- * misc

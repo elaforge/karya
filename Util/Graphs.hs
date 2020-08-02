@@ -64,18 +64,25 @@ splice_above new to graph =
 -- This operation should be idempotent.
 splice_below :: Vertex -> Vertex -> Graph -> Graph
 splice_below new to graph =
-    add_edges ((to, new) : [(new, c) | c <- children, c /= new]) $
-        remove_edges (map ((,) to) children) graph
-    where children = if Array.in_bounds to graph then graph!to else []
+    add_edges ((to, new) : [(new, c) | c <- cs, c /= new]) $
+        remove_edges (map ((,) to) cs) graph
+    where cs = children graph to
 
 -- | Get the parents of a Vertex.
 parents :: Graph -> Vertex -> [Vertex]
 parents graph v = [p | (p, cs) <- IArray.assocs graph, v `elem` cs]
 
+-- | Get the children of a Vertex.
+children :: Graph -> Vertex -> [Vertex]
+children graph v
+    | Array.in_bounds v graph = graph!v
+    | otherwise = []
+
 would_make_cycle :: Edge -> Graph -> Bool
-would_make_cycle (from, to) graph = from == to
-    || (Array.in_bounds from graph
-        && Array.in_bounds to graph && path graph to from)
+would_make_cycle (from, to) graph =
+    from == to
+    || Array.in_bounds from graph && Array.in_bounds to graph
+        && path graph to from
 
 has_cycle :: Graph -> Bool
 has_cycle graph = any (not . null . Tree.subForest) (scc graph)

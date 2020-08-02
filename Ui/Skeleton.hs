@@ -16,7 +16,7 @@ module Ui.Skeleton (
     Skeleton, Edge
     , empty, make, draw
     , has_edge, add_edges, remove_edges
-    , lonely_vertex, flatten, to_forest, parents
+    , lonely_vertex, flatten, to_forest, parents, children
     , insert, remove, toggle_edge
     , splice_above, splice_below
     , move
@@ -98,6 +98,9 @@ to_forest ntracks (Skeleton graph) = sort_tree $ Graphs.to_forest graph ++ rest
 -- | Get the parents of a TrackNum.
 parents :: Skeleton -> TrackNum -> [TrackNum]
 parents (Skeleton graph) tracknum = Graphs.parents graph tracknum
+
+children :: Skeleton -> TrackNum -> [TrackNum]
+children (Skeleton graph) tracknum = Graphs.children graph tracknum
 
 -- | Increment all vertices at and above, insert new empty vertex.
 insert :: TrackNum -> Skeleton -> Skeleton

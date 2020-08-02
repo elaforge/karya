@@ -54,12 +54,11 @@ get_track_cmds = do
     -- will be no track cmds.
     block_id <- Cmd.get_focused_block
     tracknum <- Cmd.abort_unless =<< Cmd.get_insert_tracknum
-    mb_track_id <- Ui.event_track_at block_id tracknum
-    -- TODO this is overkill, use ParseTitle.track_type
-    -- Well, except 'input_cmds' checks if Note children is null.
-    track <- Cmd.abort_unless =<< Info.lookup_track_type block_id tracknum
-    mb_resolved <- maybe (return Nothing) (lookup_inst block_id) mb_track_id
-    mb_title <- traverse Ui.get_track_title mb_track_id
+    track_id <- Cmd.abort_unless =<< Ui.event_track_at block_id tracknum
+    mb_resolved <- lookup_inst block_id track_id
+    track_type <- ParseTitle.track_type <$> Ui.get_track_title track_id
+    has_note_children <- Info.has_note_children block_id tracknum
+
     edit_state <- Cmd.gets Cmd.state_edit
     let edit_mode = Cmd.state_edit_mode edit_state
     let with_input = NoteEntry.cmds_with_input
@@ -82,18 +81,17 @@ get_track_cmds = do
     -- mappings do.  If they want 'Pitch.Input's, they can call
     -- 'NoteEntry.cmds_with_input'.
     return $ concat
-        [ case (mb_title, mb_resolved) of
-            (Just title, Just resolved) | ParseTitle.is_note_track title ->
+        [ case (track_type, mb_resolved) of
+            (ParseTitle.NoteTrack, Just resolved) ->
                 map Cmd.call $ Cmd.inst_cmds $ Common.common_code $
                     Inst.inst_common $ Cmd.inst_instrument resolved
             _ -> []
-        , (:[]) $ Edit.handle_floating_input $
-            case Info.track_type track of
-                Info.Note {} -> False
-                _ -> True
-        , (:[]) $ with_input (input_cmds edit_mode track)
-        , track_type_cmds edit_mode track
-        , keymap_cmds track
+        , (:[]) $ Edit.handle_floating_input $ case track_type of
+            ParseTitle.NoteTrack -> False
+            _ -> True
+        , (:[]) $ with_input (input_cmds edit_mode track_type has_note_children)
+        , track_type_cmds edit_mode track_type
+        , keymap_cmds track_type
         ]
 
 lookup_inst :: Cmd.M m => BlockId -> TrackId -> m (Maybe Cmd.ResolvedInstrument)
@@ -103,48 +101,52 @@ lookup_inst block_id track_id =
 
 -- | Cmds that use InputNotes, and hence must be called with
 -- 'NoteEntry.cmds_with_input'.
-input_cmds :: Cmd.EditMode -> Info.Track -> [Msg.Msg -> Cmd.CmdId Cmd.Status]
-input_cmds edit_mode track = universal ++ case Info.track_type track of
-    Info.Note _ children
-        | null children -> case edit_mode of
-            Cmd.ValEdit -> [NoteTrack.cmd_val_edit]
+input_cmds :: Cmd.EditMode -> ParseTitle.Type -> Bool
+    -> [Msg.Msg -> Cmd.CmdId Cmd.Status]
+input_cmds edit_mode track_type has_note_children =
+    universal ++ case track_type of
+        ParseTitle.NoteTrack
+            | has_note_children -> []
+            | otherwise -> case edit_mode of
+                Cmd.ValEdit -> [NoteTrack.cmd_val_edit]
+                _ -> []
+        ParseTitle.PitchTrack -> case edit_mode of
+            Cmd.ValEdit -> [PitchTrack.cmd_val_edit]
             _ -> []
-        | otherwise -> []
-    Info.Pitch {} -> case edit_mode of
-        Cmd.ValEdit -> [PitchTrack.cmd_val_edit]
-        _ -> []
-    Info.Control {} -> case edit_mode of
-        Cmd.ValEdit
-            | is_tempo -> [ControlTrack.cmd_tempo_val_edit]
-            | otherwise -> [ControlTrack.cmd_val_edit]
-        _ -> []
+        ParseTitle.ControlTrack -> case edit_mode of
+            Cmd.ValEdit -> [ControlTrack.cmd_val_edit]
+            _ -> []
+        ParseTitle.TempoTrack -> case edit_mode of
+            Cmd.ValEdit -> [ControlTrack.cmd_tempo_val_edit]
+            _ -> []
     where
     universal =
         [ PitchTrack.cmd_record_note_status
         , MidiThru.cmd_midi_thru
         , NoteEntry.floating_input_insert
         ]
-    is_tempo = ParseTitle.is_tempo_track $
-        Ui.track_title (Info.track_info track)
 
 -- | Track-specific Cmds.
-track_type_cmds :: Cmd.EditMode -> Info.Track
+track_type_cmds :: Cmd.EditMode -> ParseTitle.Type
     -> [Msg.Msg -> Cmd.CmdId Cmd.Status]
-track_type_cmds edit_mode track = case Info.track_type track of
-    Info.Note {} -> case edit_mode of
+track_type_cmds edit_mode = \case
+    ParseTitle.NoteTrack -> case edit_mode of
         Cmd.MethodEdit -> [NoteTrack.cmd_method_edit]
         _ -> []
-    Info.Pitch {} -> case edit_mode of
+    ParseTitle.PitchTrack -> case edit_mode of
         Cmd.MethodEdit -> [PitchTrack.cmd_method_edit]
         _ -> []
-    Info.Control {} -> case edit_mode of
+    ParseTitle.ControlTrack -> case edit_mode of
+        Cmd.MethodEdit -> [ControlTrack.cmd_method_edit]
+        _ -> []
+    ParseTitle.TempoTrack -> case edit_mode of
         Cmd.MethodEdit -> [ControlTrack.cmd_method_edit]
         _ -> []
 
 -- | Track-specific keymaps.
-keymap_cmds :: Info.Track -> [Msg.Msg -> Cmd.CmdId Cmd.Status]
-keymap_cmds track = case Info.track_type track of
-    Info.Note {} -> [Cmd.call $ Cmd.Keymap $ NoteTrackKeymap.keymap]
+keymap_cmds :: ParseTitle.Type -> [Msg.Msg -> Cmd.CmdId Cmd.Status]
+keymap_cmds = \case
+    ParseTitle.NoteTrack -> [Cmd.call $ Cmd.Keymap $ NoteTrackKeymap.keymap]
     _ -> []
 
 
