@@ -117,7 +117,6 @@ get_bindings (Cmd.KeycapsState
                 merge_note_entry (kc_mods == shift) kc_octave <$>
                     get_instrument_bindings inst
         _ -> return mempty
-    -- TODO this is analogous to the list in Track.get_track_cmds.
     return $ Map.unions $ reverse
         [ Map.findWithDefault mempty kc_mods global_bindings
         , case kc_track_type of
@@ -178,7 +177,6 @@ note_entry_bindings :: ScoreT.Instrument -> Text -> Color.Color
     -> Cmd.NoteEntryMap Text -> Cmd.NoteEntryMap KeycapsT.Binding
 note_entry_bindings inst source color = fmap binding
     where
-    -- TODO char has shift in it, map back again, and later split shift back out
     binding name
         | Text.null name = KeycapsT.no_binding
         | otherwise = KeycapsT.Binding

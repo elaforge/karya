@@ -6,7 +6,10 @@
 -- under the selection, and then returns cmds from one of "Cmd.NoteTrack",
 -- "Cmd.PitchTrack", or "Cmd.ControlTrack".  This also handles per-instrument
 -- and per-scale cmds.
-module Cmd.Track (track_cmd, event_and_note_step) where
+module Cmd.Track (
+    track_cmd
+    , event_and_note_step
+) where
 import qualified Control.Monad.Except as Except
 
 import qualified Util.Log as Log
@@ -55,28 +58,13 @@ get_track_cmds = do
     -- TODO this is overkill, use ParseTitle.track_type
     -- Well, except 'input_cmds' checks if Note children is null.
     track <- Cmd.abort_unless =<< Info.lookup_track_type block_id tracknum
-
     mb_resolved <- maybe (return Nothing) (lookup_inst block_id) mb_track_id
     mb_title <- traverse Ui.get_track_title mb_track_id
-    let inst_cmds = case (mb_title, mb_resolved) of
-            (Just title, Just resolved) | ParseTitle.is_note_track title ->
-                map get $ Cmd.inst_cmds $ Common.common_code $
-                    Inst.inst_common $ Cmd.inst_instrument resolved
-                where
-                -- TODO until this is updated
-                get (Cmd.Handler _ (Cmd.NamedCmd _ cmd)) = cmd
-            _ -> []
     edit_state <- Cmd.gets Cmd.state_edit
     let edit_mode = Cmd.state_edit_mode edit_state
     let with_input = NoteEntry.cmds_with_input
             (Cmd.state_kbd_entry edit_state)
             (fmap snd . Cmd.midi_instrument =<< mb_resolved)
-        track_cmds = track_type_cmds edit_mode track
-    let floating_input_cmd = Edit.handle_floating_input $
-            case Info.track_type track of
-                Info.Note {} -> False
-                _ -> True
-    track_keymap_cmds <- keymap_cmds track
     -- The order is important:
     -- - Per-instrument cmds can override all others.
     --
@@ -93,9 +81,20 @@ get_track_cmds = do
     -- kbd entry then they will want the underlying keystrokes, as drum
     -- mappings do.  If they want 'Pitch.Input's, they can call
     -- 'NoteEntry.cmds_with_input'.
-    return $ inst_cmds ++ floating_input_cmd
-        : with_input (input_cmds edit_mode track)
-        : track_cmds ++ track_keymap_cmds
+    return $ concat
+        [ case (mb_title, mb_resolved) of
+            (Just title, Just resolved) | ParseTitle.is_note_track title ->
+                map Cmd.call $ Cmd.inst_cmds $ Common.common_code $
+                    Inst.inst_common $ Cmd.inst_instrument resolved
+            _ -> []
+        , (:[]) $ Edit.handle_floating_input $
+            case Info.track_type track of
+                Info.Note {} -> False
+                _ -> True
+        , (:[]) $ with_input (input_cmds edit_mode track)
+        , track_type_cmds edit_mode track
+        , keymap_cmds track
+        ]
 
 lookup_inst :: Cmd.M m => BlockId -> TrackId -> m (Maybe Cmd.ResolvedInstrument)
 lookup_inst block_id track_id =
@@ -143,10 +142,10 @@ track_type_cmds edit_mode track = case Info.track_type track of
         _ -> []
 
 -- | Track-specific keymaps.
-keymap_cmds :: Cmd.M m => Info.Track -> m [Msg.Msg -> Cmd.CmdId Cmd.Status]
+keymap_cmds :: Info.Track -> [Msg.Msg -> Cmd.CmdId Cmd.Status]
 keymap_cmds track = case Info.track_type track of
-    Info.Note {} -> return [Cmd.call $ Cmd.Keymap $ NoteTrackKeymap.keymap]
-    _ -> return []
+    Info.Note {} -> [Cmd.call $ Cmd.Keymap $ NoteTrackKeymap.keymap]
+    _ -> []
 
 
 -- * misc
