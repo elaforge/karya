@@ -82,7 +82,7 @@ split_names block_id =
 -- | Put all tracks with a after the selection into a new block.
 --
 -- Unlike 'split_time' I don't rename the source block, because the length
--- unchanged.
+-- is unchanged.
 split_track :: Cmd.M m => m BlockId
 split_track = do
     (block_id, tracknum, _, _) <- Selection.get_insert

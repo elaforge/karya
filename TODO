@@ -29,58 +29,12 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
-  * update is messed up for undo
-    . Surely this is due to the UiDamage change.
-    . Happens when I undo a track add.
   - is there a Factor to glue together two blocks?
     . How about split a block?
-  * bug: I lost the selection display
-  * bug: cmd-shift-r is moving windows around.
-    . Also cmd-shift-l is getting confused.
-    . Block.view_rect isn't getting updated.
-    . No UiMsg.UpdateViewResize
-    . How did I ever get those?  fltk isn't sending them.
-    . fltk-1.3.5 did, so maybe this is a regression.
-    . Caused by c66caf5dce9331fd3e011873711a768adb28cf9d, sent msg to
-      fltkcoredev.
   - bug: logview: error parsing "": can't decode json
     . It should say where in the file this happens.
   - bug: ever since the slow scrolling: change, I sometimes get a light gray
     background on track titles.
-  green mold: mod:
-    * fix pitch
-    * d1f and d1f is fine volume slide
-    / I still get 0 inst, when it's supposed to carry from a previous block.
-      . Leave it as an error, so I can find and fix it.
-    * if I can load IT then I can import green mold
-      . The original Cmd.Load.Mod used a sexpr format from a modified xmp.
-      . Maybe bind directly to libxmp?
-      . https://github.com/cmatsuoka/libxmp
-      . https://github.com/cmatsuoka/libxmp/blob/master/docs/libxmp.rst
-      . The original idea is good: xmp loads everything, make it emit sexpr
-        common format, then parse that.
-    * it doesn't seem to clip events after a CutBlock
-    * instruments seem to be off
-    * implement 'd' as df, not `from=xx | d n`
-    * what is cmd 29? I: tremor ontime x offtime y, FX_TREMOR
-    * I think break breaks *after* the row, not on.
-    * uf call doesn't exist
-    * got instrument 0 on b154, track 1
-      . 0 instrument should carry
-      inst 0 pitch 130, it's ^^^, which is cut note I think
-    * support per-instrument transpose?
-      . Or maybe I should use LEvent for that.
-      . LPitch.transpose_o 1
-      . But I need a by-instrument selector.
-      . But maybe I don't even need this, use final instruments first.
-      . What are the relative octaves of the original samples?
-    - support d and u for pitch
-    - support vibrato
-    + get it rendering
-      . I like the section starting at b168
-      . Or from recording: 12:09
-      . Subtract 1 from block numbers, Create.block starts at b1.
-      . Per-instrument transposition, b123 is at a low octave.
   / bug: editing control at a particular spot only edits one higit.
     . Also it turns into an interpolate when it should be set.
     . Maybe has to do with being at 1/3?
@@ -115,32 +69,6 @@ UNSORTED
     . And it only happens in debug mode, something is different about linking
       there.
     . How to ask for dependency chain in shake?
-  * bpm call should work in tempo track
-    . It's a val call, don't those work in control tracks?
-    . No, that's pitch tracks.
-  * too much boilerplate for enums:
-    . instance Typecheck.Typecheck E
-      instance Typecheck.TypecheckSymbol E
-      instance Typecheck.ToVal E
-      instance ShowVal.ShowVal E where show_val = Typecheck.enum_show_val
-    . I should be able to write just one thing.
-    . Can I use ConstraintKinds and put the alias in the deriving list?
-    . No, it's only for constraints.  DeriveAnyClass can put it all in
-      deriving, but then there's possible ambiguity problem with newtype, and
-      that drags in DerivingStrategies and ugh.
-    . DerivingStrategies would be reasonable for default LANGUAGE though.
-    . Can I instead simplify the Enum <-> Typecheck connection?
-      If I could do Typecheck without TypecheckSymbol?
-    . It's better, but only gets rid of TypecheckSymbol.
-    . But I think that's as good as I can do, short of generics.
-  * val=%control fails with confusing error:
-    . merge is only supported when assigning to a control or untyped numeric
-      env: %
-    . It really means to add spaces, because =% is not a valid merge.
-    . Maybe only accept =? for valid merge symbols like +, -, *.
-    . The underlying problem is having to do call-val = %call-val in the first
-      place, due to the Env vs. controls distinction.
-    . It's this: A.satisfy (A.inClass "-!@#$%^&*+:?/<>")
   - sorted Derive.Stream:
     . Implement the Sorted flag in Derive.Stream
     . I could have calls that can move note starts register by flipping a flag
@@ -1780,6 +1708,7 @@ vector: performance:
 instruments:
   ? Follow references in tambura dafx paper.
     Wasn't there something about pluck modelling?
+    . http://www.socasites.qub.ac.uk/mvanwalstijn/dafx16a/
   mesh2faust:
     . faust generates invalid C: 'inf.0f'
       . because of 7.27787e+32
@@ -1842,7 +1771,7 @@ instruments:
       . It's in libarpack, I could try compiling my own for that too.
       . And now it's crashing with SIGSTOP, but it's still -11, which is
         SIGSEGV.
-        * frame #0: 0x0000000113580d52 libopenblasp-r0.3.5.dylib`dlarnv_ + 338
+        . frame #0: 0x0000000113580d52 libopenblasp-r0.3.5.dylib`dlarnv_ + 338
           frame #1: 0x0000000106681722 libarpack.2.dylib`dgetv0_ + 1650
           frame #2: 0x000000010667c4a2 libarpack.2.dylib`dsaitr_ + 3602
           frame #3: 0x000000010667dde6 libarpack.2.dylib`dsaup2_ + 1622
@@ -1943,15 +1872,9 @@ instruments:
     . http://www.musicdevelopments.com/syne.html
 
 synth: im:
-  * trimming trailing controls is too eager, I need until the start of the
-    next note.
-    . Breaking zheng-idiom in save/test/faust/tambura
-    . Can I have a test for this?
   - It seems like im-gc.py is too eager
     . If I disable an old track, it deletes it right away.
     . Shouldn't it have touched all the timestamps when it hit that track?
-  * setting tempo to 0 starts rendering im, which then gets to 1000+ chunks,
-    which then crashes in Checkpoint.hs linkOutput, isOutputLink
   - Maybe I could have the tempo track default to 1 instead of almost 0.
     . 0 tempo is always a mistake.  It's just a harmless one with midi because
       midi renders audio lazily.
@@ -2010,10 +1933,6 @@ synth: im:
         Once I have memory and time profiles, see if there's a significant
         difference between unsafe and safe.
   bug:
-    * faust is losing earlier chunks, e.g. I wind up with 008, 009, 010.wav
-      . It's when both faust-im and sampler-im run on the same output.
-      . It's Checkpoint.clearUnusedInstruments.  It can't do that without
-        the global list of instruments.  So I think it has to move to seq.
     + A no-op change to tempo rerenders everything, e.g. insert a ' somewhere.
       . Controls in general are causing previous notes to rerender.
       . It's because I don't trim the signals before doing the hash.
@@ -2052,80 +1971,7 @@ synth: im:
         . I want to reuse Patch.h
         . But PatchT is not quite right, I don't need _impulseGate and
           _inputControls, but input count should be 1 or 2.
-        * Add EffectC, which has the API for effects
-        * differentiate effect / instrument, and filter appropriately
-        * write comb filter as example
-        * handle mono/stereo:
-          . mono->mono is applied to each channel
-          . mono->stereo means inputs are mixed, if necessary
-          . stereo->stereo means inputs are split, if necessary
-          . stereo->mono means outputs are duplicated, if necessary
-          . Actually faust can do this stuff easily, why not just make them
-            all stereo?
-        * rename DriverC to InstrumentC, driver.cc to patch.cc?
-        * lookup effect by name, then make an Audio processor for it
       integrate into Sampler:
-        . Since it's per-patch, the name of the effect has to go in the Patch,
-          and it gets looked up along with the patch.
-        when looking up patch:
-          * look up effect
-          * check for control collisions
-        * extract and merge
-        * convert controls to Audio1
-        * effect defeats end detection
-          . When the source runs out of samples, it should stop also.
-          . But it has to apply the same rms or maxDecay thing as faust-im
-            does.
-        * the effect- name prefix is going to get annoying
-          . Either have another way to signal effects, or strip it off.
-        * the effect's controls need to go into supported
-          . Later when I can dynamically configure the effect, I'll need to
-            look it up in Perform.Im.Convert or something.
-          . Patch and synth declarations are not in IO.  But since effects
-            are linked in statically, querying them can use unsafePerformIO.
-        * no apparent effect, log its breakpoints
-          . The dsp was wrong.
-        * effect state
-          . I need Effect not Patch to get state.  But Effect is not exported
-            from Effect.render.
-          . It's not resuming because it's not writing effect states, as
-            expected.
-          . Wait, but I am writing effect states, and there's no effect
-            anyway.
-          . hashes: 000.$hash.$state.state.$endState
-            old notes:
-            v5lxItbGWvkZS9qvPlyxWQ wXEdVSj1zSo4DPbeNPVMoQ JOhY_BBTHE4Oyr1h4ZMH2A
-            v5lxItbGWvkZS9qvPlyxWQ.Pygpsv_oQ01n-YoqmJaGUg.state.3D7Q4EGJTims_bj28NfLBg
-            new notes:
-            v5lxItbGWvkZS9qvPlyxWQ bnUujhHHii-x6m1nIgMbig Y5OWdTAvEjsQlhEETxkwMA
-            v5lxItbGWvkZS9qvPlyxWQ.Pygpsv_oQ01n-YoqmJaGUg.state.3D7Q4EGJTims_bj28NfLBg
-            . Why doesn't it skip the first one?
-            . Note hashes are the same, must be the state.
-            . Checkpoint used State mempty, but what does Render.write used
-              its own state.
-        * it doesn't rederive when effect controls changed
-          . Probably because its notes are not included in the hash with the
-            Sample.Notes.  I guess this is a reason to put controls in
-            Sample.Notes?
-          . I'll need to do something like this anyway for state.
-          . I could put controls in Sample.Note but I want to use the same
-            clipped bits that make up the merged controls.  How does faust do
-            this?
-          . It just uses Note.hash directly... I wonder if that's why it
-            rederives even when out-of-range controls changed?  Any clipping
-            should be done in Perform.Im though, to avoid serializing too
-            much.
-          . It rederives now, but always rederives everything.  Maybe due to
-            control ranges?
-          . First strip irrelevant controls.
-          . Each note has the entire pitch track.
-        * all inputs should be block size 11025f: [5000f, 5000f]
-          . Probably due to silent gap?
-          . 5000 is the Audio.defaultChunk.  Maybe they're zeros?
-          . These are inputs, not controls.
-          . Replace complicated Audio.take with directly yield Constant of the
-            right size.
-        * implement and test control rename
         - maybe rename effect controls to have the effect name as a prefix to
           avoid collisions?
         - How can I configure an effect onto an existing patch, apart from
@@ -2138,7 +1984,6 @@ synth: im:
             do the same thing here.
           . Would it be better to move to explicitly serializing an instrument
             config?
-        * Effect.process should allow the effect to decay
         - Have a separate effect-gain, or wet/dry mix.
           . If it's 0 I can remove the effect entirely.
           . I guess this is only possible if it's 0 for the whole piece, and
@@ -2149,81 +1994,6 @@ synth: im:
             traditional effects which are mixed in, that can just be the
             effect gain, which is controlled outside of faust.
 
-    / First extend faust-im to be an Audio processor, so it can take inputs.
-      . I wind up with separate generator and transformers.
-      . A generator goes until env goes to 0 and the signal decays to -96dB
-      . A transformer goes until the source signal runs out and the signal
-        decays to -96dB.
-      . Or they all go forever, and the consumer stops when the score runs out
-        and -96dB.  But then I don't stop instruments that actually do stop,
-        so let's not.
-      . So in the transformer I need to keep the audio inputs separate, since
-        the control inputs are zero padded out forever.
-      . Or I can zero-pad only controls, and when I run out inputs flip
-        a switch to watch for -96dB.
-      . No that doesn't work, because it's one NAudio, so they all end
-        together.  And I can't make controls end with the input signal.
-        I need some explicit signal.
-      . If the input is a sample, it has a definite end.  In fact, I could
-        supply it ahead of time.
-      . So transformer render gets an explicit end.
-    * Make a type distinction between generator and transformer Patch and
-      Instrument.
-    . Integrate sampler-im's multiple voice ability with faust.
-    . Patches now have to define a signal network, but it can probably be
-      hardcoded to 'sampler -> faust' or just 'faust'.
-    . I'd need some routing so I can get signals to those processors.
-    . Later I'll want to integrate my own synth as well.  I guess as long as
-      it produces an audio stream it's fine.
-    . Does this mean everything goes into one binary?  I think so, unless
-      I want to reinvent plugins.
-    . In that case, do I still want to divide up notes files?  I think
-      I should, because then I get better caching.  That also implies
-      running multiple copies of im?  Actually there's no need, just have it
-      read all the note files in the directory.
-    . In that case, should I split up by instrument?  I think I already have
-      to do the work when I split im from non-im events.
-    Actually, merge faust and sampler before doing audio transformer.
-      . How does multiple vs. single voice stuff work?
-      . Multiple means it allocates a new instrument for each note, which is
-        how the sampler does it.  Mono mode for sampler wouldn't make so much
-        sense because each note can be a different sample, at which point the
-        resample state no longer applies.
-      . For faust, I could just build it into instruments.  Do all-mono for
-        now.
-      . Should I serialize to different files, or split them up in the
-        sampler?  How about split by patch?
-      . I guess there isn't any big reason to split into separate files, but
-        I have to split anyway to separate im from non-im, and since there
-        will be only one synth, I might as well split by instrument.  Then the
-        synth doesn't have to split, it just evaluates everything in the
-        directory in parallel.  I have to delete the existing contents
-        though... at least with a single file I can replace it atomically.
-        But I already have this problem with synth-per-file, I just haven't
-        noticed it because I don't really use faust.  And deleting seems like
-        not a huge problem.
-    / switch to instrument per file
-      . Get rid of the concept of separate synths.
-      . Well, maybe I don't want to get rid of that yet, because I used it for
-        ness, and might use it again for a synth I didn't create myself.
-      . How about just add faust to sampler, and I can change the synth name
-        later.
-    . Why am I doing this in the first place?  The idea is use faust signal
-      processor on samples... but I don't have any of those and if I just want
-      reverb, there are plenty of VSTs.  So shelve this for now.
-    . Another reason is to unify Render.write.
-    . Another is to have a per-note allocation mode for faust.
-    Minimal necessary to merge:
-      . One binary with one PatchDb has to have both kinds of patches.
-        Ultimately I want to merge to one patch, and faust and the sampler
-        become signal generators.
-      . They should both use the same Render.write loop.
-    Differences:
-      . Faust has only one audio generator per instrument, and voices are
-        implemented as Note.element.  The audio generator runs constantly, so
-        all notes are merged into a set of signals.  There is only one state.
-      . Meanwhile, the sampler has a separate audio generator for each note.
-        Each one has its own state and independent set of controls.
   progress:
     waveform display:
       - percussion is too thin, tends to become invisible when quiet
@@ -2249,26 +2019,27 @@ synth: im:
       make both Instrument and Control have checked_* constructors.  I can't
       really enforce Id.valid rules, except at score parsing time.
   overview:
-    + incremental rendering:
-      . Overview: Karya has to emit damage ranges, and the synth has to
-        rerender just those sections.  The cache becomes a sequence of wav
-        files, which play_cache concatenates as it plays.
-      . Propagate score damage up to the im perform step.
-      . Instead of writing all notes as one big chunk, only replace the notes
-        that changed.  I'll need some kind of time-indexed data store for
-        this, possibly just a directory of files with timestamp names.  The
-        main thing is that it supports delete and insert a time range of data.
-      . Im synthesizers get (instrument, time_range) to rerender, and only
-        read and render the Notes in that range.
-      . Similarly, the wav cache also needs to be time-indexed to replace the
-        specific chunks.
-      . This means the synthesizer needs to be able to segment its output.
-        . For faust-im, I can store the current state with each chunk, so it
-          can restore that state when restarting at that time.
-        . For sampler-im, I might want to take the same approach, only the
-          state is the currently sounding samples and their offset.  If
-          there are effects like reverb or filters then I save the state in
-          the same way as the faust stuff.
+    . Overview: Karya has to emit damage ranges, and the synth has to
+      rerender just those sections.  The cache becomes a sequence of wav
+      files, which play_cache concatenates as it plays.
+    . Propagate score damage up to the im perform step.
+    . Instead of writing all notes as one big chunk, only replace the notes
+      that changed.  I'll need some kind of time-indexed data store for
+      this, possibly just a directory of files with timestamp names.  The
+      main thing is that it supports delete and insert a time range of data.
+    . Im synthesizers get (instrument, time_range) to rerender, and only
+      read and render the Notes in that range.
+    . Similarly, the wav cache also needs to be time-indexed to replace the
+      specific chunks.
+    . This means the synthesizer needs to be able to segment its output.
+      . For faust-im, I can store the current state with each chunk, so it
+        can restore that state when restarting at that time.
+      . For sampler-im, I might want to take the same approach, only the
+        state is the currently sounding samples and their offset.  If
+        there are effects like reverb or filters then I save the state in
+        the same way as the faust stuff.
+    . I only did the first part with damage ranges, and then did the
+      synthesizer output part, and it turned out to be fast enough.
   performance
     - Profiling for time and space.  It should take constant space.
     - fast serialize / deserialize
@@ -2338,7 +2109,6 @@ synth: im:
         then subtract out the hit ranges.  Since I always rederive the root,
         actually the whole thing is subtractive, so I might as well just
         collect *undamaged* ranges, and then invert it.
-
       . This damage informs what note ranges I serialize and replace on disk.
         I also write them to a per-root file so the synth knows which have
         been replaced.  This also has to accumulate in case multiple edits
@@ -2383,7 +2153,6 @@ synth: im:
       . All this is making me think I should remain with the single mutable
         output cache idea instead of writing a new one and atomically
         switching to it.
-
       . One thing is that the Derive.Cache is only down to track level.  But
         I'd like to know exactly where on the track is the damage.  That's
         basically the ScoreDamage.  The reason I can't just directly use
@@ -2728,29 +2497,6 @@ synth: im:
         account.
     break:
       - make a 'bd' or 'sn' than randomly picks one
-      * do the comb filter thing
-        . I'd want to do it with faust, so this requires inserting faust as
-          a step in sampler, if not just merging them.
-        . The difference is that faust in sampler is a transformer.  I don't
-          need that for plain faust, because any transforms can just go in the
-          instrument.
-        . Unless I want to apply an effect to multiple instruments, but
-          I think I want to do that at tha DAW level anyway.
-        . This would let me add a pitch control to each individual sample.
-      * what about samples at a different sampling rate?
-        . I think I can just treat it as 44.1k?  Or maybe offset the ratio
-          automatically.
-        . But the frame counter in reaper will be wrong, I have to set its
-          srate.  Or use audacity or something.
-        . Or maybe just rewrite the file to change its srate.
-      * support octaves
-      rubberband:
-        * BPM control that adjusts based on inferred bpm.
-          . I can adjust bpm with either pitch change, or time stretch.
-          * Guess a single bpm, throw away outliers and mean.
-          * bpm via srate control, that tweaks pitchAdjust.
-          * bpm via time stretch, that tweaks timeRatio.
-        * Pitch offset that doesn't affect tempo.
       . reason "recycle" looks like a commercial product that does something
         like this.
         . It seems more basic, except the gui and finding attacks
@@ -2904,13 +2650,6 @@ synth: im:
         . So only do the pitch curve merge if Note.element is set, and look
           for equal Note.elements.
     mridangam:
-      * pitch 1/4 too high
-      * , should be softer
-        . Can I set default volume on strokes with an env var?
-        . Yes, but I can't assign ,-dyn without quoting.
-          I can use the attr name, like kin-dyn, but then I have to look that
-          up.
-        . But I do have quoting!  ',-dyn' = ... will work!
       - o is too high pitched, I need to re-record
         . It would be nice to get a really low pitch long like with pakhawaj.
       - sampler levels too sensitive, only the a0-ff range is really usable.
@@ -2925,38 +2664,10 @@ synth: im:
       rubberband to fit them into shape
       . Compare with rendering via samples and see what's different.
     rubberband:
-      . bind to rubberband library for pitch change without time change
-      . https://breakfastquay.com/rubberband/
-      . I'll only really use it if I have, say, mridangam sequences.
-      * get rubberband from nix
-      * write Audio binding
-        . Offline mode needs to collect the whole sample, study it, then
-          produce as one block, so it defeats streaming.
-        . What are benefits for Offline?
-        . In streaming mode, I need to shift by get_latency.
-        . In offline, set_expected_input_duration, to ensure output is
-          correct.
       - support set_key_frame_map(), for offline only
       - write streaming binding
         . This is likely faster, or at least more memory efficient, and
           I maybe don't need the quality increase, if there is one.
-      * integrate into sampler
-        . An easy way is to add pitch/time ratio as an optional control.
-        . But if I want to warp then maybe I would use set_key_frame_map, and
-          then cache the warped version?
-        . Offline won't work with state saving, because it will collapse all
-          of the caller's chunks into one.
-        . Online could work, but I'd need to save and restore rubberband's
-          state, along with the fiddly stuff I do in resample.
-        . But the sampler should be able to do caching per-sample.  It's just
-          a totally different kind of caching than I do already...
-        . I think I need to process thes sample as a whole, as a separate
-          step, then stream it.
-        . Or just do it before resampling, after file read!  Caching that
-          would just be an optimization.
-        . It makes the duration guess wrong though.
-        . I can resume File.read seamlessly with an offset, but what about
-          rubberband's internal state?
     - convolution
       . What are the options?  jconvolver,
         http://tomszilagyi.github.io/plugins/ir.lv2/
@@ -3254,19 +2965,6 @@ synth: im:
         . I also need to turn ScoreDamage into RealTime.  Maybe not trivial?
       . Actually first let's not bother with incremental, and just rewrite the
         whole dump each time.  The real saving is in not rerendering audio.
-    * synthesizers break output into chunks of n seconds.
-      . Chunk = (startTime, InstrumentState, samples)
-      . InstrumentState = Map (Instrument, Voice) DspState
-      . Voice = Int -- assigned by polyphony, but how can I keep it stable?
-        . For unlimited polyphony instruments, it doesn't matter, since it
-          doesn't affect the output.  For limited voice, I just map it to
-          different instruments.  So no Voice needed.  The difference is
-          whether I allocate a new instrument for every note or not.
-      . DspState = ByteString -- raw serialization of dsp class.
-      . Or I could do a memoize thing where I memoize
-        (startTime, Instrument, Controls, DspState) -> Samples.
-    * PlayCache can sequence multiple .wav files.  The filenames need to have
-      a timestamp so it can know how to seek.
   . If there is only one cache mutated by the synth, then a play in progress
     will be spoiled by a new render.  I can fix this by making a new cache
     each time, and hardlinking the unchanged entries.  I can remove the old
@@ -3321,56 +3019,6 @@ shakefile: build:
     . How are you supposed to install deps in the v2 world?
   nix:
     . https://app.cachix.org/cache/elaforge
-    * my patched fltk doesn't put the right flags in fltk-config --ldflags
-      . -L/nix/store/bsfg5y1qf63vh5pryz947vk2brga3la7-fltk-1.4.x-r13121/lib
-        -Wl,-rpath,/nix/store/bsfg5y1qf63vh5pryz947vk2brga3la7-fltk-1.4.x-r13121/lib
-        -lfltk -lXrender -lXfixes -lXext -lXft -lfontconfig -lpthread -ldl -lm
-        -lX11
-      . But mine lacks the rpath stuff... is that necessary?
-      . But they both lack X11, I guess I have to add that as a separate dep.
-        I need Xrender, Xfixes, Xext, Xft, fontconfig
-      . This happens even with the standard nixpkgs.fltk, so I'm not sure how
-        it ever worked.
-      . What about other fltk-using things in nixpkgs?
-        audio/giada doesn't link Xft...
-        . fltk's own fluid links, how?
-      . I'm missing xlibsWrapper in propagatedBuildInputs, what is that?
-        I wind up with x libs in propagated-build-inputs, presumably that is
-        supposed to wind up on the -L line somehow.
-      . It links them with -l, no -L line.  Nix must have some magic for that.
-        Some build hook maybe?
-      . Ah, it's NIX_LDFLAGS, which the nix gcc wrapper reads.
-        Maybe ghc doesn't run the wrapped gcc?
-      . It doesn't make it into NIX_LDFLAGS unless it's on buildEnv's srcs.
-      . ccWrapper_addCVars is from
-        /nix/store/291ldi6fqsbmkbvbs8is4mcg3jb64ld4-gcc-wrapper-8.3.0/nix-support/setup-hook
-      . bintoolsWrapper_addLDVars is from
-        /nix/store/gwwycf3w6cbj0gd2mpgblrdjc24f3cys-binutils-wrapper-2.31.1/nix-support/setup-hook
-      . It looks like it adds bintoolsWrapper_addLDVars function to the hooks,
-        which then runs on each input, which stuffs -L in NIX_LDFLAGS if there
-        is a $drv/lib dir.
-      . Then activatePackage (from setup)? runs the hooks, including that one.
-    * link failure on fftw for rubberband
-      . Perhaps nix librubberband does't put it in the propagatedBuildDeps?
-      . It doesn't, but but putting fftw in my deps doesn't work either.
-      . Maybe because of static linking?  Try dynamic linking rubberband.
-      . Why does -LXft wind up in NIX_LDFLAGS (twice!) while rubberband's fftw
-        dep doesn't?
-      . What exactly is the mechanism for something to get into NIX_LDFLAGS?
-        _addRpathPrefix $out
-        . It must be an input hook run by buildInputs.
-      . nixpkgs rubberband doesn't have a nix-support/propagated-build-inputs,
-        maybe this means it doesn't propagate the fftw dep?
-      . Adding fftw to deps works for the -L line, but doesn't put on the -l
-        flag.
-      . Using -l instead of directly naming the .a file fixes it.
-    * shake doesn't pick up on changes to Local/ShakeConfig.hs
-      . Probably because it's a symlink to the nix store, and I have
-        Shake.shakeChange = Shake.ChangeModtime, due to ghci.
-    * nix fltk build link problem
-      . "_OBJC_CLASS_$_NSDATA", referenced from:
-          objc-class-ref in libfltk.a(Fl_MacOS_Sys_Menu_Bar.o)
-      . Do I get the same problems building with the nixpkgs one?
     propagate deps to the shakefile:
       - package paths for haddock
       . Env vars would be easier from nix, while Local/ShakeConfig.hs is
@@ -3380,10 +3028,6 @@ shakefile: build:
     / Is there a way to configure lilypond to not drag in a whole tex?
       . It should be only necessary to build lilypond, I should be able to
         download it if I use a supported nixpkgs.
-    / can I use nix for just non-haskell deps, and leave haskell as a local
-      install?
-      . That means use cabal to install, but get fonts, libs, faust via
-        nix-env or nix-env -i.
     - make a build expression, which does mkmk, mk.
       . I would have to get all the source into nix, and move the build to
         $out instead of 'build'.
@@ -3436,6 +3080,9 @@ shakefile: build:
     - Local.Instrument looks for 'load' from Local/Instrument/
   - once upon a time, the shakefile took .2s to discover the build is up to
     date.  Now it's up to .7s.  Where is the time going?
+    . https://shakebuild.com/profiling
+  . https://neilmitchell.blogspot.com/2019/06/shake-from-10000ft.html
+  . https://well-typed.com/blog/2019/08/exploring-cloud-builds-in-hadrian/
 
 incremental save: git:
   text save:
@@ -4151,109 +3798,38 @@ performance:
     . I could remove the compares in Diff.score_changed and Diff.diff
   - For Update.UiDamage, research if it's less efficient to mappend mempty vs.
       direct modify
-    . This also applies to Derive Collect
-  * dragging scroll is laggy
-    . Happens on a big block.  Happens with or without a ruler.
-    . Happens even on a small block when there are lots of other blocks, goes
-      away as soon as I delete the others.  Maybe it's diff going through all
-      blocks?
-    . Events don't capture the lag, maybe because it's in cmd?  I have to get
-      an event starting at the fltk event.
-    . Hmm but I think I have everything in the loop...
-    . Unless the async cmd respond loop is getting behind!  I need timing
-      on that too!
-    . I do have timing, Responder.trace puts it in the event log!
-    . So I can ressurect the eventlog stuff from way back.  Also I think I saw
-      references to others using chrome event tracing too.
-      . Maybe on ghc mailing list?
-    . But it's probably diff, because it seems to scale with overall score
-      size, not edited block size.
-    * Use eventlogs with parse_timing.py
-    * Those timestamps can't really be microseconds, they have 14 and 23s.
-      eventlog2html source implies they are ns.
-    . Run with heap profile and use eventlog2html.
-      . It shows traceMarker but not traceEvent, the difference is not
-        documented but, in EventLog/Events.hs:
-        Messages and UserMessages correspond to high-frequency "traceEvent" or
-        "traceEventIO" events from Debug.Trace and are only included if
-        "--include-trace-events" has been specified.  For low-frequency events
-        "traceMarker" or "traceMarkerIO" should be used, which generate
-        "UserMarker" events.
-      . But it doesn't show the marker text like it claims, so it's hard to
-        use.
-    . sync_status and sync are definitely the slow ones.  What are they doing?
-      . Normal respond time is 0.5 -- 1
-      . Removing sync_status takes from 45 -> 30
-      . Stats:
-        13.5686 sync_status
-        6.7 sync.verify
-        8   sync.diff
-        9.2 sync.sync
-        7.7 derive_diff
-      . One sync.sync took 179, why?
-    . sync.sync 9.2
-      . Why so long?  It should just be processing an Update.Selection.
-      . [ View ((vid "untitled/b1.v1"))
-          (Selection (0) (Selection+(2, 1.5t)--(2, 2.5t))) ]
-      . It's all in check_updates . Update.sort . Update.collapse_updates
-      . No, it's actually in sync.score_integrate
-    So the problems are in:
-      * Internal.sync_status
-      * Ui.quick_verify
-      * Diff.diff
-      * derive_diff
-      . I probably have to change them to do work based on UI updates, not on
-        the entire state.
-      . How big is the state anyway?  Maybe the checks are quite expensive if
-        it's only a couple thousand tracks...
-        blocks: 201
-        tracks: 3979 (19.8 per block)
-        events: 57836 (14.54 per track)
-      . This seems small?  quick_verify is only verifying that IDs are in the
-        Maps, which is... 4k lookups I guess is a lot even at n log n
-        (should they be HashMaps?).
-      . Better to go all-in on Update.CmdUpdate, and only check what needs it.
-      . To avoid diffing all blocks, tracks, rulers, I need to collect which
-        ones were touched.
-      * update everyone to use new monoid Update.CmdUpdate
-      * make sure Ui sets view, block, track, ruler damage
-      . Should I have a special selection damage?
-        Currently it shows up as view damage.
-      * I'm getting more cache invalidation, I assume because I'm not tracking
-        damage ranges.  I should preserve that for caching, even if fltk
-        doesn't support it at the moment.
-      . New times:
-        17.5420 sync_status
-        0.0065 sync.verify
-        0.0653 sync.diff
-        0.0183 sync.score_integrate
-        7.3165 derive_diff
-      . Newer times:
-        0.2990 sync_status
-        0.0050 sync.verify
-        0.0160 sync.diff
-        0.0027 sync.sort
-        0.3360 derive_diff
-    * Sync.sync no longer needs to collapse track updates
-    . Ui.StateT is now strict, will that make a difference?
-      . Maybe, but performance tracking is only for derivation, not cmd, so
-        I don't have an easy way to tell.
-    * Diff.diff should also use view damage
-    . Would it be more efficient to collapse CmdUpdate and Ui.State into
-      a strict pair?
-      . Probably... what does a fully inlined mtl layer become to (>>=)?
-      . Nested states turn into a function of two args, paired state turns
-        into one arg of a pair... I think my test was too small since
-        everything inlines.
-      . So actually probably nested update is same efficient, if not more.
-        The values wind up as function calls, which means ghc can decide if
-        it wants to pass on the stack or in registers, while a tuple is always
-        heap-allocated.
-      . What about that ExceptT though?  I think that's definitely
-        inefficient.
-      . Why isn't there a exceptt-cps package?
-    * Update.CmdUpdate is more like UiDamage now, rename it.
-    - log total respond latency, and log if over a limit
+  - log total respond latency, and log if over a limit
+  historical stats for scrolling:
+    . Stats:
+      13.5686 sync_status
+      6.7 sync.verify
+      8   sync.diff
+      9.2 sync.sync
+      7.7 derive_diff
+    . New times:
+      17.5420 sync_status
+      0.0065 sync.verify
+      0.0653 sync.diff
+      0.0183 sync.score_integrate
+      7.3165 derive_diff
+    . Newer times:
+      0.2990 sync_status
+      0.0050 sync.verify
+      0.0160 sync.diff
+      0.0027 sync.sort
+      0.3360 derive_diff
+  . Would it be more efficient to collapse CmdUpdate and Ui.State into
+    a strict pair?
+    . Probably... what does a fully inlined mtl layer become to (>>=)?
+    . Nested states turn into a function of two args, paired state turns
+      into one arg of a pair... I think my test was too small since
+      everything inlines.
+    . So actually probably nested update is same efficient, if not more.
+      The values wind up as function calls, which means ghc can decide if
+      it wants to pass on the stack or in registers, while a tuple is always
+      heap-allocated.
+    . What about that ExceptT though?  I think that's definitely inefficient.
+    . Why isn't there a exceptt-cps package?
   - try INLINEABLE for the functions in DeriveM.
     . I think no good though, because DeriveM is already concrete, so there
       are no dictionaries to specialize.
@@ -4643,18 +4219,6 @@ performance:
   . Signal.sig_op has 4.8% alloc, from Control.cotrol_call ->
     Derive.with_relative_control -> Perform.sig_multiply
     . So default multiplication for dyn is expensive.
-  * scrolling through giant blocks is slow
-    . drawing is stil slow, I'll have to look at the fltk layer
-      It happens when the block is wide.  Use test_block to see if it's just
-      fltk.
-      . It's fltk.  Not alpha draw though.
-      Scrolling is weirdly chunky near the top when fl_scroll() is on.
-      Curiously it doesn't seem to help at all.
-    . Would it be faster to call fl_scroll once for all the tracks?  I could
-      also theoretically call find_events all at once too, though that
-      shows up low on the profile, so maybe it's not a big deal.
-    . The thing is, it seems like fl_scroll doesn't actually help scrolling
-      speed at all.  Maybe all the time is spent elsewhere?
   - Store signal chunks in the Ui.Track so they can be directly emitted.
     This is only useful for large chunks of 'set' calls, probably recorded
     from MIDI.  So it's probably not pressing until that feature exists.
@@ -4740,68 +4304,7 @@ fltk:
         the bottom.
       . I want to change them when modifiers are held, for that I need
         a record_keys hook that sets bindings as appropriate.
-    * remove Keymap.make_cmd in favor of Cmd.call?
-      . Maybe not, if I'm doing SyncKeymap the "ad-hoc" way.
-    * open window on start
-      . I need the screens, which come from fltk later.
-      . Can I delay init until I get them?  Not having them can cause other
-        awkwardness.
-      . Or just ask fltk.
-    / replace highlight color with a brighter version of the underlying color
-      . Not distinct enough.
-    * fltk implementation
-      . Do I need a gutter with additional docs?
-      . Probably, I can only fit a few characters in the keycap.
-      . Might even be viable to take the first letters of the first two words
-        as mnemonic.  Then 2-3 chars for pitch.
-      . Space and enter have more space.
-    * haskell binding
-    * I don't want to call it keymap, there is already Cmd.Keymap.
-      . Maybe keycaps?
-    * Hook it into Cmd
-      . I think I can do a diff type thing, put Bindings in a KeycapsT, and
-        then have Cmd.state_keycaps :: Maybe Bindings.  If that changes from
-        Nothing to Just, create a window.  If the window is already present,
-        compare the Bindings and reset them if they changed.
-      . This way I can avoid importing KeycapsC except in Sync.
-      . I can't put the window pointer in Cmd.State because I can't return
-        from a Fltk.send_action.  I guess that's why I have the PtrMap.
-    * Crash when I focus on the window.  Maybe due to MsgCollector.
-      . Logging UiMsgs makes it wedge after:
-        <event {f='%dyn=.75' normal tracknum=2 p=0.698182t } FL_RELEASE
-          mods=NONE button=1 clicks=0 is_click=t xy=(70, 107)>
-        Ui/UiMsgC.hsc:26: ui_msgs:
-          Mouse: MouseUp 1 [] (70,107) click: True 0
-          {focus=(vid "untitled/b1.v1") track=2:track:.698t}
-      . Crashes even when I don't unpack UiMgs though, so maybe not related.
-      . Since Layout ownership goes to fltk, I have to use 'new', not 'with'
-    * don't accept keyboard focus
-      . I get MsgCollect::event_handler(FL_DRAG), which it isn't expecting.
-      . It's from Fl::add_handler, because Keycaps::handle rejects FL_DRAG.
-      . Except I always get it, so just eat it in KeycapsWindow::handle.
-    * I need a string, not char, for the labels.
-    * I'll probably want per-key color
-      . That means bindings need colors.  Use the index to figure out rect.
     - highlight pressed key?
-    * don't accept mouse focus
-      . I can reject FL_ENTER, but then I don't get FL_MOVE.
-      . Maybe I can forward FL_MOVE from BlockWindow::handle.
-      . Even if I reject FL_ENTER, I still get mouse focus, from the OS.
-        Maybe this is a OS X restriction?
-      . Or maybe a general restriction: Fl_Widget::deactivate says:
-        Currently you cannot deactivate Fl_Window widgets.
-      . If I reject in the widget, then I don't get FL_DRAG.
-      . But I remember when I tweaked the OS X level window create flags,
-        I could get a window that didn't take focus.
-      . That works, but is there any way to refuse mouse focus for the window?
-      . I think it's not possible. NSBorderlessWindowMask in Fl_cocoa.mm
-        Fl_Cocoa_Window_Driver::makeWindow should do it, but fltk also sets
-        canBecomeKeyWindow.
-      . Sent mail to fltk.
-    * highlight even when I don't have focus
-    * remove the border:
-      . border(false) removes the border, but now there's no way to move it.
-      . I can make it all draggable by having handle() move on drag.
     - With no kbd focus and no border I still want a GUI way to close it
       . I guess I can put a red X inside or something.
       . But then Cmd.Responder needs to check if it got deleted, and remove
@@ -4811,352 +4314,56 @@ fltk:
       . Is there a way to reuse shared_ptr / weak_ptr for this?
       . Or do the same thing as BlockWindow, which is emit an event when it
         gets closed.
-    / I should close the keycaps window when all others are closed.
-      . This is unnecessary for seq, because I quit explicitly.
-    * higher level Ui.Keycaps to compose layout
-      . add a cmd to reload the keycaps window using offsets from a file
-      . Or maybe just in the LKeycaps!
-    get active key bindings
-      * global keymap - gray
-      * pitch track keymap - Config.note_color
-      * per-instrument keymap - what color?
-        * split shift based on case
-          . Or, don't merge case in the first place.
-          . It is convenient though, and  do it in Keymap though, maybe use
-            the same split?
-        . Modify Cmd.Instrument.MidiInst inst_cmds
-        * Update instruments.
-          . For mridangam:
-            ImInst.cmd (CUtil.insert_call thru char_to_call)
-            CUtil.insert_expr takes: Pitch.Octave -> Char -> Maybe DeriveT.Expr
-          . It needs to export a Keymap of some description, but it does need
-            octaves.  Pitches will also be like this.
-          . I can't use the function because I need to get all inputs.
-          . Map Char Text | Map (Octave, Char) Text
-            Map (Maybe Octave) (Map Char Text)
-          * Instruments can now export a docs via ImInst.handler instead of
-            ImInst.cmd.
-          * Cmd.Track needs to propagate that.
-          * SyncKeycaps needs to pick it up.
-          * update other instruments to use ImInst.handler
-          * remove MidiInst.cmd, ImInst.cmd, or rename handler to cmd
-        . Since they use EditUtils.fallthrough, they map to [] and [Shift],
-          but none others.
-        . But I think I've baked shift into the Char?  Which now seems like
-          the wrong thing, due to symbols... but the instrument stuff is
-          always physically based... which I guess still means don't bake in
-          shift!
-      * Make KeyDoc smaller if it's >2 chars.
-        . Just always smaller is simpler.
-      * update browser to show cmds
-      * pitches - Config.pitch_color
-        . KbdEntry works by inspecting Msg, emitting an InputNote, which is
-          then transformed via scale or whatever.
-        . Maybe short circuit it all by asking LPerf for the current scale?
-        . I have to get edit_mode and octave, get inputs from
-          NoteEntry.kbd_input, then look that up in the scale.
-        . But worst is have to do it for all keys, it's not designed for that.
-        . Eventually I need to call Derive.scale_input_to_note ::
-          DeriveT.Environ -> Pitch.Input -> Either DeriveT.PitchError Pitch.Note
-        . Get Map Key Pitch.Input, then map through scale_input_to_note.
-        . If that's slow, maybe I can cache:
-          Map ScaleId (Map Pitch.Octave (Map Key Pitch.Note))
-      . I'll need to make cmds introspectable for this.  So instead of
-        Keymap.make_cmd, a Cmd will need to be a data type that has either
-        a Keymap.CmdMap, or (doc, function).
-      . Then go through the list:
-        GlobalKeymap.pure_cmds, GlobalKeymap.io_cmds, Track.track_cmd
-      . Track.track_cmd actually calls Track.get_track_cmds
-      Or a less principled way:
-        . Get global as per now.  Do a special Track.track_cmds to figure out
-          which keymaps apply.  Ask for current scale and get pitches.
-        . I'll still need a way to introspect into instrument cmds.
-        . And I think I need this anyway for pitches.
-      . I don't necessarily care about names of cmds which aren't keymaps, but
-        I should have a doc for them anyway.  And if they're programmatic,
-        like NoteEntry, they could document the list of keys they do map.
-      . Track.get_track_cmds has to return [Handler]
-      . That means this also has to return Handler:
-        Cmd.inst_cmds $ Common.common_code $ Inst.inst_common $
-            Cmd.inst_instrument resolved
-      . Cmd.InstrumentCode means Handler and hence Keymap have to move to Cmd.
-        Unless I can do some big refactor and split out major things, but
-        it'll probably be another Derive.Deriver.
-    * change config for held modifiers
   - Floating input in the wrong place for negative events with multiple lines.
     . Because it assumes the text goes downwards.
     . Since haskell doesn't know how the text is wrapped, it can't know where
       to put the input.  I think I'd want the input itself to know it's
       wrapping upwards, so it can get it right during input as well.
     . It seems like too much hassle for a cosmetic issue.
-  * scrolling gets stuck when I have horizontal scrolling, it won't go
-    horizontal and vertical at the same time.
-    . This appears to be a fltk problem, druid doesn't do this.
-    . Also druid gets (f64, f64), fltk is integral.
-      But it's always integral, so the problem is just the either/or.
-    . How does two-finger get turned into mousewheel?
-    . https://github.com/fltk/fltk/pull/86
   slow scrolling:
-    Draw everything and then put the blit back in SimpleScroll.
-      . It's track_scroll.
-      . Fl_Scroll works by only drawing the visible bit, then drawing the
-        slivers of the children.  I can't do that because floating point.
-        Instead I need to draw everything into a buffer, then just blit in the
-        relevant part of the buffer.  What is the fltk way to draw to buffer?
-      . How does druid do it?
-        . Scroll::scroll sets scroll_offset and child.set_viewport_offset()
-          then paint():
-          ctx.transform(Affine::translate(-self.scroll_offset));
-          let visible = ctx.region().to_rect() + self.scroll_offset;
-          ctx.with_child_ctx(
-            visible, |ctx| self.child.paint_raw(ctx, data, env))
-        . How then does that affect the child?  Does it redraw from scratch?
-          What is paint_raw()?
-          Calls self.inner.paint with a PaintCtx with empty z_ops.
-          So it's really all about that Affine::translate, from kurbo.  But it
-          seems like this just sets matrices, maybe it's really in PaintCtx,
-          which is really a Piet, which is really a CoreGraphicsContext, which
-          is from piet-coregraphics.
-        . So, I don't really know.  Maybe ask on the zulip.
-      . Draw into a Fl_Image_Surface, then use that.
-        . It remains valid until zoom changes.
-        . Set the draw region to include the entire bounds of the children,
-          then make_current() on the image surface, then draw.  Then just blit
-          out the relevant part of the image.
-      . Why does it draw over track titles?
-        . Because they are part of TrackTile.
-        . So maybe I have to change the structure:
-          Fl_Group track_group;
-            SeqScrollbar track_sb;
-            [ track titles ]
-            CachedScroll track_scroll;
-              [ track bodies ]
-        . But this means Tracks no longer manage their titles, which is
-          rather a bit of rearrangement.  How about each Track maintains its
-          own CachedScroll?  This way the Zoom stuff stays the same.  Also
-          drawing is simplified because it's always everything.  Selection can
-          be more efficient because I omit selection from the image, and apply
-          it afterwards.  Effectively I'm doing my own compositing.
-        . What about track scroll though?  This is convenient if I do
-          scrolling above TrackTile, but not if I move it into tracks.  But
-          selections are convenient for per-track, but at TrackTile means
-          I have to continually redraw all of them.
-        . Maybe I just use SimpleScroll like before, it doesn't even notice
-          the change, since it's just a cache layer inside Track.
-      * Move scroll cache to inside Track.
-        . Not necessary for Divider.
-        . Don't bother with RulerTrack either at the moment.
-        . EventTrack::draw now draws the complete track, minus selections,
-          and caches it in an image.  Then just draw the image according to
-          the zoom.offset, and put the selection on top.
-        . Changing zoom.offset does FL_DAMAGE_SCROLL, which won't invalidate
-          the cache.  Everything else forces a recache.
-        . I want surface.draw(child), but the track is not a widget.  I could
-          make it one, or see what surface.draw does to make it work.
-          It's actually Fl_Widget_Surface::draw, via inheritance.
-          . Fl_Surface_Device::push_current(this);
-          . widget->damage();
-          . fiddle dx,dy with origin()
-          . translate(), which is platform_surface->translate()
-          . widget->draw()
-          . Fl_Surface_Device::pop_current();
-        . Write EventTrack::Body widget, which is everything except the
-          selection overlay, and removes all the time range stuff.
-        . It has to be resized to be the full track size.  Maybe it should
-          start at (x, y) = (0, 0)?
-        . Maybe I wrap the Body widget in an CachedScroll, which handles the
-          redraw?  Then it's just another widget.
-        * The size is wrong.  When the event track changes size, I have to
-          resize the Body inside the CachedScroll.
-          . This is on update config I think.
-          . Size is now right, but it's still black.  Should the child start
-            at (0, 0) or at (x, y)?  At (0, 0) there is something over the
-            text input.
-          . Draw all blue?
-          . I get blue on the track title when I draw from (0, 0), so it's as
-            if the child doesn't get drawn to the surface.
-          . But it worked before!  What's different now?
-
-        . Cover in green.  Make surface and cover in half-white.  Draw child,
-          which is all blue.
-        . No green, so the surface does cover the widget properly.
-        . But the child is masked out by the black of the surface, so it's
-          like it draws everywhere except the surface.
-        . Clip rect at (26, 33, 274, 445), but body is (0, 0, 80, 512)
-        . But fl_pop_clip() has no effect.
-        . I'm not clipping anywhere, must be added by fltk.
-          Fl_Widget_Surface::draw doesn't clip either, unless it's a window.
-        . But Fl_Widget_Surface::draw does clip at (0, 0), which implies that
-          should be correct.
-        . The clip is also in CachedScroll, so it's just carried over.
-        . Aha, I'm setting it in SimpleScroll.  But removing it seems to have
-          no effect.
-        . I saw it work when I put over TrackTile.
-        . But now it doesn't work.  What changed!?
-        . I was linking in fltk1.3!  It probably has buggy Fl_Image_Surface!
-        . I want the child of CachedScroll to still be able to draw at (x, y),
-          not (0, 0).  ::draw() takes offsets, set to -x(), -y().
-        . Actually it seems like it already is!?
-        . Scroll works but I get green on the scrolled section.  Green is
-          from CachedScroll::draw, so I think it means the image is not big
-          enough.
-        . But even including the ruler it's still 512: (events:512,
-          ruler:504).  Why does the scrollbar think it's longer?
-        . From TrackTile::time_end, which is just max of track->time_end().
-        . Ok maybe 512 is correct, it's >451.  Why isn't the image drawn
-          there?
-        . Fixed part of it by using child for surface dimensions.  But the
-          scrollbar is still past 512, why?  What is it normally?
-        . Zoom is wrong, it's 1, but test_block sets to 1.6.
-        . I didn't set Body::zoom.  It's confusing because Track has it too.
-          Remove?  Divider doesn't need it, ruler could.  But it just sets
-          damage, which is correct.
-      * Ok, basically works, just a few pixels cut off at the bottom, and
-        a few pixels of extra green at the bottom.
-        . Using track_start() and track_end() consistently might be related.
-        . Yes, I went to 0 which seems fine.
-        . But probably the ruler does +2 because it's misaligend with +0.
-      * Why is the "end" text so far above the trigger?
-        . track_end() waw missing +y().
-      * Track scroll draws out of bounds.
-        . SimpleScroll has to clip.
-      * Redraw children when damage other than FL_DAMAGE_SCROLL.
-        . Also no redraw when just the selection changes.
-        . Scrolling is getting DAMAGE_ALL, who is doing that?
-        . What's the difference between redraw() and damage()?
-        . EventTrack::draw is still child+scroll, then it goes into
-          Fl_Group::draw.   Does child get promoted?
-        . It looks like Fl_Group redraws everything unless it's only
-          FL_DAMAGE_CHILD.
-        . In Track::set_zoom, setting FL_DAMAGE_SCROLL on this was incorrect,
-          it must go on the CachedScroll.
-      / Reuse the image cache when the size didn't change.
-        . The allocation is in Fl_Quartz_Image_Surface_Driver::image(), no
-          point trying to dig that out.
-      * Setting the selection forces a redraw.
-      * Scrolling while the selection moves still winds up redrawing!
-        . Maybe because I get both DAMAGE_SELECTION and FL_DAMAGE_SCROLL?
-        . Yes, though it's FL_DAMAGE_CHILD.
-      * Signal is a bit offset, probably -2.
-      * Figure out how much memory consumed by the image caches.
-        . Not too big, e.g. 80x823 = 192kb.
-      * Horizontal scroll does a redraw.
-        . Gets FL_DAMAGE_ALL.  It should damage tracks with FL_DAMAGE_SCROLL.
-        . It's probably due to SimpleScroll, which damages itself with
-          FL_DAMAGE_SCROLL.
-        . It moves the children, so they need to redraw, but CachedScroll
-          doesn't have to invalidate.  The way to do that is to damage it with
-          FL_DAMAGE_SCROLL.  I think I have to do that at least, because if
-          I don't damage at all, then it won't redraw at all.
-        . But this breaks modularity, because now the SimpleScroll has to
-          reach deep inside to damage the CachedScrolls down there.
-        . Having an optimized way to redraw after a move is a property of
-          CachedScroll.  It should be able to notice that it only moved.
-        . Who inflicts damage after a move?  Could CachedScroll detect that
-          and reduce the damage to FL_DAMAGE_SCROLL?
-        . Simple scroll moves and resizes the MoveTile, which moves the
-          tracks, but doesn't damage them, except the padding Fl_Box.
-          But by the time CachedScroll draws, it's ALL.
-          Where does that happen?
-        . EventTrack has ALL, why?  Since it has ALL, it redraws children.
-        . SimpleScroll sets SCROLL, which is not CHILD, so it forces a redraw
-          of all children.
-        . Could I invert the logic and say CachedScroll only redraws when
-          damaged specially?  But ALL is already all bits, so I don't think it
-          could use damage.
-        . Call CachedScroll::invalidate?  Now I need to make sure resizes and
-          things do that.
-        . How does Fl_Group::draw work?
-          . If anything other than FL_DAMAGE_CHILD is set, draw box and label,
-            damage all and force redraw all children: draw_child()
-          . Otherwise, redraw children with damage and not clipped:
-            update_child().
-          . Damaging a widget causes FL_DAMAGE_CHILD on all its parents.
-      * Dragging track tiles is also really slow.
-        . It's probably redrawing all tracks, not just the size changed one.
-        . If I redraw only the one track, it should be as fast as it was
-          before, except it's the whole track, not just the visible subset.
-        . The way around this would be to render tiles.
-      * Redraw when scrolled is wrong.
-        . Either the image is drawn wrong, or the blit is wrong.  I don't see
-          how the blit can be wrong because it's the same.
-        . Maybe the EventTrack::Body::draw_* still looks at zoom.offset?
-        . Yes, that's it.
-      * Too much space on the bottom.
-        . Or too much scroll down, it goes off the bottom of the image.
-        . It has to take the max track length, which can extend past the ruler.
-        . I could set the EventTrack::Body sizes from the TrackTile, or
-          I could leave them different sizes and have CachedScroll fill in
-          below the image.
-        . The second way is simpler and saves some insignificant memory.  It
-          means I don't get the track bg_color unless I want to pass it to the
-          CachedScroll... which I could do actually.
-      / EventTrack can skip draw if it's out of the clip boundary.
-        . I think Fl_Group should already take care of that.
-      * Have RulerTrack use CachedScroll too.
-      / RulerOverlay and SelectionOverlay don't need the box and clip args.
-        . But I'm not sure I want to delete support for incremental draw,
-          since I don't think ruler had a problem with it.
-      * Get rid of Track::damage_range and Track::DAMAGE_RANGE
-      * Remove Track::zoom?
-      Get rid of the find events callback, ship over events directly.
-        . I wanted to avoid having state in C++, but it's unavoidably present
-          in the image on the screen.
-        . The current situation replaces it entirely, so easier to use but not
-          efficient?  Still, until now I used incremental replace via damage
-          ranges, and it's been working ok.
-        . But is copying the events actually a significant cost, even when
-          only one has changed?
-        . Even if it's not, replacing the callback with marshalling all events
-          at once is simpler and probably faster.
-        - Pass events directly, no callback.
-        - Store events in the EventTrack, and just pass the updated region.
-          . This is nice for zoom, which means no event change.  But the
-            common editing case, just one event changes.
-        . I think it can remain this way even if I do tiles, because it's
-          still simpler to have the events in c++.
-        . For events, is it worth interning the text?
-          . That would require refcounts or an arena allocation for all the
-            events.
-          . It would slow down marshalling but maybe worth it due to the
-            reduction of data:
-            . Put each text in a HashMap to consecutive indices.
-            . Then marshal as array of char*, or even just one big one with
-              null separations, and replace event texts with pointers into
-              that.
-            . Then deallocate with a single free() when it gets replaced.
-            . This will get in the way of incremental update though, so
-              maybe don't bother.  Incremental update is probably a bigger
-              win than making the complete update faster.
-          . At least I can replace "" with a static "", or just nullptr.
-      . New stats:
-        . Draw track: 0.02ish
-          draw block 0.37, 0.46, 0.36, 0.38, 0.63, 0.74
-        . But with cache: 0.02
-        inside a redraw:
-          find_events: 0.002
-          ruler_overlay: 0.003
-          find_events just once: 0.05
-          find_events creeps up to 0.014, 0.008 at the end.  Not sure why it
-          would be longer when zoomed in.
-        . So I think find_events time is significant, so worth reducing.
-      scroll with tiles:
-        . Zoom is noticeably slower now.  Previously it would be ok speed when
-          only displaying a subset.  I have to use tiles for this.
-        . Redraws caused by waveform updates are really slow.
-          . Maybe I can make the waveform stuff its own layer, which gets
-            updated incrementally, and doesn't cause the whole redraw.
-          . Not so slow now that I invalidate explicitly.
-        . If the callback always gets all the events, I may as well just
-          ship them over with the update, and never mind the callback.
-          . But I still like the idea of only shipping changed regions... maybe
-            I wind up with mutable events in tracks after all.
-        . But isn't this just moving back to incremental, and won't I get the
-          same artifacts?
-
-      * Since I depend on 1.4 now I want to make sure to use the nix version.
-        . So I need to build 1.4 in nix.
-
+    Get rid of the find events callback, ship over events directly.
+      . I wanted to avoid having state in C++, but it's unavoidably present
+        in the image on the screen.
+      . The current situation replaces it entirely, so easier to use but not
+        efficient?  Still, until now I used incremental replace via damage
+        ranges, and it's been working ok.
+      . But is copying the events actually a significant cost, even when
+        only one has changed?
+      . Even if it's not, replacing the callback with marshalling all events
+        at once is simpler and probably faster.
+      - Pass events directly, no callback.
+      - Store events in the EventTrack, and just pass the updated region.
+        . This is nice for zoom, which means no event change.  But the
+          common editing case, just one event changes.
+      . I think it can remain this way even if I do tiles, because it's
+        still simpler to have the events in c++.
+      . For events, is it worth interning the text?
+        . That would require refcounts or an arena allocation for all the
+          events.
+        . It would slow down marshalling but maybe worth it due to the
+          reduction of data:
+          . Put each text in a HashMap to consecutive indices.
+          . Then marshal as array of char*, or even just one big one with
+            null separations, and replace event texts with pointers into
+            that.
+          . Then deallocate with a single free() when it gets replaced.
+          . This will get in the way of incremental update though, so
+            maybe don't bother.  Incremental update is probably a bigger
+            win than making the complete update faster.
+        . At least I can replace "" with a static "", or just nullptr.
+    scroll with tiles:
+      . Zoom is noticeably slower now.  Previously it would be ok speed when
+        only displaying a subset.  I have to use tiles for this.
+      . Redraws caused by waveform updates are really slow.
+        . Maybe I can make the waveform stuff its own layer, which gets
+          updated incrementally, and doesn't cause the whole redraw.
+        . Not so slow now that I invalidate explicitly.
+      . If the callback always gets all the events, I may as well just
+        ship them over with the update, and never mind the callback.
+        . But I still like the idea of only shipping changed regions... maybe
+          I wind up with mutable events in tracks after all.
+      . But isn't this just moving back to incremental, and won't I get the
+        same artifacts?
     . Tracing chrome://tracing
     . I want to trace the whole event loop.  Where is the entry point?
       Fl::wait() -> run Fltk actions -> get_ui_msgs -> writeTChan
@@ -5192,9 +4399,6 @@ fltk:
     - Look for possible thunks in the Fltk action, rnf them out.
   better drawing:
     see rust-gui:
-    write to Raph Levien:
-      . https://news.ycombinator.com/item?id=16267202
-      . https://raphlinus.github.io/personal/2018/08/28/a-new-adventure.html
     . All this incremental redraw stuff is fussy and seems like it should be
       unnecessary.  I should be able to lay it out and have someone else handle
       selection overlay and scrolling.
@@ -5229,8 +4433,6 @@ fltk:
     . I'll probably want complete data in c++ regardless, so I could do that
       with the current drawing setup.  I think this is actually totally
       orthogonal.
-    * Instrument rendering so I can see where the time is being spent.
-    * Write a program to parse the output.
     - Each EventTrack gets a mutable vector<Event> and draws from that.
       . Convert to diffs, filter out 0s.
       . Sum times at each track, and at each TrackTile.
@@ -5768,29 +4970,6 @@ solkattu:
       - Can I align by structure?
         . E.g. reductions or tri would line up vertically.
     terminal:
-      * wrapped ruler is the wrong half in Mridangam2020.sarva_20_06_05
-        . This happens whenever it wants to display the ruler.
-        . if not isFirst, then I need to know how many strokes to drop
-          I have S.State, but I need to turn into strokes, then *strokeWidth
-          Format.normalizeSpeed gets toSpeed, expands and splits States
-          Then it's just each one of those gets strokeWidth spaces.
-          So toSpeed is the factor.
-          normal: speed, strokeWidth: (0, 2) akshara gets 8
-          2x: (1, 1) -> akshara 8
-          4x: (2, 1) -> akshara 16
-          so: 2^speed * strokeWidth is matra * 4 is akshara
-        . now I have spaces per matra, but S.State has aksharas, and I don't
-          know how many matras per akshara.  I want flat matras.
-        . I should be able to count the number of flat notes.
-        . In fact, since ruler and notes are aligned, why not just do it
-          textually?
-        . Except that the ruler itself is clipped shorter!  So who does that?
-        . No one, the rest of the ruler just isn't generated!
-          Format.inferRuler just zips on the states, which are already
-          line-split, in Terminal.formatLines, specifically breakLines.
-        . For this, I think inferRuler would have to be smarter and use the
-          S.States as a start offset.
-      / But also there's no need for a rule redisplay for the final note.
       - The warning carat only lines up if there is only one line.
         . Otherwise I have to divMod i by strokes per line, and use that to
           insert in the formatted output
@@ -5890,10 +5069,6 @@ solkattu:
   - I should be able to add multiple realizations of the same
     instrument, keyed by string, e.g. for different mridangists
     realizations.
-  * Duration assertions, e.g. matra 4 (ta.ka.din.na)
-    . Good for both documentation and checking.
-    . checkM?  assertM?
-    . Implement as a group
   pakhawaj:
     - integrate pakhawaj bols
       . I think I need "kre" support.
@@ -6475,8 +5650,6 @@ Derive:
           . slow:
             561   53561
              21      21
-      * double note, like oo in kajar
-        . tabuh-gari, @b4 2.5t
     reyong:
       - divide infer-damp into infer-hands, and then use hand-damp.
         That way I can put an integrate after infer-hands, as
@@ -6657,6 +5830,8 @@ text score: tscore:
     . letter case for pitch direction
     - I should be able to try this out as another rhythm mode.  Use numeric
       suffix 2 to double duration, or :2 to halve it, instead of the __ thing.
+  https://github.com/werckme/werckmeister
+    . lilypond but with lua transformers
   bug:
     - if I delete a block, I get
       keys collided in "state_blocks": [(bid "faust/test")]
@@ -6897,12 +6072,6 @@ text score: tscore:
       . I can do it after resolution, since I don't want to carry durations
         and pitches.
       . So I have to plumb the CopyFrom through as a pitch.
-    * add support for block and track level %from
-    * add a check_recursion for CopyFrom
-      . I could conceivably support recursive from refs, as long as copy-froms
-        don't occur at the same time.
-      . That would mean I could do a global "polos copy from sangsih, sangsih
-        from polos" thing.
     + Figuring out the proper durations can be annoying, can I use
       0 CallDuration to get it to stretch until the next barline or coincident
       assertion?

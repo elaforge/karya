@@ -216,3 +216,75 @@ lookupPatches patches notes =
         Seq.keyed_group_sort Note.patch notes
     where
     find patch = maybe (Left patch) Right $ Map.lookup patch patches
+
+
+{- NOTE [merge-sampler-faust]
+
+    I decided against doing this and instead augment sampler-im with faust
+    effects.  Here are the old notes:
+
+    / First extend faust-im to be an Audio processor, so it can take inputs.
+      . I wind up with separate generator and transformers.
+      . A generator goes until env goes to 0 and the signal decays to -96dB
+      . A transformer goes until the source signal runs out and the signal
+        decays to -96dB.
+      . Or they all go forever, and the consumer stops when the score runs out
+        and -96dB.  But then I don't stop instruments that actually do stop,
+        so let's not.
+      . So in the transformer I need to keep the audio inputs separate, since
+        the control inputs are zero padded out forever.
+      . Or I can zero-pad only controls, and when I run out inputs flip
+        a switch to watch for -96dB.
+      . No that doesn't work, because it's one NAudio, so they all end
+        together.  And I can't make controls end with the input signal.
+        I need some explicit signal.
+      . If the input is a sample, it has a definite end.  In fact, I could
+        supply it ahead of time.
+      . So transformer render gets an explicit end.
+    . Integrate sampler-im's multiple voice ability with faust.
+    . Patches now have to define a signal network, but it can probably be
+      hardcoded to 'sampler -> faust' or just 'faust'.
+    . I'd need some routing so I can get signals to those processors.
+    . Later I'll want to integrate my own synth as well.  I guess as long as
+      it produces an audio stream it's fine.
+    . Does this mean everything goes into one binary?  I think so, unless
+      I want to reinvent plugins.
+    . In that case, do I still want to divide up notes files?  I think
+      I should, because then I get better caching.  That also implies
+      running multiple copies of im?  Actually there's no need, just have it
+      read all the note files in the directory.
+    . In that case, should I split up by instrument?  I think I already have
+      to do the work when I split im from non-im events.
+    Actually, merge faust and sampler before doing audio transformer.
+      . How does multiple vs. single voice stuff work?
+      . Multiple means it allocates a new instrument for each note, which is
+        how the sampler does it.  Mono mode for sampler wouldn't make so much
+        sense because each note can be a different sample, at which point the
+        resample state no longer applies.
+      . For faust, I could just build it into instruments.  Do all-mono for
+        now.
+      . Should I serialize to different files, or split them up in the
+        sampler?  How about split by patch?
+      . I guess there isn't any big reason to split into separate files, but
+        I have to split anyway to separate im from non-im, and since there
+        will be only one synth, I might as well split by instrument.  Then the
+        synth doesn't have to split, it just evaluates everything in the
+        directory in parallel.  I have to delete the existing contents
+        though... at least with a single file I can replace it atomically.
+        But I already have this problem with synth-per-file, I just haven't
+        noticed it because I don't really use faust.  And deleting seems like
+        not a huge problem.
+    . Another reason is to unify Render.write.
+    . Another is to have a per-note allocation mode for faust.
+    Minimal necessary to merge:
+      . One binary with one PatchDb has to have both kinds of patches.
+        Ultimately I want to merge to one patch, and faust and the sampler
+        become signal generators.
+      . They should both use the same Render.write loop.
+    Differences:
+      . Faust has only one audio generator per instrument, and voices are
+        implemented as Note.element.  The audio generator runs constantly, so
+        all notes are merged into a set of signals.  There is only one state.
+      . Meanwhile, the sampler has a separate audio generator for each note.
+        Each one has its own state and independent set of controls.
+-}
