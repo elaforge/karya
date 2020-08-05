@@ -29,8 +29,10 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
-  - is there a Factor to glue together two blocks?
-    . How about split a block?
+  / is there a Factor to glue together two blocks?
+    . How about split a block?  Yes, Factor.split_time.  But no join.
+    . It would have to match up tracks, which seems complicated.
+    . I don't really need it though.
   - bug: logview: error parsing "": can't decode json
     . It should say where in the file this happens.
   - bug: ever since the slow scrolling: change, I sometimes get a light gray
@@ -110,7 +112,10 @@ UNSORTED
       typecheck, but it's not the only one!
     . I could move down the instances for those specific things.  It's pretty
       ad-hoc.
-  - Can I merge PControl with Control?
+  / Can I merge PControl with Control?
+    . I can, but it doesn't simplify much, and the %/# distinction is useful
+      for pcontrol arguments... I just almost never use those.  Ratio scale
+      does.
   - can I tweak individual scale degrees?
     . E.g. ma + 0.25nn, ri + 0.2nn.
     . Maybe just an env var for scale degree would do it.
@@ -3781,92 +3786,318 @@ cleanup:
     Note tracks can't get a GetLastSample at all.
 
 performance:
-  - Integrate.score_integrate is linear in score size
-    . needs_track_score_integrate
-      . Needs TrackId -> [Block], which is also Ui.blocks_with_track_id.
-      . Cache: track_to_containing_blocks :: Map TrackId [Block]
-    . needs_block_score_integrate
-      . Does a linear search for blocks with ScoreDestinations.
-      . Cache: block_to_integrate_sources :: Map BlockId [BlockId]
-    . I could put these in Ui.state_cache, which is not saved and loaded,
-      but initialized by Ui.put, and updated by the various functions
-      that invalidate it.
-    . But since this only happens on event modification, it's not so bad as
-      the scroll lag.
-  - implement or find a cps-transformed ExceptT for Ui.M.
-  - Update.UiDamage could mark Ui.state_config damage
-    . I could remove the compares in Diff.score_changed and Diff.diff
-  - For Update.UiDamage, research if it's less efficient to mappend mempty vs.
-      direct modify
-  - log total respond latency, and log if over a limit
-  historical stats for scrolling:
-    . Stats:
-      13.5686 sync_status
-      6.7 sync.verify
-      8   sync.diff
-      9.2 sync.sync
-      7.7 derive_diff
-    . New times:
-      17.5420 sync_status
-      0.0065 sync.verify
-      0.0653 sync.diff
-      0.0183 sync.score_integrate
-      7.3165 derive_diff
-    . Newer times:
-      0.2990 sync_status
-      0.0050 sync.verify
-      0.0160 sync.diff
-      0.0027 sync.sort
-      0.3360 derive_diff
-  . Would it be more efficient to collapse CmdUpdate and Ui.State into
-    a strict pair?
-    . Probably... what does a fully inlined mtl layer become to (>>=)?
-    . Nested states turn into a function of two args, paired state turns
-      into one arg of a pair... I think my test was too small since
-      everything inlines.
-    . So actually probably nested update is same efficient, if not more.
-      The values wind up as function calls, which means ghc can decide if
-      it wants to pass on the stack or in registers, while a tuple is always
-      heap-allocated.
-    . What about that ExceptT though?  I think that's definitely inefficient.
-    . Why isn't there a exceptt-cps package?
-  - try INLINEABLE for the functions in DeriveM.
-    . I think no good though, because DeriveM is already concrete, so there
-      are no dictionaries to specialize.
-  . Speedscope for flamegraphs from ghc-events:
-    https://mpickering.github.io/posts/2019-11-07-hs-speedscope.html
-    . Requires ghc 8.10.
-  . use weak pointers to detect space leaks more precisely:
-    https://github.com/ghc/ghc/commit/5fe6aaa3756cda654374ebfd883fa8f064ff64a4
-  . Criterion-like with fewer deps: https://github.com/vincenthz/hs-gauge
-    . Also supposedly --measure-with to run each in a separate process
-      produces more consistent results.  But there's no reason I can't do that
-      on my own.
-  . http://www.tweag.io/posts/2017-09-06-hyperion.html
-  . https://github.com/tobami/codespeed can make a web page with perf graphs
-  . https://github.com/nh2/haskell-cpu-instruction-counter
-    . But only works on linux.
-  signal:
-    - clip_before and clip_after usually require changing the signal
-      . I could eliminate this with _start and _extent fields.
-    - Segment._offset might not be worth it
-      . Since I think it's only really used to move Score.Events, I could get
-        the same effect by making event signals relative to event start.
-    old notes:
-      . Slicing a signal will require changing the vector, to add a new
-        sample on the beginning or end.  I could eliminate this with _start
-        and _extend fields.  Not sure if it's worth it.
-      . Do it the simple way first, and profile.
-      . Do I need to clip at all?  The performer can clip to the start, but
-        I think it needs to know where the note stops because otherwise this
-        information isn't preserved.
-        . I could do it more efficiently by just sticking an end time in the
-          Score.Event, and leave it to the performer to observe.
-        . Indeed NoteUtil.trim_controls only does drop_before.
-        . E.g. BlockUtil_test.test_compile, final test
-  - I should include the number of events in the verify profile, so I can
-    compare relative event throughput per score.
-    . Clearly the wayang ones are doing something expensive, what is it?
+  general:
+    - use 'text-builder' for Pretty and Log?
+      . Unfortunately it has tons of dependencies, due to deferred-folds ->
+        foldl.  Looks like it's not really a necessary dependency though.
+    - vector-builder can replace Util.LazyVector?  I don't use that though.
+    . Speedscope for flamegraphs from ghc-events:
+      https://mpickering.github.io/posts/2019-11-07-hs-speedscope.html
+      . Requires ghc 8.10.
+    . use weak pointers to detect space leaks more precisely:
+      https://github.com/ghc/ghc/commit/5fe6aaa3756cda654374ebfd883fa8f064ff64a4
+    . Criterion-like with fewer deps: https://github.com/vincenthz/hs-gauge
+      . Also supposedly --measure-with to run each in a separate process
+        produces more consistent results.  But there's no reason I can't do that
+        on my own.
+    . http://www.tweag.io/posts/2017-09-06-hyperion.html
+    . https://github.com/tobami/codespeed can make a web page with perf graphs
+    . https://github.com/nh2/haskell-cpu-instruction-counter
+      . But only works on linux.
+    - experiment with GC flags
+      memory usage:
+        . 200 mb -> 350 rss
+        . 250 by LDebug.memory and ekg, 500mb by system viewer.
+        . I think I have a very large proportion of static data in the GHC API
+          loaded .hi files, so that should avoid GC as much as possible.
+          Increase the generation count?
+          . In the future can I put that in static memory regions?
+        . Then I have a lot of short lived garbage generated on each derivation.
+        . Then the rest is medium life: score data, Performances.
+      . -A8m - larger generation 0 means fewer collections, good if lots of
+        garbage is generated.
+      . H - Suggested heap size.  I don't really understand this.
+      . -qg - turn off parallel gc
+      . -n2m - divide -A into chunks, so the first thread to run out doesn't
+        trigger a GC for all of them.  Good for unbalanced allocation?
+      . -I0 to turn off idle GC.  But it's designed to be good for interactive
+        use, and maybe I do pause for >.3s.  Or turn it up to 1sec?
+    - find space leaks with nmitchell's stack limit technique:
+      . run build/profile/verify_performance +RTS -K975K -xc -RTS --mode=Profile
+          p/cerucuk-punyah.state
+        Derive.LEvent.events_of,
+        called from Derive.Stream.zip3_on.\,
+        called from Derive.Stream.emap,
+        called from Derive.Stream.zip3_on,
+      . Also, what's with the compile_library stuff in the middle?  Should
+        I make it stricter?
+      . Giving up for the moment since I don't understand the output.
+      . Maybe it was nonsensical due to auto SCCs?
+  fltk:
+    historical stats for scrolling:
+      . Stats:
+        13.5686 sync_status
+        6.7 sync.verify
+        8   sync.diff
+        9.2 sync.sync
+        7.7 derive_diff
+      . New times:
+        17.5420 sync_status
+        0.0065 sync.verify
+        0.0653 sync.diff
+        0.0183 sync.score_integrate
+        7.3165 derive_diff
+      . Newer times:
+        0.2990 sync_status
+        0.0050 sync.verify
+        0.0160 sync.diff
+        0.0027 sync.sort
+        0.3360 derive_diff
+  cmd:
+    - Integrate.score_integrate is linear in score size
+      . needs_track_score_integrate
+        . Needs TrackId -> [Block], which is also Ui.blocks_with_track_id.
+        . Cache: track_to_containing_blocks :: Map TrackId [Block]
+      . needs_block_score_integrate
+        . Does a linear search for blocks with ScoreDestinations.
+        . Cache: block_to_integrate_sources :: Map BlockId [BlockId]
+      . I could put these in Ui.state_cache, which is not saved and loaded,
+        but initialized by Ui.put, and updated by the various functions
+        that invalidate it.
+      . But since this only happens on event modification, it's not so bad as
+        the scroll lag.
+    - implement or find a cps-transformed ExceptT for Ui.M.
+    - Update.UiDamage could mark Ui.state_config damage
+      . I could remove the compares in Diff.score_changed and Diff.diff
+    - For Update.UiDamage, research if it's less efficient to mappend mempty vs.
+        direct modify
+    - log total respond latency, and log if over a limit
+    . Would it be more efficient to collapse CmdUpdate and Ui.State into
+      a strict pair?
+      . Probably... what does a fully inlined mtl layer become to (>>=)?
+      . Nested states turn into a function of two args, paired state turns
+        into one arg of a pair... I think my test was too small since
+        everything inlines.
+      . So actually probably nested update is same efficient, if not more.
+        The values wind up as function calls, which means ghc can decide if
+        it wants to pass on the stack or in registers, while a tuple is always
+        heap-allocated.
+      . What about that ExceptT though?  I think that's definitely inefficient.
+      . Why isn't there a exceptt-cps package?
+    - When I'm using ghc 8.2, try compact regions for inst db, especially vsl.
+      . 'compact' package
+      . Maybe even serialize it to disk?  Probably not worth it though, since
+        startup is pretty fast and probably inst db is not a big part.
+        . 0.584cpu / 0.222s.
+      . Can I use heap profiling to find other large CAFs?
+      . Can I use compact regions for the REPL loaded modules memory?
+      . compactWithSharing is slower but retains internal sharing, test to see
+        if it's worth it.
+      . https://tech.channable.com/posts/2020-04-07-lessons-in-managing-haskell-memory.html
+    - Reduce memory used by REPL.  NOTE [reduce-repl-memory]
+      . About 200mb.
+      . GHC reads interfaces maybe with ghc/compiler/utils/Binary.hs:/readBinMem
+      Try -fignore-interface-pragmas
+        . From ghci: 210mb without vs. 1552mb with
+        . But from REPL seems to make no difference.
+        . Actually, I can't reproduce this now.
+      . 200mb for an empty score seems excessive.  Where does it go?
+        . With inst db: 197, without sysex: 190, without vsl: 187.4
+        . Without repl: 12mb
+        . So 190mb consumed just by loading .o files!  du on obj dir is just 76mb.
+        . Loaded modules:
+          [254 of 255] Compiling Local.Repl       ( Local/Repl.hs, interpreted )
+          [255 of 255] Compiling Cmd.Repl.Environ (Cmd/Repl/Environ.hs,interpreted
+          . with verbosity=2:
+          . Stable obj: [Local.Instrument.Kontakt.Wayang, ... 253 modules
+          . log: Ready for upsweep
+            [NONREC
+                  ModSummary {
+              { ... imports of every module }
+          . compile: input file ./Ui/ScoreTime.hs
+            *** Checking old interface for Ui.ScoreTime:
+            [ 41 of 255] Skipping  Ui.ScoreTime( Ui/ScoreTime.hs,
+                build/opt/obj/Ui/ScoreTime.hs.o )
+            *** Deleting temp files:
+            Warning: deleting non-existent /var/folders/6j/.../ghc_62.hs.o
+            . bypecode compile for last two modules
+      . 'du -hc build/opt/**/*.hs.o | tail -1' shows 55mb for object code,
+        and 19mb for .hi.  I'd think object code would be loaded directly with
+        little overhead, but that means .hi code expands by (190 - 55) / 19 = 7x
+        expansion, which seems like a lot.
+      . Also the memory measurements are haskell heap, which might not include
+        loaded object files.
+      . However, it's also loading .hi files for external packages too, though
+        I'm not sure how much.  The external package code is shared libraries,
+        which is shared with the app (and not in the haskell heap anyway).
+      . Use dtrace to figure out exactly what the GHC API is loading and when.
+      - I should be able to share object code by linking everything as a shared
+        library... that might save 55mb at least?
+    - Allocation when idle: about 300kb/sec
+      . What triggers this?  Nothing, it's basically always happening.
+        No, the allocation is always happening, but usually it doesn't get
+        retained.
+      ? Who is running?
+        . Threads:
+          / main - Ui.event_loop - should be blocked in Fl::wait,
+            though it comes back on every cursor move.  But still allocates even
+            when it doesn't have focus.
+          . responder - Respond.responder - Should be blocked in STM.atomically
+            block.
+          / Midi.CoreMidi.initialize forkOS - goes into CFRunLoopRun
+          / interpreter
+          / Responder accept repl socket
+          . Cmd.Performance: eval performance
+          . Cmd.PlayC.play - updates the playback
+          . Perform.Midi.Play render midi
+        . Could it be EKG?
+      . It stops during play.
+      . Try disabling ekg and use LDebug.memory and see if it's still there.
+      . It still grows without ekg.  Well, the second time it seems like it
+        moves but doesn't grow.
+      . Is there some way to instrument allocation so I can see which thread is
+        doing it?
+      . Actually it seems like ghci does it all by itself.  So it's either
+        inherent to the GHC API or ghc runtime in general.
+      . Does it grow with the repl off?  Yes, so apparently not the repl.
+    - Check out score size with 'weigh', ala https://github.com/haskell-perf
+    - the first REPL cmd can take 2-3s, but they're fast after that, why?
+      . Presumably it's forcing a bunch of CAFs.
+    - If a msg aborts or doesn't run any cmds, don't bother to run diff.
+      Except that hardly ever happens if I do shortcut thru.
+    - cache track cmds for each track, update when the track title or skeleton
+      changes
+  derive:
+    + Bring back profiling, and do it regularly.
+      . Look into that graphing stuff, I have the links around here somewhere.
+      . I can get historical data with a script to step through darcs history.
+      . I don't have historical scores.  Well, I have backup/y-m-d, but they're
+        done irregularly and don't line up to commits.  Still, I should be able
+        to do ok by looking for the closest match.  Outright failures should be
+        visible as outliers.
+      . Profile MIDI and ly generation separately?
+    - try INLINEABLE for the functions in DeriveM.
+      . I think no good though, because DeriveM is already concrete, so there
+        are no dictionaries to specialize.
+    signal:
+      - clip_before and clip_after usually require changing the signal
+        . I could eliminate this with _start and _extent fields.
+      - Segment._offset might not be worth it
+        . Since I think it's only really used to move Score.Events, I could get
+          the same effect by making event signals relative to event start.
+      old notes:
+        . Slicing a signal will require changing the vector, to add a new
+          sample on the beginning or end.  I could eliminate this with _start
+          and _extend fields.  Not sure if it's worth it.
+        . Do it the simple way first, and profile.
+        . Do I need to clip at all?  The performer can clip to the start, but
+          I think it needs to know where the note stops because otherwise this
+          information isn't preserved.
+          . I could do it more efficiently by just sticking an end time in the
+            Score.Event, and leave it to the performer to observe.
+          . Indeed NoteUtil.trim_controls only does drop_before.
+          . E.g. BlockUtil_test.test_compile, final test
+    - I should include the number of events in the verify profile, so I can
+      compare relative event throughput per score.
+      . Clearly the wayang ones are doing something expensive, what is it?
+    - Criterion testing: why is cmd_derive faster than derive?  It should be
+      doing more work!
+    . Seq.sort_on winds up calling compare on Stack 13374153 times! 9.1% time
+      I have to sort it because the stack is kept in reverse order.
+      - Per-track stuff can wind up happening zillions of times due to
+        inversion, so look for other places where I do work or collect data
+        on every track fragment.
+      - At least at one point, keeping EnvKey.seed up to date was expensive, and
+        it's not even needed when there's no randomization.
+      - I could analyze TrackWarp or TrackDynamic to get stats on how many times
+        each block is called, along with overall stats on how many notes.  Just
+        an interesting thing to know.
+    understand deriver performance
+      . I never know if changes I am making help or hurt performance, because I
+        don't trust any of my profiles.  This means I hardly ever run them, at
+        which point why bother having them?
+
+      . Productivity is actually really good during derivation: 70-80%.  Only if
+        I turn on heap profiling does it go down to 33%.  So maybe there's
+        nothing to do?  Still, it seems like it's slower than it should be.
+
+      . I want to find out how much list copying happens due to Stream being
+        a list.  Perhaps I can use SCC annotations?  For transforms, I want to
+        see the effect of a transform copying the whole stream so I can tell if
+        making it interleave has an effect.
+        . It would be nice to see how many times each cons is copied, but it
+          would have to be for the output stream specifically.  How can I do
+          that?  I think I would have to make my own list type, then count
+          allocated cells?
+      . Also, from heap profiling, the vast majority is PINNED, which is
+        presumably ByteString.  But what is it then, if I'm using Text for
+        events now?
+    make composed transforms more efficient
+      . Composed transforms have to keep the whole event stream in memory since
+        they can't interleave.
+      . Would it then be possible to deforest the intermediate lists?  Built-in
+        deforestation won't work because of the intervening call machinery, but
+        maybe I can recreate it manually.
+      - First, figure out how to measure the amount of memory used by
+        intermediate lists.  It might be completely trivial.
+      - First, I have to detach threaded state for the actual map.  This is
+        possible because I don't care about Threaded or Collect.  So modify
+        Post.emap_m to map a Derive.run over every element.  Then I need to
+        collect the output and turn Left into a Log... or leave it in the stream
+        somehow so I can throw at the end.
+      - I think the stream will then remain lazy, and I should be able to GC
+        as it goes, but verify with Debug.trace.
+    - I'd like to see if directly modifying Collect or a MergeList for LEvents
+      could reduce garbage, so I need to get some profiling up first.
+      . monad-par-extras Control.Monad.Par.AList is deprecated due to poor
+        performance, what's up with that?
+    - Internal.merge_collect is constantly merging in mempty, try reducing its
+      use.  Can I continue to enforce monoid-nature?
+    - I should be able to move samples only when converting to MIDI, this way
+      I don't need to move parts of the signal that wind up being trimmed.
+      Either try to trim the signal earlier again, or delay transformation to
+      Perform.
+    . Signal.sig_op has 4.8% alloc, from Control.cotrol_call ->
+      Derive.with_relative_control -> Perform.sig_multiply
+      . So default multiplication for dyn is expensive.
+    - Store signal chunks in the Ui.Track so they can be directly emitted.
+      This is only useful for large chunks of 'set' calls, probably recorded
+      from MIDI.  So it's probably not pressing until that feature exists.
+      . make Ui.Events into 'Map ScoreTime (Event | Chunk Signal)'
+      . collapse chunks of adjacent 'set' calls into a Chunk
+      . track_derive on a Chunk just returns the contents
+      . fltk event render should detect too dense events and omit them, rely
+        on the signal render
+      . UI edits should see the Chunk expanded out as Events.  Inserting an
+        event should modify the chunk or split it depending on if the inserted
+        event is a set call or not.
+    - parallelize derivation
+    AppendList / MergeList for Derive.Stream
+      - switch to AppendList and try to get garbage down
+        Avoid copying sublists returned by block calls and cache hits
+      - see if a Merge constructor can reduce copying
+      - can I cache length and range in AppendList?  does it matter?
+      - insert parallelism?  maybe the evaluator can do that when it sees
+        Merge?
+    - lazy signals
+      - check out 'at' and 'bsearch' occurrances and see if they can use tails
+      - There are lots of lookups in the tempo map
+    - see if making a version of Derive.local that's non-monadic in the
+      modifier has any effect on performance
+    derive cache:
+      - can I cache long blocks by slicing them if they're >n?
+      - c_block should only cache if the block has > a certain number of
+        events.
+      - I won't rederive cached generators if they have control damage outside
+        of the event range.  But there's nothing stopping a generator from
+        reading ahead or behind... come up with some kind of solution for this.
+    - fair amount of garbage generated by SignalBase.bsearch_above, I think
+      this is because it has to box the values when it pulls them out.  But
+      it's really just comparing to a Double, so I should be able to do the
+      operation unboxed.  But decide about lazy signals before going nuts on
+      this.  If I revert to linear search then none of this is necessary.
+    - at_linear is called a lot by compose, by compose_warp, by d_warp
+      can I make this more efficient?
   ghc-events:
     - GHC.RTS.Events doesn't handle unicode properly
     docs:
@@ -3953,14 +4184,6 @@ performance:
         . It's documented but doesn't exist.
         . It only exists when -debug, but this isn't documented.
         - Send doc fix to ghc.
-  + Bring back profiling, and do it regularly.
-    . Look into that graphing stuff, I have the links around here somewhere.
-    . I can get historical data with a script to step through darcs history.
-    . I don't have historical scores.  Well, I have backup/y-m-d, but they're
-      done irregularly and don't line up to commits.  Still, I should be able
-      to do ok by looking for the closest match.  Outright failures should be
-      visible as outliers.
-    . Profile MIDI and ly generation separately?
   keep track of history save scores and timing:
     . https://gitlab.com/karya-group
     - I should have a way to commit saves on each karya commit, and keep track
@@ -4008,149 +4231,7 @@ performance:
         a separate repo.
       . The problem is I have to update twice as much stuff, but I don't need
         that many "reference" scores.
-  - When I'm using ghc 8.2, try compact regions for inst db, especially vsl.
-    . 'compact' package
-    . Maybe even serialize it to disk?  Probably not worth it though, since
-      startup is pretty fast and probably inst db is not a big part.
-      . 0.584cpu / 0.222s.
-    . Can I use heap profiling to find other large CAFs?
-    . Can I use compact regions for the REPL loaded modules memory?
-    . compactWithSharing is slower but retains internal sharing, test to see
-      if it's worth it.
-    . https://tech.channable.com/posts/2020-04-07-lessons-in-managing-haskell-memory.html
-  - Reduce memory used by REPL.  NOTE [reduce-repl-memory]
-    . About 200mb.
-    . GHC reads interfaces maybe with ghc/compiler/utils/Binary.hs:/readBinMem
-    Try -fignore-interface-pragmas
-      . From ghci: 210mb without vs. 1552mb with
-      . But from REPL seems to make no difference.
-      . Actually, I can't reproduce this now.
-    . 200mb for an empty score seems excessive.  Where does it go?
-      . With inst db: 197, without sysex: 190, without vsl: 187.4
-      . Without repl: 12mb
-      . So 190mb consumed just by loading .o files!  du on obj dir is just 76mb.
-      . Loaded modules:
-        [254 of 255] Compiling Local.Repl       ( Local/Repl.hs, interpreted )
-        [255 of 255] Compiling Cmd.Repl.Environ (Cmd/Repl/Environ.hs,interpreted
-        . with verbosity=2:
-        . Stable obj: [Local.Instrument.Kontakt.Wayang, ... 253 modules
-        . log: Ready for upsweep
-          [NONREC
-                ModSummary {
-            { ... imports of every module }
-        . compile: input file ./Ui/ScoreTime.hs
-          *** Checking old interface for Ui.ScoreTime:
-          [ 41 of 255] Skipping  Ui.ScoreTime( Ui/ScoreTime.hs,
-              build/opt/obj/Ui/ScoreTime.hs.o )
-          *** Deleting temp files:
-          Warning: deleting non-existent /var/folders/6j/.../ghc_62.hs.o
-          . bypecode compile for last two modules
-    . 'du -hc build/opt/**/*.hs.o | tail -1' shows 55mb for object code,
-      and 19mb for .hi.  I'd think object code would be loaded directly with
-      little overhead, but that means .hi code expands by (190 - 55) / 19 = 7x
-      expansion, which seems like a lot.
-    . Also the memory measurements are haskell heap, which might not include
-      loaded object files.
-    . However, it's also loading .hi files for external packages too, though
-      I'm not sure how much.  The external package code is shared libraries,
-      which is shared with the app (and not in the haskell heap anyway).
-    . Use dtrace to figure out exactly what the GHC API is loading and when.
-    - I should be able to share object code by linking everything as a shared
-      library... that might save 55mb at least?
-  - Allocation when idle: about 300kb/sec
-    . What triggers this?  Nothing, it's basically always happening.
-      No, the allocation is always happening, but usually it doesn't get
-      retained.
-    ? Who is running?
-      . Threads:
-        / main - Ui.event_loop - should be blocked in Fl::wait,
-          though it comes back on every cursor move.  But still allocates even
-          when it doesn't have focus.
-        . responder - Respond.responder - Should be blocked in STM.atomically
-          block.
-        / Midi.CoreMidi.initialize forkOS - goes into CFRunLoopRun
-        / interpreter
-        / Responder accept repl socket
-        . Cmd.Performance: eval performance
-        . Cmd.PlayC.play - updates the playback
-        . Perform.Midi.Play render midi
-      . Could it be EKG?
-    . It stops during play.
-    . Try disabling ekg and use LDebug.memory and see if it's still there.
-    . It still grows without ekg.  Well, the second time it seems like it
-      moves but doesn't grow.
-    . Is there some way to instrument allocation so I can see which thread is
-      doing it?
-    . Actually it seems like ghci does it all by itself.  So it's either
-      inherent to the GHC API or ghc runtime in general.
-    . Does it grow with the repl off?  Yes, so apparently not the repl.
-  - Criterion testing: why is cmd_derive faster than derive?  It should be
-    doing more work!
-  - Check out score size with 'weigh', ala https://github.com/haskell-perf
-  - experiment with GC flags
-    memory usage:
-      . 200 mb -> 350 rss
-      . 250 by LDebug.memory and ekg, 500mb by system viewer.
-      . I think I have a very large proportion of static data in the GHC API
-        loaded .hi files, so that should avoid GC as much as possible.
-        Increase the generation count?
-        . In the future can I put that in static memory regions?
-      . Then I have a lot of short lived garbage generated on each derivation.
-      . Then the rest is medium life: score data, Performances.
-    . -A8m - larger generation 0 means fewer collections, good if lots of
-      garbage is generated.
-    . H - Suggested heap size.  I don't really understand this.
-    . -qg - turn off parallel gc
-    . -n2m - divide -A into chunks, so the first thread to run out doesn't
-      trigger a GC for all of them.  Good for unbalanced allocation?
-    . -I0 to turn off idle GC.  But it's designed to be good for interactive
-      use, and maybe I do pause for >.3s.  Or turn it up to 1sec?
-  - find space leaks with nmitchell's stack limit technique:
-    . run build/profile/verify_performance +RTS -K975K -xc -RTS --mode=Profile
-        p/cerucuk-punyah.state
-      Derive.LEvent.events_of,
-      called from Derive.Stream.zip3_on.\,
-      called from Derive.Stream.emap,
-      called from Derive.Stream.zip3_on,
-    . Also, what's with the compile_library stuff in the middle?  Should
-      I make it stricter?
-    . Giving up for the moment since I don't understand the output.
-  . Seq.sort_on winds up calling compare on Stack 13374153 times! 9.1% time
-    I have to sort it because the stack is kept in reverse order.
-    - Per-track stuff can wind up happening zillions of times due to
-      inversion, so look for other places where I do work or collect data
-      on every track fragment.
-    - At least at one point, keeping EnvKey.seed up to date was expensive, and
-      it's not even needed when there's no randomization.
-    - I could analyze TrackWarp or TrackDynamic to get stats on how many times
-      each block is called, along with overall stats on how many notes.  Just
-      an interesting thing to know.
-  criterion
-    - score from a file
-    - parsing
-  understand deriver performance
-    . I never know if changes I am making help or hurt performance, because I
-      don't trust any of my profiles.  This means I hardly ever run them, at
-      which point why bother having them?
 
-    . Productivity is actually really good during derivation: 70-80%.  Only if
-      I turn on heap profiling does it go down to 33%.  So maybe there's
-      nothing to do?  Still, it seems like it's slower than it should be.
-
-    . I want to find out how much list copying happens due to Stream being
-      a list.  Perhaps I can use SCC annotations?  For transforms, I want to
-      see the effect of a transform copying the whole stream so I can tell if
-      making it interleave has an effect.
-      . It would be nice to see how many times each cons is copied, but it
-        would have to be for the output stream specifically.  How can I do
-        that?  I think I would have to make my own list type, then count
-        allocated cells?
-    . Also, from heap profiling, the vast majority is PINNED, which is
-      presumably ByteString.  But what is it then, if I'm using Text for
-      events now?
-
-  - the first REPL cmd can take 2-3s, but they're fast after that, why?
-    . Presumably it's forcing a bunch of CAFs.
   research using pipes for generators and transformers
     . or streaming, or https://www.reddit.com/r/haskell/comments/7w79q1/what_is_your_take_on_conduits_pipes_and_streams/
     . This would handle the composed transforms thing.
@@ -4170,7 +4251,6 @@ performance:
       . In a pure environment, pipes still give a constant bound on how many
         elements I hold on to at a time.  But since I look ahead arbitrarily
         much, maybe I don't want that.
-    - Set up a pipeline over a StateT that returns Event.
     . The way to do this without pipes would be for transformer to be
       Deriver (Stream -> Stream).  Then I can run all the transformers, and
       then compose all their functions.  At that point, the only thing pipes
@@ -4191,78 +4271,6 @@ performance:
       . Presumably they could also interleave the State effect, but I'd want
         to take that out.  Though of course keeping the Reader part is fine,
         and necessary.
-  make composed transforms more efficient
-    . Composed transforms have to keep the whole event stream in memory since
-      they can't interleave.
-    . Would it then be possible to deforest the intermediate lists?  Built-in
-      deforestation won't work because of the intervening call machinery, but
-      maybe I can recreate it manually.
-    - First, figure out how to measure the amount of memory used by
-      intermediate lists.  It might be completely trivial.
-    - First, I have to detach threaded state for the actual map.  This is
-      possible because I don't care about Threaded or Collect.  So modify
-      Post.emap_m to map a Derive.run over every element.  Then I need to
-      collect the output and turn Left into a Log... or leave it in the stream
-      somehow so I can throw at the end.
-    - I think the stream will then remain lazy, and I should be able to GC
-      as it goes, but verify with Debug.trace.
-  - I'd like to see if directly modifying Collect or a MergeList for LEvents
-    could reduce garbage, so I need to get some profiling up first.
-    . monad-par-extras Control.Monad.Par.AList is deprecated due to poor
-      performance, what's up with that?
-  - Internal.merge_collect is constantly merging in mempty, try reducing its
-    use.  Can I continue to enforce monoid-nature?
-  - I should be able to move samples only when converting to MIDI, this way
-    I don't need to move parts of the signal that wind up being trimmed.
-    Either try to trim the signal earlier again, or delay transformation to
-    Perform.
-  . Signal.sig_op has 4.8% alloc, from Control.cotrol_call ->
-    Derive.with_relative_control -> Perform.sig_multiply
-    . So default multiplication for dyn is expensive.
-  - Store signal chunks in the Ui.Track so they can be directly emitted.
-    This is only useful for large chunks of 'set' calls, probably recorded
-    from MIDI.  So it's probably not pressing until that feature exists.
-    . make Ui.Events into 'Map ScoreTime (Event | Chunk Signal)'
-    . collapse chunks of adjacent 'set' calls into a Chunk
-    . track_derive on a Chunk just returns the contents
-    . fltk event render should detect too dense events and omit them, rely
-      on the signal render
-    . UI edits should see the Chunk expanded out as Events.  Inserting an
-      event should modify the chunk or split it depending on if the inserted
-      event is a set call or not.
-  Cmd
-    - If a msg aborts or doesn't run any cmds, don't bother to run diff.
-      Except that hardly ever happens if I do shortcut thru.
-    - cache track cmds for each track, update when the track title or skeleton
-      changes
-  Derive
-    - parallelize derivation
-    AppendList / MergeList for Derive.Stream
-      - switch to AppendList and try to get garbage down
-        Avoid copying sublists returned by block calls and cache hits
-      - see if a Merge constructor can reduce copying
-      - can I cache length and range in AppendList?  does it matter?
-      - insert parallelism?  maybe the evaluator can do that when it sees
-        Merge?
-    - lazy signals
-      - check out 'at' and 'bsearch' occurrances and see if they can use tails
-      - There are lots of lookups in the tempo map
-    - see if making a version of Derive.local that's non-monadic in the
-      modifier has any effect on performance
-    derive cache:
-      - can I cache long blocks by slicing them if they're >n?
-      - c_block should only cache if the block has > a certain number of
-        events.
-      - I won't rederive cached generators if they have control damage outside
-        of the event range.  But there's nothing stopping a generator from
-        reading ahead or behind... come up with some kind of solution for this.
-    - fair amount of garbage generated by SignalBase.bsearch_above, I think
-      this is because it has to box the values when it pulls them out.  But
-      it's really just comparing to a Double, so I should be able to do the
-      operation unboxed.  But decide about lazy signals before going nuts on
-      this.  If I revert to linear search then none of this is necessary.
-    - at_linear is called a lot by compose, by compose_warp, by d_warp
-      can I make this more efficient?
 
 rust-gui:
   . try out druid for proof of concept
