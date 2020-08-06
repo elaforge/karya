@@ -236,7 +236,7 @@ make_pitches char_notes = Map.fromList
 -- ** global bindings
 
 global_bindings :: Map (Set Cmd.Modifier) KeycapsT.Bindings
-global_bindings = bindings_cache Nothing GlobalKeymap.all_cmd_map
+global_bindings = bindings_cache Nothing GlobalKeymap.all_keymap
 
 note_track_bindings :: Map (Set Cmd.Modifier) KeycapsT.Bindings
 note_track_bindings =

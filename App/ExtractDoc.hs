@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module App.ExtractDoc where
-import qualified Control.Monad.Identity as Identity
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
@@ -19,14 +18,13 @@ import qualified Cmd.CallDoc as CallDoc
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.GlobalKeymap as GlobalKeymap
 import qualified Cmd.KeyLayouts as KeyLayouts
-import qualified Cmd.Keymap as Keymap
 import qualified Cmd.NoteTrackKeymap as NoteTrackKeymap
 
 import qualified Derive.C.All as C.All
 import qualified Derive.Scale.All as Scale.All
 import qualified Ui.Key as Key
 
-import Global
+import           Global
 
 
 main :: IO ()
@@ -50,60 +48,58 @@ main = do
 keymap_doc :: Text
 keymap_doc = Text.unlines
     [ "<html> <head> <title> keymaps </title> </head> <body>"
-    , html_fmt "global" $ extract GlobalKeymap.all_cmd_map
-    , html_fmt "note track" $ extract $ fst NoteTrackKeymap.make_keymap
+    , html_fmt "global" $ extract GlobalKeymap.all_keymap
+    , html_fmt "note track" $ extract NoteTrackKeymap.keymap
     , "</body> </html>"
     ]
 
-type CmdMap = Keymap.CmdMap (Cmd.CmdT Identity.Identity)
-type Binds = [(Text, [Keymap.KeySpec])]
+type Binds = [(Text, [Cmd.KeySpec])]
 
-extract :: CmdMap -> Binds
+extract :: Cmd.Keymap Cmd.CmdId -> Binds
 extract = sort . strip . group . Map.toList
 
 -- | Sort by the key's position in qwerty.
 sort :: Binds -> Binds
 sort = Seq.sort_on (map key . snd)
     where
-    key (Keymap.KeySpec mods bindable) = (bindable_key bindable, mods)
-    bindable_key k@(Keymap.Key _ (Key.Char c)) =
+    key (Cmd.KeySpec mods bindable) = (bindable_key bindable, mods)
+    bindable_key k@(Cmd.Key _ (Key.Char c)) =
         (Map.findWithDefault (Map.size key_order + 1) c key_order, k)
     bindable_key k = (Map.size key_order + 2, k)
     key_order = Map.fromList $ zip KeyLayouts.qwerty_unshifted [0,2..]
         ++ zip KeyLayouts.qwerty_shifted [1,3..]
 
-group :: [(Keymap.KeySpec, Keymap.CmdSpec m)] -> [(Text, [Keymap.KeySpec])]
-group = map (second (map fst)) . Seq.keyed_group_sort (name_of . snd)
-    where name_of (Keymap.CmdSpec name _) = name
+group :: [(Cmd.KeySpec, Cmd.NamedCmd m)] -> [(Text, [Cmd.KeySpec])]
+group = map (second (map fst)) . Seq.keyed_group_sort (Cmd.cmd_name . snd)
 
 strip :: Binds -> Binds
 strip = map (second strip_keyspecs)
 
 -- | A repeatable key implies the non-repeating key.  Also, a drag implies
 -- a click.
-strip_keyspecs :: [Keymap.KeySpec] -> [Keymap.KeySpec]
+strip_keyspecs :: [Cmd.KeySpec] -> [Cmd.KeySpec]
 strip_keyspecs = map stripm . strip_drag . strip_repeatable
     where
     strip_drag mods
         | any is_drag mods = filter is_drag mods
         | otherwise = mods
-    is_drag (Keymap.KeySpec _ (Keymap.Drag {})) = True
+    is_drag (Cmd.KeySpec _ (Cmd.Drag {})) = True
     is_drag _ = False
     strip_repeatable mods
         | any is_repeatable mods = filter is_repeatable mods
         | otherwise = mods
-    is_repeatable (Keymap.KeySpec _ (Keymap.Key is_repeat _)) = is_repeat
+    is_repeatable (Cmd.KeySpec _ (Cmd.Key is_repeat _)) = is_repeat
     is_repeatable _ = False
-    stripm (Keymap.KeySpec mods bindable) =
-        Keymap.KeySpec (Set.fromList (strip_mods bindable (Set.toList mods)))
+    stripm (Cmd.KeySpec mods bindable) =
+        Cmd.KeySpec (Set.fromList (strip_mods bindable (Set.toList mods)))
             bindable
 
 -- | Strip out redundant modifiers.  E.g. Click and Drag bindings by necessity
 -- imply that the mouse button is down, but I don't need to print that out.
-strip_mods :: Keymap.Bindable -> [Cmd.Modifier] -> [Cmd.Modifier]
+strip_mods :: Cmd.Bindable -> [Cmd.Modifier] -> [Cmd.Modifier]
 strip_mods bindable mods = case bindable of
-    Keymap.Click {} -> stripped
-    Keymap.Drag {} -> stripped
+    Cmd.Click {} -> stripped
+    Cmd.Drag {} -> stripped
     _ -> mods
     where
     stripped = filter (not . is_mouse) mods
@@ -115,7 +111,7 @@ strip_mods bindable mods = case bindable of
 txt_fmt :: Binds -> Text
 txt_fmt = Text.unlines . map (uncurry show_binding)
 
-show_binding :: Text -> [Keymap.KeySpec] -> Text
+show_binding :: Text -> [Cmd.KeySpec] -> Text
 show_binding name keyspecs = Seq.join2 " - " mods name
     where mods = "[" <> Text.intercalate ", " (map pretty keyspecs) <> "]"
 
@@ -146,13 +142,13 @@ chunk _ [] = []
 chunk n xs = c : chunk n rest
     where (c, rest) = splitAt n xs
 
-html_binding :: Text -> [Keymap.KeySpec] -> Text
+html_binding :: Text -> [Cmd.KeySpec] -> Text
 html_binding name keyspecs =
     "<td>" <> mods <> "</td> <td> <em>" <> name <> "</em> </td>"
     where mods = Text.intercalate ", " (map html_keyspec keyspecs)
 
-html_keyspec :: Keymap.KeySpec -> Text
-html_keyspec (Keymap.KeySpec mods bindable) =
+html_keyspec :: Cmd.KeySpec -> Text
+html_keyspec (Cmd.KeySpec mods bindable) =
     Seq.join2 " " (show_mods mods)
-        ("<b>" <> Keymap.show_bindable False bindable <> "</b>")
-    where show_mods = Text.intercalate " + " . map Keymap.show_mod . Set.toList
+        ("<b>" <> Cmd.show_bindable False bindable <> "</b>")
+    where show_mods = Text.intercalate " + " . map Cmd.show_mod . Set.toList

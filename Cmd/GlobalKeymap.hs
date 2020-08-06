@@ -42,7 +42,7 @@
     events.
 -}
 module Cmd.GlobalKeymap (
-    pure_keymap, io_keymap, all_cmd_map, cmd_map_errors
+    pure_keymap, io_keymap, all_keymap, all_keymap_errors
 ) where
 import qualified Control.Monad.Identity as Identity
 
@@ -93,9 +93,9 @@ io_keymap = Cmd.Keymap $ fst $ Keymap.make_keymap io_bindings
 -- print a global keymap.  They're stripped to make them all the same type, so
 -- they can all go into the same Keymap, so collision detection and
 -- documentation doesn't have to care about 'pure_cmds' vs 'io_cmds'.
-all_cmd_map :: Cmd.Keymap Cmd.CmdId
-cmd_map_errors :: [Text]
-(all_cmd_map, cmd_map_errors) =
+all_keymap :: Cmd.Keymap Cmd.CmdId
+all_keymap_errors :: [Text]
+(all_keymap, all_keymap_errors) =
     Keymap.make_keymap (pure_bindings ++ map strip io_bindings)
     where
     strip = second $ \(Cmd.NamedCmd name _) ->

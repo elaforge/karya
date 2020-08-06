@@ -185,7 +185,7 @@ startup_initialization = do
         ]
     LoadConfig.styles Config.styles
     -- Report keymap and call overlaps.
-    mapM_ Log.warn GlobalKeymap.cmd_map_errors
+    mapM_ Log.warn GlobalKeymap.all_keymap_errors
     forM_ C.All.shadowed $
         \((name, Module.Module module_), calls) ->
             Log.warn $ "shadowed " <> name <> " calls in module "
