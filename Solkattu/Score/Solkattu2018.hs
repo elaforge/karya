@@ -398,7 +398,7 @@ misra_tani =
     , K misra_to_mohra3 All
     , Comment "part 3"
     , K misra_to_mohra4 All
-    , K misra_mohras (Index 0) -- or !! 1
+    , K misra_mohras (Index 1) -- or 2
     , K misra_muktayi1 All
     ]
 

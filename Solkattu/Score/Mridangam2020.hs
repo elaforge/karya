@@ -268,7 +268,10 @@ sarva_20_06_12_reduction = date 2020 6 12 $ korvaiS adi
 
 sarva_20_06_19_endings :: Korvai
 sarva_20_06_19_endings = date 2020 6 19 $ korvaiS adi
-    [ sarva 4 . __ . r5 (n.d.__)
+    [ __D 1.5 . v.__.v.__4.__D 1
+    -- [ __D 1.5 .__.__.__ . n.__.n.d.n.d.d
+            . n.y.n.d.n.n.__.d.n.__.p&k.__.p&t.__.p&k.__.o&v
+              -- recording: 5:26.68
     , sarva 6 .__. su (p.k.n.o.o.k . o.t.o.k.o.t.o.k)
     , sarva 6 . su (k.t.o.k.o.v.__.k.o.k.o.k.o.v.__.k)
     ]
@@ -324,6 +327,7 @@ e_20_07_17 = date 2020 7 17 $ exercise $ ganesh $ korvaiS adi
     [ su $ r3 (p.__.kt.kt.pk) . nakatiku . theme
     , su $ r3 (p.__.kt.kt.pk) . nakatiku . theme2
     , su $ nadai 5 $ r4 (takeD 5 theme)
+    , r5 (od.__.k) . r3 (od.__.k.__.o) . od.__
     ]
     where
     theme = od.__.k.od.__.k.__.od.__.k.o.od.__
