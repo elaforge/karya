@@ -72,7 +72,7 @@ def fix_old_json():
 def metadata_json():
     patch = parse_json(
         subprocess.run(
-            [verify_binary, '--mode=PatchInfo'],
+            [verify_binary, '--mode=CommitInfo'],
             stdout=subprocess.PIPE,
             check=True).stdout)
     ghc = subprocess.check_output(['ghc', '--numeric-version']).strip() \

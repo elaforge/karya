@@ -46,7 +46,7 @@ import           Types
 data Flag = Help | Mode Mode | Output !FilePath
     deriving (Eq, Show)
 
-data Mode = Verify | Save | Perform | Profile | DumpMidi | PatchInfo
+data Mode = Verify | Save | Perform | Profile | DumpMidi | CommitInfo
     deriving (Eq, Show, Bounded, Enum)
 
 options :: [GetOpt.OptDescr Flag]
@@ -63,7 +63,7 @@ options =
         \  Perform - Perform to MIDI and write to $input.midi.\n\
         \  Profile - Like Perform, but don't write any output.\n\
         \  DumpMidi - Pretty print binary saved MIDI to stdout.\n\
-        \  PatchInfo - Dump info on the current patch in JSON. This doesn't\n\
+        \  CommitInfo - Dump info on the current commit in JSON. This doesn't\n\
         \    belong here, but there's no other great place."
     , GetOpt.Option [] ["out"] (GetOpt.ReqArg Output default_out_dir) $
         "Write output to this directory. This is diffs, and timing .json."
@@ -122,7 +122,7 @@ main = Git.initialize $ do
         DumpMidi -> do
             when (null args) $ usage "no inputs"
             run_error $ concat <$> mapM dump_midi args
-        PatchInfo -> do
+        CommitInfo -> do
             patch <- either (errorIO . txt) return
                 =<< SourceControl.current "."
             ByteString.Lazy.Char8.putStrLn $ Aeson.encode $ Map.fromList
