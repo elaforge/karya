@@ -36,6 +36,8 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.DiffPerformance as DiffPerformance
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveSaved as DeriveSaved
+import qualified Derive.Score as Score
+
 import qualified Midi.Midi as Midi
 import qualified Ui.Ui as Ui
 
@@ -46,8 +48,12 @@ import           Types
 data Flag = Help | Mode Mode | Output !FilePath
     deriving (Eq, Show)
 
-data Mode = Verify | Save | Perform | Profile | DumpMidi | CommitInfo
+data Mode =
+    Verify | Save | Perform | Profile | ProfileDerive | DumpMidi | CommitInfo
     deriving (Eq, Show, Bounded, Enum)
+
+data PerformTo = ToDerive | ToMidi
+    deriving (Eq, Show)
 
 options :: [GetOpt.OptDescr Flag]
 options =
@@ -62,6 +68,7 @@ options =
         \  Save - Write saved performances to disk as binary.\n\
         \  Perform - Perform to MIDI and write to $input.midi.\n\
         \  Profile - Like Perform, but don't write any output.\n\
+        \  ProfileDerive - Like Profile, but derive only, don't render midi.\n\
         \  DumpMidi - Pretty print binary saved MIDI to stdout.\n\
         \  CommitInfo - Dump info on the current commit in JSON. This doesn't\n\
         \    belong here, but there's no other great place."
@@ -115,13 +122,17 @@ main = Git.initialize $ do
             run_error $ concat <$> mapM (save out_dir) args
         Profile -> do
             when (null args) $ usage "no inputs"
-            run_error $ concat <$> mapM (perform Nothing cmd_config) args
+            run_error $ mapM_ (perform Nothing cmd_config) args >> return []
+        ProfileDerive -> do
+            when (null args) $ usage "no inputs"
+            run_error $ mapM_ (derive cmd_config) args >> return []
         Perform -> do
             when (null args) $ usage "no inputs"
-            run_error $ concat <$> mapM (perform (Just out_dir) cmd_config) args
+            run_error $ mapM_ (perform (Just out_dir) cmd_config) args
+                >> return []
         DumpMidi -> do
             when (null args) $ usage "no inputs"
-            run_error $ concat <$> mapM dump_midi args
+            run_error $ mapM_ dump_midi args >> return []
         CommitInfo -> do
             patch <- either (errorIO . txt) return
                 =<< SourceControl.current "."
@@ -152,9 +163,9 @@ expand_verify_me fname = do
         Nothing -> [fname]
         Just contents -> map ((fname</>) . untxt) $ Text.lines contents
 
-type Error a = Except.ExceptT Text IO a
+type ErrorM a = Except.ExceptT Text IO a
 
-run_error :: Error [Text] -> IO Int
+run_error :: ErrorM [Text] -> IO Int
 run_error m = do
     errors <- either (\err -> return [err]) return =<< Except.runExceptT m
     mapM_ Text.IO.putStrLn errors
@@ -166,7 +177,7 @@ require_right io = tryRight =<< liftIO io
 -- * implementation
 
 -- | Extract saved performances and write them to disk.
-save :: FilePath -> FilePath -> Error [Text]
+save :: FilePath -> FilePath -> ErrorM [Text]
 save out_dir fname = do
     (state, _defs_lib, _aliases, block_id) <- load fname
     let meta = Ui.config#Ui.meta #$ state
@@ -188,8 +199,8 @@ save out_dir fname = do
     return $ if midi || ly then []
         else [txt fname <> ": no midi or ly performance"]
 
--- | Perform to MIDI and write to disk.
-perform :: Maybe FilePath -> Cmd.Config -> FilePath -> Error [Text]
+-- | Perform to MIDI and possibly write to disk.
+perform :: Maybe FilePath -> Cmd.Config -> FilePath -> ErrorM ()
 perform maybe_out_dir cmd_config fname = do
     (state, library, aliases, block_id) <- load fname
     (msgs, _, _) <- perform_block fname
@@ -198,17 +209,28 @@ perform maybe_out_dir cmd_config fname = do
         let out = out_dir </> basename fname <> ".midi"
         liftIO $ putStrLn $ "write " <> out
         liftIO $ DiffPerformance.save_midi out (Vector.fromList msgs)
-    return []
 
-dump_midi :: FilePath -> Error [Text]
+-- | Like 'perform', but don't perform to MIDI.
+derive :: Cmd.Config -> FilePath
+    -> ErrorM (Vector.Vector Score.Event, DeriveSaved.CPU)
+derive cmd_config fname = do
+    (state, library, aliases, block_id) <- load fname
+    let cmd_state = make_cmd_state library aliases cmd_config
+    ((!events, logs), derive_cpu) <- liftIO $
+        DeriveSaved.timed_derive fname state cmd_state block_id
+    liftIO $ mapM_ Log.write logs
+    liftIO $ Text.IO.putStrLn $ "derived " <> showt (Vector.length events)
+        <> " in " <> Num.showFloat 2 (toSecs derive_cpu)
+    return (events, derive_cpu)
+
+dump_midi :: FilePath -> ErrorM ()
 dump_midi fname = do
     msgs <- require_right $ DiffPerformance.load_midi fname
     liftIO $ mapM_ Pretty.pprint (Vector.toList msgs)
-    return []
 
 type Timings = [(Text, Thread.Seconds)]
 
-verify_performance :: FilePath -> Cmd.Config -> FilePath -> Error [Text]
+verify_performance :: FilePath -> Cmd.Config -> FilePath -> ErrorM [Text]
 verify_performance out_dir cmd_config fname = do
     (state, library, aliases, block_id) <- load fname
     let meta = Ui.config#Ui.meta #$ state
@@ -228,7 +250,7 @@ verify_performance out_dir cmd_config fname = do
 
 -- | Perform from the given state and compare it to the old MidiPerformance.
 verify_midi :: FilePath -> FilePath -> Cmd.State -> Ui.State -> BlockId
-    -> Ui.MidiPerformance -> Error (Maybe Text, Timings)
+    -> Ui.MidiPerformance -> ErrorM (Maybe Text, Timings)
 verify_midi out_dir fname cmd_state state block_id performance = do
     (msgs, derive_cpu, perform_cpu) <-
         perform_block fname cmd_state state block_id
@@ -241,7 +263,7 @@ verify_midi out_dir fname cmd_state state block_id performance = do
         )
 
 perform_block :: FilePath -> Cmd.State -> Ui.State -> BlockId
-    -> Error ([Midi.WriteMessage], DeriveSaved.CPU, DeriveSaved.CPU)
+    -> ErrorM ([Midi.WriteMessage], DeriveSaved.CPU, DeriveSaved.CPU)
 perform_block fname cmd_state state block_id = do
     ((events, logs), derive_cpu) <- liftIO $
         DeriveSaved.timed_derive fname state cmd_state block_id
@@ -252,7 +274,7 @@ perform_block fname cmd_state state block_id = do
     return (msgs, derive_cpu, perform_cpu)
 
 verify_lilypond :: FilePath -> FilePath -> Cmd.State -> Ui.State
-    -> BlockId -> Ui.LilypondPerformance -> Error (Maybe Text, Timings)
+    -> BlockId -> Ui.LilypondPerformance -> ErrorM (Maybe Text, Timings)
 verify_lilypond out_dir fname cmd_state state block_id performance = do
     ((result, logs), cpu) <- liftIO $
         DeriveSaved.timed_lilypond fname state cmd_state block_id
@@ -272,7 +294,7 @@ verify_lilypond out_dir fname cmd_state state block_id performance = do
 
 -- | Load a score and get its root block id.
 load :: FilePath
-    -> Error (Ui.State, Derive.Builtins, Derive.InstrumentAliases, BlockId)
+    -> ErrorM (Ui.State, Derive.Builtins, Derive.InstrumentAliases, BlockId)
 load fname = do
      (state, builtins, aliases) <- require_right $ DeriveSaved.load_score fname
      block_id <- require_right $ return $ get_root state
@@ -292,7 +314,6 @@ basename = FilePath.takeFileName . Seq.rdrop_while (=='/')
 write_timing :: FilePath -> Timings -> IO ()
 write_timing fname timings = ByteString.Lazy.writeFile fname $ (<>"\n") $
     Aeson.encode $ Map.fromList $ map (second toSecs) timings
-
 
 toSecs :: Thread.Seconds -> Double
 toSecs = realToFrac

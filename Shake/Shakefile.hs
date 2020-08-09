@@ -689,10 +689,10 @@ configure = do
                 Debug -> []
                 Opt -> ["-O"]
                 Test -> ["-fhpc"]
-                -- TODO I don't want SCCs for criterion tests, but
-                -- not sure for plain profiling, maybe I always want manual
-                -- SCCs anyway?
-                Profile -> ["-O", "-prof"] -- , "-fprof-auto-top"]
+                Profile -> ["-O", "-prof"]
+                    -- I use manual SCCs for accuracy, but auto ones can be
+                    -- useful to figure out where to put manual ones.
+                    -- ++ ["-fprof-auto-top"]
             ]
         , hLinkFlags = concat
             [ ["-rtsopts", "-threaded"]

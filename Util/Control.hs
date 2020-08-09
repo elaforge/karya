@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE LambdaCase #-}
 -- | Control flow and monadic utilities.
 module Util.Control (
     module Util.Control
@@ -10,15 +11,47 @@ module Util.Control (
 ) where
 import qualified Control.Monad as Monad
 import qualified Control.Monad.Except as Except
-import Control.Monad.Extra
-       (whenJust, whenJustM, mapMaybeM, whenM, unlessM, ifM, notM, orM, andM,
-        findM, anyM, allM)
+import           Control.Monad.Extra
+       (allM, andM, anyM, findM, mapMaybeM, notM, orM)
 import qualified Control.Monad.Fix as Fix
 
-import Data.Bifunctor (Bifunctor(bimap, first, second))
+import           Data.Bifunctor (Bifunctor(bimap, first, second))
 
-import Util.CallStack (errorStack, errorIO)
+import           Util.CallStack (errorIO, errorStack)
 
+
+-- These are the same as Control.Monad.Extra, but they are frequently used, and
+-- by defining them here I can explicitly INLINE them.  Surely they're short
+-- enough that ghc will inline anyway, but -fprof-auto-exported isn't that
+-- clever.  I got around by recompiling all of hackage with
+-- 'profiling-detail: none', but I might as well keep the definitions anyway
+-- since it gives me more control.
+
+{-# INLINE whenJust #-}
+whenJust :: Applicative m => Maybe a -> (a -> m ()) -> m ()
+whenJust ma f = maybe (pure ()) f ma
+
+{-# INLINE whenJustM #-}
+whenJustM :: Monad m => m (Maybe a) -> (a -> m ()) -> m ()
+whenJustM mma f = mma >>= \case
+    Nothing -> pure ()
+    Just a -> f a
+
+{-# INLINE whenM #-}
+whenM :: Monad m => m Bool -> m () -> m ()
+whenM mb true = ifM mb true (pure ())
+
+{-# INLINE unlessM #-}
+unlessM :: Monad m => m Bool -> m () -> m ()
+unlessM mb false = ifM mb (pure ()) false
+
+{-# INLINE ifM #-}
+ifM :: Monad m => m Bool -> m a -> m a -> m a
+ifM mb true false = mb >>= \case
+    True -> true
+    False -> false
+
+-- * local
 
 while :: Monad m => m Bool -> m a -> m [a]
 while cond op = do

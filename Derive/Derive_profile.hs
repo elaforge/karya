@@ -219,7 +219,7 @@ run_profile fname maybe_lookup ui_state = do
     let events = Stream.to_list $ Derive.r_events result
     section "derive" $ do
         Thread.force events
-        Testing.prettyp (take 20 events)
+        Testing.prettyp (take 4 events)
         return events
     whenJust maybe_lookup $ \lookup -> section "midi" $ do
         let mmsgs = snd $ DeriveTest.perform_stream lookup

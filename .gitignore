@@ -8,6 +8,7 @@
 /save
 /inst_db
 /im
+/prof
 
 /.cabal-sandbox/
 /.stack-work/
@@ -17,6 +18,7 @@
 /build/
 /.hpc/
 /dist/
+/dist-newstyle/
 /tags
 /.repl
 

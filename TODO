@@ -3968,6 +3968,21 @@ performance:
     - cache track cmds for each track, update when the track title or skeleton
       changes
   derive:
+    profile with SCCs
+      . tools/run_profile verify_performance
+      * it's messy, let's rewrite it in python
+      * even with no -fprof-auto, hackage has compiled with -fprof-auto
+        . Can I rebuild with cabal flags?  Or should I use nix?
+        . Actually it's -fprof-auto-exported, which is exported functions not
+          marked INLINE.
+        . I think this is no good though, because small functions are not
+          marked INLINE but will still be inlined, e.g. whenJust.
+          Also seems to mess up fusion, e.g. Data.Vector.Fusion.Util.runId
+        . I can work around with my own whenJust and maybeM.
+      + put SCCs on... where?
+        + I could still try a run with -fprof-auto-top, to see who gets
+          called a lot.
+        - what about -fprof-auto-exported?
     + Bring back profiling, and do it regularly.
       . Look into that graphing stuff, I have the links around here somewhere.
       . I can get historical data with a script to step through darcs history.
