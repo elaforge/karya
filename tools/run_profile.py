@@ -25,6 +25,7 @@ import os
 import sys
 import subprocess
 import datetime
+import re
 
 
 out_base = 'data/prof'
@@ -98,12 +99,72 @@ def main():
         run_if_exists(['ghc-prof-flamegraph', stem + '.prof',
             '--output', stem + '.flame.svg'])
         run_if_exists(['hp2html', stem + '.hp'])
+        summarize(stem)
         print(out_dir, os.path.basename(stem))
 
 
+### summarize
+
+def summarize(stem):
+    """Write .gc and .prof summary to a diffable .summary file."""
+    gc = parse_gc(list(open(stem + '.gc')))
+    ccs = parse_prof(stem + '.prof')
+    with open(stem + '.summary', 'w') as fp:
+        for k, v in sorted(gc.items()):
+            fp.write(f'{k}: {v:.2f}\n')
+        fp.write('\n')
+        for cc in sorted(ccs):
+            fp.write(cc + '\n')
+
+def parse_prof(fname):
+    lines = open(fname)
+    for line in lines:
+        if line.startswith('COST CENTRE'):
+            break
+    ccs = []
+    for line in lines:
+        if re.search(r'^ +individual', line):
+            break
+        words = line.split()
+        if not words:
+            continue
+        [cc, module, src, time, alloc] = words
+        ccs.append(' '.join(
+            word.ljust(width) for (word, width) in [
+                (cc, 24), (module, 42), (time, 4), (alloc, 0)
+            ]
+        ))
+    return ccs
+
+
+# From profile_verify.py
+def parse_gc(lines):
+    total_alloc = bytes_to_mb(
+        extract(lines, r'([0-9.,]+) bytes allocated in the heap'))
+    max_alloc = bytes_to_mb(
+        extract(lines, r'([0-9.,]+) bytes maximum residency'))
+    productivity = float(extract(lines, r'Productivity +([0-9.,]+)%')) / 100
+    return {
+        'total alloc': total_alloc,
+        'max alloc': max_alloc,
+        'productivity': productivity,
+    }
+
+def bytes_to_mb(s):
+    return float(s.replace(',', '')) / 1024 / 1024
+    # return '%.2fmb' % (float(s.replace(',', '')) / 1024 / 1024)
+
+def extract(lines, reg):
+    for line in lines:
+        m = re.search(reg, line)
+        if m:
+            return m.group(1)
+    raise ValueError('reg %r not found in %s' % (reg, lines))
+
+### util
+
 def ymd():
     return datetime.datetime.today().strftime('%y-%m-%d')
-
 
 def run(cmd, tee_to=None):
     print('%', *cmd)

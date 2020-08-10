@@ -3980,9 +3980,63 @@ performance:
           Also seems to mess up fusion, e.g. Data.Vector.Fusion.Util.runId
         . I can work around with my own whenJust and maybeM.
       + put SCCs on... where?
+        candidates:
+          . Note.default_note
+          . Lib.controls_at
+          . ParseText.parse
+          . ParseTitle.parse_
+          . Parse.parse_expr
+          . Control.derive_pitch
         + I could still try a run with -fprof-auto-top, to see who gets
           called a lot.
+        . bsearch_above, called by Util.Segment.at, called in many places.
+          148406: from event_environ <- event_controls_at <- transposed_at
+            <- DeriveT.pitch_nn <- Score.nn_at <- Score.initial_nn
+            <- Idiom.next_same_pitch <- Idiom.avoid_overlap
+            <- Postproc.apply_start_offset
+        . From the flamegraph for bsearch_above, expensive:
+          Semigroup DeriveT.PitchConfig <>
+          called from Score.transposed_at -> PSignal.apply_config
+        * Seq.diff <- Lib.state_controls_at <- Lib.controls_at <-
+          Note.default_note
+          . Maps.pairs should be more efficient than Seq.diff, but still
+            expensive.  It would be better to not call it so much.
+          . Internal.get_ruler also significant cost, and from that
+            Internal.lookup_current_tracknum -> Ui.get_tracknum_of
+          . This is all due to control functions, specifically that:
+            . Have to get a ruler even if they don't use it
+            . Have to match up all ControlFunctions to Controls.
+            . Have to get vals for all controls, even if not all used.
+          . But Note.default_note is only a small part of the eval time!
+        - Parse.space_to_eol
+          . Maybe gets cheaper when inlined.
         - what about -fprof-auto-exported?
+          . Instead of adding SCCs on top, I could go bottom up by adding
+            INLINEs.
+          . At least I could get things like (>>=) and Util.Control out of
+            there.
+    flamegraph:
+      . What are samples?  It says 1,000.
+      . Can I get the number of entries in tooltip?
+      . Sorted by?  Time by default, can be --alloc or --entry.
+    improvements:
+      * Write a tool for diffs on .prof and .gc so I can feel good.
+        . tools/profile_verify.py parses .gc
+        . Then just diff the top CC list from .prof, sort by name.
+      - Derive.with_scale does work each time to lookup scale and then
+        Lib.scale_to_call and Lib.with_val_raw.  I think the latter is red
+        herring, because it gets charged for the actions of the caller
+        (Control.d_control_track -> Control.pitch_call) due to scoping.
+        . But it could cache scale_to_call by building a
+          Map ScaleId (Scopes -> Scopes)
+      . Same for with_instrument.
+      . Alternately, don't call them so much!  with_instrument is not even on
+        the graph, maybe only gets called once.  Scale only needs to be called
+        once too... in cerucuk-punyah it's 12399 times
+      . Probably most of those are empty_scale, which means I maybe don't have
+        to do anything?  Currently I just get current scale_id and with_scale
+        on that.
+
     + Bring back profiling, and do it regularly.
       . Look into that graphing stuff, I have the links around here somewhere.
       . I can get historical data with a script to step through darcs history.
