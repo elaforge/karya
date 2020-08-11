@@ -362,6 +362,7 @@ realize_pattern pattern =
             (realize_notes_args args initial_final show_pitch Gangsa.Repeat dur)
             (filter_voices voices positions)
 
+-- | Select the given Voice indices.
 filter_voices :: [Voice] -> [a] -> [(Voice, a)]
 filter_voices voices positions
     | null voices = zip [1..] positions
@@ -409,7 +410,7 @@ realize_notes_args args initial_final =
 
 realize_notes :: (ScoreTime, ScoreTime) -> Types.Orientation -> (Bool, Bool)
     -> (Pitch.Pitch -> Maybe Pitch.Note) -> Gangsa.Repeat -> ScoreTime
-    -> (Voice, [[Note]]) -> Derive.NoteDeriver
+    -> (Voice, [Chord]) -> Derive.NoteDeriver
 realize_notes (start, end) orientation initial_final show_pitch repeat dur
         (voice, position) =
     Gangsa.realize_notes (realize_note show_pitch voice start) $

@@ -659,7 +659,7 @@ controls_at :: RealTime -> Deriver ScoreT.ControlValMap
 controls_at pos = do
     state <- get
     ruler <- Internal.get_ruler
-    return $ state_controls_at pos ruler (state_dynamic state)
+    return $! state_controls_at pos ruler (state_dynamic state)
         (state_event_serial (state_threaded state))
 
 state_controls_at :: RealTime -> Ruler.Marklists
@@ -669,14 +669,12 @@ state_controls_at :: RealTime -> Ruler.Marklists
     -> ScoreT.ControlValMap
 state_controls_at pos ruler dyn serial = Map.fromList $
     map (resolve (Internal.convert_dynamic ruler dyn serial) pos) $
-    Seq.diff (\a b -> fst a == fst b)
-        (Map.toAscList (state_control_functions dyn))
-        (Map.toAscList (state_controls dyn))
+    Maps.pairs (state_control_functions dyn) (state_controls dyn)
     where
-    resolve cf_dyn pos p = case p of
-        Seq.Both (k, f) _ -> (k, call k f)
-        Seq.First (k, f) -> (k, call k f)
-        Seq.Second (k, sig) -> (k, Signal.at pos (ScoreT.typed_val sig))
+    resolve cf_dyn pos (k, p) = case p of
+        Seq.Both f _ -> (k, call k f)
+        Seq.First f -> (k, call k f)
+        Seq.Second sig -> (k, Signal.at pos (ScoreT.typed_val sig))
         where
         call control f = ScoreT.typed_val $
             DeriveT.call_control_function f control cf_dyn pos
