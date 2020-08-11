@@ -34,7 +34,6 @@ import qualified Data.Text as Text
 
 import qualified Util.Log as Log
 import qualified Derive.Cache as Cache
-import qualified Derive.Call as Call
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveT as DeriveT
@@ -46,7 +45,6 @@ import qualified Derive.Expr as Expr
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.ParseTitle as ParseTitle
-import qualified Derive.Scale as Scale
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stream as Stream
@@ -223,9 +221,8 @@ merge_logs logs = fmap (Stream.merge_logs logs)
 pitch_call :: Config -> TrackTree.Track -> ScoreT.PControl
     -> Pitch.ScaleId -> (Derive.PitchDeriver -> Derive.PitchDeriver)
     -> Derive.NoteDeriver -> Derive.NoteDeriver
-pitch_call config track pcontrol scale_id transform deriver = do
-    scale <- get_scale scale_id
-    Derive.with_scale scale $ do
+pitch_call config track pcontrol scale_id transform deriver =
+    with_scale scale_id $ do
         (signal, logs) <- with_pitch_env pcontrol $
             derive_pitch (config_use_cache config) track transform
         -- Ignore errors, they should be logged on conversion.
@@ -240,10 +237,12 @@ pitch_call config track pcontrol scale_id transform deriver = do
     with_damage = with_control_damage (TrackTree.block_track_id track)
         (TrackTree.track_range track)
 
-get_scale :: Pitch.ScaleId -> Derive.Deriver Scale.Scale
-get_scale scale_id
-    | scale_id == Pitch.empty_scale = Call.get_scale
-    | otherwise = Derive.get_scale scale_id
+with_scale :: Pitch.ScaleId -> Derive.Deriver a -> Derive.Deriver a
+with_scale scale_id deriver
+    | scale_id == Pitch.empty_scale = deriver
+    | otherwise = do
+        scale <- Derive.get_scale scale_id
+        Derive.with_scale scale deriver
 
 with_control_damage :: Maybe (BlockId, TrackId) -> (TrackTime, TrackTime)
     -> Derive.Deriver d -> Derive.Deriver d

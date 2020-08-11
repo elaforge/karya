@@ -4023,19 +4023,21 @@ performance:
       * Write a tool for diffs on .prof and .gc so I can feel good.
         . tools/profile_verify.py parses .gc
         . Then just diff the top CC list from .prof, sort by name.
-      - Derive.with_scale does work each time to lookup scale and then
+      * Derive.with_scale does work each time to lookup scale and then
         Lib.scale_to_call and Lib.with_val_raw.  I think the latter is red
         herring, because it gets charged for the actions of the caller
         (Control.d_control_track -> Control.pitch_call) due to scoping.
         . But it could cache scale_to_call by building a
           Map ScaleId (Scopes -> Scopes)
-      . Same for with_instrument.
-      . Alternately, don't call them so much!  with_instrument is not even on
-        the graph, maybe only gets called once.  Scale only needs to be called
-        once too... in cerucuk-punyah it's 12399 times
-      . Probably most of those are empty_scale, which means I maybe don't have
-        to do anything?  Currently I just get current scale_id and with_scale
-        on that.
+        . Same for with_instrument.
+        . Alternately, don't call them so much!  with_instrument is not even on
+          the graph, maybe only gets called once.  Scale only needs to be called
+          once too... in cerucuk-punyah it's 12399 times
+        . Probably most of those are empty_scale, which means I maybe don't have
+          to do anything?  Currently I just get current scale_id and with_scale
+          on that.
+        . The toplevel scale=xyz should do the Derive.with_scale.  Then a `*`
+          does nothing.  A `*abc` does a `scale=abc`.
 
     + Bring back profiling, and do it regularly.
       . Look into that graphing stuff, I have the links around here somewhere.

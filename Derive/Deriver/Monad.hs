@@ -924,8 +924,7 @@ lookup_call_with :: (Scopes -> ScopePriority call)
     -> (Builtins -> ModuleMap call) -> Expr.Symbol -> Deriver (Maybe call)
 lookup_call_with get_scopes get_builtins sym = do
     cmaps <- get_call_maps get_scopes
-    maybe_call <- lookup_call_maps cmaps sym
-    case maybe_call of
+    lookup_call_maps cmaps sym >>= \case
         Just call -> return $ Just call
         Nothing -> case split_qualified sym of
             Nothing -> return Nothing

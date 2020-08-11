@@ -20,7 +20,7 @@ import Global
 test_wayang = do
     let run notes = extract $ KontaktTest.perform allocations $
             Derive.r_events $ KontaktTest.derive allocations "" $
-                UiTest.note_spec ("u" <> wayang_title, notes, [])
+                UiTest.note_spec ("wu" <> wayang_title, notes, [])
         extract ((_, midi), logs) = (DeriveTest.note_on midi, logs)
     equal (run [(0, 1, "4i")]) ([Key2.d3], [])
     equal (run [(1, 1, "+mute -- 4i")]) ([Key2.b_2, Key2.d_1], [])
@@ -30,7 +30,7 @@ test_wayang_zero_dur = do
     let run = DeriveTest.extract extract
             . DeriveTest.derive_blocks_setup
                 (KontaktTest.with_synth allocations)
-        top = "top -- inst = u | cancel"
+        top = "top -- inst = wu | cancel"
         extract e = (Score.event_duration e,
             not $ null $ DeriveTest.e_control "mute" e)
     -- should be muted, since it's 0 dur and not the end
@@ -48,10 +48,10 @@ test_wayang_pasang = do
             UiTest.note_spec (title, notes, [])
         title = wayang_title <> " | unison"
     equal (DeriveTest.extract DeriveTest.e_instrument $ run [(0, 1, "")])
-        (["u", "i"], [])
+        (["wu", "wi"], [])
     let result = run [(0, 1, "4i")]
     equal (DeriveTest.extract DeriveTest.e_instrument result)
-        (["u", "i"], [])
+        (["wu", "wi"], [])
     equal (fst $ DeriveTest.extract Score.initial_nn result)
         [Just 62.5, Just 63]
 
@@ -74,17 +74,17 @@ test_wayang_kempyung = do
         extract e = (DeriveTest.e_instrument e, DeriveTest.e_note e)
     -- Top note is 6i.
     equal (run "kantilan" "" [(0, 1, "5e"), (1, 1, "5u")])
-        ([ ("u", (0, 1, "5e")), ("i", (0, 1, "6i"))
-         , ("u", (1, 1, "5u")), ("i", (1, 1, "5u"))
+        ([ ("wu", (0, 1, "5e")), ("wi", (0, 1, "6i"))
+         , ("wu", (1, 1, "5u")), ("wi", (1, 1, "5u"))
          ], [])
     equal (run "pemade" "" [(0, 1, "4e"), (1, 1, "4u")])
-        ([ ("u", (0, 1, "4e")), ("i", (0, 1, "5i"))
-         , ("u", (1, 1, "4u")), ("i", (1, 1, "4u"))
+        ([ ("wu", (0, 1, "4e")), ("wi", (0, 1, "5i"))
+         , ("wu", (1, 1, "4u")), ("wi", (1, 1, "4u"))
          ], [])
     equal (run "pemade" " | inst-top = (pitch (4a))"
             [(0, 1, "4o"), (1, 1, "4e")])
-        ([ ("u", (0, 1, "4o")), ("i", (0, 1, "4a"))
-         , ("u", (1, 1, "4e")), ("i", (1, 1, "4e"))
+        ([ ("wu", (0, 1, "4o")), ("wi", (0, 1, "4a"))
+         , ("wu", (1, 1, "4e")), ("wi", (1, 1, "4e"))
          ], [])
 
 allocations :: DeriveTest.SimpleAllocations
@@ -93,8 +93,9 @@ allocations = make_allocations "pemade"
 make_allocations :: Text -> DeriveTest.SimpleAllocations
 make_allocations suffix =
     [ ("w", "kontakt/wayang-" <> suffix)
-    , ("u", "kontakt/wayang-umbang"), ("i", "kontakt/wayang-isep")
+    , ("wu", "kontakt/wayang-umbang")
+    , ("wi", "kontakt/wayang-isep")
     ]
 
 wayang_title :: Text
-wayang_title = " | scale = wayang | inst=w | inst-polos = u  | inst-sangsih = i"
+wayang_title = " | scale=wayang | inst=w | inst-polos=wu  | inst-sangsih=wi"

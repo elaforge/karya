@@ -545,8 +545,10 @@ with_instrument inst deriver = do
     -- environ.
     (inst, derive_inst) <- get_instrument inst
     let with_inst = with_val_raw EnvKey.instrument inst
+    let with_scale = maybe id (with_val EnvKey.scale) $
+            Env.lookup EnvKey.scale (inst_environ derive_inst)
     with_inst $ with_scopes (set_scopes (inst_calls derive_inst)) $
-        with_environ (inst_environ derive_inst) deriver
+        with_scale $ with_environ (inst_environ derive_inst) deriver
     where
     -- Replace the calls in the instrument scope type.
     set_scopes (Scopes inst_gen inst_trans inst_track inst_val)
