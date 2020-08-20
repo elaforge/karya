@@ -8,33 +8,49 @@
 If this doesn't suffice, probably the next step is sqlite.
 """
 
-import sys, os, json
+import argparse
+import json
+import os
+import socket
+import sys
 
 # Read json results from this directory.
 timing_dir = 'data/prof/timing'
 
 patch_name_column = True
 
+
 def main():
-    scores = set(sys.argv[1:])
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--host', default=socket.gethostname().split('.')[0])
+    parser.add_argument('score', nargs='?', default=None)
+    args = parser.parse_args()
+
     timings = []
     for fn in os.listdir(timing_dir):
         if not fn.endswith('.json'):
             continue
         timings.extend(read(os.path.join(timing_dir, fn)))
 
-    timings.sort(key=lambda json: json['patch']['date'])
-    for system in sorted(set(t['system'] for t in timings)):
-        print('\n' + system + ': ')
-        print(format([t for t in timings if t['system'] == system], scores))
+    if args.score is None:
+        for score in sorted(set(t['score'] for t in timings)):
+            print(score)
+        return
 
-def format(timings, scores):
+    timings.sort(key=lambda json: json['patch']['date'])
+    if args.host:
+        timings = [t for t in timings if t['system'] == args.host]
+    systems = sorted(set(t['system'] for t in timings))
+    for system in sorted(set(t['system'] for t in timings)):
+        if len(systems) > 1:
+            print('\n' + system + ': ')
+        print(format([t for t in timings if t['system'] == system], args.score))
+
+def format(timings, score):
     cols = []
     if patch_name_column:
         cols.append('patch')
     cols.append('date')
-    if not scores:
-        cols.append('score')
     cols.extend(['max mb', 'total mb', 'prd'])
     cols.extend(['derive', 'lily', 'perform'])
     cols.append('ghc')
@@ -42,14 +58,12 @@ def format(timings, scores):
     rows = [cols]
     timings = sorted(timings, key=lambda t: (t['patch']['date'], t['run_date']))
     for t in timings:
-        if scores and t['score'] not in scores:
+        if t['score'] != score:
             continue
         row = []
         if patch_name_column:
             row.append(t['patch']['name'][:64])
         row.append(t['patch']['date'].split('T')[0])
-        if not scores:
-            row.append(os.path.basename(t['score']))
         row.extend([
             t['gc']['max alloc'],
             t['gc']['total alloc'],
