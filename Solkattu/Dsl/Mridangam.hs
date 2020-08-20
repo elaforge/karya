@@ -10,6 +10,7 @@
 -}
 module Solkattu.Dsl.Mridangam (
     module Solkattu.Dsl.Mridangam
+    , module Dsl.Solkattu
     , module Solkattu.Dsl.Generic
     , module Solkattu.Dsl.Interactive
 ) where
@@ -20,6 +21,7 @@ import qualified Util.Seq as Seq
 import           Solkattu.Dsl.Interactive (diff, diffw)
 import qualified Solkattu.Dsl.MridangamNotation as MridangamNotation
 import qualified Solkattu.Dsl.Solkattu as Dsl.Solkattu
+import           Solkattu.Dsl.Solkattu (realizePartsM)
 import qualified Solkattu.Format.Terminal as Terminal
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Korvai as Korvai
@@ -142,9 +144,6 @@ nakatiku = namedT Solkattu.GPattern "8n" (n.p.u.p.k.t.p.k)
     -- also t.p.u.k.t.p.k
 
 -- * interactive utilities
-
-concrete :: Terminal.Config -> Terminal.Config
-concrete config = config { Terminal._abstraction = mempty }
 
 realize, realizep :: Korvai.Korvai -> IO ()
 realize = realizeM id

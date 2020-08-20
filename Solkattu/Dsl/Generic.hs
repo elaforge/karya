@@ -23,9 +23,11 @@ module Solkattu.Dsl.Generic (
     -- * directives
     , hv, lt
     , akshara, sam, (§)
-    -- * abstraction
+    -- * Config
+    , wide
+    , abstract, concrete
     , Abstraction
-    , defaultAbstraction, patterns, namedThemes, allAbstract
+    , patterns, namedThemes, allAbstract
     -- * patterns
     , pat, p5, p6, p7, p8, p9, p666, p567, p765
     -- * re-exports
@@ -54,6 +56,7 @@ import           Util.Pretty (pprint)
 import qualified Solkattu.Format.Format as Format
 import           Solkattu.Format.Format (Abstraction)
 import qualified Solkattu.Format.Html as Html
+import qualified Solkattu.Format.Terminal as Terminal
 import qualified Solkattu.Korvai as Korvai
 import           Solkattu.Korvai (Korvai)
 import           Solkattu.Part (index, realizeParts, Part(..), Index(..))
@@ -153,16 +156,23 @@ hv = mapSollu (\stroke -> stroke { Realize._emphasis = Realize.Heavy })
 mapSollu :: (sollu -> sollu) -> SequenceT sollu -> SequenceT sollu
 mapSollu = fmap • fmap • fmap
 
--- * Abstraction
+-- * Config
 
-defaultAbstraction :: Format.Abstraction
-defaultAbstraction = Format.defaultAbstraction
+wide :: Terminal.Config -> Terminal.Config
+wide config =
+    config { Terminal._terminalWidth = Terminal._terminalWidth config + 40 }
+
+abstract :: Abstraction -> Terminal.Config -> Terminal.Config
+abstract a config = config { Terminal._abstraction = a }
+
+concrete :: Terminal.Config -> Terminal.Config
+concrete = abstract mempty
 
 -- | Abstract all Patterns to durations.
-patterns :: Format.Abstraction
+patterns :: Abstraction
 patterns = Format.abstract Solkattu.GPattern
 
-namedThemes :: Format.Abstraction
+namedThemes :: Abstraction
 namedThemes = Format.named Solkattu.GTheme
 
 allAbstract :: Abstraction

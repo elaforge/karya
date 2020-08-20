@@ -306,16 +306,11 @@ _instrumentDefaultStrokes = Map.fromList
 
 -- * realize
 
-wide :: Terminal.Config -> Terminal.Config
-wide config =
-    config { Terminal._terminalWidth = Terminal._terminalWidth config + 40 }
-
-concrete :: Terminal.Config -> Terminal.Config
-concrete config = config { Terminal._abstraction = mempty }
-
 realize, realizep :: Korvai.Korvai -> IO ()
 realize = realizeM concrete
 realizep = realizeM id
+
+-- The actual Config transformers are in Generic.
 
 realizeM :: (Terminal.Config -> Terminal.Config) -> Korvai.Korvai -> IO ()
 realizeM = _printInstrument Korvai.mridangam
@@ -339,12 +334,12 @@ realizeKon_ width = Terminal.printKonnakol
 
 -- | 'realizeParts' specialized to mridangam, and disbale the usual
 -- 'Interactive.printInstrument' lint and write diff stuff.
-realizePartsM :: Terminal.Config -> [Part] -> IO ()
-realizePartsM config = Part.realizeParts realize
+realizePartsM :: (Terminal.Config -> Terminal.Config) -> [Part] -> IO ()
+realizePartsM configure = Part.realizeParts realize
     where
     inst = Korvai.mridangam
     realize = Interactive.printInstrument False False inst
-        (_defaultStrokes inst) config
+        (_defaultStrokes inst) (configure Terminal.defaultConfig)
 
 _printInstrument :: Solkattu.Notation stroke => Korvai.Instrument stroke
     -> (Terminal.Config -> Terminal.Config) -> Korvai -> IO ()

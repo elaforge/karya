@@ -37,7 +37,10 @@ e_20_05_01 = date 2020 5 1 $ source "anand" $ exercise $ korvaiS adi
 
 -- * sarva tani
 
-sarva_tani :: [Part] -- realizePartsM patterns misra_tani
+print_sarva_tani :: IO ()
+print_sarva_tani = realizePartsM (abstract patterns) sarva_tani
+
+sarva_tani :: [Part]
 sarva_tani =
     [ K sarva_20_05_29 All
     , Comment "sarva, no thom, use vv"

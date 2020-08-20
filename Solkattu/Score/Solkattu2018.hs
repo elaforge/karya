@@ -386,7 +386,10 @@ c_18_05_25 = date 2018 5 25 $ ganesh $
 dikutarikitataka :: Sequence
 dikutarikitataka = nakatiku
 
-misra_tani :: [Part] -- realizePartsM patterns misra_tani
+print_misra_tani :: IO ()
+print_misra_tani = realizePartsM (abstract patterns) misra_tani
+
+misra_tani :: [Part]
 misra_tani =
     [ Comment "part 1"
     , K misra_tani1 All
@@ -728,7 +731,11 @@ e_misra_tisra = exercise $ korvaiS Tala.misra_chapu mempty $ map (nadai 3)
 
 -- * adi
 
-adi_tani :: [Part] -- realizePartsM (patterns <> namedThemes) adi_tani
+-- Practice speed: 55
+print_adi_tani :: IO ()
+print_adi_tani = realizePartsM (abstract (patterns <> namedThemes)) adi_tani
+
+adi_tani :: [Part]
 adi_tani =
     [ K adi_tani1 All
     , K c_18_09_25 All
@@ -742,7 +749,11 @@ adi_tani =
     , K adi_muktayi All
     ]
 
-adi_tani_misra :: [Part] -- realizePartsM (patterns<>namedThemes) adi_tani_misra
+print_adi_tani_misra :: IO ()
+print_adi_tani_misra =
+    realizePartsM (abstract (patterns <> namedThemes)) adi_tani_misra
+
+adi_tani_misra :: [Part]
 adi_tani_misra =
     [ -- K adi_tani1_misra All
       K c_18_09_25_misra All
