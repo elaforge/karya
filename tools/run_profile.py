@@ -4,23 +4,24 @@
 # License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 """
     # Run matching profiles with biographical profiling:
-    tools/run_profile.py -hb profile1 profile2
+    tools/run_profile.py --heap b RunProfile profile1 profile2
 
     # Compile Derive/Derive_profile.hs to RunProfile-Derive.Derive:
-    tools/run_profile.py -Derive.Derive profile_big_block
+    tools/run_profile.py Derive.Derive profile_big_block
 
     # Profile deriving a particular score:
     tools/run_profile.py derive path/to/score
 
-    Flags for 'heap' env var:
-    hc - by producing cost-center stack
-    hm - by module
-    hd - by closure description
-    hy - by type
-    hr - by retainer set
-    hb - by biography
+    Args for --heap:
+    c - by producing cost-center stack
+    m - by module
+    d - by closure description
+    y - by type
+    r - by retainer set
+    b - by biography
 """
 
+import argparse
 import os
 import sys
 import subprocess
@@ -28,48 +29,52 @@ import datetime
 import re
 
 
-out_base = 'data/prof'
+base_dir = 'data/prof/run_profile'
 
 def main():
-    heap_flags, args = partition(lambda arg: arg.startswith('-h'), sys.argv[1:])
-    if not heap_flags:
-        heap_flags = ['-hc']
-    cmd = args[0] if args else ''
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        '--heap', default='c', help='Heap profiling, separated by commas.'
+    )
+    parser.add_argument('--name', default=None)
+    parser.add_argument('profile')
+    parser.add_argument('args', nargs="*")
+    args = parser.parse_args()
+    heap_flags = ['-h' + f for f in args.heap.split(',')]
+
     # [(arg | None, subdir)]
     # For each pair, run a profile with the arg, and put the results in a
     # subdir.
     profiles = []
-    if cmd == 'seq':
+    if args.profile == 'seq':
         cmdline = ['build/profile/seq']
         profiles.append((None, 'seq'))
-    elif cmd == 'perform':
+    elif args.profile == 'perform':
         cmdline = ['build/profile/verify_performance', '--mode=Profile']
-        profiles.extend((p, 'verify.' + os.path.basename(p)) for p in args[1:])
-    elif cmd == 'derive':
+        profiles.extend((p, 'verify.' + os.path.basename(p)) for p in args.args)
+    elif args.profile == 'derive':
         cmdline = ['build/profile/verify_performance', '--mode=ProfileDerive']
-        profiles.extend((p, 'verify.' + os.path.basename(p)) for p in args[1:])
+        profiles.extend((p, 'verify.' + os.path.basename(p)) for p in args.args)
     else:
-        if cmd.startswith('-'):
-            cmdline = ['build/profile/RunProfile' + cmd]
-            args = args[1:] # remove cmd
-        else:
+        if args.profile == 'RunProfile':
             cmdline = ['build/profile/RunProfile']
+        else:
+            cmdline = ['build/profile/RunProfile-' + args.profile]
         run(['bin/mk', cmdline[0]])
         profiles.extend(
             (p, p.split('-')[1])
-            for p in capture([cmdline[0], '--list'] + args).split()
+            for p in capture([cmdline[0], '--list'] + args.args).split()
         )
 
+    # output is ###.{name | date}/
     run(['bin/mk', cmdline[0]])
+    name = args.name if args.name else ymd()
+    num = next_num(base_dir)
     for profile_arg, subdir in profiles:
-        for i in range(100):
-            out_dir = os.path.join(out_base, ymd(), f'{subdir}.{i:02d}')
-            try:
-                os.makedirs(out_dir)
-            except FileExistsError:
-                pass
-            else:
-                break
+        out_dir = f'{base_dir}/{num:03d}.{name}/{subdir}'
+        os.makedirs(out_dir, exist_ok=True)
+        open(f'{out_dir}/date', 'w').write(
+            datetime.datetime.now().isoformat() + '\n')
         stem = os.path.join(out_dir, ''.join(heap_flags).lstrip('-'))
         basename = os.path.basename(cmdline[0])
 
@@ -100,14 +105,22 @@ def main():
             '--output', stem + '.flame.svg'])
         run_if_exists(['hp2html', stem + '.hp'])
         summarize(stem)
-        print(out_dir, os.path.basename(stem))
+
+
+def next_num(dir):
+    os.makedirs(dir, exist_ok=True)
+    existing = os.listdir(dir)
+    if existing:
+        return int(max(existing).split('.')[0]) + 1
+    else:
+        return 0
 
 
 ### summarize
 
 def summarize(stem):
     """Write .gc and .prof summary to a diffable .summary file."""
-    gc = parse_gc(list(open(stem + '.gc')))
+    gc = parse_gc(stem)
     ccs = parse_prof(stem + '.prof')
     with open(stem + '.summary', 'w') as fp:
         for k, v in sorted(gc.items()):
@@ -138,21 +151,39 @@ def parse_prof(fname):
 
 
 # From profile_verify.py
-def parse_gc(lines):
+def parse_gc(stem):
+    lines = list(open(stem + '.gc'))
     total_alloc = bytes_to_mb(
         extract(lines, r'([0-9.,]+) bytes allocated in the heap'))
     max_alloc = bytes_to_mb(
         extract(lines, r'([0-9.,]+) bytes maximum residency'))
     productivity = float(extract(lines, r'Productivity +([0-9.,]+)%')) / 100
-    return {
+    # RP is retainer profiling time, if I'm doing that I care about memory, not
+    # time.
+    out = {}
+    for type in ['INIT', 'MUT', 'GC', 'PROF', 'Total']:
+        out[type] = float(extract(lines, fr'{type}\s+time\s+(\d+\.\d+)s'))
+    out.update({
         'total alloc': total_alloc,
         'max alloc': max_alloc,
         'productivity': productivity,
-    }
+    })
+
+    # Get a few things from .prof.  I don't why these are so different from the
+    # .gc output, but lower numbers are better:
+    # total time  =        1.42 secs   (5265 ticks @ 1000 us, 8 processors)
+    # total alloc = 3,763,731,272 bytes  (excludes profiling overheads)
+    for line in open(stem + '.prof'):
+        words = line.split()
+        if words[:3] == ['total', 'time', '=']:
+            out['prof-total-time'] = float(words[3])
+        elif words[:3] == ['total', 'alloc', '=']:
+            out['prof-total-alloc'] = bytes_to_mb(words[3])
+            break
+    return out
 
 def bytes_to_mb(s):
     return float(s.replace(',', '')) / 1024 / 1024
-    # return '%.2fmb' % (float(s.replace(',', '')) / 1024 / 1024)
 
 def extract(lines, reg):
     for line in lines:

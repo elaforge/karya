@@ -1,0 +1,17 @@
+#!/usr/bin/env zsh
+# Copyright 2020 Evan Laforge
+# This program is distributed under the terms of the GNU General Public
+# License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
+set -eu
+
+name=$1
+
+scores=(
+    save/complete/wayang/cerucuk-punyah.state
+    save/complete/viola-sonata
+    save/complete/squart/6
+    save/mod/green-mold
+)
+
+tools/run_profile.py --name $name derive $scores

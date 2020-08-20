@@ -4009,17 +4009,24 @@ performance:
             . Have to get vals for all controls, even if not all used.
           . But Note.default_note is only a small part of the eval time!
         - Parse.space_to_eol
-          . Maybe gets cheaper when inlined.
+          . Maybe gets cheaper when inlined, attoparsec is probably reliant on
+            inlining to unbox.
         - what about -fprof-auto-exported?
           . Instead of adding SCCs on top, I could go bottom up by adding
             INLINEs.
           . At least I could get things like (>>=) and Util.Control out of
             there.
+        run_profile.py:
+          * add --name flag to name the runs, put in a separate ##.name dir.
+          * Group by y-m-d/count/...
+          * summary should get timings: INIT, MUT, etc., and total time, total
+            alloc from .prof
     flamegraph:
       . What are samples?  It says 1,000.
       . Can I get the number of entries in tooltip?
       . Sorted by?  Time by default, can be --alloc or --entry.
     improvements:
+      - use HashMap for Environ?
       * Write a tool for diffs on .prof and .gc so I can feel good.
         . tools/profile_verify.py parses .gc
         . Then just diff the top CC list from .prof, sort by name.
@@ -4038,6 +4045,52 @@ performance:
           on that.
         . The toplevel scale=xyz should do the Derive.with_scale.  Then a `*`
           does nothing.  A `*abc` does a `scale=abc`.
+      - Crc32Instances.ptrIO, Internal.add_stack_frame
+        . d_merge DeriveM.run -> Internal.add_stack_frame
+        . This is because I eagerly update the seed on every stack frame.
+        . I already have code in there to skip Call frames which I think
+          I haven't added just did to not have to redo verify_performances.
+        . But that just reduces by a fraction, can I do more?
+        . Only do the hash if I need the seed.  For that, I could just get the
+          stack and crc it.  But the reason I make one each time is that
+          I want to be able to intercept the seed anywhere in the score,
+          and then hardcode it to fix that value.
+        . Could I putting a seed set in the stack, and then only crc up to
+          that?  That would hopefully get the same situation, except omit all
+          the step-by-step crcs, and omit them entirely if I never ask for the
+          seed.
+          . If I put the seed in the stack, would that get in the way of the
+            cache?  Hopefully not, it's just like another call.  Since setting
+            the seed will be a p_equal, I could even special case a 'Call equal'
+            to 'CallSetSeed val' or something, but that seems unnecessary.
+          . This could actually wind up doing more work, because I re-CRC the
+            whole stack every time.  If I'm getting a random value on every
+            single note, that could be quite a lot!
+        . Or could I just use laziness?  Since seed is env value, could I make
+          it lazy?  I could use Data.Map.Lazy in Environ insert, or even
+          use a lazy insert specifically for that seed key.  This would then
+          accumulate thunks instead of doing the work, and they'd get forced
+          only if I asked for the seed, so it should get the same effect.
+          Downside is it's still appending intermediate thunks.  Upside is
+          that it's lazy, so previous CRCs in the stack won't be redone.
+        . What's the chance this is is an artifact of SCCs?  The ptrIO stuff
+          might get inlined but if the real work is the zlib FFI call, then
+          there's no way around that.
+        . Indeed with -fprof-auto-exported, add_stack_frame is still near the
+          top.
+        . Establish a lower bound by omitting seed entirely:
+          Total: 83.59 -> 75.10
+        * lazy Environ
+          . lazy_insert is even slower, and I still get add_stack_frame, it's
+            maybe still getting forced?
+          . Of course it is for cerucuk-punyah, but for green-mold, I go down
+            to basically no-seed!
+          . So I think this worked, but of course it's no good if I actually
+            do use the seed.
+        - explicit stack hash stack markers
+        - Write or find a test that demonstrates querying and freezing the
+          seed for reproducibility.
+        . Alternately try to make the crc faster?
 
     + Bring back profiling, and do it regularly.
       . Look into that graphing stuff, I have the links around here somewhere.
