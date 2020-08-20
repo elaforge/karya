@@ -25,7 +25,7 @@ fail_ok = False
 # Run each score this time, to get a range of timing values.
 run_times = 6
 
-verify_binary = 'build/profile/verify_performance'
+verify_binary = 'build/opt/verify_performance'
 scratch_dir = 'build/verify-profile'
 
 # Write json results to this directory.
