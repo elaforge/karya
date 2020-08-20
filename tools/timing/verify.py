@@ -3,7 +3,7 @@
 # This program is distributed under the terms of the GNU General Public
 # License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-"""usage: profile_verify.py score1 score2 ...
+"""usage: verify.py score1 score2 ...
 
 Run verify_performance, combine its timing results with per-run metadata,
 and collect in timing_dir.
@@ -26,7 +26,7 @@ fail_ok = False
 run_times = 6
 
 verify_binary = 'build/opt/verify_performance'
-scratch_dir = 'build/verify-profile'
+scratch_dir = 'build/verify-timing'
 
 # Write json results to this directory.
 timing_dir = 'data/prof/timing'

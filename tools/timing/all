@@ -3,7 +3,7 @@
 # This program is distributed under the terms of the GNU General Public
 # License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-# Run profile_verify.py for a standard set of scores.
+# Run verify.py for a standard set of scores.
 
 scores=(
     save/complete/wayang/p1
@@ -14,4 +14,4 @@ scores=(
     save/complete/squart/6
 )
 
-tools/profile_verify.py $scores
+tools/timing/verify.py $scores
