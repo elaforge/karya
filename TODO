@@ -4045,7 +4045,7 @@ performance:
           on that.
         . The toplevel scale=xyz should do the Derive.with_scale.  Then a `*`
           does nothing.  A `*abc` does a `scale=abc`.
-      - Crc32Instances.ptrIO, Internal.add_stack_frame
+      + Crc32Instances.ptrIO, Internal.add_stack_frame
         . d_merge DeriveM.run -> Internal.add_stack_frame
         . This is because I eagerly update the seed on every stack frame.
         . I already have code in there to skip Call frames which I think
@@ -4080,17 +4080,63 @@ performance:
           top.
         . Establish a lower bound by omitting seed entirely:
           Total: 83.59 -> 75.10
-        * lazy Environ
+        / lazy Environ
           . lazy_insert is even slower, and I still get add_stack_frame, it's
             maybe still getting forced?
           . Of course it is for cerucuk-punyah, but for green-mold, I go down
             to basically no-seed!
           . So I think this worked, but of course it's no good if I actually
             do use the seed.
-        - explicit stack hash stack markers
-        - Write or find a test that demonstrates querying and freezing the
+          . The speed up turns into a slowdown for everyone in the optimized
+            build, so this is probably just a profiling red-herring.
+        / explicit stack hash stack markers
+        - Try using Hashable, if it's faster than crc.
+          . Yes, seems to be a nice little boost.
+          . But it's definitely not stable:
+            https://github.com/tibbe/hashable/issues/139
+          . Can I use a higher performance hash?  E.g.
+            https://github.com/google/crc32c
+            https://github.com/google/highwayhash
+          . Or maybe just sum, I don't need most hash properties.
+            Sum may be slower than a hash though, because sum in haskell won't
+            be vectorized.  But if the cost is calling FFI, then maybe staying
+            in haskell is faster anyway.  And I'm hashing lots of small
+            things, maybe SIMD doesn't matter.
+          . But maybe I could vectorize anyway, what does hashable do for sse?
+          . I just need to hash Id Text, Call Text, Double, Int.  I can sum
+            Text quickly.
+          . How does hashable hash things?
+            . Hash Words Ints: fromIntegral
+            . Hash Double:
+              hash ((unsafeDupablePerformIO $ with x $ peek . castPtr)
+                :: Word64) (Word32 for Float)
+            . Hash ByteString: hashPtrWithSalt p (fromIntegral len) salt
+            . Hash Text:
+              hashWithSalt salt (T.Text arr off len) =
+                hashByteArrayWithSalt (TA.aBA arr) (off `shiftL` 1)
+                (len `shiftL` 1) salt
+            . hashByteArrayWithSalt -> hashable_fnv_hash_offset
+              hashPtrWithSalt -> hashable_fnv_hash
+              hashable_fnv_hash: while (len--) hash=(hash * 16777619) ^ *str++;
+            . So SSE2 is only used by siphash, which hashable doesn't use.
+            . I already have SIMD sum in play-cache-avx though.  But the more
+              I think of it, the more I doubt it would help much with my small
+              values.
+            . Probably a sum is about the same speed as this?
+          . Since hashable is actually really simple I could just reimplement
+            it, where my version won't change.
+          . Doing even the sum in C may be significantly faster, as with
+            Util/vectorc.cc.
+          . This is benchmarkable, do a criterion?
+        * Omitting Call helps.  But test to make sure I don't need it.
+        * Write or find a test that demonstrates querying and freezing the
           seed for reproducibility.
-        . Alternately try to make the crc faster?
+        - Update all those score performances.
+
+    - use short-text for Score.Event?
+      . Is there attoparsec for it?  Would lacking slicing be a problem?
+    - use short-bytestring for Id?  Or maybe just ByteString?  I think the
+      space saving is negligable, but would it make hashing faster?
 
     + Bring back profiling, and do it regularly.
       . Look into that graphing stuff, I have the links around here somewhere.

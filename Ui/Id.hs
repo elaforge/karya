@@ -50,7 +50,7 @@ import           Global
 -- clash.  Since block calls within a score will generally leave the namespace
 -- implicit, the merged score should still be playable.
 data Id = Id !Namespace !Text
-    deriving (Eq, Ord, Show, Read)
+    deriving (Eq, Ord, Show)
 
 instance Aeson.ToJSON Id where
     toJSON = Aeson.String . ident_text

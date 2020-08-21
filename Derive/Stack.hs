@@ -2,6 +2,8 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
 module Derive.Stack (
     Stack, empty, length, from_outermost, from_innermost
     , block, call, add, member, outermost, innermost
@@ -20,7 +22,7 @@ module Derive.Stack (
     , unparse_ui_frame, unparse_ui_frame_, parse_ui_frame
 ) where
 import qualified Prelude
-import Prelude hiding (length)
+import           Prelude hiding (length)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Aeson as Aeson
 import qualified Data.Attoparsec.Text as A
@@ -31,7 +33,7 @@ import qualified Data.Vector as Vector
 
 import qualified Text.Read as Read
 
-import Util.Crc32Instances ()
+import           Util.Crc32Instances ()
 import qualified Util.Num as Num
 import qualified Util.ParseText as ParseText
 import qualified Util.Pretty as Pretty
@@ -41,8 +43,9 @@ import qualified Util.Serialize as Serialize
 
 import qualified Ui.Id as Id
 import qualified Ui.ScoreTime as ScoreTime
-import Global
-import Types
+
+import           Global
+import           Types
 
 
 -- | The Stack is read in both inner -> outer and outer -> inner order.  Since
@@ -52,8 +55,9 @@ import Types
 -- I originally used "Data.Sequence" but it generates more garbage and
 -- I couldn't figure out how to stop that from happening.
 newtype Stack = Stack [Frame]
-    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize, CRC32.CRC32,
-        Aeson.ToJSON, Aeson.FromJSON)
+    deriving stock (Eq, Ord)
+    deriving newtype (DeepSeq.NFData, Serialize.Serialize,
+        CRC32.CRC32, Aeson.ToJSON, Aeson.FromJSON)
 
 instance Show Stack where
     show stack = "Stack.from_outermost " ++ show (outermost stack)
@@ -173,7 +177,7 @@ data Frame =
     | Region !TrackTime !TrackTime
     | Call !Text
     | Serial !Serial
-    deriving (Eq, Ord, Read, Show)
+    deriving stock (Eq, Ord, Read, Show)
 
 -- | The 'Stack' is used as a unique key for a unique call of a generator.
 -- For instance, the cache uses it to cache generator output, and the random

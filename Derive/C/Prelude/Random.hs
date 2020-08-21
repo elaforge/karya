@@ -8,7 +8,9 @@ import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 
 import qualified Util.Doc as Doc
+import qualified Util.Log as Log
 import qualified Util.Seq as Seq
+
 import qualified Cmd.Ruler.Meter as Meter
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
@@ -17,6 +19,7 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveT as DeriveT
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Eval as Eval
 import qualified Derive.Library as Library
 import qualified Derive.Score as Score
@@ -33,7 +36,10 @@ library = mconcat
         [ ("alt", c_alternate)
         , ("alt-w", c_alternate_weighted)
         ]
-    , Library.poly_transformers [("omit", c_omit)]
+    , Library.poly_transformers
+        [ ("omit", c_omit)
+        , ("log-seed", c_log_seed)
+        ]
     , Library.generators
         [ ("alt-t", c_alternate_tracks)
         , ("t-alt", c_tempo_alternate)
@@ -55,6 +61,16 @@ c_omit = Derive.transformer Module.prelude "omit" Tags.random
     ) $ \omit args deriver -> do
         omit <- Call.control_at omit =<< Args.real_start args
         ifM (Call.chance omit) (return Stream.empty) deriver
+
+c_log_seed :: Derive.CallableExpr d => Derive.Transformer d
+c_log_seed = Derive.transformer Module.prelude "log-seed" mempty
+    "Emit a log message with the seed at this point. If you like how a\
+    \ generator realized, and want to freeze it, then you can use this to\
+    \ get the seed, and then hardcode it with `seed=xyz`."
+    $ Sig.call0t $ \_args deriver -> do
+        seed <- fromMaybe 0 <$> Derive.lookup_val EnvKey.seed
+        Log.warn $ "log-seed: " <> showt (seed :: Int)
+        deriver
 
 c_alternate :: Derive.CallableExpr d => Derive.Generator d
 c_alternate = Derive.generator Module.prelude "alternate" Tags.random

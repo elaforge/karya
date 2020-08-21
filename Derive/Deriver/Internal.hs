@@ -254,33 +254,41 @@ with_stack frame = localm $ \st -> do
     -- is more general.
     max_depth = 100
 
--- | Add a new stack frame and hash it with the random seed.
+{- | Add a new stack frame and hash it with the random seed.
+
+    I Skip Stack.Call for seed changes.  This is so I can use calls like
+    log-seed to record the seed to hardcode it later, which is the whole point
+    of doing this thing where I hash on every stack frame.  Otherwise, the
+    presence of the log-seed call itself would be enough to change the seed.
+
+    In addition, calculating the seed eagerly this way is actually pretty
+    expensive, since the stack is constantly being updated, so updating it
+    less frequently is good for performance.  It's possible I could update
+    the seed lazily to reduce this cost, but not doing something at all
+    is still cheaper than lazy, and can't be accidentally forced.
+
+    The risk is that this makes the seed too stable, and things which should
+    be randomized become identical.
+-}
 add_stack_frame :: Stack.Frame -> Dynamic -> Dynamic
 add_stack_frame frame st = st
     { state_stack = Stack.add frame (state_stack st)
-    -- TODO skip GLOBAL to avoid breaking randomization on all existing scores.
-    -- If I wind up breaking it again, I should switch to filtering out
-    -- Stack.Call as below to make it less brittle.  It might actually help
-    -- performance since I think seed updates were surprisingly prominent in
-    -- the profile.
-    , state_environ = (if frame == Stack.Call "GLOBAL" then id else update_seed)
+    , state_environ = (if should_update_seed frame then update_seed else id)
         (state_environ st)
     }
     where
-    -- , state_environ = (if should_update_seed frame then update_seed else id)
-    --     (state_environ st)
-    -- I used to update the seed for all Frames, but Stack.Call makes it too
-    -- easy for the seed to change.
-    _should_update_seed (Stack.Call {}) = False
-    _should_update_seed _ = True
-    update_seed env = DeriveT.insert
-        EnvKey.seed (DeriveT.VNum (ScoreT.untyped (seed old))) env
+    should_update_seed (Stack.Call {}) = False
+    should_update_seed _ = True
+    update_seed env =
+        DeriveT.insert EnvKey.seed
+            (DeriveT.VNum (ScoreT.untyped (update old))) env
         where
         old = case DeriveT.lookup EnvKey.seed env of
             Just (DeriveT.VNum n) -> ScoreT.typed_val n
             _ -> 0
-    seed :: Double -> Double
-    seed n = i2d (CRC32.crc32Update (floor n) frame)
+    update :: Double -> Double
+    -- update n = i2d $ Hashable.hashWithSalt (floor n) frame
+    update n = i2d (CRC32.crc32Update (floor n) frame)
     -- A Double should be able to hold up to 2^52, but that's still an
     -- annoyingly large number to write in a score, so restrict it further.
     i2d :: Word.Word32 -> Double

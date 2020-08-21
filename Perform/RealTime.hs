@@ -63,7 +63,6 @@ import qualified ForeignC as C
 import qualified Text.Read as Read
 
 import qualified Util.CUtil as CUtil
-import           Util.Crc32Instances ()
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
