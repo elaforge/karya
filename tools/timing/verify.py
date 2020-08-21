@@ -3,12 +3,11 @@
 # This program is distributed under the terms of the GNU General Public
 # License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-"""usage: verify.py score1 score2 ...
-
-Run verify_performance, combine its timing results with per-run metadata,
+"""Run verify_performance, combine its timing results with per-run metadata,
 and collect in timing_dir.
 """
 
+import argparse
 import datetime
 import json
 import os
@@ -17,10 +16,6 @@ import socket
 import sys
 import subprocess
 
-
-# If true, it's ok if the verify fails.  Otherwise, I abort, because if it's
-# really broken then that might affect timing.
-fail_ok = False
 
 # Run each score this time, to get a range of timing values.
 run_times = 6
@@ -33,18 +28,26 @@ timing_dir = 'data/prof/timing'
 
 
 def main():
-    scores = sys.argv[1:]
-    if not scores:
-        print(__doc__)
-        return 0
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--note')
+    parser.add_argument(
+        '--fail-ok', action='store_true',
+        help="If true, it's ok if the verify fails.  Otherwise, I abort,"
+            + " because if it's really broken then that might affect timing."
+    )
+    parser.add_argument('scores', nargs='+')
+    args = parser.parse_args()
+
     run(['bin/mk', verify_binary])
     empty_dir(scratch_dir)
     os.makedirs(timing_dir, exist_ok=True)
 
     metadata = metadata_json()
+    if args.note:
+        metadata['note'] = args.note
     timings = []
-    for score in scores:
-        timing = verify(score)
+    for score in args.scores:
+        timing = verify(args.fail_ok, score)
         timing.update(metadata)
         timings.append(timing)
     # I want to name files by patch time, so just ls will be in logical time
@@ -84,17 +87,18 @@ def metadata_json():
         'run_date': datetime.datetime.now().isoformat(),
     }
 
-def verify(score):
+def verify(fail_ok, score):
     gc, cmd = cmdline(score)
-    timings = []
+    cpus = []
     for _ in range(run_times):
-        run(cmd, check=not fail_ok)
+        failed = run(cmd, check=not fail_ok) != 0
         timing_fn = os.path.join(scratch_dir, os.path.basename(score) + '.json')
-        timings.append(parse_json(open(timing_fn).read()))
+        cpus.append(parse_json(open(timing_fn).read()))
     return {
         'score': score,
-        'cpu': merge_dicts(timings),
+        'cpu': merge_dicts(cpus),
         'gc': parse_gc(open(gc).readlines()),
+        'failed': failed,
     }
 
 def cmdline(score):
@@ -142,7 +146,7 @@ def merge_dicts(dicts):
 
 def run(cmd, check=True):
     print('## ' + ' '.join(cmd))
-    subprocess.run(cmd, check=check)
+    return subprocess.run(cmd, check=check).returncode
 
 def empty_dir(dir):
     try:

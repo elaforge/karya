@@ -14,4 +14,4 @@ scores=(
     save/complete/squart/6
 )
 
-tools/timing/verify.py $scores
+tools/timing/verify.py "$@" $scores

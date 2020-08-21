@@ -23,6 +23,8 @@ patch_name_column = True
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--host', default=socket.gethostname().split('.')[0])
+    parser.add_argument('--run-date')
+    parser.add_argument('--scores', action='store_true')
     parser.add_argument('score', nargs='?', default=None)
     args = parser.parse_args()
 
@@ -32,38 +34,51 @@ def main():
             continue
         timings.extend(read(os.path.join(timing_dir, fn)))
 
-    if args.score is None:
+    if args.scores:
         for score in sorted(set(t['score'] for t in timings)):
             print(score)
         return
 
-    timings.sort(key=lambda json: json['patch']['date'])
     if args.host:
         timings = [t for t in timings if t['system'] == args.host]
-    systems = sorted(set(t['system'] for t in timings))
-    for system in sorted(set(t['system'] for t in timings)):
-        if len(systems) > 1:
-            print('\n' + system + ': ')
-        print(format([t for t in timings if t['system'] == system], args.score))
+    if args.run_date:
+        timings = [t for t in timings if t['run_date'] >= args.run_date]
+    if args.score:
+        timings = [t for t in timings if t['score'] == args.score]
+    timings.sort(key=lambda json: json['patch']['date'])
 
-def format(timings, score):
+    systems = sorted(set(t['system'] for t in timings))
+    for system in systems:
+        if len(systems) > 1:
+            print(f'\n{system}:')
+        scores = sorted(set(t['score'] for t in timings))
+        for score in scores:
+            if len(scores) > 1:
+                print(f'\n{score}:')
+            print(format([
+                t for t in timings
+                if t['system'] == system and t['score'] == score
+            ]))
+
+def format(timings):
     cols = []
     if patch_name_column:
         cols.append('patch')
-    cols.append('date')
+    cols.extend(['date', 'note'])
+    cols.append('F')
     cols.extend(['max mb', 'total mb', 'prd'])
     cols.extend(['derive', 'lily', 'perform'])
-    cols.append('ghc')
+    # cols.append('ghc')
 
     rows = [cols]
     timings = sorted(timings, key=lambda t: (t['patch']['date'], t['run_date']))
     for t in timings:
-        if t['score'] != score:
-            continue
         row = []
         if patch_name_column:
             row.append(t['patch']['name'][:64])
         row.append(t['patch']['date'].split('T')[0])
+        row.append(t.get('note', ''))
+        row.append('X' if t.get('failed') else ' ')
         row.extend([
             t['gc']['max alloc'],
             t['gc']['total alloc'],
@@ -71,7 +86,7 @@ def format(timings, score):
         ])
         for field in ['derive', 'lilypond', 'perform']:
             row.append((t['cpu'].get(field, [])))
-        row.append(t['ghc'])
+        # row.append(t['ghc'])
         rows.append(list(map(format_field, row)))
     return format_columns(rows)
 
