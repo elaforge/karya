@@ -8,21 +8,21 @@ module Ui.ScoreTime (
     , is_negative
 ) where
 import qualified Prelude
-import Prelude hiding ((==), (>), (<=), round)
+import           Prelude hiding ((==), (>), (<=), round)
 import qualified Control.DeepSeq as DeepSeq
-import qualified Data.Digest.CRC32 as CRC32
 import qualified Data.Text as Text
 import qualified ForeignC as C
 import qualified Text.Read as Read
 
 import qualified Util.CUtil as CUtil
-import Util.Crc32Instances ()
 import qualified Util.Num as Num
+import qualified Util.Seed as Seed
 import qualified Util.Serialize as Serialize
 import qualified Util.Test.ApproxEq as ApproxEq
 
 import qualified Derive.ShowVal as ShowVal
-import Global
+
+import           Global
 
 
 -- | Score time is the abstract unit of time, and its mapping to real time
@@ -30,7 +30,7 @@ import Global
 -- blocks only display events at >=0 ScoreTime.
 newtype ScoreTime = ScoreTime Double deriving
     ( DeepSeq.NFData, Num, Fractional, Real, RealFrac, Eq, Ord
-    , Serialize.Serialize, CRC32.CRC32, ApproxEq.ApproxEq
+    , Serialize.Serialize, ApproxEq.ApproxEq, Seed.Seed
     )
 
 instance ShowVal.ShowVal ScoreTime where

@@ -74,7 +74,8 @@ basicPackages :: [(Package, String)]
 basicPackages = concat
     -- really basic deps
     [ [("base", ">=4.6"), ("containers", ">=0.5")]
-    , w "directory filepath process bytestring time unix array ghc-prim"
+    , w "directory filepath process bytestring time unix array"
+    , w "ghc-prim primitive"
     --  basic
     , w "deepseq data-ordlist cereal random text stm network"
     , w "unordered-containers"
@@ -104,7 +105,7 @@ basicPackages = concat
     , [("fclabels", ">=2")]
     , w "ghc ghc-paths haskeline terminfo" -- REPL
     -- Derive: score randomization
-    , w "mersenne-random-pure64 digest random-shuffle"
+    , w "mersenne-random-pure64 random-shuffle"
     -- Has better errors that attoparsec.  TODO: try replacing attoparsec with
     -- this, see if it's fast enough.
     , w "megaparsec parser-combinators"

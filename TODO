@@ -3486,6 +3486,9 @@ negative duration / arrival beats:
     becomes a big deal.
 
 external:
+  ghc compilation time:
+    - Cmd/GlobalKeymap.hs 400 lines: with -O: 72.89s, without: 1.26s
+      . Something pathological, reduce it and ask on mailing list.
   hpc:
     - there should be a way to turn off .tix generation
       . also HPCTIXFILE /dev/null shouldn't crash
@@ -3786,6 +3789,8 @@ cleanup:
     Note tracks can't get a GetLastSample at all.
 
 performance:
+  . Staging via typed template haskell: uses [|| ||], $$.  Talk at
+    https://vimeo.com/443276733 6:29:10
   general:
     - use 'text-builder' for Pretty and Log?
       . Unfortunately it has tons of dependencies, due to deferred-folds ->
@@ -4090,7 +4095,7 @@ performance:
           . The speed up turns into a slowdown for everyone in the optimized
             build, so this is probably just a profiling red-herring.
         / explicit stack hash stack markers
-        - Try using Hashable, if it's faster than crc.
+        / Try using Hashable, if it's faster than crc.
           . Yes, seems to be a nice little boost.
           . But it's definitely not stable:
             https://github.com/tibbe/hashable/issues/139
@@ -4128,6 +4133,7 @@ performance:
           . Doing even the sum in C may be significantly faster, as with
             Util/vectorc.cc.
           . This is benchmarkable, do a criterion?
+        * Use my own hashable like thing, Util.Seed.
         * Omitting Call helps.  But test to make sure I don't need it.
         * Write or find a test that demonstrates querying and freezing the
           seed for reproducibility.

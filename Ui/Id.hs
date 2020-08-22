@@ -32,13 +32,11 @@ import qualified Prelude
 import           Prelude hiding (id)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Aeson as Aeson
-import qualified Data.Digest.CRC32 as CRC32
 import qualified Data.Text as Text
-
 import qualified Text.ParserCombinators.ReadPrec as ReadPrec
 import qualified Text.Read as Read
 
-import           Util.Crc32Instances () -- Text instance
+import qualified Util.Seed as Seed
 import qualified Util.Serialize as Serialize
 
 import           Global
@@ -62,7 +60,7 @@ instance Aeson.FromJSON Id where
 -- \/s.  This is because the git backend uses the namespace for a directory
 -- name.
 newtype Namespace = Namespace Text
-    deriving (Eq, Ord, Show, Read, DeepSeq.NFData, CRC32.CRC32,
+    deriving (Eq, Ord, Show, Read, DeepSeq.NFData, Seed.Seed,
         Serialize.Serialize)
 
 -- | Convert @/@ to @-@.  This is because @/@ is used to separate namespace and
@@ -80,9 +78,8 @@ instance Serialize.Serialize Id where
     get = Id <$> Serialize.get <*> Serialize.get
     put (Id a b) = Serialize.put a >> Serialize.put b
 
-instance CRC32.CRC32 Id where
-    crc32Update n (Id ns name) =
-        n `CRC32.crc32Update` ns `CRC32.crc32Update` name
+instance Seed.Seed Id where
+    to_seed n (Id ns name) = n Seed.& ns Seed.& name
 
 instance Pretty Namespace where pretty = un_namespace
 instance Pretty Id where pretty = show_id
@@ -259,17 +256,18 @@ global_namespace = namespace ""
 -- names for the same reason it's convenient to allow arbitrary characters in
 -- call names.
 newtype BlockId = BlockId Id
-    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize, CRC32.CRC32)
+    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize,
+        Seed.Seed)
 
 -- | Reference to a View, as per 'BlockId'.
 newtype ViewId = ViewId Id
-    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize, CRC32.CRC32)
+    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize)
 
 newtype TrackId = TrackId Id
-    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize, CRC32.CRC32)
+    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize, Seed.Seed)
 
 newtype RulerId = RulerId Id
-    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize, CRC32.CRC32)
+    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize)
 
 instance Show BlockId where show = show_ident
 instance Show ViewId where show = show_ident

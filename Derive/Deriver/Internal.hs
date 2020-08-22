@@ -7,13 +7,13 @@
     scheme, and are not used when writing most normal calls.
 -}
 module Derive.Deriver.Internal where
-import qualified Data.Digest.CRC32 as CRC32
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-import qualified Data.Word as Word
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Log as Log
+import qualified Util.Seed as Seed
+
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.PSignal as PSignal
@@ -287,11 +287,10 @@ add_stack_frame frame st = st
             Just (DeriveT.VNum n) -> ScoreT.typed_val n
             _ -> 0
     update :: Double -> Double
-    -- update n = i2d $ Hashable.hashWithSalt (floor n) frame
-    update n = i2d (CRC32.crc32Update (floor n) frame)
+    update n = i2d (Seed.to_seed (floor n) frame)
     -- A Double should be able to hold up to 2^52, but that's still an
     -- annoyingly large number to write in a score, so restrict it further.
-    i2d :: Word.Word32 -> Double
+    i2d :: Int -> Double
     i2d i = fromIntegral (i `mod` 999)
 
 get_stack :: Deriver Stack.Stack

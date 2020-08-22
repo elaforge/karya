@@ -16,7 +16,7 @@ test_omit = do
             [(">", [(p, 1, n) | p <- Seq.range 0 5 1])]
     equal (run "omit 0 |") ([(p, 1) | p <- Seq.range 0 5 1], [])
     equal (run "omit 1 |") ([], [])
-    let present = [0, 1]
+    let present = [0, 3, 5]
     equal (run "omit .5 |") (map (, 1) present, [])
 
     -- Ensure different calls to the same block are differently random.
@@ -24,7 +24,7 @@ test_omit = do
             [ ("top", [(">", [(p, 1, n) | (p, n) <- zip (Seq.range_ 0 1) ns])])
             , ("sub=ruler", [(">", [(0, 1, "omit .5 |")])])
             ]
-    let present = [0, 1, 2, 4, 6, 8, 9]
+    let present = [1, 2, 4, 6, 8, 9]
     equal (blocks (replicate 10 "sub")) ([(n, 1) | n <- present], [])
 
 test_alternate = do
@@ -33,7 +33,7 @@ test_alternate = do
             , ("s1=ruler", [(">", [(0, 1, "")]), ("*", [(0, 0, "4c")])])
             , ("s2=ruler", [(">", [(0, 1, "")]), ("*", [(0, 0, "4d")])])
             ]
-    equal (run "alt s1 s2") (["4c", "4d", "4c", "4d", "4c", "4d"], [])
+    equal (run "alt s1 s2") (["4d", "4c", "4c", "4d", "4d", "4d"], [])
 
 test_alternate_weighted = do
     let run s = DeriveTest.extract (DeriveTest.e_control "c") $

@@ -26,18 +26,17 @@ import           Prelude hiding (length)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Aeson as Aeson
 import qualified Data.Attoparsec.Text as A
-import qualified Data.Digest.CRC32 as CRC32
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 
 import qualified Text.Read as Read
 
-import           Util.Crc32Instances ()
 import qualified Util.Num as Num
 import qualified Util.ParseText as ParseText
 import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
+import qualified Util.Seed as Seed
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 
@@ -56,8 +55,8 @@ import           Types
 -- I couldn't figure out how to stop that from happening.
 newtype Stack = Stack [Frame]
     deriving stock (Eq, Ord)
-    deriving newtype (DeepSeq.NFData, Serialize.Serialize,
-        CRC32.CRC32, Aeson.ToJSON, Aeson.FromJSON)
+    deriving newtype (DeepSeq.NFData, Serialize.Serialize, Aeson.ToJSON,
+        Aeson.FromJSON)
 
 instance Show Stack where
     show stack = "Stack.from_outermost " ++ show (outermost stack)
@@ -230,14 +229,13 @@ instance Serialize.Serialize Frame where
                 return $ Serial n
             _ -> Serialize.bad_tag "Stack.Frame" tag
 
-instance CRC32.CRC32 Frame where
-    crc32Update n frame = case frame of
-        Block block_id -> n `CRC32.crc32Update` block_id
-        Track track_id -> n + 1 `CRC32.crc32Update` track_id
-        Region s e -> n + 2 `CRC32.crc32Update` s `CRC32.crc32Update` e
-        Call call -> n + 3 `CRC32.crc32Update` call
-        Serial i -> n + 4 `CRC32.crc32Update` i
-        -- TODO this should be n & [0-4] & ...
+instance Seed.Seed Frame where
+    to_seed n = \case
+        Block block_id -> n Seed.& block_id
+        Track track_id -> n + 1 Seed.& track_id
+        Region s e -> n + 2 Seed.& s Seed.& e
+        Call call -> n + 3 Seed.& call
+        Serial i -> n + 4 Seed.& i
 
 instance Aeson.ToJSON Frame where
     toJSON frame = Aeson.Array $ case frame of

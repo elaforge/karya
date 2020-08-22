@@ -68,12 +68,12 @@ test_check_cache = do
     io_equal (extract <$> f Nothing "") (Right Nothing)
     let define_a = "note generator:\na = +a\n"
     result <- f Nothing define_a
-    equal (extract result) (Right (Just (["a"], ([], 1304129647))))
+    equal (extract result) (Right (Just (["a"], ([], -3016446480522399283))))
     -- No change, so don't update.
     io_equal (extract <$> f result define_a) (Right Nothing)
     -- Now it has changed.
     io_equal (extract <$> f result "note generator:\nb = +b\n")
-        (Right (Just (["b"], ([], 1120727268))))
+        (Right (Just (["b"], ([], -979862604598470235))))
 
     result <- f Nothing "error"
     left_like (extract result) "expected eof"

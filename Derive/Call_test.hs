@@ -65,7 +65,7 @@ test_random_freeze_seed = do
     -- pprint $ snd $ snd (f (0, 1, "log-seed | b"))
     -- This works because Call is not included in the seed, otherwise the
     -- very preserce of log-seed would change it.
-    let (_, (([(1, val1')], _st1), [])) = f (1, 1, "seed=17 | b")
+    let (_, (([(1, val1')], _st1), [])) = f (1, 1, "seed=232 | b")
     equal val0 val1'
 
     -- If I lock the seed, it doesn't change when moved.
