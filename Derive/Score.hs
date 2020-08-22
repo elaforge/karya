@@ -416,6 +416,7 @@ event_named_pitch pcontrol
 -- pitch plus some homework to do on the pitch.  If you use this pitch to emit
 -- another pitch you proabbly need the raw pitch, but so far everyone doing
 -- that is at the Derive level, not postproc, so they use Derive.pitch_at.
+{-# SCC transposed_at #-}
 transposed_at :: RealTime -> Event -> Maybe PSignal.Transposed
 transposed_at pos event = PSignal.apply_config config <$> pitch_at pos event
     where
@@ -435,6 +436,7 @@ nn_at :: RealTime -> Event -> Maybe Pitch.NoteNumber
 nn_at pos event = either (const Nothing) Just . PSignal.pitch_nn
     =<< transposed_at pos event
 
+{-# SCC initial_nn #-}
 initial_nn :: Event -> Maybe Pitch.NoteNumber
 initial_nn event = nn_at (event_start event) event
 
@@ -445,6 +447,7 @@ note_at pos event = either (const Nothing) Just . PSignal.pitch_note
 initial_note :: Event -> Maybe Pitch.Note
 initial_note event = note_at (event_start event) event
 
+{-# SCC nn_signal #-}
 nn_signal :: Event -> (Signal.NoteNumber, [(RealTime, PSignal.PitchError)])
 nn_signal event =
     PSignal.to_nn $ PSignal.apply_controls (event_controls event) $

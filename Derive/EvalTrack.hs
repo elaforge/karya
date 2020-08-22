@@ -147,6 +147,7 @@ type DeriveResult d = ([Stream.Stream d], Derive.Threaded, Derive.Collect)
 
 -- | This is the toplevel function to derive control tracks.  It's responsible
 -- for actually evaluating each event.
+{-# SCC derive_control_track #-}
 derive_control_track :: Derive.CallableExpr d => Derive.State -> TrackInfo d
     -> DeriveResult d
 derive_control_track state tinfo =
@@ -171,6 +172,7 @@ derive_control_track state tinfo =
     complicated and somewhat more satisfactory than it used to be, if you can
     imagine that.
 -}
+{-# SCC derive_note_track #-}
 derive_note_track :: (TrackTree.EventsTree -> Derive.NoteDeriver)
     -> Derive.State -> TrackInfo Score.Event -> DeriveResult Score.Event
 derive_note_track derive_tracks state tinfo
@@ -280,6 +282,7 @@ derive_control_track_stream tinfo (prev_state, prev_val, prev_save_val)
 
 -- | Derive one event on a note track.  This also derives orphan events
 -- before the event, or after the last event.
+{-# SCC derive_note_track_stream #-}
 derive_note_track_stream :: (TrackTree.EventsTree -> Derive.NoteDeriver)
     -> TrackInfo Score.Event
     -> (Derive.State, Maybe Score.Event)
@@ -413,6 +416,7 @@ unwarp warp control = case Warp.is_linear warp of
         , ts_stretch = 1
         }
 
+{-# SCC derive_event #-}
 derive_event :: Derive.CallableExpr d => Derive.Context d -> Event.Event
     -> Derive.Deriver (Stream.Stream d)
 derive_event ctx event

@@ -54,6 +54,7 @@ track_type title
 -- ** note track
 
 -- TODO this is actually unused, and I think track-call is unimplemented?
+{-# SCC parse_note_track #-}
 parse_note_track :: Text -> Either Text (ScoreT.Instrument, Maybe TrackCall)
 parse_note_track = ParseText.parse p_note_track
 
@@ -68,6 +69,7 @@ p_note_track = (,)
 
 -- | Parse the first part of the control track title.  This is special syntax,
 -- and is not the usual call plus list of argument values.
+{-# SCC parse_control_type #-}
 parse_control_type :: Text -> Either Text ControlType
 parse_control_type = fmap fst . parse_control_title
 
@@ -201,6 +203,7 @@ is_tempo_track title = case parse_control_type title of
 
 -- | Parse a note track like @>inst@ as @note-track inst@.  Other than
 -- this, note track titles are normal expressions.
+{-# SCC parse_note #-}
 parse_note :: Text -> Either Text DeriveT.Expr
 parse_note title = case Text.uncons title of
     Just ('>', rest) -> Parse.parse_expr (prefix <> rest)
@@ -214,6 +217,7 @@ unparse_note = strip . ShowVal.show_val
         Text.stripPrefix (Expr.unsym Symbols.note_track) t
 
 -- | Convert a track title into its instrument.
+{-# SCC title_to_instrument #-}
 title_to_instrument :: Text -> Maybe ScoreT.Instrument
 title_to_instrument title = case parse_note_track title of
     Right (inst, _) -> Just inst

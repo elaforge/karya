@@ -357,15 +357,18 @@ find f = Segment.find f . _signal
 
 -- | Map Xs.  The slopes will definitely change unless the function is adding
 -- a constant, but presumably that's what you want.
+{-# SCC map_x #-}
 map_x :: (X -> X) -> Signal kind -> Signal kind
 map_x = modify . Segment.map_x
 
 -- | Map Ys.  This resamples the signal, so it's valid for a nonlinear
 -- function.
+{-# SCC map_y #-}
 map_y :: X -> (Y -> Y) -> Signal kind -> Signal kind
 map_y srate = modify . Segment.map_y srate
 
 -- | If the function is linear, there's no need to resample.
+{-# SCC map_y_linear #-}
 map_y_linear :: (Y -> Y) -> Signal kind -> Signal kind
 map_y_linear = modify . Segment.map_y_linear
 

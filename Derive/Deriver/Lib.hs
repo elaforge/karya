@@ -657,6 +657,7 @@ untyped_control_at cont = fmap (fmap ScoreT.typed_val) . control_at cont
 
 -- | Get a ControlValMap at the given time, taking 'state_control_functions'
 -- into account.
+{-# SCC controls_at #-}
 controls_at :: RealTime -> Deriver ScoreT.ControlValMap
 controls_at pos = do
     state <- get
@@ -664,6 +665,7 @@ controls_at pos = do
     return $! state_controls_at pos ruler (state_dynamic state)
         (state_event_serial (state_threaded state))
 
+{-# SCC state_controls_at #-}
 state_controls_at :: RealTime -> Ruler.Marklists
     -- ^ Ruler marklists from the same track as the Dynamic.  Needed by
     -- control functions, via 'DeriveT.dyn_ruler'.

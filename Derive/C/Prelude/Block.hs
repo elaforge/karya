@@ -55,10 +55,12 @@ library = mconcat
 -- Tempo.with_tempo does a bit of magic to stretch all blocks to length 1,
 -- except the root one.  The root block should operate in real time, so no
 -- stretching here.  Otherwise, a tempo of 2 would be the same as 1.
+{-# SCC eval_root_block #-}
 eval_root_block :: BlockId -> Derive.NoteDeriver
 eval_root_block block_id =
     global_transform $ Eval.eval_one_call True $ call_from_block_id block_id
 
+{-# SCC global_transform #-}
 global_transform :: Derive.NoteDeriver -> Derive.NoteDeriver
 global_transform = transform_if_present ctx "GLOBAL"
     where ctx = Derive.dummy_context 0 1 "<GLOBAL transform>"
@@ -83,6 +85,7 @@ pattern_note_block = Derive.PatternCall
     -- Not evaluated, so it doesn't matter if the BlockId is invalid.
     fake_call = c_block (Id.BlockId (Id.read_id "example/block"))
 
+{-# SCC c_block #-}
 c_block :: BlockId -> Derive.Generator Derive.Note
 c_block block_id = Derive.with_score_duration get_score_duration $
     Derive.with_real_duration (const $ get_real_duration block_id) $

@@ -34,6 +34,7 @@ import           Types
 -- * note track
 
 -- | Top level deriver for note tracks.
+{-# SCC d_note_track #-}
 d_note_track :: ([TrackTree.EventsNode] -> Derive.NoteDeriver)
     -- ^ This is used to derive orphans, as documented by
     -- 'EvalTrack.derive_note_track'.

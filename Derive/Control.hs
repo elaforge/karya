@@ -69,6 +69,7 @@ data Config = Config {
     } deriving (Show)
 
 -- | Top level deriver for control tracks.
+{-# SCC d_control_track #-}
 d_control_track :: Config -> TrackTree.Track -> Derive.NoteDeriver
     -> Derive.NoteDeriver
 d_control_track config track deriver = do
@@ -146,6 +147,7 @@ get_merger control merge = case merge of
 
 -- | A tempo track is derived like other signals, but in absolute time.
 -- Otherwise it would wind up being composed with the environmental warp twice.
+{-# SCC tempo_call #-}
 tempo_call :: Config -> Maybe Expr.Symbol -> TrackTree.Track
     -> Derive.Deriver (TrackResults Signal.Control)
     -> Derive.NoteDeriver -> Derive.NoteDeriver
@@ -192,6 +194,7 @@ dispatch_tempo config sym block_range maybe_track_id signal deriver =
                 "unknown tempo modifier: " <> ShowVal.show_val sym
     where toplevel = config_toplevel_tempo config
 
+{-# SCC control_call #-}
 control_call :: TrackTree.Track -> ScoreT.Typed ScoreT.Control -> Derive.Merger
     -- TODO doesn't need to be a Deriver
     -> Derive.Deriver (TrackResults Signal.Control)
@@ -271,6 +274,7 @@ derive_control is_tempo track transform = do
     signal <- trim_signal Signal.drop_after Signal.clip_after track signal
     return (signal, logs)
 
+{-# SCC derive_pitch #-}
 derive_pitch :: Bool -> TrackTree.Track
     -> (Derive.PitchDeriver -> Derive.PitchDeriver)
     -> Derive.Deriver (TrackResults PSignal.PSignal)
@@ -311,6 +315,7 @@ trim_signal drop_after clip_after track signal =
             return $ trim end signal
     -- TODO(polymorphic-signals)
 
+{-# SCC derive_track #-}
 derive_track :: (Monoid d, Derive.CallableExpr d) => EvalTrack.TrackInfo d
     -> (Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d))
     -> Derive.Deriver (TrackResults d)
@@ -352,6 +357,7 @@ last_signal_val xs
 
 -- | If this track is to be rendered by the UI, stash the given signal in
 -- either 'Derive.collect_track_signals' or 'Derive.collect_signal_fragments'.
+{-# SCC stash_if_wanted #-}
 stash_if_wanted :: TrackTree.Track -> Signal.Control -> Derive.Deriver ()
 stash_if_wanted track sig = whenM is_normal_mode $
     whenJustM (render_of track) $ \(block_id, track_id, _) ->

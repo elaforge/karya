@@ -183,6 +183,7 @@ no_duration_attributes :: Config
 no_duration_attributes = Config False False
 
 -- | The actual note generator.
+{-# SCC default_note #-}
 default_note :: Config -> GenerateNote
 default_note config args = do
     start <- Args.real_start args

@@ -226,19 +226,24 @@ get_current_tracknum =
     maybe (throw "get_current_tracknum") return =<< lookup_current_tracknum
 
 -- | Make a quick trick block stack.
+{-# SCC with_stack_block #-}
 with_stack_block :: BlockId -> Deriver a -> Deriver a
 with_stack_block = with_stack . Stack.Block
 
 -- | Make a quick trick track stack.
+{-# SCC with_stack_track #-}
 with_stack_track :: TrackId -> Deriver a -> Deriver a
 with_stack_track = with_stack . Stack.Track
 
+{-# SCC with_stack_region #-}
 with_stack_region :: ScoreTime -> ScoreTime -> Deriver a -> Deriver a
 with_stack_region s e = with_stack (Stack.Region s e)
 
+{-# SCC with_stack_call #-}
 with_stack_call :: CallName -> Deriver a -> Deriver a
 with_stack_call (CallName name) = with_stack (Stack.Call name)
 
+{-# SCC with_stack_serial #-}
 with_stack_serial :: Int -> Deriver a -> Deriver a
 with_stack_serial = with_stack . Stack.Serial
 

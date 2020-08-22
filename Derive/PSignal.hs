@@ -177,6 +177,7 @@ type ControlMap = Map ScoreT.Control (ScoreT.Typed Signal.Control)
 -- this will do the wrong thing.  Transpose signals should be additive so it'll
 -- be ok as long as you only apply transposing signals and only apply the
 -- complete ControlMap once at the end (i.e. "Perform.Midi.Convert").
+{-# SCC apply_controls #-}
 apply_controls :: ControlMap -> PSignal -> PSignal
 apply_controls cmap psig = case Seq.head (to_pairs psig) of
     Nothing -> mempty
@@ -244,6 +245,7 @@ apply_control cont sig = apply_controls (Map.singleton cont sig)
 
 -- | Apply an environ to all the pitches in the signal.  Unlike
 -- 'apply_controls', this doesn't have to resample the signal.
+{-# SCC apply_environ #-}
 apply_environ :: DeriveT.Environ -> PSignal -> PSignal
 apply_environ env =
     modify $ Segment.map_y_linear $ apply_config (PitchConfig env mempty)

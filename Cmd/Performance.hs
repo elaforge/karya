@@ -230,6 +230,7 @@ generate_performance ui_state wait send_status block_id = do
     -- If the derivation somehow failed, then the old performance will remain,
     -- and since there is no thread, this will try again the next time around.
 
+{-# SCC derive #-}
 derive :: Ui.State -> Cmd.State -> BlockId -> (Cmd.Performance, [Log.Msg])
 derive ui_state cmd_state block_id = (perf, logs)
     where

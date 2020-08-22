@@ -1779,11 +1779,13 @@ newtype ControlDamage = ControlDamage (Ranges.Ranges ScoreTime)
 
 -- * util
 
+{-# SCC score_to_real #-}
 score_to_real :: ScoreTime -> Deriver RealTime
 score_to_real pos = do
     warp <- gets (state_warp . state_dynamic)
     return $ Warp.warp warp pos
 
+{-# SCC real_to_score #-}
 real_to_score :: RealTime -> Deriver ScoreTime
 real_to_score pos = do
     warp <- gets (state_warp . state_dynamic)

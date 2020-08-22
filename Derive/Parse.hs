@@ -56,10 +56,12 @@ import qualified Ui.Id as Id
 import           Global
 
 
+{-# SCC parse_expr #-}
 parse_expr :: Text -> Either Text DeriveT.Expr
 parse_expr = parse (p_expr True)
 
 -- | Parse a single Val.
+{-# SCC parse_val #-}
 parse_val :: Text -> Either Text DeriveT.Val
 parse_val = ParseText.parse (lexeme p_val)
 

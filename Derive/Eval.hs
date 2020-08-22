@@ -55,6 +55,7 @@ import           Types
 -- * eval / apply
 
 -- | Apply a toplevel expression.
+{-# SCC eval_toplevel #-}
 eval_toplevel :: Derive.CallableExpr d => Derive.Context d
     -> DeriveT.Expr -> Derive.Deriver (Stream.Stream d)
 eval_toplevel ctx expr =
@@ -96,6 +97,7 @@ convert_minival = fmap $ fmap $ \case
 
 -- ** generator
 
+{-# SCC eval_generator #-}
 eval_generator :: (Derive.Callable (Derive.Generator d), Derive.Taggable d)
     => Derive.Context d -> DeriveT.Call -> Derive.Deriver (Stream.Stream d)
 eval_generator ctx (Expr.Call sym args) = do
@@ -105,6 +107,7 @@ eval_generator ctx (Expr.Call sym args) = do
 
 -- | Like 'eval_generator', but for when the args are already parsed and
 -- evaluated.  This is useful when one generator wants to dispatch to another.
+{-# SCC apply_generator #-}
 apply_generator :: Derive.Context d -> Derive.Generator d -> [DeriveT.Val]
     -> Derive.Deriver (Stream.Stream d)
 apply_generator ctx call args = do
@@ -142,6 +145,7 @@ set_real_duration dur = Internal.modify_collect $ \collect ->
 
 -- ** transformer
 
+{-# SCC eval_transformers #-}
 eval_transformers :: (Derive.Callable (Derive.Transformer d), Derive.Taggable d)
     => Derive.Context d -> [DeriveT.Call] -> Derive.Deriver (Stream.Stream d)
     -> Derive.Deriver (Stream.Stream d)
@@ -178,6 +182,7 @@ eval_quoted_transformers ctx (DeriveT.Quoted expr) =
 -- | The transformer version of 'apply_generator'.  Like 'eval_transformers',
 -- but apply only one, and apply to already evaluated 'DeriveT.Val's.  This
 -- is useful when you want to re-apply an already parsed set of vals.
+{-# SCC apply_transformer #-}
 apply_transformer :: Derive.Context d -> Derive.Transformer d -> [DeriveT.Val]
     -> Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d)
 apply_transformer ctx call args deriver =
@@ -199,6 +204,7 @@ apply_transformers ctx calls deriver = foldr apply deriver calls
 
 -- ** val call
 
+{-# SCC eval #-}
 eval :: Derive.Taggable a => Derive.Context a -> DeriveT.Term
     -> Derive.Deriver DeriveT.Val
 eval _ (Expr.Literal val) = return val
@@ -206,6 +212,7 @@ eval ctx (Expr.ValCall (Expr.Call sym terms)) = do
     call <- get_val_call sym
     apply (Derive.tag_context ctx) call terms
 
+{-# SCC apply #-}
 apply :: Derive.Context Derive.Tagged -> Derive.ValCall
     -> [DeriveT.Term] -> Derive.Deriver DeriveT.Val
 apply ctx call args = do
