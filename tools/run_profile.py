@@ -19,6 +19,18 @@
     y - by type
     r - by retainer set
     b - by biography
+
+    -- profiling.html#time-and-allocation-profiling
+    -p -P -pa
+    The -p option produces a standard time profile report. It is written into
+    the file <stem>.prof; the stem is taken to be the program name by default,
+    but can be overridden by the -po ⟨stem⟩ flag.
+
+    The -P option produces a more detailed report containing the actual time
+    and allocation data as well. (Not used much.)
+
+    The -pa option produces the most detailed report containing all cost
+    centres in addition to the actual time and allocation data.
 """
 
 import argparse
@@ -71,40 +83,46 @@ def main():
     name = args.name if args.name else ymd()
     num = next_num(base_dir)
     for profile_arg, subdir in profiles:
-        out_dir = f'{base_dir}/{num:03d}.{name}/{subdir}'
-        os.makedirs(out_dir, exist_ok=True)
-        open(f'{out_dir}/date', 'w').write(
-            datetime.datetime.now().isoformat() + '\n')
-        stem = os.path.join(out_dir, ''.join(heap_flags).lstrip('-'))
-        basename = os.path.basename(cmdline[0])
+        for heap_flag in heap_flags:
+            out_dir = f'{base_dir}/{num:03d}.{name}/{subdir}'
+            os.makedirs(out_dir, exist_ok=True)
+            open(f'{out_dir}/date', 'w').write(
+                datetime.datetime.now().isoformat() + '\n')
+            stem = os.path.join(out_dir, heap_flag.lstrip('-'))
+            basename = os.path.basename(cmdline[0])
 
-        rts = [
-            # time profiling
-            '-s{}.gc'.format(basename), # emit runtime summary
-            '-p', # emit .prof file
+            rts = [
+                # time profiling
+                '-s{}.gc'.format(basename), # emit runtime summary
+                '-p', # emit .prof file
 
-            # heap profiling
-            '-L42', # field length for cost center names in heap profile
-            '-xt', # show threads and stacks as TSO and STACK
-        ] + heap_flags
-        rts = ['+RTS'] + rts + ['-RTS']
+                # heap profiling
+                '-L42', # field length for cost center names in heap profile
+                '-xt', # show threads and stacks as TSO and STACK
+                heap_flag,
+            ]
+            if heap_flag == '-hb':
+                # Otherwise: -hb cannot be used with multiple capabilities
+                rts.append('-N1')
+            rts = ['+RTS'] + rts + ['-RTS']
 
-        run(cmdline + rts + ([profile_arg] if profile_arg else []),
-            tee_to=stem + '.stdout')
+            run(cmdline + rts + ([profile_arg] if profile_arg else []),
+                tee_to=stem + '.stdout')
 
-        for suf in 'gc hp aux tix stdout prof'.split():
-            try:
-                os.rename(f'{basename}.{suf}', f'{stem}.{suf}')
-            except FileNotFoundError:
-                pass
-        if os.path.exists(f'{stem}.hp'):
-            system(f'hp2ps -b -c < {stem}.hp > {stem}.ps')
-            # TODO if ghostscript is installed, there is a ps2pdf, but
-            # OS X preview can do the convert itself.
-        run_if_exists(['ghc-prof-flamegraph', stem + '.prof',
-            '--output', stem + '.flame.svg'])
-        run_if_exists(['hp2html', stem + '.hp'])
-        summarize(stem)
+            for suf in 'gc hp aux tix stdout prof'.split():
+                try:
+                    os.rename(f'{basename}.{suf}', f'{stem}.{suf}')
+                except FileNotFoundError:
+                    pass
+            if os.path.exists(f'{stem}.hp'):
+                system(f'hp2ps -b -c < {stem}.hp > {stem}.ps')
+                # TODO if ghostscript is installed, there is a ps2pdf, but
+                # OS X preview can do the convert itself.
+            run_if_exists(['ghc-prof-flamegraph', stem + '.prof',
+                '--output', stem + '.flame.svg'])
+            run_if_exists(['hp2html', stem + '.hp'])
+            run_if_exists(['profiterole', stem + '.prof'])
+            summarize(stem)
 
 
 def next_num(dir):

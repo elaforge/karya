@@ -5,8 +5,6 @@
 
 set -eu
 
-name=$1
-
 scores=(
     save/complete/wayang/cerucuk-punyah.state
     save/complete/viola-sonata
@@ -14,4 +12,4 @@ scores=(
     save/mod/green-mold
 )
 
-tools/run_profile.py --name $name derive $scores
+tools/run_profile.py "$@" derive $scores
