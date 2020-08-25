@@ -51,9 +51,8 @@ import           Global
 -}
 cmds_with_input :: Cmd.M m => Bool -> Maybe Patch.Config
     -> [Msg.Msg -> m Cmd.Status] -> (Msg.Msg -> m Cmd.Status)
-cmds_with_input kbd_entry maybe_config cmds msg
-    | not kbd_entry = Cmd.sequence_cmds cmds msg
-    | otherwise = msg_to_inputs maybe_config msg >>= \case
+cmds_with_input kbd_entry maybe_config cmds msg =
+    msg_to_inputs kbd_entry maybe_config msg >>= \case
         Nothing -> Cmd.sequence_cmds cmds msg
         Just inputs -> foldr Cmd.merge_status Cmd.Done <$> mapM send inputs
     where
@@ -79,11 +78,11 @@ run_cmds_with_input cmds msg = do
 -- the Msg is not convertible to InputNotes (and therefore other cmds should
 -- get it), and Just [] if it is but didn't emit any InputNotes (and therefore
 -- this other cmds shouldn't get it).
-msg_to_inputs :: Cmd.M m => Maybe Patch.Config -> Msg.Msg
+msg_to_inputs :: Cmd.M m => Bool -> Maybe Patch.Config -> Msg.Msg
     -> m (Maybe [InputNote.Input])
-msg_to_inputs maybe_config msg = do
+msg_to_inputs kbd_entry maybe_config msg = do
     has_mods <- are_modifiers_down
-    new_msgs <- if not has_mods
+    new_msgs <- if kbd_entry && not has_mods
         then do
             octave <- Cmd.gets (Cmd.state_kbd_entry_octave . Cmd.state_edit)
             let is_pressure = maybe False

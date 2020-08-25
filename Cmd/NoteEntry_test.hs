@@ -21,6 +21,7 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
+test_key_to_input :: Test
 test_key_to_input = do
     let k = Key.Char
     let f = NoteEntry.key_to_input False
@@ -41,12 +42,12 @@ test_key_to_input = do
         , CmdTest.control 72 "breath" InputNote.keyboard_velocity
         ]
 
-test_cmds_with_note = do
+test_cmds_with_input :: Test
+test_cmds_with_input = do
     let cmd_dummy msg = Log.warn (showt msg) >> return Cmd.Done
     let high_c = '\''
         ctrl_key = CmdTest.make_key_mods [Key.Control] UiMsg.KeyDown
-        run cstate cmd = CmdTest.extract id $
-            CmdTest.run Ui.empty cstate cmd
+        run cstate cmd = CmdTest.extract id $ CmdTest.run Ui.empty cstate cmd
         input = Msg.InputNote
         -- key passed through to cmd_dummy
         through msg = Right (Just Cmd.Done, [showt msg])
@@ -63,6 +64,9 @@ test_cmds_with_note = do
             [ kbd_note_on 71 5 0 (-1), kbd_note_on 72 5 0 0
             , kbd_note_on 73 5 0 1, kbd_note_on 74 5 1 0
             ]
+    -- With kbd_entry=False, it stays as a keydown.
+    equal (run st (f False (CmdTest.key_down high_c))) $
+        through $ CmdTest.key_down high_c
 
     -- abort when a modifier is down
     let ckey = ctrl_key (Key.Char high_c)
@@ -84,7 +88,10 @@ test_cmds_with_note = do
     -- test midi_entry (details tested in InputNote_test)
     equal (run st (f True (CmdTest.make_midi (Midi.NoteOn 25 127))))
         (through $ input (CmdTest.note_on_nn 25))
-    equal (run st (f True (CmdTest.make_midi (Midi.NoteOff 25 127))))
+    -- Doesn't require kbd_entry.
+    equal (run st (f False (CmdTest.make_midi (Midi.NoteOn 25 127))))
+        (through $ input (CmdTest.note_on_nn 25))
+    equal (run st (f False (CmdTest.make_midi (Midi.NoteOff 25 127))))
         (through $ input (CmdTest.note_off 25))
 
 with_key :: Msg.Msg -> Cmd.State

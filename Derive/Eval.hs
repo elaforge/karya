@@ -185,10 +185,10 @@ apply_transformer ctx call args deriver =
         Derive.call_func call passed deriver
     where
     passed = Derive.PassedArgs
-            { passed_vals = args
-            , passed_call_name = Derive.call_name call
-            , passed_ctx = ctx
-            }
+        { passed_vals = args
+        , passed_call_name = Derive.call_name call
+        , passed_ctx = ctx
+        }
 
 -- | A list version of 'apply_transformer'.
 apply_transformers :: Derive.Context d
