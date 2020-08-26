@@ -464,7 +464,7 @@ event_bindings = concat
         Edit.replace_first_call
 
     , plain_char 'C' "toggle commented" Edit.cmd_toggle_commented
-    , command_char ',' "strip transformer" Edit.strip_call
+    , command_char ',' "strip transformer" Edit.strip_transformer
     ]
     where
     shift_command = bind_key [Shift, PrimaryCommand] . Key.Char

@@ -108,7 +108,7 @@ split_pipeline :: Text -> [[Text]]
 split_pipeline = Seq.split_null ["|"] . lex
 
 join_pipeline :: [[Text]] -> Text
-join_pipeline = mconcat . List.intercalate [" | "]
+join_pipeline = Text.unwords . List.intercalate ["|"]
 
 -- | Attoparsec doesn't keep track of byte position, and always backtracks.
 -- I think this means I can't reuse 'p_term'.

@@ -5,11 +5,22 @@
 module Cmd.ModifyEvents_test where
 import qualified Data.Text as Text
 
-import Util.Test
 import qualified Cmd.ModifyEvents as ModifyEvents
-import Cmd.ModifyEvents (Replacement(..), w, ws, ws1)
+import           Cmd.ModifyEvents (w, ws, ws1, Replacement(..))
+
+import           Util.Test
 
 
+test_pipeline :: Test
+test_pipeline = do
+    let f = ModifyEvents.pipeline
+    equal (f id "i b1") "i b1"
+    equal (f id "z | i b1") "z | i b1"
+    equal (f (["q"]:) "i b1") "q | i b1"
+    equal (f (drop 1) "i b1") ""
+    equal (f (drop 1) "q | i b1") "i b1"
+
+test_substitute :: Test
 test_substitute = do
     let f p repl = ModifyEvents.substitute p repl
     equal (f ("sd" <> w <> w) [F 0, "| d", F 1] "sd a b")
@@ -23,6 +34,7 @@ test_substitute = do
     equal (f ("sd" <> w) [F 0, "| d", F 1] "sd a")
         (Left "no match for field 1")
 
+test_parse :: Test
 test_parse = do
     let f ps t = ModifyEvents.parse (mconcat ps) (Text.words t)
         -- parse (ModifyEvents.Parser p) = p

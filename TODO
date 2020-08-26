@@ -3789,8 +3789,14 @@ cleanup:
     Note tracks can't get a GetLastSample at all.
 
 performance:
+  space leaks:
+    . http://neilmitchell.blogspot.com/2013/02/chasing-space-leak-in-shake.html
+    . https://bgamari.github.io/posts/2016-03-30-what-is-this-array.html
+    . https://lukelau.me/haskell/posts/leak/
+    . https://www.well-typed.com/blog/2020/08/memory-fragmentation/
   . Staging via typed template haskell: uses [|| ||], $$.  Talk at
     https://vimeo.com/443276733 6:29:10
+    . More talks at ICFP 2020
   general:
     - use 'text-builder' for Pretty and Log?
       . Unfortunately it has tons of dependencies, due to deferred-folds ->
@@ -3839,6 +3845,7 @@ performance:
       . Giving up for the moment since I don't understand the output.
       . Maybe it was nonsensical due to auto SCCs?
   fltk:
+    - tile based rendering so zooming goes back to being fast
     historical stats for scrolling:
       . Stats:
         13.5686 sync_status
@@ -3972,7 +3979,64 @@ performance:
       Except that hardly ever happens if I do shortcut thru.
     - cache track cmds for each track, update when the track title or skeleton
       changes
+
+  short data:
+    - use short-text for Score.Event?
+      . Is there attoparsec for it?  Would lacking slicing be a problem?
+    - use short-bytestring for Id?  Or maybe just ByteString?  I think the
+      space saving is negligable, but would it make hashing faster?
+    - I may not really have that much data?
+      . Get some score stats (Ui.Transform) and figure out the weight of
+        a loaded score ('weight' package)
+      . Then, does the extra overhead hurt me?  Less memory is better, but
+        is it drowned out by derive's memory use?
   derive:
+    suspected problems:
+      . transformer streaming:
+      . signal resampling: Signal.map_y
+    - transformer streaming:
+      . I suspect that transformers would be more efficient if they streamed,
+        but how can I demonstrate an improvement?
+      . I think it would manifest as drag, or at least as more active memory.
+      . It should reduce memory use.  Can I make a demonstration profile?
+        Have a long block of notes, then a few layers of id transforms.
+      . No apparent difference between 0 and 8 layers of transformer.
+    memory use
+      . Do -hy, -hd, -hb runs.
+      hb:
+        . Seems to be phase 1 2 3.
+        . I have tons of void, increasing: 29mb to 70mb, spikes in phase2.
+        . Some INHERENT_USE, phase 1, increasing slowly; 2 flat: 16m to 21mb
+        . Drag spikes in phase 2.
+        . I suspect phases correspond to derive, then force the results, then
+          write the results.  Can I put in markers to verify that?
+        . Perhaps void is stuff in Collect I don't use?  If I had the Cmd
+          layer, this might look different, run a profile on seq.
+        . INHERENT_USE might be ARR_WORDS, which might be signals.
+          Or could be ByteString or Text.
+        VOID
+          . Given f (g x), if the value of (g x) is never demanded, but is
+            nevertheless stored in some data structure for a while, then it is
+            void.
+          . So this is basically laziness working.  If I want to reduce it,
+            I have to not store things I won't evaluate, or maybe force them
+            when not necessary (trade work, but allow GC).
+        INHERENT_USE
+          . Primitive objects like arrays and mutable variables, where we
+            don't record the use time so we consider them to be implicitly
+            used.
+          . I don't really have mutable variables, so must be arrays.  Maybe
+            it's ARR_WORDS?
+        DRAG
+          . You haven't touched the data for a while before it goes out of
+            scope or its retainer goes out of scope.
+        LAG
+          . How is something created before it's used?
+            oh, that happens a lot.  e.g. in  f (g x), if f doesn't demand the
+            value of its argument for a long time, then the heap closure for
+            (g x) is lagging.
+        . http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.30.1219
+
     profile with SCCs
       . tools/run_profile verify_performance
       * it's messy, let's rewrite it in python
@@ -3985,13 +4049,6 @@ performance:
           Also seems to mess up fusion, e.g. Data.Vector.Fusion.Util.runId
         . I can work around with my own whenJust and maybeM.
       + put SCCs on... where?
-        candidates:
-          . Note.default_note
-          . Lib.controls_at
-          . ParseText.parse
-          . ParseTitle.parse_
-          . Parse.parse_expr
-          . Control.derive_pitch
         + I could still try a run with -fprof-auto-top, to see who gets
           called a lot.
         . bsearch_above, called by Util.Segment.at, called in many places.
@@ -4016,7 +4073,7 @@ performance:
         - Parse.space_to_eol
           . Maybe gets cheaper when inlined, attoparsec is probably reliant on
             inlining to unbox.
-        - what about -fprof-auto-exported?
+        * what about -fprof-auto-exported?
           . Instead of adding SCCs on top, I could go bottom up by adding
             INLINEs.
           . At least I could get things like (>>=) and Util.Control out of
@@ -4050,7 +4107,7 @@ performance:
           on that.
         . The toplevel scale=xyz should do the Derive.with_scale.  Then a `*`
           does nothing.  A `*abc` does a `scale=abc`.
-      + Crc32Instances.ptrIO, Internal.add_stack_frame
+      * Crc32Instances.ptrIO, Internal.add_stack_frame
         . d_merge DeriveM.run -> Internal.add_stack_frame
         . This is because I eagerly update the seed on every stack frame.
         . I already have code in there to skip Call frames which I think
@@ -4137,12 +4194,7 @@ performance:
         * Omitting Call helps.  But test to make sure I don't need it.
         * Write or find a test that demonstrates querying and freezing the
           seed for reproducibility.
-        - Update all those score performances.
-
-    - use short-text for Score.Event?
-      . Is there attoparsec for it?  Would lacking slicing be a problem?
-    - use short-bytestring for Id?  Or maybe just ByteString?  I think the
-      space saving is negligable, but would it make hashing faster?
+        * Update all those score performances.
 
     + Bring back profiling, and do it regularly.
       . Look into that graphing stuff, I have the links around here somewhere.
@@ -4156,6 +4208,10 @@ performance:
       . I think no good though, because DeriveM is already concrete, so there
         are no dictionaries to specialize.
     signal:
+      - Util.TimeVector is Vector.Storable, which is pinned, which leads to
+        fragmentation
+        . Is it a problem?  I think I don't really need Storable, because I
+          pass signals to fltk via a copy anyway.
       - clip_before and clip_after usually require changing the signal
         . I could eliminate this with _start and _extent fields.
       - Segment._offset might not be worth it
@@ -5357,6 +5413,7 @@ solkattu:
       is that time can be abstract.
 
 Cmd:
+  * add '.' messes up calls
   Repl:
     - LNote.sort_on_pitch is still not right.
       . With multiple chords I get stacked up extra tracks.

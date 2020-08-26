@@ -41,7 +41,7 @@ module Cmd.Edit (
 
     -- * modify text
     , cmd_toggle_commented
-    , strip_call
+    , strip_transformer
 
     -- * record action
     , save_last_action_to
@@ -630,8 +630,8 @@ cmd_toggle_commented = ModifyEvents.selection_tracks toggle
     cmt = "--|"
 
 -- | Strip off the first transformer, and then the generator.
-strip_call :: Cmd.M m => m ()
-strip_call = do
+strip_transformer :: Cmd.M m => m ()
+strip_transformer = do
     ModifyEvents.selected_track $
         ModifyEvents.text $ ModifyEvents.pipeline $ drop 1
     ModifyEvents.advance_if_point
