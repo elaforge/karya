@@ -190,7 +190,7 @@ test_round_events = do
 
 -- * util
 
-equal_e :: CallStack.Stack => [Event] -> [Event] -> IO Bool
+equal_e :: CallStack.Stack => [Event] -> [Event] -> Test
 equal_e = Testing.equal_fmt UiTest.fmt_events
 
 type Event = (ScoreTime, ScoreTime, Text)

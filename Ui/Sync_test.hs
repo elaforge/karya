@@ -447,8 +447,8 @@ match_dumps desc dumps attrs = allM matches (Seq.zip_padded dumps attrs)
                 <> txt (PPrint.pshow dump)
         where missing = filter (`notElem` dump) attrs
     allM f xs = foldl' (&&) True <$> mapM f xs
-    fail = failure . ((desc <> ": ") <>)
-    pass = success . ((desc <> ": ") <>)
+    fail = (>> return False) . failure . ((desc <> ": ") <>)
+    pass = (>> return True) . success . ((desc <> ": ") <>)
 
 parse_dump :: String -> Dump.Dump
 parse_dump = either (error . ("failed to parse dump: "++) . untxt) id

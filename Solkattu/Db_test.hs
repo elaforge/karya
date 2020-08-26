@@ -21,27 +21,28 @@ import Global
 import Util.Test
 
 
+test_all :: Test
 test_all = do
     forM_ (zip [0..] All.korvais) testKorvai
 
-testKorvai :: (Int, Korvai.Korvai) -> IO ()
+testKorvai :: (Int, Korvai.Korvai) -> Test
 testKorvai (i, korvai) =
     forM_ (Korvai.korvaiInstruments korvai) $
         \(name, Korvai.GInstrument inst) ->
     realizeCatch inst korvai >>= \case
-        Right _ -> return True
+        Right _ -> return ()
         Left errs -> failure $ location korvai i <> ": " <> name <> ": "
             <> Text.unlines errs
 
 _test0 = either mconcat (const "") $ realize Korvai.konnakol (All.korvais!!114)
 
+test_lints :: Test
 test_lints = do
     forM_ (zip [0..] All.korvais) testLint
 
-testLint :: (Int, Korvai.Korvai) -> IO Bool
-testLint (i, korvai)
-    | lints == "" = return True
-    | otherwise = failure $ location korvai i <> ": " <> lints
+testLint :: (Int, Korvai.Korvai) -> Test
+testLint (i, korvai) = when (lints /= "") $
+    failure $ location korvai i <> ": " <> lints
     where
     lints = Dsl.Solkattu.allLints korvai
 

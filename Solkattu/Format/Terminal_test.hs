@@ -193,11 +193,11 @@ test_format_ruler_rulerEach = do
         , []
         )
 
-equalT :: CallStack.Stack => Either Text Text -> Either Text Text -> IO Bool
+equalT :: CallStack.Stack => Either Text Text -> Either Text Text -> Test
 equalT = equal_fmt (either id id)
 
 equalT1 :: (CallStack.Stack, Eq a, Show a) => Either Text (Text, a)
-    -> Either Text (Text, a) -> IO Bool
+    -> Either Text (Text, a) -> Test
 equalT1 = equal_fmt (either id fst)
 
 test_formatLines = do

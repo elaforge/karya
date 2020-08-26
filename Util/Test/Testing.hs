@@ -92,8 +92,11 @@ import qualified Util.Seq as Seq
 import qualified Util.Test.ApproxEq as ApproxEq
 
 
-
-type Test = IO Bool
+-- | The type of toplevel tests, which is the same as the type of individual
+-- test functions.  It's just IO () for now, but some day I may be able to move
+-- to something more specialized, so if tests have declared types it might as
+-- well be one I can change in one place.
+type Test = IO ()
 
 {-# NOINLINE test_config #-}
 test_config :: IORef.IORef Config
@@ -161,18 +164,20 @@ data Tag =
 -- * equal and diff
 
 equal :: (Stack, Show a, Eq a) => a -> a -> Test
-equal a b
-    | a == b = success $ cmp True
-    | otherwise = failure $ cmp False
+equal a b = equal_ a b >> return ()
+
+equal_ :: (Stack, Show a, Eq a) => a -> a -> IO Bool
+equal_ a b
+    | a == b = success (cmp True) >> return True
+    | otherwise = failure (cmp False) >> return False
     where cmp = pretty_compare "==" "/=" True a b
 
 equal_fmt :: (Stack, Eq a, Show a) => (a -> Text) -> a -> a -> Test
 equal_fmt fmt a b = do
-    ok <- equal a b
+    ok <- equal_ a b
     let (pa, pb) = (fmt a, fmt b)
     unless (ok || Text.null pa && Text.null pb) $
         Text.IO.putStrLn $ show_diff pa pb
-    return ok
     where
     show_diff pretty_a pretty_b = fmt_lines "/="
         (Text.lines $ highlight_lines color diff_a pretty_a)
@@ -186,9 +191,8 @@ equal_fmt fmt a b = do
 -- function loses information it would be nice to see if the test fails.
 equal_on :: (Stack, Eq b, Show a, Show b) => (a -> b) -> a -> b -> Test
 equal_on f a b = do
-    ok <- equal (f a) b
+    ok <- equal_ (f a) b
     unless ok $ Text.IO.putStrLn (pshowt a)
-    return ok
 
 not_equal :: (Stack, Show a, Eq a) => a -> a -> Test
 not_equal a b
@@ -477,15 +481,11 @@ q_equal a b = QuickCheck.counterexample
 
 -- | Print a msg with a special tag indicating a passing test.
 success :: Stack => Text -> Test
-success msg = do
-    print_test_line Stack.callStack success_color "++-> " msg
-    return True
+success msg = print_test_line Stack.callStack success_color "++-> " msg
 
 -- | Print a msg with a special tag indicating a failing test.
 failure :: Stack => Text -> Test
-failure msg = do
-    print_test_line Stack.callStack failure_color "__-> " msg
-    return False
+failure msg = print_test_line Stack.callStack failure_color "__-> " msg
 
 print_test_line :: Stack.CallStack -> ColorCode -> Text -> Text -> IO ()
 print_test_line stack color prefix msg = do

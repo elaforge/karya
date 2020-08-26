@@ -322,7 +322,7 @@ test_token_roundtrip = do
 -- * implementation
 
 roundtrip :: forall a. (Stack.HasCallStack, Parse.Element a)
-    => Proxy a -> Text -> IO Bool
+    => Proxy a -> Text -> Test
 roundtrip Proxy t =
     right_equal (Text.strip <$> second unparse (parse @a t)) t
 

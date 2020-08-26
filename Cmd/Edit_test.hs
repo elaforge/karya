@@ -302,13 +302,13 @@ test_cmd_invert_orientation = do
 equal_e :: CallStack.Stack =>
     Either Text ([UiTest.EventSpec], [Text])
     -> Either Text ([UiTest.EventSpec], [Text])
-    -> IO Bool
+    -> Test
 equal_e = Testing.equal_fmt (UiTest.right_fst UiTest.fmt_events)
 
 equal_sd :: CallStack.Stack =>
     Either Text ([(ScoreTime, ScoreTime)], [Text])
     -> Either Text ([(ScoreTime, ScoreTime)], [Text])
-    -> IO Bool
+    -> Test
 equal_sd = Testing.equal_fmt (UiTest.right_fst UiTest.fmt_start_duration)
 
 -- | Run with events and a selection.

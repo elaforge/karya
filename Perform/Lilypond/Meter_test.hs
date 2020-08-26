@@ -97,7 +97,7 @@ convert_duration meter use_dot_ = go
 
 -- This is probably overkill.  "8~8" seems ok for single comparisons.
 equal_durs :: CallStack.Stack => Text -> Types.Time -> [Types.Time]
-    -> [[Types.NoteDuration]] -> IO Bool
+    -> [[Types.NoteDuration]] -> Test
 equal_durs meter_ start durs =
     Testing.equal_fmt
         ((fmt_meter meter <>) . Text.unlines . map (fmt_durs start))

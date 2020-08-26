@@ -124,8 +124,7 @@ test_update_rulers = do
 
 -- * util
 
-equal_b :: CallStack.Stack => [UiTest.BlockSpec] -> [UiTest.BlockSpec]
-    -> IO Bool
+equal_b :: CallStack.Stack => [UiTest.BlockSpec] -> [UiTest.BlockSpec] -> Test
 equal_b = equal_fmt UiTest.fmt_blocks
 
 e_rulers :: Ui.State -> [(Text, Text)]

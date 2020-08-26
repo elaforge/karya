@@ -30,6 +30,7 @@ import           Global
 import           Util.Test
 
 
+test_parse_expr :: Test
 test_parse_expr = do
     let f = fmap NonEmpty.toList . Parse.parse_expr
         vnum = VNum . ScoreT.untyped
@@ -73,6 +74,7 @@ test_parse_expr = do
     equal (f "a ; b") $ Right
         [Call "a" [Literal VSeparator, Literal (VStr "b")]]
 
+test_parse_expr_val_tokenization :: Test
 test_parse_expr_val_tokenization = do
     let f = fmap NonEmpty.toList . Parse.parse_expr
     -- This is because of the spaces1 in p_call.  I want to force call
@@ -81,6 +83,7 @@ test_parse_expr_val_tokenization = do
     -- TODO I wish for a better error than "expected eof" then
     left_like (f "a -1.1a") "parse error"
 
+test_show_val :: Test
 test_show_val = do
     roundtrip "a b"
     roundtrip "a | b"
@@ -90,7 +93,7 @@ test_show_val = do
     roundtrip "a = 'hi there'"
     roundtrip "a =+ 4"
 
-roundtrip :: Stack.HasCallStack => Text -> IO Bool
+roundtrip :: Stack.HasCallStack => Text -> Test
 roundtrip t =
     right_equal (Text.strip . ShowVal.show_val <$> Parse.parse_expr t) t
 
