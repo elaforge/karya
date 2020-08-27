@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Derive_profile where
+import qualified Data.Text as Text
 import qualified System.IO as IO
 import qualified System.Mem as Mem
 import qualified Text.Printf as Printf
@@ -10,16 +11,19 @@ import qualified Text.Printf as Printf
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Test.Testing as Testing
+import qualified Util.Texts as Texts
 import qualified Util.Thread as Thread
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Simple as Simple
 
+import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveSaved as DeriveSaved
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.ParseSkeleton as ParseSkeleton
+import qualified Derive.Score as Score
 import qualified Derive.Stream as Stream
 
 import qualified Ui.ScoreTime as ScoreTime
@@ -27,8 +31,9 @@ import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 
-import Global
-import Types
+import           Global
+import           Types
+import           Util.Test
 
 
 -- q=90 means 1.5 quarters / sec
@@ -36,16 +41,38 @@ import Types
 -- 32 * 60 * 60 * 2 = 230400 for 2 hours
 -- two_hours = 230400
 -- time_minutes events = events / 32 / 60
+profile_transform32 :: Profile
+profile_transform32 = run_profile_transform 32 20000
+
+profile_transform8 :: Profile
+profile_transform8 = run_profile_transform 8 20000
+
+profile_transform0 :: Profile
+profile_transform0 = run_profile_transform 0 20000
+
+run_profile_transform :: Int -> Int -> Profile
+run_profile_transform transformers size =
+    run_profile_setup with_id "transform" Nothing $ do
+        UiTest.exec Ui.empty $ mkblock $
+            uninverted_note_track (Texts.join2 " | " inst1 transform) 0 size
+    where
+    with_id = CallTest.with_note_transformer "id" $ CallTest.transformer $
+        \_args deriver -> fmap noop <$> deriver
+    noop e = e { Score.event_start = Score.event_start e + 1 }
+    transform = Text.intercalate " | " (replicate transformers "id")
 
 -- | Make a giant block with simple non-overlapping controls and tempo changes.
-profile_big_block = derive_profile "big block" $ make_simple 2000
-
-make_simple :: Ui.M m => Int -> m ()
-make_simple size =
-    mkblock $ make_tempo size
-        : note_tracks inst1 0 ++ note_tracks inst1 2 ++ note_tracks inst2 4
+profile_big_block :: Profile
+profile_big_block = derive_profile "big block" $ mkblock $
+    make_tempo size
+        : note inst1 0 size ++ note inst1 2 size ++ note inst2 4 size
     where
-    note_tracks name offset = map (track_take size . track_drop offset)
+    note = uninverted_note_track
+    size = 2000
+
+uninverted_note_track :: Title -> Int -> Int -> [UiTest.TrackSpec]
+uninverted_note_track name offset size =
+    map (track_take size . track_drop offset)
         [simple_pitch_track, vel_track, note_track name]
 
 
@@ -94,6 +121,7 @@ profile_nested_nocontrol = derive_profile "nested nocontrol" $
 
 -- Profile with some bogus busy waits in there to make things clearer on the
 -- heap profile.
+profile_size :: Profile
 profile_size = derive_size $ make_nested_controls 10 3 60
 
 -- profile_bloom_derive = derive_saved False "data/bloom"
@@ -106,7 +134,7 @@ profile_bloom = profile_file "data/bloom"
 profile_pnovla = profile_file "data/pnovla"
 profile_viola_sonata = profile_file "data/viola-sonata"
 
-profile_file :: FilePath -> IO ()
+profile_file :: FilePath -> Profile
 profile_file fname = do
     cmd_config <- DeriveSaved.load_cmd_config
     DeriveSaved.perform_file cmd_config fname
@@ -158,7 +186,7 @@ mkblock tracks = do
 
 -- * implementation
 
-derive_saved :: Bool -> FilePath -> IO ()
+derive_saved :: Bool -> FilePath -> Profile
 derive_saved with_perform fname = do
     cmd_config <- DeriveSaved.load_cmd_config
     (ui_state, library, aliases) <- either errorIO return
@@ -175,7 +203,7 @@ derive_saved with_perform fname = do
             ("perform " ++ fname) ui_state events
         mapM_ Log.write logs
 
-derive_size :: Ui.StateId a -> IO ()
+derive_size :: Ui.StateId a -> Profile
 derive_size create = do
     Thread.printTimer "force mmsgs" (const "done") (Thread.force mmsgs)
     Thread.printTimer "gc" (const "") Mem.performGC
@@ -203,19 +231,24 @@ busy_wait ops = go ops 2
         | otherwise = go (n-1) (sqrt accum)
 
 -- | This runs the derivation several times to minimize the creation cost.
-derive_profile :: String -> Ui.StateId a -> IO ()
+derive_profile :: String -> Ui.StateId a -> Profile
 derive_profile name create = replicateM_ 6 $
     run_profile name Nothing (UiTest.exec Ui.empty create)
 
 run_profile :: String
     -> Maybe DeriveTest.Lookup -- ^ If given, also run a perform.
-    -> Ui.State -> IO ()
-run_profile fname maybe_lookup ui_state = do
+    -> Ui.State -> Profile
+run_profile = run_profile_setup mempty
+
+run_profile_setup :: DeriveTest.Setup -> String
+    -> Maybe DeriveTest.Lookup -- ^ If given, also run a perform.
+    -> Ui.State -> Profile
+run_profile_setup setup fname maybe_lookup ui_state = do
     block_id <- maybe (errorIO $ txt fname <> ": no root block") return $
         Ui.config#Ui.root #$ ui_state
     start_cpu <- Thread.currentCpu
     let section = time_section start_cpu
-    let result = DeriveTest.derive_block ui_state block_id
+    let result = DeriveTest.derive_block_setup setup ui_state block_id
     let events = Stream.to_list $ Derive.r_events result
     section "derive" $ do
         Thread.force events
@@ -246,6 +279,9 @@ time_section start_cpu title op = do
 
 -- * state building
 
+type Title = Text
+
+inst1, inst2 :: Title
 inst1 = ">i1"
 inst2 = ">i2"
 
@@ -258,21 +294,32 @@ set_allocations = Ui.config#Ui.allocations #= allocs
         ]
         where dev = Simple.Midi . map ("wdev",)
 
+note_track :: Title -> UiTest.TrackSpec
 note_track inst = ctrack 1 inst [""]
+
+make_tempo :: Int -> UiTest.TrackSpec
 make_tempo n = track_take (ceiling (fromIntegral n / 10)) $
     ctrack0 10 "tempo" ["1", "2", "3", "i 1"]
+
+mod_track :: UiTest.TrackSpec
 mod_track = ctrack0 1 "cc1 | srate = 50" ["1", "i 0", "e 1", "i .5", "i 0"]
+
+simple_pitch_track :: UiTest.TrackSpec
 simple_pitch_track =
     ctrack0 1 "*twelve" ["4a", "4b", "4c", "4d", "4e", "4f", "4g", "5c"]
+
+nontempered_pitch_track :: UiTest.TrackSpec
 nontempered_pitch_track =
     ctrack0 1 "*legong" ["4i", "4o", "4e", "4u", "4a", "5i", "5o"]
+
+vel_track :: UiTest.TrackSpec
 vel_track = ctrack0 1 "vel" ["1", ".2", ".4", ".6"]
 
-ctrack0 :: ScoreTime -> Text -> [Text] -> UiTest.TrackSpec
+ctrack0 :: ScoreTime -> Title -> [Text] -> UiTest.TrackSpec
 ctrack0 step title ts =
     (title, [(p, 0, t) | (p, t) <- zip (Seq.range_ 0 step) (cycle ts)])
 
-ctrack :: ScoreTime -> Text -> [Text] -> UiTest.TrackSpec
+ctrack :: ScoreTime -> Title -> [Text] -> UiTest.TrackSpec
 ctrack step title ts =
     (title, [(p, step, t) | (p, t) <- zip (Seq.range_ 0 step) (cycle ts)])
 

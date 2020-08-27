@@ -9,7 +9,7 @@
 {-# LANGUAGE NamedFieldPuns, DisambiguateRecordFields #-}
 -- | Basic testing utilities.
 module Util.Test.Testing (
-    Test
+    Test, Profile
     , Config(..), modify_test_config, with_test_name
     -- * metadata
     , ModuleMeta(..), moduleMeta, Tag(..)
@@ -97,6 +97,11 @@ import qualified Util.Test.ApproxEq as ApproxEq
 -- to something more specialized, so if tests have declared types it might as
 -- well be one I can change in one place.
 type Test = IO ()
+
+-- | Profiles are just like tests, but I'll use a different type just for
+-- documentation at least.  The real determination is that profiles start with
+-- "profile_" instead of "test_".
+type Profile = IO ()
 
 {-# NOINLINE test_config #-}
 test_config :: IORef.IORef Config

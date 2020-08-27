@@ -9,5 +9,5 @@ import           Util.Test.Testing
        (check, check_val, equal, equal_fmt, equal_on, equalf, expect_right,
         failure, hedgehog, io_equal, io_human, left_like, match, not_equal,
         pause, pprint, prettyp, property, q_equal, quickcheck, right_equal,
-        strings_like, success, throws, (/==), (===), Test,
+        strings_like, success, throws, (/==), (===), Test, Profile,
         ModuleMeta(ModuleMeta))
