@@ -237,17 +237,20 @@ foreign import ccall "get_devices"
 
 -- | RealTime will be ignored for sysex msgs.
 write_message :: Client -> Midi.WriteMessage -> IO (Maybe Error)
-write_message client (Midi.WriteMessage dev ts msg) = do
-    -- I could probably avoid this copy by using unsafe unpack and then a
-    -- ForeignPtr or something to keep the gc off it, but any sizable sysex
-    -- will take forever to send anyway.
-    writes <- IORef.readIORef (client_writes client)
-    case Map.lookup dev writes of
-        Just (Just dev_id) -> ByteString.useAsCStringLen (Encode.encode msg) $
-            \(bytesp, len) -> error_str <$> c_write_message dev_id
-                (encode_time ts) (fromIntegral len) (castPtr bytesp)
-        _ -> return $ Just $
-            "device not in " <> pretty (Map.keys writes) <> ": " <> pretty dev
+write_message client (Midi.WriteMessage dev ts msg)
+    | not (Midi.valid_msg msg) = return $ Just $ "invalid msg: " <> showt msg
+    | otherwise = do
+        -- I could probably avoid this copy by using unsafe unpack and then a
+        -- ForeignPtr or something to keep the gc off it, but MIDI is so slow
+        -- that any sizable sysex will take forever to send anyway.
+        writes <- IORef.readIORef (client_writes client)
+        case Map.lookup dev writes of
+            Just (Just dev_id) ->
+                ByteString.useAsCStringLen (Encode.encode msg) $
+                \(bytesp, len) -> error_str <$> c_write_message dev_id
+                    (encode_time ts) (fromIntegral len) (castPtr bytesp)
+            _ -> return $ Just $ "device not in " <> pretty (Map.keys writes)
+                <> ": " <> pretty dev
 
 foreign import ccall "core_midi_write_message"
     c_write_message :: CInt -> CTimestamp -> CInt -> Ptr Word8 -> IO CError

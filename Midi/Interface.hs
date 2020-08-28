@@ -13,14 +13,16 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Tuple as Tuple
 import qualified Data.Vector as Vector
-import Data.Vector ((!))
+import           Data.Vector ((!))
 import qualified Data.Vector.Unboxed as Unboxed
 import qualified Data.Vector.Unboxed.Mutable as Mutable
 
+import qualified Util.Debug as Debug
 import qualified Util.Num as Num
 import qualified Midi.Midi as Midi
-import Perform.RealTime (RealTime)
-import Global
+import           Perform.RealTime (RealTime)
+
+import           Global
 
 
 type Error = Text
@@ -135,6 +137,8 @@ note_tracker write = do
     where
     handle_msg (Midi wmsg) = do
         case Midi.wmsg_msg wmsg of
+            Midi.ChannelMessage chan _
+                | not (Num.inRange 0 15 chan) -> return ()
             Midi.ChannelMessage chan (Midi.NoteOn key vel)
                 | vel == 0 -> note_off dev chan key
                 | otherwise -> note_on dev chan key

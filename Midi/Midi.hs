@@ -239,7 +239,7 @@ set_channel _ msg = msg
 valid_msg :: Message -> Bool
 valid_msg (ChannelMessage chan msg) =
     0 <= chan && chan < 16 && valid_chan_msg msg
-valid_msg msg = error $ "unknown msg: " ++ show msg
+valid_msg _ = True
 
 valid_chan_msg :: ChannelMessage -> Bool
 valid_chan_msg msg = case msg of
@@ -247,7 +247,7 @@ valid_chan_msg msg = case msg of
     NoteOn (Key key) vel -> val7 key && val7 vel
     NoteOff (Key key) vel -> val7 key && val7 vel
     PitchBend val -> 0 <= val && val < 2^14
-    _ -> error $ "valid_chan_msg: unknown msg: " ++ show msg
+    _ -> True
     where val7 v = 0 <= v && v < 128
 
 is_cc :: Message -> Bool

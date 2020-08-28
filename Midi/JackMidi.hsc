@@ -172,13 +172,14 @@ foreign import ccall "create_write_port"
 -- * write
 
 write_message :: Client -> Midi.WriteMessage -> IO (Maybe Error)
-write_message client (Midi.WriteMessage dev time msg) =
-    Midi.with_wdev dev $ \devp ->
-    ByteString.useAsCStringLen (Encode.encode msg) $ \(bytesp, len) ->
-    error_str ("write_message " <> showt (dev, time, msg))
-        =<< c_write_message (client_ptr client) devp
-            (fromIntegral (RealTime.to_microseconds time))
-            bytesp (fromIntegral len)
+write_message client (Midi.WriteMessage dev time msg)
+    | not (Midi.valid_msg msg) = return $ Just $ "invalid msg: " <> showt msg
+    | otherwise =  Midi.with_wdev dev $ \devp ->
+        ByteString.useAsCStringLen (Encode.encode msg) $ \(bytesp, len) ->
+        error_str ("write_message " <> showt (dev, time, msg))
+            =<< c_write_message (client_ptr client) devp
+                (fromIntegral (RealTime.to_microseconds time))
+                bytesp (fromIntegral len)
 
 foreign import ccall "write_message"
     c_write_message :: Ptr CClient -> CString -> CJackTime -> Ptr CChar

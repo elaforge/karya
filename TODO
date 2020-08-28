@@ -29,6 +29,18 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  - maybe LInst should use 1-based midi channels
+  * check for MIDI channel out of range
+    . Also if it somehow gets in, do something better than crash on (!).
+  - green-mold, if I replace "i " "" for "inst=b", derive takes forever
+    . Is it possible to get progress so I can see what it's doing?
+    . It was because b1 etc. were block names, so it substituted those and got
+      too many events.
+    . In this case, I wonder if I can show progress, or cancel.  Play will get
+      stuck on derive, but be cancelled by the timeout.
+    . If I can show a progress bar with number of events / time derived, it
+      would give the clue that something is wrong.
+    . Also, should I abort if derive takes too long?
   / is there a Factor to glue together two blocks?
     . How about split a block?  Yes, Factor.split_time.  But no join.
     . It would have to match up tracks, which seems complicated.
@@ -4910,25 +4922,80 @@ ghc-bugs:
     . Maybe fixed in 8.6?
 
 test: testing:
+  - count number of tests in addition to checks within each test
   - run individual tests from shake
-    . Have a rule to create a build/test-output/$test from RunTests $test.
-      Get the list of all tests from RunTests --list.
-    . This means test parallelism moves from RunTests to shake.  I should
-      probably do this per test file rather than per test, since the process
-      startup overhead is high.
-    . This also means I only run tests when needed, since their dependents
+    . The idea is to only run tests when needed, since their dependents
       changed.  But for this to work, I have to preserve dependencies of each
       Something_test.hs, rather than lump everything into one RunTests.  But
       if I really made separate binaries, the per-binary overhead would be too
       high.  So maybe I can get shake to retain the dependencies, but
       implement as a single binary.
+    . Have a rule to create a build/test-output/$test from RunTests $test.
+      Get the list of all tests from RunTests --list.
+    . This means test parallelism moves from RunTests to shake.  I should
+      probably do this per test file rather than per test, since the process
+      startup overhead is high.
   - on failure, instead of
       __-> Util/Format_test.hs:80 [test_render_full_width] ...
     print
       __-> Util.Format_test.test_render_full_width 80 ...
     So I can copy paste into run tests.  But fname:lineno is usual for editors
     to jump to that line.
-  quickcheck: property:
+  - Write a test for Ui.Diff and Ui.Sync.
+    . I think the easiest way to do this is make BlockCStub record its calls,
+      then have a UI simulation that interprets those.  Then I can use
+      quickcheck to verify a bunch of starting and ending states.  It would
+      compare the incremental output against creating the visible UI from
+      scratch.
+    . It seems non-trivial... but maybe worth it, seeing how complicated
+      diff and sync are.
+    . If I make Fltk into a typeclass I could substitute a pure State version.
+      But I still can't get rid of FltkStub, because the main point is to not
+      link in C++.  So as long as I'm doing that anyway, maybe I don't even
+      need a typeclass, but I still have to replace the PtrMap functions so
+      I don't need MonadIO.
+    . Except BlockC uses IO in PtrMap.modify... but that's in BlockC, which
+      relies on Fltk (IO a).  BlockCStub wouldn't need that.  So unstubbed
+      Fltk is in MonadIO, stubbed one isn't.
+    . But how am I supposed to record calls to BlockC without reifying the API
+      into a type?  And if I do that, I don't need to do this at all, just
+      have Sync return that type.
+    . I guess I'm not too worried that an intervening data type will hurt
+      performance.  Mostly because just one more allocation is probably not a
+      big deal, but also maybe if I inline the interpretation function then
+      the allocation goes away.
+  / delete build/test/tmp on every test run to avoid test contamination
+    . test/run_tests will clear it out, but sometimes I run them directly
+    . But this is pretty much limited to expecting a file in a certain
+      place, which pretty much only Perform.Im.Convert does.  Tests that
+      create tmp files should use Testing.unique_tmp_dir.
+  property: hedgehog: quickcheck:
+    - Port quickchecks to hedgehog.
+    . https://www.youtube.com/watch?v=z2ete8VZnZY&app=desktop
+    . https://fsharpforfunandprofit.com/posts/property-based-testing-2/
+    cmd:
+      . do + undo, undo + redo
+    derive:
+      . I switched back to Double for RealTime, but this means the roundoff errors
+        are back.  Use quickcheck to repro them.
+      + make a simple deriver that creates event and midi output skeletons
+      - integrate quickcheck with generate_run_tests.py
+      - assert that the reduced deriver output equals the simple deriver output
+      - basic pitches: If the score was created with notes aligned to note
+        starts, then every NoteOn should have the appropriate key, there should
+        be no pitch bends, and "same note" should be the only reason for
+        a channel split
+      - basic controls: Given randomly placed control events, notes have the
+        correct control curves.  Don't worry about times or midi.
+      - slicing: Given some simple note transformers (tuple, place, ...),
+        pitches and controls are still associated with the right notes as above.
+        Don't worry about times, just that the right notes and the right
+        controls.
+      - block call property: a couple levels of nesting for block calls, notes
+        still have the expected pitches and controls as above
+      - inversion: as 'basic pitches' and 'basic controls', but controls are
+        below the note tracks, results should be the same
+      - stack: generate nested events, check that stack is as expected
     notes:
       . In general for RealTimes, I'd like some which are the same, some which
         are close, and some randoms.
@@ -4958,56 +5025,6 @@ test: testing:
       . But no classify/coverage?
         . https://github.com/hedgehogqa/haskell-hedgehog/issues/127
         . https://hackage.haskell.org/package/tasty-hedgehog-coverage
-  - Write a test for Ui.Diff and Ui.Sync.
-    . I think the easiest way to do this is make BlockCStub record its calls,
-      then have a UI simulation that interprets those.  Then I can use
-      quickcheck to verify a bunch of starting and ending states.  It would
-      compare the incremental output against creating the visible UI from
-      scratch.
-    . It seems non-trivial... but maybe worth it, seeing how complicated
-      diff and sync are.
-    . If I make Fltk into a typeclass I could substitute a pure State version.
-      But I still can't get rid of FltkStub, because the main point is to not
-      link in C++.  So as long as I'm doing that anyway, maybe I don't even
-      need a typeclass, but I still have to replace the PtrMap functions so
-      I don't need MonadIO.
-    . Except BlockC uses IO in PtrMap.modify... but that's in BlockC, which
-      relies on Fltk (IO a).  BlockCStub wouldn't need that.  So unstubbed
-      Fltk is in MonadIO, stubbed one isn't.
-    . But how am I supposed to record calls to BlockC without reifying the API
-      into a type?  And if I do that, I don't need to do this at all, just
-      have Sync return that type.
-    . I guess I'm not too worried that an intervening data type will hurt
-      performance.  Mostly because just one more allocation is probably not a
-      big deal, but also maybe if I inline the interpretation function then
-      the allocation goes away.
-  / delete build/test/tmp on every test run to avoid test contamination
-    . test/run_tests will clear it out, but sometimes I run them directly
-    . But this is pretty much limited to expecting a file in a certain
-      place, which pretty much only Perform.Im.Convert does.  Tests that
-      create tmp files should use Testing.unique_tmp_dir.
-  complete quickcheck derive testing
-    I switched back to Double for RealTime, but this means the roundoff errors
-    are back.  Use quickcheck to repro them.
-    + make a simple deriver that creates event and midi output skeletons
-    - integrate quickcheck with generate_run_tests.py
-    - assert that the reduced deriver output equals the simple deriver output
-    - basic pitches: If the score was created with notes aligned to note
-      starts, then every NoteOn should have the appropriate key, there should
-      be no pitch bends, and "same note" should be the only reason for
-      a channel split
-    - basic controls: Given randomly placed control events, notes have the
-      correct control curves.  Don't worry about times or midi.
-    - slicing: Given some simple note transformers (tuple, place, ...),
-      pitches and controls are still associated with the right notes as above.
-      Don't worry about times, just that the right notes and the right
-      controls.
-    - block call property: a couple levels of nesting for block calls, notes
-      still have the expected pitches and controls as above
-    - inversion: as 'basic pitches' and 'basic controls', but controls are
-      below the note tracks, results should be the same
-    - stack: generate nested events, check that stack is as expected
-  - count number of tests in addition to checks within each test
 
 debugging:
   - Can I have a way to display inferred things about notes, such as reyong
