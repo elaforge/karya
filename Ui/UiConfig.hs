@@ -15,7 +15,9 @@ import qualified Data.Time as Time
 import qualified Data.Vector as Vector
 
 import qualified Util.Lens as Lens
+import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
+
 import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
@@ -132,6 +134,8 @@ verify_allocation allocs backend instrument alloc =
 verify_no_overlapping_addrs :: Allocations -> Allocation
     -> ScoreT.Instrument -> Maybe Text
 verify_no_overlapping_addrs (Allocations allocs) alloc instrument
+    | not (null out_of_range) =
+        Just $ "invalid MIDI channel: " <> pretty out_of_range
     | null overlaps = Nothing
     | otherwise = Just $ "instruments with overlapping channel allocations: "
         <> Text.intercalate ", "
@@ -139,6 +143,7 @@ verify_no_overlapping_addrs (Allocations allocs) alloc instrument
             | (addr, inst) <- overlaps
             ]
     where
+    out_of_range = filter (not . Num.inRange 0 16 . snd) $ addrs_of alloc
     overlaps = mapMaybe find (addrs_of alloc)
     find addr = (addr,) . fst <$>
         List.find ((addr `elem`) . addrs_of . snd)
