@@ -29,7 +29,7 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
-  - maybe LInst should use 1-based midi channels
+  * maybe LInst should use 1-based midi channels
   * check for MIDI channel out of range
     . Also if it somehow gets in, do something better than crash on (!).
   - green-mold, if I replace "i " "" for "inst=b", derive takes forever

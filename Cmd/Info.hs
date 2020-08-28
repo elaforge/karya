@@ -176,11 +176,14 @@ get_default_instrument block_id track_id inst
 
 -- * inst info
 
--- | Looks like: "wdev1 [0..2]; wdev2 [0,4]"
+-- | Looks like: "wdev1 [1..3]; wdev2 [1,5]"
+--
+-- This adds 1 so MIDI channels are 1-based.
 show_addrs :: [Patch.Addr] -> Text
 show_addrs addrs = semicolon_list
     [ pretty wdev
-        <> " [" <> Text.intercalate "," (show_runs (map snd addrs)) <> "]"
+        <> " [" <> Text.intercalate "," (show_runs (map ((+1) . snd) addrs))
+        <> "]"
     | (wdev, addrs) <- Seq.keyed_group_sort fst addrs
     ]
 

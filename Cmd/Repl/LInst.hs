@@ -80,7 +80,7 @@ list_midi = do
 
 -- | Pretty print matching instruments:
 --
--- > >pno - pianoteq/ loop1 [0..15]
+-- > >pno - pianoteq/ loop1 [1..16]
 -- > >syn - sampler/inst 音
 list_like :: Cmd.M m => Text -> m Text
 list_like pattern = do
@@ -153,16 +153,17 @@ allocations = Ui.config#Ui.allocations <#> Ui.get
 
 -- * add and remove
 
--- | Allocate a new MIDI instrument.  For instance:
+-- | Allocate a new MIDI instrument.  Channels have subtract 1, so they are
+-- 1-based, for consistency with 'pretty' and ultimately DAWs.  For instance:
 --
--- > LInst.add "m" "kontakt/mridangam-g" "loop1" [0]
+-- > LInst.add "m" "kontakt/mridangam-g" "loop1" [1]
 --
 -- This will create an instance of the @kontakt/mridangam@ instrument named
 -- @>m@, and assign it to the MIDI WriteDevice @loop1@, with a single MIDI
 -- channel 0 allocated.
 add :: Instrument -> Qualified -> Text -> [Midi.Channel] -> Cmd.CmdL ()
 add inst qualified wdev chans =
-    add_config inst qualified [((dev, chan), Nothing) | chan <- chans]
+    add_config inst qualified [((dev, chan - 1), Nothing) | chan <- chans]
     where dev = Midi.write_device wdev
 
 -- | Allocate the given channels for the instrument using its default device.

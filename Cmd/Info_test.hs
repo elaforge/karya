@@ -43,4 +43,4 @@ test_track_status = do
     equal (f ["*", ">"] 2) $ Just "> at 2: [] -- [* {collapse 1}]"
     equal (f [">", "*"] 3) Nothing
     equal (f [">i", "vel", "ped"] 2) $
-        Just ">i at 1: wdev [0..3] -- [vel {collapse 2}, ped {collapse 3}]"
+        Just ">i at 1: wdev [1..4] -- [vel {collapse 2}, ped {collapse 3}]"
