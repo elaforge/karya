@@ -194,7 +194,7 @@ find_modify match modify = go
     go [] = Nothing
 
 -- | Similar to 'modify_at', but will insert an element for an out of range
--- positive index.  The list will be extended with 'deflt', and the modify
+-- positive index.  The list will be extended with @deflt@, and the modify
 -- function passed a Nothing.
 update_at :: a -> Int -> (Maybe a -> a) -> [a] -> [a]
 update_at deflt i f xs
@@ -317,7 +317,7 @@ group_fst xs = [(key, map snd group) | (key, group) <- keyed_group_sort fst xs]
 group_snd :: Ord b => [(a, b)] -> [(NonNull a, b)]
 group_snd xs = [(map fst group, key) | (key, group) <- keyed_group_sort snd xs]
 
--- | Like 'groupBy', but the list doesn't need to be sorted, and use a key
+-- | Like 'List.groupBy', but the list doesn't need to be sorted, and use a key
 -- function instead of equality.  The list is sorted by the key, and the groups
 -- appear in their original order in the input list.
 group_sort :: Ord key => (a -> key) -> [a] -> [NonNull a]
@@ -760,7 +760,7 @@ split_after f = go
     go xs = pre : go post
         where (pre, post) = Then.break1 f xs
 
--- | Split 'xs' on 'sep', dropping 'sep' from the result.
+-- | Split @xs@ on @sep@, dropping @sep@ from the result.
 split :: Eq a => NonNull a -> [a] -> NonNull [a]
 split [] = error "Util.Seq.split: empty separator"
 split sep = go

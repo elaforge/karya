@@ -153,7 +153,7 @@ overlapping_attributes (AttributeMap table) =
             <> ShowVal.show_val other_attr
         Nothing -> Nothing
 
--- | 'lookup_attribute' looks for the first subset, which means that a smaller
+-- | 'lookup_attributes' looks for the first subset, which means that a smaller
 -- set of attributes can shadow a larger set.  Since it's annoying to have to
 -- worry about order, sort larger sets to the back.
 --

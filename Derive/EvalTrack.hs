@@ -123,7 +123,7 @@ import           Types
 
 
 -- | Per-track parameters, to cut down on the number of arguments taken by
--- 'derive_track'.
+-- 'derive_note_track'.
 data TrackInfo d = TrackInfo {
     tinfo_track :: !TrackTree.Track
     , tinfo_sub_tracks :: !TrackTree.EventsTree

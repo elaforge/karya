@@ -20,7 +20,7 @@
     - More instruments than just polos and sangsih.
     - Multiple kotekan thresholds.
 
-    The first two are supported at the 'PatternNote' level of abstraction.  For
+    The first two are supported at the 'KotekanNote' level of abstraction.  For
     the others, I have to either directly use 'Note's or create a new
     abstraction:
 

@@ -355,8 +355,8 @@ strip_rests events = [SubT.EventT s d n | SubT.EventT s d (Just n) <- events]
 -- | Call a note parent with sub-events.  While you can easily call other
 -- kinds of calls with 'Eval.reapply', note parents are more tricky
 -- because they expect a track structure in 'Derive.ctx_sub_tracks'.  This
--- bypasses that and directly passes 'Event's to the note parent, courtesy
--- of 'Derive.ctx_sub_events'.
+-- bypasses that and directly passes 'SubT.EventT's to the note parent,
+-- courtesy of 'Derive.ctx_sub_events'.
 reapply :: Derive.Context Score.Event -> DeriveT.Expr -> [[SubT.Event]]
     -> Derive.NoteDeriver
 reapply ctx expr notes = Eval.reapply subs expr

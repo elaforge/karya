@@ -113,7 +113,7 @@ test_config = Unsafe.unsafePerformIO $ IORef.newIORef $ Config
 modify_test_config :: (Config -> Config) -> IO ()
 modify_test_config = IORef.modifyIORef test_config
 
--- | Set 'configTestName'.  This is a grody hack, but I need it because GHC
+-- | Set 'config_test_name'.  This is a grody hack, but I need it because GHC
 -- call stack is off by one, so you get the caller line number, but the
 -- callee's function name: https://ghc.haskell.org/trac/ghc/ticket/11686
 with_test_name :: Text -> IO a -> IO a

@@ -431,8 +431,8 @@ set_attrs attrs inst_ = do
 -- * change_instrument
 
 -- | Replace the instrument in the current track with the given one, and
--- 'initialize' it.  This is intended for hardware synths which need a program
--- change or sysex, and can be invoked via "Instrument.Browser".
+-- 'initialize_midi' it.  This is intended for hardware synths which need a
+-- program change or sysex, and can be invoked via "Instrument.Browser".
 change_instrument :: Qualified -> Cmd.CmdL ()
 change_instrument new_qualified = do
     new_qualified <- parse_qualified new_qualified

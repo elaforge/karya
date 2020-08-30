@@ -38,9 +38,9 @@ instance Pretty Status where
         Stopped -> "Stopped"
         Died msg -> "Died: " <> txt msg
 
--- | Data needed by the player thread.  This is created during app setup and
--- passed directly to the play cmds by the responder loop.  When the play is
--- started, it's incorporated into the play 'State'.
+-- | Data needed by the MIDI player thread.  This is created during app setup
+-- and passed directly to the play cmds by the responder loop.  When the play
+-- is started, it's incorporated into the play 'Perform.Midi.Play.State'.
 data Info = Info {
     -- | Send status messages back to the responder loop.
     info_send_status :: Status -> IO ()

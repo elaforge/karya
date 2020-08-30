@@ -56,7 +56,7 @@ change_display = Logger.logs . (:[]) . Right
 run :: DiffM () -> ([Update.UiUpdate], [Update.DisplayUpdate])
 run = Either.partitionEithers . Identity.runIdentity . Logger.exec
 
--- | Emit a list of the necessary 'Update's to turn @st1@ into @st2@.
+-- | Figure out updates needed to turn @st1@ into @st2@.
 diff :: Update.UiDamage -> Ui.State -> Ui.State
     -> ([Update.UiUpdate], [Update.DisplayUpdate])
 diff damage st1 st2 = postproc damage st2 $ run $ do

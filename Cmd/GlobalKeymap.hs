@@ -92,7 +92,7 @@ io_keymap = Cmd.Keymap $ fst $ Keymap.make_keymap io_bindings
 -- stripped of their code, but it's still useful to find keymap collisions and
 -- print a global keymap.  They're stripped to make them all the same type, so
 -- they can all go into the same Keymap, so collision detection and
--- documentation doesn't have to care about 'pure_cmds' vs 'io_cmds'.
+-- documentation doesn't have to care about 'pure_keymap' vs 'io_keymap'.
 all_keymap :: Cmd.Keymap Cmd.CmdId
 all_keymap_errors :: [Text]
 (all_keymap, all_keymap_errors) =

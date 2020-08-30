@@ -290,7 +290,7 @@ error_stack = log_stack Error
 add_prefix :: Text -> Msg -> Msg
 add_prefix pref m = m { msg_text = pref <> ": " <> msg_text m }
 
--- | Write log msgs with 'trace', for debugging.
+-- | Write log msgs with 'Debug.trace_str', for debugging.
 trace_logs :: [Msg] -> a -> a
 trace_logs logs val
     | null logs = val

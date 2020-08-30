@@ -42,9 +42,9 @@ data Type =
 
 -- | These are kind of muddled.  This is because they were originally just
 -- documentation, so the more specific the better, but are also used for
--- typechecking in 'put_val', so the subtype relations need to be respected.
--- But since some are just documentation (e.g. TDefaultReal), they should never
--- show up on the LHS of a put_val typecheck.
+-- typechecking in 'Derive.Env.put_val', so the subtype relations need to be
+-- respected.  But since some are just documentation (e.g. TDefaultReal), they
+-- should never show up on the LHS of a put_val typecheck.
 data NumType = TUntyped | TInt
     | TTranspose | TDefaultDiatonic | TDefaultChromatic | TNoteNumber
     | TTime | TDefaultReal | TDefaultScore | TRealTime | TScoreTime
@@ -71,8 +71,8 @@ data NumValue = TAny
 -- and 'to_num_type', and a mistake or inconsistency with 'to_type' or 'to_val'
 -- will cause typechecking to fail in some subtle case.  Fortunately there are
 -- relatively few types and hopefully won't be many more, and it only affects
--- 'put_val'.  It could all do with a cleanup.  I'm sure there's a right way
--- to do this sort of thing.
+-- 'Derive.Env.put_val'.  It could all do with a cleanup.  I'm sure there's a
+-- right way to do this sort of thing.
 types_match :: Type -> Type -> Bool
 types_match t1 t2 = case (t1, t2) of
     (TNum n1 v1, TNum n2 v2) -> num_types_match n1 n2 && num_vals_match v1 v2
@@ -150,8 +150,9 @@ type_of :: Val -> Type
 type_of = infer_type_of True
 
 infer_type_of :: Bool -- ^ If True, infer the most specific type possible.
-    -- Otherwise, infer a general type.  This is because if 'put_val' gets a
-    -- 1 it doesn't mean it's intended to be a TPositive.
+    -- Otherwise, infer a general type.  This is because if
+    -- 'Derive.Env.put_val' gets a 1 it doesn't mean it's intended to be a
+    -- TPositive.
     -> Val -> Type
 infer_type_of specific val = case val of
     VNum (ScoreT.Typed typ val) -> TNum (to_num_type typ) $ if specific

@@ -39,7 +39,7 @@ instance Texts.Textlike Doc where
     fromText = Doc
 
 -- | This probably doesn't belong here, but it's useful in the same contexts as
--- 'doc'.
+-- 'Doc'.
 pretty :: Pretty.Pretty a => a -> Doc
 pretty = literal . Pretty.pretty
 

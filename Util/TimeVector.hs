@@ -53,7 +53,7 @@ type Boxed y = Vector.Vector (Sample y)
 
 -- There's no monoid instance for Boxed or Unboxed, and I leave it that way.
 -- Implementations should implement their own Monoid with their own rules,
--- perhaps using 'merge', which is for piecewise-constant signals.
+-- perhaps using 'merge_left', which is for piecewise-constant signals.
 
 type Unboxed = Storable.Vector (Sample UnboxedY)
 type UnboxedY = Double
@@ -175,8 +175,8 @@ merge_left vs = case next_end vs of
     --   |--->             |->
     --     |--->             |->
 
--- | When signals are 'merge'd, the later one overrides the first one.  This
--- is the other way: the first one will override the second.
+-- | When signals are 'merge_left'd, the later one overrides the first one.
+-- This is the other way: the first one will override the second.
 {-# SPECIALIZE prepend :: Unboxed -> Unboxed -> Unboxed #-}
 {-# INLINEABLE prepend #-}
 prepend :: V.Vector v (Sample y) => v (Sample y) -> v (Sample y)

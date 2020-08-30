@@ -199,7 +199,7 @@ sort (Stream events) = from_sorted_list $ Seq.sort_on levent_key events
 
 -- | Merge sorted lists of events.  If the lists themselves are also sorted,
 -- I can produce output without scanning the entire input list, so this should
--- be more efficient for a large input list than 'merge'.
+-- be more efficient for a large input list than (<>).
 --
 -- This assumes all the streams are sorted.  I could check first, but this
 -- would destroy the laziness.  Instead, let it be out of order, and Convert

@@ -87,7 +87,7 @@ method_edit_at pos key = modify_event_at pos $ \event ->
             EditUtil.modify_text_key [] key (event_method event) },
         False)
 
--- | Record the last note entered.  Should be called by 'with_note'.
+-- | Record the last note entered.
 cmd_record_note_status :: Cmd.M m => Msg.Msg -> m Cmd.Status
 cmd_record_note_status msg = do
     case msg of

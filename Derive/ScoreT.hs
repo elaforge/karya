@@ -203,7 +203,7 @@ instance ShowVal.ShowVal (Typed Signal.Y) where
     show_val (Typed typ val) = ShowVal.show_val val <> type_to_code typ
 
 -- | This is a snapshot of the control signals at a certain point in time.
--- It's meant for 'PitchConfig', so the values are expected to be
--- transpositions, and hence untyped.
+-- It's meant for 'Derive.PSignal.PitchConfig', so the values are expected to
+-- be transpositions, and hence untyped.
 type ControlValMap = Map Control Signal.Y
 type TypedControlValMap = Map Control (Typed Signal.Y)

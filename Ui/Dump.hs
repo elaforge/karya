@@ -4,7 +4,7 @@
 
 {- | Support for testing the GUI.
 
-    The GUI exports a 'dump' function which emits a sexpr-like set of
+    There is a function 'Ui.BlockC.dump', which emits a sexpr-like set of
     key-value pairs representing its current state.  Tests can then check this
     dump for certain expected values.
 

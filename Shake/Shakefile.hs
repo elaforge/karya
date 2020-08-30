@@ -694,6 +694,7 @@ configure = do
                     -- I use manual SCCs for accuracy, but auto ones can be
                     -- useful to figure out where to put manual ones.
                     -- ++ ["-fprof-auto-top"]
+                    -- ++ ["-fprof-auto-exported"]
             ]
         , hLinkFlags = concat
             [ ["-rtsopts", "-threaded"]

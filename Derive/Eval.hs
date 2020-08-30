@@ -333,9 +333,9 @@ eval_one_at collect start dur expr = eval_expr collect ctx expr
     -- this way I can have zero duration events.
     ctx = Derive.dummy_context start dur $ ShowVal.show_val expr
 
--- | Like 'derive_event' but evaluate the event outside of its track context.
--- This is useful if you want to evaluate things out of order, i.e. evaluate
--- the /next/ pitch.
+-- | Like 'Derive.EvalTrack.derive_event' but evaluate the event outside of its
+-- track context.  This is useful if you want to evaluate things out of order,
+-- i.e. evaluate the /next/ pitch.
 eval_event :: Derive.CallableExpr d => Event.Event
     -> Derive.Deriver (Either Text (Stream.Stream d))
 eval_event event = case Parse.parse_expr (Event.text event) of

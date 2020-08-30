@@ -248,7 +248,7 @@ in_range range events = within
     where (_, within, _) = split_range range events
 
 -- | Get events in the given range, plus surrounding.  If there is no event at
--- 'start', the previous event will be included.  The event after 'end' is
+-- @start@, the previous event will be included.  The event after @end@ is
 -- always included.
 around :: ScoreTime -> ScoreTime -> Events -> Events
 around start end events = Events $ above $ below within
