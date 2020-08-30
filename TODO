@@ -71,8 +71,6 @@ UNSORTED
     . I don't really need it though.
   - bug: logview: error parsing "": can't decode json
     . It should say where in the file this happens.
-  - bug: ever since the slow scrolling: change, I sometimes get a light gray
-    background on track titles.
   / bug: editing control at a particular spot only edits one higit.
     . Also it turns into an interpolate when it should be set.
     . Maybe has to do with being at 1/3?
@@ -4562,6 +4560,8 @@ rust-gui:
     . Dependency on rust.
 
 fltk:
+  - bug: ever since the slow scrolling: change, I sometimes get a light gray
+    background on track titles.
   keycaps:
     notes:
       . It could be useful to display a keyboard along with cmd for each key.
@@ -4767,7 +4767,7 @@ fltk:
     . I could put a mini version in the background of the event.  I'd need
       to be careful to retain readability.  Maybe only show the frist track,
       or the first note track.
-  - reduce duplication in EventTrack.cc drawable_pixels
+  / reduce duplication in EventTrack.cc drawable_pixels
   - I need to differentiate DEBUG from LOG.  And LOG can go to seq.log.
     . I'd need to pass a haskell callback, so it can serialize to JSON.
   - what's going on with SeqScrollbar and FlSeqScrollbar?  Looks incomplete?
@@ -5099,7 +5099,6 @@ REPL: repl:
         dist/build/objs-39495/libHSfast-tags-1.4.2-EKWV1xgHS3F5IyzUV7QwVY.a
         dist/build/Control/Monad/EitherK.o dist/build/FastTags/Tag.o
         ...
-
     . Have to figure out how to cabal does the linking.
     . https://github.com/judah/pier implements its own compile.
       Probably in Pier.Build.Components
@@ -5123,9 +5122,61 @@ REPL: repl:
     send the score name, and reject if it's changed.
     . Another way is if I add back push notifications that the score has
       changed, I could kill off the editor.  But I'd lose unwritten changes.
+    . The standard way would be to warn before quitting if there's an editor
+      open with unsaved changes, but I don't really have that mechanism.
+    . Maybe I should though, because I can quit without saving a score too!
+    modal:
+      . traditional way: cancel, quit without save, save & quit
+      . show the warning: I suppose it would be a whole new window, like
+        keycaps, though this one is modal.  Maybe that's simpler, in that it
+        could be 'AppC.modal :: Text -> [Choice] -> Fltk Choice', and no need
+        for messages.
+      . Then I have to trigger a save, for the score it's easy, but for the
+        editor I would need some signal for it to save and quit.
+    single warning:
+      . show a warning, and then quit on the second one, or quit on shift+cmd+q
+      . show the warning: I don't think I want to put it in logview, since
+        it's frequently buried... though that's really the place for it.
+        Maybe I should instead enhance logview to bring to front on a high
+        prio message.
+    auto save:
+      . If there is unsaved data on quit, write it to `save-fn`.unsaved
+      . The danger is that I won't notice it, and on next load not notice
+        the revert, and then on the next quit the .unsaved will be
+        overwritten, or at least out of date.
+      . However, the git backend doesn't have the problem, though that can be
+        an annoyance, because I might want to discard changes.  Still I can
+        get back just by reverting to the last tag.
+    - logview pops to front on a high prio message.
+    + "soft quit" logs and warning and aborts if there is unsaved score, or
+      open editor.
+      . How to know if an editor is open?
+      . Since the editor stuff is purely REPL-level, it needs to inform seq
+        about editor open and close.
+      . Ensure that editor open also shows up in the status box as unsaved.
+        . A refinement is if it was saved, and editor quits with no change,
+          then it's saved.
+      - Somehow Cmd._saved gets set to False, don't know where.
+        . Weirder, if I omit Internal.update_saved, nothing draws!?
+        . I think it's a bug hidden by update_saved, the sync_edit_state just
+          happens to get it to notice the change.
+        * Ui.put does a damage all, but no view damage?  But shouldn't block
+          damage imply view daamge?
+    - Also do quit checking when loading another score!
+    - on load kbd focus is somehow not on the root block, even though it looks
+      like it.
+      . Is it due to keycaps?
+      . Save has a Cmd.focus, which does lead to BringToFront.
+    - implement ReplProtocol.NQuit
+      . I think I can just hard close any open editor.
+      . But since I'm blocked waiting for the editor, I'll need another
+        thread.
+  - it's annoying if I try to save a file, and build/opt/send doesn't exist
+    . Easy solution is to 'mk' it if it's not there.
   - Now that save file is a poll instead of being pushed, it takes a return
     to notice a change.  Can I restore the notification thing?  Or maybe it's
     enough to make sure I write the history to the new name?
+    . I can use ReplProtocol.NotifyRepl
   - I don't really use ReplStub, can I get rid of the awkward #ifdef then?
   - only write history when the cmd succeeded
   - command to open the haddock for a module

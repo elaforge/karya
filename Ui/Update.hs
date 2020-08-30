@@ -95,7 +95,6 @@ track_damage id range = mempty { _tracks = Map.singleton id range }
 ruler_damage :: RulerId -> UiDamage
 ruler_damage id = mempty { _rulers = Set.singleton id }
 
-
 data Update t u =
     View ViewId View
     | Block BlockId (Block t)

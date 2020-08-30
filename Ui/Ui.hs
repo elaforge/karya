@@ -388,7 +388,8 @@ run state action = do
         . flip State.runStateT state . (\(StateT x) -> x)) action
     return $ case res of
         Left err -> Left err
-        Right ((val, state), damage) -> Right (val, state, damage)
+        Right ((val, state), damage) ->
+            Right (val, state, block_to_view_damage (state_views state) damage)
 
 run_id :: State -> StateId a -> Either Error (a, State, Update.UiDamage)
 run_id state m = Identity.runIdentity (run state m)
@@ -414,6 +415,22 @@ exec state m = case result of
 exec_rethrow :: M m => Text -> State -> StateId a -> m State
 exec_rethrow msg state =
     require_right (((msg <> ": ") <>) . pretty) . exec state
+
+-- | Promote block damage to damage on all of that block's views.  This is run
+-- before returning the UiDamage out of the Ui monad.  Otherwise, Diff isn't
+-- smart enough to update views when the underlying blocks change.
+block_to_view_damage :: Map ViewId Block.View -> Update.UiDamage
+    -> Update.UiDamage
+block_to_view_damage views damage
+    | null view_ids = damage
+    | otherwise = damage
+        { Update._views = Update._views damage <> Set.fromList view_ids }
+    where
+    -- This is O(blocks*views) because I have no index BlockId -> [ViewId].
+    -- But damaged blocks and views should both be small.
+    view_ids = mconcatMap views_of (Set.toList (Update._blocks damage))
+    views_of block_id = map fst $
+        filter ((==block_id) . Block.view_block . snd) $ Map.toList views
 
 
 -- ** error
