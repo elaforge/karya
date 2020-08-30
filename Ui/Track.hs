@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE RankNTypes #-}
 -- | The 'Track' type and supporting functions.
 module Ui.Track where
 import qualified Control.DeepSeq as DeepSeq
@@ -14,6 +15,7 @@ import qualified Perform.Signal as Signal
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
+import qualified Ui.Id as Id
 import qualified Ui.Types as Types
 
 import           Global
@@ -70,11 +72,17 @@ set_events events = modify_events (const events)
 type SetStyle = (TrackBg, Event.EventStyle)
 
 -- | High level 'SetStyle', with information provided automatically.
--- Bool is true if the track has note track children.
 --
 -- It's a bit awkward to have two SetStyles, but some information can only be
 -- supplied by "Ui.Sync".
-type SetStyleHigh = (TrackBg, Bool -> Event.EventStyle)
+data SetStyleHigh = SetStyleHigh {
+    _track_bg :: TrackBg
+    -- | The arguments are what 'Cmd.Internal.event_style' needs to figure out
+    -- a style.
+    , _set_event_style :: forall a. Id.Namespace -> Map BlockId a -> BlockId
+        -> Bool -- has note track children?
+        -> Event.EventStyle
+    }
 type TrackBg = Track -> Color.Color
 
 -- * track signal

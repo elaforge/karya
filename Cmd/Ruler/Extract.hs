@@ -7,18 +7,18 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 
 import qualified Util.Seq as Seq
-import qualified Ui.Event as Event
-import qualified Ui.Ruler as Ruler
-import qualified Ui.Ui as Ui
-
-import qualified Cmd.NoteTrack as NoteTrack
+import qualified Cmd.NoteTrackParse as NoteTrackParse
 import qualified Cmd.Ruler.Meter as Meter
 import qualified Cmd.Ruler.Modify as Modify
 import qualified Cmd.Ruler.RulerUtil as RulerUtil
 
 import qualified Derive.ParseTitle as ParseTitle
-import Global
-import Types
+import qualified Ui.Event as Event
+import qualified Ui.Ruler as Ruler
+import qualified Ui.Ui as Ui
+
+import           Global
+import           Types
 
 
 -- * pull_up
@@ -38,7 +38,7 @@ pull_up block_id track_id = do
 
 block_calls :: Ui.M m => BlockId -> TrackId -> m [(Event.Event, BlockId)]
 block_calls block_id track_id = map (second NonEmpty.head) <$>
-    NoteTrack.track_block_calls False block_id track_id
+    NoteTrackParse.track_block_calls False block_id track_id
 
 
 -- * push_down

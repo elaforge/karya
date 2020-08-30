@@ -32,15 +32,39 @@ UNSORTED
   * maybe LInst should use 1-based midi channels
   * check for MIDI channel out of range
     . Also if it somehow gets in, do something better than crash on (!).
-  - green-mold, if I replace "i " "" for "inst=b", derive takes forever
+  green-mold, if I replace "i " "" for "inst=b", derive takes forever
     . Is it possible to get progress so I can see what it's doing?
     . It was because b1 etc. were block names, so it substituted those and got
       too many events.
     . In this case, I wonder if I can show progress, or cancel.  Play will get
       stuck on derive, but be cancelled by the timeout.
-    . If I can show a progress bar with number of events / time derived, it
+    - If I can show a progress bar with number of events / time derived, it
       would give the clue that something is wrong.
-    . Also, should I abort if derive takes too long?
+      . Also, should I abort if derive takes too long?
+    * special color for block calls
+      . Some indication of block calls would have solved this too... maybe
+        I could color the event specially?  In the future I'd like to put a mini
+        version of the block.
+      . It's Internal.event_style, but I don't have Ui.State in there, and can't
+        because it's standalone Track.SetStyleHigh
+      ways:
+        1 Try to pass Ui.State arg to SetStyleHigh.
+          I already do something like this with has_children.
+        2 Annotate the Event somehow.  I already have this in modified,
+          awkwardly encoded into the StyleId.  I could bite the bullet and
+          give it a set of flags.  It's annoying because then serialize becomes
+          incompatible, though maybe not that bad because Events.Events has
+          a version.
+          . Also I still have to annotate the event somehow, somewhere.
+            Modified works because it's in response to an UI action.  I could do
+            the same though, after an edit check Ui.State and flip a flag.  This
+            would be more efficient, but also error-prone since it's state,
+            effectively a cache.
+        3 Use highlights.  I could have the block call emit a highlight, and if
+          it's transparent, apply darkening for all block calls without extra
+          StyleIds.  However, it should be less efficient, because of all the
+          extra transparent selections.
+        . I did 1.
   / is there a Factor to glue together two blocks?
     . How about split a block?  Yes, Factor.split_time.  But no join.
     . It would have to match up tracks, which seems complicated.

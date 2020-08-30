@@ -407,23 +407,32 @@ event_comment = "--|"
 -- static.
 styles :: [Style.Style]
 styles =
-    [style { Style.style_face = face } | style <- plain_styles, face <- faces]
-    where faces = [[], [Style.Bold], [Style.Italic], [Style.Bold, Style.Italic]]
+    [ style { Style.style_face = face }
+    | style <- plain_styles, face <- style_faces
+    ]
 
+style_faces :: [[Style.FontFace]]
+style_faces = [[], [Style.Bold], [Style.Italic], [Style.Bold, Style.Italic]]
+
+-- | Tweak the StyleId to set or enset the given 'Style.FontFace'.
 set_face :: Bool -> Style.FontFace -> Style.StyleId -> Style.StyleId
 set_face set face (Style.StyleId style) =
-    Style.StyleId $ n * 4 + case face of
+    Style.StyleId $ n * faces + case face of
         Style.Bold -> set_bit c 0
         Style.Italic -> set_bit c 1
     where
     set_bit = if set then Bits.setBit else Bits.clearBit
-    (n, c) = style `divMod` 4
+    (n, c) = style `divMod` faces
+    faces = fromIntegral (length style_faces)
 
 event_style :: Style -> Style.StyleId -> Style.StyleId
 event_style style (Style.StyleId code) =
-    Style.StyleId $ fromIntegral (fromEnum style) * 4 + code `mod` 4
+    Style.StyleId $ fromIntegral (fromEnum style) * faces + code `mod` faces
+    where faces = fromIntegral (length style_faces)
 
-data Style = Default | Control | Pitch | Parent | Error | Commented
+-- | These should line up with the 'plain_styles' list below.
+data Style =
+    Note | NoteBlockCall | Control | Pitch | NoteParent | Error | Commented
     deriving (Enum, Show)
 
 default_style :: Style.StyleId
@@ -432,13 +441,15 @@ default_style = Style.StyleId 0
 plain_styles :: [Style.Style]
 plain_styles =
     [ plain note_color
+    , plain block_call_color
     , plain control_color
     , plain pitch_color
-    , plain parent_color
+    , plain note_parent_color
     , plain parse_error_color
-    , (plain Color.gray8) { Style.style_text_color = Color.gray4 }
+    , commented
     ]
     where
+    commented = (plain Color.gray8) { Style.style_text_color = Color.gray4 }
     plain event_color = Style.Style
         { style_font = Style.Helvetica
         , style_face = []
@@ -451,6 +462,14 @@ plain_styles =
 note_color :: Color.Color
 note_color = Color.rgb 0.9 0.9 0.7
 
+-- | Events on note tracks which have a block call.  I color these specially
+-- because they're very common, and thus it's common for them to accidentally
+-- conflict with other note generators.
+block_call_color :: Color.Color
+block_call_color = note_parent_color
+    -- The theory is that this color isn't in use since I only use it in parent
+    -- calls, and those aren't block calls.
+
 -- | Events on control tracks.
 control_color :: Color.Color
 control_color = Color.rgb 0.7 0.8 0.7
@@ -460,8 +479,8 @@ pitch_color :: Color.Color
 pitch_color = Color.rgb 0.7 0.8 0.9
 
 -- | A note track with tracks below it.
-parent_color :: Color.Color
-parent_color = Color.rgb 1.0 1.0 0.65
+note_parent_color :: Color.Color
+note_parent_color = Color.rgb 1.0 1.0 0.65
 
 -- | Parse errors.
 parse_error_color :: Color.Color

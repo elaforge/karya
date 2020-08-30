@@ -17,15 +17,15 @@ type UiLogT m = Ui.StateT (Log.LogT m)
 type UiLog = UiLogT Identity.Identity
 
 run :: Monad m => Ui.State -> UiLogT m a
-    -> m (Either Ui.Error (a, Ui.State, [Update.CmdUpdate]), [Log.Msg])
+    -> m (Either Ui.Error (a, Ui.State, Update.UiDamage), [Log.Msg])
 run state = Log.run . Ui.run state
 
 run_id :: Ui.State -> UiLog a
-    -> (Either Ui.Error (a, Ui.State, [Update.CmdUpdate]), [Log.Msg])
+    -> (Either Ui.Error (a, Ui.State, Update.UiDamage), [Log.Msg])
 run_id state = Identity.runIdentity . run state
 
 exec_id :: Ui.State -> UiLog a
-    -> (Either Ui.Error (Ui.State, [Update.CmdUpdate]), [Log.Msg])
+    -> (Either Ui.Error (Ui.State, Update.UiDamage), [Log.Msg])
 exec_id state = first (fmap extract) . run_id state
     where extract (_, state, updates) = (state, updates)
 

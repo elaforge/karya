@@ -14,21 +14,21 @@ import qualified Data.Tree as Tree
 
 import qualified Util.Maps as Maps
 import qualified Util.Seq as Seq
-import qualified Ui.Event as Event
-import qualified Ui.Events as Events
-import qualified Ui.Ruler as Ruler
-import qualified Ui.TrackTree as TrackTree
-import qualified Ui.Ui as Ui
-
-import qualified Cmd.NoteTrack as NoteTrack
+import qualified Cmd.NoteTrackParse as NoteTrackParse
 import qualified Cmd.Ruler.Extract as Extract
 import qualified Cmd.Ruler.Meter as Meter
 import qualified Cmd.Ruler.Modify as Modify
 import qualified Cmd.Ruler.RulerUtil as RulerUtil
 
 import qualified Derive.ParseTitle as ParseTitle
-import Global
-import Types
+import qualified Ui.Event as Event
+import qualified Ui.Events as Events
+import qualified Ui.Ruler as Ruler
+import qualified Ui.TrackTree as TrackTree
+import qualified Ui.Ui as Ui
+
+import           Global
+import           Types
 
 
 update_callers_rulers :: Ui.M m => BlockId -> TrackTime -> TrackTime
@@ -150,7 +150,7 @@ callers_of callee = strip <$> do
     forM block_tracks $ \(block_id, track_ids) -> do
         track_ids <- filterM is_note_track track_ids
         fmap (block_id,) $ forM track_ids $ \track_id -> do
-            calls <- NoteTrack.track_block_calls False block_id track_id
+            calls <- NoteTrackParse.track_block_calls False block_id track_id
             return (track_id,
                 [event | (event, call :| _) <- calls, call == callee])
     where

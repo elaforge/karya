@@ -528,12 +528,16 @@ insert_track state set_style block_id view_id tracknum dtrack tlike_id tlike
 -- one more thing that can get out of sync.
 update_set_style :: Ui.State -> BlockId -> Block.TracklikeId
     -> Track.SetStyleHigh -> Track.SetStyle
-update_set_style state block_id (Block.TId track_id _) (track_bg, set_style) =
-    (track_bg, set_style note_children)
+update_set_style state block_id tlike (Track.SetStyleHigh track_bg set_style) =
+    (track_bg,) $ case tlike of
+        Block.TId track_id _ ->
+            set_style ns (Ui.state_blocks state) block_id note_children
+            where
+            note_children = either (const False) id $ Ui.eval state $
+                has_note_children block_id track_id
+        _ -> set_style ns mempty block_id False
     where
-    note_children = either (const False) id $ Ui.eval state $
-        has_note_children block_id track_id
-update_set_style _ _ _ (track_bg, set_style) = (track_bg, set_style False)
+    ns = Ui.config_namespace (Ui.state_config state)
 
 has_note_children :: Ui.M m => BlockId -> TrackId -> m Bool
 has_note_children block_id track_id = do

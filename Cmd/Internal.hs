@@ -22,6 +22,7 @@ import qualified App.Config as Config
 import qualified App.Path as Path
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
+import qualified Cmd.NoteTrackParse as NoteTrackParse
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
@@ -240,12 +241,13 @@ update_of _ = Nothing
 -- * set style
 
 set_style :: Track.SetStyleHigh
-set_style = (track_bg, event_style)
+set_style = Track.SetStyleHigh track_bg event_style
 
 -- | Set the style of an event based on its contents.  This is hardcoded
 -- for now but it's easy to put in StaticConfig if needed.
-event_style :: Bool -> Event.EventStyle
-event_style has_note_children title event =
+event_style :: Id.Namespace -> Map BlockId a -> BlockId -> Bool
+    -> Event.EventStyle
+event_style namespace blocks block_id has_note_children title event =
     integrated $
         Config.event_style (style_of (Event.text event)) (Event.style event)
     where
@@ -257,10 +259,14 @@ event_style has_note_children title event =
         | otherwise = case Parse.parse_expr text of
             Left _ -> Config.Error
             Right _
-                | ParseTitle.is_note_track title -> if has_note_children
-                    then Config.Parent else Config.Default
+                | ParseTitle.is_note_track title ->
+                    if has_note_children then Config.NoteParent
+                    else if is_block_call text then Config.NoteBlockCall
+                    else Config.Note
                 | ParseTitle.is_pitch_track title -> Config.Pitch
                 | otherwise -> Config.Control
+    is_block_call = not . null . NoteTrackParse.block_calls_of False to_block_id
+    to_block_id = NoteTrackParse.to_block_id blocks namespace (Just block_id)
 
 -- | Set the track background color.
 track_bg :: Track.Track -> Color.Color

@@ -13,6 +13,15 @@ import qualified Util.Log as Log
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
+import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Create as Create
+import qualified Cmd.Info as Info
+import qualified Cmd.Msg as Msg
+import qualified Cmd.NoteTrackParse as NoteTrackParse
+import qualified Cmd.Selection as Selection
+import qualified Cmd.Views as Views
+
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Skeleton as Skeleton
@@ -20,17 +29,8 @@ import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Ui as Ui
 import qualified Ui.Update as Update
 
-import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Create as Create
-import qualified Cmd.Info as Info
-import qualified Cmd.Msg as Msg
-import qualified Cmd.NoteTrack as NoteTrack
-import qualified Cmd.Selection as Selection
-import qualified Cmd.Views as Views
-
-import qualified Derive.ParseTitle as ParseTitle
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- * skeleton
@@ -110,7 +110,7 @@ cmd_open_block align_new_view = do
     sel <- Selection.events
     block_id <- Cmd.get_focused_block
     parent <- Ui.get_view =<< Cmd.get_focused_view
-    let block_calls = NoteTrack.expr_block_calls True block_id . Event.text
+    let block_calls = NoteTrackParse.expr_block_calls True block_id . Event.text
     forM_ sel $ \(_, events) -> forM_ events $ \event ->
         mapM_ (open parent event) =<< block_calls event
     where

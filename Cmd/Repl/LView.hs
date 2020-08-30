@@ -10,18 +10,18 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
+import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Create as Create
+import qualified Cmd.NoteTrackParse as NoteTrackParse
+import qualified Cmd.ViewConfig as ViewConfig
+import qualified Cmd.Views as Views
+
 import qualified Ui.Block as Block
 import qualified Ui.Ui as Ui
 import qualified Ui.Zoom as Zoom
 
-import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Create as Create
-import qualified Cmd.NoteTrack as NoteTrack
-import qualified Cmd.ViewConfig as ViewConfig
-import qualified Cmd.Views as Views
-
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- * create
@@ -31,7 +31,7 @@ create name = do
     blocks <- Ui.gets Ui.state_blocks
     ns <- Ui.get_namespace
     caller <- Cmd.get_focused_block
-    whenJust (NoteTrack.to_block_id blocks ns (Just caller) name) $
+    whenJust (NoteTrackParse.to_block_id blocks ns (Just caller) name) $
         void . Create.view
 
 -- | For the current window, open enough views at the current zoom to see the
