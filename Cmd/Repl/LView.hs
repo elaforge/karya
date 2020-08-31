@@ -70,8 +70,8 @@ compact screen =
 -- * save and load
 
 -- | Show the list of saved views, with a star on the focused one.
-list :: Cmd.CmdL Text
-list = do
+saved :: Cmd.CmdL Text
+saved = do
     saved <- Ui.config#Ui.saved_views <#> Ui.get
     return $ Pretty.formatted $ Map.map pretty saved
     where

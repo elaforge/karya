@@ -303,8 +303,16 @@ clear_environ = modify_common_config_ $ Common.cenviron #= mempty
 
 set_addr :: Ui.M m => Text -> [Midi.Channel] -> Instrument -> m ()
 set_addr wdev chans = modify_midi_config_ $
-    Patch.allocation #= [((dev, chan), Nothing) | chan <- chans]
+    Patch.allocation #= [((dev, chan-1), Nothing) | chan <- chans]
     where dev = Midi.write_device wdev
+
+set_chans :: Ui.M m => [Midi.Channel] -> Instrument -> m ()
+set_chans chans = modify_midi_config_ $ \config ->
+    case Patch.config_allocation config of
+        ((dev, _), _) : _ ->
+            Patch.allocation #= [((dev, chan-1), Nothing) | chan <- chans] $
+                config
+        [] -> config
 
 set_controls :: Ui.M m => [(ScoreT.Control, Signal.Y)] -> Instrument -> m ()
 set_controls controls = modify_common_config_ $
