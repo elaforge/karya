@@ -246,7 +246,7 @@ valid_chan_msg msg = case msg of
     ControlChange cc val -> val7 cc && val7 val
     NoteOn (Key key) vel -> val7 key && val7 vel
     NoteOff (Key key) vel -> val7 key && val7 vel
-    PitchBend val -> 0 <= val && val < 2^14
+    PitchBend val -> -1 <= val && val <= 1
     _ -> True
     where val7 v = 0 <= v && v < 128
 
