@@ -14,5 +14,6 @@ void clear_logs(LogViewWindow *view);
 
 void set_status(LogViewWindow *view, const char *status, const char *style);
 void set_filter(LogViewWindow *view, const char *filter);
+void bring_to_front(LogViewWindow *view);
 
 };

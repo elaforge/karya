@@ -139,8 +139,7 @@ handle_msgs chan win db = do
 -- | Look up the instrument, generate a info sheet on it, and send to the UI.
 show_info :: Fltk.Channel -> BrowserC.Window -> Db -> InstTypes.Qualified
     -> IO ()
-show_info chan win db qualified =
-    Fltk.send_action chan $ BrowserC.set_info win info
+show_info chan win db qualified = Fltk.action chan $ BrowserC.set_info win info
     where
     info = fromMaybe ("not found: " <> InstTypes.show_qualified qualified) $ do
         let InstTypes.Qualified synth_name inst_name = qualified
@@ -339,9 +338,9 @@ process_query chan win db displayed query = do
     let matches = Search.search (db_index db) (Search.parse query)
         diff = Seq.diff_index (==) displayed matches
     forM_ diff $ \(i, paired) -> case paired of
-        Seq.Second inst -> Fltk.send_action chan $
+        Seq.Second inst -> Fltk.action chan $
             BrowserC.insert_line win (i+1) (InstTypes.show_qualified inst)
-        Seq.First _inst -> Fltk.send_action chan $
+        Seq.First _inst -> Fltk.action chan $
             BrowserC.remove_line win (i+1)
         _ -> return ()
     return matches

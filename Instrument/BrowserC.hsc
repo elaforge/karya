@@ -15,7 +15,7 @@ import qualified Util.Fltk as Fltk
 type Window = Fltk.Window MsgType
 
 create :: Int -> Int -> Int -> Int -> Fltk.Fltk (Fltk.Window MsgType)
-create x y w h = Fltk.action $
+create x y w h = Fltk.fltk $
     Fltk.create_window decode_type c_create_browser x y w h "instrument browser"
 
 foreign import ccall "create_browser"
@@ -23,19 +23,19 @@ foreign import ccall "create_browser"
         -> FunPtr Fltk.MsgCallback -> IO (Ptr Window)
 
 insert_line :: Window -> Int -> Text -> Fltk.Fltk ()
-insert_line win n line = Fltk.action $ CUtil.withText line $ \linep ->
+insert_line win n line = Fltk.fltk $ CUtil.withText line $ \linep ->
     c_insert_line (Fltk.win_ptr win) (fromIntegral n) linep
 foreign import ccall "insert_line"
     c_insert_line :: Ptr Window -> CInt -> CString -> IO ()
 
 remove_line :: Window -> Int -> Fltk.Fltk ()
-remove_line win n = Fltk.action $
+remove_line win n = Fltk.fltk $
     c_remove_line (Fltk.win_ptr win) (fromIntegral n)
 
 foreign import ccall "remove_line" c_remove_line :: Ptr Window -> CInt -> IO ()
 
 set_info :: Window -> Text -> Fltk.Fltk ()
-set_info win info = Fltk.action $ CUtil.withText info $ \infop ->
+set_info win info = Fltk.fltk $ CUtil.withText info $ \infop ->
     c_set_info (Fltk.win_ptr win) infop
 
 foreign import ccall "set_info" c_set_info :: Ptr Window -> CString -> IO ()

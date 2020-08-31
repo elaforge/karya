@@ -5151,7 +5151,7 @@ REPL: repl:
       . However, the git backend doesn't have the problem, though that can be
         an annoyance, because I might want to discard changes.  Still I can
         get back just by reverting to the last tag.
-    - logview pops to front on a high prio message.
+    * logview pops to front on a high prio message.
     * "soft quit" logs and warning and aborts if there is unsaved score, or
       open editor.
       . How to know if an editor is open?
@@ -5168,6 +5168,7 @@ REPL: repl:
           damage imply view daamge?
         . Ok, definitely unset by update_saved.
     - Also do quit checking when loading another score!
+      . That means I need "hard load".
     - on load kbd focus is somehow not on the root block, even though it looks
       like it.
       . Is it due to keycaps?

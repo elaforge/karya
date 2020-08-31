@@ -3,14 +3,16 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Util.Fltk (
-    Fltk, action, quit, run_action, Channel, new_channel
-    , event_loop, send_action
+    Fltk, Result(..), fltk, action, quit, run_action, Channel, new_channel
+    , event_loop
     -- * window
     , Window, win_ptr, MsgCallback, Msg(..)
     , create_window, read_msg
 ) where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
+import qualified Control.Monad.Trans as Trans
+
 import qualified Data.ByteString as ByteString
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text.Encoding
@@ -20,19 +22,28 @@ import qualified Foreign
 import qualified Foreign.C as C
 
 
-data Fltk a = Quit | Action (IO a)
-newtype Channel = Channel (Concurrent.MVar [Fltk ()])
+newtype Fltk a = Fltk (IO a)
+    deriving (Functor, Applicative, Monad, Trans.MonadIO)
 
-action :: IO a -> Fltk a
-action = Action
+data Result = Continue | Quit
+    deriving (Show)
+
+newtype Channel = Channel (Concurrent.MVar [Fltk Result])
+
+fltk :: IO a -> Fltk a
+fltk = Fltk
+
+-- | Send a Fltk action that doesn't quit.
+action :: Channel -> Fltk () -> IO ()
+action chan act = send_action chan (act >> return Continue)
 
 quit :: Channel -> IO ()
-quit chan = send_action chan Quit
+quit chan = send_action chan (return Quit)
 
--- | Run an action directly in the main thread.
+-- | Run an action directly, rather than over the 'Channel'.  Only use this if
+-- you're certain you're the main thread!
 run_action :: Fltk a -> IO a
-run_action (Action act) = act
-run_action Quit = error "run_action on a Quit"
+run_action (Fltk act) = act
 
 new_channel :: IO Channel
 new_channel = Channel <$> Concurrent.newMVar []
@@ -48,19 +59,21 @@ event_loop chan = do
         done <- not . Foreign.toBool <$> c_has_windows
         if done then return () else do
             c_wait
-            quit <- handle_actions chan
-            if quit then return () else loop chan
+            handle_actions chan >>= \case
+                Quit -> return ()
+                Continue -> loop chan
 
-handle_actions :: Channel -> IO Bool
-handle_actions (Channel chan) = Concurrent.modifyMVar chan $ \acts -> do
-    let quit = not $ null [Quit | Quit <- acts]
-    if quit then return ([], True) else do
-        -- The events are consed to the start, so reverse to get them back in
-        -- the right order.
-        sequence_ $ reverse [act | Action act <- acts]
-        return ([], False)
+handle_actions :: Channel -> IO Result
+handle_actions (Channel chan) = Concurrent.modifyMVar chan $ go . reverse
+    -- The events are consed to the start, so reverse to get them back in
+    -- the right order.
+    where
+    go (Fltk act : acts) = act >>= \case
+        Quit -> return ([], Quit)
+        Continue -> go acts
+    go [] = return ([], Continue)
 
-send_action :: Channel -> Fltk () -> IO ()
+send_action :: Channel -> Fltk Result -> IO ()
 send_action (Channel chan) act = do
     Concurrent.modifyMVar_ chan (return . (act:))
     c_awake

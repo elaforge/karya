@@ -222,8 +222,12 @@ handle_new_msg chan win msg = do
     let (styled, new_state) = Process.process_msg state msg
     State.put new_state
     case styled of
-        Just (Process.StyledText txt style) -> send_action chan $
+        Just (Process.StyledText txt style) -> send_action chan $ do
             LogViewC.append_log win txt style
+            -- This is an experimental feature to draw more attention when
+            -- there's an interesting log msg.
+            when (Log.msg_priority msg >= Log.Warn) $
+                LogViewC.bring_to_front win
         Nothing -> return ()
     let new_status = Process.state_status new_state
     when (Process.state_status state /= new_status) $ do
@@ -234,14 +238,14 @@ handle_new_msg chan win msg = do
 handle_clicked_word :: Text -> IO ()
 handle_clicked_word word
     | "{" `Text.isPrefixOf` word && "}" `Text.isSuffixOf` word =
-        send_to_app (Text.drop 1 (Text.dropEnd 1 word))
+        send_to_seq (Text.drop 1 (Text.dropEnd 1 word))
     | otherwise = putStrLn $ "logview: unknown clicked word: " ++ show word
 
 send_action :: State.MonadIO m => Fltk.Channel -> Fltk.Fltk () -> m ()
-send_action chan = liftIO . Fltk.send_action chan
+send_action chan = liftIO . Fltk.action chan
 
-send_to_app :: Text -> IO ()
-send_to_app cmd = do
+send_to_seq :: Text -> IO ()
+send_to_seq cmd = do
     response <- ReplProtocol.format_result <$>
         ReplProtocol.query_cmd Config.repl_socket cmd
     unless (Text.null response) $

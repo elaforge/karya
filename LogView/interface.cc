@@ -40,4 +40,10 @@ set_filter(LogViewWindow *view, const char *filter)
     view->view.set_filter(filter);
 }
 
+void
+bring_to_front(LogViewWindow *view)
+{
+    view->show();
+}
+
 };
