@@ -5063,6 +5063,10 @@ midi record:
       speed.  Add, widen, or narrow vibrato.
 
 REPL: repl:
+  - enable :doc, like in ghci
+    . This in turn requires some special setup, see -haddock flag.
+  - :browse to look in modules... can I use GHC.getBindings for this?
+    . Show names, types, and docs.
   - use ghc package:
     . I could probably the repl more robust by putting most things in a package
     . Pier.Build.Components.buildLibraryFromDesc
@@ -5148,7 +5152,7 @@ REPL: repl:
         an annoyance, because I might want to discard changes.  Still I can
         get back just by reverting to the last tag.
     - logview pops to front on a high prio message.
-    + "soft quit" logs and warning and aborts if there is unsaved score, or
+    * "soft quit" logs and warning and aborts if there is unsaved score, or
       open editor.
       . How to know if an editor is open?
       . Since the editor stuff is purely REPL-level, it needs to inform seq
@@ -5156,12 +5160,13 @@ REPL: repl:
       . Ensure that editor open also shows up in the status box as unsaved.
         . A refinement is if it was saved, and editor quits with no change,
           then it's saved.
-      - Somehow Cmd._saved gets set to False, don't know where.
+      . Somehow Cmd._saved gets set to False, don't know where.
         . Weirder, if I omit Internal.update_saved, nothing draws!?
         . I think it's a bug hidden by update_saved, the sync_edit_state just
           happens to get it to notice the change.
         * Ui.put does a damage all, but no view damage?  But shouldn't block
           damage imply view daamge?
+        . Ok, definitely unset by update_saved.
     - Also do quit checking when loading another score!
     - on load kbd focus is somehow not on the root block, even though it looks
       like it.
@@ -5184,7 +5189,6 @@ REPL: repl:
   - can I get local variable bindings (let x = ...; y <- ...) to work in the
     REPL?
   - :compile cmd that turns on compilation for everything except Environ
-  - :browse to look in modules... can I use GHC.getBindings for this?
   - :module cmd to move evaluation context to a certain module, maybe I
     could also get rid of the need for Cmd.Lang.Environ to import everything.
 

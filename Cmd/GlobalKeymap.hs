@@ -135,9 +135,11 @@ undo_bindings = concat
 -- | Quit is special because it's the only Cmd that returns Cmd.Quit.
 -- See how annoying it is to make a keymap by hand?
 quit_bindings :: [Keymap.Binding (Cmd.CmdT IO)]
-quit_bindings =
-    bind_key_status [PrimaryCommand] (Key.Char (PhysicalKey.physical_key 'q'))
-        "quit" (Play.cmd_stop >> return Cmd.Quit)
+quit_bindings = concat
+    [ bind_key_status [PrimaryCommand] q "soft quit" Save.soft_quit
+    , bind_key_status [Shift, PrimaryCommand] q "hard quit" Save.hard_quit
+    ]
+    where q = Key.Char (PhysicalKey.physical_key 'q')
 
 -- * pure cmds
 

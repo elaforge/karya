@@ -4,7 +4,17 @@
 
 -- | Internal Cmds, that keep bits of Cmd.State up to date that everyone else
 -- relies on.
-module Cmd.Internal where
+module Cmd.Internal (
+    cmd_record_keys
+    , record_focus
+    , cmd_record_ui_updates
+    , update_ui_state
+    , set_style
+    , sync_status
+    , default_selection_hooks
+    , sync_zoom_status
+    , can_checkpoint
+) where
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
@@ -94,10 +104,6 @@ cmd_record_keys msg = cont $ whenJust (msg_to_mod msg) $ \(down, mb_mod) -> do
         Nothing -> mods
     not_key_mod (Cmd.KeyMod _) = False
     not_key_mod _ = True
-
-modifier_key :: Cmd.Modifier -> Maybe Key.Modifier
-modifier_key (Cmd.KeyMod m) = Just m
-modifier_key _ = Nothing
 
 -- | Get the set of Key.Modifiers from the msg.
 msg_to_key_mods :: Msg.Msg -> Maybe [Key.Modifier]
@@ -287,11 +293,11 @@ sync_status ui_from cmd_from damage = do
 
     cmd_to <- Cmd.get
     let updates = fst $ Diff.run $ Diff.diff_views ui_from ui_to damage
-        new_views = mapMaybe create_view updates
+        new_views = mapMaybe is_create_view updates
         edit_state = Cmd.state_edit cmd_to
     when (not (null new_views) || Cmd.state_edit cmd_from /= edit_state
             || Cmd.state_saved cmd_from /= Cmd.state_saved cmd_to) $
-        sync_edit_state (save_status cmd_to) edit_state
+        sync_edit_state (get_save_status cmd_to) edit_state
     sync_play_state $ Cmd.state_play cmd_to
     sync_save_file (Cmd.score_path cmd_to) (fst <$> Cmd.state_save_file cmd_to)
     sync_defaults $ Ui.config#Ui.default_ #$ ui_to
@@ -300,24 +306,26 @@ sync_status ui_from cmd_from damage = do
     -- forM_ (new_views ++ mapMaybe zoom_update updates) sync_zoom_status
     return Cmd.Continue
     where
-    create_view (Update.View view_id Update.CreateView) = Just view_id
-    create_view _ = Nothing
+    is_create_view (Update.View view_id Update.CreateView) = Just view_id
+    is_create_view _ = Nothing
     selection_update (Update.View view_id (Update.Selection selnum sel))
         | selnum == Config.insert_selnum = Just (view_id, sel)
     selection_update _ = Nothing
     -- zoom_update (Update.View view_id (Update.Zoom {})) = Just view_id
     -- zoom_update _ = Nothing
 
--- | Flip 'Cmd.state_saved' if the score has changed.  "Cmd.Save" will turn it
+-- | Flip 'Cmd._saved_state' if the score has changed.  "Cmd.Save" will turn it
 -- back on after a save.
 update_saved :: Update.UiDamage -> Ui.State -> Ui.State -> Cmd.State
     -> Cmd.State
-update_saved damage ui_from ui_to cmd_state = case Cmd.state_saved cmd_state of
-    Nothing -> cmd_state { Cmd.state_saved = Just True }
-    Just True | Maybe.isNothing (can_checkpoint cmd_state)
+update_saved damage ui_from ui_to cmd_state = case saved_state of
+    Cmd.JustLoaded -> cmd_state
+        { Cmd.state_saved = Cmd.Saved Cmd.SavedChanges editor_open }
+    Cmd.SavedChanges | Maybe.isNothing (can_checkpoint cmd_state)
             && Diff.score_changed ui_from ui_to damage ->
-        cmd_state { Cmd.state_saved = Just False }
-    Just _ -> cmd_state
+        cmd_state { Cmd.state_saved = Cmd.Saved Cmd.UnsavedChanges editor_open }
+    _ -> cmd_state
+    where Cmd.Saved saved_state editor_open = Cmd.state_saved cmd_state
 
 -- | Return Just if there will be a git checkpoint.  'update_saved' has to
 -- predict this because by the time 'Cmd.Undo.save_history' runs, it's too
@@ -379,6 +387,7 @@ sync_edit_box save_status st = do
     let mode = Cmd.state_edit_mode st
     let skel = Block.Box (skel_color mode (Cmd.state_advance st)) $
             (if Cmd.state_chord st then snd else fst) $ case save_status of
+                -- Behold my cutesy attempt to fit in both bits of info.
                 CantSave -> ('x', '⊗')
                 Unsaved ->  ('/', 'ø')
                 Saved ->    (' ', 'o')
@@ -390,13 +399,14 @@ sync_edit_box save_status st = do
 
 data SaveStatus = CantSave | Unsaved | Saved deriving (Eq, Show)
 
-save_status :: Cmd.State -> SaveStatus
-save_status state = case Cmd.state_save_file state of
+get_save_status :: Cmd.State -> SaveStatus
+get_save_status state = case Cmd.state_save_file state of
     Nothing -> CantSave
     Just (Cmd.ReadOnly, _) -> CantSave
-    Just (Cmd.ReadWrite, _) -> case Cmd.state_saved state of
-        Just False -> Unsaved
-        _ -> Saved
+    Just (Cmd.ReadWrite, _)
+        | editor_open || saved_state /= Cmd.SavedChanges -> Unsaved
+        | otherwise -> Saved
+        where Cmd.Saved saved_state editor_open = Cmd.state_saved state
 
 skel_color :: Cmd.EditMode -> Bool -> Color.Color
 skel_color Cmd.NoEdit _ = edit_color Cmd.NoEdit

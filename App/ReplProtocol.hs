@@ -5,12 +5,15 @@
 -- | Define the protocol between the sequencer's repl port and the repl client.
 module App.ReplProtocol (
     -- * types
-    Query(..), Response(..), CmdResult(..), Result(..), Editor(..), File(..)
+    Query(..), NotifySeq(..)
+    , Response(..), NotifyRepl(..)
+    , CmdResult(..), Result(..), Editor(..), File(..)
     , FileType(..), file_type_extension
     , empty_result, error_result, raw
     -- * protocol
     , initialize
     , query_cmd, query_save_file, query_completion
+    , notify
     , server_receive, server_send
     -- * format
     , format_result
@@ -35,8 +38,30 @@ import Util.Serialize (get, put, get_tag, put_tag)
 import Global
 
 
--- | This is a simple RPC mechanism.
-data Query = QSaveFile | QCommand !Text | QCompletion !Text
+-- | This is a simple RPC mechanism.  'Query' goes to the server, which
+-- responds with the matching 'Response'.
+data Query =
+    QSaveFile
+    | QCommand !Text
+    | QCompletion !Text
+    -- | A notification doesn't have a corrpesponding 'Response'.
+    | QNotify !NotifySeq
+    deriving (Eq, Show)
+
+data NotifySeq =
+    -- | These are so the sequencer knows if there are open editors, so it
+    -- can refuse to quit and hence orphan them.
+    NEditorOpened | NEditorClosed
+    deriving (Eq, Show)
+
+data Response =
+    RSaveFile !(Maybe FilePath) -- ^ current save file
+    | RCommand !CmdResult
+    | RCompletion ![Text] -- ^ possible completions for the prefix
+    | RNotify !NotifyRepl
+    deriving (Eq, Show)
+
+data NotifyRepl = NQuit
     deriving (Eq, Show)
 
 instance Pretty Query where
@@ -44,12 +69,7 @@ instance Pretty Query where
         QSaveFile -> "SaveFile"
         QCommand t -> "Command: " <> t
         QCompletion t -> "Completion: " <> t
-
-data Response =
-    RSaveFile !(Maybe FilePath) -- ^ current save file
-    | RCommand !CmdResult
-    | RCompletion ![Text] -- ^ possible completions for the prefix
-    deriving (Eq, Show)
+        QNotify notify -> showt notify
 
 data CmdResult = CmdResult !Result ![Log.Msg]
     deriving (Eq, Show)
@@ -61,6 +81,13 @@ data Result =
     deriving (Eq, Show)
 
 -- | Open an editor locally.
+--
+-- How this works is that a Cmd will return the special 'Edit' value, which
+-- will be specially interpreted in the repl to open an editor.  The editor
+-- will be configured such that when it saves, it will send its buffer to
+-- the sequencer via a REPL function with a string argument (configured by
+-- '_on_save').  The text goes back separately via the @send@ command, since
+-- the REPL itself will be blocked waiting for the editor to exit.
 data Editor = Editor {
     _file :: !File
     -- | Start editing on this line.
@@ -68,7 +95,7 @@ data Editor = Editor {
     -- | Send QCommands when the editor saves or quits.  A %s is replaced by
     -- the edited text.
     , _on_save :: !(Maybe Text)
-    -- | Send on an explicit send cmd, \'gs\' in vi.
+    -- | Send on an explicit send cmd, @gs@ in vim.
     , _on_send :: !(Maybe Text)
     } deriving (Eq, Show)
 
@@ -111,6 +138,12 @@ query addr query = Exception.try $ Network.withConnection addr $ \hdl -> do
     send hdl query
     IO.hFlush hdl
     receive hdl
+
+-- | Like 'query', but don't expect a response.
+notify :: Network.Addr -> NotifySeq -> IO (Either Exception.IOException ())
+notify addr notify = Exception.try $ Network.withConnection addr $ \hdl -> do
+    send hdl $ QNotify notify
+    IO.hFlush hdl
 
 -- | Send a 'QCommand'.
 query_cmd :: Network.Addr -> Text -> IO CmdResult
@@ -208,21 +241,41 @@ instance Serialize.Serialize Query where
     put QSaveFile = put_tag 0
     put (QCommand a) = put_tag 1 >> put a
     put (QCompletion a) = put_tag 2 >> put a
-    get = get_tag >>= \tag -> case tag of
+    put (QNotify a) = put_tag 3 >> put a
+    get = get_tag >>= \case
         0 -> return QSaveFile
         1 -> QCommand <$> get
         2 -> QCompletion <$> get
-        _ -> Serialize.bad_tag "Query" tag
+        3 -> QNotify <$> get
+        tag -> Serialize.bad_tag "Query" tag
+
+instance Serialize.Serialize NotifySeq where
+    put = \case
+        NEditorOpened -> put_tag 0
+        NEditorClosed -> put_tag 1
+    get = get_tag >>= \case
+        0 -> return NEditorOpened
+        1 -> return NEditorClosed
+        tag -> Serialize.bad_tag "NotifySeq" tag
 
 instance Serialize.Serialize Response where
     put (RSaveFile a) = put_tag 0 >> put a
     put (RCommand a) = put_tag 1 >> put a
     put (RCompletion a) = put_tag 2 >> put a
-    get = get_tag >>= \tag -> case tag of
+    put (RNotify a) = put_tag 3 >> put a
+    get = get_tag >>= \case
         0 -> RSaveFile <$> get
         1 -> RCommand <$> get
         2 -> RCompletion <$> get
-        _ -> Serialize.bad_tag "Response" tag
+        3 -> RNotify <$> get
+        tag -> Serialize.bad_tag "Response" tag
+
+instance Serialize.Serialize NotifyRepl where
+    put = \case
+        NQuit -> put_tag 0
+    get = get_tag >>= \case
+        0 -> return NQuit
+        tag -> Serialize.bad_tag "NotifyRepl" tag
 
 instance Serialize.Serialize CmdResult where
     put (CmdResult a b) = put a >> put b
@@ -232,11 +285,11 @@ instance Serialize.Serialize Result where
     put (Raw a) = put_tag 0 >> put a
     put (Format a) = put_tag 1 >> put a
     put (Edit a) = put_tag 2 >> put a
-    get = get_tag >>= \tag -> case tag of
+    get = get_tag >>= \case
         0 -> Raw <$> get
         1 -> Format <$> get
         2 -> Edit <$> get
-        _ -> Serialize.bad_tag "Result" tag
+        tag -> Serialize.bad_tag "Result" tag
 
 instance Serialize.Serialize Editor where
     put (Editor a b c d) = put a >> put b >> put c >> put d
@@ -245,10 +298,10 @@ instance Serialize.Serialize Editor where
 instance Serialize.Serialize File where
     put (FileName a) = put_tag 0 >> put a
     put (Text a b) = put_tag 1 >> put a >> put b
-    get = get_tag >>= \tag -> case tag of
+    get = get_tag >>= \case
         0 -> FileName <$> get
         1 -> Text <$> get <*> get
-        _ -> Serialize.bad_tag "File" tag
+        tag -> Serialize.bad_tag "File" tag
 
 instance Serialize.Serialize FileType where
     put = Serialize.put_enum

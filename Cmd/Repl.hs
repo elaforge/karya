@@ -87,16 +87,27 @@ respond session msg = do
     (response_hdl, query) <- case msg of
         Msg.Socket hdl s -> return (hdl, s)
         _ -> Cmd.abort
-    (response, status) <- case query of
+    (mb_response, status) <- case query of
         ReplProtocol.QSaveFile -> do
             save_file <- fmap (name_of . snd) <$> Cmd.gets Cmd.state_save_file
-            return (ReplProtocol.RSaveFile save_file, Cmd.Done)
+            return (Just $ ReplProtocol.RSaveFile save_file, Cmd.Done)
         ReplProtocol.QCommand expr -> command session (Text.strip expr)
         ReplProtocol.QCompletion prefix -> do
             words <- liftIO $ ReplImpl.complete session prefix
-            return (ReplProtocol.RCompletion words, Cmd.Done)
+            return (Just $ ReplProtocol.RCompletion words, Cmd.Done)
+        ReplProtocol.QNotify notify -> do
+            case notify of
+                ReplProtocol.NEditorOpened -> Cmd.modify $ \st -> st
+                    { Cmd.state_saved = (Cmd.state_saved st)
+                        { Cmd._editor_open = True }
+                    }
+                ReplProtocol.NEditorClosed -> Cmd.modify $ \st -> st
+                    { Cmd.state_saved = (Cmd.state_saved st)
+                        { Cmd._editor_open = False }
+                    }
+            return (Nothing, Cmd.Done)
     liftIO $ Exception.handle warn_io_errors $ do
-        ReplProtocol.server_send response_hdl response
+        whenJust mb_response $ ReplProtocol.server_send response_hdl
         IO.hClose response_hdl
     return status
     where
@@ -106,7 +117,7 @@ respond session msg = do
         Log.warn $ "caught exception from socket write: " <> showt exc
 
 command :: ReplImpl.Session -> Text
-    -> Cmd.CmdT IO (ReplProtocol.Response, Cmd.Status)
+    -> Cmd.CmdT IO (Maybe ReplProtocol.Response, Cmd.Status)
 command session expr = do
     ns <- Ui.get_namespace
     expr <- Cmd.require_right ("expand_macros: "<>) $ expand_macros ns expr
@@ -115,7 +126,7 @@ command session expr = do
         Just cmd -> return cmd
         Nothing -> liftIO $ ReplImpl.interpret session expr
     (response, status) <- run_cmdio $ Cmd.name ("repl: " <> expr) cmd
-    return (ReplProtocol.RCommand response, status)
+    return (Just $ ReplProtocol.RCommand response, status)
 
 -- | Replace \@some-id with @(make_id ns \"some-id\")@
 expand_macros :: Id.Namespace -> Text -> Either Text Text

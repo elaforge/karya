@@ -138,19 +138,21 @@ send_command addr expr
     | otherwise = do
         result <- ReplProtocol.query_cmd addr (Text.strip expr)
         result <- print_logs result
-        handle_result result
+        handle_result addr result
 
-handle_result :: ReplProtocol.Result -> IO Status
-handle_result (ReplProtocol.Raw text) = do
+handle_result :: Network.Addr -> ReplProtocol.Result -> IO Status
+handle_result _ (ReplProtocol.Raw text) = do
     unless (Text.null (Text.strip text)) $
         Text.IO.putStrLn (Text.stripEnd text)
     return Continue
-handle_result (ReplProtocol.Format text) = do
+handle_result _ (ReplProtocol.Format text) = do
     unless (Text.null (Text.strip text)) $
         putStr $ PPrint.format_str $ untxt text
     return Continue
-handle_result (ReplProtocol.Edit editors) = do
+handle_result addr (ReplProtocol.Edit editors) = do
+    ReplProtocol.notify addr ReplProtocol.NEditorOpened
     edit_multiple editors
+    ReplProtocol.notify addr ReplProtocol.NEditorClosed
     return Continue
 
 print_logs :: ReplProtocol.CmdResult -> IO ReplProtocol.Result
@@ -199,10 +201,14 @@ plain_bg = "\ESC[39;49m"
 
 -- * editor
 
--- | Edit multiple files, each with their own vim config.
+-- | Edit multiple files, each with their own vim config.  This blocks until
+-- the editor exits.
 --
 -- The technique is to make a file of vim commands that edits each file and
 -- runs commands in turn.
+--
+-- TODO currently only vim is supported, but I assume other editors could also
+-- be press-ganged into similar service.
 edit_multiple :: NonEmpty ReplProtocol.Editor -> IO ()
 edit_multiple edits_ = with_files (map ReplProtocol._file edits) $ \fnames ->
     with_temp "repl-cmds-" ".vim" (make_cmds fnames) $ \cmd_fname -> do

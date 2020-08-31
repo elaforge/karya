@@ -534,10 +534,7 @@ data State = State {
     -- | If set, the current 'Ui.State' was loaded from this file.
     -- This is so save can keep saving to the same file.
     , state_save_file :: !(Maybe (Writable, SaveFile))
-    -- | Nothing means a state was just loaded, so it counts as saved even if
-    -- it has changed.  Just True means the state hasn't changed since being
-    -- saved, and Just False means it has.
-    , state_saved :: !(Maybe Bool)
+    , state_saved :: !Saved
     , state_ky_cache :: !(Maybe KyCache)
     -- | Omit the usual derive delay for these blocks, and trigger a derive.
     -- This is set by integration, which modifies a block in response to
@@ -595,6 +592,24 @@ data State = State {
 data SaveFile = SaveState !Path.Canonical | SaveRepo !Path.Canonical
     deriving (Show, Eq)
 data Writable = ReadWrite | ReadOnly deriving (Show, Eq)
+
+-- | This tracks how much the score has been saved to disk.
+data Saved = Saved {
+    _saved_state :: !SavedState
+    , _editor_open :: !Bool
+    } deriving (Eq, Show)
+
+-- True if state is synced to disk, either because it was just saved and
+-- not significantly changed, or because it was just loaded.
+data SavedState =
+    -- | Just loaded from a file.  This is almost like SavedChanges, except
+    -- that it's required so 'Cmd.Internal.sync_status' can tell the difference
+    -- between the state changing because it was just loaded (set to
+    -- SavedChanges) and changing due to an edit (set to UnsavedChanges).
+    JustLoaded
+    | UnsavedChanges
+    | SavedChanges
+    deriving (Eq, Show)
 
 data KeycapsUpdate =
     KeycapsUpdate KeycapsState (Maybe ((Int, Int), KeycapsT.Layout))
@@ -667,7 +682,7 @@ initial_state :: Config -> State
 initial_state config = State
     { state_config = config
     , state_save_file = Nothing
-    , state_saved = Nothing
+    , state_saved = Saved JustLoaded False
     , state_ky_cache = Nothing
     , state_derive_immediately = Set.empty
     -- This is a dummy entry needed to bootstrap a Cmd.State.  Normally

@@ -11,8 +11,10 @@
     given state, without messing with the SaveFile.
 -}
 module Cmd.Save (
+    -- * quit
+    soft_quit, hard_quit
     -- * universal
-    save, load, read, read_, load_template
+    , save, load, read, read_, load_template
     , infer_save_type
     -- * state
     , save_state, save_state_as, load_state
@@ -63,6 +65,27 @@ import qualified Ui.UiConfig as UiConfig
 import           Global
 
 
+-- * quit
+
+-- | Warn and abort if there is unsaved data, otherwise quit.
+soft_quit :: Cmd.CmdT IO Cmd.Status
+soft_quit = unsaved_data >>= \case
+    Just msg -> do
+        Log.warn $ "refusing to quit: " <> msg
+        return Cmd.Done
+    Nothing -> hard_quit
+
+unsaved_data :: Cmd.M m => m (Maybe Text)
+unsaved_data = Cmd.gets Cmd.state_saved >>= \case
+    Cmd.Saved Cmd.UnsavedChanges _ -> return $ Just "unsaved changes"
+    Cmd.Saved _ True ->
+        return $ Just "repl editor is open, possibly with unsaved changes"
+    _ -> return Nothing
+
+-- | Quit.  If there is unsaved data, it will be discarded!
+hard_quit :: Cmd.CmdT IO Cmd.Status
+hard_quit = Play.cmd_stop >> return Cmd.Quit
+
 -- * universal
 
 -- | Save to the current 'Cmd.state_save_file', or create a new git repo if
@@ -79,7 +102,7 @@ save = Cmd.gets Cmd.state_save_file >>= \case
 load :: FilePath -> Cmd.CmdT IO ()
 load path = do
     (state, save_file) <- read path
-    set_state save_file True state
+    set_loaded_state save_file state
 
 -- | Try to guess whether the given path is a git save or state save.  If it's
 -- a directory, look inside for a .git or .state save.
@@ -106,7 +129,7 @@ read_ path = infer_save_type path >>= \case
 load_template :: FilePath -> Cmd.CmdT IO ()
 load_template fn = do
     (state, _) <- read fn
-    set_state Nothing True state
+    set_loaded_state Nothing state
     now <- liftIO $ Time.getCurrentTime
     Ui.modify_config $ Ui.meta#Ui.creation #= now
 
@@ -179,7 +202,7 @@ save_state = save_state_as =<< Cmd.require "can't save, no save file"
 save_state_as :: FilePath -> Cmd.CmdT IO ()
 save_state_as fname = do
     fname <- write_current_state fname
-    set_save_file (Just (Cmd.ReadWrite, SaveState fname)) False
+    set_save_file (Just (Cmd.ReadWrite, SaveState fname)) Save
 
 write_current_state :: FilePath -> Cmd.CmdT IO FilePath
 write_current_state fname = do
@@ -202,7 +225,7 @@ write_state fname state = do
 load_state :: FilePath -> Cmd.CmdT IO ()
 load_state fname = do
     (state, save_file) <- read_state fname
-    set_state save_file True state
+    set_loaded_state save_file state
 
 read_state :: FilePath -> Cmd.CmdT IO (Ui.State, StateSaveFile)
 read_state fname = do
@@ -281,12 +304,12 @@ save_git_as repo = do
                 (SaveGitTypes.SaveHistory state Nothing [] ["save"]))
     save <- rethrow =<< liftIO (SaveGit.set_save_tag repo commit)
     Log.notice $ "wrote save " <> showt save <> " to " <> showt repo
-    set_save_file (Just (Cmd.ReadWrite, SaveRepo repo commit Nothing)) False
+    set_save_file (Just (Cmd.ReadWrite, SaveRepo repo commit Nothing)) Save
 
 load_git :: FilePath -> Maybe SaveGit.Commit -> Cmd.CmdT IO ()
 load_git repo maybe_commit = do
     (state, save_file) <- read_git repo maybe_commit
-    set_state save_file True state
+    set_loaded_state save_file state
 
 read_git :: FilePath -> Maybe SaveGit.Commit
     -> Cmd.CmdT IO (Ui.State, StateSaveFile)
@@ -397,48 +420,12 @@ data SaveFile =
     deriving (Show)
 type StateSaveFile = Maybe (Cmd.Writable, SaveFile)
 
--- | If I switch away from a repo (either to another repo or to a plain state),
--- I have to clear out all the remains of the old repo, since its Commits are
--- no longer valid.
---
--- It's really important to call this whenever you change
--- 'Cmd.state_save_file'!
-set_save_file :: StateSaveFile -> Bool -> Cmd.CmdT IO ()
-set_save_file save_file clear_history = do
-    (maybe_commit, file) <- case save_file of
-        Nothing -> return (Nothing, Nothing)
-        Just (writable, save) -> case save of
-            SaveState fname -> do
-                path <- liftIO $ Path.canonical fname
-                return (Nothing, Just (writable, Cmd.SaveState path))
-            SaveRepo repo commit _ -> do
-                path <- liftIO $ Path.canonical repo
-                return (Just commit, Just (writable, Cmd.SaveRepo path))
-    cmd_state <- Cmd.get
-    when (file /= Cmd.state_save_file cmd_state) $ do
-        ui_state <- Ui.get
-        liftIO $ save_views cmd_state ui_state
-        Cmd.modify $ \state -> state
-            { Cmd.state_save_file = file
-            , Cmd.state_history = let hist = Cmd.state_history state in hist
-                { Cmd.hist_past = if clear_history then []
-                    else map clear (Cmd.hist_past hist)
-                , Cmd.hist_present = (Cmd.hist_present hist)
-                    { Cmd.hist_commit = maybe_commit }
-                , Cmd.hist_future = []
-                }
-            , Cmd.state_history_config = (Cmd.state_history_config state)
-                { Cmd.hist_last_commit = maybe_commit }
-            }
-    -- This is called both when saving and loading, so it's a good place to
-    -- mark that the state is synced to disk.
-    Cmd.modify $ \st -> st { Cmd.state_saved = Nothing }
-    where
-    clear entry = entry { Cmd.hist_commit = Nothing }
+data SaveDirection = Save | Load deriving (Show)
 
-set_state :: StateSaveFile -> Bool -> Ui.State -> Cmd.CmdT IO ()
-set_state save_file clear_history state = do
-    set_save_file save_file clear_history
+-- | Do the necessary housekeeping after loading a new Ui.State.
+set_loaded_state :: StateSaveFile -> Ui.State -> Cmd.CmdT IO ()
+set_loaded_state save_file state = do
+    set_save_file save_file Load
     Play.cmd_stop
     Cmd.modify $ Cmd.reinit_state (Cmd.empty_history_entry state)
     -- Names is only set on a git load.  This will cause "Cmd.Undo" to clear
@@ -455,5 +442,52 @@ set_state save_file clear_history state = do
     root <- case Ui.config_root (Ui.state_config state) of
         Nothing -> return Nothing
         Just root -> Seq.head . Map.keys <$> Ui.views_of root
+    -- Try to focus on the root block, for consistency.
     let focused = msum [root, Seq.head $ Map.keys (Ui.state_views state)]
     whenJust focused Cmd.focus
+
+-- | If I switch away from a repo (either to another repo or to a plain state),
+-- I have to clear out all the remains of the old repo, since its Commits are
+-- no longer valid.
+--
+-- It's really important to call this whenever you change
+-- 'Cmd.state_save_file'!
+set_save_file :: StateSaveFile -> SaveDirection -> Cmd.CmdT IO ()
+set_save_file save_file direction = do
+    (maybe_commit, file) <- case save_file of
+        Nothing -> return (Nothing, Nothing)
+        Just (writable, save) -> case save of
+            SaveState fname -> do
+                path <- liftIO $ Path.canonical fname
+                return (Nothing, Just (writable, Cmd.SaveState path))
+            SaveRepo repo commit _ -> do
+                path <- liftIO $ Path.canonical repo
+                return (Just commit, Just (writable, Cmd.SaveRepo path))
+    cmd_state <- Cmd.get
+    when (file /= Cmd.state_save_file cmd_state) $ do
+        ui_state <- Ui.get
+        liftIO $ save_views cmd_state ui_state
+        Cmd.modify $ \state -> state
+            { Cmd.state_save_file = file
+            , Cmd.state_history = let hist = Cmd.state_history state in hist
+                { Cmd.hist_past = case direction of
+                    Load -> []
+                    Save -> map clear (Cmd.hist_past hist)
+                , Cmd.hist_present = (Cmd.hist_present hist)
+                    { Cmd.hist_commit = maybe_commit }
+                , Cmd.hist_future = []
+                }
+            , Cmd.state_history_config = (Cmd.state_history_config state)
+                { Cmd.hist_last_commit = maybe_commit }
+            }
+    -- This is called both when saving and loading, so it's a good place to
+    -- mark that the state is synced to disk.
+    Cmd.modify $ \st -> st
+        { Cmd.state_saved = (Cmd.state_saved st)
+            { Cmd._saved_state = case direction of
+                Load -> Cmd.JustLoaded
+                Save -> Cmd.SavedChanges
+            }
+        }
+    where
+    clear entry = entry { Cmd.hist_commit = Nothing }
