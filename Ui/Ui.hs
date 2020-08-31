@@ -512,7 +512,7 @@ allocation inst = config # allocations_map # Lens.map inst
 -- * view
 
 get_view :: M m => ViewId -> m Block.View
-get_view view_id = get >>= lookup_id view_id . state_views
+get_view view_id = lookup_id view_id . state_views =<< get
 
 lookup_view :: M m => ViewId -> m (Maybe Block.View)
 lookup_view view_id = gets (Map.lookup view_id . state_views)
@@ -1575,7 +1575,7 @@ find_tracks f blocks = do
         ]
 
 -- | Lookup @map!key@, throwing if it doesn't exist.
-lookup_id :: (Ord k, Show k, M m) => k -> Map k a -> m a
+lookup_id :: (CallStack.Stack, Ord k, Show k, M m) => k -> Map k a -> m a
 lookup_id key map = case Map.lookup key map of
     Nothing -> throw $ "State.lookup: unknown " <> showt key
     Just val -> return val

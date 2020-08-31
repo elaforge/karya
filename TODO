@@ -29,6 +29,15 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  - is there a repl cmd to multiply control vals?
+  * bug deleting view:
+    sync_status: Ui/Ui.hs:515 State.lookup: unknown (vid "green-mold/b185.v1")
+    . In keycaps, due to Cmd.get_focused_block.  It's still the focused view
+      even though it's gone.
+    . The window close should throw focus, but there's probably a moment in
+      between.
+    . Can I have window close clear Cmd.focused_view?
+  - copy paste that understands track types
   * maybe LInst should use 1-based midi channels
   * check for MIDI channel out of range
     . Also if it somehow gets in, do something better than crash on (!).
@@ -5067,6 +5076,7 @@ REPL: repl:
     . This in turn requires some special setup, see -haddock flag.
   - :browse to look in modules... can I use GHC.getBindings for this?
     . Show names, types, and docs.
+    . Tab completion already does this, but just for names.
   - use ghc package:
     . I could probably the repl more robust by putting most things in a package
     . Pier.Build.Components.buildLibraryFromDesc
@@ -5173,10 +5183,12 @@ REPL: repl:
       like it.
       . Is it due to keycaps?
       . Save has a Cmd.focus, which does lead to BringToFront.
+      . This is probably fltk level, since OS X thinks the block has focus.
     - implement ReplProtocol.NQuit
       . I think I can just hard close any open editor.
       . But since I'm blocked waiting for the editor, I'll need another
         thread.
+      . And since this is async, App.Repl needs to be async in general.
   - it's annoying if I try to save a file, and build/opt/send doesn't exist
     . Easy solution is to 'mk' it if it's not there.
   - Now that save file is a poll instead of being pushed, it takes a return

@@ -1364,7 +1364,7 @@ keys_down :: M m => m (Map Modifier Modifier)
 keys_down = gets state_keys_down
 
 get_focused_view :: M m => m ViewId
-get_focused_view = gets state_focused_view >>= abort_unless
+get_focused_view = abort_unless =<< gets state_focused_view
 
 get_focused_block :: M m => m BlockId
 get_focused_block = Block.view_block <$> (Ui.get_view =<< get_focused_view)

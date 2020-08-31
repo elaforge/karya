@@ -142,20 +142,19 @@ msg_to_mod msg = case msg of
 
 -- | Keep 'Cmd.state_focused_view' up to date.
 record_focus :: Cmd.M m => Msg.Msg -> m Cmd.Status
-record_focus msg = case msg of
-    Msg.Ui (UiMsg.UiMsg (UiMsg.Context { UiMsg.ctx_focus = Just view_id }) msg)
-            -> do
-        set_focused_view view_id
+record_focus (Msg.Ui m) = case m of
+    UiMsg.UiMsg _ (UiMsg.UiUpdate view_id UiMsg.UpdateClose) -> do
+        whenM ((== Just view_id) <$> Cmd.gets Cmd.state_focused_view) $
+            Cmd.modify $ \st -> st { Cmd.state_focused_view = Nothing }
+        return Cmd.Continue
+    UiMsg.UiMsg (UiMsg.Context { UiMsg.ctx_focus = Just view_id }) msg -> do
+        unlessM ((== Just view_id) <$> Cmd.gets Cmd.state_focused_view) $
+            Cmd.modify $ \st -> st { Cmd.state_focused_view = Just view_id }
         return $ case msg of
            UiMsg.MsgEvent (UiMsg.AuxMsg UiMsg.Focus) -> Cmd.Done
            _ -> Cmd.Continue
     _ -> return Cmd.Continue
-
-set_focused_view :: Cmd.M m => ViewId -> m ()
-set_focused_view view_id = do
-    focus <- Cmd.gets Cmd.state_focused_view
-    unless (focus == Just view_id) $
-        Cmd.modify $ \st -> st { Cmd.state_focused_view = Just view_id }
+record_focus _ = return Cmd.Continue
 
 -- * record ui updates
 
@@ -301,7 +300,6 @@ sync_status ui_from cmd_from damage = do
     sync_play_state $ Cmd.state_play cmd_to
     sync_save_file (Cmd.score_path cmd_to) (fst <$> Cmd.state_save_file cmd_to)
     sync_defaults $ Ui.config#Ui.default_ #$ ui_to
-
     run_selection_hooks (mapMaybe selection_update updates)
     -- forM_ (new_views ++ mapMaybe zoom_update updates) sync_zoom_status
     return Cmd.Continue
@@ -321,7 +319,8 @@ update_saved :: Update.UiDamage -> Ui.State -> Ui.State -> Cmd.State
 update_saved damage ui_from ui_to cmd_state = case saved_state of
     Cmd.JustLoaded -> cmd_state
         { Cmd.state_saved = Cmd.Saved Cmd.SavedChanges editor_open }
-    Cmd.SavedChanges | Maybe.isNothing (can_checkpoint cmd_state)
+    Cmd.SavedChanges
+        | Maybe.isNothing (can_checkpoint cmd_state)
             && Diff.score_changed ui_from ui_to damage ->
         cmd_state { Cmd.state_saved = Cmd.Saved Cmd.UnsavedChanges editor_open }
     _ -> cmd_state
