@@ -225,6 +225,9 @@ save_git_as = Save.save_git_as
 load :: FilePath -> Cmd.CmdL ()
 load = Save.load
 
+load_force :: FilePath -> Cmd.CmdL ()
+load_force = Save.load_force
+
 revert :: Cmd.CmdL ()
 revert = Save.revert Nothing
 

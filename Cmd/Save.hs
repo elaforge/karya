@@ -14,7 +14,7 @@ module Cmd.Save (
     -- * quit
     soft_quit, hard_quit
     -- * universal
-    , save, load, read, read_, load_template
+    , save, load, load_force, read, read_, load_template
     , infer_save_type
     -- * state
     , save_state, save_state_as, load_state
@@ -69,14 +69,14 @@ import           Global
 
 -- | Warn and abort if there is unsaved data, otherwise quit.
 soft_quit :: Cmd.CmdT IO Cmd.Status
-soft_quit = unsaved_data >>= \case
+soft_quit = check_unsaved_data >>= \case
     Just msg -> do
         Log.warn $ "refusing to quit: " <> msg
         return Cmd.Done
     Nothing -> hard_quit
 
-unsaved_data :: Cmd.M m => m (Maybe Text)
-unsaved_data = Cmd.gets Cmd.state_saved >>= \case
+check_unsaved_data :: Cmd.M m => m (Maybe Text)
+check_unsaved_data = Cmd.gets Cmd.state_saved >>= \case
     Cmd.Saved Cmd.UnsavedChanges _ -> return $ Just "unsaved changes"
     Cmd.Saved _ True ->
         return $ Just "repl editor is open, possibly with unsaved changes"
@@ -100,7 +100,12 @@ save = Cmd.gets Cmd.state_save_file >>= \case
 
 -- | Like 'read', but replace the current state and set 'Cmd.state_save_file'.
 load :: FilePath -> Cmd.CmdT IO ()
-load path = do
+load path = check_unsaved_data >>= \case
+    Just msg -> Log.warn $ "refusing to load a new score: " <> msg
+    Nothing -> load_force path
+
+load_force :: FilePath -> Cmd.CmdT IO ()
+load_force path = do
     (state, save_file) <- read path
     set_loaded_state save_file state
 

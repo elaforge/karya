@@ -5132,7 +5132,7 @@ REPL: repl:
     . Maybe a control key, so I can edit the contents of the current line.
   - It would still be useful to save a single unified history.  Then use
     something like :h to search it.
-  - It's easy to leave vi open on a ky file and change scores.  Maybe it could
+  * It's easy to leave vi open on a ky file and change scores.  Maybe it could
     send the score name, and reject if it's changed.
     . Another way is if I add back push notifications that the score has
       changed, I could kill off the editor.  But I'd lose unwritten changes.
@@ -5177,18 +5177,18 @@ REPL: repl:
         * Ui.put does a damage all, but no view damage?  But shouldn't block
           damage imply view daamge?
         . Ok, definitely unset by update_saved.
-    - Also do quit checking when loading another score!
+    * Also do quit checking when loading another score!
       . That means I need "hard load".
-    - on load kbd focus is somehow not on the root block, even though it looks
-      like it.
-      . Is it due to keycaps?
-      . Save has a Cmd.focus, which does lead to BringToFront.
-      . This is probably fltk level, since OS X thinks the block has focus.
     - implement ReplProtocol.NQuit
       . I think I can just hard close any open editor.
       . But since I'm blocked waiting for the editor, I'll need another
         thread.
       . And since this is async, App.Repl needs to be async in general.
+  - on load kbd focus is somehow not on the root block, even though it looks
+    like it.
+    . Is it due to keycaps?
+    . Save has a Cmd.focus, which does lead to BringToFront.
+    . This is probably fltk level, since OS X thinks the block has focus.
   - it's annoying if I try to save a file, and build/opt/send doesn't exist
     . Easy solution is to 'mk' it if it's not there.
   - Now that save file is a poll instead of being pushed, it takes a return
