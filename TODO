@@ -5189,7 +5189,7 @@ REPL: repl:
     . Is it due to keycaps?
     . Save has a Cmd.focus, which does lead to BringToFront.
     . This is probably fltk level, since OS X thinks the block has focus.
-  - it's annoying if I try to save a file, and build/opt/send doesn't exist
+  * it's annoying if I try to save a file, and build/opt/send doesn't exist
     . Easy solution is to 'mk' it if it's not there.
   - Now that save file is a poll instead of being pushed, it takes a return
     to notice a change.  Can I restore the notification thing?  Or maybe it's

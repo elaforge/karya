@@ -244,6 +244,9 @@ with_files files action = go [] files
         let ext = ReplProtocol.file_type_extension ftype
         with_temp "repl-" ext content $ \fname -> go (fname:accum) files
 
+send_binary :: FilePath
+send_binary = "build/opt/send"
+
 send_file :: FilePath -> Text -> IO ()
 send_file fname cmd = do
     -- The 'send' cmd substitutes stdin for %s.
@@ -251,14 +254,16 @@ send_file fname cmd = do
         -- vim will add a final newline.
         then Text.stripEnd <$> Text.IO.readFile fname
         else return ""
-    stdout <- Process.readProcess "build/opt/send" [untxt cmd]
+    -- Sometimes I forget to build it and it's annoying to crash the REPL.
+    unlessM (Directory.doesFileExist send_binary) $
+        Process.callProcess "bin/mk" [send_binary]
+    stdout <- Process.readProcess send_binary [untxt cmd]
         (untxt content)
     unless (null stdout) $
         putStrLn $ "send: " <> stdout
 
 -- | Run the action with a temp file, and delete it afterwards.
-with_temp :: FilePath -> String -> Text -> (FilePath -> IO a)
-    -> IO a
+with_temp :: FilePath -> String -> Text -> (FilePath -> IO a) -> IO a
 with_temp prefix suffix contents action = do
     -- .ky prefix so the vim autocmds will fire.
     (path, hdl) <- Posix.Temp.mkstemps prefix suffix
@@ -269,22 +274,19 @@ with_temp prefix suffix contents action = do
 
 -- | Open the given file, and return the selected line.
 edit_line :: FilePath -> IO (Maybe Text)
-edit_line fname = with_temp "repl-edit-history-" "" "" $
-    \tmp -> do
-        let cmdline =
-                [ "-c", "nmap ZZ :set write \\| .w! " <> tmp <> " \\| q!<cr>"
-                , "-c", "set nowrite"
-                , fname
-                ]
-        ok <- wait_for_command "vim" cmdline
-        if ok
-            then Just . Text.strip <$> Text.IO.readFile tmp
-            else return Nothing
+edit_line fname = with_temp "repl-edit-history-" "" "" $ \tmp -> do
+    let cmdline =
+            [ "-c", "nmap ZZ :set write \\| .w! " <> tmp <> " \\| q!<cr>"
+            , "-c", "set nowrite"
+            , fname
+            ]
+    ifM (wait_for_command "vim" cmdline)
+        (Just . Text.strip <$> Text.IO.readFile tmp)
+        (return Nothing)
 
 wait_for_command :: FilePath -> [String] -> IO Bool
 wait_for_command cmd args = do
-    pid <- Process.spawnProcess cmd args
-    code <- Process.waitForProcess pid
+    code <- Process.waitForProcess =<< Process.spawnProcess cmd args
     case code of
         Exit.ExitSuccess -> return True
         Exit.ExitFailure code -> do
