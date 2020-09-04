@@ -7,6 +7,7 @@ module Cmd.Repl.LControl where
 import qualified Prelude
 import           Prelude hiding (round)
 
+import qualified Util.Num as Num
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ControlTrack as ControlTrack
 import qualified Cmd.ModifyEvents as ModifyEvents
@@ -27,13 +28,21 @@ import           Types
 multiply :: Signal.Y -> Cmd.CmdL ()
 multiply factor = map_val (*factor)
 
+-- | Multiply but keep in 0--1.
+multiply01 :: Signal.Y -> Cmd.CmdL ()
+multiply01 factor = map_val (Num.clamp 0 1 . (*factor))
+
+-- | Multiply but keep in -1 -- 1.
+multiply_11 :: Signal.Y -> Cmd.CmdL ()
+multiply_11 factor = map_val (Num.clamp (-1) 1 . (*factor))
+
 -- | Round selected controls to the given number of decimal places.  Useful
 -- after a 'multiply'.
 round :: Int -> Cmd.CmdL ()
 round places = map_val $
     (/ 10^places) . fromIntegral . Prelude.round . (* 10^places)
 
-map_val :: (Signal.Y -> Signal.Y) -> Cmd.CmdL ()
+map_val :: Cmd.M m => (Signal.Y -> Signal.Y) -> m ()
 map_val f = ModifyEvents.selection $
     ModifyEvents.text $ \text -> fromMaybe text (ControlTrack.modify_val f text)
 
@@ -61,4 +70,3 @@ to_hex text =
                 event { ControlTrack.event_val = ShowVal.show_hex_val n }
         _ -> text
     where event = ControlTrack.parse text
-
