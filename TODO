@@ -2711,7 +2711,7 @@ synth: im:
           play_cache is set up for 2 at once.
         . I need a mix around Osc::streamer
       - make kin and tan use y j like in mridangam?
-        - At least put them closer to nam and din.
+        * At least put them closer to nam and din.
       - o is too high pitched, I need to re-record
         . It would be nice to get a really low pitch long like with pakhawaj.
       - sampler levels too sensitive, only the a0-ff range is really usable.

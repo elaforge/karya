@@ -97,10 +97,10 @@ stops :: Drums.Stops
             ]
         , group v_sadam
             [ n '2' "'" min 1
+            , n '3' "^" tan 1
             , n 'e' "n" nam 1
+            , n '4' "," kin 1
             , n 'r' "d" din 1
-            , n '7' "," kin 1
-            , n 'u' "^" tan 1
             ]
         , group v_chapu
             [ n '5' "v" (muru <> chapu) 1
