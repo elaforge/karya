@@ -2359,6 +2359,10 @@ synth: im:
         instrument.
       . I'd want to merge sampler and faust for this though.
   play_cache: PlayCache:
+    - since the osc channel is global, if two play_caches are open, one will
+      block thru for the other.
+      . Could I get reaper to tell me when I'm not focused, and close the
+        channel then?
     - reaper crash:
       . reports in ~/Library/Logs/DiagnosticReports/REAPER*, to ../crash
       . EXC_CRASH (SIGABRT), Thread 0 Crashed, weak_entry_insert()
@@ -2698,6 +2702,16 @@ synth: im:
         . So only do the pitch curve merge if Note.element is set, and look
           for equal Note.elements.
     mridangam:
+      * exception entering both hands strokes:
+        Cmd/Instrument/CUtil.hs:164 multiple events when evaluating:
+          D: (37s, .57s) mr 62.65nn "D"
+        . It's because I can only emit a single Osc.Note, let's change that.
+        . Now it enters, but it plays the wrong sample.
+        . Osc.cc gets both, but I only hear the first one, I don't think
+          play_cache is set up for 2 at once.
+        . I need a mix around Osc::streamer
+      - make kin and tan use y j like in mridangam?
+        - At least put them closer to nam and din.
       - o is too high pitched, I need to re-record
         . It would be nice to get a really low pitch long like with pakhawaj.
       - sampler levels too sensitive, only the a0-ff range is really usable.
@@ -5077,6 +5091,7 @@ REPL: repl:
   - :browse to look in modules... can I use GHC.getBindings for this?
     . Show names, types, and docs.
     . Tab completion already does this, but just for names.
+    . It uses GHC.getRdrNamesInScope
   - use ghc package:
     . I could probably the repl more robust by putting most things in a package
     . Pier.Build.Components.buildLibraryFromDesc

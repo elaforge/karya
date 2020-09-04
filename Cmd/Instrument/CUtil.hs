@@ -9,7 +9,6 @@
 module Cmd.Instrument.CUtil where
 import qualified Data.Either as Either
 import qualified Data.Map as Map
-import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
 import qualified App.Config as Config
@@ -139,31 +138,28 @@ merge_kbd_entry val = \case
 
 expr_im_thru :: Cmd.M m => Osc.ThruFunction -> DeriveT.Expr -> m [Cmd.Thru]
 expr_im_thru thru_f expr = do
-    note <- eval_thru_note expr
-    plays <- Cmd.require_right ("thru_f: "<>) $ thru_f note
+    notes <- eval_thru_notes expr
+    plays <- Cmd.require_right ("thru_f: "<>) $ thru_f notes
     return $ map (Cmd.ImThru . Osc.play) plays
 
-eval_thru_note :: Cmd.M m => DeriveT.Expr -> m Osc.Note
-eval_thru_note expr = do
+eval_thru_notes :: Cmd.M m => DeriveT.Expr -> m [Osc.Note]
+eval_thru_notes expr = do
     (block_id, _, track_id, pos) <- Selection.get_insert
     result <- LEvent.write_snd_prefix "CUtil.expr_attributes"
         =<< Perf.derive_expr block_id track_id pos expr
     events <- Cmd.require_right ("CUtil.expr_attributes: "<>) result
-    case events of
-        [] -> Cmd.throw $ "expected events when evaluating: "
-            <> ShowVal.show_val expr
-        [event] -> return $ Osc.Note
-            { _pitch = fromMaybe 0 (Score.initial_nn event)
-            , _velocity = Score.initial_dynamic event
-            , _attributes = Score.event_attributes event
-            , _startOffset = maybe 0 (floor . ScoreT.typed_val) $
-                Score.control_at (Score.event_start event)
-                    (Controls.from_shared Control.sampleStartOffset)
-                    event
-            }
-        events -> Cmd.throw $ "multiple events when evaluating: "
-            <> ShowVal.show_val expr
-            <> ": " <> Text.intercalate ", " (map Score.short_event events)
+    when (null events) $ Cmd.throw $ "expected events when evaluating: "
+        <> ShowVal.show_val expr
+    return $ map make events
+    where
+    make event = Osc.Note
+        { _pitch = fromMaybe 0 (Score.initial_nn event)
+        , _velocity = Score.initial_dynamic event
+        , _attributes = Score.event_attributes event
+        , _startOffset = maybe 0 (floor . ScoreT.typed_val) $
+            Score.control_at (Score.event_start event)
+                (Controls.from_shared Control.sampleStartOffset) event
+        }
 
 {- | Emit MIDI thru for an arbitrary expresison.
 

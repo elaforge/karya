@@ -25,7 +25,7 @@ import Global
 
 -- | This is a specialized version of 'Cmd.Cmd.ThruFunction'.  Being more
 -- specialized means I don't have to directly depend on "Cmd.Cmd" from here.
-type ThruFunction = Note -> Either Error [Play]
+type ThruFunction = [Note] -> Either Error [Play]
 
 data Note = Note {
     _pitch :: !Pitch.NoteNumber

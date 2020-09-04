@@ -112,15 +112,15 @@ thruCode = ImInst.thru . thruFunction
 -- imThruFunction = CUtil.ImThru . thruFunction
 
 thruFunction :: Map Pitch.NoteNumber FilePath -> Osc.ThruFunction
-thruFunction pitchToSample = \(Osc.Note { _pitch = pitch }) ->
+thruFunction pitchToSample = mapM $ \(Osc.Note { _pitch = pitch }) ->
     case Maps.lookup_closest pitch pitchToSample of
         Nothing -> Left "no samples"
-        Just (sampleNn, sample) -> Right $ (:[]) $ Osc.Play
+        Just (sampleNn, sample) -> Right $ Osc.Play
             { _sample = sample
             , _offset = 0
             , _ratio = pitchToRatio sampleNn pitch
-            -- I could use velocity, but I don't render at different dynamics
-            -- so let's not give that impression.
+            -- I could use velocity, but I don't render at different
+            -- dynamics so let's not give that impression.
             , _volume = 1
             }
 

@@ -15,6 +15,11 @@
 #define TO_STR(x) #x
 #define STR(x) TO_STR(x)
 
+enum {
+    // The number of simultaneous voices played by osc thru.
+    max_voices = 3
+};
+
 
 // liblo somehow forgot to add a context argument, and here in 2018 C++ somehow
 // still has no way to easily create an explicit closure wrapper.
@@ -33,13 +38,13 @@ handle_error(int num, const char *msg, const char *where)
 
 
 
-Osc::Osc(std::ostream &log, int channels, int sample_rate, int max_block_frames)
+Osc::Osc(std::ostream &log, int channels, int sample_rate, int max_frames)
     : log(log), thread_quit(false), volume(1)
 {
     error_log = &log;
     this->server = new_server();
     streamer.reset(
-        new ResampleStreamer(log, channels, sample_rate, max_block_frames));
+        new MixStreamer(max_voices, log, channels, sample_rate, max_frames));
     thread.reset(new std::thread(&Osc::loop, this));
 }
 

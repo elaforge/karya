@@ -215,3 +215,73 @@ ResampleStreamer::initialize()
     }
     return audio;
 }
+
+
+// MixStreamer
+
+MixStreamer::MixStreamer(
+        int voices, std::ostream &log, int channels, int sample_rate,
+        int max_frames)
+    : current_voice(0)
+{
+    for (int i = 0; i < voices; i++) {
+        std::unique_ptr<ResampleStreamer> p(
+            new ResampleStreamer(log, channels, sample_rate, max_frames));
+        this->voices.push_back(std::move(p));
+    }
+    // Ensure read() doesn't have to allocate.
+    buffer.resize(channels * max_frames);
+}
+
+
+void
+MixStreamer::start(const std::string &fname, int64_t offset, double ratio)
+{
+    voices[current_voice]->start(fname, offset, ratio);
+    current_voice = (current_voice + 1) % voices.size();
+}
+
+
+void
+MixStreamer::stop()
+{
+    for (auto &streamer : voices) {
+        streamer->stop();
+    }
+    current_voice = 0;
+}
+
+
+// Below is copy pasted from Tracks.cc.  I experimented with a reusable mixer,
+// but it's a bit annoying because it needs vector<Audio> to be generic, but
+// this is vector<Streamer>, and I don't know how to do covariant downcasting
+// in C++, so I guess it could be a template, but it's too much bother.
+
+static void
+mix(int channels, sf_count_t frames,
+    // In theory restrict lets it optimize better because it knows there's no
+    // dependency between the pointers.
+    float * __restrict__ output, const float * __restrict__ input)
+{
+    for (sf_count_t i = 0; i < frames * channels; i++) {
+        output[i] += input[i];
+    }
+}
+
+
+bool
+MixStreamer::read(int channels, sf_count_t frames, float **out)
+{
+    buffer.resize(frames * channels);
+    std::fill(buffer.begin(), buffer.end(), 0);
+    bool done = true;
+    for (const auto &audio : voices) {
+        float *s_buffer;
+        if (!audio->read(channels, frames, &s_buffer)) {
+            mix(channels, frames, buffer.data(), s_buffer);
+            done = false;
+        }
+    }
+    *out = buffer.data();
+    return done;
+}
