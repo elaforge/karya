@@ -66,8 +66,8 @@ complete :: Network.Addr -> (String, String)
 complete addr =
     Haskeline.completeQuotedWord (Just '\\') "\"" Haskeline.listFiles
         (complete_identefier addr)
-    -- Like ghci, complete filenames within quotes.
-    -- TODO or just disable completion?
+    -- Like ghci, complete filenames within quotes.  It's useful for save and
+    -- load.
 
 complete_identefier :: Network.Addr -> Haskeline.CompletionFunc IO
 complete_identefier addr =
@@ -94,9 +94,6 @@ repl :: Network.Addr -> Haskeline.Settings IO -> IO ()
 repl addr settings = Exception.mask (loop settings)
     where
     loop old_settings restore = do
-        let catch Haskeline.Interrupt = do
-                putStrLn "interrupted"
-                return Continue
         maybe_save_fname <- ReplProtocol.query_save_file addr
         let (connection_error, settings) = case maybe_save_fname of
                 Nothing -> (True, old_settings)
@@ -123,6 +120,9 @@ repl addr settings = Exception.mask (loop settings)
     read_eval_print addr connection_error history =
         maybe (return Quit) (liftIO . eval addr history)
             =<< get_input connection_error history
+    catch Haskeline.Interrupt = do
+        putStrLn "interrupted"
+        return Continue
 
 eval :: Network.Addr -> Maybe FilePath -> Text -> IO Status
 eval addr maybe_history expr

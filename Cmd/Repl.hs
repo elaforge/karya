@@ -17,6 +17,7 @@
 module Cmd.Repl (
     with_socket
     , Session, make_session, interpreter, respond
+    , accept_msg
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
@@ -107,7 +108,7 @@ respond session msg = do
                     }
             return (Nothing, Cmd.Done)
     liftIO $ Exception.handle warn_io_errors $ do
-        whenJust mb_response $ ReplProtocol.server_send response_hdl
+        whenJust mb_response $ ReplProtocol.seq_send response_hdl
         IO.hClose response_hdl
     return status
     where
@@ -172,3 +173,17 @@ run_cmdio cmd = do
                     ( ReplProtocol.CmdResult response (eval_logs ++ logs)
                     , Cmd.state_repl_status cmd_state
                     )
+
+-- | Block and read a single message from the REPL client, and return it
+-- along with a response handle.  The Query should eventually make it's way to
+-- 'respond'.
+accept_msg :: Socket.Socket -> IO (Maybe (IO.Handle, ReplProtocol.Query))
+accept_msg socket = Exception.handle handle $ do
+    (socket, _peer) <- Socket.accept socket
+    hdl <- Socket.socketToHandle socket IO.ReadWriteMode
+    msg <- ReplProtocol.seq_receive hdl
+    return $ Just (hdl, msg)
+    where
+    handle (exc :: IOError) = do
+        Log.warn $ "caught exception from socket read: " <> showt exc
+        return Nothing

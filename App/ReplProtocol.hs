@@ -6,15 +6,20 @@
 module App.ReplProtocol (
     -- * types
     Query(..), NotifySeq(..)
-    , Response(..), NotifyRepl(..)
+    , Response(..)
     , CmdResult(..), Result(..), Editor(..), File(..)
     , FileType(..), file_type_extension
     , empty_result, error_result, raw
-    -- * protocol
+
+    -- * repl protocol
     , initialize
     , query_cmd, query_save_file, query_completion
     , notify
-    , server_receive, server_send
+    , query_cmd_simple
+
+    -- * seq protocol
+    , seq_receive, seq_send
+
     -- * format
     , format_result
     , abbreviate_package_loads
@@ -33,9 +38,11 @@ import qualified Util.Network as Network
 import qualified Util.PPrint as PPrint
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
-import Util.Serialize (get, put, get_tag, put_tag)
+import           Util.Serialize (get, get_tag, put, put_tag)
 
-import Global
+import qualified App.Config as Config
+
+import           Global
 
 
 -- | This is a simple RPC mechanism.  'Query' goes to the server, which
@@ -58,10 +65,6 @@ data Response =
     RSaveFile !(Maybe FilePath) -- ^ current save file
     | RCommand !CmdResult
     | RCompletion ![Text] -- ^ possible completions for the prefix
-    | RNotify !NotifyRepl
-    deriving (Eq, Show)
-
-data NotifyRepl = NQuit
     deriving (Eq, Show)
 
 instance Pretty Query where
@@ -122,7 +125,7 @@ error_result msg = CmdResult empty_result [Log.msg Log.Error Nothing msg]
 raw :: Text -> CmdResult
 raw msg = CmdResult (Raw msg) []
 
--- * protocol
+-- * repl protocol
 
 initialize :: IO a -> IO a
 initialize app = Socket.withSocketsDo $ do
@@ -135,54 +138,61 @@ initialize app = Socket.withSocketsDo $ do
 -- | Client send and receive.
 query :: Network.Addr -> Query -> IO (Either Exception.IOException Response)
 query addr query = Exception.try $ Network.withConnection addr $ \hdl -> do
-    send hdl query
+    repl_send hdl query
     IO.hFlush hdl
-    receive hdl
+    repl_receive hdl
 
 -- | Like 'query', but don't expect a response.
 notify :: Network.Addr -> NotifySeq -> IO (Either Exception.IOException ())
 notify addr notify = Exception.try $ Network.withConnection addr $ \hdl -> do
-    send hdl $ QNotify notify
+    repl_send hdl $ QNotify notify
     IO.hFlush hdl
 
 -- | Send a 'QCommand'.
 query_cmd :: Network.Addr -> Text -> IO CmdResult
-query_cmd addr cmd = do
-    response <- query addr (QCommand cmd)
-    return $ case response of
-        Right (RCommand result) -> result
-        Right response -> raw $ "unexpected response: " <> showt response
-        Left exc -> raw $ "exception: " <> showt exc
+query_cmd addr cmd = query addr (QCommand cmd) >>= return . \case
+    Right (RCommand result) -> result
+    Right response -> raw $ "unexpected response: " <> showt response
+    Left exc -> raw $ "exception: " <> showt exc
+
+-- | A simple one-shot 'query_cmd'.
+query_cmd_simple :: Text -> IO Text
+query_cmd_simple cmd = format_result <$> query_cmd Config.repl_socket cmd
 
 -- | Ask for the current save filename.  Nothing for an error, and Just Nothing
 -- for no save file.
 query_save_file :: Network.Addr -> IO (Maybe (Maybe FilePath))
-query_save_file addr = do
-    response <- query addr QSaveFile
-    case response of
-        Right (RSaveFile fname) -> return (Just fname)
-        Left exc | IO.Error.isDoesNotExistError exc -> return Nothing
-        _ -> do
-            Log.error $ "unexpected response to QSaveFile: " <> showt response
-            return Nothing
+query_save_file addr = query addr QSaveFile >>= \case
+    Right (RSaveFile fname) -> return (Just fname)
+    Left exc | IO.Error.isDoesNotExistError exc -> return Nothing
+    response -> do
+        Log.error $ "unexpected response to QSaveFile: " <> showt response
+        return Nothing
 
 query_completion :: Network.Addr -> Text -> IO [Text]
-query_completion addr prefix = do
-    response <- query addr (QCompletion prefix)
-    case response of
-        Right (RCompletion words) -> return words
-        Left exc | IO.Error.isDoesNotExistError exc -> return []
-        _ -> do
-            Log.error $ "unexpected response to QCompletion: " <> showt response
-            return []
+query_completion addr prefix = query addr (QCompletion prefix) >>= \case
+    Right (RCompletion words) -> return words
+    Left exc | IO.Error.isDoesNotExistError exc -> return []
+    response -> do
+        Log.error $ "unexpected response to QCompletion: " <> showt response
+        return []
 
-server_receive :: IO.Handle -> IO Query
-server_receive = receive
+-- * low level implementation
 
-server_send :: IO.Handle -> Response -> IO ()
-server_send = send
+-- Specialize 'send' and 'receive' to keep types consistent between seq and
+-- repl.
 
--- ** implementation
+seq_receive :: IO.Handle -> IO Query
+seq_receive = receive
+
+seq_send :: IO.Handle -> Response -> IO ()
+seq_send = send
+
+repl_send :: IO.Handle -> Query -> IO ()
+repl_send = send
+
+repl_receive :: IO.Handle -> IO Response
+repl_receive = receive
 
 -- | Write a msg size and then the msg.
 send :: Serialize.Serialize a => IO.Handle -> a -> IO ()
@@ -262,20 +272,11 @@ instance Serialize.Serialize Response where
     put (RSaveFile a) = put_tag 0 >> put a
     put (RCommand a) = put_tag 1 >> put a
     put (RCompletion a) = put_tag 2 >> put a
-    put (RNotify a) = put_tag 3 >> put a
     get = get_tag >>= \case
         0 -> RSaveFile <$> get
         1 -> RCommand <$> get
         2 -> RCompletion <$> get
-        3 -> RNotify <$> get
         tag -> Serialize.bad_tag "Response" tag
-
-instance Serialize.Serialize NotifyRepl where
-    put = \case
-        NQuit -> put_tag 0
-    get = get_tag >>= \case
-        0 -> return NQuit
-        tag -> Serialize.bad_tag "NotifyRepl" tag
 
 instance Serialize.Serialize CmdResult where
     put (CmdResult a b) = put a >> put b

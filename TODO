@@ -5270,8 +5270,8 @@ REPL: repl:
     cleanup:
       * Why does Network.withConnection get an incrementing socket fd?
         Am I not closing it?
-      - move Responder.accept_loop to Repl
-      - use \case in ReplProtocol
+      * move Responder.accept_loop to Repl
+      * use \case in ReplProtocol
   - on load kbd focus is somehow not on the root block, even though it looks
     like it.
     . Is it due to keycaps?

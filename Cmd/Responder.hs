@@ -183,8 +183,7 @@ create_msg_reader ::
     -> IO MsgReader
 create_msg_reader remap_rmsg midi_chan repl_socket ui_chan loopback_chan = do
     repl_chan <- TChan.newTChanIO
-    Thread.startLogged "accept repl socket" $
-        accept_loop repl_socket repl_chan
+    Thread.startLogged "accept repl socket" $ accept_loop repl_socket repl_chan
     return $ STM.atomically $
         (Msg.Ui <$> TChan.readTChan ui_chan)
         `STM.orElse` (Msg.Midi . remap_rmsg <$> TChan.readTChan midi_chan)
@@ -196,14 +195,8 @@ create_msg_reader remap_rmsg midi_chan repl_socket ui_chan loopback_chan = do
 -- responsibility to close the handle after it uses it to reply.
 accept_loop :: Socket.Socket -> TChan.TChan (IO.Handle, ReplProtocol.Query)
     -> IO ()
-accept_loop socket output_chan = forever $ catch_io_errors $ do
-    (socket, _peer) <- Socket.accept socket
-    hdl <- Socket.socketToHandle socket IO.ReadWriteMode
-    msg <- ReplProtocol.server_receive hdl
-    STM.atomically $ TChan.writeTChan output_chan (hdl, msg)
-    where
-    catch_io_errors = Exception.handle $ \(exc :: IOError) ->
-        Log.warn $ "caught exception from socket read: " <> showt exc
+accept_loop socket output_chan = forever $ whenJustM (Repl.accept_msg socket) $
+    STM.atomically . TChan.writeTChan output_chan
 
 
 -- * respond

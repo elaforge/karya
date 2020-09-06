@@ -49,13 +49,12 @@ import qualified Util.Log as Log
 import qualified Util.Process
 import qualified Util.Seq as Seq
 
+import qualified App.ReplProtocol as ReplProtocol
 import qualified LogView.LogViewC as LogViewC
 import qualified LogView.Process as Process
 import qualified LogView.Tail as Tail
 
-import qualified App.Config as Config
-import qualified App.ReplProtocol as ReplProtocol
-import Global
+import           Global
 
 
 -- | I use this file to only start one logview at a time.
@@ -246,8 +245,7 @@ send_action chan = liftIO . Fltk.action chan
 
 send_to_seq :: Text -> IO ()
 send_to_seq cmd = do
-    response <- ReplProtocol.format_result <$>
-        ReplProtocol.query_cmd Config.repl_socket cmd
+    response <- ReplProtocol.query_cmd_simple cmd
     unless (Text.null response) $
         Text.IO.putStrLn $ "response: " <> response
 

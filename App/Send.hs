@@ -18,7 +18,6 @@ import qualified System.Exit
 import qualified Text.Printf as Printf
 
 import qualified Util.Seq as Seq
-import qualified App.Config as Config
 import qualified App.ReplProtocol as ReplProtocol
 
 import           Global
@@ -70,8 +69,7 @@ substitute args
     | otherwise = return args
 
 query :: Text -> IO Text
-query = fmap ReplProtocol.format_result
-    . ReplProtocol.query_cmd Config.repl_socket
+query = ReplProtocol.query_cmd_simple
 
 timed :: DeepSeq.NFData a => IO a -> IO (a, Double)
 timed action = do
