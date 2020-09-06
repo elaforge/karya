@@ -2715,6 +2715,8 @@ synth: im:
       - o is too high pitched, I need to re-record
         . It would be nice to get a really low pitch long like with pakhawaj.
       - sampler levels too sensitive, only the a0-ff range is really usable.
+        . But the example ranges in save/test/sampler/mridangam seem ok, what
+          gives?
       render from solkattu:
         . Convert to a score first, so I can apply ky transforms.
         . Then perform via im, and invoke sampler-im.
@@ -5199,6 +5201,77 @@ REPL: repl:
       . But since I'm blocked waiting for the editor, I'll need another
         thread.
       . And since this is async, App.Repl needs to be async in general.
+      . Currently: main -> Repl.repl -> loop.  The repl has the addr, and
+        synchronously sends queries and receives responses.
+      . So, I have a separate thread mind the addr, and when it gets an
+        unsolicited notification, it has to poke the repl.  For NQuit, it
+        can send Haskeline.Interrupted, which should be enough to update the
+        prompt.  Then, wait_for_command should also catch Interrupted, and
+        kill the editor, and return.
+      - I could set vim's swap file to a non-tmp dir, and print it out when
+        killing it, just to be sure I don't lose data.
+      . How about make ReplProtocol.NotifyRepl an Exception, then throw it
+        directly.
+      . How about retain the sync query response, but throw when I see
+        a notify?
+      . Wait that doesn't work because most of the time I'm not waiting for
+        msgs most of the time.
+      . I also can't have a separate thing listening just for async, because
+        it will pick up sync responses.
+      . Ok, so it has to be a whole thread listens for responses, and then
+        query/response goes through it via a channel.
+      . So actually the separate thread waiting on async notify won't work,
+        because it'll hog the mvar, and can't work because I can't atomically
+        switch to "wait for sync."
+      . But it's none of it is even necessary!  Just expect notifies in all
+        the query functions, and throw when I get one.  That is so much
+        simpler.
+      . Still a problem with this!  The repl is not watching the socket when
+        it's watching the tty!  So that's why I wanted a separate thread.
+        I do need something constantly watching the socket.  But I can't
+        have two things watching the socket, because then I can't be sure
+        responses and notify don't get mixed up.
+      . So a separate thread watches the socket, and puts things in a Chan.
+        Addr becomes (Network.Addr, Chan Response).  Sockets are duplex so it
+        should be ok one constant reader, and an async writer, right?
+      . Except, new problem: if the socket doesn't exist.  Previously I would
+        only query before a prompt, and there's a special encoding in
+        query_save_file.  But now I should be able to notice the socket
+        closing, and throw NQuit.  So I don't need to send NQuit from seq!
+      . But, when starting I need to tell the repl there's no connection, and
+        then block until there is one.
+      . So I want to put the Chan into a "not open" state, where it doesn't
+        block on the chan, but just immediately throws not open.
+      . This is all really complicated.  The old implementation was nicer.
+        The only effect I want is that when seq quits, I notice immediately
+        instead of having to hit enter to trigger a new query_save_file.
+        Could I have a separate thread which watches the socket to see if it's
+        closed?
+      . The old way opens and closes the socket once per transaction, which
+        I think is still good.  But that's incompatible with using socket
+        state for things like quit.
+      . The old way was to monitor the log for "app quitting", maybe I just go
+        back to that.  The alternate way is to poll for seq is up, which maybe
+        I can do by just poking the socket.  I think Network.withConnection
+        does?
+      . Yes, but it feels like random background polling may cause trouble?
+        On the plus side, maybe it won't, and polling state seems more
+        reliable than trying to catch a magic log msg.
+      . The underlying call is probably Socket.connect -> connect(2).
+        It will probably EADDRINUSE if it asks the wrong time.  Also if I'm
+        polling, I may cause the repl to EADDRINUSE.
+      . Can I poll seq in another way?  Not reliably... any pid file could be
+        stale due to a crash, and the pid could be valid due to reuse.
+        Unlikely though.
+      . But if the REPL misses a quit due to say a crash and not app quitting
+        log msg, then it's not that bad, I just have to wait for the next
+        prompt to notice.
+      . So let's tail the log.
+    cleanup:
+      * Why does Network.withConnection get an incrementing socket fd?
+        Am I not closing it?
+      - move Responder.accept_loop to Repl
+      - use \case in ReplProtocol
   - on load kbd focus is somehow not on the root block, even though it looks
     like it.
     . Is it due to keycaps?

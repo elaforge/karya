@@ -28,12 +28,13 @@ listen (Unix fname) = do
     return socket
 
 withConnection :: Addr -> (IO.Handle -> IO a) -> IO a
-withConnection (Unix fname) = Exception.bracket open IO.hClose
-    where
-    open = do
-        socket <- unixSocket
-        Socket.connect socket (Socket.SockAddrUnix fname)
-        Socket.socketToHandle socket IO.ReadWriteMode
+withConnection (Unix fname) action = do
+    socket <- unixSocket
+    -- Make sure to close the socket even if Socket.connect fails.  It will
+    -- get closed twice if it doesn't, but Socket.close says it ignores errors.
+    Exception.bracket_ (Socket.connect socket (Socket.SockAddrUnix fname))
+        (Socket.close socket) $ Exception.bracket
+            (Socket.socketToHandle socket IO.ReadWriteMode) IO.hClose action
 
 unixSocket :: IO Socket.Socket
 unixSocket = Socket.socket Socket.AF_UNIX Socket.Stream Socket.defaultProtocol
