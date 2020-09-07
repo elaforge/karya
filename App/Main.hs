@@ -102,7 +102,7 @@ main = initialize $ \midi_interface repl_socket -> do
 #endif
     -- Handy to filter debugging output.
     IO.hSetBuffering IO.stdout IO.LineBuffering
-    Log.notice "app starting"
+    Log.notice Tail.starting_msg
     (static_config, time) <- Thread.timeActionText
         Local.Config.load_static_config
     let loaded_msg = "loaded "
@@ -173,7 +173,7 @@ main = initialize $ \midi_interface repl_socket -> do
     Interface.abort midi_interface
     mapM_ (Interface.write_message midi_interface)
         [Interface.AllNotesOff 0, Interface.reset_pitch 0]
-    Log.notice "app quitting"
+    Log.notice Tail.quitting_msg
 
 -- | Do one-time startup tasks.
 startup_initialization :: IO ()

@@ -10,6 +10,8 @@ module LogView.Tail (
     -- * tail
     , Handle, open, tail
     , deserialize_line
+    -- * magic
+    , starting_msg, quitting_msg
 ) where
 import Prelude hiding (read, tail)
 import qualified Control.Exception as Exception
@@ -150,3 +152,11 @@ file_renamed filename size = do
     file_size <- maybe 0 Posix.fileSize <$>
         ignoreException "file_renamed" (Posix.getFileStatus filename)
     return $ fromIntegral file_size /= size && file_size /= 0
+
+-- * magic
+
+starting_msg :: Text
+starting_msg = "app starting"
+
+quitting_msg :: Text
+quitting_msg = "app quitting"

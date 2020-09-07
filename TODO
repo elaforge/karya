@@ -5196,7 +5196,7 @@ REPL: repl:
         . Ok, definitely unset by update_saved.
     * Also do quit checking when loading another score!
       . That means I need "hard load".
-    - implement ReplProtocol.NQuit
+    * implement ReplProtocol.NQuit
       . I think I can just hard close any open editor.
       . But since I'm blocked waiting for the editor, I'll need another
         thread.
@@ -5208,7 +5208,7 @@ REPL: repl:
         can send Haskeline.Interrupted, which should be enough to update the
         prompt.  Then, wait_for_command should also catch Interrupted, and
         kill the editor, and return.
-      - I could set vim's swap file to a non-tmp dir, and print it out when
+      * I could set vim's swap file to a non-tmp dir, and print it out when
         killing it, just to be sure I don't lose data.
       . How about make ReplProtocol.NotifyRepl an Exception, then throw it
         directly.
@@ -5267,6 +5267,14 @@ REPL: repl:
         log msg, then it's not that bad, I just have to wait for the next
         prompt to notice.
       . So let's tail the log.
+      . Seems like vim gets a signal on Haskeline.Interpret, then repl
+        freezes.
+      . This is a vim specific thing, sleep 100 acts as it should.  Why should
+        a haskell exception affect the subprocess?
+      . Maybe it has to do with internal exception implementation when in
+        a system call, e.g. it uses SIGALARM or something, and vim gets it
+        too.
+      . Process.create_group is no good, then vim doesn't get the terminal.
     cleanup:
       * Why does Network.withConnection get an incrementing socket fd?
         Am I not closing it?

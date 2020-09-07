@@ -23,6 +23,7 @@
     it, and use ZZ to write it back.
 -}
 module App.Repl (main) where
+import qualified Control.Concurrent as Concurrent
 import qualified Control.Exception as Exception
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Text as Text
@@ -43,9 +44,11 @@ import qualified Util.Network as Network
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+import qualified Util.Thread as Thread
 
 import qualified App.Config as Config
 import qualified App.ReplProtocol as ReplProtocol
+import qualified LogView.Tail as Tail
 
 import           Global
 
@@ -87,8 +90,28 @@ main = ReplProtocol.initialize $ do
         _ -> errorIO "usage: repl [ unix-socket ]"
     -- I don't want to see "thread started" logs.
     Log.configure $ \state -> state { Log.state_priority = Log.Notice }
+    repl_thread <- Concurrent.myThreadId
+    Thread.start $ watch_for_quit repl_thread
     liftIO $ putStrLn "^D to quit"
     repl addr $ Haskeline.setComplete (complete addr) initial_settings
+
+-- | Watch the seq.log for state changes, and interrupt the repl to pick up the
+-- new state.  Otherwise, it will only notice the change on the next time the
+-- prompt comes up, which means the current cmd probably goes into the wrong
+-- history.
+--
+-- This will abort any half-written entry, or any editor in progress, which
+-- might be a problem.
+watch_for_quit :: Concurrent.ThreadId -> IO ()
+watch_for_quit repl_thread = do
+    fname <- Tail.log_filename
+    loop =<< Tail.open fname (Just 0)
+    where
+    loop hdl = do
+        (msg, hdl) <- Tail.tail hdl
+        when (Log.msg_text msg `elem` [Tail.starting_msg, Tail.quitting_msg]) $
+            Concurrent.throwTo repl_thread Haskeline.Interrupt
+        loop hdl
 
 repl :: Network.Addr -> Haskeline.Settings IO -> IO ()
 repl addr settings = Exception.mask (loop settings)
@@ -101,7 +124,7 @@ repl addr settings = Exception.mask (loop settings)
                     { Haskeline.historyFile =
                         Just $ fromMaybe "" fname <> history_suffix
                     }
-        status <- Exception.handle catch $ restore $
+        status <- Haskeline.handleInterrupt catch $ restore $
             Haskeline.runInputT settings $ Haskeline.withInterrupt $
             read_eval_print addr connection_error
                 (Haskeline.historyFile settings)
@@ -120,9 +143,7 @@ repl addr settings = Exception.mask (loop settings)
     read_eval_print addr connection_error history =
         maybe (return Quit) (liftIO . eval addr history)
             =<< get_input connection_error history
-    catch Haskeline.Interrupt = do
-        putStrLn "interrupted"
-        return Continue
+    catch = putStrLn "interrupted" >> return Continue
 
 eval :: Network.Addr -> Maybe FilePath -> Text -> IO Status
 eval addr maybe_history expr
@@ -215,6 +236,11 @@ edit_multiple edits_ = with_files (map ReplProtocol._file edits) $ \fnames ->
         ok <- wait_for_command "vim"
             [ "-s", cmd_fname
             , "-c", "source vim-functions.vim"
+            -- Put the swp file in the log/ directory.  Otherwise it's in a tmp
+            -- dir and dies when it does.  This is just paranoia, if vim happens
+            -- to get killed with unsaved data (say due to 'watch_for_quit'),
+            -- then it can be recovered.
+            , "-c", ":set directory=log"
             ]
         when ok $ forM_ (zip fnames (map ReplProtocol._on_save edits)) $ \case
             (fname, Just on_save) -> send_file fname on_save
@@ -284,14 +310,24 @@ edit_line fname = with_temp "repl-edit-history-" "" "" $ \tmp -> do
         (Just . Text.strip <$> Text.IO.readFile tmp)
         (return Nothing)
 
+-- | TODO If I get as Haskeline.Interrupt here, probably due to
+-- 'watch_for_quit', vim will quit and this process will hard lock.  This
+-- is specific to vim, it doesn't happen with "sleep".  I suspect it has to
+-- do with how interruptible FFI calls are implemented:
+-- https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/ffi-chap.html#interruptible-foreign-calls
+-- I think I have to wait on both the process and a MVar notification instead
+-- of relying on async exceptions, which means I need to use the same mechanism
+-- to tell 'watch_for_quit' which mechanism to use.  For the moment though
+-- it's too much hassle.
 wait_for_command :: FilePath -> [String] -> IO Bool
 wait_for_command cmd args = do
-    code <- Process.waitForProcess =<< Process.spawnProcess cmd args
-    case code of
+    (_, _, _, pid) <- Process.createProcess $
+        (Process.proc cmd args) { Process.delegate_ctlc = True }
+    Process.waitForProcess pid >>= \case
         Exit.ExitSuccess -> return True
         Exit.ExitFailure code -> do
-            -- Maybe the binary wasn't found, but vim seems to return
-            -- 1 unpredictably.
+            -- Maybe the binary wasn't found, but vim seems to return 1
+            -- unpredictably.
             Log.warn $ "non-zero exit code from "
                 <> showt (cmd : args) <> ": " <> showt code
             return False
