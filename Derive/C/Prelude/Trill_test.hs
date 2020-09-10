@@ -208,7 +208,8 @@ test_chord_tremolo_function = do
 
 -- * pitch calls
 
-test_trill = do
+test_pitch_trill :: Test
+test_pitch_trill = do
     let run text = extract $ derive_tracks
             [(">", [(0, 3, "")]), ("*", [(0, 0, text), (3, 0, "--|")])]
         extract = DeriveTest.extract DeriveTest.e_nns
@@ -249,6 +250,27 @@ test_trill = do
     equal (run_speed ":d") ([[]],
         ["expected time type for %tr-speed,14s but got Diatonic"])
 
+test_pitch_trill2 :: Test
+test_pitch_trill2 = do
+    equal (CallTest.run_pitch "" [(0, "tr (4e) 2 2"), (2.8, "4c")])
+        [ (0, NN.e4), (0.5, NN.e4)
+        , (0.5, NN.g4), (1, NN.g4)
+        , (1, NN.e4), (1.5, NN.e4)
+        , (1.5, NN.g4), (2, NN.g4)
+        , (2, NN.e4)
+        , (2.8, NN.e4), (2.8, NN.c4)
+        ]
+
+test_pitch_trill_smooth :: Test
+test_pitch_trill_smooth = do
+    let run c = Seq.drop_dups fst $
+            CallTest.run_pitch "" [(0, c), (4, "--|")]
+    equalf 0.01 (run "trs (4c) 1 1")
+        [(0, 60), (1, 62), (2, 60), (3, 62), (4, 60)]
+    equalf 0.01 (run "hold=2 | trs (4c) 1 1")
+        [(0, 60), (2, 60), (3, 62), (4, 60)]
+
+test_trill_transition :: Test
 test_trill_transition = do
     let run text = extract $ derive_tracks
             [(">", [(0, 3, "")]), ("*", [(0, 0, text), (12, 0, "--|")])]
@@ -284,16 +306,16 @@ test_trill_hold = do
     let run call dur = DeriveTest.extract DeriveTest.e_nns $ derive_tracks
             [(">", [(0, dur, "")]), ("*", [(0, 0, call), (dur, 0, "--|")])]
     equal (run "hold=1 | tr (4c) 1 1" 3)
-        ([[(0, NN.c4), (2, NN.c4), (2, NN.d4)]], [])
+        ([[(0, NN.c4), (1, NN.c4), (2, NN.c4), (2, NN.d4)]], [])
     -- Still respects start and end restrictions.
-    equal (run "hold=1 | tr__ (4c) 1 1" 3) ([[(0, NN.c4)]], [])
+    equal (run "hold=1 | tr__ (4c) 1 1" 3) ([[(0, NN.c4), (1, NN.c4)]], [])
     equal (run "hold=4 | tr (4c) 1 1" 3) ([[(0, NN.c4)]], [])
 
     equal (run "tr-transition=1 | tr (4c) 1 1" 4)
         ([[(0, NN.c4), (1, NN.d4), (2, NN.c4), (3, NN.d4)]], [])
-    -- -- Hold is flat.
-    -- equal (run "hold=2 | tr-transition=1 | tr (4c) 1 1" 5)
-    --     ([[(0, NN.c4), (2, NN.c4), (3, NN.d4), (4, NN.c4)]], [])
+    -- Hold is flat.
+    equal (run "hold=2 | tr-transition=1 | tr (4c) 1 1" 5)
+        ([[(0, NN.c4), (2, NN.c4), (3, NN.d4), (4, NN.c4)]], [])
 
 test_moving_trill = do
     -- Ensure a diatonic trill on a moving base note remains correct.
@@ -385,16 +407,6 @@ test_score_trill = do
 
 mkcontrol :: ScoreT.Type -> Signal.Control -> DeriveT.ControlRef
 mkcontrol typ = DeriveT.ControlSignal . ScoreT.Typed typ
-
-test_pitch_trill = do
-    equal (CallTest.run_pitch "" [(0, "tr (4e) 2 2"), (2.8, "4c")])
-        [ (0, NN.e4), (0.5, NN.e4)
-        , (0.5, NN.g4), (1, NN.g4)
-        , (1, NN.e4), (1.5, NN.e4)
-        , (1.5, NN.g4), (2, NN.g4)
-        , (2, NN.e4)
-        , (2.8, NN.e4), (2.8, NN.c4)
-        ]
 
 test_xcut_pitch = do
     let f tracks = DeriveTest.extract DeriveTest.e_nns $

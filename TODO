@@ -29,7 +29,12 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
-  - is there a repl cmd to multiply control vals?
+  - pitch track entry replaces the whole call when there is a transformer
+    . It should just replace the final pitch call, as when there is no
+      transformer.
+  - strip transformer deleted the whole call
+  * is there a repl cmd to multiply control vals?
+    . Yes, LControl.multiply
   * bug deleting view:
     sync_status: Ui/Ui.hs:515 State.lookup: unknown (vid "green-mold/b185.v1")
     . In keycaps, due to Cmd.get_focused_block.  It's still the focused view
@@ -167,7 +172,7 @@ UNSORTED
     . notation and damping inference for gender rambat
     . It would be nice to have the high level part, then double click to open
       the derived parts, and possibly edit.
-  - make tr hold flat?
+  * make tr hold flat?
     . can I replace the trill hold arg with a 'd' transform for control calls?
       That won't work for the note trill though.
   - do I ever get negative Score.Events?

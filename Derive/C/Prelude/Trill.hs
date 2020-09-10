@@ -495,8 +495,9 @@ c_pitch_trill hardcoded_start hardcoded_end =
 c_pitch_trill_smooth :: Maybe Direction -> Maybe Direction
     -> Derive.Generator Derive.Pitch
 c_pitch_trill_smooth hardcoded_start hardcoded_end =
-    Derive.generator1 Module.prelude "tr" mempty
-    ("Generate a pitch signal of alternating pitches."
+    Derive.generator1 Module.prelude "trs" mempty
+    ("Generate a pitch signal of alternating pitches. Like `tr`, but with\
+    \ defaults for smooth transitions."
     <> direction_doc hardcoded_start hardcoded_end
     ) $ Sig.call ((,,)
     <$> Sig.required "note" "Base pitch."
@@ -783,7 +784,7 @@ get_trill_control config default_neighbor (start, end) neighbor = do
     let (val1, val2) = case who_first of
             Unison -> (const 0, neighbor_sig)
             Neighbor -> (neighbor_sig, const 0)
-    return (trill_from_transitions val1 val2 transitions, control)
+    return (trill_from_transitions val1 val2 real_start transitions, control)
 
 -- | Like 'get_trill_control', but for a curved trill.
 get_trill_control_smooth :: Config -> Typecheck.TransposeType
@@ -810,7 +811,7 @@ get_trill_transitions config (start, end) neighbor_low = do
             convert_direction neighbor_low (_start_dir config) (_end_dir config)
     hold <- Call.score_duration start (_hold config)
     (who_first,) <$>
-        adjusted_transitions config hold even_transitions (start, end)
+        adjusted_transitions config 0 even_transitions (start + hold, end)
 
 -- | Resolve start and end Directions to the first and second trill notes.
 convert_direction :: Bool -> Maybe Direction -> Maybe Direction
@@ -901,9 +902,15 @@ add_bias bias (t:ts)
 -- | Make a trill signal from a list of transition times.  It will alternate
 -- between values from the given Functions.
 trill_from_transitions :: Typecheck.Function -> Typecheck.Function
-    -> [RealTime] -> [(RealTime, Signal.Y)]
-trill_from_transitions val1 val2 transitions =
-    [(x, sig x) | (x, sig) <- zip transitions (cycle [val1, val2])]
+    -> RealTime -> [RealTime] -> [(RealTime, Signal.Y)]
+trill_from_transitions val1 val2 start transitions =
+    initial ++ [(x, sig x) | (x, sig) <- zip transitions (cycle [val1, val2])]
+    where
+    -- Hold might have push the first transition forward, so make a flat
+    -- segment for it.
+    initial = case transitions of
+        x : _ | start < x -> [(start, val1 start)]
+        _ -> []
 
 -- | Create trill transition points from a speed.
 trill_transitions :: (ScoreTime, ScoreTime) -> Bool -> DeriveT.ControlRef
