@@ -32,6 +32,12 @@ library = Library.transformers
     , ("echo", c_echo)
     , ("e-echo", c_event_echo)
     ]
+    <> Library.transformers
+    [ ("d", c_delay_c :: Derive.Transformer Derive.Control)
+    ]
+    <> Library.transformers
+    [ ("d", c_delay_c :: Derive.Transformer Derive.Pitch)
+    ]
 
 -- * note calls
 
@@ -46,6 +52,16 @@ c_delay = Derive.transformer Module.prelude "delay" Tags.ly
         start <- Args.real_start args
         delay <- Call.score_duration start
             =<< Call.time_control_at Typecheck.Real time start
+        Derive.at delay deriver
+
+c_delay_c :: Derive.Taggable a => Derive.Transformer a
+c_delay_c = Derive.transformer Module.prelude "delay" mempty
+    "Simple delay for control and pitch tracks."
+    $ Sig.callt
+    ( Sig.defaulted "time" (Typecheck.real 0.1) "Delay time."
+    ) $ \(Typecheck.DefaultReal time) args deriver -> do
+        start <- Args.real_start args
+        delay <- Call.score_duration start time
         Derive.at delay deriver
 
 -- TODO typed delay time
