@@ -25,8 +25,10 @@ module Derive.Parse (
 #endif
 ) where
 import           Prelude hiding (lex)
+import qualified Control.Applicative as Applicative
 import qualified Control.Applicative as A (many)
 import qualified Control.Monad.Except as Except
+
 import qualified Data.Attoparsec.Text as A
 import           Data.Attoparsec.Text ((<?>))
 import qualified Data.List as List
@@ -86,7 +88,9 @@ parse p = ParseText.parse (spaces >> p)
 -- * lex
 
 -- | Lex out a single expression.  This isn't really a traditional lex, because
--- it will extract a whole parenthesized expression instead of a token.
+-- it will extract a whole parenthesized expression instead of a token.  Also,
+-- this leaves on trailing whitespace, so you can concatenate the lexed out
+-- words and get the original input back.
 lex1 :: Text -> (Text, Text)
 lex1 text = case parse ((,) <$> p_lex1 <*> A.takeWhile (const True)) text of
     Right ((), rest) ->
@@ -97,23 +101,32 @@ lex1 text = case parse ((,) <$> p_lex1 <*> A.takeWhile (const True)) text of
 lex :: Text -> [Text]
 lex text
     | Text.null pre = []
-    | Text.null post = [Text.stripEnd pre]
-    | otherwise = Text.stripEnd pre : lex post
+    | Text.null post = [pre]
+    | otherwise = pre : lex post
     where
     (pre, post) = lex1 text
 
 -- | Take an expression and lex it into words, where each sublist corresponds
--- to one expression in the pipeline.
+-- to one expression in the pipeline.  Like 'lex1', this corresponds to call
+-- name and arguments, not tokens.  The final word could be a comment.
 split_pipeline :: Text -> [[Text]]
-split_pipeline = Seq.split_null ["|"] . lex
+split_pipeline =
+    -- Go through some contortions to preserve spaces on the end of words,
+    -- but not around the |.
+    map (Seq.map_last Text.stripEnd) . Seq.map_tail (drop 1)
+    . Seq.split_before ((=="|") . Text.strip) . lex
 
 join_pipeline :: [[Text]] -> Text
-join_pipeline = Text.unwords . List.intercalate ["|"]
+join_pipeline = mconcat . List.intercalate [" | "]
 
--- | Attoparsec doesn't keep track of byte position, and always backtracks.
--- I think this means I can't reuse 'p_term'.
+-- | This returns () on success and the caller will see how many chars were
+-- consumed.  Attoparsec doesn't keep track of byte position, and always
+-- backtracks.  I think this means I can't reuse 'p_term'.
 p_lex1 :: A.Parser ()
-p_lex1 = (str <|> parens <|> word) >> spaces
+p_lex1 =
+    (str <|> parens <|> (p_equal_operator *> pure ()) <|> unparsed <|> comment
+            <|> word)
+        *> (A.skipWhile is_whitespace)
     where
     str = p_single_quote_string >> return ()
     parens = do
@@ -123,6 +136,9 @@ p_lex1 = (str <|> parens <|> word) >> spaces
         return ()
     word = A.skipWhile (\c -> c /= '(' && is_word_char c)
     content_char c = c /= '(' && c /= ')' && c /= '\''
+    unparsed = A.string (Expr.unsym unparsed_call)
+        *> A.skipWhile (\c -> c /= '|' && c /= ')')
+    comment = A.string "--" *> A.skipWhile (const True)
 
 -- * expand macros
 
@@ -215,12 +231,13 @@ p_equal_generic :: A.Parser a -> A.Parser (Expr.Str, Maybe Expr.Str, [a])
 p_equal_generic rhs_term = do
     lhs <- (Expr.unstr <$> p_str) <|> (Expr.unsym <$> p_symbol True)
     spaces
-    A.char '='
-    sym <- A.option Nothing $ Just . Text.singleton
-        <$> A.satisfy (A.inClass merge_symbols)
+    mb_sym <- p_equal_operator
     spaces
     rhs <- A.many1 rhs_term
-    return (Expr.Str lhs, Expr.Str <$> sym, rhs)
+    return (Expr.Str lhs, Expr.Str . Text.singleton <$> mb_sym, rhs)
+
+p_equal_operator :: A.Parser (Maybe Char)
+p_equal_operator = A.char '=' *> optional (A.satisfy (A.inClass merge_symbols))
 
 -- | Valid symbols after =.  This should correspond to the keys in
 -- Equal.symbol_to_merge.  It could have more symbols, but then that syntax
@@ -707,3 +724,6 @@ p_var = A.char '$' *> (Var <$> A.takeWhile1 is_var_char)
 
 is_var_char :: Char -> Bool
 is_var_char c = 'a' <= c || 'z' <= c || c == '-'
+
+optional :: Applicative.Alternative f => f a -> f (Maybe a)
+optional = A.option Nothing . fmap Just

@@ -97,6 +97,7 @@ roundtrip :: Stack.HasCallStack => Text -> Test
 roundtrip t =
     right_equal (Text.strip . ShowVal.show_val <$> Parse.parse_expr t) t
 
+test_unparsed_call :: Test
 test_unparsed_call = do
     let f = fmap NonEmpty.toList . Parse.parse_expr
         vsym = Literal . DeriveT.VStr
@@ -177,6 +178,7 @@ noninvertible_vals =
     ]
     where num = Just . VNum
 
+test_parse_val :: Test
 test_parse_val = do
     let exprs = map ((,) True) invertible_vals
             ++ map ((,) False) noninvertible_vals
@@ -193,6 +195,7 @@ test_parse_val = do
                     void $ equal (ShowVal.show_val val) expr
             _ -> void $ success $ showt res <> " == " <> showt expected
 
+test_parse_num :: Test
 test_parse_num = do
     let f = Parse.parse_num
     equal (f "`0x`00") (Right 0)
@@ -200,6 +203,7 @@ test_parse_num = do
     equal (f "-`0x`ff") (Right (-1))
     left_like (f "`0x`000") "parse error"
 
+test_p_equal :: Test
 test_p_equal = do
     let eq a b = Right (Call "=" [Literal (VStr a), b])
         num = Literal . VNum . ScoreT.untyped
@@ -223,17 +227,48 @@ test_p_equal = do
     left_like (f "a = ()") "parse error"
     left_like (f "a=") "not enough input"
 
+test_lex1 :: Test
 test_lex1 = do
     let f = Parse.lex1
     equal (f "a b c") $ ("a ", "b c")
     equal (f "(a b) c") $ ("(a b) ", "c")
     equal (f "(a (b)) c") $ ("(a (b)) ", "c")
     equal (f "(a ')' (x) b) c") $ ("(a ')' (x) b) ", "c")
+    equal (f "=y") ("=", "y")
+    equal (f "y -- c") ("y ", "-- c")
 
     -- Incomplete parses get lexed.
     equal (f "1.") $ ("1.", "")
     equal (f "'hi") $ ("'hi", "")
 
+test_lex :: Test
+test_lex = do
+    let f = Parse.lex
+    equal (f "a b c") ["a ", "b ", "c"]
+    equal (f "(a b) 'c d'") ["(a b) ", "'c d'"]
+    equal (f "x = y") ["x ", "= ", "y"]
+    equal (f "x=y") ["x", "=", "y"]
+    equal (f "!a b") ["!a b"]
+
+    equal (f "x = y -- c") ["x ", "= ", "y ", "-- c"]
+
+test_split_pipeline :: Test
+test_split_pipeline = do
+    let f = Parse.split_pipeline
+    equal (f "x | y") [["x"], ["y"]]
+    equal (f "x=y") [["x", "=", "y"]]
+    equal (f "x=y | y") [["x", "=", "y"], ["y"]]
+
+test_split_pipeline_roundtrip :: Test
+test_split_pipeline_roundtrip = do
+    let f = Parse.join_pipeline . Parse.split_pipeline
+    equal (f "x | y") "x | y"
+    -- Spaces preserved in round-trip.
+    equal (f "x=y | y") "x=y | y"
+    equal (f "x = y | y") "x = y | y"
+    equal (f "x | y -- c") "x | y -- c"
+
+test_expand_macros :: Test
 test_expand_macros = do
     let f = Parse.expand_macros (\s -> "(" <> s <> ")")
     equal (f "") (Right "")
@@ -250,7 +285,6 @@ test_expand_macros = do
     equal (f "hi @\"a b\" there") (Right "hi (a b) there")
     -- It strips the \, because 'show' will later add it back.
     equal (f "hi @\"a\\\"b\" there") (Right "hi (a\"b) there")
-
 
 -- * ky file
 

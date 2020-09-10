@@ -32,7 +32,7 @@ UNSORTED
   - pitch track entry replaces the whole call when there is a transformer
     . It should just replace the final pitch call, as when there is no
       transformer.
-  - strip transformer deleted the whole call
+  * strip transformer deleted the whole call
   * is there a repl cmd to multiply control vals?
     . Yes, LControl.multiply
   * bug deleting view:

@@ -231,7 +231,8 @@ type Match = [Token]
 
 parse_tokens :: Parser -> Text -> Maybe [Text]
 parse_tokens parser =
-    fmap (map Text.unwords) . Seq.head . parse parser . Parse.lex
+    fmap (map Text.unwords) . Seq.head . parse parser . map Text.strip
+    . Parse.lex
 
 parse :: Parser -> [Token] -> [[Match]]
 parse (Parser p) = map fst . filter (null . snd) . p
