@@ -3,20 +3,21 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.PitchTrack_test where
-import Util.Test
-import qualified Ui.Key as Key
-import qualified Ui.UiMsg as UiMsg
-import qualified Ui.UiTest as UiTest
-
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
+import qualified Cmd.ControlTrack as ControlTrack
 import qualified Cmd.PitchTrack as PitchTrack
 
 import qualified Derive.Scale as Scale
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
-import Global
-import Types
+import qualified Ui.Key as Key
+import qualified Ui.UiMsg as UiMsg
+import qualified Ui.UiTest as UiTest
+
+import           Global
+import           Types
+import           Util.Test
 
 
 test_cmd_val_edit = do
@@ -56,7 +57,7 @@ test_cmd_method_edit = do
 
 test_parse = do
     let f = PitchTrack.parse
-        e = PitchTrack.Event
+        e = ControlTrack.Event
     -- Uses parens to disambiguate between call and val vs. val with args.
     equal (f "4c 0") $ e "" "4c 0" ""
     equal (f "i (4c)") $ e "i" "(4c)" ""
@@ -65,7 +66,7 @@ test_parse = do
 
 test_unparse = do
     let f = PitchTrack.unparse
-        e = PitchTrack.Event
+        e = ControlTrack.Event
     equal (f (e "i" "" "")) "i "
     equal (f (e "i" "4c" "")) "i (4c)"
     equal (f (e "i" "4c 0" "")) "i (4c 0)"

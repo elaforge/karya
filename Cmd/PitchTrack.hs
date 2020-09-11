@@ -7,14 +7,14 @@
 
     This module creates the pitches that are later parsed by Derive.Control.
 -}
-module Cmd.PitchTrack (module Cmd.PitchTrack, module Cmd.ControlTrack) where
+module Cmd.PitchTrack where
 import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
 import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ControlTrack as ControlTrack
-import           Cmd.ControlTrack (Event(..))
+import           Cmd.ControlTrack (Event)
 import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.ModifyEvents as ModifyEvents
@@ -79,13 +79,16 @@ cmd_method_edit msg = Cmd.suppress_history Cmd.MethodEdit
 
 val_edit_at :: Cmd.M m => EditUtil.Pos -> Pitch.Note -> m ()
 val_edit_at pos note = modify_event_at pos $ \event ->
-    (Just $ event { event_val = Pitch.note_text note }, False)
+    (Just $ event { ControlTrack.event_val = Pitch.note_text note }, False)
 
 method_edit_at :: Cmd.M m => EditUtil.Pos -> EditUtil.Key -> m ()
 method_edit_at pos key = modify_event_at pos $ \event ->
-    (Just $ event { event_method = fromMaybe "" $
-            EditUtil.modify_text_key [] key (event_method event) },
-        False)
+    ( Just $ event
+        { ControlTrack.event_method = fromMaybe "" $
+            EditUtil.modify_text_key [] key (ControlTrack.event_method event)
+        }
+    , False
+    )
 
 -- | Record the last note entered.
 cmd_record_note_status :: Cmd.M m => Msg.Msg -> m Cmd.Status
@@ -121,11 +124,11 @@ modify f = Event.text_ %= unparse . f . parse
 -- > "x (y) z"  -> Event { method = "x", val = "(y)", args = "z" }
 parse :: Text -> Event
 parse s
-    | Text.null post = Event "" pre ""
-    | post == " " = Event pre "" ""
+    | Text.null post = ControlTrack.Event "" pre ""
+    | post == " " = ControlTrack.Event pre "" ""
     | " (" `Text.isPrefixOf` post =
         ControlTrack.split_args pre (Text.drop 1 post)
-    | otherwise = Event "" s ""
+    | otherwise = ControlTrack.Event "" s ""
     where (pre, post) = Text.break (==' ') s
 
 -- | This is a bit more complicated than 'ControlTrack.unparse', since it needs
