@@ -109,15 +109,16 @@ lex text
 -- | Take an expression and lex it into words, where each sublist corresponds
 -- to one expression in the pipeline.  Like 'lex1', this corresponds to call
 -- name and arguments, not tokens.  The final word could be a comment.
+--
+-- This preserves trailing spaces on the words, because track editors use that
+-- to infer edits in progress.
 split_pipeline :: Text -> [[Text]]
 split_pipeline =
-    -- Go through some contortions to preserve spaces on the end of words,
-    -- but not around the |.
-    map (Seq.map_last Text.stripEnd) . Seq.map_tail (drop 1)
-    . Seq.split_before ((=="|") . Text.strip) . lex
+    Seq.map_tail (drop 1) . Seq.split_before ((=="|") . Text.strip) . lex
 
 join_pipeline :: [[Text]] -> Text
-join_pipeline = mconcat . List.intercalate [" | "]
+join_pipeline =
+    mconcat . List.intercalate [" | "] . map (Seq.map_last Text.stripEnd)
 
 -- | This returns () on success and the caller will see how many chars were
 -- consumed.  Attoparsec doesn't keep track of byte position, and always

@@ -255,9 +255,9 @@ test_lex = do
 test_split_pipeline :: Test
 test_split_pipeline = do
     let f = Parse.split_pipeline
-    equal (f "x | y") [["x"], ["y"]]
+    equal (f "x | y") [["x "], ["y"]]
     equal (f "x=y") [["x", "=", "y"]]
-    equal (f "x=y | y") [["x", "=", "y"], ["y"]]
+    equal (f "x=y | y") [["x", "=", "y "], ["y"]]
 
 test_split_pipeline_roundtrip :: Test
 test_split_pipeline_roundtrip = do

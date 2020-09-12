@@ -13,8 +13,6 @@ import qualified Data.Text as Text
 import qualified Util.Seq as Seq
 import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.ControlTrack as ControlTrack
-import           Cmd.ControlTrack (Event)
 import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.ModifyEvents as ModifyEvents
@@ -78,14 +76,14 @@ cmd_method_edit msg = Cmd.suppress_history Cmd.MethodEdit
     return Cmd.Done
 
 val_edit_at :: Cmd.M m => EditUtil.Pos -> Pitch.Note -> m ()
-val_edit_at pos note = modify_event_at pos $ \event ->
-    (Just $ event { ControlTrack.event_val = Pitch.note_text note }, False)
+val_edit_at pos note = modify_event_at pos $ \partial ->
+    (Just $ partial { _val = Pitch.note_text note }, False)
 
 method_edit_at :: Cmd.M m => EditUtil.Pos -> EditUtil.Key -> m ()
-method_edit_at pos key = modify_event_at pos $ \event ->
-    ( Just $ event
-        { ControlTrack.event_method = fromMaybe "" $
-            EditUtil.modify_text_key [] key (ControlTrack.event_method event)
+method_edit_at pos key = modify_event_at pos $ \partial ->
+    ( Just $ partial
+        { _method = fromMaybe "" $
+            EditUtil.modify_text_key [] key (_method partial)
         }
     , False
     )
@@ -102,8 +100,8 @@ cmd_record_note_status msg = do
 
 -- * implementation
 
--- | old_event -> (new_event, advance?)
-type Modify = Event -> (Maybe Event, Bool)
+-- | old -> (new, advance?)
+type Modify = Partial -> (Maybe Partial, Bool)
 
 modify_event_at :: Cmd.M m => EditUtil.Pos -> Modify -> m ()
 modify_event_at pos f = EditUtil.modify_event_at pos True True
@@ -111,36 +109,59 @@ modify_event_at pos f = EditUtil.modify_event_at pos True True
 
 -- | Modify event text.  This is not used within this module but is exported
 -- for others as a more general variant of 'modify_event_at'.
-modify :: (Event -> Event) -> Event.Event -> Event.Event
+modify :: (Partial -> Partial) -> Event.Event -> Event.Event
 modify f = Event.text_ %= unparse . f . parse
 
--- | Like 'ControlTrack.parse', but complicated by the fact that pitch calls
--- can take args.
---
--- > "x"        -> Event { method = "", val = "x", args = "" }
--- > "x "       -> Event { method = "x", val = "", args = "" }
--- > "x y"      -> Event { method = "", val = "x y", args = "" }
--- > "x (y)"    -> Event { method = "x", val = "(y)", args = "" }
--- > "x (y) z"  -> Event { method = "x", val = "(y)", args = "z" }
-parse :: Text -> Event
-parse s
-    | Text.null post = ControlTrack.Event "" pre ""
-    | post == " " = ControlTrack.Event pre "" ""
-    | " (" `Text.isPrefixOf` post =
-        ControlTrack.split_args pre (Text.drop 1 post)
-    | otherwise = ControlTrack.Event "" s ""
-    where (pre, post) = Text.break (==' ') s
+-- | A partially parsed expression.
+data Partial = Partial {
+    _transform :: [[Text]]
+    , _method :: Text
+    , _val :: Text
+    , _args :: [Text]
+    , _comment :: Text
+    } deriving (Show, Eq)
 
--- | This is a bit more complicated than 'ControlTrack.unparse', since it needs
--- to add or strip parens.
-unparse :: Event -> Text
-unparse (ControlTrack.Event method val args)
-    | Text.null method && Text.null val = ""
-    -- If the method is gone, the note no longer needs its parens.
-    | Text.null method = strip_parens val
-    | otherwise = Text.unwords $
-        method : add_parens val : if Text.null args then [] else [args]
+parse :: Text -> Partial
+parse = make . Seq.viewr . Parse.split_pipeline
     where
+    make Nothing = Partial [] "" "" [] ""
+    make (Just (transform, expr)) = Partial
+        { _transform = transform
+        , _method = Text.strip method
+        , _val = Text.strip pitch
+        , _args = args
+        , _comment = comment
+        }
+        where
+        -- Comment "--" is always _args.
+        (expr2, comment) = case Seq.viewr expr of
+            Just (expr, comment) | "--" `Text.isPrefixOf` comment ->
+                (expr, comment)
+            _ -> (expr, "")
+        (method, pitch, args) = case expr2 of
+            method : pitch : args
+                -- Uses parens to disambiguate between call and val vs. val
+                -- with args.
+                | "(" `Text.isPrefixOf` pitch -> (method, pitch, args)
+                | otherwise -> ("", method, pitch : args)
+            [arg]
+                | " " `Text.isSuffixOf` arg -> (arg, "", [])
+                | otherwise -> ("", arg, [])
+            [] -> ("", "", [])
+
+-- | Since pitches are calls, they need to lose or gain parens when they move
+-- to or from toplevel call position.  This is one reason parse and unparse
+-- are not exact inverses.
+unparse :: Partial -> Text
+unparse (Partial transform method val args comment) =
+    Parse.join_pipeline $ transform ++ [Seq.map_init (<>" ") (expr ++ comments)]
+    where
+    comments = if Text.null comment then [] else [comment]
+    expr
+        | Text.null method && Text.null val = args
+        -- If the method is gone, the note no longer needs its parens.
+        | Text.null method = strip_parens val : args
+        | otherwise = [method, add_parens (Text.unwords (val : args))]
     strip_parens t
         | "(" `Text.isPrefixOf` t && ")" `Text.isSuffixOf` t =
             Text.drop 1 $ Text.take (Text.length t - 1) t

@@ -5,7 +5,6 @@
 module Cmd.PitchTrack_test where
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
-import qualified Cmd.ControlTrack as ControlTrack
 import qualified Cmd.PitchTrack as PitchTrack
 
 import qualified Derive.Scale as Scale
@@ -20,6 +19,7 @@ import           Types
 import           Util.Test
 
 
+test_cmd_val_edit :: Test
 test_cmd_val_edit = do
     let run track_specs cmd = run_tracks track_specs 0 0 cmd
         note = CmdTest.m_note_on NN.middle_c
@@ -32,6 +32,7 @@ test_cmd_val_edit = do
     equal (run [("*", [(0, 0, "5e-")])] (f CmdTest.backspace)) $
         Right [("*", [])]
 
+test_cmd_method_edit :: Test
 test_cmd_method_edit = do
     let run track_specs cmd = run_tracks track_specs 0 0cmd
         f key = PitchTrack.cmd_method_edit key
@@ -55,23 +56,41 @@ test_cmd_method_edit = do
     equal (run_tracks [] 0 0 (f (CmdTest.make_key UiMsg.KeyDown Key.Tab))) $
         Left "aborted"
 
+test_parse :: Test
 test_parse = do
     let f = PitchTrack.parse
-        e = ControlTrack.Event
+    let p = PitchTrack.Partial
     -- Uses parens to disambiguate between call and val vs. val with args.
-    equal (f "4c 0") $ e "" "4c 0" ""
-    equal (f "i (4c)") $ e "i" "(4c)" ""
-    equal (f "i (4c 0)") $ e "i" "(4c 0)" ""
-    equal (f "i (4c 0) x") $ e "i" "(4c 0)" "x"
+    equal (f "4c 0") $ p [] "" "4c" ["0"] ""
+    equal (f "i (4c)") $ p [] "i" "(4c)" [] ""
+    equal (f "i (4c 0)") $ p [] "i" "(4c 0)" [] ""
+    equal (f "i (4c 0) x") $ p [] "i" "(4c 0)" ["x"] ""
+    equal (f "(4c)") $ p [] "" "(4c)" [] ""
+    equal (f "4c") $ p [] "" "4c" [] ""
+    equal (f "tr ") $ p [] "tr" "" [] ""
+    equal (f "tr (4c) x -- c") $ p [] "tr" "(4c)" ["x "] "-- c"
+    equal (f "tr -- c") $ p [] "tr" "" [] "-- c"
 
+test_unparse :: Test
 test_unparse = do
     let f = PitchTrack.unparse
-        e = ControlTrack.Event
-    equal (f (e "i" "" "")) "i "
-    equal (f (e "i" "4c" "")) "i (4c)"
-    equal (f (e "i" "4c 0" "")) "i (4c 0)"
-    equal (f (e "i" "4c 0" "x")) "i (4c 0) x"
-    equal (f (e "" "(4c)" "")) "4c"
+    let p = PitchTrack.Partial
+    equal (f $ p [] "tr" "(4c)" [] "") "tr (4c)"
+    equal (f $ p [] "" "(4c)" [] "") "4c"
+    equal (f $ p [] "" "(4c)" ["0"] "") "4c 0"
+    equal (f $ p [] "tr" "" [] "") "tr "
+    equal (f $ p [] "tr" "4c" [] "") "tr (4c)"
+    equal (f $ p [] "tr" "4c" ["0"] "") "tr (4c 0)"
+    equal (f $ p [] "tr" "" [] "-- c") "tr  -- c"
+    equal (f $ p [] "tr" "4c" [] "-- c") "tr (4c) -- c"
+
+test_parse_roundtrip :: Test
+test_parse_roundtrip = do
+    let f t = (t, PitchTrack.unparse $ PitchTrack.parse t)
+    uncurry equal (f "a b")
+    uncurry equal (f "a | b")
+    uncurry equal (f "a | 4c 0")
+    uncurry equal (f "tr (4c) 0")
 
 test_modify_note = do
     let f = PitchTrack.modify_note
