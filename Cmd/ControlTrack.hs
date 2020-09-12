@@ -105,10 +105,10 @@ edit_normalized msg = case msg of
             Selection.advance
 
 modify_num :: EditUtil.Key -> Modify
-modify_num key event =
-    case EditUtil.modify_text_key [] key (event_val event) of
-        Nothing -> (Nothing, Text.null $ event_val event)
-        Just new_val -> (Just $ event { event_val = new_val }, False)
+modify_num key partial =
+    case EditUtil.modify_text_key [] key (_val partial) of
+        Nothing -> (Nothing, Text.null $ _val partial)
+        Just new_val -> (Just $ partial { _val = new_val }, False)
 
 {- | This is tricky because the editing mode is different depending on whether
     the val is hex or not.
@@ -126,12 +126,12 @@ modify_num key event =
     for the tempo track too, for consistency.
 -}
 modify_hex :: EditUtil.Key -> Modify
-modify_hex key event
-    | Just new_val <- update_hex (event_val event) key = case new_val of
+modify_hex key partial
+    | Just new_val <- update_hex (_val partial) key = case new_val of
         Nothing -> (Nothing, True)
-        Just val -> (Just $ event { event_val = val }, False)
-    | EditUtil.is_num_key key = modify_num key event
-    | otherwise = (Just event, False)
+        Just val -> (Just $ partial { _val = val }, False)
+    | EditUtil.is_num_key key = modify_num key partial
+    | otherwise = (Just partial, False)
 
 -- | Nothing if the val is not a hex number, Just Nothing if it was but the key
 -- was Backspace, and Just Just if it should get a new value.
@@ -165,10 +165,13 @@ cmd_method_edit msg =
     Cmd.suppress_history Cmd.MethodEdit "control track method edit" $ do
     EditUtil.fallthrough msg
     case msg of
-        (EditUtil.method_key -> Just key) -> modify_event $ \event ->
-            (Just $ event { event_method = fromMaybe "" $
-                    EditUtil.modify_text_key [] key (event_method event) },
-                False)
+        (EditUtil.method_key -> Just key) -> modify_event $ \partial ->
+            ( Just $ partial
+                { _method = fromMaybe "" $
+                    EditUtil.modify_text_key [] key (_method partial)
+                }
+            , False
+            )
         _ -> Cmd.abort
     return Cmd.Done
 
@@ -176,30 +179,11 @@ cmd_method_edit msg =
 -- * implementation
 
 val_edit_at :: Cmd.M m => EditUtil.Pos -> Signal.Y -> m ()
-val_edit_at pos val = modify_event_at pos $ \event ->
-    (Just $ event { event_val = ShowVal.show_hex_val val }, False)
+val_edit_at pos val = modify_event_at pos $ \partial ->
+    (Just $ partial { _val = ShowVal.show_hex_val val }, False)
 
-{- | Semi-parse event text into method, val, and args.  Method is actually the
-    call, val is the first argument to the calll, and args are the remaining
-    arguments.  Control calls have a convention where the first argument is the
-    value to set.  I separate it out so I can replace just that value while
-    leaving any arguments intact.  E.g., exponential interpolation might look
-    like @e 0 3@, where 0 is the destination and 3 is the exponent.
-    Or @e (4c) 3@ in the case of pitches.  If I press a MIDI key I want to
-    replace just the @4c@.
-
-    The "method" terminology dates from back before calls existed.  Nowadays
-    it's just a call, but for that matter so are numeric literals, so I need
-    something to differentiate @1@ from @i 1@.
--}
-data Event = Event {
-    event_method :: !Text
-    , event_val :: !Text
-    , event_args :: !Text
-    } deriving (Eq, Show)
-
--- | old_event -> (new_event, advance?)
-type Modify = Event -> (Maybe Event, Bool)
+-- | old -> (new, advance?)
+type Modify = Partial -> (Maybe Partial, Bool)
 
 modify_event :: Cmd.M m => Modify -> m ()
 modify_event f = do
@@ -210,52 +194,88 @@ modify_event_at :: Cmd.M m => EditUtil.Pos -> Modify -> m ()
 modify_event_at pos f = EditUtil.modify_event_at pos True False
     (first (fmap unparse) . f . parse . fromMaybe "")
 
--- | Try to figure out the call part of the expression and split it from the
--- rest.
---
--- I use a trailing space to tell the difference between a method and a val.
---
--- > "x"        -> Event { method = "", val = x, args = "" }
--- > "x "       -> Event { method = x, val = "", args = "" }
--- > "x y"      -> Event { method = x, val = y, args = "" }
--- > "x y z"    -> Event { method = x, val = y, args = z }
---
--- The val itself can't have args, because it will then be mistaken for the
--- method.  E.g. given @.5 0@, the @0@ will be considered the val while @.5@ is
--- the method.  This isn't a problem for control calls, which are just numbers
--- and don't take arguments.
-parse :: Text -> Event
-parse s
-    | Text.null post = Event "" pre ""
-    | post == " " = Event pre "" ""
-    | otherwise = split_args pre (Text.drop 1 post)
-    where (pre, post) = Text.break (==' ') s
-
-split_args :: Text -> Text -> Event
-split_args method rest = Event method (Text.stripEnd w) ws
-    where
-    (w, ws) = Parse.lex1 rest
-
-unparse :: Event -> Text
-unparse (Event method val args)
-    | Text.null method && Text.null val = ""
-    | Text.null method = val -- No method means no args, see comment on 'parse'.
-    | otherwise = Text.unwords $
-        method : val : if Text.null args then [] else [args]
-
 -- | Try to figure out where the note part is in event text and modify that
 -- with the given function.
 --
 -- If the val was hex, keep it hex.
 modify_val :: (Signal.Y -> Signal.Y) -> Text -> Maybe Text
     -- ^ Nothing if I couldn't parse out a VNum.
-modify_val f text = case Parse.parse_val (event_val event) of
+modify_val f text = case Parse.parse_val (_val partial) of
         Right (DeriveT.VNum n) -> Just $ unparse $
-            event { event_val = show_val (f <$> n) }
+            partial { _val = show_val (f <$> n) }
         _ -> Nothing
     where
-    event = parse text
+    partial = parse text
     show_val num
         | ScoreT.Typed ScoreT.Untyped n <- num,
-            ShowVal.is_hex_val (event_val event) = ShowVal.show_hex_val n
+            ShowVal.is_hex_val (_val partial) = ShowVal.show_hex_val n
         | otherwise = ShowVal.show_val (DeriveT.VNum num)
+
+-- * Partial
+
+{- | Partially-parse event text into method, val, and args.  Method is actually
+    the call, val is the first argument to the calll, and args are the
+    remaining arguments.  Control calls have a convention where the first
+    argument is the value to set.  I separate it out so I can replace just that
+    value while leaving any arguments intact.  E.g., exponential interpolation
+    might look like @e 0 3@, where 0 is the destination and 3 is the exponent.
+    Or @e (4c) 3@ in the case of pitches.  If I press a MIDI key I want to
+    replace just the @4c@.
+
+    The "method" terminology dates from back before calls existed.  Nowadays
+    it's just a call, but for that matter so are numeric literals, so I need
+    something to differentiate @1@ from @i 1@.
+-}
+data Partial = Partial {
+    _transform :: [[Text]]
+    , _method :: Text
+    , _val :: Text
+    , _args :: [Text]
+    , _comment :: Text
+    } deriving (Show, Eq)
+
+-- | Try to figure out the call part of the expression and split it from the
+-- rest.
+--
+-- I use a trailing space to tell the difference between a method and a val.
+parse :: Text -> Partial
+parse = parse_general (\method val args -> (method, val, args))
+
+parse_general :: (Text -> Text -> [Text] -> (Text, Text, [Text]))
+    -> Text -> Partial
+parse_general split_expr = make . Seq.viewr . Parse.split_pipeline
+    where
+    make Nothing = Partial [] "" "" [] ""
+    make (Just (transform, expr)) = Partial
+        { _transform = transform
+        , _method = Text.strip method
+        , _val = Text.strip val
+        , _args = args
+        , _comment = comment
+        }
+        where
+        (expr2, comment) = case Seq.viewr expr of
+            Just (expr, comment) | "--" `Text.isPrefixOf` comment ->
+                (expr, comment)
+            _ -> (expr, "")
+        (method, val, args) = case expr2 of
+            method : val : args -> split_expr method val args
+            [arg]
+                | " " `Text.isSuffixOf` arg -> (arg, "", [])
+                | otherwise -> ("", arg, [])
+            [] -> ("", "", [])
+
+unparse_general :: (Text -> Text -> [Text] -> [Text]) -> Partial -> Text
+unparse_general join_expr (Partial transform method val args comment) =
+    Parse.join_pipeline $ transform ++ [Seq.map_init (<>" ") (expr ++ comments)]
+    where
+    comments = if Text.null comment then [] else [comment]
+    expr = join_expr method val args
+
+unparse :: Partial -> Text
+unparse = unparse_general join_expr
+    where
+    join_expr method val args
+        | Text.null method && Text.null val = args
+        | Text.null method = val : args
+        | otherwise = [method, Text.unwords (val : args)]

@@ -12,25 +12,37 @@ import qualified Cmd.ControlTrack as ControlTrack
 import Global
 
 
+test_parse :: Test
 test_parse = do
     let f = ControlTrack.parse
-        e = ControlTrack.Event
-    equal (f "") $ e "" "" ""
-    equal (f "a") $ e "" "a" ""
-    equal (f "a ") $ e "a" "" ""
-    equal (f "a b") $ e "a" "b" ""
-    equal (f "a b c") $ e "a" "b" "c"
-    equal (f "a (b ')z') c") $ e "a" "(b ')z')" "c"
+        p = ControlTrack.Partial
+    equal (f "") $ p [] "" "" [] ""
+    equal (f "a") $ p [] "" "a" [] ""
+    equal (f "a ") $ p [] "a" "" [] ""
+    equal (f "a b") $ p [] "a" "b" [] ""
+    equal (f "a b c") $ p [] "a" "b" ["c"] ""
+    equal (f "a (b ')z') c") $ p [] "a" "(b ')z')" ["c"] ""
+    equal (f "x=y | a b -- c") $ p [["x", "=", "y "]] "a" "b" [] "-- c"
 
+test_unparse :: Test
 test_unparse = do
     let f = ControlTrack.unparse
-        e = ControlTrack.Event
-    equal (f (e "" "" "")) ""
-    equal (f (e "a" "" "")) "a "
-    equal (f (e "" "b" "")) "b"
-    equal (f (e "a" "b" "")) "a b"
-    equal (f (e "a" "b" "c")) "a b c"
+        p = ControlTrack.Partial
+    equal (f (p [] "" "" [] "")) ""
+    equal (f (p [] "a" "" [] "")) "a "
+    equal (f (p [] "" "b" [] "")) "b"
+    equal (f (p [] "a" "b" [] "")) "a b"
+    equal (f (p [] "a" "b" ["c"] "")) "a b c"
 
+test_parse_roundtrip :: Test
+test_parse_roundtrip = do
+    let f t = (t, ControlTrack.unparse $ ControlTrack.parse t)
+    uncurry equal (f "a b")
+    uncurry equal (f "a | b")
+    uncurry equal (f "a | i 0 -- c")
+    uncurry equal (f "i 0 1")
+
+test_cmd_val_edit :: Test
 test_cmd_val_edit = do
     let f events = fmap extract . thread events ControlTrack.cmd_val_edit
         extract = UiTest.extract_tracks . fst
@@ -55,6 +67,7 @@ test_cmd_val_edit = do
     equal (f [(0, 1, "`0x`01")] (map CmdTest.key_down "4")) $
         Right [("c", [(0, 1, "`0x`14")])]
 
+test_cmd_tempo_val_edit :: Test
 test_cmd_tempo_val_edit = do
     let f events = fmap extract . thread events ControlTrack.cmd_tempo_val_edit
         extract = head . snd . head . UiTest.extract_tracks . fst

@@ -24,6 +24,7 @@ import Global
 import Types
 
 
+test_cmd_val_edit_create :: Test
 test_cmd_val_edit_create = do
     let f = NoteTrack.cmd_val_edit
         note = CmdTest.m_note_on NN.middle_c
@@ -33,6 +34,7 @@ test_cmd_val_edit_create = do
     equal (run [(">i", []), ("mod", [])] (f note)) $
         Right [(">i", [(0, 1, "")]), ("*", [(0, 0, "4c")]), ("mod", [])]
 
+test_cmd_val_edit_simple :: Test
 test_cmd_val_edit_simple = do
     let f = NoteTrack.cmd_val_edit
     let note_on = CmdTest.m_note_on NN.middle_c
@@ -52,7 +54,7 @@ test_cmd_val_edit_simple = do
     equal (run note_tracks (f note_on)) $
         Right [(">i", [(0, 1, "x")]), ("*", [(0, 0, "4c")])]
 
-
+test_cmd_val_edit_advance :: Test
 test_cmd_val_edit_advance = do
     -- Test advance mode.
     let f advance = extract . expect_right . val_edit advance False [">i", "*"]
@@ -81,6 +83,7 @@ test_cmd_val_edit_advance = do
     equal (f True [on 60, pitch 60 60.5]) $
         ([(">i", [(0, 1, "4c 50")])], (1, 1))
 
+test_cmd_val_edit_chord :: Test
 test_cmd_val_edit_chord = do
     let f advance tracks = val_edit advance True tracks
         e_sel = (\r -> (simplify r, extract_sel r)) . expect_right
@@ -121,6 +124,7 @@ test_cmd_val_edit_chord = do
     -- TODO test the instrument_of stuff.  I'd need testing infrastructure to
     -- set up the perf stuff.
 
+test_cmd_val_edit_dyn :: Test
 test_cmd_val_edit_dyn = do
     let f tracks msgs = fmap extract $ thread tracks set_dyn
             NoteTrack.cmd_val_edit msgs
@@ -147,6 +151,7 @@ val_edit advance chord tracks msgs =
     mode advance chord st = st { Cmd.state_edit = (Cmd.state_edit st)
         { Cmd.state_advance = advance, Cmd.state_chord = chord } }
 
+test_cmd_method_edit :: Test
 test_cmd_method_edit = do
     let f = NoteTrack.cmd_method_edit
         inst = (">i", [(0, 1, "")])

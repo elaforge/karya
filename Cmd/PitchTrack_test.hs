@@ -5,6 +5,7 @@
 module Cmd.PitchTrack_test where
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
+import qualified Cmd.ControlTrack as ControlTrack
 import qualified Cmd.PitchTrack as PitchTrack
 
 import qualified Derive.Scale as Scale
@@ -59,7 +60,7 @@ test_cmd_method_edit = do
 test_parse :: Test
 test_parse = do
     let f = PitchTrack.parse
-    let p = PitchTrack.Partial
+    let p = ControlTrack.Partial
     -- Uses parens to disambiguate between call and val vs. val with args.
     equal (f "4c 0") $ p [] "" "4c" ["0"] ""
     equal (f "i (4c)") $ p [] "i" "(4c)" [] ""
@@ -74,7 +75,7 @@ test_parse = do
 test_unparse :: Test
 test_unparse = do
     let f = PitchTrack.unparse
-    let p = PitchTrack.Partial
+    let p = ControlTrack.Partial
     equal (f $ p [] "tr" "(4c)" [] "") "tr (4c)"
     equal (f $ p [] "" "(4c)" [] "") "4c"
     equal (f $ p [] "" "(4c)" ["0"] "") "4c 0"

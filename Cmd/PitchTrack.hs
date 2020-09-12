@@ -13,6 +13,7 @@ import qualified Data.Text as Text
 import qualified Util.Seq as Seq
 import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.ControlTrack as ControlTrack
 import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.ModifyEvents as ModifyEvents
@@ -77,13 +78,13 @@ cmd_method_edit msg = Cmd.suppress_history Cmd.MethodEdit
 
 val_edit_at :: Cmd.M m => EditUtil.Pos -> Pitch.Note -> m ()
 val_edit_at pos note = modify_event_at pos $ \partial ->
-    (Just $ partial { _val = Pitch.note_text note }, False)
+    (Just $ partial { ControlTrack._val = Pitch.note_text note }, False)
 
 method_edit_at :: Cmd.M m => EditUtil.Pos -> EditUtil.Key -> m ()
 method_edit_at pos key = modify_event_at pos $ \partial ->
     ( Just $ partial
-        { _method = fromMaybe "" $
-            EditUtil.modify_text_key [] key (_method partial)
+        { ControlTrack._method = fromMaybe "" $
+            EditUtil.modify_text_key [] key (ControlTrack._method partial)
         }
     , False
     )
@@ -101,7 +102,7 @@ cmd_record_note_status msg = do
 -- * implementation
 
 -- | old -> (new, advance?)
-type Modify = Partial -> (Maybe Partial, Bool)
+type Modify = ControlTrack.Partial -> (Maybe ControlTrack.Partial, Bool)
 
 modify_event_at :: Cmd.M m => EditUtil.Pos -> Modify -> m ()
 modify_event_at pos f = EditUtil.modify_event_at pos True True
@@ -109,55 +110,26 @@ modify_event_at pos f = EditUtil.modify_event_at pos True True
 
 -- | Modify event text.  This is not used within this module but is exported
 -- for others as a more general variant of 'modify_event_at'.
-modify :: (Partial -> Partial) -> Event.Event -> Event.Event
+modify :: (ControlTrack.Partial -> ControlTrack.Partial)
+    -> Event.Event -> Event.Event
 modify f = Event.text_ %= unparse . f . parse
 
--- | A partially parsed expression.
-data Partial = Partial {
-    _transform :: [[Text]]
-    , _method :: Text
-    , _val :: Text
-    , _args :: [Text]
-    , _comment :: Text
-    } deriving (Show, Eq)
-
-parse :: Text -> Partial
-parse = make . Seq.viewr . Parse.split_pipeline
+parse :: Text -> ControlTrack.Partial
+parse = ControlTrack.parse_general split_expr
     where
-    make Nothing = Partial [] "" "" [] ""
-    make (Just (transform, expr)) = Partial
-        { _transform = transform
-        , _method = Text.strip method
-        , _val = Text.strip pitch
-        , _args = args
-        , _comment = comment
-        }
-        where
-        -- Comment "--" is always _args.
-        (expr2, comment) = case Seq.viewr expr of
-            Just (expr, comment) | "--" `Text.isPrefixOf` comment ->
-                (expr, comment)
-            _ -> (expr, "")
-        (method, pitch, args) = case expr2 of
-            method : pitch : args
-                -- Uses parens to disambiguate between call and val vs. val
-                -- with args.
-                | "(" `Text.isPrefixOf` pitch -> (method, pitch, args)
-                | otherwise -> ("", method, pitch : args)
-            [arg]
-                | " " `Text.isSuffixOf` arg -> (arg, "", [])
-                | otherwise -> ("", arg, [])
-            [] -> ("", "", [])
+    split_expr method val args
+        -- Uses parens to disambiguate between call and val vs. val
+        -- with args.
+        | "(" `Text.isPrefixOf` val = (method, val, args)
+        | otherwise = ("", method, val : args)
 
 -- | Since pitches are calls, they need to lose or gain parens when they move
 -- to or from toplevel call position.  This is one reason parse and unparse
 -- are not exact inverses.
-unparse :: Partial -> Text
-unparse (Partial transform method val args comment) =
-    Parse.join_pipeline $ transform ++ [Seq.map_init (<>" ") (expr ++ comments)]
+unparse :: ControlTrack.Partial -> Text
+unparse = ControlTrack.unparse_general join_expr
     where
-    comments = if Text.null comment then [] else [comment]
-    expr
+    join_expr method val args
         | Text.null method && Text.null val = args
         -- If the method is gone, the note no longer needs its parens.
         | Text.null method = strip_parens val : args

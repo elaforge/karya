@@ -29,13 +29,14 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  - apparently I lost the draw behaviour where I red-highlight trailing spaces
   * pitch track entry replaces the whole call when there is a transformer
     . It should just replace the final pitch call, as when there is no
       transformer.
     . I have two separate parser is PitchTrack: parse, and modify_note.
     . Val edit uses parse, LPitch uses modify_note
   - Remove duplication between PitchTrack.modify_note and PitchTrack.parse
-  - do the fancy parsing in Cmd.ControlTrack too
+  * do the fancy parsing in Cmd.ControlTrack too
   * strip transformer deleted the whole call
   * is there a repl cmd to multiply control vals?
     . Yes, LControl.multiply
