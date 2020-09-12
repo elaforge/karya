@@ -25,6 +25,8 @@ extern const Color abbreviation_color;
 
 // Mark the playing end of events with this.
 extern const Color event_trigger_color;
+// Mark events with a trailing space with this.
+extern const Color trailing_space_color;
 
 // Draw track waveforms with this color.
 extern const Color waveform_color;

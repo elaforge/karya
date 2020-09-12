@@ -1172,6 +1172,11 @@ EventTrack::Body::draw_upper_layer(
                     IRect(x(), bottom - drawable, w(), 2),
                     Config::abbreviation_color);
             }
+            if (i == 0 && line.back() == ' ') {
+                f_util::draw_rectf(
+                    IRect(box.r() - 3, box.y + 1, 2, box.h),
+                    Config::trailing_space_color);
+            }
         }
     } else {
         const int top = boxes[index].lines[0].second.y;
@@ -1192,6 +1197,11 @@ EventTrack::Body::draw_upper_layer(
                 f_util::draw_rectf(
                     IRect(x(), top + drawable - 2, w(), 2),
                     Config::abbreviation_color);
+            }
+            if (i + 1 == boxes[index].lines.size() && line.back() == ' ') {
+                f_util::draw_rectf(
+                    IRect(box.r() - 3, box.y + 1, 2, box.h),
+                    Config::trailing_space_color);
             }
         }
     }

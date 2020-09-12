@@ -29,7 +29,7 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
-  - apparently I lost the draw behaviour where I red-highlight trailing spaces
+  * apparently I lost the draw behaviour where I red-highlight trailing spaces
   * pitch track entry replaces the whole call when there is a transformer
     . It should just replace the final pitch call, as when there is no
       transformer.

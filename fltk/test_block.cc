@@ -110,7 +110,7 @@ void t1_set()
         e.push_back(EventInfo(0,
             Event(ScoreTime(32), ScoreTime(-8), "d", style)));
         e.push_back(EventInfo(0,
-            Event(ScoreTime(40), ScoreTime(-8), "e", style)));
+            Event(ScoreTime(40), ScoreTime(-8), "e ", style)));
         // Demonstrate upwards wrapping.
         e.push_back(EventInfo(0,
             Event(ScoreTime(80), ScoreTime(-8), "abc d ef", style)));
