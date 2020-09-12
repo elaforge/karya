@@ -1155,16 +1155,17 @@ EventTrack::Body::draw_upper_layer(
             IRect(x(), bottom - drawable, w(), drawable + 10));
 
         int remaining = drawable;
-        for (auto line = boxes[index].lines.crbegin();
-            remaining >= 0 && line != boxes[index].lines.crend();
-            remaining -= line->second.h, ++line)
+        for (int i = boxes[index].lines.size() - 1;
+            remaining >= 0 && i >= 0;
+            remaining -= boxes[index].lines[i].second.h, --i)
         {
+            const std::string &line = boxes[index].lines[i].first;
+            const IRect &box = boxes[index].lines[i].second;
             // Even if remaining==0, I still have stuff left to draw, so I need
             // to draw the abbreviation bar at least.
-            const auto &box = line->second;
-            TEXT("NEGATIVE: " << box << ": " << line->first << " left "
+            TEXT("NEGATIVE: " << box << ": " << line << " left "
                 << remaining << " - " << box.h);
-            draw_text_line(line->first, box, style);
+            draw_text_line(line, box, style);
             // f_util::draw_rect(box, Color(0, 0xff, 0xff));
             if (remaining < box.h) {
                 f_util::draw_rectf(
@@ -1176,14 +1177,16 @@ EventTrack::Body::draw_upper_layer(
         const int top = boxes[index].lines[0].second.y;
         f_util::ClipArea clip(IRect(x(), top, w(), drawable));
         int remaining = drawable;
-        for (auto line = boxes[index].lines.cbegin();
-            remaining >= 0 && line != boxes[index].lines.cend();
-            remaining -= line->second.h, ++line)
+        for (int i = 0;
+            remaining >= 0 && i < boxes[index].lines.size();
+            remaining -= boxes[index].lines[i].second.h, ++i)
         {
-            const auto &box = line->second;
-            TEXT("POSITIVE: " << box << ": " << line->first << " left "
+            const std::string &line = boxes[index].lines[i].first;
+            const IRect &box = boxes[index].lines[i].second;
+
+            TEXT("POSITIVE: " << box << ": " << line << " left "
                 << remaining << " - " << box.h);
-            draw_text_line(line->first, box, style);
+            draw_text_line(line, box, style);
             // f_util::draw_rect(box, Color(0, 0xff, 0xff));
             if (remaining < box.h) {
                 f_util::draw_rectf(

@@ -24,9 +24,9 @@ enum Events {
     Many,
     Waveform
 };
-static const Events t1_use_events = Many;
+static const Events t1_use_events = Normal;
 // Turn this off just draw a single track.
-static const bool many_tracks = false;
+static const bool many_tracks = true;
 static const bool show_keycaps = false;
 
 // Visible windows.
@@ -111,6 +111,9 @@ void t1_set()
             Event(ScoreTime(32), ScoreTime(-8), "d", style)));
         e.push_back(EventInfo(0,
             Event(ScoreTime(40), ScoreTime(-8), "e", style)));
+        // Demonstrate upwards wrapping.
+        e.push_back(EventInfo(0,
+            Event(ScoreTime(80), ScoreTime(-8), "abc d ef", style)));
         break;
     case Symbols:
         e.push_back(EventInfo(0,
@@ -127,7 +130,7 @@ void t1_set()
         break;
     case Normal:
         e.push_back(EventInfo(0,
-            Event(ScoreTime(0), ScoreTime(16), "`arp-down`", style)));
+            Event(ScoreTime(0), ScoreTime(16), "trail ", style)));
         e.push_back(EventInfo(0,
             Event(ScoreTime(16), ScoreTime(16), "a`tamil-i``xie`", style)));
         e.push_back(EventInfo(0,
