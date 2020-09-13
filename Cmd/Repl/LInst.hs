@@ -153,24 +153,33 @@ allocations = Ui.config#Ui.allocations <#> Ui.get
 
 -- * add and remove
 
--- | Allocate a new MIDI instrument.  Channels have subtract 1, so they are
--- 1-based, for consistency with 'pretty' and ultimately DAWs.  For instance:
+-- | Midi.Channel is 0-based, but DAWs are 1-based, so so use 1-based for UI.
+-- 'list' and ultimately 'Info.show_addrs' also display 1-based.
+newtype Channel1 = Channel1 Int
+    deriving (Eq, Show, Num)
+
+to_chan :: Channel1 -> Midi.Channel
+to_chan (Channel1 c)
+    | 1 <= c && c <= 16 = fromIntegral (c - 1)
+    | otherwise = error $ "MIDI channel out of range: " <> show c
+
+-- | Allocate a new MIDI instrument.  For instance:
 --
 -- > LInst.add "m" "kontakt/mridangam-g" "loop1" [1]
 --
 -- This will create an instance of the @kontakt/mridangam@ instrument named
 -- @>m@, and assign it to the MIDI WriteDevice @loop1@, with a single MIDI
 -- channel 0 allocated.
-add :: Instrument -> Qualified -> Text -> [Midi.Channel] -> Cmd.CmdL ()
+add :: Instrument -> Qualified -> Text -> [Channel1] -> Cmd.CmdL ()
 add inst qualified wdev chans =
-    add_config inst qualified [((dev, chan - 1), Nothing) | chan <- chans]
+    add_config inst qualified [((dev, to_chan chan), Nothing) | chan <- chans]
     where dev = Midi.write_device wdev
 
 -- | Allocate the given channels for the instrument using its default device.
-add_default :: Instrument -> Qualified -> [Midi.Channel] -> Cmd.CmdL ()
+add_default :: Instrument -> Qualified -> [Channel1] -> Cmd.CmdL ()
 add_default inst qualified chans = do
     dev <- device_of (Util.instrument inst)
-    add_config inst qualified [((dev, chan), Nothing) | chan <- chans]
+    add_config inst qualified [((dev, to_chan chan), Nothing) | chan <- chans]
 
 add_config :: Instrument -> Qualified -> [(Patch.Addr, Maybe Patch.Voices)]
     -> Cmd.CmdL ()
@@ -189,12 +198,12 @@ add_im inst qualified = do
 -- | Add the play-cache instrument.  This is a dummy instrument used to
 -- trigger the play-cache vst.  It's emitted automatically if there are im
 -- instruments, but needs a channel allocation.
-add_play_cache :: Text -> Midi.Channel -> Cmd.CmdL ()
+add_play_cache :: Text -> Channel1 -> Cmd.CmdL ()
 add_play_cache wdev chan =
     allocate (Util.instrument "play-cache") $
         UiConfig.allocation Im.Play.qualified (UiConfig.Midi config)
     where
-    config = Patch.config [((Midi.write_device wdev, chan), Nothing)]
+    config = Patch.config [((Midi.write_device wdev, to_chan chan), Nothing)]
 
 -- | Create a dummy instrument.  This is used for instruments which are
 -- expected to be converted into other instruments during derivation.  For
@@ -301,16 +310,16 @@ clear_environ = modify_common_config_ $ Common.cenviron #= mempty
 
 -- ** Midi.Patch.Config
 
-set_addr :: Ui.M m => Text -> [Midi.Channel] -> Instrument -> m ()
+set_addr :: Ui.M m => Text -> [Channel1] -> Instrument -> m ()
 set_addr wdev chans = modify_midi_config_ $
-    Patch.allocation #= [((dev, chan-1), Nothing) | chan <- chans]
+    Patch.allocation #= [((dev, to_chan chan), Nothing) | chan <- chans]
     where dev = Midi.write_device wdev
 
-set_chans :: Ui.M m => [Midi.Channel] -> Instrument -> m ()
+set_chans :: Ui.M m => [Channel1] -> Instrument -> m ()
 set_chans chans = modify_midi_config_ $ \config ->
     case Patch.config_allocation config of
-        ((dev, _), _) : _ ->
-            Patch.allocation #= [((dev, chan-1), Nothing) | chan <- chans] $
+        ((dev, _), _) : _ -> Patch.allocation
+            #= [((dev, to_chan chan), Nothing) | chan <- chans] $
                 config
         [] -> config
 
@@ -513,11 +522,11 @@ load fname = do
 load_merge :: FilePath -> Cmd.CmdL ()
 load_merge fname = merge False =<< Save.load_allocations fname
 
--- | Send a CC MIDI message on the given device.  This is for synths that use
--- MIDI learn.
-teach :: Text -> Midi.Channel -> Midi.Control -> Cmd.CmdL ()
+-- | Send a CC MIDI message on the given device and channel.  This is for
+-- synths that use MIDI learn.
+teach :: Text -> Channel1 -> Midi.Control -> Cmd.CmdL ()
 teach dev chan cc = Cmd.midi (Midi.write_device dev) $
-    Midi.ChannelMessage chan (Midi.ControlChange cc 1)
+    Midi.ChannelMessage (to_chan chan) (Midi.ControlChange cc 1)
 
 -- | This is parsed into a 'Inst.Qualified'.
 type Qualified = Text

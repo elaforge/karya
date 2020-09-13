@@ -29,6 +29,9 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  - Move-up and move-down with merged tracks should be consistent.
+    . E.g. it's confusing when move-up doesn't move the note, but does move
+      the merged pitch or dyn.
   - Make Derive.parse_expr invertible
     . I do partial parsing to modify expressions.  Actually I think it's ok
       to parse all the way to Expr Val, since the Vals parsed in here are all
@@ -45,6 +48,28 @@ UNSORTED
       expression.
     . Maybe I can get rid of ControlTrack.Partial entirely, just use
       DeriveT.Expr!  Or maybe RestrictedEnviron.Val?
+    - include comment
+      . Comments are special in that they only happen at the end, so I think I
+        can change lexeme to be only spaces, and then do an optional comment
+        at the end.  This should be more efficient too!
+      . This doesn't apply to ky though!
+      . Since spaces used to check for --, I now need to explicitly not match
+        that everywhere...
+    - include spaces on =.
+      . This pushes me toward separate Call | Equal constructors, but that
+        means I don't have to do the awkward special case with the operator,
+        so maybe it's for the best.
+    - Verify roundtrip for expressions.
+      . Maybe I could clean up parse/unparse.  Unparse could be
+        non-overloaded, just invert Derive.parse, with the usual caveats for
+        Vals without literals.  Then show_val is Typecheck.ToVal a => ShowVal a.
+      . What of MiniVal and RestrictedEnviron.Val?  I guess they'd need their
+        own show_val... or just ToVal!
+      . I could maybe resolve the toplevel thing by keeping the Toplevel type.
+      . Also fix the quotes-or-not?  Str gets them via Text, Symbol doesn't
+        get any.
+      . Do I still want Symbol/Str distinction though?  Was it due to
+        toplevel?
   - rename Pitch.Note to Pitch.Symbolic?
     . Then the problem is that 'sym' or 'symbolic' variable names are generic
       without the pitch qualification.
