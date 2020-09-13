@@ -29,6 +29,26 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  - Make Derive.parse_expr invertible
+    . I do partial parsing to modify expressions.  Actually I think it's ok
+      to parse all the way to Expr Val, since the Vals parsed in here are all
+      reversible, but I need to preserve the whitespace.  Or maybe I don't
+      even need to do that, I don't mind having a syntax "normal form".
+      I think the only questions are spaces around "=" and a trailing comment.
+      I could actually preserve spaces in the parsed form, and have an
+      explicit value for comments, and then I should have fully reversible
+      syntax, which means structural editing has access to the final parsed
+      form.
+    . This way I can get rid of Parse.split_pipeline, Parse.lex, etc.  I can
+      also get rid of the special rules in PitchTrack.PitchCall, buggy
+      whitespace fiddling, and structural editing can have a fully parsed
+      expression.
+    . Maybe I can get rid of ControlTrack.Partial entirely, just use
+      DeriveT.Expr!  Or maybe RestrictedEnviron.Val?
+  - rename Pitch.Note to Pitch.Symbolic?
+    . Then the problem is that 'sym' or 'symbolic' variable names are generic
+      without the pitch qualification.
+    . Maybe psym or symp?  Or just call it pitch.
   * apparently I lost the draw behaviour where I red-highlight trailing spaces
   * pitch track entry replaces the whole call when there is a transformer
     . It should just replace the final pitch call, as when there is no
@@ -36,6 +56,7 @@ UNSORTED
     . I have two separate parser is PitchTrack: parse, and modify_note.
     . Val edit uses parse, LPitch uses modify_note
   - Remove duplication between PitchTrack.modify_note and PitchTrack.parse
+    . Do "Make Derive.parse_expr invertible" first.
   * do the fancy parsing in Cmd.ControlTrack too
   * strip transformer deleted the whole call
   * is there a repl cmd to multiply control vals?

@@ -2,12 +2,26 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE ViewPatterns #-}
 {- | Cmds to edit a pitch track, which is a special kind of control track.
 
     This module creates the pitches that are later parsed by Derive.Control.
 -}
-module Cmd.PitchTrack where
+module Cmd.PitchTrack (
+    cmd_val_edit, cmd_method_edit
+    , val_edit_at, method_edit_at
+    , cmd_record_note_status
+    -- * edits
+    , transpose_selection
+    , transpose
+    , cycle_enharmonics
+    , pitches
+    , pitch_tracks
+#ifdef TESTING
+    , module Cmd.PitchTrack
+#endif
+) where
 import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
@@ -69,11 +83,9 @@ cmd_method_edit :: Cmd.M m => Msg.Msg -> m Cmd.Status
 cmd_method_edit msg = Cmd.suppress_history Cmd.MethodEdit
         "pitch track method edit" $ do
     EditUtil.fallthrough msg
-    case msg of
-        (EditUtil.method_key -> Just key) -> do
-            pos <- EditUtil.get_pos
-            method_edit_at pos key
-        _ -> Cmd.abort
+    key <- Cmd.abort_unless $ EditUtil.method_key msg
+    pos <- EditUtil.get_pos
+    method_edit_at pos key
     return Cmd.Done
 
 val_edit_at :: Cmd.M m => EditUtil.Pos -> Pitch.Note -> m ()

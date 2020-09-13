@@ -3,10 +3,11 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE DeriveFunctor #-}
--- | The Str and Symbol types, and ToExpr class, in a module with few
--- dependencies so modules can make exprs without incurring a dependency on
--- "Derive.BaseTypes", and more importantly, 'Derive.BaseTypes.Val', which
--- drags in tons of stuff.
+-- | The 'Str' and 'Symbol' types, and 'ToExpr' class.
+--
+-- They are split into a module with few dependencies so modules can make exprs
+-- without incurring a dependency on "Derive.DeriveT", and specifically
+-- 'Derive.DeriveT.Val', which drags in tons of stuff.
 module Derive.Expr where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List.NonEmpty as NonEmpty
@@ -23,9 +24,12 @@ import qualified Perform.Signal as Signal
 import Global
 
 
--- | The only operator is @|@, so a list suffices for an AST.
+-- | A full toplevel expression, sometimes called a "pipeline", because it looks
+-- like "transform | transform | generator arg arg".  Since the only operator
+-- is @|@, so a list suffices for an AST.
 --
--- This is parameterized by the val unparsed exprs are @Expr Text@ while parsed
+-- This is parameterized by the literal value, so partially parsed exprs are
+-- @Expr Text@ while fully parsed ones would be @Expr Val@.
 type Expr val = NonEmpty (Call val)
 data Call val = Call Symbol [Term val]
     deriving (Show, Read, Eq, Functor)

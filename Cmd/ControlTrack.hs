@@ -2,8 +2,23 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE ViewPatterns #-}
-module Cmd.ControlTrack where
+module Cmd.ControlTrack (
+    cmd_val_edit, cmd_tempo_val_edit
+    , cmd_method_edit
+    -- * edit
+    , val_edit_at
+    , modify_val
+    -- * Partial
+    , Partial(..)
+    , parse, unparse
+    , parse_general, unparse_general
+#ifdef TESTING
+    , module Cmd.ControlTrack
+#endif
+) where
 import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
@@ -201,9 +216,9 @@ modify_event_at pos f = EditUtil.modify_event_at pos True False
 modify_val :: (Signal.Y -> Signal.Y) -> Text -> Maybe Text
     -- ^ Nothing if I couldn't parse out a VNum.
 modify_val f text = case Parse.parse_val (_val partial) of
-        Right (DeriveT.VNum n) -> Just $ unparse $
-            partial { _val = show_val (f <$> n) }
-        _ -> Nothing
+    Right (DeriveT.VNum n) -> Just $ unparse $
+        partial { _val = show_val (f <$> n) }
+    _ -> Nothing
     where
     partial = parse text
     show_val num
