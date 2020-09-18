@@ -2414,7 +2414,21 @@ synth: im:
         I guess it would be easier if I wanted to make reverb part of an
         instrument.
       . I'd want to merge sampler and faust for this though.
+  panner:
+    - No apparent effect.
+      . It's getting the MIDI.
+      . Is it getting the samples?
+    - Some things support 7 or 10 already, I should have a way to configure.
+      . Set CC number by parameter, and 0 means ignore.
   play_cache: PlayCache:
+    gui ideas:
+      . I don't really want to write a gui though, what a hassle.  How much
+        can I do with the generic gui?
+      - text output for logs
+      - show play offset
+      - graphical display for chunks and render progress
+    - If I want to send to VST effects separately, I'll need multiple outputs.
+      The other way would be to start multiple instances, and do some muting.
     - since the osc channel is global, if two play_caches are open, one will
       block thru for the other.
       . Could I get reaper to tell me when I'm not focused, and close the
