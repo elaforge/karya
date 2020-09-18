@@ -177,6 +177,9 @@ KeycapsWindow::handle(int evt)
     case FL_FOCUS:
         // Don't accept keyboard focus.
         return false;
+    case FL_MOUSEWHEEL:
+        // Consume these so MsgCollector doesn't get it and complain.
+        return true;
     default:
         return false;
     }
