@@ -37,6 +37,8 @@ enum {
 static const char *log_filename = VST_BASE_DIR "/PlayCache.log";
 static const char *cache_dir = VST_BASE_DIR "/cache/";
 
+static const int32_t unique_id = 'bdpm';
+static const int32_t version = 1;
 
 // Magic function name, called by VSTMain, which is called by the host.
 VstEffectInterface *
@@ -51,7 +53,7 @@ create_effect_instance(VstHostCallback host_callback)
 //     int32_t initial_delay, bool is_synth) :
 PlayCache::PlayCache(VstHostCallback host_callback) :
     Plugin(host_callback, num_programs, num_parameters, num_inputs, channels,
-        'bdpm', 1, initial_delay, true),
+        unique_id, version, initial_delay, true),
     start_frame(0), playing(false), start_offset(0), volume(1),
     log(log_filename, std::ios::app)
 {

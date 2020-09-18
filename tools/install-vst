@@ -4,7 +4,12 @@
 set -eux
 vst=~/Library/Audio/Plug-Ins/VST
 
-bin/mk build/opt/play_cache
+vsts=(
+    play_cache
+    panner
+)
 
-rm -rf $vst/play_cache.vst
-cp -r build/opt/play_cache.vst $vst
+bin/mk build/opt/${^vsts}
+
+rm -rf $vst/${^vsts}.vst
+cp -r build/opt/${^vsts}.vst $vst

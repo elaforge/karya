@@ -472,6 +472,7 @@ ccBinaries =
         ]
     ] ++ if not (Config.enableIm localConfig) then [] else
     [ playCacheBinary
+    , pannerBinary
     , makePlayCacheBinary "test_play_cache_osc" "test_osc.cc" []
     , makePlayCacheBinary "test_play_cache" "test_play_cache.cc" []
     ]
@@ -485,28 +486,34 @@ ccBinaries =
 -- TODO This compiles under linux, but I have no idea if it actually produces
 -- a valid vst.
 playCacheBinary :: C.Binary Config
-playCacheBinary = binary
-    { C.binLink = \c -> C.binLink binary c ++ case Util.platform of
+playCacheBinary =
+    addVstFlags $ makePlayCacheBinary "play_cache" "PlayCache.cc" []
+
+pannerBinary :: C.Binary Config
+pannerBinary = addVstFlags $ C.binary "panner" ["Synth/play_cache/Panner.cc.o"]
+
+-- | Add all the gizmos to make a VST.
+addVstFlags :: C.Binary config -> C.Binary config
+addVstFlags binary = binary
+    { C.binName = C.binName binary <> soname
+    , C.binObjs = "Synth/vst2/interface.cc.o" : C.binObjs binary
+    , C.binLink = \c -> C.binLink binary c ++ case Util.platform of
         Util.Mac -> ["-bundle"]
-        Util.Linux -> ["-shared", "-Wl,-soname=play_cache.so"]
+        Util.Linux -> ["-shared", "-Wl,-soname=" <> soname]
     , C.binCompile = \c -> C.binCompile binary c ++ case Util.platform of
         Util.Mac -> []
         Util.Linux -> ["-fPIC"]
-    , C.binPostproc = \fn -> case Util.platform of
-        Util.Mac -> do
-            let vst = fn ++ ".vst"
-            Util.system "rm" ["-rf", vst]
-            Util.system "cp"
-                ["-r", "Synth/play_cache/play_cache.vst.template", vst]
-            Util.system "cp" [fn, vst </> "Contents/MacOS"]
-        Util.Linux -> return ()
+    , C.binPostproc = \fn -> do
+        makeBundle_ False BNDL False fn
+        -- This is weird because the output is thing.vst, but I build with
+        -- thing.  Really it should be thing.vst is built from thing via
+        -- makeBundle, instead of this postproc thing.
+        Util.system "touch" [fn] -- else shake gets upset
     }
     where
-    binary = makePlayCacheBinary name
-        "PlayCache.cc" ["Synth/vst2/interface.cc.o"]
-    name = case Util.platform of
-        Util.Mac -> "play_cache"
-        Util.Linux -> "play_cache.so"
+    soname = case Util.platform of
+        Util.Mac -> ""
+        Util.Linux -> ".so"
 
 makePlayCacheBinary :: String -> FilePath -> [FilePath] -> C.Binary Config
 makePlayCacheBinary name main objs = (C.binary name [])
@@ -518,8 +525,7 @@ makePlayCacheBinary name main objs = (C.binary name [])
     -- TODO I need config for VST_BASE_DIR
     -- that means I need to split out rootDir to a independent Config
     -- that could even be static, then I don't need an argument.
-    , C.binCompile = \c ->
-        ["-DVST_BASE_DIR=\"" <> (rootDir c </> "im") <> "\""]
+    , C.binCompile = \c -> ["-DVST_BASE_DIR=\"" <> (rootDir c </> "im") <> "\""]
     , C.binLibraries = const $
         [ libsndfile
         , C.library "lo"
@@ -1253,12 +1259,23 @@ buildHs config rtsFlags libs extraPackages hs fn = do
     logDeps config "build" fn objs
     Util.cmdline $ linkHs config rtsFlags fn (extraPackages ++ allPackages) objs
 
+data BundleType = APPL | BNDL
+    deriving (Show)
+
 makeBundle :: Bool -> FilePath -> Shake.Action ()
-makeBundle hasIcon binary = case Util.platform of
+makeBundle = makeBundle_ True APPL
+
+makeBundle_ :: Bool -> BundleType -> Bool -> FilePath -> Shake.Action ()
+makeBundle_ makeWrapper bundleType hasIcon binary = case Util.platform of
     Util.Mac -> do
         let icon = build </> nameExt binary "icns"
         when hasIcon $ need [icon]
-        Util.system "tools/make_bundle" [binary, if hasIcon then icon else ""]
+        Util.system "tools/make_bundle.py" $
+            ["--icon=" <> icon | hasIcon] ++
+            ["--make-wrapper" | makeWrapper] ++
+            [ "--type=" <> show bundleType
+            , binary
+            ]
     _ -> return ()
 
 -- * tests and profiles
