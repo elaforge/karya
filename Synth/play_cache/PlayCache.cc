@@ -105,15 +105,16 @@ PlayCache::get_output_properties(int32_t index, VstPinProperties *properties)
 {
     if (index >= channels)
         return false;
+    properties->flags = VstPinProperties::IsActive;
     switch (index) {
     case 0:
         strncpy(properties->text, "out1", 63);
+        properties->flags |= VstPinProperties::IsStereo;
         break;
     case 1:
         strncpy(properties->text, "out2", 63);
         break;
     }
-    properties->flags = VstPinProperties::IsActive | VstPinProperties::IsStereo;
     return true;
 }
 

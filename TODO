@@ -2418,8 +2418,37 @@ synth: im:
     - No apparent effect.
       . It's getting the MIDI.
       . Is it getting the samples?
-    - Some things support 7 or 10 already, I should have a way to configure.
+      . It does get samples, but it can't stop audio.
+      . What's the status of process replacing vs. not?
+        vst2/interface.cc sets process_audio_inplace_function, and
+        process_audio_function is nullptr.
+      . What does that mean exactly?  The in and out ptrs differ:
+        in 0x10adb8220 out 0x10adb9220
+      . process() accumulates in the output, and is obsolete.
+        processReplacing replaces the output.  It doesn't mean we overwrite
+        the input!
+      . This works for reaktor, so maybe it's the VST implementation.
+      . What if I do a faust2vst?
+      possibilities:
+        / set_input_parameters - I do the same as faust.
+        ? reaper is treating processReplacing like process
+          . It shouldn't because process is nullptr.
+          . make a separate process?
+      . I definitely get output properly, and I get input properly, it's just
+        that repear replaces out for reaktor but not for me.
+      . It's probably due to IsSynth.  If I set it, then reaper always mixes
+        in output, can't process.  If I don't set it, I don't get MIDI.
+      ? Does reaktor get MIDI?  I can't tell because I can't get reaktor MIDI
+        display to work at all.
+      . But I think it did, because I got the tuned comb filter thing to work.
+      . https://forum.cockos.com/archive/index.php/t-172871.html
+      . There is probably some awkward workaround where I could explicitly
+        route audio output.
+    - expose separate left and right pans?  Or pan center and width?
+    * Some things support 7 or 10 already, I should have a way to configure.
       . Set CC number by parameter, and 0 means ignore.
+      . Volume comes up at -inf, vol cc and pan cc have right number, but
+        slider position is wrong.
   play_cache: PlayCache:
     gui ideas:
       . I don't really want to write a gui though, what a hassle.  How much

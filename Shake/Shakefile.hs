@@ -493,16 +493,23 @@ pannerBinary :: C.Binary Config
 pannerBinary = addVstFlags $ C.binary "panner" ["Synth/play_cache/Panner.cc.o"]
 
 -- | Add all the gizmos to make a VST.
-addVstFlags :: C.Binary config -> C.Binary config
+addVstFlags :: C.Binary Config -> C.Binary Config
 addVstFlags binary = binary
     { C.binName = C.binName binary <> soname
     , C.binObjs = "Synth/vst2/interface.cc.o" : C.binObjs binary
     , C.binLink = \c -> C.binLink binary c ++ case Util.platform of
         Util.Mac -> ["-bundle"]
         Util.Linux -> ["-shared", "-Wl,-soname=" <> soname]
-    , C.binCompile = \c -> C.binCompile binary c ++ case Util.platform of
-        Util.Mac -> []
-        Util.Linux -> ["-fPIC"]
+    , C.binCompile = \c -> concat
+        [ C.binCompile binary c
+        -- TODO I need config for VST_BASE_DIR
+        -- that means I need to split out rootDir to a independent Config
+        -- that could even be static, then I don't need an argument.
+        , ["-DVST_BASE_DIR=\"" <> (rootDir c </> "im") <> "\""]
+        , case Util.platform of
+            Util.Mac -> []
+            Util.Linux -> ["-fPIC"]
+        ]
     , C.binPostproc = \fn -> do
         makeBundle_ False BNDL False fn
         -- This is weird because the output is thing.vst, but I build with
@@ -515,17 +522,13 @@ addVstFlags binary = binary
         Util.Mac -> ""
         Util.Linux -> ".so"
 
-makePlayCacheBinary :: String -> FilePath -> [FilePath] -> C.Binary Config
+makePlayCacheBinary :: String -> FilePath -> [FilePath] -> C.Binary config
 makePlayCacheBinary name main objs = (C.binary name [])
     { C.binObjs = (objs++) $ map (("Synth/play_cache"</>) . (++".o")) $
         [ main
         , "Osc.cc", "Resample.cc", "Sample.cc", "Streamer.cc", "Tracks.cc"
         , "ringbuffer.cc"
         ]
-    -- TODO I need config for VST_BASE_DIR
-    -- that means I need to split out rootDir to a independent Config
-    -- that could even be static, then I don't need an argument.
-    , C.binCompile = \c -> ["-DVST_BASE_DIR=\"" <> (rootDir c </> "im") <> "\""]
     , C.binLibraries = const $
         [ libsndfile
         , C.library "lo"

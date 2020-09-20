@@ -180,6 +180,15 @@ process_replacing_cb(
         inputs, outputs, frames);
 }
 
+static void
+process_cb(
+    VstEffectInterface *vst, float **inputs, float **outputs, int32_t frames)
+{
+    // Do nothing so it's obvious that it's calling the wrong thing.
+    // static_cast<Plugin *>(vst->effect_pointer)->process(
+    //     inputs, outputs, frames);
+}
+
 Plugin::Plugin(VstHostCallback host_callback,
         int32_t num_programs, int32_t num_parameters, int32_t num_in_channels,
         int32_t num_out_channels, int32_t unique_id, int32_t version,
@@ -189,7 +198,7 @@ Plugin::Plugin(VstHostCallback host_callback,
     memset(&vst, 0, sizeof vst);
     vst.interface_identifier = 'VstP';
     vst.dispatch_function = dispatcher_cb;
-    vst.process_audio_function = nullptr; // obsolete
+    vst.process_audio_function = process_cb; // obsolete
     vst.set_parameter_value_function = set_parameter_cb;
     vst.get_parameter_value_function = get_parameter_cb;
     vst.num_programs = num_programs;

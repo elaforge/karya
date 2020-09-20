@@ -222,7 +222,7 @@ struct VstPinProperties {
 
     enum VstPinInfoFlags {
         IsActive = 1,
-        IsStereo = 2,
+        IsStereo = 2, // Set for the first channel of a stereo pair.
         Valid    = 4
     };
 };
