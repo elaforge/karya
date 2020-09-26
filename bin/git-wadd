@@ -1,0 +1,29 @@
+#!/usr/bin/env zsh
+# Set up a branch in a worktree.  I do this sometimes to avoid having to
+# rebuild on checkout.
+
+set -euo pipefail
+
+branch=$1
+shift
+
+dest=../w/$branch
+
+if [[ -e $dest ]]; then
+    echo "$dest already exists!"
+    exit 1
+fi
+
+set -x
+git worktree add $dest $branch "$@"
+
+cp -R Local/* $dest/Local
+cd $dest
+ln -s ../../data
+ln -s data/save
+
+# This is big, but this way I don't need a complete rebuild.  Someday I'll have
+# a build cache!
+# Except shake wants to rebuild anyway, I guess because git changed all the
+# mtimes.  mtimes are so stupid!
+# cp -a ~-/build .

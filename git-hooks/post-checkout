@@ -8,6 +8,11 @@ old=$1
 new=$2
 # is_branch=$2 # 1 if branch, 2 if file
 
+# git worktree add can cause this.
+if [[ $old = 0000000000000000000000000000000000000000 ]]; then
+    exit 0
+fi
+
 # filter out only the changed files
 changed=($(git diff --name-only $old $new))
 

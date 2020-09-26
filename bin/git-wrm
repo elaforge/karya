@@ -1,0 +1,9 @@
+#!/usr/bin/env zsh
+
+set -euo pipefail
+
+branch=$1
+shift
+
+set -x
+git worktree remove $branch "$@"
