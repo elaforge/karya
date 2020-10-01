@@ -265,8 +265,9 @@ sarva_20_06_12 = date 2020 6 12 $ ganesh $ korvaiS adi
 
 sarva_20_06_12_reduction :: Korvai
 sarva_20_06_12_reduction = date 2020 6 12 $ korvaiS adi
-    [ nadai 6 $ sarvaD mempty 6
-        . sd (tri (kook.od.__3)) . tri (kook.od.__3) . su (tri_ (od.__3) kook).k
+    [ nadai 6 $ sarvaD mempty 12
+    , nadai 6 $ sd (sd (tri (kook.od.__3))) . sd (tri (kook.od.__3))
+        . tri_ (od.__3) kook.k
     ]
 
 sarva_20_06_19_endings :: Korvai
