@@ -44,7 +44,6 @@ import qualified Derive.Scale as Scale
 import qualified Derive.Symbols as Symbols
 
 import qualified Perform.Pitch as Pitch
-import qualified Ui.Event as Event
 import qualified Ui.Key as Key
 
 import           Global
@@ -119,12 +118,6 @@ type Modify = ControlTrack.Partial -> (Maybe ControlTrack.Partial, Bool)
 modify_event_at :: Cmd.M m => EditUtil.Pos -> Modify -> m ()
 modify_event_at pos f = EditUtil.modify_event_at pos True True
     (first (fmap unparse) . f . parse . fromMaybe "")
-
--- | Modify event text.  This is not used within this module but is exported
--- for others as a more general variant of 'modify_event_at'.
-modify :: (ControlTrack.Partial -> ControlTrack.Partial)
-    -> Event.Event -> Event.Event
-modify f = Event.text_ %= unparse . f . parse
 
 parse :: Text -> ControlTrack.Partial
 parse = ControlTrack.parse_general split_expr
