@@ -10,7 +10,7 @@ import Solkattu.Dsl.Mridangam
 -- * exercises
 
 e_20_02_24 :: Korvai
-e_20_02_24 = date 2020 2 24 $ ganesh $ exercise $ korvaiS1 adi $
+e_20_02_24 = date 2020 2 24 $ ganesh $ tirmanam $ korvaiS1 adi $
     tri_ (od.__4) (su ktok.t.o.su (ktok.kook))
 
 e_20_03_27 :: Korvai
@@ -339,15 +339,21 @@ e_20_07_17 = date 2020 7 17 $ exercise $ ganesh $ korvaiS adi
     theme2 = d.__.n.d.__.n.__.d.__.n.y.d.__
         . n.d.__.n.__.d.__.n.__.y.d.__.n.y.d.__.n.d.__
 
-
-{-
-    thani:
-    tang -- kitakitataka
-    tam - takatat din ...
-    talang ga din
-    takita takita takita ...
-    tkoo ktpk diku ...
-    tang taka diku 3x
-    diku 3x
-    mohra
--}
+thani_exercise :: Korvai
+thani_exercise = date 2020 7 3 $ exercise $ korvai adi
+    [ x2 $ s $ r2 (od.__.o.su (ktkt.pk)) . su nakatiku
+      . r2 (d.__.p.su (ktkt.pk)) . su nakatiku
+    , s $ su $ r2 (on.__.pk.t.__.o.__.ktpk) . nakatiku
+        . r2 (on.__.pk.nakatiku) . nakatiku
+    , s $ su $ r2 (p.u.__.k.o.__.ktkt.pk) . nakatiku
+        . r3 (p.u.__.k.o.__) . ktkt.pk.nakatiku
+    , x2 $ s $ su $ r2 (n.pk . r3 (t.pk)) . nakatiku
+        . r2 (r2 (t.pk).n.pk.t.pk) . nakatiku
+    , s $ su $ r2 (t.k.o.o.ktpk.nakatiku)
+        . r3 (t.k.o.o.ktpk) . nakatiku
+        . t.k . r5 (o.o.kt).pk . nakatiku
+        . t.k . r4 (o.o.kt).o.o.k.__.pk . nakatiku
+    , s $ su $ r3 (r2 (on.__.pk.nakatiku).nakatiku)
+        . tri_ (od.__4) nakatiku
+    , commentS "mohra" $ s mempty
+    ]
