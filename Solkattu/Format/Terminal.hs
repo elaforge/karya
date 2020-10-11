@@ -14,6 +14,7 @@ module Solkattu.Format.Terminal (
 ) where
 import qualified Data.Either as Either
 import qualified Data.List as List
+import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
@@ -117,8 +118,12 @@ formatResults config korvai results =
         ((Nothing, 0), Text.replicate leader " " <> "ERROR:\n" <> err)
     show1 prevRuler (section, (tags, Right (notes, warnings))) =
         ( nextRuler
-        , Text.stripEnd $ Text.unlines $ sectionFmt section tags lines
-            : map (showWarning strokeWidth) warnings
+        -- Use an empty section with commentS to describe what to play.
+        , if null notes then sectionNumber section
+                <> maybe "empty" Text.unwords
+                    (Map.lookup Tags.comment (Tags.untags tags))
+            else Text.stripEnd $ Text.unlines $ sectionFmt section tags lines
+                : map (showWarning strokeWidth) warnings
         )
         where
         (strokeWidth, (nextRuler, lines)) =
