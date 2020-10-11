@@ -70,6 +70,8 @@ UNSORTED
         get any.
       . Do I still want Symbol/Str distinction though?  Was it due to
         toplevel?
+  - Remove duplication between PitchTrack.modify_note and PitchTrack.parse
+    . Do "Make Derive.parse_expr invertible" first.
   - rename Pitch.Note to Pitch.Symbolic?
     . Then the problem is that 'sym' or 'symbolic' variable names are generic
       without the pitch qualification.
@@ -80,8 +82,6 @@ UNSORTED
       transformer.
     . I have two separate parser is PitchTrack: parse, and modify_note.
     . Val edit uses parse, LPitch uses modify_note
-  - Remove duplication between PitchTrack.modify_note and PitchTrack.parse
-    . Do "Make Derive.parse_expr invertible" first.
   * do the fancy parsing in Cmd.ControlTrack too
   * strip transformer deleted the whole call
   * is there a repl cmd to multiply control vals?
@@ -4662,7 +4662,16 @@ performance:
         to take that out.  Though of course keeping the Reader part is fine,
         and necessary.
 
-rust-gui:
+rust-gui: gui: ui:
+  what could I do with fancy gui:
+    . See better drawing:
+    . Faster.  The caching made scrolling fast, but it's now slow to zoom in
+      on large blocks.
+    . I could use gradients or transparency... but for what?  I could put
+      multiple signals into one track, but would I?  Maybe dyn and pitch for
+      note tracks.
+    . mini block: Render blocks inside the calls.  But I should do a mock-up
+      first, because it might be too cluttered.
   . try out druid for proof of concept
   - make a mock-up in druid: block, single track, events
     . How to do scrolling?
@@ -4798,7 +4807,7 @@ fltk:
     - Always time the haskell duration, and log when it's too long.
     - Look for possible thunks in the Fltk action, rnf them out.
   better drawing:
-    see rust-gui:
+    see rust-gui: fancy gui:
     . All this incremental redraw stuff is fussy and seems like it should be
       unnecessary.  I should be able to lay it out and have someone else handle
       selection overlay and scrolling.
@@ -4886,10 +4895,11 @@ fltk:
     The new window probably needs to be marked transient.
     . Can fltk even do this?  I can't even figure out what xprop should show
       for transient windows.
-  - Factoring a bit of score into a call makes it less readable because
-    I can't see the events inside.
+  - mini block:
+    . Factoring a bit of score into a call makes it less readable because
+      I can't see the events inside.
     . I could put a mini version in the background of the event.  I'd need
-      to be careful to retain readability.  Maybe only show the frist track,
+      to be careful to retain readability.  Maybe only show the first track,
       or the first note track.
   / reduce duplication in EventTrack.cc drawable_pixels
   - I need to differentiate DEBUG from LOG.  And LOG can go to seq.log.
@@ -4897,7 +4907,7 @@ fltk:
   - what's going on with SeqScrollbar and FlSeqScrollbar?  Looks incomplete?
     . It still might be useful to put the top level ruler labels, or cues if
       I ever use those, but I'd have to make it wider.
-  - Do I want to support set_ruler for Scrollbar?
+  - Support set_ruler for Scrollbar?
   - Drag on an event track title doesn't work, because the new FloatingInput
     doesn't realize that a drag has started.
     . Explicitly sending it FL_PUSH doesn't seem to work, but maybe
@@ -5434,7 +5444,9 @@ solkattu:
       undated
     - after 2014-06-17
     - complete Mridangam2013.dinnagina_sequence, maybe move to solkattu.
-  flashcards:
+  practice: Solkattu.Practice:
+    * record bpm for each practice
+    - make sure exercise types are accurate.
     - remember what I did last time, and do spaced repetition
       . This isn't memorization, just randomization with coverage.  So it's
         enough to pick random but twice as likely to pick with score one
@@ -5514,6 +5526,8 @@ solkattu:
       - Can I align by structure?
         . E.g. reductions or tri would line up vertically.
     terminal:
+      - Ruler dispaly is still buggy!  Final ruler doesn't redisplay if the
+        last line is short and changed the spacing.
       - The warning carat only lines up if there is only one line.
         . Otherwise I have to divMod i by strokes per line, and use that to
           insert in the formatted output
@@ -7043,9 +7057,10 @@ misc ideas:
     a transformer to them.  I'm not sure that will coexist with the curve
     description language that control tracks currently implement.
     It would be interesting to get rid of track types entirely though.
-  darcs to git:
-    . https://github.com/purcell/darcs-to-git
-    . http://darcs.net/DarcsBridgeUsage
+    . This would get a nice feature from trackers, where an effect track can
+      contain any kind of effect.  That means copy paste is easier, it's more
+      compact, no fussing about creating a whole new track for a new effect.
+  . optimistic merging: http://hintjens.com/blog:106
 
 tracklang problems
   . It's too low level for chord-oriented music like piano.  For instance, I

@@ -60,6 +60,7 @@ mohra = withType "mohra"
 sarvalaghu :: Korvai -> Korvai
 sarvalaghu = withType "sarvalaghu"
 
+-- | A short cadence, suitable to end a phrase or section.
 tirmanam :: Korvai -> Korvai
 tirmanam = withType "tirmanam"
 

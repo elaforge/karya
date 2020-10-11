@@ -2,86 +2,86 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE DeriveGeneric #-}
 -- | Utilities to randomly select things to practice, and save what
 -- I practiced, for a flashcard-esque system.
 module Solkattu.Practice where
 import qualified Data.Aeson as Aeson
 import qualified Data.Map as Map
-import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Time as Time
 
+import qualified GHC.Generics as Generics
 import qualified System.Random as Random
 
+import qualified Util.File as File
 import qualified Solkattu.Db as Db
 import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Format.Terminal as Terminal
 import qualified Solkattu.Korvai as Korvai
 
-import Global
+import           Global
 
 
 -- | The number of date groups starting from the most recent.
 recentDates :: Int -> IO ()
-recentDates n = Text.IO.putStrLn $ Db.search (Db.recentDates n) (const True)
+recentDates n =
+    Text.IO.putStrLn $ Db.formats $ Db.searchAll (Db.recentDates n) []
 
 types :: [Text]
 types = ["exercise", "korvai"]
 
+-- | Pick a random korvai with any of the given types.
 randomTypes :: [Text] -> IO ()
 randomTypes types = do
-    let korvais = zip [0..] Db.korvais
     forM_ types $ \typ -> do
-        korvai <- pick $ filter (Db.ofType typ . snd) korvais
+        korvai <- pick $ filter (Db.ofType typ . snd) Db.korvais
         Text.IO.putStrLn $ typ <> ":"
         Text.IO.putStrLn $ maybe "Nothing" Db.format korvai
 
 realize, realizep :: Int -> IO ()
-realize i = realizeM mempty (Db.korvais !! i)
-realizep i = realizeM Format.defaultAbstraction (Db.korvais !! i)
+realize i = realizeM mempty (get i)
+realizep i = realizeM Format.defaultAbstraction (get i)
 
 realizeM :: Format.Abstraction -> Korvai.Korvai -> IO ()
 realizeM = Terminal.printInstrument Korvai.mridangam
 
 realizeKon :: Int -> IO ()
-realizeKon i = Terminal.printKonnakol Terminal.konnakolConfig (Db.korvais !! i)
+realizeKon i = Terminal.printKonnakol Terminal.konnakolConfig (get i)
 
 -- | Mark these korvais as practiced.
-practiced :: [Int] -> IO ()
-practiced idxs = do
+practiced :: Int -> Maybe BPM -> IO ()
+practiced index bpm = do
     now <- Time.getCurrentTime
-    let korvais = map (txt . Db.korvaiFname . (Db.korvais !!)) idxs
-    p <- either (errorIO . txt) return =<< loadPracticed
-    savePracticed $ foldr (incrementPracticed now) p korvais
+    let korvaiName = txt $ Db.korvaiFname $ snd $ Db.korvais !! index
+    pmap <- either (errorIO . txt) return =<< loadPracticed
+    let practiced = Practiced now bpm
+    savePracticed $ Map.alter (Just . maybe [practiced] (practiced:))
+        korvaiName pmap
 
-type Practiced = Map Text [Time.UTCTime]
+type PracticedMap = Map Text [Practiced]
+data Practiced = Practiced {
+    _date :: Time.UTCTime
+    , _bpm :: Maybe BPM
+    } deriving (Eq, Show, Generics.Generic)
 
-incrementPracticed :: Time.UTCTime -> Text -> Practiced -> Practiced
-incrementPracticed date = Map.alter (Just . maybe [date] (date:))
+type BPM = Int
+
+instance Aeson.ToJSON Practiced
+instance Aeson.FromJSON Practiced
+
+get :: Int -> Korvai.Korvai
+get = snd . (Db.korvais !!)
 
 practicedDb :: FilePath
-practicedDb = "../data/practiced"
+practicedDb = "data/practiced"
 
-savePracticed :: Practiced -> IO ()
+savePracticed :: PracticedMap -> IO ()
 savePracticed = Aeson.encodeFile practicedDb
 
-loadPracticed :: IO (Either String Practiced)
-loadPracticed = Aeson.eitherDecodeFileStrict practicedDb
-
-parse :: Text -> Either Text Practiced
-parse = fmap Map.fromList . mapM line . Text.lines
-    where
-    line = undefined
-    -- line s = case Text.words s of
-    --     [name, date] | Right n <- Parse.parse Parse.p_nat times ->
-    --         Right (name, n)
-    --     _ -> Left $ "can't parse line: " <> showt s
-
-unparse :: Practiced -> Text
-unparse = Text.unlines . map (\(name, times) -> name <> " " <> showt times)
-    . Map.toList
-
-dateFormat = Time.iso8601DateFormat (Just "%H:%M:%S")
+loadPracticed :: IO (Either String PracticedMap)
+loadPracticed = fmap (fromMaybe (Right Map.empty)) $ File.ignoreEnoent $
+    Aeson.eitherDecodeFileStrict practicedDb
 
 pick :: [a] -> IO (Maybe a)
 pick [] = return Nothing

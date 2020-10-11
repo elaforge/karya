@@ -8,13 +8,15 @@ module Solkattu.Db (
     module Solkattu.Db
     , module Solkattu.Dsl.Solkattu
 ) where
+import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Monoid as Monoid
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Time.Calendar as Calendar
 
 import qualified System.Directory as Directory
-import System.FilePath ((</>))
+import           System.FilePath ((</>))
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Doc as Doc
@@ -24,8 +26,8 @@ import qualified Util.Seq as Seq
 import qualified Util.SourceControl as SourceControl
 
 import qualified Solkattu.All as All -- generated
-import Solkattu.Dsl.Solkattu
-       (index, realize, realizep, realizeM, realizek, realizekp, realizeR)
+import           Solkattu.Dsl.Solkattu
+       (index, realize, realizeM, realizeR, realizek, realizekp, realizep)
 import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Format.Html as Html
 import qualified Solkattu.Format.Terminal as Terminal
@@ -33,16 +35,18 @@ import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Metadata as Metadata
 import qualified Solkattu.Tags as Tags
 
-import Global
+import           Global
 
 
-korvais :: [Korvai.Korvai]
-korvais = All.korvais
+korvais :: [(Int, Korvai.Korvai)]
+korvais = zip [0..] (List.sortOn key All.korvais)
+    where
+    key k = (Korvai._date (Korvai.korvaiMetadata k), Metadata.getLocation k)
 
 -- * predicates
 
 -- | The number of date groups starting from the most recent.
-recentDates :: Int -> FilterP
+recentDates :: Int -> Select
 recentDates groups = concat . Seq.rtake groups
     . Seq.group_sort (Korvai._date . Korvai.korvaiMetadata . snd)
 
@@ -72,25 +76,17 @@ date = Metadata.makeDate
 
 -- * search
 
-searchp :: (Korvai.Korvai -> Bool) -> IO ()
-searchp = Text.IO.putStrLn . search id
+searchp :: [Korvai.Korvai -> Bool] -> IO ()
+searchp = Text.IO.putStrLn . formats . searchAll id
 
--- | TODO this is awkward.  I just want to lift 'snd' into [x] -> [x] the same
--- way I can trivially lift it into x -> Bool.  But I don't think I can write
--- ([a] -> [a]) -> ([(x, a)] -> [(x, a)]), because [a]->[a] is not guaranteed
--- to be a filter.  Also it's just for 'recentDates', but search needs a whole
--- new argument for it, and it seems too annoying to lift all predicates to the
--- list-to-list form.
-type FilterP = forall x. [(x, Korvai.Korvai)] -> [(x, Korvai.Korvai)]
+type Select = forall i. [(i, Korvai.Korvai)] -> [(i, Korvai.Korvai)]
 
-search :: FilterP -> (Korvai.Korvai -> Bool) -> Text
-search filterP predicate = Text.stripEnd $
-    Text.unlines $ map format $ filter (predicate . snd) $ filterP $
-    zip [0..] korvais
+searchAll :: Select -> [Korvai.Korvai -> Bool] -> [(Int, Korvai.Korvai)]
+searchAll select predicates = filter (predicate . snd) $ select korvais
+    where predicate = Monoid.getAll . mconcatMap (Monoid.All .) predicates
 
-searchIndices :: FilterP -> (Korvai.Korvai -> Bool) -> [Int]
-searchIndices filterP predicate =
-    map fst $ filter (predicate . snd) $ filterP $ zip [0..] korvais
+formats :: [(Int, Korvai.Korvai)] -> Text
+formats = Text.stripEnd . Text.unlines . map format
 
 format :: (Int, Korvai.Korvai) -> Text
 format (i, korvai) = mconcat
@@ -115,7 +111,7 @@ writeAll :: IO ()
 writeAll = writeText >> writeHtml
 
 writeHtml :: IO ()
-writeHtml = writeHtmlTo "../data/solkattu-html"
+writeHtml = writeHtmlTo "data/solkattu-html"
 
 -- | Write all Korvais as HTML into the given directory.
 writeHtmlTo :: FilePath -> IO ()
@@ -136,7 +132,7 @@ korvaiFname korvai = untxt $ mod <> "." <> variableName
 -- ** writeText
 
 writeText :: IO ()
-writeText = writeTextTo "../data/solkattu-text" Format.defaultAbstraction
+writeText = writeTextTo "data/solkattu-text" Format.defaultAbstraction
 
 -- | The usual text dir is a git repo, so I can see what effect changes have, in
 -- the same manner as App.VerifyPerformance.

@@ -36,7 +36,7 @@ import qualified Derive.Stack as Stack
 
 import qualified Perform.Pitch as Pitch
 import qualified Solkattu.Db as Db
-import           Solkattu.Db hiding (realize, search, searchp)
+import           Solkattu.Db hiding (realize, searchp)
 import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Instrument.ToScore as ToScore
 import qualified Solkattu.Korvai as Korvai
@@ -60,11 +60,8 @@ type KorvaiIndex = Int
 
 -- * search
 
-search :: Monad m => (Korvai.Korvai -> Bool) -> m Text
-search = return . Db.search id
-
-search_date :: Monad m => Int -> Int -> Int -> Integer -> m Text
-search_date y m d days = search $ aroundDate (date y m d) days
+search :: Monad m => [Korvai.Korvai -> Bool] -> m Text
+search = return . Db.formats . Db.searchAll id
 
 -- * realize
 
@@ -87,7 +84,7 @@ insert :: (Solkattu.Notation stroke, Cmd.M m) => Korvai.Instrument stroke
 insert instrument realize_patterns akshara_dur korvai index = do
     (block_id, _, track_id, at) <- Selection.get_insert
     note_track <-
-        realize instrument realize_patterns (Db.korvais !! korvai) index
+        realize instrument realize_patterns (map snd Db.korvais !! korvai) index
             akshara_dur at
     ModifyNotes.write_tracks block_id [track_id] [note_track]
 
@@ -244,7 +241,7 @@ get_by_key key = do
     -- (mod, variable, index) <- split3 key
     [mod, variable, index, instrument] <- return $ Text.splitOn "/" key
     index <- ParseText.maybe_parse ParseText.p_nat index
-    korvai <- List.find (matches mod variable) Db.korvais
+    korvai <- List.find (matches mod variable) (map snd Db.korvais)
     instrument <- Map.lookup instrument Korvai.instruments
     -- This means reintegrate only works with a single section a single korvai.
     -- I can extend it if this turns out to be too restrictive.
