@@ -3,8 +3,9 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Solkattu.Score.Mridangam2020 where
-import Prelude hiding ((.), repeat)
-import Solkattu.Dsl.Mridangam
+import           Prelude hiding ((.), repeat)
+
+import           Solkattu.Dsl.Mridangam
 
 
 -- * exercises

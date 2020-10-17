@@ -150,16 +150,16 @@ test_format_eddupu = do
     let s = G.section
     equal_fmt id (run [s $ tas 32, s $ tas 32])
         "    X:4     O       X       O       |\n\
-        \1:  k k k k k k k k k k k k k k k k\n\
+        \0:  k k k k k k k k k k k k k k k k\n\
         \  > k k k k k k k k k k k k k k k k\n\
-        \2:  k k k k k k k k k k k k k k k k\n\
+        \1:  k k k k k k k k k k k k k k k k\n\
         \  > k k k k k k k k k k k k k k k k"
     -- The ruler remains unchanged, even though there aren't enough sollus.
     equal_fmt id (run [G.endOn 2 $ s $ tas 24, G.startOn 2 $ s $ tas 24])
         "    X:4     O       X       O       |\n\
-        \1:  k k k k k k k k k k k k k k k k\n\
+        \0:  k k k k k k k k k k k k k k k k\n\
         \  > k k k k k k k k\n\
-        \2:                  k k k k k k k k\n\
+        \1:                  k k k k k k k k\n\
         \  > k k k k k k k k k k k k k k k k"
 
 test_spellRests = do

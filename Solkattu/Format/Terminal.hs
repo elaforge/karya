@@ -110,7 +110,7 @@ formatResults :: Solkattu.Notation stroke => Config -> Korvai.Korvai
        ]
     -> ([Text], Bool)
 formatResults config korvai results =
-    ( snd . List.mapAccumL show1 (Nothing, 0) . zip [1..] $ results
+    ( snd . List.mapAccumL show1 (Nothing, 0) . zip [0..] $ results
     , any (Either.isLeft . snd) results
     )
     where
