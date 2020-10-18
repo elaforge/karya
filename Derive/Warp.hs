@@ -172,6 +172,9 @@ stretch factor (WarpLinear linear) = WarpLinear $ Linear
 unwarp_signal :: Warp -> Signal.Control -> Signal.Display
 unwarp_signal w = Signal.coerce . Signal.map_x (to_real . unwarp w)
 
+to_real :: ScoreTime -> RealTime
+to_real = RealTime.from_score
+
 
 -- * compose_hybrid
 
@@ -179,9 +182,6 @@ unwarp_signal w = Signal.coerce . Signal.map_x (to_real . unwarp w)
 -- compose normally?
 compose_hybrid :: Warp -> Warp -> Warp
 compose_hybrid _ _ = identity
-
-to_real :: ScoreTime -> RealTime
-to_real = RealTime.from_score
 
 {-
 -- | This is like 'compose', but implements a kind of \"semi-absolute\"

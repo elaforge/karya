@@ -65,8 +65,7 @@ instance Pretty KorvaiType where
     pretty (Mridangam a) = pretty a
 
 instance Pretty Korvai where
-    format (Korvai sequence strokeMaps tala metadata) =
-        Pretty.record "Korvai"
+    format (Korvai sequence strokeMaps tala metadata) = Pretty.record "Korvai"
         [ ("sequence", Pretty.format sequence)
         , ("strokeMaps", Pretty.format strokeMaps)
         , ("tala", Pretty.format tala)
@@ -189,6 +188,9 @@ data Instrument stroke = Instrument {
     -- | Realize a 'Mridangam' 'KorvaiType'.
     , instFromMridangam ::
         Maybe (Realize.ToStrokes (Realize.Stroke Mridangam.Stroke) stroke)
+    -- | This can be a Left because it comes from one of the
+    -- instrument-specific 'StrokeMaps' fields, which can be Left if
+    -- 'Realize.strokeMap' verification failed.
     , instStrokeMap :: StrokeMaps -> Either Error (Realize.StrokeMap stroke)
     -- | Modify strokes after 'realize'.  Use with 'strokeTechnique'.
     , instPostprocess :: [Flat stroke] -> [Flat stroke]
@@ -364,8 +366,8 @@ lint inst defaultStrokes korvai =
         unmatched = Realize.smapKeys smap
             `Set.difference` matched
             `Set.difference` defaultKeys
-        defaultKeys = Set.fromList $ map (second Maybe.catMaybes) $
-            Either.rights $ map Realize.verifySolluKey defaultStrokes
+    defaultKeys = Set.fromList $ map (second Maybe.catMaybes) $
+        Either.rights $ map Realize.verifySolluKey defaultStrokes
 
 -- * Metadata
 

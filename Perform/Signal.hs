@@ -54,9 +54,7 @@ module Perform.Signal (
     , map_x, map_y, map_y_linear, map_err
 
     -- * special functions
-    , integrate_inverse
-    , integrate
-    , flat_duration
+    , integrate_inverse, integrate, tempo_srate
 ) where
 import Prelude hiding (head, last, maximum, minimum, null, drop)
 import qualified Control.DeepSeq as DeepSeq
@@ -399,8 +397,8 @@ tempo_srate = RealTime.seconds 10
 
 -- | Total duration of horizontal segments in the warp signal.  These are
 -- the places where 'Warp.compose_hybrid' will emit a 1\/1 line.
-flat_duration :: Warp -> ScoreTime
-flat_duration =
+_flat_duration :: Warp -> ScoreTime
+_flat_duration =
     RealTime.to_score . fst . Vector.foldl' go (0, Segment.Sample 0 0)
         . Segment.to_vector . _signal
     where

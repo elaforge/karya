@@ -50,7 +50,7 @@ import           Global
     attack per note.  Though I don't use that yet.
 
     "Expr. Trigger Mode" = "off". It's unclear what this actually does, but it
-    seems to have no affect for me.  It implies that without it, the note will
+    seems to have no effect for me.  It implies that without it, the note will
     be played even when there is no pressure, but of course it won't.  Off
     because I do my own attack, and it implies it will make an attack for me
     when on.

@@ -342,8 +342,10 @@ e_20_07_17 = date 2020 7 17 $ exercise $ ganesh $ korvaiS adi
 
 thani_exercise :: Korvai
 thani_exercise = date 2020 7 3 $ exercise $ korvai adi
-    [ x2 $ s $ r2 (od.__.o.su (ktkt.pk)) . su nakatiku
-      . r2 (d.__.p.su (ktkt.pk)) . su nakatiku
+    [ s $ r2 (od.__.o.su (ktkt.pk)) . od.__.k.__
+        . r2 (d.__.p.su (ktkt.pk)) . d.__.k.__
+        . r2 (od.__.o.su (ktkt.pk)) . od.__.k.__
+        . r2 (d.__.p.su (ktkt.pk)) . su nakatiku
     , s $ su $ r2 (on.__.pk.t.__.o.__.ktpk) . nakatiku
         . r2 (on.__.pk.nakatiku) . nakatiku
     , s $ su $ r2 (p.u.__.k.o.__.ktkt.pk) . nakatiku
