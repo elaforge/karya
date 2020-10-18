@@ -3,7 +3,16 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Common interface for the MIDI drivers.
-module Midi.Interface where
+module Midi.Interface (
+    ReadChan
+    , RawInterface(..), Interface
+    , Message(..)
+    , track_interface
+    , reset_pitch
+    , reset_controls
+
+    , note_tracker
+) where
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM.TChan as TChan
 import qualified Control.DeepSeq as DeepSeq
@@ -17,13 +26,18 @@ import           Data.Vector ((!))
 import qualified Data.Vector.Unboxed as Unboxed
 import qualified Data.Vector.Unboxed.Mutable as Mutable
 
-import qualified Util.Debug as Debug
 import qualified Util.Num as Num
 import qualified Midi.Midi as Midi
 import           Perform.RealTime (RealTime)
 
 import           Global
 
+
+-- | Not all synths observe AllNotesOff, but swam does.  Swam also
+-- tends to get stuck notes.  TODO who doesn't support it?  And does this fix
+-- swam?  If no one and yes, then I can remove the old tracking mechanism.
+use_all_notes_off :: Bool
+use_all_notes_off = True
 
 type Error = Text
 
@@ -96,7 +110,7 @@ instance DeepSeq.NFData Message where
 
 track_interface :: RawInterface Midi.WriteMessage -> IO Interface
 track_interface interface = do
-    tracker <- note_tracker (write_message interface)
+    tracker <- note_tracker use_all_notes_off (write_message interface)
     return $ interface { write_message = tracker }
 
 reset_pitch :: RealTime -> Message
@@ -123,9 +137,9 @@ run state = fmap Tuple.swap . flip State.runStateT state
 -- This is necessary because some synthesizers do not support AllNotesOff,
 -- but also relieves callers of having to track which devices and channels
 -- have active notes.
-note_tracker :: (Midi.WriteMessage -> IO (Maybe err))
+note_tracker :: Bool -> (Midi.WriteMessage -> IO (Maybe err))
     -> IO (Message -> IO (Maybe err))
-note_tracker write = do
+note_tracker use_all_notes_off write = do
     mstate <- MVar.newMVar Map.empty
     return $ \msg -> MVar.modifyMVar mstate $ \state -> run state $ do
         new_msgs <- handle_msg msg
@@ -147,7 +161,7 @@ note_tracker write = do
             _ -> return ()
         return []
         where dev = Midi.wmsg_dev wmsg
-    handle_msg (AllNotesOff time) = all_notes_off time
+    handle_msg (AllNotesOff time) = all_notes_off use_all_notes_off time
     handle_msg (AllDevices time msgs) = send_devices time msgs
 
 -- if dev in state:
@@ -184,19 +198,27 @@ send_devices time msgs = do
     where
     mkmsgs dev = map (Midi.WriteMessage dev time) msgs
 
-all_notes_off :: RealTime -> TrackerM [Midi.WriteMessage]
-all_notes_off time = do
+all_notes_off :: Bool -> RealTime -> TrackerM [Midi.WriteMessage]
+all_notes_off use_all_notes_off time = do
     state <- State.get
+    -- Debug.traceM "state" =<< traverse (traverse Unboxed.freeze) state
     msgs <- liftIO $ forM (Map.toList state) $ \(dev, chans) ->
-        forM (zip [0..] (Vector.toList chans)) $ \(chan, notes) -> do
-            keys <- Unboxed.toList <$> Unboxed.freeze notes
-            liftIO $ Mutable.set notes 0
-            return $ map (note_off dev chan)
-                [ Midi.Key (fromIntegral i)
-                | (i, count) <- zip [0..] keys
-                , _ <- [0 .. count-1]
+        forM (zip [0..] (Vector.toList chans)) $ \(chan, notes) ->
+            if use_all_notes_off then return
+                [ Midi.WriteMessage dev time $
+                    Midi.ChannelMessage chan Midi.AllNotesOff
                 ]
-    return (concat (concat msgs))
+            else do
+                keys <- Unboxed.toList <$> Unboxed.freeze notes
+                liftIO $ Mutable.set notes 0
+                -- Emit a NoteOff for each current NoteOn I've seen.
+                return $ map (note_off dev chan)
+                    [ Midi.Key (fromIntegral i)
+                    | (i, count) <- zip [0..] keys
+                    , _ <- [0 .. count-1]
+                    ]
+    -- Debug.tracepM "msgs" $ concat $ concat msgs
+    return $ concat (concat msgs)
     where
     note_off dev chan key = Midi.WriteMessage dev time $
         Midi.ChannelMessage chan $ Midi.NoteOff key 0

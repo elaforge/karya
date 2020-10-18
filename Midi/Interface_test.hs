@@ -12,6 +12,7 @@ import           Global
 import           Util.Test
 
 
+test_note_tracker :: Test
 test_note_tracker = do
     let f = fmap extract . track
         extract = map extract_msg . filter (Midi.is_note . Midi.wmsg_msg)
@@ -67,7 +68,7 @@ extract_msg msg = error $ "unexpected msg: " ++ show msg
 track :: [Interface.Message] -> IO [Midi.WriteMessage]
 track msgs = do
     (out, writer) <- make_writer
-    tracked <- Interface.note_tracker writer
+    tracked <- Interface.note_tracker False writer
     mapM_ tracked msgs
     reverse <$> IORef.readIORef out
 
