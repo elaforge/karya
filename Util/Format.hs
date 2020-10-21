@@ -51,6 +51,10 @@ data Doc =
     deriving (Eq, Show)
 infixr :+
 
+-- | Number of indent levels.  The provided indent text will be replicated this
+-- many times.
+type Indent = Int
+
 {-
     I tried to define (:+) as @Union Doc Break Doc@ to enforce that exactly
     one break is between each Doc.  I also hoped to avoid awkward constructions
@@ -208,9 +212,6 @@ wrap [] = mempty
 
 -- | Width of monospace text, in characters.
 type Width = Int
--- | Number of indent levels.  The provided indent text will be replicated this
--- many times.
-type Indent = Int
 
 data State = State {
     -- | Collect text for each Section, for 'sectionB'.

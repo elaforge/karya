@@ -2,26 +2,22 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE DeriveGeneric #-}
 module Util.Pretty_test where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.Lazy as Lazy
 
-import Util.Format ((</>), (<//>), (<+>), withIndent)
+import qualified GHC.Generics as Generics
+
+import           Util.Format (withIndent, (<+>), (<//>), (</>))
 import qualified Util.Pretty as Pretty
-import Util.Test
 
-import Global
-
-
-render :: Pretty a => Int -> a -> [String]
-render width = map untxt . Text.lines . Lazy.toStrict
-    . Pretty.render "  " width . Pretty.format
-
-formats :: String -> Pretty.Doc
-formats = Pretty.format
+import           Global
+import           Util.Test
 
 
+test_list :: Test
 test_list = do
     let f width = render width (Pretty.format ns)
         ns = [0 .. 4 :: Int]
@@ -32,6 +28,7 @@ test_list = do
         ]
     equal (f 16) ["[0, 1, 2, 3, 4]"]
 
+test_record :: Test
 test_record = do
     let f = render 32 . make
         make = Pretty.record "Rec"
@@ -50,6 +47,7 @@ test_record = do
         , "  }"
         ]
 
+    -- nested record
     equal (f $ replicate 2 ("sub", make (replicate 2 ("field", "value"))))
         [ "Rec"
         , "  { sub ="
@@ -75,6 +73,7 @@ test_record = do
         , "]"
         ]
 
+test_map :: Test
 test_map = do
     let f width = render width val
         val = Map.fromList [(k, "1234" :: String) | k <- ['a'..'b']]
@@ -107,6 +106,7 @@ test_map = do
         , "}"
         ]
 
+test_tuple :: Test
 test_tuple = do
     equal (Pretty.pretty ('a', 'b')) "('a', 'b')"
     let t1 :: (String, String, String)
@@ -126,6 +126,7 @@ test_tuple = do
         , ")"
         ]
 
+test_delimitedList :: Test
 test_delimitedList = do
     let f = Pretty.delimitedList False '[' ']'
     -- shortForm omits the newlines and spaces.
@@ -161,3 +162,86 @@ test_delimitedList = do
         , "    }"
         , "]"
         ]
+
+test_formatG :: Test
+test_formatG = do
+    let rec1 = Rec1 1 2.5 'c' (Map.fromList [("hi", "there")])
+    let rec2 = Rec2 rec1 "hi"
+    equal_fmt id (renderText 25 rec1)
+        "Rec1\n\
+        \  { int = 1, double = 2.5\n\
+        \  , char = 'c'\n\
+        \  , map = {\"hi\": \"there\"}\n\
+        \  }\n"
+    equal_fmt id (renderText 25 rec2)
+        "Rec2\n\
+        \  { sub =\n\
+        \    Rec1\n\
+        \      { int = 1\n\
+        \      , double = 2.5\n\
+        \      , char = 'c'\n\
+        \      , map =\n\
+        \        {\"hi\": \"there\"}\n\
+        \      }\n\
+        \  , string = \"hi\"\n\
+        \  }\n"
+
+_test_bug :: Test
+_test_bug = do
+    let rec1 = Rec1 1 2.5 'c' (Map.fromList [("hi", "there")])
+    -- TODO: bug:
+    -- should wrap after "", not after Rec1
+    equal_fmt id (renderText 60 ("" :: String, rec1))
+        "( \"\"\n\
+        \, Rec1\n\
+        \    { int = 1, double = 2.5, char = 'c'\n\
+        \    , map = {\"hi\": \"there\"}\n\
+        \    }\n\
+        \)\n"
+    -- parens are misaligned
+    equal_fmt id (renderText 60 [("" :: String, prettyRec1 rec1)])
+        "[ ( \"\"\n\
+        \  , Rec1\n\
+        \      { int = 1, double = 2.5, char = 'c'\n\
+        \      , map = {\"hi\": \"there\"}\n\
+        \      }\n\
+        \  )\n\
+        \]\n"
+    where
+    prettyRec1 :: Rec1 -> Pretty.Doc
+    prettyRec1 (Rec1 int double char map) = Pretty.record "Rec1"
+        [ ("rec1Int", Pretty.format int)
+        , ("rec1Double", Pretty.format double)
+        , ("rec1Char", Pretty.format char)
+        , ("rec1Map", Pretty.format map)
+        ]
+
+data Rec1 = Rec1 {
+    rec1Int :: Int
+    , rec1Double :: Double
+    , rec1Char :: Char
+    , rec1Map :: Map String String
+    } deriving (Show, Generics.Generic)
+
+instance Pretty.Pretty Rec1 where
+    format = Pretty.formatGCamel
+
+data Rec2 = Rec2 {
+    rec2Sub :: Rec1
+    , rec2String :: String
+    } deriving (Show, Generics.Generic)
+
+instance Pretty.Pretty Rec2 where
+    format = Pretty.formatGCamel
+
+
+-- * util
+
+render :: Pretty a => Int -> a -> [String]
+render width = map untxt . Text.lines . renderText width
+
+renderText :: Pretty a => Int -> a -> Text
+renderText width = Lazy.toStrict . Pretty.render "  " width . Pretty.format
+
+formats :: String -> Pretty.Doc
+formats = Pretty.format

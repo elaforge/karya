@@ -3907,10 +3907,12 @@ cleanup:
       a bug where it put on the wrong backend.
     - If State.allocations is so read-only, why not make it a plain function?
       . Tests use it to write...
-  / Research a better solution to records:
+  / Research a better solution to records: record:
     . generic-lens combined with generic-lens-labels, OverloadedLabels, and
       DuplicateRecordFields
+    . Or, https://hackage.haskell.org/package/optics-core Optics.Label
     . At this point, wait for RecordDotSyntax.
+      status: https://gitlab.haskell.org/ghc/ghc/-/issues/18598
   - Why re-export UiConfig from Ui.State?  Why not directly reference
     UiConfig?
   / Can I make prev val or {Note,Control,Pitch}Deriver return values more
@@ -3955,6 +3957,14 @@ performance:
   . Staging via typed template haskell: uses [|| ||], $$.  Talk at
     https://vimeo.com/443276733 6:29:10
     . More talks at ICFP 2020
+    . The ICFP talk claimed several times faster than happy, go find that.
+  nothunks:
+    . https://iohk.io/en/blog/posts/2020/09/24/being-lazy-without-being-bloated/
+    . Also there is ghc-heap-view assertNF
+    - Check Ui.State
+    - Check Cmd.State
+      . Except state_current_performance
+    - Check Derive.State during derivation.
   general:
     - use 'text-builder' for Pretty and Log?
       . Unfortunately it has tons of dependencies, due to deferred-folds ->
@@ -4149,6 +4159,8 @@ performance:
       . Then, does the extra overhead hurt me?  Less memory is better, but
         is it drowned out by derive's memory use?
   derive:
+    parser:
+      -fexpose-all-unfoldings can speed up parsec, at the cost of code size
     suspected problems:
       . transformer streaming:
       . signal resampling: Signal.map_y
@@ -6944,6 +6956,11 @@ Perform:
     switch on the next NoteOn
 
 Util.Format:
+  * PrettyGeneric:
+    . I can't convert to Val in one go and then pretty, I have to interleave
+      generic conversion with Pretty.format, so I get the Pretty instance for
+      intermediate types.
+    . That means I don't need Map and Set at all, or anything except Record.
   HsPretty:
     problems:
       . Missing close paren after wrapped constructors.
@@ -6958,11 +6975,10 @@ Util.Format:
           ( a
           , B c
           )
-  - Util.Pretty still broken: pprint Vsl.violin_harmonics
   - move format related modules to Util.Format.*
   - don't use 'reverse' in 'flatten'
   - lazy implementation?
-  - generic implementation for records
+  * generic implementation for records
     . try generics-sop
     . https://www.youtube.com/watch?v=sQxH349HOik
 

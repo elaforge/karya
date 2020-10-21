@@ -3,9 +3,11 @@ import-order-first: Util.
 sort-unqualified-last: t
 
 -- Prefer or don't prefer to resolve to these modules.
-prio-module-high: Perform.Pitch Util.Serialize
-    Data.Map Data.Set Data.Vector Data.String Data.Ratio
+prio-module-high:
     Control.Monad.Trans.Resource
+    Data.Map Data.Set Data.Vector Data.String Data.Ratio
+    GHC.Generics
+    Perform.Pitch Util.Serialize
     System.IO System.IO.Unsafe
 prio-module-low: GHC.Environment GHC.Read GHC.MVar
     LogView.Process

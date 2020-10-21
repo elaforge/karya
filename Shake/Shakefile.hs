@@ -804,6 +804,7 @@ ghcLanguageFlags = map ("-X"++)
     , "FlexibleContexts"
     -- Just too useful.
     , "GeneralizedNewtypeDeriving"
+    , "DeriveGeneric"
     , "LambdaCase"
     , "MultiWayIf"
     -- Allow _s in numbers. Harmless, and the _s are nice.

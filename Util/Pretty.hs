@@ -2,7 +2,12 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE DefaultSignatures #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeOperators #-}
 {- | Like Show, but designed to be easy to read rather than unambiguous and
     complete.
 -}
@@ -13,6 +18,9 @@ module Util.Pretty (
     , formatted, pprint
     , char
     , improperRatio, fraction
+
+    -- * generic derivation
+    , formatG_, formatGCamel, formatGPrefix
 
     -- * formatting
     , textList, formattedList, delimitedList, record, recordTitle
@@ -27,8 +35,10 @@ import qualified Data.ByteString as ByteString
 import qualified Data.Char as Char
 import qualified Data.Dynamic as Dynamic
 import qualified Data.IntMap as IntMap
+import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Ratio as Ratio
 import qualified Data.Set as Set
 import qualified Data.Text as Text
@@ -46,13 +56,15 @@ import qualified Data.Word as Word
 
 import qualified Foreign
 import qualified Foreign.C as C
+import qualified GHC.Generics as Generics
+import           GHC.Generics ((:*:)((:*:)))
 import qualified Text.ParserCombinators.ReadP as ReadP
 import qualified Text.Read as Read
 
 import qualified Util.Format as Format
 import           Util.Format
-       (indent, indentLine, indent_, render, string, text, withIndent,
-        wrapWords, (<+/>), (<+>), (<//>), (</>), Doc)
+    (Doc, indent, indentLine, indent_, render, string, text, withIndent,
+     wrapWords, (<+/>), (<+>), (<//>), (</>))
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
@@ -88,6 +100,79 @@ showt = Text.pack . show
 
 char :: Char -> Doc
 char = text . Text.singleton
+
+
+data GConfig = GConfig {
+    _modifyField :: String -> String
+    }
+
+gconfig :: GConfig
+gconfig = GConfig id
+
+dropPrefix :: String -> GConfig
+dropPrefix prefix = gconfig
+    { _modifyField = \field ->
+        Maybe.fromMaybe field (List.stripPrefix prefix field)
+    }
+
+dropCamel :: GConfig
+dropCamel = gconfig
+    { _modifyField = lower . dropWhile Char.isDigit . dropWhile Char.isLower }
+    where
+    lower (c:cs) = Char.toLower c : cs
+    lower [] = "<no-capital>"
+
+dropUnderscore :: GConfig
+dropUnderscore =
+    gconfig { _modifyField = dropWhile (=='_') . dropWhile (/='_') }
+
+class PrettyG f where
+    prettyG :: GConfig -> f a -> [(Text, Doc)]
+
+formatG_, formatGCamel :: (PrettyG (Generics.Rep a), Generics.Generic a)
+    => a -> Doc
+formatG_ = formatG dropUnderscore
+formatGCamel = formatG dropCamel
+formatGPrefix :: (PrettyG (Generics.Rep a), Generics.Generic a)
+    => String -> a -> Doc
+formatGPrefix prefix = formatG (dropPrefix prefix)
+
+-- | Generic derivation for Pretty.  This works on single-constructor types,
+-- records and positional.
+formatG :: (PrettyG (Generics.Rep a), Generics.Generic a) => GConfig -> a -> Doc
+formatG config a = case prettyG config (Generics.from a) of
+    [("", doc)] -> doc
+    -- TODO what causes this?
+    fields -> record "??" fields
+
+instance (PrettyG f) => PrettyG (Generics.M1 Generics.D d f) where
+    prettyG config (Generics.M1 x) = prettyG config x
+
+instance (PrettyG f, Generics.Constructor c) =>
+        PrettyG (Generics.M1 Generics.C c f) where
+    prettyG config c@(Generics.M1 x)
+        | Generics.conIsRecord c =
+            [("", record (text (Text.pack name)) (prettyG config x))]
+        | otherwise =
+            [("", constructor (Text.pack name) (map snd (prettyG config x)))]
+        where name = Generics.conName c
+
+instance (PrettyG f, Generics.Selector s) =>
+        PrettyG (Generics.M1 Generics.S s f) where
+    prettyG config it@(Generics.M1 x) =
+        zip (repeat (Text.pack (_modifyField config (Generics.selName it))))
+            (map snd (prettyG config x))
+
+instance Pretty a => PrettyG (Generics.K1 t a) where
+    prettyG _config (Generics.K1 x) = [("", format x)]
+
+-- instance PrettyG Generics.U1 where
+--     prettyG Generics.U1 = []
+instance (PrettyG f, PrettyG g) => PrettyG (f :*: g) where
+    prettyG config (xs :*: ys) = prettyG config xs ++ prettyG config ys
+-- instance (PrettyG f, PrettyG g) => PrettyG (f :+: g) where
+--     prettyG (Generics.L1 x) = prettyG x
+--     prettyG (Generics.R1 x) = prettyG x
 
 -- * standard types
 
