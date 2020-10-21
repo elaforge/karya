@@ -13,6 +13,8 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Time.Calendar as Calendar
 
+import qualified GHC.Generics as Generics
+
 import qualified Util.Maps as Maps
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -30,7 +32,7 @@ import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tags as Tags
 import qualified Solkattu.Tala as Tala
 
-import Global
+import           Global
 
 
 type Sequence = SequenceT Solkattu.Sollu
@@ -51,7 +53,7 @@ data Korvai = Korvai {
     , korvaiStrokeMaps :: !StrokeMaps
     , korvaiTala :: !Tala.Tala
     , korvaiMetadata :: !Metadata
-    } deriving (Eq, Show)
+    } deriving (Eq, Show, Generics.Generic)
 
 -- | This is a hack so I can have both Solkattu.Sollu sequences and
 -- instrument specific ones.  It induces a similar hack in 'Instrument'.
@@ -65,12 +67,7 @@ instance Pretty KorvaiType where
     pretty (Mridangam a) = pretty a
 
 instance Pretty Korvai where
-    format (Korvai sequence strokeMaps tala metadata) = Pretty.record "Korvai"
-        [ ("sequence", Pretty.format sequence)
-        , ("strokeMaps", Pretty.format strokeMaps)
-        , ("tala", Pretty.format tala)
-        , ("metadata", Pretty.format metadata)
-        ]
+    format = Pretty.formatGCamel
 
 korvai :: Tala.Tala -> StrokeMaps -> [Section Solkattu.Sollu] -> Korvai
 korvai tala strokeMaps sections = Korvai
@@ -142,15 +139,10 @@ data Section sollu = Section {
     -- | This is lazy because it might have a 'Solkattu.Exception' in it.  This
     -- is because 'inferSectionTags' has to evaluate the sequence.
     , sectionTags :: Tags.Tags
-    } deriving (Eq, Show)
+    } deriving (Eq, Show, Generics.Generic)
 
 instance Pretty sollu => Pretty (Section sollu) where
-    format (Section seq start end tags) = Pretty.record "Section"
-        [ ("tags", Pretty.format tags)
-        , ("start", Pretty.format start)
-        , ("end", Pretty.format end)
-        , ("sequence", Pretty.format seq)
-        ]
+    format = Pretty.formatGCamel
 
 smap :: (SequenceT sollu -> SequenceT sollu) -> Section sollu -> Section sollu
 smap f section = section { sectionSequence = f (sectionSequence section) }
@@ -376,7 +368,7 @@ data Metadata = Metadata {
     _date :: !(Maybe Calendar.Day)
     , _tags :: !Tags.Tags
     , _location :: !Location
-    } deriving (Eq, Show)
+    } deriving (Eq, Show, Generics.Generic)
 
 -- | (module, lineNumber, variableName)
 type Location = (Text, Int, Text)
@@ -391,11 +383,7 @@ instance Monoid Metadata where
     mappend = (<>)
 
 instance Pretty Metadata where
-    format (Metadata date tags loc) = Pretty.record "Metadata"
-        [ ("date", Pretty.format date)
-        , ("tags", Pretty.format tags)
-        , ("location", Pretty.format loc)
-        ]
+    format = Pretty.formatG_
 
 -- ** infer
 
@@ -467,7 +455,7 @@ data StrokeMaps = StrokeMaps {
         Either Error (Realize.StrokeMap KendangTunggal.Stroke)
     , smapReyong :: Either Error (Realize.StrokeMap Reyong.Stroke)
     , smapSargam :: Either Error (Realize.StrokeMap Sargam.Stroke)
-    } deriving (Eq, Show)
+    } deriving (Eq, Show, Generics.Generic)
 
 instance Semigroup StrokeMaps where
     StrokeMaps a1 a2 a3 a4 <> StrokeMaps b1 b2 b3 b4 =
@@ -482,10 +470,4 @@ instance Monoid StrokeMaps where
     mappend = (<>)
 
 instance Pretty StrokeMaps where
-    format (StrokeMaps mridangam kendangTunggal reyong sargam) =
-        Pretty.record "StrokeMaps"
-            [ ("mridangam", Pretty.format mridangam)
-            , ("kendangTunggal", Pretty.format kendangTunggal)
-            , ("reyong", Pretty.format reyong)
-            , ("sargam", Pretty.format sargam)
-            ]
+    format = Pretty.formatGCamel

@@ -18,6 +18,8 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
+import qualified GHC.Generics as Generics
+
 import qualified Util.Doc as Doc
 import qualified Util.Logger as Logger
 import qualified Util.Maps as Maps
@@ -273,7 +275,7 @@ data StrokeMap stroke = StrokeMap {
     , smapSolluShadows ::
         [(SolluMapKey Solkattu.Sollu, [Maybe (Stroke stroke)])]
     , smapPatternMap :: PatternMap stroke
-    } deriving (Eq, Show)
+    } deriving (Eq, Show, Generics.Generic)
 
 isInstrumentEmpty :: StrokeMap stroke -> Bool
 isInstrumentEmpty (StrokeMap (SolluMap solluMap) _ (PatternMap patternMap)) =
@@ -291,12 +293,7 @@ instance Monoid (StrokeMap stroke) where
     mappend = (<>)
 
 instance Pretty stroke => Pretty (StrokeMap stroke) where
-    format (StrokeMap solluMap solluShadows patternMap) =
-        Pretty.record "StrokeMap"
-            [ ("solluMap", Pretty.format solluMap)
-            , ("solluShadows", Pretty.format solluShadows)
-            , ("patternMap", Pretty.format patternMap)
-            ]
+    format = Pretty.formatGCamel
 
 -- | Verify a list of pairs stroke map and put them in an 'StrokeMap'.
 strokeMap :: Pretty stroke => PatternMap stroke
