@@ -98,7 +98,7 @@ They use samples from my own instruments.
 ### text score
 
 There's a text-only score language, which is similar in concept to lilypond,
-though of course which much different capabilities.
+though of course with different capabilities.
 
 This uses the built-in incremental sampler:
 

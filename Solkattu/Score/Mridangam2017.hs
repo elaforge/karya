@@ -8,6 +8,19 @@ import Prelude hiding ((.), repeat)
 import Solkattu.Dsl.Mridangam
 
 
+t_17_02_13 :: Korvai
+t_17_02_13 = date 2017 2 13 $ ganesh $ sarvalaghu $ korvaiS adi $ map (nadai 6)
+    [ takitadin.kadin . takitadin.kadin . takitatin.katin
+        . takitatin.k.takitatin.k
+    , takitadin.kadin . __ . dropM 1 takitadin . kadin . takitatin.katin
+        . __ . p.k.od.__ . p.k.od.__ . p.k.od
+    ]
+    where
+    takitadin   = k.p.k.od.__
+    takitatin   = k.p.k. d.__
+    kadin = k.od.__.o&n.__.k.__
+    katin = k. d.__.  n.__.k.__
+
 c_17_07_10 :: Korvai
 c_17_07_10 = exercise $ date 2017 7 10 $ ganesh $ korvaiS1 adi $ su $
     o.__.k.o.k.o.o.k . r4 (o.o.k.o.k.o.o.k) . r4 (o.k.k.o.o.k)

@@ -169,19 +169,6 @@ make_dinna theme_ repl sep theme'_ ptheme'_ = map (su • (sam.))
 
 -- * sarvalaghu
 
-t_17_02_13 :: Korvai
-t_17_02_13 = date 2017 2 13 $ ganesh $ sarvalaghu $ korvaiS adi $ map (nadai 6)
-    [ takitadin.kadin . takitadin.kadin . takitatin.katin
-        . takitatin.k.takitatin.k
-    , takitadin.kadin . __ . dropM 1 takitadin . kadin . takitatin.katin
-        . __ . p.k.od.__ . p.k.od.__ . p.k.od
-    ]
-    where
-    takitadin   = k.p.k.od.__
-    takitatin   = k.p.k. d.__
-    kadin = k.od.__.o&n.__.k.__
-    katin = k. d.__.  n.__.k.__
-
 din_nadin :: Korvai
 din_nadin = sarvalaghu $ ganesh $ korvaiS (beats 4)
     [ od.__.on.od.l.od.on.l.od.l.on.od.l.od.on.l
@@ -274,11 +261,8 @@ nakanadin :: Korvai
 nakanadin = sarvalaghu $ korvaiS1 (beats 2) $ su $
     d.__3.y.n.y.d.__3.y.d.y.n.y.n.y
 
-
--- * farans
-
 farans :: Korvai
-farans = faran $ korvaiS adi $ map su $ concat
+farans = exercise $ faran $ korvaiS adi $ map su $ concat
     [ map (make (p.n.p.k) (p.n.p.k . t.k))
         [ k.t.k.n.p.k.t.k
         , o.o.k.n.p.k.t.k
@@ -321,6 +305,18 @@ farans = faran $ korvaiS adi $ map su $ concat
         long = group pattern . nakatiku
         short = takeM 6 pattern
 
+e_ktkt :: Korvai
+e_ktkt = exercise $ korvaiS adi
+    [ r2 (n.p.ktkt.pk) . n.p.kt.kp.kt.kp.ktkt.pk
+    , n.p . r6 (kt.kp) . ktkt.pk
+    , n.p . r3 (kt.kp . cmap hv [k, t, k].p) . ktkt.pk
+    , n.p . r6 (cmap hv [k, t, k].p) . ktkt.pk
+    , n.o . r3 (o&k.t.kp . kt.kp) . ktkt.pk
+    , n.o . r6 (o&k.t.kp) . ktkt.pk
+    , n . r3 (o.k.o&t.k.p .kt.k) . p.ktkt.pk
+    , n . r6 (o.k.o&t.k) . p.ktkt.pk
+    ]
+
 -- * fragments
 
 eddupu6 :: Korvai
@@ -331,7 +327,7 @@ eddupu6 = korvaiS (beats 3)
     , r2 (o.o.t.__.k.__)
     , k.p.k.__.t.__.k.t.__.k.n.o
     , __.__.u.__3.k.o.o&t.k.n.o.k
-    , su $ r2 nang_kita
+    , su $ r2 $ o&n . __ . p.k.nakatiku
     ]
 
 eddupu10 :: Korvai
@@ -339,6 +335,3 @@ eddupu10 = korvaiS (beats 5)
     [ r2 $ u.__3.k.o.o&t.k.n.o.k
     , __.__ . r3 p6
     ]
-
-nang_kita :: Sequence
-nang_kita = o&n . __ . p.k.nakatiku

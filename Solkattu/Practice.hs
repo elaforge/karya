@@ -40,8 +40,14 @@ randomTypes types = do
         Text.IO.putStrLn $ maybe "Nothing" Db.format korvai
 
 realize, realizep :: Int -> IO ()
-realize i = realizeM mempty (get i)
-realizep i = realizeM Format.defaultAbstraction (get i)
+realize i = do
+    Text.IO.putStr $ Db.format (i, korvai)
+    realizeM mempty korvai
+    where korvai = get i
+realizep i = do
+    Text.IO.putStr $ Db.format (i, korvai)
+    realizeM Format.defaultAbstraction korvai
+    where korvai = get i
 
 realizeM :: Format.Abstraction -> Korvai.Korvai -> IO ()
 realizeM = Terminal.printInstrument Korvai.mridangam
@@ -50,14 +56,17 @@ realizeKon :: Int -> IO ()
 realizeKon i = Terminal.printKonnakol Terminal.konnakolConfig (get i)
 
 -- | Mark these korvais as practiced.
-practiced :: Int -> Maybe BPM -> IO ()
-practiced index bpm = do
+practiced :: Int -> BPM -> IO ()
+practiced index bpm = practicedName name bpm
+    where name = txt $ Db.korvaiFname $ snd $ Db.korvais !! index
+
+practicedName :: Text -> BPM -> IO ()
+practicedName name bpm = do
     now <- Time.getCurrentTime
-    let korvaiName = txt $ Db.korvaiFname $ snd $ Db.korvais !! index
     pmap <- either (errorIO . txt) return =<< loadPracticed
-    let practiced = Practiced now bpm
+    let practiced = Practiced now (Just bpm)
     savePracticed $ Map.alter (Just . maybe [practiced] (practiced:))
-        korvaiName pmap
+        name pmap
 
 type PracticedMap = Map Text [Practiced]
 data Practiced = Practiced {

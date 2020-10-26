@@ -69,3 +69,27 @@ c_20_04_03 = date 2020 4 3 $
         , (ta.din.gin.na.ka, k.t.k.n.o)
         , (tang.__.ga, o&u.__.__)
         ]
+
+c_20_10_25 :: Korvai
+c_20_10_25 = date 2020 10 25 $ ganesh $ korvaiS1 adi mridangam $
+    g (r4 (ta.dit.__.ta.__4) . ta.di.__.ki.__.ta.__ . taka.__.din.__.na.__.dim.__7)
+    . g (r4 (ta.dit.__.ta.__3) . ta.di.__.ki.ta.__ . taka.__.din.na.__.dim.__6)
+    . g (r4 (ta.dit.__.ta.__) . ta.di.ki.ta.__.taka.din.na.__.dim.__5)
+    . g (r4 (2^takadinna) . ta.di.ki.ta.takadinna.dim.__4)
+
+    . g (ta.__3.di.__4.ki.__3.na.__4.thom.__)
+    . g (ta.__.di.__4.ki.__.na.__4.thom.__)
+    . g (ta.__.di.__3.ki.__.na.__3.thom.__)
+
+    . sd p5 . p5 . sd p5 . r2 p5 . sd p5
+    . tri_ __ (r3 p5)
+    where
+    mridangam = makeMridangam
+        [ (ta.dit.ta, k.t.k)
+        , (2^takadinna, k.t.k.t)
+        , (ta.di.ki.ta, k.t.k.t)
+        , (ta.di.ki.na, k.t.k.n)
+        , (dim, od)
+        , (thom, o)
+        ]
+    g = group
