@@ -20,6 +20,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Derive.Expr as Expr
+import qualified Solkattu.Instrument.KendangPasang as KendangPasang
 import qualified Solkattu.Instrument.KendangTunggal as KendangTunggal
 import qualified Solkattu.Instrument.Konnakol as Konnakol
 import qualified Solkattu.Instrument.Mridangam as Mridangam
@@ -219,6 +220,12 @@ kendangTunggal :: Instrument KendangTunggal.Stroke
 kendangTunggal = defaultInstrument
     { instName = "kendang tunggal"
     , instStrokeMap = smapKendangTunggal
+    }
+
+kendangPasang :: Instrument KendangPasang.Stroke
+kendangPasang = defaultInstrument
+    { instName = "kendang pasang"
+    , instStrokeMap = smapKendangPasang
     }
 
 reyong :: Instrument Reyong.Stroke
@@ -453,20 +460,25 @@ data StrokeMaps = StrokeMaps {
     smapMridangam :: Either Error (Realize.StrokeMap Mridangam.Stroke)
     , smapKendangTunggal ::
         Either Error (Realize.StrokeMap KendangTunggal.Stroke)
+    , smapKendangPasang ::
+        Either Error (Realize.StrokeMap KendangPasang.Stroke)
     , smapReyong :: Either Error (Realize.StrokeMap Reyong.Stroke)
     , smapSargam :: Either Error (Realize.StrokeMap Sargam.Stroke)
     } deriving (Eq, Show, Generics.Generic)
 
 instance Semigroup StrokeMaps where
-    StrokeMaps a1 a2 a3 a4 <> StrokeMaps b1 b2 b3 b4 =
+    StrokeMaps a1 a2 a3 a4 a5 <> StrokeMaps b1 b2 b3 b4 b5 =
         StrokeMaps (merge a1 b1) (merge a2 b2) (merge a3 b3) (merge a4 b4)
+            (merge a5 b5)
         where
         merge (Left err) _ = Left err
         merge _ (Left err) = Left err
         merge (Right a) (Right b) = Right (a<>b)
+
 instance Monoid StrokeMaps where
     mempty = StrokeMaps
         (Right mempty) (Right mempty) (Right mempty) (Right mempty)
+        (Right mempty)
     mappend = (<>)
 
 instance Pretty StrokeMaps where

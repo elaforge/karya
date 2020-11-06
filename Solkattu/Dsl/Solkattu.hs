@@ -20,6 +20,7 @@ import qualified Solkattu.Dsl.Interactive as Interactive
 import           Solkattu.Dsl.Interactive (diff, diffw)
 import qualified Solkattu.Dsl.MridangamNotation as MridangamNotation
 import qualified Solkattu.Format.Terminal as Terminal
+import qualified Solkattu.Instrument.KendangPasang as KendangPasang
 import qualified Solkattu.Instrument.KendangTunggal as KendangTunggal
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Instrument.Reyong as Reyong
@@ -194,11 +195,21 @@ makeKendang1 :: StrokeMap KendangTunggal.Stroke -> Korvai.StrokeMaps
 makeKendang1 strokes = mempty
     { Korvai.smapKendangTunggal =
         Realize.strokeMap KendangTunggal.defaultPatterns
-            (_kendangStrokes ++ strokes)
+            (_kendangStrokes1 ++ strokes)
     }
 
 lintK1 :: Korvai -> IO ()
-lintK1 = _printLint Korvai.kendangTunggal _kendangStrokes
+lintK1 = _printLint Korvai.kendangTunggal _kendangStrokes1
+
+makeKendang2 :: StrokeMap KendangPasang.Stroke -> Korvai.StrokeMaps
+makeKendang2 strokes = mempty
+    { Korvai.smapKendangPasang =
+        Realize.strokeMap KendangPasang.defaultPatterns
+            (_kendangStrokes2 ++ strokes)
+    }
+
+lintK2 :: Korvai -> IO ()
+lintK2 = _printLint Korvai.kendangTunggal _kendangStrokes2
 
 makeReyong :: StrokeMap Reyong.Stroke -> Korvai.StrokeMaps
 makeReyong strokes = mempty
@@ -261,8 +272,8 @@ _mridangamStrokes =
     ]
     where Mridangam.Strokes {..} = Mridangam.notes
 
-_kendangStrokes :: [(Sequence, SequenceR KendangTunggal.Stroke)]
-_kendangStrokes =
+_kendangStrokes1 :: [(Sequence, SequenceR KendangTunggal.Stroke)]
+_kendangStrokes1 =
     [ (thom, a)
     , (tang, u)
     , (lang, u)
@@ -277,6 +288,23 @@ _kendangStrokes =
     , (takadugutarikita, k.p.a.a.k.p.k.t)
     ]
     where KendangTunggal.Strokes {..} = KendangTunggal.notes
+
+_kendangStrokes2 :: [(Sequence, SequenceR KendangPasang.Stroke)]
+_kendangStrokes2 =
+    [ (thom, a)
+    , (tang, y)
+    , (lang, y)
+    , (talang, a.u)
+    , (takadinna, p.a.o.k)
+    , (tdgnt, o.k.p.l.a)
+    , (kp, k.p)
+    , (kpnp, k.p.t.l)
+    , (oknp, o.t.l.a)
+    , (ktktoknp, k.p.k.p.o.t.l.a)
+    , (nakatiku, t.u.y.k.p.a.o.k)
+    , (takadugutarikita, k.p.a.a.t.l.k.p)
+    ]
+    where KendangPasang.Strokes {..} = KendangPasang.notes
 
 _reyongStrokes :: [(Sequence, SequenceR Reyong.Stroke)]
 _reyongStrokes =
@@ -297,7 +325,8 @@ _printLint inst strokes korvai =
 _instrumentDefaultStrokes :: Map Text [Sequence]
 _instrumentDefaultStrokes = Map.fromList
     [ pair Korvai.mridangam _mridangamStrokes
-    , pair Korvai.kendangTunggal _kendangStrokes
+    , pair Korvai.kendangTunggal _kendangStrokes1
+    , pair Korvai.kendangPasang _kendangStrokes2
     , pair Korvai.reyong _reyongStrokes
     ]
     where
@@ -318,6 +347,9 @@ realizeM = _printInstrument Korvai.mridangam
 realizek, realizekp :: Korvai.Korvai -> IO ()
 realizek = _printInstrument Korvai.kendangTunggal concrete
 realizekp = _printInstrument Korvai.kendangTunggal id
+
+realizek2 :: Korvai.Korvai -> IO ()
+realizek2 = _printInstrument Korvai.kendangPasang concrete
 
 realizeR :: (Terminal.Config -> Terminal.Config) -> Korvai.Korvai -> IO ()
 realizeR = _printInstrument Korvai.reyong

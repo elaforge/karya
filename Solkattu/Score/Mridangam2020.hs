@@ -360,3 +360,20 @@ thani_exercise = date 2020 7 3 $ exercise $ korvai adi
         . tri_ (od.__4) nakatiku
     , commentS "mohra" $ s mempty
     ]
+
+e_20_11_01_npk :: Korvai
+e_20_11_01_npk = date 2020 11 1 $ exercise $
+    comment "once in chatusram, then in tisram" $
+    korvaiS adi
+    [ pat (od.__6)
+    , pat (sd (n.pk))
+    , pat (od.__3.od.__3)
+    , pat (od.__.od.__.od.__)
+    , pat (o.u.__.o.u.__)
+    , pat (o.o.k.od.__.k)
+    , pat (o.o.k.o.od.__)
+    ]
+    where
+    pat karvai = nadai 6 $ su $ r4 npk . tri_ karvai npk
+    npk = g (n.pk.r3 (t.pk))
+    g = group
