@@ -163,8 +163,7 @@ check f (Eval fa) = Eval (\t -> (f =<<) <$> fa t)
 -- can get a Typecheck by "just" deriving these plus Typecheck.
 type TEnum a = (ShowVal.ShowVal a, Bounded a, Enum a)
 
--- | This is the class of values which can be converted to from
--- a 'Val'.
+-- | This is the class of values which can be converted to a 'Val'.
 class Typecheck a where
     from_val :: Val -> Checked a
     default from_val :: TEnum a => Val -> Checked a
@@ -330,22 +329,11 @@ instance Typecheck TypedFunction where
     from_val = num_to_function Just
     to_type _ = ValType.TOther "typed number or signal"
 
--- TODO use a special character to indicate that these are not parseable, and
--- thus invalid ShowVal instances.
-instance ShowVal.ShowVal TypedFunction where
-    show_val _ = "((TypedFunction))"
-
 instance Typecheck Function where
     from_val = num_to_function (Just . fmap ScoreT.typed_val)
     to_type _ = ValType.TOther "untyped number or signal"
 
-instance ShowVal.ShowVal Function where
-    show_val _ = "((Function))"
-
 data DefaultRealTimeFunction = DefaultRealTimeFunction !Function !TimeType
-
-instance ShowVal.ShowVal DefaultRealTimeFunction where
-    show_val _ = "((DefaultRealTimeFunction))"
 
 instance Typecheck DefaultRealTimeFunction where
     from_val = num_to_checked_function DefaultRealTimeFunction (time_type Real)
@@ -357,8 +345,6 @@ instance Typecheck DefaultRealTimeFunction where
 
 data TransposeFunctionDiatonic =
     TransposeFunctionDiatonic !Function !ScoreT.Control
-instance ShowVal.ShowVal TransposeFunctionDiatonic where
-    show_val _ = "((TransposeFunctionDiatonic))"
 instance Typecheck TransposeFunctionDiatonic where
     from_val = num_to_checked_function TransposeFunctionDiatonic
         (type_to_control Diatonic)
@@ -366,16 +352,12 @@ instance Typecheck TransposeFunctionDiatonic where
 
 data TransposeFunctionChromatic =
     TransposeFunctionChromatic !Function !ScoreT.Control
-instance ShowVal.ShowVal TransposeFunctionChromatic where
-    show_val _ = "((TransposeFunctionChromatic))"
 instance Typecheck TransposeFunctionChromatic where
     from_val = num_to_checked_function TransposeFunctionChromatic
         (type_to_control Chromatic)
     to_type _ = ValType.TOther "transpose number or signal, default chromatic"
 
 data TransposeFunctionNn = TransposeFunctionNn !Function !ScoreT.Control
-instance ShowVal.ShowVal TransposeFunctionNn where
-    show_val _ = "((TransposeFunctionNn))"
 instance Typecheck TransposeFunctionNn where
     from_val = num_to_checked_function TransposeFunctionNn
         (type_to_control Nn)
