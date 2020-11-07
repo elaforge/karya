@@ -6,17 +6,39 @@ module Solkattu.Instrument.KendangPasang where
 
 import qualified Derive.Expr as Expr
 import qualified Derive.Symbols as Symbols
+import qualified Solkattu.Instrument.KendangTunggal as T
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 
-import Global
+import           Global
 
 
-data Stroke =
-    Plak | Ka | Pak | Kam | Pang | Kum | Pung | De | Tut
-    | Dag | Dug | Tak | Tek
+data Stroke = Plak | Ka | Pak | Kam | Pang | Kum | Pung | De | Tut
     deriving (Eq, Ord, Show)
+
+toTunggal :: Stroke -> (Maybe T.Stroke, Maybe T.Stroke)
+toTunggal = \case
+    Plak -> (Nothing, Just T.Plak)
+    Ka   -> (Just T.Pak, Nothing)
+    Pak  -> (Nothing, Just T.Pak)
+    Kam  -> (Just T.Pang, Nothing)
+    Pang -> (Nothing, Just T.Pang)
+    Kum  -> (Just T.Tut, Nothing)
+    Pung -> (Nothing, Just T.Tut)
+    De   -> (Just T.De, Just T.Pang)
+    Tut  -> (Nothing, Just T.De)
+
+toWadon :: Realize.Stroke Stroke -> Realize.Stroke T.Stroke
+toWadon stroke = maybe filler set $ fst $ toTunggal $ Realize._stroke stroke
+    where set s = stroke { Realize._stroke = s }
+
+toLanang :: Realize.Stroke Stroke -> Realize.Stroke T.Stroke
+toLanang stroke = maybe filler set $ snd $ toTunggal $ Realize._stroke stroke
+    where set s = stroke { Realize._stroke = s }
+
+filler :: Realize.Stroke T.Stroke
+filler = Realize.Stroke Realize.Light T.Ka
 
 -- * strokes
 
@@ -31,10 +53,6 @@ instance Solkattu.Notation Stroke where
         Pung -> "U"
         De -> "a"
         Tut -> "o"
-        Dag -> "<"
-        Dug -> ">"
-        Tak -> "["
-        Tek -> "]"
 
 instance Pretty Stroke where pretty = Solkattu.notation
 
@@ -49,10 +67,6 @@ instance Expr.ToExpr Stroke where
         Pung -> "U"
         De -> "+"
         Tut -> "o"
-        Dag -> "<"
-        Dug -> ">"
-        Tak -> "["
-        Tek -> "]"
 
 instance Expr.ToExpr (Realize.Stroke Stroke) where
     to_expr (Realize.Stroke emphasis stroke) = case emphasis of

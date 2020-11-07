@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable, DeriveFunctor #-}
 {-# LANGUAGE NamedFieldPuns #-}
 -- | Realize abstract solkattu 'S.Note's to concrete instrument-dependent
 -- 'Note's.
@@ -62,7 +62,14 @@ data Note stroke =
     -- 'checkAlignment' on the output of 'realize', which means I need to
     -- preserve the Alignments.
     | Alignment !Tala.Akshara
-    deriving (Eq, Show, Functor)
+    deriving (Eq, Show, Functor, Foldable, Traversable)
+
+mapStroke :: Applicative f => (Stroke a -> f (Stroke b)) -> Note a -> f (Note b)
+mapStroke f = \case
+    Note stroke -> Note <$> f stroke
+    Space space -> pure $ Space space
+    Abstract a -> pure $ Abstract a
+    Alignment a -> pure $ Alignment a
 
 instance DeepSeq.NFData (Note stroke) where
     rnf _ = ()
@@ -452,12 +459,12 @@ realizePattern pmap tempo pattern = case lookupPattern pattern pmap of
 data Group stroke =
     GReduction !(Reduction stroke)
     | GMeta !Solkattu.Meta
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Ord, Show, Functor)
 
 data Reduction stroke = Reduction {
     _dropped :: ![stroke]
     , _side :: !Solkattu.Side
-    } deriving (Eq, Ord, Show)
+    } deriving (Eq, Ord, Show, Functor)
 
 instance Pretty stroke => Pretty (Group stroke) where
     pretty (GReduction r) = pretty r

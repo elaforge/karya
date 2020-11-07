@@ -335,10 +335,22 @@ spaces nadai dur = do
     space = Realize.Space Solkattu.Offset
     speed s = S.defaultTempo { S._speed = s, S._nadai = nadai }
 
+-- * transform
+
 -- TODO broken by KorvaiType, fix this
 -- vary :: (Sequence -> [Sequence]) -> Korvai -> Korvai
 -- vary modify korvai = korvai
 --     { korvaiSections = concatMap modify (korvaiSections korvai) }
+
+mapStrokeRest :: (Realize.Stroke a -> Maybe (Realize.Stroke b))
+    -> [S.Flat g (Realize.Note a)] -> [S.Flat g (Realize.Note b)]
+mapStrokeRest f = map convert
+    where
+    convert = \case
+        S.FNote tempo a -> S.FNote tempo $
+            fromMaybe (Realize.Space Solkattu.Rest) (Realize.mapStroke f a)
+        S.FGroup tempo group notes ->
+            S.FGroup tempo group (map convert notes)
 
 -- * lint
 

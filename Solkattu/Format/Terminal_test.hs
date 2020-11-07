@@ -326,7 +326,7 @@ test_formatSpeed = do
 
 formatInstrument :: Korvai.Korvai -> Text
 formatInstrument = Text.unlines . fst
-    . Terminal.formatInstrument Terminal.defaultConfig Korvai.mridangam
+    . Terminal.formatInstrument Terminal.defaultConfig Korvai.mridangam Just
 
 format :: Solkattu.Notation stroke => Int -> Tala.Tala
     -> [S.Flat Solkattu.Meta (Realize.Note stroke)] -> Text

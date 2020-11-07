@@ -74,7 +74,7 @@ c_20_04_03 = date 2020 4 3 $
 
 c_20_10_25 :: Korvai
 c_20_10_25 = date 2020 10 25 $ ganesh $ korvaiS1 adi (mridangam<>k1<>k2) $
-    g (r4 (ta.dit.__.ta.__4) . ta.di.__.ki.__.ta.__ . taka.__.din.__.na.__.dim.__7)
+    g (r4 (ta.dit.__.ta.__4).ta.di.__.ki.__.ta.__.taka.__.din.__.na.__.dim.__7)
     . g (r4 (ta.dit.__.ta.__3) . ta.di.__.ki.ta.__ . taka.__.din.na.__.dim.__6)
     . g (r4 (ta.dit.__.ta.__) . ta.di.ki.ta.__.taka.din.na.__.dim.__5)
     . g (r4 (2^takadinna) . ta.di.ki.ta.takadinna.dim.__4)

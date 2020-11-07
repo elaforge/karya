@@ -75,7 +75,7 @@ writeAll fname abstraction korvai =
     Korvai.korvaiInstruments korvai
     where
     write1 (name, Korvai.GInstrument inst) =
-        name <> ":" : fst (formatInstrument config inst korvai)
+        name <> ":" : fst (formatInstrument config inst Just korvai)
         where
         config = (if name == "konnakol" then konnakolConfig else defaultConfig)
             { _abstraction = abstraction }
@@ -87,16 +87,21 @@ printInstrument :: Solkattu.Notation stroke => Korvai.Instrument stroke
 printInstrument instrument abstraction =
     mapM_ Text.IO.putStrLn . fst
     . formatInstrument (defaultConfig { _abstraction = abstraction }) instrument
+        Just
 
 printKonnakol :: Config -> Korvai.Korvai -> IO ()
 printKonnakol config =
-    mapM_ Text.IO.putStrLn . fst . formatInstrument config Korvai.konnakol
+    mapM_ Text.IO.putStrLn . fst . formatInstrument config Korvai.konnakol Just
 
-formatInstrument :: Solkattu.Notation stroke => Config
-    -> Korvai.Instrument stroke -> Korvai.Korvai -> ([Text], Bool)
+formatInstrument :: (Solkattu.Notation stroke1, Solkattu.Notation stroke2)
+    => Config
+    -> Korvai.Instrument stroke1
+    -> (Realize.Stroke stroke1 -> Maybe (Realize.Stroke stroke2))
+    -> Korvai.Korvai -> ([Text], Bool)
     -- ^ (lines, hadError)
-formatInstrument config instrument korvai =
+formatInstrument config instrument postproc korvai =
     formatResults config korvai $ zip (korvaiTags korvai) $
+        map (fmap (first (Korvai.mapStrokeRest postproc))) $
         Format.convertGroups $
         Korvai.realize instrument korvai
 

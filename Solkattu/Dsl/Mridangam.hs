@@ -150,4 +150,4 @@ realize = realizeM id
 realizep = realizeM concrete
 
 realizeM :: (Terminal.Config -> Terminal.Config) -> Korvai.Korvai -> IO ()
-realizeM = Dsl.Solkattu._printInstrument Korvai.mridangam
+realizeM = Dsl.Solkattu._printInstrument Just Korvai.mridangam

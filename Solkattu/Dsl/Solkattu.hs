@@ -342,20 +342,33 @@ realizep = realizeM id
 -- The actual Config transformers are in Generic.
 
 realizeM :: (Terminal.Config -> Terminal.Config) -> Korvai.Korvai -> IO ()
-realizeM = _printInstrument Korvai.mridangam
+realizeM = _printInstrument Just Korvai.mridangam
 
 realizek, realizekp :: Korvai.Korvai -> IO ()
-realizek = _printInstrument Korvai.kendangTunggal concrete
-realizekp = _printInstrument Korvai.kendangTunggal id
+realizek = _printInstrument Just Korvai.kendangTunggal concrete
+realizekp = _printInstrument Just Korvai.kendangTunggal id
 
-realizek2 :: Korvai.Korvai -> IO ()
-realizek2 = _printInstrument Korvai.kendangPasang concrete
+realizek2, realizek2p :: Korvai.Korvai -> IO ()
+realizek2 = _printInstrument Just Korvai.kendangPasang concrete
+realizek2p = _printInstrument Just Korvai.kendangPasang id
+
+realizeWadon :: Korvai.Korvai -> IO ()
+realizeWadon = _printInstrument
+    -- (either Just (const Nothing) • KendangPasang.toTunggal)
+    (Just • KendangPasang.toWadon)
+    Korvai.kendangPasang concrete
+
+realizeLanang :: Korvai.Korvai -> IO ()
+realizeLanang = _printInstrument
+    -- (either (const Nothing) Just • KendangPasang.toTunggal)
+    (Just • KendangPasang.toLanang)
+    Korvai.kendangPasang concrete
 
 realizeR :: (Terminal.Config -> Terminal.Config) -> Korvai.Korvai -> IO ()
-realizeR = _printInstrument Korvai.reyong
+realizeR = _printInstrument Just Korvai.reyong
 
 realizeSargam :: (Terminal.Config -> Terminal.Config) -> Korvai.Korvai -> IO ()
-realizeSargam = _printInstrument Korvai.sargam
+realizeSargam = _printInstrument Just Korvai.sargam
 
 realizeKon :: Korvai -> IO ()
 realizeKon = Terminal.printKonnakol (wide Terminal.defaultConfig)
@@ -372,12 +385,16 @@ realizePartsM configure = Part.realizeParts realize
     inst = Korvai.mridangam
     realize = Interactive.printInstrument False False inst
         (_defaultStrokes inst) (configure Terminal.defaultConfig)
+        Just
 
-_printInstrument :: Solkattu.Notation stroke => Korvai.Instrument stroke
-    -> (Terminal.Config -> Terminal.Config) -> Korvai -> IO ()
-_printInstrument inst setConfig =
+_printInstrument :: (Solkattu.Notation stroke1, Solkattu.Notation stroke2)
+    => (Realize.Stroke stroke1 -> Maybe (Realize.Stroke stroke2))
+    -> Korvai.Instrument stroke1
+    -> (Terminal.Config -> Terminal.Config)
+    -> Korvai -> IO ()
+_printInstrument postproc inst setConfig =
     Interactive.printInstrument True True inst (_defaultStrokes inst)
-        (setConfig Terminal.defaultConfig)
+        (setConfig Terminal.defaultConfig) postproc
 
 -- * korvai
 

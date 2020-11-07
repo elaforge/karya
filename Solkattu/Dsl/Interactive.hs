@@ -15,16 +15,19 @@ import qualified System.Process as Process
 
 import qualified Solkattu.Format.Terminal as Terminal
 import qualified Solkattu.Korvai as Korvai
+import qualified Solkattu.Realize as Realize
 import qualified Solkattu.Solkattu as Solkattu
 
 import           Global
 
 
-printInstrument :: Solkattu.Notation stroke => Bool -> Bool
-    -> Korvai.Instrument stroke -> [Korvai.Sequence] -> Terminal.Config
+printInstrument :: (Solkattu.Notation stroke1, Solkattu.Notation stroke2)
+    => Bool -> Bool
+    -> Korvai.Instrument stroke1 -> [Korvai.Sequence] -> Terminal.Config
+    -> (Realize.Stroke stroke1 -> Maybe (Realize.Stroke stroke2))
     -> Korvai.Korvai -> IO ()
-printInstrument lint writeDiff inst defaultStrokes config korvai = do
-    let (out, hasError) = Terminal.formatInstrument config inst korvai
+printInstrument lint writeDiff inst defaultStrokes config postproc korvai = do
+    let (out, hasError) = Terminal.formatInstrument config inst postproc korvai
     mapM_ Text.IO.putStrLn out
     when (not hasError && lint) $
         Text.IO.putStr $ Korvai.lint inst defaultStrokes korvai
