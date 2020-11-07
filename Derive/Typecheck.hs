@@ -2,9 +2,49 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE DefaultSignatures, DeriveFunctor #-}
+{-# LANGUAGE DefaultSignatures #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE ConstraintKinds #-}
-module Derive.Typecheck where
+module Derive.Typecheck (
+    -- * signal functions
+    TypedFunction, Function
+
+    -- * type wrappers
+    , DefaultReal(..), DefaultScore(..)
+    , real, score
+    , Positive(..), NonNegative(..), Normalized(..), NormalizedBipolar(..)
+    , DefaultDiatonic(..), diatonic
+
+    -- * typecheck
+    , typecheck, typecheck_simple
+    , Checked(..)
+    , Result(..)
+    , success, failure
+    , Typecheck(..)
+    , from_val_eval
+    , from_val_simple
+
+    , TEnum(..)
+    , ToVal(..)
+    , to_type_symbol
+    , from_val_symbol
+    , num_to_type
+    , TypecheckNum(..)
+
+    -- ** numeric types
+    , num_to_scalar
+
+    -- * util
+    , TimeType(..), time_type
+    , TransposeType(..), transpose_type, to_transpose, transpose_control
+
+    -- ** to_typed_function
+    , to_typed_function
+    , to_function
+    , convert_to_function
+    , to_signal_or_function
+    , pitch_at
+) where
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Ratio as Ratio
@@ -163,7 +203,8 @@ check f (Eval fa) = Eval (\t -> (f =<<) <$> fa t)
 -- can get a Typecheck by "just" deriving these plus Typecheck.
 type TEnum a = (ShowVal.ShowVal a, Bounded a, Enum a)
 
--- | This is the class of values which can be converted to a 'Val'.
+-- | This is the class of values which can be converted to a 'Val'.  'ToVal' is
+-- the inverse transformation.
 class Typecheck a where
     from_val :: Val -> Checked a
     default from_val :: TEnum a => Val -> Checked a
