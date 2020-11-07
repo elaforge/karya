@@ -21,6 +21,7 @@ import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Performance as Performance
+import           Cmd.TestInstances ()
 
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveT as DeriveT

@@ -4,12 +4,6 @@
 
 module Cmd.NoteEntry_test where
 import qualified Util.Log as Log
-import Util.Test
-import qualified Midi.Midi as Midi
-import qualified Ui.Key as Key
-import qualified Ui.Ui as Ui
-import qualified Ui.UiMsg as UiMsg
-
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.InputNote as InputNote
@@ -17,8 +11,14 @@ import qualified Cmd.Internal as Internal
 import qualified Cmd.Msg as Msg
 import qualified Cmd.NoteEntry as NoteEntry
 
+import qualified Midi.Midi as Midi
 import qualified Perform.Pitch as Pitch
-import Global
+import qualified Ui.Key as Key
+import qualified Ui.Ui as Ui
+import qualified Ui.UiMsg as UiMsg
+
+import           Global
+import           Util.Test
 
 
 test_key_to_input :: Test

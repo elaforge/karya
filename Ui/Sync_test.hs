@@ -37,7 +37,7 @@ import qualified Util.Test.Testing as Testing
 import qualified App.Config as Config
 import qualified App.LoadConfig as LoadConfig
 import qualified Cmd.Internal as Internal
-import           Derive.TestInstances ()
+import           Cmd.TestInstances ()
 import qualified Ui.Block as Block
 import qualified Ui.BlockC as BlockC
 import qualified Ui.Color as Color

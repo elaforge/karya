@@ -6,18 +6,18 @@ module Cmd.Ruler.Extract_test where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
-import Util.Test
+import qualified Cmd.Create as Create
+import qualified Cmd.Ruler.Extract as Extract
+import qualified Cmd.Ruler.Meter as Meter
+import           Cmd.TestInstances ()
+
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 
-import qualified Cmd.Create as Create
-import qualified Cmd.Ruler.Extract as Extract
-import qualified Cmd.Ruler.Meter as Meter
-
-import Derive.TestInstances ()
-import Global
-import Types
+import           Global
+import           Types
+import           Util.Test
 
 
 test_pull_up = do
