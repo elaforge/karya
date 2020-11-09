@@ -301,7 +301,7 @@ _kendangStrokes2 =
     , (kpnp, k.p.t.l)
     , (oknp, o.t.l.a)
     , (ktktoknp, k.p.k.p.o.t.l.a)
-    , (nakatiku, t.u.y.k.p.a.o.k)
+    , (nakatiku, t.y.yy.k.p.a.o.k)
     , (takadugutarikita, k.p.a.a.t.l.k.p)
     ]
     where KendangPasang.Strokes {..} = KendangPasang.notes

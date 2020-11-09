@@ -14,7 +14,7 @@ import qualified Solkattu.Solkattu as Solkattu
 import           Global
 
 
-data Stroke = Plak | Ka | Pak | Kam | Pang | Kum | Pung | De | Tut
+data Stroke = Plak | Ka | Pak | Kam | Pang | Kum | Pung | PungL | De | Tut
     deriving (Eq, Ord, Show)
 
 toTunggal :: Stroke -> (Maybe T.Stroke, Maybe T.Stroke)
@@ -26,6 +26,7 @@ toTunggal = \case
     Pang -> (Nothing, Just T.Pang)
     Kum  -> (Just T.Tut, Nothing)
     Pung -> (Nothing, Just T.Tut)
+    PungL -> (Nothing, Just T.TutL)
     De   -> (Just T.De, Just T.Pang)
     Tut  -> (Nothing, Just T.De)
 
@@ -51,11 +52,13 @@ instance Solkattu.Notation Stroke where
         Pang -> "T"
         Kum -> "u"
         Pung -> "U"
+        PungL -> "Ø"
         De -> "a"
         Tut -> "o"
 
 instance Pretty Stroke where pretty = Solkattu.notation
 
+-- | These have to match with "Cmd.Instrument.KendangBali".
 instance Expr.ToExpr Stroke where
     to_expr = \case
         Plak -> "PL"
@@ -65,6 +68,7 @@ instance Expr.ToExpr Stroke where
         Pang -> "T"
         Kum -> "u"
         Pung -> "U"
+        PungL -> "Ø"
         De -> "+"
         Tut -> "o"
 
@@ -83,6 +87,7 @@ data Strokes a = Strokes {
     , k :: a, p :: a -- ka pak
     , t :: a, l :: a -- kam pang
     , u :: a, y :: a -- kum pung
+    , yy :: a -- PungL
     , a :: a, o :: a -- de tut
     } deriving (Show, Functor)
 
@@ -95,6 +100,7 @@ strokes = Strokes
     , l = Pang -- can't write T, _T too much like rest, don't want 2 letters
     , u = Kum
     , y = Pung
+    , yy = PungL
     , a = De
     , o = Tut
     }
