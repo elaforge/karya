@@ -339,7 +339,7 @@ prettyStrokes = second (first (Text.unwords . map pretty . S.flattenedNotes))
 realizeM :: Tala.Tala -> Korvai.SequenceT (Realize.Stroke M.Stroke)
     -> Either Korvai.Error ([Korvai.Flat M.Stroke], [Realize.Warning])
 realizeM tala =
-    Korvai.realizeInstrument Realize.realizeStroke mempty tala . Korvai.section
+    Korvai.realizeSection Realize.realizeStroke mempty tala . Korvai.section
 
 checkSolluMap :: CallStack.Stack =>
     [ ( [S.Note g (Note Sollu)]
@@ -359,7 +359,7 @@ makeSolluMap =
 makeMridangam :: G.StrokeMap M.Stroke -> Realize.StrokeMap M.Stroke
 makeMridangam = expect_right . Korvai.smapMridangam . G.makeMridangam0
 
--- | Realize sollus.  Since this doesn't go through 'Korvai.realizeInstrument',
+-- | Realize sollus.  Since this doesn't go through 'Korvai.realizeSection',
 -- it omits the post-realize checks, so no 'Realize.Warning's.
 realizeSollu :: Solkattu.Notation stroke => Realize.SolluMap stroke
     -> [S.Note Solkattu.Group (Note Sollu)]

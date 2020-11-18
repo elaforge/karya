@@ -371,9 +371,11 @@ kRealizes :: Tala.Tala -> [Korvai.Sequence]
     -> Either Text ([Format.Flat M.Stroke], [Realize.Warning])
 kRealizes tala =
     fmap (first Format.mapGroups) . head . Korvai.realize Korvai.mridangam
-    . Korvai.korvaiInferSections tala defaultStrokeMap
+    . Korvai.korvai tala defaultStrokeMap
+    . Korvai.inferSections
 
-korvai :: Tala.Tala -> [Korvai.Section Solkattu.Sollu] -> Korvai.Korvai
+korvai :: Tala.Tala -> [Korvai.Section (Korvai.SequenceT Solkattu.Sollu)]
+    -> Korvai.Korvai
 korvai tala = Korvai.korvai tala defaultStrokeMap
 
 

@@ -81,7 +81,7 @@ import           Solkattu.Dsl.Section
 -- list literals with a custom (:) operator, or leaky, like embed section in
 -- the Sequence and just pull out the topmost one.  So I'll settle for explicit
 -- noise, but shorten the name.
-s :: SequenceT sollu -> Korvai.Section sollu
+s :: a -> Korvai.Section a
 s = section
 
 -- | Combine 'Sequence's.  This is just another name for (<>).

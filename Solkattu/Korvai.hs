@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE ExistentialQuantification #-}
 -- | Tie together generic Solkattu and specific instruments into a single
 -- 'Korvai'.
@@ -59,42 +60,40 @@ data Korvai = Korvai {
 -- | This is a hack so I can have both Solkattu.Sollu sequences and
 -- instrument specific ones.  It induces a similar hack in 'Instrument'.
 data KorvaiType =
-    Sollu [Section Solkattu.Sollu]
-    | Mridangam [Section (Realize.Stroke Mridangam.Stroke)]
+    TSollu [Section (SequenceT Solkattu.Sollu)]
+    | TMridangam [Section (SequenceT (Realize.Stroke Mridangam.Stroke))]
     deriving (Show, Eq)
 
 instance Pretty KorvaiType where
-    pretty (Sollu a) = pretty a
-    pretty (Mridangam a) = pretty a
+    pretty (TSollu a) = pretty a
+    pretty (TMridangam a) = pretty a
 
 instance Pretty Korvai where
     format = Pretty.formatGCamel
 
-korvai :: Tala.Tala -> StrokeMaps -> [Section Solkattu.Sollu] -> Korvai
+korvai :: Tala.Tala -> StrokeMaps -> [Section (SequenceT Solkattu.Sollu)]
+    -> Korvai
 korvai tala strokeMaps sections = Korvai
-    { korvaiSections = Sollu sections
+    { korvaiSections = TSollu sections
     , korvaiStrokeMaps = strokeMaps
     , korvaiTala = tala
     , korvaiMetadata = mempty
     }
 
-korvaiInferSections :: Tala.Tala -> StrokeMaps -> [Sequence] -> Korvai
-korvaiInferSections tala strokeMaps = korvai tala strokeMaps . inferSections
-
 korvaiInstruments :: Korvai -> [(Text, GInstrument)]
 korvaiInstruments korvai = filter (hasInstrument . snd) $ Map.toList instruments
     where
     hasInstrument (GInstrument inst) = case korvaiSections korvai of
-        Sollu {} -> not (isEmpty inst)
-        Mridangam {} -> Maybe.isJust (instFromMridangam inst)
+        TSollu {} -> not (isEmpty inst)
+        TMridangam {} -> Maybe.isJust (instFromMridangam inst)
     -- If the stroke map is broken, that at least means there is one.
     isEmpty inst = either (const False) Realize.isInstrumentEmpty $
         instStrokeMap inst (korvaiStrokeMaps korvai)
 
 mridangamKorvai :: Tala.Tala -> Realize.PatternMap Mridangam.Stroke
-    -> [Section (Realize.Stroke Mridangam.Stroke)] -> Korvai
+    -> [Section (SequenceT (Realize.Stroke Mridangam.Stroke))] -> Korvai
 mridangamKorvai tala pmap sections = Korvai
-    { korvaiSections = Mridangam sections
+    { korvaiSections = TMridangam sections
     , korvaiStrokeMaps = mempty
         { smapMridangam = Right $ mempty { Realize.smapPatternMap = pmap }
         }
@@ -102,36 +101,27 @@ mridangamKorvai tala pmap sections = Korvai
     , korvaiMetadata = mempty
     }
 
-mridangamKorvaiInferSections :: Tala.Tala
-    -> Realize.PatternMap Mridangam.Stroke
-    -> [SequenceT (Realize.Stroke Mridangam.Stroke)] -> Korvai
-mridangamKorvaiInferSections tala pmap =
-    mridangamKorvai tala pmap . inferSections
-
 withKorvaiMetadata :: Metadata -> Korvai -> Korvai
 withKorvaiMetadata meta korvai =
     korvai { korvaiMetadata = meta <> korvaiMetadata korvai }
 
 genericSections :: Korvai -> [Section ()]
 genericSections korvai = case korvaiSections korvai of
-    Sollu sections -> map strip sections
-    Mridangam sections -> map strip sections
-    where
-    strip section = section
-        { sectionSequence = mapSollu (const ()) (sectionSequence section) }
+    TSollu sections -> map (fmap (const ())) sections
+    TMridangam sections -> map (fmap (const ())) sections
 
 modifySections :: (Tags.Tags -> Tags.Tags) -> Korvai -> Korvai
 modifySections modify korvai = korvai
     { korvaiSections = case korvaiSections korvai of
-        Sollu sections -> Sollu $ map (modifySectionTags modify) sections
-        Mridangam sections ->
-            Mridangam $ map (modifySectionTags modify) sections
+        TSollu sections -> TSollu $ map (modifySectionTags modify) sections
+        TMridangam sections ->
+            TMridangam $ map (modifySectionTags modify) sections
     }
 
 -- * Section
 
-data Section sollu = Section {
-    sectionSequence :: SequenceT sollu
+data Section a = Section {
+    sectionSequence :: a
     -- | Where the section should start.  0 means start on sam.
     , sectionStart :: !S.Duration
     -- | Expect the section to end at this time.  It can be negative, in which
@@ -140,22 +130,19 @@ data Section sollu = Section {
     -- | This is lazy because it might have a 'Solkattu.Exception' in it.  This
     -- is because 'inferSectionTags' has to evaluate the sequence.
     , sectionTags :: Tags.Tags
-    } deriving (Eq, Show, Generics.Generic)
+    } deriving (Eq, Show, Functor, Generics.Generic)
 
-instance Pretty sollu => Pretty (Section sollu) where
+instance Pretty a => Pretty (Section a) where
     format = Pretty.formatGCamel
 
-smap :: (SequenceT sollu -> SequenceT sollu) -> Section sollu -> Section sollu
-smap f section = section { sectionSequence = f (sectionSequence section) }
-
-addSectionTags :: Tags.Tags -> Section sollu -> Section sollu
+addSectionTags :: Tags.Tags -> Section a -> Section a
 addSectionTags tags = modifySectionTags (tags<>)
 
-modifySectionTags :: (Tags.Tags -> Tags.Tags) -> Section sollu -> Section sollu
+modifySectionTags :: (Tags.Tags -> Tags.Tags) -> Section a -> Section a
 modifySectionTags modify section =
     section { sectionTags = modify (sectionTags section) }
 
-section :: SequenceT sollu -> Section sollu
+section :: a -> Section a
 section seq = Section
     { sectionSequence = seq
     , sectionStart = 0
@@ -163,7 +150,7 @@ section seq = Section
     , sectionTags = mempty
     }
 
-inferSections :: [SequenceT sollu] -> [Section sollu]
+inferSections :: [SequenceT sollu] -> [Section (SequenceT sollu)]
 inferSections seqs = case Seq.viewr (map section seqs) of
     Just (inits, last) ->
         map (addSectionTags (Tags.withType Tags.development)) inits
@@ -269,20 +256,24 @@ realize instrument korvai =
     case instStrokeMap instrument (korvaiStrokeMaps korvai) of
         Left err -> [Left err]
         Right smap -> case korvaiSections korvai of
-            Sollu sections -> map (realize1 toStrokes) sections
+            TSollu sections -> map (realize1 toStrokes) sections
                 where
                 toStrokes = instFromSollu instrument (Realize.smapSolluMap smap)
-            Mridangam sections -> case instFromMridangam instrument of
+            TMridangam sections -> case instFromMridangam instrument of
                 Nothing -> [Left "no sequence, wrong instrument type"]
                 Just toStrokes -> map (realize1 toStrokes) sections
             where
             realize1 toStrokes = fmap (first (instPostprocess instrument))
-                . realizeInstrument toStrokes smap (korvaiTala korvai)
+                . realizeSection toStrokes smap (korvaiTala korvai)
 
-realizeInstrument :: (Ord sollu, Pretty sollu, Solkattu.Notation stroke)
+setSection :: Section x -> a -> Section a
+setSection section a = const a <$> section
+
+realizeSection :: (Ord sollu, Pretty sollu, Solkattu.Notation stroke)
     => Realize.ToStrokes sollu stroke -> Realize.StrokeMap stroke -> Tala.Tala
-    -> Section sollu -> Either Error ([Flat stroke], [Realize.Warning])
-realizeInstrument toStrokes smap tala section = do
+    -> Section (SequenceT sollu)
+    -> Either Error ([Flat stroke], [Realize.Warning])
+realizeSection toStrokes smap tala section = do
     realized <- Realize.formatError $ fst $
         Realize.realize smap toStrokes tala $ flatten $
         sectionSequence section
@@ -296,16 +287,16 @@ realizeInstrument toStrokes smap tala section = do
 allMatchedSollus :: Instrument stroke -> Korvai
     -> Set (Realize.SolluMapKey Solkattu.Sollu)
 allMatchedSollus instrument korvai = case korvaiSections korvai of
-    Sollu sections -> mconcatMap
+    TSollu sections -> mconcatMap
         (matchedSollus (instFromSollu instrument solluMap) (korvaiTala korvai))
         sections
-    Mridangam {} -> mempty
+    _ -> mempty
     where
     solluMap = either mempty Realize.smapSolluMap smap
     smap = instStrokeMap instrument (korvaiStrokeMaps korvai)
 
 matchedSollus :: (Pretty sollu, Ord sollu)
-    => Realize.ToStrokes sollu stroke -> Tala.Tala -> Section sollu
+    => Realize.ToStrokes sollu stroke -> Tala.Tala -> Section (SequenceT sollu)
     -> Set (Realize.SolluMapKey sollu)
 matchedSollus toStrokes tala =
     snd . Realize.realize_ dummyPattern toStrokes tala . flatten
@@ -414,15 +405,14 @@ inferMetadata :: Korvai -> Korvai
 inferMetadata = inferSections . inferKorvaiMetadata
     where
     inferSections korvai = case korvaiSections korvai of
-        Sollu sections -> korvai
+        TSollu sections -> korvai
             { korvaiSections =
-                Sollu $ map (addTags (korvaiTala korvai)) sections
+                TSollu $ map (addTags (korvaiTala korvai)) sections
             }
-        Mridangam sections -> korvai
+        TMridangam sections -> korvai
             { korvaiSections =
-                Mridangam $ map (addTags (korvaiTala korvai)) sections
+                TMridangam $ map (addTags (korvaiTala korvai)) sections
             }
-    addTags :: Tala.Tala -> Section sollu -> Section sollu
     addTags tala section =
         addSectionTags (inferSectionTags tala section) section
 
@@ -445,11 +435,11 @@ inferKorvaiTags korvai = Tags.Tags $ Maps.multimap $ concat
     where
     tala = korvaiTala korvai
     sections = case korvaiSections korvai of
-        Sollu xs -> length xs
-        Mridangam xs -> length xs
+        TSollu xs -> length xs
+        TMridangam xs -> length xs
     instruments = map fst $ korvaiInstruments korvai
 
-inferSectionTags :: Tala.Tala -> Section sollu -> Tags.Tags
+inferSectionTags :: Tala.Tala -> Section (SequenceT sollu) -> Tags.Tags
 inferSectionTags tala section = Tags.Tags $ Map.fromList $
     [ ("avartanams", [pretty $ dur / talaAksharas])
     , ("nadai", map pretty nadais)

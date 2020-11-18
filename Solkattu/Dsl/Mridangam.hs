@@ -36,7 +36,7 @@ import           Solkattu.Dsl.Generic
 
 type Sequence = SequenceT Stroke
 type Stroke = Realize.Stroke Mridangam.Stroke
-type Section = Korvai.Section Stroke
+type Section = Korvai.Section Sequence
 
 -- | Merge a sequence of left hand strokes with one of right hand strokes.
 -- Both sequences must have the same length and structure.
@@ -51,8 +51,7 @@ korvai1 tala section = korvai tala [section]
 
 -- | Infer Section types, as init is development, last is ending.
 korvaiS :: Tala.Tala -> [Sequence] -> Korvai.Korvai
-korvaiS tala =
-    Korvai.mridangamKorvaiInferSections tala Mridangam.defaultPatterns
+korvaiS tala = korvai tala • Korvai.inferSections
 
 korvaiS1 :: Tala.Tala -> Sequence -> Korvai.Korvai
 korvaiS1 tala sequence = korvaiS tala [sequence]

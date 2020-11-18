@@ -19,7 +19,7 @@ yt_mannargudi1 = source "Mannargudi Easwaran" $
         recording "https://www.youtube.com/watch?v=E7PLgnsFBaI"
             (Just ((0, 4, 05), (0, 5, 22))) $
         date 2018 1 12 $
-        korvai adi mridangam $ map (smap su)
+        korvai adi mridangam $ map (fmap su)
     [ endOn 4 $ devel $
         sarvaM_ 8 . theme.din.__4 . in3 (1^theme) . theme.din.__8 . sarvaD_ 4
         . theme.din.__4 . in3 (1^theme) . din.__6
@@ -72,7 +72,7 @@ yt_mannargudi2 = source "Mannargudi Easwaran" $
         recording "https://www.youtube.com/watch?v=E7PLgnsFBaI"
             (Just ((0, 9, 30), (0, 10, 30))) $
         date 2018 2 26 $
-        korvai adi mridangam $ map (smap (nadai 6 • su))
+        korvai adi mridangam $ map (fmap (nadai 6 • su))
     [ devel $
         sarva 6 . taka.naka.p8 . sarva 2 . __.__.tat.__.p8
         . sarva 1 .__.__. kpnp . in3 p8
@@ -900,7 +900,7 @@ e_adi_tisra_misra2 = date 2019 4 14 $ ganesh $
 
 e_adi_tisra :: Korvai
 e_adi_tisra = exercise $ date 2018 7 30 $ sudhindra $
-    korvai adi mridangam $ map (smap (nadai 6))
+    korvai adi mridangam $ map (fmap (nadai 6))
     [ s $ sarva 8
     , x2 $ s $ sarva 7 . tarikitadiku
     , s $ r2 $ sarva 3 . tarikitadiku

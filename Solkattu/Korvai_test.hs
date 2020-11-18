@@ -76,7 +76,8 @@ chars = map Text.singleton
 
 korvai :: G.StrokeMap Mridangam.Stroke
     -> Tala.Tala -> [Korvai.Sequence] -> Korvai.Korvai
-korvai strokes tala = Korvai.korvaiInferSections tala (makeMridangam strokes)
+korvai strokes tala = Korvai.korvai tala (makeMridangam strokes)
+    . Korvai.inferSections
 
 makeMridangam :: G.StrokeMap Mridangam.Stroke -> Korvai.StrokeMaps
 makeMridangam strokes = mempty

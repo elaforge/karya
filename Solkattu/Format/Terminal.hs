@@ -100,7 +100,7 @@ formatInstrument :: (Solkattu.Notation stroke1, Solkattu.Notation stroke2)
     -> Korvai.Korvai -> ([Text], Bool)
     -- ^ (lines, hadError)
 formatInstrument config instrument postproc korvai =
-    formatResults config korvai $ zip (korvaiTags korvai) $
+    formatResults config (Korvai.korvaiTala korvai) $ zip (korvaiTags korvai) $
         map (fmap (first (Korvai.mapStrokeRest postproc))) $
         Format.convertGroups $
         Korvai.realize instrument korvai
@@ -108,13 +108,13 @@ formatInstrument config instrument postproc korvai =
 korvaiTags :: Korvai.Korvai -> [Tags.Tags]
 korvaiTags = map Korvai.sectionTags . Korvai.genericSections
 
-formatResults :: Solkattu.Notation stroke => Config -> Korvai.Korvai
+formatResults :: Solkattu.Notation stroke => Config -> Tala.Tala
     -> [ ( Tags.Tags
          , Either Error ([Format.Flat stroke], [Realize.Warning])
          )
        ]
     -> ([Text], Bool)
-formatResults config korvai results =
+formatResults config tala results =
     ( snd . List.mapAccumL show1 (Nothing, 0) . zip [0..] $ results
     , any (Either.isLeft . snd) results
     )
@@ -131,8 +131,7 @@ formatResults config korvai results =
                 : map (showWarning strokeWidth) warnings
         )
         where
-        (strokeWidth, (nextRuler, lines)) =
-            format config prevRuler (Korvai.korvaiTala korvai) notes
+        (strokeWidth, (nextRuler, lines)) = format config prevRuler tala notes
     showWarning _ (Realize.Warning Nothing msg) = msg
     showWarning strokeWidth (Realize.Warning (Just i) msg) =
         Text.replicate (leader + strokeWidth * i) " " <> "^ " <> msg

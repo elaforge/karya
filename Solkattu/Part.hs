@@ -35,10 +35,10 @@ realizeParts realize = mapM_ part
 
 index :: Index -> Korvai.Korvai -> Korvai.Korvai
 index idx korvai = case Korvai.korvaiSections korvai of
-    Korvai.Mridangam sections ->
-        korvai { Korvai.korvaiSections = Korvai.Mridangam (get sections) }
-    Korvai.Sollu sections ->
-        korvai { Korvai.korvaiSections = Korvai.Sollu (get sections) }
+    Korvai.TMridangam sections ->
+        korvai { Korvai.korvaiSections = Korvai.TMridangam (get sections) }
+    Korvai.TSollu sections ->
+        korvai { Korvai.korvaiSections = Korvai.TSollu (get sections) }
     where
     get xs = case idx of
         All -> xs

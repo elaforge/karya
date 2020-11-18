@@ -40,7 +40,7 @@ type Sequence = SequenceT Solkattu.Sollu
 type SequenceR stroke = SequenceT (Realize.Stroke stroke)
 type SequenceM = SequenceR Mridangam.Stroke
 
-type Section = Korvai.Section Solkattu.Sollu
+type Section = Korvai.Section Sequence
 
 -- * sollus
 
@@ -405,7 +405,7 @@ korvai1 :: Tala.Tala -> Korvai.StrokeMaps -> Section -> Korvai
 korvai1 tala smaps section = korvai tala smaps [section]
 
 korvaiS :: Tala.Tala -> Korvai.StrokeMaps -> [Sequence] -> Korvai
-korvaiS = Korvai.korvaiInferSections
+korvaiS tala smaps = korvai tala smaps • Korvai.inferSections
 
 korvaiS1 :: Tala.Tala -> Korvai.StrokeMaps -> Sequence -> Korvai
 korvaiS1 tala smaps seq = korvaiS tala smaps [seq]

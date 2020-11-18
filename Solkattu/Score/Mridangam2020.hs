@@ -128,7 +128,7 @@ sarva_20_02_10 = date 2020 2 10 $ ganesh $ korvai adi
 
 sarva_20_02_27 :: Korvai
 sarva_20_02_27 = date 2020 2 27 $ ganesh $ korvai adi $
-    map (smap (nadai 5))
+    map (fmap (nadai 5))
     [ s $ repeat 6 (d_n_nd_n.ktpk)
         . d.y.n.ktpk.d.y.n.ktpk
         . n.ktok.on.ktok . su (o.t.o.k.o.t.o.k)

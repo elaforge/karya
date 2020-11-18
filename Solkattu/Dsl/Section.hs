@@ -4,7 +4,7 @@
 
 -- | DSL functions to add tags to Sections.
 module Solkattu.Dsl.Section (
-    section, smap
+    section
     , startOn, endOn, eddupu
     -- * tags
     , commentS, dateS
@@ -16,7 +16,7 @@ module Solkattu.Dsl.Section (
 import qualified Util.CallStack as CallStack
 import qualified Util.Num as Num
 import qualified Solkattu.Korvai as Korvai
-import Solkattu.Korvai (Section, section, smap)
+import Solkattu.Korvai (Section, section)
 import qualified Solkattu.Metadata as Metadata
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
@@ -47,7 +47,7 @@ dateS y m d = either Solkattu.throw (const $ withTag Tags.date date) $
 commentS :: Text -> Section sollu -> Section sollu
 commentS = withTag Tags.comment
 
-devel, ending :: Korvai.SequenceT sollu -> Section sollu
+devel, ending :: sollu -> Section sollu
 devel = withTypeS Tags.development . Korvai.section
 ending = withTypeS Tags.ending . Korvai.section
 
@@ -76,7 +76,7 @@ withTag k v = Korvai.addSectionTags (Tags.tag k v)
 
 -- * util
 
-variations :: [Korvai.SequenceT sollu] -> [Section sollu]
+variations :: [sollu] -> [Section sollu]
 variations = map (var . Korvai.section)
 
 {- NOTE [solkattu-sections]
@@ -84,7 +84,7 @@ variations = map (var . Korvai.section)
     . I have to put 'section' on everything, just so I can have one with
       e.g. 'x2'.
     . Also they break maps, like 'map (nadai 6)' has to become
-      'map (smap (nadai 6))'
+      'map (fmap (nadai 6))'
     . The simplest thing is to put the section data inside Sequence, and
       then pull it out, like Alignment.
     . It means I could embed section metadata in sollus and have it show up
