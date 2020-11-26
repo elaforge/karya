@@ -58,15 +58,22 @@ data Korvai = Korvai {
     } deriving (Eq, Show, Generics.Generic)
 
 -- | This is a hack so I can have both Solkattu.Sollu sequences and
--- instrument specific ones.  It induces a similar hack in 'Instrument'.
+-- instrument specific ones.  It induces a similar hack in 'Instrument',
+-- 'instFromMridangam'.
+--
+-- This is really clumsy and doesn't scale, but I tried for weeks and came up
+-- with 4 or 5 different approaches and none of them worked.
 data KorvaiType =
     TSollu [Section (SequenceT Solkattu.Sollu)]
     | TMridangam [Section (SequenceT (Realize.Stroke Mridangam.Stroke))]
+    | TKendangTunggal
+        [Section (SequenceT (Realize.Stroke KendangTunggal.Stroke))]
     deriving (Show, Eq)
 
 instance Pretty KorvaiType where
     pretty (TSollu a) = pretty a
     pretty (TMridangam a) = pretty a
+    pretty (TKendangTunggal a) = pretty a
 
 instance Pretty Korvai where
     format = Pretty.formatGCamel
@@ -86,6 +93,7 @@ korvaiInstruments korvai = filter (hasInstrument . snd) $ Map.toList instruments
     hasInstrument (GInstrument inst) = case korvaiSections korvai of
         TSollu {} -> not (isEmpty inst)
         TMridangam {} -> Maybe.isJust (instFromMridangam inst)
+        TKendangTunggal {} -> Maybe.isJust (instFromKendangTunggal inst)
     -- If the stroke map is broken, that at least means there is one.
     isEmpty inst = either (const False) Realize.isInstrumentEmpty $
         instStrokeMap inst (korvaiStrokeMaps korvai)
@@ -101,6 +109,17 @@ mridangamKorvai tala pmap sections = Korvai
     , korvaiMetadata = mempty
     }
 
+kendangTunggalKorvai :: Tala.Tala -> Realize.PatternMap KendangTunggal.Stroke
+    -> [Section (SequenceT (Realize.Stroke KendangTunggal.Stroke))] -> Korvai
+kendangTunggalKorvai tala pmap sections = Korvai
+    { korvaiSections = TKendangTunggal sections
+    , korvaiStrokeMaps = mempty
+        { smapKendangTunggal = Right $ mempty { Realize.smapPatternMap = pmap }
+        }
+    , korvaiTala = tala
+    , korvaiMetadata = mempty
+    }
+
 withKorvaiMetadata :: Metadata -> Korvai -> Korvai
 withKorvaiMetadata meta korvai =
     korvai { korvaiMetadata = meta <> korvaiMetadata korvai }
@@ -109,6 +128,7 @@ genericSections :: Korvai -> [Section ()]
 genericSections korvai = case korvaiSections korvai of
     TSollu sections -> map (fmap (const ())) sections
     TMridangam sections -> map (fmap (const ())) sections
+    TKendangTunggal sections -> map (fmap (const ())) sections
 
 modifySections :: (Tags.Tags -> Tags.Tags) -> Korvai -> Korvai
 modifySections modify korvai = korvai
@@ -116,6 +136,8 @@ modifySections modify korvai = korvai
         TSollu sections -> TSollu $ map (modifySectionTags modify) sections
         TMridangam sections ->
             TMridangam $ map (modifySectionTags modify) sections
+        TKendangTunggal sections ->
+            TKendangTunggal $ map (modifySectionTags modify) sections
     }
 
 -- * Section
@@ -168,6 +190,8 @@ data Instrument stroke = Instrument {
     -- | Realize a 'Mridangam' 'KorvaiType'.
     , instFromMridangam ::
         Maybe (Realize.ToStrokes (Realize.Stroke Mridangam.Stroke) stroke)
+    , instFromKendangTunggal ::
+        Maybe (Realize.ToStrokes (Realize.Stroke KendangTunggal.Stroke) stroke)
     -- | This can be a Left because it comes from one of the
     -- instrument-specific 'StrokeMaps' fields, which can be Left if
     -- 'Realize.strokeMap' verification failed.
@@ -182,6 +206,7 @@ defaultInstrument = Instrument
     { instName = ""
     , instFromSollu = Realize.realizeSollu
     , instFromMridangam = Nothing
+    , instFromKendangTunggal = Nothing
     , instStrokeMap = const $ Right mempty
     , instPostprocess = id
     , instToScore = ToScore.toScore
@@ -206,6 +231,7 @@ konnakol = defaultInstrument
 kendangTunggal :: Instrument KendangTunggal.Stroke
 kendangTunggal = defaultInstrument
     { instName = "kendang tunggal"
+    , instFromKendangTunggal = Just Realize.realizeStroke
     , instStrokeMap = smapKendangTunggal
     }
 
@@ -262,6 +288,10 @@ realize instrument korvai =
             TMridangam sections -> case instFromMridangam instrument of
                 Nothing -> [Left "no sequence, wrong instrument type"]
                 Just toStrokes -> map (realize1 toStrokes) sections
+            TKendangTunggal sections ->
+                case instFromKendangTunggal instrument of
+                    Nothing -> [Left "no sequence, wrong instrument type"]
+                    Just toStrokes -> map (realize1 toStrokes) sections
             where
             realize1 toStrokes = fmap (first (instPostprocess instrument))
                 . realizeSection toStrokes smap (korvaiTala korvai)
@@ -413,6 +443,10 @@ inferMetadata = inferSections . inferKorvaiMetadata
             { korvaiSections =
                 TMridangam $ map (addTags (korvaiTala korvai)) sections
             }
+        TKendangTunggal sections -> korvai
+            { korvaiSections =
+                TKendangTunggal $ map (addTags (korvaiTala korvai)) sections
+            }
     addTags tala section =
         addSectionTags (inferSectionTags tala section) section
 
@@ -437,6 +471,7 @@ inferKorvaiTags korvai = Tags.Tags $ Maps.multimap $ concat
     sections = case korvaiSections korvai of
         TSollu xs -> length xs
         TMridangam xs -> length xs
+        TKendangTunggal xs -> length xs
     instruments = map fst $ korvaiInstruments korvai
 
 inferSectionTags :: Tala.Tala -> Section (SequenceT sollu) -> Tags.Tags

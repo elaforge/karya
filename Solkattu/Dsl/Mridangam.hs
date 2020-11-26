@@ -58,6 +58,17 @@ korvaiS1 tala sequence = korvaiS tala [sequence]
 
 Mridangam.Strokes {..} = Mridangam.notes
 
+-- * interactive utilities
+
+realize, realizep :: Korvai.Korvai -> IO ()
+realize = realizeM id
+realizep = realizeM concrete
+
+realizeM :: (Terminal.Config -> Terminal.Config) -> Korvai.Korvai -> IO ()
+realizeM = Dsl.Solkattu._printInstrument Just Korvai.mridangam
+
+-- * strokes
+
 on :: Sequence
 on = o&n
 
@@ -141,12 +152,3 @@ kook = k.o.o.k
 nakatiku :: Sequence
 nakatiku = namedT Solkattu.GPattern "8n" (n.p.u.p.k.t.p.k)
     -- also t.p.u.k.t.p.k
-
--- * interactive utilities
-
-realize, realizep :: Korvai.Korvai -> IO ()
-realize = realizeM id
-realizep = realizeM concrete
-
-realizeM :: (Terminal.Config -> Terminal.Config) -> Korvai.Korvai -> IO ()
-realizeM = Dsl.Solkattu._printInstrument Just Korvai.mridangam

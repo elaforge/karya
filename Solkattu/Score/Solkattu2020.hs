@@ -109,3 +109,45 @@ c_20_10_25 = date 2020 10 25 $ ganesh $ korvaiS1 adi (mridangam<>k1<>k2) $
         , (thom, a)
         ] where KendangPasang.Strokes {..} = KendangPasang.notes
     g = group
+
+kendang_farans :: Korvai
+kendang_farans = faran $ korvaiS adi (k1<>k2) $ map su $ concat
+    [ map (make (taka.naka) (taka.naka.tiku))
+        [ ktknpktk
+        , ooknpktk
+        , otknpktk
+        , od__odnpktk
+        ]
+    ]
+    where
+    ktknpktk = kita.ki.na.takitaka
+    ooknpktk = dhom.dhom.ta.na.takitaka
+    otknpktk = dhom.ta.ka.na.takitaka
+    od__odnpktk = din.__.din.na.takitaka
+    takitaka = ta.ki.taka
+    k1 = makeKendang1
+        [ (taka.naka, k.t.k.p) -- alt: p.k.t.k (p.n.p.k)
+        , (taka.naka.tiku, k.t.k.p.k.p) -- alt: p.k.t.k.p.k (p.n.p.k . t.k)
+
+        , (ktknpktk, k.p.k.t.p.k.a.k)
+        , (ooknpktk, a.a.k.t.p.k.a.k)
+        , (otknpktk, a.p.k.t.p.k.a.k)
+        , (od__odnpktk, o.__.o.t.p.k.a.k)
+        ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
+    k2 = makeKendang2
+        [ (taka.naka, k.p.t.l)
+        , (taka.naka.tiku, k.p.t.l.k.p)
+
+        , (ktknpktk, k.p.t.l.k.p.a.o)
+        , (ooknpktk, a.a.p.l.k.p.a.o)
+        , (otknpktk, a.k.p.l.k.p.a.o)
+        , (od__odnpktk, o.__.o.l.k.p.a.o)
+        ] where KendangPasang.Strokes {..} = KendangPasang.notes
+    make fill1 fill2 pattern =
+        long . long
+        . group pattern . group pattern . long
+        . r2 short . fill1 . long
+        . r3 short . fill2 . nakatiku
+        where
+        long = group pattern . nakatiku
+        short = takeM 6 pattern

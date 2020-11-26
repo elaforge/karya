@@ -377,3 +377,13 @@ e_20_11_01_npk = date 2020 11 1 $ exercise $
     pat karvai = nadai 6 $ su $ r4 npk . tri_ karvai npk
     npk = g (n.pk.r3 (t.pk))
     g = group
+
+sketch_20_11_08 :: Korvai
+sketch_20_11_08 = date 2020 11 8 $ korvaiS adi
+    [ r2 (r2 (g (n.k.u.ktok.o)) . u.ktok.o)
+    , r2 (g (n.k.u.ktok.o.__) . (k.n.k.u.ktok.n.ktok))
+    , r2 (g (n.u.ktok.o.__.n.u.ktok.d.ktok.n.ktok))
+    ]
+    where
+    ktok = su (kt.o.k)
+    g = group

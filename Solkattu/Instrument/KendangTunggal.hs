@@ -108,3 +108,9 @@ defaultPatterns = Solkattu.check $ patterns
 patterns :: [(S.Matra, SequenceR)]
     -> Either Realize.Error (Realize.PatternMap Stroke)
 patterns = Realize.patternMap . map (first Solkattu.pattern)
+
+nakatiku :: [S.Note g (Solkattu.Note (Realize.Stroke Stroke))]
+nakatiku = t.o.u.k.p.a.o.k
+    where
+    Strokes {..} = notes
+    (.) = (<>)
