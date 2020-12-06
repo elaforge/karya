@@ -131,20 +131,31 @@ korvaiFname korvai = untxt $ mod <> "." <> variableName
 
 -- ** writeText
 
+-- | Write to solkattu-text for grepping and diffing, and solkattu-color for
+-- catting.
 writeText :: IO ()
-writeText = writeTextTo "data/solkattu-text" Format.defaultAbstraction
+writeText = writeTextTo "data/solkattu-text" "data/solkattu-color"
+    Format.defaultAbstraction
 
--- | The usual text dir is a git repo, so I can see what effect changes have, in
--- the same manner as App.VerifyPerformance.
-writeTextTo :: FilePath -> Format.Abstraction -> IO ()
-writeTextTo dir abstraction = do
+-- | The usual text dir is a git repo, so I can see what effect changes have,
+-- in the same manner as App.VerifyPerformance.
+writeTextTo :: FilePath -> FilePath -> Format.Abstraction -> IO ()
+writeTextTo dir colorDir abstraction = do
     clearDir dir
+    clearDir colorDir
     writeWithStatus write1 All.korvais
     writeCommit dir
+    writeCommit colorDir
     where
-    write1 korvai =
-        Terminal.writeAll (dir </> korvaiFname korvai <> ".txt")
-            abstraction korvai
+    write1 korvai = do
+        File.writeLines (colorDir </> korvaiFname korvai <> ".txt") lines
+        File.writeLines (dir </> korvaiFname korvai <> ".txt")
+            (map stripColors lines)
+        where lines = Terminal.renderAll abstraction korvai
+
+stripColors :: Text -> Text
+stripColors = mconcat . Seq.map_tail (Text.drop 1 . Text.dropWhile (/='m'))
+    . Text.splitOn "\ESC["
 
 writeWithStatus :: (Korvai.Korvai -> IO ()) -> [Korvai.Korvai] -> IO ()
 writeWithStatus write korvais = do

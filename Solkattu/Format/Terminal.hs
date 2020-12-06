@@ -5,7 +5,7 @@
 {-# LANGUAGE CPP #-}
 -- | Convert realized 'S.Flat' output to text for the terminal.
 module Solkattu.Format.Terminal (
-    writeAll, printInstrument, printKonnakol
+    renderAll, printInstrument, printKonnakol
     , Config(..), defaultConfig, konnakolConfig
     , formatInstrument
 #ifdef TESTING
@@ -18,7 +18,6 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
-import qualified Util.File as File
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.Styled as Styled
@@ -68,11 +67,10 @@ konnakolConfig = Config
 
 -- * write
 
--- | Write all instrument realizations.
-writeAll :: FilePath -> Format.Abstraction -> Korvai.Korvai -> IO ()
-writeAll fname abstraction korvai =
-    File.writeLines fname $ List.intersperse "" $ concatMap write1 $
-    Korvai.korvaiInstruments korvai
+-- | Render all instrument realizations.
+renderAll :: Format.Abstraction -> Korvai.Korvai -> [Text]
+renderAll abstraction korvai =
+    concatMap write1 $ Korvai.korvaiInstruments korvai
     where
     write1 (name, Korvai.GInstrument inst) =
         name <> ":" : fst (formatInstrument config inst Just korvai)
