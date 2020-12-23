@@ -87,9 +87,9 @@ toExpr (Stroke emphasis stroke) = case emphasis of
 
 instance Solkattu.Notation stroke => Solkattu.Notation (Stroke stroke) where
     notation (Stroke emphasis stroke) = case emphasis of
-        -- This makes the output ambiguous since some strokes are already
-        -- capitalized.  TODO use bold or something
-        Heavy -> Text.toUpper $ Solkattu.notation stroke
+        -- TODO use bold or something But then I have to extend notation to
+        -- allow colors, like notationHtml.
+        Heavy -> Solkattu.notation stroke
         Normal -> Solkattu.notation stroke
         Light -> Solkattu.notation stroke
     notationHtml (Stroke emphasis stroke) =

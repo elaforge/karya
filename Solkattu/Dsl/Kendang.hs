@@ -11,17 +11,13 @@ module Solkattu.Dsl.Kendang (
 ) where
 import           Prelude hiding ((.))
 
-import qualified Util.CallStack as CallStack
-import qualified Util.Seq as Seq
 import           Solkattu.Dsl.Interactive (diff, diffw)
-import qualified Solkattu.Dsl.MridangamNotation as MridangamNotation
 import qualified Solkattu.Dsl.Solkattu as Dsl.Solkattu
 import           Solkattu.Dsl.Solkattu (realizePartsM)
 import qualified Solkattu.Format.Terminal as Terminal
 import qualified Solkattu.Instrument.KendangTunggal as KendangTunggal
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Realize as Realize
-import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tala as Tala
 

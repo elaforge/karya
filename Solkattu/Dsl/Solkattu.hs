@@ -103,9 +103,10 @@ dugu = du.gu
 jonu :: Sequence
 jonu = jo.nu
 
-kitataka, tarikita :: Sequence
+kitataka, tarikita, tadikita :: Sequence
 kitataka = kita.taka
 tarikita = tari.kita
+tadikita = ta.di.ki.ta
 
 talang :: Sequence
 talang = ta.lang
@@ -279,7 +280,7 @@ _kendangStrokes1 =
     , (lang, u)
     , (talang, o.u)
     , (takadinna, p.a.o.p)
-    , (tdgnt, o.k.p.t.a)
+    , (tdgnt, o.p.k.t.a)
     , (kp, p.k)
     , (kpnp, p.k.t.k)
     , (oknp, a.k.t.o)
@@ -375,7 +376,7 @@ realizeKon = Terminal.printKonnakol (wide Terminal.defaultConfig)
 
 realizeKon_ :: Int -> Korvai -> IO ()
 realizeKon_ width = Terminal.printKonnakol
-    (Terminal.defaultConfig { Terminal._terminalWidth = width })
+    (concrete $ Terminal.defaultConfig { Terminal._terminalWidth = width })
 
 -- | 'realizeParts' specialized to mridangam, and disbale the usual
 -- 'Interactive.printInstrument' lint and write diff stuff.

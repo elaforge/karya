@@ -24,7 +24,7 @@ module Derive.Typecheck (
     , from_val_eval
     , from_val_simple
 
-    , TEnum(..)
+    , TEnum
     , ToVal(..)
     , to_type_symbol
     , from_val_symbol

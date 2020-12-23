@@ -1229,6 +1229,7 @@ wantsHaddock config hs = not $ or $
     -- of duplicate haddock.  Haddock for test utils is not so important, so
     -- let's just omit them.
     , "Test.hs" `List.isSuffixOf` hs
+    , "TestInstances.hs" `List.isSuffixOf` hs
     , hs == "Derive/DeriveQuickCheck.hs"
     ] ++ if Config.enableIm localConfig then [] else [requiresSynthPackages hs]
     where midi = midiConfig config

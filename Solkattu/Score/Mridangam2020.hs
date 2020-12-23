@@ -387,3 +387,7 @@ sketch_20_11_08 = date 2020 11 8 $ korvaiS adi
     where
     ktok = su (kt.o.k)
     g = group
+
+e_20_12_06 :: Korvai
+e_20_12_06 = date 2020 12 6 $ ganesh $ exercise $ korvaiS1 adi $
+    r2 (on.__.pk.nakatiku) . su (r2 (t.__.o.__.ktpk))

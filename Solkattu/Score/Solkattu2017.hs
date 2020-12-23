@@ -12,7 +12,6 @@ import qualified Solkattu.Instrument.Reyong as Reyong
 import qualified Solkattu.Instrument.Sargam as Sargam
 import qualified Solkattu.Tala as Tala
 
-import Global
 import Solkattu.Dsl.Solkattu
 
 
@@ -55,7 +54,8 @@ koraippu_janahan =
         , (takita, n.p.k)
         , (takadinna, n.o.o.k)
         ]
-    janahan_mridangam = makeMridangam $ strokes ++
+    -- TODO not hooked up
+    _janahan_mridangam = makeMridangam $ strokes ++
         [ (1^takita, k.p.k)
         , (takita.takita, o.t.k.n.o.k)
         , (takita, k.t.k)
@@ -104,21 +104,26 @@ c_17_03_20 :: Korvai
 c_17_03_20 = date 2017 3 20 $ ganesh $ comment "Trichy Sankaran plays this a\
     \ lot, see section in Laya Vinyas, adi talam solo." $
     korvaiS1 adi (mridangam <> kendang <> reyong) $ su $
-        reduceTo 4 2 theme . sd (sd p6) . sd p6 . tri_ (__.__) p6
+        sarvaD sarva (6 * 2) . theme
+        . reduceTo 4 2 theme . sd (sd p6) . sd p6 . tri_ (__.__) p6
     where
+    sarva = sd $ na.din.din.na
     theme = tat.__.taka.takadinna.na.ka.dit.__.talang.__.ga
     -- I'm not sure if I prefer smaller fragments that are easier to read, or
     -- doing the whole theme at once.
     mridangam = makeMridangam
-        [ (tat.taka, k.k.t)
+        [ (sarva, n.d.d.n)
+        , (tat.taka, k.k.t)
         , (na.ka.dit.talang, n.o.k.o.u)
         , (ga, lt k)
         ]
     kendang = makeKendang1
-        [ (theme, p.__.p.k.p.a.o.p.t.o.p.__.o.u.__.p)
+        [ (sarva, t.o.o.t)
+        , (theme, p.__.p.k.p.a.o.p.t.o.p.__.o.u.__.p)
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
     reyong = makeReyong
-        [ (theme, b.__.k.k.x.k.k.k.i.r2.r3.__.b.o.__.b)
+        [ (sarva, __.__.__.__)
+        , (theme, b.__.k.k.x.k.k.k.i.r2.r3.__.b.o.__.b)
         ] where Reyong.Strokes {..} = Reyong.notes
 
 c_17_09_25 :: Korvai
@@ -216,13 +221,12 @@ c_17_05_10 = date 2017 5 10 $ ganesh $ korvaiS1 adi insts $
 
     -- ta.__4 . ta.__.kita.takadinna.dinga
     -- ta.__3 . ta.__.kita.takadinna.dinga
-    -- ta.__2 . ta.__.kita.takadinna.dinga
     -- ta.__  . ta.__.kita.takadinna.dinga
     --     ta . ta.__.kita.takadinna.dinga
     --          ta.__.kita.takadinna.dinga
-    --             ta.__.__.takadinna.dinga
-    --                ta.__.takadinna.dinga
-    --                   ta.takadinna.dinga
+    --            ta.__.__.takadinna.dinga
+    --               ta.__.takadinna.dinga
+    --                  ta.takadinna.dinga
     where
     insts = mridangam <> kendang <> sargam
     mridangam = makeMridangam
@@ -577,21 +581,24 @@ c_17_08_29 = date 2017 8 29 $ ganesh $
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
 
 c_17_10_23 :: Korvai
-c_17_10_23 = date 2017 10 23 $ ganesh $
+c_17_10_23 = date 2017 10 23 $ ganesh $ koraippu $
     korvaiS adi (mridangam<>kendang1)
-    [ sequence theme
-    , sequence (theme2a.theme2b)
-    , mconcatMap (sarvaA_ 16) [theme, kitataka.theme, kitakita.kitakita.theme]
-        . sarvaA_ 8 (kitataka.theme) . sarvaA_ 8 (kitakita.kitataka.theme)
-    , din.__8 . r3 (theme2a.tat.__7) . theme -- repeat 2
-    , din.__8 . r3 (theme2a_o.theme2a) . theme -- repeat 2
-    , din.__4 . theme2a_o.theme2a . theme -- repeat 2
-    , din.__2 . tri_ (din.__2) (theme2a.theme2b)
-        . sandi theme2b (tri_ __ (theme2b))
-    , theme2a.theme2b . r3 (tat.__3.din.__3)
-        . kitataka . theme2a.theme2b . r3 (tat.__2.din.__3)
-        . kitakita.kitataka . theme2a.theme2b . r3 (tat.din.__3)
-        . spread 3 tdgnt . spread 2 tdgnt
+    [ sarvaD_ 8 . sarvaD_ 4.5 . t1
+        . sarvaD_ 8 . sarvaD_ 4 . kitataka.t1
+        . sarvaD_ 8 . sarvaD_ 3.5 . kitakita.kitataka.t1
+        . sarvaD_ 8 . sarvaD_ 3.5 . kitakita.kitataka.t2
+    , sarvaD_ 4.5 . t1 . sarvaD_ 4 . kitataka.t1
+        . sarvaD_ 3.5 . kitakita.kitataka.t1
+        . sarvaD_ 3.5 . kitakita.kitataka.t2
+    , din.__8 . r3 (k_pkn.tat.__7) . t1
+        . din.__8 . r3 (o_okn.k_pkn) . t1
+    , r2 $ din.__4 . o_okn.k_pkn.t1
+    , r3 (din.__.t2) . r2 (din.g tend)
+    -- korvai
+    , k_pkn.g tend2 . r3 (tat.__3.din.__3)
+        . kitataka.k_pkn.g tend2 . r3 (tat.__.din.__3)
+        . kitakita.kitataka.k_pkn.g tend2 . r3 (tat.din.__3)
+        . g (spread 3 tdgnt) . g (spread 2 tdgnt)
         . trin (tat.__.tat.__3.tam.__.tam.__3) (tri p5) (tri p6) (tri p7)
     -- alternate endings
     , let tkp = tri_ (su kp) in
@@ -602,39 +609,120 @@ c_17_10_23 = date 2017 10 23 $ ganesh $
             (tri p5) (tri (su kp.p5)) (tri (su kpnp.p5))
     ]
     where
-    sequence t = mconcatMap (sarvaA_ 8)
-        [t, kitataka.t, kitakita.kitataka.t]
-    theme = group $ ta.dit.__.ta.__.kita.taka.__.din.__.ta.__
-    theme2a_ = su $ dit.__.taka.na.ka.ta.na.ka
-    theme2a = group $ theme2a_ . su tdgnt
-    theme2a_o = 1^theme2a
-    theme2b = group $ ta.__.ka.din.__.ta.__
-    kitataka = group $ kttk
-    kitakita = group $ kt.kt
+    t1 = g $ t1_sollu.tend
+    t1_sollu = ta.dit.__.ta.__.kita
+    t2 = g $ k_pkn . tend2
+    tend = taka.__.din.__.tat.__
+    tend2 = ta.__.ka.din.__.tat.__
+    k_pkn = g $ su $ dit .__.taka.na.taka.na.taka.tadikita
+    o_okn = g $ su $ thom.__.taka.na.taka.na.taka.tadikita
+
+    kitataka = g $ kttk
+    kitakita = g $ kt.kt
+    g = group
     mridangam = makeMridangam
-        [ (theme, k.t.__.k.__.t.k.k.o.__.od.__.k.__)
+        [ (t1_sollu, k.t.__.k.__.t.k)
+        , (tend, hv k.o.__.od.__.k.__)
+        , (k_pkn, k.__.p.k.n.p.k.n.p . k.t.k.n.o)
+        , (o_okn, k&o.__.o.k.n.o.k.n.o . k.t.k.n.o)
         , (kitataka, p.k.n.p)
         , (kitakita, k.t.k.t)
-        , (theme2a_, k.__.p.k.n.p.k.n.p)
-        , (1^theme2a_, o&k.__.o.k.n.o.k.n.p)
-        , (theme2b, k.__.o.od.__.k.__)
         , (din, od)
         , (tat, k)
         , (tat.tat.tam.tam, p&k.p&k.od.od)
         , (tat.tat.tam, p&k.p&k.od)
         ]
     kendang1 = makeKendang1
-        [ (theme, p.k.__.p.__.k.p.p.a.__.o.__.p.__)
+        [ (t1_sollu, p.k.__.p.__.k.p)
+        , (tend, p.a.__.o.__.p.__)
+        , (k_pkn, p.__.k.p.t.k.p.t.p . o.p.k.t.a)
+        , (o_okn, a.__.a.p.t.a.p.t.p . o.p.k.t.a)
         , (kitataka, k.t.t.k)
         , (kitakita, p.k.p.k)
-        , (theme2a_, p.__.k.p.t.k.p.t.p)
-        , (1^theme2a_, a.__.a.p.t.a.p.t.p)
-        , (theme2b, p.__.a.o.__.p.__)
         , (din, a)
         , (tat, p)
         , (tat.tat.tam.tam, pk.pk.a.a)
         , (tat.tat.tam, pk.pk.a)
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
+
+c_20_12_12_kanda :: Korvai
+c_20_12_12_kanda = date 2020 12 12 $ koraippu $
+    korvaiS Tala.khanda_chapu mridangam $ map sd
+    [ sarvaD_ (13/2) . t1
+        . sarvaD_ (12/2) . kitataka.t1
+        . sarvaD_ (11/2) . kitakita.kitataka.t1
+        . sarvaD_ (3/2) . t1
+        . sarvaD_ (2/2) . kitataka.t1
+        . sarvaD_ (1/2) . kitakita.kitataka.t1
+        -- . sarvaD_ (3/2) . t2
+        -- . sarvaD_ (2/2) . kitataka.t2
+        -- . sarvaD_ (1/2) . kitakita.kitataka.t2
+    , din.__4 . r4 t1 -- practice
+    , din.__4 . r3 (k_pkn.tat.__7) . t1
+    , din.__4 . r3 (o_okn.k_pkn) . t1
+    , r2 $ din.__ . o_okn.k_pkn.t1
+    , r2 $ din.t1
+    -- korvai
+    , k_pkn.g tend2 . r3 (tat.__3.din.__3)
+        . kitataka.k_pkn.g tend2 . r3 (tat.__.din.__3)
+        . kitakita.kitataka.k_pkn.g tend2 . r3 (tat.din.__3)
+        . g (spread 3 tdgnt) . g (spread 2 tdgnt)
+        . trin (tat.__.tat.__3.tam.__.tam.__) (tri p5) (tri p6) (tri p7)
+    ]
+    -- karvai 2 + 7 * 2 = 16 = 4 avartanams
+    -- 2 + 7 * 7
+    --
+    -- 4+4 + 7 7 7 7 7 7 (7 7) = 8 + 7*8 = 64 / 4*8 32 = 4
+    -- 4 + 7 7 7 7 = 32
+    -- 2 + 7 7 = 16
+    -- 1 + 7 = 8
+    --
+    -- korvai:
+    -- 7+7 + 3*6 + (2)+7+7 + 3*5 + (4)+7+7 + 3*4 = 93 = 23 1/4
+    -- 5*3 + 5*2 = 25 = 118 = 29 2/4
+    -- 5+5+5 + 10 + 6+6+6 + 10 + 7+7+7 = 74
+    --      = 192 matra = 48 akshara = 6 avartanam
+    -- each avartanam is 4*5 = 20
+    --
+    --
+    -- use 4 + 8*7, 2 + 4*7, (1 + 77) * 4
+    -- k k d d _ -> k k _d d
+    where
+    t1 = g $ t1_sollu.tend
+    t1_sollu = ta.dit.__.ta.__.kita
+    -- t2 = g $ k_pkn . tend2
+    tend = taka.__.din.__.tat.__
+    tend2 = ta.__.ka.din.__.tat.__
+    k_pkn = g $ su $ dit .__.taka.na.taka.na.taka.tadikita
+    o_okn = g $ su $ thom.__.taka.na.taka.na.taka.tadikita
+
+    kitataka = g $ kttk
+    kitakita = g $ kt.kt
+    g = group
+    mridangam = makeMridangam
+        [ (t1_sollu, k.t.__.k.__.t.k)
+        , (tend, hv k.o.__.od.__.k.__)
+        , (k_pkn, k.__.p.k.n.p.k.n.p . k.t.k.n.o)
+        , (o_okn, k&o.__.o.k.n.o.k.n.o . k.t.k.n.o)
+        , (kitataka, p.k.n.p)
+        , (kitakita, k.t.k.t)
+        , (din, od)
+        , (tat, k)
+        , (tam, od)
+        ]
+
+{-
+  . convert to kanda chapu
+    rupaka D pkkoD D N
+           D D NND D N
+           D d nnd d n
+           d D NND D N
+    rupaka chop off beat to get kandachapu
+           D pkkoD N
+           D D NND N
+           D d nnd n
+           d D NND N
+-}
 
 c_17_12_11 :: Korvai
 c_17_12_11 = date 2017 12 11 $ ganesh $ korvaiS adi mridangam
