@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE BangPatterns #-}
 -- | Seed class to hash 'Derive.Stack.Frame's into the random seed.  This is
 -- like Hashable, except that it must be stable (so hashable isn't suitable),
 -- and since it's for a random seed, doesn't care about being well-distributed.

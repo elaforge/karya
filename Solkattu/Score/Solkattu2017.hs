@@ -101,14 +101,14 @@ c_17_02_06 = date 2017 2 6 $ ganesh $ korvaiS1 adi mridangam $
         ]
 
 c_17_03_20 :: Korvai
-c_17_03_20 = date 2017 3 20 $ ganesh $ comment "Trichy Sankaran plays this a\
-    \ lot, see section in Laya Vinyas, adi talam solo." $
+c_17_03_20 = date 2017 3 20 $ ganesh $
+    comment "Trichy Sankaran plays in Laya Vinyas, adi talam solo, 1:54." $
     korvaiS1 adi (mridangam <> kendang <> reyong) $ su $
         sarvaD sarva (6 * 2) . theme
         . reduceTo 4 2 theme . sd (sd p6) . sd p6 . tri_ (__.__) p6
     where
     sarva = sd $ na.din.din.na
-    theme = tat.__.taka.takadinna.na.ka.dit.__.talang.__.ga
+    theme = strS "tat_taka takadinna nakadit_ talang_ga"
     -- I'm not sure if I prefer smaller fragments that are easier to read, or
     -- doing the whole theme at once.
     mridangam = makeMridangam

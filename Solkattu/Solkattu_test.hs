@@ -6,15 +6,16 @@ module Solkattu.Solkattu_test where
 import qualified Data.Text as Text
 
 import qualified Solkattu.Dsl.Solkattu as G
-import Solkattu.Dsl.Solkattu (__, ta, di, ki, thom)
+import           Solkattu.Dsl.Solkattu (__, di, ki, ta, thom)
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
+import           Solkattu.Solkattu (Sollu(..))
 
-import Global
-import Util.Test
+import           Global
+import           Util.Test
 
 
-
+test_matrasOf :: Test
 test_matrasOf = do
     let f = Solkattu.matrasOf
         t s n = S.Tempo s n 1
@@ -36,6 +37,7 @@ test_matrasOf = do
     equal (f2 (G.dropM 4 ta4)) 0
     equal (f2 (G.dropM 5 ta4)) 0
 
+test_durationOf :: Test
 test_durationOf = do
     let f = Solkattu.durationOf S.defaultTempo
     let tas n = mconcat $ replicate n ta
@@ -43,6 +45,7 @@ test_durationOf = do
     equal (f (G.nadai 7 (tas 7))) 1
     equal (f (G.nadai 7 $ G.dropM 2 (tas 9))) 1
 
+test_flatDuration :: Test
 test_flatDuration = do
     let f = map Solkattu.flatDuration . S.flatten
     equal (f ta) [1/4]
@@ -50,6 +53,7 @@ test_flatDuration = do
     equal (f $ G.dropM 1 (ta <> ki <> ta)) [2/4]
     equal (f $ G.sarvaM (ta <> di) 5) [5/4]
 
+test_cancelKarvai :: Test
 test_cancelKarvai = do
     let f = Text.unwords . map pretty . S.flattenedNotes
             . Solkattu.cancelKarvai . S.flatten
@@ -64,6 +68,7 @@ test_cancelKarvai = do
     equal (f (ta <> k thom <> group __)) "ta thom"
     equal (f (ta <> group (k thom) <> __)) "ta thom"
 
+test_vary :: Test
 test_vary = do
     let f notes = map (Text.unwords . map pretty) $
             Solkattu.vary
@@ -77,8 +82,23 @@ test_vary = do
         , "5p ta 6p mid^ta 7p di 5p ki 7p mid^ki 9p"
         ]
 
+test_parseSollus :: Test
+test_parseSollus = do
+    let f = Solkattu.parseSollus
+    right_equal (f "tari _ki") [Just Ta, Just Ri, Nothing, Just Ki]
+    -- requires backtracking: ki tat hom -> ki ta thom
+    right_equal (f "kitathom") $ map Just [Ki, Ta, Thom]
+    -- Spaces are ignored, but force word interpretation.
+    right_equal (f "kita thom") $ map Just [Ki, Ta, Thom]
+    left_like (f "kitat hom") "no parse for \"hom\""
+    -- allow elided n
+    right_equal (f "ginathom") $ map Just [Gin, Na, Thom]
+    left_like (f "takadina") "multiple parses"
+    right_equal (f "takadinna") $ map Just [Ta, Ka, Din, Na]
+
 -- * utils
 
+test_applyModifications :: Test
 test_applyModifications = do
     let f = Solkattu.applyModifications (+)
     equal (f [] [1]) [1]
@@ -88,6 +108,7 @@ test_applyModifications = do
     equal (f mods [1..3]) [11, 2, 23]
     equal (f mods [1..4]) [11, 2, 23, 4]
 
+test_permuteFst :: Test
 test_permuteFst = do
     let f = Solkattu.permuteFst (\x -> [x, x+1])
     equal (f ([] :: [(Int, Char)])) []

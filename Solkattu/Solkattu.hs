@@ -293,10 +293,38 @@ data Sollu =
     | Ga | Gin | Gu | Jo | Ka | Ki | Ku | Kum | Lang
     | Mi | Na | Nam | Nang | Nu | Ri
     | Ta | Tam | Tang | Tong | Tat | Tha | Thom | Ti
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Ord, Enum, Bounded, Show)
 
 instance Notation Sollu where notation = Text.toLower . showt
 instance Pretty Sollu where pretty = notation
+
+-- ** parseSollus
+
+parseSollus :: Text -> Either Error [Maybe Sollu]
+parseSollus = fmap concat . mapM parse . Text.words
+    where
+    parse w = case parseSollusWord w of
+        [] -> Left $ "no parse for " <> showt w
+        [sollus] -> Right sollus
+        xs -> Left $ "multiple parses for " <> showt w <> ": " <> showt xs
+
+parseSollusWord :: Text -> [[Maybe Sollu]]
+parseSollusWord = go
+    where
+    go prefix
+        | Text.null prefix = [[]]
+        | has "_" = map (Nothing :) (go (Text.drop 1 prefix))
+        | otherwise = do
+            (str, sollu) <- filter (has . fst) allSollus
+            let suffix = Text.drop (Text.length str) prefix
+            -- Allow an elided n, e.g. tadinginathom vs. tadinginnathom.
+            suffix <- suffix : if "n" `Text.isSuffixOf` str
+                then ["n" <> suffix] else []
+            (Just sollu :) <$> go suffix
+        where has = (`Text.isPrefixOf` prefix)
+
+allSollus :: [(Text, Sollu)]
+allSollus = Seq.key_on notation $ filter (/= NoSollu) [minBound .. maxBound]
 
 -- * durations
 

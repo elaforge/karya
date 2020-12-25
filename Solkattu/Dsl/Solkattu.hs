@@ -79,6 +79,10 @@ tang = _sollu Solkattu.Tang
 tong = _sollu Solkattu.Tong
 lang = _sollu Solkattu.Lang
 
+-- | Parse a string to sollus.  Look for syllables inside words.
+strS :: CallStack.Stack => Text -> Sequence
+strS str = mconcat $ map (maybe __ _sollu) $ check $ Solkattu.parseSollus str
+
 -- * fragments
 
 -- TODO these should be namedT Solkattu.GPattern "p#", but that makes

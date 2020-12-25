@@ -139,12 +139,12 @@ instance Pretty Emphasis where
     pretty Heavy = "v"
 
 instance S.HasMatras (Note stroke) where
-    matrasOf n = case n of
+    matrasOf = \case
         Note {} -> 1
         Space {} -> 1
         Abstract meta -> fromMaybe 1 $ Solkattu._matras meta
         Alignment {} -> 0
-    hasSustain n = case n of
+    hasSustain = \case
         Note {} -> False
         Space {} -> True
         Abstract {} -> True
