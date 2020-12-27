@@ -57,7 +57,6 @@ c_20_04_03 = date 2020 4 3 $
         where
         tadingina = ta.din.gin.na
         tadin_ginaka = su (ta.din.__.gin.na.ka)
-        g = group
     mridangam = makeMridangam -- 7:18
         [ (kita.taka.tat, p.k.t.p.v)
         , (kita.tari.kita.thom, k.t.k.t.k.t.o)
@@ -108,8 +107,10 @@ c_20_10_25 = date 2020 10 25 $ ganesh $ korvaiS1 adi (mridangam<>k1<>k2) $
         , (dim, a)
         , (thom, a)
         ] where KendangPasang.Strokes {..} = KendangPasang.notes
-    g = group
 
+-- TODO the same as Kendang2020.farans, except this has the unnecessary sollus,
+-- but can also more easily do kendang pasang... so I'm not sure which is
+-- better!
 kendang_farans :: Korvai
 kendang_farans = faran $ korvaiS adi (k1<>k2) $ map su $ concat
     [ map (make (taka.naka) (taka.naka.tiku))

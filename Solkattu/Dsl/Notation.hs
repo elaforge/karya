@@ -426,7 +426,10 @@ stride n seq = [S.TempoChange (S.Stride n) seq]
 
 -- | Mark a theme group.
 group :: SequenceT sollu -> SequenceT sollu
-group = _groupWith (Solkattu.meta Solkattu.GTheme)
+group = _groupWith (Solkattu.meta Solkattu.GGroup)
+
+g :: SequenceT sollu -> SequenceT sollu
+g = group
 
 -- | Mark a pattern group.  These are like patterns, except with a specific
 -- realization.
@@ -443,7 +446,7 @@ reduction split side = (:[]) . S.Group group
 
 -- | Make a named group.
 named :: Text -> SequenceT sollu -> SequenceT sollu
-named = namedT Solkattu.GTheme
+named = namedT Solkattu.GGroup
 
 namedT :: Solkattu.GroupType -> Text -> SequenceT sollu -> SequenceT sollu
 namedT gtype name =

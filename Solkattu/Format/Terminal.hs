@@ -315,14 +315,15 @@ makeSymbols strokeWidth tala angas = go
     go (S.FGroup _ group children) = modify (concatMap go children)
         where
         modify = case Solkattu._type group of
-            Solkattu.GTheme ->
-                setHighlights (Styled.rgb 0.5 0.75 0.5) (gray 0.75)
+            Solkattu.GGroup -> groupc
+            Solkattu.GReductionT -> groupc
             Solkattu.GFiller -> setHighlights2 (gray 0.85)
             Solkattu.GPattern -> patternc
             Solkattu.GExplicitPattern -> patternc
             Solkattu.GSarva -> setHighlights2 (Styled.rgb 0.5 0.65 0.5)
             -- This shouldn't be here, so make it red.
             Solkattu.GCheckDuration {} -> setHighlights2 (Styled.rgb 0.75 0 0)
+    groupc = setHighlights (Styled.rgb 0.5 0.75 0.5) (gray 0.75)
     patternc = setHighlights2 (Styled.rgb 0.65 0.65 0.8)
     gray n = Styled.rgb n n n
     setHighlights2 color = setHighlights color color

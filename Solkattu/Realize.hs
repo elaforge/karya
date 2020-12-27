@@ -175,7 +175,8 @@ metaNotation (Solkattu.Meta matras Nothing gtype) = case gtype of
 
 typeName :: Solkattu.GroupType -> Text
 typeName = \case
-    Solkattu.GTheme -> ""
+    Solkattu.GGroup -> ""
+    Solkattu.GReductionT -> ""
     Solkattu.GFiller -> "f"
     Solkattu.GPattern -> "p"
     Solkattu.GExplicitPattern -> "p"

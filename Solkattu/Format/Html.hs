@@ -308,7 +308,8 @@ groupStyle gtype pos = "g" <> showt gtype <> showt pos
 
 typeColors :: Solkattu.GroupType -> (Styled.RgbColor, Styled.RgbColor)
 typeColors = \case
-    Solkattu.GTheme -> (rgb 0.5 0.8 0.5, gray 0.8)
+    Solkattu.GGroup -> groupc
+    Solkattu.GReductionT -> groupc
     Solkattu.GFiller -> both $ gray 0.9
     Solkattu.GPattern -> patternc
     Solkattu.GExplicitPattern -> patternc
@@ -316,6 +317,7 @@ typeColors = \case
     -- This shouldn't be here, so make it red.
     Solkattu.GCheckDuration {} -> both $ rgb 0.75 0 0
     where
+    groupc = (rgb 0.5 0.8 0.5, gray 0.8)
     patternc = (rgb 0.65 0.65 0.8, rgb 0.8 0.8 0.95)
     both n = (n, n)
     rgb = Styled.rgbColor

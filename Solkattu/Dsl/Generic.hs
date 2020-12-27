@@ -27,7 +27,7 @@ module Solkattu.Dsl.Generic (
     , wide
     , abstract, concrete
     , Abstraction
-    , patterns, namedThemes, allAbstract
+    , patterns, namedGroups, allAbstract
     -- * patterns
     , pat, p5, p6, p7, p8, p9, p666, p567, p765
     -- * re-exports
@@ -172,8 +172,8 @@ concrete = abstract mempty
 patterns :: Abstraction
 patterns = Format.abstract Solkattu.GPattern
 
-namedThemes :: Abstraction
-namedThemes = Format.named Solkattu.GTheme
+namedGroups :: Abstraction
+namedGroups = Format.named Solkattu.GGroup
 
 allAbstract :: Abstraction
 allAbstract = Format.allAbstract

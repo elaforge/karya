@@ -137,10 +137,13 @@ meta :: GroupType -> Meta
 meta = Meta Nothing Nothing
 
 data GroupType =
-    -- | Part of a main theme, should be highlighted prominently.
-    GTheme
+    -- | A generic group, usually manually applied.
+    GGroup
+    -- | 'Reduction's get this automatically.
+    | GReductionT
     -- | A bit of decorative filler, should be highlighted subtly if at all.
     | GFiller
+    -- | A realized 'Pattern'.
     | GPattern
     -- | A pattern with sollus already given.
     | GExplicitPattern
@@ -154,7 +157,7 @@ data GroupType =
 -- have been removed by 'Realize.checkDuration'.  I could express that in the
 -- type, but it seems too noisy for now.
 groupTypes :: [GroupType]
-groupTypes = [GTheme, GFiller, GPattern, GExplicitPattern, GSarva]
+groupTypes = [GGroup, GReductionT, GFiller, GPattern, GExplicitPattern, GSarva]
 
 instance Pretty GroupType where pretty = showt
 

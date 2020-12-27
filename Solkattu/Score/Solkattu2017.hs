@@ -619,7 +619,6 @@ c_17_10_23 = date 2017 10 23 $ ganesh $ koraippu $
 
     kitataka = g $ kttk
     kitakita = g $ kt.kt
-    g = group
     mridangam = makeMridangam
         [ (t1_sollu, k.t.__.k.__.t.k)
         , (tend, hv k.o.__.od.__.k.__)
@@ -647,7 +646,7 @@ c_17_10_23 = date 2017 10 23 $ ganesh $ koraippu $
 
 c_20_12_12_kanda :: Korvai
 c_20_12_12_kanda = date 2020 12 12 $ koraippu $
-    korvaiS Tala.khanda_chapu mridangam $ map sd
+    korvaiS Tala.khanda_chapu (mridangam<>kendang1) $ map sd
     [ sarvaD_ (13/2) . t1
         . sarvaD_ (12/2) . kitataka.t1
         . sarvaD_ (11/2) . kitakita.kitataka.t1
@@ -698,7 +697,6 @@ c_20_12_12_kanda = date 2020 12 12 $ koraippu $
 
     kitataka = g $ kttk
     kitakita = g $ kt.kt
-    g = group
     mridangam = makeMridangam
         [ (t1_sollu, k.t.__.k.__.t.k)
         , (tend, hv k.o.__.od.__.k.__)
@@ -710,6 +708,17 @@ c_20_12_12_kanda = date 2020 12 12 $ koraippu $
         , (tat, k)
         , (tam, od)
         ]
+    kendang1 = makeKendang1
+        [ (t1_sollu, p.k.__.p.__.k.p)
+        , (tend, p.a.__.o.__.p.__)
+        , (k_pkn, p.__.p.k.t.p.k.t.p . o.p.k.t.a)
+        , (o_okn, a.__.o.k.t.o.k.t.o . o.p.k.t.a)
+        , (kitataka, o.k.t.a)
+        , (kitakita, p.k.p.k)
+        , (din, a)
+        , (tat, p)
+        , (tam, a)
+        ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
 
 {-
   . convert to kanda chapu

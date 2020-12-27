@@ -67,7 +67,7 @@ defaultAbstraction :: Abstraction
 defaultAbstraction = mconcat
     [ abstract Solkattu.GPattern
     , abstract Solkattu.GSarva
-    , named Solkattu.GTheme
+    , named Solkattu.GGroup
     ]
 
 allAbstract :: Abstraction
@@ -95,7 +95,7 @@ groupToMeta :: Realize.Group stroke -> Solkattu.Meta
 groupToMeta (Realize.GReduction _) = Solkattu.Meta
     { _matras = Nothing -- TODO pick a real duration?
     , _name = Nothing
-    , _type = Solkattu.GTheme
+    , _type = Solkattu.GReductionT
     }
 groupToMeta (Realize.GMeta meta) = meta
 
@@ -121,8 +121,7 @@ makeGroupsAbstract abstraction = concatMap combine
             -- Some groups are named by their duration.  Since the next stop is
             -- the HasMatras instance, I put them name on here, when I still
             -- have access to the children duration.
-            if Solkattu._name group == Nothing
-                    && gtype `elem` [Solkattu.GTheme, Solkattu.GExplicitPattern]
+            if Solkattu._name group == Nothing && gtype `elem` nameFromDur
                 then group
                     { Solkattu._name = Just $
                         Pretty.fraction True fmatras <> Realize.typeName gtype
@@ -132,6 +131,8 @@ makeGroupsAbstract abstraction = concatMap combine
             Num.sum $ map (S.matraDuration . fst) tempoNotes
         replace n (tempo, (state, _)) = S.FNote tempo (state, n)
     combine n = [n]
+    nameFromDur =
+        [Solkattu.GGroup, Solkattu.GReductionT, Solkattu.GExplicitPattern]
 
 -- | Like 'makeGroupsAbstract' except for non-normalized 'Realize.realize'
 -- output.  This is used by LSol, not Format, but is defined here since it's

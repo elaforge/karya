@@ -154,8 +154,8 @@ writeTextTo dir colorDir abstraction = do
         where lines = Terminal.renderAll abstraction korvai
 
 stripColors :: Text -> Text
-stripColors = mconcat . Seq.map_tail (Text.drop 1 . Text.dropWhile (/='m'))
-    . Text.splitOn "\ESC["
+stripColors = Text.stripEnd . mconcat
+    . Seq.map_tail (Text.drop 1 . Text.dropWhile (/='m')) . Text.splitOn "\ESC["
 
 writeWithStatus :: (Korvai.Korvai -> IO ()) -> [Korvai.Korvai] -> IO ()
 writeWithStatus write korvais = do

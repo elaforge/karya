@@ -311,8 +311,6 @@ sarva_20_06_19_reduce5 = date 2020 6 19 $ korvaiS adi
         . g (su (su (su (k.p.k.od.__.ktkno))))
         )
     ]
-    where
-    g = group
 
 e_20_07_03 :: Korvai
 e_20_07_03 = date 2020 7 3 $ exercise $ korvaiS adi
@@ -376,7 +374,6 @@ e_20_11_01_npk = date 2020 11 1 $ exercise $
     where
     pat karvai = nadai 6 $ su $ r4 npk . tri_ karvai npk
     npk = g (n.pk.r3 (t.pk))
-    g = group
 
 sketch_20_11_08 :: Korvai
 sketch_20_11_08 = date 2020 11 8 $ korvaiS adi
@@ -386,7 +383,6 @@ sketch_20_11_08 = date 2020 11 8 $ korvaiS adi
     ]
     where
     ktok = su (kt.o.k)
-    g = group
 
 e_20_12_06 :: Korvai
 e_20_12_06 = date 2020 12 6 $ ganesh $ exercise $ korvaiS1 adi $

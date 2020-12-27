@@ -733,7 +733,7 @@ e_misra_tisra = exercise $ korvaiS Tala.misra_chapu mempty $ map (nadai 3)
 
 -- Practice speed: 55
 print_adi_tani :: IO ()
-print_adi_tani = realizePartsM (abstract (patterns <> namedThemes)) adi_tani
+print_adi_tani = realizePartsM (abstract (patterns <> namedGroups)) adi_tani
 
 adi_tani :: [Part]
 adi_tani =
@@ -751,7 +751,7 @@ adi_tani =
 
 print_adi_tani_misra :: IO ()
 print_adi_tani_misra =
-    realizePartsM (abstract (patterns <> namedThemes)) adi_tani_misra
+    realizePartsM (abstract (patterns <> namedGroups)) adi_tani_misra
 
 adi_tani_misra :: [Part]
 adi_tani_misra =

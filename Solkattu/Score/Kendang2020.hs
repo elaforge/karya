@@ -4,8 +4,8 @@ import           Prelude hiding ((.), repeat)
 import           Solkattu.Dsl.Kendang
 
 
-kendang_farans :: Korvai
-kendang_farans = faran $ korvaiS adi $ map su $ concat
+farans :: Korvai
+farans = faran $ korvaiS adi $ map su $ concat
     [ map (make (t.k.p.k) (t.k.p.k . p.k)) -- (p.n.p.k) (p.n.p.k . t.k)
         [ k.p.k.t.p.k.a.k -- k.t.k.n.p.k.t.k
         , a.a.k.t.p.k.a.k -- o.o.k.n.p.k.t.k
