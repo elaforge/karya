@@ -517,10 +517,11 @@ im_play_msgs score_path block_id muted start (wdev, chan) =
     where
     msg t = LEvent.Event . Midi.WriteMessage wdev t . Midi.ChannelMessage chan
     -- 'encode_time' includes the bit position so it doesn't depend on order,
-    -- but encode_block does.  With CoreMIDI it seems msgs stay in order even
-    -- when they have the same timestamp, I'll put on a timestamp just in case.
-    -- They're all in the past, so they should still be "as fast as possible",
-    -- and not 10ms, or whatever it winds up being.
+    -- but encode_play_config has to transmit text, so it does depend on order.
+    -- With CoreMIDI it seems msgs stay in order even when they have the same
+    -- timestamp, I'll put on a timestamp just in case.  They're all in the
+    -- past, so they should still be "as fast as possible", and not 10ms, or
+    -- whatever it winds up being.
     ts = map RealTime.milliseconds [0..]
 
 -- | Merge a finite list of notes with an infinite list of MTC.

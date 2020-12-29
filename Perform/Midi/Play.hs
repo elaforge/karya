@@ -139,5 +139,9 @@ play_loop state msgs = do
         (True, _) -> do
             Transport.info_midi_abort (state_info state)
             reset_midi
-        (_, []) -> reset_midi
+        -- I used to reset when MIDI ran out, and previously was correct
+        -- because it only sent specific note offs, but if I use a real
+        -- AllNotesOff then it breaks im.  I could have im not use AllNotesOff,
+        -- but let's just remove the reset_midi here.
+        -- (_, []) -> reset_midi
         _ -> play_loop state rest

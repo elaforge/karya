@@ -29,6 +29,36 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  * im play is broken
+    . Because it sends AllNotesOff, likely due to Midi.Interface change.
+    . Why does it send AllNotesOff on a play?
+    - Also why do I get one for chan [1..16], and then another at chan 1?
+      Because Play calls Cmd.all_notes_off which sends Interface.AllNotesOff,
+      then stop_im.
+      . [1..16] happens on play, 1 happens on stop.
+    . It's because MIDI runs out immediately, so Midi.Play resets.  It doesn't
+      know that im is still going.
+    . This wasn't a problem before because I never actually sent AllNotesOff,
+      I turned it into specific offs.
+    . One way is to defer reset until im is also done, but actually I don't
+      know that.  So how about remove reset?  Why do I have it?  Could I get
+      hanging notes without it?
+    . Maybe a better compromise is to send a real AllNotesOff on space, but
+      otherwise rely on Midi.Interface tracking.
+    . I could also use something else for im stop, like ResetAllControllers,
+      which space emits.  Or have a HardAllNotesOff which actually emits that,
+      and do it on space, but otherwise use note tracking in Midi.Interface.
+  - I want to do vibrato and vibrato depth, but it's a pain to add new tracks.
+    . But it should be in pitch, do I have vibrato settings there?
+    . Maybe I should use the provided ways though, or at least be able to.
+      This is into that problem of control tracks that generate >1 control.
+    . Long ago there was a splice idea to change control track titles in the
+      middle, but for multiple values, that's what ControlMod is for.
+    . What if I have a vib call that emits vib and vib-speed?  This is uneasy,
+      like all ControlMods, since it's independent from the control track,
+      instead just being a generic control.  If I pursued this to its
+      conclusion, then we would just have one kind of generic control track,
+      and use names for all the controls.
   - Move-up and move-down with merged tracks should be consistent.
     . E.g. it's confusing when move-up doesn't move the note, but does move
       the merged pitch or dyn.
@@ -2812,7 +2842,7 @@ synth: im:
       - make kin and tan use y j like in mridangam?
         * At least put them closer to nam and din.
       - o is too high pitched, I need to re-record
-        . It would be nice to get a really low pitch long like with pakhawaj.
+        . It would be nice to get a really low pitch long thom like pakhawaj.
       - sampler levels too sensitive, only the a0-ff range is really usable.
         . But the example ranges in save/test/sampler/mridangam seem ok, what
           gives?
@@ -2826,6 +2856,8 @@ synth: im:
     - record mridangam sequences like kita and dikutarikitataka and use
       rubberband to fit them into shape
       . Compare with rendering via samples and see what's different.
+      . Rubberband actually is pretty bad for percussion, maybe I have to use
+        a 'break' approach.
     rubberband:
       - support set_key_frame_map(), for offline only
       - write streaming binding
@@ -4842,6 +4874,9 @@ fltk:
           hooked up with another library:
           https://skia.org/user/tips#font-hinting
         . https://github.com/toptensoftware/RichTextKit - but I think it's C#.
+      tiny-skia: rust
+        . Skia is huge and complicated.
+        . https://github.com/RazrFalcon/tiny-skia
       webrender:
         . Rendering engine in rust for servo.
       https://blend2d.com/

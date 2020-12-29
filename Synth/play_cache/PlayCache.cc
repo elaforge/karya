@@ -194,10 +194,8 @@ PlayCache::start(int32_t start_offset)
         LOG("play received, but score_path is empty");
         return;
     }
-    LOG("start playing at start_offset " << start_offset
-        << " block '" << play_config.score_path
-        << "' from frame " << start_frame);
-
+    LOG("start playing '" << play_config.score_path << "' from frame "
+        << start_frame);
     samples_dir.clear();
     samples_dir += cache_dir;
     samples_dir += play_config.score_path;
