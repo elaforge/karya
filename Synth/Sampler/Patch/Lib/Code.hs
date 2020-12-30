@@ -15,12 +15,14 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
+-- | Modify a deriver to add 'Controls.variation', for patches that use it.
 withVariation :: Derive.Deriver a -> Derive.Deriver a
 withVariation deriver =
     ifM (Derive.is_control_set Controls.variation) deriver $ do
         n <- Call.random
         Derive.with_constant_control Controls.variation n deriver
 
+-- | Like 'withVariation', but use a normal distribution.
 withVariationNormal :: Double -> Derive.Deriver a -> Derive.Deriver a
 withVariationNormal stddev deriver =
     ifM (Derive.is_control_set Controls.variation) deriver $ do

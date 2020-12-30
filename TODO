@@ -1661,7 +1661,71 @@ Util.Segment: linear: linear piecewise signal: signal-discontinuity:
       in a single val call, which I don't really use.
 
   reimplement:
-    - implement Warp.compose_hybrid
+    - Tempo.with_hybrid
+      How it used to work:
+        . Get RealTime for (0, 1), which is the desired duration.
+        . Leave the warp signal as 0 in the stretchy spots, compose would do
+          special handling.  I can't do that now that compose is just
+          a function.
+      who sholud be stretchy?
+        1. Nonzero stretches, by ratio of its value, but 0 doesn't.
+        2. Zero stretches while nonzero plays in realtime.
+
+        Is there any difference in expressiveness?
+
+        1, if I go 1 to 0, then it gets relatively slower within the limits of
+        the block dur, until it snaps to 1:1 at 0.
+        2, it gets relatively slower until it snaps to linear, but at whatever
+        speed determined by the block dur.
+
+        1, I can control the relative stretch of the stretchy bits, but
+        unstretchy bits are always 1:1.
+        2, I control relative speed of the unstretchy bits, like 'tempo abs',
+        but stretchy bits always stretch the same amount.
+
+        1, for grace notes, I put attack and release in as 0 tempo and have to
+        place them with seconds.  Then sustain is 1 tempo.
+        1, for karvai, then I put notes in as absolute time and karvai is
+        1 tempo.  If I increase the the whole tempo, then karvai decreases,
+        but the notes don't.
+
+        2, for grace notes, I can put attack and release in as say 8th notes,
+        but I can adjust them with tempo.  Sustain is 0.
+        2, for karvai, I can adjust strokes absolute time with a tempo, and
+        karvai is 0.  But the strokes are still in absolute time, so they
+        don't follow the piece's timing.  Or actually they do, because I make
+        the call duration appropriate.  So actually I think 1 and 2 are
+        correct in the same way.
+
+        1, I can make the stretchy bits stretch at different ratios but all
+        absolute bits are in the same timing. I can't think of much use for
+        it, over making the spaces twice as long.
+        2, I can make the absolute bits have tempo, which is actually
+        potentially usable because it becomes the same tempo "regime" as the
+        toplevel.
+
+        There is a whole other axis of difference:
+
+        1. I coud be like abs tempo, and block tempo is still bounded by call
+        dur, but not affected by tempo *changes* during its extent.
+
+        2. Or I could say that unstretchy time is actually realtime.
+
+        I think 1 is confusing, 2 is more useful.  Tempo changes during a call
+        are just things like global accel.  I actually *do* want to let that
+        through, say for karvai, it should affect the non-stretchy notes.
+      . Tempo to warp: this is the same Signal.integrate_inverse, except first
+        I have to patch 0 segments.
+      . They become linear at a speed such that the block becomes the desired
+        duration, while non-zero gets stretched such that it cancels out the
+        surrounding warp.
+      . That means that each block dur has to do a different warp, which is
+        why it used to be in compose.
+      . So I may need to add WarpHybrid to Warp.Warp.
+      . Well, it needs to be a function to compose with other functions.
+        The difference is that this one is
+
+      . Called from Internal.warp from Tempo.with_tempo
     / SignalTransform.c_quantize.
       . It will have to find where segments intersect the quantize multiples.
       . Don't bother for now.
@@ -2684,6 +2748,7 @@ synth: im:
           automatically.  Not sure if that's any different from reaper's
           "dynamic splits".
       . what about tabla and mridangam?
+        Can I find some recordings of a plain sarvalaghu / tekha sequence?
     rambat:
       - No thru for >ra.  I guess this is the same problem that caused me to
         want to refactor how thru is handled.  refactor thru:
@@ -2830,6 +2895,31 @@ synth: im:
           channel.  Of course if there are 21 or 200 then you run out.
         . So only do the pitch curve merge if Note.element is set, and look
           for equal Note.elements.
+    gong bali:
+      - cengceng
+      - cengceng kopyak
+      - kajar
+      + ScGamelan sc-gong
+        / attributes are not as appropriate as Note.element, but all the
+          existing setup is for attributes.
+        * naturalNn for gongs depends on the gong, so it needs to be
+          a function attr -> PitchNumber.
+        - LittleGong is the nearest, but does it support variation properly?
+          . No, fix both it and sc-gong.
+        * Unlike the other drums, I'm using explicit velocity ranges, not an
+          ordered list which implicitly covers the range evenly.
+        * requested (rate, channels) (44100,2) but file had (96000,2)
+          . Maybe permanently resample them?
+          . resample: 13gb -> 6.6gb -> flac 1.6gb
+        * Ok, now pitch is really high.
+          . Get the nns right.
+          . I could unset with #=_, but patch wants a pitch signal.
+        - It's not convenient to set pitch for each gong, since usually they
+          are set once.  They should default to natural pitch, but have
+          a switch to take a pitch signal.
+          . Wouldn't it be simpler to just take the pitch in that switch?
+            Well, not if I want to do fancy pitch stuff, that's what the pitch
+            track is for.  But I don't want to do that now.
     mridangam:
       * exception entering both hands strokes:
         Cmd/Instrument/CUtil.hs:164 multiple events when evaluating:

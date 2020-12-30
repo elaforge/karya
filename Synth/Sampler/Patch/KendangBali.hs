@@ -17,6 +17,7 @@ import qualified Instrument.Common as Common
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Patch.Lib.Drum as Drum
 import qualified Synth.Sampler.Patch.Lib.Util as Util
+import qualified Synth.Shared.Signal as Signal
 
 import qualified Ui.UiConfig as UiConfig
 
@@ -106,16 +107,20 @@ attributeMap =
 convertMap :: Tuning -> Drum.ConvertMap Articulation
 convertMap tuning = Drum.ConvertMap
     { _dynRange = (0.4, 1.15)
-    , _variationRange = 0.15
     , _naturalNn = Nothing
-    , _muteTime = 0.05
+    , _muteTime = Just 0.05
     , _convertAttributeMap = attributeMap
-    , _articulationSamples = case tuning of
+    , _getFilename = getFilename tuning
+    }
+
+getFilename :: Tuning -> Articulation -> Signal.Y -> Signal.Y -> FilePath
+getFilename tuning = \art dyn var ->
+    "legong" </> Util.showLower tuning
+        </> Drum.variableDynamic 0.15 get art dyn var
+    where
+    get = case tuning of
         Wadon -> legongWadonSamples
         Lanang -> legongLanangSamples
-    -- Directory structure: legong/{lanang,wadon}/$attr/variable-samples.wav
-    , _dirPrefix = "legong" </> Util.showLower tuning
-    }
 
 makeSampleLists :: IO ()
 makeSampleLists = do

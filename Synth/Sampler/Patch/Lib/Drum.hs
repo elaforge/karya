@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# OPTIONS_GHC -Wno-redundant-constraints #-} -- enumFunction
 {- | Utilities shared between drum patches.
 
     The base structure is that a drum has an enumeration of articulations,
@@ -19,6 +20,7 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Tuple as Tuple
+import qualified Data.Typeable as Typeable
 
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
@@ -58,51 +60,60 @@ data ConvertMap art = ConvertMap {
     -- that's a lot of work and for the moment scaling everything seems to
     -- be ok.
     _dynRange :: (Signal.Y, Signal.Y)
-    -- | A note may pick a sample of this much dyn difference on either side.
-    , _variationRange :: Signal.Y
     -- | If Just, use the note's pitch, assuming ratio=1 will be this pitch.
-    ,  _naturalNn :: Maybe Pitch.NoteNumber
+    ,  _naturalNn :: Maybe (art -> Pitch.NoteNumber)
     -- | Time to mute at the end of a note.
-    , _muteTime :: RealTime.RealTime
+    , _muteTime :: Maybe RealTime.RealTime
     , _convertAttributeMap :: Common.AttributeMap art
-    , _articulationSamples :: art -> [FilePath]
-    -- | Optionally look for the result of _articulationSamples in this
-    -- subdirectory.
-    , _dirPrefix :: FilePath
+    -- | articulation -> dynamic -> variation -> FilePath.
+    , _getFilename :: art -> Signal.Y -> Signal.Y -> FilePath
     }
 
+-- | Create a '_getFilename' with the strategy where each articulation has
+-- a @[FilePath]@, sorted evenly over the dynamic range.
+variableDynamic :: Show art
+    -- | A note may pick a sample of this much dyn difference on either side.
+    => Signal.Y -> (art -> [FilePath])
+    -> (art -> Signal.Y -> Signal.Y -> FilePath)
+variableDynamic variationRange articulationSamples = \art dyn var ->
+    show art </> Util.pickDynamicVariation variationRange
+        (articulationSamples art) dyn var
+
 -- | Make a generic convert, suitable for drum type patches.
-convert :: Show art => ConvertMap art -> Note.Note
-    -> Patch.ConvertM Sample.Sample
-convert (ConvertMap (minDyn, maxDyn) variationRange naturalNn muteTime
-        attributeMap articulationSamples dirPrefix) =
+convert :: ConvertMap art -> Note.Note -> Patch.ConvertM Sample.Sample
+convert (ConvertMap (minDyn, maxDyn) naturalNn muteTime attributeMap
+        getFilename) =
     \note -> do
         articulation <- Util.articulation attributeMap (Note.attributes note)
         let dynVal = Note.initial0 Control.dynamic note
         let var = maybe 0 (subtract 1 . (*2)) $
                 Note.initial Control.variation note
-        let filename = dirPrefix </> show articulation
-                </> Util.pickDynamicVariation variationRange
-                    (articulationSamples articulation) dynVal var
+        let filename = getFilename articulation dynVal var
         let noteDyn = Num.scale minDyn maxDyn dynVal
         ratio <- case naturalNn of
             Nothing -> return 1
-            Just nn -> Sample.pitchToRatio nn <$> Util.initialPitch note
+            Just artNn -> Sample.pitchToRatio (artNn articulation) <$>
+                Util.initialPitch note
         return $ (Sample.make filename)
-            { Sample.envelope = Util.asr noteDyn muteTime note
+            { Sample.envelope = case muteTime of
+                Nothing -> Signal.constant 1
+                Just time -> Util.asr noteDyn time note
             , Sample.ratios = Signal.constant ratio
             }
 
 patch :: ConvertMap art -> ImInst.Patch
-patch convertMap = ImInst.make_patch $ Im.Patch.patch
+patch convertMap = patch_
+    (const () <$> _convertAttributeMap convertMap)
+    (Maybe.isJust (_naturalNn convertMap))
+
+patch_ :: Common.AttributeMap () -> Bool -> ImInst.Patch
+patch_ attributeMap hasNaturalNn = ImInst.make_patch $ Im.Patch.patch
     { Im.Patch.patch_controls = mconcat
         [ Control.supportDyn
         , Control.supportVariation
-        , if Maybe.isJust (_naturalNn convertMap)
-            then Control.supportPitch else mempty
+        , if hasNaturalNn then Control.supportPitch else mempty
         ]
-    , Im.Patch.patch_attribute_map =
-        const () <$> _convertAttributeMap convertMap
+    , Im.Patch.patch_attribute_map = attributeMap
     }
 
 -- * StrokeMap
@@ -204,11 +215,13 @@ makeFileList dir articulations variableName = do
     forM_ articulations $ \art -> do
         fns <- Seq.sort_on filenameSortKey <$>
             Directory.listDirectory (Config.unsafeSamplerRoot </> dir </> art)
-        putStrLn $ "    " <> art <> " ->"
-        let indent = replicate 8 ' '
-        putStrLn $ indent <> "[ " <> show (head fns)
-        mapM_ (\fn -> putStrLn $ indent <> ", " <> show fn) (tail fns)
-        putStrLn $ indent <> "]"
+        putStrLn $ indent <> art <> " ->"
+        putStrLn $ indent2 <> "[ " <> show (head fns)
+        mapM_ (\fn -> putStrLn $ indent2 <> ", " <> show fn) (tail fns)
+        putStrLn $ indent2 <> "]"
+    where
+    indent = replicate 4 ' '
+    indent2 = indent <> indent
 
 filenameSortKey :: FilePath -> Int
 filenameSortKey fname =
@@ -216,3 +229,19 @@ filenameSortKey fname =
     where
     parse = Seq.head . mapMaybe Read.readMaybe . reverse . Seq.split "-"
         . FilePath.dropExtension
+
+-- | Emit haskell code for a function from an Enum to lists.  @Enum a@ is
+-- redundant according to ghc, but I want it anyway.
+enumFunction
+    :: (Enum a, Typeable.Typeable a, Show a, Typeable.Typeable b, Pretty b)
+    => String -> [(a, [b])] -> [String]
+enumFunction name abs@((a0, b0) : _) =
+    [ name <> " :: " <> show (Typeable.typeOf a0)
+        <> " -> " <> show (Typeable.typeOf b0)
+    , name <> " = \\case"
+    ] ++ concatMap (indent . makeCase) abs
+    where
+    makeCase (a, bs) = show a <> " ->"
+        : indent (Seq.map_head_tail ("[ "<>) (", "<>) (map prettys bs) ++ ["]"])
+    indent = map (replicate 4 ' ' <>)
+enumFunction name _ = error $ "function has no values: " <> name

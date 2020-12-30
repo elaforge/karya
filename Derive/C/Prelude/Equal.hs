@@ -233,14 +233,15 @@ parse_equal merge lhs rhs
 parse_equal _ lhs rhs
     -- Assign to pitch control.
     | Just control <- is_pitch =<< parse_val lhs = case rhs of
-        DeriveT.VPitch rhs -> Right $ \deriver ->
-            Derive.with_named_pitch control (PSignal.constant rhs) deriver
+        DeriveT.VPitch rhs ->
+            Right $ Derive.with_named_pitch control (PSignal.constant rhs)
         DeriveT.VPControlRef rhs -> Right $ \deriver -> do
             sig <- Call.to_psignal rhs
             Derive.with_named_pitch control sig deriver
-        DeriveT.VNum (ScoreT.Typed ScoreT.Nn nn) -> Right $ \deriver ->
-            Derive.with_named_pitch control
-                (PSignal.constant (PSignal.nn_pitch (Pitch.nn nn))) deriver
+        DeriveT.VNum (ScoreT.Typed ScoreT.Nn nn) ->
+            Right $ Derive.with_named_pitch control
+                (PSignal.constant (PSignal.nn_pitch (Pitch.nn nn)))
+        DeriveT.VNotGiven -> Right $ Derive.with_named_pitch control mempty
         _ -> Left $ "binding a pitch signal expected a pitch, pitch"
             <> " control, or nn, but got " <> pretty (ValType.type_of rhs)
     where

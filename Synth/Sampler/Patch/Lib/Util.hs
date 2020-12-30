@@ -108,17 +108,16 @@ variation variations = pick . Note.initial0 Control.variation
     where pick var = round (var * fromIntegral (variations - 1))
 
 chooseVariation :: [a] -> Note.Note -> a
-chooseVariation xs = pick . Note.initial0 Control.variation
-    where pick var = xs !! round (var * fromIntegral (length xs - 1))
+chooseVariation as = pickVariation as . Note.initial0 Control.variation
+
+pickVariation :: [a] -> Double -> a
+pickVariation as var =
+    as !! round (Num.clamp 0 1 var * fromIntegral (length as - 1))
 
 -- | Pick from a list of dynamic variations.
 pickDynamicVariation :: Double -> [a] -> Double -> Double -> a
 pickDynamicVariation variationRange samples dyn var =
     pickVariation samples (Num.clamp 0 1 (dyn + var * variationRange))
-
-pickVariation :: [a] -> Double -> a
-pickVariation xs val =
-    xs !! round (Num.clamp 0 1 val * fromIntegral (length xs - 1))
 
 -- ** envelope
 
@@ -166,6 +165,10 @@ thruFunction sampleDir convert =
         return $ Sample.toOsc sampleDir sample
 
 -- * util
+
+requireMap :: (Ord k, Show k) => Text -> Map k a -> k -> Patch.ConvertM a
+requireMap name m k =
+    tryJust ("no " <> name <> ": " <> showt k) $ Map.lookup k m
 
 enumAll :: (Enum a, Bounded a) => [a]
 enumAll = [minBound .. maxBound]

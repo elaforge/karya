@@ -124,6 +124,9 @@ add_environ key val =
 newtype AttributeMap a = AttributeMap [(Attrs.Attributes, a)]
     deriving (Eq, Show, Pretty, Functor, Serialize.Serialize)
 
+empty_attribute_map :: AttributeMap a
+empty_attribute_map = AttributeMap []
+
 attribute_map :: [(Attrs.Attributes, a)] -> AttributeMap a
 attribute_map = sort_attribute_map . AttributeMap
 

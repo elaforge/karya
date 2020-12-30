@@ -18,8 +18,7 @@ patches = (:[]) $ Patch.DbPatch $ (Patch.patch patchName)
     { Patch._dir = dir
     , Patch._convert = convert
     , Patch._preprocess = Drum.inferDuration strokeMap
-    , Patch._karyaPatch =
-        CUtil.im_drum_patch (Drum._strokes strokeMap) $
+    , Patch._karyaPatch = CUtil.im_drum_patch (Drum._strokes strokeMap) $
         ImInst.code #= code $ Drum.patch convertMap
     }
     where
@@ -37,12 +36,10 @@ data Articulation = OpenCenter | MuteCenter | OpenEdge | MuteEdge
 convertMap :: Drum.ConvertMap Articulation
 convertMap = Drum.ConvertMap
     { _dynRange = (0.8, 1.15)
-    , _variationRange = 0.15
-    , _naturalNn = Just 79.92 -- 5g#
-    , _muteTime = 0.15
+    , _naturalNn = Just (const 79.92) -- 5g#
+    , _muteTime = Just 0.15
     , _convertAttributeMap = Drum._attributeMap strokeMap
-    , _articulationSamples = articulationSamples
-    , _dirPrefix = ""
+    , _getFilename = Drum.variableDynamic 0.15 articulationSamples
     }
 
 strokeMap :: Drum.StrokeMap Articulation

@@ -57,12 +57,10 @@ attributeMap = Common.attribute_map
 convertMap :: Drum.ConvertMap Articulation
 convertMap = Drum.ConvertMap
     { _dynRange = (0.4, 1.15)
-    , _variationRange = 0.15
-    , _naturalNn = Just naturalNn
-    , _muteTime = 0.05
+    , _naturalNn = Just (const naturalNn)
+    , _muteTime = Just 0.05
     , _convertAttributeMap = attributeMap
-    , _articulationSamples = articulationSamples
-    , _dirPrefix = ""
+    , _getFilename = Drum.variableDynamic 0.15 articulationSamples
     }
 
 naturalNn :: Pitch.NoteNumber
