@@ -15,7 +15,6 @@ import           Global
 patches :: [Patch.DbPatch]
 patches = (:[]) $ Patch.DbPatch $
     Drum.patch dir patchName strokeMap convertMap (const CUtil.call_config)
-        True
     where dir = untxt patchName
 
 patchName :: Text

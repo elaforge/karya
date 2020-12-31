@@ -59,25 +59,25 @@ import           Global
 
 -- | Make a complete sampler patch with all the drum bits.
 patch :: Ord art => FilePath -> Note.PatchName -> StrokeMap art
-    -> ConvertMap art -> (Maybe art -> CUtil.CallConfig) -> Bool
-    -> Patch.Patch
-patch dir name strokeMap convertMap configOf doInferDuration =
+    -> ConvertMap art -> (Maybe art -> CUtil.CallConfig) -> Patch.Patch
+patch dir name strokeMap convertMap configOf =
     (Patch.patch name)
     { Patch._dir = dir
     , Patch._preprocess =
-        if doInferDuration then inferDuration strokeMap else id
+        if Map.null (_stops strokeMap) then id else inferDuration strokeMap
     , Patch._convert = convert convertMap
-    , Patch._karyaPatch = karyaPatch dir strokeMap convertMap configOf
+    , Patch._karyaPatch = karyaPatch dir strokeMap convertMap configOf []
     }
 
 -- | Make a patch with the drum-oriented code in there already.
 karyaPatch :: FilePath -> StrokeMap art -> ConvertMap art
-    -> (Maybe art -> CUtil.CallConfig) -> ImInst.Patch
-karyaPatch dir strokeMap convertMap configOf =
+    -> (Maybe art -> CUtil.CallConfig) -> [(Char, Expr.Symbol)]
+    -> ImInst.Patch
+karyaPatch dir strokeMap convertMap configOf extraCmds =
     CUtil.im_drum_patch (_strokes strokeMap) $
         ImInst.code #= code $ karyaPatch_ convertMap
     where
-    code = CUtil.drum_code thru $
+    code = CUtil.drum_code_cmd extraCmds thru $
         zip (_strokes strokeMap)
             (map (set . configOf) (_articulations strokeMap))
     set config = config { CUtil._transform = Code.withVariation }

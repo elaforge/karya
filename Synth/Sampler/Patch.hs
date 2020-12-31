@@ -95,6 +95,10 @@ simple name filename sampleNn = (patch name)
         }
     }
 
+addCode :: ImInst.Code -> Patch -> Patch
+addCode code patch = patch
+    { _karyaPatch = ImInst.code %= (code<>) $ _karyaPatch patch }
+
 type ConvertM a = Log.LogT (Except.ExceptT Error Identity.Identity) a
 type Error = Text
 

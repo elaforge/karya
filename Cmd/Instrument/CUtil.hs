@@ -62,8 +62,7 @@ import           Types
 -- * eval call
 
 insert_call :: Cmd.M m => Thru -> [(Char, Expr.Symbol)] -> Cmd.Handler m
-insert_call thru char_syms =
-    insert_expr thru $ Cmd.WithoutOctave char_to_expr
+insert_call thru char_syms = insert_expr thru (Cmd.WithoutOctave char_to_expr)
     where
     to_expr call = Expr.generator0 call
     char_to_expr = Map.fromList $
@@ -74,7 +73,12 @@ strokes_to_calls strokes = [(Drums._char s, Drums._name s) | s <- strokes]
 
 -- | Select the flavor of thru to use when inserting an expression.  This
 -- selects either 'expr_midi_thru' or 'expr_im_thru'.
-data Thru = MidiThru | ImThru !Osc.ThruFunction
+--
+-- Choosing manually is silly because the valid kind of thru depends on the
+-- patch type.  It's just that due to history and wanting to avoid duplicated
+-- code, the Cmd and Derive code in here doesn't care about MIDI vs. im...
+-- except for thru.
+data Thru = MidiThru | ImThru !Osc.ThruFunction | NoThru
     -- WRT ImThru, I can't just delegate to MidiThru.cmd_midi_thru because it
     -- doesn't know about the attrs, since it uses
     -- Cmd.get_instrument_attributes.
@@ -105,6 +109,7 @@ insert_expr thru note_entry_map = handler $ \msg -> do
             | otherwise -> return Cmd.Continue
         Just expr -> do
             case thru of
+                NoThru -> return ()
                 MidiThru -> expr_midi_thru kstate expr
                 ImThru thru_f -> case kstate of
                     UiMsg.KeyDown ->
@@ -259,20 +264,23 @@ simple_drum thru tuning_control stroke_keys patch =
 -- | Construct code from drum strokes.  This is both the deriver calls to
 -- interpret the stroke names, and the cmds to enter them.
 drum_code :: Thru -> [(Drums.Stroke, CallConfig)] -> MidiInst.Code
-drum_code thru stroke_configs =
-    MidiInst.note_generators (drum_calls stroke_configs)
-    <> MidiInst.cmd (drum_cmd thru (map fst stroke_configs))
+drum_code = drum_code_cmd []
 
-drum_code_tuning_control :: Thru -> ScoreT.Control -> [Drums.Stroke]
+-- | 'drum_code', but with the opportunity to insert extra keys for
+-- 'insert_call'.  This is because 'insert_expr' can't be stacked, since it
+-- consumes kbd entry keys it doesn't map, since it's confusing if it doesn't.
+drum_code_cmd :: [(Char, Expr.Symbol)] -> Thru -> [(Drums.Stroke, CallConfig)]
     -> MidiInst.Code
-drum_code_tuning_control thru tuning_control = drum_code thru . map (,config)
-    where config = call_config { _tuning_control = Just tuning_control }
+drum_code_cmd extra_cmds thru stroke_configs =
+    MidiInst.note_generators (drum_calls stroke_configs)
+    <> MidiInst.cmd (drum_cmd extra_cmds thru (map fst stroke_configs))
 
 drum_code_ :: Thru -> [Drums.Stroke] -> MidiInst.Code
 drum_code_ thru = drum_code thru . map (,call_config)
 
-drum_cmd :: Cmd.M m => Thru -> [Drums.Stroke] -> Cmd.Handler m
-drum_cmd thru = insert_call thru . strokes_to_calls
+drum_cmd :: Cmd.M m => [(Char, Expr.Symbol)] -> Thru -> [Drums.Stroke]
+    -> Cmd.Handler m
+drum_cmd extras thru = insert_call thru . (extras++) . strokes_to_calls
 
 -- ** patch
 

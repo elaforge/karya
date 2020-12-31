@@ -20,7 +20,6 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
 import qualified Derive.Instrument.DUtil as DUtil
-import qualified Derive.ScoreT as ScoreT
 
 import qualified Instrument.InstTypes as InstTypes
 import qualified Midi.Key as Key
@@ -49,15 +48,12 @@ kajar_patch =
         , [("k", Gong.make_cycle "kajar" (Just (Left "o"))
             (Just (Left Meter.Q)))]
         ]
-    config = CUtil.call_config { CUtil._tuning_control = Just tuning_control }
+    config = CUtil.call_config { CUtil._tuning_control = Just "kajar-tune" }
     char_to_call = concat
         [ [(Drums._char s, Drums._name s) | s <- strokes]
         , [(char, sym) | (char, sym, _) <- kajar_special]
         ]
     strokes = map fst kajar_pitched_strokes
-
-tuning_control :: ScoreT.Control
-tuning_control = "kajar-tune"
 
 kajar_pitched_strokes :: CUtil.PitchedStrokes
 (kajar_pitched_strokes, kajar_resolve_errors) =

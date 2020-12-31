@@ -43,8 +43,7 @@ patches = map Patch.DbPatch [gongPatch]
     -- ]
 
 gongPatch :: Patch.Patch
-gongPatch =
-    Drum.patch dir "sc-gong" gongStrokeMap gongConvertMap configOf False
+gongPatch = Drum.patch dir "sc-gong" gongStrokeMap gongConvertMap configOf
     where
     configOf (Just gong) = CUtil.call_config
         { CUtil._natural_nn = Just $ gongNn gong

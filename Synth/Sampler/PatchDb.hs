@@ -14,6 +14,7 @@ import qualified Perform.Im.Patch as Im.Patch
 import qualified Synth.Faust.EffectC as EffectC
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Patch.Break as Break
+import qualified Synth.Sampler.Patch.Kajar as Kajar
 import qualified Synth.Sampler.Patch.KendangBali as KendangBali
 import qualified Synth.Sampler.Patch.LittleGong as LittleGong
 import qualified Synth.Sampler.Patch.Metronome as Metronome
@@ -33,6 +34,7 @@ import           Global
 db :: Patch.Db
 db = Patch.db Config.unsafeSamplerRoot $ concat
     [ Break.patches
+    , Kajar.patches
     , KendangBali.patches
     , LittleGong.patches
     , Metronome.patches

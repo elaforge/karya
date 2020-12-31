@@ -28,7 +28,7 @@ patches :: [Patch.DbPatch]
 patches = pasang : map (Patch.DbPatch . make) [Wadon, Lanang]
     where
     make tuning =
-        Drum.patch dir name strokeMap (convertMap tuning) (const config) True
+        Drum.patch dir name strokeMap (convertMap tuning) (const config)
         where name = patchName <> "-" <> txt (Util.showLower tuning)
     config = CUtil.call_config { CUtil._tuning_control = Just "kendang-tune" }
     dir = untxt patchName

@@ -29,6 +29,7 @@ import Global
 import Types
 
 
+test_insert_call :: Test
 test_insert_call = do
     let note_on key = Midi.ChannelMessage 0 (Midi.NoteOn key 127)
         note_off key = Midi.ChannelMessage 0 (Midi.NoteOff key 127)
@@ -65,6 +66,7 @@ set_edit_mode val_edit state = state
     , Cmd.state_kbd_entry = True
     }
 
+test_drum_instrument :: Test
 test_drum_instrument = do
     let run = DeriveTest.derive_tracks_setup
             (DeriveTest.with_synths_simple allocs [drum_synth]) ""
@@ -89,6 +91,7 @@ test_drum_instrument = do
             run [(">x", [(0, 0, "bd")]), ("dyn", [(0, 0, ".5")])])
         ([0.5], [])
 
+test_make_cc_keymap :: Test
 test_make_cc_keymap = do
     let f = CUtil.make_cc_keymap
         cw = Patch.ControlSwitch
@@ -113,4 +116,4 @@ make_synth stroke_keys = UiTest.make_synth "synth" [patch]
     code =
         MidiInst.note_generators
             (CUtil.drum_calls (map ((,CUtil.call_config) . fst) stroke_keys))
-        <> MidiInst.cmd (CUtil.drum_cmd CUtil.MidiThru (map fst stroke_keys))
+        <> MidiInst.cmd (CUtil.drum_cmd [] CUtil.MidiThru (map fst stroke_keys))

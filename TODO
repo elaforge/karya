@@ -2919,7 +2919,8 @@ synth: im:
     gong bali:
       - cengceng
       - cengceng kopyak
-      - kajar
+      * kajar
+        . Samples already in kontakt.
       * ScGamelan sc-gong
         / attributes are not as appropriate as Note.element, but all the
           existing setup is for attributes.
