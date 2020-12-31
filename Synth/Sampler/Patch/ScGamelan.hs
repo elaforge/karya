@@ -13,11 +13,11 @@ import qualified Text.Read as Read
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Cmd.Instrument.CUtil as CUtil
-import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Attrs as Attrs
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Sampler.Patch as Patch
+import qualified Synth.Sampler.Patch.Lib.Code as Code
 import qualified Synth.Sampler.Patch.Lib.Drum as Drum
 import qualified Synth.Sampler.Patch.Lib.Util as Util
 import qualified Synth.Shared.Config as Config
@@ -43,21 +43,15 @@ patches = map Patch.DbPatch [gongPatch]
     -- ]
 
 gongPatch :: Patch.Patch
-gongPatch = (Patch.patch "sc-gong")
-    { Patch._dir = dir
-    , Patch._convert = convert
-    , Patch._karyaPatch = CUtil.im_drum_patch (Drum._strokes gongStrokeMap) $
-        ImInst.code #= code $ Drum.patch gongConvertMap
-    }
+gongPatch =
+    Drum.patch dir "sc-gong" gongStrokeMap gongConvertMap configOf False
     where
-    convert = Drum.convert gongConvertMap
-    code = CUtil.drum_code thru $ map (second config) $
-        zip (Drum._strokes gongStrokeMap) (Drum._articulations gongStrokeMap)
-    config (Just gong) = CUtil.call_config
-        { CUtil._natural_nn = Just $ gongNn gong }
+    configOf (Just gong) = CUtil.call_config
+        { CUtil._natural_nn = Just $ gongNn gong
+        , CUtil._transform = Code.withVariation
+        }
     -- Drum.strokeMapTable shouldn't put Nothings in there.
-    config Nothing = error "no gong for attrs!?"
-    thru = Util.imThruFunction dir convert
+    configOf Nothing = error "no gong for attrs!?"
     dir = baseDir </> gongsDir
 
 gongStrokeMap :: Drum.StrokeMap Gong

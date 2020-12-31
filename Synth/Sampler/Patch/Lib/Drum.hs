@@ -32,8 +32,10 @@ import qualified Util.Maps as Maps
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
+import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.ImInst as ImInst
+
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Expr as Expr
 import qualified Instrument.Common as Common
@@ -42,6 +44,7 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 
 import qualified Synth.Sampler.Patch as Patch
+import qualified Synth.Sampler.Patch.Lib.Code as Code
 import qualified Synth.Sampler.Patch.Lib.Util as Util
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Config as Config
@@ -51,6 +54,53 @@ import qualified Synth.Shared.Signal as Signal
 
 import           Global
 
+
+-- * patch
+
+-- | Make a complete sampler patch with all the drum bits.
+patch :: Ord art => FilePath -> Note.PatchName -> StrokeMap art
+    -> ConvertMap art -> (Maybe art -> CUtil.CallConfig) -> Bool
+    -> Patch.Patch
+patch dir name strokeMap convertMap configOf doInferDuration =
+    (Patch.patch name)
+    { Patch._dir = dir
+    , Patch._preprocess =
+        if doInferDuration then inferDuration strokeMap else id
+    , Patch._convert = convert convertMap
+    , Patch._karyaPatch = karyaPatch dir strokeMap convertMap configOf
+    }
+
+-- | Make a patch with the drum-oriented code in there already.
+karyaPatch :: FilePath -> StrokeMap art -> ConvertMap art
+    -> (Maybe art -> CUtil.CallConfig) -> ImInst.Patch
+karyaPatch dir strokeMap convertMap configOf =
+    CUtil.im_drum_patch (_strokes strokeMap) $
+        ImInst.code #= code $ karyaPatch_ convertMap
+    where
+    code = CUtil.drum_code thru $
+        zip (_strokes strokeMap)
+            (map (set . configOf) (_articulations strokeMap))
+    set config = config { CUtil._transform = Code.withVariation }
+    thru = Util.imThruFunction dir (convert convertMap)
+
+-- | Make an unconfigured patch, without code, in case it's too custom for
+-- 'karyaPatch'.
+karyaPatch_ :: ConvertMap art -> ImInst.Patch
+karyaPatch_ convertMap = makePatch
+    (const () <$> _convertAttributeMap convertMap)
+    (Maybe.isJust (_naturalNn convertMap))
+
+makePatch :: Common.AttributeMap () -> Bool -> ImInst.Patch
+makePatch attributeMap hasNaturalNn = ImInst.make_patch $ Im.Patch.patch
+    { Im.Patch.patch_controls = mconcat
+        [ Control.supportDyn
+        , Control.supportVariation
+        , if hasNaturalNn then Control.supportPitch else mempty
+        ]
+    , Im.Patch.patch_attribute_map = attributeMap
+    }
+
+-- * convert
 
 data ConvertMap art = ConvertMap {
     -- | Dyn from 0 to 1 will be scaled to this range.  If the samples are not
@@ -107,21 +157,6 @@ convert (ConvertMap (minDyn, maxDyn) naturalNn muteTime attributeMap
                 Just time -> Util.sustainRelease noteDyn time note
             , Sample.ratios = Signal.constant ratio
             }
-
-patch :: ConvertMap art -> ImInst.Patch
-patch convertMap = patch_
-    (const () <$> _convertAttributeMap convertMap)
-    (Maybe.isJust (_naturalNn convertMap))
-
-patch_ :: Common.AttributeMap () -> Bool -> ImInst.Patch
-patch_ attributeMap hasNaturalNn = ImInst.make_patch $ Im.Patch.patch
-    { Im.Patch.patch_controls = mconcat
-        [ Control.supportDyn
-        , Control.supportVariation
-        , if hasNaturalNn then Control.supportPitch else mempty
-        ]
-    , Im.Patch.patch_attribute_map = attributeMap
-    }
 
 -- * StrokeMap
 

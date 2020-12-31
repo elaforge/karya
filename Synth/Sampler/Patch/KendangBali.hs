@@ -27,20 +27,10 @@ import           Global
 patches :: [Patch.DbPatch]
 patches = pasang : map (Patch.DbPatch . make) [Wadon, Lanang]
     where
-    make tuning = (Patch.patch name)
-        { Patch._dir = dir
-        , Patch._convert = convert
-        , Patch._preprocess = Drum.inferDuration strokeMap
-        , Patch._karyaPatch = CUtil.im_drum_patch (Drum._strokes strokeMap) $
-            ImInst.code #= code $ Drum.patch cmap
-        }
-        where
-        cmap = convertMap tuning
-        convert = Drum.convert cmap
-        name = patchName <> "-" <> txt (Util.showLower tuning)
-        code = CUtil.drum_code_tuning_control thru "kendang-tune"
-            (Drum._strokes strokeMap)
-        thru = Util.imThruFunction dir convert
+    make tuning =
+        Drum.patch dir name strokeMap (convertMap tuning) (const config) True
+        where name = patchName <> "-" <> txt (Util.showLower tuning)
+    config = CUtil.call_config { CUtil._tuning_control = Just "kendang-tune" }
     dir = untxt patchName
 
     -- TODO thru doesn't work for this, because I have to evaluate the call,

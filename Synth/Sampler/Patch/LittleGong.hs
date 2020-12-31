@@ -4,7 +4,6 @@
 
 module Synth.Sampler.Patch.LittleGong (patches) where
 import qualified Cmd.Instrument.CUtil as CUtil
-import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Attrs as Attrs
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Patch.Lib.Drum as Drum
@@ -14,18 +13,10 @@ import           Global
 
 
 patches :: [Patch.DbPatch]
-patches = (:[]) $ Patch.DbPatch $ (Patch.patch patchName)
-    { Patch._dir = dir
-    , Patch._convert = convert
-    , Patch._preprocess = Drum.inferDuration strokeMap
-    , Patch._karyaPatch = CUtil.im_drum_patch (Drum._strokes strokeMap) $
-        ImInst.code #= code $ Drum.patch convertMap
-    }
-    where
-    convert = Drum.convert convertMap
-    code = CUtil.drum_code_ thru (Drum._strokes strokeMap)
-    thru = Util.imThruFunction dir convert
-    dir = untxt patchName
+patches = (:[]) $ Patch.DbPatch $
+    Drum.patch dir patchName strokeMap convertMap (const CUtil.call_config)
+        True
+    where dir = untxt patchName
 
 patchName :: Text
 patchName = "little-gong"

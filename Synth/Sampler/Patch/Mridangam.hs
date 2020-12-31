@@ -24,7 +24,7 @@ patches = (:[]) $ Patch.DbPatch $ (Patch.patch patchName)
     , Patch._convert = convert
     , Patch._preprocess = Drum.inferDuration strokeMap
     , Patch._karyaPatch = CUtil.im_drum_patch (Drum._strokes strokeMap) $
-        ImInst.code #= code $ Drum.patch convertMap
+        ImInst.code #= code $ Drum.karyaPatch_ convertMap
     }
     where
     convert = Drum.convert convertMap

@@ -2455,6 +2455,66 @@ synth: im:
         . I'd have to plan out a general purpose interface.  Synthesizers
           that use knowledge of the future would have to be adapted to not
           having that.
+    refactor thru:
+      . Motivated by thru doesn't work in kendang-legong:
+      . MidiThru does an eval, I should do the same for im thru.
+      . The im version of that is eval to Score.Event, then convert.  Don't
+        I already have to do that though?
+      . No, it directly gets pitch, dynamic, attrs and makes a new Note for
+        it.
+      . I could continue down this path by having a special thru for kendang
+        pasang that dispatches samples, but that seems less sustainable than
+        evaluating the expression.
+      . Does it evaluate?  I see scale_input_to_nn.  It's because it comes
+        from attrs and pitch only, not a real event.  Then how does kendang
+        pasang work?  Or rather, how should it work?
+      . The instrument turns keys into attrs.
+      . The eval isn't in MidiThru, it's in CUtil.expr_midi_thru!
+      . Actually im thru already evals the expr, so the attrs should be
+        correct, I just need the instrument.  MIDI works because it already
+        has the instrument address in the MIDI channel.
+      . Just having inst is not that helpful, because I need to map it to
+        its thru function.
+      . If the instrument has changed, then look it up and dispatch.
+      . To do this like MIDI, I have to go to Score.Event, then to
+        Note.Note, then somehow look up patch.  That's tricky because
+        normally I do that through an entirely separate process.
+      . Or, pass the Note to the thru function?  The key thing is I have
+        PatchName, not InstrumentName.  That just comes from resolving the
+        instrument.  I can do that in CUtil.
+      . There's still a disconnect, because PatchName is still across the
+        whole synth, and in fact I might get an entirely different synth.
+      . For the kendang pasang case, I can stuff the tuning into the attrs,
+        but this is specific to kendang pasang.  If I have a generic dummy
+        instrument that's not part of any synth, it won't work.
+      . To really eval, I need to have the thru function in the patch map.
+        Which I actually do... so why not look up instrument, and get the
+        thru function out of that?
+
+      How does thru work?
+        . I get an InputNote Msg, which goes to MidiThru.cmd_midi_thru
+        . If the inst has a ThruFunction, it calls it directly.  Otherwise,
+          it uses scale_input_to_nn to get a pitch and creates the pitch
+          with MIDI.
+        . For drums, instead a key generates an expr, which I evaluate to
+          produce (nn, dyn, attrs).  For MIDI, I run Perform to get the MIDI
+          and write it.  For im, I call a provided function to convert to
+          OSC.
+        . That means drums don't have a ThruFunction, since it comes by
+          another route.  This is confusing, but it's a result of how I have
+          a built-in default pitch-oriented MidiThru.
+      How should thru work?
+          . There are two kinds: pitch oriented keyboard, and Attributes
+            oriented drums.  Then there are two backends, MIDI and Osc.  It's
+            all keyed off of an instrument.
+          . So each patch can have a field for thru.  If it's pitch and MIDI,
+            then invoke the whole NoteEntry.cmds_with_input set.  Actually,
+            this set is complicated, because it's pitched note entry, not just
+            thru.  So actually each patch has a field for general note entry.
+            But it's not keyed by instrument, but by track, since there are
+            control tracks too.  So I only want Info.Note tracks with an
+            instrument, the others continue to use the same Cmd.Track
+            mechanism.
   / I think I want to switch from by-instrument muting to by-track, because
     that's what the UI is.
     . TrackId is not unique.  PlayUtil.filter_track_muted filters out any
@@ -2740,6 +2800,14 @@ synth: im:
       their native scales.  That way other instruments could use them too.
       . Another alternative is that the scale could take instrument into
         account.
+    sampler tests:
+      . There is more and more code in Sampler/Patch/*, but no tests for any
+        of it.  How can I test it?
+      . In general there's no tests for im, because audio is harder to check
+        than MIDI.
+      ? Can I emit something low level but not as low level as MIDI?
+        . sampler-im dump does it!  Can I simplify and serialize those for
+          verify tests?
     break:
       - make a 'bd' or 'sn' than randomly picks one
       . reason "recycle" looks like a commercial product that does something
@@ -2760,70 +2828,23 @@ synth: im:
           general way, so I still want that, because it'll make kendang-legong
           work too.
     kendang-legong:
-      - Thru doesn't work with pasang. refactor thru:
-        . MidiThru does an eval, I should do the same for im thru.
-        . The im version of that is eval to Score.Event, then convert.  Don't
-          I already have to do that though?
-        . No, it directly gets pitch, dynamic, attrs and makes a new Note for
-          it.
-        . I could continue down this path by having a special thru for kendang
-          pasang that dispatches samples, but that seems less sustainable than
-          evaluating the expression.
-        . Does it evaluate?  I see scale_input_to_nn.  It's because it comes
-          from attrs and pitch only, not a real event.  Then how does kendang
-          pasang work?  Or rather, how should it work?
-        . The instrument turns keys into attrs.
-        . The eval isn't in MidiThru, it's in CUtil.expr_midi_thru!
-        . Actually im thru already evals the expr, so the attrs should be
-          correct, I just need the instrument.  MIDI works because it already
-          has the instrument address in the MIDI channel.
-        . Just having inst is not that helpful, because I need to map it to
-          its thru function.
-        . If the instrument has changed, then look it up and dispatch.
-        . To do this like MIDI, I have to go to Score.Event, then to
-          Note.Note, then somehow look up patch.  That's tricky because
-          normally I do that through an entirely separate process.
-        . Or, pass the Note to the thru function?  The key thing is I have
-          PatchName, not InstrumentName.  That just comes from resolving the
-          instrument.  I can do that in CUtil.
-        . There's still a disconnect, because PatchName is still across the
-          whole synth, and in fact I might get an entirely different synth.
-        . For the kendang pasang case, I can stuff the tuning into the attrs,
-          but this is specific to kendang pasang.  If I have a generic dummy
-          instrument that's not part of any synth, it won't work.
-        . To really eval, I need to have the thru function in the patch map.
-          Which I actually do... so why not look up instrument, and get the
-          thru function out of that?
-
-        How does thru work?
-          . I get an InputNote Msg, which goes to MidiThru.cmd_midi_thru
-          . If the inst has a ThruFunction, it calls it directly.  Otherwise,
-            it uses scale_input_to_nn to get a pitch and creates the pitch
-            with MIDI.
-          . For drums, instead a key generates an expr, which I evaluate to
-            produce (nn, dyn, attrs).  For MIDI, I run Perform to get the MIDI
-            and write it.  For im, I call a provided function to convert to
-            OSC.
-          . That means drums don't have a ThruFunction, since it comes by
-            another route.  This is confusing, but it's a result of how I have
-            a built-in default pitch-oriented MidiThru.
-        How should thru work?
-          . There are two kinds: pitch oriented keyboard, and Attributes
-            oriented drums.  Then there are two backends, MIDI and Osc.  It's
-            all keyed off of an instrument.
-          . So each patch can have a field for thru.  If it's pitch and MIDI,
-            then invoke the whole NoteEntry.cmds_with_input set.  Actually,
-            this set is complicated, because it's pitched note entry, not just
-            thru.  So actually each patch has a field for general note entry.
-            But it's not keyed by instrument, but by track, since there are
-            control tracks too.  So I only want Info.Note tracks with an
-            instrument, the others continue to use the same Cmd.Track
-            mechanism.
+      - Thru doesn't work with pasang, see refactor thru:
     reyong:
       kilitan:
         . there are natural light accents, e.g. on beats
         - Compare automatic version to tabuh telu version.
-      Dynamic calibration:
+      dynamic calibration:
+        - I need a tool to quickly generate and play a sequence of notes.
+          . It's too slow to recompile and rerun seq.  I should be able to
+            set knobs without recompiling (e.g. volume tweaks for samples).
+            Then rerender and play the audio.
+          . Can I do the rerender from ghci?
+          ? Is there a lightweight sample player that I can invoke from the
+            commandline, and see the waveform and playback position, and
+            click to play from a position?  Basically any sample editor,
+            except start instantly and from the commandline, or be able to
+            load the sample automatically.
+            . Can I get reaper to refresh the sample from disk?
         . Alternate reference sample with the testee, adjust testee until they
           sound the same.  Record the negated number as the offset.  Reaktor
           should have a dB scale fader.
@@ -2899,12 +2920,12 @@ synth: im:
       - cengceng
       - cengceng kopyak
       - kajar
-      + ScGamelan sc-gong
+      * ScGamelan sc-gong
         / attributes are not as appropriate as Note.element, but all the
           existing setup is for attributes.
         * naturalNn for gongs depends on the gong, so it needs to be
           a function attr -> PitchNumber.
-        - LittleGong is the nearest, but does it support variation properly?
+        * LittleGong is the nearest, but does it support variation properly?
           . No, fix both it and sc-gong.
         * Unlike the other drums, I'm using explicit velocity ranges, not an
           ordered list which implicitly covers the range evenly.
@@ -2920,13 +2941,24 @@ synth: im:
           . Wouldn't it be simpler to just take the pitch in that switch?
             Well, not if I want to do fancy pitch stuff, that's what the pitch
             track is for.  But I don't want to do that now.
-      - Smooth out dynamics.
+      / Smooth out dynamics.
         . Kontakt version is smooth, but mine isn't.
         . I think dynRange just exacerbates jumps instead of smoothing them,
           because it's global across the whole range.  Instead, it should be
           for each sample.
         . How does kontakt do it?  Naturally it's not really documented, but
           I'd guess velocity -> volume response is per-group.
+        . I need to know the dynamic bounds for each sample, so I can tell
+          where I am in them.
+        . Still a big jump from 9 to 10, and then 11 to 12
+        . Maybe the problem is different vel ranges have different widths, so
+          narrow ones get scaled too much.
+        . How about if I do a constant dyn amount per vel?
+        . It's still bumpy, I think I just need ad-hoc adjustments.  I don't
+          know how kontakt does without.
+        . Oh I see, each group also has a hand-tuned volume.  Ok, I guess this
+          means it's all hand-adjusted.
+        . I need a framework, see dynamic calibration:
     mridangam:
       * exception entering both hands strokes:
         Cmd/Instrument/CUtil.hs:164 multiple events when evaluating:
