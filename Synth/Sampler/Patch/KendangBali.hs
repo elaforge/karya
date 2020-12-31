@@ -38,7 +38,7 @@ patches = pasang : map (Patch.DbPatch . make) [Wadon, Lanang]
         cmap = convertMap tuning
         convert = Drum.convert cmap
         name = patchName <> "-" <> txt (Util.showLower tuning)
-        code = CUtil.drum_code thru (Just "kendang-tune")
+        code = CUtil.drum_code_tuning_control thru "kendang-tune"
             (Drum._strokes strokeMap)
         thru = Util.imThruFunction dir convert
     dir = untxt patchName

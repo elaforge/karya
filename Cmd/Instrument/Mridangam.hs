@@ -153,7 +153,7 @@ fingertips = Attrs.attr "fingertips"
 make_code :: CUtil.Thru -> [Attrs.Attributes] -> Pitch.NoteNumber
     -> Maybe (Derive.TransformerF Derive.Note) -> [Drums.Stroke]
     -> [(Expr.Symbol, [Expr.Symbol], Maybe Char)] -> ImInst.Code
-make_code thru pitched_strokes natural_nn transform notes both = mconcat
+make_code thru pitched_strokes natural_nn transform strokes both = mconcat
     [ ImInst.note_generators generators
     , ImInst.val_calls vals
     , ImInst.cmd (CUtil.insert_call thru char_to_call)
@@ -161,16 +161,18 @@ make_code thru pitched_strokes natural_nn transform notes both = mconcat
     where
     add t = map (second (Make.modify_generator_ "" t))
     generators = maybe id add transform $ concat
-        [ CUtil.drum_calls (Just (pitched_strokes, natural_nn)) Nothing notes
+        [ CUtil.drum_calls (zip strokes (map config strokes))
         , DUtil.multiple_calls [(call, subcalls) | (call, subcalls, _) <- both]
         ]
+    config = CUtil.pitched_strokes pitched_strokes natural_nn
+        . Drums._attributes
     vals =
         [ ("natural", Make.constant_val Module.instrument "natural"
             doc (PSignal.nn_pitch natural_nn))
         ]
         where doc = "Emit the drum's recorded pitch. Use like `#=(natural)`."
     char_to_call = concat
-        [ [(Drums._char n, Drums._name n) | n <- notes]
+        [ [(Drums._char n, Drums._name n) | n <- strokes]
         , [(char, call) | (call, _, Just char) <- both]
         ]
 

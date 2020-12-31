@@ -2914,12 +2914,19 @@ synth: im:
         * Ok, now pitch is really high.
           . Get the nns right.
           . I could unset with #=_, but patch wants a pitch signal.
-        - It's not convenient to set pitch for each gong, since usually they
+        * It's not convenient to set pitch for each gong, since usually they
           are set once.  They should default to natural pitch, but have
           a switch to take a pitch signal.
           . Wouldn't it be simpler to just take the pitch in that switch?
             Well, not if I want to do fancy pitch stuff, that's what the pitch
             track is for.  But I don't want to do that now.
+      - Smooth out dynamics.
+        . Kontakt version is smooth, but mine isn't.
+        . I think dynRange just exacerbates jumps instead of smoothing them,
+          because it's global across the whole range.  Instead, it should be
+          for each sample.
+        . How does kontakt do it?  Naturally it's not really documented, but
+          I'd guess velocity -> volume response is per-group.
     mridangam:
       * exception entering both hands strokes:
         Cmd/Instrument/CUtil.hs:164 multiple events when evaluating:
@@ -5548,11 +5555,43 @@ REPL: repl:
     could also get rid of the need for Cmd.Lang.Environ to import everything.
 
 solkattu:
+  + don't render hv as capital, it is ambiguous with both thoppi
+    use a color, that way it's still greppable
+    . It's instance Notation in Realize, which already wants to do this, but
+      then I need to return colors from notation.  But if I do, could
+      I eliminate notationHtml?
   notation conveniences:
-    - g = group
-    - Then I can make tri like r3, but groups the sequence, as does tri_.
+    * g = group
+      . But what if I do more automatic groups?  Like what?
+        tri_ could group repeats and karvai.
+      . It looks like some could use it, but some don't.  E.g. if the sections
+        already have group structure, or are just patterns.
+      . I could have a trig_ variant to put group on, but if group is just
+        'g' then 'tri_ sep (g thing)', which is more orthogonal anyway.
+    / mark karvai groups automatically?  I don't have to highlight it.
+      . If I'm not going to highlight, why bother?
+    / Then I can make tri like r3, but groups the sequence, as does tri_.
       . Find existing uses and delete group, or ensure group make sense.
       . Only apply group if it's not already a group (or pattern or whatever).
+      . Should repeat also group?
+  can I do something like Dsl.Mridangam but for kendang?
+    . I want both KendangTunggal and KendangPasang
+    - Mridangam is hardcoded in Korvai, can I make Korvai polymorphic?
+      . Korvai Sollu -> can be realized as any instrument
+      . Korvai stroke -> can be realized as Instrument stroke.
+      . This requires type equality in realize:
+        realize :: Instrument stroke -> Korvai sollu -> [Note stroke]
+        realize instrument korvai
+          | sollu ~ Sollu = realizeSollu instrument korvai
+          | stroke ~ sollu = realizeInstrument instrument korvai
+          | otherwise = error
+        realizeSollu :: Instrument stroke -> Korvai Sollu -> [Note stroke]
+        realizeInstrument :: Instrument stroke -> Korvai stroke -> [Note stroke]
+      . Since types are otherwise erased, I have to have a runtime type.
+        It's ok to have a sum type with all the instruments.
+      . I want KorvaiType and instFromWhatever to be the same sum type.
+      . The problem boils down to: See Korvai5
+
   - replace is useful to express variations
     . e.g. Mridangam2019.c_19_06_24_a
     . This can perhaps solve "reduction with irregular bits" and

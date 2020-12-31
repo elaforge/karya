@@ -44,11 +44,12 @@ kajar_patch =
     code = MidiInst.cmd (CUtil.insert_call CUtil.MidiThru char_to_call)
         <> MidiInst.note_generators generators
     generators = concat
-        [ CUtil.drum_calls Nothing (Just tuning_control) strokes
+        [ CUtil.drum_calls (map (,config) strokes)
         , [(sym, call) | (_, sym, call) <- kajar_special]
         , [("k", Gong.make_cycle "kajar" (Just (Left "o"))
             (Just (Left Meter.Q)))]
         ]
+    config = CUtil.call_config { CUtil._tuning_control = Just tuning_control }
     char_to_call = concat
         [ [(Drums._char s, Drums._name s) | s <- strokes]
         , [(char, sym) | (char, sym, _) <- kajar_special]

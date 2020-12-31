@@ -36,7 +36,7 @@ patches =
         patch "kendang-bali-pasang"
     ]
     where
-    tunggal_code = CUtil.drum_code CUtil.MidiThru (Just "kendang-tune")
+    tunggal_code = CUtil.drum_code_tuning_control CUtil.MidiThru "kendang-tune"
         (map fst tunggal_strokes)
     patch name = MidiInst.named_patch (-24, 24) name []
 

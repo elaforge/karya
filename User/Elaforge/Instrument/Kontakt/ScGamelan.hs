@@ -35,7 +35,7 @@ synth_name = "kontakt"
 
 patches :: [MidiInst.Patch]
 patches = map add_doc $
-    CUtil.simple_drum CUtil.MidiThru Nothing gong_notes (sc_patch "gong")
+    CUtil.simple_drum CUtil.MidiThru Nothing gong_strokes (sc_patch "gong")
     : CUtil.simple_drum CUtil.MidiThru Nothing kempli_kajar_notes
         (sc_patch "kempli")
     : reyong_ks (ranged_patch Legong.reyong_range "reyong")
@@ -77,7 +77,7 @@ patches = map add_doc $
         [(Attrs.mute, Key2.cs1), (mempty, Key2.c1)]
     reyong_ks = MidiInst.attribute_map #= Patch.single_keyswitches
         [(Attrs.attr "cek", Key2.cs1), (mempty, Key2.c1)]
-    gong_notes =
+    gong_strokes =
         [ (n 'z' "O" (gong <> wadon),   Key2.b1)
         , (n 'x' "o" (gong <> lanang),  Key2.c2)
         , (n 'q' "p" kempur,            Key2.a2)

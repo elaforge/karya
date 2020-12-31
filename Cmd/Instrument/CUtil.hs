@@ -9,6 +9,7 @@
 module Cmd.Instrument.CUtil where
 import qualified Data.Either as Either
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 
 import qualified Util.Seq as Seq
 import qualified App.Config as Config
@@ -249,27 +250,35 @@ simple_drum :: Thru -> Maybe ScoreT.Control -> [(Drums.Stroke, Midi.Key)]
     -> MidiInst.Patch -> MidiInst.Patch
 simple_drum thru tuning_control stroke_keys patch =
     MidiInst.code #= code $ drum_patch stroke_keys patch
-    where code = drum_code thru tuning_control (map fst stroke_keys)
+    where
+    code = drum_code thru (map ((,config) . fst) stroke_keys)
+    config = call_config { _tuning_control = tuning_control }
 
 -- ** code
 
 -- | Construct code from drum strokes.  This is both the deriver calls to
 -- interpret the stroke names, and the cmds to enter them.
-drum_code :: Thru
-    -> Maybe ScoreT.Control -- ^ If given, this control indicates semitone
-    -- offsets above or below the natural pitch.  Actual pitched drums which
-    -- are tuned to a definite note should use 'pitched_drum_patch' and a
-    -- pitch track.
-    -> [Drums.Stroke] -> MidiInst.Code
-drum_code thru tuning_control strokes =
-    MidiInst.note_generators (drum_calls Nothing tuning_control strokes)
-    <> MidiInst.cmd (drum_cmd thru strokes)
+drum_code :: Thru -> [(Drums.Stroke, CallConfig)] -> MidiInst.Code
+drum_code thru stroke_configs =
+    MidiInst.note_generators (drum_calls stroke_configs)
+    <> MidiInst.cmd (drum_cmd thru (map fst stroke_configs))
+
+drum_code_tuning_control :: Thru -> ScoreT.Control -> [Drums.Stroke]
+    -> MidiInst.Code
+drum_code_tuning_control thru tuning_control = drum_code thru . map (,config)
+    where config = call_config { _tuning_control = Just tuning_control }
+
+drum_code_ :: Thru -> [Drums.Stroke] -> MidiInst.Code
+drum_code_ thru = drum_code thru . map (,call_config)
 
 drum_cmd :: Cmd.M m => Thru -> [Drums.Stroke] -> Cmd.Handler m
 drum_cmd thru = insert_call thru . strokes_to_calls
 
 -- ** patch
 
+-- | Create a MIDI patch for the traditional kind of drum instrument where
+-- each different stroke is mapped to a single MIDI keys.  'pitched_drum_patch'
+-- is the variant where each stroke has a range of keys.
 drum_patch :: [(Drums.Stroke, Midi.Key)] -> MidiInst.Patch -> MidiInst.Patch
 drum_patch stroke_keys =
     MidiInst.triggered
@@ -279,14 +288,20 @@ drum_patch stroke_keys =
     keymap = Patch.unpitched_keymap
         [(Drums._attributes stroke, key) | (stroke, key) <- stroke_keys]
 
+-- | im is much simpler than MIDI and doesn't need all the keymap garbage.
+-- However, like 'drum_patch', this just sets patch config, the cmd and deriver
+-- code has to be added separately, see 'drum_code' or 'drum_calls' for that.
 im_drum_patch :: [Drums.Stroke] -> ImInst.Patch -> ImInst.Patch
 im_drum_patch strokes =
     ImInst.triggered . (ImInst.common#Common.call_map #= make_call_map strokes)
 
+-- | Used with 'pitched_attribute_map' for MIDI instruments that do the
+-- strategy of assigning pitch ranges to each drum stroke.
+type PitchedStrokes = [(Drums.Stroke, KeyswitchRange)]
+
 -- | (keyswitch, low, high, root_pitch).  The root pitch is the pitch at the
 -- bottom of the key range, and winds up in 'Patch.PitchedKeymap'.
 type KeyswitchRange = ([Patch.Keyswitch], Midi.Key, Midi.Key, Midi.Key)
-type PitchedStrokes = [(Drums.Stroke, KeyswitchRange)]
 
 -- | Make a KeyswitchRange for each grouped Attributes set.  Attributes in the
 -- same group get the same range and are differentiated by keyswitch.
@@ -342,15 +357,15 @@ pitched_drum_patch :: PitchedStrokes -> MidiInst.Patch -> MidiInst.Patch
 pitched_drum_patch strokes =
     MidiInst.triggered
     . (MidiInst.common#Common.call_map #= make_call_map (map fst strokes))
-    . (MidiInst.patch#Patch.attribute_map #= make_attribute_map strokes)
+    . (MidiInst.patch#Patch.attribute_map #= pitched_attribute_map strokes)
 
 make_call_map :: [Drums.Stroke] -> Common.CallMap
 make_call_map = Map.fromList . map (\n -> (Drums._attributes n, Drums._name n))
 
-make_attribute_map :: PitchedStrokes -> Patch.AttributeMap
-make_attribute_map strokes = Common.attribute_map $ Seq.unique
+pitched_attribute_map :: PitchedStrokes -> Patch.AttributeMap
+pitched_attribute_map strokes = Common.attribute_map $ Seq.unique
     -- It's ok to have Notes with the same (attr, keyswitch), for instance if
-    -- there are loud and soft versions, but make_attribute_map will see them
+    -- there are loud and soft versions, but pitched_attribute_map will see them
     -- as overlapping attrs, so filter out duplicates.
     [ (Drums._attributes stroke, (ks, Just (Patch.PitchedKeymap low high root)))
     | (stroke, (ks, low, high, root)) <- strokes
@@ -371,41 +386,71 @@ drum_pitched_strokes strokes keymap = (found, (not_found, unused))
     find n = maybe (Left n) (Right . (,) n)
         (Map.lookup (Drums._attributes n) keymap)
 
--- | Create 0 duration calls from the given drum strokes.
+-- | Create a 'drum_call' for each Drums.Stroke.
 --
 -- This should probably go in DUtil, but that would make it depend on
 -- "Cmd.Instrument.Drums".
-drum_calls :: Maybe ([Attrs.Attributes], Pitch.NoteNumber)
-    -- ^ If Just, only strokes which are a superset of one of these move with
-    -- the pitch, otherwise the stay at the given NoteNumber.  If Nothing, all
-    -- strokes move with the pitch.
-    -> Maybe ScoreT.Control -> [Drums.Stroke]
+drum_calls :: [(Drums.Stroke, CallConfig)]
     -> [(Expr.Symbol, Derive.Generator Derive.Note)]
-drum_calls pitched_strokes tuning_control = map $ \stroke ->
+drum_calls = map $ \(stroke, config) ->
     ( Drums._name stroke
-    , drum_call (Drums._name stroke) tuning_control (Drums._dynamic stroke)
-        (Drums._attributes stroke) (set_pitch (Drums._attributes stroke))
+    , drum_call
+        (config { _stroke_dyn = Drums._dynamic stroke * _stroke_dyn config })
+        (Drums._name stroke) (Drums._attributes stroke)
     )
-    where
-    set_pitch attrs = case pitched_strokes of
-        Just (pitched, natural_nn) | not (is_pitched pitched attrs) ->
-            Call.with_pitch (PSignal.nn_pitch natural_nn)
-        _ -> id
-    is_pitched pitched attrs = any (Attrs.contain attrs) pitched
 
-drum_call :: Expr.Symbol -> Maybe ScoreT.Control -> Signal.Y
-    -> Attrs.Attributes -> (Derive.NoteDeriver -> Derive.NoteDeriver)
+-- | For 'drum_calls'.  If Just, only strokes which are a superset of one of
+-- these move with the pitch, otherwise the stay at the given NoteNumber.  If
+-- Nothing, all strokes move with the pitch.
+pitched_strokes :: [Attrs.Attributes] -> Pitch.NoteNumber
+    -> Attrs.Attributes -> CallConfig
+pitched_strokes pitched natural_nn attrs
+    | any (Attrs.contain attrs) pitched = call_config
+    | otherwise = call_config
+        { _transform = Derive.with_constant_pitch (PSignal.nn_pitch natural_nn)
+        }
+
+data CallConfig = CallConfig {
+    -- | If set, look at this control for relative pitch adjustment.  For
+    -- unpitched drums which nonetheless can use some tweaking.
+    _tuning_control :: Maybe ScoreT.Control
+    -- | If set, take pitch from a $name-pitch arg, otherwise use the given
+    -- pitch.
+    , _natural_nn :: Maybe Pitch.NoteNumber
+    -- | Multiply dyn signal by this.
+    , _stroke_dyn :: Signal.Y
+    , _transform :: Derive.NoteDeriver -> Derive.NoteDeriver
+    }
+
+call_config :: CallConfig
+call_config = CallConfig
+    { _tuning_control = Nothing
+    , _natural_nn = Nothing
+    , _stroke_dyn = 1
+    , _transform = id
+    }
+
+-- | This is the common deriver call that all drums and drum-like instruments
+-- use at the bottom.
+drum_call :: CallConfig -> Expr.Symbol -> Attrs.Attributes
     -> Derive.Generator Derive.Note
-drum_call (Expr.Symbol name) tuning_control stroke_dyn attrs transform =
-    Derive.generator Module.instrument (Derive.CallName name) Tags.attr doc
-        generate
-    where
-    generate = Sig.call (Sig.defaulted "dyn" 1 "Dyn multiplier.") $ \dyn ->
-        Sub.inverting $ \args ->
+drum_call (CallConfig tuning_control mb_natural_nn stroke_dyn transform)
+        (Expr.Symbol name) attrs =
+    Derive.generator Module.instrument (Derive.CallName name) Tags.attr doc $
+    Sig.call ((,)
+        <$> Sig.defaulted "dyn" 1 "Dyn multiplier."
+        <*> (if Maybe.isNothing mb_natural_nn then pure Nothing
+            else Sig.environ "pitch" Derive.Prefixed Nothing "doc")
+    ) $ \(dyn, mb_pitch) -> Sub.inverting $ \args ->
         Call.multiply_dynamic (stroke_dyn * dyn) $ Call.add_attributes attrs $
-            with_tuning args $ transform $
+            with_tuning args $ transform $ set_pitch mb_pitch $
             Note.default_note Note.no_duration_attributes args
+    where
     with_tuning args = maybe id (apply_tuning_control args) tuning_control
+    set_pitch mb_pitch = case mb_natural_nn of
+        Nothing -> id
+        Just natural_nn -> Derive.with_constant_pitch
+            (fromMaybe (PSignal.nn_pitch natural_nn) mb_pitch)
     doc = case tuning_control of
         Nothing -> ""
         Just control -> "This instrument is unpitched, but its tuning can be\
@@ -418,7 +463,7 @@ apply_tuning_control args control deriver = do
     tuning <- fromMaybe 0 <$>
         (Derive.untyped_control_at control =<< Args.real_start args)
     let nn = NN.middle_c + Pitch.nn tuning
-    Call.with_pitch (PSignal.nn_pitch nn) deriver
+    Derive.with_constant_pitch (PSignal.nn_pitch nn) deriver
 
 -- * util
 

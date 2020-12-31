@@ -38,8 +38,7 @@ patches =
     strokes = map fst pitched_strokes
     code = MidiInst.cmd (CUtil.drum_cmd CUtil.MidiThru strokes)
         <> MidiInst.note_generators
-            (replace_det $
-                CUtil.drum_calls Nothing (Just tuning_control) strokes)
+            (replace_det $ CUtil.drum_calls (map (,call_config) strokes))
 
 replace_det :: [(Expr.Symbol, Derive.Generator Derive.Note)]
     -> [(Expr.Symbol, Derive.Generator Derive.Note)]
@@ -55,9 +54,13 @@ replace_det = (calls++) . filter ((`notElem` map fst calls) . fst)
 
 -- | Just like the default, except force 'pitch_control' to 0.
 c_dong :: Derive.Generator Derive.Note
-c_dong = CUtil.drum_call "o" (Just tuning_control) dyn dong $
-    Derive.with_constant_control pitch_control 0
-    where dyn = 1
+c_dong = CUtil.drum_call config "o" dong
+    where
+    config = call_config
+        { CUtil._transform = Derive.with_constant_control pitch_control 0 }
+
+call_config :: CUtil.CallConfig
+call_config = CUtil.call_config { CUtil._tuning_control = Just tuning_control }
 
 data Pitch = Low | Middle | High deriving (Show)
 

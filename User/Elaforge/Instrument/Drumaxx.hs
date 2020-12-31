@@ -22,8 +22,7 @@ synth = MidiInst.synth "drumaxx" "Imagine-Line Drumaxx" patches
 
 patches :: [MidiInst.Patch]
 patches =
-    [ MidiInst.code #= CUtil.drum_code CUtil.MidiThru Nothing
-            (map fst stroke_keys) $
+    [ MidiInst.code #= CUtil.drum_code_ CUtil.MidiThru (map fst stroke_keys) $
         CUtil.drum_patch stroke_keys $ MidiInst.default_patch pb_range []
     , MidiInst.code #= composite_code $
         MidiInst.doc #= composite_doc $

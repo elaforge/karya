@@ -23,7 +23,7 @@ patches = (:[]) $ Patch.DbPatch $ (Patch.patch patchName)
     }
     where
     convert = Drum.convert convertMap
-    code = CUtil.drum_code thru Nothing (Drum._strokes strokeMap)
+    code = CUtil.drum_code_ thru (Drum._strokes strokeMap)
     thru = Util.imThruFunction dir convert
     dir = untxt patchName
 

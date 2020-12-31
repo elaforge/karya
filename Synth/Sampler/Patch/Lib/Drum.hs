@@ -124,6 +124,7 @@ data StrokeMap art = StrokeMap {
     -- | Map each articulation to the articulations that stop it.
     _stops :: Map art (Set art)
     , _strokes :: [Drums.Stroke]
+    , _articulations :: [Maybe art]
     , _attributeMap :: Common.AttributeMap art
     } deriving (Show)
 
@@ -134,6 +135,7 @@ strokeMapTable :: Ord art => Drums.Stops
 strokeMapTable stops table = StrokeMap
     { _stops = stopMap [(art, group) | (_, _, _, art, group) <- table] stops
     , _strokes = map makeStroke table
+    , _articulations = [Just art | (_, _, _, art, _) <- table]
     , _attributeMap = Common.attribute_map
         [(attrs, art) | (_, _, attrs, art, _) <- table]
     }
@@ -154,9 +156,15 @@ strokeMap :: Ord art => Drums.Stops -> [Drums.Stroke]
 strokeMap stops strokes attributeMap = StrokeMap
     { _stops = stopMap artToGroup stops
     , _strokes = strokes
+    , _articulations = map strokeToArt strokes
     , _attributeMap = attributeMap
     }
     where
+    -- This is awkward because I want to preserve the art, but unlike
+    -- 'strokeMapTable', I can't guarantee a 1:1 attr:art mapping.
+    strokeToArt attr = fmap snd
+        . (`Common.lookup_attributes` attributeMap)
+        . Drums._attributes $ attr
     artToGroup = do
         stroke <- strokes
         art <- maybe [] ((:[]) . snd) $

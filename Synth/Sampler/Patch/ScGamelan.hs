@@ -51,7 +51,12 @@ gongPatch = (Patch.patch "sc-gong")
     }
     where
     convert = Drum.convert gongConvertMap
-    code = CUtil.drum_code thru Nothing (Drum._strokes gongStrokeMap)
+    code = CUtil.drum_code thru $ map (second config) $
+        zip (Drum._strokes gongStrokeMap) (Drum._articulations gongStrokeMap)
+    config (Just gong) = CUtil.call_config
+        { CUtil._natural_nn = Just $ gongNn gong }
+    -- Drum.strokeMapTable shouldn't put Nothings in there.
+    config Nothing = error "no gong for attrs!?"
     thru = Util.imThruFunction dir convert
     dir = baseDir </> gongsDir
 

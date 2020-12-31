@@ -18,6 +18,7 @@ import qualified Ui.UiTest as UiTest
 import           Util.Test
 
 
+test_recursive_call :: Test
 test_recursive_call = do
     let extract = DeriveTest.extract DeriveTest.e_event
     let result = extract $ DeriveTest.derive_tracks_setup with_recur ""
@@ -30,6 +31,7 @@ test_recursive_call = do
         Sig.call0 $ \args ->
             Eval.reapply_call (Derive.passed_ctx args) "recur" []
 
+test_reapply_generator :: Test
 test_reapply_generator = do
     let run = DeriveTest.extract DeriveTest.e_attributes .
             DeriveTest.derive_tracks_setup with ""
@@ -42,10 +44,10 @@ test_reapply_generator = do
     where
     with = CallTest.with_note_generators $
         ("ab", DUtil.multiple_call "ab" ["a", "b"])
-        : CUtil.drum_calls Nothing Nothing
+        : CUtil.drum_calls (map (,CUtil.call_config)
             [ Drums.stroke 'a' "a" (Attrs.attr "a")
             , Drums.stroke 'b' "b" (Attrs.attr "b")
-            ]
+            ])
 
 test_block_id_to_call = do
     let f parent child = Eval.block_id_to_call True
