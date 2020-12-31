@@ -83,10 +83,6 @@ dynamic dynToRange minDyn note =
     (fst $ findDynamic dynToRange dyn, Num.scale minDyn 1 dyn)
     where dyn = Note.initial0 Control.dynamic note
 
-dynamicScale :: (Bounded dyn, Enum dyn) => (dyn -> (Int, Int)) -> Note.Note
-    -> (dyn, Signal.Y)
-dynamicScale dynToRange = findDynamic dynToRange . Note.initial0 Control.dynamic
-
 -- | Convert to (Dynamic, DistanceFromPrevDynamic)
 findDynamic :: (Bounded dyn, Enum dyn) => (dyn -> (Int, Int)) -> Signal.Y
     -> (dyn, Signal.Y)
@@ -119,6 +115,27 @@ pickDynamicVariation :: Double -> [a] -> Double -> Double -> a
 pickDynamicVariation variationRange samples dyn var =
     pickVariation samples (Num.clamp 0 1 (dyn + var * variationRange))
 
+-- | Scale dynamic for non-normalized samples, recorded with few dynamic
+-- levels.  Since each sample already has its own dynamic level, if I do no
+-- scaling, then there will be noticeable bumps as the dynamic thresholds
+-- are crossed.  So I scale the dynamics of each one by an adjustment to smooth
+-- the bumps.  But the result will be more bumpy if each sample covers a
+-- different width of dynamic range, so I also scale the adjustment by
+-- that width.
+--
+-- TODO I think it doesn't actually work though, I need to adjust manually
+-- per-sample.
+dynamicAutoScale :: (Signal.Y, Signal.Y) -> (Signal.Y, Signal.Y) -> Signal.Y
+    -> Signal.Y
+dynamicAutoScale (minDyn, maxDyn) (low, high) dyn =
+    Num.scale minDyn maxDyn biased
+    where
+    -- dyn should be in the (low, high) range already.
+    pos = Num.normalize low high dyn
+    -- bias the position toward the middle of the dyn range, depending on
+    -- the dynamic width allocated to the sample.
+    biased = Num.scale 0.5 pos (high - low)
+
 -- ** envelope
 
 dynEnvelope :: Signal.Y -> RealTime.RealTime -> Note.Note -> Signal.Signal
@@ -132,10 +149,10 @@ dynEnvelope minDyn releaseTime note =
         Map.findWithDefault mempty Control.dynamic $
         Note.controls note
 
--- | Simple attack-sustain-release envelope.
-asr :: Signal.Y -> RealTime.RealTime -> Note.Note -> Signal.Signal
-asr dyn releaseTime note = Signal.from_pairs
-    [ (Note.start note, dyn), (Note.end note, dyn)
+-- | Simple sustain-release envelope.
+sustainRelease :: Signal.Y -> RealTime.RealTime -> Note.Note -> Signal.Signal
+sustainRelease sustain releaseTime note = Signal.from_pairs
+    [ (Note.start note, sustain), (Note.end note, sustain)
     , (Note.end note + releaseTime, 0)
     ]
 

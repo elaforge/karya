@@ -110,13 +110,13 @@ convertMap tuning = Drum.ConvertMap
     , _naturalNn = Nothing
     , _muteTime = Just 0.05
     , _convertAttributeMap = attributeMap
-    , _getFilename = getFilename tuning
+    , _getFilename = \art dyn var -> (getFilename tuning art dyn var, Nothing)
     }
 
 getFilename :: Tuning -> Articulation -> Signal.Y -> Signal.Y -> FilePath
 getFilename tuning = \art dyn var ->
     "legong" </> Util.showLower tuning
-        </> Drum.variableDynamic 0.15 get art dyn var
+        </> fst (Drum.variableDynamic 0.15 get art dyn var)
     where
     get = case tuning of
         Wadon -> legongWadonSamples

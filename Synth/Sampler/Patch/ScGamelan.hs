@@ -71,15 +71,45 @@ gongStrokeMap = Drum.strokeMapTable []
 
 gongConvertMap :: Drum.ConvertMap Gong
 gongConvertMap = Drum.ConvertMap
-    { _dynRange = (0.8, 1.15) -- TODO tune
+    { _dynRange = (0.9, 1.1)
     , _naturalNn = Just gongNn
     , _muteTime = Nothing
     , _convertAttributeMap = Drum._attributeMap gongStrokeMap
     , _getFilename = gongFilename
     }
 
-gongFilename :: Gong -> Signal.Y -> Signal.Y -> FilePath
-gongFilename gong dyn var = Util.pickVariation (gongVariations dyn gong) var
+{-
+t0 = mapM_ Text.IO.putStrLn $ Texts.columns 2 $ map head $
+    showDyns Kempur 0.05 0.5 1.5
+t1 = mapM_ Text.IO.putStrLn $ Texts.columns 2 $ map head $
+    showDyns2 Kempur 0.05 0.5 1.5
+
+showDyns gong step minDyn maxDyn =
+    map (\dyn -> map (normal dyn) $ gongVariations dyn gong) $
+        Seq.range_end 0 1 step
+    where
+    normal dyn (fname, (low, high)) =
+        [ pp dyn, pp $ dynToVel dyn, txt fname
+        , pp $ Num.scale minDyn maxDyn $ Num.normalize low high dyn
+        ]
+
+showDyns2 gong step minDyn maxDyn =
+    map (\dyn -> map (normal dyn) $ gongVariations dyn gong) $
+        Seq.range_end 0 1 step
+    where
+    normal dyn (fname, (low, high)) =
+        [ pp dyn, pp $ dynToVel dyn, txt fname
+        , pp $ Util.dynamicAutoScale (minDyn, maxDyn) (low, high) dyn
+        ]
+
+pp :: Pretty a => a -> Text
+pp = pretty
+-}
+
+gongFilename :: Gong -> Signal.Y -> Signal.Y
+    -> (FilePath, Maybe (Signal.Y, Signal.Y))
+gongFilename gong dyn var =
+    second Just $ Util.pickVariation (gongVariations dyn gong) var
 
 baseDir :: FilePath
 baseDir = "sc-gamelan"
@@ -92,18 +122,19 @@ kemong = Attrs.attr "kemong"
 kempur = Attrs.attr "kempur"
 wadon = Attrs.attr "wadon"
 lanang = Attrs.attr "lanang"
-kempli = Attrs.attr "kempli"
-kajar = Attrs.attr "kajar"
 
-gongVariations :: Signal.Y -> Gong -> [FilePath]
-gongVariations dyn = select . gongSamples
+gongVariations :: Signal.Y -> Gong -> [(FilePath, (Signal.Y, Signal.Y))]
+gongVariations dyn = map toDyn . select . gongSamples
     where
-    select = map snd . takeWhile ((<=vel) . fst . fst)
-        . dropWhile ((<vel). snd . fst)
+    toDyn ((low, high), fname) = (fname, (velToDyn low, velToDyn high))
+    select = takeWhile ((<=vel) . fst . fst) . dropWhile ((<vel). snd . fst)
     vel = dynToVel dyn
 
 dynToVel :: Signal.Y -> Int
 dynToVel = Num.clamp 1 127 . round . Num.scale 0 127
+
+velToDyn :: Int -> Signal.Y
+velToDyn = (/127) . fromIntegral
 
 data Gong = GongWadon | GongLanang | Kempur | Kemong
     deriving (Eq, Ord, Show, Typeable.Typeable, Enum, Bounded)

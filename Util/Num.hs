@@ -44,7 +44,7 @@ binary b = case Bits.bitSizeMaybe b of
 hex :: (Integral a, Show a) => Int -> a -> Text
 hex pad n = mconcat
     [ if n < 0 then "-" else ""
-    ,  Text.replicate (pad - Text.length s) "0"
+    , Text.replicate (pad - Text.length s) "0"
     , s
     ]
     where s = Text.pack $ Numeric.showHex (abs n) ""

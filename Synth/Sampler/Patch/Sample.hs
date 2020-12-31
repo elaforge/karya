@@ -62,4 +62,4 @@ convert note = do
         then Except.throwError "no element" else return $ Note.element note
     let dynVal = Note.initial0 Control.dynamic note
     return $ (Sample.make (untxt filename))
-        { Sample.envelope = Util.asr dynVal 0.15 note }
+        { Sample.envelope = Util.sustainRelease dynVal 0.15 note }

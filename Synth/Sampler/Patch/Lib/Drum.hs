@@ -53,20 +53,23 @@ import           Global
 
 
 data ConvertMap art = ConvertMap {
-    -- | Dyn from 0 to 1 will be scaled to this range.
+    -- | Dyn from 0 to 1 will be scaled to this range.  If the samples are not
+    -- normalized, and there are enough for a smooth curve, then (1, 1) should
+    -- do.
     --
-    -- TODO: if the samples are not normalized, I theoretically need a separate
-    -- range for each sample, to smooth out the differences.  In practice,
-    -- that's a lot of work and for the moment scaling everything seems to
-    -- be ok.
+    -- TODO: if the samples are not normalized, I need a separate range for
+    -- each sample, to smooth out the differences.
     _dynRange :: (Signal.Y, Signal.Y)
     -- | If Just, use the note's pitch, assuming ratio=1 will be this pitch.
     ,  _naturalNn :: Maybe (art -> Pitch.NoteNumber)
     -- | Time to mute at the end of a note.
     , _muteTime :: Maybe RealTime.RealTime
     , _convertAttributeMap :: Common.AttributeMap art
-    -- | articulation -> dynamic -> variation -> FilePath.
-    , _getFilename :: art -> Signal.Y -> Signal.Y -> FilePath
+    -- | articulation -> dynamic -> variation -> (FilePath, (lowDyn, highDyn)).
+    -- Returning the sample's dyn range was an attempt to tune dyn globally,
+    -- but I think it doesn't work, see TODO above.
+    , _getFilename :: art -> Signal.Y -> Signal.Y
+        -> (FilePath, Maybe (Signal.Y, Signal.Y))
     }
 
 -- | Create a '_getFilename' with the strategy where each articulation has
@@ -74,8 +77,9 @@ data ConvertMap art = ConvertMap {
 variableDynamic :: Show art
     -- | A note may pick a sample of this much dyn difference on either side.
     => Signal.Y -> (art -> [FilePath])
-    -> (art -> Signal.Y -> Signal.Y -> FilePath)
+    -> (art -> Signal.Y -> Signal.Y -> (FilePath, Maybe a))
 variableDynamic variationRange articulationSamples = \art dyn var ->
+    (, Nothing) $
     show art </> Util.pickDynamicVariation variationRange
         (articulationSamples art) dyn var
 
@@ -85,19 +89,22 @@ convert (ConvertMap (minDyn, maxDyn) naturalNn muteTime attributeMap
         getFilename) =
     \note -> do
         articulation <- Util.articulation attributeMap (Note.attributes note)
-        let dynVal = Note.initial0 Control.dynamic note
+        let dyn = Note.initial0 Control.dynamic note
         let var = maybe 0 (subtract 1 . (*2)) $
                 Note.initial Control.variation note
-        let filename = getFilename articulation dynVal var
-        let noteDyn = Num.scale minDyn maxDyn dynVal
+        let (filename, mbDynRange) = getFilename articulation dyn var
+        let noteDyn = case mbDynRange of
+                Nothing -> Num.scale minDyn maxDyn dyn
+                Just dynRange ->
+                    Util.dynamicAutoScale (minDyn, maxDyn) dynRange dyn
         ratio <- case naturalNn of
             Nothing -> return 1
             Just artNn -> Sample.pitchToRatio (artNn articulation) <$>
                 Util.initialPitch note
         return $ (Sample.make filename)
             { Sample.envelope = case muteTime of
-                Nothing -> Signal.constant 1
-                Just time -> Util.asr noteDyn time note
+                Nothing -> Signal.constant noteDyn
+                Just time -> Util.sustainRelease noteDyn time note
             , Sample.ratios = Signal.constant ratio
             }
 
