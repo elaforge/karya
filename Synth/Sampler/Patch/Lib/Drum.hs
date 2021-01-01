@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# OPTIONS_GHC -Wno-redundant-constraints #-} -- enumFunction
 {- | Utilities shared between drum patches.
 
     The base structure is that a drum has an enumeration of articulations,
@@ -291,10 +290,9 @@ filenameSortKey fname =
     parse = Seq.head . mapMaybe Read.readMaybe . reverse . Seq.split "-"
         . FilePath.dropExtension
 
--- | Emit haskell code for a function from an Enum to lists.  @Enum a@ is
--- redundant according to ghc, but I want it anyway.
+-- | Emit haskell code for a function from an Enum to lists.
 enumFunction
-    :: (Enum a, Typeable.Typeable a, Show a, Typeable.Typeable b, Pretty b)
+    :: (Typeable.Typeable a, Show a, Typeable.Typeable b, Pretty b)
     => String -> [(a, [b])] -> [String]
 enumFunction name abs@((a0, b0) : _) =
     [ name <> " :: " <> show (Typeable.typeOf a0)

@@ -287,12 +287,11 @@ parseFilename fname = case Seq.split "-" (FilePath.dropExtension fname) of
 
 unparseFilename :: Pitch -> Articulation -> Dynamic -> Util.Variation
     -> FilePath
-unparseFilename pitch art dyn var =
-    Seq.join "-"
-        [ prettys pitch, articulationFilename art, Util.showLower dyn
-        , 'v' : show var
-        ]
-        ++ ".flac"
+unparseFilename pitch art dyn var = Seq.join "-"
+    [ prettys pitch, articulationFilename art, Util.showLower dyn
+    , 'v' : show var
+    ]
+    ++ ".flac"
 
 articulationFilename :: Articulation -> String
 articulationFilename = \case

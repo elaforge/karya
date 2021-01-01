@@ -29,6 +29,8 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  - for im, play never stops.
+    . Could it be related to removing the MIDI reset below?
   * im play is broken
     . Because it sends AllNotesOff, likely due to Midi.Interface change.
     . Why does it send AllNotesOff on a play?
@@ -2050,6 +2052,11 @@ instruments:
           etc.
       . turns out I have to link to arpack dynamically, who knows why static
         linking has that problem.
+  faust:
+    - https://github.com/resonantdsp/SwankyAmp
+      https://www.resonantdsp.com/index.html
+    - drone from https://puretones.sadharani.com/
+      . Are they willing to share?
 
   zynsubaddfx:
     . The old binaries don't have VST.  The new ones do, but the UI seems
@@ -2917,7 +2924,8 @@ synth: im:
         . So only do the pitch curve merge if Note.element is set, and look
           for equal Note.elements.
     gong bali:
-      - cengceng
+      - cengceng rincik
+        - I'll want to automatically alternate hands.
       * cengceng kopyak
         * Not enough variation.
           . for 14.5s, variation= 0.325, but getFilename gets -0.348
@@ -2925,6 +2933,7 @@ synth: im:
         . Still not enough variation, but I just didn't sample enough.
           I should sample more dynamics and variations, and also different
           cengcengs.
+        * wait I did do that!  Cut those up!
       * kajar
         . Samples already in kontakt.
       * ScGamelan sc-gong
