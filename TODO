@@ -29,7 +29,7 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
-  - for im, play never stops.
+  * for im, play never stops.
     . Could it be related to removing the MIDI reset below?
   * im play is broken
     . Because it sends AllNotesOff, likely due to Midi.Interface change.
