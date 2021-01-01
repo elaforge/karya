@@ -24,6 +24,7 @@ import Global
 import Util.Test
 
 
+test_variations :: Test
 test_variations = do
     let run title = runNotes title
         -- extract = Sample.filename . snd

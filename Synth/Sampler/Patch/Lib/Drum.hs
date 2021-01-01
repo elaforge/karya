@@ -131,7 +131,7 @@ variableDynamic :: Show art
 variableDynamic variationRange articulationSamples = \art dyn var ->
     (, Nothing) $
     show art </> Util.pickDynamicVariation variationRange
-        (articulationSamples art) dyn var
+        (articulationSamples art) dyn (var*2 - 1)
 
 -- | Make a generic convert, suitable for drum type patches.
 convert :: ConvertMap art -> Note.Note -> Patch.ConvertM Sample.Sample
@@ -140,8 +140,7 @@ convert (ConvertMap (minDyn, maxDyn) naturalNn muteTime attributeMap
     \note -> do
         articulation <- Util.articulation attributeMap (Note.attributes note)
         let dyn = Note.initial0 Control.dynamic note
-        let var = maybe 0 (subtract 1 . (*2)) $
-                Note.initial Control.variation note
+        let var = fromMaybe 0 $ Note.initial Control.variation note
         let (filename, mbDynRange) = getFilename articulation dyn var
         let noteDyn = case mbDynRange of
                 Nothing -> Num.scale minDyn maxDyn dyn
@@ -189,6 +188,18 @@ strokeMapTable stops table = StrokeMap
         , _dynamic = 1
         , _group = group
         }
+
+-- | Set dynamic for Attrs.soft and remove it.
+replaceSoft :: Signal.Y -> StrokeMap art -> StrokeMap art
+replaceSoft dyn strokeMap = strokeMap
+    { _strokes = map replace (_strokes strokeMap)
+    }
+    where
+    replace stroke = stroke
+        { Drums._attributes = Attrs.remove Attrs.soft attrs
+        , Drums._dynamic = if Attrs.contain attrs Attrs.soft then dyn else 1
+        }
+        where attrs = Drums._attributes stroke
 
 -- | Make a StrokeMap from separate strokes and AttributeMap.  This happens
 -- when instruments parts are factored apart, due to having both MIDI and

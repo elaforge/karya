@@ -138,7 +138,7 @@ attributeMap = Common.attribute_map
 
 checkFilenames :: IO [FilePath]
 checkFilenames = filterM (fmap not . exists) allFilenames
-    where exists = Directory.doesFileExist . ("../data/sampler/wayang" </>)
+    where exists = Directory.doesFileExist . ("data/sampler/wayang" </>)
 
 allFilenames :: [FilePath]
 allFilenames = map fst3 $ Either.rights

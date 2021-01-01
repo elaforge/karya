@@ -2918,7 +2918,13 @@ synth: im:
           for equal Note.elements.
     gong bali:
       - cengceng
-      - cengceng kopyak
+      * cengceng kopyak
+        * Not enough variation.
+          . for 14.5s, variation= 0.325, but getFilename gets -0.348
+          . Because Drum.convert used bimodal var, I think just a bug.
+        . Still not enough variation, but I just didn't sample enough.
+          I should sample more dynamics and variations, and also different
+          cengcengs.
       * kajar
         . Samples already in kontakt.
       * ScGamelan sc-gong

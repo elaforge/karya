@@ -10,7 +10,6 @@ import qualified System.Directory as Directory
 import           System.FilePath ((</>))
 import qualified Text.Read as Read
 
-import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Derive.Attrs as Attrs
@@ -119,15 +118,10 @@ lanang = Attrs.attr "lanang"
 gongVariations :: Signal.Y -> Gong -> [(FilePath, (Signal.Y, Signal.Y))]
 gongVariations dyn = map toDyn . select . gongSamples
     where
-    toDyn ((low, high), fname) = (fname, (velToDyn low, velToDyn high))
+    toDyn ((low, high), fname) =
+        (fname, (Util.velToDyn low, Util.velToDyn high))
     select = takeWhile ((<=vel) . fst . fst) . dropWhile ((<vel). snd . fst)
-    vel = dynToVel dyn
-
-dynToVel :: Signal.Y -> Int
-dynToVel = Num.clamp 1 127 . round . Num.scale 0 127
-
-velToDyn :: Int -> Signal.Y
-velToDyn = (/127) . fromIntegral
+    vel = Util.dynToVel dyn
 
 data Gong = GongWadon | GongLanang | Kempur | Kemong
     deriving (Eq, Ord, Show, Typeable.Typeable, Enum, Bounded)

@@ -76,26 +76,28 @@ articulationDefault deflt attributeMap  =
 -- ** dynamic
 
 -- | Get patch-specific dyn category, and note dynamic.
-dynamic :: (Bounded dyn, Enum dyn) => (dyn -> (Int, Int)) -> Signal.Y
+dynamic :: (Bounded dyn, Enum dyn) => (dyn -> (Int, Int))
+    -- ^ Returns velocity instead of dyn, and the lower bound is unnecessary,
+    -- for compatibility.
+    -> Signal.Y
     -- ^ Min dyn.  This is for normalized samples, where 0 gets this dyn.
     -> Note.Note -> (dyn, Signal.Y)
 dynamic dynToRange minDyn note =
-    (fst $ findDynamic dynToRange dyn, Num.scale minDyn 1 dyn)
+    ( fst $ findDynamic (velToDyn . snd . dynToRange) dyn
+    , Num.scale minDyn 1 dyn
+    )
     where dyn = Note.initial0 Control.dynamic note
 
 -- | Convert to (Dynamic, DistanceFromPrevDynamic)
-findDynamic :: (Bounded dyn, Enum dyn) => (dyn -> (Int, Int)) -> Signal.Y
-    -> (dyn, Signal.Y)
-findDynamic dynToRange y =
-    find 0 (Num.clamp 0 127 (round (y * 127))) rangeDynamics
+findDynamic :: (Bounded dyn, Enum dyn) => (dyn -> Signal.Y)
+    -> Signal.Y -> (dyn, Signal.Y)
+findDynamic dynToRange dyn = find 0 dyn rangeDynamics
     where
     find low val ((high, dyn) : rest)
-        | null rest || val < high =
-            (dyn, Num.normalize (int low) (int high) (int val))
+        | null rest || val < high = (dyn, Num.normalize low high val)
         | otherwise = find high val rest
     find _ _ [] = error "empty rangeDynamics"
-    int = fromIntegral
-    rangeDynamics = Seq.key_on (snd . dynToRange) enumAll
+    rangeDynamics = Seq.key_on dynToRange enumAll
 
 type Variation = Int
 
@@ -135,6 +137,12 @@ dynamicAutoScale (minDyn, maxDyn) (low, high) dyn =
     -- bias the position toward the middle of the dyn range, depending on
     -- the dynamic width allocated to the sample.
     biased = Num.scale 0.5 pos (high - low)
+
+dynToVel :: Signal.Y -> Int
+dynToVel = Num.clamp 1 127 . round . (*127)
+
+velToDyn :: Int -> Signal.Y
+velToDyn = (/127) . fromIntegral
 
 -- ** envelope
 
