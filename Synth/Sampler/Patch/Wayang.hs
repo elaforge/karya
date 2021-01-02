@@ -162,7 +162,8 @@ checkStarts = (makeSample reference,)
     , dyn <- Util.enumAll
     ]
     where
-    Right (reference, _, _) = toFilename Pemade Umbang Mute (Left "4i") FF 0
+    Right (reference, _, _) =
+        toFilename Pemade Umbang Mute (Left "4i") Util.FF 0
     makeFilenames instrument tuning articulation pitch dyn =
         map fst3 $ Either.rights $
         map (toFilename instrument tuning articulation (Left pitch) dyn)
@@ -227,8 +228,9 @@ isMute = \case
     _ -> False
 
 -- | I'm missing these samples, so substitute some others.
-workaround :: Instrument -> Tuning -> Articulation -> Dynamic -> Dynamic
-workaround Kantilan Umbang CalungMute FF = MF
+workaround :: Instrument -> Tuning -> Articulation -> Util.Dynamic
+    -> Util.Dynamic
+workaround Kantilan Umbang CalungMute Util.FF = Util.MF
 workaround _ _ _ dyn = dyn
 
 variableMuteRange :: (RealTime, RealTime)
@@ -261,7 +263,7 @@ minDyn = 0.5
     without the ncw nonsense.
 -}
 toFilename :: Instrument -> Tuning -> Articulation
-    -> Either Pitch.Note Pitch.NoteNumber -> Dynamic -> Util.Variation
+    -> Either Pitch.Note Pitch.NoteNumber -> Util.Dynamic -> Util.Variation
     -> Either Text (FilePath, Pitch.NoteNumber, Pitch.NoteNumber)
 toFilename instrument tuning articulation symPitch dyn variation = do
     (sampleNn, noteNn, Midi.Key sampleKey) <-
@@ -284,12 +286,12 @@ toFilename instrument tuning articulation symPitch dyn variation = do
     (lowVel, highVel) = dynamicRange dyn
     group = articulationFile articulation ++ show (variation + 1)
 
-dynamicRange :: Dynamic -> (Int, Int)
+dynamicRange :: Util.Dynamic -> (Int, Int)
 dynamicRange = \case
-    PP -> (1, 31)
-    MP -> (32, 64)
-    MF -> (65, 108)
-    FF -> (109, 127)
+    Util.PP -> (1, 31)
+    Util.MP -> (32, 64)
+    Util.MF -> (65, 108)
+    Util.FF -> (109, 127)
 
 articulationFile :: Articulation -> String
 articulationFile = \case
@@ -310,9 +312,6 @@ variationsOf = \case
 -- * implementation
 
 data Instrument = Pemade | Kantilan deriving (Eq, Ord, Show, Enum, Bounded)
-
-data Dynamic = PP | MP | MF | FF deriving (Eq, Ord, Show, Enum, Bounded)
-instance Pretty Dynamic where pretty = showt
 
 data Articulation = Mute | LooseMute | Open | CalungMute | Calung
     deriving (Eq, Ord, Enum, Bounded, Show)

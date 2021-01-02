@@ -176,8 +176,8 @@ muteTime = 0.085
 minDyn :: Signal.Y
 minDyn = 0.5
 
-tweakDynamic :: Articulation -> Pitch -> Dynamic -> Signal.Y
-tweakDynamic Open (Pitch 5 I) PP = 0.9
+tweakDynamic :: Articulation -> Pitch -> Util.Dynamic -> Signal.Y
+tweakDynamic Open (Pitch 5 I) Util.PP = 0.9
 tweakDynamic Open (Pitch 6 U) _ = 0.9
 tweakDynamic _ _ _ = 1
 
@@ -188,7 +188,8 @@ tweakDynamic _ _ _ = 1
 
     keys: 45 48 50 52 55 57 60 62 64 67 69 72 74 76 79
 -}
-toFilename :: Articulation -> Pitch -> Dynamic -> Util.Variation -> FilePath
+toFilename :: Articulation -> Pitch -> Util.Dynamic -> Util.Variation
+    -> FilePath
 toFilename articulation pitch dyn variation = Seq.join "-"
     [ show (Midi.from_key (pitchToKey pitch) :: Int)
     , show lowVel
@@ -268,13 +269,9 @@ variationsOf = \case
     MuteOpen -> 4
     Open -> 4
 
-data Dynamic = PP | MP | MF | FF
-    deriving (Eq, Ord, Enum, Bounded, Show)
-instance Pretty Dynamic where pretty = showt
-
-dynamicRange :: Dynamic -> (Int, Int)
+dynamicRange :: Util.Dynamic -> (Int, Int)
 dynamicRange = \case
-    PP -> (1, 31)
-    MP -> (32, 64)
-    MF -> (65, 108)
-    FF -> (109, 127)
+    Util.PP -> (1, 31)
+    Util.MP -> (32, 64)
+    Util.MF -> (65, 108)
+    Util.FF -> (109, 127)

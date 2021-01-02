@@ -43,6 +43,7 @@ import qualified Synth.Sampler.Patch.Lib.Bali as Lib.Bali
 import           Synth.Sampler.Patch.Lib.Bali (Pitch(..), PitchClass(..))
 import qualified Synth.Sampler.Patch.Lib.Code as Code
 import qualified Synth.Sampler.Patch.Lib.Util as Util
+import           Synth.Sampler.Patch.Lib.Util (Dynamic(..))
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
@@ -268,10 +269,6 @@ isMute = \case
     MuteGangsa -> True
     MuteCalung -> True
     _ -> False
-
-data Dynamic = PP | MP | MF | FF
-    deriving (Eq, Ord, Enum, Bounded, Show, Read)
-instance Pretty Dynamic where pretty = showt
 
 parseFilename :: FilePath
     -> Maybe (Pitch, Articulation, Dynamic, Util.Variation)

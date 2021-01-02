@@ -89,15 +89,12 @@ convertMap inst = Drum.ConvertMap
     , _getFilename = getFilename inst
     }
 
-data Dynamic = PP | MP | MF | FF
-    deriving (Eq, Ord, Show, Bounded, Enum)
-
-dynamicThreshold :: Dynamic -> Signal.Y
+dynamicThreshold :: Util.Dynamic -> Signal.Y
 dynamicThreshold = \case
-    PP -> 0.25
-    MP -> 0.5
-    MF -> 0.75
-    FF -> 1
+    Util.PP -> 0.25
+    Util.MP -> 0.5
+    Util.MF -> 0.75
+    Util.FF -> 1
 
 -- | {open,closed}-{pp,mp,mf,ff}-v{1..n}.flac
 getFilename :: Inst -> Articulation -> Signal.Y -> Signal.Y
@@ -105,7 +102,7 @@ getFilename :: Inst -> Articulation -> Signal.Y -> Signal.Y
 getFilename inst art dyn var = (fname, Just dynRange)
     where
     dynRange =
-        ( if dynSym == PP then 0 else dynamicThreshold (pred dynSym)
+        ( if dynSym == Util.PP then 0 else dynamicThreshold (pred dynSym)
         , dynamicThreshold dynSym
         )
     (dynSym, _) = Util.findDynamic dynamicThreshold dyn

@@ -75,6 +75,11 @@ articulationDefault deflt attributeMap  =
 
 -- ** dynamic
 
+-- | Standard dynamic ranges.
+data Dynamic = PP | MP | MF | FF
+    deriving (Eq, Ord, Show, Read, Bounded, Enum)
+instance Pretty Dynamic where pretty = showt
+
 -- | Get patch-specific dyn category, and note dynamic.
 dynamic :: (Bounded dyn, Enum dyn) => (dyn -> (Int, Int))
     -- ^ Returns velocity instead of dyn, and the lower bound is unnecessary,
