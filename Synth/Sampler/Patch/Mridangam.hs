@@ -24,13 +24,13 @@ patches = (:[]) $ Patch.DbPatch $ (Patch.patch patchName)
     , Patch._convert = convert
     , Patch._preprocess = Drum.inferDuration strokeMap
     , Patch._karyaPatch = CUtil.im_drum_patch (Drum._strokes strokeMap) $
-        ImInst.code #= code $ Drum.karyaPatch_ convertMap
+        ImInst.code #= code $ Drum.makePatch attributeMap True
     , Patch._allFilenames = Drum._allFilenames convertMap
     }
     where
-    convert = Drum.convert convertMap
-    code = Mridangam.code (Util.imThruFunction dir convert) naturalNn
-        (Just $ \_ -> Code.withVariationNormal 1)
+    convert = Drum.convert attributeMap convertMap
+    code = Mridangam.code (Util.imThruFunction dir convert)
+        naturalNn (Just $ \_ -> Code.withVariationNormal 1)
     dir = untxt patchName
 
 patchName :: Text
@@ -60,7 +60,6 @@ convertMap = Drum.ConvertMap
     { _dynRange = (0.4, 1.15)
     , _naturalNn = Just (const naturalNn)
     , _muteTime = Just 0.05
-    , _convertAttributeMap = attributeMap
     , _getFilename = Drum.variableDynamic 0.15 articulationSamples
     , _allFilenames = Drum.allFilenames 356 articulationSamples
     }

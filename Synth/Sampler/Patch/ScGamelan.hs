@@ -68,7 +68,6 @@ gongConvertMap = Drum.ConvertMap
     { _dynRange = (0.9, 1.1)
     , _naturalNn = Just gongNn
     , _muteTime = Nothing
-    , _convertAttributeMap = Drum._attributeMap gongStrokeMap
     , _getFilename = gongFilename
     , _allFilenames = gongAllFilenames
     }

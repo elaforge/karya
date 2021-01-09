@@ -37,9 +37,7 @@ import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.ImInst as ImInst
 
 import qualified Derive.Attrs as Attrs
-import qualified Derive.Derive as Derive
 import qualified Derive.Expr as Expr
-
 import qualified Instrument.Common as Common
 import qualified Perform.Im.Patch as Im.Patch
 import qualified Perform.Pitch as Pitch
@@ -67,7 +65,7 @@ patch dir name strokeMap convertMap configOf =
     { Patch._dir = dir
     , Patch._preprocess =
         if Map.null (_stops strokeMap) then id else inferDuration strokeMap
-    , Patch._convert = convert convertMap
+    , Patch._convert = convert (_attributeMap strokeMap) convertMap
     , Patch._karyaPatch = karyaPatch dir strokeMap convertMap configOf []
     , Patch._allFilenames = _allFilenames convertMap
     }
@@ -77,34 +75,32 @@ karyaPatch :: FilePath -> StrokeMap art -> ConvertMap art
     -> (Maybe art -> CUtil.CallConfig) -> [(Char, Expr.Symbol)]
     -> ImInst.Patch
 karyaPatch dir strokeMap convertMap configOf extraCmds =
-    CUtil.im_drum_patch (_strokes strokeMap) $
-        ImInst.code #= code $ karyaPatch_ convertMap
+    CUtil.im_drum_patch (_strokes strokeMap) $ ImInst.code #= code $
+        makePatch (_attributeMap strokeMap)
+            (Maybe.isJust (_naturalNn convertMap))
     where
     code = CUtil.drum_code_cmd extraCmds thru $
         zip (_strokes strokeMap)
             (map (set . configOf) (_articulations strokeMap))
     set config = config { CUtil._transform = Code.withVariation }
-    thru = Util.imThruFunction dir (convert convertMap)
+    thru = Util.imThruFunction dir
+        (convert (_attributeMap strokeMap) convertMap)
 
 -- | Make an unconfigured patch, without code, in case it's too custom for
 -- 'karyaPatch'.
-karyaPatch_ :: ConvertMap art -> ImInst.Patch
-karyaPatch_ convertMap = makePatch
-    (const () <$> _convertAttributeMap convertMap)
-    (Maybe.isJust (_naturalNn convertMap))
-
-makePatch :: Common.AttributeMap () -> Bool -> ImInst.Patch
+makePatch :: Common.AttributeMap a -> Bool -> ImInst.Patch
 makePatch attributeMap hasNaturalNn = ImInst.make_patch $ Im.Patch.patch
     { Im.Patch.patch_controls = mconcat
         [ Control.supportDyn
         , Control.supportVariation
         , if hasNaturalNn then Control.supportPitch else mempty
         ]
-    , Im.Patch.patch_attribute_map = attributeMap
+    , Im.Patch.patch_attribute_map = const () <$> attributeMap
     }
 
 -- * convert
 
+-- | Arguments for the 'convert' function.
 data ConvertMap art = ConvertMap {
     -- | Dyn from 0 to 1 will be scaled to this range.  If the samples are not
     -- normalized, and there are enough for a smooth curve, then (1, 1) should
@@ -117,7 +113,6 @@ data ConvertMap art = ConvertMap {
     ,  _naturalNn :: Maybe (art -> Pitch.NoteNumber)
     -- | Time to mute at the end of a note.
     , _muteTime :: Maybe RealTime.RealTime
-    , _convertAttributeMap :: Common.AttributeMap art
     -- | articulation -> dynamic -> variation -> (FilePath, (lowDyn, highDyn)).
     -- Returning the sample's dyn range was an attempt to tune dyn globally,
     -- but I think it doesn't work, see TODO above.
@@ -148,9 +143,10 @@ allFilenames len articulationSamples = Util.assertLength len $ Set.fromList
     ]
 
 -- | Make a generic convert, suitable for drum type patches.
-convert :: ConvertMap art -> Note.Note -> Patch.ConvertM Sample.Sample
-convert (ConvertMap (minDyn, maxDyn) naturalNn muteTime attributeMap
-        getFilename _allFilenames) =
+convert :: Common.AttributeMap art -> ConvertMap art -> Note.Note
+    -> Patch.ConvertM Sample.Sample
+convert attributeMap (ConvertMap (minDyn, maxDyn) naturalNn muteTime getFilename
+        _allFilenames) =
     \note -> do
         articulation <- Util.articulation attributeMap (Note.attributes note)
         let dyn = Note.initial0 Control.dynamic note
@@ -203,11 +199,14 @@ strokeMapTable stops table = StrokeMap
         , _group = group
         }
 
+addAttributeMap :: Common.AttributeMap art -> StrokeMap art -> StrokeMap art
+addAttributeMap attrs strokeMap =
+    strokeMap { _attributeMap = attrs <> _attributeMap strokeMap }
+
 -- | Set dynamic for Attrs.soft and remove it.
 replaceSoft :: Signal.Y -> StrokeMap art -> StrokeMap art
-replaceSoft dyn strokeMap = strokeMap
-    { _strokes = map replace (_strokes strokeMap)
-    }
+replaceSoft dyn strokeMap =
+    strokeMap { _strokes = map replace (_strokes strokeMap) }
     where
     replace stroke = stroke
         { Drums._attributes = Attrs.remove Attrs.soft attrs

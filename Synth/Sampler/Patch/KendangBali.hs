@@ -65,6 +65,10 @@ data Tuning = Wadon | Lanang
 strokeMap :: Drum.StrokeMap Articulation
 strokeMap = Drum.strokeMap K.stops K.tunggal_strokes attributeMap
 
+attributeMap :: Common.AttributeMap Articulation
+attributeMap =
+    Common.attribute_map (Seq.key_on articulationToAttrs Util.enumAll)
+
 data Articulation =
     Plak -- both
     | De | DeStaccato | DeThumb | DeClosed -- right
@@ -90,16 +94,11 @@ articulationToAttrs = \case
     TutL -> K.tut <> Attrs.left
     DeL -> K.de <> Attrs.left
 
-attributeMap :: Common.AttributeMap Articulation
-attributeMap =
-    Common.attribute_map (Seq.key_on articulationToAttrs Util.enumAll)
-
 convertMap :: Tuning -> Drum.ConvertMap Articulation
 convertMap tuning = Drum.ConvertMap
     { _dynRange = (0.4, 1.15)
     , _naturalNn = Nothing
     , _muteTime = Just 0.05
-    , _convertAttributeMap = attributeMap
     , _getFilename = \art dyn var -> (getFilename tuning art dyn var, Nothing)
     , _allFilenames = allFilenames
     }

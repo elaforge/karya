@@ -118,17 +118,22 @@ add_environ key val =
 
     This also means that if a previous attr is a subset of a later one, the
     later one will never be selected.  'overlapping_attributes' will check for
-    that, but normally you use a constructor that calls 'sort_attribute_map' to
+    that, but normally you use a constructor that calls 'sort_attributes' to
     make sure that can't happen.
 -}
 newtype AttributeMap a = AttributeMap [(Attrs.Attributes, a)]
     deriving (Eq, Show, Pretty, Functor, Serialize.Serialize)
 
-empty_attribute_map :: AttributeMap a
-empty_attribute_map = AttributeMap []
+instance Semigroup (AttributeMap a) where
+    AttributeMap as <> AttributeMap bs =
+        AttributeMap $ sort_attributes (as <> bs)
+
+instance Monoid (AttributeMap a) where
+    mempty = AttributeMap []
+    mappend = (<>)
 
 attribute_map :: [(Attrs.Attributes, a)] -> AttributeMap a
-attribute_map = sort_attribute_map . AttributeMap
+attribute_map = AttributeMap . sort_attributes
 
 mapped_attributes :: AttributeMap a -> [Attrs.Attributes]
 mapped_attributes (AttributeMap table) = map fst table
@@ -143,7 +148,7 @@ lookup_attributes attrs (AttributeMap table) =
     List.find ((attrs `Attrs.contain`) . fst) table
 
 -- | Figured out if any attributes shadow other attributes.  I think this
--- shouldn't happen if you called 'sort_attribute_map', or used any of the
+-- shouldn't happen if you called 'sort_attributes', or used any of the
 -- constructors other than 'AttributeMap'.
 overlapping_attributes :: AttributeMap a -> [Text]
 overlapping_attributes (AttributeMap table) =
@@ -162,9 +167,8 @@ overlapping_attributes (AttributeMap table) =
 --
 -- The sort is stable, so it shouldn't destroy the priority implicit in the
 -- order.
-sort_attribute_map :: AttributeMap a -> AttributeMap a
-sort_attribute_map (AttributeMap table) = AttributeMap (sort table)
-    where sort = Seq.sort_on (\(a, _) -> - Set.size (Attrs.to_set a))
+sort_attributes :: [(Attrs.Attributes, a)] -> [(Attrs.Attributes, a)]
+sort_attributes = Seq.sort_on (\(a, _) -> - Set.size (Attrs.to_set a))
 
 
 -- * Config

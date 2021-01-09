@@ -28,7 +28,6 @@ convertMap = Drum.ConvertMap
     { _dynRange = (0.8, 1.15)
     , _naturalNn = Just (const 79.92) -- 5g#
     , _muteTime = Just 0.15
-    , _convertAttributeMap = Drum._attributeMap strokeMap
     , _getFilename = Drum.variableDynamic 0.15 articulationSamples
     , _allFilenames = Drum.allFilenames 62 articulationSamples
     }

@@ -69,7 +69,6 @@ convertMap = Drum.ConvertMap
     { _dynRange = (0.5, 1)
     , _naturalNn = Nothing
     , _muteTime = Just 0.05
-    , _convertAttributeMap = Drum._attributeMap strokeMap
     , _getFilename = Drum.variableDynamic 0.15 articulationSamples
     , _allFilenames = Drum.allFilenames 171 articulationSamples
     }
