@@ -33,10 +33,10 @@ test_variations = do
     -- A normal-ish curve, centering around 95.25.
     equal (first (histo . map Sample.filename) $
             run "%dyn=.75" [(t, 0, "k") | t <- Seq.range 0 20 1])
-        ( [ ("Ki/36-42-47-89-91-ki.wav", 2)
-          , ("Ki/36-42-47-92-94-ki.wav", 8)
-          , ("Ki/36-42-47-95-97-ki.wav", 6)
-          , ("Ki/36-42-47-98-100-ki.wav", 5)
+        ( [ ("Ki/36-42-47-89-91-ki.flac", 2)
+          , ("Ki/36-42-47-92-94-ki.flac", 8)
+          , ("Ki/36-42-47-95-97-ki.flac", 6)
+          , ("Ki/36-42-47-98-100-ki.flac", 5)
           ]
         , []
         )

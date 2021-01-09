@@ -4,6 +4,8 @@
 module Synth.Sampler.Patch.Zheng where
 import qualified Data.Char as Char
 import qualified Data.Map as Map
+import qualified Data.Set as Set
+
 import qualified System.Directory as Directory
 import           System.FilePath ((</>))
 import qualified Text.Read as Read
@@ -50,6 +52,8 @@ patches :: [Patch.DbPatch]
 patches = (:[]) $ Patch.DbPatch $ (Patch.patch "zheng")
     { Patch._dir = dir
     , Patch._convert = convert
+    , Patch._allFilenames = Set.fromList $ concat $ concatMap Map.elems $
+        concatMap Map.elems $ Map.elems $ ZhengSamples.samples
     , Patch._preprocess = inferDuration
     , Patch._karyaPatch = ImInst.code #= code $ ImInst.nn_range range $
         ImInst.make_patch $ Im.Patch.patch

@@ -3,11 +3,10 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Definitions for reyong and trompong.
-module Synth.Sampler.Patch.Reyong (patches, checkFilenames) where
+module Synth.Sampler.Patch.Reyong (patches) where
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified System.Directory as Directory
-import           System.FilePath ((</>))
+import qualified Data.Set as Set
 
 import qualified Util.Maps as Maps
 import qualified Util.Seq as Seq
@@ -56,6 +55,7 @@ makePatch :: Note.PatchName -> Maybe BaliScales.Tuning -> Scale.Range
 makePatch name tuning range = (Patch.patch name)
     { Patch._dir = dir
     , Patch._convert = convert
+    , Patch._allFilenames = allFilenames
     , Patch._preprocess = inferDuration
     , Patch._karyaPatch = ImInst.code #= code $ ImInst.range range $
         maybe id (ImInst.environ EnvKey.tuning . ShowVal.show_val) tuning $
@@ -125,12 +125,8 @@ inferEnd note nexts = case articulationOf note of
 
 -- * checks
 
-checkFilenames :: IO [FilePath]
-checkFilenames = filterM (fmap not . exists) allFilenames
-    where exists = Directory.doesFileExist . ("../data/sampler/reyong" </>)
-
-allFilenames :: [FilePath]
-allFilenames =
+allFilenames :: Set FilePath
+allFilenames = Util.assertLength 1440 $ Set.fromList
     [ toFilename articulation pitch dyn variation
     | articulation <- Util.enumAll
     , pitch <- Map.elems nnToPitch

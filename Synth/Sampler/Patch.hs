@@ -62,6 +62,11 @@ data Patch = Patch {
     -- sequencer that matches up by name.  For the moment, linking in the extra
     -- code doesn't seem like a problem.
     , _karyaPatch :: ImInst.Patch
+    -- | All samples this patch will read, used to test that they all exist.
+    -- Relative to '_dir'.  '_convert' is an arbitrary function, so there's
+    -- no way to introspect this out, but most should be created with utilities
+    -- that can also fill in the filenames.
+    , _allFilenames :: Set FilePath
     }
 
 data Dummy = Dummy !Note.PatchName !(Common.Common ImInst.Code)
@@ -77,6 +82,7 @@ patch name = Patch
     , _preprocess = id
     , _effect = Nothing
     , _karyaPatch = ImInst.make_patch Im.Patch.patch
+    , _allFilenames = mempty
     }
 
 -- | Make a simple patch of a single sample.
@@ -90,6 +96,7 @@ simple name filename sampleNn = (patch name)
             , Sample.ratios = Signal.constant $
                 Sample.pitchToRatio sampleNn pitch
             }
+    , _allFilenames = Set.singleton filename
     , _karyaPatch = ImInst.make_patch $ Im.Patch.patch
         { Im.Patch.patch_controls = Control.supportPitch <> Control.supportDyn
         }

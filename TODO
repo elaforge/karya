@@ -34,7 +34,7 @@ UNSORTED
   * im play is broken
     . Because it sends AllNotesOff, likely due to Midi.Interface change.
     . Why does it send AllNotesOff on a play?
-    - Also why do I get one for chan [1..16], and then another at chan 1?
+    . Also why do I get one for chan [1..16], and then another at chan 1?
       Because Play calls Cmd.all_notes_off which sends Interface.AllNotesOff,
       then stop_im.
       . [1..16] happens on play, 1 happens on stop.
@@ -2815,6 +2815,24 @@ synth: im:
       ? Can I emit something low level but not as low level as MIDI?
         . sampler-im dump does it!  Can I simplify and serialize those for
           verify tests?
+      . I have a bit of this in Mridangam_test, but ad-hoc.
+        I want to easily test properties, such as:
+        . all samples reachable
+        . For proper distribution, I think I just hand-test like in
+          Mridangam_test and trust that if you're using the usual combinators
+          then it works.
+      * PatchDb_test can test all samples reachable for all patches.
+        . To do that I need to know all the possible Note inputs.  I'd have to
+          export some special metadata for that.
+        . Attributes are exported via Im.Patch.attribute_map
+        . To expose dyn and variation, I'd have to write things like
+          getFilename as a table rather than a function.
+        . It would be simpler to export min increment for dyn and var, which
+          for var is the max number of variations, and then enumerate.
+        . Alternately, each patch could export a list of all its samples,
+          by whatever means it wants, and then the test just checks them.
+      - Have a LState.save_im that records im in the same way as MIDI.
+      - Also have it do a sampler dump to verify sampler convert.
     break:
       - make a 'bd' or 'sn' than randomly picks one
       . reason "recycle" looks like a commercial product that does something
@@ -4135,6 +4153,7 @@ performance:
     https://vimeo.com/443276733 6:29:10
     . More talks at ICFP 2020
     . The ICFP talk claimed several times faster than happy, go find that.
+      https://youtu.be/i9wgeX7e-nc?t=1679
   nothunks:
     . https://iohk.io/en/blog/posts/2020/09/24/being-lazy-without-being-bloated/
     . Also there is ghc-heap-view assertNF

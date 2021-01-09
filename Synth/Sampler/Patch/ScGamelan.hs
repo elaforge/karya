@@ -5,7 +5,9 @@
 -- | Various samples from Sonic Couture's Balinese gamelan.
 module Synth.Sampler.Patch.ScGamelan (patches) where
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Typeable as Typeable
+
 import qualified System.Directory as Directory
 import           System.FilePath ((</>))
 import qualified Text.Read as Read
@@ -68,6 +70,7 @@ gongConvertMap = Drum.ConvertMap
     , _muteTime = Nothing
     , _convertAttributeMap = Drum._attributeMap gongStrokeMap
     , _getFilename = gongFilename
+    , _allFilenames = gongAllFilenames
     }
 
 {-
@@ -181,6 +184,10 @@ parseFilename fname = fromMaybe (error $ "no parse: " <> show fname) $
 _makeGongSamples :: IO ()
 _makeGongSamples =
     mapM_ putStrLn . Drum.enumFunction "gongSamples" =<< makeFileList gongsDir
+
+gongAllFilenames :: Set FilePath
+gongAllFilenames = Util.assertLength 97 $ Set.fromList
+    [fname | art <- Util.enumAll , (_, fname) <- gongSamples art]
 
 -- * generated
 

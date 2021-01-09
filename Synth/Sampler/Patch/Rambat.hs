@@ -7,6 +7,7 @@ import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified Sound.File.Sndfile as Sndfile
@@ -61,7 +62,7 @@ patches = map Patch.DbPatch [make Umbang, make Isep]
     where
     make tuning =
         (Patch.patch $ Text.intercalate "-" ["rambat", Util.showtLower tuning])
-        { Patch._dir = dir
+        { Patch._dir = dir </> Util.showLower tuning
         , Patch._convert = convert tuning
         , Patch._karyaPatch = ImInst.code #= code tuning $
             setRange $ setTuning tuning $
@@ -75,6 +76,7 @@ patches = map Patch.DbPatch [make Umbang, make Isep]
                     ]
                 , Im.Patch.patch_attribute_map = const () <$> attributeMap
                 }
+        , Patch._allFilenames = allFilenames tuning
         }
     setRange = ImInst.range Legong.rambat_range
     setTuning tuning = -- ImInst.default_scale Legong.scale_id
@@ -116,7 +118,7 @@ convert tuning note = do
     symPitch <- Util.symbolicPitch note
     let variableMute = RealTime.seconds $ Note.initial0 Control.mute note
     (pitch, (noteNn, sampleNn)) <- tryRight $ findPitch tuning symPitch
-    filenames <- tryRight $ toFilename tuning art pitch dyn (Note.duration note)
+    let filenames = toFilenames tuning art pitch dyn (Note.duration note)
     dynVal <- return $ dynVal * tweakDynamic tuning art pitch dyn
     return $ (Sample.make (Util.chooseVariation filenames note))
         -- TODO duplicate from Wayang
@@ -134,11 +136,24 @@ convert tuning note = do
         , Sample.ratios = Signal.constant $ Sample.pitchToRatio sampleNn noteNn
         }
 
-toFilename :: Tuning -> Articulation -> Pitch -> Dynamic -> RealTime
-    -> Either Text [Sample.SamplePath]
-toFilename tuning art pitch dyn dur = do
-    let arts = possibleArticulations tuning pitch dyn dur art
-    return $ concatMap (filenamesOf tuning pitch dyn) arts
+toFilenames :: Tuning -> Articulation -> Pitch -> Dynamic -> RealTime
+    -> [Sample.SamplePath]
+toFilenames tuning art pitch dyn dur =
+    concatMap (filenamesOf tuning pitch dyn) $
+        possibleArticulations tuning pitch dyn dur art
+
+allFilenames :: Tuning -> Set FilePath
+allFilenames tuning = Util.assertLength (len tuning) $ Set.fromList
+    [ fname
+    | art <- Util.enumAll
+    , pitch <- Map.keys rambatTuning
+    , dyn <- Util.enumAll
+    , fname <- toFilenames tuning art pitch dyn 1
+        -- dur is irrelevant because I'm already picking OpenShort explicitly
+    ]
+    where
+    len Umbang = 1319
+    len Isep = 1351
 
 -- | Reign in some samples that stick out.
 tweakDynamic :: Tuning -> Articulation -> Pitch -> Dynamic -> Signal.Y
@@ -159,8 +174,7 @@ possibleArticulations tuning pitch dyn dur art
     | otherwise = [art]
 
 filenamesOf :: Tuning -> Pitch -> Dynamic -> Articulation -> [FilePath]
-filenamesOf tuning pitch dyn art =
-    map ((Util.showLower tuning </>) . unparseFilename pitch art dyn) [1..vars]
+filenamesOf tuning pitch dyn art = map (unparseFilename pitch art dyn) [1..vars]
     where vars = variationsOf tuning pitch dyn art
 
 -- if there's a min dur, then Open -> 1, OpenShort -> 4

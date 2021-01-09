@@ -14,6 +14,7 @@ module Synth.Sampler.Patch.Break (
 ) where
 import qualified Data.Map as Map
 import qualified Data.Ratio as Ratio
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
@@ -58,6 +59,7 @@ patches = map (Patch.DbPatch . make) allBreaks
     make break = (Patch.patch ("break-" <> _name break))
         { Patch._dir = dir
         , Patch._convert = convert sample (_pitchAdjust break)
+        , Patch._allFilenames = Set.fromList [sample]
         , Patch._effect = Just $ (Patch.effect "comb")
             { Patch._toEffectControl = Map.fromList
                 [ ("pitch", "comb-pitch")

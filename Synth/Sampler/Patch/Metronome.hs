@@ -4,6 +4,7 @@
 
 module Synth.Sampler.Patch.Metronome where
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
@@ -26,6 +27,7 @@ patches :: [Patch.DbPatch]
 patches = (:[]) $ Patch.DbPatch $ (Patch.patch "metronome")
     { Patch._dir = "metronome"
     , Patch._convert = convert
+    , Patch._allFilenames = Set.fromList $ Map.elems nnToSample
     , Patch._karyaPatch = ImInst.make_patch $ Im.Patch.patch
         { Im.Patch.patch_controls = mconcat
             [ Control.supportPitch

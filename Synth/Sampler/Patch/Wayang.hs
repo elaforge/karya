@@ -6,18 +6,18 @@
 module Synth.Sampler.Patch.Wayang (
     patches
     -- * interactive
-    , checkFilenames, checkStarts
+    , checkStarts
     , showPitchTable
 ) where
 import qualified Data.Char as Char
 import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Text.Read as Text.Read
 
-import qualified System.Directory as Directory
 import           System.FilePath ((</>))
 
 import qualified Util.Log as Log
@@ -66,8 +66,10 @@ patches =
     make (inst, tuning) =
         (Patch.patch $ Text.intercalate "-"
             ["wayang", Util.showtLower inst, Util.showtLower tuning])
-        { Patch._dir = dir
+        { Patch._dir =
+            dir </> Util.showLower inst </> Util.showLower tuning
         , Patch._convert = convert inst tuning
+        , Patch._allFilenames = allFilenames inst tuning
         , Patch._karyaPatch = ImInst.code #= code inst tuning $
             setRange inst $ setTuning tuning $
             ImInst.make_patch $ Im.Patch.patch
@@ -136,21 +138,17 @@ attributeMap = Common.attribute_map
 
 -- * checks
 
-checkFilenames :: IO [FilePath]
-checkFilenames = filterM (fmap not . exists) allFilenames
-    where exists = Directory.doesFileExist . ("data/sampler/wayang" </>)
-
-allFilenames :: [FilePath]
-allFilenames = map fst3 $ Either.rights
-    [ toFilename instrument tuning articulation (Right nn) dyn variation
-    | instrument <- [Pemade, Kantilan]
-    , tuning <- [Umbang, Isep]
-    , articulation <- Util.enumAll
-    , nn <- map fst $ instrumentKeys instrument tuning articulation
+allFilenames :: Instrument -> Tuning -> Set FilePath
+allFilenames inst tuning = Set.fromList $ map fst3 $
+    Either.rights
+    [ toFilename inst tuning articulation (Right nn) dyn variation
+    | articulation <- Util.enumAll
+    , nn <- map fst $ instrumentKeys inst tuning articulation
     , dyn <- Util.enumAll
     , variation <- [0 .. variationsOf articulation - 1]
     ]
-    where fst3 (a, _, _) = a
+    where
+    fst3 (a, _, _) = a
 
 checkStarts :: (Sample.Sample, [[Sample.Sample]])
 checkStarts = (makeSample reference,)
@@ -268,22 +266,23 @@ toFilename :: Instrument -> Tuning -> Articulation
 toFilename instrument tuning articulation symPitch dyn variation = do
     (sampleNn, noteNn, Midi.Key sampleKey) <-
         findPitch instrument tuning articulation symPitch
+    let (lowVel, highVel) = dynamicRange $
+            case (instrument, tuning, articulation, dyn, sampleKey) of
+                -- Just forgot to sample this one.
+                (Kantilan, Umbang, CalungMute, Util.FF, 52) -> Util.MF
+                _ -> dyn
     return
-        ( toDir instrument </> toDir tuning </> panggul
-            </> sampleName sampleKey ++ ".flac"
+        ( panggul
+            </> Seq.join "-" [show sampleKey, show lowVel, show highVel, group]
+            <> ".flac"
         , noteNn
         , sampleNn
         )
     where
-    toDir :: Show a => a -> FilePath
-    toDir = Util.showLower
     panggul = case articulation of
         CalungMute -> "calung"
         Calung -> "calung"
         _ -> "normal"
-    sampleName sampleKey = Seq.join "-"
-        [show sampleKey, show lowVel, show highVel, group]
-    (lowVel, highVel) = dynamicRange dyn
     group = articulationFile articulation ++ show (variation + 1)
 
 dynamicRange :: Util.Dynamic -> (Int, Int)

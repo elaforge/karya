@@ -31,7 +31,7 @@ patches = pasang : map (Patch.DbPatch . make) [Wadon, Lanang]
         Drum.patch dir name strokeMap (convertMap tuning) (const config)
         where name = patchName <> "-" <> txt (Util.showLower tuning)
     config = CUtil.call_config { CUtil._tuning_control = Just "kendang-tune" }
-    dir = untxt patchName
+    dir = untxt patchName </> "legong"
 
     -- TODO thru doesn't work for this, because I have to evaluate the call,
     -- and only MidiThru does that.
@@ -101,12 +101,21 @@ convertMap tuning = Drum.ConvertMap
     , _muteTime = Just 0.05
     , _convertAttributeMap = attributeMap
     , _getFilename = \art dyn var -> (getFilename tuning art dyn var, Nothing)
+    , _allFilenames = allFilenames
     }
+
+allFilenames :: Set FilePath
+allFilenames = Util.assertLength 861 $ Set.fromList
+    [ Util.showLower tuning </> show art </> fname
+    | (tuning, get) <-
+        [(Wadon, legongWadonSamples), (Lanang, legongLanangSamples)]
+    , art <- Util.enumAll
+    , fname <- get art
+    ]
 
 getFilename :: Tuning -> Articulation -> Signal.Y -> Signal.Y -> FilePath
 getFilename tuning = \art dyn var ->
-    "legong" </> Util.showLower tuning
-        </> fst (Drum.variableDynamic 0.15 get art dyn var)
+    Util.showLower tuning </> fst (Drum.variableDynamic 0.15 get art dyn var)
     where
     get = case tuning of
         Wadon -> legongWadonSamples

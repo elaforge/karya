@@ -21,6 +21,7 @@ import qualified Data.Set as Set
 import qualified Data.Tuple as Tuple
 import qualified Data.Typeable as Typeable
 
+import qualified GHC.Stack as Stack
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import           System.FilePath ((</>))
@@ -36,7 +37,9 @@ import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.ImInst as ImInst
 
 import qualified Derive.Attrs as Attrs
+import qualified Derive.Derive as Derive
 import qualified Derive.Expr as Expr
+
 import qualified Instrument.Common as Common
 import qualified Perform.Im.Patch as Im.Patch
 import qualified Perform.Pitch as Pitch
@@ -66,6 +69,7 @@ patch dir name strokeMap convertMap configOf =
         if Map.null (_stops strokeMap) then id else inferDuration strokeMap
     , Patch._convert = convert convertMap
     , Patch._karyaPatch = karyaPatch dir strokeMap convertMap configOf []
+    , Patch._allFilenames = _allFilenames convertMap
     }
 
 -- | Make a patch with the drum-oriented code in there already.
@@ -119,6 +123,7 @@ data ConvertMap art = ConvertMap {
     -- but I think it doesn't work, see TODO above.
     , _getFilename :: art -> Signal.Y -> Signal.Y
         -> (FilePath, Maybe (Signal.Y, Signal.Y))
+    , _allFilenames :: Set FilePath
     }
 
 -- | Create a '_getFilename' with the strategy where each articulation has
@@ -132,10 +137,20 @@ variableDynamic variationRange articulationSamples = \art dyn var ->
     show art </> Util.pickDynamicVariation variationRange
         (articulationSamples art) dyn (var*2 - 1)
 
+-- | '_allFilenames' for ConvertMaps that use 'variableDynamic' and
+-- 'makeFileList'.
+allFilenames :: (Stack.HasCallStack, Enum a, Bounded a, Show a)
+    => Int -> (a -> [FilePath]) -> Set FilePath
+allFilenames len articulationSamples = Util.assertLength len $ Set.fromList
+    [ show art </> fname
+    | art <- Util.enumAll
+    , fname <- articulationSamples art
+    ]
+
 -- | Make a generic convert, suitable for drum type patches.
 convert :: ConvertMap art -> Note.Note -> Patch.ConvertM Sample.Sample
 convert (ConvertMap (minDyn, maxDyn) naturalNn muteTime attributeMap
-        getFilename) =
+        getFilename _allFilenames) =
     \note -> do
         articulation <- Util.articulation attributeMap (Note.attributes note)
         let dyn = Note.initial0 Control.dynamic note

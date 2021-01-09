@@ -30,6 +30,7 @@ convertMap = Drum.ConvertMap
     , _muteTime = Just 0.15
     , _convertAttributeMap = Drum._attributeMap strokeMap
     , _getFilename = Drum.variableDynamic 0.15 articulationSamples
+    , _allFilenames = Drum.allFilenames 62 articulationSamples
     }
 
 strokeMap :: Drum.StrokeMap Articulation

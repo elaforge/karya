@@ -10,6 +10,8 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
+import qualified GHC.Stack as Stack
+
 import qualified Util.Maps as Maps
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
@@ -65,9 +67,10 @@ findPitchRatio nnToSample nn = (fname, Sample.pitchToRatio sampleNn nn)
 
 articulation :: Except.MonadError Text m => Common.AttributeMap a
     -> Attrs.Attributes -> m a
-articulation attributeMap  =
-    maybe (Except.throwError "no attribute") (return . snd)
-    . (`Common.lookup_attributes` attributeMap)
+articulation attributeMap attrs =
+    maybe (Except.throwError $ "attributes not found: " <> pretty attrs)
+        (return . snd) $
+    Common.lookup_attributes attrs attributeMap
 
 articulationDefault :: a -> Common.AttributeMap a -> Attrs.Attributes -> a
 articulationDefault deflt attributeMap  =
@@ -217,3 +220,9 @@ showLower = map Char.toLower . show
 
 showtLower :: Show a => a -> Text
 showtLower = txt . showLower
+
+assertLength :: (Stack.HasCallStack, Foldable t) => Int -> t a -> t a
+assertLength len xs
+    | length xs == len = xs
+    | otherwise = error $ "expected length " <> show len <> ", but was "
+        <> show (length xs)
