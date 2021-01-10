@@ -2942,8 +2942,13 @@ synth: im:
         . So only do the pitch curve merge if Note.element is set, and look
           for equal Note.elements.
     gong bali:
-      - cengceng rincik
-        - I'll want to automatically alternate hands.
+      * cengceng rincik
+        * I'll want to automatically alternate hands.
+        * open+both and closed+both are backwards.
+        * thru doesn't work for hands strokes: attributes not found +open
+          . I could make the sampler just add +left.
+        * file not found: "data/sampler/cengceng/rincik/kopyak+open-f-v4.flac"
+
       * cengceng kopyak
         * Not enough variation.
           . for 14.5s, variation= 0.325, but getFilename gets -0.348

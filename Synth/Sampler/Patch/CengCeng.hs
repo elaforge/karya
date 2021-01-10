@@ -12,11 +12,9 @@ import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Derive as Derive
-import qualified Derive.Expr as Expr
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 
-import qualified Instrument.Common as Common
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Patch.Lib.Code as Code
 import qualified Synth.Sampler.Patch.Lib.Drum as Drum
@@ -32,18 +30,11 @@ patches = map Patch.DbPatch (rincik : kopyaks)
 -- * cengceng rincik
 
 rincik :: Patch.Patch
-rincik = setPatch $
+rincik = Patch.addCode code $
     Drum.patch dir "cengceng-rincik" rincikStrokeMap rincikConvertMap
         (const rincikCallConfig)
     where
-    setPatch patch = Patch.addCode code $ patch
-        { Patch._karyaPatch =
-            Drum.karyaPatch dir rincikStrokeMap rincikConvertMap
-                (const rincikCallConfig)
-                [(char, sym) | (char, sym, _) <- rincikCalls]
-        }
-    code = ImInst.note_generators [(sym, call) | (_, sym, call) <- rincikCalls]
-        <> ImInst.note_transformers [("infer-hands", c_inferHands)]
+    code = ImInst.note_transformers [("infer-hands", c_inferHands)]
     dir = "cengceng/rincik"
 
 rincikCallConfig :: CUtil.CallConfig
@@ -70,50 +61,40 @@ rincikAll =
     ] ++ [r h | r <- [ROpen, RClosed, RMute], h <- [HLeft, HRight]]
 
 rincikStrokeMap :: Drum.StrokeMap Rincik
-rincikStrokeMap =
-    Drum.addAttributeMap rincikExtraAttributes $ Drum.replaceSoft 0.75 $
-    Drum.strokeMapTable stops
-    [ ('1', "ko", Attrs.open <> kopyak <> soft, RKopyakOpen, open)
-    , ('q', "kO", Attrs.open <> kopyak, RKopyakOpen, open)
-    , ('2', "kx", Attrs.closed <> kopyak <> soft, RKopyakClosed, open)
-    , ('w', "kX", Attrs.closed <> kopyak, RKopyakClosed, open)
-    , ('v', "OO", Attrs.open <> both,   ROpenBoth, open)
-    , ('b', "++", Attrs.closed <> both, RClosedBoth, closed)
+rincikStrokeMap = Drum.replaceSoft 0.75 $ Drum.strokeMapTable2 stops $
+    [ ('1', "ko", Attrs.open <> kopyak <> soft, Just (RKopyakOpen, opened))
+    , ('q', "kO", Attrs.open <> kopyak,         Just (RKopyakOpen, opened))
+    , ('2', "kx", Attrs.closed <> kopyak <> soft, Just (RKopyakClosed, closed))
+    , ('w', "kX", Attrs.closed <> kopyak,       Just (RKopyakClosed, closed))
+    , ('v', "OO", Attrs.open <> both,           Just (ROpenBoth, opened))
+    , ('b', "++", Attrs.closed <> both,         Just (RClosedBoth, closed))
+    , ('a', "o", Attrs.open <> soft,            Nothing)
+    , ('z', "O", Attrs.open,                    Nothing)
+    , ('s', "-", Attrs.closed <> soft,          Nothing)
+    , ('x', "+", Attrs.closed,                  Nothing)
+    , ('d', "X", Attrs.mute <> soft,            Nothing)
+    , ('c', "X", Attrs.mute,                    Nothing)
+    ] ++
+    [ (' ', "", attr, Just (art, group))
+    | (attr, stroke, group) <-
+        [ (Attrs.open, ROpen, opened)
+        , (Attrs.closed, RClosed, closed)
+        , (Attrs.mute, RMute, muted)
+        ]
+    , (attr, art, group) <-
+      [ (attr, stroke HLeft, group)
+      , (attr <> Attrs.left, stroke HLeft, group)
+      , (attr <> Attrs.right, stroke HRight, group)
+      ]
     ]
     where
     kopyak = Attrs.attr "kopyak"
     both = Attrs.attr "both"
-    stops = [(closed, [open])]
-    open = "open"
+    stops = [(closed, [opened]), (muted, [opened, closed])]
+    opened = "opened"
     closed = "closed"
+    muted = "muted"
     soft = Attrs.soft
-
-rincikExtraAttributes :: Common.AttributeMap Rincik
-rincikExtraAttributes =
-    Common.attribute_map $ concatMap make
-        [(ROpen, Attrs.open), (RClosed, Attrs.closed), (RMute, Attrs.mute)]
-    where
-    make (stroke, attr) =
-        [ (attr, stroke HLeft)
-        , (attr <> Attrs.left, stroke HLeft)
-        , (attr <> Attrs.right, stroke HRight)
-        ]
-
-rincikCalls :: [(Char, Expr.Symbol, Derive.Generator Derive.Note)]
-rincikCalls =
-    [ make 'a' "o" True Attrs.open
-    , make 'z' "O" False Attrs.open
-    , make 's' "-" True Attrs.closed
-    , make 'x' "+" False Attrs.closed
-    , make 'd' "x" True Attrs.mute
-    , make 'c' "X" False Attrs.mute
-    ]
-    where
-    make char name soft attrs =
-        (char, name, CUtil.drum_call config name attrs)
-        where
-        config = rincikCallConfig
-            { CUtil._stroke_dyn = if soft then 0.75 else 1 }
 
 c_inferHands :: Derive.Transformer Derive.Note
 c_inferHands = Derive.transformer Module.instrument "infer-hands" mempty
@@ -151,6 +132,7 @@ rincikAllFilenames = Util.assertLength 186 $ Set.fromList
     , var <- Seq.range 0 1 (1/8)
     ]
 
+-- | $attr-{p,m,f}-v{1..n}.flac
 rincikGetFilename :: Rincik -> Signal.Y -> Signal.Y
     -> (FilePath, Maybe (Signal.Y, Signal.Y))
 rincikGetFilename art dyn var = (fname, Just dynRange)
@@ -174,13 +156,18 @@ rincikGetFilename art dyn var = (fname, Just dynRange)
         RKopyakOpen -> "kopyak+open"
         RKopyakClosed -> "kopyak+closed"
     variations = case art of
-        ROpen _ -> 8 `div` 2
+        ROpen h -> case dynSym of
+            P -> hand h 3 4
+            M -> 5
+            F -> hand h 4 3
         RClosed _ -> d (14, 8, 8) `div` 2
         RMute _ -> 16 `div` 2
         ROpenBoth -> 6
         RClosedBoth -> 6
         RKopyakOpen -> 8
         RKopyakClosed -> 8
+    hand HLeft a _ = a
+    hand HRight _ a = a
     d (p, m, f) = case dynSym of
         P -> p
         M -> m

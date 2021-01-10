@@ -57,6 +57,7 @@ strokeMap = Drum.strokeMapTable stops
 
     -- This is not commonly used.
     , ('v', "c", Attrs.center <> Attrs.open,    CenterOpen, open)
+    -- I think the idea was to use this to damp open strokes.
     , ('m', "m", Attrs.damp,                    Damp, closed)
     ]
     where

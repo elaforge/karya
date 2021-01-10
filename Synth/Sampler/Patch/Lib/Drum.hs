@@ -175,6 +175,7 @@ data StrokeMap art = StrokeMap {
     -- | Map each articulation to the articulations that stop it.
     _stops :: Map art (Set art)
     , _strokes :: [Drums.Stroke]
+    -- TODO zip with _strokes
     , _articulations :: [Maybe art]
     , _attributeMap :: Common.AttributeMap art
     } deriving (Show)
@@ -183,20 +184,40 @@ data StrokeMap art = StrokeMap {
 strokeMapTable :: Ord art => Drums.Stops
     -> [(Char, Expr.Symbol, Attrs.Attributes, art, Drums.Group)]
     -> StrokeMap art
-strokeMapTable stops table = StrokeMap
-    { _stops = stopMap [(art, group) | (_, _, _, art, group) <- table] stops
-    , _strokes = map makeStroke table
-    , _articulations = [Just art | (_, _, _, art, _) <- table]
-    , _attributeMap = Common.attribute_map
-        [(attrs, art) | (_, _, attrs, art, _) <- table]
+strokeMapTable stops table = strokeMapTable2 stops
+    [ (key, sym, attrs, Just (art, group))
+    | (key, sym, attrs, art, group) <- table
+    ]
+
+-- | Like 'strokeMapTable', but can emit separate key binds and calls from how
+-- the sampler responds to them.
+--
+-- (char, sym, attrs, Nothing) makes a key that emits a call that generates the
+-- given Attributes.  (' ', "", attrs, Just (art, group)) makes the sampler
+-- map the given Attributes to the given articulation.
+strokeMapTable2 :: Ord art => Drums.Stops
+    -> [(Char, Expr.Symbol, Attrs.Attributes, Maybe (art, Drums.Group))]
+    -> StrokeMap art
+strokeMapTable2 stops table = StrokeMap
+    { _stops =
+        stopMap [(art, group) | (_, _, _, Just (art, group)) <- table] stops
+    , _strokes =
+        [ (makeStroke key call attrs, fst <$> mbArt)
+        | (key, call, attrs, mbArt) <- table
+        , key /= ' '
+        ]
+    , _attributeMap = Common.attribute_map $
+        [(attrs, art) | (_, _, attrs, Just (art, _)) <- table]
     }
     where
-    makeStroke (key, call, attrs, _, group) = Drums.Stroke
+    makeStroke key call attrs = Drums.Stroke
         { _name = call
         , _attributes = attrs
         , _char = key
         , _dynamic = 1
-        , _group = group
+        -- Drums._group is for generating 'stopMap' from just Strokes, but
+        -- I'm generating it separately here.
+        , _group = ""
         }
 
 addAttributeMap :: Common.AttributeMap art -> StrokeMap art -> StrokeMap art
