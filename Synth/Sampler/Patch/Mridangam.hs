@@ -23,7 +23,8 @@ patches = (:[]) $ Patch.DbPatch $ (Patch.patch patchName)
     { Patch._dir = dir
     , Patch._convert = convert
     , Patch._preprocess = Drum.inferDuration strokeMap
-    , Patch._karyaPatch = CUtil.im_drum_patch (Drum._strokes strokeMap) $
+    , Patch._karyaPatch =
+        CUtil.im_drum_patch (map fst(Drum._strokes strokeMap)) $
         ImInst.code #= code $ Drum.makePatch attributeMap True
     , Patch._allFilenames = Drum._allFilenames convertMap
     }

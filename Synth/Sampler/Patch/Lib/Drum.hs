@@ -75,13 +75,14 @@ karyaPatch :: FilePath -> StrokeMap art -> ConvertMap art
     -> (Maybe art -> CUtil.CallConfig) -> [(Char, Expr.Symbol)]
     -> ImInst.Patch
 karyaPatch dir strokeMap convertMap configOf extraCmds =
-    CUtil.im_drum_patch (_strokes strokeMap) $ ImInst.code #= code $
-        makePatch (_attributeMap strokeMap)
-            (Maybe.isJust (_naturalNn convertMap))
+    CUtil.im_drum_patch (map fst (_strokes strokeMap)) $
+    ImInst.code #= code $
+    makePatch (_attributeMap strokeMap) (Maybe.isJust (_naturalNn convertMap))
     where
-    code = CUtil.drum_code_cmd extraCmds thru $
-        zip (_strokes strokeMap)
-            (map (set . configOf) (_articulations strokeMap))
+    code = CUtil.drum_code_cmd extraCmds thru
+        [ (stroke, set (configOf mbArt))
+        | (stroke, mbArt) <- _strokes strokeMap
+        ]
     set config = config { CUtil._transform = Code.withVariation }
     thru = Util.imThruFunction dir
         (convert (_attributeMap strokeMap) convertMap)
@@ -174,9 +175,9 @@ convert attributeMap (ConvertMap (minDyn, maxDyn) naturalNn muteTime getFilename
 data StrokeMap art = StrokeMap {
     -- | Map each articulation to the articulations that stop it.
     _stops :: Map art (Set art)
-    , _strokes :: [Drums.Stroke]
-    -- TODO zip with _strokes
-    , _articulations :: [Maybe art]
+    -- | Retain the Stroke to 'art' assocation so I can have it when generating
+    -- the call for each stroke.
+    , _strokes :: [(Drums.Stroke, Maybe art)]
     , _attributeMap :: Common.AttributeMap art
     } deriving (Show)
 
@@ -227,7 +228,7 @@ addAttributeMap attrs strokeMap =
 -- | Set dynamic for Attrs.soft and remove it.
 replaceSoft :: Signal.Y -> StrokeMap art -> StrokeMap art
 replaceSoft dyn strokeMap =
-    strokeMap { _strokes = map replace (_strokes strokeMap) }
+    strokeMap { _strokes = map (first replace) (_strokes strokeMap) }
     where
     replace stroke = stroke
         { Drums._attributes = Attrs.remove Attrs.soft attrs
@@ -242,8 +243,7 @@ strokeMap :: Ord art => Drums.Stops -> [Drums.Stroke]
     -> Common.AttributeMap art -> StrokeMap art
 strokeMap stops strokes attributeMap = StrokeMap
     { _stops = stopMap artToGroup stops
-    , _strokes = strokes
-    , _articulations = map strokeToArt strokes
+    , _strokes = zip strokes (map strokeToArt strokes)
     , _attributeMap = attributeMap
     }
     where
