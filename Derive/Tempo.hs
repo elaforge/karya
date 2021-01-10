@@ -40,6 +40,8 @@ with_tempo :: Monoid a => Bool -- ^ If this tempo track is the toplevel track,
     -- whole block, but the implicit one doesn't have a track of course.
     -> Signal.Tempo -> Derive.Deriver a -> Derive.Deriver a
 with_tempo toplevel range maybe_track_id signal deriver = do
+    when (Signal.zero_or_below signal) $
+        Derive.throw "tempo signal crosses zero"
     let warp = tempo_to_warp signal
     stretch_to_1 <- get_stretch_to_1 range $ \(start, end) -> do
         let real_start = Warp.warp warp start
@@ -71,13 +73,10 @@ tempo_to_warp sig
     -- Optimize for a constant (or missing) tempo.
     -- Tempo tracks have to start at x=0, since they are integrated.
     | Just y <- Signal.constant_val_from 0 sig =
-        Warp.stretch (ScoreTime.from_double $ 1 / max min_tempo y) Warp.identity
+        Warp.stretch (ScoreTime.from_double $ 1 / y) Warp.identity
     | otherwise = Warp.from_signal warp_sig
     where
-    warp_sig = Signal.integrate_inverse $ Signal.scalar_max min_tempo sig
-
-min_tempo :: Signal.Y
-min_tempo = 0.001
+    warp_sig = Signal.integrate_inverse sig
 
 require_nonzero :: ScoreTime -> RealTime -> (a -> a) -> Derive.Deriver (a -> a)
 require_nonzero block_dur real_dur ok

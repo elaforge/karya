@@ -11,6 +11,7 @@ module Util.Segment (
     -- * construct / destruct
     , empty
     , constant, constant_val, constant_val_num
+    , all_y
     , beginning
     , from_vector, to_vector
     , from_samples, to_samples, to_samples_desc
@@ -172,6 +173,9 @@ constant_val_num from sig = case TimeVector.uncons (_vector sig) of
         | V.all ((==0) . sy) (_vector sig) -> Just 0
         | otherwise -> Nothing
     Nothing -> Just 0
+
+all_y :: (Y -> Bool) -> NumSignal -> Bool
+all_y f = V.all (f . sy) . _vector
 
 -- | Use this as the stand-in for "since the beginning of time."
 beginning :: RealTime.RealTime

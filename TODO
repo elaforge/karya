@@ -2080,9 +2080,10 @@ synth: im:
   - It seems like im-gc.py is too eager
     . If I disable an old track, it deletes it right away.
     . Shouldn't it have touched all the timestamps when it hit that track?
-  - Maybe I could have the tempo track default to 1 instead of almost 0.
+  * Maybe I could have the tempo track default to 1 instead of almost 0.
     . 0 tempo is always a mistake.  It's just a harmless one with midi because
-      midi renders audio lazily.
+      midi renders audio lazily.  Not so harmless when eagerly rendering audio!
+    . Or how about just crashing?
   optimize low level sapmles: avx: simd:
     - use simd in play_cache
       . It's probbaly IO bound, so kind of pointless, but still good for
@@ -2948,7 +2949,6 @@ synth: im:
         * thru doesn't work for hands strokes: attributes not found +open
           . I could make the sampler just add +left.
         * file not found: "data/sampler/cengceng/rincik/kopyak+open-f-v4.flac"
-
       * cengceng kopyak
         * Not enough variation.
           . for 14.5s, variation= 0.325, but getFilename gets -0.348

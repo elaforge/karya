@@ -4,13 +4,15 @@
 
 module Derive.Tempo_test where
 import qualified Util.Seq as Seq
-import Util.Test
-import qualified Ui.UiTest as UiTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Perform.RealTime as RealTime
+import qualified Ui.UiTest as UiTest
+
+import           Util.Test
 
 
+test_tempo :: Test
 test_tempo = do
     let extract = e_floor . DeriveTest.e_event
         e_floor (start, dur, text) =
@@ -31,18 +33,31 @@ test_tempo = do
         ([(0, 10, "--1"), (10, 5, "--2"), (15, 5, "--3")], [])
     equal (run [(0, 0, "2"), (20, 0, "i 1")]) $
         ([(0, 5, "--1"), (5, 8, "--2"), (13, 10, "--3")], [])
-    equal (run [(0, 0, "2"), (20, 0, "i 0")]) $
-        ([(0, 6, "--1"), (6, 106, "--2"), (113, 10000, "--3")], [])
+    equal (run [(0, 0, "2"), (20, 0, "i 0.001")]) $
+        ([(0, 6, "--1"), (6, 100, "--2"), (107, 10000, "--3")], [])
     -- Speed up.
     equal (run [(0, 0, "1"), (20, 0, "i 2")]) $
         ([(0, 8, "--1"), (8, 5, "--2"), (13, 5, "--3")], [])
-    equal (run [(0, 0, "0"), (20, 0, "i 2")]) $
-        ([(0, 110, "--1"), (110, 6, "--2"), (117, 5, "--3")], [])
+    equal (run [(0, 0, ".001"), (20, 0, "i 2")]) $
+        ([(0, 100, "--1"), (100, 6, "--2"), (107, 5, "--3")], [])
 
     -- Change tempo.
     equal (run [(0, 0, "1"), (10, 0, "2")]) $
         ([(0, 10, "--1"), (10, 5, "--2"), (15, 5, "--3")], [])
 
+test_tempo_zero :: Test
+test_tempo_zero = do
+    let run tempo = DeriveTest.extract DeriveTest.e_start_dur $
+            DeriveTest.derive_tracks "" $
+                ("tempo", tempo) : UiTest.regular_notes 4
+    equal (run [(0, 0, "1")]) (map (,1) [0, 1, 2, 3], [])
+    equal (run [(0, 0, "1"), (1, 0, "i 0"), (2, 0, "i 1")])
+        ([], ["tempo signal crosses zero"])
+    equal (run [(0, 0, "1"), (2, 0, "i -1")])
+        ([], ["tempo signal crosses zero"])
+    equal (run [(1, 0, "1")]) ([], ["tempo signal crosses zero"])
+
+test_multiple_tempo_tracks :: Test
 test_multiple_tempo_tracks = do
     let run = DeriveTest.extract DeriveTest.e_start_dur
             . DeriveTest.derive_blocks_setup
@@ -78,6 +93,7 @@ test_multiple_tempo_tracks = do
         ([(0, 5.6), (5.6, 2.4)], [])
     -- TODO with a logical start time
 
+test_with_absolute :: Test
 test_with_absolute = do
     let run start dur tempo events = DeriveTest.extract Score.event_start $
             DeriveTest.derive_blocks
@@ -94,6 +110,7 @@ test_with_absolute = do
     equal (run 1 4 [(0, 0, "2")] 4) ([1, 2, 3, 4], [])
     equal (run 1 3 [(0, 0, "1"), (2, 0, "2")] 4) ([1, 2, 3, 3.5], [])
 
+_test_with_hybrid :: Test
 _test_with_hybrid = do
     let run start dur tempo events = DeriveTest.extract extent $
             DeriveTest.derive_blocks

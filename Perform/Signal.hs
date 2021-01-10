@@ -21,6 +21,7 @@ module Perform.Signal (
     , to_samples, to_pairs, to_pairs_desc
     , to_segments, to_vector
     , constant, constant_val, constant_val_from
+    , zero_or_below
     , beginning
     , prepend
     , unfoldr
@@ -56,7 +57,7 @@ module Perform.Signal (
     -- * special functions
     , integrate_inverse, integrate, tempo_srate
 ) where
-import Prelude hiding (head, last, maximum, minimum, null, drop)
+import           Prelude hiding (head, last, maximum, minimum, null, drop)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Vector.Storable as Vector
 import qualified Foreign
@@ -64,7 +65,7 @@ import qualified Foreign
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Segment as Segment
-import Util.Segment (X, Sample(..))
+import           Util.Segment (Sample(..), X)
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 import qualified Util.TimeVector as TimeVector
@@ -73,8 +74,8 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Ui.ScoreTime as ScoreTime
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- * types
@@ -189,6 +190,15 @@ constant_val = Segment.constant_val_num (-RealTime.large) . _signal
 
 constant_val_from :: X -> Signal kind -> Maybe Y
 constant_val_from x = Segment.constant_val_num x . _signal
+
+-- | True if the signal becomes <=0 at any point.  This assumes the signal
+-- starts at X==0, which is true of signals from control tracks only.
+zero_or_below :: Signal kind -> Bool
+zero_or_below signal = case head signal of
+    Nothing -> True
+    Just (x, _)
+        | x > 0 -> True
+        | otherwise -> not $ Segment.all_y (>0) (_signal signal)
 
 beginning :: RealTime
 beginning = Segment.beginning
