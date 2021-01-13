@@ -66,8 +66,7 @@ patches =
     make (inst, tuning) =
         (Patch.patch $ Text.intercalate "-"
             ["wayang", Util.showtLower inst, Util.showtLower tuning])
-        { Patch._dir =
-            dir </> Util.showLower inst </> Util.showLower tuning
+        { Patch._dir = dir
         , Patch._convert = convert inst tuning
         , Patch._allFilenames = allFilenames inst tuning
         , Patch._karyaPatch = ImInst.code #= code inst tuning $
@@ -83,17 +82,18 @@ patches =
                 , Im.Patch.patch_attribute_map = const () <$> attributeMap
                 }
         }
+        where
+        code inst tuning = WayangCode.code
+            <> Util.thru dir (convert inst tuning)
+            <> ImInst.postproc with_symbolic_pitch
+        dir = "wayang" </> Util.showLower inst </> Util.showLower tuning
     setRange inst = ImInst.range $ BaliScales.instrument_range $ case inst of
         Pemade -> Wayang.pemade
         Kantilan -> Wayang.kantilan
     setTuning tuning = -- ImInst.default_scale Wayang.scale_id
         ImInst.environ EnvKey.tuning (ShowVal.show_val tuning)
-    code inst tuning = WayangCode.code
-        <> Util.thru dir (convert inst tuning)
-        <> ImInst.postproc with_symbolic_pitch
     with_symbolic_pitch = DUtil.when_env "symbolic-pitch" (Just True) $
         DUtil.add_symbolic_pitch_convert pitchConvert
-    dir = "wayang"
 
 pitchConvert :: PSignal.Transposed -> Either Text Pitch.Note
 pitchConvert pitch = do

@@ -62,7 +62,7 @@ patches = map Patch.DbPatch [make Umbang, make Isep]
     where
     make tuning =
         (Patch.patch $ Text.intercalate "-" ["rambat", Util.showtLower tuning])
-        { Patch._dir = dir </> Util.showLower tuning
+        { Patch._dir = dir
         , Patch._convert = convert tuning
         , Patch._karyaPatch = ImInst.code #= code tuning $
             setRange $ setTuning tuning $
@@ -78,21 +78,22 @@ patches = map Patch.DbPatch [make Umbang, make Isep]
                 }
         , Patch._allFilenames = allFilenames tuning
         }
+        where
+        dir = "rambat" </> Util.showLower tuning
+        code tuning = note
+            <> Util.thru dir (convert tuning)
+            <> ImInst.postproc DUtil.with_symbolic_pitch
     setRange = ImInst.range Legong.rambat_range
     setTuning tuning = -- ImInst.default_scale Legong.scale_id
         ImInst.environ EnvKey.tuning (tuningVal tuning :: Text)
 
     tuningVal Umbang = "umbang"
     tuningVal Isep = "isep"
-    code tuning = note
-        <> Util.thru dir (convert tuning)
-        <> ImInst.postproc DUtil.with_symbolic_pitch
     note = Bali.zero_dur_mute_with ""
         (\_args -> transform . Call.multiply_dynamic 0.65)
         (\args -> transform $
             Prelude.Note.default_note Prelude.Note.use_attributes args)
         where transform = Code.withVariation
-    dir = "rambat"
 
 attributeMap :: Common.AttributeMap Articulation
 attributeMap = Common.attribute_map

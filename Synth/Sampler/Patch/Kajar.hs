@@ -46,7 +46,7 @@ data Articulation =
 
 -- copied from User.Elaforge.Instrument.Kontakt.Gong
 strokeMap :: Drum.StrokeMap Articulation
-strokeMap = Drum.strokeMapTable stops
+strokeMap = Drum.replaceSoft 0.75 $ Drum.strokeMapTable stops
     [ ('q', "P", Attrs.rim <> Attrs.closed,     RimClosed, closed)
 
     , ('a', "+/", Attrs.rim <> Attrs.staccato,  RimStaccato, open)
