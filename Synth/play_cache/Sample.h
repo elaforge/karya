@@ -28,11 +28,12 @@ private:
     const int sample_rate;
     const std::string dir;
 
+    // Current file to stream.  This goes to "" when I run out.
     std::string fname;
     SNDFILE *sndfile;
-    // If >0, then sndfile is a silent chunk, and this is how many frames
-    // of silence are left in it.
-    sf_count_t silence_left;
+    // How many frames are left in the current chunk, which is the one in
+    // 'fname' and 'sndfile'.
+    sf_count_t frames_left;
     std::vector<float> buffer;
 
     void open(int channels, sf_count_t offset);

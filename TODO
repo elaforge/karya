@@ -2612,6 +2612,14 @@ synth: im:
       . Volume comes up at -inf, vol cc and pan cc have right number, but
         slider position is wrong.
   play_cache: PlayCache:
+    * I wound up with a short sample, which messes up play_cache.
+      . I guess this has to do with cache: if I add something after a gap, it
+        wouldn't rebuild that chunk.  And correctly I think.
+      . I could just emit silence for the rest of the chunk, but will it mess
+        up waveform display when a sample breaks the invariant of all the same
+        dur except the last one?
+      . I don't think so, and anyway, it's too complicated for an invariant,
+        I should just support not all the same size.
     gui ideas:
       . I don't really want to write a gui though, what a hassle.  How much
         can I do with the generic gui?
