@@ -93,6 +93,8 @@ is_silent(const SF_INFO &info)
 }
 
 
+// Open the file at the given offset.  Return nullptr if there was an error,
+// or the offset is past the end of the file.
 static SNDFILE *
 open_sample(
     std::ostream &log, int channels, bool one_channel_ok, int sample_rate,
@@ -110,16 +112,27 @@ open_sample(
     } else if (info.samplerate != sample_rate) {
         LOG(fname << ": expected srate of " << sample_rate << ", got "
             << info.samplerate);
-    } else if (!is_silent(info) && offset > 0
-            && sf_seek(sndfile, offset, SEEK_SET) == -1) {
-        LOG(fname << ": seek to " << offset << ": " << sf_strerror(sndfile));
     } else {
         if (file_channels)
             *file_channels = info.channels;
         if (silent)
             *silent = is_silent(info);
+
+        if (offset == 0 || is_silent(info)) {
+            // pass
+        } else if (offset < info.frames) {
+            if (sf_seek(sndfile, offset, SEEK_SET) == -1) {
+                LOG(fname << ": seek to " << offset << ": "
+                    << sf_strerror(sndfile));
+            }
+        } else {
+            // no error, but no samples to be read either
+            sf_close(sndfile);
+            return nullptr;
+        }
         return sndfile;
     }
+    // there was an error
     sf_close(sndfile);
     return nullptr;
 }
@@ -182,7 +195,7 @@ SampleDirectory::read(int channels, sf_count_t frames, float **out)
             sf_close(sndfile);
             sndfile = nullptr;
             fname = find_next_sample(log, dir, fname);
-            LOG(dir << ": next sample: " << fname);
+            LOG(dir << ": next sample: " << (fname.empty() ? "<done>" : fname));
         }
         total_read += delta;
     };
@@ -199,12 +212,19 @@ SampleDirectory::open(int channels, sf_count_t offset)
     sndfile = open_sample(
         log, channels, false, sample_rate, dir + '/' + fname, offset,
         nullptr, &silent);
-    this->silence_left = silent ? CHUNK_SECONDS * sample_rate : 0;
-    if (silent) {
-        silence_left -= std::min(silence_left, offset);
+    if (sndfile == nullptr) {
+        // This tells read() that I've no more samples to read.
+        fname.clear();
+    } else if (silent) {
+        // The file was one chunk of silence, don't bother to read, but keep
+        // track of how many 0 frames to return.  I could close sndfile now,
+        // but I leave it open until I'm done pretending to read from it, so
+        // the logic in read() is easier.
+        silence_left = std::max(
+            sf_count_t(0), CHUNK_SECONDS * sample_rate - offset);
+    } else {
+        silence_left = 0;
     }
-    // I could close sndfile now, but I leave it open until I'm done
-    // pretending to read from it, so the logic in read() is easier.
 }
 
 
@@ -235,7 +255,9 @@ SampleFile::~SampleFile()
 bool
 SampleFile::read(int channels, sf_count_t frames, float **out)
 {
-    // LOG("read " << frames);
+    if (sndfile == nullptr) {
+        return true;
+    }
     buffer.resize(frames * channels);
     sf_count_t read;
     if (expand_channels && file_channels == 1 && channels != 1) {
