@@ -56,6 +56,9 @@ list_samples(std::ostream &log, const string &dir)
         if (is_sample(fname))
             fnames.push_back(fname);
     }
+    if (closedir(d) == -1) {
+        LOG("closing " << dir << ": " << strerror(errno));
+    }
     std::sort(fnames.begin(), fnames.end());
     return fnames;
 }
