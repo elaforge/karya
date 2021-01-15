@@ -417,9 +417,6 @@ mixV len vectors = VectorC.mixFloats len vectors
 
 -- * channels
 
--- | 'splitChannels' is the inverse of this, but it converts to NAudio, since
--- [Audio] would amount to an unzip, which streams don't support in
--- a straightforward way.
 mergeChannels :: forall m rate chan1 chan2.
     (Monad m, KnownNat chan1, KnownNat chan2)
     => Audio m rate chan1 -> Audio m rate chan2
@@ -455,7 +452,9 @@ extractChannel idx = Audio . S.map extract . _stream
     extract (Block v) = Block $ deinterleaveV chan v !! idx
     chan = natVal (Proxy @chan)
 
--- | De-interleave the audio.
+-- | De-interleave the audio.  This is the inverse of 'splitChannels', but it
+-- converts to NAudio, since [Audio] would amount to an unzip, which streams
+-- don't support in a straightforward way.
 splitChannels :: forall m rate chan. (Monad m, KnownNat chan)
     => Audio m rate chan -> NAudio m rate
 splitChannels = NAudio chan . S.map (deinterleaveB chan) . _stream

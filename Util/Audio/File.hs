@@ -38,7 +38,7 @@ import           Global
 
 
 -- | Check if rate and channels match the file.
-check :: forall rate chan.  (TypeLits.KnownNat rate, TypeLits.KnownNat chan)
+check :: forall rate chan. (TypeLits.KnownNat rate, TypeLits.KnownNat chan)
     => Proxy rate -> Proxy chan -> FilePath -> IO (Maybe String)
 check rate chan fname =
     maybe (Just $ "file not found: " <> fname) (checkInfo rate chan) <$>
@@ -63,7 +63,7 @@ duration = fmap (fmap (Audio.Frames . Sndfile.frames)) . getInfo
 --
 -- As a special case, if the file channels is 1, it will be expanded to
 -- fit whatever channel count was requested.
-read :: forall rate chan.  (TypeLits.KnownNat rate, TypeLits.KnownNat chan)
+read :: forall rate chan. (TypeLits.KnownNat rate, TypeLits.KnownNat chan)
     => FilePath -> Audio.AudioIO rate chan
 read = readFrom 0
 
@@ -83,7 +83,7 @@ readFromClose frame fname = do
     chanP = Proxy :: Proxy chan
     chan = Audio.natVal chanP
 
-readFrom :: forall rate chan.  (TypeLits.KnownNat rate, TypeLits.KnownNat chan)
+readFrom :: forall rate chan. (TypeLits.KnownNat rate, TypeLits.KnownNat chan)
     => Audio.Frames -> FilePath -> Audio.AudioIO rate chan
 readFrom frame fname = Audio.Audio $ do
     (_, handle) <- lift $ Resource.allocate (openReadThrow fname) Sndfile.hClose
@@ -138,22 +138,15 @@ readUnknown fname = do
 -- | Concatenate multiple files.
 concat :: forall rate chan. (TypeLits.KnownNat rate, TypeLits.KnownNat chan)
     => [FilePath] -> Audio.AudioIO rate chan
-concat = Audio.Audio . mconcat . map (Audio._stream . read @rate @chan)
+concat = mconcat . map read
 
 -- | This is like 'concat', but it understands the 0-duration files written
 -- by 'writeCheckpoints', and turns them back into silence.
 readCheckpoints :: forall rate chan.
     (TypeLits.KnownNat rate, TypeLits.KnownNat chan)
     => Audio.Frames -> [FilePath] -> Audio.AudioIO rate chan
-readCheckpoints chunkSize = Audio.Audio . go
-    where
-    go :: [FilePath] -> S.Stream (S.Of Audio.Block) (Resource.ResourceT IO) ()
-    go [] = mempty
-    go (fname : fnames) = liftIO (duration fname) >>= \case
-        Nothing -> mempty
-        Just dur -> (<> go fnames) $ Audio._stream $
-            if dur == 0 then Audio.take chunkSize Audio.silence
-            else read @rate @chan fname
+readCheckpoints chunkSize =
+    mconcat . map (Audio.take chunkSize . (<>Audio.silence) . read)
 
 -- ** util
 
@@ -174,7 +167,7 @@ formatError rate chan info =
 
 -- * write
 
-write :: forall rate chan.  (TypeLits.KnownNat rate, TypeLits.KnownNat chan)
+write :: forall rate chan. (TypeLits.KnownNat rate, TypeLits.KnownNat chan)
     => Sndfile.Format -> FilePath -> Audio.AudioIO rate chan
     -> Resource.ResourceT IO ()
 write format fname audio = do

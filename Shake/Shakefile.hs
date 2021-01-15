@@ -345,6 +345,7 @@ hsBinaries =
         { hsRtsFlags = ["-N", "-I0", "-qg", "-qb"] }
     , plain "show_timers" "LogView/ShowTimers.hs"
     , plain "stream_audio" "Synth/StreamAudio.hs"
+    , plain "mixdown" "Synth/MixDown.hs"
     , plain "test_midi" "Midi/TestMidi.hs"
     , plain "update" "App/Update.hs"
     , (plain "verify_performance" "App/VerifyPerformance.hs")
