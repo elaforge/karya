@@ -86,7 +86,7 @@ write config outputDir trackIds mbEffect notes = catch $ do
         start = AUtil.toSeconds startFrame
     mapM_ (Checkpoint.linkOutput outputDir) skipped
     when (_emitProgress config && not (null skipped)) $
-        Config.emitMessage "" $ Config.Message
+        Config.emitMessage $ Config.Message
             { _blockId = Config.pathToBlockId outputDir
             , _trackIds = trackIds
             , _instrument = txt $ FilePath.takeFileName outputDir
@@ -195,7 +195,8 @@ renderNotes config outputDir initialStates notifyState trackIds start
         Util.Control.loop1 (metric, start + blockSize, playing, futureNotes) $
             \loop (metric, now, playing, notes) ->
                 -- Quit when nothing is playing and nothing will play.
-                unless (null playing && null notes) $ do
+                if (null playing && null notes) then complete metric
+                else do
                     let (overlappingStart, overlappingChunk, futureNotes) =
                             overlappingNotes now blockSize notes
                     -- If notes started in the past, they should already be
@@ -240,25 +241,30 @@ renderNotes config outputDir initialStates notifyState trackIds start
                     -- there, but resample will never produce Constants so
                     -- don't bother.
         return (playing, metric)
+    complete (_, maxVoices) =
+        liftIO $ Log.notice $ txt (FilePath.takeFileName outputDir)
+            <> " max voices: " <> pretty maxVoices
 
     progress prevMetric now playing starting = liftIO $ do
         metric <- liftIO Thread.metric
-        whenJust prevMetric $ \prev ->
+        whenJust prevMetric $ \(prev, _) ->
             Log.debug $ "chunk "
                 <> pretty (AUtil.toSeconds (now-blockSize)) <> "--"
                 <> pretty (AUtil.toSeconds now)
-                <> ": elapsed: " <> Thread.showMetric
-                (Thread.diffMetric prev metric)
-        let msg = "voices:" <> showt (length playing) <> "+"
+                <> ": elapsed: "
+                <> Thread.showMetric (Thread.diffMetric prev metric)
+                <> " voices:" <> showt (length playing) <> "+"
                 <> showt (length starting)
-        when (_emitProgress config) $ Config.emitMessage msg $ Config.Message
+        when (_emitProgress config) $ Config.emitMessage $ Config.Message
             { _blockId = Config.pathToBlockId outputDir
             , _trackIds = trackIds
             , _instrument = txt $ FilePath.takeFileName outputDir
             , _payload = Config.RenderingRange
                 (AUtil.toSeconds now) (AUtil.toSeconds (now + blockSize))
             }
-        return metric
+        let !voices = max (maybe 0 snd prevMetric)
+                (length playing + length starting)
+        return (metric, voices)
 
 inferChunkNum :: Audio.Frames -> Audio.Frames -> Config.ChunkNum
 inferChunkNum chunkSize now = fromIntegral $ now `div` chunkSize

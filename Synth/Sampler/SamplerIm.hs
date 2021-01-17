@@ -24,6 +24,7 @@ import qualified Text.Read as Read
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.Resample as Resample
+import qualified Util.Limit as Limit
 import qualified Util.Log as Log
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
@@ -58,11 +59,17 @@ import           Synth.Types
 
 main :: IO ()
 main = do
-    Log.configure $ \st -> st { Log.state_priority = Log.Notice }
+    -- There will be one open file per overlapping sample, and instruments
+    -- render in parallel.
+    Limit.set Limit.ResourceOpenFiles 2048
     args <- Environment.getArgs
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
         (flags, args, []) -> return (flags, args)
         (_, _, errs) -> usage $ "flag errors:\n" ++ Seq.join ", " errs
+    Log.configure $ \st -> st
+        { Log.state_priority =
+            if Debug `elem` flags then Log.Debug else Log.Notice
+        }
     let quality = fromMaybe defaultQuality $
             Seq.last [quality | Quality quality <- flags]
         dumpRange = Seq.head [(start, end) | DumpRange start end <- flags]
@@ -139,6 +146,7 @@ calibrateFnames =
 
 data Flag =
     Quality Resample.Quality
+    | Debug
     | DumpRange !RealTime !RealTime
     | DumpTracks !(Set Id.TrackId)
     | Progress
@@ -166,6 +174,7 @@ options =
         (GetOpt.ReqArg readTracks "track-id,track-id,...")
         "dump events in from these tracks, by stack"
     , GetOpt.Option [] ["progress"] (GetOpt.NoArg Progress) "emit json progress"
+    , GetOpt.Option [] ["debug"] (GetOpt.NoArg Debug) "debug logging"
     ]
 
 readDumpRange :: String -> Flag
@@ -284,13 +293,14 @@ dumpHashes notes = zip3 (Seq.range_ 0 size) (drop 1 (Seq.range_ 0 size)) hashes
 
 process :: Bool -> Patch.Db -> Resample.Quality -> [Note.Note] -> FilePath
     -> IO ()
-process emitProgress db quality notes outputDir
-    | n : _ <- notes, Note.start n < 0 =
+process emitProgress db quality allNotes outputDir
+    | n : _ <- allNotes, Note.start n < 0 =
         errorIO $ "notes start <0: " <> pretty n
-    | otherwise = Async.forConcurrently_ grouped $ \(patchName, notes) ->
-        whenJustM (getPatch db patchName) $ \(patch, mbEffect) ->
-            Async.forConcurrently_ notes $ \(inst, notes) ->
-                processInst patch inst mbEffect notes
+    | otherwise = Async.forConcurrently_ (byPatchInst allNotes) $
+        \(patchName, instNotes) ->
+            whenJustM (getPatch db patchName) $ \(patch, mbEffect) ->
+                Async.forConcurrently_ instNotes $ \(inst, notes) ->
+                    processInst patch inst mbEffect notes
     where
     processInst patch inst mbEffect notes =
         realize emit trackIds config outputDir inst mbEffect . Maybe.catMaybes
@@ -301,7 +311,7 @@ process emitProgress db quality notes outputDir
     config = (Render.defaultConfig quality)
         { Render._emitProgress = emitProgress }
     emitMessage trackIds instrument payload
-        | emitProgress = Config.emitMessage "" $ Config.Message
+        | emitProgress = Config.emitMessage $ Config.Message
             { _blockId = Config.pathToBlockId (outputDir </> "dummy")
             , _trackIds = trackIds
             , _instrument = instrument
@@ -309,7 +319,6 @@ process emitProgress db quality notes outputDir
             }
         | otherwise = return ()
     trackIdsOf = Set.fromList . mapMaybe Note.trackId
-    grouped = byPatchInst notes
 
 
 getPatch :: Patch.Db -> Note.PatchName

@@ -2162,7 +2162,7 @@ synth: im:
     - "derive might be stuck" when starting up on save/sketch/21-01-10-cengceng
       . Probably related to how every edit gets stuck.  Put in timing, who is
         blocking?
-    - still crashing from out of fds:
+    * still crashing from out of fds:
       openFile "kajar/CenterClosed/24-30-35-104-107-center+closed.flac":
       System error : Too many open files.
       . fd limit is 256, which is low.  I can bump it up, but:

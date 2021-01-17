@@ -83,7 +83,7 @@ write config outputDir trackIds patch notes = catch $ do
         ]
     emitMessage :: GHC.Stack.HasCallStack => Config.Payload -> IO ()
     emitMessage payload
-        | _emitProgress config = Config.emitMessage "" $ Config.Message
+        | _emitProgress config = Config.emitMessage $ Config.Message
             { _blockId = Config.pathToBlockId outputDir
             , _trackIds = trackIds
             , _instrument = txt $ FilePath.takeFileName outputDir

@@ -133,7 +133,7 @@ write emitProgress outputDir trackIds skippedCount chunkSize hashes getState
     chunkComplete fname = do
         writeState getState fname
         chunknum <- linkOutput outputDir fname
-        when emitProgress $ Config.emitMessage "" $ Config.Message
+        when emitProgress $ Config.emitMessage $ Config.Message
             { _blockId = Config.pathToBlockId outputDir
             , _trackIds = trackIds
             , _instrument = txt $ FilePath.takeFileName outputDir

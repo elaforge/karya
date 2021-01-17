@@ -267,8 +267,8 @@ instance Aeson.ToJSON Payload where
     toEncoding = Aeson.genericToEncoding Aeson.defaultOptions
 instance Aeson.FromJSON Payload
 
-emitMessage :: GHC.Stack.HasCallStack => Text -> Message -> IO ()
-emitMessage extra msg = do
+emitMessage :: GHC.Stack.HasCallStack => Message -> IO ()
+emitMessage msg = do
     let prio = case _payload msg of
             RenderingRange {} -> Log.Debug
             WaveformsCompleted {} -> Log.Debug
@@ -282,7 +282,7 @@ emitMessage extra msg = do
             WaveformsCompleted chunknums -> "completed: " <> pretty chunknums
             Warn stack err -> pretty stack <> ": " <> err
             Failure err -> err
-        ] ++ if Text.null extra then [] else [extra]
+        ]
     Log.with_stdio_lock $ do
         ByteString.Lazy.Char8.putStrLn $ Aeson.encode msg
         IO.hFlush IO.stdout
