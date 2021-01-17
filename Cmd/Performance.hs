@@ -358,19 +358,7 @@ watch_subprocesses root_block_id make_status send_status procs
             | otherwise -> emit_status $ make_status msg
 
     emit_status (ImStatus status) = do
-        status <- case status of
-            -- The PeakCache uses the filename as a key, so I can get false
-            -- hits if I use the symlinks, which all look like 000.wav.
-            Msg.ImStatus block_id track_ids
-                    (Msg.ImWaveformsCompleted waveforms) -> do
-                fns <- mapM (resolve_link . Track._filename) waveforms
-                return $ Msg.ImStatus block_id track_ids $
-                    Msg.ImWaveformsCompleted
-                        [ wave { Track._filename = fn }
-                        | (fn, wave) <- zip fns waveforms
-                        ]
-            _ -> return status
-        send_status status
+        send_status =<< resolve_waveform_links status
         return False
     emit_status (ImWarn msg) = Log.write msg >> return False
     emit_status (ImFail msg) = Log.write msg >> return True
@@ -429,6 +417,29 @@ make_status inv_tempo wants_waveform im_dir score_path adjust0 play_multiplier
     -- So this shouldn't happen.
     to_score t = tryJust ("no ScoreTime for " <> pretty t) $
         real_to_score inv_tempo block_id track_ids t
+
+-- | Resolve symlinks in 'Track._filename's.  The PeakCache uses the filename
+-- as a key, so I can get false hits if I use the symlinks, which all look like
+-- 000.wav.
+--
+-- I don't do this in 'make_status' because that would put the whole thing into
+-- IO.
+resolve_waveform_links :: Msg.DeriveStatus -> IO Msg.DeriveStatus
+resolve_waveform_links (Msg.ImStatus block_id track_ids
+        (Msg.ImWaveformsCompleted waveforms)) = do
+    fns <- mapM (resolve_link . Track._filename) waveforms
+    -- I got a directory in there once and don't know why...
+    let suspicious = filter (not . (".wav" `List.isSuffixOf`)) fns
+    unless (null suspicious) $
+        Log.error $ "waveforms resolved to non-wav: " <> showt waveforms
+            <> ": " <> pretty suspicious
+    nonFile <- filterM (fmap not . Directory.doesFileExist) fns
+    unless (null nonFile) $
+        Log.error $ "waveforms resolved to non-file: " <> showt waveforms
+            <> ": " <> pretty nonFile
+    return $ Msg.ImStatus block_id track_ids $ Msg.ImWaveformsCompleted
+        [wave { Track._filename = fn } | (fn, wave) <- zip fns waveforms]
+resolve_waveform_links status = return status
 
 resolve_link :: FilePath -> IO FilePath
 resolve_link fname = (FilePath.takeDirectory fname </>) <$>

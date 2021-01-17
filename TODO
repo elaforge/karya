@@ -2139,6 +2139,53 @@ synth: im:
         Once I have memory and time profiles, see if there's a significant
         difference between unsafe and safe.
   bug:
+    - fix the jumpy progress problem, maybe instead use (min, max).
+    - progress steps seem too small for sampler at least
+      . Just make them bigger, or make faust and sampler different?
+      . Why did I make them smaller than chunk size anyway?
+    + error in PeakCache:
+      . cc 0/27 chunks: im/cache/sketch/21-01-10-cengceng/untitled/b3/cc
+        (0.05 cpu / 0.04s)
+      . fltk/PeakCache.cc:161 opening
+        im/cache/sketch/21-01-10-cengceng/untitled/b3/cc: File contains data in
+        an unknown format.
+      . Was it trying to open the directory?  The filename comes from
+        im-sampler via karya... how did it get the wrong filename?
+      . PeakCache load_file -> Track.WaveformChunk  ->
+        PlayC.im_waveforms_completed -> Msg.ImWaveformsCompleted ->
+        Performance.make_status
+      . The only way I can see that it could happen is that the 000.wav
+        symlink is created pointing to '.'.
+      . Unfortunately I can no longer tell since presumably the next run
+        replaced the symlinks.
+      . Put logging in to try to catch this next time.
+    - "derive might be stuck" when starting up on save/sketch/21-01-10-cengceng
+      . Probably related to how every edit gets stuck.  Put in timing, who is
+        blocking?
+    - still crashing from out of fds:
+      openFile "kajar/CenterClosed/24-30-35-104-107-center+closed.flac":
+      System error : Too many open files.
+      . fd limit is 256, which is low.  I can bump it up, but:
+      * Make sure I'm closing FDs in sampler-im.
+        Yes, I think I am.
+      . So this is probably legit, parallelism means it's up to sum of max
+        voices for each instrument.
+      - These are probably long cengceng tails, a voice limit would clean that
+        up and be more efficient too.
+    - kendang wadon loud de makes reaper mute
+      . What's the limit?
+      . It's Prefs->Audio "Automatically mute any track"
+      . But maybe I'm playing it too loud, why would it be at +18db?
+    - also kendang dynamics are wonky:
+      . ^ is too quiet
+      . OSC thru plays normalized, lots of hiss
+    - 2 simultanous notes for OSC thru is no good for notes with a long decay
+      . I really did this for multiple sample thru like mridangam od.
+      . How about send multiple samples per OSC, and stream however many
+        necessary?
+      . One OSC.Message is already one sample, I would need to bundle them,
+        which OSC supports, or maybe do a hack like notice they all come at
+        once?
     + A no-op change to tempo rerenders everything, e.g. insert a ' somewhere.
       . Controls in general are causing previous notes to rerender.
       . It's because I don't trim the signals before doing the hash.
