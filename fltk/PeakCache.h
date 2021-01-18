@@ -67,13 +67,15 @@ public:
 
     class Entry {
     public:
+        // This will take ownership of the peaks vector.
         Entry(ScoreTime start, std::vector<float> *peaks) :
             start(start), peaks(peaks)
         {}
 
         const ScoreTime start;
         // Maximum absolute values of each chunk of samples.  This is mono and
-        // only positive.
+        // only positive.  It's shared_ptr so MixedEntry can share pointers
+        // for the common case of a single Entry.
         const std::shared_ptr<const std::vector<float>> peaks;
     };
 
@@ -102,7 +104,7 @@ public:
         // If this hasn't changed, 'at_zoom' can reuse 'zoom_cache'.
         double cached_zoom;
         std::shared_ptr<const std::vector<float>> zoom_cache;
-        // Keep the source Entrys alive in the 'cache'.
+        // Keep the source 'Entry's alive in the 'cache'.
         std::vector<std::shared_ptr<const Entry>> sources;
     };
 

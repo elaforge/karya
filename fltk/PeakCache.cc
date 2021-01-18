@@ -3,8 +3,12 @@
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 #include <chrono>
+#include <fcntl.h>
 #include <math.h>
 #include <sndfile.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "PeakCache.h"
 #include "types.h"
@@ -55,6 +59,7 @@ PeakCache::MixedEntry::add(std::shared_ptr<const Entry> entry)
 {
     ASSERT(this->start == entry->start);
     if (this->peaks_n.empty()) {
+        // If there's only one thing, reuse the pointer.
         if (!this->peaks1) {
             this->peaks1 = entry->peaks;
         } else {
@@ -151,7 +156,7 @@ period_at(const std::vector<double> &ratios, sf_count_t frame)
 // optimization, but there was still a copy.  unique_ptr didn't believe that
 // I wasn't making a copy either, so raw pointer given to Entry is it.
 static std::vector<float> *
-load_file(const std::string &filename, const std::vector<double> &ratios)
+read_file(const std::string &filename, const std::vector<double> &ratios)
 {
     SF_INFO info = {0};
     SNDFILE *sndfile = sf_open(filename.c_str(), SFM_READ, &info);
@@ -187,7 +192,7 @@ load_file(const std::string &filename, const std::vector<double> &ratios)
             index = 0;
         }
         sf_count_t consume = floor(std::min(period, double(frames_left)));
-        // TODO can I vectorize?  at least fabsf has it.
+        // TODO can I vectorize?  fabs(3) on OS X documents SIMD vvfabsf().
         for (; index < consume * info.channels; index++) {
             accum = std::max(accum, fabsf(buffer[index]));
         }
@@ -206,6 +211,71 @@ load_file(const std::string &filename, const std::vector<double> &ratios)
 }
 
 
+static void
+write_cache(const char *filename, const std::vector<float> peaks,
+    double ratios_sum)
+{
+    // Use 0644 because if the ratios change, I'll be overwriting this file.
+    int fd = open(filename, O_WRONLY | O_CREAT, 0644);
+    if (fd == -1) {
+        DEBUG("can't open for writing '" << filename << "': "
+            << strerror(errno));
+        return;
+    }
+    write(fd, &ratios_sum, sizeof(double));
+    write(fd, peaks.data(), sizeof(float) * peaks.size());
+    close(fd);
+}
+
+
+static std::vector<float> *
+read_cache(const char *filename, double ratios_sum)
+{
+    struct stat stats;
+    if (stat(filename, &stats) == -1)
+        return nullptr;
+    int fd = open(filename, O_RDONLY);
+    if (fd == -1) {
+        DEBUG("can stat, but can't open '" << filename << "': "
+            << strerror(errno));
+        return nullptr;
+    }
+    double sum = 0;
+    if (read(fd, &sum, sizeof(double)) == -1) {
+        DEBUG("failed to read '" << filename << "' :" << strerror(errno));
+    }
+    // If the ratios have changed, this cache is invalid.
+    if (sum != ratios_sum) {
+        close(fd);
+        return nullptr;
+    }
+    std::vector<float> *peaks =
+        new std::vector<float>(stats.st_size / sizeof(float));
+    if (read(fd, peaks->data(), stats.st_size) == -1) {
+        DEBUG("failed to read '" << filename << "' :" << strerror(errno));
+    }
+    close(fd);
+    return peaks;
+}
+
+
+static std::vector<float> *
+cached_load(const std::string &filename, const std::vector<double> &ratios)
+{
+
+    std::string cache_filename = filename + ".peaks";
+    double ratios_sum = 0;
+    for (double d : ratios)
+        ratios_sum += d;
+    std::vector<float> *peaks = read_cache(cache_filename.c_str(), ratios_sum);
+    if (peaks)
+        return peaks;
+    peaks = read_file(filename, ratios);
+    write_cache(cache_filename.c_str(), *peaks, ratios_sum);
+    return peaks;
+}
+
+
 std::shared_ptr<const PeakCache::Entry>
 PeakCache::load(const Params &params)
 {
@@ -220,7 +290,7 @@ PeakCache::load(const Params &params)
         // DEBUG("load " << params.filename);
 
         auto start = std::chrono::steady_clock::now();
-        std::vector<float> *peaks = load_file(params.filename, params.ratios);
+        std::vector<float> *peaks = cached_load(params.filename, params.ratios);
         entry.reset(new PeakCache::Entry(params.start, peaks));
 
         if (print_metrics) {

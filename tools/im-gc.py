@@ -50,6 +50,10 @@ def dir_size(dir):
     return size.decode('utf8').strip().split('\n')[-1].split()[0].lower()
 
 def find_garbage(dir):
+    """Any file with a ###.wav symlink is alive, or with the same prefix.
+        So 000.wav -> checkpoint/000.hash.hash.wav, and also
+        000.hash.hash.state.hash and 000.hash.hash.wav.peaks.
+    """
     chunks = listdir(os.path.dirname(dir))
     alive = [
         os.path.splitext(os.path.basename(os.readlink(fn)))[0]

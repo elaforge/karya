@@ -334,9 +334,10 @@ EventTrack::set_waveform(int chunknum, const PeakCache::Params &params)
     } else {
         if (chunknum >= body.peak_entries.size())
             body.peak_entries.resize(size_t(chunknum+1));
-        if (!body.peak_entries[chunknum].get())
+        if (!body.peak_entries[chunknum].get()) {
             body.peak_entries[chunknum].reset(
                 new PeakCache::MixedEntry(params.start));
+        }
         body.peak_entries[chunknum]->add(PeakCache::get()->load(params));
     }
     float new_peak = get_max_peak(body.peak_entries);

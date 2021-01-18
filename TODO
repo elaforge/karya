@@ -2159,7 +2159,7 @@ synth: im:
       . Unfortunately I can no longer tell since presumably the next run
         replaced the symlinks.
       . Put logging in to try to catch this next time.
-    + "derive might be stuck" when starting up on save/sketch/21-01-10-cengceng
+    * "derive might be stuck" when starting up on save/sketch/21-01-10-cengceng
       . Probably related to how every edit gets stuck.  Put in timing, who is
         blocking?
       . Where did my old UI timing code go?  Ui.Fltk: NOTE [ui-loop-timing]
