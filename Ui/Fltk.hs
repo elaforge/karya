@@ -16,6 +16,7 @@ import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
 
 import qualified Foreign
+import qualified Foreign.C as C
 
 import qualified Util.CUtil as CUtil
 import qualified Util.Log as Log
@@ -24,6 +25,10 @@ import qualified Ui.UiMsgC as UiMsgC
 
 import           Global
 
+
+-- | See NOTE [ui-loop-timing]
+action_timing :: Bool
+action_timing = False
 
 -- | You should only talk to FLTK from the main thread, which is also the FLTK
 -- event thread.  So to call a FLTK function, you have to put it on
@@ -71,6 +76,10 @@ send_action ui_chan description act = do
     awake
 
 {- NOTE [ui-loop-timing]
+    Enable GUI timing by incrementing Timing::level in fltk/util.h.
+    It will write to seq.events, then use tools/parse_timing.py to analyze it,
+    or just look at it directly, to find where the big jumps are.
+
     util::timing emits timing events for the UI event loop, but it's confusing
     becasue things happen inside Fl::wait():
 
@@ -125,14 +134,18 @@ fltk_event_loop ui_chan msg_chan = do
 -- be asynchronous, but this way if the FLTK event loop wedges up then the UI
 -- will also wedge up.  That's not exactly good, but it lets me know something
 -- has gone wrong quickly.
-handle_actions :: Channel -> IO [Text]
-handle_actions ui_chan = MVar.modifyMVar ui_chan $ \acts -> do
-    -- Since acts are added to the front, reverse them before executing.
-    sequence_ [act | (Fltk act, _) <- reverse acts]
-        `Exception.catch` \(exc :: Exception.SomeException) ->
-            Log.error $ "exception in event_loop: " <> showt exc
-    -- I have used the handled names for debugging, and may again some day.
-    return ([], []) -- map snd acts
+handle_actions :: Channel -> IO ()
+handle_actions ui_chan = MVar.modifyMVar_ ui_chan $ \actions -> do
+    -- Since actions are added to the front, reverse them before executing.
+    Exception.handle handle $
+        forM_ (reverse actions) $ \(Fltk action, name) -> do
+            when action_timing $ CUtil.withText name $ \namep ->
+                c_timing 1 namep
+            action
+    return []
+    where
+    handle :: Exception.SomeException -> IO ()
+    handle exc = Log.error $ "exception in event_loop: " <> showt exc
 
 quit_ui_thread :: QuitRequest -> IO ()
 quit_ui_thread quit_request = do
@@ -143,5 +156,7 @@ foreign import ccall "initialize"
     c_initialize :: Foreign.FunPtr (FunPtrFinalizer a) -> IO ()
 foreign import ccall "ui_wait" wait :: IO ()
 foreign import ccall "ui_awake" awake :: IO ()
+
+foreign import ccall unsafe "timing" c_timing :: C.CInt -> C.CString -> IO ()
 
 #endif

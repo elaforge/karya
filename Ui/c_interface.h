@@ -97,6 +97,7 @@ void insert_style(StyleId id, EventStyle *style);
 
 const char *i_show_children(const BlockWindow *w, int nlevels);
 const char *dump_view(const BlockWindow *view);
+void timing(int level, const char *name);
 
 // keycaps
 

@@ -2159,9 +2159,21 @@ synth: im:
       . Unfortunately I can no longer tell since presumably the next run
         replaced the symlinks.
       . Put logging in to try to catch this next time.
-    - "derive might be stuck" when starting up on save/sketch/21-01-10-cengceng
+    + "derive might be stuck" when starting up on save/sketch/21-01-10-cengceng
       . Probably related to how every edit gets stuck.  Put in timing, who is
         blocking?
+      . Where did my old UI timing code go?  Ui.Fltk: NOTE [ui-loop-timing]
+      . 6.48s events -> haskell, then another 2s events -> haskell
+      . That's in handle_actions.  Could I do timings for each named cmd?
+      . It's calls to set_waveforms.
+      . Commenting out the peak cache fixes it, so it's that it has to load
+        the file and compute the peak cache.
+      . While each chunk load is indeed 0.005 to 0.08s, there are 494 of them.
+      . I could take this out of the UI loop by having File.writeCheckpoints
+        also write the peak cache.  The other way would be to make the UI
+        threaded.
+      . Alternately, keep in c++, but save to a file cache.  In fact, since it
+        uses the ratios, I think it has to be that way.
     * still crashing from out of fds:
       openFile "kajar/CenterClosed/24-30-35-104-107-center+closed.flac":
       System error : Too many open files.

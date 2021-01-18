@@ -15,9 +15,12 @@ Timing::get()
 }
 
 void
-Timing::timing(const char *name, int val)
+Timing::timing(const char *name, int level)
 {
-    events.push_back(Event(std::chrono::steady_clock::now(), name, val));
+    // Make a copy, but intern it, because they'll mostly be the same strings.
+    // This is probably a pointless micro-optimization.
+    name = intern_table.insert(std::string(name)).first->c_str();
+    events.push_back(Event(std::chrono::steady_clock::now(), name, level));
 }
 
 

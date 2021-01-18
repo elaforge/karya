@@ -9,6 +9,7 @@
 #include <iostream>
 #include <set>
 #include <fstream>
+#include <set>
 #include <string.h>
 #include <string>
 #include <utility>
@@ -77,9 +78,9 @@ class Timing {
 public:
     // Verbosity level, higher is more verbose.  This is a constant so timing
     // calls above it should get removed entirely.
-    enum { level = 0 };
+    enum { level = 2 };
     static Timing *get();
-    void timing(const char *name, int val);
+    void timing(const char *name, int level);
     void flush();
 private:
     typedef std::chrono::time_point<std::chrono::steady_clock> time;
@@ -94,12 +95,13 @@ private:
     std::ofstream fp;
     Timing::time start;
     std::vector<Event> events;
+    std::set<std::string> intern_table;
 };
 
 // If enabled, write name and timestamp to a file.
-inline void timing(int level, const char *name, int val = 0) {
+inline void timing(int level, const char *name) {
     if (level < Timing::level)
-        Timing::get()->timing(name, val);
+        Timing::get()->timing(name, level);
 }
 
 inline void timing_flush() {

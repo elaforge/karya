@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 """Parse the output of util::timing.
 
     See NOTE [ui-loop-timing].
@@ -8,9 +9,12 @@ import sys, os, re
 
 
 class Fltk:
+    """analyze events from util::timing
+    """
     # Omit timings shorter than this.
     min_diff = 0.001
 
+    start = 'haskell'
     draw_block = 'Block::draw'
     draw_track_start = 'EventTrack::draw-start'
     draw_track_end = 'EventTrack::selection_overlay'
@@ -29,14 +33,24 @@ class Fltk:
     ]).union(set([start, draw_block, draw_track_start, draw_track_end]))
 
 class Cmd:
+    """analyze events for the respond loop, from ghc Debug.Trace.trace
+    """
     # Omit timings shorter than this.
     min_diff = 0.001
     start = 'respond'
     end = 'wait'
     skip = set([])
 
+
 def main():
-    cmd_mode(open(sys.argv[1]))
+    mode = fltk_mode
+    # mode = cmd_mode
+    if len(sys.argv) == 1:
+        mode(open('seq.events'))
+    elif len(sys.argv) == 2:
+        mode(open(sys.argv[1]))
+    else:
+        sys.exit('usage: parse_timing [ seq.events ]')
 
 def cmd_mode(file):
     prev_ts = None
@@ -83,7 +97,7 @@ def fltk_mode(file):
             out.extend([mode.draw_block, fmt(ts - prev_by[mode.draw_block])])
         elif name == mode.draw_track_start:
             prev_by[mode.draw_track_start] = ts
-        elif name == draw_track_end:
+        elif name == mode.draw_track_end:
             out.extend([
                 mode.draw_track_start, fmt(ts - prev_by[mode.draw_track_start])
             ])

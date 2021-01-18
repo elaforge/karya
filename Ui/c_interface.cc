@@ -389,6 +389,11 @@ dump_view(const BlockWindow *view)
     return view->block.dump();
 }
 
+void
+timing(int level, const char *name)
+{
+    util::timing(level, name);
+}
 
 // keycaps
 
