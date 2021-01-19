@@ -15,10 +15,10 @@
 
 // This is a thread that listens for OSC messages, and streams samples when it
 // gets them.
-class Osc {
+class Thru {
 public:
-    Osc(std::ostream &log, int channels, int sample_rate, int max_frames);
-    ~Osc();
+    Thru(std::ostream &log, int channels, int sample_rate, int max_frames);
+    ~Thru();
     bool read(int channels, sf_count_t frames, float **out);
 
 private:

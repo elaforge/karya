@@ -473,7 +473,6 @@ ccBinaries =
     ] ++ if not (Config.enableIm localConfig) then [] else
     [ playCacheBinary
     , pannerBinary
-    , makePlayCacheBinary "test_play_cache_osc" "test_osc.cc" []
     , makePlayCacheBinary "test_play_cache" "test_play_cache.cc" []
     ]
     where
@@ -526,7 +525,7 @@ makePlayCacheBinary :: String -> FilePath -> [FilePath] -> C.Binary config
 makePlayCacheBinary name main objs = (C.binary name [])
     { C.binObjs = (objs++) $ map (("Synth/play_cache"</>) . (++".o")) $
         [ main
-        , "Osc.cc", "Resample.cc", "Sample.cc", "Streamer.cc", "Tracks.cc"
+        , "Thru.cc", "Resample.cc", "Sample.cc", "Streamer.cc", "Tracks.cc"
         , "ringbuffer.cc"
         ]
     , C.binLibraries = const $

@@ -188,8 +188,8 @@ ratioToPitch ratio = Pitch.nn $ logBase 2 ratio * 12
 srate :: RealTime
 srate = 1/8
 
-toOsc :: FilePath -> Sample -> Thru.Play
-toOsc sampleDir sample = Thru.Play
+toThru :: FilePath -> Sample -> Thru.Play
+toThru sampleDir sample = Thru.Play
     { _sample = Config.unsafeSamplerRoot </> sampleDir </> filename sample
     , _offset = fromIntegral $ offset sample
     , _ratio = Signal.at start $ ratios sample

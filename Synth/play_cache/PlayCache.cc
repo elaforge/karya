@@ -80,8 +80,8 @@ PlayCache::resume()
             new TracksStreamer(log, channels, sample_rate, max_block_frames));
         changed = true;
     }
-    if (!osc.get() || changed) {
-        osc.reset(new Osc(log, channels, sample_rate, max_block_frames));
+    if (!thru.get() || changed) {
+        thru.reset(new Thru(log, channels, sample_rate, max_block_frames));
     }
     Plugin::resume();
 }
@@ -314,13 +314,13 @@ PlayCache::process(float **_inputs, float **outputs, int32_t process_frames)
     memset(out1, 0, process_frames * sizeof(float));
     memset(out2, 0, process_frames * sizeof(float));
 
-    float *osc_samples;
-    bool osc_done = !osc.get()
-        || this->osc->read(channels, process_frames, &osc_samples);
-    if (!osc_done) {
+    float *thru_samples;
+    bool thru_done = !thru.get()
+        || this->thru->read(channels, process_frames, &thru_samples);
+    if (!thru_done) {
         for (int frame = 0; frame < process_frames; frame++) {
-            out1[frame] += osc_samples[frame*2] * volume;
-            out2[frame] += osc_samples[frame*2 + 1] * volume;
+            out1[frame] += thru_samples[frame*2] * volume;
+            out2[frame] += thru_samples[frame*2 + 1] * volume;
         }
     }
 

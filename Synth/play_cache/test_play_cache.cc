@@ -10,7 +10,7 @@
 
 #include <sndfile.h>
 
-#include "Osc.h"
+#include "Thru.h"
 #include "Semaphore.h"
 #include "Streamer.h"
 
@@ -82,10 +82,29 @@ stream(const char *dir)
 static void
 thru()
 {
-    Osc osc(std::cout, 2, 44100, 512);
-    std::cout << "thread started, return to quit\n";
-    std::string line;
-    std::getline(std::cin, line);
+    Thru thru(std::cout, 2, 44100, 512);
+    std::cout << "thread started, 'q' to quit\n";
+    for (;;) {
+        std::string input;
+        std::cout << "wait..." << std::flush;
+        std::getline(std::cin, input);
+        if (input == "q")
+            break;
+
+        // float left[8], right[8];
+        // float *samples[] = { left, right };
+        float *samples = nullptr;
+        bool done = thru.read(2, 8, &samples);
+        if (done) {
+            std::cout << "done\n";
+        } else {
+            std::cout << "samples:";
+            for (int i = 0; i < 8; i++) {
+                std::cout << ' ' << samples[i*2] << ',' << samples[i*2+1];
+            }
+            std::cout << '\n';
+        }
+    }
 }
 
 

@@ -9,7 +9,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "Osc.h"
+#include "Thru.h"
 #include "Synth/Shared/config.h"
 #include "log.h"
 
@@ -17,8 +17,7 @@
 
 
 enum {
-    // The number of simultaneous voices played by osc thru.
-    max_voices = 3
+    max_voices = 3 // Max simultaneous voices.
 };
 
 
@@ -42,9 +41,8 @@ struct Message {
 static const char *
 parse_play(const char *message, Play *play)
 {
-    if (*message == '\n' || *message == '\n')
+    if (*message == '\0' || *message == '\n')
         return nullptr;
-    // std::cout << "msg: '" << message << "'\n";
     play->sample = message;
     message += strlen(message) + 1;
     play->offset = strtol(message, nullptr, 10);
@@ -102,9 +100,7 @@ listen(std::ostream &log)
         return -1;
     }
     int opt = 1;
-    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1
-        || setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt)) == -1)
-    {
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1) {
         LOG("setsockopt(): " << strerror(errno));
         return -1;
     }
@@ -115,6 +111,9 @@ listen(std::ostream &log)
     addr.sin_port = htons(THRU_PORT);
     addr.sin_addr.s_addr = INADDR_ANY;
 
+    // I will get EADDRINUSE if the port is already bound.  I tried
+    // SO_REUSEPORT, but only one of them gets the connection, where I would
+    // like it to broadcast to them all.
     if (bind(fd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
         LOG("bind(): " << strerror(errno));
         return -1;
@@ -151,20 +150,20 @@ accept(std::ostream &log, int socket_fd)
 }
 
 
-Osc::Osc(std::ostream &log, int channels, int sample_rate, int max_frames)
+Thru::Thru(std::ostream &log, int channels, int sample_rate, int max_frames)
     : log(log), thread_quit(false), volume(1)
 {
     socket_fd = listen(log);
     streamer.reset(
         new MixStreamer(max_voices, log, channels, sample_rate, max_frames));
-    thread.reset(new std::thread(&Osc::loop, this));
+    thread.reset(new std::thread(&Thru::loop, this));
 }
 
 
-Osc::~Osc()
+Thru::~Thru()
 {
     thread_quit.store(true);
-    LOG("Osc quit");
+    LOG("Thru quit");
     // Send myself as empty message to get accept() to return.
     {
         int fd = socket(PF_INET, SOCK_STREAM, 0);
@@ -173,7 +172,9 @@ Osc::~Osc()
         addr.sin_family = AF_INET;
         addr.sin_port = htons(THRU_PORT);
         addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-        connect(fd, (struct sockaddr *) &addr, sizeof(addr));
+        if (connect(fd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
+            LOG("connect(): " << strerror(errno));
+        }
         write(fd, "\n", 2);
         close(fd);
     }
@@ -184,7 +185,7 @@ Osc::~Osc()
 
 
 bool
-Osc::read(int channels, sf_count_t frames, float **out)
+Thru::read(int channels, sf_count_t frames, float **out)
 {
     bool done = streamer->read(channels, frames, out);
     if (!done && volume != 1) {
@@ -197,7 +198,7 @@ Osc::read(int channels, sf_count_t frames, float **out)
 
 
 void
-Osc::loop()
+Thru::loop()
 {
     while (!thread_quit.load()) {
         if (socket_fd < 0) {

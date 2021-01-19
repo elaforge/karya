@@ -196,7 +196,7 @@ thruFunction sampleDir convert = fmap Thru.Plays . mapM note
                     Signal.constant (fromIntegral offset))
                 ]
             }
-        return $ Sample.toOsc sampleDir sample
+        return $ Sample.toThru sampleDir sample
 
 -- * util
 

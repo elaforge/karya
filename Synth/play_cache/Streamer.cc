@@ -179,7 +179,7 @@ TracksStreamer::initialize()
 
 ResampleStreamer::ResampleStreamer(
         std::ostream &log, int channels, int sample_rate, int max_frames)
-    : Streamer("osc", log, channels, sample_rate, max_frames, false)
+    : Streamer("thru", log, channels, sample_rate, max_frames, false)
 {
     fname.reserve(4096);
 }
