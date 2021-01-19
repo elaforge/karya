@@ -6,4 +6,4 @@
 
 
 #define LOG(MSG) do { log << __FILE__ << ':' << __LINE__ << ' ' \
-    << MSG << std::endl; } while (0)
+    << MSG << std::endl << std::flush; } while (0)

@@ -26,7 +26,7 @@ import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
-import qualified Synth.Shared.Osc as Osc
+import qualified Synth.Shared.Thru as Thru
 import qualified Synth.Shared.Signal as Signal
 
 import           Global
@@ -183,9 +183,10 @@ imThruFunction :: FilePath -> (Note.Note -> Patch.ConvertM Sample.Sample)
 imThruFunction dir = CUtil.ImThru . thruFunction dir
 
 thruFunction :: FilePath -> (Note.Note -> Patch.ConvertM Sample.Sample)
-    -> Osc.ThruFunction
-thruFunction sampleDir convert =
-    mapM $ \(Osc.Note pitch velocity attrs offset) -> do
+    -> Thru.ThruFunction
+thruFunction sampleDir convert = fmap Thru.Plays . mapM note
+    where
+    note (Thru.Note pitch velocity attrs offset) = do
         (sample, _logs) <- Patch.runConvert $ convert $ (Note.note "" "" 0 1)
             { Note.attributes = attrs
             , Note.controls = Map.fromList

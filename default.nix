@@ -186,7 +186,6 @@ in rec {
     faust.faust
     libsamplerate
     nixpkgs.libsndfile
-    nixpkgs.liblo
     rubberband
     # This is a build dep, not a library dep.
     ghc.c2hs

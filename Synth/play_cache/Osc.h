@@ -8,7 +8,6 @@
 #include <atomic>
 #include <thread>
 
-#include <lo/lo.h>
 #include <sndfile.h>
 
 #include "Streamer.h"
@@ -25,22 +24,11 @@ public:
 private:
     std::ostream &log;
 
-    lo_server server;
     std::unique_ptr<std::thread> thread;
     std::atomic<bool> thread_quit;
     std::unique_ptr<MixStreamer> streamer;
     double volume;
+    int socket_fd;
 
-    lo_server new_server();
     void loop();
-
-    static int handle_play(
-        const char *path, const char *types, lo_arg **argv,
-        int argc, void *data, void *self);
-    void play(const char *path, int64_t offset, double ratio, double vol);
-
-    static int handle_stop(
-        const char *path, const char *types, lo_arg **argv,
-        int argc, void *data, void *self);
-    void stop();
 };

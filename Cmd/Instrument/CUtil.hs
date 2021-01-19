@@ -51,7 +51,7 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
 import qualified Synth.Shared.Control as Control
-import qualified Synth.Shared.Osc as Osc
+import qualified Synth.Shared.Thru as Thru
 import qualified Ui.KeycapsT as KeycapsT
 import qualified Ui.UiMsg as UiMsg
 
@@ -78,7 +78,7 @@ strokes_to_calls strokes = [(Drums._char s, Drums._name s) | s <- strokes]
 -- patch type.  It's just that due to history and wanting to avoid duplicated
 -- code, the Cmd and Derive code in here doesn't care about MIDI vs. im...
 -- except for thru.
-data Thru = MidiThru | ImThru !Osc.ThruFunction | NoThru
+data Thru = MidiThru | ImThru !Thru.ThruFunction | NoThru
     -- WRT ImThru, I can't just delegate to MidiThru.cmd_midi_thru because it
     -- doesn't know about the attrs, since it uses
     -- Cmd.get_instrument_attributes.
@@ -142,13 +142,13 @@ merge_kbd_entry val = \case
     Cmd.WithoutOctave m -> Cmd.WithoutOctave $ Map.union m empty
     where empty = const val <$> PhysicalKey.pitch_map
 
-expr_im_thru :: Cmd.M m => Osc.ThruFunction -> DeriveT.Expr -> m [Cmd.Thru]
+expr_im_thru :: Cmd.M m => Thru.ThruFunction -> DeriveT.Expr -> m [Cmd.Thru]
 expr_im_thru thru_f expr = do
     notes <- eval_thru_notes expr
-    plays <- Cmd.require_right ("thru_f: "<>) $ thru_f notes
-    return $ map (Cmd.ImThru . Osc.play) plays
+    msg <- Cmd.require_right ("thru_f: "<>) $ thru_f notes
+    return [Cmd.ImThru msg]
 
-eval_thru_notes :: Cmd.M m => DeriveT.Expr -> m [Osc.Note]
+eval_thru_notes :: Cmd.M m => DeriveT.Expr -> m [Thru.Note]
 eval_thru_notes expr = do
     (block_id, _, track_id, pos) <- Selection.get_insert
     result <- LEvent.write_snd_prefix "CUtil.expr_attributes"
@@ -158,7 +158,7 @@ eval_thru_notes expr = do
         <> ShowVal.show_val expr
     return $ map make events
     where
-    make event = Osc.Note
+    make event = Thru.Note
         { _pitch = fromMaybe 0 (Score.initial_nn event)
         , _velocity = Score.initial_dynamic event
         , _attributes = Score.event_attributes event

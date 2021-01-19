@@ -10,8 +10,9 @@
 
 #include <sndfile.h>
 
-#include "Streamer.h"
+#include "Osc.h"
 #include "Semaphore.h"
+#include "Streamer.h"
 
 
 static void
@@ -61,12 +62,12 @@ stream(const char *dir)
         std::cout << "no dir";
         return;
     }
-    sf_count_t maxFrames = 512;
-    sf_count_t startOffset = 0;
+    sf_count_t max_frames = 512;
+    sf_count_t start_offset = 0;
     std::vector<std::string> mutes;
 
-    TracksStreamer streamer(std::cout, 2, 44100, maxFrames);
-    streamer.start(dir, startOffset, mutes);
+    TracksStreamer streamer(std::cout, 2, 44100, max_frames);
+    streamer.start(dir, start_offset, mutes);
 
     float *samples;
 
@@ -78,6 +79,16 @@ stream(const char *dir)
 }
 
 
+static void
+thru()
+{
+    Osc osc(std::cout, 2, 44100, 512);
+    std::cout << "thread started, return to quit\n";
+    std::string line;
+    std::getline(std::cin, line);
+}
+
+
 int
 main(int argc, const char **argv)
 {
@@ -86,6 +97,8 @@ main(int argc, const char **argv)
         semaphore();
     } else if (argc == 3 && cmd == "stream") {
         stream(argv[2]);
+    } else if (argc == 2 && cmd == "thru") {
+        thru();
     } else {
         std::cout << "test_play_cache [ semaphore | stream dir ]\n";
         return 1;

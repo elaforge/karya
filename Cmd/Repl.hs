@@ -64,9 +64,9 @@ with_socket app = do
         File.ignoreEnoent (Directory.removeFile fname)
     where
     -- Let the exception through on the last try.
-    try_socket [fname] = (fname,) <$> Network.listen (Network.Unix fname)
+    try_socket [fname] = (fname,) <$> Network.listenUnix fname
     try_socket (fname : fnames) =
-        File.ignoreIOError (Network.listen (Network.Unix fname)) >>= \case
+        File.ignoreIOError (Network.listenUnix fname) >>= \case
             Nothing -> try_socket fnames
             Just socket -> return (fname, socket)
     try_socket [] = errorIO "no socket files?"

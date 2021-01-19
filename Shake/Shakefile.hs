@@ -125,7 +125,6 @@ imPackages = concat
     , w "cryptohash-md5" -- Synth.Shared.Note.hash
     , w "resourcet"
     , w "streaming"
-    , w "hosc"
     ]
     where w = map (\p -> (p, "")) . words
 
@@ -532,7 +531,6 @@ makePlayCacheBinary name main objs = (C.binary name [])
         ]
     , C.binLibraries = const $
         [ libsndfile
-        , C.library "lo"
         , case Util.platform of
             -- This is the system libsamplerate, not the hacked static one at
             -- 'libsamplerate'.  The reason is that linux doesn't like to put

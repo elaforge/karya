@@ -17,6 +17,7 @@ import qualified Data.Text as Text
 
 import qualified GHC.Generics as Generics
 import qualified GHC.Stack
+import qualified Network.Socket as Socket
 import qualified System.Directory as Directory
 import           System.FilePath ((</>))
 import qualified System.IO as IO
@@ -171,8 +172,8 @@ chunkSeconds = CHUNK_SECONDS
 startLatency :: AudioT.Frames
 startLatency = START_LATENCY_FRAMES
 
-oscPort :: Int
-oscPort = OSC_PORT
+thruPort :: Socket.PortNumber
+thruPort = THRU_PORT
 
 -- * cache files
 

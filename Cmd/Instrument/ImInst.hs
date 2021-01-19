@@ -33,7 +33,7 @@ import qualified Instrument.InstTypes as InstTypes
 
 import qualified Perform.Im.Patch as Patch
 import qualified Perform.Pitch as Pitch
-import qualified Synth.Shared.Osc as Osc
+import qualified Synth.Shared.Thru as Thru
 import qualified Ui.UiConfig as UiConfig
 
 import           Global
@@ -101,17 +101,17 @@ nn_range (bottom, top) =
     environ EnvKey.instrument_bottom bottom
     . environ EnvKey.instrument_top top
 
--- | Adapt a 'Osc.ThruFunction' to 'Cmd.ThruFunction'.
-thru :: Osc.ThruFunction -> Code
+-- | Adapt a 'Thru.ThruFunction' to 'Cmd.ThruFunction'.
+thru :: Thru.ThruFunction -> Code
 thru thru_f = MidiInst.thru convert
     where
     convert scale attrs input = do
         inst <- Cmd.abort_unless =<< EditUtil.lookup_instrument
         MidiThru.convert_input inst scale input >>= \case
             InputNote.NoteOn _ pitch velocity ->
-                case thru_f [Osc.Note pitch velocity attrs 0] of
+                case thru_f [Thru.Note pitch velocity attrs 0] of
                     Left err -> Cmd.throw err
-                    Right plays -> return $ map (Cmd.ImThru . Osc.play) plays
+                    Right msg -> return [Cmd.ImThru msg]
             _ -> return []
 
 add_flag :: Common.Flag -> Patch -> Patch

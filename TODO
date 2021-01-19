@@ -2191,13 +2191,24 @@ synth: im:
     - also kendang dynamics are wonky:
       . ^ is too quiet
       . OSC thru plays normalized, lots of hiss
-    - 2 simultanous notes for OSC thru is no good for notes with a long decay
+    * 2 simultanous notes for OSC thru is no good for notes with a long decay
       . I really did this for multiple sample thru like mridangam od.
       . How about send multiple samples per OSC, and stream however many
         necessary?
       . One OSC.Message is already one sample, I would need to bundle them,
         which OSC supports, or maybe do a hack like notice they all come at
         once?
+      . It looks like liblo supports bundles though it's hard to tell how.
+        But why am I even using OSC?  It seems like a liability for no
+        benefit.  Instead, why don't I send JSON over a socket?
+      . Except the part where parsing json is complicated.  But
+        https://github.com/nlohmann/json seems ok.
+      . I would need to write the socket opening / binding code. Then read
+        a line, parse as json, and dispatch.
+      . It's still maybe overkill.  Why not do a simple serialization:
+        fields separated by null: (sample, offset, ratio, volume)
+      . looks like strtod() can parse haskell Show Float.
+      . Wait, we also have a stop message.
     + A no-op change to tempo rerenders everything, e.g. insert a ' somewhere.
       . Controls in general are causing previous notes to rerender.
       . It's because I don't trim the signals before doing the hash.

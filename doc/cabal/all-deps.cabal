@@ -63,7 +63,6 @@ library
         haskell-src,
         hedgehog,
         hlibgit2,
-        hosc,
         hsndfile,
         hsndfile-vector,
         med-module,

@@ -46,7 +46,6 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
-import qualified Sound.OSC as OSC
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 
@@ -86,8 +85,8 @@ import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
 
-import qualified Midi.Interface as Interface
 import qualified Midi.Interface
+import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
 import qualified Midi.Mmc as Mmc
 import qualified Midi.State
@@ -102,7 +101,7 @@ import qualified Perform.RealTime as RealTime
 import qualified Perform.Transport as Transport
 
 import qualified Synth.Shared.Config as Shared.Config
-import qualified Synth.Shared.Osc as Shared.Osc
+import qualified Synth.Shared.Thru as Thru
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
@@ -454,8 +453,8 @@ data Thru =
     -- thru, which will cause it to go straight to the front of the queue.  Use
     -- 'midi' for normal midi thru.
     MidiThru !Midi.Interface.Message
-    | ImThru !OSC.Message
-    deriving (Eq, Show)
+    | ImThru !Thru.Message
+    deriving (Show)
 
 midi_thru :: Midi.WriteDevice -> Midi.Message -> Thru
 midi_thru dev msg =
@@ -1718,5 +1717,5 @@ all_notes_off :: M m => m ()
 all_notes_off = mapM_ write_thru
     [ MidiThru $ Midi.Interface.AllNotesOff 0
     , MidiThru $ Interface.reset_controls 0
-    , ImThru Shared.Osc.stop
+    , ImThru Thru.Stop
     ]

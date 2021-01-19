@@ -206,7 +206,7 @@ up your system.
 need to update Local/ShakeConfig.hs update the `libsamplerate` field with
 the link and compile flags.
 
-- libsndfile, liblo - Standard installs, use your package manager.
+- libsndfile - Use your package manager.
 
 Turn on `enableIm` in `Local.ShakeConfig`, and add a bunch more haskell deps:
 

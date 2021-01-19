@@ -2,18 +2,19 @@
 // This program is distributed under the terms of the GNU General Public
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+#include <arpa/inet.h>
+#include <netinet/in.h>
 #include <string>
+#include <sys/socket.h>
+#include <sys/types.h>
 #include <unistd.h>
-#include <lo/lo.h>
 
 #include "Osc.h"
 #include "Synth/Shared/config.h"
 #include "log.h"
 
+#include <iostream> // DEBUG
 
-// Seriously?
-#define TO_STR(x) #x
-#define STR(x) TO_STR(x)
 
 enum {
     // The number of simultaneous voices played by osc thru.
@@ -21,28 +22,139 @@ enum {
 };
 
 
-// liblo somehow forgot to add a context argument, and here in 2018 C++ somehow
-// still has no way to easily create an explicit closure wrapper.
-//
-// Actually it has lo_server_set_error_context, but of course that has to be
-// called after lo_server_new, at which point it's too late to notice creation
-// errors.
-static std::ostream *error_log;
+struct Play {
+    const char *sample;
+    int offset;
+    double ratio;
+    double volume;
+};
 
-static void
-handle_error(int num, const char *msg, const char *where)
+
+struct Message {
+    Message(bool stop, std::vector<Play> plays) : stop(stop), plays(plays) {}
+    Message(bool stop) : stop(stop), plays() {}
+    Message() : stop(false) {} // This means there was an error.
+    bool stop;
+    std::vector<Play> plays;
+};
+
+
+static const char *
+parse_play(const char *message, Play *play)
 {
-    std::ostream &log = *error_log;
-    LOG("OSC error: " << msg << ", at: " << (where ? where : "<nowhere>"));
+    if (*message == '\n' || *message == '\n')
+        return nullptr;
+    // std::cout << "msg: '" << message << "'\n";
+    play->sample = message;
+    message += strlen(message) + 1;
+    play->offset = strtol(message, nullptr, 10);
+    message += strlen(message) + 1;
+    play->ratio = strtod(message, nullptr);
+    message += strlen(message) + 1;
+    play->volume = strtod(message, nullptr);
+    message += strlen(message) + 1;
+    return message;
 }
 
+// Parse the protocol emitted by Synth/Shared/Thru.hs
+static std::vector<Play>
+parse_plays(const char *message)
+{
+    std::vector<Play> plays;
+    for (;;) {
+        Play play;
+        message = parse_play(message, &play);
+        if (message)
+            plays.push_back(play);
+        else
+            break;
+    }
+    return plays;
+}
+
+static Message
+read_message(FILE *fp)
+{
+    // The read buffer is statically allocated in here, and the strings are
+    // just pointers to it.  This is ok because the server is single-threaded.
+    static char *line = nullptr;
+    static size_t line_size = 0;
+    ssize_t read = getline(&line, &line_size, fp);
+    if (read > 0) {
+        if (strcmp(line, "stop\n") == 0) {
+            return Message(true);
+        } else {
+            return Message(false, parse_plays(line));
+        }
+    } else {
+        // Socket closed?
+        return Message();
+    }
+}
+
+
+static int
+listen(std::ostream &log)
+{
+    int fd = socket(PF_INET, SOCK_STREAM, 0);
+    if (fd == -1) {
+        LOG("socket(): " << strerror(errno));
+        return -1;
+    }
+    int opt = 1;
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1
+        || setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt)) == -1)
+    {
+        LOG("setsockopt(): " << strerror(errno));
+        return -1;
+    }
+
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(THRU_PORT);
+    addr.sin_addr.s_addr = INADDR_ANY;
+
+    if (bind(fd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
+        LOG("bind(): " << strerror(errno));
+        return -1;
+    }
+    if (listen(fd, 1) == -1) {
+        LOG("listen(): " << strerror(errno));
+        return -1;
+    }
+    return fd;
+}
+
+
+static Message
+accept(std::ostream &log, int socket_fd)
+{
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    int addr_len = sizeof(addr);
+    // Will block.
+    int fd = accept(
+        socket_fd, (struct sockaddr *) &addr, (socklen_t *) &addr_len);
+    if (fd == -1) {
+        LOG("accept(): " << strerror(errno));
+        return Message();
+    }
+    FILE *fp = fdopen(fd, "r");
+    if (fp == nullptr) {
+        LOG("fdopen(): " << strerror(errno));
+        return Message();
+    }
+    Message message = read_message(fp);
+    fclose(fp);
+    return message;
+}
 
 
 Osc::Osc(std::ostream &log, int channels, int sample_rate, int max_frames)
     : log(log), thread_quit(false), volume(1)
 {
-    error_log = &log;
-    this->server = new_server();
+    socket_fd = listen(log);
     streamer.reset(
         new MixStreamer(max_voices, log, channels, sample_rate, max_frames));
     thread.reset(new std::thread(&Osc::loop, this));
@@ -53,15 +165,21 @@ Osc::~Osc()
 {
     thread_quit.store(true);
     LOG("Osc quit");
+    // Send myself as empty message to get accept() to return.
     {
-        // Send myself a random message to get lo_server_recv to return.
-        lo_address self = lo_address_new(nullptr, STR(OSC_PORT));
-        lo_send(self, "/quit", "");
-        lo_address_free(self);
+        int fd = socket(PF_INET, SOCK_STREAM, 0);
+        struct sockaddr_in addr;
+        memset(&addr, 0, sizeof(addr));
+        addr.sin_family = AF_INET;
+        addr.sin_port = htons(THRU_PORT);
+        addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+        connect(fd, (struct sockaddr *) &addr, sizeof(addr));
+        write(fd, "\n", 2);
+        close(fd);
     }
     thread->join();
-    if (this->server)
-        lo_server_free(server);
+    if (socket_fd > 0)
+        close(socket_fd);
 }
 
 
@@ -78,78 +196,32 @@ Osc::read(int channels, sf_count_t frames, float **out)
 }
 
 
-// Sometimes I get "cannot find free port".  The liblo source is byzantine, but
-// it looks like I got EADDRINUSE which is related to the more byzantine BSD
-// socket rules, but perhaps the old connection is lingering.  I think
-// SO_REUSEADDR should prevent this, but it seems like liblo only uses that for
-// TCP.
-lo_server
-Osc::new_server()
-{
-    lo_server server =
-        lo_server_new_with_proto(STR(OSC_PORT), LO_UDP, handle_error);
-    if (server) {
-        lo_server_add_method(server, "/play", "shdd", Osc::handle_play, this);
-        lo_server_add_method(server, "/stop", "", Osc::handle_stop, this);
-    }
-    return server;
-}
-
-
 void
 Osc::loop()
 {
     while (!thread_quit.load()) {
-        while (!this->server) {
-            // see Osc::new_server
-            LOG("server failed to connect, retrying...");
-            this->server = new_server();
-            if (!server)
-                sleep(1);
-
+        if (socket_fd < 0) {
+            LOG("socket not allocated");
+            break;
         }
-        lo_server_recv(server);
+        Message message(accept(log, socket_fd));
+        if (message.stop) {
+            LOG("stop");
+            streamer->stop();
+        } else {
+            for (const Play &play : message.plays) {
+                LOG("play: " << play.sample << " offset: " << play.offset
+                    << " ratio:" << play.ratio << " vol:" << play.volume);
+            }
+            // Stop old notes.
+            streamer->stop();
+            int voice = 0;
+            for (const Play &play : message.plays) {
+                // TODO incorrect for multiple Plays, move volume to streamer
+                this->volume = play.volume;
+                streamer->start(voice, play.sample, play.offset, play.ratio);
+                voice++;
+            }
+        }
     }
-}
-
-
-int
-Osc::handle_play(
-    const char *path, const char *types, lo_arg **argv,
-    int argc, void *data, void *user_data)
-{
-    Osc *self = static_cast<Osc *>(user_data);
-    // This corresponds to the message sent by Synth.Shared.Osc.play.
-    // The magic type letters here have to correspond to the type letters in
-    // lo_server_add_method above.
-    self->play(&argv[0]->s, argv[1]->h, argv[2]->d, argv[3]->d);
-    return 0;
-}
-
-
-void
-Osc::play(const char *path, int64_t offset, double ratio, double vol)
-{
-    LOG("play: " << path << " offset: " << offset << " ratio:" << ratio
-        << " vol:" << vol);
-    this->volume = vol;
-    streamer->start(path, offset, ratio);
-}
-
-
-int
-Osc::handle_stop(
-    const char *path, const char *types, lo_arg **argv,
-    int argc, void *data, void *user_data)
-{
-    Osc *self = static_cast<Osc *>(user_data);
-    self->stop();
-    return 0;
-}
-
-
-void
-Osc::stop()
-{
-    streamer->stop();
 }

@@ -117,17 +117,16 @@ private:
 class MixStreamer : public Audio {
 public:
     MixStreamer(
-        int voices, std::ostream &log, int channels, int sample_rate,
+        int max_voices, std::ostream &log, int channels, int sample_rate,
         int max_frames);
-    void start(const std::string &fname, int64_t offset, double ratio);
+    void start(int voice, const std::string &fname, int64_t offset,
+        double ratio);
     void stop();
 
     // Return true if the read is done, and there are no samples in 'out'.
     bool read(int channels, sf_count_t frames, float **out) override;
 
 private:
-    // std::unique_ptr<Mix> mix;
     std::vector<std::unique_ptr<ResampleStreamer>> voices;
-    int current_voice;
     std::vector<float> buffer;
 };

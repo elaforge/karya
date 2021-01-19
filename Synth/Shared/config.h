@@ -17,6 +17,5 @@
 // for the streaming thread to get its act together.
 #define START_LATENCY_FRAMES 512
 
-// PlayCache listens on this port for OSC, karya sends to it.  OSC is used for
-// realtime "MIDI thru".
-#define OSC_PORT 7090
+// PlayCache listens on this port for realtime note preview, karya sends to it.
+#define THRU_PORT 7090

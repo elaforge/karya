@@ -69,7 +69,7 @@ Streamer::stream_loop()
         if (thread_quit.load())
             break;
         if (restarting.load()) {
-            LOG(name << ": restarting");
+            // LOG(name << ": restarting");
             audio.reset(this->initialize());
             // This is not safe, but since restart is true, read() shouldn't
             // touch it.
@@ -197,8 +197,10 @@ ResampleStreamer::start(const string &fname, int64_t offset, double ratio)
 void
 ResampleStreamer::stop()
 {
-    this->fname.assign("");
-    this->restart();
+    if (!fname.empty()) {
+        this->fname.assign("");
+        this->restart();
+    }
 }
 
 
@@ -220,11 +222,10 @@ ResampleStreamer::initialize()
 // MixStreamer
 
 MixStreamer::MixStreamer(
-        int voices, std::ostream &log, int channels, int sample_rate,
+        int max_voices, std::ostream &log, int channels, int sample_rate,
         int max_frames)
-    : current_voice(0)
 {
-    for (int i = 0; i < voices; i++) {
+    for (int i = 0; i < max_voices; i++) {
         std::unique_ptr<ResampleStreamer> p(
             new ResampleStreamer(log, channels, sample_rate, max_frames));
         this->voices.push_back(std::move(p));
@@ -235,10 +236,11 @@ MixStreamer::MixStreamer(
 
 
 void
-MixStreamer::start(const std::string &fname, int64_t offset, double ratio)
+MixStreamer::start(int voice, const std::string &fname, int64_t offset,
+    double ratio)
 {
-    voices[current_voice]->start(fname, offset, ratio);
-    current_voice = (current_voice + 1) % voices.size();
+    voice = voice % voices.size();
+    voices[voice]->start(fname, offset, ratio);
 }
 
 
@@ -248,7 +250,6 @@ MixStreamer::stop()
     for (auto &streamer : voices) {
         streamer->stop();
     }
-    current_voice = 0;
 }
 
 

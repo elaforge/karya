@@ -23,7 +23,7 @@ import qualified Synth.Faust.InstrumentC as InstrumentC
 import qualified Synth.Faust.Preview as Preview
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
-import qualified Synth.Shared.Osc as Osc
+import qualified Synth.Shared.Thru as Thru
 import qualified Synth.Shared.Signal as Signal
 
 import           Global
@@ -111,18 +111,20 @@ thruCode = ImInst.thru . thruFunction
 -- imThruFunction :: Map Pitch.NoteNumber FilePath -> CUtil.Thru
 -- imThruFunction = CUtil.ImThru . thruFunction
 
-thruFunction :: Map Pitch.NoteNumber FilePath -> Osc.ThruFunction
-thruFunction pitchToSample = mapM $ \(Osc.Note { _pitch = pitch }) ->
-    case Maps.lookup_closest pitch pitchToSample of
-        Nothing -> Left "no samples"
-        Just (sampleNn, sample) -> Right $ Osc.Play
-            { _sample = sample
-            , _offset = 0
-            , _ratio = pitchToRatio sampleNn pitch
-            -- I could use velocity, but I don't render at different
-            -- dynamics so let's not give that impression.
-            , _volume = 1
-            }
+thruFunction :: Map Pitch.NoteNumber FilePath -> Thru.ThruFunction
+thruFunction pitchToSample = fmap Thru.Plays . mapM note
+    where
+    note (Thru.Note { _pitch = pitch }) =
+        case Maps.lookup_closest pitch pitchToSample of
+            Nothing -> Left "no samples"
+            Just (sampleNn, sample) -> Right $ Thru.Play
+                { _sample = sample
+                , _offset = 0
+                , _ratio = pitchToRatio sampleNn pitch
+                -- I could use velocity, but I don't render at different
+                -- dynamics so let's not give that impression.
+                , _volume = 1
+                }
 
 -- | From Sampler.Sample
 pitchToRatio :: Pitch.NoteNumber -> Pitch.NoteNumber -> Signal.Y

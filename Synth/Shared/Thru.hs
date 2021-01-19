@@ -7,25 +7,28 @@
 -- for im.  Since each im patch may respond in its own way to a Note, this
 -- relies on the patch itself exporting a 'ThruFunction' to find the
 -- appropriate sample.
-module Synth.Shared.Osc (
+module Synth.Shared.Thru (
     ThruFunction, Note(..)
-    , Play(..), send, play, stop
+    , Message(..), Play(..)
+    , send
 ) where
-import qualified Data.ByteString.Char8 as ByteString.Char8
-import qualified Sound.OSC as OSC
-import qualified Sound.OSC.Transport.FD as OSC.Transport.FD
-import qualified Sound.OSC.Transport.FD.UDP as OSC.Transport.FD.UDP
+import qualified Data.ByteString as ByteString
+import qualified Data.ByteString.Char8 as Char8
 
+import qualified Util.Network as Network
 import qualified Derive.Attrs as Attrs
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Shared.Config as Config
 
-import Global
+import           Global
 
 
 -- | This is a specialized version of 'Cmd.Cmd.ThruFunction'.  Being more
 -- specialized means I don't have to directly depend on "Cmd.Cmd" from here.
-type ThruFunction = [Note] -> Either Error [Play]
+type ThruFunction = [Note] -> Either Error Message
+
+data Message = Plays [Play] | Stop
+    deriving (Show)
 
 data Note = Note {
     _pitch :: !Pitch.NoteNumber
@@ -44,21 +47,20 @@ data Play = Play {
     , _volume :: !Double
     } deriving (Eq, Show)
 
-send :: OSC.Message -> IO ()
-send msg =
-    OSC.Transport.FD.withTransport open $ \osc ->
-        OSC.Transport.FD.sendMessage osc msg
+send :: Message -> IO ()
+send msg = Network.withConnection (Network.IP Config.thruPort) $ \hdl ->
+    ByteString.hPut hdl $ serialize msg
+
+-- | This serializes to a protocol with null-terminated fields, where a message
+-- is terminated with '\n'.  That makes it easy to read with getline(), and
+-- easy to parse each field as a string.
+serialize :: Message -> Char8.ByteString
+serialize (Plays plays) =
+    mconcatMap (<>"\0") (concatMap serialize1 plays) <> "\n"
     where
-    open = OSC.Transport.FD.UDP.openUDP "127.0.0.1" Config.oscPort
-
-play :: Play -> OSC.Message
-play (Play sample offset ratio volume) = OSC.message "/play"
-    [ OSC.ASCII_String (ByteString.Char8.pack sample)
-    , OSC.Int64 (fromIntegral offset), OSC.Double ratio, OSC.Double volume
-    ]
-
-stop :: OSC.Message
-stop :: OSC.Message = OSC.message "/stop" []
+    serialize1 (Play sample offset ratio volume) =
+        map Char8.pack [sample, show offset, show ratio, show volume]
+serialize Stop = "stop\n"
 
 
 {- NOTE [realtime-im]

@@ -66,7 +66,7 @@ import qualified Cmd.Undo as Undo
 import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
 import qualified Perform.Transport as Transport
-import qualified Synth.Shared.Osc as Shared.Osc
+import qualified Synth.Shared.Thru as Shared.Thru
 import qualified Ui.Diff as Diff
 import qualified Ui.Fltk as Fltk
 import qualified Ui.Sync as Sync
@@ -543,7 +543,7 @@ run_cmd cmd = do
 write_thru :: (Interface.Message -> IO ()) -> Cmd.Thru -> IO ()
 write_thru midi_writer = \case
     Cmd.MidiThru msg -> midi_writer msg
-    Cmd.ImThru osc -> Shared.Osc.send osc
+    Cmd.ImThru msg -> Shared.Thru.send msg
 
 not_continue :: Cmd.Status -> Bool
 not_continue Cmd.Continue = False

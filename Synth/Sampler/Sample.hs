@@ -16,7 +16,7 @@ import qualified Perform.Pitch as Pitch
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
-import qualified Synth.Shared.Osc as Osc
+import qualified Synth.Shared.Thru as Thru
 import qualified Synth.Shared.Signal as Signal
 
 import           Global
@@ -188,8 +188,8 @@ ratioToPitch ratio = Pitch.nn $ logBase 2 ratio * 12
 srate :: RealTime
 srate = 1/8
 
-toOsc :: FilePath -> Sample -> Osc.Play
-toOsc sampleDir sample = Osc.Play
+toOsc :: FilePath -> Sample -> Thru.Play
+toOsc sampleDir sample = Thru.Play
     { _sample = Config.unsafeSamplerRoot </> sampleDir </> filename sample
     , _offset = fromIntegral $ offset sample
     , _ratio = Signal.at start $ ratios sample

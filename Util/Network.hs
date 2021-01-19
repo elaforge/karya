@@ -13,11 +13,11 @@ import qualified Network.Socket.Internal as Socket.Internal
 import qualified System.IO as IO
 
 
-newtype Addr = Unix FilePath
+data Addr = Unix FilePath | IP Socket.PortNumber
     deriving (Eq, Show)
 
-listen :: Addr -> IO Socket.Socket
-listen (Unix fname) = do
+listenUnix :: FilePath -> IO Socket.Socket
+listenUnix fname = do
     socket <- unixSocket
     -- Make sure subprocesses don't inherit this.  Otherwise a subprocess such
     -- as lilypond causes the REPL command to block until the subprocess
@@ -28,17 +28,26 @@ listen (Unix fname) = do
     return socket
 
 withConnection :: Addr -> (IO.Handle -> IO a) -> IO a
-withConnection (Unix fname) action = do
-    socket <- unixSocket
+withConnection addr action = do
+    socket <- case addr of
+        Unix {} -> unixSocket
+        IP {} -> ipSocket
     -- Make sure to close the socket even if Socket.connect fails.  It will
     -- get closed twice if it doesn't, but Socket.close says it ignores errors.
-    Exception.bracket_ (Socket.connect socket (Socket.SockAddrUnix fname))
-        (Socket.close socket) $ Exception.bracket
-            (Socket.socketToHandle socket IO.ReadWriteMode) IO.hClose action
+    Exception.bracket_ (Socket.connect socket saddr) (Socket.close socket) $
+        Exception.bracket (Socket.socketToHandle socket IO.ReadWriteMode)
+            IO.hClose action
+    where
+    saddr = case addr of
+        IP port -> Socket.SockAddrInet port
+            (Socket.tupleToHostAddress (127, 0, 0, 1))
+        Unix fname -> Socket.SockAddrUnix fname
 
 unixSocket :: IO Socket.Socket
 unixSocket = Socket.socket Socket.AF_UNIX Socket.Stream Socket.defaultProtocol
 
+ipSocket :: IO Socket.Socket
+ipSocket = Socket.socket Socket.AF_INET Socket.Stream Socket.defaultProtocol
 
 -- | getHostName from Network.BSD, which is deprecated.
 getHostName :: IO String
