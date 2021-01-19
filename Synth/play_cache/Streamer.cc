@@ -229,6 +229,7 @@ MixStreamer::MixStreamer(
         std::unique_ptr<ResampleStreamer> p(
             new ResampleStreamer(log, channels, sample_rate, max_frames));
         this->voices.push_back(std::move(p));
+        this->volumes.push_back(1);
     }
     // Ensure read() doesn't have to allocate.
     buffer.resize(channels * max_frames);
@@ -237,10 +238,11 @@ MixStreamer::MixStreamer(
 
 void
 MixStreamer::start(int voice, const std::string &fname, int64_t offset,
-    double ratio)
+    double ratio, float volume)
 {
     voice = voice % voices.size();
     voices[voice]->start(fname, offset, ratio);
+    volumes[voice] = volume;
 }
 
 
@@ -276,12 +278,19 @@ MixStreamer::read(int channels, sf_count_t frames, float **out)
     buffer.resize(frames * channels);
     std::fill(buffer.begin(), buffer.end(), 0);
     bool done = true;
+    int voice = 0;
     for (const auto &audio : voices) {
         float *s_buffer;
         if (!audio->read(channels, frames, &s_buffer)) {
+            if (volumes[voice] != 1) {
+                for (int i = 0; i < channels * frames; i++) {
+                    s_buffer[i] *= volumes[voice];
+                }
+            }
             mix(channels, frames, buffer.data(), s_buffer);
             done = false;
         }
+        voice++;
     }
     *out = buffer.data();
     return done;

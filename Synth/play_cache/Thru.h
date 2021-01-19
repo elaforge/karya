@@ -27,7 +27,6 @@ private:
     std::unique_ptr<std::thread> thread;
     std::atomic<bool> thread_quit;
     std::unique_ptr<MixStreamer> streamer;
-    double volume;
     int socket_fd;
 
     void loop();

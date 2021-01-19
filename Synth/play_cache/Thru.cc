@@ -151,7 +151,7 @@ accept(std::ostream &log, int socket_fd)
 
 
 Thru::Thru(std::ostream &log, int channels, int sample_rate, int max_frames)
-    : log(log), thread_quit(false), volume(1)
+    : log(log), thread_quit(false)
 {
     socket_fd = listen(log);
     streamer.reset(
@@ -187,13 +187,7 @@ Thru::~Thru()
 bool
 Thru::read(int channels, sf_count_t frames, float **out)
 {
-    bool done = streamer->read(channels, frames, out);
-    if (!done && volume != 1) {
-        for (int i = 0; i < channels * frames; i++) {
-            (*out)[i] *= this->volume;
-        }
-    }
-    return done;
+    return streamer->read(channels, frames, out);
 }
 
 
@@ -218,9 +212,8 @@ Thru::loop()
             streamer->stop();
             int voice = 0;
             for (const Play &play : message.plays) {
-                // TODO incorrect for multiple Plays, move volume to streamer
-                this->volume = play.volume;
-                streamer->start(voice, play.sample, play.offset, play.ratio);
+                streamer->start(
+                    voice, play.sample, play.offset, play.ratio, play.volume);
                 voice++;
             }
         }

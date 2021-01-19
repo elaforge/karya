@@ -120,7 +120,7 @@ public:
         int max_voices, std::ostream &log, int channels, int sample_rate,
         int max_frames);
     void start(int voice, const std::string &fname, int64_t offset,
-        double ratio);
+        double ratio, float volume);
     void stop();
 
     // Return true if the read is done, and there are no samples in 'out'.
@@ -128,5 +128,6 @@ public:
 
 private:
     std::vector<std::unique_ptr<ResampleStreamer>> voices;
+    std::vector<float> volumes;
     std::vector<float> buffer;
 };
