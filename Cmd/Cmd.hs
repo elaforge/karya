@@ -807,6 +807,11 @@ data PlayState = PlayState {
     -- | If set, synchronize with a DAW when the selection is set, and on play
     -- and stop.
     , state_sync :: !(Maybe SyncConfig)
+    -- | Track im progress as updated by 'Msg.ImRenderingRange'.  This is
+    -- ultimately displayed on the GUI, but I keep track here so I can take
+    -- minimum and maximum when multiple instruments live on one track.
+    , state_im_progress :: !(Map BlockId (Map TrackId
+        (Map Shared.Config.InstrumentName (RealTime, RealTime))))
     } deriving (Show)
 
 -- | Wrap Async to make it showable.  I use Async instead of ThreadId because
@@ -846,6 +851,7 @@ initial_play_state = PlayState
     , state_step = Nothing
     , state_play_multiplier = RealTime.seconds 1
     , state_sync = Nothing
+    , state_im_progress = mempty
     }
 
 -- | Step play is a way of playing back the performance in non-realtime.
@@ -1312,8 +1318,7 @@ modify f = do
     put $! f st
 
 modify_play_state :: M m => (PlayState -> PlayState) -> m ()
-modify_play_state f = modify $ \st ->
-    st { state_play = f (state_play st) }
+modify_play_state f = modify $ \st -> st { state_play = f (state_play st) }
 
 -- | Return the rect of the screen closest to the given point, or the default.
 get_screen :: M m => Maybe (Int, Int) -> m Rect.Rect

@@ -2139,7 +2139,15 @@ synth: im:
         Once I have memory and time profiles, see if there's a significant
         difference between unsafe and safe.
   bug:
-    - fix the jumpy progress problem, maybe instead use (min, max).
+    * fix the jumpy progress problem, maybe instead use (min, max).
+      . I'd have to remember the old selection.
+      . fltk already has it, but then it would have to know about what kind of
+        selection this is.  To much state.
+      . Cmd.State can have 'Map BlockId (Map TrackId (RealTime, RealTime))'
+      . It's not so simple, this way start never advances.  Instead, I need
+        to store Map TrackId (Map Instrument (RealTime, RealTime)) and take
+        the min/max each time.
+      . Msg.ImRenderingRange does not include Instrument.
     - progress steps seem too small for sampler at least
       . Just make them bigger, or make faust and sampler different?
       . Why did I make them smaller than chunk size anyway?
@@ -2191,7 +2199,7 @@ synth: im:
     - also kendang dynamics are wonky:
       . ^ is too quiet
       . OSC thru plays normalized, lots of hiss
-    * 2 simultanous notes for OSC thru is no good for notes with a long decay
+    * 2 simultaneous notes for OSC thru is no good for notes with a long decay
       . I really did this for multiple sample thru like mridangam od.
       . How about send multiple samples per OSC, and stream however many
         necessary?

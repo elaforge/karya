@@ -121,10 +121,11 @@ handle_im_status ui_chan root_block_id = \case
         start_im_progress ui_chan root_block_id
     Msg.DeriveComplete _ Msg.ImUnnecessary -> return ()
     Msg.ImStatus block_id track_ids status -> case status of
-        Msg.ImRenderingRange start end ->
-            im_rendering_range ui_chan block_id track_ids start end
         Msg.ImWaveformsCompleted waveforms ->
             im_waveforms_completed ui_chan block_id track_ids waveforms
+        Msg.ImRenderingRange instrument start end ->
+            im_rendering_range ui_chan block_id track_ids instrument
+                (start, end)
         Msg.ImComplete failed -> do
             -- If it failed, leave the the progress highlight in place, to
             -- indicate where it crashed.
@@ -160,18 +161,6 @@ get_im_instrument_tracks block_id = do
             Map.lookup inst allocs
     return $ map fst $ filter (maybe False is_im . snd) $ zip track_ids insts
 
-clear_im_progress :: Fltk.Channel -> BlockId -> Cmd.CmdT IO ()
-clear_im_progress ui_chan block_id = do
-    view_ids <- Map.keys <$> Ui.views_of block_id
-    liftIO $ Sync.clear_im_progress ui_chan view_ids
-
-im_rendering_range :: Fltk.Channel -> BlockId -> Set TrackId -> RealTime
-    -> RealTime -> Cmd.CmdT IO ()
-im_rendering_range ui_chan block_id track_ids start end = do
-    sels <- resolve_tracks
-        =<< get_im_progress_selections block_id track_ids start end
-    liftIO $ Sync.set_im_progress ui_chan sels
-
 im_waveforms_completed :: Fltk.Channel -> BlockId -> Set TrackId
     -> [Track.WaveformChunk] -> Cmd.CmdT IO ()
 im_waveforms_completed ui_chan block_id track_ids waveforms = do
@@ -181,13 +170,56 @@ im_waveforms_completed ui_chan block_id track_ids waveforms = do
         ]
     liftIO $ Sync.set_waveforms ui_chan by_view
 
-get_im_progress_selections :: Cmd.M m => BlockId -> Set TrackId
-    -> RealTime -> RealTime -> m [((BlockId, TrackId), (Range, Color.Color))]
-get_im_progress_selections block_id track_ids start end = do
-    inv_tempo <- Perf.get_inverse_tempo block_id
-    return $ concatMap (track_sel inv_tempo) track_ids
+-- *** progress
+
+clear_im_progress :: Fltk.Channel -> BlockId -> Cmd.CmdT IO ()
+clear_im_progress ui_chan block_id = do
+    Cmd.modify_play_state $ \st -> st
+        { Cmd.state_im_progress = Map.delete block_id (Cmd.state_im_progress st)
+        }
+    view_ids <- Map.keys <$> Ui.views_of block_id
+    liftIO $ Sync.clear_im_progress ui_chan view_ids
+
+im_rendering_range :: Fltk.Channel -> BlockId -> Set TrackId
+    -> Msg.InstrumentName -> (RealTime, RealTime) -> Cmd.CmdT IO ()
+im_rendering_range ui_chan block_id track_ids instrument range = do
+    ranges <- update_rendering_ranges block_id (Set.toList track_ids)
+        instrument range
+    -- I could be fancy by setting the color shade based on how many
+    -- instruments are rendering in each range, but let's leave it be for now.
+    sels <- resolve_tracks =<< concatMapM (range_to_selection block_id) ranges
+    liftIO $ Sync.set_im_progress ui_chan sels
+
+update_rendering_ranges :: Cmd.M m => BlockId -> [TrackId]
+    -> Msg.InstrumentName -> (RealTime, RealTime)
+    -> m [(TrackId, (RealTime, RealTime))]
+update_rendering_ranges block_id track_ids instrument range = do
+    tracks <- Cmd.gets $ Map.findWithDefault mempty block_id
+        . Cmd.state_im_progress . Cmd.state_play
+    let new = Map.fromList
+            [(track_id, Map.singleton instrument range) | track_id <- track_ids]
+    let merged = Map.unionWith (<>) new tracks
+    Cmd.modify_play_state $ \st -> st
+        { Cmd.state_im_progress =
+            Map.insert block_id merged $ Cmd.state_im_progress st
+        }
+    return $ track_ranges merged track_ids
+
+track_ranges :: Map TrackId (Map Msg.InstrumentName (RealTime, RealTime))
+    -> [TrackId] -> [(TrackId, (RealTime, RealTime))]
+track_ranges tracks = mapMaybe (traverse (expand . Map.elems)) . mapMaybe get
     where
-    track_sel inv_tempo track_id = fromMaybe [] $ do
+    get track_id = (track_id,) <$> Map.lookup track_id tracks
+    expand [] = Nothing
+    expand ranges = Just (minimum (map fst ranges), maximum (map snd ranges))
+
+-- | Convert a track level RealTime range to lower level per-view TrackTime
+-- ranges.
+range_to_selection :: Cmd.M m => BlockId -> (TrackId, (RealTime, RealTime))
+    -> m [((BlockId, TrackId), ((ScoreTime, ScoreTime), Color.Color))]
+range_to_selection block_id (track_id, (start, end)) = do
+    inv_tempo <- Perf.get_inverse_tempo block_id
+    return $ fromMaybe [] $ do
         start <- to_score inv_tempo block_id track_id start
         end <- to_score inv_tempo block_id track_id end
         return $ map ((block_id, track_id),)

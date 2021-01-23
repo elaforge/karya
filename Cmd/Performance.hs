@@ -377,7 +377,7 @@ make_status inv_tempo wants_waveform im_dir score_path adjust0 play_multiplier
         (Config.Message block_id track_ids instrument payload) =
     case payload of
         Config.RenderingRange start end ->
-            status $ Msg.ImRenderingRange start end
+            status $ Msg.ImRenderingRange instrument start end
         Config.WaveformsCompleted chunknums
             | Set.null wanted_track_ids -> ImNothing
             | otherwise -> case mapM make_waveform chunknums of

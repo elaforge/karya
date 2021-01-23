@@ -102,7 +102,7 @@ data ImStarted = ImStarted -- ^ im subprocess in progress
 
 data ImStatus =
     -- | start--end currently being rendered.
-    ImRenderingRange !RealTime !RealTime
+    ImRenderingRange !InstrumentName !RealTime !RealTime
     -- | Waveforms written for these chunks.
     | ImWaveformsCompleted ![Track.WaveformChunk]
     -- | True if the im subprocess had a failure.  The error will have been
@@ -111,9 +111,13 @@ data ImStatus =
     | ImComplete !Bool
     deriving (Show)
 
+-- | Same as 'Synth.Shared.Config.InstrumentName'.
+type InstrumentName = Text
+
 instance Pretty ImStatus where
     pretty = \case
-        ImRenderingRange start end -> pretty start <> "--" <> pretty end
+        ImRenderingRange inst start end ->
+            inst <> "(" <> pretty start <> "--" <> pretty end <> ")"
         ImWaveformsCompleted waves ->
             Text.intercalate "," (map (txt . Track._filename) waves)
         ImComplete failed -> "ImComplete" <> if failed then "(failed)" else ""
