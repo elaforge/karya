@@ -27,6 +27,7 @@ import qualified Data.Vector as Vector
 
 import qualified Util.Log as Log
 import qualified Util.Num as Num
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
@@ -39,6 +40,7 @@ import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Perform.Midi.Play as Midi.Play
 import qualified Perform.Transport as Transport
+import qualified Synth.ImGc as ImGc
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Fltk as Fltk
@@ -126,7 +128,7 @@ handle_im_status ui_chan root_block_id = \case
         Msg.ImRenderingRange instrument start end ->
             im_rendering_range ui_chan block_id track_ids instrument
                 (start, end)
-        Msg.ImComplete failed -> do
+        Msg.ImComplete failed mb_stats -> do
             -- If it failed, leave the the progress highlight in place, to
             -- indicate where it crashed.
             unless failed $
@@ -139,6 +141,13 @@ handle_im_status ui_chan root_block_id = \case
             running <- Cmd.running_threads
             when (null running) $
                 liftIO $ Sync.gc_waveforms ui_chan
+            -- Only show the GC stats when rendering the root block.
+            whenJust mb_stats $ \stats ->
+                whenJustM Ui.lookup_root_id $ \score_root ->
+                    when (score_root == root_block_id) $
+                        -- TODO put this at the end?  Or just delete it.
+                        Cmd.set_global_status "im cache" $
+                            Pretty.bytes 0 (ImGc._remaining stats)
     _ -> return ()
 
 start_im_progress :: Fltk.Channel -> BlockId -> Cmd.CmdT IO ()

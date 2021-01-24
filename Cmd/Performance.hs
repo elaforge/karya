@@ -29,7 +29,6 @@ import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import           System.FilePath ((</>))
 import qualified System.IO as IO
-import qualified System.Process as Process
 
 import qualified Util.Control as Control
 import qualified Util.Log as Log
@@ -53,6 +52,7 @@ import qualified Perform.Im.Convert as Im.Convert
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Transport as Transport
 
+import qualified Synth.ImGc as ImGc
 import qualified Synth.Shared.Config as Config
 import qualified Ui.Block as Block
 import qualified Ui.ScoreTime as ScoreTime
@@ -289,14 +289,19 @@ evaluate_performance im_config lookup_inst wait send_status score_path
             (Set.fromList procs)
         Nothing -> return False
     unless (null procs) $ do
-        unless failed $ whenJust im_config $ \config -> do
-            -- GC only the output_dir for this instrument.  Otherwise they do
-            -- redundant work.
-            let output_dir = Config.outputDirectory (Config.imDir config)
-                    score_path block_id
-            Process.callProcess "tools/im-gc.py" [output_dir]
+        stats <- case (failed, im_config) of
+            (False, Just config) -> fmap Just $ im_gc $
+                Config.outputDirectory (Config.imDir config) score_path block_id
+            _ -> return Nothing
         send_status block_id $ Msg.ImStatus block_id Set.empty $
-            Msg.ImComplete failed
+            Msg.ImComplete failed stats
+
+im_gc :: FilePath -> IO ImGc.Stats
+im_gc output_dir = do
+    stats <- ImGc.gc False output_dir
+    when (ImGc._deletedFiles stats > 0) $
+        Log.notice $ ImGc.showStats stats
+    return stats
 
 -- | Return events with a 'Inst.Dummy' backend.  These shouldn't have made it
 -- through to actual performance.

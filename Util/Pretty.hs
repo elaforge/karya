@@ -28,6 +28,7 @@ module Util.Pretty (
     , constructor
     -- * standalone
     , duration
+    , bytes
     -- * misc
     , readWord
 ) where
@@ -392,6 +393,16 @@ duration secs0 = Text.unwords $ concat
     (days, secs1) = Num.fDivMod secs0 (60*60*24)
     (hours, secs2) = Num.fDivMod secs1 (60*60)
     (mins, secs3) = Num.fDivMod secs2 60
+
+bytes :: Int -> Int -> Text
+bytes precision bs = case List.find ((>=1) . fst) sizes of
+    Just (v, s) -> Num.showFloat precision v <> s
+    Nothing -> showt bs <> "b"
+    where
+    sizes = [(gb, "gb"), (mb, "mb"), (kb, "kb")]
+    kb = fromIntegral bs / 1024
+    mb = kb / 1024
+    gb = mb / 1024
 
 -- * Read
 

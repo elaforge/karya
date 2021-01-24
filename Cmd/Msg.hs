@@ -23,6 +23,7 @@ import qualified Derive.TrackWarp as TrackWarp
 import qualified Local.KeyLayout
 import qualified Midi.Midi as Midi
 import qualified Perform.Transport as Transport
+import qualified Synth.ImGc as ImGc
 import qualified Ui.Id as Id
 import qualified Ui.Key as Key
 import qualified Ui.Track as Track
@@ -87,6 +88,10 @@ data DeriveStatus =
     OutOfDate
     | Deriving
     | DeriveComplete !Performance !ImStarted
+    -- | The BlockId is the block to which this status applies, the BlockId
+    -- in the containing DeriveStatus is the root block for the derivation.
+    -- It's redundant for 'ImComplete', because only the root block gets one of
+    -- those.
     | ImStatus !BlockId !(Set TrackId) !ImStatus
     deriving (Show)
 
@@ -108,7 +113,7 @@ data ImStatus =
     -- | True if the im subprocess had a failure.  The error will have been
     -- logged, and this flag will leave a visual indicator on the track that
     -- something went wrong.
-    | ImComplete !Bool
+    | ImComplete !Bool !(Maybe ImGc.Stats)
     deriving (Show)
 
 -- | Same as 'Synth.Shared.Config.InstrumentName'.
@@ -120,7 +125,7 @@ instance Pretty ImStatus where
             inst <> "(" <> pretty start <> "--" <> pretty end <> ")"
         ImWaveformsCompleted waves ->
             Text.intercalate "," (map (txt . Track._filename) waves)
-        ImComplete failed -> "ImComplete" <> if failed then "(failed)" else ""
+        ImComplete failed _ -> "ImComplete" <> if failed then "(failed)" else ""
 
 -- Performance should be in "Cmd.Cmd", but that would be a circular import.
 

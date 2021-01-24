@@ -10,13 +10,16 @@ import qualified Codec.Compression.GZip as GZip
 import qualified Codec.Compression.Zlib.Internal as Zlib.Internal
 import qualified Control.Exception as Exception
 import           Control.Monad (forM_, guard, void, when)
-import           Control.Monad.Extra (ifM, orM, whenM)
+import           Control.Monad.Trans (liftIO)
+import           Control.Monad.Extra (ifM, orM, whenM, partitionM, filterM)
 
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Lazy as Lazy
 import           Data.Text (Text)
 import qualified Data.Text.IO as Text.IO
 
+import qualified Streaming as S
+import qualified Streaming.Prelude as S
 import qualified System.Directory as Directory
 import           System.FilePath ((</>))
 import qualified System.IO as IO
@@ -80,6 +83,22 @@ listRecursive descend dir = do
         fns <- list dir
         fmap concat $ mapM (listRecursive descend) fns
     maybeDescend False _ _ = return []
+
+-- | Walk the filesystem and stream (dir, fname).
+walk :: (FilePath -> Bool) -> FilePath
+    -> S.Stream (S.Of (FilePath, [FilePath])) IO ()
+walk wantDir = go
+    where
+    go dir = do
+        (dirs, fnames) <- liftIO $
+            partitionM (Directory.doesDirectoryExist . (dir</>))
+                =<< Directory.listDirectory dir
+        S.yield (dir, fnames)
+        dirs <- return $ map (dir</>) $ filter wantDir dirs
+        dirs <- liftIO $ if followLinks then return dirs
+            else filterM (fmap not . Directory.pathIsSymbolicLink) dirs
+        mapM_ go dirs
+    followLinks = False
 
 -- * compression
 

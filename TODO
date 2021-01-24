@@ -2077,9 +2077,13 @@ instruments:
     . http://www.musicdevelopments.com/syne.html
 
 synth: im:
-  - It seems like im-gc.py is too eager
+  - It seems like ImGc is too eager
     . If I disable an old track, it deletes it right away.
     . Shouldn't it have touched all the timestamps when it hit that track?
+  * port im-gc.py to haskell so I can call directly from Cmd.Performance?
+    . It should be faster, though performance hasn't been a problem... but it
+      is in the derive loop.
+    . Also I can put im cache stats in Cmd.set_global_status
   * Maybe I could have the tempo track default to 1 instead of almost 0.
     . 0 tempo is always a mistake.  It's just a harmless one with midi because
       midi renders audio lazily.  Not so harmless when eagerly rendering audio!

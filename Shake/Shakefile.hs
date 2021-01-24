@@ -319,10 +319,12 @@ hsBinaries =
     , (plain "extract_doc" "App/ExtractDoc.hs") { hsDeps = ["fltk/fltk.a"] }
     , plain "extract_korvais" "Solkattu/ExtractKorvais.hs"
     , plain "generate_run_tests" "Util/Test/GenerateRunTests.hs"
+    , plain "im_gc" "Synth/ImGcMain.hs"
     , plain "linkify" "Util/Linkify.hs"
     , plain "logcat" "LogView/LogCat.hs"
     , gui "logview" "LogView/LogView.hs" ["LogView/logview_ui.cc.o"]
     , plain "make_db" "Instrument/MakeDb.hs"
+    , plain "mixdown" "Synth/MixDown.hs"
     , plain "ness-submit" "Ness/Submit.hs"
     , plain "pprint" "App/PPrint.hs"
     , plain "repl" "App/Repl.hs"
@@ -344,7 +346,6 @@ hsBinaries =
         { hsRtsFlags = ["-N", "-I0", "-qg", "-qb"] }
     , plain "show_timers" "LogView/ShowTimers.hs"
     , plain "stream_audio" "Synth/StreamAudio.hs"
-    , plain "mixdown" "Synth/MixDown.hs"
     , plain "test_midi" "Midi/TestMidi.hs"
     , plain "update" "App/Update.hs"
     , (plain "verify_performance" "App/VerifyPerformance.hs")
