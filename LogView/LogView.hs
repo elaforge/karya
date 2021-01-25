@@ -49,6 +49,7 @@ import qualified Util.Log as Log
 import qualified Util.Process
 import qualified Util.Seq as Seq
 
+import qualified App.Path as Path
 import qualified App.ReplProtocol as ReplProtocol
 import qualified LogView.LogViewC as LogViewC
 import qualified LogView.Process as Process
@@ -198,13 +199,16 @@ data Msg = NewLog Log.Msg | ClickedWord Text | FilterChanged Text
 
 handle_msgs :: Fltk.Channel -> Process.State -> Int -> LogChan
     -> LogViewC.Window -> IO ()
-handle_msgs chan st history log_chan win =
+handle_msgs chan st history log_chan win = do
+    Path.AppDir app_dir_ <- Path.get_app_dir
+    let app_dir = txt app_dir_ <> "/"
     flip State.evalStateT st $ forever $ do
-        msg <- liftIO $ get_msg log_chan win
-        case msg of
-            NewLog log_msg -> do
-                State.modify (Process.add_msg history log_msg)
-                handle_new_msg chan win log_msg
+        ui_msg <- liftIO $ get_msg log_chan win
+        case ui_msg of
+            NewLog msg_ -> do
+                let msg = strip_paths app_dir msg_
+                State.modify (Process.add_msg history msg)
+                handle_new_msg chan win msg
             ClickedWord word -> liftIO $ handle_clicked_word word
             FilterChanged expr -> do
                 -- clear and redisplay msgs with new filter
@@ -213,6 +217,12 @@ handle_msgs chan st history log_chan win =
                     st { Process.state_filter = Process.compile_filter expr }
                 all_msgs <- State.gets (reverse . Process.state_msgs)
                 mapM_ (handle_new_msg chan win) all_msgs
+
+-- | Internally I use absolute paths, but they're pretty verbose.  So turn
+-- them back into relative paths.
+strip_paths :: Text -> Log.Msg -> Log.Msg
+strip_paths dir msg =
+    msg { Log.msg_text = Text.replace dir "" $ Log.msg_text msg }
 
 handle_new_msg :: Fltk.Channel -> LogViewC.Window -> Log.Msg
     -> State.StateT Process.State IO ()

@@ -10,12 +10,14 @@
 module App.Path (
     AppDir(..), get_app_dir
     , Relative, relative, (</>)
-    , to_absolute, get_absolute
+    , to_absolute
     -- * Canonical
     , Canonical, make_canonical, canonical, to_path
     , drop_prefix
 ) where
+import qualified Data.List as List
 import qualified Data.String as String
+import qualified GHC.Stack as Stack
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 
@@ -35,17 +37,17 @@ newtype AppDir = AppDir FilePath
 newtype Relative = Relative FilePath
     deriving (Eq, Show, String.IsString)
 
-relative :: FilePath -> Relative
-relative = Relative
+relative :: Stack.HasCallStack => FilePath -> Relative
+relative path
+    | "/" `List.isPrefixOf` path =
+        error $ "so-called relative path no so relative: " <> path
+    | otherwise = Relative path
 
 (</>) :: Relative -> Relative -> Relative
 Relative a </> Relative b = Relative (a FilePath.</> b)
 
 to_absolute :: AppDir -> Relative -> FilePath
 to_absolute (AppDir app_dir) (Relative path) = app_dir FilePath.</> path
-
-get_absolute :: Relative -> IO FilePath
-get_absolute dir = to_absolute <$> get_app_dir <*> pure dir
 
 -- * Canonical
 

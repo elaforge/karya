@@ -13,13 +13,12 @@ module LogView.Tail (
     -- * magic
     , starting_msg, quitting_msg
 ) where
-import Prelude hiding (read, tail)
+import           Prelude hiding (read, tail)
 import qualified Control.Exception as Exception
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Lazy as Lazy
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
-import System.FilePath ((</>))
 import qualified System.IO as IO
 import qualified System.IO.Error as Error
 import qualified System.Posix as Posix
@@ -32,11 +31,13 @@ import qualified Util.Thread as Thread
 import qualified App.Config as Config
 import qualified App.Path as Path
 
-import Global
+import           Global
 
 
 log_filename :: IO FilePath
-log_filename = (</> "seq.log") <$> Path.get_absolute Config.log_dir
+log_filename = do
+    app_dir <- Path.get_app_dir
+    return $ Path.to_absolute app_dir (Config.log_dir Path.</> "seq.log")
 
 -- * rotate
 

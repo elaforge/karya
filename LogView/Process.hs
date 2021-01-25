@@ -39,7 +39,8 @@ import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
 
 import qualified Derive.Stack as Stack
-import Global
+
+import           Global
 
 
 -- * state
