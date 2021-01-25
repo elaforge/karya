@@ -27,7 +27,7 @@ import qualified System.Remote.Monitoring
 import qualified Util.Git as Git
 import qualified Util.Log as Log
 import qualified Util.Maps as Maps
-import qualified Util.Process as Process
+import qualified Util.Processes as Processes
 import qualified Util.Thread as Thread
 
 import qualified Ui.BlockC as BlockC
@@ -153,7 +153,7 @@ main = initialize $ \midi_interface repl_socket -> do
         -- I gather the recommended way is to start a thread for signal
         -- handling, I'll do that if this causes more trouble.
 
-    git_user <- either (\err -> Log.error err >> Process.exit 1) return
+    git_user <- either (\err -> Log.error err >> Processes.exit 1) return
         =<< SaveGit.get_user
     -- Get screens synchronously, so setup_cmd can see them.
     screens <- BlockC.get_screens

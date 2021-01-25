@@ -61,7 +61,7 @@ import qualified System.Exit as Exit
 import System.FilePath ((</>))
 
 import Util.GitTypes (Commit(..), Repo)
-import qualified Util.Process as Process
+import qualified Util.Processes as Processes
 import qualified Util.Seq as Seq
 
 import Global
@@ -664,7 +664,7 @@ git repo = git_env repo []
 git_env :: Repo -> [(String, String)] -> [String] -> ByteString
     -> IO ByteString
 git_env repo env args stdin = do
-    (ex, out, err) <- Process.readProcessWithExitCode
+    (ex, out, err) <- Processes.readProcessWithExitCode
         (Just (("GIT_DIR", repo) : env)) "git" args stdin
     -- let sin = " <" ++ show (Char8.length stdin)
     -- let sin = if Char8.null stdin then "" else " <" ++ show stdin

@@ -13,7 +13,7 @@ import qualified Data.Text.Encoding.Error as Encoding.Error
 
 import qualified System.Exit as Exit
 
-import qualified Util.Process as Process
+import qualified Util.Processes as Processes
 import qualified Cmd.Cmd as Cmd
 
 import           Global
@@ -22,7 +22,7 @@ import           Global
 read_process :: FilePath -> [String] -> Cmd.CmdT IO Text
 read_process cmd args = do
     (exit, stdout, stderr) <- liftIO $
-        Process.readProcessWithExitCode Nothing cmd args ""
+        Processes.readProcessWithExitCode Nothing cmd args ""
     case exit of
         Exit.ExitFailure code -> Cmd.throw $ "cmd failed: " <> showt code
             <> ", stderr: " <> decode_utf8 stderr

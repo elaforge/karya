@@ -21,7 +21,7 @@ import qualified Data.Text.Lazy as Lazy
 import qualified System.FilePath as FilePath
 
 import qualified Util.Log as Log
-import qualified Util.Process
+import qualified Util.Processes as Processes
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
@@ -146,7 +146,7 @@ current = block =<< Cmd.get_focused_block
 view_block :: BlockId -> Cmd.CmdL ()
 view_block block_id = do
     filename <- Cmd.Lilypond.ly_filename $ block_id_title block_id
-    liftIO $ void $ Thread.start $ Util.Process.call
+    liftIO $ void $ Thread.start $ Processes.call
         "open" [FilePath.replaceExtension filename ".pdf"]
 
 view :: Cmd.CmdL ()

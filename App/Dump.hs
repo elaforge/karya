@@ -17,7 +17,7 @@ import qualified System.IO as IO
 import qualified Util.Git as Git
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
-import qualified Util.Process as Process
+import qualified Util.Processes as Processes
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 
@@ -68,12 +68,12 @@ main = Git.initialize $ do
     let mode = fromMaybe DumpAll (Seq.last [m | Mode m <- flags])
         pprint = any (==PPrint) flags
     ok <- mapM (dump_file pprint mode) args
-    Process.exit $ length (filter not ok)
+    Processes.exit $ length (filter not ok)
     where
     usage msg = do
         putStrLn usage_doc
         putStr (GetOpt.usageInfo msg options)
-        Process.exit 1
+        Processes.exit 1
 
 dump_file :: Bool -> Mode -> FilePath -> IO Bool
 dump_file pprint mode fname = dump pprint mode fname >>= \case

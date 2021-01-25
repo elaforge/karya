@@ -33,7 +33,7 @@ import qualified System.IO as IO
 import qualified Util.Control as Control
 import qualified Util.Log as Log
 import qualified Util.Maps as Maps
-import qualified Util.Process
+import qualified Util.Processes as Processes
 import qualified Util.Thread as Thread
 import qualified Util.Vector
 
@@ -332,7 +332,7 @@ watch_subprocesses :: BlockId -> (Config.Message -> ImStatus)
     -> (Msg.DeriveStatus -> IO ()) -> Set Process -> IO Bool
 watch_subprocesses root_block_id make_status send_status procs
     | Set.null procs = return False
-    | otherwise = Util.Process.multipleOutput (Set.toList procs) $ \chan ->
+    | otherwise = Processes.multipleOutput (Set.toList procs) $ \chan ->
         Control.loop1 (procs, False) $ \loop (procs, failed) -> if
             | Set.null procs -> return failed
             | otherwise -> do
@@ -340,13 +340,13 @@ watch_subprocesses root_block_id make_status send_status procs
                 loop =<< process procs failed (cmd, args) out
     where
     process procs failure (cmd, args) = \case
-        Util.Process.Stderr line ->
+        Processes.Stderr line ->
             put line >> return (procs, failure)
-        Util.Process.Stdout line -> do
+        Processes.Stdout line -> do
             failed <- progress line
             return (procs, failed || failure)
-        Util.Process.Exit code -> do
-            when (code /= Util.Process.ExitCode 0) $
+        Processes.Exit code -> do
+            when (code /= Processes.ExitCode 0) $
                 Log.warn $ "subprocess " <> txt cmd <> " "
                     <> showt args <> " returned " <> showt code
             return (Set.delete (cmd, args) procs, failure)

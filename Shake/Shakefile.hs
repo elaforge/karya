@@ -92,7 +92,7 @@ basicPackages = concat
     , [("Diff", ">=0.4")] -- Util.Test
     , w "QuickCheck" -- Util.Test
     , w "ansi-terminal colour" -- Util.StyledText
-    , w "async" -- Util.Process
+    , w "async" -- Util.Processes
     , w "dlist" -- Util.TimeVector
     , w "hedgehog" -- Util.Test
     , w "pretty haskell-src" -- Util.PPrint

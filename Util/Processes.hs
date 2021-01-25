@@ -5,7 +5,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE LambdaCase #-}
 -- | Utilities to deal with processes.
-module Util.Process where
+module Util.Processes where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.Async as Async
 import qualified Control.Concurrent.Chan as Chan

@@ -17,14 +17,12 @@ import qualified Data.Text.Lazy.IO as Lazy.IO
 
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
-import System.FilePath ((</>))
+import           System.FilePath ((</>))
 
 import qualified Util.Log as Log
-import qualified Util.Process
+import qualified Util.Processes
 import qualified Util.Thread as Thread
 
-import qualified Ui.Ui as Ui
-import qualified Ui.UiConfig as UiConfig
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.PlayUtil as PlayUtil
@@ -44,8 +42,11 @@ import qualified Perform.Lilypond.Constants as Lilypond.Constants
 import qualified Perform.Lilypond.Convert as Convert
 import qualified Perform.Pitch as Pitch
 
-import Global
-import Types
+import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
+
+import           Global
+import           Types
 
 
 -- * derive
@@ -136,7 +137,7 @@ compile_ly :: FilePath -> Lazy.Text -> IO ()
 compile_ly filename text = do
     Directory.createDirectoryIfMissing True (FilePath.takeDirectory filename)
     Lazy.IO.writeFile filename text
-    void $ Thread.start $ Util.Process.call
+    void $ Thread.start $ Util.Processes.call
         "lilypond" ["-o", FilePath.dropExtension filename, filename]
 
 convert :: Lilypond.Config -> [Score.Event] -> ([Lilypond.Event], [Log.Msg])

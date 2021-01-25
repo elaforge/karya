@@ -27,7 +27,7 @@ import qualified Util.Git as Git
 import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
-import qualified Util.Process as Process
+import qualified Util.Processes as Processes
 import qualified Util.Seq as Seq
 import qualified Util.SourceControl as SourceControl
 import qualified Util.Thread as Thread
@@ -142,13 +142,13 @@ main = Git.initialize $ do
                 , ("name", Aeson.toJSON $ SourceControl._summary patch)
                 ]
             return 0
-    Process.exit failures
+    Processes.exit failures
     where
     usage msg = do
         putStrLn $ "error: " ++ msg
         putStrLn "usage: verify_performance [ flags ] dirs or filenames"
         putStr (GetOpt.usageInfo "" options)
-        Process.exit 1
+        Processes.exit 1
 
 verify_me_txt :: FilePath
 verify_me_txt = "verify-me.txt"

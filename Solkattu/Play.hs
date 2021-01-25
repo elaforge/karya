@@ -26,8 +26,7 @@ import qualified System.IO as IO
 
 import qualified Util.Control as Control
 import qualified Util.Log as Log
-import qualified Util.Process as Process
-import qualified Util.Process
+import qualified Util.Processes as Processes
 import qualified Util.Seq as Seq
 
 import qualified Cmd.Cmd as Cmd
@@ -91,7 +90,7 @@ play_procs procs output_dirs = do
     MVar.takeMVar ready
     Log.debug $ Text.unwords $
         "%" : "build/opt/stream_audio" : map txt output_dirs
-    Process.call "build/opt/stream_audio" output_dirs
+    Processes.call "build/opt/stream_audio" output_dirs
     Async.wait rendering
 
 -- | This is analogous to 'Performance.watch_subprocesses', but notifies as
@@ -102,7 +101,7 @@ play_procs procs output_dirs = do
 -- but that's what derive gives me.
 watch_subprocesses :: MVar.MVar () -> Set Performance.Process -> IO ()
 watch_subprocesses ready all_procs =
-    Util.Process.multipleOutput (Set.toList all_procs) $ \chan ->
+    Processes.multipleOutput (Set.toList all_procs) $ \chan ->
         Control.loop1 (all_procs, Set.empty) $ \loop (procs, started) -> if
             | Set.null procs -> MVar.tryPutMVar ready () >> return ()
             | otherwise -> do
@@ -110,13 +109,13 @@ watch_subprocesses ready all_procs =
                 loop =<< process procs started (cmd, args) out
     where
     process procs started (cmd, args) = \case
-        Util.Process.Stderr line -> do
+        Processes.Stderr line -> do
             -- Only show Log.Warn and above.
             -- TODO pass LOG_CONFIG?
             when ("---" `Text.isPrefixOf` line) $
                 put line
             return (procs, started)
-        Util.Process.Stdout line -> case Config.parseMessage line of
+        Processes.Stdout line -> case Config.parseMessage line of
             Just (Config.Message
                     { Config._payload = Config.WaveformsCompleted chunks })
                 | 0 `elem` chunks -> do
@@ -131,8 +130,8 @@ watch_subprocesses ready all_procs =
             Just (Config.Message { Config._payload = Config.RenderingRange {} })
                 -> return (procs, started)
             _ -> put ("?: " <> line) >> return (procs, started)
-        Util.Process.Exit code -> do
-            when (code /= Util.Process.ExitCode 0) $
+        Processes.Exit code -> do
+            when (code /= Processes.ExitCode 0) $
                 Log.warn $ "subprocess " <> txt cmd <> " "
                     <> showt args <> " returned " <> showt code
             return (Set.delete (cmd, args) procs, started)

@@ -46,7 +46,7 @@ import qualified Util.File as File
 import qualified Util.Fltk as Fltk
 import qualified Util.FltkUtil as FltkUtil
 import qualified Util.Log as Log
-import qualified Util.Process
+import qualified Util.Processes as Processes
 import qualified Util.Seq as Seq
 
 import qualified App.Path as Path
@@ -165,7 +165,7 @@ write_pid = do
     pid_str <- File.ignoreEnoent $ ByteString.readFile pid_file
     existing <- case ByteString.readInt =<< pid_str of
         Just (pid_, _) -> do
-            maybe_cmd <- Util.Process.commandName pid
+            maybe_cmd <- Processes.commandName pid
             return $ if maybe False ("logview" `List.isSuffixOf`) maybe_cmd
                 then Just pid else Nothing
             where pid = fromIntegral pid_

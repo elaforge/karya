@@ -27,10 +27,10 @@ import qualified Numeric
 import qualified System.CPUTime as CPUTime
 import qualified System.Console.GetOpt as GetOpt
 import qualified System.Directory as Directory
-import qualified System.Environment as Environment
 import qualified System.Environment
+import qualified System.Environment as Environment
 import qualified System.Exit
-import System.FilePath ((</>))
+import           System.FilePath ((</>))
 import qualified System.IO as IO
 import qualified System.Process as Process
 
@@ -38,12 +38,12 @@ import qualified Text.Read as Read
 
 import qualified Util.Cpu as Cpu
 import qualified Util.File as File
-import qualified Util.Process
+import qualified Util.Processes as Processes
 import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
 import qualified Util.Test.Testing as Testing
 
-import Global
+import           Global
 
 
 data Test = Test {
@@ -209,34 +209,34 @@ jobThread output queue =
         argv0 <- System.Environment.getExecutablePath
         -- Give each subprocess its own .tix, or they will stomp on each other
         -- and crash.
-        Util.Process.conversation argv0 ["--subprocess"]
+        Processes.conversation argv0 ["--subprocess"]
                 (Just (("HPCTIXFILE", output <> ".tix") : env)) to $ \from -> do
             earlyExit <- Fix.fix $ \loop -> takeQueue queue >>= \case
                 Nothing -> return Nothing
                 Just (name, tests) -> do
                     put $ untxt name
-                    Chan.writeChan to $ Util.Process.Text $
+                    Chan.writeChan to $ Processes.Text $
                         Text.unwords (map testName tests) <> "\n"
                     earlyExit <- Fix.fix $ \loop -> Chan.readChan from >>= \case
-                        Util.Process.Stdout line
+                        Processes.Stdout line
                             | line == testsCompleteLine -> return Nothing
                             | otherwise -> Text.IO.hPutStrLn hdl line >> loop
-                        Util.Process.Stderr line ->
+                        Processes.Stderr line ->
                             Text.IO.hPutStrLn hdl line >> loop
-                        Util.Process.Exit n -> do
+                        Processes.Exit n -> do
                             put $ "completed early: " <> show n
                             return $ Just n
                     maybe loop (return . Just) earlyExit
             final <- case earlyExit of
                 Nothing -> do
-                    Chan.writeChan to Util.Process.EOF
+                    Chan.writeChan to Processes.EOF
                     Chan.readChan from
-                Just n -> return $ Util.Process.Exit n
+                Just n -> return $ Processes.Exit n
             let failure = case final of
-                    Util.Process.Exit (Util.Process.ExitCode n)
+                    Processes.Exit (Processes.ExitCode n)
                         | n == 0 -> Nothing
                         | otherwise -> Just $ "subprocess crashed: " <> show n
-                    Util.Process.Exit Util.Process.BinaryNotFound ->
+                    Processes.Exit Processes.BinaryNotFound ->
                         Just $ "binary not found: " <> argv0
                     _ -> Just $ "expected Exit, but got " <> show final
             whenJust failure put
