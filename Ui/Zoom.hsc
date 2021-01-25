@@ -5,7 +5,7 @@
 -- | The 'Zoom' type.
 module Ui.Zoom (Zoom(..), to_pixels, to_time) where
 import ForeignC
-import qualified Util.CUtil as CUtil
+import qualified Util.FFI as FFI
 import qualified Util.Num as Num
 
 import qualified Ui.ScoreTime as ScoreTime
@@ -32,10 +32,10 @@ instance CStorable Zoom where
     peek zoomp = do
         offset <- (#peek Zoom, offset) zoomp
         factor <- (#peek Zoom, factor) zoomp :: IO CDouble
-        return $ Zoom offset (CUtil.hs_double factor)
+        return $ Zoom offset (FFI.hs_double factor)
     poke zoomp (Zoom offset factor) = do
         (#poke Zoom, offset) zoomp offset
-        (#poke Zoom, factor) zoomp (CUtil.c_double factor)
+        (#poke Zoom, factor) zoomp (FFI.c_double factor)
 
 -- | Convert a position at a given zoom factor to a pixel position.  Doesn't
 -- take the zoom offset into account.

@@ -8,7 +8,7 @@
 
     - Generic UI debugging functions.
 -}
-module Util.CUtil where
+module Util.FFI where
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Unsafe as Unsafe
 import qualified Data.Text as Text

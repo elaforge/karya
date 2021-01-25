@@ -62,7 +62,7 @@ import qualified Foreign
 import qualified ForeignC as C
 import qualified Text.Read as Read
 
-import qualified Util.CUtil as CUtil
+import qualified Util.FFI as FFI
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
@@ -91,8 +91,8 @@ newtype RealTime = RealTime Double deriving
 instance Foreign.Storable RealTime where
     sizeOf _ = Foreign.sizeOf (0 :: C.CDouble)
     alignment _ = Foreign.alignment (0 :: C.CDouble)
-    poke p (RealTime d) = Foreign.poke (Foreign.castPtr p) (CUtil.c_double d)
-    peek p = RealTime . CUtil.hs_double <$> Foreign.peek (Foreign.castPtr p)
+    poke p (RealTime d) = Foreign.poke (Foreign.castPtr p) (FFI.c_double d)
+    peek p = RealTime . FFI.hs_double <$> Foreign.peek (Foreign.castPtr p)
 
 instance C.CStorable RealTime where
     sizeOf = Foreign.sizeOf

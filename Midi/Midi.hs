@@ -60,7 +60,7 @@ import           Data.Word (Word8)
 
 import qualified Foreign.C
 
-import qualified Util.CUtil as CUtil
+import qualified Util.FFI as FFI
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import           Util.Pretty (format, (<+>))
@@ -121,10 +121,10 @@ write_device :: Text -> WriteDevice
 write_device = WriteDevice . Encoding.encodeUtf8
 
 read_device_text :: ReadDevice -> Text
-read_device_text (ReadDevice bs) = CUtil.decodeUtf8 bs
+read_device_text (ReadDevice bs) = FFI.decodeUtf8 bs
 
 write_device_text :: WriteDevice -> Text
-write_device_text (WriteDevice bs) = CUtil.decodeUtf8 bs
+write_device_text (WriteDevice bs) = FFI.decodeUtf8 bs
 
 peek_wdev :: Foreign.C.CString -> IO WriteDevice
 peek_wdev = fmap WriteDevice . ByteString.packCString

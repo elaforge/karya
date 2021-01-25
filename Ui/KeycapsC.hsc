@@ -6,7 +6,7 @@
 -- | Low level fltk binding for drawing the keycaps.
 module Ui.KeycapsC (create, destroy, update) where
 import qualified Data.Map as Map
-import qualified Util.CUtil as CUtil
+import qualified Util.FFI as FFI
 import qualified Util.Rect as Rect
 
 import qualified Ui.Color as Color
@@ -25,12 +25,12 @@ import           Ui.KeycapsT
 create :: (Int, Int) -> Layout -> Fltk.Fltk ()
 create (x, y) layout = Fltk.fltk $ do
     destroy_
-    layoutp <- CUtil.new layout -- The widget will take ownership.
+    layoutp <- FFI.new layout -- The widget will take ownership.
     win <- c_create (i x) (i y) (i w) (i h) layoutp
     PtrMap.set_keycaps $ Just win
     where
     (w, h) = lt_size layout
-    i = CUtil.c_int
+    i = FFI.c_int
 
 -- KeycapsWindow *keycaps_create(
 --     int x, int y, int w, int h, const Keycaps::Layout *layout);
@@ -51,7 +51,7 @@ update :: RawBindings -> Fltk.Fltk ()
 update (RawBindings bindings) = Fltk.fltk $
     whenJustM PtrMap.lookup_keycaps $ \win -> do
         withArrayLen bindings $ \bindings_len bindingsp ->
-            c_update win bindingsp (CUtil.c_int bindings_len)
+            c_update win bindingsp (FFI.c_int bindings_len)
 
 -- void keycaps_update(
 --     KeycapsWindow *window, const Keycaps::Binding *bindings,
@@ -98,11 +98,11 @@ instance CStorable Layout where
         (#poke Keycaps::Layout, label_color) p lt_label_color
         (#poke Keycaps::Layout, binding_color) p lt_binding_color
         (#poke Keycaps::Layout, rects) p =<< newArray rects
-        (#poke Keycaps::Layout, rects_len) p $ CUtil.c_int (Map.size lt_labels)
-        labelps <- mapM CUtil.newCStringNull0 labels
+        (#poke Keycaps::Layout, rects_len) p $ FFI.c_int (Map.size lt_labels)
+        labelps <- mapM FFI.newCStringNull0 labels
         (#poke Keycaps::Layout, labels_points) p =<< newArray points
         (#poke Keycaps::Layout, labels_texts) p =<< newArray labelps
-        (#poke Keycaps::Layout, labels_len) p $ CUtil.c_int (length lt_labels)
+        (#poke Keycaps::Layout, labels_len) p $ FFI.c_int (length lt_labels)
 
 label_offset :: (Int, Int)
 label_offset = (1, 8)
@@ -123,6 +123,6 @@ instance CStorable RawBinding where
     alignment _ = alignment nullPtr
     poke p (RawBinding point (Binding { b_text, b_doc, b_color })) = do
         (#poke Keycaps::Binding, point) p point
-        (#poke Keycaps::Binding, text) p =<< CUtil.newCStringNull0 b_text
-        (#poke Keycaps::Binding, doc) p =<< CUtil.newCStringNull0 b_doc
+        (#poke Keycaps::Binding, text) p =<< FFI.newCStringNull0 b_text
+        (#poke Keycaps::Binding, doc) p =<< FFI.newCStringNull0 b_doc
         (#poke Keycaps::Binding, color) p $ fromMaybe Color.black b_color

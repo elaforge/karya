@@ -7,7 +7,7 @@
 -}
 module Ui.TrackC (with_track) where
 import ForeignC
-import qualified Util.CUtil as CUtil
+import qualified Util.FFI as FFI
 import qualified Util.Seq as Seq
 import qualified Util.Then as Then
 
@@ -51,7 +51,7 @@ poke_find_events trackp event_style event_lists = do
     (#poke EventTrackConfig, time_end) trackp time_end
 
 make_find_events :: EventStyle -> [Events.Events] -> IO (FunPtr FindEvents)
-make_find_events event_style event_lists = CUtil.makeFunPtr "find_events" $
+make_find_events event_style event_lists = FFI.makeFunPtr "find_events" $
     c_make_find_events (cb_find_events event_style event_lists)
 
 instance CStorable Track.RenderConfig where
@@ -93,7 +93,7 @@ poke_track_signal tsigp (Track.TrackSignal sig shift stretch) = do
     (#poke TrackSignal, shift) tsigp (shift + RealTime.to_score offset)
     (#poke TrackSignal, stretch) tsigp stretch
     (#poke TrackSignal, signal) tsigp destp
-    (#poke TrackSignal, length) tsigp (CUtil.c_int len)
+    (#poke TrackSignal, length) tsigp (FFI.c_int len)
 
     -- Calculated by c++, in c_interface.cc.  I'd rather do it here,
     -- but I'm worried all those peeks will generate garbage.

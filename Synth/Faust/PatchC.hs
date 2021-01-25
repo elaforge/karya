@@ -16,7 +16,7 @@ import qualified Data.Vector.Storable as V
 import qualified Foreign
 
 import qualified Util.Audio.Audio as Audio
-import qualified Util.CUtil as CUtil
+import qualified Util.FFI as FFI
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
 
@@ -36,7 +36,7 @@ patches :: IO [(Text, PatchP)]
 patches = alloca $ \patchpp -> do
     count <- fromIntegral <$> c_faust_patches patchpp
     patches <- peekArray count =<< peek patchpp
-    names <- mapM (CUtil.peekCString . c_faust_name) patches
+    names <- mapM (FFI.peekCString . c_faust_name) patches
     -- I use hyphens, but C doesn't allow them in names.
     return $ zip (map (Text.replace "_" "-") names) patches
 
@@ -116,7 +116,7 @@ foreign import ccall "faust_controls"
 
 allocate :: PatchP -> IO (InstrumentP, [(([Text], Control.Control), Ptr Float)])
 allocate patch = do
-    ptr <- c_faust_allocate patch (CUtil.c_int Config.samplingRate)
+    ptr <- c_faust_allocate patch (FFI.c_int Config.samplingRate)
     cptrs <- alloca $ \cptrspp -> do
         count <- c_faust_control_ptrs ptr cptrspp
         cptrsp <- peek cptrspp
@@ -167,7 +167,7 @@ render controlSize controlsPerBlock inst controls inputs = do
     outputFptrs <- mapM Foreign.mallocForeignPtrArray
         (replicate (instOutputs inst) (unframe blockSize))
     -- Holy manual memory management, Batman.
-    CUtil.withForeignPtrs outputFptrs $ \outputPtrs ->
+    FFI.withForeignPtrs outputFptrs $ \outputPtrs ->
         withVectors inputs $ \inputsP ->
         withArray outputPtrs $ \outputsP ->
         withControls controls $ \controlCount controlPtrs controlValsP ->
@@ -179,7 +179,7 @@ render controlSize controlsPerBlock inst controls inputs = do
         outputFptrs
     where
     blockSize = controlSize * controlsPerBlock
-    c_frames = CUtil.c_int . unframe
+    c_frames = FFI.c_int . unframe
     unframe (Audio.Frames f) = f
 
 withControls :: [(Ptr Float, Audio.Block)]
@@ -189,7 +189,7 @@ withControls controls action = do
     sequence_ [Foreign.poke ptr val | (ptr, Audio.Constant _ val) <- controls]
     withArray ptrs $ \controlPtrs ->
         withVectors vecs $ \controlValsP ->
-        action (CUtil.c_int (length ptrs)) controlPtrs controlValsP
+        action (FFI.c_int (length ptrs)) controlPtrs controlValsP
     where (ptrs, vecs) = unzip [(ptr, vec) | (ptr, Audio.Block vec) <- controls]
 
 -- void faust_render(
@@ -251,12 +251,12 @@ foreign import ccall "faust_put_state"
 peekTexts :: Int -> Ptr CString -> IO [Text]
 peekTexts count textp = do
     texts <- peekArray count textp
-    mapM CUtil.peekCString texts
+    mapM FFI.peekCString texts
 
 peekTexts0 :: Ptr CString -> IO [Text]
 peekTexts0 textp = do
     texts <- Foreign.peekArray0 nullPtr textp
-    mapM CUtil.peekCString texts
+    mapM FFI.peekCString texts
 
 -- | Allocate a list of vectors as **float.  Pass nullptr for [], to avoid
 -- allocation.

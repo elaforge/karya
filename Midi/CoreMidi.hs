@@ -19,7 +19,7 @@ import qualified Data.Set as Set
 
 import           Foreign hiding (void)
 
-import qualified Util.CUtil as CUtil
+import qualified Util.FFI as FFI
 import qualified Util.Log as Log
 import qualified Midi.Encode as Encode
 import qualified Midi.Interface as Interface
@@ -126,7 +126,7 @@ notify_callback :: Client -> NotifyCallback
 notify_callback client namep _dev_id c_is_added c_is_read = do
     -- I could make connect_read_device and connect_write_device that take
     -- the dev_id directly, but that's too much work.
-    name <- CUtil.peekCString namep
+    name <- FFI.peekCString namep
     case (toBool c_is_added, toBool c_is_read) of
         (True, True) -> do
             let dev = Midi.read_device name
@@ -212,7 +212,7 @@ connect_write_device client dev = do
 
 lookup_device_id :: Bool -> Text -> IO (Maybe DeviceId)
 lookup_device_id is_read dev = alloca $ \dev_idp -> do
-    found <- CUtil.withText dev $ \devp ->
+    found <- FFI.withText dev $ \devp ->
         c_lookup_device_id (fromBool is_read) devp dev_idp
     if found == 0 then return Nothing
         else Just <$> peek dev_idp
@@ -225,7 +225,7 @@ get_devices is_read = alloca $ \namesp -> do
     len <- c_get_devices (fromBool is_read) namesp
     name_array <- peek namesp
     cnames <- peekArray (fromIntegral len) name_array
-    names <- mapM CUtil.peekCString cnames
+    names <- mapM FFI.peekCString cnames
     mapM_ free cnames
     free name_array
     return names

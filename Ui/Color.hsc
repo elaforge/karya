@@ -7,7 +7,7 @@ import Data.Bits
 import qualified Data.Text as Text
 import ForeignC
 
-import qualified Util.CUtil as CUtil
+import qualified Util.FFI as FFI
 import qualified Util.Num as Num
 
 import Global
@@ -104,4 +104,4 @@ instance CStorable Color where
         (#poke Color, g) colorp (c g)
         (#poke Color, b) colorp (c b)
         (#poke Color, a) colorp (c a)
-        where c double = CUtil.c_uchar (floor (double*255))
+        where c double = FFI.c_uchar (floor (double*255))

@@ -12,7 +12,7 @@ module Util.TimeVectorStorable where
 import qualified Data.Aeson as Aeson
 import Foreign
 
-import qualified Util.CUtil as CUtil
+import qualified Util.FFI as FFI
 import qualified ForeignC as C
 import qualified Util.Serialize as Serialize
 
@@ -33,11 +33,11 @@ instance Storable (Sample Double) where
     alignment _ = alignment (0 :: C.CDouble)
     poke sp (Sample time val) = do
         (#poke ControlSample, time) sp time
-        (#poke ControlSample, val) sp (CUtil.c_double val)
+        (#poke ControlSample, val) sp (FFI.c_double val)
     peek sp = do
         time <- (#peek ControlSample, time) sp
         val <- (#peek ControlSample, val) sp
-        return $ Sample time (CUtil.hs_double val)
+        return $ Sample time (FFI.hs_double val)
 
 -- TODO I think this is necessary all-vector implementations in Util.Segment
 -- instance (Storable a, Storable b) => Storable (a, b) where

@@ -13,7 +13,7 @@ import qualified Data.List as List
 import qualified Data.Word as Word
 
 import qualified Ui.Color as Color
-import qualified Util.CUtil as CUtil
+import qualified Util.FFI as FFI
 import qualified Util.Num as Num
 import qualified Util.Serialize as Serialize
 
@@ -49,8 +49,8 @@ instance CStorable Style where
     peek = error "EventStyle peek unimplemented"
     poke stylep (Style font face size text_color event_color) = do
         (#poke EventStyle, font) stylep
-            (CUtil.c_int (font_code font + face_code face))
-        (#poke EventStyle, size) stylep (CUtil.c_nat size)
+            (FFI.c_int (font_code font + face_code face))
+        (#poke EventStyle, size) stylep (FFI.c_nat size)
         (#poke EventStyle, text_color) stylep text_color
         (#poke EventStyle, event_color) stylep event_color
 

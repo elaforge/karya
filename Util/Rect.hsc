@@ -21,7 +21,7 @@ module Util.Rect (
     , contains_point, touches_point
 ) where
 import qualified Util.Pretty as Pretty
-import qualified Util.CUtil as CUtil
+import qualified Util.FFI as FFI
 
 import           ForeignC
 
@@ -125,7 +125,7 @@ instance CStorable Rect where
         (#poke IRect, y) p (i y)
         (#poke IRect, w) p (i w)
         (#poke IRect, h) p (i h)
-        where i = CUtil.c_int
+        where i = FFI.c_int
     peek p = do
         x <- (#peek IRect, x) p :: IO CInt
         y <- (#peek IRect, y) p :: IO CInt
@@ -140,7 +140,7 @@ instance CStorable Point where
     poke p (x, y) = do
         (#poke IPoint, x) p (i x)
         (#poke IPoint, y) p (i y)
-        where i = CUtil.c_int
+        where i = FFI.c_int
     peek p = do
         x <- (#peek IPoint, x) p :: IO CInt
         y <- (#peek IPoint, y) p :: IO CInt

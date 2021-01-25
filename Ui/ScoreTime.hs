@@ -14,7 +14,7 @@ import qualified Data.Text as Text
 import qualified ForeignC as C
 import qualified Text.Read as Read
 
-import qualified Util.CUtil as CUtil
+import qualified Util.FFI as FFI
 import qualified Util.Num as Num
 import qualified Util.Seed as Seed
 import qualified Util.Serialize as Serialize
@@ -81,8 +81,8 @@ divisor = 2^7 * 3^3 * 5^2 * 7
 instance C.CStorable ScoreTime where
     sizeOf _ = C.sizeOf (0 :: C.CDouble)
     alignment _ = C.alignment (0 :: C.CDouble)
-    poke p (ScoreTime d) = C.poke (C.castPtr p) (CUtil.c_double d)
-    peek p = ScoreTime . CUtil.hs_double <$> C.peek (C.castPtr p)
+    poke p (ScoreTime d) = C.poke (C.castPtr p) (FFI.c_double d)
+    peek p = ScoreTime . FFI.hs_double <$> C.peek (C.castPtr p)
 
 instance Show ScoreTime where show (ScoreTime n) = show n
 instance Read.Read ScoreTime where readPrec = ScoreTime <$> Read.readPrec

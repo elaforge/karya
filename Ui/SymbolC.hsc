@@ -8,7 +8,7 @@ import qualified Data.Text as Text
 import Foreign
 import Foreign.C
 
-import qualified Util.CUtil as CUtil
+import qualified Util.FFI as FFI
 import qualified Ui.Symbol as Symbol
 import qualified App.Config as Config
 
@@ -43,10 +43,10 @@ insert (Symbol.Symbol name absolute_y glyphs) = do
         then return (Maybe.catMaybes missing)
         else do
             let glyphcs = Maybe.catMaybes maybe_glyphcs
-            CUtil.withText (mangle_name name) $ \namep -> withArrayLen glyphcs $
+            FFI.withText (mangle_name name) $ \namep -> withArrayLen glyphcs $
                 \len glyphsp ->
                     c_insert_symbol namep (fromBool absolute_y)
-                        glyphsp (CUtil.c_int len)
+                        glyphsp (FFI.c_int len)
             return []
 
 foreign import ccall "insert_symbol"
@@ -80,10 +80,10 @@ instance Storable GlyphC where
     alignment _ = alignment (0 :: CDouble)
     peek = error "GlyphC peek"
     poke glyphp (GlyphC text font size align_x align_y rotate) = do
-        encoded <- CUtil.newCString0 text
+        encoded <- FFI.newCString0 text
         (#poke SymbolTable::Glyph, utf8) glyphp encoded
         (#poke SymbolTable::Glyph, font) glyphp font
-        (#poke SymbolTable::Glyph, size) glyphp (CUtil.c_int size)
-        (#poke SymbolTable::Glyph, align_x) glyphp (CUtil.c_double align_x)
-        (#poke SymbolTable::Glyph, align_y) glyphp (CUtil.c_double align_y)
-        (#poke SymbolTable::Glyph, rotate) glyphp (CUtil.c_int rotate)
+        (#poke SymbolTable::Glyph, size) glyphp (FFI.c_int size)
+        (#poke SymbolTable::Glyph, align_x) glyphp (FFI.c_double align_x)
+        (#poke SymbolTable::Glyph, align_y) glyphp (FFI.c_double align_y)
+        (#poke SymbolTable::Glyph, rotate) glyphp (FFI.c_int rotate)

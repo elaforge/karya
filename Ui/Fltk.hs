@@ -18,7 +18,7 @@ import qualified Control.Exception as Exception
 import qualified Foreign
 import qualified Foreign.C as C
 
-import qualified Util.CUtil as CUtil
+import qualified Util.FFI as FFI
 import qualified Util.Log as Log
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.UiMsgC as UiMsgC
@@ -56,7 +56,7 @@ type QuitRequest = MVar.MVar ()
 -- When the app exits, the ui loop will be aborted.
 event_loop :: Channel -> QuitRequest -> STM.TChan UiMsg.UiMsg -> IO ()
 event_loop ui_chan quit_request msg_chan = do
-    finalizer <- c_make_free_fun_ptr CUtil.freeFunPtr
+    finalizer <- c_make_free_fun_ptr FFI.freeFunPtr
     c_initialize finalizer
     while_ (fmap not (MVar.isEmptyMVar quit_request)) $
         fltk_event_loop ui_chan msg_chan
@@ -139,7 +139,7 @@ handle_actions ui_chan = MVar.modifyMVar_ ui_chan $ \actions -> do
     -- Since actions are added to the front, reverse them before executing.
     Exception.handle handle $
         forM_ (reverse actions) $ \(Fltk action, name) -> do
-            when action_timing $ CUtil.withText name $ \namep ->
+            when action_timing $ FFI.withText name $ \namep ->
                 c_timing 1 namep
             action
     return []
