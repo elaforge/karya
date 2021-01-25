@@ -18,12 +18,15 @@ import qualified Cmd.Create as Create
 import qualified Cmd.Info as Info
 import qualified Cmd.Msg as Msg
 import qualified Cmd.NoteTrackParse as NoteTrackParse
+import qualified Cmd.Ruler
+import qualified Cmd.Ruler.RulerUtil as RulerUtil
 import qualified Cmd.Selection as Selection
 import qualified Cmd.Views as Views
 
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Ui as Ui
@@ -141,6 +144,19 @@ cmd_add_block_title _ = do
     when (Text.null title) $
         Ui.set_block_title block_id " "
     Ui.damage $ mempty { Update._title_focus = Just (view_id, Nothing) }
+
+-- | Clip a block to the selection.
+clip :: Cmd.M m => m ()
+clip = do
+    (block_id, _, _, pos) <- Selection.get_insert
+    clip_to block_id pos
+
+clip_to :: Ui.M m => BlockId -> TrackTime -> m ()
+clip_to block_id end = do
+    RulerUtil.local RulerUtil.Block block_id (Cmd.Ruler.clip end)
+    track_ids <- Ui.track_ids_of block_id
+    forM_ track_ids $ \track_id ->
+        Ui.modify_events track_id $ Events.clip True end
 
 -- * collapse / expand tracks
 

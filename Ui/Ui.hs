@@ -1351,7 +1351,7 @@ insert_block_events block_id track_id events = do
     end <- block_end block_id
     -- allow_zero=True because zero-dur events at the end of a block are used
     -- for negative/final notes.
-    insert_events track_id (Events.clip True end events)
+    insert_events track_id (Events.clip_list True end events)
 
 insert_event :: M m => TrackId -> Event.Event -> m ()
 insert_event track_id event = insert_events track_id [event]

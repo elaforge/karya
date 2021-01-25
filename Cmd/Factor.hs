@@ -59,9 +59,7 @@ split_time_at from_block_id pos block_name = do
     -- Trim the old events.
     forM_ tracks $ \(track_id, _) -> do
         events <- fst . Events.split pos <$> Ui.get_events track_id
-        let clipped = Events.from_list $ Events.clip False pos $
-                Events.ascending events
-        Ui.modify_events track_id (const clipped)
+        Ui.modify_events track_id $ const $ Events.clip False pos events
     -- Create new block.
     to_block_id <- Create.named_block_from_template False from_block_id
         block_name

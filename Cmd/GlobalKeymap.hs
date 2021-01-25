@@ -368,7 +368,7 @@ block_config_bindings = concat
 
     -- The idea is cmd-; works in kbd mode.
     , command_char ';' "double ruler" Cmd.Ruler.local_double
-    , plain_char ':' "clip ruler" Cmd.Ruler.local_clip
+    , plain_char ':' "clip block" BlockConfig.clip
     ]
 
 -- | Modify global edit state.

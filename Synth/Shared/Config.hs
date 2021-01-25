@@ -102,7 +102,7 @@ samplerRoot = Config.data_dir Path.</> "sampler"
 -- | This is samplerRoot, but as an absolute path.
 --
 -- Technically, Path.get_app_dir is in IO, so I can't get an absolute path
--- without IO.  However, I need to put the absolute path in the OSC play msgs
+-- without IO.  However, I need to put the absolute path in the Thru play msgs
 -- (ultimately since play_cache runs with an unknown CWD), and it gets really
 -- annoying to try to get a Path.AppDir into the thru function's closure.  So
 -- unsafePerformIO it is.  I could probably just put that on app_dir, but this

@@ -71,7 +71,7 @@ test_split_at_before = do
 
 test_clip = do
     let f include_end end = map extract_event
-            . Events.clip include_end end . pos_events
+            . Events.clip_list include_end end . pos_events
     let positive = [(0, 2, "a"), (2, 2, "b")]
     equal [f False end positive | end <- Seq.range 0 5 1]
         [ []

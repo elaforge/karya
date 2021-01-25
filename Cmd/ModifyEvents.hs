@@ -190,7 +190,7 @@ move_events :: ScoreTime -- ^ events past the block end are shortened or removed
     -> ScoreTime -> ScoreTime -> Events.Events -> Events.Events
 move_events block_end point shift events = merged
     where
-    shifted = Events.clip False block_end $
+    shifted = Events.clip_list False block_end $
         map (Event.start_ %= (+shift)) (Events.at_after point events)
     -- +1 in case the last event is +0 duration.
     merged = Events.insert shifted $

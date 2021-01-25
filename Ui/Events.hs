@@ -22,7 +22,7 @@ module Ui.Events (
     , ascending, descending
 
     -- ** transformation
-    , map_events, move, clip
+    , map_events, move, clip, clip_list
 
     -- ** insert / remove
     , insert, remove
@@ -135,7 +135,7 @@ from_list evts = insert evts empty
 
 -- | Get all events in ascending order.
 ascending :: Events -> [Event.Event]
-ascending = to_asc_list . get
+ascending = to_asc_list
 
 descending :: Events -> [Event.Event]
 descending = to_desc_list . get
@@ -157,14 +157,18 @@ move delta (Events events) =
 
 -- | Clip off the events after the given end time.  Also shorten the last
 -- event so it doesn't cross the end, if necessary.
-clip :: Bool -> ScoreTime -> [Event.Event] -> [Event.Event]
-clip _ _ [] = []
-clip allow_zero end (event : events)
+clip :: Bool -> ScoreTime -> Events -> Events
+clip allow_zero end = from_asc_list . clip_list allow_zero end . to_asc_list
+
+-- | Like 'clip', but works on a list.
+clip_list :: Bool -> ScoreTime -> [Event.Event] -> [Event.Event]
+clip_list _ _ [] = []
+clip_list allow_zero end (event : events)
     | allow_zero && Event.start event > end = []
     | Event.is_negative event && Event.start event > end = []
     | Event.is_positive event && Event.start event >= end && not allow_zero = []
     | Event.end event > end = [Event.set_end end event]
-    | otherwise = event : clip allow_zero end events
+    | otherwise = event : clip_list allow_zero end events
 
 -- ** insert / remove
 
@@ -177,7 +181,7 @@ clip allow_zero end (event : events)
 insert :: [Event.Event] -> Events -> Events
 insert [] events = events
 insert unsorted_events (Events events) =
-    Events $ Map.unions [pre, overlapping, post]
+    Events $ Map.unions [pre, get overlapping, post]
     where
     new_events = Seq.sort_on fst $ Seq.key_on event_key $
         map Event.round unsorted_events
@@ -319,11 +323,11 @@ event_key :: Event.Event -> Key
 event_key event = Key (Event.start event) (Event.orientation event)
 
 -- | This assumes the input is already sorted!
-from_ascending :: [Event.Event] -> EventMap
-from_ascending = Map.fromAscList . Seq.key_on event_key
+from_asc_list :: [Event.Event] -> Events
+from_asc_list = Events . Map.fromAscList . Seq.key_on event_key
 
-to_asc_list :: EventMap -> [Event.Event]
-to_asc_list = map snd . Map.toAscList
+to_asc_list :: Events -> [Event.Event]
+to_asc_list = map snd . Map.toAscList . get
 
 to_desc_list :: EventMap -> [Event.Event]
 to_desc_list = map snd . Map.toDescList
@@ -369,7 +373,7 @@ merge :: Events -> Events -> Events
 merge (Events evts1) (Events evts2)
     | Map.null evts1 = Events evts2
     | Map.null evts2 = Events evts1
-    | otherwise = Events $
+    | otherwise =
         merge_and_clip (Map.toAscList evts2) (Map.toAscList evts1)
     -- Previously I would extract the overlapping sections and clip only those,
     -- but I moved that to 'insert'.  Perhaps it's a bit more elegant here, but
@@ -378,8 +382,8 @@ merge (Events evts1) (Events evts2)
     -- big.  Also, putting it in 'insert' avoids having to clip_events an extra
     -- time to create the new Events.
 
-merge_and_clip :: [(Key, Event.Event)] -> [(Key, Event.Event)] -> EventMap
-merge_and_clip old new = from_ascending $ clip_events $ map snd $
+merge_and_clip :: [(Key, Event.Event)] -> [(Key, Event.Event)] -> Events
+merge_and_clip old new = from_asc_list $ clip_events $ map snd $
     Seq.merge_on fst (map (first (,False)) old) (map (first (,True)) new)
     -- Seq.merge_on should put elements from the first argument first, but
     -- it doesn't guarantee it, so let's be explicit.
@@ -446,7 +450,7 @@ instance Serialize.Serialize Events where
         case v of
             3 -> do
                 events :: Map ScoreTime Event.Event <- Serialize.get
-                return $ Events $ from_ascending $ Map.elems events
+                return $ from_asc_list $ Map.elems events
             4 -> do
                 events :: Map Key Event.Event <- Serialize.get
                 return $ Events events
