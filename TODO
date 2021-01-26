@@ -2077,9 +2077,11 @@ instruments:
     . http://www.musicdevelopments.com/syne.html
 
 synth: im:
-  - It seems like ImGc is too eager
+  * It seems like ImGc is too eager
     . If I disable an old track, it deletes it right away.
     . Shouldn't it have touched all the timestamps when it hit that track?
+    . Make sure Lib.Checkpoint does that.
+  - write to logs instead of stdout, it's getting verbose
   * port im-gc.py to haskell so I can call directly from Cmd.Performance?
     . It should be faster, though performance hasn't been a problem... but it
       is in the derive loop.
@@ -2171,6 +2173,31 @@ synth: im:
       . Unfortunately I can no longer tell since presumably the next run
         replaced the symlinks.
       . Put logging in to try to catch this next time.
+      . The first time Directory.getSymbolicLinkTarget returns "", the next
+        time it's correct.  Checkpoint.linkOutput tries to avoid it by
+        using rename, how could it ever have an invalid value?
+      . It just dispatches to Posix.readSymbolicLink, which is just
+        readlink(2).
+      . Is getSymbolicLinkTarget really returning ""?  If Track._filname is
+        always absolute, then that's the only option.  The log showed the
+        result is absolute, so it must be so, unless the link was created
+        with an absolute path.
+      possibilities:
+        . something else makes a bad link in there before it gets replaced
+          . linkOutput is the only haskell call to createFileLink.
+            And it has ("checkpoint"</>) hardcoded, so it can't make an absolute
+            link.
+          . ImGc is read-only for links.
+        . Checkpoint.linkOutput makes a bad link, to "" or absolute.
+          . Could fname be bugged due to unsafe?
+          . Possible, but it doesn't explain how the link gets fixed...
+          . Also it should have been forced by the previous writeState.
+          . Also the symptom of state changing would be it has the wrong hash,
+            not that it's "".
+        . readlink fails somehow, and it turns into ""
+          . Not sure how to debug this then.
+        . rename is not atomic, there's an invalid symlink for a moment
+          . It totally should be.
     * "derive might be stuck" when starting up on save/sketch/21-01-10-cengceng
       . Probably related to how every edit gets stuck.  Put in timing, who is
         blocking?

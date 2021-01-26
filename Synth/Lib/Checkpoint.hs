@@ -132,7 +132,7 @@ write emitProgress outputDir trackIds skippedCount chunkSize hashes getState
     where
     chunkComplete fname = do
         writeState getState fname
-        chunknum <- linkOutput outputDir fname
+        chunknum <- linkOutput False outputDir (FilePath.takeFileName fname)
         when emitProgress $ Config.emitMessage $ Config.Message
             { _blockId = Config.pathToBlockId outputDir
             , _trackIds = trackIds
@@ -179,15 +179,14 @@ writeState getState fname = do
 -- checkpointDir to its position in the output sequence.
 --
 -- > 000.wav -> checkpoint/000.$hash.$state.wav
-linkOutput :: FilePath -> FilePath -> IO Config.ChunkNum
-linkOutput outputDir fname = do
-    let current = outputDir </> filenameToOutput (FilePath.takeFileName fname)
-    -- If a previous process got killed, there might be stale .tmp files.
-    File.ignoreEnoent $ Directory.removeFile (current <> ".tmp")
-    -- Atomically replace the old link, if any.
-    Directory.createFileLink (checkpointDir </> FilePath.takeFileName fname)
-        (current <> ".tmp")
-    Directory.renameFile (current <> ".tmp") current
+linkOutput :: Bool -> FilePath -> FilePath -> IO Config.ChunkNum
+linkOutput updateMtime outputDir fname = do
+    let current = outputDir </> filenameToOutput fname
+    File.symlink (checkpointDir </> fname) current
+    -- Bump mtime to protect it from ImGc for a while after it becomes dead.
+    when updateMtime $
+        Directory.setModificationTime (outputDir </> checkpointDir </> fname)
+            =<< Time.getCurrentTime
     return $ fromMaybe (error $ "no parse: " <> show current) $
         Config.isOutputLink $ FilePath.takeFileName current
 

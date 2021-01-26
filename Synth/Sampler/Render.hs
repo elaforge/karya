@@ -84,7 +84,7 @@ write config outputDir trackIds mbEffect notes = catch $ do
         map toSpan notes
     let startFrame = fromIntegral (length skipped) * _chunkSize config
         start = AUtil.toSeconds startFrame
-    mapM_ (Checkpoint.linkOutput outputDir) skipped
+    mapM_ (Checkpoint.linkOutput True outputDir) skipped
     when (_emitProgress config && not (null skipped)) $
         Config.emitMessage $ Config.Message
             { _blockId = Config.pathToBlockId outputDir

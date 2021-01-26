@@ -3,15 +3,33 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE ScopedTypeVariables #-}
-{- | Do things with files.
--}
-module Util.File where
+-- | Do things with files.
+module Util.File (
+    -- * read/write
+    writeLines
+    , writeAtomic
+    , symlink
+    -- * query
+    , writable
+    -- * directory
+    , list, listRecursive
+    , walk
+    -- * compression
+    , readGz, writeGz
+
+    -- * IO errors
+    , ignoreEnoent
+    , ignoreEOF
+    , ignoreIOError
+    , ignoreError
+    , tryIO
+) where
 import qualified Codec.Compression.GZip as GZip
 import qualified Codec.Compression.Zlib.Internal as Zlib.Internal
 import qualified Control.Exception as Exception
-import           Control.Monad (forM_, guard, void, when)
+import           Control.Monad (forM_, guard, unless, void, when)
+import           Control.Monad.Extra (filterM, ifM, orM, partitionM, whenM)
 import           Control.Monad.Trans (liftIO)
-import           Control.Monad.Extra (ifM, orM, whenM, partitionM, filterM)
 
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Lazy as Lazy
@@ -40,6 +58,19 @@ writeAtomic fn bytes = do
     Directory.renameFile tmp fn
     where
     tmp = fn ++ ".write.tmp"
+
+-- | Make a symlink atomically.
+symlink :: String -> FilePath -> IO ()
+symlink dest fname = do
+    oldDest <- ignoreEnoent $ Directory.getSymbolicLinkTarget fname
+    -- Don't remake if it's already right.  Probably unnecessary, but it
+    -- happens a lot and we can avoid touching the filesystem.
+    unless (oldDest == Just dest) $ do
+        -- If a previous process got killed, there might be stale .tmp files.
+        ignoreEnoent $ Directory.removeFile (fname <> ".tmp")
+        -- Atomically replace the old link, if any.
+        Directory.createFileLink dest (fname <> ".tmp")
+        Directory.renameFile (fname <> ".tmp") fname
 
 -- * query
 

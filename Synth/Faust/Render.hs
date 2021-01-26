@@ -61,7 +61,7 @@ write config outputDir trackIds patch notes = catch $ do
         <> ", resume at " <> pretty (take 1 hashes)
         <> " state: " <> pretty mbState
         <> " start: " <> pretty start
-    mapM_ (Checkpoint.linkOutput outputDir) skipped
+    mapM_ (Checkpoint.linkOutput True outputDir) skipped
     unless (null skipped) $ emitMessage $
         Config.WaveformsCompleted [0 .. length skipped - 1]
     let notifyState = IORef.writeIORef stateRef
