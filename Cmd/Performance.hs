@@ -432,23 +432,44 @@ make_status inv_tempo wants_waveform im_dir score_path adjust0 play_multiplier
 resolve_waveform_links :: Msg.DeriveStatus -> IO Msg.DeriveStatus
 resolve_waveform_links (Msg.ImStatus block_id track_ids
         (Msg.ImWaveformsCompleted waveforms)) = do
+
+    -- resolved <- mapM (Directory.getSymbolicLinkTarget . Track._filename)
+    --     waveforms
+    -- when (any (not . ("checkpoint/" `List.isPrefixOf`)) resolved) $ do
+    --     Log.error $ "bad symlink in: " <> pretty
+    --         (zip (map Track._filename waveforms) resolved)
+    --     let dir = FilePath.takeDirectory $ Track._filename (head waveforms)
+    --     Process.callProcess "ls" ["-l", dir]
+
     fns <- mapM (resolve_link . Track._filename) waveforms
     -- I got a directory in there once and don't know why...
-    let suspicious = filter (not . (".wav" `List.isSuffixOf`)) fns
-    unless (null suspicious) $
-        Log.error $ "waveforms resolved to non-wav: " <> showt waveforms
-            <> ": " <> pretty suspicious
-    nonFile <- filterM (fmap not . Directory.doesFileExist) fns
-    unless (null nonFile) $
-        Log.error $ "waveforms resolved to non-file: " <> showt waveforms
-            <> ": " <> pretty nonFile
+    when (any (not . (".wav" `List.isSuffixOf`)) fns) $ do
+        Log.error $ "waveforms resolved to non-wav: "
+            <> pretty (zip (map Track._filename waveforms) fns)
+        fns2 <- mapM (resolve_link . Track._filename) waveforms
+        Log.error $ "tried again:"
+            <> pretty (zip (map Track._filename waveforms) fns2)
+
     return $ Msg.ImStatus block_id track_ids $ Msg.ImWaveformsCompleted
         [wave { Track._filename = fn } | (fn, wave) <- zip fns waveforms]
 resolve_waveform_links status = return status
 
 resolve_link :: FilePath -> IO FilePath
-resolve_link fname = (FilePath.takeDirectory fname </>) <$>
-    Directory.getSymbolicLinkTarget fname
+resolve_link fname = do
+    dest <- Directory.getSymbolicLinkTarget fname
+    dest <- if "checkpoint/" `List.isPrefixOf` dest
+            && ".wav" `List.isSuffixOf` dest
+        then return dest
+        else do
+            dest2 <- Directory.getSymbolicLinkTarget fname
+            Log.error $ "bad symlink: " <> showt fname <> " -> " <> showt dest
+                <> ", next time: " <> showt dest2
+            return dest2
+    return $ FilePath.takeDirectory fname </> dest
+
+-- resolve_link :: FilePath -> IO FilePath
+-- resolve_link fname =
+--     (FilePath.takeDirectory fname </>) <$> Directory.getSymbolicLinkTarget fname
 
 real_to_score :: Transport.InverseTempoFunction -> BlockId -> Set TrackId
     -> RealTime -> Maybe ScoreTime

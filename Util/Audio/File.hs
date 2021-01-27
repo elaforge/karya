@@ -196,7 +196,9 @@ writeCheckpoints :: forall rate chan state.
 writeCheckpoints chunkSize getFilename chunkComplete format = go 0
     where
     go !written (state : states) audio = do
-        fname <- liftIO $ getFilename state
+        -- getFilename does a deepseq on fname due to unsafe pointer
+        -- sketchiness, let's make sure the force actually happens.
+        !fname <- liftIO $ getFilename state
         (blocks, audio) <- Audio.takeFramesGE chunkSize audio
         if null blocks
             then return chunknum
