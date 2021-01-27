@@ -13,8 +13,10 @@ localConfig = defaultConfig
     , enableIm = True
     -- , extraDefines = ["-DHACKED_FLTK"]
     , fltkConfig = "/usr/local/src/fltk/fltk-config"
+    -- TODO: normally this would come out of NIX_CFLAGS and NIX_LDFLAGS, but I
+    -- haven't migrated to consistently using tools/nix-enter yet.
     , rubberband = C.ExternalLibrary
-        { C.libLink = ["/nix/store/c9yl3lash921jkfg0n4nr9k5v7s4k30h-rubberband-1.8.2/lib/librubberband.a"]
-        , C.libCompile = ["-I/nix/store/c9yl3lash921jkfg0n4nr9k5v7s4k30h-rubberband-1.8.2/include"]
+        { C.libLink = ["/nix/store/jn87aiywvlwnm28jy0kin1sdqzmagafv-rubberband-1.8.2/lib/librubberband.a"]
+        , C.libCompile = ["-I/nix/store/jn87aiywvlwnm28jy0kin1sdqzmagafv-rubberband-1.8.2/include"]
         }
     }
