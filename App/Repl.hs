@@ -38,6 +38,7 @@ import qualified System.IO as IO
 import qualified System.Posix.Temp as Posix.Temp
 import qualified System.Process as Process
 
+import qualified Util.Control as Control
 import qualified Util.File as File
 import qualified Util.Log as Log
 import qualified Util.Network as Network
@@ -114,9 +115,8 @@ watch_for_quit repl_thread = do
         loop hdl
 
 repl :: Network.Addr -> Haskeline.Settings IO -> IO ()
-repl addr settings = Exception.mask (loop settings)
-    where
-    loop old_settings restore = do
+repl addr settings = Exception.mask $ \restore ->
+    Control.loop1 settings $ \loop old_settings -> do
         maybe_save_fname <- ReplProtocol.query_save_file addr
         let (connection_error, settings) = case maybe_save_fname of
                 Nothing -> (True, old_settings)
@@ -124,26 +124,32 @@ repl addr settings = Exception.mask (loop settings)
                     { Haskeline.historyFile =
                         Just $ fromMaybe "" fname <> history_suffix
                     }
+        -- I would rather replace the prompt in-place, but an interrupt will
+        -- always output a newline.  I can't tell where this happens in the
+        -- haskeline source, but it happens before the catch gets called, so I
+        -- think there's no way to disable it.
         status <- Haskeline.handleInterrupt catch $ restore $
             Haskeline.runInputT settings $ Haskeline.withInterrupt $
             read_eval_print addr connection_error
                 (Haskeline.historyFile settings)
-        case status of
-            Continue -> loop settings restore
+        continue <- case status of
+            Continue -> return True
             Command cmd -> do
                 status <- liftIO $ send_command addr cmd
                 case status of
-                    Continue -> loop settings restore
+                    Continue -> return True
                     Command cmd -> do
                         -- Or maybe I should just keep having this conversation?
                         putStrLn $ "two Commands in a row: " <> show cmd
-                        loop settings restore
-                    Quit -> return ()
-            Quit -> return ()
+                        return True
+                    Quit -> return False
+            Quit -> return False
+        when continue $ loop settings
+    where
     read_eval_print addr connection_error history =
         maybe (return Quit) (liftIO . eval addr history)
             =<< get_input connection_error history
-    catch = putStrLn "interrupted" >> return Continue
+    catch = return Continue
 
 eval :: Network.Addr -> Maybe FilePath -> Text -> IO Status
 eval addr maybe_history expr
