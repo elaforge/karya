@@ -18,6 +18,7 @@ import qualified Derive.Sig as Sig
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Patch.Lib.Code as Code
 import qualified Synth.Sampler.Patch.Lib.Drum as Drum
+import           Synth.Sampler.Patch.Lib.Drum (Call(..))
 import qualified Synth.Sampler.Patch.Lib.Util as Util
 import qualified Synth.Shared.Signal as Signal
 
@@ -61,23 +62,26 @@ rincikAll =
     ] ++ [r h | r <- [ROpen, RClosed, RMute], h <- [HLeft, HRight]]
 
 rincikStrokeMap :: Drum.StrokeMap Rincik
-rincikStrokeMap = Drum.replaceSoft 0.75 $ Drum.strokeMapTable2 stops $
-    [ ('1', "ko", Attrs.open <> kopyak <> soft, Just (RKopyakOpen, opened))
-    , ('q', "kO", Attrs.open <> kopyak,         Just (RKopyakOpen, opened))
-    , ('2', "kx", Attrs.closed <> kopyak <> soft, Just (RKopyakClosed, closed))
-    , ('w', "kX", Attrs.closed <> kopyak,       Just (RKopyakClosed, closed))
-    , ('f', "oo", Attrs.open <> both <> soft,   Just (ROpenBoth, opened))
-    , ('v', "OO", Attrs.open <> both,           Just (ROpenBoth, opened))
-    , ('b', "--", Attrs.closed <> both <> soft, Just (RClosedBoth, closed))
-    , ('b', "++", Attrs.closed <> both,         Just (RClosedBoth, closed))
-    , ('a', "o", Attrs.open <> soft,            Nothing)
-    , ('z', "O", Attrs.open,                    Nothing)
-    , ('s', "-", Attrs.closed <> soft,          Nothing)
-    , ('x', "+", Attrs.closed,                  Nothing)
-    , ('d', "X", Attrs.mute <> soft,            Nothing)
-    , ('c', "X", Attrs.mute,                    Nothing)
+rincikStrokeMap = Drum.replaceSoft 0.75 $ Drum.strokeMapTable stops $
+    [ ('1', "ko", Stroke (Attrs.open <> kopyak <> soft) RKopyakOpen opened)
+    , ('q', "kO", Stroke (Attrs.open <> kopyak)         RKopyakOpen opened)
+    , ('2', "kx", Stroke (Attrs.closed <> kopyak <> soft) RKopyakClosed closed)
+    , ('w', "kX", Stroke (Attrs.closed <> kopyak)       RKopyakClosed closed)
+    , ('f', "oo", Stroke (Attrs.open <> both <> soft)   ROpenBoth opened)
+    , ('v', "OO", Stroke (Attrs.open <> both)           ROpenBoth opened)
+    , ('b', "--", Stroke (Attrs.closed <> both <> soft) RClosedBoth closed)
+    , ('b', "++", Stroke (Attrs.closed <> both)         RClosedBoth closed)
+    , ('a', "o", Attr $ Attrs.open <> soft)
+    , ('z', "O", Attr $ Attrs.open)
+    , ('s', "-", Attr $ Attrs.closed <> soft)
+    , ('x', "+", Attr $ Attrs.closed)
+    , ('d', "X", Attr $ Attrs.mute <> soft)
+    , ('c', "X", Attr $ Attrs.mute)
     ] ++
-    [ (' ', "", attr, Just (art, group))
+    -- Create articulation associations for per-hand strokes, though there is
+    -- no call that directly emits them.  Instead, the Attr calls above emit
+    -- without the hand, and use infer-hands to infer it.
+    [ (' ', "", Stroke attr art group)
     | (attr, stroke, group) <-
         [ (Attrs.open, ROpen, opened)
         , (Attrs.closed, RClosed, closed)
@@ -206,7 +210,7 @@ data Kopyak = Open | Closed | Rim
     deriving (Eq, Ord, Show, Bounded, Enum)
 
 kopyakStrokeMap :: Drum.StrokeMap Kopyak
-kopyakStrokeMap = Drum.replaceSoft 0.75 $ Drum.strokeMapTable stops
+kopyakStrokeMap = Drum.replaceSoft 0.75 $ Drum.strokeMapSimple stops
     [ ('a', "o", Attrs.open <> soft,    Open, open)
     , ('z', "O", Attrs.open,            Open, open)
     , ('s', "x", Attrs.closed <> soft,  Closed, closed)

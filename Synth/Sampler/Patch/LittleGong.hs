@@ -33,7 +33,7 @@ convertMap = Drum.ConvertMap
     }
 
 strokeMap :: Drum.StrokeMap Articulation
-strokeMap = Drum.strokeMapTable stops
+strokeMap = Drum.strokeMapSimple stops
     [ ('1', "+", Attrs.mute <> Attrs.center, MuteCenter, closed)
     , ('q', "o", mempty, OpenCenter,  open)
     , ('2', "/", Attrs.mute <> Attrs.edge, MuteEdge, closed)

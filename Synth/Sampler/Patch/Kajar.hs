@@ -4,36 +4,28 @@
 
 module Synth.Sampler.Patch.Kajar (patches) where
 import qualified Cmd.Instrument.CUtil as CUtil
-import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Cmd.Ruler.Meter as Meter
-
 import qualified Derive.Attrs as Attrs
 import qualified Derive.C.Bali.Gong as Gong
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
-import qualified Derive.Expr as Expr
 import qualified Derive.Instrument.DUtil as DUtil
 
 import qualified Perform.RealTime as RealTime
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Patch.Lib.Drum as Drum
+import           Synth.Sampler.Patch.Lib.Drum (Call(..))
 import qualified Synth.Sampler.Patch.Lib.Util as Util
 
 import           Global
 
 
 patches :: [Patch.DbPatch]
-patches = (:[]) $ Patch.DbPatch $ setPatch $
+patches = (:[]) $ Patch.DbPatch $
     Drum.patch dir patchName strokeMap convertMap (const config)
     where
-    setPatch patch = Patch.addCode code $ patch
-        { Patch._karyaPatch =
-            Drum.karyaPatch dir strokeMap convertMap (const config)
-                [(char, sym) | (char, sym, _) <- keyedCalls]
-        }
-    code = ImInst.note_generators calls
     config = CUtil.call_config { CUtil._tuning_control = Just "kajar-tune" }
     dir = untxt patchName
 
@@ -45,20 +37,27 @@ data Articulation =
     deriving (Eq, Ord, Show, Enum, Bounded)
 
 -- copied from User.Elaforge.Instrument.Kontakt.Gong
+
 strokeMap :: Drum.StrokeMap Articulation
 strokeMap = Drum.replaceSoft 0.75 $ Drum.strokeMapTable stops
-    [ ('q', "P", Attrs.rim <> Attrs.closed,     RimClosed, closed)
+    [ ('q', "P", Stroke (Attrs.rim <> Attrs.closed)     RimClosed closed)
 
-    , ('a', "+/", Attrs.rim <> Attrs.staccato,  RimStaccato, open)
-    , ('z', "+", Attrs.rim <> Attrs.open,       RimOpen, open)
-    , ('s', ".", Attrs.center<>Attrs.closed<>Attrs.soft, CenterClosed, closed)
-    , ('x', "o", Attrs.center <> Attrs.closed,  CenterClosed, closed)
-    -- 'c' is for oo
+    , ('a', "+/", Stroke (Attrs.rim <> Attrs.staccato)  RimStaccato open)
+    , ('z', "+", Stroke (Attrs.rim <> Attrs.open)       RimOpen open)
+    , ('s', ".", Stroke (Attrs.center <> Attrs.closed <> Attrs.soft)
+                        CenterClosed closed)
+    , ('x', "o", Stroke (Attrs.center <> Attrs.closed)  CenterClosed closed)
+    , ('c', "oo", Call $
+        DUtil.doubled_call "o" "oo" DUtil.After (RealTime.seconds 0.09) 0.75)
+    , ('f', "o..", Call c_nruk)
 
     -- This is not commonly used.
-    , ('v', "c", Attrs.center <> Attrs.open,    CenterOpen, open)
+    , ('v', "c", Stroke (Attrs.center <> Attrs.open)    CenterOpen open)
     -- I think the idea was to use this to damp open strokes.
-    , ('m', "m", Attrs.damp,                    Damp, closed)
+    , ('m', "m", Stroke Attrs.damp                      Damp closed)
+
+    , (' ', "k", Call $
+        Gong.make_cycle "kajar" (Just (Left "o")) (Just (Left Meter.Q)))
     ]
     where
     stops = [(closed, [open])]
@@ -77,19 +76,6 @@ convertMap = Drum.ConvertMap
 -- * calls
 
 -- copied from User.Elaforge.Instrument.Kontakt.Gong
-
-calls :: [(Expr.Symbol, Derive.Generator Derive.Note)]
-calls = concat
-    [ [(sym, call) | (_, sym, call) <- keyedCalls]
-    , [("k", Gong.make_cycle "kajar" (Just (Left "o")) (Just (Left Meter.Q)))]
-    ]
-
-keyedCalls :: [(Char, Expr.Symbol, Derive.Generator Derive.Note)]
-keyedCalls =
-    [ ('c', "oo", DUtil.doubled_call "o" "oo" DUtil.After
-        (RealTime.seconds 0.09) 0.75)
-    , ('f', "o..", c_nruk)
-    ]
 
 c_nruk :: Derive.Generator Derive.Note
 c_nruk = Gong.nruk_generator Module.instrument "nruk" "Nruktuk on `o`." $

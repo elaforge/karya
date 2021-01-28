@@ -37,7 +37,9 @@ import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.ImInst as ImInst
 
 import qualified Derive.Attrs as Attrs
+import qualified Derive.Derive as Derive
 import qualified Derive.Expr as Expr
+
 import qualified Instrument.Common as Common
 import qualified Perform.Im.Patch as Im.Patch
 import qualified Perform.Pitch as Pitch
@@ -60,29 +62,32 @@ import           Global
 -- | Make a complete sampler patch with all the drum bits.
 patch :: Ord art => FilePath -> Note.PatchName -> StrokeMap art
     -> ConvertMap art -> (Maybe art -> CUtil.CallConfig) -> Patch.Patch
-patch dir name strokeMap convertMap configOf =
-    (Patch.patch name)
+patch dir name strokeMap convertMap configOf = (Patch.patch name)
     { Patch._dir = dir
     , Patch._preprocess =
         if Map.null (_stops strokeMap) then id else inferDuration strokeMap
     , Patch._convert = convert (_attributeMap strokeMap) convertMap
-    , Patch._karyaPatch = karyaPatch dir strokeMap convertMap configOf []
+    , Patch._karyaPatch = karyaPatch dir strokeMap convertMap configOf
+        (_extraCalls strokeMap)
     , Patch._allFilenames = _allFilenames convertMap
     }
 
 -- | Make a patch with the drum-oriented code in there already.
 karyaPatch :: FilePath -> StrokeMap art -> ConvertMap art
-    -> (Maybe art -> CUtil.CallConfig) -> [(Char, Expr.Symbol)]
+    -> (Maybe art -> CUtil.CallConfig)
+    -> [(Maybe Char, Expr.Symbol, Derive.Generator Derive.Note)]
     -> ImInst.Patch
-karyaPatch dir strokeMap convertMap configOf extraCmds =
+karyaPatch dir strokeMap convertMap configOf extraCalls =
     CUtil.im_drum_patch (map fst (_strokes strokeMap)) $
     ImInst.code #= code $
     makePatch (_attributeMap strokeMap) (Maybe.isJust (_naturalNn convertMap))
     where
+    extraCmds = [(char, sym) | (Just char, sym, _) <- extraCalls]
     code = CUtil.drum_code_cmd extraCmds thru
         [ (stroke, set (configOf mbArt))
         | (stroke, mbArt) <- _strokes strokeMap
         ]
+        <> ImInst.note_generators [(sym, call) | (_, sym, call) <- extraCalls]
     set config = config { CUtil._transform = Code.withVariation }
     thru = Util.imThruFunction dir
         (convert (_attributeMap strokeMap) convertMap)
@@ -179,40 +184,63 @@ data StrokeMap art = StrokeMap {
     -- the call for each stroke.
     , _strokes :: [(Drums.Stroke, Maybe art)]
     , _attributeMap :: Common.AttributeMap art
+    , _extraCalls :: [(Maybe Char, Expr.Symbol, Derive.Generator Derive.Note)]
     } deriving (Show)
 
--- | Make a StrokeMap from a table with all the relevant info.
-strokeMapTable :: Ord art => Drums.Stops
+-- | Like 'strokeMapTable', but for patches with only 'Stroke's.
+strokeMapSimple :: Ord art => Drums.Stops
     -> [(Char, Expr.Symbol, Attrs.Attributes, art, Drums.Group)]
     -> StrokeMap art
-strokeMapTable stops table = strokeMapTable2 stops
-    [ (key, sym, attrs, Just (art, group))
+strokeMapSimple stops table = strokeMapTable stops
+    [ (key, sym, Stroke attrs art group)
     | (key, sym, attrs, art, group) <- table
     ]
 
--- | Like 'strokeMapTable', but can emit separate key binds and calls from how
--- the sampler responds to them.
---
--- (char, sym, attrs, Nothing) makes a key that emits a call that generates the
--- given Attributes.  (' ', "", attrs, Just (art, group)) makes the sampler
--- map the given Attributes to the given articulation.
-strokeMapTable2 :: Ord art => Drums.Stops
-    -> [(Char, Expr.Symbol, Attrs.Attributes, Maybe (art, Drums.Group))]
+data Call art =
+    -- | A call that doesn't correspond directly to Attributes.
+    Call (Derive.Generator Derive.Note)
+    -- | Emit a call that produces these Attributes, and cause the patch to
+    -- assign those Attributes to the given articulation.
+    | Stroke Attrs.Attributes art Drums.Group
+    -- | Emit a call that produces these Attributes, with no articulation
+    -- association.
+    | Attr Attrs.Attributes
+
+-- | Make a StrokeMap describing the keymap and call map of a drum-like patch.
+strokeMapTable :: Ord art => Drums.Stops
+    -> [(Char, Expr.Symbol, Call art)]
+    -- ^ If Char == ' ', there is no key binding.  Symbol == "" means there
+    -- is no call, but it still makes sense for 'Stroke', because it can make
+    -- the patch respond to the given Attributes.
     -> StrokeMap art
-strokeMapTable2 stops table = StrokeMap
+strokeMapTable stops table = StrokeMap
     { _stops =
-        stopMap [(art, group) | (_, _, _, Just (art, group)) <- table] stops
-    , _strokes =
-        [ (makeStroke key call attrs, fst <$> mbArt)
-        | (key, call, attrs, mbArt) <- table
-        , key /= ' '
-        ]
+        stopMap [(art, group) | (_, _, Stroke _ art group) <- table] stops
+    , _strokes = strokes
     , _attributeMap = Common.attribute_map $
-        [(attrs, art) | (_, _, attrs, Just (art, _)) <- table]
+        [ (attrs, art)
+        | (_, _, call) <- table
+        , Just attrs <- [attrsOf call], Just art <- [artOf call]
+        ]
+    , _extraCalls =
+        [ (if char == ' ' then Nothing else Just char, sym, call)
+        | (char, sym, Call call) <- table
+        ]
     }
     where
-    makeStroke key call attrs = Drums.Stroke
-        { _name = call
+    strokes =
+        [ (makeStroke key sym attrs, artOf call)
+        | (key, sym, call) <- table
+        , Just attrs <- [attrsOf call]
+        , key /= ' '
+        ]
+    attrsOf (Call {}) = Nothing
+    attrsOf (Stroke attrs _ _) = Just attrs
+    attrsOf (Attr attrs) = Just attrs
+    artOf (Stroke _ art _) = Just art
+    artOf _ = Nothing
+    makeStroke key sym attrs = Drums.Stroke
+        { _name = sym
         , _attributes = attrs
         , _char = key
         , _dynamic = 1
@@ -245,6 +273,7 @@ strokeMap stops strokes attributeMap = StrokeMap
     { _stops = stopMap artToGroup stops
     , _strokes = zip strokes (map strokeToArt strokes)
     , _attributeMap = attributeMap
+    , _extraCalls = []
     }
     where
     -- This is awkward because I want to preserve the art, but unlike

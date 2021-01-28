@@ -55,7 +55,7 @@ gongPatch = Drum.patch dir "sc-gong" gongStrokeMap gongConvertMap configOf
     dir = baseDir </> gongsDir
 
 gongStrokeMap :: Drum.StrokeMap Gong
-gongStrokeMap = Drum.strokeMapTable []
+gongStrokeMap = Drum.strokeMapSimple []
     [ ('z', "O", gong <> wadon, GongWadon, open)
     , ('x', "o", gong <> lanang, GongLanang, open)
     , ('q', "p", kempur, Kempur, open)
