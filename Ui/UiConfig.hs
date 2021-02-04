@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE DeriveFunctor #-}
 {-# OPTIONS_HADDOCK not-home #-}
 -- | State.Config and State.Default, in their own module to avoid circular
 -- imports with "State.Update".  Everyone else should pretend they're defined
@@ -13,6 +14,8 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Time as Time
 import qualified Data.Vector as Vector
+
+import qualified GHC.Generics as Generics
 
 import qualified Util.Lens as Lens
 import qualified Util.Num as Num
@@ -28,6 +31,7 @@ import qualified Perform.Lilypond.Types as Lilypond
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Signal as Signal
 
+import qualified Synth.Shared.Note as Shared.Note
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
 
@@ -221,6 +225,18 @@ instance Pretty Allocation where
         , ("backend", Pretty.format backend)
         ]
 
+has_im :: Config -> Bool
+has_im = any is_im_allocation . get . config_allocations
+    where get (Allocations m) = Map.elems m
+
+has_midi :: Config -> Bool
+has_midi = any is_midi_allocation
+    . filter ((/= play_cache) . alloc_qualified) . get . config_allocations
+    where get (Allocations m) = Map.elems m
+
+play_cache :: InstTypes.Qualified
+play_cache = InstTypes.Qualified "play-cache" ""
+
 is_im_allocation :: Allocation -> Bool
 is_im_allocation alloc = case alloc_backend alloc of
     Im -> True
@@ -273,7 +289,8 @@ data Meta = Meta {
     , meta_notes :: !Text
     , meta_midi_performances :: !(Map BlockId MidiPerformance)
     , meta_lilypond_performances :: !(Map BlockId LilypondPerformance)
-    } deriving (Eq, Read, Show)
+    , meta_im_performances :: !(Map BlockId ImPerformance)
+    } deriving (Eq, Show, Generics.Generic)
 
 creation = Lens.lens meta_creation
     (\f r -> r { meta_creation = f (meta_creation r) })
@@ -286,9 +303,12 @@ midi_performances = Lens.lens meta_midi_performances
 lilypond_performances = Lens.lens meta_lilypond_performances
     (\f r -> r { meta_lilypond_performances =
         f (meta_lilypond_performances r) })
+im_performances = Lens.lens meta_im_performances
+    (\f r -> r { meta_im_performances = f (meta_im_performances r) })
 
 type MidiPerformance = Performance (Vector.Vector Midi.WriteMessage)
 type LilypondPerformance = Performance Text
+type ImPerformance = Performance (Vector.Vector Shared.Note.Note)
 
 empty_meta :: Meta
 empty_meta = Meta
@@ -297,6 +317,7 @@ empty_meta = Meta
     , meta_notes = ""
     , meta_midi_performances = mempty
     , meta_lilypond_performances = mempty
+    , meta_im_performances = mempty
     }
 
 -- | A record of the last successful performance that sounded as expected.  You
@@ -310,14 +331,12 @@ empty_meta = Meta
 -- only save it when 'Config' changes.  I could also split it into its own
 -- file.
 data Performance a = Performance {
-    perf_performance :: !a
+    perf_events :: !a
     -- | The time this performance was recorded.
     , perf_creation :: !Time.UTCTime
-    -- | The sequencer's patch level.  For darcs, this should be a patch name
-    -- (technically it should be a tag's name, but it doesn't matter as long as
-    -- I'm the only developer).  For git, it would be the commit hash.
-    , perf_patch :: !Text
-    } deriving (Eq, Read, Show)
+    -- | Free text, containing the git commit when this performance was taken.
+    , perf_commit :: !Text
+    } deriving (Eq, Show, Functor)
 
 -- | Initial values for derivation.
 --
@@ -351,28 +370,21 @@ instance Pretty Config where
             , ("tscore", Pretty.format tscore)
             ]
 
-instance Pretty Meta where
-    format (Meta creation last_save notes midi_perf lily_perf) =
-        Pretty.record "Meta"
-        [ ("creation", Pretty.format creation)
-        , ("last save", Pretty.format last_save)
-        , ("notes", Pretty.text notes)
-        , ("midi performances", Pretty.format midi_perf)
-        , ("lilypond performances", Pretty.format lily_perf)
-        ]
-
+instance Pretty Meta where format = Pretty.formatG_
 instance Pretty MidiPerformance where
-    format (Performance midi creation patch) = Pretty.record "MidiPerformance"
-        [ ("events", Pretty.format $ Vector.length midi)
-        , ("creation", Pretty.text $ pretty creation)
-        , ("patch", Pretty.text patch)
-        ]
-
+    format = format_performance "MidiPerformance" Vector.length
 instance Pretty LilypondPerformance where
-    format (Performance ly creation patch) = Pretty.record "LilypondPerformance"
-        [ ("lilypond lines", Pretty.format $ Text.count "\n" ly)
+    format = format_performance "LilypondPerformance" (Text.count "\n")
+instance Pretty ImPerformance where
+    format = format_performance "ImPerformance" Vector.length
+
+format_performance :: Pretty b => Pretty.Doc -> (a -> b) -> Performance a
+    -> Pretty.Doc
+format_performance name format_events (Performance events creation commit) =
+    Pretty.record name
+        [ ("events", Pretty.format $ format_events events)
         , ("creation", Pretty.text $ pretty creation)
-        , ("patch", Pretty.text patch)
+        , ("commit", Pretty.text commit)
         ]
 
 instance Pretty Default where

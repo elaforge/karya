@@ -7,10 +7,10 @@
 module Cmd.DiffPerformance (
     -- * save and load
     load_midi, save_midi, midi_magic
-    -- * diff lilypond
+    -- * diff
     , diff_lilypond
-    -- * diff midi
-    , diff_midi_performance
+    , diff_im
+    , diff_midi
     -- * util
     , show_midi
     , diff_lines
@@ -21,7 +21,7 @@ import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 
 import qualified System.Directory as Directory
-import System.FilePath ((</>))
+import           System.FilePath ((</>))
 import qualified System.IO.Error as IO.Error
 import qualified System.Process as Process
 
@@ -30,12 +30,15 @@ import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 
 import qualified Midi.Encode as Encode
-import Midi.Instances ()
+import           Midi.Instances ()
 import qualified Midi.Midi as Midi
 
-import qualified Ui.Ui as Ui
 import qualified Perform.RealTime as RealTime
-import Global
+import qualified Synth.Shared.Note as Shared.Note
+import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
+
+import           Global
 
 
 type Messages = Vector.Vector Midi.WriteMessage
@@ -57,24 +60,34 @@ midi_magic :: Serialize.Magic (Vector.Vector Midi.WriteMessage)
 midi_magic = Serialize.Magic 'm' 'i' 'd' 'i'
 
 
--- * diff lilypond
+-- * diff
 
 diff_lilypond :: String -> FilePath -> Ui.LilypondPerformance -> Text
     -> IO (Maybe Text, [FilePath])
-diff_lilypond name dir performance ly_code =
-    first (fmap (info<>)) <$> diff_lines name dir
-        (Text.lines (Ui.perf_performance performance)) (Text.lines ly_code)
-    where info = diff_info performance <> "\n"
+diff_lilypond = diff_performance Text.lines
 
--- * diff midi
+diff_im :: String -> FilePath -> UiConfig.ImPerformance -> [Shared.Note.Note]
+    -> IO (Maybe Text, [FilePath])
+diff_im name dir performance =
+    diff_performance show_im name dir (Vector.toList <$> performance)
+    where show_im = map pretty
 
-diff_midi_performance :: String -> FilePath
+diff_midi :: String -> FilePath
     -> Ui.MidiPerformance -> [Midi.WriteMessage] -> IO (Maybe Text, [FilePath])
-diff_midi_performance name dir performance msgs =
+diff_midi name dir performance =
+    diff_performance show_midi name dir (Vector.toList <$> performance)
+
+diff_performance :: (events -> [Text]) -> String -> FilePath
+    -> UiConfig.Performance events -> events -> IO (Maybe Text, [FilePath])
+diff_performance show_events name dir performance events =
     first (fmap (info<>)) <$> diff_lines name dir
-        (show_midi $ Vector.toList $ Ui.perf_performance performance)
-        (show_midi msgs)
-    where info = diff_info performance <> "\n"
+        (show_events (Ui.perf_events performance))
+        (show_events events)
+    where
+    info = Text.unlines
+        [ "Diffs from " <> pretty (Ui.perf_creation performance)
+        , "Commit: " <> Ui.perf_commit performance
+        ]
 
 -- | Write files in the given directory and run the @diff@ command on them.
 diff_lines :: String -> FilePath -> [Text] -> [Text]
@@ -95,11 +108,6 @@ diff_lines name dir expected got = do
     where
     expected_fn = dir </> name ++ ".expected"
     got_fn = dir </> name ++ ".got"
-
-diff_info :: Ui.Performance a -> Text
-diff_info perf =
-    "Diffs from " <> pretty (Ui.perf_creation perf)
-    <> "\nPatch: " <> Ui.perf_patch perf
 
 show_diffs :: Text -> Text
 show_diffs diff = Text.unlines (limit 50 (Text.lines diff))

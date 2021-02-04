@@ -2323,7 +2323,6 @@ synth: im:
           determines where I'm likely to have zoom set.
         . Can I detect constant tempo and only emit one point?
   cleanup:
-    - put state callback into the audio stream: NOTE [audio-state]
     - put ScoreTypes.Instrument and ScoreTypes.Control in a Shared.Types so
       im and seq can use the same types.
       . On the other hand, maybe they should remain different.  Synth Control
@@ -2516,7 +2515,7 @@ synth: im:
       . How likely is this to happen?
       . Probably it will never happen if there are any IIR effects, though
         for the moment I don't have any of those.
-  preview: midi thru:
+  preview: thru:
     - why two "streamLoop wait" after samples run out?
     overview:
       . Im instruments should have a midi thru-like preview sound.
@@ -2949,7 +2948,7 @@ synth: im:
           for var is the max number of variations, and then enumerate.
         . Alternately, each patch could export a list of all its samples,
           by whatever means it wants, and then the test just checks them.
-      - Have a LState.save_im that records im in the same way as MIDI.
+      * Have a LState.save_im that records im in the same way as MIDI.
       - Also have it do a sampler dump to verify sampler convert.
     break:
       - make a 'bd' or 'sn' than randomly picks one

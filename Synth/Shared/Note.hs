@@ -50,7 +50,7 @@ data Note = Note {
     , attributes :: !Attrs.Attributes
     -- | The stack of the score event that generated this Note.  For errors.
     , stack :: Stack.Stack
-    } deriving (Show)
+    } deriving (Eq, Show)
 
 type Element = Text
 

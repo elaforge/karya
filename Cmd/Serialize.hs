@@ -189,16 +189,24 @@ instance Serialize MidiConfigs where
             _ -> Serialize.bad_version "Patch.MidiConfigs" v
 
 instance Serialize Ui.Meta where
-    put (Ui.Meta a b c d e) = Serialize.put_version 3
-        >> put a >> put b >> put c >> put d >> put e
+    put (Ui.Meta a b c d e f) = Serialize.put_version 4
+        >> put a >> put b >> put c >> put d >> put e >> put f
     get = Serialize.get_version >>= \v -> case v of
         3 -> do
             creation :: Time.UTCTime <- get
             last_save :: Time.UTCTime <- get
             notes :: Text <- get
-            midi :: Map BlockId Ui.MidiPerformance <- get
-            lily :: Map BlockId Ui.LilypondPerformance <- get
-            return $ Ui.Meta creation last_save notes midi lily
+            midi :: Map BlockId UiConfig.MidiPerformance <- get
+            lily :: Map BlockId UiConfig.LilypondPerformance <- get
+            return $ UiConfig.Meta creation last_save notes midi lily mempty
+        4 -> do
+            creation :: Time.UTCTime <- get
+            last_save :: Time.UTCTime <- get
+            notes :: Text <- get
+            midi :: Map BlockId UiConfig.MidiPerformance <- get
+            lily :: Map BlockId UiConfig.LilypondPerformance <- get
+            im :: Map BlockId UiConfig.ImPerformance <- get
+            return $ UiConfig.Meta creation last_save notes midi lily im
         _ -> Serialize.bad_version "Ui.Meta" v
 
 instance Serialize a => Serialize (Ui.Performance a) where

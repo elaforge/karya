@@ -36,7 +36,6 @@ import qualified Instrument.InstTypes as InstTypes
 
 import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
-import qualified Perform.Im.Play as Im.Play
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
@@ -201,7 +200,7 @@ add_im inst qualified = do
 add_play_cache :: Text -> Channel1 -> Cmd.CmdL ()
 add_play_cache wdev chan =
     allocate (Util.instrument "play-cache") $
-        UiConfig.allocation Im.Play.qualified (UiConfig.Midi config)
+        UiConfig.allocation UiConfig.play_cache (UiConfig.Midi config)
     where
     config = Patch.config [((Midi.write_device wdev, to_chan chan), Nothing)]
 

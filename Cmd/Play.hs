@@ -478,35 +478,16 @@ lookup_im_config allocs = do
     case UiConfig.alloc_backend alloc of
         UiConfig.Midi config -> case Patch.config_addrs config of
             [] -> Left $ Just $
-                pretty Im.Play.qualified <> " allocation with no addrs"
-            addr : _ -> return (im_insts, addr)
+                pretty UiConfig.play_cache <> " allocation with no addrs"
+            [addr] -> return (im_insts, addr)
+            _ -> Left $ Just $
+                pretty UiConfig.play_cache <> " allocation with >1 addrs"
         _ -> Left $ Just $
-            pretty Im.Play.qualified <> " with non-MIDI allocation"
+            pretty UiConfig.play_cache <> " with non-MIDI allocation"
     where
-    is_play_cache = (==Im.Play.qualified) . UiConfig.alloc_qualified
+    is_play_cache = (==UiConfig.play_cache) . UiConfig.alloc_qualified
     im_insts = Set.fromList $ map fst $
         filter (UiConfig.is_im_allocation . snd) $ Map.toList allocs
-
--- | If there are im instruments, find the 'Im.Play.play_cache_synth'
--- allocation.
-lookup_play_cache_addr :: Cmd.M m => m (Maybe Patch.Addr)
-lookup_play_cache_addr = do
-    allocs <- Ui.config#Ui.allocations_map <#> Ui.get
-    let is_play_cache = (==Im.Play.qualified) . UiConfig.alloc_qualified
-    if not (any (UiConfig.is_im_allocation) allocs)
-        then return Nothing
-        else case List.find is_play_cache (Map.elems allocs) of
-            Nothing -> do
-                Log.warn $ "im allocations but no play-cache, so they won't\
-                    \play, allocate with LInst.add_play_cache"
-                return Nothing
-            Just alloc -> case UiConfig.alloc_backend alloc of
-                UiConfig.Midi config -> case Patch.config_addrs config of
-                    [] -> Ui.throw $
-                        pretty Im.Play.qualified <> " allocation with no addrs"
-                    addr : _ -> return $ Just addr
-                _ -> Ui.throw $
-                        pretty Im.Play.qualified <> " with non-MIDI allocation"
 
 im_play_msgs :: FilePath -> BlockId -> Set ScoreT.Instrument -> RealTime
     -> Patch.Addr -> [LEvent.LEvent Midi.WriteMessage]

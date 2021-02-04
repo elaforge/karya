@@ -36,10 +36,14 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.DiffPerformance as DiffPerformance
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveSaved as DeriveSaved
+import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 
 import qualified Midi.Midi as Midi
+import qualified Perform.Im.Convert as Im.Convert
+import qualified Synth.Shared.Note as Shared.Note
 import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
 
 import           Global
 import           Types
@@ -187,16 +191,23 @@ save out_dir fname = do
         Just perf -> do
             let out = out_dir </> basename fname <> ".midi"
             liftIO $ putStrLn $ "write " <> out
-            liftIO $ DiffPerformance.save_midi out (Ui.perf_performance perf)
+            liftIO $ DiffPerformance.save_midi out (Ui.perf_events perf)
+            return True
+    im <- case look (Ui.meta_im_performances meta) of
+        Nothing -> return False
+        Just perf -> do
+            let out = out_dir </> basename fname <> ".im"
+            liftIO $ putStrLn $ "write " <> out
+            -- liftIO $ DiffPerformance.save_midi out (Ui.perf_events perf)
             return True
     ly <- case look (Ui.meta_lilypond_performances meta) of
         Nothing -> return False
         Just perf -> do
             let out = out_dir </> basename fname <> ".ly"
             liftIO $ putStrLn $ "write " <> out
-            liftIO $ Text.IO.writeFile out (Ui.perf_performance perf)
+            liftIO $ Text.IO.writeFile out (Ui.perf_events perf)
             return True
-    return $ if midi || ly then []
+    return $ if midi || im || ly then []
         else [txt fname <> ": no midi or ly performance"]
 
 -- | Perform to MIDI and possibly write to disk.
@@ -235,32 +246,63 @@ verify_performance out_dir cmd_config fname = do
     (state, library, aliases, block_id) <- load fname
     let meta = Ui.config#Ui.meta #$ state
     let cmd_state = make_cmd_state library aliases cmd_config
-    let midi_perf = Map.lookup block_id (Ui.meta_midi_performances meta)
-        ly_perf = Map.lookup block_id (Ui.meta_lilypond_performances meta)
-    (midi_err, midi_timings) <- maybe (return (Nothing, []))
-        (verify_midi out_dir fname cmd_state state block_id) midi_perf
-    (ly_err, ly_timings) <- maybe (return (Nothing, []))
-        (verify_lilypond out_dir fname cmd_state state block_id) ly_perf
-    liftIO $ write_timing (out_dir </> basename fname <> ".json")
-        (midi_timings ++ ly_timings)
-    return $ case (midi_perf, ly_perf) of
-        (Nothing, Nothing) -> ["no saved performances"]
-        _ -> Maybe.catMaybes [midi_err, ly_err]
+    let verify1 verify field =
+            maybe (return (Nothing, []))
+                (verify out_dir fname cmd_state state block_id) $
+            Map.lookup block_id (field meta)
+    (midi_err, midi_timings) <- verify1 verify_midi Ui.meta_midi_performances
+    (im_err, im_timings) <- verify1 verify_im Ui.meta_im_performances
+    (ly_err, ly_timings) <- verify1 verify_lilypond
+        Ui.meta_lilypond_performances
+    let timings = midi_timings ++ im_timings ++ ly_timings
+    if null timings
+        then return ["no saved performances"]
+        else do
+            liftIO $ write_timing (out_dir </> basename fname <> ".json")
+                timings
+            return $ Maybe.catMaybes [midi_err, im_err, ly_err]
 
 
 -- | Perform from the given state and compare it to the old MidiPerformance.
 verify_midi :: FilePath -> FilePath -> Cmd.State -> Ui.State -> BlockId
     -> Ui.MidiPerformance -> ErrorM (Maybe Text, Timings)
-verify_midi out_dir fname cmd_state state block_id performance = do
+verify_midi out_dir fname cmd_state ui_state block_id performance = do
     (msgs, derive_cpu, perform_cpu) <-
-        perform_block fname cmd_state state block_id
+        perform_block fname cmd_state ui_state block_id
     (maybe_diff, wrote_files) <- liftIO $
-        DiffPerformance.diff_midi_performance (basename fname ++ ".midi")
+        DiffPerformance.diff_midi (basename fname ++ ".midi")
             out_dir performance msgs
     return
         ( (<> ("\nwrote " <> txt (unwords wrote_files))) <$> maybe_diff
         , [("derive", derive_cpu), ("perform", perform_cpu)]
         )
+
+verify_im :: FilePath -> FilePath -> Cmd.State -> Ui.State -> BlockId
+    -> UiConfig.ImPerformance -> ErrorM (Maybe Text, Timings)
+verify_im out_dir fname cmd_state ui_state block_id performance = do
+    ((events, logs), derive_cpu) <- liftIO $
+        DeriveSaved.timed_derive fname ui_state cmd_state block_id
+    liftIO $ mapM_ Log.write logs
+    let (notes, convert_logs) = convert_im cmd_state ui_state block_id
+            (Vector.toList events)
+    (maybe_diff, wrote_files) <- liftIO $
+        DiffPerformance.diff_im (basename fname ++ ".im")
+            out_dir performance notes
+    return
+        ( (<> ("\nwrote " <> txt (unwords wrote_files))) <$> maybe_diff
+        , [("derive", derive_cpu)]
+        )
+
+convert_im :: Cmd.State -> Ui.State -> BlockId -> [Score.Event]
+    -> ([Shared.Note.Note], [Log.Msg])
+convert_im cmd_state ui_state block_id events =
+    extract $ DeriveSaved.run_cmd ui_state cmd_state $ do
+        lookup_inst <- Cmd.get_lookup_instrument
+        return $ Im.Convert.convert block_id lookup_inst events
+    where
+    extract (Left err) = ([], [Log.msg Log.Error Nothing err])
+    extract (Right (levents, logs)) = (events, logs ++ perf_logs)
+        where (events, perf_logs) = LEvent.partition levents
 
 perform_block :: FilePath -> Cmd.State -> Ui.State -> BlockId
     -> ErrorM ([Midi.WriteMessage], DeriveSaved.CPU, DeriveSaved.CPU)

@@ -4,7 +4,7 @@
 
 -- | Fire up the play-cache vst.
 module Perform.Im.Play (
-    play_cache_synth, qualified
+    play_cache_synth
     , encode_time, encode_play_config, decode_time, start, stop
 ) where
 import qualified Data.Bits as Bits
@@ -23,13 +23,14 @@ import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.RealTime as RealTime
 import qualified Synth.Shared.Config as Shared.Config
+import qualified Ui.UiConfig as UiConfig
 
 import           Global
 import           Types
 
 
 play_cache_synth :: Inst.SynthDecl Cmd.InstrumentCode
-play_cache_synth = Inst.SynthDecl synth_name
+play_cache_synth = Inst.SynthDecl (InstTypes.synth UiConfig.play_cache)
     "play_cache VST, to play the output of offline synthesizers."
     [(Patch.default_name, inst)]
     where
@@ -40,12 +41,6 @@ play_cache_synth = Inst.SynthDecl synth_name
     doc = "This dummy patch is just to give a way to configure the MIDI\
         \ channel of the play_cache VST. It's never actually played, and the\
         \ instrument should never be used in the score."
-
-qualified :: InstTypes.Qualified
-qualified = InstTypes.Qualified synth_name Patch.default_name
-
-synth_name :: InstTypes.SynthName
-synth_name = "play-cache"
 
 to_sample :: RealTime -> Int
 to_sample t =

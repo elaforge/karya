@@ -49,6 +49,7 @@ module Ui.Ui (
     , get_namespace, set_namespace
     , get_default, modify_default, get_root_id, lookup_root_id, set_root_id
     , modify_config, get_config, with_config
+    , modify_meta
     , modify_allocation, allocation
 
     -- * view
@@ -481,6 +482,9 @@ set_root_id block_id =
 modify_config :: M m => (Config -> Config) -> m ()
 modify_config f = unsafe_modify $ \st ->
     st { state_config = f (state_config st) }
+
+modify_meta :: M m => (UiConfig.Meta -> UiConfig.Meta) -> m ()
+modify_meta f = modify_config $ UiConfig.meta %= f
 
 modify_allocation :: M m => ScoreT.Instrument -> (Allocation -> Allocation)
     -> m ()
