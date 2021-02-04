@@ -113,7 +113,7 @@ run_update send_status ui_state = do
 derive_blocks :: Ui.State -> Set BlockId
 derive_blocks ui_state = Set.fromList $ maybe id (:) root_id visible
     where
-    root_id = Ui.config_root (Ui.state_config ui_state)
+    root_id = UiConfig.config_root (Ui.state_config ui_state)
     visible = map Block.view_block $ Map.elems $ Ui.state_views ui_state
 
 try_generate_performance :: SendStatus -> Ui.State -> BlockId -> StateM
@@ -213,7 +213,7 @@ generate_performance ui_state wait send_status block_id = do
     let (perf, logs) = derive ui_state cmd_state block_id
     mapM_ Log.write logs
     thread_id <- liftIO $ Async.async $ do
-        let allocs = Ui.config#Ui.allocations #$ ui_state
+        let allocs = Ui.config#UiConfig.allocations #$ ui_state
             im_config = Cmd.config_im (Cmd.state_config cmd_state)
         let lookup_inst = either (const Nothing) Just
                 . Cmd.state_lookup_instrument ui_state cmd_state

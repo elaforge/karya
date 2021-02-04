@@ -61,7 +61,7 @@ derive_block block_id = do
 -- behave differently.
 derive :: Cmd.M m => Derive.NoteDeriver -> m Derive.Result
 derive deriver = do
-    config <- Ui.config#Ui.lilypond <#> Ui.get
+    config <- Ui.config#UiConfig.lilypond <#> Ui.get
     ui_state <- Ui.get
     (constant, aliases) <-
         PlayUtil.get_constant (add_ly_global ui_state) mempty mempty
@@ -71,7 +71,7 @@ derive deriver = do
             (Derive.with_scopes lilypond_scope deriver)
     where
     set_tempo state = state
-        { Derive.state_ui = Ui.config#Ui.default_#Ui.tempo #= 1 $
+        { Derive.state_ui = Ui.config#UiConfig.default_#UiConfig.tempo #= 1 $
             Derive.state_ui state
         }
     set_mode config state = state { Derive.state_mode = Derive.Lilypond config }

@@ -165,7 +165,7 @@ get_im_instrument_tracks :: Cmd.M m => BlockId -> m [TrackId]
 get_im_instrument_tracks block_id = do
     track_ids <- Ui.track_ids_of block_id
     insts <- mapM Perf.infer_instrument track_ids
-    allocs <- Ui.config#Ui.allocations_map <#> Ui.get
+    allocs <- Ui.config#UiConfig.allocations_map <#> Ui.get
     let is_im inst = maybe False UiConfig.is_im_allocation $
             Map.lookup inst allocs
     return $ map fst $ filter (maybe False is_im . snd) $ zip track_ids insts

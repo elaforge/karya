@@ -64,6 +64,7 @@ import qualified Ui.Sel as Sel
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
 import qualified Ui.Update as Update
 
 import           Global
@@ -325,7 +326,7 @@ update_view track_signals set_style view_id Update.CreateView = do
     -- Sync: title, tracks, selection, skeleton
     return $ (:[]) $ do
         let title = block_window_title
-                (Ui.config_namespace (Ui.state_config state))
+                (UiConfig.config_namespace (Ui.state_config state))
                 view_id (Block.view_block view)
         BlockC.create_view view_id title (Block.view_rect view)
             (Block.block_config block)
@@ -343,7 +344,7 @@ update_view track_signals set_style view_id Update.CreateView = do
                 BlockC.set_selection view_id selnum tracknums sels
         BlockC.set_status view_id (Block.show_status (Block.view_status view))
             (Block.status_color (Block.view_block view) block
-                (Ui.config_root (Ui.state_config state)))
+                (UiConfig.config_root (Ui.state_config state)))
         BlockC.set_zoom view_id (Block.view_zoom view)
         BlockC.set_track_scroll view_id (Block.view_track_scroll view)
 
@@ -537,7 +538,7 @@ update_set_style state block_id tlike (Track.SetStyleHigh track_bg set_style) =
                 has_note_children block_id track_id
         _ -> set_style ns mempty block_id False
     where
-    ns = Ui.config_namespace (Ui.state_config state)
+    ns = UiConfig.config_namespace (Ui.state_config state)
 
 has_note_children :: Ui.M m => BlockId -> TrackId -> m Bool
 has_note_children block_id track_id = do

@@ -42,6 +42,7 @@ import qualified Ui.Key as Key
 import qualified Ui.Sel as Sel
 import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.UiTest as UiTest
 import qualified Ui.Update as Update
@@ -361,7 +362,7 @@ extract_ui m = extract_ui_state $ \state -> UiTest.eval state m
 set_synths_simple :: [MidiInst.Synth] -> DeriveTest.SimpleAllocations
     -> Ui.State -> Cmd.State -> (Ui.State, Cmd.State)
 set_synths_simple synths simple_allocs ui_state cmd_state =
-    ( (Ui.config#Ui.allocations #= allocs) ui_state
+    ( (Ui.config#UiConfig.allocations #= allocs) ui_state
     , cmd_state
         { Cmd.state_config = (Cmd.state_config cmd_state)
             { Cmd.config_instrument_db = db }

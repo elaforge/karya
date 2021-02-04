@@ -136,7 +136,7 @@ load_template fn = do
     (state, _) <- read fn
     set_loaded_state Nothing state
     now <- liftIO $ Time.getCurrentTime
-    Ui.modify_config $ Ui.meta#Ui.creation #= now
+    Ui.modify_config $ UiConfig.meta#UiConfig.creation #= now
 
 -- | Given a path, which is either a file or a directory, try to figure out
 -- what to load.  Saves can be either a plain saved state, or a directory
@@ -224,7 +224,7 @@ write_state :: FilePath -> Ui.State -> IO ()
 write_state fname state = do
     now <- Time.getCurrentTime
     void $ Serialize.serialize Cmd.Serialize.score_magic fname $
-        Ui.config#Ui.meta#Ui.last_save #= now $
+        Ui.config#UiConfig.meta#UiConfig.last_save #= now $
         Ui.clear state
 
 load_state :: FilePath -> Cmd.CmdT IO ()
@@ -384,7 +384,7 @@ default_git = "save" ++ SaveGit.git_suffix
 
 save_allocations :: FilePath -> Cmd.CmdT IO ()
 save_allocations fname = do
-    allocs <- Ui.config#Ui.allocations <#> Ui.get
+    allocs <- Ui.config#UiConfig.allocations <#> Ui.get
     fname <- expand_filename fname
     Log.notice $ "write instrument allocations to " <> showt fname
     rethrow_io "save_allocations" $ liftIO $ void $
@@ -444,7 +444,7 @@ set_loaded_state save_file state = do
     old <- Ui.get
     Ui.put $ Ui.clear $
         Transform.replace_namespace Config.clip_namespace old state
-    root <- case Ui.config_root (Ui.state_config state) of
+    root <- case UiConfig.config_root (Ui.state_config state) of
         Nothing -> return Nothing
         Just root -> Seq.head . Map.keys <$> Ui.views_of root
     -- Try to focus on the root block, for consistency.

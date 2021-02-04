@@ -48,6 +48,7 @@ import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
 
 import           Global
 import           Types
@@ -305,7 +306,7 @@ lookup_dynamic perf_block_id (block_id, maybe_track_id) =
 
 infer_muted_instruments :: Cmd.M m => m (Set ScoreT.Instrument)
 infer_muted_instruments = do
-    allocs <- Ui.gets $ Ui.config_allocations . Ui.state_config
+    allocs <- Ui.gets $ UiConfig.config_allocations . Ui.state_config
     (<> PlayUtil.muted_instruments allocs) . Map.keysSet <$>
         infer_muted_instrument_tracks
 

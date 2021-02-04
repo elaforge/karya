@@ -83,17 +83,17 @@ stats = Transform.show_stats <$> Ui.get
 
 -- * configure
 
-get_config :: Cmd.CmdL Ui.Config
+get_config :: Cmd.CmdL UiConfig.Config
 get_config = Ui.config <#> Ui.get
 
-get_default :: Cmd.CmdL Ui.Default
-get_default = Ui.config#Ui.default_ <#> Ui.get
+get_default :: Cmd.CmdL UiConfig.Default
+get_default = Ui.config#UiConfig.default_ <#> Ui.get
 
 get_default_tempo :: Cmd.CmdL Signal.Y
-get_default_tempo = Ui.config#Ui.default_#Ui.tempo <#> Ui.get
+get_default_tempo = Ui.config#UiConfig.default_#UiConfig.tempo <#> Ui.get
 
 set_default_tempo :: Signal.Y -> Cmd.CmdL ()
-set_default_tempo t = Ui.modify_config $ Ui.default_#Ui.tempo #= t
+set_default_tempo t = Ui.modify_config $ UiConfig.default_#UiConfig.tempo #= t
 
 ky :: Ui.M m => m ReplProtocol.Result
 ky = do
@@ -106,23 +106,23 @@ ky = do
         }
 
 get_ky :: Ui.M m => m Text
-get_ky = Ui.config#Ui.ky <#> Ui.get
+get_ky = Ui.config#UiConfig.ky <#> Ui.get
 
 set_ky :: Ui.M m => Text -> m ()
-set_ky = Ui.modify_config . (Ui.ky #=)
+set_ky = Ui.modify_config . (UiConfig.ky #=)
 
 -- ** meta
 
-get_meta :: Cmd.CmdL Ui.Meta
-get_meta = Ui.config#Ui.meta <#> Ui.get
+get_meta :: Cmd.CmdL UiConfig.Meta
+get_meta = Ui.config#UiConfig.meta <#> Ui.get
 
 set_creation_time :: Cmd.CmdL ()
 set_creation_time = do
     now <- liftIO Time.getCurrentTime
-    Ui.modify_config $ Ui.meta#Ui.creation #= now
+    Ui.modify_config $ UiConfig.meta#UiConfig.creation #= now
 
 set_notes :: Text -> Cmd.CmdL ()
-set_notes = Ui.modify_config . (Ui.meta#Ui.notes #=)
+set_notes = Ui.modify_config . (UiConfig.meta#UiConfig.notes #=)
 
 -- *** performance
 
@@ -152,7 +152,8 @@ save_lilypond = save_performance UiConfig.lilypond_performances
 get_midi_performance :: BlockId -> Cmd.CmdL UiConfig.MidiPerformance
 get_midi_performance block_id =
     Cmd.require ("no saved performance for " <> showt block_id)
-        =<< Ui.get_config (Ui.meta#Ui.midi_performances # Lens.map block_id #$)
+        =<< Ui.get_config
+            (UiConfig.meta#UiConfig.midi_performances # Lens.map block_id #$)
 
 -- | Compare the current root block performance against the saved one.
 verify_performance :: Cmd.CmdL Text
@@ -207,7 +208,7 @@ perform_lilypond :: Cmd.M m => BlockId -> m Text
 perform_lilypond block_id = do
     events <- Stream.write_logs . Derive.r_events
         =<< Cmd.Lilypond.derive_block block_id
-    config <- Ui.config#Ui.lilypond <#> Ui.get
+    config <- Ui.config#UiConfig.lilypond <#> Ui.get
     result <- LEvent.write_snd $
         Cmd.Lilypond.extract_movements config "title" events
     case result of

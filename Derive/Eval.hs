@@ -47,6 +47,7 @@ import qualified Perform.Pitch as Pitch
 import qualified Ui.Event as Event
 import qualified Ui.Id as Id
 import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
 
 import           Global
 import           Types
@@ -257,7 +258,7 @@ require_call is_generator sym name Nothing = do
     -- realize that the bad call is now valid.
     when is_generator $ do
         caller <- Internal.lookup_current_block_id
-        ns <- Derive.get_ui_state $ Ui.config_namespace . Ui.state_config
+        ns <- Derive.get_ui_state $ UiConfig.config_namespace . Ui.state_config
         whenJust (call_to_block_id ns caller sym) Internal.add_block_dep
     Derive.throw $ unknown_symbol name sym
 

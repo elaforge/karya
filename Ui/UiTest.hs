@@ -622,7 +622,7 @@ midi_allocations allocs = Simple.allocations
     ]
 
 set_default_allocations :: Ui.State -> Ui.State
-set_default_allocations = Ui.config#Ui.allocations #= default_allocations
+set_default_allocations = Ui.config#UiConfig.allocations #= default_allocations
 
 default_allocations :: UiConfig.Allocations
 default_allocations = midi_allocations

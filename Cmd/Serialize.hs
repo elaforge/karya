@@ -73,12 +73,12 @@ instance Serialize Ui.State where
                 blocks :: Map Types.BlockId Block.Block <- get
                 tracks :: Map Types.TrackId Track.Track <- get
                 rulers :: Map Types.RulerId Ruler.Ruler <- get
-                config :: Ui.Config <- get
+                config :: UiConfig.Config <- get
                 return $ Ui.State views blocks tracks rulers config
             _ -> Serialize.bad_version "Ui.State" v
 
-instance Serialize Ui.Config where
-    put (Ui.Config ns meta root allocs lilypond defaults
+instance Serialize UiConfig.Config where
+    put (UiConfig.Config ns meta root allocs lilypond defaults
             saved_views ky tscore)
         =  Serialize.put_version 14
             >> put ns >> put meta >> put root >> put allocs >> put lilypond
@@ -86,55 +86,56 @@ instance Serialize Ui.Config where
     get = Serialize.get_version >>= \v -> case v of
         11 -> do
             ns :: Id.Namespace <- get
-            meta :: Ui.Meta <- get
+            meta :: UiConfig.Meta <- get
             root :: Maybe BlockId <- get
             transform :: Text <- get
             insts :: UiConfig.Allocations <- get
             lilypond :: Lilypond.Config <- get
-            defaults :: Ui.Default <- get
-            saved_views :: Ui.SavedViews <- get
+            defaults :: UiConfig.Default <- get
+            saved_views :: UiConfig.SavedViews <- get
             ky_file :: Maybe FilePath <- get
-            return $ Ui.Config ns meta root insts lilypond defaults saved_views
+            return $ UiConfig.Config ns meta root insts lilypond defaults
+                saved_views
                 (upgrade_transform transform
                     (maybe "" (\fn -> "import '" <> txt fn <> "'\n") ky_file))
                 ""
         12 -> do
             ns :: Id.Namespace <- get
-            meta :: Ui.Meta <- get
+            meta :: UiConfig.Meta <- get
             root :: Maybe BlockId <- get
             transform :: Text <- get
             insts :: UiConfig.Allocations <- get
             lilypond :: Lilypond.Config <- get
-            defaults :: Ui.Default <- get
-            saved_views :: Ui.SavedViews <- get
+            defaults :: UiConfig.Default <- get
+            saved_views :: UiConfig.SavedViews <- get
             ky :: Text <- get
-            return $ Ui.Config ns meta root insts lilypond
+            return $ UiConfig.Config ns meta root insts lilypond
                 defaults saved_views (upgrade_transform transform ky)
                 ""
         13 -> do
             ns :: Id.Namespace <- get
-            meta :: Ui.Meta <- get
+            meta :: UiConfig.Meta <- get
             root :: Maybe BlockId <- get
             insts :: UiConfig.Allocations <- get
             lilypond :: Lilypond.Config <- get
-            defaults :: Ui.Default <- get
-            saved_views :: Ui.SavedViews <- get
+            defaults :: UiConfig.Default <- get
+            saved_views :: UiConfig.SavedViews <- get
             ky :: Text <- get
-            return $ Ui.Config ns meta root insts lilypond defaults saved_views
-                ky ""
+            return $ UiConfig.Config ns meta root insts lilypond defaults
+                saved_views ky ""
         14 -> do
             ns :: Id.Namespace <- get
-            meta :: Ui.Meta <- get
+            meta :: UiConfig.Meta <- get
             root :: Maybe BlockId <- get
             insts :: UiConfig.Allocations <- get
             lilypond :: Lilypond.Config <- get
-            defaults :: Ui.Default <- get
-            saved_views :: Ui.SavedViews <- get
+            defaults :: UiConfig.Default <- get
+            saved_views :: UiConfig.SavedViews <- get
             ky :: Text <- get
             tscore :: Text <- get
-            return $ Ui.Config ns meta root insts lilypond defaults saved_views
-                ky tscore
-        _ -> Serialize.bad_version "Ui.Config" v
+            return $ UiConfig.Config ns meta root insts lilypond defaults
+                saved_views ky tscore
+        _ -> Serialize.bad_version "UiConfig.Config" v
         where
         upgrade_transform global_transform ky
             | Text.null (Text.strip global_transform) = ky
@@ -188,8 +189,8 @@ instance Serialize MidiConfigs where
                 return $ MidiConfigs insts
             _ -> Serialize.bad_version "Patch.MidiConfigs" v
 
-instance Serialize Ui.Meta where
-    put (Ui.Meta a b c d e f) = Serialize.put_version 4
+instance Serialize UiConfig.Meta where
+    put (UiConfig.Meta a b c d e f) = Serialize.put_version 4
         >> put a >> put b >> put c >> put d >> put e >> put f
     get = Serialize.get_version >>= \v -> case v of
         3 -> do
@@ -207,28 +208,28 @@ instance Serialize Ui.Meta where
             lily :: Map BlockId UiConfig.LilypondPerformance <- get
             im :: Map BlockId UiConfig.ImPerformance <- get
             return $ UiConfig.Meta creation last_save notes midi lily im
-        _ -> Serialize.bad_version "Ui.Meta" v
+        _ -> Serialize.bad_version "UiConfig.Meta" v
 
-instance Serialize a => Serialize (Ui.Performance a) where
-    put (Ui.Performance a b c) = Serialize.put_version 0 >> put a >> put b
+instance Serialize a => Serialize (UiConfig.Performance a) where
+    put (UiConfig.Performance a b c) = Serialize.put_version 0 >> put a >> put b
         >> put c
     get = Serialize.get_version >>= \v -> case v of
         0 -> do
             perf :: a <- get
             creation :: Time.UTCTime <- get
             patch :: Text <- get
-            return $ Ui.Performance perf creation patch
-        _ -> Serialize.bad_version "Ui.Performance" v
+            return $ UiConfig.Performance perf creation patch
+        _ -> Serialize.bad_version "UiConfig.Performance" v
 
-instance Serialize Ui.Default where
-    put (Ui.Default a) = Serialize.put_version 4 >> put a
+instance Serialize UiConfig.Default where
+    put (UiConfig.Default a) = Serialize.put_version 4 >> put a
     get = do
         v <- Serialize.get_version
         case v of
             4 -> do
                 tempo :: Signal.Y <- get
-                return $ Ui.Default tempo
-            _ -> Serialize.bad_version "Ui.Default" v
+                return $ UiConfig.Default tempo
+            _ -> Serialize.bad_version "UiConfig.Default" v
 
 -- ** Block
 

@@ -23,6 +23,7 @@ import qualified Derive.Stream as Stream
 import qualified Perform.RealTime as RealTime
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
 
 import           Global
 import           Types
@@ -67,7 +68,7 @@ block_integrate events = do
 unwarp :: Ui.M m => BlockId -> Stream.Stream Score.Event
     -> m (Stream.Stream Score.Event)
 unwarp block_id events = ifM (uses_default_tempo block_id)
-    (do tempo <- Ui.get_default Ui.default_tempo
+    (do tempo <- Ui.get_default UiConfig.default_tempo
         return $ move (RealTime.seconds tempo) events)
     (return events)
     where

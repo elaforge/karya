@@ -18,6 +18,7 @@ import qualified Cmd.Views as Views
 
 import qualified Ui.Block as Block
 import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
 import qualified Ui.Zoom as Zoom
 
 import           Global
@@ -72,7 +73,7 @@ compact screen =
 -- | Show the list of saved views, with a star on the focused one.
 saved :: Cmd.CmdL Text
 saved = do
-    saved <- Ui.config#Ui.saved_views <#> Ui.get
+    saved <- Ui.config#UiConfig.saved_views <#> Ui.get
     return $ Pretty.formatted $ Map.map pretty saved
     where
     pretty (views, focused) =

@@ -6,9 +6,6 @@ module Cmd.Ky_test where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
-import Util.Test
-import qualified Ui.Ui as Ui
-import qualified Ui.UiTest as UiTest
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Ky as Ky
@@ -19,7 +16,12 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Expr as Expr
 import qualified Derive.Parse as Parse
 
-import Global
+import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
+import qualified Ui.UiTest as UiTest
+
+import           Global
+import           Util.Test
 
 
 test_ky_file = do
@@ -54,7 +56,7 @@ test_ky_file = do
 
 test_check_cache = do
     let f ky_cache ky = Ky.check_cache
-            (Ui.config#Ui.ky #= ky $ Ui.empty)
+            (Ui.config#UiConfig.ky #= ky $ Ui.empty)
             (CmdTest.default_cmd_state { Cmd.state_ky_cache = ky_cache })
         extract Nothing = Right Nothing
         extract (Just (Cmd.KyCache builtins (Cmd.Fingerprint fnames fprint))) =

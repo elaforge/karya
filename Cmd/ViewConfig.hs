@@ -22,6 +22,7 @@ import qualified Ui.Block as Block
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Sel as Sel
 import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
 import qualified Ui.Zoom as Zoom
 
 import           Global
@@ -264,17 +265,17 @@ save_views :: Cmd.M m => Text -> m ()
 save_views name = do
     views <- Ui.gets Ui.state_views
     focused <- Cmd.lookup_focused_view
-    Ui.modify_config $ Ui.saved_views %= Map.insert name (views, focused)
+    Ui.modify_config $ UiConfig.saved_views %= Map.insert name (views, focused)
 
 -- | Replace the current views with the saved ones.  The current one is first
 -- saved as \"prev\".
 restore_views :: Cmd.M m => Text -> m ()
 restore_views name = do
     (views, focused) <- Cmd.require ("no saved views named: " <> name)
-        =<< Ui.config#Ui.saved_views # Lens.map name <#> Ui.get
+        =<< Ui.config#UiConfig.saved_views # Lens.map name <#> Ui.get
     save_views "prev"
     Ui.put_views views
     whenJust focused Cmd.focus
 
 remove_views :: Ui.M m => Text -> m ()
-remove_views name = Ui.modify_config $ Ui.saved_views %= Map.delete name
+remove_views name = Ui.modify_config $ UiConfig.saved_views %= Map.delete name

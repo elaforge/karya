@@ -35,6 +35,7 @@ import qualified Ui.Events as Events
 import qualified Ui.Sel as Sel
 import qualified Ui.Track as Track
 import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
 import qualified Ui.Update as Update
 
 import           Global
@@ -204,7 +205,7 @@ status_color :: Ui.State -> Block.View -> Color.Color
 status_color state view =
     case Map.lookup block_id (Ui.state_blocks state) of
         Just block -> Block.status_color block_id block
-            (Ui.config_root (Ui.state_config state))
+            (UiConfig.config_root (Ui.state_config state))
         Nothing -> Config.status_default
     where block_id = Block.view_block view
 

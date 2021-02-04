@@ -1526,7 +1526,7 @@ state_lookup_instrument :: Ui.State -> State -> ScoreT.Instrument
 state_lookup_instrument ui_state cmd_state = \inst ->
     fromMaybe (Left $ "no alloc for " <> pretty inst) $ Map.lookup inst memo
     where
-    memo = resolve <$> (Ui.config#Ui.allocations_map #$ ui_state)
+    memo = resolve <$> (Ui.config#UiConfig.allocations_map #$ ui_state)
     resolve alloc = resolve_instrument db alloc
         where db = config_instrument_db (state_config cmd_state)
 

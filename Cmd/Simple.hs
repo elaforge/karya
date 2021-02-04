@@ -111,8 +111,8 @@ dump_state = do
     state <- Ui.get
     blocks <- mapM dump_block (Map.keys (Ui.state_blocks state))
     return
-        ( Ui.config#Ui.ky #$ state
-        , dump_allocations $ Ui.config#Ui.allocations #$ state
+        ( Ui.config#UiConfig.ky #$ state
+        , dump_allocations $ Ui.config#UiConfig.allocations #$ state
         , blocks
         )
 
@@ -120,8 +120,8 @@ load_state :: Ui.M m => State -> m Ui.State
 load_state (ky, allocs, blocks) =
     Ui.exec_rethrow "convert state" Ui.empty $ do
         mapM_ make_block blocks
-        Ui.modify $ (Ui.config#Ui.ky #= ky)
-            . (Ui.config#Ui.allocations #= allocations allocs)
+        Ui.modify $ (Ui.config#UiConfig.ky #= ky)
+            . (Ui.config#UiConfig.allocations #= allocations allocs)
 
 -- * block
 

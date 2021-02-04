@@ -7,18 +7,19 @@ import qualified Data.Time as Time
 import qualified Data.Vector as Vector
 
 import qualified Util.Serialize
-import Util.Test
+import           Cmd.Serialize () -- for instances
 import qualified Midi.Midi as Midi
-import qualified Ui.Block as Block
-import qualified Ui.Sel as Sel
-import qualified Ui.Ui as Ui
-import qualified Ui.Track as Track
-import qualified Ui.UiTest as UiTest
-
-import Cmd.Serialize () -- for instances
 import qualified Perform.Lilypond.Types as Lilypond
 import qualified Perform.Midi.Patch as Patch
-import Types
+import qualified Ui.Block as Block
+import qualified Ui.Sel as Sel
+import qualified Ui.Track as Track
+import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
+import qualified Ui.UiTest as UiTest
+
+import           Types
+import           Util.Test
 
 
 test_serialize = do
@@ -34,7 +35,7 @@ test_serialize = do
 
     -- Performance
     now <- Time.getCurrentTime
-    let perf = Ui.Performance msgs now "patch-tag"
+    let perf = UiConfig.Performance msgs now "patch-tag"
         msgs = Vector.fromList
             [Midi.WriteMessage (Midi.write_device "wdev") 42 msg]
         msg = Midi.ChannelMessage 1 (Midi.NoteOn 2 3)

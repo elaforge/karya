@@ -165,7 +165,7 @@ stop_im = whenJustM im_addr $ \(wdev, chan) ->
 
 im_addr :: Cmd.M m => m (Maybe Patch.Addr)
 im_addr = do
-    allocs <- Ui.config#Ui.allocations_map <#> Ui.get
+    allocs <- Ui.config#UiConfig.allocations_map <#> Ui.get
     return $ case lookup_im_config allocs of
         Right (_, addr) -> Just addr
         Left _ -> Nothing
@@ -417,7 +417,7 @@ from_realtime block_id repeat_at start_ = do
     let mtc = PlayUtil.shift_messages 1 start $ map LEvent.Event $
             generate_mtc maybe_sync start
 
-    allocs <- Ui.config#Ui.allocations_map <#> Ui.get
+    allocs <- Ui.config#UiConfig.allocations_map <#> Ui.get
     (im_insts, play_cache_addr) <- case lookup_im_config allocs of
         Right (im_insts, play_cache_addr) ->
             return (im_insts, Just play_cache_addr)

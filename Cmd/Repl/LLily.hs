@@ -42,6 +42,7 @@ import qualified Perform.Lilypond as Lilypond
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
 
 import           Global
 import           Types
@@ -50,13 +51,13 @@ import           Types
 -- * config
 
 get_config :: Ui.M m => m Lilypond.Config
-get_config = Ui.config#Ui.lilypond <#> Ui.get
+get_config = Ui.config#UiConfig.lilypond <#> Ui.get
 
 modify_config :: Ui.M m => (Lilypond.Config -> Lilypond.Config) -> m ()
-modify_config modify = Ui.modify_config $ Ui.lilypond %= modify
+modify_config modify = Ui.modify_config $ UiConfig.lilypond %= modify
 
 with_config :: Cmd.M m => Lilypond.Config -> m a -> m a
-with_config config = Ui.with_config (Ui.lilypond #= config)
+with_config config = Ui.with_config (UiConfig.lilypond #= config)
 
 set_quarter_duration :: Ui.M m => RealTime -> m ()
 set_quarter_duration dur = modify_config $ \config ->

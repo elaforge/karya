@@ -69,7 +69,7 @@ list = list_like ""
 
 list_midi :: Cmd.M m => m [Instrument]
 list_midi = do
-    alloc_map <- Ui.config#Ui.allocations_map <#> Ui.get
+    alloc_map <- Ui.config#UiConfig.allocations_map <#> Ui.get
     return
         [ ScoreT.instrument_name inst
         | (inst, alloc) <- Map.toAscList alloc_map
@@ -83,7 +83,7 @@ list_midi = do
 -- > >syn - sampler/inst 音
 list_like :: Cmd.M m => Text -> m Text
 list_like pattern = do
-    alloc_map <- Ui.config#Ui.allocations_map <#> Ui.get
+    alloc_map <- Ui.config#UiConfig.allocations_map <#> Ui.get
     let (names, allocs) = unzip $ Map.toAscList alloc_map
     return $ Text.unlines $ Texts.columns 1
         [ pretty_alloc name alloc
@@ -148,7 +148,7 @@ show_scale scale = "scale " <> Patch.scale_name scale <> " "
 
 -- | Instrument allocations.
 allocations :: Ui.M m => m UiConfig.Allocations
-allocations = Ui.config#Ui.allocations <#> Ui.get
+allocations = Ui.config#UiConfig.allocations <#> Ui.get
 
 -- * add and remove
 
@@ -221,17 +221,17 @@ add_dummy inst qualified = do
 allocate :: Cmd.M m => ScoreT.Instrument -> UiConfig.Allocation -> m ()
 allocate score_inst alloc = do
     inst <- Cmd.get_alloc_qualified alloc
-    allocs <- Ui.config#Ui.allocations <#> Ui.get
+    allocs <- Ui.config#UiConfig.allocations <#> Ui.get
     allocs <- Cmd.require_right id $
         UiConfig.allocate (Inst.inst_backend inst) score_inst alloc allocs
-    Ui.modify_config $ Ui.allocations #= allocs
+    Ui.modify_config $ UiConfig.allocations #= allocs
 
 -- | Remove an instrument allocation.
 remove :: Instrument -> Cmd.CmdL ()
 remove = deallocate . Util.instrument
 
 deallocate :: Cmd.M m => ScoreT.Instrument -> m ()
-deallocate inst = Ui.modify_config $ Ui.allocations_map %= Map.delete inst
+deallocate inst = Ui.modify_config $ UiConfig.allocations_map %= Map.delete inst
 
 -- | Merge the given configs into the existing ones.  This also merges
 -- 'Patch.patch_defaults' into 'Patch.config_settings'.  This way functions
@@ -240,12 +240,12 @@ merge :: Cmd.M m => Bool -> UiConfig.Allocations -> m ()
 merge override (UiConfig.Allocations alloc_map) = do
     let (names, allocs) = unzip (Map.toList alloc_map)
     insts <- mapM Cmd.get_alloc_qualified allocs
-    existing <- Ui.get_config (Ui.allocations #$)
+    existing <- Ui.get_config (UiConfig.allocations #$)
     let errors = mapMaybe (verify existing) (zip3 names allocs insts)
     unless (null errors) $
         Cmd.throw $ "merged allocations: " <> Text.intercalate "\n" errors
     let new_allocs = UiConfig.Allocations (Map.fromList (zip names allocs))
-    Ui.modify_config $ Ui.allocations
+    Ui.modify_config $ UiConfig.allocations
         %= if override then (new_allocs<>) else (<>new_allocs)
     where
     verify allocs (name, alloc, inst) =
@@ -253,7 +253,7 @@ merge override (UiConfig.Allocations alloc_map) = do
 
 replace :: Cmd.M m => UiConfig.Allocations -> m ()
 replace allocs = do
-    Ui.modify_config $ Ui.allocations #= mempty
+    Ui.modify_config $ UiConfig.allocations #= mempty
     merge True allocs
 
 -- * modify
@@ -402,7 +402,7 @@ modify_config modify inst_ = do
     (qualified, common, midi) <- get_midi_config inst
     let ((new_common, new_midi), result) = modify common midi
         new = UiConfig.Allocation qualified new_common (UiConfig.Midi new_midi)
-    Ui.modify_config $ Ui.allocations_map %= Map.insert inst new
+    Ui.modify_config $ UiConfig.allocations_map %= Map.insert inst new
     return result
 
 modify_midi_config_ :: Ui.M m => (Patch.Config -> Patch.Config) -> Instrument
@@ -417,7 +417,7 @@ modify_common_config modify inst_ = do
     alloc <- get_instrument_allocation inst
     let (config, result) = modify (UiConfig.alloc_config alloc)
         new = alloc { UiConfig.alloc_config = config }
-    Ui.modify_config $ Ui.allocations_map %= Map.insert inst new
+    Ui.modify_config $ UiConfig.allocations_map %= Map.insert inst new
     return result
 
 modify_common_config_ :: Ui.M m => (Common.Config -> Common.Config)
@@ -514,7 +514,7 @@ save = Save.save_allocations
 load :: FilePath -> Cmd.CmdL ()
 load fname = do
     allocs <- Save.load_allocations fname
-    Ui.modify_config $ Ui.allocations #= allocs
+    Ui.modify_config $ UiConfig.allocations #= allocs
 
 -- | Load and merge instruments.  If there are name collisions, the
 -- already-allocated instrument wins.

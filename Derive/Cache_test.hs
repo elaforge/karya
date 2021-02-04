@@ -207,7 +207,7 @@ test_config_damage = do
 modify_alloc_config :: Ui.M m => ScoreT.Instrument
     -> (Common.Config -> Common.Config) -> m ()
 modify_alloc_config inst modify =
-    Ui.modify_config $ Ui.allocations_map %= Map.alter mod inst
+    Ui.modify_config $ UiConfig.allocations_map %= Map.alter mod inst
     where
     mod Nothing = error $ "modify_alloc_config: no inst " <> prettys inst
     mod (Just alloc) = Just $ alloc

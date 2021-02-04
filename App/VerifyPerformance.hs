@@ -184,30 +184,23 @@ require_right io = tryRight =<< liftIO io
 save :: FilePath -> FilePath -> ErrorM [Text]
 save out_dir fname = do
     (state, _defs_lib, _aliases, block_id) <- load fname
-    let meta = Ui.config#Ui.meta #$ state
+    let meta = Ui.config#UiConfig.meta #$ state
         look = Map.lookup block_id
-    midi <- case look (Ui.meta_midi_performances meta) of
+    midi <- case look (UiConfig.meta_midi_performances meta) of
         Nothing -> return False
         Just perf -> do
             let out = out_dir </> basename fname <> ".midi"
             liftIO $ putStrLn $ "write " <> out
-            liftIO $ DiffPerformance.save_midi out (Ui.perf_events perf)
+            liftIO $ DiffPerformance.save_midi out (UiConfig.perf_events perf)
             return True
-    im <- case look (Ui.meta_im_performances meta) of
-        Nothing -> return False
-        Just perf -> do
-            let out = out_dir </> basename fname <> ".im"
-            liftIO $ putStrLn $ "write " <> out
-            -- liftIO $ DiffPerformance.save_midi out (Ui.perf_events perf)
-            return True
-    ly <- case look (Ui.meta_lilypond_performances meta) of
+    ly <- case look (UiConfig.meta_lilypond_performances meta) of
         Nothing -> return False
         Just perf -> do
             let out = out_dir </> basename fname <> ".ly"
             liftIO $ putStrLn $ "write " <> out
-            liftIO $ Text.IO.writeFile out (Ui.perf_events perf)
+            liftIO $ Text.IO.writeFile out (UiConfig.perf_events perf)
             return True
-    return $ if midi || im || ly then []
+    return $ if midi || ly then []
         else [txt fname <> ": no midi or ly performance"]
 
 -- | Perform to MIDI and possibly write to disk.
@@ -244,16 +237,17 @@ type Timings = [(Text, Thread.Seconds)]
 verify_performance :: FilePath -> Cmd.Config -> FilePath -> ErrorM [Text]
 verify_performance out_dir cmd_config fname = do
     (state, library, aliases, block_id) <- load fname
-    let meta = Ui.config#Ui.meta #$ state
+    let meta = Ui.config#UiConfig.meta #$ state
     let cmd_state = make_cmd_state library aliases cmd_config
     let verify1 verify field =
             maybe (return (Nothing, []))
                 (verify out_dir fname cmd_state state block_id) $
             Map.lookup block_id (field meta)
-    (midi_err, midi_timings) <- verify1 verify_midi Ui.meta_midi_performances
-    (im_err, im_timings) <- verify1 verify_im Ui.meta_im_performances
+    (midi_err, midi_timings) <-
+        verify1 verify_midi UiConfig.meta_midi_performances
+    (im_err, im_timings) <- verify1 verify_im UiConfig.meta_im_performances
     (ly_err, ly_timings) <- verify1 verify_lilypond
-        Ui.meta_lilypond_performances
+        UiConfig.meta_lilypond_performances
     let timings = midi_timings ++ im_timings ++ ly_timings
     if null timings
         then return ["no saved performances"]
@@ -265,7 +259,7 @@ verify_performance out_dir cmd_config fname = do
 
 -- | Perform from the given state and compare it to the old MidiPerformance.
 verify_midi :: FilePath -> FilePath -> Cmd.State -> Ui.State -> BlockId
-    -> Ui.MidiPerformance -> ErrorM (Maybe Text, Timings)
+    -> UiConfig.MidiPerformance -> ErrorM (Maybe Text, Timings)
 verify_midi out_dir fname cmd_state ui_state block_id performance = do
     (msgs, derive_cpu, perform_cpu) <-
         perform_block fname cmd_state ui_state block_id
@@ -285,6 +279,7 @@ verify_im out_dir fname cmd_state ui_state block_id performance = do
     liftIO $ mapM_ Log.write logs
     let (notes, convert_logs) = convert_im cmd_state ui_state block_id
             (Vector.toList events)
+    liftIO $ mapM_ Log.write convert_logs
     (maybe_diff, wrote_files) <- liftIO $
         DiffPerformance.diff_im (basename fname ++ ".im")
             out_dir performance notes
@@ -316,7 +311,7 @@ perform_block fname cmd_state state block_id = do
     return (msgs, derive_cpu, perform_cpu)
 
 verify_lilypond :: FilePath -> FilePath -> Cmd.State -> Ui.State
-    -> BlockId -> Ui.LilypondPerformance -> ErrorM (Maybe Text, Timings)
+    -> BlockId -> UiConfig.LilypondPerformance -> ErrorM (Maybe Text, Timings)
 verify_lilypond out_dir fname cmd_state state block_id performance = do
     ((result, logs), cpu) <- liftIO $
         DeriveSaved.timed_lilypond fname state cmd_state block_id
@@ -348,7 +343,7 @@ make_cmd_state builtins aliases cmd_config =
     DeriveSaved.add_library builtins aliases $ Cmd.initial_state cmd_config
 
 get_root :: Ui.State -> Either Text BlockId
-get_root state = justErr "no root block" $ Ui.config#Ui.root #$ state
+get_root state = justErr "no root block" $ Ui.config#UiConfig.root #$ state
 
 basename :: FilePath -> FilePath
 basename = FilePath.takeFileName . Seq.rdrop_while (=='/')

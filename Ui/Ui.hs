@@ -24,15 +24,6 @@
 module Ui.Ui (
     State(..), views, blocks, tracks, rulers, config
     , empty, create, clear
-    -- * config
-    , Config(..), empty_config, SavedViews
-    , namespace_, meta, root, allocations, allocations_map
-    , lilypond, default_, saved_views, ky
-    , Meta(..), empty_meta, creation, last_save, notes, midi_performances
-    , lilypond_performances
-    , Performance(..), MidiPerformance, LilypondPerformance
-    , Default(..), empty_default
-    , tempo
     -- * address types
     , Track(..), Range(..), TrackInfo(..)
     -- * StateT monad
@@ -166,7 +157,6 @@ import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 import qualified Ui.UiConfig as UiConfig
-import           Ui.UiConfig hiding (allocation, modify_allocation)
 import qualified Ui.Update as Update
 import qualified Ui.Zoom as Zoom
 
@@ -182,7 +172,7 @@ data State = State {
     , state_blocks :: Map BlockId Block.Block
     , state_tracks :: Map TrackId Track.Track
     , state_rulers :: Map RulerId Ruler.Ruler
-    , state_config :: Config
+    , state_config :: UiConfig.Config
     } deriving (Eq, Show)
 
 views :: Lens.Lens State (Map ViewId Block.View)
@@ -201,7 +191,7 @@ rulers :: Lens.Lens State (Map RulerId Ruler.Ruler)
 rulers = Lens.lens state_rulers
     (\f r -> r { state_rulers = f (state_rulers r) })
 
-config :: Lens.Lens State Config
+config :: Lens.Lens State UiConfig.Config
 config = Lens.lens state_config
     (\f r -> r { state_config = f (state_config r) })
 
@@ -211,14 +201,14 @@ empty = State
     , state_blocks = Map.empty
     , state_tracks = Map.empty
     , state_rulers = Map.empty
-    , state_config = empty_config
+    , state_config = UiConfig.empty_config
     }
 
 -- | Like 'empty', but the state is initialized with the current creation time.
 create :: IO State
 create = do
     now <- Time.getCurrentTime
-    return $ (config#meta#creation #= now) empty
+    return $ (config#UiConfig.meta#UiConfig.creation #= now) empty
 
 -- | Clear out data that shouldn't be saved.
 clear :: State -> State
@@ -455,50 +445,50 @@ require_right fmt_err = either (throw . fmt_err) return
 -- * config
 
 get_namespace :: M m => m Id.Namespace
-get_namespace = get_config config_namespace
+get_namespace = get_config UiConfig.config_namespace
 
 set_namespace :: M m => Id.Namespace -> m ()
-set_namespace ns = modify_config $ \st -> st { config_namespace = ns }
+set_namespace ns = modify_config $ \st -> st { UiConfig.config_namespace = ns }
 
-get_default :: M m => (Default -> a) -> m a
-get_default f = f <$> get_config config_default
+get_default :: M m => (UiConfig.Default -> a) -> m a
+get_default f = f <$> get_config UiConfig.config_default
 
-modify_default :: M m => (Default -> Default) -> m ()
+modify_default :: M m => (UiConfig.Default -> UiConfig.Default) -> m ()
 modify_default f = modify_config $ \st ->
-    st { config_default = f (config_default st) }
+    st { UiConfig.config_default = f (UiConfig.config_default st) }
 
 get_root_id :: M m => m BlockId
 get_root_id = require "no root root_id" =<< lookup_root_id
 
 lookup_root_id :: M m => m (Maybe BlockId)
-lookup_root_id = get_config config_root
+lookup_root_id = get_config UiConfig.config_root
 
 set_root_id :: M m => BlockId -> m ()
 set_root_id block_id =
-    modify_config $ \st -> st { config_root = Just block_id }
+    modify_config $ \st -> st { UiConfig.config_root = Just block_id }
 
 -- | Unlike other State fields, you can modify Config freely without worrying
 -- about breaking invariants.  TODO except allocations have invariants.
-modify_config :: M m => (Config -> Config) -> m ()
+modify_config :: M m => (UiConfig.Config -> UiConfig.Config) -> m ()
 modify_config f = unsafe_modify $ \st ->
     st { state_config = f (state_config st) }
 
 modify_meta :: M m => (UiConfig.Meta -> UiConfig.Meta) -> m ()
 modify_meta f = modify_config $ UiConfig.meta %= f
 
-modify_allocation :: M m => ScoreT.Instrument -> (Allocation -> Allocation)
-    -> m ()
+modify_allocation :: M m => ScoreT.Instrument
+    -> (UiConfig.Allocation -> UiConfig.Allocation) -> m ()
 modify_allocation inst modify = do
-    allocs <- config#allocations <#> get
+    allocs <- config#UiConfig.allocations <#> get
     allocs <- require_right (("modify " <> pretty inst <> ": ")<>) $
         UiConfig.modify_allocation inst (Right . modify) allocs
-    modify_config $ allocations #= allocs
+    modify_config $ UiConfig.allocations #= allocs
 
-get_config :: M m => (Config -> a) -> m a
+get_config :: M m => (UiConfig.Config -> a) -> m a
 get_config f = gets (f . state_config)
 
 -- | Run the action with a modified state, and restore it.
-with_config :: M m => (Config -> Config) -> m a -> m a
+with_config :: M m => (UiConfig.Config -> UiConfig.Config) -> m a -> m a
 with_config f action = do
     old <- get_config id
     modify_config f
@@ -510,8 +500,8 @@ with_config f action = do
 
 -- | TODO use this for read only.  If used for write it bypasses
 -- 'UiConfig.allocate'.
-allocation :: ScoreT.Instrument -> Lens State (Maybe Allocation)
-allocation inst = config # allocations_map # Lens.map inst
+allocation :: ScoreT.Instrument -> Lens State (Maybe UiConfig.Allocation)
+allocation inst = config # UiConfig.allocations_map # Lens.map inst
 
 -- * view
 
@@ -645,8 +635,8 @@ create_config_block id block =
     insert (Id.BlockId id) block damage_block state_blocks $ \blocks st -> st
         { state_blocks = blocks
         , state_config = let c = state_config st
-            in c { config_root = if Map.size blocks == 1
-                then Just (Id.BlockId id) else config_root c }
+            in c { UiConfig.config_root = if Map.size blocks == 1
+                then Just (Id.BlockId id) else UiConfig.config_root c }
         }
 
 -- | Make a new block with the default 'Block.Config'.
@@ -664,8 +654,8 @@ destroy_block block_id = do
     unsafe_modify $ \st -> st
         { state_blocks = Map.delete block_id (state_blocks st)
         , state_config = let c = state_config st in c
-            { config_root = if config_root c == Just block_id
-                then Nothing else config_root c
+            { UiConfig.config_root = if UiConfig.config_root c == Just block_id
+                then Nothing else UiConfig.config_root c
             }
         }
     damage_block block_id

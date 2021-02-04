@@ -379,7 +379,7 @@ with_tsig_sources track_ids = with_ui $ Ui.tracks %= Map.mapWithKey enable
 with_midi_config :: ScoreT.Instrument -> Text -> Common.Config -> Patch.Config
     -> Setup
 with_midi_config inst qualified common_config midi_config = with_ui $
-    Ui.config#Ui.allocations_map %= Map.insert inst
+    Ui.config#UiConfig.allocations_map %= Map.insert inst
         (UiConfig.Allocation (InstTypes.parse_qualified qualified)
             common_config (UiConfig.Midi midi_config))
 
@@ -468,7 +468,8 @@ lookup_qualified :: Cmd.InstrumentDb -> InstTypes.Qualified
 lookup_qualified db qual = Inst.lookup qual db
 
 with_allocations :: UiConfig.Allocations -> Setup
-with_allocations allocs = with_ui $ Ui.config#Ui.allocations %= (allocs <>)
+with_allocations allocs =
+    with_ui $ Ui.config#UiConfig.allocations %= (allocs <>)
 
 set_cmd_config :: (Cmd.Config -> Cmd.Config) -> Cmd.State -> Cmd.State
 set_cmd_config f state = state { Cmd.state_config = f (Cmd.state_config state) }

@@ -7,7 +7,36 @@
 -- | State.Config and State.Default, in their own module to avoid circular
 -- imports with "State.Update".  Everyone else should pretend they're defined
 -- in "Ui.State".
-module Ui.UiConfig where
+module Ui.UiConfig (
+    Config(..)
+    , empty_config
+    , namespace_, meta, root, allocations, lilypond, default_, saved_views
+    , ky, tscore
+    , allocations_map
+    , allocate
+    , verify_allocation
+    , Allocations(..)
+    , make_allocations
+    , midi_allocations
+    , modify_allocation
+    , Allocation(..)
+    , allocation
+    , has_im, has_midi
+    , is_im_allocation, is_midi_allocation
+    , play_cache
+
+    , Backend(..)
+    , midi_config
+    , Meta(..)
+    , empty_meta
+    , creation, last_save, notes, midi_performances, lilypond_performances
+    , im_performances
+    , MidiPerformance, LilypondPerformance, ImPerformance
+    , Performance(..)
+    , Default(..)
+    , tempo
+    , SavedViews
+) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -69,6 +98,19 @@ data Config = Config {
     , config_tscore :: !Text
     } deriving (Eq, Show)
 
+empty_config :: Config
+empty_config = Config
+    { config_namespace = Id.namespace "untitled"
+    , config_meta = empty_meta
+    , config_root = Nothing
+    , config_allocations = mempty
+    , config_lilypond = Lilypond.default_config
+    , config_default = empty_default
+    , config_saved_views = mempty
+    , config_ky = ""
+    , config_tscore = ""
+    }
+
 -- Ui.State already has a function called 'namespace'.
 namespace_ = Lens.lens config_namespace
     (\f r -> r { config_namespace = f (config_namespace r) })
@@ -95,19 +137,6 @@ allocations_map = Lens.lens (open . config_allocations)
     (\f r -> r { config_allocations =
         Allocations $ f $ open $ config_allocations r })
     where open (Allocations a) = a
-
-empty_config :: Config
-empty_config = Config
-    { config_namespace = Id.namespace "untitled"
-    , config_meta = empty_meta
-    , config_root = Nothing
-    , config_allocations = mempty
-    , config_lilypond = Lilypond.default_config
-    , config_default = empty_default
-    , config_saved_views = mempty
-    , config_ky = ""
-    , config_tscore = ""
-    }
 
 -- | Insert an allocation into 'config_allocations' while checking it for
 -- validity.
@@ -292,6 +321,16 @@ data Meta = Meta {
     , meta_im_performances :: !(Map BlockId ImPerformance)
     } deriving (Eq, Show, Generics.Generic)
 
+empty_meta :: Meta
+empty_meta = Meta
+    { meta_creation = Time.UTCTime (Time.ModifiedJulianDay 0) 0
+    , meta_last_save = Time.UTCTime (Time.ModifiedJulianDay 0) 0
+    , meta_notes = ""
+    , meta_midi_performances = mempty
+    , meta_lilypond_performances = mempty
+    , meta_im_performances = mempty
+    }
+
 creation = Lens.lens meta_creation
     (\f r -> r { meta_creation = f (meta_creation r) })
 last_save = Lens.lens meta_last_save
@@ -309,16 +348,6 @@ im_performances = Lens.lens meta_im_performances
 type MidiPerformance = Performance (Vector.Vector Midi.WriteMessage)
 type LilypondPerformance = Performance Text
 type ImPerformance = Performance (Vector.Vector Shared.Note.Note)
-
-empty_meta :: Meta
-empty_meta = Meta
-    { meta_creation = Time.UTCTime (Time.ModifiedJulianDay 0) 0
-    , meta_last_save = Time.UTCTime (Time.ModifiedJulianDay 0) 0
-    , meta_notes = ""
-    , meta_midi_performances = mempty
-    , meta_lilypond_performances = mempty
-    , meta_im_performances = mempty
-    }
 
 -- | A record of the last successful performance that sounded as expected.  You
 -- can compare this with the current performance to see if code changes have
@@ -349,11 +378,11 @@ data Default = Default {
     default_tempo :: !Signal.Y
     } deriving (Eq, Read, Show)
 
-tempo = Lens.lens default_tempo
-    (\f r -> r { default_tempo = f (default_tempo r) })
-
 empty_default :: Default
 empty_default = Default { default_tempo = 1 }
+
+tempo = Lens.lens default_tempo
+    (\f r -> r { default_tempo = f (default_tempo r) })
 
 instance Pretty Config where
     format (Config namespace meta root allocations lily dflt saved_views ky

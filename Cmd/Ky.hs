@@ -35,6 +35,7 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 
 import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
 
 import           Global
 
@@ -61,7 +62,7 @@ check_cache :: Ui.State -> Cmd.State -> IO (Maybe Cmd.KyCache)
 check_cache ui_state cmd_state = run $ do
     when is_permanent abort
     (defs, imported) <- try $ Parse.load_ky (state_ky_paths cmd_state)
-        (Ui.config#Ui.ky #$ ui_state)
+        (Ui.config#UiConfig.ky #$ ui_state)
     -- This uses the contents of all the files for the fingerprint, which
     -- means it has to read and parse them on each respond cycle.  If this
     -- turns out to be too expensive, I can go back to the modification time
@@ -95,7 +96,8 @@ check_cache ui_state cmd_state = run $ do
 
 load :: [FilePath] -> Ui.State
     -> IO (Either Text (Derive.Builtins, Derive.InstrumentAliases))
-load paths = traverse compile <=< Parse.load_ky paths . (Ui.config#Ui.ky #$)
+load paths =
+    traverse compile <=< Parse.load_ky paths . (Ui.config#UiConfig.ky #$)
     where
     compile (defs, imported) = do
         builtins <- compile_library (map fst imported) $

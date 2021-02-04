@@ -144,7 +144,7 @@ initial_dynamic aliases = (Derive.initial_dynamic initial_environ)
 
 perform_from :: Cmd.M m => RealTime -> Cmd.Performance -> m Perform.MidiEvents
 perform_from start perf = do
-    insts <- Map.keys <$> (Ui.config#Ui.allocations_map <#> Ui.get)
+    insts <- Map.keys <$> (Ui.config#UiConfig.allocations_map <#> Ui.get)
     resume_insts <- Set.fromList <$> filterM (has_flag Patch.ResumePlay) insts
     let (extra, events) = events_from resume_insts start $ Cmd.perf_events perf
     perform_events_list (extra ++ Vector.toList events)
@@ -234,7 +234,7 @@ perform_events = perform_events_list . Vector.toList
 
 perform_events_list :: Cmd.M m => [Score.Event] -> m Perform.MidiEvents
 perform_events_list events = do
-    allocs <- Ui.gets $ Ui.config_allocations . Ui.state_config
+    allocs <- Ui.gets $ UiConfig.config_allocations . Ui.state_config
     lookup_inst <- Cmd.get_lookup_instrument
     let midi_lookup = make_midi_lookup lookup_inst
     muted <- get_muted_tracks

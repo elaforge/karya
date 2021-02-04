@@ -34,6 +34,7 @@ import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Id as Id
 import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
 
 import           Global
 import           Types
@@ -176,7 +177,7 @@ call_from_block_id block_id =
 call_to_block_id :: Expr.Symbol -> Derive.Deriver (Maybe BlockId)
 call_to_block_id sym = do
     caller <- Internal.lookup_current_block_id
-    ns <- Derive.get_ui_state $ Ui.config_namespace . Ui.state_config
+    ns <- Derive.get_ui_state $ UiConfig.config_namespace . Ui.state_config
     case Eval.call_to_block_id ns caller sym of
         Nothing -> return Nothing
         Just block_id -> do

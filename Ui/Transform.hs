@@ -20,6 +20,7 @@ import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Track as Track
 import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
 
 import           Global
 import           Types
@@ -79,7 +80,7 @@ map_block_ids f = do
         { Ui.state_blocks = map_block <$> new_blocks
         , Ui.state_views = new_views
         }
-    Ui.modify_config $ \config -> config { Ui.config_root = new_root }
+    Ui.modify_config $ \config -> config { UiConfig.config_root = new_root }
     where
     map_block b = b
         { Block.block_integrated =

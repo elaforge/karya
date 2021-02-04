@@ -22,6 +22,7 @@ import qualified Ui.Events as Events
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
 import qualified Ui.UiTest as UiTest
 
 import           Global
@@ -257,7 +258,8 @@ test_stash_signal_default_tempo = do
     let r = e_tsigs $ DeriveTest.derive_tracks_setup
             (DeriveTest.with_tsig_tracknums [1] <> set_tempo) ""
             [("*", [(0, 0, "4c"), (10, 0, "4d"), (20, 0, "4c")])]
-        set_tempo = DeriveTest.with_ui $ Ui.config#Ui.default_#Ui.tempo #= 2
+        set_tempo = DeriveTest.with_ui $
+            Ui.config#UiConfig.default_#UiConfig.tempo #= 2
     equal r [([(0, 60), (5, 60), (5, 62), (10, 62), (10, 60)], 0, 0.5)]
 
 e_tsig_sigs :: Derive.Result -> [[(RealTime, Signal.Y)]]

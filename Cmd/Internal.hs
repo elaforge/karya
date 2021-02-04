@@ -57,6 +57,7 @@ import qualified Ui.Sel as Sel
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Update as Update
 import qualified Ui.Zoom as Zoom
@@ -299,7 +300,7 @@ sync_status ui_from cmd_from damage = do
         sync_edit_state (get_save_status cmd_to) edit_state
     sync_play_state $ Cmd.state_play cmd_to
     sync_save_file (Cmd.score_path cmd_to) (fst <$> Cmd.state_save_file cmd_to)
-    sync_defaults $ Ui.config#Ui.default_ #$ ui_to
+    sync_defaults $ Ui.config#UiConfig.default_ #$ ui_to
     run_selection_hooks (mapMaybe selection_update updates)
     -- forM_ (new_views ++ mapMaybe zoom_update updates) sync_zoom_status
     return Cmd.Continue
@@ -465,8 +466,8 @@ sync_save_file score_path writable =
         Just Cmd.ReadWrite -> txt score_path
         Just Cmd.ReadOnly -> txt score_path <> " (ro)"
 
-sync_defaults :: Cmd.M m => Ui.Default -> m ()
-sync_defaults (Ui.Default tempo) =
+sync_defaults :: Cmd.M m => UiConfig.Default -> m ()
+sync_defaults (UiConfig.Default tempo) =
     Cmd.set_global_status "tempo" (if tempo == 1 then "" else pretty tempo)
 
 -- Zoom is actually not very useful, so this is disabled for now.  I'll leave

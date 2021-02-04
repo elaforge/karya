@@ -26,6 +26,7 @@ import qualified Ui.Block as Block
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Track as Track
 import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
 
 import           Derive.Deriver.Monad
 import           Global
@@ -171,7 +172,7 @@ add_block_dep block_id = merge_collect $ mempty
 get_ui_state :: (Ui.State -> a) -> Deriver a
 get_ui_state f = gets (f . state_ui . state_constant)
 
-get_ui_config :: (Ui.Config -> a) -> Deriver a
+get_ui_config :: (UiConfig.Config -> a) -> Deriver a
 get_ui_config f = get_ui_state (f . Ui.state_config)
 
 -- | Because Deriver is not a UiStateMonad.

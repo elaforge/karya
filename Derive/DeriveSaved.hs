@@ -43,6 +43,7 @@ import qualified Midi.Midi as Midi
 import qualified Midi.StubMidi as StubMidi
 import qualified Synth.Shared.Config as Shared.Config
 import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
 
 import           Global
 import           Types
@@ -52,7 +53,7 @@ perform_file :: Cmd.Config -> FilePath -> IO [Midi.WriteMessage]
 perform_file cmd_config fname = do
     (ui_state, cmd_state) <- load_score_states cmd_config fname
     root_id <- maybe (errorIO $ txt fname <> ": no root block") return $
-        Ui.config#Ui.root #$ ui_state
+        Ui.config#UiConfig.root #$ ui_state
     ((events, logs), _cpu) <- timed_derive fname ui_state cmd_state root_id
     mapM_ Log.write logs
     ((msgs, logs), _cpu) <- timed_perform cmd_state ("perform " ++ fname)
@@ -118,7 +119,7 @@ timed_lilypond fname ui_state cmd_state block_id = case result of
     where
     result = run_cmd ui_state cmd_state $
         Derive.r_events <$> Cmd.Lilypond.derive_block block_id
-    config = Ui.config#Ui.lilypond #$ ui_state
+    config = Ui.config#UiConfig.lilypond #$ ui_state
     boring = Cache.is_cache_log
 
 timer_msg :: (a -> Int) -> Thread.Metric Thread.Seconds -> a -> String

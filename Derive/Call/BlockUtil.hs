@@ -55,6 +55,7 @@ import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
 
 import           Global
 import           Types
@@ -158,7 +159,8 @@ derive_tree block_range tree
             (derive_tracks tree)
     where
     get_tempo = Derive.lookup_val EnvKey.tempo >>= \case
-        Nothing -> Derive.get_ui_config (Ui.default_tempo . Ui.config_default)
+        Nothing -> Derive.get_ui_config $
+            UiConfig.default_tempo . UiConfig.config_default
         Just tempo -> return tempo
 
 -- | Derive an EventsTree.

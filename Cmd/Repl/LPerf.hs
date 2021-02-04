@@ -55,6 +55,7 @@ import qualified Synth.Shared.Note as Note
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
 
 import           Global
 import           Types
@@ -467,7 +468,7 @@ perform_events = PlayUtil.perform_events . Vector.fromList . LEvent.events_of
 perform_midi_events :: Ui.M m => [LEvent.LEvent Types.Event]
     -> m Perform.MidiEvents
 perform_midi_events events = do
-    allocs <- Ui.gets $ Ui.config_allocations . Ui.state_config
+    allocs <- Ui.gets $ UiConfig.config_allocations . Ui.state_config
     let midi_allocs = Perform.config <$> PlayUtil.midi_configs allocs
     return $ fst $ Perform.perform Perform.initial_state midi_allocs events
 

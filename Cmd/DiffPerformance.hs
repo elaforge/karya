@@ -35,7 +35,6 @@ import qualified Midi.Midi as Midi
 
 import qualified Perform.RealTime as RealTime
 import qualified Synth.Shared.Note as Shared.Note
-import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
 
 import           Global
@@ -62,7 +61,7 @@ midi_magic = Serialize.Magic 'm' 'i' 'd' 'i'
 
 -- * diff
 
-diff_lilypond :: String -> FilePath -> Ui.LilypondPerformance -> Text
+diff_lilypond :: String -> FilePath -> UiConfig.LilypondPerformance -> Text
     -> IO (Maybe Text, [FilePath])
 diff_lilypond = diff_performance Text.lines
 
@@ -72,8 +71,8 @@ diff_im name dir performance =
     diff_performance show_im name dir (Vector.toList <$> performance)
     where show_im = map pretty
 
-diff_midi :: String -> FilePath
-    -> Ui.MidiPerformance -> [Midi.WriteMessage] -> IO (Maybe Text, [FilePath])
+diff_midi :: String -> FilePath -> UiConfig.MidiPerformance
+    -> [Midi.WriteMessage] -> IO (Maybe Text, [FilePath])
 diff_midi name dir performance =
     diff_performance show_midi name dir (Vector.toList <$> performance)
 
@@ -81,12 +80,12 @@ diff_performance :: (events -> [Text]) -> String -> FilePath
     -> UiConfig.Performance events -> events -> IO (Maybe Text, [FilePath])
 diff_performance show_events name dir performance events =
     first (fmap (info<>)) <$> diff_lines name dir
-        (show_events (Ui.perf_events performance))
+        (show_events (UiConfig.perf_events performance))
         (show_events events)
     where
     info = Text.unlines
-        [ "Diffs from " <> pretty (Ui.perf_creation performance)
-        , "Commit: " <> Ui.perf_commit performance
+        [ "Diffs from " <> pretty (UiConfig.perf_creation performance)
+        , "Commit: " <> UiConfig.perf_commit performance
         ]
 
 -- | Write files in the given directory and run the @diff@ command on them.

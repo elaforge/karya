@@ -3,14 +3,16 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.Info_test where
-import Util.Test
-import qualified Ui.Ui as Ui
-import qualified Ui.UiTest as UiTest
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Info as Info
 import qualified Cmd.Simple as Simple
 
-import Global
+import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
+import qualified Ui.UiTest as UiTest
+
+import           Global
+import           Util.Test
 
 
 test_block_tracks = do
@@ -33,7 +35,7 @@ test_track_status = do
     let f tracks num = CmdTest.eval ustate CmdTest.default_cmd_state
             (Info.get_track_status UiTest.default_block_id num)
             where
-            ustate = (Ui.config#Ui.allocations #= allocs) $
+            ustate = (Ui.config#UiConfig.allocations #= allocs) $
                 snd $ UiTest.run_mkview [(t, []) | t <- tracks]
             allocs = Simple.allocations
                 [("i", ("s/1", Simple.Midi $ map ("wdev",) [0..3]))]
