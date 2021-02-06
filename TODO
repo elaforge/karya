@@ -2077,11 +2077,15 @@ instruments:
     . http://www.musicdevelopments.com/syne.html
 
 synth: im:
+  performance:
+    - event loop hiccups when editing IM
+      . use events to find who is causing it
+    - Make some profiles for memory use and time.
   * It seems like ImGc is too eager
     . If I disable an old track, it deletes it right away.
     . Shouldn't it have touched all the timestamps when it hit that track?
     . Make sure Lib.Checkpoint does that.
-  - write to logs instead of stdout, it's getting verbose
+  * write to logs instead of stdout, it's getting verbose
   * port im-gc.py to haskell so I can call directly from Cmd.Performance?
     . It should be faster, though performance hasn't been a problem... but it
       is in the derive loop.
@@ -2108,7 +2112,6 @@ synth: im:
         to undefined behaviour, so don't do it unless I have profiling.
       . I might be using type punning for libsamplerate and faust state
         restore.  Not sure if that violates strict aliasing.
-  - Make some profiles for memory use and time.
   fix ugly and unsafe non-copying state:
     . NOTE [audio-state]
     . The problem is that state can be large.  For sampler and

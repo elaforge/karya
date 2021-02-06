@@ -66,9 +66,11 @@ main = do
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
         (flags, args, []) -> return (flags, args)
         (_, _, errs) -> usage $ "flag errors:\n" ++ Seq.join ", " errs
-    Log.configure $ \st -> st
-        { Log.state_priority =
-            if Debug `elem` flags then Log.Debug else Log.Notice
+    logFname <- Config.getLogFilename "sampler.log"
+    logHdl <- Log.rotate logFname
+    Log.configure $ const $ Log.State
+        { state_write_msg = Log.write_formatted logHdl
+        , state_priority = if Debug `elem` flags then Log.Debug else Log.Notice
         }
     let quality = fromMaybe defaultQuality $
             Seq.last [quality | Quality quality <- flags]

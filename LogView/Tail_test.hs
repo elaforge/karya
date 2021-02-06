@@ -32,7 +32,7 @@ reader = do
 
 writer :: IO ()
 writer = forM_ (map showt [0..]) $ \n -> do
-    hdl <- Tail.rotate_logs 2 400 log_fn
+    hdl <- Log.rotate_config 2 400 log_fn
     write hdl n
     Thread.delay 2
     IO.hClose hdl

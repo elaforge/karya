@@ -11,7 +11,9 @@
     in a machine-readable serialized format.
 -}
 module Util.Log (
+    -- * setup
     configure
+    , rotate, rotate_config
     , with_stdio_lock
     -- * msgs
     , Msg(..), msg_string
@@ -62,15 +64,20 @@ import qualified Data.Vector as Vector
 import qualified GHC.Generics as Generics
 import qualified GHC.Stack
 import qualified Numeric
+import qualified System.Directory as Directory
 import qualified System.Environment as Environment
+import qualified System.FilePath as FilePath
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
+import qualified System.Posix as Posix
+import qualified System.Process as Process
 
 import qualified Text.ParserCombinators.ReadP as ReadP
 import qualified Text.Read as Read
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Debug as Debug
+import qualified Util.File as File
 import qualified Util.Logger as Logger
 import qualified Util.Serialize as Serialize
 import           Util.Serialize (get, get_tag, put, put_tag)
@@ -203,6 +210,32 @@ initial_state = State
 {-# NOINLINE global_state #-}
 global_state :: MVar.MVar State
 global_state = Unsafe.unsafePerformIO (MVar.newMVar initial_state)
+
+-- * setup
+
+rotate :: FilePath -> IO IO.Handle
+rotate = rotate_config 4 (4 * mb)
+    where mb = 1024^2
+
+-- | Get a file handle for writing log msgs, first rotating logs if necessary.
+rotate_config :: Int -> Int -> FilePath -> IO IO.Handle
+rotate_config keep max_size log_fn = do
+    let rotated_fn n = log_fn ++ "." ++ show n ++ ".gz"
+    size <- maybe 0 Posix.fileSize <$> ignore (Posix.getFileStatus log_fn)
+    when (size >= fromIntegral max_size) $ do
+        forM_ (reverse (zip [1..keep] (drop 1 [1..keep]))) $ \(from, to) ->
+            ignore $ Directory.renameFile (rotated_fn from) (rotated_fn to)
+        let fn = FilePath.dropExtension (rotated_fn 1)
+        putStrLn $ "rotate logs " ++ log_fn ++ " -> " ++ fn
+        ignore $ Directory.renameFile log_fn fn
+        Process.waitForProcess =<< Process.runProcess "gzip" [fn]
+            Nothing Nothing Nothing Nothing Nothing
+        return ()
+    hdl <- IO.openFile log_fn IO.AppendMode
+    -- Logs are per-line, so ensure they go out promptly.
+    IO.hSetBuffering hdl IO.LineBuffering
+    return hdl
+    where ignore = File.ignoreEnoent
 
 -- | Configure the logging system by modifying its internal state.
 configure :: (State -> State) -> IO ()

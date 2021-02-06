@@ -5,8 +5,6 @@
 -- | Functions to tail a log file, even if it gets rotated.
 module LogView.Tail (
     log_filename
-    -- * rotate
-    , rotate_logs
     -- * tail
     , Handle, open, tail
     , deserialize_line
@@ -17,17 +15,12 @@ import           Prelude hiding (read, tail)
 import qualified Control.Exception as Exception
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Lazy as Lazy
-import qualified System.Directory as Directory
-import qualified System.FilePath as FilePath
 import qualified System.IO as IO
 import qualified System.IO.Error as Error
 import qualified System.Posix as Posix
-import qualified System.Process as Process
 
-import qualified Util.File as File
 import qualified Util.Log as Log
 import qualified Util.Thread as Thread
-
 import qualified App.Config as Config
 import qualified App.Path as Path
 
@@ -38,29 +31,6 @@ log_filename :: IO FilePath
 log_filename = do
     app_dir <- Path.get_app_dir
     return $ Path.to_absolute app_dir (Config.log_dir Path.</> "seq.log")
-
--- * rotate
-
--- | Get a file handle for writing log msgs, first rotating logs if necessary.
-rotate_logs :: Int -> Int -> FilePath -> IO IO.Handle
-rotate_logs keep max_size log_fn = do
-    let rotated_fn n = log_fn ++ "." ++ show n ++ ".gz"
-    size <- maybe 0 Posix.fileSize <$> ignore (Posix.getFileStatus log_fn)
-    when (size >= fromIntegral max_size) $ do
-        forM_ (reverse (zip [1..keep] (drop 1 [1..keep]))) $ \(from, to) ->
-            ignore $ Directory.renameFile (rotated_fn from) (rotated_fn to)
-        let fn = FilePath.dropExtension (rotated_fn 1)
-        putStrLn $ "rotate logs " ++ log_fn ++ " -> " ++ fn
-        ignore $ Directory.renameFile log_fn fn
-        Process.waitForProcess =<< Process.runProcess "gzip" [fn]
-            Nothing Nothing Nothing Nothing Nothing
-        return ()
-    hdl <- IO.openFile log_fn IO.AppendMode
-    -- Logs are per-line, so ensure they go out promptly.
-    IO.hSetBuffering hdl IO.LineBuffering
-    return hdl
-    where ignore = File.ignoreEnoent
-
 
 -- * tail
 

@@ -32,8 +32,10 @@ import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
 
+import qualified App.Config
 import qualified App.Config as Config
 import qualified App.Path as Path
+
 import qualified Derive.Stack as Stack
 import qualified Synth.Shared.Note as Note
 import qualified Ui.Id as Id
@@ -62,6 +64,11 @@ data Config = Config {
 
 getConfig :: IO Config
 getConfig = config <$> Path.get_app_dir
+
+getLogFilename :: String -> IO FilePath
+getLogFilename name = do
+    dir <- Path.to_absolute <$> Path.get_app_dir <*> pure App.Config.log_dir
+    return $ dir </> name
 
 config :: Path.AppDir -> Config
 config appDir = Config

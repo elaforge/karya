@@ -30,6 +30,7 @@ import qualified Synth.Faust.EffectC as EffectC
 import qualified Synth.Faust.InstrumentC as InstrumentC
 import qualified Synth.Faust.Preview as Preview
 import qualified Synth.Faust.Render as Render
+import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Note as Note
 
 import           Global
@@ -37,11 +38,16 @@ import           Global
 
 main :: IO ()
 main = do
-    Log.configure $ \st -> st { Log.state_priority = Log.Notice }
     args <- Environment.getArgs
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
         (flags, args, []) -> return (flags, args)
         (_, _, errs) -> usage $ "flag errors:\n" ++ Seq.join ", " errs
+    logFname <- Config.getLogFilename "faust.log"
+    logHdl <- Log.rotate logFname
+    Log.configure $ const $ Log.State
+        { state_write_msg = Log.write_formatted logHdl
+        , state_priority = Log.Notice
+        }
     patches <- InstrumentC.getPatches
     thread <- Concurrent.myThreadId
     -- Make sure I get some output if the process is killed.
