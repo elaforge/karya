@@ -89,7 +89,8 @@ RulerTrack::draw()
         body_scroll.damage(FL_DAMAGE_SCROLL);
     }
     Track::draw();
-    selection_overlay.draw(x(), track_start(body), w(), body.zoom);
+    selection_overlay.draw(
+        x(), track_start(body), w(), track_end(body), body.zoom);
 }
 
 

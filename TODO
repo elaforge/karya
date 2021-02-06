@@ -5022,8 +5022,12 @@ rust-gui: gui: ui:
     . Dependency on rust.
 
 fltk:
-  - bug: ever since the slow scrolling: change, I sometimes get a light gray
+  * bug: ever since the slow scrolling: change, I sometimes get a light gray
     background on track titles.
+    . This is the selections getting in, if I use a blue selection then it's
+      blue.
+    . Am I missing a clip when drawing the selection?
+    . Added a clip, hopefully fixed.
   keycaps:
     notes:
       . It could be useful to display a keyboard along with cmd for each key.

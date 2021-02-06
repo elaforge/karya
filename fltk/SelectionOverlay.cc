@@ -52,28 +52,40 @@ draw_arrow(int x, int y, const Selection &sel)
 
 
 void
-SelectionOverlay::draw(int x, int y, int w, const Zoom &zoom)
+SelectionOverlay::draw(
+    const int x, const int track_start, const int w, const int track_end,
+    const Zoom &zoom)
 {
-    IRect sel_rect;
     for (const std::vector<Selection> &sels : this->selections) {
         for (const Selection &sel : sels) {
             if (sel.empty())
                 continue;
-            int start = y + zoom.to_pixels(sel.low() - zoom.offset);
-            int height = std::max(
-                selection_min_size, zoom.to_pixels(sel.high() - sel.low()));
-            // IRect intersection is half-open ranges, but rect drawing is
-            // inclusive pixel ranges.  So add one to ensure that if I share a
-            // pixel border with the clip rect, I'll still draw that pixel
-            // line.
-            sel_rect = f_util::clip_rect(IRect(x, start, w, height + 1));
+            // Due to what I assume is rounding, the selection sometimes winds
+            // up one pixel short on either the top or bottom.  A conservative
+            // floor() / ceil() instead of round() makes it more consistent,
+            // but now it sometimes winds up a pixel above the arrow.  I can't
+            // be bothered to figure it out right now. TODO
+            int start = track_start
+                + floor(zoom.to_pixels_d(sel.low() - zoom.offset));
+            int height = ceil(zoom.to_pixels_d(sel.high() - sel.low()));
+            height = std::max(height, selection_min_size);
+
+            IRect sel_rect = IRect(x, start, w, height).intersect(
+                IRect(x, track_start, w, track_end - track_start));
+            // DEBUG("SEL: " << track_start
+            //     << " + (" << sel.low() << " - " << zoom.offset
+            //     << ") " << zoom.to_pixels(sel.low() - zoom.offset)
+            //     << ": " << sel_rect);
+            if (sel_rect.h + selection_point_size <= 0)
+                continue;
+
             fl_line_style(FL_SOLID, 0);
             // TODO darken for orientation == Negative?
             alpha_rectf(sel_rect, sel.color);
 
             // Darken the the cur pos a bit, and make it non-transparent.
             fl_color(sel.color.brightness(0.5).fl());
-            int cur = y + zoom.to_pixels(sel.cur - zoom.offset);
+            int cur = track_start + zoom.to_pixels(sel.cur - zoom.offset);
             fl_line(x + 2, cur, x + w - 2, cur);
             draw_arrow(x, cur, sel);
         }

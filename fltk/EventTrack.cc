@@ -367,7 +367,8 @@ EventTrack::draw()
         body_scroll.damage(FL_DAMAGE_SCROLL);
     }
     Track::draw();
-    selection_overlay.draw(x(), track_start(*this), w(), body.zoom);
+    selection_overlay.draw(
+        x(), track_start(*this), w(), track_end(*this), body.zoom);
     util::timing(2, "EventTrack::selection_overlay");
 }
 

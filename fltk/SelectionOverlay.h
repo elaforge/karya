@@ -13,7 +13,7 @@
 // This holds the set of selections for a single track, and can draw them.
 class SelectionOverlay {
 public:
-    void draw(int x, int y, int w, const Zoom &zoom);
+    void draw(int x, int track_start, int w, int track_end, const Zoom &zoom);
     const std::vector<Selection> &get(int selnum);
     void set(int selnum, const std::vector<Selection> &news);
 

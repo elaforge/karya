@@ -224,7 +224,6 @@ private:
 
     CachedScroll body_scroll;
     Body body;
-
 };
 
 std::ostream &operator<<(std::ostream &os, const EventTrack::TextBox &box);
