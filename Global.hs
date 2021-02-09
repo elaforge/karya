@@ -13,8 +13,9 @@ module Global (
     , first, second, bimap
     , Monoid(..), Semigroup(..)
     , while, while_
-    , whenM, unlessM, whenJust, whenJustM, ifM, andM, orM, findM
-    , allM, anyM
+    , allM, anyM, ifM, andM, orM
+    , findM, partitionM
+    , unlessM, whenM, whenJust, whenJustM
     -- * list
     , foldl'
     , mconcatMap, concatMapM, mapMaybeM
@@ -46,12 +47,12 @@ module Global (
 ) where
 import           Control.Applicative ((<|>))
 import           Control.Monad
-       (ap, filterM, foldM, forM, forM_, forever, guard, liftM, mplus, msum,
-        mzero, replicateM, replicateM_, unless, void, when, zipWithM, zipWithM_,
-        (<=<), (>=>))
-import           Control.Monad.Trans (lift, liftIO, MonadIO)
+    (ap, filterM, foldM, forM, forM_, forever, guard, liftM, mplus, msum, mzero,
+     replicateM, replicateM_, unless, void, when, zipWithM, zipWithM_, (<=<),
+     (>=>))
+import           Control.Monad.Trans (MonadIO, lift, liftIO)
 
-import           Data.Foldable (foldMap, Foldable)
+import           Data.Foldable (Foldable, foldMap)
 import           Data.HashMap.Strict (HashMap)
 import           Data.HashSet (HashSet)
 import           Data.IntMap (IntMap)
@@ -64,9 +65,9 @@ import           Data.Proxy (Proxy(..))
 import           Data.Semigroup (Semigroup(..))
 import           Data.Set (Set)
 import qualified Data.Text as Text
-import           Data.Traversable (traverse, Traversable)
+import           Data.Traversable (Traversable, traverse)
 
-import           Util.Pretty (pretty, prettys, Pretty)
+import           Util.Pretty (Pretty, pretty, prettys)
 
 import           Util.Control
 import           Util.Lens

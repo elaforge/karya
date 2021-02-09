@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Synth.ImGcMain where
-import qualified Data.Text.IO as Text.IO
+import qualified Streaming.Prelude as S
 import qualified System.Environment as Environment
 
 import qualified Synth.ImGc as ImGc
@@ -17,6 +17,4 @@ import           Global
 main :: IO ()
 main = do
     dirs <- Environment.getArgs
-    stats <- mapM (ImGc.gc False) dirs
-    forM_ (zip dirs stats) $ \(dir, stat) ->
-        Text.IO.putStrLn $ txt dir <> ": " <> ImGc.showStats stat
+    S.mapM_ (mapM_ putStrLn) $ mconcatMap ImGc.find dirs

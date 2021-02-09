@@ -298,7 +298,7 @@ evaluate_performance im_config lookup_inst wait send_status score_path
 
 im_gc :: FilePath -> IO ImGc.Stats
 im_gc output_dir = do
-    stats <- ImGc.gc False output_dir
+    stats <- ImGc.gc output_dir
     when (ImGc._deletedFiles stats > 0) $
         Log.notice $ ImGc.showStats stats
     return stats

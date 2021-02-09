@@ -12,7 +12,7 @@ module Util.Control (
 import qualified Control.Monad as Monad
 import qualified Control.Monad.Except as Except
 import           Control.Monad.Extra
-       (allM, andM, anyM, findM, mapMaybeM, notM, orM)
+    (allM, andM, anyM, findM, mapMaybeM, notM, orM, partitionM)
 import qualified Control.Monad.Fix as Fix
 
 import           Data.Bifunctor (Bifunctor(bimap, first, second))

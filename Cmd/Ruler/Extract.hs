@@ -112,9 +112,3 @@ get_meter = fmap Ruler.get_meter . Ui.get_ruler <=< Ui.ruler_of
 
 is_1to1 :: Ui.M m => TrackTime -> BlockId -> m Bool
 is_1to1 dur block_id = (==dur) <$> Ui.block_end block_id
-
-partitionM :: Monad m => (a -> m Bool) -> [a] -> m ([a], [a])
-partitionM f = go
-    where
-    go (x:xs) = ifM (f x) (first (x:) <$> go xs) (return ([], x:xs))
-    go [] = return ([], [])

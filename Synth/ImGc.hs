@@ -17,6 +17,7 @@ module Synth.ImGc (
     Stats(..)
     , showStats
     , gc
+    , find
 ) where
 import qualified Data.List as List
 import qualified Data.Set as Set
@@ -65,8 +66,8 @@ minimumAge :: Time.NominalDiffTime
 minimumAge = 10 * min
     where min = 60
 
-gc :: Bool -> FilePath -> IO Stats
-gc dryRun root = do
+gc :: FilePath -> IO Stats
+gc root = do
     now <- Time.getCurrentTime
     foldMapM (check now) $ File.walk (const True) root
     where
@@ -78,7 +79,7 @@ gc dryRun root = do
                 mapM Directory.getFileSize (Set.toList garbage)
             remaining <- fmap Num.sum $ mapM Directory.getFileSize $
                 filter (`Set.notMember` garbage) $ map (dir</>) fnames
-            unless dryRun $ mapM_ Directory.removeFile garbage
+            mapM_ Directory.removeFile garbage
             return $ Stats
                 { _instruments = Set.singleton $ txt $
                     FilePath.takeFileName $ FilePath.takeDirectory dir
@@ -87,6 +88,15 @@ gc dryRun root = do
                 , _remaining = fromIntegral remaining
                 }
 
+find :: FilePath -> S.Stream (S.Of (Set FilePath)) IO ()
+find root = do
+    now <- liftIO Time.getCurrentTime
+    S.filter (/=mempty) $ S.mapM (check now) $ File.walk (const True) root
+    where
+    check now (dir, fnames)
+        | FilePath.takeFileName dir /= "checkpoint" = return mempty
+        | otherwise = Set.fromList <$> liftIO (findGarbage now dir fnames)
+
 -- | Any file with a ###.wav symlink is alive, or with the same prefix.
 -- So 000.wav -> checkpoint/000.hash.hash.wav, and also
 -- 000.hash.hash.state.hash and 000.hash.hash.wav.peaks.
@@ -94,14 +104,13 @@ findGarbage :: Time.UTCTime -> FilePath -> [FilePath] -> IO [FilePath]
 findGarbage now checkpoint fnames = do
     chunks <- filterM Directory.pathIsSymbolicLink
         =<< File.list (FilePath.takeDirectory checkpoint)
+    alive <- mapM Directory.getSymbolicLinkTarget chunks
+    (young, fnames) <- partitionM (isYoung now . (checkpoint</>)) fnames
     -- ["000.FOBBmx5XVFmFDBvy6FaGtw.Pygpsv_oQ01n-YoqmJaGUg", ...]
-    alive <- map (FilePath.dropExtension . FilePath.takeFileName) <$>
-        mapM Directory.getSymbolicLinkTarget chunks
-    let isAlive fn = any (`List.isPrefixOf` fn) alive
-    -- forM_ (List.sort fnames) $ \fn ->
-    --     print (fn, not (isAlive fn))
-    let wanted fn = orM [return (isAlive fn), isYoung now (checkpoint </> fn)]
-    map (checkpoint</>) <$> filterM (fmap not . wanted) fnames
+    let prefixes = map (FilePath.dropExtension . FilePath.takeFileName)
+            (alive ++ young)
+    let isAlive fn = any (`List.isPrefixOf` fn) prefixes
+    return $ map (checkpoint</>) $ filter (not . isAlive) fnames
 
 isYoung :: Time.UTCTime -> FilePath -> IO Bool
 isYoung now fname = (<= minimumAge) . (now `Time.diffUTCTime`) <$>
