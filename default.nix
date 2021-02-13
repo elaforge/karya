@@ -1,4 +1,5 @@
 # See TODO nix: for current status.
+# Run tools/cachix-push to update the cache.
 
 # Examples:
 # nix-shell --attr buildEnv --run '$setup'

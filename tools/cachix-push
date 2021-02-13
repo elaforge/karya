@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+#
+# Upload build deps to cachix.
+
+set -eux
+
+nix-build -A buildEnv | cachix push elaforge
+
+# nix build -L -f default.nix buildEnv
+# cachix push elaforge $(readlink result)
+# rm result
