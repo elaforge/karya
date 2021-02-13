@@ -18,6 +18,7 @@ import qualified Solkattu.Score.Mridangam2017
 import qualified Solkattu.Score.Mridangam2018
 import qualified Solkattu.Score.Mridangam2019
 import qualified Solkattu.Score.Mridangam2020
+import qualified Solkattu.Score.Mridangam2021
 import qualified Solkattu.Score.MridangamSarva
 import qualified Solkattu.Score.MridangamTirmanam
 import qualified Solkattu.Score.Solkattu2013
@@ -27,6 +28,7 @@ import qualified Solkattu.Score.Solkattu2017
 import qualified Solkattu.Score.Solkattu2018
 import qualified Solkattu.Score.Solkattu2019
 import qualified Solkattu.Score.Solkattu2020
+import qualified Solkattu.Score.Solkattu2021
 import qualified Solkattu.Score.SolkattuMohra
 
 
@@ -116,6 +118,9 @@ korvais = map Korvai.inferMetadata
     , setLocation ("Solkattu.Score.Mridangam2020",362,"e_20_11_01_npk") Solkattu.Score.Mridangam2020.e_20_11_01_npk
     , setLocation ("Solkattu.Score.Mridangam2020",378,"sketch_20_11_08") Solkattu.Score.Mridangam2020.sketch_20_11_08
     , setLocation ("Solkattu.Score.Mridangam2020",387,"e_20_12_06") Solkattu.Score.Mridangam2020.e_20_12_06
+    , setLocation ("Solkattu.Score.Mridangam2021",13,"e_kanda") Solkattu.Score.Mridangam2021.e_kanda
+    , setLocation ("Solkattu.Score.Mridangam2021",58,"e_21_02_07") Solkattu.Score.Mridangam2021.e_21_02_07
+    , setLocation ("Solkattu.Score.Mridangam2021",63,"e_nd_d") Solkattu.Score.Mridangam2021.e_nd_d
     , setLocation ("Solkattu.Score.MridangamSarva",19,"kir1") Solkattu.Score.MridangamSarva.kir1
     , setLocation ("Solkattu.Score.MridangamSarva",24,"kir2") Solkattu.Score.MridangamSarva.kir2
     , setLocation ("Solkattu.Score.MridangamSarva",44,"kir3") Solkattu.Score.MridangamSarva.kir3
@@ -244,6 +249,7 @@ korvais = map Korvai.inferMetadata
     , setLocation ("Solkattu.Score.Solkattu2020",28,"c_20_04_03") Solkattu.Score.Solkattu2020.c_20_04_03
     , setLocation ("Solkattu.Score.Solkattu2020",74,"c_20_10_25") Solkattu.Score.Solkattu2020.c_20_10_25
     , setLocation ("Solkattu.Score.Solkattu2020",114,"kendang_farans") Solkattu.Score.Solkattu2020.kendang_farans
+    , setLocation ("Solkattu.Score.Solkattu2021",13,"e_21_01_24") Solkattu.Score.Solkattu2021.e_21_01_24
     , setLocation ("Solkattu.Score.SolkattuMohra",77,"c_mohra") Solkattu.Score.SolkattuMohra.c_mohra
     , setLocation ("Solkattu.Score.SolkattuMohra",103,"c_mohra2") Solkattu.Score.SolkattuMohra.c_mohra2
     , setLocation ("Solkattu.Score.SolkattuMohra",121,"c_mohra_youtube") Solkattu.Score.SolkattuMohra.c_mohra_youtube
