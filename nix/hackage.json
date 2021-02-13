@@ -1,962 +1,482 @@
 [
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/Diff/0.4.0/Diff.cabal",
-    "cabalHash": "0ir87j535x69rx6ib12rzsyj8ypzpsdm9zagfwc5lmcg97nvxkxm",
     "pkg": "Diff",
-    "src": "http://hackage.haskell.org/package/Diff-0.4.0/Diff-0.4.0.tar.gz",
-    "srcHash": "1phz4cz7i53jx3d1bj0xnx8vpkk482g4ph044zv5c6ssirnzq3ng",
     "ver": "0.4.0"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/HUnit/1.6.0.0/HUnit.cabal",
-    "cabalHash": "164jhr3i0jk0zwd922khcb5488m97wkap88l282div2bi1yb4540",
     "pkg": "HUnit",
-    "src": "http://hackage.haskell.org/package/HUnit-1.6.0.0/HUnit-1.6.0.0.tar.gz",
-    "srcHash": "011qaixcy05w0jazw5x4qir16j6rvdax6ayf0fjmhf9hlbii1pk8",
     "ver": "1.6.0.0"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/MonadRandom/0.5.1.2/MonadRandom.cabal",
-    "cabalHash": "1f6kas00gbqlnar2c0k2p93b66f3qccnqywlg33yvfrnw4aqbdzl",
     "pkg": "MonadRandom",
-    "src": "http://hackage.haskell.org/package/MonadRandom-0.5.1.2/MonadRandom-0.5.1.2.tar.gz",
-    "srcHash": "1zmslnmhpzk5ky68yjkk1s6gxn4jhxkyz6zxjqsc3226b56yyci7",
     "ver": "0.5.1.2"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/QuickCheck/2.13.2/QuickCheck.cabal",
-    "cabalHash": "1w8x8sy79sd7gbj84l8965gm2304rf9bj1s3lhhh5p69s7dmlkmd",
     "pkg": "QuickCheck",
-    "src": "http://hackage.haskell.org/package/QuickCheck-2.13.2/QuickCheck-2.13.2.tar.gz",
-    "srcHash": "00wax0d6c1rzk1kchykanxmdrfswbf77sw34aaz44vqhgwya1zzl",
     "ver": "2.13.2"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/aeson/1.4.7.0/aeson.cabal",
-    "cabalHash": "1198bf628jc6ccn1dr23wia3rdyxhidi9hg83ykzm735ffgh9cxd",
     "pkg": "aeson",
-    "src": "http://hackage.haskell.org/package/aeson-1.4.7.0/aeson-1.4.7.0.tar.gz",
-    "srcHash": "0h7qjgm09n06i7af2d0cixfjav49ym7pqqfcja75mcl807hxl12g",
     "ver": "1.4.7.0"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/alex/3.2.5/alex.cabal",
-    "cabalHash": "1yr6rf8rydnr1q2dp7yh16wcd9a2fr8n6q61x0sqp7c4cyn4l35g",
     "pkg": "alex",
-    "src": "http://hackage.haskell.org/package/alex-3.2.5/alex-3.2.5.tar.gz",
-    "srcHash": "0p9jnf8l3hqrsq1mzzbd7703b5qfi2xxvwfp74gmiic3srlzy4q3",
     "ver": "3.2.5"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/ansi-terminal/0.10.3/ansi-terminal.cabal",
-    "cabalHash": "15vpd7aqqq551v23nr4y5h9hk08f7d1zmqnqg9627p40z7swxyz2",
     "pkg": "ansi-terminal",
-    "src": "http://hackage.haskell.org/package/ansi-terminal-0.10.3/ansi-terminal-0.10.3.tar.gz",
-    "srcHash": "1aa8lh7pl054kz7i59iym49s8w473nhdqgc3pq16cp5v4358hw5k",
     "ver": "0.10.3"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/async/2.2.2/async.cabal",
-    "cabalHash": "1kg9xmby0wkx31998h2r43yr8bl1aixk6025zqigz9vdhmkc2y51",
     "pkg": "async",
-    "src": "http://hackage.haskell.org/package/async-2.2.2/async-2.2.2.tar.gz",
-    "srcHash": "1f1wv2knb3v9flpp86zqcbs8a7b76c7kwalm3in47yjbzsf42315",
     "ver": "2.2.2"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/attoparsec/0.13.2.3/attoparsec.cabal",
-    "cabalHash": "164n392qrgyb8mg3xxaxym0ffvqyjr4ny4lfrr81y7hk3947yw9q",
     "pkg": "attoparsec",
-    "src": "http://hackage.haskell.org/package/attoparsec-0.13.2.3/attoparsec-0.13.2.3.tar.gz",
-    "srcHash": "0yfwgsrc5hg804h5dj3m4ifn7jhx16z4rwg1ij7kxs4xblv9nxvk",
     "ver": "0.13.2.3"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/base-compat/0.11.1/base-compat.cabal",
-    "cabalHash": "14saglz51gihd3nc7qxkylbcajch6kj6k8a227pj2rjm9zl1r774",
     "pkg": "base-compat",
-    "src": "http://hackage.haskell.org/package/base-compat-0.11.1/base-compat-0.11.1.tar.gz",
-    "srcHash": "06030s3wzwkrm0a1hw4w7cd0nlrmxadryic4dr43kh380lzgdz58",
     "ver": "0.11.1"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/base-compat-batteries/0.11.1/base-compat-batteries.cabal",
-    "cabalHash": "1asamfqw4f64qlxa0zfpigq4693rrj59h1dqg318s4dxyqkayqr7",
     "pkg": "base-compat-batteries",
-    "src": "http://hackage.haskell.org/package/base-compat-batteries-0.11.1/base-compat-batteries-0.11.1.tar.gz",
-    "srcHash": "1xsh4mcrmgiavgnkb5bg5lzxj1546525ffxjms3rlagf4jh9sn1i",
     "ver": "0.11.1"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/base-orphans/0.8.2/base-orphans.cabal",
-    "cabalHash": "0zjdawxi6lkl6akf8qg1bvk1wq1fqszxx3skdjxjrb1s0knkgvs0",
     "pkg": "base-orphans",
-    "src": "http://hackage.haskell.org/package/base-orphans-0.8.2/base-orphans-0.8.2.tar.gz",
-    "srcHash": "0arm5x2k0zzw6fchky0mxjig9a10p39pabmd9rlswsldwfyn0xkd",
     "ver": "0.8.2"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/base64-bytestring/1.0.0.3/base64-bytestring.cabal",
-    "cabalHash": "120ghdslbw396vh0cqnawp45aadx9wvs3fgfy07y6iak8q0dk0kc",
     "pkg": "base64-bytestring",
-    "src": "http://hackage.haskell.org/package/base64-bytestring-1.0.0.3/base64-bytestring-1.0.0.3.tar.gz",
-    "srcHash": "1wx3zdx5amjyawqlfv2i3mishvvh4pkdk9nh7y8f4d38ykri2bx0",
     "ver": "1.0.0.3"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/bindings-DSL/1.0.25/bindings-DSL.cabal",
-    "cabalHash": "0mzdbam15j8y2l18k0zgjysbakklrbnqqiab3dwc752vd9ggysd4",
     "pkg": "bindings-DSL",
-    "src": "http://hackage.haskell.org/package/bindings-DSL-1.0.25/bindings-DSL-1.0.25.tar.gz",
-    "srcHash": "0fzg70lqqrcawvndxhgl6ccw92kjbpczx4bg0qy9qizfagdqq422",
     "ver": "1.0.25"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/blaze-builder/0.4.1.0/blaze-builder.cabal",
-    "cabalHash": "0b9a4n1bg7y26l5fh31g3spjiydfazbqhcyrd5jymxi8x9s2d6gs",
     "pkg": "blaze-builder",
-    "src": "http://hackage.haskell.org/package/blaze-builder-0.4.1.0/blaze-builder-0.4.1.0.tar.gz",
-    "srcHash": "0v05ip5cg3c2vhh7a0mz6wphari83v3bcn8nh1m29lps9ca94z1x",
     "ver": "0.4.1.0"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/byteorder/1.0.4/byteorder.cabal",
-    "cabalHash": "081vy58g2qy0zpzv9ycr7szxvqlm7v0jhnmmdwsg02p2rdyq2lm9",
     "pkg": "byteorder",
-    "src": "http://hackage.haskell.org/package/byteorder-1.0.4/byteorder-1.0.4.tar.gz",
-    "srcHash": "1pfql2cxa72g6pa4cnb6g15dsjd6dzk7xazdlrvmfd2n4s810bdy",
     "ver": "1.0.4"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/bytestring-builder/0.10.8.2.0/bytestring-builder.cabal",
-    "cabalHash": "0avnix4s0s2k0w6lqq71ldfbpb84vrnl2siph8n5lgy5v8n82avb",
     "pkg": "bytestring-builder",
-    "src": "http://hackage.haskell.org/package/bytestring-builder-0.10.8.2.0/bytestring-builder-0.10.8.2.0.tar.gz",
-    "srcHash": "1ar0z09n7giqs4cz9q126af01wqbf4qs6bzfhhgzl3vj08js2mkp",
     "ver": "0.10.8.2.0"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/c-storable/0.2/c-storable.cabal",
-    "cabalHash": "1q4z6xqwya4mcijkd44ndzynmzq3ya2i6a0snxz9kgwqm09h225v",
     "pkg": "c-storable",
-    "src": "http://hackage.haskell.org/package/c-storable-0.2/c-storable-0.2.tar.gz",
-    "srcHash": "0fkkq4mmrrcmwd2d8h6n7jjlb3rzfbjmchbcc08qk9a3jlal83rh",
     "ver": "0.2"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/c2hs/0.28.6/c2hs.cabal",
-    "cabalHash": "1zj3fza3yd07zjpfbzr9gw6zf0ngqmdr976nfbxll83rrpa05r27",
     "pkg": "c2hs",
-    "src": "http://hackage.haskell.org/package/c2hs-0.28.6/c2hs-0.28.6.tar.gz",
-    "srcHash": "13b923s4bsbrvwdiz216svn2hgqfic1i8bic7zlsajcdwm4ayqn9",
     "ver": "0.28.6"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/call-stack/0.2.0/call-stack.cabal",
-    "cabalHash": "0hv6bcs8xcz6nd3hqdrpgy0k013x9rxp3q3gxil495jzinvrdrsw",
     "pkg": "call-stack",
-    "src": "http://hackage.haskell.org/package/call-stack-0.2.0/call-stack-0.2.0.tar.gz",
-    "srcHash": "1ry3a1mmn8mald77kw93n8hy0vqr6n42yym8y50ris0bb07cqsnj",
     "ver": "0.2.0"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/case-insensitive/1.2.1.0/case-insensitive.cabal",
-    "cabalHash": "0qgzdw1d5yf1v9d6pr43nlsr2f3v7apx69qpjf6wz63nziqk3zcx",
     "pkg": "case-insensitive",
-    "src": "http://hackage.haskell.org/package/case-insensitive-1.2.1.0/case-insensitive-1.2.1.0.tar.gz",
-    "srcHash": "026wnpsfb3k0li18ljl1r329i18klyq3wwpikaby5mivfczg9mb6",
     "ver": "1.2.1.0"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/cereal/0.5.8.1/cereal.cabal",
-    "cabalHash": "1mqqpj7gnnl3vqrs81w75dgh27y4421pcn56j92yj4j4r1w7mjrp",
     "pkg": "cereal",
-    "src": "http://hackage.haskell.org/package/cereal-0.5.8.1/cereal-0.5.8.1.tar.gz",
-    "srcHash": "1k9vyqab1h1g0gjs4lbfm1bkkvvijq3d7f4vnz5pk5yr4gs25faz",
     "ver": "0.5.8.1"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/clock/0.8/clock.cabal",
-    "cabalHash": "0rvp0r2abhcwxz76zirrh24k74i6ffwgxl50c004aq9p5mz21bml",
     "pkg": "clock",
-    "src": "http://hackage.haskell.org/package/clock-0.8/clock-0.8.tar.gz",
-    "srcHash": "1wx5vqdbw7gwrim4s9l2785f02qkzxykv6wbz3vzs6whh24sh2ac",
     "ver": "0.8"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/colour/2.3.5/colour.cabal",
-    "cabalHash": "0bx4wljvl8kaqsms2mq7x297aw7qd51102jiv3dhpms0mniv0zdj",
     "pkg": "colour",
-    "src": "http://hackage.haskell.org/package/colour-2.3.5/colour-2.3.5.tar.gz",
-    "srcHash": "06i8316yjwgliymk7fk8m9wcqvq1a5bp4djhqvw7wbvwshlw1nk4",
     "ver": "2.3.5"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/concurrent-output/1.10.11/concurrent-output.cabal",
-    "cabalHash": "0fww10q2millw7vv2zqxzss1y2p3l3rpyzys7hbcp0aqwj1bwqs7",
     "pkg": "concurrent-output",
-    "src": "http://hackage.haskell.org/package/concurrent-output-1.10.11/concurrent-output-1.10.11.tar.gz",
-    "srcHash": "05nplzfdvwv7gy8wb5pk25m6wa10rbbz16fbk4qis6b580vd3qzg",
     "ver": "1.10.11"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/conduit/1.3.2/conduit.cabal",
-    "cabalHash": "1i1g7ishllijvpnjnblmxx16p17yb5zmx5qmmhi923nksz0msnzq",
     "pkg": "conduit",
-    "src": "http://hackage.haskell.org/package/conduit-1.3.2/conduit-1.3.2.tar.gz",
-    "srcHash": "1b39zg33snj9hsz24jy3p0a69frkja2rkxywkibx1ynfvqx9ivgf",
     "ver": "1.3.2"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/conduit-audio/0.2.0.3/conduit-audio.cabal",
-    "cabalHash": "0zldqx1r2wmvqwg8r6x7v65h2nqr7fjcxab74f0f5i1nqsd5b51a",
     "pkg": "conduit-audio",
-    "src": "http://hackage.haskell.org/package/conduit-audio-0.2.0.3/conduit-audio-0.2.0.3.tar.gz",
-    "srcHash": "0xv0fqnk84hkrrmh1kp7a14bc213z2vld8iifpnnmwlnqcl5miq4",
     "ver": "0.2.0.3"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/conduit-audio-samplerate/0.1.0.3/conduit-audio-samplerate.cabal",
-    "cabalHash": "1xp5mqd8svgdz9lwz2vw5mwkm98n834i2k83axwfwvpqr2jlkqa9",
     "pkg": "conduit-audio-samplerate",
-    "src": "http://hackage.haskell.org/package/conduit-audio-samplerate-0.1.0.3/conduit-audio-samplerate-0.1.0.3.tar.gz",
-    "srcHash": "15bd1if9njm45g186g3rnhrjg3gwg9zkfz8xwn3ywds6mwah4ym2",
     "ver": "0.1.0.3"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/conduit-audio-sndfile/0.1.2.2/conduit-audio-sndfile.cabal",
-    "cabalHash": "0ahmk2n518n137jz0jwsl86da6l0yf59zybcj72ga0hsp3q1xl57",
     "pkg": "conduit-audio-sndfile",
-    "src": "http://hackage.haskell.org/package/conduit-audio-sndfile-0.1.2.2/conduit-audio-sndfile-0.1.2.2.tar.gz",
-    "srcHash": "0520njmjxdn2bwyy8k25wfnzy8y63qaydl222nm0lib42ab88k0v",
     "ver": "0.1.2.2"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/constraints/0.12/constraints.cabal",
-    "cabalHash": "1gpinybb1fapflak9qh60fyvrcf60z0x8dwdy10qj7d0gyfrkivi",
     "pkg": "constraints",
-    "src": "http://hackage.haskell.org/package/constraints-0.12/constraints-0.12.tar.gz",
-    "srcHash": "0rqmkcz2cdvg6821zs18ribvrvd8ggnw7z8w4lfrcfk4mq94iqs5",
     "ver": "0.12"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/cpphs/1.20.9.1/cpphs.cabal",
-    "cabalHash": "0aag7ifri5122x0vcn6wyvj3gwl9zhbvyiibb6cix8knvkl168d0",
     "pkg": "cpphs",
-    "src": "http://hackage.haskell.org/package/cpphs-1.20.9.1/cpphs-1.20.9.1.tar.gz",
-    "srcHash": "18j6cixnrlaps9d8vknna9fsykqrqx2nl4647d4qzymgirgz8zxr",
     "ver": "1.20.9.1"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/cryptohash-md5/0.11.100.1/cryptohash-md5.cabal",
-    "cabalHash": "1dxakry5p9dv9p9h617c0295plrfy2n5k13lsgp4gxwb6yzji9d4",
     "pkg": "cryptohash-md5",
-    "src": "http://hackage.haskell.org/package/cryptohash-md5-0.11.100.1/cryptohash-md5-0.11.100.1.tar.gz",
-    "srcHash": "1l9l3c5x4759pa0ah48skzrkakb5738n6cw60ksj8pmzf68f428a",
     "ver": "0.11.100.1"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/data-binary-ieee754/0.4.4/data-binary-ieee754.cabal",
-    "cabalHash": "070yj10fav7r9vig339q38v0zv8hbbicq44ksw2hywg32vanv9b0",
     "pkg": "data-binary-ieee754",
-    "src": "http://hackage.haskell.org/package/data-binary-ieee754-0.4.4/data-binary-ieee754-0.4.4.tar.gz",
-    "srcHash": "022xq7r2ydhmdjyrnvbvkrs0255nhvd04k8yvw1rlm4anfv5csvw",
     "ver": "0.4.4"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/data-ordlist/0.4.7.0/data-ordlist.cabal",
-    "cabalHash": "1c12nl3w5w5s01b4djg2ii77q7b615gzgh1912m7iv0aqhzhacdl",
     "pkg": "data-ordlist",
-    "src": "http://hackage.haskell.org/package/data-ordlist-0.4.7.0/data-ordlist-0.4.7.0.tar.gz",
-    "srcHash": "1kxvzq69m26sc6birs0sdc3nbnh5k82f94j8w5bizjvi48q5vwf9",
     "ver": "0.4.7.0"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/digest/0.0.1.2/digest.cabal",
-    "cabalHash": "1g6i751vnkyxi55bxszr4mkc5kxdh0xljqxhvll04fxv4nga9hnk",
     "pkg": "digest",
-    "src": "http://hackage.haskell.org/package/digest-0.0.1.2/digest-0.0.1.2.tar.gz",
-    "srcHash": "065rcdcz7pgn1rhbcjrvgqwkip584m0gfgl2k0dx1m8p42bal60x",
     "ver": "0.0.1.2"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/dlist/0.8.0.7/dlist.cabal",
-    "cabalHash": "0hpxj5nd85bxyram4i4lhz16nvqfvng5nwbsqq67995h0hr87gm5",
     "pkg": "dlist",
-    "src": "http://hackage.haskell.org/package/dlist-0.8.0.7/dlist-0.8.0.7.tar.gz",
-    "srcHash": "0j3vs9rngbi3bmd1pnx6pfbphazpy2675ax3ajvnpfkss08ay3c3",
     "ver": "0.8.0.7"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/ekg/0.4.0.15/ekg.cabal",
-    "cabalHash": "1p6mq14si3bqgw4b1frdfj5cbqpz3p399q8wipk6z95yyg129f6i",
     "pkg": "ekg",
-    "src": "http://hackage.haskell.org/package/ekg-0.4.0.15/ekg-0.4.0.15.tar.gz",
-    "srcHash": "053gjdf5yd8f88r2q4s43n5dvfg9rbjprx2r9h8sz4mq7gp3j1c6",
     "ver": "0.4.0.15"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/ekg-core/0.1.1.7/ekg-core.cabal",
-    "cabalHash": "17rfxsns0za7jqp3069mwp0lbd433gwb7lrnla02y7hfxbpnldf4",
     "pkg": "ekg-core",
-    "src": "http://hackage.haskell.org/package/ekg-core-0.1.1.7/ekg-core-0.1.1.7.tar.gz",
-    "srcHash": "0mvliz1fn40x97m4blm4ycb5a7ib5cif56zic2k983hnh6xrim2r",
     "ver": "0.1.1.7"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/ekg-json/0.1.0.6/ekg-json.cabal",
-    "cabalHash": "111495nizf5d9s91nbss78y3rh7vj5p1021m7pz96li37i5ps13m",
     "pkg": "ekg-json",
-    "src": "http://hackage.haskell.org/package/ekg-json-0.1.0.6/ekg-json-0.1.0.6.tar.gz",
-    "srcHash": "0xf37cxcx6s1wv10z2k63ycq7xbpglk4bw7wxks450akx76n9q25",
     "ver": "0.1.0.6"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/erf/2.0.0.0/erf.cabal",
-    "cabalHash": "12qs9dwl8078y7v49anlc0jmnjrfg755d5mykh08kd8pgmsd7i8i",
     "pkg": "erf",
-    "src": "http://hackage.haskell.org/package/erf-2.0.0.0/erf-2.0.0.0.tar.gz",
-    "srcHash": "00916wd5kgxfpqyxvrp8b0vmzqaflkapd23wfkcfrdw8kklqaz9b",
     "ver": "2.0.0.0"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/exceptions/0.10.4/exceptions.cabal",
-    "cabalHash": "0b5m01nmaqzvvm1d07b3dnmcn47pmy943lydb2m7ibhilqkfya8p",
     "pkg": "exceptions",
-    "src": "http://hackage.haskell.org/package/exceptions-0.10.4/exceptions-0.10.4.tar.gz",
-    "srcHash": "1y7g8whsl9hj13ns8fn4cf000iy644hwkll1ci1vsflqa58pacgm",
     "ver": "0.10.4"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/extra/1.7.1/extra.cabal",
-    "cabalHash": "09d355kxiz5b5136pzqy0g92c9zmd6bnbw8l810hz0k3llsivzd9",
     "pkg": "extra",
-    "src": "http://hackage.haskell.org/package/extra-1.7.1/extra-1.7.1.tar.gz",
-    "srcHash": "0n23dhsfjjdmprgmdsrrma8q8ys0zc4ab5vhzmiy2f9gkm0jg0pq",
     "ver": "1.7.1"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/fail/4.9.0.0/fail.cabal",
-    "cabalHash": "0wpmk09r1ks1ck5dg4gabzl76aqn3ziixfqnssvw2is46qlyxl9m",
     "pkg": "fail",
-    "src": "http://hackage.haskell.org/package/fail-4.9.0.0/fail-4.9.0.0.tar.gz",
-    "srcHash": "029ihqlc7ijgxjksq4p06h68q1xx6xw1dqvjmmsn4c608rvc96qr",
     "ver": "4.9.0.0"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/fclabels/2.0.4/fclabels.cabal",
-    "cabalHash": "1cmyj443b74idsq882z2ns9vmfxvlx3va77b6sgabl03r7321k7g",
     "pkg": "fclabels",
-    "src": "http://hackage.haskell.org/package/fclabels-2.0.4/fclabels-2.0.4.tar.gz",
-    "srcHash": "08qk75hx4kaysf9rdggmdz0ij0bqdz90w0h7qgrkwvpmc46facl3",
     "ver": "2.0.4"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/filepattern/0.1.2/filepattern.cabal",
-    "cabalHash": "109f8a737yk36ga8dxa7zipbh3j9ixb9w63mp81ip3a14pzidj5f",
     "pkg": "filepattern",
-    "src": "http://hackage.haskell.org/package/filepattern-0.1.2/filepattern-0.1.2.tar.gz",
-    "srcHash": "0mwfhfhlvkzybc2mjj20s8v4jb0p7yy6rkbi3kls8rlcylan6r43",
     "ver": "0.1.2"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/ghc-events/0.12.0/ghc-events.cabal",
-    "cabalHash": "03izm1p3s4v6pq2gn4cgd9q25zj4hl8ndj6n6awbr2i3s6cnrmf5",
     "pkg": "ghc-events",
-    "src": "http://hackage.haskell.org/package/ghc-events-0.12.0/ghc-events-0.12.0.tar.gz",
-    "srcHash": "0m8bwy9nab80wsvn47wn3295fc6qirhq9ha2h0hs6xrfhdaixahb",
     "ver": "0.12.0"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/ghc-paths/0.1.0.12/ghc-paths.cabal",
-    "cabalHash": "1gb4hn87a78j1c2y1adi81y03irzkaxywscjkphfajsxc7f0ydw5",
     "pkg": "ghc-paths",
-    "src": "http://hackage.haskell.org/package/ghc-paths-0.1.0.12/ghc-paths-0.1.0.12.tar.gz",
-    "srcHash": "0g71vbxmrlb3nxfax75g718x0synm8y82v25vzkcb7k9hpanbcqk",
     "ver": "0.1.0.12"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/happy/1.19.12/happy.cabal",
-    "cabalHash": "0s27zalf9b69bwg7m6i6h7m82wa4r5jd07bqcqkqk1xgygxppimc",
     "pkg": "happy",
-    "src": "http://hackage.haskell.org/package/happy-1.19.12/happy-1.19.12.tar.gz",
-    "srcHash": "0n1ri85hf1h9q5pwvfnddc79ahr9bk7hz8kirzrlyb81qzc3lpc9",
     "ver": "1.19.12"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/hashable/1.3.0.0/hashable.cabal",
-    "cabalHash": "1c8z7vxlh4whpm1ag4xp6wknnaal28cl4dqdan9rw1c1g10g2w2c",
     "pkg": "hashable",
-    "src": "http://hackage.haskell.org/package/hashable-1.3.0.0/hashable-1.3.0.0.tar.gz",
-    "srcHash": "10w1a9175zxy11awir48axanyy96llihk1dnfgypn9qwdnqd9xnx",
     "ver": "1.3.0.0"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/haskell-lexer/1.1/haskell-lexer.cabal",
-    "cabalHash": "1vsnhv6ipld1qcal5af61x29xnqymnzlw57kqq291ddxyqrpc2ly",
     "pkg": "haskell-lexer",
-    "src": "http://hackage.haskell.org/package/haskell-lexer-1.1/haskell-lexer-1.1.tar.gz",
-    "srcHash": "1p5mnm8p7z09m3rdy28ai83djpm85axplmy4hmaawwkr4kd3fikg",
     "ver": "1.1"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/haskell-src/1.0.3.1/haskell-src.cabal",
-    "cabalHash": "1mf5k7yds04v2fjqa7459gpvzylph1yvkrsyhqlfs186ck29k91d",
     "pkg": "haskell-src",
-    "src": "http://hackage.haskell.org/package/haskell-src-1.0.3.1/haskell-src-1.0.3.1.tar.gz",
-    "srcHash": "11s2qnnhchcbi6szvcglv4xxz3l6zw9w3pziycpwrigjvpigymd2",
     "ver": "1.0.3.1"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/heaps/0.3.6.1/heaps.cabal",
-    "cabalHash": "1lnk2dgjind3i20qihcr7jgj4r72pp04hnf449bx702ir9cvfa3r",
     "pkg": "heaps",
-    "src": "http://hackage.haskell.org/package/heaps-0.3.6.1/heaps-0.3.6.1.tar.gz",
-    "srcHash": "1nxacy9mpfwqwy0sm5dyh01wnql3p9hfwjg3w95x4ka0k8927bxx",
     "ver": "0.3.6.1"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/hedgehog/1.0.2/hedgehog.cabal",
-    "cabalHash": "0y9glrf68jx8h8wsrrcdgxwmf0im1rh3g050mf0lk8iv0cdvdd2m",
     "pkg": "hedgehog",
-    "src": "http://hackage.haskell.org/package/hedgehog-1.0.2/hedgehog-1.0.2.tar.gz",
-    "srcHash": "0fy2p3qgs6kg7gksm0n4f9adkm6rin5wgl534zzx51hp0q0xh0hr",
     "ver": "1.0.2"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/hlibgit2/0.18.0.16/hlibgit2.cabal",
-    "cabalHash": "1js0kf93g7jrwisshfzl24sbp68njvhpac134qagmhm38jdid4dv",
     "pkg": "hlibgit2",
-    "src": "http://hackage.haskell.org/package/hlibgit2-0.18.0.16/hlibgit2-0.18.0.16.tar.gz",
-    "srcHash": "01mh957pj88scqfw7kx7plm19q2313z0qy408sjdjac6p6caq2rn",
     "ver": "0.18.0.16"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/hosc/0.17/hosc.cabal",
-    "cabalHash": "1m9gj565kay5hsw61scn1g4givkys6dki9ljhbn9ana8hx0zxf6r",
     "pkg": "hosc",
-    "src": "http://hackage.haskell.org/package/hosc-0.17/hosc-0.17.tar.gz",
-    "srcHash": "1r70llhky9sq97gd19mlzbbfk056snrwy63wmz054y7kbjs23rh2",
     "ver": "0.17"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/hsndfile/0.8.0/hsndfile.cabal",
-    "cabalHash": "08x3jdkync4rvx5zg239wbjcjhpsr0zddcb4k2wr4b3yk6jbcxry",
     "pkg": "hsndfile",
-    "src": "http://hackage.haskell.org/package/hsndfile-0.8.0/hsndfile-0.8.0.tar.gz",
-    "srcHash": "1qkjvanmy27fdk670a6rcw836z46baqb2fy99dfv70vsim7cfzm8",
     "ver": "0.8.0"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/hsndfile-vector/0.5.2/hsndfile-vector.cabal",
-    "cabalHash": "0b0hjvdin7ii6ryw3hp9m8kmskka4rp0cs1pzvw9n4aahs4qbghw",
     "pkg": "hsndfile-vector",
-    "src": "http://hackage.haskell.org/package/hsndfile-vector-0.5.2/hsndfile-vector-0.5.2.tar.gz",
-    "srcHash": "13w4spvnnxs039l1wgvdqsgy4b7h151ci397l5704w8wq8q3chzy",
     "ver": "0.5.2"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/integer-logarithms/1.0.3/integer-logarithms.cabal",
-    "cabalHash": "0a6j3313vz7n7dn8abddyib4jggblaq89f87ib4imdwjxjajbm33",
     "pkg": "integer-logarithms",
-    "src": "http://hackage.haskell.org/package/integer-logarithms-1.0.3/integer-logarithms-1.0.3.tar.gz",
-    "srcHash": "1h7fsf3vwzf9ligjmis8p1jy04vgy48xzivr6qqir86ljiwk6s1k",
     "ver": "1.0.3"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/io-streams/1.5.1.0/io-streams.cabal",
-    "cabalHash": "0n0qs5lgryh3zxy73j3qbpnxand43yd2bj6pclvyii8apqqp901a",
     "pkg": "io-streams",
-    "src": "http://hackage.haskell.org/package/io-streams-1.5.1.0/io-streams-1.5.1.0.tar.gz",
-    "srcHash": "1kvy476sdnxyg9318wxg7cvbafak81a1whrcffjc19sbymgg7srp",
     "ver": "1.5.1.0"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/io-streams-haproxy/1.0.1.0/io-streams-haproxy.cabal",
-    "cabalHash": "02k9halblgnynlm781ahc81yxla8z7cck1gikm8555v78rf5hv7x",
     "pkg": "io-streams-haproxy",
-    "src": "http://hackage.haskell.org/package/io-streams-haproxy-1.0.1.0/io-streams-haproxy-1.0.1.0.tar.gz",
-    "srcHash": "1b298n4wx758xgjxvjdbvd6hm81yfdzxrxdw9r0j0s3rpnv7vban",
     "ver": "1.0.1.0"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/js-dgtable/0.5.2/js-dgtable.cabal",
-    "cabalHash": "1r0mbhigb4dghygc3md3i6yqlarv1pmlipgc9dwnb368agxb8p7p",
     "pkg": "js-dgtable",
-    "src": "http://hackage.haskell.org/package/js-dgtable-0.5.2/js-dgtable-0.5.2.tar.gz",
-    "srcHash": "0p3df9a5bng5nb1jd899wk7k9vhxiq5wj9igljia60j3ylrqcz0p",
     "ver": "0.5.2"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/js-flot/0.8.3/js-flot.cabal",
-    "cabalHash": "0v898lakwj2nj6gamrz9znfjphrh58q7h1nklvdhmfigk9x4872c",
     "pkg": "js-flot",
-    "src": "http://hackage.haskell.org/package/js-flot-0.8.3/js-flot-0.8.3.tar.gz",
-    "srcHash": "11mv8xv3i7mfg9a6ld9mavk7ckjvgvdv06wzchi28577f0fa1nlk",
     "ver": "0.8.3"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/js-jquery/3.3.1/js-jquery.cabal",
-    "cabalHash": "1xbdhpi3gxm8b5xk7qfcq8a60crvdn7cxaw4nnafyjcm2mwnrasr",
     "pkg": "js-jquery",
-    "src": "http://hackage.haskell.org/package/js-jquery-3.3.1/js-jquery-3.3.1.tar.gz",
-    "srcHash": "1qj27z7bpq6qw6adhx6jsvbnq7hzs4rbnj550n9m864j9yarl712",
     "ver": "3.3.1"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/language-c/0.8.3/language-c.cabal",
-    "cabalHash": "1f073j2y3wlyyvlmr1vr8jv40hm8f20dw9hh0fjj0iy5hv5m2j8l",
     "pkg": "language-c",
-    "src": "http://hackage.haskell.org/package/language-c-0.8.3/language-c-0.8.3.tar.gz",
-    "srcHash": "0jfdy6575rrby8cx6d5c2pi1scv0xq2x53043v5gxkydcwz4j4il",
     "ver": "0.8.3"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/lifted-async/0.10.0.5/lifted-async.cabal",
-    "cabalHash": "1s1ni8lnd1ycp3npjbmyn48s1p6jakrahnqyxdvpza9qkzjzh5d3",
     "pkg": "lifted-async",
-    "src": "http://hackage.haskell.org/package/lifted-async-0.10.0.5/lifted-async-0.10.0.5.tar.gz",
-    "srcHash": "19ac7wcy35fb6mjc1i46rir4ilwxr6yqnn30wg90fpg1i1mrvpql",
     "ver": "0.10.0.5"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/lifted-base/0.2.3.12/lifted-base.cabal",
-    "cabalHash": "0sddcnqlzh7vbyvc4xg4qg48mnpjahvg4275fg1qapcw5ilx0jp9",
     "pkg": "lifted-base",
-    "src": "http://hackage.haskell.org/package/lifted-base-0.2.3.12/lifted-base-0.2.3.12.tar.gz",
-    "srcHash": "074bfycdqnr78y05xvgmfgk09fsnjxykij68ryi4xbrx7qwzqgqm",
     "ver": "0.2.3.12"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/med-module/0.1.2.1/med-module.cabal",
-    "cabalHash": "1zbbdmsp7gbhrmnnrkpqia3rn5690cdglrr10b927icrk5i5v72q",
     "pkg": "med-module",
-    "src": "http://hackage.haskell.org/package/med-module-0.1.2.1/med-module-0.1.2.1.tar.gz",
-    "srcHash": "1mx944kpwmw6gsyy39ypb7ni9k9gd1n3hk9n5r096wqwy4gvx9pq",
     "ver": "0.1.2.1"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/megaparsec/8.0.0/megaparsec.cabal",
-    "cabalHash": "1ikz491d57svpjcqq851vagc0l2sp9s5qvnyw58bbg7c8gi8abrn",
     "pkg": "megaparsec",
-    "src": "http://hackage.haskell.org/package/megaparsec-8.0.0/megaparsec-8.0.0.tar.gz",
-    "srcHash": "1bk4jsa69maryj97jcvxxc211icvnkr21xrj2bqq9ddfizkq5lg0",
     "ver": "8.0.0"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/mersenne-random-pure64/0.2.2.0/mersenne-random-pure64.cabal",
-    "cabalHash": "0pxq0xz42x60993rl4pr4pia80jv1xcqh6njvjzfvn75018j4gw5",
     "pkg": "mersenne-random-pure64",
-    "src": "http://hackage.haskell.org/package/mersenne-random-pure64-0.2.2.0/mersenne-random-pure64-0.2.2.0.tar.gz",
-    "srcHash": "12r0wp35lmxn3k17pz7jjpljcskhj3yfkf8zd6vkx81fg1k2lfhk",
     "ver": "0.2.2.0"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/mmorph/1.1.3/mmorph.cabal",
-    "cabalHash": "0bxi7cdml5xsjdrsmykv3h3znd8niv73fhdrhkwhh07gixj9bz5b",
     "pkg": "mmorph",
-    "src": "http://hackage.haskell.org/package/mmorph-1.1.3/mmorph-1.1.3.tar.gz",
-    "srcHash": "16pvd9aw4rp82h5s4ys4fdzgc5fjbparzdfcrvh9w82i79d3gxh6",
     "ver": "1.1.3"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/monad-control/1.0.2.3/monad-control.cabal",
-    "cabalHash": "1vhkb7nf78ibzqps1wfc5cqhg7i1h0j1xq9slc62lbpd5y6qibm3",
     "pkg": "monad-control",
-    "src": "http://hackage.haskell.org/package/monad-control-1.0.2.3/monad-control-1.0.2.3.tar.gz",
-    "srcHash": "0j3rx66yfx5jzpm0h1bbbkr0rvimhhyzmv92xrwkabww3y8pm44q",
     "ver": "1.0.2.3"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/mono-traversable/1.0.15.1/mono-traversable.cabal",
-    "cabalHash": "1j31v8pl0x6a0ry2gxab5ifdbxg2h26cczw60crnvjfn3ilfil6a",
     "pkg": "mono-traversable",
-    "src": "http://hackage.haskell.org/package/mono-traversable-1.0.15.1/mono-traversable-1.0.15.1.tar.gz",
-    "srcHash": "10rbsnawplg501sj6b4366dxah8lsfpi39scg78b1rxbhh7cwqcr",
     "ver": "1.0.15.1"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/network/3.1.1.1/network.cabal",
-    "cabalHash": "0vp6pcwm4ha3l475b530x6i7cxaqjxs7kpwhf4k9hgn0frkcn15p",
     "pkg": "network",
-    "src": "http://hackage.haskell.org/package/network-3.1.1.1/network-3.1.1.1.tar.gz",
-    "srcHash": "1xlvczfyr27ll4si1qn67w9alxpq0q8nwksw85cazj1y8jl0vn0v",
     "ver": "3.1.1.1"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/network-uri/2.6.3.0/network-uri.cabal",
-    "cabalHash": "1piyx3f3sbbizkjlj92ckb30khbcqp04ndbs67zx3cnrh0xgznfj",
     "pkg": "network-uri",
-    "src": "http://hackage.haskell.org/package/network-uri-2.6.3.0/network-uri-2.6.3.0.tar.gz",
-    "srcHash": "02h1ylanwzh32j11d3awx222hyd5m3y0l9f7q171v6xr8i6ikh5a",
     "ver": "2.6.3.0"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/old-locale/1.0.0.7/old-locale.cabal",
-    "cabalHash": "04b9vn007hlvsrx4ksd3r8r3kbyaj2kvwxchdrmd4370qzi8p6gs",
     "pkg": "old-locale",
-    "src": "http://hackage.haskell.org/package/old-locale-1.0.0.7/old-locale-1.0.0.7.tar.gz",
-    "srcHash": "0gkq0gmdqfhb7xvb52hqpp79iz9wxk4kprvqdpwlds8a2i2flqm3",
     "ver": "1.0.0.7"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/parser-combinators/1.2.1/parser-combinators.cabal",
-    "cabalHash": "04k4m47rw79465qi0sajamnia06hhfs6zcx2al90phby0074khqn",
     "pkg": "parser-combinators",
-    "src": "http://hackage.haskell.org/package/parser-combinators-1.2.1/parser-combinators-1.2.1.tar.gz",
-    "srcHash": "1990d6c1zm2wq4w9521bx7l3arg4ly02hq1ass9n19gs273bxx5h",
     "ver": "1.2.1"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/pcre-heavy/1.0.0.2/pcre-heavy.cabal",
-    "cabalHash": "14pprgwxkiaji3rqhsm0fv454wic6qxm7vy4a475yigadb1vz1ls",
     "pkg": "pcre-heavy",
-    "src": "http://hackage.haskell.org/package/pcre-heavy-1.0.0.2/pcre-heavy-1.0.0.2.tar.gz",
-    "srcHash": "1nwmv1d29ha1r0j98igri93iv310f50sm58db1c5c24p5gwv0hi2",
     "ver": "1.0.0.2"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/pcre-light/0.4.1.0/pcre-light.cabal",
-    "cabalHash": "0q44w6awjbnmf5zfd9syq6xz06sa39facqvsii27kz9pn03fy0j9",
     "pkg": "pcre-light",
-    "src": "http://hackage.haskell.org/package/pcre-light-0.4.1.0/pcre-light-0.4.1.0.tar.gz",
-    "srcHash": "185ikjibq0gqr7h6xj69gfbljih6bia3s8si07dpf2j1farvqk6g",
     "ver": "0.4.1.0"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/polyparse/1.13/polyparse.cabal",
-    "cabalHash": "09jcn26py3lkjn3lvxgry86bad8xb8cwl3avxymqmf7b181krfb8",
     "pkg": "polyparse",
-    "src": "http://hackage.haskell.org/package/polyparse-1.13/polyparse-1.13.tar.gz",
-    "srcHash": "1cpvg54pm49869vdg3zv79iw0mb47580djykkyx6fc9bjra3xd3l",
     "ver": "1.13"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/pretty-show/1.10/pretty-show.cabal",
-    "cabalHash": "1wdilbb203z4y6zh41yp31j21b01lzlwkzpd85zzrd2dmjh8vvxz",
     "pkg": "pretty-show",
-    "src": "http://hackage.haskell.org/package/pretty-show-1.10/pretty-show-1.10.tar.gz",
-    "srcHash": "1q3pkp0ly221yf2r3skr6v0664bb0a6z7x82hvy6yl02ds2g9b1n",
     "ver": "1.10"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/primitive/0.7.0.1/primitive.cabal",
-    "cabalHash": "0ca2qvp9z56gv9m99iby110cc51wnicq3zkpifidrizd6qf5g0d3",
     "pkg": "primitive",
-    "src": "http://hackage.haskell.org/package/primitive-0.7.0.1/primitive-0.7.0.1.tar.gz",
-    "srcHash": "0pjbsblg5rdngy0c6m6bhp21d0gvwy25i2mj16rw0hn3xwg8sc1s",
     "ver": "0.7.0.1"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/random/1.1/random.cabal",
-    "cabalHash": "1pv5d7bm2rgap7llp5vjsplrg048gvf0226y0v19gpvdsx7n4rvv",
     "pkg": "random",
-    "src": "http://hackage.haskell.org/package/random-1.1/random-1.1.tar.gz",
-    "srcHash": "0jyjbpsg2fflsmgrdmphdb4xn1i3dpq02frck96m0cw5kj65f58z",
     "ver": "1.1"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/random-shuffle/0.0.4/random-shuffle.cabal",
-    "cabalHash": "1fispgpb8phvsrrqnrvcvcp80wh3n2gi61dabkh1r39060y7iffh",
     "pkg": "random-shuffle",
-    "src": "http://hackage.haskell.org/package/random-shuffle-0.0.4/random-shuffle-0.0.4.tar.gz",
-    "srcHash": "0kv0azadrh7jxg22kf7i467jd4p2nv3jj8pyp47rkxnnqjbzvax8",
     "ver": "0.0.4"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/readable/0.3.1/readable.cabal",
-    "cabalHash": "1rxn2icd63bmvkgwhyx63rv16pklwb9vg95lwsqs02cs69hmpqa8",
     "pkg": "readable",
-    "src": "http://hackage.haskell.org/package/readable-0.3.1/readable-0.3.1.tar.gz",
-    "srcHash": "0ifri606gyy4hrn62rn2ddjns6r0j0zhazlx8ccx423i767fi0v5",
     "ver": "0.3.1"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/regex-base/0.94.0.0/regex-base.cabal",
-    "cabalHash": "13lnky4ps9as73jqrwz4aqn5sfyrcz2zj2ng52xzz512fv59baj4",
     "pkg": "regex-base",
-    "src": "http://hackage.haskell.org/package/regex-base-0.94.0.0/regex-base-0.94.0.0.tar.gz",
-    "srcHash": "0x2ip8kn3sv599r7yc9dmdx7hgh5x632m45ga99ib5rnbn6kvn8x",
     "ver": "0.94.0.0"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/regex-posix/0.96.0.0/regex-posix.cabal",
-    "cabalHash": "1cy39n1928wv55i7k4wm7zd3xijk7p54kbrxxlfzfvgax5k163b9",
     "pkg": "regex-posix",
-    "src": "http://hackage.haskell.org/package/regex-posix-0.96.0.0/regex-posix-0.96.0.0.tar.gz",
-    "srcHash": "0js977ahpz10642sbpb55mw9h01pilai6z201wgkncgkg2d69hl3",
     "ver": "0.96.0.0"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/resourcet/1.2.3/resourcet.cabal",
-    "cabalHash": "090gsxghc04lj0w7fvqxv6ah3bq3wqvrbbaq3i1n2d28fkmrscxn",
     "pkg": "resourcet",
-    "src": "http://hackage.haskell.org/package/resourcet-1.2.3/resourcet-1.2.3.tar.gz",
-    "srcHash": "1m3k5pwi2mvq331kdlixz8nny72vn6q5wj3aab9xirnml71wzwag",
     "ver": "1.2.3"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/scientific/0.3.6.2/scientific.cabal",
-    "cabalHash": "1n2m9s9va0xyfj9hydgr9dxm401afjxw4z85g9zbbqnqdg3snjfx",
     "pkg": "scientific",
-    "src": "http://hackage.haskell.org/package/scientific-0.3.6.2/scientific-0.3.6.2.tar.gz",
-    "srcHash": "1c7ci01a5a41vsxlx9ydankxkjagvklc8f9cjikybngillmga4hn",
     "ver": "0.3.6.2"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/semigroups/0.19.1/semigroups.cabal",
-    "cabalHash": "03mviq2wiknpc6f5ff8zdsmnf19fii2y809gxxxzglp046b15bpc",
     "pkg": "semigroups",
-    "src": "http://hackage.haskell.org/package/semigroups-0.19.1/semigroups-0.19.1.tar.gz",
-    "srcHash": "0ng4j78di5p2yqx3m4bnfcz9cplp5px7d95374w2qxi20spjabpi",
     "ver": "0.19.1"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/shake/0.18.5/shake.cabal",
-    "cabalHash": "0lsk08s0fqwjqx7z6ranz05442d25clsqg4hcaadh7ly96b5qxx4",
     "pkg": "shake",
-    "src": "http://hackage.haskell.org/package/shake-0.18.5/shake-0.18.5.tar.gz",
-    "srcHash": "0p9gb2px0k3jcdqgb8d7gdfh9swj1vchcs70r6sp5zkwrzzxlcaf",
     "ver": "0.18.5"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/snap-core/1.0.4.1/snap-core.cabal",
-    "cabalHash": "0m8vsgrj96a0y9h09szg7gxv9f26yizh4k181ri2sp7ki8p5p7lg",
     "pkg": "snap-core",
-    "src": "http://hackage.haskell.org/package/snap-core-1.0.4.1/snap-core-1.0.4.1.tar.gz",
-    "srcHash": "1j6s1kqhq20lgkz1nzmx6y3vdzgfkp95g9nw208533ljs7wqbm1d",
     "ver": "1.0.4.1"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/snap-server/1.1.1.1/snap-server.cabal",
-    "cabalHash": "1xma33r1by1q79qqbb70lwf4d846qlqs0f22rzrd3cdzkzcf9qf5",
     "pkg": "snap-server",
-    "src": "http://hackage.haskell.org/package/snap-server-1.1.1.1/snap-server-1.1.1.1.tar.gz",
-    "srcHash": "0lsflrrfzzkhzdwx9mf32djawcc3bzx0wq8mdx4ns95gdlkc5jgf",
     "ver": "1.1.1.1"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/split/0.2.3.4/split.cabal",
-    "cabalHash": "0wsxxr56gmy3bkdn0s8v9afij73bxrkjffkv3yna9b70x34vznds",
     "pkg": "split",
-    "src": "http://hackage.haskell.org/package/split-0.2.3.4/split-0.2.3.4.tar.gz",
-    "srcHash": "0n7h5922aiim0gz3hxlfklf71kd72kfp2h40x3aaz551h3hg01nx",
     "ver": "0.2.3.4"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/splitmix/0.0.4/splitmix.cabal",
-    "cabalHash": "03md03z4fc39h0grldv8w5h1yzh4k0vlqp7y46hchxif9asvi6zv",
     "pkg": "splitmix",
-    "src": "http://hackage.haskell.org/package/splitmix-0.0.4/splitmix-0.0.4.tar.gz",
-    "srcHash": "08cddw1kszhhc9hkg0y9dh54nimygzrsj4m1cq1b4la2xnd7czys",
     "ver": "0.0.4"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/storable-endian/0.2.6/storable-endian.cabal",
-    "cabalHash": "12f8sscsvsarlwz3p6kk9vbvqsbyhs8lhafgn9h7c0z6pz1amrya",
     "pkg": "storable-endian",
-    "src": "http://hackage.haskell.org/package/storable-endian-0.2.6/storable-endian-0.2.6.tar.gz",
-    "srcHash": "1lsx1fx29gk5j3cdzk54n9qva2428jr57h4330jbywszz2j15h9n",
     "ver": "0.2.6"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/streaming/0.2.3.0/streaming.cabal",
-    "cabalHash": "0iqfcy1wyiayiwlgy7njrjv6hk08yzhhshzbvdzl8bwv0ccqlqr6",
     "pkg": "streaming",
-    "src": "http://hackage.haskell.org/package/streaming-0.2.3.0/streaming-0.2.3.0.tar.gz",
-    "srcHash": "15q2574k9v0vi1brfb81323l2pwcjpz2zdyd2l79iiw8z3803vq2",
     "ver": "0.2.3.0"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/string-conversions/0.4.0.1/string-conversions.cabal",
-    "cabalHash": "0ngjy0qdmh5r39kzr0391a5fkwr0wwfjlzp08kibzjm69bjpah4w",
     "pkg": "string-conversions",
-    "src": "http://hackage.haskell.org/package/string-conversions-0.4.0.1/string-conversions-0.4.0.1.tar.gz",
-    "srcHash": "06rfwj2bb8m2by6h2xja69r45rghmil9ali5i89khfh46nnadjpq",
     "ver": "0.4.0.1"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/syb/0.7.1/syb.cabal",
-    "cabalHash": "0g1jaglf5ddcxvgmnwryzni1bh5g09pa1hn65m8si6jas3jb2dwd",
     "pkg": "syb",
-    "src": "http://hackage.haskell.org/package/syb-0.7.1/syb-0.7.1.tar.gz",
-    "srcHash": "0dg0f1czr8fjy2h67n6zk8i66zqwki2qqdby7b2mjmpz3my02g7h",
     "ver": "0.7.1"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/tagged/0.8.6/tagged.cabal",
-    "cabalHash": "1y8z8hmm846z7h3wqncpi0d4zhsnkwf08q0wchivkjw8di7ahz0z",
     "pkg": "tagged",
-    "src": "http://hackage.haskell.org/package/tagged-0.8.6/tagged-0.8.6.tar.gz",
-    "srcHash": "0dsw809g7pfajbl8zsj2yvnad8vk09cqi40bszw5ia9bpzzqz7n4",
     "ver": "0.8.6"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/terminal-size/0.3.2.1/terminal-size.cabal",
-    "cabalHash": "12xiz7fgkhgaxc109fnrapzhxrwdc7p1vffzgp862sd4fl28wbbv",
     "pkg": "terminal-size",
-    "src": "http://hackage.haskell.org/package/terminal-size-0.3.2.1/terminal-size-0.3.2.1.tar.gz",
-    "srcHash": "1cfcfb9ncmha284k9f8arsfljkhixqiji4qkxg8b0az81x3pw983",
     "ver": "0.3.2.1"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/th-abstraction/0.3.2.0/th-abstraction.cabal",
-    "cabalHash": "08b5vgj912avd51587dm2yyr0w0hwacfwlbpmmsv1ydz5dp4wnwv",
     "pkg": "th-abstraction",
-    "src": "http://hackage.haskell.org/package/th-abstraction-0.3.2.0/th-abstraction-0.3.2.0.tar.gz",
-    "srcHash": "0l7241hv9lpqfghr680qjcffqcxrn95s0lp1jz7cy5118dyhwb3g",
     "ver": "0.3.2.0"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/time-compat/1.9.3/time-compat.cabal",
-    "cabalHash": "0aiv0z463qv5d5rn2hp1rfqm2qc7rrbg22vw1kjpnsmyi2qai851",
     "pkg": "time-compat",
-    "src": "http://hackage.haskell.org/package/time-compat-1.9.3/time-compat-1.9.3.tar.gz",
-    "srcHash": "1r0g0j3zjw2abvaxnn73nrvbzdq0azlw7kgpi5zdvnx7lv873awg",
     "ver": "1.9.3"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/transformers-base/0.4.5.2/transformers-base.cabal",
-    "cabalHash": "1brl4g03ppvxslznjd4v3iyr54fgqizm789k42aa4nwhf1a1bn74",
     "pkg": "transformers-base",
-    "src": "http://hackage.haskell.org/package/transformers-base-0.4.5.2/transformers-base-0.4.5.2.tar.gz",
-    "srcHash": "0jbfpbk6wk92wl5mj66l0iaxszh7dsy0jar35z2qndalgqqikrba",
     "ver": "0.4.5.2"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/transformers-compat/0.6.5/transformers-compat.cabal",
-    "cabalHash": "15j6my9z2m4qnanpi128hhq9ig5fl9hw5gvp4kn7khrzpxbhrc2h",
     "pkg": "transformers-compat",
-    "src": "http://hackage.haskell.org/package/transformers-compat-0.6.5/transformers-compat-0.6.5.tar.gz",
-    "srcHash": "01k47fpni67ymhs20rg006y4i6idwp640ijqcmr1ld450zapf28i",
     "ver": "0.6.5"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/type-equality/1/type-equality.cabal",
-    "cabalHash": "13lsff17dxz852f5bhjz8d1by704rzvwr67qqfc5dz5s7xc28qyk",
     "pkg": "type-equality",
-    "src": "http://hackage.haskell.org/package/type-equality-1/type-equality-1.tar.gz",
-    "srcHash": "0bcnl9cmk080glwfba7fhdvijj1iyw6w12hjm2sy06l0h9l0if1p",
     "ver": "1"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/unix-compat/0.5.2/unix-compat.cabal",
-    "cabalHash": "1yx38asvjaxxlfs8lpbq0dwd84ynhgi7hw91rn32i1hsmz7yn22m",
     "pkg": "unix-compat",
-    "src": "http://hackage.haskell.org/package/unix-compat-0.5.2/unix-compat-0.5.2.tar.gz",
-    "srcHash": "1v0168n8p0vmglf9m0rjaka4wn9vy70zlplkfjhcf4agsjyh4sf7",
     "ver": "0.5.2"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/unliftio-core/0.2.0.1/unliftio-core.cabal",
-    "cabalHash": "16k5fxlm9xpbd0ca861nmhb1j2ahyid02m1vbg1vzb5ckbm48glv",
     "pkg": "unliftio-core",
-    "src": "http://hackage.haskell.org/package/unliftio-core-0.2.0.1/unliftio-core-0.2.0.1.tar.gz",
-    "srcHash": "06cbv2yx5a6qj4p1w91q299r0yxv96ms72xmjvkpm9ic06ikvzzq",
     "ver": "0.2.0.1"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/unordered-containers/0.2.10.0/unordered-containers.cabal",
-    "cabalHash": "01727lm2spbqfn0rl89zv9zhpsmnls0kmizyckqf5nc3j9d0k6sy",
     "pkg": "unordered-containers",
-    "src": "http://hackage.haskell.org/package/unordered-containers-0.2.10.0/unordered-containers-0.2.10.0.tar.gz",
-    "srcHash": "16xpq9qb1ipl0mb86rlb3bx29xvgcwirpm2ds0ynxjh0ylwzavkk",
     "ver": "0.2.10.0"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/utf8-string/1.0.1.1/utf8-string.cabal",
-    "cabalHash": "02vhj5gykkqa2dyn7s6gn8is1b5fdn9xcqqvlls268g7cpv6rk38",
     "pkg": "utf8-string",
-    "src": "http://hackage.haskell.org/package/utf8-string-1.0.1.1/utf8-string-1.0.1.1.tar.gz",
-    "srcHash": "0g7wjx06yl08hqb767qymz2s6gh16fvs2xssz10116n1a5pf101p",
     "ver": "1.0.1.1"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/utility-ht/0.0.15/utility-ht.cabal",
-    "cabalHash": "0jr85qbkp7vyr9dgwcdgk2jvihxkxz8fqvyrhvyw94p3kjhka2wl",
     "pkg": "utility-ht",
-    "src": "http://hackage.haskell.org/package/utility-ht-0.0.15/utility-ht-0.0.15.tar.gz",
-    "srcHash": "060h82s8zrxr2pszf4xc158m7gh2jdxc9dmiiq4q8mj5i0pbka00",
     "ver": "0.0.15"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/uuid-types/1.0.3/uuid-types.cabal",
-    "cabalHash": "1lmlmng4lph57cljga3r9jy2axdls5mllsb2xzcwy2a34wgidarc",
     "pkg": "uuid-types",
-    "src": "http://hackage.haskell.org/package/uuid-types-1.0.3/uuid-types-1.0.3.tar.gz",
-    "srcHash": "08sys6qd18993bp8rqfmbnikdsb4shf12p80cp5p9w7ilcp7whcb",
     "ver": "1.0.3"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/vector/0.12.1.2/vector.cabal",
-    "cabalHash": "1859h3mkkvsz51pqk5i957fw7ghgk35mgklzv9divr9n3xcbr4cj",
     "pkg": "vector",
-    "src": "http://hackage.haskell.org/package/vector-0.12.1.2/vector-0.12.1.2.tar.gz",
-    "srcHash": "1312lpb1f4jzbmcjp7mdf9l9ykp1hscxdr66cl8zlcs8kbr13bm7",
     "ver": "0.12.1.2"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/vector-algorithms/0.8.0.3/vector-algorithms.cabal",
-    "cabalHash": "142ydyyba7g3bd4fxar75202ad7cz9ksgl3facwqmlpxhangazj7",
     "pkg": "vector-algorithms",
-    "src": "http://hackage.haskell.org/package/vector-algorithms-0.8.0.3/vector-algorithms-0.8.0.3.tar.gz",
-    "srcHash": "18bb05kz1ws1zln97ys2f4rfcphqi19xw0lb268qxvwll8nnv61c",
     "ver": "0.8.0.3"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/wcwidth/0.0.2/wcwidth.cabal",
-    "cabalHash": "1wxmics7srqrb96ish11miyixknk8fy1p89zmci5ql1wd2v1wlvp",
     "pkg": "wcwidth",
-    "src": "http://hackage.haskell.org/package/wcwidth-0.0.2/wcwidth-0.0.2.tar.gz",
-    "srcHash": "0131h9vg8dvrqcc2sn0k8y6cb08fazlfhr4922hwv2vbx3cnyy3z",
     "ver": "0.0.2"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/wl-pprint-annotated/0.1.0.1/wl-pprint-annotated.cabal",
-    "cabalHash": "07msnphx4zvq6crzcws9dy7l007gny44r7ipliax2wpykdjd73qb",
     "pkg": "wl-pprint-annotated",
-    "src": "http://hackage.haskell.org/package/wl-pprint-annotated-0.1.0.1/wl-pprint-annotated-0.1.0.1.tar.gz",
-    "srcHash": "0qq7707syvawg5pd4gb6z88klr0fw8c6ncmqpcpqkf3sc34wfljx",
     "ver": "0.1.0.1"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/writer-cps-mtl/0.1.1.6/writer-cps-mtl.cabal",
-    "cabalHash": "141sg80ky4xxllqhznf3w4q27gaw9dd0i2cxykqh05i0izzjv77c",
     "pkg": "writer-cps-mtl",
-    "src": "http://hackage.haskell.org/package/writer-cps-mtl-0.1.1.6/writer-cps-mtl-0.1.1.6.tar.gz",
-    "srcHash": "0w4xwh3m89zpqd14kjavzs5r6z1w3kaqa4ak8gl963mi2iplldxq",
     "ver": "0.1.1.6"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/writer-cps-transformers/0.5.6.1/writer-cps-transformers.cabal",
-    "cabalHash": "1cgdjvi3r8jr4h0vy8r7ngqpj044fy9z26yky95c6xr3qjrmgbrs",
     "pkg": "writer-cps-transformers",
-    "src": "http://hackage.haskell.org/package/writer-cps-transformers-0.5.6.1/writer-cps-transformers-0.5.6.1.tar.gz",
-    "srcHash": "1j6cbw8bidps2r2kwziiy3yfl1p1n30iji744j0p6f1y8ny1r1n7",
     "ver": "0.5.6.1"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/zlib/0.6.2.1/zlib.cabal",
-    "cabalHash": "0i9g71jvdw22bi9bi8dm5khwzcsv6cv8yadmf7afklg4xigxykfk",
     "pkg": "zlib",
-    "src": "http://hackage.haskell.org/package/zlib-0.6.2.1/zlib-0.6.2.1.tar.gz",
-    "srcHash": "194g71294d4y690p797rkrghp4pjn408gpj9lr4jlg42yfsgj8l7",
     "ver": "0.6.2.1"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/zlib-bindings/0.1.1.5/zlib-bindings.cabal",
-    "cabalHash": "0fq49694gqkab8m0vq4i879blswczwd66n7xh4r4gwiahf0ryvqc",
     "pkg": "zlib-bindings",
-    "src": "http://hackage.haskell.org/package/zlib-bindings-0.1.1.5/zlib-bindings-0.1.1.5.tar.gz",
-    "srcHash": "141gcgvlnz9rm4qnq24br8iisf4cf96qxgy1pqz102pf5vhy04ac",
     "ver": "0.1.1.5"
   },
   {
-    "cabal": "https://raw.githubusercontent.com/commercialhaskell/all-cabal-files/hackage/zmidi-core/0.9.0/zmidi-core.cabal",
-    "cabalHash": "057sp5rqk64j18hf6yq2za60cvmwa6id5sw33b8jkfvjvbks23p7",
     "pkg": "zmidi-core",
-    "src": "http://hackage.haskell.org/package/zmidi-core-0.9.0/zmidi-core-0.9.0.tar.gz",
-    "srcHash": "0342kr964g794rpyl2hj2gxyi9zfhxa4yazbd012saf2wj38spy8",
     "ver": "0.9.0"
   }
 ]

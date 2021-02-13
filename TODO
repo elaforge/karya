@@ -3501,6 +3501,34 @@ shakefile: build:
     . How are you supposed to install deps in the v2 world?
   nix:
     . https://app.cachix.org/cache/elaforge
+    * fix hackage.nix:
+      . callHackageDirect gets sha errors in deps, why?
+      . So bypass it all and do hackageSrcs.
+      . hash mismatch in fixed-output derivation
+          '/nix/store/3gagk0wqsdkrpacbqycks1cj1n08lpqy-zlib-0.6.2.1-r1.cabal':
+          wanted: sha256:0z3pkvbv6zfhfrv1vrj2jj38jnpl218qx78621jmi324fh972z11
+          got:    sha256:0i9g71jvdw22bi9bi8dm5khwzcsv6cv8yadmf7afklg4xigxykfk
+      . Whence come those shas?
+        Why is it even downloading the cabal file?
+        callCabal2nix -> already wants to download the cabal file!  Bah!
+      . cabal2nix embeds editedCabalFile hash in the mkDerivation.
+      . zlib-src: /nix/store/dwnazpzw4cxdywm3n1rmf7smqv2yfpk5-zlib-0.6.2.1-source
+      . cabal2nix hardcodes in editedCabalFile, and mkDerivation hardcodes in
+        newCabalfile = fetchurl ...
+        So the cabal file patching is really hardcoded in there.
+      . Unless editedCabalFile=null.
+      . So remove revision and editedCabalFile, does cabal2nix have a flag?
+        No.  Override mkDerivation.
+      . Can't override it, it's just a fucntion from generic-builder.nix.
+      . This is so stupid.  Why not just use its stupid downloading revision
+        thing?
+      . I could use mkDerivation directly, or all-cabal-hashes.
+      . Ok, now I need to update all-cabal-hashes due to Diff 0.4.0, probably
+        the thing that started this whole thing.
+      . callHackageDirect doesn't work, not sure why, but is still using
+        all-cabal-hashes, and fails on splitmix, which is not a dep of Diff.
+    - port make_hackage.py to nix, or run it in a derivation
+
     propagate deps to the shakefile:
       - package paths for haddock
       . Env vars would be easier from nix, while Local/ShakeConfig.hs is
