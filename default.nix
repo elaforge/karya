@@ -10,20 +10,20 @@
 # Building lilypond drags in all of texlive.  It's also marked broken on
 # darwin for 19.09.
 { withLilypond ? false
-, withIm ? false # TODO sync this with Shake.Config.enableIm
+, withIm ? true # TODO sync this with Shake.Config.enableIm
 , withEkg ? false # ekg is really heavy
 , withDocs ? false
-, profiling ? true # enable profiling in dependent libraries
+, profiling ? false # enable profiling in dependent libraries
 }:
 
 let
   nixpkgs = import nix/nixpkgs.nix { inherit config; };
+  hackageSrcs = import nix/hackage.nix { inherit nixpkgs; };
+  faust = import nix/faust.nix {};
 
   ghcVersion = "ghc882"; # ghc883 is not in 1909 yet
 
   ghc = nixpkgs.haskell.packages."${ghcVersion}";
-
-  hackageSrcs = import nix/hackage.nix { inherit nixpkgs; };
 
   # Minimal compile just for build-time binary deps.
   haskellBinary = drv: with nixpkgs.haskell.lib;
@@ -48,6 +48,7 @@ let
         });
       };
     };
+    # Replace nixpkgs hackage entries with my pinned ones, from hackageSrcs.
     overrideHackage = old:
       let
         toDrv = name: src:
@@ -135,20 +136,20 @@ in rec {
       configureFlags = [];
     });
 
-  basicDeps = with nixpkgs; [
+  basicDeps = [
     # fltk has to be in basicDeps, so it gets in buildEnv buildInputs, so the
     # magic nix hook puts it in NIX_LDFLAGS, so the magic nix gcc wrapper puts
     # the -L flag on.
     fltk
-    git
+    nixpkgs.git
     hackage
-    zsh
+    nixpkgs.zsh
     # Compile-time deps.
     (haskellBinary ghc.cpphs)
     (haskellBinary ghc.fast-tags)
   ] ++ guard isLinux [
-    libjack2
-  ] ++ guard isDarwin (with darwin.apple_sdk.frameworks; [
+    nixpkgs.libjack2
+  ] ++ guard isDarwin (with nixpkgs.darwin.apple_sdk.frameworks; [
     Cocoa
     CoreAudio
     CoreFoundation
@@ -180,8 +181,6 @@ in rec {
     configureFlags = ["--enable-shared=no" "--enable-static=yes"];
   };
 
-  faust = import nix/faust.nix {};
-
   imDeps = [
     faust.faust
     libsamplerate
@@ -197,22 +196,17 @@ in rec {
     nixpkgs.fftw
   ];
 
-  wantPkg = pkg:
-    # nix gets the "ghc" package confused with the compiler.
-    pkg != "ghc"
-    ;
-
-  hackage = ghc.ghcWithPackages (pkgs: map (pkg: pkgs."${pkg}") (
-    builtins.filter wantPkg (builtins.concatLists [
-      (readLines doc/cabal/basic)
-      (guard withIm (readLines doc/cabal/im))
-      (guard withEkg ["ekg"])
-    ])
-  ));
-
-  # hackage = ghc.ghcWithPackages (pkgs: with pkgs; [
-  #   Diff
-  # ]);
+  hackage =
+    let wantPkg = pkg:
+        # nix gets the "ghc" package confused with the compiler.
+        pkg != "ghc" ;
+    in ghc.ghcWithPackages (pkgs: map (pkg: pkgs."${pkg}") (
+      builtins.filter wantPkg (builtins.concatLists [
+        (readLines doc/cabal/basic)
+        (guard withIm (readLines doc/cabal/im))
+        (guard withEkg ["ekg"])
+      ])
+    ));
 
   mod_to_sexpr = nixpkgs.callPackage nix/mod_to_sexpr.nix {};
 
