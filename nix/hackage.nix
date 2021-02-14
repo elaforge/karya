@@ -24,7 +24,7 @@ let
   overrideCabal = drv:
     with nixpkgs.haskell.lib;
       (if profiling then (x: x) else disableLibraryProfiling)
-      (dontCheck drv);
+        (dontCheck (dontBenchmark (dontCoverage drv)));
 
   mkDrv = ghc: { pkg, ver }: callHackage ghc pkg ver;
 
