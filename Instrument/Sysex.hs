@@ -14,8 +14,8 @@ import qualified Data.Bits as Bits
 import           Data.Bits ((.&.), (.|.))
 import qualified Data.ByteString as B
 import           Data.ByteString (ByteString)
+import qualified Data.ByteString.Builder as Builder
 import qualified Data.ByteString.Lazy as Lazy
-import qualified Data.ByteString.Lazy.Builder as Builder
 import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map as Map

@@ -615,8 +615,7 @@ ghcWarnings config = concat
     ]
     where
     warns =
-        [ "hi-shadowing"
-        , "identities"
+        [ "identities"
         , "incomplete-record-updates"
         , "missing-fields"
         -- Check compatibility with

@@ -26,6 +26,9 @@ diff_contents = False
 test_samples_exist :: Test
 test_samples_exist = do
     let root = Patch._rootDir PatchDb.db
+    -- Avoid spamming a zillion errors if we just don't have samples here.
+    ifM (not <$> Directory.doesDirectoryExist root)
+        (failure $ "no sample directory: " <> txt root) $ do
     forM_ allFilenames $ \(name, dir, fnames) -> unless (exclude name) $ do
         pprint (name, dir, length fnames)
         not_equal (length fnames) 0
@@ -35,7 +38,7 @@ test_samples_exist = do
         when diff_contents $
             diff_dir_contents name dir fnames
     where
-    -- This one lets you directly pick sampes at "runtime".
+    -- This one lets you directly pick samples at "runtime".
     exclude = (=="sample")
 
 -- | If the sample coverage doesn't match, it's easier to debug with a diff.
