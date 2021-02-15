@@ -12,7 +12,8 @@
 , withIm ? true # TODO sync this with Shake.Config.enableIm
 , withEkg ? false # ekg is really heavy
 , withDocs ? false # build documentation
-, withDevelopment ? true # add tools for development
+, withDevelopment ? true # add tools to develop karya
+, withInteractive ? true # add tools to run karya interactively
 , profiling ? false # enable profiling in dependent libraries
 }:
 
@@ -111,6 +112,27 @@ in rec {
       configureFlags = [];
     });
 
+  # You always need these deps.
+  basicDeps = [
+    # fltk has to be in basicDeps, so it gets in buildEnv buildInputs, so the
+    # magic nix hook puts it in NIX_LDFLAGS, so the magic nix gcc wrapper puts
+    # the -L flag on.
+    fltk
+    hackageGhc
+  ];
+
+  hackageGhc =
+    let wantPkg = pkg:
+        # nix gets the "ghc" package confused with the compiler.
+        pkg != "ghc" ;
+    in ghc.ghcWithPackages (pkgs: map (pkg: pkgs."${pkg}") (
+      builtins.filter wantPkg (builtins.concatLists [
+        (readLines doc/cabal/basic)
+        (guard withIm (readLines doc/cabal/im))
+        (guard withEkg ["ekg"])
+      ])
+    ));
+
   # Deps used for development.
   developmentDeps = [
     # TODO nixpkgs.cachix is too old, instead:
@@ -120,13 +142,15 @@ in rec {
     (haskellBinary ghc.fast-tags)
   ];
 
-  basicDeps = [
-    # fltk has to be in basicDeps, so it gets in buildEnv buildInputs, so the
-    # magic nix hook puts it in NIX_LDFLAGS, so the magic nix gcc wrapper puts
-    # the -L flag on.
-    fltk
+  fontDeps = with nixpkgs; [
+    # I don't really use these, but there they are in case I do someday.
+    # noto-fonts
+    openlilylib-fonts.bravura
+  ];
+
+  # Dependencies to actually use karya.  CI can omit them.
+  interactiveDeps = fontDeps ++ [
     nixpkgs.git
-    hackageGhc
     nixpkgs.zsh
   ] ++ guard isLinux [
     nixpkgs.libjack2
@@ -136,12 +160,6 @@ in rec {
     CoreFoundation
     CoreMIDI
   ]);
-
-  fontDeps = with nixpkgs; [
-    # I don't really use these, but there they are in case I do someday.
-    # noto-fonts
-    openlilylib-fonts.bravura
-  ];
 
   docDeps = [
     ghc.hscolour
@@ -177,25 +195,13 @@ in rec {
     nixpkgs.fftw
   ];
 
-  hackageGhc =
-    let wantPkg = pkg:
-        # nix gets the "ghc" package confused with the compiler.
-        pkg != "ghc" ;
-    in ghc.ghcWithPackages (pkgs: map (pkg: pkgs."${pkg}") (
-      builtins.filter wantPkg (builtins.concatLists [
-        (readLines doc/cabal/basic)
-        (guard withIm (readLines doc/cabal/im))
-        (guard withEkg ["ekg"])
-      ])
-    ));
-
   mod_to_sexpr = nixpkgs.callPackage nix/mod_to_sexpr.nix {};
 
   #### aggregate deps
 
   deps = builtins.concatLists [
     basicDeps
-    fontDeps
+    (guard withInteractive interactiveDeps)
     (guard withDevelopment developmentDeps)
     (guard withDocs docDeps)
     (guard withIm imDeps)
