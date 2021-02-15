@@ -9,7 +9,4 @@
 
 . tools/use-stack
 
-# GHC_VERSION is usually set by the shakefile, but it's needed for some
-# modules the shakefile needs.
-exec runghc -DGHC_VERSION=$(tools/ghc_version.py) Shake/Shakefile.hs \
-    "$@" build/opt/shakefile
+exec runghc Shake/Shakefile.hs "$@" build/opt/shakefile
