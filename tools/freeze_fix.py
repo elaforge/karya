@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Read a cabal.config freeze file and produce a JSON file, for hackage.nix.
+"""Read a cabal.config freeze file and strip out the bootlibs.  Those are
+    fixed to the ghc version anyway.
 """
 
 import sys
@@ -8,15 +9,12 @@ import subprocess
 import json
 
 
-INPUT = "doc/cabal/all-deps.cabal.config"
-OUTPUT = "nix/hackage.json"
-
-
 def main():
+    input = sys.argv[1]
     # Omit the bootlibs, since their versions are hardcoded by the compiler.
     bootlibs = get_bootlibs()
-    pkgs = []
-    for line in open(INPUT):
+    pkgs = {}
+    for line in open(input):
         if line.startswith('constraints: '):
             line = line[len('constraints: '):]
         m = re.match(r'\s*(\S+) ==([0-9.]+),?$', line)
@@ -25,10 +23,11 @@ def main():
         pkg, version = m.groups()
         if pkg in bootlibs:
             continue
-        pkgs.append({'pkg': pkg, 'ver': version})
-    pkgs.sort(key=lambda p: p['pkg'])
-    with open(OUTPUT, 'w') as fp:
-        fp.write(json.dumps(pkgs, indent=2, sort_keys=True))
+        pkgs[pkg] = version
+    with open(input, 'w') as fp:
+        fp.write('constraints:\n  ')
+        fp.write(',\n  '.join(p + ' ==' + v for p, v in sorted(pkgs.items())))
+        fp.write('\n')
 
 
 def get_bootlibs():

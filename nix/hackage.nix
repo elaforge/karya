@@ -25,17 +25,42 @@ let
     with nixpkgs.haskell.lib;
       (if profiling then (x: x) else disableLibraryProfiling)
         (dontCheck (dontBenchmark (dontCoverage drv)));
+    # This should work better than jailbreak-cabal, but apparently needs
+    # brand-new Cabal (3.0.1.0 lacks it, 3.2.0.0 has it).
+    # jailbreak = drv: nixpkgs.haskell.lib.appendConfigureFlags drv
+    #   ["--allow-older" "--allow-newer"];
 
-  mkDrv = ghc: { pkg, ver }: callHackage ghc pkg ver;
+  parseFreezeFile = compose [
+    builtins.listToAttrs
+    (map parseLine)
+    (builtins.filter (line: line != "constraints:"))
+    lines
+  ];
+
+  # File must have been processed with tools/fix_freeze.py, which puts
+  # "constraints:" on its own line.
+  parseLine = line:
+    let m = builtins.match " *([^ ]+) ==([0-9.]+),?" line;
+    in if builtins.isList m && builtins.length m == 2
+      then { name = builtins.elemAt m 0; value = builtins.elemAt m 1; }
+      else abort "can't parse line: ${line}";
+
+  lines = compose [
+    (builtins.filter (s: builtins.isString s && s != ""))
+    (builtins.split "\n")
+    builtins.readFile
+  ];
 
   compose = nixpkgs.lib.foldr (f: g: x: f (g x)) (x: x);
 
-  # This should work better than jailbreak-cabal, but apparently needs
-  # brand-new Cabal (3.0.1.0 lacks it, 3.2.0.0 has it).
-  # jailbreak = drv: nixpkgs.haskell.lib.appendConfigureFlags drv
-  #   ["--allow-older" "--allow-newer"];
+in rec {
+  packages = parseFreezeFile ../doc/cabal/all-deps.cabal.config;
 
-in {
+  # versions mismatch, causes nix to segfault
+  segfault = callHackage nixpkgs.haskell.packages.ghc882 "ghc" "8.8.3";
+
+  overrides = ghc: builtins.mapAttrs (callHackage ghc) packages;
+
   all-cabal-hashes =
     let commit = "21fa0f534f906ead4abe15b071564e21e916c9f7";
     in nixpkgs.fetchurl {
@@ -43,13 +68,4 @@ in {
         + "${commit}.tar.gz";
       sha256 = "0niyw8l5qbnpwdqbaynyzsp85p7bv42rha9b8gjgjarg865r8iyy";
     };
-
-  overrides = ghc:
-    compose [
-      (builtins.mapAttrs (_name: mkDrv ghc))
-      builtins.listToAttrs
-      (map (a: { name = a.pkg; value = a; }))
-      builtins.fromJSON
-      builtins.readFile
-    ] ./hackage.json;
 }

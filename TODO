@@ -3465,6 +3465,63 @@ synth: im:
       waveguides" paper.
 
 shakefile: build:
+  ci:
+    find an alternative to travis
+      . https://circleci.com/
+      . https://azure.microsoft.com/en-us/services/devops/pipelines/?cdn=disable
+    try github actions
+      * get buildEnv building and cached
+      - cabal2nix junk doesn't get cached, maybe due to IFD nonsense
+        . Failed with a git error on "all-cabal-hashes-component-polyparse",
+          but it shouldn't be building that again.
+        - use nix-instantiate to see what out paths and whether I have them
+        - use nix-store -q --tree to see if the generated nix file is a build
+          dep.
+        . Isn't callPackageKeepDeriver supposed to fix this?
+          All it seems to do is add pkgDrv.passthru.cabal2nixDeriver.
+          I don't understand why it overrides preConfigure to be the same.
+      - mkmk in nix-shell
+      - build build/opt/browser
+      - cache build dir
+      Cacheix docs unclear:
+        . cachix says I need a "signing key", but where is that?  Is that the
+          same as the "Public Key" on the cache web page?
+        . https://nix.dev/tutorials/continuous-integration-github-actions.html
+          . Setting up secrets says "click on Settings", this is not visible,
+            you have to know to click on "..." first.
+          . It says "Add your previously generated secrets", but there are
+            "environment secrets" and "repository secrets", which one?
+            I guess "repository secrets."
+          . It says "CACHIX_SIGNING_KEY and/or CACHIX_AUTH_TOKEN".  I think
+            a CACHIX_AUTH_TOKEN is what I get if click "personal auth token"
+            on https://app.cachix.org/cache/me, but what is a signing key?
+            I guessed it was the "public key", but it seems wrong because if
+            it's public it's not a secret.  Also what does "and/or" mean?
+            Under what cases would you use one or the other, or both?
+            Below, under authToken, it says "if you chose API tokens for write
+            access".  Uhh... maybe I did maybe I didn't?  I created that cache
+            months ago and don't remember what I chose, and it doesn't seem to
+            tell me.
+          . Ok, I'll assume I chose auth token then.
+        . Pushing manually, it says I need a token, and go to
+          mycache.cachix.org.  That has the "personal auth token" or "per
+          cache auth token", with no documentation on the difference, so
+          I randomly pick "personal auth token".  And in any case, "per cache
+          auth token" leads to "401 access denied, did you forget to log in?"
+          even though I am logged in.  Anyway, I installed the personal auth
+          token with 'cachix authtoken', but now cachix push fails with
+          a FailureResponse and says "No signature found... run cachix
+          generate-keypair".  cachix generate-keypair also crashes with
+          FailureResponse and "not possible to override or add multiple
+          signing keys"... which I didn't think I was trying to do.
+        . Since cachix push works from my other machine, I look at its
+          cachix.dhall, and in addition to authToken there's also a
+          binaryCaches with a secretKey.  So I copy that over by hand and
+          now it works.  But I assume that's not how it was supposed to go?
+    / fix travis
+      . It won't compile without my hacked libsamplerate.
+      . I think I can get travis to clone from the github repo.
+      . In the longer term, can I write a nix expression?
   - fix the redefine error:
     . macro redefined warning when compiling hsc2hs generated file
       . Because hsc2hs embeds it in the file with -optc
@@ -3481,6 +3538,12 @@ shakefile: build:
     - QuickCheck, use hedgehog instead
     - for indirect deps I need some way to get the paths
       . e.g. whence goes js-jquery, js-flot?  Probably shake.
+    - I got a bunch of new deps when upgrading to ghc 8.10, who is dragging
+      them in?
+      ?: hspec, hspec-*, doctest
+      aeson 1.4.7.0 -> 1.5.5.1: data-fix, strict, these
+      these -> bifunctors -> comonad, distributive, indexed-traversable
+
   / shakefile -v should print version, it doesn't
     . because it prints at Normal, and I'm at Quiet.
     . To avoid shake's internal output, '# ...' lines
@@ -3488,7 +3551,7 @@ shakefile: build:
     . It's easier to use Quiet, otherwise shake wants to print too much stuff.
   - run with --lint-fsatrace:
     . https://well-typed.com/blog/2019/08/exploring-cloud-builds-in-hadrian/
-  - Use nix-style "v2" packages
+  / Use nix-style "v2" packages
     . https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/packages.html#package-environments
     . Either use -package-env flag or write .ghc.environment.arch-os-version
     . Then stop passing flags on the cmdline.
@@ -3527,9 +3590,15 @@ shakefile: build:
         the thing that started this whole thing.
       . callHackageDirect doesn't work, not sure why, but is still using
         all-cabal-hashes, and fails on splitmix, which is not a dep of Diff.
-    - port make_hackage.py to nix, or run it in a derivation
+    * port make_hackage.py to nix, or run it in a derivation
+      . I'd parse cabal.config, but it has bootlibs in it.
+      . Since I need cabal.config anyway if I still want cabal v1 to work
+        and I want to use its solver, why not filter bootlibs out of that, and
+        then parse it?
 
     propagate deps to the shakefile:
+      - use NIX_LDFLAGS instead of hardcoding paths for libsamplerate and
+        rubberband
       - package paths for haddock
       . Env vars would be easier from nix, while Local/ShakeConfig.hs is
         easier without.  Nix could create a Local/ShakeConfig.hs though.
@@ -4046,22 +4115,6 @@ cleanup:
     . That's not really better than Score.event_start.  Maybe SEvent.start?
       I'm not ready to abandon record prefixes though, they're still the only
       thing that consistently works.
-  ci:
-    - find an alternative to travis
-      . https://circleci.com/
-      . https://azure.microsoft.com/en-us/services/devops/pipelines/?cdn=disable
-    - fix travis
-      . It won't compile without my hacked libsamplerate.
-      . I think I can get travis to clone from the github repo.
-      . In the longer term, can I write a nix expression?
-    - cache shake output
-      . branch travis
-      . For some reason shake doesn't reuse the .o files.  Asked on
-        shake-build-system how to find out why shake wanted to rebuild.
-        No answer yet.
-    - Build with data/all-deps.cabal
-      . branch travis-all-deps
-      . I need a ppa for faust, the ubuntu one is too old.
   - better serialize
     - I want a more systematic and safer approach to versions
       . I want everything to be versioned.  Since it's manual I was
@@ -4296,11 +4349,6 @@ cleanup:
     Note tracks can't get a GetLastSample at all.
 
 performance:
-  space leaks:
-    . http://neilmitchell.blogspot.com/2013/02/chasing-space-leak-in-shake.html
-    . https://bgamari.github.io/posts/2016-03-30-what-is-this-array.html
-    . https://lukelau.me/haskell/posts/leak/
-    . https://www.well-typed.com/blog/2020/08/memory-fragmentation/
   . Staging via typed template haskell: uses [|| ||], $$.  Talk at
     https://vimeo.com/443276733 6:29:10
     . More talks at ICFP 2020
@@ -4313,6 +4361,19 @@ performance:
     - Check Cmd.State
       . Except state_current_performance
     - Check Derive.State during derivation.
+  research:
+    . https://ollef.github.io/blog/posts/speeding-up-sixty.html
+      ? Look at threadscope again for GC allocation size: -A50m
+    . https://hackage.haskell.org/package/stackcollapse-ghc
+    . https://github.com/grin-compiler/haskell-code-spot
+    . ghc-debug
+      . Coming in ghc 9.2.
+      https://www.youtube.com/watch?v=9zuAsGk9xoM
+      https://well-typed.com/blog/2021/01/fragmentation-deeper-look/
+    . http://neilmitchell.blogspot.com/2013/02/chasing-space-leak-in-shake.html
+    . https://bgamari.github.io/posts/2016-03-30-what-is-this-array.html
+    . https://lukelau.me/haskell/posts/leak/
+    . https://www.well-typed.com/blog/2020/08/memory-fragmentation/
   general:
     - use 'text-builder' for Pretty and Log?
       . Unfortunately it has tons of dependencies, due to deferred-folds ->
