@@ -1,0 +1,7 @@
+#!/usr/bin/env nix-shell
+#! nix-shell -i bash --arg withInteractive false --attr buildEnv ../default.nix
+
+set -eux
+
+which runghc
+runghc Shake/Shakefile.hs "$@" build/opt/shakefile
