@@ -28,6 +28,7 @@ let
     # else if ver "20.09" then "8.8.3" # 8.8.4 causes recursion for some reason
     else if ver "20.09" then "8.10.3"
     else abort "unknown version ${lib.version}";
+
   ghcVersion = "ghc" + builtins.replaceStrings ["."] [""] ghcVersionDots;
   ghc = nixpkgs.haskell.packages."${ghcVersion}";
 
@@ -83,6 +84,8 @@ let
 
   inherit (nixpkgs.stdenv) isDarwin isLinux;
 in rec {
+  inherit nixpkgs ghc;
+
   # nixpkgs.rubberband only works on linux.
   rubberband = if isDarwin
     then nixpkgs.callPackage nix/rubberband-darwin.nix {

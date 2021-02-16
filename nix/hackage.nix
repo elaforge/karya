@@ -37,7 +37,7 @@ let
     lines
   ];
 
-  # File must have been processed with tools/fix_freeze.py, which puts
+  # File must have been processed with tools/freeze_fix.py, which puts
   # "constraints:" on its own line.
   parseLine = line:
     let m = builtins.match " *([^ ]+) ==([0-9.]+),?" line;
