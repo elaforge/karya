@@ -4,9 +4,6 @@ LEGEND
   Use indent folding with indent=2.
 
 STATUS
-  . synth status:
-    . waveform display:
-      Just tempo changes is left, unless bugs come up.
   . infer gender damping:
   . text score: tscore:
     . Thinking about how to do negative durations.
@@ -29,27 +26,6 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
-  * for im, play never stops.
-    . Could it be related to removing the MIDI reset below?
-  * im play is broken
-    . Because it sends AllNotesOff, likely due to Midi.Interface change.
-    . Why does it send AllNotesOff on a play?
-    . Also why do I get one for chan [1..16], and then another at chan 1?
-      Because Play calls Cmd.all_notes_off which sends Interface.AllNotesOff,
-      then stop_im.
-      . [1..16] happens on play, 1 happens on stop.
-    . It's because MIDI runs out immediately, so Midi.Play resets.  It doesn't
-      know that im is still going.
-    . This wasn't a problem before because I never actually sent AllNotesOff,
-      I turned it into specific offs.
-    . One way is to defer reset until im is also done, but actually I don't
-      know that.  So how about remove reset?  Why do I have it?  Could I get
-      hanging notes without it?
-    . Maybe a better compromise is to send a real AllNotesOff on space, but
-      otherwise rely on Midi.Interface tracking.
-    . I could also use something else for im stop, like ResetAllControllers,
-      which space emits.  Or have a HardAllNotesOff which actually emits that,
-      and do it on space, but otherwise use note tracking in Midi.Interface.
   - I want to do vibrato and vibrato depth, but it's a pain to add new tracks.
     . But it should be in pitch, do I have vibrato settings there?
     . Maybe I should use the provided ways though, or at least be able to.
@@ -108,27 +84,7 @@ UNSORTED
     . Then the problem is that 'sym' or 'symbolic' variable names are generic
       without the pitch qualification.
     . Maybe psym or symp?  Or just call it pitch.
-  * apparently I lost the draw behaviour where I red-highlight trailing spaces
-  * pitch track entry replaces the whole call when there is a transformer
-    . It should just replace the final pitch call, as when there is no
-      transformer.
-    . I have two separate parser is PitchTrack: parse, and modify_note.
-    . Val edit uses parse, LPitch uses modify_note
-  * do the fancy parsing in Cmd.ControlTrack too
-  * strip transformer deleted the whole call
-  * is there a repl cmd to multiply control vals?
-    . Yes, LControl.multiply
-  * bug deleting view:
-    sync_status: Ui/Ui.hs:515 State.lookup: unknown (vid "green-mold/b185.v1")
-    . In keycaps, due to Cmd.get_focused_block.  It's still the focused view
-      even though it's gone.
-    . The window close should throw focus, but there's probably a moment in
-      between.
-    . Can I have window close clear Cmd.focused_view?
   - copy paste that understands track types
-  * maybe LInst should use 1-based midi channels
-  * check for MIDI channel out of range
-    . Also if it somehow gets in, do something better than crash on (!).
   green-mold, if I replace "i " "" for "inst=b", derive takes forever
     . Is it possible to get progress so I can see what it's doing?
     . It was because b1 etc. were block names, so it substituted those and got
@@ -138,55 +94,12 @@ UNSORTED
     - If I can show a progress bar with number of events / time derived, it
       would give the clue that something is wrong.
       . Also, should I abort if derive takes too long?
-    * special color for block calls
-      . Some indication of block calls would have solved this too... maybe
-        I could color the event specially?  In the future I'd like to put a mini
-        version of the block.
-      . It's Internal.event_style, but I don't have Ui.State in there, and can't
-        because it's standalone Track.SetStyleHigh
-      ways:
-        1 Try to pass Ui.State arg to SetStyleHigh.
-          I already do something like this with has_children.
-        2 Annotate the Event somehow.  I already have this in modified,
-          awkwardly encoded into the StyleId.  I could bite the bullet and
-          give it a set of flags.  It's annoying because then serialize becomes
-          incompatible, though maybe not that bad because Events.Events has
-          a version.
-          . Also I still have to annotate the event somehow, somewhere.
-            Modified works because it's in response to an UI action.  I could do
-            the same though, after an edit check Ui.State and flip a flag.  This
-            would be more efficient, but also error-prone since it's state,
-            effectively a cache.
-        3 Use highlights.  I could have the block call emit a highlight, and if
-          it's transparent, apply darkening for all block calls without extra
-          StyleIds.  However, it should be less efficient, because of all the
-          extra transparent selections.
-        . I did 1.
   / is there a Factor to glue together two blocks?
     . How about split a block?  Yes, Factor.split_time.  But no join.
     . It would have to match up tracks, which seems complicated.
     . I don't really need it though.
   - bug: logview: error parsing "": can't decode json
     . It should say where in the file this happens.
-  / bug: editing control at a particular spot only edits one higit.
-    . Also it turns into an interpolate when it should be set.
-    . Maybe has to do with being at 1/3?
-    . modify_event thinks it's "" each time.
-    . The question is why 'w' puts the selection on a value that doesn't see
-      the event?
-      (Key 53.333333333333336 Positive,
-       Event{_start = 53.333333333333336, _duration = 0.0, _text = "`0x`00",
-             _style = StyleId 0, _stack = Nothing}),
-      Selection{start_track = 5, start_pos = 53.33333333333333, cur_track = 5,
-          cur_pos = 53.33333333333333, orientation = Positive}
-    . TimeStep correctly gives 36.
-    . 53.33333333333333 is EventEnd, what's up with that when _duration=0?
-    . But only when multiple TrackNums
-    . It's due to the tiny gap between end of event on the other track.
-      Why then doesn't EditUtil create a new event?
-    . This is due to Event.round in Events.insert.  That in turn is to ensure
-      that adding 1/3 comes to 1.  So I don't want to get rid of that.
-    . What would it take to use rationals for TrackTime?
   - consider switching TrackTime to rational
     . Reason why is if I multiply events by say (2/3) I easily wind up with
       start+dur just barely not lining up to the start of the next event.
@@ -243,10 +156,6 @@ UNSORTED
       typecheck, but it's not the only one!
     . I could move down the instances for those specific things.  It's pretty
       ad-hoc.
-  / Can I merge PControl with Control?
-    . I can, but it doesn't simplify much, and the %/# distinction is useful
-      for pcontrol arguments... I just almost never use those.  Ratio scale
-      does.
   - can I tweak individual scale degrees?
     . E.g. ma + 0.25nn, ri + 0.2nn.
     . Maybe just an env var for scale degree would do it.
@@ -255,9 +164,6 @@ UNSORTED
     . notation and damping inference for gender rambat
     . It would be nice to have the high level part, then double click to open
       the derived parts, and possibly edit.
-  * make tr hold flat?
-    . can I replace the trill hold arg with a 'd' transform for control calls?
-      That won't work for the note trill though.
   - do I ever get negative Score.Events?
     . It would simplify to rule that out.  E.g. Score.events_overlap
     . Score.event_min implies I do, but only Derive.Note uses it so maybe no?
@@ -2081,19 +1987,12 @@ synth: im:
     - event loop hiccups when editing IM
       . use events to find who is causing it
     - Make some profiles for memory use and time.
-  * It seems like ImGc is too eager
+  + It seems like ImGc is too eager
     . If I disable an old track, it deletes it right away.
     . Shouldn't it have touched all the timestamps when it hit that track?
     . Make sure Lib.Checkpoint does that.
-  * write to logs instead of stdout, it's getting verbose
-  * port im-gc.py to haskell so I can call directly from Cmd.Performance?
-    . It should be faster, though performance hasn't been a problem... but it
-      is in the derive loop.
-    . Also I can put im cache stats in Cmd.set_global_status
-  * Maybe I could have the tempo track default to 1 instead of almost 0.
-    . 0 tempo is always a mistake.  It's just a harmless one with midi because
-      midi renders audio lazily.  Not so harmless when eagerly rendering audio!
-    . Or how about just crashing?
+    . I think it still has this problem.  Have to get im_gc to log what it
+      deleted and why.
   optimize low level sapmles: avx: simd:
     - use simd in play_cache
       . It's probbaly IO bound, so kind of pointless, but still good for
@@ -2148,15 +2047,6 @@ synth: im:
         Once I have memory and time profiles, see if there's a significant
         difference between unsafe and safe.
   bug:
-    * fix the jumpy progress problem, maybe instead use (min, max).
-      . I'd have to remember the old selection.
-      . fltk already has it, but then it would have to know about what kind of
-        selection this is.  To much state.
-      . Cmd.State can have 'Map BlockId (Map TrackId (RealTime, RealTime))'
-      . It's not so simple, this way start never advances.  Instead, I need
-        to store Map TrackId (Map Instrument (RealTime, RealTime)) and take
-        the min/max each time.
-      . Msg.ImRenderingRange does not include Instrument.
     - progress steps seem too small for sampler at least
       . Just make them bigger, or make faust and sampler different?
       . Why did I make them smaller than chunk size anyway?
@@ -2201,31 +2091,6 @@ synth: im:
           . Not sure how to debug this then.
         . rename is not atomic, there's an invalid symlink for a moment
           . It totally should be.
-    * "derive might be stuck" when starting up on save/sketch/21-01-10-cengceng
-      . Probably related to how every edit gets stuck.  Put in timing, who is
-        blocking?
-      . Where did my old UI timing code go?  Ui.Fltk: NOTE [ui-loop-timing]
-      . 6.48s events -> haskell, then another 2s events -> haskell
-      . That's in handle_actions.  Could I do timings for each named cmd?
-      . It's calls to set_waveforms.
-      . Commenting out the peak cache fixes it, so it's that it has to load
-        the file and compute the peak cache.
-      . While each chunk load is indeed 0.005 to 0.08s, there are 494 of them.
-      . I could take this out of the UI loop by having File.writeCheckpoints
-        also write the peak cache.  The other way would be to make the UI
-        threaded.
-      . Alternately, keep in c++, but save to a file cache.  In fact, since it
-        uses the ratios, I think it has to be that way.
-    * still crashing from out of fds:
-      openFile "kajar/CenterClosed/24-30-35-104-107-center+closed.flac":
-      System error : Too many open files.
-      . fd limit is 256, which is low.  I can bump it up, but:
-      * Make sure I'm closing FDs in sampler-im.
-        Yes, I think I am.
-      . So this is probably legit, parallelism means it's up to sum of max
-        voices for each instrument.
-      - These are probably long cengceng tails, a voice limit would clean that
-        up and be more efficient too.
     - kendang wadon loud de makes reaper mute
       . What's the limit?
       . It's Prefs->Audio "Automatically mute any track"
@@ -2233,24 +2098,6 @@ synth: im:
     - also kendang dynamics are wonky:
       . ^ is too quiet
       . OSC thru plays normalized, lots of hiss
-    * 2 simultaneous notes for OSC thru is no good for notes with a long decay
-      . I really did this for multiple sample thru like mridangam od.
-      . How about send multiple samples per OSC, and stream however many
-        necessary?
-      . One OSC.Message is already one sample, I would need to bundle them,
-        which OSC supports, or maybe do a hack like notice they all come at
-        once?
-      . It looks like liblo supports bundles though it's hard to tell how.
-        But why am I even using OSC?  It seems like a liability for no
-        benefit.  Instead, why don't I send JSON over a socket?
-      . Except the part where parsing json is complicated.  But
-        https://github.com/nlohmann/json seems ok.
-      . I would need to write the socket opening / binding code. Then read
-        a line, parse as json, and dispatch.
-      . It's still maybe overkill.  Why not do a simple serialization:
-        fields separated by null: (sample, offset, ratio, volume)
-      . looks like strtod() can parse haskell Show Float.
-      . Wait, we also have a stop message.
     + A no-op change to tempo rerenders everything, e.g. insert a ' somewhere.
       . Controls in general are causing previous notes to rerender.
       . It's because I don't trim the signals before doing the hash.
@@ -2718,19 +2565,7 @@ synth: im:
       . There is probably some awkward workaround where I could explicitly
         route audio output.
     - expose separate left and right pans?  Or pan center and width?
-    * Some things support 7 or 10 already, I should have a way to configure.
-      . Set CC number by parameter, and 0 means ignore.
-      . Volume comes up at -inf, vol cc and pan cc have right number, but
-        slider position is wrong.
   play_cache: PlayCache:
-    * I wound up with a short sample, which messes up play_cache.
-      . I guess this has to do with cache: if I add something after a gap, it
-        wouldn't rebuild that chunk.  And correctly I think.
-      . I could just emit silence for the rest of the chunk, but will it mess
-        up waveform display when a sample breaks the invariant of all the same
-        dur except the last one?
-      . I don't think so, and anyway, it's too complicated for an invariant,
-        I should just support not all the same size.
     gui ideas:
       . I don't really want to write a gui though, what a hassle.  How much
         can I do with the generic gui?
@@ -2772,6 +2607,8 @@ synth: im:
         out of sync.
       . What's so bad about global though?
   sampler: sampler-im:
+    - even though I don't need a voice limit, it would still improve
+      performance.  E.g. long cengceng tails add up to a lot of voices.
     ? anything to learn from HISE?
       . Uses HLAC, which is like flac, but less compression and supposed to
         decode faster:
@@ -2941,17 +2778,6 @@ synth: im:
         . For proper distribution, I think I just hand-test like in
           Mridangam_test and trust that if you're using the usual combinators
           then it works.
-      * PatchDb_test can test all samples reachable for all patches.
-        . To do that I need to know all the possible Note inputs.  I'd have to
-          export some special metadata for that.
-        . Attributes are exported via Im.Patch.attribute_map
-        . To expose dyn and variation, I'd have to write things like
-          getFilename as a table rather than a function.
-        . It would be simpler to export min increment for dyn and var, which
-          for var is the max number of variations, and then enumerate.
-        . Alternately, each patch could export a list of all its samples,
-          by whatever means it wants, and then the test just checks them.
-      * Have a LState.save_im that records im in the same way as MIDI.
       - Also have it do a sampler dump to verify sampler convert.
     break:
       - make a 'bd' or 'sn' than randomly picks one
@@ -3062,43 +2888,6 @@ synth: im:
         . So only do the pitch curve merge if Note.element is set, and look
           for equal Note.elements.
     gong bali:
-      * cengceng rincik
-        * I'll want to automatically alternate hands.
-        * open+both and closed+both are backwards.
-        * thru doesn't work for hands strokes: attributes not found +open
-          . I could make the sampler just add +left.
-        * file not found: "data/sampler/cengceng/rincik/kopyak+open-f-v4.flac"
-      * cengceng kopyak
-        * Not enough variation.
-          . for 14.5s, variation= 0.325, but getFilename gets -0.348
-          . Because Drum.convert used bimodal var, I think just a bug.
-        . Still not enough variation, but I just didn't sample enough.
-          I should sample more dynamics and variations, and also different
-          cengcengs.
-        * wait I did do that!  Cut those up!
-      * kajar
-        . Samples already in kontakt.
-      * ScGamelan sc-gong
-        / attributes are not as appropriate as Note.element, but all the
-          existing setup is for attributes.
-        * naturalNn for gongs depends on the gong, so it needs to be
-          a function attr -> PitchNumber.
-        * LittleGong is the nearest, but does it support variation properly?
-          . No, fix both it and sc-gong.
-        * Unlike the other drums, I'm using explicit velocity ranges, not an
-          ordered list which implicitly covers the range evenly.
-        * requested (rate, channels) (44100,2) but file had (96000,2)
-          . Maybe permanently resample them?
-          . resample: 13gb -> 6.6gb -> flac 1.6gb
-        * Ok, now pitch is really high.
-          . Get the nns right.
-          . I could unset with #=_, but patch wants a pitch signal.
-        * It's not convenient to set pitch for each gong, since usually they
-          are set once.  They should default to natural pitch, but have
-          a switch to take a pitch signal.
-          . Wouldn't it be simpler to just take the pitch in that switch?
-            Well, not if I want to do fancy pitch stuff, that's what the pitch
-            track is for.  But I don't want to do that now.
       / Smooth out dynamics.
         . Kontakt version is smooth, but mine isn't.
         . I think dynRange just exacerbates jumps instead of smoothing them,
@@ -3470,7 +3259,6 @@ shakefile: build:
       . https://circleci.com/
       . https://azure.microsoft.com/en-us/services/devops/pipelines/?cdn=disable
     try github actions
-      * get buildEnv building and cached
       - cabal2nix junk doesn't get cached, maybe due to IFD nonsense
         ? use nix-instantiate to see what out paths and whether I have them
         ? use nix-store -q --tree to see if the generated nix file is a build
@@ -3596,38 +3384,6 @@ shakefile: build:
     . How are you supposed to install deps in the v2 world?
   nix:
     . https://app.cachix.org/cache/elaforge
-    * fix hackage.nix:
-      . callHackageDirect gets sha errors in deps, why?
-      . So bypass it all and do hackageSrcs.
-      . hash mismatch in fixed-output derivation
-          '/nix/store/3gagk0wqsdkrpacbqycks1cj1n08lpqy-zlib-0.6.2.1-r1.cabal':
-          wanted: sha256:0z3pkvbv6zfhfrv1vrj2jj38jnpl218qx78621jmi324fh972z11
-          got:    sha256:0i9g71jvdw22bi9bi8dm5khwzcsv6cv8yadmf7afklg4xigxykfk
-      . Whence come those shas?
-        Why is it even downloading the cabal file?
-        callCabal2nix -> already wants to download the cabal file!  Bah!
-      . cabal2nix embeds editedCabalFile hash in the mkDerivation.
-      . zlib-src: /nix/store/dwnazpzw4cxdywm3n1rmf7smqv2yfpk5-zlib-0.6.2.1-source
-      . cabal2nix hardcodes in editedCabalFile, and mkDerivation hardcodes in
-        newCabalfile = fetchurl ...
-        So the cabal file patching is really hardcoded in there.
-      . Unless editedCabalFile=null.
-      . So remove revision and editedCabalFile, does cabal2nix have a flag?
-        No.  Override mkDerivation.
-      . Can't override it, it's just a fucntion from generic-builder.nix.
-      . This is so stupid.  Why not just use its stupid downloading revision
-        thing?
-      . I could use mkDerivation directly, or all-cabal-hashes.
-      . Ok, now I need to update all-cabal-hashes due to Diff 0.4.0, probably
-        the thing that started this whole thing.
-      . callHackageDirect doesn't work, not sure why, but is still using
-        all-cabal-hashes, and fails on splitmix, which is not a dep of Diff.
-    * port make_hackage.py to nix, or run it in a derivation
-      . I'd parse cabal.config, but it has bootlibs in it.
-      . Since I need cabal.config anyway if I still want cabal v1 to work
-        and I want to use its solver, why not filter bootlibs out of that, and
-        then parse it?
-
     propagate deps to the shakefile:
       - use NIX_LDFLAGS instead of hardcoding paths for libsamplerate and
         rubberband
@@ -4650,15 +4406,6 @@ performance:
 
     profile with SCCs
       . tools/run_profile verify_performance
-      * it's messy, let's rewrite it in python
-      * even with no -fprof-auto, hackage has compiled with -fprof-auto
-        . Can I rebuild with cabal flags?  Or should I use nix?
-        . Actually it's -fprof-auto-exported, which is exported functions not
-          marked INLINE.
-        . I think this is no good though, because small functions are not
-          marked INLINE but will still be inlined, e.g. whenJust.
-          Also seems to mess up fusion, e.g. Data.Vector.Fusion.Util.runId
-        . I can work around with my own whenJust and maybeM.
       + put SCCs on... where?
         + I could still try a run with -fprof-auto-top, to see who gets
           called a lot.
@@ -4700,6 +4447,7 @@ performance:
       . Sorted by?  Time by default, can be --alloc or --entry.
     improvements:
       - use HashMap for Environ?
+      - if parser is slow, then try separate lexing
       * Write a tool for diffs on .prof and .gc so I can feel good.
         . tools/profile_verify.py parses .gc
         . Then just diff the top CC list from .prof, sort by name.
@@ -4718,94 +4466,6 @@ performance:
           on that.
         . The toplevel scale=xyz should do the Derive.with_scale.  Then a `*`
           does nothing.  A `*abc` does a `scale=abc`.
-      * Crc32Instances.ptrIO, Internal.add_stack_frame
-        . d_merge DeriveM.run -> Internal.add_stack_frame
-        . This is because I eagerly update the seed on every stack frame.
-        . I already have code in there to skip Call frames which I think
-          I haven't added just did to not have to redo verify_performances.
-        . But that just reduces by a fraction, can I do more?
-        . Only do the hash if I need the seed.  For that, I could just get the
-          stack and crc it.  But the reason I make one each time is that
-          I want to be able to intercept the seed anywhere in the score,
-          and then hardcode it to fix that value.
-        . Could I putting a seed set in the stack, and then only crc up to
-          that?  That would hopefully get the same situation, except omit all
-          the step-by-step crcs, and omit them entirely if I never ask for the
-          seed.
-          . If I put the seed in the stack, would that get in the way of the
-            cache?  Hopefully not, it's just like another call.  Since setting
-            the seed will be a p_equal, I could even special case a 'Call equal'
-            to 'CallSetSeed val' or something, but that seems unnecessary.
-          . This could actually wind up doing more work, because I re-CRC the
-            whole stack every time.  If I'm getting a random value on every
-            single note, that could be quite a lot!
-        . Or could I just use laziness?  Since seed is env value, could I make
-          it lazy?  I could use Data.Map.Lazy in Environ insert, or even
-          use a lazy insert specifically for that seed key.  This would then
-          accumulate thunks instead of doing the work, and they'd get forced
-          only if I asked for the seed, so it should get the same effect.
-          Downside is it's still appending intermediate thunks.  Upside is
-          that it's lazy, so previous CRCs in the stack won't be redone.
-        . What's the chance this is is an artifact of SCCs?  The ptrIO stuff
-          might get inlined but if the real work is the zlib FFI call, then
-          there's no way around that.
-        . Indeed with -fprof-auto-exported, add_stack_frame is still near the
-          top.
-        . Establish a lower bound by omitting seed entirely:
-          Total: 83.59 -> 75.10
-        / lazy Environ
-          . lazy_insert is even slower, and I still get add_stack_frame, it's
-            maybe still getting forced?
-          . Of course it is for cerucuk-punyah, but for green-mold, I go down
-            to basically no-seed!
-          . So I think this worked, but of course it's no good if I actually
-            do use the seed.
-          . The speed up turns into a slowdown for everyone in the optimized
-            build, so this is probably just a profiling red-herring.
-        / explicit stack hash stack markers
-        / Try using Hashable, if it's faster than crc.
-          . Yes, seems to be a nice little boost.
-          . But it's definitely not stable:
-            https://github.com/tibbe/hashable/issues/139
-          . Can I use a higher performance hash?  E.g.
-            https://github.com/google/crc32c
-            https://github.com/google/highwayhash
-          . Or maybe just sum, I don't need most hash properties.
-            Sum may be slower than a hash though, because sum in haskell won't
-            be vectorized.  But if the cost is calling FFI, then maybe staying
-            in haskell is faster anyway.  And I'm hashing lots of small
-            things, maybe SIMD doesn't matter.
-          . But maybe I could vectorize anyway, what does hashable do for sse?
-          . I just need to hash Id Text, Call Text, Double, Int.  I can sum
-            Text quickly.
-          . How does hashable hash things?
-            . Hash Words Ints: fromIntegral
-            . Hash Double:
-              hash ((unsafeDupablePerformIO $ with x $ peek . castPtr)
-                :: Word64) (Word32 for Float)
-            . Hash ByteString: hashPtrWithSalt p (fromIntegral len) salt
-            . Hash Text:
-              hashWithSalt salt (T.Text arr off len) =
-                hashByteArrayWithSalt (TA.aBA arr) (off `shiftL` 1)
-                (len `shiftL` 1) salt
-            . hashByteArrayWithSalt -> hashable_fnv_hash_offset
-              hashPtrWithSalt -> hashable_fnv_hash
-              hashable_fnv_hash: while (len--) hash=(hash * 16777619) ^ *str++;
-            . So SSE2 is only used by siphash, which hashable doesn't use.
-            . I already have SIMD sum in play-cache-avx though.  But the more
-              I think of it, the more I doubt it would help much with my small
-              values.
-            . Probably a sum is about the same speed as this?
-          . Since hashable is actually really simple I could just reimplement
-            it, where my version won't change.
-          . Doing even the sum in C may be significantly faster, as with
-            Util/vectorc.cc.
-          . This is benchmarkable, do a criterion?
-        * Use my own hashable like thing, Util.Seed.
-        * Omitting Call helps.  But test to make sure I don't need it.
-        * Write or find a test that demonstrates querying and freezing the
-          seed for reproducibility.
-        * Update all those score performances.
 
     + Bring back profiling, and do it regularly.
       . Look into that graphing stuff, I have the links around here somewhere.
@@ -5146,7 +4806,7 @@ rust-gui: gui: ui:
     . Dependency on rust.
 
 fltk:
-  * bug: ever since the slow scrolling: change, I sometimes get a light gray
+  + bug: ever since the slow scrolling: change, I sometimes get a light gray
     background on track titles.
     . This is the selections getting in, if I use a blue selection then it's
       blue.
@@ -5718,144 +5378,11 @@ REPL: repl:
     . Maybe a control key, so I can edit the contents of the current line.
   - It would still be useful to save a single unified history.  Then use
     something like :h to search it.
-  * It's easy to leave vi open on a ky file and change scores.  Maybe it could
-    send the score name, and reject if it's changed.
-    . Another way is if I add back push notifications that the score has
-      changed, I could kill off the editor.  But I'd lose unwritten changes.
-    . The standard way would be to warn before quitting if there's an editor
-      open with unsaved changes, but I don't really have that mechanism.
-    . Maybe I should though, because I can quit without saving a score too!
-    modal:
-      . traditional way: cancel, quit without save, save & quit
-      . show the warning: I suppose it would be a whole new window, like
-        keycaps, though this one is modal.  Maybe that's simpler, in that it
-        could be 'AppC.modal :: Text -> [Choice] -> Fltk Choice', and no need
-        for messages.
-      . Then I have to trigger a save, for the score it's easy, but for the
-        editor I would need some signal for it to save and quit.
-    single warning:
-      . show a warning, and then quit on the second one, or quit on shift+cmd+q
-      . show the warning: I don't think I want to put it in logview, since
-        it's frequently buried... though that's really the place for it.
-        Maybe I should instead enhance logview to bring to front on a high
-        prio message.
-    auto save:
-      . If there is unsaved data on quit, write it to `save-fn`.unsaved
-      . The danger is that I won't notice it, and on next load not notice
-        the revert, and then on the next quit the .unsaved will be
-        overwritten, or at least out of date.
-      . However, the git backend doesn't have the problem, though that can be
-        an annoyance, because I might want to discard changes.  Still I can
-        get back just by reverting to the last tag.
-    * logview pops to front on a high prio message.
-    * "soft quit" logs and warning and aborts if there is unsaved score, or
-      open editor.
-      . How to know if an editor is open?
-      . Since the editor stuff is purely REPL-level, it needs to inform seq
-        about editor open and close.
-      . Ensure that editor open also shows up in the status box as unsaved.
-        . A refinement is if it was saved, and editor quits with no change,
-          then it's saved.
-      . Somehow Cmd._saved gets set to False, don't know where.
-        . Weirder, if I omit Internal.update_saved, nothing draws!?
-        . I think it's a bug hidden by update_saved, the sync_edit_state just
-          happens to get it to notice the change.
-        * Ui.put does a damage all, but no view damage?  But shouldn't block
-          damage imply view daamge?
-        . Ok, definitely unset by update_saved.
-    * Also do quit checking when loading another score!
-      . That means I need "hard load".
-    * implement ReplProtocol.NQuit
-      . I think I can just hard close any open editor.
-      . But since I'm blocked waiting for the editor, I'll need another
-        thread.
-      . And since this is async, App.Repl needs to be async in general.
-      . Currently: main -> Repl.repl -> loop.  The repl has the addr, and
-        synchronously sends queries and receives responses.
-      . So, I have a separate thread mind the addr, and when it gets an
-        unsolicited notification, it has to poke the repl.  For NQuit, it
-        can send Haskeline.Interrupted, which should be enough to update the
-        prompt.  Then, wait_for_command should also catch Interrupted, and
-        kill the editor, and return.
-      * I could set vim's swap file to a non-tmp dir, and print it out when
-        killing it, just to be sure I don't lose data.
-      . How about make ReplProtocol.NotifyRepl an Exception, then throw it
-        directly.
-      . How about retain the sync query response, but throw when I see
-        a notify?
-      . Wait that doesn't work because most of the time I'm not waiting for
-        msgs most of the time.
-      . I also can't have a separate thing listening just for async, because
-        it will pick up sync responses.
-      . Ok, so it has to be a whole thread listens for responses, and then
-        query/response goes through it via a channel.
-      . So actually the separate thread waiting on async notify won't work,
-        because it'll hog the mvar, and can't work because I can't atomically
-        switch to "wait for sync."
-      . But it's none of it is even necessary!  Just expect notifies in all
-        the query functions, and throw when I get one.  That is so much
-        simpler.
-      . Still a problem with this!  The repl is not watching the socket when
-        it's watching the tty!  So that's why I wanted a separate thread.
-        I do need something constantly watching the socket.  But I can't
-        have two things watching the socket, because then I can't be sure
-        responses and notify don't get mixed up.
-      . So a separate thread watches the socket, and puts things in a Chan.
-        Addr becomes (Network.Addr, Chan Response).  Sockets are duplex so it
-        should be ok one constant reader, and an async writer, right?
-      . Except, new problem: if the socket doesn't exist.  Previously I would
-        only query before a prompt, and there's a special encoding in
-        query_save_file.  But now I should be able to notice the socket
-        closing, and throw NQuit.  So I don't need to send NQuit from seq!
-      . But, when starting I need to tell the repl there's no connection, and
-        then block until there is one.
-      . So I want to put the Chan into a "not open" state, where it doesn't
-        block on the chan, but just immediately throws not open.
-      . This is all really complicated.  The old implementation was nicer.
-        The only effect I want is that when seq quits, I notice immediately
-        instead of having to hit enter to trigger a new query_save_file.
-        Could I have a separate thread which watches the socket to see if it's
-        closed?
-      . The old way opens and closes the socket once per transaction, which
-        I think is still good.  But that's incompatible with using socket
-        state for things like quit.
-      . The old way was to monitor the log for "app quitting", maybe I just go
-        back to that.  The alternate way is to poll for seq is up, which maybe
-        I can do by just poking the socket.  I think Network.withConnection
-        does?
-      . Yes, but it feels like random background polling may cause trouble?
-        On the plus side, maybe it won't, and polling state seems more
-        reliable than trying to catch a magic log msg.
-      . The underlying call is probably Socket.connect -> connect(2).
-        It will probably EADDRINUSE if it asks the wrong time.  Also if I'm
-        polling, I may cause the repl to EADDRINUSE.
-      . Can I poll seq in another way?  Not reliably... any pid file could be
-        stale due to a crash, and the pid could be valid due to reuse.
-        Unlikely though.
-      . But if the REPL misses a quit due to say a crash and not app quitting
-        log msg, then it's not that bad, I just have to wait for the next
-        prompt to notice.
-      . So let's tail the log.
-      . Seems like vim gets a signal on Haskeline.Interpret, then repl
-        freezes.
-      . This is a vim specific thing, sleep 100 acts as it should.  Why should
-        a haskell exception affect the subprocess?
-      . Maybe it has to do with internal exception implementation when in
-        a system call, e.g. it uses SIGALARM or something, and vim gets it
-        too.
-      . Process.create_group is no good, then vim doesn't get the terminal.
-    cleanup:
-      * Why does Network.withConnection get an incrementing socket fd?
-        Am I not closing it?
-      * move Responder.accept_loop to Repl
-      * use \case in ReplProtocol
   - on load kbd focus is somehow not on the root block, even though it looks
     like it.
     . Is it due to keycaps?
     . Save has a Cmd.focus, which does lead to BringToFront.
     . This is probably fltk level, since OS X thinks the block has focus.
-  * it's annoying if I try to save a file, and build/opt/send doesn't exist
-    . Easy solution is to 'mk' it if it's not there.
   - Now that save file is a poll instead of being pushed, it takes a return
     to notice a change.  Can I restore the notification thing?  Or maybe it's
     enough to make sure I write the history to the new name?
@@ -5877,13 +5404,6 @@ solkattu:
       then I need to return colors from notation.  But if I do, could
       I eliminate notationHtml?
   notation conveniences:
-    * g = group
-      . But what if I do more automatic groups?  Like what?
-        tri_ could group repeats and karvai.
-      . It looks like some could use it, but some don't.  E.g. if the sections
-        already have group structure, or are just patterns.
-      . I could have a trig_ variant to put group on, but if group is just
-        'g' then 'tri_ sep (g thing)', which is more orthogonal anyway.
     / mark karvai groups automatically?  I don't have to highlight it.
       . If I'm not going to highlight, why bother?
     / Then I can make tri like r3, but groups the sequence, as does tri_.
@@ -5937,7 +5457,33 @@ solkattu:
     - after 2014-06-17
     - complete Mridangam2013.dinnagina_sequence, maybe move to solkattu.
   practice: Solkattu.Practice:
-    * record bpm for each practice
+    I can't say I practiced a tani:
+      + I could get rid of Part by putting korvais inside other korvais.
+      - Then the sections lose their identity.  But if I keep the index with
+        the section, they keep the correct numbers.
+      - But it doesn't work with solkattu, because I only have one StrokeMap
+        per Korvai.
+        . I could put StrokeMap per section, but the usual 'korvai'
+          constructor just gives the same one to all of them.
+        . I suppose this could be useful in general, though rarely.
+        . This is inappropriate for lint, because lint has to be global,
+          because I don't scope strokes to their sections, because that would
+          be too much work.
+        . But most of all, it doesn't seem right to put StrokeMaps in every
+          section, when I only ever use that for tanis, which have pretty
+          non-overlapping uses.  Except of course realizing them, and going
+          into All so I can put them in the practice db.
+        . I'd have more motivation if I had a use for per-section StrokeMaps,
+          but even if I did, I think I'd want to merge them with a global one.
+        . Is there a way to share the printing and All, without moving
+          StrokeMaps?
+        . It's also nice to have tanis show up in the db, e.g. html output,
+          with the "tani" type.
+        . I could have a whole new Korvai constructor?  I want metadata...
+          well, maybe not, maybe just Location.
+        . This means that everything that deals with Korvai now has to deal
+          with the other constructor.  The other approach didn't because there
+          were already multiple sections.
     - make sure exercise types are accurate.
     - remember what I did last time, and do spaced repetition
       . This isn't memorization, just randomization with coverage.  So it's
@@ -6223,7 +5769,6 @@ solkattu:
       is that time can be abstract.
 
 Cmd:
-  * add '.' messes up calls
   Repl:
     - LNote.sort_on_pitch is still not right.
       . With multiple chords I get stacked up extra tracks.
@@ -7039,7 +6584,6 @@ text score: tscore:
       . The not so appealing thing about this is that it seems like I'll want
         this same thing for other kinds of keyed integration, e.g. rambat
         produces two hands.  I'll cross that bridge when I get to it.
-    * Check for unique track keys.
     - Add key to Convert.Track, rename to NoteSource while I'm at it.
     - update Merge.pair_tracks to take [NoteSource]
   - How to notate weak notes?  I'd like to make it concise.
@@ -7476,11 +7020,6 @@ Util.Format:
         1 2
         1 2 1 2
 
-  * PrettyGeneric:
-    . I can't convert to Val in one go and then pretty, I have to interleave
-      generic conversion with Pretty.format, so I get the Pretty instance for
-      intermediate types.
-    . That means I don't need Map and Set at all, or anything except Record.
   HsPretty:
     problems:
       . Missing close paren after wrapped constructors.
@@ -7498,9 +7037,6 @@ Util.Format:
   - move format related modules to Util.Format.*
   - don't use 'reverse' in 'flatten'
   - lazy implementation?
-  * generic implementation for records
-    . try generics-sop
-    . https://www.youtube.com/watch?v=sQxH349HOik
 
 Instrument DB / browser:
   - Fl_Help_View supports limited HTML, use it to display formatted text
