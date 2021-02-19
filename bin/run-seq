@@ -14,7 +14,7 @@ if ! bin/mk build/$mode/${^binaries}; then
 fi
 
 # Keep the faust preview cache up to date.  auto_preview= to turn it off.
-if [[ -n ${auto_preview-t} ]]; then
+if [[ -n ${auto_preview-} ]]; then
     echo build/opt/faust-im render-preview
     build/opt/faust-im render-preview
 fi

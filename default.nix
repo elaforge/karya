@@ -143,6 +143,7 @@ in rec {
     # Compile-time deps.
     (haskellBinary ghc.cpphs)
     (haskellBinary ghc.fast-tags)
+    nixpkgs.ripgrep
   ];
 
   fontDeps = with nixpkgs; [

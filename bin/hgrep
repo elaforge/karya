@@ -5,11 +5,7 @@ if [[ -d $1 ]]; then
     dir=$1
     shift
 else
-    dir=.
+    dir=
 fi
 
-if which rg >/dev/null; then
-    rg -n --type haskell "$@" $dir
-else
-    grep -n "$@" $dir/**/*.hs*
-fi
+rg -n --type haskell "$@" $dir

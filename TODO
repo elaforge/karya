@@ -3472,14 +3472,46 @@ shakefile: build:
     try github actions
       * get buildEnv building and cached
       - cabal2nix junk doesn't get cached, maybe due to IFD nonsense
-        . Failed with a git error on "all-cabal-hashes-component-polyparse",
-          but it shouldn't be building that again.
-        - use nix-instantiate to see what out paths and whether I have them
-        - use nix-store -q --tree to see if the generated nix file is a build
+        ? use nix-instantiate to see what out paths and whether I have them
+        ? use nix-store -q --tree to see if the generated nix file is a build
           dep.
         . Isn't callPackageKeepDeriver supposed to fix this?
           All it seems to do is add pkgDrv.passthru.cabal2nixDeriver.
           I don't understand why it overrides preConfigure to be the same.
+        . nix-instantiate -A ghc.vector
+          /nix/store/viif9h6a9wy00dpmjvfj7qh8069ii0yd-vector-0.12.1.2.drv
+          /nix/store/chij2cxhclcd1yb8x5fkk8f33xqzv7iw-cabal2nix-vector-0.12.1.2.drv
+        . Should demand /nix/store/fnmsl1kpixb77120ybn771c6m2xlpqjq-vector-0.12.1.2
+          and cachix has it
+      - git crash
+        . building '/nix/store/a9v7ihfsn981a1zk85ksji11ja2km6d5-cabal2nix-polyparse-1.13.drv'...
+          installing
+          hint: Using 'master' as the name for the initial branch. This
+          default branch name
+          hint: is subject to change. To configure the initial branch name to
+          use in all
+          hint: of your new repositories, which will suppress this warning,
+          call:
+          hint:
+          hint: 	git config --global init.defaultBranch <name>
+          hint:
+          hint: Names commonly chosen instead of 'master' are 'main', 'trunk'
+          and
+          hint: 'development'. The just-created branch can be renamed via this
+          command:
+          hint:
+          hint: 	git branch -m <name>
+          Warning: Permanently added the RSA host key for IP address
+          '140.82.121.3' to the list of known hosts.
+          git@github.com: Permission denied (publickey).
+          fatal: Could not read from remote repository.
+
+          Please make sure you have the correct access rights
+          and the repository exists.
+          error: program 'git' failed with exit code 128
+        . Why does nix not have any provenance for this?
+        . Why is it even builing at all?  Can I do an instantiate?
+          First see if it's the cabal2nix thing above.
       - mkmk in nix-shell
       - build build/opt/browser
       - cache build dir
@@ -7404,6 +7436,46 @@ Perform:
     switch on the next NoteOn
 
 Util.Format:
+  fix incorrect wrapping:
+    I think the information available is incomplete:
+      Record
+        f 1 g 1
+        h 1
+      [(0, "Record"), (1, "f"), (2, "1"), (1, "g")] (Just (2, "1"))
+      . Should break at (1, "f")
+        0
+          1 2 1 2
+          1 2
+
+      { [ k1: v1
+        , k2: v2
+      [(0, "{ [ k1"), (2, ": v1"), (1, ", k2")] (Just (2, ": v2"))
+      . Should break at (1, ", k2")
+        0 2
+          1 2
+    . So these two are inconsistent: [0, 1, 2, 1, 2] -> ([0], [1, 2, 1, 2])
+      But also [0, 2, 1, 2] -> ([0, 2], [1, 2]), rather than ([0], [2, 1, 2])
+      Because it looks ugly to split on 0 2:
+        { [ k1:
+            v1
+          , k2: v2
+    . I could resolve it by breaking before the *first* lowest indent, except
+      the first one, rather than the last one.  This well make lists with
+      many small elements very vertical though.  Maybe it just winds up being
+      like pretty-simple, which is too spaced out for me.
+    . Also break-on-first breaks the assumption of spanLine, which tries to
+      fit until it runs out of space.
+    . And then since it likes to break so much, I get
+      0
+        1 2
+        1
+          2
+    . Because it see that the next is an implicit 0, and wrap before that.
+      But if it did, I would get:
+      0
+        1 2
+        1 2 1 2
+
   * PrettyGeneric:
     . I can't convert to Val in one go and then pretty, I have to interleave
       generic conversion with Pretty.format, so I get the Pretty instance for
