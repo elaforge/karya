@@ -8,8 +8,6 @@ import qualified Data.Map as Map
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-import qualified Ui.Ui as Ui
-import qualified Ui.UiTest as UiTest
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Performance as Performance
@@ -20,8 +18,12 @@ import qualified Derive.Score as Score
 import qualified Derive.Stream as Stream
 
 import qualified Perform.Midi.Perform as Perform
-import Global
-import Types
+import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
+import qualified Ui.UiTest as UiTest
+
+import           Global
+import           Types
 
 
 print_results :: Bool
@@ -126,9 +128,9 @@ derive state =
     Derive.r_events $ DeriveTest.derive_block state (get_root_id state)
 
 get_root_id :: Ui.State -> BlockId
-get_root_id = fromMaybe (error "no root block") . (Ui.config#Ui.root #$)
+get_root_id = fromMaybe (error "no root block") . (Ui.config#UiConfig.root #$)
 
 perform :: Ui.State -> Stream.Stream Score.Event -> Perform.MidiEvents
 perform state events =
     snd $ DeriveTest.perform_stream DeriveTest.default_convert_lookup
-        (Ui.config#Ui.allocations #$ state) events
+        (Ui.config#UiConfig.allocations #$ state) events
