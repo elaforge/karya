@@ -114,7 +114,7 @@ basicPackages = concat
     , w "med-module" -- for Cmd.Load.Med
     , w "base64-bytestring" -- for hashes in incremental rendering
 
-    , w "ghc-events"
+    , [("ghc-events", ">=0.15")]
     ]
     where w = map (\p -> (p, "")) . words
 

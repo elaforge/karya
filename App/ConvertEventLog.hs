@@ -6,12 +6,13 @@
 -- | Convert ghc eventlog to json for <chrome://tracing>.
 module App.ConvertEventLog (main) where
 import qualified Data.Aeson as Aeson
-import Data.Aeson ((.=))
+import           Data.Aeson ((.=))
 import qualified Data.ByteString.Lazy as ByteString.Lazy
 import qualified Data.IntMap as IntMap
 import qualified Data.List as List
 import qualified Data.Set as Set
 import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
 import qualified Data.Word as Word
 
 import qualified GHC.RTS.Events as Events
@@ -21,7 +22,7 @@ import qualified Util.CallStack as CallStack
 import qualified Util.Lens as Lens
 import qualified Util.Seq as Seq
 
-import Global
+import           Global
 
 
 byHsThread :: Bool
@@ -58,9 +59,9 @@ readLog = either (CallStack.errorIO . txt) return
 dumpUser :: [Events.Event] -> IO ()
 dumpUser events = forM_ events $ \case
     Events.Event { evTime, Events.evSpec = Events.UserMessage msg } ->
-        putStrLn $ unwords [show (nsToSec evTime), msg]
+        Text.IO.putStrLn $ Text.unwords [showt (nsToSec evTime), msg]
     Events.Event { evTime, Events.evSpec = Events.UserMarker msg } ->
-        putStrLn $ unwords [show (nsToSec evTime), msg]
+        Text.IO.putStrLn $ Text.unwords [showt (nsToSec evTime), msg]
     _ -> return ()
 
 write :: FilePath -> [Event] -> IO ()
@@ -90,7 +91,7 @@ convertMetadata spec = case spec of
     Events.ThreadLabel tid label -> Just $ Detail
         { _categories = [cGhc, "thread"]
         , _name = "ThreadLabel"
-        , _phase = PMetadata $ ThreadName (txt label)
+        , _phase = PMetadata $ ThreadName label
         , _args = []
         }
     _ -> Nothing
@@ -111,13 +112,12 @@ convertEvent e = do
 
 convertUser :: Events.EventInfo -> Maybe Detail
 convertUser = \case
-    Events.UserMessage str -> Just $ case Text.words msg of
+    Events.UserMessage msg -> Just $ case Text.words msg of
         "respond" : args ->
             async "respond" 1 AsyncBegin [("msg", Text.unwords args)]
         ["wait"] -> async "respond" 1 AsyncEnd []
         -- _ | msg `Set.member` respondCycle -> complete msg
         _ -> detail msg [] PMark
-        where msg = txt str
     _ -> Nothing
     where
     -- complete name = detail name [] $ PComplete (Complete Nothing)
