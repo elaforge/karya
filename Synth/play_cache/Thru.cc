@@ -4,6 +4,8 @@
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <stdio.h>
+#include <cstring>
 #include <string>
 #include <sys/socket.h>
 #include <sys/types.h>

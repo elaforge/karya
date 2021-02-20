@@ -14,8 +14,8 @@ void
 mix_vectors(float *out, size_t out_len,
     const float **ins, size_t *in_lens, size_t ins_len)
 {
-    for (int i = 0; i < ins_len; i++) {
-        for (int j = 0; j < in_lens[i]; j++) {
+    for (size_t i = 0; i < ins_len; i++) {
+        for (size_t j = 0; j < in_lens[i]; j++) {
             out[j] += ins[i][j];
         }
     }

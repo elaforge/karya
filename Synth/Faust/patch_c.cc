@@ -58,7 +58,7 @@ faust_controls(const Patch *patch, const char ****out_paths,
         else
             asprintf(docs + i, "init:%.3g, %.3g -- %.3g", w.init, w.min, w.max);
         paths[i] = (const char **) calloc(w.path.size() + 1, sizeof(char *));
-        for (int j = 0; j < w.path.size(); j++)
+        for (size_t j = 0; j < w.path.size(); j++)
             paths[i][j] = w.path[j];
         controls[i] = w.label;
     }

@@ -3,6 +3,7 @@
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 #include <algorithm>
+#include <cstring>
 #include <dirent.h>
 #include <ostream>
 #include <sndfile.h>
