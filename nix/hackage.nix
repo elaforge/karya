@@ -1,6 +1,6 @@
 # Read a json file produced by make_hackage.py with package versions.
 # TODO either port it to nix, or run the script as a derivation
-{ nixpkgs, profiling }:
+{ nixpkgs, ghc, profiling }:
 let
   # Fix broken stuff in hackage that they just never fix.
   callHackageArgs = ghc: {
@@ -45,6 +45,7 @@ let
       then { name = builtins.elemAt m 0; value = builtins.elemAt m 1; }
       else abort "can't parse line: ${line}";
 
+  unlines = builtins.concatStringsSep "\n";
   lines = compose [
     (builtins.filter (s: builtins.isString s && s != ""))
     (builtins.split "\n")
@@ -53,13 +54,48 @@ let
 
   compose = nixpkgs.lib.foldr (f: g: x: f (g x)) (x: x);
 
+  importPackage = ghc: name: fn:
+    let args = (callHackageArgs ghc)."${name}" or {};
+    in overrideCabal (ghc.callPackage fn args);
+
 in rec {
   packages = parseFreezeFile ../doc/cabal/all-deps.cabal.config;
 
+  nixFiles = nixpkgs.stdenv.mkDerivation {
+    name = "nixFiles";
+    phases = "buildPhase";
+    # This is really stupid but I can't think of any other way to zip
+    # in shell.
+    cmds = unlines (map
+      (drv: "cp ${drv.cabal2nixDeriver}/default.nix $out/${drv.pname}.nix")
+        (builtins.attrValues (overrides ghc))
+    );
+    buildPhase = ''
+      mkdir $out
+      (
+      set -eux
+      IFS=$'\n'
+      for cmd in $cmds; do
+        IFS=' '
+        eval $cmd
+      done
+      )
+    '';
+  };
+
+  packageNames =
+    let mk = fn: {
+      name = nixpkgs.stdenv.lib.removeSuffix ".nix" fn;
+      value = ./hackage + "/${fn}";
+    };
+    in builtins.listToAttrs
+      (map mk (builtins.attrNames (builtins.readDir ./hackage)));
+
+  overrides = ghc: builtins.mapAttrs (importPackage ghc) packageNames;
+  # overrides = ghc: builtins.mapAttrs (callHackage ghc) packages;
+
   # versions mismatch, causes nix to segfault
   segfault = callHackage nixpkgs.haskell.packages.ghc882 "ghc" "8.8.3";
-
-  overrides = ghc: builtins.mapAttrs (callHackage ghc) packages;
 
   all-cabal-hashes =
     let commit = "21fa0f534f906ead4abe15b071564e21e916c9f7";

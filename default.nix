@@ -19,7 +19,7 @@
 
 let
   nixpkgs = import nix/nixpkgs.nix { inherit config; };
-  hackage = import nix/hackage.nix { inherit nixpkgs profiling; };
+  hackage = import nix/hackage.nix { inherit nixpkgs ghc profiling; };
   faust = import nix/faust.nix {};
   inherit (nixpkgs) lib;
 
@@ -84,7 +84,7 @@ let
 
   inherit (nixpkgs.stdenv) isDarwin isLinux;
 in rec {
-  inherit nixpkgs ghc;
+  inherit nixpkgs ghc hackage;
 
   # nixpkgs.rubberband only works on linux.
   rubberband = if isDarwin
@@ -136,7 +136,7 @@ in rec {
       ])
     ));
 
-  # Deps used for development.
+  # Deps used for development.  CI can omit them.
   developmentDeps = [
     # TODO nixpkgs.cachix is too old, instead:
     # nix-env -iA cachix -f https://cachix.org/api/v1/install

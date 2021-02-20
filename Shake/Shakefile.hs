@@ -155,7 +155,8 @@ reallyAllPackages = concat
     [ basicPackages
     , imPackages
     , ekgPackages
-    , nessPackages
+    -- conduit-audio is heavy, if I re-use ness I can port to Util.Audio.
+    -- , nessPackages
     ]
 
 ekgPackages :: [(Package, String)]
