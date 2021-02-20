@@ -3304,8 +3304,11 @@ shakefile: build:
       * mkmk in nix-shell
       * mk typecheck-ci
       * mk tests-normal
-      - cache build dir
-      Cacheix docs unclear:
+      * cache build dir
+        . https://docs.github.com/en/actions/guides/caching-dependencies-to-speed-up-workflows#matching-a-cache-key
+        . It doesn't upload when the key matches.  I want to always replace
+          the key, but incrementally.
+      Cachix docs unclear:
         . cachix says I need a "signing key", but where is that?  Is that the
           same as the "Public Key" on the cache web page?
         . https://nix.dev/tutorials/continuous-integration-github-actions.html

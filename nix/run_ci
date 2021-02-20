@@ -6,8 +6,9 @@ set -eux
 tools/ncpus
 tools/setup-elaforge
 
-runghc Shake/Shakefile.hs "$@" build/opt/shakefile
-bin/mk typecheck-ci
+# Use --digest instead of --modtime so caching works.
+runghc Shake/Shakefile.hs --digest build/opt/shakefile
+bin/mk --digest typecheck-ci
 
 export skip_hpc=t # tell tools/run_tests to not run hpc
-bin/mk tests-normal
+bin/mk --digest tests-normal

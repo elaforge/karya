@@ -20,6 +20,22 @@ jobs:
           # I think it's binaryCaches.secretKey?
           signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
 
+      # All I want to do is rsync build to some storage.  But I don't know how
+      # to do that, so store the cache by the date.  Then it will probably miss
+      # and restore-keys will restore the latest one.
+      - name: Get Date
+        id: get-date
+        run: |
+          echo "::set-output name=date::$(/bin/date -u "+%Y%m%d")"
+        shell: bash
+      - uses: actions/cache@v2
+        with:
+          path: build
+          key: ${{ runner.os }}-${{ steps.get-date.outputs.date }}
+          restore-keys: |
+            ${{ runner.os }}-
+      - run: ls -l build || true
+
       # 19.09.2522.75f4ba05c63
       # but mine is 19.09pre-git
       # - run: nix-instantiate --eval -E "(import <nixpkgs> {}).lib.version"
@@ -29,3 +45,6 @@ jobs:
       # - run: nix build -L -f default.nix --arg isCi true buildEnv
       # - run: cachix push elaforge $(readlink result)
       - run: nix/run_ci
+      - run: rm -rf build/test/tmp build/report.html
+      - run: ls -l build
+      - run: du -hsc build/*
