@@ -1,0 +1,14 @@
+{ mkDerivation, base, base-orphans, stdenv, stm, transformers
+, transformers-compat
+}:
+mkDerivation {
+  pname = "transformers-base";
+  version = "0.4.5.2";
+  sha256 = "d0c80c63fdce6a077dd8eda4f1ff289b85578703a3f1272e141d400fe23245e8";
+  libraryHaskellDepends = [
+    base base-orphans stm transformers transformers-compat
+  ];
+  homepage = "https://github.com/mvv/transformers-base";
+  description = "Lift computations from the bottom of a transformer stack";
+  license = stdenv.lib.licenses.bsd3;
+}
