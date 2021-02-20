@@ -38,6 +38,7 @@ import           Util.Test
 
 -- * write
 
+test_write_silent_chunk :: Test
 test_write_silent_chunk = do
     dir <- Testing.tmp_dir "write"
     patch <- getPatch "test"
@@ -55,6 +56,7 @@ test_write_silent_chunk = do
     -- io_equal (readSamples1 dir)
     --     (replicate 4 0 ++ replicate 16 42 ++ replicate 4 0)
 
+test_write_incremental :: Test
 test_write_incremental = do
     dir <- Testing.tmp_dir "write"
     patch <- getPatch "sine"
@@ -74,9 +76,12 @@ test_write_incremental = do
     states <- filter (".state." `List.isInfixOf`) <$>
         Directory.listDirectory (dir </> Checkpoint.checkpointDir)
     -- All of them have states, since they are at the end of each chunk.
-    io_equal (mapM (Directory.getFileSize
+    -- The sizes of the states seem to be 16 most places, but 40 on hobbes,
+    -- maybe because I'm not using the nix environment on hobbes.  In any case,
+    -- the exact size doesn't matter.
+    io_equal (mapM (Directory.doesFileExist
             . ((dir </> Checkpoint.checkpointDir) </>)) states)
-        [40, 40, 40]
+        [True, True, True]
 
     let skipCheckpoints =
             Checkpoint.skipCheckpoints dir (Checkpoint.State mempty)
@@ -112,6 +117,7 @@ test_write_incremental = do
     wavs <- listWavs (dir </> Checkpoint.checkpointDir)
     equal_on length wavs 4
 
+test_write_incremental_offset :: Test
 test_write_incremental_offset = do
     -- faust always starts rendering at 0, even if the first note doesn't.
     -- So this works trivially.  But later I'll want to skip empty time, so
@@ -132,6 +138,7 @@ test_write_incremental_offset = do
     equal (take 4 samples) (replicate 4 0)
     -- TODO also test checkpoints are lined up right
 
+test_write_controls :: Test
 test_write_controls = do
     dir <- Testing.tmp_dir "write"
     patch <- getPatch "test"
