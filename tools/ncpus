@@ -1,4 +1,4 @@
-#!/usr/bin/env zsh
+#!/usr/bin/env bash
 # How many CPUs do I have?
 # I use actual cores because hyperthreads seem to be useless.
 

@@ -4,17 +4,19 @@ let
   stdenv = nixpkgs.stdenv;
   llvm = nixpkgs.llvm_5;
 
-  faustSrc = builtins.fetchGit {
-    url = "git@github.com:grame-cncm/faust.git";
+  faustSrc = nixpkgs.fetchFromGitHub {
+    owner = "grame-cncm";
+    repo = "faust";
     rev = "fbd6e12c81832fed47606796dc9879b695adfa2f"; # 2019-11-18
-    ref = "master-dev";
+    sha256 = "0r0jwlv3xrnv2anhpm4v13d56fh07vs7lvlikx46b4dkani13b0y";
   };
-  # This is also available in the main faust repo, but as a submodule.
-  faustLib = builtins.fetchGit {
-    url = "git@github.com:grame-cncm/faustlibraries.git";
+  faustLib = nixpkgs.fetchFromGitHub {
+    owner = "grame-cncm";
+    repo = "faustlibraries";
     rev = "127e5bfcb35dc1d416d5f83ff0cd1fe38d458800";
-    ref = "master";
+    sha256 = "0mqnxdfj1cz8d3dgq26rsqr1gsyg8qfm51yqwvzwvm8lxmz9nif6";
   };
+
 in {
   faust = stdenv.mkDerivation {
     name = "faust";

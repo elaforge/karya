@@ -1,7 +1,13 @@
 #!/usr/bin/env nix-shell
-#! nix-shell -i bash --arg withInteractive false --attr buildEnv ../default.nix
+#! nix-shell -i bash --arg isCi true --attr buildEnv ../default.nix
 
 set -eux
 
-which runghc
+tools/ncpus
+tools/setup-elaforge
+
 runghc Shake/Shakefile.hs "$@" build/opt/shakefile
+bin/mk typecheck-ci
+
+export skip_hpc=t # tell tools/run_tests to not run hpc
+bin/mk tests-normal

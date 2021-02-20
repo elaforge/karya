@@ -12,9 +12,8 @@
 , withIm ? true # TODO sync this with Shake.Config.enableIm
 , withEkg ? false # ekg is really heavy
 , withDocs ? false # build documentation
-, withDevelopment ? true # add tools to develop karya
-, withInteractive ? true # add tools to run karya interactively
 , profiling ? false # enable profiling in dependent libraries
+, isCi ? false
 }:
 
 let
@@ -115,15 +114,6 @@ in rec {
       configureFlags = [];
     });
 
-  # You always need these deps.
-  basicDeps = [
-    # fltk has to be in basicDeps, so it gets in buildEnv buildInputs, so the
-    # magic nix hook puts it in NIX_LDFLAGS, so the magic nix gcc wrapper puts
-    # the -L flag on.
-    fltk
-    hackageGhc
-  ];
-
   hackageGhc =
     let wantPkg = pkg:
         # nix gets the "ghc" package confused with the compiler.
@@ -136,14 +126,28 @@ in rec {
       ])
     ));
 
-  # Deps used for development.  CI can omit them.
-  developmentDeps = [
-    # TODO nixpkgs.cachix is too old, instead:
-    # nix-env -iA cachix -f https://cachix.org/api/v1/install
-    # Compile-time deps.
+  midiDeps = if isLinux then [
+    nixpkgs.libjack2
+  ] else if isDarwin then (with nixpkgs.darwin.apple_sdk.frameworks; [
+    Cocoa
+    CoreAudio
+    CoreFoundation
+    CoreMIDI
+  ]) else abort "not linux or darwin, don't know how to do midi";
+
+  # You always need these deps.
+  basicDeps = [
+    # fltk has to be in basicDeps, so it gets in buildEnv buildInputs, so the
+    # magic nix hook puts it in NIX_LDFLAGS, so the magic nix gcc wrapper puts
+    # the -L flag on.
+    fltk
+    hackageGhc
     (haskellBinary ghc.cpphs)
-    (haskellBinary ghc.fast-tags)
-    nixpkgs.ripgrep
+    midiDeps
+    # Many scripts are in zsh, I can't be bothered to put ""s everywhere.
+    nixpkgs.zsh
+  ] ++ guard isCi [
+    nixpkgs.coreutils # at least one test uses cat
   ];
 
   fontDeps = with nixpkgs; [
@@ -155,15 +159,13 @@ in rec {
   # Dependencies to actually use karya.  CI can omit them.
   interactiveDeps = fontDeps ++ [
     nixpkgs.git
-    nixpkgs.zsh
-  ] ++ guard isLinux [
-    nixpkgs.libjack2
-  ] ++ guard isDarwin (with nixpkgs.darwin.apple_sdk.frameworks; [
-    Cocoa
-    CoreAudio
-    CoreFoundation
-    CoreMIDI
-  ]);
+
+    # development deps
+    (haskellBinary ghc.fast-tags)
+    nixpkgs.ripgrep
+    # TODO nixpkgs.cachix is too old, instead:
+    # nix-env -iA cachix -f https://cachix.org/api/v1/install
+  ];
 
   docDeps = [
     ghc.hscolour
@@ -205,8 +207,7 @@ in rec {
 
   deps = builtins.concatLists [
     basicDeps
-    (guard withInteractive interactiveDeps)
-    (guard withDevelopment developmentDeps)
+    (guard (!isCi) interactiveDeps)
     (guard withDocs docDeps)
     (guard withIm imDeps)
     (guard withLilypond [nixpkgs.lilypond])

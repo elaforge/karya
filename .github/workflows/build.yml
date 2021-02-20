@@ -23,5 +23,9 @@ jobs:
       # 19.09.2522.75f4ba05c63
       # but mine is 19.09pre-git
       # - run: nix-instantiate --eval -E "(import <nixpkgs> {}).lib.version"
-      # - run: nix build -L -f default.nix --arg withInteractive false buildEnv
+
+      # Build in advance and make sure the result is cached immediately, since
+      # I think it won't upload if later steps fail.
+      # - run: nix build -L -f default.nix --arg isCi true buildEnv
+      # - run: cachix push elaforge $(readlink result)
       - run: nix/run_ci

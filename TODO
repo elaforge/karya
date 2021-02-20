@@ -3255,13 +3255,13 @@ synth: im:
 
 shakefile: build:
   ci:
-    find an alternative to travis
-      . https://circleci.com/
-      . https://azure.microsoft.com/en-us/services/devops/pipelines/?cdn=disable
     try github actions
-      - cabal2nix junk doesn't get cached, maybe due to IFD nonsense
-        ? use nix-instantiate to see what out paths and whether I have them
-        ? use nix-store -q --tree to see if the generated nix file is a build
+      * get buildEnv building and cached
+      * cabal2nix junk doesn't get cached, maybe due to IFD nonsense
+        . Failed with a git error on "all-cabal-hashes-component-polyparse",
+          but it shouldn't be building that again.
+        * use nix-instantiate to see what out paths and whether I have them
+        / use nix-store -q --tree to see if the generated nix file is a build
           dep.
         . Isn't callPackageKeepDeriver supposed to fix this?
           All it seems to do is add pkgDrv.passthru.cabal2nixDeriver.
@@ -3271,7 +3271,7 @@ shakefile: build:
           /nix/store/chij2cxhclcd1yb8x5fkk8f33xqzv7iw-cabal2nix-vector-0.12.1.2.drv
         . Should demand /nix/store/fnmsl1kpixb77120ybn771c6m2xlpqjq-vector-0.12.1.2
           and cachix has it
-      - git crash
+      * git crash
         . building '/nix/store/a9v7ihfsn981a1zk85ksji11ja2km6d5-cabal2nix-polyparse-1.13.drv'...
           installing
           hint: Using 'master' as the name for the initial branch. This
@@ -3300,8 +3300,10 @@ shakefile: build:
         . Why does nix not have any provenance for this?
         . Why is it even builing at all?  Can I do an instantiate?
           First see if it's the cabal2nix thing above.
-      - mkmk in nix-shell
-      - build build/opt/browser
+        . It was fetchgit for faust.
+      * mkmk in nix-shell
+      * mk typecheck-ci
+      * mk tests-normal
       - cache build dir
       Cacheix docs unclear:
         . cachix says I need a "signing key", but where is that?  Is that the
@@ -3338,10 +3340,6 @@ shakefile: build:
           cachix.dhall, and in addition to authToken there's also a
           binaryCaches with a secretKey.  So I copy that over by hand and
           now it works.  But I assume that's not how it was supposed to go?
-    / fix travis
-      . It won't compile without my hacked libsamplerate.
-      . I think I can get travis to clone from the github repo.
-      . In the longer term, can I write a nix expression?
   - fix the redefine error:
     . macro redefined warning when compiling hsc2hs generated file
       . Because hsc2hs embeds it in the file with -optc
@@ -3384,6 +3382,9 @@ shakefile: build:
     . How are you supposed to install deps in the v2 world?
   nix:
     . https://app.cachix.org/cache/elaforge
+    * get rid of IFD:
+      . Most straightforward way is to run the cabal2nix and then check in the
+        output files.  I can write a derivation that does that.
     propagate deps to the shakefile:
       - use NIX_LDFLAGS instead of hardcoding paths for libsamplerate and
         rubberband
