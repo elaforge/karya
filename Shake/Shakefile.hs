@@ -1091,10 +1091,12 @@ dispatch modeConfig targets
             ++ criterion ++ [runTests, runProfile] ++ more
     -- See typecheck-ci
     needEverythingCI = do
-        criterion <- getCriterionTargets (modeConfig Test)
+        -- TODO: include criterion in the deps to re-enable this.
+        -- criterion <- getCriterionTargets (modeConfig Test)
         need $ map (modeToDir Test </>)
                 (filter (`notElem` cantBuild) allBinaries)
-            ++ criterion ++ [runTests]
+            -- ++ criterion
+            ++ [runTests]
             -- This is missing runProfile, but at the moment I can't be
             -- bothered to get that to compile in build/test.
         where
