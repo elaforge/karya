@@ -16,7 +16,7 @@ import qualified System.Exit
 import qualified System.FilePath as FilePath
 import qualified System.IO as IO
 
-import Global
+import           Global
 
 
 type Error = Text
@@ -53,14 +53,17 @@ extractFiles extract =
 
 -- * extract
 
+-- | This is just barely enough of a parser to work for my purposes.
 typeDeclarations :: Text -> [(Int, (Text, Text))]
-typeDeclarations = mapMaybe parse . zip [1..] . Text.lines
+typeDeclarations = concatMap parse . zip [1..] . Text.lines
     where
     parse (lineno, line)
-        | line == "" || Char.isSpace (Text.head line) = Nothing
-        | otherwise = case Text.words line of
-            name : "::" : rest -> Just (lineno, (name, Text.unwords rest))
-            _ -> Nothing
+        | line == "" || not (Char.isLower (Text.head line)) = []
+        | otherwise = case break (=="::") (Text.words line) of
+            (pre, "::" : typ) ->
+                [(lineno, (strip sym, Text.unwords typ)) | sym <- pre]
+            _ -> []
+    strip t = fromMaybe t $ Text.stripSuffix "," t
 
 -- | This will be fooled by a {- or -} inside a string.  I don't strip --
 -- comments because the extract functions look for left justified text.

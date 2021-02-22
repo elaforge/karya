@@ -253,6 +253,8 @@ korvais = map Korvai.inferMetadata
     , setLocation ("Solkattu.Score.Solkattu2020",114,"kendang_farans") Solkattu.Score.Solkattu2020.kendang_farans
     , setLocation ("Solkattu.Score.Solkattu2021",13,"e_21_01_24") Solkattu.Score.Solkattu2021.e_21_01_24
     , setLocation ("Solkattu.Score.Solkattu2021",27,"e_21_02_21") Solkattu.Score.Solkattu2021.e_21_02_21
+    , setLocation ("Solkattu.Score.Solkattu2021",42,"e_35_kanda") Solkattu.Score.Solkattu2021.e_35_kanda
+    , setLocation ("Solkattu.Score.Solkattu2021",42,"e_35_misra") Solkattu.Score.Solkattu2021.e_35_misra
     , setLocation ("Solkattu.Score.SolkattuMohra",77,"c_mohra") Solkattu.Score.SolkattuMohra.c_mohra
     , setLocation ("Solkattu.Score.SolkattuMohra",103,"c_mohra2") Solkattu.Score.SolkattuMohra.c_mohra2
     , setLocation ("Solkattu.Score.SolkattuMohra",121,"c_mohra_youtube") Solkattu.Score.SolkattuMohra.c_mohra_youtube
