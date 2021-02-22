@@ -3359,12 +3359,11 @@ shakefile: build:
     - QuickCheck, use hedgehog instead
     - for indirect deps I need some way to get the paths
       . e.g. whence goes js-jquery, js-flot?  Probably shake.
-    - I got a bunch of new deps when upgrading to ghc 8.10, who is dragging
+    * I got a bunch of new deps when upgrading to ghc 8.10, who is dragging
       them in?
       ?: hspec, hspec-*, doctest
       aeson 1.4.7.0 -> 1.5.5.1: data-fix, strict, these
       these -> bifunctors -> comonad, distributive, indexed-traversable
-
   / shakefile -v should print version, it doesn't
     . because it prints at Normal, and I'm at Quiet.
     . To avoid shake's internal output, '# ...' lines
@@ -3399,17 +3398,13 @@ shakefile: build:
     / Is there a way to configure lilypond to not drag in a whole tex?
       . It should be only necessary to build lilypond, I should be able to
         download it if I use a supported nixpkgs.
-    - make a build expression, which does mkmk, mk.
+    / make a build expression, which does mkmk, mk.
       . I would have to get all the source into nix, and move the build to
         $out instead of 'build'.
       . But it's maybe useless for karya, since I rely on having the source
         and .o files around at runtime.
       . It would be useful for CI though.
-  . It's a pain to propagate all the bits of config around.
-    . blaze gets around by using string deps and putting in a lookup step.
-    . I could use Reader Config, but then it all becomes monadic.
-    . I could drop it in a global variable, but then it's in IO, unless I want
-      to put unsafePerformIO everywhere.
+      . I have nix/run_ci instead.
   - ghc --make now supports -j, use that instead of each file
     . I'll still need to chase #includes though, I think?  Actually --make
       should be able to handle it, if it causes the source to change.
@@ -5543,7 +5538,7 @@ solkattu:
   format: output:
     html:
       - link to source
-      - index.html: sort by date, source
+      * index.html: sort by date, source
       - writeParts
       - Offset rests make empty cells like <td><b> </b></td><td colspan=7> </td>
         . It looks fine but seems messy.

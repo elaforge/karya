@@ -55,10 +55,13 @@ indexHtml korvaiFname korvais = Texts.join "\n" $
     , "}"
     , "</style>"
     , "</head> <body>"
-    , "<table>"
+    , "<table id=korvais>"
     , "<tr>" <> mconcat ["<th>" <> c <> "</th>" | c <- columns] <> "</tr>"
-    ] ++ map row korvais ++
+    ] ++ map row (Seq.sort_on korvaiDate korvais) ++
     [ "</table>"
+    , "<script>"
+    , javascriptIndex
+    , "</script>"
     , "</body></html>"
     ]
     where
@@ -67,7 +70,7 @@ indexHtml korvaiFname korvais = Texts.join "\n" $
         , mconcat ["<td>" <> cell <> "</td>" | cell <- cells korvai]
         , "</tr>"
         ]
-    columns = ["", "type", "tala", "nadai", "date", "instruments", "source"]
+    columns = ["name", "type", "tala", "nadai", "date", "instruments", "source"]
     cells korvai = Doc.link variableName (txt (korvaiFname korvai))
         : map Doc.html
         [ Text.unwords $ Metadata.korvaiTag "type" korvai
@@ -80,6 +83,58 @@ indexHtml korvaiFname korvais = Texts.join "\n" $
         where
         meta = Korvai.korvaiMetadata korvai
         (_, _, variableName) = Korvai._location meta
+    korvaiDate = Korvai._date . Korvai.korvaiMetadata
+
+javascriptIndex :: Doc.Html
+javascriptIndex =
+    "const table = document.getElementById('korvais');\n\
+    \const headers = table.querySelectorAll('th');\n\
+    \const headerTexts = Array.from(headers).map(\n\
+    \    function (h) { return h.innerText; });\n\
+    \const up = '↑';\n\
+    \const down ='↓';\n\
+    \const both = '↕︎';\n\
+    \[].forEach.call(headers, function(header, index) {\n\
+    \    header.addEventListener('click', function() {\n\
+    \        sortColumn(index);\n\
+    \    });\n\
+    \});\n\
+    \const tableBody = table.querySelector('tbody');\n\
+    \const rows = tableBody.querySelectorAll('tr');\n\
+    \const directions = Array.from(headers).map(\n\
+    \    function(header) { return 1; });\n\
+    \\n\
+    \const sortColumn = function(index) {\n\
+    \    [].forEach.call(headers, function(header, i) {\n\
+    \        var arrow = both;\n\
+    \        if (i == index) {\n\
+    \            arrow = directions[index] == 1 ? down : up;\n\
+    \        } else {\n\
+    \            directions[i] = 1;\n\
+    \        }\n\
+    \        header.innerText = headerTexts[i] + ' ' + arrow;\n\
+    \    });\n\
+    \    const newRows = Array.from(rows).slice(1);\n\
+    \    newRows.sort(function(rowA, rowB) {\n\
+    \        const cellA = rowA.querySelectorAll('td')[index].innerText;\n\
+    \        const cellB = rowB.querySelectorAll('td')[index].innerText;\n\
+    \        if (cellA > cellB)\n\
+    \            return 1 * directions[index];\n\
+    \        else if (cellA < cellB)\n\
+    \            return -1 * directions[index];\n\
+    \        else\n\
+    \            return 0;\n\
+    \    });\n\
+    \    directions[index] = -directions[index];\n\
+    \    [].forEach.call(rows, function(row) {\n\
+    \        tableBody.removeChild(row);\n\
+    \    });\n\
+    \    tableBody.appendChild(rows[0]);\n\
+    \    newRows.forEach(function(newRow) {\n\
+    \        tableBody.appendChild(newRow);\n\
+    \    });\n\
+    \};\n\
+    \sortColumn(headerTexts.indexOf('date'));\n"
 
 
 -- | Write HTML with all the instrument realizations at all abstraction levels.
