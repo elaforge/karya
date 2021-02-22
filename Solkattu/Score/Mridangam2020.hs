@@ -387,3 +387,11 @@ sketch_20_11_08 = date 2020 11 8 $ korvaiS adi
 e_20_12_06 :: Korvai
 e_20_12_06 = date 2020 12 6 $ ganesh $ exercise $ korvaiS1 adi $
     r2 (on.__.pk.nakatiku) . su (r2 (t.__.o.__.ktpk))
+
+-- e_tirmanam :: Korvai
+-- e_tirmanam = tirmanam $ korvaiS adi
+--     [ __D 2 . tri_ (od.__3) (on.d.d.n.od.d)
+--     , su $ __D 6
+--         . trin (od.__) (ktkt.pk.nakatiku) (kt.pk.nakatiku) (pk.nakatiku)
+--     , tri_ (od.__.k) (su (ktkt.p.kt.p.ktkt.p.k).od.od.k)
+--     ]

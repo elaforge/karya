@@ -5,6 +5,8 @@
 module Solkattu.Score.Mridangam2021 where
 import           Prelude hiding ((.), repeat)
 
+import qualified Solkattu.Tala as Tala
+
 import           Solkattu.Dsl.Mridangam
 
 
@@ -77,3 +79,35 @@ e_nd_d = date 2021 1 31 $ ganesh $ exercise $ korvaiS adi
     nd_ktpk0 = (o.o) & nd_ktpk
     nd_ktpk = n.d.su ktpk
     nd_ktpk_ = su $ n.o.od.__.ktok
+
+e_fours :: Korvai
+e_fours = date 2021 2 15 $ ganesh $ exercise $ korvaiS Tala.rupaka_fast $
+    map make
+    [ on.od.__.k
+    , on.od.su ktpk
+    , su $ on.k.p.k.n.o.o.k
+    , su $ k.p.k.od.__.k.od.__
+    , su $ k.t.__.k.__.n.__.o
+    , su $ k.od.__.ktkno
+    , on.on.su (on.d.__.k)
+    , su $ on.y.on.y.on.d.__.k
+    ] ++
+    [ sarva . su (k.o.on.k.d.p.n.k . r2 (g (d.o.on.k.d.p.n.k)))
+    , make $ su $ on.__.su ktpk.n.o.su ktpk
+    , sarva . su (r2 (on.__.su ktpk.n.o.su ktpk) . on.__.su (ktpk.nakatiku))
+    ]
+    where
+    sarva = on.y.on.on.p&d.y.n.y.on.on.od.y
+    make s = sarva . r3 (g s)
+
+e_tisram :: Korvai
+e_tisram = date 2021 2 21 $ ganesh $ exercise $ korvaiS adi $ map (nadai 6)
+    [ sarva (6*8) . d.__ . trin __ (r3 p1) (r3 p2) (r3 p3)
+    , sarva (6*8) . d.__ . trin __ (r3 p3) (r3 p2) (r3 p1)
+    , sarva (6*8) . d.__ . trin __ (r3 p2) (r3 p2) (r3 p2)
+    ]
+    where
+    sarva = sarvaM (d.__.p.k.t.k)
+    p1 = g (k.n.o)
+    p2 = g (k.__.k.n.o)
+    p3 = g (k.__.t.__.k.n.o)
