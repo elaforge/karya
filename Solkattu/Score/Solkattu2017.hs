@@ -646,7 +646,7 @@ c_17_10_23 = date 2017 10 23 $ ganesh $ koraippu $
 
 c_20_12_12_kanda :: Korvai
 c_20_12_12_kanda = date 2020 12 12 $ koraippu $
-    korvaiS Tala.khanda_chapu (mridangam<>kendang1) $ map sd
+    korvaiS Tala.kanda_chapu (mridangam<>kendang1) $ map sd
     [ sarvaD_ (13/2) . t1
         . sarvaD_ (12/2) . kitataka.t1
         . sarvaD_ (11/2) . kitakita.kitataka.t1

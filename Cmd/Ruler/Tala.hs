@@ -17,7 +17,7 @@ module Cmd.Ruler.Tala (
     , adi, adi3, adi6
     , adi_tala, dhruva_tala, matya_tala, rupaka_tala, jhampa_tala, triputa_tala
     , ata_tala, eka_tala
-    , misra_chapu, khanda_chapu, rupaka_fast
+    , misra_chapu, kanda_chapu, rupaka_fast
     -- * define talams
     , Ruler(..), Sections, Avartanams, Nadai
     , make_meter
@@ -30,7 +30,7 @@ import qualified Cmd.Ruler.Meter as Meter
 import           Cmd.Ruler.Meter (AbstractMeter(..))
 import qualified Solkattu.Tala as Tala
 import           Solkattu.Tala
-       (adi_tala, ata_tala, dhruva_tala, eka_tala, jhampa_tala, khanda_chapu,
+       (adi_tala, ata_tala, dhruva_tala, eka_tala, jhampa_tala, kanda_chapu,
         matya_tala, misra_chapu, rupaka_fast, rupaka_tala, triputa_tala,
         Tala(..))
 import qualified Ui.Ruler as Ruler

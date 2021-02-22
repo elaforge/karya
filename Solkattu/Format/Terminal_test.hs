@@ -53,7 +53,7 @@ test_format = do
     equal (f rupaka (n4 <> n4)) "k t _ n k t _ n"
     -- Emphasize according to the tala.
     let kook = [k, o, o, k]
-    equal (f Tala.khanda_chapu (take (5*4) (cycle kook)))
+    equal (f Tala.kanda_chapu (take (5*4) (cycle kook)))
         "k o o k k o o k k o o k k o o k k o o k"
 
 test_format_patterns = do

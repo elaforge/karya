@@ -62,7 +62,7 @@ tala_name tala
     jatis = Map.fromList
         [ (3, "tisra")
         , (4, "chatusra")
-        , (5, "khanda")
+        , (5, "kanda")
         , (9, "sankirna")
         ]
 
@@ -102,8 +102,8 @@ misra_chapu :: Tala
 misra_chapu = Tala "misra chapu" [Wave 1, Wave 2, Clap 2, Clap 2] 0
     -- These have no laghu, so jati doesn't matter.
 
-khanda_chapu :: Tala
-khanda_chapu = Tala "khanda chapu" [Clap 2, Clap 1, Clap 2] 0
+kanda_chapu :: Tala
+kanda_chapu = Tala "kanda chapu" [Clap 2, Clap 1, Clap 2] 0
 
 rupaka_fast :: Tala
 rupaka_fast = Tala "rupaka" [Clap 1, Clap 1, Wave 1] 0
