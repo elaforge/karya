@@ -236,12 +236,12 @@ p5_variations = exercise $ korvai adi $ variations $
     , su $ k.p.k.od.__.k.t.k.n.o
     ]
 
-exercises_18_12_19 :: [Part]
-exercises_18_12_19 =
-    [ K e_npkt All -- 80mm, push to 90 or 100
-    , K e_18_11_19 (Index 5) --  n.j.p.j.d.__ -- 60mm, go to 80 or 90
-    , K e_18_12_19 All
-    , K p5_variations All -- 120mm to 160mm
+exercises_18_12_19 :: Score
+exercises_18_12_19 = tani
+    [ K e_npkt -- 80mm, push to 90 or 100
+    , K e_18_11_19 -- TODO (Index 5) --  n.j.p.j.d.__ -- 60mm, go to 80 or 90
+    , K e_18_12_19
+    , K p5_variations -- 120mm to 160mm
     -- , Left $ r2 (k.o.o.k.o.k) . k.o.o.k -- 120mm to 140
     ]
 

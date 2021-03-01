@@ -5457,10 +5457,10 @@ solkattu:
     - complete Mridangam2013.dinnagina_sequence, maybe move to solkattu.
   practice: Solkattu.Practice:
     I can't say I practiced a tani:
-      + I could get rid of Part by putting korvais inside other korvais.
-      - Then the sections lose their identity.  But if I keep the index with
+      . I could get rid of Part by putting korvais inside other korvais.
+      . Then the sections lose their identity.  But if I keep the index with
         the section, they keep the correct numbers.
-      - But it doesn't work with solkattu, because I only have one StrokeMap
+      . But it doesn't work with solkattu, because I only have one StrokeMap
         per Korvai.
         . I could put StrokeMap per section, but the usual 'korvai'
           constructor just gives the same one to all of them.
@@ -5483,7 +5483,15 @@ solkattu:
         . This means that everything that deals with Korvai now has to deal
           with the other constructor.  The other approach didn't because there
           were already multiple sections.
-    - make sure exercise types are accurate.
+      * What about multiple constructors for Korvai?
+        . Then all the Korvai functions have to handle Tani too.
+        . Or maybe just have extract_korvais wrap up in Tani if necessary?
+      . I still want name and location for tani parts.  Ultimately I can't get
+        this though because it's an expression, not even guaranteed to have
+        a toplevel Korvai.  I'd have to replace with an address, or search for
+        matching Korvai.Single in the same module.
+      . At least put in date as the max of the Part dates.
+      - restore the index for tanis
     - remember what I did last time, and do spaced repetition
       . This isn't memorization, just randomization with coverage.  So it's
         enough to pick random but twice as likely to pick with score one
@@ -5537,9 +5545,14 @@ solkattu:
     . They're right, I'm confused.
   format: output:
     html:
+      - Solkattu.Score.Mridangam2020.sarva_tani messed up, probably due to
+        the 15 nadai one.
+        . Maybe I don't want all tables independent, only the ones with
+          different nadai.
+        . Solkattu.Score.Solkattu2018.misra_tani also poorly formatted, why
+          doesn't it take up horizontal space?
       - link to source
       * index.html: sort by date, source
-      - writeParts
       - Offset rests make empty cells like <td><b> </b></td><td colspan=7> </td>
         . It looks fine but seems messy.
       - color abstracted groups too

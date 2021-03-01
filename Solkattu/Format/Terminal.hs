@@ -68,12 +68,12 @@ konnakolConfig = Config
 -- * write
 
 -- | Render all instrument realizations.
-renderAll :: Format.Abstraction -> Korvai.Korvai -> [Text]
-renderAll abstraction korvai =
-    concatMap write1 $ Korvai.korvaiInstruments korvai
+renderAll :: Format.Abstraction -> Korvai.Score -> [Text]
+renderAll abstraction score =
+    concatMap write1 $ Format.scoreInstruments score
     where
     write1 (name, Korvai.GInstrument inst) =
-        name <> ":" : fst (formatInstrument config inst Just korvai)
+        name <> ":" : fst (formatScore config inst Just score)
         where
         config = (if name == "konnakol" then konnakolConfig else defaultConfig)
             { _abstraction = abstraction }
@@ -90,6 +90,21 @@ printInstrument instrument abstraction =
 printKonnakol :: Config -> Korvai.Korvai -> IO ()
 printKonnakol config =
     mapM_ Text.IO.putStrLn . fst . formatInstrument config Korvai.konnakol Just
+
+formatScore :: (Solkattu.Notation stroke1, Solkattu.Notation stroke2)
+    => Config
+    -> Korvai.Instrument stroke1
+    -> (Realize.Stroke stroke1 -> Maybe (Realize.Stroke stroke2))
+    -> Korvai.Score -> ([Text], Bool)
+    -- ^ (lines, hadError)
+formatScore config instrument postproc = \case
+    Korvai.Single korvai -> formatK korvai
+    Korvai.Tani _ parts -> (concat lines, or errors)
+        where (lines, errors) = unzip $ map format parts
+    where
+    format (Korvai.Comment cmt) = ([cmt], False)
+    format (Korvai.K korvai) = formatK korvai
+    formatK = formatInstrument config instrument postproc
 
 formatInstrument :: (Solkattu.Notation stroke1, Solkattu.Notation stroke2)
     => Config

@@ -17,16 +17,20 @@ import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tags as Tags
 
-import Global
-import Util.Test
+import           Global
+import           Util.Test
 
+
+allKorvais :: [(Int, Korvai.Korvai)]
+allKorvais =
+    [(i, korvai) | (i, Korvai.Single korvai) <- zip [0..] All.scores]
 
 test_all :: Test
 test_all = do
-    forM_ (zip [0..] All.korvais) testKorvai
+    mapM_ (uncurry testKorvai) allKorvais
 
-testKorvai :: (Int, Korvai.Korvai) -> Test
-testKorvai (i, korvai) =
+testKorvai :: Int -> Korvai.Korvai -> Test
+testKorvai i korvai =
     forM_ (Korvai.korvaiInstruments korvai) $
         \(name, Korvai.GInstrument inst) ->
     realizeCatch inst korvai >>= \case
@@ -34,11 +38,9 @@ testKorvai (i, korvai) =
         Left errs -> failure $ location korvai i <> ": " <> name <> ": "
             <> Text.unlines errs
 
-_test0 = either mconcat (const "") $ realize Korvai.konnakol (All.korvais!!114)
-
 test_lints :: Test
 test_lints = do
-    forM_ (zip [0..] All.korvais) testLint
+    mapM_ testLint allKorvais
 
 testLint :: (Int, Korvai.Korvai) -> Test
 testLint (i, korvai) = when (lints /= "") $
@@ -46,19 +48,20 @@ testLint (i, korvai) = when (lints /= "") $
     where
     lints = Dsl.Solkattu.allLints korvai
 
+test_metadata :: Test
 test_metadata = do
-    forM_ (zip [0..] All.korvais) $ \(i, korvai) ->
-        forM_ (Metadata.korvaiTag Tags.similarTo korvai) $ \tag -> do
-            unless (referentExists tag) $
-                void $ failure $
-                    location korvai i <> ": can't find similarTo " <> showt tag
+    forM_ allKorvais $ \(i, korvai) ->
+        forM_ (Metadata.getTag Tags.similarTo (Korvai.korvaiMetadata korvai)) $
+            \tag -> unless (referentExists tag) $ void $ failure $
+                location korvai i <> ": can't find similarTo " <> showt tag
 
 location :: Korvai.Korvai -> Int -> Text
-location korvai i = Metadata.showLocation (Metadata.getLocation korvai)
-    <> " All.korvais!!" <> showt i
+location korvai i =
+    Metadata.showLocation (Korvai._location (Korvai.korvaiMetadata korvai))
+    <> " All.scores!!" <> showt i
 
 referentExists :: Text -> Bool
-referentExists = (`elem` map Metadata.getModuleVariable All.korvais)
+referentExists = (`elem` map Metadata.moduleVariable All.scores)
 
 realizeCatch :: Solkattu.Notation stroke => Korvai.Instrument stroke
     -> Korvai.Korvai -> IO (Either [Text] [[Realize.Note stroke]])

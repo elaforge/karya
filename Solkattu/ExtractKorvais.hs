@@ -20,30 +20,39 @@ main = do
         (extract . ExtractHs.typeDeclarations . ExtractHs.stripComments)
         generate
 
--- | Extract "something :: Korvai" lines.
-extract :: [(Int, (Text, Text))] -> [(Int, Text)] -- ^ (lineno, variableName)
-extract = mapMaybe $ \(lineno, (variable, type_)) -> if type_ == "Korvai"
-    then Just (lineno, variable) else Nothing
+data Type = Korvai | Score deriving (Eq, Show)
 
-generate :: FilePath -> Map FilePath [(Int, Text)]
+-- | Extract "something :: Korvai" lines.
+extract :: [(Int, (Text, Text))] -> [(Type, (Int, Text))]
+    -- ^ (lineno, variableName)
+extract = mapMaybe $ \(lineno, (variable, type_)) ->
+    (, (lineno, variable)) <$> case type_ of
+        "Korvai" -> Just Korvai
+        "Score" -> Just Score
+        _ -> Nothing
+
+generate :: FilePath -> Map FilePath [(Type, (Int, Text))]
     -> Either ExtractHs.Error ([ExtractHs.Warning], Text)
 generate outFname extracted = fmap (warnings,) $
     Texts.interpolate template $ Map.fromList
         [ ("module", ExtractHs.moduleDeclaration outFname)
         , ("imports", Text.unlines $
             map ExtractHs.makeImport (Map.keys fnameDefs))
-        , ("korvais", Text.intercalate "\n    , "
-            [ korvaiDef fname def
-            | (fname, defs) <- Map.toList fnameDefs, def <- defs
+        , ("scores", Text.intercalate "\n    , "
+            [ scoreDef fname def type_
+            | (fname, defs) <- Map.toList fnameDefs, (type_, def) <- defs
             ])
         ]
     where
     (empty, fnameDefs) = Map.partition null extracted
     warnings = map (("Warning: no korvai defs in " <>) . txt) (Map.keys empty)
 
-korvaiDef :: FilePath -> (Int, Text) -> Text
-korvaiDef fname (lineno, variableName) = Text.unwords
-    [ "setLocation", showt (module_, lineno, variableName)
+scoreDef :: FilePath -> (Int, Text) -> Type -> Text
+scoreDef fname (lineno, variableName) type_ = Text.unwords $ filter (/="")
+    [ "setLocation", showt (module_, lineno, variableName), "$"
+    , case type_ of
+        Score -> ""
+        Korvai -> "Single"
     , module_ <> "." <> variableName
     ]
     where module_ = ExtractHs.pathToModule fname
@@ -56,11 +65,10 @@ template =
     \-- directory should cause it to be regenerated.\n\
     \${module}\n\
     \import qualified Solkattu.Korvai as Korvai\n\
-    \import Solkattu.Metadata (setLocation)\n\
+    \import           Solkattu.Korvai (Score(Single), setLocation)\n\
     \${imports}\n\
     \\n\
-    \korvais :: [Korvai.Korvai]\n\
-    \korvais = map Korvai.inferMetadata\n\
-    \    [ ${korvais}\n\
+    \scores :: [Korvai.Score]\n\
+    \scores = map Korvai.inferMetadataS\n\
+    \    [ ${scores}\n\
     \    ]\n"
-

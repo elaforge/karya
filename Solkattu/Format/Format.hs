@@ -8,6 +8,8 @@ module Solkattu.Format.Format (
     , abstract, named, unnamed
     , defaultAbstraction, allAbstract
     , Highlight(..)
+    -- * score
+    , scoreInstruments
     -- * group
     , Flat
     , convertGroups, mapGroups
@@ -78,6 +80,16 @@ allAbstract = Abstraction $ Set.fromList
 
 data Highlight = StartHighlight | Highlight | EndHighlight
     deriving (Eq, Show)
+
+-- * score
+
+scoreInstruments :: Korvai.Score -> [(Text, Korvai.GInstrument)]
+scoreInstruments =
+    Seq.drop_dups fst . Seq.sort_on (order . fst)
+        . concatMap Korvai.korvaiInstruments . Korvai.scoreKorvais
+    where
+    order name = (fromMaybe 999 $ List.elemIndex name prio, name)
+        where prio = ["konnakol", "mridangam"]
 
 -- * group
 

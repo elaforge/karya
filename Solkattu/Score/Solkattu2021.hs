@@ -48,5 +48,8 @@ e_35_kanda, e_35_misra :: Korvai
         , let p123 = tdktt.kp.tdktt.kpnp.tdktt
           in p123.tanga.p123.tanga . kpnp.tdktt.kp.tdktt.tdktt
         , trin tanga (r3 (tdktt)) (r3 (kp.tdktt)) (r3 (kpnp.tdktt))
+        , trin tanga (r3 (tdktt')) (r3 (kp.__.tdktt'))
+            (r3 (kp.__.tiku.__.tdktt'))
         ]
-    tdktt = g (ta.di.__.ki.__.ta.__.thom.__)
+    tdktt = g $ ta.di.__.ki.__.ta.__.thom.__
+    tdktt' = g $ ta.di.__.ki.__.ta.__.thom

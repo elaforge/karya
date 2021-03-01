@@ -27,7 +27,7 @@ import qualified Util.SourceControl as SourceControl
 
 import qualified Solkattu.All as All -- generated
 import           Solkattu.Dsl.Solkattu
-       (index, realize, realizeM, realizeR, realizek, realizekp, realizep)
+       (realize, realizeM, realizeR, realizek, realizekp, realizep)
 import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Format.Html as Html
 import qualified Solkattu.Format.Terminal as Terminal
@@ -38,17 +38,18 @@ import qualified Solkattu.Tags as Tags
 import           Global
 
 
-korvais :: [(Int, Korvai.Korvai)]
-korvais = zip [0..] (List.sortOn key All.korvais)
+scores :: [(Int, Korvai.Score)]
+scores = zip [0..] (List.sortOn key All.scores)
     where
-    key k = (Korvai._date (Korvai.korvaiMetadata k), Metadata.getLocation k)
+    key score = (Korvai._date m, Korvai._location m)
+        where m = Korvai.scoreMetadata score
 
 -- * predicates
 
 -- | The number of date groups starting from the most recent.
 recentDates :: Int -> Select
 recentDates groups = concat . Seq.rtake groups
-    . Seq.group_sort (Korvai._date . Korvai.korvaiMetadata . snd)
+    . Seq.group_sort (Korvai._date . Korvai.scoreMetadata . snd)
 
 aroundDate :: Calendar.Day -> Integer -> Korvai.Korvai -> Bool
 aroundDate date days =
@@ -57,42 +58,42 @@ aroundDate date days =
     inRange = Num.inRange (Calendar.addDays (-days) date)
         (Calendar.addDays days date)
 
-ofType :: Text -> Korvai.Korvai -> Bool
-ofType type_ = (type_ `elem`) . Metadata.korvaiTag "type"
+ofType :: Text -> Korvai.Score -> Bool
+ofType type_ = (type_ `elem`) . Metadata.scoreTag "type"
 
-variableName :: Text -> Korvai.Korvai -> Bool
-variableName name = (name `Text.isInfixOf`) . Metadata.getModuleVariable
+variableName :: Text -> Korvai.Score -> Bool
+variableName name = (name `Text.isInfixOf`) . Metadata.moduleVariable
 
-hasInstrument :: Text -> Korvai.Korvai -> Bool
-hasInstrument inst = (inst `elem`) . Metadata.korvaiTag "instrument"
+hasInstrument :: Text -> Korvai.Score -> Bool
+hasInstrument inst = (inst `elem`) . Metadata.scoreTag "instrument"
 
-tagHas :: Text -> Text -> Korvai.Korvai -> Bool
-tagHas tag val korvai =
+tagHas :: Text -> Text -> Korvai.Score -> Bool
+tagHas tag val score =
     any (val `Text.isInfixOf`) $
-        Metadata.korvaiTag tag korvai ++ Metadata.sectionTag tag korvai
+        Metadata.scoreTag tag score ++ Metadata.sectionTag tag score
 
 date :: CallStack.Stack => Int -> Int -> Int -> Calendar.Day
 date = Metadata.makeDate
 
 -- * search
 
-searchp :: [Korvai.Korvai -> Bool] -> IO ()
+searchp :: [Korvai.Score -> Bool] -> IO ()
 searchp = Text.IO.putStrLn . formats . searchAll id
 
-type Select = forall i. [(i, Korvai.Korvai)] -> [(i, Korvai.Korvai)]
+type Select = forall i. [(i, Korvai.Score)] -> [(i, Korvai.Score)]
 
-searchAll :: Select -> [Korvai.Korvai -> Bool] -> [(Int, Korvai.Korvai)]
-searchAll select predicates = filter (predicate . snd) $ select korvais
+searchAll :: Select -> [Korvai.Score -> Bool] -> [(Int, Korvai.Score)]
+searchAll select predicates = filter (predicate . snd) $ select scores
     where predicate = Monoid.getAll . mconcatMap (Monoid.All .) predicates
 
-formats :: [(Int, Korvai.Korvai)] -> Text
+formats :: [(Int, Korvai.Score)] -> Text
 formats = Text.stripEnd . Text.unlines . map format
 
-format :: (Int, Korvai.Korvai) -> Text
-format (i, korvai) = mconcat
+format :: (Int, Korvai.Score) -> Text
+format (i, score) = mconcat
     [ showt i
     , ": "
-    , Metadata.showLocation (Metadata.getLocation korvai)
+    , Metadata.showLocation $ Metadata.scoreLocation score
     , " -- " <> maybe "no date" showt date
     , "\n"
     , tagsText
@@ -101,8 +102,9 @@ format (i, korvai) = mconcat
     tagsText = Text.unlines $ map ("    "<>) $ map (Text.intercalate "; ") $
         Seq.chunked 3 $ map (\(k, v) -> k <> ": " <> Text.unwords v) $
         Map.toAscList tags
-    Tags.Tags tags = Korvai._tags $ Korvai.korvaiMetadata korvai
-    date = Korvai._date (Korvai.korvaiMetadata korvai)
+    Tags.Tags tags = Korvai._tags meta
+    date = Korvai._date meta
+    meta = Korvai.scoreMetadata score
 
 
 -- * write
@@ -113,21 +115,27 @@ writeAll = writeText >> writeHtml
 writeHtml :: IO ()
 writeHtml = writeHtmlTo "data/solkattu-html"
 
+writeHtml1 :: Korvai.Score -> IO ()
+writeHtml1 score = do
+    let fname = scoreFname score <> ".html"
+    putStrLn $ "write " <> fname
+    Html.writeAll fname score
+
 -- | Write all Korvais as HTML into the given directory.
 writeHtmlTo :: FilePath -> IO ()
 writeHtmlTo dir = do
     clearDir dir
-    writeWithStatus write1 All.korvais
+    writeWithStatus write1 All.scores
     Text.IO.writeFile (dir </> "index.html") $
-        Doc.un_html $ Html.indexHtml ((<>".html") . korvaiFname) All.korvais
+        Doc.un_html $ Html.indexHtml ((<>".html") . scoreFname) All.scores
     writeCommit dir
     where
-    write1 korvai = Html.writeAll (dir </> korvaiFname korvai <> ".html") korvai
+    write1 score = Html.writeAll (dir </> scoreFname score <> ".html") score
 
-korvaiFname :: Korvai.Korvai -> FilePath
-korvaiFname korvai = untxt $ mod <> "." <> variableName
+scoreFname :: Korvai.Score -> FilePath
+scoreFname score = untxt $ mod <> "." <> variableName
     where
-    (mod, _, variableName) = Korvai._location $ Korvai.korvaiMetadata korvai
+    (mod, _, variableName) = Korvai._location $ Korvai.scoreMetadata score
 
 -- ** writeText
 
@@ -143,28 +151,28 @@ writeTextTo :: FilePath -> FilePath -> Format.Abstraction -> IO ()
 writeTextTo dir colorDir abstraction = do
     clearDir dir
     clearDir colorDir
-    writeWithStatus write1 All.korvais
+    writeWithStatus write1 All.scores
     writeCommit dir
     writeCommit colorDir
     where
-    write1 korvai = do
-        File.writeLines (colorDir </> korvaiFname korvai <> ".txt") lines
-        File.writeLines (dir </> korvaiFname korvai <> ".txt")
+    write1 score = do
+        File.writeLines (colorDir </> scoreFname score <> ".txt") lines
+        File.writeLines (dir </> scoreFname score <> ".txt")
             (map stripColors lines)
-        where lines = Terminal.renderAll abstraction korvai
+        where lines = Terminal.renderAll abstraction score
 
 stripColors :: Text -> Text
 stripColors = Text.stripEnd . mconcat
     . Seq.map_tail (Text.drop 1 . Text.dropWhile (/='m')) . Text.splitOn "\ESC["
 
-writeWithStatus :: (Korvai.Korvai -> IO ()) -> [Korvai.Korvai] -> IO ()
-writeWithStatus write korvais = do
-    mapM_ one (zip [1..] korvais)
+writeWithStatus :: (Korvai.Score -> IO ()) -> [Korvai.Score] -> IO ()
+writeWithStatus write scores = do
+    mapM_ one (zip [1..] scores)
     putChar '\n'
     where
     one (i, korvai) = do
-        Text.IO.putStr $ "\ESC[K" <> num i <> "/" <> showt (length korvais)
-            <> ": " <> txt (korvaiFname korvai) <> "\r"
+        Text.IO.putStr $ "\ESC[K" <> num i <> "/" <> showt (length scores)
+            <> ": " <> txt (scoreFname korvai) <> "\r"
         write korvai
     num = Text.justifyLeft 3 ' ' . showt
 

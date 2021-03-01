@@ -13,7 +13,7 @@ import           Prelude hiding ((.))
 
 import           Solkattu.Dsl.Interactive (diff, diffw)
 import qualified Solkattu.Dsl.Solkattu as Dsl.Solkattu
-import           Solkattu.Dsl.Solkattu (realizePartsM)
+import           Solkattu.Dsl.Solkattu (realizeScoreM)
 import qualified Solkattu.Format.Terminal as Terminal
 import qualified Solkattu.Instrument.KendangTunggal as KendangTunggal
 import qualified Solkattu.Korvai as Korvai

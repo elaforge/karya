@@ -17,8 +17,10 @@ import qualified Data.Time.Calendar as Calendar
 import qualified GHC.Generics as Generics
 
 import qualified Util.Maps as Maps
+import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+import qualified Util.Styled as Styled
 
 import qualified Derive.Expr as Expr
 import qualified Solkattu.Instrument.KendangPasang as KendangPasang
@@ -43,10 +45,39 @@ type SequenceT sollu = [S.Note Solkattu.Group (Solkattu.Note sollu)]
 type Error = Text
 
 mapSollu :: (a -> b) -> SequenceT a -> SequenceT b
-mapSollu f = map $ \n -> case n of
+mapSollu f = map $ \case
     S.Note note -> S.Note (f <$> note)
     S.TempoChange change notes -> S.TempoChange change (mapSollu f notes)
     S.Group g notes -> S.Group g (mapSollu f notes)
+
+-- * Score
+
+data Score = Single !Korvai | Tani !Metadata ![Part Korvai]
+    deriving (Show)
+data Part k = K !k | Comment !Text
+    deriving (Show, Functor)
+
+tani :: [Part Korvai] -> Score
+tani = Tani (mempty { _tags = Tags.withType "tani" })
+
+mapScore :: (Korvai -> Korvai) -> Score -> Score
+mapScore f = \case
+    Single k -> Single (f k)
+    Tani meta parts -> Tani meta (fmap (fmap f) parts)
+
+scoreKorvais :: Score -> [Korvai]
+scoreKorvais (Single k) = [k]
+scoreKorvais (Tani _ parts) = [k | K k <- parts]
+
+realizeScore :: (Korvai -> IO ()) -> Score -> IO ()
+realizeScore realize = \case
+    Single k -> realize k
+    Tani _ parts -> forM_ parts $ \case
+        -- TODO it would be nice to print the name, but it's only available
+        -- through Db.  HasCallStack could get it... but I'd have to put it on
+        -- every declaration.
+        K korvai -> realize korvai
+        Comment comment -> Styled.printLn $ Styled.bold comment
 
 -- * korvai
 
@@ -120,25 +151,21 @@ kendangTunggalKorvai tala pmap sections = Korvai
     , korvaiMetadata = mempty
     }
 
-withKorvaiMetadata :: Metadata -> Korvai -> Korvai
-withKorvaiMetadata meta korvai =
-    korvai { korvaiMetadata = meta <> korvaiMetadata korvai }
+-- | Modify the korvai to extract a single Section.
+index :: Int -> Korvai -> Korvai
+index i = sliceSections i (i+1)
 
-genericSections :: Korvai -> [Section ()]
-genericSections korvai = case korvaiSections korvai of
-    TSollu sections -> map (fmap (const ())) sections
-    TMridangam sections -> map (fmap (const ())) sections
-    TKendangTunggal sections -> map (fmap (const ())) sections
-
-modifySections :: (Tags.Tags -> Tags.Tags) -> Korvai -> Korvai
-modifySections modify korvai = korvai
-    { korvaiSections = case korvaiSections korvai of
-        TSollu sections -> TSollu $ map (modifySectionTags modify) sections
-        TMridangam sections ->
-            TMridangam $ map (modifySectionTags modify) sections
-        TKendangTunggal sections ->
-            TKendangTunggal $ map (modifySectionTags modify) sections
-    }
+sliceSections :: Int -> Int -> Korvai -> Korvai
+sliceSections start end korvai = case korvaiSections korvai of
+    TSollu s -> korvai { korvaiSections = TSollu (get s) }
+    TMridangam s -> korvai { korvaiSections = TMridangam (get s) }
+    TKendangTunggal s -> korvai { korvaiSections = TKendangTunggal (get s) }
+    where
+    get xs
+        | all (Num.inRange 0 (length xs)) [start, end] =
+            take (start - end) $ drop start xs
+        | otherwise = error $ "(start, end) " <> show (start, end)
+            <> " out of range 0--" <> show (length xs)
 
 -- * Section
 
@@ -156,6 +183,29 @@ data Section a = Section {
 
 instance Pretty a => Pretty (Section a) where
     format = Pretty.formatGCamel
+
+scoreSections :: Score -> [Section ()]
+scoreSections = \case
+    Single k -> genericSections k
+    Tani _ parts -> flip concatMap parts $ \case
+        K korvai -> genericSections korvai
+        _ -> []
+
+genericSections :: Korvai -> [Section ()]
+genericSections korvai = case korvaiSections korvai of
+    TSollu sections -> map (fmap (const ())) sections
+    TMridangam sections -> map (fmap (const ())) sections
+    TKendangTunggal sections -> map (fmap (const ())) sections
+
+modifySections :: (Tags.Tags -> Tags.Tags) -> Korvai -> Korvai
+modifySections modify korvai = korvai
+    { korvaiSections = case korvaiSections korvai of
+        TSollu sections -> TSollu $ map (modifySectionTags modify) sections
+        TMridangam sections ->
+            TMridangam $ map (modifySectionTags modify) sections
+        TKendangTunggal sections ->
+            TKendangTunggal $ map (modifySectionTags modify) sections
+    }
 
 addSectionTags :: Tags.Tags -> Section a -> Section a
 addSectionTags tags = modifySectionTags (tags<>)
@@ -425,7 +475,27 @@ instance Monoid Metadata where
 instance Pretty Metadata where
     format = Pretty.formatG_
 
+withKorvaiMetadata :: Metadata -> Korvai -> Korvai
+withKorvaiMetadata meta korvai =
+    korvai { korvaiMetadata = meta <> korvaiMetadata korvai }
+
+modifyMetadata :: (Metadata -> Metadata) -> Score -> Score
+modifyMetadata modify = \case
+    Single k -> Single $ k { korvaiMetadata = modify (korvaiMetadata k) }
+    Tani meta parts -> Tani (modify meta) parts
+
+scoreMetadata :: Score -> Metadata
+scoreMetadata = \case
+    Single k -> korvaiMetadata k
+    Tani meta _ -> meta
+
+setLocation :: Location -> Score -> Score
+setLocation loc = modifyMetadata $ \meta -> meta { _location = loc }
+
 -- ** infer
+
+inferMetadataS :: Score -> Score
+inferMetadataS = mapScore inferMetadata
 
 -- | This is called in "Solkattu.All", thanks to "Solkattu.ExtractKorvais".
 --

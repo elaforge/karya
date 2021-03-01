@@ -9,17 +9,17 @@
 -- > return $ LSol.search $ LSol.hasInstrument "kendang_tunggal"
 -- > return $ LSol.search $ LSol.aroundDate (LSol.date 2017 7 10) 10
 -- > 59: .... etc
--- > LSol.insert_k1 True 1 59 (Index 0)
+-- > LSol.insert_k1 True 1 59 0
 module Cmd.Repl.LSol (
     module Cmd.Repl.LSol
     , module Solkattu.Db
-    , Index(..)
 ) where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Util.ParseText as ParseText
+import qualified Util.Seq as Seq
 import qualified App.ReplProtocol as ReplProtocol
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -41,8 +41,6 @@ import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Instrument.ToScore as ToScore
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Metadata as Metadata
-import qualified Solkattu.Part as Part
-import           Solkattu.Part (Index(..))
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
@@ -56,45 +54,48 @@ import           Global
 import           Types
 
 
-type KorvaiIndex = Int
+type ScoreIndex = Int
+type SectionIndex = Int
 
 -- * search
 
-search :: Monad m => [Korvai.Korvai -> Bool] -> m Text
+search :: Monad m => [Korvai.Score -> Bool] -> m Text
 search = return . Db.formats . Db.searchAll id
 
 -- * realize
 
-insert_m :: Cmd.M m => Bool -> TrackTime -> KorvaiIndex -> Index -> m ()
+insert_m :: Cmd.M m => Bool -> TrackTime -> ScoreIndex -> SectionIndex -> m ()
 insert_m = insert Korvai.mridangam
 
-insert_k1 :: Cmd.M m => Bool -> TrackTime -> KorvaiIndex -> Index -> m ()
+insert_k1 :: Cmd.M m => Bool -> TrackTime -> ScoreIndex -> SectionIndex -> m ()
 insert_k1 = insert Korvai.kendangTunggal
 
-insert_r :: Cmd.M m => Bool -> TrackTime -> KorvaiIndex -> Index -> m ()
+insert_r :: Cmd.M m => Bool -> TrackTime -> ScoreIndex -> SectionIndex -> m ()
 insert_r = insert Korvai.reyong
 
-insert_sargam :: Cmd.M m => TrackTime -> KorvaiIndex -> Index -> m ()
+insert_sargam :: Cmd.M m => TrackTime -> ScoreIndex -> SectionIndex -> m ()
 insert_sargam = insert Korvai.sargam True
 
 -- | Insert the korvai at the selection.
 -- TODO implement ModifyNotes.replace_tracks to clear existing notes first
 insert :: (Solkattu.Notation stroke, Cmd.M m) => Korvai.Instrument stroke
-    -> Bool -> TrackTime -> KorvaiIndex -> Index -> m ()
-insert instrument realize_patterns akshara_dur korvai index = do
+    -> Bool -> TrackTime -> ScoreIndex -> SectionIndex -> m ()
+insert instrument realize_patterns akshara_dur score_i section_i = do
     (block_id, _, track_id, at) <- Selection.get_insert
-    note_track <-
-        realize instrument realize_patterns (map snd Db.korvais !! korvai) index
-            akshara_dur at
+    note_track <- case Seq.at Db.scores score_i of
+        Just (_, Korvai.Single k) -> realize instrument realize_patterns k
+            section_i akshara_dur at
+        Just (_, Korvai.Tani {}) -> Cmd.throw "tani not supported"
+        Nothing -> Cmd.throw $
+            "LSol.insert: index out of range: " <> showt score_i
     ModifyNotes.write_tracks block_id [track_id] [note_track]
 
 realize :: (Ui.M m, Solkattu.Notation stroke) => Korvai.Instrument stroke
-    -> Bool -> Korvai.Korvai -> Index -> TrackTime -> TrackTime
+    -> Bool -> Korvai.Korvai -> SectionIndex -> TrackTime -> TrackTime
     -> m ModifyNotes.NoteTrack
-realize instrument realize_patterns korvai index akshara_dur at = do
+realize instrument realize_patterns korvai section_i akshara_dur at = do
     results <- Ui.require_right id $ sequence $
-        Korvai.realize instrument $
-        Part.index index korvai
+        Korvai.realize instrument $ Korvai.index section_i korvai
     -- TODO I could probbaly abstract more than just patterns
     let abstraction = if realize_patterns
             then mempty else Format.abstract Solkattu.GPattern
@@ -145,7 +146,8 @@ strokes_to_events strokes =
 
 -- | Find the korvai, do 'integrate_track' for it, and open an editor on the
 -- source file.  The editor has bindings to 'reintegrate' after an edit.
-edit_new :: Cmd.M m => Korvai.Korvai -> Index -> Text -> m ReplProtocol.Result
+edit_new :: Cmd.M m => Korvai.Korvai -> SectionIndex -> Text
+    -> m ReplProtocol.Result
 edit_new korvai index instrument = do
     key <- integrate_track korvai index instrument
     edit key
@@ -160,7 +162,7 @@ edit :: Ui.M m => Block.SourceKey -> m ReplProtocol.Result
 edit key = do
     (korvai, _, _) <- Ui.require ("no korvai for " <> showt key) $
         get_by_key key
-    let (module_, line_number, _) = Metadata.getLocation korvai
+    let (module_, line_number, _) = Metadata.korvaiLocation korvai
         fname = module_to_fname module_
     return $ ReplProtocol.Edit $ (:| []) $ ReplProtocol.Editor
         { _file = ReplProtocol.FileName fname
@@ -215,7 +217,7 @@ event_key event = case Event.stack event of
     Nothing -> Nothing
 
 -- | Get the SourceKey, create an empty track with that.
-integrate_track :: Cmd.M m => Korvai.Korvai -> Index -> Text
+integrate_track :: Cmd.M m => Korvai.Korvai -> SectionIndex -> Text
     -> m Block.SourceKey
 integrate_track korvai index instrument = do
     key <- Cmd.require "can't get key" $ korvai_key korvai index instrument
@@ -230,25 +232,28 @@ integrate_track korvai index instrument = do
     reintegrate key
     return key
 
-korvai_key :: Korvai.Korvai -> Index -> Text -> Maybe Block.SourceKey
+korvai_key :: Korvai.Korvai -> SectionIndex -> Text -> Maybe Block.SourceKey
 korvai_key korvai index instrument = do
-    let (module_, _, variable) = Metadata.getLocation korvai
+    let (module_, _, variable) = Metadata.korvaiLocation korvai
     return $ Text.intercalate "/" [module_, variable, showt index, instrument]
 
 get_by_key :: Block.SourceKey
-    -> Maybe (Korvai.Korvai, Index, Korvai.GInstrument)
+    -> Maybe (Korvai.Korvai, SectionIndex, Korvai.GInstrument)
 get_by_key key = do
     -- (mod, variable, index) <- split3 key
     [mod, variable, index, instrument] <- return $ Text.splitOn "/" key
     index <- ParseText.maybe_parse ParseText.p_nat index
-    korvai <- List.find (matches mod variable) (map snd Db.korvais)
+    score <- List.find (matches mod variable) (map snd Db.scores)
+    korvai <- case score of
+        Korvai.Single k -> return k
+        Korvai.Tani {} -> error "Tani not supported yet"
     instrument <- Map.lookup instrument Korvai.instruments
     -- This means reintegrate only works with a single section a single korvai.
     -- I can extend it if this turns out to be too restrictive.
-    return (korvai, Index index, instrument)
+    return (korvai, index, instrument)
     where
     -- split3 t = case Text.splitOn "/" t of
     --     [a, b, c] -> Just (a, b, c)
     --     _ -> Nothing
-    matches mod variable korvai = m == mod && v == variable
-        where (m, _, v) = Metadata.getLocation korvai
+    matches mod variable score = m == mod && v == variable
+        where (m, _, v) = Metadata.scoreLocation score

@@ -5,13 +5,14 @@
 {-# LANGUAGE RecordWildCards #-}
 -- | Solkattu scores from 2018.
 module Solkattu.Score.Solkattu2018 where
-import Prelude hiding ((.), (^), repeat)
+import           Prelude hiding ((.), (^), repeat)
 
 import qualified Solkattu.Instrument.KendangTunggal as KendangTunggal
+import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Score.SolkattuMohra as SolkattuMohra
 import qualified Solkattu.Tala as Tala
 
-import Solkattu.Dsl.Solkattu
+import           Solkattu.Dsl.Solkattu
 
 
 yt_mannargudi1 :: Korvai
@@ -387,22 +388,22 @@ dikutarikitataka :: Sequence
 dikutarikitataka = nakatiku
 
 print_misra_tani :: IO ()
-print_misra_tani = realizePartsM (abstract patterns) misra_tani
+print_misra_tani = realizeScoreM (abstract patterns) misra_tani
 
-misra_tani :: [Part]
-misra_tani =
+misra_tani :: Score
+misra_tani = tani
     [ Comment "part 1"
-    , K misra_tani1 All
-    , K misra_to_mohra1a All
+    , K misra_tani1
+    , K misra_to_mohra1a
     , Comment "part 2"
-    , K to_mohra_farans All
-    , K misra_tani2 All
-    , K misra_to_mohra1b All
-    , K misra_to_mohra3 All
+    , K to_mohra_farans
+    , K misra_tani2
+    , K misra_to_mohra1b
+    , K misra_to_mohra3
     , Comment "part 3"
-    , K misra_to_mohra4 All
-    , K misra_mohras (Index 1) -- or 2
-    , K misra_muktayi1 All
+    , K misra_to_mohra4
+    , K $ Korvai.index 0 misra_mohras
+    , K misra_muktayi1
     ]
 
 misra_tani1 :: Korvai
@@ -733,37 +734,37 @@ e_misra_tisra = exercise $ korvaiS Tala.misra_chapu mempty $ map (nadai 3)
 
 -- Practice speed: 55
 print_adi_tani :: IO ()
-print_adi_tani = realizePartsM (abstract (patterns <> namedGroups)) adi_tani
+print_adi_tani = realizeScoreM (abstract (patterns <> namedGroups)) adi_tani
 
-adi_tani :: [Part]
-adi_tani =
-    [ K adi_tani1 All
-    , K c_18_09_25 All
-    , K trikalam1 All
-    , K e_sarva1_tisra All
-    , K e_adi_tisra All
-    , K c_18_08_03 All
-    , K adi_tani2 All
+adi_tani :: Score
+adi_tani = tani
+    [ K adi_tani1
+    , K c_18_09_25
+    , K trikalam1
+    , K e_sarva1_tisra
+    , K e_adi_tisra
+    , K c_18_08_03
+    , K adi_tani2
     , Comment "mohra"
-    , K SolkattuMohra.c_mohra All
-    , K adi_muktayi All
+    , K SolkattuMohra.c_mohra
+    , K adi_muktayi
     ]
 
 print_adi_tani_misra :: IO ()
 print_adi_tani_misra =
-    realizePartsM (abstract (patterns <> namedGroups)) adi_tani_misra
+    realizeScoreM (abstract (patterns <> namedGroups)) adi_tani_misra
 
-adi_tani_misra :: [Part]
-adi_tani_misra =
-    [ -- K adi_tani1_misra All
-      K c_18_09_25_misra All
-    , K misra_trikalam All
-    -- K e_sarva1_tisra All
-    , K e_adi_tisra_misra2 All
-    , K c_18_08_03_misra All
-    , K adi_tani2_misra All
-    , K SolkattuMohra.misra1 All
-    , K adi_muktayi_misra All
+adi_tani_misra :: Score
+adi_tani_misra = tani
+    [ -- K adi_tani1_misra
+      K c_18_09_25_misra
+    , K misra_trikalam
+    -- K e_sarva1_tisra
+    , K e_adi_tisra_misra2
+    , K c_18_08_03_misra
+    , K adi_tani2_misra
+    , K SolkattuMohra.misra1
+    , K adi_muktayi_misra
     ]
 
 adi_tani1 :: Korvai

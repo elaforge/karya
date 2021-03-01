@@ -93,8 +93,8 @@ e_fours = date 2021 2 15 $ ganesh $ exercise $ korvaiS Tala.rupaka_fast $
     , su $ on.y.on.y.on.d.__.k
     ] ++
     [ sarva . su (k.o.on.k.d.p.n.k . r2 (g (d.o.on.k.d.p.n.k)))
-    , make $ su $ on.__.su ktpk.n.o.su ktpk
-    , sarva . su (r2 (on.__.su ktpk.n.o.su ktpk) . on.__.su (ktpk.nakatiku))
+    , make $ su $ on.__.su ktpk.n.o.su ktok
+    , sarva . su (r2 (on.__.su ktpk.n.o.su ktok) . on.__.su (ktpk.nakatiku))
     ]
     where
     sarva = on.y.on.on.p&d.y.n.y.on.on.od.y
@@ -111,3 +111,7 @@ e_tisram = date 2021 2 21 $ ganesh $ exercise $ korvaiS adi $ map (nadai 6)
     p1 = g (k.n.o)
     p2 = g (k.__.k.n.o)
     p3 = g (k.__.t.__.k.n.o)
+
+s_tisram_sarva :: Korvai
+s_tisram_sarva = sarvalaghu $ ganesh $ korvaiS1 adi $ nadai 6 $
+    r3 (v.__.p.kt.k . d.__.p. su (p.kt.p.kt)) . su (r3 (g (v.p.kt.p.kt.p)))

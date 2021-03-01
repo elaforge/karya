@@ -36,7 +36,6 @@ module Solkattu.Dsl.Generic (
     , module Solkattu.Dsl.Notation
     , module Solkattu.Dsl.Section
     , Duration, Matra, Nadai
-    , Part(..), Index(..), realizeParts, index
     , check, durationOf, throw
     , Akshara
     -- * misc
@@ -58,8 +57,7 @@ import           Solkattu.Format.Format (Abstraction)
 import qualified Solkattu.Format.Html as Html
 import qualified Solkattu.Format.Terminal as Terminal
 import qualified Solkattu.Korvai as Korvai
-import           Solkattu.Korvai (Korvai)
-import           Solkattu.Part (index, realizeParts, Part(..), Index(..))
+import           Solkattu.Korvai (Korvai, Score, tani, Part(..))
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import           Solkattu.S (Duration, Matra, Nadai)
@@ -105,7 +103,7 @@ makeNote a = [S.Note a]
 -- * realize
 
 htmlWriteAll :: FilePath -> Korvai -> IO ()
-htmlWriteAll = Html.writeAll
+htmlWriteAll fname = Html.writeAll fname • Korvai.Single
 
 -- * notation
 

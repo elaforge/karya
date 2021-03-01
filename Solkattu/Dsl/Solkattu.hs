@@ -26,7 +26,6 @@ import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Instrument.Reyong as Reyong
 import qualified Solkattu.Instrument.Sargam as Sargam
 import qualified Solkattu.Korvai as Korvai
-import qualified Solkattu.Part as Part
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
@@ -382,15 +381,15 @@ realizeKon_ :: Int -> Korvai -> IO ()
 realizeKon_ width = Terminal.printKonnakol
     (concrete $ Terminal.defaultConfig { Terminal._terminalWidth = width })
 
--- | 'realizeParts' specialized to mridangam, and disbale the usual
+-- | 'realizeScore' specialized to mridangam, and disbale the usual
 -- 'Interactive.printInstrument' lint and write diff stuff.
-realizePartsM :: (Terminal.Config -> Terminal.Config) -> [Part] -> IO ()
-realizePartsM configure = Part.realizeParts realize
+realizeScoreM :: (Terminal.Config -> Terminal.Config) -> Score -> IO ()
+realizeScoreM configure = Korvai.realizeScore realize
     where
-    inst = Korvai.mridangam
     realize = Interactive.printInstrument False False inst
         (_defaultStrokes inst) (configure Terminal.defaultConfig)
         Just
+    inst = Korvai.mridangam
 
 _printInstrument :: (Solkattu.Notation stroke1, Solkattu.Notation stroke2)
     => (Realize.Stroke stroke1 -> Maybe (Realize.Stroke stroke2))

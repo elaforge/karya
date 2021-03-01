@@ -39,24 +39,24 @@ e_20_05_01 = date 2020 5 1 $ source "anand" $ exercise $ korvaiS adi
 -- * sarva tani
 
 print_sarva_tani :: IO ()
-print_sarva_tani = realizePartsM (abstract patterns) sarva_tani
+print_sarva_tani = realizeScoreM (abstract patterns) sarva_tani
 
-sarva_tani :: [Part]
-sarva_tani =
-    [ K sarva_20_05_29 All
+sarva_tani :: Score
+sarva_tani = tani
+    [ K sarva_20_05_29
     , Comment "sarva, no thom, use vv"
-    , K sarva_20_06_05 All
-    , K sarva_20_06_12 All
-    , K sarva_20_06_12_reduction All
-    , K sarva_20_06_19_endings All
-    , K sarva_20_06_19 All
-    , K sarva_20_06_19_reduce5 All
-    , K sarva_20_01_27 All
+    , K sarva_20_06_05
+    , K sarva_20_06_12
+    , K sarva_20_06_12_reduction
+    , K sarva_20_06_19_endings
+    , K sarva_20_06_19
+    , K sarva_20_06_19_reduce5
+    , K sarva_20_01_27
     , Comment "namita dimita dimi"
-    , K sarva_20_02_10 All
-    , K sarva_20_02_27 All
+    , K sarva_20_02_10
+    , K sarva_20_02_27
     , Comment "farans"
-    , K sarva_20_05_08 All
+    , K sarva_20_05_08
     ]
 
 sarva_20_01_27 :: Korvai
@@ -387,11 +387,3 @@ sketch_20_11_08 = date 2020 11 8 $ korvaiS adi
 e_20_12_06 :: Korvai
 e_20_12_06 = date 2020 12 6 $ ganesh $ exercise $ korvaiS1 adi $
     r2 (on.__.pk.nakatiku) . su (r2 (t.__.o.__.ktpk))
-
--- e_tirmanam :: Korvai
--- e_tirmanam = tirmanam $ korvaiS adi
---     [ __D 2 . tri_ (od.__3) (on.d.d.n.od.d)
---     , su $ __D 6
---         . trin (od.__) (ktkt.pk.nakatiku) (kt.pk.nakatiku) (pk.nakatiku)
---     , tri_ (od.__.k) (su (ktkt.p.kt.p.ktkt.p.k).od.od.k)
---     ]

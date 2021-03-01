@@ -37,8 +37,8 @@ import Global
 -- * interface
 
 -- | Make a summary page with all the korvais.
-indexHtml :: (Korvai.Korvai -> FilePath) -> [Korvai.Korvai] -> Doc.Html
-indexHtml korvaiFname korvais = Texts.join "\n" $
+indexHtml :: (Korvai.Score -> FilePath) -> [Korvai.Score] -> Doc.Html
+indexHtml scoreFname scores = Texts.join "\n" $
     [ "<html> <head>"
     , "<meta charset=utf-8>"
     , "<title>solkattu db</title>"
@@ -57,7 +57,7 @@ indexHtml korvaiFname korvais = Texts.join "\n" $
     , "</head> <body>"
     , "<table id=korvais>"
     , "<tr>" <> mconcat ["<th>" <> c <> "</th>" | c <- columns] <> "</tr>"
-    ] ++ map row (Seq.sort_on korvaiDate korvais) ++
+    ] ++ map row (Seq.sort_on scoreDate scores) ++
     [ "</table>"
     , "<script>"
     , javascriptIndex
@@ -65,25 +65,33 @@ indexHtml korvaiFname korvais = Texts.join "\n" $
     , "</body></html>"
     ]
     where
-    row korvai = mconcat
+    row score = mconcat
         [ "<tr>"
-        , mconcat ["<td>" <> cell <> "</td>" | cell <- cells korvai]
+        , mconcat ["<td>" <> cell <> "</td>" | cell <- cells score]
         , "</tr>"
         ]
     columns = ["name", "type", "tala", "nadai", "date", "instruments", "source"]
-    cells korvai = Doc.link variableName (txt (korvaiFname korvai))
+    cells score = Doc.link variableName (txt (scoreFname score))
         : map Doc.html
-        [ Text.unwords $ Metadata.korvaiTag "type" korvai
-        , Tala._name $ Korvai.korvaiTala korvai
-        , Text.intercalate ", " $ Metadata.sectionTag "nadai" korvai
-        , maybe "" (txt . Calendar.showGregorian) $ Korvai._date meta
-        , Text.intercalate ", " $ Metadata.korvaiTag "instrument" korvai
-        , Text.intercalate ", " $ Metadata.korvaiTag "source" korvai
+        [ Text.unwords $ Metadata.scoreTag "type" score
+        , commas $ scoreTalas score
+        , commas $ Metadata.sectionTag "nadai" score
+        , maybe "" showDate $ scoreDate score
+        , commas $ Metadata.scoreTag "instrument" score
+        , commas $ Metadata.scoreTag "source" score
         ]
         where
-        meta = Korvai.korvaiMetadata korvai
+        meta = Korvai.scoreMetadata score
         (_, _, variableName) = Korvai._location meta
-    korvaiDate = Korvai._date . Korvai.korvaiMetadata
+    commas = Text.intercalate ", "
+
+scoreDate :: Korvai.Score -> Maybe Calendar.Day
+scoreDate = \case
+    Korvai.Single k -> date k
+    Korvai.Tani meta parts -> case Korvai._date meta of
+        Just day -> Just day
+        Nothing -> Seq.maximum $ mapMaybe date [k | Korvai.K k <- parts]
+    where date = Korvai._date . Korvai.korvaiMetadata
 
 javascriptIndex :: Doc.Html
 javascriptIndex =
@@ -136,12 +144,11 @@ javascriptIndex =
     \};\n\
     \sortColumn(headerTexts.indexOf('date'));\n"
 
-
 -- | Write HTML with all the instrument realizations at all abstraction levels.
-writeAll :: FilePath -> Korvai.Korvai -> IO ()
-writeAll fname korvai =
+writeAll :: FilePath -> Korvai.Score -> IO ()
+writeAll fname score =
     Text.IO.writeFile fname $ Doc.un_html $
-        render defaultAbstractions korvai
+        render defaultAbstractions score
 
 
 -- * high level
@@ -174,33 +181,36 @@ defaultAbstraction :: Text
 defaultAbstraction = "patterns"
 
 -- | Render all 'Abstraction's, with javascript to switch between them.
-render :: [(Text, Format.Abstraction)] -> Korvai.Korvai -> Doc.Html
-render abstractions korvai =
-    htmlPage title (korvaiMetadata korvai) body
+render :: [(Text, Format.Abstraction)] -> Korvai.Score -> Doc.Html
+render abstractions score = htmlPage title (scoreMetadata score) body
     where
-    (_, _, title) = Korvai._location (Korvai.korvaiMetadata korvai)
+    (_, _, title) = Korvai._location (Korvai.scoreMetadata score)
     body :: Doc.Html
     body = mconcatMap htmlInstrument $ Seq.sort_on (order . fst) $
-        Korvai.korvaiInstruments korvai
+        Format.scoreInstruments score
     order name = (fromMaybe 999 $ List.elemIndex name prio, name)
         where prio = ["konnakol", "mridangam"]
     htmlInstrument (instName, Korvai.GInstrument inst) = Texts.unlines $
         "<h3>" <> Doc.html instName <> "</h3>"
         : chooseAbstraction abstractions instName
-        : map (renderAbstraction instName inst korvai) abstractions
+        : map (renderAbstraction instName inst score) abstractions
 
 renderAbstraction :: Solkattu.Notation stroke => Text
-    -> Korvai.Instrument stroke -> Korvai.Korvai
+    -> Korvai.Instrument stroke -> Korvai.Score
     -> (Text, Format.Abstraction) -> Doc.Html
-renderAbstraction instName inst korvai (aname, abstraction) =
-    Doc.tag_attrs "div" attrs $ Just $
-        Texts.join "\n" $ concat
+renderAbstraction instName inst score (aname, abstraction) =
+    Doc.tag_attrs "div" attrs $ Just $ Texts.join "\n" $ case score of
+        Korvai.Single korvai -> render korvai
+        Korvai.Tani _ parts -> concatMap partHtmls parts
+    where
+    partHtmls (Korvai.Comment cmt) = ["<br>" <> Doc.html cmt]
+    partHtmls (Korvai.K korvai) = render korvai
+    render korvai = concat
         [ ["\n<p><table style=\"" <> fontStyle
             <> "\" class=konnakol cellpadding=0 cellspacing=0>"]
         , sectionHtmls inst (config abstraction) korvai
         , ["</table>"]
         ]
-    where
     fontStyle = "font-size: " <> Doc.html (showt (_sizePercent font)) <> "%"
         <> if _monospace font then "; font-family: Monaco, monospace" else ""
     attrs =
@@ -390,23 +400,30 @@ _sectionMetadata section = Texts.join "; " $ map showTag (Map.toAscList tags)
     showTag (k, vs) = Doc.html k <> ": "
         <> Texts.join ", " (map (htmlTag k) vs)
 
-korvaiMetadata :: Korvai.Korvai -> Doc.Html
-korvaiMetadata korvai = (<>"\n\n") $ Texts.join "<br>\n" $ concat $
-    [ ["Tala: " <> Doc.html (Tala.tala_name (Korvai.korvaiTala korvai))]
-    , ["Date: " <> Doc.html (showDate date) | Just date <- [Korvai._date meta]]
-    , [showTag ("Eddupu", map pretty eddupu) | not (null eddupu)]
+scoreMetadata :: Korvai.Score -> Doc.Html
+scoreMetadata score = (<>"\n\n") $ Texts.join "<br>\n" $ concat $
+    [ ["Tala: " <> Doc.html (Text.intercalate ", " (scoreTalas score))]
+    , ["Date: " <> Doc.html (showDate date) | Just date <- [scoreDate score]]
+    , [showTag ("Eddupu", map pretty eddupus) | not (null eddupus)]
     , map showTag (Map.toAscList (Map.delete "tala" tags))
     ]
     where
-    meta = Korvai.korvaiMetadata korvai
-    eddupu = Seq.unique $ filter (/="0") $
+    eddupus = Seq.unique $ filter (/="0") $
         Map.findWithDefault [] Tags.eddupu sectionTags
-    sectionTags = Tags.untags $ mconcat $ Metadata.sectionTags korvai
+    sectionTags = Tags.untags $ mconcat $
+        Metadata.sectionTags score
     tags = Tags.untags $ Korvai._tags meta
+    meta = Korvai.scoreMetadata score
     showTag (k, []) = Doc.html k
     showTag (k, vs) = Doc.html k <> ": "
         <> Texts.join ", " (map (htmlTag k) vs)
-    showDate = txt . Calendar.showGregorian
+
+showDate :: Calendar.Day -> Text
+showDate = txt . Calendar.showGregorian
+
+scoreTalas :: Korvai.Score -> [Text]
+scoreTalas = Seq.unique . map (Tala.tala_name . Korvai.korvaiTala)
+    . Korvai.scoreKorvais
 
 formatAvartanams :: Solkattu.Notation stroke => Config -> S.Speed
     -> Format.PrevRuler -> Tala.Tala

@@ -16,7 +16,6 @@ import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
 
 import qualified Solkattu.Korvai as Korvai
-import Solkattu.Korvai (Korvai)
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tags as Tags
 
@@ -25,29 +24,27 @@ import Global
 
 -- * query
 
--- | Get a korvai tag's values.
-korvaiTag :: Text -> Korvai -> [Text]
-korvaiTag tag = Map.findWithDefault [] tag . Tags.untags . Korvai._tags
-    . Korvai.korvaiMetadata
+scoreTag :: Text -> Korvai.Score -> [Text]
+scoreTag tag = getTag tag . Korvai.scoreMetadata
 
-getLocation :: Korvai -> Korvai.Location
-getLocation = Korvai._location . Korvai.korvaiMetadata
+-- | Get a korvai tag's values.
+getTag :: Text -> Korvai.Metadata -> [Text]
+getTag tag = Map.findWithDefault [] tag . Tags.untags . Korvai._tags
+
+scoreLocation :: Korvai.Score -> Korvai.Location
+scoreLocation = Korvai._location . Korvai.scoreMetadata
+
+korvaiLocation :: Korvai.Korvai -> Korvai.Location
+korvaiLocation = Korvai._location . Korvai.korvaiMetadata
 
 showLocation :: Korvai.Location -> Text
 showLocation (module_, line, name) =
     path <> ":" <> showt line <> " " <> name
     where path = Text.replace "." "/" module_ <> ".hs"
 
-setLocation :: Korvai.Location -> Korvai -> Korvai
-setLocation loc korvai = korvai
-    { Korvai.korvaiMetadata = (Korvai.korvaiMetadata korvai)
-        { Korvai._location = loc
-        }
-    }
-
-getModuleVariable :: Korvai -> Text
-getModuleVariable korvai = last (Text.splitOn "." module_) <> "." <> name
-    where (module_, _, name) = getLocation korvai
+moduleVariable :: Korvai.Score -> Text
+moduleVariable score = last (Text.splitOn "." module_) <> "." <> name
+    where (module_, _, name) = scoreLocation score
 
 -- * date
 
@@ -107,9 +104,9 @@ showTime (h, m, s)
 -- * sections
 
 -- | Get a section tag's values, concatenated and uniqued.
-sectionTag :: Text -> Korvai -> [Text]
+sectionTag :: Text -> Korvai.Score -> [Text]
 sectionTag tag = Seq.unique
     . concatMap (Map.findWithDefault [] tag . Tags.untags) . sectionTags
 
-sectionTags :: Korvai -> [Tags.Tags]
-sectionTags = map Korvai.sectionTags . Korvai.genericSections
+sectionTags :: Korvai.Score -> [Tags.Tags]
+sectionTags = map Korvai.sectionTags . Korvai.scoreSections
