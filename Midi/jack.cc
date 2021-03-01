@@ -186,7 +186,9 @@ create_client(const char *client_name, NotifyCallback notify,
     client->notify = notify;
 
     // ensure client_name < jack_client_name_size()
-    client->client = jack_client_open(client_name, JackNullOption, &status);
+    // Automatically starting the server leads to hangs on NixOS with
+    // "Cannot connect to server socket err = No such file or directory"
+    client->client = jack_client_open(client_name, JackNoStartServer, &status);
     if (!client->client) {
         delete client;
         // Yeah I know it's a bitmask, but these seem mutually exclusive.

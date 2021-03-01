@@ -7079,29 +7079,23 @@ OSC backend
     a scheduler server that takes bundles and emits their msgs at the correct
     time.
 
-jack: JACK: linux midi:
-  bugs
-    - something is still wrong, I get "no space in output port" and then
-      corrupted output
-    ? jack1 doesn't work at all: other clients don't see writes, until I quit,
-      and then they get continuously spammed.  Apparently the jack_port_t*
-      from the registration and the lookup are different.
-      - Try stashing port from port_by_name port instead of jack_register_port.
-  - does jack not support sysex at all?  Maybe I can't use it at all then.
-  - Ensure that shutdown stuff is being called correctly.  I don't care but
-    maybe JACK does?
-  use jack transport
-    I don't think I need to be the master.
-    - When starting a play, call jack_transport_locate,
-      then jack_transport_start().  The play then blocks on a lock which is
-      released by JackSyncCallback when it gets a JackRolling state.
-    - Register with jack_set_sync_callback.  JackSyncCallback sets a syncing
-      flag, emits a Msg that forces the needed bits of performance, then that
-      cmd must call back and reset the flag, at which point the sync function
-      can return true.
-    Then the next step is to test, and then figure out a way to get ardour to
-    automatically set up a bunch of instruments and make MIDI in ports for
-    them.
+linux:
+  mix_vectors:
+    . ghci will load vectorc.cc.o, but ghci api won't.  If I try to force with
+      libvectorc.a, it says "Loading static libraries is not supported in this
+      configuration."
+  jack: JACK:
+    bugs
+      - something is still wrong, I get "no space in output port" and then
+        corrupted output
+      ? jack1 doesn't work at all: other clients don't see writes, until
+        I quit, and then they get continuously spammed.  Apparently the
+        jack_port_t* from the registration and the lookup are different.
+        - Try stashing port from port_by_name port instead of
+        jack_register_port.
+    - does jack not support sysex at all?  Maybe I can't use it at all then.
+    - Ensure that shutdown stuff is being called correctly.  I don't care but
+      maybe JACK does?
 
 misc ideas:
   . What would a generalized staged evaluation system look like?
