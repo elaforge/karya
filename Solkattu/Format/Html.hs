@@ -14,10 +14,10 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
-import qualified Data.Text.IO as Text.IO
 import qualified Data.Time.Calendar as Calendar
 
 import qualified Util.Doc as Doc
+import qualified Util.File as File
 import qualified Util.Seq as Seq
 import qualified Util.Styled as Styled
 import qualified Util.Texts as Texts
@@ -31,7 +31,7 @@ import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tags as Tags
 import qualified Solkattu.Tala as Tala
 
-import Global
+import           Global
 
 
 -- * interface
@@ -146,9 +146,8 @@ javascriptIndex =
 
 -- | Write HTML with all the instrument realizations at all abstraction levels.
 writeAll :: FilePath -> Korvai.Score -> IO ()
-writeAll fname score =
-    Text.IO.writeFile fname $ Doc.un_html $
-        render defaultAbstractions score
+writeAll fname score = File.writeLines fname $ map Doc.un_html $
+    render defaultAbstractions score
 
 
 -- * high level
@@ -181,35 +180,32 @@ defaultAbstraction :: Text
 defaultAbstraction = "patterns"
 
 -- | Render all 'Abstraction's, with javascript to switch between them.
-render :: [(Text, Format.Abstraction)] -> Korvai.Score -> Doc.Html
+render :: [(Text, Format.Abstraction)] -> Korvai.Score -> [Doc.Html]
 render abstractions score = htmlPage title (scoreMetadata score) body
     where
     (_, _, title) = Korvai._location (Korvai.scoreMetadata score)
-    body :: Doc.Html
-    body = mconcatMap htmlInstrument $ Seq.sort_on (order . fst) $
+    body :: [Doc.Html]
+    body = concatMap htmlInstrument $ Seq.sort_on (order . fst) $
         Format.scoreInstruments score
     order name = (fromMaybe 999 $ List.elemIndex name prio, name)
         where prio = ["konnakol", "mridangam"]
-    htmlInstrument (instName, Korvai.GInstrument inst) = Texts.unlines $
+    htmlInstrument (instName, Korvai.GInstrument inst) =
         "<h3>" <> Doc.html instName <> "</h3>"
         : chooseAbstraction abstractions instName
-        : map (renderAbstraction instName inst score) abstractions
+        : concatMap (renderAbstraction instName inst score) abstractions
 
-htmlPage :: Text -> Doc.Html -> Doc.Html -> Doc.Html
-htmlPage title meta body = mconcat
-    [ htmlHeader title
-    , meta
-    , body
-    , htmlFooter
-    ]
+htmlPage :: Text -> [Doc.Html] -> [Doc.Html] -> [Doc.Html]
+htmlPage title meta body = htmlHeader title : meta ++ body ++ [htmlFooter]
 
 renderAbstraction :: Solkattu.Notation stroke => Text
     -> Korvai.Instrument stroke -> Korvai.Score
-    -> (Text, Format.Abstraction) -> Doc.Html
+    -> (Text, Format.Abstraction) -> [Doc.Html]
 renderAbstraction instName inst score (aname, abstraction) =
-    Doc.tag_attrs "div" attrs $ Just $ Texts.join "\n" $ case score of
+    Doc.tag_attrs "div" attrs Nothing
+    : (case score of
         Korvai.Single korvai -> render korvai
-        Korvai.Tani _ parts -> concatMap partHtmls parts
+        Korvai.Tani _ parts -> concatMap partHtmls parts)
+    ++ ["</div>"]
     where
     partHtmls (Korvai.Comment cmt) = ["<h3>" <> Doc.html cmt <> "</h3>"]
     partHtmls (Korvai.K korvai) = render korvai
@@ -412,8 +408,8 @@ _sectionMetadata section = Texts.join "; " $ map showTag (Map.toAscList tags)
     showTag (k, vs) = Doc.html k <> ": "
         <> Texts.join ", " (map (htmlTag k) vs)
 
-scoreMetadata :: Korvai.Score -> Doc.Html
-scoreMetadata score = (<>"\n\n") $ Texts.join "<br>\n" $ concat $
+scoreMetadata :: Korvai.Score -> [Doc.Html]
+scoreMetadata score = Seq.map_init (<>"<br>") $ concat $
     [ ["Tala: " <> Doc.html (Text.intercalate ", " (scoreTalas score))]
     , ["Date: " <> Doc.html (showDate date) | Just date <- [scoreDate score]]
     , [showTag ("Eddupu", map pretty eddupus) | not (null eddupus)]

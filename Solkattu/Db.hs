@@ -161,6 +161,13 @@ writeTextTo dir colorDir abstraction = do
             (map stripColors lines)
         where lines = Terminal.renderAll abstraction score
 
+writeText1 :: Korvai.Score -> IO ()
+writeText1 score =
+    File.writeLines (dir </> scoreFname score <> ".txt") (map stripColors lines)
+    where
+    lines = Terminal.renderAll Format.defaultAbstraction score
+    dir = "data/solkattu-text"
+
 stripColors :: Text -> Text
 stripColors = Text.stripEnd . mconcat
     . Seq.map_tail (Text.drop 1 . Text.dropWhile (/='m')) . Text.splitOn "\ESC["

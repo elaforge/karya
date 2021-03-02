@@ -128,20 +128,20 @@ formatResults :: Solkattu.Notation stroke => Config -> Tala.Tala
        ]
     -> ([Text], Bool)
 formatResults config tala results =
-    ( snd . List.mapAccumL show1 (Nothing, 0) . zip [0..] $ results
+    ( concat . snd . List.mapAccumL show1 (Nothing, 0) . zip [0..] $ results
     , any (Either.isLeft . snd) results
     )
     where
     show1 _ (_section, (_, Left err)) =
-        ((Nothing, 0), Text.replicate leader " " <> "ERROR:\n" <> err)
+        ((Nothing, 0), [Text.replicate leader " " <> "ERROR:\n" <> err])
     show1 prevRuler (section, (tags, Right (notes, warnings))) =
         ( nextRuler
         -- Use an empty section with commentS to describe what to play.
-        , if null notes then sectionNumber section
+        , if null notes then (:[]) $ sectionNumber section
                 <> maybe "empty" Text.unwords
                     (Map.lookup Tags.comment (Tags.untags tags))
-            else Text.stripEnd $ Text.unlines $ sectionFmt section tags lines
-                : map (showWarning strokeWidth) warnings
+            else sectionFmt section tags lines
+                ++ map (showWarning strokeWidth) warnings
         )
         where
         (strokeWidth, (nextRuler, lines)) = format config prevRuler tala notes
@@ -157,8 +157,8 @@ formatResults config tala results =
     -- toSpeed = maximum $ 0 : map S.maxSpeed (mapMaybe notesOf results)
     -- notesOf (_, Right (notes, _)) = Just notes
     -- notesOf _ = Nothing
-    sectionFmt section tags = Text.intercalate "\n"
-        . (if Text.null tagsText then id
+    sectionFmt section tags =
+        (if Text.null tagsText then id
             else Seq.map_last (<> "   " <> tagsText))
         . snd . List.mapAccumL (addHeader section) False
         . map (second (Text.strip . Styled.toText))

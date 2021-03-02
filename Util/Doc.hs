@@ -80,12 +80,12 @@ link :: Text -> Text -> Html
 link text url = tag_attrs "a" [("href", url)] (Just (html text))
 
 tag_attrs :: Text -> [(Text, Text)] -> Maybe Html -> Html
-tag_attrs name attrs maybe_content =
-    "<" <> html name <> attrs_text <> ">" <> content_text
+tag_attrs name attrs mb_content = mconcat $
+    "<" : html name : attrs_text : ">"
+    : (case mb_content of
+        Nothing -> []
+        Just content -> [content, "</", html name, ">"])
     where
-    content_text = case maybe_content of
-        Nothing -> ""
-        Just content -> content <> "</" <> html name <> ">"
     attrs_text
         | null attrs = ""
         | otherwise = (" "<>) $ Seq.join " "
