@@ -5545,8 +5545,8 @@ solkattu:
     . They're right, I'm confused.
   format: output:
     html:
-      - Solkattu.Score.Mridangam2020.sarva_tani messed up, probably due to
-        the 15 nadai one.
+      * Solkattu.Score.Mridangam2020.sarva_tani messed up
+        . Probably due to the 15 nadai one.
         . Maybe I don't want all tables independent, only the ones with
           different nadai.
         . Solkattu.Score.Solkattu2018.misra_tani also poorly formatted, why

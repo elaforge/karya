@@ -195,6 +195,14 @@ render abstractions score = htmlPage title (scoreMetadata score) body
         : chooseAbstraction abstractions instName
         : map (renderAbstraction instName inst score) abstractions
 
+htmlPage :: Text -> Doc.Html -> Doc.Html -> Doc.Html
+htmlPage title meta body = mconcat
+    [ htmlHeader title
+    , meta
+    , body
+    , htmlFooter
+    ]
+
 renderAbstraction :: Solkattu.Notation stroke => Text
     -> Korvai.Instrument stroke -> Korvai.Score
     -> (Text, Format.Abstraction) -> Doc.Html
@@ -203,16 +211,9 @@ renderAbstraction instName inst score (aname, abstraction) =
         Korvai.Single korvai -> render korvai
         Korvai.Tani _ parts -> concatMap partHtmls parts
     where
-    partHtmls (Korvai.Comment cmt) = ["<br>" <> Doc.html cmt]
+    partHtmls (Korvai.Comment cmt) = ["<h3>" <> Doc.html cmt <> "</h3>"]
     partHtmls (Korvai.K korvai) = render korvai
-    render korvai = concat
-        [ ["\n<p><table style=\"" <> fontStyle
-            <> "\" class=konnakol cellpadding=0 cellspacing=0>"]
-        , sectionHtmls inst (config abstraction) korvai
-        , ["</table>"]
-        ]
-    fontStyle = "font-size: " <> Doc.html (showt (_sizePercent font)) <> "%"
-        <> if _monospace font then "; font-family: Monaco, monospace" else ""
+    render = sectionHtmls inst (config abstraction)
     attrs =
         [ ("class", "realization")
         , ("instrument", instName)
@@ -221,41 +222,52 @@ renderAbstraction instName inst score (aname, abstraction) =
         then [("", "")] else [("hidden", "")]
     config abstraction = Config
         { _abstraction = abstraction
-        , _font = font
+        , _font = if instName == "konnakol"
+            then konnakolFont else instrumentFont
         , _rulerEach = defaultRulerEach
         }
-    font = if instName == "konnakol" then konnakolFont else instrumentFont
 
 sectionHtmls :: Solkattu.Notation stroke => Korvai.Instrument stroke
     -> Config -> Korvai.Korvai -> [Doc.Html]
 sectionHtmls inst config korvai =
-    snd $ List.mapAccumL show1 (Nothing, 0) $
-        zip3 [1..] (Korvai.genericSections korvai) sectionNotes
+    -- Group rows by fst, which is whether it has a ruler, and put <table>
+    -- around each group.  This is because each ruler may have a different
+    -- nadai and hence a different number of columns.
+    concatMap (scoreTable (_font config) . concat . map snd) $
+    Seq.split_before fst $
+    concat $ snd $ List.mapAccumL show1 (Nothing, 0) $
+    zip3 [1..] (Korvai.genericSections korvai) sectionNotes
     where
     sectionNotes = Format.convertGroups (Korvai.realize inst korvai)
     show1 prevRuler (i, section, notes) = case notes of
-        Left err -> (prevRuler, "<p> ERROR: " <> Doc.html err)
-        Right (notes, warnings) -> (nextRuler,) $ Texts.unlines $
-            formatTable tala i section avartanams : map showWarning warnings
+        Left err -> (prevRuler, [msgRow $ "ERROR: " <> err])
+        Right (notes, warnings) -> (nextRuler,) $
+            formatTable tala i section avartanams
+            ++ map showWarning warnings
             where
             (nextRuler, avartanams) =
                 formatAvartanams config toSpeed prevRuler tala notes
             tala = Korvai.korvaiTala korvai
-    showWarning (Realize.Warning _i msg) =
-        "<tr><td colspan=100> WARNING: " <> Doc.html msg
-        <> "</td></tr>"
-
+    showWarning (Realize.Warning _i msg) = msgRow $ "WARNING: " <> msg
     toSpeed = maximum $ 0 : map S.maxSpeed (mapMaybe notesOf sectionNotes)
     notesOf (Right (notes, _)) = Just notes
     notesOf _ = Nothing
 
-htmlPage :: Text -> Doc.Html -> Doc.Html -> Doc.Html
-htmlPage title meta body = mconcat
-    [ htmlHeader title
-    , meta
-    , body
-    , htmlFooter
+msgRow :: Text -> (Bool, [Doc.Html])
+msgRow msg =
+    (False, ["<tr><td colspan=100>" <> Doc.html msg <> "</td></tr>"])
+
+scoreTable :: Font -> [Doc.Html] -> [Doc.Html]
+scoreTable _ [] = [] -- Seq.split_before produces []s
+scoreTable font rows = concat
+    [ ["\n<p><table style=\"" <> fontStyle
+        <> "\" class=konnakol cellpadding=0 cellspacing=0>"]
+    , rows
+    , ["</table>"]
     ]
+    where
+    fontStyle = "font-size: " <> Doc.html (showt (_sizePercent font)) <> "%"
+        <> if _monospace font then "; font-family: Monaco, monospace" else ""
 
 htmlHeader :: Text -> Doc.Html
 htmlHeader title = Texts.join "\n"
@@ -491,38 +503,26 @@ makeSymbols = go
         where bold = if Format.onAkshara state then Doc.tag "b" else id
 
 formatTable :: Tala.Tala -> Int -> Korvai.Section ()
-    -> [(Maybe Format.Ruler, [(S.State, Symbol)])] -> Doc.Html
-formatTable tala _sectionIndex section rows =
-    mconcatMap row . zipFirstFinal $ rows
+    -> [(Maybe Format.Ruler, [(S.State, Symbol)])] -> [(Bool, [Doc.Html])]
+formatTable tala _sectionIndex section rows = map row $ zipFirstFinal rows
     where
     td (tags, body) = Doc.tag_attrs "td" tags (Just body)
-    row (isFirst, (mbRuler, cells), isFinal) = Texts.join "\n" $
-        maybe [] ((:[]) . formatRuler isFirst) mbRuler ++
-        [ "<tr>"
-        , if not isFirst then "" else sectionHeader
-        , Texts.join "\n" . map td . Format.mapSnd spellRests
-            . map (mkCell isFinal) . List.groupBy merge . zip [0..] $ cells
-            -- Carry the index through the merge so spellRests can tell what
-            -- column things are in.
-        , "</tr>"
-        , ""
-        ]
-    sectionHeader = Doc.tag_attrs "td" [("rowspan", showt sectionRows)] $
-        -- Just $ Doc.tag_attrs "div"
-        --     [ ("class", "tooltip")
-        --     , ("style", "display:block")
-        --     ] $
-        Just --  $ Doc.tag_class "span" "tooltiptext" (showh sectionIndex) <>
-            sectionTags
+    row (isFirst, (mbRuler, cells), isFinal) = case mbRuler of
+        Just ruler ->
+            ( True
+            , "<tr><td></td>" <> formatRuler ruler <> "</tr>" : notes
+            )
+        Nothing -> (False, notes)
         where
-        -- Each ruler adds an additional row, except the first one, which has
-        -- already been output.
-        sectionRows = length rows + Seq.count (Maybe.isJust . fst) (drop 1 rows)
-        sectionTags
-            | Text.null tags = Doc.Html "&nbsp;"
-            | otherwise = Doc.tag_attrs "span" [("style", "font-size:50%")] $
-                Just $ Doc.html tags
-            where tags = Format.showTags (Korvai.sectionTags section)
+        notes = ("<tr><td>" <> sectionTags isFirst <> "</td>") : cellTds
+            ++ ["</tr>\n"]
+        cellTds = map td . Format.mapSnd spellRests
+            . map (mkCell isFinal) . List.groupBy merge . zip [0..] $ cells
+    sectionTags isFirst
+        | not isFirst || Text.null tags = ""
+        | otherwise = Doc.tag_attrs "span" [("style", "font-size:50%")] $
+            Just $ Doc.html tags
+        where tags = Format.showTags (Korvai.sectionTags section)
     -- Merge together the sustains after an attack.  They will likely have an
     -- <hr> in them, which will expand to the full colspan width.
     merge (_, (_, sym1)) (_, (state2, sym2)) =
@@ -557,11 +557,10 @@ zipFirstFinal =
     map (\(prev, x, next) -> (Maybe.isNothing prev, x, Maybe.isNothing next))
     . Seq.zip_neighbors
 
-formatRuler :: Bool -> Format.Ruler -> Doc.Html
-formatRuler isFirst =
-    ("<tr>"<>) . (if isFirst then ("<td></td>"<>) else id) . (<>"</tr>")
-        . mconcatMap mark . map (second Maybe.isNothing) . Seq.zip_next
-        . concatMap akshara
+formatRuler :: Format.Ruler -> Doc.Html
+formatRuler =
+    mconcatMap mark . map (second Maybe.isNothing) . Seq.zip_next
+    . concatMap akshara
     where
     -- If the final one is th, then it omits the underline, which looks a bit
     -- nicer.
