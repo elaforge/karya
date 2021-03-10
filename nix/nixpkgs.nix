@@ -19,5 +19,5 @@ let
     inherit (ver) sha256;
   };
 
-in import (fetch v19-09)
-# in import (fetch v20-09)
+# in import (fetch v19-09)
+in import (fetch v20-09)

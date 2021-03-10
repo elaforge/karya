@@ -1,5 +1,7 @@
 #!/usr/bin/env nix-shell
 #! nix-shell -i bash --arg isCi true --attr buildEnv ../default.nix
+#
+# This is run by CI, so it defines the CI tests.
 
 set -eux
 

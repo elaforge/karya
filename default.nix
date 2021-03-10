@@ -18,22 +18,30 @@
 
 let
   nixpkgs = import nix/nixpkgs.nix { inherit config; };
+  nixpkgs-orig = import nix/nixpkgs.nix {};
   hackage = import nix/hackage.nix { inherit nixpkgs ghc profiling; };
   faust = import nix/faust.nix {};
   inherit (nixpkgs) lib;
 
   ghcVersionDots = let ver = p: lib.hasPrefix p lib.version;
     in if ver "19.09" then "8.8.2" # ghc883 is not in 1909 yet
-    # else if ver "20.09" then "8.8.3" # 8.8.4 causes recursion for some reason
-    else if ver "20.09" then "8.10.3"
+    else if ver "20.09" then "8.8.4" # 8.8.4 causes recursion?
     else abort "unknown version ${lib.version}";
 
   ghcVersion = "ghc" + builtins.replaceStrings ["."] [""] ghcVersionDots;
   ghc = nixpkgs.haskell.packages."${ghcVersion}";
+  ghc-orig = nixpkgs-orig.haskell.packages."${ghcVersion}";
 
+
+  # This should just hit the nixos cache.  The benefit is that it won't reuse
+  # my pinned library versions, so I don't have to make sure they're
+  # compatible.  The drawback is that it won't use my pinned library versions,
+  # so lots of more downloading.
+  haskellBinary = name: ghc-orig."${name}";
   # Minimal compile just for build-time binary deps.
-  haskellBinary = drv: with nixpkgs.haskell.lib;
-    dontCheck (disableLibraryProfiling (disableExecutableProfiling drv));
+  sharedHaskellBinary = name: with nixpkgs.haskell.lib;
+    dontCheck (disableLibraryProfiling
+      (disableExecutableProfiling ghc."${name}"));
 
   config = {
     # For nixpkgs.mkl, for mesh2faust.
@@ -84,6 +92,7 @@ let
   inherit (nixpkgs.stdenv) isDarwin isLinux;
 in rec {
   inherit nixpkgs ghc hackage;
+  inherit ghc-orig;
 
   # nixpkgs.rubberband only works on linux.
   rubberband = if isDarwin
@@ -142,7 +151,7 @@ in rec {
     # the -L flag on.
     fltk
     hackageGhc
-    (haskellBinary ghc.cpphs)
+    (sharedHaskellBinary "cpphs")
     midiDeps
     # Many scripts are in zsh, I can't be bothered to put ""s everywhere.
     nixpkgs.zsh
@@ -161,15 +170,16 @@ in rec {
     nixpkgs.git
 
     # development deps
-    (haskellBinary ghc.fast-tags)
+    (sharedHaskellBinary "fast-tags")
+    (haskellBinary "weeder")
     nixpkgs.ripgrep
     # TODO nixpkgs.cachix is too old, instead:
     # nix-env -iA cachix -f https://cachix.org/api/v1/install
   ];
 
   docDeps = [
-    ghc.hscolour
-    nixpkgs.pandoc
+    (haskellBinary "hscolour")
+    nixpkgs-orig.pandoc
   ];
 
   libsamplerate = nixpkgs.stdenv.mkDerivation {

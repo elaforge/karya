@@ -37,9 +37,6 @@ UNSORTED
       instead just being a generic control.  If I pursued this to its
       conclusion, then we would just have one kind of generic control track,
       and use names for all the controls.
-  - Move-up and move-down with merged tracks should be consistent.
-    . E.g. it's confusing when move-up doesn't move the note, but does move
-      the merged pitch or dyn.
   - Make Derive.parse_expr invertible
     . I do partial parsing to modify expressions.  Actually I think it's ok
       to parse all the way to Expr Val, since the Vals parsed in here are all
@@ -524,17 +521,6 @@ UNSORTED
       into scope.
     . Wait, why does '>inst=...' not work?  Wouldn't it set at the note track,
       and then the child dyn track would be able to override?
-  - Can I have ^j and ^k only move events up to a limit?  How do I set the
-    limit?
-    . Here's a use for multiple selections.
-    . If there's a secondary selection, it should disappear somewhat
-      automatically, so I don't get confused by it still being around.
-    . Maybe I can get space to do that?
-    . Or I could set it to a timestep, e.g. one measure.  Then it would turn
-      into move within measure.
-    . If I stop clipping events at the end of a block, it's not so annoying to
-      move everything, as long as I move it back.  I guess it's still kind of
-      annoying though.
   - Figure out how to control vsl legato transition volume mismatches.
     . slur call has a legato-dyn arg to try to address this.
     . Look into http://www.beat-kaufmann.com/vitutorials/index.php
@@ -3384,6 +3370,11 @@ shakefile: build:
     . How are you supposed to install deps in the v2 world?
   nix:
     . https://app.cachix.org/cache/elaforge
+    - hackage deps are STILL broken
+      . Because it doesn't actually have cabal2nixDeriver, because that only
+        works when you do callHackage.
+      . But I think I actually have to do that, otherwise cabal2nix isn't run.
+      . So this is a semi-revert of commit "nix: eliminate IFD".
     * get rid of IFD:
       . Most straightforward way is to run the cabal2nix and then check in the
         output files.  I can write a derivation that does that.
@@ -5571,8 +5562,9 @@ solkattu:
       / use JS to switch between konnakol and mridangam
       db ideas:
         - similar_to should be a link
-        - source should be a link, click on it to see everything from that
+        / source should be a link, click on it to see everything from that
           source
+          . Nah, sorting is good enough.
       - Can I align by structure?
         . E.g. reductions or tri would line up vertically.
     terminal:
@@ -5818,7 +5810,26 @@ Cmd:
     - meter type and the construction functions should be integrated more
       tightly
     - LRuler.inject, opposite of extract, replaces sub-block rulers
-  Cmd.Edit
+  Cmd.Edit:
+    + Move-up and move-down with merged tracks should be consistent.
+      . E.g. it's confusing when move-up doesn't move the note, but does move
+        the merged pitch or dyn.
+      . Move by the minimum distance, not move all at once.
+    - Would it be useful if move_event_forward and backward would move only
+      selected events, for a non-point selection?
+      . Similar to move events limit:
+    - move events limit:
+      . Can I have ^j and ^k only move events up to a limit?  How do I set the
+        limit?
+      . Here's a use for multiple selections.
+      . If there's a secondary selection, it should disappear somewhat
+        automatically, so I don't get confused by it still being around.
+      . Maybe I can get space to do that?
+      . Or I could set it to a timestep, e.g. one measure.  Then it would turn
+        into move within measure.
+      . If I stop clipping events at the end of a block, it's not so annoying to
+        move everything, as long as I move it back.  I guess it's still kind of
+        annoying though.
     - Make Edit.cmd_invert_orientation set orientation based on the first
       selected event, so I can easily set all to the same.
     - alternate finale-like note entry: hold down step key to set step and
