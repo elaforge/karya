@@ -10,7 +10,8 @@
 -}
 module Ui.Events (
     -- * range
-    Range(..), selection_range
+    Range(..)
+    , selection_range, event_range
     , range_times, range_start, range_end, range_duration
 
     -- * events
@@ -38,7 +39,7 @@ module Ui.Events (
     , around
     -- *** List [Event]
     , split_lists
-    , at_after, after, before
+    , at_after, after, before, at_before
     , split_at_before
 
 #ifdef TESTING
@@ -70,6 +71,8 @@ data Range =
     -- the start time, or a negative one at the end time.  Effectively it's
     -- half-open from the start for Positive events, and half-open from the end
     -- for Negative ones.
+    --
+    -- Start should be <= end.
     Range !TrackTime !TrackTime
     -- | Select an event at exactly the given time and orientation.
     | Point !TrackTime !Types.Orientation
@@ -90,6 +93,12 @@ selection_range sel
         Sel.None -> Types.Positive
     | otherwise = Range start end
     where (start, end) = Sel.range sel
+
+event_range :: Event.Event -> Range
+event_range event
+    | Event.duration event == 0 =
+        Point (Event.start event) (Event.orientation event)
+    | otherwise = uncurry Range (Event.range event)
 
 range_times :: Range -> (TrackTime, TrackTime)
 range_times (Range s e) = (s, e)
@@ -269,19 +278,26 @@ around start end events = Events $ above $ below within
 split_lists :: ScoreTime -> Events -> ([Event.Event], [Event.Event])
 split_lists pos = bimap descending ascending . split pos
 
--- | Events whose start is at or after @pos@.
+-- | Events with start >= @pos@.
 at_after :: ScoreTime -> Events -> [Event.Event]
 at_after pos = snd . split_lists pos
 
--- | Events whose start is strictly after @pos@.
+-- | Events with start > @pos@.
 after :: ScoreTime -> Events -> [Event.Event]
 after pos events = case at_after pos events of
     next : rest | Event.start next == pos -> rest
     events -> events
 
--- | Events whose start before @pos@.
+-- | Events with start < @pos@.
 before :: ScoreTime -> Events -> [Event.Event]
 before pos = fst . split_lists pos
+
+-- | Events with start <= @pos@.
+at_before :: ScoreTime -> Events -> [Event.Event]
+at_before pos events
+    | next : _ <- post, Event.start next == pos = next : pre
+    | otherwise = pre
+    where (pre, post) = split_lists pos events
 
 -- | This is like 'split', but if there isn't an event exactly at the pos then
 -- put the previous one in the post list.

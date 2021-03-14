@@ -775,8 +775,8 @@ point_to_real tempo (Just (block_id, _, track_id, pos)) =
 
 -- ** select events
 
--- | Selected events per track.  Gives events previous to, within, and after
--- the selection.  As usual, previous events are in descending order.
+-- | Selected events per track.  Gives events before, within, and after the
+-- selection.  As usual, previous events are in descending order.
 type SelectedAround = [(TrackId, ([Event.Event], [Event.Event], [Event.Event]))]
 type SelectedEvents = [(TrackId, [Event.Event])]
 

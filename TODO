@@ -5811,11 +5811,11 @@ Cmd:
       tightly
     - LRuler.inject, opposite of extract, replaces sub-block rulers
   Cmd.Edit:
-    + Move-up and move-down with merged tracks should be consistent.
+    * Move-up and move-down with merged tracks should be consistent.
       . E.g. it's confusing when move-up doesn't move the note, but does move
         the merged pitch or dyn.
       . Move by the minimum distance, not move all at once.
-    - Would it be useful if move_event_forward and backward would move only
+    * Would it be useful if move_event_forward and backward would move only
       selected events, for a non-point selection?
       . Similar to move events limit:
     - move events limit:
@@ -5830,6 +5830,7 @@ Cmd:
       . If I stop clipping events at the end of a block, it's not so annoying to
         move everything, as long as I move it back.  I guess it's still kind of
         annoying though.
+      ? Is move_event_forward / backward with a selection enough?
     - Make Edit.cmd_invert_orientation set orientation based on the first
       selected event, so I can easily set all to the same.
     - alternate finale-like note entry: hold down step key to set step and

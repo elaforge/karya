@@ -8,19 +8,20 @@ import qualified Test.QuickCheck as Q
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Seq as Seq
-import Util.Test
 import qualified Util.Test.Testing as Testing
 
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
-import Ui.Events (Range(..))
+import           Ui.Events (Range(..))
 import qualified Ui.Types as Types
 import qualified Ui.UiTest as UiTest
 
-import Global
-import Types
+import           Global
+import           Types
+import           Util.Test
 
 
+test_split_range :: Test
 test_split_range = do
     let f range = e_ranges . Events.split_range range . from_start_dur
     -- Half-open for positive.
@@ -46,6 +47,7 @@ test_split_range = do
     equal (f (Point 0.5 Types.Positive) [(1, -1), (1, 1), (2, 1)])
         ([], [], [1, 1, 2])
 
+test_split :: Test
 test_split = do
     let f = bimap e_start_dur e_start_dur . Events.split 2 . from_start_dur
     equal (f [(0, 2), (2, 2), (4, 2)]) ([(0, 2)], [(2, 2), (4, 2)])
@@ -60,6 +62,16 @@ e_ranges (pre, within, post) =
     , map Event.start (Events.ascending post)
     )
 
+test_at_before :: Test
+test_at_before = do
+    let f pos = map Event.start $ Events.at_before pos e1
+        e1 = from_list [(0, 1, "0"), (1, 1, "1"), (2, 1, "2")]
+    equal (f 0) [0]
+    equal (f 0.5) [0]
+    equal (f 1) [1, 0]
+    equal (f 2.5) [2, 1, 0]
+
+test_split_at_before :: Test
 test_split_at_before = do
     let f pos = extract $ Events.split_at_before pos e1
         e1 = from_list [(0, 1, "0"), (1, 1, "1"), (2, 1, "2")]
@@ -69,6 +81,7 @@ test_split_at_before = do
     equal (f 1) ([0], [1, 2])
     equal (f 1.5) ([0], [1, 2])
 
+test_clip :: Test
 test_clip = do
     let f include_end end = map extract_event
             . Events.clip_list include_end end . pos_events
@@ -96,6 +109,7 @@ test_clip = do
         , [(2, -2, "a")]
         ]
 
+test_insert :: Test
 test_insert = do
     let f new old = extract $ Events.insert (pos_events new) (from_list old)
     equal_e (f [(0, 1, "a0")] [(3, 1, "b0")])
@@ -124,26 +138,31 @@ test_insert = do
     equal_e (f [(2, -2, "new")] [(2, -2, "old")]) [(2, -2, "new")]
     equal_e (f [(1, -0, "new")] [(1, -0, "old")]) [(1, -0, "new")]
 
+test_from_list :: Test
 test_from_list = do
     let f = Events.ascending . Events.from_list
     equal (f [Event.unmodified $ Event.event 0 1 "hi"])
         [Event.unmodified $ Event.event 0 1 "hi"]
 
+test_from_list_qc :: Test
 test_from_list_qc = quickcheck $ Q.forAll gen_events $ \es -> do
     let events = map mkevent es
     q_equal (Events.ascending (Events.from_list events))
         (Events.clip_events (Seq.sort_on Events.event_key events))
 
+test_insert_qc :: Test
 test_insert_qc = quickcheck $ Q.forAll ((,) <$> gen_events <*> gen_events) $
     \(es1, es2) -> q_equal
         (find_overlaps $ Events.ascending $ Events.insert
             (map mkevent es1) (Events.from_list (map mkevent es2)))
         []
 
+test_clip_events_qc :: Test
 test_clip_events_qc = quickcheck $ Q.forAll gen_events $ \es -> do
     let clipped = Events.clip_events (Seq.sort_on Event.start (map mkevent es))
     q_equal (find_overlaps clipped) []
 
+test_clip_events :: Test
 test_clip_events = do
     let f = map extract_event .  Events.clip_events . pos_events
     -- Drop ones with the same start and orientation.
@@ -162,6 +181,7 @@ test_clip_events = do
     equal_e (f [(0, 2, "a"), (2, -8, "b")]) [(0, 1, "a"), (2, -1, "b")]
     equal_e (f [(0, 2, "a"), (3, -2, "b")]) [(0, 1.5, "a"), (3, -1.5, "b")]
 
+test_remove :: Test
 test_remove = do
     let f range = e_start_dur . Events.remove range . from_start_dur
     -- able to remove 0 dur events
@@ -176,6 +196,7 @@ test_remove = do
     equal (f (Range 0 1) [(0, -0), (1, -0)]) [(0, -0)]
     equal (f (Range 1 2) [(0, 1), (3, 1)]) [(0, 1), (3, 1)]
 
+test_round_events :: Test
 test_round_events = do
     let move events = Events.insert [next] $
             Events.remove (Point (Event.start e) Types.Positive) events

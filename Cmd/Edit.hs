@@ -21,8 +21,7 @@ module Cmd.Edit (
     , toggle_chord
 
     -- * event start and duration
-    , cmd_move_event_forward
-    , cmd_move_event_backward
+    , cmd_move_event_forward, cmd_move_event_backward
     , cmd_set_duration
     , cmd_toggle_zero_timestep
     , cmd_set_start
@@ -54,6 +53,7 @@ module Cmd.Edit (
     , replace_last_call
     , replace_first_call
 ) where
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
@@ -194,35 +194,48 @@ insert_event text dur = do
     Ui.insert_block_events block_id track_id [Event.event pos dur text]
 
 -- | Different from 'cmd_insert_time' and 'cmd_delete_time' since it only
--- modifies one event.  Move back the next event, or move forward the previous
--- event.  If the selection is non-zero, the event's duration will be modified
--- to the selection.
+-- moves some events.  Move back the next event, or move forward the previous
+-- event.  Move the next or previous event for a point selection, or the
+-- selected events.
 cmd_move_event_forward :: Cmd.M m => m ()
-cmd_move_event_forward = move_event $ \pos events ->
-    case Events.split_lists pos events of
-        (_, next : _) | Event.start next == pos -> Nothing
-        (prev : _, _) -> Just prev
-        _ -> Nothing
+cmd_move_event_forward = move_events TimeStep.Advance
 
 cmd_move_event_backward :: Cmd.M m => m ()
-cmd_move_event_backward = move_event $ \pos events ->
-    case Events.at_after pos events of
-        next : _
-            | Event.start next == pos -> Nothing
-            | otherwise -> Just next
-        [] -> Nothing
+cmd_move_event_backward = move_events TimeStep.Rewind
 
-move_event :: Cmd.M m => (ScoreTime -> Events.Events -> Maybe Event.Event)
-    -> m ()
-move_event modify = do
-    (block_id, _, track_ids, _) <- Selection.tracks
-    pos <- Selection.point
-    forM_ track_ids $ \track_id -> do
-        events <- Ui.get_events track_id
-        whenJust (modify pos events) $ \event -> do
-            Ui.remove_event track_id event
-            Ui.insert_block_events block_id track_id
-                [Event.start_ #= pos $ event]
+{- |
+    . If selection is a point, expand it to the next or prev event.
+    . Delete events from pos to end of selection.
+    . Select all events in selection, move by pos - Event.start affected.
+-}
+move_events :: Cmd.M m => TimeStep.Direction -> m ()
+move_events dir = do
+    (block_id, _, track_ids, range) <- Selection.tracks
+    tracks <- zip track_ids <$> mapM Ui.get_events track_ids
+    -- Use the first selected track as the reference for how much to move.
+    -- This is predictable so let's try this for now.
+    event_range <- expand range . snd <$> Cmd.abort_unless (Seq.head tracks)
+    affected <- Cmd.abort_unless $
+        NonEmpty.nonEmpty . Events.ascending . Events.in_range event_range . snd
+            =<< Seq.head tracks
+    let pos = case dir of
+            TimeStep.Rewind -> Events.range_start range
+            TimeStep.Advance -> Events.range_end range
+    let delta = (pos -) $ Event.start $ case dir of
+            TimeStep.Rewind -> NonEmpty.head affected
+            TimeStep.Advance -> NonEmpty.last affected
+    when (delta /= 0) $ forM_ tracks $ \(tid, events) -> do
+        Ui.remove_events_range tid event_range
+        Ui.insert_block_events block_id tid $
+            map (Event.start_ %= (+delta)) $ Events.ascending $
+            Events.in_range event_range events
+    where
+    expand range events = case range of
+        Events.Point pos _orient ->
+            maybe range Events.event_range $ Seq.head $ case dir of
+                TimeStep.Rewind -> Events.at_after pos events
+                TimeStep.Advance -> Events.at_before pos events
+        Events.Range {} -> range
 
 -- | Extend the events in the selection to either the end of the selection or
 -- the beginning of the next note, whichever is shorter.
