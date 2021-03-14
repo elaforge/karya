@@ -150,14 +150,6 @@ instance Pretty Playing where
             <> "(" <> prettyF s <> "--" <> prettyF e <> ")"
         where (s, e) = _noteRange p
 
-failedPlaying :: Sample.Note -> Playing
-failedPlaying note = Playing
-    { _noteHash = Sample.hash note
-    , _getState = return Complete
-    , _audio = mempty
-    , _noteRange = (0, 0)
-    }
-
 renderAll :: Config -> FilePath -> State -> IORef.IORef State
     -> Set Id.TrackId -> Maybe InstrumentEffect
     -> Audio.Frames -> [Sample.Note] -> AUtil.Audio
@@ -265,9 +257,6 @@ renderNotes config outputDir initialStates notifyState trackIds start
         let !voices = max (maybe 0 snd prevMetric)
                 (length playing + length starting)
         return (metric, voices)
-
-inferChunkNum :: Audio.Frames -> Audio.Frames -> Config.ChunkNum
-inferChunkNum chunkSize now = fromIntegral $ now `div` chunkSize
 
 -- | Get chunkSize from each Playing, and remove Playings which no longer are.
 pull :: Audio.Frames -> Audio.Frames -> [Playing]
@@ -506,10 +495,6 @@ instance Serialize.Serialize ResampleState where
     put (ResampleState a b c) =
         Serialize.put a >> Serialize.put b >> Serialize.put c
     get = ResampleState <$> Serialize.get <*> Serialize.get <*> Serialize.get
-
--- | These will be sorted in order of Note hash.
-unserializeStates :: Checkpoint.State -> Either Error [PlayState]
-unserializeStates (Checkpoint.State bytes) = first txt $ Serialize.decode bytes
 
 
 -- * effect

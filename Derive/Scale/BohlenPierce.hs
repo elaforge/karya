@@ -129,8 +129,8 @@ bp_ratios =
     ]
 
 -- | Display scale degrees and the intervals between them.
-print_intervals :: Text
-print_intervals =
+_print_intervals :: Text
+_print_intervals =
     Text.unwords $ interleave (map (("("<>) . (<>")")) degrees) intervals
     where
     interleave (x:xs) (y:ys) = x : y : interleave xs ys
@@ -143,8 +143,8 @@ print_intervals =
     names = Map.fromList [(v, k) | (k, v) <- Map.toList named_intervals]
 
 -- | Display the keys and their signatures.
-print_scales :: IO ()
-print_scales = mapM_ (putStrLn . untxt) $
+_print_scales :: IO ()
+_print_scales = mapM_ (putStrLn . untxt) $
     map (TheoryFormat.show_key_signature absolute_fmt) $
     filter ((== Pitch.Degree 0 0) . Theory.key_tonic) $ Map.elems all_keys
 

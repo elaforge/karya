@@ -199,9 +199,6 @@ chunkSize = Render._chunkSize config
 controlSize :: Audio.Frames
 controlSize = Render._controlSize config
 
-chunkCount :: Int
-chunkCount = Audio.framesCount (Proxy @2) chunkSize
-
 getPatch :: Text -> IO InstrumentC.Patch
 getPatch name = do
     patches <- mapM (either errorIO return) =<< InstrumentC.getPatches

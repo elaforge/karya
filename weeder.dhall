@@ -4,6 +4,9 @@
     -- Called from REPL.
     , "Cmd\\.Repl\\.L.*"
     , "Cmd\\.Repl\\.Global\\..*"
+    -- Variables starting with _ are either "commented out" or called from
+    -- ghci.
+    , "\\._[^.]+$"
 
     -- Frequently called from REPL.
     , "Cmd\\.Create\\..*"
@@ -15,8 +18,11 @@
     , "Cmd\\.Ruler\\.Meters\\..*"
     , "Cmd\\.Ruler\\.Tala\\..*"
 
-    -- Config, only possibly linked in.
-    , "User\\..*"
+    , "User\\..*" -- Config, only possibly linked in.
+
+    -- called from ghci
+    , "Ness\\..*"
+    , "Solkattu\\.Db\\..*"
 
     -- Generated.
     , "Audio\\.SampleRateC.*"

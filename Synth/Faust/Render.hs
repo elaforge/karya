@@ -231,9 +231,9 @@ interleave naudio = case Audio.interleaved naudio of
 -- designed for realtime, they interpolate after the value changed instead of
 -- before, I have to initialize then render for long enough to avoid attack
 -- artifacts.
-initialize :: Audio.Frames -> InstrumentC.Instrument
+_initialize :: Audio.Frames -> InstrumentC.Instrument
     -> Map InstrumentC.Control Float -> IO ()
-initialize size inst controls = do
+_initialize size inst controls = do
     _ <- InstrumentC.render size 1 inst controlVals inputSamples
     return ()
     where

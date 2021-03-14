@@ -32,7 +32,6 @@ let
   ghc = nixpkgs.haskell.packages."${ghcVersion}";
   ghc-orig = nixpkgs-orig.haskell.packages."${ghcVersion}";
 
-
   # This should just hit the nixos cache.  The benefit is that it won't reuse
   # my pinned library versions, so I don't have to make sure they're
   # compatible.  The drawback is that it won't use my pinned library versions,

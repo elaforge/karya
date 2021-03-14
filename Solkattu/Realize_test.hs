@@ -194,9 +194,6 @@ test_realizeTag = do
     equal (f (1^ta <> ta)) (Right "t k")
     equal (f (2^ta)) (Right "k")
 
-sollu :: Sollu -> Note Sollu
-sollu s = Solkattu.Note (Solkattu.note s)
-
 pattern :: S.Matra -> Solkattu.Note Sollu
 pattern = Solkattu.Pattern . Solkattu.pattern
 
@@ -401,9 +398,6 @@ mridangam = mempty
 sd, su :: [S.Note g a] -> [S.Note g a]
 sd = (:[]) . S.changeSpeed (-1)
 su = (:[]) . S.changeSpeed 1
-
-nadai :: S.Nadai -> [S.Note g a] -> S.Note g a
-nadai n = S.TempoChange (S.Nadai n)
 
 solkattuToRealize :: [(a, [(S.Note g (Solkattu.Note (Realize.Stroke stroke)))])]
     -> [(a, [S.Note () (Realize.Note stroke)])]
