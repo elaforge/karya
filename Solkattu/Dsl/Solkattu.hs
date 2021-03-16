@@ -391,6 +391,9 @@ realizeScoreM configure = Korvai.realizeScore realize
         Just
     inst = Korvai.mridangam
 
+realizeScore :: Score -> IO ()
+realizeScore = realizeScoreM id
+
 _printInstrument :: (Solkattu.Notation stroke1, Solkattu.Notation stroke2)
     => (Realize.Stroke stroke1 -> Maybe (Realize.Stroke stroke2))
     -> Korvai.Instrument stroke1

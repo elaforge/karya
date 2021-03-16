@@ -28,7 +28,7 @@ e_20_01_27 = date 2020 1 27 $ ganesh $ exercise $
 c_20_04_03 :: Korvai
 c_20_04_03 = date 2020 4 3 $
     source "https://www.youtube.com/watch?v=wgI6uvtkao4" $
-    SolkattuMohra.makeMohraKorvai adi mridangam
+    SolkattuMohra.mohraKorvai adi mridangam
         su (t14, t16, t18) (end1, end2, end3)
         (purvangam . utarangam)
     where
@@ -73,37 +73,51 @@ c_20_04_03 = date 2020 4 3 $
 
 c_20_10_25 :: Korvai
 c_20_10_25 = date 2020 10 25 $ ganesh $ korvaiS1 adi (mridangam<>k1<>k2) $
-    g (r4 (ta.dit.__.ta.__4).ta.di.__.ki.__.ta.__.taka.__.din.__.na.__.dim.__7)
-    . g (r4 (ta.dit.__.ta.__3) . ta.di.__.ki.ta.__ . taka.__.din.na.__.dim.__6)
-    . g (r4 (ta.dit.__.ta.__) . ta.di.ki.ta.__.taka.din.na.__.dim.__5)
-    . g (r4 (2^takadinna) . ta.di.ki.ta.takadinna.dim.__4)
+    mconcat
+    [g (r4 (ta.dit.__.ta.__4).ta.di.__.ki.__.ta.__.taka.__.din.__.na.__.dim.__7)
+    , g (r4 (ta.dit.__.ta.__3) . ta.di.__.ki.ta.__ . taka.__.din.na.__.dim.__6)
+    , g (r4 (ta.dit.__.ta.__) . ta.di.ki.ta.__.taka.din.na.__.dim.__5)
+    , g (r4 (2^takadinna) . ta.di.ki.ta.takadinna.dim.__4)
 
-    . g (ta.__3.di.__4.ki.__3.na.__4.thom.__)
-    . g (ta.__.di.__4.ki.__.na.__4.thom.__)
-    . g (ta.__.di.__3.ki.__.na.__3.thom.__)
+    , g (ta.__3.di.__4.ki.__3.ta.__4.thom.__)
+    , g (ta.__.di.__4.ki.__.ta.__4.thom.__)
+    , g (ta.__.di.__3.ki.__.ta.__3.thom.__)
 
-    . sd p5 . p5 . sd p5 . r2 p5 . sd p5
-    . tri_ __ (r3 p5)
+    , sd p5 . p5 . sd p5 . r2 p5 . sd p5
+    , tri_ __ (r3 p5)
+    ]
     where
-    mridangam = makeMridangam
+    mridangam = mridangam3
+    mridangam2 = makeMridangam
+        [ (ta.dit.ta.ta.dit.ta, k.t.o.k.n.p)
+        , (2^takadinna . 2^takadinna, k.t.o.k.n.p.k.p)
+        , (ta.di.ki.ta, k.t.k.n)
+        , (dim, od)
+        , (thom, o)
+        ]
+    mridangam3 = makeMridangam
+        [ (ta.dit.ta.ta.dit.ta, k.t.k.k.n.o)
+        , (2^takadinna . 2^takadinna, k.t.k.o.k.n.p.k)
+        , (ta.di.ki.ta, k.t.k.n)
+        , (dim, od)
+        , (thom, o)
+        ]
+    mridangam1 = makeMridangam
         [ (ta.dit.ta, k.t.k)
         , (2^takadinna, k.t.k.t)
         , (ta.di.ki.ta, k.t.k.n)
-        , (ta.di.ki.na, k.t.k.n)
         , (dim, od)
         , (thom, o)
         ]
     k1 = makeKendang1
         [ (ta.dit.ta, t.p.t)
         , (ta.di.ki.ta, t.p.k.t)
-        , (ta.di.ki.na, t.p.k.t)
         , (dim, a)
         , (thom, a)
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
     k2 = makeKendang2
         [ (ta.dit.ta, t.l.t)
         , (ta.di.ki.ta, l.k.p.t)
-        , (ta.di.ki.na, l.k.p.t)
         , (dim, a)
         , (thom, a)
         ] where KendangPasang.Strokes {..} = KendangPasang.notes

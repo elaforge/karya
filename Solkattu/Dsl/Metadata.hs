@@ -6,7 +6,7 @@
 module Solkattu.Dsl.Metadata (
     comment, date, source, similarTo
     , recording
-    , korvaiT, koraippu, mohra, sarvalaghu, tirmanam
+    , korvaiT, koraippu, mohra, mohraKorvai, sarvalaghu, tirmanam
     , sequenceT, faran, exercise, trikalam
     , withType
 ) where
@@ -56,6 +56,9 @@ koraippu = withType "koraippu"
 
 mohra :: Korvai -> Korvai
 mohra = withType "mohra"
+
+mohraKorvai :: Korvai -> Korvai
+mohraKorvai = withType "mohra-korvai"
 
 sarvalaghu :: Korvai -> Korvai
 sarvalaghu = withType "sarvalaghu"

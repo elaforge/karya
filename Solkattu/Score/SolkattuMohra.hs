@@ -9,43 +9,32 @@ import           Prelude hiding ((.), (^), repeat)
 
 import qualified Solkattu.Instrument.KendangTunggal as KendangTunggal
 import qualified Solkattu.Korvai as Korvai
+import qualified Solkattu.Score.Mohra as Mohra
 import qualified Solkattu.Tala as Tala
 
-import           Solkattu.Dsl.Solkattu
+import           Solkattu.Dsl.Solkattu hiding (korvai1)
 
 
-makeMohras :: Tala.Tala -> Korvai.StrokeMaps -> (Sequence -> Sequence)
+-- | Bundle multiple mohra korvais.  This is convenient for variations.
+korvais :: Tala.Tala -> Korvai.StrokeMaps -> (Sequence -> Sequence)
     -> [((Sequence, Sequence, Sequence), (Sequence, Sequence, Sequence))]
     -> Korvai
-makeMohras tala smaps transform =
-    mohra • korvai tala smaps • map (section • make transform)
+korvais tala smaps transform = Mohra.korvais (korvai tala smaps) transform
 
-make :: (a -> SequenceT sollu) -> ((a, a, a), (a, a, a)) -> SequenceT sollu
-make transform ((a1_, a2_, a3_), (b1_, b2_, b3_)) =
-      a123.b1 . a123.b1
-    . a123.b2
-    . a1.b2 . a3.b3
-    where
-    a123 = a1.a2.a3
-    (a1, a2, a3) = (t a1_, t a2_, t a3_)
-    (b1, b2, b3) = (t b1_, t b2_, t b3_)
-    t = group • transform
-
-makeMohra :: Tala.Tala -> Korvai.StrokeMaps -> (Sequence -> Sequence)
+korvai1 :: Tala.Tala -> Korvai.StrokeMaps -> (Sequence -> Sequence)
     -> (Sequence, Sequence, Sequence)
     -> (Sequence, Sequence, Sequence) -> Korvai
-makeMohra tala smaps transform as bs =
-    makeMohras tala smaps transform [(as, bs)]
+korvai1 tala smaps transform as bs = korvais tala smaps transform [(as, bs)]
 
 -- | Mohra with a matching korvai.
-makeMohraKorvai :: Tala.Tala -> Korvai.StrokeMaps -> (Sequence -> Sequence)
+mohraKorvai :: Tala.Tala -> Korvai.StrokeMaps -> (Sequence -> Sequence)
     -> (Sequence, Sequence, Sequence)
     -> (Sequence, Sequence, Sequence)
     -> Sequence
     -> Korvai
-makeMohraKorvai tala smaps transform as bs korvai_ =
+mohraKorvai tala smaps transform as bs korvai_ =
     mohra $ korvai tala smaps
-        [ withTypeS "mohra" $ s $ make transform (as, bs)
+        [ withTypeS "mohra" $ s $ Mohra.make transform as bs
         , withTypeS "korvai" $ s korvai_
         ]
 
@@ -54,18 +43,7 @@ makeMohras2 :: Tala.Tala -> Korvai.StrokeMaps -> (Sequence -> Sequence)
     -> [((Sequence, Sequence, Sequence), (Sequence, Sequence, Sequence))]
     -> Korvai
 makeMohras2 tala smaps transform =
-    mohra • korvai tala smaps • map (section • make)
-    where
-    make ((a1_, a2_, a3_), (b1_, b2_, b3_)) =
-        a123.b1 . su (a123.b1) . a123.b1 . su (a123.b1)
-        . a123.b2 . su (a123.b2)
-        . a1.b2 . su (a1.b2)
-        . a3.b3 . su (a3.b3)
-        where
-        (a1, a2, a3) = (t a1_, t a2_, t a3_)
-        (b1, b2, b3) = (t b1_, t b2_, t b3_)
-        a123 = a1.a2.a3
-        t = group • transform
+    mohra • korvai tala smaps • map (section • Mohra.make2 transform)
 
 -- | Alternate melkalam and kirkalam.
 makeMohra2 :: Tala.Tala -> Korvai.StrokeMaps -> (Sequence -> Sequence)
@@ -75,14 +53,20 @@ makeMohra2 tala smaps transform as bs =
     makeMohras2 tala smaps transform [(as, bs)]
 
 c_mohra :: Korvai
-c_mohra = ganesh $ makeMohra adi (mridangam<>kendang)
-    su (a1, a2, a1) (b1, b2, b3)
+c_mohra = ganesh $ korvais adi (mridangam<>kendang) su
+    [ ((a1, a2, a1), (b1, b2, b3))
+    , ((a1, a2, a1), (b12, b22, b32))
+    ]
     where
     a1 = dit.__4     .tang.__.kita.nakatiku
     a2 = na.ka.dit.__.tang.__.kita.nakatiku
     b1 = ta.langa.din.__.tat.__.din.__.tat.__.dheem.__4
     b2 = ta.langa.dheem.__4
     b3 = tri_ (dheem.__4) (ta.langa.din.__.tat.__)
+
+    b12 = nadai 3 $ na.kita.takita.takita.dheem.__3
+    b22 = nadai 3 $ takita.dheem.__3
+    b32 = nadai 3 $ tri_ tanga (na.kita.takita)
     mridangam = makeMridangam
         [ (dit, k)
         , (tang.kita, u.p.k)
@@ -90,6 +74,10 @@ c_mohra = ganesh $ makeMohra adi (mridangam<>kendang)
         , (ta.langa, p.u.__.k)
         , (din.tat, o.k)
         , (dheem, od)
+
+        , (na.kita, p.k.n)
+        , (takita, o.o.k)
+        , (tanga, od.__.k)
         ]
     kendang = makeKendang1
         [ (dit, pk)
@@ -98,10 +86,14 @@ c_mohra = ganesh $ makeMohra adi (mridangam<>kendang)
         , (ta.langa, u.u.__.p)
         , (din.tat, o.p)
         , (dheem, a)
+
+        , (na.kita, t.a.p)
+        , (takita, o.o.p)
+        , (tanga, a.__.p)
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
 
 c_mohra2 :: Korvai
-c_mohra2 = janahan $ makeMohra adi mridangam su (a1, a2, a3) (b1, b2, b3)
+c_mohra2 = janahan $ korvai1 adi mridangam su (a1, a2, a3) (b1, b2, b3)
     where
     a_ = kitataka.nakatiku
     a1 = dit.__4.tang.__ . a_
@@ -146,7 +138,7 @@ c_mohra_youtube = source "Melakkaveri Balaji" $
 
 -- | Misra version of 'c_mohra'.
 misra1 :: Korvai
-misra1 = date 2019 4 14 $ ganesh $ makeMohra Tala.misra_chapu mridangam id
+misra1 = date 2019 4 14 $ ganesh $ korvai1 Tala.misra_chapu mridangam id
     (a1, a2, a1) (b1, b2, b3)
     where
     a1 = tam.__.taka.nakatiku
