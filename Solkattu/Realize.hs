@@ -376,11 +376,6 @@ type SolluMapKey sollu = (Maybe Solkattu.Tag, [sollu])
 prettyKey :: Pretty sollu => SolluMapKey sollu -> Text
 prettyKey (tag, sollus) = maybe ""  ((<>"^") . pretty) tag <> pretty sollus
 
--- | Directly construct a SolluMap from strokes.
-simpleSolluMap :: [([Solkattu.Sollu], [Maybe stroke])] -> SolluMap stroke
-simpleSolluMap = SolluMap .  fmap (fmap (fmap stroke)) . Map.fromList
-    . map (first (Nothing,))
-
 -- | Verify and costruct a SolluMap from a list of pairs.  Later pairs win over
 -- earlier ones.
 solluMap :: Pretty stroke =>
@@ -746,18 +741,15 @@ realizeStroke = ToStrokes
     , _getStrokes = const $ Just . map Just
     }
 
--- | Like 'realizeStroke' but without the 'Stroke' wrapper.
-realizeSimpleStroke :: ToStrokes stroke stroke
-realizeSimpleStroke = ToStrokes
-    { _longestKey = 100
-    , _getStrokes = const $ Just . map (Just . stroke)
-    }
-
-realizeSollu :: SolluMap stroke -> ToStrokes Solkattu.Sollu stroke
+-- | Convert Sollus to strokes.  The input Sollus have an extra Stroke wrapper.
+-- The Stroke is extraneous and is ignored, it's just for uniformity with
+-- 'realizeStroke', since 'Korvai.KorvaiSections' no longer has a separate
+-- case for Sollu which allowed it to omit the Realize.Stroke.
+realizeSollu :: SolluMap stroke -> ToStrokes (Stroke Solkattu.Sollu) stroke
 realizeSollu (SolluMap smap) = ToStrokes
     { _longestKey =
         fromMaybe 0 $ Seq.maximum (map (length . snd) (Map.keys smap))
-    , _getStrokes = \tag sollus -> Map.lookup (tag, sollus) smap
+    , _getStrokes = \tag sollus -> Map.lookup (tag, map _stroke sollus) smap
     }
 
 -- | Convert sollus to strokes.

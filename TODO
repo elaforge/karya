@@ -106,12 +106,6 @@ UNSORTED
     . If I had a TrackTime / ScoreTime distinction I could do a conversion
       there, but why not make all of ScoreTime rational?  I don't know any
       cases where they're truly at complicated times.
-  - Selection.events can't find _mix_vectors
-    . I should put these things in ghci-flags, but who is importing
-      Util.Audio?
-    . And it only happens in debug mode, something is different about linking
-      there.
-    . How to ask for dependency chain in shake?
   - sorted Derive.Stream:
     . Implement the Sorted flag in Derive.Stream
     . I could have calls that can move note starts register by flipping a flag
@@ -153,6 +147,9 @@ UNSORTED
       typecheck, but it's not the only one!
     . I could move down the instances for those specific things.  It's pretty
       ad-hoc.
+  - Typecheck PSignal.Pitch instance for NoteNumber could use Twelve.nn_pitch.
+    . Except it can't because of circular dependencies.  Maybe instead
+      Twelve.nn_pitch should replace the one in PSignal.
   - can I tweak individual scale degrees?
     . E.g. ma + 0.25nn, ri + 0.2nn.
     . Maybe just an env var for scale degree would do it.
@@ -400,23 +397,11 @@ UNSORTED
     . '*PITCH = xyz' does this for pitch calls, but this is a special
       behaviour for Derive.val_to_pitch, and wouldn't work for controls.
   - pnovla @pno1 32.25t mordent broken, probably too much note overlap
-  - generic deriving Monoid?
-    . Probably not hard with generics-sop, but what about stories of
-      GHC.Generics hurting compile and runtime?
-    . How about monoid is_empty that doesn't use Eq?
-  / Switching to Symbols.default_note means any event created via Call.note
-    winds up with event_text="NOTE", which is not as informative as the
-    original text.
-    . Was in always "" before?  If so it's not really a regression.
-    . I'm back to Call.note using "" again, but I should still check this out.
   - string_idiom should ignore notes that already have a string.
   - Let synth defs log warnings
     . So e.g. MidiInst.compile_library can report shadows.
     . I should be able to incorporate Faust.PatchDb.warnings too.
   - Generic Show and Pretty instances for ScopesT and Scope.
-  - Typecheck PSignal.Pitch instance for NoteNumber could use Twelve.nn_pitch.
-    . Except it can't because of circular dependencies.  Maybe instead
-      Twelve.nn_pitch should replace the one in PSignal.
   - Maybe 'set' should be the default merger, not mul.  It seems less
     confusing.
     . I could still have 'dyn' default to mul, if that's not confusing too.
@@ -5388,6 +5373,56 @@ REPL: repl:
     could also get rid of the need for Cmd.Lang.Environ to import everything.
 
 solkattu:
+  * korvai type:
+    . The mapping from sollu to stroke, or stroke to stroke for each
+      instrument is unsatisfactory.
+    . To add a new instrument:
+      1. KorvaiType gets a new constructor.
+        | TMridangam [Section (SequenceT (Realize.Stroke Mridangam.Stroke))]
+      2. StrokeMaps gets a new field.
+        smapMridangam :: Either Error (Realize.StrokeMap Mridangam.Stroke)
+      3. Instrument gets a new isInstN field.
+        instFromMridangam ::
+            Maybe (Realize.ToStrokes (Realize.Stroke Mridangam.Stroke) stroke)
+      4. Add a new Instrument.
+        instFromMridangam = Just Realize.realizeStroke
+      5. Add a new case to realize.
+        Right smap -> case korvaiSections korvai of
+            TMridangam sections -> case instFromMridangam instrument of
+                Nothing -> [Left "no sequence, wrong instrument type"]
+                Just toStrokes -> map (realize1 smap toStrokes) sections
+    example:
+      data Korvai sollu = Korvai { korvaiSections :: [Note sollu] }
+      data Instrument stroke = Instrument { ... }
+      realize :: Instrument stroke -> Korvai sollu -> [Realize.Note stroke]
+      realize inst korvai
+        | sollu ~ Sollu = realizeSollu inst korvai
+        | stroke ~ sollu = realizeInst inst korvai
+        | otherwise = error
+      realizeSollu :: Instrument stroke -> Korvai Sollu -> [Realize.Note stroke]
+      realizeInst :: Instrument stroke -> Korvai stroke -> [Realize.Note stroke]
+    . I can't assert that the sollu inside Korvai is the same as the one in
+      Instrument.
+    Constraints:
+      . Korvai has to be monomorphic to put in Db, which is [Score].
+      . I need a StrokeMaps with polymorphic `Map stroke (StrokeMap stroke)`
+        for each Instrument, except Konnakol.
+      . Korvai has a single Instrument, but:
+        . Korvai Sollu can realize to any stroke.
+        . Korvai stroke can realize to stroke.
+      . realize :: Instrument stroke -> Korvai -> Either Error (Realized stroke)
+    . Maybe I can use GADTs to get an equality witness for sollu:
+      https://lexi-lambda.github.io/blog/2021/03/25/an-introduction-to-typeclass-metaprogramming/
+    * Figure out Realize.Stroke
+      . could make: IMridangam :: InstrumentType Mridangam.Stroke
+      . But then doesn't match:
+        strokeMap :: InstrumentType stroke -> StrokeMaps -> StrokeMap stroke
+      . The problem is that stroke maps don't have Realize.Stroke... but why
+        not?
+      . It does, but is baked in:
+        newtype SolluMap stroke =
+            SolluMap (Map (SolluMapKey Solkattu.Sollu) [Maybe (Stroke stroke)])
+      . I could just pass stroke through.
   + don't render hv as capital, it is ambiguous with both thoppi
     use a color, that way it's still greppable
     . It's instance Notation in Realize, which already wants to do this, but
@@ -5417,7 +5452,6 @@ solkattu:
         It's ok to have a sum type with all the instruments.
       . I want KorvaiType and instFromWhatever to be the same sum type.
       . The problem boils down to: See Korvai5
-
   - replace is useful to express variations
     . e.g. Mridangam2019.c_19_06_24_a
     . This can perhaps solve "reduction with irregular bits" and
@@ -5482,7 +5516,7 @@ solkattu:
         a toplevel Korvai.  I'd have to replace with an address, or search for
         matching Korvai.Single in the same module.
       . At least put in date as the max of the Part dates.
-      - restore the index for tanis
+      * restore the index for tanis
     - remember what I did last time, and do spaced repetition
       . This isn't memorization, just randomization with coverage.  So it's
         enough to pick random but twice as likely to pick with score one
@@ -7092,10 +7126,18 @@ OSC backend
     time.
 
 linux:
-  mix_vectors:
+  - mix_vectors:
     . ghci will load vectorc.cc.o, but ghci api won't.  If I try to force with
       libvectorc.a, it says "Loading static libraries is not supported in this
       configuration."
+    . Why is this not a problem on OS X?  Maybe linking is more lazy?
+    . On OS X ghci loads the file, ghcit: build/test/obj/Util/vectorc.cc.o
+    Selection.events can't find mix_vectors:
+      . I should put these things in ghci-flags, but who is importing
+        Util.Audio?
+      . And it only happens in debug mode, something is different about linking
+        there.
+      . How to ask for dependency chain in shake?
   jack: JACK:
     bugs
       - something is still wrong, I get "no space in output port" and then

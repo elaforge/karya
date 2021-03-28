@@ -4,6 +4,8 @@
 
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE MonoLocalBinds #-}
 -- | Tie together generic Solkattu and specific instruments into a single
 -- 'Korvai'.
 module Solkattu.Korvai where
@@ -57,6 +59,7 @@ data Score = Single !Korvai | Tani !Metadata ![Part Korvai]
 data Part k = K !k | Comment !Text
     deriving (Show, Functor)
 
+-- | Make a Tani Score, which is just a sequence of Korvais.
 tani :: [Part Korvai] -> Score
 tani = Tani (mempty { _tags = Tags.withType "tani" })
 
@@ -82,29 +85,11 @@ realizeScore realize = \case
 -- * korvai
 
 data Korvai = Korvai {
-    korvaiSections :: !KorvaiType
+    korvaiSections :: !KorvaiSections
     , korvaiStrokeMaps :: !StrokeMaps
     , korvaiTala :: !Tala.Tala
     , korvaiMetadata :: !Metadata
-    } deriving (Eq, Show, Generics.Generic)
-
--- | This is a hack so I can have both Solkattu.Sollu sequences and
--- instrument specific ones.  It induces a similar hack in 'Instrument',
--- 'instFromMridangam'.
---
--- This is really clumsy and doesn't scale, but I tried for weeks and came up
--- with 4 or 5 different approaches and none of them worked.
-data KorvaiType =
-    TSollu [Section (SequenceT Solkattu.Sollu)]
-    | TMridangam [Section (SequenceT (Realize.Stroke Mridangam.Stroke))]
-    | TKendangTunggal
-        [Section (SequenceT (Realize.Stroke KendangTunggal.Stroke))]
-    deriving (Show, Eq)
-
-instance Pretty KorvaiType where
-    pretty (TSollu a) = pretty a
-    pretty (TMridangam a) = pretty a
-    pretty (TKendangTunggal a) = pretty a
+    } deriving (Show, Generics.Generic)
 
 instance Pretty Korvai where
     format = Pretty.formatGCamel
@@ -112,41 +97,44 @@ instance Pretty Korvai where
 korvai :: Tala.Tala -> StrokeMaps -> [Section (SequenceT Solkattu.Sollu)]
     -> Korvai
 korvai tala strokeMaps sections = Korvai
-    { korvaiSections = TSollu sections
+    { korvaiSections = KorvaiSections IKonnakol
+        (fmap (fmap (fmap (fmap (fmap Realize.stroke)))) sections)
+        -- Wrap up in dummy Realize.Strokes, see 'Realize.realizeSollu'.
     , korvaiStrokeMaps = strokeMaps
     , korvaiTala = tala
     , korvaiMetadata = mempty
     }
 
-korvaiInstruments :: Korvai -> [(Text, GInstrument)]
-korvaiInstruments korvai = filter (hasInstrument . snd) $ Map.toList instruments
+korvaiInstruments :: Korvai -> [GInstrument]
+korvaiInstruments korvai = filter hasInstrument instruments
     where
-    hasInstrument (GInstrument inst) = case korvaiSections korvai of
-        TSollu {} -> not (isEmpty inst)
-        TMridangam {} -> Maybe.isJust (instFromMridangam inst)
-        TKendangTunggal {} -> Maybe.isJust (instFromKendangTunggal inst)
-    -- If the stroke map is broken, that at least means there is one.
+    hasInstrument (GInstrument inst) =
+        case getSections inst (korvaiSections korvai) of
+            Just _ -> True
+            Nothing -> case korvaiSections korvai of
+                KorvaiSections IKonnakol _ -> not (isEmpty inst)
+                _ -> False
+    -- Even if the stroke map is broken, at least there is one.
+    isEmpty :: Instrument stroke -> Bool
     isEmpty inst = either (const False) Realize.isInstrumentEmpty $
-        instStrokeMap inst (korvaiStrokeMaps korvai)
+        getStrokeMap inst (korvaiStrokeMaps korvai)
 
 mridangamKorvai :: Tala.Tala -> Realize.PatternMap Mridangam.Stroke
     -> [Section (SequenceT (Realize.Stroke Mridangam.Stroke))] -> Korvai
-mridangamKorvai tala pmap sections = Korvai
-    { korvaiSections = TMridangam sections
-    , korvaiStrokeMaps = mempty
-        { smapMridangam = Right $ mempty { Realize.smapPatternMap = pmap }
-        }
-    , korvaiTala = tala
-    , korvaiMetadata = mempty
-    }
+mridangamKorvai = instrumentKorvai IMridangam
 
 kendangTunggalKorvai :: Tala.Tala -> Realize.PatternMap KendangTunggal.Stroke
     -> [Section (SequenceT (Realize.Stroke KendangTunggal.Stroke))] -> Korvai
-kendangTunggalKorvai tala pmap sections = Korvai
-    { korvaiSections = TKendangTunggal sections
-    , korvaiStrokeMaps = mempty
-        { smapKendangTunggal = Right $ mempty { Realize.smapPatternMap = pmap }
-        }
+kendangTunggalKorvai = instrumentKorvai IKendangTunggal
+
+instrumentKorvai :: Instrument stroke -> Tala.Tala
+    -> Realize.PatternMap stroke
+    -> [Section (SequenceT (Realize.Stroke stroke))]
+    -> Korvai
+instrumentKorvai inst tala pmap sections = Korvai
+    { korvaiSections = KorvaiSections inst sections
+    , korvaiStrokeMaps =
+        setStrokeMap inst $ Right $ mempty { Realize.smapPatternMap = pmap }
     , korvaiTala = tala
     , korvaiMetadata = mempty
     }
@@ -157,15 +145,55 @@ index i = sliceSections i (i+1)
 
 sliceSections :: Int -> Int -> Korvai -> Korvai
 sliceSections start end korvai = case korvaiSections korvai of
-    TSollu s -> korvai { korvaiSections = TSollu (get s) }
-    TMridangam s -> korvai { korvaiSections = TMridangam (get s) }
-    TKendangTunggal s -> korvai { korvaiSections = TKendangTunggal (get s) }
+    KorvaiSections inst sections -> korvai
+        { korvaiSections = KorvaiSections inst (get sections) }
     where
+    get :: [a] -> [a]
     get xs
         | all (Num.inRange 0 (length xs)) [start, end] =
             take (start - end) $ drop start xs
         | otherwise = error $ "(start, end) " <> show (start, end)
             <> " out of range 0--" <> show (length xs)
+
+-- ** Instrument
+
+-- This seems like a dependent pair, Instrument lets me know what stroke is.
+data KorvaiSections = forall stroke.
+    KorvaiSections (Instrument stroke) (Sections stroke)
+
+instance Show KorvaiSections where
+    show (KorvaiSections inst _) = untxt $ instrumentName inst
+instance Pretty KorvaiSections where
+    pretty (KorvaiSections inst _) = instrumentName inst
+
+type Sections stroke = [Section (SequenceT (Realize.Stroke stroke))]
+
+-- TODO: can I use Data.Type.Equality :~: ?
+getSections :: Instrument stroke -> KorvaiSections -> Maybe (Sections stroke)
+getSections inst ktype = case (inst, ktype) of
+    (IKonnakol, KorvaiSections IKonnakol sections) -> Just sections
+    (IMridangam, KorvaiSections IMridangam sections) -> Just sections
+    (IKendangTunggal, KorvaiSections IKendangTunggal sections) -> Just sections
+    (IKendangPasang, KorvaiSections IKendangPasang sections) -> Just sections
+    (IReyong, KorvaiSections IReyong sections) -> Just sections
+    (ISargam, KorvaiSections ISargam sections) -> Just sections
+    _ -> Nothing
+
+data GInstrument = forall stroke.
+    (Solkattu.Notation stroke, Ord stroke, Expr.ToExpr (Realize.Stroke stroke))
+    => GInstrument (Instrument stroke)
+
+instruments :: [GInstrument]
+instruments =
+    [ GInstrument IKonnakol
+    , GInstrument IMridangam
+    , GInstrument IKendangTunggal
+    , GInstrument IReyong
+    , GInstrument ISargam
+    ]
+
+ginstrumentName :: GInstrument -> Text
+ginstrumentName (GInstrument inst) = instrumentName inst
 
 -- * Section
 
@@ -193,18 +221,13 @@ scoreSections = \case
 
 genericSections :: Korvai -> [Section ()]
 genericSections korvai = case korvaiSections korvai of
-    TSollu sections -> map (fmap (const ())) sections
-    TMridangam sections -> map (fmap (const ())) sections
-    TKendangTunggal sections -> map (fmap (const ())) sections
+    KorvaiSections _ sections -> map (fmap (const ())) sections
 
 modifySections :: (Tags.Tags -> Tags.Tags) -> Korvai -> Korvai
 modifySections modify korvai = korvai
     { korvaiSections = case korvaiSections korvai of
-        TSollu sections -> TSollu $ map (modifySectionTags modify) sections
-        TMridangam sections ->
-            TMridangam $ map (modifySectionTags modify) sections
-        TKendangTunggal sections ->
-            TKendangTunggal $ map (modifySectionTags modify) sections
+        KorvaiSections inst sections ->
+            KorvaiSections inst $ map (modifySectionTags modify) sections
     }
 
 addSectionTags :: Tags.Tags -> Section a -> Section a
@@ -231,92 +254,52 @@ inferSections seqs = case Seq.viewr (map section seqs) of
 
 -- * Instrument
 
--- | Tie together everything describing how to realize a single instrument.
-data Instrument stroke = Instrument {
-    instName :: Text
-    -- | Realize a 'Sollu' 'KorvaiType'.
-    , instFromSollu :: Realize.SolluMap stroke
-        -> Realize.ToStrokes Solkattu.Sollu stroke
-    -- | Realize a 'Mridangam' 'KorvaiType'.
-    , instFromMridangam ::
-        Maybe (Realize.ToStrokes (Realize.Stroke Mridangam.Stroke) stroke)
-    , instFromKendangTunggal ::
-        Maybe (Realize.ToStrokes (Realize.Stroke KendangTunggal.Stroke) stroke)
-    -- | This can be a Left because it comes from one of the
-    -- instrument-specific 'StrokeMaps' fields, which can be Left if
-    -- 'Realize.strokeMap' verification failed.
-    , instStrokeMap :: StrokeMaps -> Either Error (Realize.StrokeMap stroke)
-    -- | Modify strokes after 'realize'.  Use with 'strokeTechnique'.
-    , instPostprocess :: [Flat stroke] -> [Flat stroke]
-    , instToScore :: ToScore.ToScore stroke
-    }
+data Instrument stroke where
+    IKonnakol :: Instrument Solkattu.Sollu
+    IMridangam :: Instrument Mridangam.Stroke
+    IKendangTunggal :: Instrument KendangTunggal.Stroke
+    IKendangPasang :: Instrument KendangPasang.Stroke
+    IReyong :: Instrument Reyong.Stroke
+    ISargam :: Instrument Sargam.Stroke
 
-defaultInstrument :: (Expr.ToExpr (Realize.Stroke stroke)) => Instrument stroke
-defaultInstrument = Instrument
-    { instName = ""
-    , instFromSollu = Realize.realizeSollu
-    , instFromMridangam = Nothing
-    , instFromKendangTunggal = Nothing
-    , instStrokeMap = const $ Right mempty
-    , instPostprocess = id
-    , instToScore = ToScore.toScore
-    }
+instrumentName :: Instrument stroke -> Text
+instrumentName = \case
+    IKonnakol -> "konnakol"
+    IMridangam -> "mridangam"
+    IKendangTunggal -> "kendang tunggal"
+    IKendangPasang -> "kendang pasang"
+    IReyong -> "reyong"
+    ISargam -> "sargam"
 
-mridangam :: Instrument Mridangam.Stroke
-mridangam = defaultInstrument
-    { instName = "mridangam"
-    , instFromMridangam = Just Realize.realizeStroke
-    , instPostprocess = Mridangam.postprocess
-    , instStrokeMap = smapMridangam
-    }
+getStrokeMap :: Instrument stroke -> StrokeMaps -> StrokeMap stroke
+getStrokeMap inst smap = case inst of
+    IKonnakol -> Right $ mempty
+        { Realize.smapPatternMap = Konnakol.defaultPatterns }
+    IMridangam -> smapMridangam smap
+    IKendangTunggal -> smapKendangTunggal smap
+    IKendangPasang -> smapKendangPasang smap
+    IReyong -> smapReyong smap
+    ISargam -> smapSargam smap
 
-konnakol :: Instrument Solkattu.Sollu
-konnakol = defaultInstrument
-    { instName = "konnakol"
-    , instFromSollu = const Realize.realizeSimpleStroke
-    , instStrokeMap = const $ Right $
-        mempty { Realize.smapPatternMap = Konnakol.defaultPatterns }
-    }
+setStrokeMap :: Instrument stroke -> StrokeMap stroke -> StrokeMaps
+setStrokeMap inst smap = case inst of
+    IKonnakol -> mempty
+    IMridangam -> mempty { smapMridangam = smap }
+    IKendangTunggal -> mempty { smapKendangTunggal = smap }
+    IKendangPasang -> mempty { smapKendangPasang = smap }
+    IReyong -> mempty { smapReyong = smap }
+    ISargam -> mempty { smapSargam = smap }
 
-kendangTunggal :: Instrument KendangTunggal.Stroke
-kendangTunggal = defaultInstrument
-    { instName = "kendang tunggal"
-    , instFromKendangTunggal = Just Realize.realizeStroke
-    , instStrokeMap = smapKendangTunggal
-    }
+instPostprocess :: Instrument stroke -> [Flat stroke] -> [Flat stroke]
+instPostprocess = \case
+    IMridangam -> Mridangam.postprocess
+    _ -> id
 
-kendangPasang :: Instrument KendangPasang.Stroke
-kendangPasang = defaultInstrument
-    { instName = "kendang pasang"
-    , instStrokeMap = smapKendangPasang
-    }
-
-reyong :: Instrument Reyong.Stroke
-reyong = defaultInstrument
-    { instName = "reyong"
-    , instStrokeMap = smapReyong
-    }
-
-sargam :: Instrument Sargam.Stroke
-sargam = defaultInstrument
-    { instName = "sargam"
-    , instStrokeMap = smapSargam
-    , instToScore = Sargam.toScore
-    }
-
--- | An existential type to capture the Notation instance.
-data GInstrument =
-    forall stroke. Solkattu.Notation stroke => GInstrument (Instrument stroke)
-
-instruments :: Map Text GInstrument
-instruments = Map.fromList $ Seq.key_on nameOf
-    [ GInstrument mridangam
-    , GInstrument konnakol
-    , GInstrument kendangTunggal
-    , GInstrument reyong
-    , GInstrument sargam
-    ]
-    where nameOf (GInstrument inst) = instName inst
+instToScore :: Expr.ToExpr (Realize.Stroke stroke) => Instrument stroke
+    -> ToScore.ToScore stroke
+instToScore = \case
+    ISargam -> Sargam.toScore
+    _ -> ToScore.toScore
 
 
 -- * realize
@@ -325,35 +308,38 @@ instruments = Map.fromList $ Seq.key_on nameOf
 type Flat stroke =
     S.Flat (Realize.Group (Realize.Stroke stroke)) (Realize.Note stroke)
 
--- | Realize a Korvai on a particular instrument.
-realize :: Solkattu.Notation stroke => Instrument stroke -> Korvai
-    -> [Either Error ([Flat stroke], [Realize.Warning])]
-realize instrument korvai =
-    case instStrokeMap instrument (korvaiStrokeMaps korvai) of
-        Left err -> [Left err]
-        Right smap -> case korvaiSections korvai of
-            TSollu sections -> map (realize1 toStrokes) sections
-                where
-                toStrokes = instFromSollu instrument (Realize.smapSolluMap smap)
-            TMridangam sections -> case instFromMridangam instrument of
-                Nothing -> [Left "no sequence, wrong instrument type"]
-                Just toStrokes -> map (realize1 toStrokes) sections
-            TKendangTunggal sections ->
-                case instFromKendangTunggal instrument of
-                    Nothing -> [Left "no sequence, wrong instrument type"]
-                    Just toStrokes -> map (realize1 toStrokes) sections
-            where
-            realize1 toStrokes = fmap (first (instPostprocess instrument))
-                . realizeSection toStrokes smap (korvaiTala korvai)
+type Realized stroke = ([Flat stroke], [Realize.Warning])
 
-setSection :: Section x -> a -> Section a
-setSection section a = const a <$> section
+-- | Realize a Korvai on a particular instrument.
+realize :: forall stroke. (Solkattu.Notation stroke, Ord stroke)
+    => Instrument stroke -> Korvai -> [Either Error (Realized stroke)]
+realize inst korvai = case getStrokeMap inst (korvaiStrokeMaps korvai) of
+    Left err -> [Left err]
+    Right smap -> case getSections inst (korvaiSections korvai) of
+        -- An instrument Korvai can be realized to the same instrument.
+        Just sections ->
+            map (realizeSection tala Realize.realizeStroke smap postproc)
+                sections
+        Nothing -> case korvaiSections korvai of
+            -- IKonnakol korvai can be realized to any instrument.
+            KorvaiSections IKonnakol sections ->
+                map (realizeSection tala toStrokes smap postproc) sections
+                where
+                toStrokes = Realize.realizeSollu (Realize.smapSolluMap smap)
+            KorvaiSections kinst _ -> (:[]) $ Left $ "can't realize "
+                <> instrumentName kinst <> " as " <> instrumentName inst
+    where
+    tala = korvaiTala korvai
+    postproc = instPostprocess inst
 
 realizeSection :: (Ord sollu, Pretty sollu, Solkattu.Notation stroke)
-    => Realize.ToStrokes sollu stroke -> Realize.StrokeMap stroke -> Tala.Tala
+    => Tala.Tala
+    -> Realize.ToStrokes sollu stroke
+    -> Realize.StrokeMap stroke
+    -> ([Flat stroke] -> [Flat stroke])
     -> Section (SequenceT sollu)
-    -> Either Error ([Flat stroke], [Realize.Warning])
-realizeSection toStrokes smap tala section = do
+    -> Either Error (Realized stroke)
+realizeSection tala toStrokes smap postproc section = do
     realized <- Realize.formatError $ fst $
         Realize.realize smap toStrokes tala $ flatten $
         sectionSequence section
@@ -362,18 +348,25 @@ realizeSection toStrokes smap tala section = do
             (S.tempoNotes realized)
     (realized, durationWarns) <- return $ Realize.checkDuration realized
     startSpace <- spaces (inferNadai realized) (sectionStart section)
-    return (startSpace ++ realized, maybe [] (:[]) alignWarn ++ durationWarns)
+    return
+        ( postproc $ startSpace ++ realized
+        , maybe [] (:[]) alignWarn ++ durationWarns
+        )
 
 allMatchedSollus :: Instrument stroke -> Korvai
     -> Set (Realize.SolluMapKey Solkattu.Sollu)
 allMatchedSollus instrument korvai = case korvaiSections korvai of
-    TSollu sections -> mconcatMap
-        (matchedSollus (instFromSollu instrument solluMap) (korvaiTala korvai))
-        sections
+    KorvaiSections IKonnakol sections -> Set.map strip $
+        mconcatMap (matchedSollus toStrokes (korvaiTala korvai)) sections
     _ -> mempty
     where
+    -- For uniformity with instruments, IKonnakol also maps from
+    -- (Realize.Stroke Sollu) even though I don't use emphasis.  So shim it
+    -- back to plain Sollus.
+    strip (tag, sollus) = (tag, map Realize._stroke sollus)
+    toStrokes = Realize.realizeSollu solluMap
     solluMap = either mempty Realize.smapSolluMap smap
-    smap = instStrokeMap instrument (korvaiStrokeMaps korvai)
+    smap = getStrokeMap instrument (korvaiStrokeMaps korvai)
 
 matchedSollus :: (Pretty sollu, Ord sollu)
     => Realize.ToStrokes sollu stroke -> Tala.Tala -> Section (SequenceT sollu)
@@ -408,7 +401,7 @@ spaces nadai dur = do
 
 -- * transform
 
--- TODO broken by KorvaiType, fix this
+-- TODO broken by KorvaiSections, fix this
 -- vary :: (Sequence -> [Sequence]) -> Korvai -> Korvai
 -- vary modify korvai = korvai
 --     { korvaiSections = concatMap modify (korvaiSections korvai) }
@@ -430,7 +423,7 @@ mapStrokeRest f = map convert
 lint :: Pretty stroke => Instrument stroke -> [Sequence] -> Korvai -> Text
 lint inst defaultStrokes korvai =
     either (("stroke map: "<>) . (<>"\n")) lintSmap $
-    instStrokeMap inst $ korvaiStrokeMaps korvai
+    getStrokeMap inst $ korvaiStrokeMaps korvai
     where
     lintSmap smap = Text.unlines $ filter (not . Text.null)
         [ if null shadowed then ""
@@ -502,23 +495,15 @@ inferMetadataS = mapScore inferMetadata
 -- It used to be called in the 'korvai' and 'mridangamKorvai' constructors, but
 -- it was confusing how it wouldn't see modifications done after construction.
 inferMetadata :: Korvai -> Korvai
-inferMetadata = inferSections . inferKorvaiMetadata
+inferMetadata = modifySections . inferKorvaiMetadata
     where
-    inferSections korvai = case korvaiSections korvai of
-        TSollu sections -> korvai
-            { korvaiSections =
-                TSollu $ map (addTags (korvaiTala korvai)) sections
-            }
-        TMridangam sections -> korvai
-            { korvaiSections =
-                TMridangam $ map (addTags (korvaiTala korvai)) sections
-            }
-        TKendangTunggal sections -> korvai
-            { korvaiSections =
-                TKendangTunggal $ map (addTags (korvaiTala korvai)) sections
-            }
-    addTags tala section =
-        addSectionTags (inferSectionTags tala section) section
+    modifySections korvai = korvai
+        { korvaiSections = case korvaiSections korvai of
+            KorvaiSections inst sections ->
+                KorvaiSections inst $ map (add korvai) sections
+        }
+    add korvai section = addSectionTags
+        (inferSectionTags (korvaiTala korvai) section) section
 
 inferKorvaiMetadata :: Korvai -> Korvai
 inferKorvaiMetadata korvai =
@@ -539,10 +524,8 @@ inferKorvaiTags korvai = Tags.Tags $ Maps.multimap $ concat
     where
     tala = korvaiTala korvai
     sections = case korvaiSections korvai of
-        TSollu xs -> length xs
-        TMridangam xs -> length xs
-        TKendangTunggal xs -> length xs
-    instruments = map fst $ korvaiInstruments korvai
+        KorvaiSections _ sections -> length sections
+    instruments = map ginstrumentName $ korvaiInstruments korvai
 
 inferSectionTags :: Tala.Tala -> Section (SequenceT sollu) -> Tags.Tags
 inferSectionTags tala section = Tags.Tags $ Map.fromList $
@@ -563,14 +546,17 @@ inferSectionTags tala section = Tags.Tags $ Map.fromList $
 
 -- * types
 
+-- | This can be a Left because it comes from one of the instrument-specific
+-- 'StrokeMaps' fields, which can be Left if 'Realize.strokeMap' verification
+-- failed.
+type StrokeMap stroke = Either Error (Realize.StrokeMap stroke)
+
 data StrokeMaps = StrokeMaps {
-    smapMridangam :: Either Error (Realize.StrokeMap Mridangam.Stroke)
-    , smapKendangTunggal ::
-        Either Error (Realize.StrokeMap KendangTunggal.Stroke)
-    , smapKendangPasang ::
-        Either Error (Realize.StrokeMap KendangPasang.Stroke)
-    , smapReyong :: Either Error (Realize.StrokeMap Reyong.Stroke)
-    , smapSargam :: Either Error (Realize.StrokeMap Sargam.Stroke)
+    smapMridangam :: StrokeMap Mridangam.Stroke
+    , smapKendangTunggal :: StrokeMap KendangTunggal.Stroke
+    , smapKendangPasang :: StrokeMap KendangPasang.Stroke
+    , smapReyong :: StrokeMap Reyong.Stroke
+    , smapSargam :: StrokeMap Sargam.Stroke
     } deriving (Eq, Show, Generics.Generic)
 
 instance Semigroup StrokeMaps where

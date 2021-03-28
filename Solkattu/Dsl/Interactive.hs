@@ -21,7 +21,8 @@ import qualified Solkattu.Solkattu as Solkattu
 import           Global
 
 
-printInstrument :: (Solkattu.Notation stroke1, Solkattu.Notation stroke2)
+printInstrument
+    :: (Solkattu.Notation stroke1, Solkattu.Notation stroke2, Ord stroke1)
     => Bool -> Bool
     -> Korvai.Instrument stroke1 -> [Korvai.Sequence] -> Terminal.Config
     -> (Realize.Stroke stroke1 -> Maybe (Realize.Stroke stroke2))

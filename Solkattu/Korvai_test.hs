@@ -4,10 +4,11 @@
 
 {-# LANGUAGE RecordWildCards #-}
 module Solkattu.Korvai_test where
+import qualified Data.List as List
 import qualified Data.Text as Text
 
 import qualified Solkattu.Dsl.Solkattu as G
-import Solkattu.Dsl.Solkattu (ta, ka, din, na)
+import           Solkattu.Dsl.Solkattu (din, ka, na, ta)
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Realize as Realize
@@ -16,13 +17,14 @@ import qualified Solkattu.Score.Mridangam2018 as Mridangam2018
 import qualified Solkattu.Score.Solkattu2018 as Solkattu2018
 import qualified Solkattu.Tala as Tala
 
-import Global
-import Util.Test
+import           Global
+import           Util.Test
 
 
+test_realize :: Test
 test_realize = do
     let f = fmap (first extract) . head
-            . Korvai.realize Korvai.mridangam
+            . Korvai.realize Korvai.IMridangam
             . korvai [] (Tala.Tala "eka" Tala.eka 2) . (:[])
         extract notes =
             [ pretty tempo <> ":" <> pretty stroke
@@ -40,9 +42,10 @@ test_realize = do
     equal (f (G.sd (tkdn 8))) $
         Right (map ("s-1n4:"<>) (chars "kookkook"), [])
 
+test_realizeTechnique :: Test
 test_realizeTechnique = do
     let f strokes = fmap extract . head
-            . Korvai.realize Korvai.mridangam
+            . Korvai.realize Korvai.IMridangam
             . korvai strokes Tala.adi_tala . (:[])
         extract = Text.unwords . map pretty . S.flattenedNotes . fst
     let strokes1 =
@@ -64,8 +67,9 @@ test_realizeTechnique = do
     -- equal (f strokes2 $ mconcat $ G.expand 3 1 ta_din) $
     --     Right $ "k k t o\ \ k k k t o\ \ k t k k t o"
 
+test_korvaiInstruments :: Test
 test_korvaiInstruments = do
-    let f = map fst . Korvai.korvaiInstruments
+    let f = List.sort . map Korvai.ginstrumentName . Korvai.korvaiInstruments
     equal (f Solkattu2018.misra_to_mohra1a)
         ["kendang tunggal", "konnakol", "mridangam"]
     -- No konnakol!

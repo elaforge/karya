@@ -89,7 +89,7 @@ makeKorvai strokes seq = korvai
     korvai = G.korvaiS1 Tala.adi_tala (G.makeMridangam0 strokes) seq
 
 realize :: G.Korvai -> Either Text [(Text, S.Duration)]
-realize = extract . head . Korvai.realize Korvai.mridangam
+realize = extract . head . Korvai.realize Korvai.IMridangam
     where
     extract (Left err) = Left err
     extract (Right (strokes, _err)) = Right $ extractStrokes strokes

@@ -185,20 +185,19 @@ render abstractions score = htmlPage title (scoreMetadata score) body
     where
     (_, _, title) = Korvai._location (Korvai.scoreMetadata score)
     body :: [Doc.Html]
-    body = concatMap htmlInstrument $ Seq.sort_on (order . fst) $
-        Format.scoreInstruments score
-    order name = (fromMaybe 999 $ List.elemIndex name prio, name)
-        where prio = ["konnakol", "mridangam"]
-    htmlInstrument (instName, Korvai.GInstrument inst) =
+    body = concatMap htmlInstrument $ Format.scoreInstruments score
+    htmlInstrument (Korvai.GInstrument inst) =
         "<h3>" <> Doc.html instName <> "</h3>"
         : chooseAbstraction abstractions instName
         : concatMap (renderAbstraction instName inst score) abstractions
+        where
+        instName = Korvai.instrumentName inst
 
 htmlPage :: Text -> [Doc.Html] -> [Doc.Html] -> [Doc.Html]
 htmlPage title meta body = htmlHeader title : meta ++ body ++ [htmlFooter]
 
-renderAbstraction :: Solkattu.Notation stroke => Text
-    -> Korvai.Instrument stroke -> Korvai.Score
+renderAbstraction :: (Solkattu.Notation stroke, Ord stroke)
+    => Text -> Korvai.Instrument stroke -> Korvai.Score
     -> (Text, Format.Abstraction) -> [Doc.Html]
 renderAbstraction instName inst score (aname, abstraction) =
     Doc.tag_attrs "div" attrs Nothing
@@ -223,8 +222,8 @@ renderAbstraction instName inst score (aname, abstraction) =
         , _rulerEach = defaultRulerEach
         }
 
-sectionHtmls :: Solkattu.Notation stroke => Korvai.Instrument stroke
-    -> Config -> Korvai.Korvai -> [Doc.Html]
+sectionHtmls :: (Solkattu.Notation stroke, Ord stroke)
+    => Korvai.Instrument stroke -> Config -> Korvai.Korvai -> [Doc.Html]
 sectionHtmls inst config korvai =
     -- Group rows by fst, which is whether it has a ruler, and put <table>
     -- around each group.  This is because each ruler may have a different

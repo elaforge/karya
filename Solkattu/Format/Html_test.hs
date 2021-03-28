@@ -45,7 +45,7 @@ korvai = Korvai.korvai Tala.adi_tala (G.makeMridangam [])
 
 render :: Format.Abstraction -> Korvai.Korvai -> Text
 render abstraction =
-    Doc.un_html . mconcat . Html.sectionHtmls Korvai.mridangam config
+    Doc.un_html . mconcat . Html.sectionHtmls Korvai.IMridangam config
     where
     config = Html.Config
         { _abstraction = abstraction

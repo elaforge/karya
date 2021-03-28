@@ -65,21 +65,23 @@ search = return . Db.formats . Db.searchAll id
 -- * realize
 
 insert_m :: Cmd.M m => Bool -> TrackTime -> ScoreIndex -> SectionIndex -> m ()
-insert_m = insert Korvai.mridangam
+insert_m = insert Korvai.IMridangam
 
 insert_k1 :: Cmd.M m => Bool -> TrackTime -> ScoreIndex -> SectionIndex -> m ()
-insert_k1 = insert Korvai.kendangTunggal
+insert_k1 = insert Korvai.IKendangTunggal
 
 insert_r :: Cmd.M m => Bool -> TrackTime -> ScoreIndex -> SectionIndex -> m ()
-insert_r = insert Korvai.reyong
+insert_r = insert Korvai.IReyong
 
 insert_sargam :: Cmd.M m => TrackTime -> ScoreIndex -> SectionIndex -> m ()
-insert_sargam = insert Korvai.sargam True
+insert_sargam = insert Korvai.ISargam True
 
 -- | Insert the korvai at the selection.
 -- TODO implement ModifyNotes.replace_tracks to clear existing notes first
-insert :: (Solkattu.Notation stroke, Cmd.M m) => Korvai.Instrument stroke
-    -> Bool -> TrackTime -> ScoreIndex -> SectionIndex -> m ()
+insert :: (Cmd.M m, Solkattu.Notation stroke,
+        Expr.ToExpr (Realize.Stroke stroke), Ord stroke)
+     => Korvai.Instrument stroke -> Bool -> TrackTime -> ScoreIndex
+    -> SectionIndex -> m ()
 insert instrument realize_patterns akshara_dur score_i section_i = do
     (block_id, _, track_id, at) <- Selection.get_insert
     note_track <- case Seq.at Db.scores score_i of
@@ -90,9 +92,10 @@ insert instrument realize_patterns akshara_dur score_i section_i = do
             "LSol.insert: index out of range: " <> showt score_i
     ModifyNotes.write_tracks block_id [track_id] [note_track]
 
-realize :: (Ui.M m, Solkattu.Notation stroke) => Korvai.Instrument stroke
-    -> Bool -> Korvai.Korvai -> SectionIndex -> TrackTime -> TrackTime
-    -> m ModifyNotes.NoteTrack
+realize :: (Ui.M m, Solkattu.Notation stroke,
+        Expr.ToExpr (Realize.Stroke stroke), Ord stroke)
+    => Korvai.Instrument stroke -> Bool -> Korvai.Korvai -> SectionIndex
+    -> TrackTime -> TrackTime -> m ModifyNotes.NoteTrack
 realize instrument realize_patterns korvai section_i akshara_dur at = do
     results <- Ui.require_right id $ sequence $
         Korvai.realize instrument $ Korvai.index section_i korvai
@@ -129,8 +132,8 @@ place :: TrackTime -> TrackTime -> Event.Event -> Event.Event
 place shift stretch = (Event.duration_ %= (*stretch))
     . (Event.start_ %= ((+shift) . (*stretch)))
 
-strokes_to_events :: Expr.ToExpr (Realize.Stroke a) =>
-    [S.Flat g (Realize.Note a)] -> [Event.Event]
+strokes_to_events :: Expr.ToExpr (Realize.Stroke a)
+    => [S.Flat g (Realize.Note a)] -> [Event.Event]
 strokes_to_events strokes =
     [ Event.event (realToFrac start) (if has_dur then realToFrac dur else 0)
         (ShowVal.show_val expr)
@@ -247,7 +250,8 @@ get_by_key key = do
     korvai <- case score of
         Korvai.Single k -> return k
         Korvai.Tani {} -> error "Tani not supported yet"
-    instrument <- Map.lookup instrument Korvai.instruments
+    instrument <- List.find ((==instrument) . Korvai.ginstrumentName)
+        Korvai.instruments
     -- This means reintegrate only works with a single section a single korvai.
     -- I can extend it if this turns out to be too restrictive.
     return (korvai, index, instrument)

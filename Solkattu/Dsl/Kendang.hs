@@ -51,7 +51,7 @@ realize = realizeK id
 realizep = realizeK concrete
 
 realizeK :: (Terminal.Config -> Terminal.Config) -> Korvai.Korvai -> IO ()
-realizeK = Dsl.Solkattu._printInstrument Just Korvai.kendangTunggal
+realizeK = Dsl.Solkattu._printInstrument Just Korvai.IKendangTunggal
 
 -- * strokes
 

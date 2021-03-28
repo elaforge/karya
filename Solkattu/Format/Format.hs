@@ -83,11 +83,12 @@ data Highlight = StartHighlight | Highlight | EndHighlight
 
 -- * score
 
-scoreInstruments :: Korvai.Score -> [(Text, Korvai.GInstrument)]
+scoreInstruments :: Korvai.Score -> [Korvai.GInstrument]
 scoreInstruments =
-    Seq.drop_dups fst . Seq.sort_on (order . fst)
+    Seq.drop_dups name . Seq.sort_on (order . name)
         . concatMap Korvai.korvaiInstruments . Korvai.scoreKorvais
     where
+    name = Korvai.ginstrumentName
     order name = (fromMaybe 999 $ List.elemIndex name prio, name)
         where prio = ["konnakol", "mridangam"]
 

@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE GADTs #-}
 -- | Convert realized 'S.Flat' output to text for the terminal.
 module Solkattu.Format.Terminal (
     renderAll, printInstrument, printKonnakol
@@ -69,19 +70,22 @@ konnakolConfig = Config
 
 -- | Render all instrument realizations.
 renderAll :: Format.Abstraction -> Korvai.Score -> [Text]
-renderAll abstraction score =
-    concatMap write1 $ Format.scoreInstruments score
+renderAll abstraction score = concatMap write1 $ Format.scoreInstruments score
     where
-    write1 (name, Korvai.GInstrument inst) =
-        name <> ":" : fst (formatScore config inst Just score)
+    write1 (Korvai.GInstrument inst) =
+        Korvai.instrumentName inst <> ":"
+        : fst (formatScore (config { _abstraction = abstraction }) inst Just
+            score)
         where
-        config = (if name == "konnakol" then konnakolConfig else defaultConfig)
-            { _abstraction = abstraction }
+        config = case inst of
+            Korvai.IKonnakol -> konnakolConfig
+            _ -> defaultConfig
 
 -- * format
 
-printInstrument :: Solkattu.Notation stroke => Korvai.Instrument stroke
-    -> Format.Abstraction -> Korvai.Korvai -> IO ()
+printInstrument :: (Solkattu.Notation stroke, Ord stroke)
+    => Korvai.Instrument stroke -> Format.Abstraction -> Korvai.Korvai
+    -> IO ()
 printInstrument instrument abstraction =
     mapM_ Text.IO.putStrLn . fst
     . formatInstrument (defaultConfig { _abstraction = abstraction }) instrument
@@ -89,9 +93,10 @@ printInstrument instrument abstraction =
 
 printKonnakol :: Config -> Korvai.Korvai -> IO ()
 printKonnakol config =
-    mapM_ Text.IO.putStrLn . fst . formatInstrument config Korvai.konnakol Just
+    mapM_ Text.IO.putStrLn . fst . formatInstrument config Korvai.IKonnakol Just
 
-formatScore :: (Solkattu.Notation stroke1, Solkattu.Notation stroke2)
+formatScore
+    :: (Solkattu.Notation stroke1, Solkattu.Notation stroke2, Ord stroke1)
     => Config
     -> Korvai.Instrument stroke1
     -> (Realize.Stroke stroke1 -> Maybe (Realize.Stroke stroke2))
@@ -106,7 +111,8 @@ formatScore config instrument postproc = \case
     format (Korvai.K korvai) = formatK korvai
     formatK = formatInstrument config instrument postproc
 
-formatInstrument :: (Solkattu.Notation stroke1, Solkattu.Notation stroke2)
+formatInstrument
+    :: (Solkattu.Notation stroke1, Solkattu.Notation stroke2, Ord stroke1)
     => Config
     -> Korvai.Instrument stroke1
     -> (Realize.Stroke stroke1 -> Maybe (Realize.Stroke stroke2))

@@ -193,7 +193,7 @@ makeMridangam0 strokes = mempty
 
 -- | Show shadowed strokes in the stroke map.
 lintM :: Korvai.Korvai -> IO ()
-lintM = _printLint Korvai.mridangam _mridangamStrokes
+lintM = _printLint Korvai.IMridangam _mridangamStrokes
 
 makeKendang1 :: StrokeMap KendangTunggal.Stroke -> Korvai.StrokeMaps
 makeKendang1 strokes = mempty
@@ -203,7 +203,7 @@ makeKendang1 strokes = mempty
     }
 
 lintK1 :: Korvai -> IO ()
-lintK1 = _printLint Korvai.kendangTunggal _kendangStrokes1
+lintK1 = _printLint Korvai.IKendangTunggal _kendangStrokes1
 
 makeKendang2 :: StrokeMap KendangPasang.Stroke -> Korvai.StrokeMaps
 makeKendang2 strokes = mempty
@@ -213,7 +213,7 @@ makeKendang2 strokes = mempty
     }
 
 lintK2 :: Korvai -> IO ()
-lintK2 = _printLint Korvai.kendangTunggal _kendangStrokes2
+lintK2 = _printLint Korvai.IKendangTunggal _kendangStrokes2
 
 makeReyong :: StrokeMap Reyong.Stroke -> Korvai.StrokeMaps
 makeReyong strokes = mempty
@@ -222,7 +222,7 @@ makeReyong strokes = mempty
     }
 
 lintR :: Korvai -> IO ()
-lintR = _printLint Korvai.reyong _reyongStrokes
+lintR = _printLint Korvai.IReyong _reyongStrokes
 
 makeSargam :: [(S.Matra, SequenceR Sargam.Stroke)]
     -> StrokeMap Sargam.Stroke -> Korvai.StrokeMaps
@@ -235,10 +235,10 @@ makeSargam patterns strokes = mempty { Korvai.smapSargam = convert }
         Realize.strokeMap pmap strokes
 
 lintS :: Korvai -> IO ()
-lintS = _printLint Korvai.sargam []
+lintS = _printLint Korvai.ISargam []
 
 _defaultStrokes :: Korvai.Instrument stroke -> [Sequence]
-_defaultStrokes inst = Map.findWithDefault [] (Korvai.instName inst)
+_defaultStrokes inst = Map.findWithDefault [] (Korvai.instrumentName inst)
     _instrumentDefaultStrokes
 
 lintAll :: Korvai -> IO ()
@@ -249,10 +249,12 @@ allLints korvai =
     Text.unlines $ List.intersperse "" $
         mapMaybe lintsOf (Korvai.korvaiInstruments korvai)
     where
-    lintsOf (name, Korvai.GInstrument inst)
+    lintsOf (Korvai.GInstrument inst)
         | Text.null warn = Nothing
         | otherwise = Just $ "    " <> name <> ":\n" <> warn
-        where warn = Korvai.lint inst (get name) korvai
+        where
+        warn = Korvai.lint inst (get name) korvai
+        name = Korvai.instrumentName inst
     get name = Map.findWithDefault [] name _instrumentDefaultStrokes
 
 -- | 'makeMridangam' gives this to all mridangam stroke maps.
@@ -328,14 +330,14 @@ _printLint inst strokes korvai =
 
 _instrumentDefaultStrokes :: Map Text [Sequence]
 _instrumentDefaultStrokes = Map.fromList
-    [ pair Korvai.mridangam _mridangamStrokes
-    , pair Korvai.kendangTunggal _kendangStrokes1
-    , pair Korvai.kendangPasang _kendangStrokes2
-    , pair Korvai.reyong _reyongStrokes
+    [ pair Korvai.IMridangam _mridangamStrokes
+    , pair Korvai.IKendangTunggal _kendangStrokes1
+    , pair Korvai.IKendangPasang _kendangStrokes2
+    , pair Korvai.IReyong _reyongStrokes
     ]
     where
     pair :: Korvai.Instrument stroke -> [(Sequence, x)] -> (Text, [Sequence])
-    pair inst strokes = (Korvai.instName inst, map fst strokes)
+    pair inst strokes = (Korvai.instrumentName inst, map fst strokes)
 
 -- * realize
 
@@ -346,33 +348,33 @@ realizep = realizeM id
 -- The actual Config transformers are in Generic.
 
 realizeM :: (Terminal.Config -> Terminal.Config) -> Korvai.Korvai -> IO ()
-realizeM = _printInstrument Just Korvai.mridangam
+realizeM = _printInstrument Just Korvai.IMridangam
 
 realizek, realizekp :: Korvai.Korvai -> IO ()
-realizek = _printInstrument Just Korvai.kendangTunggal concrete
-realizekp = _printInstrument Just Korvai.kendangTunggal id
+realizek = _printInstrument Just Korvai.IKendangTunggal concrete
+realizekp = _printInstrument Just Korvai.IKendangTunggal id
 
 realizek2, realizek2p :: Korvai.Korvai -> IO ()
-realizek2 = _printInstrument Just Korvai.kendangPasang concrete
-realizek2p = _printInstrument Just Korvai.kendangPasang id
+realizek2 = _printInstrument Just Korvai.IKendangPasang concrete
+realizek2p = _printInstrument Just Korvai.IKendangPasang id
 
 realizeWadon :: Korvai.Korvai -> IO ()
 realizeWadon = _printInstrument
     -- (either Just (const Nothing) • KendangPasang.toTunggal)
     (Just • KendangPasang.toWadon)
-    Korvai.kendangPasang concrete
+    Korvai.IKendangPasang concrete
 
 realizeLanang :: Korvai.Korvai -> IO ()
 realizeLanang = _printInstrument
     -- (either (const Nothing) Just • KendangPasang.toTunggal)
     (Just • KendangPasang.toLanang)
-    Korvai.kendangPasang concrete
+    Korvai.IKendangPasang concrete
 
 realizeR :: (Terminal.Config -> Terminal.Config) -> Korvai.Korvai -> IO ()
-realizeR = _printInstrument Just Korvai.reyong
+realizeR = _printInstrument Just Korvai.IReyong
 
 realizeSargam :: (Terminal.Config -> Terminal.Config) -> Korvai.Korvai -> IO ()
-realizeSargam = _printInstrument Just Korvai.sargam
+realizeSargam = _printInstrument Just Korvai.ISargam
 
 realizeKon :: Korvai -> IO ()
 realizeKon = Terminal.printKonnakol (wide Terminal.defaultConfig)
@@ -389,12 +391,13 @@ realizeScoreM configure = Korvai.realizeScore realize
     realize = Interactive.printInstrument False False inst
         (_defaultStrokes inst) (configure Terminal.defaultConfig)
         Just
-    inst = Korvai.mridangam
+    inst = Korvai.IMridangam
 
 realizeScore :: Score -> IO ()
 realizeScore = realizeScoreM id
 
-_printInstrument :: (Solkattu.Notation stroke1, Solkattu.Notation stroke2)
+_printInstrument
+    :: (Solkattu.Notation stroke1, Solkattu.Notation stroke2, Ord stroke1)
     => (Realize.Stroke stroke1 -> Maybe (Realize.Stroke stroke2))
     -> Korvai.Instrument stroke1
     -> (Terminal.Config -> Terminal.Config)

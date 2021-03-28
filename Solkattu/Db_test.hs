@@ -32,11 +32,11 @@ test_all = do
 testKorvai :: Int -> Korvai.Korvai -> Test
 testKorvai i korvai =
     forM_ (Korvai.korvaiInstruments korvai) $
-        \(name, Korvai.GInstrument inst) ->
+        \(Korvai.GInstrument inst) ->
     realizeCatch inst korvai >>= \case
         Right _ -> return ()
-        Left errs -> failure $ location korvai i <> ": " <> name <> ": "
-            <> Text.unlines errs
+        Left errs -> failure $ location korvai i <> ": "
+            <> Korvai.instrumentName inst <> ": " <> Text.unlines errs
 
 test_lints :: Test
 test_lints = do
@@ -63,15 +63,17 @@ location korvai i =
 referentExists :: Text -> Bool
 referentExists = (`elem` map Metadata.moduleVariable All.scores)
 
-realizeCatch :: Solkattu.Notation stroke => Korvai.Instrument stroke
-    -> Korvai.Korvai -> IO (Either [Text] [[Realize.Note stroke]])
+realizeCatch :: (Solkattu.Notation stroke, Ord stroke)
+    => Korvai.Instrument stroke -> Korvai.Korvai
+    -> IO (Either [Text] [[Realize.Note stroke]])
 realizeCatch inst korvai =
     Exception.handle (\(Solkattu.Exception msg) -> return (Left [msg])) $ do
         let result = realize inst korvai
         Testing.force result
         return result
 
-realize :: Solkattu.Notation stroke => Korvai.Instrument stroke -> Korvai.Korvai
+realize :: (Solkattu.Notation stroke, Ord stroke)
+    => Korvai.Instrument stroke -> Korvai.Korvai
     -> Either [Text] [[Realize.Note stroke]]
 realize inst korvai
     | not (null errors) = Left errors

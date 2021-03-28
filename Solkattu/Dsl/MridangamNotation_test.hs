@@ -6,16 +6,17 @@ module Solkattu.Dsl.MridangamNotation_test where
 import qualified Data.Text as Text
 
 import qualified Solkattu.Dsl.Mridangam as G
-import Solkattu.Dsl.Mridangam ((&), o, k, t, __, su)
+import           Solkattu.Dsl.Mridangam (__, k, o, su, t, (&))
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 
-import Global
-import Util.Test
+import           Global
+import           Util.Test
 
 
+test_merge :: Test
 test_merge = do
     let f a = Text.unwords . map pretty <$> realize a
     equal (f $ o & k) $ Right "K"
@@ -30,4 +31,4 @@ test_merge = do
 
 realize :: G.Sequence -> Either Text [Realize.Note Mridangam.Stroke]
 realize seq = fmap S.flattenedNotes $ fmap fst $ head $
-    Korvai.realize Korvai.mridangam (G.korvaiS1 G.adi seq)
+    Korvai.realize Korvai.IMridangam (G.korvaiS1 G.adi seq)

@@ -55,7 +55,7 @@ extract = snd . fst . snd . head . UiTest.dump_blocks
 
 to_state :: M.Sequence -> Either Text Ui.State
 to_state =
-    Play.to_state Korvai.mridangam
+    Play.to_state Korvai.IMridangam
         (InstTypes.Qualified "sampler" "mridangam-d") "" 1
     . M.korvaiS1 tala4
 

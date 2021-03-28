@@ -35,6 +35,7 @@ import qualified Cmd.Performance as Performance
 
 import qualified Derive.Controls as Controls
 import qualified Derive.DeriveSaved as DeriveSaved
+import qualified Derive.Expr as Expr
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
@@ -68,11 +69,13 @@ import           Types
 
 -- | Play mridangam realization for the korvai.
 play_m :: RealTime -> Korvai.Korvai -> IO ()
-play_m = play_instrument Korvai.mridangam
+play_m = play_instrument Korvai.IMridangam
     (InstTypes.Qualified "sampler" "mridangam-d")
     "# = (natural) | %dyn = .75"
 
-play_instrument :: Solkattu.Notation stroke => Korvai.Instrument stroke
+play_instrument :: (Solkattu.Notation stroke,
+        Expr.ToExpr (Realize.Stroke stroke), Ord stroke)
+    => Korvai.Instrument stroke
     -> InstTypes.Qualified -> Text -> RealTime -> Korvai.Korvai -> IO ()
 play_instrument instrument im_instrument transform akshara_dur korvai = do
     state <- either errorIO return $
@@ -175,7 +178,9 @@ load_cmd_state = Cmd.initial_state <$> DeriveSaved.cmd_config db
 -- * to_state
 
 -- | Realize and convert to Ui.State.
-to_state :: Solkattu.Notation stroke => Korvai.Instrument stroke
+to_state :: (Solkattu.Notation stroke, Expr.ToExpr (Realize.Stroke stroke),
+        Ord stroke)
+    => Korvai.Instrument stroke
     -> InstTypes.Qualified -> Text -> RealTime -> Korvai.Korvai
     -> Either Text Ui.State
 to_state instrument im_instrument transform akshara_dur_ korvai = do

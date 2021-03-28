@@ -25,6 +25,7 @@ import           Global
 import           Util.Test
 
 
+test_realize :: Test
 test_realize = do
     let f = eWords . fmap S.flattenedNotes . realizeStrokeMap smap . mconcat
         smap = makeMridangam
@@ -43,6 +44,7 @@ test_realize = do
     equal (f [din, __, ga]) (Right "D _ _")
     equal (f [din, __, ga, ta, din]) (Right "D _ _ k D")
 
+test_realizeGroups :: Test
 test_realizeGroups = do
     let f = eWords . realizeSollu smap
         smap = checkSolluMap
@@ -83,6 +85,7 @@ test_realizeGroups = do
     -- With rests.
     equal (f $ G.dropM 1 $ ta <> __ <> ka <> __) (Right "_ t _")
 
+test_realizeGroupsOutput :: Test
 test_realizeGroupsOutput = do
     -- Ensure groups are still in the output, and dropped sollus replaced
     -- with strokes.
@@ -98,6 +101,7 @@ test_realizeGroupsOutput = do
     equal (f $ G.dropM 1 taka) (Right "([k], Before)(t)")
     equal (f $ G.rdropM 1 taka) (Right "([t], After)(k)")
 
+test_realizeGroupsNested :: Test
 test_realizeGroupsNested = do
     let f = fmap (mconcatMap pretty) . realizeSollu smap
         smap = checkSolluMap [(nakita, [n, k, t])]
@@ -158,6 +162,7 @@ test_realizeGroupsNested = do
     equal (f $ G.dropM 2 $ G.dropM 1 nakita <> nakita) $ Right "nkt"
     equal (f $ G.dropM 1 $ nakita <> G.dropM 1 nakita) $ Right "ktkt"
 
+test_realizeSarva :: Test
 test_realizeSarva = do
     let f = eWords . realizeSollu smap . mconcat
         smap = checkSolluMap
@@ -172,6 +177,7 @@ test_realizeSarva = do
     -- sarva is relative to sam
     right_equal (f [__, G.sarvaM (ta <> din) 3]) "_ d n d"
 
+test_realizeEmphasis :: Test
 test_realizeEmphasis = do
     let f = second (map (fmap pretty)) . realizeSollu smap . mconcat
         smap = checkSolluMap [(ta <> di, [G.hv k, G.lt t])]
@@ -181,6 +187,7 @@ test_realizeEmphasis = do
         , Realize.Note $ Realize.Stroke Realize.Light "t"
         ]
 
+test_realizeTag :: Test
 test_realizeTag = do
     let f = eWords . realizeSollu smap
         smap = checkSolluMap
@@ -197,6 +204,7 @@ test_realizeTag = do
 pattern :: S.Matra -> Solkattu.Note Sollu
 pattern = Solkattu.Pattern . Solkattu.pattern
 
+test_realizePatterns :: Test
 test_realizePatterns = do
     let f pmap seq = Realize.formatError $ fst $
             Realize.realize_ (Realize.realizePattern pmap)
@@ -212,6 +220,7 @@ test_realizePatterns = do
         (Right "k t k n o")
     left_like (f (M.families567 !! 0) (G.pat 3)) "no pattern for 3p"
 
+test_patterns :: Test
 test_patterns = do
     let f = second (const ()) . Realize.patternMap . solkattuToRealize
             . map (first Solkattu.pattern)
@@ -221,6 +230,7 @@ test_patterns = do
     equal (f [(2, su (k <> t <> k <> t))]) (Right ())
     equal (f [(2, k <> t)]) (Right ())
 
+test_solluMap :: Test
 test_solluMap = do
     let f = fmap (\(Realize.SolluMap smap) -> Map.toList smap) . makeSolluMap
     let M.Strokes {..} = M.notes
@@ -241,6 +251,7 @@ test_solluMap = do
     left_like (f [(tang <> __, [k, t])]) "rest sollu given non-rest stroke"
     left_like (f [(ta <> [S.Note $ pattern 5], [k])]) "only have plain sollus"
 
+test_checkD :: Test
 test_checkD = do
     let f = prettyStrokes . realizeM Tala.any_beats
     right_equal (f (G.checkD 4 (R.k <> R.t)))
@@ -250,6 +261,7 @@ test_checkD = do
 
 -- * checkAlignment
 
+test_checkAlignment :: Test
 test_checkAlignment = do
     let f = checkAlignment tdktSmap G.adi 0 0
         tdkt = cycle $ ta <> di <> ki <> ta
@@ -270,6 +282,7 @@ test_checkAlignment = do
     equal (f (take 3 tdkt <> G.akshara 4 <> take 5 tdkt)) $ Right $ Just $
         Realize.Warning (Just 3) "expected akshara 4, but at 1:3/4"
 
+test_checkAlignment_eddupu :: Test
 test_checkAlignment_eddupu = do
     let f = checkAlignment tdktSmap G.adi
         tdkt = cycle $ ta <> di <> ki <> ta
@@ -283,6 +296,7 @@ test_checkAlignment_eddupu = do
     equal (f 0 0 (take (8*4) tdkt)) $ Right Nothing
     equal (f 1 1 (take (8*4) tdkt)) $ Right Nothing
 
+test_checkAlignmentNadaiChange :: Test
 test_checkAlignmentNadaiChange = do
     let f = checkAlignment tdktSmap G.adi 0 0
         tdkt = ta <> di <> ki <> ta
@@ -336,7 +350,7 @@ prettyStrokes = second (first (Text.unwords . map pretty . S.flattenedNotes))
 realizeM :: Tala.Tala -> Korvai.SequenceT (Realize.Stroke M.Stroke)
     -> Either Korvai.Error ([Korvai.Flat M.Stroke], [Realize.Warning])
 realizeM tala =
-    Korvai.realizeSection Realize.realizeStroke mempty tala . Korvai.section
+    Korvai.realizeSection tala Realize.realizeStroke mempty id . Korvai.section
 
 checkSolluMap :: CallStack.Stack =>
     [ ( [S.Note g (Note Sollu)]
@@ -382,6 +396,7 @@ realizeStrokeMap smap =
     . Realize.realize smap (Realize.realizeSollu (Realize.smapSolluMap smap))
         Tala.adi_tala
     . S.flatten
+    . map (fmap (fmap Realize.stroke))
 
 solluMap :: Realize.SolluMap M.Stroke
 solluMap = checkSolluMap
