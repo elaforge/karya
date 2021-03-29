@@ -383,8 +383,8 @@ realizeKon_ :: Int -> Korvai -> IO ()
 realizeKon_ width = Terminal.printKonnakol
     (concrete $ Terminal.defaultConfig { Terminal._terminalWidth = width })
 
--- | 'realizeScore' specialized to mridangam, and disbale the usual
--- 'Interactive.printInstrument' lint and write diff stuff.
+-- | 'Korvai.realizeScore' specialized to mridangam, and disbale the usual lint
+-- and diff.
 realizeScoreM :: (Terminal.Config -> Terminal.Config) -> Score -> IO ()
 realizeScoreM configure = Korvai.realizeScore realize
     where
@@ -393,8 +393,9 @@ realizeScoreM configure = Korvai.realizeScore realize
         Just
     inst = Korvai.IMridangam
 
+-- | Like 'realize' but for Scores.
 realizeScore :: Score -> IO ()
-realizeScore = realizeScoreM id
+realizeScore = realizeScoreM concrete
 
 _printInstrument
     :: (Solkattu.Notation stroke1, Solkattu.Notation stroke2, Ord stroke1)

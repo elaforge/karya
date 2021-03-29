@@ -57,7 +57,7 @@ import           Solkattu.Format.Format (Abstraction)
 import qualified Solkattu.Format.Html as Html
 import qualified Solkattu.Format.Terminal as Terminal
 import qualified Solkattu.Korvai as Korvai
-import           Solkattu.Korvai (Korvai, Score, tani, Part(..))
+import           Solkattu.Korvai (Korvai, Score, tani, Part(..), index, slice)
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import           Solkattu.S (Duration, Matra, Nadai)

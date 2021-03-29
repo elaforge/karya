@@ -5,6 +5,9 @@
 module Solkattu.Score.Solkattu2021 where
 import           Prelude hiding ((.), (^), repeat)
 
+import qualified Solkattu.Score.Solkattu2017 as Solkattu2017
+import qualified Solkattu.Score.Solkattu2020 as Solkattu2020
+import qualified Solkattu.Score.SolkattuMohra as SolkattuMohra
 import qualified Solkattu.Tala as Tala
 
 import           Solkattu.Dsl.Solkattu
@@ -53,3 +56,32 @@ e_35_kanda, e_35_misra :: Korvai
         ]
     tdktt = g $ ta.di.__.ki.__.ta.__.thom.__
     tdktt' = g $ ta.di.__.ki.__.ta.__.thom
+
+april_tani :: Score
+april_tani = tani
+    [ Comment "80 bpm"
+    , Comment "my solo: kt k _ - Solkattu2020.c_20_10_25"
+    , K Solkattu2020.c_20_10_25
+    , Comment "ganesh solo"
+    , Comment "misra koraippu - Solkattu2017.c_17_10_23"
+    , K $ slice 0 6 Solkattu2017.c_17_10_23
+    , Comment "mohra korvai, together"
+    , K $ index 1 SolkattuMohra.c_mohra
+    , K c_mohra_korvai
+    ]
+
+c_mohra_korvai :: Korvai
+c_mohra_korvai = ganesh $ mohraKorvai $ korvaiS1 adi mridangam $ mconcat
+    [ g $ ta.__.dit.__.ta.din.__.ta.__.din.__.p5.__
+    , g $       din.__.ta.din.__.ta.__.din.__.p5.__
+    , nadai 6 $
+        r2 (g (ta.din.__.ta.__.din.__.p5))
+        . g (ta.din.__.ta.__.din.__)
+        . tri_ __ (g p5)
+    ]
+    where
+    mridangam = makeMridangam
+        [ (ta, k)
+        , (dit, t)
+        , (din, od)
+        ]

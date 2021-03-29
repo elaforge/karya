@@ -5,7 +5,6 @@
 module Solkattu.Score.Mridangam2021 where
 import           Prelude hiding ((.), repeat)
 
-import qualified Solkattu.Score.Mohra as Mohra
 import qualified Solkattu.Tala as Tala
 
 import           Solkattu.Dsl.Mridangam
@@ -116,33 +115,3 @@ e_tisram = date 2021 2 21 $ ganesh $ exercise $ korvaiS adi $ map (nadai 6)
 s_tisram_sarva :: Korvai
 s_tisram_sarva = sarvalaghu $ ganesh $ korvaiS1 adi $ nadai 6 $
     r3 (v.__.p.kt.k . d.__.p. su (kt.p.kt.p)) . su (r3 (g (v.p.kt.p.kt.p)))
-
-april_tani :: Score
-april_tani = tani
-    [ K c_mohra
-    , K c_mohra_korvai
-    ]
-
-c_mohra :: Korvai
-c_mohra = Mohra.korvai (korvai adi) su
-    ( p&k.__4.u.__.pk.nakatiku
-    , n.pk.__.u.__.pk.nakatiku
-    , p.__.k.__.u.__.pk.nakatiku
-    )
-    ( n3 $ pk.n.ook.ook.od.__3
-    , n3 $ ook.od.__3
-    , n3 $ tri_ (od.__.k) (pk.n.ook)
-    )
-    where
-    n3 = nadai 3
-    ook = o.o.k
-
-c_mohra_korvai :: Korvai
-c_mohra_korvai = ganesh $ mohraKorvai $ korvaiS1 adi $ mconcat
-    [ g (k.__.t.__.k.od.__.k.__.od.__.ktkno.__)
-    ,     g (od.__.k.od.__.k.__.od.__.ktkno.__)
-    , nadai 6 $
-          r2 (g (k.od.__.k.__.od.__.ktkno))
-        . g (k.od.__.k.__.od.__)
-        . tri_ __ (g ktkno)
-    ]

@@ -141,17 +141,17 @@ instrumentKorvai inst tala pmap sections = Korvai
 
 -- | Modify the korvai to extract a single Section.
 index :: Int -> Korvai -> Korvai
-index i = sliceSections i (i+1)
+index i = slice i (i+1)
 
-sliceSections :: Int -> Int -> Korvai -> Korvai
-sliceSections start end korvai = case korvaiSections korvai of
+slice :: Int -> Int -> Korvai -> Korvai
+slice start end korvai = case korvaiSections korvai of
     KorvaiSections inst sections -> korvai
         { korvaiSections = KorvaiSections inst (get sections) }
     where
     get :: [a] -> [a]
     get xs
-        | all (Num.inRange 0 (length xs)) [start, end] =
-            take (start - end) $ drop start xs
+        | all (Num.inRange 0 (length xs + 1)) [start, end] =
+            take (end - start) $ drop start xs
         | otherwise = error $ "(start, end) " <> show (start, end)
             <> " out of range 0--" <> show (length xs)
 
@@ -254,6 +254,7 @@ inferSections seqs = case Seq.viewr (map section seqs) of
 
 -- * Instrument
 
+-- | Each instrument is matched up with a stroke type.
 data Instrument stroke where
     IKonnakol :: Instrument Solkattu.Sollu
     IMridangam :: Instrument Mridangam.Stroke

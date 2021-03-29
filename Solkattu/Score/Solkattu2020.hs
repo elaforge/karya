@@ -72,12 +72,20 @@ c_20_04_03 = date 2020 4 3 $
         ]
 
 c_20_10_25 :: Korvai
-c_20_10_25 = date 2020 10 25 $ ganesh $ korvaiS1 adi (mridangam<>k1<>k2) $
-    mconcat
-    [g (r4 (ta.dit.__.ta.__4).ta.di.__.ki.__.ta.__.taka.__.din.__.na.__.dim.__7)
-    , g (r4 (ta.dit.__.ta.__3) . ta.di.__.ki.ta.__ . taka.__.din.na.__.dim.__6)
-    , g (r4 (ta.dit.__.ta.__) . ta.di.ki.ta.__.taka.din.na.__.dim.__5)
-    , g (r4 (2^takadinna) . ta.di.ki.ta.takadinna.dim.__4)
+c_20_10_25 = date 2020 10 25 $ ganesh $ korvai adi (mridangam<>k1<>k2) $
+    map (fmap su)
+    [ s $ sarvaD_ 5.5
+        . r4 (ta.dit.__.ta.__4) .ta.di.__.ki.__.ta.__.taka.__.din.__.na.__.dim
+    , s $ sarvaD_ 7
+        . r4 (ta.dit.__.ta.__3) .ta.di.__.ki.ta.__.taka.__.din.na.__.dim
+    , endOn 4 $ s $
+      sarvaD_ 8.5 . r4 (ta.dit.__.ta.__2) .tadikita.__.takadinna.__.dim.__8
+                  . r4 (2^takadinna) .tadikita.takadinna
+    , startOn 4 $ ending $ mconcat
+    [ g(r4 (ta.dit.__.ta.__4).ta.di.__.ki.__.ta.__.taka.__.din.__.na.__.dim.__7)
+    , g (r4 (ta.dit.__.ta.__3) . ta.di.__.kita.__ . taka.__.din.na.__.dim.__6)
+    , g (r4 (ta.dit.__.ta.__) . tadikita.__.takadinna.__.dim.__5)
+    , g (r4 (2^takadinna) . tadikita.takadinna.dim.__4)
 
     , g (ta.__3.di.__4.ki.__3.ta.__4.thom.__)
     , g (ta.__.di.__4.ki.__.ta.__4.thom.__)
@@ -86,16 +94,10 @@ c_20_10_25 = date 2020 10 25 $ ganesh $ korvaiS1 adi (mridangam<>k1<>k2) $
     , sd p5 . p5 . sd p5 . r2 p5 . sd p5
     , tri_ __ (r3 p5)
     ]
+    ]
     where
-    mridangam = mridangam3
+    mridangam = mridangam2
     mridangam2 = makeMridangam
-        [ (ta.dit.ta.ta.dit.ta, k.t.o.k.n.p)
-        , (2^takadinna . 2^takadinna, k.t.o.k.n.p.k.p)
-        , (ta.di.ki.ta, k.t.k.n)
-        , (dim, od)
-        , (thom, o)
-        ]
-    mridangam3 = makeMridangam
         [ (ta.dit.ta.ta.dit.ta, k.t.k.k.n.o)
         , (2^takadinna . 2^takadinna, k.t.k.o.k.n.p.k)
         , (ta.di.ki.ta, k.t.k.n)
