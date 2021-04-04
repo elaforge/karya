@@ -19,18 +19,21 @@
 let
   nixpkgs = import nix/nixpkgs.nix { inherit config; };
   nixpkgs-orig = import nix/nixpkgs.nix {};
-  hackage = import nix/hackage.nix { inherit nixpkgs ghc profiling; };
+  hackage = import nix/hackage.nix { inherit ghcVersion profiling; };
   faust = import nix/faust.nix {};
   inherit (nixpkgs) lib;
 
   ghcVersionDots = let ver = p: lib.hasPrefix p lib.version;
     in if ver "19.09" then "8.8.2" # ghc883 is not in 1909 yet
-    else if ver "20.09" then "8.8.4" # 8.8.4 causes recursion?
+    # else if ver "20.09" then "8.8.4"
+    else if ver "20.09" then "8.10.3"
     else abort "unknown version ${lib.version}";
 
   ghcVersion = "ghc" + builtins.replaceStrings ["."] [""] ghcVersionDots;
-  ghc = nixpkgs.haskell.packages."${ghcVersion}";
-  ghc-orig = nixpkgs-orig.haskell.packages."${ghcVersion}";
+  getGhc = nixpkgs: nixpkgs.haskell.packages."${ghcVersion}";
+
+  ghc = getGhc nixpkgs;
+  ghc-orig = getGhc nixpkgs-orig;
 
   # This should just hit the nixos cache.  The benefit is that it won't reuse
   # my pinned library versions, so I don't have to make sure they're
@@ -45,21 +48,20 @@ let
   config = {
     # For nixpkgs.mkl, for mesh2faust.
     allowUnfree = true;
-
     packageOverrides = pkgs: {
       haskell = pkgs.haskell // {
         packages = pkgs.haskell.packages // {
           "${ghcVersion}" = pkgs.haskell.packages."${ghcVersion}".override {
-            inherit (hackage) all-cabal-hashes;
             overrides = new: old: hackage.overrides old;
           };
         };
       };
+    };
     # Not working for some reason.
     # overlays = [overlay];
-    };
   };
 
+  # TODO: not used, couldn't get it to work
   overlay = nixpkgsSelf: nixpkgsSuper:
     let
       inherit (nixpkgsSelf) pkgs;
@@ -91,7 +93,6 @@ let
   inherit (nixpkgs.stdenv) isDarwin isLinux;
 in rec {
   inherit nixpkgs ghc hackage;
-  inherit ghc-orig;
 
   # nixpkgs.rubberband only works on linux.
   rubberband = if isDarwin

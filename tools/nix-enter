@@ -3,8 +3,8 @@
 
 args=(
     --attr buildEnv
-    --arg withIm true --arg withDocs true
+    --arg withDocs true
     --run "exec $SHELL"
 )
-echo nix-shell $args
-exec nix-shell $args
+echo nix-shell $args "$@"
+exec nix-shell $args "$@"

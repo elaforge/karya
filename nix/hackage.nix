@@ -1,9 +1,32 @@
 # Read a json file produced by make_hackage.py with package versions.
 # TODO either port it to nix, or run the script as a derivation
-{ nixpkgs, ghc, profiling }:
+{ ghcVersion, profiling }:
 let
+  nixpkgs = import ./nixpkgs.nix { inherit config; };
+  inherit (nixpkgs) lib;
+
+  config = {
+    packageOverrides = pkgs: {
+      haskell = pkgs.haskell // {
+        packages = pkgs.haskell.packages // {
+          "${ghcVersion}" = pkgs.haskell.packages."${ghcVersion}".override {
+            inherit all-cabal-hashes;
+          };
+        };
+      };
+    };
+  };
+  all-cabal-hashes =
+    let commit = "21fa0f534f906ead4abe15b071564e21e916c9f7";
+    in nixpkgs.fetchurl {
+      url = "https://github.com/commercialhaskell/all-cabal-hashes/archive/"
+        + "${commit}.tar.gz";
+      sha256 = "0niyw8l5qbnpwdqbaynyzsp85p7bv42rha9b8gjgjarg865r8iyy";
+    };
+  ghc = nixpkgs.haskell.packages."${ghcVersion}";
+
   # Fix broken stuff in hackage that they just never fix.
-  callHackageArgs = ghc: {
+  callHackageArgs = {
     # Otherwise zlib is circular because nixpkgs doesn't differentiate
     # haskell and C deps.
     zlib = { inherit (nixpkgs) zlib; };
@@ -17,8 +40,12 @@ let
     };
   };
 
-  callHackage = ghc: name: ver:
-    let args = (callHackageArgs ghc)."${name}" or {};
+  importPackage = ghc: name: fn:
+    let args = callHackageArgs."${name}" or {};
+    in overrideCabal (ghc.callPackage fn args);
+
+  callHackage = name: ver:
+    let args = callHackageArgs."${name}" or {};
     in overrideCabal (ghc.callHackage name ver args);
 
   overrideCabal = drv:
@@ -54,12 +81,14 @@ let
 
   compose = nixpkgs.lib.foldr (f: g: x: f (g x)) (x: x);
 
-  importPackage = ghc: name: fn:
-    let args = (callHackageArgs ghc)."${name}" or {};
-    in overrideCabal (ghc.callPackage fn args);
-
 in rec {
-  packages = parseFreezeFile ../doc/cabal/all-deps.cabal.config;
+  packageVersions = parseFreezeFile ../doc/cabal/all-deps.cabal.config;
+  fromNixpkgs = builtins.mapAttrs callHackage
+    (lib.filterAttrs (k: _: k == "ansi-wl-pprint") packageVersions);
+    # TODO: this should be just the new packages
+
+  packages = builtins.mapAttrs
+    (importPackage nixpkgs.haskell.packages."${ghcVersion}")  packageNames;
 
   nixFiles = nixpkgs.stdenv.mkDerivation {
     name = "nixFiles";
@@ -68,7 +97,7 @@ in rec {
     # in shell.
     cmds = unlines (map
       (drv: "cp ${drv.cabal2nixDeriver}/default.nix $out/${drv.pname}.nix")
-        (builtins.attrValues (overrides ghc))
+        (builtins.attrValues fromNixpkgs)
     );
     buildPhase = ''
       mkdir $out
@@ -85,23 +114,14 @@ in rec {
 
   packageNames =
     let mk = fn: {
-      name = nixpkgs.stdenv.lib.removeSuffix ".nix" fn;
+      name = lib.removeSuffix ".nix" fn;
       value = ./hackage + "/${fn}";
     };
     in builtins.listToAttrs
       (map mk (builtins.attrNames (builtins.readDir ./hackage)));
 
   overrides = ghc: builtins.mapAttrs (importPackage ghc) packageNames;
-  # overrides = ghc: builtins.mapAttrs (callHackage ghc) packages;
 
   # versions mismatch, causes nix to segfault
   segfault = callHackage nixpkgs.haskell.packages.ghc882 "ghc" "8.8.3";
-
-  all-cabal-hashes =
-    let commit = "21fa0f534f906ead4abe15b071564e21e916c9f7";
-    in nixpkgs.fetchurl {
-      url = "https://github.com/commercialhaskell/all-cabal-hashes/archive/"
-        + "${commit}.tar.gz";
-      sha256 = "0niyw8l5qbnpwdqbaynyzsp85p7bv42rha9b8gjgjarg865r8iyy";
-    };
 }

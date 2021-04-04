@@ -3363,6 +3363,28 @@ shakefile: build:
     * get rid of IFD:
       . Most straightforward way is to run the cabal2nix and then check in the
         output files.  I can write a derivation that does that.
+    + fix hackage.nix
+      . Except you only get cabal2nix after a callHackage.
+    - Broken with withEkg.
+      . Because ansi-wl-pprint 0.6.9 doesn't compile, no profiling on
+        ansi-terminal.
+      . I assume this is because nixpkgs hackage gloms everything together,
+        haskell.nix I think is meant to fix that.
+      . Meanwhile, can I unprofile all of them?
+      . I have no solution for adding a new package.  I want to use the cabal
+        solver to find a version set, and then export that like a freeze file.
+        I also want to have *only* the version pinned libraries.
+      . But I don't think nixpkgs hackage likes this, it's one big tangled
+        fixpoint.  I could make my own, but I'd have to recreate the scoped
+        callPackage stuff.  I kind of think that stuff is awful, but something
+        at least like it is probably required to resolve cabal2nix's
+        undifferentiated list of dependencies.
+      . Actually I think this is just cabal2nix's problem, it has separate
+        libraryHaskellDepends and librarySystemDepends, just they all get
+        mashed into one import namespace.
+      ? Can I get cabal to take a list of packages with possible versions, and
+        print out a solution?
+      ? Look into haskell.nix.
     propagate deps to the shakefile:
       - use NIX_LDFLAGS instead of hardcoding paths for libsamplerate and
         rubberband
