@@ -46,6 +46,7 @@ type Section = Korvai.Section Sequence
 _sollu :: Solkattu.Sollu -> Sequence
 _sollu s = [S.Note (Solkattu.Note (Solkattu.note s))]
 
+cham = _sollu Solkattu.Cham
 dheem = _sollu Solkattu.Dheem
 dhom = _sollu Solkattu.Dhom
 di = _sollu Solkattu.Di
@@ -111,8 +112,9 @@ kitataka = kita.taka
 tarikita = tari.kita
 tadikita = ta.di.ki.ta
 
-talang :: Sequence
+talang, talanga :: Sequence
 talang = ta.lang
+talanga = ta.langa
 
 dinga, dingu, tanga, langa :: Sequence
 dinga = din.__.ga
@@ -264,6 +266,7 @@ _mridangamStrokes =
     , (dhom, o)
     , (tang, u)
     , (lang, u)
+    , (cham, u)
     , (talang, p.u)
     , (takadinna, k.o.o.k)
     , (tdgnt, k.t.k.n.o)
@@ -283,6 +286,7 @@ _kendangStrokes1 =
     [ (thom, a)
     , (tang, u)
     , (lang, u)
+    , (cham, u)
     , (talang, o.u)
     , (takadinna, p.a.o.p)
     , (tdgnt, o.p.k.t.a)
@@ -300,6 +304,7 @@ _kendangStrokes2 =
     [ (thom, a)
     , (tang, y)
     , (lang, y)
+    , (cham, y)
     , (talang, a.u)
     , (takadinna, p.a.o.k)
     , (tdgnt, o.k.p.l.a)
@@ -317,6 +322,7 @@ _reyongStrokes =
     [ (thom, o)
     , (tang, o)
     , (lang, o)
+    , (cham, o)
     , (talang, b.o)
     , (nakatiku, i.r3.i.r2.r3.i.r3.r2)
         -- TODO melodic version, there could also be a rhythmic version

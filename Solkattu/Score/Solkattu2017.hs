@@ -593,7 +593,7 @@ c_17_10_23 = date 2017 10 23 $ ganesh $ koraippu $
     , din.__8 . r3 (k_pkn.tat.__7) . t1
         . din.__8 . r3 (o_okn.k_pkn) . t1
     , r2 $ din.__4 . o_okn.k_pkn.t1
-    , r3 (din.__.t2) . r2 (din.g tend)
+    , r3 (din.__.t2) . r2 (__.g tend2)
     -- korvai
     , k_pkn.g tend2 . r3 (tat.__3.din.__3)
         . kitataka.k_pkn.g tend2 . r3 (tat.__.din.__3)

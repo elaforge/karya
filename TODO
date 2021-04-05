@@ -81,6 +81,7 @@ UNSORTED
     . Then the problem is that 'sym' or 'symbolic' variable names are generic
       without the pitch qualification.
     . Maybe psym or symp?  Or just call it pitch.
+    . What about swaram? Swar?
   - copy paste that understands track types
   green-mold, if I replace "i " "" for "inst=b", derive takes forever
     . Is it possible to get progress so I can see what it's doing?
@@ -249,24 +250,12 @@ UNSORTED
       a playable instrument.
     . Actually, it is, it's the version without the scale, so it would work
       for any tuning.
-  / Monad m => Ui.StateT m a instead of Ui.M m => m a is more flexible, since
-    I can put another monad on top.
-    . I think I only switched to Ui.M because it was awkward pre-AMP, due to
-      needing to add (Functor m, Monad m).
-    . Rename to make it shorter: Monad m => Ui.T m a
-    . Well no I don't think I can do this, because Ui.M has methods.
-  - integrated events are italic, but they look very similar
-    . Use text color?
   - track integration should possibly be indexed by TrackId, so I don't have
     the possibility of overlapping ones.
     . I also want to be able to match on TrackId for the manual integration
       in TScore.  I should refactor on the integration stuff to account for
       all the variants in a less ad-hoc way.
     . Wait actually tscore shouldn't use TrackId.
-  / sometimes I want to see the control curve without event text in the way
-    . E.g. when reading wayang patterns.
-    . Maybe I just need to learn to read better.
-    . Actually LTrack.filled is pretty good.
   - MemoryLeak latency:
     . getting above the limit of 0.05
     . I don't know what the historical values have been, maybe I should be
@@ -2441,17 +2430,17 @@ synth: im:
           another route.  This is confusing, but it's a result of how I have
           a built-in default pitch-oriented MidiThru.
       How should thru work?
-          . There are two kinds: pitch oriented keyboard, and Attributes
-            oriented drums.  Then there are two backends, MIDI and Osc.  It's
-            all keyed off of an instrument.
-          . So each patch can have a field for thru.  If it's pitch and MIDI,
-            then invoke the whole NoteEntry.cmds_with_input set.  Actually,
-            this set is complicated, because it's pitched note entry, not just
-            thru.  So actually each patch has a field for general note entry.
-            But it's not keyed by instrument, but by track, since there are
-            control tracks too.  So I only want Info.Note tracks with an
-            instrument, the others continue to use the same Cmd.Track
-            mechanism.
+        . There are two kinds: pitch oriented keyboard, and Attributes
+          oriented drums.  Then there are two backends, MIDI and Osc.  It's
+          all keyed off of an instrument.
+        . So each patch can have a field for thru.  If it's pitch and MIDI,
+          then invoke the whole NoteEntry.cmds_with_input set.  Actually,
+          this set is complicated, because it's pitched note entry, not just
+          thru.  So actually each patch has a field for general note entry.
+          But it's not keyed by instrument, but by track, since there are
+          control tracks too.  So I only want Info.Note tracks with an
+          instrument, the others continue to use the same Cmd.Track
+          mechanism.
   / I think I want to switch from by-instrument muting to by-track, because
     that's what the UI is.
     . TrackId is not unique.  PlayUtil.filter_track_muted filters out any
@@ -5457,9 +5446,9 @@ solkattu:
       . Find existing uses and delete group, or ensure group make sense.
       . Only apply group if it's not already a group (or pattern or whatever).
       . Should repeat also group?
-  can I do something like Dsl.Mridangam but for kendang?
+  * can I do something like Dsl.Mridangam but for kendang?
     . I want both KendangTunggal and KendangPasang
-    - Mridangam is hardcoded in Korvai, can I make Korvai polymorphic?
+    . Mridangam is hardcoded in Korvai, can I make Korvai polymorphic?
       . Korvai Sollu -> can be realized as any instrument
       . Korvai stroke -> can be realized as Instrument stroke.
       . This requires type equality in realize:
@@ -5558,7 +5547,20 @@ solkattu:
       . din.__3.tat.__3.din.__3 -> din.din.__.tat.tat.__.din.din.__
         4: din.__.din.__ etc., 5: din.__.din.__3 etc.
       . tk, tktu - these fill 1 and 2 respectively
-  - Transcribing ad-hoc things and sarvalaghu mixed with korvai is awkward.
+  inline mridangam:
+    . Transcribing ad-hoc things and sarvalaghu mixed with korvai is awkward.
+    . Maybe I could inject strokes in directly to solkattu, but it would only
+      work for one instrument of course.
+    . If I really want it for another instrument, I would want to write it out
+      individually, and in the stroke map is still the best place.
+    - So maybe what I want is a generic named "pattern" which is matched in
+      the stroke map.  I don't want to make up some sollus for it.
+    - Then if the instrument doesn't have it, I could render with
+      placeholders.
+      . In fact, why not do placeholders for all unmatched strokes?  That would
+        make it no longer fatal, and also render everything that can be.
+      . However, I'd want inline strokes without a match to be nonfatal for
+        tests, while a normal non-match is still fatal for tests.
   - Duration is supposedly absolute, but it only works at the top level.
     So it's awkward when everything is in tisram, I do 'map (nadai 6)' and now
     sarvaD is wrong.
@@ -5587,9 +5589,6 @@ solkattu:
       . But I don't think I can do that with 'map section', maybe have the
         usual 'x2' 'devel' etc. be overloaded on ToSection.
       . This may require SequenceT to be a newtype instead of type synonym.
-  / abstract group names are wrong
-    . e.g. Solkattu2013.c_13_07_23 groups go 18 19 20, they should go 18 16 14
-    . They're right, I'm confused.
   format: output:
     html:
       * Solkattu.Score.Mridangam2020.sarva_tani messed up
@@ -5643,10 +5642,7 @@ solkattu:
       in the IRC bot or evaluate expression web page thing.
     . The DB goes in a separate repo, which is edited and synced from the web
       UI.
-    . To render sounds, I don't know if there is software to host and run a VST
-      automatically.  If I have my own sampler it's easy though.  I can either
-      run karya headless, or just bypass and generate im notes directly via
-      the solkattu library.
+    . To render sounds, use Solkattu.Play.
   . Solkattu2017.c_17_07_13 is showing the difficulty of the
     (solkattu, stroke_map) approach, because there are too many meanings
     for taka and din.  Really if it's meant to be useful for different
@@ -5723,8 +5719,7 @@ solkattu:
     . This is also part of the intensity pattern, where the final repeat
       may have an alternate more intense realization.
   - I should be able to add multiple realizations of the same
-    instrument, keyed by string, e.g. for different mridangists
-    realizations.
+    instrument, keyed by string, e.g. for different mridangists realizations.
   pakhawaj:
     - integrate pakhawaj bols
       . I think I need "kre" support.

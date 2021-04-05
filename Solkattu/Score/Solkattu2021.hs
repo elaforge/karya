@@ -60,15 +60,41 @@ e_35_kanda, e_35_misra :: Korvai
 april_tani :: Score
 april_tani = tani
     [ Comment "80 bpm"
-    , Comment "my solo: kt k _ - Solkattu2020.c_20_10_25"
+    , Comment "my solo - Solkattu2020.c_20_10_25"
     , K Solkattu2020.c_20_10_25
     , Comment "ganesh solo"
     , Comment "misra koraippu - Solkattu2017.c_17_10_23"
-    , K $ slice 0 6 Solkattu2017.c_17_10_23
+    , K koraippu_development
+    , K $ slice 2 6 Solkattu2017.c_17_10_23
     , Comment "mohra korvai, together"
     , K $ index 1 SolkattuMohra.c_mohra
     , K c_mohra_korvai
     ]
+
+-- TODO this is awkward, what I really want is to mix in mridangam notation.
+koraippu_development :: Korvai
+koraippu_development = ganesh $ koraippu $ korvaiS adi mridangam $ map su
+    [ din.__8 . p7o.p7o.p7 . p7s.p7o.p7o.p7.takadinna.takita
+    , other
+    , din.__8 . p7o.p7o.p7 . takadinna.takita . p7o.p7o . ending
+    , other
+    , din.__8 . r4 ending
+    , other
+    ]
+    where
+    other = din.__n 64 -- TODO some notation for "other person plays"
+    p7 = g $ na.__.din.__.na.din.__
+    p7o = 2^p7
+    p7s = 3^p7
+    ending = g $ ta.dit.__.ta.__.kita . taka.__.din.__.tat.__
+    mridangam = makeMridangam
+        [ (p7,  on.__.d.__.n.d.__)
+        , (p7o, on.__.od.__.on.od.__)
+        , (p7s,  n.__.od.__.on.od.__)
+        , (takita, n.p.k)
+        , (din, od)
+        , (ending, k.t.__.k.__.t.k . k.o.__.od.__.k.__)
+        ]
 
 c_mohra_korvai :: Korvai
 c_mohra_korvai = ganesh $ mohraKorvai $ korvaiS1 adi mridangam $ mconcat
