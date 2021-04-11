@@ -313,26 +313,26 @@ overlapSymbols strokeWidth = snd . mapAccumLSnd combine ("", Nothing)
         newText = prefix
             <> snd (textSplitAt (Realize.textLength prefix) (_text sym))
 
--- | I think lenses are the way to lift mapAccumL into second.
-mapAccumLSnd :: (state -> a -> (state, b)) -> state -> [(x, a)]
-    -> (state, [(x, b)])
-mapAccumLSnd f state = List.mapAccumL f2 state
-    where
-    f2 state (x, a) = (state2, (x, b))
-        where (state2, b) = f state a
-
 makeSymbols :: Solkattu.Notation stroke => Int -> Tala.Tala -> Set Tala.Akshara
     -> Format.NormalizedFlat stroke -> [(S.State, Symbol)]
 makeSymbols strokeWidth tala angas = go
     where
     go (S.FNote _ (state, note)) =
         (:[]) $ (state,) $ makeSymbol state $ case note of
-            S.Attack a -> (False,) $
-                Realize.justifyLeft strokeWidth (Solkattu.extension a)
-                    (Solkattu.notation a)
-            S.Sustain a -> (True,) $ Text.replicate strokeWidth
-                (Text.singleton (Solkattu.extension a))
-            S.Rest -> (True, Realize.justifyLeft strokeWidth ' ' "_")
+            S.Attack a ->
+                ( False
+                , style
+                , Realize.justifyLeft strokeWidth (Solkattu.extension a)
+                    notation
+                )
+                where (style, notation) = Solkattu.notation a
+            S.Sustain a ->
+                ( True
+                , mempty
+                , Text.replicate strokeWidth
+                    (Text.singleton (Solkattu.extension a))
+                )
+            S.Rest -> (True, mempty, Realize.justifyLeft strokeWidth ' ' "_")
     go (S.FGroup _ group children) = modify (concatMap go children)
         where
         modify = case Solkattu._type group of
@@ -360,8 +360,9 @@ makeSymbols strokeWidth tala angas = go
             -- innermost group's highlight will show, which seems to be most
             -- useful in practice.
             Just _ -> sym
-    makeSymbol state (isSustain, text) = Symbol
+    makeSymbol state (isSustain, style, text) = Symbol
         { _text = text
+        , _style = style
         , _isSustain = isSustain
         , _emphasize = shouldEmphasize tala angas state
         , _highlight = Nothing
@@ -410,13 +411,14 @@ breakBefore maxWidth =
 
 data Symbol = Symbol {
     _text :: !Text
+    , _style :: !Styled.Style
     , _isSustain :: !Bool
     , _emphasize :: !Bool
     , _highlight :: !(Maybe (Format.Highlight, Styled.Color))
     } deriving (Eq, Show)
 
 instance Pretty Symbol where
-    pretty (Symbol text _ emphasize highlight) =
+    pretty (Symbol text _style _isSustain emphasize highlight) =
         text <> (if emphasize then "(b)" else "")
         <> case highlight of
             Nothing -> ""
@@ -425,13 +427,13 @@ instance Pretty Symbol where
             Just (Format.EndHighlight, _) -> "|"
 
 formatSymbol :: Symbol -> Styled.Styled
-formatSymbol (Symbol text _ emph highlight) =
+formatSymbol (Symbol text style _isSustain emph highlight) =
     (case highlight of
         Nothing -> id
         Just (Format.StartHighlight, color) -> Styled.bg color
         Just (_, color) -> Styled.bg color
     ) $
-    (if emph then emphasize else Styled.plain) text
+    Styled.styled style $ (if emph then emphasize else Styled.plain) text
     where
     emphasize word
         -- A bold _ looks the same as a non-bold one, so put a bar to make it
@@ -456,3 +458,11 @@ textSplitAt at text =
 
 breakFst :: (key -> Bool) -> [(key, a)] -> ([a], [a])
 breakFst f = bimap (map snd) (map snd) . break (f . fst)
+
+-- | I think lenses are the way to lift mapAccumL into second.
+mapAccumLSnd :: (state -> a -> (state, b)) -> state -> [(x, a)]
+    -> (state, [(x, b)])
+mapAccumLSnd f state = List.mapAccumL f2 state
+    where
+    f2 state (x, a) = (state2, (x, b))
+        where (state2, b) = f state a

@@ -20,12 +20,12 @@ import qualified Data.Text as Text
 
 import qualified GHC.Generics as Generics
 
-import qualified Util.Doc as Doc
 import qualified Util.Logger as Logger
 import qualified Util.Maps as Maps
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+import qualified Util.Styled as Styled
 import qualified Util.Texts as Texts
 import qualified Util.UF as UF
 
@@ -71,8 +71,7 @@ mapStroke f = \case
     Abstract a -> pure $ Abstract a
     Alignment a -> pure $ Alignment a
 
-instance DeepSeq.NFData (Note stroke) where
-    rnf _ = ()
+instance DeepSeq.NFData (Note stroke) where rnf _ = ()
 
 data Stroke stroke = Stroke {
     _emphasis :: !Emphasis
@@ -86,19 +85,15 @@ toExpr (Stroke emphasis stroke) = case emphasis of
     Heavy -> Expr.with Symbols.accent stroke
 
 instance Solkattu.Notation stroke => Solkattu.Notation (Stroke stroke) where
-    notation (Stroke emphasis stroke) = case emphasis of
-        -- TODO use bold or something But then I have to extend notation to
-        -- allow colors, like notationHtml.
-        Heavy -> Solkattu.notation stroke
-        Normal -> Solkattu.notation stroke
-        Light -> Solkattu.notation stroke
-    notationHtml (Stroke emphasis stroke) =
-        emphasize $ Solkattu.notationHtml stroke
+    notation (Stroke emphasis stroke) = (style <> strokeStyle, strokeText)
         where
-        emphasize = case emphasis of
-            Light -> Doc.tag_attrs "font" [("color", "gray")] . Just
-            Normal -> id
-            Heavy -> Doc.tag_attrs "font" [("color", "darkred")] . Just
+        -- The stroke shouldn't use a style, but if it does, emphasis overrides
+        -- it.
+        (strokeStyle, strokeText) = Solkattu.notation stroke
+        style = case emphasis of
+            Light -> mempty { Styled._foreground = Just (Styled.rgbGray 0.5) }
+            Normal -> mempty
+            Heavy -> mempty { Styled._foreground = Just Styled.red }
 
 instance Pretty stroke => Pretty (Stroke stroke) where
     pretty (Stroke emphasis stroke) = (<> pretty stroke) $ case emphasis of
@@ -152,20 +147,18 @@ instance S.HasMatras (Note stroke) where
 
 instance Solkattu.Notation stroke => Solkattu.Notation (Note stroke) where
     notation = \case
-        Space Solkattu.Rest -> "_"
-        Space Solkattu.Offset -> " "
+        Space Solkattu.Rest -> Solkattu.textNotation "_"
+        Space Solkattu.Offset -> Solkattu.textNotation " "
         Note s -> Solkattu.notation s
-        Abstract meta -> metaNotation meta
-        Alignment _ -> "" -- this should be filtered out prior to render
+        Abstract meta -> Solkattu.textNotation $ metaNotation meta
+        -- this should be filtered out prior to render
+        Alignment _ -> Solkattu.textNotation ""
     extension = \case
         Space Solkattu.Rest -> ' '
         Abstract meta -> case Solkattu._type meta of
             Solkattu.GSarva -> '='
             _ -> '-'
         _ -> ' '
-    notationHtml n = case n of
-        Note s -> Solkattu.notationHtml s
-        _ -> Doc.html $ Solkattu.notation n
 
 metaNotation :: Solkattu.Meta -> Text
 metaNotation (Solkattu.Meta _ (Just name) _) = name
@@ -580,7 +573,8 @@ formatError = format . UF.toList
     format (result, Nothing) = Right result
     format (pre, Just err) = Left $
         Texts.unlines2 (errorNotation (S.flattenedNotes pre)) err
-    errorNotation = Text.unwords . map (justifyLeft 2 ' ' . Solkattu.notation)
+    errorNotation = Text.unwords
+        . map (justifyLeft 2 ' ' . Solkattu.notationText)
 
 {- | Given a group like
 

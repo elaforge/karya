@@ -44,7 +44,7 @@ filler = Realize.Stroke Realize.Light T.Ka
 -- * strokes
 
 instance Solkattu.Notation Stroke where
-    notation = \case
+    notation = Solkattu.textNotation . \case
         Plak -> "PL"
         Ka -> "k"
         Pak -> "P"
@@ -56,7 +56,7 @@ instance Solkattu.Notation Stroke where
         De -> "a"
         Tut -> "o"
 
-instance Pretty Stroke where pretty = Solkattu.notation
+instance Pretty Stroke where pretty = Solkattu.notationText
 
 -- | These have to match with "Cmd.Instrument.KendangBali".
 instance Expr.ToExpr Stroke where

@@ -15,7 +15,7 @@
 module Solkattu.Dsl.Generic (
     s
     , (.), (•), ø
-    , htmlWriteAll
+    , writeHtml
     -- * notation
     , karvai
     , stripRests
@@ -102,8 +102,8 @@ makeNote a = [S.Note a]
 
 -- * realize
 
-htmlWriteAll :: FilePath -> Korvai -> IO ()
-htmlWriteAll fname = Html.writeAll fname • Korvai.Single
+writeHtml :: FilePath -> Korvai -> IO ()
+writeHtml fname = Html.writeAll fname • Korvai.Single
 
 -- * notation
 

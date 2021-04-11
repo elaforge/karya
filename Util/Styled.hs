@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE NoMonomorphismRestriction #-}
 -- | A simple Styled Text implementation.  There are a few others on hackage
 -- (terminal-text, rainbow, ...), but they're all too complicated for me.
 --
@@ -20,29 +21,38 @@ module Util.Styled (
     , toText, toTexts
     , Color(..), RgbColor, AnsiColor
     , black, red, green, yellow, blue, magenta, cyan, white
-    , rgb, rgbGray, rgbColor, rgbComponents
-    , plain
+    , rgb, rgbGray, rgbColor, toRgb
+    , styled, plain
     , bright
     , fgs, bgs, bolds, underlines
     , fg, bg, bold, underline
     -- * text util
     , join
+    -- * html
+    , toHtml, toHtmls
+    , styleHtml
 ) where
-import Prelude hiding (print)
-import Control.Applicative ((<|>))
-import Data.ByteString (ByteString)
+import           Prelude hiding (print)
+import           Control.Applicative ((<|>))
+import           Data.Bifunctor (second)
+import           Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as ByteString
+import qualified Data.Char as Char
 import qualified Data.Colour as Colour
 import qualified Data.Colour.Names as Colour.Names
 import qualified Data.Colour.SRGB as SRGB
 import qualified Data.List as List
+import qualified Data.Maybe as Maybe
 import qualified Data.String as String
 import qualified Data.Text as Text
-import Data.Text (Text)
+import           Data.Text (Text)
 import qualified Data.Text.Encoding as Encoding
 
 import qualified System.Console.ANSI as ANSI
 
+import qualified Util.Doc as Doc
+import qualified Util.Num as Num
+import qualified Util.Seq as Seq
 import qualified Util.Then as Then
 
 
@@ -133,22 +143,20 @@ data Style = Style {
     , _underline :: !Bool
     } deriving (Eq, Show)
 
+-- | Left side overrides the right side, for consistency with other Semigroups.
 instance Semigroup Style where
     Style fg1 bg1 bold1 underline1 <> Style fg2 bg2 bold2 underline2 =
-        Style (fg2 <|> fg1) (bg2 <|> bg1) -- reversed so right side overrides
+        Style (fg1 <|> fg2) (bg1 <|> bg2)
             (bold1 || bold2) (underline1 || underline2)
 
 instance Monoid Style where
-    mempty = noStyle
+    mempty = Style
+        { _foreground = Nothing
+        , _background = Nothing
+        , _bold = False
+        , _underline = False
+        }
     mappend = (<>)
-
-noStyle :: Style
-noStyle = Style
-    { _foreground = Nothing
-    , _background = Nothing
-    , _bold = False
-    , _underline = False
-    }
 
 data Color = Ansi !AnsiColor | Rgb !RgbColor
     deriving (Eq, Show)
@@ -175,9 +183,12 @@ rgbGray n = rgb n n n
 rgbColor :: Float -> Float -> Float -> RgbColor
 rgbColor r g b = RgbColor $ SRGB.sRGB r g b
 
-rgbComponents :: RgbColor -> (Float, Float, Float)
-rgbComponents (RgbColor c) = (r, g, b)
+toRgb :: RgbColor -> (Float, Float, Float)
+toRgb (RgbColor c) = (r, g, b)
     where (SRGB.RGB r g b) = SRGB.toSRGB c
+
+styled :: ToStyled a => Style -> a -> Styled
+styled style = mapStyle (style<>) . toStyled
 
 plain :: Text -> Styled
 plain = Styled mempty
@@ -207,3 +218,52 @@ underline = underlines . toStyled
 
 join :: Styled -> [Styled] -> Styled
 join sep = mconcat . List.intersperse sep
+
+
+-- * html
+
+toHtml :: Styled -> Doc.Html
+toHtml = mconcat . toHtmls
+
+toHtmls :: Styled -> [Doc.Html]
+toHtmls = map fmt . groupFst . toList
+    where fmt (style, texts) = styleHtml style (Doc.html (mconcat texts))
+
+styleHtml :: Style -> Doc.Html -> Doc.Html
+styleHtml (Style fg bg bold underline) = foldr (.) id . concat $
+    [ case Maybe.catMaybes [("color:",)<$>fg, ("background-color:",) <$> bg] of
+        [] -> []
+        pairs -> [spanStyle (Text.intercalate ";" css)]
+            where css = [name <> colorHtml c | (name, c) <- pairs]
+    , [Doc.tag "b" | bold]
+    , [Doc.tag "u" | underline]
+    ]
+
+spanStyle :: Text -> Doc.Html -> Doc.Html
+spanStyle style = Doc.tag_attrs "span" [("style", style)] . Just
+
+colorHtml :: Color -> Text
+colorHtml = \case
+    Ansi color -> ansiHtml color
+    Rgb color -> rgbHtml color
+
+rgbHtml :: RgbColor -> Text
+rgbHtml color = mconcat ["#", hex r, hex g, hex b]
+    where
+    hex = Num.hex 2 . Num.clamp 0 255 . (round :: Float -> Int) . (*255)
+    (r, g, b) = toRgb color
+
+ansiHtml :: AnsiColor -> Text
+ansiHtml (AnsiColor intensity color) = case (intensity, color) of
+    (ANSI.Dull, ANSI.Black) -> "black"
+    (ANSI.Vivid, ANSI.Black) -> "darkgray"
+    _ -> cdark <> cname
+    where
+    cname = Text.pack $ map Char.toLower $ show color
+    cdark = case intensity of
+        ANSI.Dull -> "dark"
+        ANSI.Vivid -> ""
+
+-- | Group adjacent by fst.
+groupFst :: Eq a => [(a, b)] -> [(a, [b])]
+groupFst =  map (second (map snd)) . Seq.keyed_group_adjacent fst

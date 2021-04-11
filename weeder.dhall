@@ -21,6 +21,7 @@
     , "User\\..*" -- Config, only possibly linked in.
 
     -- called from ghci
+    , "D\\..*"
     , "Ness\\..*"
     , "Solkattu\\.Db\\..*"
 

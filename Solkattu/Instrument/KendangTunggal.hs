@@ -23,7 +23,7 @@ data Stroke =
 -- * strokes
 
 instance Solkattu.Notation Stroke where
-    notation = \case
+    notation = Solkattu.textNotation . \case
         Plak -> "P"
         Pak -> "p"
         Pang -> "t"
@@ -33,7 +33,7 @@ instance Solkattu.Notation Stroke where
         Tut -> "o"
         De -> "a"
 
-instance Pretty Stroke where pretty = Solkattu.notation
+instance Pretty Stroke where pretty = Solkattu.notationText
 
 -- | TODO should I make these consistent with 'Strokes'?
 instance Expr.ToExpr Stroke where

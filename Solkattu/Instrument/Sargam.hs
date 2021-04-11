@@ -32,11 +32,12 @@ data Stroke = Stroke {
     } deriving (Show, Eq, Ord)
 
 instance Solkattu.Notation Stroke where
-    notation (Stroke pitch attrs) = Solkattu.notation pitch
-        <> if Set.null attrs then ""
-            else Text.intercalate "+" (Set.toList attrs)
+    notation (Stroke pitch attrs) =
+        Solkattu.textNotation $ Solkattu.notationText pitch
+            <> if Set.null attrs then ""
+                else Text.intercalate "+" (Set.toList attrs)
 
-instance Pretty Stroke where pretty = Solkattu.notation
+instance Pretty Stroke where pretty = Solkattu.notationText
 
 instance Expr.ToExpr Stroke where
     to_expr (Stroke _ attrs) =
@@ -46,18 +47,19 @@ instance Expr.ToExpr Stroke where
 instance Expr.ToExpr (Realize.Stroke Stroke) where to_expr = Realize.toExpr
 
 instance Solkattu.Notation Pitch.Pitch where
-    notation (Pitch.Pitch oct degree) = Solkattu.notation degree <> case oct of
-        3 -> dotBelow
-        4 -> ""
-        5 -> dotAbove
-        _ -> showt oct
+    notation (Pitch.Pitch oct degree) = Solkattu.textNotation $
+        Solkattu.notationText degree <> case oct of
+            3 -> dotBelow
+            4 -> ""
+            5 -> dotAbove
+            _ -> showt oct
 
 -- | Show pitch as parsed by the raga scales.
 scorePitch :: Pitch.Pitch -> Text
-scorePitch (Pitch.Pitch oct degree) = showt oct <> Solkattu.notation degree
+scorePitch (Pitch.Pitch oct degree) = showt oct <> Solkattu.notationText degree
 
 instance Solkattu.Notation Pitch.Degree where
-    notation (Pitch.Degree pc _accs) =
+    notation (Pitch.Degree pc _accs) = Solkattu.textNotation $
         fromMaybe (showt pc) (degrees Vector.!? pc)
         where degrees = Vector.fromList $ map Text.singleton "srgmpdn"
 

@@ -5434,7 +5434,7 @@ solkattu:
         newtype SolluMap stroke =
             SolluMap (Map (SolluMapKey Solkattu.Sollu) [Maybe (Stroke stroke)])
       . I could just pass stroke through.
-  + don't render hv as capital, it is ambiguous with both thoppi
+  * don't render hv as capital, it is ambiguous with both thoppi
     use a color, that way it's still greppable
     . It's instance Notation in Realize, which already wants to do this, but
       then I need to return colors from notation.  But if I do, could
@@ -5533,6 +5533,9 @@ solkattu:
         enough to pick random but twice as likely to pick with score one
         lower.
   technique:
+    - o with space can become od.
+      . I guess I would want to tag a stroke, and technique postproc can then
+        apply it if appropriate.
     - I should be able to configure per-korvai technique
       . For irregular reductions, e.g. Solkattu2018.misra_muktayi1
       . Or just general purpose post-processing.

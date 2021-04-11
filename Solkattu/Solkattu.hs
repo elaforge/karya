@@ -66,9 +66,9 @@ import qualified Data.List as List
 import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
-import qualified Util.Doc as Doc
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+import qualified Util.Styled as Styled
 
 import qualified Derive.Expr as Expr
 import qualified Solkattu.S as S
@@ -85,12 +85,16 @@ import           Global
     The Show and Pretty superclasses are to make debugging more convenient.
 -}
 class (Show a, Pretty a) => Notation a where
-    notation :: a -> Text
-    notationHtml :: a -> Doc.Html
-    notationHtml = Doc.html . notation
+    notation :: a -> (Styled.Style, Text)
     -- | Extend the note to fill its time with this character.
     extension :: a -> Char
     extension _ = ' '
+
+textNotation :: Text -> (Styled.Style, Text)
+textNotation = (mempty,)
+
+notationText :: Notation a => a -> Text
+notationText = snd . notation
 
 type Error = Text
 
@@ -276,11 +280,10 @@ instance S.HasMatras Pattern where
     matrasOf (PatternM m) = m
     hasSustain _ = True
 
-instance Pretty Pattern where pretty = notation
+instance Pretty Pattern where pretty = notationText
 
 instance Notation Pattern where
-    notation p = case p of
-        PatternM matras -> showt matras <> "p"
+    notation (PatternM matras) = textNotation $ showt matras <> "p"
     extension _ = '-'
 
 instance Expr.ToExpr Pattern where
@@ -298,8 +301,8 @@ data Sollu =
     | Ta | Tam | Tang | Tong | Tat | Tha | Thom | Ti
     deriving (Eq, Ord, Enum, Bounded, Show)
 
-instance Notation Sollu where notation = Text.toLower . showt
-instance Pretty Sollu where pretty = notation
+instance Notation Sollu where notation = textNotation . Text.toLower . showt
+instance Pretty Sollu where pretty = notationText
 
 -- ** parseSollus
 
@@ -327,7 +330,7 @@ parseSollusWord = go
         where has = (`Text.isPrefixOf` prefix)
 
 allSollus :: [(Text, Sollu)]
-allSollus = Seq.key_on notation $ filter (/= NoSollu) [minBound .. maxBound]
+allSollus = Seq.key_on notationText $ filter (/= NoSollu) [minBound .. maxBound]
 
 -- * durations
 

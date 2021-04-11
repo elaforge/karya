@@ -54,20 +54,20 @@ instance Solkattu.Notation Stroke where
     notation (Valantalai v) = Solkattu.notation v
     -- There's no uppercase for ', and it's light anyway, so don't show Min.
     notation (Both t Min) = Solkattu.notation t
-    notation (Both t v) = case t of
+    notation (Both t v) = Solkattu.textNotation $ case t of
         Tha _ -> case v of
             Ki -> "P"
             Ta -> "X"
             -- Hopefully this is big enough to not look like screen gunk, but
             -- small enough to not be too distracting or make the original
             -- character unreadable.
-            _ -> Solkattu.notation v <> overline
+            _ -> Solkattu.notationText v <> overline
         Thom _ -> case v of
             Kin -> "o" <> cedillaBelow
             Tan -> "ô"
-            _ -> Text.toUpper (Solkattu.notation v)
+            _ -> Text.toUpper (Solkattu.notationText v)
 
-instance Pretty Stroke where pretty = Solkattu.notation
+instance Pretty Stroke where pretty = Solkattu.notationText
 
 -- COMBINING CEDILLA
 cedillaBelow :: Text
@@ -78,13 +78,13 @@ overline :: Text
 overline = "\x0305"
 
 instance Solkattu.Notation Thoppi where
-    notation n = case n of
+    notation = Solkattu.textNotation . \case
         Thom Low -> "o"
         Thom Up -> "ó"
         Tha _ -> "p"
 
 instance Solkattu.Notation Valantalai where
-    notation n = case n of
+    notation = Solkattu.textNotation . \case
         Ki -> "k"
         Ta -> "t"
         Mi -> "l"
@@ -97,8 +97,28 @@ instance Solkattu.Notation Valantalai where
         Kin -> ","
         Tan -> "^"
 
-instance Pretty Thoppi where pretty = Solkattu.notation
-instance Pretty Valantalai where pretty = Solkattu.notation
+ganeshNotationThoppi :: Thoppi -> Text
+ganeshNotationThoppi = \case
+    Thom Low -> "d"
+    Thom Up -> "d"
+    Tha _ -> "h"
+
+ganeshNotationValantalai :: Valantalai -> Text
+ganeshNotationValantalai = \case
+    Ki -> "k"
+    Ta -> "t"
+    Mi -> "?"
+    Min -> "?"
+    Nam -> "n"
+    Din -> "i"
+    AraiChapu -> "l"
+    MuruChapu -> "l"
+    Dheem -> "?"
+    Kin -> ","
+    Tan -> "^"
+
+instance Pretty Thoppi where pretty = Solkattu.notationText
+instance Pretty Valantalai where pretty = Solkattu.notationText
 
 -- | Pretty reproduces the "Derive.Solkattu.Dsl" syntax, which has to be
 -- haskell syntax, so it can't use +, and I have to put thoppi first to avoid
@@ -107,8 +127,8 @@ instance Pretty Valantalai where pretty = Solkattu.notation
 instance Expr.ToExpr Stroke where
     to_expr s = Expr.generator0 $ Expr.Symbol $ case s of
         Thoppi t -> thoppi t
-        Valantalai v -> Solkattu.notation v
-        Both t v -> thoppi t <> Solkattu.notation v
+        Valantalai v -> Solkattu.notationText v
+        Both t v -> thoppi t <> Solkattu.notationText v
         where
         thoppi t = case t of
             Thom Low -> "o"
@@ -217,7 +237,7 @@ fromString = mapMaybeM parse
 
 notations :: Map Char Stroke
 notations = Map.fromList $ (extras++) $ Seq.map_maybe_fst isChar $
-    Seq.key_on Solkattu.notation $ concat
+    Seq.key_on Solkattu.notationText $ concat
         [ map Thoppi (lhs ++ [Thom Up])
         , map Valantalai rhs
         -- Omit Min, because it gets omitted on a Both.  Omit other little

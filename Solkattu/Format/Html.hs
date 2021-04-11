@@ -367,7 +367,7 @@ typeCss = Text.unlines $ concat
                 <> end <> ", " <> end <> ", white) }"
         ]
     cssColor c = "rgb(" <> Text.intercalate ", " (map to8 [r, g, b]) <> ")"
-        where (r, g, b) = Styled.rgbComponents c
+        where (r, g, b) = Styled.toRgb c
     to8 = showt . round . (*255)
 
 data Pos = Start | In | End
@@ -494,8 +494,12 @@ makeSymbols = go
     normalizeSarva (S.Attack n@(Realize.Abstract meta))
         | Solkattu._type meta == Solkattu.GSarva = S.Sustain n
     normalizeSarva n = n
-    notation state = bold . Solkattu.notationHtml
-        where bold = if Format.onAkshara state then Doc.tag "b" else id
+    notation state n = Styled.styleHtml style (Doc.html notation)
+        where
+        style
+            | Format.onAkshara state = noteStyle { Styled._bold = True }
+            | otherwise = noteStyle
+        (noteStyle, notation) = Solkattu.notation n
 
 formatTable :: Tala.Tala -> Int -> Korvai.Section ()
     -> [(Maybe Format.Ruler, [(S.State, Symbol)])] -> [(Bool, [Doc.Html])]
@@ -543,9 +547,6 @@ formatTable tala _sectionIndex section rows = map row $ zipFirstFinal rows
             , ["finalLine" | isFinal]
             ]
     angas = Format.angaSet tala
-
--- showh :: Show a => a -> Doc.Html
--- showh = Doc.html . showt
 
 zipFirstFinal :: [a] -> [(Bool, a, Bool)]
 zipFirstFinal =

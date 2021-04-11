@@ -19,7 +19,7 @@ data Stroke = N1 | N2 | N3 | N4 | N14 | Byut | Byong | CekC | CekO
     deriving (Show, Eq, Ord)
 
 instance Solkattu.Notation Stroke where
-    notation s = case s of
+    notation = Solkattu.textNotation . \case
         N1 -> "1"
         N2 -> "2"
         N3 -> "3"
@@ -30,7 +30,7 @@ instance Solkattu.Notation Stroke where
         CekC -> "k"
         CekO -> "x"
 
-instance Pretty Stroke where pretty = Solkattu.notation
+instance Pretty Stroke where pretty = Solkattu.notationText
 
 instance Expr.ToExpr Stroke where
     to_expr s = case s of
