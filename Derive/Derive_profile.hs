@@ -29,6 +29,7 @@ import qualified Derive.Stream as Stream
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
 import qualified Ui.UiTest as UiTest
 
 import           Global
@@ -192,7 +193,7 @@ derive_saved with_perform fname = do
     (ui_state, library, aliases) <- either errorIO return
         =<< DeriveSaved.load_score fname
     block_id <- maybe (errorIO $ txt fname <> ": no root block") return $
-        Ui.config#Ui.root #$ ui_state
+        Ui.config#UiConfig.root #$ ui_state
     let cmd_state = DeriveSaved.add_library library aliases
             (Cmd.initial_state cmd_config)
     ((events, logs), _cpu) <-
@@ -219,7 +220,7 @@ derive_size create = do
     ui_state = UiTest.exec Ui.empty create
     result = DeriveTest.derive_block ui_state UiTest.default_block_id
     mmsgs = snd $ DeriveTest.perform_stream DeriveTest.default_convert_lookup
-        (Ui.config#Ui.allocations #$ ui_state)
+        (Ui.config#UiConfig.allocations #$ ui_state)
         (Derive.r_events result)
 
 busy_wait :: Int -> Double
@@ -245,7 +246,7 @@ run_profile_setup :: DeriveTest.Setup -> String
     -> Ui.State -> Profile
 run_profile_setup setup fname maybe_lookup ui_state = do
     block_id <- maybe (errorIO $ txt fname <> ": no root block") return $
-        Ui.config#Ui.root #$ ui_state
+        Ui.config#UiConfig.root #$ ui_state
     start_cpu <- Thread.currentCpu
     let section = time_section start_cpu
     let result = DeriveTest.derive_block_setup setup ui_state block_id
@@ -256,7 +257,7 @@ run_profile_setup setup fname maybe_lookup ui_state = do
         return events
     whenJust maybe_lookup $ \lookup -> section "midi" $ do
         let mmsgs = snd $ DeriveTest.perform_stream lookup
-                (Ui.config#Ui.allocations #$ ui_state)
+                (Ui.config#UiConfig.allocations #$ ui_state)
                 (Stream.from_sorted_list events)
         Thread.force mmsgs
         return mmsgs
@@ -286,7 +287,7 @@ inst1 = ">i1"
 inst2 = ">i2"
 
 set_allocations :: Ui.State -> Ui.State
-set_allocations = Ui.config#Ui.allocations #= allocs
+set_allocations = Ui.config#UiConfig.allocations #= allocs
     where
     allocs = Simple.allocations
         [ ("i1", ("s/1", dev [0, 1]))

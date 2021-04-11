@@ -8,12 +8,6 @@ import qualified Text.Printf as Printf
 
 import qualified Util.Log as Log
 import qualified Util.Thread as Thread
-import qualified Midi.Midi as Midi
-import qualified Ui.Key as Key
-import qualified Ui.Ui as Ui
-import qualified Ui.UiMsg as UiMsg
-import qualified Ui.UiTest as UiTest
-
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Create as Create
@@ -21,7 +15,14 @@ import qualified Cmd.ResponderTest as ResponderTest
 import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.Derive_profile as Derive_profile
-import Global
+import qualified Midi.Midi as Midi
+import qualified Ui.Key as Key
+import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
+import qualified Ui.UiMsg as UiMsg
+import qualified Ui.UiTest as UiTest
+
+import           Global
 
 
 profile_edits_middle = do
@@ -29,7 +30,8 @@ profile_edits_middle = do
     Log.configure $ \st -> st { Log.state_priority = Log.Warn }
     let edit_block_id = UiTest.bid "b1.5.0"
     let (view_id, ui_state) = UiTest.run Ui.empty $ do
-            Ui.modify_config $ Ui.allocations #= UiTest.default_allocations
+            Ui.modify_config $
+                UiConfig.allocations #= UiTest.default_allocations
             Derive_profile.make_nested_controls 15 3 60
             view_id <- Create.unfitted_view edit_block_id
             UiTest.select_point view_id 1 0.0
