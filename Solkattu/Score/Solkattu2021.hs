@@ -72,6 +72,7 @@ april_tani = tani
     ]
 
 -- TODO this is awkward, what I really want is to mix in mridangam notation.
+-- Try inline mridangam:
 koraippu_development :: Korvai
 koraippu_development = ganesh $ koraippu $ korvaiS adi mridangam $ map su
     [ din.__8 . p7o.p7o.p7 . p7s.p7o.p7o.p7.takadinna.takita

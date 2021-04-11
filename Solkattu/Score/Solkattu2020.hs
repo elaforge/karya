@@ -75,7 +75,7 @@ c_20_10_25 :: Korvai
 c_20_10_25 = date 2020 10 25 $ ganesh $ korvai adi (mridangam<>k1<>k2) $
     map (fmap su)
     -- preparation
-    [ s $ sarva 15 . __.cham.cham.__
+    [ s $ sarva 13 . sd (__.cham.cham.__4)
     , s $ sarva 6 . su (kitataka.talanga.taka.taka.talanga)
         . sarva 6 . su (kitataka.takataka.takataka.takataka)
     , s $ sarva 5.5
@@ -97,15 +97,16 @@ c_20_10_25 = date 2020 10 25 $ ganesh $ korvai adi (mridangam<>k1<>k2) $
 
     -- korvai
     , startOn 4 $ ending $ mconcat
-    [ g(r4 (ta.dit.__.ta.__.ga.__)
+    [ g (r4 (ta.dit.__.ta.__.ga.__)
         . ta.di.__.ki.__.ta.__.taka.__.din.__.na.__.dim.__7)
     , g (r4 (ta.dit.__.ta.__.ga) . ta.di.__.kita.__ . taka.__.din.na.__.dim.__6)
     , g (r4 (ta.dit.__.ta.ga) . tadikita.__.takadinna.__.dim.__5)
-    , g $ r4 (ta.dit.ta.ga) . tadikita.takadinna.dim.__4
+    , g $ r4 (ta.dit.ta.ga) . tadikita -- .takadinna.dim.__4
+                                      .taka.su kitataka.dim.__4
 
-    , g (ta.__3.di.__4.ki.__3.ta.__4.thom.__)
-    , g (ta.__.di.__4.ki.__.ta.__4.thom.__)
-    , g (ta.__.di.__3.ki.__.ta.__3.thom.__)
+    , g (ta.__3.din.__4.gin.__3.na.__4.thom.__)
+    , g (ta.__. din.__4.gin.__. na.__4.thom.__)
+    , g (ta.__. din.__3.gin.__. na.__3.thom.__)
 
     , sd p5 . p5 . sd p5 . r2 p5 . sd p5
     , tri_ __ (r3 p5)
@@ -113,7 +114,8 @@ c_20_10_25 = date 2020 10 25 $ ganesh $ korvai adi (mridangam<>k1<>k2) $
     ]
     where
     takataka = taka.taka
-    sarva = sarvaD_
+    sarva = sarvaD (sd sarva_ndd)
+    sarva_ndd = na.din.din.na.su (na.na).din.din.na . r2 (na.din.din.na)
     mridangam = mridangam3
     -- TODO: awkward, replace with inline mridangam:
     mridangamSollus =
@@ -124,23 +126,28 @@ c_20_10_25 = date 2020 10 25 $ ganesh $ korvai adi (mridangam<>k1<>k2) $
         , (tam.__.kita.takadinna.tam.__.kita.takadinna,
             o.__.k.n.o.o.k.n.o.__.k.n.o.o.k.n)
         , (ta, k)
+
+        , (sarva_ndd, on.od.od.on . on.on.od.od.on . on.d.d.n . n.od.od.on)
+        , (taka.kitataka, k.o.k.t.o.k)
+        -- TODO some syntax to say od if there is space afterwards
+        -- , (takadinna, k.o.o& (_ d) .d)
         ]
     mridangam3 = makeMridangam $ mridangamSollus ++
         [ (r4 $ ta.dit.ta.ga,
             k.t.k.lt p . t.k.n.lt p . k.n.o.lt k . o.u.p.lt k)
-        , (ta.di.ki.ta, k.t.k.t)
+        , (tadikita, k.t.k.t)
         , (dim, od)
         , (thom, o)
         ]
     mridangam2 = makeMridangam $ mridangamSollus ++
         [ (r2 $ ta.dit.ta.ga, k.t.k.lt p . k.n.o.lt o)
-        , (ta.di.ki.ta, k.t.k.n)
+        , (tadikita, k.t.k.n)
         , (dim, od)
         , (thom, o)
         ]
     mridangam1 = makeMridangam $ mridangamSollus ++
         [ (ta.dit.ta.ga, k.t.k.lt k)
-        , (ta.di.ki.ta, k.t.k.n)
+        , (tadikita, k.t.k.n)
         , (dim, od)
         , (thom, o)
         ]
@@ -154,9 +161,12 @@ c_20_10_25 = date 2020 10 25 $ ganesh $ korvai adi (mridangam<>k1<>k2) $
         , (ta, p)
 
         , (ta.dit.ta.ga, t.p.t.lt k)
-        , (ta.di.ki.ta, t.p.k.t)
+        , (tadikita, t.p.k.t)
         , (dim, a)
         , (thom, a)
+
+        , (sarva_ndd, t.o.o.t . t.t.o.o.t . t.o.o.t . t.o.o.t)
+        , (taka.kitataka, p.a.k.p.a.p)
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
     k2 = makeKendang2
         [ (ta.dit.ta.ga, t.l.t.l)

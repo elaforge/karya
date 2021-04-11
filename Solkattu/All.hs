@@ -256,14 +256,14 @@ scores = map Korvai.inferMetadataS
     , setLocation ("Solkattu.Score.Solkattu2020",18,"e_20_01_27") $ Single Solkattu.Score.Solkattu2020.e_20_01_27
     , setLocation ("Solkattu.Score.Solkattu2020",28,"c_20_04_03") $ Single Solkattu.Score.Solkattu2020.c_20_04_03
     , setLocation ("Solkattu.Score.Solkattu2020",74,"c_20_10_25") $ Single Solkattu.Score.Solkattu2020.c_20_10_25
-    , setLocation ("Solkattu.Score.Solkattu2020",171,"kendang_farans") $ Single Solkattu.Score.Solkattu2020.kendang_farans
+    , setLocation ("Solkattu.Score.Solkattu2020",181,"kendang_farans") $ Single Solkattu.Score.Solkattu2020.kendang_farans
     , setLocation ("Solkattu.Score.Solkattu2021",16,"e_21_01_24") $ Single Solkattu.Score.Solkattu2021.e_21_01_24
     , setLocation ("Solkattu.Score.Solkattu2021",30,"e_21_02_21") $ Single Solkattu.Score.Solkattu2021.e_21_02_21
     , setLocation ("Solkattu.Score.Solkattu2021",45,"e_35_kanda") $ Single Solkattu.Score.Solkattu2021.e_35_kanda
     , setLocation ("Solkattu.Score.Solkattu2021",45,"e_35_misra") $ Single Solkattu.Score.Solkattu2021.e_35_misra
     , setLocation ("Solkattu.Score.Solkattu2021",60,"april_tani") $ Solkattu.Score.Solkattu2021.april_tani
-    , setLocation ("Solkattu.Score.Solkattu2021",75,"koraippu_development") $ Single Solkattu.Score.Solkattu2021.koraippu_development
-    , setLocation ("Solkattu.Score.Solkattu2021",99,"c_mohra_korvai") $ Single Solkattu.Score.Solkattu2021.c_mohra_korvai
+    , setLocation ("Solkattu.Score.Solkattu2021",76,"koraippu_development") $ Single Solkattu.Score.Solkattu2021.koraippu_development
+    , setLocation ("Solkattu.Score.Solkattu2021",100,"c_mohra_korvai") $ Single Solkattu.Score.Solkattu2021.c_mohra_korvai
     , setLocation ("Solkattu.Score.SolkattuMohra",55,"c_mohra") $ Single Solkattu.Score.SolkattuMohra.c_mohra
     , setLocation ("Solkattu.Score.SolkattuMohra",95,"c_mohra2") $ Single Solkattu.Score.SolkattuMohra.c_mohra2
     , setLocation ("Solkattu.Score.SolkattuMohra",113,"c_mohra_youtube") $ Single Solkattu.Score.SolkattuMohra.c_mohra_youtube
