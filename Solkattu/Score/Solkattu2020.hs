@@ -78,29 +78,20 @@ c_20_10_25 = date 2020 10 25 $ ganesh $ korvai adi (mridangam<>k1<>k2) $
     [ s $ sarva 13 . sd (__.cham.cham.__4)
     , s $ sarva 6 . su (kitataka.talanga.taka.taka.talanga)
         . sarva 6 . su (kitataka.takataka.takataka.takataka)
-    , s $ sarva 5.5
-        . r4 (ta.dit.__.ta.__.ga.__)
-        . ta.di.__.ki.__.ta.__.taka.__.din.__.na.__.dim
+    , s $ sarva 5.5 . ending7
     , s $ sarva 6 . su (tam.__.kita.takadinna.tam.__.kita.takadinna)
         . sarva 6 . su (__5.cham.__4.__.__.ta.__.takadinna)
 
     -- development
-    , s $ sarva 5.5
-        . r4 (ta.dit.__.ta.__.ga.__)
-        . ta.di.__.ki.__.ta.__.taka.__.din.__.na.__.dim
-    , s $ sarva 7
-        . r4 (ta.dit.__.ta.__.ga) .ta.di.__.ki.ta.__.taka.__.din.na.__.dim
-    , endOn 4 $ s $
-      sarva 8.5 . r4 (ta.dit.__.ta.ga) .tadikita.__.takadinna.__.dim.__8
-                  -- . r4 (ta.dit.ta.ga) .tadikita.takadinna
-                  . sarva 6
+    , s $ sarva 5.5 . ending7
+    , s $ sarva 7 . ending6
+    , endOn 4 $ s $ sarva 8.5 . ending5.__8 . sarva 6
 
     -- korvai
     , startOn 4 $ ending $ mconcat
-    [ g (r4 (ta.dit.__.ta.__.ga.__)
-        . ta.di.__.ki.__.ta.__.taka.__.din.__.na.__.dim.__7)
-    , g (r4 (ta.dit.__.ta.__.ga) . ta.di.__.kita.__ . taka.__.din.na.__.dim.__6)
-    , g (r4 (ta.dit.__.ta.ga) . tadikita.__.takadinna.__.dim.__5)
+    [ g $ ending7.__7
+    , g $ ending6.__6
+    , g $ ending5.__5
     , g $ r4 (ta.dit.ta.ga) . tadikita -- .takadinna.dim.__4
                                       .taka.su kitataka.dim.__4
 
@@ -113,6 +104,10 @@ c_20_10_25 = date 2020 10 25 $ ganesh $ korvai adi (mridangam<>k1<>k2) $
     ]
     ]
     where
+    ending7 = r4 (strS "tadit_ta_ga_") . strS "tadi_ki_ta_taka_din_na_dim"
+    ending6 = r3 (strS "tadit_ta_ga") . strS "tadit_taga_"
+        . strS "tadi_kita_taka_dinna_dim"
+    ending5 = r4 (strS "tadittaga_") . strS "tadikita_takadinna_dim"
     takataka = taka.taka
     sarva = sarvaD (sd sarva_ndd)
     sarva_ndd = na.din.din.na.su (na.na).din.din.na . r2 (na.din.din.na)
@@ -134,8 +129,8 @@ c_20_10_25 = date 2020 10 25 $ ganesh $ korvai adi (mridangam<>k1<>k2) $
         ]
     mridangam3 = makeMridangam $ mridangamSollus ++
         [ (r4 $ ta.dit.ta.ga,
-            k.t.k.lt p . t.k.n.lt p . k.n.o.lt k . o.u.p.lt k)
-        , (tadikita, k.t.k.t)
+            hv k.t.k.p . hv t.k.n.p . hv k.n.o.k . hv o.u.p.k)
+        , (tadikita, hv k.t.k.t)
         , (dim, od)
         , (thom, o)
         ]
