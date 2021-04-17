@@ -180,7 +180,7 @@ c_14_03_13 :: Korvai
 c_14_03_13 = date 2014 3 13 $ ganesh $ korvaiS adi mridangam
     [ sarvaD_ 4 . t1.din . sarvaD_ 3
     . r2 (t1.din . sarvaD_ 3)
-    , concatMap sequence [t1, t2, t3]
+    , mconcatMap sequence [t1, t2, t3]
     ]
     where
     sequence p = p.din . sarvaD_ 3 . p.din . sarvaD_ 1 . p

@@ -12,7 +12,6 @@ import qualified Solkattu.Instrument.KendangTunggal as KendangTunggal
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Korvai as Korvai
 
-import Global
 import Solkattu.Dsl.Solkattu
 
 
@@ -461,7 +460,7 @@ koraippu_misra_no_karvai = koraippu $ ganesh $ korvaiS adi mridangam $ map su
     -- to mohra korvai sequence
     ]
     where
-    group2 seq = concatMap mconcat (Seq.chunked 2 seq)
+    group2 seq = mconcatMap mconcat (Seq.chunked 2 seq)
     -- 8 + 8*7 (3+2 + 3)
     long n = din.__8 . tri_ (gap n . fill n) tan7
         . gap n . tri_ (karvai n) (fill n)

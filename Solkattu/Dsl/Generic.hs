@@ -15,6 +15,7 @@
 module Solkattu.Dsl.Generic (
     s
     , (.), (•), ø
+    , mconcatMap
     , writeHtml
     -- * notation
     , karvai

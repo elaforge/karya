@@ -38,7 +38,7 @@ e_2 :: Korvai
 e_2 = ganesh $ date 2017 11 13 $ exercise $ korvaiS adi $
     [ cmap pattern [s1, s2, s3, s4, s5]
     , cmap fast [p, k, o, n]
-    , concatMap pattern [t1, t2]
+    , mconcatMap pattern [t1, t2]
     , t_sarva
     ]
     where

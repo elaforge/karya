@@ -266,9 +266,9 @@ c_19_06_24_a = date 2019 6 24 $ ganesh $
         -- . n6 (__.__.o.__4.k.__4.od.__8)
         . n6 (__.__.o.__3.o.k.__.o.k.od.__8)
 
-        . group (concatMap (\s -> s.__3.s) ktkno)
-        . n6 (group (concatMap (\s -> s.__.s) ktkno))
-        . n6 (group (concatMap (.__) ktkno))
+        . group (mconcatMap (\s -> s.__3.s) ktkno)
+        . n6 (group (mconcatMap (\s -> s.__.s) ktkno))
+        . n6 (group (mconcatMap (.__) ktkno))
         -- . n6 (tri_ __ (tri (group (mconcat ktkno))))
         -- . n6 (tri_ __ (trin ø (k.n.o) (k.t.k.n.o) (i.__4.k.n.o)))
         . n6 (trin __ (tri (k.n.o)) (tri (k.t.k.n.o)) (tri (i.__4.k.n.o)))
@@ -295,9 +295,9 @@ c_19_06_24_b = date 2019 6 24 $ ganesh $
         t12.o.__.k.__ . n3 (od.__4.t.k.k.o.o.k.o.__.k.__.od)
         . n4 (__5.t2.o.__.k.__) . n3 (od.__4.o.__.k.__.od.__4)
 
-        . group (concatMap (\s -> s.__3.s) ktkno)
-        . n6 (group (concatMap (\s -> s.__.s) ktkno))
-        . n6 (group (concatMap (.__) ktkno))
+        . group (mconcatMap (\s -> s.__3.s) ktkno)
+        . n6 (group (mconcatMap (\s -> s.__.s) ktkno))
+        . n6 (group (mconcatMap (.__) ktkno))
         . n6 (tri_ __ (tri (group (mconcat ktkno))))
     ]
     where
@@ -348,7 +348,7 @@ e_19_08_05_gumiki = date 2019 8 5 $ ganesh $ exercise $ korvaiS adi
 -- nd-dnd-dnd-dnd-d
 e_19_08_19 :: Korvai
 e_19_08_19 = date 2019 8 25 $ ganesh $ exercise $ korvaiS1 adi $
-    concatMap cycle [p, k, o, n]
+    mconcatMap cycle [p, k, o, n]
     where cycle x = su (x.__.kt.kt.p.k.nakatiku) . sarvaD_ 2
 
 -- tirmanam: td--t-d-- (4+5) * 3

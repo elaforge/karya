@@ -5,14 +5,15 @@
 {-# LANGUAGE RecordWildCards #-}
 -- | Solkattu scores from 2017.
 module Solkattu.Score.Solkattu2017 where
-import Prelude hiding ((.), (^), repeat)
+import           Prelude hiding ((.), (^), repeat)
 
 import qualified Solkattu.Instrument.KendangTunggal as KendangTunggal
 import qualified Solkattu.Instrument.Reyong as Reyong
 import qualified Solkattu.Instrument.Sargam as Sargam
+import qualified Solkattu.S as S
 import qualified Solkattu.Tala as Tala
 
-import Solkattu.Dsl.Solkattu
+import           Solkattu.Dsl.Solkattu
 
 
 koraippu_janahan :: Korvai
@@ -25,14 +26,14 @@ koraippu_janahan =
         , seq 2 . tri p6 . thom.__4
         , seq 1 . tri p7 . thom.__4
         ]
-    ++ let seq = sequence (nang.kttk) (su nakatiku)
+    <> let seq = sequence (nang.kttk) (su nakatiku)
     in mconcat
         [ seq 4 . su nang_kita_nakatiku . taka.din.__.tat.__.thom.__4
         , seq 3 . tri (su (thom.kita.ka.na.ka.kitataka)) . thom.__4
         , seq 2 . tri (su nang_kita_nakatiku) . thom.__4
         , seq 1 . tri (su (nang.__.kitataka.nakatiku)) . thom.__4
         ]
-    ++ let kitakita = su (kita.kita.taka)
+    <> let kitakita = su (kita.kita.taka)
         in sam.tam.__3 . kitakita . tam.__3
             . kitakita . su (nakatiku . nang_kita_nakatiku) . tam.__3
             . kitakita . su (nakatiku . r2 nang_kita_nakatiku . nakatiku)

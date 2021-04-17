@@ -1198,7 +1198,7 @@ c_18_10_29 = date 2018 10 29 $ koraippu $ ganesh $ korvaiS adi mridangam
     ]
     where
     r123 a b = restD 1
-        . su (concatMap (\n -> repeat n a . repeat n b) [1, 2, 3])
+        . su (mconcatMap (\n -> repeat n a . repeat n b) [1, 2, 3])
     mridangam = makeMridangam
         [ (ta.din, k.od)
         , (takita, k.p.k)

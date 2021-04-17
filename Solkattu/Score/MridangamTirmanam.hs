@@ -22,7 +22,7 @@ tir_short_adi = tirmanam $ korvaiS adi
 tir_long_adi :: Korvai
 tir_long_adi = tirmanam $ korvaiS adi
     -- 1:08:07
-    [ let p8 = group (concatMap (.__) [kt, k.n, k.o, o.k])
+    [ let p8 = group (mconcatMap (.__) [kt, k.n, k.o, o.k])
         in __D 4.5 . p8 . (od.__.k.k.o) . p8 . (od.__.on.o'&n.k)
             . (group (su (stride 3 (k.t.k.n.k.o.o.k))))
         . od
