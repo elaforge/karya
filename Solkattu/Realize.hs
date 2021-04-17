@@ -6,7 +6,55 @@
 {-# LANGUAGE NamedFieldPuns #-}
 -- | Realize abstract solkattu 'S.Note's to concrete instrument-dependent
 -- 'Note's.
-module Solkattu.Realize where
+module Solkattu.Realize (
+    Error
+    , SNote
+    , Note(..)
+    , mapStroke
+    , Stroke(..)
+    , Emphasis(..)
+    , toExpr
+    , noteOf, strokeOf, stroke, rest, strokeToSequence
+    , typeName
+    , doubleRest
+    -- * checkAlignment
+    , Warning(..)
+    , checkAlignment
+    , checkDuration
+    -- * StrokeMap
+    , StrokeMap(..)
+    , smapKeys
+    , strokeMap
+    , solkattuToRealize
+    , isInstrumentEmpty
+    -- ** PatternMap
+    , PatternMap
+    , patternMap
+    , lookupPattern
+    -- ** SolluMap
+    , SolluMapKey
+    , verifySolluKey
+    , prettyKey
+
+    -- * realize
+    , RealizePattern
+    , realizePattern
+    , Group(..)
+    , Reduction(..)
+    , realize, realize_
+    , formatError
+    -- ** ToStroke
+    , ToStrokes
+    , realizeStroke, realizeSollu
+    -- * text util
+    , justifyLeft
+    , textLength
+
+    -- * DEBUG
+    , SolluMap(..)
+    , solluMap
+    , Realized
+) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Monad.Writer as Writer
 import qualified Control.Monad.Writer.CPS as Writer.CPS
