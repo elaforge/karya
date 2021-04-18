@@ -5384,6 +5384,8 @@ REPL: repl:
     could also get rid of the need for Cmd.Lang.Environ to import everything.
 
 solkattu:
+  * instance IsString Sequence for strS and strM
+    . Sequence has to become a newtype I think, to avoid overlap with [].
   * korvai type:
     . The mapping from sollu to stroke, or stroke to stroke for each
       instrument is unsatisfactory.

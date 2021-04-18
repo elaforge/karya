@@ -64,18 +64,18 @@ strokes = Strokes
     , x = CekO
     }
 
-notes :: Strokes [S.Note g (Solkattu.Note (Realize.Stroke Stroke))]
+notes :: Strokes (S.Sequence g (Solkattu.Note (Realize.Stroke Stroke)))
 notes = Realize.strokeToSequence <$> strokes
 
-type SequenceR = [S.Note () (Realize.Note Stroke)]
+type SequenceR = S.Sequence () (Realize.Note Stroke)
 
 rnotes :: Strokes SequenceR
-rnotes = (:[]) . S.Note . Realize.Note . Realize.stroke <$> strokes
+rnotes = S.singleton . S.Note . Realize.Note . Realize.stroke <$> strokes
 
 -- * patterns
 
 __ :: SequenceR
-__ = [Realize.rest]
+__ = S.singleton Realize.rest
 
 melodicPatterns :: Realize.PatternMap Stroke
 melodicPatterns = Solkattu.check $ patterns

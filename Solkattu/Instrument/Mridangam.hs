@@ -179,13 +179,13 @@ strokes = Strokes
     , od = Both (Thom Low) Din
     }
 
-notes :: Strokes [S.Note g (Solkattu.Note (Realize.Stroke Stroke))]
+notes :: Strokes (S.Sequence g (Solkattu.Note (Realize.Stroke Stroke)))
 notes = Realize.strokeToSequence <$> strokes
 
-type SequenceR = [S.Note () (Realize.Note Stroke)]
+type SequenceR = S.Sequence () (Realize.Note Stroke)
 
 rnotes :: Strokes SequenceR
-rnotes = (:[]) . S.Note . Realize.Note . Realize.stroke <$> strokes
+rnotes = S.singleton . S.Note . Realize.Note . Realize.stroke <$> strokes
 
 bothRStrokes :: CallStack.Stack => Realize.Stroke Stroke
     -> Realize.Stroke Stroke -> Realize.Stroke Stroke
@@ -287,7 +287,7 @@ technique _ _ _ = Nothing
 -- * patterns
 
 __ :: SequenceR
-__ = [Realize.rest]
+__ = S.singleton Realize.rest
 
 defaultPatterns :: Realize.PatternMap Stroke
 defaultPatterns = Solkattu.check $ patterns
@@ -383,8 +383,8 @@ families567 = map Solkattu.check $ map patterns $ map (zip [5..]) $
     kp = k.p
     kpnp = k.p.n.p
 
-su :: [S.Note g a] -> [S.Note g a]
-su = (:[]) . S.changeSpeed 1
+su :: S.Sequence g a -> S.Sequence g a
+su = S.singleton . S.changeSpeed 1 . S.toList
 
 patterns :: [(S.Matra, SequenceR)]
     -> Either Realize.Error (Realize.PatternMap Stroke)

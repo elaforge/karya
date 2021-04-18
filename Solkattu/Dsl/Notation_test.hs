@@ -24,13 +24,15 @@ import           Util.Test
 
 -- Many of the Notation functions are indirectly tested in Realize_test.
 
+test_splitM :: Test
 test_splitM = do
-    equal (bimap (map pretty) (map pretty) $ splitM 1 taka)
+    equal (bimap e_pretty e_pretty $ splitM 1 taka)
         (["(1, After)(ta ka)"], ["(1, Before)(ta ka)"])
 
+test_splitM_ :: Test
 test_splitM_ = do
     let f matras = fmap (bimap extract extract) . splitM_either matras
-        extract = map pretty . flattenGroups
+        extract = map pretty . flattenGroups . S.toList
     equal (f 1 (su taka <> di)) $ Right (["s+1(ta ka)"], ["di"])
     equal (f 1 (su (ta <> di <> ki <> ta) <> di)) $
         Right (["s+1(ta di)"], ["s+1(ki ta)", "di"])
@@ -39,8 +41,9 @@ test_splitM_ = do
     equal (f 1 (sd __ <> ka)) $ Right (["__"], ["__", "ka"])
     equal (f 3 (sd (sd __) <> ka)) $ Right (["s-1(__)", "__"], ["__", "ka"])
 
+test_splitM_sarva :: Test
 test_splitM_sarva = do
-    let f matras = fmap (bimap (map pretty) (map pretty))
+    let f matras = fmap (bimap e_pretty e_pretty)
             . splitM_either @Solkattu.Sollu matras
     let sarva = sarvaM taka
     equal (f 3 (sarva 4)) $ Right (["==3(ta ka)"], ["==1(ta ka)"])
@@ -49,32 +52,38 @@ test_splitM_sarva = do
     equal (f 4 (sarva 4)) $ Right (["==4(ta ka)"], [])
     equal (f 3 (sarvaM_ 4)) $ Right (["==3()"], ["==1()"])
 
+test_takeDrop :: Test
 test_takeDrop = do
     let tdgn = mconcat [ta, din, gin, na]
-    let extract = map pretty
-    equal (extract $ dropM_ 0 (takeM 2 tdgn)) ["(2, After)(ta din gin na)"]
-    equal (extract $ dropM_ 1 (takeM 2 tdgn)) ["din"]
-    equal (extract $ dropM_ 2 (takeM 3 tdgn)) ["gin"]
-    equal (extract $ dropM_ 2 (takeM 2 tdgn)) []
+    equal (e_pretty $ dropM_ 0 (takeM 2 tdgn)) ["(2, After)(ta din gin na)"]
+    equal (e_pretty $ dropM_ 1 (takeM 2 tdgn)) ["din"]
+    equal (e_pretty $ dropM_ 2 (takeM 3 tdgn)) ["gin"]
+    equal (e_pretty $ dropM_ 2 (takeM 2 tdgn)) []
 
+test_spaceM :: Test
 test_spaceM = do
-    let f = Num.sum . map (S.noteFMatra S.defaultTempo) . spaceM Solkattu.Rest
+    let f = Num.sum . map (S.noteFMatra S.defaultTempo) . S.toList
+            . spaceM Solkattu.Rest
     equal (f 0) 0
     equal (f 1) 1
     equal (f 3) 3
     equal (f (3/4)) (3/4)
     throws (f (1/3)) "not a binary multiple"
 
+test_replaceStart :: Test
 test_replaceStart = do
-    let f prefix = map pretty . replaceStart prefix
+    let f prefix = e_pretty . replaceStart prefix
     equal (f di (ta<>ki<>ta)) ["di", "ki", "ta"]
     equal (f di (su taka <> ki)) ["di", "ki"]
     -- split rests
     throws (f di (sd ta)) "can't split"
 
+test_align :: Test
 test_align = do
-    let f dur = map pretty . __a dur
+    let f dur = e_pretty . __a dur
     equal (f 1 ta) ["s-1(__)", "__", "ta"]
+
+e_pretty = map pretty . S.toList
 
 flattenGroups :: [S.Note g a] -> [S.Note () a]
 flattenGroups = S.flattenGroups

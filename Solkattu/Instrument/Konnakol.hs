@@ -40,7 +40,7 @@ __ :: Sollu
 __ = NoSollu
 
 patterns :: [(S.Matra, [Sollu])] -> Either Text (Realize.PatternMap Sollu)
-patterns = Realize.patternMap . map (second (map note))
+patterns = Realize.patternMap . map (second (S.fromList . map note))
     . map (first Solkattu.pattern)
 
 instance Expr.ToExpr Sollu where

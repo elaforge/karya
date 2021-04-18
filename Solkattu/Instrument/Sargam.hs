@@ -20,7 +20,7 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
-type SequenceM g = [S.Note g (Solkattu.Note (Realize.Stroke Stroke))]
+type SequenceM g = S.Sequence g (Solkattu.Note (Realize.Stroke Stroke))
 
 newtype Attributes = Attributes (Map Text (Maybe Text))
     deriving (Show, Eq)

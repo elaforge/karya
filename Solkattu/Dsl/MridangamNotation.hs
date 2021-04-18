@@ -23,11 +23,12 @@ import Global
 type NoteT sollu = S.Note Solkattu.Group (Solkattu.Note sollu)
 type Stroke = Realize.Stroke Mridangam.Stroke
 
+-- | This is the implementation for the (&) operator.
 merge :: CallStack.Stack => [NoteT Stroke] -> [NoteT Stroke] -> [NoteT Stroke]
 merge as bs = case (as, bs) of
     ([S.Note (Solkattu.Note a)], bs) -> single (Solkattu._sollu a) bs
     (as, [S.Note (Solkattu.Note b)]) -> single (Solkattu._sollu b) as
-    _ -> Notation.speed maxSpeed $ map merge1 pairs
+    _ -> S.toList $ Notation.speed maxSpeed $ S.fromList $ map merge1 pairs
     where
     -- As a special case, if I'm merging a single stroke with a sequence,
     -- retain the structure of the sequence.  This way it won't destroy a

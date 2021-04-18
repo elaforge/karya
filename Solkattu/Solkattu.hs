@@ -334,19 +334,20 @@ allSollus = Seq.key_on notationText $ filter (/= NoSollu) [minBound .. maxBound]
 
 -- * durations
 
-durationOf :: S.HasMatras a => S.Tempo -> [S.Note Group a] -> S.Duration
+durationOf :: S.HasMatras a => S.Tempo -> S.Sequence Group a
+    -> S.Duration
 durationOf = _durationOf (\_ -> id)
 
-matrasOf :: S.HasMatras a => S.Tempo -> [S.Note Group a] -> S.FMatra
+matrasOf :: S.HasMatras a => S.Tempo -> S.Sequence Group a -> S.FMatra
 matrasOf = _durationOf toMatras
     where toMatras tempo dur = realToFrac $ dur * fromIntegral (S._nadai tempo)
 
 _durationOf :: (S.HasMatras a, Num dur, Ord dur)
-    => (S.Tempo -> S.Duration -> dur) -> S.Tempo -> [S.Note Group a] -> dur
-_durationOf convert = go
+    => (S.Tempo -> S.Duration -> dur) -> S.Tempo -> S.Sequence Group a -> dur
+_durationOf convert tempo = go tempo . S.toList
     where
     go tempo = Num.sum . map (get tempo)
-    get tempo n = case n of
+    get tempo = \case
         S.Note n -> convert tempo $ S.noteDuration tempo n
         S.TempoChange change notes -> go (S.changeTempo change tempo) notes
         S.Group (GReduction (Reduction splitAt side)) notes -> case side of
@@ -430,7 +431,7 @@ type Variations = [(S.Matra, S.Matra, S.Matra)]
 -- applies to more than just Patterns, e.g. 3 as tadin_.  I think this is
 -- orthogonal and could get a different function.
 vary :: (S.Matra -> Variations) -- ^ variations allowed for this duration
-    -> [S.Note g (Note sollu)] -> [[S.Note g (Note sollu)]]
+    -> S.Sequence g (Note sollu) -> [S.Sequence g (Note sollu)]
 vary allowedVariations notes
     | null modificationGroups = [notes]
     | otherwise = map apply modificationGroups
@@ -438,9 +439,9 @@ vary allowedVariations notes
     -- List of sets of permutations.
     modificationGroups = permuteFst allowedVariations (findTriads notes)
     -- Apply a set of permutations to the original input.
-    apply mods = applyModifications
+    apply mods = S.fromList $ applyModifications
         (\_ matras -> S.Note (Pattern (PatternM matras)))
-        (concatMap extract mods) notes
+        (concatMap extract mods) (S.toList notes)
     extract ((m1, m2, m3), (i1, i2, i3)) = [(i1, m1), (i2, m2), (i3, m3)]
 
 variations :: [(S.Matra, S.Matra, S.Matra) -> Bool] -> (S.Matra -> Variations)
@@ -466,12 +467,12 @@ allVariations matras = concatMap vars [0 .. max 1 (matras - minDuration)]
 
 -- | Find triples of Patterns with the same length and return their indices.
 -- The indices are in ascending order.
-findTriads :: [S.Note g (Note sollu)] -> [(S.Matra, (Int, Int, Int))]
+findTriads :: S.Sequence g (Note sollu) -> [(S.Matra, (Int, Int, Int))]
 findTriads notes =
     [ (matras, triad)
     | (matras, indices) <- Seq.group_fst
         [ (matras, i)
-        | (i, S.Note (Pattern (PatternM matras))) <- zip [0..] notes
+        | (i, S.Note (Pattern (PatternM matras))) <- zip [0..] (S.toList notes)
         ]
     , triad <- triads indices
     ]

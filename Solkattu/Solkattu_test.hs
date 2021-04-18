@@ -47,7 +47,7 @@ test_durationOf = do
 
 test_flatDuration :: Test
 test_flatDuration = do
-    let f = map Solkattu.flatDuration . S.flatten
+    let f = map Solkattu.flatDuration . S.flatten . S.toList
     equal (f ta) [1/4]
     equal (f $ G.pat 5) [5/4]
     equal (f $ G.dropM 1 (ta <> ki <> ta)) [2/4]
@@ -56,7 +56,7 @@ test_flatDuration = do
 test_cancelKarvai :: Test
 test_cancelKarvai = do
     let f = Text.unwords . map pretty . S.flattenedNotes
-            . Solkattu.cancelKarvai . S.flatten
+            . Solkattu.cancelKarvai . S.flatten . S.toList
         k = G.karvai
         group = G.group
     equal (f (ta <> thom)) "ta thom"
@@ -70,7 +70,7 @@ test_cancelKarvai = do
 
 test_vary :: Test
 test_vary = do
-    let f notes = map (Text.unwords . map pretty) $
+    let f notes = map (Text.unwords . map pretty . S.toList) $
             Solkattu.vary
                 (Solkattu.variations [Solkattu.standard, Solkattu.ascending])
                 notes

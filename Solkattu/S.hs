@@ -10,6 +10,7 @@
 -- type is polymorphic, so this is purely rhythmic.
 module Solkattu.S (
     Note(..), TempoChange(..)
+    , Sequence, singleton, null, fromList, toList, mapS, apply
     , Duration, FMatra, Matra, Speed, Nadai, Stride, speedFactor
     , changeSpeed
     , HasMatras(..)
@@ -44,6 +45,7 @@ module Solkattu.S (
     , module Solkattu.S
 #endif
 ) where
+import           Prelude hiding (null)
 import qualified Control.Monad.State.Strict as State
 import qualified Data.List as List
 import qualified Data.Ratio as Ratio
@@ -62,6 +64,27 @@ data Note g a = Note !a
     -- See NOTE [nested-groups] for how I arrived at this design.
     | Group !g ![Note g a]
     deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+
+newtype Sequence g a = Sequence [Note g a]
+    deriving (Eq, Show, Pretty, Functor, Semigroup, Monoid)
+
+singleton :: Note g a -> Sequence g a
+singleton = Sequence . (:[])
+
+null :: Sequence g a -> Bool
+null = List.null . toList
+
+fromList :: [Note g a] -> Sequence g a
+fromList = Sequence
+
+toList :: Sequence g a -> [Note g a]
+toList (Sequence xs) = xs
+
+mapS :: (Note g1 a1 -> Note g2 a2) -> Sequence g1 a1 -> Sequence g2 a2
+mapS f (Sequence ns) = Sequence (map f ns)
+
+apply :: ([Note g1 a1] -> [Note g2 a2]) -> Sequence g1 a1 -> Sequence g2 a2
+apply f (Sequence ns) = Sequence (f ns)
 
 instance (Pretty a, Pretty g) => Pretty (Note g a) where
     format n = case n of
@@ -186,11 +209,13 @@ map1 f n = case n of
     TempoChange change ns -> TempoChange change (Seq.map_head (map1 f) ns)
     Group g ns -> Group g (Seq.map_head (map1 f) ns)
 
-filterNotes :: (a -> Bool) -> [Note g a] -> [Note g a]
-filterNotes f = mapMaybe $ \case
-    note@(Note a) -> if f a then Just note else Nothing
-    TempoChange change ns -> Just $ TempoChange change (filterNotes f ns)
-    Group g ns -> Just $ Group g (filterNotes f ns)
+filterNotes :: (a -> Bool) -> Sequence g a -> Sequence g a
+filterNotes f = apply go
+    where
+    go = mapMaybe $ \case
+        note@(Note a) -> if f a then Just note else Nothing
+        TempoChange change ns -> Just $ TempoChange change (go ns)
+        Group g ns -> Just $ Group g (go ns)
 
 -- * flatten
 

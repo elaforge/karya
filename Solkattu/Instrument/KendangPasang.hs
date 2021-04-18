@@ -105,18 +105,18 @@ strokes = Strokes
     , o = Tut
     }
 
-notes :: Strokes [S.Note g (Solkattu.Note (Realize.Stroke Stroke))]
+notes :: Strokes (S.Sequence g (Solkattu.Note (Realize.Stroke Stroke)))
 notes = Realize.strokeToSequence <$> strokes
 
-type SequenceR = [S.Note () (Realize.Note Stroke)]
+type SequenceR = S.Sequence () (Realize.Note Stroke)
 
 rnotes :: Strokes SequenceR
-rnotes = (:[]) . S.Note . Realize.Note . Realize.stroke <$> strokes
+rnotes = S.singleton . S.Note . Realize.Note . Realize.stroke <$> strokes
 
 -- * Patterns
 
 __ :: SequenceR
-__ = [Realize.rest]
+__ = S.singleton Realize.rest
 
 defaultPatterns :: Realize.PatternMap Stroke
 defaultPatterns = Solkattu.check $ patterns
@@ -134,7 +134,7 @@ patterns :: [(S.Matra, SequenceR)]
     -> Either Realize.Error (Realize.PatternMap Stroke)
 patterns = Realize.patternMap . map (first Solkattu.pattern)
 
-nakatiku :: [S.Note g (Solkattu.Note (Realize.Stroke Stroke))]
+nakatiku :: S.Sequence g (Solkattu.Note (Realize.Stroke Stroke))
 nakatiku = t.y.yy.k.p.a.o.k
     where
     Strokes {..} = notes

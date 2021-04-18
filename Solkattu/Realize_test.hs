@@ -48,8 +48,8 @@ test_realizeGroups :: Test
 test_realizeGroups = do
     let f = eWords . realizeSollu smap
         smap = checkSolluMap
-            [ (taka, [k, t])
-            , (din, [od])
+            [ (taka, k <> t)
+            , (din, od)
             ]
             where M.Strokes {..} = M.notes
         taka = ta <> ka
@@ -60,8 +60,8 @@ test_realizeGroups = do
     equal (f $ G.takeM 1 taka) (Right "k")
     equal (f $ G.takeM 2 (taka <> din)) (Right "k t")
     equal (f $ G.dropM 2 (taka <> din)) (Right "D")
-    equal (f $ G.dropM 1 $ su taka) $ Right ""
-    equal (f $ su $ G.dropM 1 taka) $ Right "t"
+    equal (f $ G.dropM 1 $ G.su taka) $ Right ""
+    equal (f $ G.su $ G.dropM 1 taka) $ Right "t"
 
     -- Groups keep finding fragments.
     equal (f $ G.dropM 1 $ taka <> din) (Right "t D")
@@ -90,7 +90,7 @@ test_realizeGroupsOutput = do
     -- Ensure groups are still in the output, and dropped sollus replaced
     -- with strokes.
     let f = extract . realizeSolluMap smap
-        smap = checkSolluMap [(taka, [k, t])]
+        smap = checkSolluMap [(taka, k <> t)]
             where M.Strokes {..} = M.notes
         taka = ta <> ka
         extract = fmap $ Text.unwords . map fmt
@@ -104,7 +104,7 @@ test_realizeGroupsOutput = do
 test_realizeGroupsNested :: Test
 test_realizeGroupsNested = do
     let f = fmap (mconcatMap pretty) . realizeSollu smap
-        smap = checkSolluMap [(nakita, [n, k, t])]
+        smap = checkSolluMap [(nakita, mconcat [n, k, t])]
             where M.Strokes {..} = M.notes
         nakita = na <> ki <> ta
     equal (f $ G.reduceTo 1 1 nakita) $ Right $ mconcat
@@ -166,8 +166,8 @@ test_realizeSarva :: Test
 test_realizeSarva = do
     let f = eWords . realizeSollu smap . mconcat
         smap = checkSolluMap
-            [ (ta <> din, [n, d])
-            , (ta <> ka <> __, [p, k, __])
+            [ (ta <> din, n <> d)
+            , (ta <> ka <> __, mconcat [p, k, __])
             ] where M.Strokes {..} = M.notes
     equal (f []) (Right "")
     equal (f [G.sarvaM (ta <> din) 5]) (Right "n d n d n")
@@ -180,7 +180,7 @@ test_realizeSarva = do
 test_realizeEmphasis :: Test
 test_realizeEmphasis = do
     let f = second (map (fmap pretty)) . realizeSollu smap . mconcat
-        smap = checkSolluMap [(ta <> di, [G.hv k, G.lt t])]
+        smap = checkSolluMap [(ta <> di, G.hv k <> G.lt t)]
             where M.Strokes {..} = M.notes
     equal (f [ta, di]) $ Right
         [ Realize.Note $ Realize.Stroke Realize.Heavy "k"
@@ -191,9 +191,9 @@ test_realizeTag :: Test
 test_realizeTag = do
     let f = eWords . realizeSollu smap
         smap = checkSolluMap
-            [ (ta <> ta, [p, p])
-            , (ta, [k])
-            , (1^ta, [t])
+            [ (ta <> ta, p <> p)
+            , (ta, k)
+            , (1^ta, t)
             ] where M.Strokes {..} = M.notes
     equal (f ta) (Right "k")
     equal (f (ta <> ta)) (Right "p p")
@@ -201,14 +201,12 @@ test_realizeTag = do
     equal (f (1^ta <> ta)) (Right "t k")
     equal (f (2^ta)) (Right "k")
 
-pattern :: S.Matra -> Solkattu.Note Sollu
-pattern = Solkattu.Pattern . Solkattu.pattern
-
 test_realizePatterns :: Test
 test_realizePatterns = do
-    let f pmap seq = Realize.formatError $ fst $
-            Realize.realize_ (Realize.realizePattern pmap)
-                (Realize.realizeSollu solluMap) Tala.adi_tala (S.flatten seq)
+    let f pmap = Realize.formatError . fst
+            . Realize.realize_ (Realize.realizePattern pmap)
+                (Realize.realizeSollu solluMap) Tala.adi_tala
+            . S.flatten . S.toList
     let eStrokes = eWords . fmap S.flattenedNotes
     equal (eStrokes $ f (M.families567 !! 0) G.p5)
         (Right "k t k n o")
@@ -216,40 +214,40 @@ test_realizePatterns = do
         (Right "k _ t _ k _ k t o _")
     -- This ensures that 'Realize.realize' fixes the FGroup count if
     -- realizePatterns changes it.
-    equal (eStrokes $ f M.defaultPatterns $ G.rdropM 0 $ sd G.p5)
+    equal (eStrokes $ f M.defaultPatterns $ G.rdropM 0 $ G.sd G.p5)
         (Right "k t k n o")
     left_like (f (M.families567 !! 0) (G.pat 3)) "no pattern for 3p"
 
 test_patterns :: Test
 test_patterns = do
-    let f = second (const ()) . Realize.patternMap . solkattuToRealize
-            . map (first Solkattu.pattern)
+    let f = second (const ()) . Realize.patternMap . map (second S.fromList)
+            . solkattuToRealize . map (first Solkattu.pattern)
     let M.Strokes {..} = M.notes
     left_like (f [(2, k)]) "2 /= realization matras 1"
-    equal (f [(2, sd k)]) (Right ())
-    equal (f [(2, su (k <> t <> k <> t))]) (Right ())
-    equal (f [(2, k <> t)]) (Right ())
+    right_equal (f [(2, G.sd k)]) ()
+    right_equal (f [(2, G.su (k <> t <> k <> t))]) ()
+    right_equal (f [(2, k <> t)]) ()
 
 test_solluMap :: Test
 test_solluMap = do
     let f = fmap (\(Realize.SolluMap smap) -> Map.toList smap) . makeSolluMap
     let M.Strokes {..} = M.notes
-    equal (f []) (Right [])
-    equal (f [(ta <> di, [k, t])]) $ Right
+    right_equal (f []) []
+    right_equal (f [(ta <> di, k <> t)])
         [ ( (Nothing, [Ta, Di])
           , map (Just . Realize.stroke) [M.Valantalai M.Ki, M.Valantalai M.Ta]
           )
         ]
     -- Last one wins.
-    equal (f [(ta, [k]), (ta, [t])]) $ Right
+    right_equal (f [(ta, k), (ta, t)])
         [((Nothing, [Ta]), [Just (Realize.stroke (M.Valantalai M.Ta))])]
-    equal (f [(1^ta, [k])]) $ Right
+    equal (f [(1^ta, k)]) $ Right
         [((Just 1, [Ta]), [Just (Realize.stroke (M.Valantalai M.Ki))])]
-    left_like (f [(ta <> di <> ta, [k])]) "more sollus than strokes at di.ta"
-    left_like (f [(ta, [k, t, k])]) "more strokes than sollus at tk"
-    equal (length <$> f [(tang <> ga, [u, __])]) (Right 1)
-    left_like (f [(tang <> __, [k, t])]) "rest sollu given non-rest stroke"
-    left_like (f [(ta <> [S.Note $ pattern 5], [k])]) "only have plain sollus"
+    left_like (f [(ta <> di <> ta, k)]) "more sollus than strokes at di.ta"
+    left_like (f [(ta, mconcat [k, t, k])]) "more strokes than sollus at tk"
+    equal (length <$> f [(tang <> ga, u <> __)]) (Right 1)
+    left_like (f [(tang <> __, k <> t)]) "rest sollu given non-rest stroke"
+    left_like (f [(ta <> G.pat 5, k)]) "only have plain sollus"
 
 test_checkD :: Test
 test_checkD = do
@@ -264,44 +262,45 @@ test_checkD = do
 test_checkAlignment :: Test
 test_checkAlignment = do
     let f = checkAlignment tdktSmap G.adi 0 0
-        tdkt = cycle $ ta <> di <> ki <> ta
-    equal (f []) (Right Nothing)
-    equal (f (take 4 tdkt)) $ Right $ Just $ Realize.Warning Nothing
+        tdkt = cycle [ta, di, ki, ta]
+        mtake n = mconcat . take n
+    equal (f mempty) (Right Nothing)
+    equal (f (mtake 4 tdkt)) $ Right $ Just $ Realize.Warning Nothing
         "should end on sam, actually ends on 1:1, or sam - 7"
-    equal (f (take 6 tdkt)) $ Right $ Just $ Realize.Warning Nothing
+    equal (f (mtake 6 tdkt)) $ Right $ Just $ Realize.Warning Nothing
         "should end on sam, actually ends on 1:1+1/2, or sam - 6+1/2"
-    equal (f (take (8*4) tdkt)) (Right Nothing)
-    equal (f (G.speed (-2) $ take 8 tdkt)) (Right Nothing)
+    equal (f (mtake (8*4) tdkt)) (Right Nothing)
+    equal (f (G.speed (-2) $ mtake 8 tdkt)) (Right Nothing)
     -- Ok to end on sam, even with trailing rests.
-    equal (f (G.speed (-2) $ take 9 tdkt <> __ <> __)) (Right Nothing)
+    equal (f (G.speed (-2) $ mtake 9 tdkt <> __ <> __)) (Right Nothing)
     -- But I don't drop rests because sometimes they make it line up.
-    equal (f (G.speed (-2) $ take 7 tdkt <> __)) (Right Nothing)
+    equal (f (G.speed (-2) $ mtake 7 tdkt <> __)) (Right Nothing)
 
-    equal (f (G.speed (-2) $ take 4 tdkt <> G.akshara 4 <> take 4 tdkt))
+    equal (f (G.speed (-2) $ mtake 4 tdkt <> G.akshara 4 <> mtake 4 tdkt))
         (Right Nothing)
-    equal (f (take 3 tdkt <> G.akshara 4 <> take 5 tdkt)) $ Right $ Just $
+    equal (f (mtake 3 tdkt <> G.akshara 4 <> mtake 5 tdkt)) $ Right $ Just $
         Realize.Warning (Just 3) "expected akshara 4, but at 1:3/4"
 
 test_checkAlignment_eddupu :: Test
 test_checkAlignment_eddupu = do
     let f = checkAlignment tdktSmap G.adi
-        tdkt = cycle $ ta <> di <> ki <> ta
-    equal (f 0 1 (take 8 tdkt)) $ Right $ Just $ Realize.Warning
+        tdkt = cycle [ta, di, ki, ta]
+        mtake n = mconcat . take n
+    equal (f 0 1 (mtake 8 tdkt)) $ Right $ Just $ Realize.Warning
         Nothing "should end on sam+1, actually ends on 1:2, or sam - 6"
-    equal (f 0 1 (take 4 tdkt)) $ Right Nothing
-    equal (f 0 (-1) (take 4 tdkt)) $ Right $ Just $ Realize.Warning
+    equal (f 0 1 (mtake 4 tdkt)) $ Right Nothing
+    equal (f 0 (-1) (mtake 4 tdkt)) $ Right $ Just $ Realize.Warning
         Nothing "should end on sam-1, actually ends on 1:1, or sam - 7"
-    equal (f 0 (-1) (take (4*7) tdkt)) $ Right Nothing
+    equal (f 0 (-1) (mtake (4*7) tdkt)) $ Right Nothing
 
-    equal (f 0 0 (take (8*4) tdkt)) $ Right Nothing
-    equal (f 1 1 (take (8*4) tdkt)) $ Right Nothing
+    equal (f 0 0 (mtake (8*4) tdkt)) $ Right Nothing
+    equal (f 1 1 (mtake (8*4) tdkt)) $ Right Nothing
 
 test_checkAlignmentNadaiChange :: Test
 test_checkAlignmentNadaiChange = do
     let f = checkAlignment tdktSmap G.adi 0 0
-        tdkt = ta <> di <> ki <> ta
     -- Change nadai in the middle of an akshara.
-    equal (f (take 2 tdkt <> G.nadai 6 (take 3 tdkt))) $ Right $ Just $
+    right_equal (f (ta <> di <> G.nadai 6 (mconcat [ta, di, ki]))) $ Just $
         Realize.Warning Nothing
             "should end on sam, actually ends on 1:1, or sam - 7"
 
@@ -353,32 +352,33 @@ realizeM tala =
     Korvai.realizeSection tala Realize.realizeStroke mempty id . Korvai.section
 
 checkSolluMap :: CallStack.Stack =>
-    [ ( [S.Note g (Note Sollu)]
-      , [[S.Note g (Note (Realize.Stroke M.Stroke))]]
+    [ ( S.Sequence g (Note Sollu)
+      , S.Sequence g (Note (Realize.Stroke M.Stroke))
       )
     ] -> Realize.SolluMap M.Stroke
 checkSolluMap = expect_right . makeSolluMap
 
 makeSolluMap ::
-    [ ( [S.Note g (Note Sollu)]
-      , [[S.Note g (Note (Realize.Stroke M.Stroke))]]
+    [ ( S.Sequence g (Note Sollu)
+      , S.Sequence g (Note (Realize.Stroke M.Stroke))
       )
     ] -> Either Text (Realize.SolluMap M.Stroke)
-makeSolluMap =
-    fmap fst . Realize.solluMap . solkattuToRealize . map (second mconcat)
+makeSolluMap = fmap fst . Realize.solluMap . solkattuToRealize
 
 makeMridangam :: G.StrokeMap M.Stroke -> Realize.StrokeMap M.Stroke
 makeMridangam = expect_right . Korvai.smapMridangam . G.makeMridangam0
 
 -- | Realize sollus.  Since this doesn't go through 'Korvai.realizeSection',
 -- it omits the post-realize checks, so no 'Realize.Warning's.
-realizeSollu :: Solkattu.Notation stroke => Realize.SolluMap stroke
-    -> [S.Note Solkattu.Group (Note Sollu)]
+realizeSollu :: Solkattu.Notation stroke
+    => Realize.SolluMap stroke
+    -> S.Sequence Solkattu.Group (Note Sollu)
     -> Either Text [Realize.Note stroke]
 realizeSollu smap = fmap S.flattenedNotes . realizeSolluMap smap
 
-realizeSolluMap :: Solkattu.Notation stroke => Realize.SolluMap stroke
-    -> [S.Note Solkattu.Group (Note Sollu)]
+realizeSolluMap :: Solkattu.Notation stroke
+    => Realize.SolluMap stroke
+    -> S.Sequence Solkattu.Group (Note Sollu)
     -> Either Text [Realize.Realized stroke]
 realizeSolluMap solluMap = realizeStrokeMap smap
     where
@@ -389,18 +389,18 @@ realizeSolluMap solluMap = realizeStrokeMap smap
         }
 
 realizeStrokeMap :: Solkattu.Notation stroke => Realize.StrokeMap stroke
-    -> [S.Note Solkattu.Group (Note Sollu)]
+    -> S.Sequence Solkattu.Group (Note Sollu)
     -> Either Text [Realize.Realized stroke]
 realizeStrokeMap smap =
     Realize.formatError . fst
     . Realize.realize smap (Realize.realizeSollu (Realize.smapSolluMap smap))
         Tala.adi_tala
-    . S.flatten
-    . map (fmap (fmap Realize.stroke))
+    . S.flatten . S.toList
+    . fmap (fmap Realize.stroke)
 
 solluMap :: Realize.SolluMap M.Stroke
 solluMap = checkSolluMap
-    [ (thom, [o])
+    [ (thom, o)
     ]
     where M.Strokes {..} = M.notes
 
@@ -410,10 +410,6 @@ mridangam = mempty
     }
     where M.Strokes {..} = M.notes
 
-sd, su :: [S.Note g a] -> [S.Note g a]
-sd = (:[]) . S.changeSpeed (-1)
-su = (:[]) . S.changeSpeed 1
-
-solkattuToRealize :: [(a, [(S.Note g (Solkattu.Note (Realize.Stroke stroke)))])]
+solkattuToRealize :: [(a, S.Sequence g (Solkattu.Note (Realize.Stroke stroke)))]
     -> [(a, [S.Note () (Realize.Note stroke)])]
 solkattuToRealize = expect_right . mapM (traverse Realize.solkattuToRealize)

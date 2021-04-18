@@ -93,9 +93,9 @@ test_format_sarva = do
     -- really understand it but I think it's right?
     -- [s0, s0]
     -- [[s1, s1], [s1, s1]] 4*2 -> 8*'='
-    equal (run abstract (sarva 1 <> su (sarva 2)))
+    equal (run abstract (sarva 1 <> G.su (sarva 2)))
         (Right "========")
-    equal (run abstract (sarva 1 <> sd (sarva 2)))
+    equal (run abstract (sarva 1 <> G.sd (sarva 2)))
         (Right "==========")
 
 tala4 :: Tala.Tala
@@ -173,9 +173,9 @@ test_spellRests :: Test
 test_spellRests = do
     let run width = fmap (eFormat . format width tala4 . fst)
             . kRealize tala4
-    equalT (run 80 (sd (G.__ <> G.ta))) $ Right "‗|  k _"
-    equalT (run 80 (sd (G.ta <> G.__ <> G.ta))) $ Right "k _ ‗   k _"
-    equalT (run 10 (sd (G.ta <> G.__ <> G.ta))) $ Right "k _ k"
+    equalT (run 80 (G.sd (G.__ <> G.ta))) $ Right "‗|  k _"
+    equalT (run 80 (G.sd (G.ta <> G.__ <> G.ta))) $ Right "k _ ‗   k _"
+    equalT (run 10 (G.sd (G.ta <> G.__ <> G.ta))) $ Right "k _ k"
     equalT (run 80 (G.ta <> G.__4 <> G.ta)) $ Right "k _ ‗   k"
 
 test_inferRuler :: Test
@@ -225,12 +225,12 @@ test_formatLines = do
 
     -- Break multiple avartanams and lines.
     let ta2 = "k _ ‗   k _ ‗"
-    equal (f 2 8 tala4 (sd (sd (tas 8)))) $ Right
+    equal (f 2 8 tala4 (G.sd (G.sd (tas 8)))) $ Right
         [ [ta2, ta2]
         , [ta2, ta2]
         ]
     -- If there's a final stroke on sam, append it to the previous line.
-    equal (f 2 8 tala4 (sd (sd (tas 9)))) $ Right
+    equal (f 2 8 tala4 (G.sd (G.sd (tas 9)))) $ Right
         [ [ta2, ta2]
         , [ta2, ta2 <> "   k"]
         ]
@@ -256,15 +256,15 @@ test_abstract = do
     let tas n = G.repeat n G.ta
     equal (f (tas 4)) (Right ["k k k k"])
     equal (f (tas 2 <> G.group (tas 2))) (Right ["k k 2---"])
-    equal (f (su $ tas 2 <> G.group (tas 2))) (Right ["k k 1---"])
-    equal (f (su $ tas 2 <> G.group (tas 3))) (Right ["k k 1½----"])
+    equal (f (G.su $ tas 2 <> G.group (tas 2))) (Right ["k k 1---"])
+    equal (f (G.su $ tas 2 <> G.group (tas 3))) (Right ["k k 1½----"])
     equal (f (G.nadai 3 $ tas 2 <> G.group (tas 3)))
         (Right ["k k 3-----"])
-    equal (f (su $ G.nadai 3 $ tas 2 <> G.group (tas 3)))
+    equal (f (G.su $ G.nadai 3 $ tas 2 <> G.group (tas 3)))
         (Right ["k k 1½----"])
     equal (f (G.group (tas 2) <> G.group (tas 2)))
         (Right ["2---2---"])
-    equal (f (su $ tas 2 <> G.named "q" (tas 2)))
+    equal (f (G.su $ tas 2 <> G.named "q" (tas 2)))
         (Right ["k k q---"])
 
     -- Named group with a longer name.
@@ -276,11 +276,11 @@ test_abstract = do
     equal (f (G.reduce3 1 mempty (tas 4))) (Right ["4-------3-----2---"])
     -- patterns
     equal (f (G.pattern (tas 4))) (Right ["4p------"])
-    equal (f (G.pattern (su $ tas 4))) (Right ["2p------"])
+    equal (f (G.pattern (G.su $ tas 4))) (Right ["2p------"])
     equal (f G.p5) (Right ["5p--------"])
     -- Unlike GExplicitPattern 'G.pattern', these have a logical matra
     -- duration, so they use that, not fmatras.
-    equal (f (su G.p5)) (Right ["5p--------"])
+    equal (f (G.su G.p5)) (Right ["5p--------"])
 
 extractLines :: [[[(a, Terminal.Symbol)]]] -> [[Text]]
 extractLines = map $ map $ Text.strip . mconcat . map (Terminal._text . snd)
@@ -322,15 +322,15 @@ test_formatSpeed = do
                 . format width Tala.rupaka_fast)
             . realize defaultSolluMap
         thoms n = mconcat (replicate n G.thom)
-    equal (f 80 []) (Right "")
+    equal (f 80 mempty) (Right "")
     equal (f 80 (thoms 8)) (Right "O o o o O o o o")
-    equal (f 80 [nadai 3 $ thoms 6]) (Right "O o o O o o")
-    equal (f 80 $ sd (thoms 4)) (Right "O _ o _ O _ o _")
-    equal (f 80 $ thoms 2 <> su (thoms 4) <> thoms 1)
+    equal (f 80 $ G.nadai 3 $ thoms 6) (Right "O o o O o o")
+    equal (f 80 $ G.sd (thoms 4)) (Right "O _ o _ O _ o _")
+    equal (f 80 $ thoms 2 <> G.su (thoms 4) <> thoms 1)
         (Right "O _ o _ o o o o O _")
-    equal (f 80 $ thoms 2 <> su (su (thoms 8)) <> thoms 1)
+    equal (f 80 $ thoms 2 <> G.su (G.su (thoms 8)) <> thoms 1)
         (Right "O _ ‗   o _ ‗   o o o o o o o o O _ ‗")
-    equal (f 80 $ sd (thoms 2) <> thoms 4) (Right "O _ o _ O o o o")
+    equal (f 80 $ G.sd (thoms 2) <> thoms 4) (Right "O _ o _ O o o o")
     equal (f 80 (G.p5 <> G.p5)) (Right "5P------==5p----==--")
     -- Use narrow spacing when there's isn't space, and p5 overlaps the next
     -- '-'.
@@ -396,27 +396,20 @@ korvai tala = Korvai.korvai tala defaultStrokeMap
 
 -- * TODO duplicated with Realize_test
 
-sd, su :: [S.Note g a] -> [S.Note g a]
-sd = (:[]) . S.changeSpeed (-1)
-su = (:[]) . S.changeSpeed 1
-
-nadai :: S.Nadai -> [S.Note g a] -> S.Note g a
-nadai n = S.TempoChange (S.Nadai n)
-
 realize :: Realize.SolluMap M.Stroke
-    -> [S.Note Solkattu.Group (Solkattu.Note Sollu)]
+    -> S.Sequence Solkattu.Group (Solkattu.Note Sollu)
     -> Either Text [Format.Flat M.Stroke]
 realize = realizeP Nothing
 
 realizeP :: Maybe (Realize.PatternMap M.Stroke)
     -> Realize.SolluMap M.Stroke
-    -> [S.Note Solkattu.Group (Solkattu.Note Sollu)]
+    -> S.Sequence Solkattu.Group (Solkattu.Note Sollu)
     -> Either Text [Format.Flat M.Stroke]
 realizeP pmap smap = fmap Format.mapGroups
     . Realize.formatError . fst
     . Realize.realize_ pattern (Realize.realizeSollu smap) Tala.adi_tala
-    . S.flatten
-    . map (fmap (fmap Realize.stroke))
+    . S.flatten . S.toList
+    . fmap (fmap Realize.stroke)
     where
     pattern = Realize.realizePattern $ fromMaybe M.defaultPatterns pmap
 
@@ -437,6 +430,6 @@ defaultStrokeMap = mempty
     { Korvai.smapMridangam = Realize.strokeMap M.defaultPatterns [(G.ta, k)] }
     where M.Strokes {..} = M.notes
 
-solkattuToRealize :: [(a, [(S.Note g (Solkattu.Note (Realize.Stroke stroke)))])]
+solkattuToRealize :: [(a, S.Sequence g (Solkattu.Note (Realize.Stroke stroke)))]
     -> [(a, [S.Note () (Realize.Note stroke)])]
 solkattuToRealize = expect_right . mapM (traverse Realize.solkattuToRealize)

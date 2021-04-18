@@ -98,8 +98,8 @@ infixr 9 • -- match prelude (.)
 ø :: Monoid a => a
 ø = mempty
 
-makeNote :: a -> [S.Note g a]
-makeNote a = [S.Note a]
+makeNote :: a -> S.Sequence g a
+makeNote a = S.singleton $ S.Note a
 
 -- * realize
 
@@ -133,12 +133,14 @@ infix 9 §
 modifySingleNote :: (CallStack.Stack, Pretty sollu) =>
     (Solkattu.Note sollu -> Solkattu.Note sollu)
     -> SequenceT sollu -> SequenceT sollu
-modifySingleNote modify (n:ns) = case n of
-    S.Note note@(Solkattu.Note {}) -> S.Note (modify note) : ns
-    S.TempoChange change sub ->
-        S.TempoChange change (modifySingleNote modify sub) : ns
-    _ -> throw $ "expected a single note: " <> pretty n
-modifySingleNote _ [] = throw "expected a single note, but got []"
+modifySingleNote modify = S.apply go
+    where
+    go = \case
+        n : ns -> case n of
+            S.Note note@(Solkattu.Note {}) -> S.Note (modify note) : ns
+            S.TempoChange change sub -> S.TempoChange change (go sub) : ns
+            _ -> throw $ "expected a single note: " <> pretty n
+        [] -> throw "expected a single note, but got []"
 
 stripRests :: SequenceT sollu -> SequenceT sollu
 stripRests = S.filterNotes notRest
@@ -153,7 +155,7 @@ lt = mapSollu (\stroke -> stroke { Realize._emphasis = Realize.Light })
 hv = mapSollu (\stroke -> stroke { Realize._emphasis = Realize.Heavy })
 
 mapSollu :: (sollu -> sollu) -> SequenceT sollu -> SequenceT sollu
-mapSollu = fmap • fmap • fmap
+mapSollu = fmap • fmap
 
 -- * Config
 

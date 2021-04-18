@@ -162,8 +162,8 @@ stroke = Stroke Normal
 rest :: SNote stroke
 rest = S.Note (Space Solkattu.Rest)
 
-strokeToSequence :: stroke -> [S.Note g (Solkattu.Note (Stroke stroke))]
-strokeToSequence = (:[]) . S.Note . Solkattu.Note . Solkattu.note . stroke
+strokeToSequence :: stroke -> S.Sequence g (Solkattu.Note (Stroke stroke))
+strokeToSequence = S.singleton . S.Note . Solkattu.Note . Solkattu.note . stroke
 
 -- There's no general ToCall instance for Stroke because individual instruments
 -- may have special cases.
@@ -327,8 +327,8 @@ data StrokeMap stroke = StrokeMap {
     } deriving (Eq, Show, Generics.Generic)
 
 isInstrumentEmpty :: StrokeMap stroke -> Bool
-isInstrumentEmpty (StrokeMap (SolluMap solluMap) _ (PatternMap patternMap)) =
-    Map.null solluMap && Map.null patternMap
+isInstrumentEmpty (StrokeMap (SolluMap smap) _ (PatternMap patternMap)) =
+    Map.null smap && Map.null patternMap
 
 smapKeys :: StrokeMap stroke -> Set (SolluMapKey Solkattu.Sollu)
 smapKeys smap = Map.keysSet m
@@ -346,8 +346,8 @@ instance Pretty stroke => Pretty (StrokeMap stroke) where
 
 -- | Verify a list of pairs stroke map and put them in an 'StrokeMap'.
 strokeMap :: Pretty stroke => PatternMap stroke
-    -> [ ( [S.Note g (Solkattu.Note Solkattu.Sollu)]
-         , [S.Note g (Solkattu.Note (Stroke stroke))]
+    -> [ ( S.Sequence g (Solkattu.Note Solkattu.Sollu)
+         , S.Sequence g (Solkattu.Note (Stroke stroke))
          )
        ]
     -> Either Error (StrokeMap stroke)
@@ -364,9 +364,9 @@ strokeMap pmap strokes = do
 -- "Solkattu.Dsl".  But since they don't go through a realization step
 -- (being used to implement the realization step for sollus), I can directly
 -- map them to 'Realize.Note's before storing them in 'StrokeMap'.
-solkattuToRealize :: [S.Note g (Solkattu.Note (Stroke stroke))]
+solkattuToRealize :: S.Sequence g (Solkattu.Note (Stroke stroke))
     -> Either Error [S.Note () (Note stroke)]
-solkattuToRealize = mapM $ traverse convert . S.mapGroup (const ())
+solkattuToRealize = mapM (traverse convert . S.mapGroup (const ())) . S.toList
     where
     convert = \case
         Solkattu.Note n -> Right $ Note (Solkattu._sollu n)
@@ -384,10 +384,11 @@ newtype PatternMap stroke = PatternMap (Map Solkattu.Pattern [SNote stroke])
 
 -- | Make a PatternMap while checking that the durations match.  Analogous to
 -- 'solluMap'.
-patternMap :: [(Solkattu.Pattern, [SNote stroke])]
+patternMap :: [(Solkattu.Pattern, S.Sequence () (Note stroke))]
     -> Either Error (PatternMap stroke)
 patternMap pairs
-    | null errors = Right $ PatternMap $ Map.fromList pairs
+    | null errors = Right $ PatternMap $ Map.fromList $
+        map (second S.toList) pairs
     | otherwise = Left $ Text.intercalate "; " errors
     where
     errors = mapMaybe check pairs
@@ -399,7 +400,8 @@ patternMap pairs
         | otherwise = Nothing
         where
         notesMatras = notesDuration / S.matraDuration S.defaultTempo
-        notesDuration = Num.sum $ map (S.durationOf S.defaultTempo) notes
+        notesDuration = Num.sum $ map (S.durationOf S.defaultTempo) $
+            S.toList notes
 
 lookupPattern :: Solkattu.Pattern -> PatternMap stroke -> Maybe [SNote stroke]
 lookupPattern p (PatternMap pmap) = Map.lookup p pmap
@@ -420,7 +422,7 @@ prettyKey (tag, sollus) = maybe ""  ((<>"^") . pretty) tag <> pretty sollus
 -- | Verify and costruct a SolluMap from a list of pairs.  Later pairs win over
 -- earlier ones.
 solluMap :: Pretty stroke =>
-    [([S.Note g (Solkattu.Note Solkattu.Sollu)], [SNote stroke])]
+    [(S.Sequence g (Solkattu.Note Solkattu.Sollu), [SNote stroke])]
     -> Either Error (SolluMap stroke,
         [(SolluMapKey Solkattu.Sollu, [Maybe (Stroke stroke)])])
 solluMap = fmap (first SolluMap . Maps.unique . reverse) . mapM verifySolluMap
@@ -429,10 +431,10 @@ solluMap = fmap (first SolluMap . Maps.unique . reverse) . mapM verifySolluMap
 -- taka.tarikita played N_ktpk.  But I don't think a rest sollu can map to
 -- a stroke, and in fact it won't work since I look up by sollus only.
 verifySolluMap :: Pretty stroke
-    => ([S.Note g (Solkattu.Note Solkattu.Sollu)], [SNote stroke])
+    => (S.Sequence g (Solkattu.Note Solkattu.Sollu), [SNote stroke])
     -> Either Error (SolluMapKey Solkattu.Sollu, [Maybe (Stroke stroke)])
 verifySolluMap (sollus, strokes) = do
-    (tag, mbSollus) <- verifySolluKey sollus
+    (tag, mbSollus) <- verifySolluKey $ S.toList sollus
 
     let pSollus = Text.intercalate "." . map (maybe "__" pretty)
         pStrokes = mconcat . map pretty

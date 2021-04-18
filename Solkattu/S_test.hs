@@ -12,6 +12,7 @@ import Global
 import Util.Test
 
 
+test_flattenWith :: Test
 test_flattenWith = do
     let f = S.flattenWith defaultTempo
         -- extract n = n -- fmap (const ()) n
@@ -33,6 +34,7 @@ test_flattenWith = do
             ]
         ]
 
+test_tempoToState :: Test
 test_tempoToState = do
     let f = map (eState . fst) . snd
             . S.tempoToState Tala.adi_tala 0
@@ -54,6 +56,7 @@ test_tempoToState = do
     equal (f [stride 3 [speed 1 (replicate 4 note)]])
         [(0, 0), (0, 3/8), (0, 6/8), (1, 1/8)]
 
+test_normalizeSpeed :: Test
 test_normalizeSpeed = do
     let f = map (bimap eState prettyStroke)
             . S.flattenedNotes
@@ -84,6 +87,7 @@ test_normalizeSpeed = do
         [(0, 0), (0, 1/4), (0, 2/4), (0, 3/4), (1, 0), (1, 1/4)]
     equal (map snd $ f [stride 3 [note, su [note, note]]]) "+_____+__+__"
 
+test_normalizeSpeedGroups :: Test
 test_normalizeSpeedGroups = do
     let f = map (fmap extract) . normalizeSpeed Tala.adi_tala . S.flatten
         n = Note (1 :: S.Matra)

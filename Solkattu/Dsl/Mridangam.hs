@@ -17,11 +17,10 @@ module Solkattu.Dsl.Mridangam (
 import           Prelude hiding ((.))
 
 import qualified Util.CallStack as CallStack
-import qualified Util.Seq as Seq
 import           Solkattu.Dsl.Interactive (diff, diffw)
 import qualified Solkattu.Dsl.MridangamNotation as MridangamNotation
 import qualified Solkattu.Dsl.Solkattu as Dsl.Solkattu
-import           Solkattu.Dsl.Solkattu (realizeScoreM, realizeScore)
+import           Solkattu.Dsl.Solkattu (realizeScore, realizeScoreM)
 import qualified Solkattu.Format.Terminal as Terminal
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Korvai as Korvai
@@ -41,7 +40,7 @@ type Section = Korvai.Section Sequence
 -- | Merge a sequence of left hand strokes with one of right hand strokes.
 -- Both sequences must have the same length and structure.
 (&) :: CallStack.Stack => Sequence -> Sequence -> Sequence
-(&) = MridangamNotation.merge
+a & b = S.fromList $ MridangamNotation.merge (S.toList a) (S.toList b)
 
 korvai :: Tala.Tala -> [Section] -> Korvai.Korvai
 korvai tala = Korvai.mridangamKorvai tala Mridangam.defaultPatterns
@@ -99,8 +98,12 @@ thomLH = mapNote $ \note -> if note `elem` [n, d] then o else __
 
 -- | Add a 'o' to the first stroke.
 o1 :: Sequence -> Sequence
-o1 = Seq.map_head $ S.map1 $ fmap $ fmap $
+o1 = maph $ S.map1 $ fmap $ fmap $
     Mridangam.addThoppi (Mridangam.Thom Mridangam.Low)
+    where
+    maph f seq = case S.toList seq of
+        n : ns -> S.fromList $ f n : ns
+        [] -> mempty
 
 mapMStroke :: (Mridangam.Stroke -> Maybe Mridangam.Stroke) -> Sequence
     -> Sequence
@@ -112,7 +115,7 @@ mapMStroke f = mapNote $ \case
 
 mapNote :: (Solkattu.Note Stroke -> Solkattu.Note Stroke)
     -> Sequence -> Sequence
-mapNote = fmap • fmap
+mapNote = fmap
 
 -- | Parse a string to mridangam strokes.
 strM :: CallStack.Stack => String -> Sequence

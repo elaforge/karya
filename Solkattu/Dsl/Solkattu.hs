@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE InstanceSigs #-}
 -- | Global imports for solkattu score modules.
 module Solkattu.Dsl.Solkattu (
     module Solkattu.Dsl.Solkattu
@@ -12,6 +13,7 @@ module Solkattu.Dsl.Solkattu (
 import           Prelude hiding ((.), (^))
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.String as String
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
@@ -44,7 +46,7 @@ type Section = Korvai.Section Sequence
 -- * sollus
 
 _sollu :: Solkattu.Sollu -> Sequence
-_sollu s = [S.Note (Solkattu.Note (Solkattu.note s))]
+_sollu s = S.singleton $ S.Note (Solkattu.Note (Solkattu.note s))
 
 cham = _sollu Solkattu.Cham
 dheem = _sollu Solkattu.Dheem
@@ -166,7 +168,7 @@ Mridangam.Strokes {..} = Mridangam.notes
 -- | Merge a sequence of left hand strokes with one of right hand strokes.
 -- Both sequences must have the same length and structure.
 (&) :: CallStack.Stack => SequenceM -> SequenceM -> SequenceM
-(&) = MridangamNotation.merge
+a & b = S.fromList $ MridangamNotation.merge (S.toList a) (S.toList b)
 
 on :: SequenceM
 on = o&n
@@ -180,7 +182,7 @@ strM str = mconcatMap toSeq $ Solkattu.check $ Mridangam.fromString str
 
 type StrokeMap stroke =
     [ ( Sequence
-      , [S.Note Solkattu.Group (Solkattu.Note (Realize.Stroke stroke))]
+      , S.Sequence Solkattu.Group (Solkattu.Note (Realize.Stroke stroke))
       )
     ]
 
@@ -233,7 +235,7 @@ makeSargam patterns strokes = mempty { Korvai.smapSargam = convert }
     convert = do
         patterns <- mapM (traverse Realize.solkattuToRealize) $
             map (first Solkattu.pattern) patterns
-        pmap <- Realize.patternMap patterns
+        pmap <- Realize.patternMap $ map (second S.fromList) patterns
         Realize.strokeMap pmap strokes
 
 lintS :: Korvai -> IO ()

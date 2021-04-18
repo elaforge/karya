@@ -42,15 +42,19 @@ import           Global
 
 
 type Sequence = SequenceT Solkattu.Sollu
-type SequenceT sollu = [S.Note Solkattu.Group (Solkattu.Note sollu)]
+type SequenceT sollu = SequenceG Solkattu.Group sollu
+type SequenceG g sollu = S.Sequence g (Solkattu.Note sollu)
 
 type Error = Text
 
-mapSollu :: (a -> b) -> SequenceT a -> SequenceT b
-mapSollu f = map $ \case
+mapSollu :: (a -> b) -> S.Sequence g (Solkattu.Note a)
+    -> S.Sequence g (Solkattu.Note b)
+mapSollu f = S.mapS $ \case
     S.Note note -> S.Note (f <$> note)
-    S.TempoChange change notes -> S.TempoChange change (mapSollu f notes)
-    S.Group g notes -> S.Group g (mapSollu f notes)
+    S.TempoChange change notes -> S.TempoChange change (mapS notes)
+    S.Group g notes -> S.Group g (mapS notes)
+    where
+    mapS = S.toList . mapSollu f . S.fromList
 
 -- * Score
 
@@ -98,7 +102,7 @@ korvai :: Tala.Tala -> StrokeMaps -> [Section (SequenceT Solkattu.Sollu)]
     -> Korvai
 korvai tala strokeMaps sections = Korvai
     { korvaiSections = KorvaiSections IKonnakol
-        (fmap (fmap (fmap (fmap (fmap Realize.stroke)))) sections)
+        (fmap (fmap (fmap (fmap Realize.stroke))) sections)
         -- Wrap up in dummy Realize.Strokes, see 'Realize.realizeSollu'.
     , korvaiStrokeMaps = strokeMaps
     , korvaiTala = tala
@@ -385,8 +389,8 @@ matchedSollus toStrokes tala =
 inferNadai :: [Flat stroke] -> S.Nadai
 inferNadai = S._nadai . maybe S.defaultTempo fst . Seq.head . S.tempoNotes
 
-flatten :: [S.Note g (Solkattu.Note sollu)] -> [S.Flat g (Solkattu.Note sollu)]
-flatten = Solkattu.cancelKarvai . S.flatten
+flatten :: SequenceG g sollu -> [S.Flat g (Solkattu.Note sollu)]
+flatten = Solkattu.cancelKarvai . S.flatten . S.toList
 
 -- | Generate enough 'Solkattu.Offset' spaces to align the score to the given
 -- start Duration.
@@ -443,7 +447,7 @@ lint inst defaultStrokes korvai =
             `Set.difference` matched
             `Set.difference` defaultKeys
     defaultKeys = Set.fromList $ map (second Maybe.catMaybes) $
-        Either.rights $ map Realize.verifySolluKey defaultStrokes
+        Either.rights $ map Realize.verifySolluKey (map S.toList defaultStrokes)
 
 -- * Metadata
 

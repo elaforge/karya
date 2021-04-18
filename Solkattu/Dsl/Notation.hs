@@ -31,14 +31,13 @@ import Global
 
 
 -- | This is the same as 'Solkattu.Korvai.SequenceT'.
-type SequenceT sollu = [NoteT sollu]
-type NoteT sollu = S.Note Solkattu.Group (Solkattu.Note sollu)
+type SequenceT sollu = S.Sequence Solkattu.Group (Solkattu.Note sollu)
 
 -- * rests
 
 class Rest a where __ :: a
 instance Rest (SequenceT sollu) where
-    __ = [S.Note __]
+    __ = S.singleton $ S.Note __
 instance Rest (Realize.SNote sollu) where
     __ = Realize.rest
 instance Rest (Solkattu.Note sollu) where
@@ -68,7 +67,8 @@ __M :: S.Matra -> SequenceT sollu
 __M matras = repeat matras __
 
 sarvaM :: CallStack.Stack => SequenceT sollu -> S.Matra -> SequenceT sollu
-sarvaM sollus matras = [S.Group (Solkattu.GMeta meta) sollus]
+sarvaM sollus matras =
+    S.singleton $ S.Group (Solkattu.GMeta meta) (S.toList sollus)
     where
     meta = (Solkattu.meta Solkattu.GSarva) { Solkattu._matras = Just matras }
 
@@ -114,8 +114,10 @@ splitM_ matras = Solkattu.check . splitM_either matras
 splitM_either :: Pretty sollu => FMatra -> SequenceT sollu
     -> Either Text (SequenceT sollu, SequenceT sollu)
 splitM_either matras =
-    fmap (bimap S.simplify S.simplify . snd) . go S.defaultTempo matras
+    fmap (bimap toSequence toSequence . snd) . go S.defaultTempo matras
+        . S.toList
     where
+    toSequence = S.fromList . S.simplify
     -- Return (matrasLeft, (pre, post)).  matrasLeft is so that a recursive
     -- split in a S.TempoChange or S.Group can report how many matras it
     -- consumed.
@@ -130,10 +132,11 @@ splitM_either matras =
                     matras children ns
             S.Group (Solkattu.GReduction r) children -> do
                 -- The group is destroyed if it gets split.
-                (pre, post) <- splitM_either (Solkattu._split r) children
+                (pre, post) <- splitM_either (Solkattu._split r)
+                    (S.fromList children)
                 case Solkattu._side r of
-                    Solkattu.Before -> go tempo matras (post ++ ns)
-                    Solkattu.After -> go tempo matras (pre ++ ns)
+                    Solkattu.Before -> go tempo matras (S.toList post ++ ns)
+                    Solkattu.After -> go tempo matras (S.toList pre ++ ns)
             S.Group (Solkattu.GMeta
                         meta@(Solkattu.Meta (Just sMatras) _ Solkattu.GSarva))
                     children
@@ -159,7 +162,7 @@ splitM_either matras =
             _ -> Left $ "can't split a note: " <> pretty matras
                 <> " of " <> pretty noteMatras <> ": " <> pretty n
         where
-        noteMatras = Solkattu.matrasOf tempo [n]
+        noteMatras = Solkattu.matrasOf tempo (S.singleton n)
     group makeGroup tempo matras children remaining = do
         (left, (pre, post)) <- go tempo matras children
         if left <= 0
@@ -171,9 +174,10 @@ splitM_either matras =
 
     spaces tempo space matras = do
         speeds <- S.decomposeM matras
-        return $ concatMap make speeds
+        return $ S.toList $ mconcatMap make speeds
         where
-        make s = speed (s - S._speed tempo) [S.Note (Solkattu.Space space)]
+        make s = speed (s - S._speed tempo) $
+            S.singleton $ S.Note (Solkattu.Space space)
 
 rdropM, rdropM_ :: (CallStack.Stack, Pretty sollu) =>
     FMatra -> SequenceT sollu -> SequenceT sollu
@@ -185,9 +189,8 @@ rtakeM :: (CallStack.Stack, Pretty sollu) => FMatra -> SequenceT sollu
 rtakeM dur seq = dropM (matrasOf seq - dur) seq
 
 spaceM :: CallStack.Stack => Solkattu.Space -> FMatra -> SequenceT sollu
-spaceM space matras =
-    concatMap make $ Solkattu.check $ S.decomposeM matras
-    where make s = speed s [S.Note (Solkattu.Space space)]
+spaceM space matras = mconcatMap make $ Solkattu.check $ S.decomposeM matras
+    where make s = speed s $ S.singleton $ S.Note (Solkattu.Space space)
 
 -- * by Duration
 
@@ -197,9 +200,10 @@ restD = spaceD Solkattu.Rest S.defaultTempo
 spaceD :: CallStack.Stack => Solkattu.Space -> S.Tempo -> Duration
     -> SequenceT sollu
 spaceD space tempo dur =
-    concatMap make $ Solkattu.check $ S.decompose s0_matras
+    mconcatMap make $ Solkattu.check $ S.decompose s0_matras
     where
-    make s = speed (s - S._speed tempo) [S.Note (Solkattu.Space space)]
+    make s = speed (s - S._speed tempo) $
+        S.singleton $ S.Note (Solkattu.Space space)
     -- Cancel out the nadai.  So d is now in s0 matras.
     s0_matras = dur * fromIntegral (S._nadai tempo)
 
@@ -271,12 +275,14 @@ r7 = repeat 7
 r8 = repeat 8
 
 join :: SequenceT sollu -> [SequenceT sollu] -> SequenceT sollu
-join = List.intercalate
+join sep = S.fromList . List.intercalate (S.toList sep) . map S.toList
 
 -- | Intersperse between each stroke.
 inter :: SequenceT sollu -> SequenceT sollu -> SequenceT sollu
-inter _ [] = []
-inter sep (x:xs) = x : sep ++ inter sep xs
+inter sep = go . S.toList
+    where
+    go [] = mempty
+    go (x:xs) = S.singleton x <> sep <> go xs
 
 spread :: S.Matra -> SequenceT sollu -> SequenceT sollu
 spread n = inter (__n n)
@@ -399,28 +405,30 @@ dToM2 nadai dur
 -- * generic notation
 
 -- | Set relative speed.
-speed :: S.Speed -> [S.Note g sollu] -> [S.Note g sollu]
-speed _ [] = []
+speed :: S.Speed -> S.Sequence g sollu -> S.Sequence g sollu
 speed change seq
-    | change == 0 = seq
-    | otherwise = [S.TempoChange (S.ChangeSpeed change) seq]
+    | S.null seq || change == 0 = seq
+    | otherwise = S.singleton $
+        S.TempoChange (S.ChangeSpeed change) (S.toList seq)
 
 -- | Mnemonic: speed up, slow down.
-su, sd :: [S.Note g sollu] -> [S.Note g sollu]
+su, sd :: S.Sequence g sollu -> S.Sequence g sollu
 su = speed 1
 sd = speed (-1)
 
-su2, sd2 :: [S.Note g sollu] -> [S.Note g sollu]
+su2, sd2 :: S.Sequence g sollu -> S.Sequence g sollu
 su2 = speed 2
 sd2 = speed (-2)
 
-nadai :: S.Matra -> [S.Note g sollu] -> [S.Note g sollu]
-nadai _ [] = []
-nadai n seq = [S.TempoChange (S.Nadai n) seq]
+nadai :: S.Matra -> S.Sequence g sollu -> S.Sequence g sollu
+nadai n seq
+    | S.null seq = mempty
+    | otherwise = S.singleton $ S.TempoChange (S.Nadai n) (S.toList seq)
 
-stride :: S.Stride -> [S.Note g sollu] -> [S.Note g sollu]
-stride _ [] = []
-stride n seq = [S.TempoChange (S.Stride n) seq]
+stride :: S.Stride -> S.Sequence g sollu -> S.Sequence g sollu
+stride n seq
+    | S.null seq = mempty
+    | otherwise = S.singleton $ S.TempoChange (S.Stride n) (S.toList seq)
 
 -- * groups
 
@@ -437,7 +445,7 @@ pattern :: SequenceT sollu -> SequenceT sollu
 pattern = _groupWith (Solkattu.meta Solkattu.GExplicitPattern)
 
 reduction :: FMatra -> Solkattu.Side -> SequenceT sollu -> SequenceT sollu
-reduction split side = (:[]) . S.Group group
+reduction split side = S.singleton . S.Group group . S.toList
     where
     group = Solkattu.GReduction $ Solkattu.Reduction
         { _split = split
@@ -456,7 +464,7 @@ checkD :: S.Duration -> SequenceT sollu -> SequenceT sollu
 checkD dur = _groupWith $ Solkattu.meta (Solkattu.GCheckDuration dur)
 
 _groupWith :: Solkattu.Meta -> SequenceT sollu -> SequenceT sollu
-_groupWith meta seq = [S.Group (Solkattu.GMeta meta) seq]
+_groupWith meta = S.singleton . S.Group (Solkattu.GMeta meta) . S.toList
 
 -- ** tags
 
@@ -470,12 +478,12 @@ mid :: Solkattu.Tag
 mid = Solkattu.Middle
 
 setTag :: Solkattu.Tag -> SequenceT sollu -> SequenceT sollu
-setTag tag = fmap $ fmap $ Solkattu.modifyNote $
+setTag tag = fmap $ Solkattu.modifyNote $
     \note -> note { Solkattu._tag = Just tag }
 
 -- | Set if not already set.
 trySetTag :: Solkattu.Tag -> SequenceT sollu -> SequenceT sollu
-trySetTag tag = fmap $ fmap $ Solkattu.modifyNote $
+trySetTag tag = fmap $ Solkattu.modifyNote $
     \note -> if Solkattu._tag note == Nothing
         then note { Solkattu._tag = Just tag }
         else note
@@ -525,19 +533,20 @@ appendEach :: Int -> SequenceT sollu -> SequenceT sollu -> SequenceT sollu
 appendEach per sep = mapGroup add (per-1)
     where
     add at n
-        | at <= 0 = (per-1, S.Note n : sep)
+        | at <= 0 = (per-1, S.Note n : S.toList sep)
         | otherwise = (at-1, [S.Note n])
 
 -- | Apply a stateful transformation within groups.  Since the transformation
 -- is allowed to add or remove notes, this will throw if there is a TempoChange
 -- in there, since now we are changing an unknown amount of time.
 mapGroup :: forall state g a. (state -> a -> (state, [S.Note g a])) -> state
-    -> [S.Note g a] -> [S.Note g a]
-mapGroup f state seq = case seq of
-    [S.TempoChange change ns] -> [S.TempoChange change (mapGroup f state ns)]
-    [S.Group g ns] -> [S.Group g (mapGroup f state ns)]
-    _ -> snd $ transform state seq
+    -> S.Sequence g a -> S.Sequence g a
+mapGroup f state = S.fromList . go state . S.toList
     where
+    go state = \case
+        [S.TempoChange change ns] -> [S.TempoChange change (go state ns)]
+        [S.Group g ns] -> [S.Group g (go state ns)]
+        seq -> snd $ transform state seq
     transform state seq = case byGroup seq of
         Nothing -> throw "can't transform multiple tempo changes"
         Just groups -> second concat $ List.mapAccumL transform1 state groups

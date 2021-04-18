@@ -779,8 +779,9 @@ speaking1 = ganesh $ exercise $ korvaiS Tala.any_beats mridangam $
 
     g = id -- should be group but then in3 doesn't work
     -- TODO I need a way to transform inside a group
-    in3 (a:b:cs) = [a] . __ . [b] . in3 cs
-    in3 xs = xs
+    in3 seq = case S.toList seq of
+        a : b : cs -> S.singleton a . __ . S.singleton b . in3 (S.fromList cs)
+        _ -> seq
     t5 = group tdgnt
     t7 = group $ taka.tdgnt
     t9 = group $ taka.tiku.tdgnt
