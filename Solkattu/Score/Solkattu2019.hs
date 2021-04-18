@@ -99,9 +99,9 @@ c_19_07_15 = date 2019 7 15 $ ganesh $ korvai adi mridangam $
     -- TODO sarva going into ending does na.dimi instead of nam.kttk.
     mridangam = makeMridangam
         [ (sarvaS, let rh = n.d.l.n.l.n.d.l.n.l.n.d.l.n.k.t.o.k
-            in rh & strM "oo_o_oo_o_oo_o" . rh & (o.o))
+            in rh & "oo_o_oo_o_oo_o" . rh & (o.o))
         , (sarvaPlainS, let rh = n.d.l.n.l.n.d.l.n.l.n.d.l.n.d.l
-            in rh & strM "oo_o_oo_o_oo_oo_" . rh & (o.o))
+            in rh & "oo_o_oo_o_oo_oo_" . rh & (o.o))
 
         , (tanga.tat.__.dit, v.__.p.k.__.t)
         , (tanga.taka.tang, v.__.p.k.p.v)

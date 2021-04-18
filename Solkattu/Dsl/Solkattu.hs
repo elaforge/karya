@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE InstanceSigs #-}
 -- | Global imports for solkattu score modules.
 module Solkattu.Dsl.Solkattu (
     module Solkattu.Dsl.Solkattu
@@ -42,6 +41,14 @@ type SequenceR stroke = SequenceT (Realize.Stroke stroke)
 type SequenceM = SequenceR Mridangam.Stroke
 
 type Section = Korvai.Section Sequence
+
+instance String.IsString Sequence where
+    -- Even with InstanceSigs, this doesn't actually work to add a call stack.
+    -- fromString :: CallStack.Stack => String -> Sequence
+    fromString s = strS (txt s)
+
+instance String.IsString SequenceM where
+    fromString = strM
 
 -- * sollus
 

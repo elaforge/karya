@@ -54,8 +54,8 @@ e_35_kanda, e_35_misra :: Korvai
         , trin tanga (r3 (tdktt')) (r3 (kp.__.tdktt'))
             (r3 (kp.__.tiku.__.tdktt'))
         ]
-    tdktt = g $ ta.di.__.ki.__.ta.__.thom.__
-    tdktt' = g $ ta.di.__.ki.__.ta.__.thom
+    tdktt = g "tadi_ki_ta_thom_"
+    tdktt' = g "tadi_ki_ta_thom"
 
 april_tani :: Score
 april_tani = tani
