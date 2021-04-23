@@ -60,34 +60,29 @@ def main():
                 if t['system'] == system and t['score'] == score
             ]))
 
-def format(timings):
-    cols = []
-    if patch_name_column:
-        cols.append('patch')
-    cols.extend(['date', 'note'])
-    cols.append('F')
-    cols.extend(['max mb', 'total mb', 'prd'])
-    cols.extend(['derive', 'lily', 'perform'])
-    # cols.append('ghc')
+COLUMNS = [
+    ('patch', lambda t: t['patch']['name'][:64]),
+    ('date', lambda t: t['patch']['date'].split('T')[0]),
+    ('note', lambda t: t.get('note', '')),
+    ('failed', lambda t: 'X' if t.get('failed') else ' '),
+    ('max mb', lambda t: t['gc']['max alloc']),
+    ('total mb', lambda t: t['gc']['total alloc']),
+    ('prod', lambda t: t['gc']['productivity']),
+    ('derive', lambda t: t['cpu'].get('derive')),
+    ('lilypond', lambda t: t['cpu'].get('lilypond')),
+    ('perform', lambda t: t['cpu'].get('perform')),
+    ('ghc', lambda t: t['ghc']),
+]
 
-    rows = [cols]
+def format(timings):
+    columns = [
+        c for c in COLUMNS
+        if c[0] != 'patch' or patch_name_column
+    ]
     timings = sorted(timings, key=lambda t: (t['patch']['date'], t['run_date']))
+    rows = [[c[0] for c in columns]]
     for t in timings:
-        row = []
-        if patch_name_column:
-            row.append(t['patch']['name'][:64])
-        row.append(t['patch']['date'].split('T')[0])
-        row.append(t.get('note', ''))
-        row.append('X' if t.get('failed') else ' ')
-        row.extend([
-            t['gc']['max alloc'],
-            t['gc']['total alloc'],
-            t['gc']['productivity']
-        ])
-        for field in ['derive', 'lilypond', 'perform']:
-            row.append((t['cpu'].get(field, [])))
-        # row.append(t['ghc'])
-        rows.append(list(map(format_field, row)))
+        rows.append([format_field(c[1](t)) for c in columns])
     return format_columns(rows)
 
 def format_field(f):
@@ -108,8 +103,6 @@ def format_range(r):
     return '%.2f~%.2f' % (min(r), max(r))
 
 def format_columns(rows):
-    # Certain lists and []s are necessary or by-default generators make
-    # different results.  Wow.  I think no need to bother with python3 any more.
     widths = [list(map(len, r)) for r in rows]
     widths = [max(ws) + 1 for ws in rotate(widths)]
     out = []
