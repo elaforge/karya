@@ -126,6 +126,7 @@ scores = map Korvai.inferMetadataS
     , setLocation ("Solkattu.Score.Mridangam2021",83,"e_fours") $ Single Solkattu.Score.Mridangam2021.e_fours
     , setLocation ("Solkattu.Score.Mridangam2021",103,"e_tisram") $ Single Solkattu.Score.Mridangam2021.e_tisram
     , setLocation ("Solkattu.Score.Mridangam2021",115,"s_tisram_sarva") $ Single Solkattu.Score.Mridangam2021.s_tisram_sarva
+    , setLocation ("Solkattu.Score.Mridangam2021",119,"e_tisram_tdgno") $ Single Solkattu.Score.Mridangam2021.e_tisram_tdgno
     , setLocation ("Solkattu.Score.MridangamSarva",19,"kir1") $ Single Solkattu.Score.MridangamSarva.kir1
     , setLocation ("Solkattu.Score.MridangamSarva",24,"kir2") $ Single Solkattu.Score.MridangamSarva.kir2
     , setLocation ("Solkattu.Score.MridangamSarva",44,"kir3") $ Single Solkattu.Score.MridangamSarva.kir3
