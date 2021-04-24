@@ -318,7 +318,7 @@ renderBlock emitMessage config notifyState inst controls inputSamples start end
         --     ( InstrumentC._name inst
         --     , start
         --     , map (\(c, _, val) -> (c, val)) $
-        --       Maps.zip_intersection (InstrumentC._controls inst) controls
+        --       Maps.zipIntersection (InstrumentC._controls inst) controls
         --     )
         outputs <- liftIO $ InstrumentC.render
             (_controlSize config) (_controlsPerBlock config) inst

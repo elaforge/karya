@@ -326,7 +326,7 @@ findPitch instrument tuning articulation symPitch = case symPitch of
     Right noteNn -> return (sampleNn, noteNn, key)
         where
         -- Only Nothing if keys was empty.
-        Just (sampleNn, (key, _)) = Maps.lookup_closest noteNn keys
+        Just (sampleNn, (key, _)) = Maps.lookupClosest noteNn keys
     where
     keys = keyMap instrument tuning articulation
 

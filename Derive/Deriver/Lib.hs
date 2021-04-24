@@ -338,7 +338,7 @@ extract_symbols wanted (Scopes gen trans track val) = Scopes
         , scope_pitch = extract pitch
         }
     extract = map_cmap $ \cmap -> mempty
-        { call_map = Maps.filter_key wanted (call_map cmap) }
+        { call_map = Maps.filterKey wanted (call_map cmap) }
     map_cmap f (ScopePriority m) = ScopePriority $ f <$> m
 
 scope_symbols :: Scopes -> [Expr.Symbol]
@@ -698,7 +698,7 @@ with_controls :: [(ScoreT.Control, ScoreT.Typed Signal.Control)]
 with_controls controls
     | null controls = id
     | otherwise = Internal.local $ \state -> state
-        { state_controls = Maps.insert_list controls (state_controls state)
+        { state_controls = Maps.insertList controls (state_controls state)
         }
 
 -- | Remove both controls and control functions.  Use this when a control has
@@ -707,9 +707,9 @@ remove_controls :: [ScoreT.Control] -> Deriver a -> Deriver a
 remove_controls controls
     | null controls = id
     | otherwise = Internal.local $ \state -> state
-        { state_controls = Maps.delete_keys controls (state_controls state)
+        { state_controls = Maps.deleteKeys controls (state_controls state)
         , state_control_functions =
-            Maps.delete_keys controls (state_control_functions state)
+            Maps.deleteKeys controls (state_control_functions state)
         }
 
 with_control_function :: ScoreT.Control -> DeriveT.ControlFunction

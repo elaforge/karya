@@ -206,7 +206,7 @@ safe_union name fm0 fm1
     | Map.null overlapping = return fm
     | otherwise = Ui.throw $ "keys collided in " <> showt name <> ": "
         <> showt (Map.keys overlapping)
-    where (fm, overlapping) = Maps.unique_union fm0 fm1
+    where (fm, overlapping) = Maps.uniqueUnion fm0 fm1
 
 
 -- * intern

@@ -99,7 +99,7 @@ cmd_record_keys msg = cont $ whenJust (msg_to_mod msg) $ \(down, mb_mod) -> do
                 <> showt (Map.keys mods)
         return $ Map.delete key mods
     set_key_mods mods = case msg_to_key_mods msg of
-        Just kmods -> Maps.insert_list
+        Just kmods -> Maps.insertList
             [(Cmd.KeyMod c, Cmd.KeyMod c) | c <- kmods]
             (Map.filter not_key_mod mods)
         Nothing -> mods

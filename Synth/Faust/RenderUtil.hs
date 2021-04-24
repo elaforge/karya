@@ -38,7 +38,7 @@ rms block =
 
 findControls :: Ord control => Map control (ptr, config)
     -> Map control block -> [(ptr, block)]
-findControls controls vals = map get $ Maps.zip_intersection controls vals
+findControls controls vals = map get $ Maps.zipIntersection controls vals
     where get (_, (ptr, _), block) = (ptr, block)
 
 -- | Pull a chunk from each of the controls.  Omit the control if its signal

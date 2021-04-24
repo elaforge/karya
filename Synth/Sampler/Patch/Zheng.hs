@@ -127,7 +127,7 @@ defaultDampTime = 0.75
 toFilename :: Pitch.NoteNumber -> Articulation -> Signal.Y -> Signal.Y
     -> Maybe (Midi.Key, Signal.Y, FilePath)
 toFilename nn art dyn var = do
-    (key, velToFiles) <- Maps.lookup_closest (Midi.to_key (round nn))
+    (key, velToFiles) <- Maps.lookupClosest (Midi.to_key (round nn))
         (samples art)
     -- TODO pick some from neighbors, since I lost variations due to combining
     -- them

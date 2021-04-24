@@ -240,7 +240,7 @@ findSymPitch tuning (Pitch.Note pitch) = do
 findNnPitch :: Tuning -> Pitch.NoteNumber
     -> Either Text (Pitch, (Pitch.NoteNumber, Pitch.NoteNumber))
 findNnPitch tuning nn = do
-    (sampleNn, pitch) <- tryJust "no pitches" $ Maps.lookup_closest nn $
+    (sampleNn, pitch) <- tryJust "no pitches" $ Maps.lookupClosest nn $
         case tuning of
             Umbang -> umbangs
             Isep -> iseps

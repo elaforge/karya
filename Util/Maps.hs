@@ -4,31 +4,32 @@
 
 -- | Extra utils for "Data.Map".
 module Util.Maps where
-import Prelude hiding (min, max)
-import Control.Arrow (first)
+import           Prelude hiding (min, max)
+import           Control.Arrow (first)
 import qualified Data.Either as Either
-import Data.Function
 import qualified Data.List as List
 import qualified Data.Map as Map
-import Data.Map (Map)
+import           Data.Map (Map)
 import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 
 import qualified Util.Seq as Seq
 
+import           Data.Function (on)
+
 
 getM :: (Ord k, Monoid a) => Map k a -> k -> a
 getM m k = Map.findWithDefault mempty k m
 
-filter_key :: (k -> Bool) -> Map k a -> Map k a
-filter_key f = Map.filterWithKey (\k _ -> f k)
+filterKey :: (k -> Bool) -> Map k a -> Map k a
+filterKey f = Map.filterWithKey (\k _ -> f k)
 
-delete_keys :: Ord k => [k] -> Map k a -> Map k a
-delete_keys keys m = Map.withoutKeys m (Set.fromList keys)
+deleteKeys :: Ord k => [k] -> Map k a -> Map k a
+deleteKeys keys m = Map.withoutKeys m (Set.fromList keys)
 
-insert_list :: Ord k => [(k, v)] -> Map k v -> Map k v
-insert_list kvs m = List.foldl' (\m (k, v) -> Map.insert k v m) m kvs
+insertList :: Ord k => [(k, v)] -> Map k v -> Map k v
+insertList kvs m = List.foldl' (\m (k, v) -> Map.insert k v m) m kvs
 
 -- | Like 'Data.Map.split', except include a matched key in the above map.
 split2 :: Ord k => k -> Map k a -> (Map k a, Map k a)
@@ -50,8 +51,8 @@ within :: Ord k => k -> k -> Map k a -> Map k a
 within low high fm = let (_, m, _) = split3 low high fm in m
 
 -- | Find the closest key.  If two are equidistant, favor the one below.
-lookup_closest :: (Ord k, Num k) => k -> Map k v -> Maybe (k, v)
-lookup_closest key m = case (Map.lookupLT key m, Map.lookupGE key m) of
+lookupClosest :: (Ord k, Num k) => k -> Map k v -> Maybe (k, v)
+lookupClosest key m = case (Map.lookupLT key m, Map.lookupGE key m) of
     (Just (k0, v0), Just (k1, v1))
         | key - k0 <= k1 - key -> Just (k0, v0)
         | otherwise -> Just (k1, v1)
@@ -90,8 +91,8 @@ unique2 = first Map.fromAscList . Either.partitionEithers . map separate
 -- | Given two maps, pair up the elements in @map1@ with a samed-keyed element
 -- in @map2@, if there is one.  Elements that are only in @map1@ or @map2@ will
 -- not be included in the output.
-zip_intersection :: Ord k => Map k v1 -> Map k v2 -> [(k, v1, v2)]
-zip_intersection map1 map2 =
+zipIntersection :: Ord k => Map k v1 -> Map k v2 -> [(k, v1, v2)]
+zipIntersection map1 map2 =
     [(k, v1, v2) | (k, v1) <- Map.assocs map1, Just v2 <- [Map.lookup k map2]]
     -- I could implement with 'pairs', but it would be less efficient.
 
@@ -101,18 +102,18 @@ pairs map1 map2 = Seq.pair_sorted (Map.toAscList map1) (Map.toAscList map2)
 
 -- | Like 'Map.union', but also return a map of rejected duplicate keys from
 -- the map on the right.
-unique_union :: Ord k => Map k a -> Map k a -> (Map k a, Map k a)
+uniqueUnion :: Ord k => Map k a -> Map k a -> (Map k a, Map k a)
     -- ^ (union, rejected)
-unique_union fm1 fm2 = (Map.union fm1 fm2, rejected)
+uniqueUnion fm1 fm2 = (Map.union fm1 fm2, rejected)
     where rejected = Map.intersection fm2 fm1
 
 -- | Like 'Map.unions', but return a map of the rejected keys.  Like
 -- Map.unions, the first key in the list wins.  If there are multiple
 -- conflicting keys, only the first one will show up in the reject map.
-unique_unions :: Ord k => [Map k a] -> (Map k a, Map k a)
-unique_unions = flip List.foldl' (Map.empty, Map.empty) $
+uniqueUnions :: Ord k => [Map k a] -> (Map k a, Map k a)
+uniqueUnions = flip List.foldl' (Map.empty, Map.empty) $
     \(collect, rejected) fm ->
-        let (collect2, rejected2) = unique_union collect fm
+        let (collect2, rejected2) = uniqueUnion collect fm
         in (collect2, Map.union rejected rejected2)
 
 -- | The Data.Map Monoid instance is just a plain union, and doesn't mappend

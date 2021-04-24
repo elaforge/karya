@@ -4,13 +4,16 @@
 
 module Util.Maps_test where
 import qualified Data.Map as Map
+
 import qualified Util.Maps as Maps
-import Util.Test
+
+import           Util.Test
 
 
-test_unique_unions = do
+test_uniqueUnions :: Test
+test_uniqueUnions = do
     let f = (\(m1, m2) -> (Map.toList m1, Map.toList m2))
-            . Maps.unique_unions . map Map.fromList
+            . Maps.uniqueUnions . map Map.fromList
     equal (f [[('a', 1)], [('a', 2)]])
         ([('a', 1)], [('a', 2)])
     equal (f [[('a', 1)], [('a', 2)], [('a', 3)]])
@@ -18,8 +21,9 @@ test_unique_unions = do
     equal (f [[('a', 1), ('b', 2)], [('a', 2)]])
         ([('a', 1), ('b', 2)], [('a', 2)])
 
-test_lookup_closest = do
-    let f m k = snd <$> Maps.lookup_closest k m
+test_lookupClosest :: Test
+test_lookupClosest = do
+    let f m k = snd <$> Maps.lookupClosest k m
     equal (map (f (Map.fromList [(1, 'a'), (5, 'b')])) [0..6])
         (map Just "aaaabbb")
     equal (map (f (Map.fromList [(1, 'a')])) [0..2]) (map Just "aaa")

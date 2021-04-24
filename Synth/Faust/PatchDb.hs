@@ -115,7 +115,7 @@ thruFunction :: Map Pitch.NoteNumber FilePath -> Thru.ThruFunction
 thruFunction pitchToSample = fmap Thru.Plays . mapM note
     where
     note (Thru.Note { _pitch = pitch }) =
-        case Maps.lookup_closest pitch pitchToSample of
+        case Maps.lookupClosest pitch pitchToSample of
             Nothing -> Left "no samples"
             Just (sampleNn, sample) -> Right $ Thru.Play
                 { _sample = sample

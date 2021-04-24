@@ -61,7 +61,7 @@ findPitchRatio :: Map Pitch.NoteNumber a -> Pitch.NoteNumber -> (a, Signal.Y)
 findPitchRatio nnToSample nn = (fname, Sample.pitchToRatio sampleNn nn)
     where
     (sampleNn, fname) = fromMaybe (error "findPitch: empty nnToSample") $
-        Maps.lookup_closest nn nnToSample
+        Maps.lookupClosest nn nnToSample
 
 -- ** articulation
 

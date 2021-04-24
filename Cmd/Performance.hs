@@ -181,7 +181,7 @@ kill_threads = do
         kill = filter ((`elem` with_damage) . fst) $ Map.toList threads
     liftIO $ mapM_ (Cmd.kill_thread . snd) kill
     Monad.State.modify $ modify_play_state $ const $ play_state
-        { Cmd.state_performance_threads = Maps.delete_keys (map fst kill)
+        { Cmd.state_performance_threads = Maps.deleteKeys (map fst kill)
             (Cmd.state_performance_threads play_state)
         }
 

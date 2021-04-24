@@ -62,7 +62,7 @@ diff :: Update.UiDamage -> Ui.State -> Ui.State
     -> ([Update.UiUpdate], [Update.DisplayUpdate])
 diff damage st1 st2 = postproc damage st2 $ run $ do
     let intersect get keys =
-            damaged Maps.zip_intersection st1 st2 get (keys damage)
+            damaged Maps.zipIntersection st1 st2 get (keys damage)
     diff_views st1 st2 damage
     mapM_ (uncurry3 diff_block) $ intersect Ui.state_blocks Update._blocks
     mapM_ (uncurry3 (diff_track st2)) $
@@ -341,7 +341,7 @@ derive_diff st1 st2 damage updates = postproc $ run_derive_diff $
         -- have any effect they must be added to or removed from a block, which
         -- 'derive_diff_block' will catch.
         mapM_ (uncurry3 derive_diff_track) $
-            damaged Maps.zip_intersection st1 st2 Ui.state_tracks
+            damaged Maps.zipIntersection st1 st2 Ui.state_tracks
                 (Map.keysSet (Update._tracks damage))
     where
     postproc = postproc_damage st2 . (updates_damage block_rulers updates <>)

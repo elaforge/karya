@@ -175,7 +175,7 @@ validate inst = case inst_backend inst of
 -- | Merge the Dbs, and return any duplicate synths.
 merge :: Db code -> Db code -> (Db code, [InstTypes.SynthName])
 merge (Db db1) (Db db2) = (Db db, Map.keys dups)
-    where (db, dups) = Maps.unique_union db1 db2
+    where (db, dups) = Maps.uniqueUnion db1 db2
 
 annotate :: Map InstTypes.Qualified [Tag.Tag] -> Db code
     -> (Db code, [InstTypes.Qualified])

@@ -214,7 +214,7 @@ findPitch = \case
             Map.lookup pitch pitchToNn
         return (pitch, (sampleNn, sampleNn))
     Right noteNn -> return (pitch, (sampleNn, noteNn))
-        where Just (sampleNn, pitch) = Maps.lookup_closest noteNn nnToPitch
+        where Just (sampleNn, pitch) = Maps.lookupClosest noteNn nnToPitch
     where
     pitchToNn = Maps.invert nnToPitch
 

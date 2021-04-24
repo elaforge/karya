@@ -114,7 +114,7 @@ renderBlock config notifyState effect controls inputBlocks = do
             controls
     -- Debug.tracepM "controls"
     --     ( map (\(c, _, val) -> (c, val)) $
-    --       Maps.zip_intersection (EffectC._controls effect) controls
+    --       Maps.zipIntersection (EffectC._controls effect) controls
     --     )
     outputs <- EffectC.render
         (_controlSize config) (_controlsPerBlock config) effect
