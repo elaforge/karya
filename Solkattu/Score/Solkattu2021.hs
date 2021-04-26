@@ -13,8 +13,8 @@ import qualified Solkattu.Tala as Tala
 import           Solkattu.Dsl.Solkattu
 
 
-e_21_01_24 :: Korvai
-e_21_01_24 = date 2021 1 24 $ ganesh $ exercise $
+kon_21_01_24 :: Korvai
+kon_21_01_24 = date 2021 1 24 $ ganesh $ exercise $
     korvaiS1 Tala.misra_chapu mempty $ nadai 3 $ mconcat $ map (g • r3)
     -- reduceToR 7 1 (tanga.tanga.takita.takadinna.__)
     [ tanga.tanga.takita.takadinna.__
@@ -27,8 +27,8 @@ e_21_01_24 = date 2021 1 24 $ ganesh $ exercise $
     , tanga.tanga.ta
     ]
 
-e_21_02_21 :: Korvai
-e_21_02_21 = date 2021 2 21 $ ganesh $ exercise $
+kon_21_02_21 :: Korvai
+kon_21_02_21 = date 2021 2 21 $ ganesh $ exercise $
     korvaiS1 Tala.kanda_chapu mempty $ nadai 3 $ mconcat $ map (g • r3)
     [ tanga.tanga.takita.takadinna.din.__.ga
     , tanga.tanga.takita.takadinna.din.__
@@ -42,26 +42,37 @@ e_21_02_21 = date 2021 2 21 $ ganesh $ exercise $
     , tanga.tanga.ta
     ]
 
-e_35_kanda, e_35_misra :: Korvai
-(e_35_kanda, e_35_misra) = (make Tala.kanda_chapu, make Tala.misra_chapu)
+kon_35_kanda, kon_35_misra :: Korvai
+(kon_35_kanda, kon_35_misra) = (make Tala.kanda_chapu, make Tala.misra_chapu)
     where
     make tala = date 2021 2 21 $ ganesh $ exercise $ korvaiS tala mempty $
         map (nadai 3)
-        [ tri_ tanga (tdktt .kp.tdktt .kpnp.tdktt)
-        , let p123 = tdktt.kp.tdktt.kpnp.tdktt
-          in p123.tanga.p123.tanga . kpnp.tdktt.kp.tdktt.tdktt
-        , trin tanga (r3 (tdktt)) (r3 (kp.tdktt)) (r3 (kpnp.tdktt))
-        , trin tanga (r3 (tdktt')) (r3 (kp.__.tdktt'))
-            (r3 (kp.__.tiku.__.tdktt'))
+        [ tri_ tanga (tdktt_ .kp.tdktt_ .kpnp.tdktt_)
+        , let p123 = tdktt_.kp.tdktt_.kpnp.tdktt_
+          in p123.tanga.p123.tanga . kpnp.tdktt_.kp.tdktt_.tdktt_
+        , trin tanga (r3 tdktt_) (r3 (kp.tdktt_)) (r3 (kpnp.tdktt_))
+        , trin tanga (r3 (tdktt)) (r3 (kp.__.tdktt))
+            (r3 (kp.__.tiku.__.tdktt))
         ]
-    tdktt = g "tadi_ki_ta_thom_"
-    tdktt' = g "tadi_ki_ta_thom"
+    tdktt_ = g "tadi_ki_ta_thom_"
+    tdktt = g "tadi_ki_ta_thom"
+
+kon_tadit_tarikitathom :: Korvai
+kon_tadit_tarikitathom = date 2021 4 25 $ ganesh $ exercise $
+    korvaiS (beats 10) mempty
+    [ r4 tadit
+    , nadai 5 $ r5 tadit
+    , nadai 6 $ r6 tadit
+    , nadai 7 $ r7 tadit
+    ]
+    where
+    tadit = g "ta_dit_tarikitathom_"
 
 april_tani :: Score
 april_tani = tani
     [ Comment "80 bpm"
     , Comment "my solo - Solkattu2020.c_20_10_25"
-    , K Solkattu2020.c_20_10_25
+    , K $ slice 0 (-1) Solkattu2020.c_20_10_25
     , Comment "ganesh solo"
     , Comment "misra koraippu - Solkattu2017.c_17_10_23"
     , K koraippu_development
@@ -111,4 +122,28 @@ c_mohra_korvai = ganesh $ mohraKorvai $ korvaiS1 adi mridangam $ mconcat
         [ (ta, k)
         , (dit, t)
         , (din, od)
+        ]
+
+e_21_04_25 :: Korvai
+e_21_04_25 = date 2021 4 25 $ ganesh $ korvaiS adi mridangam
+    [ purvangam -- 7*24 = 5*8 + 7*8 + 9*8
+        . spread32111 tdgnt . spread32111 (taka.tdgnt)
+        . spread32111 (taka.tiku.tdgnt)
+    , purvangam -- 7*24 = 28 17 7*1 + 28 14 7*2 + 28 14 7*3
+        . sd tdgnt3 . tdgnt3 . t7
+        . sd tdgnt3 . tdgnt3 . r2 t7
+        . sd tdgnt3 . tdgnt3 . r3 t7
+    ]
+    where
+    purvangam = sd $ tri_ (din.__3) (g (ta.__3.ta.takadinna))
+        . sandi (ta.takadinna) (tri_ (din.__) (g (ta.takadinna)))
+    spread32111 seq = g (spread 3 seq) . g (spread 2 seq) . r3 (g seq)
+    tdgnt3 = g $ ta.__3.din.__3.gin.__3.na.__3.thom.__
+    t7 = g $ tat.__.dit.__.su tarikita.thom
+    mridangam = makeMridangam
+        [ (din, od)
+        , (ta, k)
+        , (taka, k.p)
+        , (tiku, n.p)
+        , (t7, "k_t_ktkto")
         ]

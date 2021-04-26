@@ -150,10 +150,12 @@ index i = slice i (i+1)
 slice :: Int -> Int -> Korvai -> Korvai
 slice start end korvai = case korvaiSections korvai of
     KorvaiSections inst sections -> korvai
-        { korvaiSections = KorvaiSections inst (get sections) }
+        { korvaiSections = KorvaiSections inst $
+            get (if end < 0 then length sections + end else end) sections
+        }
     where
-    get :: [a] -> [a]
-    get xs
+    get :: Int -> [a] -> [a]
+    get end xs
         | all (Num.inRange 0 (length xs + 1)) [start, end] =
             take (end - start) $ drop start xs
         | otherwise = error $ "(start, end) " <> show (start, end)
