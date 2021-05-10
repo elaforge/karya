@@ -520,6 +520,7 @@ inferKorvaiTags :: Korvai -> Tags.Tags
 inferKorvaiTags korvai = Tags.Tags $ Maps.multimap $ concat
     [ [ ("tala", Tala._name tala)
       , ("sections", showt sections)
+      , ("avartanams", pretty avartanams)
       ]
     , map ("instrument",) instruments
     -- Default type=korvai if not given explicitly.
@@ -533,10 +534,12 @@ inferKorvaiTags korvai = Tags.Tags $ Maps.multimap $ concat
     sections = case korvaiSections korvai of
         KorvaiSections _ sections -> length sections
     instruments = map ginstrumentName $ korvaiInstruments korvai
+    avartanams = Num.sum $ case korvaiSections korvai of
+        KorvaiSections _ sections -> map (sectionAvartanams tala) sections
 
 inferSectionTags :: Tala.Tala -> Section (SequenceT sollu) -> Tags.Tags
 inferSectionTags tala section = Tags.Tags $ Map.fromList $
-    [ ("avartanams", [pretty $ dur / talaAksharas])
+    [ ("avartanams", [pretty $ sectionAvartanams tala section])
     , ("nadai", map pretty nadais)
     , ("max_speed", [pretty $ maximum (0 : speeds)])
     , ("start", [pretty $ sectionStart section])
@@ -544,11 +547,18 @@ inferSectionTags tala section = Tags.Tags $ Map.fromList $
     ]
     where
     seq = mapSollu (const ()) (sectionSequence section)
-    talaAksharas = fromIntegral (Tala.tala_aksharas tala)
-    dur = Solkattu.durationOf S.defaultTempo seq
     tempos = map fst $ S.tempoNotes $ flatten seq
     nadais = Seq.unique_sort $ map S._nadai tempos
     speeds = Seq.unique_sort $ map S._speed tempos
+
+sectionAvartanams :: Tala.Tala -> Section (SequenceT sollu) -> Int
+sectionAvartanams tala section = floor $ dur / talaAksharas
+    -- Take the floor because there may be a final note as supported by
+    -- Realize.checkAlignment.
+    where
+    talaAksharas = fromIntegral (Tala.tala_aksharas tala)
+    seq = mapSollu (const ()) (sectionSequence section)
+    dur = Solkattu.durationOf S.defaultTempo seq
 
 
 -- * types

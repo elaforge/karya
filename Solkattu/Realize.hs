@@ -253,7 +253,8 @@ checkAlignment tala startOn endOn notes
     | otherwise = msum (map verify (zip [0..] states)) <|> checkEnd
     where
     (finalState, states) = S.tempoToState tala startOn notes
-    -- Either finalState one is at 0, or the last non-rest note is.
+    -- If finalState is at 0, the section is up to but not including the end,
+    -- if the finalNote is, then there is an extra note that lands on 0.
     checkEnd
         | atEnd finalState || maybe False atEnd finalNote = Nothing
         | otherwise = Just $ Warning Nothing $

@@ -31,8 +31,7 @@ test_all = do
 
 testKorvai :: Int -> Korvai.Korvai -> Test
 testKorvai i korvai =
-    forM_ (Korvai.korvaiInstruments korvai) $
-        \(Korvai.GInstrument inst) ->
+    forM_ (Korvai.korvaiInstruments korvai) $ \(Korvai.GInstrument inst) ->
     realizeCatch inst korvai >>= \case
         Right _ -> return ()
         Left errs -> failure $ location korvai i <> ": "

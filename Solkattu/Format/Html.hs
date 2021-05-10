@@ -56,7 +56,7 @@ indexHtml scoreFname scores = Texts.join "\n" $
     , "</style>"
     , "</head> <body>"
     , "<table id=korvais>"
-    , "<tr>" <> mconcat ["<th>" <> c <> "</th>" | c <- columns] <> "</tr>"
+    , "<tr>" <> mconcat ["<th>" <> c <> "</th>" | (c, _) <- columns] <> "</tr>"
     ] ++ map row (Seq.sort_on scoreDate scores) ++
     [ "</table>"
     , "<script>"
@@ -67,23 +67,22 @@ indexHtml scoreFname scores = Texts.join "\n" $
     where
     row score = mconcat
         [ "<tr>"
-        , mconcat ["<td>" <> cell <> "</td>" | cell <- cells score]
+        , mconcat ["<td>" <> cellOf score <> "</td>" | (_, cellOf) <- columns]
         , "</tr>"
         ]
-    columns = ["name", "type", "tala", "nadai", "date", "instruments", "source"]
-    cells score = Doc.link variableName (txt (scoreFname score))
-        : map Doc.html
-        [ Text.unwords $ Metadata.scoreTag "type" score
-        , commas $ scoreTalas score
-        , commas $ Metadata.sectionTag "nadai" score
-        , maybe "" showDate $ scoreDate score
-        , commas $ Metadata.scoreTag "instrument" score
-        , commas $ Metadata.scoreTag "source" score
+    columns =
+        [ ("name", nameOf)
+        , ("type", Doc.html . Text.unwords . Metadata.scoreTag "type")
+        , ("tala", commas . scoreTalas)
+        , ("nadai", commas . Metadata.sectionTag "nadai")
+        , ("avart", commas . Metadata.scoreTag "avartanams")
+        , ("date", Doc.html . maybe "" showDate . scoreDate)
+        , ("instruments", commas . Metadata.scoreTag "instrument")
+        , ("source", commas . Metadata.scoreTag "source")
         ]
-        where
-        meta = Korvai.scoreMetadata score
-        (_, _, variableName) = Korvai._location meta
-    commas = Text.intercalate ", "
+    nameOf score = Doc.link varName (txt (scoreFname score))
+        where (_, _, varName) = Korvai._location $ Korvai.scoreMetadata score
+    commas = Doc.html . Text.intercalate ", "
 
 scoreDate :: Korvai.Score -> Maybe Calendar.Day
 scoreDate = \case
@@ -124,11 +123,15 @@ javascriptIndex =
     \    });\n\
     \    const newRows = Array.from(rows).slice(1);\n\
     \    newRows.sort(function(rowA, rowB) {\n\
-    \        const cellA = rowA.querySelectorAll('td')[index].innerText;\n\
-    \        const cellB = rowB.querySelectorAll('td')[index].innerText;\n\
-    \        if (cellA > cellB)\n\
+    \        a = rowA.querySelectorAll('td')[index].innerText;\n\
+    \        b = rowB.querySelectorAll('td')[index].innerText;\n\
+    \        if (isInt(a) && isInt(b)) {\n\
+    \            a = parseInt(a);\n\
+    \            b = parseInt(b);\n\
+    \        }\n\
+    \        if (a > b)\n\
     \            return 1 * directions[index];\n\
-    \        else if (cellA < cellB)\n\
+    \        else if (a < b)\n\
     \            return -1 * directions[index];\n\
     \        else\n\
     \            return 0;\n\
@@ -142,6 +145,7 @@ javascriptIndex =
     \        tableBody.appendChild(newRow);\n\
     \    });\n\
     \};\n\
+    \const isInt = function(x) { return x.match('^[0-9]+$') != null; };\n\
     \sortColumn(headerTexts.indexOf('date'));\n"
 
 -- | Write HTML with all the instrument realizations at all abstraction levels.
