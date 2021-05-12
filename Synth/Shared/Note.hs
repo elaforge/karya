@@ -26,8 +26,7 @@ import           Global
 import           Synth.Types
 
 
--- | High level representation of one note.  This will be converted into
--- one or more 'Sample.Sample's.
+-- | IR for im.  These are the inputs for im synthesizers.
 data Note = Note {
     -- | Map this note to one of the synthesizer's patches.
     patch :: !PatchName

@@ -35,30 +35,32 @@ types = ["exercise", "korvai"]
 randomTypes :: [Text] -> IO ()
 randomTypes types = do
     forM_ types $ \typ -> do
-        korvai <- pick $ filter (Db.ofType typ . snd) Db.korvais
+        score <- pick $ filter (Db.ofType typ . snd) Db.scores
         Text.IO.putStrLn $ typ <> ":"
-        Text.IO.putStrLn $ maybe "Nothing" Db.format korvai
+        Text.IO.putStrLn $ maybe "Nothing" Db.format score
 
 realize, realizep :: Int -> IO ()
 realize i = do
-    Text.IO.putStr $ Db.format (i, korvai)
-    realizeM mempty korvai
-    where korvai = get i
+    let score = get i
+    Text.IO.putStr $ Db.format (i, score)
+    realizeM mempty score
 realizep i = do
-    Text.IO.putStr $ Db.format (i, korvai)
-    realizeM Format.defaultAbstraction korvai
-    where korvai = get i
+    let score = get i
+    Text.IO.putStr $ Db.format (i, score)
+    realizeM Format.defaultAbstraction score
 
-realizeM :: Format.Abstraction -> Korvai.Korvai -> IO ()
-realizeM = Terminal.printInstrument Korvai.mridangam
+realizeM :: Format.Abstraction -> Korvai.Score -> IO ()
+realizeM abstraction = Korvai.realizeScore $
+    Terminal.printInstrument Korvai.IMridangam abstraction
 
 realizeKon :: Int -> IO ()
-realizeKon i = Terminal.printKonnakol Terminal.konnakolConfig (get i)
+realizeKon i =
+    Korvai.realizeScore (Terminal.printKonnakol Terminal.konnakolConfig) (get i)
 
 -- | Mark these korvais as practiced.
 practiced :: Int -> BPM -> IO ()
 practiced index bpm = practicedName name bpm
-    where name = txt $ Db.korvaiFname $ snd $ Db.korvais !! index
+    where name = txt $ Db.scoreFname $ snd $ Db.scores !! index
 
 practicedName :: Text -> BPM -> IO ()
 practicedName name bpm = do
@@ -79,8 +81,8 @@ type BPM = Int
 instance Aeson.ToJSON Practiced
 instance Aeson.FromJSON Practiced
 
-get :: Int -> Korvai.Korvai
-get = snd . (Db.korvais !!)
+get :: Int -> Korvai.Score
+get = snd . (Db.scores !!)
 
 practicedDb :: FilePath
 practicedDb = "data/practiced"

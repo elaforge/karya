@@ -129,9 +129,9 @@ data ConvertMap art = ConvertMap {
 
 -- | Create a '_getFilename' with the strategy where each articulation has
 -- a @[FilePath]@, sorted evenly over the dynamic range.
-variableDynamic :: Show art
+variableDynamic :: Show art =>
     -- | A note may pick a sample of this much dyn difference on either side.
-    => Signal.Y -> (art -> [FilePath])
+    Signal.Y -> (art -> [FilePath])
     -> (art -> Signal.Y -> Signal.Y -> (FilePath, Maybe a))
 variableDynamic variationRange articulationSamples = \art dyn var ->
     (, Nothing) $
