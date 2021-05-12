@@ -345,7 +345,8 @@ makeSymbols strokeWidth tala angas = go
             -- This shouldn't be here, so make it red.
             Solkattu.GCheckDuration {} -> setHighlights2 (Styled.rgb 0.75 0 0)
     groupc = setHighlights (Styled.rgb 0.5 0.75 0.5) (gray 0.75)
-    patternc = setHighlights2 (Styled.rgb 0.65 0.65 0.8)
+    patternc = setHighlights
+        (Styled.rgb 0.55 0.55 0.7) (Styled.rgb 0.65 0.65 0.8)
     gray n = Styled.rgb n n n
     setHighlights2 color = setHighlights color color
     setHighlights startColor color =
