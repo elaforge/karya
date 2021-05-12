@@ -1129,10 +1129,8 @@ makeAllDocumentation :: (Mode -> Config) -> Shake.Action ()
 makeAllDocumentation modeConfig = do
     docs <- getMarkdown
     need $ extractableDocs ++ map docToHtml docs
-    hs <- makeHaddock modeConfig
-    -- TODO do these individually so they can be parallelized and won't run
-    -- each time
-    Util.system "tools/colorize" $ (build </> "hscolour") : hs
+    _ <- makeHaddock modeConfig
+    return ()
 
 -- | Docs produced by extract_doc.
 extractableDocs :: [FilePath]
@@ -1155,7 +1153,7 @@ getMarkdown = map (docDir</>) <$> Shake.getDirectoryFiles docDir ["*.md"]
 makeHaddock :: (Mode -> Config) -> Shake.Action [FilePath]
 makeHaddock modeConfig = do
     let config = modeConfig Debug
-    let packages = map fst reallyAllPackages
+    let packages = map fst (reallyAllPackages ++ nessPackages)
     hs <- filter (wantsHaddock config) <$> getAllHs config
     need $ hsconfigPath config : hs
     let flags = configFlags config
@@ -1172,21 +1170,20 @@ makeHaddock modeConfig = do
             , packageFlags flags packages
             ]
     Util.system "haddock" $
-        [ "--html", "-B", ghcLib config
+        [ "--html"
+        , "-B", ghcLib config
         , "--title=" <> Text.unpack title
-        , "--source-base=../hscolour/"
-        , "--source-module=../hscolour/%{MODULE/.//}.html"
-        , "--source-entity=../hscolour/%{MODULE/.//}.html#%{NAME}"
+        , "--hyperlinked-source"
         , "--prologue=doc/prologue"
         , "--package-name=karya" -- otherwise it warns incessantly
         -- Don't report every single function without a doc.
         , "--no-print-missing-docs"
         -- Source references qualified names as written in the doc.
-        , "-q", "aliased"
+        , "--qual=aliased"
         , "-o", build </> "haddock"
         ] ++ concat
-        [ map ("-i"++) interfaces
-        , map ("--optghc="++) ghcFlags
+        [ map ("--read-interface="<>) interfaces
+        , map ("--optghc="<>) ghcFlags
         , hs
         ]
     return hs

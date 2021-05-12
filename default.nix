@@ -178,7 +178,6 @@ in rec {
   ];
 
   docDeps = [
-    (haskellBinary "hscolour")
     nixpkgs-orig.pandoc
   ];
 
