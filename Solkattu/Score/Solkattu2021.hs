@@ -133,6 +133,15 @@ e_21_04_25 = date 2021 4 25 $ ganesh $ korvaiS adi mridangam
         . sd tdgnt3 . tdgnt3 . t7
         . sd tdgnt3 . tdgnt3 . r2 t7
         . sd tdgnt3 . tdgnt3 . r3 t7
+    , purvangam -- 7*24 = {6..2}111 * 7 + 7 in between = 21 + 2 + 1 = 24
+        . join ta
+        [ ta.__n 12.din.__n 12 . r3 (g $ ta.nam.su "kitatarikita".thom) -- 6
+        , ta.__n 10.din.__n 10 . r3 (g $ nam.su "kitatarikita".thom) -- 5
+        , ta.__8   .din.__8    . r3 (g $ su "kitatarikita".thom) -- 4
+        , ta.__6   .din.__6    . r3 (g $ su "tarikita".thom) -- 3
+        , ta.__4   .din.__4    . r3 (g $ su kita.thom) -- 2
+        , tri_ __ p7
+        ]
     ]
     where
     purvangam = sd $ tri_ (din.__3) (g (ta.__3.ta.takadinna))
@@ -146,4 +155,8 @@ e_21_04_25 = date 2021 4 25 $ ganesh $ korvaiS adi mridangam
         , (taka, k.p)
         , (tiku, n.p)
         , (t7, "k_t_ktkto")
+        , (nam, n)
+        , ("kitatarikita".thom, "ktpkpto")
+        , ("tarikita".thom, "ktkto")
+        , (kita.thom, "kto")
         ]

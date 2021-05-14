@@ -52,6 +52,7 @@ scores = map Korvai.inferMetadataS
     , setLocation ("Solkattu.Score.Mridangam2015",13,"c_1") $ Single Solkattu.Score.Mridangam2015.c_1
     , setLocation ("Solkattu.Score.Mridangam2015",23,"c_2") $ Single Solkattu.Score.Mridangam2015.c_2
     , setLocation ("Solkattu.Score.Mridangam2015",33,"c_3") $ Single Solkattu.Score.Mridangam2015.c_3
+    , setLocation ("Solkattu.Score.Mridangam2015",41,"akash1") $ Single Solkattu.Score.Mridangam2015.akash1
     , setLocation ("Solkattu.Score.Mridangam2016",12,"t_16_11_14") $ Single Solkattu.Score.Mridangam2016.t_16_11_14
     , setLocation ("Solkattu.Score.Mridangam2017",11,"t_17_02_13") $ Single Solkattu.Score.Mridangam2017.t_17_02_13
     , setLocation ("Solkattu.Score.Mridangam2017",24,"c_17_07_10") $ Single Solkattu.Score.Mridangam2017.c_17_07_10
@@ -127,6 +128,7 @@ scores = map Korvai.inferMetadataS
     , setLocation ("Solkattu.Score.Mridangam2021",103,"e_tisram") $ Single Solkattu.Score.Mridangam2021.e_tisram
     , setLocation ("Solkattu.Score.Mridangam2021",115,"s_tisram_sarva") $ Single Solkattu.Score.Mridangam2021.s_tisram_sarva
     , setLocation ("Solkattu.Score.Mridangam2021",119,"e_tisram_tdgno") $ Single Solkattu.Score.Mridangam2021.e_tisram_tdgno
+    , setLocation ("Solkattu.Score.Mridangam2021",126,"e_5s") $ Single Solkattu.Score.Mridangam2021.e_5s
     , setLocation ("Solkattu.Score.MridangamSarva",19,"kir1") $ Single Solkattu.Score.MridangamSarva.kir1
     , setLocation ("Solkattu.Score.MridangamSarva",24,"kir2") $ Single Solkattu.Score.MridangamSarva.kir2
     , setLocation ("Solkattu.Score.MridangamSarva",44,"kir3") $ Single Solkattu.Score.MridangamSarva.kir3

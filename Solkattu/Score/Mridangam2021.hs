@@ -122,3 +122,8 @@ e_tisram_tdgno = date 2021 4 18 $ ganesh $ exercise $ korvaiS adi $
     [ repeat 9 (g ktkno) . u.__.p
     , tri_ __ (g (ktkno.ktkno)) . __. g (ktkno.ktkno) . od.__.od.__.k
     ]
+
+e_5s :: Korvai
+e_5s = date 2021 5 11 $ ganesh $ exercise $ korvai1 adi $
+    endOn 4 $ s $ su $ r7 t5 . r4 (n.__.r7 t5) . od
+    where t5 = g "ktpkpto_"

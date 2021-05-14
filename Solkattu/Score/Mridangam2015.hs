@@ -38,6 +38,16 @@ c_3 = akash $ date 2015 1 1 $ tekha $ comment "14 beats" $
     , sarvaD_ 5 . r2 (nadai 6 (n.p.kt.pk))
     ]
 
+akash1 :: Korvai
+akash1 = akash $ date 2015 1 1 $ korvaiS adi
+    [ r2 $ rh & "o__o_oo_" . rh & "p__p_p__"
+    , rh & "o__o_oo_" . su ktpk . "ndldnl" & "_p_p"
+        . fill . su ktpk . "ndldnl" & "_p_p"
+    ]
+    where
+    fill = g $ od.k.k.od.k.k.od.__
+    rh = "dlndldnl"
+
 akash :: Korvai -> Korvai
 akash = source "akash"
 
