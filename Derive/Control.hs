@@ -72,12 +72,14 @@ data Config = Config {
 {-# SCC d_control_track #-}
 d_control_track :: Config -> TrackTree.Track -> Derive.NoteDeriver
     -> Derive.NoteDeriver
-d_control_track config track deriver = do
-    let title = TrackTree.track_title track
-    if Text.all Char.isSpace title then deriver else do
+d_control_track config track deriver
+    | Text.all Char.isSpace title = deriver
+    | otherwise = do
         (ctype, expr) <- either (\err -> Derive.throw $ "track title: " <> err)
             return (ParseTitle.parse_control_title title)
         eval_track config track expr ctype deriver
+    where
+    title = TrackTree.track_title track
 
 -- * eval_track
 
@@ -95,13 +97,13 @@ eval_track config track expr ctype deriver = case ctype of
     ParseTitle.Control (Right typed_control) maybe_merge -> do
         let control = ScoreT.typed_val typed_control
         merger <- get_merger control maybe_merge
-        let sig_deriver = with_control_env control merger
-                (derive_control False track transform)
-        control_call track typed_control merger sig_deriver deriver
+        (signal, logs) <- with_control_env control merger
+            (derive_control False track transform)
+        control_call track typed_control merger (signal, logs) deriver
     ParseTitle.Control (Left tcall) maybe_merge -> do
         (typed_control, sig) <- track_call tcall track
         merger <- get_merger (ScoreT.typed_val typed_control) maybe_merge
-        control_call track typed_control merger (return (sig, [])) deriver
+        control_call track typed_control merger (sig, []) deriver
     ParseTitle.Pitch scale_id pcontrol_tcall -> case pcontrol_tcall of
         Right pcontrol -> pitch_call config track pcontrol scale_id
             transform deriver
@@ -196,11 +198,8 @@ dispatch_tempo config sym block_range maybe_track_id signal deriver =
 
 {-# SCC control_call #-}
 control_call :: TrackTree.Track -> ScoreT.Typed ScoreT.Control -> Derive.Merger
-    -- TODO doesn't need to be a Deriver
-    -> Derive.Deriver (TrackResults Signal.Control)
-    -> Derive.NoteDeriver -> Derive.NoteDeriver
-control_call track control merger sig_deriver deriver = do
-    (signal, logs) <- sig_deriver
+    -> TrackResults Signal.Control -> Derive.NoteDeriver -> Derive.NoteDeriver
+control_call track control merger (signal, logs) deriver = do
     stash_if_wanted track signal
     -- Apply and strip any control modifications made during the above derive.
     end <- Derive.real $ TrackTree.track_end track
@@ -219,7 +218,7 @@ with_merger (ScoreT.Typed typ control) merger signal =
     Derive.with_merged_control merger control (ScoreT.Typed typ signal)
 
 merge_logs :: [Log.Msg] -> Derive.NoteDeriver -> Derive.NoteDeriver
-merge_logs logs = fmap (Stream.merge_logs logs)
+merge_logs = fmap . Stream.merge_logs
 
 pitch_call :: Config -> TrackTree.Track -> ScoreT.PControl
     -> Pitch.ScaleId -> (Derive.PitchDeriver -> Derive.PitchDeriver)
@@ -297,9 +296,8 @@ derive_pitch use_cache track transform = do
     controls.  This also applies to non-zero slices which are nonetheless made
     zero by stretching to 0.
 -}
-trim_signal :: (RealTime -> sig -> sig)
-    -> (RealTime -> sig -> sig) -> TrackTree.Track -> sig
-    -> Derive.Deriver sig
+trim_signal :: (RealTime -> sig -> sig) -> (RealTime -> sig -> sig)
+    -> TrackTree.Track -> sig -> Derive.Deriver sig
 trim_signal drop_after clip_after track signal =
     case TrackTree.track_sliced track of
         TrackTree.NotSliced -> return signal

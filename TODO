@@ -548,19 +548,6 @@ UNSORTED
     . For all maybe a grace-transform env arg.
   - squart/6 has some jumpy dynamics due to sets in dyn with a scope over them
     e.g. end of @b3, vln2
-  - It would be nice to have a text interpolation syntax
-    . E.g. "textlike: %s, %v ShowVal, %p Pretty, %x hex, %.3f showFloat 3"
-    . Cmd.Load.Mod2.commands_to_controls: "from=%v | %s %v" vol c val
-    . But printf style can't work for typeclasses without dependent typing
-      because it doesn't know which one to select.
-    . text-format: requires importing a bunch of formatters, type-unsafe
-      . format "from={} | {} {}" ('val vol, 'str c, 'val val)
-      . I don't like it because the format type is out of context.
-    . formatting: import a bunch of formatters plus (%), type-safe
-      . Probably worse errors.
-      . format ("from="%'val%" | "%'str%" "%'val) vol c val
-      . Still much noisier than "from=%v | %s %v".
-    . fmt: even more operators and imports
   load octamed files
     - implement set tempo and set frames cmds
   selection-orientation branch cleanup:
@@ -1209,6 +1196,9 @@ documentation:
   - Can I have Util.Linkify check the validity of single-quote links?  Or
     maybe I could run a link checker against the final output.  Otherwise
     'Module.function' references get out of date.
+  - mdbook: like sphinx, but a bit simpler?
+    . https://rust-lang.github.io/mdBook/
+    . hledger uses it: https://github.com/simonmichael/hledger_site
   calldoc: CallDoc:
     - collapse control for modules, option to collapse / expand all
       . Haddock:
@@ -3959,7 +3949,7 @@ cleanup:
     . I think I'd really want to do nix, then I can get all dependencies in
       one go.
   - see TODOs: lentil ^build
-  - replace fromIntegral with http://hackage.haskell.org/package/int-cast?
+  / replace fromIntegral with http://hackage.haskell.org/package/int-cast?
   - visualize module dependencies: https://github.com/yav/graphmod
   . Merge Val and MiniVal (RestrictedEnviron.Val for now).
     . NOTE [val-and-minival]
@@ -4087,16 +4077,17 @@ cleanup:
     . Or, https://hackage.haskell.org/package/optics-core Optics.Label
     . At this point, wait for RecordDotSyntax.
       status: https://gitlab.haskell.org/ghc/ghc/-/issues/18598
-  - Why re-export UiConfig from Ui.State?  Why not directly reference
+  * Why re-export UiConfig from Ui.State?  Why not directly reference
     UiConfig?
   / Can I make prev val or {Note,Control,Pitch}Deriver return values more
     typesafe with GADTs?
     . Study https://github.com/goldfirere/glambda for ideas.
-  - Util.TimeVector has a hack where a sample at <=0 is considered to extend
+  / Util.TimeVector has a hack where a sample at <=0 is considered to extend
     to -inf.  It's because I want a control track call at 0 to extend back.
     But I could do that directly with a postproc ala the tempo hack.  It seems
     like a hack at a higher level is better than one deep in the signal
     implementation.
+    . Is this gone now?  I can't find it.  I think it's gone.
   - Expr is NonEmpty since there is always at least a "" call, but this is a
     special feature of events.  Would it make more sense to parse "" as [],
     and then special case [] in EvalTrack.derive_event?
@@ -4121,6 +4112,19 @@ cleanup:
     I got started but was discouraged when it came time to write
     GetLastSample, maybe I should make another go.
     Note tracks can't get a GetLastSample at all.
+  - It would be nice to have a text interpolation syntax
+    . E.g. "textlike: %s, %v ShowVal, %p Pretty, %x hex, %.3f showFloat 3"
+    . Cmd.Load.Mod2.commands_to_controls: "from=%v | %s %v" vol c val
+    . But printf style can't work for typeclasses without dependent typing
+      because it doesn't know which one to select.
+    . text-format: requires importing a bunch of formatters, type-unsafe
+      . format "from={} | {} {}" ('val vol, 'str c, 'val val)
+      . I don't like it because the format type is out of context.
+    . formatting: import a bunch of formatters plus (%), type-safe
+      . Probably worse errors.
+      . format ("from="%'val%" | "%'str%" "%'val) vol c val
+      . Still much noisier than "from=%v | %s %v".
+    . fmt: even more operators and imports
 
 performance:
   . Staging via typed template haskell: uses [|| ||], $$.  Talk at
