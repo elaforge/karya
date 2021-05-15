@@ -161,8 +161,11 @@ def parse_prof(fname):
             continue
         [cc, module, src, time, alloc] = words
         ccs.append(' '.join(
+            # len('Derive.Deriver.Internal.with_stack_region') + 4
+            # len('User.Elaforge.Instrument.Vsl') + 4
+            # len('10.9') + 1
             word.ljust(width) for (word, width) in [
-                (cc, 24), (module, 42), (time, 4), (alloc, 0)
+                (cc, 46), (module, 32), (time, 4), (alloc, 0)
             ]
         ))
     return ccs
