@@ -93,7 +93,7 @@ put_library text = do
     cache <- case Parse.parse_ky "fname.ky" text of
         Left err -> return $ Cmd.KyCache (Left err) mempty
         Right (imported, defs) -> do
-            builtins <- Ky.compile_library imported $
+            builtins <- Ky.compile_library (map snd imported) $
                 Ky.compile_definitions defs
             return $ Cmd.KyCache (Right (builtins, mempty)) mempty
     Cmd.modify $ \st -> st { Cmd.state_ky_cache = Just cache }

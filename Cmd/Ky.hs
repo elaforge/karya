@@ -80,8 +80,8 @@ check_cache ui_state cmd_state = run $ do
         _ -> mempty
     -- If it failed last time then don't replace the error.  Otherwise, I'll
     -- continually clear the performance and get an endless loop.
-    failed_previously = case Cmd.state_ky_cache cmd_state of
-        Just (Cmd.KyCache (Left _) _) -> True
+    failed_previously err = case Cmd.state_ky_cache cmd_state of
+        Just (Cmd.KyCache (Left old_err) _) -> err == old_err
         _ -> False
 
     abort = Except.throwError Nothing
@@ -89,7 +89,7 @@ check_cache ui_state cmd_state = run $ do
     run = fmap apply . Except.runExceptT
     apply (Left Nothing) = Nothing
     apply (Left (Just err))
-        | failed_previously = Nothing
+        | failed_previously err = Nothing
         | otherwise = Just $ Cmd.KyCache (Left err) mempty
     apply (Right (builtins, aliases, fingerprint)) =
         Just $ Cmd.KyCache (Right (builtins, aliases)) fingerprint

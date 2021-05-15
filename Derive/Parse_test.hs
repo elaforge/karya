@@ -345,8 +345,8 @@ test_parse_ky = do
 
     -- imports
     equal (f fst "import 'x' -- blah\nimport 'y'\n") $
-        Right ["x", "y"]
-    equal (f fst "import\n\t'x'\n") $ Right ["x"]
+        Right [("fname.ky", "x"), ("fname.ky", "y")]
+    equal (f fst "import\n\t'x'\n") $ Right [("fname.ky", "x")]
     left_like (f fst "blort x\nimport y\n") "expected eof"
 
     let aliases = Parse.def_aliases . snd

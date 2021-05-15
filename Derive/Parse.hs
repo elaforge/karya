@@ -477,26 +477,29 @@ load_ky paths ky = fmap (fmap annotate) . Except.runExceptT $ parse ky
     annotate results = (mconcat defs, loaded)
         where (defs, loaded) = unzip results
 
-load_ky_file :: [FilePath] -> Set FilePath -> [FilePath]
+load_ky_file :: [FilePath] -> Set FilePath -> [(FilePath, FilePath)]
     -> Except.ExceptT Text IO [(Definitions, (FilePath, Text))]
 load_ky_file _ _ [] = return []
-load_ky_file paths loaded (lib:libs)
+load_ky_file paths loaded ((fname, lib) : libs)
     | lib `Set.member` loaded = return []
     | otherwise = do
         let prefix = first ((txt lib <> ": ")<>)
-        (fname, content) <- tryRight . prefix =<< liftIO (find_ky paths lib)
+        (fname, content) <- tryRight . prefix
+            =<< liftIO (find_ky paths fname lib)
         (imports, defs) <- tryRight . prefix $ parse_ky fname content
         ((defs, (fname, content)) :) <$>
             load_ky_file paths (Set.insert lib loaded) (libs ++ imports)
 
 -- | Find the file in the given paths and return its filename and contents.
-find_ky :: [FilePath] -> FilePath -> IO (Either Text (FilePath, Text))
-find_ky paths fname =
+find_ky :: [FilePath] -> FilePath -> FilePath
+    -> IO (Either Text (FilePath, Text))
+find_ky paths from fname =
     catch_io (txt fname) $ justErr msg <$>
         firstJusts (map (\dir -> get (dir </> fname)) paths)
     where
-    msg = "ky file not found: " <> txt fname <> " (searched "
-        <> Text.intercalate ", " (map txt paths) <> ")"
+    msg = "ky file not found: " <> txt fname
+        <> (if from == "" then "" else " from " <> txt from)
+        <> " (searched " <> Text.intercalate ", " (map txt paths) <> ")"
     get fn = File.ignoreEnoent $ (,) fn <$> Text.IO.readFile fn
 
 -- | Catch any IO exceptions and put them in Left.
@@ -559,8 +562,9 @@ type LineNumber = Int
     - Calls are defined as "Derive.Call.Macro"s, which means they can include
     $variables, which become arguments to the call.
 -}
-parse_ky :: FilePath -> Text -> Either Text ([FilePath], Definitions)
-parse_ky filename text = do
+parse_ky :: FilePath -> Text
+    -> Either Text ([(FilePath, FilePath)], Definitions)
+parse_ky fname text = do
     let (imports, sections) = split_sections $ strip_comments $ Text.lines text
     let extra = Set.toList $
             Map.keysSet sections `Set.difference` Set.fromList valid_headers
@@ -572,9 +576,9 @@ parse_ky filename text = do
         get2 kind = (get (kind <> " " <> generator),
             get (kind <> " " <> transformer))
     aliases <- mapM parse_alias (get alias)
-    let add_fname = map (filename,)
+    let add_fname = map (fname,)
         add_fname2 = bimap add_fname add_fname
-    return $ (,) imports $ Definitions
+    return $ (add_fname imports ,) $ Definitions
         { def_note = add_fname2 $ get2 note
         , def_control = add_fname2 $ get2 control
         , def_pitch = add_fname2 $ get2 pitch
