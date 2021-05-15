@@ -4127,6 +4127,86 @@ cleanup:
     . fmt: even more operators and imports
 
 performance:
+  prof results:
+    * parse_expr
+      * make sure 'entries' for SCCs match what I expect.
+        . There are still lots of 0 entries, I guess it's a ghc bug, but maybe
+          due to inlining?  But SCCs shouldn't be inlined.
+        cerucuk-punyah: blocks:25 tracks:194 events:6163:
+          . Derive.Parse.parse_expr:  8.6   10.3
+            from parse_note 13642 times
+          . Derive.EvalTrack.derive_event 40476    0.6    0.6    51.4   46.1
+            Internal.with_stack_region    40476    7.9    5.1    45.2   38.5
+            Control.d_control_track       13294    1.0    1.4     1.0    1.4
+            Derive.Control.d_control_track 13042
+            Derive.ParseTitle.parse_note  13642
+          . It does get 2x because of pemade + kantilan derivation.
+            Those all get parsed twice too.
+            What if I parse in the event itself?  I could have a separate lazy
+            field, and omit it from serialize.
+        small, with 4 notes:
+          . They seem to make sense, usual 4 entries.
+      * parse before slicing
+        . Slice.slice takes EventsNode -> EventsNode, change to
+          ParsedEventsNode, or polymorphic on event type.
+        . TrackTree.EventsNode -> TrackTree.TrackT (Vector DeriveT.Event)
+        . To make slice polymorphic on event, Ui.Event.Event must be
+          polymorphic.
+        . Let's not do polymorphic, Events.Events is not polymorphic.
+        . Before I do the work, make sure the numbers make sense.
+          . If each slice is disjunct, why the multiple parse?
+          . Controls have overlap.
+          . What if I just evaluated?  I think that was the original plan, eval
+            once and then chop up the signal?
+          . run_profile.py derive save/complete/wayang/cerucuk-punyah.state
+        . What I should really do is parse once per issue, that way I don't have
+          to parse at all after an incremental change.
+        Options:
+          . Put _expr in Event, make Event polymorphic, to insert DeriveT.Expr.
+            . How far up does the type variable go?
+            . Event -> Events -> Ui.State -> Ui.M -> Cmd.M.
+            . That's a lot, this might be a huge hassle.
+          . Same as above, but use a SOURCE import for DeriveT.Expr.
+            . If I do this, maybe I could untangle ControlFunctions and other
+              things.
+            . But would that then mean a giant compile loop?  Would ghci then
+              have to load tons of modules even in UI?  Would that be
+              unbearable?
+            ? Try it and find out!
+          . Put a memo table on Parse.parse_expr.
+            . Either never expires, or I have to have an expire mechanism.
+            . Has to be propagated like Cache, which presumably has
+              a performance hit, all those merging Collect and sub-Caches.
+              ? Is there an efficient Collect merge strategy for HashMaps?
+          . Put a mutable global HashMap in Derive.Parse.
+            . This is probably easiest, and faster than using Cache.  I assume
+              still slower than putting in the event because I still have to do
+              a hashmap lookup.
+    - Eval.eval
+      . This is for val calls.  I don't use many of those, except pitches.
+      . Most are from Control.derive_pitch
+      . Most pitch calls are simple, I should be able to map
+        Text -> PSignal.Pitch.
+      . Also Deriver.Lib.state_controls_at calls eval/apply.
+      . From c_block -> score_to_real -> d_note_track -> controls_at
+      . Might be the Note.default_note
+      . controls_at pays for ControlFunctions, which is the same thing is
+        pitches, where they have to fetch everything they might need in
+        advance, even though the majority don't need it.
+      . controls_at itself is this, because it gets all controls though the
+        note may only need some.
+      . Laziness is one possible solution to this.  Another is to pass more
+        and manually fetch the data when needed.
+    - Internal.with_stack_block, with_stack_region
+      . These are called a lot, but not sure why they get charged so much.
+      . If this is due to add_stack_frame, then maybe it's still the seed
+        updating stuff?
+      . Seed is yet another instance of unneeded eager computation, though
+        it's more complicated because the seed goes through many transforms
+        before it's (maybe) needed.  I think I already tried to lazify it,
+        and couldn't get it to work.
+    - Score.transposed_at
+
   . Staging via typed template haskell: uses [|| ||], $$.  Talk at
     https://vimeo.com/443276733 6:29:10
     . More talks at ICFP 2020

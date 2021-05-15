@@ -60,9 +60,9 @@ import qualified Ui.Types as Types
 import qualified Derive.Stack as Stack
 import qualified App.Config as Config
 
-import ForeignC
-import Global
-import Types
+import           ForeignC
+import           Global
+import           Types
 
 
 -- * types

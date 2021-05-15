@@ -25,12 +25,14 @@ module Derive.Parse (
 #endif
 ) where
 import           Prelude hiding (lex)
-import qualified Control.Applicative as Applicative
 import qualified Control.Applicative as A (many)
+import qualified Control.Applicative as Applicative
 import qualified Control.Monad.Except as Except
 
 import qualified Data.Attoparsec.Text as A
 import           Data.Attoparsec.Text ((<?>))
+import qualified Data.HashMap.Strict as HashMap
+import qualified Data.IORef as IORef
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
@@ -40,6 +42,7 @@ import qualified Data.Text.IO as Text.IO
 import qualified Data.Traversable as Traversable
 
 import           System.FilePath ((</>))
+import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.File as File
 import qualified Util.ParseText as ParseText
@@ -58,9 +61,40 @@ import qualified Ui.Id as Id
 import           Global
 
 
-{-# SCC parse_expr #-}
+{- | Hacky memo table for 'parse_expr'.  There are many small exprs, and
+    most of them are the the same, so we can save a lot of parsing time,
+    and probably memory too since they will be interned.
+
+    It would be more elegant and probably faster to put the memo directly in
+    the Ui.Event, but this would introduce a giant dependency loop from
+    low level Ui.Event up to DeriveT.Val.  At the least, it would go
+    Ui.Event -> Events.Events -> Ui.State -> Ui.M -> Cmd.M, which means either
+    a type parameter would have to propagate that far, or a SOURCE import would
+    include that much.
+-}
+{-# NOINLINE memo_table #-}
+memo_table :: IORef.IORef (HashMap Text (Either Text DeriveT.Expr))
+memo_table = Unsafe.unsafePerformIO (IORef.newIORef mempty)
+
 parse_expr :: Text -> Either Text DeriveT.Expr
-parse_expr = parse (p_expr True)
+parse_expr str
+    -- micro-optimize, but probably irrelevant
+    | Text.null str = Right $ Expr.call0 "" :| []
+    | otherwise = case HashMap.lookup str table of
+        Just expr -> expr
+        Nothing -> write (HashMap.insert str expr) `seq` expr
+            where expr = parse_expr_raw str
+    where
+    -- With concurrent access this can duplicate work, but since it's a cache
+    -- that should be fine.  Also I don't do a strict modify, it probably makes
+    -- no difference but the theory is to spend minimal time adding the entry,
+    -- and the next call will force the thunk.
+    table = Unsafe.unsafePerformIO $ IORef.readIORef memo_table
+    write = Unsafe.unsafePerformIO . IORef.modifyIORef memo_table
+
+{-# SCC parse_expr_raw #-}
+parse_expr_raw :: Text -> Either Text DeriveT.Expr
+parse_expr_raw = parse (p_expr True)
 
 -- | Parse a single Val.
 {-# SCC parse_val #-}
@@ -77,7 +111,7 @@ parse_num = ParseText.parse (lexeme (p_hex <|> p_untyped_num))
 
 -- | Extract only the call part of the text.
 parse_call :: Text -> Maybe Text
-parse_call text = case parse_expr text of
+parse_call text = case parse_expr_raw text of
     Right expr -> case NonEmpty.last expr of
         Expr.Call (Expr.Symbol call) _ -> Just call
     _ -> Nothing
