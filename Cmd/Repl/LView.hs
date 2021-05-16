@@ -31,8 +31,8 @@ create :: Text -> Cmd.CmdL ()
 create name = do
     blocks <- Ui.gets Ui.state_blocks
     ns <- Ui.get_namespace
-    caller <- Cmd.get_focused_block
-    whenJust (NoteTrackParse.to_block_id blocks ns (Just caller) name) $
+    caller <- Cmd.lookup_focused_block
+    whenJust (NoteTrackParse.to_block_id blocks ns caller name) $
         void . Create.view
 
 -- | For the current window, open enough views at the current zoom to see the
