@@ -170,8 +170,11 @@ in rec {
     nixpkgs.git
 
     # development deps
-    (sharedHaskellBinary "fast-tags")
+    (haskellBinary "fast-tags")
     (haskellBinary "weeder")
+    (haskellBinary "profiterole")
+    (haskellBinary "ghc-prof-flamegraph")
+    (haskellBinary "hp2html")
     nixpkgs.ripgrep
     # TODO nixpkgs.cachix is too old, instead:
     # nix-env -iA cachix -f https://cachix.org/api/v1/install

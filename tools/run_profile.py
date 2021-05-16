@@ -35,6 +35,7 @@
 
 import argparse
 import os
+import shutil
 import sys
 import subprocess
 import datetime
@@ -236,10 +237,8 @@ def run(cmd, tee_to=None):
             raise RuntimeError('non-zero: ' + str(p.wait()))
 
 def run_if_exists(cmd):
-    try:
+    if shutil.which(cmd[0]):
         run(cmd)
-    except FileNotFoundError:
-        pass
 
 def capture(cmd):
     return subprocess.check_output(cmd).decode('utf8').strip()

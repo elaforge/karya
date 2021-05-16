@@ -4,8 +4,5 @@
 
 set -eux
 
-nix-build -A buildEnv | cachix push elaforge
-
-# nix build -L -f default.nix buildEnv
-# cachix push elaforge $(readlink result)
-# rm result
+nix-build --arg withDocs true -A buildEnv | cachix push elaforge
+nix-build --arg profiling true -A buildEnv | cachix push elaforge

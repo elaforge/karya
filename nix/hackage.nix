@@ -48,10 +48,17 @@ let
     let args = callHackageArgs."${name}" or {};
     in overrideCabal (ghc.callHackage name ver args);
 
-  overrideCabal = drv:
-    with nixpkgs.haskell.lib;
-      (if profiling then (x: x) else disableLibraryProfiling)
-        (dontCheck (dontBenchmark (dontCoverage drv)));
+  # Turn off the auto-SCCs in hackage libraries.
+  disableAutoProf = drv: nixpkgs.haskell.lib.overrideCabal drv
+    (drv: { profilingDetail = "none"; });
+
+  overrideCabal = with nixpkgs.haskell.lib; compose [
+    (if profiling then (x: x) else disableLibraryProfiling)
+    disableAutoProf
+    dontCheck
+    dontBenchmark
+    dontCoverage
+  ];
     # This should work better than jailbreak-cabal, but apparently needs
     # brand-new Cabal (3.0.1.0 lacks it, 3.2.0.0 has it).
     # jailbreak = drv: nixpkgs.haskell.lib.appendConfigureFlags drv
@@ -88,7 +95,7 @@ in rec {
     # TODO: this should be just the new packages
 
   packages = builtins.mapAttrs
-    (importPackage nixpkgs.haskell.packages."${ghcVersion}")  packageNames;
+    (importPackage nixpkgs.haskell.packages."${ghcVersion}") packageNames;
 
   nixFiles = nixpkgs.stdenv.mkDerivation {
     name = "nixFiles";
