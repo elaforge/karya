@@ -18,21 +18,35 @@ import qualified Data.IORef as IORef
 import qualified Data.List as List
 import qualified Data.Text as Text
 
+import           System.FilePath ((</>))
+
 -- GHC imports
 import qualified GHC
 import qualified GHC.Exts
 import qualified GHC.Paths
+
+#if GHC_VERSION >= 90001
+
+import qualified Control.Monad.Catch as Catch
+import qualified GHC.Utils.Outputable as Outputable
+import qualified GHC.Driver.Session as DynFlags
+import qualified GHC.Driver.CmdLine as CmdLine
+import           Global (liftIO)
+
+#elif GHC_VERSION >= 80401
+
+import qualified CmdLineParser as CmdLine
 import qualified DynFlags
-
-#if GHC_VERSION >= 80401
-import qualified CmdLineParser
-#endif
-
--- The liftIO here is not the same one in Control.Monad.Trans!
--- GHC defines its own MonadIO.
-import MonadUtils (liftIO)
+import           MonadUtils (liftIO) -- Old GHC defines its own liftIO!
 import qualified Outputable
-import System.FilePath ((</>))
+
+#else
+
+import qualified DynFlags
+import           MonadUtils (liftIO)
+import qualified Outputable
+
+#endif
 
 import qualified Util.File as File
 import qualified Util.Log as Log
@@ -41,8 +55,14 @@ import qualified Util.Thread as Thread
 
 import qualified Cmd.Cmd as Cmd
 import qualified App.ReplProtocol as ReplProtocol
-import Global hiding (liftIO)
+import           Global hiding (liftIO)
 
+
+#if GHC_VERSION >= 90001
+gcatch :: GHC.GhcT IO a -> (Catch.SomeException -> GHC.GhcT IO a)
+    -> GHC.GhcT IO a
+gcatch = Catch.catch
+#endif
 
 -- | The base directory of this build.  Comes from CPP.
 build_dir :: FilePath
@@ -139,7 +159,7 @@ interpreter (Session chan) = do
 respond :: [String] -> Query -> GHC.GhcT IO Response
 respond toplevel_modules (QCommand e) = RCommand <$> case untxt e of
     ':' : colon -> colon_cmd (map Char.toLower colon)
-    expr -> (`GHC.gcatch` catch) $ make_response <$> compile expr
+    expr -> (`gcatch` catch) $ make_response <$> compile expr
     where
     catch (exc :: Exception.SomeException) =
         return $ return $ ReplProtocol.error_result $ "Exception: " <> showt exc
@@ -213,7 +233,7 @@ set_context mod_names = do
 collect_logs :: Ghc a -> Ghc (Result a)
 collect_logs action = do
     logs <- liftIO $ IORef.newIORef []
-    val <- fmap Right (catch_logs logs >> action) `GHC.gcatch`
+    val <- fmap Right (catch_logs logs >> action) `gcatch`
         \(exc :: Exception.SomeException) -> return (Left (show exc))
     logs <- liftIO $ IORef.readIORef logs
     -- GHC.getWarnings is gone, apparently replaced by either printing directly
@@ -225,6 +245,15 @@ collect_logs action = do
     catch_logs logs = modify_flags $ \flags ->
         flags { GHC.log_action = log_action logs }
 
+-- type LogAction = DynFlags -> WarnReason -> Severity -> SrcSpan
+--               -> MsgDoc -> IO ()
+
+#if GHC_VERSION >= 90001
+log_action :: IORef.IORef [String] -> DynFlags.LogAction
+log_action logs dflags _warn_reason _severity _span msg =
+    liftIO $ IORef.modifyIORef logs (formatted:)
+    where formatted = Outputable.showSDoc dflags msg
+#else
 log_action :: IORef.IORef [String]
     -> GHC.DynFlags -> DynFlags.WarnReason -> GHC.Severity -> GHC.SrcSpan
     -> Outputable.PprStyle -> Outputable.SDoc -> IO ()
@@ -233,6 +262,7 @@ log_action logs dflags _warn_reason _severity _span style msg =
     where
     formatted = Outputable.showSDoc dflags $
         Outputable.withPprStyle style msg
+#endif
 
 modify_flags :: (GHC.DynFlags -> GHC.DynFlags) -> Ghc ()
 modify_flags f = do
@@ -245,7 +275,7 @@ parse_flags args = do
     (dflags, args_left, warns) <- GHC.parseDynamicFlags dflags
         (map (GHC.mkGeneralLocated "cmdline") args)
 #if GHC_VERSION >= 80401
-    let un_msg = GHC.unLoc . CmdLineParser.warnMsg
+    let un_msg = GHC.unLoc . CmdLine.warnMsg
 #else
     let un_msg = GHC.unLoc
 #endif

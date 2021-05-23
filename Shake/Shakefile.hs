@@ -115,6 +115,7 @@ basicPackages = concat
     , w "base64-bytestring" -- for hashes in incremental rendering
 
     , [("ghc-events", ">=0.15")]
+    , [("exceptions", "")] -- only ghc 9
     ]
     where w = map (\p -> (p, "")) . words
 

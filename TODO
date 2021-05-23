@@ -26,6 +26,22 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  upgrade to ghc-9.0.1
+    + upgrade modules
+      . Update nix.
+    - cryptohash-md5 doesn't build
+      . It's hvr-controlled :(
+    + fclabels doesn't build
+      . Sent PR.
+    cleanups:
+      - remove Util.File dep from Shakefile, it adds streaming dep
+        . Or, merge im deps in, there aren't actually that many.
+        . Well, there's also libsamplerate, librubberband, faust, etc.
+        . If I could put the flags only on the binaries that need them, then
+          it's ok if they're not present, they'll just fail to build.
+          I guess this is like making the enableIm stuff "automatic" and fine
+          grained, which is the "module system for shakefile" thing.
+        . Ok, maybe just merge streaming dep then.
   - I want to do vibrato and vibrato depth, but it's a pain to add new tracks.
     . But it should be in pitch, do I have vibrato settings there?
     . Maybe I should use the provided ways though, or at least be able to.
@@ -2163,7 +2179,7 @@ synth: im:
         send the pointer to the OS write() call with no intermediate steps.
       . Or I can map directly with vector-mmap.  For that I need to record the
         offsets in the file.
-      . On the other hand, if I'm doing incremental rerenter, then it's not so
+      . On the other hand, if I'm doing incremental rerender, then it's not so
         critical.
   incremental rendering:
     hash and checkpoint based rendering?
@@ -3827,6 +3843,11 @@ external:
   ghc compilation time:
     - Cmd/GlobalKeymap.hs 400 lines: with -O: 72.89s, without: 1.26s
       . Something pathological, reduce it and ask on mailing list.
+      mac:
+        8.8.3: 60-70s
+        9.0.1: 57s
+      linux:
+        8.10.3: 70s.
   hpc:
     - there should be a way to turn off .tix generation
       . also HPCTIXFILE /dev/null shouldn't crash

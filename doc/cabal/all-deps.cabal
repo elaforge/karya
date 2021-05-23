@@ -48,6 +48,7 @@ library
         directory,
         dlist,
         ekg,
+        exceptions,
         extra >=1.3,
         fclabels >=2,
         filepath,

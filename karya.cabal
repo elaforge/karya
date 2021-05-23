@@ -46,6 +46,7 @@ library
         deepseq,
         directory,
         dlist,
+        exceptions,
         extra >=1.3,
         fclabels >=2,
         filepath,

@@ -164,7 +164,6 @@ dependencies to make install easier.
 
 If you want to build the documentation:
 
-    cabal install hscolour
     my-package-manager install pandoc
 
 You can also install pandoc with cabal but it has a ridiculous number of
