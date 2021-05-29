@@ -17,11 +17,11 @@ let
     };
   };
   all-cabal-hashes =
-    let commit = "21fa0f534f906ead4abe15b071564e21e916c9f7";
+    let commit = "772e77626d059b5df478cd33fff22a315fa0e0c5";
     in nixpkgs.fetchurl {
       url = "https://github.com/commercialhaskell/all-cabal-hashes/archive/"
         + "${commit}.tar.gz";
-      sha256 = "0niyw8l5qbnpwdqbaynyzsp85p7bv42rha9b8gjgjarg865r8iyy";
+      sha256 = "1dy6cwj5kknx4g5xwlbn9yv0p4immjd0lc6p148kq1kb8jq354mv";
     };
   ghc = nixpkgs.haskell.packages."${ghcVersion}";
 
@@ -43,10 +43,6 @@ let
   importPackage = ghc: name: fn:
     let args = callHackageArgs."${name}" or {};
     in overrideCabal (ghc.callPackage fn args);
-
-  callHackage = name: ver:
-    let args = callHackageArgs."${name}" or {};
-    in overrideCabal (ghc.callHackage name ver args);
 
   # Turn off the auto-SCCs in hackage libraries.
   disableAutoProf = drv: nixpkgs.haskell.lib.overrideCabal drv
@@ -88,24 +84,26 @@ let
 
   compose = nixpkgs.lib.foldr (f: g: x: f (g x)) (x: x);
 
+  # Optionally filter to update only certain packages.
+  # filterPkgs = lib.filterAttrs (k: _: k == "indexed-traversable");
+  filterPkgs = x: x;
 in rec {
+  # This should have had tools/freeze_fix.py run on it to get out the bootlibs.
   packageVersions = parseFreezeFile ../doc/cabal/all-deps.cabal.config;
-  fromNixpkgs = builtins.mapAttrs callHackage
-    (lib.filterAttrs (k: _: k == "ansi-wl-pprint") packageVersions);
-    # TODO: this should be just the new packages
+  # Generate .nix files for all the given versions.
+  packageToNix = builtins.mapAttrs ghc.hackage2nix (filterPkgs packageVersions);
 
   packages = builtins.mapAttrs
     (importPackage nixpkgs.haskell.packages."${ghcVersion}") packageNames;
 
+  # Build this, and copy the results into nix/hackage.
   nixFiles = nixpkgs.stdenv.mkDerivation {
     name = "nixFiles";
     phases = "buildPhase";
     # This is really stupid but I can't think of any other way to zip
     # in shell.
-    cmds = unlines (map
-      (drv: "cp ${drv.cabal2nixDeriver}/default.nix $out/${drv.pname}.nix")
-        (builtins.attrValues fromNixpkgs)
-    );
+    cmds = unlines (builtins.attrValues (builtins.mapAttrs
+      (name: drv: "cp ${drv}/default.nix $out/${name}.nix") packageToNix));
     buildPhase = ''
       mkdir $out
       (
@@ -128,7 +126,4 @@ in rec {
       (map mk (builtins.attrNames (builtins.readDir ./hackage)));
 
   overrides = ghc: builtins.mapAttrs (importPackage ghc) packageNames;
-
-  # versions mismatch, causes nix to segfault
-  segfault = callHackage nixpkgs.haskell.packages.ghc882 "ghc" "8.8.3";
 }

@@ -93,6 +93,8 @@ let
   inherit (nixpkgs.stdenv) isDarwin isLinux;
 in rec {
   inherit nixpkgs ghc hackage;
+  inherit nixpkgs-orig ghc-orig;
+  inherit (hackage) nixFiles;
 
   # nixpkgs.rubberband only works on linux.
   rubberband = if isDarwin
