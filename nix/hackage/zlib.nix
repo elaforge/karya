@@ -3,10 +3,8 @@
 }:
 mkDerivation {
   pname = "zlib";
-  version = "0.6.2.1";
-  sha256 = "f0f810ff173560b60392db448455c0513b3239f48e43cb494b3733aa559621d0";
-  revision = "1";
-  editedCabalFile = "0i9g71jvdw22bi9bi8dm5khwzcsv6cv8yadmf7afklg4xigxykfk";
+  version = "0.6.2.3";
+  sha256 = "807f6bddf9cb3c517ce5757d991dde3c7e319953a22c86ee03d74534bd5abc88";
   libraryHaskellDepends = [ base bytestring ];
   librarySystemDepends = [ zlib ];
   testHaskellDepends = [

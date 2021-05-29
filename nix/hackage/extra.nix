@@ -1,12 +1,12 @@
 { mkDerivation, base, clock, directory, filepath, process
-, QuickCheck, quickcheck-instances, semigroups, stdenv, time, unix
+, QuickCheck, quickcheck-instances, stdenv, time, unix
 }:
 mkDerivation {
   pname = "extra";
-  version = "1.7.1";
-  sha256 = "a47f452a8b012973bff015facefff28d0bbc39910dadcaac9e1b35dbd2ee507f";
+  version = "1.7.9";
+  sha256 = "f66e26a63b216f0ca33665a75c08eada0a96af192ace83a18d87839d79afdf9d";
   libraryHaskellDepends = [
-    base clock directory filepath process semigroups time unix
+    base clock directory filepath process time unix
   ];
   testHaskellDepends = [
     base directory filepath QuickCheck quickcheck-instances unix

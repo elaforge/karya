@@ -1,13 +1,12 @@
 { mkDerivation, base, binary, bytestring, deepseq, directory, extra
-, file-embed, filepath, filepattern, hashable, heaps, js-dgtable
-, js-flot, js-jquery, primitive, process, QuickCheck, random
-, stdenv, template-haskell, time, transformers, unix
-, unordered-containers, utf8-string
+, filepath, filepattern, hashable, heaps, js-dgtable, js-flot
+, js-jquery, primitive, process, QuickCheck, random, stdenv, time
+, transformers, unix, unordered-containers, utf8-string
 }:
 mkDerivation {
   pname = "shake";
-  version = "0.18.5";
-  sha256 = "576ab57f53b8051f67ceeb97bd9abf2e0926f592334a7a1c27c07b36afca240f";
+  version = "0.19.4";
+  sha256 = "5bae8873f628113604159f650802edb249dfbe5802c4612751f680ac987d73ee";
   isLibrary = true;
   isExecutable = true;
   enableSeparateDataOutput = true;
@@ -17,10 +16,9 @@ mkDerivation {
     random time transformers unix unordered-containers utf8-string
   ];
   executableHaskellDepends = [
-    base binary bytestring deepseq directory extra file-embed filepath
-    filepattern hashable heaps js-dgtable js-flot js-jquery primitive
-    process random template-haskell time transformers unix
-    unordered-containers utf8-string
+    base binary bytestring deepseq directory extra filepath filepattern
+    hashable heaps js-dgtable js-flot js-jquery primitive process
+    random time transformers unix unordered-containers utf8-string
   ];
   testHaskellDepends = [
     base binary bytestring deepseq directory extra filepath filepattern

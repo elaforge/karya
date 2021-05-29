@@ -4,8 +4,8 @@
 }:
 mkDerivation {
   pname = "c2hs";
-  version = "0.28.6";
-  sha256 = "91dd121ac565009f2fc215c50f3365ed66705071a698a545e869041b5d7ff4da";
+  version = "0.28.7";
+  sha256 = "e1146a80006b24bede1947612bdbd81da1285a7fa48370aad5799e619d576745";
   isLibrary = false;
   isExecutable = true;
   enableSeparateDataOutput = true;

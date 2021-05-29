@@ -4,8 +4,8 @@
 }:
 mkDerivation {
   pname = "bifunctors";
-  version = "5.5.8";
-  sha256 = "817c496af1fa0d015b30630808684d62c73e0da1e51e49de8e92f65b7bddce3d";
+  version = "5.5.11";
+  sha256 = "2b6b9672faab649995cf4c885f353b6638b6daee467a9ace40a7fc773831091c";
   libraryHaskellDepends = [
     base base-orphans comonad containers tagged template-haskell
     th-abstraction transformers

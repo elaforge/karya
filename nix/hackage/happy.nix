@@ -1,8 +1,8 @@
 { mkDerivation, array, base, containers, mtl, process, stdenv }:
 mkDerivation {
   pname = "happy";
-  version = "1.19.12";
-  sha256 = "fb9a23e41401711a3b288f93cf0a66db9f97da1ce32ec4fffea4b78a0daeb40f";
+  version = "1.20.0";
+  sha256 = "3b1d3a8f93a2723b554d9f07b2cd136be1a7b2fcab1855b12b7aab5cbac8868c";
   isLibrary = false;
   isExecutable = true;
   enableSeparateDataOutput = true;

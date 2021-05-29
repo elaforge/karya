@@ -3,8 +3,10 @@
 }:
 mkDerivation {
   pname = "MonadRandom";
-  version = "0.5.1.2";
-  sha256 = "776f0e69ddea30c9e819f1cd75249377b7fc6f7c8181b90e72ec9c7bc7e33448";
+  version = "0.5.3";
+  sha256 = "27184dadda0a49abac0208a1e6576b14217a60dc45b6839cd9e90af25ee00a9f";
+  revision = "1";
+  editedCabalFile = "1wpgmcv704i7x38jwalnbmx8c10vdw269gbvzjxaj4rlvff3s4sq";
   libraryHaskellDepends = [
     base mtl primitive random transformers transformers-compat
   ];

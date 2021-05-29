@@ -1,15 +1,18 @@
-{ mkDerivation, base, base-orphans, ghc-prim, QuickCheck
-, semigroups, stdenv, tagged, tasty, tasty-quickcheck, transformers
-, transformers-compat
+{ mkDerivation, base, base-orphans, deepseq, ghc-prim, QuickCheck
+, quickcheck-classes-base, semigroups, stdenv, tagged, tasty
+, tasty-quickcheck, transformers, transformers-compat
 }:
 mkDerivation {
   pname = "primitive";
-  version = "0.7.0.1";
-  sha256 = "dd8bb7d829f492d6200fca4a839a7563b80571c5f76b4d0fa76700ebe897f7dd";
-  libraryHaskellDepends = [ base ghc-prim transformers ];
+  version = "0.7.1.0";
+  sha256 = "6bebecfdf2a57787d9fd5231bfd612b65a92edd7b33a973b2a0f11312b89a3f0";
+  revision = "3";
+  editedCabalFile = "03vgkhib8w3g0m0zwpz74hsixrf0pvgh6ql0xcy05fpq1kynppi9";
+  libraryHaskellDepends = [ base deepseq transformers ];
   testHaskellDepends = [
-    base base-orphans ghc-prim QuickCheck semigroups tagged tasty
-    tasty-quickcheck transformers transformers-compat
+    base base-orphans ghc-prim QuickCheck quickcheck-classes-base
+    semigroups tagged tasty tasty-quickcheck transformers
+    transformers-compat
   ];
   homepage = "https://github.com/haskell/primitive";
   description = "Primitive memory-related operations";

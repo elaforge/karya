@@ -3,10 +3,10 @@
 }:
 mkDerivation {
   pname = "tagged";
-  version = "0.8.6";
-  sha256 = "ad16def0884cf6f05ae1ae8e90192cf9d8d9673fa264b249499bd9e4fac791dd";
-  revision = "3";
-  editedCabalFile = "1wv9ngbj3pvs6v52dj0bli9h5vanyw3akpsmfmwsvnnian9hpkkw";
+  version = "0.8.6.1";
+  sha256 = "f5e0fcf95f0bb4aa63f428f2c01955a41ea1a42cfcf39145ed631f59a9616c02";
+  revision = "1";
+  editedCabalFile = "1rzqfw2pafxbnfpl1lizf9zldpxyy28g92x4jzq49miw9hr1xpsx";
   libraryHaskellDepends = [
     base deepseq template-haskell transformers
   ];

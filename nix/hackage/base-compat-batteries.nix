@@ -3,8 +3,8 @@
 }:
 mkDerivation {
   pname = "base-compat-batteries";
-  version = "0.11.1";
-  sha256 = "caf66fed3c0a3b0437692cad18c93a7074e8524a86b8be1ce04d0a18cbf6aed8";
+  version = "0.11.2";
+  sha256 = "31e066a5aa96af94fe6465adb959c38d63a49e01357641aa4322c754a94d3023";
   libraryHaskellDepends = [ base base-compat ];
   testHaskellDepends = [ base hspec QuickCheck ];
   testToolDepends = [ hspec-discover ];

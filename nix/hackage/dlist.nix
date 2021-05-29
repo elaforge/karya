@@ -1,10 +1,10 @@
-{ mkDerivation, base, Cabal, deepseq, QuickCheck, stdenv }:
+{ mkDerivation, base, deepseq, QuickCheck, stdenv }:
 mkDerivation {
   pname = "dlist";
-  version = "0.8.0.7";
-  sha256 = "a3c06a200f9756329b09d415e7733b7204dda76ce07783e6457d0ab9ffbcba2c";
+  version = "1.0";
+  sha256 = "173d637328bb173fcc365f30d29ff4a94292a1e0e5558aeb3dfc11de81510115";
   libraryHaskellDepends = [ base deepseq ];
-  testHaskellDepends = [ base Cabal QuickCheck ];
+  testHaskellDepends = [ base QuickCheck ];
   homepage = "https://github.com/spl/dlist";
   description = "Difference lists";
   license = stdenv.lib.licenses.bsd3;

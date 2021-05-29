@@ -1,23 +1,20 @@
-{ mkDerivation, base, binary, bytestring, containers, criterion
-, deepseq, hashable, HUnit, QuickCheck, random, stdenv, tasty
-, tasty-hunit, tasty-quickcheck, text
+{ mkDerivation, base, binary, bytestring, deepseq, ghc-byteorder
+, hashable, QuickCheck, random, stdenv, tasty, tasty-hunit
+, tasty-quickcheck, template-haskell, text
 }:
 mkDerivation {
   pname = "uuid-types";
-  version = "1.0.3";
-  sha256 = "9276517ab24a9b06f39d6e3c33c6c2b4ace1fc2126dbc1cd9806866a6551b3fd";
-  revision = "3";
-  editedCabalFile = "0znx08r25sgs5j7ix8i9aikhgad0kc9i6vgkg0g3jzxk5haal9sf";
+  version = "1.0.5";
+  sha256 = "ad68b89b7a64c07dd5c250a11be2033ee929318ff51ec7b4e4b54e1b4deba7dd";
   libraryHaskellDepends = [
-    base binary bytestring deepseq hashable random text
+    base binary bytestring deepseq hashable random template-haskell
+    text
   ];
   testHaskellDepends = [
-    base bytestring HUnit QuickCheck tasty tasty-hunit tasty-quickcheck
+    base binary bytestring ghc-byteorder QuickCheck tasty tasty-hunit
+    tasty-quickcheck template-haskell
   ];
-  benchmarkHaskellDepends = [
-    base bytestring containers criterion deepseq random
-  ];
-  homepage = "https://github.com/aslatter/uuid";
+  homepage = "https://github.com/haskell-hvr/uuid";
   description = "Type definitions for Universally Unique Identifiers";
   license = stdenv.lib.licenses.bsd3;
 }

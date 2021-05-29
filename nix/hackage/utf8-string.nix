@@ -1,12 +1,11 @@
-{ mkDerivation, base, bytestring, stdenv }:
+{ mkDerivation, base, bytestring, HUnit, stdenv }:
 mkDerivation {
   pname = "utf8-string";
-  version = "1.0.1.1";
-  sha256 = "fb0b9e3acbe0605bcd1c63e51f290a7bbbe6628dfa3294ff453e4235fbaef140";
-  revision = "3";
-  editedCabalFile = "02vhj5gykkqa2dyn7s6gn8is1b5fdn9xcqqvlls268g7cpv6rk38";
+  version = "1.0.2";
+  sha256 = "ee48deada7600370728c4156cb002441de770d0121ae33a68139a9ed9c19b09a";
   libraryHaskellDepends = [ base bytestring ];
-  homepage = "http://github.com/glguy/utf8-string/";
+  testHaskellDepends = [ base HUnit ];
+  homepage = "https://github.com/glguy/utf8-string/";
   description = "Support for reading and writing UTF8 Strings";
   license = stdenv.lib.licenses.bsd3;
 }

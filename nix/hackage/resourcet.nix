@@ -3,8 +3,8 @@
 }:
 mkDerivation {
   pname = "resourcet";
-  version = "1.2.3";
-  sha256 = "1a19f4bed56d3bb01a425b93ce157fb826ef01eee32dd28ef2c0c2128550e7c5";
+  version = "1.2.4.2";
+  sha256 = "17f20842043ad199961a801b6efb1233b9098eb3537f8395844268f6a223eb87";
   libraryHaskellDepends = [
     base containers exceptions mtl primitive transformers unliftio-core
   ];

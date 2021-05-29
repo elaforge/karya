@@ -1,10 +1,14 @@
-{ mkDerivation, base, QuickCheck, stdenv }:
+{ mkDerivation, base, doctest-exitcode-stdio, doctest-lib
+, QuickCheck, stdenv
+}:
 mkDerivation {
   pname = "utility-ht";
-  version = "0.0.15";
-  sha256 = "845c79cdf0925997ec190a761460b50a9577cd290567b9252e31d075cd6f0f91";
+  version = "0.0.16";
+  sha256 = "bce53223bb77643222331efec5d69a656c0fa2d11be6563e27bc4808a1abbb81";
   libraryHaskellDepends = [ base ];
-  testHaskellDepends = [ base QuickCheck ];
+  testHaskellDepends = [
+    base doctest-exitcode-stdio doctest-lib QuickCheck
+  ];
   description = "Various small helper functions for Lists, Maybes, Tuples, Functions";
   license = stdenv.lib.licenses.bsd3;
 }

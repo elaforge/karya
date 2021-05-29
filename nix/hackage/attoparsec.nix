@@ -6,12 +6,10 @@
 }:
 mkDerivation {
   pname = "attoparsec";
-  version = "0.13.2.3";
-  sha256 = "3d1ac6713505e520ebb51f26cfb5f6e5a0825e25394a51419c7e035b60b2f2d9";
-  revision = "2";
-  editedCabalFile = "07wq7516m4ldfdk557pc52ap0ghjpcw6q23c3xmzlwwr3dgb1w86";
+  version = "0.14.1";
+  sha256 = "870f8f81d90c28f977c02e383fca78617ee3b5ba31bf0b67186add4b36ad29b3";
   libraryHaskellDepends = [
-    array base bytestring containers deepseq scientific text
+    array base bytestring containers deepseq ghc-prim scientific text
     transformers
   ];
   testHaskellDepends = [
@@ -23,7 +21,7 @@ mkDerivation {
     directory filepath ghc-prim http-types parsec scientific text
     transformers unordered-containers vector
   ];
-  homepage = "https://github.com/bos/attoparsec";
+  homepage = "https://github.com/bgamari/attoparsec";
   description = "Fast combinator parsing for bytestrings and text";
   license = stdenv.lib.licenses.bsd3;
 }

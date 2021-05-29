@@ -1,15 +1,17 @@
-{ mkDerivation, async, base, base-compat-batteries, bytestring
-, clock, containers, criterion, deepseq, HUnit, process, random
-, stdenv, tf-random, time, vector
+{ mkDerivation, async, base, base-compat, base-compat-batteries
+, bytestring, clock, containers, criterion, deepseq, HUnit
+, math-functions, process, random, stdenv, test-framework
+, test-framework-hunit, tf-random, vector
 }:
 mkDerivation {
   pname = "splitmix";
-  version = "0.0.4";
-  sha256 = "aaa1b31a5320fd6a7d69a7f485ba8facdccf2253a1431feddaacc08ab2943091";
-  libraryHaskellDepends = [ base deepseq random time ];
+  version = "0.1.0.3";
+  sha256 = "46009f4b000c9e6613377767b8718bf38476469f2a8e2162d98cc246882d5a35";
+  libraryHaskellDepends = [ base deepseq ];
   testHaskellDepends = [
-    async base base-compat-batteries bytestring deepseq HUnit process
-    random tf-random vector
+    async base base-compat base-compat-batteries bytestring containers
+    deepseq HUnit math-functions process random test-framework
+    test-framework-hunit tf-random vector
   ];
   benchmarkHaskellDepends = [
     base clock containers criterion random tf-random

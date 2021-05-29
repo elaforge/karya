@@ -1,19 +1,14 @@
-{ mkDerivation, base, Cabal, cabal-doctest, containers
-, distributive, doctest, stdenv, tagged, transformers
-, transformers-compat
+{ mkDerivation, base, containers, distributive, indexed-traversable
+, stdenv, tagged, transformers, transformers-compat
 }:
 mkDerivation {
   pname = "comonad";
-  version = "5.0.6";
-  sha256 = "77cfb016acd1747b892c31b82daf0de93f508ba775d62562d376b354adb88fae";
-  revision = "1";
-  editedCabalFile = "19744zfb5nd90a3xnhl7fx9aik39nwwx9sf7k9aahrcplwlvbwgx";
-  setupHaskellDepends = [ base Cabal cabal-doctest ];
+  version = "5.0.8";
+  sha256 = "ef6cdf2cc292cc43ee6aa96c581b235fdea8ab44a0bffb24dc79ae2b2ef33d13";
   libraryHaskellDepends = [
-    base containers distributive tagged transformers
-    transformers-compat
+    base containers distributive indexed-traversable tagged
+    transformers transformers-compat
   ];
-  testHaskellDepends = [ base doctest ];
   homepage = "http://github.com/ekmett/comonad/";
   description = "Comonads";
   license = stdenv.lib.licenses.bsd3;

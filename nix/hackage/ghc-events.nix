@@ -3,8 +3,8 @@
 }:
 mkDerivation {
   pname = "ghc-events";
-  version = "0.15.1";
-  sha256 = "bf5f017d4f462f2116610f55684cacaff94dbf4fbbd22497a9a30c603e31709a";
+  version = "0.17.0";
+  sha256 = "8cc5b380cdf821b396c237cde6dcf0713d3d355733a9a8fac231a42113d52c15";
   isLibrary = true;
   isExecutable = true;
   libraryHaskellDepends = [

@@ -10,8 +10,10 @@
 }:
 mkDerivation {
   pname = "aeson";
-  version = "1.5.5.1";
-  sha256 = "a216ddcc4643b1fcbabb4b4e04f76d3ad54f4444a2e88de34e7d0bd813fc1647";
+  version = "1.5.6.0";
+  sha256 = "0361c34be3d2ec945201f02501693436fbda10dcc549469481a084b2de22bfe8";
+  revision = "1";
+  editedCabalFile = "1y7ddmghsjblsxaj1wyif66wrw0vvp2dca5i7v9rqk33z1r6iryk";
   libraryHaskellDepends = [
     attoparsec base base-compat-batteries bytestring containers
     data-fix deepseq dlist ghc-prim hashable primitive scientific
