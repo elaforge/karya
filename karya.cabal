@@ -75,6 +75,7 @@ library
         random-shuffle,
         shake >=0.16,
         stm,
+        streaming,
         terminfo,
         text,
         time,

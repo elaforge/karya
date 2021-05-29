@@ -47,6 +47,7 @@ random
 random-shuffle
 shake
 stm
+streaming
 terminfo
 text
 time

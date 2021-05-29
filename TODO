@@ -41,7 +41,7 @@ UNSORTED
     + fclabels doesn't build
       . Sent PR.
     cleanups:
-      - remove Util.File dep from Shakefile, it adds streaming dep
+      * remove Util.File dep from Shakefile, it adds streaming dep
         . Or, merge im deps in, there aren't actually that many.
         . Well, there's also libsamplerate, librubberband, faust, etc.
         . If I could put the flags only on the binaries that need them, then

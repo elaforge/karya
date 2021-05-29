@@ -78,29 +78,31 @@ basicPackages = concat
     , w "ghc-prim primitive"
     --  basic
     , w "deepseq data-ordlist cereal random text stm network"
+    , [("extra", ">=1.3")]
+    , [("exceptions", "")] -- only ghc 9
     , w "unordered-containers"
     , [("transformers", ">=0.4"), ("mtl", ">=2.2.1")]
     , w "writer-cps-mtl"
     , w "vector utf8-string"
-    , [("extra", ">=1.3")]
     , w "c-storable"
     -- shakefile
     , [("shake", ">=0.16")]
     , w "binary hashable concurrent-output"
     -- Util
-    , [("pcre-light", ">=0.4"), ("pcre-heavy", ">=0.2")] -- Util.Regex
     , [("Diff", ">=0.4")] -- Util.Test
     , w "QuickCheck" -- Util.Test
+    , [("pcre-light", ">=0.4"), ("pcre-heavy", ">=0.2")] -- Util.Regex
     , w "ansi-terminal colour" -- Util.StyledText
     , w "async" -- Util.Processes
     , w "dlist" -- Util.TimeVector
     , w "hedgehog" -- Util.Test
     , w "pretty haskell-src" -- Util.PPrint
+    , w "streaming"
     , w "wcwidth" -- Util.Format
     , w "zlib" -- Util.File
     -- karya
-    , w "old-locale"
     , w "attoparsec" -- Derive: tracklang parsing
+    , w "old-locale"
     , w "hlibgit2"
     , [("fclabels", ">=2")]
     , w "ghc ghc-paths haskeline terminfo" -- REPL
@@ -115,7 +117,6 @@ basicPackages = concat
     , w "base64-bytestring" -- for hashes in incremental rendering
 
     , [("ghc-events", ">=0.15")]
-    , [("exceptions", "")] -- only ghc 9
     ]
     where w = map (\p -> (p, "")) . words
 
@@ -125,7 +126,6 @@ imPackages = concat
     [ w "hsndfile hsndfile-vector"
     , w "cryptohash-md5" -- Synth.Shared.Note.hash
     , w "resourcet"
-    , w "streaming"
     ]
     where w = map (\p -> (p, "")) . words
 
