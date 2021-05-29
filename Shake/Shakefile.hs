@@ -1498,7 +1498,7 @@ docToHtml = (buildDocDir </>) . FilePath.takeFileName . (++".html")
 hsOHiRule :: InferConfig -> Shake.Rules ()
 hsOHiRule infer = matchHsObjHi &?> \fns -> do
     let Just obj = List.find (".hs.o" `List.isSuffixOf`) fns
-    Shake.askOracleWith (Question () :: Question GhcQ) ("" :: String)
+    Shake.askOracle (Question () :: Question GhcQ)
     let config = infer obj
     isHsc <- liftIO $ Directory.doesFileExist (objToHsc config obj)
     isChs <- if isHsc then return False else liftIO $
@@ -1661,7 +1661,7 @@ ghciFlags config = concat
 
 ccORule :: InferConfig -> Shake.Rules ()
 ccORule infer = matchObj "**/*.cc.o" ?> \obj -> do
-    Shake.askOracleWith (Question () :: Question FltkQ) ("" :: String)
+    Shake.askOracle (Question () :: Question FltkQ)
     let config = infer obj
     let cc = objToSrc config obj
     -- The contents of 'fltkDeps' won't be in CcBinaries, so they use only the

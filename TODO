@@ -29,8 +29,15 @@ UNSORTED
   upgrade to ghc-9.0.1
     + upgrade modules
       . Update nix.
-    - cryptohash-md5 doesn't build
+      * cabal2derive requires to build the drv
+      * lifted-async.nix:1:1 called without required argument 'tasty-bench'
+        . Because cabal doesn't install test deps, but cabal2nix does.
+        . And tasty-bench is a new dep.
+        . Even with --no-check, cabal2nix includes the test deps.
+        . I downleded by hand: tasty-bench doctest-exitcode-stdio doctest-lib
+    + cryptohash-md5 doesn't build
       . It's hvr-controlled :(
+      . Built it locally.
     + fclabels doesn't build
       . Sent PR.
     cleanups:
@@ -4227,6 +4234,10 @@ performance:
         before it's (maybe) needed.  I think I already tried to lazify it,
         and couldn't get it to work.
     - Score.transposed_at
+    - Control.stash_if_wanted
+    - Derive.PSignal.apply_controls
+    - Derive.Control.d_control_track
+    - Derive.Deriver.Lib.controls_at
 
   . Staging via typed template haskell: uses [|| ||], $$.  Talk at
     https://vimeo.com/443276733 6:29:10
@@ -4429,6 +4440,7 @@ performance:
         inherent to the GHC API or ghc runtime in general.
       . Does it grow with the repl off?  Yes, so apparently not the repl.
     - Check out score size with 'weigh', ala https://github.com/haskell-perf
+      . cerucuk-punyah: blocks:25 tracks:194 events:6163
     - the first REPL cmd can take 2-3s, but they're fast after that, why?
       . Presumably it's forcing a bunch of CAFs.
     - If a msg aborts or doesn't run any cmds, don't bother to run diff.
@@ -4441,6 +4453,11 @@ performance:
       . Is there attoparsec for it?  Would lacking slicing be a problem?
     - use short-bytestring for Id?  Or maybe just ByteString?  I think the
       space saving is negligable, but would it make hashing faster?
+      . At least Namespace should be shared, but maybe not when loading.
+        Can I intern it on load.  I can intern all the strings... why did
+        I abandon that?  Maybe didn't seem worth it.
+      . Transform.intern_text
+      . Actually the number of Ids is low, just one per track and block.
     - I may not really have that much data?
       . Get some score stats (Ui.Transform) and figure out the weight of
         a loaded score ('weight' package)

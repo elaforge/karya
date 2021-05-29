@@ -1,8 +1,12 @@
-#!/usr/bin/env bash
+#!/usr/bin/env zsh
 #
 # Upload build deps to cachix.
 
 set -eux
 
-nix-build --arg withDocs true -A buildEnv | cachix push elaforge
-nix-build --arg profiling true -A buildEnv | cachix push elaforge
+args=(
+    --arg withDocs true
+    --arg profiling true
+    --arg withIm true
+)
+nix-build $args -A buildEnv | cachix push elaforge
