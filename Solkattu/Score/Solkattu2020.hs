@@ -97,7 +97,6 @@ c_20_10_25 = date 2020 10 25 $ ganesh $ korvai adi (mridangam<>k1<>k2) $
         , g $ ending6.__6
         , g $ ending5.__5
         , g $ r4 (ta.dit.ta.ga) . tadikita .takadinna.dim.__4
-                                          -- .taka.su kitataka.dim.__4
         , g (ta.__3.din.__4.gin.__3.na.__4.thom.__)
         , g (ta.__. din.__4.gin.__. na.__4.thom.__)
         , g (ta.__. din.__3.gin.__. na.__3.thom.__)
@@ -105,10 +104,9 @@ c_20_10_25 = date 2020 10 25 $ ganesh $ korvai adi (mridangam<>k1<>k2) $
         , sd p5 . p5 . sd p5 . r2 p5 . sd p5
         , tri_ __ (r3 p5)
         ]
-    ending7 = r4 (strS "tadit_ta_ga_") . strS "tadi_ki_ta_taka_din_na_dim"
-    ending6 = r3 (strS "tadit_ta_ga") . strS "tadit_taga_"
-        . strS "tadi_kita_taka_dinna_dim"
-    ending5 = r4 (strS "tadittaga_") . strS "tadikita_takadinna_dim"
+    ending7 = r4 "tadit_ta_ga_" . "tadi_ki_ta_taka_din_na_dim"
+    ending6 = r3 "tadit_ta_ga" . "tadit_taga_" . "tadi_kita_taka_dinna_dim"
+    ending5 = r4 "tadittaga_" . "tadikita_takadinna_dim"
     takataka = taka.taka
     sarva = sarvaD (sd sarva_ndd)
     sarva_ndd = na.din.din.na.su (na.na).din.din.na . r2 (na.din.din.na)
@@ -124,7 +122,6 @@ c_20_10_25 = date 2020 10 25 $ ganesh $ korvai adi (mridangam<>k1<>k2) $
         , (ta, k)
 
         , (sarva_ndd, on.od.od.on . on.on.od.od.on . on.d.d.n . n.od.od.on)
-        -- , (taka.kitataka, k.o.k.t.o.k)
         -- TODO some syntax to say od if there is space afterwards
         -- , (takadinna, k.o.o& (_ d) .d)
         ]

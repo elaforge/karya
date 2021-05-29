@@ -140,8 +140,7 @@ e_21_04_25 = date 2021 4 25 $ ganesh $ korvaiS adi mridangam
         , ta.__8   .din.__8    . r3 (g $ su "kitatarikita".thom) -- 4
         , ta.__6   .din.__6    . r3 (g $ su "tarikita".thom) -- 3
         , ta.__4   .din.__4    . r3 (g $ su kita.thom) -- 2
-        , tri_ __ p7
-        ]
+        ] . __ . tri_ __ p7
     ]
     where
     purvangam = sd $ tri_ (din.__3) (g (ta.__3.ta.takadinna))
@@ -155,6 +154,7 @@ e_21_04_25 = date 2021 4 25 $ ganesh $ korvaiS adi mridangam
         , (taka, k.p)
         , (tiku, n.p)
         , (t7, "k_t_ktkto")
+        , (ta.nam, p.n)
         , (nam, n)
         , ("kitatarikita".thom, "ktpkpto")
         , ("tarikita".thom, "ktkto")

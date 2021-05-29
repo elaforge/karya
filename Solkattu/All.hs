@@ -259,7 +259,7 @@ scores = map Korvai.inferMetadataS
     , setLocation ("Solkattu.Score.Solkattu2020",18,"e_20_01_27") $ Single Solkattu.Score.Solkattu2020.e_20_01_27
     , setLocation ("Solkattu.Score.Solkattu2020",28,"c_20_04_03") $ Single Solkattu.Score.Solkattu2020.c_20_04_03
     , setLocation ("Solkattu.Score.Solkattu2020",74,"c_20_10_25") $ Single Solkattu.Score.Solkattu2020.c_20_10_25
-    , setLocation ("Solkattu.Score.Solkattu2020",177,"kendang_farans") $ Single Solkattu.Score.Solkattu2020.kendang_farans
+    , setLocation ("Solkattu.Score.Solkattu2020",174,"kendang_farans") $ Single Solkattu.Score.Solkattu2020.kendang_farans
     , setLocation ("Solkattu.Score.Solkattu2021",16,"kon_21_01_24") $ Single Solkattu.Score.Solkattu2021.kon_21_01_24
     , setLocation ("Solkattu.Score.Solkattu2021",30,"kon_21_02_21") $ Single Solkattu.Score.Solkattu2021.kon_21_02_21
     , setLocation ("Solkattu.Score.Solkattu2021",45,"kon_35_kanda") $ Single Solkattu.Score.Solkattu2021.kon_35_kanda
