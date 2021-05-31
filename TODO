@@ -4244,13 +4244,42 @@ performance:
     . More talks at ICFP 2020
     . The ICFP talk claimed several times faster than happy, go find that.
       https://youtu.be/i9wgeX7e-nc?t=1679
-  nothunks:
-    . https://iohk.io/en/blog/posts/2020/09/24/being-lazy-without-being-bloated/
-    . Also there is ghc-heap-view assertNF
-    - Check Ui.State
-    - Check Cmd.State
-      . Except state_current_performance
-    - Check Derive.State during derivation.
+  memory:
+    repl memory usage
+      . I think this is high due to loaded modules.  What is it exactly?
+    short data:
+      - use short-text for Score.Event?
+        . Is there attoparsec for it?  Would lacking slicing be a problem?
+      - use short-bytestring for Id?  Or maybe just ByteString?  I think the
+        space saving is negligable, but would it make hashing faster?
+        . At least Namespace should be shared, but maybe not when loading.
+          Can I intern it on load.  I can intern all the strings... why did
+          I abandon that?  Maybe didn't seem worth it.
+        . Transform.intern_text
+        . Actually the number of Ids is low, just one per track and block.
+      - I may not really have that much data?
+        . Get some score stats (Ui.Transform) and figure out the weight of
+          a loaded score ('weight' package)
+        . Then, does the extra overhead hurt me?  Less memory is better, but
+          is it drowned out by derive's memory use?
+    nothunks:
+      . https://iohk.io/en/blog/posts/2020/09/24/being-lazy-without-being-bloated/
+      . Also there is ghc-heap-view assertNF
+      - Check Ui.State
+      - Check Cmd.State
+        . Except state_current_performance
+      - Check Derive.State during derivation.
+    - find space leaks with nmitchell's stack limit technique:
+      . run build/profile/verify_performance +RTS -K975K -xc -RTS --mode=Profile
+          p/cerucuk-punyah.state
+        Derive.LEvent.events_of,
+        called from Derive.Stream.zip3_on.\,
+        called from Derive.Stream.emap,
+        called from Derive.Stream.zip3_on,
+      . Also, what's with the compile_library stuff in the middle?  Should
+        I make it stricter?
+      . Giving up for the moment since I don't understand the output.
+      . Maybe it was nonsensical due to auto SCCs?
   research:
     . https://ollef.github.io/blog/posts/speeding-up-sixty.html
       ? Look at threadscope again for GC allocation size: -A50m
@@ -4300,19 +4329,77 @@ performance:
         trigger a GC for all of them.  Good for unbalanced allocation?
       . -I0 to turn off idle GC.  But it's designed to be good for interactive
         use, and maybe I do pause for >.3s.  Or turn it up to 1sec?
-    - find space leaks with nmitchell's stack limit technique:
-      . run build/profile/verify_performance +RTS -K975K -xc -RTS --mode=Profile
-          p/cerucuk-punyah.state
-        Derive.LEvent.events_of,
-        called from Derive.Stream.zip3_on.\,
-        called from Derive.Stream.emap,
-        called from Derive.Stream.zip3_on,
-      . Also, what's with the compile_library stuff in the middle?  Should
-        I make it stricter?
-      . Giving up for the moment since I don't understand the output.
-      . Maybe it was nonsensical due to auto SCCs?
   fltk:
     - tile based rendering so zooming goes back to being fast
+      . Alternately, qt supposedly does this stuff "automatically" though no
+        one is clear on it.
+      . I'm then back on the incremental problem, where text visibility is
+        dependent on coming from the top.
+      . If the expensive part is drawing text, I could draw everything but the
+        text, and then put that on top on demand.
+      . I would still have to allocate the giant bitmap at once, and fetch
+        all events, and draw non-text, so time that separately to make sure
+        it's fast.  I can just turn off text rendering and try it out to get
+        a feel.
+      . This will break the CachedScroll abstraction, or it will need to have
+        hooks.
+      . It can call the child to do the initial draw, and then have to somehow
+        call it for tiles.  I use Fl_Image_Surface::draw(Fl_Widget *) to draw
+        the whole thing, I guess it's hardcoded to call Fl_Widget::draw, maybe
+        I can look at the source to change it to call a draw_tile() method.
+      . Fl_Surface_Device::push_current(surface);
+        // fiddle with coordinates to set origin relative to widget
+        widget->draw();
+        Fl_Surface_Device::pop_current();
+      . I could also make an alternate widget with a ::draw() for the tiles,
+        but how would I tell it which tile?  I guess I could ask the child for
+        a per-tile widget which has the appropriate draw:
+          surface.draw(child.tile_at(offset));
+      . Also have to keep the surface alive, so I can accumulate draws in it.
+        I guess it'll make copies for each surface.image() call, but that's
+        a copy, so quick, right?
+      It's not the text, what is it then?
+        . line 24533
+        0.04 events -> EventTrack::draw-start
+          ? many fl_draw, what is it drawing?  It's before find_events!
+            they are all 0.00004s, but many of them.
+            . It only happens once, this is probably the ruler!
+          . 0.0073 fl_draw -> draw-start
+          . 0.01   find_events
+          . 0.0076 draw_waveforms
+          . 0.009  ruler_overlay
+          . Then (drawable_pixels, draw_trigger, fl_draw, draw_text_line) etc.
+            Each is ~ 0.0003
+          . 0.02 draw_upper_layer
+        0.02 EventTrack::draw_upper_layer -> EventTrack::selection_overlay
+        Block::draw ======> Block::draw 0.6480
+      seq.events.3:
+        0.0361 RulerTrack::ruler_overlay 28737
+        0.0083 RulerTrack::selection_overlay 28738
+        0.0127 EventTrack::find_events 28740
+        0.0064 EventTrack::draw_waveforms
+        0.0092 EventTrack::ruler_overlay
+        0.0253 EventTrack::selection_overlay
+    - cache fl_draw
+      (int rotate, char *text)
+      . Actually, cache the whole symbol.
+      . Also cache measurements: draw(string, Style) measure(string, Style)
+      . Style: Font, Size, Fl_Color
+      . Turns out I already have CacheMap in there!  It only caches glyph
+        size, so I can probably get rid of it.
+    ? Could I parallelize drawing?
+    ruler_overlay
+      . .035 (with text), .01 (without)
+    find_events
+      . 0.013, 0.005, 0.01, ... depends on how many events
+    before selection_overlay
+      . 0.02, 0.015, 0.028, for all tracks
+      . It's between EventTrack::free_text and SelectionOverlay::start
+      . That's after the CachedScroll Body draw, so maybe it's overhead?
+    ? Could I draw ruler_overlay once and then just stamp it on?
+    ? To make find_events faster, could I store them in the Storable C format,
+      and then convert to haskell for derivation?
+      . Or maybe keep both, the extra memory is probably low.
     historical stats for scrolling:
       . Stats:
         13.5686 sync_status
@@ -4447,22 +4534,6 @@ performance:
       Except that hardly ever happens if I do shortcut thru.
     - cache track cmds for each track, update when the track title or skeleton
       changes
-
-  short data:
-    - use short-text for Score.Event?
-      . Is there attoparsec for it?  Would lacking slicing be a problem?
-    - use short-bytestring for Id?  Or maybe just ByteString?  I think the
-      space saving is negligable, but would it make hashing faster?
-      . At least Namespace should be shared, but maybe not when loading.
-        Can I intern it on load.  I can intern all the strings... why did
-        I abandon that?  Maybe didn't seem worth it.
-      . Transform.intern_text
-      . Actually the number of Ids is low, just one per track and block.
-    - I may not really have that much data?
-      . Get some score stats (Ui.Transform) and figure out the weight of
-        a loaded score ('weight' package)
-      . Then, does the extra overhead hurt me?  Less memory is better, but
-        is it drowned out by derive's memory use?
   derive:
     parser:
       -fexpose-all-unfoldings can speed up parsec, at the cost of code size

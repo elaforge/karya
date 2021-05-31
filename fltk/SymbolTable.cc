@@ -37,7 +37,7 @@ SymbolTable::font(const char *name) const
     // 'B' for bold, 'I' for italic, and 'P' for bold+italic.
     sname.insert(0, " ");
 #endif
-    std::map<string, Font>::const_iterator it = font_map.find(sname);
+    const auto it = font_map.find(sname);
     if (it == font_map.end()) {
         DEBUG("font not found: '" << name << "'");
         return font_not_found;
@@ -51,9 +51,8 @@ SymbolTable::fonts() const
 {
     char **fonts = (char **) calloc(font_map.size() + 1, sizeof(char *));
     char **cur = fonts;
-    std::map<string, Font>::const_iterator font = font_map.begin();
-    for (; font != font_map.end(); ++font) {
-        *cur++ = strdup(font->first.c_str());
+    for (const auto &font : font_map) {
+        *cur++ = strdup(font.first.c_str());
     }
     *cur = nullptr;
     return fonts;
@@ -66,7 +65,7 @@ SymbolTable::insert(const string &name, const Symbol &sym)
         DEBUG("ignoring Symbol with invalid font for " << name);
         return;
     }
-    SymbolMap::iterator it = this->symbol_map.find(name);
+    const auto it = this->symbol_map.find(name);
     if (it != symbol_map.end()) {
         // Clear it out of the box_cache.
         for (CacheMap::iterator cache = box_cache.begin();
@@ -192,7 +191,7 @@ SymbolTable::draw_backticks(
             parsed.text.c_str(), parsed.text.size(), pos, measure, DPoint());
         return DPoint(width, fl_height() - fl_descent());
     } else {
-        SymbolMap::const_iterator it = this->symbol_map.find(parsed.text);
+        const auto it = this->symbol_map.find(parsed.text);
 
         if (it == symbol_map.end()) {
             // Unknown symbol, draw it as plain text including the ``s.
@@ -272,8 +271,7 @@ SymbolTable::measure_backticks(const char *text, Size size) const
         // Oops, it was unclosed.
         return -1;
     } else {
-        SymbolMap::const_iterator it = this->symbol_map.find(
-            string(start, text-start));
+        const auto it = this->symbol_map.find(string(start, text-start));
         if (it == symbol_map.end()) {
             return -1;
         } else {

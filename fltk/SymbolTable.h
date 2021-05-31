@@ -6,6 +6,7 @@
 
 #include <map>
 #include <string>
+#include <unordered_map>
 #include <utility>
 
 #include <FL/fl_draw.H>
@@ -151,9 +152,9 @@ private:
     DPoint wrap_glyphs(const std::string &text, int start, const Style &style,
         int wrap_width, int *wrap_at) const;
 
-    typedef std::map<std::string, Symbol> SymbolMap;
+    typedef std::unordered_map<std::string, Symbol> SymbolMap;
     SymbolMap symbol_map;
-    std::map<std::string, Font> font_map;
+    std::unordered_map<std::string, Font> font_map;
 
     typedef std::pair<const Symbol *, Size> CacheKey;
     typedef std::map<const CacheKey, IRect> CacheMap;
