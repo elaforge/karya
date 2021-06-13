@@ -35,6 +35,7 @@ import           Global (liftIO)
 
 #elif GHC_VERSION >= 80401
 
+import           GHC (gcatch)
 import qualified CmdLineParser as CmdLine
 import qualified DynFlags
 import           MonadUtils (liftIO) -- Old GHC defines its own liftIO!
@@ -42,6 +43,7 @@ import qualified Outputable
 
 #else
 
+import           GHC (gcatch)
 import qualified DynFlags
 import           MonadUtils (liftIO)
 import qualified Outputable
