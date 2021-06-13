@@ -367,6 +367,7 @@ EventTrack::draw()
         body_scroll.damage(FL_DAMAGE_SCROLL);
     }
     Track::draw();
+    util::timing(2, "EventTrack::Track::draw");
     selection_overlay.draw(
         x(), track_start(*this), w(), track_end(*this), body.zoom);
     util::timing(2, "EventTrack::selection_overlay");
@@ -545,6 +546,7 @@ EventTrack::Body::update_size()
 void
 EventTrack::Body::draw()
 {
+    util::timing(2, "EventTrack::Body::draw-start");
     fl_color(config.bg_color.brightness(this->brightness).fl());
     fl_rectf(x(), y(), w(), h());
 
@@ -556,6 +558,7 @@ EventTrack::Body::draw()
     // come first.
     Event *events;
     int *ranks;
+    util::timing(2, "EventTrack::find_events-start");
     int count = this->config.find_events(&t_start, &t_end, &events, &ranks);
     util::timing(2, "EventTrack::find_events");
 
@@ -574,6 +577,7 @@ EventTrack::Body::draw()
             events[i], wrapped, x(), triggers[i], wrap_width, align,
             start, end);
     }
+    util::timing(2, "EventTrack::compute_text_boxes");
 
 
     // Actually start drawing.
@@ -604,6 +608,7 @@ EventTrack::Body::draw()
         }
         free(events);
         free(ranks);
+        util::timing(2, "EventTrack::free_text");
     }
 }
 

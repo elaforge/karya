@@ -56,6 +56,7 @@ SelectionOverlay::draw(
     const int x, const int track_start, const int w, const int track_end,
     const Zoom &zoom)
 {
+    util::timing(2, "SelectionOverlay::start");
     for (const std::vector<Selection> &sels : this->selections) {
         for (const Selection &sel : sels) {
             if (sel.empty())
@@ -88,8 +89,10 @@ SelectionOverlay::draw(
             int cur = track_start + zoom.to_pixels(sel.cur - zoom.offset);
             fl_line(x + 2, cur, x + w - 2, cur);
             draw_arrow(x, cur, sel);
+            util::timing(2, "SelectionOverlay::draw-selection");
         }
     }
+    util::timing(2, "SelectionOverlay::end");
 }
 
 

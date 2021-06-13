@@ -11,6 +11,7 @@
 #include <FL/Fl.H>
 #include <FL/fl_draw.H>
 #include <FL/Fl_Widget.H>
+#include <FL/Fl_RGB_Image.H>
 
 #include "Color.h"
 #include "global.h"
@@ -91,3 +92,5 @@ void draw_rect(const IRect &rect, Color color);
 void draw_rectf(const IRect &rect, Color color);
 
 }
+
+std::ostream &operator<<(std::ostream &os, const Fl_RGB_Image &i);

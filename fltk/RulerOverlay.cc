@@ -118,6 +118,7 @@ RulerOverlay::draw(const IRect &box, const Zoom &zoom, const IRect &clip)
     if (clip.w == 0 || clip.h == 0)
         return;
 
+    util::timing(2, "RulerOverlay::draw-start");
     ScoreTime start = zoom.to_time(clip.y - box.y);
     ScoreTime end = start + zoom.to_time(clip.h);
     start = start + zoom.offset;
@@ -141,6 +142,7 @@ RulerOverlay::draw(const IRect &box, const Zoom &zoom, const IRect &clip)
                 break;
         }
     }
+    util::timing(2, "RulerOverlay::draw");
 }
 
 

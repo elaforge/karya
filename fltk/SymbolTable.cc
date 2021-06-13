@@ -369,7 +369,7 @@ SymbolTable::wrap(const string &text, const Style &style, int wrap_width) const
             }
             // DEBUG("text '" << line << "' sum " << line_box << " recalc "
             //     << measure(line, 0, line.length(), style));
-            lines.push_back(std::make_pair(line, line_box));
+            lines.push_back({line, line_box});
             line_box = DPoint(0, 0);
             line.clear();
             // I just broke a line, so I can skip all the whitespace.
@@ -380,7 +380,7 @@ SymbolTable::wrap(const string &text, const Style &style, int wrap_width) const
     if (!line.empty()) {
         // DEBUG("FINAL text '" << line << "' sum " << line_box << " recalc "
         //     << measure(line, 0, line.length(), style));
-        lines.push_back(std::make_pair(line, line_box));
+        lines.push_back({line, line_box});
     }
 
     // for (int i = 0; i < lines.size(); i++) {
@@ -541,11 +541,11 @@ do_measure_symbol(const SymbolTable::Symbol &sym, SymbolTable::Size size)
 IRect
 SymbolTable::measure_symbol(const Symbol &sym, Size size) const
 {
-    std::map<const CacheKey, IRect>::iterator it =
-        this->box_cache.find(std::make_pair(&sym, size));
+    const auto key = std::make_pair(&sym, size);
+    const auto it = this->box_cache.find(key);
     if (it == box_cache.end()) {
         IRect box = do_measure_symbol(sym, size);
-        box_cache.insert(std::make_pair(std::make_pair(&sym, size), box));
+        box_cache.insert(it, {key, box});
         return box;
     } else {
         return it->second;

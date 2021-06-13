@@ -83,14 +83,17 @@ RulerTrack::finalize_callbacks()
 void
 RulerTrack::draw()
 {
+    util::timing(2, "RulerTrack::draw-start");
     // The selection moved, so get the cache to redraw, but not recache.
     if ((damage() & ~FL_DAMAGE_CHILD) == Track::DAMAGE_SELECTION) {
         this->clear_damage();
         body_scroll.damage(FL_DAMAGE_SCROLL);
     }
     Track::draw();
+    util::timing(2, "RulerTrack::Track::draw");
     selection_overlay.draw(
         x(), track_start(body), w(), track_end(body), body.zoom);
+    util::timing(2, "RulerTrack::selection_overlay");
 }
 
 
@@ -145,6 +148,7 @@ RulerTrack::Body::Body(const RulerConfig &config) :
 void
 RulerTrack::Body::draw()
 {
+    util::timing(2, "RulerTrack::Body::draw-start");
     fl_color(ruler_overlay.config.bg.fl());
     fl_rectf(x(), y(), w(), h());
 
@@ -152,6 +156,7 @@ RulerTrack::Body::draw()
     IRect box(x(), track_start(*this),
         w(), track_end(*this) - track_start(*this));
     this->ruler_overlay.draw(box, Zoom(ScoreTime(0), zoom.factor), box);
+    util::timing(2, "RulerTrack::ruler_overlay");
 }
 
 

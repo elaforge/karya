@@ -5,6 +5,7 @@
     See NOTE [ui-loop-timing].
 """
 
+import builtins
 import sys, os, re
 
 
@@ -23,14 +24,8 @@ class Fltk:
     # Not sure which is better.
 
     skip = set([
-        'fl_draw', 'draw_text_line', 'drawable_pixels', 'draw_trigger',
+        # 'fl_draw', 'draw_text_line', 'drawable_pixels', 'draw_trigger',
     ])
-
-    wanted = set([
-        'EventTrack::find_events',
-        'EventTrack::ruler_overlay',
-        'EventTrack::draw_upper_layer',
-    ]).union(set([start, draw_block, draw_track_start, draw_track_end]))
 
 class Cmd:
     """analyze events for the respond loop, from ghc Debug.Trace.trace
@@ -43,16 +38,19 @@ class Cmd:
 
 
 def main():
+    mode = cmd_mode
     mode = fltk_mode
-    # mode = cmd_mode
+    # mode = raw_output
     if len(sys.argv) == 1:
-        mode(open('seq.events'))
+        mode(open('seq.events'), sys.stdout)
     elif len(sys.argv) == 2:
-        mode(open(sys.argv[1]))
+        input = sys.argv[1]
+        fltk_mode(open(input), open(f'{input}.times', 'w'))
+        raw_output(open(input), open(f'{input}.raw', 'w'))
     else:
         sys.exit('usage: parse_timing [ seq.events ]')
 
-def cmd_mode(file):
+def cmd_mode(file, out_fp):
     prev_ts = None
     start = None
     mode = Cmd
@@ -76,38 +74,86 @@ def cmd_mode(file):
 
 
 # See NOTE [ui-loop-timing].
-def fltk_mode(file):
+def fltk_mode(file, out_fp):
+    def print(*args):
+        builtins.print(*args, file=out_fp)
     prev_ts = None
     prev_by = {}
     mode = Fltk
-    for line in file:
+
+    wanted = set([
+        'EventTrack::find_events',
+        'EventTrack::find_events-start',
+        'EventTrack::ruler_overlay',
+        'EventTrack::draw_upper_layer',
+        'EventTrack::free_text',
+        'EventTrack::Track::draw',
+        'EventTrack::Body::draw-start',
+        'EventTrack::selection_overlay',
+        'EventTrack::draw_waveforms',
+        'EventTrack::draw_signal',
+
+        'RulerTrack::draw-start',
+        'RulerTrack::Body::draw-start',
+        'RulerTrack::ruler_overlay',
+        'RulerTrack::selection_overlay',
+        'RulerTrack::Track::draw',
+
+        'SelectionOverlay::start',
+
+        'CachedScroll::redraw',
+        'CachedScroll::surface-new',
+        'CachedScroll::surface.draw',
+        'CachedScroll::surface.image',
+    ])
+    skip = []
+
+    sections = set([
+        'RulerTrack::selection_overlay',
+        'EventTrack::selection_overlay',
+    ])
+
+    histo = {}
+    for num, line in enumerate(file):
+        num += 1
         ts, name, _val = parse(line)
         if name.startswith('evt-') or name == 'events':
             prev_ts = None
         if prev_ts is None:
             prev_ts = ts
-            prev_by = {mode.draw_block: ts}
-            print('-' * 30)
+            prev_by = {1: ts}
+            print('-' * 30, name)
             continue
+        if name not in wanted or name in skip:
+            histo[name] = histo.get(name, 0) + 1
+            continue
+        else:
+            if False and histo:
+                print('  ', ' '.join(
+                    f'{k}:{v}' for k, v in sorted(histo.items()))
+                )
+            histo = {}
+
         diff = ts - prev_ts
 
-        out = [fmt(diff), name]
-        # time to do a complete draw
-        if name == mode.draw_block:
-            out.extend([mode.draw_block, fmt(ts - prev_by[mode.draw_block])])
-        elif name == mode.draw_track_start:
-            prev_by[mode.draw_track_start] = ts
-        elif name == mode.draw_track_end:
-            out.extend([
-                mode.draw_track_start, fmt(ts - prev_by[mode.draw_track_start])
-            ])
-        elif name in mode.skip:
-            continue
-        if len(out) > 2:
-            out.insert(2, '======>')
-        if diff > mode.min_diff or len(out) > 2: # or True:
-            print(' '.join(out))
-            prev_ts = ts
+        print(' '.join([fmt(diff), name, str(num)]))
+        if name in sections:
+            print('  ===>', fmt(ts - prev_by[1]))
+            prev_by[1] = ts
+        prev_ts = ts
+
+fat_arrow = '====>'
+
+def raw_output(file, out_fp):
+    def print(*args):
+        builtins.print(*args, file=out_fp)
+    prev_ts = None
+    for line in file:
+        ts, name, _val = parse(line)
+        if prev_ts is not None:
+            delta = ts - prev_ts
+            print(f'{ts:.04f} {delta:.04f} {name}')
+        prev_ts = ts
 
 
 def parse(line):

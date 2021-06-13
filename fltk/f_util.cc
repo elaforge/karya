@@ -280,3 +280,13 @@ draw_rectf(const IRect &rect, Color color)
 }
 
 }
+std::ostream &
+operator<<(std::ostream &os, const Fl_RGB_Image &i)
+{
+    return os << "Fl_RGB_Image("
+        << i.w() << ":" << i.data_w()
+        << ", " << i.h() << ":" << i.data_h()
+        << ", depth=" << i.d()
+        << ", " << (i.data_w() * i.data_h() * i.d() / 1024) << "kb"
+        << ")";
+}
