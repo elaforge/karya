@@ -3357,7 +3357,8 @@ shakefile: build:
     . How are you supposed to install deps in the v2 world?
   nix:
     . https://app.cachix.org/cache/elaforge
-    - hackage deps are STILL broken
+    - Look into 'tinc', it uses the cabal solver to decide on versions.
+    * hackage deps are STILL broken
       . Because it doesn't actually have cabal2nixDeriver, because that only
         works when you do callHackage.
       . But I think I actually have to do that, otherwise cabal2nix isn't run.
@@ -3365,7 +3366,7 @@ shakefile: build:
     * get rid of IFD:
       . Most straightforward way is to run the cabal2nix and then check in the
         output files.  I can write a derivation that does that.
-    + fix hackage.nix
+    * fix hackage.nix
       . Except you only get cabal2nix after a callHackage.
     - Broken with withEkg.
       . Because ansi-wl-pprint 0.6.9 doesn't compile, no profiling on

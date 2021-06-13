@@ -11,15 +11,24 @@
 { withLilypond ? false
 , withIm ? true # TODO sync this with Shake.Config.enableIm
 , withEkg ? false # ekg is really heavy
-, withDocs ? false # build documentation
-, profiling ? false # enable profiling in dependent libraries
+, withDocs ? false # deps to build documentation
+# Enable profiling in hackage libraries.  Generally we want this to be able to
+# profile, but it's much faster to build without it.
+, profiling ? true
+# Whether to do auto-scc stuff in hackage.  I prefer manual SCCs since auto
+# ones defeat inlining and change performance too much, but it can be useful
+# to see into hackage libraries sometimes.
+# https://cabal.readthedocs.io/en/3.4/cabal-project.html#cfg-field-profiling-detail
+, profilingDetail ? "none"
 , isCi ? false
 }:
 
 let
   nixpkgs = import nix/nixpkgs.nix { inherit config; };
   nixpkgs-orig = import nix/nixpkgs.nix {};
-  hackage = import nix/hackage.nix { inherit ghcVersion profiling; };
+  hackage = import nix/hackage.nix {
+    inherit ghcVersion profiling profilingDetail;
+  };
   faust = import nix/faust.nix {};
   inherit (nixpkgs) lib;
 
@@ -27,7 +36,8 @@ let
     in if ver "19.09" then "8.8.2" # ghc883 is not in 1909 yet
     # else if ver "20.09" then "8.8.4"
     else if ver "20.09" then "8.10.3"
-    else abort "unknown version ${lib.version}";
+    else if ver "21" then "9.0.1" # unstable
+    else abort "no ghc version defined for nixpkgs version ${lib.version}";
 
   ghcVersion = "ghc" + builtins.replaceStrings ["."] [""] ghcVersionDots;
   getGhc = nixpkgs: nixpkgs.haskell.packages."${ghcVersion}";
@@ -62,7 +72,7 @@ let
   };
 
   # TODO: not used, couldn't get it to work
-  overlay = nixpkgsSelf: nixpkgsSuper:
+  _overlay = nixpkgsSelf: nixpkgsSuper:
     let
       inherit (nixpkgsSelf) pkgs;
       # pkgs = self.pkgs;
@@ -172,8 +182,9 @@ in rec {
     nixpkgs.git
 
     # development deps
+    # nixpkgs-orig.haskell.packages.ghc8104.fast-tags
     (haskellBinary "fast-tags")
-    (haskellBinary "weeder")
+    # (haskellBinary "weeder")
     (haskellBinary "profiterole")
     (haskellBinary "ghc-prof-flamegraph")
     (haskellBinary "hp2html")

@@ -6,7 +6,6 @@ set -eux
 
 args=(
     --arg withDocs true
-    --arg profiling true
     --arg withIm true
 )
 nix-build $args -A buildEnv | cachix push elaforge

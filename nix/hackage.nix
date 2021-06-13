@@ -1,6 +1,6 @@
 # Read a json file produced by make_hackage.py with package versions.
 # TODO either port it to nix, or run the script as a derivation
-{ ghcVersion, profiling }:
+{ ghcVersion, profiling, profilingDetail }:
 let
   nixpkgs = import ./nixpkgs.nix { inherit config; };
   inherit (nixpkgs) lib;
@@ -44,9 +44,9 @@ let
     let args = callHackageArgs."${name}" or {};
     in overrideCabal (ghc.callPackage fn args);
 
-  # Turn off the auto-SCCs in hackage libraries.
+  # Configure auto-SCC settings in hackage libraries.
   disableAutoProf = drv: nixpkgs.haskell.lib.overrideCabal drv
-    (drv: { profilingDetail = "none"; });
+    (drv: { inherit profilingDetail; });
 
   overrideCabal = with nixpkgs.haskell.lib; compose [
     (if profiling then (x: x) else disableLibraryProfiling)
@@ -54,11 +54,14 @@ let
     dontCheck
     dontBenchmark
     dontCoverage
+    # doJailbreak # can be useful when trying new ghc versions
   ];
-    # This should work better than jailbreak-cabal, but apparently needs
-    # brand-new Cabal (3.0.1.0 lacks it, 3.2.0.0 has it).
-    # jailbreak = drv: nixpkgs.haskell.lib.appendConfigureFlags drv
-    #   ["--allow-older" "--allow-newer"];
+
+  # This should work better than jailbreak-cabal, but apparently needs
+  # brand-new Cabal (3.0.1.0 lacks it, 3.2.0.0 has it).
+  # Except nixpkgs uses old Setup.hs, which doesn't support those flags.
+  # jailbreak = drv: nixpkgs.haskell.lib.appendConfigureFlags drv
+  #   ["--allow-older" "--allow-newer"];
 
   parseFreezeFile = compose [
     builtins.listToAttrs
@@ -86,7 +89,10 @@ let
 
   # Optionally filter to update only certain packages.
   # filterPkgs = lib.filterAttrs (k: _: k == "indexed-traversable");
-  filterPkgs = x: x;
+  filterPkgs = name: name;
+    # builtins.elem name newPackages;
+  newPackages = [
+  ];
 in rec {
   # This should have had tools/freeze_fix.py run on it to get out the bootlibs.
   packageVersions = parseFreezeFile ../doc/cabal/all-deps.cabal.config;
