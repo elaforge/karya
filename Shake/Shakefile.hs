@@ -767,7 +767,14 @@ configureFltk :: FilePath -> IO (String, [Flag], [Flag])
 configureFltk fltkConfig = do
     fltkVersion <- run fltkConfig ["--version"]
     fltkCs <- filter wantCflag . words <$> run fltkConfig ["--cflags"]
-    fltkLds <- map wrapLd . words <$>
+    -- The problem is that I have to pass these flags to both ghc and
+    -- gcc/clang.  I'm preprocessing these for ghc, but it's probably incorrect
+    -- for gcc.  TODO: fix this, mangle for gcc only on the hs link line.
+    -- TODO: newer fltk passes -pthread, which apparently just adds -lpthread
+    -- and some defines, which are already in there.  This is extra weird
+    -- because gcc passes to the linker via -Wl,xyz while ghc uses -optl=xyz.
+    -- But ghc's -optl is not actually the linker, but the compiler.
+    fltkLds <- map wrapLd . filter (/="-pthread") . words <$>
         run (Config.fltkConfig localConfig) ["--ldflags"]
     return (fltkVersion, fltkCs, fltkLds)
     where
@@ -775,6 +782,7 @@ configureFltk fltkConfig = do
     -- messes up hsc2hs, which wants only CPP flags.
     wantCflag w = any (\c -> ('-':c:"") `List.isPrefixOf` w) ['I', 'D']
     -- I get -Wl,-rpath,/nix/store/... stuff from nix.
+    -- TODO probably wrong?  See above.
     wrapLd flag
         | "-Wl," `List.isPrefixOf` flag = "-optl=" <> flag
         | otherwise = flag
