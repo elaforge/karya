@@ -159,7 +159,6 @@ c_20_10_25 = date 2020 10 25 $ ganesh $ korvai adi (mridangam<>k1<>k2) $
         , (thom, a)
 
         , (sarva_ndd, t.o.o.t . t.t.o.o.t . t.o.o.t . t.o.o.t)
-        , (taka.kitataka, p.a.k.p.a.p)
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
     k2 = makeKendang2
         [ (ta.dit.ta.ga, t.l.t.l)

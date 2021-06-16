@@ -23,7 +23,11 @@ import           Global
 
 data Stroke = Thoppi !Thoppi | Valantalai !Valantalai | Both !Thoppi !Valantalai
     deriving (Eq, Ord, Show)
-data Thoppi = Tha !Tha | Thom !Thom
+data Thoppi =
+    Tha !Tha | Thom !Thom
+    -- | Just the gumiki movement, no strike.  Or possibly a light strike to
+    -- make it speak if it doesn't sustain.
+    | Gum
     deriving (Eq, Ord, Show)
 data Valantalai = Ki | Ta
     | Mi -- ^ light Ki, played with middle finger
@@ -66,6 +70,7 @@ instance Solkattu.Notation Stroke where
             Kin -> "o" <> cedillaBelow
             Tan -> "ô"
             _ -> Text.toUpper (Solkattu.notationText v)
+        Gum -> "/"
 
 instance Pretty Stroke where pretty = Solkattu.notationText
 
@@ -82,6 +87,7 @@ instance Solkattu.Notation Thoppi where
         Thom Low -> "o"
         Thom Up -> "ó"
         Tha _ -> "p"
+        Gum -> "/"
 
 instance Solkattu.Notation Valantalai where
     notation = Solkattu.textNotation . \case
@@ -102,6 +108,7 @@ ganeshNotationThoppi = \case
     Thom Low -> "d"
     Thom Up -> "d"
     Tha _ -> "h"
+    Gum -> "?"
 
 ganeshNotationValantalai :: Valantalai -> Text
 ganeshNotationValantalai = \case
@@ -134,6 +141,7 @@ instance Expr.ToExpr Stroke where
             Thom Low -> "o"
             Thom Up -> "o/"
             Tha _ -> "+"
+            Gum -> "/"
 
 instance Expr.ToExpr (Realize.Stroke Stroke) where
     to_expr (Realize.Stroke emphasis stroke) = case (emphasis, stroke) of
@@ -150,7 +158,9 @@ data Strokes a = Strokes {
     , n :: a, d :: a, u :: a, v :: a, i :: a
     -- | Mnemonic: y = kin = , uses 3 fingers, j = tan = ^ uses 1.
     , y :: a, j :: a
-    , p :: a, p' :: a, o :: a, o' :: a -- ^ gumiki up
+    , p :: a, p' :: a
+    , o :: a, o' :: a -- ^ gumiki up
+    , _' :: a -- Gum
     -- | @do@ would match score notation, but @do@ is a keyword.  Ultimately
     -- that's because score uses + for tha, and +o is an attr, while o+ is
     -- a bareword.  But perhaps I should change + to p in the score, and then
@@ -176,6 +186,7 @@ strokes = Strokes
     , p' = Thoppi (Tha Fingertips)
     , o = Thoppi (Thom Low)
     , o' = Thoppi (Thom Up)
+    , _' = Thoppi Gum
     , od = Both (Thom Low) Din
     }
 

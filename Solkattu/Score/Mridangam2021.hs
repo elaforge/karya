@@ -127,3 +127,22 @@ e_5s :: Korvai
 e_5s = date 2021 5 11 $ ganesh $ exercise $ korvai1 adi $
     endOn 4 $ s $ su $ r7 t5 . r4 (n.__.r7 t5) . od
     where t5 = g "ktpkpto_"
+
+e_gumiki :: Korvai
+e_gumiki = date 2021 6 6 $ ganesh $ exercise $ korvaiS adi
+    [ sd $ r4 nddn & "_ooooooooo"
+    , sd $ r4 nddn & "óoooóoooóo"
+    , sd $ r4 nddn & r5 "óo"
+    , sd $ r4 nddn & r5 "oó"
+    , rh & sd "óooooooo" . rh & o'
+    , o.d._'&y.n.o.k.od.y . "jynyjydy" & sd "oooo" . rh & o'
+    ]
+    where
+    rh = "_,n,^,d, ^,n,^,d,"
+    nddn = "nddn"
+
+sketch_21_06_12 :: Korvai
+sketch_21_06_12 = date 2021 6 12 $ sarvalaghu $ korvaiS adi
+    [ r3 (lt p.y.n.d) . su "nnp,".n.d . r3 (lt p.y.n.d) . su "nnp,n,".d
+    , r3 "n,nd" . su "n,^,".n.d . r3 "n,nd" . su "nnpnpldl"
+    ]
