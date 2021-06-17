@@ -41,16 +41,18 @@ data StaticConfig = StaticConfig {
     -- a focused block will abort.
     , setup_cmd :: [String] -> Either Text (Cmd.CmdT IO Cmd.Status)
         -- ^ Left on error
+    , post_setup_cmd :: Cmd.CmdT IO ()
     , midi :: Midi
     , highlight_colors :: Map Color.Highlight Color.Color
     }
 
 empty :: StaticConfig
-empty = StaticConfig {
-    instrument_db = Inst.empty
+empty = StaticConfig
+    { instrument_db = Inst.empty
     , global_cmds = []
     , builtins = mempty
     , setup_cmd = const (Left "StaticConfig.setup_cmd not configured")
+    , post_setup_cmd = return ()
     , midi = empty_midi
     , highlight_colors = mempty
     }
