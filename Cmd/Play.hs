@@ -79,6 +79,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 
+import qualified Util.Audio.AudioT as AudioT
 import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
@@ -103,7 +104,6 @@ import qualified Perform.Midi.Patch as Patch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Transport as Transport
 
-import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Shared.Config as Shared.Config
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
@@ -466,7 +466,11 @@ get_adjust0 start has_im msgs events = negative_start - im_latency
     first_score = maybe 0 Score.event_start $ Seq.head $ Vector.toList $
         Vector.take 1 events
     im_latency = if has_im
-        then AUtil.toSeconds Shared.Config.startLatency else 0
+        then toSeconds Shared.Config.startLatency else 0
+    -- This duplicates AUtil.toSeconds, but AUtil winds up importing
+    -- Audio.Audio, and hence VectorC, which incurs a dep on vector.cc.o.
+    toSeconds = RealTime.seconds
+        . AudioT.framesToSeconds Shared.Config.samplingRate
 
 lookup_im_config :: Map ScoreT.Instrument UiConfig.Allocation
     -> Either (Maybe Text) (Set ScoreT.Instrument, Patch.Addr)

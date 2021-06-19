@@ -5497,6 +5497,16 @@ midi record:
       speed.  Add, widen, or narrow vibrato.
 
 REPL: repl:
+  - get ghci API to load .o files, specifically vector.cc.o
+    . Linux links .o files eagerly, so any dependency on e.g. Audio
+      will fail with:
+      . compile error: seq: panic! (the 'impossible' happened)
+        (GHC version 8.10.3:
+        Loading temp shared object failed:
+        /run/user/1000/ghc4892_0/libghc_74.so: undefined symbol: mix_vectors
+    . ghci will load vectorc.cc.o, but ghc API won't.  If I try to force with
+      libvectorc.a, it says "Loading static libraries is not supported in this
+      configuration."
   - enable :doc, like in ghci
     . This in turn requires some special setup, see -haddock flag.
   - :browse to look in modules... can I use GHC.getBindings for this?
@@ -7342,19 +7352,41 @@ OSC backend
     time.
 
 linux:
-  - mix_vectors:
-    . ghci will load vectorc.cc.o, but ghci api won't.  If I try to force with
-      libvectorc.a, it says "Loading static libraries is not supported in this
-      configuration."
-    . Why is this not a problem on OS X?  Maybe linking is more lazy?
-    . On OS X ghci loads the file, ghcit: build/test/obj/Util/vectorc.cc.o
-    Selection.events can't find mix_vectors:
-      . I should put these things in ghci-flags, but who is importing
-        Util.Audio?
-      . And it only happens in debug mode, something is different about linking
-        there.
-      . How to ask for dependency chain in shake?
+  * mix_vectors:
+      . compile error: seq: panic! (the 'impossible' happened)
+        (GHC version 8.10.3:
+        Loading temp shared object failed:
+        /run/user/1000/ghc4892_0/libghc_74.so: undefined symbol: mix_vectors
+    . GhcRepl never loaded vector.cc.o, why is this not a problem on OS X?
+      Why does ReplGhc want to import that anyway?
+      VectorC -> Util.Audio.Audio -> Synth.Lib.AUtil -> Cmd.Play
+      . But it uses only AUtil.toSeconds -> Audio.framesToSeconds
+      . This could conceivably be put into Util.Audio.AudioT
+    . Ok so there is a legit link, maybe OS X loads the .o files lazily.
+    . Why then can ghci load .o but ghc API can't?
+    . Two ways to fix: don't import AUtil in Cmd, or figure out how
+      ghci loads .o files and reproduce it in ghc API.
+    . Let's try 1 first, fewer imports in the REPL is good in general.
+    . How to find module imports?
+      I can modify and see what shake reubilds
+      But can't I directly ask shake?
   jack: JACK:
+    jack2 is broken:
+      . jack2-1.9.12
+      . Cannot read socket fd = 25 err = No such file or directory
+        CheckRes error
+        Could not read result type = 22
+        Client name = seq conflits with another running client
+        Cannot connect to the server
+        JackShmReadWritePtr1::~JackShmReadWritePtr1 - Init not done for -1,
+        skipping unlock
+        JackShmReadWritePtr::~JackShmReadWritePtr - Init not done for -1,
+        skipping unlock
+        JackShmReadWritePtr::~JackShmReadWritePtr - Init not done for -1,
+        skipping unlock
+        seq: App/Main.hs:85: initializing midi: communication error with JACK
+        server
+
     bugs
       - something is still wrong, I get "no space in output port" and then
         corrupted output

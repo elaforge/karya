@@ -15,3 +15,9 @@ newtype Frames = Frames Int
 
 instance Pretty Frames where
     pretty (Frames n) = pretty n <> "f"
+
+type Rate = Int
+type Seconds = Double
+
+framesToSeconds :: Rate -> Frames -> Seconds
+framesToSeconds rate (Frames frames) = fromIntegral frames / fromIntegral rate
