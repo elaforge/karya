@@ -24,6 +24,7 @@ import qualified Util.Thread as Thread
 import qualified Synth.Shared.Config as Config
 
 import           Global
+import           Synth.Types
 
 
 main :: IO ()
@@ -31,8 +32,9 @@ main = do
     dirs <- Environment.getArgs
     unlessM (allM Directory.doesDirectoryExist dirs) $
         error $ "usage: stream_audio [ dir1 dir2 ... ]"
+    putStrLn $ unwords $ "%" : "play" : soxArgs
     (Just stdin, Nothing, Nothing, pid) <- Process.createProcess $
-        (Process.proc "sox" soxArgs) { Process.std_in = Process.CreatePipe }
+        (Process.proc "play" soxArgs) { Process.std_in = Process.CreatePipe }
     streamDirs dirs stdin
     IO.hClose stdin
     Process.waitForProcess pid
@@ -44,11 +46,12 @@ soxArgs =
     , "-V1" -- turn down verbosity, to avoid clipped sample warnings
     , "--type=raw", "--channels=2", "--bits=32", "--encoding=floating-point"
     , "--rate=44100"
-    , "-", "--default-device"
+    , "-"
     ]
 
 streamDirs :: [FilePath] -> IO.Handle -> IO ()
 streamDirs dirs outHdl = do
+    putStrLn $ "waiting for " <> unwords [d </> head chunks | d <- dirs]
     while_ (not <$> allM (\d -> Directory.doesFileExist (d </> head chunks))
             dirs) $
         Thread.delay 0.25
@@ -76,8 +79,8 @@ streamInTime hdl audio = Resource.runResourceT $ do
             now <- liftIO Time.getCurrentTime
             let elapsed = now `Time.diffUTCTime` start
             let lead = toSeconds played - elapsed
-            -- liftIO $ put $ "elapsed " <> show elapsed <> ", lead "
-            --     <> show lead <> " wait " <> show (lead - leadTime)
+            liftIO $ put $ "elapsed " <> show elapsed <> ", lead "
+                <> show lead <> " wait " <> show (lead - leadTime)
             liftIO $ Thread.delay $ lead - leadTime
             -- played - elapsed - leadTime
             -- 0 - 0 - 2 = -2
