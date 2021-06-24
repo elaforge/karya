@@ -42,11 +42,13 @@ Now do the rest of the build steps, same as "the traditional way" below:
 
 - Install the "bravura" font:
 
+    ```sh
     nix build -f default.nix fontDeps
     osx> cp $(find -L result* -name '*.otf') ~/Library/Fonts # or use FontBook
     linux> cp $(find -L result* -name '*.otf') ~/.fonts
     # I don't actually know how to install fonts on linux.  The above doesn't
     # work on nixos, instead add openlilylib-fonts.bravura to configuration.nix.
+    ```
 
 - Run `tools/setup-empty`.  Read it if you want, it's short.
 
@@ -57,11 +59,10 @@ you want.
 
 - Build optimized binaries: `bin/mk binaries`.  It will try to link to CoreMIDI
 on the mac and to JACK on linux.  If for some reason you don't have either of
-those, you can run `midi=stub bin/mk` to link the stub MIDI driver, but now it
-will never produce any MIDI so what was the point?  Even with the "im" backend,
-it uses MIDI to tell the DAW when to start playing.  You could go totally
-non-MIDI by bypassing the DAW and just play the output audio directly,
-`build/opt/stream_audio` will do that.
+those or they don't work, you can run `midi=stub bin/mk` to link the stub MIDI
+driver.  This could be useful if you are using `im` only, and don't want to
+deal with JACK.  In that case, you can go non-MIDI and turn on
+`LCmd.im_play_direct` to have karya play the audio itself.
 
 - Go read `doc/quickstart.md`.
 

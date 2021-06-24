@@ -1956,6 +1956,14 @@ instruments:
     . http://www.musicdevelopments.com/syne.html
 
 synth: im:
+  StreamAudio directly to remove DAW + VST requirement
+    . I could do automatically if there's no play-cache instrument.
+    * via sox
+    - via coreaudio
+    - via jack
+    . Is there a cross-platform play audio package on hackage?
+    . https://hackage.haskell.org/package/bindings-portaudio
+    . Or, write to JACK, though that requires having JACK setup...
   performance:
     - event loop hiccups when editing IM
       . use events to find who is causing it
@@ -3254,14 +3262,14 @@ shakefile: build:
           hint: of your new repositories, which will suppress this warning,
           call:
           hint:
-          hint: 	git config --global init.defaultBranch <name>
+          hint:   git config --global init.defaultBranch <name>
           hint:
           hint: Names commonly chosen instead of 'master' are 'main', 'trunk'
           and
           hint: 'development'. The just-created branch can be renamed via this
           command:
           hint:
-          hint: 	git branch -m <name>
+          hint:   git branch -m <name>
           Warning: Permanently added the RSA host key for IP address
           '140.82.121.3' to the list of known hosts.
           git@github.com: Permission denied (publickey).
@@ -5431,6 +5439,13 @@ test: testing:
     - Port quickchecks to hedgehog.
     . https://www.youtube.com/watch?v=z2ete8VZnZY&app=desktop
     . https://fsharpforfunandprofit.com/posts/property-based-testing-2/
+    . John Hughes: "How To Specify It!"
+    . quickcheck-state-machine
+    . Hughes talk:
+      https://www.youtube.com/watch?v=n4IgYrc0pes&ab_channel=Z%C3%BCrichFriendsofHaskell
+      The new thing is the strategy language to construct action sequences to
+      make sure it gets to a goal.
+    . https://www.fpcomplete.com/blog/quickcheck-hedgehog-validity/
     cmd:
       . do + undo, undo + redo
     derive:
@@ -7358,7 +7373,12 @@ linux:
         Loading temp shared object failed:
         /run/user/1000/ghc4892_0/libghc_74.so: undefined symbol: mix_vectors
     . GhcRepl never loaded vector.cc.o, why is this not a problem on OS X?
-      Why does ReplGhc want to import that anyway?
+    . I can force it to happen on OSX by directly referencing VectorC.mixFloats
+      and it crashes the whole app:
+      dyld: lazy symbol binding failed: Symbol not found: _mix_vectors
+            Referenced from: /var/folders/9p/../T/ghc30634_0/libghc_74.dylib
+            Expected in: flat namespace
+    . Why does ReplGhc want to import that anyway?
       VectorC -> Util.Audio.Audio -> Synth.Lib.AUtil -> Cmd.Play
       . But it uses only AUtil.toSeconds -> Audio.framesToSeconds
       . This could conceivably be put into Util.Audio.AudioT
@@ -7386,6 +7406,8 @@ linux:
         skipping unlock
         seq: App/Main.hs:85: initializing midi: communication error with JACK
         server
+      . Maybe just nixpkgs jack is broken:
+        https://discourse.nixos.org/t/state-of-jackd-in-nixos/6007/10
 
     bugs
       - something is still wrong, I get "no space in output port" and then
@@ -7398,6 +7420,10 @@ linux:
     - does jack not support sysex at all?  Maybe I can't use it at all then.
     - Ensure that shutdown stuff is being called correctly.  I don't care but
       maybe JACK does?
+  alsa midi:
+    . Would it be simpler to write a alsa midi driver?  I think JACK can then
+      spy on the alsa midi output.
+    . https://hackage.haskell.org/package/alsa-seq
 
 misc ideas:
   . What would a generalized staged evaluation system look like?

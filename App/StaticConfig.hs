@@ -44,6 +44,8 @@ data StaticConfig = StaticConfig {
     , post_setup_cmd :: Cmd.CmdT IO ()
     , midi :: Midi
     , highlight_colors :: Map Color.Highlight Color.Color
+    -- | See 'Cmd.config_im_play_direct'.
+    , im_play_direct :: Bool
     }
 
 empty :: StaticConfig
@@ -55,6 +57,7 @@ empty = StaticConfig
     , post_setup_cmd = return ()
     , midi = empty_midi
     , highlight_colors = mempty
+    , im_play_direct = False
     }
 
 data Midi = Midi {
@@ -107,5 +110,6 @@ cmd_config app_dir save_dir interface config git_user = Cmd.Config
     , config_highlight_colors = highlight_colors config
     , config_im = Shared.Config.config app_dir
     , config_git_user = git_user
+    , config_im_play_direct = im_play_direct config
     }
     where midi_config = midi config

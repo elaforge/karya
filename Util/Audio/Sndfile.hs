@@ -6,6 +6,7 @@
 module Util.Audio.Sndfile (
     Handle
     , openFile, hInfo, hClose, hSeek, hGetBuffer, hPutBuffer
+    , hFrames
     , ignoreEnoent
     , module Sndfile
 ) where
@@ -50,7 +51,7 @@ hClose hdl = whenM (IORef.readIORef (_isOpen hdl)) $ do
 
 hSeek :: Handle -> Count -> IO Count
 hSeek hdl count
-    | 0 <= count && count <= frames =
+    | 0 <= count && count <= hFrames hdl =
         Sndfile.hSeek (_handle hdl) AbsoluteSeek count
     -- Otherwise libsndfile will throw a much more confusing error:
     -- "Internal psf_fseek() failed."
@@ -58,8 +59,10 @@ hSeek hdl count
     -- resample consumed all samples, but they're in its internal buffer.
     | otherwise = Exception.throw $ Sndfile.Exception $
         "tried to seek to " <> show count <> " in " <> show (_filename hdl)
-        <> ", but it only has " <> show frames
-    where frames = Sndfile.frames $ Sndfile.hInfo $ _handle hdl
+        <> ", but it only has " <> show (hFrames hdl)
+
+hFrames :: Handle -> Count
+hFrames = Sndfile.frames . Sndfile.hInfo . _handle
 
 hGetBuffer :: (Sample e, Buffer a e) => Handle -> Count -> IO (Maybe (a e))
 hGetBuffer hdl count = withFilename "hGetBuffer" (_filename hdl) $

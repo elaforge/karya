@@ -167,8 +167,8 @@ im_addr :: Cmd.M m => m (Maybe Patch.Addr)
 im_addr = do
     allocs <- Ui.config#UiConfig.allocations_map <#> Ui.get
     return $ case lookup_im_config allocs of
-        Right (_, addr) -> Just addr
-        Left _ -> Nothing
+        Right (_, Just addr) -> Just addr
+        _ -> Nothing
 
 has_im :: Cmd.M m => m Bool
 has_im = Maybe.isJust <$> im_addr
@@ -418,16 +418,22 @@ from_realtime block_id repeat_at start_ = do
             generate_mtc maybe_sync start
 
     allocs <- Ui.config#UiConfig.allocations_map <#> Ui.get
-    (im_insts, play_cache_addr) <- case lookup_im_config allocs of
-        Right (im_insts, play_cache_addr) ->
+    im_play_direct <- Cmd.gets $ Cmd.config_im_play_direct . Cmd.state_config
+    (im_insts, mb_play_cache_addr) <- case lookup_im_config allocs of
+        Right (im_insts, _) | im_play_direct -> return (im_insts, Nothing)
+        Right (im_insts, Just play_cache_addr) ->
             return (im_insts, Just play_cache_addr)
+        Right (_, Nothing) -> Cmd.throw
+            "im allocations but no play-cache alloc, so they\
+            \ won't play, allocate with LInst.add_play_cache,\
+            \ or set Cmd.config_im_play_direct"
         Left Nothing -> return (mempty, Nothing)
         Left (Just msg) -> Cmd.throw msg
     muted <- Perf.infer_muted_instruments
     score_path <- Cmd.gets Cmd.score_path
     let im_msgs = maybe []
             (im_play_msgs score_path block_id muted (start * multiplier))
-            play_cache_addr
+            mb_play_cache_addr
 
     msgs <- PlayUtil.perform_from start perf
     let adjust0 = get_adjust0 start (not (null im_msgs)) msgs
@@ -446,6 +452,14 @@ from_realtime block_id repeat_at start_ = do
             else Score.event_end <$> Util.Vector.find_end
                 ((`Set.member` im_insts) . Score.event_instrument)
                 (Cmd.perf_events perf)
+        , play_im_direct = if Set.null im_insts || not im_play_direct
+            then Nothing
+            else Just $ Cmd.PlayDirectArgs
+                { play_score_path = score_path
+                , play_block_id = block_id
+                , play_muted = muted
+                , play_start = start * multiplier
+                }
         }
 
 get_adjust0 :: RealTime -> Bool -> [LEvent.LEvent Midi.WriteMessage]
@@ -473,21 +487,20 @@ get_adjust0 start has_im msgs events = negative_start - im_latency
         . AudioT.framesToSeconds Shared.Config.samplingRate
 
 lookup_im_config :: Map ScoreT.Instrument UiConfig.Allocation
-    -> Either (Maybe Text) (Set ScoreT.Instrument, Patch.Addr)
+    -> Either (Maybe Text) (Set ScoreT.Instrument, Maybe Patch.Addr)
 lookup_im_config allocs = do
     when (Set.null im_insts) $ Left Nothing
-    alloc <- justErr (Just "im allocations but no play-cache alloc, so they\
-        \ won't play, allocate with LInst.add_play_cache") $
-            List.find is_play_cache (Map.elems allocs)
-    case UiConfig.alloc_backend alloc of
-        UiConfig.Midi config -> case Patch.config_addrs config of
-            [] -> Left $ Just $
-                pretty UiConfig.play_cache <> " allocation with no addrs"
-            [addr] -> return (im_insts, addr)
+    case List.find is_play_cache (Map.elems allocs) of
+        Nothing -> Right (im_insts, Nothing)
+        Just alloc -> case UiConfig.alloc_backend alloc of
+            UiConfig.Midi config -> case Patch.config_addrs config of
+                [addr] -> return (im_insts, Just addr)
+                [] -> Left $ Just $
+                    pretty UiConfig.play_cache <> " allocation with no addrs"
+                _ -> Left $ Just $
+                    pretty UiConfig.play_cache <> " allocation with >1 addrs"
             _ -> Left $ Just $
-                pretty UiConfig.play_cache <> " allocation with >1 addrs"
-        _ -> Left $ Just $
-            pretty UiConfig.play_cache <> " with non-MIDI allocation"
+                pretty UiConfig.play_cache <> " with non-MIDI allocation"
     where
     is_play_cache = (==UiConfig.play_cache) . UiConfig.alloc_qualified
     im_insts = Set.fromList $ map fst $

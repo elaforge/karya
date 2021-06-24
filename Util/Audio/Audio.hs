@@ -28,9 +28,10 @@ module Util.Audio.Audio (
     , framesCount, countFrames, blockFrames, vectorFrames
     , blockCount, isEmptyBlock, blockSamples, blockVector
     -- * construct
-    , fromSamples, fromSampleLists
+    , fromBlocks, fromSamples, fromSampleLists
     , toBlocks, toSamples, toBlocksN, toSamplesN
     -- * transform
+    , apply
     , castRate
     , take, takeS, mapSamples, gain, multiply
     , takeClose, takeCloseS
@@ -50,6 +51,8 @@ module Util.Audio.Audio (
     -- * generate
     , silence, sine
     , linear
+    -- * effects
+    , effect
     -- * error
     , Exception(..), exceptionText, throw, throwIO, assert, assertIn
     -- * constants
@@ -267,6 +270,10 @@ toSamplesN = fmap (map (map blockVector)) . toBlocksN
 
 -- * transform
 
+apply :: (S.Stream (S.Of Block) m () -> S.Stream (S.Of Block) m ())
+    -> Audio m rate chan -> Audio m rate chan
+apply f (Audio stream) = Audio (f stream)
+
 castRate :: Audio m rate1 chan -> Audio m rate2 chan
 castRate (Audio stream) = Audio stream
 
@@ -310,7 +317,7 @@ takeClose close frames (Audio audio)
 
 mapSamples :: Monad m => (Float -> Float) -> Audio m rate chan
     -> Audio m rate chan
-mapSamples f (Audio audio) = Audio (S.map block audio)
+mapSamples f = apply (S.map block)
     where
     block (Block v) = Block (V.map f v)
     block (Constant count val) = Constant count (f val)
@@ -698,6 +705,12 @@ linear forever breakpoints = Audio $ loop (0, 0, 0, from0 breakpoints)
     from0 bps@((x, y) : _) | x > 0 && y /= 0 = (x, 0) : bps
     from0 bps = bps
 
+-- * effects
+
+-- | Prepend an effect to the stream, useful to log when a stream is started.
+effect :: MonadIO m => IO () -> Audio m rate chan -> Audio m rate chan
+effect m (Audio s) = Audio (liftIO m >> s)
+
 -- * error
 
 newtype Exception = Exception Text
@@ -723,7 +736,7 @@ assert False msg = throwIO $ "assertion: " <> msg
 -- | Insert an assertion into the audio stream.
 assertIn :: (Stack.HasCallStack, MonadIO m) => Bool -> Text
     -> Audio m rate chan -> Audio m rate chan
-assertIn check msg (Audio audio) = Audio (assert check msg *> audio)
+assertIn check msg = apply (assert check msg *>)
 
 -- * constants
 

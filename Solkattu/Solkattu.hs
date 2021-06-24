@@ -52,10 +52,10 @@
     Dsl and Score.Solkattu*, except they use concrete mridangam strokes instead
     of abstract sollus.
 
-    The naming convention is that \"Note\" is the level-specific
-    value, itself may have a \"Note\" constructor with the "next level" of
-    value.  \"SNote\" is an alias for composing Note with 'Sequence.Note', and
-    \"Sequence\" is an alias for a list of those, but is abstractly the monoid
+    The naming convention is that \"Note\" is the level-specific value,
+    which may have a \"Note\" constructor with the "next level" of value.
+    \"SNote\" is an alias for composing Note with 'Sequence.Note', and
+    \"Sequence\" is a newtype for a list of those, but is abstractly the monoid
     where you can put together notation to form a score.
 -}
 {-# LANGUAGE DeriveFunctor, DeriveTraversable #-}

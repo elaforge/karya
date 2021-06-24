@@ -212,10 +212,12 @@ outputDirectory imDir scorePath blockId =
 chunkPath :: FilePath -> FilePath -> Id.BlockId -> Text -> ChunkNum -> FilePath
 chunkPath imDir scorePath blockId instrument chunknum =
     outputDirectory imDir scorePath blockId
-        </> untxt instrument
-        </> untxt (Num.zeroPad 3 chunknum <> ".wav")
+        </> untxt instrument </> chunkName chunknum
 
--- | This relies on the format from 'chunkPath'.
+chunkName :: ChunkNum -> FilePath
+chunkName chunknum = untxt (Num.zeroPad 3 chunknum <> ".wav")
+
+-- | This relies on the format from 'chunkName'.
 isOutputLink :: FilePath -> Maybe ChunkNum
 isOutputLink (c1:c2:c3 : ".wav")
     | Just n <- Read.readMaybe [c1, c2, c3] = Just n

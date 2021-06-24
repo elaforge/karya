@@ -10,7 +10,7 @@ module Perform.Transport (
     Status(..), Info(..)
     -- * play control
     , PlayControl, play_control
-    , stop_player, poll_stop_player
+    , stop_player, poll_stop_player, wait_stop_player
     -- * play monitor control
     , PlayMonitorControl, play_monitor_control
     , player_stopped, poll_player_stopped, wait_player_stopped
@@ -73,6 +73,9 @@ stop_player (PlayControl flag) = Thread.set flag
 
 poll_stop_player :: Thread.Seconds -> PlayControl -> IO Bool
 poll_stop_player timeout (PlayControl flag) = Thread.poll timeout flag
+
+wait_stop_player :: PlayControl -> IO ()
+wait_stop_player (PlayControl flag) = Thread.wait flag
 
 -- * play monitor control
 

@@ -57,7 +57,7 @@ type Element = Text
 type PatchName = Text
 
 -- | This is a specific instantiation of a 'PatchName'.  This is the same as
--- 'Derive.ScoreTypes.Instrument'.
+-- 'Derive.ScoreT.Instrument'.
 type InstrumentName = Text
 
 end :: Note -> RealTime

@@ -1,44 +1,108 @@
+-- Copyright 2021 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeApplications #-}
--- | Read audio chunks over time, concatenate them, and stream to an audio
--- player.  The reason is that sox, by itself, wants to concatenate all its
--- audio files immediately, but I have to actually stream them if I want to
--- overlap playing with generation.
-module Synth.StreamAudio where
+-- | Stream audio from the im cache.  Recreates play_cache's behaviour, but
+-- in a standalone way, without a DAW and VST.
+module Synth.StreamAudio (
+    streamFrom, streamFrom_
+) where
 import qualified Control.Monad.Trans.Resource as Resource
-import qualified Data.Time as Time
-import qualified Data.Vector.Storable as Vector
-import qualified Foreign.Storable as Storable
+import qualified Data.List as List
+import qualified Data.Set as Set
 import qualified System.Directory as Directory
-import qualified System.Environment as Environment
+import qualified System.Exit as Exit
 import           System.FilePath ((</>))
 import qualified System.IO as IO
 import qualified System.Process as Process
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
-import qualified Util.Control as Control
-import qualified Util.Num as Num
 import qualified Util.Thread as Thread
 
+import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Shared.Config as Config
+import qualified Synth.Shared.Note as Note
+
+import qualified Ui.Id as Id
 
 import           Global
 import           Synth.Types
 
 
-main :: IO ()
-main = do
-    dirs <- Environment.getArgs
-    unlessM (allM Directory.doesDirectoryExist dirs) $
-        error $ "usage: stream_audio [ dir1 dir2 ... ]"
-    putStrLn $ unwords $ "%" : "play" : soxArgs
+type Muted = Set Note.InstrumentName
+
+-- | If true, spam stdout even when run from karya.
+verbose :: Bool
+verbose = True
+
+-- | Stream audio for the give score and block, until done or told to stop.
+--
+-- This is essentially a haskell version of TrackStreamer (Streamer.h) ->
+-- Tracks (Tracks.h)
+streamFrom :: IO () -> FilePath -> Id.BlockId -> Set Note.InstrumentName
+    -> RealTime -> IO ()
+streamFrom waitQuit scorePath blockId muted start = do
+    config <- Config.getConfig
+    streamFrom_ verbose waitQuit
+        (Config.outputDirectory (Config.imDir config) scorePath blockId)
+        muted start
+
+streamFrom_ :: Bool -> IO () -> FilePath -> Set Note.InstrumentName
+    -> RealTime -> IO ()
+streamFrom_ verbose waitQuit dir muted start =
+    playSox verbose waitQuit
+        =<< streamTracks verbose dir muted (AUtil.toFrames start)
+
+streamTracks :: Bool -> FilePath -> Muted -> Audio.Frames -> IO AUtil.Audio
+streamTracks verbose dir muted start = do
+    dirnames <- sampleDirs dir muted
+    when verbose $
+        putStrLn $ "stream " <> show dirnames <> " from " <> show start
+    return $ Audio.mix $ map
+        (Audio.File.readCheckpointsFrom start
+            (if verbose then putStrLn . ("open "<>) else const (pure ()))
+            Config.chunkSize . dirChunks)
+        dirnames
+    where
+    dirChunks dir = map (dir</>) chunks
+    chunks = map Config.chunkName [0..]
+
+sampleDirs :: FilePath -> Muted -> IO [FilePath]
+sampleDirs dir muted = do
+    subdirs <- filterM (Directory.doesDirectoryExist . (dir</>))
+        . filter (not . ("." `List.isPrefixOf`))
+        =<< Directory.listDirectory dir
+    when (null subdirs) $
+        putStrLn $ "no sample dirs in " <> show dir
+    return $ map (dir</>) $ filter (not . instrumentMuted muted) subdirs
+
+instrumentMuted :: Muted -> FilePath -> Bool
+instrumentMuted muted fname = Set.member inst muted
+    where inst = txt $ takeWhile (/='_') fname
+    -- Instruments never have '_', so I can use that to put extra info on the
+    -- end.  For faust, I put the patch name, so I can clear obsolete
+    -- checkpoints when the patch changes.
+
+-- | Use sox to stream audio to the hardware.  This is easy and portable but
+-- high latency.
+playSox :: Bool -> IO () -> AUtil.Audio -> IO ()
+playSox verbose waitQuit audio = do
+    putStrLn $ unwords $ "%" : "sox" : soxArgs
     (Just stdin, Nothing, Nothing, pid) <- Process.createProcess $
-        (Process.proc "play" soxArgs) { Process.std_in = Process.CreatePipe }
-    streamDirs dirs stdin
-    IO.hClose stdin
-    Process.waitForProcess pid
-    return ()
+        (Process.proc "sox" soxArgs) { Process.std_in = Process.CreatePipe }
+    Thread.start $ waitQuit >> Process.terminateProcess pid
+    Thread.start $ do
+        Resource.runResourceT $ Audio.File.writeHandle stdin audio
+        IO.hClose stdin
+    code <- Process.waitForProcess pid
+    case code of
+        Exit.ExitSuccess -> return ()
+        Exit.ExitFailure code
+            | code == -15 -> when verbose $ putStrLn "sox terminated"
+            | otherwise -> errorIO $ "sox failed: " <> showt code
 
 soxArgs :: [String]
 soxArgs =
@@ -46,76 +110,6 @@ soxArgs =
     , "-V1" -- turn down verbosity, to avoid clipped sample warnings
     , "--type=raw", "--channels=2", "--bits=32", "--encoding=floating-point"
     , "--rate=44100"
-    , "-"
+    , "-" -- read audio from stdin
+    , "--default-device" -- play audio to speaker
     ]
-
-streamDirs :: [FilePath] -> IO.Handle -> IO ()
-streamDirs dirs outHdl = do
-    putStrLn $ "waiting for " <> unwords [d </> head chunks | d <- dirs]
-    while_ (not <$> allM (\d -> Directory.doesFileExist (d </> head chunks))
-            dirs) $
-        Thread.delay 0.25
-    streamInTime outHdl $ Audio.mix
-        [ Audio.File.readCheckpoints Config.chunkSize (map (dir</>) chunks)
-        | dir <- dirs
-        ]
-    where
-    chunks = map (untxt . (<>".wav") . Num.zeroPad 3) [0..]
-
--- | Write samples to the handle, stay a short distance ahead of real-time, in
--- case the the stream is still being rendered.
---
--- The wait time always winds up being negative though, probably because sox
--- blocks stdin, so the waiting is probably unnecessary.  Still I might as well
--- keep it since I have it, and sox's behaviour might not be guaranteed anyway.
-streamInTime :: IO.Handle -> Audio.AudioIO Config.SamplingRate 2 -> IO ()
-streamInTime hdl audio = Resource.runResourceT $ do
-    start <- liftIO Time.getCurrentTime
-    Control.loop2 audio 0 $ \loop audio played -> do
-        (blocks, audio) <- Audio.splitAt leadFrames audio
-        if null blocks then return () else do
-            liftIO $ mapM_ (writeVector hdl) $
-                concatMap Audio.blockSamples blocks
-            now <- liftIO Time.getCurrentTime
-            let elapsed = now `Time.diffUTCTime` start
-            let lead = toSeconds played - elapsed
-            liftIO $ put $ "elapsed " <> show elapsed <> ", lead "
-                <> show lead <> " wait " <> show (lead - leadTime)
-            liftIO $ Thread.delay $ lead - leadTime
-            -- played - elapsed - leadTime
-            -- 0 - 0 - 2 = -2
-            -- 1 - 0 - 2 = -1
-            -- 2 - 0 - 2 = 0
-            -- 3 - 0 - 2 = 1 => wait
-            -- 3 - 1 - 2 = 0
-            loop audio (played + leadFrames)
-    where
-    leadTime = 1
-    leadFrames = Audio.secondsToFrames rate (realToFrac leadTime) `div` 2
-    toSeconds :: Audio.Frames -> Time.NominalDiffTime
-    toSeconds = realToFrac . Audio.framesToSeconds rate
-    rate = Config.samplingRate
-
-writeVector :: IO.Handle -> Vector.Vector Audio.Sample -> IO ()
-writeVector hdl vector = Vector.unsafeWith vector $ \ptr ->
-    IO.hPutBuf hdl ptr $
-        Vector.length vector * Storable.sizeOf (0 :: Audio.Sample)
-
--- streamFile :: (Vector.Vector Float -> IO ()) -> FilePath -> IO Bool
--- streamFile write fname = open >>= \case
---     Nothing -> return False
---     Just hdl -> do
---         put $ FilePath.takeFileName fname
---         Control.loop0 $ \loop ->
---             Sndfile.hGetBuffer hdl bufferSize >>= \case
---                 Nothing -> Sndfile.hClose hdl >> return True
---                 Just buffer -> do
---                     write $ Sndfile.Buffer.Vector.fromBuffer buffer
---                     loop
---     where
---     open = File.ignoreEnoent $
---         Sndfile.openFile fname Sndfile.ReadMode Sndfile.defaultInfo
---     bufferSize = 512
-
-put :: String -> IO ()
-put = IO.hPutStrLn IO.stderr

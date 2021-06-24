@@ -303,7 +303,7 @@ merge_status s1 s2 = if prio s1 >= prio s2 then s1 else s2
         FloatingInput {} -> 3
         Quit -> 4
 
--- | Arguments for "Cmd.PlayC.play".  This is a special return value to trigger
+-- | Arguments for 'Cmd.PlayC.play'.  This is a special return value to trigger
 -- a play, see "Cmd.PlayC" for details.
 data PlayMidiArgs = PlayMidiArgs {
     play_sync :: !(Maybe SyncConfig)
@@ -315,8 +315,17 @@ data PlayMidiArgs = PlayMidiArgs {
     -- | If there are im notes, this is the end of the last one.  This is so
     -- the play monitor thread knows when im will be done.
     , play_im_end :: !(Maybe RealTime)
+    , play_im_direct :: !(Maybe PlayDirectArgs)
     }
 instance Show PlayMidiArgs where show _ = "((PlayMidiArgs))"
+
+-- | Arguments for 'Cmd.PlayC.play_im_direct_thread'.
+data PlayDirectArgs = PlayDirectArgs {
+    play_score_path :: FilePath
+    , play_block_id :: BlockId
+    , play_muted :: Set ScoreT.Instrument
+    , play_start :: RealTime
+    } deriving (Eq, Show)
 
 data FloatingInput =
     -- | Open a new floating text input.
@@ -744,6 +753,10 @@ data Config = Config {
     , config_builtins :: !Derive.Builtins
     , config_highlight_colors :: !(Map Color.Highlight Color.Color)
     , config_im :: !Shared.Config.Config
+    -- | If True, play im audio directly instead of via the play_cache VST.
+    -- This means you don't need a DAW, but if you have MIDI instruments
+    -- they probably won't be very in sync.
+    , config_im_play_direct :: Bool
     , config_git_user :: !SaveGit.User
     } deriving (Show)
 

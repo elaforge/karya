@@ -11,9 +11,12 @@ module Util.Audio.File (
     check, checkA, getInfo, duration
     , read, read44k, readUnknown
     , readFrom, readFromClose
-    , concat, readCheckpoints
+    , concat
+    , readCheckpoints, readCheckpointsFrom
     -- * write
-    , write, writeCheckpoints
+    , write
+    , writeHandle
+    , writeCheckpoints
     , wavFormat
     -- * misc
     , throwEnoent
@@ -24,10 +27,12 @@ import qualified Control.Monad.Fix as Fix
 import qualified Control.Monad.Trans.Resource as Resource
 
 import qualified Data.Vector.Storable as V
+import qualified Foreign.Storable as Storable
 import qualified GHC.TypeLits as TypeLits
 import qualified Sound.File.Sndfile.Buffer.Vector as Sndfile.Buffer.Vector
 import qualified Streaming.Prelude as S
 import qualified System.Directory as Directory
+import qualified System.IO as IO
 import qualified System.IO.Error as IO.Error
 
 import qualified Util.Audio.Audio as Audio
@@ -85,9 +90,21 @@ readFromClose frame fname = do
 
 readFrom :: forall rate chan. (TypeLits.KnownNat rate, TypeLits.KnownNat chan)
     => Audio.Frames -> FilePath -> Audio.AudioIO rate chan
-readFrom frame fname = Audio.Audio $ do
-    (_, handle) <- lift $ Resource.allocate (openReadThrow fname) Sndfile.hClose
-    S.map Audio.Block $ readHandle rate chan frame fname handle
+readFrom frame fname =
+    readFrom_ (Audio.throw $ "file not found: " <> showt fname) frame fname
+
+readFrom_ :: forall rate chan. (TypeLits.KnownNat rate, TypeLits.KnownNat chan)
+    => Audio.AudioIO rate chan -> Audio.Frames -> FilePath
+    -> Audio.AudioIO rate chan
+readFrom_ onEnoent frame fname = Audio.Audio $ do
+    (_, mbHandle) <- lift $ Resource.allocate (openRead fname)
+        (maybe (return ()) Sndfile.hClose)
+    case mbHandle of
+        Just handle
+            -- If I would have seeked past the end, it's like onEnoent.
+            | 0 <= frame && frame <= Audio.Frames (Sndfile.hFrames handle) ->
+                S.map Audio.Block $ readHandle rate chan frame fname handle
+        _ -> Audio._stream onEnoent
     where
     rate = Audio.natVal (Proxy :: Proxy rate)
     chanP = Proxy :: Proxy chan
@@ -140,13 +157,33 @@ concat :: forall rate chan. (TypeLits.KnownNat rate, TypeLits.KnownNat chan)
     => [FilePath] -> Audio.AudioIO rate chan
 concat = mconcat . map read
 
--- | This is like 'concat', but it understands the 0-duration files written
--- by 'writeCheckpoints', and turns them back into silence.
 readCheckpoints :: forall rate chan.
     (TypeLits.KnownNat rate, TypeLits.KnownNat chan)
     => Audio.Frames -> [FilePath] -> Audio.AudioIO rate chan
-readCheckpoints chunkSize =
-    mconcat . map (Audio.take chunkSize . (<>Audio.silence) . read)
+readCheckpoints = readCheckpointsFrom 0 (\_ -> return ())
+
+-- | This is like 'concat', but it understands the 0-duration files written
+-- by 'writeCheckpoints', and turns them back into silence.
+readCheckpointsFrom :: forall rate chan.
+    (TypeLits.KnownNat rate, TypeLits.KnownNat chan)
+    => Audio.Frames -> (FilePath -> IO ()) -> Audio.Frames -> [FilePath]
+    -> Audio.AudioIO rate chan
+readCheckpointsFrom offset callback chunkSize =
+    untilEof . mconcat . map readFile . zip (chunkOffset : repeat 0)
+        . drop (fromIntegral chunkNum)
+    where
+    readFile (chunkOffset, fname) =
+        -- Round up each chunk to chunkSize, empty and end chunks are short.
+        Audio.take (chunkSize - chunkOffset) . (<>Audio.silence)
+        . Audio.effect (callback fname) . readFrom_ emitEof chunkOffset
+        $ fname
+    (chunkNum, chunkOffset) = offset `divMod` chunkSize
+    -- Encode EOF as a Constant, which 'read' should never return.
+    -- This is so I can stop streaming as soon as I run out of files, but not
+    -- when I see a zero-length one.
+    untilEof = Audio.apply $ S.takeWhile (/= eof)
+    emitEof = Audio.fromBlocks [eof]
+    eof = Audio.Constant 0 0
 
 -- ** util
 
@@ -180,6 +217,17 @@ write format fname audio = do
         . mapM_ (Sndfile.hPutBuffer hdl . Sndfile.Buffer.Vector.toBuffer)
         . Audio.blockSamples
     tmp = fname <> ".write.tmp"
+
+-- | Unlike 'readHandle', this writes to a plain IO.Handle instead of a
+-- Sndfile.Handle.  Since the plain handle is untyped, the sink will get
+-- interleaved Floats.
+writeHandle :: MonadIO m => IO.Handle -> Audio.Audio m rate chan -> m ()
+writeHandle hdl audio = S.mapM_ (write hdl) (Audio._stream audio)
+    where write hdl = liftIO . mapM_ (writeVector hdl) . Audio.blockSamples
+
+writeVector :: IO.Handle -> V.Vector Audio.Sample -> IO ()
+writeVector hdl vector = V.unsafeWith vector $ \ptr ->
+    IO.hPutBuf hdl ptr (V.length vector * Storable.sizeOf (0 :: Audio.Sample))
 
 -- | Write files in chunks to the given directory.  Run actions before
 -- and after writing each chunk.

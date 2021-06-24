@@ -17,6 +17,7 @@
     needed.  But I'll leave it in place for now since it doesn't seem to
     be hurting anything and it's nice to divide play into low and high level.
 -}
+{-# LANGUAGE CPP #-}
 module Cmd.PlayC (cmd_play_msg, play) where
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
@@ -37,7 +38,9 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Perf as Perf
 
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stack as Stack
+
 import qualified Perform.Midi.Play as Midi.Play
 import qualified Perform.Transport as Transport
 import qualified Synth.ImGc as ImGc
@@ -51,6 +54,14 @@ import qualified Ui.UiConfig as UiConfig
 
 import           Global
 import           Types
+
+-- This is just so I don't incur a Util.Audio dependency when I don't have im.
+-- If I just merge all the im hackage deps into the basic deps then I can lose
+-- this.
+#include "hsconfig.h"
+#ifdef ENABLE_IM
+import qualified Synth.StreamAudio as StreamAudio
+#endif
 
 
 -- * cmd_play_msg
@@ -351,14 +362,17 @@ event_highlights derived_block_id colors
 play :: Fltk.Channel -> Ui.State -> Transport.Info -> Cmd.PlayMidiArgs
     -> IO Transport.PlayControl
 play ui_chan ui_state transport_info
-        (Cmd.PlayMidiArgs mmc name msgs maybe_inv_tempo repeat_at im_end) = do
+        (Cmd.PlayMidiArgs mmc name msgs maybe_inv_tempo repeat_at im_end
+            play_im_direct) = do
     (play_ctl, monitor_ctl) <-
         Midi.Play.play transport_info mmc name msgs repeat_at
     -- Pass the current state in the MVar.  ResponderSync will keep it up
     -- to date afterwards, but only if blocks are added or removed.
     MVar.modifyMVar_ (Transport.info_state transport_info) $
         const (return ui_state)
-    liftIO $ void $ Thread.start $ case maybe_inv_tempo of
+    whenJust play_im_direct $
+        void . Thread.start . play_im_direct_thread play_ctl
+    Thread.start $ case maybe_inv_tempo of
         Just inv_tempo -> do
             state <- monitor_state ui_chan transport_info play_ctl monitor_ctl
                 inv_tempo repeat_at im_end
@@ -367,6 +381,19 @@ play ui_chan ui_state transport_info
         Nothing -> passive_play_monitor_thread
             (Transport.info_send_status transport_info) monitor_ctl
     return play_ctl
+
+-- | Start streaming audio from the given start time, until the PlayControl
+-- says to stop.
+play_im_direct_thread :: Transport.PlayControl -> Cmd.PlayDirectArgs -> IO ()
+#ifdef ENABLE_IM
+play_im_direct_thread play_ctl
+        (Cmd.PlayDirectArgs score_path block_id muted start) =
+    StreamAudio.streamFrom (Transport.wait_stop_player play_ctl)
+        score_path block_id (Set.map ScoreT.instrument_name muted) start
+#else
+play_im_direct_thread _ _ =
+    errorIO "can't play_im_direct_thread when im is not linked in"
+#endif
 
 -- | Just coordinate Playing and Stopped, don't update a play position.
 passive_play_monitor_thread :: (Transport.Status -> IO ())

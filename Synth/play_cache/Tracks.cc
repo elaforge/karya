@@ -17,7 +17,7 @@ using std::string;
 
 // See if the fname matches any of the muted instruments.
 static bool
-instrument_match(const std::vector<string> &mutes, const char *fname)
+instrument_muted(const std::vector<string> &mutes, const char *fname)
 {
     // Instruments never have '_', so I can use that to put extra info on the
     // end.  For faust, I put the patch name, so I can clear obsolete
@@ -33,7 +33,7 @@ instrument_match(const std::vector<string> &mutes, const char *fname)
 
 
 static std::vector<string>
-dir_samples(
+sample_dirs(
     std::ostream &log, const string &dir, const std::vector<string> &mutes)
 {
     std::vector<string> dirs;
@@ -50,7 +50,7 @@ dir_samples(
         string subdir(ent->d_name);
         if (subdir.empty() || subdir[0] == '.')
             continue;
-        if (instrument_match(mutes, subdir.c_str())) {
+        if (instrument_muted(mutes, subdir.c_str())) {
             skipped = true;
             continue;
         }
@@ -74,7 +74,7 @@ Tracks::Tracks(std::ostream &log, int channels, int sample_rate,
     const std::vector<string> &mutes)
     : log(log)
 {
-    std::vector<string> dirnames(dir_samples(log, dir, mutes));
+    std::vector<string> dirnames(sample_dirs(log, dir, mutes));
     audios.reserve(dirnames.size());
     for (const auto &dirname : dirnames) {
         std::unique_ptr<Audio> sample(

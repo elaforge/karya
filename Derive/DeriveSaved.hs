@@ -207,6 +207,7 @@ cmd_config inst_db = do
         -- You shouldn't be saving any checkpoints from here, so I can use
         -- dummy values.
         , config_git_user = SaveGit.User "name" "email"
+        , config_im_play_direct = False
         }
 
 -- * timer

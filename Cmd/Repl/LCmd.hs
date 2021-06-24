@@ -4,13 +4,29 @@
 
 -- | Cmds to modify cmd state.
 module Cmd.Repl.LCmd where
-import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.TimeStep as TimeStep
+import qualified Midi.Midi as Midi
 import qualified Perform.RealTime as RealTime
-import Global
-import Types
 
+import           Global
+import           Types
+
+
+-- * config
+
+
+-- | Temporarily set 'Cmd.config_im_play_direct', see
+-- 'App.StaticConfig.im_play_direct' to set it permanently.
+im_play_direct :: Cmd.M m => m Bool
+im_play_direct = do
+    Cmd.modify $ \st -> st
+        { Cmd.state_config = (Cmd.state_config st)
+            { Cmd.config_im_play_direct =
+                not (Cmd.config_im_play_direct (Cmd.state_config st))
+            }
+        }
+    Cmd.gets $ Cmd.config_im_play_direct . Cmd.state_config
 
 -- * edit
 
@@ -24,8 +40,8 @@ get_time_step :: Cmd.CmdL TimeStep.TimeStep
 get_time_step = Cmd.gets (Cmd.state_time_step . Cmd.state_edit)
 
 set_time_step :: TimeStep.TimeStep -> Cmd.CmdL ()
-set_time_step step = Cmd.modify_edit_state $
-    \st -> st { Cmd.state_time_step = step }
+set_time_step step = Cmd.modify_edit_state $ \st ->
+    st { Cmd.state_time_step = step }
 
 set_note_duration :: TimeStep.TimeStep -> Cmd.CmdL ()
 set_note_duration step = Cmd.modify_edit_state $ \st ->

@@ -4,16 +4,22 @@
 
 - You did run `tools/setup-empty`, right?
 
-- Set up some internal MIDI devices.  On OS X this means going to "Audio MIDI
-Setup", open up "IAC Driver" and add IAC ports.  I add 4 and rename them to 1 2
-3 4.  You can test MIDI connection with `test_midi`: `bin/mk
-build/opt/test_midi`.  Just run it and it will monitor from the inputs, so play
-your MIDI keyboard if you have one, and make sure events show up.  On OS X, I
-recommend "Midi Monitor" for debugging MIDI connections.
+- If you will use MIDI: Set up some internal MIDI devices.  On OS X this means
+going to "Audio MIDI Setup", open up "IAC Driver" and add IAC ports.  I add 4
+and rename them to 1 2 3 4.  You can test MIDI connection with `test_midi`:
+`bin/mk build/opt/test_midi`.  Just run it and it will monitor from the inputs,
+so play your MIDI keyboard if you have one, and make sure events show up.  On
+OS X, I recommend "Midi Monitor" for debugging MIDI connections.  On linux,
+JACK provides the MIDI IPC, so you should be able to use something like
+`qjackctl` to connect.
 
-- If you named the IAC ports 1 2 3 4, they should show up as "IAC Driver 1"
+    If you named the IAC ports 1 2 3 4, they should show up as "IAC Driver 1"
 etc. (`test_midi` will show those on stdout).  In that case, the default config
 in `User/Empty/Config.hs` will map them to local names `loop1`, `loop2`, etc.
+
+- If you won't use MIDI, the `im` backend may be usable.  You'll have to
+install its dependencies from `INSTALL.md`.  You won't have to do any of the
+MIDI configuration below, and there are details in the `im` section below.
 
 - Run `bin/opt`.  This will recompile and start `build/opt/logview` and
 `build/opt/seq`.  Open another terminal window and type `bin/repl` to compile
@@ -75,7 +81,8 @@ you ran `tools/setup-empty`, then `Local.Config` will be a re-export of
 `User/Empty`, but of course then git will want you to check that stuff in.  If
 you modify them directly in `Local/`, git won't track that.  Of course, if you
 get complicated configuration you'll want to track that stuff, so you can make
-your own repo, or put it in the main repo in `User/` as I have done.
+your own repo, or put it in the main repo in `User/` as I have done.  I'm
+not really sure how per-user configuration should be handled.
 
 - For local MIDI setup, you should modify `Config.get_midi_config`.  This
 has aliases for MIDI device names, and a list of MIDI inputs to open for
@@ -84,15 +91,42 @@ directly on the name given by OS.  Otherwise, the OS will decide to rename it
 for fun and all your music will break.  See 'User.Elaforge.Config' for an
 example.
 
-- Configure a synthesizer.  There are lots of fancy features, but the most
-basic configuration is synth name and pitch bend range.  Copy an existing soft
-synth, e.g. 'User.Elaforge.Instrument.Fm8', and add the new module's `synth`
-value to 'Local.Instrument.midi_synths'.  The simplest configuration is a
-single patch named 'Cmd.Instrument.MidiInst.default_patch' which is just "", so
-the qualified name (used below when you allocate an instrument) will be
-`synth-name/`.
+- Configure a synthesizer.  'User.Empty.Instrument' has a generic MIDI synth
+you can address as `generic/` as in the `LInst.add` above, you can start with
+that.
+
+    Later on, you should configure your specific synthesizers.  There are lots
+of fancy features, but the most basic configuration is synth name and pitch
+bend range.  Copy an existing soft synth, e.g.  'User.Elaforge.Instrument.Fm8',
+and add the new module's `synth` value to 'Local.Instrument.midi_synths'.  The
+simplest configuration is a single patch named
+'Cmd.Instrument.MidiInst.default_patch' which is just "", so the qualified name
+(used below when you allocate an instrument) will be `synth-name/`.
 
 - If you don't use qwerty, modify 'Local.KeyLayout'.  This is relevant because
 some keys are bound by their logical letter, while others are bound by their
 physical position on the keyboard (e.g. kbd entry, where you can play the
 keyboard like an organ).
+
+### im
+
+If you are using `im` together with MIDI, or if you have a DAW and want to
+use it, then you'll have to install the `play_cache` VST so they DAW can
+stream `im` rendered audio.  `tools/install-vst` will build and install it
+on OS X.  Technically it builds on linux, but I've never used it there and
+don't know how to install VSTs on linux.  Help me out?
+
+You'll then have to use `LInst.add_play_cache` to configure the MIDI channel
+to talk to the `play_cache` VST on your DAW.
+
+If you want to avoid the MIDI headache entirely, you can set
+`StaticConfig.im_play_direct` via `Local.Config`, and it'll attempt to play
+audio itself (via sox at the moment, so have that installed), no `play_cache`
+or DAW needed.
+
+The problem with `im` is many fewer instruments than the MIDI world,
+specifically there is `sampler-im` and `faust-im`.  The upside is that
+`im` instruments don't need any configuration, simply
+`LInst.add_im "somename" "faust/some-patch"`.  See `build/opt/browser` to
+see the options.  However, samples are really big, so they're not included,
+and the faust selection is very sparse.  Write your own!  Contribute them!

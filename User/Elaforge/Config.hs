@@ -54,6 +54,7 @@ load_static_config = do
         , post_setup_cmd = if keycaps then SyncKeycaps.open else return ()
         , midi = midi
         , highlight_colors = Config.highlight_colors
+        , im_play_direct = False
         }
 
 parse_args :: [String] -> Either Text (Cmd.CmdT IO Cmd.Status)

@@ -517,6 +517,7 @@ play_midi msgs = do
             , play_inv_tempo = Nothing
             , play_repeat_at = Nothing
             , play_im_end = Nothing
+            , play_im_direct = Nothing
             }
     Cmd.modify $ \st -> st { Cmd.state_repl_status = status }
     where
