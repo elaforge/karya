@@ -1937,6 +1937,20 @@ instruments:
     - drone from https://puretones.sadharani.com/
       . Are they willing to share?
 
+  fluid:
+    . sf2 from https://github.com/FluidSynth/fluidsynth/wiki/SoundFont
+    . fluidsynth -a coreaudio -m coremidi -o midi.portname=fluid FluidR3_GM.sf2
+    - add instruments
+    * ProgramChange not working
+      . It turns out I don't send ProgramChange unless
+        Patch.config_initialization has Patch.Midi, which nothing sets.
+      . LInst.change_instrument was supposed to do this, via browser.
+        But this is old, it predates instrument names, so not sure what to
+        name it.
+      . I think it should just change the allocation of the instrument in the
+        selected track, leave the name the same.
+      . Should MIDI instruments always initialize MIDI?  It doesn't apply for
+        most but in that case they just don't have InitializeMidi.
   zynsubaddfx:
     . The old binaries don't have VST.  The new ones do, but the UI seems
       buggy, most UI elements don't respond to the mouse.

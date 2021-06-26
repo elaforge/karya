@@ -443,30 +443,35 @@ set_attrs attrs inst_ = do
     attrs <- Cmd.require_right id $ Typecheck.typecheck_simple val
     Cmd.set_instrument_attributes inst attrs
 
+-- * find
+
+find :: Cmd.M m => Text -> m [Text]
+find substr = do
+    db <- Cmd.gets $ Cmd.config_instrument_db . Cmd.state_config
+    return $ filter (substr `Text.isInfixOf`)
+        [ InstTypes.show_qualified $ InstTypes.Qualified synth inst
+        | (synth, s) <- Inst.synths db
+        , inst <- Map.keys $ Inst.synth_insts s
+        ]
+
 
 -- * change_instrument
 
 -- | Replace the instrument in the current track with the given one, and
 -- 'initialize_midi' it.  This is intended for hardware synths which need a
--- program change or sysex, and can be invoked via "Instrument.Browser".
-change_instrument :: Qualified -> Cmd.CmdL ()
-change_instrument new_qualified = do
+-- program change or sysex.  It's called by "Instrument.Browser".
+set_instrument :: Cmd.M m => Qualified -> m ()
+set_instrument new_qualified = do
     new_qualified <- parse_qualified new_qualified
-    let new_inst = case new_qualified of
-            InstTypes.Qualified _ name -> ScoreT.Instrument name
     track_id <- snd <$> Selection.event_track
-    old_inst <- Cmd.require "must select a note track"
+    inst <- Cmd.require "must select a note track"
         =<< ParseTitle.title_to_instrument <$> Ui.get_track_title track_id
-    (_, common_config, midi_config) <- get_midi_config old_inst
+    (_, common_config, midi_config) <- get_midi_config inst
     -- Replace the old instrument and reuse its addr.
-    deallocate old_inst
-    allocate new_inst $ UiConfig.Allocation new_qualified common_config
+    deallocate inst
+    allocate inst $ UiConfig.Allocation new_qualified common_config
         (UiConfig.Midi midi_config)
-    addr <- Cmd.require ("inst has no addr allocation: " <> pretty old_inst) $
-        Seq.head $ Patch.config_addrs midi_config
-    Ui.set_track_title track_id (ParseTitle.instrument_to_title new_inst)
-    initialize_midi new_inst addr
-    return ()
+    initialize_inst inst
 
 block_instruments :: BlockId -> Cmd.CmdL [ScoreT.Instrument]
 block_instruments block_id = do

@@ -41,7 +41,7 @@ import qualified Cmd.Info as Info
 -- These are used to write patterns for 'ModifyEvents.substitute'.
 import Cmd.ModifyEvents (Replacement(F), w, ws, ws1)
 import Cmd.Repl.LEvent ()
-import qualified Cmd.Repl.LInst as LInst
+import Cmd.Repl.LInst ()
 import Cmd.Repl.LPerf ()
 import Cmd.Repl.LPitch ()
 import Cmd.Repl.LRuler ()
@@ -250,10 +250,6 @@ expand_track block_id tracknum = do
 collapse, expand :: TrackNum -> Cmd.CmdL ()
 collapse tracknum = flip collapse_track tracknum =<< Cmd.get_focused_block
 expand tracknum = flip expand_track tracknum =<< Cmd.get_focused_block
-
--- | Called from the browser.
-change_instrument :: Text -> Cmd.CmdL ()
-change_instrument = LInst.change_instrument
 
 -- | The result of a REPL Cmd is converted to a 'ReplProtocol.Result' with
 -- this method.

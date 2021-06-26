@@ -250,8 +250,11 @@ marklist = marklist_from_vector . TimeVector.from_pairs
 
 {-# NOINLINE marklist_from_vector #-} -- due to evil unsafePerformIO
 marklist_from_vector :: MarklistVector -> Marklist
-marklist_from_vector vec = Marklist vec $ MarklistPtr $ Unsafe.unsafePerformIO $
+marklist_from_vector vec = Marklist
+    { marklist_vec = vec
+    , marklist_fptr = MarklistPtr $ Unsafe.unsafePerformIO $
         MVar.newMVar (Left vec)
+    }
 
 empty_marklist :: Marklist
 empty_marklist = marklist mempty

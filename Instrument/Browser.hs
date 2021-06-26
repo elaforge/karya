@@ -66,6 +66,10 @@ import qualified Perform.Midi.Patch as Patch
 import           Global
 
 
+-- | Send this to the REPL when on a double-click on an instrument.
+select_command :: Text
+select_command = "LInst.set_instrument"
+
 data Flag = Help | Geometry FltkUtil.Geometry
     deriving (Eq, Show)
 
@@ -321,7 +325,8 @@ quote s
 -- @change_instrument \"synth/inst\"@ to the REPL port.
 choose_instrument :: InstTypes.Qualified -> IO ()
 choose_instrument qualified = do
-    let cmd = "change_instrument " <> showt (InstTypes.show_qualified qualified)
+    let cmd = select_command <> " "
+            <> showt (InstTypes.show_qualified qualified)
     Text.IO.putStrLn $ "send: " <> cmd
     response <- query cmd
     unless (Text.null response) $
