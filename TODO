@@ -29,26 +29,10 @@ UNSORTED
   upgrade to ghc-9.0.1
     + upgrade modules
       . Update nix.
-      * cabal2derive requires to build the drv
-      * lifted-async.nix:1:1 called without required argument 'tasty-bench'
-        . Because cabal doesn't install test deps, but cabal2nix does.
-        . And tasty-bench is a new dep.
-        . Even with --no-check, cabal2nix includes the test deps.
-        . I downleded by hand: tasty-bench doctest-exitcode-stdio doctest-lib
     + cryptohash-md5 doesn't build
       . It's hvr-controlled :(
       . Built it locally.
-    + fclabels doesn't build
-      . Sent PR.
     cleanups:
-      * remove Util.File dep from Shakefile, it adds streaming dep
-        . Or, merge im deps in, there aren't actually that many.
-        . Well, there's also libsamplerate, librubberband, faust, etc.
-        . If I could put the flags only on the binaries that need them, then
-          it's ok if they're not present, they'll just fail to build.
-          I guess this is like making the enableIm stuff "automatic" and fine
-          grained, which is the "module system for shakefile" thing.
-        . Ok, maybe just merge streaming dep then.
   - I want to do vibrato and vibrato depth, but it's a pain to add new tracks.
     . But it should be in pitch, do I have vibrato settings there?
     . Maybe I should use the provided ways though, or at least be able to.
@@ -1936,21 +1920,9 @@ instruments:
       https://www.resonantdsp.com/index.html
     - drone from https://puretones.sadharani.com/
       . Are they willing to share?
-
   fluid:
     . sf2 from https://github.com/FluidSynth/fluidsynth/wiki/SoundFont
     . fluidsynth -a coreaudio -m coremidi -o midi.portname=fluid FluidR3_GM.sf2
-    * add instruments
-    * ProgramChange not working
-      . It turns out I don't send ProgramChange unless
-        Patch.config_initialization has Patch.Midi, which nothing sets.
-      . LInst.change_instrument was supposed to do this, via browser.
-        But this is old, it predates instrument names, so not sure what to
-        name it.
-      . I think it should just change the allocation of the instrument in the
-        selected track, leave the name the same.
-      . Should MIDI instruments always initialize MIDI?  It doesn't apply for
-        most but in that case they just don't have InitializeMidi.
   zynsubaddfx:
     . The old binaries don't have VST.  The new ones do, but the UI seems
       buggy, most UI elements don't respond to the mouse.
@@ -1972,7 +1944,6 @@ instruments:
 synth: im:
   StreamAudio directly to remove DAW + VST requirement
     . I could do automatically if there's no play-cache instrument.
-    * via sox
     - via coreaudio
     - via jack
     . Is there a cross-platform play audio package on hackage?
@@ -2902,16 +2873,7 @@ synth: im:
           means it's all hand-adjusted.
         . I need a framework, see dynamic calibration:
     mridangam:
-      * exception entering both hands strokes:
-        Cmd/Instrument/CUtil.hs:164 multiple events when evaluating:
-          D: (37s, .57s) mr 62.65nn "D"
-        . It's because I can only emit a single Osc.Note, let's change that.
-        . Now it enters, but it plays the wrong sample.
-        . Osc.cc gets both, but I only hear the first one, I don't think
-          play_cache is set up for 2 at once.
-        . I need a mix around Osc::streamer
       - make kin and tan use y j like in mridangam?
-        * At least put them closer to nam and din.
       - o is too high pitched, I need to re-record
         . It would be nice to get a really low pitch long thom like pakhawaj.
       - sampler levels too sensitive, only the a0-ff range is really usable.
@@ -3249,95 +3211,6 @@ synth: im:
       waveguides" paper.
 
 shakefile: build:
-  ci:
-    try github actions
-      * get buildEnv building and cached
-      * cabal2nix junk doesn't get cached, maybe due to IFD nonsense
-        . Failed with a git error on "all-cabal-hashes-component-polyparse",
-          but it shouldn't be building that again.
-        * use nix-instantiate to see what out paths and whether I have them
-        / use nix-store -q --tree to see if the generated nix file is a build
-          dep.
-        . Isn't callPackageKeepDeriver supposed to fix this?
-          All it seems to do is add pkgDrv.passthru.cabal2nixDeriver.
-          I don't understand why it overrides preConfigure to be the same.
-        . nix-instantiate -A ghc.vector
-          /nix/store/viif9h6a9wy00dpmjvfj7qh8069ii0yd-vector-0.12.1.2.drv
-          /nix/store/chij2cxhclcd1yb8x5fkk8f33xqzv7iw-cabal2nix-vector-0.12.1.2.drv
-        . Should demand /nix/store/fnmsl1kpixb77120ybn771c6m2xlpqjq-vector-0.12.1.2
-          and cachix has it
-      * git crash
-        . building '/nix/store/a9v7ihfsn981a1zk85ksji11ja2km6d5-cabal2nix-polyparse-1.13.drv'...
-          installing
-          hint: Using 'master' as the name for the initial branch. This
-          default branch name
-          hint: is subject to change. To configure the initial branch name to
-          use in all
-          hint: of your new repositories, which will suppress this warning,
-          call:
-          hint:
-          hint:   git config --global init.defaultBranch <name>
-          hint:
-          hint: Names commonly chosen instead of 'master' are 'main', 'trunk'
-          and
-          hint: 'development'. The just-created branch can be renamed via this
-          command:
-          hint:
-          hint:   git branch -m <name>
-          Warning: Permanently added the RSA host key for IP address
-          '140.82.121.3' to the list of known hosts.
-          git@github.com: Permission denied (publickey).
-          fatal: Could not read from remote repository.
-
-          Please make sure you have the correct access rights
-          and the repository exists.
-          error: program 'git' failed with exit code 128
-        . Why does nix not have any provenance for this?
-        . Why is it even builing at all?  Can I do an instantiate?
-          First see if it's the cabal2nix thing above.
-        . It was fetchgit for faust.
-      * mkmk in nix-shell
-      * mk typecheck-ci
-      * mk tests-normal
-      * cache build dir
-        . https://docs.github.com/en/actions/guides/caching-dependencies-to-speed-up-workflows#matching-a-cache-key
-        . It doesn't upload when the key matches.  I want to always replace
-          the key, but incrementally.
-      Cachix docs unclear:
-        . cachix says I need a "signing key", but where is that?  Is that the
-          same as the "Public Key" on the cache web page?
-        . https://nix.dev/tutorials/continuous-integration-github-actions.html
-          . Setting up secrets says "click on Settings", this is not visible,
-            you have to know to click on "..." first.
-          . It says "Add your previously generated secrets", but there are
-            "environment secrets" and "repository secrets", which one?
-            I guess "repository secrets."
-          . It says "CACHIX_SIGNING_KEY and/or CACHIX_AUTH_TOKEN".  I think
-            a CACHIX_AUTH_TOKEN is what I get if click "personal auth token"
-            on https://app.cachix.org/cache/me, but what is a signing key?
-            I guessed it was the "public key", but it seems wrong because if
-            it's public it's not a secret.  Also what does "and/or" mean?
-            Under what cases would you use one or the other, or both?
-            Below, under authToken, it says "if you chose API tokens for write
-            access".  Uhh... maybe I did maybe I didn't?  I created that cache
-            months ago and don't remember what I chose, and it doesn't seem to
-            tell me.
-          . Ok, I'll assume I chose auth token then.
-        . Pushing manually, it says I need a token, and go to
-          mycache.cachix.org.  That has the "personal auth token" or "per
-          cache auth token", with no documentation on the difference, so
-          I randomly pick "personal auth token".  And in any case, "per cache
-          auth token" leads to "401 access denied, did you forget to log in?"
-          even though I am logged in.  Anyway, I installed the personal auth
-          token with 'cachix authtoken', but now cachix push fails with
-          a FailureResponse and says "No signature found... run cachix
-          generate-keypair".  cachix generate-keypair also crashes with
-          FailureResponse and "not possible to override or add multiple
-          signing keys"... which I didn't think I was trying to do.
-        . Since cachix push works from my other machine, I look at its
-          cachix.dhall, and in addition to authToken there's also a
-          binaryCaches with a secretKey.  So I copy that over by hand and
-          now it works.  But I assume that's not how it was supposed to go?
   - fix the redefine error:
     . macro redefined warning when compiling hsc2hs generated file
       . Because hsc2hs embeds it in the file with -optc
@@ -3354,11 +3227,6 @@ shakefile: build:
     - QuickCheck, use hedgehog instead
     - for indirect deps I need some way to get the paths
       . e.g. whence goes js-jquery, js-flot?  Probably shake.
-    * I got a bunch of new deps when upgrading to ghc 8.10, who is dragging
-      them in?
-      ?: hspec, hspec-*, doctest
-      aeson 1.4.7.0 -> 1.5.5.1: data-fix, strict, these
-      these -> bifunctors -> comonad, distributive, indexed-traversable
   / shakefile -v should print version, it doesn't
     . because it prints at Normal, and I'm at Quiet.
     . To avoid shake's internal output, '# ...' lines
@@ -3380,16 +3248,6 @@ shakefile: build:
   nix:
     . https://app.cachix.org/cache/elaforge
     - Look into 'tinc', it uses the cabal solver to decide on versions.
-    * hackage deps are STILL broken
-      . Because it doesn't actually have cabal2nixDeriver, because that only
-        works when you do callHackage.
-      . But I think I actually have to do that, otherwise cabal2nix isn't run.
-      . So this is a semi-revert of commit "nix: eliminate IFD".
-    * get rid of IFD:
-      . Most straightforward way is to run the cabal2nix and then check in the
-        output files.  I can write a derivation that does that.
-    * fix hackage.nix
-      . Except you only get cabal2nix after a callHackage.
     - Broken with withEkg.
       . Because ansi-wl-pprint 0.6.9 doesn't compile, no profiling on
         ansi-terminal.
@@ -4128,17 +3986,6 @@ cleanup:
     . Or, https://hackage.haskell.org/package/optics-core Optics.Label
     . At this point, wait for RecordDotSyntax.
       status: https://gitlab.haskell.org/ghc/ghc/-/issues/18598
-  * Why re-export UiConfig from Ui.State?  Why not directly reference
-    UiConfig?
-  / Can I make prev val or {Note,Control,Pitch}Deriver return values more
-    typesafe with GADTs?
-    . Study https://github.com/goldfirere/glambda for ideas.
-  / Util.TimeVector has a hack where a sample at <=0 is considered to extend
-    to -inf.  It's because I want a control track call at 0 to extend back.
-    But I could do that directly with a postproc ala the tempo hack.  It seems
-    like a hack at a higher level is better than one deep in the signal
-    implementation.
-    . Is this gone now?  I can't find it.  I think it's gone.
   - Expr is NonEmpty since there is always at least a "" call, but this is a
     special feature of events.  Would it make more sense to parse "" as [],
     and then special case [] in EvalTrack.derive_event?
@@ -4179,60 +4026,6 @@ cleanup:
 
 performance:
   prof results:
-    * parse_expr
-      * make sure 'entries' for SCCs match what I expect.
-        . There are still lots of 0 entries, I guess it's a ghc bug, but maybe
-          due to inlining?  But SCCs shouldn't be inlined.
-        cerucuk-punyah: blocks:25 tracks:194 events:6163:
-          . Derive.Parse.parse_expr:  8.6   10.3
-            from parse_note 13642 times
-          . Derive.EvalTrack.derive_event 40476    0.6    0.6    51.4   46.1
-            Internal.with_stack_region    40476    7.9    5.1    45.2   38.5
-            Control.d_control_track       13294    1.0    1.4     1.0    1.4
-            Derive.Control.d_control_track 13042
-            Derive.ParseTitle.parse_note  13642
-          . It does get 2x because of pemade + kantilan derivation.
-            Those all get parsed twice too.
-            What if I parse in the event itself?  I could have a separate lazy
-            field, and omit it from serialize.
-        small, with 4 notes:
-          . They seem to make sense, usual 4 entries.
-      * parse before slicing
-        . Slice.slice takes EventsNode -> EventsNode, change to
-          ParsedEventsNode, or polymorphic on event type.
-        . TrackTree.EventsNode -> TrackTree.TrackT (Vector DeriveT.Event)
-        . To make slice polymorphic on event, Ui.Event.Event must be
-          polymorphic.
-        . Let's not do polymorphic, Events.Events is not polymorphic.
-        . Before I do the work, make sure the numbers make sense.
-          . If each slice is disjunct, why the multiple parse?
-          . Controls have overlap.
-          . What if I just evaluated?  I think that was the original plan, eval
-            once and then chop up the signal?
-          . run_profile.py derive save/complete/wayang/cerucuk-punyah.state
-        . What I should really do is parse once per issue, that way I don't have
-          to parse at all after an incremental change.
-        Options:
-          . Put _expr in Event, make Event polymorphic, to insert DeriveT.Expr.
-            . How far up does the type variable go?
-            . Event -> Events -> Ui.State -> Ui.M -> Cmd.M.
-            . That's a lot, this might be a huge hassle.
-          . Same as above, but use a SOURCE import for DeriveT.Expr.
-            . If I do this, maybe I could untangle ControlFunctions and other
-              things.
-            . But would that then mean a giant compile loop?  Would ghci then
-              have to load tons of modules even in UI?  Would that be
-              unbearable?
-            ? Try it and find out!
-          . Put a memo table on Parse.parse_expr.
-            . Either never expires, or I have to have an expire mechanism.
-            . Has to be propagated like Cache, which presumably has
-              a performance hit, all those merging Collect and sub-Caches.
-              ? Is there an efficient Collect merge strategy for HashMaps?
-          . Put a mutable global HashMap in Derive.Parse.
-            . This is probably easiest, and faster than using Cache.  I assume
-              still slower than putting in the event because I still have to do
-              a hashmap lookup.
     - Eval.eval
       . This is for val calls.  I don't use many of those, except pitches.
       . Most are from Control.derive_pitch
@@ -4619,30 +4412,6 @@ performance:
         . From the flamegraph for bsearch_above, expensive:
           Semigroup DeriveT.PitchConfig <>
           called from Score.transposed_at -> PSignal.apply_config
-        * Seq.diff <- Lib.state_controls_at <- Lib.controls_at <-
-          Note.default_note
-          . Maps.pairs should be more efficient than Seq.diff, but still
-            expensive.  It would be better to not call it so much.
-          . Internal.get_ruler also significant cost, and from that
-            Internal.lookup_current_tracknum -> Ui.get_tracknum_of
-          . This is all due to control functions, specifically that:
-            . Have to get a ruler even if they don't use it
-            . Have to match up all ControlFunctions to Controls.
-            . Have to get vals for all controls, even if not all used.
-          . But Note.default_note is only a small part of the eval time!
-        - Parse.space_to_eol
-          . Maybe gets cheaper when inlined, attoparsec is probably reliant on
-            inlining to unbox.
-        * what about -fprof-auto-exported?
-          . Instead of adding SCCs on top, I could go bottom up by adding
-            INLINEs.
-          . At least I could get things like (>>=) and Util.Control out of
-            there.
-        run_profile.py:
-          * add --name flag to name the runs, put in a separate ##.name dir.
-          * Group by y-m-d/count/...
-          * summary should get timings: INIT, MUT, etc., and total time, total
-            alloc from .prof
     flamegraph:
       . What are samples?  It says 1,000.
       . Can I get the number of entries in tooltip?
@@ -4653,21 +4422,6 @@ performance:
       * Write a tool for diffs on .prof and .gc so I can feel good.
         . tools/profile_verify.py parses .gc
         . Then just diff the top CC list from .prof, sort by name.
-      * Derive.with_scale does work each time to lookup scale and then
-        Lib.scale_to_call and Lib.with_val_raw.  I think the latter is red
-        herring, because it gets charged for the actions of the caller
-        (Control.d_control_track -> Control.pitch_call) due to scoping.
-        . But it could cache scale_to_call by building a
-          Map ScaleId (Scopes -> Scopes)
-        . Same for with_instrument.
-        . Alternately, don't call them so much!  with_instrument is not even on
-          the graph, maybe only gets called once.  Scale only needs to be called
-          once too... in cerucuk-punyah it's 12399 times
-        . Probably most of those are empty_scale, which means I maybe don't have
-          to do anything?  Currently I just get current scale_id and with_scale
-          on that.
-        . The toplevel scale=xyz should do the Derive.with_scale.  Then a `*`
-          does nothing.  A `*abc` does a `scale=abc`.
 
     + Bring back profiling, and do it regularly.
       . Look into that graphing stuff, I have the links around here somewhere.
@@ -7430,7 +7184,7 @@ linux:
         I quit, and then they get continuously spammed.  Apparently the
         jack_port_t* from the registration and the lookup are different.
         - Try stashing port from port_by_name port instead of
-        jack_register_port.
+          jack_register_port.
     - does jack not support sysex at all?  Maybe I can't use it at all then.
     - Ensure that shutdown stuff is being called correctly.  I don't care but
       maybe JACK does?
