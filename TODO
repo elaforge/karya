@@ -1940,7 +1940,7 @@ instruments:
   fluid:
     . sf2 from https://github.com/FluidSynth/fluidsynth/wiki/SoundFont
     . fluidsynth -a coreaudio -m coremidi -o midi.portname=fluid FluidR3_GM.sf2
-    - add instruments
+    * add instruments
     * ProgramChange not working
       . It turns out I don't send ProgramChange unless
         Patch.config_initialization has Patch.Midi, which nothing sets.

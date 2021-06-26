@@ -69,7 +69,9 @@ insert_call thru char_syms = insert_expr thru (Cmd.WithoutOctave char_to_expr)
         map (bimap PhysicalKey.physical_key to_expr) char_syms
 
 strokes_to_calls :: [Drums.Stroke] -> [(Char, Expr.Symbol)]
-strokes_to_calls strokes = [(Drums._char s, Drums._name s) | s <- strokes]
+strokes_to_calls strokes =
+    [(Drums._char s, Drums._name s) | s <- strokes, Drums._char s /= ' ']
+    -- As advertised in 'Drums.Stroke', don't bind to ' '.
 
 -- | Select the flavor of thru to use when inserting an expression.  This
 -- selects either 'expr_midi_thru' or 'expr_im_thru'.

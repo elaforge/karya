@@ -7,6 +7,7 @@
 -- calls.
 module Cmd.Instrument.Drums where
 import qualified Util.Pretty as Pretty
+import qualified Derive.Attrs as Attrs
 import qualified Derive.Expr as Expr
 import qualified Perform.Signal as Signal
 
@@ -22,6 +23,9 @@ import           Global
 data Stroke = Stroke {
     _name :: !Expr.Symbol
     , _attributes :: !Attributes
+    -- | Bind the stroke to this key in insert mode.  If it is ' ', don't bind
+    -- to a key at all.  This should be called "key", but that's sometimes
+    -- already taken for midi key.
     , _char :: !Char
     -- | Scale the dynamic by this value.  This is for drums that have
     -- different symbols for soft strokes.
@@ -56,13 +60,14 @@ instance Pretty Stroke where
         , ("group", Pretty.format group)
         ]
 
+c_bd2   = stroke 'a' "bd2"    (bd <> v2)
 c_bd    = stroke 'z' "bd"     bd
-c_bd2   = stroke 's' "bd2"    (bd <> v2)
+c_sn2   = stroke 's' "sn2"    (snare <> v2)
 c_sn    = stroke 'x' "sn"     snare
-c_sn2   = stroke 'd' "sn2"    (snare <> v2)
 c_rim   = stroke 'v' "rim"    rim
 c_ltom  = stroke 'b' "ltom"   (tom <> low)
 c_mtom  = stroke 'n' "mtom"   (tom <> middle)
+c_hmtom = stroke 'j' "hmtom"  (tom <> Attrs.attr "high-mid")
 c_htom  = stroke 'm' "htom"   (tom <> high)
 
 -- Also doubles as closed hh, if both exist.
@@ -71,6 +76,7 @@ c_ohh   = stroke 'w' "ohh"    (open <> hh)
 c_phh   = stroke 'e' "phh"    (pedal <> hh)
 
 c_ride  = stroke 't' "ride"   ride
+c_bell  = stroke '5' "bell"   (Attrs.attr "bell")
 c_crash = stroke 'y' "crash"  crash
 
 -- TODO other drum style ornaments like double strikes, rolls, etc.

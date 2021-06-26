@@ -108,6 +108,26 @@ some keys are bound by their logical letter, while others are bound by their
 physical position on the keyboard (e.g. kbd entry, where you can play the
 keyboard like an organ).
 
+### if you don't have MIDI setup already
+
+One option is to use im, below.  Another is to try some free ones.  I don't
+know much about the free synth world, but `fluidsynth` is small, simple,
+and can play `.sf2` files which seem to be easily available.  It also makes a
+good way to test if you even have working MIDI.
+
+- Install `fluidsynth` and a General MIDI soundfont from
+https://github.com/FluidSynth/fluidsynth/wiki/SoundFont
+
+- Run it like
+`fluidsynth -a coreaudio -m coremidi -o midi.portname=fluid something.sf2`
+or on linux: `-a alsa -m jack`.
+
+- Now you can run `build/opt/browser`, search for `synth=gm`, and if
+you double click on an instrument, it should switch the instrument on
+the currently selected track to that one.  Or
+`LInst.add "drum" "gm/percussion" "fluid" [10]` (it must be channel 10)
+and some keys should be bound to drums.
+
 ### im
 
 If you are using `im` together with MIDI, or if you have a DAW and want to

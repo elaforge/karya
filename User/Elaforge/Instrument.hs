@@ -34,12 +34,14 @@ import qualified User.Elaforge.Instrument.Tassman as Tassman
 import qualified User.Elaforge.Instrument.Vl1 as Vl1
 import qualified User.Elaforge.Instrument.Vsl as Vsl
 import qualified User.Elaforge.Instrument.Z1 as Z1
+import qualified User.Empty.Instrument.GeneralMidi as GeneralMidi
 
 
 -- | Synth declarations for each synth that is declared purely.
 midi_synths :: [MidiInst.Synth]
 midi_synths =
-    [ Derailer.synth, Drumaxx.synth, Fm8.synth, Kontakt.synth, Massive.synth
+    [ Derailer.synth, Drumaxx.synth, Fm8.synth, GeneralMidi.synth
+    , Kontakt.synth, Massive.synth
     , Morphine.synth, Pianoteq.synth, Reaktor.synth, Spicy.synth, Swam.synth
     , Tassman.synth, Vsl.synth
     ]
