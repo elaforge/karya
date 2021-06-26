@@ -93,8 +93,7 @@ try_parsers parsers bytes = case Either.rights results of
 -- | Assume the sysex midi channel is 0.
 initialize_program :: Int -> Midi.Program -> Patch -> Patch
 initialize_program bank n = first $
-    Patch.initialize #= Patch.InitializeMidi
-        (map (Midi.ChannelMessage 0) (Midi.program_change bank n))
+    Patch.initialize #= Patch.initialize_midi (Midi.program_change bank n)
 
 initialize_sysex :: ByteString -> Patch.Patch -> Patch.Patch
 initialize_sysex bytes =

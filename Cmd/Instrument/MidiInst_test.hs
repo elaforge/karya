@@ -39,5 +39,4 @@ mkpatch name init =
     MidiInst.named_patch (-2, 2) name []
 
 pgm_change :: Midi.Program -> Patch.InitializePatch
-pgm_change pgm = Patch.InitializeMidi $ map (Midi.ChannelMessage 0) $
-    Midi.program_change 0 pgm
+pgm_change = Patch.initialize_midi . Midi.program_change 0

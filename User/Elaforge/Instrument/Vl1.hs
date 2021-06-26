@@ -110,8 +110,7 @@ parse_builtins fn = do
     return $ zipWith initialize [0..] patches
     where
     initialize n = MidiInst.patch#Patch.initialize
-        #= Patch.InitializeMidi
-            (map (Midi.ChannelMessage 0) (Midi.program_change 0 n))
+        #= Patch.initialize_midi (Midi.program_change 0 n)
 
 parse_dir :: FilePath -> IO [MidiInst.Patch]
 parse_dir dir = do

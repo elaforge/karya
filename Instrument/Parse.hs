@@ -130,8 +130,8 @@ make_patch :: Control.PbRange -> PatchLine -> Sysex.Patch
 make_patch pb_range (PatchLine name bank patch_num tags) = (patch, common)
     where
     patch = (Patch.patch pb_range name)
-        { Patch.patch_initialize = Patch.InitializeMidi $
-            map (Midi.ChannelMessage 0) (Midi.program_change bank patch_num)
+        { Patch.patch_initialize =
+            Patch.initialize_midi $ Midi.program_change bank patch_num
         }
     common = (Common.common ()) { Common.common_tags = tags }
 

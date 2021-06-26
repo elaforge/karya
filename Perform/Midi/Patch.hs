@@ -36,6 +36,7 @@ module Perform.Midi.Patch (
     , add_flag, remove_flag
     -- ** InitializePatch
     , InitializePatch(..)
+    , initialize_midi
     -- ** AttributeMap
     , AttributeMap, Keymap(..), Keyswitch(..)
     , keyswitches, single_keyswitches, cc_keyswitches, cc_keyswitches_permute
@@ -127,7 +128,6 @@ instance Pretty Config where
 data Initialization =
     Tuning -- ^ Configure tuning with 'Midi.realtime_tuning'.
     | NrpnTuning -- ^ Configure tuning with 'Midi.nrpn_tuning'.
-    | Midi -- ^ Send 'InitializePatch'.
     deriving (Read, Show, Eq, Ord, Bounded, Enum)
 instance Pretty Initialization where pretty = showt
 
@@ -403,7 +403,7 @@ remove_flag = Set.delete
 -- | Describe how an instrument should be initialized before it can be played.
 data InitializePatch =
     -- | Send these msgs to initialize the patch.  It should be a patch
-    -- change or a sysex.
+    -- change or a sysex.  Channel is ignored.
     InitializeMidi ![Midi.Message]
     -- | Display this msg to the user and hope they do what it says.
     | InitializeMessage !Text
@@ -414,6 +414,9 @@ instance Pretty InitializePatch where
     format (InitializeMidi msgs) =
         Pretty.text "InitializeMidi" Pretty.<+> Pretty.format msgs
     format init = Pretty.text (showt init)
+
+initialize_midi :: [Midi.ChannelMessage] -> InitializePatch
+initialize_midi = InitializeMidi . map (Midi.ChannelMessage 0)
 
 -- ** AttributeMap
 

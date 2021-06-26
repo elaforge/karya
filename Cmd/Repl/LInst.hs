@@ -382,8 +382,8 @@ set_decay decay = modify_midi_config_ $ Patch.settings#Patch.decay #= decay
 get_midi_config :: Ui.M m => ScoreT.Instrument
     -> m (InstTypes.Qualified, Common.Config, Patch.Config)
 get_midi_config inst =
-    Ui.require ("not a midi instrument: " <> pretty inst) =<<
-        lookup_midi_config inst
+    Ui.require ("not a midi instrument: " <> pretty inst)
+        =<< lookup_midi_config inst
 
 lookup_midi_config :: Ui.M m => ScoreT.Instrument
     -> m (Maybe (InstTypes.Qualified, Common.Config, Patch.Config))
@@ -566,8 +566,9 @@ initialize_inst inst =
             initialize_realtime_tuning inst
         when (Set.member Patch.NrpnTuning inits) $
             initialize_nrpn_tuning inst
-        when (Set.member Patch.Midi inits) $
-            forM_ (Patch.config_addrs config) $ initialize_midi inst
+        (patch, _) <- Cmd.get_midi_instrument inst
+        forM_ (Patch.config_addrs config) $ \addr ->
+            send_initialize inst addr (Patch.patch_initialize patch)
 
 -- | Send a MIDI tuning message to retune the synth to its 'Patch.Scale'.  Very
 -- few synths support this, I only know of pianoteq.
@@ -599,11 +600,11 @@ get_tuning_map inst = get_scale inst >>= \case
 initialize_midi :: Cmd.M m => ScoreT.Instrument -> Patch.Addr -> m ()
 initialize_midi inst addr = do
     (patch, _) <- Cmd.get_midi_instrument inst
-    send_initialize (Patch.patch_initialize patch) inst addr
+    send_initialize inst addr (Patch.patch_initialize patch)
 
-send_initialize :: Cmd.M m => Patch.InitializePatch -> ScoreT.Instrument
-    -> Patch.Addr -> m ()
-send_initialize init inst (dev, chan) = case init of
+send_initialize :: Cmd.M m => ScoreT.Instrument -> Patch.Addr
+    -> Patch.InitializePatch -> m ()
+send_initialize inst (dev, chan) = \case
     Patch.InitializeMidi msgs -> do
         Log.notice $ "sending midi init: " <> pretty msgs
         mapM_ (Cmd.midi dev . Midi.set_channel chan) msgs
