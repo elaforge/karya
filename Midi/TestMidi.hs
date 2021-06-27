@@ -43,8 +43,8 @@ type Interface = Interface.RawInterface Midi.WriteMessage
 main :: IO ()
 main = MidiDriver.initialize "test_midi" want_message test_midi
     where
-    want_message (Midi.RealtimeMessage Midi.ActiveSense) = False
-    want_message _ = True
+    want_message =
+        (/= Midi.Encode.encode (Midi.RealtimeMessage Midi.ActiveSense))
 
 type ReadMsg = IO (Maybe Midi.ReadMessage)
 type WriteMsg = (RealTime.RealTime, Midi.Message) -> IO ()

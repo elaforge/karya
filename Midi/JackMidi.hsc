@@ -7,23 +7,25 @@ import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TChan as TChan
 import qualified Control.Exception as Exception
-
 import qualified Data.ByteString as ByteString
-import qualified Data.Set as Set
 import qualified Data.IORef as IORef
 import qualified Data.List as List
+import qualified Data.Set as Set
 import qualified Data.Word as Word
-import Foreign.C
-import Foreign hiding (void)
+import qualified Foreign
+import           Foreign (FunPtr, Ptr, alloca, peek, peekByteOff, nullPtr)
+import           Foreign.C
+    (CChar(..), CInt(..), CString, CULong(..), peekCString)
+import qualified Foreign.C as C
 
-import qualified Util.Log as Log
-import qualified Util.Thread as Thread
-import qualified Midi.Midi as Midi
 import qualified Midi.Encode as Encode
 import qualified Midi.Interface as Interface
+import qualified Midi.Midi as Midi
 import qualified Perform.RealTime as RealTime
-import Types
-import Global
+import qualified Util.Log as Log
+import qualified Util.Thread as Thread
+
+import           Global
 
 #include "Midi/jack.h"
 
@@ -32,16 +34,13 @@ type Error = Text
 
 -- * initialize
 
-initialize :: String -- ^ register this name with JACK
-    -> (Midi.Message -> Bool) -- ^ read msgs that return false are filtered
-    -> (Either Error (Interface.RawInterface Midi.WriteMessage) -> IO a)
-    -> IO a
+initialize :: Interface.Initialize a
 initialize app_name want_message app = do
     chan <- TChan.newTChanIO
     reads <- IORef.newIORef Set.empty
     writes <- IORef.newIORef Set.empty
     notify <- make_notify_callback (notify_callback reads writes)
-    result <- withCString app_name $ \namep -> alloca $ \clientpp -> do
+    result <- C.withCString app_name $ \namep -> alloca $ \clientpp -> do
         statusp <- c_create_client namep notify clientpp
         clientp <- peek clientpp
         if clientp == nullPtr then Left <$> peekCString statusp
@@ -49,34 +48,33 @@ initialize app_name want_message app = do
     case result of
         Left err -> app (Left (txt err))
         Right client -> do
-            Thread.start $ forever $ do
-                msg <- read_event client
-                when (want_message (Midi.rmsg_msg msg)) $
+            Thread.start $ forever $
+                whenJustM (read_event client want_message) $ \msg ->
                     STM.atomically $ TChan.writeTChan chan msg
             app (Right (interface app_name client chan))
                 `Exception.finally` do
-                    freeHaskellFunPtr notify
+                    Foreign.freeHaskellFunPtr notify
                     close_client client
 
 interface :: String -> Client -> Interface.ReadChan
   -> Interface.RawInterface Midi.WriteMessage
 interface app_name client chan = Interface.Interface
-    { Interface.name = "JACK"
-    , Interface.read_channel = chan
-    , Interface.read_devices =
+    { name = "JACK"
+    , read_channel = chan
+    , read_devices =
         -- Ignore my own write ports.
         map (convert (Midi.read_device . txt)) . filter (not . is_local . fst)
             <$> get_ports client jackportisoutput
-    , Interface.write_devices =
+    , write_devices =
         -- If I don't filter local ports, I wind up seeing my own read ports.
         map (convert (Midi.write_device . txt)) . filter (not . is_local . fst)
             <$> get_ports client jackportisinput
-    , Interface.connect_read_device = connect_read_device client
-    , Interface.disconnect_read_device = disconnect_read_device client
-    , Interface.connect_write_device = connect_write_device client
-    , Interface.write_message = write_message client
-    , Interface.abort = abort client
-    , Interface.now = now client
+    , connect_read_device = connect_read_device client
+    , disconnect_read_device = disconnect_read_device client
+    , connect_write_device = connect_write_device client
+    , write_message = write_message client
+    , abort = abort client
+    , now = now client
     }
     where
     is_local = ((app_name ++ ":") `List.isPrefixOf`)
@@ -91,17 +89,20 @@ foreign import ccall "create_client"
 foreign import ccall "jack_client_close"
     c_jack_client_close :: Ptr CJackClient -> IO CInt
 
-read_event :: Client -> IO Midi.ReadMessage
-read_event client = do
+read_event :: Client -> Interface.WantMessage -> IO (Maybe Midi.ReadMessage)
+read_event client want_message =
     alloca $ \portp -> alloca $ \timep -> alloca $ \eventp -> do
         -- The storage is static inside the C function, so I don't need to
         -- worry about deallocating anything here.
         size <- c_read_event (client_ptr client) portp timep eventp
         bytesp <- peek eventp
         bytes <- ByteString.packCStringLen (bytesp, fromIntegral size)
-        rdev <- Midi.peek_rdev =<< peek portp
-        time <- decode_time <$> peek timep
-        return $ Midi.ReadMessage rdev time (Encode.decode bytes)
+        if want_message bytes
+            then return Nothing
+            else do
+                rdev <- Midi.peek_rdev =<< peek portp
+                time <- decode_time <$> peek timep
+                return $ Just $ Midi.ReadMessage rdev time (Encode.decode bytes)
 
 foreign import ccall "read_event"
     c_read_event :: Ptr CClient -> Ptr CString -> Ptr CJackTime
@@ -110,7 +111,7 @@ foreign import ccall "read_event"
 notify_callback :: IORef.IORef (Set Midi.ReadDevice)
     -> IORef.IORef (Set Midi.WriteDevice) -> NotifyCallback
 notify_callback wanted_reads wanted_writes clientp namep c_is_add c_is_read =
-    when (toBool c_is_add) $ if toBool c_is_read
+    when (Foreign.toBool c_is_add) $ if Foreign.toBool c_is_read
         then notify_read =<< Midi.peek_rdev namep
         else notify_write =<< Midi.peek_wdev namep
     where
@@ -191,7 +192,7 @@ abort = c_abort . client_ptr
 foreign import ccall "jack_abort" c_abort :: Ptr CClient -> IO ()
 
 -- | Get current timestamp.
-now :: Client -> IO RealTime
+now :: Client -> IO RealTime.RealTime
 now client = decode_time <$> c_now (client_ptr client)
 
 
@@ -210,17 +211,18 @@ data CJackClient
 jack_client :: Client -> IO (Ptr CJackClient)
 jack_client = (#peek Client, client) . client_ptr
 
-decode_time :: CJackTime -> RealTime
+decode_time :: CJackTime -> RealTime.RealTime
 decode_time = RealTime.microseconds . fromIntegral
 
 -- | Get all the ports, and the aliases of each port.
 get_ports :: Client -> CULong -> IO [(String, [String])]
 get_ports client flags = do
     array <- c_get_midi_ports (client_ptr client) flags
-    namesp <- if array == nullPtr then return [] else peekArray0 nullPtr array
+    namesp <- if array == nullPtr
+        then return [] else Foreign.peekArray0 nullPtr array
     names <- mapM peekCString namesp
     -- I'm not supposed to free the port names.
-    free array
+    Foreign.free array
     aliases <- mapM (get_port_aliases client) names
     return $ zip names aliases
 
@@ -233,7 +235,7 @@ foreign import ccall "get_midi_ports"
 
 get_port_aliases :: Client -> String -> IO [String]
 get_port_aliases client name = do
-    alloca $ \alias1p -> alloca $ \alias2p -> withCString name $ \namep -> do
+    alloca $ \alias1p -> alloca $ \alias2p -> C.withCString name $ \namep -> do
         check ("get_port_aliases " <> showt name)
             =<< c_get_port_aliases (client_ptr client) namep alias1p alias2p
         (++) <$> maybe_peek alias1p <*> maybe_peek alias2p

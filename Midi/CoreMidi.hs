@@ -4,7 +4,22 @@
 
 {- | Interface to CoreMIDI.
 
-TODO documentation
+    Receiving messages in CoreMIDI is simple, there's a callback that gets
+    called when one arrives.  However, it identifies them with a 'DeviceId',
+    not a name.  You get the ID when you open the device for reading.  If the
+    device is not present, then I record that I want it in 'Client', and
+    'notify_callback' will hopefully add the DeviceId if it does appear.
+
+    Sending messages is the same situation.  It's more complicated at the C
+    level, which is documented in core_midi.cc.
+
+    Other than that, CoreMIDI is pretty straightforward.  Since I only support
+    a single MIDI initialization, the various open client and port types are
+    kept as global variables inside the C binding.
+
+    I originally tried to use PortMidi, but found it both lacking essential
+    features (it couldn't schedule MIDI both for the future and for now), but
+    also harder to write for.
 -}
 module Midi.CoreMidi (initialize) where
 import qualified Control.Concurrent as Concurrent
@@ -13,11 +28,15 @@ import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
 
 import qualified Data.ByteString as ByteString
+import           Data.ByteString (ByteString)
 import qualified Data.IORef as IORef
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import           Foreign hiding (void)
+import qualified Foreign
+import           Foreign (FunPtr, Ptr, Word8)
+import qualified Foreign.C as C
+import           Foreign.C (CInt(..), CString, CULong(..))
 
 import qualified Util.FFI as FFI
 import qualified Util.Log as Log
@@ -28,8 +47,6 @@ import qualified Midi.Midi as Midi
 import qualified Perform.RealTime as RealTime
 import           Perform.RealTime (RealTime)
 
-import           Control.Monad
-import           Foreign.C
 import           Global
 
 
@@ -37,15 +54,12 @@ type Error = Text
 
 -- * initialize
 
-initialize :: String -- ^ register this name with CoreMIDI
-    -> (Midi.Message -> Bool) -- ^ read msgs that return false are filtered
-    -> (Either Error (Interface.RawInterface Midi.WriteMessage) -> IO a)
-    -> IO a
+initialize :: Interface.Initialize a
 initialize app_name want_message app = do
     chan <- STM.newTChanIO
     client <- make_client
     with_read_cb chan $ \read_cb -> with_notify_cb client $ \notify_cb ->
-        withCString app_name $ \app_namep -> do
+        C.withCString app_name $ \app_namep -> do
             err_mvar <- MVar.newEmptyMVar
             -- This, along with 'c_prime_runloop' below, is a bit of song and
             -- dance to get MIDI notifications to work in CoreMIDI.  It wants
@@ -60,8 +74,7 @@ initialize app_name want_message app = do
                 err <- c_initialize app_namep read_cb notify_cb
                 MVar.putMVar err_mvar (error_str err)
                 when (error_str err == Nothing) c_cf_runloop_run
-            err <- MVar.takeMVar err_mvar
-            case err of
+            MVar.takeMVar err_mvar >>= \case
                 Just err -> app (Left err)
                 Nothing -> do
                     c_prime_runloop
@@ -70,26 +83,25 @@ initialize app_name want_message app = do
     where
     with_read_cb chan = Exception.bracket
         (make_read_callback (read_callback want_message chan))
-        freeHaskellFunPtr
+        Foreign.freeHaskellFunPtr
     with_notify_cb client = Exception.bracket
-        (make_notify_callback (notify_callback client)) freeHaskellFunPtr
+        (make_notify_callback (notify_callback client))
+        Foreign.freeHaskellFunPtr
     mkinterface client chan = Interface.Interface
-        { Interface.name = "CoreMIDI"
-        , Interface.read_channel = chan
-        , Interface.read_devices =
-            map ((\d -> (d, [])) . Midi.read_device) <$> get_devices True
-        , Interface.write_devices =
-            map ((\d -> (d, [])) . Midi.write_device) <$> get_devices False
-        , Interface.connect_read_device = connect_read_device client
-        , Interface.disconnect_read_device = disconnect_read_device client
-        , Interface.connect_write_device = connect_write_device client
-        , Interface.write_message = write_message client
-        , Interface.abort = abort
-        , Interface.now = now
+        { name = "CoreMIDI"
+        , read_channel = chan
+        , read_devices = map ((, []) . Midi.read_device) <$> get_devices True
+        , write_devices = map ((, []) . Midi.write_device) <$> get_devices False
+        , connect_read_device = connect_read_device client
+        , disconnect_read_device = disconnect_read_device client
+        , connect_write_device = connect_write_device client
+        , write_message = write_message client
+        , abort = abort
+        , now = now
         }
 
 type ReadCallback = SourcePtr -> CTimestamp -> CInt -> Ptr Word8 -> IO ()
-type SourcePtr = StablePtr Midi.ReadDevice
+type SourcePtr = Foreign.StablePtr Midi.ReadDevice
 -- typedef void (*ReadCallback)(void *p, Timestamp timestamp, int len,
 --     const unsigned char *bytes);
 
@@ -112,22 +124,22 @@ foreign import ccall "core_midi_prime_runloop" c_prime_runloop :: IO ()
 -- be low latency which means no allocation, but haskell has plenty of
 -- allocation.  On the other hand, it hasn't been a problem in practice and
 -- a separate thread monitoring a ringbuffer would just add more latency.
-read_callback :: (Midi.Message -> Bool) -> Interface.ReadChan -> ReadCallback
+read_callback :: (ByteString -> Bool) -> Interface.ReadChan -> ReadCallback
 read_callback want_message chan sourcep ctimestamp len bytesp = do
     -- Oddly enough, even though ByteString is Word8, the ptr packing function
     -- wants CChar.
-    bytes <- ByteString.packCStringLen (castPtr bytesp, fromIntegral len)
-    rdev <- deRefStablePtr sourcep
-    let msg = Encode.decode bytes
-    when (want_message msg) $ STM.atomically $ STM.writeTChan chan $
-        Midi.ReadMessage rdev (decode_time ctimestamp) msg
+    bytes <- ByteString.packCStringLen
+        (Foreign.castPtr bytesp, fromIntegral len)
+    rdev <- Foreign.deRefStablePtr sourcep
+    when (want_message bytes) $ STM.atomically $ STM.writeTChan chan $
+        Midi.ReadMessage rdev (decode_time ctimestamp) (Encode.decode bytes)
 
 notify_callback :: Client -> NotifyCallback
 notify_callback client namep _dev_id c_is_added c_is_read = do
     -- I could make connect_read_device and connect_write_device that take
     -- the dev_id directly, but that's too much work.
     name <- FFI.peekCString namep
-    case (toBool c_is_added, toBool c_is_read) of
+    case (Foreign.toBool c_is_added, Foreign.toBool c_is_read) of
         (True, True) -> do
             let dev = Midi.read_device name
             reads <- IORef.readIORef (client_reads client)
@@ -159,9 +171,8 @@ type DeviceId = CInt
 -- * devices
 
 connect_read_device :: Client -> Midi.ReadDevice -> IO Bool
-connect_read_device client dev = do
-    maybe_dev_id <- lookup_device_id True (Midi.read_device_text dev)
-    case maybe_dev_id of
+connect_read_device client dev =
+    lookup_device_id True (Midi.read_device_text dev) >>= \case
         Nothing -> do
             -- This means I want the device if it ever gets plugged in.
             IORef.modifyIORef (client_reads client) (Set.insert dev)
@@ -172,9 +183,9 @@ connect_read_device client dev = do
             -- I can use a stable ptr to the ReadDevice and have the read
             -- callback directly get a ReadDevice without having to look
             -- anything up.
-            sourcep <- newStablePtr dev
+            sourcep <- Foreign.newStablePtr dev
             ok <- check =<< c_connect_read_device dev_id
-                (castStablePtrToPtr sourcep)
+                (Foreign.castStablePtrToPtr sourcep)
             if not ok then return False else do
                 IORef.modifyIORef (client_reads client) (Set.insert dev)
                 return True
@@ -211,26 +222,26 @@ connect_write_device client dev = do
             return True
 
 lookup_device_id :: Bool -> Text -> IO (Maybe DeviceId)
-lookup_device_id is_read dev = alloca $ \dev_idp -> do
+lookup_device_id is_read dev = Foreign.alloca $ \dev_idp -> do
     found <- FFI.withText dev $ \devp ->
-        c_lookup_device_id (fromBool is_read) devp dev_idp
+        c_lookup_device_id (Foreign.fromBool is_read) devp dev_idp
     if found == 0 then return Nothing
-        else Just <$> peek dev_idp
+        else Just <$> Foreign.peek dev_idp
 
-foreign import ccall "lookup_device_id"
+foreign import ccall "core_midi_lookup_device_id"
     c_lookup_device_id :: CInt -> CString -> Ptr DeviceId -> IO CInt
 
 get_devices :: Bool -> IO [Text]
-get_devices is_read = alloca $ \namesp -> do
-    len <- c_get_devices (fromBool is_read) namesp
-    name_array <- peek namesp
-    cnames <- peekArray (fromIntegral len) name_array
+get_devices is_read = Foreign.alloca $ \namesp -> do
+    len <- c_get_devices (Foreign.fromBool is_read) namesp
+    name_array <- Foreign.peek namesp
+    cnames <- Foreign.peekArray (fromIntegral len) name_array
     names <- mapM FFI.peekCString cnames
-    mapM_ free cnames
-    free name_array
+    mapM_ Foreign.free cnames
+    Foreign.free name_array
     return names
 
-foreign import ccall "get_devices"
+foreign import ccall "core_midi_get_devices"
     c_get_devices :: CInt -> Ptr (Ptr CString) -> IO CInt
 
 -- * write
@@ -248,7 +259,7 @@ write_message client (Midi.WriteMessage dev ts msg)
             Just (Just dev_id) ->
                 ByteString.useAsCStringLen (Encode.encode msg) $
                 \(bytesp, len) -> error_str <$> c_write_message dev_id
-                    (encode_time ts) (fromIntegral len) (castPtr bytesp)
+                    (encode_time ts) (fromIntegral len) (Foreign.castPtr bytesp)
             _ -> return $ Just $ "device not in " <> pretty (Map.keys writes)
                 <> ": " <> pretty dev
 

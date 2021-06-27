@@ -4,7 +4,9 @@
 
 -- | Common interface for the MIDI drivers.
 module Midi.Interface (
-    ReadChan
+    Initialize
+    , WantMessage
+    , ReadChan
     , RawInterface(..), Interface
     , Message(..)
     , track_interface
@@ -18,6 +20,7 @@ import qualified Control.Concurrent.STM.TChan as TChan
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Monad.State.Strict as State
 
+import qualified Data.ByteString as ByteString
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Tuple as Tuple
@@ -42,6 +45,17 @@ use_all_notes_off = True
 type Error = Text
 
 type ReadChan = TChan.TChan Midi.ReadMessage
+
+type Initialize a = String -- ^ register this name with CoreMIDI
+    -> WantMessage
+    -> (Either Error (RawInterface Midi.WriteMessage) -> IO a)
+    -> IO a
+
+-- | Read msgs that return false are filtered.  This uses a raw ByteString to
+-- avoid the decode overhead for messages that will be rejected, probably in
+-- a high-priority callback.  TODO I could probably make this a bitmask or
+-- something and put it down in the driver.
+type WantMessage = ByteString.ByteString -> Bool
 
 -- | Produced by an @initialize@ function.
 data RawInterface write_message = Interface {

@@ -17,6 +17,9 @@
 // Provide C functions for the FFI.
 extern "C" {
 
+// Output has a separate g_out_port and g_thru_port.  This is because (I think)
+// MIDISend() only wants to receive messages with increasing timestamps.  So I
+// keep g_thru_port for 0 timestamp "instant" outputs.
 static MIDIClientRef g_client;
 static MIDIPortRef g_in_port, g_out_port, g_thru_port;
 static ReadCallback g_read_callback;
@@ -24,12 +27,15 @@ static ReadCallback g_read_callback;
 enum { SOX = 0xf0, EOX = 0xf7, STATUS_MASK = 0x80 };
 #define NANO_FACTOR ((UInt64) 1000000)
 
+// Sysex msgs are variable length, so they must be accumulated over multiple
+// 'read_proc' callbacks.
 struct SysexState {
     SysexState() : in_progress(false), timestamp(0), buf(1024) {}
     bool in_progress;
     Timestamp timestamp;
     std::vector<Byte> buf;
 };
+// Map port ID (by pointer) to its receive state.
 typedef std::map<void *, SysexState *> SysexMap;
 static SysexMap g_sysex_state;
 
@@ -40,16 +46,18 @@ process_sysex(SysexState *state, int len, const Byte *byte, void *p)
         if (*byte == EOX) {
             state->buf.push_back(*byte);
             g_read_callback(p, state->timestamp, state->buf.size(),
-                    &*state->buf.begin());
+                &*state->buf.begin());
         }
         if (*byte & STATUS_MASK) {
             if (*byte != EOX) {
                 printf("got %lu sysex bytes and ended with %hhx\n",
-                        state->buf.size(), *byte);
+                    state->buf.size(), *byte);
             }
             state->in_progress = false;
             break;
         } else {
+            // This could allocate inside the read_proc, which you're not
+            // supposed to do, but I haven't had to care yet.
             state->buf.push_back(*byte);
         }
     }
@@ -61,7 +69,7 @@ process_packet(const MIDIPacket *packet, void *p)
     if (packet->length == 0)
         return;
     Timestamp timestamp =
-            AudioConvertHostTimeToNanos(packet->timeStamp) / NANO_FACTOR;
+        AudioConvertHostTimeToNanos(packet->timeStamp) / NANO_FACTOR;
     SysexMap::iterator iter = g_sysex_state.find(p);
     assert(iter != g_sysex_state.end());
     SysexState *state = iter->second;
@@ -150,8 +158,8 @@ core_midi_initialize(const char *name, ReadCallback read_cb,
     err = MIDIClientCreate(
         cfname, midi_notification, (void *) notify_cb, &g_client);
     if (err != noErr) goto error;
-    err = MIDIInputPortCreate(g_client, CFSTR("input port"), read_proc, NULL,
-            &g_in_port);
+    err = MIDIInputPortCreate(
+        g_client, CFSTR("input port"), read_proc, NULL, &g_in_port);
     if (err != noErr) goto error;
     err = MIDIOutputPortCreate(g_client, CFSTR("output port"), &g_out_port);
     if (err != noErr) goto error;
@@ -188,7 +196,7 @@ core_midi_terminate()
 // lookup devices
 
 int
-get_devices(int is_read, const char ***names_out)
+core_midi_get_devices(int is_read, const char ***names_out)
 {
     *names_out = NULL;
     int devs = is_read
@@ -204,7 +212,8 @@ get_devices(int is_read, const char ***names_out)
 }
 
 int
-lookup_device_id(int is_read, const char *dev_name, DeviceId *dev_id_out)
+core_midi_lookup_device_id(
+    int is_read, const char *dev_name, DeviceId *dev_id_out)
 {
     int devs = is_read
         ? MIDIGetNumberOfSources() : MIDIGetNumberOfDestinations();
@@ -285,7 +294,7 @@ write_sysex(MIDIEndpointRef dest, int len, const unsigned char *bytes)
 
 Error
 core_midi_write_message(DeviceId dev, Timestamp timestamp, int len,
-        const unsigned char *bytes)
+    const unsigned char *bytes)
 {
     OSStatus err = noErr;
 
@@ -295,7 +304,8 @@ core_midi_write_message(DeviceId dev, Timestamp timestamp, int len,
     MIDIObjectRef obj;
     MIDIObjectType type;
     err = MIDIObjectFindByUniqueID(dev, &obj, &type);
-    if (err != noErr) return err;
+    if (err != noErr)
+        return err;
     MIDIEndpointRef dest = (MIDIEndpointRef) obj;
 
     if (bytes[0] == SOX) {

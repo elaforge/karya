@@ -21,8 +21,9 @@ void core_midi_prime_runloop();
 void core_midi_terminate();
 
 // lookup devices
-int get_devices(int is_read, const char ***names_out);
-int lookup_device_id(int is_read, const char *dev_name, DeviceId *dev_id_out);
+int core_midi_get_devices(int is_read, const char ***names_out);
+int core_midi_lookup_device_id(
+    int is_read, const char *dev_name, DeviceId *dev_id_out);
 
 Error core_midi_connect_read_device(DeviceId rdev, void *p);
 Error core_midi_disconnect_read_device(DeviceId dev);

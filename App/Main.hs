@@ -32,6 +32,7 @@ import qualified Util.Thread as Thread
 
 import qualified Ui.BlockC as BlockC
 import qualified Ui.Fltk as Fltk
+import qualified Midi.Encode
 import qualified Midi.Midi as Midi
 import qualified Midi.Interface as Interface
 
@@ -87,8 +88,8 @@ initialize app = do
             midi_interface <- Interface.track_interface midi_interface
             Git.initialize $ Repl.with_socket $ app midi_interface
     where
-    want_message (Midi.RealtimeMessage Midi.ActiveSense) = False
-    want_message _ = True
+    want_message =
+        (/= Midi.Encode.encode (Midi.RealtimeMessage Midi.ActiveSense))
 
 main :: IO ()
 main = initialize $ \midi_interface repl_socket -> do
