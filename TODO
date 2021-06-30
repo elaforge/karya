@@ -7159,7 +7159,7 @@ linux:
       I can modify and see what shake reubilds
       But can't I directly ask shake?
   jack: JACK:
-    jack2 is broken:
+    * jack2 is broken:
       . jack2-1.9.12
       . Cannot read socket fd = 25 err = No such file or directory
         CheckRes error
@@ -7176,7 +7176,7 @@ linux:
         server
       . Maybe just nixpkgs jack is broken:
         https://discourse.nixos.org/t/state-of-jackd-in-nixos/6007/10
-
+      . Turned out it was just a version mismatch.
     bugs
       - something is still wrong, I get "no space in output port" and then
         corrupted output

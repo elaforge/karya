@@ -120,7 +120,7 @@ https://github.com/FluidSynth/fluidsynth/wiki/SoundFont
 
 - Run it like
 `fluidsynth -a coreaudio -m coremidi -o midi.portname=fluid something.sf2`
-or on linux: `-a alsa -m jack`.
+or on linux: `-a jack -m jack`.
 
 - Now you can run `build/opt/browser`, search for `synth=gm`, and if
 you double click on an instrument, it should switch the instrument on

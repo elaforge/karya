@@ -11,6 +11,7 @@ import Control.Monad
 import qualified Numeric
 
 import qualified Data.ByteString as ByteString
+import qualified Data.Text.IO as Text.IO
 import qualified Data.Time as Time
 import qualified System.Environment
 import qualified System.IO as IO
@@ -133,8 +134,11 @@ test_midi (Right interface) = do
                 unless ok $
                     error $ "required wdev " ++ show wdev ++ " not found"
                 return (make_write_msg interface wdev, read_msg)
-    make_write_msg interface wdev (ts, msg) = void $
-        Interface.write_message interface (Midi.WriteMessage wdev ts msg)
+    make_write_msg interface wdev (ts, msg) = do
+        putStrLn $ "write: " <> show ts <> ": " <> show msg
+        mb_err <- Interface.write_message interface
+            (Midi.WriteMessage wdev ts msg)
+        whenJust mb_err $ Text.IO.putStrLn . ("error: "<>)
 
 nonblocking_get :: Interface.ReadChan -> ReadMsg
 nonblocking_get read_chan = STM.atomically $
@@ -151,7 +155,8 @@ usage =
     \monitor <a> <b> ...  monitor input ports 'a' and 'b'\n\
     \help                 print this usage\n\
     \thru <out>           msgs from any input are relayed to <out>\n\
-    \melody <out>         play a melody on <out>, also relaying msgs thru\n\
+    \melody <out>         play a melody on <out>\n\
+    \melody-thru <out>    play a melody on <out>, also relaying msgs thru\n\
     \spam <out> n         spam <out> with 'n' msgs in rapid succession\n\
     \test                 run some semi-automatic tests\n\
     \pb-range <out> n     send pitch bend range\n"
