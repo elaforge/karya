@@ -8,6 +8,7 @@
 -- in a standalone way, without a DAW and VST.
 module Synth.StreamAudio (
     streamFrom, streamFrom_
+    , streamTracks
 ) where
 import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.List as List

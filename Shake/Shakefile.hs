@@ -126,6 +126,7 @@ imPackages = concat
     [ w "hsndfile hsndfile-vector"
     , w "cryptohash-md5" -- Synth.Shared.Note.hash
     , w "resourcet"
+    , w "bindings-portaudio"
     ]
     where w = map (\p -> (p, "")) . words
 

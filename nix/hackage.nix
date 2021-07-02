@@ -27,6 +27,7 @@ let
 
   # Fix broken stuff in hackage that they just never fix.
   callHackageArgs = {
+    bindings-portaudio = { inherit (nixpkgs) portaudio; };
     # Otherwise zlib is circular because nixpkgs doesn't differentiate
     # haskell and C deps.
     zlib = { inherit (nixpkgs) zlib; };
