@@ -2,13 +2,12 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE TypeApplications #-}
 -- | Stream audio from the im cache.  Recreates play_cache's behaviour, but
 -- in a standalone way, without a DAW and VST.
 module Synth.StreamAudio (
-    streamFrom, streamFrom_
-    , streamTracks
+    play
+    , streamToSox
+    , streamToPortAudio
 ) where
 import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.List as List
@@ -21,6 +20,7 @@ import qualified System.Process as Process
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
+import qualified Util.Audio.PortAudio as PortAudio
 import qualified Util.Thread as Thread
 
 import qualified Synth.Lib.AUtil as AUtil
@@ -39,21 +39,32 @@ type Muted = Set Note.InstrumentName
 verbose :: Bool
 verbose = True
 
+useSoxBackend :: Bool
+useSoxBackend = False
+
 -- | Stream audio for the give score and block, until done or told to stop.
 --
 -- This is essentially a haskell version of TrackStreamer (Streamer.h) ->
 -- Tracks (Tracks.h)
-streamFrom :: IO () -> FilePath -> Id.BlockId -> Set Note.InstrumentName
-    -> RealTime -> IO ()
-streamFrom waitQuit scorePath blockId muted start = do
+play :: Thread.Flag -> FilePath -> Id.BlockId -> Muted -> RealTime -> IO ()
+play quit scorePath blockId muted start = do
     config <- Config.getConfig
-    streamFrom_ verbose waitQuit
-        (Config.outputDirectory (Config.imDir config) scorePath blockId)
-        muted start
+    let dir = Config.outputDirectory (Config.imDir config) scorePath blockId
+    if useSoxBackend
+        then streamToSox verbose (Thread.wait quit) dir muted start
+        else do
+            dev <- PortAudio.getDefaultOutput
+            streamToPortAudio verbose dev (Thread.poll 0 quit) dir muted start
 
-streamFrom_ :: Bool -> IO () -> FilePath -> Set Note.InstrumentName
+streamToPortAudio :: Bool -> PortAudio.Device -> IO Bool -> FilePath -> Muted
     -> RealTime -> IO ()
-streamFrom_ verbose waitQuit dir muted start =
+streamToPortAudio verbose dev pollQuit dir muted start = do
+    Resource.runResourceT . PortAudio.play pollQuit dev
+        =<< streamTracks verbose dir muted (AUtil.toFrames start)
+
+streamToSox :: Bool -> IO () -> FilePath -> Set Note.InstrumentName
+    -> RealTime -> IO ()
+streamToSox verbose waitQuit dir muted start =
     playSox verbose waitQuit
         =<< streamTracks verbose dir muted (AUtil.toFrames start)
 

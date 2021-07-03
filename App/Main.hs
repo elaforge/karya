@@ -73,6 +73,16 @@ import Global
 -- errors.
 import Cmd.Repl.Environ ()
 
+#ifdef ENABLE_IM
+import qualified Util.Audio.PortAudio as PortAudio
+
+initialize_audio :: IO a -> IO a
+initialize_audio = PortAudio.initialize
+#else
+initialize_audio :: IO a -> IO a
+initialize_audio = id
+#endif
+
 
 initialize :: (Interface.Interface -> Socket.Socket -> IO ()) -> IO ()
 initialize app = do
@@ -82,9 +92,9 @@ initialize app = do
         { state_write_msg = Log.write_json log_hdl
         , state_priority = Log.Debug
         }
-    MidiDriver.initialize "seq" want_message $ \interface -> case interface of
+    MidiDriver.initialize "karya" want_message $ \case
         Left err -> errorStack $ "initializing midi: " <> err
-        Right midi_interface -> Socket.withSocketsDo $ do
+        Right midi_interface -> initialize_audio $ Socket.withSocketsDo $ do
             midi_interface <- Interface.track_interface midi_interface
             Git.initialize $ Repl.with_socket $ app midi_interface
     where

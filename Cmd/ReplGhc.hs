@@ -5,6 +5,9 @@
 {-# LANGUAGE CPP #-} -- for BUILD_DIR
 {-# LANGUAGE MagicHash #-}
 -- | REPL implementation that directly uses the GHC API.
+--
+-- https://gitlab.haskell.org/ghc/ghc/-/wikis/commentary/compiler/api
+-- https://wiki.haskell.org/GHC/As_a_library
 module Cmd.ReplGhc (
     Session(..), make_session
     , interpreter, interpret, complete

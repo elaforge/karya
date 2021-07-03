@@ -3,9 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE DeriveFunctor #-}
-module Synth.StreamAudioMain (main, mainSox) where
+module Synth.StreamAudioMain (main) where
 import qualified Control.Concurrent.Async as Async
-import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.List as List
 import qualified Data.Set as Set
 import qualified System.Console.GetOpt as GetOpt
@@ -20,7 +19,6 @@ import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
 import qualified Perform.RealTime as RealTime
-import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.StreamAudio as StreamAudio
 
 import           Global
@@ -28,37 +26,39 @@ import           Global
 
 main :: IO ()
 main = PortAudio.initialize $ do
-    (flags, (dir, (mutes, start))) <- parseArgs =<< Environment.getArgs
+    (flags, (dir, (muted, start))) <- parseArgs =<< Environment.getArgs
     defaultDevice <- PortAudio.getDefaultOutput
     when (List `elem` flags) $ do
         devs <- PortAudio.getOutputDevices
         forM_ (map PortAudio._name devs) $ \dev ->
             putStrLn $ (if dev == PortAudio._name defaultDevice
                 then "* " else "  ") <> show dev
+        putStrLn "  \"sox\""
         Exit.exitSuccess
 
-    dev <- case [dev | Device dev <- flags] of
-        [] -> return defaultDevice
+    mbDev <- case [dev | Device dev <- flags] of
+        [] -> return $ Just defaultDevice
+        "sox" : _ -> return Nothing
         name : _ -> do
             devs <- PortAudio.getOutputDevices
-            maybe (error $ "no device named: " <> show name) return $
+            maybe (error $ "no device named: " <> show name) (return . Just) $
                 List.find ((==name) . PortAudio._name) devs
 
     quit <- Thread.flag
-    stream <- StreamAudio.streamTracks True dir mutes (AUtil.toFrames start)
     _keyboard <- Async.async $ do
         putStrLn "press return to quit"
         c <- IO.getLine
         putStrLn $ "got " <> show c <> ", asking streamer to stop"
         Thread.set quit
-    Resource.runResourceT $ PortAudio.play (Thread.poll 0 quit) dev stream
+    case mbDev of
+        Just dev -> StreamAudio.streamToPortAudio True dev (Thread.poll 0 quit)
+            dir muted start
+        Nothing -> streamSox quit dir muted start
 
-mainSox :: IO ()
-mainSox = do
-    (_flags, (dir, (mutes, start))) <- parseArgs =<< Environment.getArgs
-    quit <- Thread.flag
+streamSox :: Thread.Flag -> FilePath -> Set Text -> RealTime.RealTime -> IO ()
+streamSox quit dir muted start = do
     streamer <- Async.async $
-        StreamAudio.streamFrom_ True (Thread.wait quit) dir mutes start
+        StreamAudio.streamToSox True (Thread.wait quit) dir muted start
     putStrLn "press return to quit"
     _keyboard <- Async.async $ do
         c <- IO.getLine
@@ -83,14 +83,14 @@ parseArgs args = case GetOpt.getOpt GetOpt.Permute options args of
         | otherwise -> fmap (flags,) $ maybe (usage []) return $ case args of
             dir : args -> (dir,) <$> case args of
                 [] -> Just (mempty, 0)
-                [mutes] -> Just (parseMutes mutes, 0)
-                [mutes, start] -> (parseMutes mutes ,) . RealTime.seconds <$>
+                [muted] -> Just (parseMuted muted, 0)
+                [muted, start] -> (parseMuted muted ,) . RealTime.seconds <$>
                     Read.readMaybe start
                 _ -> Nothing
             _ -> Nothing
     (_, _, errors) -> usage errors
     where
-    parseMutes = Set.fromList . map txt . Seq.split ","
+    parseMuted = Set.fromList . map txt . Seq.split ","
     usage errors = do
         mapM_ putStrLn errors
         putStrLn "usage: stream_audio im/cache/score/path/block/id\

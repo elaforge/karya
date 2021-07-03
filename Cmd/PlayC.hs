@@ -79,7 +79,12 @@ cmd_play_msg ui_chan msg = do
         Transport.Playing -> set_all_play_boxes Config.play_color
         -- Either the performer has declared itself stopped, or the play
         -- monitor has declared it stopped.  In any case, I don't need
-        -- a transport to tell it what to do anymore.
+        -- a transport to tell it what to do anymore.  Note that I just forget
+        -- about the the play_ctl, I don't mark it stopped.  This is because
+        -- Transport.Stopped comes out when I run out of score to play, but
+        -- I may well still be playing the decay of the last note, so I don't
+        -- want to send a stop to cut it off.  For MIDI that probably has
+        -- no effect anyway, but it would cut off play_cache or play_im_direct.
         Transport.Stopped -> do
             Cmd.modify_play_state $ \st ->
                 st { Cmd.state_play_control = Nothing }
@@ -364,8 +369,14 @@ play :: Fltk.Channel -> Ui.State -> Transport.Info -> Cmd.PlayMidiArgs
 play ui_chan ui_state transport_info
         (Cmd.PlayMidiArgs mmc name msgs maybe_inv_tempo repeat_at im_end
             play_im_direct) = do
-    (play_ctl, monitor_ctl) <-
-        Midi.Play.play transport_info mmc name msgs repeat_at
+    play_ctl <- Transport.play_control
+    monitor_ctl <- Transport.play_monitor_control
+    let midi_state = Midi.Play.State
+            { _play_control = play_ctl
+            , _monitor_control = monitor_ctl
+            , _info = transport_info
+            }
+    Midi.Play.play midi_state mmc name msgs repeat_at
     -- Pass the current state in the MVar.  ResponderSync will keep it up
     -- to date afterwards, but only if blocks are added or removed.
     MVar.modifyMVar_ (Transport.info_state transport_info) $
@@ -386,10 +397,10 @@ play ui_chan ui_state transport_info
 -- says to stop.
 play_im_direct_thread :: Transport.PlayControl -> Cmd.PlayDirectArgs -> IO ()
 #ifdef ENABLE_IM
-play_im_direct_thread play_ctl
+play_im_direct_thread (Transport.PlayControl quit)
         (Cmd.PlayDirectArgs score_path block_id muted start) =
-    StreamAudio.streamFrom (Transport.wait_stop_player play_ctl)
-        score_path block_id (Set.map ScoreT.instrument_name muted) start
+    StreamAudio.play quit score_path block_id
+        (Set.map ScoreT.instrument_name muted) start
 #else
 play_im_direct_thread _ _ =
     errorIO "can't play_im_direct_thread when im is not linked in"

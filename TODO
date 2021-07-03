@@ -1944,11 +1944,20 @@ instruments:
 synth: im:
   StreamAudio directly to remove DAW + VST requirement
     . I could do automatically if there's no play-cache instrument.
-    - via coreaudio
-    - via jack
+    * via coreaudio
+    * via jack
     . Is there a cross-platform play audio package on hackage?
     . https://hackage.haskell.org/package/bindings-portaudio
     . Or, write to JACK, though that requires having JACK setup...
+    - What happens when it's still playing the tail and I play something else?
+      Does it open simultaneous streams?
+      . Yes, it doesn't close.
+      . Space sends a post-stop stop to play_cache, right?  Can that also send
+        to direct play?
+      . What happens to transport_ctl?  It gets forgotten on Transport.Stop.
+      . I could save it and set to stopped, but seems safer to have a global.
+    ? Does the blocking API write enough in advance that I don't have to
+      worry about mixing a lot of tracks?
   performance:
     - event loop hiccups when editing IM
       . use events to find who is causing it

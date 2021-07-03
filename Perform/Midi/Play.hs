@@ -4,7 +4,7 @@
 
 -- | This module is responsible for actually scheduling MIDI messages with the
 -- OS's MIDI driver.
-module Perform.Midi.Play (play, cycle_messages) where
+module Perform.Midi.Play (State(..), play, cycle_messages) where
 import qualified Control.Exception as Exception
 import qualified Data.Maybe as Maybe
 
@@ -24,22 +24,30 @@ import Global
 import Types
 
 
+-- | Access to info that's needed by a particular run of the player.
+-- This is read-only, and shouldn't need to be modified.
+data State = State {
+    -- | Communicate into the Player.
+    _play_control :: !Transport.PlayControl
+    , _monitor_control :: !Transport.PlayMonitorControl
+    , _info :: !Transport.Info
+    }
+
 type Messages = [LEvent.LEvent Midi.WriteMessage]
 
 -- | Start a thread to stream a list of WriteMessages, and return
 -- a Transport.Control which can be used to stop and restart the player.
-play :: Transport.Info -> Maybe Cmd.SyncConfig -> Text -> Messages
+play :: State -> Maybe Cmd.SyncConfig -> Text -> Messages
     -> Maybe RealTime
     -- ^ If given, loop back to the beginning when this time is reached.
-    -> IO (Transport.PlayControl, Transport.PlayMonitorControl)
-play transport_info sync name msgs repeat_at = do
-    state <- make_state transport_info
-    now <- Transport.info_get_current_time transport_info
+    -> IO ()
+play state sync name msgs repeat_at = do
+    now <- Transport.info_get_current_time (_info state)
     Thread.startLogged "render midi" $
         -- Don't send MMC if I'm repeating, it'll just confuse the DAW.
         player_thread (if Maybe.isJust repeat_at then Nothing else sync) now
             name state (process now repeat_at msgs)
-    return (state_play_control state, state_monitor_control state)
+    return ()
     where
     -- Catch msgs up to realtime and cycle them if I'm repeating.
     process now repeat_at = shift_messages now . cycle_messages repeat_at
@@ -54,13 +62,13 @@ player_thread maybe_sync start name state msgs = do
         _ -> return ()
     play_loop state msgs
         `Exception.catch` \(exc :: Exception.SomeException) ->
-            Transport.info_send_status (state_info state)
+            Transport.info_send_status (_info state)
                 (Transport.Died (show exc))
     case maybe_sync of
         Just sync | not (Cmd.sync_mtc sync) ->
             state_write_midi state $ make_mmc sync start Mmc.Stop
         _ -> return ()
-    Transport.player_stopped (state_monitor_control state)
+    Transport.player_stopped (_monitor_control state)
     Log.debug $ "play complete: " <> name
 
 make_mmc :: Cmd.SyncConfig -> RealTime -> Mmc.Mmc -> Midi.WriteMessage
@@ -84,32 +92,13 @@ shift_messages ts = map (fmap (Midi.add_timestamp ts))
 
 -- * loop
 
--- | Access to info that's needed by a particular run of the player.
--- This is read-only, and shouldn't need to be modified.
-data State = State {
-    -- | Communicate into the Player.
-    state_play_control :: !Transport.PlayControl
-    , state_monitor_control :: !Transport.PlayMonitorControl
-    , state_info :: !Transport.Info
-    }
-
-make_state :: Transport.Info -> IO State
-make_state info = do
-    play_control <- Transport.play_control
-    monitor_control <- Transport.play_monitor_control
-    return $ State
-        { state_play_control = play_control
-        , state_monitor_control = monitor_control
-        , state_info = info
-        }
-
 -- | 'play_loop' tries to not get too far ahead of now both to avoid flooding
 -- the midi driver and so a stop will happen fairly quickly.
 write_ahead :: RealTime
 write_ahead = RealTime.seconds 1
 
 state_write :: State -> Interface.Message -> IO ()
-state_write state = Transport.info_midi_writer (state_info state)
+state_write state = Transport.info_midi_writer (_info state)
 
 state_write_midi :: State -> Midi.WriteMessage -> IO ()
 state_write_midi state = state_write state . Interface.Midi
@@ -120,7 +109,7 @@ play_loop :: State -> Messages -> IO ()
 play_loop state msgs = do
     -- This should make the buffer always be between write_ahead*2 and
     -- write_ahead ahead of now.
-    now <- Transport.info_get_current_time (state_info state)
+    now <- Transport.info_get_current_time (_info state)
     let until = now + RealTime.mul write_ahead 2
     let (chunk, rest) =
             span (LEvent.either ((<until) . Midi.wmsg_ts) (const True)) msgs
@@ -133,11 +122,11 @@ play_loop state msgs = do
                 - now
             else write_ahead
     stop <- Transport.poll_stop_player (RealTime.to_diff timeout)
-        (state_play_control state)
+        (_play_control state)
     let reset_midi = state_write state (Interface.AllNotesOff now)
     case (stop, rest) of
         (True, _) -> do
-            Transport.info_midi_abort (state_info state)
+            Transport.info_midi_abort (_info state)
             reset_midi
         -- I used to reset when MIDI ran out, and previously was correct
         -- because it only sent specific note offs, but if I use a real
