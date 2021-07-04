@@ -2,11 +2,17 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveFunctor #-}
 -- | This ties together the lower level tscore components.
 --
 -- Parse tscore, check and postprocess it, convert to Ui.State, and integrate.
-module Derive.TScore.TScore where
+module Derive.TScore.TScore (
+    cmd_integrate
+#ifdef TESTING
+    , module Derive.TScore.TScore
+#endif
+) where
 import qualified Control.Monad.Identity as Identity
 import qualified Data.Either as Either
 import qualified Data.List as List

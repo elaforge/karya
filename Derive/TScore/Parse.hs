@@ -2,8 +2,19 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 -- | Parse the tscore language.
-module Derive.TScore.Parse where
+module Derive.TScore.Parse (
+    -- * Parse
+    parse_score
+    , default_call, default_namespace
+    , show_block, show_block_track
+    -- ** Note
+    , dot_note, tie_note
+#ifdef TESTING
+    , module Derive.TScore.Parse
+#endif
+) where
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Text as Text
