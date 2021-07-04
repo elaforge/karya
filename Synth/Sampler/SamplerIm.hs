@@ -61,7 +61,7 @@ main :: IO ()
 main = do
     -- There will be one open file per overlapping sample, and instruments
     -- render in parallel.
-    Limit.set Limit.ResourceOpenFiles 2048
+    Limit.set Limit.ResourceOpenFiles 4096
     args <- Environment.getArgs
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
         (flags, args, []) -> return (flags, args)

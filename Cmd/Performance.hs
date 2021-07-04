@@ -22,6 +22,7 @@ import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Vector as Vector
 
@@ -347,8 +348,8 @@ watch_subprocesses root_block_id make_status send_status procs
             return (procs, failed || failure)
         Processes.Exit code -> do
             when (code /= Processes.ExitCode 0) $
-                Log.warn $ "subprocess " <> txt cmd <> " "
-                    <> showt args <> " returned " <> showt code
+                Log.warn $ "subprocess failed with " <> showt code <> ": "
+                    <> Text.unwords (map txt (cmd : args))
             return (Set.delete (cmd, args) procs, failure)
 
     progress line = case Config.parseMessage line of
