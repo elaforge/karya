@@ -753,14 +753,20 @@ configure = do
             -- { define = ["-DMAC_OS_X_VERSION_MAX_ALLOWED=1060",
             --     "-DMAC_OS_X_VERSION_MIN_REQUIRED=1050"]
             { define = ["-D__APPLE__"]
-            , midiLd = if midi /= CoreMidi then []
-                else frameworks ["CoreFoundation", "CoreMIDI", "CoreAudio"]
+            , midiLd = if midi == CoreMidi
+                then frameworks ["CoreFoundation", "CoreMIDI", "CoreAudio"]
+                else []
             -- librubberband uses this.  TODO I really need modular libraries!
             , hLinkFlags = if not (Config.enableIm localConfig) then []
                 else frameworks ["Accelerate"]
             }
         Util.Linux -> mempty
-            { midiLd = if midi /= JackMidi then [] else ["-ljack"]
+            { midiLd = if midi == JackMidi || Config.enableIm localConfig
+                -- -ljack is needed for PortAudio.initialize, or it will fail
+                -- with errors like "Client name conflicts with another running
+                -- client".  Why must jack be so unfriendly?
+                then ["-ljack"]
+                else []
             , define = ["-D__linux__"]
             }
     run cmd args = strip <$> Process.readProcess cmd args ""
