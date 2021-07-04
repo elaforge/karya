@@ -51,8 +51,7 @@ main = PortAudio.initialize $ do
         putStrLn $ "got " <> show c <> ", asking streamer to stop"
         Thread.set quit
     case mbDev of
-        Just dev -> StreamAudio.streamToPortAudio True dev (Thread.poll 0 quit)
-            dir muted start
+        Just dev -> StreamAudio.streamToPortAudio True dev quit dir muted start
         Nothing -> streamSox quit dir muted start
 
 streamSox :: Thread.Flag -> FilePath -> Set Text -> RealTime.RealTime -> IO ()

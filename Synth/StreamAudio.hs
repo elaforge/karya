@@ -9,6 +9,7 @@ module Synth.StreamAudio (
     , streamToSox
     , streamToPortAudio
 ) where
+import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.List as List
 import qualified Data.Set as Set
@@ -16,6 +17,7 @@ import qualified System.Directory as Directory
 import qualified System.Exit as Exit
 import           System.FilePath ((</>))
 import qualified System.IO as IO
+import qualified System.IO.Unsafe as Unsafe
 import qualified System.Process as Process
 
 import qualified Util.Audio.Audio as Audio
@@ -44,6 +46,9 @@ useSoxBackend = False
 
 -- | Stream audio for the give score and block, until done or told to stop.
 --
+-- The audio backend is hardcoded, but perhaps I should get one from
+-- StaticConfig.
+--
 -- This is essentially a haskell version of TrackStreamer (Streamer.h) ->
 -- Tracks (Tracks.h)
 play :: Thread.Flag -> FilePath -> Id.BlockId -> Muted -> RealTime -> IO ()
@@ -54,13 +59,26 @@ play quit scorePath blockId muted start = do
         then streamToSox verbose (Thread.wait quit) dir muted start
         else do
             dev <- PortAudio.getDefaultOutput
-            streamToPortAudio verbose dev (Thread.poll 0 quit) dir muted start
+            streamToPortAudio verbose dev quit dir muted start
 
-streamToPortAudio :: Bool -> PortAudio.Device -> IO Bool -> FilePath -> Muted
-    -> RealTime -> IO ()
-streamToPortAudio verbose dev pollQuit dir muted start = do
-    Resource.runResourceT . PortAudio.play pollQuit dev
+streamToPortAudio :: Bool -> PortAudio.Device -> Thread.Flag -> FilePath
+    -> Muted -> RealTime -> IO ()
+streamToPortAudio verbose dev quit dir muted start = do
+    MVar.modifyMVar_ currentlyPlaying $ \prevQuit -> do
+        whenJust prevQuit Thread.set
+        return $ Just quit
+    Resource.runResourceT . PortAudio.play (Thread.poll 0 quit) dev
         =<< streamTracks verbose dir muted (AUtil.toFrames start)
+
+-- | Stash the previous quit flag so I can turn it off when I get a new play
+-- request.  Even though both CoreAudio and JACK seem to be ok with multiple
+-- streams, I don't want them anyway.
+--
+-- The audio card is a global resource so I feel ok about making this a global
+-- variable.
+{-# NOINLINE currentlyPlaying #-}
+currentlyPlaying :: MVar.MVar (Maybe Thread.Flag)
+currentlyPlaying = Unsafe.unsafePerformIO $ MVar.newMVar Nothing
 
 streamToSox :: Bool -> IO () -> FilePath -> Set Note.InstrumentName
     -> RealTime -> IO ()
