@@ -350,6 +350,7 @@ hsBinaries =
     , plain "show_timers" "LogView/ShowTimers.hs"
     , plain "stream_audio" "Synth/StreamAudioMain.hs"
     , plain "test_midi" "Midi/TestMidi.hs"
+    , plain "tscore" "Derive/TScore/TScoreMain.hs"
     , plain "update" "App/Update.hs"
     , (plain "verify_performance" "App/VerifyPerformance.hs")
         { hsRtsFlags = ["-N", "-A8m"] }

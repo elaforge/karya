@@ -10,6 +10,7 @@ module Cmd.Simple where
 import qualified Data.Map as Map
 import qualified Data.Tree as Tree
 
+import qualified Util.Pretty as Pretty
 import qualified App.Config as Config
 import qualified Cmd.Clip as Clip
 import qualified Cmd.Cmd as Cmd
@@ -75,6 +76,12 @@ type WriteDevice = Text
 
 data Allocation = Midi [(WriteDevice, Midi.Channel)] | Dummy | Im
     deriving (Eq, Show)
+
+instance Pretty Allocation where
+    format = \case
+        Midi allocs -> Pretty.constructor "Midi" [Pretty.format allocs]
+        Dummy -> "Dummy"
+        Im -> "Im"
 
 from_score :: ScoreTime -> Double
 from_score = ScoreTime.to_double

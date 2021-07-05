@@ -62,6 +62,8 @@ data Config = Config {
     -- | Use negative durations.  Notes arrive at beats instead of departing
     -- from them.
     , config_negative :: !Bool
+    , config_instruments :: ![T.Allocation]
+    , config_ky :: !Text
     } deriving (Show)
 
 -- | The target of a 'T.CopyFrom'.
@@ -82,6 +84,8 @@ default_config = Config
     , config_duration = Multiplicative
     , config_from = Nothing
     , config_negative = False
+    , config_instruments = []
+    , config_ky = ""
     }
 
 parse_directives :: Scope -> Config -> [T.Directive] -> Either T.Error Config
@@ -105,15 +109,45 @@ parse_directive scope (T.Directive pos name maybe_val) config =
         "negative" -> without_arg >> return (config { config_negative = True })
         "scale" -> set_config (\c a -> c { config_scale = a })
             (`Map.lookup` scale_map) =<< with_arg
+        "instruments" -> do
+            require_toplevel
+            unless (null (config_instruments config)) $
+                Left "should only be one %instruments"
+            val <- with_arg
+            allocs <- parse_instruments val
+            return $ config { config_instruments = allocs }
+        "ky" -> do
+            require_toplevel
+            unless (config_ky config == "") $
+                Left "should only be one %ky"
+            set_config (\c a -> c { config_ky = a }) Just =<< with_arg
         -- default_call affects parsing, so I don't handle it here, but
         -- I can make sure it doesn't have an argument.
         _ | name == Parse.default_call -> without_arg >> Right config
         _ -> Left $ "unknown directive: " <> name
     where
+    require_toplevel = case scope of
+        Global -> return ()
+        _ -> Left "must be at global scope"
     with_arg = tryJust "expected arg" maybe_val
     without_arg = maybe (Right ()) (Left . ("unexpected arg: "<>)) maybe_val
     set_config setter parse val = fmap (setter config) (lookup parse val)
     lookup parse val = tryJust ("unknown " <> name <> ": " <> val) (parse val)
+
+parse_instruments :: Text -> Either Text [T.Allocation]
+parse_instruments val = do
+    allocs <- mapM parse $ filter ((/="") . snd) $
+        map (second Text.strip) $ zip [1..] $ Text.lines val
+    let dups = map head $ filter ((>1) . length) $ Seq.group_sort id $
+            map alloc_name allocs
+    unless (null dups) $
+        Left $ "duplicate instrument definitions: "
+            <> Text.unwords dups
+    return allocs
+    where
+    alloc_name (T.Allocation inst _ _) = inst
+    parse (n, s) = first ((("alloc " <> showt n <> ": ") <>) . txt) $
+        Parse.parse_allocation s
 
 parse_from :: Scope -> T.Pos -> Text -> Either Text From
 parse_from scope pos arg = case scope of
@@ -174,7 +208,7 @@ check :: GetCallDuration -> Config
             (T.Time, T.Note T.CallText (T.NPitch (Maybe T.PitchText)) T.Time)]
        , T.Time
        )
-check get_dur (Config meter scale dur_mode _ negative) =
+check get_dur (Config meter scale dur_mode _ negative _instruments _ky) =
     Tuple.swap
     . fmap (map EList.toEither)
     . fmap (resolve_pitch scale)

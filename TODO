@@ -6504,6 +6504,18 @@ text score: tscore:
       suffix 2 to double duration, or :2 to halve it, instead of the __ thing.
   https://github.com/werckme/werckmeister
     . lilypond but with lua transformers
+  standalone:
+    . now that I have im and direct play, can I make a headless version?
+    . Standalone parse, render, play.
+    . But also I need a ky file, and instrument definitions.
+      . Maybe nix-style '' strings for embedded ky?
+    . But I can dispense with integration.
+    * parse and check ky and instrument
+      - check that they don't exist for integrate
+    - derive to Performance
+      . Incorporate instruments and ky.
+    - play MIDI
+    - stream im audio
   bug:
     - if I delete a block, I get
       keys collided in "state_blocks": [(bid "faust/test")]

@@ -23,8 +23,9 @@ import           Types
 import           Util.Test
 
 
-test_ui_state = do
-    let f = fmap UiTest.extract_blocks . TScore.ui_state get_ext_dur
+test_parse_score :: Test
+test_parse_score = do
+    let f = fmap UiTest.extract_blocks . TScore.parse_score
 
     right_equal (f "top = \"block title\" [s r g]")
         [ ( "top -- block title"
@@ -67,9 +68,9 @@ test_ui_state = do
         , ("top-t1c1", UiTest.note_track1 ["4s"])
         ]
 
+test_copy_from :: Test
 test_copy_from = do
-    let f = fmap (lookup "b1" . UiTest.extract_blocks)
-            . TScore.ui_state get_ext_dur
+    let f = fmap (lookup "b1" . UiTest.extract_blocks) . TScore.parse_score
     let track = Just . UiTest.note_track1
         tracks = Just . concatMap UiTest.note_track1
     left_like (f "%f=x\nb1 = [s]") "can't use at global scope"
@@ -99,7 +100,7 @@ test_copy_from = do
     left_like (f "b1 = [> %f=2 ^ r > %f=1 ^ m]") "recursive %f"
 
 test_assert_coincident = do
-    let f = fmap (const ()) . TScore.ui_state get_ext_dur
+    let f = fmap (const ()) . TScore.parse_score
     left_like (f "top = [s r > g ; m]") "got unexpected assert"
     left_like (f "top = [s ; r > g m]") "expected assert here"
     right_equal (f "top = [s ; r > g ; m]") ()
@@ -111,7 +112,7 @@ test_assert_coincident = do
     right_equal (f "top = [>! s r ; g > s]") ()
 
 test_wrapped_tracks = do
-    let f = fmap UiTest.extract_blocks . TScore.ui_state get_ext_dur
+    let f = fmap UiTest.extract_blocks . TScore.parse_score
     right_equal (f "top = [s r > g m] [p d > n s]")
         [ ("top", concat
             [ UiTest.note_track1 ["4g", "4m", "4n", "5s"]
@@ -140,7 +141,7 @@ test_ui_skeleton = do
     equal (f [nt 2, nt 1, nt 2]) [(1, 2), (4, 5)]
 
 test_call_duration = do
-    let f = fmap UiTest.extract_blocks . TScore.ui_state get_ext_dur
+    let f = fmap UiTest.extract_blocks . TScore.parse_score
     let b_block = ("b", UiTest.note_track [(0, 1, "4s"), (1, 1, "4r")])
     right_equal (f "a = [b/]\nb = [s r]")
         [ ("a", [(">", [(0, 1, "b")])])
@@ -354,7 +355,7 @@ test_integrate_sub_block = do
         ]
 
 test_check_unique_track_keys = do
-    let f = fmap (const ()) . TScore.ui_state get_ext_dur
+    let f = fmap (const ()) . TScore.parse_score
     right_equal (f "b1 = [>!i1 s >@i1 r]") ()
     right_equal (f "b1 = [>i1 s >i2 r]") ()
     left_like (f "b1 = [>i1 s >i1 r]") "non-unique track key"

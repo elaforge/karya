@@ -10,6 +10,8 @@ import qualified Derive.TScore.Parse as Parse
 import qualified Derive.TScore.T as T
 import qualified Derive.TScore.TScore as TScore
 
+import qualified Instrument.InstTypes as InstTypes
+import qualified Midi.Midi as Midi
 import qualified Ui.Id as Id
 
 import           Global
@@ -22,6 +24,10 @@ everything_score =
     \-- Toplevel directives apply to everything below them.\n\
     \-- The supported directives are in 'Check.parse_directive'.\n\
     \%meter=adi\n\
+    \%instruments=''\n\
+    \    >i1 a/b loop0 1\n\
+    \    >i2 c/d\n\
+    \''\n\
     \-- Optional per-block directives, and quoted block title.\n\
     \block1 = %scale=sargam \"block1 title\" [\n\
     \    -- Tracks start with a track title, which should start with >. It\n\
@@ -61,6 +67,7 @@ everything_score =
     \    +pizz[s]/1 | \"+pizz | harm\"[g]/\n\
     \]\n"
 
+test_score :: Test
 test_score = do
     let f = second unparse . parse @T.Score
     let score =
@@ -84,6 +91,7 @@ test_score = do
     equal normalized (f =<< normalized)
     putStrLn $ either id untxt normalized
 
+test_default_call :: Test
 test_default_call = do
     let f = fmap (\(T.Score defs) -> defs) . parse
 
@@ -116,6 +124,7 @@ e_score_tokens defs = concat
     | T.BlockDefinition block <- map snd defs
     ]
 
+test_p_whitespace :: Test
 test_p_whitespace = do
     let f = Parse.parse_text Parse.p_whitespace
     left_like (f "   a") "unexpected"
@@ -126,6 +135,7 @@ test_p_whitespace = do
     right_equal (f " -- hi\n") ()
     right_equal (f " -- hi\n   -- there") ()
 
+test_pos :: Test
 test_pos = do
     let f = fmap (\(T.Score defs) -> defs) . parse
     let score =
@@ -154,6 +164,7 @@ test_pos = do
     show_pos 68
     equal (map T.note_pos $ mapMaybe note_of tokens) [T.Pos 66, T.Pos 68]
 
+test_roundtrip :: Test
 test_roundtrip = do
     roundtrip (Proxy @Id.BlockId) "block1"
     roundtrip (Proxy @Id.BlockId) "x/a"
@@ -168,6 +179,7 @@ test_roundtrip = do
     roundtrip p ">!a b"
     roundtrip p ">!\"a b\" q"
 
+test_tracks_wrapped :: Test
 test_tracks_wrapped = do
     let f = fmap extract . parse
         extract (T.WrappedTracks _ wrapped) =
@@ -188,6 +200,7 @@ test_tracks_wrapped = do
         , [T.Track "" ">i1" [] [] no_pos, T.Track "" ">i2" [] [] no_pos]
         ]
 
+test_tracks :: Test
 test_tracks = do
     let f = fmap (map strip_track . T.untracks) . parse @(T.Tracks T.Call)
     right_equal (f "[s]") [T.Track "" "" [] [pnote0 "s"] no_pos]
@@ -200,6 +213,7 @@ test_tracks = do
         , T.Track "" "> | t" [] [pnote0 "r"] no_pos
         ]
 
+test_track :: Test
 test_track = do
     let parse_track = fmap extract . parse
         extract (T.Track _ title _ tokens _) = (title, map strip_pos tokens)
@@ -235,12 +249,14 @@ test_track = do
         [ tnote (sub "a" [tnote "" no_oct "b" no_dur]) no_oct "" no_dur
         ]
 
+test_track_key :: Test
 test_track_key = do
     let f = fmap extract . parse @(T.Track T.Call)
         extract t = (T.track_key t, T.track_title t)
     right_equal (f ">a b") ("", ">a")
     right_equal (f ">!@#a b") ("!@#", ">a")
 
+test_track_directives :: Test
 test_track_directives = do
     let f = fmap extract . parse @(T.Track T.Call)
         extract (T.Track _ title dirs tokens _) =
@@ -249,6 +265,7 @@ test_track_directives = do
     right_equal (f "> %a %b=c d")
         (">", [("a", Nothing), ("b", Just "c")], [pnote0 "d"])
 
+test_token :: Test
 test_token = do
     let f = fmap strip_pos . parse
     left_like (f "") "unexpected end of input"
@@ -274,6 +291,7 @@ test_token = do
     right_equal (f "^") $ T.TNote no_pos $
         Parse.empty_note { T.note_pitch = T.CopyFrom }
 
+test_token_sub_block :: Test
 test_token_sub_block = do
     let f = fmap strip_pos . parse
         pitch p dur = tnote "" no_oct p dur
@@ -302,6 +320,7 @@ test_token_sub_block = do
         (subs "a" [[("", [pitch "b" no_dur])], [("", [pitch "c" no_dur])]])
         no_oct "" no_dur
 
+test_token_roundtrip :: Test
 test_token_roundtrip = do
     -- Lots of things can roundtrip but still not parse correctly, so this is
     -- not as good as 'test_token'.
@@ -318,6 +337,29 @@ test_token_roundtrip = do
     roundtrip p "a[b][c]/"
     roundtrip p "^"
     roundtrip p "^8"
+
+test_p_multi_string :: Test
+test_p_multi_string = do
+    let f = Parse.parse_text Parse.p_multi_string
+    right_equal (f "''hi''") "hi"
+    right_equal (f "''hi'the're''") "hi'the're"
+    right_equal (f "''\n\
+        \  hi\n\
+        \  there\n\
+        \''") "hi\nthere"
+
+test_parse_allocation :: Test
+test_parse_allocation = do
+    let f = Parse.parse_allocation
+    right_equal (f ">i syn/p") $
+        T.Allocation "i" (InstTypes.Qualified "syn" "p") T.Im
+    let loop1 = Midi.write_device "loop1"
+    right_equal (f ">i syn/ loop1 1 2") $
+        T.Allocation "i" (InstTypes.Qualified "syn" "") $
+        T.Midi [(loop1, 0), (loop1, 1)]
+    left_like (f ">i syn/ loop1 0") "should be in range"
+    left_like (f ">i syn/ loop1") "unexpected"
+    left_like (f ">i syn/ loop1 x") "unexpected"
 
 -- * implementation
 

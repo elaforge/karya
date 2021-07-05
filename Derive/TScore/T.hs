@@ -12,6 +12,8 @@ import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
+import qualified Instrument.InstTypes as InstTypes
+import qualified Midi.Midi as Midi
 import qualified Ui.Id as Id
 
 import           Global
@@ -67,6 +69,13 @@ data Track call = Track {
     } deriving (Eq, Show)
 
 data Directive = Directive !Pos !Text !(Maybe Text)
+    deriving (Eq, Show)
+
+-- This is the same as Simple.Allocations
+data Allocation = Allocation Instrument InstTypes.Qualified Backend
+    deriving (Eq, Show)
+type Instrument = Text
+data Backend = Midi [(Midi.WriteDevice, Midi.Channel)] | Im
     deriving (Eq, Show)
 
 data Token call pitch ndur rdur =

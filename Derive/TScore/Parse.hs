@@ -7,6 +7,7 @@
 module Derive.TScore.Parse (
     -- * Parse
     parse_score
+    , parse_allocation
     , default_call, default_namespace
     , show_block, show_block_track
     -- ** Note
@@ -21,11 +22,14 @@ import qualified Data.Text as Text
 import qualified Data.Void as Void
 
 import qualified Util.Control as Control
+import qualified Util.Num as Num
 import qualified Util.P as P
 import           Util.P ((<?>))
 import qualified Util.Parse as Parse
 
 import qualified Derive.TScore.T as T
+import qualified Instrument.InstTypes as InstTypes
+import qualified Midi.Midi as Midi
 import qualified Ui.Id as Id
 
 import           Global
@@ -188,8 +192,57 @@ instance Element T.Directive where
         P.char '%'
         T.Directive pos
             <$> P.takeWhile1 (not_in "=")
-            <*> P.optional (P.char '=' *> P.takeWhile1 (not_in ""))
-    unparse _ (T.Directive _ lhs rhs) = "%" <> lhs <> maybe "" ("="<>) rhs
+            <*> P.optional (P.char '=' *> p_directive_value)
+    unparse _ (T.Directive _ lhs rhs) = "%" <> lhs
+        <> maybe "" (("="<>) . unparse_directive_value) rhs
+
+p_directive_value :: Parser Text
+p_directive_value = p_multi_string <|> p_word
+
+unparse_directive_value :: Text -> Text
+unparse_directive_value val
+    | Text.any Char.isSpace val = "''\n" <> val <> "\n''"
+    | otherwise = val
+
+p_multi_string :: Parser Text
+p_multi_string = "''" *> contents <* "''"
+    where
+    contents = dedent . Text.intercalate "'" <$>
+        ((:) <$> content <*> P.many chunk)
+    content = P.takeWhile1 (/='\'')
+    -- TODO this is inefficient, surely there's a way to takeWhile but look at
+    -- the next char?
+    chunk = P.try $ "'" *> P.takeWhile1 (/='\'')
+
+parse_allocation :: Text -> Either String T.Allocation
+parse_allocation = parse_text p_allocation
+
+-- |
+-- > >pno pianoteq/ loop1 0 1 2
+-- > >tmb faust/tambura4
+p_allocation :: Parser T.Allocation
+p_allocation = T.Allocation
+    <$> (lexeme $ ">" *> p_word)
+    <*> (lexeme $ InstTypes.parse_qualified <$> p_word)
+    <*> p_backend
+
+p_backend :: Parser T.Backend
+p_backend = (P.eof *> pure T.Im)
+    <|> p_midi <$> lexeme (Midi.write_device <$> p_word)
+        <*> P.some (lexeme p_chan)
+    where
+    p_midi dev chans = T.Midi $ map (dev,) chans
+    p_chan = do
+        chan <- Parse.p_nat
+        if Num.inRange 1 17 chan then return $ fromIntegral (chan - 1)
+            else fail $ "midi channel should be in range 1--16: " <> show chan
+
+dedent :: Text -> Text
+dedent t = Text.strip $ case Text.lines (Text.dropWhile (=='\n') t) of
+    [] -> ""
+    x : xs -> Text.unlines (map (strip indent) (x:xs))
+        where indent = Text.takeWhile Char.isSpace x
+    where strip pref s = fromMaybe s $ Text.stripPrefix pref s
 
 type Token = T.Token T.Call (T.NPitch T.Pitch) T.NDuration T.Duration
 
@@ -465,6 +518,9 @@ instance Element T.Duration where
         ]
 
 -- ** util
+
+p_word :: Parser Text
+p_word = P.takeWhile1 (not_in "")
 
 p_whitespace :: Parser ()
 p_whitespace = void $ P.skipMany $ P.space1 <|> p_comment

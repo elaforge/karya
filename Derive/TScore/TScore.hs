@@ -9,6 +9,7 @@
 -- Parse tscore, check and postprocess it, convert to Ui.State, and integrate.
 module Derive.TScore.TScore (
     cmd_integrate
+    , parse_score
 #ifdef TESTING
     , module Derive.TScore.TScore
 #endif
@@ -215,6 +216,8 @@ partition_errors = first concat . unzip . map partition_block
 
 -- | Get the duration of a block call from the tracklang performance, not
 -- tscore.
+--
+-- transformers -> call -> (duration, logs)
 type GetExternalCallDuration =
     [Text] -> Text -> (Either Error TrackTime, [Log.Msg])
 
@@ -579,8 +582,12 @@ source_key = "tscore"
 
 -- * ui_state
 
-ui_state :: GetExternalCallDuration -> Text -> Either Error Ui.State
-ui_state get_ext_dur source = do
+parse_score :: Text -> Either Error Ui.State
+parse_score = score_to_ui get_ext_dur
+    where get_ext_dur _ _ = (Left "external call duration not supported", [])
+
+score_to_ui :: GetExternalCallDuration -> Text -> Either Error Ui.State
+score_to_ui get_ext_dur source = do
     blocks <- track_blocks (UiConfig.config_namespace UiConfig.empty_config)
         get_ext_dur source
     first pretty $ Ui.exec Ui.empty $ mapM_ ui_block blocks

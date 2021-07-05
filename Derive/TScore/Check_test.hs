@@ -20,6 +20,18 @@ import qualified Ui.UiTest as UiTest
 import           Global
 
 
+test_parse_directive :: Test
+test_parse_directive = do
+    let f = fmap UiTest.extract_blocks . TScore.parse_score
+    left_like (f "%instruments=''>i a/b loop1 17''")
+        "alloc 1: *midi channel should be in range"
+    left_like (f "%instruments=''>i a/b''\n%instruments=''>i a/b''")
+        "should only be one"
+    left_like (f "%instruments=''>i a/b\n>i a/b''")
+        "duplicate instrument definitions: i"
+    left_like (f "block  = %instruments=''>i a/b'' []") "must be at global"
+
+test_check :: Test
 test_check = do
     let f = map extract . check config . parse
         config = Check.default_config
@@ -31,6 +43,7 @@ test_check = do
         , Right (2, ("din", Nothing, 1))
         ]
 
+test_resolve_pitch :: Test
 test_resolve_pitch = do
     let f = map extract . check Check.default_config . parse
         extract = fmap $ fromMaybe "" . T.note_pitch . snd
@@ -49,8 +62,9 @@ test_resolve_pitch = do
     equal (f "5s 4 r") [Right "5s", Right "", Right "5r"]
 
 -- TODO implement this
+_test_carry_sub_block :: Test
 _test_carry_sub_block = do
-    let f = fmap UiTest.extract_blocks . TScore.ui_state get_ext_dur
+    let f = fmap UiTest.extract_blocks . TScore.parse_score
     -- duration and pitch get carried into sub-blocks
     right_equal (f "b = [1s2 [r]/]")
         [ ("b", UiTest.note_track [(0, 0.5, "1s"), (0.5, 0.5, "-t1c1 --")])
@@ -63,6 +77,7 @@ _test_carry_sub_block = do
         , ("b-t1c1b", UiTest.note_track [(0, 0.5, "1g")])
         ]
 
+test_resolve_repeats :: Test
 test_resolve_repeats = do
     let f = map (bimap pretty extract) . check Check.default_config . parse
         extract = strip_note . snd
@@ -77,6 +92,7 @@ test_resolve_repeats = do
     equal (f "4s4~ . .") [sa (2/4), sa (1/4)]
     equal (f ".") [Left "0: repeat with no previous note"]
 
+test_resolve_pitch_twelve :: Test
 test_resolve_pitch_twelve = do
     let f = map extract . check config . parse
         config = Check.default_config
@@ -98,6 +114,7 @@ mk_note call pitch dur = T.Note
     , note_pos = T.Pos 0
     }
 
+test_resolve_time :: Test
 test_resolve_time = do
     let f = second extract . Check.resolve_time . Check.multiplicative
             . parse_cdur
@@ -116,8 +133,9 @@ test_resolve_time = do
     equal (f "_~ | _ a") (3, [Right (2, 1)])
     equal (f "a~") (0, [Left "final note has a tie"])
 
+test_check_barlines :: Test
 test_check_barlines = do
-    let f = bimap id (const ()) . TScore.ui_state get_ext_dur
+    let f = bimap id (const ()) . TScore.parse_score
     left_like (f "b = %meter=bargle [s r g]") "unknown meter: bargle"
     left_like (f "b = [s4 r g | m]")
         "beat 3/4: saw |, next beat of that rank is 1"
@@ -138,6 +156,7 @@ test_check_barlines = do
     left_like (f "b = %meter=adi [s1 r g || m | p d | n s ||]")
         "saw ||, next beat of that rank is 8"
 
+test_check_barlines_negative :: Test
 test_check_barlines_negative = do
     let f negative = map extract . check config . parse
             where
@@ -150,6 +169,7 @@ test_check_barlines_negative = do
     equal (f True "4s2 r | g m") $ map Right
         [(1/2, "4s"), (1, "4r"), (3/2, "4g"), (2, "4m")]
 
+test_multiplicative:: Test
 test_multiplicative = do
     let f = map (fmap (fmap fst . e_ndur)) . Check.multiplicative . parse_cdur
         rjs = map (EList.Elt . Just)
@@ -163,6 +183,7 @@ test_multiplicative = do
     -- The numerator defaults back to 1 if you don't carry both.
     equal (f "a2:1 b2") (rjs [2, 1/2])
 
+test_additive :: Test
 test_additive = do
     let f = map (fmap (fmap fst . e_ndur)) . Check.additive . parse_cdur
         rjs = map (EList.Elt . Just)
@@ -215,9 +236,6 @@ check :: Check.Config
     -> [Either T.Error (T.Time, T.Note T.CallText (Maybe Text) T.Time)]
 check config = map (fmap (fmap strip_npitch)) . just_errors . fst
     . Check.check (const (Left "get_dur not supported", [])) config
-
-get_ext_dur :: TScore.GetExternalCallDuration
-get_ext_dur = \_ _ -> (Left "external call dur not supported", [])
 
 -- Strip out some complications that I don't want to deal with at the Check
 -- level.  Since they interact with the TScore level, they get tested there.
