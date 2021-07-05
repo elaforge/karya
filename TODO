@@ -6512,7 +6512,7 @@ text score: tscore:
     . But I can dispense with integration.
     * parse and check ky and instrument
       - check that they don't exist for integrate
-    - derive to Performance
+    * derive to Performance
       . Incorporate instruments and ky.
     - play MIDI
     - stream im audio

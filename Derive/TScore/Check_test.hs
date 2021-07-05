@@ -22,7 +22,7 @@ import           Global
 
 test_parse_directive :: Test
 test_parse_directive = do
-    let f = fmap UiTest.extract_blocks . TScore.parse_score
+    let f = parsed_score
     left_like (f "%instruments=''>i a/b loop1 17''")
         "alloc 1: *midi channel should be in range"
     left_like (f "%instruments=''>i a/b''\n%instruments=''>i a/b''")
@@ -64,7 +64,7 @@ test_resolve_pitch = do
 -- TODO implement this
 _test_carry_sub_block :: Test
 _test_carry_sub_block = do
-    let f = fmap UiTest.extract_blocks . TScore.parse_score
+    let f = parsed_score
     -- duration and pitch get carried into sub-blocks
     right_equal (f "b = [1s2 [r]/]")
         [ ("b", UiTest.note_track [(0, 0.5, "1s"), (0.5, 0.5, "-t1c1 --")])
@@ -219,6 +219,8 @@ parse_cdur :: Text
         (Either T.Time T.Duration) T.Duration)
 parse_cdur = resolve_call_duration . parse
 
+parsed_score :: Text -> Either Text [UiTest.BlockSpec]
+parsed_score = fmap (UiTest.extract_blocks . fst) . TScore.parse_score
 
 -- | Rather than actually doing a TScore.resolve_sub_block, I'll just fake it.
 convert_call :: T.Token T.Call pitch ndur rdur

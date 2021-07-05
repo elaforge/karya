@@ -28,6 +28,9 @@ everything_score =
     \    >i1 a/b loop0 1\n\
     \    >i2 c/d\n\
     \''\n\
+    \%ky=''\n\
+    \    x y z\n\
+    \''\n\
     \-- Optional per-block directives, and quoted block title.\n\
     \block1 = %scale=sargam \"block1 title\" [\n\
     \    -- Tracks start with a track title, which should start with >. It\n\

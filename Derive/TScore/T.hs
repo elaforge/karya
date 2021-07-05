@@ -74,6 +74,8 @@ data Directive = Directive !Pos !Text !(Maybe Text)
 -- This is the same as Simple.Allocations
 data Allocation = Allocation Instrument InstTypes.Qualified Backend
     deriving (Eq, Show)
+
+-- | This is ScoreT.Instrument, but I don't want to import ScoreT here.
 type Instrument = Text
 data Backend = Midi [(Midi.WriteDevice, Midi.Channel)] | Im
     deriving (Eq, Show)

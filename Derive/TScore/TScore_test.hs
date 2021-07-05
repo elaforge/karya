@@ -25,7 +25,7 @@ import           Util.Test
 
 test_parse_score :: Test
 test_parse_score = do
-    let f = fmap UiTest.extract_blocks . TScore.parse_score
+    let f = parsed_score
 
     right_equal (f "top = \"block title\" [s r g]")
         [ ( "top -- block title"
@@ -70,7 +70,7 @@ test_parse_score = do
 
 test_copy_from :: Test
 test_copy_from = do
-    let f = fmap (lookup "b1" . UiTest.extract_blocks) . TScore.parse_score
+    let f = fmap (lookup "b1") . parsed_score
     let track = Just . UiTest.note_track1
         tracks = Just . concatMap UiTest.note_track1
     left_like (f "%f=x\nb1 = [s]") "can't use at global scope"
@@ -99,6 +99,7 @@ test_copy_from = do
     left_like (f "b1 = [> %f=2 ^ > %f=3 ^ > s]") "recursive %f"
     left_like (f "b1 = [> %f=2 ^ r > %f=1 ^ m]") "recursive %f"
 
+test_assert_coincident :: Test
 test_assert_coincident = do
     let f = fmap (const ()) . TScore.parse_score
     left_like (f "top = [s r > g ; m]") "got unexpected assert"
@@ -111,8 +112,9 @@ test_assert_coincident = do
     right_equal (f "top = [>! s r ; g >]") ()
     right_equal (f "top = [>! s r ; g > s]") ()
 
+test_wrapped_tracks :: Test
 test_wrapped_tracks = do
-    let f = fmap UiTest.extract_blocks . TScore.parse_score
+    let f = parsed_score
     right_equal (f "top = [s r > g m] [p d > n s]")
         [ ("top", concat
             [ UiTest.note_track1 ["4g", "4m", "4n", "5s"]
@@ -132,6 +134,7 @@ test_wrapped_tracks = do
 
     left_like (f "top = [ s r > g] [m p > d n]") "expected assert here"
 
+test_ui_skeleton :: Test
 test_ui_skeleton = do
     let f = Skeleton.flatten . TScore.ui_skeleton
         nt n = TScore.NTrack t "" (replicate (n-1) t) 0
@@ -140,8 +143,9 @@ test_ui_skeleton = do
     equal (f [nt 2, nt 2]) [(1, 2), (3, 4)]
     equal (f [nt 2, nt 1, nt 2]) [(1, 2), (4, 5)]
 
+test_call_duration :: Test
 test_call_duration = do
-    let f = fmap UiTest.extract_blocks . TScore.parse_score
+    let f = parsed_score
     let b_block = ("b", UiTest.note_track [(0, 1, "4s"), (1, 1, "4r")])
     right_equal (f "a = [b/]\nb = [s r]")
         [ ("a", [(">", [(0, 1, "b")])])
@@ -174,6 +178,7 @@ test_call_duration = do
         , ("a-t1c1", UiTest.note_track1 ["4s", "4r"])
         ]
 
+test_ext_call_duration :: Test
 test_ext_call_duration = do
     let f blocks source = extract $
             CmdTest.run_blocks blocks (TScore.cmd_integrate source)
@@ -213,8 +218,9 @@ e_events :: Ui.State -> [[Event.Event]]
 e_events = map (Events.ascending . Track.track_events) . Map.elems
     . Ui.state_tracks
 
+test_integrate :: Test
 test_integrate = do
-    let run state = Ui.exec state . TScore.integrate get_ext_dur
+    let run state = Ui.exec state . integrate
     let extract = UiTest.extract_blocks
     let state = expect_right $ run Ui.empty "top = \"block title\" [s r g]"
 
@@ -233,7 +239,7 @@ test_integrate = do
 
     state <- return $ expect_right $ Ui.exec state $ do
         Ui.insert_event (tid "top" 2) (Event.event 1 0 "5p")
-        TScore.integrate get_ext_dur "top = \"block title\" [s r s]"
+        integrate "top = \"block title\" [s r s]"
     equal (extract state)
         [ ( "top -- block title"
           , [ (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
@@ -246,31 +252,32 @@ test_integrate = do
         , [1, 0, 1]
         ]
 
+test_integrate_block_duration :: Test
 test_integrate_block_duration = do
-    let run state = Ui.exec state . TScore.integrate get_ext_dur
+    let run state = Ui.exec state . integrate
         extract ui = Ui.eval ui $ mapM Ui.block_end $ Map.keys $
             Ui.state_blocks ui
     let state = expect_right $ run Ui.empty "b = [s r g]"
     right_equal (extract state) [3]
-    state <- return $ expect_right $ Ui.exec state $
-        TScore.integrate get_ext_dur "b = [s r g m]"
+    state <- return $ expect_right $ Ui.exec state $ integrate "b = [s r g m]"
     right_equal (extract state) [4]
-    state <- return $ expect_right $ Ui.exec state $
-        TScore.integrate get_ext_dur "b = [s r]"
+    state <- return $ expect_right $ Ui.exec state $ integrate "b = [s r]"
     right_equal (extract state) [2]
 
+test_integrate_misc :: Test
 test_integrate_misc = do
-    let run state = Ui.exec state . TScore.integrate get_ext_dur
+    let run state = Ui.exec state . integrate
     let extract = UiTest.extract_blocks
     let state = expect_right $ run Ui.empty "top = [s]"
     equal (extract state) [("top", UiTest.note_track [(0, 1, "4s")])]
     state <- return $ expect_right $ Ui.exec state $
-        TScore.integrate get_ext_dur "top = \"block title\" [s]"
+        integrate "top = \"block title\" [s]"
     equal (extract state)
         [("top -- block title", UiTest.note_track [(0, 1, "4s")])]
 
+test_integrate_2_tracks :: Test
 test_integrate_2_tracks = do
-    let run state = Ui.exec state . TScore.integrate get_ext_dur
+    let run state = Ui.exec state . integrate
     let extract = UiTest.extract_blocks
     let state = expect_right $ run Ui.empty "top = [s r > g m]"
     equal (extract state)
@@ -283,7 +290,7 @@ test_integrate_2_tracks = do
           )
         ]
     state <- return $ expect_right $ Ui.exec state $
-        TScore.integrate get_ext_dur "top = [g r > g m]"
+        integrate "top = [g r > g m]"
     equal (extract state)
         [ ( "top"
           , [ (">", [(0, 1, ""), (1, 1, "")])
@@ -294,40 +301,39 @@ test_integrate_2_tracks = do
           )
         ]
 
+test_integrate_rename :: Test
 test_integrate_rename = do
-    let run state = Ui.exec state . TScore.integrate get_ext_dur
+    let run state = Ui.exec state . integrate
     let extract = UiTest.extract_blocks
 
     -- The rename is detected, even if you changed the track title.
     let state = expect_right $ run Ui.empty "b1 = [>i1 s]"
     equal (extract state) [("b1", UiTest.inst_note_track1 "i1" ["4s"])]
-    state <- return $ expect_right $ Ui.exec state $
-        TScore.integrate get_ext_dur "b2 = [>i2 s]"
+    state <- return $ expect_right $ Ui.exec state $ integrate "b2 = [>i2 s]"
     equal (extract state) [("b2", UiTest.inst_note_track1 "i2" ["4s"])]
 
     -- But if you changed notes at the same time, it can't find the rename.
     let state = expect_right $ run Ui.empty "b1 = [>i1 s]"
-    state <- return $ expect_right $ Ui.exec state $
-        TScore.integrate get_ext_dur "b2 = [>i2 r]"
+    state <- return $ expect_right $ Ui.exec state $ integrate "b2 = [>i2 r]"
     equal (extract state)
         [ ("b1", UiTest.inst_note_track1 "i1" ["4s"])
         , ("b2", UiTest.inst_note_track1 "i2" ["4r"])
         ]
 
+test_integrate_move_track :: Test
 test_integrate_move_track = do
     let extract = UiTest.extract_blocks
     state <- either (errorIO . pretty) return $ Ui.exec Ui.empty $ do
-        TScore.integrate get_ext_dur "b1 = [>i1 s >i2 r]"
+        integrate "b1 = [>i1 s >i2 r]"
         forM_ [1, 2] $ \i ->
             Ui.modify_events (tid "b1" i) (Events.move 2)
         forM_ [3, 4] $ \i ->
             Ui.modify_events (tid "b1" i) (Events.move 1)
-    let run = extract . expect_right . Ui.exec state
-            . TScore.integrate get_ext_dur
     let i1 = UiTest.inst_note_track "i1" [(1, 1, "4s")]
         i2 = UiTest.inst_note_track "i2" [(2, 1, "4r")]
     equal (extract state) [("b1", i2 ++ i1)]
 
+    -- let run = extract . expect_right . Ui.exec state . integrate
     -- -- >i1 was deleted, >i2 keeps its edits.
     -- equal (run "b1 = [>i2 r]") [("b1", i2)]
     --
@@ -337,8 +343,9 @@ test_integrate_move_track = do
     -- -- They traded places, both should keep edits.
     -- equal (run "b1 = [>i2 r >i1 s]") [("b1", i1 ++ i2)]
 
+test_integrate_sub_block :: Test
 test_integrate_sub_block = do
-    let run state = Ui.exec state . TScore.integrate get_ext_dur
+    let run state = Ui.exec state . integrate
     let extract = UiTest.extract_blocks
     let state = expect_right $ run Ui.empty "top = [s [r]/]"
     equal (extract state)
@@ -346,7 +353,7 @@ test_integrate_sub_block = do
         , ("top-t1c1", UiTest.note_track [(0, 1, "4r")])
         ]
     state <- return $ expect_right $ Ui.exec state $
-        TScore.integrate get_ext_dur "top = [s [g]/ [r]/]"
+        integrate "top = [s [g]/ [r]/]"
     equal (extract state)
         [ ("top", UiTest.note_track
             [(0, 1, "4s"), (1, 1, "-t1c1 --"), (2, 1, "-t1c2 --")])
@@ -354,6 +361,7 @@ test_integrate_sub_block = do
         , ("top-t1c2", UiTest.note_track [(0, 1, "4r")])
         ]
 
+test_check_unique_track_keys :: Test
 test_check_unique_track_keys = do
     let f = fmap (const ()) . TScore.parse_score
     right_equal (f "b1 = [>!i1 s >@i1 r]") ()
@@ -361,6 +369,7 @@ test_check_unique_track_keys = do
     left_like (f "b1 = [>i1 s >i1 r]") "non-unique track key"
     left_like (f "b1 = [>!i1 s >!i1 r]") "non-unique track key"
 
+test_check_recursion :: Test
 test_check_recursion = do
     let f = TScore.check_recursion . map (TScore.track_tokens <$>)
             . parsed_blocks
@@ -369,11 +378,17 @@ test_check_recursion = do
     equal (f "b1 = [b1/]") $ Just "recursive loop: b1, b1"
     equal (f "b1 = [b2/]\nb2 = [b1/]") $ Just "recursive loop: b2, b1, b2"
 
+integrate :: Ui.M m => Text -> m [BlockId]
+integrate = TScore.integrate get_ext_dur
+
 get_ext_dur :: TScore.GetExternalCallDuration
 get_ext_dur = \_ _ -> (Left "external call dur not supported", [])
 
+parsed_score :: Text -> Either Text [UiTest.BlockSpec]
+parsed_score = fmap (UiTest.extract_blocks . fst) . TScore.parse_score
+
 parsed_blocks :: Text -> [TScore.Block TScore.ParsedTrack]
-parsed_blocks = expect_right . TScore.parse_blocks
+parsed_blocks = fst . expect_right . TScore.parse_blocks
 
 is_integral :: RealFrac a => a -> Bool
 is_integral = (==0) . snd . properFraction

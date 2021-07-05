@@ -142,7 +142,8 @@ integrate :: Ui.M m => GetExternalCallDuration -> Text -> m [BlockId]
     -- ^ newly created blocks
 integrate get_ext_dur source = do
     ns <- Ui.get_namespace
-    blocks <- Ui.require_right id $ track_blocks ns get_ext_dur source
+    (blocks, config) <- Ui.require_right id $ track_blocks ns get_ext_dur source
+    -- TODO ensure config is empty
     let (subs, parents) = List.partition _is_sub blocks
     -- Unlike normal blocks, sub-blocks aren't integrated, but deleted and
     -- created from scratch each time.  This is so I don't have to worry about
@@ -165,9 +166,9 @@ destroy_subs = do
     mapM_ Ui.destroy_track $ concatMap (Block.block_track_ids . snd) blocks
 
 track_blocks :: Id.Namespace -> GetExternalCallDuration -> Text
-    -> Either Error [Block NTrack]
+    -> Either Error ([Block NTrack], ScoreConfig)
 track_blocks namespace get_ext_dur source = do
-    blocks <- first (T.show_error source) $ parse_blocks source
+    (blocks, config) <- first (T.show_error source) $ parse_blocks source
     whenJust (check_recursion $ map (track_tokens <$>) blocks) Left
     case check_recursive_copy_from blocks of
         [] -> return ()
@@ -180,7 +181,7 @@ track_blocks namespace get_ext_dur source = do
         partition_errors $ resolve_blocks get_ext_dur source blocks
     unless (null errs) $
         Left $ Text.intercalate "; " errs
-    return $ map (set_namespace namespace) blocks
+    return (map (set_namespace namespace) blocks, config)
 
 check_unique_keys :: Block ParsedTrack -> [T.Error]
 check_unique_keys block =
@@ -582,15 +583,19 @@ source_key = "tscore"
 
 -- * ui_state
 
-parse_score :: Text -> Either Error Ui.State
+parse_score :: Text -> Either Error (Ui.State, [T.Allocation])
 parse_score = score_to_ui get_ext_dur
     where get_ext_dur _ _ = (Left "external call duration not supported", [])
 
-score_to_ui :: GetExternalCallDuration -> Text -> Either Error Ui.State
+score_to_ui :: GetExternalCallDuration -> Text
+    -> Either Error (Ui.State, [T.Allocation])
 score_to_ui get_ext_dur source = do
-    blocks <- track_blocks (UiConfig.config_namespace UiConfig.empty_config)
+    (blocks, ScoreConfig instruments ky) <- track_blocks
+        (UiConfig.config_namespace UiConfig.empty_config)
         get_ext_dur source
-    first pretty $ Ui.exec Ui.empty $ mapM_ ui_block blocks
+    first pretty $ second (, instruments) $ Ui.exec Ui.empty $ do
+        mapM_ ui_block blocks
+        Ui.modify_config $ UiConfig.ky #= ky
 
 -- | Turn a Block NTrack into a UI block directly.  'integrate_block' does same
 -- thing, but does so via the integrate machinery.
@@ -645,10 +650,22 @@ generate_ruler meter end = Ruler.Modify.meter (const generate)
 
 -- * make_blocks
 
-parse_blocks :: Text -> Either T.Error [Block ParsedTrack]
+data ScoreConfig = ScoreConfig {
+    config_instruments :: ![T.Allocation]
+    , config_ky :: !Text
+    } deriving (Eq, Show)
+
+parse_blocks :: Text -> Either T.Error ([Block ParsedTrack], ScoreConfig)
 parse_blocks source = do
     T.Score defs <- first (T.Error (T.Pos 0) . txt) $ Parse.parse_score source
-    fst <$> foldM collect ([], Check.default_config) defs
+    (blocks, config) <- foldM collect ([], Check.default_config) defs
+    return
+        ( blocks
+        , ScoreConfig
+            { config_instruments = Check.config_instruments config
+            , config_ky = Check.config_ky config
+            }
+        )
     where
     collect (accum, config) (_pos, def) = do
         (blocks, config) <- interpret_toplevel config def

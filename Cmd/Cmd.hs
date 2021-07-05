@@ -1627,12 +1627,12 @@ lookup_alloc_qualified alloc =
 -- | Look up an instrument that might not be allocated.
 lookup_qualified :: M m => InstTypes.Qualified -> m (Maybe Inst)
 lookup_qualified qualified = do
-    state <- get
-    return $ state_lookup_qualified state qualified
+    config <- gets state_config
+    return $ state_lookup_qualified config qualified
 
-state_lookup_qualified :: State -> InstTypes.Qualified -> Maybe Inst
-state_lookup_qualified state qualified =
-    Inst.lookup qualified $ config_instrument_db (state_config state)
+state_lookup_qualified :: Config -> InstTypes.Qualified -> Maybe Inst
+state_lookup_qualified config qualified =
+    Inst.lookup qualified $ config_instrument_db config
 
 -- ** misc
 

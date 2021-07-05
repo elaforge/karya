@@ -65,7 +65,7 @@ timed_perform :: Cmd.State -> FilePath -> Ui.State
     -> Vector.Vector Score.Event -> IO (([Midi.WriteMessage], [Log.Msg]), CPU)
 timed_perform cmd_state fname state events =
     time ("perform " <> txt fname) (timer_msg (length . fst)) $ do
-        let (msgs, logs) = perform cmd_state state events
+        let (msgs, logs) = perform_midi cmd_state state events
         Testing.force (msgs, logs)
         return (msgs, logs)
 
@@ -139,9 +139,9 @@ run_cmd ui_state cmd_state cmd = case result of
         Just val -> Right (val, logs)
     where (_, _, logs, result) = Cmd.run_id ui_state cmd_state cmd
 
-perform :: Cmd.State -> Ui.State -> Vector.Vector Score.Event
+perform_midi :: Cmd.State -> Ui.State -> Vector.Vector Score.Event
     -> ([Midi.WriteMessage], [Log.Msg])
-perform cmd_state ui_state events =
+perform_midi cmd_state ui_state events =
     extract $ run_cmd ui_state cmd_state $ PlayUtil.perform_events events
     where
     extract (Left err) = ([], [Log.msg Log.Error Nothing err])
@@ -151,8 +151,10 @@ perform cmd_state ui_state events =
 load_score_states :: Cmd.Config -> FilePath -> IO (Ui.State, Cmd.State)
 load_score_states cmd_config fname = do
     (ui_state, library, aliases) <- either errorIO return =<< load_score fname
-    return (ui_state,
-        add_library library aliases (Cmd.initial_state cmd_config))
+    return
+        ( ui_state
+        , add_library library aliases (Cmd.initial_state cmd_config)
+        )
 
 add_library :: Derive.Builtins -> Derive.InstrumentAliases
     -> Cmd.State -> Cmd.State
