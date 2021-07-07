@@ -100,12 +100,11 @@ data State = State {
 
 state_transport_info :: State -> Transport.Info
 state_transport_info state = Transport.Info
-    { Transport.info_send_status = state_loopback state . Msg.Transport
-    , Transport.info_midi_writer =
-        Cmd.state_midi_writer (state_cmd state)
-    , Transport.info_midi_abort = Interface.abort interface
-    , Transport.info_get_current_time = Interface.now interface
-    , Transport.info_state = state_monitor_state state
+    { info_send_status = state_loopback state . Msg.Transport
+    , info_midi_writer = Cmd.state_midi_writer (state_cmd state)
+    , info_midi_abort = Interface.abort interface
+    , info_get_current_time = Interface.now interface
+    , info_state = state_monitor_state state
     }
     where
     interface = Cmd.config_midi_interface (Cmd.state_config (state_cmd state))

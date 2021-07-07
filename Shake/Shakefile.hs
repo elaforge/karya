@@ -409,7 +409,7 @@ cppInImports :: Set.Set FilePath
 cppInImports = Set.fromList
     [ "App/Main.hs"
     , "Cmd/Repl.hs"
-    , "Midi/TestMidi.hs"
+    , "Midi/MidiDriver.hs"
     , "App/LoadInstruments.hs"
     ]
 

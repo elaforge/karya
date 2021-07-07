@@ -6514,8 +6514,14 @@ text score: tscore:
       - check that they don't exist for integrate
     * derive to Performance
       . Incorporate instruments and ky.
-    - play MIDI
+    * play MIDI
     - stream im audio
+    - without get_external_duration, merak-ngelo.tscore is broken
+      . it uses Derive to get duration for expressions like "repeat=2 | p3a"
+    - have a parse-only mode with no midi/audio or Local.Config.load, I could
+      run this automatically on save, or like ghcid, for quick checking.
+    - skip MIDI initialization for im-only
+    - also skip audio initialization for midi-only
   bug:
     - if I delete a block, I get
       keys collided in "state_blocks": [(bid "faust/test")]
@@ -7156,6 +7162,14 @@ OSC backend
     time.
 
 linux:
+  scrollwheel too slow
+    . Can I tune the sensitivity somehow?
+  faust segfaults:
+    . data/im/notes/test/faust/tambura/faust/b4/faust
+    . faust-im specific or sampler-im does it too?  faust-im
+    ? All faust or just tambura?
+    ? Faust version?  nix is 2.19.7, mac is 2.5.34
+    ? gcc/clang?
   * mix_vectors:
       . compile error: seq: panic! (the 'impossible' happened)
         (GHC version 8.10.3:
@@ -7213,6 +7227,10 @@ linux:
     . Would it be simpler to write a alsa midi driver?  I think JACK can then
       spy on the alsa midi output.
     . https://hackage.haskell.org/package/alsa-seq
+      This is presumably usable, but undocumented and directly implements the
+      API at the lowest level, so it's really complicated.
+    . https://www.alsa-project.org/alsa-doc/alsa-lib/seq.html
+      Incomplete, but e.g. aconnect.c is an example.
 
 misc ideas:
   . What would a generalized staged evaluation system look like?

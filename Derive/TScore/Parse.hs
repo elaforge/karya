@@ -10,8 +10,10 @@ module Derive.TScore.Parse (
     , parse_allocation
     , default_call, default_namespace
     , show_block, show_block_track
-    -- ** Note
+    -- * Note
     , dot_note, tie_note
+    -- * util
+    , strip_comment
 #ifdef TESTING
     , module Derive.TScore.Parse
 #endif
@@ -215,7 +217,7 @@ p_multi_string = "''" *> contents <* "''"
     chunk = P.try $ "'" *> P.takeWhile1 (/='\'')
 
 parse_allocation :: Text -> Either String T.Allocation
-parse_allocation = parse_text p_allocation
+parse_allocation = parse_text (p_whitespace *> p_allocation)
 
 -- |
 -- > >pno pianoteq/ loop1 0 1 2
@@ -276,7 +278,7 @@ instance Element T.Barline where
 
 instance Pretty T.Barline where pretty = unparse default_config
 
--- ** Note
+-- * Note
 
 -- | Parse a note with a letter pitch.
 --
@@ -517,7 +519,7 @@ instance Element T.Duration where
         , if tie then "~" else ""
         ]
 
--- ** util
+-- * util
 
 p_word :: Parser Text
 p_word = P.takeWhile1 (not_in "")
@@ -529,6 +531,9 @@ p_whitespace = void $ P.skipMany $ P.space1 <|> p_comment
         P.string "--"
         P.takeWhile (/='\n')
         P.option () (void $ P.char '\n')
+
+strip_comment :: Text -> Text
+strip_comment = head . Text.splitOn "--"
 
 lexeme :: Parser a -> Parser a
 lexeme = (<* p_whitespace)

@@ -27,16 +27,16 @@ import Types
 -- | Access to info that's needed by a particular run of the player.
 -- This is read-only, and shouldn't need to be modified.
 data State = State {
-    -- | Communicate into the Player.
+    -- | Communicate into the player.
     _play_control :: !Transport.PlayControl
+    -- | Communicate out from the player.
     , _monitor_control :: !Transport.PlayMonitorControl
     , _info :: !Transport.Info
     }
 
 type Messages = [LEvent.LEvent Midi.WriteMessage]
 
--- | Start a thread to stream a list of WriteMessages, and return
--- a Transport.Control which can be used to stop and restart the player.
+-- | Start a thread to stream a list of WriteMessages.
 play :: State -> Maybe Cmd.SyncConfig -> Text -> Messages
     -> Maybe RealTime
     -- ^ If given, loop back to the beginning when this time is reached.
@@ -68,8 +68,8 @@ player_thread maybe_sync start name state msgs = do
         Just sync | not (Cmd.sync_mtc sync) ->
             state_write_midi state $ make_mmc sync start Mmc.Stop
         _ -> return ()
-    Transport.player_stopped (_monitor_control state)
     Log.debug $ "play complete: " <> name
+    Transport.player_stopped (_monitor_control state)
 
 make_mmc :: Cmd.SyncConfig -> RealTime -> Mmc.Mmc -> Midi.WriteMessage
 make_mmc sync start msg = Midi.WriteMessage (Cmd.sync_device sync) start $

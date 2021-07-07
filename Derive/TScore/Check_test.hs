@@ -15,6 +15,7 @@ import qualified Derive.TScore.Parse as Parse
 import qualified Derive.TScore.T as T
 import qualified Derive.TScore.TScore as TScore
 
+import qualified Instrument.InstTypes as InstTypes
 import qualified Ui.UiTest as UiTest
 
 import           Global
@@ -22,14 +23,17 @@ import           Global
 
 test_parse_directive :: Test
 test_parse_directive = do
-    let f = parsed_score
+    let f = fmap snd . TScore.parse_score
     left_like (f "%instruments=''>i a/b loop1 17''")
         "alloc 1: *midi channel should be in range"
     left_like (f "%instruments=''>i a/b''\n%instruments=''>i a/b''")
         "should only be one"
     left_like (f "%instruments=''>i a/b\n>i a/b''")
         "duplicate instrument definitions: i"
-    left_like (f "block  = %instruments=''>i a/b'' []") "must be at global"
+    left_like (f "block = %instruments=''>i a/b'' []") "must be at global"
+    right_equal (f "%instruments=''\n  >i a/b\n''")
+        [T.Allocation "i" (InstTypes.Qualified "a" "b") T.Im]
+    right_equal (f "%instruments=''\n  -- >i a/b\n''") []
 
 test_check :: Test
 test_check = do

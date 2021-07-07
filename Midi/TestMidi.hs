@@ -2,17 +2,15 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE CPP #-}
 -- | Test MIDI bindings, automatically and manually.
 module Midi.TestMidi where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
-import Control.Monad
-import qualified Numeric
-
 import qualified Data.ByteString as ByteString
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Time as Time
+
+import qualified Numeric
 import qualified System.Environment
 import qualified System.IO as IO
 
@@ -20,23 +18,15 @@ import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.Test as Test
 
-#include "hsconfig.h"
-#if defined(CORE_MIDI)
-import qualified Midi.CoreMidi as MidiDriver
-#elif defined(JACK_MIDI)
-import qualified Midi.JackMidi as MidiDriver
-#else
--- Not much point, but at least lets it compile.
-import qualified Midi.StubMidi as MidiDriver
-#endif
-
+import qualified Midi.Encode
 import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
+import qualified Midi.MidiDriver as MidiDriver
 import qualified Midi.Mmc as Mmc
-import qualified Midi.Encode
 
 import qualified Perform.RealTime as RealTime
-import Global
+
+import           Global
 
 
 type Interface = Interface.RawInterface Midi.WriteMessage
@@ -55,13 +45,13 @@ test_midi (Left err) = errorIO $ "initializing midi: " <> err
 test_midi (Right interface) = do
     rdevs <- Interface.read_devices interface
     putStrLn "read devs:"
-    mapM_ (putStrLn . ("    " <>) . prettys) rdevs
+    mapM_ (Text.IO.putStrLn . ("    " <>) . pretty) rdevs
     wdevs <- Interface.write_devices interface
     putStrLn "write devs:"
-    mapM_ (putStrLn . ("    " <>) . prettys) wdevs
+    mapM_ (Text.IO.putStrLn . ("    " <>) . pretty) wdevs
     rdevs <- return $ map fst rdevs
 
-    let open = open_devs interface
+    let open = open_devices interface
     args <- System.Environment.getArgs
     case args of
         [] -> do
@@ -117,23 +107,24 @@ test_midi (Right interface) = do
         _ -> do
             putStrLn "unknown command"
             putStrLn usage
+
+open_devices :: Interface -> Bool -> [Midi.ReadDevice]
+    -> Maybe String -> IO (WriteMsg, ReadMsg)
+open_devices interface blocking rdevs maybe_wdev = do
+    oks <- mapM (Interface.connect_read_device interface) rdevs
+    forM_ [rdev | (rdev, False) <- zip rdevs oks] $ \missing ->
+        putStrLn $ "rdev not found: " ++ show missing
+    let read_msg = (if blocking then blocking_get else nonblocking_get)
+            (Interface.read_channel interface)
+    case Midi.write_device . txt <$> maybe_wdev of
+        Nothing -> return
+            (const (error "write device not opened"), read_msg)
+        Just wdev -> do
+            ok <- Interface.connect_write_device interface wdev
+            unless ok $
+                error $ "required wdev " ++ show wdev ++ " not found"
+            return (make_write_msg interface wdev, read_msg)
     where
-    open_devs :: Interface -> Bool -> [Midi.ReadDevice]
-        -> Maybe String -> IO (WriteMsg, ReadMsg)
-    open_devs interface blocking rdevs maybe_wdev = do
-        oks <- mapM (Interface.connect_read_device interface) rdevs
-        forM_ [rdev | (rdev, False) <- zip rdevs oks] $ \missing ->
-            putStrLn $ "rdev not found: " ++ show missing
-        let read_msg = (if blocking then blocking_get else nonblocking_get)
-                (Interface.read_channel interface)
-        case Midi.write_device . txt <$> maybe_wdev of
-            Nothing -> return
-                (const (error "write device not opened"), read_msg)
-            Just wdev -> do
-                ok <- Interface.connect_write_device interface wdev
-                unless ok $
-                    error $ "required wdev " ++ show wdev ++ " not found"
-                return (make_write_msg interface wdev, read_msg)
     make_write_msg interface wdev (ts, msg) = do
         putStrLn $ "write: " <> show ts <> ": " <> show msg
         mb_err <- Interface.write_message interface

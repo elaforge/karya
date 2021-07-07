@@ -136,13 +136,16 @@ parse_directive scope (T.Directive pos name maybe_val) config =
 
 parse_instruments :: Text -> Either Text [T.Allocation]
 parse_instruments val = do
-    allocs <- mapM parse $ filter ((/="") . snd) $
+    -- Instrument parsing is line-oriented, which is awkward with the
+    -- usuall comment/whitespace handling, so I have to account for
+    -- comment-only lines.
+    let empty = Text.null . Text.strip . Parse.strip_comment
+    allocs <- mapM parse $ filter (not . empty . snd) $
         map (second Text.strip) $ zip [1..] $ Text.lines val
     let dups = map head $ filter ((>1) . length) $ Seq.group_sort id $
             map alloc_name allocs
     unless (null dups) $
-        Left $ "duplicate instrument definitions: "
-            <> Text.unwords dups
+        Left $ "duplicate instrument definitions: " <> Text.unwords dups
     return allocs
     where
     alloc_name (T.Allocation inst _ _) = inst

@@ -260,8 +260,8 @@ write_message client (Midi.WriteMessage dev ts msg)
                 ByteString.useAsCStringLen (Encode.encode msg) $
                 \(bytesp, len) -> error_str <$> c_write_message dev_id
                     (encode_time ts) (fromIntegral len) (Foreign.castPtr bytesp)
-            _ -> return $ Just $ "device not in " <> pretty (Map.keys writes)
-                <> ": " <> pretty dev
+            _ -> return $ Just $ "device not in open WriteDevices: "
+                <> pretty (Map.keys writes) <> ": " <> pretty dev
 
 foreign import ccall "core_midi_write_message"
     c_write_message :: CInt -> CTimestamp -> CInt -> Ptr Word8 -> IO CError

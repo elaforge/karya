@@ -33,18 +33,9 @@ import qualified Util.Thread as Thread
 import qualified Ui.BlockC as BlockC
 import qualified Ui.Fltk as Fltk
 import qualified Midi.Encode
-import qualified Midi.Midi as Midi
 import qualified Midi.Interface as Interface
-
--- This is the actual midi implementation.  This is the only module that should
--- depend on the implementation, so switching backends is relatively easy.
-#if defined(CORE_MIDI)
-import qualified Midi.CoreMidi as MidiDriver
-#elif defined(JACK_MIDI)
-import qualified Midi.JackMidi as MidiDriver
-#else
-import qualified Midi.StubMidi as MidiDriver
-#endif
+import qualified Midi.Midi as Midi
+import qualified Midi.MidiDriver as MidiDriver
 
 import qualified Cmd.GlobalKeymap as GlobalKeymap
 import qualified Cmd.Repl as Repl
@@ -66,7 +57,8 @@ import qualified App.LoadConfig as LoadConfig
 import qualified App.StaticConfig as StaticConfig
 
 import qualified Local.Config
-import Global
+
+import           Global
 
 -- This is only used by the REPL,  but by importing it here I can make
 -- sure it, along with REPL-only modules, are compiled and don't have any
@@ -124,8 +116,8 @@ main = initialize $ \midi_interface repl_socket -> do
     rdevs <- Interface.read_devices midi_interface
     mapM_ (Interface.connect_read_device midi_interface) (Set.toList open_read)
     wdevs <- Interface.write_devices midi_interface
-    forM_ (map fst wdevs) (Interface.connect_write_device midi_interface)
-    print_devs open_read rdevs wdevs
+    mapM_ (Interface.connect_write_device midi_interface . fst) wdevs
+    print_devices open_read rdevs wdevs
         (StaticConfig.rdev_map midi) (StaticConfig.wdev_map midi)
 
     setup_cmd <- fmap (<* StaticConfig.post_setup_cmd static_config) $
@@ -216,13 +208,13 @@ remap_read_message :: Map Midi.ReadDevice Midi.ReadDevice
 remap_read_message dev_map rmsg@(Midi.ReadMessage { Midi.rmsg_dev = dev }) =
     rmsg { Midi.rmsg_dev = Map.findWithDefault dev dev dev_map }
 
-print_devs :: Set Midi.ReadDevice
+print_devices :: Set Midi.ReadDevice
     -> [(Midi.ReadDevice, [Midi.ReadDevice])]
     -> [(Midi.WriteDevice, [Midi.WriteDevice])]
     -> Map Midi.ReadDevice Midi.ReadDevice
     -> Map Midi.WriteDevice Midi.WriteDevice
     -> IO ()
-print_devs opened_rdevs rdevs wdevs rdev_map wdev_map = do
+print_devices opened_rdevs rdevs wdevs rdev_map wdev_map = do
     putStrLn "read devs:"
     forM_ rdevs $ \(rdev, aliases) -> Text.IO.putStrLn $ Text.unwords $
         filter (not . Text.null)
