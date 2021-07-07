@@ -5,10 +5,12 @@
 -- | Standalone driver for tscore.
 module Derive.TScore.TScoreMain where
 import qualified Control.Concurrent.Async as Async
+import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Monad.Except as Except
 
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Tuple as Tuple
@@ -20,9 +22,11 @@ import qualified System.Exit as Exit
 import qualified System.IO as IO
 
 import qualified Util.Audio.PortAudio as PortAudio
+import qualified Util.Control as Control
 import qualified Util.Log as Log
 import qualified Util.Maps as Maps
 import qualified Util.Pretty as Pretty
+import qualified Util.Processes as Processes
 import qualified Util.Seq as Seq
 
 import qualified App.Config as App.Config
@@ -52,6 +56,7 @@ import qualified Perform.Midi.Patch as Midi.Patch
 import qualified Perform.Midi.Play as Midi.Play
 import qualified Perform.Transport as Transport
 
+import qualified Synth.Shared.Config as Shared.Config
 import qualified Synth.StreamAudio as StreamAudio
 import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
@@ -150,31 +155,43 @@ play_score mb_device fname = initialize_audio $ initialize_midi $
     mapM_ Log.write logs
 
     play_ctl <- Transport.play_control
-    monitor_ctl <- Transport.play_monitor_control
-
     let start = 0 -- TODO from cmdline
-
     let score_path = fname
     (procs, events) <- perform_im score_path cmd_state ui_state events block_id
-    unless (null procs) $ do
-        putStrLn "\nim procs:"
-        print procs
-        -- TODO run procs!
-        -- since I have to wait, I'll have to bump MIDI forward.
-        let Transport.PlayControl quit = play_ctl
-        let muted = mempty
-        when False $
-            StreamAudio.play quit score_path block_id muted start
+    wait_for_im <- if null procs
+        then return $ return ()
+        else do
+            putStrLn $ "\nim render:"
+            forM_ procs $ \(cmd, args) ->
+                putStrLn $ unwords $ "%" : cmd : args
+            ready <- MVar.newEmptyMVar
+            rendering <- Async.async $
+                watch_subprocesses ready (Set.fromList procs)
+            putStrLn "wait for ready"
+            MVar.takeMVar ready
+            let Transport.PlayControl quit = play_ctl
+            let muted = mempty
+            playing <- Async.async $
+                StreamAudio.play quit score_path block_id muted start
+            return $ Async.wait playing >> Async.wait rendering
 
-    unless (Vector.null events) $
-        play_midi play_ctl monitor_ctl midi_interface cmd_state ui_state events
+    -- TODO since I have to wait for im, I may have to bump MIDI forward.
+    -- Of course they won't be very in sync anyway...
+    wait_for_midi <- if Vector.null events
+        then return $ return ()
+        else do
+            monitor_ctl <- Transport.play_monitor_control
+            play_midi play_ctl monitor_ctl midi_interface cmd_state ui_state
+                events
+            return $ Transport.wait_player_stopped monitor_ctl
 
-    _keyboard <- Async.async $ do
+    Async.async $ do
         putStrLn "press return to stop player"
         _ <- IO.getLine
         Transport.stop_player play_ctl
     putStrLn "waiting for player to complete..."
-    Transport.wait_player_stopped monitor_ctl
+    wait_for_im
+    wait_for_midi
     putStrLn "done"
 
 data Flag = Check | Dump | List | Device String
@@ -193,6 +210,55 @@ die :: Text -> IO a
 die msg = do
     Text.IO.hPutStrLn IO.stderr msg
     Exit.exitFailure
+
+-- * im
+
+-- TODO copy paste from Solkattu.Play, unify them
+
+-- | This is analogous to 'Performance.watch_subprocesses', but notifies as
+-- soon as all processes have rendered output.
+--
+-- It seems like overkill to watch multiple processes when there is always just
+-- one (and can only be one, since I only load Sampler.PatchDb.synth below),
+-- but that's what derive gives me.
+watch_subprocesses :: MVar.MVar () -> Set Performance.Process -> IO ()
+watch_subprocesses ready all_procs =
+    Processes.multipleOutput (Set.toList all_procs) $ \chan ->
+        Control.loop1 (all_procs, Set.empty) $ \loop (procs, started) -> if
+            | Set.null procs -> MVar.tryPutMVar ready () >> return ()
+            | otherwise -> do
+                ((cmd, args), out) <- Chan.readChan chan
+                loop =<< process procs started (cmd, args) out
+    where
+    process procs started (cmd, args) = \case
+        Processes.Stderr line -> do
+            -- Only show Log.Warn and above.
+            -- TODO pass LOG_CONFIG?
+            when ("---" `Text.isPrefixOf` line) $
+                put line
+            return (procs, started)
+        Processes.Stdout line -> case Shared.Config.parseMessage line of
+            Just (Shared.Config.Message
+                    { Shared.Config._payload = Shared.Config.WaveformsCompleted chunks })
+                | 0 `elem` chunks -> do
+                    -- I can start playing when I see the first progress for
+                    -- each process, and for each instrument.  Since I only
+                    -- have one instrument the first suffices.
+                    let started2 = Set.insert (cmd, args) started
+                    when (started2 == all_procs) $
+                        void $ MVar.tryPutMVar ready ()
+                    return (procs, started2)
+                | otherwise -> return (procs, started)
+            Just (Shared.Config.Message { Shared.Config._payload = Shared.Config.RenderingRange {} })
+                -> return (procs, started)
+            _ -> put ("?: " <> line) >> return (procs, started)
+        Processes.Exit code -> do
+            when (code /= Processes.ExitCode 0) $
+                Log.warn $ "subprocess " <> txt cmd <> " "
+                    <> showt args <> " returned " <> showt code
+            return (Set.delete (cmd, args) procs, started)
+    -- These get called concurrently, so avoid jumbled output.
+    put line = Log.with_stdio_lock $ Text.IO.hPutStrLn IO.stdout line
 
 -- * midi
 

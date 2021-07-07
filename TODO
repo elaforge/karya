@@ -6515,11 +6515,18 @@ text score: tscore:
     * derive to Performance
       . Incorporate instruments and ky.
     * play MIDI
-    - stream im audio
+    * stream im audio
+    - get MIDI and audio a bit better synchronized
+      . Is there a way to actually synchronize, other than play_cache?
+    - Transport.PlayMonitorControl can only monitor one thing, which is MIDI.
+      . It could be a counter for each started player, so it could be used for
+        im direct play too.  Maybe this would even allow stop during the decay?
+    - tambura with no elements just made silence, no warnings
+    - start from non-zero, and solo/mute
     - without get_external_duration, merak-ngelo.tscore is broken
       . it uses Derive to get duration for expressions like "repeat=2 | p3a"
-    - have a parse-only mode with no midi/audio or Local.Config.load, I could
-      run this automatically on save, or like ghcid, for quick checking.
+    * have a parse-only mode with no midi/audio or Local.Config.load
+    - Trigger --check automatically on save, or via 'entr' like ghcid.
     - skip MIDI initialization for im-only
     - also skip audio initialization for midi-only
   bug:

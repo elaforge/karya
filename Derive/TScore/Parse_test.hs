@@ -4,6 +4,7 @@
 {-# LANGUAGE TypeApplications #-}
 module Derive.TScore.Parse_test where
 import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
 import qualified GHC.Stack as Stack
 
 import qualified Derive.TScore.Parse as Parse
@@ -25,7 +26,7 @@ everything_score =
     \-- The supported directives are in 'Check.parse_directive'.\n\
     \%meter=adi\n\
     \%instruments=''\n\
-    \    >i1 a/b loop0 1\n\
+    \    >i1 a/b loop0 1 -- comments work in multi-line strings\n\
     \    >i2 c/d\n\
     \''\n\
     \%ky=''\n\
@@ -38,6 +39,10 @@ everything_score =
     \    -- quotes go after the >.  Ties (~) and dots (.) go at the end of\n\
     \    -- the note.\n\
     \    >inst1 4s4 r g m~ | m d n. s8 |\n\
+    \        -- Pitches are by absolute octave, relative down , or up '\n\
+    \        4s4 's ,s ''s |\n\
+    \        -- Rests use _\n\
+    \        _4. _8 s2 |\n\
     \    -- Tracks must be unique so deletes and moves can be detected.\n\
     \    -- You can put symbols after >, which will be used to make tracks\n\
     \    -- unique, but otherwise ignored.\n\
@@ -91,8 +96,9 @@ test_score = do
 
     -- Parse -> unparse -> parse -> unparse reaches a fixpoint.
     let normalized = f everything_score
+    right_equal (const () <$> normalized) ()
     equal normalized (f =<< normalized)
-    putStrLn $ either id untxt normalized
+    Text.IO.putStrLn $ either txt id normalized
 
 test_default_call :: Test
 test_default_call = do
