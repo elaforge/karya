@@ -7,9 +7,9 @@
 module Cmd.PlayUtil (
     initial_environ
     , cached_derive, uncached_derive
-    , derive_block, run, run_with_dynamic
+    , derive_block, run, run_with_dynamic, run_with_constant
     , is_score_damage_log
-    , get_constant, initial_dynamic
+    , get_constant, initial_constant, initial_dynamic
     -- * perform
     , perform_from, shift_messages, first_time
     , events_from, overlapping_events
@@ -115,28 +115,47 @@ run_with_dynamic dynamic deriver = do
             }
     return $ Derive.run state deriver
 
+run_with_constant :: Derive.InstrumentAliases -> Derive.Constant
+    -> Derive.Deriver a -> Derive.RunResult a
+run_with_constant aliases constant = Derive.run state
+    where
+    state = Derive.State
+        { state_threaded = Derive.initial_threaded
+        , state_dynamic = initial_dynamic aliases
+        , state_collect = mempty
+        , state_constant = constant
+        }
+
 -- | Create deriver configuration.  This is the main place where Cmd level
 -- configuration is adapted to the deriver.
 get_constant :: Cmd.M m => Ui.State -> Derive.Cache -> Derive.ScoreDamage
     -> m (Derive.Constant, Derive.InstrumentAliases)
 get_constant ui_state cache damage = do
     cmd_state <- Cmd.get
-    let lookup_inst = Cmd.state_lookup_instrument ui_state cmd_state
-    let config_builtins = Cmd.config_builtins (Cmd.state_config cmd_state)
-    (defs_builtins, aliases) <- get_builtins
-    return $ (,aliases) $ Derive.initial_constant ui_state
-        (defs_builtins <> config_builtins) Cmd.lookup_scale
-        (fmap Cmd.make_derive_instrument . lookup_inst) cache damage
+    (builtins, aliases) <- case Cmd.state_ky_cache cmd_state of
+        Nothing -> return (mempty, mempty)
+        Just ky_cache -> Cmd.require_right id $ ky_builtins ky_cache
+    return (initial_constant ui_state (Cmd.state_config cmd_state)
+        builtins cache damage, aliases)
 
--- | Get Builtins from the cache.
-get_builtins :: Cmd.M m => m (Derive.Builtins, Derive.InstrumentAliases)
-get_builtins = do
-    cache <- Cmd.gets Cmd.state_ky_cache
-    case cache of
-        Nothing -> return mempty
-        Just (Cmd.KyCache (Left err) _) -> Cmd.throw $ "parsing ky: " <> err
-        Just (Cmd.KyCache (Right builtins) _) -> return builtins
-        Just (Cmd.PermanentKy builtins) -> return builtins
+initial_constant :: Ui.State -> Cmd.Config -> Derive.Builtins -> Derive.Cache
+    -> Derive.ScoreDamage -> Derive.Constant
+initial_constant ui_state cmd_config builtins cache damage = constant
+    where
+    constant = Derive.initial_constant ui_state
+        (builtins <> config_builtins) Cmd.lookup_scale
+        (fmap Cmd.make_derive_instrument . lookup_inst) cache damage
+    lookup_inst = Cmd.memoized_instrument
+        (UiConfig.config_allocations (Ui.state_config ui_state))
+        (Cmd.config_instrument_db cmd_config)
+    config_builtins = Cmd.config_builtins cmd_config
+
+ky_builtins :: Cmd.KyCache
+    -> Either Text (Derive.Builtins, Derive.InstrumentAliases)
+ky_builtins = \case
+    Cmd.KyCache (Left err) _ -> Left $ "parsing ky: " <> err
+    Cmd.KyCache (Right builtins) _ -> Right builtins
+    Cmd.PermanentKy builtins -> Right builtins
 
 initial_dynamic :: Derive.InstrumentAliases -> Derive.Dynamic
 initial_dynamic aliases = (Derive.initial_dynamic initial_environ)

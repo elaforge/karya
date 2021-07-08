@@ -99,9 +99,22 @@ derive_at_exc block_id track_id deriver = do
     (val, _, logs) <- PlayUtil.run_with_dynamic dynamic deriver
     return (val, logs)
 
+-- | This is like 'derive_at_exc', except with the minimal dependencies
+-- needed to run a derive.
+mini_derive :: Ui.State -- ^ for instrument allocations and because derivers
+    -- have access to Ui.State
+    -> Cmd.Config -- ^ for instrument db and builtins
+    -> Derive.Builtins -> Derive.InstrumentAliases -- ^ from parsed ky
+    -> Derive.Deriver a -> (Either Derive.Error a, [Log.Msg])
+mini_derive ui_state cmd_config builtins aliases deriver = (val, logs)
+    where
+    (val, _, logs) = PlayUtil.run_with_constant aliases constant deriver
+    constant = PlayUtil.initial_constant ui_state cmd_config builtins
+        mempty mempty
+
 -- | Like 'derive_at', but write logs and throw on a Left.
-get_derive_at :: Cmd.M m => BlockId -> TrackId -> Derive.Deriver a -> m a
-get_derive_at block_id track_id deriver = do
+derive_at_throw :: Cmd.M m => BlockId -> TrackId -> Derive.Deriver a -> m a
+derive_at_throw block_id track_id deriver = do
     (result, logs) <- derive_at block_id track_id deriver
     mapM_ Log.write logs
     let prefix = "derive_at " <> pretty block_id <> " " <> pretty track_id
@@ -280,11 +293,9 @@ get_environ = fmap (fromMaybe mempty) . lookup_environ
 -- | Try to find the Dynamic for the given block and track, first looking in
 -- the root performance, and then in the block's performance.
 find_dynamic :: Cmd.M m => Track -> m (Maybe Derive.Dynamic)
-find_dynamic track = do
-    maybe_dyn <- lookup_root_dynamic track
-    case maybe_dyn of
-        Just dyn -> return $ Just dyn
-        Nothing -> lookup_dynamic (fst track) track
+find_dynamic track = lookup_root_dynamic track >>= \case
+    Just dyn -> return $ Just dyn
+    Nothing -> lookup_dynamic (fst track) track
 
 lookup_root_dynamic :: Cmd.M m => Track -> m (Maybe Derive.Dynamic)
 lookup_root_dynamic track =

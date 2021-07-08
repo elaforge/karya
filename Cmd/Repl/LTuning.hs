@@ -85,7 +85,7 @@ selection ignore_errors = do
 -- scope.
 scale_at :: Cmd.M m => BlockId -> TrackId -> m (Patch.Scale, [Text])
 scale_at block_id track_id = do
-    scale <- Perf.get_derive_at block_id track_id Call.get_scale
+    scale <- Perf.derive_at_throw block_id track_id Call.get_scale
     (key_nns, errs) <- fmap unzip $ forM all_inputs $ \(key, input) -> do
         let at_time = 0
         (val, logs) <- Perf.derive_at block_id track_id $

@@ -135,8 +135,7 @@ cmd_integrate :: Cmd.M m => Text -> m [BlockId]
 cmd_integrate source = do
     ui_state <- Ui.get
     cmd_state <- Cmd.get
-    let get_ext_dur = get_external_duration ui_state cmd_state
-    integrate get_ext_dur source
+    integrate (get_external_duration ui_state cmd_state) source
 
 integrate :: Ui.M m => GetExternalCallDuration -> Text -> m [BlockId]
     -- ^ newly created blocks
@@ -177,6 +176,13 @@ track_blocks namespace get_ext_dur source = do
     case concatMap check_unique_keys blocks of
         [] -> return ()
         errs -> Left $ mconcat (map (T.show_error source) errs)
+
+    -- -- TODO not implemented yet
+    -- let cmd_config = undefined
+    -- derive_args <- make_derive_args cmd_config (config_instruments config)
+    --     (config_ky config)
+    -- let get_ext_dur = get_external_duration2 derive_args
+
     (errs, blocks) <- return $
         partition_errors $ resolve_blocks get_ext_dur source blocks
     unless (null errs) $
@@ -240,7 +246,7 @@ lookup_call_duration transformers call = do
     -- could.  If I pick the root block then I get global transform and
     -- whatever transform is in the root.
     (block_id, track_id) <- root_block
-    result <- Perf.get_derive_at block_id track_id $
+    result <- Perf.derive_at_throw block_id track_id $
         Derive.get_score_duration deriver
     case result of
         Left err -> Cmd.throw $ pretty err
@@ -253,7 +259,6 @@ lookup_call_duration transformers call = do
 
     transform = map (Eval.eval_transform_expr "lookup_call_duration") $
         filter (not . Text.null) transformers
-    -- Eval.eval_transform_expr
     deriver = Derive.with_default_imported $
         foldr (.) id transform $
         Perf.derive_event (Derive.Note.track_info track [])
@@ -266,6 +271,54 @@ root_block = do
     track_id <- Ui.require "root block has no tracks" . Seq.head
         =<< Ui.track_ids_of block_id
     return (block_id, track_id)
+
+-- * get_external_duration2
+
+-- TODO: not implemented yet
+
+data DeriveArgs =
+    DeriveArgs Cmd.Config UiConfig.Allocations Derive.Builtins
+        Derive.InstrumentAliases
+    deriving (Show)
+
+make_derive_args :: Cmd.Config -> [T.Allocation] -> Text
+    -> Either Error DeriveArgs
+make_derive_args cmd_config allocs ky = do
+    (builtins, aliases) <- parse_ky ky
+    allocations <- convert_allocations allocs
+    return $ DeriveArgs cmd_config allocations builtins aliases
+    where
+    parse_ky :: Text -> Either Error (Derive.Builtins, Derive.InstrumentAliases)
+    parse_ky = undefined -- TODO
+    convert_allocations :: [T.Allocation] -> Either Error UiConfig.Allocations
+    convert_allocations = undefined -- TODO
+
+get_external_duration2 :: DeriveArgs -> GetExternalCallDuration
+get_external_duration2 derive_args transformers call =
+    ( case result of
+        Left err -> Left $ pretty err
+        Right (Left err) -> Left $ pretty err
+        Right (Right Derive.Unknown) ->
+            Left "call doesn't support CallDuration"
+        Right (Right (Derive.CallDuration dur)) -> Right dur
+    , logs
+    )
+    where
+    (result, logs) = mini_derive derive_args $
+        Derive.with_default_imported $
+        Derive.get_score_duration $
+        foldr (.) id transform $
+        Perf.derive_event (Derive.Note.track_info track [])
+            (Event.event 0 1 call)
+    transform = map (Eval.eval_transform_expr "lookup_call_duration") $
+        filter (not . Text.null) transformers
+    track = TrackTree.make_track "title" mempty 1
+
+mini_derive :: DeriveArgs -> Derive.Deriver a
+    -> (Either Derive.Error a, [Log.Msg])
+mini_derive (DeriveArgs cmd_config allocs builtins aliases) deriver = do
+    let ui_state = Ui.config#UiConfig.allocations #= allocs $ Ui.empty
+    Perf.mini_derive ui_state cmd_config builtins aliases deriver
 
 -- * detect moves
 

@@ -381,6 +381,11 @@ eval ui_state cmd_state = fmap (first (second val_of)) . run_ ui_state cmd_state
     where
     val_of (a, _, _) = a
 
+-- | Run the Cmd in Identity, returning Nothing if it aborted.
+run_id :: Ui.State -> State -> CmdT Identity.Identity a -> Result (Maybe a)
+run_id ui_state cmd_state cmd =
+    Identity.runIdentity (run Nothing ui_state cmd_state (fmap Just cmd))
+
 -- | Run the given command in Identity, but return it in IO, just as
 -- a convenient way to have a uniform return type with 'run' (provided it is
 -- run in IO).
@@ -407,11 +412,6 @@ lift_id cmd = do
                 Ui.damage damage
                 Ui.unsafe_put ui_state
                 return val
-
--- | Run the Cmd in Identity, returning Nothing if it aborted.
-run_id :: Ui.State -> State -> CmdT Identity.Identity a -> Result (Maybe a)
-run_id ui_state cmd_state cmd =
-    Identity.runIdentity (run Nothing ui_state cmd_state (fmap Just cmd))
 
 -- | Run a set of Cmds as a single Cmd.  The first one to return non-Continue
 -- will return.  Cmds can use this to dispatch to other Cmds.
@@ -1389,6 +1389,15 @@ get_focused_block = Block.view_block <$> (Ui.get_view =<< get_focused_view)
 lookup_focused_view :: M m => m (Maybe ViewId)
 lookup_focused_view = gets state_focused_view
 
+-- | In some circumstances I don't want to abort if there's no focused block.
+lookup_focused_block :: M m => m (Maybe BlockId)
+lookup_focused_block = do
+    maybe_view_id <- lookup_focused_view
+    case maybe_view_id of
+        -- It's still an error if the view id doesn't exist.
+        Just view_id -> fmap (Just . Block.view_block) (Ui.get_view view_id)
+        Nothing -> return Nothing
+
 -- | Request focus.  'state_focused_view' will be updated once fltk reports the
 -- focus change.
 focus :: Ui.M m => ViewId -> m ()
@@ -1400,15 +1409,6 @@ focus view_id = do
         _ -> return ()
     Ui.damage $ mempty { Update._bring_to_front = Set.singleton view_id }
 
--- | In some circumstances I don't want to abort if there's no focused block.
-lookup_focused_block :: M m => m (Maybe BlockId)
-lookup_focused_block = do
-    maybe_view_id <- lookup_focused_view
-    case maybe_view_id of
-        -- It's still an error if the view id doesn't exist.
-        Just view_id -> fmap (Just . Block.view_block) (Ui.get_view view_id)
-        Nothing -> return Nothing
-
 get_current_step :: M m => m TimeStep.TimeStep
 get_current_step = gets (state_time_step . state_edit)
 
@@ -1419,6 +1419,8 @@ get_insert_tracknum = do
     view_id <- get_focused_view
     sel <- Ui.get_selection view_id Config.insert_selnum
     return (fmap Sel.start_track sel)
+
+-- *** status
 
 -- | This just calls 'Ui.set_view_status', but all status setting should
 -- go through here so they can be uniformly filtered or logged or something.
@@ -1526,6 +1528,12 @@ get_lookup_instrument = fmap (either (const Nothing) Just .) $
     -- This throws away the Left error just because that's what its callers all
     -- happen to want.
 
+state_lookup_instrument :: Ui.State -> State -> ScoreT.Instrument
+    -> Either Text ResolvedInstrument
+state_lookup_instrument ui_state cmd_state = memoized_instrument
+    (UiConfig.config_allocations (Ui.state_config ui_state))
+    (config_instrument_db (state_config cmd_state))
+
 -- | This memoizes instrument resolution in case you're going to do it a lot.
 -- 'resolve_instrument' has to merge some things so it's not exactly free.
 -- The spine-strict Map makes this less efficient for one-off lookups, but so
@@ -1534,14 +1542,13 @@ get_lookup_instrument = fmap (either (const Nothing) Just .) $
 -- Of course, the memoization only works as long as the memo table persists,
 -- which should happen if you use 'get_lookup_instrument' and reuse the
 -- function it returns.
-state_lookup_instrument :: Ui.State -> State -> ScoreT.Instrument
-    -> Either Text ResolvedInstrument
-state_lookup_instrument ui_state cmd_state = \inst ->
+memoized_instrument :: UiConfig.Allocations -> InstrumentDb
+    -> ScoreT.Instrument -> Either Text ResolvedInstrument
+memoized_instrument (UiConfig.Allocations allocs) db = \inst ->
     fromMaybe (Left $ "no alloc for " <> pretty inst) $ Map.lookup inst memo
     where
-    memo = resolve <$> (Ui.config#UiConfig.allocations_map #$ ui_state)
+    memo = resolve <$> allocs
     resolve alloc = resolve_instrument db alloc
-        where db = config_instrument_db (state_config cmd_state)
 
 -- | See 'ResolvedInstrument'.
 resolve_instrument :: InstrumentDb -> UiConfig.Allocation

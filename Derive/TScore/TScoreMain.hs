@@ -58,6 +58,7 @@ import qualified Perform.Transport as Transport
 
 import qualified Synth.Shared.Config as Shared.Config
 import qualified Synth.StreamAudio as StreamAudio
+import qualified Ui.Transform as Transform
 import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
 
@@ -95,7 +96,26 @@ check_score fname = do
     source <- Text.IO.readFile fname
     case TScore.parse_score source of
         Left err -> Text.IO.putStrLn $ txt fname <> ": " <> err
-        Right _ -> return ()
+        Right (ui_state, allocs) ->
+            Text.IO.putStrLn $ Transform.show_stats ui_state
+
+-- TODO show duration?  I have to derive for that though.
+-- Maybe check should derive!
+
+score_stats :: T.Score -> Text
+score_stats (T.Score toplevels) = Text.unwords
+    [ showt (length blocks), "blocks"
+    , showt (length tracks), "tracks"
+    , showt (length notes) <> "/" <> showt (length rests), "notes/rests"
+    ]
+    where
+    blocks = [b | (_, T.BlockDefinition b) <- toplevels]
+    tracks =
+        [ t | b <- blocks, T.WrappedTracks _ wraps <- [T.block_tracks b]
+        , T.Tracks ts <- wraps, t <- ts
+        ]
+    notes = [n | t <- tracks, T.TNote _ n <- T.track_tokens t]
+    rests = [n | t <- tracks, T.TRest _ n <- T.track_tokens t]
 
 dump_score :: FilePath -> IO ()
 dump_score fname = do

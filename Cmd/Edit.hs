@@ -586,7 +586,7 @@ lookup_call_duration block_id track_id event =
     Perf.lookup_note_deriver block_id track_id event >>= \case
         Nothing -> return Nothing
         Just deriver -> do
-            result <- Perf.get_derive_at block_id track_id $
+            result <- Perf.derive_at_throw block_id track_id $
                 Derive.get_score_duration deriver
             return $ case result of
                 Left _ -> Nothing
