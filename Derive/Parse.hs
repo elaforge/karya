@@ -99,7 +99,7 @@ parse_expr_raw = parse (p_expr True)
 -- | Parse a single Val.
 {-# SCC parse_val #-}
 parse_val :: Text -> Either Text DeriveT.Val
-parse_val = ParseText.parse (lexeme p_val)
+parse_val = ParseText.parse1 (lexeme p_val)
 
 -- | Parse attributes in the form +a+b.
 parse_attrs :: String -> Either Text Attrs.Attributes
@@ -107,7 +107,7 @@ parse_attrs = parse p_attributes . Text.pack
 
 -- | Parse a number or hex code, without a type suffix.
 parse_num :: Text -> Either Text Signal.Y
-parse_num = ParseText.parse (lexeme (p_hex <|> p_untyped_num))
+parse_num = ParseText.parse1 (lexeme (p_hex <|> p_untyped_num))
 
 -- | Extract only the call part of the text.
 parse_call :: Text -> Maybe Text
@@ -117,7 +117,7 @@ parse_call text = case parse_expr_raw text of
     _ -> Nothing
 
 parse :: A.Parser a -> Text -> Either Text a
-parse p = ParseText.parse (spaces >> p)
+parse p = ParseText.parse1 (spaces >> p)
 
 -- * lex
 
@@ -184,7 +184,7 @@ p_lex1 =
 expand_macros :: (Text -> Text) -> Text -> Either Text Text
 expand_macros replacement text
     | not $ "@" `Text.isInfixOf` text = Right text
-    | otherwise = ParseText.parse (p_macros replacement) text
+    | otherwise = ParseText.parse1 (p_macros replacement) text
 
 p_macros :: (Text -> Text) -> A.Parser Text
 p_macros replace = do
@@ -500,7 +500,7 @@ is_whitespace c = c == ' ' || c == '\t'
 -- | Parse ky text and load and parse all the files it imports.  'parse_ky'
 -- describes the format of the ky file.
 load_ky :: [FilePath] -> Text
-    -> IO (Either Text (Definitions, [(FilePath, Text)]))
+    -> IO (Either ParseText.Error (Definitions, [(FilePath, Text)]))
     -- ^ (all_definitions, [(import_filename, content)])
     -- "" is used for the filename for the code in the ky parameter.
 load_ky paths ky = fmap (fmap annotate) . Except.runExceptT $ parse ky
@@ -512,15 +512,16 @@ load_ky paths ky = fmap (fmap annotate) . Except.runExceptT $ parse ky
         where (defs, loaded) = unzip results
 
 load_ky_file :: [FilePath] -> Set FilePath -> [(FilePath, FilePath)]
-    -> Except.ExceptT Text IO [(Definitions, (FilePath, Text))]
+    -> Except.ExceptT ParseText.Error IO [(Definitions, (FilePath, Text))]
 load_ky_file _ _ [] = return []
 load_ky_file paths loaded ((fname, lib) : libs)
     | lib `Set.member` loaded = return []
     | otherwise = do
-        let prefix = first ((txt lib <> ": ")<>)
-        (fname, content) <- tryRight . prefix
+        let prefix = txt lib <> ": "
+        (fname, content) <- tryRight . first (ParseText.message . (prefix<>))
             =<< liftIO (find_ky paths fname lib)
-        (imports, defs) <- tryRight . prefix $ parse_ky fname content
+        (imports, defs) <- tryRight . first (ParseText.prefix prefix) $
+            parse_ky fname content
         ((defs, (fname, content)) :) <$>
             load_ky_file paths (Set.insert lib loaded) (libs ++ imports)
 
@@ -562,7 +563,6 @@ instance Monoid Definitions where
 
 -- | (defining_file, (Symbol, Expr))
 type Definition = (FilePath, (Expr.Symbol, Expr))
-type LineNumber = Int
 
 {- | Parse a ky file.  This file gives a way to define new calls in the
     tracklang language, which is less powerful but more concise than haskell.
@@ -597,19 +597,22 @@ type LineNumber = Int
     $variables, which become arguments to the call.
 -}
 parse_ky :: FilePath -> Text
-    -> Either Text ([(FilePath, FilePath)], Definitions)
+    -> Either ParseText.Error ([(FilePath, FilePath)], Definitions)
 parse_ky fname text = do
     let (imports, sections) = split_sections $ strip_comments $ Text.lines text
     let extra = Set.toList $
             Map.keysSet sections `Set.difference` Set.fromList valid_headers
     unless (null extra) $
-        Left $ "unknown sections: " <> Text.intercalate ", " extra
-    imports <- ParseText.parse_lines 1 p_imports imports
+        Left $ ParseText.message $
+            "unknown sections: " <> Text.intercalate ", " extra
+    imports <- ParseText.parse p_imports imports
     parsed <- Traversable.traverse parse_section sections
     let get header = Map.findWithDefault [] header parsed
-        get2 kind = (get (kind <> " " <> generator),
-            get (kind <> " " <> transformer))
-    aliases <- mapM parse_alias (get alias)
+        get2 kind =
+            ( get (kind <> " " <> generator)
+            , get (kind <> " " <> transformer)
+            )
+    aliases <- first (ParseText.Error Nothing) $ mapM parse_alias (get alias)
     let add_fname = map (fname,)
         add_fname2 = bimap add_fname add_fname
     return $ (add_fname imports ,) $ Definitions
@@ -633,7 +636,7 @@ parse_ky fname text = do
         ]
     parse_section [] = return []
     parse_section ((lineno, line0) : lines) =
-        ParseText.parse_lines lineno p_section $
+        first (ParseText.offset (lineno, 0)) $ ParseText.parse p_section $
             Text.unlines (line0 : map snd lines)
     strip_comments = filter (not . ("--" `Text.isPrefixOf`) . Text.stripStart)
 
@@ -651,10 +654,10 @@ parse_alias (lhs, rhs) = first (msg<>) $ case rhs of
     msg = "alias " <> ShowVal.show_val lhs <> " = " <> ShowVal.show_val rhs
         <> ": "
 
-split_sections :: [Text] -> (Text, Map Text [(LineNumber, Text)])
+split_sections :: [Text] -> (Text, Map Text [(Int, Text)])
 split_sections =
     second (Map.fromListWith (flip (++)) . concatMap split_header)
-        . split_imports . Seq.split_before is_header . zip [1..]
+        . split_imports . Seq.split_before is_header . zip [0..]
     where
     is_header = (":" `Text.isSuffixOf`) . snd
     split_imports [] = ("", [])

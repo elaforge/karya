@@ -6,6 +6,7 @@ module Cmd.Ky_test where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
+import qualified Util.ParseText as ParseText
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Ky as Ky
@@ -91,7 +92,8 @@ e_builtins = concatMap (Map.keys . Derive.call_map) . Map.elems
 put_library :: Cmd.M m => Text -> m ()
 put_library text = do
     cache <- case Parse.parse_ky "fname.ky" text of
-        Left err -> return $ Cmd.KyCache (Left err) mempty
+        Left err ->
+            return $ Cmd.KyCache (Left (ParseText.show_error err)) mempty
         Right (imported, defs) -> do
             builtins <- Ky.compile_library (map snd imported) $
                 Ky.compile_definitions defs

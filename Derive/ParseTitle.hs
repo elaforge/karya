@@ -56,7 +56,7 @@ track_type title
 -- TODO this is actually unused, and I think track-call is unimplemented?
 {-# SCC parse_note_track #-}
 parse_note_track :: Text -> Either Text (ScoreT.Instrument, Maybe TrackCall)
-parse_note_track = ParseText.parse p_note_track
+parse_note_track = ParseText.parse1 p_note_track
 
 -- > >inst !track-call
 p_note_track :: A.Parser (ScoreT.Instrument, Maybe TrackCall)
@@ -74,7 +74,7 @@ parse_control_type :: Text -> Either Text ControlType
 parse_control_type = fmap fst . parse_control_title
 
 parse_control_title :: Text -> Either Text (ControlType, [DeriveT.Call])
-parse_control_title = ParseText.parse p_control_title
+parse_control_title = ParseText.parse1 p_control_title
 
 data ControlType =
     -- | Tempo track with an optional modifying symbol.

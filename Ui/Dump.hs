@@ -28,7 +28,7 @@ newtype Tree = Tree [(String, Val)] deriving (Show)
 data Val = Val String | Sub Tree deriving (Show)
 
 parse :: String -> Either Text Dump
-parse = fmap flatten . ParseText.parse p_tree . Text.pack
+parse = fmap flatten . ParseText.parse1 p_tree . Text.pack
 
 flatten :: Tree -> Dump
 flatten (Tree pairs) = concatMap (go []) pairs

@@ -207,7 +207,7 @@ test_p_equal :: Test
 test_p_equal = do
     let eq a b = Right (Call "=" [Literal (VStr a), b])
         num = Literal . VNum . ScoreT.untyped
-    let f = ParseText.parse Parse.p_equal
+    let f = ParseText.parse1 Parse.p_equal
     equal (f "a = b") (eq "a" (Literal (VStr "b")))
     equal (f "a=b") (eq "a" (Literal (VStr "b")))
     equal (f "a = 10") (eq "a" (num 10))
@@ -288,6 +288,7 @@ test_expand_macros = do
 
 -- * ky file
 
+test_load_ky :: Test
 test_load_ky = do
     let make_ky imports defs = unlines $
             ["import '" <> i <> "'" | i <- imports]
@@ -299,7 +300,7 @@ test_load_ky = do
 
     let write imports =
             writeFile (dir </> "defs") (make_ky imports ["defs-call"])
-    let load = bimap untxt (first extract)
+    let load = bimap ParseText.show_error (first extract)
             <$> Parse.load_ky [dir, lib] "import 'defs'"
         extract = map (fst . snd) . fst . Parse.def_note
     write ["z1"]
@@ -326,8 +327,10 @@ e_expr :: Parse.Expr -> [(Expr.Symbol, [Text])]
 e_expr (Parse.Expr (call :| calls)) = e_call call : map e_call calls
     where e_call (Parse.Call sym terms) = (sym, map ShowVal.show_val terms)
 
+test_parse_ky :: Test
 test_parse_ky = do
-    let f extract = bimap untxt extract . Parse.parse_ky "fname.ky"
+    let f extract = bimap ParseText.show_error extract
+            . Parse.parse_ky "fname.ky"
         note = f e_note . ("note generator:\n"<>)
         e_note = map (second (head . e_expr) . snd) . fst . Parse.def_note . snd
     left_like (f id "x:\na = b\n") "unknown sections: x"
@@ -337,7 +340,7 @@ test_parse_ky = do
         Right [("a", ("b", ["c"])), ("d", ("e", []))]
     equal (note "a = b\n c\n --comment\n\nd = e\n") $
         Right [("a", ("b", ["c"])), ("d", ("e", []))]
-    left_like (note "a = b\nc\n") ""
+    left_like (note "a = b\nc\n") "3:1: expected eof"
     equal (note "a = b $c") $ Right [("a", ("b", ["$c"]))]
     equal (f e_note "-- hi") (Right [])
     equal (f e_note "-- note_generator:") (Right [])
@@ -347,25 +350,27 @@ test_parse_ky = do
     equal (f fst "import 'x' -- blah\nimport 'y'\n") $
         Right [("fname.ky", "x"), ("fname.ky", "y")]
     equal (f fst "import\n\t'x'\n") $ Right [("fname.ky", "x")]
-    left_like (f fst "blort x\nimport y\n") "expected eof"
+    left_like (f fst "blort x\nimport y\n") "1:1: expected eof"
 
     let aliases = Parse.def_aliases . snd
     equal (f aliases "alias:\na = b\n")
         (Right [(ScoreT.Instrument "a", ScoreT.Instrument "b")])
     left_like (f aliases "alias:\n>a = >b\n") "lhs not a valid id"
 
+test_split_sections :: Test
 test_split_sections = do
     let f = second Map.toList . Parse.split_sections . Text.lines
     equal (f "a:\n1\nb:\n2\na:\n3\n") $
-        ("", [("a", [(2, "1"), (6, "3")]), ("b", [(4, "2")])])
+        ("", [("a", [(1, "1"), (5, "3")]), ("b", [(3, "2")])])
     equal (f "import a\nimport b\na:\n2\n")
-        ("import a\nimport b\n", [("a", [(4, "2")])])
+        ("import a\nimport b\n", [("a", [(3, "2")])])
 
+test_p_definition :: Test
 test_p_definition = do
-    let f = bimap untxt (second e_expr)
-            . ParseText.parse_lines 1 Parse.p_definition
+    let f = bimap ParseText.show_error (second e_expr)
+            . ParseText.parse Parse.p_definition
     equal (f "a =\n b\n c\n") (Right ("a", [("b", ["c"])]))
-    left_like (f "a =\n b\nc = d\n") ""
+    left_like (f "a =\n b\nc = d\n") "3:1: expected eof"
     equal (f "a = n +z\n") (Right ("a", [("n", ["+z"])]))
     equal (f "a = b $c") (Right ("a", [("b", ["$c"])]))
     equal (f "a = b = $c") (Right ("a", [("=", ["b", "$c"])]))

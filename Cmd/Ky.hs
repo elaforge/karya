@@ -22,6 +22,8 @@ import qualified System.FilePath as FilePath
 
 import qualified Util.Doc as Doc
 import qualified Util.Log as Log
+import qualified Util.ParseText as ParseText
+
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.Call.Macro as Macro
 import qualified Derive.Call.Module as Module
@@ -61,8 +63,9 @@ update_cache ui_state cmd_state = do
 check_cache :: Ui.State -> Cmd.State -> IO (Maybe Cmd.KyCache)
 check_cache ui_state cmd_state = run $ do
     when is_permanent abort
-    (defs, imported) <- try $ Parse.load_ky (state_ky_paths cmd_state)
-        (Ui.config#UiConfig.ky #$ ui_state)
+    (defs, imported) <- tryRight . first (Just . ParseText.show_error)
+        =<< liftIO (Parse.load_ky (state_ky_paths cmd_state)
+            (Ui.config#UiConfig.ky #$ ui_state))
     -- This uses the contents of all the files for the fingerprint, which
     -- means it has to read and parse them on each respond cycle.  If this
     -- turns out to be too expensive, I can go back to the modification time
@@ -85,7 +88,6 @@ check_cache ui_state cmd_state = run $ do
         _ -> False
 
     abort = Except.throwError Nothing
-    try action = tryRight . first Just =<< liftIO action
     run = fmap apply . Except.runExceptT
     apply (Left Nothing) = Nothing
     apply (Left (Just err))
@@ -97,7 +99,8 @@ check_cache ui_state cmd_state = run $ do
 load :: [FilePath] -> Ui.State
     -> IO (Either Text (Derive.Builtins, Derive.InstrumentAliases))
 load paths =
-    traverse compile <=< Parse.load_ky paths . (Ui.config#UiConfig.ky #$)
+    fmap (first ParseText.show_error) . traverse compile
+        <=< Parse.load_ky paths . (Ui.config#UiConfig.ky #$)
     where
     compile (defs, imported) = do
         builtins <- compile_library (map fst imported) $

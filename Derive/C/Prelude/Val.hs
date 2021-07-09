@@ -197,7 +197,7 @@ get_name_nn name =
 
 -- | c-1 is 0, g9 is 127.  The octave is optional, and defaults to 1.
 parse_pitch_name :: Text -> Maybe Pitch.NoteNumber
-parse_pitch_name = either (const Nothing) Just . ParseText.parse parse
+parse_pitch_name = either (const Nothing) Just . ParseText.parse1 parse
     where
     parse = do
         pc <- maybe mzero return . (`Map.lookup` pcs) =<< A.anyChar

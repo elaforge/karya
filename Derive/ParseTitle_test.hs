@@ -16,19 +16,19 @@ test_parse_control_title = do
     pprint (f "a | b")
 
 test_p_tempo = do
-    let f = ParseText.parse ParseTitle.p_control_type
+    let f = ParseText.parse1 ParseTitle.p_control_type
     equal (f "tempo") $ Right (Tempo Nothing)
     equal (f "tempo blah  ") $ Right (Tempo (Just "blah"))
 
 test_p_pitch = do
-    let f = ParseText.parse ParseTitle.p_control_type
+    let f = ParseText.parse1 ParseTitle.p_control_type
     equal (f "*") $ Right (Pitch "" (Right ""))
     equal (f "*hi") $ Right (Pitch "hi" (Right ""))
     equal (f "*hi #pc") $ Right (Pitch "hi" (Right "pc"))
     equal (f "*hi !tc") $ Right (Pitch "hi" (Left "tc"))
 
 test_p_control = do
-    let f = ParseText.parse ParseTitle.p_control_type
+    let f = ParseText.parse1 ParseTitle.p_control_type
     equal (f "c") $ Right $ Control (Right (ScoreT.untyped "c")) Nothing
     equal (f "c:nn") $ Right $
         Control (Right (ScoreT.Typed ScoreT.Nn "c")) Nothing

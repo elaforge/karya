@@ -353,7 +353,7 @@ eval_dyn ((start, end), (Call (DynCall _ sig func, name) arg)) = do
 -- ** parse
 
 parse_dyn_sequence :: Text -> Either Text [Call Char]
-parse_dyn_sequence = ParseText.parse p_dyn_calls
+parse_dyn_sequence = ParseText.parse1 p_dyn_calls
 
 p_dyn_calls :: Parser [Call Char]
 p_dyn_calls = A.skipSpace *> A.many1 (p_dyn_call <* A.skipSpace)
@@ -461,7 +461,7 @@ zip_calls :: [a] -> [Call b] -> [Call (a, b)]
 zip_calls xs calls = [Call (x, c) arg | (x, Call c arg) <- zip xs calls]
 
 parse_pitch_sequence :: Text -> Either Text [ParsedPitch]
-parse_pitch_sequence = ParseText.parse p_exprs
+parse_pitch_sequence = ParseText.parse1 p_exprs
 
 resolve_pitch_calls :: [ParsedPitch] -> Either Text [Call (PitchCall, Char)]
 resolve_pitch_calls = concatMapM resolve

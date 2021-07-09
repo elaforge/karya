@@ -27,30 +27,48 @@ type Parser a = A.Parser a
 
 -- | Parse all the text, and annotate the error with the char number.  For
 -- single-line input.
-parse :: Parser a -> Text -> Either Text a
-parse p text = case parse_all p text of
+parse1 :: Parser a -> Text -> Either Text a
+parse1 p text = case parse_all p text of
     Right val -> Right val
     Left (rest, msg) -> Left $
-        "parse error: char " <> maybe "?" showt ((+1) <$> col) <> " of "
-            <> show_expr col text <> ": " <> msg
+        "parse error: char " <> maybe "?" showt col <> " of "
+            <> error_context col text <> ": " <> msg
         where col = infer_column text rest
 
 -- | Parse all of the text, and annotate the error with line number and column.
-parse_lines :: Int -> Parser a -> Text -> Either Text a
-parse_lines start_line p text = case parse_all p text of
+parse :: Parser a -> Text -> Either Error a
+parse p text = case parse_all p text of
     Right val -> Right val
-    Left (rest, msg) -> Left $ err <> ": " <> msg <> " in line "
-        <> maybe "" (\(line, _, column) -> show_expr (Just column) line) loc
-        where
-        loc = infer_line text rest
-        err = case loc of
-            Nothing -> ""
-            Just (_, lineno, column) ->
-                showt (start_line + lineno) <> ":" <> showt (column + 1)
+    Left (rest, msg) -> Left $ Error loc msg
+        where loc = infer_location text rest
 
-show_expr :: Maybe Int -> Text -> Text
-show_expr Nothing expr = "\"" <> expr <> "\""
-show_expr (Just i) expr = "\"" <> pre <> "»" <> post <> "\""
+data Error = Error {
+    _position :: Maybe (Text, (Row, Column))
+    , _message ::Text
+    } deriving (Eq, Show)
+type Row = Int
+type Column = Int
+
+prefix :: Text -> Error -> Error
+prefix pref err = err { _message = pref <> _message err }
+
+offset :: (Row, Column) -> Error -> Error
+offset (row, col) err =
+    err { _position = second (\(r, c) -> (r+row, c+col)) <$> _position err }
+
+message :: Text -> Error
+message = Error Nothing
+
+show_error :: Error -> Text
+show_error (Error Nothing msg) = msg
+show_error (Error (Just (line, (row, column))) msg) = mconcat
+    [ showt row, ":", showt column, ": ", msg, " in line "
+    , error_context (Just column) line
+    ]
+
+error_context :: Maybe Int -> Text -> Text
+error_context Nothing expr = "\"" <> expr <> "\""
+error_context (Just i) expr = "\"" <> pre <> "»" <> post <> "\""
     where (pre, post) = (Text.take i expr, Text.drop i expr)
 
 parse_all :: A.Parser a -> Text -> Either (Text, Text) a
@@ -65,19 +83,20 @@ parse_all p text = go (A.parse p text)
         | Text.null rest = Right val
         | otherwise = Left (rest, "expected eof")
 
-infer_line :: Text -> Text -> Maybe (Text, Int, Int)
-    -- ^ (line, lineno from 0, column from 0)
-infer_line text rest = infer =<< infer_column text rest
+infer_location :: Text -> Text -> Maybe (Text, (Int, Int))
+    -- ^ (line, row from 1, column from 1)
+infer_location text rest = infer =<< infer_column text rest
     where
     infer i = extract i <$> List.find (\(_, end, _) -> end > i)
-        (zip3 sums (drop 1 sums) (zip [0..] lines))
-    extract i (start, _, (lineno, line)) = (line, lineno, i - start)
+        (zip3 sums (drop 1 sums) (zip [1..] lines))
+    extract i (start, _, (row, line)) = (line, (row, i - start))
     sums = scanl (+) 0 (map ((+1) . Text.length) lines)
     lines = Text.lines text
 
 infer_column :: Text -> Text -> Maybe Int
 infer_column text rest
-    | rest `Text.isSuffixOf` text = Just $ Text.length text - Text.length rest
+    | rest `Text.isSuffixOf` text =
+        Just $ Text.length text - Text.length rest + 1
     | otherwise = Nothing
 
 -- * casual parsing

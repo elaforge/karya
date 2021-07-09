@@ -331,7 +331,7 @@ call_duration (Move (Movement _ dur)) = case dur of
 -- * parse
 
 parse :: Code -> Either Text [Either Alias Call]
-parse = ParseText.parse p_calls
+parse = ParseText.parse1 p_calls
 
 p_calls :: Parser [Either Alias Call]
 p_calls = Applicative.many $

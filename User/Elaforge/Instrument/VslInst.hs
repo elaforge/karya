@@ -1774,7 +1774,7 @@ parse_sec attrs = case Seq.partition_on has_sec (Attrs.to_list attrs) of
     where
     (.) = (Prelude..)
     has_sec = parse . Text.replace "-" "." <=< Text.stripPrefix "sec"
-    parse t = case ParseText.parse ParseText.p_unsigned_float t of
+    parse t = case ParseText.parse1 ParseText.p_unsigned_float t of
         Left _ -> Nothing
         Right val -> Just $ RealTime.seconds val
 
