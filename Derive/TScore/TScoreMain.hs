@@ -185,8 +185,10 @@ play_score mb_device fname = initialize_audio $ initialize_midi $
             forM_ procs $ \(cmd, args) ->
                 putStrLn $ unwords $ "%" : cmd : args
             ready <- MVar.newEmptyMVar
-            rendering <- Async.async $
-                watch_subprocesses ready (Set.fromList procs)
+            rendering <- Async.async $ do
+                ok <- Performance.wait_for_subprocesses
+                    (MVar.putMVar ready ()) (Set.fromList procs)
+                unless ok $ Log.warn "background render had a problem"
             putStrLn "wait for ready"
             MVar.takeMVar ready
             let Transport.PlayControl quit = play_ctl
@@ -353,6 +355,7 @@ load_cmd_config midi_interface = do
 load_score :: Cmd.Config -> Text -> IO (Either Error (Ui.State, Cmd.State))
 load_score cmd_config source = Except.runExceptT $ do
     (ui_state, instruments) <- tryRight $ TScore.parse_score source
+    -- TODO adjust starting line in error
     (builtins, aliases) <- tryRight . first ("parsing %ky: "<>)
         =<< liftIO (Ky.load ky_paths ui_state)
     let cmd_state =  DeriveSaved.add_library builtins aliases $

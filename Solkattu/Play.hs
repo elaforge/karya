@@ -11,20 +11,15 @@ module Solkattu.Play (
 #endif
 ) where
 import qualified Control.Concurrent.Async as Async
-import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Concurrent.MVar as MVar
-
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
-import qualified Data.Text.IO as Text.IO
 import qualified Data.Vector as Vector
 
 import           System.FilePath ((</>))
-import qualified System.IO as IO
 
-import qualified Util.Control as Control
 import qualified Util.Log as Log
 import qualified Util.Processes as Processes
 import qualified Util.Seq as Seq
@@ -68,7 +63,7 @@ import           Types
 
 
 -- | Play mridangam realization for the korvai.
-play_m :: RealTime -> Korvai.Korvai -> IO ()
+play_m :: RealTime -> Korvai.Korvai -> IO Bool
 play_m = play_instrument Korvai.IMridangam
     (InstTypes.Qualified "sampler" "mridangam-d")
     "# = (natural) | %dyn = .75"
@@ -76,70 +71,27 @@ play_m = play_instrument Korvai.IMridangam
 play_instrument :: (Solkattu.Notation stroke,
         Expr.ToExpr (Realize.Stroke stroke), Ord stroke)
     => Korvai.Instrument stroke
-    -> InstTypes.Qualified -> Text -> RealTime -> Korvai.Korvai -> IO ()
+    -> InstTypes.Qualified -> Text -> RealTime -> Korvai.Korvai -> IO Bool
 play_instrument instrument im_instrument transform akshara_dur korvai = do
     state <- either errorIO return $
         to_state instrument im_instrument transform akshara_dur korvai
     (procs, output_dirs) <- derive_to_disk "solkattu" state
     play_procs procs output_dirs
 
-play_procs :: [Performance.Process] -> [FilePath] -> IO ()
-play_procs [] _ = return () -- I think this shouldn't happen?
+play_procs :: [Performance.Process] -> [FilePath] -> IO Bool
+play_procs [] _ = return True -- I think this shouldn't happen?
 play_procs procs output_dirs = do
     ready <- MVar.newEmptyMVar
     Log.debug $ "start render: " <> pretty procs
-    rendering <- Async.async $ watch_subprocesses ready (Set.fromList procs)
+    rendering <- Async.async $
+        Performance.wait_for_subprocesses (MVar.putMVar ready ())
+            (Set.fromList procs)
     Log.debug "wait for ready"
     MVar.takeMVar ready
     Log.debug $ Text.unwords $
         "%" : "build/opt/stream_audio" : map txt output_dirs
     Processes.call "build/opt/stream_audio" output_dirs
     Async.wait rendering
-
--- | This is analogous to 'Performance.watch_subprocesses', but notifies as
--- soon as all processes have rendered output.
---
--- It seems like overkill to watch multiple processes when there is always just
--- one (and can only be one, since I only load Sampler.PatchDb.synth below),
--- but that's what derive gives me.
-watch_subprocesses :: MVar.MVar () -> Set Performance.Process -> IO ()
-watch_subprocesses ready all_procs =
-    Processes.multipleOutput (Set.toList all_procs) $ \chan ->
-        Control.loop1 (all_procs, Set.empty) $ \loop (procs, started) -> if
-            | Set.null procs -> MVar.tryPutMVar ready () >> return ()
-            | otherwise -> do
-                ((cmd, args), out) <- Chan.readChan chan
-                loop =<< process procs started (cmd, args) out
-    where
-    process procs started (cmd, args) = \case
-        Processes.Stderr line -> do
-            -- Only show Log.Warn and above.
-            -- TODO pass LOG_CONFIG?
-            when ("---" `Text.isPrefixOf` line) $
-                put line
-            return (procs, started)
-        Processes.Stdout line -> case Config.parseMessage line of
-            Just (Config.Message
-                    { Config._payload = Config.WaveformsCompleted chunks })
-                | 0 `elem` chunks -> do
-                    -- I can start playing when I see the first progress for
-                    -- each process, and for each instrument.  Since I only
-                    -- have one instrument the first suffices.
-                    let started2 = Set.insert (cmd, args) started
-                    when (started2 == all_procs) $
-                        void $ MVar.tryPutMVar ready ()
-                    return (procs, started2)
-                | otherwise -> return (procs, started)
-            Just (Config.Message { Config._payload = Config.RenderingRange {} })
-                -> return (procs, started)
-            _ -> put ("?: " <> line) >> return (procs, started)
-        Processes.Exit code -> do
-            when (code /= Processes.ExitCode 0) $
-                Log.warn $ "subprocess " <> txt cmd <> " "
-                    <> showt args <> " returned " <> showt code
-            return (Set.delete (cmd, args) procs, started)
-    -- These get called concurrently, so avoid jumbled output.
-    put line = Log.with_stdio_lock $ Text.IO.hPutStrLn IO.stdout line
 
 -- | Derive the Ui.State and write the im parts to disk.
 derive_to_disk :: FilePath -> Ui.State -> IO ([Performance.Process], [FilePath])

@@ -12,6 +12,7 @@
 module Cmd.Performance (
     SendStatus, update_performance, derive_blocks, performance, derive
     , Process, evaluate_im
+    , wait_for_subprocesses
 ) where
 import qualified Control.Concurrent.Async as Async
 import qualified Control.Concurrent.Chan as Chan
@@ -26,6 +27,7 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Vector as Vector
 
+import qualified Streaming.Prelude as S
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import           System.FilePath ((</>))
@@ -281,21 +283,21 @@ evaluate_performance im_config lookup_inst wait send_status score_path
     send_status block_id $ Msg.DeriveComplete
         (perf { Cmd.perf_events = events })
         (if null procs then Msg.ImUnnecessary else Msg.ImStarted)
-    failed <- case im_config of
+    ok <- case im_config of
         Just config -> watch_subprocesses block_id
             (make_status (Cmd.perf_inv_tempo perf)
                 (state_wants_waveform (Cmd.perf_ui_state perf))
                 (Config.imDir config) score_path adjust0 play_multiplier)
             (send_status block_id)
             (Set.fromList procs)
-        Nothing -> return False
+        Nothing -> return True
     unless (null procs) $ do
-        stats <- case (failed, im_config) of
-            (False, Just config) -> fmap Just $ im_gc $
+        stats <- case (ok, im_config) of
+            (True, Just config) -> fmap Just $ im_gc $
                 Config.outputDirectory (Config.imDir config) score_path block_id
             _ -> return Nothing
         send_status block_id $ Msg.ImStatus block_id Set.empty $
-            Msg.ImComplete failed stats
+            Msg.ImComplete (not ok) stats
 
 im_gc :: FilePath -> IO ImGc.Stats
 im_gc output_dir = do
@@ -328,49 +330,86 @@ state_wants_waveform state track_id = maybe False Track.track_waveform $
 
 type Process = (FilePath, [String])
 
--- | Watch each subprocess, return when they all exit.
+-- | Watch subprocesses and convert their msgs to Msg.DeriveStatus.
 watch_subprocesses :: BlockId -> (Config.Message -> ImStatus)
     -> (Msg.DeriveStatus -> IO ()) -> Set Process -> IO Bool
-watch_subprocesses root_block_id make_status send_status procs
-    | Set.null procs = return False
-    | otherwise = Processes.multipleOutput (Set.toList procs) $ \chan ->
-        Control.loop1 (procs, False) $ \loop (procs, failed) -> if
-            | Set.null procs -> return failed
-            | otherwise -> do
-                ((cmd, args), out) <- Chan.readChan chan
-                loop =<< process procs failed (cmd, args) out
+watch_subprocesses root_block_id make_status send_status procs =
+    stream_subprocesses procs $ S.mapM_ watch
     where
-    process procs failure (cmd, args) = \case
-        Processes.Stderr line ->
-            put line >> return (procs, failure)
-        Processes.Stdout line -> do
-            failed <- progress line
-            return (procs, failed || failure)
-        Processes.Exit code -> do
-            when (code /= Processes.ExitCode 0) $
-                Log.warn $ "subprocess failed with " <> showt code <> ": "
-                    <> Text.unwords (map txt (cmd : args))
-            return (Set.delete (cmd, args) procs, failure)
+    watch ((cmd, args), ProcessExit code)
+        | code /= Processes.ExitCode 0 = Log.warn $ "subprocess failed with "
+            <> showt code <> ": " <> Text.unwords (map txt (cmd : args))
+        | otherwise = return ()
+    watch (_, Message msg)
+        -- This is an update for a child block.  I only display progress
+        -- for each block as its own toplevel.  If a block is child of
+        -- another, I can see its prorgess in the parent.
+        | Config._blockId msg /= root_block_id = return ()
+        | otherwise = case make_status msg of
+            ImStatus status -> send_status =<< resolve_waveform_links status
+            ImWarn msg -> Log.write msg
+            ImFail msg -> Log.write msg
+            ImNothing -> return ()
 
-    progress line = case Config.parseMessage line of
+-- | Like 'watch_subprocesses', but notify the callback as soon as
+-- they have all rendered enough audio.
+wait_for_subprocesses :: IO () -> Set Process -> IO Bool
+wait_for_subprocesses ready procs =
+    stream_subprocesses procs $ mapAccumL_ check Set.empty
+    where
+    check started (_, ProcessExit {}) = return started
+    check started (proc, Message msg) = case Config._payload msg of
+        Config.WaveformsCompleted chunks
+            | 0 `elem` chunks -> do
+                -- TODO compute chunk for a specific time
+                -- TODO I need a set of expected instruments to see progress
+                -- on.
+                let started2 = Set.insert proc started
+                when (started2 == procs) ready
+                return started2
+            | otherwise -> ignore
+        Config.Failure err -> Log.warn err >> ignore
+        Config.Warn stack msg -> Log.warn_stack stack msg >> ignore
+        Config.RenderingRange {} -> ignore
+        where ignore = return started
+
+data Progress = ProcessExit Processes.Exit | Message Config.Message
+
+-- | Watch each subprocess, return when they all exit.  The stream returns
+-- False if there was some failure along the way.
+--
+-- This is a bracket and doesn't return the stream because I want to kill the
+-- subprocesses when leaving the scope.
+stream_subprocesses :: Set Process
+    -> (S.Stream (S.Of (Process, Progress)) IO Bool -> IO a) -> IO a
+stream_subprocesses procs action
+    | Set.null procs = action $ return False
+    | otherwise = Processes.multipleOutput (Set.toList procs) $ \chan ->
+        action $ Control.loop1 (procs, True) $ \loop (procs, ok) -> if
+            | Set.null procs -> return ok
+            | otherwise -> do
+                (proc, out) <- liftIO $ Chan.readChan chan
+                loop =<< process procs ok proc out
+    where
+    process procs ok proc = \case
+        Processes.Stderr line -> put line >> return (procs, ok)
+        Processes.Stdout line -> do
+            ok1 <- progress proc line
+            return (procs, ok && ok1)
+        Processes.Exit code -> do
+            S.yield (proc, ProcessExit code)
+            return (Set.delete proc procs, ok && code == Processes.ExitCode 0)
+    progress proc line = case Config.parseMessage line of
         Nothing -> do
             put $ "couldn't parse: " <> line
             return False
-        Just msg
-            -- This is an update for a child block.  I only display progress
-            -- for each block as its own toplevel.  If a block is child of
-            -- another, I can see its prorgess in the parent.
-            | Config._blockId msg /= root_block_id -> return False
-            | otherwise -> emit_status $ make_status msg
-
-    emit_status (ImStatus status) = do
-        send_status =<< resolve_waveform_links status
-        return False
-    emit_status (ImWarn msg) = Log.write msg >> return False
-    emit_status (ImFail msg) = Log.write msg >> return True
-    emit_status ImNothing = return False
+        Just msg -> do
+            S.yield (proc, Message msg)
+            return $ case Config._payload msg of
+                Config.Failure {} -> False
+                _ -> True
     -- These get called concurrently, so avoid jumbled output.
-    put line = Log.with_stdio_lock $ Text.IO.hPutStrLn IO.stdout line
+    put line = liftIO $ Log.with_stdio_lock $ Text.IO.hPutStrLn IO.stdout line
 
 data ImStatus =
     ImStatus Msg.DeriveStatus | ImWarn Log.Msg | ImFail Log.Msg | ImNothing
@@ -486,9 +525,9 @@ evaluate_im :: Config.Config
     -> IO ([Process], Vector.Vector Score.Event)
 evaluate_im config lookup_inst score_path adjust0 play_multiplier block_id
         events = do
-    cmds <- Maybe.catMaybes <$> mapM write_notes by_synth
+    procs <- Maybe.catMaybes <$> mapM write_notes by_synth
     Config.clearUnusedInstruments output_dir instruments
-    return (cmds, fromMaybe mempty $ lookup Nothing by_synth)
+    return (procs, fromMaybe mempty $ lookup Nothing by_synth)
     where
     instruments = Vector.foldl'
         (flip (HashSet.insert . ScoreT.instrument_name
@@ -573,3 +612,16 @@ performance state result = Cmd.Performance
 modify_play_state :: (Cmd.PlayState -> Cmd.PlayState) -> Cmd.State -> Cmd.State
 modify_play_state modify state =
     state { Cmd.state_play = modify (Cmd.state_play state) }
+
+-- * util
+
+-- | Like `S.mapM_` but with state.
+mapAccumL_ :: Monad m => (st -> a -> m st) -> st -> S.Stream (S.Of a) m r
+    -> m r
+mapAccumL_ f = go
+    where
+    go st xs = S.next xs >>= \case
+        Left r -> return r
+        Right (x, xs) -> do
+            st <- f st x
+            go st xs
