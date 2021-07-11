@@ -6,7 +6,7 @@
 module Util.Cpu where
 import qualified Data.Set as Set
 import qualified Data.Text as Text
-import Data.Text (Text)
+import           Data.Text (Text)
 import qualified Data.Text.IO as Text.IO
 
 import qualified System.Environment as Environment
@@ -34,7 +34,8 @@ envCores = (Read.readMaybe =<<) <$> Environment.lookupEnv "CPUS"
 
 -- | Parse /proc/cpuinfo for physical cpu count.
 linuxPhysicalCores :: Text -> Int
-linuxPhysicalCores = length . unique . map cpu . Text.splitOn "\n\n"
+linuxPhysicalCores =
+    length . unique . filter (not . null) . map cpu . Text.splitOn "\n\n"
     where
     -- unique pairs of (physical id, core id)
     cpu = filter (\s -> any (`Text.isPrefixOf` s) ["physical id", "core id"])
