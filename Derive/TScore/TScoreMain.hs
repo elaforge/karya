@@ -52,6 +52,7 @@ import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
 import qualified Midi.MidiDriver as MidiDriver
 
+import qualified Perform.Im.Convert as Im.Convert
 import qualified Perform.Midi.Patch as Midi.Patch
 import qualified Perform.Midi.Play as Midi.Play
 import qualified Perform.Transport as Transport
@@ -76,6 +77,7 @@ import           Types
 
 main :: IO ()
 main = do
+    Log.configure $ \state -> state { Log.state_priority = Log.Debug }
     (flags, args, errors) <- GetOpt.getOpt GetOpt.Permute options <$>
         Environment.getArgs
     unless (null errors) $ usage errors
@@ -90,6 +92,14 @@ main = do
         [ "usage: tscore [ flags ] input.tscore"
         , txt $ dropWhile (=='\n') $ GetOpt.usageInfo "" options
         ]
+
+initialize_midi :: (Interface.Interface -> IO a) -> IO a
+initialize_midi app = MidiDriver.initialize "tscore" (const False) $ \case
+    Left err -> die $ "error initializing midi: " <> err
+    Right midi_interface -> app =<< Interface.track_interface midi_interface
+
+initialize_audio :: IO a -> IO a
+initialize_audio = PortAudio.initialize
 
 check_score :: FilePath -> IO ()
 check_score fname = do
@@ -117,27 +127,6 @@ score_stats (T.Score toplevels) = Text.unwords
     notes = [n | t <- tracks, T.TNote _ n <- T.track_tokens t]
     rests = [n | t <- tracks, T.TRest _ n <- T.track_tokens t]
 
-dump_score :: FilePath -> IO ()
-dump_score fname = do
-    source <- Text.IO.readFile fname
-    cmd_config <- DeriveSaved.load_cmd_config
-    (ui_state, cmd_state) <- either die return =<< load_score cmd_config source
-    dump <- either (die . pretty) return $
-        Ui.eval ui_state Simple.dump_state
-    Pretty.pprint dump
-    putStrLn "\nevents:"
-    block_id <- maybe (die "no root block") return $
-        Ui.config#UiConfig.root #$ ui_state
-    let (events, logs) = derive ui_state cmd_state block_id
-    mapM_ Log.write logs
-    -- mapM_ Pretty.pprint events
-    mapM_ (Text.IO.putStrLn . Score.short_event) events
-    let (midi, midi_logs) = LEvent.partition $
-            DeriveSaved.perform_midi cmd_state ui_state events
-    putStrLn "\nmidi:"
-    mapM_ Log.write midi_logs
-    mapM_ Pretty.pprint midi
-
 list_devices :: IO ()
 list_devices = initialize_audio $ initialize_midi $ \midi_interface -> do
     putStrLn "Audio devices:"
@@ -153,18 +142,57 @@ list_devices = initialize_audio $ initialize_midi $ \midi_interface -> do
     print_midi_devices wdevs
         (StaticConfig.wdev_map (StaticConfig.midi static_config))
 
-initialize_midi :: (Interface.Interface -> IO a) -> IO a
-initialize_midi app = MidiDriver.initialize "tscore" (const False) $ \case
-    Left err -> die $ "error initializing midi: " <> err
-    Right midi_interface -> app =<< Interface.track_interface midi_interface
+dump_score :: FilePath -> IO ()
+dump_score fname = do
+    source <- Text.IO.readFile fname
+    cmd_config <- DeriveSaved.load_cmd_config
+    (ui_state, cmd_state) <- either die return =<< load_score cmd_config source
+    dump <- either (die . pretty) return $
+        Ui.eval ui_state Simple.dump_state
+    Pretty.pprint dump
+    putStrLn "\n\tscore events:"
+    block_id <- maybe (die "no root block") return $
+        Ui.config#UiConfig.root #$ ui_state
+    let (events, logs) = derive ui_state cmd_state block_id
+    mapM_ Log.write logs
+    mapM_ (Text.IO.putStrLn . Score.short_event) events
 
-initialize_audio :: IO a -> IO a
-initialize_audio = PortAudio.initialize
+    events <- dump_im ui_state cmd_state block_id events
+    dump_midi ui_state cmd_state events
+
+dump_im :: Ui.State -> Cmd.State -> BlockId -> Vector.Vector Score.Event
+    -> IO (Vector.Vector Score.Event)
+dump_im ui_state cmd_state block_id events = do
+    unless (null im_notes && null logs) $ do
+        putStrLn "\n\tim events:"
+        mapM_ Log.write logs
+        mapM_ (Text.IO.putStrLn . Pretty.formatted) im_notes
+    return midi_events
+    where
+    (im_events, midi_events) = Vector.partition is_im_event events
+    (im_notes, logs) = LEvent.partition $
+        Im.Convert.convert block_id lookup_inst $ Vector.toList im_events
+    is_im_event =
+        maybe False (is_im . Cmd.inst_instrument) . lookup_inst
+            . Score.event_instrument
+    is_im (Inst.Inst (Inst.Im {}) _) = True
+    is_im _ = False
+    lookup_inst = either (const Nothing) Just
+        . Cmd.state_lookup_instrument ui_state cmd_state
+
+dump_midi :: Ui.State -> Cmd.State -> Vector.Vector Score.Event -> IO ()
+dump_midi ui_state cmd_state events =
+    unless (null midi && null logs) $ do
+        putStrLn "\n\tmidi msgs:"
+        mapM_ Log.write logs
+        mapM_ Pretty.pprint midi
+    where
+    (midi, logs) = LEvent.partition $
+            DeriveSaved.perform_midi cmd_state ui_state events
 
 play_score :: Maybe String -> FilePath -> IO ()
 play_score mb_device fname = initialize_audio $ initialize_midi $
         \midi_interface -> do
-    Log.configure $ \state -> state { Log.state_priority = Log.Debug }
     source <- Text.IO.readFile fname
     cmd_config <- load_cmd_config midi_interface
     (ui_state, cmd_state) <- either die return =<< load_score cmd_config source
@@ -176,6 +204,7 @@ play_score mb_device fname = initialize_audio $ initialize_midi $
 
     play_ctl <- Transport.play_control
     let start = 0 -- TODO from cmdline
+
     let score_path = fname
     (procs, events) <- perform_im score_path cmd_state ui_state events block_id
     wait_for_im <- if null procs
