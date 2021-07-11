@@ -7,8 +7,9 @@ All lower case names are lower_with_underscores even though it's not haskell
 standard.  All upper case names are haskell standard CamelCase.  If I started
 again I'd use lowerUpper, but it's too late to change now.  Some modules in
 Util, which are nominally independent, are in lowerUpper, but I'm a bit
-inconsistent.  Solkattu/* is all camelCase.  Acrynyms are words, so MidiTest,
-not MIDITest, and NoteId, not NoteID.  It looks weird but it's consistent.
+inconsistent.  Synth/* and Solkattu/* are camelCase.  Acrynyms are words, so
+MidiTest, not MIDITest, and NoteId, not NoteID.  It looks weird but it's
+consistent.
 
 Operators are wrapped on the following line, with some exceptions like =, <-,
 $, <$>.  Call signature definitions are a bit stylized so they have their own
