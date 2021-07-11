@@ -10,7 +10,7 @@
 
 # TODO: display warn and error log msgs
 
-set -eu
+set -euo pipefail
 
 # If set, then exclude the test modules from the hpc results.
 hpc_exclude_test=${hpc_exclude_test-} # Add 't' to default true.
@@ -20,11 +20,12 @@ while [[ $1 = */* ]]; do
     shift
 done
 
+# Multiple tests will aggregate the runs.  Ultimately this is because I
+# want to run both RunTests compiled with test flags and with profiling flags.
 if [[ ${#binaries} -eq 0 ]]; then
     echo "usage: $0 build/test/RunTests [ build/profile/Run ... ] [ prefix ...]"
     exit 1
 fi
-shift
 
 prefixes=("$@")
 if [[ -z $prefixes ]]; then
@@ -35,12 +36,6 @@ fi
 out_dir=build/test/output
 all_tix=$out_dir/all.tix
 
-# Tests will recreate this if they need to.
-tmp=build/test/tmp
-rm -rf $tmp $out_dir
-mkdir -p $tmp $out_dir
-
-
 function run {
     echo "$@"
     "$@"
@@ -49,13 +44,14 @@ function run {
 # The subprocesses will set HPCTIXFILE appropriately.
 # Apparently there's no way to turn off hpc, and it doesn't like /dev/null.
 for bin in $binaries; do
-    HPCTIXFILE=build/test/tmp/tix.tix run $bin --jobs=auto \
-        --output=$out_dir $prefixes
+    HPCTIXFILE=build/test/tmp/tix.tix \
+        run $bin --jobs=auto --clear-dirs --output=$out_dir $prefixes
 done
 rm -f build/test/tmp/tix.tix
 
 # Do one test run to check all the outputs.
-run $binaries[1] --jobs=auto --output=$out_dir --check-output
+# Explicitly match no tests, because I just want to check them.
+run $binaries[1] --jobs=auto --output=$out_dir --check-output '^$'
 failures=$?
 rm -f *.tix(N) # these things are really annoying
 

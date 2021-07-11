@@ -27,9 +27,8 @@ import qualified Numeric
 import qualified System.CPUTime as CPUTime
 import qualified System.Console.GetOpt as GetOpt
 import qualified System.Directory as Directory
-import qualified System.Environment
 import qualified System.Environment as Environment
-import qualified System.Exit
+import qualified System.Exit as Exit
 import           System.FilePath ((</>))
 import qualified System.IO as IO
 import qualified System.Process as Process
@@ -76,6 +75,7 @@ metaPrefix = "===>"
 data Flag =
     CheckOutput
     | ClearDirs
+    | Help
     | Interactive
     | Jobs !Jobs
     | List
@@ -90,9 +90,8 @@ options =
     [ GetOpt.Option [] ["check-output"] (GetOpt.NoArg CheckOutput)
         "Check output for failures after running. Only valid with --output."
     , GetOpt.Option [] ["clear-dirs"] (GetOpt.NoArg ClearDirs)
-        "Remove everything in the test tmp dir and --output.\
-        \ This is probably just for cabal, which can't wrap tests in a shell\
-        \ script."
+        "Remove everything in the test tmp dir and --output."
+    , GetOpt.Option ['h'] ["help"] (GetOpt.NoArg Help) "show usage"
     , GetOpt.Option [] ["interactive"] (GetOpt.NoArg Interactive)
         "Interactive tests can ask questions, otherwise assume they all pass.\
         \ This disables --jobs parallelism, and output goes to stdout."
@@ -116,21 +115,23 @@ options =
 run :: [Test] -> IO ()
 run allTests = do
     IO.hSetBuffering IO.stdout IO.LineBuffering
-    args <- System.Environment.getArgs
+    args <- Environment.getArgs
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
         (opts, n, []) -> return (opts, n)
         (_, _, errors) -> quitWithUsage errors
+    when (Help `elem` flags) $ quitWithUsage []
     ok <- runTests allTests flags args
-    if ok then System.Exit.exitSuccess else System.Exit.exitFailure
+    if ok then Exit.exitSuccess else Exit.exitFailure
 
 quitWithUsage :: [String] -> IO a
 quitWithUsage errors = do
-    progName <- System.Environment.getProgName
+    progName <- Environment.getProgName
     putStrLn $ "usage: " <> progName <> " [ flags ] regex regex ..."
-    putStr $ GetOpt.usageInfo "Run tests that match any regex." options
+    putStr $ GetOpt.usageInfo
+        "Run tests that match any regex, or all of them in no regex." options
     unless (null errors) $
         putStrLn $ "\nerrors:\n" <> unlines errors
-    System.Exit.exitFailure
+    if null errors then Exit.exitSuccess else Exit.exitFailure
 
 runTests :: [Test] -> [Flag] -> [String] -> IO Bool
 runTests allTests flags regexes = do
@@ -140,35 +141,41 @@ runTests allTests flags regexes = do
         clearDirectory Testing.tmp_base_dir
         whenJust mbOutputDir clearDirectory
     if  | List `elem` flags -> do
-            mapM_ Text.IO.putStrLn $ List.sort $ map testName $
-                if null regexes then allTests else matches
+            mapM_ Text.IO.putStrLn $ List.sort $ map testName matches
             return True
+        | Subprocess `elem` flags -> subprocess allTests >> return True
         | Interactive `elem` flags -> do
             Testing.modify_test_config $ \config ->
                 config { Testing.config_human_agreeable = False }
             mapM_ runInSubprocess matches
             return True
-        | Subprocess `elem` flags -> subprocess allTests >> return True
         | Just outputDir <- mbOutputDir -> do
             jobs <- getJobs $
                 fromMaybe (NJobs 1) $ Seq.last [n | Jobs n <- flags]
+            -- Don't warn if it's CheckOutput, might just be checking.
+            when (null matches && CheckOutput `notElem` flags) $
+                putStrLn "warning: no tests matched"
             runOutput outputDir jobs matches (CheckOutput `elem` flags)
-        | otherwise -> mapM_ runTest matches >> return True
+        | otherwise -> do
+            when (null matches) $
+                putStrLn "warning: no tests matched"
+            mapM_ runTest matches
+            return True
     where
     mbOutputDir = Seq.last [d | Output d <- flags]
-    matches = matchingTests regexes allTests
+    matches = if null regexes then allTests else matchingTests regexes allTests
 
 getJobs :: Jobs -> IO Int
 getJobs (NJobs n) = return n
 getJobs Auto = Cpu.physicalCores
 
 runOutput :: FilePath -> Int -> [Test] -> Bool -> IO Bool
-runOutput outputDir jobs tests check = do
+runOutput outputDir jobs tests checkOutput = do
     Directory.createDirectoryIfMissing True outputDir
     let outputs = [outputDir </> "out" <> show n <> ".stdout" | n <- [1..jobs]]
     failures <- runParallel outputs tests
     mapM_ (putStrLn . ("*** "<>)) failures
-    if check
+    if checkOutput
         then (&&) <$> checkOutputs outputs <*> pure (null failures)
         else return $ null failures
     -- TODO run hpc?
@@ -179,11 +186,11 @@ runOutput outputDir jobs tests check = do
 -- will clean up.
 runInSubprocess :: Test -> IO ()
 runInSubprocess test = do
-    argv0 <- System.Environment.getExecutablePath
+    argv0 <- Environment.getExecutablePath
     putStrLn $ "subprocess: " ++ show argv0 ++ " " ++ show [testName test]
     val <- Process.rawSystem argv0 [untxt (testName test)]
     case val of
-        System.Exit.ExitFailure code -> Testing.with_test_name (testName test) $
+        Exit.ExitFailure code -> Testing.with_test_name (testName test) $
             void $ Testing.failure $
                 "test returned " <> showt code <> ": " <> testName test
         _ -> return ()
@@ -196,52 +203,57 @@ runParallel _ [] = return []
 runParallel outputs tests = do
     let byModule = Seq.keyed_group_adjacent testFilename tests
     queue <- newQueue [(txt name, tests) | (name, tests) <- byModule]
-    failures <- Async.forConcurrently (map fst (zip outputs byModule)) $
+    failures <- Async.forConcurrently (shortenBy outputs byModule) $
         \output -> jobThread output queue
     return $ Maybe.catMaybes failures
 
+shortenBy :: [a] -> [b] -> [a]
+shortenBy as bs = map fst (zip as bs)
+
 -- | Pull tests off the queue and feed them to a single subprocess.
 jobThread :: FilePath -> Queue (Text, [Test]) -> IO (Maybe String)
-jobThread output queue =
-    Exception.bracket (IO.openFile output IO.AppendMode) IO.hClose $ \hdl -> do
-        to <- Chan.newChan
-        env <- Environment.getEnvironment
-        argv0 <- System.Environment.getExecutablePath
-        -- Give each subprocess its own .tix, or they will stomp on each other
-        -- and crash.
-        Processes.conversation argv0 ["--subprocess"]
-                (Just (("HPCTIXFILE", output <> ".tix") : env)) to $ \from -> do
-            earlyExit <- Fix.fix $ \loop -> takeQueue queue >>= \case
-                Nothing -> return Nothing
-                Just (name, tests) -> do
-                    put $ untxt name
-                    Chan.writeChan to $ Processes.Text $
-                        Text.unwords (map testName tests) <> "\n"
-                    earlyExit <- Fix.fix $ \loop -> Chan.readChan from >>= \case
-                        Processes.Stdout line
-                            | line == testsCompleteLine -> return Nothing
-                            | otherwise -> Text.IO.hPutStrLn hdl line >> loop
-                        Processes.Stderr line ->
-                            Text.IO.hPutStrLn hdl line >> loop
-                        Processes.Exit n -> do
-                            put $ "completed early: " <> show n
-                            return $ Just n
-                    maybe loop (return . Just) earlyExit
-            final <- case earlyExit of
-                Nothing -> do
-                    Chan.writeChan to Processes.EOF
-                    Chan.readChan from
-                Just n -> return $ Processes.Exit n
-            let failure = case final of
-                    Processes.Exit (Processes.ExitCode n)
-                        | n == 0 -> Nothing
-                        | otherwise -> Just $ "subprocess crashed: " <> show n
-                    Processes.Exit Processes.BinaryNotFound ->
-                        Just $ "binary not found: " <> argv0
-                    _ -> Just $ "expected Exit, but got " <> show final
-            whenJust failure put
-            return $ (prefix<>) <$> failure
+jobThread output queue = Exception.bracket open IO.hClose $ \hdl -> do
+    to <- Chan.newChan
+    env <- Environment.getEnvironment
+    argv0 <- Environment.getExecutablePath
+    -- Give each subprocess its own .tix, or they will stomp on each other
+    -- and crash.
+    Processes.conversation argv0 ["--subprocess"]
+            (Just (("HPCTIXFILE", output <> ".tix") : env)) to $ \from -> do
+        earlyExit <- Fix.fix $ \loop -> takeQueue queue >>= \case
+            Nothing -> return Nothing
+            Just (name, tests) -> do
+                put $ untxt name
+                Chan.writeChan to $ Processes.Text $
+                    Text.unwords (map testName tests) <> "\n"
+                earlyExit <- Fix.fix $ \loop -> Chan.readChan from >>= \case
+                    Processes.Stdout line
+                        | line == testsCompleteLine -> return Nothing
+                        | otherwise -> Text.IO.hPutStrLn hdl line >> loop
+                    Processes.Stderr line ->
+                        Text.IO.hPutStrLn hdl line >> loop
+                    Processes.Exit n -> do
+                        put $ "completed early: " <> show n
+                        return $ Just n
+                maybe loop (return . Just) earlyExit
+        final <- case earlyExit of
+            Nothing -> do
+                Chan.writeChan to Processes.EOF
+                Chan.readChan from
+            Just n -> return $ Processes.Exit n
+        let failure = case final of
+                Processes.Exit (Processes.ExitCode n)
+                    | n == 0 -> Nothing
+                    | otherwise -> Just $ "subprocess crashed: " <> show n
+                Processes.Exit Processes.BinaryNotFound ->
+                    Just $ "binary not found: " <> argv0
+                _ -> Just $ "expected Exit, but got " <> show final
+        whenJust failure put
+        return $ (prefix<>) <$> failure
     where
+    -- This uses AppendMode because I want to aggregate results from multiple
+    -- runs, in tools/run_test.
+    open = IO.openFile output IO.AppendMode
     prefix = output <> ": "
     put = putStrLn . (prefix<>)
 
