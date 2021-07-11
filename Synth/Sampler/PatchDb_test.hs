@@ -30,22 +30,23 @@ test_samples_exist = do
     -- CI doesn't check have the samples, so it doesn't check this.
     -- TODO: omit this specific test for CI
     ifM (not <$> Directory.doesDirectoryExist root)
-        (putStrLn $ "=== no sample directory: " <> root) $ do
+        (putStrLn $ "=== no sample root directory: " <> root) $ do
     forM_ allFilenames $ \(name, dir, fnames) -> unless (exclude name) $ do
-        pprint (name, dir, length fnames)
+        ifM (not <$> Directory.doesDirectoryExist (root </> dir))
+            (putStrLn $ "=== no sample directory: " <> root </> dir) $ do
         not_equal (length fnames) 0
         forM_ fnames $ \fname ->
             unlessM (Directory.doesFileExist (root </> fname)) $
                 failure $ name <> ": " <> txt fname
         when diff_contents $
-            diff_dir_contents name dir fnames
+            diffDirContents name dir fnames
     where
     -- This one lets you directly pick samples at "runtime".
     exclude = (=="sample")
 
 -- | If the sample coverage doesn't match, it's easier to debug with a diff.
-diff_dir_contents :: Text -> FilePath -> [FilePath] -> IO ()
-diff_dir_contents name dir fnames = do
+diffDirContents :: Text -> FilePath -> [FilePath] -> IO ()
+diffDirContents name dir fnames = do
     exist <- filter isSample . map (drop (length root + 1)) <$>
         File.listRecursive (const True) (root </> dir)
     let (extra, notFound) = diff (List.sort exist) fnames

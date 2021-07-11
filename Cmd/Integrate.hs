@@ -263,7 +263,6 @@ manual_integrate key note controls = do
             Merge.merge_tracks Merge.KeepTitles block_id [(note, controls)]
                 [dest]
         Ui.set_integrated_manual block_id key (Just (concat new_dests))
-    where
 
 -- | Find all manual derive destinations with the given key.
 manual_destinations :: Block.SourceKey -> [(a, Block.Block)]

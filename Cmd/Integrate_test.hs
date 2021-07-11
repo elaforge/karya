@@ -36,6 +36,7 @@ import           Util.Test
 
 -- * derive integration
 
+test_block_integrate :: Test
 test_block_integrate = do
     let states = mkstates "<< | reverse"
             ("i1", [(0, 1, "4c"), (1, 1, "4d")], [])
@@ -73,6 +74,7 @@ test_block_integrate = do
             , ("*", [(0, 0, "4f"), (2, 0, "4c")])
             ])
 
+test_block_integrate2 :: Test
 test_block_integrate2 = do
     let states = mkstates "<<" ("i1", [(0, 1, "4c"), (1, 1, "4g")], [])
         source = "b1"
@@ -92,6 +94,7 @@ test_block_integrate2 = do
         , (1, 0, "4g")
         ]
 
+test_block_integrate_call_map :: Test
 test_block_integrate_call_map = do
     let cmd_state = CmdTest.mk_cmd_state $ UiTest.make_db1 $
             MidiInst.attribute_map #= Patch.single_keyswitches
@@ -118,6 +121,7 @@ test_block_integrate_call_map = do
           )
         ]
 
+test_track_integrate :: Test
 test_track_integrate = do
     let states = ResponderTest.mkstates $ UiTest.note_spec
             ("i1", [(0, 1, "4c"), (1, 1, "4d")], [])
@@ -138,6 +142,7 @@ test_track_integrate = do
     equal (e_events res) [(0, 1, "3c"), (1, 1, "4d")]
     equal (has_integrated res) (Just False)
 
+test_track_modify :: Test
 test_track_modify = do
     let states = ResponderTest.mkstates $ UiTest.note_spec
             ("i1 | < | reverse", [(0, 1, "4c"), (1, 1, "4d")], [])
@@ -176,6 +181,7 @@ test_track_modify = do
 
 -- * score integration
 
+test_block_score_integrate :: Test
 test_block_score_integrate = do
     let states = mkstates "" ("i1", [(0, 1, "4c"), (1, 1, "4d")], [])
     res <- start states $ do
@@ -204,6 +210,7 @@ test_block_score_integrate = do
             ])
         ]
 
+test_track_score_integrate :: Test
 test_track_score_integrate = do
     let states = mkstates "" ("i1", [(0, 1, "4c")], [])
     res <- start states $ add_integrated_track 1
@@ -221,6 +228,7 @@ test_track_score_integrate = do
             ])
         ]
 
+test_score_integrate_two_tracks :: Test
 test_score_integrate_two_tracks = do
     let states = mkstates_tracks ""
             [(">i1", [(0, 1, "a")]), (">i2", [(0, 1, "b")])]
@@ -236,6 +244,7 @@ test_score_integrate_two_tracks = do
          , (Config.score_integrate_skeleton, [(2, 4)])
         ]]
 
+test_derive_integrate_twice :: Test
 test_derive_integrate_twice = do
     let states = mkstates_tracks "" [(">i1", [(0, 1, "")])]
     res <- start states $ do
@@ -265,6 +274,7 @@ test_derive_integrate_twice = do
          , (Config.integrate_skeleton, [(1, 3)])
         ]]
 
+test_score_and_derive_integrate :: Test
 test_score_and_derive_integrate = do
     let states = mkstates_tracks ""
             [(">i1", [(0, 1, "")]), (">i2", [(0, 1, "")])]
@@ -284,6 +294,7 @@ test_score_and_derive_integrate = do
          , (Config.integrate_skeleton, [(2, 4)])
         ]]
 
+test_double_integrate :: Test
 test_double_integrate = do
     let states = mkstates_tracks "" [(">i1", [(0, 1, "")])]
     res <- start states $
@@ -302,36 +313,39 @@ e_integrate_skeleton :: ResponderTest.Result
 e_integrate_skeleton = map Block.integrate_skeleton . Map.elems
     . Ui.state_blocks . ResponderTest.result_ui_state
 
--- test_cascading_track_score_integrate = do
---     let states = mkstates_tracks "" [(">i1", [(0, 1, "")])]
---     res <- start states $ Ui.set_track_title (UiTest.mk_tid 1) ">i1 | <!"
---     equal (e_tracks res)
---         [ ("b1",
---             [ (">i1 | <!", [(0, 1, "")])
---             , (">i1", [(0, 1, "")])
---             ])
---         ]
---     res <- next res $ Ui.set_track_title (UiTest.mk_tid 2) ">i1 | <!"
---     equal (e_tracks res)
---         [ ("b1",
---             [ (">i1 | <!", [(0, 1, "")])
---             , (">i1 | <!", [(0, 1, "")])
---             , (">i1", [(0, 1, "")])
---             ])
---         ]
---
---     -- Change should propagate through both.
---     res <- next res $ UiTest.insert_event 1 (1, 1, "")
---     equal (e_tracks res)
---         [ ("b1",
---             [ (">i1 | <!", [(0, 1, ""), (1, 1, "")])
---             , (">i1 | <!", [(0, 1, ""), (1, 1, "")])
---             , (">i1", [(0, 1, ""), (1, 1, "")])
---             ])
---         ]
+-- TODO these don't work, but this would test them if they did.
+_test_cascading_track_score_integrate :: Test
+_test_cascading_track_score_integrate = do
+    let states = mkstates_tracks "" [(">i1", [(0, 1, "")])]
+    res <- start states $ Ui.set_track_title (UiTest.mk_tid 1) ">i1 | <!"
+    equal (e_tracks res)
+        [ ("b1",
+            [ (">i1 | <!", [(0, 1, "")])
+            , (">i1", [(0, 1, "")])
+            ])
+        ]
+    res <- next res $ Ui.set_track_title (UiTest.mk_tid 2) ">i1 | <!"
+    equal (e_tracks res)
+        [ ("b1",
+            [ (">i1 | <!", [(0, 1, "")])
+            , (">i1 | <!", [(0, 1, "")])
+            , (">i1", [(0, 1, "")])
+            ])
+        ]
+
+    -- Change should propagate through both.
+    res <- next res $ UiTest.insert_event 1 (1, 1, "")
+    equal (e_tracks res)
+        [ ("b1",
+            [ (">i1 | <!", [(0, 1, ""), (1, 1, "")])
+            , (">i1 | <!", [(0, 1, ""), (1, 1, "")])
+            , (">i1", [(0, 1, ""), (1, 1, "")])
+            ])
+        ]
 
 -- * manual integration
 
+test_manual_integrate :: Test
 test_manual_integrate = do
     let key = "key"
     let f state note controls = UiTest.exec state $
