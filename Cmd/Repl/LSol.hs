@@ -24,12 +24,11 @@ import qualified App.ReplProtocol as ReplProtocol
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Integrate as Integrate
-import qualified Cmd.Integrate.Convert as Convert
+import qualified Cmd.Integrate.Manual as Manual
 import qualified Cmd.ModifyNotes as ModifyNotes
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.Expr as Expr
-import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
@@ -102,10 +101,10 @@ realize instrument realize_patterns korvai section_i akshara_dur at = do
     -- TODO I could probbaly abstract more than just patterns
     let abstraction = if realize_patterns
             then mempty else Format.abstract Solkattu.GPattern
-    -- snd is an alignment warning, which I can see well enough on the track
-    -- already.
     let strokes = Format.makeGroupsAbstractScore abstraction $
             concatMap fst results
+            -- snd is an alignment warning, which I can see well enough on the
+            -- track already.
     return $
         to_note_track (Korvai.instToScore instrument) akshara_dur at strokes
 
@@ -184,33 +183,13 @@ reintegrate key = do
     (korvai, index, inst) <- Ui.require ("no korvai for " <> showt key) $
         get_by_key key
     -- TODO I need to store realize_patterns and akshara_dur somewhere.
-    (note, controls) <- convert_note_track key <$> case inst of
+    (note, controls) <- Manual.convert_note_track key <$> case inst of
         Korvai.GInstrument inst ->
             realize inst True korvai index akshara_dur start
     Integrate.manual_integrate key note controls
     where
     akshara_dur = 1
     start = 0
-
-convert_note_track :: Block.SourceKey -> ModifyNotes.NoteTrack
-    -> (Convert.Track, [Convert.Track])
-convert_note_track key (ModifyNotes.NoteTrack notes controls) =
-    ( convert_track ParseTitle.note_track notes
-    , map convert (Map.toAscList controls)
-    )
-    where
-    convert (ModifyNotes.Pitch scale_id, events) =
-        convert_track (ParseTitle.scale_to_title scale_id) events
-    convert (ModifyNotes.Control control, events) =
-        convert_track (ParseTitle.control_to_title (ScoreT.untyped control))
-            events
-    convert_track title = Convert.Track title
-        . map (add_stack key) . Events.ascending
-
-add_stack :: Block.SourceKey -> Event.Event -> Event.Event
-add_stack key event =
-    Event.stack_ #= Just (Event.Stack stack (Event.start event)) $ event
-    where stack = Stack.add (Stack.Call key) Stack.empty
 
 event_key :: Event.Event -> Maybe Block.SourceKey
 event_key event = case Event.stack event of

@@ -449,15 +449,20 @@ number_components :: Int
     -- ^ each section starts its count here, presumably 0 or 1
     -> LabelComponents
 number_components start =
-    LabelComponents $ take 10 $ List.repeat (count_from start)
+    LabelComponents $ take max_label_depth $ List.repeat (count_from start)
 
 measure_labels :: [Label]
 measure_labels = map biggest_label (count_from 0)
 
 -- | Like 'number_components', but the first two are bigger.
 big_number_components :: Int -> LabelComponents
-big_number_components sub_start = LabelComponents $ take 10 $
+big_number_components sub_start = LabelComponents $ take max_label_depth $
     map big_label (count_from sub_start) : List.repeat (count_from sub_start)
+
+-- | Limit label component depth.  I'll never take more than this anyway so
+-- it probably doesn't matter, but let's avoid too many infinite lists.
+max_label_depth :: Int
+max_label_depth = 10
 
 -- | The rank duration is the duration until the next mark of equal or greater
 -- (lower) rank.

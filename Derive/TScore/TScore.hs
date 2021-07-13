@@ -19,7 +19,6 @@ import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
 import qualified Util.Log as Log
@@ -27,13 +26,11 @@ import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
-import qualified Util.Then as Then
 
 import qualified App.Config as Config
-import qualified Cmd.BlockConfig as BlockConfig
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Integrate.Convert as Convert
-import qualified Cmd.Integrate.Merge as Merge
+import qualified Cmd.Integrate.Manual as Manual
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Ruler.Meter as Meter
 import qualified Cmd.Ruler.Modify as Ruler.Modify
@@ -53,7 +50,6 @@ import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.GenId as GenId
 import qualified Ui.Id as Id
-import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
@@ -142,7 +138,7 @@ integrate :: Ui.M m => GetExternalCallDuration -> Text -> m [BlockId]
 integrate get_ext_dur source = do
     ns <- Ui.get_namespace
     (blocks, config) <- Ui.require_right id $ track_blocks ns get_ext_dur source
-    -- TODO ensure config is empty
+    -- TODO ensure config is empty, it only applies to standalone ky
     let (subs, parents) = List.partition _is_sub blocks
     -- Unlike normal blocks, sub-blocks aren't integrated, but deleted and
     -- created from scratch each time.  This is so I don't have to worry about
@@ -597,28 +593,9 @@ reverse_tracks = reverse . _tracks
 
 integrate_block :: Ui.M m => Block NTrack -> m (Maybe BlockId)
 integrate_block block = do
-    let block_id = _block_id block
     ruler_id <- ui_ruler block
-    (dests, created) <- Ui.lookup_block block_id >>= \case
-        Nothing -> do
-            Ui.create_block (Id.unpack_id block_id) (_block_title block)
-                [Block.track (Block.RId ruler_id) Config.ruler_width]
-            return ([], True)
-        Just exist -> do
-            Ui.set_ruler_id block_id ruler_id
-            case Map.lookup source_key (Block.block_integrated_manual exist) of
-                Nothing -> Ui.throw $
-                    "block from tscore already exists: " <> pretty block_id
-                Just dests -> do
-                    Ui.set_block_title block_id (_block_title block)
-                    return (dests, False)
-    new_dests <- Merge.merge_tracks Merge.ReplaceTitles block_id
-        (convert_tracks block) dests
-    Ui.set_integrated_manual block_id source_key (Just new_dests)
-
-    when created $
-        BlockConfig.toggle_merge_all block_id
-    return $ if created then Just block_id else Nothing
+    Manual.block source_key (_block_id block) ruler_id (_block_title block)
+        (convert_tracks block)
 
 convert_tracks :: Block NTrack -> [(Convert.Track, [Convert.Track])]
 convert_tracks block =
@@ -680,26 +657,9 @@ ui_skeleton = Skeleton.make . concat . snd . List.mapAccumL make 1
         ns = [tracknum .. tracknum+len - 1]
 
 ui_ruler :: Ui.M m => Block NTrack -> m RulerId
-ui_ruler block =
-    make_ruler (_block_id block) (_meter block)
-        (track_time $ maximum $ 0 : map _end (_tracks block))
-
-make_ruler :: Ui.M m => BlockId -> [Meter.LabeledMark] -> TrackTime -> m RulerId
-make_ruler block_id meter end = do
-    whenM (Maybe.isNothing <$> Ui.lookup_ruler ruler_id) $
-        void $ Ui.create_ruler (Id.unpack_id ruler_id) (Ruler.ruler [])
-    Ui.modify_ruler ruler_id (generate_ruler meter end)
-    return ruler_id
-    where
-    ruler_id = Id.RulerId $ Id.unpack_id block_id
-
-generate_ruler :: [Meter.LabeledMark] -> TrackTime
-    -> (Ruler.Ruler -> Either Error Ruler.Ruler)
-generate_ruler meter end = Ruler.Modify.meter (const generate)
-    where
-    generate = trim $ cycle $ Seq.rdrop 1 meter
-    trim = map snd . Then.takeWhile1 ((<end) . fst)
-        . Seq.scanl_on (+) Meter.m_duration 0
+ui_ruler block = Ruler.Modify.replace (_block_id block) $
+    Ruler.Modify.generate_until end (_meter block)
+    where end = track_time $ maximum $ 0 : map _end (_tracks block)
 
 -- * make_blocks
 

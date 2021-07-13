@@ -374,19 +374,21 @@ Just meter_44 = simple_meter 4 4
 
 simple_meter :: Int -> Int -> Maybe Meter
 simple_meter n1 n2 = do
-    labeled <- Meters.simple n1 n2
+    abs_meter <- Meters.simple n1 n2
     return $ Meter
         { meter_pattern = 1 : replicate (n1-1) 0
         , meter_step = 1 / fromIntegral n2
         , meter_negative = False
-        -- TODO I picked 1/16 just because it works out.  But it's probably
-        -- wrong for everything other than 4/4.
-        , meter_labeled = make_labeled (1/16) labeled
+        -- Meter.repeat 1 is because I require a section level, otherwise
+        -- config_labeled_ranks doesn't work right and I wind up with
+        -- 2 toplevel counts per "measure", so I'd need 'make_labeled 2'.
+        -- TODO meters are really convoluted and confusing.
+        , meter_labeled = make_labeled 1 (Meter.repeat 1 abs_meter)
         }
 
 make_labeled :: TrackTime -> Meter.AbstractMeter -> [Meter.LabeledMark]
 make_labeled dur =
-    Meter.label_meter Meter.default_config . Meter.make_meter dur . (:[])
+    Meter.label_meter Meter.default_config . Meter.fit_meter dur . (:[])
 
 -- ** resolve_time
 

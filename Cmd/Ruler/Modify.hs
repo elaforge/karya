@@ -4,21 +4,37 @@
 
 -- | Export 'meter'.  This has to be separate from "Cmd.Ruler.Meter" to
 -- avoid a circular dependency.
-module Cmd.Ruler.Modify (meter, renumber, configs) where
+module Cmd.Ruler.Modify (
+    meter, generate_until, renumber, configs, replace
+) where
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 
 import qualified Util.Seq as Seq
-import qualified Ui.Ruler as Ruler
+import qualified Util.Then as Then
 import qualified Cmd.Ruler.Gong as Gong
 import qualified Cmd.Ruler.Meter as Meter
 import qualified Cmd.Ruler.RulerUtil as RulerUtil
 import qualified Cmd.Ruler.Tala as Tala
 
-import Global
+import qualified Ui.Id as Id
+import qualified Ui.Ruler as Ruler
+import qualified Ui.Ui as Ui
+
+import           Global
+import           Types
 
 
 meter :: (Meter.LabeledMeter -> Meter.LabeledMeter) -> RulerUtil.ModifyRuler
 meter m = Right . start_and_meter id m
+
+-- | Cycle the marks until the given time and renumber them.
+generate_until :: TrackTime -> [Meter.LabeledMark] -> RulerUtil.ModifyRuler
+generate_until end labeled = meter (const generate)
+    where
+    generate = trim $ cycle $ Seq.rdrop 1 labeled
+    trim = map snd . Then.takeWhile1 ((<end) . fst)
+        . Seq.scanl_on (+) Meter.m_duration 0
 
 renumber :: Meter.Start -> RulerUtil.ModifyRuler
 renumber start = Right . start_and_meter (const start) id
@@ -51,3 +67,13 @@ get_meter ruler
 configs :: Map Text Meter.Config
 configs = Map.fromList $ Seq.key_on Meter.config_name
     [Meter.default_config, Gong.config, Tala.dummy_config]
+
+-- | Create or replace a ruler for the given block.
+replace :: Ui.M m => BlockId -> RulerUtil.ModifyRuler -> m RulerId
+replace block_id modify = do
+    whenM (Maybe.isNothing <$> Ui.lookup_ruler ruler_id) $
+        void $ Ui.create_ruler (Id.unpack_id ruler_id) (Ruler.ruler [])
+    Ui.modify_ruler ruler_id modify
+    return ruler_id
+    where
+    ruler_id = Id.RulerId $ Id.unpack_id block_id

@@ -187,7 +187,7 @@ test_ext_call_duration = do
     let blocks = [("top=ruler", UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")])]
         top = ("top", UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")])
     -- name collision
-    left_like (f blocks "top = [s1]") "block from tscore already exists"
+    left_like (f blocks "top = [s1]") "block to integrate already exists"
 
     -- It uses the root block's namespace, not tscore.
     right_equal (f blocks "a = [top/0 s1]")

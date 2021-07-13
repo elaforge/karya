@@ -26,6 +26,12 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  - Meters are complicated, hard to understand, and error prone.
+    . I spent ages trying to figure out why 'make_labeled 1' didn't work in
+      Derive.TSCore.Check.
+    . How can I simplify things?  But still support meter / tala / gongs?
+    . The whole renumber fiasco is a fiasco.  Maybe marklist is too low
+      level, can I save the structure in the Ui.Ruler?
   upgrade to ghc-9.0.1
     + upgrade modules
       . Update nix.

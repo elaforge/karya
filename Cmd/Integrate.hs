@@ -251,7 +251,8 @@ needs_track_score_integrate updates state = Seq.unique $
 -- | Find blocks with the source key, and merge the given tracks into them.
 --
 -- If you are creating a new track, you need to have already done that and put
--- an empty destination in it.
+-- an empty destination in it.  Otherwise, this will find no existing
+-- destinations and do nothing.
 manual_integrate :: Ui.M m => Block.SourceKey -> Convert.Track -- ^ note track
     -> [Convert.Track] -- ^ dependent control tracks
     -> m ()
