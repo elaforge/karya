@@ -25,15 +25,24 @@ import           Global
 import           Types
 
 
+list :: Cmd.CmdL [ViewId]
+list = Ui.all_view_ids
+
 -- * create
 
-create :: Text -> Cmd.CmdL ()
-create name = do
+create :: BlockId -> Cmd.CmdL ViewId
+create = Create.view
+
+-- | Create a view from a BlockId inferred like a block call would, from the
+-- selected block.
+create_infer :: Text -> Cmd.CmdL ViewId
+create_infer name = do
     blocks <- Ui.gets Ui.state_blocks
     ns <- Ui.get_namespace
     caller <- Cmd.lookup_focused_block
-    whenJust (NoteTrackParse.to_block_id blocks ns caller name) $
-        void . Create.view
+    case NoteTrackParse.to_block_id blocks ns caller name of
+        Just block_id -> Create.view block_id
+        Nothing -> Cmd.throw "blah"
 
 -- | For the current window, open enough views at the current zoom to see the
 -- score from the current time until the end of the block.
