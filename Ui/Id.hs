@@ -161,10 +161,11 @@ valid_id (Id (Namespace ns) ident)
     | valid_symbol ns && valid_symbol ident = Just $ Id (Namespace ns) ident
     | otherwise = Nothing
 
--- | 'BlockId's are more lenient, only spaces are forbidden.
+-- | 'BlockId's are more lenient, only spaces and "" are forbidden.
 valid_block_id :: Id -> Maybe Id
 valid_block_id (Id (Namespace ns) ident)
-    | valid_symbol ns && not (" " `Text.isInfixOf` ident) =
+    | valid_symbol ns && not (Text.null ident)
+            && not (" " `Text.isInfixOf` ident) =
         Just $ Id (Namespace ns) ident
     | otherwise = Nothing
 
