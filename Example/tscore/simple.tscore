@@ -1,0 +1,15 @@
+%instruments=''
+    >pno pianoteq/ loop1 1
+    >tmb faust/tambura4
+''
+%ky=''
+    note transformer:
+    GLOBAL = scale = twelve-r | key=c-min | %dyn=.75
+''
+
+%scale=sargam
+
+score = [
+    >tmb 4s4 r g m | p
+    >pno 3s2   r   | p4 m p g | r g n2
+]

@@ -1,0 +1,240 @@
+-- TODO unfortunately doesn't work yet due to lack of external call
+-- duration support.  The non-standalone Example/score/merak-ngelo should
+-- work though.
+
+%ky=''
+    note transformer:
+
+    GLOBAL = scale=wayang-srg | symbolic-pitch=t | import bali.gangsa
+        | apply-start-offset | realize-ngoret
+
+    >pl = hand=l
+    >pr = hand=r
+    >sl = hand=l
+    >sr = hand=r
+
+    l = hand=l
+    r = hand=r
+
+    set-pemade   = >pl = pu | >pr = pu | >sl = pi | >sr = pi | randomize
+    set-kantilan = >pl = ku | >pr = ku | >sl = ki | >sr = ki | %t-dia=5
+        | randomize
+
+    randomize = %dyn = (cf-rnd01 -.25 .25) | %start-s = (cf-rnd-a .05)
+
+    note generator:
+    + = sus-a .35 |
+
+    alias:
+    pl = pu
+    pr = pu
+    sl = pi
+    sr = pi
+''
+
+%instruments=''
+    >ki         sampler/wayang-kantilan-isep
+    >ku         sampler/wayang-kantilan-umbang
+    >pi         sampler/wayang-pemade-isep
+    >pu         sampler/wayang-pemade-umbang
+''
+
+%scale=sargam
+%dur=add
+
+score = %default-call [
+    intro/0 to-p1 sec1 sec1b sec1c sec2 sec2 end
+]
+
+-- sec1
+
+sec1 = %default-call [
+    p1/0 p2a p2b p3a "repeat=2 | p3a" p4 to-p1
+]
+
+sec1b = %default-call [
+    p1/0 p2a p2b p3b p4 -- no to-p1 when it continues to sec1c
+]
+
+sec1c = %default-call [
+    p1b/0 p2a p2b p3b p4
+]
+
+intro = [
+    >sr      5p * g p * g p * | g  p r g | p2 '/r g
+    >sl %f=4 ^4       ^       | ^        | ^6
+    >pr      5s r g s r g s r | g  s r g | p2 '/r g
+    >pl      4s4      r       | g1 p r g | p2 '/r g
+]
+
+-- The usual thing leading back to p1.
+to-p1 = [
+    >sr 5r2 g p1 p
+    >sl p5
+    >pr 5r2 g p1 p
+    >pl p5
+]
+
+p1 = %default-call [ p1a/0 p1b-a p1a p1b-b ]
+
+p1b = [
+    >sr 5r g p * g p g * p g p * | g p g r * g r s * s r g * r g * r r ~
+    >sl 4p d s * d s d * s d s * | d s d p * d p g * g p d * p d * p p ~
+    >pr 5r g * r g * g r s * s r | g * g r s d * s d s * d s * d s r r ~
+    >pl 4p d * p d * d p g * g p | d * d p g r * g r g * r g * r g p p ~
+] [
+    >sr 5g p * p * g p g * p g p * ; g p g r * g r s * s r g * r g * r g * r g2 '/s
+    >sl 4d s * s * d s d * s d s * ; d s d p * d p g * g p d * p d * p d * p d2 '/g
+    >pr 5g * g * r g * g r s * s r ; g * g r s d * s d s * d s * d s * d s r g2 '/s
+    >pl 4d * d * p d * d p g * g p ; d * d p g r * g r g * r g * r g * r g p d2 '/g
+]
+
+p1a = [
+    >sr      _ _ 5r _ r g p p~| p p2 g r             g r1
+    >sl      4d s _ s _ d p d | s2  d p alt[d][d g]/ p
+    >pr %f=1 ^8               | ^10
+    >pl %f=2 ^8               | ^10
+]
+
+p1b-a = [
+    >sr %f=3  ^ ^ 5g ^ ^ ^ ^ ^ | ^6
+    >sl %f=4  ^ ^  d ^ ^ ^ ^ ^ | ^6
+    >pr      5s r  d s r g r s | ~ r ~ g p p
+    >pl       g p  r g p d p g | p5
+]
+
+p1b-b = [
+    >sr %f=3  ^ ^ 5g ^ ^ ^ ^ ^ | ^ g ^ ^ ^4
+    >sl %f=4  ^ ^  d ^ ^ ^ ^ ^ | ^ d ^ ^ ^4
+    >pr      5s r  d s r g r s | r d s r g ~ '/s ~
+    >pl       g p  r g p d p g | p r g p d ~ '/g ~
+]
+
+p2a = [
+    >sr     _ 5g s g s r g s | r  g s r ; g2 '/s |
+    >sl %f=4  ^4     ^       | ^1 ^ ^ ^ ; ^2 ^   |
+    >pr      _ d s d s r d s | r  d s r ; g2 '/s |
+    >pl      4r4     g       | p1 r g p ; d2 '/g |
+]
+
+p2b = [
+    >sr      _ 5g s g s r g s | r r ~ g s s ~ r ~ s g2 m/s ~ "'n -2"/r~ ~ p. g1 | r g p r g p r g p r g2 p ~
+    >sl %f=4   ^8             | ^               ^                    ^          | ^               ^
+    >pr       _ d s d s r d s | r r ~ d s s ~ r ~ s d2 m/s ~       '/p~ ~ s. d1 | p d s r g s r g s r g2 p ~
+    >pl       4r4     g       | p2  r   g   p   g   r  m/g r         s  r ~ r   | s   r   g   r   s8
+]
+
+p3a = [
+    >sr      on-repeat\
+             [_1  5g p * p * g p * g p * p * g p]\
+             [_1  5g g p * p * p * p * g p * g p]/16 | _1 5g g p * p g r _1 s _ d _ p _ g | _  d _ g d ~ p d s s ~ r * r s * | r s * r s * r * s2 '/g  '/s r |
+    >sl %f=4 ^16                                     | ^                                  | ^                                | ^
+    >pr      on-repeat\
+             [5r1 g * g * r g * r g * g * r g *]\
+             [5g  g g * g r s r g * r g * r g *]/16 | 5r1 g g * g * g r s2   r   s   d   | p1 _ p g r g p d s s ~ p * p * d | p * d p * d p d s d  p d s2 r |
+                                               -- alt g g g
+    >pl      [3d4 s2 d s4 ~]/0                      | ~                                  | ~                                | on-repeat\
+                                                                                                                               [ 3d4 s2 d s4 ~ ]\
+                                                                                                                               [ 3d4 s2 d s6 r2 ]/16
+]
+
+p3b = %default-call [ p3ba/0 p3bb p3bb ]
+
+p3ba = [
+    >sr      _1  5g p * p * g p | g g p _ g g p _ |
+    >sl %f=4  ^8                | ^               |
+    >pr      5r  g  * g * r g * | g g ~ r g g ~ r |
+    >pl      3d4        s2  d   | s4.         r2  |
+]
+
+p3bb = [
+    >sr      5g1 g p _ g  p _ g p p g  p _ g p p | g  p g r2  g s r g1 * g          r s | * s r r s2 '/g '/s  r
+    >sl %f=4 4g2   p   g1 p d2  p   g1 p d2  p   | ^8            ^                      | ^12
+                                                                   -- TODO carry pitch and dur into sub-block
+    >pr      5g  g ~ r g  * r g * r g *  r g * r | g  * g r2  g s r d1 * d          * s | d s * d s d p  d s2 r
+    >pl      4g2   p   g   r1 g p2  g    r1 g p2 | g1 p g r g2 s r alt[3d4][3d2 r]/4 s2 | d4      s4~      s2 r
+]
+
+p4 = [
+    -- TODO change "g2 '/s1" to "'?"
+    >sr      5g p * g p * g p | * g p p g p g2 '/s1 ~ r _ d p d2 s r |
+    >sl %f=4 ^8               | ^                ^               ^4  |
+    >pr      5g * r g * r g * | r g * r g * g r  s  ~ r s d _ d2 s r |
+    >pl      4g2  r   s4      |'p4      g2  r    s1 ~ r s d _ d2 s r |
+] [
+    >sr _1 5p * g p * g p | * g p * g p * g | p2 '/r g ; r1 g p * g p * g p * p * p g
+    >sl  ^8               | ^               | ^6       ; ^8               ^6
+    >pr 5g1 * r g * r g * | r g * r g * r g | p2 '/r g ; r1 g * r g * r g * g * r s ~
+    >pl 4g2  r   s4       |'p4      g4      | p2 '/r g ; p4       g2  p   d   p   g
+]
+
+-- sec2
+
+sec2 = %default-call [ q1-intro/0 q2 q3 q4i q4 "repeat=2 | q4" p4 ]
+
+q1-intro = [
+    >sr m/5r4 '/p
+    >sl m/4p4 '/s
+    >pr m/5r4 '/p
+    >pl m/4p4 '/s
+]
+
+q2 = [
+    >sr      [5g1 p _ p _ g p _]/0 | ~       | ~       | ~  |
+    >sl %f=4 ^8                    | ^4 ^    | ^ alt[p][r]/ ^ ^
+    >pr      [5g1 _ r _ r g _ r]/0 | ~       | ~       | ~  |
+    >pl      +/d4   +/p            | +/d +/p | +/g +/p | +/g +/'s
+] [
+    >sr [5g1 p _ p _ g p _]/0 | ~  | ~           | 5g g ~ p * p g g ~ r * r g ~
+    >sl ^4       ^            | ^ ^ ^ alt[p][r]/ | g1 g ~ p * p g g ~ r * r g ~
+    >pr [5g1 _ r _ r g _ r]/0 | ~  | ~           | 5g g ~ r * r g g ~ r * r s ~
+    >pl +/d4   +/p            | +/d +/p +/g   p  | g1 g ~ p * p g g ~ r * r s ~
+]
+
+q3 = [
+    >sr      [_ 5g p _ g _ p g]/0 | ~       | ~ | ~
+    >sl %f=4 ^8                   | ^       | r4. g2 | ^8
+    >pr      [5r _ s r _ r s _]/0 | ~       | ~ | ~
+    >pl      r4.           g2     | p d p g | alt[r4. g2][r4 g]/8 | p2 d p g
+] [
+    >sr 5r1 r ~ g _ g p p ~ g _ g r2 g r
+    >sl  ^12                      ^6
+    >pr 5r1 r ~ s _ s r r ~ g _ g r2 g r
+    >pl 4r1 r ~ g _ g p p ~ g _ g r2 g r
+]
+
+-- This is awkward.  What I really want is that the beginning is replaced by
+-- the end, or that it starts 1/2 into the first gong of q4.
+q4i = [
+    >sr 5g p * p g * p *
+    >sl 4s4 ~
+    >pr 5g * r * g r * r
+    >pl 4s4 ~
+]
+
+q4 = [
+    >sr      [5g p * p g * p *]/0 ~        | ~ _ 4d _ r _ s _ d |
+    >sl %f=4 ^16                           | ^
+    >pr      [5g * r * g r * r]/0 | alt\
+                                  [[5g * r * g r * r]/0 ~]\
+                                  [[_ 5s r s * r s r]/0 ~]/16 | 5g2 s g r |
+    >pl      [3d2 ~ s d           s4 ~ ]/0 | ~
+] [
+    >sr _  d _ g * g * d | [5s r * r s * r *]/0 ~                       | 5s1 r g2   p r
+    >sl ^                                   | ^
+    >pr s1 d p * p * p d | [5s * d * s d * d]/0 alt\
+                                                [5s * d * s d * d]\
+                                                [_ p d p * d p d]/8     | 5s1 d p2 '/s r
+    >pl ~                                   | on-repeat[3d2 ~ s d s4 ~ ][3d2 ~ s d s6 r2]/16
+]
+
+end = %default-call [
+    to-p1/0 p1 p2a p2b-end
+]
+
+p2b-end = [
+    >sr      _ 5g s g s r g s | r r ~ g s s ~ r ~ s g2 m/s ~ "'n -2"/r4
+    >sl %f=4   ^4     ^       | ^2  ^   ^   ^   ^   ^    ^ ^         ^4
+    >pr       _ d s d s r d s | r r ~ d s s ~ r ~ s d2 m/s ~       '/p4
+    >pl       4r4     g       | p2  r   g   p   g   r  m/g r         s4
+]

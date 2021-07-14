@@ -1,0 +1,47 @@
+-- Example with exaggerated sympathetic strings.
+%ky=''
+    note transformer:
+    GLOBAL = scale=just-r | key = c-min
+
+    -- play string 0, strings 1 2 3 are for sympathy
+    >tmb =
+        initialize tmb
+            pitch (list (2s) (2p) (3s) (4p))
+            pan (list -.75 -.25 .25 .75)
+        | element=0
+
+    -- >tmb8 =
+    --     open-strings = (list (3s) (3r) (3g) (3m) (3p) (3d) (3n) (4s))
+    --     | initialize tmb8 pitch (env open-strings)
+    --     | import china.zheng | bent-string
+
+    -- 8 strings, play zheng style
+    >tmb8 =
+        open-strings = (list (3s) (3r) (3g) (3p)   (3d) (4s) (4r) (4g))
+        | initialize tmb8
+            pitch (env open-strings)
+            pan (list -.8 -.6 -.4 -.2         .2 .4 .6 .8)
+        | import china.zheng | bent-string
+
+    note generator:
+    r = roll 3 .06 .4
+''
+
+%instruments=''
+    >pno pianoteq/ loop1 1
+    >tmb faust/tambura4
+    >tmb8 faust/tambura8
+''
+
+%scale=sargam
+
+score = "%sympathy=.65 | %jawari=.15" [
+    -- TODO doesn't wait for all instruments, so >tmb can get missed.
+    >tmb 2s4:1 | 2p | 3s | 2p | 2s
+    -- change >tmb8 to >tmb for single string style
+    >tmb8 3s1 r g m p~ . | s4 's ,r g 'n ,g 'n ,r | p2 _ r/,p _ |
+        r/'p4 _ r/m _ | r/g _ r/m~ . | p2 r _ _ | tr/g2 tr/r _ _ |
+        tr/r tr/s s~ . |
+    -- TODO mix MIDI and im, but out of sync at the moment
+    -- >"pno | %dyn=.3" 3s2   r        | p4 m p g | r g n2
+]
