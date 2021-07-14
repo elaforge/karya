@@ -7,6 +7,10 @@
 -- for im.  Since each im patch may respond in its own way to a Note, this
 -- relies on the patch itself exporting a 'ThruFunction' to find the
 -- appropriate sample.
+--
+-- This used to use OSC, but it turned out OSC wasn't really getting me
+-- anything, and its restrictions were troublesome, so now it's a custom
+-- format as emitted by 'serialize'.
 module Synth.Shared.Thru (
     ThruFunction, Note(..)
     , Message(..), Play(..)
@@ -67,6 +71,7 @@ serialize Stop = "stop\n"
 
     Original design for realtime im / im preview.  I wound up doing "hybrid im
     and MIDI", and using OSC for the protocol to talk to play_cache.
+    [ And now I'm no longer using OSC, but a a simple custom message format. ]
 
     . Get the Sampler.Patch, run its convert function, then send it to
       play_cache.  play_cache only needs use filename, ratio, vol.
