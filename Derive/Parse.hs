@@ -180,7 +180,7 @@ p_lex1 =
 -- | Map the identifiers after a \"\@\" through the given function.  Used
 -- to implement ID macros for the REPL.
 --
--- A macro looks like either \@valid-id-chars or \@"any chars".
+-- A macro looks like \@valid-id-chars.
 expand_macros :: (Text -> Text) -> Text -> Either Text Text
 expand_macros replacement text
     | not $ "@" `Text.isInfixOf` text = Right text
@@ -197,7 +197,7 @@ p_macros replace = do
 p_macro :: (Text -> Text) -> A.Parser Text
 p_macro replacement = do
     A.char '@'
-    replacement <$> (unbackslash <$> p_hs_string <|> bare_string)
+    replacement <$> (unbackslash <$> bare_string)
     where
     -- Strip escaped quotes, because 'show' will turn it back into haskell
     -- and re-add them.  This will mess up all the other zillion backslash
