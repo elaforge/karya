@@ -286,7 +286,7 @@ data Status =
     -- | Stop further cmd processing, \"consuming\" the Msg.
     | Done
     -- | Hack to control import dependencies, see "Cmd.PlayC".
-    | PlayMidi !PlayMidiArgs
+    | Play !PlayArgs
     -- | Open a FloatingInput box.
     | FloatingInput !FloatingInput
     -- | Pack it up and go home.
@@ -301,13 +301,13 @@ merge_status s1 s2 = if prio s1 >= prio s2 then s1 else s2
     prio status = case status of
         Continue -> 0
         Done -> 1
-        PlayMidi {} -> 2
+        Play {} -> 2
         FloatingInput {} -> 3
         Quit -> 4
 
 -- | Arguments for 'Cmd.PlayC.play'.  This is a special return value to trigger
 -- a play, see "Cmd.PlayC" for details.
-data PlayMidiArgs = PlayMidiArgs {
+data PlayArgs = PlayArgs {
     play_sync :: !(Maybe SyncConfig)
     -- | Description of what is being played for logging.
     , play_name :: !Text
@@ -320,7 +320,7 @@ data PlayMidiArgs = PlayMidiArgs {
     , play_im_end :: !(Maybe RealTime)
     , play_im_direct :: !(Maybe PlayDirectArgs)
     }
-instance Show PlayMidiArgs where show _ = "((PlayMidiArgs))"
+instance Show PlayArgs where show _ = "((PlayArgs))"
 
 -- | Arguments for 'Cmd.PlayC.play_im_direct_thread'.
 data PlayDirectArgs = PlayDirectArgs {

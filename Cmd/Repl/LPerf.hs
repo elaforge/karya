@@ -525,7 +525,7 @@ play_midi :: Cmd.M m => Perform.MidiEvents -> m ()
 play_midi msgs = Cmd.modify $ \st -> st { Cmd.state_repl_status = status }
     where
     to_zero msgs = PlayUtil.shift_midi 1 (PlayUtil.first_time msgs) msgs
-    status = Cmd.PlayMidi $ Cmd.PlayMidiArgs
+    status = Cmd.Play $ Cmd.PlayArgs
         { play_sync = Nothing
         , play_name = "repl"
         , play_midi = to_zero msgs

@@ -44,7 +44,7 @@ transport config msg = do
         | config_stop config msg -> done $ Play.cmd_context_stop
         -- TODO configure what this is
         -- I could have a "default play" cmd
-        | config_play config msg -> Cmd.PlayMidi <$> Play.local_top
+        | config_play config msg -> Cmd.Play <$> Play.local_top
         | config_record config msg -> done Edit.cmd_toggle_val_edit
         | otherwise -> Cmd.abort
     where done = (>> return Cmd.Done)

@@ -9,7 +9,7 @@
     But that means "Cmd.Play" would import FFI-using modules, which causes
     a problem for ghci, and, since I want the Cmd.Play functions to be
     available there, for the REPL as well.  So I engage in a hack: the play cmd
-    returns a special 'Cmd.PlayMidi' value which contains the arguments for the
+    returns a special 'Cmd.Play' value which contains the arguments for the
     play monitor thread.  The responder treats it as a Done but will call
     'play' with the given args.
 
@@ -366,10 +366,10 @@ event_highlights derived_block_id colors
 
 -- | This actually kicks off a MIDI play thread, and if an inverse tempo
 -- function is given, a play monitor thread.
-play :: Fltk.Channel -> Ui.State -> Transport.Info -> Cmd.PlayMidiArgs
+play :: Fltk.Channel -> Ui.State -> Transport.Info -> Cmd.PlayArgs
     -> IO Transport.PlayControl
 play ui_chan ui_state transport_info
-        (Cmd.PlayMidiArgs mmc name midi_msgs sc_msgs maybe_inv_tempo repeat_at
+        (Cmd.PlayArgs mmc name midi_msgs sc_msgs maybe_inv_tempo repeat_at
             im_end play_im_direct) = do
     play_ctl <- Transport.play_control
     monitor_ctl <- Transport.play_monitor_control

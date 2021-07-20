@@ -173,7 +173,7 @@ play_bindings = concat
     ]
     where
     bind smods key desc cmd =
-        bind_key_status smods key desc (Cmd.PlayMidi <$> cmd)
+        bind_key_status smods key desc (Cmd.Play <$> cmd)
     block = [PrimaryCommand]
     sel = [Shift]
     prev = []

@@ -351,7 +351,7 @@ post_cmd state ui_from ui_to cmd_to ui_damage status = do
 handle_special_status :: Fltk.Channel -> Ui.State -> Cmd.State
     -> Transport.Info -> Cmd.Status -> IO Cmd.State
 handle_special_status ui_chan ui_state cmd_state transport_info = \case
-    Cmd.PlayMidi args -> do
+    Cmd.Play args -> do
         play_ctl <- PlayC.play ui_chan ui_state transport_info args
         return $! cmd_state
             { Cmd.state_play = (Cmd.state_play cmd_state)

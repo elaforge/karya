@@ -24,7 +24,6 @@ import           Vivid.OSC (OSCDatum(..))
 import qualified Util.Log as Log
 import qualified Util.Network as Network
 import qualified Util.Num as Num
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
