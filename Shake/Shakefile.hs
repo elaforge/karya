@@ -127,6 +127,7 @@ imPackages = concat
     , w "cryptohash-md5" -- Synth.Shared.Note.hash
     , w "resourcet"
     , w "bindings-portaudio"
+    , w "vivid-osc vivid-supercollider" -- Perform.Sc
     ]
     where w = map (\p -> (p, "")) . words
 

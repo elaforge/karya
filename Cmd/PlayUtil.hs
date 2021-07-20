@@ -11,9 +11,12 @@ module Cmd.PlayUtil (
     , is_score_damage_log
     , get_constant, initial_constant, initial_dynamic
     -- * perform
-    , perform_from, shift_messages, first_time
+    , perform_from
+    , perform_raw
+    , shift_midi
+    , first_time
     , events_from, overlapping_events
-    , perform_events, make_midi_lookup
+    , make_midi_lookup
     , midi_configs
     -- * mute and solo
     , get_muted_tracks, muted_instruments
@@ -45,6 +48,8 @@ import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.RealTime as RealTime
+import qualified Perform.Sc.Convert as Sc.Convert
+import qualified Perform.Sc.Note as Sc.Note
 
 import qualified Ui.Block as Block
 import qualified Ui.TrackTree as TrackTree
@@ -161,23 +166,63 @@ initial_dynamic :: Derive.InstrumentAliases -> Derive.Dynamic
 initial_dynamic aliases = (Derive.initial_dynamic initial_environ)
     { Derive.state_instrument_aliases = aliases }
 
-perform_from :: Cmd.M m => RealTime -> Cmd.Performance -> m Perform.MidiEvents
-perform_from start perf = do
-    insts <- Map.keys <$> (Ui.config#UiConfig.allocations_map <#> Ui.get)
-    resume_insts <- Set.fromList <$> filterM (has_flag Patch.ResumePlay) insts
-    let (extra, events) = events_from resume_insts start $ Cmd.perf_events perf
-    perform_events_list (extra ++ Vector.toList events)
+perform_from :: Cmd.M m => RealTime -> Vector.Vector Score.Event
+    -> m (Perform.MidiEvents, Sc.Note.Notes)
+perform_from start events = do
+    allocs <- Ui.gets $ UiConfig.config_allocations . Ui.state_config
+    lookup_inst <- Cmd.get_lookup_instrument
+    let insts = Map.keys $ UiConfig.unallocations allocs
+    let resume_insts = Set.fromList $
+            filter (has_flag lookup_inst Patch.ResumePlay) insts
+    -- TODO no ResumePlay for SC, but why not?
+    (extra, events) <- pure $ events_from resume_insts start events
+    muted <- get_muted_tracks
+    -- Performance should be lazy, so converting to a list here means I can
+    -- avoid doing work for the notes that never get played.
+    let events_list = filter_track_muted muted $
+            filter_instrument_muted allocs $
+            extra ++ Vector.toList events
+    return
+        ( perform_midi lookup_inst allocs events_list
+        , perform_sc lookup_inst allocs events_list
+        )
+    where
+    has_flag lookup_inst flag inst =
+        case Cmd.midi_instrument =<< lookup_inst inst of
+            Nothing -> False
+            Just (_, config) -> Patch.has_flag config flag
 
-has_flag :: Cmd.M m => Patch.Flag -> ScoreT.Instrument -> m Bool
-has_flag flag inst =
-    maybe False (`Patch.has_flag` flag) <$> Cmd.lookup_midi_config inst
+-- | Perform midi only, from time 0, without mutes.
+perform_raw :: Cmd.M m => [Score.Event] -> m Perform.MidiEvents
+perform_raw events = do
+    allocs <- Ui.gets $ UiConfig.config_allocations . Ui.state_config
+    lookup_inst <- Cmd.get_lookup_instrument
+    return $ perform_midi lookup_inst allocs events
 
-shift_messages :: RealTime -> RealTime -> Perform.MidiEvents
+perform_midi :: (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument)
+    -> UiConfig.Allocations -> [Score.Event] -> Perform.MidiEvents
+perform_midi lookup_inst allocs events
+    | UiConfig.has_midi allocs =
+        fst $ Perform.perform Perform.initial_state configs $
+            Convert.convert Convert.default_srate midi_lookup lookup_inst events
+    | otherwise = mempty
+    where
+    configs = Perform.config <$> midi_configs allocs
+    midi_lookup = make_midi_lookup lookup_inst
+
+shift_midi :: RealTime -> RealTime -> Perform.MidiEvents
     -> Perform.MidiEvents
-shift_messages multiplier start events = shift start events
+shift_midi multiplier start events = shift start events
     where
     shift offset = map $ fmap $
         Midi.modify_timestamp ((* multiplier) . subtract offset)
+
+perform_sc :: (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument)
+    -> UiConfig.Allocations -> [Score.Event] -> Sc.Note.Notes
+perform_sc lookup_inst allocs
+    | UiConfig.has_sc allocs =
+        Sc.Convert.convert Sc.Convert.default_srate lookup_inst
+    | otherwise = mempty
 
 -- | The first timestamp from the msgs.
 first_time :: [LEvent.LEvent Midi.WriteMessage] -> RealTime
@@ -245,22 +290,6 @@ overlapping_events pos = Vector.foldl' collect []
         | Score.event_end event <= pos || Score.event_start event > pos =
             overlap
         | otherwise = event : overlap
-
-perform_events :: Cmd.M m => Vector.Vector Score.Event -> m Perform.MidiEvents
-perform_events = perform_events_list . Vector.toList
-    -- Performance should be lazy, so converting to a list here means I can
-    -- avoid doing work for the notes that never get played.
-
-perform_events_list :: Cmd.M m => [Score.Event] -> m Perform.MidiEvents
-perform_events_list events = do
-    allocs <- Ui.gets $ UiConfig.config_allocations . Ui.state_config
-    lookup_inst <- Cmd.get_lookup_instrument
-    let midi_lookup = make_midi_lookup lookup_inst
-    muted <- get_muted_tracks
-    let configs = Perform.config <$> midi_configs allocs
-    return $ fst $ Perform.perform Perform.initial_state configs $
-        Convert.convert Convert.default_srate midi_lookup lookup_inst $
-        filter_track_muted muted $ filter_instrument_muted allocs events
 
 -- | Similar to the Solo and Mute track flags, individual instruments can be
 -- soloed or muted.

@@ -47,11 +47,13 @@ import qualified Perform.Midi.MSignal as MSignal
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Types as Types
 import qualified Perform.Pitch as Pitch
+import qualified Perform.Sc.Convert as Sc.Convert
+import qualified Perform.Sc.Note as Sc.Note
 import qualified Perform.Signal as Signal
 import qualified Perform.Transport as Transport
 
 import qualified Synth.Shared.Config as Shared.Config
-import qualified Synth.Shared.Note as Note
+import qualified Synth.Shared.Note as Shared.Note
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Ui as Ui
@@ -218,14 +220,14 @@ normalize_events = map (fmap Score.normalize)
 -- | Get 'block_events' from the cache and convert to MIDI performer events.
 block_midi_events :: Cmd.M m => BlockId -> m [LEvent.LEvent Types.Event]
 block_midi_events block_id =
-    convert . LEvent.events_of =<< block_events_unnormalized block_id
+    midi_convert . LEvent.events_of =<< block_events_unnormalized block_id
 
 -- | Derive all the way to MIDI.  This uses the cache.
 block_midi :: Cmd.M m => BlockId -> m Perform.MidiEvents
 block_midi block_id = do
     state <- Ui.get
     perf <- Performance.performance state <$> PlayUtil.cached_derive block_id
-    PlayUtil.perform_events $ Cmd.perf_events perf
+    PlayUtil.perform_raw $ Vector.toList $ Cmd.perf_events perf
 
 -- * selection
 
@@ -235,12 +237,16 @@ sel_events :: Cmd.M m => m [Score.Event]
 sel_events = get_sel_events Local block_events
 
 sel_midi_events :: Cmd.M m => m [LEvent.LEvent Types.Event]
-sel_midi_events = convert =<< get_sel_events Local block_events_unnormalized
+sel_midi_events =
+    midi_convert =<< get_sel_events Local block_events_unnormalized
 
-sel_im_events :: Cmd.M m => m [LEvent.LEvent Note.Note]
+sel_im_events :: Cmd.M m => m [LEvent.LEvent Shared.Note.Note]
 sel_im_events = do
     block_id <- Cmd.get_focused_block
     im_convert block_id =<< get_sel_events Local block_events_unnormalized
+
+sel_sc_events :: Cmd.M m => m [LEvent.LEvent Sc.Note.Note]
+sel_sc_events = sc_convert =<< get_sel_events Local block_events_unnormalized
 
 -- | Show the low level events as seen by the sampler backend.
 sel_sampler_events :: Source -> Cmd.CmdT IO Text
@@ -266,9 +272,10 @@ root_sel_events :: Cmd.M m => m [Score.Event]
 root_sel_events = get_sel_events Root block_events
 
 root_sel_midi_events :: Cmd.M m => m [LEvent.LEvent Types.Event]
-root_sel_midi_events = convert =<< get_sel_events Root block_events_unnormalized
+root_sel_midi_events =
+    midi_convert =<< get_sel_events Root block_events_unnormalized
 
-root_sel_im_events :: Cmd.M m => m [LEvent.LEvent Note.Note]
+root_sel_im_events :: Cmd.M m => m [LEvent.LEvent Shared.Note.Note]
 root_sel_im_events = do
     block_id <- Ui.get_root_id
     im_convert block_id =<< get_sel_events Root block_events_unnormalized
@@ -361,12 +368,12 @@ events_from = do
     start <- Perf.get_realtime perf block_id (Just track_id) pos
     return $ snd $ PlayUtil.events_from mempty start (Cmd.perf_events perf)
 
-perform_from :: Cmd.M m => m Perform.MidiEvents
+perform_from :: Cmd.M m => m (Perform.MidiEvents, [LEvent.LEvent Sc.Note.Note])
 perform_from = do
     (block_id, _, track_id, pos) <- Selection.get_insert
     perf <- Cmd.get_performance block_id
     start <- Perf.get_realtime perf block_id (Just track_id) pos
-    PlayUtil.perform_from start perf
+    PlayUtil.perform_from start (Cmd.perf_events perf)
 
 -- ** implementation
 
@@ -444,17 +451,23 @@ stack_in_score_range block_ids track_ids start end = any match . Stack.to_ui
 
 -- * Midi.Types.Event
 
-convert :: Cmd.M m => [Score.Event] -> m [LEvent.LEvent Types.Event]
-convert events = do
+midi_convert :: Cmd.M m => [Score.Event] -> m [LEvent.LEvent Types.Event]
+midi_convert events = do
     lookup_inst <- Cmd.get_lookup_instrument
     let lookup = PlayUtil.make_midi_lookup lookup_inst
     return $ Midi.Convert.convert Midi.Convert.default_srate lookup lookup_inst
         events
 
-im_convert :: Cmd.M m => BlockId -> [Score.Event] -> m [LEvent.LEvent Note.Note]
+im_convert :: Cmd.M m => BlockId -> [Score.Event]
+    -> m [LEvent.LEvent Shared.Note.Note]
 im_convert block_id events = do
     lookup_inst <- Cmd.get_lookup_instrument
     return $ Im.Convert.convert block_id lookup_inst events
+
+sc_convert :: Cmd.M m => [Score.Event] -> m [LEvent.LEvent Sc.Note.Note]
+sc_convert events = do
+    lookup_inst <- Cmd.get_lookup_instrument
+    return $ Sc.Convert.convert Sc.Convert.default_srate lookup_inst events
 
 -- | Filter on events with a certain instrument.
 midi_event_inst :: Types.Event -> Text
@@ -463,7 +476,7 @@ midi_event_inst = ScoreT.instrument_name . Types.patch_name . Types.event_patch
 -- * midi
 
 perform_events :: Cmd.M m => [LEvent.LEvent Score.Event] -> m Perform.MidiEvents
-perform_events = PlayUtil.perform_events . Vector.fromList . LEvent.events_of
+perform_events = PlayUtil.perform_raw . LEvent.events_of
 
 perform_midi_events :: Ui.M m => [LEvent.LEvent Types.Event]
     -> m Perform.MidiEvents
@@ -509,19 +522,19 @@ logs_matching perf_block block_id track_ids start end = do
     return $ filter match logs
 
 play_midi :: Cmd.M m => Perform.MidiEvents -> m ()
-play_midi msgs = do
-    let status = Cmd.PlayMidi $ Cmd.PlayMidiArgs
-            { play_sync = Nothing
-            , play_name = "repl"
-            , play_midi = to_zero msgs
-            , play_inv_tempo = Nothing
-            , play_repeat_at = Nothing
-            , play_im_end = Nothing
-            , play_im_direct = Nothing
-            }
-    Cmd.modify $ \st -> st { Cmd.state_repl_status = status }
+play_midi msgs = Cmd.modify $ \st -> st { Cmd.state_repl_status = status }
     where
-    to_zero msgs = PlayUtil.shift_messages 1 (PlayUtil.first_time msgs) msgs
+    to_zero msgs = PlayUtil.shift_midi 1 (PlayUtil.first_time msgs) msgs
+    status = Cmd.PlayMidi $ Cmd.PlayMidiArgs
+        { play_sync = Nothing
+        , play_name = "repl"
+        , play_midi = to_zero msgs
+        , play_sc = Sc.Note.PlayNotes { shift = 0, stretch = 1, notes =  [] }
+        , play_inv_tempo = Nothing
+        , play_repeat_at = Nothing
+        , play_im_end = Nothing
+        , play_im_direct = Nothing
+        }
 
 -- ** extract
 

@@ -20,7 +20,7 @@ module Util.Pretty (
     , improperRatio, fraction
 
     -- * generic derivation
-    , formatG_, formatGCamel, formatGPrefix
+    , formatG, formatG_, formatGCamel, formatGPrefix
 
     -- * formatting
     , textList, formattedList, delimitedList, record, recordTitle
@@ -35,6 +35,7 @@ module Util.Pretty (
 import qualified Data.ByteString as ByteString
 import qualified Data.Char as Char
 import qualified Data.Dynamic as Dynamic
+import qualified Data.Int as Int
 import qualified Data.IntMap as IntMap
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
@@ -130,18 +131,24 @@ dropUnderscore =
 class PrettyG f where
     prettyG :: GConfig -> f a -> [(Text, Doc)]
 
-formatG_, formatGCamel :: (PrettyG (Generics.Rep a), Generics.Generic a)
-    => a -> Doc
-formatG_ = formatG dropUnderscore
-formatGCamel = formatG dropCamel
+formatG :: (PrettyG (Generics.Rep a), Generics.Generic a) => a -> Doc
+formatG = formatGWith gconfig
+
+formatG_ :: (PrettyG (Generics.Rep a), Generics.Generic a) => a -> Doc
+formatG_ = formatGWith dropUnderscore
+
+formatGCamel :: (PrettyG (Generics.Rep a), Generics.Generic a) => a -> Doc
+formatGCamel = formatGWith dropCamel
+
 formatGPrefix :: (PrettyG (Generics.Rep a), Generics.Generic a)
     => String -> a -> Doc
-formatGPrefix prefix = formatG (dropPrefix prefix)
+formatGPrefix prefix = formatGWith (dropPrefix prefix)
 
 -- | Generic derivation for Pretty.  This works on single-constructor types,
 -- records and positional.
-formatG :: (PrettyG (Generics.Rep a), Generics.Generic a) => GConfig -> a -> Doc
-formatG config a = case prettyG config (Generics.from a) of
+formatGWith :: (PrettyG (Generics.Rep a), Generics.Generic a) => GConfig -> a
+    -> Doc
+formatGWith config a = case prettyG config (Generics.from a) of
     [("", doc)] -> doc
     -- TODO what causes this?
     fields -> record "??" fields
@@ -186,6 +193,10 @@ instance Pretty (a -> b) where pretty _ = "<function>"
 instance Pretty () where pretty () = "()"
 instance Pretty Bool where pretty = showt
 instance Pretty Int where pretty = showt
+instance Pretty Int.Int8 where pretty = showt
+instance Pretty Int.Int16 where pretty = showt
+instance Pretty Int.Int32 where pretty = showt
+instance Pretty Int.Int64 where pretty = showt
 instance Pretty Integer where pretty = showt
 instance Pretty Word.Word8 where pretty = showt
 instance Pretty Word.Word16 where pretty = showt

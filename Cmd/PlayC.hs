@@ -40,9 +40,11 @@ import qualified Cmd.Perf as Perf
 import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stack as Stack
-
 import qualified Perform.Midi.Play as Midi.Play
+import qualified Perform.Sc.Note as Sc.Note
+import qualified Perform.Sc.Play as Sc.Play
 import qualified Perform.Transport as Transport
+
 import qualified Synth.ImGc as ImGc
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
@@ -367,8 +369,8 @@ event_highlights derived_block_id colors
 play :: Fltk.Channel -> Ui.State -> Transport.Info -> Cmd.PlayMidiArgs
     -> IO Transport.PlayControl
 play ui_chan ui_state transport_info
-        (Cmd.PlayMidiArgs mmc name msgs maybe_inv_tempo repeat_at im_end
-            play_im_direct) = do
+        (Cmd.PlayMidiArgs mmc name midi_msgs sc_msgs maybe_inv_tempo repeat_at
+            im_end play_im_direct) = do
     play_ctl <- Transport.play_control
     monitor_ctl <- Transport.play_monitor_control
     let midi_state = Midi.Play.State
@@ -376,7 +378,14 @@ play ui_chan ui_state transport_info
             , _monitor_control = monitor_ctl
             , _info = transport_info
             }
-    Midi.Play.play midi_state mmc name msgs repeat_at
+    Midi.Play.play midi_state mmc name midi_msgs repeat_at
+    unless (null (Sc.Note.notes sc_msgs)) $ do
+        let sc_state = Sc.Play.State
+                { _play_control = play_ctl
+                , _monitor_control = monitor_ctl
+                , _port = Sc.Play.server_port
+                }
+        Sc.Play.play sc_state sc_msgs repeat_at
     -- Pass the current state in the MVar.  ResponderSync will keep it up
     -- to date afterwards, but only if blocks are added or removed.
     MVar.modifyMVar_ (Transport.info_state transport_info) $

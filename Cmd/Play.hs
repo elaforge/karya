@@ -102,6 +102,7 @@ import qualified Midi.Midi as Midi
 import qualified Perform.Im.Play as Im.Play
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.RealTime as RealTime
+import qualified Perform.Sc.Note as Sc.Note
 import qualified Perform.Transport as Transport
 
 import qualified Synth.Shared.Config as Shared.Config
@@ -414,7 +415,7 @@ from_realtime block_id repeat_at start_ = do
     -- slightly before the notes.
     -- TODO actually DAWs need a bit of time to sync, so maybe I should start
     -- further in advance.
-    let mtc = PlayUtil.shift_messages 1 start $ map LEvent.Event $
+    let mtc = PlayUtil.shift_midi 1 start $ map LEvent.Event $
             generate_mtc maybe_sync start
 
     allocs <- Ui.config#UiConfig.allocations_map <#> Ui.get
@@ -435,16 +436,18 @@ from_realtime block_id repeat_at start_ = do
             (im_play_msgs score_path block_id muted (start * multiplier))
             mb_play_cache_addr
 
-    msgs <- PlayUtil.perform_from start perf
-    let adjust0 = get_adjust0 start (not (null im_msgs)) msgs
+    (midi_msgs, sc_msgs) <- PlayUtil.perform_from start (Cmd.perf_events perf)
+    let adjust0 = get_adjust0 start (not (null im_msgs)) midi_msgs
             (Cmd.perf_events perf)
-    msgs <- return $ PlayUtil.shift_messages multiplier adjust0 msgs
+    midi_msgs <- return $ PlayUtil.shift_midi multiplier adjust0 midi_msgs
 
     -- See doc for "Cmd.PlayC" for why I return a magic value.
     return $ Cmd.PlayMidiArgs
         { play_sync = maybe_sync
         , play_name = pretty block_id
-        , play_midi = im_msgs ++ merge_midi msgs mtc
+        , play_midi = im_msgs ++ merge_midi midi_msgs mtc
+        , play_sc = Sc.Note.PlayNotes
+            { shift = adjust0, stretch = multiplier, notes = sc_msgs }
         , play_inv_tempo = Just $ \stop ->
             Cmd.perf_inv_tempo perf stop . (+adjust0) . (/multiplier)
         , play_repeat_at = (*multiplier) . subtract start <$> repeat_at
@@ -464,7 +467,7 @@ from_realtime block_id repeat_at start_ = do
 
 get_adjust0 :: RealTime -> Bool -> [LEvent.LEvent Midi.WriteMessage]
     -> Vector.Vector Score.Event -> RealTime
-get_adjust0 start has_im msgs events = negative_start - im_latency
+get_adjust0 start has_im midi_msgs events = negative_start - im_latency
     where
     -- Events can wind up before 0, say if there's a grace note on a note at 0.
     -- To have them play correctly, perform_from will give me negative events
@@ -476,7 +479,7 @@ get_adjust0 start has_im msgs events = negative_start - im_latency
     -- The first MIDI msg will incorporate any possible leading controls.
     -- The first Score.Event should be after that, unless there's an im
     -- event at negative time.
-    fst_msg = min first_score (PlayUtil.first_time msgs)
+    fst_msg = min first_score (PlayUtil.first_time midi_msgs)
     first_score = maybe 0 Score.event_start $ Seq.head $ Vector.toList $
         Vector.take 1 events
     im_latency = if has_im

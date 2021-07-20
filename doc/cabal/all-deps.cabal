@@ -90,6 +90,8 @@ library
         unordered-containers,
         utf8-string,
         vector,
+        vivid-osc,
+        vivid-supercollider,
         wcwidth,
         writer-cps-mtl,
         zlib,

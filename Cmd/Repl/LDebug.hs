@@ -76,7 +76,8 @@ write_dump fname = writeFile fname . PPrint.pshow
 
 dump_block_perf_events :: FilePath -> BlockId -> Cmd.CmdL ()
 dump_block_perf_events fname block_id = do
-    events <- LPerf.convert . LEvent.events_of =<< LPerf.block_events block_id
+    events <- LPerf.midi_convert . LEvent.events_of
+        =<< LPerf.block_events block_id
     dump_perf_events fname (LEvent.events_of events)
 
 dump_perf_events :: FilePath -> [Types.Event] -> Cmd.CmdL ()

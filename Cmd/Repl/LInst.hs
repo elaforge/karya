@@ -100,6 +100,7 @@ pretty_alloc inst alloc =
     , case UiConfig.alloc_backend alloc of
         UiConfig.Midi config -> Info.show_addrs (Patch.config_addrs config)
         UiConfig.Im -> "音"
+        UiConfig.Sc -> "sc"
         UiConfig.Dummy -> "(dummy)"
     -- Put flags in their own column to make them obvious.
     , show_flags (UiConfig.alloc_config alloc)
@@ -193,6 +194,10 @@ add_im inst qualified = do
     qualified <- parse_qualified qualified
     allocate (Util.instrument inst) $
         UiConfig.allocation qualified UiConfig.Im
+
+add_sc :: Instrument -> Text -> Cmd.CmdT IO ()
+add_sc inst patch = allocate (Util.instrument inst) $
+    UiConfig.allocation (InstTypes.Qualified "sc" patch) UiConfig.Sc
 
 -- | Add the play-cache instrument.  This is a dummy instrument used to
 -- trigger the play-cache vst.  It's emitted automatically if there are im

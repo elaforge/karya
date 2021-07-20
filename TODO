@@ -7056,6 +7056,107 @@ pitch: scales: scale:
       but it might be useful in general to have an analysis framework.
 
 Perform:
+  supercollider: sc:
+    research:
+      . https://doc.sccode.org/Reference/Server-Architecture.html
+      . https://doc.sccode.org/Reference/Server-Command-Reference.html
+      . https://www.youtube.com/watch?v=R0ulauoGCvI&ab_channel=EliFieldsteel
+      . in sclang, s.plotTree and s.meter to see graphical representations of
+        the scserver.
+      . How to load a synthdef that responds to pitch, amp?
+        SynthDef(\test-sine, { |out, freq = 440, dur = 1, amp = 0.5|
+            var sig;
+            sig = SinOsc.ar(freq, 0, amp)
+              * EnvGen.kr(
+                Env.linen(0.05, dur, 0.1), doneAction: Done.freeSelf);
+            Out.ar(out, sig ! 2) // sig!2 = [sig, sig]
+        }).add;
+        x = Synth(\test-sine, [freq: 440, duration: 1]);
+        x.set(\freq, 660);
+      ? What OSC messages do those correspond to?
+      . I could either send the whole control env as one OSC message (does it
+        support variable length arrays?), or stream updates like with MIDI.
+        Or just do the duration, since that is fixed-length.
+      . I'll probably use /d_load str [bytes]
+      . /s_new str ID
+      . /n_set str float ...
+      ? What are: array type tags ($[ and $]) ?
+        . https://doc.sccode.org/Guides/NodeMessaging.html
+        . I can set a paremeter with an array value, but it implies the array
+          is fixed length.
+      . If I'm going to use /n_set style, I could get the parameter indices
+        so it's more efficient.
+      ? How do OSC replies work?
+        . Maybe it just sends back to the same port that sent it?
+      . OSCFunc.trace(true); to show incoming OSC
+      instruments:
+        . /d_load to load an external file, but how do I know which ones
+          exist?
+        . Can I get the directory of them, and parse them, to know names
+          and (control, controlID)?  Yes, vivid-supercollider can.
+        . Use SynthDef.writeDefFile, will wind up in SynthDef.synthDefDir.
+        ? Could I run sclang standalone to compile to scsyndef?
+      How does vivid do it?
+        send synthdef:
+          (`runReaderT` serverState) $ oscWSync $ \syncId ->
+            callOSC $
+              SCCmd.d_recv [sdToLiteral synthDef] (Just $ SCCmd.sync syncId)
+        . SCServerState has things like socket, IDs.
+        . sdToLiteral makes LiteralSynthDef, which is the low level sc format.
+    plan:
+      . Each note is a synth.  It sends a /s_new with duration and initial
+        control values.  If the synthdefs all have doneAction:Done.freeSelf,
+        then I don't have to free explicitly.
+      . Play thread keeps track of node id internally.  I could do
+        /s_noid synth_id for all tracked synth_ids still in duration if
+        I wanted to quit the thread to reuse the IDs.
+      . Do a /g_freeAll 1 on "stop all".
+      . Then send OSC scheduled for n seconds in advance, it is just /s_new
+        and /n_set.  Since existing patches won't support line segments, I
+        wuold have to do interpolation myself like with MIDI, so there will be
+        a lot of these.  I could try to group coincident ones.
+    * Perform.Sc.Convert
+      . Produce [Sc.Note]
+    * plug Sc.Play.play into Cmd.Play
+      . Check if there are Sc instruments, if so PlayUtil.perform_sc takes
+        [Score.Event] -> [(RealTime, OSC)]
+      . Maybe move filter_track_muted and filter_instrument_muted up to the
+        top level, and events_from.
+      . OSC conversion moves from Play to Convert, though I guess I want the
+        intermediate [Note] available for debugging.
+    * add instrument backend plumbing
+    * load SC PatchDb if directory is given
+    + convert zot to scsyndef
+      . It has no duration... is it reasonable to add, or do I have to track
+        SynthIds?
+      . In general I'm going to have to enforce standardization on control
+        names: freq, dyn, ...?  im uses: dyn, vol, pan, pitch
+    play sc:
+      . save/test/sc/sine
+      * pitch is missing or wrong
+      * LPerf support for sc
+      - play marker stops immediately
+        . Probably can be fixed with MonitorCtl becomes a semaphore.
+      * play at not right, have to move bundles back.
+      - stop is not hooked up
+
+    - MonitorCtl becomes a semaphore, since there are multiple players now
+    - move Transport.Died out of Midi.Play
+    - is there really no way to send segments and let scserver interpolate?
+    - Convert should trim the signals
+    - thru equivalent for OSC
+    - implement repeat_at
+    - what about synchronizing sc with MIDI?
+    - rename PlayMidiArgs
+    - rename Instrument.InstTypes to InstT
+    - move Transport.Died out of midi play, it should just log
+    - make Network.withConnection return the bare socket, to avoid handle
+      overhead.  Add Network.withHandle.
+    - I still feel I should move osc perform into convert, and remove the
+      MSignal intermediate step.  And if that's possible, why not do it for
+      MIDI too?
+    - sc instruments don't have attrs, should they?
+
   - Overlapping notes with different ControlSwitch cc numbers should share
     a channel.  Of course it'll work anyway if only one channel is
     allocated.

@@ -114,7 +114,7 @@ initialize view_id block_id play_tracks = do
         reals = group_edges eta events
         scores = real_to_score block_id (Cmd.perf_inv_tempo perf) reals
         steps = [(s, r) | (Just s, r) <- zip scores reals]
-    msgs <- LEvent.events_of <$> PlayUtil.perform_events events
+    msgs <- LEvent.events_of <$> PlayUtil.perform_raw (Vector.toList events)
     Cmd.modify_play_state $ \st -> st
         { Cmd.state_step = Just $ Cmd.StepState
             { Cmd.step_view_id = view_id

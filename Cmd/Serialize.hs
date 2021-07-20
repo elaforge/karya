@@ -164,15 +164,18 @@ instance Serialize UiConfig.Allocation where
         _ -> Serialize.bad_version "UiConfig.Allocation" v
 
 instance Serialize UiConfig.Backend where
-    put (UiConfig.Midi a) = put_tag 0 >> put a
-    put UiConfig.Im = put_tag 1
-    put UiConfig.Dummy = put_tag 2
+    put = \case
+        UiConfig.Midi a -> put_tag 0 >> put a
+        UiConfig.Im -> put_tag 1
+        UiConfig.Dummy -> put_tag 2
+        UiConfig.Sc -> put_tag 3
     get = get_tag >>= \tag -> case tag of
         0 -> do
             config :: Patch.Config <- get
             return $ UiConfig.Midi config
         1 -> return UiConfig.Im
         2 -> return UiConfig.Dummy
+        3 -> return UiConfig.Sc
         _ -> bad_tag "UiConfig.Backend" tag
 
 -- | For backward compatibility.

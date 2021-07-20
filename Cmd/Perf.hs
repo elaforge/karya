@@ -12,7 +12,6 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Tree as Tree
-import qualified Data.Vector as Vector
 
 import qualified Util.Log as Log
 import qualified Util.Maps as Maps
@@ -189,7 +188,8 @@ derive deriver = do
 -- * perform
 
 perform :: Cmd.M m => [Score.Event] -> m ([Midi.WriteMessage], [Log.Msg])
-perform = (LEvent.partition <$>) . PlayUtil.perform_events . Vector.fromList
+perform = fmap LEvent.partition . PlayUtil.perform_raw
+    -- TODO this is midi only, discards sc
 
 -- * environ
 

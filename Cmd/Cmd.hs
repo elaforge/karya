@@ -98,6 +98,8 @@ import qualified Perform.Midi.Perform as Midi.Perform
 import qualified Perform.Midi.Types as Midi.Types
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
+import qualified Perform.Sc.Note as Sc.Note
+import qualified Perform.Sc.Patch as Sc.Patch
 import qualified Perform.Transport as Transport
 
 import qualified Synth.Shared.Config as Shared.Config
@@ -310,6 +312,7 @@ data PlayMidiArgs = PlayMidiArgs {
     -- | Description of what is being played for logging.
     , play_name :: !Text
     , play_midi :: !Midi.Perform.MidiEvents
+    , play_sc :: !Sc.Note.PlayNotes
     , play_inv_tempo :: !(Maybe Transport.InverseTempoFunction)
     , play_repeat_at :: !(Maybe RealTime)
     -- | If there are im notes, this is the end of the last one.  This is so
@@ -1475,12 +1478,14 @@ instance Pretty ResolvedInstrument where
 data Backend =
     Midi !Midi.Patch.Patch !Midi.Patch.Config
     | Im !Im.Patch.Patch
+    | Sc !Sc.Patch.Patch
     | Dummy
     deriving (Show)
 
 instance Pretty Backend where
     format (Midi patch config) = Pretty.format (patch, config)
     format (Im patch) = Pretty.format patch
+    format (Sc patch) = Pretty.format patch
     format Dummy = "Dummy"
 
 midi_instrument :: ResolvedInstrument -> Maybe (Patch.Patch, Patch.Config)
@@ -1565,6 +1570,7 @@ resolve_instrument db alloc = do
         (Inst.Midi patch, UiConfig.Midi config) ->
             return $ Midi patch (Patch.merge_defaults patch config)
         (Inst.Im patch, UiConfig.Im) -> return $ Im patch
+        (Inst.Sc patch, UiConfig.Sc) -> return $ Sc patch
         (_, UiConfig.Dummy) -> return Dummy
 
         -- TODO I'd like to do this instead, but unfortunately I use non-Dummy
@@ -1605,6 +1611,7 @@ resolve_instrument db alloc = do
             Common.mapped_attributes $ Midi.Patch.patch_attribute_map patch
         Im patch ->
             Common.mapped_attributes $ Im.Patch.patch_attribute_map patch
+        Sc _patch -> mempty -- TODO attrs for sc?
         Dummy -> mempty
 
 -- ** lookup qualified name

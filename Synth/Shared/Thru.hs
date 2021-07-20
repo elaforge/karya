@@ -52,7 +52,7 @@ data Play = Play {
     } deriving (Eq, Show)
 
 send :: Message -> IO ()
-send msg = Network.withConnection_ (Network.IP Config.thruPort) $ \hdl ->
+send msg = Network.withConnection_ (Network.TCP Config.thruPort) $ \hdl ->
     ByteString.hPut hdl $ serialize msg
 
 -- | This serializes to a protocol with null-terminated fields, where a message

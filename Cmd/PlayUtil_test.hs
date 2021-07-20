@@ -85,6 +85,6 @@ perform_events ui_state block_id =
     all_logs = Cmd.perf_logs perf ++ logs ++ CmdTest.result_logs result
         ++ midi_logs
     result = CmdTest.run ui_state cmd_state $
-        PlayUtil.perform_events (Cmd.perf_events perf)
+        PlayUtil.perform_raw (Vector.toList (Cmd.perf_events perf))
     (perf, logs) = Performance.derive ui_state cmd_state block_id
     cmd_state = CmdTest.default_cmd_state

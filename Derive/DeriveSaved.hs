@@ -143,7 +143,8 @@ run_cmd ui_state cmd_state cmd = case result of
 perform_midi :: Cmd.State -> Ui.State -> Vector.Vector Score.Event
     -> [LEvent.LEvent Midi.WriteMessage]
 perform_midi cmd_state ui_state events =
-    extract $ run_cmd ui_state cmd_state $ PlayUtil.perform_events events
+    extract $ run_cmd ui_state cmd_state $ PlayUtil.perform_raw $
+        Vector.toList events
     where
     extract (Left err) = [LEvent.Log $ Log.msg Log.Error Nothing err]
     extract (Right (levents, logs)) = map LEvent.Log logs ++ levents

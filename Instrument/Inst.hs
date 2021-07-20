@@ -30,7 +30,7 @@
 -}
 module Instrument.Inst (
     -- * Inst
-    Inst(..), common, backend, Backend(..)
+    Inst(..), common, backend, Backend(..), backend_name
     , inst_midi, inst_attributes
     -- * db
     , Db, Synth(..), empty, size, synth_names, synths, lookup_synth, lookup
@@ -52,6 +52,7 @@ import qualified Instrument.Tag as Tag
 
 import qualified Perform.Im.Patch as Im.Patch
 import qualified Perform.Midi.Patch as Midi.Patch
+import qualified Perform.Sc.Patch as Sc.Patch
 
 import           Global
 
@@ -73,13 +74,25 @@ instance Pretty code => Pretty (Inst code) where
         , ("common", Pretty.format common)
         ]
 
-data Backend = Dummy | Midi !Midi.Patch.Patch | Im Im.Patch.Patch
+data Backend =
+    Dummy
+    | Midi !Midi.Patch.Patch
+    | Im !Im.Patch.Patch
+    | Sc !Sc.Patch.Patch
     deriving (Show)
 
 instance Pretty Backend where
     format Dummy = "Dummy"
-    format (Midi inst) = Pretty.format inst
-    format (Im inst) = Pretty.format inst
+    format (Midi patch) = Pretty.format patch
+    format (Im patch) = Pretty.format patch
+    format (Sc patch) = Pretty.format patch
+
+backend_name :: Backend -> Text
+backend_name = \case
+    Dummy -> "dummy"
+    Midi {} -> "midi"
+    Im {} -> "音"
+    Sc {} -> "sc"
 
 inst_midi :: Inst code -> Maybe Midi.Patch.Patch
 inst_midi inst = case inst_backend inst of
@@ -93,6 +106,7 @@ inst_attributes inst = case inst_backend inst of
         Midi.Patch.patch_attribute_map patch
     Im patch -> Common.mapped_attributes $
         Im.Patch.patch_attribute_map patch
+    Sc _patch -> []
 
 -- * Db
 
@@ -171,6 +185,7 @@ validate inst = case inst_backend inst of
         Midi.Patch.patch_attribute_map patch
     Im patch -> Common.overlapping_attributes $
         Im.Patch.patch_attribute_map patch
+    Sc _patch -> []
 
 -- | Merge the Dbs, and return any duplicate synths.
 merge :: Db code -> Db code -> (Db code, [InstTypes.SynthName])

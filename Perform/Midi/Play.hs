@@ -37,8 +37,7 @@ data State = State {
 type Messages = [LEvent.LEvent Midi.WriteMessage]
 
 -- | Start a thread to stream a list of WriteMessages.
-play :: State -> Maybe Cmd.SyncConfig -> Text -> Messages
-    -> Maybe RealTime
+play :: State -> Maybe Cmd.SyncConfig -> Text -> Messages -> Maybe RealTime
     -- ^ If given, loop back to the beginning when this time is reached.
     -> IO ()
 play state sync name msgs repeat_at = do
@@ -62,6 +61,7 @@ player_thread maybe_sync start name state msgs = do
         _ -> return ()
     play_loop state msgs
         `Exception.catch` \(exc :: Exception.SomeException) ->
+            -- TODO this is incorrect, should be done in PlayC!
             Transport.info_send_status (_info state)
                 (Transport.Died (show exc))
     case maybe_sync of

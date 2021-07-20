@@ -62,6 +62,7 @@ import qualified Instrument.Tag as Tag
 import qualified Perform.Im.Patch as Im.Patch
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Patch as Patch
+import qualified Perform.Sc.Patch as Sc.Patch
 
 import           Global
 
@@ -150,10 +151,7 @@ show_info chan win db qualified = Fltk.action chan $ BrowserC.set_info win info
         synth <- Inst.lookup_synth synth_name (db_db db)
         inst <- Map.lookup inst_name (Inst.synth_insts synth)
         let synth_doc = Inst.synth_doc synth <> " -- "
-                <> case Inst.inst_backend inst of
-                    Inst.Dummy -> "dummy"
-                    Inst.Midi {} -> "MIDI"
-                    Inst.Im {} -> "音"
+                <> Inst.backend_name (Inst.inst_backend inst)
         return $ info_of synth_name inst_name synth_doc inst tags
     tags = fromMaybe [] $ Search.tags_of (db_index db) qualified
 
@@ -167,7 +165,8 @@ info_of synth_name name synth_doc (Inst.Inst backend common) tags =
     backend_fields = case backend of
         Inst.Dummy -> []
         Inst.Midi inst -> instrument_fields name inst
-        Inst.Im patch -> patch_fields patch
+        Inst.Im patch -> im_patch_fields patch
+        Inst.Sc patch -> sc_patch_fields patch
 
 common_fields :: [Tag.Tag] -> Common.Common Cmd.InstrumentCode -> [(Text, Text)]
 common_fields tags common =
@@ -228,8 +227,8 @@ instrument_fields name patch =
         } = patch
     Patch.Settings flags scale decay pb_range control_defaults = settings
 
-patch_fields :: Im.Patch.Patch -> [(Text, Text)]
-patch_fields (Im.Patch.Patch controls attr_map elements) =
+im_patch_fields :: Im.Patch.Patch -> [(Text, Text)]
+im_patch_fields (Im.Patch.Patch controls attr_map elements) =
     [ ("Attributes", Text.intercalate ", " $ map pretty $
         Common.mapped_attributes attr_map)
     , ("Controls", Text.unlines
@@ -237,6 +236,14 @@ patch_fields (Im.Patch.Patch controls attr_map elements) =
         | (control, doc) <- Map.toAscList controls
         ])
     , ("Elements", Text.unwords (Set.toList elements))
+    ]
+
+sc_patch_fields :: Sc.Patch.Patch -> [(Text, Text)]
+sc_patch_fields (Sc.Patch.Patch _name _dur_control controls) =
+    [ ("Controls", Text.unlines
+        [ pretty control <> "\t" <> showt id
+        | (control, id) <- Map.toAscList controls
+        ])
     ]
 
 format_fields :: [(Text, Text)] -> Text

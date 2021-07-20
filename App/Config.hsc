@@ -64,6 +64,9 @@ instrument_dir = data_dir </> "inst_db"
 im_dir :: Path.Relative
 im_dir = data_dir </> "im"
 
+sc_dir :: Path.Relative
+sc_dir = data_dir </> "sc"
+
 -- | Directory for instruments with slow patch loading to save their caches.
 instrument_cache_dir :: Path.Relative
 instrument_cache_dir = instrument_dir </> "db"

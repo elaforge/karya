@@ -129,10 +129,11 @@ set_notes = Ui.modify_config . (UiConfig.meta#UiConfig.notes #=)
 save_perf :: Cmd.CmdT IO Text
 save_perf = do
     config <- Ui.get_config id
-    midi <- if UiConfig.has_midi config
+    midi <- if UiConfig.has_midi (UiConfig.config_allocations config)
         then save_midi >> return (Just "saved midi") else return Nothing
-    im <- if UiConfig.has_im config
+    im <- if UiConfig.has_im (UiConfig.config_allocations config)
         then save_im >> return (Just "saved im") else return Nothing
+    -- TODO sc
     return $ Text.intercalate ", " $ Maybe.catMaybes [midi, im]
 
 -- | Save the current root MIDI performance as \"correct\".
@@ -194,7 +195,7 @@ make_performance events = do
 perform_midi :: Cmd.M m => BlockId -> m [Midi.WriteMessage]
 perform_midi block_id = do
     perf <- Cmd.get_performance block_id
-    LEvent.events_of <$> PlayUtil.perform_from 0 perf
+    LEvent.events_of . fst <$> PlayUtil.perform_from 0 (Cmd.perf_events perf)
 
 perform_im :: Cmd.M m => BlockId -> m (Vector.Vector Shared.Note.Note)
 perform_im block_id = do

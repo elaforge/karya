@@ -19,7 +19,7 @@ import qualified System.IO as IO
 import qualified System.IO.Error as IO.Error
 
 
-data Addr = Unix FilePath | IP Socket.PortNumber
+data Addr = Unix FilePath | TCP Socket.PortNumber | UDP Socket.PortNumber
     deriving (Eq, Show)
 
 listenUnix :: FilePath -> IO Socket.Socket
@@ -38,7 +38,8 @@ withConnection :: Addr -> (IO.Handle -> IO a) -> IO a
 withConnection addr action = do
     socket <- case addr of
         Unix {} -> unixSocket
-        IP {} -> ipSocket
+        TCP {} -> tcpSocket
+        UDP {} -> udpSocket
     -- Make sure to close the socket even if Socket.connect fails.  It will
     -- get closed twice if it doesn't, but Socket.close says it ignores errors.
     Exception.bracket_ (Socket.connect socket saddr) (Socket.close socket) $
@@ -46,7 +47,9 @@ withConnection addr action = do
             IO.hClose action
     where
     saddr = case addr of
-        IP port -> Socket.SockAddrInet port
+        TCP port -> Socket.SockAddrInet port
+            (Socket.tupleToHostAddress (127, 0, 0, 1))
+        UDP port -> Socket.SockAddrInet port
             (Socket.tupleToHostAddress (127, 0, 0, 1))
         Unix fname -> Socket.SockAddrUnix fname
 
@@ -58,7 +61,7 @@ withConnection_ addr action =
         withConnection addr action
 
 -- | The network lib turns ECONNREFUSED and ENOENT into isDoesNotExistError.
--- That's ok, because 'IP' gives ECONNREFUSED while 'Unix' gives ENOENT:
+-- That's ok, because 'TCP' gives ECONNREFUSED while 'Unix' gives ENOENT:
 --
 -- > connect: <socket: 28>: does not exist (Connection refused)
 -- > connect: <socket: 28>: does not exist (No such file or directory)
@@ -70,8 +73,11 @@ isConnectError exc
 unixSocket :: IO Socket.Socket
 unixSocket = Socket.socket Socket.AF_UNIX Socket.Stream Socket.defaultProtocol
 
-ipSocket :: IO Socket.Socket
-ipSocket = Socket.socket Socket.AF_INET Socket.Stream Socket.defaultProtocol
+tcpSocket :: IO Socket.Socket
+tcpSocket = Socket.socket Socket.AF_INET Socket.Stream Socket.defaultProtocol
+
+udpSocket :: IO Socket.Socket
+udpSocket = Socket.socket Socket.AF_INET Socket.Datagram Socket.defaultProtocol
 
 -- | getHostName from Network.BSD, which is deprecated.
 getHostName :: IO String

@@ -16,21 +16,19 @@
     on.
 -}
 module App.LoadInstruments where
-import System.FilePath ((</>))
+import           System.FilePath ((</>))
 
+import qualified App.Config as Config
 import qualified App.Path as Path
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Instrument.Inst as Inst
-import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Parse as Parse
+import qualified Local.Instrument
 import qualified Perform.Im.Play
 import qualified Perform.Lilypond.Constants as Lilypond.Constants
+import qualified Perform.Sc.PatchDb as Sc.PatchDb
 import qualified Util.Log as Log
-
-import qualified Local.Instrument
-import qualified App.Config as Config
-import Global
 
 #include "hsconfig.h"
 #if defined(ENABLE_IM) && !defined(TESTING)
@@ -39,14 +37,16 @@ import qualified Synth.Sampler.PatchDb as Sampler.PatchDb
 import qualified User.Elaforge.Instrument.Ness as Ness
 #endif
 
+import           Global
+
 
 midi_synths :: [MidiInst.Synth]
 midi_synths = Local.Instrument.midi_synths
 
 -- | Each synth that caches to disk has a function to make the cache, and one
 -- to load it.
-all_loads :: [(InstTypes.SynthName, (MidiInst.MakeDb, MidiInst.Load))]
-all_loads = Local.Instrument.all_loads
+all_loads :: [MidiInst.Load]
+all_loads = map (snd . snd) Local.Instrument.all_loads
 
 im_synths :: [MidiInst.Synth]
 im_synths =
@@ -73,7 +73,7 @@ internal_synths = [Lilypond.Constants.ly_synth Cmd.empty_code]
 
 load :: Path.AppDir -> IO (Inst.Db Cmd.InstrumentCode)
 load app_dir = do
-    loaded <- mapMaybeM (($ app_dir) . snd . snd) all_loads
+    loaded <- mapMaybeM ($ app_dir) (Sc.PatchDb.load_synth : all_loads)
     let synths = concat
             [ im_synths
             , loaded

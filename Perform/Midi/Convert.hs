@@ -66,12 +66,12 @@ convert :: RealTime -> MidiLookup
 convert srate lookup = ConvertUtil.convert $ \event resolved ->
     case Cmd.inst_backend resolved of
         Cmd.Midi patch config ->
-            convert_event srate lookup event patch config
+            convert_event srate lookup patch config event
         _ -> []
 
-convert_event :: RealTime -> MidiLookup -> Score.Event -> Patch.Patch
-    -> Patch.Config -> [LEvent.LEvent Types.Event]
-convert_event srate lookup event patch config = run $ do
+convert_event :: RealTime -> MidiLookup -> Patch.Patch -> Patch.Config
+    -> Score.Event -> [LEvent.LEvent Types.Event]
+convert_event srate lookup patch config event = run $ do
     let inst = Score.event_instrument event
     let event_controls = Score.event_controls event
     ((perf_patch, ks_controls), pitch) <-

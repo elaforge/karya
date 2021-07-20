@@ -15,17 +15,17 @@ module Ui.UiConfig (
     , allocations_map
     , allocate
     , verify_allocation
-    , Allocations(..)
+    , Allocations(..), unallocations
     , make_allocations
     , midi_allocations
     , modify_allocation
     , Allocation(..)
     , allocation
-    , has_im, has_midi
+    , has_im, has_midi, has_sc
     , is_im_allocation, is_midi_allocation
     , play_cache
 
-    , Backend(..)
+    , Backend(..), backend_name
     , midi_config
     , Meta(..)
     , empty_meta
@@ -188,25 +188,19 @@ verify_no_overlapping_addrs (Allocations allocs) alloc instrument
         _ -> []
 
 verify_backends_match :: Inst.Backend -> Allocation -> Maybe Text
-verify_backends_match backend alloc =
-    case (alloc_backend alloc, backend) of
-        (Midi {}, Inst.Midi {}) -> Nothing
-        (Im, Inst.Im {}) -> Nothing
-        (Dummy, Inst.Dummy) -> Nothing
-        _ -> Just $ "allocation type " <> alloc_type
-            <> " /= instrument type " <> backend_type
-    where
-    alloc_type = case alloc_backend alloc of
-        Midi {} -> "midi"
-        Im -> "im"
-        Dummy -> "dummy"
-    backend_type = case backend of
-        Inst.Dummy -> "dummy"
-        Inst.Midi {} -> "midi"
-        Inst.Im {} -> "im"
+verify_backends_match backend alloc = case (alloc_backend alloc, backend) of
+    (Midi {}, Inst.Midi {}) -> Nothing
+    (Im, Inst.Im {}) -> Nothing
+    (Sc, Inst.Sc {}) -> Nothing
+    (Dummy, Inst.Dummy) -> Nothing
+    _ -> Just $ "allocation type " <> backend_name (alloc_backend alloc)
+        <> " /= instrument type " <> Inst.backend_name backend
 
 newtype Allocations = Allocations (Map ScoreT.Instrument Allocation)
     deriving (Eq, Show, Pretty, Semigroup, Monoid)
+
+unallocations :: Allocations -> Map ScoreT.Instrument Allocation
+unallocations (Allocations m) = m
 
 -- | Make Allocations with no verification.  This should probably only be used
 -- for tests, allocations from user input should use 'allocate'.
@@ -254,14 +248,15 @@ instance Pretty Allocation where
         , ("backend", Pretty.format backend)
         ]
 
-has_im :: Config -> Bool
-has_im = any is_im_allocation . get . config_allocations
-    where get (Allocations m) = Map.elems m
+has_im :: Allocations -> Bool
+has_im = any is_im_allocation . Map.elems . unallocations
 
-has_midi :: Config -> Bool
+has_midi :: Allocations -> Bool
 has_midi = any is_midi_allocation
-    . filter ((/= play_cache) . alloc_qualified) . get . config_allocations
-    where get (Allocations m) = Map.elems m
+    . filter ((/= play_cache) . alloc_qualified) . Map.elems . unallocations
+
+has_sc :: Allocations -> Bool
+has_sc = any is_sc_allocation . Map.elems . unallocations
 
 play_cache :: InstTypes.Qualified
 play_cache = InstTypes.Qualified "play-cache" ""
@@ -276,6 +271,11 @@ is_midi_allocation alloc = case alloc_backend alloc of
     Midi {} -> True
     _ -> False
 
+is_sc_allocation :: Allocation -> Bool
+is_sc_allocation alloc = case alloc_backend alloc of
+    Sc -> True
+    _ -> False
+
 -- | Backend-specific config.  This should match the 'Inst.Backend' of the
 -- instrument in question, ensured by 'verify_allocation'.
 --
@@ -285,6 +285,7 @@ is_midi_allocation alloc = case alloc_backend alloc of
 data Backend =
     Midi !Patch.Config
     | Im
+    | Sc
     -- | This is for instruments without a backend.  For example a paired
     -- instrument might be written as one instrument, but realized as two
     -- different ones.
@@ -294,7 +295,16 @@ data Backend =
 instance Pretty Backend where
     format (Midi config) = Pretty.format config
     format Im = "Im"
+    format Sc = "Sc"
     format Dummy = "Dummy"
+
+-- | Local 'Backend' version of 'Inst.backend_name', keep them consistent.
+backend_name :: Backend -> Text
+backend_name = \case
+    Midi {} -> "midi"
+    Im -> "音"
+    Sc -> "sc"
+    Dummy -> "dummy"
 
 same_backend :: Backend -> Backend -> Bool
 same_backend b1 b2 = case (b1, b2) of

@@ -74,7 +74,7 @@ type Instrument = Text
 type Qualified = Text
 type WriteDevice = Text
 
-data Allocation = Midi [(WriteDevice, Midi.Channel)] | Dummy | Im
+data Allocation = Midi [(WriteDevice, Midi.Channel)] | Dummy | Im | Sc
     deriving (Eq, Show)
 
 instance Pretty Allocation where
@@ -82,6 +82,7 @@ instance Pretty Allocation where
         Midi allocs -> Pretty.constructor "Midi" [Pretty.format allocs]
         Dummy -> "Dummy"
         Im -> "Im"
+        Sc -> "Sc"
 
 from_score :: ScoreTime -> Double
 from_score = ScoreTime.to_double
@@ -208,6 +209,7 @@ dump_allocations (UiConfig.Allocations allocs) = do
             UiConfig.Midi config -> Midi $ addrs_of config
             UiConfig.Im -> Im
             UiConfig.Dummy -> Dummy
+            UiConfig.Sc -> Sc
     let qualified = InstTypes.show_qualified $ UiConfig.alloc_qualified alloc
     return (ScoreT.instrument_name inst, (qualified, simple_alloc))
     where
@@ -226,6 +228,7 @@ allocations = UiConfig.Allocations . Map.fromList . map make1
         backend = case simple_alloc of
             Dummy -> UiConfig.Dummy
             Im -> UiConfig.Im
+            Sc -> UiConfig.Sc
             Midi addrs -> UiConfig.Midi $ Patch.config
                 [ ((Midi.write_device dev, chan), Nothing)
                 | (dev,chan) <- addrs
