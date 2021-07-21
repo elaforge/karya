@@ -7186,7 +7186,7 @@ Perform:
     * rename PlayMidiArgs
     - rename Instrument.InstTypes to InstT
     * move Transport.Died out of midi play, it should just log
-    - make Network.withConnection return the bare socket, to avoid handle
+    * make Network.withConnection return the bare socket, to avoid handle
       overhead.  Add Network.withHandle.
     - I still feel I should move osc perform into convert, and remove the
       MSignal intermediate step.  And if that's possible, why not do it for

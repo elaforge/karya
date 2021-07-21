@@ -137,14 +137,14 @@ initialize app = Socket.withSocketsDo $ do
 
 -- | Client send and receive.
 query :: Network.Addr -> Query -> IO (Either Exception.IOException Response)
-query addr query = Exception.try $ Network.withConnection addr $ \hdl -> do
+query addr query = Exception.try $ Network.withHandle addr $ \hdl -> do
     repl_send hdl query
     IO.hFlush hdl
     repl_receive hdl
 
 -- | Like 'query', but don't expect a response.
 notify :: Network.Addr -> NotifySeq -> IO (Either Exception.IOException ())
-notify addr notify = Exception.try $ Network.withConnection addr $ \hdl -> do
+notify addr notify = Exception.try $ Network.withHandle addr $ \hdl -> do
     repl_send hdl $ QNotify notify
     IO.hFlush hdl
 

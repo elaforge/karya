@@ -7,7 +7,7 @@
 module Util.Network (
     Addr(..)
     , listenUnix
-    , withConnection, withConnection_
+    , withHandle, withHandle_, withConnection
     , getHostName
 ) where
 import qualified Control.Exception as Exception
@@ -33,8 +33,21 @@ listenUnix fname = do
     Socket.listen socket 1
     return socket
 
--- | Connect to the Addr and run the action with the handle.
-withConnection :: Addr -> (IO.Handle -> IO a) -> IO a
+-- | Like 'withConnection', but use a high level IO.Handle.
+withHandle :: Addr -> (IO.Handle -> IO a) -> IO a
+withHandle addr action = withConnection addr $ \socket ->
+    Exception.bracket (Socket.socketToHandle socket IO.ReadWriteMode) IO.hClose
+        action
+
+-- | Like 'withHandle' except ignore a connection failure.  Other
+-- exceptions pass through.
+withHandle_ :: Addr -> (IO.Handle -> IO ()) -> IO ()
+withHandle_ addr action =
+    Exception.handleJust isConnectError (const $ return ()) $
+        withHandle addr action
+
+-- | Connect to the Addr and run the action with the socket.
+withConnection :: Addr -> (Socket.Socket -> IO a) -> IO a
 withConnection addr action = do
     socket <- case addr of
         Unix {} -> unixSocket
@@ -43,8 +56,7 @@ withConnection addr action = do
     -- Make sure to close the socket even if Socket.connect fails.  It will
     -- get closed twice if it doesn't, but Socket.close says it ignores errors.
     Exception.bracket_ (Socket.connect socket saddr) (Socket.close socket) $
-        Exception.bracket (Socket.socketToHandle socket IO.ReadWriteMode)
-            IO.hClose action
+        action socket
     where
     saddr = case addr of
         TCP port -> Socket.SockAddrInet port
@@ -52,13 +64,6 @@ withConnection addr action = do
         UDP port -> Socket.SockAddrInet port
             (Socket.tupleToHostAddress (127, 0, 0, 1))
         Unix fname -> Socket.SockAddrUnix fname
-
--- | Like 'withConnection' except ignore a connection failure.  Other
--- exceptions pass through.
-withConnection_ :: Addr -> (IO.Handle -> IO ()) -> IO ()
-withConnection_ addr action =
-    Exception.handleJust isConnectError (const $ return ()) $
-        withConnection addr action
 
 -- | The network lib turns ECONNREFUSED and ENOENT into isDoesNotExistError.
 -- That's ok, because 'TCP' gives ECONNREFUSED while 'Unix' gives ENOENT:

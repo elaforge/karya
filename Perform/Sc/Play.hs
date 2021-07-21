@@ -18,6 +18,7 @@ import qualified Data.Map as Map
 import qualified Data.Time as Time
 
 import qualified Network.Socket as Socket
+import qualified Network.Socket.ByteString as Socket.ByteString
 import qualified Vivid.OSC as OSC
 import           Vivid.OSC (OSCDatum(..))
 
@@ -114,8 +115,8 @@ write_ahead :: Time.NominalDiffTime
 write_ahead = 1
 
 send :: Socket.PortNumber -> ByteString.ByteString -> IO ()
-send port bytes = Network.withConnection (Network.UDP port) $ \hdl ->
-    ByteString.hPut hdl bytes
+send port bytes = Network.withConnection (Network.UDP port) $ \socket ->
+    void $ Socket.ByteString.send socket bytes
 
 
 -- * perform
