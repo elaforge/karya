@@ -231,10 +231,10 @@ play_score mb_device fname = initialize_audio $ initialize_midi $
     wait_for_midi <- if Vector.null events
         then return $ return ()
         else do
-            monitor_ctl <- Transport.play_monitor_control
-            play_midi play_ctl monitor_ctl midi_interface cmd_state ui_state
+            players <- Transport.active_players
+            play_midi play_ctl players midi_interface cmd_state ui_state
                 events
-            return $ Transport.wait_player_stopped monitor_ctl
+            return $ Transport.wait_player_stopped players
 
     Async.async $ do
         putStrLn "press return to stop player"
@@ -313,10 +313,10 @@ watch_subprocesses ready all_procs =
 
 -- * midi
 
-play_midi :: Transport.PlayControl -> Transport.PlayMonitorControl
+play_midi :: Transport.PlayControl -> Transport.ActivePlayers
     -> Interface.Interface -> Cmd.State -> Ui.State
     -> Vector.Vector Score.Event -> IO ()
-play_midi play_ctl monitor_ctl midi_interface cmd_state ui_state events = do
+play_midi play_ctl players midi_interface cmd_state ui_state events = do
     wdevs <- Interface.write_devices midi_interface
     mapM_ (Interface.connect_write_device midi_interface) (map fst wdevs)
     let midi = DeriveSaved.perform_midi cmd_state ui_state events
@@ -324,7 +324,7 @@ play_midi play_ctl monitor_ctl midi_interface cmd_state ui_state events = do
     mvar <- MVar.newMVar ui_state
     let midi_state = Midi.Play.State
             { _play_control = play_ctl
-            , _monitor_control = monitor_ctl
+            , _active_players = players
             , _info = transport_info mvar
             }
     Midi.Play.play midi_state Nothing "tscore" midi Nothing

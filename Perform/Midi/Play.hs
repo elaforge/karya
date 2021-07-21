@@ -30,8 +30,9 @@ data State = State {
     -- | Communicate into the player.
     _play_control :: !Transport.PlayControl
     -- | Communicate out from the player.
-    , _monitor_control :: !Transport.PlayMonitorControl
+    , _players :: !Transport.ActivePlayers
     , _info :: !Transport.Info
+    , _im_end :: !(Maybe RealTime)
     }
 
 type Messages = [LEvent.LEvent Midi.WriteMessage]
@@ -42,12 +43,17 @@ play :: State -> Maybe Cmd.SyncConfig -> Text -> Messages -> Maybe RealTime
     -> IO ()
 play state sync name msgs repeat_at = do
     now <- Transport.info_get_current_time (_info state)
-    Thread.startLogged "render midi" $
-        -- Don't send MMC if I'm repeating, it'll just confuse the DAW.
-        player_thread (if Maybe.isJust repeat_at then Nothing else sync) now
-            name state (process now repeat_at msgs)
+    Transport.player_started (_players state)
+    Thread.startLogged "render midi" $ thread now
+        `Exception.finally` Transport.player_stopped (_players state)
     return ()
     where
+    thread now = player_thread
+        -- Don't send MMC if I'm repeating, it'll just confuse the DAW.
+        (if Maybe.isJust repeat_at then Nothing else sync)
+        now name
+        (state { _im_end = (now+) <$> _im_end state })
+        (process now repeat_at msgs)
     -- Catch msgs up to realtime and cycle them if I'm repeating.
     process now repeat_at = shift_messages now . cycle_messages repeat_at
 
@@ -61,15 +67,12 @@ player_thread maybe_sync start name state msgs = do
         _ -> return ()
     play_loop state msgs
         `Exception.catch` \(exc :: Exception.SomeException) ->
-            -- TODO this is incorrect, should be done in PlayC!
-            Transport.info_send_status (_info state)
-                (Transport.Died (show exc))
+            Log.warn ("player died: " <> showt exc)
     case maybe_sync of
         Just sync | not (Cmd.sync_mtc sync) ->
             state_write_midi state $ make_mmc sync start Mmc.Stop
         _ -> return ()
     Log.debug $ "play complete: " <> name
-    Transport.player_stopped (_monitor_control state)
 
 make_mmc :: Cmd.SyncConfig -> RealTime -> Mmc.Mmc -> Midi.WriteMessage
 make_mmc sync start msg = Midi.WriteMessage (Cmd.sync_device sync) start $
@@ -116,11 +119,13 @@ play_loop state msgs = do
     -- Log.debug $ "play at " ++ show now ++ " chunk: " ++ show (length chunk)
     mapM_ (LEvent.either (state_write_midi state) Log.write) chunk
 
-    -- Don't quit until all events have been played.
-    let timeout = if null rest
-            then maybe now Midi.wmsg_ts (Seq.last (LEvent.events_of chunk))
-                - now
-            else write_ahead
+    -- Even if all the events have been scheduled, don't quit until they should
+    -- have been played, so the monitor will hang on as long as there are still
+    -- notes that can be cancelled.
+    -- when (null rest) $
+    --     putStrLn $ "MIDI end delay: " <> show (_im_end state) <> ": "
+    --         <> show (get_end now chunk - now)
+    let timeout = if null rest then get_end now chunk - now else write_ahead
     stop <- Transport.poll_stop_player (RealTime.to_diff timeout)
         (_play_control state)
     let reset_midi = state_write state (Interface.AllNotesOff now)
@@ -134,3 +139,7 @@ play_loop state msgs = do
         -- but let's just remove the reset_midi here.
         (_, []) -> return () -- reset_midi
         _ -> play_loop state rest
+    where
+    get_end now chunk = fromMaybe now $ max
+        (Midi.wmsg_ts <$> Seq.last (LEvent.events_of chunk))
+        (_im_end state)

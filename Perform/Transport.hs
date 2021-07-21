@@ -12,31 +12,31 @@ module Perform.Transport (
     , PlayControl(..), play_control
     , stop_player, poll_stop_player
     -- * play monitor control
-    , PlayMonitorControl, play_monitor_control
-    , player_stopped, poll_player_stopped, wait_player_stopped
+    , ActivePlayers, active_players
+    , player_started, player_stopped
+    , poll_player_stopped, wait_player_stopped
     -- * play timing
     , TempoFunction, ClosestWarpFunction, InverseTempoFunction, Stop(..)
 ) where
 import qualified Control.Concurrent.MVar as MVar
+import qualified Control.Concurrent.STM as STM
+import qualified Control.Concurrent.STM.TVar as TVar
 
 import qualified Util.Thread as Thread
+import qualified Derive.Warp as Warp
 import qualified Midi.Interface as Interface
 import qualified Ui.Ui as Ui
-import qualified Derive.Warp as Warp
-import Global
-import Types
+
+import           Global
+import           Types
 
 
 -- | These go back to the responder loop from the render thread to notify it
 -- about the transport's state.
-data Status = Playing | Stopped | Died !String
+data Status = Playing | Stopped
     deriving (Eq, Show)
 
-instance Pretty Status where
-    pretty = \case
-        Playing -> "Playing"
-        Stopped -> "Stopped"
-        Died msg -> "Died: " <> txt msg
+instance Pretty Status where pretty = showt
 
 -- | Data needed by the MIDI player thread.  This is created during app setup
 -- and passed directly to the play cmds by the responder loop.  When the play
@@ -59,8 +59,7 @@ data Info = Info {
 
 -- * play control
 
--- | Communication from the responder to the player, to tell the player to
--- stop.
+-- | Communication from the responder to the players, to tell them to stop.
 newtype PlayControl = PlayControl Thread.Flag deriving (Show)
 
 play_control :: IO PlayControl
@@ -76,22 +75,32 @@ poll_stop_player timeout (PlayControl flag) = Thread.poll timeout flag
 
 -- * play monitor control
 
--- | Communication from the player to the responder, to say when it's stopped.
-newtype PlayMonitorControl = PlayMonitorControl Thread.Flag
+-- | Number of active players, this goes to zero when they are all complete.
+newtype ActivePlayers = ActivePlayers (TVar.TVar Int)
 
-play_monitor_control :: IO PlayMonitorControl
-play_monitor_control = PlayMonitorControl <$> Thread.flag
+active_players :: IO ActivePlayers
+active_players = ActivePlayers <$> TVar.newTVarIO 0
 
--- | Signal that the player has stopped.
-player_stopped :: PlayMonitorControl -> IO ()
-player_stopped (PlayMonitorControl flag) = Thread.set flag
+player_started :: ActivePlayers -> IO ()
+player_started (ActivePlayers running) =
+    STM.atomically $ TVar.modifyTVar' running (+1)
 
--- | True if the player has stopped.
-poll_player_stopped :: Thread.Seconds -> PlayMonitorControl -> IO Bool
-poll_player_stopped timeout (PlayMonitorControl flag) = Thread.poll timeout flag
+-- | Signal that a player has stopped.
+player_stopped :: ActivePlayers -> IO ()
+player_stopped (ActivePlayers running) =
+    STM.atomically $ TVar.modifyTVar' running (subtract 1)
 
-wait_player_stopped :: PlayMonitorControl -> IO ()
-wait_player_stopped (PlayMonitorControl flag) = Thread.wait flag
+-- | True if all the players have stopped.
+poll_player_stopped :: Thread.Seconds -> ActivePlayers -> IO Bool
+poll_player_stopped timeout ctl@(ActivePlayers running)
+    | timeout <= 0 = (<=0) <$> TVar.readTVarIO running
+    | otherwise = maybe False (const True) <$>
+        Thread.timeout timeout (wait_player_stopped ctl)
+
+wait_player_stopped :: ActivePlayers -> IO ()
+wait_player_stopped (ActivePlayers running) = STM.atomically $ do
+    val <- STM.readTVar running
+    if val <= 0 then return () else STM.retry
 
 
 -- * play timing

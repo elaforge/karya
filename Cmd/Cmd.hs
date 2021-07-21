@@ -315,8 +315,10 @@ data PlayArgs = PlayArgs {
     , play_sc :: !Sc.Note.PlayNotes
     , play_inv_tempo :: !(Maybe Transport.InverseTempoFunction)
     , play_repeat_at :: !(Maybe RealTime)
-    -- | If there are im notes, this is the end of the last one.  This is so
-    -- the play monitor thread knows when im will be done.
+    -- | Since im playback is done by the VST, I don't directly control it as I
+    -- do with the MIDI player, effectively all the sound is "in the decay." So
+    -- I have an explicit end, and the MIDI thread will pretend it's still
+    -- playing until it crosses this boundary.
     , play_im_end :: !(Maybe RealTime)
     , play_im_direct :: !(Maybe PlayDirectArgs)
     }

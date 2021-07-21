@@ -49,7 +49,7 @@ data State = State {
     -- | Communicate into the player.
     _play_control :: !Transport.PlayControl
     -- | Communicate out from the player.
-    , _monitor_control :: !Transport.PlayMonitorControl
+    , _players :: !Transport.ActivePlayers
     , _port :: !Socket.PortNumber
     }
 
@@ -62,14 +62,15 @@ play state pnotes repeat_at = do
     -- TODO Does this spoil streaming?  Why yes it does.  But it's too annoynig
     -- to try to thread LEvent through notes_to_osc.
     let (notes, logs) = LEvent.partition $ Note.notes pnotes
-    Thread.startLogged "render sc" $ player_thread state $
-        to_bundles now $
-        map (first ((* Note.stretch pnotes) . subtract (Note.shift pnotes))) $
-        notes_to_osc start_id $
-        map (\n -> n { Note.duration = Note.duration n * Note.stretch pnotes })
-        notes
+    Transport.player_started (_players state)
+    Thread.startLogged "render sc" $ thread now notes
+        `Exception.finally` Transport.player_stopped (_players state)
     return ()
     where
+    thread now = player_thread state . to_bundles now
+        . map (first ((* Note.stretch pnotes) . subtract (Note.shift pnotes)))
+        . notes_to_osc start_id . map modify
+    modify n = n { Note.duration = Note.duration n * Note.stretch pnotes }
     start_id = SynthId 10
     -- TODO
     -- Catch msgs up to realtime and cycle them if I'm repeating.
@@ -80,7 +81,6 @@ player_thread state bundles = do
     play_loop state bundles
         `Exception.catch` \(exc :: Exception.SomeException) ->
             Log.warn ("player died: " <> showt exc)
-    Transport.player_stopped (_monitor_control state)
     -- TODO finally do a /noid on any synths in scope.
 
 play_loop :: State -> [OSC.OSCBundle] -> IO ()
@@ -92,7 +92,15 @@ play_loop state bundles = do
     --     putStrLn "osc chunk: "
     --     mapM_ print chunk
     mapM_ (send (_port state) . OSC.encodeOSCBundle) chunk
-    let timeout = if null rest then 0 else write_ahead
+    let timeout = if null rest
+            -- TODO this is wrong because I want the duration, so I can get the
+            -- end.  But it's encoded into the OSC so it's a bit of hassle to
+            -- get out.  Nevermind for now, maybe I won't wind up doing
+            -- duration this way in the end.
+            then maybe now (OSC.timestampToUTC . time_of) (Seq.last chunk)
+                `Time.diffUTCTime` now
+            else write_ahead
+    -- let timeout = if null rest then 0 else write_ahead
     stop <- Transport.poll_stop_player timeout (_play_control state)
     case (stop, rest) of
         (True, _) -> send (_port state) $ OSC.encodeOSC clear_sched
@@ -118,9 +126,10 @@ newtype SynthId = SynthId Int.Int32
 to_bundles :: Time.UTCTime -> [(RealTime, OSC.OSC)] -> [OSC.OSCBundle]
 to_bundles start = map make . Seq.keyed_group_adjacent fst
     where
-    make (time, oscs) = bundle (Time.addUTCTime (realToFrac time) start)
-        (map snd oscs)
+    make (time, oscs) =
+        bundle (Time.addUTCTime (realToFrac time) start) (map snd oscs)
 
+-- TODO use LEvents to avoid spoiling streaming
 -- -- notes_to_osc2 :: SynthId -> [LEvent.LEvent Note.Note] -> [(RealTime, OSC.OSC)]
 -- notes_to_osc2 (SynthId start_id) notes =
 --     -- Seq.merge_asc_lists time_of $

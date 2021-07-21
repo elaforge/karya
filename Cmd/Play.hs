@@ -13,63 +13,37 @@
     - The score is preprocessed by adding the current absolute time to it
     and skipping notes based on the start offset.
 
-    - The score is sent to the Performer, which starts
-    'Perform.Midi.Play.player_thread' and returns a
-    'Transport.PlayControl' and a 'Transport.PlayMonitorControl'.  The
-    PlayControl is just to stop the player_thread, and the PlayMonitorControl
-    is so the player_thread can signal that it's done.
+    - Create a 'Transport.PlayControl' to tell players when to stop, and a
+    'Transport.ActivePlayers' to track the number of players still running.
+    Start players for each kind of backend: 'Perform.Midi.Play.player_thread'
+    for MIDI and im-via-MIDI, one for SC if appropriate, and an audio streaming
+    thread if play_im_direct is enabled.
 
-    - The PlayMonitorControl and tempo map are passed to
+    - The ActivePlayers and tempo map are passed to
     'Cmd.PlayC.play_monitor_thread', which uses the tempo map to display the
     play position in the various blocks.  It stops when it runs out of tempo
-    map (which corresponds with running off the end of the score), or the
-    player_thread sends a stop.  It's not synchronized to the playback in any
-    way, but of course they are both working from the same score.
+    map (which corresponds with running off the end of the score), or when
+    the PlayControl goes to Stop.  It's not synchronized to the play threads in
+    any way, but of course they are both working from the same score.
 
-    - A stop from the user sets 'Transport.stop_player', which causes the
-    player_thread to quit, which in turn tells the monitor thread.
+    - A stop from the user sets 'Transport.stop_player'.  All the players
+    and the play_monitor_thread are polling it and will quit.
 
-    So, there are three threads involved: the player_thread is scheduling MIDI
-    msgs, the play_monitor_thread sweeps the play position along, and the app
-    event handler is waiting for events in the responder.
-
-    The player_thread also gets the event loopback channel in
-    'Transport.info_send_status', so it can send 'Cmd.Msg.Transport' msgs
-    through the event loop.  They're picked up by 'Cmd.PlayC.cmd_play_msg',
-    which can use them to set UI state like changing the play box color and
-    logging.
-
-    The play_monitor_thread is kicked off simultaneously with the
-    player_thread, and advances the play selection in its own loop, using the
-    tempo map from the deriver.  It will keep running until it gets a stop msg
-    from the control or the tempo map tells it there is no more score to
-    \"play\".  While the monitor doesn't actually play anything, it's the one
-    that sends Playing and Stopped transport msgs to indicate player status.
-    If all goes well, the monitor and the player will run to completion, the
-    monitor will send Stopped, and the player will exit on its own.
+    - Another thread is watching the ActivePlayers.  It sent Transport.Playing
+    to the responder when they started, and will send Transport.Stopped when
+    they go to zero.  This control's the UI's idea of whether it's playing or
+    not.  If it's playing, it still has the PlayControl, so it won't accept
+    another play, but will accept a stop.  So player threads should only exit
+    when there's nothing left for them to cancel, so MIDI and OSC, being
+    scheduled in advance, will hang around even after they scheduled their last
+    message.  If a player never sends Transport.player_stopped, ActivePlayers
+    will never go to 0, and we get stuck.  So they should do the stop in a
+    finally block.
 
     The im backend complicates things a bit.  See NOTE [play-im].
 
-    For example:
-
-    In a normal situation, the player will do its thing and the monitor will
-    eventually run out of InverseTempoMap, which will return Nothing.  The
-    monitor will send Stopped, which will clear the player control from the
-    responder Cmd.State, which is how the UI knows whether playing is in
-    progress.  The player is assumed to have completed and exited on its own,
-    probably even before the playback audio is completed, since it schedules in
-    advance.
-
-    If the player dies on an error, it sends a Died to the responder chan.  As
-    mentioned above, it will also tell the monitor to stop.  The monitor will
-    notice this, and may stop itself, emitting a Stopped msg.  The Stopped msg
-    will then cause the responder to clear the player control out of its state,
-    which lets it know that play has stopped and it's ok to start another play
-    thread.
-
-    If the user requests a stop, the responder sets the player control to Stop.
-    The player stops, telling the monitor to stop, which emits Stopped, which
-    clears the PlayMonitorControl.
+    repeat_at, the play speed multiplier, and the negative start adjustment
+    also complicate things.
 -}
 module Cmd.Play where
 import qualified Data.List as List
@@ -452,7 +426,7 @@ from_realtime block_id repeat_at start_ = do
             Cmd.perf_inv_tempo perf stop . (+adjust0) . (/multiplier)
         , play_repeat_at = (*multiplier) . subtract start <$> repeat_at
         , play_im_end = if Set.null im_insts then Nothing
-            else Score.event_end <$> Util.Vector.find_end
+            else subtract adjust0 . Score.event_end <$> Util.Vector.find_end
                 ((`Set.member` im_insts) . Score.event_instrument)
                 (Cmd.perf_events perf)
         , play_im_direct = if Set.null im_insts || not im_play_direct

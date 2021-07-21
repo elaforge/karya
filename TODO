@@ -7135,13 +7135,49 @@ Perform:
       . save/test/sc/sine
       * pitch is missing or wrong
       * LPerf support for sc
-      - play marker stops immediately
+      * play marker stops immediately
         . Probably can be fixed with MonitorCtl becomes a semaphore.
       * play at not right, have to move bundles back.
-      - stop is not hooked up
+      * stop is not hooked up
+        - But won't cut off sounding notes, since they include duration.
+        . Maybe this strategy isn't that great.
 
-    - MonitorCtl becomes a semaphore, since there are multiple players now
-    - move Transport.Died out of Midi.Play
+    * MonitorCtl becomes a semaphore, since there are multiple players now
+      . Except players stop before notes are out, due to scheduling in
+        advance.  Does MIDI do that?  No, why not?  That's what the 'timeout'
+        thing does.  But neither MIDI nor SC can know about the decay of the
+        sound, though I guess except the force off, there's no more control.
+      . So I can do the same with sc.  Except not quite, because I encode
+        the duration into the msg.  Can I get it back out?
+      . Alternately, isn't this complicated?  How about remove MonitorControl
+        entirely and keep playing until I'm out of score?  I guess it's not
+        correct because there could be generated notes past the end.
+      . But in that case, why not go until end of last Score.Event?
+      . Actually I already have something like this, with out_of_score, why
+        didn't I use that only?
+      * im direct play should also work now, test it out.
+
+      New transport plan:
+        . Each player monitors Transport.poll_stop_player, which explicit stop
+          will set.
+        . Monitor plays until out of score, or poll_stop_player.
+        . The threads will remain running as long as there is something they
+          can cancel, like scheduled msgs or playing decay, because they are
+          the only ones who know how to do that.
+        . So there must be a separate thread waiting for all players to stop,
+          which coordinates the Transport.Start -> Transport.Stop transition.
+          Until then, Cmd.state_play_control is still set, so space can still
+          tell them to stop, and the playing LED is still on.
+        . im via midi is complicated, because it's effectively all in the MIDI
+          decay, there's no NoteOff.  I used an explicit im_off for that.
+          Since this is happening in response to a MIDI msg, we can have the
+          MIDI thread delay, even though there's nothing to cancel.
+          Otherwise?
+        . im_end is in time relative to play start.  Monitor gets it by
+          subtracting offset.  This works because start time is baked into the
+          inv_tempo_map.
+    * move Transport.Died out of Midi.Play
+      . What was it for?
     - is there really no way to send segments and let scserver interpolate?
     - Convert should trim the signals
     - thru equivalent for OSC
@@ -7149,7 +7185,7 @@ Perform:
     - what about synchronizing sc with MIDI?
     * rename PlayMidiArgs
     - rename Instrument.InstTypes to InstT
-    - move Transport.Died out of midi play, it should just log
+    * move Transport.Died out of midi play, it should just log
     - make Network.withConnection return the bare socket, to avoid handle
       overhead.  Add Network.withHandle.
     - I still feel I should move osc perform into convert, and remove the
