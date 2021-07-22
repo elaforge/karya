@@ -2,8 +2,12 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 module Perform.Sc.Convert (
     default_srate, convert
+#ifdef TESTING
+    , module Perform.Sc.Convert
+#endif
 ) where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -70,7 +74,8 @@ convert_controls :: RealTime
 convert_controls srate patch_controls start end =
     Map.fromAscList . mapMaybe convert . Map.toAscList
     where
-    -- TODO trim to start of the next note of this patch.
+    -- TODO trim to start of the next note of this patch.  But this will be
+    -- quite inefficient if there's a long signal and a short decay.
     convert (control, signal) = case Map.lookup control patch_controls of
         Nothing -> Nothing
         Just cid -> Just

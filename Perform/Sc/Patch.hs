@@ -14,6 +14,9 @@ import           Global
 
 data Patch = Patch {
     name :: !Note.PatchName
+    -- | Path to the scsyndef file.  This is needed to tell scserver to load
+    -- it.
+    , filename :: !FilePath
     , duration_control :: !Note.ControlId
     , controls :: Map ScoreT.Control Note.ControlId
     } deriving (Eq, Show, Generics.Generic)

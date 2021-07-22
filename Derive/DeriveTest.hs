@@ -882,14 +882,11 @@ mkevent :: CallStack.Stack => EventSpec -> Score.Event
 mkevent = mkevent_scale Twelve.scale
 
 -- | Make an event with a non-twelve scale.
-mkevent_scale :: CallStack.Stack => Scale.Scale
-    -> (RealTime, RealTime, Text, Controls, ScoreT.Instrument)
-    -> Score.Event
+mkevent_scale :: CallStack.Stack => Scale.Scale -> EventSpec -> Score.Event
 mkevent_scale scale = mkevent_scale_key scale Nothing
 
 mkevent_scale_key :: CallStack.Stack => Scale.Scale -> Maybe Text
-    -> (RealTime, RealTime, Text, Controls, ScoreT.Instrument)
-    -> Score.Event
+    -> EventSpec -> Score.Event
 mkevent_scale_key scale key (start, dur, pitch, controls, inst) =
     maybe id (\k -> Score.modify_environ (Env.insert_val EnvKey.key k)) key $
     Score.empty_event

@@ -239,7 +239,7 @@ im_patch_fields (Im.Patch.Patch controls attr_map elements) =
     ]
 
 sc_patch_fields :: Sc.Patch.Patch -> [(Text, Text)]
-sc_patch_fields (Sc.Patch.Patch _name _dur_control controls) =
+sc_patch_fields (Sc.Patch.Patch _name _filename _dur_control controls) =
     [ ("Controls", Text.unlines
         [ pretty control <> "\t" <> showt id
         | (control, id) <- Map.toAscList controls

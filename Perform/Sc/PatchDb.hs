@@ -54,18 +54,18 @@ load_dir dir = File.ignoreEnoent (File.list dir) >>= \case
         Log.notice $ "no supercollider patch dir: " <> showt dir
         return Nothing
     Just fnames -> do
-        (errors, patches) <- Either.partitionEithers <$> mapM parse_file fnames
+        (errors, patches) <- Either.partitionEithers <$> mapM load_file fnames
         mapM_ Log.warn errors
         -- TODO warn about collisions
         return $ Just $ Map.unions patches
 
-parse_file :: FilePath -> IO (Either Text PatchDb)
-parse_file fname =
-    fmap (first (txt . (prefix<>)) . parse) $ ByteString.readFile fname
+load_file :: FilePath -> IO (Either Text PatchDb)
+load_file fname =
+    fmap (first (txt . (prefix<>)) . parse fname) $ ByteString.readFile fname
     where prefix = fname <> ": "
 
-parse :: ByteString.ByteString -> Either String PatchDb
-parse bytes = do
+parse :: FilePath -> ByteString.ByteString -> Either String PatchDb
+parse fname bytes = do
     Literally.SynthDefFile defs <- Literally.decodeSynthDefFile bytes
     Map.fromList . zip (map Literally._synthDefName defs) <$> mapM convert defs
     where
@@ -74,6 +74,7 @@ parse bytes = do
             Map.lookup c_duration controls
         return $ Patch.Patch
             { name = Literally._synthDefName def
+            , filename = fname
             , duration_control = dur_id
             , controls = Map.delete c_duration controls
             }

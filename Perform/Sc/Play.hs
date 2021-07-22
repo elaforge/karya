@@ -4,8 +4,7 @@
 
 {-# LANGUAGE CPP #-}
 module Perform.Sc.Play (
-    server_port
-    , State(..)
+    State(..)
     , play
 #ifdef TESTING
     , module Perform.Sc.Play
@@ -26,6 +25,7 @@ import qualified Util.Log as Log
 import qualified Util.Network as Network
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+import qualified Util.Texts as Texts
 import qualified Util.Thread as Thread
 
 import qualified Derive.LEvent as LEvent
@@ -51,7 +51,6 @@ data State = State {
     _play_control :: !Transport.PlayControl
     -- | Communicate out from the player.
     , _players :: !Transport.ActivePlayers
-    , _port :: !Socket.PortNumber
     }
 
 -- | Start a thread to stream a list of WriteMessages.
@@ -92,7 +91,7 @@ play_loop state bundles = do
     -- unless (null chunk) $ do
     --     putStrLn "osc chunk: "
     --     mapM_ print chunk
-    mapM_ (send (_port state) . OSC.encodeOSCBundle) chunk
+    mapM_ (send server_port . OSC.encodeOSCBundle) chunk
     let timeout = if null rest
             -- TODO this is wrong because I want the duration, so I can get the
             -- end.  But it's encoded into the OSC so it's a bit of hassle to
@@ -104,7 +103,7 @@ play_loop state bundles = do
     -- let timeout = if null rest then 0 else write_ahead
     stop <- Transport.poll_stop_player timeout (_play_control state)
     case (stop, rest) of
-        (True, _) -> send (_port state) $ OSC.encodeOSC clear_sched
+        (True, _) -> send server_port $ OSC.encodeOSC clear_sched
             -- TODO long-duration notes will keep sounding.  Free default group?
         (_, []) -> return ()
         _ -> play_loop state rest
@@ -206,6 +205,14 @@ bundle time = OSC.OSCBundle (OSC.timestampFromUTC time) . map Right
 
 data AddAction = Head | Tail | Before | After | Replace
     deriving (Eq, Ord, Show, Enum, Bounded)
+
+-- * patches
+
+load_patch :: FilePath -> IO ()
+load_patch = send server_port . OSC.encodeOSC . d_load
+
+d_load :: FilePath -> OSC.OSC
+d_load path = OSC.OSC "/d_load" [OSC_S (Texts.toByteString path)]
 
 
 -- * util

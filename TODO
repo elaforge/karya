@@ -7141,7 +7141,19 @@ Perform:
       * stop is not hooked up
         - But won't cut off sounding notes, since they include duration.
         . Maybe this strategy isn't that great.
+    - If I didn't encode duration in the OSC?
+      . I'd need to use a gate control, which would then have a doneAction on
+        the end.  So still don't have to do explicit frees, but I can track
+        ringing notes and send gate=0 on stop, and I can find the end by
+        looking for gate=0 msgs.
+      . But this is more consistent with how people will do real instruments,
+        and can be hooked up to MIDI and played in realtime.
 
+    - load patches on startup
+      . I don't want to load them all, only the ones in this score.
+      . And unload the rest.
+      . For that I need the initialize step like with some MIDI, but I don't
+        think I have it hooked up to run automatically?
     * MonitorCtl becomes a semaphore, since there are multiple players now
       . Except players stop before notes are out, due to scheduling in
         advance.  Does MIDI do that?  No, why not?  That's what the 'timeout'
@@ -7178,8 +7190,8 @@ Perform:
           inv_tempo_map.
     * move Transport.Died out of Midi.Play
       . What was it for?
-    - is there really no way to send segments and let scserver interpolate?
-    - Convert should trim the signals
+    - Is there really no way to send segments and let scserver interpolate?
+    * Convert should trim the signals
     - thru equivalent for OSC
     - implement repeat_at
     - what about synchronizing sc with MIDI?
@@ -7191,7 +7203,7 @@ Perform:
     - I still feel I should move osc perform into convert, and remove the
       MSignal intermediate step.  And if that's possible, why not do it for
       MIDI too?
-    - sc instruments don't have attrs, should they?
+    / sc instruments don't have attrs, should they? nah.
 
   - Overlapping notes with different ControlSwitch cc numbers should share
     a channel.  Of course it'll work anyway if only one channel is

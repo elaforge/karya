@@ -381,10 +381,7 @@ play ui_chan ui_state transport_info
     Midi.Play.play midi_state mmc name midi_msgs repeat_at
     unless (null (Sc.Note.notes sc_msgs)) $ do
         let sc_state = Sc.Play.State
-                { _play_control = play_ctl
-                , _players = players
-                , _port = Sc.Play.server_port
-                }
+                { _play_control = play_ctl, _players = players }
         Sc.Play.play sc_state sc_msgs repeat_at
     -- Pass the current state in the MVar.  ResponderSync will keep it up
     -- to date afterwards, but only if blocks are added or removed.
