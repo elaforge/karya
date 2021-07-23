@@ -5,6 +5,7 @@
 module Perform.Sc.Note (
     Note(..), end, ControlId(..), PatchName
     , Notes, PlayNotes(..)
+    , gate_id
 ) where
 import qualified Data.ByteString as ByteString
 import qualified Data.Int as Int
@@ -22,7 +23,6 @@ data Note = Note {
     patch :: !PatchName
     , start :: !RealTime
     , duration :: !RealTime
-    , duration_control :: !ControlId
     , controls :: !(Map ControlId MSignal.Signal)
     } deriving (Eq, Show, Generics.Generic)
 
@@ -51,3 +51,9 @@ data PlayNotes = PlayNotes {
     , stretch :: RealTime
     , notes :: Notes
     } deriving (Show)
+
+-- | Gate is converted from note duration, so it gets treated specially.  I
+-- also require them all to be the same ControlId, so I can stop all sounding
+-- notes by setting the gate control on the default group.
+gate_id :: ControlId
+gate_id = ControlId 0

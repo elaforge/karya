@@ -10,6 +10,7 @@ module Perform.Sc.Convert (
 #endif
 ) where
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified Util.Log as Log
@@ -19,6 +20,7 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
 
+import qualified Instrument.Common as Common
 import qualified Perform.ConvertUtil as ConvertUtil
 import qualified Perform.Midi.MSignal as MSignal
 import qualified Perform.Sc.Note as Note
@@ -40,25 +42,34 @@ convert :: RealTime -> (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> [Score.Event] -> Note.Notes
 convert srate = ConvertUtil.convert $ \event resolved ->
     case Cmd.inst_backend resolved of
-        Cmd.Sc patch -> convert_event srate patch event
+        Cmd.Sc patch -> convert_event srate patch triggered event
+            where
+            triggered = Common.Triggered `Set.member` flags
+            flags = Common.common_flags $ Cmd.inst_common resolved
         _ -> []
 
-convert_event :: RealTime -> Patch.Patch -> Score.Event -> Note.Notes
-convert_event srate patch event = run $ do
+convert_event :: RealTime -> Patch.Patch -> Bool -> Score.Event -> Note.Notes
+convert_event srate patch triggered event = run $ do
     pitch <- if Map.member Patch.c_pitch (Patch.controls patch)
         then Just <$> convert_pitch event
         else return Nothing
-    let controls = maybe id
-            (Map.insert Patch.c_pitch . ScoreT.untyped . Signal.coerce) pitch $
+    let controls = maybe id (add_control Patch.c_pitch) pitch $
             Score.event_controls event
     return $ Note.Note
         { patch = Patch.name patch
         , start = Score.event_start event
         , duration = Score.event_duration event
-        , duration_control = Patch.duration_control patch
-        , controls = convert_controls srate (Patch.controls patch)
-            (Score.event_start event) (Score.event_end event) controls
+        , controls = Map.insert Note.gate_id gate $
+            convert_controls srate (Patch.controls patch)
+                (Score.event_start event) (Score.event_end event) controls
         }
+    where
+    add_control c sig = Map.insert c (ScoreT.untyped (Signal.coerce sig))
+    gate
+        | triggered = MSignal.from_pairs [(start, 1), (start+srate, 0)]
+        | otherwise =
+            MSignal.from_pairs [(start, 1), (Score.event_end event, 0)]
+        where start = Score.event_start event
 
 run :: Log.LogId a -> [LEvent.LEvent a]
 run action = LEvent.Event note : map LEvent.Log logs

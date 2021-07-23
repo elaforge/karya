@@ -7139,21 +7139,32 @@ Perform:
         . Probably can be fixed with MonitorCtl becomes a semaphore.
       * play at not right, have to move bundles back.
       * stop is not hooked up
-        - But won't cut off sounding notes, since they include duration.
+        * But won't cut off sounding notes, since they include duration.
         . Maybe this strategy isn't that great.
-    - If I didn't encode duration in the OSC?
+    * If I didn't encode duration in the OSC?
       . I'd need to use a gate control, which would then have a doneAction on
         the end.  So still don't have to do explicit frees, but I can track
         ringing notes and send gate=0 on stop, and I can find the end by
         looking for gate=0 msgs.
       . But this is more consistent with how people will do real instruments,
         and can be hooked up to MIDI and played in realtime.
+      * When playing from 0, ends on pitch bend.
+        . Becaues I need to take the end of the gate, there are no NoteOffs.
+        . I guess I can keep a max in the loop.
+      * When playing from >0, bend gets messed up.
+        . Perhaps due to OSC out of order due to buggy merging.
+    - do a /noid for allocated synth IDs.  There's no "/noid all" so I have to
+      remember all synth IDs.  I don't know which ones are still allocated
+      though, since decay time is unknown.
+      . What if I send to default_group though?
 
     - load patches on startup
       . I don't want to load them all, only the ones in this score.
       . And unload the rest.
       . For that I need the initialize step like with some MIDI, but I don't
         think I have it hooked up to run automatically?
+    - tool to normalize scsyndefs: write each one with a name with its
+      filename, disallow multiple defs in a file.
     * MonitorCtl becomes a semaphore, since there are multiple players now
       . Except players stop before notes are out, due to scheduling in
         advance.  Does MIDI do that?  No, why not?  That's what the 'timeout'

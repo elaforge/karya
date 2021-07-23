@@ -3,8 +3,10 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Perform.Sc.Play_test where
+import qualified Data.Int as Int
 import qualified Data.Map as Map
 import qualified Data.Time as Time
+
 import qualified Vivid.OSC as OSC
 
 import qualified Perform.Midi.MSignal as MSignal
@@ -16,41 +18,52 @@ import           Types
 import           Util.Test
 
 
-test_break1 :: Test
-test_break1 = do
-    let f = Play.break1 fst
-    equal (f ([] :: [[(Int, Char)]])) ([], [])
-    equal (f [[(0, 'a'), (1, 'b')], [(1, 'c')], [(0, 'd')], [(3, 'e')]])
-        ([(0, 'a'), (0, 'd')], [[(1, 'b')], [(1, 'c')], [], [(3, 'e')]])
-    equal (Play.rotate_on fst
-        [[(0, 'a'), (1, 'b')], [(1, 'c')], [(0, 'd')], [(3, 'e')]])
-        [[(0, 'a'), (0, 'd')], [(1, 'b'), (1, 'c')], [(3, 'e')]]
-
 test_notes_to_osc :: Test
 test_notes_to_osc = do
-    let sid = Play.SynthId
     let f = Play.notes_to_osc (sid 10)
     equal (f []) []
     equal (f notes)
-        [ (0, Play.s_new "sine" (sid 10) [(dur, 2), (freq, 400)])
-        , (0.5, Play.n_set (sid 10) [(freq, 300)])
-        , (1, Play.n_set (sid 10) [(freq, 200)])
-        , (1, Play.s_new "sine" (sid 11) [(dur, 2), (freq, 500)])
-        , (1.5, Play.n_set (sid 11) [(freq, 600)])
+        [ (0, Play.s_new "sine" (sid 10) [(pitch, 400)])
+        , (0.5, Play.n_set (sid 10) [(pitch, 300)])
+        , (1, Play.n_set (sid 10) [(pitch, 200)])
+        , (1, Play.s_new "sine" (sid 11) [(pitch, 500)])
+        , (1.5, Play.n_set (sid 11) [(pitch, 600)])
         ]
 
-dur :: Note.ControlId
-dur = Note.ControlId 2
+    equal (f
+        [mknote 0 4 [(gate, [(0, 1), (4, 0)]), (pitch, [(0, 50), (2, 48)])]])
+        [ (0, Play.s_new "sine" (sid 10) [(gate, 1), (pitch, 50)])
+        , (2, Play.n_set (sid 10) [(pitch, 48)])
+        , (4, Play.n_set (sid 10) [(gate, 0)])
+        ]
 
-freq :: Note.ControlId
-freq = Note.ControlId 1
+test_control_oscs :: Test
+test_control_oscs = do
+    let f = Play.control_oscs (sid 10) . mkcontrols
+        set = Play.n_set (sid 10)
+    equal (f [(gate, [(0, 1), (4, 0)]), (pitch, [(0, 40), (2, 42)])])
+        [ (0, set [(gate, 1), (pitch, 40)])
+        , (2, set [(pitch, 42)])
+        , (4, set [(gate, 0)])
+        ]
+
+sid :: Int.Int32 -> Play.SynthId
+sid = Play.SynthId
+
+gate :: Note.ControlId
+gate = Note.ControlId 0
+
+pitch :: Note.ControlId
+pitch = Note.ControlId 1
+
+mknote :: RealTime -> RealTime -> [(Note.ControlId, [(RealTime, Double)])]
+    -> Note.Note
+mknote start dur controls = Note.Note "sine" start dur (mkcontrols controls)
 
 notes :: [Note.Note]
 notes =
-    [ Note.Note "sine" 0 2 dur
-        (mkcontrols [(freq, [(0, 400), (0.5, 300), (1, 200)])])
-    , Note.Note "sine" 1 2 dur
-        (mkcontrols [(freq, [(1, 500), (1.5, 600)])])
+    [ mknote 0 2 [(pitch, [(0, 400), (0.5, 300), (1, 200)])]
+    , mknote 1 2 [(pitch, [(1, 500), (1.5, 600)])]
     ]
 
 mkcontrols :: [(Note.ControlId, [(RealTime, Double)])]

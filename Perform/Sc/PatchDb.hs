@@ -3,14 +3,18 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Perform.Sc.PatchDb (load_synth) where
+import qualified Control.Monad.Except as Except
 import qualified Data.ByteString as ByteString
 import qualified Data.Either as Either
 import qualified Data.Map as Map
 
+import qualified System.FilePath as FilePath
+import           System.FilePath ((</>))
 import qualified Vivid.SC.SynthDef.Literally as Literally
 
 import qualified Util.File as File
 import qualified Util.Log as Log
+import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
 
 import qualified App.Config as Config
@@ -25,11 +29,10 @@ import qualified Perform.Sc.Patch as Patch
 import           Global
 
 
-
 type PatchDb = Map Note.PatchName Patch.Patch
 
-c_duration :: ScoreT.Control
-c_duration = ScoreT.Control "duration"
+c_gate :: ScoreT.Control
+c_gate = ScoreT.Control "gate"
 
 -- * load
 
@@ -56,7 +59,8 @@ load_dir dir = File.ignoreEnoent (File.list dir) >>= \case
     Just fnames -> do
         (errors, patches) <- Either.partitionEithers <$> mapM load_file fnames
         mapM_ Log.warn errors
-        -- TODO warn about collisions
+        -- If you ran normalize_patches, there should be no collisions, since
+        -- the filesystem disallows them.
         return $ Just $ Map.unions patches
 
 load_file :: FilePath -> IO (Either Text PatchDb)
@@ -67,19 +71,23 @@ load_file fname =
 parse :: FilePath -> ByteString.ByteString -> Either String PatchDb
 parse fname bytes = do
     Literally.SynthDefFile defs <- Literally.decodeSynthDefFile bytes
-    Map.fromList . zip (map Literally._synthDefName defs) <$> mapM convert defs
+    Map.fromList . zip (map Literally._synthDefName defs) <$>
+        mapM (convert fname) defs
+
+convert :: FilePath -> Literally.LiteralSynthDef -> Either String Patch.Patch
+convert fname def = do
+    gate_id <- maybe (Left $ "no 'gate' control: " <> prettys controls) return $
+        Map.lookup c_gate controls
+    unless (gate_id == Note.gate_id) $
+        Left $ "gate control ID should be " <> prettys Note.gate_id <> ", was "
+            <> prettys gate_id
+    return $ Patch.Patch
+        { name = Literally._synthDefName def
+        , filename = fname
+        , controls = Map.delete c_gate controls
+        }
     where
-    convert def = do
-        dur_id <- maybe (Left "no 'duration' control") return $
-            Map.lookup c_duration controls
-        return $ Patch.Patch
-            { name = Literally._synthDefName def
-            , filename = fname
-            , duration_control = dur_id
-            , controls = Map.delete c_duration controls
-            }
-        where
-        controls = Map.fromList
-            [ (ScoreT.unchecked_control (Texts.toText name), Note.ControlId ix)
-            | Literally.ParamName name ix <- Literally._synthDefParamNames def
-            ]
+    controls = Map.fromList
+        [ (ScoreT.unchecked_control (Texts.toText name), Note.ControlId ix)
+        | Literally.ParamName name ix <- Literally._synthDefParamNames def
+        ]

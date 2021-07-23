@@ -297,6 +297,14 @@ keyed_group_adjacent :: Eq key => (a -> key) -> [a] -> [(key, NonNull a)]
 keyed_group_adjacent key =
     key_on (key . List.head) . List.groupBy ((==) `on` key)
 
+group_adjacent_fst :: Eq a => [(a, b)] -> [(a, NonNull b)]
+group_adjacent_fst xs =
+    [(key, map snd group) | (key, group) <- keyed_group_adjacent fst xs]
+
+group_adjacent_snd :: Eq b => [(a, b)] -> [(NonNull a, b)]
+group_adjacent_snd xs =
+    [(map fst group, key) | (key, group) <- keyed_group_adjacent snd xs]
+
 -- ** sort
 
 -- Sort groups sort the input by the group key as a side-effect of grouping.

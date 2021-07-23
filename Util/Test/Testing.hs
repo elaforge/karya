@@ -233,7 +233,7 @@ pretty_compare equal inequal expect_equal a b is_equal
         | len > maxlen = Text.take maxlen s <> "... {" <> showt len <> "}"
         | otherwise = s
         where len = Text.length s
-    maxlen = 200
+    maxlen = 400
 
 -- | Apply color ranges as produced by 'diff_ranges'.
 highlight_lines :: ColorCode -> IntMap.IntMap [CharRange] -> Text -> Text

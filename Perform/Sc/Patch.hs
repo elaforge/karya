@@ -17,8 +17,7 @@ data Patch = Patch {
     -- | Path to the scsyndef file.  This is needed to tell scserver to load
     -- it.
     , filename :: !FilePath
-    , duration_control :: !Note.ControlId
-    , controls :: Map ScoreT.Control Note.ControlId
+    , controls :: !(Map ScoreT.Control Note.ControlId)
     } deriving (Eq, Show, Generics.Generic)
 
 instance Pretty.Pretty Patch where format = Pretty.formatG

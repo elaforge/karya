@@ -30,7 +30,6 @@ import qualified Util.Thread as Thread
 
 import qualified Derive.LEvent as LEvent
 import qualified Perform.Midi.MSignal as MSignal
-import qualified Perform.RealTime as RealTime
 import qualified Perform.Sc.Note as Note
 import qualified Perform.Transport as Transport
 
@@ -72,9 +71,6 @@ play state pnotes repeat_at = do
         . notes_to_osc start_id . map modify
     modify n = n { Note.duration = Note.duration n * Note.stretch pnotes }
     start_id = SynthId 10
-    -- TODO
-    -- Catch msgs up to realtime and cycle them if I'm repeating.
-    -- process now repeat_at = shift_messages now . cycle_messages repeat_at
 
 player_thread :: State -> [OSC.OSCBundle] -> IO ()
 player_thread state bundles = do
@@ -83,8 +79,14 @@ player_thread state bundles = do
             Log.warn ("player died: " <> showt exc)
     -- TODO finally do a /noid on any synths in scope.
 
+loop1 :: forall state a. ((state -> a) -> state -> a) -> state -> a
+loop1 go = go again
+    where
+    again :: state -> a
+    again = go again
+
 play_loop :: State -> [OSC.OSCBundle] -> IO ()
-play_loop state bundles = do
+play_loop state = loop1 $ \loop bundles -> do
     now <- Time.getCurrentTime
     let until = Time.addUTCTime (write_ahead * 2) now
     let (chunk, rest) = span ((<= OSC.timestampFromUTC until) . time_of) bundles
@@ -93,20 +95,14 @@ play_loop state bundles = do
     --     mapM_ print chunk
     mapM_ (send server_port . OSC.encodeOSCBundle) chunk
     let timeout = if null rest
-            -- TODO this is wrong because I want the duration, so I can get the
-            -- end.  But it's encoded into the OSC so it's a bit of hassle to
-            -- get out.  Nevermind for now, maybe I won't wind up doing
-            -- duration this way in the end.
             then maybe now (OSC.timestampToUTC . time_of) (Seq.last chunk)
                 `Time.diffUTCTime` now
             else write_ahead
-    -- let timeout = if null rest then 0 else write_ahead
     stop <- Transport.poll_stop_player timeout (_play_control state)
     case (stop, rest) of
-        (True, _) -> send server_port $ OSC.encodeOSC clear_sched
-            -- TODO long-duration notes will keep sounding.  Free default group?
+        (True, _) -> mapM_ (send server_port . OSC.encodeOSC) stop_all
         (_, []) -> return ()
-        _ -> play_loop state rest
+        _ -> loop rest
     where
     time_of (OSC.OSCBundle ts _) = ts
 
@@ -153,39 +149,39 @@ notes_to_osc (SynthId start_id) notes =
     where synth_ids = map SynthId [start_id ..]
 
 note_to_osc :: SynthId -> Note.Note -> [(RealTime, OSC.OSC)]
-note_to_osc synth_id (Note.Note patch start dur dur_control controls) =
+note_to_osc synth_id (Note.Note patch start dur controls) =
     (start, s_new patch synth_id initial)
         : dropWhile ((<=start) . fst) (control_oscs synth_id controls)
-    where
-    initial = (dur_control, RealTime.to_seconds dur)
-        : map (second (MSignal.at start)) (Map.toAscList controls)
+    where initial = map (second (MSignal.at start)) (Map.toAscList controls)
 
+-- | Precondition: signals have already been trimmed to the right time range.
 control_oscs :: SynthId -> Map Note.ControlId MSignal.Signal
     -> [(RealTime, OSC.OSC)]
-control_oscs synth_id controls =
-    mapMaybe to_osc $ rotate_on fst $ map extract $ Map.toAscList controls
+control_oscs synth_id =
+    map (second (n_set synth_id)) . Seq.group_adjacent_fst
+        . Seq.merge_lists fst . map extract . Map.toAscList
     where
-    -- precondition: signal has already been trimmed to the right time range
-    -- walk over all signals in parallel, and emit n_set for each time point.
-    -- TODO Maybe simpler and just as efficient to just make separate lists and
-    -- Seq.merge_lists them.
     extract (control, sig) =
         [(x, (control, y)) | (x, y) <- MSignal.to_pairs sig]
-    to_osc :: [(MSignal.X, (Note.ControlId, MSignal.Y))]
-        -> Maybe (RealTime, OSC.OSC)
-    to_osc cs@((x, _) : _) = Just (x, n_set synth_id (map snd cs))
-    to_osc [] = Nothing
 
 s_new :: Note.PatchName -> SynthId -> [(Note.ControlId, Double)] -> OSC.OSC
 s_new name (SynthId synth_id) controls = OSC.OSC "/s_new" $
     [ OSC_S name
     , OSC_I synth_id
     , OSC_I (fromIntegral (fromEnum Head))
-    , OSC_I default_node_id
+    , let SynthId id = default_group in OSC_I id
     ] ++ controls_to_osc controls
-    where
-    -- I think 1 to go in the default group?
-    default_node_id = 1
+
+-- | sclang sets up this as the default group.  I think if I launch scsynth
+-- standalone I'll have to create it.
+default_group :: SynthId
+default_group = SynthId 1
+
+stop_all :: [OSC.OSC]
+stop_all =
+    [ clear_sched
+    , n_set default_group [(Note.gate_id, 0)]
+    ]
 
 n_set :: SynthId -> [(Note.ControlId, Double)] -> OSC.OSC
 n_set (SynthId synth_id) controls = OSC.OSC "/n_set" $
@@ -193,6 +189,15 @@ n_set (SynthId synth_id) controls = OSC.OSC "/n_set" $
 
 clear_sched :: OSC.OSC
 clear_sched = OSC.OSC "/clearSched" []
+
+force_stop_all :: OSC.OSC
+force_stop_all = g_freeAll default_group
+
+g_freeAll :: SynthId -> OSC.OSC
+g_freeAll (SynthId id) = OSC.OSC "/g_freeAll" [OSC_I id]
+
+s_noid :: SynthId -> OSC.OSC
+s_noid (SynthId id) = OSC.OSC "/s_noid" [OSC_I id]
 
 controls_to_osc :: [(Note.ControlId, Double)] -> [OSCDatum]
 controls_to_osc controls =
@@ -213,27 +218,3 @@ load_patch = send server_port . OSC.encodeOSC . d_load
 
 d_load :: FilePath -> OSC.OSC
 d_load path = OSC.OSC "/d_load" [OSC_S (Texts.toByteString path)]
-
-
--- * util
-
-rotate_on :: Eq k => (a -> k) -> [[a]] -> [[a]]
-rotate_on key = go
-    where
-    go xss = case break1 key xss of
-        ([], []) -> []
-        (xs, xss) -> xs : go xss
-
--- | Break off the first element of each of the lists that compare equal
--- by the key function.
-break1 :: Eq k => (a -> k) -> [[a]] -> ([a], [[a]])
-break1 key = go
-    where
-    go [] = ([], [])
-    go ([] : xs) = go xs
-    go ((x0 : xs0) : xss) = bimap (x0:) (xs0:) $ get (key x0) xss
-    get _ [] = ([], [])
-    get v ([] : xss) = get v xss
-    get v (xs@(x0 : xs0) : xss)
-        | v == key x0 = bimap (x0:) (xs0:) $ get v xss
-        | otherwise = second (xs:) $ get v xss
