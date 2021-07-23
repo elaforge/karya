@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Perform.Sc.Note (
-    Note(..), end, ControlId(..), PatchName
+    Note(..), ControlId(..), PatchName
     , Notes, PlayNotes(..)
     , gate_id
 ) where
@@ -22,12 +22,9 @@ import           Types
 data Note = Note {
     patch :: !PatchName
     , start :: !RealTime
-    , duration :: !RealTime
+    -- | The duration is encoded in the gate_id control.
     , controls :: !(Map ControlId MSignal.Signal)
     } deriving (Eq, Show, Generics.Generic)
-
-end :: Note -> RealTime
-end n = start n + duration n
 
 instance Pretty.Pretty Note where format = Pretty.formatG
 

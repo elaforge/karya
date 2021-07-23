@@ -21,19 +21,17 @@ test_convert :: Test
 test_convert = do
     let f = Convert.convert_event 1 patch False . DeriveTest.mkevent
     equal (f (2, 2, "4c", [("c", [(0, 0), (8, 8)])], "inst"))
-        [ LEvent.Event $ mknote 2 2
+        [ LEvent.Event $ mknote 2
             [ (Note.gate_id, [(2, 1), (4, 0)])
             , (cc, [(2, 2), (3, 3), (4, 4)])
             , (c_pitch, [(2, 60)])
             ]
         ]
 
-mknote :: RealTime -> RealTime -> [(Note.ControlId, [(RealTime, Double)])]
-    -> Note.Note
-mknote start dur controls = Note.Note
+mknote :: RealTime -> [(Note.ControlId, [(RealTime, Double)])] -> Note.Note
+mknote start controls = Note.Note
     { patch = "patch"
     , start = start
-    , duration = dur
     , controls = mkcontrols controls
     }
 

@@ -68,8 +68,7 @@ play state pnotes repeat_at = do
     where
     thread now = player_thread state . to_bundles now
         . map (first ((* Note.stretch pnotes) . subtract (Note.shift pnotes)))
-        . notes_to_osc start_id . map modify
-    modify n = n { Note.duration = Note.duration n * Note.stretch pnotes }
+        . notes_to_osc start_id
     start_id = SynthId 10
 
 player_thread :: State -> [OSC.OSCBundle] -> IO ()
@@ -149,7 +148,7 @@ notes_to_osc (SynthId start_id) notes =
     where synth_ids = map SynthId [start_id ..]
 
 note_to_osc :: SynthId -> Note.Note -> [(RealTime, OSC.OSC)]
-note_to_osc synth_id (Note.Note patch start dur controls) =
+note_to_osc synth_id (Note.Note patch start controls) =
     (start, s_new patch synth_id initial)
         : dropWhile ((<=start) . fst) (control_oscs synth_id controls)
     where initial = map (second (MSignal.at start)) (Map.toAscList controls)

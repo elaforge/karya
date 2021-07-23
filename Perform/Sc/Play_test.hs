@@ -31,7 +31,7 @@ test_notes_to_osc = do
         ]
 
     equal (f
-        [mknote 0 4 [(gate, [(0, 1), (4, 0)]), (pitch, [(0, 50), (2, 48)])]])
+        [mknote 0 [(gate, [(0, 1), (4, 0)]), (pitch, [(0, 50), (2, 48)])]])
         [ (0, Play.s_new "sine" (sid 10) [(gate, 1), (pitch, 50)])
         , (2, Play.n_set (sid 10) [(pitch, 48)])
         , (4, Play.n_set (sid 10) [(gate, 0)])
@@ -56,14 +56,13 @@ gate = Note.ControlId 0
 pitch :: Note.ControlId
 pitch = Note.ControlId 1
 
-mknote :: RealTime -> RealTime -> [(Note.ControlId, [(RealTime, Double)])]
-    -> Note.Note
-mknote start dur controls = Note.Note "sine" start dur (mkcontrols controls)
+mknote :: RealTime -> [(Note.ControlId, [(RealTime, Double)])] -> Note.Note
+mknote start controls = Note.Note "sine" start (mkcontrols controls)
 
 notes :: [Note.Note]
 notes =
-    [ mknote 0 2 [(pitch, [(0, 400), (0.5, 300), (1, 200)])]
-    , mknote 1 2 [(pitch, [(1, 500), (1.5, 600)])]
+    [ mknote 0 [(pitch, [(0, 400), (0.5, 300), (1, 200)])]
+    , mknote 1 [(pitch, [(1, 500), (1.5, 600)])]
     ]
 
 mkcontrols :: [(Note.ControlId, [(RealTime, Double)])]

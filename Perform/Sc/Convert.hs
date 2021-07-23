@@ -58,7 +58,6 @@ convert_event srate patch triggered event = run $ do
     return $ Note.Note
         { patch = Patch.name patch
         , start = Score.event_start event
-        , duration = Score.event_duration event
         , controls = Map.insert Note.gate_id gate $
             convert_controls srate (Patch.controls patch)
                 (Score.event_start event) (Score.event_end event) controls
