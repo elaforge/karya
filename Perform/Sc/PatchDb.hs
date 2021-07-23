@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Perform.Sc.PatchDb (load_synth) where
+module Perform.Sc.PatchDb (load_synth, normalize_patches) where
 import qualified Control.Monad.Except as Except
 import qualified Data.ByteString as ByteString
 import qualified Data.Either as Either
@@ -91,3 +91,36 @@ convert fname def = do
         [ (ScoreT.unchecked_control (Texts.toText name), Note.ControlId ix)
         | Literally.ParamName name ix <- Literally._synthDefParamNames def
         ]
+
+
+-- * normalize
+
+-- | Process a directory of .scsyndef patches to validate and make names
+-- consistent with filenames.  Call from ghci.
+normalize_patches :: FilePath -> FilePath -> IO ()
+normalize_patches in_dir out_dir = do
+    fnames <- File.list in_dir
+    forM_ fnames $ \fname -> normalize_patch out_dir fname >>= \case
+        Left err -> putStrLn $ fname <> ": " <> err
+        Right () -> return ()
+
+normalize_patch :: FilePath -> FilePath -> IO (Either String ())
+normalize_patch out_dir fname = Except.runExceptT $ do
+    Literally.SynthDefFile defs <- tryRight . Literally.decodeSynthDefFile
+        =<< liftIO (ByteString.readFile fname)
+    case defs of
+        [def] -> fix "" def
+        defs -> mapM_ (uncurry fix) $ zip (map show [1..]) defs
+    where
+    fix suffix def = do
+        _ <- tryRight $ convert fname def
+        let old_name = Literally._synthDefName def
+        let fixed = def { Literally._synthDefName = Texts.toByteString name }
+        when (old_name /= Texts.toByteString name) $
+            put $ "renamed " <> show old_name <> " -> " <> show name
+        let out_fname = out_dir </> name <> suffix <> ".scsyndef"
+        put $ fname <> " written to " <> out_fname
+        liftIO $ ByteString.writeFile out_fname
+            (Literally.encodeLiteralSynthDef fixed)
+    name = fst $ Seq.drop_suffix ".scsyndef" $ FilePath.takeFileName fname
+    put = liftIO . putStrLn
