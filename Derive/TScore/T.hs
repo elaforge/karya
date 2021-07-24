@@ -12,7 +12,7 @@ import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 import qualified Midi.Midi as Midi
 import qualified Ui.Id as Id
 
@@ -72,7 +72,7 @@ data Directive = Directive !Pos !Text !(Maybe Text)
     deriving (Eq, Show)
 
 -- This is the same as Simple.Allocations
-data Allocation = Allocation Instrument InstTypes.Qualified Backend
+data Allocation = Allocation Instrument InstT.Qualified Backend
     deriving (Eq, Show)
 
 -- | This is ScoreT.Instrument, but I don't want to import ScoreT here.

@@ -15,7 +15,7 @@ import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
 import qualified Derive.ScoreT as ScoreT
 
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Patch as Patch
@@ -24,7 +24,7 @@ import qualified Ui.UiConfig as UiConfig
 import           Global
 
 
-synth_name :: InstTypes.SynthName
+synth_name :: InstT.SynthName
 synth_name = "spicy"
 
 synth :: MidiInst.Synth
@@ -90,13 +90,13 @@ strings = ["e1", "a", "d", "g", "b", "e2"]
 
 -- | Create the proper midi config to work with the string attrs used by
 -- 'note_call'.
-allocations :: Text -> InstTypes.Name -> UiConfig.Allocations
+allocations :: Text -> InstT.Name -> UiConfig.Allocations
 allocations dev_name name = UiConfig.midi_allocations $
     inst name 0 : [inst (name <> "-" <> string) chan
         | (string, chan) <- zip strings [1..]]
     where
     inst name chan =
         ( ScoreT.Instrument name
-        , (InstTypes.Qualified synth_name name, MidiInst.config1 dev chan)
+        , (InstT.Qualified synth_name name, MidiInst.config1 dev chan)
         )
     dev = Midi.write_device dev_name

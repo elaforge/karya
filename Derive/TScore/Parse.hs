@@ -30,7 +30,7 @@ import           Util.P ((<?>))
 import qualified Util.Parse as Parse
 
 import qualified Derive.TScore.T as T
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 import qualified Midi.Midi as Midi
 import qualified Ui.Id as Id
 
@@ -225,7 +225,7 @@ parse_allocation = parse_text (p_whitespace *> p_allocation)
 p_allocation :: Parser T.Allocation
 p_allocation = T.Allocation
     <$> (lexeme $ ">" *> p_word)
-    <*> (lexeme $ InstTypes.parse_qualified <$> p_word)
+    <*> (lexeme $ InstT.parse_qualified <$> p_word)
     <*> p_backend
 
 p_backend :: Parser T.Backend

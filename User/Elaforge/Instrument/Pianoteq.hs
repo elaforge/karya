@@ -16,7 +16,7 @@ import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Instrument.Common as Common
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.NN as NN
@@ -84,5 +84,5 @@ c_grace = GraceUtil.make_grace Module.instrument
         <> ShowVal.doc gliss <> " and doesn't use `(`.")
     (Derive.with_constant_control gliss 1) (\_args events -> Sub.derive events)
 
-patch :: InstTypes.Name -> [(Midi.Control, ScoreT.Control)] -> MidiInst.Patch
+patch :: InstT.Name -> [(Midi.Control, ScoreT.Control)] -> MidiInst.Patch
 patch = MidiInst.named_patch pb_range

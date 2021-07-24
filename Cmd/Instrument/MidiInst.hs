@@ -65,7 +65,7 @@ import qualified Derive.Symbols as Symbols
 
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 import qualified Instrument.Serialize
 import qualified Instrument.Tag as Tag
 
@@ -83,7 +83,7 @@ import           Types
 
 type Synth = Inst.SynthDecl Cmd.InstrumentCode
 
-synth :: InstTypes.SynthName -> Text -> [Patch] -> Synth
+synth :: InstT.SynthName -> Text -> [Patch] -> Synth
 synth name doc patches =
     Inst.SynthDecl name doc (zip (map name_of patches) (map make_inst patches))
     where name_of = (patch#Patch.name #$)
@@ -239,7 +239,7 @@ patch_from_pair (patch, common) = (make_patch patch)
 -- Controls come last because they are often a long list.
 --
 -- TODO I don't love the name, but 'patch' is already taken by the lens.
-named_patch :: Control.PbRange -> InstTypes.Name
+named_patch :: Control.PbRange -> InstT.Name
     -> [(Midi.Control, ScoreT.Control)] -> Patch
 named_patch pb_range name controls =
     make_patch $ (Patch.patch pb_range name)
@@ -334,7 +334,7 @@ allocations = UiConfig.make_allocations . map make
     make (name, qualified, set_config, backend) =
         ( name
         , UiConfig.Allocation
-            { alloc_qualified = InstTypes.parse_qualified qualified
+            { alloc_qualified = InstT.parse_qualified qualified
             , alloc_config = set_config Common.empty_config
             , alloc_backend = backend
             }
@@ -357,7 +357,7 @@ config1 dev chan = config [(dev, chan)]
 -- parsing a directory full of sysexes.  These patches can export a @make_db@
 -- function, which will do the slow parts and save the results in a cache file.
 -- The @load@ function will simply read the cache file, if present.
-save_synth :: Path.AppDir -> InstTypes.SynthName -> [Patch] -> IO ()
+save_synth :: Path.AppDir -> InstT.SynthName -> [Patch] -> IO ()
 save_synth app_dir synth_name patches = do
     -- Assume these are loaded from files, so I'll need to generate valid
     -- names.
@@ -371,7 +371,7 @@ save_synth app_dir synth_name patches = do
     strip_code (Patch patch common) =
         (patch, common { Common.common_code = () })
 
-load_synth :: (Patch.Patch -> Code) -> InstTypes.SynthName -> Text
+load_synth :: (Patch.Patch -> Code) -> InstT.SynthName -> Text
     -> Path.AppDir -> IO (Maybe Synth)
 load_synth get_code synth_name doc app_dir = do
     let fname = db_path app_dir (untxt synth_name)
@@ -396,7 +396,7 @@ db_path app_dir name =
 
 -- | Like 'generate_names', but don't drop or rename duplicates, just report
 -- them as errors.
-check_names :: [Patch] -> (Map InstTypes.Name Patch, [InstTypes.Name])
+check_names :: [Patch] -> (Map InstT.Name Patch, [InstT.Name])
 check_names = second (map fst) . Maps.unique
     . Seq.key_on (Patch.patch_name . patch_patch)
 
@@ -404,15 +404,15 @@ check_names = second (map fst) . Maps.unique
 -- guaranteed to be unique.  Also, due to loading from sysexes, there may be
 -- duplicate patches.  Generate valid names for the patches, drop duplicates,
 -- and disambiguate names that wind up the same.
-generate_names :: [Patch] -> (Map InstTypes.Name Patch, [Text])
+generate_names :: [Patch] -> (Map InstT.Name Patch, [Text])
 generate_names = -- This only touches the 'patch_patch' field.
     run . (concatMapM split <=< mapM drop_dup_initialization)
         . Seq.keyed_group_sort (clean_name . inst_name)
     where
     run = first Map.fromList . Identity.runIdentity . Logger.run
     -- If the name and initialization is the same, they are likely duplicates.
-    drop_dup_initialization :: (InstTypes.Name, [Patch])
-        -> Logger (InstTypes.Name, [Patch])
+    drop_dup_initialization :: (InstT.Name, [Patch])
+        -> Logger (InstT.Name, [Patch])
     drop_dup_initialization (name, patches) = do
         let (unique, dups) = Seq.partition_dups
                 (Patch.patch_initialize . patch_patch) patches
@@ -422,7 +422,7 @@ generate_names = -- This only touches the 'patch_patch' field.
         return (name, unique)
     -- The remaining patches are probably different and just happened to get
     -- the same name, so number them to disambiguate.
-    split :: (InstTypes.Name, [Patch]) -> Logger [(InstTypes.Name, Patch)]
+    split :: (InstT.Name, [Patch]) -> Logger [(InstT.Name, Patch)]
     split (name, patches@(_:_:_)) = do
         let named = zip (map ((name<>) . showt) [1..]) patches
         log ("split into " <> Text.intercalate ", " (map fst named)) patches
@@ -441,7 +441,7 @@ type Logger a = Logger.LoggerT Text Identity.Identity a
 
 -- | People like to put wacky characters in their names, but it makes them
 -- hard to type.
-clean_name :: Text -> InstTypes.Name
+clean_name :: Text -> InstT.Name
 clean_name =
     Text.dropWhileEnd (=='-') . Text.dropWhile (=='-')
         . strip_dups

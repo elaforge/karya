@@ -30,7 +30,7 @@ import qualified App.Path as Path
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.Common as Common
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 import qualified Instrument.Sysex as Sysex
 
 import qualified Midi.CC as CC
@@ -44,7 +44,7 @@ import qualified User.Elaforge.Instrument.Vl1Spec as Vl1Spec
 import           Global
 
 
-synth_name :: InstTypes.SynthName
+synth_name :: InstT.SynthName
 synth_name = "vl1"
 
 load :: Path.AppDir -> IO (Maybe MidiInst.Synth)
@@ -222,8 +222,7 @@ record_to_patch rmap = do
     get :: Sysex.RecordVal a => String -> Either String a
     get = flip Sysex.get_rmap rmap
 
-vl1_patch :: InstTypes.Name -> ElementInfo -> Maybe ElementInfo
-    -> MidiInst.Patch
+vl1_patch :: InstT.Name -> ElementInfo -> Maybe ElementInfo -> MidiInst.Patch
 vl1_patch name elt1 maybe_elt2 =
     (if is_pressure then MidiInst.pressure else id) $
         MidiInst.common#Common.tags #= map ((,) "vl1-element") names $

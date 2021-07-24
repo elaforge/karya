@@ -19,7 +19,7 @@ import qualified App.Path as Path
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.Common as Common
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 import qualified Instrument.Sysex as Sysex
 
 import qualified Midi.Encode
@@ -30,7 +30,7 @@ import           Global
 import           User.Elaforge.Instrument.Z1Spec
 
 
-synth_name :: InstTypes.SynthName
+synth_name :: InstT.SynthName
 synth_name = "z1"
 
 load :: Path.AppDir -> IO (Maybe MidiInst.Synth)

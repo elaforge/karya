@@ -8,7 +8,7 @@
 
     The hierarchy, from general to specific goes:
 
-    - 'InstTypes.Qualified' - global name of an Inst, used to instantiate
+    - 'InstT.Qualified' - global name of an Inst, used to instantiate
     a ScoreTypes.Instrument.
 
     - 'ScoreTypes.Instrument' - name an instance of an Inst within a score
@@ -47,7 +47,7 @@ import qualified Util.Pretty as Pretty
 
 import qualified Derive.Attrs as Attrs
 import qualified Instrument.Common as Common
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 import qualified Instrument.Tag as Tag
 
 import qualified Perform.Im.Patch as Im.Patch
@@ -110,13 +110,13 @@ inst_attributes inst = case inst_backend inst of
 
 -- * Db
 
-newtype Db code = Db (Map InstTypes.SynthName (Synth code))
+newtype Db code = Db (Map InstT.SynthName (Synth code))
     deriving (Show, Pretty)
 
 data Synth code = Synth {
     -- | Full name, just for documentation.
     synth_doc :: !Text
-    , synth_insts :: !(Map InstTypes.Name (Inst code))
+    , synth_insts :: !(Map InstT.Name (Inst code))
     } deriving (Show)
 
 insts = Lens.lens synth_insts (\f r -> r { synth_insts = f (synth_insts r) })
@@ -131,23 +131,23 @@ empty = Db mempty
 size :: Db code -> Int
 size (Db db) = Num.sum $ map (Map.size . synth_insts) $ Map.elems db
 
-synth_names :: Db code -> [InstTypes.SynthName]
+synth_names :: Db code -> [InstT.SynthName]
 synth_names (Db db) = Map.keys db
 
-synths :: Db code -> [(InstTypes.SynthName, Synth code)]
+synths :: Db code -> [(InstT.SynthName, Synth code)]
 synths (Db db) = Map.toList db
 
-lookup_synth :: InstTypes.SynthName -> Db code -> Maybe (Synth code)
+lookup_synth :: InstT.SynthName -> Db code -> Maybe (Synth code)
 lookup_synth synth (Db db) = Map.lookup synth db
 
-lookup :: InstTypes.Qualified -> Db code -> Maybe (Inst code)
-lookup (InstTypes.Qualified synth name) (Db db) =
+lookup :: InstT.Qualified -> Db code -> Maybe (Inst code)
+lookup (InstT.Qualified synth name) (Db db) =
     Map.lookup name . synth_insts =<< Map.lookup synth db
 
 -- | Unchecked synth declaration.  'db' will check it for duplicates and other
 -- problems.  (name, doc, patches)
 data SynthDecl code =
-    SynthDecl !InstTypes.SynthName !Text ![(InstTypes.Name, Inst code)]
+    SynthDecl !InstT.SynthName !Text ![(InstT.Name, Inst code)]
     deriving (Show)
 
 instance Pretty code => Pretty (SynthDecl code) where
@@ -165,14 +165,14 @@ db synth_decls = (Db db, synth_errors ++ inst_errors ++ validate_errors)
         SynthDecl synth synth_doc insts <- synth_decls
         let (inst_map, dups) = Maps.unique insts
         let errors =
-                [ "duplicate inst: " <> pretty (InstTypes.Qualified synth name)
+                [ "duplicate inst: " <> pretty (InstT.Qualified synth name)
                 | name <- map fst dups
                 ]
         return ((synth, Synth synth_doc inst_map), errors)
     (db, dups) = Maps.unique inst_maps
     synth_errors = ["duplicate synth: " <> showt synth | synth <- map fst dups]
     validate_errors = concat
-        [ map ((pretty (InstTypes.Qualified synth name) <> ": ") <>)
+        [ map ((pretty (InstT.Qualified synth name) <> ": ") <>)
             (validate inst)
         | SynthDecl synth _ insts <- synth_decls, (name, inst) <- insts
         ]
@@ -188,21 +188,21 @@ validate inst = case inst_backend inst of
     Sc _patch -> []
 
 -- | Merge the Dbs, and return any duplicate synths.
-merge :: Db code -> Db code -> (Db code, [InstTypes.SynthName])
+merge :: Db code -> Db code -> (Db code, [InstT.SynthName])
 merge (Db db1) (Db db2) = (Db db, Map.keys dups)
     where (db, dups) = Maps.uniqueUnion db1 db2
 
-annotate :: Map InstTypes.Qualified [Tag.Tag] -> Db code
-    -> (Db code, [InstTypes.Qualified])
+annotate :: Map InstT.Qualified [Tag.Tag] -> Db code
+    -> (Db code, [InstT.Qualified])
 annotate annots db = Map.foldrWithKey modify (db, []) annots
     where
-    modify qualified@(InstTypes.Qualified synth name) tags (db, not_found) =
+    modify qualified@(InstT.Qualified synth name) tags (db, not_found) =
         case modify_inst synth name (add_tags tags) db of
             Nothing -> (db, qualified : not_found)
             Just db -> (db, not_found)
     add_tags tags = common#Common.tags %= (tags++)
 
-modify_inst :: InstTypes.SynthName -> InstTypes.Name -> (Inst code -> Inst code)
+modify_inst :: InstT.SynthName -> InstT.Name -> (Inst code -> Inst code)
     -> Db code -> Maybe (Db code)
 modify_inst synth name modify (Db db) = Db <$> do
     inst <- Map.lookup name . synth_insts =<< Map.lookup synth db

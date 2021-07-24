@@ -27,7 +27,7 @@ import           Util.Serialize (bad_tag, get, get_tag, put, put_tag, Serialize)
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.Common as Common
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 import           Midi.Instances ()
 import qualified Perform.Lilypond.Types as Lilypond
 import qualified Perform.Midi.Control as Midi.Control
@@ -157,7 +157,7 @@ instance Serialize UiConfig.Allocation where
         Serialize.put_version 0 >> put a >> put b >> put c
     get = Serialize.get_version >>= \v -> case v of
         0 -> do
-            qualified :: InstTypes.Qualified <- get
+            qualified :: InstT.Qualified <- get
             config :: Common.Config <- get
             backend :: UiConfig.Backend <- get
             return $ UiConfig.Allocation qualified config backend

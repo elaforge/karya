@@ -15,7 +15,7 @@ import qualified Util.Seq as Seq
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.ScoreT as ScoreT
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 import qualified Perform.Im.Patch as Patch
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Faust.Code as Code
@@ -32,7 +32,7 @@ import           Global
 synth :: ImInst.Synth
 synth = ImInst.synth Config.faustName "音 faust synthesizer" patches
 
-patches :: [(InstTypes.Name, ImInst.Patch)]
+patches :: [(InstT.Name, ImInst.Patch)]
 warnings :: [Text]
 (warnings, patches) = Unsafe.unsafePerformIO $ do
     imDir <- Config.imDir <$> Config.getConfig

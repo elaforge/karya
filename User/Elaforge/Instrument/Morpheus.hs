@@ -10,7 +10,7 @@ import qualified App.Config as Config
 import qualified App.Path as Path
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.ScoreT as ScoreT
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 import qualified Instrument.Parse as Parse
 import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Patch as Patch
@@ -18,7 +18,7 @@ import qualified Perform.Midi.Patch as Patch
 import           Global
 
 
-synth_name :: InstTypes.SynthName
+synth_name :: InstT.SynthName
 synth_name = "morpheus"
 
 load :: Path.AppDir -> IO (Maybe MidiInst.Synth)

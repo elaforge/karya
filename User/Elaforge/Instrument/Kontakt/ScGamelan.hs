@@ -21,7 +21,7 @@ import qualified Derive.Scale.Legong as Legong
 import qualified Derive.ScoreT as ScoreT
 
 import qualified Instrument.Common as Common
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 import qualified Midi.Key2 as Key2
 import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Patch as Patch
@@ -30,7 +30,7 @@ import qualified Ui.UiConfig as UiConfig
 import           Global
 
 
-synth_name :: InstTypes.SynthName
+synth_name :: InstT.SynthName
 synth_name = "kontakt"
 
 patches :: [MidiInst.Patch]

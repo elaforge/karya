@@ -37,7 +37,7 @@ import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Instrument.Inst as Inst
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Solkattu.Instrument.ToScore as ToScore
@@ -65,13 +65,13 @@ import           Types
 -- | Play mridangam realization for the korvai.
 play_m :: RealTime -> Korvai.Korvai -> IO Bool
 play_m = play_instrument Korvai.IMridangam
-    (InstTypes.Qualified "sampler" "mridangam-d")
+    (InstT.Qualified "sampler" "mridangam-d")
     "# = (natural) | %dyn = .75"
 
 play_instrument :: (Solkattu.Notation stroke,
         Expr.ToExpr (Realize.Stroke stroke), Ord stroke)
     => Korvai.Instrument stroke
-    -> InstTypes.Qualified -> Text -> RealTime -> Korvai.Korvai -> IO Bool
+    -> InstT.Qualified -> Text -> RealTime -> Korvai.Korvai -> IO Bool
 play_instrument instrument im_instrument transform akshara_dur korvai = do
     state <- either errorIO return $
         to_state instrument im_instrument transform akshara_dur korvai
@@ -133,7 +133,7 @@ load_cmd_state = Cmd.initial_state <$> DeriveSaved.cmd_config db
 to_state :: (Solkattu.Notation stroke, Expr.ToExpr (Realize.Stroke stroke),
         Ord stroke)
     => Korvai.Instrument stroke
-    -> InstTypes.Qualified -> Text -> RealTime -> Korvai.Korvai
+    -> InstT.Qualified -> Text -> RealTime -> Korvai.Korvai
     -> Either Text Ui.State
 to_state instrument im_instrument transform akshara_dur_ korvai = do
     results <- sequence $ Korvai.realize instrument korvai
@@ -151,7 +151,7 @@ to_state instrument im_instrument transform akshara_dur_ korvai = do
     where
     akshara_dur = RealTime.to_score akshara_dur_
 
-make_state :: InstTypes.Qualified -> Text -> [[Track.Track]]
+make_state :: InstT.Qualified -> Text -> [[Track.Track]]
     -> Either Ui.Error Ui.State
 make_state instrument transform track_groups = Ui.exec Ui.empty $ do
     bid <- GenId.block_id Nothing
@@ -174,7 +174,7 @@ make_state instrument transform track_groups = Ui.exec Ui.empty $ do
     mapM_ (Ui.insert_track bid 999 . block_track) tids
     Ui.set_skeleton bid $ Skeleton.make $ note_track_edges track_groups
     allocate inst_name instrument
-    allocate metronome_name (InstTypes.Qualified "sampler" "metronome")
+    allocate metronome_name (InstT.Qualified "sampler" "metronome")
     where
     block_track tid = Block.track (Block.TId tid Ui.no_ruler) 40
 
@@ -194,7 +194,7 @@ metronome_name = "metronome"
 inst_name :: ScoreT.Instrument
 inst_name = "instrument"
 
-allocate :: Ui.M m => ScoreT.Instrument -> InstTypes.Qualified -> m ()
+allocate :: Ui.M m => ScoreT.Instrument -> InstT.Qualified -> m ()
 allocate inst qualified = do
     let alloc = UiConfig.allocation qualified UiConfig.Im
     -- I just trust that this is an im synth and it exists.

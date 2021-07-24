@@ -9,7 +9,7 @@ import Util.Test
 import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.Common as Common
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 import qualified Instrument.Parse as Parse
 
 import Global
@@ -19,7 +19,7 @@ test_parse_annotations = do
     let f = second (map extract)
             . Util.Parse.parseS () "" Parse.p_annotation_file
         extract (qualified, annots) =
-            (InstTypes.show_qualified qualified, annots)
+            (InstT.show_qualified qualified, annots)
     equal (f "s/1 there\n") $ Right [("s/1", [("there", "")])]
     equal (f "s/1\n") $ Right [("s/1", [])]
     equal (f "s/1 a=b c=d\n") $

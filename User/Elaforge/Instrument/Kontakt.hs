@@ -33,7 +33,7 @@ import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 import qualified Midi.CC as CC
 import qualified Midi.Key as Key
 import qualified Midi.Key2 as Key2
@@ -59,7 +59,7 @@ import           Global
 synth :: MidiInst.Synth
 synth = MidiInst.synth synth_name "Native Instrument Kontakt" patches
 
-synth_name :: InstTypes.SynthName
+synth_name :: InstT.SynthName
 synth_name = "kontakt"
 
 patches :: [MidiInst.Patch]
@@ -75,7 +75,7 @@ patches =
     , Wayang.patches
     ]
 
-patch :: InstTypes.Name -> [(Midi.Control, ScoreT.Control)] -> MidiInst.Patch
+patch :: InstT.Name -> [(Midi.Control, ScoreT.Control)] -> MidiInst.Patch
 patch = MidiInst.named_patch pb_range
 
 -- One pitch bend modulator can only do +-12, but if you put two on you get

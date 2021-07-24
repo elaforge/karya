@@ -21,7 +21,7 @@ import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
 import qualified Derive.Instrument.DUtil as DUtil
 
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 import qualified Midi.Key as Key
 import qualified Perform.RealTime as RealTime
 import qualified User.Elaforge.Instrument.Kontakt.Util as Util
@@ -32,7 +32,7 @@ import           Global
 patches :: [MidiInst.Patch]
 patches = [kajar_patch]
 
-patch :: InstTypes.Name -> MidiInst.Patch
+patch :: InstT.Name -> MidiInst.Patch
 patch name = MidiInst.named_patch (-24, 24) name []
 
 kajar_patch :: MidiInst.Patch

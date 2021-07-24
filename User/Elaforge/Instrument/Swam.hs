@@ -32,7 +32,7 @@ import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 import qualified Midi.CC as CC
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.NN as NN
@@ -112,7 +112,7 @@ synth =
     - auto - try to detect, but add latency.
 -}
 
-string :: InstTypes.Name -> [Pitch.NoteNumber] -> MidiInst.Patch
+string :: InstT.Name -> [Pitch.NoteNumber] -> MidiInst.Patch
 string name open_strings = MidiInst.pressure $
     MidiInst.code #= code $
     MidiInst.environ EnvKey.open_strings open_strings $

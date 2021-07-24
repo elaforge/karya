@@ -32,7 +32,7 @@ import qualified Derive.Typecheck as Typecheck
 
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 
 import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
@@ -98,7 +98,7 @@ list_like pattern = do
 pretty_alloc :: ScoreT.Instrument -> UiConfig.Allocation -> [Text]
 pretty_alloc inst alloc =
     [ ShowVal.show_val inst
-    , InstTypes.show_qualified (UiConfig.alloc_qualified alloc)
+    , InstT.show_qualified (UiConfig.alloc_qualified alloc)
     , case UiConfig.alloc_backend alloc of
         UiConfig.Midi config -> Info.show_addrs (Patch.config_addrs config)
         UiConfig.Im -> "音"
@@ -199,7 +199,7 @@ add_im inst qualified = do
 
 add_sc :: Instrument -> Text -> Cmd.CmdT IO ()
 add_sc inst patch = allocate (Util.instrument inst) $
-    UiConfig.allocation (InstTypes.Qualified "sc" patch) UiConfig.Sc
+    UiConfig.allocation (InstT.Qualified "sc" patch) UiConfig.Sc
 
 -- | Add the play-cache instrument.  This is a dummy instrument used to
 -- trigger the play-cache vst.  It's emitted automatically if there are im
@@ -387,13 +387,13 @@ set_decay decay = modify_midi_config_ $ Patch.settings#Patch.decay #= decay
 -- * util
 
 get_midi_config :: Ui.M m => ScoreT.Instrument
-    -> m (InstTypes.Qualified, Common.Config, Patch.Config)
+    -> m (InstT.Qualified, Common.Config, Patch.Config)
 get_midi_config inst =
     Ui.require ("not a midi instrument: " <> pretty inst)
         =<< lookup_midi_config inst
 
 lookup_midi_config :: Ui.M m => ScoreT.Instrument
-    -> m (Maybe (InstTypes.Qualified, Common.Config, Patch.Config))
+    -> m (Maybe (InstT.Qualified, Common.Config, Patch.Config))
 lookup_midi_config inst = do
     UiConfig.Allocation qualified config backend
         <- get_instrument_allocation inst
@@ -456,7 +456,7 @@ find :: Cmd.M m => Text -> m [Text]
 find substr = do
     db <- Cmd.gets $ Cmd.config_instrument_db . Cmd.state_config
     return $ filter (substr `Text.isInfixOf`)
-        [ InstTypes.show_qualified $ InstTypes.Qualified synth inst
+        [ InstT.show_qualified $ InstT.Qualified synth inst
         | (synth, s) <- Inst.synths db
         , inst <- Map.keys $ Inst.synth_insts s
         ]
@@ -489,8 +489,7 @@ block_instruments block_id = do
 -- map it to a real hardware WriteDevice in the 'Cmd.Cmd.write_device_map'.
 device_of :: ScoreT.Instrument -> Cmd.CmdL Midi.WriteDevice
 device_of inst = do
-    InstTypes.Qualified synth _ <-
-        Cmd.inst_qualified <$> Cmd.get_instrument inst
+    InstT.Qualified synth _ <- Cmd.inst_qualified <$> Cmd.get_instrument inst
     return $ Midi.write_device synth
 
 
@@ -542,9 +541,9 @@ teach dev chan cc = Cmd.midi (Midi.write_device dev) $
 -- | This is parsed into a 'Inst.Qualified'.
 type Qualified = Text
 
-parse_qualified :: Cmd.M m => Qualified -> m InstTypes.Qualified
+parse_qualified :: Cmd.M m => Qualified -> m InstT.Qualified
 parse_qualified text
-    | "/" `Text.isInfixOf` text = return $ InstTypes.parse_qualified text
+    | "/" `Text.isInfixOf` text = return $ InstT.parse_qualified text
     | otherwise =
         Cmd.throw $ "qualified inst name lacks a /: " <> showt text
 

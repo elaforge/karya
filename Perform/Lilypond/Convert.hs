@@ -27,7 +27,7 @@ import qualified Perform.Midi.Patch as Midi.Patch
 
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 
 import Global
 import Types
@@ -51,7 +51,7 @@ convert config = ConvertUtil.convert event1 lookup_inst . filter_instruments
         { inst_instrument = Inst.Inst
             (Inst.Midi $ Midi.Patch.patch (-1, 1) "ly-fake-inst")
             (Common.common Cmd.empty_code)
-        , inst_qualified = InstTypes.Qualified "ly" "ly-fake-inst"
+        , inst_qualified = InstT.Qualified "ly" "ly-fake-inst"
         , inst_common_config = Common.empty_config
         , inst_backend = Cmd.Dummy
         }

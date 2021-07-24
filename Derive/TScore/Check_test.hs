@@ -15,7 +15,7 @@ import qualified Derive.TScore.Parse as Parse
 import qualified Derive.TScore.T as T
 import qualified Derive.TScore.TScore as TScore
 
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 import qualified Ui.UiTest as UiTest
 
 import           Global
@@ -32,7 +32,7 @@ test_parse_directive = do
         "duplicate instrument definitions: i"
     left_like (f "block = %instruments=''>i a/b'' []") "must be at global"
     right_equal (f "%instruments=''\n  >i a/b\n''")
-        [T.Allocation "i" (InstTypes.Qualified "a" "b") T.Im]
+        [T.Allocation "i" (InstT.Qualified "a" "b") T.Im]
     right_equal (f "%instruments=''\n  -- >i a/b\n''") []
 
 test_check :: Test

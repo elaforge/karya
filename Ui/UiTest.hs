@@ -50,7 +50,7 @@ import qualified Derive.Stack as Stack
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Lilypond.Constants as Lilypond.Constants
 import qualified Instrument.Inst as Inst
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 import qualified App.Config as Config
 import Global
 import Types
@@ -612,7 +612,7 @@ r_4 = Meter.r_4
 
 midi_allocation :: Text -> Patch.Config -> UiConfig.Allocation
 midi_allocation qualified config = UiConfig.allocation
-    (InstTypes.parse_qualified qualified) (UiConfig.Midi config)
+    (InstT.parse_qualified qualified) (UiConfig.Midi config)
 
 -- | Make Simple.Allocations from (inst, qualified, [chan]).
 midi_allocations :: [(Text, Text, [Midi.Channel])] -> UiConfig.Allocations
@@ -649,8 +649,8 @@ i1 = ScoreT.Instrument "i1"
 i2 = ScoreT.Instrument "i2"
 i3 = ScoreT.Instrument "i3"
 
-i1_qualified :: InstTypes.Qualified
-i1_qualified = InstTypes.Qualified "s" "1"
+i1_qualified :: InstT.Qualified
+i1_qualified = InstT.Qualified "s" "1"
 
 wdev :: Midi.WriteDevice
 wdev = Midi.write_device wdev_name
@@ -663,7 +663,7 @@ wdev_name = "wdev"
 default_db :: Cmd.InstrumentDb
 default_db = make_db [("s", map make_patch ["1", "2", "3"])]
 
-make_patch :: InstTypes.Name -> Patch.Patch
+make_patch :: InstT.Name -> Patch.Patch
 make_patch name = Patch.patch (-2, 2) name
 
 make_db :: [(Text, [Patch.Patch])] -> Cmd.InstrumentDb
@@ -677,7 +677,7 @@ make_db synth_patches = fst $ Inst.db $ ly : map make synth_patches
 make_db1 :: MidiInst.Patch -> Cmd.InstrumentDb
 make_db1 patch = fst $ Inst.db [make_synth "s" [patch]]
 
-make_synth :: InstTypes.SynthName -> [MidiInst.Patch] -> MidiInst.Synth
+make_synth :: InstT.SynthName -> [MidiInst.Patch] -> MidiInst.Synth
 make_synth name patches = MidiInst.synth name "Test Synth" patches
 
 -- * misc

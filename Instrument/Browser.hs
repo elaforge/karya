@@ -55,7 +55,7 @@ import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.BrowserC as BrowserC
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 import qualified Instrument.Search as Search
 import qualified Instrument.Tag as Tag
 
@@ -121,7 +121,7 @@ data Db = Db {
     }
 
 data State = State {
-    state_displayed :: [InstTypes.Qualified]
+    state_displayed :: [InstT.Qualified]
     } deriving (Show)
 
 handle_msgs :: Fltk.Channel -> BrowserC.Window -> Db -> IO ()
@@ -129,7 +129,7 @@ handle_msgs chan win db = do
     displayed <- liftIO $ process_query chan win db [] ""
     flip State.evalStateT (State displayed) $ forever $ do
         Fltk.Msg typ text <- liftIO $ STM.atomically $ Fltk.read_msg win
-        let qualified = InstTypes.parse_qualified text
+        let qualified = InstT.parse_qualified text
         case typ of
             BrowserC.Select -> liftIO $ show_info chan win db qualified
             BrowserC.Choose -> liftIO $ choose_instrument qualified
@@ -142,12 +142,12 @@ handle_msgs chan win db = do
                 putStrLn $ "unknown msg type: " ++ show c
 
 -- | Look up the instrument, generate a info sheet on it, and send to the UI.
-show_info :: Fltk.Channel -> BrowserC.Window -> Db -> InstTypes.Qualified
+show_info :: Fltk.Channel -> BrowserC.Window -> Db -> InstT.Qualified
     -> IO ()
 show_info chan win db qualified = Fltk.action chan $ BrowserC.set_info win info
     where
-    info = fromMaybe ("not found: " <> InstTypes.show_qualified qualified) $ do
-        let InstTypes.Qualified synth_name inst_name = qualified
+    info = fromMaybe ("not found: " <> InstT.show_qualified qualified) $ do
+        let InstT.Qualified synth_name inst_name = qualified
         synth <- Inst.lookup_synth synth_name (db_db db)
         inst <- Map.lookup inst_name (Inst.synth_insts synth)
         let synth_doc = Inst.synth_doc synth <> " -- "
@@ -155,7 +155,7 @@ show_info chan win db qualified = Fltk.action chan $ BrowserC.set_info win info
         return $ info_of synth_name inst_name synth_doc inst tags
     tags = fromMaybe [] $ Search.tags_of (db_index db) qualified
 
-info_of :: InstTypes.SynthName -> InstTypes.Name -> Text -> Cmd.Inst
+info_of :: InstT.SynthName -> InstT.Name -> Text -> Cmd.Inst
     -> [Tag.Tag] -> Text
 info_of synth_name name synth_doc (Inst.Inst backend common) tags =
     synth_name <> " -- " <> (if Text.null name then "*" else name) <> " -- "
@@ -200,7 +200,7 @@ common_fields tags common =
         , common_call_map = call_map
         } = common
 
-instrument_fields :: InstTypes.Name -> Patch.Patch -> [(Text, Text)]
+instrument_fields :: InstT.Name -> Patch.Patch -> [(Text, Text)]
 instrument_fields name patch =
     -- important properties
     [ ("Flags", Text.intercalate ", " $ map showt $ Set.toList $
@@ -330,10 +330,10 @@ quote s
 
 -- | Send the chosen instrument to the sequencer.  This will send
 -- @change_instrument \"synth/inst\"@ to the REPL port.
-choose_instrument :: InstTypes.Qualified -> IO ()
+choose_instrument :: InstT.Qualified -> IO ()
 choose_instrument qualified = do
     let cmd = select_command <> " "
-            <> showt (InstTypes.show_qualified qualified)
+            <> showt (InstT.show_qualified qualified)
     Text.IO.putStrLn $ "send: " <> cmd
     response <- query cmd
     unless (Text.null response) $
@@ -344,14 +344,14 @@ query = fmap ReplProtocol.format_result
     . ReplProtocol.query_cmd Config.repl_socket
 
 -- | Find instruments that match the query, and update the UI incrementally.
-process_query :: Fltk.Channel -> BrowserC.Window -> Db -> [InstTypes.Qualified]
-    -> Text -> IO [InstTypes.Qualified]
+process_query :: Fltk.Channel -> BrowserC.Window -> Db -> [InstT.Qualified]
+    -> Text -> IO [InstT.Qualified]
 process_query chan win db displayed query = do
     let matches = Search.search (db_index db) (Search.parse query)
         diff = Seq.diff_index (==) displayed matches
     forM_ diff $ \(i, paired) -> case paired of
         Seq.Second inst -> Fltk.action chan $
-            BrowserC.insert_line win (i+1) (InstTypes.show_qualified inst)
+            BrowserC.insert_line win (i+1) (InstT.show_qualified inst)
         Seq.First _inst -> Fltk.action chan $
             BrowserC.remove_line win (i+1)
         _ -> return ()

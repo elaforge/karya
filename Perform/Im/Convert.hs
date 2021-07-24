@@ -23,7 +23,7 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
 
 import qualified Instrument.Common as Common
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 import qualified Perform.ConvertUtil as ConvertUtil
 import qualified Perform.Im.Patch as Patch
 import qualified Perform.Signal
@@ -86,10 +86,10 @@ convert :: BlockId -> (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument)
 convert block_id = ConvertUtil.convert $ \event resolved ->
     case Cmd.inst_backend resolved of
         Cmd.Im patch -> convert_event block_id event patch patch_name
-            where InstTypes.Qualified _ patch_name = Cmd.inst_qualified resolved
+            where InstT.Qualified _ patch_name = Cmd.inst_qualified resolved
         _ -> []
 
-convert_event :: BlockId -> Score.Event -> Patch.Patch -> InstTypes.Name
+convert_event :: BlockId -> Score.Event -> Patch.Patch -> InstT.Name
     -> [LEvent.LEvent Note.Note]
 convert_event block_id event patch patch_name = run $ do
     let supported = Patch.patch_controls patch

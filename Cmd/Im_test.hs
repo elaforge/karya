@@ -9,7 +9,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ResponderTest as ResponderTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Instrument.Inst as Inst
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 import qualified Perform.NN as NN
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
@@ -34,7 +34,7 @@ test_respond = do
         add_allocation = Ui.config#UiConfig.allocations #= allocs
         allocs = UiConfig.Allocations $ Map.fromList
             [ ("im", UiConfig.allocation
-                (InstTypes.Qualified "im-synth" "") UiConfig.Im)
+                (InstT.Qualified "im-synth" "") UiConfig.Im)
             ]
         set_db state = state
             { Cmd.state_config = (Cmd.state_config state)

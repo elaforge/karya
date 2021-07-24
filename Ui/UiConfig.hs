@@ -53,7 +53,7 @@ import qualified Util.Pretty as Pretty
 import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 
 import qualified Midi.Midi as Midi
 import qualified Perform.Lilypond.Types as Lilypond
@@ -209,7 +209,7 @@ make_allocations = Allocations . Map.fromList
 
 -- | This is 'make_allocations' specialized for MIDI instruments.  Like
 -- 'make_allocations', it also does no verification.
-midi_allocations :: [(ScoreT.Instrument, (InstTypes.Qualified, Patch.Config))]
+midi_allocations :: [(ScoreT.Instrument, (InstT.Qualified, Patch.Config))]
     -> Allocations
 midi_allocations allocs = Allocations $ Map.fromList
     [ (inst, allocation qual (Midi config))
@@ -229,12 +229,12 @@ modify_allocation instrument modify (Allocations allocs) = do
 -- | This is the root of the dynamic (per-score) instrument config.  It's
 -- divided into common and backend-specific configuration.
 data Allocation = Allocation {
-    alloc_qualified :: !InstTypes.Qualified
+    alloc_qualified :: !InstT.Qualified
     , alloc_config :: !Common.Config
     , alloc_backend :: !Backend
     } deriving (Eq, Show)
 
-allocation :: InstTypes.Qualified -> Backend -> Allocation
+allocation :: InstT.Qualified -> Backend -> Allocation
 allocation qualified backend = Allocation
     { alloc_qualified = qualified
     , alloc_config = Common.empty_config
@@ -258,8 +258,8 @@ has_midi = any is_midi_allocation
 has_sc :: Allocations -> Bool
 has_sc = any is_sc_allocation . Map.elems . unallocations
 
-play_cache :: InstTypes.Qualified
-play_cache = InstTypes.Qualified "play-cache" ""
+play_cache :: InstT.Qualified
+play_cache = InstT.Qualified "play-cache" ""
 
 is_im_allocation :: Allocation -> Bool
 is_im_allocation alloc = case alloc_backend alloc of

@@ -10,7 +10,7 @@
     a locally defined Local.Instrument module, which should export:
 
     > midi_synths :: [MidiInst.Synth]
-    > all_loads :: [(InstTypes.SynthName, ('MidiInst.MakeDb', 'MidiInst.Load'))]
+    > all_loads :: [(InstT.SynthName, ('MidiInst.MakeDb', 'MidiInst.Load'))]
 
     "Instrument.MakeDb" is used to create the caches that @all_loads@ relies
     on.

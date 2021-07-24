@@ -13,7 +13,7 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.ScoreT as ScoreT
 
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 import qualified Midi.CC as CC
 import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Patch as Patch
@@ -29,7 +29,7 @@ resonant_filter = MidiInst.null_call $
     DUtil.double_pitch "res" Nothing "res"
         (Just (Set.fromList ["mix", "q", "lp-hp", "2-4-pole"]))
 
-patch :: InstTypes.Name -> [(Midi.Control, ScoreT.Control)] -> MidiInst.Patch
+patch :: InstT.Name -> [(Midi.Control, ScoreT.Control)] -> MidiInst.Patch
 patch = MidiInst.named_patch (-96, 96)
 
 patches :: [MidiInst.Patch]

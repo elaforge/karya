@@ -17,7 +17,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 
 import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Patch as Patch
@@ -30,7 +30,7 @@ import           Types
 
 
 play_cache_synth :: Inst.SynthDecl Cmd.InstrumentCode
-play_cache_synth = Inst.SynthDecl (InstTypes.synth UiConfig.play_cache)
+play_cache_synth = Inst.SynthDecl (InstT.synth UiConfig.play_cache)
     "play_cache VST, to play the output of offline synthesizers."
     [(Patch.default_name, inst)]
     where

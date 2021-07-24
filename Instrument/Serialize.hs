@@ -18,7 +18,7 @@ import Midi.Instances ()
 import Cmd.Serialize ()
 import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.Common as Common
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 import qualified Instrument.Search as Search
 import Global
 
@@ -36,7 +36,7 @@ instrument_db_magic = Serialize.Magic 'i' 'n' 's' 't'
 
 -- | Time serialized, patches.
 data InstrumentDb = InstrumentDb
-    Time.UTCTime (Map.Map InstTypes.Name (Patch.Patch, Common.Common ()))
+    Time.UTCTime (Map.Map InstT.Name (Patch.Patch, Common.Common ()))
 
 -- * instances
 

@@ -67,7 +67,7 @@ import qualified Derive.Expr as Expr
 import qualified Derive.ScoreT as ScoreT
 
 import qualified Instrument.Common as Common
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Pitch as Pitch
@@ -210,7 +210,7 @@ data Patch = Patch {
     -- a single synth.  This is just for documentation, and is not actually
     -- used by anyone, though the unique name may be derived from this one.
     --
-    -- The patch's unique name, as used by 'InstTypes.Qualified' to look up
+    -- The patch's unique name, as used by 'InstT.Qualified' to look up
     -- the patch, is in 'Instrument.Inst.synth_insts'.
     patch_name :: !Text
     , patch_control_map :: !Control.ControlMap
@@ -244,7 +244,7 @@ defaults = Lens.lens patch_defaults
     (\f r -> r { patch_defaults = f (patch_defaults r) })
 
 -- | Create a Patch with empty vals, to set them as needed.
-patch :: Control.PbRange -> InstTypes.Name -> Patch
+patch :: Control.PbRange -> InstT.Name -> Patch
 patch pb_range name = Patch
     { patch_name = name
     , patch_control_map = mempty
@@ -256,7 +256,7 @@ patch pb_range name = Patch
 
 -- | This is a convention for the default instrument of a synth.  This is
 -- useful for softsynths whose patches all generally have the same config.
-default_name :: InstTypes.Name
+default_name :: InstT.Name
 default_name = ""
 
 -- ** Scale

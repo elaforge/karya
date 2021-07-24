@@ -16,7 +16,7 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.LEvent as LEvent
 import qualified Derive.ScoreT as ScoreT
 
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.MSignal as MSignal
@@ -110,7 +110,7 @@ mkevent start dur controls pitch_sig = PerformTest.empty_event
 patch1 :: Types.Patch
 patch1 = mkpatch "patch1"
 
-mkpatch :: InstTypes.Name -> Types.Patch
+mkpatch :: InstT.Name -> Types.Patch
 mkpatch name = (PerformTest.mkpatch name) { Types.patch_decay = Just 1 }
 
 configs :: Perform.Configs

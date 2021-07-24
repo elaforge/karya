@@ -14,7 +14,7 @@ import qualified Derive.Typecheck as Typecheck
 
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 
 import           Global
 import           Types
@@ -27,8 +27,8 @@ import           Types
 ly_global :: ScoreT.Instrument
 ly_global = ScoreT.Instrument "ly-global"
 
-ly_qualified :: InstTypes.Qualified
-ly_qualified = InstTypes.Qualified "ly" "global"
+ly_qualified :: InstT.Qualified
+ly_qualified = InstT.Qualified "ly" "global"
 
 ly_synth :: code -> Inst.SynthDecl code
 ly_synth code = Inst.SynthDecl "ly" "Fake synth for fake lilypond instrument."

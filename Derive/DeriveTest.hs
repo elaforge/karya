@@ -54,7 +54,7 @@ import qualified Derive.Typecheck as Typecheck
 
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 
 import qualified Midi.Midi as Midi
 import qualified Midi.StubMidi as StubMidi
@@ -380,7 +380,7 @@ with_midi_config :: ScoreT.Instrument -> Text -> Common.Config -> Patch.Config
     -> Setup
 with_midi_config inst qualified common_config midi_config = with_ui $
     Ui.config#UiConfig.allocations_map %= Map.insert inst
-        (UiConfig.Allocation (InstTypes.parse_qualified qualified)
+        (UiConfig.Allocation (InstT.parse_qualified qualified)
             common_config (UiConfig.Midi midi_config))
 
 -- * setup_deriver
@@ -463,7 +463,7 @@ im_allocs :: SimpleAllocations -> UiConfig.Allocations
 im_allocs allocs =
     Simple.allocations [(inst, (qual, Simple.Im)) | (inst, qual) <- allocs]
 
-lookup_qualified :: Cmd.InstrumentDb -> InstTypes.Qualified
+lookup_qualified :: Cmd.InstrumentDb -> InstT.Qualified
     -> Maybe Cmd.Inst
 lookup_qualified db qual = Inst.lookup qual db
 
@@ -507,7 +507,7 @@ cmd_config inst_db = Cmd.Config
 default_im_synth :: Inst.SynthDecl Cmd.InstrumentCode
 default_im_synth = im_synth "im-synth"
 
-im_synth :: InstTypes.SynthName -> Inst.SynthDecl Cmd.InstrumentCode
+im_synth :: InstT.SynthName -> Inst.SynthDecl Cmd.InstrumentCode
 im_synth name = Inst.SynthDecl name name [(Patch.default_name, inst)]
     where
     inst = Inst.Inst
@@ -550,7 +550,7 @@ default_convert_lookup :: Lookup
 default_convert_lookup =
     make_convert_lookup UiTest.default_allocations UiTest.default_db
 
-synths_lookup_qualified :: [MidiInst.Synth] -> InstTypes.Qualified
+synths_lookup_qualified :: [MidiInst.Synth] -> InstT.Qualified
     -> Maybe Cmd.Inst
 synths_lookup_qualified synth = \qualified -> Inst.lookup qualified db
     where db = synths_to_db synth
@@ -572,7 +572,7 @@ make_convert_lookup_for inst patch_config patch =
     make_convert_lookup allocs inst_db
     where
     allocs = UiConfig.midi_allocations
-        [(inst, (InstTypes.Qualified "s" "1", patch_config))]
+        [(inst, (InstT.Qualified "s" "1", patch_config))]
     inst_db = UiTest.make_db [("s", [patch { Patch.patch_name = "1" }])]
 
 make_convert_lookup :: UiConfig.Allocations -> Cmd.InstrumentDb -> Lookup

@@ -11,7 +11,7 @@ import qualified Derive.TScore.Parse as Parse
 import qualified Derive.TScore.T as T
 import qualified Derive.TScore.TScore as TScore
 
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 import qualified Midi.Midi as Midi
 import qualified Ui.Id as Id
 
@@ -361,10 +361,10 @@ test_parse_allocation :: Test
 test_parse_allocation = do
     let f = Parse.parse_allocation
     right_equal (f ">i syn/p") $
-        T.Allocation "i" (InstTypes.Qualified "syn" "p") T.Im
+        T.Allocation "i" (InstT.Qualified "syn" "p") T.Im
     let loop1 = Midi.write_device "loop1"
     right_equal (f ">i syn/ loop1 1 2") $
-        T.Allocation "i" (InstTypes.Qualified "syn" "") $
+        T.Allocation "i" (InstT.Qualified "syn" "") $
         T.Midi [(loop1, 0), (loop1, 1)]
     left_like (f ">i syn/ loop1 0") "should be in range"
     left_like (f ">i syn/ loop1") "unexpected"

@@ -4,7 +4,7 @@
 
 module Instrument.Inst_test where
 import qualified Instrument.Inst as Inst
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 import qualified Perform.Midi.Patch as Patch
 import qualified User.Elaforge.Instrument.Kontakt as Kontakt
 
@@ -14,7 +14,7 @@ import           Util.Test
 test_lookup = do
     let db = fst $ Inst.db [Kontakt.synth]
     let f synth name = Inst.inst_midi
-            =<< Inst.lookup (InstTypes.Qualified synth name) db
+            =<< Inst.lookup (InstT.Qualified synth name) db
 
     let kontakt_inst name = Patch.patch Kontakt.pb_range name
     equal (Patch.patch_name <$> f "kontakt" "hang") $ Just "hang"

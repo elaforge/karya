@@ -7233,7 +7233,7 @@ Perform:
     - implement repeat_at
     * what about synchronizing sc with MIDI?
     * rename PlayMidiArgs
-    - rename Instrument.InstTypes to InstT
+    * rename Instrument.InstTypes to InstT
     * move Transport.Died out of midi play, it should just log
     * make Network.withConnection return the bare socket, to avoid handle
       overhead.  Add Network.withHandle.

@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Types for "Derive.Inst", split apart to reduce dependencies.
-module Instrument.InstTypes where
+module Instrument.InstT where
 import qualified Data.Text as Text
 
 import qualified Util.Serialize as Serialize

@@ -20,7 +20,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stack as Stack
 
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 import qualified Midi.Midi as Midi
 import qualified Perform.Midi.MSignal as MSignal
 import qualified Perform.Midi.Patch as Patch
@@ -210,7 +210,7 @@ dump_allocations (UiConfig.Allocations allocs) = do
             UiConfig.Im -> Im
             UiConfig.Dummy -> Dummy
             UiConfig.Sc -> Sc
-    let qualified = InstTypes.show_qualified $ UiConfig.alloc_qualified alloc
+    let qualified = InstT.show_qualified $ UiConfig.alloc_qualified alloc
     return (ScoreT.instrument_name inst, (qualified, simple_alloc))
     where
     addrs_of config =
@@ -224,7 +224,7 @@ allocations = UiConfig.Allocations . Map.fromList . map make1
     make1 (inst, (qual, simple_alloc)) =
         (ScoreT.Instrument inst, UiConfig.allocation qualified backend)
         where
-        qualified = InstTypes.parse_qualified qual
+        qualified = InstT.parse_qualified qual
         backend = case simple_alloc of
             Dummy -> UiConfig.Dummy
             Im -> UiConfig.Im
@@ -254,11 +254,11 @@ dump_exact_perf_event (Midi.Types.Event start dur patch controls pitch svel evel
     , stack
     )
 
-load_exact_perf_event :: (InstTypes.Qualified -> Maybe Midi.Types.Patch)
+load_exact_perf_event :: (InstT.Qualified -> Maybe Midi.Types.Patch)
     -> ExactPerfEvent -> Maybe Midi.Types.Event
 load_exact_perf_event lookup_patch (inst, start, dur, controls, pitch,
         (svel, evel), stack) = do
-    patch <- lookup_patch (InstTypes.parse_qualified inst)
+    patch <- lookup_patch (InstT.parse_qualified inst)
     return $ Midi.Types.Event
         { event_patch = patch
         , event_start = start

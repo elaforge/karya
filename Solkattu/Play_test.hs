@@ -8,7 +8,7 @@ import qualified Data.Vector as Vector
 import qualified Util.Log as Log
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 import qualified Solkattu.Dsl.Mridangam as M
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Play as Play
@@ -56,7 +56,7 @@ extract = snd . fst . snd . head . UiTest.dump_blocks
 to_state :: M.Sequence -> Either Text Ui.State
 to_state =
     Play.to_state Korvai.IMridangam
-        (InstTypes.Qualified "sampler" "mridangam-d") "" 1
+        (InstT.Qualified "sampler" "mridangam-d") "" 1
     . M.korvaiS1 tala4
 
 tala4 :: Tala.Tala

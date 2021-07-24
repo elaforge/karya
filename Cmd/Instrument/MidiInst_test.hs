@@ -10,7 +10,7 @@ import qualified Midi.Midi as Midi
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.Common as Common
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 import qualified Instrument.Tag as Tag
 
 import Global
@@ -32,7 +32,7 @@ test_generate_names = do
     equal (f [("a", pgm_change 1), ("b", pgm_change 1)])
         ([("a", "a"), ("b", "b")], [])
 
-mkpatch :: InstTypes.Name -> Patch.InitializePatch -> MidiInst.Patch
+mkpatch :: InstT.Name -> Patch.InitializePatch -> MidiInst.Patch
 mkpatch name init =
     MidiInst.common#Common.tags #= [(Tag.file, name <> ".vc")] $
     MidiInst.patch#Patch.initialize #= init $

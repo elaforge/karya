@@ -83,7 +83,7 @@ import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 
 import qualified Midi.Interface
 import qualified Midi.Interface as Interface
@@ -1455,13 +1455,13 @@ set_status key val = do
 -- data.
 data ResolvedInstrument = ResolvedInstrument {
     inst_instrument :: !Inst
-    , inst_qualified :: !InstTypes.Qualified
+    , inst_qualified :: !InstT.Qualified
     , inst_common_config :: !Common.Config
     , inst_backend :: !Backend
     } deriving (Show)
 
-inst_synth :: ResolvedInstrument -> InstTypes.SynthName
-inst_synth  = InstTypes.synth . inst_qualified
+inst_synth :: ResolvedInstrument -> InstT.SynthName
+inst_synth  = InstT.synth . inst_qualified
 
 inst_common :: ResolvedInstrument -> Common.Common InstrumentCode
 inst_common = Inst.inst_common . inst_instrument
@@ -1623,7 +1623,7 @@ resolve_instrument db alloc = do
 
 -- ** lookup qualified name
 
-get_qualified :: M m => InstTypes.Qualified -> m Inst
+get_qualified :: M m => InstT.Qualified -> m Inst
 get_qualified qualified =
     require ("instrument not in db: " <> pretty qualified)
         =<< lookup_qualified qualified
@@ -1634,7 +1634,7 @@ get_alloc_qualified alloc =
             <> pretty (UiConfig.alloc_qualified alloc))
         =<< lookup_alloc_qualified alloc
 
--- | Lookup an 'InstTypes.Qualified' in the context of its Allocation.  This is
+-- | Lookup an 'InstT.Qualified' in the context of its Allocation.  This is
 -- because UiConfig.Dummy instruments can inherit a 'Common.Common' from any
 -- backend.
 lookup_alloc_qualified :: M m => UiConfig.Allocation -> m (Maybe Inst)
@@ -1646,12 +1646,12 @@ lookup_alloc_qualified alloc =
         _ -> inst
 
 -- | Look up an instrument that might not be allocated.
-lookup_qualified :: M m => InstTypes.Qualified -> m (Maybe Inst)
+lookup_qualified :: M m => InstT.Qualified -> m (Maybe Inst)
 lookup_qualified qualified = do
     config <- gets state_config
     return $ state_lookup_qualified config qualified
 
-state_lookup_qualified :: Config -> InstTypes.Qualified -> Maybe Inst
+state_lookup_qualified :: Config -> InstT.Qualified -> Maybe Inst
 state_lookup_qualified config qualified =
     Inst.lookup qualified $ config_instrument_db config
 

@@ -8,7 +8,7 @@
 module User.Empty.Instrument (midi_synths, all_loads) where
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.ScoreT as ScoreT
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 import qualified Midi.Midi as Midi
 import qualified User.Empty.Instrument.GeneralMidi as GeneralMidi
 
@@ -19,7 +19,7 @@ midi_synths = [generic_synth, GeneralMidi.synth]
 
 -- | Each synth that caches to disk has a function to make the cache, and one
 -- to load it.
-all_loads :: [(InstTypes.SynthName, (MidiInst.MakeDb, MidiInst.Load))]
+all_loads :: [(InstT.SynthName, (MidiInst.MakeDb, MidiInst.Load))]
 all_loads = []
 
 generic_synth :: MidiInst.Synth

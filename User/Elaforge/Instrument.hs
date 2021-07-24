@@ -12,13 +12,13 @@
 
     If loading is expensive, then it also exports:
 
-    > synth_name :: InstTypes.SynthName
+    > synth_name :: InstT.SynthName
     > make_db :: MidiInst.MakeDb
     > load :: MidiInst.Load
 -}
 module User.Elaforge.Instrument (midi_synths, all_loads) where
 import qualified Cmd.Instrument.MidiInst as MidiInst
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 import qualified User.Elaforge.Instrument.Derailer as Derailer
 import qualified User.Elaforge.Instrument.Drumaxx as Drumaxx
 import qualified User.Elaforge.Instrument.Fm8 as Fm8
@@ -48,7 +48,7 @@ midi_synths =
 
 -- | Each synth that caches to disk has a function to make the cache, and one
 -- to load it.
-all_loads :: [(InstTypes.SynthName, (MidiInst.MakeDb, MidiInst.Load))]
+all_loads :: [(InstT.SynthName, (MidiInst.MakeDb, MidiInst.Load))]
 all_loads =
     [ (Morpheus.synth_name, (Morpheus.make_db, Morpheus.load))
     , (Vl1.synth_name, (Vl1.make_db, Vl1.load))

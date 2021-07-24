@@ -14,7 +14,7 @@ import qualified System.Environment as Environment
 import qualified App.LoadInstruments as LoadInstruments
 import qualified App.Path as Path
 import qualified Cmd.Instrument.MidiInst as MidiInst
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 
 import Global
 
@@ -33,7 +33,7 @@ main = do
                 errorIO $ "dbs not found: " <> showt not_found
             make app_dir found
 
-make :: Path.AppDir -> [(InstTypes.SynthName, (MidiInst.MakeDb, a))] -> IO ()
+make :: Path.AppDir -> [(InstT.SynthName, (MidiInst.MakeDb, a))] -> IO ()
 make app_dir = mapM_ $ \(name, (make, _)) -> do
     Text.IO.putStrLn $ "-------- db: " <> name
     make app_dir

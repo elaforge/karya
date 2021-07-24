@@ -29,7 +29,7 @@ import qualified Derive.ScoreT as ScoreT
 
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 
 import qualified Perform.Im.Patch as Patch
 import qualified Perform.Pitch as Pitch
@@ -41,7 +41,7 @@ import           Global
 
 type Synth = Inst.SynthDecl Cmd.InstrumentCode
 
-synth :: InstTypes.SynthName -> Text -> [(InstTypes.Name, Patch)] -> Synth
+synth :: InstT.SynthName -> Text -> [(InstT.Name, Patch)] -> Synth
 synth name doc patches =
     Inst.SynthDecl name doc (map (second make_inst) patches)
 
@@ -136,7 +136,7 @@ _make_allocation :: UiConfig.Backend
 _make_allocation backend (name, qualified, set_config) =
     ( name
     , UiConfig.Allocation
-        { alloc_qualified = InstTypes.parse_qualified qualified
+        { alloc_qualified = InstT.parse_qualified qualified
         , alloc_config = set_config Common.empty_config
         , alloc_backend = backend
         }

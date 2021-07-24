@@ -41,7 +41,7 @@ import qualified Derive.Sig as Sig
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
 import qualified Instrument.Common as Common
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.InstT as InstT
 import qualified Instrument.Tag as Tag
 
 import qualified User.Elaforge.Instrument.VslInst as VslInst
@@ -74,7 +74,7 @@ synth = MidiInst.synth "vsl" "Vienna Symphonic Library" $
 -- * util
 
 -- | For interactive use, find keyswitches with the given attributes.
-find_attrs :: InstTypes.Name -> String -> [Text]
+find_attrs :: InstT.Name -> String -> [Text]
 find_attrs inst with_attrs =
     map ShowVal.show_val $ filter (`Attrs.contain` search)
         (patch_attributes (MidiInst.patch_patch patch))
@@ -220,7 +220,7 @@ harmonic attr_map config hmap args = do
 
 -- * keyswitches
 
-type Instrument = (InstTypes.Name, [Keyswitch])
+type Instrument = (InstT.Name, [Keyswitch])
 type Keyswitch = (Attrs.Attributes, [Patch.Keyswitch])
 
 make_patch :: VslInst.Instrument -> Text -> MidiInst.Patch
