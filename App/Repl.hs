@@ -39,7 +39,7 @@ import qualified System.Posix.Temp as Posix.Temp
 import qualified System.Process as Process
 
 import qualified Util.Control as Control
-import qualified Util.File as File
+import qualified Util.Exceptions as Exceptions
 import qualified Util.Log as Log
 import qualified Util.Network as Network
 import qualified Util.PPrint as PPrint
@@ -303,7 +303,7 @@ with_temp prefix suffix contents action = do
     Text.IO.hPutStr hdl contents
     IO.hClose hdl
     action path
-        `Exception.finally` File.ignoreEnoent (Directory.removeFile path)
+        `Exception.finally` Exceptions.ignoreEnoent (Directory.removeFile path)
 
 -- | Open the given file, and return the selected line.
 edit_line :: FilePath -> IO (Maybe Text)

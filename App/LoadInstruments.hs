@@ -23,6 +23,7 @@ import qualified App.Path as Path
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Instrument.Inst as Inst
+import qualified Instrument.InstT as InstT
 import qualified Instrument.Parse as Parse
 import qualified Local.Instrument
 import qualified Perform.Im.Play
@@ -45,8 +46,8 @@ midi_synths = Local.Instrument.midi_synths
 
 -- | Each synth that caches to disk has a function to make the cache, and one
 -- to load it.
-all_loads :: [MidiInst.Load]
-all_loads = map (snd . snd) Local.Instrument.all_loads
+all_loads :: [(InstT.SynthName, (MidiInst.MakeDb, MidiInst.Load))]
+all_loads = Local.Instrument.all_loads
 
 im_synths :: [MidiInst.Synth]
 im_synths =
@@ -73,7 +74,8 @@ internal_synths = [Lilypond.Constants.ly_synth Cmd.empty_code]
 
 load :: Path.AppDir -> IO (Inst.Db Cmd.InstrumentCode)
 load app_dir = do
-    loaded <- mapMaybeM ($ app_dir) (Sc.PatchDb.load_synth : all_loads)
+    loaded <- mapMaybeM ($ app_dir) $
+        Sc.PatchDb.load_synth : map (snd . snd) all_loads
     let synths = concat
             [ im_synths
             , loaded

@@ -22,7 +22,7 @@ import qualified System.FilePath as FilePath
 import           System.FilePath ((</>))
 import qualified System.IO as IO
 
-import qualified Util.File as File
+import qualified Util.Exceptions as Exceptions
 import qualified Util.Git as Git
 import qualified Util.Log as Log
 import qualified Util.Num as Num
@@ -161,7 +161,7 @@ verify_me_txt = "verify-me.txt"
 -- contents.
 expand_verify_me :: FilePath -> IO [FilePath]
 expand_verify_me fname = do
-    m_contents <- File.ignoreIOError $
+    m_contents <- Exceptions.ignoreIOError $
         Text.IO.readFile (fname </> verify_me_txt)
     return $ case m_contents of
         Nothing -> [fname]

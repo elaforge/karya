@@ -324,8 +324,9 @@ play_midi play_ctl players midi_interface cmd_state ui_state events = do
     mvar <- MVar.newMVar ui_state
     let midi_state = Midi.Play.State
             { _play_control = play_ctl
-            , _active_players = players
+            , _players = players
             , _info = transport_info mvar
+            , _im_end = Nothing
             }
     Midi.Play.play midi_state Nothing "tscore" midi Nothing
     where

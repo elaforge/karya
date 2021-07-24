@@ -24,8 +24,8 @@ if [[ ! -e data ]]; then
     ln -s $data data
 fi
 
-if [[ ! -e save/default ]]; then
-    cp doc/default.save save/default
+if [[ ! -e data/save/default ]]; then
+    cp doc/default.save data/save/default
 fi
 
 # Make a re-export module for each config hs.
