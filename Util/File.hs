@@ -16,18 +16,11 @@ module Util.File (
     , walk
     -- * compression
     , readGz, writeGz
-
-    -- * IO errors
-    , ignoreEnoent
-    , ignoreEOF
-    , ignoreIOError
-    , ignoreError
-    , tryIO
 ) where
 import qualified Codec.Compression.GZip as GZip
 import qualified Codec.Compression.Zlib.Internal as Zlib.Internal
 import qualified Control.Exception as Exception
-import           Control.Monad (forM_, guard, unless, void, when)
+import           Control.Monad (forM_, unless, when)
 import           Control.Monad.Extra (filterM, ifM, orM, partitionM, whenM)
 import           Control.Monad.Trans (liftIO)
 
@@ -42,8 +35,9 @@ import qualified System.Directory as Directory
 import           System.FilePath ((</>))
 import qualified System.IO as IO
 import qualified System.IO.Error as Error
-import qualified System.IO.Error as IO.Error
 import qualified System.Posix.Files as Posix.Files
+
+import qualified Util.Exceptions as Exceptions
 
 
 -- * read/write
@@ -62,12 +56,12 @@ writeAtomic fn bytes = do
 -- | Make a symlink atomically.
 symlink :: String -> FilePath -> IO ()
 symlink dest fname = do
-    oldDest <- ignoreEnoent $ Directory.getSymbolicLinkTarget fname
+    oldDest <- Exceptions.ignoreEnoent $ Directory.getSymbolicLinkTarget fname
     -- Don't remake if it's already right.  Probably unnecessary, but it
     -- happens a lot and we can avoid touching the filesystem.
     unless (oldDest == Just dest) $ do
         -- If a previous process got killed, there might be stale .tmp files.
-        ignoreEnoent $ Directory.removeFile (fname <> ".tmp")
+        Exceptions.ignoreEnoent $ Directory.removeFile (fname <> ".tmp")
         -- Atomically replace the old link, if any.
         Directory.createFileLink dest (fname <> ".tmp")
         Directory.renameFile (fname <> ".tmp") fname
@@ -76,8 +70,8 @@ symlink dest fname = do
 
 sameContents :: FilePath -> FilePath -> IO Bool
 sameContents fn1 fn2 = do
-    c1 <- ignoreEnoent $ Lazy.readFile fn1
-    c2 <- ignoreEnoent $ Lazy.readFile fn2
+    c1 <- Exceptions.ignoreEnoent $ Lazy.readFile fn1
+    c2 <- Exceptions.ignoreEnoent $ Lazy.readFile fn2
     return $ c1 == c2
 
 -- | Throw if this file exists but isn't writable.
@@ -162,39 +156,13 @@ writeGz rotations fn bytes = do
         (Directory.removeFile tmp >> return False) $
         do
             forM_ [rotations-1, rotations-2 .. 1] $ \n ->
-                ignoreEnoent_ $
+                Exceptions.ignoreEnoent_ $
                     Directory.renameFile (rotation (n-1)) (rotation n)
             -- Go to some hassle to ensure files are replaced atomically.
-            when (rotations > 0) $ ignoreEnoent_ $ do
+            when (rotations > 0) $ Exceptions.ignoreEnoent_ $ do
                 Posix.Files.createLink fn (rotation 0 <> ".tmp")
                 Directory.renameFile (rotation 0 <> ".tmp") (rotation 0)
             Directory.renameFile tmp fn
             return True
     where
     rotation n = fn <> "." <> show n
-
--- * IO errors
-
--- | If @op@ raised ENOENT, return Nothing.
-ignoreEnoent :: IO a -> IO (Maybe a)
-ignoreEnoent = ignoreError IO.Error.isDoesNotExistError
-
-ignoreEnoent_ :: IO a -> IO ()
-ignoreEnoent_ = void . ignoreEnoent
-
-ignoreEOF :: IO a -> IO (Maybe a)
-ignoreEOF = ignoreError IO.Error.isEOFError
-
--- | Ignore all IO errors.  This is useful when you want to see if a file
--- exists, because some-file/x will not give ENOENT, but ENOTDIR, which is
--- probably isIllegalOperation.
-ignoreIOError :: IO a -> IO (Maybe a)
-ignoreIOError = ignoreError (\(_ :: IO.Error.IOError) -> True)
-
-ignoreError :: Exception.Exception e => (e -> Bool) -> IO a -> IO (Maybe a)
-ignoreError ignore action = Exception.handleJust (guard . ignore)
-    (const (return Nothing)) (fmap Just action)
-
--- | 'Exception.try' specialized to IOError.
-tryIO :: IO a -> IO (Either IO.Error.IOError a)
-tryIO = Exception.try

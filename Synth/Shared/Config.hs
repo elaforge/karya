@@ -26,7 +26,7 @@ import qualified System.IO.Unsafe as Unsafe
 import qualified Text.Read as Read
 
 import qualified Util.Audio.AudioT as AudioT
-import qualified Util.File as File
+import qualified Util.Exceptions as Exceptions
 import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
@@ -246,7 +246,8 @@ clearUnusedInstruments outputDir instruments = do
         mapM_ (Directory.removeFile . ((outputDir </> dir) </>)) links
 
 listDir :: FilePath -> IO [FilePath]
-listDir = fmap (fromMaybe []) . File.ignoreEnoent . Directory.listDirectory
+listDir = fmap (fromMaybe []) . Exceptions.ignoreEnoent
+    . Directory.listDirectory
 
 -- * progress
 

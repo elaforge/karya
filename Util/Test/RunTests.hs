@@ -42,6 +42,7 @@ import qualified System.Process as Process
 import qualified Text.Read as Read
 
 import qualified Util.Cpu as Cpu
+import qualified Util.Exceptions as Exceptions
 import qualified Util.File as File
 import qualified Util.Processes as Processes
 import qualified Util.Regex as Regex
@@ -264,7 +265,7 @@ jobThread output queue = Exception.bracket open IO.hClose $ \hdl -> do
     put = putStrLn . (prefix<>)
 
 subprocess :: [Test] -> IO ()
-subprocess allTests = void $ File.ignoreEOF $ forever $ do
+subprocess allTests = void $ Exceptions.ignoreEOF $ forever $ do
     testNames <- Set.fromList . Text.words <$> Text.IO.getLine
     -- For some reason, I get an extra "" from getLine when the parent process
     -- closes the pipe.  From the documentation I think it should throw EOF.
@@ -362,7 +363,8 @@ checkOutputs outputs = do
     return $ failures == 0
 
 readFileEmpty :: FilePath -> IO Text.Lazy.Text
-readFileEmpty = fmap (fromMaybe "") . File.ignoreEnoent . Text.Lazy.IO.readFile
+readFileEmpty = fmap (fromMaybe "") . Exceptions.ignoreEnoent
+    . Text.Lazy.IO.readFile
 
 extractStats :: Text.Lazy.Text -> ([Text], Int, Int, Int)
     -- ^ (failureContext, failures, checks, tests)

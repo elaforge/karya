@@ -71,7 +71,7 @@ run_cmds_with_input cmds msg = do
     kbd_entry <- Cmd.gets $ Cmd.state_kbd_entry . Cmd.state_edit
     maybe_config <- justm EditUtil.lookup_instrument $ \inst ->
         justm (Cmd.lookup_instrument inst) $
-        return . fmap snd . Cmd.midi_instrument
+        return . fmap snd . Cmd.midi_patch
     cmds_with_input kbd_entry maybe_config cmds msg
 
 -- | Convert a Msg to 'Msg.InputNote's, if applicable.  Returns Nothing if

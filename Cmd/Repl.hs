@@ -35,7 +35,7 @@ import qualified Cmd.Repl.Fast as Fast
 import qualified Derive.Parse as Parse
 import qualified Ui.Id as Id
 import qualified Ui.Ui as Ui
-import qualified Util.File as File
+import qualified Util.Exceptions as Exceptions
 import qualified Util.Log as Log
 import qualified Util.Network as Network
 
@@ -61,12 +61,12 @@ with_socket app = do
         Config.repl_socket_name
         : [Config.repl_socket_name <> "." <> show n | n <- [1..4]]
     app socket `Exception.finally`
-        File.ignoreEnoent (Directory.removeFile fname)
+        Exceptions.ignoreEnoent (Directory.removeFile fname)
     where
     -- Let the exception through on the last try.
     try_socket [fname] = (fname,) <$> Network.listenUnix fname
     try_socket (fname : fnames) =
-        File.ignoreIOError (Network.listenUnix fname) >>= \case
+        Exceptions.ignoreIOError (Network.listenUnix fname) >>= \case
             Nothing -> try_socket fnames
             Just socket -> return (fname, socket)
     try_socket [] = errorIO "no socket files?"

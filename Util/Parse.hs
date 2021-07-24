@@ -15,7 +15,7 @@ import qualified Text.Megaparsec as P
 import           Text.Megaparsec ((<?>))
 import qualified Text.Megaparsec.Char as P
 
-import qualified Util.File as File
+import qualified Util.Exceptions as Exceptions
 
 import           Global
 
@@ -40,7 +40,7 @@ parse_maybe p = either (const Nothing) Just . parse p
 -- | Try to parse a file, or return a default value if the file doesn't exist.
 file :: a -> ParserS st a -> st -> FilePath -> IO (Either Text a)
 file deflt parser state fname = do
-    mb_text <- File.ignoreEnoent (Text.IO.readFile fname)
+    mb_text <- Exceptions.ignoreEnoent (Text.IO.readFile fname)
     return $ maybe (Right deflt) (parseS state fname parser) mb_text
 
 -- -- | Format a ParseError assuming the input is just one line.

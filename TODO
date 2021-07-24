@@ -7056,6 +7056,10 @@ pitch: scales: scale:
       but it might be useful in general to have an analysis framework.
 
 Perform:
+  - move patch initialization to Cmd.Initialize, and do it automatically on load
+    . midi, sc.
+    . For sc, if configured with the path to scsynth, I could start it
+      automatically.  In that case, I may want to send a /quit on exit.
   supercollider: sc:
     research:
       . https://doc.sccode.org/Reference/Server-Architecture.html
@@ -7227,7 +7231,7 @@ Perform:
     * Convert should trim the signals
     - thru equivalent for OSC
     - implement repeat_at
-    - what about synchronizing sc with MIDI?
+    * what about synchronizing sc with MIDI?
     * rename PlayMidiArgs
     - rename Instrument.InstTypes to InstT
     * move Transport.Died out of midi play, it should just log

@@ -77,7 +77,7 @@ import qualified Text.Read as Read
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Debug as Debug
-import qualified Util.File as File
+import qualified Util.Exceptions as Exceptions
 import qualified Util.Logger as Logger
 import qualified Util.Serialize as Serialize
 import           Util.Serialize (get, get_tag, put, put_tag)
@@ -235,7 +235,7 @@ rotate_config keep max_size log_fn = do
     -- Logs are per-line, so ensure they go out promptly.
     IO.hSetBuffering hdl IO.LineBuffering
     return hdl
-    where ignore = File.ignoreEnoent
+    where ignore = Exceptions.ignoreEnoent
 
 -- | Configure the logging system by modifying its internal state.
 configure :: (State -> State) -> IO ()

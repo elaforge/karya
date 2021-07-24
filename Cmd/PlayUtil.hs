@@ -188,7 +188,7 @@ perform_from start events = do
         )
     where
     has_flag lookup_inst flag inst =
-        case Cmd.midi_instrument =<< lookup_inst inst of
+        case Cmd.midi_patch =<< lookup_inst inst of
             Nothing -> False
             Just (_, config) -> Patch.has_flag config flag
 

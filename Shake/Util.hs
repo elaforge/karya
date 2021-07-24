@@ -43,7 +43,7 @@ import qualified System.Process as Process
 
 import qualified Text.Printf as Printf
 
-import qualified Util.File as File
+import qualified Util.Exceptions as Exceptions
 import qualified Util.Seq as Seq
 
 import           Control.Monad
@@ -144,7 +144,7 @@ createProcessConcurrent cmd args = do
         (,) <$> Process.waitForProcess pid <*> IORef.readIORef ghcNotRequired
     where
     streamHandle ghcNotRequired hdl = Function.fix $ \loop ->
-        File.ignoreEOF (Text.IO.hGetLine hdl) >>= \x -> case x of
+        Exceptions.ignoreEOF (Text.IO.hGetLine hdl) >>= \x -> case x of
             Nothing -> IO.hClose hdl
             Just line -> do
                 -- This shows up on ghc's stdout.
@@ -219,7 +219,7 @@ platform = case System.Info.os of
 -- its package db.
 sandboxPackageDb :: IO (Maybe FilePath)
 sandboxPackageDb = do
-    text <- File.ignoreEnoent $ Text.IO.readFile "cabal.sandbox.config"
+    text <- Exceptions.ignoreEnoent $ Text.IO.readFile "cabal.sandbox.config"
     return $ parse =<< text
     where
     -- package-db: /Users/elaforge/src/seq/sandbox/.cabal-sandbox/...

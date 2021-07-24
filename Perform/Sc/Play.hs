@@ -6,6 +6,11 @@
 module Perform.Sc.Play (
     State(..)
     , play
+    , force_stop_all
+    -- * initialize
+    , version
+    , initialize_patch
+    , sync
 #ifdef TESTING
     , module Perform.Sc.Play
 #endif
@@ -23,6 +28,7 @@ import qualified Vivid.OSC as OSC
 import           Vivid.OSC (OSCDatum(..))
 
 import qualified Util.Control as Control
+import qualified Util.Exceptions as Exceptions
 import qualified Util.Log as Log
 import qualified Util.Network as Network
 import qualified Util.Num as Num
@@ -33,6 +39,7 @@ import qualified Util.Thread as Thread
 import qualified Derive.LEvent as LEvent
 import qualified Perform.Midi.MSignal as MSignal
 import qualified Perform.Sc.Note as Note
+import qualified Perform.Sc.Patch as Patch
 import qualified Perform.Transport as Transport
 
 import           Global
@@ -43,7 +50,8 @@ import           Types
 lang_port :: Socket.PortNumber
 lang_port = 57120
 
--- | sclang starts the server with this by default.
+-- | sclang starts the server with this port by default.  This is hardcoded for
+-- now, but could be configured if necessary.
 server_port :: Socket.PortNumber
 server_port = 57110
 
@@ -136,10 +144,6 @@ play_loop state = flip Control.loop1 $ \loop bundles -> do
 
 write_ahead :: Time.NominalDiffTime
 write_ahead = 1
-
-send :: Socket.PortNumber -> ByteString.ByteString -> IO ()
-send port bytes = Network.withConnection (Network.UDP port) $ \socket ->
-    void $ Socket.ByteString.send socket bytes
 
 
 -- * perform
@@ -234,10 +238,53 @@ bundle time = OSC.OSCBundle (OSC.timestampFromUTC time) . map Right
 data AddAction = Head | Tail | Before | After | Replace
     deriving (Eq, Ord, Show, Enum, Bounded)
 
--- * patches
+-- * initialize
+
+-- | Left error if a valid server wasn't detected, Right msg if it was.
+version :: IO (Either Text Text)
+version = query server_port (OSC.OSC "/version" []) >>= return . \case
+    Nothing -> Left $ "scsynth not running on " <> showt server_port
+    Just (Left err) -> Left $
+        "unparseable response from scsynth on " <> showt server_port <> ": "
+        <> txt err
+    Just (Right (OSC.OSC "/version.reply"
+            (OSC_S name : OSC_I major : OSC_I minor : OSC_S patch : _))) ->
+        Right $ mconcat
+            [ Texts.toText name, " ", showt major, ".", showt minor
+            , Texts.toText patch
+            ]
+    Just (Right osc) -> Left $
+        "unexpected response from scsynth on " <> showt server_port <> ": "
+        <> showt osc
+
+initialize_patch :: Patch.Patch -> IO ()
+initialize_patch = load_patch . Patch.filename
+
+-- | Wait for patches to load.
+sync :: IO ()
+sync = void $ query server_port (OSC.OSC "/sync" [])
 
 load_patch :: FilePath -> IO ()
 load_patch = send server_port . OSC.encodeOSC . d_load
 
 d_load :: FilePath -> OSC.OSC
 d_load path = OSC.OSC "/d_load" [OSC_S (Texts.toByteString path)]
+
+d_free :: Note.PatchName -> OSC.OSC
+d_free name = OSC.OSC "/d_free" [OSC_S (Texts.toByteString name)]
+
+
+-- * low level
+
+send :: Socket.PortNumber -> ByteString.ByteString -> IO ()
+send port bytes = Network.withConnection (Network.UDP port) $ \socket ->
+    void $ Socket.ByteString.send socket bytes
+
+-- | Send an OSC and expect a response.  Nothing if there was no server.
+-- Otherwise, this could hang if the server does, throw an IO exception, or
+-- return Left if the response couldn't be parsed.
+query :: Socket.PortNumber -> OSC.OSC -> IO (Maybe (Either String OSC.OSC))
+query port osc = Network.withConnection (Network.UDP port) $ \socket -> do
+    Socket.ByteString.send socket $ OSC.encodeOSC osc
+    fmap OSC.decodeOSC <$>
+        Exceptions.ignoreEnoent (Socket.ByteString.recv socket 4096)

@@ -27,7 +27,7 @@ import qualified System.Posix as Posix
 import qualified System.Process as Process
 import qualified System.Timeout as Timeout
 
-import qualified Util.File as File
+import qualified Util.Exceptions as Exceptions
 import qualified Util.Log as Log
 
 import           Global
@@ -90,7 +90,7 @@ waitError proc maybeHdl = fmap annotate <$> case maybeHdl of
     -- waitForProcess notices.  I think it's dependent on GHC version.
     Nothing -> return noBinary
     Just hdl -> do
-        result <- File.ignoreEnoent (Process.waitForProcess hdl)
+        result <- Exceptions.ignoreEnoent (Process.waitForProcess hdl)
         return $ case result of
             Nothing -> Nothing
             Just code -> case code of
@@ -121,7 +121,7 @@ call cmd args = Exception.handle ioError $
 create :: Process.CreateProcess
     -> IO (Maybe IO.Handle, Maybe IO.Handle, Maybe IO.Handle,
         Maybe Process.ProcessHandle)
-create proc = File.ignoreEnoent (Process.createProcess proc) >>= \case
+create proc = Exceptions.ignoreEnoent (Process.createProcess proc) >>= \case
     Nothing -> return (Nothing, Nothing, Nothing, Nothing)
     Just (inh, outh, errh, hdl) -> return (inh, outh, errh, Just hdl)
 
@@ -168,16 +168,16 @@ conversationWith :: FilePath -> [String] -> Maybe [(String, String)]
 conversationWith cmd args env getInput notifyOutput action = do
     -- Apparently binary not found is detected in createProcess.  I think in
     -- previous versions it was detected in waitForProcess.
-    ok <- File.ignoreEnoent $ Process.withCreateProcess proc $
+    ok <- Exceptions.ignoreEnoent $ Process.withCreateProcess proc $
         \(Just stdin) (Just stdout) (Just stderr) pid -> do
             IO.hSetBuffering stdout IO.LineBuffering
             IO.hSetBuffering stderr IO.LineBuffering
             inThread <- Async.async $ Fix.fix $ \loop -> getInput >>= \case
                 Text t -> Text.IO.hPutStrLn stdin t >> IO.hFlush stdin >> loop
                 EOF -> IO.hClose stdin
-            outThread <- Async.async $ void $ File.ignoreEOF $ forever $
+            outThread <- Async.async $ void $ Exceptions.ignoreEOF $ forever $
                 notifyOutput . Stdout =<< Text.IO.hGetLine stdout
-            errThread <- Async.async $ void $ File.ignoreEOF $ forever $
+            errThread <- Async.async $ void $ Exceptions.ignoreEOF $ forever $
                 notifyOutput . Stderr =<< Text.IO.hGetLine stderr
             -- Ensure both stdout and stderr are flushed before exit.
             complete <- Async.async $ do

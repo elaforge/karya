@@ -53,7 +53,7 @@ import qualified Outputable
 
 #endif
 
-import qualified Util.File as File
+import qualified Util.Exceptions as Exceptions
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
@@ -114,7 +114,7 @@ interpreter (Session chan) = do
 #if GHC_VERSION < 80200
     GHC.parseStaticFlags [] -- not sure if this is necessary
 #endif
-    flags <- File.tryIO (readFile ghci_flags)
+    flags <- Exceptions.tryIO (readFile ghci_flags)
     args <- case flags of
         Left exc -> do
             Log.error $ "error reading ghci flags from "

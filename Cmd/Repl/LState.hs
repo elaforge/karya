@@ -15,7 +15,7 @@ import qualified System.FilePath as FilePath
 import           System.FilePath ((</>))
 import qualified System.Posix as Posix
 
-import qualified Util.File as File
+import qualified Util.Exceptions as Exceptions
 import qualified Util.Lens as Lens
 import qualified Util.Log as Log
 import qualified Util.PPrint as PPrint
@@ -244,7 +244,8 @@ rename ns = do
                     (untxt (Id.un_namespace ns))
             -- System.Directory.renameDirectory deletes the destination
             -- diretory for some reason.  I'd rather throw an exception.
-            Cmd.rethrow_io $ File.ignoreEnoent $ Posix.rename old_dir new_dir
+            Cmd.rethrow_io $ Exceptions.ignoreEnoent $
+                Posix.rename old_dir new_dir
             new_path <- liftIO $ Path.canonical $
                 new_dir </> FilePath.takeFileName (Path.to_path repo)
             Cmd.modify $ \st -> st

@@ -39,7 +39,7 @@ import qualified System.IO.Error as IO.Error
 import qualified System.Posix as Posix
 import qualified System.Process as Process
 
-import qualified Util.File as File
+import qualified Util.Exceptions as Exceptions
 import qualified Util.PPrint as PPrint
 import qualified Util.Seq as Seq
 import qualified Util.SourceControl as SourceControl
@@ -1634,7 +1634,7 @@ makeDataLinks = do
     run $ Posix.createSymbolicLink "../../../data/www" (buildDocDir </> "data")
     run $ Posix.createSymbolicLink "../../doc/img" (buildDocDir </> "img")
     return ()
-    where run = File.ignoreError IO.Error.isAlreadyExistsError
+    where run = Exceptions.ignoreError IO.Error.isAlreadyExistsError
 
 -- | Get the file-independent flags for a haskell compile.  This is disjunct
 -- from 'hcFlags', which is the per-file compile-specific ones.

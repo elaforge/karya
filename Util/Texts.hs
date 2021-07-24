@@ -37,6 +37,9 @@ class Textlike a where
     toText :: a -> Text
     fromText :: Text -> a
 
+    toString :: a -> String
+    toString = Text.unpack . toText
+
     toByteString :: a -> ByteString.ByteString
     toByteString = Encoding.encodeUtf8 . toText
 

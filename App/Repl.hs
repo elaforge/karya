@@ -168,19 +168,20 @@ send_command addr expr
         handle_result addr result
 
 handle_result :: Network.Addr -> ReplProtocol.Result -> IO Status
-handle_result _ (ReplProtocol.Raw text) = do
-    unless (Text.null (Text.strip text)) $
-        Text.IO.putStrLn (Text.stripEnd text)
-    return Continue
-handle_result _ (ReplProtocol.Format text) = do
-    unless (Text.null (Text.strip text)) $
-        putStr $ PPrint.format_str $ untxt text
-    return Continue
-handle_result addr (ReplProtocol.Edit editors) = do
-    ReplProtocol.notify addr ReplProtocol.NEditorOpened
-    edit_multiple editors
-    ReplProtocol.notify addr ReplProtocol.NEditorClosed
-    return Continue
+handle_result addr = \case
+    ReplProtocol.Raw text -> do
+        unless (Text.null (Text.strip text)) $
+            Text.IO.putStrLn (Text.stripEnd text)
+        return Continue
+    ReplProtocol.Format text -> do
+        unless (Text.null (Text.strip text)) $
+            putStr $ PPrint.format_str $ untxt text
+        return Continue
+    ReplProtocol.Edit editors -> do
+        ReplProtocol.notify addr ReplProtocol.NEditorOpened
+        edit_multiple editors
+        ReplProtocol.notify addr ReplProtocol.NEditorClosed
+        return Continue
 
 print_logs :: ReplProtocol.CmdResult -> IO ReplProtocol.Result
 print_logs (ReplProtocol.CmdResult val logs_) = do

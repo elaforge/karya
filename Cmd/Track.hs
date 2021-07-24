@@ -63,7 +63,7 @@ get_track_cmds = do
     let edit_mode = Cmd.state_edit_mode edit_state
     let with_input = NoteEntry.cmds_with_input
             (Cmd.state_kbd_entry edit_state)
-            (fmap snd . Cmd.midi_instrument =<< mb_resolved)
+            (fmap snd . Cmd.midi_patch =<< mb_resolved)
     -- The order is important:
     -- - Per-instrument cmds can override all others.
     --

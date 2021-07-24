@@ -42,7 +42,7 @@ import qualified System.Environment
 import qualified System.Exit
 import qualified System.Posix as Posix
 
-import qualified Util.File as File
+import qualified Util.Exceptions as Exceptions
 import qualified Util.Fltk as Fltk
 import qualified Util.FltkUtil as FltkUtil
 import qualified Util.Log as Log
@@ -162,7 +162,7 @@ write_pid :: IO (Maybe Posix.ProcessID)
 write_pid = do
     -- I have to use ByteString.readFile and writeFile to avoid GHC's obnoxious
     -- file locking.
-    pid_str <- File.ignoreEnoent $ ByteString.readFile pid_file
+    pid_str <- Exceptions.ignoreEnoent $ ByteString.readFile pid_file
     existing <- case ByteString.readInt =<< pid_str of
         Just (pid_, _) -> do
             maybe_cmd <- Processes.commandName pid

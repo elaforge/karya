@@ -20,6 +20,7 @@ import           System.FilePath ((</>))
 import qualified Text.Printf as Printf
 
 import qualified Util.Doc as Doc
+import qualified Util.Exceptions as Exceptions
 import qualified Util.File as File
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
@@ -122,7 +123,7 @@ parse_dir dir = do
 parse_file :: FilePath -> IO [Either String MidiInst.Patch]
 parse_file fn = do
     syxs <- file_to_syx fn
-    doc <- fromMaybe "" <$> File.ignoreEnoent
+    doc <- fromMaybe "" <$> Exceptions.ignoreEnoent
         (Text.IO.readFile (FilePath.replaceExtension fn ".txt"))
     let results = map (record_to_patch <=< decode_sysex) syxs
     return

@@ -38,6 +38,8 @@ import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
+import qualified Perform.Sc.Patch as Sc.Patch
+import qualified Perform.Sc.Play as Sc.Play
 import qualified Perform.Signal as Signal
 
 import qualified Ui.TrackTree as TrackTree
@@ -550,8 +552,10 @@ parse_qualified text
 -- * initialize
 
 -- | Initialize all instruments that need it.
-initialize_all :: Cmd.M m => m ()
-initialize_all = mapM_ initialize_inst =<< allocated
+initialize_all :: Cmd.CmdT IO ()
+initialize_all = do
+    mapM_ initialize_inst =<< allocated
+    sc_initialize
 
 -- | List allocated instruments that need initialization.
 need_initialization :: Ui.M m => m Text
@@ -578,7 +582,7 @@ initialize_inst inst =
             initialize_nrpn_tuning inst
         (patch, _) <- Cmd.get_midi_instrument inst
         forM_ (Patch.config_addrs config) $ \addr ->
-            send_initialize inst addr (Patch.patch_initialize patch)
+            send_midi_initialize inst addr (Patch.patch_initialize patch)
 
 -- | Send a MIDI tuning message to retune the synth to its 'Patch.Scale'.  Very
 -- few synths support this, I only know of pianoteq.
@@ -610,11 +614,11 @@ get_tuning_map inst = get_scale inst >>= \case
 initialize_midi :: Cmd.M m => ScoreT.Instrument -> Patch.Addr -> m ()
 initialize_midi inst addr = do
     (patch, _) <- Cmd.get_midi_instrument inst
-    send_initialize inst addr (Patch.patch_initialize patch)
+    send_midi_initialize inst addr (Patch.patch_initialize patch)
 
-send_initialize :: Cmd.M m => ScoreT.Instrument -> Patch.Addr
+send_midi_initialize :: Cmd.M m => ScoreT.Instrument -> Patch.Addr
     -> Patch.InitializePatch -> m ()
-send_initialize inst (dev, chan) = \case
+send_midi_initialize inst (dev, chan) = \case
     Patch.InitializeMidi msgs -> do
         Log.notice $ "sending midi init: " <> pretty msgs
         mapM_ (Cmd.midi dev . Midi.set_channel chan) msgs
@@ -623,3 +627,30 @@ send_initialize inst (dev, chan) = \case
         -- show this message, so it should be emphasized.
         Log.warn $ "initialize instrument " <> pretty inst <> ": " <> msg
     Patch.NoInitialization -> return ()
+
+sc_initialize :: Cmd.CmdT IO ()
+sc_initialize = do
+    insts <- Ui.get_config $ Map.keys . UiConfig.unallocations
+        . UiConfig.config_allocations
+    insts <- mapM Cmd.get_instrument insts
+    sc_initialize_patches $ mapMaybe Cmd.sc_patch insts
+
+sc_initialize_patches :: [Sc.Patch.Patch] -> Cmd.CmdT IO ()
+sc_initialize_patches [] = return ()
+sc_initialize_patches patches = do
+    -- scsynth has a /d_free, but seems to have no way to query what is
+    -- actually loaded, so it's sort of useless, because you must control the
+    -- scsynth lifecycle to manually track what it loaded, and at that point
+    -- you may as well restart it.
+    -- TODO if configured with the path to scsynth, I could start it
+    -- automatically.  In that case, I may want to send a /quit on exit.
+    msg <- Cmd.require_right ("can't initialize sc patches: "<>)
+        =<< liftIO Sc.Play.version
+    -- TODO: when called from REPL, log msgs are collected together, so
+    -- "waiting for" is not very interesting.
+    Log.notice $ "found scsynth: " <> msg
+    Log.notice $ "loading patches: "
+        <> Text.unwords (map (Texts.toText . Sc.Patch.name) patches)
+    liftIO $ mapM_ Sc.Play.initialize_patch patches
+    Log.notice "waiting for sync"
+    liftIO Sc.Play.sync

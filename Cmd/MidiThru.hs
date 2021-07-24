@@ -133,7 +133,7 @@ for_instrument score_inst scale attrs input = do
 default_thru :: Cmd.ResolvedInstrument -> ScoreT.Instrument -> Cmd.ThruFunction
 default_thru resolved score_inst scale attrs input = do
     input <- convert_input score_inst scale input
-    (patch, config) <- Cmd.abort_unless $ Cmd.midi_instrument resolved
+    (patch, config) <- Cmd.abort_unless $ Cmd.midi_patch resolved
     let addrs = Patch.config_addrs config
     if null addrs then return [] else do
         (input_nn, ks) <- Cmd.require

@@ -12,6 +12,7 @@ import qualified System.FilePath as FilePath
 import           System.FilePath ((</>))
 import qualified Vivid.SC.SynthDef.Literally as Literally
 
+import qualified Util.Exceptions as Exceptions
 import qualified Util.File as File
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
@@ -52,7 +53,7 @@ load :: Path.AppDir -> IO (Maybe PatchDb)
 load app_dir = load_dir (Path.to_absolute app_dir Config.sc_dir)
 
 load_dir :: FilePath -> IO (Maybe PatchDb)
-load_dir dir = File.ignoreEnoent (File.list dir) >>= \case
+load_dir dir = Exceptions.ignoreEnoent (File.list dir) >>= \case
     Nothing -> do
         Log.notice $ "no supercollider patch dir: " <> showt dir
         return Nothing

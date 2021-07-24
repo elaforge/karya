@@ -44,7 +44,7 @@ import qualified Data.Traversable as Traversable
 import           System.FilePath ((</>))
 import qualified System.IO.Unsafe as Unsafe
 
-import qualified Util.File as File
+import qualified Util.Exceptions as Exceptions
 import qualified Util.ParseText as ParseText
 import qualified Util.Seq as Seq
 
@@ -535,12 +535,12 @@ find_ky paths from fname =
     msg = "ky file not found: " <> txt fname
         <> (if from == "" then "" else " from " <> txt from)
         <> " (searched " <> Text.intercalate ", " (map txt paths) <> ")"
-    get fn = File.ignoreEnoent $ (,) fn <$> Text.IO.readFile fn
+    get fn = Exceptions.ignoreEnoent $ (,) fn <$> Text.IO.readFile fn
 
 -- | Catch any IO exceptions and put them in Left.
 catch_io :: Text -> IO (Either Text a) -> IO (Either Text a)
 catch_io prefix io =
-    either (Left . ((prefix <> ": ") <>) . showt) id <$> File.tryIO io
+    either (Left . ((prefix <> ": ") <>) . showt) id <$> Exceptions.tryIO io
 
 -- | This is a mirror of 'Derive.Library', but with expressions instead of
 -- calls.  (generators, transformers)

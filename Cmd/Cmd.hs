@@ -50,7 +50,7 @@ import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 
 import qualified Util.CallStack as CallStack
-import qualified Util.File as File
+import qualified Util.Exceptions as Exceptions
 import qualified Util.GitTypes as GitTypes
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
@@ -1375,9 +1375,9 @@ clear_im_cache block_id = do
     liftIO $ do
         config <- Shared.Config.getConfig
         let imDir = Shared.Config.imDir config
-        File.ignoreEnoent $ Directory.removeDirectoryRecursive $
+        Exceptions.ignoreEnoent $ Directory.removeDirectoryRecursive $
             Shared.Config.notesDirectory imDir path block_id
-        File.ignoreEnoent $ Directory.removeDirectoryRecursive $
+        Exceptions.ignoreEnoent $ Directory.removeDirectoryRecursive $
             Shared.Config.outputDirectory imDir path block_id
     return ()
 
@@ -1490,15 +1490,20 @@ instance Pretty Backend where
     format (Sc patch) = Pretty.format patch
     format Dummy = "Dummy"
 
-midi_instrument :: ResolvedInstrument -> Maybe (Patch.Patch, Patch.Config)
-midi_instrument inst = case inst_backend inst of
+midi_patch :: ResolvedInstrument -> Maybe (Patch.Patch, Patch.Config)
+midi_patch inst = case inst_backend inst of
     Midi patch config -> Just (patch, config)
+    _ -> Nothing
+
+sc_patch :: ResolvedInstrument -> Maybe Sc.Patch.Patch
+sc_patch inst = case inst_backend inst of
+    Sc patch -> Just patch
     _ -> Nothing
 
 get_midi_instrument :: (CallStack.Stack, M m) => ScoreT.Instrument
     -> m (Patch.Patch, Patch.Config)
 get_midi_instrument inst =
-    require ("not a midi instrument: " <> pretty inst) . midi_instrument
+    require ("not a midi instrument: " <> pretty inst) . midi_patch
         =<< get_instrument inst
 
 lookup_midi_config :: M m => ScoreT.Instrument -> m (Maybe Patch.Config)
