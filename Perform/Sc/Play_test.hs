@@ -9,6 +9,8 @@ import qualified Data.Time as Time
 
 import qualified Vivid.OSC as OSC
 
+import qualified Util.Seq as Seq
+import qualified Derive.LEvent as LEvent
 import qualified Perform.Midi.MSignal as MSignal
 import qualified Perform.Sc.Note as Note
 import qualified Perform.Sc.Play as Play
@@ -20,35 +22,43 @@ import           Util.Test
 
 test_notes_to_osc :: Test
 test_notes_to_osc = do
-    let f = Play.notes_to_osc (sid 10)
+    let f = LEvent.events_of . Play.notes_to_osc (nid 10) . map LEvent.Event
     equal (f []) []
     equal (f notes)
-        [ (0, Play.s_new "sine" (sid 10) [(pitch, 400)])
-        , (0.5, Play.n_set (sid 10) [(pitch, 300)])
-        , (1, Play.n_set (sid 10) [(pitch, 200)])
-        , (1, Play.s_new "sine" (sid 11) [(pitch, 500)])
-        , (1.5, Play.n_set (sid 11) [(pitch, 600)])
+        [ (0, Play.s_new "sine" (nid 10) [(pitch, 400)])
+        , (0.5, Play.n_set (nid 10) [(pitch, 300)])
+        , (1, Play.n_set (nid 10) [(pitch, 200)])
+        , (1, Play.s_new "sine" (nid 11) [(pitch, 500)])
+        , (1.5, Play.n_set (nid 11) [(pitch, 600)])
         ]
 
     equal (f
         [mknote 0 [(gate, [(0, 1), (4, 0)]), (pitch, [(0, 50), (2, 48)])]])
-        [ (0, Play.s_new "sine" (sid 10) [(gate, 1), (pitch, 50)])
-        , (2, Play.n_set (sid 10) [(pitch, 48)])
-        , (4, Play.n_set (sid 10) [(gate, 0)])
+        [ (0, Play.s_new "sine" (nid 10) [(gate, 1), (pitch, 50)])
+        , (2, Play.n_set (nid 10) [(pitch, 48)])
+        , (4, Play.n_set (nid 10) [(gate, 0)])
         ]
 
 test_control_oscs :: Test
 test_control_oscs = do
-    let f = Play.control_oscs (sid 10) . mkcontrols
-        set = Play.n_set (sid 10)
+    let f = Play.control_oscs (nid 10) . mkcontrols
+        set = Play.n_set (nid 10)
     equal (f [(gate, [(0, 1), (4, 0)]), (pitch, [(0, 40), (2, 42)])])
         [ (0, set [(gate, 1), (pitch, 40)])
         , (2, set [(pitch, 42)])
         , (4, set [(gate, 0)])
         ]
 
-sid :: Int.Int32 -> Play.SynthId
-sid = Play.SynthId
+test_streaming :: Test
+test_streaming = do
+    let f = Play.to_bundles now . Play.notes_to_osc (nid 10) . map LEvent.Event
+        now = Time.UTCTime (toEnum 0) 0
+    let endless = map (\t -> mknote t [(pitch, [(t, 400)])]) (Seq.range_ 0 1)
+    -- If it's not streaming, this would hang.
+    equal (length (take 10 (f endless))) 10
+
+nid :: Int.Int32 -> Play.NodeId
+nid = Play.NodeId
 
 gate :: Note.ControlId
 gate = Note.ControlId 0
@@ -72,6 +82,6 @@ mkcontrols = Map.fromList . map (second MSignal.from_pairs)
 playN :: IO ()
 playN = do
     now <- Time.getCurrentTime
-    let oscs = Play.to_bundles now $
-            Play.notes_to_osc (Play.SynthId 10) notes
+    let oscs = LEvent.events_of $ Play.to_bundles now $
+            Play.notes_to_osc (Play.NodeId 10) $ map LEvent.Event notes
     mapM_ (Play.send Play.server_port . OSC.encodeOSCBundle) oscs

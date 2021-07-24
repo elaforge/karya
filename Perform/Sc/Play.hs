@@ -73,20 +73,16 @@ play :: State -> Note.PlayNotes -> Maybe RealTime
     -> IO ()
 play state pnotes repeat_at = do
     now <- Time.getCurrentTime
-    -- TODO Does this spoil streaming?  Why yes it does.  But it's too annoynig
-    -- to try to thread LEvent through notes_to_osc.
-    let (notes, logs) = LEvent.partition $ Note.notes pnotes
-    mapM_ Log.write logs
     Transport.player_started (_players state)
     let start_id = time_to_id now
-    Thread.startLogged "render sc" $ do
-        thread now start_id notes
+    Thread.startLogged "render sc" $
+        thread now start_id (Note.notes pnotes)
             `Exception.finally` Transport.player_stopped (_players state)
     return ()
     where
     thread now start_id = player_thread state . to_bundles now
-        . map (first ((* Note.stretch pnotes) . subtract (Note.shift pnotes)))
-        . notes_to_osc start_id
+        . map (fmap (first place)) . notes_to_osc start_id
+    place = (* Note.stretch pnotes) . subtract (Note.shift pnotes)
 
 -- | This is a silly solution to a silly problem.  NodeIds are 31-bit (must be
 -- positive) numbers to uniquely identify a note.  In an imperative language
@@ -101,17 +97,19 @@ time_to_id :: Time.UTCTime -> NodeId
 time_to_id now = NodeId $ min_node_id + fromIntegral (ms Bits..&. 0xffffff)
     where ms = Time.diffTimeToPicoseconds (Time.utctDayTime now) `div` 1000000
 
-player_thread :: State -> [OSC.OSCBundle] -> IO ()
+player_thread :: State -> [LEvent.LEvent OSC.OSCBundle] -> IO ()
 player_thread state bundles = do
     play_loop state bundles
         `Exception.catch` \(exc :: Exception.SomeException) ->
             Log.warn ("player died: " <> showt exc) -- game over
 
-play_loop :: State -> [OSC.OSCBundle] -> IO ()
+play_loop :: State -> [LEvent.LEvent OSC.OSCBundle] -> IO ()
 play_loop state = flip Control.loop1 $ \loop bundles -> do
     now <- Time.getCurrentTime
     let until = Time.addUTCTime (write_ahead * 2) now
-    let (chunk, rest) = span ((<= OSC.timestampFromUTC until) . time_of) bundles
+    let ((chunk, logs), rest) = first LEvent.partition $
+            span ((<= OSC.timestampFromUTC until) . ltime_of) bundles
+    mapM_ Log.write logs
     -- unless (null chunk) $ do
     --     putStrLn "osc chunk: "
     --     mapM_ print chunk
@@ -126,6 +124,8 @@ play_loop state = flip Control.loop1 $ \loop bundles -> do
         (_, []) -> return ()
         _ -> loop rest
     where
+    ltime_of (LEvent.Log _) = OSC.Timestamp 0
+    ltime_of (LEvent.Event e) = time_of e
     time_of (OSC.OSCBundle ts _) = ts
 
 write_ahead :: Time.NominalDiffTime
@@ -138,34 +138,31 @@ send port bytes = Network.withConnection (Network.UDP port) $ \socket ->
 
 -- * perform
 
-to_bundles :: Time.UTCTime -> [(RealTime, OSC.OSC)] -> [OSC.OSCBundle]
-to_bundles start = map make . Seq.keyed_group_adjacent fst
+to_bundles :: Time.UTCTime -> [LEvent.LEvent (RealTime, OSC.OSC)]
+    -> [LEvent.LEvent OSC.OSCBundle]
+to_bundles start = concatMap make . Seq.keyed_group_adjacent time_of
     where
-    make (time, oscs) =
-        bundle (Time.addUTCTime (realToFrac time) start) (map snd oscs)
+    make (time, events) =
+        map LEvent.Log logs ++ if null oscs then []
+            else [LEvent.Event $ bundle t $ map snd oscs]
+        where
+        t = Time.addUTCTime (realToFrac time) start
+        (oscs, logs) = LEvent.partition events
 
--- -- TODO use LEvents to avoid spoiling streaming
--- -- notes_to_osc2 :: NodeId -> [LEvent.LEvent Note.Note] -> [(RealTime, OSC.OSC)]
--- notes_to_osc2 (NodeId start_id) notes =
---     -- Seq.merge_asc_lists time_of $
---     -- join $
---     -- [LEvent [(RealTime, OSC)]]
---     map (fmap (uncurry note_to_osc)) $
---         LEvent.zip node_ids notes
---     where
---     node_ids = map NodeId [start_id ..]
---     time_of (LEvent.Log _) = -1/0
---     time_of (LEvent.Event (t, _)) = t
---
--- join :: [LEvent.LEvent [a]] -> [LEvent.LEvent a]
--- join = concatMap $ \case
---     LEvent.Log log -> [LEvent.Log log]
---     LEvent.Event notes -> map LEvent.Event notes
+notes_to_osc :: NodeId -> [LEvent.LEvent Note.Note]
+    -> [LEvent.LEvent (RealTime, OSC.OSC)]
+notes_to_osc start_id =
+    Seq.merge_asc_lists time_of . map (apply (uncurry note_to_osc))
+        . LEvent.zip node_ids
+    where
+    node_ids = node_ids_from start_id
+    apply f = \case
+        LEvent.Event e -> map LEvent.Event (f e)
+        LEvent.Log a -> [LEvent.Log a]
 
-notes_to_osc :: NodeId -> [Note.Note] -> [(RealTime, OSC.OSC)]
-notes_to_osc start_id notes =
-    Seq.merge_asc_lists fst $ map (uncurry note_to_osc) $ zip node_ids notes
-    where node_ids = node_ids_from start_id
+time_of :: LEvent.LEvent (RealTime, x) -> RealTime
+time_of (LEvent.Log _) = -1/0
+time_of (LEvent.Event (t, _)) = t
 
 note_to_osc :: NodeId -> Note.Note -> [(RealTime, OSC.OSC)]
 note_to_osc node_id (Note.Note patch start controls) =
