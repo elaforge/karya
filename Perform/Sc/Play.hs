@@ -82,7 +82,13 @@ play state pnotes repeat_at = do
     where
     thread now start_id = player_thread state . to_bundles now
         . map (fmap (first place)) . notes_to_osc start_id
-    place = (* Note.stretch pnotes) . subtract (Note.shift pnotes)
+    place = (* Note.stretch pnotes) . subtract (Note.shift pnotes - tweak)
+
+-- | For some reason, sc sound winds up slightly before MIDI, but I can't be
+-- bothered to track down why.  This delays the OSC by enough to sound close
+-- enough to MIDI attacks.
+tweak :: RealTime
+tweak = 0.03
 
 -- | This is a silly solution to a silly problem.  NodeIds are 31-bit (must be
 -- positive) numbers to uniquely identify a note.  In an imperative language
