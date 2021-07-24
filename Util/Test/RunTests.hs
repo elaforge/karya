@@ -345,7 +345,8 @@ takeQueue (Queue mvar) = MVar.modifyMVar mvar $ \as -> return $ case as of
 -- | Empty the directory, but don't remove it entirely, in case it's /tmp or
 -- something.
 clearDirectory :: FilePath -> IO ()
-clearDirectory dir = mapM_ rm =<< File.list dir
+clearDirectory dir =
+    mapM_ rm . fromMaybe [] =<< Exceptions.ignoreEnoent (File.list dir)
     where
     -- Let's not go all the way to Directory.removePathForcibly.
     rm fn = Directory.doesDirectoryExist fn >>= \isDir -> if isDir
