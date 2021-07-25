@@ -77,6 +77,7 @@ import qualified Perform.Im.Play as Im.Play
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Sc.Note as Sc.Note
+import qualified Perform.Sc.Play as Sc.Play
 import qualified Perform.Transport as Transport
 
 import qualified Synth.Shared.Config as Shared.Config
@@ -120,7 +121,11 @@ cmd_context_stop = gets Cmd.state_play_control >>= \case
             then StepPlay.cmd_clear >> return True
             -- play_cache may still be streaming after the karya transport
             -- stops.
-            else Cmd.all_notes_off >> stop_im >> return False
+            else do
+                Cmd.all_notes_off
+                stop_im
+                liftIO Sc.Play.force_stop
+                return False
 
 cmd_stop :: Cmd.CmdT IO Cmd.Status
 cmd_stop = do

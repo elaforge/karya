@@ -6,7 +6,8 @@
 module Perform.Sc.Play (
     State(..)
     , play
-    , force_stop_all
+    -- * stop
+    , force_stop
     -- * initialize
     , version
     , initialize_patch
@@ -204,24 +205,12 @@ s_new name (NodeId node_id) controls = OSC.OSC "/s_new" $
 default_group :: NodeId
 default_group = NodeId 1
 
-stop_all :: [OSC.OSC]
-stop_all =
-    [ clear_sched
-    , n_set default_group [(Note.gate_id, 0)]
-    ]
-
 n_set :: NodeId -> [(Note.ControlId, Double)] -> OSC.OSC
 n_set (NodeId node_id) controls = OSC.OSC "/n_set" $
     OSC_I node_id : controls_to_osc controls
 
 clear_sched :: OSC.OSC
 clear_sched = OSC.OSC "/clearSched" []
-
-force_stop_all :: OSC.OSC
-force_stop_all = g_freeAll default_group
-
-g_freeAll :: NodeId -> OSC.OSC
-g_freeAll (NodeId id) = OSC.OSC "/g_freeAll" [OSC_I id]
 
 s_noid :: NodeId -> OSC.OSC
 s_noid (NodeId id) = OSC.OSC "/s_noid" [OSC_I id]
@@ -237,6 +226,23 @@ bundle time = OSC.OSCBundle (OSC.timestampFromUTC time) . map Right
 
 data AddAction = Head | Tail | Before | After | Replace
     deriving (Eq, Ord, Show, Enum, Bounded)
+
+-- * stop
+
+stop_all :: [OSC.OSC]
+stop_all =
+    [ clear_sched
+    , n_set default_group [(Note.gate_id, 0)]
+    ]
+
+force_stop :: IO ()
+force_stop = mapM_ (send server_port . OSC.encodeOSC)
+    [ clear_sched
+    , g_freeAll default_group
+    ]
+
+g_freeAll :: NodeId -> OSC.OSC
+g_freeAll (NodeId id) = OSC.OSC "/g_freeAll" [OSC_I id]
 
 -- * initialize
 
