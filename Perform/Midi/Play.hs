@@ -55,7 +55,8 @@ play state sync name msgs repeat_at = do
         (state { _im_end = (now+) <$> _im_end state })
         (process now repeat_at msgs)
     -- Catch msgs up to realtime and cycle them if I'm repeating.
-    process now repeat_at = shift_messages now . cycle_messages repeat_at
+    process now repeat_at = shift_messages now
+        . maybe id cycle_messages repeat_at
 
 player_thread :: Maybe Cmd.SyncConfig -> RealTime -> Text -> State
     -> Messages -> IO ()
@@ -78,10 +79,9 @@ make_mmc :: Cmd.SyncConfig -> RealTime -> Mmc.Mmc -> Midi.WriteMessage
 make_mmc sync start msg = Midi.WriteMessage (Cmd.sync_device sync) start $
     Mmc.encode (Cmd.sync_device_id sync) msg
 
-cycle_messages :: Maybe RealTime -> Messages -> Messages
+cycle_messages :: RealTime -> Messages -> Messages
 cycle_messages _ [] = []
-cycle_messages Nothing msgs = msgs
-cycle_messages (Just repeat_at) msgs =
+cycle_messages repeat_at msgs =
     go1 $ takeWhile (LEvent.log_or ((<repeat_at) . Midi.wmsg_ts)) msgs
     where
     go1 msgs = msgs ++ go (shift_messages repeat_at (strip msgs))

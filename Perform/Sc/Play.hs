@@ -63,6 +63,8 @@ data State = State {
     , _players :: !Transport.ActivePlayers
     }
 
+-- * NodeId
+
 newtype NodeId = NodeId Int.Int32
     deriving (Eq, Show)
 
@@ -76,22 +78,57 @@ node_ids_from (NodeId start) =
 min_node_id :: Int.Int32
 min_node_id = 10
 
+-- * play
+
 -- | Start a thread to stream a list of WriteMessages.
 play :: State -> Note.PlayNotes -> Maybe RealTime
     -- ^ If given, loop back to the beginning when this time is reached.
     -> IO ()
-play state pnotes repeat_at = do
+play state pnotes repeat_at_ = do
     now <- Time.getCurrentTime
     Transport.player_started (_players state)
     let start_id = time_to_id now
+    -- repeat_at_ has already had the shift and stretch applied, which is
+    -- confusing.  TODO stop doing that.  But on the other hand, all the other
+    -- stuff in PlayArgs had shift and stretch applied...
+    let repeat_at = (+ Note.shift pnotes) . (/ Note.stretch pnotes) <$>
+            repeat_at_
     Thread.startLogged "render sc" $
-        thread now start_id (Note.notes pnotes)
+        player_thread state (convert tweak now start_id pnotes repeat_at)
             `Exception.finally` Transport.player_stopped (_players state)
     return ()
+
+convert :: RealTime -> Time.UTCTime -> NodeId -> Note.PlayNotes
+    -> Maybe RealTime -> [LEvent.LEvent OSC.OSCBundle]
+convert tweak now start_id pnotes repeat_at =
+    to_bundles now $ map (fmap (first place)) $
+    notes_to_osc start_id $
+    maybe (map (fmap (0,))) (cycle_messages (Note.shift pnotes)) repeat_at $
+    Note.notes pnotes
     where
-    thread now start_id = player_thread state . to_bundles now
-        . map (fmap (first place)) . notes_to_osc start_id
     place = (* Note.stretch pnotes) . subtract (Note.shift pnotes - tweak)
+
+cycle_messages :: RealTime -> RealTime -> [LEvent.LEvent Note.Note]
+    -> [LEvent.LEvent (RealTime, Note.Note)]
+cycle_messages start repeat_at notes
+    | null chunk = []
+    | otherwise = concat $ chunk : chunks
+    where
+    chunk = map (fmap ((0,) . trim_note repeat_at)) $
+        takeWhile (LEvent.log_or ((<repeat_at) . Note.start)) notes
+    chunks = tail $ iterate shift stripped
+    shift = map (fmap (first (+ (repeat_at - start))))
+    stripped = map LEvent.Event (LEvent.events_of chunk)
+
+trim_note :: RealTime -> Note.Note -> Note.Note
+trim_note end note =
+    note { Note.controls = Map.mapWithKey trim (Note.controls note) }
+    where
+    trim control sig
+        | maybe True ((<=end) . fst) $ MSignal.last sig = sig
+        | control == Note.gate_id =
+            MSignal.drop_at_after end sig <> MSignal.from_pairs [(end, 0)]
+        | otherwise = MSignal.drop_at_after end sig
 
 -- | For some reason, sc sound winds up slightly before MIDI, but I can't be
 -- bothered to track down why.  This delays the OSC by enough to sound close
@@ -160,7 +197,7 @@ to_bundles start = concatMap make . Seq.keyed_group_adjacent time_of
         t = Time.addUTCTime (realToFrac time) start
         (oscs, logs) = LEvent.partition events
 
-notes_to_osc :: NodeId -> [LEvent.LEvent Note.Note]
+notes_to_osc :: NodeId -> [LEvent.LEvent (RealTime, Note.Note)]
     -> [LEvent.LEvent (RealTime, OSC.OSC)]
 notes_to_osc start_id =
     Seq.merge_asc_lists time_of . map (apply (uncurry note_to_osc))
@@ -175,12 +212,11 @@ time_of :: LEvent.LEvent (RealTime, x) -> RealTime
 time_of (LEvent.Log _) = -1/0
 time_of (LEvent.Event (t, _)) = t
 
-note_to_osc :: NodeId -> Note.Note -> [(RealTime, OSC.OSC)]
-note_to_osc node_id (Note.Note patch start controls) =
-    (start, s_new patch node_id initial)
+note_to_osc :: NodeId -> (RealTime, Note.Note) -> [(RealTime, OSC.OSC)]
+note_to_osc node_id (offset, Note.Note patch start controls) =
+    map (first (offset+)) $ (start, s_new patch node_id initial)
         : dropWhile ((<=start) . fst) (control_oscs node_id controls)
-    where
-    initial = map (second (MSignal.at start)) (Map.toAscList controls)
+    where initial = map (second (MSignal.at start)) (Map.toAscList controls)
 
 -- | Precondition: signals have already been trimmed to the right time range.
 control_oscs :: NodeId -> Map Note.ControlId MSignal.Signal

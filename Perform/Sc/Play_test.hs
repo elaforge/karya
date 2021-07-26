@@ -9,6 +9,7 @@ import qualified Data.Time as Time
 
 import qualified Vivid.OSC as OSC
 
+import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Derive.LEvent as LEvent
 import qualified Perform.Midi.MSignal as MSignal
@@ -20,9 +21,73 @@ import           Types
 import           Util.Test
 
 
+test_convert :: Test
+test_convert = do
+    let f shift stretch notes =
+            Play.convert 0 (now 0) (Play.NodeId 10)
+                (Note.PlayNotes shift stretch
+                    (map (fmap (uncurry mknote)) notes))
+        now t = t `Time.addUTCTime` start
+            where start = OSC.timestampToUTC $ OSC.Timestamp 0
+    let es = map LEvent.Event
+        bundle t = LEvent.Event . Play.bundle (now t)
+        sine id = Play.s_new "sine" (nid id) [(Note.gate_id, 1)]
+        n_gate id val = Play.n_set (nid id) [(Note.gate_id, val)]
+        gate s e = (Note.gate_id, [(s, 1), (e, 0)])
+    equal (f 0 1 [] Nothing) []
+    equal (f 0 1 [] (Just 1)) []
+    equal (f 0 1 (es [(1, [gate 1 2])]) Nothing)
+        [ bundle 1 [sine 10]
+        , bundle 2 [n_gate 10 0]
+        ]
+    equal (f 1 2 (es [(1, [gate 1 2])]) Nothing)
+        [ bundle 0 [sine 10]
+        , bundle 2 [n_gate 10 0]
+        ]
+
+    -- repeats use new NodeIds
+    equal (take 6 $ f 0 1 (es [(1, [gate 1 2])]) (Just 2))
+        [ bundle 1 [sine 10]
+        , bundle 2 [n_gate 10 0]
+        , bundle 3 [sine 11]
+        , bundle 4 [n_gate 11 0]
+        , bundle 5 [sine 12]
+        , bundle 6 [n_gate 12 0]
+        ]
+    -- logs only show up the first time
+    let log = Log.msg Log.Notice Nothing "hi"
+    equal (take 6 $ f 0 1 [LEvent.Event (1, [gate 1 2]), LEvent.Log log]
+            (Just 2))
+        [ bundle 1 [sine 10]
+        , LEvent.Log log
+        , bundle 2 [n_gate 10 0]
+        , bundle 3 [sine 11]
+        , bundle 4 [n_gate 11 0]
+        , bundle 5 [sine 12]
+        ]
+    -- gates are trimmed to the repeat boundaries
+    equal (take 4 $ f 0 1 (es [(1, [gate 1 4])]) (Just 2))
+        [ bundle 1 [sine 10]
+        , bundle 2 [n_gate 10 0]
+        , bundle 3 [sine 11]
+        , bundle 4 [n_gate 11 0]
+        ]
+    -- repeat with shift, stretch
+    equal (take 3 $ f 1 1 (es [(1, [gate 1 2])]) (Just 2))
+        [ bundle 0 [sine 10]
+        , bundle 1 [n_gate 10 0, sine 11]
+        , bundle 2 [n_gate 11 0, sine 12]
+        ]
+    equal (take 3 $ f 1 2 (es [(1, [gate 1 2])]) (Just 2))
+        [ bundle 0 [sine 10]
+        , bundle 2 [n_gate 10 0, sine 11]
+        , bundle 4 [n_gate 11 0, sine 12]
+        ]
+
 test_notes_to_osc :: Test
 test_notes_to_osc = do
-    let f = LEvent.events_of . Play.notes_to_osc (nid 10) . map LEvent.Event
+    let f = LEvent.events_of . Play.notes_to_osc (nid 10)
+            . map (LEvent.Event . (0,))
     equal (f []) []
     equal (f notes)
         [ (0, Play.s_new "sine" (nid 10) [(pitch, 400)])
@@ -51,7 +116,8 @@ test_control_oscs = do
 
 test_streaming :: Test
 test_streaming = do
-    let f = Play.to_bundles now . Play.notes_to_osc (nid 10) . map LEvent.Event
+    let f = Play.to_bundles now . Play.notes_to_osc (nid 10)
+            . map (LEvent.Event . (0,))
         now = Time.UTCTime (toEnum 0) 0
     let endless = map (\t -> mknote t [(pitch, [(t, 400)])]) (Seq.range_ 0 1)
     -- If it's not streaming, this would hang.
@@ -78,10 +144,3 @@ notes =
 mkcontrols :: [(Note.ControlId, [(RealTime, Double)])]
     -> Map Note.ControlId MSignal.Signal
 mkcontrols = Map.fromList . map (second MSignal.from_pairs)
-
-playN :: IO ()
-playN = do
-    now <- Time.getCurrentTime
-    let oscs = LEvent.events_of $ Play.to_bundles now $
-            Play.notes_to_osc (Play.NodeId 10) $ map LEvent.Event notes
-    mapM_ (Play.send Play.server_port . OSC.encodeOSCBundle) oscs

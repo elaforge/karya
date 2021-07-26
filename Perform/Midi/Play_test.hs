@@ -4,14 +4,17 @@
 
 module Perform.Midi.Play_test where
 import qualified Util.Log as Log
-import Util.Test
-import qualified Midi.Midi as Midi
 import qualified Derive.LEvent as LEvent
+import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Play as Play
 
+import           Types
+import           Util.Test
 
+
+test_cycle_messages :: Test
 test_cycle_messages = do
-    let f repeat_at = extract . Play.cycle_messages (Just repeat_at)
+    let f repeat_at = extract . Play.cycle_messages repeat_at
         extract = map $
             LEvent.either (Left . Midi.wmsg_ts) (Right . Log.msg_string)
         msg = LEvent.Log $ Log.msg Log.Notice Nothing "hi"
@@ -21,5 +24,6 @@ test_cycle_messages = do
         ]
     equal (f 1 [note 2]) []
 
+note :: RealTime -> LEvent.LEvent Midi.WriteMessage
 note ts = LEvent.Event $ Midi.WriteMessage (Midi.write_device "d") ts
     (Midi.ChannelMessage 0 (Midi.NoteOn 10 20))

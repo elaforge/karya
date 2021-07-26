@@ -7119,6 +7119,16 @@ Perform:
         and /n_set.  Since existing patches won't support line segments, I
         wuold have to do interpolation myself like with MIDI, so there will be
         a lot of these.  I could try to group coincident ones.
+    - add docs
+    - make some patches
+      + MembraneCircle
+        . must install sc3-plugins
+        . no sound?
+      + zot
+        . It has no duration... is it reasonable to add, or do I have to track
+          SynthIds?
+        . In general I'm going to have to enforce standardization on control
+          names: freq, dyn, ...?  im uses: dyn, vol, pan, pitch
     * Perform.Sc.Convert
       . Produce [Sc.Note]
     * plug Sc.Play.play into Cmd.Play
@@ -7130,11 +7140,6 @@ Perform:
         intermediate [Note] available for debugging.
     * add instrument backend plumbing
     * load SC PatchDb if directory is given
-    + convert zot to scsyndef
-      . It has no duration... is it reasonable to add, or do I have to track
-        SynthIds?
-      . In general I'm going to have to enforce standardization on control
-        names: freq, dyn, ...?  im uses: dyn, vol, pan, pitch
     play sc:
       . save/test/sc/sine
       * pitch is missing or wrong
@@ -7230,7 +7235,24 @@ Perform:
     - Is there really no way to send segments and let scserver interpolate?
     * Convert should trim the signals
     - thru equivalent for OSC
-    - implement repeat_at
+    * implement repeat_at
+      . Once again the NodeId problem, I can't reuse them.
+      . Once again could be solved in there was a global /noid, just noid
+        everything and now I can repeat.
+      . Tried replacing OSC with NodeId -> OSC, but it's the same as trying to
+        replace later, too late after OSCBundle.
+      . Have to repeat at Note level, but I can't add shift then.  So maybe
+        Notes should have an offset.
+      . This is like the old idea with Score.Event, to delay shift for fusion.
+      . However, this creates a new problem, which is that it's harder to trim
+        at the Note level, I have to clip signals and insert a gate off.
+    make noid work on groups:
+      . This seems to be not hard to add to scserver though, I wonder if they
+        would accept a patch?
+      . But, even if they did, now people have to install latest sc.
+      * add feature to scserver
+      - compile and test it
+      - send a patch upstream
     * what about synchronizing sc with MIDI?
     * rename PlayMidiArgs
     * rename Instrument.InstTypes to InstT
@@ -7242,41 +7264,42 @@ Perform:
       MIDI too?
     / sc instruments don't have attrs, should they? nah.
 
-  - Overlapping notes with different ControlSwitch cc numbers should share
-    a channel.  Of course it'll work anyway if only one channel is
-    allocated.
-    . Currently they definitely won't, because the performer assumes that
-      all controls affect the sound, and so you can't share with any control.
-  - Pick the best channel instead of the first one.
-    . An event can share a channel if it has different controls but the events
-      don't overlap.  This is required so that a sequence of notes that each
-      set a different control will go on the same channel.  But since it always
-      picks the first usable channel, you can have controls trade channels,
-      depending on how the coincident events are sorted:
-        [(0, 1, c1), (0, 1, c2), (1, 1, c2), (1, 1, c1)]
-      This should put the c1s together, but they will trade channels if they
-      come in that order.
-    . I think to fix this I'd have to have can_share_chan return
-      Left fail_reason or Right priority, and pick the highest priority.
-      It would have to give a lower priority to events that could share, but
-      have incompatible controls just out of the event range.
-    . let f = Perform.shareable_chan
-      let mkevent start controls pitch =
-              Perform.Event inst1 start 0.33 controls
-                  (Signal.signal [(0, pitch)]) DeriveTest.fake_stack
-      let pedal = Map.fromList [("pedal", Signal.signal [(0, 1), (6, 0)])]
-      pprint (f [(mkevent 3.33 pedal 45, 0)] (mkevent 3.66 mempty 72))
+  midi:
+    - Overlapping notes with different ControlSwitch cc numbers should share
+      a channel.  Of course it'll work anyway if only one channel is
+      allocated.
+      . Currently they definitely won't, because the performer assumes that
+        all controls affect the sound, and so you can't share with any control.
+    - Pick the best channel instead of the first one.
+      . An event can share a channel if it has different controls but the events
+        don't overlap.  This is required so that a sequence of notes that each
+        set a different control will go on the same channel.  But since it
+        always picks the first usable channel, you can have controls trade
+        channels, depending on how the coincident events are sorted:
+          [(0, 1, c1), (0, 1, c2), (1, 1, c2), (1, 1, c1)]
+        This should put the c1s together, but they will trade channels if they
+        come in that order.
+      . I think to fix this I'd have to have can_share_chan return
+        Left fail_reason or Right priority, and pick the highest priority.
+        It would have to give a lower priority to events that could share, but
+        have incompatible controls just out of the event range.
+      . let f = Perform.shareable_chan
+        let mkevent start controls pitch =
+                Perform.Event inst1 start 0.33 controls
+                    (Signal.signal [(0, pitch)]) DeriveTest.fake_stack
+        let pedal = Map.fromList [("pedal", Signal.signal [(0, 1), (6, 0)])]
+        pprint (f [(mkevent 3.33 pedal 45, 0)] (mkevent 3.66 mempty 72))
 
-  - I can work around the pianoteq tuning bug by not stripping redundant
-    conrol changes.  This also means that recorded MIDI can be played from any
-    point.  If bandwidth isn't a concern then why not?
-  - damper pedal causes all notes to extend until the pedal comes up, should
-    the performer know about that?  Is there anything that this breaks?
-    I don't think so, it affects channel allotment so notes could be
-    improperly joined, but mixing pedal and multiplexing seems rare enough.
-  - Perform.Midi.Perform: should be possible to lead keyswitches as long as
-    they don't precede the previous NoteOn, since I think samplers will only
-    switch on the next NoteOn
+    - I can work around the pianoteq tuning bug by not stripping redundant
+      conrol changes.  This also means that recorded MIDI can be played from any
+      point.  If bandwidth isn't a concern then why not?
+    - damper pedal causes all notes to extend until the pedal comes up, should
+      the performer know about that?  Is there anything that this breaks?
+      I don't think so, it affects channel allotment so notes could be
+      improperly joined, but mixing pedal and multiplexing seems rare enough.
+    - Perform.Midi.Perform: should be possible to lead keyswitches as long as
+      they don't precede the previous NoteOn, since I think samplers will only
+      switch on the next NoteOn
 
 Util.Format:
   fix incorrect wrapping:
