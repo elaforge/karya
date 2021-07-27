@@ -7,6 +7,7 @@ module Derive.TScore.TScoreMain where
 import qualified Control.Concurrent.Async as Async
 import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Concurrent.MVar as MVar
+import qualified Control.Exception as Exception
 import qualified Control.Monad.Except as Except
 
 import qualified Data.Map as Map
@@ -202,47 +203,41 @@ play_score mb_device fname = initialize_audio $ initialize_midi $
     let (events, logs) = derive ui_state cmd_state block_id
     mapM_ Log.write logs
 
-    play_ctl <- Transport.play_control
     let start = 0 -- TODO from cmdline
 
     let score_path = fname
     (procs, events) <- perform_im score_path cmd_state ui_state events block_id
-    wait_for_im <- if null procs
-        then return $ return ()
-        else do
-            putStrLn $ "\nim render:"
-            forM_ procs $ \(cmd, args) ->
-                putStrLn $ unwords $ "%" : cmd : args
-            ready <- MVar.newEmptyMVar
-            rendering <- Async.async $ do
-                ok <- Performance.wait_for_subprocesses
-                    (MVar.putMVar ready ()) (Set.fromList procs)
-                unless ok $ Log.warn "background render had a problem"
-            putStrLn "wait for ready"
-            MVar.takeMVar ready
-            let Transport.PlayControl quit = play_ctl
-            let muted = mempty
-            playing <- Async.async $
-                StreamAudio.play quit score_path block_id muted start
-            return $ Async.wait playing >> Async.wait rendering
+    play_ctl <- Transport.play_control
+    players <- Transport.active_players
+    unless (null procs) $ do
+        putStrLn $ "\nim render:"
+        forM_ procs $ \(cmd, args) ->
+            putStrLn $ unwords $ "%" : cmd : args
+        ready <- MVar.newEmptyMVar
+        rendering <- Async.async $ do
+            ok <- Performance.wait_for_subprocesses
+                (MVar.putMVar ready ()) (Set.fromList procs)
+            unless ok $ Log.warn "background render had a problem"
+        putStrLn "wait for ready"
+        MVar.takeMVar ready
+        let Transport.PlayControl quit = play_ctl
+        let muted = mempty
+        Transport.player_started players
+        Async.async $ StreamAudio.play quit score_path block_id muted start
+            `Exception.finally` Transport.player_stopped players
+        return ()
 
     -- TODO since I have to wait for im, I may have to bump MIDI forward.
     -- Of course they won't be very in sync anyway...
-    wait_for_midi <- if Vector.null events
-        then return $ return ()
-        else do
-            players <- Transport.active_players
-            play_midi play_ctl players midi_interface cmd_state ui_state
-                events
-            return $ Transport.wait_player_stopped players
+    unless (Vector.null events) $
+        play_midi play_ctl players midi_interface cmd_state ui_state events
 
     Async.async $ do
         putStrLn "press return to stop player"
         _ <- IO.getLine
         Transport.stop_player play_ctl
-    putStrLn "waiting for player to complete..."
-    wait_for_im
-    wait_for_midi
+    putStrLn "waiting for players to complete..."
+    Transport.wait_player_stopped players
     putStrLn "done"
 
 data Flag = Check | Dump | List | Device String
@@ -320,7 +315,6 @@ play_midi play_ctl players midi_interface cmd_state ui_state events = do
     wdevs <- Interface.write_devices midi_interface
     mapM_ (Interface.connect_write_device midi_interface) (map fst wdevs)
     let midi = DeriveSaved.perform_midi cmd_state ui_state events
-
     mvar <- MVar.newMVar ui_state
     let midi_state = Midi.Play.State
             { _play_control = play_ctl
