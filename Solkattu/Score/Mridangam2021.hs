@@ -135,7 +135,9 @@ e_gumiki = date 2021 6 6 $ ganesh $ exercise $ korvaiS adi
     , sd $ r4 nddn & r5 "óo"
     , sd $ r4 nddn & r5 "oó"
     , rh & sd "óooooooo" . rh & o'
-    , o.d._'&y.n.o.k.od.y . "jynyjydy" & sd "oooo" . rh & o'
+    , o.d._'&y.n.o.k.od.y . "^,n,^,d," & sd "oooo" . rh & o'
+    ,   o.d._'&y.n.o.k.od.y . "^,n,nnd," & "o_o_ooo_"
+      . o.d._'&y.n.p.k.d .y . "^,n,nnd,"
     ]
     where
     rh = "_,n,^,d, ^,n,^,d,"
