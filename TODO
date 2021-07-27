@@ -1953,18 +1953,6 @@ instruments:
 synth: im:
   StreamAudio directly to remove DAW + VST requirement
     . I could do automatically if there's no play-cache instrument.
-    * via coreaudio
-    * via jack
-    . Is there a cross-platform play audio package on hackage?
-    . https://hackage.haskell.org/package/bindings-portaudio
-    . Or, write to JACK, though that requires having JACK setup...
-    * What happens when it's still playing the tail and I play something else?
-      Does it open simultaneous streams?
-      . Yes, it doesn't close.
-      . Space sends a post-stop stop to play_cache, right?  Can that also send
-        to direct play?
-      . What happens to transport_ctl?  It gets forgotten on Transport.Stop.
-      . I could save it and set to stopped, but seems safer to have a global.
     ? Does the blocking API write enough in advance that I don't have to
       worry about mixing a lot of tracks?
   performance:
@@ -5450,63 +5438,6 @@ REPL: repl:
     could also get rid of the need for Cmd.Lang.Environ to import everything.
 
 solkattu:
-  * instance IsString Sequence for strS and strM
-    . Sequence has to become a newtype I think, to avoid overlap with [].
-  * korvai type:
-    . The mapping from sollu to stroke, or stroke to stroke for each
-      instrument is unsatisfactory.
-    . To add a new instrument:
-      1. KorvaiType gets a new constructor.
-        | TMridangam [Section (SequenceT (Realize.Stroke Mridangam.Stroke))]
-      2. StrokeMaps gets a new field.
-        smapMridangam :: Either Error (Realize.StrokeMap Mridangam.Stroke)
-      3. Instrument gets a new isInstN field.
-        instFromMridangam ::
-            Maybe (Realize.ToStrokes (Realize.Stroke Mridangam.Stroke) stroke)
-      4. Add a new Instrument.
-        instFromMridangam = Just Realize.realizeStroke
-      5. Add a new case to realize.
-        Right smap -> case korvaiSections korvai of
-            TMridangam sections -> case instFromMridangam instrument of
-                Nothing -> [Left "no sequence, wrong instrument type"]
-                Just toStrokes -> map (realize1 smap toStrokes) sections
-    example:
-      data Korvai sollu = Korvai { korvaiSections :: [Note sollu] }
-      data Instrument stroke = Instrument { ... }
-      realize :: Instrument stroke -> Korvai sollu -> [Realize.Note stroke]
-      realize inst korvai
-        | sollu ~ Sollu = realizeSollu inst korvai
-        | stroke ~ sollu = realizeInst inst korvai
-        | otherwise = error
-      realizeSollu :: Instrument stroke -> Korvai Sollu -> [Realize.Note stroke]
-      realizeInst :: Instrument stroke -> Korvai stroke -> [Realize.Note stroke]
-    . I can't assert that the sollu inside Korvai is the same as the one in
-      Instrument.
-    Constraints:
-      . Korvai has to be monomorphic to put in Db, which is [Score].
-      . I need a StrokeMaps with polymorphic `Map stroke (StrokeMap stroke)`
-        for each Instrument, except Konnakol.
-      . Korvai has a single Instrument, but:
-        . Korvai Sollu can realize to any stroke.
-        . Korvai stroke can realize to stroke.
-      . realize :: Instrument stroke -> Korvai -> Either Error (Realized stroke)
-    . Maybe I can use GADTs to get an equality witness for sollu:
-      https://lexi-lambda.github.io/blog/2021/03/25/an-introduction-to-typeclass-metaprogramming/
-    * Figure out Realize.Stroke
-      . could make: IMridangam :: InstrumentType Mridangam.Stroke
-      . But then doesn't match:
-        strokeMap :: InstrumentType stroke -> StrokeMaps -> StrokeMap stroke
-      . The problem is that stroke maps don't have Realize.Stroke... but why
-        not?
-      . It does, but is baked in:
-        newtype SolluMap stroke =
-            SolluMap (Map (SolluMapKey Solkattu.Sollu) [Maybe (Stroke stroke)])
-      . I could just pass stroke through.
-  * don't render hv as capital, it is ambiguous with both thoppi
-    use a color, that way it's still greppable
-    . It's instance Notation in Realize, which already wants to do this, but
-      then I need to return colors from notation.  But if I do, could
-      I eliminate notationHtml?
   notation conveniences:
     / mark karvai groups automatically?  I don't have to highlight it.
       . If I'm not going to highlight, why bother?
@@ -5514,23 +5445,6 @@ solkattu:
       . Find existing uses and delete group, or ensure group make sense.
       . Only apply group if it's not already a group (or pattern or whatever).
       . Should repeat also group?
-  * can I do something like Dsl.Mridangam but for kendang?
-    . I want both KendangTunggal and KendangPasang
-    . Mridangam is hardcoded in Korvai, can I make Korvai polymorphic?
-      . Korvai Sollu -> can be realized as any instrument
-      . Korvai stroke -> can be realized as Instrument stroke.
-      . This requires type equality in realize:
-        realize :: Instrument stroke -> Korvai sollu -> [Note stroke]
-        realize instrument korvai
-          | sollu ~ Sollu = realizeSollu instrument korvai
-          | stroke ~ sollu = realizeInstrument instrument korvai
-          | otherwise = error
-        realizeSollu :: Instrument stroke -> Korvai Sollu -> [Note stroke]
-        realizeInstrument :: Instrument stroke -> Korvai stroke -> [Note stroke]
-      . Since types are otherwise erased, I have to have a runtime type.
-        It's ok to have a sum type with all the instruments.
-      . I want KorvaiType and instFromWhatever to be the same sum type.
-      . The problem boils down to: See Korvai5
   - replace is useful to express variations
     . e.g. Mridangam2019.c_19_06_24_a
     . This can perhaps solve "reduction with irregular bits" and
@@ -5587,15 +5501,11 @@ solkattu:
         . This means that everything that deals with Korvai now has to deal
           with the other constructor.  The other approach didn't because there
           were already multiple sections.
-      * What about multiple constructors for Korvai?
-        . Then all the Korvai functions have to handle Tani too.
-        . Or maybe just have extract_korvais wrap up in Tani if necessary?
       . I still want name and location for tani parts.  Ultimately I can't get
         this though because it's an expression, not even guaranteed to have
         a toplevel Korvai.  I'd have to replace with an address, or search for
         matching Korvai.Single in the same module.
       . At least put in date as the max of the Part dates.
-      * restore the index for tanis
     - remember what I did last time, and do spaced repetition
       . This isn't memorization, just randomization with coverage.  So it's
         enough to pick random but twice as likely to pick with score one
@@ -5662,14 +5572,7 @@ solkattu:
       . This may require SequenceT to be a newtype instead of type synonym.
   format: output:
     html:
-      * Solkattu.Score.Mridangam2020.sarva_tani messed up
-        . Probably due to the 15 nadai one.
-        . Maybe I don't want all tables independent, only the ones with
-          different nadai.
-        . Solkattu.Score.Solkattu2018.misra_tani also poorly formatted, why
-          doesn't it take up horizontal space?
       - link to source
-      * index.html: sort by date, source
       - Offset rests make empty cells like <td><b> </b></td><td colspan=7> </td>
         . It looks fine but seems messy.
       - color abstracted groups too
@@ -5933,13 +5836,6 @@ Cmd:
       tightly
     - LRuler.inject, opposite of extract, replaces sub-block rulers
   Cmd.Edit:
-    * Move-up and move-down with merged tracks should be consistent.
-      . E.g. it's confusing when move-up doesn't move the note, but does move
-        the merged pitch or dyn.
-      . Move by the minimum distance, not move all at once.
-    * Would it be useful if move_event_forward and backward would move only
-      selected events, for a non-point selection?
-      . Similar to move events limit:
     - move events limit:
       . Can I have ^j and ^k only move events up to a limit?  How do I set the
         limit?
@@ -6580,12 +6476,7 @@ text score: tscore:
     . But also I need a ky file, and instrument definitions.
       . Maybe nix-style '' strings for embedded ky?
     . But I can dispense with integration.
-    * parse and check ky and instrument
-      - check that they don't exist for integrate
-    * derive to Performance
-      . Incorporate instruments and ky.
-    * play MIDI
-    * stream im audio
+    - check that %ky and %instrument not set for integrate
     - get MIDI and audio a bit better synchronized
       . Is there a way to actually synchronize, other than play_cache?
     - Transport.PlayMonitorControl can only monitor one thing, which is MIDI.
@@ -6602,7 +6493,6 @@ text score: tscore:
       - get parse parse ky and inst allocs in parse_score
         . Actually it has to be in track_blocks, after parse_blocks
       * implement mini_derive
-    * have a parse-only mode with no midi/audio or Local.Config.load
     - Trigger --check automatically on save, or via 'entr' like ghcid.
     - skip MIDI initialization for im-only
     - also skip audio initialization for midi-only
@@ -7196,125 +7086,7 @@ Perform:
           SynthIds?
         . In general I'm going to have to enforce standardization on control
           names: freq, dyn, ...?  im uses: dyn, vol, pan, pitch
-    * Perform.Sc.Convert
-      . Produce [Sc.Note]
-    * plug Sc.Play.play into Cmd.Play
-      . Check if there are Sc instruments, if so PlayUtil.perform_sc takes
-        [Score.Event] -> [(RealTime, OSC)]
-      . Maybe move filter_track_muted and filter_instrument_muted up to the
-        top level, and events_from.
-      . OSC conversion moves from Play to Convert, though I guess I want the
-        intermediate [Note] available for debugging.
-    * add instrument backend plumbing
-    * load SC PatchDb if directory is given
-    play sc:
-      . save/test/sc/sine
-      * pitch is missing or wrong
-      * LPerf support for sc
-      * play marker stops immediately
-        . Probably can be fixed with MonitorCtl becomes a semaphore.
-      * play at not right, have to move bundles back.
-      * stop is not hooked up
-        * But won't cut off sounding notes, since they include duration.
-        . Maybe this strategy isn't that great.
-    * If I didn't encode duration in the OSC?
-      . I'd need to use a gate control, which would then have a doneAction on
-        the end.  So still don't have to do explicit frees, but I can track
-        ringing notes and send gate=0 on stop, and I can find the end by
-        looking for gate=0 msgs.
-      . But this is more consistent with how people will do real instruments,
-        and can be hooked up to MIDI and played in realtime.
-      * When playing from 0, ends on pitch bend.
-        . Becaues I need to take the end of the gate, there are no NoteOffs.
-        . I guess I can keep a max in the loop.
-      * When playing from >0, bend gets messed up.
-        . Perhaps due to OSC out of order due to buggy merging.
-    * do a /noid for allocated synth IDs.  There's no "/noid all" so I have to
-      remember all synth IDs.  I don't know which ones are still allocated
-      though, since decay time is unknown.
-      . What if I send to default_group though?
-      . Doesn't work.  I can't /noid because I can't tell how many IDs in the
-        past to do it for.
-      . Unless I do it as soon as I send gate off!
-      . That won't work if I want to send controls after note off, but I can
-        do it after the last control.
-      . This adds the cost of an additional OSC per note though.
-      . This is no good though, because I want the /noid on *cancel*, not
-      . The imperative way of incrementing IDs and wrapping doesn't.  But,
-        that way requires some annoying plumbing of IDs into play_thread, and
-        a global variable to put them in.
-      . This is stupidly complicated.  Actually it's only a problem for the
-        first notes, if quickly played again.  So I could actually just /noid
-        the first few NodeIds, except the detail where I don't know the decay.
-      . Alternately make s_new without NodeId and use a "get with increment"
-        to fill it in on demand.
-      . That doesn't work because these are multiplexed.  So the get needs to
-        be in note_to_osc, which makes it in IO.  I could do it with streams,
-        or even unsafePerformIO.
-      . What an awkward design!  Why does sc not support /noid on a group?  Or
-        /noid on everything?
-      . How about make ID a hash of the input?  notes/2147483648 chance to
-        collide.
-
-    * load patches on startup
-      . I don't want to load them all, only the ones in this score.
-      . And unload the rest.
-      . For that I need the initialize step like with some MIDI, but I don't
-        think I have it hooked up to run automatically?
-    * tool to normalize scsyndefs: write each one with a name with its
-      filename, disallow multiple defs in a file.
-    * MonitorCtl becomes a semaphore, since there are multiple players now
-      . Except players stop before notes are out, due to scheduling in
-        advance.  Does MIDI do that?  No, why not?  That's what the 'timeout'
-        thing does.  But neither MIDI nor SC can know about the decay of the
-        sound, though I guess except the force off, there's no more control.
-      . So I can do the same with sc.  Except not quite, because I encode
-        the duration into the msg.  Can I get it back out?
-      . Alternately, isn't this complicated?  How about remove MonitorControl
-        entirely and keep playing until I'm out of score?  I guess it's not
-        correct because there could be generated notes past the end.
-      . But in that case, why not go until end of last Score.Event?
-      . Actually I already have something like this, with out_of_score, why
-        didn't I use that only?
-      * im direct play should also work now, test it out.
-
-      New transport plan:
-        . Each player monitors Transport.poll_stop_player, which explicit stop
-          will set.
-        . Monitor plays until out of score, or poll_stop_player.
-        . The threads will remain running as long as there is something they
-          can cancel, like scheduled msgs or playing decay, because they are
-          the only ones who know how to do that.
-        . So there must be a separate thread waiting for all players to stop,
-          which coordinates the Transport.Start -> Transport.Stop transition.
-          Until then, Cmd.state_play_control is still set, so space can still
-          tell them to stop, and the playing LED is still on.
-        . im via midi is complicated, because it's effectively all in the MIDI
-          decay, there's no NoteOff.  I used an explicit im_off for that.
-          Since this is happening in response to a MIDI msg, we can have the
-          MIDI thread delay, even though there's nothing to cancel.
-          Otherwise?
-        . im_end is in time relative to play start.  Monitor gets it by
-          subtracting offset.  This works because start time is baked into the
-          inv_tempo_map.
-    * move Transport.Died out of Midi.Play
-      . What was it for?
     - Is there really no way to send segments and let scserver interpolate?
-    * Convert should trim the signals
-    * thru equivalent for OSC
-      . Maybe take the opportunity to do that thru refactor?
-      . Turns out not so necessary.
-    * implement repeat_at
-      . Once again the NodeId problem, I can't reuse them.
-      . Once again could be solved in there was a global /noid, just noid
-        everything and now I can repeat.
-      . Tried replacing OSC with NodeId -> OSC, but it's the same as trying to
-        replace later, too late after OSCBundle.
-      . Have to repeat at Note level, but I can't add shift then.  So maybe
-        Notes should have an offset.
-      . This is like the old idea with Score.Event, to delay shift for fusion.
-      . However, this creates a new problem, which is that it's harder to trim
-        at the Note level, I have to clip signals and insert a gate off.
     make noid work on groups:
       . This seems to be not hard to add to scserver though, I wonder if they
         would accept a patch?
@@ -7322,16 +7094,9 @@ Perform:
       * add feature to scserver
       - compile and test it
       - send a patch upstream
-    * what about synchronizing sc with MIDI?
-    * rename PlayMidiArgs
-    * rename Instrument.InstTypes to InstT
-    * move Transport.Died out of midi play, it should just log
-    * make Network.withConnection return the bare socket, to avoid handle
-      overhead.  Add Network.withHandle.
     - I still feel I should move osc perform into convert, and remove the
       MSignal intermediate step.  And if that's possible, why not do it for
       MIDI too?
-    / sc instruments don't have attrs, should they? nah.
 
   midi:
     - Overlapping notes with different ControlSwitch cc numbers should share
@@ -7467,48 +7232,7 @@ linux:
     ? All faust or just tambura?
     ? Faust version?  nix is 2.19.7, mac is 2.5.34
     ? gcc/clang?
-  * mix_vectors:
-      . compile error: seq: panic! (the 'impossible' happened)
-        (GHC version 8.10.3:
-        Loading temp shared object failed:
-        /run/user/1000/ghc4892_0/libghc_74.so: undefined symbol: mix_vectors
-    . GhcRepl never loaded vector.cc.o, why is this not a problem on OS X?
-    . I can force it to happen on OSX by directly referencing VectorC.mixFloats
-      and it crashes the whole app:
-      dyld: lazy symbol binding failed: Symbol not found: _mix_vectors
-            Referenced from: /var/folders/9p/../T/ghc30634_0/libghc_74.dylib
-            Expected in: flat namespace
-    . Why does ReplGhc want to import that anyway?
-      VectorC -> Util.Audio.Audio -> Synth.Lib.AUtil -> Cmd.Play
-      . But it uses only AUtil.toSeconds -> Audio.framesToSeconds
-      . This could conceivably be put into Util.Audio.AudioT
-    . Ok so there is a legit link, maybe OS X loads the .o files lazily.
-    . Why then can ghci load .o but ghc API can't?
-    . Two ways to fix: don't import AUtil in Cmd, or figure out how
-      ghci loads .o files and reproduce it in ghc API.
-    . Let's try 1 first, fewer imports in the REPL is good in general.
-    . How to find module imports?
-      I can modify and see what shake reubilds
-      But can't I directly ask shake?
   jack: JACK:
-    * jack2 is broken:
-      . jack2-1.9.12
-      . Cannot read socket fd = 25 err = No such file or directory
-        CheckRes error
-        Could not read result type = 22
-        Client name = seq conflits with another running client
-        Cannot connect to the server
-        JackShmReadWritePtr1::~JackShmReadWritePtr1 - Init not done for -1,
-        skipping unlock
-        JackShmReadWritePtr::~JackShmReadWritePtr - Init not done for -1,
-        skipping unlock
-        JackShmReadWritePtr::~JackShmReadWritePtr - Init not done for -1,
-        skipping unlock
-        seq: App/Main.hs:85: initializing midi: communication error with JACK
-        server
-      . Maybe just nixpkgs jack is broken:
-        https://discourse.nixos.org/t/state-of-jackd-in-nixos/6007/10
-      . Turned out it was just a version mismatch.
     bugs
       - something is still wrong, I get "no space in output port" and then
         corrupted output
