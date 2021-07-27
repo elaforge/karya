@@ -229,7 +229,7 @@ p_allocation = T.Allocation
     <*> p_backend
 
 p_backend :: Parser T.Backend
-p_backend = (P.eof *> pure T.Im)
+p_backend = (P.eof *> pure T.ImSc)
     <|> p_midi <$> lexeme (Midi.write_device <$> p_word)
         <*> P.some (lexeme p_chan)
     where

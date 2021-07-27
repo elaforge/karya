@@ -41,6 +41,7 @@ import qualified Derive.Stream as Stream
 import qualified Local.Config
 import qualified Midi.Midi as Midi
 import qualified Midi.StubMidi as StubMidi
+import qualified Perform.Sc.Note as Sc.Note
 import qualified Synth.Shared.Config as Shared.Config
 import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
@@ -139,6 +140,15 @@ run_cmd ui_state cmd_state cmd = case result of
         Nothing -> Left "cmd had no result"
         Just val -> Right (val, logs)
     where (_, _, logs, result) = Cmd.run_id ui_state cmd_state cmd
+
+perform :: Cmd.State -> Ui.State -> Vector.Vector Score.Event
+    -> ( ([LEvent.LEvent Midi.WriteMessage], [LEvent.LEvent Sc.Note.Note])
+       , [Log.Msg]
+       )
+perform cmd_state ui_state =
+    extract . run_cmd ui_state cmd_state . PlayUtil.perform_from 0
+    where
+    extract = either (\err -> (([], []), [Log.msg Log.Error Nothing err])) id
 
 perform_midi :: Cmd.State -> Ui.State -> Vector.Vector Score.Event
     -> [LEvent.LEvent Midi.WriteMessage]

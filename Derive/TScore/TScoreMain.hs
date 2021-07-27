@@ -29,6 +29,7 @@ import qualified Util.Maps as Maps
 import qualified Util.Pretty as Pretty
 import qualified Util.Processes as Processes
 import qualified Util.Seq as Seq
+import qualified Util.Thread as Thread
 
 import qualified App.Config as App.Config
 import qualified App.Path as Path
@@ -48,6 +49,7 @@ import qualified Derive.TScore.T as T
 import qualified Derive.TScore.TScore as TScore
 
 import qualified Instrument.Inst as Inst
+import qualified Instrument.InstT as InstT
 import qualified Local.Config
 import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
@@ -56,6 +58,8 @@ import qualified Midi.MidiDriver as MidiDriver
 import qualified Perform.Im.Convert as Im.Convert
 import qualified Perform.Midi.Patch as Midi.Patch
 import qualified Perform.Midi.Play as Midi.Play
+import qualified Perform.Sc.Note as Sc.Note
+import qualified Perform.Sc.Play as Sc.Play
 import qualified Perform.Transport as Transport
 
 import qualified Synth.Shared.Config as Shared.Config
@@ -159,7 +163,15 @@ dump_score fname = do
     mapM_ (Text.IO.putStrLn . Score.short_event) events
 
     events <- dump_im ui_state cmd_state block_id events
-    dump_midi ui_state cmd_state events
+    let ((midi_msgs, sc_msgs), logs) =
+            DeriveSaved.perform cmd_state ui_state events
+    mapM_ Log.write logs
+    unless (null midi_msgs) $ do
+        putStrLn "\n\tmidi msgs:"
+        mapM_ Pretty.pprint midi_msgs
+    unless (null sc_msgs) $ do
+        putStrLn "\n\tsc msgs:"
+        mapM_ Pretty.pprint sc_msgs
 
 dump_im :: Ui.State -> Cmd.State -> BlockId -> Vector.Vector Score.Event
     -> IO (Vector.Vector Score.Event)
@@ -167,10 +179,10 @@ dump_im ui_state cmd_state block_id events = do
     unless (null im_notes && null logs) $ do
         putStrLn "\n\tim events:"
         mapM_ Log.write logs
-        mapM_ (Text.IO.putStrLn . Pretty.formatted) im_notes
-    return midi_events
+        mapM_ Pretty.pprint im_notes
+    return rest_events
     where
-    (im_events, midi_events) = Vector.partition is_im_event events
+    (im_events, rest_events) = Vector.partition is_im_event events
     (im_notes, logs) = LEvent.partition $
         Im.Convert.convert block_id lookup_inst $ Vector.toList im_events
     is_im_event =
@@ -180,16 +192,6 @@ dump_im ui_state cmd_state block_id events = do
     is_im _ = False
     lookup_inst = either (const Nothing) Just
         . Cmd.state_lookup_instrument ui_state cmd_state
-
-dump_midi :: Ui.State -> Cmd.State -> Vector.Vector Score.Event -> IO ()
-dump_midi ui_state cmd_state events =
-    unless (null midi && null logs) $ do
-        putStrLn "\n\tmidi msgs:"
-        mapM_ Log.write logs
-        mapM_ Pretty.pprint midi
-    where
-    (midi, logs) = LEvent.partition $
-            DeriveSaved.perform_midi cmd_state ui_state events
 
 play_score :: Maybe String -> FilePath -> IO ()
 play_score mb_device fname = initialize_audio $ initialize_midi $
@@ -214,7 +216,7 @@ play_score mb_device fname = initialize_audio $ initialize_midi $
         forM_ procs $ \(cmd, args) ->
             putStrLn $ unwords $ "%" : cmd : args
         ready <- MVar.newEmptyMVar
-        rendering <- Async.async $ do
+        Async.async $ do
             ok <- Performance.wait_for_subprocesses
                 (MVar.putMVar ready ()) (Set.fromList procs)
             unless ok $ Log.warn "background render had a problem"
@@ -227,10 +229,18 @@ play_score mb_device fname = initialize_audio $ initialize_midi $
             `Exception.finally` Transport.player_stopped players
         return ()
 
+    let ((midi_msgs, sc_msgs), logs) =
+            DeriveSaved.perform cmd_state ui_state events
+    mapM_ Log.write logs
+    unless (null sc_msgs) $ Sc.Play.play
+        (Sc.Play.State { _play_control = play_ctl, _players = players })
+        (Sc.Note.PlayNotes { shift = 0, stretch = 1, notes = sc_msgs })
+        Nothing
+
     -- TODO since I have to wait for im, I may have to bump MIDI forward.
     -- Of course they won't be very in sync anyway...
-    unless (Vector.null events) $
-        play_midi play_ctl players midi_interface cmd_state ui_state events
+    unless (null midi_msgs) $
+        play_midi play_ctl players midi_interface cmd_state ui_state midi_msgs
 
     Async.async $ do
         putStrLn "press return to stop player"
@@ -238,6 +248,7 @@ play_score mb_device fname = initialize_audio $ initialize_midi $
         Transport.stop_player play_ctl
     putStrLn "waiting for players to complete..."
     Transport.wait_player_stopped players
+    Thread.delay 0.1 -- let threads print final logs before exiting
     putStrLn "done"
 
 data Flag = Check | Dump | List | Device String
@@ -310,20 +321,19 @@ watch_subprocesses ready all_procs =
 
 play_midi :: Transport.PlayControl -> Transport.ActivePlayers
     -> Interface.Interface -> Cmd.State -> Ui.State
-    -> Vector.Vector Score.Event -> IO ()
-play_midi play_ctl players midi_interface cmd_state ui_state events = do
+    -> [LEvent.LEvent Midi.WriteMessage] -> IO ()
+play_midi play_ctl players midi_interface cmd_state ui_state midi_msgs = do
     wdevs <- Interface.write_devices midi_interface
     mapM_ (Interface.connect_write_device midi_interface) (map fst wdevs)
-    let midi = DeriveSaved.perform_midi cmd_state ui_state events
     mvar <- MVar.newMVar ui_state
-    let midi_state = Midi.Play.State
-            { _play_control = play_ctl
-            , _players = players
-            , _info = transport_info mvar
-            , _im_end = Nothing
-            }
-    Midi.Play.play midi_state Nothing "tscore" midi Nothing
+    Midi.Play.play (midi_state mvar) Nothing "tscore" midi_msgs Nothing
     where
+    midi_state mvar = Midi.Play.State
+        { _play_control = play_ctl
+        , _players = players
+        , _info = transport_info mvar
+        , _im_end = Nothing
+        }
     transport_info mvar = Transport.Info
         { info_send_status = \status -> print status -- TODO
         , info_midi_writer = Cmd.state_midi_writer cmd_state
@@ -407,7 +417,9 @@ convert_allocation :: T.Allocation -> (ScoreT.Instrument, UiConfig.Allocation)
 convert_allocation (T.Allocation inst qual backend) =
     ( ScoreT.Instrument inst
     , UiConfig.allocation qual $ case backend of
-        T.Im -> UiConfig.Im
+        T.ImSc
+            | InstT.synth qual == "sc" -> UiConfig.Sc
+            | otherwise -> UiConfig.Im
         T.Midi chans -> UiConfig.Midi $
             Midi.Patch.config (map (, Nothing) chans)
     )

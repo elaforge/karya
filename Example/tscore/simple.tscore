@@ -4,12 +4,14 @@
 ''
 %ky=''
     note transformer:
-    GLOBAL = scale = twelve-r | key=c-min | %dyn=.75
+    GLOBAL = scale = twelve-r | key=c-min
+    >tmb = element=0
+    >pno = %dyn=.4
 ''
 
 %scale=sargam
 
 score = [
-    >tmb 4s4 r g m | p
-    >pno 3s2   r   | p4 m p g | r g n2
+    >tmb 4s1   | p   | ,s  |
+    >pno 3s2 m | p d | n s | p
 ]

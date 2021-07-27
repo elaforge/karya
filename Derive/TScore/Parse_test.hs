@@ -361,7 +361,7 @@ test_parse_allocation :: Test
 test_parse_allocation = do
     let f = Parse.parse_allocation
     right_equal (f ">i syn/p") $
-        T.Allocation "i" (InstT.Qualified "syn" "p") T.Im
+        T.Allocation "i" (InstT.Qualified "syn" "p") T.ImSc
     let loop1 = Midi.write_device "loop1"
     right_equal (f ">i syn/ loop1 1 2") $
         T.Allocation "i" (InstT.Qualified "syn" "") $

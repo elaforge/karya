@@ -77,7 +77,7 @@ data Allocation = Allocation Instrument InstT.Qualified Backend
 
 -- | This is ScoreT.Instrument, but I don't want to import ScoreT here.
 type Instrument = Text
-data Backend = Midi [(Midi.WriteDevice, Midi.Channel)] | Im
+data Backend = Midi [(Midi.WriteDevice, Midi.Channel)] | ImSc
     deriving (Eq, Show)
 
 data Token call pitch ndur rdur =

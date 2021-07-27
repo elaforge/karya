@@ -1,0 +1,13 @@
+%instruments=''
+    >pno pianoteq/ loop1 1
+''
+%ky=''
+    note transformer:
+    GLOBAL = scale = twelve-r | key=c-min | %dyn=.75
+''
+
+%scale=sargam
+
+score = [
+    >pno 3s2   r   | p4 m p g | r g n2
+]

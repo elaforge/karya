@@ -1,0 +1,15 @@
+-- supercollider
+%ky=''
+    note transformer:
+    GLOBAL = scale=raga | key = hemavati
+''
+
+%instruments=''
+    >sine sc/sinegate
+''
+
+%scale=sargam
+
+score = [
+    >sine 4s4 r g m p d n s | n d p m | g r s n | s1
+]
