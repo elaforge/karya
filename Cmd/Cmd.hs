@@ -46,6 +46,7 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
+import qualified Vivid.OSC as OSC
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 
@@ -468,6 +469,7 @@ data Thru =
     -- 'midi' for normal midi thru.
     MidiThru !Midi.Interface.Message
     | ImThru !Thru.Message
+    | OscThru ![OSC.OSC]
     deriving (Show)
 
 midi_thru :: Midi.WriteDevice -> Midi.Message -> Thru
@@ -476,6 +478,9 @@ midi_thru dev msg =
 
 midi :: M m => Midi.WriteDevice -> Midi.Message -> m ()
 midi dev msg = write_thru $ midi_thru dev msg
+
+osc :: M m => [OSC.OSC] -> m ()
+osc = write_thru . OscThru
 
 -- | For some reason, newtype deriving doesn't work on MonadTrans.
 instance Trans.MonadTrans CmdT where

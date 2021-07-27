@@ -737,6 +737,9 @@ IN PROGRESS / branch: branches:
     . Or I could have defaults be either a Typecheck val, or
       (Doc, Typecheck val), and then have an explicit constructor for Function
       which promotes various types to (Doc, Function).
+    . Give hs-boot another try, but maybe wait for 9.2, this may help:
+      https://gitlab.haskell.org/ghc/ghc/-/merge_requests/5661
+      . Not in 9.2, probably have to wait for 9.4
   Support for adding or removing time in the middle of a score:
     . Status: this is implemented manually via Cmd.BlockResize, and
       specifically LBlock.add_time and remove_time.  It seems to work, but I
@@ -2452,10 +2455,10 @@ synth: im:
           a built-in default pitch-oriented MidiThru.
       How should thru work?
         . There are two kinds: pitch oriented keyboard, and Attributes
-          oriented drums.  Then there are two backends, MIDI and Osc.  It's
-          all keyed off of an instrument.
-        . So each patch can have a field for thru.  If it's pitch and MIDI,
-          then invoke the whole NoteEntry.cmds_with_input set.  Actually,
+          oriented drums.  Then there are three backends, MIDI, im, sc (osc).
+          It's all keyed off of an instrument.
+        . So each patch can have a field for thru.  If it's pitch and MIDI or
+          sc, then invoke the whole NoteEntry.cmds_with_input set.  Actually,
           this set is complicated, because it's pitched note entry, not just
           thru.  So actually each patch has a field for general note entry.
           But it's not keyed by instrument, but by track, since there are
@@ -2588,6 +2591,11 @@ synth: im:
         out of sync.
       . What's so bad about global though?
   sampler: sampler-im:
+    - sometimes file not found is caught, sometimes uncaught:
+      SystemError {errorString = "openFile
+        \"data/sampler/sc-gamelan/gongs/Kempur-A106.flac\":
+        No Error."}
+      . Looks like yet another hsndfile bug... should I upstream my fixes?
     - even though I don't need a voice limit, it would still improve
       performance.  E.g. long cengceng tails add up to a lot of voices.
     ? anything to learn from HISE?
@@ -4070,12 +4078,65 @@ performance:
     - Derive.Control.d_control_track
     - Derive.Deriver.Lib.controls_at
 
+  evaluating presumably CAFs in Vsl seems significant
+    ? Shouldn't it only be evaluated if you use a vsl instrument?
+    . https://gitlab.haskell.org/ghc/ghc/-/wikis/commentary/rts/storage/gc/CAFs
   . Staging via typed template haskell: uses [|| ||], $$.  Talk at
     https://vimeo.com/443276733 6:29:10
     . More talks at ICFP 2020
     . The ICFP talk claimed several times faster than happy, go find that.
       https://youtu.be/i9wgeX7e-nc?t=1679
   memory:
+    . possible use this to get newer ghcs:
+      https://gitlab.haskell.org/bgamari/ghcs-nix/
+    ghc-debug
+      . https://github.com/well-typed/memory-usage-zurihac-2021
+      . requires 9.2
+    eventlog2html
+      notes:
+        . use linechart to look for leaks, since it normalizes each one
+        heap view:
+          . live bytes: almost exactly what hs heap view shows
+          . block size: total size of allocated blocks to the OS, so 2x for
+            a copying collector
+          . heap size: megablog (1mb) requested from OS
+          . heap -> blocks difference is nursery size
+      . set profiling interval, for heap sample interval.  Too often means too
+        much time spent in profiling.
+        +RTS -i1 for 1s
+        also +RTS -s show GC time which will also reflect heap profile overhead
+      . Debug.Trace.traceMarker
+        eventlog2html -i can filter markers
+      profile by info table (new): -hi
+        . https://well-typed.com/blog/2021/01/first-look-at-hi-profiling-mode/
+        . need -finfo-table-map -fdistinct-constructor-tables
+        . eventlog2html detailed pane now has extra columns
+          ARR_WORDS Cmm$ghc_1.cmm - from RTS
+        . also can look for THUNK to make sure they are where expected
+        . CTy = closure type
+          CONSTR_2_0 - 2ptr fields, 0 data fields
+          Just CONSTR is >2
+
+      interactive editing, cerucuk-punyah.state
+        - ?
+      verify_performance cerucuk-punyah.state
+        - Double 744.71
+          . Spikes at certain places, what is that
+        - ARR_WORDS 737.18
+          . constant-ish, what is this?
+        - Map 435.57
+            . growing over time
+        - actually a lot taken by Mark, can I intern those?
+          . I'd have to do it on deserialize.
+          . Mark and ForeignPtrContents are surprisingly large, maybe that's the
+            ForeignPtr cache of the same stuff?
+          . It's hard to share the same data because of the Texts in there.
+          . In any case, probably can't share Marks because the labels are all
+            different!
+          . Is there a more compact way?  Somehow I'm back to very early days
+            with the mark-generator...
+        - What is with the periodic Color?
+      . https://simonmar.github.io/posts/2018-06-20-Finding-fixing-space-leaks.html
     repl memory usage
       . I think this is high due to loaded modules.  What is it exactly?
     short data:
@@ -4546,13 +4607,16 @@ performance:
         event should modify the chunk or split it depending on if the inserted
         event is a set call or not.
     - parallelize derivation
-    AppendList / MergeList for Derive.Stream
-      - switch to AppendList and try to get garbage down
-        Avoid copying sublists returned by block calls and cache hits
-      - see if a Merge constructor can reduce copying
-      - can I cache length and range in AppendList?  does it matter?
-      - insert parallelism?  maybe the evaluator can do that when it sees
-        Merge?
+    something more efficient than list for Derive.Stream:
+      . Try Data.Sequence?
+      . https://hackage.haskell.org/package/rrb-vector
+      Util.AppendList
+        - switch to AppendList and try to get garbage down
+          Avoid copying sublists returned by block calls and cache hits
+        - see if a Merge constructor can reduce copying
+        - can I cache length and range in AppendList?  does it matter?
+        - insert parallelism?  maybe the evaluator can do that when it sees
+          Merge?
     - lazy signals
       - check out 'at' and 'bsearch' occurrances and see if they can use tails
       - There are lots of lookups in the tempo map
@@ -6529,6 +6593,7 @@ text score: tscore:
         im direct play too.  Maybe this would even allow stop during the decay?
     - tambura with no elements just made silence, no warnings
     - start from non-zero, and solo/mute
+      . But how to indicate where to start?
     - without get_external_duration, merak-ngelo.tscore is broken
       . it uses Derive to get duration for expressions like "repeat=2 | p3a"
       . This is doable if I refine the get_external duration stuff to only
@@ -6971,6 +7036,8 @@ pitch: scales: scale:
       module.
     . At one point is it worth trying hs-boot again?  I remember I really
       hated it when I had it, because ghci tended to reload tons of stuff.
+      . Could be better in 9.2:
+        https://gitlab.haskell.org/ghc/ghc/-/merge_requests/5661
     . Ok, can I do it without vals, but get the same kind of syntax?  Like
       maybe LookupPattern for ValCall that evaluates to the scale symbol plus
       whatever it is that makes the scale?
@@ -7234,7 +7301,9 @@ Perform:
       . What was it for?
     - Is there really no way to send segments and let scserver interpolate?
     * Convert should trim the signals
-    - thru equivalent for OSC
+    * thru equivalent for OSC
+      . Maybe take the opportunity to do that thru refactor?
+      . Turns out not so necessary.
     * implement repeat_at
       . Once again the NodeId problem, I can't reuse them.
       . Once again could be solved in there was a global /noid, just noid

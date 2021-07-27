@@ -69,6 +69,7 @@ module Cmd.MidiThru (
 ) where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Vivid.OSC as OSC
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
@@ -94,6 +95,8 @@ import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Patch as Patch
 import           Perform.Midi.Patch (Addr)
 import qualified Perform.Pitch as Pitch
+import qualified Perform.Sc.Patch as Sc.Patch
+import qualified Perform.Sc.Play as Sc.Play
 
 import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
@@ -120,9 +123,40 @@ for_instrument :: ScoreT.Instrument -> Cmd.ThruFunction
 for_instrument score_inst scale attrs input = do
     resolved <- Cmd.get_instrument score_inst
     let code_of = Common.common_code . Inst.inst_common . Cmd.inst_instrument
+    let flags = Common.common_flags $ Cmd.inst_common resolved
     case Cmd.inst_thru (code_of resolved) of
-        Nothing -> default_thru resolved score_inst scale attrs input
+        Nothing
+            | Just (patch, config) <- Cmd.midi_patch resolved ->
+                midi_thru patch config score_inst scale attrs input
+            | Just patch <- Cmd.sc_patch resolved ->
+                osc_thru patch flags score_inst scale attrs input
+            | otherwise -> Cmd.abort
         Just thru -> thru scale attrs input
+
+-- | This doesn't really fit with the name of the module, but OSC thru for
+-- supercollider is so much simpler than MIDI I can just throw it in here.
+osc_thru :: Sc.Patch.Patch -> Set Common.Flag -> ScoreT.Instrument
+    -> Cmd.ThruFunction
+osc_thru patch flags score_inst scale _attrs input = do
+    -- attrs is used for keyswitches in MIDI, but sc doesn't support attrs yet.
+    -- If I do, it'll probably be via string-valued controls.
+    input <- convert_input score_inst scale input
+    (:[]) . Cmd.OscThru <$> input_to_osc patch flags input
+
+input_to_osc :: Cmd.M m => Sc.Patch.Patch -> Set Common.Flag
+    -> InputNote.InputNn -> m [OSC.OSC]
+input_to_osc patch flags = return . \case
+    InputNote.NoteOn note_id nn vel ->
+        Sc.Play.note_on patch triggered (unid note_id) nn vel
+    InputNote.NoteOff note_id _ ->
+        Sc.Play.note_off triggered (unid note_id)
+    InputNote.Control note_id control val ->
+        Sc.Play.set_control patch (unid note_id) control val
+    InputNote.PitchChange note_id nn ->
+        Sc.Play.pitch_change patch (unid note_id) nn
+    where
+    triggered = Common.Triggered `Set.member` flags
+    unid (InputNote.NoteId id) = id
 
 -- | I used to keep track of the previous PitchBend to avoid sending extra ones.
 -- But it turns out I don't actually know the state of the MIDI channel, so
@@ -130,10 +164,10 @@ for_instrument score_inst scale attrs input = do
 -- I could still do this by tracking channel state at the Midi.Interface level.
 -- I actually already do that a bit of tracking with note_tracker, but it's
 -- simpler to just always send PitchBend, unless it becomes a problem.
-default_thru :: Cmd.ResolvedInstrument -> ScoreT.Instrument -> Cmd.ThruFunction
-default_thru resolved score_inst scale attrs input = do
+midi_thru :: Patch.Patch -> Patch.Config -> ScoreT.Instrument
+    -> Cmd.ThruFunction
+midi_thru patch config score_inst scale attrs input = do
     input <- convert_input score_inst scale input
-    (patch, config) <- Cmd.abort_unless $ Cmd.midi_patch resolved
     let addrs = Patch.config_addrs config
     if null addrs then return [] else do
         (input_nn, ks) <- Cmd.require
@@ -143,8 +177,8 @@ default_thru resolved score_inst scale attrs input = do
         wdev_state <- Cmd.get_wdev_state
         pb_range <- Cmd.require "no pb range" $
             Patch.settings#Patch.pitch_bend_range #$ config
-        maybe (return []) (to_msgs ks) $ input_to_midi pb_range
-            wdev_state addrs input_nn
+        maybe (return []) (to_msgs ks) $
+            input_to_midi pb_range wdev_state addrs input_nn
     where
     to_msgs ks (thru_msgs, wdev_state) = do
         Cmd.modify_wdev_state (const wdev_state)

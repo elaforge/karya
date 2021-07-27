@@ -8,6 +8,10 @@ module Perform.Sc.Play (
     , play
     -- * stop
     , force_stop
+    -- * thru
+    , osc_thru
+    , note_on, note_off
+    , set_control, pitch_change
     -- * initialize
     , version
     , initialize_patch
@@ -37,8 +41,12 @@ import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
 import qualified Util.Thread as Thread
 
+import qualified Derive.Controls as Controls
 import qualified Derive.LEvent as LEvent
+import qualified Derive.ScoreT as ScoreT
+
 import qualified Perform.Midi.MSignal as MSignal
+import qualified Perform.Pitch as Pitch
 import qualified Perform.Sc.Note as Note
 import qualified Perform.Sc.Patch as Patch
 import qualified Perform.Transport as Transport
@@ -280,6 +288,58 @@ force_stop = mapM_ (send server_port . OSC.encodeOSC)
 g_freeAll :: NodeId -> OSC.OSC
 g_freeAll (NodeId id) = OSC.OSC "/g_freeAll" [OSC_I id]
 
+-- * thru
+
+-- Like MIDI thru, this is a vertical slice of convert and play for just a
+-- single event, which is actually below the 'Note.Note' level.
+
+-- | This is InputNote.NoteId, but I don't want a bunch of deps for a newtype
+-- Int.
+type NoteId = Int
+type Triggered = Bool
+
+note_to_node :: NoteId -> NodeId
+note_to_node = NodeId . (+min_node_id) . fromIntegral
+
+osc_thru :: [OSC.OSC] -> IO ()
+osc_thru = mapM_ (send server_port . OSC.encodeOSC)
+
+note_on :: Patch.Patch -> Triggered -> NoteId -> Pitch.NoteNumber -> Double
+    -> [OSC.OSC]
+note_on patch triggered note_id nn dyn =
+    ( s_new (Patch.name patch) (note_to_node note_id) $
+        (Note.gate_id, 1) : mapMaybe convert
+            [ (Patch.c_pitch, Pitch.nn_to_double nn)
+            , (Controls.dynamic, dyn)
+            ]
+    ) : if triggered
+        -- TODO Should osc_thru should put a bit of space in between these?
+        -- Or is separate packets enough separation for sc?
+        then [n_set (note_to_node note_id) [(Note.gate_id, 0)]]
+        else []
+    where
+    convert (control, val) =
+        (, val) <$> Map.lookup control (Patch.controls patch)
+
+note_off :: Triggered -> NoteId -> [OSC.OSC]
+note_off triggered note_id = concat
+    [ if triggered then []
+        else [n_set (note_to_node note_id) [(Note.gate_id, 0)]]
+    , [s_noid (note_to_node note_id)]
+    ]
+
+set_control :: Patch.Patch -> NoteId -> ScoreT.Control -> Double -> [OSC.OSC]
+set_control patch note_id control val =
+    case Map.lookup control (Patch.controls patch) of
+        Nothing -> []
+        Just c -> [n_set (note_to_node note_id) [(c, val)]]
+
+pitch_change :: Patch.Patch -> NoteId -> Pitch.NoteNumber -> [OSC.OSC]
+pitch_change patch note_id nn =
+    case Map.lookup Patch.c_pitch (Patch.controls patch) of
+        Nothing -> []
+        Just c -> [n_set (note_to_node note_id) [(c, Pitch.nn_to_double nn)]]
+
 -- * initialize
 
 -- | Left error if a valid server wasn't detected, Right msg if it was.
@@ -312,6 +372,8 @@ load_patch = send server_port . OSC.encodeOSC . d_load
 d_load :: FilePath -> OSC.OSC
 d_load path = OSC.OSC "/d_load" [OSC_S (Texts.toByteString path)]
 
+-- | Unfortunately this is kind of useless, because scsynth doesn't let you
+-- unload all, and doesn't seem to have any way to see what's loaded.
 d_free :: Note.PatchName -> OSC.OSC
 d_free name = OSC.OSC "/d_free" [OSC_S (Texts.toByteString name)]
 

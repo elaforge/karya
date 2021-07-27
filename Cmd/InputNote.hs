@@ -253,7 +253,7 @@ pitch_to_nn = Theory.semis_to_nn . Theory.pitch_to_semis Theory.piano_layout
 -- | Convert an InputNn to MIDI.
 to_midi :: Control.PbRange -> Map NoteId Midi.Key -> InputNn
     -> ([Midi.ChannelMessage], Map NoteId Midi.Key)
-to_midi pb_range id_to_key input_nn = case input_nn of
+to_midi pb_range id_to_key = \case
     NoteOn note_id nn vel -> note_on note_id nn vel
     NoteOff note_id vel -> with_key note_id $ \key ->
         ([Midi.NoteOff key (from_val vel)], Map.delete note_id id_to_key)
