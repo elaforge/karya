@@ -85,6 +85,7 @@ play_procs procs output_dirs = do
     Log.debug $ "start render: " <> pretty procs
     rendering <- Async.async $
         Performance.wait_for_subprocesses (MVar.putMVar ready ())
+            (Set.singleton inst_name)
             (Set.fromList procs)
     Log.debug "wait for ready"
     MVar.takeMVar ready

@@ -6476,10 +6476,12 @@ text score: tscore:
     . But also I need a ky file, and instrument definitions.
       . Maybe nix-style '' strings for embedded ky?
     . But I can dispense with integration.
+    * im: wait for all instruments to start
+      . Otherwise I miss chunks for two instruments starting at 0.
     - check that %ky and %instrument not set for integrate
     - get MIDI and audio a bit better synchronized
       . Is there a way to actually synchronize, other than play_cache?
-    - Transport.PlayMonitorControl can only monitor one thing, which is MIDI.
+    * Transport.PlayMonitorControl can only monitor one thing, which is MIDI.
       . It could be a counter for each started player, so it could be used for
         im direct play too.  Maybe this would even allow stop during the decay?
     - tambura with no elements just made silence, no warnings
@@ -6490,7 +6492,7 @@ text score: tscore:
       . This is doable if I refine the get_external duration stuff to only
         take what it needs, and it makes it clearer that it's not actually
         circular.  But annoying:
-      - get parse parse ky and inst allocs in parse_score
+      - get parse ky and inst allocs in parse_score
         . Actually it has to be in track_blocks, after parse_blocks
       * implement mini_derive
     - Trigger --check automatically on save, or via 'entr' like ghcid.
@@ -6505,6 +6507,13 @@ text score: tscore:
     - adding pitches to a track that didn't have one can insert a pitch track
       on the left side of the note track.
       . E.g. "[s r]/0" then append "g m".
+  - unify ScoreT.Instrument with Shared.Note.InstrumentName, and
+    Shared.Config.InstrumentName
+    . Shared.Config._instrument is ${inst}_${patch}, fix that!
+    . What does clearUnusudeInstrumnets expect?
+  - octave hints seem wrong
+    . 'm ,s' should be the same as 'm s' because both go down, but 'm ,s'
+      seems to go down an extra octave.
   - Similar to renames, is it possible to detect track moves?
     . This also happens when I add a track in the middle.
     . If there are no edits, this works out because it looks like a complete

@@ -353,25 +353,32 @@ watch_subprocesses root_block_id make_status send_status procs =
 
 -- | Like 'watch_subprocesses', but notify the callback as soon as
 -- they have all rendered enough audio.
-wait_for_subprocesses :: IO () -> Set Process -> IO Bool
-wait_for_subprocesses ready procs =
-    stream_subprocesses procs $ mapAccumL_ check Set.empty
+wait_for_subprocesses :: IO () -> Set ScoreT.Instrument -> Set Process
+    -> IO Bool
+wait_for_subprocesses ready expected_instruments procs =
+    stream_subprocesses procs $ mapAccumL_ check (Set.empty, Set.empty)
     where
-    check started (_, ProcessExit {}) = return started
-    check started (proc, Message msg) = case Config._payload msg of
+    check (started, insts) (_, ProcessExit {}) = return (started, insts)
+    check (started, insts) (proc, Message msg) = case Config._payload msg of
         Config.WaveformsCompleted chunks
             | 0 `elem` chunks -> do
-                -- TODO compute chunk for a specific time
-                -- TODO I need a set of expected instruments to see progress
-                -- on.
+                -- TODO compute chunk for a specific time, not always 0
                 let started2 = Set.insert proc started
-                when (started2 == procs) ready
-                return started2
+                    insts2 = Set.insert
+                        -- TODO _instrument is not actually right, it has
+                        -- the _${patch} on it!  Fix this.
+                        (ScoreT.Instrument (Text.takeWhile (/='_')
+                            (Config._instrument msg)))
+                        insts
+                putStrLn $ "started: " <> prettys started2
+                    <> ", insts: " <> prettys insts2
+                when (started2 == procs && insts2 == expected_instruments) ready
+                return (started2, insts2)
             | otherwise -> ignore
         Config.Failure err -> Log.warn err >> ignore
         Config.Warn stack msg -> Log.warn_stack stack msg >> ignore
         Config.RenderingRange {} -> ignore
-        where ignore = return started
+        where ignore = return (started, insts)
 
 data Progress = ProcessExit Processes.Exit | Message Config.Message
 
@@ -529,10 +536,10 @@ evaluate_im config lookup_inst score_path adjust0 play_multiplier block_id
     Config.clearUnusedInstruments output_dir instruments
     return (procs, fromMaybe mempty $ lookup Nothing by_synth)
     where
-    instruments = Vector.foldl'
-        (flip (HashSet.insert . ScoreT.instrument_name
-            . Score.event_instrument))
-        mempty events
+    instruments = Vector.foldl' add mempty events
+        where
+        add = flip $ HashSet.insert . ScoreT.instrument_name
+            . Score.event_instrument
     by_synth = Util.Vector.partition_on im_synth events
     im_synth event = case lookup_inst (Score.event_instrument event) of
         Just inst -> case Cmd.inst_instrument inst of

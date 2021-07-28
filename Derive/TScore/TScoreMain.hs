@@ -5,7 +5,6 @@
 -- | Standalone driver for tscore.
 module Derive.TScore.TScoreMain where
 import qualified Control.Concurrent.Async as Async
-import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Except as Except
@@ -23,11 +22,9 @@ import qualified System.Exit as Exit
 import qualified System.IO as IO
 
 import qualified Util.Audio.PortAudio as PortAudio
-import qualified Util.Control as Control
 import qualified Util.Log as Log
 import qualified Util.Maps as Maps
 import qualified Util.Pretty as Pretty
-import qualified Util.Processes as Processes
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
@@ -62,7 +59,6 @@ import qualified Perform.Sc.Note as Sc.Note
 import qualified Perform.Sc.Play as Sc.Play
 import qualified Perform.Transport as Transport
 
-import qualified Synth.Shared.Config as Shared.Config
 import qualified Synth.StreamAudio as StreamAudio
 import qualified Ui.Transform as Transform
 import qualified Ui.Ui as Ui
@@ -202,32 +198,19 @@ play_score mb_device fname = initialize_audio $ initialize_midi $
 
     block_id <- maybe (die "no root block") return $
         Ui.config#UiConfig.root #$ ui_state
-    let (events, logs) = derive ui_state cmd_state block_id
+    let (im_events, logs) = derive ui_state cmd_state block_id
     mapM_ Log.write logs
 
     let start = 0 -- TODO from cmdline
 
     let score_path = fname
-    (procs, events) <- perform_im score_path cmd_state ui_state events block_id
+    (procs, events) <- perform_im score_path cmd_state ui_state im_events
+        block_id
     play_ctl <- Transport.play_control
     players <- Transport.active_players
-    unless (null procs) $ do
-        putStrLn $ "\nim render:"
-        forM_ procs $ \(cmd, args) ->
-            putStrLn $ unwords $ "%" : cmd : args
-        ready <- MVar.newEmptyMVar
-        Async.async $ do
-            ok <- Performance.wait_for_subprocesses
-                (MVar.putMVar ready ()) (Set.fromList procs)
-            unless ok $ Log.warn "background render had a problem"
-        putStrLn "wait for ready"
-        MVar.takeMVar ready
-        let Transport.PlayControl quit = play_ctl
-        let muted = mempty
-        Transport.player_started players
-        Async.async $ StreamAudio.play quit score_path block_id muted start
-            `Exception.finally` Transport.player_stopped players
-        return ()
+    unless (null procs) $
+        play_im score_path players play_ctl block_id start im_events
+            (get_im_instruments ui_state) procs
 
     let ((midi_msgs, sc_msgs), logs) =
             DeriveSaved.perform cmd_state ui_state events
@@ -267,55 +250,6 @@ die :: Text -> IO a
 die msg = do
     Text.IO.hPutStrLn IO.stderr msg
     Exit.exitFailure
-
--- * im
-
--- TODO copy paste from Solkattu.Play, unify them
-
--- | This is analogous to 'Performance.watch_subprocesses', but notifies as
--- soon as all processes have rendered output.
---
--- It seems like overkill to watch multiple processes when there is always just
--- one (and can only be one, since I only load Sampler.PatchDb.synth below),
--- but that's what derive gives me.
-watch_subprocesses :: MVar.MVar () -> Set Performance.Process -> IO ()
-watch_subprocesses ready all_procs =
-    Processes.multipleOutput (Set.toList all_procs) $ \chan ->
-        Control.loop1 (all_procs, Set.empty) $ \loop (procs, started) -> if
-            | Set.null procs -> MVar.tryPutMVar ready () >> return ()
-            | otherwise -> do
-                ((cmd, args), out) <- Chan.readChan chan
-                loop =<< process procs started (cmd, args) out
-    where
-    process procs started (cmd, args) = \case
-        Processes.Stderr line -> do
-            -- Only show Log.Warn and above.
-            -- TODO pass LOG_CONFIG?
-            when ("---" `Text.isPrefixOf` line) $
-                put line
-            return (procs, started)
-        Processes.Stdout line -> case Shared.Config.parseMessage line of
-            Just (Shared.Config.Message
-                    { Shared.Config._payload = Shared.Config.WaveformsCompleted chunks })
-                | 0 `elem` chunks -> do
-                    -- I can start playing when I see the first progress for
-                    -- each process, and for each instrument.  Since I only
-                    -- have one instrument the first suffices.
-                    let started2 = Set.insert (cmd, args) started
-                    when (started2 == all_procs) $
-                        void $ MVar.tryPutMVar ready ()
-                    return (procs, started2)
-                | otherwise -> return (procs, started)
-            Just (Shared.Config.Message { Shared.Config._payload = Shared.Config.RenderingRange {} })
-                -> return (procs, started)
-            _ -> put ("?: " <> line) >> return (procs, started)
-        Processes.Exit code -> do
-            when (code /= Processes.ExitCode 0) $
-                Log.warn $ "subprocess " <> txt cmd <> " "
-                    <> showt args <> " returned " <> showt code
-            return (Set.delete (cmd, args) procs, started)
-    -- These get called concurrently, so avoid jumbled output.
-    put line = Log.with_stdio_lock $ Text.IO.hPutStrLn IO.stdout line
 
 -- * midi
 
@@ -373,6 +307,47 @@ perform_im score_path cmd_state ui_state events block_id = do
     (procs, non_im) <- Performance.evaluate_im im_config lookup_inst score_path
         0 1 block_id events
     return (procs, non_im)
+
+
+play_im :: FilePath -> Transport.ActivePlayers -> Transport.PlayControl
+    -> BlockId -> RealTime -> Vector.Vector Score.Event
+    -> Set ScoreT.Instrument -> [Performance.Process] -> IO ()
+play_im score_path players play_ctl block_id start events im_instruments
+        procs = do
+    putStrLn $ "\nim render:"
+    forM_ procs $ \(cmd, args) ->
+        putStrLn $ unwords $ "%" : cmd : args
+    ready <- MVar.newEmptyMVar
+    Async.async $ do
+        ok <- Performance.wait_for_subprocesses
+            (MVar.putMVar ready ())
+            expected_instruments
+            (Set.fromList procs)
+        unless ok $ Log.warn "background render had a problem"
+    putStrLn $ "wait for instruments: " <> prettys expected_instruments
+    MVar.takeMVar ready
+    let Transport.PlayControl quit = play_ctl
+    let muted = mempty
+    Transport.player_started players
+    Async.async $ StreamAudio.play quit score_path block_id muted start
+        `Exception.finally` Transport.player_stopped players
+    return ()
+    where
+    -- This is a bit too tricky.  I want to make sure all instruments have
+    -- the chunk at 'start' rendered.  But I can only wait for im instruments,
+    -- or I'll be waiting forever, and then only the ones that are actually
+    -- used.  I could filter on start, but since im emits empty chunks for
+    -- instruments that haven't started, it should be harmless to wait for them
+    -- all.
+    expected_instruments = Vector.foldl' add mempty $
+        Vector.filter ((`Set.member` im_instruments) . Score.event_instrument)
+        events
+    add = flip $ Set.insert . Score.event_instrument
+
+get_im_instruments :: Ui.State -> Set ScoreT.Instrument
+get_im_instruments = Set.fromList . map fst
+    . filter (UiConfig.is_im_allocation . snd) . Map.toList
+    . (Ui.config#UiConfig.allocations_map #$)
 
 -- * load
 
