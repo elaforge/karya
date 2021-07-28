@@ -19,6 +19,7 @@ import qualified Util.Audio.File as File
 import qualified Util.Seq as Seq
 import qualified Util.Test.Testing as Testing
 
+import qualified Derive.ScoreT as ScoreT
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
@@ -217,7 +218,8 @@ mkNote patch start dur nn =
     Note.withControl Control.volume (Signal.constant 1) $
     Note.withControl Control.dynamic (Signal.constant 1) $
     Note.withPitch nn $
-    Note.note patch patch (chunkToTime start) (chunkToTime dur)
+    Note.note patch (ScoreT.Instrument patch) (chunkToTime start)
+        (chunkToTime dur)
 
 chunkToTime :: RealTime -> RealTime
 chunkToTime = (* AUtil.toSeconds chunkSize)

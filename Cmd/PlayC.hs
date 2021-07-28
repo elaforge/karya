@@ -207,7 +207,7 @@ clear_im_progress ui_chan block_id = do
     liftIO $ Sync.clear_im_progress ui_chan view_ids
 
 im_rendering_range :: Fltk.Channel -> BlockId -> Set TrackId
-    -> Msg.InstrumentName -> (RealTime, RealTime) -> Cmd.CmdT IO ()
+    -> ScoreT.Instrument -> (RealTime, RealTime) -> Cmd.CmdT IO ()
 im_rendering_range ui_chan block_id track_ids instrument range = do
     ranges <- update_rendering_ranges block_id (Set.toList track_ids)
         instrument range
@@ -217,7 +217,7 @@ im_rendering_range ui_chan block_id track_ids instrument range = do
     liftIO $ Sync.set_im_progress ui_chan sels
 
 update_rendering_ranges :: Cmd.M m => BlockId -> [TrackId]
-    -> Msg.InstrumentName -> (RealTime, RealTime)
+    -> ScoreT.Instrument -> (RealTime, RealTime)
     -> m [(TrackId, (RealTime, RealTime))]
 update_rendering_ranges block_id track_ids instrument range = do
     tracks <- Cmd.gets $ Map.findWithDefault mempty block_id
@@ -231,7 +231,7 @@ update_rendering_ranges block_id track_ids instrument range = do
         }
     return $ track_ranges merged track_ids
 
-track_ranges :: Map TrackId (Map Msg.InstrumentName (RealTime, RealTime))
+track_ranges :: Map TrackId (Map ScoreT.Instrument (RealTime, RealTime))
     -> [TrackId] -> [(TrackId, (RealTime, RealTime))]
 track_ranges tracks = mapMaybe (traverse (expand . Map.elems)) . mapMaybe get
     where
@@ -414,8 +414,7 @@ play_im_direct_thread :: Transport.PlayControl -> Cmd.PlayDirectArgs -> IO ()
 #ifdef ENABLE_IM
 play_im_direct_thread (Transport.PlayControl quit)
         (Cmd.PlayDirectArgs score_path block_id muted start) =
-    StreamAudio.play quit score_path block_id
-        (Set.map ScoreT.instrument_name muted) start
+    StreamAudio.play quit score_path block_id muted start
 #else
 play_im_direct_thread _ _ =
     errorIO "can't play_im_direct_thread when im is not linked in"

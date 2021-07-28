@@ -18,6 +18,7 @@ import qualified Cmd.InputNote as InputNote
 import qualified Cmd.KeyLayouts as KeyLayouts
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Local.KeyLayout
@@ -107,7 +108,7 @@ data ImStarted = ImStarted -- ^ im subprocess in progress
 
 data ImStatus =
     -- | start--end currently being rendered.
-    ImRenderingRange !InstrumentName !RealTime !RealTime
+    ImRenderingRange !ScoreT.Instrument !RealTime !RealTime
     -- | Waveforms written for these chunks.
     | ImWaveformsCompleted ![Track.WaveformChunk]
     -- | True if the im subprocess had a failure.  The error will have been
@@ -116,13 +117,10 @@ data ImStatus =
     | ImComplete !Bool !(Maybe ImGc.Stats)
     deriving (Show)
 
--- | Same as 'Synth.Shared.Config.InstrumentName'.
-type InstrumentName = Text
-
 instance Pretty ImStatus where
     pretty = \case
         ImRenderingRange inst start end ->
-            inst <> "(" <> pretty start <> "--" <> pretty end <> ")"
+            pretty inst <> "(" <> pretty start <> "--" <> pretty end <> ")"
         ImWaveformsCompleted waves ->
             Text.intercalate "," (map (txt . Track._filename) waves)
         ImComplete failed _ -> "ImComplete" <> if failed then "(failed)" else ""

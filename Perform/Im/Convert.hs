@@ -99,7 +99,7 @@ convert_event block_id event patch patch_name = run $ do
         else return Nothing
     return $ Note.Note
         { patch = patch_name
-        , instrument = ScoreT.instrument_name (Score.event_instrument event)
+        , instrument = Score.event_instrument event
         , trackId = event_track_id block_id event
         -- To make it easier to set element by hand, I support some types which
         -- are likely to be used for element names.

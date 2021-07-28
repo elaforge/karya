@@ -25,17 +25,16 @@ import qualified Util.Audio.File as Audio.File
 import qualified Util.Audio.PortAudio as PortAudio
 import qualified Util.Thread as Thread
 
+import qualified Derive.ScoreT as ScoreT
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Shared.Config as Config
-import qualified Synth.Shared.Note as Note
-
 import qualified Ui.Id as Id
 
 import           Global
 import           Synth.Types
 
 
-type Muted = Set Note.InstrumentName
+type Muted = Set ScoreT.Instrument
 
 -- | If true, spam stdout even when run from karya.
 verbose :: Bool
@@ -80,8 +79,7 @@ streamToPortAudio verbose dev quit dir muted start = do
 currentlyPlaying :: MVar.MVar (Maybe Thread.Flag)
 currentlyPlaying = Unsafe.unsafePerformIO $ MVar.newMVar Nothing
 
-streamToSox :: Bool -> IO () -> FilePath -> Set Note.InstrumentName
-    -> RealTime -> IO ()
+streamToSox :: Bool -> IO () -> FilePath -> Muted -> RealTime -> IO ()
 streamToSox verbose waitQuit dir muted start =
     playSox verbose waitQuit
         =<< streamTracks verbose dir muted (AUtil.toFrames start)
@@ -107,14 +105,11 @@ sampleDirs dir muted = do
         =<< Directory.listDirectory dir
     when (null subdirs) $
         putStrLn $ "no sample dirs in " <> show dir
-    return $ map (dir</>) $ filter (not . instrumentMuted muted) subdirs
+    return $ map (dir</>) $
+        filter (not . instrumentMuted muted . Config.instrumentDir) subdirs
 
-instrumentMuted :: Muted -> FilePath -> Bool
-instrumentMuted muted fname = Set.member inst muted
-    where inst = txt $ takeWhile (/='_') fname
-    -- Instruments never have '_', so I can use that to put extra info on the
-    -- end.  For faust, I put the patch name, so I can clear obsolete
-    -- checkpoints when the patch changes.
+instrumentMuted :: Muted -> Config.InstrumentDir -> Bool
+instrumentMuted muted dir = Set.member (Config.dirInstrument dir) muted
 
 -- | Use sox to stream audio to the hardware.  This is easy and portable but
 -- high latency.

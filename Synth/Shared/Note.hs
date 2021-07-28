@@ -16,7 +16,9 @@ import qualified Util.Serialize as Serialize
 import           Util.Serialize (get, put)
 
 import qualified Derive.Attrs as Attrs
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stack as Stack
+
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Signal as Signal
@@ -31,7 +33,7 @@ data Note = Note {
     -- | Map this note to one of the synthesizer's patches.
     patch :: !PatchName
     -- | Unique name for this particular instantiation of the patch.
-    , instrument :: !InstrumentName
+    , instrument :: !ScoreT.Instrument
     -- | Display render progress on this track.
     --
     -- Previously, I inferred the track from the instrument, but that runs into
@@ -55,10 +57,6 @@ type Element = Text
 
 -- | Unique identifier for a patch.
 type PatchName = Text
-
--- | This is a specific instantiation of a 'PatchName'.  This is the same as
--- 'Derive.ScoreT.Instrument'.
-type InstrumentName = Text
 
 end :: Note -> RealTime
 end n = start n + duration n
@@ -85,7 +83,7 @@ instance Pretty Note where
             ]
 
 -- | Make a Note for testing.
-note :: PatchName -> InstrumentName -> RealTime -> RealTime -> Note
+note :: PatchName -> ScoreT.Instrument -> RealTime -> RealTime -> Note
 note patch instrument start duration = Note
     { patch = patch
     , instrument = instrument

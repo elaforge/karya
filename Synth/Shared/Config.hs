@@ -19,6 +19,7 @@ import qualified GHC.Generics as Generics
 import qualified GHC.Stack
 import qualified Network.Socket as Socket
 import qualified System.Directory as Directory
+import qualified System.FilePath as FilePath
 import           System.FilePath ((</>))
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
@@ -36,8 +37,8 @@ import qualified App.Config
 import qualified App.Config as Config
 import qualified App.Path as Path
 
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stack as Stack
-import qualified Synth.Shared.Note as Note
 import qualified Ui.Id as Id
 
 import           Global
@@ -49,9 +50,6 @@ import           Synth.Types
 -- | Index into the audio chunks for a single instrument render.
 -- This is the same as 'Ui.Types.ChunkNum'.
 type ChunkNum = Int
--- | This is the same as 'Synth.Shared.Note.InstrumentName' but I don't want to
--- import that here.
-type InstrumentName = Text
 
 data Config = Config {
     -- | All of the data files used by the Im backend are based in this
@@ -204,15 +202,18 @@ notesDirectory :: FilePath -> FilePath -> Id.BlockId -> FilePath
 notesDirectory imDir scorePath blockId =
     imDir </> notesParentDir </> scorePath </> idFilename blockId
 
+-- | Top level output for for a block render.  It will have directories below
+-- it for each instrument.
 outputDirectory :: FilePath -> FilePath -> Id.BlockId -> FilePath
 outputDirectory imDir scorePath blockId =
     imDir </> cacheDir </> scorePath </> idFilename blockId
 
 -- | Get the filename for a particular checkpoint.
-chunkPath :: FilePath -> FilePath -> Id.BlockId -> Text -> ChunkNum -> FilePath
-chunkPath imDir scorePath blockId instrument chunknum =
+chunkPath :: FilePath -> FilePath -> Id.BlockId -> InstrumentDir -> ChunkNum
+    -> FilePath
+chunkPath imDir scorePath blockId (InstrumentDir instrument) chunknum =
     outputDirectory imDir scorePath blockId
-        </> untxt instrument </> chunkName chunknum
+        </> instrument </> chunkName chunknum
 
 chunkName :: ChunkNum -> FilePath
 chunkName chunknum = untxt (Num.zeroPad 3 chunknum <> ".wav")
@@ -235,15 +236,36 @@ idFilename id = untxt $ Id.un_namespace ns <> "/" <> name
 
 -- | Delete output links for instruments that have disappeared entirely.
 -- This often happens when I disable a track.
-clearUnusedInstruments :: FilePath -> HashSet Note.InstrumentName -> IO ()
+clearUnusedInstruments :: FilePath -> HashSet ScoreT.Instrument -> IO ()
 clearUnusedInstruments outputDir instruments = do
     dirs <- filterM (Directory.doesDirectoryExist . (outputDir</>))
         =<< listDir outputDir
-    let unused = filter (not . (`HashSet.member` instruments) . txt) dirs
+    let unused = filter
+            (not . (`HashSet.member` instruments) . dirInstrument
+                . instrumentDir)
+            dirs
     forM_ unused $ \dir -> do
         links <- filter (Maybe.isJust . isOutputLink) <$>
             listDir (outputDir </> dir)
         mapM_ (Directory.removeFile . ((outputDir </> dir) </>)) links
+
+-- | There is a subdirectory for each instrument, but it has extra info, so it
+-- can't directly be a ScoreT.Instrument.  Instruments never have '_', so I can
+-- use that to put extra info on the end.  For faust, I put the patch name, so
+-- I can clear obsolete checkpoints when the patch changes.
+newtype InstrumentDir = InstrumentDir FilePath
+    deriving (Eq, Show, Pretty, Aeson.ToJSON, Aeson.FromJSON)
+
+instrumentDir :: FilePath -> InstrumentDir
+instrumentDir = InstrumentDir . FilePath.takeFileName
+
+instrumentDir2 :: ScoreT.Instrument -> Maybe String -> FilePath
+instrumentDir2 inst extra =
+    untxt (ScoreT.instrument_name inst) <> maybe "" ("_"<>) extra
+
+dirInstrument :: InstrumentDir -> ScoreT.Instrument
+dirInstrument (InstrumentDir dir) =
+    ScoreT.Instrument $ txt $ takeWhile (/='_') dir
 
 listDir :: FilePath -> IO [FilePath]
 listDir = fmap (fromMaybe []) . Exceptions.ignoreEnoent
@@ -254,7 +276,7 @@ listDir = fmap (fromMaybe []) . Exceptions.ignoreEnoent
 data Message = Message {
     _blockId :: !Id.BlockId
     , _trackIds :: !(Set Id.TrackId)
-    , _instrument :: !InstrumentName
+    , _instrument :: !InstrumentDir
     , _payload :: !Payload
     }
     deriving (Show, Generics.Generic)

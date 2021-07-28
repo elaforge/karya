@@ -26,6 +26,7 @@ import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
+import qualified Derive.ScoreT as ScoreT
 import qualified Synth.Faust.EffectC as EffectC
 import qualified Synth.Faust.InstrumentC as InstrumentC
 import qualified Synth.Faust.Preview as Preview
@@ -136,7 +137,7 @@ dump patches notes = do
     unless (null notFound) $
         Log.warn $ "patches not found: " <> Text.unwords notFound
     forM_ (extractBreakpoints $ flatten patchInstNotes) $ \(inst, cbps) -> do
-        Text.IO.putStrLn $ "=== " <> inst <> ":"
+        Text.IO.putStrLn $ "=== " <> pretty inst <> ":"
         -- TODO implement Texts.wrappedColumns to make it readable?  Or just
         -- use a wide window.
         -- mapM_ Text.IO.putStrLn $ Texts.columns 2 $
@@ -160,8 +161,8 @@ dump patches notes = do
         ]
 
 extractBreakpoints
-    :: [(InstrumentC.Patch, Note.InstrumentName, [Note.Note])]
-    -> [(Note.InstrumentName, [(Text, [(Double, Double)])])]
+    :: [(InstrumentC.Patch, ScoreT.Instrument, [Note.Note])]
+    -> [(ScoreT.Instrument, [(Text, [(Double, Double)])])]
 extractBreakpoints patchInstNotes = filter (not . null . snd)
     [(inst, extract patch notes) | (patch, inst, notes) <- patchInstNotes]
     where
@@ -190,18 +191,19 @@ process emitProgress patches notes outputDir = do
             -- is safe.  tools/clear_faust will use this to clear obsolete
             -- checkpoints.
             let output = outputDir
-                    </> untxt (inst <> "_" <> InstrumentC._name patch)
-            Log.notice $ inst <> " notes: " <> showt (length notes) <> " -> "
-                <> txt output
+                    </> Config.instrumentDir2 inst
+                        (Just (untxt (InstrumentC._name patch)))
+            Log.notice $ pretty inst <> " notes: " <> showt (length notes)
+                <> " -> " <> txt output
             Directory.createDirectoryIfMissing True output
             (result, elapsed) <- Thread.timeActionText $
                 Render.write config output
                     (Set.fromList $ mapMaybe Note.trackId notes) patch notes
             case result of
-                Left err -> Log.notice $ inst <> " writing " <> txt output
-                    <> ": " <> err
+                Left err -> Log.notice $
+                    pretty inst <> " writing " <> txt output <> ": " <> err
                 Right (rendered, total) ->
-                    Log.notice $ inst <> " " <> showt rendered <> "/"
+                    Log.notice $ pretty inst <> " " <> showt rendered <> "/"
                         <> showt total <> " chunks: " <> txt output
                         <> " (" <> elapsed <> ")"
     where
@@ -214,7 +216,7 @@ process emitProgress patches notes outputDir = do
         ]
 
 lookupPatches :: Map Note.PatchName patch -> [Note.Note]
-    -> ([Note.PatchName], [(patch, [(Note.InstrumentName, [Note.Note])])])
+    -> ([Note.PatchName], [(patch, [(ScoreT.Instrument, [Note.Note])])])
 lookupPatches patches notes =
     Either.partitionEithers $
         map (\(patch, instNotes) -> (, instNotes) <$> find patch) $

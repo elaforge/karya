@@ -136,7 +136,7 @@ write emitProgress outputDir trackIds skippedCount chunkSize hashes getState
         when emitProgress $ Config.emitMessage $ Config.Message
             { _blockId = Config.pathToBlockId outputDir
             , _trackIds = trackIds
-            , _instrument = txt $ FilePath.takeFileName outputDir
+            , _instrument = Config.instrumentDir outputDir
             , _payload = Config.WaveformsCompleted [chunknum]
             }
 

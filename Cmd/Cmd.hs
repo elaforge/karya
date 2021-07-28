@@ -834,7 +834,7 @@ data PlayState = PlayState {
     -- ultimately displayed on the GUI, but I keep track here so I can take
     -- minimum and maximum when multiple instruments live on one track.
     , state_im_progress :: !(Map BlockId (Map TrackId
-        (Map Shared.Config.InstrumentName (RealTime, RealTime))))
+        (Map ScoreT.Instrument (RealTime, RealTime))))
     } deriving (Show)
 
 -- | Wrap Async to make it showable.  I use Async instead of ThreadId because

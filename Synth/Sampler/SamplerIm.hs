@@ -33,6 +33,7 @@ import qualified Util.Texts as Texts
 import qualified Util.Thread as Thread
 
 import qualified Derive.Attrs as Attrs
+import qualified Derive.ScoreT as ScoreT
 import qualified Perform.RealTime as RealTime
 import qualified Synth.Faust.Effect as Effect
 import qualified Synth.Faust.EffectC as EffectC
@@ -204,7 +205,7 @@ dump useShow range tracks db notes = do
     samples <- convertNotes db notes
     forM_ samples $ \(patch, (inst, sampleNotes)) -> do
         Text.IO.putStrLn $ "patch: " <> Patch._name patch
-            <> ", inst: " <> inst <> ":"
+            <> ", inst: " <> pretty inst <> ":"
         when False $ -- maybe I'll want this again someday
             mapM_ putHash $ dumpHashes $ map snd sampleNotes
         mapM_ putNote $
@@ -220,7 +221,7 @@ dump useShow range tracks db notes = do
         [ line, pretty s, "+", pretty dur, "=>", pretty (s+dur)
         , "[orig:", pretty (Note.start note, Note.duration note)
         , maybe "<no-track>" Id.ident_text (Note.trackId note)
-        , Note.instrument note <> "]"
+        , pretty (Note.instrument note) <> "]"
         ]
         where
         s = AUtil.toSeconds $ Sample.start sample
@@ -250,7 +251,7 @@ sampleName :: FilePath -> FilePath
 sampleName = FilePath.joinPath . Seq.rtake 2 . FilePath.splitPath
 
 convertNotes :: Patch.Db -> [Note.Note]
-    -> IO [(Patch.Patch, (Note.InstrumentName, [(Note.Note, Sample.Note)]))]
+    -> IO [(Patch.Patch, (ScoreT.Instrument, [(Note.Note, Sample.Note)]))]
 convertNotes db notes =
     fmap concat $ forM (byPatchInst notes) $ \(patchName, notes) ->
     getPatch db patchName >>= \case
@@ -312,11 +313,12 @@ process emitProgress db quality allNotes outputDir
         emit = emitMessage trackIds inst
     config = (Render.defaultConfig quality)
         { Render._emitProgress = emitProgress }
-    emitMessage trackIds instrument payload
+    emitMessage trackIds inst payload
         | emitProgress = Config.emitMessage $ Config.Message
             { _blockId = Config.pathToBlockId (outputDir </> "dummy")
             , _trackIds = trackIds
-            , _instrument = instrument
+            , _instrument = Config.instrumentDir $
+                Config.instrumentDir2 inst Nothing
             , _payload = payload
             }
         | otherwise = return ()
@@ -358,7 +360,7 @@ getPatch db name = case Map.lookup name (Patch._patches db) of
             where ename = Patch._effectName effectConf
 
 byPatchInst :: [Note.Note]
-    -> [(Note.PatchName, [(Note.InstrumentName, [Note.Note])])]
+    -> [(Note.PatchName, [(ScoreT.Instrument, [Note.Note])])]
 byPatchInst = map (second (Seq.keyed_group_sort Note.instrument))
     . Seq.keyed_group_sort Note.patch
 
@@ -448,19 +450,19 @@ actualDuration start sample = do
         Nothing -> fileDur
 
 realize :: (Config.Payload -> IO ()) -> Set Id.TrackId -> Render.Config
-    -> FilePath -> Note.InstrumentName -> Maybe Render.InstrumentEffect
+    -> FilePath -> ScoreT.Instrument -> Maybe Render.InstrumentEffect
     -> [Sample.Note] -> IO ()
 realize emitMessage trackIds config outputDir instrument mbEffect notes = do
-    let instDir = outputDir </> untxt instrument
+    let instDir = outputDir </> Config.instrumentDir2 instrument Nothing
     Directory.createDirectoryIfMissing True instDir
     (result, elapsed) <- Thread.timeActionText $
         Render.write config instDir trackIds mbEffect notes
     case result of
         Left err -> do
-            Log.error $ instrument <> ": writing " <> txt instDir
+            Log.error $ pretty instrument <> ": writing " <> txt instDir
                 <> ": " <> err
             emitMessage $ Config.Failure err
         Right (rendered, total) ->
-            Log.notice $ instrument <> " " <> showt rendered <> "/"
+            Log.notice $ pretty instrument <> " " <> showt rendered <> "/"
                 <> showt total <> " chunks: " <> txt instDir
                 <> " (" <> elapsed <> ")"

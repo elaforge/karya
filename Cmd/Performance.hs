@@ -365,10 +365,7 @@ wait_for_subprocesses ready expected_instruments procs =
                 -- TODO compute chunk for a specific time, not always 0
                 let started2 = Set.insert proc started
                     insts2 = Set.insert
-                        -- TODO _instrument is not actually right, it has
-                        -- the _${patch} on it!  Fix this.
-                        (ScoreT.Instrument (Text.takeWhile (/='_')
-                            (Config._instrument msg)))
+                        (Config.dirInstrument (Config._instrument msg))
                         insts
                 putStrLn $ "started: " <> prettys started2
                     <> ", insts: " <> prettys insts2
@@ -429,7 +426,8 @@ make_status inv_tempo wants_waveform im_dir score_path adjust0 play_multiplier
         (Config.Message block_id track_ids instrument payload) =
     case payload of
         Config.RenderingRange start end ->
-            status $ Msg.ImRenderingRange instrument start end
+            status $ Msg.ImRenderingRange (Config.dirInstrument instrument)
+                start end
         Config.WaveformsCompleted chunknums
             | Set.null wanted_track_ids -> ImNothing
             | otherwise -> case mapM make_waveform chunknums of
@@ -437,7 +435,7 @@ make_status inv_tempo wants_waveform im_dir score_path adjust0 play_multiplier
                 Left err -> ImWarn $ Log.msg Log.Warn Nothing $
                     "to_score for " <> pretty chunknums <> ": " <> err
         Config.Warn stack err -> ImWarn $ Log.msg Log.Warn (Just stack) $
-            "im instrument " <> instrument <> ": " <> err
+            "im instrument " <> pretty instrument <> ": " <> err
         Config.Failure err -> ImFail $ Log.msg Log.Warn Nothing $
             "im failure: " <> pretty block_id <> ": " <> pretty track_ids
             <> ": " <> err
@@ -537,9 +535,7 @@ evaluate_im config lookup_inst score_path adjust0 play_multiplier block_id
     return (procs, fromMaybe mempty $ lookup Nothing by_synth)
     where
     instruments = Vector.foldl' add mempty events
-        where
-        add = flip $ HashSet.insert . ScoreT.instrument_name
-            . Score.event_instrument
+        where add = flip $ HashSet.insert . Score.event_instrument
     by_synth = Util.Vector.partition_on im_synth events
     im_synth event = case lookup_inst (Score.event_instrument event) of
         Just inst -> case Cmd.inst_instrument inst of

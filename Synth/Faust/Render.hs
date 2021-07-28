@@ -18,7 +18,6 @@ import qualified Data.Vector.Storable as V
 import qualified GHC.Stack
 import qualified GHC.TypeLits as TypeLits
 import qualified Streaming.Prelude as S
-import qualified System.FilePath as FilePath
 import qualified System.IO.Error as IO.Error
 
 import qualified Util.Audio.Audio as Audio
@@ -86,7 +85,7 @@ write config outputDir trackIds patch notes = catch $ do
         | _emitProgress config = Config.emitMessage $ Config.Message
             { _blockId = Config.pathToBlockId outputDir
             , _trackIds = trackIds
-            , _instrument = txt $ FilePath.takeFileName outputDir
+            , _instrument = Config.instrumentDir outputDir
             , _payload = payload
             }
         | otherwise = return ()
