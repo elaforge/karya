@@ -6,8 +6,9 @@
 -- in a standalone way, without a DAW and VST.
 module Synth.StreamAudio (
     play
-    , streamToSox
-    , streamToPortAudio
+    , streamDir
+    , Device(..)
+    , getDevices
 ) where
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Monad.Trans.Resource as Resource
@@ -23,6 +24,7 @@ import qualified System.Process as Process
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
 import qualified Util.Audio.PortAudio as PortAudio
+import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
 import qualified Derive.ScoreT as ScoreT
@@ -40,9 +42,6 @@ type Muted = Set ScoreT.Instrument
 verbose :: Bool
 verbose = True
 
-useSoxBackend :: Bool
-useSoxBackend = False
-
 -- | Stream audio for the give score and block, until done or told to stop.
 --
 -- The audio backend is hardcoded, but perhaps I should get one from
@@ -50,15 +49,34 @@ useSoxBackend = False
 --
 -- This is essentially a haskell version of TrackStreamer (Streamer.h) ->
 -- Tracks (Tracks.h)
-play :: Thread.Flag -> FilePath -> Id.BlockId -> Muted -> RealTime -> IO ()
-play quit scorePath blockId muted start = do
+play :: Maybe Device -> Thread.Flag -> FilePath -> Id.BlockId
+    -> Muted -> RealTime -> IO ()
+play mbDevice quit scorePath blockId muted start = do
     config <- Config.getConfig
     let dir = Config.outputDirectory (Config.imDir config) scorePath blockId
-    if useSoxBackend
-        then streamToSox verbose (Thread.wait quit) dir muted start
-        else do
-            dev <- PortAudio.getDefaultOutput
-            streamToPortAudio verbose dev quit dir muted start
+    streamDir mbDevice quit muted start dir
+
+streamDir :: Maybe Device -> Thread.Flag -> Muted -> RealTime -> FilePath
+    -> IO ()
+streamDir mbDevice quit muted start dir = case mbDevice of
+    Just Sox -> streamToSox verbose (Thread.wait quit) dir muted start
+    Just (PortAudio device) ->
+        streamToPortAudio verbose device quit dir muted start
+    Nothing -> do
+        device <- PortAudio.getDefaultOutput
+        streamToPortAudio verbose device quit dir muted start
+
+data Device = Sox | PortAudio PortAudio.Device
+    deriving (Show)
+
+getDevices :: IO ([(String, Device)], String)
+getDevices = do
+    deflt <- PortAudio.getDefaultOutput
+    (, PortAudio._name deflt) . Seq.key_on name_of . (++[Sox]) . map PortAudio
+        <$> PortAudio.getOutputDevices
+    where
+    name_of Sox = "sox"
+    name_of (PortAudio dev) = PortAudio._name dev
 
 streamToPortAudio :: Bool -> PortAudio.Device -> Thread.Flag -> FilePath
     -> Muted -> RealTime -> IO ()

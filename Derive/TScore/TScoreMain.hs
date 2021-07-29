@@ -9,6 +9,7 @@ import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Except as Except
 
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
@@ -86,13 +87,22 @@ main = do
         | Dump `elem` flags -> mapM_ dump_score args
         | List `elem` flags -> list_devices
         | otherwise -> case args of
-            [fname] -> play_score (Seq.last [d | Device d <- flags]) fname
+            [fname] -> initialize_audio $ do
+                mb_device <- traverse get_device $
+                    Seq.last [d | Device d <- flags]
+                play_score mb_device fname
             _ -> usage []
     where
     usage errors = die $ Text.stripEnd $ Text.unlines $ map txt errors ++
         [ "usage: tscore [ flags ] input.tscore"
         , txt $ dropWhile (=='\n') $ GetOpt.usageInfo "" options
         ]
+
+get_device :: String -> IO StreamAudio.Device
+get_device name = do
+    (devs, _) <- StreamAudio.getDevices
+    maybe (errorIO $ "unknown device: " <> showt name) (return . snd) $
+        List.find ((==name) . fst) devs
 
 initialize_midi :: (Interface.Interface -> IO a) -> IO a
 initialize_midi app = MidiDriver.initialize "tscore" (const False) $ \case
@@ -131,12 +141,9 @@ score_stats (T.Score toplevels) = Text.unwords
 list_devices :: IO ()
 list_devices = initialize_audio $ initialize_midi $ \midi_interface -> do
     putStrLn "Audio devices:"
-    default_dev <- PortAudio.getDefaultOutput
-    audio_devs <- PortAudio.getOutputDevices
-    forM_ (map PortAudio._name audio_devs) $ \dev ->
-        putStrLn $ (if dev == PortAudio._name default_dev
-            then "* " else "  ") <> show dev
-    putStrLn "  \"sox\""
+    (devs, default_dev) <- StreamAudio.getDevices
+    forM_ (map fst devs) $ \dev ->
+        putStrLn $ (if dev == default_dev then "* " else "  ") <> show dev
     putStrLn "Midi devices:"
     wdevs <- Interface.write_devices midi_interface
     static_config <- Local.Config.load_static_config
@@ -189,9 +196,8 @@ dump_im ui_state cmd_state block_id events = do
     lookup_inst = either (const Nothing) Just
         . Cmd.state_lookup_instrument ui_state cmd_state
 
-play_score :: Maybe String -> FilePath -> IO ()
-play_score mb_device fname = initialize_audio $ initialize_midi $
-        \midi_interface -> do
+play_score :: Maybe StreamAudio.Device -> FilePath -> IO ()
+play_score mb_device fname = initialize_midi $ \midi_interface -> do
     source <- Text.IO.readFile fname
     cmd_config <- load_cmd_config midi_interface
     (ui_state, cmd_state) <- either die return =<< load_score cmd_config source
@@ -209,7 +215,7 @@ play_score mb_device fname = initialize_audio $ initialize_midi $
     play_ctl <- Transport.play_control
     players <- Transport.active_players
     unless (null procs) $
-        play_im score_path players play_ctl block_id start im_events
+        play_im mb_device score_path players play_ctl block_id start im_events
             (get_im_instruments ui_state) procs
 
     let ((midi_msgs, sc_msgs), logs) =
@@ -308,12 +314,12 @@ perform_im score_path cmd_state ui_state events block_id = do
         0 1 block_id events
     return (procs, non_im)
 
-
-play_im :: FilePath -> Transport.ActivePlayers -> Transport.PlayControl
-    -> BlockId -> RealTime -> Vector.Vector Score.Event
-    -> Set ScoreT.Instrument -> [Performance.Process] -> IO ()
-play_im score_path players play_ctl block_id start events im_instruments
-        procs = do
+play_im :: Maybe StreamAudio.Device -> FilePath -> Transport.ActivePlayers
+    -> Transport.PlayControl -> BlockId -> RealTime
+    -> Vector.Vector Score.Event -> Set ScoreT.Instrument
+    -> [Performance.Process] -> IO ()
+play_im mb_device score_path players play_ctl block_id start events
+        im_instruments procs = do
     putStrLn $ "\nim render:"
     forM_ procs $ \(cmd, args) ->
         putStrLn $ unwords $ "%" : cmd : args
@@ -329,8 +335,9 @@ play_im score_path players play_ctl block_id start events im_instruments
     let Transport.PlayControl quit = play_ctl
     let muted = mempty
     Transport.player_started players
-    Async.async $ StreamAudio.play quit score_path block_id muted start
-        `Exception.finally` Transport.player_stopped players
+    Async.async $
+        StreamAudio.play mb_device quit score_path block_id muted start
+            `Exception.finally` Transport.player_stopped players
     return ()
     where
     -- This is a bit too tricky.  I want to make sure all instruments have
