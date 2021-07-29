@@ -660,14 +660,30 @@ infer_octave per_octave (prev_oct, prev_degree) (oct, degree) =
     Pitch.Pitch inferred_oct degree
     where
     inferred_oct = case oct of
-        T.Relative n -> n + case prev_degree of
-            Just prev -> min_on3 (distance prev_oct prev degree)
-                (prev_oct-1) prev_oct (prev_oct+1)
-            Nothing -> prev_oct
+        T.Relative n -> case prev_degree of
+            Nothing -> prev_oct + n
+            Just prev_degree
+                -- Pick closest pitch in any direction.
+                | n == 0 -> pick (const True)
+                -- Always go up, but that may not imply up an octave!  So pick
+                -- the closest pitch above.  Additional up octaves just get
+                -- added.
+                | n > 0 -> pick (>0) + (n-1)
+                | otherwise -> pick (<0) + (n+1)
+                where
+                -- by_distance should never be [] due to the filters given.
+                -- I could probably get rid of this with Seq.min_on but it's
+                -- hard to think about.
+                pick predicate = maybe (error "unreachable") snd $
+                    Seq.minimum_on (abs . fst) $
+                    filter (predicate . fst) by_distance
+                by_distance =
+                    Seq.key_on (distance prev_oct prev_degree degree)
+                        [prev_oct-1, prev_oct, prev_oct+1]
         T.Absolute oct -> oct
-    distance prev_oct prev degree oct = abs $
-        Pitch.diff_pc per_octave (Pitch.Pitch prev_oct prev)
-            (Pitch.Pitch oct degree)
+    distance prev_oct prev_degree degree oct =
+        Pitch.diff_pc per_octave (Pitch.Pitch oct degree)
+            (Pitch.Pitch prev_oct prev_degree)
 
 -- | Convert 'Pitch'es back to symbolic form.
 pitch_to_symbolic :: T.Pos -> Scale -> Pitch.Pitch -> EList.Elt Meta T.PitchText
@@ -731,9 +747,3 @@ scale_twelve = Scale
     degrees = map Text.singleton "cdefgab"
 
 type Parser a = P.Parsec Void.Void Text a
-
-
--- * util
-
-min_on3 :: Ord k => (a -> k) -> a -> a -> a -> a
-min_on3 key a b c = Seq.min_on key a (Seq.min_on key b c)

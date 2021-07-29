@@ -6507,11 +6507,12 @@ text score: tscore:
     - adding pitches to a track that didn't have one can insert a pitch track
       on the left side of the note track.
       . E.g. "[s r]/0" then append "g m".
-  - unify ScoreT.Instrument with Shared.Note.InstrumentName, and
+  * unify ScoreT.Instrument with Shared.Note.InstrumentName, and
     Shared.Config.InstrumentName
     . Shared.Config._instrument is ${inst}_${patch}, fix that!
-    . What does clearUnusudeInstrumnets expect?
-  - octave hints seem wrong
+    . What does clearUnusedInstruments expect?
+      It wants dir names, so wrong for faust!
+  * octave hints seem wrong
     . 'm ,s' should be the same as 'm s' because both go down, but 'm ,s'
       seems to go down an extra octave.
   - Similar to renames, is it possible to detect track moves?
@@ -7095,6 +7096,8 @@ Perform:
           SynthIds?
         . In general I'm going to have to enforce standardization on control
           names: freq, dyn, ...?  im uses: dyn, vol, pan, pitch
+      - use sclang from the commandline to compile to scsyndefs, that way
+        I can include patches as source.  Possibly even put in ky?
     - Is there really no way to send segments and let scserver interpolate?
     make noid work on groups:
       . This seems to be not hard to add to scserver though, I wonder if they

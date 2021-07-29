@@ -54,12 +54,27 @@ test_resolve_pitch = do
     equal (f "4s r g") [Right "4s", Right "4r", Right "4g"]
     equal (f "4n s") [Right "4n", Right "5s"]
     equal (f "4s n") [Right "4s", Right "3n"]
-    -- mid-point goes down.
+
+    -- mid-point goes down, but can be overridden.
     equal (f "4m s") [Right "4m", Right "4s"]
+    equal (f "4m ,s") [Right "4m", Right "4s"]
+    equal (f "4m ,,s") [Right "4m", Right "3s"]
+    equal (f "4m 's") [Right "4m", Right "5s"]
+    equal (f "4m 'p") [Right "4m", Right "4p"]
+    equal (f "4m ''s") [Right "4m", Right "6s"]
+
+    -- above mid point goes up, can be overridden
+    equal (f "4p s") [Right "4p", Right "5s"]
+    equal (f "4p ,s") [Right "4p", Right "4s"]
+    equal (f "4p ,,s") [Right "4p", Right "3s"]
+    equal (f "4p 's") [Right "4p", Right "5s"]
+    equal (f "4p ''s") [Right "4p", Right "6s"]
+
     equal (f "4n ,s") [Right "4n", Right "4s"]
     equal (f "4s 'n") [Right "4s", Right "4n"]
     equal (f "4s 's") [Right "4s", Right "5s"]
     equal (f "4s ,s") [Right "4s", Right "3s"]
+
     -- If the pitch is carried it remains empty, since the tracklang pitch
     -- track will carry it, but is still carried for octave inference.
     equal (f "5s c/ r") [Right "5s", Right "", Right "5r"]
