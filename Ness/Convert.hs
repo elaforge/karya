@@ -8,21 +8,22 @@ import qualified Data.Text.IO as Text.IO
 
 import qualified Util.PPrint as PPrint
 import qualified Util.Seq as Seq
+import qualified Derive.ScoreT as ScoreT
 import qualified Ness.Guitar as Guitar
 import qualified Ness.Guitar.GConvert as GConvert
 import qualified Ness.Multiplate as Multiplate
 import qualified Ness.Multiplate.MConvert as MConvert
 import qualified Ness.Patches as Patches
-import Ness.Patches (Patch(..), Performance(..))
+import           Ness.Patches (Patch(..), Performance(..))
 import qualified Ness.Util as Util
 
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Note as Note
 import qualified Ui.Id as Id
 
-import Global
-import Ness.Global
-import Types
+import           Global
+import           Ness.Global
+import           Types
 
 
 srate :: SamplingRate
@@ -42,7 +43,7 @@ printPerformance :: Text -> IO ()
 printPerformance block =
     mapM_ ppr =<< either errorIO return =<< loadConvert block
     where
-    ppr (inst, perf) = Text.IO.putStrLn inst >> case perf of
+    ppr (inst, perf) = Text.IO.putStrLn (pretty inst) >> case perf of
         Guitar _ s -> PPrint.pprint s
         Multiplate _ s -> PPrint.pprint s
 
@@ -56,7 +57,7 @@ run block = do
     where
     nameScore blockId imDir (inst, p) =
         ( Config.outputDirectory imDir scorePath blockId
-        , inst
+        , ScoreT.instrument_name inst
         , renderPerformance srate p
         )
 
@@ -65,7 +66,7 @@ run block = do
 
 type Error = Text
 
-loadConvert :: Text -> IO (Either Error [(Note.InstrumentName, Performance)])
+loadConvert :: Text -> IO (Either Error [(ScoreT.Instrument, Performance)])
 loadConvert b = do
     imDir <- getImDir
     convert <$> load (Config.notesFilename imDir scorePath (mkBlockId b)
@@ -78,7 +79,7 @@ renderPerformance :: SamplingRate -> Performance -> (Text, Text)
 renderPerformance sr (Guitar i s) = Guitar.renderAll sr (i, s)
 renderPerformance sr (Multiplate i s) = Multiplate.renderAll sr (i, s)
 
-convert :: [Note.Note] -> Either Error [(Note.InstrumentName, Performance)]
+convert :: [Note.Note] -> Either Error [(ScoreT.Instrument, Performance)]
 convert notes = do
     -- Group by patches, and then instruments within the patches.
     patches <- forM notes $ \n -> tryJust ("no patch: " <> pretty n) $
@@ -86,7 +87,7 @@ convert notes = do
     concatMapM (uncurry convertPatch) $ Seq.group_fst (zip patches notes)
 
 convertPatch :: Patch -> [Note.Note]
-    -> Either Error [(Note.InstrumentName, Performance)]
+    -> Either Error [(ScoreT.Instrument, Performance)]
 convertPatch patch = mapM convert1 . Seq.keyed_group_sort Note.instrument
     where
     convert1 (inst, notes) = (inst,) <$> case patch of

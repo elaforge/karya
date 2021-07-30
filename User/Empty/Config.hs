@@ -13,9 +13,11 @@ import qualified App.StaticConfig as StaticConfig
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
+import qualified Cmd.SyncKeycaps as SyncKeycaps
+
 import qualified Derive.C.All as C.All
 
-import Global
+import           Global
 
 
 load_static_config :: IO StaticConfig.StaticConfig
@@ -31,6 +33,8 @@ load_static_config = do
         , post_setup_cmd = SyncKeycaps.open
         , midi = midi
         , highlight_colors = Config.highlight_colors
+        -- Set to True to play im via portaudio, instead of the play_cache vst.
+        , im_play_direct = False
         }
 
 global_cmds :: [Msg.Msg -> Cmd.CmdT IO Cmd.Status]

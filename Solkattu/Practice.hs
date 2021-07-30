@@ -14,7 +14,7 @@ import qualified Data.Time as Time
 import qualified GHC.Generics as Generics
 import qualified System.Random as Random
 
-import qualified Util.File as File
+import qualified Util.Exceptions as Exceptions
 import qualified Solkattu.Db as Db
 import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Format.Terminal as Terminal
@@ -91,7 +91,7 @@ savePracticed :: PracticedMap -> IO ()
 savePracticed = Aeson.encodeFile practicedDb
 
 loadPracticed :: IO (Either String PracticedMap)
-loadPracticed = fmap (fromMaybe (Right Map.empty)) $ File.ignoreEnoent $
+loadPracticed = fmap (fromMaybe (Right Map.empty)) $ Exceptions.ignoreEnoent $
     Aeson.eitherDecodeFileStrict practicedDb
 
 pick :: [a] -> IO (Maybe a)
