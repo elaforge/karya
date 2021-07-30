@@ -23,6 +23,7 @@ import qualified Cmd.ModifyNotes as ModifyNotes
 import qualified Cmd.Ruler.Meter as Meter
 import qualified Cmd.Ruler.Meters as Meters
 import qualified Cmd.Ruler.Modify as Ruler.Modify
+import qualified Cmd.Ruler.RulerUtil as RulerUtil
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.ShowVal as ShowVal
@@ -56,7 +57,8 @@ integrate_score name score = do
     -- Make a m44 ruler up to the give end time.  Rulers are pretty
     -- unreasonably complicated.
     let end = ScoreTime.from_double $ maximum [s + d | (s, d, _, _) <- score]
-    ruler_id <- Ruler.Modify.replace block_id (make_labeled Meters.m44) end
+    ruler_id <- Ruler.Modify.replace block_id $
+        Ruler.Modify.generate_until end $ make_labeled Meters.m44
     Manual.block source_key block_id ruler_id block_title [(note, controls)]
     where
     (note, controls) = Manual.convert_note_track source_key (note_track 0 score)
