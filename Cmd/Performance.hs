@@ -356,9 +356,13 @@ watch_subprocesses root_block_id make_status send_status procs =
 wait_for_subprocesses :: IO () -> Set ScoreT.Instrument -> Set Process
     -> IO Bool
 wait_for_subprocesses ready expected_instruments procs =
-    stream_subprocesses procs $ mapAccumL_ check (Set.empty, Set.empty)
+    stream_subprocesses procs $ s_mapAccumL_ check (Set.empty, Set.empty)
     where
-    check (started, insts) (_, ProcessExit {}) = return (started, insts)
+    check (started, insts) ((cmd, args), ProcessExit code) = do
+        unless (code == Processes.ExitCode 0) $
+            Log.warn $ "subprocess failed with "
+                <> showt code <> ": " <> Text.unwords (map txt (cmd : args))
+        return (started, insts)
     check (started, insts) (proc, Message msg) = case Config._payload msg of
         Config.WaveformsCompleted chunks
             | 0 `elem` chunks -> do
@@ -619,9 +623,9 @@ modify_play_state modify state =
 -- * util
 
 -- | Like `S.mapM_` but with state.
-mapAccumL_ :: Monad m => (st -> a -> m st) -> st -> S.Stream (S.Of a) m r
+s_mapAccumL_ :: Monad m => (st -> a -> m st) -> st -> S.Stream (S.Of a) m r
     -> m r
-mapAccumL_ f = go
+s_mapAccumL_ f = go
     where
     go st xs = S.next xs >>= \case
         Left r -> return r
