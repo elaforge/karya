@@ -24,7 +24,7 @@
 }:
 
 let
-  sys-nixpkgs = import <nixpkgs> {};
+  nixpkgs-sys = import <nixpkgs> {};
   nixpkgs = import nix/nixpkgs.nix { inherit config; };
   nixpkgs-orig = import nix/nixpkgs.nix {};
   hackage = import nix/hackage.nix {
@@ -106,8 +106,16 @@ in rec {
   # Put some things in here for convenience from `nix repl default.nix`.
   inherit nixpkgs ghc hackage;
   inherit nixpkgs-orig ghc-orig;
-  inherit sys-nixpkgs;
+  inherit nixpkgs-sys;
   inherit (hackage) nixFiles;
+
+  # supercollider = nixpkgs.callPackage nix/supercollider.nix {};
+  supercollider = nixpkgs.libsForQt512.callPackage nix/supercollider.nix {
+    fftw = nixpkgs.fftwSinglePrec;
+    useIDE = false;
+    # jack can't torelate any version skew, see libjack2 usage below.
+    inherit (nixpkgs-sys) libjack2;
+  };
 
   # nixpkgs.rubberband only works on linux.
   rubberband = if isDarwin
@@ -154,7 +162,7 @@ in rec {
     # Make sure to compile against the system version of jack, not my pinned
     # nixpkgs one.  Jack apparently has no version control in the protocol,
     # so version mismatches show up as random "Unknown request" junk.
-    sys-nixpkgs.libjack2
+    nixpkgs-sys.libjack2
   ] else if isDarwin then (with nixpkgs.darwin.apple_sdk.frameworks; [
     Cocoa
     CoreAudio
