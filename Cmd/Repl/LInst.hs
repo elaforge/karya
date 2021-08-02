@@ -651,5 +651,5 @@ sc_initialize_patches patches = do
     Log.notice $ "loading patches: "
         <> Text.unwords (map (Texts.toText . Sc.Patch.name) patches)
     liftIO $ mapM_ Sc.Play.initialize_patch patches
-    Log.notice "waiting for sync"
     liftIO Sc.Play.sync
+    Log.notice "waiting for sync"

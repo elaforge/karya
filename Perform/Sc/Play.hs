@@ -14,6 +14,7 @@ module Perform.Sc.Play (
     , set_control, pitch_change
     -- * initialize
     , version
+    , add_default_group
     , initialize_patch
     , sync
 #ifdef TESTING
@@ -180,7 +181,7 @@ play_loop state = flip Control.loop1 $ \loop bundles -> do
             else write_ahead
     stop <- Transport.poll_stop_player timeout (_play_control state)
     case (stop, rest) of
-        (True, _) -> mapM_ (send server_port . OSC.encodeOSC) stop_all
+        (True, _) -> mapM_ send_osc stop_all
         (_, []) -> return ()
         _ -> loop rest
     where
@@ -280,7 +281,7 @@ stop_all =
     ]
 
 force_stop :: IO ()
-force_stop = mapM_ (send server_port . OSC.encodeOSC)
+force_stop = mapM_ send_osc
     [ clear_sched
     , g_freeAll default_group
     ]
@@ -302,7 +303,7 @@ note_to_node :: NoteId -> NodeId
 note_to_node = NodeId . (+min_node_id) . fromIntegral
 
 osc_thru :: [OSC.OSC] -> IO ()
-osc_thru = mapM_ (send server_port . OSC.encodeOSC)
+osc_thru = mapM_ send_osc
 
 note_on :: Patch.Patch -> Triggered -> NoteId -> Pitch.NoteNumber -> Double
     -> [OSC.OSC]
@@ -359,6 +360,14 @@ version = query server_port (OSC.OSC "/version" []) >>= return . \case
         "unexpected response from scsynth on " <> showt server_port <> ": "
         <> showt osc
 
+-- | The sclang IDE does this, but I have to do it myself for a standalone
+-- scserver.
+add_default_group :: IO ()
+add_default_group = send_osc $ OSC.OSC "/g_new"
+    [OSC_I id, OSC_I (fromIntegral (fromEnum Head)), OSC_I 0]
+    where
+    NodeId id = default_group
+
 initialize_patch :: Patch.Patch -> IO ()
 initialize_patch = load_patch . Patch.filename
 
@@ -367,7 +376,7 @@ sync :: IO ()
 sync = void $ query server_port (OSC.OSC "/sync" [])
 
 load_patch :: FilePath -> IO ()
-load_patch = send server_port . OSC.encodeOSC . d_load
+load_patch = send_osc . d_load
 
 d_load :: FilePath -> OSC.OSC
 d_load path = OSC.OSC "/d_load" [OSC_S (Texts.toByteString path)]
@@ -379,6 +388,9 @@ d_free name = OSC.OSC "/d_free" [OSC_S (Texts.toByteString name)]
 
 
 -- * low level
+
+send_osc :: OSC.OSC -> IO ()
+send_osc = send server_port . OSC.encodeOSC
 
 send :: Socket.PortNumber -> ByteString.ByteString -> IO ()
 send port bytes = Network.withConnection (Network.UDP port) $ \socket ->

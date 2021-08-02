@@ -1,11 +1,11 @@
 -- supercollider
 %ky=''
     note transformer:
-    GLOBAL = scale=raga | key = hemavati
+    GLOBAL = scale=raga | key = hemavati | %dyn=.75
 ''
 
 %instruments=''
-    >sine sc/sinegate
+    >sine sc/sine
 ''
 
 %scale=sargam

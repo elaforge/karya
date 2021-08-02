@@ -368,7 +368,7 @@ run abort_val ustate cstate cmd = do
         Left _ -> (cstate, [], logs, ui_result)
         _ -> (cstate2, midi, logs, ui_result)
 
--- | Like 'run', but write logs, and discard MIDI thru and updates.
+-- | Like 'run', but discard MIDI thru and updates.
 run_ :: Monad m => Ui.State -> State -> CmdT m a
     -> m (Either String (a, State, Ui.State), [Log.Msg])
 run_ ui_state cmd_state cmd = do

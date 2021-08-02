@@ -1173,7 +1173,8 @@ getMarkdown = map (docDir</>) <$> Shake.getDirectoryFiles docDir ["*.md"]
 makeHaddock :: (Mode -> Config) -> Shake.Action [FilePath]
 makeHaddock modeConfig = do
     let config = modeConfig Debug
-    let packages = map fst (reallyAllPackages ++ nessPackages)
+    -- let packages = map fst (reallyAllPackages ++ nessPackages)
+    let packages = map fst enabledPackages
     hs <- filter (wantsHaddock config) <$> getAllHs config
     need $ hsconfigPath config : hs
     let flags = configFlags config

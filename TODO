@@ -6507,6 +6507,9 @@ text score: tscore:
     - adding pitches to a track that didn't have one can insert a pitch track
       on the left side of the note track.
       . E.g. "[s r]/0" then append "g m".
+  - initialize sc patches
+    . first, include the sclang versions in Example/tscore, or in ky
+      make some patches:
   * unify ScoreT.Instrument with Shared.Note.InstrumentName, and
     Shared.Config.InstrumentName
     . Shared.Config._instrument is ${inst}_${patch}, fix that!
@@ -7087,7 +7090,7 @@ Perform:
         wuold have to do interpolation myself like with MIDI, so there will be
         a lot of these.  I could try to group coincident ones.
     - add docs
-    - make some patches
+    - make some patches:
       + MembraneCircle
         . must install sc3-plugins
         . no sound?

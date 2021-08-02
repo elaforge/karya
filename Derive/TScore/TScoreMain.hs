@@ -27,6 +27,7 @@ import qualified Util.Log as Log
 import qualified Util.Maps as Maps
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+import qualified Util.Texts as Texts
 import qualified Util.Thread as Thread
 
 import qualified App.Config as App.Config
@@ -57,6 +58,7 @@ import qualified Perform.Im.Convert as Im.Convert
 import qualified Perform.Midi.Patch as Midi.Patch
 import qualified Perform.Midi.Play as Midi.Play
 import qualified Perform.Sc.Note as Sc.Note
+import qualified Perform.Sc.Patch as Sc.Patch
 import qualified Perform.Sc.Play as Sc.Play
 import qualified Perform.Transport as Transport
 
@@ -97,6 +99,23 @@ main = do
         [ "usage: tscore [ flags ] input.tscore"
         , txt $ dropWhile (=='\n') $ GetOpt.usageInfo "" options
         ]
+
+data Flag = Check | Dump | List | Device String
+    deriving (Eq, Show)
+
+options :: [GetOpt.OptDescr Flag]
+options =
+    [ GetOpt.Option [] ["check"] (GetOpt.NoArg Check) "check score only"
+    , GetOpt.Option [] ["device"] (GetOpt.ReqArg Device "dev")
+        "use named device"
+    , GetOpt.Option [] ["dump"] (GetOpt.NoArg Dump) "dump score"
+    , GetOpt.Option [] ["list"] (GetOpt.NoArg List) "list output devices"
+    ]
+
+die :: Text -> IO a
+die msg = do
+    Text.IO.hPutStrLn IO.stderr msg
+    Exit.exitFailure
 
 get_device :: String -> IO StreamAudio.Device
 get_device name = do
@@ -201,6 +220,7 @@ play_score mb_device fname = initialize_midi $ \midi_interface -> do
     source <- Text.IO.readFile fname
     cmd_config <- load_cmd_config midi_interface
     (ui_state, cmd_state) <- either die return =<< load_score cmd_config source
+    initialize_instruments ui_state cmd_state
 
     block_id <- maybe (die "no root block") return $
         Ui.config#UiConfig.root #$ ui_state
@@ -240,22 +260,34 @@ play_score mb_device fname = initialize_midi $ \midi_interface -> do
     Thread.delay 0.1 -- let threads print final logs before exiting
     putStrLn "done"
 
-data Flag = Check | Dump | List | Device String
-    deriving (Eq, Show)
+initialize_instruments :: Ui.State -> Cmd.State -> IO ()
+initialize_instruments ui_state cmd_state = do
+    (result, logs) <- Cmd.eval ui_state cmd_state sc_initialize
+    case result of
+        Left err -> Log.warn $ txt err
+        Right () -> return ()
+    mapM_ Log.write logs
 
-options :: [GetOpt.OptDescr Flag]
-options =
-    [ GetOpt.Option [] ["check"] (GetOpt.NoArg Check) "check score only"
-    , GetOpt.Option [] ["device"] (GetOpt.ReqArg Device "dev")
-        "use named device"
-    , GetOpt.Option [] ["dump"] (GetOpt.NoArg Dump) "dump score"
-    , GetOpt.Option [] ["list"] (GetOpt.NoArg List) "list output devices"
-    ]
+-- | Ask scsynth to load the patches.  TODO: if this gets slow, is there some
+-- way to detect if the server is up to date and skip this?
+sc_initialize :: Cmd.CmdT IO ()
+sc_initialize = do
+    insts <- Ui.get_config $ Map.keys . UiConfig.unallocations
+        . UiConfig.config_allocations
+    insts <- mapM Cmd.get_instrument insts
+    liftIO $ Sc.Play.add_default_group
+    liftIO $ sc_initialize_patches $ mapMaybe Cmd.sc_patch insts
 
-die :: Text -> IO a
-die msg = do
-    Text.IO.hPutStrLn IO.stderr msg
-    Exit.exitFailure
+sc_initialize_patches :: [Sc.Patch.Patch] -> IO ()
+sc_initialize_patches patches = Sc.Play.version >>= \case
+    Left err -> errorIO $ "can't initialize sc patches: " <> err
+    Right msg -> do
+        Text.IO.putStrLn $ "found scsynth: " <> msg
+        Text.IO.putStrLn $ "loading patches: "
+            <> Text.unwords (map (Texts.toText . Sc.Patch.name) patches)
+        mapM_ Sc.Play.initialize_patch patches
+        ((), dur) <- Thread.timeActionText $ Sc.Play.sync
+        Text.IO.putStrLn $ "sync took: " <> dur
 
 -- * midi
 
