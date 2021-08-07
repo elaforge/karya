@@ -371,8 +371,8 @@ wait_for_subprocesses ready expected_instruments procs =
                     insts2 = Set.insert
                         (Config.dirInstrument (Config._instrument msg))
                         insts
-                putStrLn $ "started: " <> prettys started2
-                    <> ", insts: " <> prettys insts2
+                Log.debug $ "started: " <> pretty started2
+                    <> ", insts: " <> pretty insts2
                 when (started2 == procs && insts2 == expected_instruments) ready
                 return (started2, insts2)
             | otherwise -> ignore

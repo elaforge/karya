@@ -138,7 +138,9 @@ integrate :: Ui.M m => GetExternalCallDuration -> Text -> m [BlockId]
 integrate get_ext_dur source = do
     ns <- Ui.get_namespace
     (blocks, config) <- Ui.require_right id $ track_blocks ns get_ext_dur source
-    -- TODO ensure config is empty, it only applies to standalone ky
+    unless (config == ScoreConfig mempty mempty) $
+        Ui.throw $ "instruments or ky are only for standalone tscore,\
+            \ put those in the Ui.State directly: " <> showt config
     let (subs, parents) = List.partition _is_sub blocks
     -- Unlike normal blocks, sub-blocks aren't integrated, but deleted and
     -- created from scratch each time.  This is so I don't have to worry about

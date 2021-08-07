@@ -38,7 +38,6 @@ UNSORTED
     + cryptohash-md5 doesn't build
       . It's hvr-controlled :(
       . Built it locally.
-    cleanups:
   - I want to do vibrato and vibrato depth, but it's a pain to add new tracks.
     . But it should be in pitch, do I have vibrato settings there?
     . Maybe I should use the provided ways though, or at least be able to.
@@ -6478,7 +6477,7 @@ text score: tscore:
     . But I can dispense with integration.
     * im: wait for all instruments to start
       . Otherwise I miss chunks for two instruments starting at 0.
-    - check that %ky and %instrument not set for integrate
+    * check that %ky and %instrument not set for integrate
     - get MIDI and audio a bit better synchronized
       . Is there a way to actually synchronize, other than play_cache?
     * Transport.PlayMonitorControl can only monitor one thing, which is MIDI.
@@ -6496,8 +6495,10 @@ text score: tscore:
         . Actually it has to be in track_blocks, after parse_blocks
       * implement mini_derive
     - Trigger --check automatically on save, or via 'entr' like ghcid.
-    - skip MIDI initialization for im-only
-    - also skip audio initialization for midi-only
+    / skip MIDI initialization for im-only
+      . Need it for load_cmd_config
+    / also skip audio initialization for midi-only
+      . Needs to be initialized closer to main, don't know why.
   bug:
     - if I delete a block, I get
       keys collided in "state_blocks": [(bid "faust/test")]
@@ -6507,7 +6508,7 @@ text score: tscore:
     - adding pitches to a track that didn't have one can insert a pitch track
       on the left side of the note track.
       . E.g. "[s r]/0" then append "g m".
-  - initialize sc patches
+  * initialize sc patches
     . first, include the sclang versions in Example/tscore, or in ky
       make some patches:
   * unify ScoreT.Instrument with Shared.Note.InstrumentName, and

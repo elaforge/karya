@@ -4,7 +4,6 @@
 
 -- | Standalone driver for tscore.
 module Derive.TScore.TScoreMain where
-import qualified Control.Concurrent.Async as Async
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Except as Except
@@ -81,7 +80,7 @@ import           Types
 
 main :: IO ()
 main = do
-    Log.configure $ \state -> state { Log.state_priority = Log.Debug }
+    Log.configure $ \state -> state { Log.state_priority = Log.Notice }
     (flags, args, errors) <- GetOpt.getOpt GetOpt.Permute options <$>
         Environment.getArgs
     unless (null errors) $ usage errors
@@ -89,10 +88,7 @@ main = do
         | Dump `elem` flags -> mapM_ dump_score args
         | List `elem` flags -> list_devices
         | otherwise -> case args of
-            [fname] -> initialize_audio $ do
-                mb_device <- traverse get_device $
-                    Seq.last [d | Device d <- flags]
-                play_score mb_device fname
+            [fname] -> play_score (Seq.last [d | Device d <- flags]) fname
             _ -> usage []
     where
     usage errors = die $ Text.stripEnd $ Text.unlines $ map txt errors ++
@@ -128,16 +124,13 @@ initialize_midi app = MidiDriver.initialize "tscore" (const False) $ \case
     Left err -> die $ "error initializing midi: " <> err
     Right midi_interface -> app =<< Interface.track_interface midi_interface
 
-initialize_audio :: IO a -> IO a
-initialize_audio = PortAudio.initialize
-
 check_score :: FilePath -> IO ()
 check_score fname = do
     source <- Text.IO.readFile fname
     case TScore.parse_score source of
         Left err -> Text.IO.putStrLn $ txt fname <> ": " <> err
-        Right (ui_state, allocs) ->
-            Text.IO.putStrLn $ Transform.show_stats ui_state
+        Right (ui_state, _allocs) ->
+            Text.IO.putStr $ Transform.show_stats ui_state
 
 -- TODO show duration?  I have to derive for that though.
 -- Maybe check should derive!
@@ -158,7 +151,7 @@ score_stats (T.Score toplevels) = Text.unwords
     rests = [n | t <- tracks, T.TRest _ n <- T.track_tokens t]
 
 list_devices :: IO ()
-list_devices = initialize_audio $ initialize_midi $ \midi_interface -> do
+list_devices = PortAudio.initialize $ initialize_midi $ \midi_interface -> do
     putStrLn "Audio devices:"
     (devs, default_dev) <- StreamAudio.getDevices
     forM_ (map fst devs) $ \dev ->
@@ -215,8 +208,9 @@ dump_im ui_state cmd_state block_id events = do
     lookup_inst = either (const Nothing) Just
         . Cmd.state_lookup_instrument ui_state cmd_state
 
-play_score :: Maybe StreamAudio.Device -> FilePath -> IO ()
-play_score mb_device fname = initialize_midi $ \midi_interface -> do
+play_score :: Maybe String -> FilePath -> IO ()
+play_score mb_device fname = PortAudio.initialize $ initialize_midi $
+        \midi_interface -> do
     source <- Text.IO.readFile fname
     cmd_config <- load_cmd_config midi_interface
     (ui_state, cmd_state) <- either die return =<< load_score cmd_config source
@@ -234,7 +228,8 @@ play_score mb_device fname = initialize_midi $ \midi_interface -> do
         block_id
     play_ctl <- Transport.play_control
     players <- Transport.active_players
-    unless (null procs) $
+    unless (null procs) $ do
+        mb_device <- traverse get_device mb_device
         play_im mb_device score_path players play_ctl block_id start im_events
             (get_im_instruments ui_state) procs
 
@@ -251,7 +246,7 @@ play_score mb_device fname = initialize_midi $ \midi_interface -> do
     unless (null midi_msgs) $
         play_midi play_ctl players midi_interface cmd_state ui_state midi_msgs
 
-    Async.async $ do
+    Thread.startLogged "kbd" $ do
         putStrLn "press return to stop player"
         _ <- IO.getLine
         Transport.stop_player play_ctl
@@ -356,18 +351,18 @@ play_im mb_device score_path players play_ctl block_id start events
     forM_ procs $ \(cmd, args) ->
         putStrLn $ unwords $ "%" : cmd : args
     ready <- MVar.newEmptyMVar
-    Async.async $ do
+    Thread.startLogged "play_im" $ do
         ok <- Performance.wait_for_subprocesses
             (MVar.putMVar ready ())
             expected_instruments
             (Set.fromList procs)
         unless ok $ Log.warn "background render had a problem"
-    putStrLn $ "wait for instruments: " <> prettys expected_instruments
+    Log.debug $ "wait for instruments: " <> pretty expected_instruments
     MVar.takeMVar ready
     let Transport.PlayControl quit = play_ctl
     let muted = mempty
     Transport.player_started players
-    Async.async $
+    Thread.startLogged "stream_audio" $
         StreamAudio.play mb_device quit score_path block_id muted start
             `Exception.finally` Transport.player_stopped players
     return ()
