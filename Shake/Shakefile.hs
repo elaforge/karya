@@ -20,6 +20,7 @@ import qualified Data.Binary as Binary
 import qualified Data.Char as Char
 import qualified Data.Hashable as Hashable
 import qualified Data.List as List
+import           Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
@@ -423,7 +424,7 @@ generatedSrc = HsDeps.Generated
 
 -- | Module that define 'main' and should get linked to their own binaries,
 -- and the names of their eventual binaries.
-nameToMain :: Map.Map FilePath FilePath
+nameToMain :: Map FilePath FilePath
 nameToMain = Map.fromList [(hsName b, hsMain b) | b <- hsBinaries]
 
 -- | Haskell files that use the FFI have dependencies on C++ source.
@@ -431,7 +432,7 @@ nameToMain = Map.fromList [(hsName b, hsMain b) | b <- hsBinaries]
 -- and searching for a neighboring .cc file with those symbols, but it's
 -- simpler to give the dependency explicitly.  TODO a somewhat more modular way
 -- would be a magic comment that declares a dependency on a C file.
-hsToCc :: Map.Map FilePath [FilePath]
+hsToCc :: Map FilePath [FilePath]
 hsToCc = Map.fromList $
     [ ("Midi/CoreMidi.hs", ["Midi/core_midi.cc"])
     , ("Midi/JackMidi.hsc", ["Midi/jack.cc"])
@@ -1134,7 +1135,7 @@ allTests = do
 
 hlint :: Config -> Shake.Action ()
 hlint config = do
-    hs <- getAllHs config
+    hs <- liftIO $ getAllHs (Just config)
     need hs
     Util.systemKeepGoing "hlint" $
         [ "--report=" <> build </> "hlint.html"
@@ -1175,7 +1176,7 @@ makeHaddock modeConfig = do
     let config = modeConfig Debug
     -- let packages = map fst (reallyAllPackages ++ nessPackages)
     let packages = map fst enabledPackages
-    hs <- filter (wantsHaddock config) <$> getAllHs config
+    hs <- filter (wantsHaddock config) <$> liftIO (getAllHs (Just config))
     need $ hsconfigPath config : hs
     let flags = configFlags config
     interfaces <- liftIO $ getHaddockInterfaces packages
@@ -1221,16 +1222,22 @@ getHaddockInterfaces packages = do
 
 -- | Get all hs files in the repo, in their .hs form (so it's the generated
 -- output from .hsc or .chs).
-getAllHs :: Config -> Shake.Action [FilePath]
-getAllHs config = do
-    Shake.Stdout out <- Shake.command [] "tools/all_hs.py" ["in_repo"]
-    let files = words out
-    let get ext = filter ((==ext) . FilePath.takeExtension) files
-    return $ concat
-        [ get ".hs"
-        , map (hscToHs (hscDir config)) $ get ".hsc"
-        , map (chsToHs (chsDir config)) $ get ".chs"
-        ]
+getAllHs :: Maybe Config -> IO [FilePath]
+getAllHs mbConfig =
+    filterHs . lines <$>
+        Process.readProcess "git" ["ls-tree", "--name-only", "-r", "HEAD"] ""
+    where
+    filterHs fnames = concat $ hs : case mbConfig of
+        Nothing -> [hsc, chs]
+        Just config ->
+            [ map (hscToHs (hscDir config)) hsc
+            , map (chsToHs (chsDir config)) chs
+            ]
+        where
+        (hs, fnames1) = get ".hs" fnames
+        (hsc, fnames2) = get ".hsc" fnames1
+        (chs, _fnames3) = get ".chs" fnames2
+        get suffix = List.partition (suffix `List.isSuffixOf`)
 
 -- | Should this module have haddock documentation generated?
 wantsHaddock :: Config -> FilePath -> Bool
