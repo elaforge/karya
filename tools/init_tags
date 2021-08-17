@@ -11,7 +11,8 @@ flags=(
 )
 if [[ ! -r tags ]]; then
     echo Generating tags from scratch...
-    exec fast-tags $flags -R .
+    # Don't get tags out of tmp files in build.
+    exec fast-tags $flags -R [A-Z]*(/)
 else
     exec fast-tags $flags $fnames
 fi
