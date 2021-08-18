@@ -148,3 +148,29 @@ sketch_21_06_12 = date 2021 6 12 $ sarvalaghu $ korvaiS adi
     [ r3 (lt p.y.n.d) . su "nnp,".n.d . r3 (lt p.y.n.d) . su "nnp,n,".d
     , r3 "n,nd" . su "n,^,".n.d . r3 "n,nd" . su "nnpnpldl"
     ]
+
+e_21_08_15 :: Korvai
+e_21_08_15 = date 2021 8 15 $ ganesh $ korvai adi
+    [ x2 $ s $ rho . rh_
+    , s $ rho `replaceEnd` su "pknook" . rh_ `replaceEnd` su "pknook"
+    , s $ rho `replaceEnd` su (r2 "pknook") . rh_ `replaceEnd` su (r2 "pknook")
+    , s $ rho `replaceEnd` su (r3 "pknook") . rh_ `replaceEnd` su (r3 "pknook")
+    , s $ rho `replaceEnd` pknookS . rh_ `replaceEnd` pknookS
+    , s $ rho . "ND,n,nd,n,nd,nd,"
+    , ending $ tri123' pknookS "NN_v_"
+
+    , x2 $ s $ rho . rh_
+    , s $ rho `replaceEnd` kookou . rh_ `replaceEnd` kookou
+    , s $ rho `replaceEnd` (kook.kookou) . rh_ `replaceEnd` (kook.kookou)
+    , s $
+      rho `replaceEnd` (kook.kook.kookou) . rh_ `replaceEnd` (kook.kook.kookou)
+    , ending $ r3 $ kookou . kook.kookou . kook.kook.kookou . r3 (on.v.__3)
+    ]
+    where
+    pknookS = g $ su "pknook pkpknook pkpkpknook"
+    kookou = g $ su "kookou_kno"
+    kook = su "kook"
+    rho = rh & "oo_o_oo_o_oo_o"
+    rh_ = rh & "oo"
+    rh = "nd,n,nd,n,nd,n".su "ktok"
+    tri123' sep a = sep . tri123 sep a
