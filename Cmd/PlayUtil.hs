@@ -27,7 +27,7 @@ import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 
 import qualified Util.Log as Log
-import qualified Util.Tree as Tree
+import qualified Util.Trees as Trees
 import qualified Util.Vector
 
 import qualified App.Config as Config
@@ -365,7 +365,7 @@ solo_to_mute tree blocks soloed = Set.fromList
     , track_id `Set.notMember` has_soloed_relatives
     ]
     where
-    has_soloed_relatives = Set.fromList (mapMaybe get (Tree.flat_paths tree))
+    has_soloed_relatives = Set.fromList (mapMaybe get (Trees.flatPaths tree))
         where
         get (track, parents, children)
             | any (`Set.member` soloed) (map Ui.track_id children)

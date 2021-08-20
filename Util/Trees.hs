@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Some more utilities for "Data.Tree".
-module Util.Tree where
+module Util.Trees where
 import Prelude hiding (filter)
 import Control.Monad
 import qualified Data.Foldable as Foldable
@@ -26,10 +26,10 @@ paths = concatMap (go [])
         (tree, parents) : concatMap (go (tree:parents)) subs
 
 -- | Like 'paths' but the parents and children have been flattened.
-flat_paths :: [Tree a] -> [(a, [a], [a])]
+flatPaths :: [Tree a] -> [(a, [a], [a])]
     -- ^ (element, parents, children).  Parents are closest first root last,
     -- children are in depth first order.
-flat_paths = map flatten . paths
+flatPaths = map flatten . paths
     where
     flatten (Node val subs, parents) =
         (val, map Tree.rootLabel parents, concatMap Tree.flatten subs)
@@ -42,8 +42,8 @@ find p trees = case List.find (p . rootLabel) trees of
     Just tree -> Just tree
 
 -- | Like 'paths', but return only the element that matches the predicate.
-find_with_parents :: (a -> Bool) -> [Tree a] -> Maybe (Tree a, [Tree a])
-find_with_parents f = List.find (f . Tree.rootLabel . fst) . paths
+findWithParents :: (a -> Bool) -> [Tree a] -> Maybe (Tree a, [Tree a])
+findWithParents f = List.find (f . Tree.rootLabel . fst) . paths
 
 -- | Get all leaves.  The list will never be null.
 leaves :: Tree a -> [a]

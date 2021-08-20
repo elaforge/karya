@@ -16,7 +16,7 @@ import qualified Data.Tree as Tree
 import qualified Util.Log as Log
 import qualified Util.Maps as Maps
 import qualified Util.Seq as Seq
-import qualified Util.Tree
+import qualified Util.Trees as Trees
 
 import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
@@ -144,7 +144,7 @@ find_track block_id track_id = do
     tree <- TrackTree.block_events_tree block_id
     Cmd.require ("find_track: "
             <> pretty track_id <> " not in " <> pretty block_id) $
-        Util.Tree.find ((== Just track_id) . TrackTree.track_id) tree
+        Trees.find ((== Just track_id) . TrackTree.track_id) tree
 
 -- | Get the environment established by 'Ui.config_global_transform'.
 global_environ :: Cmd.M m => m Env.Environ

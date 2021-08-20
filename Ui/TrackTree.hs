@@ -10,7 +10,7 @@ import qualified Data.Traversable as Traversable
 import qualified Data.Tree as Tree
 
 import qualified Util.Pretty as Pretty
-import qualified Util.Tree as Tree
+import qualified Util.Trees as Trees
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.ScoreT as ScoreT
 import qualified Ui.Block as Block
@@ -51,7 +51,7 @@ parents_children_of :: Ui.M m => BlockId -> TrackId
 parents_children_of block_id track_id = do
     tree <- track_tree_of block_id
     case List.find (\(t, _, _) -> Ui.track_id t == track_id)
-            (Tree.flat_paths tree) of
+            (Trees.flatPaths tree) of
         Nothing -> return Nothing
         Just (track, parents, children) ->
             return $ Just (parents, track : children)

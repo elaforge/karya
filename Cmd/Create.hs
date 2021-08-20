@@ -25,7 +25,7 @@ import qualified Data.Tree as Tree
 import qualified Util.Ranges as Ranges
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
-import qualified Util.Tree as Tree
+import qualified Util.Trees as Trees
 
 import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
@@ -317,7 +317,7 @@ splice_above_all = do
     tree <- Ui.track_tree_of block_id
     (_, parents) <- Cmd.require
         ("splice_above: tracknum not in tree: " ++ show tracknum) $
-        Tree.find_with_parents ((==tracknum) . num) tree
+        Trees.findWithParents ((==tracknum) . num) tree
     let new_tracknum = maybe 1 ((+1) . num . Tree.rootLabel) (Seq.head parents)
     let parent = bump . num . Tree.rootLabel <$> Seq.head parents
         bump n = if n >= new_tracknum then n + 1 else n
@@ -347,7 +347,7 @@ splice_above_ancestors = do
     Ui.add_edges block_id (map ((,) insert_at . (+1)) ancestors)
     return track_id
     where
-    ancestor tree tracknum = case List.find find (Tree.flat_paths tree) of
+    ancestor tree tracknum = case List.find find (Trees.flatPaths tree) of
             Nothing -> Nothing
             Just (track, parents, _) ->
                 Just $ Ui.track_tracknum $ last (track : parents)
@@ -365,7 +365,7 @@ insert_branch_from :: Cmd.M m => BlockId -> TrackNum -> m ()
 insert_branch_from block_id source = do
     tree <- TrackTree.track_tree_of block_id
     (track, parents) <- Cmd.require ("not found: "<>pretty (block_id, source)) $
-        Tree.find_with_parents ((==source) . Ui.track_tracknum) tree
+        Trees.findWithParents ((==source) . Ui.track_tracknum) tree
     let right = maximum (Ui.track_tracknum <$> track) + 1
     merged <- Ui.track_merged block_id source
     append_below merged right track
@@ -385,7 +385,7 @@ insert_branch_from block_id source = do
 make_tracks :: TrackNum -> TrackTree.TrackTree
     -> ([(TrackNum, Text)], [(TrackNum, TrackNum)])
 make_tracks tracknum tree =
-    (concatMap Tree.flatten tracks, Tree.edges (map (fmap fst) tracks))
+    (concatMap Tree.flatten tracks, Trees.edges (map (fmap fst) tracks))
     where tracks = assign_tracknums tracknum tree
 
 -- | Assign ascending tracknums to the given tree in depth-first order.  Return

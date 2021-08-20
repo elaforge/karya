@@ -29,7 +29,7 @@ import qualified Data.Tree as Tree
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-import qualified Util.Tree
+import qualified Util.Trees as Trees
 
 import qualified Derive.Cache as Cache
 import qualified Derive.Control as Control
@@ -283,5 +283,5 @@ derive_pitch_map state pitch_track = case result of
             Score.empty_event { Score.event_pitch = pitch }
 
 pitch_map_track :: TrackTree.EventsTree -> Maybe TrackTree.Track
-pitch_map_track = fmap Tree.rootLabel . Util.Tree.find is_pitch
+pitch_map_track = fmap Tree.rootLabel . Trees.find is_pitch
     where is_pitch = ParseTitle.is_pitch_track . TrackTree.track_title

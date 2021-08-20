@@ -6,7 +6,7 @@ module Derive.ParseSkeleton where
 import qualified Data.Tree as Tree
 
 import qualified Util.Seq as Seq
-import qualified Util.Tree
+import qualified Util.Trees as Trees
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Ui as Ui
 import qualified Derive.ParseTitle as ParseTitle
@@ -33,8 +33,7 @@ note_bottom_parser :: [Ui.TrackInfo] -> Skeleton.Skeleton
 note_bottom_parser = make_skeleton . parse_to_tree True
 
 make_skeleton :: Tree.Forest Ui.TrackInfo -> Skeleton.Skeleton
-make_skeleton =
-    Skeleton.make . Util.Tree.edges . map (fmap Ui.track_tracknum)
+make_skeleton = Skeleton.make . Trees.edges . map (fmap Ui.track_tracknum)
 
 -- | [c0 tempo1 i1 c1 tempo2 c2 i2 c3] ->
 -- [c0, tempo1 (i1 c1), tempo2 (c2 c2 c3)]

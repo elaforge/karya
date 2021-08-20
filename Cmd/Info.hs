@@ -17,7 +17,7 @@ import qualified Text.Printf as Printf
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-import qualified Util.Tree as Tree
+import qualified Util.Trees as Trees
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
@@ -75,12 +75,12 @@ lookup_track_type :: Ui.M m => BlockId -> TrackNum -> m (Maybe Track)
 lookup_track_type block_id tracknum = do
     track_tree <- TrackTree.track_tree_of block_id
     return $ make_track <$>
-        Tree.find_with_parents ((==tracknum) . Ui.track_tracknum) track_tree
+        Trees.findWithParents ((==tracknum) . Ui.track_tracknum) track_tree
 
 -- | Get all the Tracks in a block, sorted by tracknum.
 block_tracks :: Ui.M m => BlockId -> m [Track]
 block_tracks block_id = Seq.sort_on (Ui.track_tracknum . track_info)
-    . map make_track . Tree.paths <$> TrackTree.track_tree_of block_id
+    . map make_track . Trees.paths <$> TrackTree.track_tree_of block_id
 
 make_track :: (Tree.Tree Ui.TrackInfo, TrackTree.TrackTree) -> Track
 make_track (tree, parents) =
@@ -255,7 +255,7 @@ find_note_track tree tracknum = case paths_of tree tracknum of
 -- omitted.
 control_tracks_of :: TrackTree.TrackTree -> TrackNum -> [Ui.TrackInfo]
 control_tracks_of tree tracknum =
-    case Tree.find_with_parents ((==tracknum) . Ui.track_tracknum) tree of
+    case Trees.findWithParents ((==tracknum) . Ui.track_tracknum) tree of
         Nothing -> []
         Just (Tree.Node _ children, parents) ->
             takeWhile is_control (concatMap Tree.flatten children)
@@ -288,5 +288,5 @@ paths_of :: TrackTree.TrackTree -> TrackNum
     -- ^ (track, parents, children)
 paths_of track_tree tracknum =
     List.find ((==tracknum) . Ui.track_tracknum . (\(a, _, _) -> a))
-        (Tree.flat_paths track_tree)
+        (Trees.flatPaths track_tree)
 

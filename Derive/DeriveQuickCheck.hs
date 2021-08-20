@@ -35,7 +35,7 @@ import qualified Test.QuickCheck as Q
 
 import qualified Util.ParseText as ParseText
 import qualified Util.Seq as Seq
-import qualified Util.Tree as Tree
+import qualified Util.Trees as Trees
 
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.PSignal as PSignal
@@ -208,7 +208,7 @@ extract_notes skel tracks
     | not (null missing) = error $ "extract_notes: skel " ++ show skel
         ++ " has missing tracknums: " ++ show missing
     | otherwise = do
-        (track, parents, children) <- Tree.flat_paths trees
+        (track, parents, children) <- Trees.flatPaths trees
         guard (is_note track)
         let tracks = children ++ parents
         let pitch = fromMaybe ("*", []) (List.find is_pitch tracks)

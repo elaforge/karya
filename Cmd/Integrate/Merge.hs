@@ -50,7 +50,7 @@ import qualified Data.Tree as Tree
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-import qualified Util.Tree as Tree
+import qualified Util.Trees as Trees
 
 import qualified Cmd.Create as Create
 import qualified Cmd.Integrate.Convert as Convert
@@ -143,7 +143,7 @@ score_merge_tracks :: Ui.M m => BlockId -> TrackId
 score_merge_tracks block_id source_id dests = do
     tree <- TrackTree.track_tree_of block_id
     children <- Ui.require ("source track not found: " <> showt source_id) $
-        Tree.find ((==source_id) . Ui.track_id) tree
+        Trees.find ((==source_id) . Ui.track_id) tree
     score_merge block_id [children] dests
 
 score_merge :: Ui.M m => BlockId -> TrackTree.TrackTree
@@ -195,7 +195,7 @@ dest_tracknum block_id track_id = Ui.require
 add_skeleton :: Ui.M m => BlockId -> [Tree.Tree TrackNum] -> m ()
 add_skeleton block_id tree = do
     skel <- Ui.require "score integrated somehow created a cyclic skeleton"
-        =<< Skeleton.add_edges (Tree.edges tree) <$> Ui.get_skeleton block_id
+        =<< Skeleton.add_edges (Trees.edges tree) <$> Ui.get_skeleton block_id
     Ui.set_skeleton block_id skel
 
 -- ** merge

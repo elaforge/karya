@@ -51,7 +51,7 @@ import qualified Util.Lens as Lens
 import qualified Util.Maps as Maps
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-import qualified Util.Tree
+import qualified Util.Trees as Trees
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -276,7 +276,7 @@ slice_tracks tree = concatMapM slice . zip [0..]
     slice :: Ui.M m => (Index, (TrackId, [Event.Event]))
         -> m [(Note, TrackId)]
     slice (index, (track_id, events)) =
-        case Util.Tree.find ((==track_id) . Ui.track_id) tree of
+        case Trees.find ((==track_id) . Ui.track_id) tree of
             Nothing -> return []
             Just (Tree.Node _track subs) -> do
                 subs <- mapM (traverse get_events) subs
@@ -380,7 +380,7 @@ write_tracks block_id track_ids tracks = do
 
 extract_note_trees :: Ui.M m => BlockId -> [TrackId] -> m TrackTree.TrackTree
 extract_note_trees block_id track_ids =
-    Util.Tree.filter (wanted_track (Set.fromList track_ids)) <$>
+    Trees.filter (wanted_track (Set.fromList track_ids)) <$>
         TrackTree.track_tree_of block_id
     where
     -- | Accept the top level note tracks.
@@ -424,14 +424,14 @@ tracknum_after block_id track_ids = do
 bottom_track :: Ui.M m => BlockId -> TrackId -> m (Maybe Ui.TrackInfo)
 bottom_track block_id track_id = do
     tree <- TrackTree.track_tree_of block_id
-    return $ Seq.maximum_on Ui.track_tracknum . Util.Tree.leaves
-        =<< Util.Tree.find ((==track_id) . Ui.track_id) tree
+    return $ Seq.maximum_on Ui.track_tracknum . Trees.leaves
+        =<< Trees.find ((==track_id) . Ui.track_id) tree
 
 parent_of :: Ui.M m => BlockId -> TrackId -> m (Maybe Ui.TrackInfo)
 parent_of block_id track_id = do
     tree <- TrackTree.track_tree_of block_id
     return $ Seq.head
         [ track
-        | (track, _, children) <- Util.Tree.flat_paths tree
+        | (track, _, children) <- Trees.flatPaths tree
         , track_id `elem` map Ui.track_id children
         ]
