@@ -6,6 +6,7 @@
 module Shake.HsDeps (
     Generated(..)
     , importsOf, transitiveImportsOf
+    , importsOfIO
     , importsPackagagesOf_
     , loadPackageDb, savePackageDb
 ) where
