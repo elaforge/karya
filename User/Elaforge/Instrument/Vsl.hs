@@ -371,7 +371,7 @@ find_harmonic hmap gliss pitch maybe_str =
 harmonic_map :: [(OpenString, Midi.Key)] -> HarmonicMap
 harmonic_map strings = HarmonicMap
     { hmap_strings = map fst strings
-    , hmap_string_nns = map (Pitch.key_to_nn . snd) strings
+    , hmap_string_nns = map (Midi.from_key . snd) strings
     , hmap_key_to_natural = make natural_harmonics
     , hmap_key_to_gliss_destination = make gliss_natural_harmonics
     }

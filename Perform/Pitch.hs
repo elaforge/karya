@@ -23,7 +23,7 @@ module Perform.Pitch (
     , Input(..), KbdType(..), Frac
 
     -- * NoteNumber
-    , NoteNumber(..), nn, key_to_nn, nn_to_double
+    , NoteNumber(..), nn, nn_to_double
     , Cent, nn_to_cents
     , nns_equal, nns_close
 
@@ -47,9 +47,9 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
 import qualified Util.Test.ApproxEq as ApproxEq
 
-import qualified Midi.Midi as Midi
 import qualified Derive.ShowVal as ShowVal
-import Global
+
+import           Global
 
 
 -- * Note
@@ -242,9 +242,6 @@ instance Pretty NoteNumber where
 
 nn :: Real a => a -> NoteNumber
 nn = NoteNumber . realToFrac
-
-key_to_nn :: Midi.Key -> NoteNumber
-key_to_nn (Midi.Key key) = nn key
 
 nn_to_double :: NoteNumber -> Double
 nn_to_double (NoteNumber nn) = nn
