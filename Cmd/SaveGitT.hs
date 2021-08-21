@@ -6,8 +6,8 @@
 -- a dependency on the libgit2 bindings.  This doesn't matter so much now that
 -- it's an external package, but it still seems like isolating dependencies
 -- is a good thing.
-module Cmd.SaveGitTypes where
-import qualified Util.GitTypes as GitTypes
+module Cmd.SaveGitT where
+import qualified Util.GitT as GitT
 import qualified Util.Pretty as Pretty
 import qualified Ui.Ui as Ui
 import qualified Ui.Update as Update
@@ -23,7 +23,7 @@ import Global
 -- mean anything, and if they're applied on top of the wrong commit the result
 -- will be a corrupted state.
 data SaveHistory =
-    SaveHistory !Ui.State !(Maybe GitTypes.Commit) [Update.UiUpdate] ![Text]
+    SaveHistory !Ui.State !(Maybe GitT.Commit) [Update.UiUpdate] ![Text]
     deriving (Show)
 
 instance Pretty SaveHistory where
@@ -33,3 +33,7 @@ instance Pretty SaveHistory where
             , ("updates", Pretty.format updates)
             , ("cmds", Pretty.format cmds)
             ]
+
+-- | Git wants these fields for commits.  It probably doesn't matter much
+-- what they are, but they might as well be accurate.
+data User = User { name :: !Text, email :: !Text } deriving (Show)

@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module Util.GitTypes where
+module Util.GitT where
 import qualified Data.ByteString as ByteString
 
 import qualified Util.Pretty as Pretty

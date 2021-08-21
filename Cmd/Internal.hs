@@ -20,7 +20,7 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
-import qualified Util.GitTypes as GitTypes
+import qualified Util.GitT as GitT
 import qualified Util.Log as Log
 import qualified Util.Maps as Maps
 import qualified Util.Pretty as Pretty
@@ -332,7 +332,7 @@ update_saved damage ui_from ui_to cmd_state = case saved_state of
 -- late to make Ui.State changes.
 --
 -- This is not defined in Cmd.Undo to avoid a circular import.
-can_checkpoint :: Cmd.State -> Maybe (Path.Canonical, GitTypes.Commit)
+can_checkpoint :: Cmd.State -> Maybe (Path.Canonical, GitT.Commit)
     -- ^ I need both a repo and a previous commit to checkpoint.
 can_checkpoint cmd_state = case (Cmd.state_save_file cmd_state, prev) of
     (Just (Cmd.ReadWrite, Cmd.SaveRepo repo), Just commit) ->

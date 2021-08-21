@@ -57,7 +57,7 @@ import qualified Cmd.Repl as Repl
 import qualified Cmd.ResponderSync as ResponderSync
 import qualified Cmd.Ruler.Meter as Meter
 import qualified Cmd.Save as Save
-import qualified Cmd.SaveGit as SaveGit
+import qualified Cmd.SaveGitT as SaveGitT
 import qualified Cmd.SyncKeycaps as SyncKeycaps
 import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.Track as Track
@@ -113,7 +113,7 @@ state_transport_info state = Transport.Info
 type MsgReader = IO Msg.Msg
 type Loopback = Msg.Msg -> IO ()
 
-responder :: StaticConfig.StaticConfig -> SaveGit.User -> [Rect.Rect]
+responder :: StaticConfig.StaticConfig -> SaveGitT.User -> [Rect.Rect]
     -> Fltk.Channel -> MsgReader -> Interface.Interface
     -> Cmd.CmdT IO Cmd.Status -> Repl.Session -> Loopback -> IO ()
 responder config git_user screens ui_chan msg_reader midi_interface setup_cmd

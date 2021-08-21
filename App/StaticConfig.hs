@@ -12,7 +12,7 @@ import qualified App.Config as Config
 import qualified App.Path as Path
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
-import qualified Cmd.SaveGit as SaveGit
+import qualified Cmd.SaveGitT as SaveGitT
 
 import qualified Derive.Derive as Derive
 import qualified Instrument.Inst as Inst
@@ -21,7 +21,7 @@ import qualified Midi.Midi as Midi
 import qualified Synth.Shared.Config as Shared.Config
 import qualified Ui.Color as Color
 
-import Global
+import           Global
 
 
 -- * static config
@@ -97,7 +97,7 @@ make_read_devices = Set.fromList . map Midi.read_device
 
 -- | Create a 'Cmd.Config' from a StaticConfig.
 cmd_config :: Path.AppDir -> Path.Canonical -> Interface.Interface
-    -> StaticConfig -> SaveGit.User -> Cmd.Config
+    -> StaticConfig -> SaveGitT.User -> Cmd.Config
 cmd_config app_dir save_dir interface config git_user = Cmd.Config
     { config_app_dir = app_dir
     , config_save_dir = save_dir

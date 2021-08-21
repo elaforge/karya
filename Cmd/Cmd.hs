@@ -46,13 +46,13 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
-import qualified Vivid.OSC as OSC
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
+import qualified Vivid.OSC as OSC
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Exceptions as Exceptions
-import qualified Util.GitTypes as GitTypes
+import qualified Util.GitT as GitT
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty
@@ -64,9 +64,8 @@ import qualified App.Config as Config
 import qualified App.Path as Path
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Msg as Msg
-import           Cmd.Msg (Performance(..)) -- avoid a circular import
-import qualified Cmd.SaveGit as SaveGit
-import qualified Cmd.SaveGitTypes as SaveGitTypes
+import           Cmd.Msg (Performance(..))
+import qualified Cmd.SaveGitT as SaveGitT
 import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.Attrs as Attrs
@@ -767,7 +766,7 @@ data Config = Config {
     -- This means you don't need a DAW, but if you have MIDI instruments
     -- they probably won't be very in sync.
     , config_im_play_direct :: Bool
-    , config_git_user :: !SaveGit.User
+    , config_git_user :: !SaveGitT.User
     } deriving (Show)
 
 -- | Get a midi writer that takes the 'config_wdev_map' into account.
@@ -1188,7 +1187,7 @@ data LastCmd =
     UndoRedo
     -- | This cmd set the state because of a load.  This should reset all the
     -- history so I can start loading from the new state's history.
-    | Load (Maybe GitTypes.Commit) [Text]
+    | Load (Maybe GitT.Commit) [Text]
     deriving (Show)
 
 data HistoryConfig = HistoryConfig {
@@ -1197,7 +1196,7 @@ data HistoryConfig = HistoryConfig {
     -- | Checkpoints are saved relative to the state at the next checkpoint.
     -- So it's important to keep the commit of that checkpoint up to date,
     -- otherwise the state and the checkpoints will get out of sync.
-    , hist_last_commit :: !(Maybe GitTypes.Commit)
+    , hist_last_commit :: !(Maybe GitT.Commit)
     } deriving (Show)
 
 empty_history_config :: HistoryConfig
@@ -1215,7 +1214,7 @@ data HistoryCollect = HistoryCollect {
     -- recorded separately.
     , state_suppress_edit :: !(Maybe EditMode)
     -- | The Git.Commit in the SaveHistory should definitely be Nothing.
-    , state_suppressed :: !(Maybe SaveGitTypes.SaveHistory)
+    , state_suppressed :: !(Maybe SaveGitT.SaveHistory)
     } deriving (Show)
 
 empty_history_collect :: HistoryCollect
@@ -1241,7 +1240,7 @@ data HistoryEntry = HistoryEntry {
     , hist_names :: ![Text]
     -- | The Commit where this entry was saved.  Nothing if the entry is
     -- unsaved.
-    , hist_commit :: !(Maybe GitTypes.Commit)
+    , hist_commit :: !(Maybe GitT.Commit)
     } deriving (Show)
 
 empty_history_entry :: Ui.State -> HistoryEntry

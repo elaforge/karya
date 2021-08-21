@@ -30,6 +30,7 @@ import qualified Cmd.Performance as Performance
 import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Save as Save
 import qualified Cmd.SaveGit as SaveGit
+import qualified Cmd.SaveGitT as SaveGitT
 
 import qualified Derive.C.All as C.All
 import qualified Derive.Cache as Cache
@@ -219,7 +220,7 @@ cmd_config inst_db = do
         , config_im = Shared.Config.config app_dir
         -- You shouldn't be saving any checkpoints from here, so I can use
         -- dummy values.
-        , config_git_user = SaveGit.User "name" "email"
+        , config_git_user = SaveGitT.User "name" "email"
         , config_im_play_direct = False
         }
 

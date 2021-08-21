@@ -36,7 +36,7 @@ import qualified App.StaticConfig as StaticConfig
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Ky as Ky
 import qualified Cmd.Performance as Performance
-import qualified Cmd.SaveGit as SaveGit
+import qualified Cmd.SaveGitT as SaveGitT
 import qualified Cmd.Simple as Simple
 
 import qualified Derive.DeriveSaved as DeriveSaved
@@ -393,7 +393,7 @@ load_cmd_config midi_interface = do
     app_dir <- Path.get_app_dir
     save_dir <- Path.canonical $ Path.to_absolute app_dir App.Config.save_dir
     return $ StaticConfig.cmd_config app_dir save_dir midi_interface
-        static_config (SaveGit.User "user" "name")
+        static_config (SaveGitT.User "user" "name")
 
 load_score :: Cmd.Config -> Text -> IO (Either Error (Ui.State, Cmd.State))
 load_score cmd_config source = Except.runExceptT $ do

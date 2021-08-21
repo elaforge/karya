@@ -39,12 +39,12 @@ module Util.Git (
     -- * errors
     , throw, GitException(..)
 ) where
-import Prelude hiding (init)
+import           Prelude hiding (init)
 import qualified Bindings.Libgit2 as G
 import qualified Control.Exception as Exception
 import qualified Data.Bits as Bits
 import qualified Data.ByteString as ByteString
-import Data.ByteString (ByteString)
+import           Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as Char8
 import qualified Data.ByteString.Unsafe as ByteString.Unsafe
 import qualified Data.Char as Char
@@ -54,17 +54,17 @@ import qualified Data.Map as Map
 import qualified Data.Text.Encoding as Encoding
 import qualified Data.Typeable as Typeable
 
-import Foreign
-import Foreign.C
 import qualified System.Directory as Directory
 import qualified System.Exit as Exit
-import System.FilePath ((</>))
+import           System.FilePath ((</>))
 
-import Util.GitTypes (Commit(..), Repo)
+import           Util.GitT (Commit(..), Repo)
 import qualified Util.Processes as Processes
 import qualified Util.Seq as Seq
 
-import Global
+import           Foreign
+import           Foreign.C
+import           Global
 
 
 -- | The library has to be initialized before you call any functions.

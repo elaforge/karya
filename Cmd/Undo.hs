@@ -16,6 +16,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Internal as Internal
 import qualified Cmd.Save as Save
 import qualified Cmd.SaveGit as SaveGit
+import qualified Cmd.SaveGitT as SaveGitT
 
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
@@ -261,7 +262,7 @@ bump_damage old_cur (new_cur : news) =
 
 -- | Convert 'SaveGit.SaveHistory's to 'Cmd.HistoryEntry's by writing the
 -- commits to disk.
-commit_entries :: SaveGit.User -> SaveGit.Repo -> SaveGit.Commit
+commit_entries :: SaveGitT.User -> SaveGit.Repo -> SaveGit.Commit
     -> [SaveGit.SaveHistory] -> IO [Cmd.HistoryEntry]
 commit_entries _ _ _ [] = return []
 commit_entries user repo prev_commit (hist0:hists) = do

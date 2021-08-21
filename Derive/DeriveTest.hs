@@ -26,7 +26,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Cmd.PlayUtil as PlayUtil
-import qualified Cmd.SaveGit as SaveGit
+import qualified Cmd.SaveGitT as SaveGitT
 import qualified Cmd.Simple as Simple
 
 import qualified Derive.C.All as C.All
@@ -502,7 +502,7 @@ cmd_config inst_db = Cmd.Config
                 })
             ]
         }
-    , config_git_user = SaveGit.User "name" "email"
+    , config_git_user = SaveGitT.User "name" "email"
     , config_im_play_direct = False
     }
 

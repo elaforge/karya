@@ -54,7 +54,7 @@ import qualified App.Path as Path
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Play as Play
 import qualified Cmd.SaveGit as SaveGit
-import qualified Cmd.SaveGitTypes as SaveGitTypes
+import qualified Cmd.SaveGitT as SaveGitT
 import qualified Cmd.Serialize
 
 import qualified Ui.Id as Id
@@ -306,7 +306,7 @@ save_git_as repo = do
             let user = Cmd.config_git_user $ Cmd.state_config cmd_state
             state <- Ui.get
             rethrow =<< liftIO (SaveGit.checkpoint user repo
-                (SaveGitTypes.SaveHistory state Nothing [] ["save"]))
+                (SaveGitT.SaveHistory state Nothing [] ["save"]))
     save <- rethrow =<< liftIO (SaveGit.set_save_tag repo commit)
     Log.notice $ "wrote save " <> showt save <> " to " <> showt repo
     set_save_file (Just (Cmd.ReadWrite, SaveRepo repo commit Nothing)) Save

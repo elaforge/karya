@@ -18,7 +18,7 @@ module Cmd.SaveGit (
     -- * util
     , infer_commit, try
     -- * User
-    , User(..), get_user
+    , get_user
 #ifdef TESTING
     , parse_names, load_from
 #endif
@@ -42,13 +42,15 @@ import qualified System.Process as Process
 
 import qualified Util.File as File
 import qualified Util.Git as Git
-import           Util.GitTypes (Commit, Repo)
+import           Util.GitT (Commit, Repo)
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 
-import           Cmd.SaveGitTypes (SaveHistory(..))
+import qualified Cmd.SaveGitT as SaveGitT
+import           Cmd.SaveGitT (SaveHistory(..))
 import qualified Cmd.Serialize
+
 import qualified Ui.Block as Block
 import qualified Ui.Diff as Diff
 import qualified Ui.Events as Events
@@ -145,7 +147,8 @@ save_to_ref (SavePoint versions) =
 
 -- | Checkpoint the given SaveHistory.  If it has no previous commit, create
 -- a new repo.
-checkpoint :: User -> Git.Repo -> SaveHistory -> IO (Either Text Commit)
+checkpoint :: SaveGitT.User -> Git.Repo -> SaveHistory
+    -> IO (Either Text Commit)
 checkpoint user repo (SaveHistory state Nothing _ names) =
     try "save" $ save user repo state names
 checkpoint user repo (SaveHistory state (Just commit) updates names) =
@@ -164,7 +167,7 @@ checkpoint user repo (SaveHistory state (Just commit) updates names) =
             (unparse_names "checkpoint" names)
 
 -- | Create a new repo, or throw if it already exists.
-save :: User -> Git.Repo -> Ui.State -> [Text] -> IO Commit
+save :: SaveGitT.User -> Git.Repo -> Ui.State -> [Text] -> IO Commit
 save user repo state cmd_names = do
     whenM (Git.init repo) $
         Git.throw "refusing to overwrite a repo that already exists"
@@ -180,10 +183,10 @@ should_record update = case update of
     Update.Block _ (Update.BlockConfig {}) -> False
     _ -> not $ Update.is_view_update update
 
-commit_tree :: User -> Git.Repo -> Git.Tree -> Maybe Commit -> String
+commit_tree :: SaveGitT.User -> Git.Repo -> Git.Tree -> Maybe Commit -> String
     -> IO Commit
 commit_tree user repo tree maybe_parent desc = do
-    commit <- Git.write_commit repo (name user) (email user)
+    commit <- Git.write_commit repo (SaveGitT.name user) (SaveGitT.email user)
         (maybe [] (:[]) maybe_parent) tree desc
     Git.update_head repo commit
     return commit
@@ -517,11 +520,7 @@ with_msg _ (Right val) = Right val
 
 -- * config
 
--- | Git wants these fields for commits.  It probably doesn't matter much
--- what they are, but they might as well be accurate.
-data User = User { name :: !Text, email :: !Text } deriving (Show)
-
-get_user :: IO (Either Text User)
+get_user :: IO (Either Text SaveGitT.User)
 get_user = Exception.handle handle $ do
     lines <- Text.lines . txt <$> Process.readProcess "git"
         ["config", "--get-regexp", "user.(name|email)"] ""
@@ -529,7 +528,7 @@ get_user = Exception.handle handle $ do
     return $ case (Map.lookup "user.name" m, Map.lookup "user.email" m) of
         (Just name, Just email)
             | not (Text.null name) && not (Text.null email) ->
-                Right $ User name email
+                Right $ SaveGitT.User name email
         _ -> Left $ "user.name and user.email not set in git config output: "
             <> showt lines
     where

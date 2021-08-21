@@ -11,6 +11,8 @@ import qualified Util.Test.Testing as Testing
 
 import qualified Cmd.Create as Create
 import qualified Cmd.SaveGit as SaveGit
+import qualified Cmd.SaveGitT as SaveGitT
+
 import qualified Ui.Diff as Diff
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
@@ -158,5 +160,5 @@ mkview tracks = void $ UiTest.mkblock_view (UiTest.default_block_name, tracks)
 new_repo :: IO FilePath
 new_repo = (++ SaveGit.git_suffix) <$> Testing.tmp_dir "git"
 
-user :: SaveGit.User
-user = SaveGit.User "name" "email"
+user :: SaveGitT.User
+user = SaveGitT.User "name" "email"
