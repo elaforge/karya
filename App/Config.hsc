@@ -4,15 +4,15 @@
 
 -- | Global static app defaults.
 module App.Config where
-import qualified App.Path as Path
-import App.Path ((</>))
 import qualified Data.Array.IArray as IArray
 import qualified Data.Bits as Bits
 import qualified Data.Map.Strict as Map
+import qualified Data.Time as Time
 import qualified System.Info
 
+import qualified App.Path as Path
+import           App.Path ((</>))
 import qualified Util.Array as Array
-import qualified Util.Thread as Thread
 import qualified Util.Network as Network
 
 import qualified Ui.Color as Color
@@ -21,7 +21,7 @@ import qualified Ui.Style as Style
 import qualified Ui.Types as Types
 import qualified Ui.Zoom as Zoom
 
-import Global
+import           Global
 
 
 #include "fltk/config.h"
@@ -289,7 +289,7 @@ score_integrate_skeleton = Color.green
 
 -- | The background derive threads will wait this many seconds before starting
 -- up, to avoid working too hard during an edit.
-default_derive_wait :: Thread.Seconds
+default_derive_wait :: Time.NominalDiffTime
 default_derive_wait = 1
 
 -- | Keep this many past history entries for undo.  Beyond this entries will
