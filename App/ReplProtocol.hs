@@ -157,7 +157,8 @@ query_cmd addr cmd = query addr (QCommand cmd) >>= return . \case
 
 -- | A simple one-shot 'query_cmd'.
 query_cmd_simple :: Text -> IO Text
-query_cmd_simple cmd = format_result <$> query_cmd Config.repl_socket cmd
+query_cmd_simple cmd =
+    format_result <$> query_cmd (Network.Unix Config.repl_socket_name) cmd
 
 -- | Ask for the current save filename.  Nothing for an error, and Just Nothing
 -- for no save file.

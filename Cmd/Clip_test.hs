@@ -3,18 +3,18 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.Clip_test where
-import Util.Test
-import qualified Ui.Id as Id
-import qualified Ui.Ui as Ui
-import qualified Ui.UiTest as UiTest
-
+import qualified App.Config as Config
 import qualified Cmd.Clip as Clip
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 
-import qualified App.Config as Config
-import Global
-import Types
+import qualified Ui.Id as Id
+import qualified Ui.Ui as Ui
+import qualified Ui.UiTest as UiTest
+
+import           Global
+import           Types
+import           Util.Test
 
 
 track1 = ("t1", [(0, 2, "e11"), (4, 2, "e12"), (8, 2, "e13")])
@@ -166,7 +166,7 @@ test_cmd_paste_stretch = do
 -- * util
 
 clip_id :: BlockId
-clip_id = Id.BlockId $ Id.id Config.clip_namespace Config.clip_block_name
+clip_id = Id.BlockId $ Id.id Clip.clip_namespace Config.clip_block_name
 
 mkstate :: [UiTest.TrackSpec] -> [UiTest.TrackSpec] -> Ui.State
 mkstate block_tracks clip_tracks = UiTest.exec Ui.empty $ do
@@ -174,4 +174,4 @@ mkstate block_tracks clip_tracks = UiTest.exec Ui.empty $ do
     Clip.state_to_namespace
         (UiTest.exec Ui.empty
             (UiTest.mkblocks [(Config.clip_block_name, clip_tracks)]))
-        Config.clip_namespace
+        Clip.clip_namespace

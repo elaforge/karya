@@ -22,10 +22,9 @@ import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
 import qualified Util.SourceControl as SourceControl
 
-import qualified App.Config as Config
 import qualified App.Path as Path
 import qualified App.ReplProtocol as ReplProtocol
-
+import qualified Cmd.Clip as Clip
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.DiffPerformance as DiffPerformance
@@ -282,7 +281,7 @@ load_as_ :: Maybe Id.Namespace -> Bool -> FilePath -> Cmd.CmdL ()
 load_as_ maybe_ns open_views fn = do
     (new_state, _) <- Save.read fn
     new_state <- Ui.exec_rethrow "strip clip" new_state $ do
-        Transform.destroy_namespace Config.clip_namespace
+        Transform.destroy_namespace Clip.clip_namespace
         whenJust maybe_ns $ Transform.map_namespace . const
         unless open_views $
             mapM_ Ui.destroy_view =<< Ui.all_view_ids

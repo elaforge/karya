@@ -86,7 +86,7 @@ main :: IO ()
 main = ReplProtocol.initialize $ do
     args <- System.Environment.getArgs
     addr <- case args of
-        [] -> return Config.repl_socket
+        [] -> return $ Network.Unix Config.repl_socket_name
         [fn] -> return $ Network.Unix fn
         _ -> errorIO "usage: repl [ unix-socket ]"
     -- I don't want to see "thread started" logs.

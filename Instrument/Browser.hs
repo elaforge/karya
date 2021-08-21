@@ -41,6 +41,7 @@ import qualified Util.Doc as Doc
 import qualified Util.Fltk as Fltk
 import qualified Util.FltkUtil as FltkUtil
 import qualified Util.Format as Format
+import qualified Util.Network as Network
 import qualified Util.Seq as Seq
 
 import qualified App.Config as Config
@@ -341,7 +342,7 @@ choose_instrument qualified = do
 
 query :: Text -> IO Text
 query = fmap ReplProtocol.format_result
-    . ReplProtocol.query_cmd Config.repl_socket
+    . ReplProtocol.query_cmd (Network.Unix Config.repl_socket_name)
 
 -- | Find instruments that match the query, and update the UI incrementally.
 process_query :: Fltk.Channel -> BrowserC.Window -> Db -> [InstT.Qualified]

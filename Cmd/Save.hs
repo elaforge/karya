@@ -51,6 +51,7 @@ import qualified Util.Thread as Thread
 
 import qualified App.Config as Config
 import qualified App.Path as Path
+import qualified Cmd.Clip as Clip
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Play as Play
 import qualified Cmd.SaveGit as SaveGit
@@ -443,7 +444,7 @@ set_loaded_state save_file state = do
         _ -> return ()
     old <- Ui.get
     Ui.put $ Ui.clear $
-        Transform.replace_namespace Config.clip_namespace old state
+        Transform.replace_namespace Clip.clip_namespace old state
     root <- case UiConfig.config_root (Ui.state_config state) of
         Nothing -> return Nothing
         Just root -> Seq.head . Map.keys <$> Ui.views_of root

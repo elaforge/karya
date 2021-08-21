@@ -3,6 +3,9 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Global static app defaults.
+--
+-- This should minimize imports, since everyone should be able to import this
+-- without incurring dependencies.
 module App.Config where
 import qualified Data.Array.IArray as IArray
 import qualified Data.Bits as Bits
@@ -13,10 +16,8 @@ import qualified System.Info
 import qualified App.Path as Path
 import           App.Path ((</>))
 import qualified Util.Array as Array
-import qualified Util.Network as Network
 
 import qualified Ui.Color as Color
-import qualified Ui.Id as Id
 import qualified Ui.Style as Style
 import qualified Ui.Types as Types
 import qualified Ui.Zoom as Zoom
@@ -144,9 +145,6 @@ status_integrate_source = (8, "src")
 -- * repl
 
 -- | Unix socket to listen on for repl requests.
-repl_socket :: Network.Addr
-repl_socket = Network.Unix repl_socket_name
-
 repl_socket_name :: FilePath
 repl_socket_name = "seq-repl"
 
@@ -333,8 +331,8 @@ track_signal_color = Color.rgba 0.65 0.65 0.8 0.5
 
 -- | The default namespace for the clipboard.  Copies go to block + tracks in
 -- this namespace.
-clip_namespace :: Id.Namespace
-clip_namespace = Id.namespace "clip"
+clip_namespace :: Text
+clip_namespace = "clip"
 
 -- | The copied block will be BlockId (Id.id clip_namespace clip_block_name).
 clip_block_name :: Text

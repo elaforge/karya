@@ -10,8 +10,8 @@ import qualified Data.Text as Text
 
 import qualified Util.File as File
 import qualified Util.Log as Log
-import qualified App.Config as Config
 import qualified App.Path as Path
+import qualified Cmd.Clip as Clip
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Internal as Internal
 import qualified Cmd.Save as Save
@@ -160,7 +160,7 @@ load_history name load hist = case Cmd.hist_commit hist of
 -- or a selection, or changes the zoom.
 merge_undo_states :: Ui.State -> Ui.State -> Ui.State
 merge_undo_states new old =
-    (Transform.replace_namespace Config.clip_namespace old new)
+    (Transform.replace_namespace Clip.clip_namespace old new)
     { Ui.state_views = Map.mapWithKey
         (merge_view (Ui.state_views old)) (Ui.state_views new)
     , Ui.state_blocks = Map.mapWithKey
@@ -183,7 +183,7 @@ merge_block old_blocks block_id new = case Map.lookup block_id old_blocks of
 -- participate in undo\/redo, I don't need to record if I have only those kind
 -- of updates.
 is_clip_update :: Update.UiUpdate -> Bool
-is_clip_update = maybe False ((==Config.clip_namespace) . Id.id_namespace)
+is_clip_update = maybe False ((==Clip.clip_namespace) . Id.id_namespace)
     . Update.update_id
 
 

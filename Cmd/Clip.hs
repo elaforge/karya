@@ -36,7 +36,8 @@
     place" cmd to flatten deriver structure.
 -}
 module Cmd.Clip (
-    state_to_clip, clear_clip
+    clip_namespace
+    , state_to_clip, clear_clip
     , cmd_cut_selection, cmd_copy_selection
     , cmd_paste_overwrite, cmd_paste_merge, cmd_paste_soft_merge
     , cmd_paste_insert, cmd_paste_stretch
@@ -72,7 +73,7 @@ import           Types
 -- * clipboard ops
 
 clip_namespace :: Id.Namespace
-clip_namespace = Config.clip_namespace
+clip_namespace = Id.namespace Config.clip_namespace
 
 clip_block_id :: BlockId
 clip_block_id = Id.BlockId $ Id.id clip_namespace Config.clip_block_name
