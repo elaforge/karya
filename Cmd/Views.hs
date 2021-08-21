@@ -9,7 +9,6 @@ import qualified Util.Num as Num
 import qualified Util.Rect as Rect
 import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Internal as Internal
 import qualified Ui.Block as Block
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Ui as Ui
@@ -57,7 +56,8 @@ set_time_offset view_id offset = do
 modify_zoom :: Cmd.M m => ViewId -> (Zoom.Zoom -> Zoom.Zoom) -> m ()
 modify_zoom view_id modify = do
     Ui.modify_zoom view_id modify
-    Internal.sync_zoom_status view_id
+    -- it's a no-op and Internal adds many deps
+    -- Internal.sync_zoom_status view_id
 
 -- * size
 
