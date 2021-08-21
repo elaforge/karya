@@ -12,7 +12,6 @@ module Shake.HsDeps (
 ) where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Exception as Exception
-import Control.Monad
 import qualified Control.Monad.Trans as Trans
 
 import qualified Data.ByteString.Char8 as B
@@ -29,7 +28,10 @@ import qualified System.IO as IO
 import qualified System.Process as Process
 
 import qualified Util.Maps as Maps
+import qualified Util.Seq as Seq
 import qualified Shake.Util as Util
+
+import           Control.Monad
 
 
 type Package = String
@@ -58,7 +60,7 @@ importsOfIO :: Generated
     -> FilePath -> IO [FilePath]
 importsOfIO generated cppFlags fn = do
     -- TODO get CcDeps.includesOf so I can need them too.
-    mods <- parseImports <$> preprocess cppFlags fn
+    mods <- Seq.unique_sort . parseImports <$> preprocess cppFlags fn
     Maybe.catMaybes <$> mapM (fileOf generated) mods
 
 -- * PackageDb

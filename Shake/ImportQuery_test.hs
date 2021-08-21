@@ -23,10 +23,13 @@ test_addDep = do
 
 test_rmDep :: Test
 test_rmDep = do
-    let f parent = map (second Set.toList) . ImportQuery.rmDep g0 parent
+    let f parent = map (second Set.toList) . ImportQuery.rmDep cached parent
     pprint (f "A" "D")
     equal (f "A" "B") [("A", ["B"])]
     pprint (f "C" "Y")
+
+cached :: ImportQuery.CachedGraph
+cached = ImportQuery.cachedGraph g0
 
 g0 :: ImportQuery.Graph
 g0 = Map.fromList

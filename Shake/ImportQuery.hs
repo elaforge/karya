@@ -14,8 +14,10 @@ import qualified Data.Text.IO as Text.IO
 import qualified Data.Tree as Tree
 
 import qualified System.FilePath as FilePath
+import qualified System.IO as IO
 import qualified System.Process as Process
 
+import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Shake.HsDeps as HsDeps
 
@@ -41,13 +43,14 @@ data CachedGraph = CachedGraph {
     , _closures :: Map Module (Set Module)
     } deriving (Show)
 
-cachedGraph :: IO CachedGraph
-cachedGraph = do
-    g <- loadGraph
-    return $ CachedGraph
-        { _graph = g
-        , _closures = Map.mapWithKey (\m _ -> closure g m) g
-        }
+cachedGraph :: Graph -> CachedGraph
+cachedGraph g = CachedGraph
+    { _graph = g
+    , _closures = Map.mapWithKey (\m _ -> closure g m) g
+    }
+
+loadCachedGraph :: IO CachedGraph
+loadCachedGraph = cachedGraph <$> loadGraph
 
 -- | If I add some import, what do I now depend on that I didn't before?
 --
@@ -63,27 +66,36 @@ addDep graph parent new
     where oldClosure = closure graph parent
 
 -- | If I remove Perform.Signal from Derive.ScoreT, who now has fewer deps?
-rmDep :: Graph -> Module -> Module -> [(Module, Set Module)]
+rmDep :: CachedGraph -> Module -> Module -> [(Module, Set Module)]
 rmDep graph parent removed =
-    filter ((/= mempty) . snd) . Seq.key_on_snd gone $ Map.keys graph
+    filter ((/= mempty) . snd) . Seq.key_on_snd gone $ Map.keys (_graph graph)
     -- TODO this builds the complete closure of every module twice, only
     -- to filter out the ones that wind up empty.  Is there a way to
     -- find out there is no difference to short-circuit?
     where
-    gone mod = closure graph mod `Set.difference` closure without mod
-    without = Map.adjust (filter (/=removed)) parent graph
+    gone mod = get mod (_closures graph) `Set.difference` closure without mod
+    without = Map.adjust (filter (/=removed)) parent (_graph graph)
 
-prettyRmDep :: Module -> Module -> IO ()
-prettyRmDep parent removed = do
-    graph <- loadGraph
+prmDep :: Module -> Module -> IO ()
+prmDep parent removed = do
+    graph <- loadCachedGraph
     let rms = rmDep graph parent removed
     if  | null rms -> Text.IO.putStrLn $ parent <> " doesn't import " <> removed
         | otherwise -> do
-            mapM_ (Text.IO.putStrLn . fmt) $ Seq.sort_on (Set.size . snd) rms
-            putStrLn $ "total lost: " <> show (sum (map (Set.size . snd) rms))
-    where
-    fmt (mod, lost) = mod <> " - " <> showt (Set.size lost) <> ": "
-        <> Text.unwords (Set.toList lost)
+            mapM_ (Text.IO.putStrLn . prettyRmDep) $
+                Seq.sort_on (Set.size . snd) rms
+            putStrLn $ "total lost: "
+                <> show (Num.sum (map (Set.size . snd) rms))
+
+prettyRmDep :: (Module, Set Module) -> Module
+prettyRmDep (mod, lost) = mod <> " - "
+    <> (if Set.size lost > 2 then showt (Set.size lost) <> ":" else "")
+    <> Text.intercalate "," (Set.toList lost)
+
+-- main :: IO ()
+-- main = do
+--     g <- loadCachedGraph
+--     findWeakLinks g
 
 {-
     It would be interesting to find all the single drops with the highest lost
@@ -93,7 +105,26 @@ prettyRmDep parent removed = do
 
     Brute force way would be to do rmDep on each import of each module, and
     sort by scale.  That's probably too expensive if I want to try to remove 2.
+
+    TODO brute force way is slow even for just one link.
 -}
+
+-- | This implements the brute-force way of seeing which single imports can be
+-- removed for the greatest reduction in dependencies.
+findWeakLinks :: CachedGraph -> IO ()
+findWeakLinks graph =
+    mapM_ putLn $ map fmt $ filter ((>3) . fst) $
+        concatMap get $ filter wanted $ Map.keys (_graph graph)
+    where
+    fmt (score, ((parent, rm), _rms)) = Text.unwords [showt score, parent, rm]
+    get parent = map (get1 parent) (importsOf parent (_graph graph))
+    get1 parent removed = (scoreOf rms, ((parent, removed), rms))
+        where rms = rmDep graph parent removed
+    scoreOf = Num.sum . map (Set.size . snd)
+    wanted mod = not $ any (`Text.isSuffixOf` mod) ["_test", "_profile"]
+
+putLn :: Text -> IO ()
+putLn t = Text.IO.putStrLn t >> IO.hFlush IO.stdout
 
 
 -- TODO common up the prefixes into a tree?
@@ -106,7 +137,7 @@ paths graph from to
 
 closureTree :: Graph -> Module -> Tree.Tree Module
 closureTree graph mod =
-    Tree.Node mod (map (closureTree graph) (Map.findWithDefault [] mod graph))
+    Tree.Node mod (map (closureTree graph) (importsOf mod graph))
 
 trimTree :: Set Module -> Tree.Tree Module -> Tree.Tree Module
 trimTree seen = snd . go seen
@@ -125,8 +156,13 @@ closure graph = go Set.empty
     where
     go seen mod
         | mod `Set.member` seen = seen
-        | otherwise = List.foldl' go (Set.insert mod seen)
-            (Map.findWithDefault [] mod graph)
+        | otherwise = List.foldl' go (Set.insert mod seen) (importsOf mod graph)
+
+importsOf :: Module -> Graph -> [Module]
+importsOf = get
+
+get :: (Ord k, Monoid a) => k -> Map k a -> a
+get = Map.findWithDefault mempty
 
 -- * generate
 
