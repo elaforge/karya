@@ -3,30 +3,29 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.EditUtil_test where
-import Util.Test
-import qualified Ui.UiTest as UiTest
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.EditUtil as EditUtil
 import qualified Derive.Scale.Wayang as Wayang
 import qualified Perform.Pitch as Pitch
+import qualified Ui.UiTest as UiTest
+
+import           Util.Test
 
 
+test_modify_text_key :: Test
 test_modify_text_key = do
     let f c = EditUtil.modify_text_key [] (EditUtil.Key c)
     equal (f 'c' "a") (Just "ac")
     equal (f ' ' "a") (Just "a ")
     equal (f ' ' "") (Just "")
 
-test_modify_text_note = do
-    let f = EditUtil.modify_text_note
-    equal (f "abc" "") (Just "(abc)")
-    equal (f "abc" "a") (Just "a (abc)")
-
+test_backspace :: Test
 test_backspace = do
     let f = EditUtil.backspace
     equal (f "") Nothing
     equal (f "a") (Just "")
 
+test_input_to_note :: Test
 test_input_to_note = do
     let run cmd = CmdTest.extract id $ CmdTest.run_sel 1 note_tracks cmd
         note_tracks = [(">i", [(0, 1, "")]), ("*", [(0, 0, "4d")])]

@@ -2,9 +2,30 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE ViewPatterns #-}
 -- | Utilities for editing events.
-module Cmd.EditUtil where
+module Cmd.EditUtil (
+    Pos(..), get_pos
+    -- * events
+    , Modify
+    , modify_event_at, modify_event_at_trigger
+    , soft_insert
+    , remove_event_at, remove_event
+    , lookup_instrument
+    -- * msgs
+    , Key(..)
+    , method_key
+    , num_key, is_num_key
+    , hex_key
+    , fallthrough
+    , input_to_note, inputs_to_notes
+    -- * modify
+    , modify_text_key
+#ifdef TESTING
+    , module Cmd.EditUtil
+#endif
+) where
 import qualified Data.Char as Char
 import qualified Data.Either as Either
 import qualified Data.Map as Map
@@ -172,16 +193,6 @@ is_num_key (Key c) = Char.isDigit c || c `elem` ("_.-" :: [Char])
 hex_key :: Msg.Msg -> Maybe Key
 hex_key = extract_key $ \c -> Char.isDigit c || c `elem` ("-abcdefg" :: [Char])
 
-alphanum_key :: Msg.Msg -> Maybe Key
-alphanum_key = extract_key $ \c ->
-    Char.isAlphaNum c || c `elem` ("_.-" :: [Char])
-
--- | Extract a key for raw input.
-raw_key :: Msg.Msg -> Maybe ([Key.Modifier], Key)
-raw_key msg = case extract_key Char.isPrint msg of
-    Just key -> Just (fromMaybe [] (Msg.key_mods msg), key)
-    Nothing -> Nothing
-
 extract_key :: (Char -> Bool) -> Msg.Msg -> Maybe Key
 extract_key f (Msg.text -> Just (key, text)) = case key of
     Key.Backspace -> Just Backspace
@@ -285,8 +296,3 @@ drop_expr expr = Text.reverse $ txt rev
         ')' : s -> go (nest+1) s
         '(' : s -> go (nest-1) s
         _ : s -> go nest s
-
-modify_text_note :: Pitch.Note -> Text -> Maybe Text
-modify_text_note note s =
-    Just $ s <> leading <> "(" <> Pitch.note_text note <> ")"
-    where leading = if Text.null s then "" else " "
