@@ -28,6 +28,7 @@ import qualified Util.Seq as Seq
 import qualified App.Config as Config
 import qualified App.Path as Path
 import qualified Cmd.Instrument.MidiInst as MidiInst
+import qualified Cmd.Instrument.MidiInstDb as MidiInstDb
 import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.Common as Common
 import qualified Instrument.InstT as InstT
@@ -48,7 +49,7 @@ synth_name :: InstT.SynthName
 synth_name = "vl1"
 
 load :: Path.AppDir -> IO (Maybe MidiInst.Synth)
-load = MidiInst.load_synth (const mempty) synth_name "Yamaha Vl1"
+load = MidiInstDb.load_synth (const mempty) synth_name "Yamaha Vl1"
 
 -- | Read the patch file, scan the sysex dir, and save the results in a cache.
 make_db :: Path.AppDir -> IO ()
@@ -58,7 +59,7 @@ make_db app_dir = do
     let dirs = map (dir</>) ["vc", "sysex", "patchman1", "patchman2"]
     patches <- concatMapM parse_dir dirs
     builtins <- parse_builtins (dir </> builtin)
-    MidiInst.save_synth app_dir synth_name (builtins ++ patches)
+    MidiInstDb.save_synth app_dir synth_name (builtins ++ patches)
 
 builtin :: FilePath
 builtin = "vl1v2-factory/vl1_ver2.all"
@@ -79,7 +80,7 @@ extract_syxs dir fn = do
 
 syx_fname :: Int -> Text -> FilePath
 syx_fname num name =
-    Printf.printf "%03d.%s" num (untxt $ MidiInst.clean_name name)
+    Printf.printf "%03d.%s" num (untxt $ MidiInstDb.clean_name name)
 
 send_to_buffer = modify
     [ put_int "memory type" 0x7f

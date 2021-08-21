@@ -9,6 +9,7 @@ import           System.FilePath ((</>))
 import qualified App.Config as Config
 import qualified App.Path as Path
 import qualified Cmd.Instrument.MidiInst as MidiInst
+import qualified Cmd.Instrument.MidiInstDb as MidiInstDb
 import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.InstT as InstT
 import qualified Instrument.Parse as Parse
@@ -22,7 +23,7 @@ synth_name :: InstT.SynthName
 synth_name = "morpheus"
 
 load :: Path.AppDir -> IO (Maybe MidiInst.Synth)
-load = MidiInst.load_synth (const mempty) synth_name "E-mu Morpheus"
+load = MidiInstDb.load_synth (const mempty) synth_name "E-mu Morpheus"
 
 make_db :: Path.AppDir -> IO ()
 make_db app_dir = do
@@ -33,7 +34,7 @@ make_db app_dir = do
         map (MidiInst.patch#Patch.defaults#Patch.pitch_bend_range
                 #= Just (-12, 12))
             patches
-    MidiInst.save_synth app_dir synth_name patches
+    MidiInstDb.save_synth app_dir synth_name patches
 
 synth_controls :: [(Midi.Control, ScoreT.Control)]
 synth_controls =

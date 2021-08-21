@@ -17,6 +17,7 @@ import           System.FilePath ((</>))
 import qualified App.Config as Config
 import qualified App.Path as Path
 import qualified Cmd.Instrument.MidiInst as MidiInst
+import qualified Cmd.Instrument.MidiInstDb as MidiInstDb
 import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.Common as Common
 import qualified Instrument.InstT as InstT
@@ -34,7 +35,7 @@ synth_name :: InstT.SynthName
 synth_name = "z1"
 
 load :: Path.AppDir -> IO (Maybe MidiInst.Synth)
-load = MidiInst.load_synth (const mempty) synth_name "Korg Z1"
+load = MidiInstDb.load_synth (const mempty) synth_name "Korg Z1"
 
 make_db :: Path.AppDir -> IO ()
 make_db app_dir = do
@@ -44,7 +45,7 @@ make_db app_dir = do
     bank_b <- Sysex.parse_builtins 1 program_dump (dir </> "bank_b.syx")
     sysex <- Sysex.parse_dir [current_program_dump, program_dump, sysex_manager]
         (dir </> "sysex")
-    MidiInst.save_synth app_dir synth_name $
+    MidiInstDb.save_synth app_dir synth_name $
         map (override_pb . MidiInst.patch_from_pair) $
         concat [bank_a, bank_b, sysex]
     where

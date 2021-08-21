@@ -2,22 +2,25 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Cmd.Instrument.MidiInst_test where
+module Cmd.Instrument.MidiInstDb_test where
 import qualified Data.Map as Map
 
-import Util.Test
-import qualified Midi.Midi as Midi
 import qualified Cmd.Instrument.MidiInst as MidiInst
-import qualified Perform.Midi.Patch as Patch
+import qualified Cmd.Instrument.MidiInstDb as MidiInstDb
 import qualified Instrument.Common as Common
 import qualified Instrument.InstT as InstT
 import qualified Instrument.Tag as Tag
 
-import Global
+import qualified Midi.Midi as Midi
+import qualified Perform.Midi.Patch as Patch
+
+import           Global
+import           Util.Test
 
 
+test_generate_names :: Test
 test_generate_names = do
-    let f = first extract . MidiInst.generate_names . map (uncurry mkpatch)
+    let f = first extract . MidiInstDb.generate_names . map (uncurry mkpatch)
         extract = map (second name) . Map.toList
         name = Patch.patch_name .  MidiInst.patch_patch
     -- different initialization gets split
