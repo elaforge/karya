@@ -49,23 +49,24 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import qualified Util.Seq as Seq
-import qualified Ui.Block as Block
-import qualified Ui.Event as Event
-import qualified Ui.Events as Events
-import qualified Ui.Id as Id
-import qualified Ui.Ui as Ui
-import qualified Ui.Track as Track
-import qualified Ui.Transform as Transform
-
+import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Edit as Edit
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Selection as Selection
+import qualified Cmd.Simple as Simple
 
-import qualified App.Config as Config
-import Global
-import Types
+import qualified Ui.Block as Block
+import qualified Ui.Event as Event
+import qualified Ui.Events as Events
+import qualified Ui.Id as Id
+import qualified Ui.Track as Track
+import qualified Ui.Transform as Transform
+import qualified Ui.Ui as Ui
+
+import           Global
+import           Types
 
 
 -- * clipboard ops
@@ -84,6 +85,9 @@ state_to_clip state =
 
 clear_clip :: Cmd.M m => m ()
 clear_clip = Transform.destroy_namespace clip_namespace
+
+load_block_to_clip :: FilePath -> Cmd.CmdT IO ()
+load_block_to_clip fn = state_to_clip =<< Simple.read_block fn
 
 -- * copy
 

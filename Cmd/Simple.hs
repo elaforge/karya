@@ -12,10 +12,8 @@ import qualified Data.Tree as Tree
 
 import qualified Util.Pretty as Pretty
 import qualified App.Config as Config
-import qualified Cmd.Clip as Clip
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Selection as Selection
-
 import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stack as Stack
@@ -151,9 +149,6 @@ dump_block block_id = do
 load_block :: Cmd.M m => Block -> m Ui.State
 load_block block = Ui.exec_rethrow "convert block" Ui.empty $
     make_block block
-
-load_block_to_clip :: FilePath -> Cmd.CmdT IO ()
-load_block_to_clip fn = read_block fn >>= Clip.state_to_clip
 
 read_block :: FilePath -> Cmd.CmdT IO Ui.State
 read_block fn = do
