@@ -221,7 +221,7 @@ thread ustate cstate cmds = foldl f (Right (ustate, cstate)) cmds
     where
     f (Right (ustate, cstate)) cmd = case run ustate cstate cmd of
         Result (Right _) cstate2 ustate2 _ logs _ ->
-            Log.trace_logs logs $ Right (ustate2, cstate2)
+            DeriveTest.trace_logs logs $ Right (ustate2, cstate2)
         Result (Left err) _ _ _ _ _ -> Left (showt err)
     f (Left err) _ = Left err
 

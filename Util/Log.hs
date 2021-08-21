@@ -28,7 +28,6 @@ module Util.Log (
     , timer, debug, notice, warn, error
     , debug_stack, notice_stack, warn_stack, error_stack
     , add_prefix
-    , trace_logs
     -- * LogT monad
     , LogMonad(..)
     , LogT, run, LogId, run_id
@@ -76,7 +75,6 @@ import qualified Text.ParserCombinators.ReadP as ReadP
 import qualified Text.Read as Read
 
 import qualified Util.CallStack as CallStack
-import qualified Util.Debug as Debug
 import qualified Util.Exceptions as Exceptions
 import qualified Util.Logger as Logger
 import qualified Util.Serialize as Serialize
@@ -322,14 +320,6 @@ error_stack = log_stack Error
 -- | Prefix a msg with the given string.
 add_prefix :: Text -> Msg -> Msg
 add_prefix pref m = m { msg_text = pref <> ": " <> msg_text m }
-
--- | Write log msgs with 'Debug.trace_str', for debugging.
-trace_logs :: [Msg] -> a -> a
-trace_logs logs val
-    | null logs = val
-    | otherwise = Debug.trace_str
-        (Text.stripEnd $ Text.unlines $ "\tlogged:" : map format_msg logs)
-        val
 
 -- * LogT
 

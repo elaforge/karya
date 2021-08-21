@@ -13,6 +13,7 @@ import           System.FilePath ((</>))
 import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.CallStack as CallStack
+import qualified Util.Debug as Debug
 import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Ranges as Ranges
@@ -31,7 +32,8 @@ import qualified Cmd.Simple as Simple
 import qualified Derive.C.All as C.All
 import qualified Derive.C.Prelude.Block as Prelude.Block
 import qualified Derive.Controls as Controls
-import           Derive.DDebug () -- just make sure it compiles
+import           Derive.DDebug ()
+-- just make sure it compiles
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Deriver.Internal as Internal
@@ -587,11 +589,19 @@ make_convert_lookup allocs db =
 -- *** log msgs
 
 trace_logs :: [Log.Msg] -> a -> a
-trace_logs logs = Log.trace_logs (filter interesting_log logs)
+trace_logs logs = trace_all_logs (filter interesting_log logs)
+
+-- | Write log msgs with 'Debug.trace_str', for debugging.
+trace_all_logs :: [Log.Msg] -> a -> a
+trace_all_logs logs val
+    | null logs = val
+    | otherwise = Debug.trace_str
+        (Text.stripEnd $ Text.unlines $ "\tlogged:" : map Log.format_msg logs)
+        val
 
 -- | Filter out low-priority logs and trace them.
 trace_low_prio :: [Log.Msg] -> [Log.Msg]
-trace_low_prio msgs = Log.trace_logs low high
+trace_low_prio msgs = trace_all_logs low high
     where (high, low) = List.partition interesting_log msgs
 
 -- | Tests generally shouldn't depend on logs below a certain priority since
@@ -618,7 +628,7 @@ filter_events_range start end = filter_events $ \e ->
     start <= Score.event_start e && Score.event_start e < end
 
 extract_events :: (Score.Event -> a) -> Derive.Result -> [a]
-extract_events e_event result = Log.trace_logs logs (map e_event events)
+extract_events e_event result = trace_all_logs logs (map e_event events)
     where (events, logs) = r_split result
 
 extract_levents :: (a -> b) -> [LEvent.LEvent a] -> ([b], [Text])
