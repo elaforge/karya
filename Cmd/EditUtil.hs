@@ -8,6 +8,7 @@ module Cmd.EditUtil where
 import qualified Data.Char as Char
 import qualified Data.Either as Either
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified Cmd.Cmd as Cmd
@@ -19,6 +20,7 @@ import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Scale as Scale
 import qualified Derive.ScoreT as ScoreT
 
+import qualified Instrument.Common as Common
 import qualified Perform.Pitch as Pitch
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -100,6 +102,22 @@ modify_event_at (Pos block_id tracknum start dur) zero_dur modify_dur modify =do
         | zero_dur = ifM ((==Types.Positive) <$> get_orientation)
             (return 0) (return (-0))
         | otherwise = get_duration tracknum start
+
+-- | Like 'modify_event_at', but take 'triggered_inst' into account.
+modify_event_at_trigger :: Cmd.M m => Pos -> Bool -> Bool -> Modify -> m ()
+modify_event_at_trigger pos zero_dur modify_dur f = do
+    trigger_inst <- triggered_inst =<< lookup_instrument
+    modify_event_at pos (zero_dur || trigger_inst) modify_dur f
+
+-- | Instruments with the triggered flag set don't pay attention to note off,
+-- so I can make the duration 0.
+triggered_inst :: Cmd.M m => Maybe ScoreT.Instrument -> m Bool
+triggered_inst Nothing = return False -- don't know, but guess it's not
+triggered_inst (Just inst) = Set.member Common.Triggered <$> common_flags inst
+
+common_flags :: Cmd.M m => ScoreT.Instrument -> m (Set Common.Flag)
+common_flags inst = maybe mempty flags <$> Cmd.lookup_instrument inst
+    where flags = Common.common_flags . Cmd.inst_common
 
 get_duration :: Cmd.M m => TrackNum -> TrackTime -> m TrackTime
 get_duration tracknum start = do

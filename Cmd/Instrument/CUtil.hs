@@ -20,7 +20,6 @@ import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Cmd.MidiThru as MidiThru
 import qualified Cmd.Msg as Msg
-import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.Perf as Perf
 import qualified Cmd.PhysicalKey as PhysicalKey
 import qualified Cmd.Selection as Selection
@@ -129,7 +128,7 @@ insert_expr thru note_entry_map = handler $ \msg -> do
         Cmd.set_status Config.status_note $ Just $ ShowVal.show_val expr
         whenM Cmd.is_val_edit $ suppressed $ do
             pos <- EditUtil.get_pos
-            NoteTrack.modify_event_at pos False True $
+            EditUtil.modify_event_at_trigger pos False True $
                 const (Just (ShowVal.show_val expr), True)
         where
         suppressed = Cmd.suppress_history Cmd.ValEdit

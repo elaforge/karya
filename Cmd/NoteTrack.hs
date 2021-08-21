@@ -13,10 +13,13 @@
     with zero duration.  Also, starting a raw edit with space will create a
     zero duration event.
 -}
-module Cmd.NoteTrack where
+module Cmd.NoteTrack (
+    ControlTrack(..)
+    , cmd_val_edit
+    , cmd_method_edit
+) where
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 
 import qualified Util.Seq as Seq
 import qualified App.Config as Config
@@ -34,7 +37,6 @@ import qualified Derive.Controls as Controls
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.ScoreT as ScoreT
 
-import qualified Instrument.Common as Common
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Key as Key
@@ -266,24 +268,8 @@ create_dyn_track block_id (ControlTrack note dyn) = do
 ensure_note_event :: Cmd.M m => EditUtil.Pos -> m ()
 ensure_note_event pos = do
     text <- Cmd.gets (Cmd.state_note_text . Cmd.state_edit)
-    modify_event_at pos False False $
+    EditUtil.modify_event_at_trigger pos False False $
         maybe (Just text, False) (\old -> (Just old, False))
-
--- | Instruments with the triggered flag set don't pay attention to note off,
--- so I can make the duration 0.
-triggered_inst :: Cmd.M m => Maybe ScoreT.Instrument -> m Bool
-triggered_inst Nothing = return False -- don't know, but guess it's not
-triggered_inst (Just inst) = Set.member Common.Triggered <$> common_flags inst
-
-common_flags :: Cmd.M m => ScoreT.Instrument -> m (Set Common.Flag)
-common_flags inst = maybe mempty flags <$> Cmd.lookup_instrument inst
-    where flags = Common.common_flags . Cmd.inst_common
-
-modify_event_at :: Cmd.M m => EditUtil.Pos -> Bool -> Bool
-    -> EditUtil.Modify -> m ()
-modify_event_at pos zero_dur modify_dur f = do
-    trigger_inst <- triggered_inst =<< EditUtil.lookup_instrument
-    EditUtil.modify_event_at pos (zero_dur || trigger_inst) modify_dur f
 
 get_state :: Cmd.M m => (Cmd.EditState -> a) -> m a
 get_state f = Cmd.gets (f . Cmd.state_edit)
