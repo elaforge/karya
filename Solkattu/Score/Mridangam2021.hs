@@ -150,26 +150,47 @@ sketch_21_06_12 = date 2021 6 12 $ sarvalaghu $ korvaiS adi
     ]
 
 e_21_08_15 :: Korvai
-e_21_08_15 = date 2021 8 15 $ ganesh $ korvai adi
+e_21_08_15 = date 2021 8 15 $ ganesh $ korvai adi $
+    let pknook123 = g $ su "pknook pkpknook pkpkpknook" in
     [ x2 $ s $ rho . rh_
     , s $ rho `replaceEnd` su "pknook" . rh_ `replaceEnd` su "pknook"
-    , s $ rho `replaceEnd` su (r2 "pknook") . rh_ `replaceEnd` su (r2 "pknook")
-    , s $ rho `replaceEnd` su (r3 "pknook") . rh_ `replaceEnd` su (r3 "pknook")
-    , s $ rho `replaceEnd` pknookS . rh_ `replaceEnd` pknookS
+    , s $ rho `replaceEnd` su "pknook" . rh_ `replaceEnd` su (r2 "pknook")
+    , s $ rho `replaceEnd` su "pknook" . rh_ `replaceEnd` su (r3 "pknook")
+    , s $ rho `replaceEnd` su "pknook" . rh_ `replaceEnd` pknook123
     , s $ rho . "ND,n,nd,n,nd,nd,"
-    , ending $ tri123' pknookS "NN_v_"
+    , ending $ tri123' pknook123 "NN_v_"
+    ] ++
 
-    , x2 $ s $ rho . rh_
+    let kookou = g $ su "kookou_kno"
+        kook = su "kook"
+    in
+    [ x2 $ s $ rho . rh_
     , s $ rho `replaceEnd` kookou . rh_ `replaceEnd` kookou
-    , s $ rho `replaceEnd` (kook.kookou) . rh_ `replaceEnd` (kook.kookou)
-    , s $
-      rho `replaceEnd` (kook.kook.kookou) . rh_ `replaceEnd` (kook.kook.kookou)
+    , s $ rho `replaceEnd` kookou . rh_ `replaceEnd` (kook.kookou)
+    , s $ rho `replaceEnd` kookou . rh_ `replaceEnd` (kook.kook.kookou)
     , ending $ r3 $ kookou . kook.kookou . kook.kook.kookou . r3 (on.v.__3)
     ]
+    ++ mk (o&t.k) (t.k)
+    ++ mk (su (o.t.o.k)) (su (p.t.p.k))
     where
-    pknookS = g $ su "pknook pkpknook pkpkpknook"
-    kookou = g $ su "kookou_kno"
-    kook = su "kook"
+    mk _T_k  _tk =
+        [ x2 $ s $ rho . rh_
+        , s $ otk `replaceStart` rho . otk `replaceStart` rh_
+        , s $ otkn_ktok . otk `replaceStart` rh_
+        , s $ otkn_ktok . otk . r2 (n_ktpk._tk) . n_ktpk
+        , s $ otkn_ktok . otk . n_ktpk._tk._tk.n_ktpk.n_ktpk
+        , ending $ tri_ (od.__) (otkn_ktok . o.__.k.__)
+        , ending $ tsep otkn_ktok (o.k.od.__) (o.__.k.__.od.__) . o.__3.k.__3.od
+        , ending $ otkn_ktokN 1 . o.k.od.__ . otkn_ktokN 2 . o.__.k.__.od.__
+            . otkn_ktokN 3 . o.__3.k.__3.od
+        ]
+        where
+        n_ktpk = g $ n.su ktpk
+        on_ktok = g $ on.su ktok
+        otk = o.t.k
+        otkn_ktok = otk . r2 (on_ktok._T_k) . on_ktok
+        otkn_ktokN c = otk . on_ktok . repeat c _tk . repeat c on_ktok
+
     rho = rh & "oo_o_oo_o_oo_o"
     rh_ = rh & "oo"
     rh = "nd,n,nd,n,nd,n".su "ktok"
