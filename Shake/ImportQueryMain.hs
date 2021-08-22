@@ -12,6 +12,7 @@ import qualified Data.Text.IO as Text.IO
 import qualified Data.Tree as Tree
 
 import qualified System.Environment as Environment
+import qualified System.IO as IO
 
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
@@ -54,7 +55,22 @@ commands = Map.fromList
 cWeak :: IO ()
 cWeak = do
     ImportQuery.cacheGraph
-    ImportQuery.findWeakLinks =<< ImportQuery.loadCachedGraph
+    scores <- ImportQuery.findWeakLinks <$> ImportQuery.loadCachedGraph
+    total <- mapStateM fmt 0 scores
+    putStrLn $ "total: " <> show total
+    where
+    fmt total (score, ((parent, rm), _rms)) = do
+        when (score > 3) $ do
+            Text.IO.putStrLn $ Text.unwords [showt score, parent, rm]
+            IO.hFlush IO.stdout
+        return $ total + score
+
+mapStateM :: Monad m => (state -> a -> m state) -> state -> [a] -> m state
+mapStateM action state = \case
+    [] -> pure state
+    x : xs -> do
+        !state <- action state x
+        mapStateM action state xs
 
 cRm :: Module -> Module -> IO ()
 cRm parent removed = do

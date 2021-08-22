@@ -10,11 +10,9 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
-import qualified Data.Text.IO as Text.IO
 import qualified Data.Tree as Tree
 
 import qualified System.FilePath as FilePath
-import qualified System.IO as IO
 import qualified System.Process as Process
 
 import qualified Util.Num as Num
@@ -91,20 +89,14 @@ rmDep graph parent removed =
 
 -- | This implements the brute-force way of seeing which single imports can be
 -- removed for the greatest reduction in dependencies.
-findWeakLinks :: CachedGraph -> IO ()
-findWeakLinks graph =
-    mapM_ putLn $ map fmt $ filter ((>3) . fst) $
-        concatMap get $ filter wanted $ Map.keys (_graph graph)
+findWeakLinks :: CachedGraph -> [(Int, ((Text, Text), [(Module, Set Module)]))]
+findWeakLinks graph = concatMap get $ filter wanted $ Map.keys (_graph graph)
     where
-    fmt (score, ((parent, rm), _rms)) = Text.unwords [showt score, parent, rm]
     get parent = map (get1 parent) (importsOf parent (_graph graph))
     get1 parent removed = (scoreOf rms, ((parent, removed), rms))
         where rms = rmDep graph parent removed
     scoreOf = Num.sum . map (Set.size . snd)
     wanted mod = not $ any (`Text.isSuffixOf` mod) ["_test", "_profile"]
-
-putLn :: Text -> IO ()
-putLn t = Text.IO.putStrLn t >> IO.hFlush IO.stdout
 
 
 -- TODO common up the prefixes into a tree?
