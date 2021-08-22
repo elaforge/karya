@@ -315,7 +315,7 @@ data GuiType =
 hsBinaries :: [HsBinary]
 hsBinaries =
     [ gui "browser" "Instrument/Browser.hs" ["Instrument/browser_ui.cc.o"]
-    -- , plain "import_query" "Shake/ImportQuery.hs"
+    , plain "import_query" "Shake/ImportQueryMain.hs"
     , plain "convert_event_log" "App/ConvertEventLog.hs"
     , plain "dump" "App/Dump.hs"
     -- ExtractDoc wants the global keymap, which winds up importing cmds that

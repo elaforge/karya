@@ -73,29 +73,9 @@ rmDep graph parent removed =
     -- to filter out the ones that wind up empty.  Is there a way to
     -- find out there is no difference to short-circuit?
     where
+    -- TODO emit this as a tree!
     gone mod = get mod (_closures graph) `Set.difference` closure without mod
     without = Map.adjust (filter (/=removed)) parent (_graph graph)
-
-prmDep :: Module -> Module -> IO ()
-prmDep parent removed = do
-    graph <- loadCachedGraph
-    let rms = rmDep graph parent removed
-    if  | null rms -> Text.IO.putStrLn $ parent <> " doesn't import " <> removed
-        | otherwise -> do
-            mapM_ (Text.IO.putStrLn . prettyRmDep) $
-                Seq.sort_on (Set.size . snd) rms
-            putStrLn $ "total lost: "
-                <> show (Num.sum (map (Set.size . snd) rms))
-
-prettyRmDep :: (Module, Set Module) -> Module
-prettyRmDep (mod, lost) = mod <> " - "
-    <> (if Set.size lost > 2 then showt (Set.size lost) <> ":" else "")
-    <> Text.intercalate "," (Set.toList lost)
-
--- main :: IO ()
--- main = do
---     g <- loadCachedGraph
---     findWeakLinks g
 
 {-
     It would be interesting to find all the single drops with the highest lost
@@ -128,6 +108,8 @@ putLn t = Text.IO.putStrLn t >> IO.hFlush IO.stdout
 
 
 -- TODO common up the prefixes into a tree?
+-- TODO very slow, could I save time by memoizing branches I already searched?
+-- Surely this is a standard DAG algorithm.
 paths :: Graph -> Module -> Module -> [[Module]]
 paths graph from to
     | from == to = [[to]]
@@ -166,8 +148,8 @@ get = Map.findWithDefault mempty
 
 -- * generate
 
-saveGraph :: IO ()
-saveGraph = Aeson.encodeFile "build/imports.json" =<< generateGraph
+cacheGraph :: IO ()
+cacheGraph = Aeson.encodeFile "build/imports.json" =<< generateGraph
 
 loadGraph :: IO Graph
 loadGraph = fromMaybe (error "no parse") <$>
