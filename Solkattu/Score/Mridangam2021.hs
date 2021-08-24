@@ -173,7 +173,7 @@ e_21_08_15 = date 2021 8 15 $ ganesh $ korvai adi $
     ++ mk (o&t.k) (t.k)
     ++ mk (su (o.t.o.k)) (su (p.t.p.k))
     where
-    mk _T_k  _tk =
+    mk _Tk  _tk =
         [ x2 $ s $ rho . rh_
         , s $ otk `replaceStart` rho . otk `replaceStart` rh_
         , s $ otkn_ktok . otk `replaceStart` rh_
@@ -188,8 +188,8 @@ e_21_08_15 = date 2021 8 15 $ ganesh $ korvai adi $
         n_ktpk = g $ n.su ktpk
         on_ktok = g $ on.su ktok
         otk = o.t.k
-        otkn_ktok = otk . r2 (on_ktok._T_k) . on_ktok
-        otkn_ktokN c = otk . on_ktok . repeat c _tk . repeat c on_ktok
+        otkn_ktok = otk . r2 (on_ktok._Tk) . on_ktok
+        otkn_ktokN c = otk . on_ktok . repeat c _Tk . repeat c on_ktok
 
     rho = rh & "oo_o_oo_o_oo_o"
     rh_ = rh & "oo"

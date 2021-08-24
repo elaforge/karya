@@ -143,7 +143,7 @@ formatResults config tala results =
     show1 prevRuler (section, (tags, Right (notes, warnings))) =
         ( nextRuler
         -- Use an empty section with commentS to describe what to play.
-        , if null notes then (:[]) $ sectionNumber section
+        , if null notes then (:[]) $ sectionNumber False section
                 <> maybe "empty" Text.unwords
                     (Map.lookup Tags.comment (Tags.untags tags))
             else sectionFmt section tags lines
@@ -166,21 +166,26 @@ formatResults config tala results =
     sectionFmt section tags =
         (if Text.null tagsText then id
             else Seq.map_last (<> "   " <> tagsText))
-        . snd . List.mapAccumL (addHeader section) False
+        . snd . List.mapAccumL (addHeader tags section) False
         . map (second (Text.strip . Styled.toText))
         where
+        -- tagsText = showt tags
         tagsText = Format.showTags tags
-    addHeader section showedNumber (AvartanamStart, line) =
+    addHeader tags section showedNumber (AvartanamStart, line) =
         ( True
-        , (if not showedNumber then sectionNumber section
+        , (if not showedNumber then sectionNumber (isEnding tags) section
             else Text.justifyRight leader ' ' "> ") <> line
         )
-    addHeader _ showedNumber (_, line) =
+    addHeader _ _ showedNumber (_, line) =
         (showedNumber, Text.replicate leader " " <> line)
-    sectionNumber section = Styled.toText $
-        Styled.bg (Styled.bright Styled.yellow) $
+    sectionNumber isEnding section = Styled.toText $
+        Styled.bg (Styled.bright color) $
         Text.justifyLeft leader ' ' (showt section <> ":")
+        where
+        -- Highlight endings specially, seems to be a useful landmark.
+        color = if isEnding then Styled.cyan else Styled.yellow
     leader = 4
+    isEnding = (== Just [Tags.ending]) . Map.lookup Tags.type_ . Tags.untags
 
 
 -- * implementation
