@@ -75,13 +75,21 @@ p_, pp :: Sequence
 p_ = lt p
 pp = hv p
 
--- | Thom -> tha.
+-- | Thom -> tha.  This converts even Both strokes.
+closedAll :: Sequence -> Sequence
+closedAll = mapMStroke $ \case
+    Mridangam.Thoppi (Mridangam.Thom _) ->
+        Just $ Mridangam.Thoppi (Mridangam.Tha Mridangam.Palm)
+    Mridangam.Both (Mridangam.Thom _) a ->
+        Just $ Mridangam.Both (Mridangam.Tha Mridangam.Palm) a
+    s -> Just s
+
 closed :: Sequence -> Sequence
 closed = mapMStroke $ \case
     Mridangam.Thoppi (Mridangam.Thom _) ->
         Just $ Mridangam.Thoppi (Mridangam.Tha Mridangam.Palm)
     Mridangam.Both (Mridangam.Thom _) a ->
-        Just $ Mridangam.Both (Mridangam.Tha Mridangam.Palm) a
+        Just $ Mridangam.Valantalai a
     s -> Just s
 
 noThom :: Sequence -> Sequence

@@ -5,7 +5,6 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE MonoLocalBinds #-}
 -- | Tie together generic Solkattu and specific instruments into a single
 -- 'Korvai'.
 module Solkattu.Korvai where

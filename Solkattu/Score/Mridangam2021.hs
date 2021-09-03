@@ -152,7 +152,7 @@ sketch_21_06_12 = date 2021 6 12 $ sarvalaghu $ korvaiS adi
 e_21_08_15 :: Korvai
 e_21_08_15 = date 2021 8 15 $ ganesh $ korvai adi $
     let pknook123 = g $ su "pknook pkpknook pkpkpknook" in
-    [ x2 $ s $ rho . rh_
+    [ first
     , s $ rho `replaceEnd` su "pknook" . rh_ `replaceEnd` su "pknook"
     , s $ rho `replaceEnd` su "pknook" . rh_ `replaceEnd` su (r2 "pknook")
     , s $ rho `replaceEnd` su "pknook" . rh_ `replaceEnd` su (r3 "pknook")
@@ -164,34 +164,93 @@ e_21_08_15 = date 2021 8 15 $ ganesh $ korvai adi $
     let kookou = g $ su "kookou_kno"
         kook = su "kook"
     in
-    [ x2 $ s $ rho . rh_
+    [ first
     , s $ rho `replaceEnd` kookou . rh_ `replaceEnd` kookou
     , s $ rho `replaceEnd` kookou . rh_ `replaceEnd` (kook.kookou)
     , s $ rho `replaceEnd` kookou . rh_ `replaceEnd` (kook.kook.kookou)
     , ending $ r3 $ kookou . kook.kookou . kook.kook.kookou . r3 (on.v.__3)
+    ] ++ concat
+    [ mk1 (o&t.k) (t.k)
+    , mk1 (su (o.t.o.k)) (su (p.t.p.k))
+    , mk2
+    , mk3
+    , mk4
     ]
-    ++ mk (o&t.k) (t.k)
-    ++ mk (su (o.t.o.k)) (su (p.t.p.k))
     where
-    mk _Tk  _tk =
-        [ x2 $ s $ rho . rh_
+    mk1 _Tk  _tk =
+        [ first
         , s $ otk `replaceStart` rho . otk `replaceStart` rh_
-        , s $ otkn_ktok . otk `replaceStart` rh_
-        , s $ otkn_ktok . otk . r2 (n_ktpk._tk) . n_ktpk
-        , s $ otkn_ktok . otk . n_ktpk._tk._tk.n_ktpk.n_ktpk
-        , ending $ tri_ (od.__) (otkn_ktok . o.__.k.__)
-        , ending $ tsep otkn_ktok (o.k.od.__) (o.__.k.__.od.__) . o.__3.k.__3.od
-        , ending $ otkn_ktokN 1 . o.k.od.__ . otkn_ktokN 2 . o.__.k.__.od.__
-            . otkn_ktokN 3 . o.__3.k.__3.od
+        , s $ seq . otk `replaceStart` rh_
+        , s $ seq . otk . r2 (n_ktpk._tk) . n_ktpk
+        , s $ seq . otk . n_ktpk._tk._tk.n_ktpk.n_ktpk
+        , ending $ tri_ (od.__) (seq . o.__.k.__)
+        , ending $ tsep (seqN 2) (o.k.od.__) (o.__.k.__.od.__) . o.__3.k.__3.od
+        , ending $ prefixes (map seqN [1, 2, 3]) (o.__.k.__.od.__)
         ]
         where
-        n_ktpk = g $ n.su ktpk
-        on_ktok = g $ on.su ktok
-        otk = o.t.k
-        otkn_ktok = otk . r2 (on_ktok._Tk) . on_ktok
-        otkn_ktokN c = otk . on_ktok . repeat c _Tk . repeat c on_ktok
+        seq = otk . r2 (on_ktok._Tk) . on_ktok
+        seqN c = otk . on_ktok . repeat c _Tk . repeat c on_ktok
+    mk2 = prepare seq ++
+        [ ending $ tri_ (od.__) (otk.seq . o.__.k.__)
+        , ending $ tsep (otk.seq) (o.k.od.__) (o.__.k.__.od.__) . o.__3.k.__3.od
+        ]
+        where
+        seq = on.su "ktokoktknook".n.od.k.on_ktok
+    mk3 = prepare seq ++
+        [ ending $ tri_ (od.__) (otk.seq . o.__.k.__)
+        , ending $ tsep (seqN 2) (o.k.od.__) (o.__.k.__.od.__) . o.__3.k.__3.od
+        , ending $ prefixes (map seqN [1, 2, 3]) (o.__.k.__.od.__)
+        ]
+        where
+        seq = on_ktok.su (r2 (g "oktknooktk"))
+        seqN c = otk.on_ktok . su (repeat c (g "oktk") . repeat c (g "nooktk"))
+    mk4 = prepare seq ++
+        [ ending $ join (o.__) $ map ((otk.) • seqN) [1, 2, 3]
+        , ending $ tsep (otk.seq) (su "okk_D___") (su "o_k_okk_D___")
+            . su "o_k_okk_okk_D"
+        ]
+        where
+        seq = seqN 1
+        seqN c = on_ktok . su "oktkoktknook" . repeat c (su "nok_ou_k")
 
+    first = x2 $ s $ rho . rh_
+    prepare seq =
+        [ first
+        , s $ otk `replaceStart` rho . otk `replaceStart` rh_
+        , s $ otk.seq . otk `replaceStart` rh_
+        , s $ otk.seq . otk.closed seq
+        ]
+
+    n_ktpk = g $ n.su ktpk
+    on_ktok = g $ on.su ktok
+    otk = o.t.k
     rho = rh & "oo_o_oo_o_oo_o"
     rh_ = rh & "oo"
     rh = "nd,n,nd,n,nd,n".su "ktok"
     tri123' sep a = sep . tri123 sep a
+
+
+{-
+1 normal, o k d
+2 tktkn n n , okd, o k d, o  k  d
+3 tkn, o k d, tktkn n, o k d, tktktn n n, o k d
+
+o t k N ktokoktknookn D k N ktok - nd n nd
+o t k N ktokoktknookn D k N ktok - with p
+~~~ o k D sequence
+optional: 0 1 2 for N ktok
+
+o t k N ktok|oktknooktk|oktknooktk
+pktkpktk nppktknppktk <--- like tktk NtkNkt variant
+follow 1 2 3 pattern from before
+
+***
+o t k N ktok oktkoktk nooknok ou k
+
+o t k N ktok oktkoktk nooknok ou k o _ |
+                         (nok ou knok ou k o _ |
+
+o t k N ktok oktkoktk nooknok ou k okok D  (thrice)
+                                    (kk)
+(...) (okk D _ ) (o k okk D _ ) (o k okk okk D _)
+-}
