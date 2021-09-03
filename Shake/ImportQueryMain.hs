@@ -4,8 +4,10 @@
 
 -- | Program to query the module graph.
 module Shake.ImportQueryMain where
+import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
@@ -13,6 +15,7 @@ import qualified Data.Tree as Tree
 
 import qualified System.Environment as Environment
 import qualified System.IO as IO
+import qualified Text.Read as Read
 
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
@@ -57,6 +60,8 @@ cWeak = do
     ImportQuery.cacheGraph
     scores <- ImportQuery.findWeakLinks <$> ImportQuery.loadCachedGraph
     total <- mapStateM fmt 0 scores
+    -- Make the total line parseable by parseWeaks
+    putStrLn $ show total <> " TOTAL TOTAL"
     putStrLn $ "total: " <> show total
     where
     fmt total (score, ((parent, rm), _rms)) = do
@@ -109,3 +114,79 @@ dropSuffixes :: [String] -> FilePath -> String
 dropSuffixes suffixes str =
     maybe str (fst . flip Seq.drop_suffix str) $
         List.find (\suf -> suf `List.isSuffixOf` str) suffixes
+
+-- Call from ghci.
+updateWeaks :: IO ()
+updateWeaks = do
+    old <- parseWeaks <$> Text.IO.readFile "weak-links"
+    new <- parseWeaks <$> Text.IO.readFile "weak-links2"
+    Text.IO.writeFile "weak-links-merged" $ unparseWeaks (mergeWeaks old new)
+
+mergeWeaks :: Ord k => Map k Parsed -> Map k Parsed -> Map k Parsed
+mergeWeaks old new = merge m old new
+    where
+    m = \case
+        Seq.Both (Parsed sigil count1 comments) (Parsed _ count _) -> Parsed
+            { _sigil = sigil
+            , _count = count
+            , _comments = filter (/="") $ if count1 /= count
+                then "[" <> showt count1 <> "]" : comments
+                else comments
+            }
+        Seq.Second a -> a
+        -- '_' means this dep disappeared.
+        Seq.First (Parsed _ count comments) -> Parsed '_' count comments
+
+unparseWeaks :: Map (Text, Text) Parsed -> Text
+unparseWeaks =
+    mconcat . map (uncurry unparseWeak) . List.sortOn (_count . snd)
+    . Map.toList
+
+data Parsed = Parsed {
+    _sigil :: Char
+    , _count :: Int
+    , _comments :: [Text]
+    } deriving (Show)
+
+unparseWeak :: (Text, Text) -> Parsed -> Text
+unparseWeak (parent, child) (Parsed sigil count comments_) = Text.unlines $
+    Text.unwords ([Text.singleton sigil, showt count, parent, child] ++ status)
+    : comments
+    where
+    -- Following comments lines start with ' '.
+    (status, comments) = case comments_ of
+        c : cs | Text.all (/=' ') c -> ([c], cs)
+        _ -> ([], comments_)
+
+parseWeaks :: Text -> Map (Text, Text) Parsed
+parseWeaks =
+    Map.fromList . map convert . collectJust . Seq.key_on parseSigil
+    . Text.lines
+    where
+    convert ((k, (sigil, count, comment1)), comments) =
+        (k, Parsed sigil count (comment1 : comments))
+
+parseSigil :: Text -> Maybe ((Text, Text), (Char, Int, Text))
+parseSigil line = case Text.uncons line of
+    Just (c, line)
+        | isSigil c, ds : parent : child : c1 <- Text.words line,
+            Just d <- Read.readMaybe (untxt ds) ->
+        Just ((parent, child), (c, d, Text.unwords c1))
+    _ -> Nothing
+    where
+    isSigil c = c == ' ' || Char.isPunctuation c
+
+
+-- * util
+
+collectJust :: [(Maybe a, b)] -> [(a, [b])]
+collectJust ((Just a, _b) : xs) = (a, map snd pre) : collectJust post
+    where (pre, post) = span (Maybe.isNothing . fst) xs
+collectJust ((Nothing, _b) : xs) = collectJust xs
+collectJust [] = []
+
+-- | Data.Map has a merge which can probably do this, but it's so complicated
+-- I gave up on it.
+merge :: Ord k => (Seq.Paired a1 b -> a2) -> Map k a1 -> Map k b -> Map k a2
+merge merger m1 m2 = Map.fromAscList $ map (second merger) $
+    Seq.pair_sorted (Map.toAscList m1) (Map.toAscList m2)
