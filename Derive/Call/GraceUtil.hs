@@ -152,8 +152,8 @@ lily_grace :: Derive.PassedArgs d -> RealTime -> [PSignal.Pitch]
     -> Derive.NoteDeriver
 lily_grace args start pitches = do
     env <- Derive.get_environ
-    pitches <- mapM (Ly.pitch_to_lily env) =<< mapM (Derive.resolve_pitch start)
-        pitches
+    pitches <- mapM (Ly.pitch_to_lily env)
+        =<< mapM (Derive.resolve_pitch start) pitches
     let ly_notes = map (<> Lilypond.to_lily Lilypond.D8) pitches
         beamed = Seq.first_last (<>"[") (<>"]") ly_notes
         -- I use \acciaccatura instead of \grace because it adds a slur

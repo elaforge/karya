@@ -6,7 +6,7 @@
 module Solkattu.Format.Html_test where
 import qualified Data.Text.IO as Text.IO
 
-import qualified Util.Doc as Doc
+import qualified Util.Html
 import qualified Solkattu.Dsl.Solkattu as G
 import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Format.Html as Html
@@ -15,8 +15,8 @@ import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.Tala as Tala
 
-import Global
-import Util.Test
+import           Global
+import           Util.Test
 
 
 manual_test = do
@@ -30,7 +30,7 @@ manual_test = do
 
 
 test_spellRests = do
-    let f = mconcat . map toSpace . map Doc.un_html
+    let f = mconcat . map toSpace . map Util.Html.un_html
             . Html.spellRests . zip [0..]
     equal (f ["_", "_", "_", "_", "_", "_", "_"]) "‗   _  "
     equal (f ["x", "_", "_", "_", "_", "_", "_"]) "x _ _  "
@@ -45,7 +45,7 @@ korvai = Korvai.korvai Tala.adi_tala (G.makeMridangam [])
 
 render :: Format.Abstraction -> Korvai.Korvai -> Text
 render abstraction =
-    Doc.un_html . mconcat . Html.sectionHtmls Korvai.IMridangam config
+    Util.Html.un_html . mconcat . Html.sectionHtmls Korvai.IMridangam config
     where
     config = Html.Config
         { _abstraction = abstraction

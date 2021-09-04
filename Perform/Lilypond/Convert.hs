@@ -111,8 +111,7 @@ convert_pitch event = case Score.initial_pitch event of
 -- * util
 
 pitch_to_lily :: Env.Environ -> PSignal.Transposed -> Either Text Types.Pitch
-pitch_to_lily env pitch = do
-    let scale_id = PSignal.pitch_scale_id pitch
+pitch_to_lily env pitch =
     case (\(Derive.LookupScale a) -> a) lookup_scale env scale_id of
         Nothing -> Left $ "scale id not found: " <> pretty scale_id
         Just (Left err) ->
@@ -121,6 +120,7 @@ pitch_to_lily env pitch = do
             note <- first pretty $ PSignal.pitch_note pitch
             pitch <- first pretty $ Derive.scale_read scale env note
             Types.parse_pitch pitch
+    where scale_id = PSignal.pitch_scale_id pitch
 
 quantize :: Types.Duration -> [Types.Event] -> [Types.Event]
 quantize dur = map $ \e -> e

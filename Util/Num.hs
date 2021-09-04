@@ -169,6 +169,8 @@ inRange low high x = low <= x && x < high
 -- | Scale @v@, which is between 0 and 1 inclusive, to be between @low@ and
 -- @high@.  If @v@ is not in the 0--1 range, the result will be out of the
 -- low--high range.
+--
+-- This is linear interpolate, or lerp.
 {-# INLINEABLE scale #-}
 {-# SPECIALIZE scale :: Double -> Double -> Double -> Double #-}
 {-# SPECIALIZE scale :: Float -> Float -> Float -> Float #-}

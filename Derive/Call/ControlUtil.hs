@@ -299,6 +299,7 @@ type Point = (Double, Double)
 -- | As far as I can tell, there's no direct way to know what value to give to
 -- the bezier function in order to get a specific @x@.  So I guess with binary
 -- search.
+-- https://youtu.be/aVwxzDHniEw?t=1119
 guess_x :: (Double -> (Double, Double)) -> CurveF
 guess_x f x1 = go 0 1
     where

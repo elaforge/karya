@@ -10,13 +10,13 @@ import qualified Data.Text as Text
 import qualified Data.Text.Lazy as Lazy
 
 import qualified Util.Doc as Doc
-import Util.Doc (html, tag)
 import qualified Util.Format as Format
-import Util.Format ((<+>), (</>), (<//>), (<+/>))
+import           Util.Format ((<+/>), (<+>), (<//>), (</>))
+import qualified Util.Html as Html
+import           Util.Html (html, tag)
 import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
 
-import qualified Ui.Ui as Ui
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
 import qualified Derive.Call.Module as Module
@@ -28,8 +28,10 @@ import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Sig as Sig
 
 import qualified Perform.Pitch as Pitch
-import Global
-import Types
+import qualified Ui.Ui as Ui
+
+import           Global
+import           Types
 
 
 -- * output
@@ -139,17 +141,17 @@ bindings_text =
 -- ** html output
 
 -- | Convert a Document to HTML.
-doc_html :: Doc.HtmlState -> Document -> Doc.Html
+doc_html :: Html.HtmlState -> Document -> Html.Html
 doc_html hstate = (html_header hstate <>) . mconcatMap section
     where
     section (call_kind, scope_docs) =
-        Doc.tag_class "div" "call-kind" $ tag "h2" (html call_kind)
+        Html.tag_class "div" "call-kind" $ tag "h2" (html call_kind)
             <> "\n\n" <> mconcatMap (scope_doc call_kind) scope_docs
     scope_doc call_kind (maybe_source, call_bindings) = case maybe_source of
         -- 'imported_scope_doc' does this since Library doesn't have source
         -- types.
         Nothing -> doc
-        Just source -> Doc.tag_class "div" "call-source" $
+        Just source -> Html.tag_class "div" "call-source" $
             tag "h3" ("from " <> html (pretty source)) <> "\n\n" <> doc
         where
         doc = "<dl class=main-dl>\n"
@@ -158,14 +160,14 @@ doc_html hstate = (html_header hstate <>) . mconcatMap section
             <> "</dl>\n"
     module_of (_, _, call_doc) = Derive.cdoc_module call_doc
     show_module_group call_kind (module_, call_bindings) =
-        Doc.tag_class "div" "call-module" $
+        Html.tag_class "div" "call-module" $
             show_module module_ (length call_bindings) <> "<br>\n"
             <> mconcatMap (call_bindings_html hstate call_kind) call_bindings
     show_module (Module.Module m) calls = tag "center" $
         tag "b" "Module: " <> tag "code" (html m)
             <> " (" <> html (showt calls) <> " calls)"
 
-html_header :: Doc.HtmlState -> Doc.Html
+html_header :: Html.HtmlState -> Html.Html
 html_header hstate = mconcat
     [ "<meta charset=utf-8>\n"
     , "<style type=text/css>\n" <> css <> "</style>\n"
@@ -192,12 +194,12 @@ html_header hstate = mconcat
         \<code>control</code>, ...).\
         \\n<br>Search for calls with the browser's text search, \"call --\"\
         \ to search by binding, \"-- call\" to search by name.\n<br>"
-    , Doc.html_doc hstate "Common tags are documented at 'Derive.Call.Tags'."
+    , Html.html_doc hstate "Common tags are documented at 'Derive.Call.Tags'."
     , "\n<p> <span id=totals> x </span>\n"
     ]
     where default_search = "-m:internal -m:ly "
 
-css :: Doc.Html
+css :: Html.Html
 css = Seq.join "\n"
     [ ".main-dl dl { border-bottom: 1px solid #999 }"
     , "dl.compact {"
@@ -216,7 +218,7 @@ css = Seq.join "\n"
     , "}"
     ]
 
-javascript :: Doc.Html
+javascript :: Html.Html
 javascript = Seq.join "\n"
     [ search_javascript
     , ""
@@ -232,7 +234,7 @@ javascript = Seq.join "\n"
     , "};"
     ]
 
-search_javascript :: Doc.Html
+search_javascript :: Html.Html
 search_javascript = Seq.join "\n"
     [ "var total_calls = 0;"
     , "var displayed_calls = 0;"
@@ -269,7 +271,7 @@ search_javascript = Seq.join "\n"
     , "};"
     ]
 
-hide_empty_javascript :: Doc.Html
+hide_empty_javascript :: Html.Html
 hide_empty_javascript = Seq.join "\n"
     [ "var hide_all_empty = function() {"
     , "    hide_if_empty('call-module');"
@@ -294,7 +296,7 @@ hide_empty_javascript = Seq.join "\n"
     , "};"
     ]
 
-call_bindings_html :: Doc.HtmlState -> Text -> CallBindings -> Doc.Html
+call_bindings_html :: Html.HtmlState -> Text -> CallBindings -> Html.Html
 call_bindings_html hstate call_kind bindings@(binds, ctype, call_doc) = mconcat
     [ "<div class=call tags=\"" <> html (Text.unwords tags) <> "\">"
     , mconcatMap (show_bind (Derive.cdoc_module call_doc))
@@ -318,7 +320,7 @@ call_bindings_html hstate call_kind bindings@(binds, ctype, call_doc) = mconcat
         ]
     show_call_doc (Derive.CallDoc _module tags doc args) =
         "<dd> <dl class=compact>\n"
-        <> Doc.html_doc hstate doc
+        <> Html.html_doc hstate doc
         <> write_tags tags <> "\n"
         <> tag "ul" (mconcatMap arg_doc args)
         <> "</dl>\n"
@@ -328,7 +330,7 @@ call_bindings_html hstate call_kind bindings@(binds, ctype, call_doc) = mconcat
         <> " :: " <> tag "em" (html (pretty typ))
         <> show_default deflt
         <> " " <> tag "code" (html (environ_keys name env_default))
-        <> (if doc == "" then "" else " &mdash; " <> Doc.html_doc hstate doc)
+        <> (if doc == "" then "" else " &mdash; " <> Html.html_doc hstate doc)
         <> "\n"
         where
         unname (Derive.ArgName s) = s
@@ -371,7 +373,7 @@ binding_tags (binds, ctype, call_doc) =
 
 type Scale = [CallBindings]
 
-scales_html :: Doc.HtmlState -> [CallBindings] -> Doc.Html
+scales_html :: Html.HtmlState -> [CallBindings] -> Html.Html
 scales_html hstate scales = html_header hstate
         <> "<h2>Scales</h2>\n"
         <> "<dl class=main-dl>\n" <> scale_html scales <> "</dl>\n"

@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE NoMonomorphismRestriction #-}
 -- | A simple Styled Text implementation.  There are a few others on hackage
 -- (terminal-text, rainbow, ...), but they're all too complicated for me.
 --
@@ -50,7 +49,7 @@ import qualified Data.Text.Encoding as Encoding
 
 import qualified System.Console.ANSI as ANSI
 
-import qualified Util.Doc as Doc
+import qualified Util.Html as Html
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.Then as Then
@@ -222,25 +221,25 @@ join sep = mconcat . List.intersperse sep
 
 -- * html
 
-toHtml :: Styled -> Doc.Html
+toHtml :: Styled -> Html.Html
 toHtml = mconcat . toHtmls
 
-toHtmls :: Styled -> [Doc.Html]
+toHtmls :: Styled -> [Html.Html]
 toHtmls = map fmt . groupFst . toList
-    where fmt (style, texts) = styleHtml style (Doc.html (mconcat texts))
+    where fmt (style, texts) = styleHtml style (Html.html (mconcat texts))
 
-styleHtml :: Style -> Doc.Html -> Doc.Html
+styleHtml :: Style -> Html.Html -> Html.Html
 styleHtml (Style fg bg bold underline) = foldr (.) id . concat $
     [ case Maybe.catMaybes [("color:",)<$>fg, ("background-color:",) <$> bg] of
         [] -> []
         pairs -> [spanStyle (Text.intercalate ";" css)]
             where css = [name <> colorHtml c | (name, c) <- pairs]
-    , [Doc.tag "b" | bold]
-    , [Doc.tag "u" | underline]
+    , [Html.tag "b" | bold]
+    , [Html.tag "u" | underline]
     ]
 
-spanStyle :: Text -> Doc.Html -> Doc.Html
-spanStyle style = Doc.tag_attrs "span" [("style", style)] . Just
+spanStyle :: Text -> Html.Html -> Html.Html
+spanStyle style = Html.tag_attrs "span" [("style", style)] . Just
 
 colorHtml :: Color -> Text
 colorHtml = \case

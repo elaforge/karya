@@ -11,7 +11,7 @@ import qualified Data.Text.IO as Text.IO
 import qualified System.Environment as Environment
 import qualified Text.Printf as Printf
 
-import qualified Util.Doc as Doc
+import qualified Util.Html as Html
 import qualified Util.Seq as Seq
 import qualified App.Path as Path
 import qualified Cmd.CallDoc as CallDoc
@@ -34,12 +34,12 @@ main = do
     case args of
         ["keymap"] -> Text.IO.putStr keymap_doc
         ["calls"] -> do
-            hstate <- Doc.get_html_state "../haddock" app_dir
-            Text.IO.putStr $ Doc.un_html $ CallDoc.doc_html hstate $
+            hstate <- Html.get_html_state "../haddock" app_dir
+            Text.IO.putStr $ Html.un_html $ CallDoc.doc_html hstate $
                 CallDoc.builtins C.All.builtins
         ["scales"] -> do
-            hstate <- Doc.get_html_state "../haddock" app_dir
-            Text.IO.putStr $ Doc.un_html $ CallDoc.scales_html hstate $
+            hstate <- Html.get_html_state "../haddock" app_dir
+            Text.IO.putStr $ Html.un_html $ CallDoc.scales_html hstate $
                 CallDoc.scale_docs Scale.All.docs
         _ -> error "usage: extract_doc [ keymap | calls | scales ]"
 

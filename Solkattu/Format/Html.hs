@@ -16,8 +16,8 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 import qualified Data.Time.Calendar as Calendar
 
-import qualified Util.Doc as Doc
 import qualified Util.File as File
+import qualified Util.Html as Html
 import qualified Util.Seq as Seq
 import qualified Util.Styled as Styled
 import qualified Util.Texts as Texts
@@ -37,7 +37,7 @@ import           Global
 -- * interface
 
 -- | Make a summary page with all the korvais.
-indexHtml :: (Korvai.Score -> FilePath) -> [Korvai.Score] -> Doc.Html
+indexHtml :: (Korvai.Score -> FilePath) -> [Korvai.Score] -> Html.Html
 indexHtml scoreFname scores = Texts.join "\n" $
     [ "<html> <head>"
     , "<meta charset=utf-8>"
@@ -72,17 +72,17 @@ indexHtml scoreFname scores = Texts.join "\n" $
         ]
     columns =
         [ ("name", nameOf)
-        , ("type", Doc.html . Text.unwords . Metadata.scoreTag "type")
+        , ("type", Html.html . Text.unwords . Metadata.scoreTag "type")
         , ("tala", commas . scoreTalas)
         , ("nadai", commas . Metadata.sectionTag "nadai")
         , ("avart", commas . Metadata.scoreTag "avartanams")
-        , ("date", Doc.html . maybe "" showDate . scoreDate)
+        , ("date", Html.html . maybe "" showDate . scoreDate)
         , ("instruments", commas . Metadata.scoreTag "instrument")
         , ("source", commas . Metadata.scoreTag "source")
         ]
-    nameOf score = Doc.link varName (txt (scoreFname score))
+    nameOf score = Html.link varName (txt (scoreFname score))
         where (_, _, varName) = Korvai._location $ Korvai.scoreMetadata score
-    commas = Doc.html . Text.intercalate ", "
+    commas = Html.html . Text.intercalate ", "
 
 scoreDate :: Korvai.Score -> Maybe Calendar.Day
 scoreDate = \case
@@ -92,7 +92,7 @@ scoreDate = \case
         Nothing -> Seq.maximum $ mapMaybe date [k | Korvai.K k <- parts]
     where date = Korvai._date . Korvai.korvaiMetadata
 
-javascriptIndex :: Doc.Html
+javascriptIndex :: Html.Html
 javascriptIndex =
     "const table = document.getElementById('korvais');\n\
     \const headers = table.querySelectorAll('th');\n\
@@ -150,7 +150,7 @@ javascriptIndex =
 
 -- | Write HTML with all the instrument realizations at all abstraction levels.
 writeAll :: FilePath -> Korvai.Score -> IO ()
-writeAll fname score = File.writeLines fname $ map Doc.un_html $
+writeAll fname score = File.writeLines fname $ map Html.un_html $
     render defaultAbstractions score
 
 
@@ -184,33 +184,33 @@ defaultAbstraction :: Text
 defaultAbstraction = "patterns"
 
 -- | Render all 'Abstraction's, with javascript to switch between them.
-render :: [(Text, Format.Abstraction)] -> Korvai.Score -> [Doc.Html]
+render :: [(Text, Format.Abstraction)] -> Korvai.Score -> [Html.Html]
 render abstractions score = htmlPage title (scoreMetadata score) body
     where
     (_, _, title) = Korvai._location (Korvai.scoreMetadata score)
-    body :: [Doc.Html]
+    body :: [Html.Html]
     body = concatMap htmlInstrument $ Format.scoreInstruments score
     htmlInstrument (Korvai.GInstrument inst) =
-        "<h3>" <> Doc.html instName <> "</h3>"
+        "<h3>" <> Html.html instName <> "</h3>"
         : chooseAbstraction abstractions instName
         : concatMap (renderAbstraction instName inst score) abstractions
         where
         instName = Korvai.instrumentName inst
 
-htmlPage :: Text -> [Doc.Html] -> [Doc.Html] -> [Doc.Html]
+htmlPage :: Text -> [Html.Html] -> [Html.Html] -> [Html.Html]
 htmlPage title meta body = htmlHeader title : meta ++ body ++ [htmlFooter]
 
 renderAbstraction :: (Solkattu.Notation stroke, Ord stroke)
     => Text -> Korvai.Instrument stroke -> Korvai.Score
-    -> (Text, Format.Abstraction) -> [Doc.Html]
+    -> (Text, Format.Abstraction) -> [Html.Html]
 renderAbstraction instName inst score (aname, abstraction) =
-    Doc.tag_attrs "div" attrs Nothing
+    Html.tag_attrs "div" attrs Nothing
     : (case score of
         Korvai.Single korvai -> render korvai
         Korvai.Tani _ parts -> concatMap partHtmls parts)
     ++ ["</div>"]
     where
-    partHtmls (Korvai.Comment cmt) = ["<h3>" <> Doc.html cmt <> "</h3>"]
+    partHtmls (Korvai.Comment cmt) = ["<h3>" <> Html.html cmt <> "</h3>"]
     partHtmls (Korvai.K korvai) = render korvai
     render = sectionHtmls inst (config abstraction)
     attrs =
@@ -227,7 +227,7 @@ renderAbstraction instName inst score (aname, abstraction) =
         }
 
 sectionHtmls :: (Solkattu.Notation stroke, Ord stroke)
-    => Korvai.Instrument stroke -> Config -> Korvai.Korvai -> [Doc.Html]
+    => Korvai.Instrument stroke -> Config -> Korvai.Korvai -> [Html.Html]
 sectionHtmls inst config korvai =
     -- Group rows by fst, which is whether it has a ruler, and put <table>
     -- around each group.  This is because each ruler may have a different
@@ -252,11 +252,11 @@ sectionHtmls inst config korvai =
     notesOf (Right (notes, _)) = Just notes
     notesOf _ = Nothing
 
-msgRow :: Text -> (Bool, [Doc.Html])
+msgRow :: Text -> (Bool, [Html.Html])
 msgRow msg =
-    (False, ["<tr><td colspan=100>" <> Doc.html msg <> "</td></tr>"])
+    (False, ["<tr><td colspan=100>" <> Html.html msg <> "</td></tr>"])
 
-scoreTable :: Font -> [Doc.Html] -> [Doc.Html]
+scoreTable :: Font -> [Html.Html] -> [Html.Html]
 scoreTable _ [] = [] -- Seq.split_before produces []s
 scoreTable font rows = concat
     [ ["\n<p><table style=\"" <> fontStyle
@@ -265,14 +265,14 @@ scoreTable font rows = concat
     , ["</table>"]
     ]
     where
-    fontStyle = "font-size: " <> Doc.html (showt (_sizePercent font)) <> "%"
+    fontStyle = "font-size: " <> Html.html (showt (_sizePercent font)) <> "%"
         <> if _monospace font then "; font-family: Monaco, monospace" else ""
 
-htmlHeader :: Text -> Doc.Html
+htmlHeader :: Text -> Html.Html
 htmlHeader title = Texts.join "\n"
     [ "<html><head>"
     , "<meta charset=utf-8>"
-    , "<title>" <> Doc.html title <> "</title></head>"
+    , "<title>" <> Html.html title <> "</title></head>"
     , "<body>"
     , ""
     , "<style type=\"text/css\">"
@@ -285,7 +285,7 @@ htmlHeader title = Texts.join "\n"
     , ""
     ]
 
-javascript :: Doc.Html
+javascript :: Html.Html
 javascript =
     "function showAbstraction(instrument, abstraction) {\n\
     \    var tables = document.getElementsByClassName('realization');\n\
@@ -297,13 +297,13 @@ javascript =
     \    }\n\
     \}\n"
 
-chooseAbstraction :: [(Text, Format.Abstraction)] -> Text -> Doc.Html
+chooseAbstraction :: [(Text, Format.Abstraction)] -> Text -> Html.Html
 chooseAbstraction abstractions instrument =
     "\n<p> " <> mconcatMap ((<>"\n") . radio . fst) abstractions
     where
     -- <label> makes the text clickable too.
-    radio val = Doc.tag "label" $
-        Doc.tag_attrs "input" (attrs val) (Just (Doc.html val))
+    radio val = Html.tag "label" $
+        Html.tag_attrs "input" (attrs val) (Just (Html.html val))
     attrs val =
         [ ("type", "radio")
         , ("onchange", "showAbstraction('" <> instrument <> "', this.value)")
@@ -311,13 +311,13 @@ chooseAbstraction abstractions instrument =
         , ("value", val)
         ] ++ if val == defaultAbstraction then [("checked", "")] else []
 
-htmlFooter :: Doc.Html
+htmlFooter :: Html.Html
 htmlFooter = "</body></html>\n"
 
-allCss :: Doc.Html
-allCss = Texts.join "\n" [tableCss, Doc.Html typeCss]
+allCss :: Html.Html
+allCss = Texts.join "\n" [tableCss, Html.Html typeCss]
 
-tableCss :: Doc.Html
+tableCss :: Html.Html
 tableCss =
     "table.konnakol {\n\
     \   table-layout: fixed;\n\
@@ -332,7 +332,7 @@ tableCss =
     \.finalLine { border-bottom: 1px solid gray; }\n"
 
 -- | Unused, because I don't really like the tooltips.
-_metadataCss :: Doc.Html
+_metadataCss :: Html.Html
 _metadataCss =
     ".tooltip {\n\
     \    position: relative;\n\
@@ -403,18 +403,18 @@ typeColors = \case
 
 -- | TODO unused, later I should filter out only the interesting ones and
 -- cram them in per-section inline
-_sectionMetadata :: Korvai.Section sollu -> Doc.Html
+_sectionMetadata :: Korvai.Section sollu -> Html.Html
 _sectionMetadata section = Texts.join "; " $ map showTag (Map.toAscList tags)
     where
     tags = Tags.untags $ Korvai.sectionTags section
-    showTag (k, []) = Doc.html k
-    showTag (k, vs) = Doc.html k <> ": "
+    showTag (k, []) = Html.html k
+    showTag (k, vs) = Html.html k <> ": "
         <> Texts.join ", " (map (htmlTag k) vs)
 
-scoreMetadata :: Korvai.Score -> [Doc.Html]
+scoreMetadata :: Korvai.Score -> [Html.Html]
 scoreMetadata score = Seq.map_init (<>"<br>") $ concat $
-    [ ["Tala: " <> Doc.html (Text.intercalate ", " (scoreTalas score))]
-    , ["Date: " <> Doc.html (showDate date) | Just date <- [scoreDate score]]
+    [ ["Tala: " <> Html.html (Text.intercalate ", " (scoreTalas score))]
+    , ["Date: " <> Html.html (showDate date) | Just date <- [scoreDate score]]
     , [showTag ("Eddupu", map pretty eddupus) | not (null eddupus)]
     , map showTag (Map.toAscList (Map.delete "tala" tags))
     ]
@@ -425,8 +425,8 @@ scoreMetadata score = Seq.map_init (<>"<br>") $ concat $
         Metadata.sectionTags score
     tags = Tags.untags $ Korvai._tags meta
     meta = Korvai.scoreMetadata score
-    showTag (k, []) = Doc.html k
-    showTag (k, vs) = Doc.html k <> ": "
+    showTag (k, []) = Html.html k
+    showTag (k, vs) = Html.html k <> ": "
         <> Texts.join ", " (map (htmlTag k) vs)
 
 showDate :: Calendar.Day -> Text
@@ -452,7 +452,7 @@ formatAvartanams config toSpeed prevRuler tala =
 type Line = [(S.State, Symbol)]
 
 data Symbol = Symbol {
-    _html :: !Doc.Html
+    _html :: !Html.Html
     , _isSustain :: !Bool
     , _style :: !(Maybe Text)
     } deriving (Eq, Show)
@@ -492,13 +492,13 @@ makeSymbols = go
             _ -> "<hr noshade>"
         S.Sustain a -> notation state a
         S.Attack a -> notation state a
-        S.Rest -> Doc.html "_"
+        S.Rest -> Html.html "_"
     -- Because sarva is <hr> all the way through, don't separate the attack
     -- from sustain.
     normalizeSarva (S.Attack n@(Realize.Abstract meta))
         | Solkattu._type meta == Solkattu.GSarva = S.Sustain n
     normalizeSarva n = n
-    notation state n = Styled.styleHtml style (Doc.html notation)
+    notation state n = Styled.styleHtml style (Html.html notation)
         where
         style
             | Format.onAkshara state = noteStyle { Styled._bold = True }
@@ -506,10 +506,10 @@ makeSymbols = go
         (noteStyle, notation) = Solkattu.notation n
 
 formatTable :: Tala.Tala -> Int -> Korvai.Section ()
-    -> [(Maybe Format.Ruler, [(S.State, Symbol)])] -> [(Bool, [Doc.Html])]
+    -> [(Maybe Format.Ruler, [(S.State, Symbol)])] -> [(Bool, [Html.Html])]
 formatTable tala _sectionIndex section rows = map row $ zipFirstFinal rows
     where
-    td (tags, body) = Doc.tag_attrs "td" tags (Just body)
+    td (tags, body) = Html.tag_attrs "td" tags (Just body)
     row (isFirst, (mbRuler, cells), isFinal) = case mbRuler of
         Just ruler ->
             ( True
@@ -523,8 +523,8 @@ formatTable tala _sectionIndex section rows = map row $ zipFirstFinal rows
             . map (mkCell isFinal) . List.groupBy merge . zip [0..] $ cells
     sectionTags isFirst
         | not isFirst || Text.null tags = ""
-        | otherwise = Doc.tag_attrs "span" [("style", "font-size:50%")] $
-            Just $ Doc.html tags
+        | otherwise = Html.tag_attrs "span" [("style", "font-size:50%")] $
+            Just $ Html.html tags
         where tags = Format.showTags (Korvai.sectionTags section)
     -- Merge together the sustains after an attack.  They will likely have an
     -- <hr> in them, which will expand to the full colspan width.
@@ -533,7 +533,7 @@ formatTable tala _sectionIndex section rows = map row $ zipFirstFinal rows
         -- Split sustains on aksharas.  Otherwise, the colspan prevents the
         -- vertical lines that mark them.
     mkCell :: Bool -> [(Int, (S.State, Symbol))]
-        -> ([(Text, Text)], (Int, Doc.Html))
+        -> ([(Text, Text)], (Int, Html.Html))
     mkCell _ [] = ([], (0, "")) -- List.groupBy shouldn't return empty groups
     mkCell isFinal syms@((index, (state, sym)) : _) = (tags, (index, _html sym))
         where
@@ -557,21 +557,21 @@ zipFirstFinal =
     map (\(prev, x, next) -> (Maybe.isNothing prev, x, Maybe.isNothing next))
     . Seq.zip_neighbors
 
-formatRuler :: Format.Ruler -> Doc.Html
+formatRuler :: Format.Ruler -> Html.Html
 formatRuler =
     mconcatMap mark . map (second Maybe.isNothing) . Seq.zip_next
     . concatMap akshara
     where
     -- If the final one is th, then it omits the underline, which looks a bit
     -- nicer.
-    mark (m, isFinal) = Doc.tag (if isFinal then "td" else "th") (Doc.html m)
+    mark (m, isFinal) = Html.tag (if isFinal then "td" else "th") (Html.html m)
     akshara :: (Text, Int) -> [Text]
     akshara (n, spaces) = n : replicate (spaces-1) ""
 
 -- | This is the HTML version of 'Terminal.spellRests'.
 --
 -- It uses 3 levels of rests: space, single, and double.
-spellRests :: [(Int, Doc.Html)] -> [Doc.Html]
+spellRests :: [(Int, Html.Html)] -> [Html.Html]
 spellRests = spell
     where
     spell [] = []
@@ -587,11 +587,11 @@ spellRests = spell
         | otherwise = Nothing
         where
         rests = take (n-1) $ takeWhile (isRest . snd) syms
-    double = Doc.html (Text.singleton Realize.doubleRest)
+    double = Html.html (Text.singleton Realize.doubleRest)
     single = "_"
 
-isRest :: Doc.Html -> Bool
-isRest = (=="_") . Text.strip . Doc.un_html
+isRest :: Html.Html -> Bool
+isRest = (=="_") . Text.strip . Html.un_html
 
 
 -- * implementation
@@ -606,14 +606,14 @@ instrumentFont = Font
     , _monospace = True
     }
 
-htmlTag :: Text -> Text -> Doc.Html
+htmlTag :: Text -> Text -> Html.Html
 htmlTag k v
     | k == Tags.recording = case Metadata.parseRecording v of
-        Nothing -> Doc.html $ "can't parse: " <> v
+        Nothing -> Html.html $ "can't parse: " <> v
         Just (url, range) -> link $ url <> case range of
             Nothing -> ""
             -- TODO assuming youtube
             Just (start, _) -> "#t=" <> Metadata.showTime start
-    | otherwise = Doc.html v
+    | otherwise = Html.html v
     where
-    link s = Doc.link s s
+    link s = Html.link s s

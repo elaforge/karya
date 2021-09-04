@@ -19,15 +19,15 @@ import qualified System.Directory as Directory
 import           System.FilePath ((</>))
 
 import qualified Util.CallStack as CallStack
-import qualified Util.Doc as Doc
 import qualified Util.File as File
+import qualified Util.Html
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.SourceControl as SourceControl
 
 import qualified Solkattu.All as All -- generated
 import           Solkattu.Dsl.Solkattu
-       (realize, realizeM, realizeR, realizek, realizekp, realizep)
+    (realize, realizeM, realizeR, realizek, realizekp, realizep)
 import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Format.Html as Html
 import qualified Solkattu.Format.Terminal as Terminal
@@ -127,7 +127,7 @@ writeHtmlTo dir = do
     clearDir dir
     writeWithStatus write1 All.scores
     Text.IO.writeFile (dir </> "index.html") $
-        Doc.un_html $ Html.indexHtml ((<>".html") . scoreFname) All.scores
+        Util.Html.un_html $ Html.indexHtml ((<>".html") . scoreFname) All.scores
     writeCommit dir
     where
     write1 score = Html.writeAll (dir </> scoreFname score <> ".html") score
