@@ -23,7 +23,6 @@ import qualified Cmd.ModifyNotes as ModifyNotes
 import qualified Cmd.Ruler.Meter as Meter
 import qualified Cmd.Ruler.Meters as Meters
 import qualified Cmd.Ruler.Modify as Ruler.Modify
-import qualified Cmd.Ruler.RulerUtil as RulerUtil
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.ShowVal as ShowVal

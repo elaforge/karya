@@ -1386,7 +1386,7 @@ modify_some_events track_id f = _modify_events track_id $ \events ->
 calculate_damage :: Events.Events -> Events.Events -> Ranges.Ranges TrackTime
 calculate_damage old new =
     Ranges.sorted_ranges $ foldr f [] $
-        Seq.pair_sorted_on Event.start
+        Seq.pair_sorted_on1 Event.start
             (Events.ascending old) (Events.ascending new)
     where
     f (Seq.Second new) ranges = Event.range new : ranges

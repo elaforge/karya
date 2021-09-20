@@ -484,9 +484,13 @@ pair_sorted x@((k0, v0) : xs) y@((k1, v1) : ys)
     | otherwise = (k1, Second v1) : pair_sorted x ys
 
 -- | Like 'pair_sorted', but use a key function, and omit the extracted key.
-pair_sorted_on :: Ord k => (a -> k) -> [a] -> [a] -> [Paired a a]
-pair_sorted_on key xs ys =
-    map snd $ pair_sorted (key_on key xs) (key_on key ys)
+pair_sorted_on1 :: Ord k => (a -> k) -> [a] -> [a] -> [Paired a a]
+pair_sorted_on1 key = pair_sorted_on key key
+
+-- | Like 'pair_sorted', but use a key function, and omit the extracted key.
+pair_sorted_on :: Ord k => (a -> k) -> (b -> k) -> [a] -> [b] -> [Paired a b]
+pair_sorted_on key1 key2 xs ys =
+    map snd $ pair_sorted (key_on key1 xs) (key_on key2 ys)
 
 -- | Sort the lists on with the key functions, then pair them up.
 pair_on :: Ord k => (a -> k) -> (b -> k) -> [a] -> [b] -> [Paired a b]

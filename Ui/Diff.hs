@@ -465,7 +465,7 @@ track_diff st1 st2 tid = case (Map.lookup tid t1, Map.lookup tid t2) of
 diff_track_events :: Events.Events -> Events.Events -> Ranges.Ranges TrackTime
 diff_track_events e1 e2 =
     Ranges.sorted_ranges $ mapMaybe diff $
-        Seq.pair_sorted_on Event.start
+        Seq.pair_sorted_on1 Event.start
             (Events.ascending e1) (Events.ascending e2)
     where
     diff (Seq.First e) = Just (Event.range e)
