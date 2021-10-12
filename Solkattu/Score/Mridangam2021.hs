@@ -195,17 +195,20 @@ e_21_08_15 = date 2021 8 15 $ ganesh $ korvai adi $
         , ending $ tsep (otk.seq) (o.k.od.__) (o.__.k.__.od.__) . o.__3.k.__3.od
         ]
         where
-        seq = on.su "ktokoktknook".n.od.k.on_ktok
+        seq = on_ktok . su "oktknook".n.od.k.on_ktok
     mk3 = prepare seq ++
-        [ ending $ tri_ (od.__) (otk.seq . o.__.k.__)
-        , ending $ tsep (seqN 2) (o.k.od.__) (o.__.k.__.od.__) . o.__3.k.__3.od
-        , ending $ prefixes (map seqN [1, 2, 3]) (o.__.k.__.od.__)
+        [ s $ otk.seq . otk . closed (seqN 2)
+        , ending $ tri_ (od.__) (otk.seq . o.__.k.__)
+        , ending $
+            tsep (otk.seqN 2) (o.k.od.__) (o.__.k.__.od.__) . o.__3.k.__3.od
+        , ending $ prefixes (map ((otk.) • seqN) [1, 2, 3]) (o.__.k.__.od.__)
         ]
         where
         seq = on_ktok.su (r2 (g "oktknooktk"))
-        seqN c = otk.on_ktok . su (repeat c (g "oktk") . repeat c (g "nooktk"))
+        seqN c = on_ktok . su (repeat c (g "oktkno") . repeat c (g "oktk"))
     mk4 = prepare seq ++
         [ ending $ join (o.__) $ map ((otk.) • seqN) [1, 2, 3]
+        , ending $ tri_ (od.__) (otk.seq.su "o_k_okk_")
         , ending $ tsep (otk.seq) (su "okk_D___") (su "o_k_okk_D___")
             . su "o_k_okk_okk_D"
         ]
@@ -229,28 +232,17 @@ e_21_08_15 = date 2021 8 15 $ ganesh $ korvai adi $
     rh = "nd,n,nd,n,nd,n".su "ktok"
     tri123' sep a = sep . tri123 sep a
 
-
-{-
-1 normal, o k d
-2 tktkn n n , okd, o k d, o  k  d
-3 tkn, o k d, tktkn n, o k d, tktktn n n, o k d
-
-o t k N ktokoktknookn D k N ktok - nd n nd
-o t k N ktokoktknookn D k N ktok - with p
-~~~ o k D sequence
-optional: 0 1 2 for N ktok
-
-o t k N ktok|oktknooktk|oktknooktk
-pktkpktk nppktknppktk <--- like tktk NtkNkt variant
-follow 1 2 3 pattern from before
-
-***
-o t k N ktok oktkoktk nooknok ou k
-
-o t k N ktok oktkoktk nooknok ou k o _ |
-                         (nok ou knok ou k o _ |
-
-o t k N ktok oktkoktk nooknok ou k okok D  (thrice)
-                                    (kk)
-(...) (okk D _ ) (o k okk D _ ) (o k okk okk D _)
--}
+e_21_10_10 :: Korvai
+e_21_10_10 = date 2021 10 10 $ ganesh $ korvai adi
+    [ s $ rho . rh_
+    , s $ rho . "ND,n,nd" . su (pk.r4 "dpn,")
+    , x2 $ s $ su "dpn,do" `replaceStart` rho . "ND,n,nd" . su (pk.r4 "dpn,")
+    , s $ su $ "dpn," . r5 "doN," . "do" . g (on.__.ktok) . r8 "dpn,"
+    , s $ su $ r2 $ r4 "doN," . r4 "dpn,"
+    , s $ su $ r4 $ r2 "doN," . r2 "dpn,"
+    , ending $ su $ r4 "doN,dpn," . tri_ "d_pk" (g "doN,doN,")
+    ]
+    where
+    rho = rh & "oo_o_oo_o_oo_o"
+    rh_ = rh & "oo"
+    rh = "nd,n,nd,n,nd,n".su "ktok"
