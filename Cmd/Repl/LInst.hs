@@ -119,7 +119,7 @@ pretty_alloc inst alloc =
         , show_controls "" (Common.config_controls config)
         ]
     show_environ environ
-        | environ == mempty = ""
+        | environ == Nothing = ""
         | otherwise = pretty environ
     show_flags config
         | null flags = ""
@@ -383,6 +383,10 @@ reset_flags = modify_midi_config_ $
 
 set_decay :: Ui.M m => Maybe RealTime -> Instrument -> m ()
 set_decay decay = modify_midi_config_ $ Patch.settings#Patch.decay #= decay
+
+set_pb_range :: Ui.M m => Maybe Patch.PbRange -> Instrument -> m ()
+set_pb_range range =
+    modify_midi_config_ $ Patch.settings#Patch.pitch_bend_range #= range
 
 -- * util
 

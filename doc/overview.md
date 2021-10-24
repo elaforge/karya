@@ -241,6 +241,8 @@ written in Haskell along with the rest of the app, so there's really no firm
 line between configuring it and modifying its code.  However, things in `Local`
 are set up for easy modification.
 
+- [tuning](tuning.md.html) How to configure non-12TET tuning.
+
 ### more details
 
 Don't hesitate to look at [haddock documentation](../haddock/index.html) or the
