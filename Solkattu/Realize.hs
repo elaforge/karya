@@ -141,7 +141,7 @@ instance Solkattu.Notation stroke => Solkattu.Notation (Stroke stroke) where
         style = case emphasis of
             Light -> mempty { Styled._foreground = Just (Styled.rgbGray 0.5) }
             Normal -> mempty
-            Heavy -> mempty { Styled._foreground = Just Styled.red }
+            Heavy -> mempty { Styled._bold = True }
 
 instance Pretty stroke => Pretty (Stroke stroke) where
     pretty (Stroke emphasis stroke) = (<> pretty stroke) $ case emphasis of

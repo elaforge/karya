@@ -8,6 +8,7 @@ import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Regex as Regex
+import qualified Util.Seq as Seq
 import qualified Util.Styled as Styled
 
 import qualified Solkattu.Dsl.Solkattu as G
@@ -18,11 +19,11 @@ import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
-import Solkattu.Solkattu (Sollu(..))
+import           Solkattu.Solkattu (Sollu(..))
 import qualified Solkattu.Tala as Tala
 
-import Global
-import Util.Test
+import           Global
+import           Util.Test
 
 
 -- Just print nested groups to check visually.
@@ -375,8 +376,12 @@ stripAnsi = Text.intercalate "\n" . map Text.stripEnd . Text.lines
 -- | Replace emphasis with capitals, so spacing is preserved.
 capitalizeEmphasis :: Text -> Text
 capitalizeEmphasis = stripAnsi
-    . Regex.substituteGroups (Regex.compileUnsafe "\ESC\\[0;1m(.*?)\ESC\\[0m")
+    . Regex.substituteGroups emphasis
         (\_ [t] -> Text.replace "-" "=" (Text.toUpper t))
+
+emphasis :: Regex.Regex
+emphasis = Regex.compileUnsafe $ Seq.replace "x" "(.*?)" $
+    Regex.escape $ untxt $ Styled.toText $ Terminal.emphasisStyle "x"
 
 kRealize :: Tala.Tala -> Korvai.Sequence
     -> Either Text ([Format.Flat M.Stroke], [Realize.Warning])

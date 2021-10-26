@@ -442,11 +442,16 @@ formatSymbol (Symbol text style _isSustain emph highlight) =
     Styled.styled style $ (if emph then emphasize else Styled.plain) text
     where
     emphasize word
-        -- A bold _ looks the same as a non-bold one, so put a bar to make it
+        -- A bold _ looks similar to a non-bold one, so put a bar to make it
         -- more obvious.
         | "_ " `Text.isPrefixOf` word = emphasize "_|"
         | "‗ " `Text.isPrefixOf` word = emphasize "‗|"
-        | otherwise = Styled.bold word
+        | otherwise = emphasisStyle word
+
+emphasisStyle :: Text -> Styled.Styled
+emphasisStyle = Styled.fg red . Styled.bold
+    where red = Styled.rgb (0xa1 / 0xff) (0x13 / 0xff) 0
+    -- I'm used to this dark red since it's what iterm used for bold.
 
 symLength :: Symbol -> Int
 symLength = Realize.textLength . _text
