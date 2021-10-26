@@ -22,16 +22,17 @@ import           Types
 import           Util.Test
 
 
+test_serialize :: Test
 test_serialize = do
     let (_, state) =
             UiTest.run_mkview [("track", [(0, 1, "e0"), (1, 1, "e1")])]
-    let run f = (f state, recode (f state))
-    uncurry equal $ run Ui.state_config
-    uncurry equal $ run Ui.state_views
-    uncurry equal $ run Ui.state_blocks
-    uncurry equal $ run Ui.state_tracks
-    uncurry equal $ run Ui.state_rulers
-    equal Ui.empty (recode Ui.empty)
+    let run f = (recode (f state), f state)
+    uncurry right_equal $ run Ui.state_config
+    uncurry right_equal $ run Ui.state_views
+    uncurry right_equal $ run Ui.state_blocks
+    uncurry right_equal $ run Ui.state_tracks
+    uncurry right_equal $ run Ui.state_rulers
+    right_equal (recode Ui.empty) Ui.empty
 
     -- Performance
     now <- Time.getCurrentTime
@@ -39,28 +40,29 @@ test_serialize = do
         msgs = Vector.fromList
             [Midi.WriteMessage (Midi.write_device "wdev") 42 msg]
         msg = Midi.ChannelMessage 1 (Midi.NoteOn 2 3)
-    equal perf (recode perf)
+    right_equal (recode perf) perf
 
     let tdest = Block.NoteDestination "key" (UiTest.tid "tid", mempty) mempty
-    equal tdest (recode tdest)
+    right_equal (recode tdest) tdest
     let flags = [minBound .. maxBound] :: [Block.TrackFlag]
-    equal flags (recode flags)
+    right_equal (recode flags) flags
     let sel = Sel.Selection 1 2 3 4 Sel.Positive
-    equal sel (recode sel)
+    right_equal (recode sel) sel
 
     let rstyle =
             [ Track.Filled (Just (Track.Control "hi"))
             , Track.Line (Just (Track.Pitch "there"))
             ]
-    equal rstyle (recode rstyle)
+    right_equal (recode rstyle) rstyle
     let config = Patch.config []
-    equal config (recode config)
-    equal Lilypond.empty_staff_config (recode Lilypond.empty_staff_config)
+    right_equal (recode config) config
+    right_equal (recode Lilypond.empty_staff_config) Lilypond.empty_staff_config
 
+test_negative_zero :: Test
 test_negative_zero = do
     -- make sure negative zero is encoded properly
-    equal (recode (0 :: ScoreTime)) 0
-    equal (recode (-0 :: ScoreTime)) (-0.0)
+    right_equal (recode (0 :: ScoreTime)) 0
+    right_equal (recode (-0 :: ScoreTime)) (-0.0)
 
-recode :: Util.Serialize.Serialize a => a -> a
-recode = either error id . Util.Serialize.decode . Util.Serialize.encode
+recode :: Util.Serialize.Serialize a => a -> Either String a
+recode = Util.Serialize.decode . Util.Serialize.encode

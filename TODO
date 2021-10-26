@@ -25,19 +25,72 @@ STATUS
       . Or maybe the laptop was overheating.
   - Find out why MemoryLeak latency: went up.
 
+external:
+  Can I write a dep-analyzer to answer questions about the module graph?
+    . What's the max depth of the tree?  Depth from a starting module?
+    . What are a module's transitive deps, and by how many paths does it reach
+      them?  The ones with a low count could be trimmed.
+    . What are the paths from module A to B?
+    . For any of these, do a diff between two git commits.
+    questions:
+      . If I remove Perform.Signal from Derive.ScoreT, does anyone now have
+        fewer deps?  Since I just use it for Signal.Y
+      . Or if I add some import, what do I now depend on that I didn't before?
+      . For each import, print the number of transitive things it imports.
+    can hiedb do this?
+      . Not clear, what is reachable and unreachable?
+      . What is the schema for the db?
+    I can do it with tags?
+      . No, it just registers module names, not imports.
+    Shake.HsDeps creates an import graph.
+      . So does ghc -M, but it doesn't understand .hsc.
+        ghc -dep-suffix '' -dep-makefile deps -M App/Main.hs
+
+  record screencast of using karya:
+    . show just-r, tuning=limit-5, limit-7
+    . sekar, with track integration
+    . interpolation, docs with LBlock.doc_equal "i>"
+    . show MIDI, im, sc backends
+    . using tscore, especially standalone
+
+
 UNSORTED
+  * why is kontakt/sc-pemade not getting inst-top inst-bottom env?
+    . Because I only inherit the environ if it's Nothing, I don't merge env.
+    . But I did it on purpose, I even switched from not having it.  I guess it
+      was so I could delete keys, but I think I should do that explicitly,
+      I guess via a separate delete_environ?
+    . I have a vague recollection that allocate was supposed to copy the
+      instrument environ so it would be replaced... maybe I had saved
+      bali.inst before that?
+    . Commit 4e31d7dd92908e9658d3cca06e0a88d19fad4c64 says:
+      The idea is that it's a hassle when a patch change makes a bunch of
+      scores out of date, when they just want the default, but it turns out
+      the main culprit, patch tuning, is often only in the allocation after
+      all.
+    . That seems to be an argument to merge though?
+  - bug: floating input in track title gets out of place
+    . Maybe triggered by first using it with negative select?
+    . That misplaced track S thing also happens, really annoying.
+  - have LInst.list show settings from the instrument
+    . Maybe in a different way to show they are inherited?
+  - shouldn't Id.clean do validation and return Nothing?
   - Meters are complicated, hard to understand, and error prone.
+    . See ruler-performance:
     . I spent ages trying to figure out why 'make_labeled 1' didn't work in
       Derive.TSCore.Check.
     . How can I simplify things?  But still support meter / tala / gongs?
     . The whole renumber fiasco is a fiasco.  Maybe marklist is too low
       level, can I save the structure in the Ui.Ruler?
-  upgrade to ghc-9.0.1
+  - upgrade to ghc-8.10 on hobbes.
+  / upgrade to ghc-9.0.1
+    . 9.0 is pretty buggy, wait for 9.2.
     + upgrade modules
       . Update nix.
     + cryptohash-md5 doesn't build
       . It's hvr-controlled :(
       . Built it locally.
+    . Reverted to 8.10, let's wait for 9.0.2.
   - I want to do vibrato and vibrato depth, but it's a pain to add new tracks.
     . But it should be in pitch, do I have vibrato settings there?
     . Maybe I should use the provided ways though, or at least be able to.
@@ -1630,6 +1683,8 @@ gamakam:
     . <# is move from the dyn to 1.
   . Arvind Krishnaswamy did pitch tracking studies:
     https://ccrma.stanford.edu/~arvindh/cmt/
+  . bezier-spline-modeling-of-pitch-continuous-melodic-expression.pdf
+    Contact Bret Battey about PICACS: http://www.mti.dmu.ac.uk/~bbattey/
   Pich tracking with
     . tony: https://code.soundsoftware.ac.uk/projects/tony
     . praat
@@ -1655,6 +1710,8 @@ gamakam:
     . How to make them scale with time?  Something like "=0" can become "=n=n".
       Actually that's incorrect, it should be an optional transition to the
       neighbor, then touch G.  E.g. N might be "=0a".
+  - At least I could include gamakam notation for arohanam / avarohanam just
+    as a reference.
   - I need some solution for when the beginning depends on the end of the
     previous section.
     . I could write notes after a logical stop, and say the replace whatever
@@ -1955,8 +2012,9 @@ synth: im:
     ? Does the blocking API write enough in advance that I don't have to
       worry about mixing a lot of tracks?
   performance:
-    - event loop hiccups when editing IM
+    -. event loop hiccups when editing im
       . use events to find who is causing it
+      . Have to reproduce first.  Do some normal editing.
     - Make some profiles for memory use and time.
   + It seems like ImGc is too eager
     . If I disable an old track, it deletes it right away.
@@ -5222,6 +5280,8 @@ ghc-bugs:
     . Maybe fixed in 8.6?
 
 test: testing:
+  - testing audio:
+    https://goq2q.net/blog/tech/using-ascii-waveforms-to-test-real-time-audio-code
   - count number of tests in addition to checks within each test
   - run individual tests from shake
     . The idea is to only run tests when needed, since their dependents
@@ -5506,6 +5566,8 @@ solkattu:
         matching Korvai.Single in the same module.
       . At least put in date as the max of the Part dates.
     - remember what I did last time, and do spaced repetition
+      . https://en.wikipedia.org/wiki/SuperMemo#Description_of_SM-2_algorithm
+      . https://mochi.cards/
       . This isn't memorization, just randomization with coverage.  So it's
         enough to pick random but twice as likely to pick with score one
         lower.
@@ -6893,6 +6955,7 @@ text score: tscore:
 
 pitch: scales: scale:
   - non octave equal temperaments, e.g. 12ed5
+  . Try octatonic with 21 ascending, and 12 descending.
   just:
     - should just chromatic scales differentiate A4 and d5?
       . In general they should probably deal with enharmonics, but I don't know
@@ -6984,13 +7047,24 @@ pitch: scales: scale:
         same key as enharmonic.  If there are no enharmonics, then fall back
         on alternate.
     raga: ragam:
+      - Omit missing swarams.
+        . It seems most natural to treat it like a scale of fewer notes, so
+          e.g. mohanam like *wayang.
+        . But maybe it's less confusing to have a consistent keyboard.
+          Maybe the original approach is best, where janya ragams still have
+          all the same notes as their parent.
+        . What then should janya ragams do?
+        . Gamakams (and transposition) should skip missing swarams.
       - arohana / avarohana:
         . Select which depending on an env var, and have a postproc to go
           through and assign those.
-        . Try octatonic with 21 ascending, and 12 descending.
         - I also want a cmd to cycle unspecified and explicitly arohana or
           avarohana.  I can bind it to the flip-enharmonic key unless I want
           to have scales with both concepts.
+        . I could have both srgm notation, and s, r1, r2 etc.  Then use
+          enharmonic to cycle r, r1, ... depending on what is available in the
+          ragam.
+        . But until I have ragams with alternate pitches, there's no use.
         old notes:
           . I could keep it at the Cmd level by remembering the last entered
             pitch and defaulting this one based on it, or I could try to put it
@@ -7092,6 +7166,9 @@ Perform:
         a lot of these.  I could try to group coincident ones.
     - add docs
     - make some patches:
+      - wavetable examples from end of
+        https://www.youtube.com/watch?v=8EK9sq_9gFI
+        http://sccode.org/1-5bF
       + MembraneCircle
         . must install sc3-plugins
         . no sound?
@@ -7113,6 +7190,10 @@ Perform:
     - I still feel I should move osc perform into convert, and remove the
       MSignal intermediate step.  And if that's possible, why not do it for
       MIDI too?
+    instruments:
+      . https://sccode.org/1-57B
+      . Bits from end of wavetable and granular in tutorial:
+        https://www.youtube.com/watch?v=UoXMUQIqFk4&list=PLPYzvS8A_rTaNDweXe6PX4CXSGq4iEWYC&index=23&ab_channel=EliFieldsteel
 
   midi:
     - Overlapping notes with different ControlSwitch cc numbers should share
@@ -7393,8 +7474,6 @@ planning / research
     . https://github.com/ctford/african-polyphony-and-polyrhythm
     . kolmogorov music: https://www.youtube.com/watch?v=Qg3XOfioapI
   cmj:
-    . bezier-spline-modeling-of-pitch-continuous-melodic-expression.pdf
-      Contact Bret Battey about PICACS: http://www.mti.dmu.ac.uk/~bbattey/
     . Wendy Carlos' tuning article: "Tuning at the crossroads", CMJ 11/1
   things for expressive music
     There needs to be some way for notes to affect surrounding notes.  For
@@ -7623,6 +7702,9 @@ FFI:
   Then I only have it declared in two places, and both in struct style.
   Bindings can use withArray.
   C++ has to use explicit C-style deallocation.
+
+research:
+  . algorithm for violin fingerings: https://github.com/jmorag/open-strings
 
 ness:
   Questions:

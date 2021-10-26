@@ -1134,7 +1134,7 @@ make_derive_instrument :: ResolvedInstrument -> Derive.Instrument
 make_derive_instrument resolved = Derive.Instrument
     { inst_calls = inst_calls $ Common.common_code $ Inst.inst_common $
         inst_instrument resolved
-    , inst_environ = maybe mempty RestrictedEnviron.convert $
+    , inst_environ = RestrictedEnviron.convert $
         Common.config_environ $ inst_common_config resolved
     , inst_controls = Common.config_controls (inst_common_config resolved)
     , inst_attributes = Inst.inst_attributes (inst_instrument resolved)
@@ -1600,14 +1600,14 @@ resolve_instrument db alloc = do
         , inst_backend = backend
         }
     where
-    -- If the Common.config_environ is Nothing, inherit from
-    -- Common.common_environ.  This means the config_environ of
-    -- a ResolvedInstrument is always Just, but I can't be bothered to make
-    -- a whole new type.
+    -- Merge instrument default environ with the local Allocation.
+    -- I used to use Maybe and replace when it was Just, but it turns out
+    -- I definitely want to merge things like inst-top and inst-bottom.
+    -- This means I can't delete keys, but if I ever need that I could
+    -- do something like map to NotGiven.
     merge_environ :: Common.Common InstrumentCode -> Common.Config
         -> Common.Config
-    merge_environ common =
-        Common.cenviron %= Just . fromMaybe (Common.common_environ common)
+    merge_environ common = Common.cenviron %= (Common.common_environ common <>)
     -- Put the attrs the instrument understands in the CallMap as +attr calls.
     -- If there isn't already a higher level call in there, then at least we
     -- don't lose the attrs entirely.

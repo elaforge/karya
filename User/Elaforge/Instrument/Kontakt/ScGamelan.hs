@@ -144,8 +144,7 @@ kebyar_allocations dev_ = make_config $ concat
                 -- Pasang instruments don't get an allocation.  Otherwise they
                 -- don't have the right tuning.
                 | otherwise = UiConfig.Dummy
-            set_config =
-                Common.cenviron #= Just (RestrictedEnviron.from_list environ)
+            set_config = Common.cenviron #= RestrictedEnviron.from_list environ
     dev = Midi.write_device dev_
 
     -- Actually pemade and kantilan have an umbang isep pair for both polos and

@@ -751,6 +751,8 @@ silentBlock = V.replicate (framesCount (Proxy @1) blockSize) 0
 linearToDb, dbToLinear :: Float -> Float
 linearToDb x = logBase 10 x * 20
 dbToLinear x = 10**(x / 20)
+    -- Here's another way.  Is it faster?  Does it matter?
+    -- dbToLinear db = 2**(db * 0.16609640474)
 
 -- * audio util
 

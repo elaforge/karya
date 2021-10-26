@@ -176,9 +176,9 @@ sort_attributes = Seq.sort_on (\(a, _) -> - Set.size (Attrs.to_set a))
 -- | Configuration for a specific allocation of an instrument in a specific
 -- score.
 data Config = Config {
-    -- | This is a local version of 'common_environ'.  If Nothing, inherit
-    -- 'common_environ'.
-    config_environ :: !(Maybe RestrictedEnviron.Environ)
+    -- | This is a local version of 'common_environ'.  Overlayed on the
+    -- instrument config 'common_environ'.
+    config_environ :: !RestrictedEnviron.Environ
     -- | This is the control equivalent to 'config_environ'.  These
     -- controls are merged using their default mergers in the note call.
     -- Being in the note call means that the merge should only happen once.
@@ -198,7 +198,7 @@ data Config = Config {
 
 empty_config :: Config
 empty_config = Config
-    { config_environ = Nothing
+    { config_environ = mempty
     , config_controls = mempty
     , config_mute = False
     , config_solo = False
@@ -223,6 +223,5 @@ instance Pretty Config where
 
 add_cenviron :: RestrictedEnviron.ToVal a => EnvKey.Key -> a
     -> Config -> Config
-add_cenviron key val = cenviron
-    %= (Just . (RestrictedEnviron.from_list [(key, v)] <>) . fromMaybe mempty)
+add_cenviron key val = cenviron %= (RestrictedEnviron.from_list [(key, v)] <>)
     where v = RestrictedEnviron.to_val val

@@ -684,7 +684,8 @@ instance Serialize Patch.Flag where
 -- ** Instrument.Common
 
 instance Serialize Common.Config where
-    put (Common.Config a b c d) = Serialize.put_version 1
+    -- This went from version 1 to 0 because I reverted the Maybe Environ.
+    put (Common.Config a b c d) = Serialize.put_version 0
         >> put a >> put b >> put c >> put d
     get = Serialize.get_version >>= \case
         0 -> do
@@ -692,16 +693,13 @@ instance Serialize Common.Config where
             controls :: ScoreT.ControlValMap <- get
             mute :: Bool <- get
             solo :: Bool <- get
-            return $ Common.Config
-                (if RestrictedEnviron.null environ then Nothing
-                    else Just environ)
-                controls mute solo
+            return $ Common.Config environ controls mute solo
         1 -> do
             environ :: Maybe RestrictedEnviron.Environ <- get
             controls :: ScoreT.ControlValMap <- get
             mute :: Bool <- get
             solo :: Bool <- get
-            return $ Common.Config environ controls mute solo
+            return $ Common.Config (fromMaybe mempty environ) controls mute solo
         v -> Serialize.bad_version "Common.Config" v
 
 instance Serialize Common.Flag where

@@ -119,7 +119,7 @@ pretty_alloc inst alloc =
         , show_controls "" (Common.config_controls config)
         ]
     show_environ environ
-        | environ == Nothing = ""
+        | RestrictedEnviron.null environ = ""
         | otherwise = pretty environ
     show_flags config
         | null flags = ""
