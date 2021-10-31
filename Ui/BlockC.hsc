@@ -58,7 +58,7 @@ module Ui.BlockC (
     , set_track_title, set_track_title_focus, set_block_title_focus
 
     -- * debugging
-    , show_children, dump
+    , print_debug, dump
 ) where
 -- The double hashes quote them for hsc2hs.  I have to delay the CPP since
 -- hsc2hs never has STUB_OUT_FLTK defined.
@@ -433,12 +433,15 @@ foreign import ccall "set_block_title_focus"
 
 -- ** debugging
 
-show_children :: ViewId -> IO String
-show_children view_id = annotate "show_children" $ do
+-- | Print debugging info about the UI state.
+print_debug :: ViewId -> Fltk ()
+print_debug view_id = fltk "print_debug" view_id $ do
+    putStrLn $ "debug " <> show view_id
     viewp <- PtrMap.get view_id
-    c_show_children viewp (FFI.c_int (-1)) >>= peekCString
-foreign import ccall "i_show_children"
-    c_show_children :: Ptr CView -> CInt -> IO CString
+    c_print_debug viewp
+    putStrLn ""
+foreign import ccall "print_debug"
+    c_print_debug :: Ptr CView -> IO ()
 
 dump :: IO [(ViewId, String)]
 dump = do

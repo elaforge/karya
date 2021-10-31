@@ -69,20 +69,60 @@ track_height(const std::vector<SkeletonEdge> &edges, int tracknum)
 
 
 void
-SkeletonDisplay::set_config(
-    const SkeletonConfig &config, const std::vector<int> &widths)
+SkeletonDisplay::print_debug() const
+{
+    for (const Track &t : tracks) {
+        DEBUG("track: " << t.width << ' ' << t.left << ' ' << t.center
+            << ' ' << t.height << ": " << t.status);
+    }
+    DEBUG("edges: " << edges);
+}
+
+
+void
+SkeletonDisplay::update(
+    const SkeletonConfig &config, const std::vector<int> &widths,
+    const std::vector<SkeletonStatus> &status)
+{
+    ASSERT(widths.size() == status.size());
+    edges.assign(config.edges, config.edges + config.edges_len);
+    tracks.clear();
+    for (size_t i = 0; i < widths.size(); i++) {
+        tracks.push_back(Track(widths[i], track_height(edges, i), status[i]));
+    }
+    this->recalculate_centers();
+    this->redraw();
+}
+
+
+// void
+// SkeletonDisplay::set_config(
+//     const SkeletonConfig &config, const std::vector<int> &widths)
+// {
+//     // Replace this->edges and this->tracks.
+//     // DEBUG("BEFORE: edges:" << edges << " tracks:" << tracks);
+//     edges.assign(config.edges, config.edges + config.edges_len);
+//     std::vector<Track> new_tracks;
+//     new_tracks.reserve(widths.size());
+//     for (size_t i = 0; i < widths.size(); i++) {
+//         new_tracks.push_back(Track(
+//             widths[i],
+//             track_height(edges, i),
+//             i < tracks.size() ? tracks[i].status : SkeletonStatus()));
+//     }
+//     this->tracks = new_tracks;
+//     this->recalculate_centers();
+//     this->redraw();
+// }
+
+void
+SkeletonDisplay::set_config(const SkeletonConfig &config)
 {
     edges.assign(config.edges, config.edges + config.edges_len);
-    std::vector<Track> new_tracks;
-    new_tracks.reserve(widths.size());
-    for (size_t i = 0; i < widths.size(); i++) {
-        new_tracks.push_back(Track(
-            widths[i],
-            track_height(edges, i),
-            i < tracks.size() ? tracks[i].status : SkeletonStatus()));
+    for (size_t i = 0; i < tracks.size(); i++) {
+        tracks[i].height = track_height(edges, i);
     }
-    this->tracks = new_tracks;
-    this->recalculate_centers();
+    // this->recalculate_centers();
     this->redraw();
 }
 
@@ -100,9 +140,11 @@ SkeletonDisplay::set_status(int tracknum, SkeletonStatus status)
 {
     ASSERT(0 <= tracknum);
     if (static_cast<size_t>(tracknum) < tracks.size()) {
-        tracks[tracknum].status = status;
+        if (tracks[tracknum].status != status) {
+            tracks[tracknum].status = status;
+            this->redraw();
+        }
     }
-    this->redraw();
 }
 
 

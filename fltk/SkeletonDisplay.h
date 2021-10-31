@@ -21,20 +21,11 @@ struct SkeletonEdge {
     Color color;
 };
 
-struct SkeletonStatus {
-    SkeletonStatus() : color(), c1(0), c2(0) {}
-    SkeletonStatus(Color color, utf8::rune c1, utf8::rune c2) :
-        color(color), c1(c1), c2(c2)
-    {}
-    Color color;
-    // I'd really like to have a string with a variable number of characters,
-    // but then I'd have to do malloc/free and all that C pain.  There are
-    // probably ways to treat a short string as a value, e.g. by declaring a
-    // struct or stuffing it into an int, but they're either not much better
-    // than declaring a bunch of chars, or are kind of grody.
-    // '\0' means don't draw a status and ignore the color.  ' ' means draw
-    // the color, but with no text, of course.
-    utf8::rune c1, c2;
+inline std::ostream &
+operator<<(std::ostream &os, const SkeletonEdge &e)
+{
+    return os << "SkeletonEdge(" << e.parent << ", " << e.child << ", "
+        << e.width << ", " << e.color << ")";
 };
 
 // This is a list of pairs linking parent tracknums to child tracknums.
@@ -49,6 +40,35 @@ struct SkeletonConfig {
     SkeletonEdge *edges;
 };
 
+struct SkeletonStatus {
+    SkeletonStatus() : color(), c1(0), c2(0) {}
+    SkeletonStatus(Color color, utf8::rune c1, utf8::rune c2) :
+        color(color), c1(c1), c2(c2)
+    {}
+    bool operator==(const SkeletonStatus &that) const {
+        return color == that.color && c1 == that.c1 && c2 == that.c2;
+    }
+    bool operator!=(const SkeletonStatus &that) const {
+        return !(*this == that);
+    }
+    Color color;
+    // I'd really like to have a string with a variable number of characters,
+    // but then I'd have to do malloc/free and all that C pain.  There are
+    // probably ways to treat a short string as a value, e.g. by declaring a
+    // struct or stuffing it into an int, but they're either not much better
+    // than declaring a bunch of chars, or are kind of grody.
+    // '\0' means don't draw a status and ignore the color.  ' ' means draw
+    // the color, but with no text, of course.
+    utf8::rune c1, c2;
+};
+
+inline std::ostream &
+operator<<(std::ostream &os, const SkeletonStatus &s)
+{
+    return os << "SkeletonStatus(" << s.color << ", " << s.c1 << ", " << s.c2
+        << ")";
+}
+
 // Display the arrows for the skeleton tree.
 //
 // Since the arrows line up with the tracks below them, this must be kept
@@ -59,12 +79,17 @@ struct SkeletonConfig {
 class SkeletonDisplay : public Fl_Box {
 public:
     SkeletonDisplay(int x, int y, int w, int h);
+    void print_debug() const;
+    void update(
+        const SkeletonConfig &config, const std::vector<int> &widths,
+        const std::vector<SkeletonStatus> &status);
     // This does not reject configs with tracks out of range because fltk
     // should do what haskell says or it gets out of sync.  But draw() will
     // complain about them.
     // Since this copies the config, it doesn't need to live beyond this call.
-    void set_config(
-        const SkeletonConfig &config, const std::vector<int> &widths);
+    // void set_config(
+    //     const SkeletonConfig &config, const std::vector<int> &widths);
+    void set_config(const SkeletonConfig &config);
     void set_title(const char *title);
     void set_status(int tracknum, SkeletonStatus status);
     void set_width(int tracknum, int width);

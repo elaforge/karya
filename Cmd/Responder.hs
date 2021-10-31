@@ -215,7 +215,7 @@ respond_loop state msg_reader = do
     Trace.trace "wait"
     msg <- msg_reader `Exception.onException` kill_threads state
     Trace.trace $ "respond " <> untxt (Msg.show_short msg)
-    when (Cmd.state_debug_ui_msgs (state_cmd state)) $
+    when (Cmd.state_debug (state_cmd state)) $
         Debug.putp "msg" msg
     result <- Exception.try $ Thread.timeout timeout $ respond state msg
     case result of
@@ -297,7 +297,14 @@ run_responder state action = do
             Log.warn (pretty err)
             -- Exception rolls back changes to ui_state and cmd_state.
             return (False, state { state_ui = ui_from, state_cmd = cmd_from })
-        Right status -> post_cmd state ui_from ui_to cmd_to ui_damage status
+        Right status -> do
+            -- overload "turned on debug" to dump fltk debugging
+            when (not (Cmd.state_debug cmd_from) && Cmd.state_debug cmd_to) $
+                forM_ (Map.keys (Ui.state_views ui_to)) $ \view_id -> do
+                    putStrLn $ "debug " <> show view_id
+                    Sync.print_debug (state_ui_channel state) view_id
+                    putStrLn ""
+            post_cmd state ui_from ui_to cmd_to ui_damage status
 
 -- | Do all the miscellaneous things that need to be done after a command
 -- completes.  This doesn't happen if the cmd threw an exception.

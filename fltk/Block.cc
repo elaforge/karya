@@ -267,12 +267,12 @@ Block::set_ruler_width(int width)
 static void
 set_block_box(Fl_Box &box, const BlockBox &b)
 {
-        box.color(b.color.fl());
-        if (b.c == ' ')
-            box.copy_label(nullptr);
-        else
-            box.copy_label(utf8::encode(b.c));
-        box.redraw();
+    box.color(b.color.fl());
+    if (b.c == ' ')
+        box.copy_label(nullptr);
+    else
+        box.copy_label(utf8::encode(b.c));
+    box.redraw();
 }
 
 
@@ -293,11 +293,12 @@ Block::set_config(const BlockConfig &config, bool update_all)
 void
 Block::set_skeleton(const SkeletonConfig &skel)
 {
-    std::vector<int> widths(track_tile.tracks());
-    for (int i = 0; i < track_tile.tracks(); i++) {
-        widths[i] = track_tile.get_track_width(i);
-    }
-    skel_display.set_config(skel, widths);
+    // std::vector<int> widths(track_tile.tracks());
+    // for (int i = 0; i < track_tile.tracks(); i++) {
+    //     widths[i] = track_tile.get_track_width(i);
+    // }
+    // skel_display.set_config(skel, widths);
+    skel_display.set_config(skel);
 }
 
 
@@ -607,6 +608,14 @@ Block::set_track_width(int tracknum, int width)
         skel_display.set_width(tracknum-1, width);
     }
 }
+
+void
+Block::print_debug() const
+{
+    skel_display.print_debug();
+    // return f_util::show_children(w, nlevels);
+}
+
 
 const char *
 Block::dump() const

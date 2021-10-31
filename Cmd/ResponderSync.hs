@@ -9,8 +9,10 @@ import qualified Control.Concurrent.MVar as MVar
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
+import qualified Util.Debug as Debug
 import qualified Util.Log as Log
 import qualified Util.Trace as Trace
+
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Integrate as Integrate
 import qualified Cmd.Internal as Internal
@@ -76,6 +78,8 @@ sync sync_func ui_from ui_to cmd_to ui_damage play_monitor_state = do
 
     when (any modified_view ui_updates) $
         MVar.modifyMVar_ play_monitor_state (const (return ui_to))
+    when (Cmd.state_debug cmd_to && not (null display_updates)) $
+        Debug.putp "updates" display_updates
     err <- sync_func (get_track_signals cmd_to) Internal.set_style
         ui_to display_updates
     Trace.trace "sync.sync"

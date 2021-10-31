@@ -135,8 +135,8 @@ set_block_title_focus view_id = fltk $ return ()
 
 -- ** debugging
 
-show_children :: ViewId -> IO String
-show_children view_id = return ""
+print_debug :: ViewId -> Fltk ()
+print_debug view_id = return ()
 
 dump :: IO [(ViewId, String)]
 dump = return []

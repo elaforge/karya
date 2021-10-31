@@ -69,9 +69,6 @@ UNSORTED
       the main culprit, patch tuning, is often only in the allocation after
       all.
     . That seems to be an argument to merge though?
-  - bug: floating input in track title gets out of place
-    . Maybe triggered by first using it with negative select?
-    . That misplaced track S thing also happens, really annoying.
   - have LInst.list show settings from the instrument
     . Maybe in a different way to show they are inherited?
   - shouldn't Id.clean do validation and return Nothing?
@@ -631,12 +628,6 @@ UNSORTED
   - QuickCheck for Midi.Encode_test just for practice
     . Ui.Events_test.test_from_list_qc is an example.
   - Will TimeVectorStorable.Sample Double have both fields unpacked?
-  - bug: Track 'mute' status gets increasingly off.  Surely this is due to the
-    bug fix in c523680838564ec55752302d1d591482971b9190 where I no longer do
-    only absolute updates to the skeleton.
-    . Can't reproduce this now.
-    . It happens in save/bali/kebyar-duduk, e.g. mute reyong part in @b3
-    . It definitely happens occasionally, but always when I'm busy.
   - Add 'angklung' and 'beleganjur' scales.
   - BaliScales should have a default ombak, depending on laras.
     - Also there should be a way to randomize per instrument, so it's not too
@@ -4886,6 +4877,72 @@ rust-gui: gui: ui:
     . Dependency on rust.
 
 fltk:
+  + bug: solo: mute:
+    . Track 'mute' status gets increasingly off.  Surely this is due to the
+      bug fix in c523680838564ec55752302d1d591482971b9190 where I no longer do
+      only absolute updates to the skeleton.
+    . Commit is wrong :(  What was that bug fix?
+    . It happens in save/bali/kebyar-duduk, e.g. mute reyong part in @b3
+    . It definitely happens occasionally, but always when I'm busy.
+    . It's accurately in a track, but it's on the wrong track.
+    ? Are the skeleton lines also wrong?
+    what happens when I hit S:
+      . BlockC.set_display_track called with DisplayTrack::status, tracknum
+        is from haskell.
+      . Block::set_display_track calls
+        skel_display.set_status(tracknum-1, dtrack.status);
+      . SkeletonDisplay::set_status: tracks[tracknum].status = status;
+    Possibilities:
+      . haskell sends the wrong tracknum
+        . Unlikely because it doesn't seem to be otherwise confused.
+        . Debug by printing the tracknum it sends, and just count.
+        . I can find out with ^a and look at debug output.
+      . SkeletonDisplay is out of sync with the actual tracks
+        . It has vector<Track> internally
+        . In set_config, it has edges but not status, so it reuses previous
+          status, and uses empty status if there are more widths than
+          previously.
+        . widths is from the block, I don't know why it wants to set them,
+          because it's already keeping track incrementally in insert_track
+          etc.
+        . So, either keep trying to make the incremenal update work and find
+          the bug where it gets out of sync, or go all-in on complete updates,
+          and only have one complete update to SkeletonDisplay, which every
+          change triggers.
+        . Incremental update:
+          . How to find where it's getting out of sync?
+          . I can prin internal SkeletonDisplay state, but the question is how
+            did it get that way?
+        . For complete update, is there a case where it doesn't have all the
+          info?
+          . info is: SkeletonConfig(edges), [Track(width, status)]
+          . SkeletonConfig calculates track.center, .left, .height internally.
+          . For this I need to store SkeletonConfig and [Status] in Block,
+            or in the tracks themselves, since I need to send them on e.g.
+            remove_track.
+          . Isn't that the same result though?  Those can also get out of
+            sync with the tracks.  Unless they are in Track, but
+            SkeletonConfig is global.
+          . But why is it less likely to get out of sync?  I guess it depends
+            on why it's getting out of sync, which I don't know.
+        . InsertTrack has a (DisplayTrack .. status)
+        . In set_config, it sets edges at once, but if there are more edges
+          than tracks, it assumes they were at the end and copies status
+          from previous ones, seems sketchy.
+        . When is set_config called?
+        . Block::set_skeleton <- BlockC.set_skeleton
+        . Ultimately because Status is from DisplayTrack, which is
+          generated from Block.block_display_tracks while Skeleton is from
+          Block.block_skeleton and integrate info.
+    . SkeletonDisplay tracks
+
+    ? Recover what I meant by "absolute updates to the skeleton."  What
+      influences where the "S" mark goes?
+    ? Need some pre-planned debug steps:
+      . query Block.View
+  - bug: floating input in track title gets out of place
+    . Maybe triggered by first using it with negative select?
+    . bug: solo: mute: also happened at the same time, maybe related?
   + bug: ever since the slow scrolling: change, I sometimes get a light gray
     background on track titles.
     . This is the selections getting in, if I use a blue selection then it's

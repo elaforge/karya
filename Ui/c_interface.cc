@@ -377,10 +377,10 @@ insert_style(StyleId id, EventStyle *style)
 
 // debugging
 
-const char *
-i_show_children(const BlockWindow *w, int nlevels)
+void
+print_debug(const BlockWindow *view)
 {
-    return f_util::show_children(w, nlevels);
+    view->block.print_debug();
 }
 
 const char *

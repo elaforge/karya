@@ -168,6 +168,7 @@ public:
         int select_start, int select_end);
     void floating_insert(const char *text);
 
+    void print_debug() const;
     const char *dump() const;
     // Just so the MsgCollector can know if the mouse is in a track.
     int status_top() const { return status_line.y(); }

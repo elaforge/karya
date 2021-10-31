@@ -135,7 +135,32 @@ scale(T min, T max, T v)
 
 // vector //////////////////////////////
 
-template <class T> inline std::ostream &
+template<class T> inline void
+vector_put(std::vector<T> &a, int i, T v)
+{
+    while (static_cast<size_t>(i) >= a.size())
+        a.push_back(T());
+    a[i] = v;
+}
+
+template<class T> inline T
+vector_get(std::vector<T> &a, int i, T def = T())
+{
+    if (static_cast<size_t>(i) >= a.size())
+        return def;
+    return a[i];
+}
+
+template<class T> inline void
+vector_erase(std::vector<T> &a, int i)
+{
+    if (static_cast<size_t>(i) < a.size())
+        a.erase(a.begin() + i);
+}
+
+}
+
+template<class T> inline std::ostream &
 operator<<(std::ostream &os, const std::vector<T> &a)
 {
     os << '[';
@@ -148,39 +173,14 @@ operator<<(std::ostream &os, const std::vector<T> &a)
     return os;
 }
 
-template <class T> inline void
-vector_put(std::vector<T> &a, int i, T v)
-{
-    while (static_cast<size_t>(i) >= a.size())
-        a.push_back(T());
-    a[i] = v;
-}
-
-template <class T> inline T
-vector_get(std::vector<T> &a, int i, T def = T())
-{
-    if (static_cast<size_t>(i) >= a.size())
-        return def;
-    return a[i];
-}
-
-template <class T> inline void
-vector_erase(std::vector<T> &a, int i)
-{
-    if (static_cast<size_t>(i) < a.size())
-        a.erase(a.begin() + i);
-}
-
-}
-
 // The stdlib lacks this instance.
-template <class T, class U> inline std::ostream &
+template<class T, class U> inline std::ostream &
 operator<<(std::ostream &os, const std::pair<T, U> &p)
 {
     return os << "(" << p.first << ", " << p.second << ")";
 }
 
-template <class T> inline std::ostream &
+template<class T> inline std::ostream &
 operator<<(std::ostream &os, const std::set<T> &set)
 {
     os << "{";

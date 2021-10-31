@@ -150,8 +150,8 @@ pure_bindings = concat
     , view_config_bindings, block_config_bindings, edit_state_bindings
     , event_bindings, pitch_bindings, create_bindings, clip_bindings
     -- TODO use this to catch the focus bug
-    , bind_key [SecondaryCommand] (Key.Char 'a') "debug"
-        (Cmd.modify $ \st -> st { Cmd.state_debug_ui_msgs = True })
+    , bind_key [SecondaryCommand] (Key.Char 'a') "debug" $
+        Cmd.modify $ \st -> st { Cmd.state_debug = not (Cmd.state_debug st) }
     ]
 
 play_bindings :: [Keymap.Binding (Cmd.CmdT Identity.Identity)]

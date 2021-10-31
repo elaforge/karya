@@ -37,6 +37,8 @@ module Ui.Sync (
     , floating_input
     -- ** keycaps
     , create_keycaps, destroy_keycaps, update_keycaps
+    -- ** debug
+    , print_debug
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
@@ -261,6 +263,12 @@ destroy_keycaps ui_chan =
 update_keycaps :: Fltk.Channel -> KeycapsT.RawBindings -> IO ()
 update_keycaps ui_chan bindings =
     Fltk.send_action ui_chan "update_keycaps" $ KeycapsC.update bindings
+
+-- ** debug
+
+print_debug :: Fltk.Channel -> ViewId -> IO ()
+print_debug ui_chan view_id =
+    Fltk.send_action ui_chan "print_debug" $ BlockC.print_debug view_id
 
 -- * run_update
 

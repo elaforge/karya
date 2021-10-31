@@ -396,7 +396,7 @@ instance Pretty DisplayTrack where
             ]
 
 -- | This has a 2 character string to display above the track, and a background
--- color.
+-- color.  TODO change to Char Char
 data Status = Status !String !Color.Color
     deriving (Eq, Show, Read)
 

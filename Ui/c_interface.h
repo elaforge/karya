@@ -95,7 +95,7 @@ void insert_style(StyleId id, EventStyle *style);
 
 // debugging
 
-const char *i_show_children(const BlockWindow *w, int nlevels);
+void print_debug(const BlockWindow *view);
 const char *dump_view(const BlockWindow *view);
 void timing(int level, const char *name);
 
