@@ -80,21 +80,16 @@ class SkeletonDisplay : public Fl_Box {
 public:
     SkeletonDisplay(int x, int y, int w, int h);
     void print_debug() const;
-    void update(
-        const SkeletonConfig &config, const std::vector<int> &widths,
-        const std::vector<SkeletonStatus> &status);
     // This does not reject configs with tracks out of range because fltk
     // should do what haskell says or it gets out of sync.  But draw() will
     // complain about them.
     // Since this copies the config, it doesn't need to live beyond this call.
-    // void set_config(
-    //     const SkeletonConfig &config, const std::vector<int> &widths);
     void set_config(const SkeletonConfig &config);
     void set_title(const char *title);
     void set_status(int tracknum, SkeletonStatus status);
     void set_width(int tracknum, int width);
 
-    void insert_track(int tracknum);
+    void insert_track(int tracknum, int width);
     void remove_track(int tracknum);
 
 protected:
@@ -115,7 +110,7 @@ private:
         SkeletonStatus status;
     };
 
-    void recalculate_centers();
+    void recalculate_tracks();
     std::string title;
     std::vector<Track> tracks;
     std::vector<SkeletonEdge> edges;

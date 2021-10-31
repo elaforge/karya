@@ -4877,7 +4877,7 @@ rust-gui: gui: ui:
     . Dependency on rust.
 
 fltk:
-  + bug: solo: mute:
+  * bug: solo: mute:
     . Track 'mute' status gets increasingly off.  Surely this is due to the
       bug fix in c523680838564ec55752302d1d591482971b9190 where I no longer do
       only absolute updates to the skeleton.
@@ -4911,7 +4911,7 @@ fltk:
           change triggers.
         . Incremental update:
           . How to find where it's getting out of sync?
-          . I can prin internal SkeletonDisplay state, but the question is how
+          . I can print internal SkeletonDisplay state, but the question is how
             did it get that way?
         . For complete update, is there a case where it doesn't have all the
           info?
@@ -4935,11 +4935,8 @@ fltk:
           generated from Block.block_display_tracks while Skeleton is from
           Block.block_skeleton and integrate info.
     . SkeletonDisplay tracks
-
-    ? Recover what I meant by "absolute updates to the skeleton."  What
-      influences where the "S" mark goes?
-    ? Need some pre-planned debug steps:
-      . query Block.View
+    . Undo track creation does it!
+    . It does remove the Track, but doesn't recalculate offsets!
   - bug: floating input in track title gets out of place
     . Maybe triggered by first using it with negative select?
     . bug: solo: mute: also happened at the same time, maybe related?

@@ -22,7 +22,7 @@ SkeletonDisplay::SkeletonDisplay(int x, int y, int w, int h) :
 
 
 void
-SkeletonDisplay::recalculate_centers()
+SkeletonDisplay::recalculate_tracks()
 {
     int right = 0;
     for (size_t i = 0; i < tracks.size(); i++) {
@@ -80,49 +80,12 @@ SkeletonDisplay::print_debug() const
 
 
 void
-SkeletonDisplay::update(
-    const SkeletonConfig &config, const std::vector<int> &widths,
-    const std::vector<SkeletonStatus> &status)
-{
-    ASSERT(widths.size() == status.size());
-    edges.assign(config.edges, config.edges + config.edges_len);
-    tracks.clear();
-    for (size_t i = 0; i < widths.size(); i++) {
-        tracks.push_back(Track(widths[i], track_height(edges, i), status[i]));
-    }
-    this->recalculate_centers();
-    this->redraw();
-}
-
-
-// void
-// SkeletonDisplay::set_config(
-//     const SkeletonConfig &config, const std::vector<int> &widths)
-// {
-//     // Replace this->edges and this->tracks.
-//     // DEBUG("BEFORE: edges:" << edges << " tracks:" << tracks);
-//     edges.assign(config.edges, config.edges + config.edges_len);
-//     std::vector<Track> new_tracks;
-//     new_tracks.reserve(widths.size());
-//     for (size_t i = 0; i < widths.size(); i++) {
-//         new_tracks.push_back(Track(
-//             widths[i],
-//             track_height(edges, i),
-//             i < tracks.size() ? tracks[i].status : SkeletonStatus()));
-//     }
-//     this->tracks = new_tracks;
-//     this->recalculate_centers();
-//     this->redraw();
-// }
-
-void
 SkeletonDisplay::set_config(const SkeletonConfig &config)
 {
     edges.assign(config.edges, config.edges + config.edges_len);
     for (size_t i = 0; i < tracks.size(); i++) {
         tracks[i].height = track_height(edges, i);
     }
-    // this->recalculate_centers();
     this->redraw();
 }
 
@@ -151,24 +114,23 @@ SkeletonDisplay::set_status(int tracknum, SkeletonStatus status)
 void
 SkeletonDisplay::set_width(int tracknum, int width)
 {
-    ASSERT(tracknum >= 0);
+    ASSERT(0 <= tracknum);
     // If a track has been added and the skeleton not yet updated, tracknum
     // could be out of range.
     if (static_cast<size_t>(tracknum) < tracks.size()) {
-        ASSERT(0 <= tracknum && (size_t) tracknum < tracks.size());
-        if (tracks[tracknum].width != width) {
-            tracks[tracknum].width = width;
-            this->recalculate_centers();
-            this->redraw();
-        }
+        ASSERT(static_cast<size_t>(tracknum) < tracks.size());
+        tracks[tracknum].width = width;
+        this->recalculate_tracks();
+        this->redraw();
     }
 }
 
 
 void
-SkeletonDisplay::insert_track(int tracknum)
+SkeletonDisplay::insert_track(int tracknum, int width)
 {
     tracks.insert(tracks.begin() + tracknum, Track());
+    set_width(tracknum, width);
     this->redraw();
 }
 
@@ -177,6 +139,7 @@ void
 SkeletonDisplay::remove_track(int tracknum)
 {
     tracks.erase(tracks.begin() + tracknum);
+    this->recalculate_tracks();
     this->redraw();
 }
 

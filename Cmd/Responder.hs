@@ -300,10 +300,8 @@ run_responder state action = do
         Right status -> do
             -- overload "turned on debug" to dump fltk debugging
             when (not (Cmd.state_debug cmd_from) && Cmd.state_debug cmd_to) $
-                forM_ (Map.keys (Ui.state_views ui_to)) $ \view_id -> do
-                    putStrLn $ "debug " <> show view_id
-                    Sync.print_debug (state_ui_channel state) view_id
-                    putStrLn ""
+                forM_ (Map.keys (Ui.state_views ui_to)) $
+                    Sync.print_debug (state_ui_channel state)
             post_cmd state ui_from ui_to cmd_to ui_damage status
 
 -- | Do all the miscellaneous things that need to be done after a command

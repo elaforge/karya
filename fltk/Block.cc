@@ -435,18 +435,19 @@ Block::insert_track(int tracknum, const Tracklike &track, int width)
 void
 Block::remove_track(int tracknum)
 {
-    if (tracknum != 0) {
+    ASSERT(tracknum >= 0);
+    if (tracknum > 0) {
         tracknum--; // adjust to be relative to the first non-ruler track
         Track *t = track_tile.remove_track(tracknum);
         t->finalize_callbacks();
         delete t;
 
         this->update_scrollbars();
-        // This removes the track but doesn't change the skeleton.  If it's
-        // really a delete then there will be a skeleton config update coming
-        // soon enough to fix that.  If the track is being replaced (e.g.
-        // a collapse), then the skeleton will be right again.  This is
-        // kind of sketchy but it seems to work.
+        // This removes the track but doesn't fix the skeleton.  If it's really
+        // a delete then there will be a skeleton config update coming soon
+        // enough to fix that.  If the track is being replaced (e.g.  a
+        // collapse), then the skeleton will be right again.  This is kind of
+        // sketchy but it seems to work.
         this->skel_display.remove_track(tracknum);
     } else if (this->tracks() == 1) {
         if (this->ruler_track != this->no_ruler) {
@@ -510,9 +511,7 @@ Block::insert_track_view(int tracknum, Track *track, int width)
         tracknum--; // adjust to be relative to the first non-ruler track
         track_tile.insert_track(tracknum, track, width);
         this->track_tile.set_zoom(this->zoom);
-        // Restore the width as per the comment in 'remove_track'.
-        this->skel_display.insert_track(tracknum);
-        this->skel_display.set_width(tracknum, width);
+        this->skel_display.insert_track(tracknum, width);
     }
     this->update_scrollbars();
 }
@@ -612,8 +611,8 @@ Block::set_track_width(int tracknum, int width)
 void
 Block::print_debug() const
 {
-    skel_display.print_debug();
-    // return f_util::show_children(w, nlevels);
+    // Not needed now.
+    // skel_display.print_debug();
 }
 
 
