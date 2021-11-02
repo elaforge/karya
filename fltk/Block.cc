@@ -233,10 +233,8 @@ Block::set_widget_sizes()
     track_sb.resize(p.x, p.b() - Config::Block::sb_size,
         p.w, Config::Block::sb_size);
     track_scroll.resize(p.x, p.y, p.w, p.h - track_sb.h());
-    track_tile.resize(track_scroll.x(), track_scroll.y(),
-            track_scroll.w(), track_scroll.h());
-
-    this->track_tile.set_title_height(Config::Block::track_title_height);
+    track_tile.resize(
+        track_scroll.x(), track_scroll.y(), track_scroll.w(), track_scroll.h());
 
     // This is overhead required by fltk when you resize anything manually.
     init_sizes();

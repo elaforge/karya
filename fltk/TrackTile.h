@@ -39,11 +39,6 @@ public:
         track_pad.redraw();
     }
     void set_zoom(const Zoom &zoom);
-    void set_title_height(int title_height) {
-        this->title_height = title_height;
-        this->update_sizes();
-        this->redraw();
-    }
 
     // Open a text input field at the given ScoreTime.  It will contain the
     // given text, selected with the given select range.
@@ -82,7 +77,7 @@ protected:
     void draw() override;
 
 private:
-    int title_height;
+    const int title_height;
     Zoom zoom;
     Fl_Box track_pad; // box to take up space not covered by tracks
     // Created and destroyed when 'floating_open' is called.

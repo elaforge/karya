@@ -4939,7 +4939,14 @@ fltk:
     . It does remove the Track, but doesn't recalculate offsets!
   - bug: floating input in track title gets out of place
     . Maybe triggered by first using it with negative select?
-    . bug: solo: mute: also happened at the same time, maybe related?
+    . Same for track title, so it must be a window global offset.
+    ? What causes the floating input position?
+      Block::floating_open ScoreTime pos -> TrackTile::floating_open
+      ypos affected by:
+        zoom y() title_height
+    . Moving the window vertically fixes it, so it must have been y().
+      How can that get off though?
+  * remove TrackTile::set_title_height and make it constant?
   + bug: ever since the slow scrolling: change, I sometimes get a light gray
     background on track titles.
     . This is the selections getting in, if I use a blue selection then it's
