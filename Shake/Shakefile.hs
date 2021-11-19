@@ -815,6 +815,7 @@ ghcLanguageFlags :: [Flag]
 ghcLanguageFlags = map ("-X"++)
     -- Pretty conservative, and useful.
     [ "BangPatterns"
+    , "DeriveGeneric"
     -- This enables slightly more concise record initialization and doesn't
     -- seem to hurt anything.
     , "DisambiguateRecordFields"
@@ -823,9 +824,10 @@ ghcLanguageFlags = map ("-X"++)
     -- a lot of types like "IsString [a] => [a] -> ...", which results in
     -- "Non type-variable argument in the constraint: IsString [a]".
     , "FlexibleContexts"
+    -- Allow instances on nested types
+    , "FlexibleInstances"
     -- Just too useful.
     , "GeneralizedNewtypeDeriving"
-    , "DeriveGeneric"
     , "LambdaCase"
     , "MultiWayIf"
     -- Allow _s in numbers. Harmless, and the _s are nice.
@@ -836,8 +838,8 @@ ghcLanguageFlags = map ("-X"++)
     -- It's nicer than flip (,), but not worth using if you have to put in
     -- a LANGUAGE.
     , "TupleSections"
-    -- Allow instances on nested types, and fully applied type synonyms.
-    , "FlexibleInstances", "TypeSynonymInstances"
+    -- Allow instances on fully applied type synonyms.
+    , "TypeSynonymInstances"
     ]
 
 -- | When using gcc I get these defines automatically, but I need to add them

@@ -167,7 +167,7 @@ instance DeepSeq.NFData (Update t u) where
         State u -> u `seq` ()
 
 instance (Pretty t, Pretty u) => Pretty (Update t u) where
-    format upd = case upd of
+    format = \case
         View view_id update -> Pretty.constructor "View"
             [Pretty.format view_id, Pretty.format update]
         Block block_id update -> Pretty.constructor "Block"
@@ -235,7 +235,7 @@ instance Pretty State where
             [Pretty.format ruler_id]
 
 update_id :: Update t State -> Maybe Id.Id
-update_id u = case u of
+update_id = \case
     View view_id _ -> ident view_id
     Block block_id _ -> ident block_id
     Track track_id _ -> ident track_id
@@ -315,7 +315,7 @@ to_damage = \case
 
 -- | Updates which purely manipulate the view are not recorded by undo.
 is_view_update :: UiUpdate -> Bool
-is_view_update update = case update of
+is_view_update = \case
     View _ view_update -> case view_update of
         CreateView {} -> False
         DestroyView -> False
@@ -348,7 +348,7 @@ sort :: [DisplayUpdate] -> [DisplayUpdate]
 sort = Seq.sort_on sort_key
 
 sort_key :: DisplayUpdate -> Int
-sort_key update = case update of
+sort_key = \case
     -- Other updates may refer to the created view.
     View _ (CreateView {}) -> 0
     -- No sense syncing updates to a view that's going to go away, so destroy

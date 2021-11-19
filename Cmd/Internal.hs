@@ -168,8 +168,10 @@ record_focus _ = return Cmd.Continue
 cmd_record_ui_updates :: Cmd.M m => Msg.Msg -> m Cmd.Status
 cmd_record_ui_updates (Msg.Ui (UiMsg.UiMsg _
         (UiMsg.UpdateScreenSize screen screens rect))) = do
-    Cmd.modify $ \st -> st { Cmd.state_screens =
-        set_screen screen screens rect (Cmd.state_screens st) }
+    Cmd.modify $ \st -> st
+        { Cmd.state_screens =
+            set_screen screen screens rect (Cmd.state_screens st)
+        }
     return Cmd.Done
     where
     set_screen screen screens rect = take screens
