@@ -825,15 +825,28 @@ BlockWindow::BlockWindow(
 void
 BlockWindow::resize(int x, int y, int w, int h)
 {
+    static int reentrant;
+    reentrant++;
     int sx, sy, sw, sh;
     Fl::screen_work_area(sx, sy, sw, sh, x, y);
     int titlebar = this->decorated_h() - this->h();
+
+    y = std::max(y, sy + titlebar);
+
     // Don't make the window taller than will fit on the screen.
     h = std::min(h, sh - titlebar);
+
     Fl_Window::resize(x, y, w, h);
-    // This sends tons of resize msgs, and I'd rather just send one on
-    // mouse up.
-    MsgCollector::get()->view(UiMsg::msg_resize, this);
+    // When Fl_Window::resize is called externally (so not from the OS), it
+    // winds up being called again reentrantly.  Not sure why, but if the OS
+    // adjusts the position, then I would wind up sending the wrong msg_resize
+    // second.
+    if (reentrant == 1) {
+        // This sends tons of resize msgs, and I'd rather just send one on
+        // mouse up.
+        MsgCollector::get()->view(UiMsg::msg_resize, this);
+    }
+    reentrant--;
 }
 
 

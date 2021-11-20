@@ -53,8 +53,20 @@ external:
     . show MIDI, im, sc backends
     . using tscore, especially standalone
 
-
 UNSORTED
+  - lrange collided with random range, awkward
+  - bug: space right as play gets to the end leads to unstoppable playback line
+  - "can't play it's playing" is annoying, how about on play stop the previous
+    play and start a new one?
+  - bug: things go haywire if I have a vim open when the app quits,
+    vim stays running, repl dies of SIGPIPE, terminal state is messed up
+  - save/bali is all messed up apparently due to some instrument change
+    . add "r" for my reyong to bali.inst
+    . gabor has old norots?
+    . then put some of them into verify so it doesn't happen again!
+  - t-dia doesn't apply to all instruments in
+    `multiple set-pemade set-kantilan`
+    . visible in save/complete/wayang/zach-angkatan
   * why is kontakt/sc-pemade not getting inst-top inst-bottom env?
     . Because I only inherit the environ if it's Nothing, I don't merge env.
     . But I did it on purpose, I even switched from not having it.  I guess it
@@ -80,10 +92,15 @@ UNSORTED
     . The whole renumber fiasco is a fiasco.  Maybe marklist is too low
       level, can I save the structure in the Ui.Ruler?
   - upgrade to ghc-8.10 on hobbes.
-  / upgrade to ghc-9.0.1
+  - upgrade to ghc-9.2.1
     . 9.0 is pretty buggy, wait for 9.2.
+    - 9.2.1 has no profiling, wait for 9.2.2:
+      https://gitlab.haskell.org/ghc/ghc/-/issues/20707
     + upgrade modules
-      . Update nix.
+      - easier to wait for 9.2 in nixpkgs?
+      - fclabels, once again it's th, look into th-compat?
+        . or maybe switch to microlens, or optics
+      - but meanwhile tons of basic things won't build, wait a while
     + cryptohash-md5 doesn't build
       . It's hvr-controlled :(
       . Built it locally.
@@ -1666,6 +1683,12 @@ Util.Segment: linear: linear piecewise signal: signal-discontinuity:
       was that randomize moves every event.
 
 gamakam:
+  rethink gamakam:
+    . Is it worth having a mouse oriented curve editor?
+    . If strict division of each note duration is mechanical, can I have a way
+      to push the inflection points around?  How about push them beyond
+      the note boundaries?  But in what way?
+
   - can I bring back dynamics by having a dyn suffix to go to a certain dyn,
     maybe just at the end or beginning?  E.g.
     . !0=1>5 -- move to 1 and .5 dyn
@@ -2586,6 +2609,36 @@ synth: im:
         route audio output.
     - expose separate left and right pans?  Or pan center and width?
   play_cache: PlayCache:
+    - crash:
+      . Application Specific Information:
+        abort() called
+        *** error for object 0x1062b3010: incorrect checksum for freed object
+        - object was probably modified after being freed.
+      .       Thread 7 Crashed:
+        0   libsystem_kernel.dylib  0x00007fff6280ab66 __pthread_kill + 10
+        1   libsystem_pthread.dylib 0x00007fff629d5080 pthread_kill + 333
+        2   libsystem_c.dylib       0x00007fff627661ae abort + 127
+        3   libsystem_malloc.dylib  0x00007fff6286fb58 szone_error + 596
+        4   libsystem_malloc.dylib  0x00007fff6287116f small_free_list_remove_ptr_no_clear + 790
+        5   libsystem_malloc.dylib  0x00007fff628650e5 small_malloc_from_free_list + 171
+        6   libsystem_malloc.dylib  0x00007fff628638dd szone_malloc_should_clear + 1600
+        7   libsystem_malloc.dylib  0x00007fff62864d00 malloc_zone_calloc + 87
+        8   libsystem_malloc.dylib  0x00007fff62865612 calloc + 30
+        9   libsndfile.1.dylib      0x0000000113b0f5cc psf_store_read_chunk + 110
+        10  libsndfile.1.dylib      0x0000000113b0f543 psf_store_read_chunk_u32 + 95
+        11  libsndfile.1.dylib      0x0000000113ae1378 wav_open + 444
+        12  libsndfile.1.dylib      0x0000000113ac7f8d psf_open_file + 2213
+        13  elaforge.seq.play_cache 0x000000011394861c open_sample(std::__1::basic_ostream<char, std::__1::char_traits<char> >&, int, bool, int, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&, long long, int*) + 76
+        14  elaforge.seq.play_cache 0x0000000113947e99 SampleDirectory::open(int, long long) + 233
+        15  elaforge.seq.play_cache 0x000000011394836a SampleDirectory::read(int, long long, float**) + 874
+        16  elaforge.seq.play_cache 0x000000011394e524 Tracks::read(int, long long, float**) + 228
+        17  elaforge.seq.play_cache 0x000000011394ba57 Streamer::stream_loop() + 263
+        18  elaforge.seq.play_cache 0x000000011394d32e void* std::__1::__thread_proxy<std::__1::tuple<std::__1::unique_ptr<std::__1::__thread_struct, std::__1::default_delete<std::__1::__thread_struct> >, void (Streamer::*)(), Streamer*> >(void*) + 62
+        19  libsystem_pthread.dylib 0x00007fff629d2661 _pthread_body + 340
+        20  libsystem_pthread.dylib 0x00007fff629d250d _pthread_start + 377
+        21  libsystem_pthread.dylib 0x00007fff629d1bf9 thread_start + 13
+      . Could be related to how libsndfile is not thread safe.
+
     gui ideas:
       . I don't really want to write a gui though, what a hassle.  How much
         can I do with the generic gui?
@@ -4084,6 +4137,16 @@ cleanup:
     . fmt: even more operators and imports
 
 performance:
+  ruler: ruler-performance:
+    . The ruler model of having all the marks all the time seems like it
+      doesn't scale up to large blocks.  I would rather transmit minimal data,
+      and materialize ruler marks as appropriate at the appropriate zoom
+      level.
+    . I guess this leads back to a computational notion of ruler instead of
+      just the dumb [PosMark] data structure.
+    . This comes up because I want to have a 'score' block whose ruler is the
+      concatenation of the rulers underneath, and I'd rather it were that way
+      by definition, rather than because it got copied that way.
   prof results:
     - Eval.eval
       . This is for val calls.  I don't use many of those, except pitches.
@@ -4846,36 +4909,6 @@ performance:
         to take that out.  Though of course keeping the Reader part is fine,
         and necessary.
 
-rust-gui: gui: ui:
-  what could I do with fancy gui:
-    . See better drawing:
-    . Faster.  The caching made scrolling fast, but it's now slow to zoom in
-      on large blocks.
-    . I could use gradients or transparency... but for what?  I could put
-      multiple signals into one track, but would I?  Maybe dyn and pitch for
-      note tracks.
-    . mini block: Render blocks inside the calls.  But I should do a mock-up
-      first, because it might be too cluttered.
-  . try out druid for proof of concept
-  - make a mock-up in druid: block, single track, events
-    . How to do scrolling?
-    . See how it works with lots of events and text.
-  - integrate into shakefile, I think I just dispatch to cargo build
-  - call from haskell
-  - implement track tile
-  pro:
-    . More active development than fltk.
-    . Modern drawing, including gradients and transparency.
-    . No GPU acceleration, but likely to eventually get it.
-    . Rust should be nicer than C++.
-  con:
-    . Generally unstable and immature, probably need to keep up with
-      updates.
-    . Will need to implement mostly the same stuff I needed for fltk:
-      MoveTile, SymbolTable, etc.
-    . No IME at the moment, will proabbly come eventually.
-    . Dependency on rust.
-
 fltk:
   * bug: solo: mute:
     . Track 'mute' status gets increasingly off.  Surely this is due to the
@@ -4937,17 +4970,54 @@ fltk:
     . SkeletonDisplay tracks
     . Undo track creation does it!
     . It does remove the Track, but doesn't recalculate offsets!
-  - bug: floating input in track title gets out of place
-    . Maybe triggered by first using it with negative select?
-    . Same for track title, so it must be a window global offset.
-    ? What causes the floating input position?
-      Block::floating_open ScoreTime pos -> TrackTile::floating_open
-      ypos affected by:
-        zoom y() title_height
-    . Moving the window vertically fixes it, so it must have been y().
-      How can that get off though?
+  * bug: floating input in track title gets out of place
+    . cmd-L causes it
+    . Block::floating_open ScoreTime pos -> TrackTile::floating_open
+      ypos affected by: zoom y() title_height
+    . is it y()?
+    . Moving the window manually fixes it.
+    . window()->y() goes from 45 to 23, -22.
+    . haskell asks for 23, but titlebar of 22 puts it at 45
+    . Presumably it previously would send back the actual size?
+    . First resizes
+        Rect(4, 45, 107, 855) -> Rect(0, 23, 107, 855)
+        Rect(4, 45, 107, 855) -> Rect(0, 45, 107, 855)
+      UiUpdate (vid "untitled/b1.v1") (UpdateViewResize
+        (Rect {x = 0, y = 45, w = 107, h = 855})
+        (Padding {left = 6, top = 55, bottom = 24}))
+      UiUpdate (vid "untitled/b1.v1") (UpdateViewResize
+        (Rect {x = 0, y = 23, w = 107, h = 855})
+        (Padding {left = 6, top = 55, bottom = 24}))
+      screen_work_area Rect(0, 23, 1440, 877) titlebar 22
+    . Maybe the order is backwards?
+      > Block::resize Rect(4, 45, 107, 855) -> Rect(0, 23, 107, 855)
+      > Block::resize Rect(4, 45, 107, 855) -> Rect(0, 45, 107, 855)
+        before Rect(0, 45, 107, 855)
+        <view_resize {f='%dyn=.75' v='%dyn=.75' } Rect(0, 45, 107, 855)
+      < after Rect(0, 45, 107, 855)
+        before Rect(0, 23, 107, 855)
+        <view_resize {f='%dyn=.75' v='%dyn=.75' } Rect(0, 23, 107, 855)
+      < after Rect(0, 23, 107, 855)
+    . Recursive call, how does it happen?
+    . hs asks for (0, 23)
+      calls Fl_Window::resize(x, y, w, h)
+      which then calls back with (0, 45)
+      record (0, 45)
+      record (0, 23)
+    . If titlebar==22, what is that 23?
+      screen_work_area Rect(0, 23, 1440, 877) titlebar 22
+      Cmd.gets Cmd.state_screens also has 23, probably from screen_work_area.
+      . Actually menubar pixels seems to be 23
+      . Then I think window title is +22.
+    . Cmd.state_screens is from (UiMsg.UpdateScreenSize screen screens rect)
+      msg_screen_update, indeed from Fl::screen_work_area(x, y, w, h, screen);
+    . What should happen:
+      . Could hs ask for (0, 45)?  It would have to know the derocated_h.
+      . Or, it could ask for (0, 23), but get back a msg for (0, 45)
+      ? Why does BlockWindow::resize -> Fl_Window::resize -> back again?
+      . Fixing y makes it consistent, but the re-entrant call is still there.
   * remove TrackTile::set_title_height and make it constant?
-  + bug: ever since the slow scrolling: change, I sometimes get a light gray
+  * bug: ever since the slow scrolling: change, I sometimes get a light gray
     background on track titles.
     . This is the selections getting in, if I use a blue selection then it's
       blue.
@@ -7766,6 +7836,35 @@ FFI:
 
 research:
   . algorithm for violin fingerings: https://github.com/jmorag/open-strings
+  rust-gui: gui: ui:
+    what could I do with fancy gui:
+      . See better drawing:
+      . Faster.  The caching made scrolling fast, but it's now slow to zoom in
+        on large blocks.
+      . I could use gradients or transparency... but for what?  I could put
+        multiple signals into one track, but would I?  Maybe dyn and pitch for
+        note tracks.
+      . mini block: Render blocks inside the calls.  But I should do a mock-up
+        first, because it might be too cluttered.
+    . try out druid for proof of concept
+    - make a mock-up in druid: block, single track, events
+      . How to do scrolling?
+      . See how it works with lots of events and text.
+    - integrate into shakefile, I think I just dispatch to cargo build
+    - call from haskell
+    - implement track tile
+    pro:
+      . More active development than fltk.
+      . Modern drawing, including gradients and transparency.
+      . No GPU acceleration, but likely to eventually get it.
+      . Rust should be nicer than C++.
+    con:
+      . Generally unstable and immature, probably need to keep up with
+        updates.
+      . Will need to implement mostly the same stuff I needed for fltk:
+        MoveTile, SymbolTable, etc.
+      . No IME at the moment, will proabbly come eventually.
+      . Dependency on rust.
 
 ness:
   Questions:
