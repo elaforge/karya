@@ -801,7 +801,14 @@ lookup_scale = Scale.All.lookup_scale
 -- | State concerning derivation, performance, and playing the performance.
 data PlayState = PlayState {
     -- | Transport control channel for the player, if one is running.
-    state_play_control :: !(Maybe Transport.PlayControl)
+    -- This is a list even though I only expect one to run at a time.  The
+    -- reason is that if starting a new one stops the old one, there will
+    -- be a small window where the old one has not exited yet.  It's probably
+    -- better to wait for the previous one to exit, but I've also had bugs
+    -- where play gets stuck on, that makes me think with the concurrency I'm
+    -- going to wind up with overlapping anyway, so I may as well handle it
+    -- when I see it.
+    state_play_control :: ![Transport.PlayControl]
     -- | When changes are made to a block, its performance will be
     -- recalculated in the background.  When the Performance is forced, it will
     -- replace the existing performance in 'state_performance', if any.  This
@@ -865,7 +872,7 @@ running_threads = do
 
 initial_play_state :: PlayState
 initial_play_state = PlayState
-    { state_play_control = Nothing
+    { state_play_control = []
     , state_performance = Map.empty
     , state_current_performance = Map.empty
     , state_performance_threads = Map.empty

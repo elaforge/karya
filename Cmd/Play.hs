@@ -113,8 +113,7 @@ modify_play_multiplier f = do
 -- else.
 cmd_context_stop :: Cmd.CmdT IO Bool
 cmd_context_stop = gets Cmd.state_play_control >>= \case
-    Just ctl -> stop ctl >> return True
-    Nothing -> do
+    [] -> do
         step_playing <- Cmd.gets $
             Maybe.isJust . Cmd.state_step . Cmd.state_play
         if step_playing
@@ -126,16 +125,16 @@ cmd_context_stop = gets Cmd.state_play_control >>= \case
                 stop_im
                 liftIO Sc.Play.force_stop
                 return False
+    ctls -> stop ctls >> return True
 
 cmd_stop :: Cmd.CmdT IO Cmd.Status
 cmd_stop = do
-    maybe_ctl <- gets Cmd.state_play_control
-    whenJust maybe_ctl stop
+    stop =<< gets Cmd.state_play_control
     return Cmd.Done
 
-stop :: Transport.PlayControl -> Cmd.CmdT IO ()
-stop ctl = do
-    liftIO $ Transport.stop_player ctl
+stop :: [Transport.PlayControl] -> Cmd.CmdT IO ()
+stop ctls = do
+    liftIO $ mapM_ Transport.stop_player ctls
     stop_im
 
 -- | Stop im stream, if playing.  See NOTE [play-im].
@@ -377,9 +376,6 @@ from_realtime block_id repeat_at start_ = do
     -- play to seem to wedge for a moment.  'PlayUtil.perform_from' has
     -- a special hack to notice and include notes < 0.
     let start = max 0 start_
-    play_control <- gets Cmd.state_play_control
-    whenJust play_control $ \_ -> Cmd.throw "player already running"
-
     perf <- Cmd.require ("no performance for block " <> showt block_id)
         =<< lookup_current_performance block_id
     multiplier <- gets (recip . Cmd.state_play_multiplier)

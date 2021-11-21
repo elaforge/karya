@@ -56,8 +56,18 @@ external:
 UNSORTED
   - lrange collided with random range, awkward
   - bug: space right as play gets to the end leads to unstoppable playback line
-  - "can't play it's playing" is annoying, how about on play stop the previous
+    . Can't reproduce it now.
+  * "can't play it's playing" is annoying, how about on play stop the previous
     play and start a new one?
+    . The old thread stops, but new one doesn't get the next stop.
+    . Probably because the old stop unsets the new one.
+    . I would want it to only delete the right one.
+    . One way is to not send TransportStopped
+    . But that is sent by wait_for_players, a separate thread.
+    . So, I could send to that thread.  Or be more specific about which
+      which Cmd.state_play_control to drop.
+    . Put a unique ID in there?
+    . PlayControl via TVar has identity, can have Eq.
   - bug: things go haywire if I have a vim open when the app quits,
     vim stays running, repl dies of SIGPIPE, terminal state is messed up
   - save/bali is all messed up apparently due to some instrument change

@@ -358,10 +358,18 @@ handle_special_status :: Fltk.Channel -> Ui.State -> Cmd.State
     -> Transport.Info -> Cmd.Status -> IO Cmd.State
 handle_special_status ui_chan ui_state cmd_state transport_info = \case
     Cmd.Play args -> do
+        -- Cancel an existing player if there is one.  Play.stop also does a
+        -- stop_im, but I don't think that's necessary for im, it only plays
+        -- one thing at a time anyway.
+        mapM_ Transport.stop_player $
+            Cmd.state_play_control (Cmd.state_play cmd_state)
         play_ctl <- PlayC.play ui_chan ui_state transport_info args
+        let play = Cmd.state_play cmd_state
         return $! cmd_state
-            { Cmd.state_play = (Cmd.state_play cmd_state)
-                { Cmd.state_play_control = Just play_ctl }
+            { Cmd.state_play = play
+                { Cmd.state_play_control =
+                    play_ctl : Cmd.state_play_control play
+                }
             }
     Cmd.FloatingInput action -> do
         Fltk.send_action ui_chan "floating_input" $

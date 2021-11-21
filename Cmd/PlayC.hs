@@ -21,6 +21,7 @@
 module Cmd.PlayC (cmd_play_msg, play) where
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
+import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
@@ -40,6 +41,7 @@ import qualified Cmd.Perf as Perf
 import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stack as Stack
+
 import qualified Perform.Midi.Play as Midi.Play
 import qualified Perform.Sc.Note as Sc.Note
 import qualified Perform.Sc.Play as Sc.Play
@@ -87,9 +89,11 @@ cmd_play_msg ui_chan msg = do
         -- I may well still be playing the decay of the last note, so I don't
         -- want to send a stop to cut it off.  For MIDI that probably has
         -- no effect anyway, but it would cut off play_cache or play_im_direct.
-        Transport.Stopped -> do
-            Cmd.modify_play_state $ \st ->
-                st { Cmd.state_play_control = Nothing }
+        Transport.Stopped play_ctl -> do
+            Cmd.modify_play_state $ \st -> st
+                { Cmd.state_play_control =
+                    List.delete play_ctl (Cmd.state_play_control st)
+                }
             -- This will cover up derive status info, but that should be ok.
             -- And play normally only comes after derive is completed.
             set_all_play_boxes Config.box_color
@@ -365,8 +369,8 @@ event_highlights derived_block_id colors
 
 -- | This actually kicks off a MIDI play thread, and if an inverse tempo
 -- function is given, a play monitor thread.
-play :: Fltk.Channel -> Ui.State -> Transport.Info -> Cmd.PlayArgs
-    -> IO Transport.PlayControl
+play :: Fltk.Channel -> Ui.State -> Transport.Info
+    -> Cmd.PlayArgs -> IO Transport.PlayControl
 play ui_chan ui_state transport_info
         (Cmd.PlayArgs mmc name midi_msgs sc_msgs maybe_inv_tempo repeat_at
             im_end play_im_direct) = do
@@ -397,16 +401,16 @@ play ui_chan ui_state transport_info
                 inv_tempo repeat_at
             play_monitor_thread state
         Nothing -> return ()
-    Thread.start $ wait_for_players
+    Thread.start $ wait_for_players play_ctl
         (Transport.info_send_status transport_info) players
     return play_ctl
 
-wait_for_players :: (Transport.Status -> IO ()) -> Transport.ActivePlayers
-    -> IO ()
-wait_for_players send_status players = do
+wait_for_players :: Transport.PlayControl -> (Transport.Status -> IO ())
+    -> Transport.ActivePlayers -> IO ()
+wait_for_players play_ctl send_status players = do
     send_status Transport.Playing
     Transport.wait_player_stopped players
-    send_status Transport.Stopped
+    send_status $ Transport.Stopped play_ctl
 
 -- | Start streaming audio from the given start time, until the PlayControl
 -- says to stop.
@@ -496,6 +500,8 @@ monitor_loop state = do
     let out_of_score = null block_pos
             && Maybe.isNothing (monitor_repeat_at state)
     stop_requested <- Transport.poll_stop_player 0 (monitor_play_ctl state)
+    -- At one pointed I'd wait for all the players to stop, I assume so
+    -- the play position keeps going, but I don't anymore.
     -- players_stopped <-
     --     Transport.poll_player_stopped 0 (monitor_players state)
     -- putStrLn $ "monitor: " <> show now <> ", players:"

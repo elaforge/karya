@@ -74,6 +74,7 @@ toUsec = round . (*1000000)
 -- | A Flag starts False, and can eventually become True.  It never goes back
 -- to False again.
 newtype Flag = Flag (STM.TVar Bool)
+    deriving (Eq)
 
 instance Show Flag where show _ = "((Flag))"
 

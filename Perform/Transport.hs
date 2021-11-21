@@ -33,7 +33,7 @@ import           Types
 
 -- | These go back to the responder loop from the render thread to notify it
 -- about the transport's state.
-data Status = Playing | Stopped
+data Status = Playing | Stopped !PlayControl
     deriving (Eq, Show)
 
 instance Pretty Status where pretty = showt
@@ -60,7 +60,8 @@ data Info = Info {
 -- * play control
 
 -- | Communication from the responder to the players, to tell them to stop.
-newtype PlayControl = PlayControl Thread.Flag deriving (Show)
+newtype PlayControl = PlayControl Thread.Flag
+    deriving (Eq, Show)
 
 play_control :: IO PlayControl
 play_control = PlayControl <$> Thread.flag
