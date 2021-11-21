@@ -2619,7 +2619,7 @@ synth: im:
         route audio output.
     - expose separate left and right pans?  Or pan center and width?
   play_cache: PlayCache:
-    - crash:
+    + crash:
       . Application Specific Information:
         abort() called
         *** error for object 0x1062b3010: incorrect checksum for freed object
@@ -2647,8 +2647,18 @@ synth: im:
         19  libsystem_pthread.dylib 0x00007fff629d2661 _pthread_body + 340
         20  libsystem_pthread.dylib 0x00007fff629d250d _pthread_start + 377
         21  libsystem_pthread.dylib 0x00007fff629d1bf9 thread_start + 13
-      . Could be related to how libsndfile is not thread safe.
-
+      . This may not be libsndfile's fault at all, because it's calloc
+        detecting that this chunk was modified after free, but by whom is
+        unknown.
+      . Still, could be related to how libsndfile is not thread safe.
+      . libsndfile is overkill in addition to being not thread safe, can I use
+        or write a dedicated wav reader?  I don't even need to use wav, though
+        it's convenient to play them with 3rd party tools.
+      . I also don't want the sample conversion it provides.
+      . https://github.com/mhroth/tinywav
+        Seems ok except asserts when it doesn't recognize the file.
+      . Wrote my own... as usual :/  At least this way if I still get a crash,
+        then its less code to be suspicious of, and it's all mine.
     gui ideas:
       . I don't really want to write a gui though, what a hassle.  How much
         can I do with the generic gui?

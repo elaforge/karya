@@ -13,6 +13,7 @@
 #include "Thru.h"
 #include "Semaphore.h"
 #include "Streamer.h"
+#include "Wav.h"
 
 
 static void
@@ -108,6 +109,50 @@ thru()
 }
 
 
+static void
+test_wav(const char *fname)
+{
+    wav::Wav *wav;
+    wav::Error err;
+
+    err = wav::open_read(fname, &wav, 2, 44100);
+    if (err) {
+        std::cout << fname << ": " << err << "\n";
+        return;
+    }
+    SF_INFO info = {0};
+    SNDFILE *sndfile = sf_open(fname, SFM_READ, &info);
+
+    const int frames = 64;
+    float samples1[frames*2], samples2[frames*2];
+    int unequal = 0, equal = 0;
+    for (;;) {
+        wav::Frames read1 = wav::read(wav, frames, samples1);
+        wav::Frames read2 = sf_readf_float(sndfile, samples2, frames);
+        if (read1 != read2) {
+            std::cout << read1 << " != " << read2 << "\n";
+            return;
+        }
+        if (read1 == 0)
+            break;
+
+        for (int i = 0; i < read1; i++) {
+            if (samples1[i] != samples2[i]) {
+                std::cout << i << ": " << samples1[i] << " != " << samples2[i]
+                    << "\n";
+                unequal++;
+            } else {
+                equal++;
+                // std::cout << i << ": == " << samples1[i] << "\n";
+            }
+        }
+    }
+    std::cout << "equal: " << equal << " unequal: " << unequal << "\n";
+    wav::close(wav);
+    sf_close(sndfile);
+}
+
+
 int
 main(int argc, const char **argv)
 {
@@ -118,8 +163,11 @@ main(int argc, const char **argv)
         stream(argv[2]);
     } else if (argc == 2 && cmd == "thru") {
         thru();
+    } else if (argc == 3 && cmd == "wav") {
+        test_wav(argv[2]);
     } else {
-        std::cout << "test_play_cache [ semaphore | stream dir ]\n";
+        std::cout << "test_play_cache"
+            " [ semaphore | stream dir | thru | wav file.wav ]\n";
         return 1;
     }
     return 0;
