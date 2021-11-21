@@ -1189,10 +1189,13 @@ makeHaddock modeConfig = do
             , SourceControl.showDate (SourceControl._date entry)
             , " (patch ", SourceControl._hash entry, ")"
             ]
+    -- This is like 'ghcFlags', but haddock takes slightly different flags.
     let ghcFlags = concat
-            [ define flags, cInclude flags
-            , ghcGlobalFlags
+            [ ghcGlobalFlags
+            , define flags
+            , cInclude flags
             , packageFlags flags packages
+            , ["-i" <> List.intercalate ":" [hscDir config, chsDir config]]
             ]
     Util.system "haddock" $
         [ "--html"
@@ -1245,7 +1248,9 @@ getAllHs mbConfig =
 -- | Should this module have haddock documentation generated?
 wantsHaddock :: Config -> FilePath -> Bool
 wantsHaddock config hs = not $ or $
-    [ "_test.hs" `List.isSuffixOf` hs
+    [ not $ Char.isUpper (head hs) -- no docs for scripts in tools
+    , "Ness/" `List.isPrefixOf` hs -- ness stuff still uses conduit-audio
+    , "_test.hs" `List.isSuffixOf` hs
     , "_profile.hs" `List.isSuffixOf` hs
     , "_criterion.hs" `List.isSuffixOf` hs
     -- This will crash hsc2hs on OS X since jack.h is likely not present.
