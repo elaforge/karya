@@ -5,7 +5,6 @@
 #include <chrono>
 #include <fcntl.h>
 #include <math.h>
-#include <sndfile.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -13,6 +12,10 @@
 #include "PeakCache.h"
 #include "types.h"
 #include "util.h"
+
+// TODO: this should be a separate library, but it's annoying to do while my
+// shakefile setup is a mess.
+#include "Synth/play_cache/Wav.h"
 
 // for SAMPLING_RATE.
 #include "Synth/Shared/config.h"
@@ -135,7 +138,7 @@ PeakCache::MixedEntry::at_zoom(double zoom_factor)
 
 
 static double
-period_at(const std::vector<double> &ratios, sf_count_t frame)
+period_at(const std::vector<double> &ratios, Wav::Frames frame)
 {
     // Use frames_per_ratio to get an index into ratios, then interpolate.
     if (ratios.empty()) {
@@ -158,22 +161,23 @@ period_at(const std::vector<double> &ratios, sf_count_t frame)
 static std::vector<float> *
 read_file(const std::string &filename, const std::vector<double> &ratios)
 {
-    SF_INFO info = {0};
-    SNDFILE *sndfile = sf_open(filename.c_str(), SFM_READ, &info);
     std::vector<float> *peaks = new std::vector<float>();
-    if (sf_error(sndfile) != SF_ERR_NO_ERROR) {
+    Wav *wav;
+    Wav::Error err = Wav::open(filename.c_str(), &wav, 0);
+
+    if (err) {
         // TODO should be LOG
-        DEBUG("opening " << filename << ": " << sf_strerror(sndfile));
+        DEBUG("opening " << filename << ": " << err);
         return peaks;
-    } else if (info.samplerate != sampling_rate) {
+    } else if (wav->srate() != sampling_rate) {
         DEBUG(filename << ": expected srate of " << sampling_rate << ", got "
-            << info.samplerate);
+            << wav->srate());
         return peaks;
     }
 
-    std::vector<float> buffer(read_buffer_frames * info.channels);
-    sf_count_t frame = 0;
-    sf_count_t frames_left = 0;
+    std::vector<float> buffer(read_buffer_frames * wav->channels());
+    Wav::Frames frame = 0;
+    Wav::Frames frames_left = 0;
     // How many frames to consume in this period
     double srate = sampling_rate / reduced_sampling_rate;
     double period = srate * period_at(ratios, frame);
@@ -185,15 +189,14 @@ read_file(const std::string &filename, const std::vector<double> &ratios)
     float accum = 0;
     for (;;) {
         if (frames_left == 0) {
-            frames_left += sf_readf_float(
-                sndfile, buffer.data(), read_buffer_frames);
+            frames_left += wav->read(buffer.data(), read_buffer_frames);
             if (!frames_left)
                 break;
             index = 0;
         }
-        sf_count_t consume = floor(std::min(period, double(frames_left)));
+        Wav::Frames consume = floor(std::min(period, double(frames_left)));
         // TODO can I vectorize?  fabs(3) on OS X documents SIMD vvfabsf().
-        for (; index < consume * info.channels; index++) {
+        for (; index < consume * wav->channels(); index++) {
             accum = std::max(accum, fabsf(buffer[index]));
         }
         frames_left -= consume;
@@ -206,7 +209,7 @@ read_file(const std::string &filename, const std::vector<double> &ratios)
         }
     }
     // DEBUG("load frames: " << frame << ", peaks: " << peaks->size());
-    sf_close(sndfile);
+    delete wav;
     return peaks;
 }
 

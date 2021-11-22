@@ -475,7 +475,7 @@ libsndfile = C.library "sndfile"
 ccBinaries :: [C.Binary Config]
 ccBinaries =
     [ (fltk "test_block" ["fltk/test_block.cc.o", "fltk/fltk.a"])
-        { C.binLibraries = \c -> [libsamplerate, libsndfile, libfltk c] }
+        { C.binLibraries = \c -> [libsamplerate, libfltk c] }
     , fltk "test_browser"
         [ "Instrument/test_browser.cc.o", "Instrument/browser_ui.cc.o"
         , "fltk/f_util.cc.o"
@@ -598,6 +598,10 @@ fltkDeps config = map (srcToObj config . ("fltk"</>))
     , "types.cc"
     , "utf8.cc"
     , "util.cc"
+    ] ++ map (srcToObj config)
+    -- TODO this should be a separate library, but I can't be bothered while
+    -- the shakefile is such a mess
+    [ "Synth/play_cache/Wav.cc"
     ]
 
 -- * mode
