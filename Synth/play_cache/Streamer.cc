@@ -86,7 +86,7 @@ Streamer::stream_loop()
 void
 Streamer::stream()
 {
-    sf_count_t available;
+    Frames available;
     while ((available = jack_ringbuffer_write_space(ring) / channels)
         > read_frames)
     {
@@ -106,7 +106,7 @@ Streamer::stream()
 
 
 bool
-Streamer::read(int channels, sf_count_t frames, float **out)
+Streamer::read(int channels, Frames frames, float **out)
 {
     size_t samples;
     if (restarting.load()) {
@@ -154,7 +154,7 @@ TracksStreamer::TracksStreamer(
 
 
 void
-TracksStreamer::start(const string &dir, sf_count_t start_offset,
+TracksStreamer::start(const string &dir, Frames start_offset,
     const std::vector<string> &mutes)
 {
     // I think the atomic restarting.store with memory_order_seq_cst should
@@ -261,19 +261,19 @@ MixStreamer::stop()
 // in C++, so I guess it could be a template, but it's too much bother.
 
 static void
-mix(int channels, sf_count_t frames,
+mix(int channels, Frames frames,
     // In theory restrict lets it optimize better because it knows there's no
     // dependency between the pointers.
     float * __restrict__ output, const float * __restrict__ input)
 {
-    for (sf_count_t i = 0; i < frames * channels; i++) {
+    for (Frames i = 0; i < frames * channels; i++) {
         output[i] += input[i];
     }
 }
 
 
 bool
-MixStreamer::read(int channels, sf_count_t frames, float **out)
+MixStreamer::read(int channels, Frames frames, float **out)
 {
     buffer.resize(frames * channels);
     std::fill(buffer.begin(), buffer.end(), 0);

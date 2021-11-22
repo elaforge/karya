@@ -8,8 +8,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <sndfile.h>
-
 #include "Synth/Shared/config.h"
 #include "PlayCache.h"
 #include "log.h"

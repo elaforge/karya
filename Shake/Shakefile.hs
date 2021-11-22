@@ -481,7 +481,7 @@ ccBinaries =
     ] ++ if not (Config.enableIm localConfig) then [] else
     [ playCacheBinary
     , pannerBinary
-    , makePlayCacheBinary "test_play_cache" "test_play_cache.cc" []
+    , makePlayCacheBinary "test_play_cache" "test_play_cache.cc" [libsndfile] []
     ]
     where
     libfltk = _libfltk . cLibs
@@ -494,7 +494,7 @@ ccBinaries =
 -- a valid vst.
 playCacheBinary :: C.Binary Config
 playCacheBinary =
-    addVstFlags $ makePlayCacheBinary "play_cache" "PlayCache.cc" []
+    addVstFlags $ makePlayCacheBinary "play_cache" "PlayCache.cc" [] []
 
 pannerBinary :: C.Binary Config
 pannerBinary = addVstFlags $ C.binary "panner" ["Synth/play_cache/Panner.cc.o"]
@@ -529,8 +529,9 @@ addVstFlags binary = binary
         Util.Mac -> ""
         Util.Linux -> ".so"
 
-makePlayCacheBinary :: String -> FilePath -> [FilePath] -> C.Binary config
-makePlayCacheBinary name main objs = (C.binary name [])
+makePlayCacheBinary :: String -> FilePath -> [C.ExternalLibrary] -> [FilePath]
+    -> C.Binary config
+makePlayCacheBinary name main libs objs = (C.binary name [])
     { C.binObjs = (objs++) $ map (("Synth/play_cache"</>) . (++".o")) $
         [ main
         , "Thru.cc", "Resample.cc", "Sample.cc", "Streamer.cc", "Tracks.cc"
@@ -538,8 +539,7 @@ makePlayCacheBinary name main objs = (C.binary name [])
         , "ringbuffer.cc"
         ]
     , C.binLibraries = const $
-        [ libsndfile
-        , case Util.platform of
+        [ case Util.platform of
             -- This is the system libsamplerate, not the hacked static one at
             -- 'libsamplerate'.  The reason is that linux doesn't like to put
             -- a .a lib in .so, it wants me to recompile with -fPIC.  In any
@@ -548,6 +548,7 @@ makePlayCacheBinary name main objs = (C.binary name [])
             -- Meanwhile OS X doesn't seem to care, so just use the same one.
             Util.Mac -> libsamplerate
         ] ++ [C.library "pthread" | Util.platform == Util.Linux]
+        ++ libs
     }
 
 

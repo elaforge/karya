@@ -13,13 +13,6 @@
 #include <fltk/util.h>
 
 
-namespace wav {
-
-struct Wav {
-    FILE *fp;
-    int channels;
-};
-
 // Reference from http://soundfile.sapp.org/doc/WaveFormat/
 
 struct __attribute__((__packed__)) RiffHeader {
@@ -63,8 +56,8 @@ find_chunk(uint32_t id, FILE *fp)
     }
 }
 
-Error
-open_read(const char *fname, Wav **wav, int channels, int srate)
+Wav::Error
+Wav::open(const char *fname, Wav **wav, Frames offset)
 {
     *wav = nullptr;
     FILE *fp = fopen(fname, "rb");
@@ -92,16 +85,16 @@ open_read(const char *fname, Wav **wav, int channels, int srate)
         fclose(fp);
         return "Not a float32 wav";
     }
-    if (fmt.channels != channels || fmt.srate != srate) {
-        fclose(fp);
-        return "Unexpected channels or srate";
-    }
     if (!find_chunk('data', fp))
         goto on_c_error;
+    if (offset > 0) {
+        // TODO I used to check if it's an unexpected large seek, should I?
+        // There is a special case where 0 frames is like a full chunk of 0s.
+        if (fseek(fp, sizeof(float) * fmt.channels, SEEK_CUR) != 0)
+            goto on_c_error;
+    }
 
-    *wav = (Wav *) malloc(sizeof(Wav));
-    (*wav)->fp = fp;
-    (*wav)->channels = channels;
+    *wav = new Wav(fp, fmt.channels, fmt.srate);
     return nullptr;
 
 on_c_error:
@@ -109,21 +102,23 @@ on_c_error:
     return strerror(errno);
 }
 
-Error
-close(Wav *wav)
+Wav::~Wav()
 {
-    if (fclose(wav->fp) != 0) {
-        free(wav);
+    fclose(fp);
+}
+
+Wav::Error
+Wav::close()
+{
+    if (fclose(this->fp) != 0) {
         return strerror(errno);
     }
-    free(wav);
+    this->fp = nullptr;
     return nullptr;
 }
 
-Frames
-read(Wav *wav, Frames frames, float *samples)
+Wav::Frames
+Wav::read(float *samples, Wav::Frames frames)
 {
-    return fread(samples, sizeof(float) * wav->channels, frames, wav->fp);
-}
-
+    return fread(samples, sizeof(float) * this->channels(), frames, this->fp);
 }

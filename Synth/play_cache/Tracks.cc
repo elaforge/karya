@@ -70,8 +70,7 @@ sample_dirs(
 
 
 Tracks::Tracks(std::ostream &log, int channels, int sample_rate,
-    const string &dir, sf_count_t start_offset,
-    const std::vector<string> &mutes)
+    const string &dir, Frames start_offset, const std::vector<string> &mutes)
     : log(log)
 {
     std::vector<string> dirnames(sample_dirs(log, dir, mutes));
@@ -86,19 +85,19 @@ Tracks::Tracks(std::ostream &log, int channels, int sample_rate,
 
 
 static void
-mix(int channels, sf_count_t frames,
+mix(int channels, Frames frames,
     // In theory restrict lets it optimize better because it knows there's no
     // dependency between the pointers.
     float * __restrict__ output, const float * __restrict__ input)
 {
-    for (sf_count_t i = 0; i < frames * channels; i++) {
+    for (Frames i = 0; i < frames * channels; i++) {
         output[i] += input[i];
     }
 }
 
 
 bool
-Tracks::read(int channels, sf_count_t frames, float **out)
+Tracks::read(int channels, Frames frames, float **out)
 {
     buffer.resize(frames * channels);
     std::fill(buffer.begin(), buffer.end(), 0);

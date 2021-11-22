@@ -187,7 +187,7 @@ Thru::~Thru()
 
 
 bool
-Thru::read(int channels, sf_count_t frames, float **out)
+Thru::read(int channels, Frames frames, float **out)
 {
     return streamer->read(channels, frames, out);
 }

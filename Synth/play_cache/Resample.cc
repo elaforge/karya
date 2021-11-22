@@ -31,7 +31,7 @@ Resample::~Resample()
 
 
 bool
-Resample::read(int channels, sf_count_t frames, float **out)
+Resample::read(int channels, Frames frames, float **out)
 {
     output.resize(frames * channels);
     data.output_frames = frames;
@@ -41,8 +41,8 @@ Resample::read(int channels, sf_count_t frames, float **out)
         if (data.input_frames == 0) {
             // Guess how many frames it will need.  It's not always right
             // though.
-            // sf_count_t input_frames = ceil(frames * 1/ratio);
-            sf_count_t input_frames = frames;
+            // Frames input_frames = ceil(frames * 1/ratio);
+            Frames input_frames = frames;
             float *input;
             data.end_of_input =
                 audio->read(channels, input_frames, &input);

@@ -8,9 +8,8 @@
 #include <atomic>
 #include <thread>
 
-#include <sndfile.h>
-
 #include "Streamer.h"
+#include "types.h"
 
 
 // This is a thread that listens for OSC messages, and streams samples when it
@@ -19,7 +18,7 @@ class Thru {
 public:
     Thru(std::ostream &log, int channels, int sample_rate, int max_frames);
     ~Thru();
-    bool read(int channels, sf_count_t frames, float **out);
+    bool read(int channels, Frames frames, float **out);
 
 private:
     std::ostream &log;

@@ -15,9 +15,9 @@
 class Tracks : public Audio {
 public:
     Tracks(std::ostream &log, int channels, int sample_rate,
-        const std::string &dir, sf_count_t start_offset,
+        const std::string &dir, Frames start_offset,
         const std::vector<std::string> &mutes);
-    bool read(int channels, sf_count_t frames, float **out) override;
+    bool read(int channels, Frames frames, float **out) override;
 
 private:
     std::ostream &log;

@@ -63,8 +63,8 @@ stream(const char *dir)
         std::cout << "no dir";
         return;
     }
-    sf_count_t max_frames = 512;
-    sf_count_t start_offset = 0;
+    Frames max_frames = 512;
+    Frames start_offset = 0;
     std::vector<std::string> mutes;
 
     TracksStreamer streamer(std::cout, 2, 44100, max_frames);
@@ -112,10 +112,12 @@ thru()
 static void
 test_wav(const char *fname)
 {
-    wav::Wav *wav;
-    wav::Error err;
+    Wav *wav;
+    Wav::Error err;
 
-    err = wav::open_read(fname, &wav, 2, 44100);
+    err = Wav::open(fname, &wav, 0);
+    // assert(wav->channels() == 2);
+    // assert(wav->srate() == 44100);
     if (err) {
         std::cout << fname << ": " << err << "\n";
         return;
@@ -127,8 +129,8 @@ test_wav(const char *fname)
     float samples1[frames*2], samples2[frames*2];
     int unequal = 0, equal = 0;
     for (;;) {
-        wav::Frames read1 = wav::read(wav, frames, samples1);
-        wav::Frames read2 = sf_readf_float(sndfile, samples2, frames);
+        Frames read1 = wav->read(samples1, frames);
+        Frames read2 = sf_readf_float(sndfile, samples2, frames);
         if (read1 != read2) {
             std::cout << read1 << " != " << read2 << "\n";
             return;
@@ -148,7 +150,7 @@ test_wav(const char *fname)
         }
     }
     std::cout << "equal: " << equal << " unequal: " << unequal << "\n";
-    wav::close(wav);
+    wav->close();
     sf_close(sndfile);
 }
 

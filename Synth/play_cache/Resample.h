@@ -17,7 +17,7 @@ class Resample : public Audio {
 public:
     Resample(std::ostream &log, int channels, double ratio, Audio *audio);
     ~Resample();
-    bool read(int channels, sf_count_t frames, float **out) override;
+    bool read(int channels, Frames frames, float **out) override;
 private:
     std::ostream &log;
     std::unique_ptr<Audio> audio;

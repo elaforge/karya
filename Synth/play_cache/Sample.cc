@@ -6,7 +6,6 @@
 #include <cstring>
 #include <dirent.h>
 #include <ostream>
-#include <sndfile.h>
 #include <sstream>
 #include <vector>
 
@@ -84,71 +83,52 @@ find_next_sample(std::ostream &log, const string &dir, const string &fname)
 }
 
 
-// This is a special hack that Audio.File.writeCheckpoints uses to encode an
-// all zero chunk.
-//
-// I thought of encoding it in a way that wouldn't be confused with a normal
-// empty file, say setting sampling rate to 1, but I don't think I ever write
-// empty files anyway.
-static bool
-is_silent(const SF_INFO &info)
-{
-    return info.frames == 0;
-}
-
-
 // Open the file at the given offset.  Return nullptr if there was an error,
 // or the offset is past the end of the file.
-static SNDFILE *
+static Wav *
 open_sample(
     std::ostream &log, int channels, bool one_channel_ok, int sample_rate,
-    const string &fname, sf_count_t offset, int *file_channels)
+    const string &fname, Frames offset, int *file_channels)
 {
-    SF_INFO info = {0};
-    SNDFILE *sndfile = sf_open(fname.c_str(), SFM_READ, &info);
-    if (sf_error(sndfile) != SF_ERR_NO_ERROR) {
-        LOG(fname << ": " << sf_strerror(sndfile));
-    } else if (!(info.channels == channels
-        || (one_channel_ok && info.channels == 1)))
+    Wav *wav;
+    Wav::Error err = Wav::open(fname.c_str(), &wav, offset);
+    if (err) {
+        LOG(fname << ": " << err);
+        return nullptr;
+    }
+    if (!(wav->channels() == channels
+        || (one_channel_ok && wav->channels() == 1)))
     {
         LOG(fname << ": expected " << channels << " channels, got "
-            << info.channels);
-    } else if (info.samplerate != sample_rate) {
+            << wav->channels());
+    } else if (wav->srate() != sample_rate) {
         LOG(fname << ": expected srate of " << sample_rate << ", got "
-            << info.samplerate);
+            << wav->srate());
     } else {
         if (file_channels)
-            *file_channels = info.channels;
-
-        if (is_silent(info) || offset >= info.frames) {
-            // no error, but no samples to be read either
-            sf_close(sndfile);
-            return nullptr;
-        } else if (offset < info.frames) {
-            if (sf_seek(sndfile, offset, SEEK_SET) == -1) {
-                LOG(fname << ": seek to " << offset << ": "
-                    << sf_strerror(sndfile));
-            }
-        }
-        return sndfile;
+            *file_channels = wav->channels();
+        // I used to check if I had seeked off the end of the sample, or if
+        // it's a silent block (0 frames, emitted by
+        // Audio.File.writeCheckpoints), and if so close it right here.  But
+        // it's simpler to not expose frames_remaining and let read() run out
+        // when it runs out.
+        return wav;
     }
-    // there was an error
-    sf_close(sndfile);
+    delete wav;
     return nullptr;
 }
-
 
 // SampleDirectory
 
 SampleDirectory::SampleDirectory(
         std::ostream &log, int channels, int sample_rate,
-        const string &dir, sf_count_t offset) :
-    log(log), sample_rate(sample_rate), dir(dir), sndfile(nullptr),
+        const string &dir, Frames offset) :
+    log(log), sample_rate(sample_rate), dir(dir), wav(nullptr),
     frames_left(0)
 {
     int filenum = offset / (CHUNK_SECONDS * sample_rate);
     this->fname = find_nth_sample(log, dir, filenum);
-    sf_count_t file_offset = offset % (CHUNK_SECONDS * sample_rate);
+    Frames file_offset = offset % (CHUNK_SECONDS * sample_rate);
     LOG("dir " << dir << ": start at '" << fname << "' + " << file_offset);
     if (!fname.empty()) {
         this->open(channels, file_offset);
@@ -158,20 +138,20 @@ SampleDirectory::SampleDirectory(
 
 SampleDirectory::~SampleDirectory()
 {
-    if (sndfile)
-        sf_close(sndfile);
+    if (wav)
+        delete wav;
 }
 
 
 bool
-SampleDirectory::read(int channels, sf_count_t frames, float **out)
+SampleDirectory::read(int channels, Frames frames, float **out)
 {
     buffer.resize(frames * channels);
-    sf_count_t total_read = 0;
+    Frames total_read = 0;
     while (!fname.empty() && frames - total_read > 0) {
-        const sf_count_t offset = total_read * channels;
-        sf_count_t delta;
-        if (sndfile == nullptr) {
+        const Frames offset = total_read * channels;
+        Frames delta;
+        if (wav == nullptr) {
             // File is a silent chunk or otherwise ended early.
             if (frames_left > 0) {
                 delta = std::min(frames_left, frames - total_read);
@@ -188,16 +168,15 @@ SampleDirectory::read(int channels, sf_count_t frames, float **out)
             }
         } else {
             // TODO read could fail, handle that
-            delta = sf_readf_float(
-                sndfile, buffer.data() + offset, frames - total_read);
+            delta = wav->read(buffer.data() + offset, frames - total_read);
             // delta could be > frames_left if a chunk > CHUNK_SECONDS, which
             // shouldn't happen.  But if it does, the rest will be offset,
             // which hopefully I'll notice.
             frames_left -= std::min(frames_left, delta);
             if (delta < frames - total_read) {
                 // Short read, this file is done.
-                sf_close(sndfile);
-                sndfile = nullptr;
+                delete wav;
+                wav = nullptr;
             }
         }
         if (frames_left == 0) {
@@ -214,12 +193,12 @@ SampleDirectory::read(int channels, sf_count_t frames, float **out)
 
 
 void
-SampleDirectory::open(int channels, sf_count_t offset)
+SampleDirectory::open(int channels, Frames offset)
 {
-    if (sndfile)
-        sf_close(sndfile);
+    if (wav)
+        delete wav;
     if (!fname.empty()) {
-        sndfile = open_sample(
+        wav = open_sample(
             log, channels, false, sample_rate, dir + '/' + fname, offset,
             nullptr);
         // offset should never be > chunk frames.
@@ -232,13 +211,13 @@ SampleDirectory::open(int channels, sf_count_t offset)
 
 SampleFile::SampleFile(
         std::ostream &log, int channels, bool expand_channels, int sample_rate,
-        const string &fname, sf_count_t offset) :
-    log(log), expand_channels(expand_channels), fname(fname), sndfile(nullptr),
+        const string &fname, Frames offset) :
+    log(log), expand_channels(expand_channels), fname(fname), wav(nullptr),
     file_channels(0)
 {
     if (!fname.empty()) {
         LOG(fname << " + " << offset);
-        sndfile = open_sample(
+        wav = open_sample(
             log, channels, expand_channels, sample_rate, fname, offset,
             &this->file_channels);
     }
@@ -247,34 +226,34 @@ SampleFile::SampleFile(
 
 SampleFile::~SampleFile()
 {
-    if (sndfile)
-        sf_close(sndfile);
+    if (wav)
+        delete wav;
 }
 
 
 bool
-SampleFile::read(int channels, sf_count_t frames, float **out)
+SampleFile::read(int channels, Frames frames, float **out)
 {
-    if (sndfile == nullptr) {
+    if (wav == nullptr) {
         return true;
     }
     buffer.resize(frames * channels);
-    sf_count_t read;
+    Frames read;
     if (expand_channels && file_channels == 1 && channels != 1) {
         expand_buffer.resize(frames);
-        read = sf_readf_float(sndfile, expand_buffer.data(), frames);
-        for (sf_count_t f = 0; f < read; f++) {
+        read = wav->read(expand_buffer.data(), frames);
+        for (Frames f = 0; f < read; f++) {
             for (int c = 0; c < channels; c++) {
                 buffer[f*channels + c] = expand_buffer[f];
             }
         }
     } else {
-        read = sf_readf_float(sndfile, buffer.data(), frames);
+        read = wav->read(buffer.data(), frames);
     }
-    // sf_readf_float only reads less than asked if the file ended.
+    // Wav::read only reads less than asked if the file ended.
     if (read < frames) {
-        sf_close(sndfile);
-        sndfile = nullptr;
+        delete wav;
+        wav = nullptr;
     }
     std::fill(buffer.begin() + read * channels, buffer.end(), 0);
     *out = buffer.data();

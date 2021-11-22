@@ -14,15 +14,24 @@
 
 #include <stddef.h>
 
-namespace wav {
 
-typedef const char *Error;
-typedef size_t Frames;
+class Wav {
+public:
+    typedef const char *Error;
+    typedef size_t Frames;
 
-struct Wav;
+    ~Wav();
+    static Error open(const char *fname, Wav **wav, Frames offset);
+    Frames read(float *samples, Frames frames);
+    Error close();
 
-Error open_read(const char *fname, Wav **wav, int channels, int srate);
-Error close(Wav *wav);
-Frames read(Wav *wav, Frames frames, float *samples);
+    int channels() const { return _channels; };
+    int srate() const { return _srate; };
 
-}
+private:
+    Wav(FILE *fp, int channels, int srate)
+        : fp(fp), _channels(channels), _srate(srate) {}
+    FILE *fp;
+    int _channels;
+    int _srate;
+};

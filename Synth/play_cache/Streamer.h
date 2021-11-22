@@ -10,10 +10,7 @@
 #include <thread>
 #include <vector>
 
-#include <sndfile.h>
-
 #include "Audio.h"
-// #include "Mix.h"
 #include "Semaphore.h"
 #include "ringbuffer.h"
 
@@ -38,7 +35,7 @@ public:
     virtual ~Streamer();
 
     // Return true if the read is done, and there are no samples in 'out'.
-    bool read(int channels, sf_count_t frames, float **out) override;
+    bool read(int channels, Frames frames, float **out) override;
 
     const int channels;
     const int sample_rate;
@@ -76,7 +73,7 @@ private:
     const bool synchronized;
     // Keep track if read() position gets ahead of what ring was able to
     // provide.
-    sf_count_t debt;
+    Frames debt;
     std::vector<float> output_buffer;
 };
 
@@ -85,14 +82,14 @@ class TracksStreamer : public Streamer {
 public:
     TracksStreamer(std::ostream &log, int channels, int sample_rate,
         int max_frames);
-    void start(const std::string &dir, sf_count_t start_offset,
+    void start(const std::string &dir, Frames start_offset,
         const std::vector<std::string> &mutes);
 
 private:
     // Statically allocated state start() passes to stream_loop().
     struct {
         std::string dir;
-        sf_count_t start_offset;
+        Frames start_offset;
         std::vector<std::string> mutes;
     } args;
     Audio *initialize() override;
@@ -124,7 +121,7 @@ public:
     void stop();
 
     // Return true if the read is done, and there are no samples in 'out'.
-    bool read(int channels, sf_count_t frames, float **out) override;
+    bool read(int channels, Frames frames, float **out) override;
 
 private:
     std::vector<std::unique_ptr<ResampleStreamer>> voices;
