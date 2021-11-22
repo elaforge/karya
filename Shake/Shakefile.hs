@@ -187,18 +187,24 @@ options args = Shake.shakeOptions
     -- I have my own concurrent output, which shake will mess up if it prints
     -- its own output.  Unfortunately this also suppresses the --version flag,
     -- and some other less useful ones.
-    , Shake.shakeVerbosity = Shake.Quiet
+    , Shake.shakeVerbosity = if version then Shake.Info else Shake.Warn
     , Shake.shakeReport = [build </> "report.html"]
     , Shake.shakeProgress =
         if verbose then const (return ()) else Progress.report
     -- Git branch checkouts change file timestamps, but not contents.
     -- But ghci only understands timestamp changes, not contents.
+    -- TODO: I heard that 9.4 will fix this
     , Shake.shakeChange = Shake.ChangeModtime
     }
     where
     -- This is stupid, but shake only lets me set options before parsing flags,
     -- and I only know the verbosity after parsing flags.
-    verbose = "-V" `elem` args || "--verbose" `elem` args
+    verbose = any ("-V" `List.isPrefixOf`) args || "--verbose" `elem` args
+    -- TODO -V for verbose always surprises me, I'd flip V and v... but I don't
+    -- think shake lets me.  Meanwhile, I was so often confused by -v not
+    -- emitting anything I'd go and do a bunch of debugging before I realized
+    -- -v is version, not verbose.
+    version = any ("-v" `List.isPrefixOf`) args || "--version" `elem` args
 
 data Config = Config {
     buildMode :: Mode
@@ -907,27 +913,8 @@ main = Concurrent.withConcurrentOutput $ Regions.displayConsoleRegions $ do
             let config = infer fn
             need (fltkDeps config)
             Util.system "ar" $ ["-rs", fn] ++ fltkDeps config
-        forM_ ccBinaries $ \binary -> matchBuildDir (C.binName binary)
-                ?> \fn -> do
-            let config = infer fn
-            let objs = ccDeps config binary
-            need objs
-            let flags = cLibDirs (configFlags config)
-                    ++ C.binCompileFlags binary config
-                    ++ Config.extraLinkFlags localConfig
-                    ++ C.binLinkFlags binary config
-            Util.cmdline $ linkCc flags fn objs
-            C.binPostproc binary fn
-        forM_ hsBinaries $ \binary -> matchBuildDir (hsName binary) ?> \fn -> do
-            let config = infer fn
-            hs <- maybe (Util.errorIO $ "no main module for " ++ fn) return
-                (Map.lookup (FilePath.takeFileName fn) nameToMain)
-            buildHs config (hsRtsFlags binary) (map (oDir config </>)
-                (hsDeps binary)) [] hs fn
-            case hsGui binary of
-                NoGui -> return ()
-                MakeBundle -> makeBundle False fn
-                HasIcon -> makeBundle True fn
+        mapM_ (cBinaryRule infer) ccBinaries
+        mapM_ (hsBinaryRule infer) hsBinaries
         (build </> "*.icns") %> \fn -> do
             -- Build OS X .icns file from .iconset dir.
             let iconset = "doc/icon" </> nameExt fn "iconset"
@@ -1285,6 +1272,18 @@ cabalRule packages fn = (>> Shake.want [fn]) $ fn %> \_ -> do
         package ++ if null constraint then "" else " " ++ constraint
 
 -- ** hs
+
+hsBinaryRule :: InferConfig -> HsBinary -> Shake.Rules ()
+hsBinaryRule infer binary = matchBuildDir (hsName binary) ?> \fn -> do
+    let config = infer fn
+    hs <- maybe (Util.errorIO $ "no main module for " ++ fn) return
+        (Map.lookup (FilePath.takeFileName fn) nameToMain)
+    buildHs config (hsRtsFlags binary) (map (oDir config </>)
+        (hsDeps binary)) [] hs fn
+    case hsGui binary of
+        NoGui -> return ()
+        MakeBundle -> makeBundle False fn
+        HasIcon -> makeBundle True fn
 
 -- | Build a haskell binary.
 buildHs :: Config -> [Flag] -> [FilePath] -> [Package] -> FilePath -> FilePath
@@ -1695,6 +1694,18 @@ ghciFlags config = concat
         ]
 
 -- * cc
+
+cBinaryRule :: InferConfig -> C.Binary Config -> Shake.Rules ()
+cBinaryRule infer binary = matchBuildDir (C.binName binary) ?> \fn -> do
+    let config = infer fn
+    let objs = ccDeps config binary
+    need objs
+    let flags = cLibDirs (configFlags config)
+            ++ C.binCompileFlags binary config
+            ++ Config.extraLinkFlags localConfig
+            ++ C.binLinkFlags binary config
+    Util.cmdline $ linkCc flags fn objs
+    C.binPostproc binary fn
 
 ccORule :: InferConfig -> Shake.Rules ()
 ccORule infer = matchObj "**/*.cc.o" ?> \obj -> do

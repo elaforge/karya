@@ -86,7 +86,7 @@ diffMetric (Metric _cpu1 time1) (Metric _cpu2 time2) =
 
 -- | If true, use concurrent output, otherwise use shake's default output.
 fancyOutput :: Shake.Action Bool
-fancyOutput = (==Shake.Quiet) <$> Shake.getVerbosity
+fancyOutput = (<=Shake.Warn) <$> Shake.getVerbosity
 
 doCmdline :: Bool -> Bool -> Cmdline -> IO ()
 doCmdline _ _ (abbr, output, []) =
