@@ -11,18 +11,18 @@ import qualified Data.String as String
 import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
+import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Selection as Selection
+import qualified Derive.Parse as Parse
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Sel as Sel
 import qualified Ui.Ui as Ui
 
-import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Selection as Selection
-import qualified Derive.Parse as Parse
-import qualified Derive.ParseTitle as ParseTitle
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- | Map a function over multiple tracks.  It has access to all selected
@@ -78,11 +78,13 @@ failable_text f block_id track_id events = do
 -- * modify selections
 
 selection_tracks :: Cmd.M m => Tracks m -> m ()
-selection_tracks modify = modify_selected True modify =<< Selection.events
+selection_tracks modify =
+    modify_selected IncludeCollapsed modify =<< Selection.events
 
 -- | Map a function over the selected events, as per 'Selection.events'.
 selection :: Cmd.M m => Track m -> m ()
-selection modify = modify_selected True (track modify) =<< Selection.events
+selection modify =
+    modify_selected IncludeCollapsed (track modify) =<< Selection.events
 
 -- | Like 'selection', but don't apply to collapsed tracks.  This is
 -- appropriate for operations that often apply to note tracks.  If you select
@@ -90,31 +92,48 @@ selection modify = modify_selected True (track modify) =<< Selection.events
 -- be selected and if you accidentally modify those you won't see the
 -- modifications.
 selection_visible :: Cmd.M m => Track m -> m ()
-selection_visible modify =
-    modify_selected False (track modify) =<< Selection.events
+selection_visible modify = ctx_selection_visible modify =<< Selection.context
+
+ctx_selection_visible :: Ui.M m => Track m -> Selection.Context -> m ()
+ctx_selection_visible modify ctx = do
+    block_id <- Selection.ctx_block_id ctx
+    modify_selected_block ExcludeCollapsed (track modify) block_id
+        =<< Selection.ctx_events ctx
 
 -- | Like 'selection', but only operate on the 'Selection.point_track'.
 selected_track :: Cmd.M m => Track m -> m ()
 selected_track modify =
-    modify_selected False (track modify) . (:[]) =<< Selection.track_events
+    modify_selected ExcludeCollapsed (track modify) . (:[])
+        =<< Selection.track_events
     -- Don't affect collapsed tracks because why would the point selection be
     -- on one of those?
 
-modify_selected :: Cmd.M m => Bool -- ^ If False, omit collapsed tracks.
+data Collapsed = ExcludeCollapsed | IncludeCollapsed
+    deriving (Show, Eq)
+
+modify_selected :: Cmd.M m => Collapsed
     -> Tracks m -> Selection.SelectedEvents -> m ()
-modify_selected include_collapsed modify selected = do
+modify_selected collapsed modify selected = do
     block_id <- Cmd.get_focused_block
-    let wanted track_id
-            | include_collapsed = return True
-            | otherwise = do
-                tracknum <- Ui.get_tracknum_of block_id track_id
-                not <$> Ui.track_collapsed block_id tracknum
+    modify_selected_block collapsed modify block_id selected
+
+-- It would be nice to make this a ctx_ function, but modify_selected is called
+-- with different selections.
+modify_selected_block :: Ui.M m => Collapsed
+    -> Tracks m -> BlockId -> Selection.SelectedEvents -> m ()
+modify_selected_block collapsed modify block_id selected = do
     selected <- filterM (wanted . fst) selected
     new <- modify block_id selected
     forM_ new $ \(track_id, new_events) -> do
         let events = fromMaybe [] $ lookup track_id selected
         Ui.remove_events track_id events
         Ui.insert_block_events block_id track_id new_events
+    where
+    wanted track_id = case collapsed of
+        IncludeCollapsed -> return True
+        ExcludeCollapsed -> do
+            tracknum <- Ui.get_tracknum_of block_id track_id
+            not <$> Ui.track_collapsed block_id tracknum
 
 -- | Advance the selection if it was a point.  This is convenient for applying
 -- a transformation repeatedly.

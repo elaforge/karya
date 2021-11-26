@@ -246,7 +246,7 @@ move_events dir = do
 -- a positive and negative event, the one corresponding to 'Sel.orientation' is
 -- selected.
 cmd_set_duration :: Cmd.M m => m ()
-cmd_set_duration = modify_event_near_point modify
+cmd_set_duration = modify_event_near_point modify =<< Selection.context
     where
     modify (start, end) event
         | Event.is_negative event = set_dur (start - Event.start event) event
@@ -254,17 +254,18 @@ cmd_set_duration = modify_event_near_point modify
 
 -- | Similar to 'ModifyEvents.event', but if the selection is a point, modify
 -- the previous or next event, depending on if it's positive or negative.
-modify_event_near_point :: Cmd.M m =>
-    ((ScoreTime, ScoreTime) -> Event.Event -> Event.Event) -> m ()
-modify_event_near_point modify = do
-    sel <- Selection.get
-    if Sel.is_point sel
-        then prev_or_next (Selection.sel_point sel) =<< Cmd.get_focused_block
-        else selection (Sel.range sel)
+modify_event_near_point :: Ui.M m
+    => ((ScoreTime, ScoreTime) -> Event.Event -> Event.Event)
+    -> Selection.Context -> m ()
+modify_event_near_point modify ctx
+    | Sel.is_point sel = prev_or_next (Selection.sel_point sel)
+    | otherwise = selection (Sel.range sel)
     where
+    sel = Selection.ctx_selection ctx
     -- TODO Should I integrate this into ModifyEvents?
-    prev_or_next pos block_id = do
-        tracks <- avoid_exact_match
+    prev_or_next pos = do
+        block_id <- Selection.ctx_block_id ctx
+        tracks <- avoid_exact_match ctx
         forM_ tracks $ \(track_id, event) -> do
             tracknum <- Ui.get_tracknum_of block_id track_id
             -- It's confusing to modify collapsed tracks because you don't
@@ -273,19 +274,18 @@ modify_event_near_point modify = do
             unlessM (Ui.track_collapsed block_id tracknum) $ do
                 Ui.remove_event track_id event
                 Ui.insert_event track_id $ modify (pos, pos) event
-
-    selection range = ModifyEvents.selection_visible $ ModifyEvents.events $
-        return . map (modify range)
+    selection range = ModifyEvents.ctx_selection_visible
+        (ModifyEvents.events $ return . map (modify range)) ctx
 
 -- | Like 'Selection.events_around', but if a point selection is on an event
 -- start, find a neighbor instead of matching that event.
-avoid_exact_match :: Cmd.M m => m [(TrackId, Event.Event)]
-avoid_exact_match = do
-    pos <- Selection.sel_point <$> Selection.get
-    Seq.map_maybe_snd (select pos) <$> Selection.events_around
+avoid_exact_match :: Ui.M m => Selection.Context -> m [(TrackId, Event.Event)]
+avoid_exact_match ctx =
+    Seq.map_maybe_snd select <$> Selection.ctx_events_around ctx
     where
-    select pos triple = case triple of
-        (_, [within], _) | Event.start within /= pos -> Just within
+    point = Selection.sel_point (Selection.ctx_selection ctx)
+    select triple = case triple of
+        (_, [within], _) | Event.start within /= point -> Just within
         (prev:_, [within], _) | positive within && positive prev -> Just prev
         (_, [within], next:_) | negative within && negative next -> Just next
         _ -> Nothing
@@ -601,7 +601,8 @@ cmd_invert_orientation = do
 
 invert_events :: Cmd.M m => m ()
 invert_events =
-    ModifyEvents.modify_selected False modify =<< Selection.events_at_point
+    ModifyEvents.modify_selected ModifyEvents.ExcludeCollapsed modify
+        =<< Selection.events_at_point
     where
     modify = ModifyEvents.track $ ModifyEvents.event $ \e ->
         Event.start_ %= (+ Event.duration e) $ Event.duration_ %= negate $ e

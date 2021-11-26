@@ -93,9 +93,8 @@ set_selnum view_id selnum maybe_sel
     | otherwise = Ui.set_selection view_id selnum maybe_sel
 
 get_orientation :: Cmd.M m => m Sel.Orientation
-get_orientation = do
-    o <- Cmd.gets $ Cmd.state_note_orientation . Cmd.state_edit
-    return $ case o of
+get_orientation =
+    Cmd.gets (Cmd.state_note_orientation . Cmd.state_edit) >>= return . \case
         Types.Positive -> Sel.Positive
         Types.Negative -> Sel.Negative
 
@@ -150,7 +149,7 @@ set_block block_id ((_, pos) : _) = do
 
 -- | Update the selection's orientation to match 'Cmd.state_note_orientation'.
 update_orientation :: Cmd.M m => m ()
-update_orientation = whenJustM lookup_view $ \(view_id, sel) ->
+update_orientation = whenJustM lookup_context $ \(Context view_id sel) ->
     set view_id $ Just $ sel { Sel.orientation = Sel.None }
 
 -- | Collapse the selection to a point at its (cur_track, cur_pos).
@@ -632,7 +631,7 @@ lookup_any_insert = lookup_any_selnum_insert Config.insert_selnum
 -- | The most general insertion point function.
 lookup_any_selnum_insert :: Cmd.M m => Sel.Num -> m (Maybe (ViewId, AnyPoint))
 lookup_any_selnum_insert selnum =
-    justm (lookup_selnum selnum) $ \(view_id, sel) -> do
+    justm (lookup_context_selnum selnum) $ \(Context view_id sel) -> do
         block_id <- Ui.block_id_of view_id
         return $ Just (view_id, (block_id, sel_point_track sel, sel_point sel))
 
@@ -657,34 +656,40 @@ sel_track block_id sel = Ui.event_track_at block_id (sel_point_track sel)
 
 -- ** plain Selection
 
-get :: Cmd.M m => m Sel.Selection
-get = snd <$> get_view
+-- | The selection is in the Ui.State, but focused view is in Cmd.State.
+-- Extracting it out lets me depend only on Ui.M, not Cmd.M.  Also it decouples
+-- selection functions from the current Ui.State and Cmd.State.
+data Context = Context {
+    ctx_view_id :: !ViewId
+    , ctx_selection :: !Sel.Selection
+    } deriving (Show)
 
-view :: Cmd.M m => m ViewId
-view = Cmd.get_focused_view
+ctx_block_id :: Ui.M m => Context -> m BlockId
+ctx_block_id = Ui.block_id_of . ctx_view_id
 
-block :: Cmd.M m => m BlockId
-block = Cmd.get_focused_block
+context :: Cmd.M m => m Context
+context = context_selnum Config.insert_selnum
 
--- | Get the insertion selection in the focused view.
-get_view :: Cmd.M m => m (ViewId, Sel.Selection)
-get_view = get_selnum Config.insert_selnum
+context_selnum :: Cmd.M m => Sel.Num -> m Context
+context_selnum selnum = Cmd.abort_unless =<< lookup_context_selnum selnum
 
--- | Get the requested selnum in the focused view.
-get_selnum :: Cmd.M m => Sel.Num -> m (ViewId, Sel.Selection)
-get_selnum selnum = Cmd.abort_unless =<< lookup_selnum selnum
+lookup_context :: Cmd.M m => m (Maybe Context)
+lookup_context = lookup_context_selnum Config.insert_selnum
 
-lookup :: Cmd.M m => m (Maybe Sel.Selection)
-lookup = fmap snd <$> lookup_view
-
-lookup_view :: Cmd.M m => m (Maybe (ViewId, Sel.Selection))
-lookup_view = lookup_selnum Config.insert_selnum
-
-lookup_selnum :: Cmd.M m => Sel.Num -> m (Maybe (ViewId, Sel.Selection))
-lookup_selnum selnum =
+lookup_context_selnum :: Cmd.M m => Sel.Num -> m (Maybe Context)
+lookup_context_selnum selnum =
     justm Cmd.lookup_focused_view $ \view_id ->
     justm (Ui.get_selection view_id selnum) $ \sel ->
-    return $ Just (view_id, sel)
+    return $ Just $ Context view_id sel
+
+get :: Cmd.M m => m Sel.Selection
+get = Cmd.abort_unless =<< lookup
+
+lookup :: Cmd.M m => m (Maybe Sel.Selection)
+lookup = fmap ctx_selection <$> lookup_context
+
+get_view :: Cmd.M m => m (ViewId, Sel.Selection)
+get_view = (\(Context a b) -> (a, b)) <$> context
 
 range :: Cmd.M m => m Events.Range
 range = Events.selection_range <$> get
@@ -785,24 +790,23 @@ around_to_events = map $ \(track_id, (_, within, _)) -> (track_id, within)
 
 -- | All selected events.  'events_around' is the default selection behaviour.
 events :: Cmd.M m => m SelectedEvents
-events = around_to_events <$> events_around
+events = ctx_events =<< context
+
+ctx_events :: Ui.M m => Context -> m SelectedEvents
+ctx_events ctx = around_to_events <$> ctx_events_around ctx
 
 -- | Like 'events', but only for the 'sel_point_track'.
 track_events :: Cmd.M m => m (TrackId, [Event.Event])
-track_events = do
-    (block_id, track_id) <- event_track
-    sel <- get
-    events <- around_to_events <$>
-        events_around_tracks block_id [track_id] sel
-    Cmd.require "events_around_tracks output should be 1:1 with TrackIds" $
+track_events = ctx_track_events =<< context
+
+ctx_track_events :: Ui.M m => Context -> m (TrackId, [Event.Event])
+ctx_track_events ctx = do
+    events <- around_to_events <$> ctx_events_around ctx
+    Ui.require "ctx_events_around output should be 1:1 with TrackIds" $
         Seq.head events
 
--- | 'events_around_tracks' for the selection.
 events_around :: Cmd.M m => m SelectedAround
-events_around = do
-    (block_id, _, track_ids, _) <- tracks
-    sel <- get
-    events_around_tracks block_id track_ids sel
+events_around = ctx_events_around =<< context
 
 -- | Get events exactly at the point.  This gets both positive and negative
 -- events, so each track may have up to 2 events.
@@ -816,16 +820,18 @@ events_at_point = do
             maybe [] (:[]) (Events.at pos Types.Negative events)
             ++ maybe [] (:[]) (Events.at pos Types.Positive events)
 
--- | Like 'event_around', but select as if the selection were a point.
--- Suitable for cmds that logically only work on a single event per-track.
-events_around_point :: Cmd.M m => m SelectedAround
-events_around_point = do
-    (block_id, _, track_ids, _) <- tracks
-    sel <- get
-    events_around_tracks block_id track_ids $ sel
-        { Sel.start_pos = sel_point sel
-        , Sel.cur_pos = sel_point sel
-        }
+-- -- | Like 'event_around', but select as if the selection were a point.
+-- -- Suitable for cmds that logically only work on a single event per-track.
+-- events_around_point :: Cmd.M m => m SelectedAround
+-- events_around_point = do
+--     ctx <- context
+--     let sel = ctx_selection ctx
+--     ctx_events_around $ ctx
+--         { ctx_selection = sel
+--             { Sel.start_pos = sel_point sel
+--             , Sel.cur_pos = sel_point sel
+--             }
+--         }
 
 -- | Get events in the selection, but if no events are selected, expand it
 -- to include a neighboring event, as documented in 'select_neighbor'.
@@ -838,16 +844,17 @@ events_around_point = do
 --
 -- This is the standard definition of a selection, and should be used in all
 -- standard selection using commands.
-events_around_tracks :: Ui.M m => BlockId -> [TrackId] -> Sel.Selection
-    -> m SelectedAround
-events_around_tracks block_id track_ids sel = do
+ctx_events_around :: Ui.M m => Context -> m SelectedAround
+ctx_events_around ctx = do
+    (block_id, _, track_ids, _) <- ctx_tracks ctx
     block_end <- Ui.block_end block_id
-    let extend
-            | block_end == Sel.max sel = map until_end
-            | otherwise = id
-    extend . zip track_ids . map (split_events_around sel) <$>
+    extend block_end . zip track_ids . map (split_events_around sel) <$>
             mapM Ui.get_events track_ids
     where
+    extend block_end
+        | block_end == Sel.max sel = map until_end
+        | otherwise = id
+    sel = ctx_selection ctx
     until_end (track_id, (pre, within, post)) =
         (track_id, (pre, within ++ post, []))
 
@@ -926,7 +933,7 @@ type Tracks = (BlockId, [TrackNum], [TrackId], Events.Range)
 -- returned in ascending order.  Only event tracks are returned, and tracks
 -- merged into the selected tracks are included.
 tracks :: Cmd.M m => m Tracks
-tracks = tracks_selnum Config.insert_selnum
+tracks = ctx_tracks =<< context
 
 -- | Just the TrackIds part of 'tracks'.
 track_ids :: Cmd.M m => m [TrackId]
@@ -940,22 +947,28 @@ tracknums = do
     return (block_id, tracknums)
 
 event_track :: Cmd.M m => m (BlockId, TrackId)
-event_track = do
-    (block_id, track_id) <- track
-    track_id <- Cmd.require "must select an event track" track_id
+event_track = ctx_event_track =<< context
+
+ctx_event_track :: Ui.M m => Context -> m (BlockId, TrackId)
+ctx_event_track ctx = do
+    (block_id, mb_track_id) <- ctx_track ctx
+    track_id <- Ui.require "must select an event track" mb_track_id
     return (block_id, track_id)
 
 track :: Cmd.M m => m (BlockId, Maybe TrackId)
-track = do
-    (view_id, sel) <- get_view
-    block_id <- Ui.block_id_of view_id
-    maybe_track_id <- Ui.event_track_at block_id (sel_point_track sel)
+track = ctx_track =<< context
+
+ctx_track :: Ui.M m => Context -> m (BlockId, Maybe TrackId)
+ctx_track ctx = do
+    block_id <- ctx_block_id ctx
+    maybe_track_id <-
+        Ui.event_track_at block_id (sel_point_track (ctx_selection ctx))
     return (block_id, maybe_track_id)
 
 -- | Selected tracks, including merged tracks.
-tracks_selnum :: Cmd.M m => Sel.Num -> m Tracks
-tracks_selnum selnum = do
-    (block_id, tracknums, track_ids, range) <- strict_tracks_selnum selnum
+ctx_tracks :: Ui.M m => Context -> m Tracks
+ctx_tracks ctx = do
+    (block_id, tracknums, track_ids, range) <- ctx_strict_tracks ctx
     tracks <- mapM (Ui.get_block_track_at block_id) tracknums
     let merged_track_ids = mconcatMap Block.track_merged tracks
     block <- Ui.get_block block_id
@@ -965,18 +978,20 @@ tracks_selnum selnum = do
     return (block_id, all_tracknums, all_track_ids, range)
 
 -- | Selected tracks, not including merged tracks.
-strict_tracks_selnum :: Cmd.M m => Sel.Num -> m Tracks
-strict_tracks_selnum selnum = do
-    (view_id, sel) <- get_selnum selnum
-    block_id <- Ui.block_id_of view_id
+ctx_strict_tracks :: Ui.M m => Context -> m Tracks
+ctx_strict_tracks ctx = do
+    block_id <- ctx_block_id ctx
     tracks <- Ui.track_count block_id
-    let tracknums = Sel.tracknums tracks sel
+    let tracknums = Sel.tracknums tracks (ctx_selection ctx)
     tracklikes <- mapM (Ui.track_at block_id) tracknums
     (tracknums, track_ids) <- return $ unzip
         [ (i, track_id)
         | (i, Just (Block.TId track_id _)) <- zip tracknums tracklikes
         ]
-    return (block_id, tracknums, track_ids, Events.selection_range sel)
+    return
+        ( block_id, tracknums, track_ids
+        , Events.selection_range (ctx_selection ctx)
+        )
 
 tracknums_of :: Block.Block -> [TrackId] -> [(TrackNum, TrackId)]
 tracknums_of block track_ids = do
@@ -993,10 +1008,10 @@ keep_history :: Int
 keep_history = 10
 
 record_history :: Cmd.M m => m ()
-record_history = whenJustM lookup_view (modify_history . record)
+record_history = whenJustM lookup_context (modify_history . record)
     where
     -- Only record the current position if it has changed.
-    record (view_id, sel) hist
+    record (Context view_id sel) hist
         | take 1 (Cmd.sel_past hist) /= [(view_id, sel)] = Cmd.SelectionHistory
             { sel_past = take keep_history $ (view_id, sel) : Cmd.sel_past hist
             , sel_future = []
@@ -1006,7 +1021,7 @@ record_history = whenJustM lookup_view (modify_history . record)
 previous_selection :: Cmd.M m => Bool -> m ()
 previous_selection change_views = do
     old_view_id <- Cmd.get_focused_view
-    cur <- lookup_view
+    cur <- fmap (\(Context a b) -> (a, b)) <$> lookup_context -- TODO
     hist <- Cmd.gets Cmd.state_selection_history
     case dropWhile ((==cur) . Just) $ Cmd.sel_past hist of
         (view_id, sel) : past | change_views || view_id == old_view_id -> do
@@ -1021,7 +1036,7 @@ previous_selection change_views = do
 next_selection :: Cmd.M m => Bool -> m ()
 next_selection change_views = do
     old_view_id <- Cmd.get_focused_view
-    cur <- lookup_view
+    cur <- fmap (\(Context a b) -> (a, b)) <$> lookup_context -- TODO
     hist <- Cmd.gets Cmd.state_selection_history
     case dropWhile ((==cur) . Just) $ Cmd.sel_future hist of
         (view_id, sel) : future | change_views || view_id == old_view_id -> do

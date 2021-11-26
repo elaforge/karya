@@ -101,7 +101,7 @@ cmd_cut_selection = do
 -- | Copy events under the current selection into the buffer.
 cmd_copy_selection :: Cmd.M m => m ()
 cmd_copy_selection = do
-    selected <- get_selection =<< Selection.tracks_selnum Config.insert_selnum
+    selected <- get_selection =<< Selection.tracks
     reopen_views clip_namespace $ selected_to_block clip_block_id selected
 
 -- | (track_title, events) pairs for each copied track within the copied

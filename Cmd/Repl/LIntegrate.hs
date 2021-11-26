@@ -118,7 +118,8 @@ edits block_id track_id = do
     return (Set.toList deleted, filter Merge.is_modified edits)
 
 indices :: Cmd.M m => m [(TrackId, (Block.Source, Block.EventIndex))]
-indices = fmap Block.destination_to_source . Ui.get_block =<< Selection.block
+indices =
+    fmap Block.destination_to_source . Ui.get_block =<< Cmd.get_focused_block
 
 indices_of :: Maybe (BlockId, Block.TrackDestinations)
     -> [(TrackId, Block.TrackDestinations)] -> [(TrackId, Block.EventIndex)]

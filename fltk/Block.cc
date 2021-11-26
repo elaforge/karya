@@ -825,6 +825,7 @@ BlockWindow::BlockWindow(
 void
 BlockWindow::resize(int x, int y, int w, int h)
 {
+    // TODO: fixed at fltk 7e484c6.
     static int reentrant;
     reentrant++;
     int sx, sy, sw, sh;
