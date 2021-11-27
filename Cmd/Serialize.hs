@@ -24,7 +24,7 @@ import qualified Util.Rect as Rect
 import qualified Util.Serialize as Serialize
 import           Util.Serialize (bad_tag, get, get_tag, put, put_tag, Serialize)
 
-import qualified Derive.RestrictedEnviron as RestrictedEnviron
+import qualified Derive.REnv as REnv
 import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.Common as Common
 import qualified Instrument.InstT as InstT
@@ -689,13 +689,13 @@ instance Serialize Common.Config where
         >> put a >> put b >> put c >> put d
     get = Serialize.get_version >>= \case
         0 -> do
-            environ :: RestrictedEnviron.Environ <- get
+            environ :: REnv.Environ <- get
             controls :: ScoreT.ControlValMap <- get
             mute :: Bool <- get
             solo :: Bool <- get
             return $ Common.Config environ controls mute solo
         1 -> do
-            environ :: Maybe RestrictedEnviron.Environ <- get
+            environ :: Maybe REnv.Environ <- get
             controls :: ScoreT.ControlValMap <- get
             mute :: Bool <- get
             solo :: Bool <- get

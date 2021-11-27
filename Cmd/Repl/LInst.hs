@@ -27,7 +27,7 @@ import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
-import qualified Derive.RestrictedEnviron as REnv
+import qualified Derive.REnv as REnv
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Typecheck as Typecheck

@@ -23,7 +23,7 @@ import qualified Util.Texts as Texts
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.PSignal as PSignal
-import qualified Derive.RestrictedEnviron as RestrictedEnviron
+import qualified Derive.REnv as REnv
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.Scales as Scales
@@ -286,7 +286,7 @@ data Tuning = Umbang | Isep deriving (Eq, Ord, Enum, Bounded, Show)
 
 instance Pretty Tuning where pretty = showt
 instance Typecheck.Typecheck Tuning
-instance RestrictedEnviron.ToVal Tuning
+instance REnv.ToVal Tuning
 instance ShowVal.ShowVal Tuning
 
 -- | If ombak is unset, use the hardcoded tunings.  Otherwise, create new

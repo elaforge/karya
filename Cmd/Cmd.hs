@@ -72,7 +72,7 @@ import qualified Derive.Attrs as Attrs
 import qualified Derive.Derive as Derive
 import qualified Derive.Expr as Expr
 import qualified Derive.ParseTitle as ParseTitle
-import qualified Derive.RestrictedEnviron as RestrictedEnviron
+import qualified Derive.REnv as REnv
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Score as Score
@@ -1142,7 +1142,7 @@ make_derive_instrument :: ResolvedInstrument -> Derive.Instrument
 make_derive_instrument resolved = Derive.Instrument
     { inst_calls = inst_calls $ Common.common_code $ Inst.inst_common $
         inst_instrument resolved
-    , inst_environ = RestrictedEnviron.convert $
+    , inst_environ = REnv.convert $
         Common.config_environ $ inst_common_config resolved
     , inst_controls = Common.config_controls (inst_common_config resolved)
     , inst_attributes = Inst.inst_attributes (inst_instrument resolved)

@@ -220,7 +220,7 @@ guzheng = MidiInst.code #= code $ MidiInst.nn_range range $
         ]
         <> MidiInst.null_call Highlight.c_highlight_strings_note
     -- This can't go in the automatic env because it uses DeriveT.Pitch, which
-    -- is not serializable, hence not in RestrictedEnviron.
+    -- is not serializable, hence not in REnv.
     standard_strings = DUtil.transformer0 "standard-strings"
         ("Set " <> ShowVal.doc EnvKey.open_strings
             <> " to standard pitches: " <> ShowVal.doc open_strings)

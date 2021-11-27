@@ -5,7 +5,7 @@
 {-# LANGUAGE DefaultSignatures #-}
 -- | This is a serializable subset of 'DeriveT.Val' and 'DeriveT.Environ'.
 -- It omits pitches, which are code and can't be serialized.
-module Derive.RestrictedEnviron (
+module Derive.REnv (
     Environ
     , to_map, from_list, convert, lookup, null
     -- * val
@@ -172,7 +172,7 @@ instance Serialize.Serialize Val where
             6 -> VQuoted <$> get
             7 -> VList <$> get
             8 -> fmap VConstantPitch $ ConstantPitch <$> get <*> get <*> get
-            _ -> Serialize.bad_tag "RestrictedEnviron.Val" tag
+            _ -> Serialize.bad_tag "REnv.Val" tag
 
 instance Serialize.Serialize Call where
     put (Expr.Call a b) = put a >> put b
@@ -185,4 +185,4 @@ instance Serialize.Serialize Term where
     get = Serialize.get_tag >>= \case
         0 -> Expr.ValCall <$> get
         1 -> Expr.Literal <$> get
-        n -> Serialize.bad_tag "RestrictedEnviron.Term" n
+        n -> Serialize.bad_tag "REnv.Term" n

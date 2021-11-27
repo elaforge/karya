@@ -81,7 +81,7 @@ patches = (:[]) $ Patch.DbPatch $ (Patch.patch "zheng")
     -- copy paste from User.Elaforge.Instrument.Kontakt
     -- TODO put it in a shared module?
     -- This can't go in the automatic env because it uses DeriveT.Pitch, which
-    -- is not serializable, hence not in RestrictedEnviron.
+    -- is not serializable, hence not in REnv.
     standard_strings = DUtil.transformer0 "standard-strings"
         ("Set " <> ShowVal.doc EnvKey.open_strings
             <> " to standard pitches: " <> ShowVal.doc open_strings)

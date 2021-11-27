@@ -18,7 +18,7 @@ import qualified Util.Serialize as Serialize
 import qualified Derive.Attrs as Attrs
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
-import qualified Derive.RestrictedEnviron as RestrictedEnviron
+import qualified Derive.REnv as REnv
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 
@@ -38,7 +38,7 @@ data Common code = Common {
     -- comes into scope, and also when the pitch of 'Score.Event's with this
     -- instrument is converted.  Typically it sets things like instrument
     -- range, tuning details, etc.
-    , common_environ :: !RestrictedEnviron.Environ
+    , common_environ :: !REnv.Environ
     -- | Key-value pairs used to index the instrument.  A key may appear more
     -- than once with different values.  Tags are free-form, but there is
     -- a list of standard tags in "Instrument.Tag".
@@ -97,11 +97,10 @@ data Flag =
 
 instance Pretty Flag where pretty = showt
 
-add_environ :: RestrictedEnviron.ToVal a => EnvKey.Key -> a
+add_environ :: REnv.ToVal a => EnvKey.Key -> a
     -> Common code -> Common code
 add_environ key val =
-    environ %= (RestrictedEnviron.from_list
-        [(key, RestrictedEnviron.to_val val)] <>)
+    environ %= (REnv.from_list [(key, REnv.to_val val)] <>)
 
 -- * AttributeMap
 
@@ -178,7 +177,7 @@ sort_attributes = Seq.sort_on (\(a, _) -> - Set.size (Attrs.to_set a))
 data Config = Config {
     -- | This is a local version of 'common_environ'.  Overlayed on the
     -- instrument config 'common_environ'.
-    config_environ :: !RestrictedEnviron.Environ
+    config_environ :: !REnv.Environ
     -- | This is the control equivalent to 'config_environ'.  These
     -- controls are merged using their default mergers in the note call.
     -- Being in the note call means that the merge should only happen once.
@@ -221,7 +220,7 @@ instance Pretty Config where
         , ("solo", Pretty.format solo)
         ]
 
-add_cenviron :: RestrictedEnviron.ToVal a => EnvKey.Key -> a
+add_cenviron :: REnv.ToVal a => EnvKey.Key -> a
     -> Config -> Config
-add_cenviron key val = cenviron %= (RestrictedEnviron.from_list [(key, v)] <>)
-    where v = RestrictedEnviron.to_val val
+add_cenviron key val = cenviron %= (REnv.from_list [(key, v)] <>)
+    where v = REnv.to_val val

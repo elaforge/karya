@@ -176,7 +176,7 @@ unstr :: Str -> Text
 unstr (Str str) = str
 
 -- | Yes, it's yet another Val variant.  This one is even more mini than
--- RestrictedEnviron.Val.
+-- REnv.Val.
 -- TODO NOTE [val-and-minival]
 data MiniVal = VNum !(ScoreT.Typed Signal.Y) | VStr !Str
     deriving (Eq, Ord, Show)

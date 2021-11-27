@@ -64,7 +64,7 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
-  - rename Derive.RestrictedEnviron to REnv
+  * rename Derive.RestrictedEnviron to REnv
   - lrange collided with random range, awkward
   / bug: space right as play gets to the end leads to unstoppable playback line
     . Can't reproduce it now.

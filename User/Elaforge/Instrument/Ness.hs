@@ -19,7 +19,7 @@ import qualified Derive.Expr as Expr
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
-import qualified Derive.RestrictedEnviron as RestrictedEnviron
+import qualified Derive.REnv as REnv
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.ScoreT as ScoreT
 
@@ -70,8 +70,8 @@ show_string :: PSignal.Pitch -> Either Log.Msg Text
 show_string = bimap (Log.msg Log.Warn Nothing . pretty) Pitch.note_text
     . PSignal.pitch_note . PSignal.coerce
 
-make_string :: Guitar.String -> RestrictedEnviron.ConstantPitch
-make_string str = RestrictedEnviron.ConstantPitch Twelve.scale_id
+make_string :: Guitar.String -> REnv.ConstantPitch
+make_string str = REnv.ConstantPitch Twelve.scale_id
     (Pitch.Note (Guitar.sName str)) (Guitar.sNn str)
     -- TODO Twelve.scale_id may well be wrong, which can cause parsing errors.
     -- The string should also give the scale.

@@ -23,7 +23,7 @@ import qualified Cmd.MidiThru as MidiThru
 
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
-import qualified Derive.RestrictedEnviron as RestrictedEnviron
+import qualified Derive.REnv as REnv
 import qualified Derive.Scale as Scale
 import qualified Derive.ScoreT as ScoreT
 
@@ -77,14 +77,13 @@ make_inst (Patch patch common) = Inst.Inst
 -- I should be able to share the code.
 
 -- | The instrument will also set the given environ when it comes into scope.
-environ :: RestrictedEnviron.ToVal a => EnvKey.Key -> a -> Patch -> Patch
+environ :: REnv.ToVal a => EnvKey.Key -> a -> Patch -> Patch
 environ name val = common %= common_environ name val
 
-common_environ :: RestrictedEnviron.ToVal a => EnvKey.Key -> a
+common_environ :: REnv.ToVal a => EnvKey.Key -> a
     -> Common.Common code -> Common.Common code
 common_environ name val =
-    Common.environ %= (RestrictedEnviron.from_list
-        [(name, RestrictedEnviron.to_val val)] <>)
+    Common.environ %= (REnv.from_list [(name, REnv.to_val val)] <>)
 
 -- | The instrument will set the given scale when it comes into scope.
 default_scale :: Pitch.ScaleId -> Patch -> Patch

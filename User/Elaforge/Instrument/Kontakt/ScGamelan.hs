@@ -15,7 +15,7 @@ import qualified Derive.Attrs as Attrs
 import qualified Derive.C.Bali.Gangsa as Gangsa
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Instrument.DUtil as DUtil
-import qualified Derive.RestrictedEnviron as RestrictedEnviron
+import qualified Derive.REnv as REnv
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Legong as Legong
 import qualified Derive.ScoreT as ScoreT
@@ -127,7 +127,7 @@ kebyar_allocations dev_ = make_config $ concat
     where
     -- (inst, qualified, gets_chan, environ, scale)
     make_config :: [(ScoreT.Instrument, Text, Bool,
-            [(EnvKey.Key, RestrictedEnviron.Val)], Maybe Patch.Scale)]
+            [(EnvKey.Key, REnv.Val)], Maybe Patch.Scale)]
         -> UiConfig.Allocations
     make_config = MidiInst.allocations . snd . List.mapAccumL allocate 0
         where
@@ -144,7 +144,7 @@ kebyar_allocations dev_ = make_config $ concat
                 -- Pasang instruments don't get an allocation.  Otherwise they
                 -- don't have the right tuning.
                 | otherwise = UiConfig.Dummy
-            set_config = Common.cenviron #= RestrictedEnviron.from_list environ
+            set_config = Common.cenviron #= REnv.from_list environ
     dev = Midi.write_device dev_
 
     -- Actually pemade and kantilan have an umbang isep pair for both polos and
@@ -158,11 +158,9 @@ kebyar_allocations dev_ = make_config $ concat
         ]
     sc_qualified name = synth_name <> "/sc-" <> name
     polos_sangsih name =
-        [ (Gangsa.inst_polos, to_val $ ScoreT.Instrument $ name <> "-p")
-        , (Gangsa.inst_sangsih, to_val $ ScoreT.Instrument $ name <> "-s")
+        [ (Gangsa.inst_polos, REnv.to_val $ ScoreT.Instrument $ name <> "-p")
+        , (Gangsa.inst_sangsih, REnv.to_val $ ScoreT.Instrument $ name <> "-s")
         ]
-    to_val :: RestrictedEnviron.ToVal a => a -> RestrictedEnviron.Val
-    to_val = RestrictedEnviron.to_val
     umbang_patch name patch =
         ( name, sc_qualified patch, True
         , tuning BaliScales.Umbang
@@ -175,5 +173,5 @@ kebyar_allocations dev_ = make_config $ concat
         , Just $ Legong.complete_instrument_scale
             Legong.laras_rambat BaliScales.Isep
         )
-    tuning val = [(EnvKey.tuning, to_val val)]
+    tuning val = [(EnvKey.tuning, REnv.to_val val)]
     patch name = (ScoreT.Instrument name, sc_qualified name, True, [], Nothing)

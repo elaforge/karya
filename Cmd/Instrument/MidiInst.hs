@@ -46,7 +46,7 @@ import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
 import qualified Derive.Library as Library
-import qualified Derive.RestrictedEnviron as RestrictedEnviron
+import qualified Derive.REnv as REnv
 import qualified Derive.Scale as Scale
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Symbols as Symbols
@@ -284,7 +284,7 @@ control_defaults controls =
 -- ** environ
 
 -- | The instrument will also set the given environ when it comes into scope.
-environ :: RestrictedEnviron.ToVal a => Env.Key -> a -> Patch -> Patch
+environ :: REnv.ToVal a => Env.Key -> a -> Patch -> Patch
 environ name val = common %= Common.add_environ name val
 
 -- | The instrument will set the given scale when it comes into scope.
