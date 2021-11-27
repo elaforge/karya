@@ -5,7 +5,14 @@
 {-# LANGUAGE DefaultSignatures #-}
 -- | This is a serializable subset of 'DeriveT.Val' and 'DeriveT.Environ'.
 -- It omits pitches, which are code and can't be serialized.
-module Derive.RestrictedEnviron where
+module Derive.RestrictedEnviron (
+    Environ
+    , to_map, from_list, convert, lookup, null
+    -- * val
+    , Val(..)
+    , ConstantPitch(..)
+    , ToVal(..)
+) where
 import           Prelude hiding (lookup, null)
 import qualified Data.Map as Map
 
@@ -40,6 +47,9 @@ newtype Environ = Environ (Map EnvKey.Key Val)
 instance Pretty Environ where
     format (Environ env) = Pretty.formatMap
         . map (bimap Pretty.text Pretty.format) . Map.toList $ env
+
+to_map :: Environ -> Map EnvKey.Key Val
+to_map (Environ m) = m
 
 from_list :: [(EnvKey.Key, Val)] -> Environ
 from_list = Environ . Map.fromList

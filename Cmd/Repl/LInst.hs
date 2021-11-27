@@ -11,6 +11,8 @@ import qualified Data.Text as Text
 
 import qualified Util.Lens as Lens
 import qualified Util.Log as Log
+import qualified Util.Maps as Maps
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
 
@@ -25,7 +27,7 @@ import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
-import qualified Derive.RestrictedEnviron as RestrictedEnviron
+import qualified Derive.RestrictedEnviron as REnv
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Typecheck as Typecheck
@@ -86,17 +88,24 @@ list_midi = do
 list_like :: Cmd.M m => Text -> m Text
 list_like pattern = do
     alloc_map <- Ui.config#UiConfig.allocations_map <#> Ui.get
+    db <- Cmd.gets $ Cmd.config_instrument_db . Cmd.state_config
     let (names, allocs) = unzip $ Map.toAscList alloc_map
     return $ Text.unlines $ Texts.columns 1
-        [ pretty_alloc name alloc
+        [ pretty_alloc name (inst_environ db alloc) alloc
         | (name, alloc) <- zip names allocs
         , matches name
         ]
     where
     matches inst = pattern `Text.isInfixOf` ScoreT.instrument_name inst
+    inst_environ db =
+        maybe mempty (Common.common_environ . Inst.inst_common)
+        . flip Inst.lookup db . UiConfig.alloc_qualified
 
-pretty_alloc :: ScoreT.Instrument -> UiConfig.Allocation -> [Text]
-pretty_alloc inst alloc =
+-- | On the environ, - means it was inherited from the Inst, + is from the
+-- Allocation, and * means both had it and the Allocation overrode it.
+pretty_alloc :: ScoreT.Instrument -> REnv.Environ
+    -> UiConfig.Allocation -> [Text]
+pretty_alloc inst inst_environ alloc =
     [ ShowVal.show_val inst
     , InstT.show_qualified (UiConfig.alloc_qualified alloc)
     , case UiConfig.alloc_backend alloc of
@@ -119,8 +128,15 @@ pretty_alloc inst alloc =
         , show_controls "" (Common.config_controls config)
         ]
     show_environ environ
-        | RestrictedEnviron.null environ = ""
-        | otherwise = pretty environ
+        | REnv.null environ && REnv.null inst_environ = ""
+        | otherwise = pretty $ Pretty.formatMap $
+            map (bimap Pretty.text Pretty.format . fmt) $
+            Maps.pairs (REnv.to_map inst_environ) (REnv.to_map environ)
+        where
+        fmt (k, v) = case v of
+            Seq.First v -> ("-" <> k, v)
+            Seq.Second v -> ("+" <> k, v)
+            Seq.Both _ v -> ("*" <> k, v)
     show_flags config
         | null flags = ""
         | otherwise = "{" <> Text.intercalate ", " flags <> "}"
@@ -305,8 +321,7 @@ solo = modify_common_config $ \config ->
     in (config { Common.config_solo = solo }, solo)
 
 -- | Add an environ val to the instrument config.
-add_environ :: (RestrictedEnviron.ToVal a, Ui.M m) =>
-    Env.Key -> a -> Instrument -> m ()
+add_environ :: (REnv.ToVal a, Ui.M m) => Env.Key -> a -> Instrument -> m ()
 add_environ name val = modify_common_config_ $ Common.add_cenviron name val
 
 -- | Clear the instrument config's environ.  The instrument's built-in environ

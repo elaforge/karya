@@ -33,6 +33,9 @@ external:
       Cmd.Selection.*... but that defs, not refs.
       For each Cmd.Selection.*, grep for Selection.that in non
       Cmd/Selection.hs
+  + vim cmd to use rg to find callers
+    . Like ,g but prepend current Module\. to the search string.
+      This will miss irregular imports though.
   Can I write a dep-analyzer to answer questions about the module graph?
     . What's the max depth of the tree?  Depth from a starting module?
     . What are a module's transitive deps, and by how many paths does it reach
@@ -61,6 +64,7 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
+  - rename Derive.RestrictedEnviron to REnv
   - lrange collided with random range, awkward
   / bug: space right as play gets to the end leads to unstoppable playback line
     . Can't reproduce it now.
@@ -101,7 +105,7 @@ UNSORTED
       the main culprit, patch tuning, is often only in the allocation after
       all.
     . That seems to be an argument to merge though?
-  - have LInst.list show settings from the instrument
+  * have LInst.list show settings from the instrument
     . Maybe in a different way to show they are inherited?
   - shouldn't Id.clean do validation and return Nothing?
   - Meters are complicated, hard to understand, and error prone.
