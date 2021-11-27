@@ -747,6 +747,7 @@ configure = do
             , cInclude flags
             , case mode of
                 Opt -> ["-O2"]
+                Debug -> ["-ggdb"]
                 _ -> []
             , ["-Wall"]
             -- I'd like to turn on -Wold-style-cast, but faust uses it a lot

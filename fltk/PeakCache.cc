@@ -71,14 +71,14 @@ PeakCache::MixedEntry::add(std::shared_ptr<const Entry> entry)
             peaks_n.resize(std::max(peaks1->size(), entry->peaks->size()));
             peaks1.reset();
             const std::vector<float> &samples = *entry->peaks;
-            for (int i = 0; i < samples.size(); i++)
+            for (size_t i = 0; i < samples.size(); i++)
                 peaks_n[i] += samples[i];
         }
     } else {
         // These can have different sizes if one has run out of samples.
         peaks_n.resize(std::max(peaks_n.size(), entry->peaks->size()));
         const std::vector<float> &samples = *entry->peaks;
-        for (int i = 0; i < samples.size(); i++)
+        for (size_t i = 0; i < samples.size(); i++)
             peaks_n[i] += samples[i];
     }
     sources.push_back(entry);
@@ -225,8 +225,13 @@ write_cache(const char *filename, const std::vector<float> peaks,
             << strerror(errno));
         return;
     }
-    write(fd, &ratios_sum, sizeof(double));
-    write(fd, peaks.data(), sizeof(float) * peaks.size());
+    if (write(fd, &ratios_sum, sizeof(double)) != (ssize_t) sizeof(double)
+        || write(fd, peaks.data(), sizeof(float) * peaks.size())
+            != (ssize_t) (sizeof(float) * peaks.size()))
+    {
+        DEBUG("error writing " << filename);
+        unlink(filename);
+    }
     close(fd);
 }
 

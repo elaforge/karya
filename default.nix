@@ -127,7 +127,7 @@ in rec {
 
   # I want some unreleased fixes, for mousewheel and Fl_Image_Surface.
   fltk =
-    let commit = "3bb3429670f29bbf82424ce234d914201eee2d3f";
+    let commit = "84c09ae7b2de0ad9142551ebd4f53a7e113902b4";
     in nixpkgs.fltk14.overrideDerivation (old: {
       name = "fltk-1.4-${commit}";
       src = builtins.fetchGit {
