@@ -25,13 +25,12 @@ test_cmd_val_edit = do
     let run track_specs cmd = run_tracks track_specs 0 0 cmd
         note = CmdTest.m_note_on NN.middle_c
         f = PitchTrack.cmd_val_edit
-
     equal (run [("*", [])] (f note)) $
         Right [("*", [(0, 0, "4c")])]
     equal (run [("*", [(0, 0, "5e-")])] (f note)) $
         Right [("*", [(0, 0, "4c")])]
     equal (run [("*", [(0, 0, "5e-")])] (f CmdTest.backspace)) $
-        Right [("*", [])]
+        Left "aborted" -- general Backspace handler will get it
 
 test_cmd_method_edit :: Test
 test_cmd_method_edit = do

@@ -254,6 +254,8 @@ default_edit_state = Cmd.initial_edit_state
 
 -- ** cmds
 
+-- | This has a hack where if post start_pos and cur_pos are negative, use a
+-- negative selection.
 set_sel :: Cmd.M m => Types.TrackNum -> ScoreTime -> Types.TrackNum
     -> ScoreTime -> m ()
 set_sel = set_sel_on UiTest.default_view_id
@@ -266,10 +268,13 @@ set_sel_on view_id start_track start_pos cur_track cur_pos = do
     where
     sel = Sel.Selection
         { start_track = start_track
-        , start_pos = start_pos
+        , start_pos = abs start_pos
         , cur_track = cur_track
-        , cur_pos = cur_pos
-        , orientation = Sel.Positive
+        , cur_pos = abs cur_pos
+        , orientation = if start_pos >= 0 && cur_pos >= 0 then Sel.Positive
+            else if start_pos <= 0 && cur_pos <= 0 then Sel.Negative
+            else error $ "both start_pos and cur_pos should be + or -: "
+                <> show (start_pos, cur_pos)
         }
 
 set_point_sel :: Ui.M m => Types.TrackNum -> ScoreTime -> m Cmd.Status

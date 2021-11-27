@@ -95,10 +95,9 @@ selection_visible :: Cmd.M m => Track m -> m ()
 selection_visible modify = ctx_selection_visible modify =<< Selection.context
 
 ctx_selection_visible :: Ui.M m => Track m -> Selection.Context -> m ()
-ctx_selection_visible modify ctx = do
-    block_id <- Selection.ctx_block_id ctx
-    modify_selected_block ExcludeCollapsed (track modify) block_id
-        =<< Selection.ctx_events ctx
+ctx_selection_visible modify ctx =
+    modify_selected_block ExcludeCollapsed (track modify)
+        (Selection.ctx_block_id ctx) =<< Selection.ctx_events ctx
 
 -- | Like 'selection', but only operate on the 'Selection.point_track'.
 selected_track :: Cmd.M m => Track m -> m ()

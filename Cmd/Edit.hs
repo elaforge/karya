@@ -246,7 +246,7 @@ move_events dir = do
 -- a positive and negative event, the one corresponding to 'Sel.orientation' is
 -- selected.
 cmd_set_duration :: Cmd.M m => m ()
-cmd_set_duration = modify_event_near_point modify =<< Selection.context
+cmd_set_duration = modify_neighbor modify =<< Selection.context
     where
     modify (start, end) event
         | Event.is_negative event = set_dur (start - Event.start event) event
@@ -254,17 +254,17 @@ cmd_set_duration = modify_event_near_point modify =<< Selection.context
 
 -- | Similar to 'ModifyEvents.event', but if the selection is a point, modify
 -- the previous or next event, depending on if it's positive or negative.
-modify_event_near_point :: Ui.M m
+modify_neighbor :: Ui.M m
     => ((ScoreTime, ScoreTime) -> Event.Event -> Event.Event)
     -> Selection.Context -> m ()
-modify_event_near_point modify ctx
+modify_neighbor modify ctx
     | Sel.is_point sel = prev_or_next (Selection.sel_point sel)
     | otherwise = selection (Sel.range sel)
     where
     sel = Selection.ctx_selection ctx
     -- TODO Should I integrate this into ModifyEvents?
     prev_or_next pos = do
-        block_id <- Selection.ctx_block_id ctx
+        let block_id = Selection.ctx_block_id ctx
         tracks <- avoid_exact_match ctx
         forM_ tracks $ \(track_id, event) -> do
             tracknum <- Ui.get_tracknum_of block_id track_id
@@ -549,10 +549,50 @@ clear_range track_ids range =
 
 cmd_clear_and_advance :: Cmd.M m => m ()
 cmd_clear_and_advance = do
-    cmd_clear_selected
-    sel <- Selection.get
-    when (Sel.is_point sel && Sel.start_track sel == Sel.cur_track sel)
+    ctx <- Selection.context
+    (_, _, track_ids, range) <- Selection.ctx_tracks ctx
+    let sel = Selection.ctx_selection ctx
+    let is_point = Sel.is_point sel && Sel.start_track sel == Sel.cur_track sel
+    removed <- if is_point
+        then not . Events.null . Events.in_range range <$>
+            Ui.get_events (head track_ids)
+        else return False
+    clear_range track_ids range
+    when is_point $ do
+        -- Originally Cmd.NoteTrack deleted the pitch track too, but it seems
+        -- more consistent to use the collapsed track if you want that.
+        -- -- Clear out the pitch track too.
+        -- maybe_pitch <- Info.pitch_of_note block_id sel_tracknum
+        -- whenJust maybe_pitch $ \pitch -> EditUtil.remove_event_at
+        --     (EditUtil.Pos block_id (Ui.track_tracknum pitch) pos 0)
+        dur_step <- Cmd.gets $ Cmd.state_note_duration . Cmd.state_edit
+        when (removed && dur_step == TimeStep.event_edge) $
+            extend_previous ctx
         Selection.advance
+
+-- | Get previous event, if positive and its end >= pos, then set its end to
+-- the next event or end of the block.  Or the reverse, if negative.
+extend_previous :: Ui.M m => Selection.Context -> m ()
+extend_previous ctx = do
+    let block_id = Selection.ctx_block_id ctx
+    prev <- TimeStep.rewind TimeStep.event_edge block_id tracknum pos
+    next <- TimeStep.advance TimeStep.event_edge block_id tracknum pos
+    modify_neighbor (const (extend prev next)) ctx
+    where
+    extend prev next event
+        | not $ event_touches (Selection.sel_point sel) event = event
+        | Event.is_positive event, Just next <- next =
+            Event.end_ #= next $ event
+        | Event.is_negative event, Just prev <- prev =
+            Event.end_ #= prev $ event
+        | otherwise = event
+    sel = Selection.ctx_selection ctx
+    pos = Selection.sel_point sel
+    tracknum = Selection.sel_point_track sel
+
+event_touches :: TrackTime -> Event.Event -> Bool
+event_touches pos event =
+    Event.max event ScoreTime.== pos || Event.min event ScoreTime.== pos
 
 -- | Toggle the note duration between the end of the block, and the current
 -- time step.

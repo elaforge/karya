@@ -92,7 +92,7 @@ insert_expr :: Cmd.M m => Thru -- ^ Evaluate the expression and emit MIDI thru.
     -> Cmd.Handler m
 insert_expr thru note_entry_map = handler $ \msg -> do
     unlessM Cmd.is_kbd_entry Cmd.abort
-    EditUtil.fallthrough msg
+    EditUtil.fallthrough EditUtil.NoBackspace msg
     (kstate, char) <- Cmd.abort_unless $ Msg.char msg
     octave <- Cmd.gets $ Cmd.state_kbd_entry_octave . Cmd.state_edit
     case Cmd.note_entry_lookup octave char note_entry_map of
@@ -234,7 +234,7 @@ expr_to_midi block_id track_id pos expr = do
 -}
 keyswitches :: Cmd.M m => [(Char, Expr.Symbol, Midi.Key)] -> Cmd.Handler m
 keyswitches inputs = handler $ \msg -> do
-    EditUtil.fallthrough msg
+    EditUtil.fallthrough EditUtil.NoBackspace msg
     char <- Cmd.abort_unless $ Msg.char_down msg
     (call, key) <- Cmd.abort_unless $ Map.lookup char to_call
     MidiThru.channel_messages Nothing False

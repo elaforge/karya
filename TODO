@@ -26,6 +26,13 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 external:
+  tool to make export lists?
+    . Show what is exported but not used outside.
+    . weeder can't because it includes used inside.
+    . I could look at tags, look for non-local refs.
+      Cmd.Selection.*... but that defs, not refs.
+      For each Cmd.Selection.*, grep for Selection.that in non
+      Cmd/Selection.hs
   Can I write a dep-analyzer to answer questions about the module graph?
     . What's the max depth of the tree?  Depth from a starting module?
     . What are a module's transitive deps, and by how many paths does it reach
@@ -55,8 +62,9 @@ external:
 
 UNSORTED
   - lrange collided with random range, awkward
-  - bug: space right as play gets to the end leads to unstoppable playback line
+  / bug: space right as play gets to the end leads to unstoppable playback line
     . Can't reproduce it now.
+    . Hopefully fixed by "can't play it's playing"
   * "can't play it's playing" is annoying, how about on play stop the previous
     play and start a new one?
     . The old thread stops, but new one doesn't get the next stop.
@@ -70,13 +78,15 @@ UNSORTED
     . PlayControl via TVar has identity, can have Eq.
   - bug: things go haywire if I have a vim open when the app quits,
     vim stays running, repl dies of SIGPIPE, terminal state is messed up
+    . I think it should quit the vim, but keep the swp file.
   - save/bali is all messed up apparently due to some instrument change
     . add "r" for my reyong to bali.inst
     . gabor has old norots?
     . then put some of them into verify so it doesn't happen again!
-  - t-dia doesn't apply to all instruments in
+  / t-dia doesn't apply to all instruments in
     `multiple set-pemade set-kantilan`
     . visible in save/complete/wayang/zach-angkatan
+    . Nope, I just did t-dia= instead of t-dia=+.
   * why is kontakt/sc-pemade not getting inst-top inst-bottom env?
     . Because I only inherit the environ if it's Nothing, I don't merge env.
     . But I did it on purpose, I even switched from not having it.  I guess it
@@ -101,7 +111,8 @@ UNSORTED
     . How can I simplify things?  But still support meter / tala / gongs?
     . The whole renumber fiasco is a fiasco.  Maybe marklist is too low
       level, can I save the structure in the Ui.Ruler?
-  - upgrade to ghc-8.10 on hobbes.
+  / upgrade to ghc-8.10 on hobbes.
+    . Wait for 9.2.
   - upgrade to ghc-9.2.1
     . 9.0 is pretty buggy, wait for 9.2.
     - 9.2.1 has no profiling, wait for 9.2.2:
@@ -6048,6 +6059,35 @@ Cmd:
       tightly
     - LRuler.inject, opposite of extract, replaces sub-block rulers
   Cmd.Edit:
+    * If I add a note +E, then another, then delete the second, the first one
+      stays short.  This is usually not what I want!  Trackers don't have the
+      problem because they mark ends explicitly.
+      . What if, when deleting a note, if +E and it touches this one, then
+        extend the previous one.
+      . Doesn't happen when edit mode is on... but what if I made it only
+        happen when edit is on?
+      . Because EditUtil has a whole other delete routine, should unify them.
+      . Selection.Context has ViewId, but I usually actually want BlockId.
+        . Well, except things in Selection do rely on ViewId.
+      . EditUtil.Pos is also like Context, except it doesn't have point, and
+        it's a on a single track.
+      . So there are 3 levels:
+        Selection.Context: (ViewId, Sel)
+        Selection.Context: (BlockId, Sel) -- no ViewId necessary!
+        EditUtil.Pos: (BlockId, TrackNum, Range)
+          data Pos = Pos !BlockId !TrackNum !TrackTime !TrackTime
+      . NoteTrack has special stuff to delete child track elements, but do
+        I want this only on NoteTrack?  Why not have all tracks fall through
+        to the standard Edit.cmd_clear_and_advance?
+    - Should I not advance on delete?  I think advance is fine, if I didn't
+      want to advance then I could have overwritten the note.
+      . Maybe bind 'x' to clear but no advance.
+    - Different dur from timestep is not often useful, mostly I want either +E
+      or +{step}
+      . How about + alternates +E vs. +<current timestemp>
+      . What use is +cur then?  I can use arrow to leave gaps.  In practice this
+        is often what I want, e.g. kotekan.
+      . However, it leaves no way to set separate dur and step.
     - move events limit:
       . Can I have ^j and ^k only move events up to a limit?  How do I set the
         limit?

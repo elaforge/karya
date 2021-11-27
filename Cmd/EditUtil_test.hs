@@ -23,7 +23,8 @@ test_backspace :: Test
 test_backspace = do
     let f = EditUtil.backspace
     equal (f "") Nothing
-    equal (f "a") (Just "")
+    equal (f "a") Nothing
+    equal (f "ab") (Just "a")
 
 test_input_to_note :: Test
 test_input_to_note = do

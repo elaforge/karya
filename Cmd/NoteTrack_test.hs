@@ -49,7 +49,7 @@ test_cmd_val_edit_simple = do
     let note_tracks = [(">i", [(0, 1, "x")]), ("*", [(0, 0, "4d")])]
     -- both note and pitch get deleted
     equal (run note_tracks (f (mkkey Key.Backspace))) $
-        Right [(">i", []), ("*", [])]
+        Left "aborted" -- general Backspace handler will get it
     -- pitch is changed, note text remains
     equal (run note_tracks (f note_on)) $
         Right [(">i", [(0, 1, "x")]), ("*", [(0, 0, "4c")])]

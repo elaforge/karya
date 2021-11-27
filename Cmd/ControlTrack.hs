@@ -59,7 +59,7 @@ import           Types
 -}
 cmd_val_edit :: Cmd.M m => Msg.Msg -> m Cmd.Status
 cmd_val_edit msg = suppress "control track val edit" $ do
-    EditUtil.fallthrough msg
+    EditUtil.fallthrough EditUtil.WantBackspace msg
     (_, _, track_id, _) <- Selection.get_insert
     ifM (infer_normalized track_id)
         (edit_normalized msg) (edit_non_normalized msg)
@@ -70,7 +70,7 @@ cmd_val_edit msg = suppress "control track val edit" $ do
 -- that it doesn't do the hex entry thing.
 cmd_tempo_val_edit :: Cmd.M m => Msg.Msg -> m Cmd.Status
 cmd_tempo_val_edit msg = suppress "tempo track val edit" $ do
-    EditUtil.fallthrough msg
+    EditUtil.fallthrough EditUtil.WantBackspace msg
     edit_non_normalized msg
     return Cmd.Done
     where suppress = Cmd.suppress_history Cmd.ValEdit
@@ -95,13 +95,13 @@ normalized_prefixes :: [Text]
 normalized_prefixes = ["`0x`", "0x"]
 
 edit_non_normalized :: Cmd.M m => Msg.Msg -> m ()
-edit_non_normalized msg = case msg of
+edit_non_normalized = \case
     (EditUtil.num_key -> Just key) -> modify_event (modify_num key)
     (Msg.key_down -> Just (Key.Char '\'')) -> EditUtil.soft_insert "'"
     _ -> Cmd.abort
 
 edit_normalized :: Cmd.M m => Msg.Msg -> m ()
-edit_normalized msg = case msg of
+edit_normalized = \case
     (EditUtil.hex_key -> Just key) -> modify_event (modify_hex key)
     (Msg.key_down -> Just (Key.Char '\'')) -> EditUtil.soft_insert "'"
     -- AsciiKbd won't have an interesting velocity.
@@ -178,7 +178,7 @@ update_hex val_ key
 cmd_method_edit :: Cmd.M m => Msg.Msg -> m Cmd.Status
 cmd_method_edit msg =
     Cmd.suppress_history Cmd.MethodEdit "control track method edit" $ do
-    EditUtil.fallthrough msg
+    EditUtil.fallthrough EditUtil.WantBackspace msg
     case msg of
         (EditUtil.method_key -> Just key) -> modify_event $ \partial ->
             ( Just $ partial

@@ -11,13 +11,13 @@ module Cmd.EditUtil (
     , Modify
     , modify_event_at, modify_event_at_trigger
     , soft_insert
-    , remove_event_at, remove_event
     , lookup_instrument
     -- * msgs
     , Key(..)
     , method_key
     , num_key, is_num_key
     , hex_key
+    , Fallthrough(..)
     , fallthrough
     , input_to_note, inputs_to_notes
     -- * modify
@@ -58,6 +58,7 @@ import           Types
 --
 -- The duration from the selection, so if it's zero, then an event duration
 -- will be inferred by 'get_duration' based on the 'Cmd.state_note_duration'.
+-- This is like 'Selection.Context', except focused on a single track.
 data Pos = Pos !BlockId !TrackNum !TrackTime !TrackTime
     deriving (Eq, Show)
 
@@ -101,7 +102,7 @@ modify_event zero_dur modify_dur modify = do
 
 modify_event_at :: Cmd.M m => Pos
     -> Bool -- ^ If the selection is 0, then True means create a 0 dur event,
-    -- otherwise use the time step. f the selection is nonzero, always use
+    -- otherwise use the time step. If the selection is nonzero, always use
     -- its duration.
     -> Bool -- ^ If True, modify the duration of an existing event.
     -> Modify -> m ()
@@ -151,16 +152,6 @@ get_duration tracknum start = do
 get_orientation :: Cmd.M m => m Types.Orientation
 get_orientation = Cmd.gets $ Cmd.state_note_orientation . Cmd.state_edit
 
-remove_event :: Cmd.M m => Bool -> m ()
-remove_event advance = do
-    pos <- get_pos
-    remove_event_at pos advance
-
--- | Special case of 'modify_event_at' to only remove events.
-remove_event_at :: Cmd.M m => Pos -> Bool -> m ()
-remove_event_at pos advance =
-    modify_event_at pos False False (const (Nothing, advance))
-
 -- | Insert an event, but only if there isn't already a non-empty one there.
 soft_insert :: Cmd.M m => Text -> m ()
 soft_insert text = modify_event True True $ \old_text ->
@@ -201,29 +192,32 @@ extract_key f (Msg.text -> Just (key, text)) = case key of
         _ -> Nothing
 extract_key _ _ = Nothing
 
+data Fallthrough = WantBackspace | NoBackspace
 
 -- | Let keys that have a modifier down fall through.
 --
 -- When edit mode is on, the edit cmds tend to catch all msgs.  However, some
 -- msgs should go through anyway.
-fallthrough :: Cmd.M m => Msg.Msg -> m ()
-fallthrough msg = do
+fallthrough :: Cmd.M m => Fallthrough -> Msg.Msg -> m ()
+fallthrough want_backspace msg = do
     keys_down <- fmap Map.keys Cmd.keys_down
+    when (any is_mod keys_down) --  || Msg.key_down msg == Just Key.Backspace)
+        Cmd.abort
+    when (Msg.key_down msg == Just Key.Backspace) $ case want_backspace of
+        -- When a range is selected, always let the global
+        -- Edit.cmd_clear_selected handle it.
+        WantBackspace -> whenM (not . Sel.is_point <$> Selection.get) Cmd.abort
+        NoBackspace -> Cmd.abort
+    where
     -- Abort if there are modifiers down, so commands still work.
     -- Except shift, of course.  Oh, and midi, otherwise a note off would
     -- always fall through.
-    let is_mod mod = case mod of
-            Cmd.KeyMod m -> case m of
-                Key.Shift -> False
-                _ -> True
-            Cmd.MidiMod _ _ -> False
+    is_mod = \case
+        Cmd.KeyMod m -> case m of
+            Key.Shift -> False
             _ -> True
-    when (any is_mod keys_down) Cmd.abort
-
-    -- When clearing a range, let the global Edit.cmd_clear_selected handle it.
-    let is_backspace = Msg.key_down msg == Just Key.Backspace
-    sel <- Selection.get
-    when (is_backspace && not (Sel.is_point sel)) Cmd.abort
+        Cmd.MidiMod _ _ -> False
+        _ -> True
 
 -- | Convert an InputKey to the symbolic Note that it should be.
 --
@@ -254,8 +248,8 @@ inputs_to_notes key_inputs = do
 -- * modify
 
 -- | Since there's no use for leading spaces, just a space makes an empty
--- event.  Backspacing an empty event returns Nothing, which should delete the
--- event itself.
+-- event.  Backspacing the last character return Nothing, which deletes the
+-- event.  If I want a "" event I can create one with space.
 modify_text_key :: [Key.Modifier] -> Key -> Text -> Maybe Text
 modify_text_key mods key s = case key of
     Backspace
@@ -269,8 +263,9 @@ modify_text_key mods key s = case key of
 
 backspace :: Text -> Maybe Text
 backspace s
-    | Text.null s = Nothing
-    | otherwise = Just $ Text.take (Text.length s - 1) s
+    | Text.null s2 = Nothing
+    | otherwise = Just s2
+    where s2 = Text.take (Text.length s - 1) s
 
 backspace_expr :: Text -> Maybe Text
 backspace_expr s

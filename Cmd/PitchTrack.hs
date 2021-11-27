@@ -58,7 +58,7 @@ import           Global
 -- This is useful to extend a constant pitch value to the desired breakpoint.
 cmd_val_edit :: Cmd.M m => Msg.Msg -> m Cmd.Status
 cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "pitch track val edit" $ do
-    EditUtil.fallthrough msg
+    EditUtil.fallthrough EditUtil.NoBackspace msg
     case msg of
         Msg.InputNote (InputNote.NoteOn _ input _) -> do
             pos <- EditUtil.get_pos
@@ -71,7 +71,6 @@ cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "pitch track val edit" $ do
             note <- EditUtil.input_to_note input
             val_edit_at pos note
         (Msg.key_down -> Just (Key.Char '\'')) -> EditUtil.soft_insert "'"
-        (Msg.key_down -> Just Key.Backspace) -> EditUtil.remove_event True
         _ -> Cmd.abort
     return Cmd.Done
 
@@ -81,7 +80,7 @@ cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "pitch track val edit" $ do
 cmd_method_edit :: Cmd.M m => Msg.Msg -> m Cmd.Status
 cmd_method_edit msg = Cmd.suppress_history Cmd.MethodEdit
         "pitch track method edit" $ do
-    EditUtil.fallthrough msg
+    EditUtil.fallthrough EditUtil.WantBackspace msg
     key <- Cmd.abort_unless $ EditUtil.method_key msg
     pos <- EditUtil.get_pos
     method_edit_at pos key

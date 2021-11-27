@@ -1451,6 +1451,13 @@ modify_track track_id f = do
         st { state_tracks = Map.adjust f track_id (state_tracks st) }
     damage_track track_id
 
+-- | Low level modify events.  The function can modify Events however it
+-- pleases, but should return Ranges indicating where the modification
+-- happened.  This must be done manually, and there is no enforcement, but if
+-- you get it wrong, 'Update.UiDamage' will be wrong, which will mess up UI
+-- updates, undo, rederivation, etc.
+--
+-- TODO could figure this out automatically if Events supported efficient diff.
 _modify_events :: M m => TrackId
     -> (Events.Events -> (Events.Events, Ranges.Ranges TrackTime))
     -> m ()

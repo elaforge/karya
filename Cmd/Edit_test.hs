@@ -7,20 +7,21 @@ import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Seq as Seq
-import Util.Test
 import qualified Util.Test.Testing as Testing
-
-import qualified Ui.ScoreTime as ScoreTime
-import qualified Ui.Sel as Sel
-import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Edit as Edit
 import qualified Cmd.Selection as Selection
+import qualified Cmd.TimeStep as TimeStep
 
-import Global
-import Types
+import qualified Ui.ScoreTime as ScoreTime
+import qualified Ui.Sel as Sel
+import qualified Ui.UiTest as UiTest
+
+import           Global
+import           Types
+import           Util.Test
 
 
 test_cmd_clear_and_advance :: Test
@@ -34,6 +35,26 @@ test_cmd_clear_and_advance = do
     equal (run 0 0 [(0, 1)]) (Right ([], []), Just (1, 1))
     equal (run 0 0 [(0, 0), (1, 0)]) (Right ([(1, 0, "b")], []), Just (1, 1))
     equal (run 0 1 [(0, 0), (1, 0)]) (Right ([(1, 0, "b")], []), Just (0, 1))
+
+test_extend_previous :: Test
+test_extend_previous = do
+    let run pos = extract . run_sel_events cmd pos pos
+        cmd = do
+            Cmd.modify_edit_state $ \st ->
+                st { Cmd.state_note_duration = TimeStep.event_edge }
+            Edit.cmd_clear_and_advance
+        extract r = e_start_dur_text1 r
+    right_equal (run 0 [(0, 1), (1, 1)]) ([(1, 1, "b")], [])
+    right_equal (run 1 [(0, 1), (1, 1)]) ([(0, 32, "a")], [])
+    -- Don't extend if there wasn't an event to delete!
+    right_equal (run 1 [(0, 1)]) ([(0, 1, "a")], [])
+    -- Don't extend if it doesn't touch.
+    right_equal (run 1 [(0, 0), (1, 1)]) ([(0, 0, "a")], [])
+    right_equal (run 1 [(0, 0.5), (1, 1)]) ([(0, 0.5, "a")], [])
+    -- Negative goes the other way.
+    right_equal (run (-2) [(1, -1), (2, -1)]) ([(1, -1, "a")], [])
+    right_equal (run (-1) [(1, -1), (2, -1)]) ([(2, -2, "b")], [])
+    right_equal (run (-1) [(1, -1), (2, -0.5)]) ([(2, -0.5, "b")], [])
 
 test_split_events :: Test
 test_split_events = do

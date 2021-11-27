@@ -39,7 +39,6 @@ import qualified Derive.ScoreT as ScoreT
 
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
-import qualified Ui.Key as Key
 import qualified Ui.Sel as Sel
 import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
@@ -66,7 +65,7 @@ data ControlTrack = ControlTrack {
 -- there is no appropriate next track, the cmd will throw an error.
 cmd_val_edit :: Cmd.M m => Msg.Msg -> m Cmd.Status
 cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "note track val edit" $ do
-    EditUtil.fallthrough msg
+    EditUtil.fallthrough EditUtil.NoBackspace msg
     EditUtil.Pos block_id sel_tracknum pos dur <- EditUtil.get_pos
     case msg of
         Msg.InputNote input_note -> case input_note of
@@ -90,14 +89,6 @@ cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "note track val edit" $ do
                 whenM (andM [return chord_done, get_state Cmd.state_advance])
                     Selection.advance
             InputNote.Control {} -> return ()
-        (Msg.key_down -> Just Key.Backspace) -> do
-            EditUtil.remove_event_at
-                (EditUtil.Pos block_id sel_tracknum pos 0) False
-            -- Clear out the pitch track too.
-            maybe_pitch <- Info.pitch_of_note block_id sel_tracknum
-            whenJust maybe_pitch $ \pitch -> EditUtil.remove_event_at
-                (EditUtil.Pos block_id (Ui.track_tracknum pitch) pos 0) False
-            Selection.advance
         _ -> Cmd.abort
     return Cmd.Done
     where
@@ -232,9 +223,9 @@ find_pitch_track note_id = do
 
 -- | Method edit is redirected to the pitch track, creating one if necessary.
 cmd_method_edit :: Cmd.M m => Msg.Msg -> m Cmd.Status
-cmd_method_edit msg = Cmd.suppress_history Cmd.MethodEdit
-        "note track method edit" $ do
-    EditUtil.fallthrough msg
+cmd_method_edit msg =
+    Cmd.suppress_history Cmd.MethodEdit "note track method edit" $ do
+    EditUtil.fallthrough EditUtil.WantBackspace msg
     case msg of
         (EditUtil.method_key -> Just key) -> do
             (block_id, tracknum, _, pos) <- Selection.get_insert

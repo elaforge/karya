@@ -149,7 +149,7 @@ set_block block_id ((_, pos) : _) = do
 
 -- | Update the selection's orientation to match 'Cmd.state_note_orientation'.
 update_orientation :: Cmd.M m => m ()
-update_orientation = whenJustM lookup_context $ \(Context view_id sel) ->
+update_orientation = whenJustM lookup_context $ \(Context view_id _ sel) ->
     set view_id $ Just $ sel { Sel.orientation = Sel.None }
 
 -- | Collapse the selection to a point at its (cur_track, cur_pos).
@@ -631,8 +631,7 @@ lookup_any_insert = lookup_any_selnum_insert Config.insert_selnum
 -- | The most general insertion point function.
 lookup_any_selnum_insert :: Cmd.M m => Sel.Num -> m (Maybe (ViewId, AnyPoint))
 lookup_any_selnum_insert selnum =
-    justm (lookup_context_selnum selnum) $ \(Context view_id sel) -> do
-        block_id <- Ui.block_id_of view_id
+    justm (lookup_context_selnum selnum) $ \(Context view_id block_id sel) ->
         return $ Just (view_id, (block_id, sel_point_track sel, sel_point sel))
 
 -- | Given a block, get the selection on it, if any.  If there are multiple
@@ -661,11 +660,12 @@ sel_track block_id sel = Ui.event_track_at block_id (sel_point_track sel)
 -- selection functions from the current Ui.State and Cmd.State.
 data Context = Context {
     ctx_view_id :: !ViewId
+    , ctx_block_id :: !BlockId
     , ctx_selection :: !Sel.Selection
     } deriving (Show)
 
-ctx_block_id :: Ui.M m => Context -> m BlockId
-ctx_block_id = Ui.block_id_of . ctx_view_id
+ctx_view_selection :: Context -> (ViewId, Sel.Selection)
+ctx_view_selection ctx = (ctx_view_id ctx, ctx_selection ctx)
 
 context :: Cmd.M m => m Context
 context = context_selnum Config.insert_selnum
@@ -679,8 +679,9 @@ lookup_context = lookup_context_selnum Config.insert_selnum
 lookup_context_selnum :: Cmd.M m => Sel.Num -> m (Maybe Context)
 lookup_context_selnum selnum =
     justm Cmd.lookup_focused_view $ \view_id ->
-    justm (Ui.get_selection view_id selnum) $ \sel ->
-    return $ Just $ Context view_id sel
+    justm (Ui.get_selection view_id selnum) $ \sel -> do
+        block_id <- Ui.block_id_of view_id
+        return $ Just $ Context view_id block_id sel
 
 get :: Cmd.M m => m Sel.Selection
 get = Cmd.abort_unless =<< lookup
@@ -689,7 +690,7 @@ lookup :: Cmd.M m => m (Maybe Sel.Selection)
 lookup = fmap ctx_selection <$> lookup_context
 
 get_view :: Cmd.M m => m (ViewId, Sel.Selection)
-get_view = (\(Context a b) -> (a, b)) <$> context
+get_view = ctx_view_selection <$> context
 
 range :: Cmd.M m => m Events.Range
 range = Events.selection_range <$> get
@@ -960,7 +961,7 @@ track = ctx_track =<< context
 
 ctx_track :: Ui.M m => Context -> m (BlockId, Maybe TrackId)
 ctx_track ctx = do
-    block_id <- ctx_block_id ctx
+    let block_id = ctx_block_id ctx
     maybe_track_id <-
         Ui.event_track_at block_id (sel_point_track (ctx_selection ctx))
     return (block_id, maybe_track_id)
@@ -980,7 +981,7 @@ ctx_tracks ctx = do
 -- | Selected tracks, not including merged tracks.
 ctx_strict_tracks :: Ui.M m => Context -> m Tracks
 ctx_strict_tracks ctx = do
-    block_id <- ctx_block_id ctx
+    let block_id = ctx_block_id ctx
     tracks <- Ui.track_count block_id
     let tracknums = Sel.tracknums tracks (ctx_selection ctx)
     tracklikes <- mapM (Ui.track_at block_id) tracknums
@@ -1008,12 +1009,13 @@ keep_history :: Int
 keep_history = 10
 
 record_history :: Cmd.M m => m ()
-record_history = whenJustM lookup_context (modify_history . record)
+record_history =
+    whenJustM lookup_context (modify_history . record . ctx_view_selection)
     where
     -- Only record the current position if it has changed.
-    record (Context view_id sel) hist
-        | take 1 (Cmd.sel_past hist) /= [(view_id, sel)] = Cmd.SelectionHistory
-            { sel_past = take keep_history $ (view_id, sel) : Cmd.sel_past hist
+    record view_sel hist
+        | take 1 (Cmd.sel_past hist) /= [view_sel] = Cmd.SelectionHistory
+            { sel_past = take keep_history $ view_sel : Cmd.sel_past hist
             , sel_future = []
             }
         | otherwise = hist
@@ -1021,7 +1023,7 @@ record_history = whenJustM lookup_context (modify_history . record)
 previous_selection :: Cmd.M m => Bool -> m ()
 previous_selection change_views = do
     old_view_id <- Cmd.get_focused_view
-    cur <- fmap (\(Context a b) -> (a, b)) <$> lookup_context -- TODO
+    cur <- fmap ctx_view_selection <$> lookup_context
     hist <- Cmd.gets Cmd.state_selection_history
     case dropWhile ((==cur) . Just) $ Cmd.sel_past hist of
         (view_id, sel) : past | change_views || view_id == old_view_id -> do
@@ -1036,7 +1038,7 @@ previous_selection change_views = do
 next_selection :: Cmd.M m => Bool -> m ()
 next_selection change_views = do
     old_view_id <- Cmd.get_focused_view
-    cur <- fmap (\(Context a b) -> (a, b)) <$> lookup_context -- TODO
+    cur <- fmap ctx_view_selection <$> lookup_context
     hist <- Cmd.gets Cmd.state_selection_history
     case dropWhile ((==cur) . Just) $ Cmd.sel_future hist of
         (view_id, sel) : future | change_views || view_id == old_view_id -> do
