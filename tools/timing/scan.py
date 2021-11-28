@@ -9,16 +9,18 @@ If this doesn't suffice, probably the next step is sqlite.
 """
 
 import argparse
+import datetime
 import json
 import os
 import socket
 import sys
+import time
+
 
 # Read json results from this directory.
 timing_dir = 'data/prof/timing'
 
 patch_name_column = True
-
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -28,12 +30,7 @@ def main():
     parser.add_argument('score', nargs='?', default=None)
     args = parser.parse_args()
 
-    timings = []
-    for fn in os.listdir(timing_dir):
-        if not fn.endswith('.json'):
-            continue
-        timings.extend(read(os.path.join(timing_dir, fn)))
-
+    timings = read_timings()
     if args.scores:
         for score in sorted(set(t['score'] for t in timings)):
             print(score)
@@ -59,6 +56,30 @@ def main():
                 t for t in timings
                 if t['system'] == system and t['score'] == score
             ]))
+
+def read_timings():
+    timings = []
+    for fn in os.listdir(timing_dir):
+        if not fn.endswith('.json'):
+            continue
+        timings.extend(read(os.path.join(timing_dir, fn)))
+    for t in timings:
+        # 2021-11-27T18:06:35.543414
+        t['run_date'] = utc2local(
+            datetime.datetime.fromisoformat(t['run_date']))
+        # 2021-11-27T23:20:16Z
+        t['patch']['date'] = utc2local(
+            datetime.datetime.strptime(t['patch']['date'], "%Y-%m-%dT%H:%M:%SZ")
+        )
+    return timings
+
+def utc2local(date):
+    epoch = time.mktime(date.timetuple())
+    offset = (
+        datetime.datetime.fromtimestamp(epoch)
+        - datetime.datetime.utcfromtimestamp(epoch)
+    )
+    return (date + offset).isoformat()
 
 COLUMNS = [
     ('patch', lambda t: t['patch']['name'][:64]),

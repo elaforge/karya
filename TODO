@@ -69,9 +69,10 @@ UNSORTED
     . scores are not version controlled
     . fltk not version controlled
   features for timing/scan.py
-    - omit empty columns
+    * omit empty columns
     - show differences between rows
-    - use the run time, not the commit time
+    * use the run time, not the commit time
+      . It does though!  I was confused by UTC.
   * rename Derive.RestrictedEnviron to REnv
   - lrange collided with random range, awkward
   / bug: space right as play gets to the end leads to unstoppable playback line
