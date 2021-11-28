@@ -99,6 +99,11 @@ zipIntersection map1 map2 =
 -- | Pair up elements from each map with equal keys.
 pairs :: Ord k => Map k v1 -> Map k v2 -> [(k, Seq.Paired v1 v2)]
 pairs map1 map2 = Seq.pair_sorted (Map.toAscList map1) (Map.toAscList map2)
+{-# INLINE pairs #-}
+
+paired :: Ord k => Map k v1 -> Map k v2 -> Map k (Seq.Paired v1 v2)
+paired map1 map2 = Map.fromAscList (pairs map1 map2)
+{-# INLINE paired #-}
 
 -- | Like 'Map.union', but also return a map of rejected duplicate keys from
 -- the map on the right.

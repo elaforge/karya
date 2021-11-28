@@ -612,6 +612,7 @@ initial_dynamic environ = Dynamic
 -- This makes each derivation leak more space.
 strip_dynamic :: Dynamic -> Dynamic
 strip_dynamic dyn = dyn { state_pitch_map = Nothing }
+{-# INLINE strip_dynamic #-}
 
 -- | Initial control environment.
 initial_controls :: DeriveT.ControlMap

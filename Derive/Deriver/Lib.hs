@@ -192,12 +192,13 @@ extract_result (result, state, logs) = Result
 -- See 'Collect' and 'TrackDynamic' for why.
 extract_track_dynamic :: Collect -> TrackDynamic
 extract_track_dynamic collect =
-    Map.fromList $ map (second strip_dynamic . extract) $ Maps.pairs
+    strip_dynamic . extract <$> Maps.paired
         (collect_track_dynamic collect) (collect_track_dynamic_inverted collect)
     where
-    extract (k, Seq.First dyn) = (k, dyn)
-    extract (k, Seq.Second dyn) = (k, dyn)
-    extract (k, Seq.Both normal inverted) = (k, merge normal inverted)
+    extract = \case
+        Seq.First dyn -> dyn
+        Seq.Second dyn -> dyn
+        Seq.Both normal inverted -> merge normal inverted
     merge normal inverted = normal
         { state_environ = keep (state_environ inverted) <> state_environ normal
         }
@@ -671,14 +672,14 @@ state_controls_at :: RealTime -> Ruler.Marklists
     -- control functions, via 'DeriveT.dyn_ruler'.
     -> Dynamic -> Int -- ^ 'state_event_serial'
     -> ScoreT.ControlValMap
-state_controls_at pos ruler dyn serial = Map.fromList $
-    map (resolve (Internal.convert_dynamic ruler dyn serial) pos) $
-    Maps.pairs (state_control_functions dyn) (state_controls dyn)
+state_controls_at pos ruler dyn serial =
+    Map.mapWithKey (resolve (Internal.convert_dynamic ruler dyn serial) pos) $
+    Maps.paired (state_control_functions dyn) (state_controls dyn)
     where
-    resolve cf_dyn pos (k, p) = case p of
-        Seq.Both f _ -> (k, call k f)
-        Seq.First f -> (k, call k f)
-        Seq.Second sig -> (k, Signal.at pos (ScoreT.typed_val sig))
+    resolve cf_dyn pos k p = case p of
+        Seq.Both f _ -> call k f
+        Seq.First f -> call k f
+        Seq.Second sig -> Signal.at pos (ScoreT.typed_val sig)
         where
         call control f = ScoreT.typed_val $
             DeriveT.call_control_function f control cf_dyn pos
