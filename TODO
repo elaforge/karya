@@ -64,6 +64,14 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
+  - things that make bisecting not work:
+    . that rubberband ref in ShakeConfig
+    . scores are not version controlled
+    . fltk not version controlled
+  features for timing/scan.py
+    - omit empty columns
+    - show differences between rows
+    - use the run time, not the commit time
   * rename Derive.RestrictedEnviron to REnv
   - lrange collided with random range, awkward
   / bug: space right as play gets to the end leads to unstoppable playback line

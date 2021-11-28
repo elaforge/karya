@@ -80,20 +80,27 @@ def format(timings):
         if c[0] != 'patch' or patch_name_column
     ]
     timings = sorted(timings, key=lambda t: (t['patch']['date'], t['run_date']))
-    rows = [[c[0] for c in columns]]
+    rows = []
     for t in timings:
         rows.append([format_field(c[1](t)) for c in columns])
-    return format_columns(rows)
+    # Omit empty columns.
+    empty = set(
+        i for i in range(len(columns)) if all(not row[i] for row in rows)
+    )
+    rows.insert(0, [c[0] for c in columns])
+    return format_columns(
+        [[c for i, c in enumerate(row) if i not in empty] for row in rows]
+    )
 
 def format_field(f):
     if f is None:
         return ''
-    elif type(f) is list:
+    elif isinstance(f, list):
         return format_range(f)
-    elif type(f) is float:
+    elif isinstance(f, float):
         return '%.2f' % f
-    elif type(f) is str:
-        return f
+    elif isinstance(f, str):
+        return f.strip()
     else:
         raise TypeError(str(f))
 
