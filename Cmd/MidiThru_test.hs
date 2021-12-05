@@ -196,7 +196,7 @@ test_input_to_midi = do
 extract_msg :: CallStack.Stack => Midi.Message
     -> (Midi.Channel, Midi.ChannelMessage)
 extract_msg (Midi.ChannelMessage chan msg) = (chan, msg)
-extract_msg msg = errorStack $ "bad msg: " <> showt msg
+extract_msg msg = error $ "bad msg: " <> show msg
 
 -- | Thread the given values through 'MidiThru.input_to_midi'.
 thread_input_to_midi :: Cmd.WriteDeviceState

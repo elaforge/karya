@@ -176,7 +176,7 @@ with_msg msg text_ =
     multiline = Text.count "\n" text > 2
 
 prefix :: HasCallStack => Text
-prefix = "** " <> CallStack.getStack <> ": "
+prefix = "** " <> CallStack.getStack1 <> ": "
 
 pshow :: Show a => a -> Text
 pshow = Text.strip . Text.pack . PPrint.pshow

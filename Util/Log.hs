@@ -285,7 +285,7 @@ data Priority =
 -- | Create a msg without initializing it, so it doesn't have to be in
 -- LogMonad.
 msg :: CallStack.Stack => Priority -> Maybe Stack.Stack -> Text -> Msg
-msg = msg_call_stack CallStack.callStack
+msg = msg_call_stack GHC.Stack.callStack
 
 -- | Like 'msg' but when you already have a CallStack.
 msg_call_stack :: GHC.Stack.CallStack -> Priority -> Maybe Stack.Stack -> Text
@@ -436,6 +436,8 @@ instance Aeson.FromJSON Data where
         Aeson.String v -> pure $ Text v
         _ -> fail "expecting null, number, or string"
 
+-- TODO: this is only used by ReplProtocol, maybe it could use JSON?
+-- Or just send preformatted log msgs.
 instance Serialize.Serialize Msg where
     put (Msg a b c d e f) = put a >> put b >> put c >> put d >> put e >> put f
     get = Msg <$> get <*> get <*> get <*> get <*> get <*> get

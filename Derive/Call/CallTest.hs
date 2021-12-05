@@ -59,7 +59,7 @@ run_control_dur events = extract $
     extract = Seq.drop_dups id . head . DeriveTest.extract_events
         (Signal.to_pairs . ScoreT.typed_val . get . Score.event_controls)
     get fm = case Map.lookup "cont" fm of
-        Nothing -> errorStack "expected a 'cont' control"
+        Nothing -> error "expected a 'cont' control"
         Just c -> c
 
 -- * call map
@@ -159,7 +159,7 @@ module_ :: Module.Module
 module_ = "test-module"
 
 expr :: Text -> DeriveT.Expr
-expr = either (errorStack . ("CallTest.expr: " <>)) id . Parse.parse_expr
+expr = either (error . untxt . ("CallTest.expr: " <>)) id . Parse.parse_expr
 
 val :: Text -> DeriveT.Val
-val = either (errorStack . ("CallTest.val: " <>)) id . Parse.parse_val
+val = either (error . untxt . ("CallTest.val: " <>)) id . Parse.parse_val

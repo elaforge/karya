@@ -268,8 +268,8 @@ derive_lilypond state deriver =
         Cmd.Lilypond.derive deriver
     where
     extract (Right (Just val)) = val
-    extract (Right Nothing) = errorStack "derive_lilypond: abort"
-    extract (Left err) = errorStack $ "derive_lilypond: " <> err
+    extract (Right Nothing) = error "derive_lilypond: abort"
+    extract (Left err) = error $ "derive_lilypond: " <> untxt err
 
 make_ly :: Types.Config -> [Types.Event] -> Text
 make_ly config events = Text.Lazy.toStrict $

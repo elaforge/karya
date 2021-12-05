@@ -285,26 +285,27 @@ instance Pretty ErrorPlace where
     pretty (TypeErrorArg num) = showt (num + 1)
     pretty (TypeErrorEnviron key) = "environ:" <> pretty key
 
-throw :: CallStack.Stack => Text -> Deriver a
+throw :: GHC.Stack.HasCallStack => Text -> Deriver a
 throw = throw_error . GenericError
 
-throw_arg_error :: CallStack.Stack => Text -> Deriver a
+throw_arg_error :: GHC.Stack.HasCallStack => Text -> Deriver a
 throw_arg_error = throw_error . CallError . ArgError
 
-throw_error :: CallStack.Stack => ErrorVal -> Deriver a
+throw_error :: GHC.Stack.HasCallStack => ErrorVal -> Deriver a
 throw_error err = do
     stack <- gets (state_stack . state_dynamic)
-    DeriveM.throw (Error CallStack.callStack stack err)
+    DeriveM.throw (Error GHC.Stack.callStack stack err)
 
 -- | Catch and rethrow an error, presumably to annotate it with more
 -- information.
 annotate :: (Error -> Error) -> Deriver a -> Deriver a
 annotate f = DeriveM.annotate f
 
-require :: CallStack.Stack => Text -> Maybe a -> Deriver a
+require :: GHC.Stack.HasCallStack => Text -> Maybe a -> Deriver a
 require msg = maybe (throw msg) return
 
-require_right :: CallStack.Stack => (err -> Text) -> Either err a -> Deriver a
+require_right :: GHC.Stack.HasCallStack => (err -> Text) -> Either err a
+    -> Deriver a
 require_right fmt_err = either (throw . fmt_err) return
 
 

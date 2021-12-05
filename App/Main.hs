@@ -85,7 +85,7 @@ initialize app = do
         , state_priority = Log.Debug
         }
     MidiDriver.initialize "karya" want_message $ \case
-        Left err -> errorStack $ "initializing midi: " <> err
+        Left err -> errorIO $ "initializing midi: " <> err
         Right midi_interface -> initialize_audio $ Socket.withSocketsDo $ do
             midi_interface <- Interface.track_interface midi_interface
             Git.initialize $ Repl.with_socket $ app midi_interface

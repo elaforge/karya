@@ -280,17 +280,16 @@ irregular_pattern (IrregularPattern {..}) = KotekanPattern
     parse1 = parse_pattern destination . check
     check ns
         | length ns == length ir_polos = ns
-        | otherwise =
-            CallStack.errorStack $ "not same length as polos: " <> showt ns
-    destination = fromMaybe (CallStack.errorStack "no final pitch") $
+        | otherwise = errorStack $ "not same length as polos: " <> showt ns
+    destination = fromMaybe (errorStack "no final pitch") $
         Seq.last $ Maybe.catMaybes $ parse_pattern 0 ir_polos
 
 parse_pattern :: CallStack.Stack => Pitch.Step -> [Char] -> [Maybe Pitch.Step]
 parse_pattern destination = map (fmap (subtract destination) . parse1)
     where
     parse1 '-' = Nothing
-    parse1 c = Just $ fromMaybe
-        (CallStack.errorStack $ "not a digit: " <> showt c) $ Num.readDigit c
+    parse1 c = Just $ fromMaybe (errorStack $ "not a digit: " <> showt c) $
+        Num.readDigit c
 
 kotekan_pattern :: KotekanPattern -> KotekanStyle -> Pasang ScoreT.Instrument
     -> Cycle

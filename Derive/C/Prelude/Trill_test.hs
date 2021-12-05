@@ -282,7 +282,7 @@ test_trill_transition = do
 
 e_nns_exact :: CallStack.Stack => Score.Event -> [(RealTime, Pitch.NoteNumber)]
 e_nns_exact e
-    | not (null errs) = errorStack $ "errors flattening signal: " <> showt errs
+    | not (null errs) = error $ "errors flattening signal: " <> show errs
     | otherwise = sig
     where (sig, errs) = DeriveTest.e_nns_errors e
 

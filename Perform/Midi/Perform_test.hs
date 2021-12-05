@@ -576,7 +576,7 @@ perform_notes = DeriveTest.extract_levents id . fst
 expect_no_logs :: CallStack.Stack => (a, [Text]) -> a
 expect_no_logs (val, []) = val
 expect_no_logs (_, logs) =
-    errorStack $ "expected no logs: " <> Text.unlines logs
+    error $ untxt $ "expected no logs: " <> Text.unlines logs
 
 -- * post process
 
@@ -885,7 +885,7 @@ mkevent (patch, pitch, start, dur, controls) = PerformTest.empty_event
     }
     where
     psig pos p = MSignal.from_pairs [(pos, to_pitch p)]
-    to_pitch p = fromMaybe (errorStack ("no pitch " <> showt p))
+    to_pitch p = fromMaybe (error ("no pitch " <> show p))
         (lookup p pitch_map)
     pitch_map = zip (map Text.singleton ['a'..'z']) [60..]
         ++ zip (map ((<>"2") . Text.singleton) ['a'..'z']) [60.5..]

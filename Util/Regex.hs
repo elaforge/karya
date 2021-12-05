@@ -19,14 +19,13 @@ module Util.Regex (
 ) where
 import qualified Data.ByteString as ByteString
 import qualified Data.Text as Text
-import Data.Text (Text)
+import           Data.Text (Text)
 import qualified Data.Text.Encoding as Encoding
 
+import qualified GHC.Stack as Stack
 import qualified Text.Regex.PCRE.Heavy as PCRE
-import Text.Regex.PCRE.Heavy (Regex)
+import           Text.Regex.PCRE.Heavy (Regex)
 import qualified Text.Regex.PCRE.Light as PCRE
-
-import qualified Util.CallStack as CallStack
 
 
 -- * compile
@@ -56,13 +55,12 @@ convertOptions = (options++) . map convert
     options = [PCRE.utf8, PCRE.no_utf8_check]
 
 -- | Will throw a runtime error if the regex has an error!
-compileUnsafe :: CallStack.Stack => String -> Regex
+compileUnsafe :: Stack.HasCallStack => String -> Regex
 compileUnsafe = compileOptionsUnsafe []
 
 -- | Will throw a runtime error if the regex has an error!
-compileOptionsUnsafe :: CallStack.Stack => [Option] -> String -> Regex
-compileOptionsUnsafe options =
-    either (CallStack.errorStack . Text.pack) id . compileOptions options
+compileOptionsUnsafe :: Stack.HasCallStack => [Option] -> String -> Regex
+compileOptionsUnsafe options = either error id . compileOptions options
 
 -- * match
 

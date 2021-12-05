@@ -284,7 +284,7 @@ extract_ui = ui_notes 0 . e_ui
 ui_notes :: Int -> Ui.State -> [Char]
 ui_notes tracknum ui_state
     | not (">" `Text.isPrefixOf` title) =
-        errorStack $ "not a note track: " <> showt title
+        error $ "not a note track: " <> show title
     | otherwise = [Text.head text | (_, _, text) <- tracks]
     where (title, tracks) = UiTest.extract_tracks ui_state !! tracknum
 

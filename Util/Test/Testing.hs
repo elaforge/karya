@@ -51,7 +51,7 @@ module Util.Test.Testing (
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
-import Control.Monad (unless)
+import           Control.Monad (unless)
 
 import qualified Data.Algorithm.Diff as Diff
 import qualified Data.IORef as IORef
@@ -59,12 +59,13 @@ import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
-import Data.Text (Text)
+import           Data.Text (Text)
 import qualified Data.Text.IO as Text.IO
 
 import qualified GHC.Stack as Stack
+import           GHC.Stack (HasCallStack)
 import qualified Hedgehog
-import Hedgehog ((===), (/==), property)
+import           Hedgehog (property, (/==), (===))
 import qualified Hedgehog.Internal.Config as Internal.Config
 import qualified Hedgehog.Internal.Property as Internal.Property
 import qualified Hedgehog.Internal.Report as Report
@@ -72,7 +73,7 @@ import qualified Hedgehog.Internal.Runner as Internal.Runner
 import qualified Hedgehog.Internal.Seed as Internal.Seed
 
 import qualified System.Directory as Directory
-import System.FilePath ((</>))
+import           System.FilePath ((</>))
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
 import qualified System.Posix.IO as IO
@@ -81,8 +82,6 @@ import qualified System.Posix.Terminal as Terminal
 
 import qualified Test.QuickCheck as QuickCheck
 
-import qualified Util.CallStack as CallStack
-import Util.CallStack (Stack)
 import qualified Util.Maps as Maps
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
@@ -130,14 +129,14 @@ data Config = Config {
     , config_human_agreeable :: !Bool
     } deriving (Show)
 
-check :: Stack => Text -> Bool -> Test
+check :: HasCallStack => Text -> Bool -> Test
 check msg False = failure ("failed: " <> msg)
 check msg True = success msg
 
 -- | Check against a function.  Use like:
 --
 -- > check_val (f x) $ \case -> ...
-check_val :: Show a => Stack => a -> (a -> Bool) -> Test
+check_val :: (Show a, HasCallStack) => a -> (a -> Bool) -> Test
 check_val val f
     | f val = success $ "ok: " <> pshowt val
     | otherwise = failure $ "failed: " <> pshowt val
@@ -168,16 +167,16 @@ data Tag =
 
 -- * equal and diff
 
-equal :: (Stack, Show a, Eq a) => a -> a -> Test
+equal :: (HasCallStack, Show a, Eq a) => a -> a -> Test
 equal a b = equal_ a b >> return ()
 
-equal_ :: (Stack, Show a, Eq a) => a -> a -> IO Bool
+equal_ :: (HasCallStack, Show a, Eq a) => a -> a -> IO Bool
 equal_ a b
     | a == b = success (cmp True) >> return True
     | otherwise = failure (cmp False) >> return False
     where cmp = pretty_compare "==" "/=" True a b
 
-equal_fmt :: (Stack, Eq a, Show a) => (a -> Text) -> a -> a -> Test
+equal_fmt :: (HasCallStack, Eq a, Show a) => (a -> Text) -> a -> a -> Test
 equal_fmt fmt a b = do
     ok <- equal_ a b
     let (pa, pb) = (fmt a, fmt b)
@@ -194,18 +193,19 @@ equal_fmt fmt a b = do
 -- | Assert these things are equal after applying a function.  Print without
 -- the function if they're not equal.  This is for cases when the extract
 -- function loses information it would be nice to see if the test fails.
-equal_on :: (Stack, Eq b, Show a, Show b) => (a -> b) -> a -> b -> Test
+equal_on :: (HasCallStack, Eq b, Show a, Show b) => (a -> b) -> a -> b -> Test
 equal_on f a b = do
     ok <- equal_ (f a) b
     unless ok $ Text.IO.putStrLn (pshowt a)
 
-not_equal :: (Stack, Show a, Eq a) => a -> a -> Test
+not_equal :: (HasCallStack, Show a, Eq a) => a -> a -> Test
 not_equal a b
     | a == b = failure $ cmp True
     | otherwise = success $ cmp False
     where cmp = pretty_compare "==" "/=" False a b
 
-right_equal :: (Stack, Show err, Show a, Eq a) => Either err a -> a -> Test
+right_equal :: (HasCallStack, Show err, Show a, Eq a) => Either err a -> a
+    -> Test
 right_equal (Right a) b = equal a b
 right_equal (Left err) _ = failure $ "Left: " <> pshowt err
 
@@ -308,7 +308,8 @@ data Numbered a = Numbered {
 
 -- * approximately equal
 
-equalf :: (Stack, Show a, ApproxEq.ApproxEq a) => Double -> a -> a -> Test
+equalf :: (HasCallStack, Show a, ApproxEq.ApproxEq a) => Double -> a -> a
+    -> Test
 equalf eta a b
     | ApproxEq.eq eta a b = success $ pretty True
     | otherwise = failure $ pretty False
@@ -322,7 +323,8 @@ instance TextLike Text where to_text = id
 
 -- | Strings in the first list match patterns in the second list, using
 -- 'pattern_matches'.
-strings_like :: forall txt. (Stack, TextLike txt) => [txt] -> [Pattern] -> Test
+strings_like :: forall txt. (HasCallStack, TextLike txt) => [txt] -> [Pattern]
+    -> Test
 strings_like gotten_ expected
     | all is_both diffs = success $ fmt_lines "=~" gotten expected
     | otherwise = failure $ fmt_lines "/~"
@@ -351,7 +353,8 @@ fmt_lines operator xs ys = ("\n"<>) $ Text.stripEnd $
 
 -- | It's common for Left to be an error msg, or be something that can be
 -- converted to one.
-left_like :: (Stack, Show a, TextLike txt) => Either txt a -> Pattern -> Test
+left_like :: (HasCallStack, Show a, TextLike txt) => Either txt a -> Pattern
+    -> Test
 left_like gotten expected = case gotten of
     Left msg
         | pattern_matches expected msg -> success $
@@ -361,7 +364,7 @@ left_like gotten expected = case gotten of
     Right a ->
         failure $ "Right (" <> showt a <> ") !~ Left " <> to_text expected
 
-match :: (Stack, TextLike txt) => txt -> Pattern -> Test
+match :: (HasCallStack, TextLike txt) => txt -> Pattern -> Test
 match gotten pattern =
     (if matches then success else failure) $
         fmt_lines (if matches then "=~" else "!~")
@@ -379,7 +382,7 @@ pattern_matches :: TextLike txt => Pattern -> txt -> Bool
 pattern_matches pattern = not . null . Regex.groups (pattern_to_regex pattern)
     . to_text
 
-pattern_to_regex :: Stack => Text -> Regex.Regex
+pattern_to_regex :: HasCallStack => Text -> Regex.Regex
 pattern_to_regex =
     Regex.compileOptionsUnsafe [Regex.DotAll] . mkstar . Regex.escape
         . Text.unpack
@@ -390,7 +393,7 @@ pattern_to_regex =
     mkstar (c : cs) = c : mkstar cs
 
 -- | The given pure value should throw an exception that matches the predicate.
-throws :: (Stack, Show a) => a -> Pattern -> Test
+throws :: (HasCallStack, Show a) => a -> Pattern -> Test
 throws val exc_pattern =
     (Exception.evaluate val >> failure ("didn't throw: " <> showt val))
     `Exception.catch` \(exc :: Exception.SomeException) ->
@@ -399,13 +402,13 @@ throws val exc_pattern =
             else failure $ "exception <" <> showt exc <> "> didn't match "
                 <> exc_pattern
 
-io_equal :: (Stack, Eq a, Show a) => IO a -> a -> Test
+io_equal :: (HasCallStack, Eq a, Show a) => IO a -> a -> Test
 io_equal io_val expected = do
     val <- io_val
     equal val expected
 
 -- | Only a human can check these things.
-io_human :: Stack => String -> IO a -> IO a
+io_human :: HasCallStack => String -> IO a -> IO a
 io_human expected_msg op = do
     putStrLn $ "should see: " ++ expected_msg
     human_get_char
@@ -426,8 +429,8 @@ pause msg = do
     human_get_char
     putStr "\n"
 
-expect_right :: (Stack, Show a) => Either a b -> b
-expect_right (Left v) = CallStack.errorStack (showt v)
+expect_right :: (HasCallStack, Show a) => Either a b -> b
+expect_right (Left v) = error (show v)
 expect_right (Right v) = v
 
 -- * hedgehog
@@ -458,7 +461,7 @@ format_hedgehog_report report = do
 -- * QuickCheck
 
 -- | Run a quickcheck property.
-quickcheck :: (Stack, QuickCheck.Testable prop) => prop -> Test
+quickcheck :: (HasCallStack, QuickCheck.Testable prop) => prop -> Test
 quickcheck prop = do
     (ok, msg) <- format_quickcheck_result <$>
         QuickCheck.quickCheckWithResult args prop
@@ -485,11 +488,11 @@ q_equal a b = QuickCheck.counterexample
 -- stdout, and it's best these appear in context.
 
 -- | Print a msg with a special tag indicating a passing test.
-success :: Stack => Text -> Test
+success :: HasCallStack => Text -> Test
 success msg = print_test_line Stack.callStack success_color "++-> " msg
 
 -- | Print a msg with a special tag indicating a failing test.
-failure :: Stack => Text -> Test
+failure :: HasCallStack => Text -> Test
 failure msg = print_test_line Stack.callStack failure_color "__-> " msg
 
 print_test_line :: Stack.CallStack -> ColorCode -> Text -> Text -> IO ()

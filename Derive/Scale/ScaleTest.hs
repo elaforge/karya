@@ -25,7 +25,7 @@ key_environ key = Env.insert_val EnvKey.key key mempty
 
 get_scale :: CallStack.Stack => [Scale.Definition] -> Text -> Scale.Scale
 get_scale scales scale_id =
-    fromMaybe (errorStack $ "no scale: " <> showt scale_id) $
+    fromMaybe (error $ "no scale: " <> show scale_id) $
         List.find ((== Pitch.ScaleId scale_id) . Scale.scale_id)
             [scale | Scale.Simple scale <- scales]
 

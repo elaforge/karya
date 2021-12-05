@@ -296,8 +296,8 @@ derive ui_state deriver = Derive.extract_result $
 run_cmd :: CallStack.Stack => Ui.State -> Cmd.State -> Cmd.CmdId a -> a
 run_cmd ui_state cmd_state cmd = case result of
     Right (Just result, _, _) -> result
-    Right (Nothing, _, _) -> errorStack "DeriveTest.run_cmd: Cmd aborted"
-    Left err -> errorStack $ "DeriveTest.run_cmd: Cmd error: " <> showt err
+    Right (Nothing, _, _) -> error "DeriveTest.run_cmd: Cmd aborted"
+    Left err -> error $ "DeriveTest.run_cmd: Cmd error: " <> show err
     where
     (_cstate, _midi_msgs, _logs, result) = Cmd.run_id ui_state cmd_state cmd
 
@@ -699,14 +699,14 @@ e_dyn_rounded = Seq.drop_dups id . map (second (Num.roundDigits 2))
 -- segments so I don't have to update a million tests.
 e_nns_old :: CallStack.Stack => Score.Event -> [(RealTime, Pitch.NoteNumber)]
 e_nns_old e
-    | not (null errs) = errorStack $ "errors flattening signal: " <> showt errs
+    | not (null errs) = error $ "errors flattening signal: " <> show errs
     | otherwise = Seq.drop_dups snd $ Seq.drop_initial_dups fst sig
     where (sig, errs) = e_nns_errors e
 
 -- | Like 'e_nns_errors', but throw an exception if there are errors.
 e_nns :: CallStack.Stack => Score.Event -> [(RealTime, Pitch.NoteNumber)]
 e_nns e
-    | not (null errs) = errorStack $ "errors flattening signal: " <> showt errs
+    | not (null errs) = error $ "errors flattening signal: " <> show errs
     | otherwise = Seq.drop_dups id sig
     where (sig, errs) = e_nns_errors e
 
@@ -924,7 +924,7 @@ mkpitch12 = mkpitch Twelve.scale
 
 mkpitch :: CallStack.Stack => Scale.Scale -> Text -> PSignal.Pitch
 mkpitch scale p = case eval Ui.empty deriver of
-    Left err -> errorStack $ "mkpitch " <> showt p <> ": " <> err
+    Left err -> error $ "mkpitch " <> show p <> ": " <> untxt err
     Right pitch -> pitch
     where
     deriver = Derive.with_scale scale $
