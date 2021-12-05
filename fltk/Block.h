@@ -67,6 +67,7 @@ struct BlockConfig {
     BlockBox skel_box;
     BlockBox track_box;
     BlockBox sb_box;
+    unsigned char skeleton_editable;
 };
 
 // Track config local to each Block.
@@ -97,7 +98,6 @@ private:
 public:
     void set_config(const BlockConfig &config, bool update_all=false);
     void set_skeleton(const SkeletonConfig &skel);
-    void set_skeleton_display_bg(const Color &color);
 
     // Set the zoom, which is the view rectangle in the timewise direction.
     const Zoom &get_zoom() const { return zoom; }
@@ -123,6 +123,7 @@ public:
     void remove_track(int tracknum);
     void set_display_track(int tracknum, const DisplayTrack &dtrack);
 
+    void highlight_focused(bool focused);
 private:
     void insert_track_view(int tracknum, Track *track, int width);
     Track *replace_ruler_track(Track *track, int width);

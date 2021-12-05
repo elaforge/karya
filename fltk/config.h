@@ -33,6 +33,7 @@ extern const Color waveform_color;
 
 extern const Color skeleton_display_bg;
 extern const Color focus_skeleton_display_bg;
+extern const Color focus_editable_skeleton_display_bg;
 extern const Color block_bg;
 
 // Pass the addresses of callbacks to this before they are replaced.  This

@@ -62,10 +62,11 @@ module Ui.Ui (
     , get_block_title, set_block_title
     , modify_block_meta
     , set_integrated_block, modify_integrated_tracks, set_integrated_manual
-    , set_block_config
     , set_edit_box, set_play_box
     , block_ruler_end, block_event_end, block_end, block_logical_range
     -- ** skeleton
+    , set_skeleton_config
+    , has_explicit_skeleton
     , get_skeleton, set_skeleton, modify_skeleton
     , toggle_skeleton_edge, add_edges, remove_edges
     , splice_skeleton_above, splice_skeleton_below
@@ -138,14 +139,17 @@ import qualified GHC.Stack
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Lens as Lens
+import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
 import qualified App.Config as Config
+import qualified Derive.ParseSkeleton as ParseSkeleton
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stack as Stack
+
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
@@ -331,7 +335,7 @@ instance M m => M (Except.ExceptT exc m) where
     throw_error = lift . throw_error
 
 throw :: (CallStack.Stack, M m) => Text -> m a
-throw msg = throw_error $ Error CallStack.callStack msg
+throw msg = throw_error $ Error GHC.Stack.callStack msg
 
 gets :: M m => (State -> a) -> m a
 gets f = fmap f get
@@ -631,19 +635,21 @@ all_block_track_ids =
 --
 -- Throw if the BlockId already exists.
 create_config_block :: M m => Id.Id -> Block.Block -> m BlockId
-create_config_block id block =
-    insert (Id.BlockId id) block damage_block state_blocks $ \blocks st -> st
-        { state_blocks = blocks
-        , state_config = let c = state_config st
-            in c { UiConfig.config_root = if Map.size blocks == 1
-                then Just (Id.BlockId id) else UiConfig.config_root c }
-        }
+create_config_block id block = do
+    bid <- insert (Id.BlockId id) block damage_block state_blocks $
+        \blocks st -> st
+            { state_blocks = blocks
+            , state_config = let c = state_config st
+                in c { UiConfig.config_root = if Map.size blocks == 1
+                    then Just (Id.BlockId id) else UiConfig.config_root c }
+            }
+    update_skeleton bid
+    return bid
 
 -- | Make a new block with the default 'Block.Config'.
 create_block :: M m => Id.Id -> Text -> [Block.Track] -> m BlockId
 create_block block_id title tracks =
-    create_config_block block_id
-        (Block.block Block.default_config title tracks)
+    create_config_block block_id (Block.block Block.default_config title tracks)
 
 -- | Destroy the block and all the views that display it.  If the block was
 -- the root, it will be be unset.  The block's tracks are left intact.
@@ -723,24 +729,21 @@ set_integrated_manual block_id key dests =
         }
     -- TODO require_valid?
 
-set_block_config :: M m => BlockId -> Block.Config -> m ()
-set_block_config block_id config =
-    modify_block block_id (\block -> block { Block.block_config = config })
+modify_block_config :: M m => BlockId -> (Block.Config -> Block.Config) -> m ()
+modify_block_config block_id modify = modify_block block_id $
+    \block -> block { Block.block_config = modify (Block.block_config block) }
 
 set_edit_box :: M m => BlockId -> Block.Box -> Block.Box -> m ()
-set_edit_box block_id skel track = do
-    block <- get_block block_id
-    set_block_config block_id $ (Block.block_config block)
+set_edit_box block_id skel track = modify_block_config block_id $
+    \config -> config
         { Block.config_skel_box = skel
         , Block.config_track_box = track
         }
 
 -- | The play box doesn't use a char, so I leave that out.
 set_play_box :: M m => BlockId -> Color.Color -> m ()
-set_play_box block_id color = do
-    block <- get_block block_id
-    set_block_config block_id $ (Block.block_config block)
-        { Block.config_sb_box = Block.Box color ' ' }
+set_play_box block_id color = modify_block_config block_id $ \config -> config
+    { Block.config_sb_box = Block.Box color ' ' }
 
 -- | Get the end of the block according to the ruler.  This means that if the
 -- block has no rulers (e.g. a clipboard block) then block_ruler_end will be 0.
@@ -778,6 +781,16 @@ block_logical_range block_id = do
 
 -- ** skeleton
 
+set_skeleton_config :: M m => BlockId -> Block.Skeleton -> m ()
+set_skeleton_config block_id skel =
+    modify_block_config block_id $ \config -> config
+        { Block.config_skeleton = skel }
+
+has_explicit_skeleton :: M m => BlockId -> m Bool
+has_explicit_skeleton =
+    fmap ((==Block.Explicit) . Block.config_skeleton . Block.block_config)
+        . get_block
+
 get_skeleton :: M m => BlockId -> m Skeleton.Skeleton
 get_skeleton block_id = Block.block_skeleton <$> get_block block_id
 
@@ -786,15 +799,22 @@ set_skeleton block_id skel = modify_skeleton block_id (const skel)
 
 modify_skeleton :: M m => BlockId
     -> (Skeleton.Skeleton -> Skeleton.Skeleton) -> m ()
-modify_skeleton block_id f = do
+modify_skeleton block_id modify = do
     block <- get_block block_id
-    let skel = f (Block.block_skeleton block)
-        tracks = length $ Block.block_tracks block
+    let config = Block.config_skeleton (Block.block_config block)
+    unless (config == Block.Explicit) $
+        throw $ "can't modify skeleton of " <> pretty block_id
+            <> ", it's not explicit: " <> showt config
+    _set_skeleton block_id block $ modify (Block.block_skeleton block)
+
+_set_skeleton :: M m => BlockId -> Block.Block -> Skeleton.Skeleton -> m ()
+_set_skeleton block_id block skel = do
     forM_ (Skeleton.flatten skel) $ \(parent, child) ->
-        unless (1<=parent && parent < tracks && 1 <= child && child < tracks) $
+        unless (Num.inRange 1 tracks parent && Num.inRange 1 tracks child) $
             throw $ "modify_skeleton: edge " <> showt (parent, child)
                 <> " out of range for " <> showt block_id
     modify_block block_id $ \block -> block { Block.block_skeleton = skel }
+    where tracks = length $ Block.block_tracks block
 
 -- | Toggle the given edge in the block's skeleton.  If a cycle would be
 -- created, refuse to add the edge and return False.  The edge is in (parent,
@@ -812,7 +832,7 @@ toggle_skeleton_edge allow_multiple_parents block_id edge@(_, child) = do
     case Skeleton.toggle_edge edge skel of
         Nothing -> return False
         Just new_skel -> do
-            set_block block_id $ block { Block.block_skeleton = new_skel }
+            set_skeleton block_id new_skel
             return True
     where
     drop_parents skel
@@ -892,10 +912,13 @@ insert_track block_id tracknum track = do
     let tracks = Seq.insert_at tracknum track (Block.block_tracks block)
         -- Make sure the views are up to date.
         views' = Map.map (insert_into_view block tracknum) views
+    skel <- case Block.config_skeleton (Block.block_config block) of
+        Block.Explicit -> return $
+            Skeleton.insert tracknum (Block.block_skeleton block)
+        Block.Implicit -> infer_skeleton tracks
     set_block block_id $ block
         { Block.block_tracks = tracks
-        , Block.block_skeleton =
-            Skeleton.insert tracknum (Block.block_skeleton block)
+        , Block.block_skeleton = skel
         }
     unsafe_modify $ \st ->
         st { state_views = Map.union views' (state_views st) }
@@ -932,17 +955,32 @@ move_track block_id from to = do
     block <- get_block block_id
     let msg = "move_track: from " <> showt from <> " to " <> showt to
             <> " out of range"
-    modify_block block_id . const
-        =<< require msg (move_block_track from to block)
+    tracks <- require msg $ do
+        -- Things get generally messed up if you try to move an event track to
+        -- the ruler spot.
+        guard (from /= 0 && to /= 0)
+        Seq.move from to (Block.block_tracks block)
+    skel <- case Block.config_skeleton (Block.block_config block) of
+        Block.Explicit -> return $
+            Skeleton.move from to (Block.block_skeleton block)
+        Block.Implicit -> infer_skeleton tracks
+    modify_block block_id $ const $ block
+        { Block.block_tracks = tracks, Block.block_skeleton = skel }
 
-move_block_track :: TrackNum -> TrackNum -> Block.Block -> Maybe Block.Block
-move_block_track from to block = do
-    -- Things get generally messed up if you try to move an event track to the
-    -- ruler spot.
-    guard (from /= 0 && to /= 0)
-    tracks <- Seq.move from to (Block.block_tracks block)
-    let skel = Skeleton.move from to (Block.block_skeleton block)
-    return $ block { Block.block_tracks = tracks, Block.block_skeleton = skel }
+infer_skeleton :: M m => [Block.Track] -> m Skeleton.Skeleton
+infer_skeleton tracks = do
+    titles <- traverse (traverse get_track_title) $
+        Seq.map_maybe_snd Block.track_id (zip [0..] tracks)
+    return $ ParseSkeleton.default_parser $
+        map (uncurry ParseSkeleton.Track) titles
+
+update_skeleton :: M m => BlockId -> m ()
+update_skeleton block_id = do
+    block <- get_block block_id
+    case Block.config_skeleton (Block.block_config block) of
+        Block.Implicit -> _set_skeleton block_id block
+            =<< infer_skeleton (Block.block_tracks block)
+        _ -> return ()
 
 -- *** tracks by TrackNum
 
@@ -1278,8 +1316,11 @@ set_track_title :: M m => TrackId -> Text -> m ()
 set_track_title track_id text = modify_track_title track_id (const text)
 
 modify_track_title :: M m => TrackId -> (Text -> Text) -> m ()
-modify_track_title track_id modify = modify_track track_id $ \track ->
-    track { Track.track_title = modify (Track.track_title track) }
+modify_track_title track_id modify = do
+    modify_track track_id $ \track ->
+        track { Track.track_title = modify (Track.track_title track) }
+    block_ids <- map fst <$> blocks_with_track_id track_id
+    mapM_ update_skeleton block_ids
 
 set_track_bg :: M m => TrackId -> Color.Color -> m ()
 set_track_bg track_id color = modify_track track_id $ \track ->

@@ -5,6 +5,7 @@
 module Ui.Block (
     -- * Block
     Block(..)
+    , Skeleton(..)
     , Meta, TrackDestinations(..), ScoreDestinations, NoteDestination(..)
     , dest_track_ids, note_dest_track_ids, empty_destination
     , Source(..), destination_to_source
@@ -48,10 +49,13 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
+import qualified GHC.Generics as Generics
+
 import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
+import qualified App.Config as Config
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Ruler as Ruler
@@ -61,9 +65,8 @@ import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 import qualified Ui.Zoom as Zoom
 
-import qualified App.Config as Config
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- * block
@@ -86,23 +89,16 @@ data Block = Block {
     , block_integrated_tracks :: ![(TrackId, TrackDestinations)]
     , block_integrated_manual :: !ManualDestinations
     , block_meta :: !Meta
-    } deriving (Eq, Read, Show)
+    } deriving (Eq, Show, Generics.Generic)
 
-instance Pretty Block where
-    format (Block title _config tracks skel integrated integrated_tracks
-            integrated_manual meta) =
-        Pretty.record "Block"
-            [ ("title", Pretty.format title)
-            , ("tracks", Pretty.format tracks)
-            , ("skel", Pretty.format skel)
-            , ("integrated", Pretty.format integrated)
-            , ("integrated_tracks", Pretty.format integrated_tracks)
-            , ("integrated_manual", Pretty.format integrated_manual)
-            , ("meta", Pretty.format meta)
-            ]
+instance Pretty Block where format = Pretty.formatG_
 
 instance DeepSeq.NFData Block where
     rnf = DeepSeq.rnf . block_title
+
+data Skeleton = Explicit | Implicit
+    deriving (Eq, Show)
+instance Pretty Skeleton where pretty = showt
 
 {- | Block metadata is extra data that doesn't affect normal derivation, but
     may be of interest to cmds.
@@ -167,8 +163,9 @@ data TrackDestinations =
     deriving (Eq, Show, Read)
 
 dest_track_ids :: TrackDestinations -> [TrackId]
-dest_track_ids (DeriveDestinations dests) = concatMap note_dest_track_ids dests
-dest_track_ids (ScoreDestinations dests) = map (fst . snd) dests
+dest_track_ids = \case
+    DeriveDestinations dests -> concatMap note_dest_track_ids dests
+    ScoreDestinations dests -> map (fst . snd) dests
 
 {- | Score derivation creates destination tracks 1:1 with their source tracks,
     so I can key them with their source TrackIds.
@@ -293,21 +290,18 @@ data Config = Config {
     config_skel_box :: !Box
     , config_track_box :: !Box
     , config_sb_box :: !Box
-    } deriving (Eq, Show, Read)
+    , config_skeleton :: !Skeleton
+    } deriving (Eq, Show, Generics.Generic)
 
 default_config :: Config
 default_config = Config
     { config_skel_box = box Config.bconfig_box
     , config_track_box = box Config.bconfig_box
     , config_sb_box = box Config.bconfig_box
+    , config_skeleton = Implicit
     } where box = uncurry Box
 
-instance Pretty Config where
-    format (Config skel track sb) = Pretty.record "Config"
-        [ ("skel", Pretty.format skel)
-        , ("track", Pretty.format track)
-        , ("sb", Pretty.format sb)
-        ]
+instance Pretty Config where format = Pretty.formatG_
 
 -- | One of those colored boxes wedged into the corners of the block window.
 data Box = Box { box_color :: !Color.Color, box_char :: !Char }

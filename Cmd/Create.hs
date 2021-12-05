@@ -155,7 +155,8 @@ named_block_from_template copy_events template_id name = do
         Ui.set_merged_tracks block_id tracknum $
             Set.fromList $ mapMaybe (`Map.lookup` old_to_new) $ Set.toList $
             Block.track_merged btrack
-    Ui.set_skeleton block_id =<< Ui.get_skeleton template_id
+    whenM (Ui.has_explicit_skeleton block_id) $
+        Ui.set_skeleton block_id =<< Ui.get_skeleton template_id
     return block_id
 
     where
@@ -292,9 +293,10 @@ splice_below = do
     block <- Ui.get_block block_id
     let tracknum = track_after block sel_tracknum
     track_id <- focused_track tracknum
-    -- If you create from track 0, it'll be (1, 1) here.
-    when (tracknum /= sel_tracknum) $
-        Ui.splice_skeleton_below block_id tracknum sel_tracknum
+    whenM (Ui.has_explicit_skeleton block_id) $
+        -- If you create from track 0, it'll be (1, 1) here.
+        when (tracknum /= sel_tracknum) $
+            Ui.splice_skeleton_below block_id tracknum sel_tracknum
     return track_id
 
 splice_above :: Cmd.M m => m TrackId
@@ -303,7 +305,8 @@ splice_above = do
     -- it inserts to the left.
     (block_id, tracknum, _, _) <- Selection.get_insert
     track_id <- focused_track tracknum
-    Ui.splice_skeleton_above block_id tracknum (tracknum+1)
+    whenM (Ui.has_explicit_skeleton block_id) $
+        Ui.splice_skeleton_above block_id tracknum (tracknum+1)
     return track_id
 
 {-
@@ -344,7 +347,8 @@ splice_above_ancestors = do
     let ancestors = Seq.unique $ mapMaybe (ancestor tree) tracknums
     insert_at <- Cmd.require "no selected tracks" $ Seq.minimum ancestors
     track_id <- focused_track insert_at
-    Ui.add_edges block_id (map ((,) insert_at . (+1)) ancestors)
+    whenM (Ui.has_explicit_skeleton block_id) $
+        Ui.add_edges block_id (map ((,) insert_at . (+1)) ancestors)
     return track_id
     where
     ancestor tree tracknum = case List.find find (Trees.flatPaths tree) of
@@ -369,17 +373,18 @@ insert_branch_from block_id source = do
     let right = maximum (Ui.track_tracknum <$> track) + 1
     merged <- Ui.track_merged block_id source
     append_below merged right track
-    whenJust (Seq.head parents) $ \(Tree.Node parent _) ->
-        Ui.add_edges block_id [(Ui.track_tracknum parent, right)]
+    whenM (Ui.has_explicit_skeleton block_id) $
+        whenJust (Seq.head parents) $ \(Tree.Node parent _) ->
+            Ui.add_edges block_id [(Ui.track_tracknum parent, right)]
     where
     -- Starting at tracknum, insert track and its children.
     append_below merged tracknum track_node = do
         forM_ tracks $ \(n, title) -> track block_id n title mempty
-        Ui.add_edges block_id skel
+        whenM (Ui.has_explicit_skeleton block_id) $
+            Ui.add_edges block_id skel
         -- Technically it's not necessarily merged with its neighbor, but
         -- that's how the usual cmds work, so I'll assume it's true.
-        when merged $
-            Ui.merge_track block_id tracknum (tracknum+1)
+        when merged $ Ui.merge_track block_id tracknum (tracknum+1)
         where (tracks, skel) = make_tracks tracknum [track_node]
 
 make_tracks :: TrackNum -> TrackTree.TrackTree

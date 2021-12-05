@@ -239,8 +239,10 @@ instance Serialize UiConfig.Default where
 instance Serialize Block.Block where
     -- Config is not serialized because everything in the block config is
     -- either derived from the Cmd.State or is hardcoded.
-    put (Block.Block a _config b c d e f g) = Serialize.put_version 13
+    -- Except Block.config_skeleton breaks this rule :/
+    put (Block.Block a config b c d e f g) = Serialize.put_version 14
         >> put a >> put b >> put c >> put d >> put e >> put f >> put g
+        >> put (Block.config_skeleton config)
     get = Serialize.get_version >>= \case
         11 -> do
             title :: Text <- get
@@ -249,8 +251,8 @@ instance Serialize Block.Block where
             iblock :: Maybe (BlockId, Block.TrackDestinations) <- get
             itracks :: [(TrackId, Block.TrackDestinations)] <- get
             meta :: Map Text Text <- get
-            return $ Block.Block title Block.default_config tracks skel
-                iblock itracks mempty meta
+            return $ Block.Block title config tracks skel iblock itracks mempty
+                meta
         12 -> do
             title :: Text <- get
             tracks :: [Block.Track] <- get
@@ -259,8 +261,8 @@ instance Serialize Block.Block where
             itracks :: [(TrackId, Block.TrackDestinations)] <- get
             manual :: Map Block.SourceKey [OldNoteDestination] <- get
             meta :: Map Text Text <- get
-            return $ Block.Block title Block.default_config tracks skel
-                iblock itracks (map upgrade_note_destination <$> manual) meta
+            return $ Block.Block title config tracks skel iblock itracks
+                (map upgrade_note_destination <$> manual) meta
         13 -> do
             title :: Text <- get
             tracks :: [Block.Track] <- get
@@ -269,9 +271,32 @@ instance Serialize Block.Block where
             itracks :: [(TrackId, Block.TrackDestinations)] <- get
             dtracks :: Block.ManualDestinations <- get
             meta :: Map Text Text <- get
-            return $ Block.Block title Block.default_config tracks skel
-                iblock itracks dtracks meta
+            return $ Block.Block title config tracks skel iblock itracks
+                dtracks meta
+        14 -> do
+            title :: Text <- get
+            tracks :: [Block.Track] <- get
+            skel :: Skeleton.Skeleton <- get
+            iblock :: Maybe (BlockId, Block.TrackDestinations) <- get
+            itracks :: [(TrackId, Block.TrackDestinations)] <- get
+            dtracks :: Block.ManualDestinations <- get
+            meta :: Map Text Text <- get
+            skel_config :: Block.Skeleton <- get
+            return $ Block.Block title
+                (config { Block.config_skeleton = skel_config })
+                tracks skel iblock itracks dtracks meta
         v -> Serialize.bad_version "Block.Block" v
+        where
+        config = Block.default_config { Block.config_skeleton = Block.Explicit }
+
+instance Serialize Block.Skeleton where
+    put = \case
+        Block.Explicit -> put_tag 0
+        Block.Implicit -> put_tag 1
+    get = get_tag >>= \case
+        0 -> pure Block.Explicit
+        1 -> pure Block.Implicit
+        tag -> bad_tag "Block.Skeleton" tag
 
 instance Serialize Block.TrackDestinations where
     put (Block.DeriveDestinations a) = put_tag 2 >> put a

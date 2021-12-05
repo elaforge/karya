@@ -52,8 +52,9 @@ import qualified Perform.Lilypond.Constants as Lilypond.Constants
 import qualified Instrument.Inst as Inst
 import qualified Instrument.InstT as InstT
 import qualified App.Config as Config
-import Global
-import Types
+
+import           Global
+import           Types
 
 
 -- Test functions do things I don't want to include in non-testing code, such
@@ -306,12 +307,19 @@ mkblock_ruler ruler_id block_id title tracks = do
 
 create_block :: Ui.M m => Id.Id -> Text -> [Block.TracklikeId] -> m BlockId
 create_block block_id title tracks =
-    Ui.create_block block_id title [Block.track tid 30 | tid <- tracks]
+    Ui.create_config_block block_id $ Block.block config title
+        [Block.track tid 30 | tid <- tracks]
+    where
+    -- TODO use Implicit and remove the parse_skeleton stuff.
+    config = Block.default_config { Block.config_skeleton = Block.Explicit }
 
 parse_skeleton :: Ui.M m => BlockId -> m Skeleton.Skeleton
 parse_skeleton block_id = do
     tracks <- TrackTree.tracks_of block_id
-    return $ ParseSkeleton.default_parser tracks
+    return $ ParseSkeleton.default_parser
+        [ ParseSkeleton.Track (Ui.track_tracknum t) (Ui.track_title t)
+        | t <- tracks
+        ]
 
 mkview :: Ui.M m => BlockId -> m ViewId
 mkview block_id = do

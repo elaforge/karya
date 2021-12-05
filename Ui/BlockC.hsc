@@ -229,9 +229,9 @@ foreign import ccall "bring_to_front" c_bring_to_front :: Ptr CView -> IO ()
 set_config :: ViewId -> Block.Config -> Fltk ()
 set_config view_id config = fltk "set_config" view_id $ do
     viewp <- PtrMap.get view_id
-    with config $ \configp -> c_set_model_config viewp configp
+    with config $ \configp -> c_set_config viewp configp
 foreign import ccall "set_config"
-    c_set_model_config :: Ptr CView -> Ptr Block.Config -> IO ()
+    c_set_config :: Ptr CView -> Ptr Block.Config -> IO ()
 
 set_skeleton :: ViewId -> Skeleton.Skeleton
     -> [(Color.Color, [(TrackNum, TrackNum)])] -> Fltk ()
@@ -481,10 +481,13 @@ instance CStorable TracklikePtr where
 instance CStorable Block.Config where
     sizeOf _ = #size BlockConfig
     alignment _ = alignment Color.black
-    poke configp (Block.Config skel_box track_box sb_box) = do
+    poke configp (Block.Config skel_box track_box sb_box skel_config) = do
         (#poke BlockConfig, skel_box) configp skel_box
         (#poke BlockConfig, track_box) configp track_box
         (#poke BlockConfig, sb_box) configp sb_box
+        (#poke BlockConfig, skeleton_editable) configp $ case skel_config of
+            Block.Explicit -> 1 :: CChar
+            Block.Implicit -> 0
 
 instance CStorable Block.Box where
     sizeOf _ = #size BlockBox

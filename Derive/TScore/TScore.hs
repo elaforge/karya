@@ -50,7 +50,6 @@ import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.GenId as GenId
 import qualified Ui.Id as Id
-import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Transform as Transform
@@ -644,19 +643,19 @@ ui_block block = do
             [ Block.track (Block.TId tid ruler_id) Config.track_width
             | tid <- track_ids
             ]
-    block_id <- Ui.create_block (Id.unpack_id (_block_id block))
+    -- No longer necessary with Block.Implicit.
+    -- Ui.set_skeleton block_id $ ui_skeleton tracks
+    Ui.create_block (Id.unpack_id (_block_id block))
         (_block_title block)
         (Block.track (Block.RId ruler_id) Config.ruler_width : btracks)
-    Ui.set_skeleton block_id $ ui_skeleton tracks
-    return block_id
 
-ui_skeleton :: [NTrack] -> Skeleton.Skeleton
-ui_skeleton = Skeleton.make . concat . snd . List.mapAccumL make 1
-    where
-    make tracknum track = (tracknum+len, zip ns (drop 1 ns))
-        where
-        len = length (_controls track) + 1
-        ns = [tracknum .. tracknum+len - 1]
+-- ui_skeleton :: [NTrack] -> Skeleton.Skeleton
+-- ui_skeleton = Skeleton.make . concat . snd . List.mapAccumL make 1
+--     where
+--     make tracknum track = (tracknum+len, zip ns (drop 1 ns))
+--         where
+--         len = length (_controls track) + 1
+--         ns = [tracknum .. tracknum+len - 1]
 
 ui_ruler :: Ui.M m => Block NTrack -> m RulerId
 ui_ruler block = Ruler.Modify.replace (_block_id block) $

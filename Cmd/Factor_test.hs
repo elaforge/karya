@@ -15,6 +15,7 @@ import           Global
 import           Util.Test
 
 
+test_selection_alts :: Test
 test_selection_alts = do
     let run relative = CmdTest.run_tracks tracks $ do
             CmdTest.set_sel 1 1 1 3
@@ -36,6 +37,7 @@ test_selection_alts = do
     equal (get_block result)
         (Just (">", [(0, 1, ""), (1, 2, "alt sub1 sub2 sub3"), (3, 1, "")]))
 
+test_selection :: Test
 test_selection = do
     let run tracks subs start end = UiTest.extract_blocks $
             CmdTest.result_ui_state $ CmdTest.run_ui Ui.empty $ do

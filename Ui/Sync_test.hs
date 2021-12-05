@@ -130,13 +130,9 @@ test_set_block_config = do
         setup_state
         set_selection t_view_id (selection 1 10 2 60)
     io_human "boxes go red" $ run state $ do
-        block <- Ui.get_block t_block_id
-        let config = Block.block_config block
-        Ui.set_block_config t_block_id $ config
-            { Block.config_skel_box = Block.Box Color.red ' '
-            , Block.config_track_box = Block.Box Color.red ' '
-            , Block.config_sb_box = Block.Box Color.red ' '
-            }
+        let box = Block.Box Color.red ' '
+        Ui.set_edit_box t_block_id box box
+        Ui.set_play_box t_block_id Color.red
 
 test_set_skeleton = do
     let (_, state) = UiTest.run_mkview [("t1", []), ("t2", []), ("t3", [])]

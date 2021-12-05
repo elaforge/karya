@@ -7,7 +7,8 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import qualified Util.Ranges as Ranges
-import Util.Test
+import qualified App.Config as Config
+import qualified Derive.Derive as Derive
 import qualified Ui.Block as Block
 import qualified Ui.Diff as Diff
 import qualified Ui.Skeleton as Skeleton
@@ -17,12 +18,12 @@ import qualified Ui.UiConfig as UiConfig
 import qualified Ui.UiTest as UiTest
 import qualified Ui.Update as Update
 
-import qualified Derive.Derive as Derive
-import qualified App.Config as Config
-import Global
-import Types
+import           Global
+import           Types
+import           Util.Test
 
 
+test_display_track :: Test
 test_display_track = do
     let ([tid1, tid2], st1) = UiTest.run_mkblock [(">", []), ("*", [])]
         rid = UiTest.default_ruler_id
@@ -46,6 +47,7 @@ test_display_track = do
         ]
     -- TODO add more tests if I modify Diff
 
+test_merge_updates :: Test
 test_merge_updates = do
     let ([tid1, tid2], st) = UiTest.run Ui.empty $ do
             tids <- UiTest.mkblock [(">", []), ("*", [])]
@@ -60,6 +62,7 @@ test_merge_updates = do
           ]
         )
 
+test_track_flags :: Test
 test_track_flags = do
     let (_, st) = UiTest.run_mkblock [(">", []), ("*", [])]
     -- Make sure adding Solo doesn't cause other damage.
@@ -76,6 +79,7 @@ diff state1 modify = Diff.diff update state1 state2
 
 -- * derive_diff
 
+test_derive_diff :: Test
 test_derive_diff = do
     let ([_, tid2], ustate) = UiTest.run_mkblock
             [ ("tempo", [(0, 0, ".5")])
@@ -108,6 +112,7 @@ test_derive_diff = do
         (mkdamage [] [] [UiTest.bid "new"])
     equal (f (Ui.destroy_block bid)) (mkdamage [] [] [bid])
 
+test_derive_diff_track_flags :: Test
 test_derive_diff_track_flags = do
     let (_, ustate) = UiTest.run_mkblock
             [ ("tempo", [(0, 0, "1")])
@@ -118,6 +123,7 @@ test_derive_diff_track_flags = do
     equal (f (Ui.add_track_flag bid 2 Block.Solo)) (mkdamage [] [] [])
     equal (f (Ui.add_track_flag bid 2 Block.Disable)) (mkdamage [] [] [bid])
 
+test_derive_diff_updates :: Test
 test_derive_diff_updates = do
     let ([_, tid2], ustate) = UiTest.run_mkblock
             [ ("tempo", [(0, 0, ".5")])

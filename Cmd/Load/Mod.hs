@@ -63,14 +63,15 @@ clip_ruler at ruler = Ruler.set_meter config (clip mlist) ruler
 convert :: Id.Namespace -> ModT.Module -> Either Ui.Error Ui.State
 convert ns mod = Ui.exec Ui.empty $ do
     Ui.set_namespace ns
-    bids <- forM blocks $ \(tracks, block_end, skel) -> do
+    bids <- forM blocks $ \(tracks, block_end, _skel) -> do
         bid <- Create.block Ui.no_ruler
         rid <- Ui.create_ruler (Id.unpack_id bid) (make_ruler block_end)
         Create.set_block_ruler rid bid
         forM_ tracks $ \track -> do
             tid <- Create.track_events bid rid 999 40 track
             Ui.set_render_style (Track.Line Nothing) tid
-        Ui.set_skeleton bid skel
+        -- Now skeleton is implicit by default.
+        -- Ui.set_skeleton bid skel
         return bid
     mapM_ Ui.destroy_ruler =<< Create.orphan_rulers
 

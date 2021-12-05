@@ -4,21 +4,15 @@
 
 module Derive.ParseSkeleton_test where
 import qualified Util.Graphs_test as Graphs_test
-import qualified Util.Seq as Seq
-import qualified Ui.Skeleton as Skeleton
-import qualified Ui.Ui as Ui
-import qualified Ui.UiTest as UiTest
-
 import qualified Derive.ParseSkeleton as ParseSkeleton
-import Global
-import Types
+import qualified Ui.Skeleton as Skeleton
+
+import           Util.Test
 
 
--- * parse
-
+test_parse :: Test
 test_parse = do
-    let mktracks titles =
-            [mk_track_info name n | (n, name) <- Seq.enumerate titles]
+    let mktracks = map (uncurry ParseSkeleton.Track) . zip [0..]
     let mkskel = Skeleton.make
     let f = ParseSkeleton.default_parser . mktracks
     let note_bottom = ParseSkeleton.note_bottom_parser . mktracks
@@ -42,12 +36,3 @@ test_parse = do
     where
     skel_equal (Skeleton.Skeleton g1) (Skeleton.Skeleton g2) =
         Graphs_test.graph_equal g1 g2
-
-mk_track_info :: Text -> TrackNum -> Ui.TrackInfo
-mk_track_info title tracknum = Ui.TrackInfo
-    { track_title = title
-    , track_id = tid
-    , track_tracknum = tracknum
-    , track_block = UiTest.btrack tid
-    }
-    where tid = UiTest.tid "fake"

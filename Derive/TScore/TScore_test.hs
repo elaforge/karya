@@ -12,7 +12,6 @@ import qualified Derive.TScore.TScore as TScore
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.GenId as GenId
-import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Style as Style
 import qualified Ui.Track as Track
 import qualified Ui.Ui as Ui
@@ -26,7 +25,6 @@ import           Util.Test
 test_parse_score :: Test
 test_parse_score = do
     let f = parsed_score
-
     right_equal (f "top = \"block title\" [s r g]")
         [ ( "top -- block title"
           , [ (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
@@ -67,6 +65,13 @@ test_parse_score = do
         [ ("top", [(">", [(0, 2, "-t1c1")])])
         , ("top-t1c1", UiTest.note_track1 ["4s"])
         ]
+
+test_skeleton :: Test
+test_skeleton = do
+    let f = fmap (Map.elems . UiTest.extract_skeletons . fst)
+            . TScore.parse_score
+    right_equal (f "top = [s r g]") [[(1, 2)]]
+    right_equal (f "top = [>i1 s r g >i2 m p d]") [[(1, 2), (3, 4)]]
 
 test_copy_from :: Test
 test_copy_from = do
@@ -134,14 +139,14 @@ test_wrapped_tracks = do
 
     left_like (f "top = [ s r > g] [m p > d n]") "expected assert here"
 
-test_ui_skeleton :: Test
-test_ui_skeleton = do
-    let f = Skeleton.flatten . TScore.ui_skeleton
-        nt n = TScore.NTrack t "" (replicate (n-1) t) 0
-            where t = TScore.Track "" mempty
-    equal (f [nt 2]) [(1, 2)]
-    equal (f [nt 2, nt 2]) [(1, 2), (3, 4)]
-    equal (f [nt 2, nt 1, nt 2]) [(1, 2), (4, 5)]
+-- test_ui_skeleton :: Test
+-- test_ui_skeleton = do
+--     let f = Skeleton.flatten . TScore.ui_skeleton
+--         nt n = TScore.NTrack t "" (replicate (n-1) t) 0
+--             where t = TScore.Track "" mempty
+--     equal (f [nt 2]) [(1, 2)]
+--     equal (f [nt 2, nt 2]) [(1, 2), (3, 4)]
+--     equal (f [nt 2, nt 1, nt 2]) [(1, 2), (4, 5)]
 
 test_call_duration :: Test
 test_call_duration = do

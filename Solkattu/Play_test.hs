@@ -17,10 +17,11 @@ import qualified Solkattu.Tala as Tala
 import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 
-import Global
-import Util.Test
+import           Global
+import           Util.Test
 
 
+test_to_state :: Test
 test_to_state = do
     equal (extract <$> to_state (M.k <> M.t <> M.__ <> M.d)) $ Right
         [ (">", [(0, 0, "k"), (0.25, 0, "t"), (0.75, 0, "d")])
@@ -29,7 +30,7 @@ test_to_state = do
         , ("dyn", [(0, 0, "1")])
         ]
 
-
+test_derive_to_disk :: Test
 test_derive_to_disk = do
     let ui_state = expect_right $ to_state (M.k <> M.t)
     prettyp (UiTest.dump_blocks ui_state)

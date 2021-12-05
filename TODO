@@ -64,10 +64,33 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
-  - things that make bisecting not work:
+  * auto skeleton:
+    . Manual skeleton is too much freedom, I almost never really want
+      multiple tempos, or notes with multiple notes.  Can I have an "inferred
+      skeleton" mode?  It would use the same algorithm as UiTest.
+    . ParseSkeleton.default_parser tracks
+      Wow, this dates from when I thought skeleton would always be implicit.
+      The original plan was that blocks would have a parser.
+      I guess they do now, except I'll hardcode the default for now.
+    . Block.block_skeleton :: Explicit Skeleton | Implicit
+    . Should I try to cache the parsed skeleton to avoid reparsing?  Maybe
+      keep Skeleton in block_skeleton, but if Implicit is set then regen
+      when tracks are added or removed.
+    . Where to do the parse?
+    * haskell level support
+    * make Implicit the new default
+    * fltk: Implicit is displayed as the skeleton but with light gray or
+      something to mark non-editable.
+    * title changes have to trigger a reparse
+    * Create should stop trying to modify skeleton if Implicit
+    * Integrate_test
+    * Factor_test
+    * TScore, can it just use Implicit?
+  things that make bisecting not work:
     . that rubberband ref in ShakeConfig
-    . scores are not version controlled
     . fltk not version controlled
+      . Using nix would solve these.
+    . scores are not version controlled
   features for timing/scan.py
     * omit empty columns
     - show differences between rows
@@ -5399,6 +5422,8 @@ fltk:
 
   control track, render signal
     - render option: solid with color gradient
+      . Apparently fltk can do this via nanoSVG:
+        http://seriss.com/people/erco/fltk/#FLTK-Simplex-Clock
     - combine multiple signals, e.g. one controls xpos, one controls color
       I could combine pitch and dyn.  This is appropriate for the note track.
       . I'm pretty sure OS X can do this, as can cairo, so I would need to

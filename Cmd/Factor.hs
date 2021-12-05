@@ -9,15 +9,6 @@ import qualified Data.Text as Text
 
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-import qualified Ui.Block as Block
-import qualified Ui.Event as Event
-import qualified Ui.Events as Events
-import qualified Ui.Id as Id
-import qualified Ui.Sel as Sel
-import qualified Ui.Skeleton as Skeleton
-import qualified Ui.Transform as Transform
-import qualified Ui.Ui as Ui
-
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Edit as Edit
@@ -27,8 +18,17 @@ import qualified Cmd.Ruler.RulerUtil as RulerUtil
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.Eval as Eval
-import Global
-import Types
+import qualified Ui.Block as Block
+import qualified Ui.Event as Event
+import qualified Ui.Events as Events
+import qualified Ui.Id as Id
+import qualified Ui.Sel as Sel
+import qualified Ui.Skeleton as Skeleton
+import qualified Ui.Transform as Transform
+import qualified Ui.Ui as Ui
+
+import           Global
+import           Types
 
 
 -- | Split the block at the time of the current selection, and create a new
@@ -92,7 +92,6 @@ split_track = do
 split_track_at :: Ui.M m => BlockId -> TrackNum -> Id.Id -> m BlockId
 split_track_at from_block_id split_at block_name = do
     to_block_id <- Create.named_block block_name =<< Ui.ruler_of from_block_id
-    skeleton <- Ui.get_skeleton from_block_id
     -- Move tracks.
     tracks <- zip [0..] . Block.block_tracks <$> Ui.get_block from_block_id
     forM_ (dropWhile ((<split_at) . fst) tracks) $ \(tracknum, track) ->
@@ -100,11 +99,13 @@ split_track_at from_block_id split_at block_name = do
     forM_ (takeWhile ((>=split_at) . fst) (reverse tracks)) $
         \(tracknum, _) -> Ui.remove_track from_block_id tracknum
     -- Copy over the skeleton.
-    Ui.set_skeleton to_block_id $ Skeleton.make
-        [ (from-split_at + 1, to-split_at + 1)
-        | (from, to) <- Skeleton.flatten skeleton
-        , from >= split_at && to >= split_at
-        ]
+    whenM (Ui.has_explicit_skeleton to_block_id) $ do
+        skeleton <- Ui.get_skeleton from_block_id
+        Ui.set_skeleton to_block_id $ Skeleton.make
+            [ (from-split_at + 1, to-split_at + 1)
+            | (from, to) <- Skeleton.flatten skeleton
+            , from >= split_at && to >= split_at
+            ]
     return to_block_id
 
 -- | Copy the selection into a new block, and replace it with a call to that
@@ -268,14 +269,15 @@ block_template block_id track_ids range = do
 
 clipped_skeleton :: Ui.M m => BlockId -> BlockId -> [TrackNum] -> m ()
 clipped_skeleton from_block to_block tracknums =
-    case (Seq.minimum tracknums, Seq.maximum tracknums) of
-        (Just low, Just high) -> do
-            edges <- Skeleton.flatten <$> Ui.get_skeleton from_block
-            Ui.set_skeleton to_block $ Skeleton.make
-                [ (from-low + 1, to-low + 1) | (from, to) <- edges
-                , Num.inRange low (high+1) from, Num.inRange low (high+1) to
-                ]
-        _ -> return ()
+    whenM (Ui.has_explicit_skeleton to_block) $
+        case (Seq.minimum tracknums, Seq.maximum tracknums) of
+            (Just low, Just high) -> do
+                edges <- Skeleton.flatten <$> Ui.get_skeleton from_block
+                Ui.set_skeleton to_block $ Skeleton.make
+                    [ (from-low + 1, to-low + 1) | (from, to) <- edges
+                    , Num.inRange low (high+1) from, Num.inRange low (high+1) to
+                    ]
+            _ -> return ()
 
 -- * order block
 

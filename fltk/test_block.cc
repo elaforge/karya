@@ -478,14 +478,14 @@ main(int argc, char **argv)
         ? ScoreTime(0) : t1_events[i].event.start + t1_events[i].event.duration;
 
     EventTrackConfig empty_track(track_bg, t1_no_events, t1_time_end,
-            RenderConfig(RenderConfig::render_line, render_color));
+        RenderConfig(RenderConfig::render_line, render_color));
     EventTrackConfig track1(track_bg, t1_find_events, t1_time_end,
-            RenderConfig(RenderConfig::render_line, render_color));
+        RenderConfig(RenderConfig::render_line, render_color));
     EventTrackConfig track2(track_bg, t1_find_events, t1_time_end,
-            RenderConfig(RenderConfig::render_filled, render_color));
+        RenderConfig(RenderConfig::render_filled, render_color));
 
-    BlockWindow *w =
-        new BlockWindow(1100, 40, 300, 500, "view1", config);
+    config.skeleton_editable = true;
+    BlockWindow *w = new BlockWindow(1100, 40, 300, 500, "view1", config);
     w->show();
     windows.push_back(w);
     BlockWindow &view = *w;

@@ -245,12 +245,14 @@ create_pitch_track :: Cmd.M m => BlockId -> ControlTrack -> m ()
 create_pitch_track block_id (ControlTrack note pitch) = do
     Create.track block_id pitch "*" Events.empty
     -- Link note track underneath newly created pitch track.
-    Ui.splice_skeleton_below block_id pitch note
+    whenM (Ui.has_explicit_skeleton block_id) $
+        Ui.splice_skeleton_below block_id pitch note
 
 create_dyn_track :: Cmd.M m => BlockId -> ControlTrack -> m ()
 create_dyn_track block_id (ControlTrack note dyn) = do
     tid <- Create.empty_track block_id dyn
-    Ui.splice_skeleton_below block_id dyn note
+    whenM (Ui.has_explicit_skeleton block_id) $
+        Ui.splice_skeleton_below block_id dyn note
     Ui.set_track_title tid $
         ParseTitle.control_to_title (ScoreT.untyped Controls.dynamic)
 

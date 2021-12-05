@@ -14,6 +14,7 @@ const Color waveform_color = Color(170, 190, 190);
 
 const Color skeleton_display_bg = Color(0xb0, 0xb0, 0xb0);
 const Color focus_skeleton_display_bg = Color(0xd0, 0xb0, 0xb0);
+const Color focus_editable_skeleton_display_bg = Color(0xb0, 0xd0, 0xb0);
 const Color block_bg = Color(0xcc, 0xcc, 0xcc);
 
 FreeHaskellFunPtr _free_haskell_fun_ptr = 0;

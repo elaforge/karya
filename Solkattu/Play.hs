@@ -12,7 +12,6 @@ module Solkattu.Play (
 ) where
 import qualified Control.Concurrent.Async as Async
 import qualified Control.Concurrent.MVar as MVar
-import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
@@ -53,7 +52,6 @@ import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.GenId as GenId
-import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Track as Track
 import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
@@ -173,21 +171,21 @@ make_state instrument transform track_groups = Ui.exec Ui.empty $ do
         Ui.create_track tid t
     Ui.insert_track bid 0 $ Block.track (Block.RId Ui.no_ruler) 40
     mapM_ (Ui.insert_track bid 999 . block_track) tids
-    Ui.set_skeleton bid $ Skeleton.make $ note_track_edges track_groups
+    -- Ui.set_skeleton bid $ Skeleton.make $ note_track_edges track_groups
     allocate inst_name instrument
     allocate metronome_name (InstT.Qualified "sampler" "metronome")
     where
     block_track tid = Block.track (Block.TId tid Ui.no_ruler) 40
 
--- | TODO this is much like the one in Cmd.Load.Midi, and the one in
--- Cmd.Load.Mod.  I should have a common track creator.
-note_track_edges :: [[a]] -> [Skeleton.Edge]
-note_track_edges = concat . snd . List.mapAccumL edges 1
-    where
-    edges n tracks = (end, zip ns (drop 1 ns))
-        where
-        end = n + length tracks
-        ns = [n .. end-1]
+-- -- | TODO this is much like the one in Cmd.Load.Midi, and the one in
+-- -- Cmd.Load.Mod.  I should have a common track creator.
+-- note_track_edges :: [[a]] -> [Skeleton.Edge]
+-- note_track_edges = concat . snd . List.mapAccumL edges 1
+--     where
+--     edges n tracks = (end, zip ns (drop 1 ns))
+--         where
+--         end = n + length tracks
+--         ns = [n .. end-1]
 
 metronome_name :: ScoreT.Instrument
 metronome_name = "metronome"

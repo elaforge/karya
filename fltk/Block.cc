@@ -285,28 +285,17 @@ Block::set_config(const BlockConfig &config, bool update_all)
     if (update_all || old.sb_box != config.sb_box)
         set_block_box(sb_box, config.sb_box);
     this->config = config;
+    // I don't actually record if it thinks its focused (doesn't always
+    // correspond to actual focus!) so I just look at the color.
+    this->highlight_focused(
+        skel_display.color() != Config::skeleton_display_bg.fl());
 }
 
 
 void
 Block::set_skeleton(const SkeletonConfig &skel)
 {
-    // std::vector<int> widths(track_tile.tracks());
-    // for (int i = 0; i < track_tile.tracks(); i++) {
-    //     widths[i] = track_tile.get_track_width(i);
-    // }
-    // skel_display.set_config(skel, widths);
     skel_display.set_config(skel);
-}
-
-
-void
-Block::set_skeleton_display_bg(const Color &color)
-{
-    if (color.fl() != skel_display.color()) {
-        skel_display.color(color.fl());
-        skel_display.redraw();
-    }
 }
 
 
@@ -861,16 +850,27 @@ BlockWindow::initialize(Config::FreeHaskellFunPtr free_haskell_fun_ptr)
 }
 
 
+void
+Block::highlight_focused(bool focused)
+{
+    Color color = focused
+        ? (config.skeleton_editable
+            ? Config::focus_editable_skeleton_display_bg
+            : Config::focus_skeleton_display_bg)
+        : Config::skeleton_display_bg;
+    if (color.fl() != skel_display.color()) {
+        skel_display.color(color.fl());
+        skel_display.redraw();
+    }
+}
+
 static void
 highlight_focused(BlockWindow *focus)
 {
     for (Fl_Window *w = Fl::first_window(); w; w = Fl::next_window(w)) {
-        BlockWindow *block = dynamic_cast<BlockWindow *>(w);
-        if (block) {
-            block->block.set_skeleton_display_bg(
-                block == focus ? Config::focus_skeleton_display_bg
-                    : Config::skeleton_display_bg
-            );
+        BlockWindow *window = dynamic_cast<BlockWindow *>(w);
+        if (window) {
+            window->block.highlight_focused(window == focus);
         }
     }
 }

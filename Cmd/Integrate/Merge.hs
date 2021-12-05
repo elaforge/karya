@@ -110,12 +110,13 @@ merge_tracks merge_titles block_id tracks dests = do
     return new_dests
 
 add_derive_skeleton :: Ui.M m => BlockId -> [Block.NoteDestination] -> m ()
-add_derive_skeleton block_id dests = do
-    track_ids <- all_block_tracks block_id
-    skel <- Ui.require "integrate somehow created a cyclic skeleton"
-        =<< Skeleton.add_edges (track_edges track_ids dests) <$>
-            Ui.get_skeleton block_id
-    Ui.set_skeleton block_id skel
+add_derive_skeleton block_id dests =
+    whenM (Ui.has_explicit_skeleton block_id) $ do
+        track_ids <- all_block_tracks block_id
+        skel <- Ui.require "integrate somehow created a cyclic skeleton"
+            =<< Skeleton.add_edges (track_edges track_ids dests) <$>
+                Ui.get_skeleton block_id
+        Ui.set_skeleton block_id skel
 
 track_edges :: [Maybe TrackId] -> [Block.NoteDestination]
     -> [(TrackNum, TrackNum)]
@@ -149,14 +150,16 @@ score_merge_tracks block_id source_id dests = do
 score_merge :: Ui.M m => BlockId -> TrackTree.TrackTree
     -> Block.ScoreDestinations -> m Block.ScoreDestinations
 score_merge block_id tree dests = do
-    remove <- destination_edges block_id (map (fst . snd) dests)
-    Ui.modify_skeleton block_id (Skeleton.remove_edges remove)
+    whenM (Ui.has_explicit_skeleton block_id) $ do
+        remove <- destination_edges block_id (map (fst . snd) dests)
+        Ui.modify_skeleton block_id (Skeleton.remove_edges remove)
     track_ids <- all_block_tracks block_id
     tracks <- get_children tree
     dests <- mapMaybeM (score_merge_pair block_id) $
         score_pair_tracks track_ids tracks dests
-    add_skeleton block_id =<< source_to_dest block_id dests
-        (map (fmap Ui.track_id) tree)
+    whenM (Ui.has_explicit_skeleton block_id) $
+        add_skeleton block_id =<< source_to_dest block_id dests
+            (map (fmap Ui.track_id) tree)
     return dests
 
 -- | Track pairs of the children of the given tree, sorted by tracknum.
