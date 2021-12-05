@@ -380,7 +380,7 @@ write_tracks block_id track_ids tracks = do
 
 extract_note_trees :: Ui.M m => BlockId -> [TrackId] -> m TrackTree.TrackTree
 extract_note_trees block_id track_ids =
-    Trees.filter (wanted_track (Set.fromList track_ids)) <$>
+    Trees.findAll (wanted_track (Set.fromList track_ids)) <$>
         TrackTree.track_tree_of block_id
     where
     -- | Accept the top level note tracks.

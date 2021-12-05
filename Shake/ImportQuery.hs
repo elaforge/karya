@@ -98,7 +98,6 @@ findWeakLinks graph = concatMap get $ filter wanted $ Map.keys (_graph graph)
     scoreOf = Num.sum . map (Set.size . snd)
     wanted mod = not $ any (`Text.isSuffixOf` mod) ["_test", "_profile"]
 
-
 -- TODO common up the prefixes into a tree?
 -- TODO very slow, could I save time by memoizing branches I already searched?
 -- Surely this is a standard DAG algorithm.

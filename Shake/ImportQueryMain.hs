@@ -19,6 +19,8 @@ import qualified Text.Read as Read
 
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+import qualified Util.Trees as Trees
+
 import qualified Shake.ImportQuery as ImportQuery
 import           Shake.ImportQuery (Module)
 
@@ -103,8 +105,14 @@ cAdd parent new = do
             putStrLn $ "already imported via paths:"
             mapM_ (Text.IO.putStrLn . Text.intercalate "->") paths
         Right tree -> do
-            -- TODO improve
-            putStrLn $ Tree.drawTree $ untxt <$> tree
+            putStrLn "New modules added, * marks already imported ones:"
+            putStrLn $ draw tree
+            putStrLn "Adds only:"
+            putStrLn $ maybe "nothing?" draw $
+                Trees.filter (not . ("*" `Text.isSuffixOf`)) tree
+
+draw :: Tree.Tree Text -> String
+draw = Tree.drawTree . fmap untxt
 
 fnameToModule :: String -> ImportQuery.Module
 fnameToModule =

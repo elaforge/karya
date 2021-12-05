@@ -3,13 +3,23 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Some more utilities for "Data.Tree".
-module Util.Trees where
-import Prelude hiding (filter)
-import Control.Monad
+module Util.Trees (
+    edges
+    , paths, flatPaths
+    , find
+    , findAll
+    , findWithParents
+    , leaves
+    , filter
+) where
+import           Prelude hiding (filter)
 import qualified Data.Foldable as Foldable
 import qualified Data.List as List
+import           Data.Maybe (mapMaybe)
 import qualified Data.Tree as Tree
-import Data.Tree (Tree(..))
+import           Data.Tree (Tree(..))
+
+import           Control.Monad
 
 
 -- | The edges of a forest, as (parent, child).
@@ -41,6 +51,16 @@ find p trees = case List.find (p . rootLabel) trees of
     Nothing -> msum $ map (find p . subForest) trees
     Just tree -> Just tree
 
+-- | Return the unmodified subtrees that match the predicate.  This is like
+-- 'find', except that it returns all matching subtrees instead of the first
+-- one.
+findAll :: (a -> Bool) -> [Tree a] -> [Tree a]
+findAll f = concatMap node
+    where
+    node (Node a trees)
+        | f a = [Node a trees]
+        | otherwise = concatMap node trees
+
 -- | Like 'paths', but return only the element that matches the predicate.
 findWithParents :: (a -> Bool) -> [Tree a] -> Maybe (Tree a, [Tree a])
 findWithParents f = List.find (f . Tree.rootLabel . fst) . paths
@@ -49,10 +69,10 @@ findWithParents f = List.find (f . Tree.rootLabel . fst) . paths
 leaves :: Tree a -> [a]
 leaves = Foldable.toList
 
--- | Return the first subtrees that match the predicate.
-filter :: (a -> Bool) -> [Tree a] -> [Tree a]
-filter f = concatMap node
+-- | Filter out nodes that don't match.
+filter :: (a -> Bool) -> Tree a -> Maybe (Tree a)
+filter f = node
     where
     node (Node a trees)
-        | f a = [Node a trees]
-        | otherwise = concatMap node trees
+        | f a = Just $ Node a (mapMaybe node trees)
+        | otherwise = Nothing
