@@ -64,7 +64,7 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
-  * auto skeleton:
+  * auto skeleton: implicit:
     . Manual skeleton is too much freedom, I almost never really want
       multiple tempos, or notes with multiple notes.  Can I have an "inferred
       skeleton" mode?  It would use the same algorithm as UiTest.
@@ -86,6 +86,47 @@ UNSORTED
     * Integrate_test
     * Factor_test
     * TScore, can it just use Implicit?
+    * why does setting Block.config_skeleton not trigger unsaved change?
+      . does it trigger rederive?
+        No, but this is fine, because the skeleton change is the real thing.
+      . why can't I undo it?
+      . Because Internal.update_saved calls Diff.score_changed calls
+        Update.is_score_damage, which looks for track and ruler, not block.
+        Why not block?
+      ? If I use block, then even a new score is already Cmd.UnsavedChanges.
+      . Why is score_changed so little?  I guess because everything
+        interesting already emits UiDamage?
+      . It should be cheaper to emit UiDamage explicitly rather than every
+        score_changed has to check all blocks.
+      . But if I use Ui.damage_block I run into the problem above.
+      . How about, have a Ui.damage_config, and then score_changed becomes
+        just that.
+      . Ignoring block ui damage is probably incorrect, it happens
+        if I create or destroy a block with no tracks.  But undo still works!?
+      . It should set state, which has the damage, and then reset
+        UnsavedChanges.
+      . Why do multiple syncs have block damage?  When does it get reset?
+        It sets to Cmd.JustLoaded.  Then the next one will go SavedChanges,
+        then if Diff.score_changed, UnsavedChanges.
+      . sequence:
+        load: JustLoaded
+        JustLoaded -> SavedChanges
+        But, still have block damage, why?
+      . Every Ui.set_block, and hence modify_block, sets block damage.
+        Is that right?
+      . What is block damage intended to mean?
+      . It means diff should check the blocks for changes, there may be some.
+        But there may not be!
+      . So, I should store UiConfig damage explicitly... except I can't
+        because most access is via the Ui.config lens, which doesn't let me
+        do anything.
+    - setting Block.config_skeleton can't be undone
+      . Because SaveGit.should_record assumes Update.BlockConfig is boring.
+      . But I can't tell what changed in there from just the Update.
+      . I'm rethinking if skel config should really go in BlockConfig.
+      . But otherwise I can't fix this because SaveHistory only has UiUpdates,
+        which don't have the actual change.
+      . But this is a lot of hassle for a small annoyance.
   things that make bisecting not work:
     . that rubberband ref in ShakeConfig
     . fltk not version controlled
@@ -4204,6 +4245,11 @@ cleanup:
     . fmt: even more operators and imports
 
 performance:
+  - If I emit Update.UiDamage _block_config for all config changes then
+    I can lose the comparison of UiConfigs by Internal.can_checkpoint.
+  - Similarly, would it be more efficient to change Ui.damage to directly
+    modify the UiDamage instead of constructing a `mempty { thing }` first?
+    . Derive also does the same thing with 'local'.
   ruler: ruler-performance:
     . The ruler model of having all the marks all the time seems like it
       doesn't scale up to large blocks.  I would rather transmit minimal data,

@@ -98,6 +98,11 @@ map_titles modify = do
 replace_titles :: Text -> Text -> Cmd.CmdL ()
 replace_titles from to = map_titles $ Text.replace from to
 
+set_all_implicit :: Cmd.M m => m ()
+set_all_implicit = do
+    block_ids <- Ui.gets $ Map.keys . Ui.state_blocks
+    mapM_ (\b -> Ui.set_skeleton_config b Block.Implicit) block_ids
+
 -- * doc
 
 doc :: Cmd.CmdL Text

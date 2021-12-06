@@ -390,6 +390,9 @@ derive_diff_block block_id = \case
         let unequal f = unequal_on f block1 block2
         when (unequal (Text.strip . Block.block_title)
                 || unequal Block.block_skeleton)
+                -- I could check (Block.config_skeleton . Block.block_config),
+                -- but it's indirect, the skeleton change is the direct affect
+                -- on derivation.
             block_damage
         let (ts1, ts2) = (Block.block_tracks block1, Block.block_tracks block2)
         let tpairs = Seq.diff_index_on Block.tracklike_id ts1 ts2
@@ -442,8 +445,9 @@ derive_diff_track track_id track1 track2 =
 score_changed :: Ui.State -> Ui.State -> Update.UiDamage -> Bool
 score_changed st1 st2 damage = or
     [ Update.is_score_damage damage
-    , Ui.state_config st1 /= Ui.state_config st2
+    , unequal Ui.state_config
     ]
+    where unequal f = unequal_on f st1 st2
 
 -- * events diff
 
@@ -480,5 +484,5 @@ diff_track_events e1 e2 =
 uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
 uncurry3 f (a, b, c) = f a b c
 
-unequal_on :: Eq eq => (a -> eq) -> a -> a -> Bool
+unequal_on :: Eq k => (a -> k) -> a -> a -> Bool
 unequal_on key a b = key a /= key b

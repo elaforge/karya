@@ -178,10 +178,10 @@ save user repo state cmd_names = do
 
 -- | True if this update is interesting enough to record a checkpoint for.
 should_record :: Update.UiUpdate -> Bool
-should_record update = case update of
+should_record = \case
     -- BlockConfig changes are only box colors, which I never need to save.
     Update.Block _ (Update.BlockConfig {}) -> False
-    _ -> not $ Update.is_view_update update
+    update -> not $ Update.is_view_update update
 
 commit_tree :: SaveGitT.User -> Git.Repo -> Git.Tree -> Maybe Commit -> String
     -> IO Commit

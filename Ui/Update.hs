@@ -12,6 +12,7 @@ module Ui.Update where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified GHC.Generics as Generics
 
 import qualified Util.Maps as Maps
 import qualified Util.Pretty as Pretty
@@ -53,35 +54,35 @@ type UiUpdate = Update Block.Track State
 -- UiDamage by 'to_ui'.
 data UiDamage = UiDamage {
     _views :: Set ViewId
+    -- | This means there may have been any change at all inside these blocks,
+    -- and Diff should check for them.  It doesn't mean it's an interesting
+    -- change, that's up to Diff to decide!
     , _blocks :: Set BlockId
+    -- | This specifically means there was change on the given tracks.
     , _tracks :: Map TrackId (Ranges.Ranges TrackTime)
     , _rulers :: Set RulerId
     , _bring_to_front :: Set ViewId
     -- | If the TrackNum is set, set keyboard focus on that track's title.
     -- Otherwise, focus on the block title.
     , _title_focus :: Maybe (ViewId, Maybe TrackNum)
-    } deriving (Eq, Show)
+    -- | This is purely to trigger 'is_score_damage'.
+    -- TODO: Ui.state_config changes should do this so Diff.score_changed
+    -- dosen't need to compare UiConfig.Config each time, but modification
+    -- happens through lenses...
+    , _score_damage :: Bool
+    } deriving (Eq, Show, Generics.Generic)
 
 instance Semigroup UiDamage where
-    (<>)    (UiDamage v1 b1 t1 r1 bring1 title1)
-            (UiDamage v2 b2 t2 r2 bring2 title2) =
+    (<>)    (UiDamage v1 b1 t1 r1 bring1 title1 sd1)
+            (UiDamage v2 b2 t2 r2 bring2 title2 sd2) =
         UiDamage (v1<>v2) (b1<>b2) (Maps.mappend t1 t2) (r1<>r2)
-            (bring1<>bring2) (title1<|>title2)
+            (bring1<>bring2) (title1<|>title2) (sd1||sd2)
 
 instance Monoid UiDamage where
-    mempty = UiDamage mempty mempty mempty mempty mempty Nothing
+    mempty = UiDamage mempty mempty mempty mempty mempty Nothing False
     mappend = (<>)
 
-instance Pretty UiDamage where
-    format (UiDamage views blocks tracks rulers bring_to_front title_focus) =
-        Pretty.record "UiDamage"
-            [ ("views", Pretty.format views)
-            , ("blocks", Pretty.format blocks)
-            , ("tracks", Pretty.format tracks)
-            , ("rulers", Pretty.format rulers)
-            , ("bring_to_front", Pretty.format bring_to_front)
-            , ("title_focus", Pretty.format title_focus)
-            ]
+instance Pretty UiDamage where format = Pretty.formatG_
 
 view_damage :: ViewId -> UiDamage
 view_damage id = mempty { _views = Set.singleton id }
@@ -255,17 +256,18 @@ update_id = \case
 -- | Convert a UiUpdate to a DisplayUpdate by stripping out all the UiUpdate
 -- parts.
 to_display :: UiUpdate -> Maybe DisplayUpdate
-to_display (View vid update) = Just $ View vid update
-to_display (Block bid update) = Block bid <$> case update of
-    BlockTitle a -> Just $ BlockTitle a
-    BlockConfig a -> Just $ BlockConfig a
-    BlockSkeleton a b -> Just $ BlockSkeleton a b
-    RemoveTrack {} -> Nothing
-    InsertTrack {} -> Nothing
-    BlockTrack {} -> Nothing
-to_display (Track tid update) = Just $ Track tid update
-to_display (Ruler rid) = Just $ Ruler rid
-to_display (State {}) = Nothing
+to_display = \case
+    View vid update -> Just $ View vid update
+    Block bid update -> Block bid <$> case update of
+        BlockTitle a -> Just $ BlockTitle a
+        BlockConfig a -> Just $ BlockConfig a
+        BlockSkeleton a b -> Just $ BlockSkeleton a b
+        RemoveTrack {} -> Nothing
+        InsertTrack {} -> Nothing
+        BlockTrack {} -> Nothing
+    Track tid update -> Just $ Track tid update
+    Ruler rid -> Just $ Ruler rid
+    State {} -> Nothing
 
 to_ui :: UiDamage -> [UiUpdate]
 to_ui (UiDamage { _tracks, _rulers, _bring_to_front, _title_focus }) = concat
@@ -329,10 +331,13 @@ is_view_update = \case
         _ -> False
     _ -> False
 
--- | True if this UiDamage implies score damage.
+-- | Score damage is used by Diff.score_changed to determine if a change has
+-- happened which is worthy of saving to disk, or recording for undo.
 is_score_damage :: UiDamage -> Bool
-is_score_damage (UiDamage { _tracks, _rulers }) =
-    not (Map.null _tracks) || not (Set.null _rulers)
+is_score_damage (UiDamage { _tracks, _rulers, _score_damage }) =
+    -- This doesn't check _blocks, because those happen on any block change at
+    -- all, which includes UI-only things like Block.config_skel_box.
+    _score_damage || not (Map.null _tracks) || not (Set.null _rulers)
 
 -- | Does an update imply a change which would require rederiving?
 track_changed :: UiUpdate -> Maybe (TrackId, Ranges.Ranges ScoreTime)

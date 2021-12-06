@@ -782,9 +782,11 @@ block_logical_range block_id = do
 -- ** skeleton
 
 set_skeleton_config :: M m => BlockId -> Block.Skeleton -> m ()
-set_skeleton_config block_id skel =
+set_skeleton_config block_id skel = do
     modify_block_config block_id $ \config -> config
         { Block.config_skeleton = skel }
+    update_skeleton block_id
+    damage_score
 
 has_explicit_skeleton :: M m => BlockId -> m Bool
 has_explicit_skeleton =
@@ -1888,3 +1890,6 @@ damage_track track_id = damage $ Update.track_damage track_id Ranges.everything
 
 damage_ruler :: M m => RulerId -> m ()
 damage_ruler = damage . Update.ruler_damage
+
+damage_score :: M m => m ()
+damage_score = damage $ mempty { Update._score_damage = True }

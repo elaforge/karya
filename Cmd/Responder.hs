@@ -324,9 +324,9 @@ post_cmd state ui_from ui_to cmd_to ui_damage status = do
 
     cmd_to <- do
         -- Kick off the background derivation threads.
-        let damage = Diff.derive_diff (state_ui state) ui_to ui_damage updates
         cmd_state <- Performance.update_performance
-            (send_derive_status (state_loopback state)) ui_to cmd_to damage
+            (send_derive_status (state_loopback state)) ui_to cmd_to
+            (Diff.derive_diff (state_ui state) ui_to ui_damage updates)
         return $ cmd_state { Cmd.state_derive_immediately = mempty }
     Trace.trace "derive_diff"
 
@@ -549,8 +549,8 @@ run_cmd cmd = do
         mapM_ (write_thru (Cmd.state_midi_writer (rstate_cmd_to rstate))) thru
     case result of
         Left err -> return (Left err, cmd_state)
-        Right (status, ui_state, damage) -> do
-            save_damage damage
+        Right (status, ui_state, ui_damage) -> do
+            save_damage ui_damage
             return (Right (status, ui_state), cmd_state)
 
 write_thru :: (Interface.Message -> IO ()) -> Cmd.Thru -> IO ()
