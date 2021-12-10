@@ -177,11 +177,10 @@ c_multiple = Derive.transformer Module.prelude "multiple" mempty
     "Derive the transformed score under different transformers."
     $ Sig.callt (Sig.many1 "transformer" "Derive under each transformer.")
     $ \transformers args deriver ->
-        mconcat $ map (apply (Args.context args) deriver)
+        mconcatMap (apply (Args.context args) deriver)
             (NonEmpty.toList transformers)
     where
-    apply ctx deriver trans =
-        Eval.eval_quoted_transformers ctx trans deriver
+    apply ctx deriver trans = Eval.eval_quoted_transformers ctx trans deriver
 
 c_debug :: Derive.Transformer Derive.Note
 c_debug = Derive.transformer Module.prelude "debug" mempty

@@ -20,6 +20,7 @@ import Global
 import Types
 
 
+test_call_maps :: Test
 test_call_maps = do
     -- Make sure they resolve.
     equal (Map.keys Gamakam.pitch_call_map) (Map.keys Gamakam.pitch_call_map)
@@ -27,6 +28,7 @@ test_call_maps = do
 
 -- * pitch
 
+test_sequence :: Test
 test_sequence = do
     let run c = derive_tracks False DeriveTest.e_nns_rounded $
             make_2notes (4, "--|") (2, c)
@@ -55,6 +57,7 @@ test_sequence = do
 --             note ++ [("dyn | dyn", [(0, 2, "!<4"), (2, 0, "!>")])])
 --         ([[(0, 0), (1, 0.37), (2, 0.44), (3, 0.37), (4, 0)]], [])
 
+test_parse_pitch_sequence :: Test
 test_parse_pitch_sequence = do
     let f = Gamakam.parse_pitch_sequence
     equal (f "P10") $ Right [CallArg 'P' "1", CallArg '0' ""]
@@ -65,6 +68,7 @@ test_parse_pitch_sequence = do
     equal (f "1[01]") $
         Right [CallArg '1' "", PitchGroup [CallArg '0' "", CallArg '1' ""]]
 
+test_postfix :: Test
 test_postfix = do
     let run = derive_tracks False DeriveTest.e_nns_rounded
             . make_2notes (4, "--|")
@@ -78,6 +82,7 @@ test_postfix = do
         , []
         )
 
+test_resolve_postfix :: Test
 test_resolve_postfix = do
     let f = fmap (map extract) . Gamakam.resolve_postfix . map make
         make name = Gamakam.Call
@@ -90,6 +95,7 @@ test_resolve_postfix = do
     equal (f "x__") (Right [('x', 3)])
     equal (f "x__.") (Right [('x', 1.5)])
 
+test_prev_pitch_above :: Test
 test_prev_pitch_above = do
     let run = from_cur_prev_next
     equal (run [(0, "4c"), (1, "4d")] [(0, 1), (1, 1)])
@@ -114,6 +120,7 @@ from_cur_prev_next pitches notes = (nns, concat logs)
     run_with call = derive_tracks True DeriveTest.e_nns $
         pitch_gamakam_note pitches [(1, call)] notes
 
+test_sequence_above :: Test
 test_sequence_above = do
     let run pitches gamakams notes =
             derive_tracks True e_clipped_nns $
@@ -203,6 +210,7 @@ e_clipped_nns e =
     --     , [(3, 60)]
     --     ]
 
+test_resolve_pitch_calls :: Test
 test_resolve_pitch_calls = do
     let f = fmap (map (fmap extract)) . Gamakam.resolve_pitch_calls
             <=< Gamakam.parse_pitch_sequence
@@ -234,6 +242,7 @@ test_resolve_pitch_calls = do
 --         [((UiTest.default_block_id, UiTest.mk_tid 4),
 --             [(0, 0), (1, 0.58), (2, 0.84), (3, 0.96), (4, 1)])]
 
+test_sequence_interleave :: Test
 test_sequence_interleave = do
     let run c = derive_tracks False extract $ make_2notes (4, "--|") (6, c)
         extract = DeriveTest.e_nns
@@ -242,6 +251,7 @@ test_sequence_interleave = do
         , []
         )
 
+test_alias :: Test
 test_alias = do
     let run dur g = derive_tracks False DeriveTest.e_nns $
             make_tracks [(0, dur, "4c", g)]
@@ -250,6 +260,7 @@ test_alias = do
 
 -- * dyn
 
+test_parse_dyn_sequence :: Test
 test_parse_dyn_sequence = do
     let f = Gamakam.parse_dyn_sequence
     equal (f "==") $ Right [Call '=' "", Call '=' ""]
@@ -257,6 +268,7 @@ test_parse_dyn_sequence = do
     equal (f "<3=") $ Right [Call '<' "3", Call '=' ""]
     equal (f "T9>") $ Right [Call 'T' "9", Call '>' ""]
 
+test_dyn_sequence :: Test
 test_dyn_sequence = do
     let run call1 call2 = derive_tracks False DeriveTest.e_dyn_rounded $
             make_dyn_tracks (4, call1) (4, call2)

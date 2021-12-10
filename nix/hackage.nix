@@ -43,18 +43,19 @@ let
 
   importPackage = ghc: name: fn:
     let args = callHackageArgs."${name}" or {};
-    in overrideCabal (ghc.callPackage fn args);
+    in overrideCabal name (ghc.callPackage fn args);
 
   # Configure auto-SCC settings in hackage libraries.
   disableAutoProf = drv: nixpkgs.haskell.lib.overrideCabal drv
     (drv: { inherit profilingDetail; });
 
-  overrideCabal = with nixpkgs.haskell.lib; compose [
+  overrideCabal = name: with nixpkgs.haskell.lib; compose [
     (if profiling then (x: x) else disableLibraryProfiling)
     disableAutoProf
     dontCheck
     dontBenchmark
     dontCoverage
+    # (if name == "eventlog2html" then doJailbreak else (x: x))
     # doJailbreak # can be useful when trying new ghc versions
   ];
 
