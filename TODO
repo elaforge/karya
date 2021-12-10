@@ -139,6 +139,7 @@ UNSORTED
       . It does though!  I was confused by UTC.
   * rename Derive.RestrictedEnviron to REnv
   - lrange collided with random range, awkward
+    . Should there be a naming convention for e.g. list returning functions?
   / bug: space right as play gets to the end leads to unstoppable playback line
     . Can't reproduce it now.
     . Hopefully fixed by "can't play it's playing"

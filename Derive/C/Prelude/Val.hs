@@ -58,6 +58,7 @@ library = Library.vals
     , ("hz", c_hz)
     -- literals
     , ("list", c_list)
+    , ("lrange", c_lrange)
     , ("st", c_scoretime)
     , ("rt", c_realtime)
     , ("pitch", c_pitch)
@@ -210,6 +211,15 @@ c_list :: Derive.ValCall
 c_list = val_call "list" mempty "Create a list." $
     Sig.call (Sig.many "val" "Value.") $ \vals _ ->
         return $ DeriveT.VList vals
+
+c_lrange :: Derive.ValCall
+c_lrange = val_call "range" mempty "Make a list range of numbers." $
+    Sig.call ((,,)
+    <$> Sig.required "start" "Start value."
+    <*> Sig.required "step" "Step."
+    <*> Sig.required "count" "Number of values."
+    ) $ \(start, step, count) _ ->
+        return $ DeriveT.VList $ map DeriveT.num $ Seq.range start step count
 
 c_scoretime :: Derive.ValCall
 c_scoretime = val_call "scoretime" mempty
