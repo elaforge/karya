@@ -64,6 +64,21 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
+  * bug: I still got a unstoppable playback selection somehow
+    . save/bug/playback
+    . I think playing top block with no children?
+    . No but it happens all the time in the toplevel block when playing from
+      a child.
+    . It happens if the notes have stopped, but there is still empty block
+      left.
+    . It should cancel itself at that point.
+    . But also find out why space doesn't cancel it.
+  - bug: I made a top, calling b2, then LBlock.rename @b1, top still had b2
+    and play still worked.
+    . Cache bug?
+    . Can I do quickcheck tests against the cache?
+  - extend after delete shouldn't extend if the next event doesn't go to end
+    of block
   * auto skeleton: implicit:
     . Manual skeleton is too much freedom, I almost never really want
       multiple tempos, or notes with multiple notes.  Can I have an "inferred
@@ -138,7 +153,7 @@ UNSORTED
     * use the run time, not the commit time
       . It does though!  I was confused by UTC.
   * rename Derive.RestrictedEnviron to REnv
-  - lrange collided with random range, awkward
+  / lrange collided with random range, awkward
     . Should there be a naming convention for e.g. list returning functions?
   / bug: space right as play gets to the end leads to unstoppable playback line
     . Can't reproduce it now.
@@ -182,13 +197,6 @@ UNSORTED
   * have LInst.list show settings from the instrument
     . Maybe in a different way to show they are inherited?
   - shouldn't Id.clean do validation and return Nothing?
-  - Meters are complicated, hard to understand, and error prone.
-    . See ruler-performance:
-    . I spent ages trying to figure out why 'make_labeled 1' didn't work in
-      Derive.TSCore.Check.
-    . How can I simplify things?  But still support meter / tala / gongs?
-    . The whole renumber fiasco is a fiasco.  Maybe marklist is too low
-      level, can I save the structure in the Ui.Ruler?
   / upgrade to ghc-8.10 on hobbes.
     . Wait for 9.2.
   - upgrade to ghc-9.2.1
@@ -4246,11 +4254,6 @@ cleanup:
     . fmt: even more operators and imports
 
 performance:
-  - If I emit Update.UiDamage _block_config for all config changes then
-    I can lose the comparison of UiConfigs by Internal.can_checkpoint.
-  - Similarly, would it be more efficient to change Ui.damage to directly
-    modify the UiDamage instead of constructing a `mempty { thing }` first?
-    . Derive also does the same thing with 'local'.
   ruler: ruler-performance:
     . The ruler model of having all the marks all the time seems like it
       doesn't scale up to large blocks.  I would rather transmit minimal data,
@@ -4258,9 +4261,7 @@ performance:
       level.
     . I guess this leads back to a computational notion of ruler instead of
       just the dumb [PosMark] data structure.
-    . This comes up because I want to have a 'score' block whose ruler is the
-      concatenation of the rulers underneath, and I'd rather it were that way
-      by definition, rather than because it got copied that way.
+    . See Ruler:
   prof results:
     - Eval.eval
       . This is for val calls.  I don't use many of those, except pitches.
@@ -4305,7 +4306,7 @@ performance:
     ghc-debug
       . https://github.com/well-typed/memory-usage-zurihac-2021
       . requires 9.2
-    eventlog2html
+    eventlog2html:
       notes:
         . use linechart to look for leaks, since it normalizes each one
         heap view:
@@ -4525,6 +4526,9 @@ performance:
         0.0027 sync.sort
         0.3360 derive_diff
   cmd:
+    - Similarly, would it be more efficient to change Ui.damage to directly
+      modify the UiDamage instead of constructing a `mempty { thing }` first?
+      . Derive also does the same thing with 'local'.
     - Integrate.score_integrate is linear in score size
       . needs_track_score_integrate
         . Needs TrackId -> [Block], which is also Ui.blocks_with_track_id.
@@ -4538,8 +4542,13 @@ performance:
       . But since this only happens on event modification, it's not so bad as
         the scroll lag.
     - implement or find a cps-transformed ExceptT for Ui.M.
+    - Ui.M and Cmd.M make most cmds polymorphic, does that mean they fail to
+      inline?  Look at core.  If so how to fix?
+      . Maybe INLINABLEs?
     - Update.UiDamage could mark Ui.state_config damage
       . I could remove the compares in Diff.score_changed and Diff.diff
+      . If I emit Update.UiDamage _block_config for all config changes then
+        I can lose the comparison of UiConfigs by Internal.can_checkpoint.
     - For Update.UiDamage, research if it's less efficient to mappend mempty vs.
         direct modify
     - log total respond latency, and log if over a limit
@@ -4795,6 +4804,7 @@ performance:
         somehow so I can throw at the end.
       - I think the stream will then remain lazy, and I should be able to GC
         as it goes, but verify with Debug.trace.
+    - Derive.Stream:
     - I'd like to see if directly modifying Collect or a MergeList for LEvents
       could reduce garbage, so I need to get some profiling up first.
       . monad-par-extras Control.Monad.Par.AList is deprecated due to poor
@@ -4821,8 +4831,12 @@ performance:
         event is a set call or not.
     - parallelize derivation
     something more efficient than list for Derive.Stream:
-      . Try Data.Sequence?
+      . https://github.com/haskell-perf/sequences
+      . https://www.reddit.com/r/haskell/comments/qzl6mw/people_must_see_haskellperfsequences_adding_dlist/
+      . dlist
+      . Data.Sequence?
       . https://hackage.haskell.org/package/rrb-vector
+      . Acc: https://hackage.haskell.org/package/acc
       Util.AppendList
         - switch to AppendList and try to get garbage down
           Avoid copying sublists returned by block calls and cache hits
@@ -4982,7 +4996,6 @@ performance:
         a separate repo.
       . The problem is I have to update twice as much stuff, but I don't need
         that many "reference" scores.
-
   research using pipes for generators and transformers
     . or streaming, or https://www.reddit.com/r/haskell/comments/7w79q1/what_is_your_take_on_conduits_pipes_and_streams/
     . This would handle the composed transforms thing.
@@ -6139,7 +6152,29 @@ Cmd:
       skip should be ignored when the match is a larger rank than exists, or
       maybe step should fail.
 
-  ruler:
+  ruler: Ruler:
+    - push high level ruler rules down to the Ui.Ruler level
+      . Ui.Meter
+      . Meters are complicated, hard to understand, and error prone.
+      . I spent ages trying to figure out why 'make_labeled 1' didn't work in
+        Derive.TSCore.Check.
+      . How can I simplify things?  But still support meter / tala / gongs?
+      . The whole renumber fiasco is a fiasco.  Maybe marklist is too low
+        level, can I save the structure in the Ui.Ruler?
+      . Once I can do this, it should be easier to then possibly export
+        the high level description to fltk and avoid copying PosMarks.
+        See ruler-performance:
+      . This comes up because I want to have a 'score' block whose ruler is the
+        concatenation of the rulers underneath, and I'd rather it were that way
+        by definition, rather than because it got copied that way.
+      . In that case, what should the structure be?
+      . I do want to be able to support ruler changes, so whatever it is needs
+        to support ranges.
+      . Alternately, leave fltk low level but push the high level description
+        down to RulerC or another layer in between.  Effectively Cmd.Ruler is
+        this, but it's leaky.
+      . I'm already doing a bit of that in Ui.Ruler.MeterConfig
+
     - meter type and the construction functions should be integrated more
       tightly
     - LRuler.inject, opposite of extract, replaces sub-block rulers

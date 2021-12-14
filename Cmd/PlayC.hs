@@ -492,21 +492,22 @@ monitor_loop state = do
         Set.difference (monitor_active_sels state) active_sels
     state <- return $ state { monitor_active_sels = active_sels }
 
-    -- If repeat_at is on, then the players will never stop on their own, even
-    -- if I run out of tempo map (which happens if the repeat point is at or
-    -- past the end of the score).  When the monitor thread stops, it sends
-    -- Stopped on the transport, which clears out the player ctl which will
-    -- make the player unstoppable, if it's still going.
-    let out_of_score = null block_pos
-            && Maybe.isNothing (monitor_repeat_at state)
-    stop_requested <- Transport.poll_stop_player 0 (monitor_play_ctl state)
-    -- At one pointed I'd wait for all the players to stop, I assume so
-    -- the play position keeps going, but I don't anymore.
-    -- players_stopped <-
-    --     Transport.poll_player_stopped 0 (monitor_players state)
-    -- putStrLn $ "monitor: " <> show now <> ", players:"
-    --     <> show players_stopped <> " score:" <> show out_of_score
-    if out_of_score || stop_requested
+    done <- orM
+        -- out of score
+        -- If repeat_at is on, then the players will never stop on their own,
+        -- even if I run out of tempo map (which happens if the repeat point is
+        -- at or past the end of the score).  When the monitor thread stops, it
+        -- sends Stopped on the transport, which clears out the player ctl
+        -- which will make the player unstoppable, if it's still going.
+        [ pure $ null block_pos && Maybe.isNothing (monitor_repeat_at state)
+        -- stop requested
+        , Transport.poll_stop_player 0 (monitor_play_ctl state)
+        -- all players stopped, after this Transport.Stopped is emitted,
+        -- Cmd.state_play_control is cleared, and it's no longer possible to
+        -- do a Transport.stop_player.
+        , Transport.poll_player_stopped 0 (monitor_players state)
+        ]
+    if done
         then Sync.clear_play_position (monitor_ui_channel state) $ map fst $
             Set.toList (monitor_active_sels state)
         else Thread.delay 0.05 >> monitor_loop state
