@@ -63,8 +63,8 @@ fit_ruler config dur meters =
 
 -- * meter marklist
 
--- | Meter is for simple numeric meters, as in "Cmd.Meters".  The labels can
--- be generated entirely from the 'Ruler.Rank's.
+-- | Meter is for simple numeric meters, as in "Cmd.Ruler.Meters".  The labels
+-- can be generated entirely from the 'Ruler.Rank's.
 type Meter = [(Ruler.Rank, Duration)]
 
 -- | LabeledMeter is for meters that have some structure in their labels, and
@@ -421,12 +421,12 @@ labeled_marklist meter = Ruler.marklist
         let (color, width, pixels) = meter_ranks !! min rank ranks_len
             zoom = pixels_to_zoom rank_dur pixels
         in Ruler.Mark
-            { Ruler.mark_rank = rank
-            , Ruler.mark_width = width
-            , Ruler.mark_color = color
-            , Ruler.mark_name = name
-            , Ruler.mark_name_zoom_level = if is_edge then 0 else zoom * 2
-            , Ruler.mark_zoom_level = if is_edge then 0 else zoom
+            { mark_rank = rank
+            , mark_width = width
+            , mark_color = color
+            , mark_name = name
+            , mark_name_zoom_level = if is_edge then 0 else zoom * 2
+            , mark_zoom_level = if is_edge then 0 else zoom
             }
     ranks_len = length meter_ranks
 

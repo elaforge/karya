@@ -64,6 +64,8 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
+  - detect recursive block calls immediately and error instead of emitting
+    tons of "call stack too deep"
   * bug: I still got a unstoppable playback selection somehow
     . save/bug/playback
     . I think playing top block with no children?
@@ -6152,9 +6154,8 @@ Cmd:
       skip should be ignored when the match is a larger rank than exists, or
       maybe step should fail.
 
-  ruler: Ruler:
+  ruler: Ruler: Ui.Meter:
     - push high level ruler rules down to the Ui.Ruler level
-      . Ui.Meter
       . Meters are complicated, hard to understand, and error prone.
       . I spent ages trying to figure out why 'make_labeled 1' didn't work in
         Derive.TSCore.Check.
@@ -6174,6 +6175,18 @@ Cmd:
         down to RulerC or another layer in between.  Effectively Cmd.Ruler is
         this, but it's leaky.
       . I'm already doing a bit of that in Ui.Ruler.MeterConfig
+      . Gender might be special in that it's essentially unmetered.  So I just
+        need to make numbered measures from the top of the block.
+      . What should the interface be?
+      * Implement high level Measures -> Marklist
+      * put Measures in Cmd.Ruler
+      - Diff should check Ruler change, use UiUpdates
+      - Sync generates a new Marklist for changed RulerIds.
+      - LRuler and Cmd.Ruler.local_double change to modifying Ruler measures
+      cleanup:
+        - Split AbstractMeter creation into its own module, and
+          AbstractMeter -> Marklist in another one.
+        - Put RankName into its own module, shared with Derive
 
     - meter type and the construction functions should be integrated more
       tightly
