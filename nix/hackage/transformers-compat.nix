@@ -1,4 +1,4 @@
-{ mkDerivation, base, ghc-prim, stdenv, transformers }:
+{ mkDerivation, base, ghc-prim, lib, transformers }:
 mkDerivation {
   pname = "transformers-compat";
   version = "0.6.6";
@@ -6,5 +6,5 @@ mkDerivation {
   libraryHaskellDepends = [ base ghc-prim transformers ];
   homepage = "http://github.com/ekmett/transformers-compat/";
   description = "A small compatibility shim for the transformers library";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

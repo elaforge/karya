@@ -1,5 +1,5 @@
 { mkDerivation, base, base-orphans, generic-deriving, hspec
-, hspec-discover, stdenv, tagged, transformers
+, hspec-discover, lib, tagged, transformers
 }:
 mkDerivation {
   pname = "distributive";
@@ -10,5 +10,5 @@ mkDerivation {
   testToolDepends = [ hspec-discover ];
   homepage = "http://github.com/ekmett/distributive/";
   description = "Distributive functors -- Dual to Traversable";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

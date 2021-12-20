@@ -1,4 +1,4 @@
-{ mkDerivation, base, HTTP, stdenv }:
+{ mkDerivation, base, HTTP, lib }:
 mkDerivation {
   pname = "js-flot";
   version = "0.8.3";
@@ -8,5 +8,5 @@ mkDerivation {
   testHaskellDepends = [ base HTTP ];
   homepage = "https://github.com/ndmitchell/js-flot#readme";
   description = "Obtain minified flot code";
-  license = stdenv.lib.licenses.mit;
+  license = lib.licenses.mit;
 }

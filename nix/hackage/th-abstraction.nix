@@ -1,4 +1,4 @@
-{ mkDerivation, base, containers, ghc-prim, stdenv
+{ mkDerivation, base, containers, ghc-prim, lib
 , template-haskell
 }:
 mkDerivation {
@@ -13,5 +13,5 @@ mkDerivation {
   testHaskellDepends = [ base containers template-haskell ];
   homepage = "https://github.com/glguy/th-abstraction";
   description = "Nicer interface for reified information about data types";
-  license = stdenv.lib.licenses.isc;
+  license = lib.licenses.isc;
 }

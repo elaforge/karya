@@ -1,4 +1,4 @@
-{ mkDerivation, base, Cabal, directory, stdenv }:
+{ mkDerivation, base, Cabal, directory, lib }:
 mkDerivation {
   pname = "ghc-paths";
   version = "0.1.0.12";
@@ -8,5 +8,5 @@ mkDerivation {
   setupHaskellDepends = [ base Cabal directory ];
   libraryHaskellDepends = [ base ];
   description = "Knowledge of GHC's installation directories";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

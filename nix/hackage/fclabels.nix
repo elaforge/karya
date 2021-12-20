@@ -1,4 +1,4 @@
-{ mkDerivation, base, base-orphans, criterion, HUnit, mtl, stdenv
+{ mkDerivation, base, base-orphans, criterion, HUnit, mtl, lib
 , template-haskell, transformers
 }:
 mkDerivation {
@@ -14,5 +14,5 @@ mkDerivation {
   benchmarkHaskellDepends = [ base criterion ];
   homepage = "https://github.com/sebastiaanvisser/fclabels";
   description = "First class accessor labels implemented as lenses";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

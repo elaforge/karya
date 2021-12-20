@@ -1,5 +1,5 @@
 { mkDerivation, base, ghc-prim, hspec, hspec-discover, QuickCheck
-, stdenv
+, lib
 }:
 mkDerivation {
   pname = "base-orphans";
@@ -10,5 +10,5 @@ mkDerivation {
   testToolDepends = [ hspec-discover ];
   homepage = "https://github.com/haskell-compat/base-orphans#readme";
   description = "Backwards-compatible orphan instances for base";
-  license = stdenv.lib.licenses.mit;
+  license = lib.licenses.mit;
 }

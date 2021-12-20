@@ -1,5 +1,5 @@
 { mkDerivation, base, directory, extra, filepath, QuickCheck
-, stdenv
+, lib
 }:
 mkDerivation {
   pname = "filepattern";
@@ -9,5 +9,5 @@ mkDerivation {
   testHaskellDepends = [ base directory extra filepath QuickCheck ];
   homepage = "https://github.com/ndmitchell/filepattern#readme";
   description = "File path glob-like matching";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

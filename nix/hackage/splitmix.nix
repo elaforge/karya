@@ -1,6 +1,6 @@
 { mkDerivation, async, base, base-compat, base-compat-batteries
 , bytestring, clock, containers, criterion, deepseq, HUnit
-, math-functions, process, random, stdenv, test-framework
+, math-functions, process, random, lib, test-framework
 , test-framework-hunit, tf-random, vector
 }:
 mkDerivation {
@@ -17,5 +17,5 @@ mkDerivation {
     base clock containers criterion random tf-random
   ];
   description = "Fast Splittable PRNG";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

@@ -1,4 +1,4 @@
-{ mkDerivation, base, containers, ghc-prim, mmorph, mtl, stdenv
+{ mkDerivation, base, containers, ghc-prim, mmorph, mtl, lib
 , transformers, transformers-base
 }:
 mkDerivation {
@@ -10,5 +10,5 @@ mkDerivation {
   ];
   homepage = "https://github.com/haskell-streaming/streaming";
   description = "an elementary streaming prelude and general stream type";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

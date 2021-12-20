@@ -1,5 +1,5 @@
 { mkDerivation, array, base, directory, pretty, process, QuickCheck
-, stdenv, test-framework, test-framework-quickcheck2
+, lib, test-framework, test-framework-quickcheck2
 }:
 mkDerivation {
   pname = "Diff";
@@ -11,5 +11,5 @@ mkDerivation {
     test-framework-quickcheck2
   ];
   description = "O(ND) diff algorithm in haskell";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

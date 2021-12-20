@@ -1,4 +1,4 @@
-{ mkDerivation, base, stdenv, transformers }:
+{ mkDerivation, base, lib, transformers }:
 mkDerivation {
   pname = "writer-cps-transformers";
   version = "0.5.6.1";
@@ -7,5 +7,5 @@ mkDerivation {
   doHaddock = false;
   homepage = "https://github.com/minad/writer-cps-transformers#readme";
   description = "WriteT and RWST monad transformers";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

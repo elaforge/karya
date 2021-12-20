@@ -1,5 +1,5 @@
 { mkDerivation, base, bytestring, deepseq, ghc-prim, HUnit
-, integer-gmp, QuickCheck, random, stdenv, test-framework
+, integer-gmp, QuickCheck, random, lib, test-framework
 , test-framework-hunit, test-framework-quickcheck2, text, unix
 }:
 mkDerivation {
@@ -15,5 +15,5 @@ mkDerivation {
   ];
   homepage = "http://github.com/haskell-unordered-containers/hashable";
   description = "A class for types that can be converted to a hash value";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

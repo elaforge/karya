@@ -1,4 +1,4 @@
-{ mkDerivation, base, deepseq, stdenv, template-haskell
+{ mkDerivation, base, deepseq, lib, template-haskell
 , transformers
 }:
 mkDerivation {
@@ -12,5 +12,5 @@ mkDerivation {
   ];
   homepage = "http://github.com/ekmett/tagged";
   description = "Haskell 98 phantom types to avoid unsafely passing dummy arguments";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

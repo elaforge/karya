@@ -1,4 +1,4 @@
-{ mkDerivation, base, containers, mtl, stdenv, tasty, tasty-hunit
+{ mkDerivation, base, containers, mtl, lib, tasty, tasty-hunit
 }:
 mkDerivation {
   pname = "syb";
@@ -8,5 +8,5 @@ mkDerivation {
   testHaskellDepends = [ base containers mtl tasty tasty-hunit ];
   homepage = "http://www.cs.uu.nl/wiki/GenericProgramming/SYB";
   description = "Scrap Your Boilerplate";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

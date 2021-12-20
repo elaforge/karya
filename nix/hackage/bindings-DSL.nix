@@ -1,4 +1,4 @@
-{ mkDerivation, base, stdenv }:
+{ mkDerivation, base, lib }:
 mkDerivation {
   pname = "bindings-DSL";
   version = "1.0.25";
@@ -6,5 +6,5 @@ mkDerivation {
   libraryHaskellDepends = [ base ];
   homepage = "https://github.com/jwiegley/bindings-dsl/wiki";
   description = "FFI domain specific language, on top of hsc2hs";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

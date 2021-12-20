@@ -1,5 +1,5 @@
 { mkDerivation, base, clock, directory, filepath, process
-, QuickCheck, quickcheck-instances, stdenv, time, unix
+, QuickCheck, quickcheck-instances, lib, time, unix
 }:
 mkDerivation {
   pname = "extra";
@@ -13,5 +13,5 @@ mkDerivation {
   ];
   homepage = "https://github.com/ndmitchell/extra#readme";
   description = "Extra functions I use";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

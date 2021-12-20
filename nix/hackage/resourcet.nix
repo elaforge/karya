@@ -1,5 +1,5 @@
 { mkDerivation, base, containers, exceptions, hspec, mtl, primitive
-, stdenv, transformers, unliftio-core
+, lib, transformers, unliftio-core
 }:
 mkDerivation {
   pname = "resourcet";
@@ -11,5 +11,5 @@ mkDerivation {
   testHaskellDepends = [ base exceptions hspec transformers ];
   homepage = "http://github.com/snoyberg/conduit";
   description = "Deterministic allocation and freeing of scarce resources";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

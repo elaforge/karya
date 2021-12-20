@@ -1,4 +1,4 @@
-{ mkDerivation, base, containers, deepseq, stdenv, tasty }:
+{ mkDerivation, base, containers, deepseq, lib, tasty }:
 mkDerivation {
   pname = "tasty-bench";
   version = "0.2.5";
@@ -8,5 +8,5 @@ mkDerivation {
   libraryHaskellDepends = [ base containers deepseq tasty ];
   homepage = "https://github.com/Bodigrim/tasty-bench";
   description = "Featherlight benchmark framework";
-  license = stdenv.lib.licenses.mit;
+  license = lib.licenses.mit;
 }

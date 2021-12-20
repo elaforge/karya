@@ -1,4 +1,4 @@
-{ mkDerivation, array, base, happy, pretty, stdenv, syb }:
+{ mkDerivation, array, base, happy, pretty, lib, syb }:
 mkDerivation {
   pname = "haskell-src";
   version = "1.0.3.1";
@@ -8,5 +8,5 @@ mkDerivation {
   libraryHaskellDepends = [ array base pretty syb ];
   libraryToolDepends = [ happy ];
   description = "Support for manipulating Haskell source code";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

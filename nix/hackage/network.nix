@@ -1,5 +1,5 @@
 { mkDerivation, base, bytestring, deepseq, directory, hspec
-, hspec-discover, HUnit, QuickCheck, stdenv, temporary
+, hspec-discover, HUnit, QuickCheck, lib, temporary
 }:
 mkDerivation {
   pname = "network";
@@ -14,5 +14,5 @@ mkDerivation {
   testToolDepends = [ hspec-discover ];
   homepage = "https://github.com/haskell/network";
   description = "Low-level networking interface";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

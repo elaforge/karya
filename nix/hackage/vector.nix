@@ -1,5 +1,5 @@
 { mkDerivation, base, base-orphans, deepseq, ghc-prim, HUnit
-, primitive, QuickCheck, random, stdenv, tasty, tasty-hunit
+, primitive, QuickCheck, random, lib, tasty, tasty-hunit
 , tasty-quickcheck, template-haskell, transformers
 }:
 mkDerivation {
@@ -13,5 +13,5 @@ mkDerivation {
   ];
   homepage = "https://github.com/haskell/vector";
   description = "Efficient Arrays";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

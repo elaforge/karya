@@ -1,4 +1,4 @@
-{ mkDerivation, base, stdenv }:
+{ mkDerivation, base, lib }:
 mkDerivation {
   pname = "js-dgtable";
   version = "0.5.2";
@@ -8,5 +8,5 @@ mkDerivation {
   testHaskellDepends = [ base ];
   homepage = "https://github.com/ndmitchell/js-dgtable#readme";
   description = "Obtain minified jquery.dgtable code";
-  license = stdenv.lib.licenses.mit;
+  license = lib.licenses.mit;
 }

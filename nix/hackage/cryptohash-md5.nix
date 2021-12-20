@@ -1,5 +1,5 @@
 { mkDerivation, base, base16-bytestring, bytestring, criterion
-, pureMD5, stdenv, tasty, tasty-hunit, tasty-quickcheck
+, pureMD5, lib, tasty, tasty-hunit, tasty-quickcheck
 }:
 mkDerivation {
   pname = "cryptohash-md5";
@@ -15,5 +15,5 @@ mkDerivation {
   benchmarkHaskellDepends = [ base bytestring criterion ];
   homepage = "https://github.com/hvr/cryptohash-md5";
   description = "Fast, pure and practical MD5 implementation";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

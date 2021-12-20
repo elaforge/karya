@@ -1,4 +1,4 @@
-{ mkDerivation, base, bytestring, HUnit, stdenv }:
+{ mkDerivation, base, bytestring, HUnit, lib }:
 mkDerivation {
   pname = "utf8-string";
   version = "1.0.2";
@@ -7,5 +7,5 @@ mkDerivation {
   testHaskellDepends = [ base HUnit ];
   homepage = "https://github.com/glguy/utf8-string/";
   description = "Support for reading and writing UTF8 Strings";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

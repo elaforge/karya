@@ -1,6 +1,6 @@
 { mkDerivation, base, bytestring, ChasingBottoms, containers
 , deepseq, gauge, hashable, hashmap, HUnit, mtl, QuickCheck, random
-, stdenv, test-framework, test-framework-hunit
+, lib, test-framework, test-framework-hunit
 , test-framework-quickcheck2
 }:
 mkDerivation {
@@ -18,5 +18,5 @@ mkDerivation {
   ];
   homepage = "https://github.com/haskell-unordered-containers/unordered-containers";
   description = "Efficient hashing-based container types";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

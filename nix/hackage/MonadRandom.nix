@@ -1,4 +1,4 @@
-{ mkDerivation, base, mtl, primitive, random, stdenv, transformers
+{ mkDerivation, base, mtl, primitive, random, lib, transformers
 , transformers-compat
 }:
 mkDerivation {
@@ -11,5 +11,5 @@ mkDerivation {
     base mtl primitive random transformers transformers-compat
   ];
   description = "Random-number generation monad";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

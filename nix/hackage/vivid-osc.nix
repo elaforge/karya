@@ -1,4 +1,4 @@
-{ mkDerivation, base, bytestring, cereal, microspec, stdenv, time
+{ mkDerivation, base, bytestring, cereal, microspec, lib, time
 }:
 mkDerivation {
   pname = "vivid-osc";

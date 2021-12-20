@@ -1,6 +1,6 @@
 { mkDerivation, base, binary, bytestring, deepseq, directory, extra
 , filepath, filepattern, hashable, heaps, js-dgtable, js-flot
-, js-jquery, primitive, process, QuickCheck, random, stdenv, time
+, js-jquery, primitive, process, QuickCheck, random, lib, time
 , transformers, unix, unordered-containers, utf8-string
 }:
 mkDerivation {
@@ -28,5 +28,5 @@ mkDerivation {
   ];
   homepage = "https://shakebuild.com";
   description = "Build system library, like Make, but more accurate dependencies";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

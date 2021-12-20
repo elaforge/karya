@@ -1,4 +1,4 @@
-{ mkDerivation, base, byteorder, stdenv }:
+{ mkDerivation, base, byteorder, lib }:
 mkDerivation {
   pname = "storable-endian";
   version = "0.2.6";
@@ -7,5 +7,5 @@ mkDerivation {
   editedCabalFile = "12f8sscsvsarlwz3p6kk9vbvqsbyhs8lhafgn9h7c0z6pz1amrya";
   libraryHaskellDepends = [ base byteorder ];
   description = "Storable instances with endianness";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

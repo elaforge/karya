@@ -1,5 +1,5 @@
 { mkDerivation, base, doctest-exitcode-stdio, doctest-lib
-, QuickCheck, stdenv
+, QuickCheck, lib
 }:
 mkDerivation {
   pname = "utility-ht";
@@ -10,5 +10,5 @@ mkDerivation {
     base doctest-exitcode-stdio doctest-lib QuickCheck
   ];
   description = "Various small helper functions for Lists, Maybes, Tuples, Functions";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

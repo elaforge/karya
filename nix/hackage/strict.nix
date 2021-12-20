@@ -1,5 +1,5 @@
 { mkDerivation, assoc, base, binary, bytestring, deepseq, ghc-prim
-, hashable, stdenv, text, these, transformers
+, hashable, lib, text, these, transformers
 }:
 mkDerivation {
   pname = "strict";
@@ -11,5 +11,5 @@ mkDerivation {
   ];
   homepage = "https://github.com/haskell-strict/strict";
   description = "Strict data types and String IO";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

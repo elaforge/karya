@@ -1,5 +1,5 @@
 { mkDerivation, base, base-compat, bytestring, doctest, Glob
-, pcre-light, semigroups, stdenv, string-conversions
+, pcre-light, semigroups, lib, string-conversions
 , template-haskell
 }:
 mkDerivation {
@@ -15,5 +15,5 @@ mkDerivation {
   testHaskellDepends = [ base doctest Glob ];
   homepage = "https://github.com/myfreeweb/pcre-heavy";
   description = "A regexp (regex) library on top of pcre-light you can actually use";
-  license = stdenv.lib.licenses.publicDomain;
+  license = lib.licenses.publicDomain;
 }

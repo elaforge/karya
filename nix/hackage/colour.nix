@@ -1,4 +1,4 @@
-{ mkDerivation, base, QuickCheck, random, stdenv, test-framework
+{ mkDerivation, base, QuickCheck, random, lib, test-framework
 , test-framework-quickcheck2
 }:
 mkDerivation {
@@ -12,5 +12,5 @@ mkDerivation {
   ];
   homepage = "http://www.haskell.org/haskellwiki/Colour";
   description = "A model for human colour/color perception";
-  license = stdenv.lib.licenses.mit;
+  license = lib.licenses.mit;
 }

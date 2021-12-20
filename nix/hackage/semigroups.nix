@@ -1,4 +1,4 @@
-{ mkDerivation, base, stdenv }:
+{ mkDerivation, base, lib }:
 mkDerivation {
   pname = "semigroups";
   version = "0.19.1";
@@ -6,5 +6,5 @@ mkDerivation {
   libraryHaskellDepends = [ base ];
   homepage = "http://github.com/ekmett/semigroups/";
   description = "Anything that associates";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

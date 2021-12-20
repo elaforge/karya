@@ -1,5 +1,5 @@
 { mkDerivation, base, base-orphans, deepseq, ghc-prim, QuickCheck
-, quickcheck-classes-base, semigroups, stdenv, tagged, tasty
+, quickcheck-classes-base, semigroups, lib, tagged, tasty
 , tasty-quickcheck, transformers, transformers-compat
 }:
 mkDerivation {
@@ -16,5 +16,5 @@ mkDerivation {
   ];
   homepage = "https://github.com/haskell/primitive";
   description = "Primitive memory-related operations";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

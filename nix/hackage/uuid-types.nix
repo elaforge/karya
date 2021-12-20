@@ -1,5 +1,5 @@
 { mkDerivation, base, binary, bytestring, deepseq, ghc-byteorder
-, hashable, QuickCheck, random, stdenv, tasty, tasty-hunit
+, hashable, QuickCheck, random, lib, tasty, tasty-hunit
 , tasty-quickcheck, template-haskell, text
 }:
 mkDerivation {
@@ -16,5 +16,5 @@ mkDerivation {
   ];
   homepage = "https://github.com/haskell-hvr/uuid";
   description = "Type definitions for Universally Unique Identifiers";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

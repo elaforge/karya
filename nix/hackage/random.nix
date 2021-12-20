@@ -1,6 +1,6 @@
 { mkDerivation, base, bytestring, containers, deepseq, doctest
 , gauge, mtl, mwc-random, primitive, rdtsc, smallcheck, split
-, splitmix, stdenv, tasty, tasty-expected-failure, tasty-hunit
+, splitmix, lib, tasty, tasty-expected-failure, tasty-hunit
 , tasty-smallcheck, time, unliftio, vector
 }:
 mkDerivation {
@@ -19,5 +19,5 @@ mkDerivation {
     base gauge mtl rdtsc split splitmix time
   ];
   description = "Pseudo-random number generation";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

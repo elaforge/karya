@@ -1,5 +1,5 @@
 { mkDerivation, alex, array, base, bytestring, containers, deepseq
-, directory, filepath, happy, pretty, process, stdenv, syb
+, directory, filepath, happy, pretty, process, lib, syb
 }:
 mkDerivation {
   pname = "language-c";
@@ -13,5 +13,5 @@ mkDerivation {
   testHaskellDepends = [ base directory filepath process ];
   homepage = "http://visq.github.io/language-c/";
   description = "Analysis and generation of C code";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

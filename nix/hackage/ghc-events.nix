@@ -1,4 +1,4 @@
-{ mkDerivation, array, base, binary, bytestring, containers, stdenv
+{ mkDerivation, array, base, binary, bytestring, containers, lib
 , text, vector
 }:
 mkDerivation {
@@ -13,5 +13,5 @@ mkDerivation {
   executableHaskellDepends = [ base containers ];
   testHaskellDepends = [ base ];
   description = "Library and tool for parsing .eventlog files from GHC";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

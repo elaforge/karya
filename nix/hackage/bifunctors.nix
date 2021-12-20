@@ -1,5 +1,5 @@
 { mkDerivation, base, base-orphans, comonad, containers, hspec
-, hspec-discover, QuickCheck, stdenv, tagged, template-haskell
+, hspec-discover, QuickCheck, lib, tagged, template-haskell
 , th-abstraction, transformers, transformers-compat
 }:
 mkDerivation {
@@ -17,5 +17,5 @@ mkDerivation {
   testToolDepends = [ hspec-discover ];
   homepage = "http://github.com/ekmett/bifunctors/";
   description = "Bifunctors";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

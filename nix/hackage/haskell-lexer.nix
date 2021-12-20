@@ -1,4 +1,4 @@
-{ mkDerivation, base, stdenv }:
+{ mkDerivation, base, lib }:
 mkDerivation {
   pname = "haskell-lexer";
   version = "1.1";
@@ -6,5 +6,5 @@ mkDerivation {
   libraryHaskellDepends = [ base ];
   homepage = "https://github.com/yav/haskell-lexer";
   description = "A fully compliant Haskell 98 lexer";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

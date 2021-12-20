@@ -1,4 +1,4 @@
-{ mkDerivation, base, stdenv }:
+{ mkDerivation, base, lib }:
 mkDerivation {
   pname = "c-storable";
   version = "0.3";
@@ -7,5 +7,5 @@ mkDerivation {
   libraryHaskellDepends = [ base ];
   homepage = "https://github.com/elaforge/c-storable";
   description = "CStorable class";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

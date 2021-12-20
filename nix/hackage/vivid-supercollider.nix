@@ -1,5 +1,5 @@
 { mkDerivation, base, binary, bytestring, cereal, microspec
-, QuickCheck, split, stdenv, utf8-string, vivid-osc
+, QuickCheck, split, lib, utf8-string, vivid-osc
 }:
 mkDerivation {
   pname = "vivid-supercollider";

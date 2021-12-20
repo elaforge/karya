@@ -1,4 +1,4 @@
-{ mkDerivation, array, base, containers, mtl, process, stdenv }:
+{ mkDerivation, array, base, containers, mtl, process, lib }:
 mkDerivation {
   pname = "happy";
   version = "1.20.0";
@@ -10,5 +10,5 @@ mkDerivation {
   testHaskellDepends = [ base process ];
   homepage = "https://www.haskell.org/happy/";
   description = "Happy is a parser generator for Haskell";
-  license = stdenv.lib.licenses.bsd2;
+  license = lib.licenses.bsd2;
 }

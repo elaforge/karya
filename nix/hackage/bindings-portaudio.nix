@@ -1,4 +1,4 @@
-{ mkDerivation, base, bindings-DSL, portaudio, stdenv, vector }:
+{ mkDerivation, base, bindings-DSL, portaudio, lib, vector }:
 mkDerivation {
   pname = "bindings-portaudio";
   version = "0.3";
@@ -6,5 +6,5 @@ mkDerivation {
   libraryHaskellDepends = [ base bindings-DSL vector ];
   libraryPkgconfigDepends = [ portaudio ];
   description = "Low-level bindings to portaudio library";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

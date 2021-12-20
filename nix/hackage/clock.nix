@@ -1,4 +1,4 @@
-{ mkDerivation, base, criterion, stdenv, tasty, tasty-quickcheck }:
+{ mkDerivation, base, criterion, lib, tasty, tasty-quickcheck }:
 mkDerivation {
   pname = "clock";
   version = "0.8.2";
@@ -8,5 +8,5 @@ mkDerivation {
   benchmarkHaskellDepends = [ base criterion ];
   homepage = "https://github.com/corsis/clock";
   description = "High-resolution clock functions: monotonic, realtime, cputime";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

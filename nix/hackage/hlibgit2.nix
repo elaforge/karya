@@ -1,4 +1,4 @@
-{ mkDerivation, base, bindings-DSL, git, openssl, process, stdenv
+{ mkDerivation, base, bindings-DSL, git, openssl, process, lib
 , zlib
 }:
 mkDerivation {
@@ -10,5 +10,5 @@ mkDerivation {
   testHaskellDepends = [ base process ];
   testToolDepends = [ git ];
   description = "Low-level bindings to libgit2";
-  license = stdenv.lib.licenses.mit;
+  license = lib.licenses.mit;
 }

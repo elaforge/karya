@@ -1,4 +1,4 @@
-{ mkDerivation, base, random, stdenv, time }:
+{ mkDerivation, base, random, lib, time }:
 mkDerivation {
   pname = "mersenne-random-pure64";
   version = "0.2.2.0";
@@ -8,5 +8,5 @@ mkDerivation {
   libraryHaskellDepends = [ base random time ];
   homepage = "http://code.haskell.org/~dons/code/mersenne-random-pure64/";
   description = "Generate high quality pseudorandom numbers purely using a Mersenne Twister";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

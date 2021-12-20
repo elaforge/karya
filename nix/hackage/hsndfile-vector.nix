@@ -1,4 +1,4 @@
-{ mkDerivation, base, hsndfile, stdenv, vector }:
+{ mkDerivation, base, hsndfile, lib, vector }:
 mkDerivation {
   pname = "hsndfile-vector";
   version = "0.5.2";
@@ -6,5 +6,5 @@ mkDerivation {
   libraryHaskellDepends = [ base hsndfile vector ];
   homepage = "http://haskell.org/haskellwiki/Hsndfile";
   description = "Haskell bindings for libsndfile (Data.Vector interface)";
-  license = stdenv.lib.licenses.lgpl2;
+  license = lib.licenses.lgpl2;
 }

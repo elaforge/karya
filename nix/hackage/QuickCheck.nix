@@ -1,5 +1,6 @@
 { mkDerivation, base, containers, deepseq, process, random
-, splitmix, stdenv, template-haskell, transformers
+, splitmix, template-haskell, transformers
+, lib
 }:
 mkDerivation {
   pname = "QuickCheck";
@@ -12,5 +13,5 @@ mkDerivation {
   testHaskellDepends = [ base deepseq process ];
   homepage = "https://github.com/nick8325/quickcheck";
   description = "Automatic testing of Haskell programs";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

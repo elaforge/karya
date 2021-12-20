@@ -1,4 +1,4 @@
-{ mkDerivation, base, hashable, HUnit, stdenv, stm, test-framework
+{ mkDerivation, base, hashable, HUnit, lib, stm, test-framework
 , test-framework-hunit
 }:
 mkDerivation {
@@ -13,5 +13,5 @@ mkDerivation {
   ];
   homepage = "https://github.com/simonmar/async";
   description = "Run IO operations asynchronously and wait for their results";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

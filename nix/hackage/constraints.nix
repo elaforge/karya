@@ -1,5 +1,5 @@
 { mkDerivation, base, binary, deepseq, ghc-prim, hashable, hspec
-, hspec-discover, mtl, stdenv, transformers, transformers-compat
+, hspec-discover, mtl, lib, transformers, transformers-compat
 , type-equality
 }:
 mkDerivation {
@@ -14,5 +14,5 @@ mkDerivation {
   testToolDepends = [ hspec-discover ];
   homepage = "http://github.com/ekmett/constraints/";
   description = "Constraint manipulation";
-  license = stdenv.lib.licenses.bsd2;
+  license = lib.licenses.bsd2;
 }

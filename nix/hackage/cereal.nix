@@ -1,5 +1,5 @@
 { mkDerivation, array, base, bytestring, containers, ghc-prim
-, QuickCheck, stdenv, test-framework, test-framework-quickcheck2
+, QuickCheck, lib, test-framework, test-framework-quickcheck2
 }:
 mkDerivation {
   pname = "cereal";
@@ -14,5 +14,5 @@ mkDerivation {
   ];
   homepage = "https://github.com/GaloisInc/cereal";
   description = "A binary serialization library";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

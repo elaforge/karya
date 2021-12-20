@@ -1,5 +1,5 @@
 { mkDerivation, base, bytestring, criterion, deepseq, HUnit
-, QuickCheck, stdenv, test-framework, test-framework-hunit
+, QuickCheck, lib, test-framework, test-framework-hunit
 , test-framework-quickcheck2
 }:
 mkDerivation {
@@ -14,5 +14,5 @@ mkDerivation {
   benchmarkHaskellDepends = [ base bytestring criterion deepseq ];
   homepage = "https://github.com/haskell/base64-bytestring";
   description = "Fast base64 encoding and decoding for ByteStrings";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

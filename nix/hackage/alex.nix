@@ -1,5 +1,5 @@
 { mkDerivation, array, base, containers, directory, happy, process
-, stdenv
+, lib
 }:
 mkDerivation {
   pname = "alex";
@@ -13,5 +13,5 @@ mkDerivation {
   testHaskellDepends = [ base process ];
   homepage = "http://www.haskell.org/alex/";
   description = "Alex is a tool for generating lexical analysers in Haskell";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

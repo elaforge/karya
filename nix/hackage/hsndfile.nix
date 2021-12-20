@@ -1,4 +1,4 @@
-{ mkDerivation, base, c2hs, libsndfile, stdenv }:
+{ mkDerivation, base, c2hs, libsndfile, lib }:
 mkDerivation {
   pname = "hsndfile";
   version = "0.8.0";
@@ -8,5 +8,5 @@ mkDerivation {
   libraryToolDepends = [ c2hs ];
   homepage = "http://haskell.org/haskellwiki/Hsndfile";
   description = "Haskell bindings for libsndfile";
-  license = stdenv.lib.licenses.lgpl21;
+  license = lib.licenses.lgpl21;
 }

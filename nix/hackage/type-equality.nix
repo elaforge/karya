@@ -1,4 +1,4 @@
-{ mkDerivation, base, stdenv }:
+{ mkDerivation, base, lib }:
 mkDerivation {
   pname = "type-equality";
   version = "1";
@@ -8,5 +8,5 @@ mkDerivation {
   libraryHaskellDepends = [ base ];
   homepage = "https://github.com/hesselink/type-equality";
   description = "Data.Type.Equality compat package";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

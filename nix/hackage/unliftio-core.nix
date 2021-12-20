@@ -1,4 +1,4 @@
-{ mkDerivation, base, stdenv, transformers }:
+{ mkDerivation, base, lib, transformers }:
 mkDerivation {
   pname = "unliftio-core";
   version = "0.2.0.1";
@@ -8,5 +8,5 @@ mkDerivation {
   libraryHaskellDepends = [ base transformers ];
   homepage = "https://github.com/fpco/unliftio/tree/master/unliftio-core#readme";
   description = "The MonadUnliftIO typeclass for unlifting monads to IO";
-  license = stdenv.lib.licenses.mit;
+  license = lib.licenses.mit;
 }

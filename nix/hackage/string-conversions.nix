@@ -1,5 +1,5 @@
 { mkDerivation, base, bytestring, deepseq, hspec, QuickCheck
-, quickcheck-instances, stdenv, text, utf8-string
+, quickcheck-instances, lib, text, utf8-string
 }:
 mkDerivation {
   pname = "string-conversions";
@@ -12,5 +12,5 @@ mkDerivation {
   ];
   homepage = "https://github.com/soenkehahn/string-conversions#readme";
   description = "Simplifies dealing with different types for strings";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

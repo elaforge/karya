@@ -1,4 +1,4 @@
-{ mkDerivation, base, doctest-lib, QuickCheck, semigroups, stdenv
+{ mkDerivation, base, doctest-lib, QuickCheck, semigroups, lib
 , transformers
 }:
 mkDerivation {
@@ -10,5 +10,5 @@ mkDerivation {
   ];
   homepage = "https://hub.darcs.net/thielema/doctest-exitcode-stdio/";
   description = "Run doctest's in a Cabal.Test.exitcode-stdio environment";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

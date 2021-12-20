@@ -1,4 +1,4 @@
-{ mkDerivation, base, stdenv }:
+{ mkDerivation, base, lib }:
 mkDerivation {
   pname = "heaps";
   version = "0.4";
@@ -6,5 +6,5 @@ mkDerivation {
   libraryHaskellDepends = [ base ];
   homepage = "http://github.com/ekmett/heaps/";
   description = "Asymptotically optimal Brodal/Okasaki heaps";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

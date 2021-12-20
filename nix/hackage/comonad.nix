@@ -1,5 +1,5 @@
 { mkDerivation, base, containers, distributive, indexed-traversable
-, stdenv, tagged, transformers, transformers-compat
+, lib, tagged, transformers, transformers-compat
 }:
 mkDerivation {
   pname = "comonad";
@@ -11,5 +11,5 @@ mkDerivation {
   ];
   homepage = "http://github.com/ekmett/comonad/";
   description = "Comonads";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

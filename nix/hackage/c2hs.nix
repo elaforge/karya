@@ -1,6 +1,6 @@
 { mkDerivation, array, base, bytestring, containers, directory
 , dlist, filepath, HUnit, language-c, pretty, process, shelly
-, stdenv, test-framework, test-framework-hunit, text, transformers
+, lib, test-framework, test-framework-hunit, text, transformers
 }:
 mkDerivation {
   pname = "c2hs";
@@ -19,5 +19,5 @@ mkDerivation {
   ];
   homepage = "https://github.com/haskell/c2hs";
   description = "C->Haskell FFI tool that gives some cross-language type safety";
-  license = stdenv.lib.licenses.gpl2;
+  license = lib.licenses.gpl2;
 }

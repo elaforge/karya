@@ -1,4 +1,4 @@
-{ mkDerivation, base, stdenv }:
+{ mkDerivation, base, lib }:
 mkDerivation {
   pname = "byteorder";
   version = "1.0.4";
@@ -6,5 +6,5 @@ mkDerivation {
   libraryHaskellDepends = [ base ];
   homepage = "http://community.haskell.org/~aslatter/code/byteorder";
   description = "Exposes the native endianness or byte ordering of the system";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

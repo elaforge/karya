@@ -1,4 +1,4 @@
-{ mkDerivation, base, bytestring, stdenv, storable-endian
+{ mkDerivation, base, bytestring, lib, storable-endian
 , transformers, utility-ht
 }:
 mkDerivation {
@@ -11,5 +11,5 @@ mkDerivation {
     base bytestring storable-endian transformers utility-ht
   ];
   description = "Parse song module files from Amiga MED and OctaMED";
-  license = stdenv.lib.licenses.gpl3;
+  license = lib.licenses.gpl3;
 }

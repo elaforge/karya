@@ -1,4 +1,4 @@
-{ mkDerivation, base, base-orphans, stdenv, stm, transformers
+{ mkDerivation, base, base-orphans, lib, stm, transformers
 , transformers-compat
 }:
 mkDerivation {
@@ -10,5 +10,5 @@ mkDerivation {
   ];
   homepage = "https://github.com/mvv/transformers-base";
   description = "Lift computations from the bottom of a transformer stack";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

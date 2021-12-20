@@ -1,4 +1,4 @@
-{ mkDerivation, base, mtl, stdenv, transformers
+{ mkDerivation, base, mtl, lib, transformers
 , writer-cps-transformers
 }:
 mkDerivation {
@@ -10,5 +10,5 @@ mkDerivation {
   ];
   homepage = "https://github.com/minad/writer-cps-mtl#readme";
   description = "MonadWriter orphan instances for writer-cps-transformers";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

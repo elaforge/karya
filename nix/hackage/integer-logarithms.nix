@@ -1,5 +1,5 @@
 { mkDerivation, array, base, ghc-prim, integer-gmp, QuickCheck
-, smallcheck, stdenv, tasty, tasty-hunit, tasty-quickcheck
+, smallcheck, lib, tasty, tasty-hunit, tasty-quickcheck
 , tasty-smallcheck
 }:
 mkDerivation {
@@ -13,5 +13,5 @@ mkDerivation {
   ];
   homepage = "https://github.com/haskellari/integer-logarithms";
   description = "Integer logarithms";
-  license = stdenv.lib.licenses.mit;
+  license = lib.licenses.mit;
 }

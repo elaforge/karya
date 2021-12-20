@@ -1,5 +1,5 @@
 { mkDerivation, base, base-compat, hspec, hspec-discover
-, QuickCheck, stdenv
+, QuickCheck, lib
 }:
 mkDerivation {
   pname = "base-compat-batteries";
@@ -9,5 +9,5 @@ mkDerivation {
   testHaskellDepends = [ base hspec QuickCheck ];
   testToolDepends = [ hspec-discover ];
   description = "base-compat with extra batteries";
-  license = stdenv.lib.licenses.mit;
+  license = lib.licenses.mit;
 }

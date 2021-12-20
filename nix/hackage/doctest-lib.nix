@@ -1,4 +1,4 @@
-{ mkDerivation, base, stdenv }:
+{ mkDerivation, base, lib }:
 mkDerivation {
   pname = "doctest-lib";
   version = "0.1";
@@ -6,5 +6,5 @@ mkDerivation {
   libraryHaskellDepends = [ base ];
   homepage = "https://hub.darcs.net/thielema/doctest-lib/";
   description = "Parts of doctest exposed as library";
-  license = stdenv.lib.licenses.mit;
+  license = lib.licenses.mit;
 }

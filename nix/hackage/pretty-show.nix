@@ -1,5 +1,5 @@
 { mkDerivation, array, base, filepath, ghc-prim, happy
-, haskell-lexer, pretty, stdenv, text
+, haskell-lexer, pretty, lib, text
 }:
 mkDerivation {
   pname = "pretty-show";
@@ -15,5 +15,5 @@ mkDerivation {
   executableHaskellDepends = [ base ];
   homepage = "http://wiki.github.com/yav/pretty-show";
   description = "Tools for working with derived `Show` instances and generic inspection of values";
-  license = stdenv.lib.licenses.mit;
+  license = lib.licenses.mit;
 }

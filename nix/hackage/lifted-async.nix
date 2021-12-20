@@ -1,5 +1,5 @@
 { mkDerivation, async, base, constraints, deepseq, HUnit
-, lifted-base, monad-control, mtl, stdenv, tasty, tasty-bench
+, lifted-base, monad-control, mtl, lib, tasty, tasty-bench
 , tasty-expected-failure, tasty-hunit, tasty-th, transformers-base
 }:
 mkDerivation {
@@ -16,5 +16,5 @@ mkDerivation {
   benchmarkHaskellDepends = [ async base deepseq tasty-bench ];
   homepage = "https://github.com/maoe/lifted-async";
   description = "Run lifted IO operations asynchronously and wait for their results";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

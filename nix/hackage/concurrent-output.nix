@@ -1,5 +1,5 @@
 { mkDerivation, ansi-terminal, async, base, directory, exceptions
-, process, stdenv, stm, terminal-size, text, transformers, unix
+, process, lib, stm, terminal-size, text, transformers, unix
 }:
 mkDerivation {
   pname = "concurrent-output";
@@ -10,5 +10,5 @@ mkDerivation {
     terminal-size text transformers unix
   ];
   description = "Ungarble output from several threads or commands";
-  license = stdenv.lib.licenses.bsd2;
+  license = lib.licenses.bsd2;
 }

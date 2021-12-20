@@ -1,4 +1,4 @@
-{ mkDerivation, base, mtl, stdenv, transformers
+{ mkDerivation, base, mtl, lib, transformers
 , transformers-compat
 }:
 mkDerivation {
@@ -11,5 +11,5 @@ mkDerivation {
     base mtl transformers transformers-compat
   ];
   description = "Monad morphisms";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

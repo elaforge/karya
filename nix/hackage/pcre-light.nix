@@ -1,5 +1,5 @@
 { mkDerivation, base, bytestring, containers, HUnit, mtl, pcre
-, stdenv
+, lib
 }:
 mkDerivation {
   pname = "pcre-light";
@@ -10,5 +10,5 @@ mkDerivation {
   testHaskellDepends = [ base bytestring containers HUnit mtl ];
   homepage = "https://github.com/Daniel-Diaz/pcre-light";
   description = "Portable regex library for Perl 5 compatible regular expressions";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

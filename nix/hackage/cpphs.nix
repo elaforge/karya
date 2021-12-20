@@ -1,4 +1,4 @@
-{ mkDerivation, base, directory, polyparse, stdenv, time }:
+{ mkDerivation, base, directory, polyparse, lib, time }:
 mkDerivation {
   pname = "cpphs";
   version = "1.20.9.1";

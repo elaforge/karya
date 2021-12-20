@@ -1,4 +1,4 @@
-{ mkDerivation, base, colour, stdenv }:
+{ mkDerivation, base, colour, lib }:
 mkDerivation {
   pname = "ansi-terminal";
   version = "0.11";
@@ -8,5 +8,5 @@ mkDerivation {
   libraryHaskellDepends = [ base colour ];
   homepage = "https://github.com/feuerbach/ansi-terminal";
   description = "Simple ANSI terminal support, with Windows compatibility";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

@@ -1,5 +1,5 @@
 { mkDerivation, base, criterion, HUnit, monad-control, monad-peel
-, stdenv, test-framework, test-framework-hunit, transformers
+, lib, test-framework, test-framework-hunit, transformers
 , transformers-base, transformers-compat
 }:
 mkDerivation {
@@ -16,5 +16,5 @@ mkDerivation {
   ];
   homepage = "https://github.com/basvandijk/lifted-base";
   description = "lifted IO operations from the base library";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

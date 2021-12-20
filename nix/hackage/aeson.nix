@@ -3,7 +3,7 @@
 , bytestring, containers, data-fix, deepseq, Diff, directory, dlist
 , filepath, generic-deriving, ghc-prim, hashable, hashable-time
 , integer-logarithms, primitive, QuickCheck, quickcheck-instances
-, scientific, stdenv, strict, tagged, tasty, tasty-golden
+, scientific, lib, strict, tagged, tasty, tasty-golden
 , tasty-hunit, tasty-quickcheck, template-haskell, text
 , th-abstraction, these, time, time-compat, unordered-containers
 , uuid-types, vector
@@ -30,5 +30,5 @@ mkDerivation {
   ];
   homepage = "https://github.com/haskell/aeson";
   description = "Fast JSON parsing and encoding";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

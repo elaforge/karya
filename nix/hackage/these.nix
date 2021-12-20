@@ -1,4 +1,4 @@
-{ mkDerivation, assoc, base, binary, deepseq, hashable, stdenv }:
+{ mkDerivation, assoc, base, binary, deepseq, hashable, lib }:
 mkDerivation {
   pname = "these";
   version = "1.1.1.1";
@@ -8,5 +8,5 @@ mkDerivation {
   libraryHaskellDepends = [ assoc base binary deepseq hashable ];
   homepage = "https://github.com/isomorphism/these";
   description = "An either-or-both data type";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

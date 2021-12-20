@@ -1,5 +1,5 @@
 { mkDerivation, base, base-compat, base-orphans, deepseq, HUnit
-, QuickCheck, stdenv, tagged, tasty, tasty-hunit, tasty-quickcheck
+, QuickCheck, lib, tagged, tasty, tasty-hunit, tasty-quickcheck
 , time
 }:
 mkDerivation {
@@ -15,5 +15,5 @@ mkDerivation {
   ];
   homepage = "https://github.com/haskellari/time-compat";
   description = "Compatibility package for time";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

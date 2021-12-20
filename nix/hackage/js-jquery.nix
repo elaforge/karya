@@ -1,4 +1,4 @@
-{ mkDerivation, base, HTTP, stdenv }:
+{ mkDerivation, base, HTTP, lib }:
 mkDerivation {
   pname = "js-jquery";
   version = "3.3.1";
@@ -9,5 +9,5 @@ mkDerivation {
   doCheck = false;
   homepage = "https://github.com/ndmitchell/js-jquery#readme";
   description = "Obtain minified jQuery code";
-  license = stdenv.lib.licenses.mit;
+  license = lib.licenses.mit;
 }

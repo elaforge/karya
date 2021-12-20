@@ -1,4 +1,4 @@
-{ mkDerivation, base, containers, stdenv }:
+{ mkDerivation, base, containers, lib }:
 mkDerivation {
   pname = "wcwidth";
   version = "0.0.2";
@@ -8,5 +8,5 @@ mkDerivation {
   libraryHaskellDepends = [ base containers ];
   homepage = "http://github.com/solidsnack/wcwidth/";
   description = "Native wcwidth";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

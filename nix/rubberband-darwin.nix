@@ -1,5 +1,5 @@
 # This is darwin only, since the nixpkgs version is linux-only.
-{ stdenv, fetchurl, pkgconfig
+{ stdenv, lib, fetchurl, pkgconfig
 , Accelerate, CoreGraphics, CoreVideo
 }:
 
@@ -28,8 +28,8 @@ stdenv.mkDerivation {
     Accelerate CoreGraphics CoreVideo
   ];
 
-  meta = with stdenv.lib; {
+  meta = {
     homepage = "https://www.breakfastquay.com/rubberband/index.html";
-    license = licenses.gpl2Plus;
+    license = lib.licenses.gpl2Plus;
   };
 }

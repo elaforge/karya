@@ -1,4 +1,4 @@
-{ mkDerivation, base, deepseq, hashable, stdenv }:
+{ mkDerivation, base, deepseq, hashable, lib }:
 mkDerivation {
   pname = "data-fix";
   version = "0.3.1";
@@ -6,5 +6,5 @@ mkDerivation {
   libraryHaskellDepends = [ base deepseq hashable ];
   homepage = "https://github.com/spell-music/data-fix";
   description = "Fixpoint data types";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

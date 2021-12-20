@@ -1,7 +1,7 @@
 { mkDerivation, ansi-terminal, async, base, bytestring
 , concurrent-output, containers, deepseq, directory, erf
 , exceptions, lifted-async, mmorph, monad-control, mtl, pretty-show
-, primitive, random, resourcet, stdenv, stm, template-haskell, text
+, primitive, random, resourcet, lib, stm, template-haskell, text
 , time, transformers, transformers-base, wl-pprint-annotated
 }:
 mkDerivation {
@@ -19,5 +19,5 @@ mkDerivation {
   ];
   homepage = "https://hedgehog.qa";
   description = "Release with confidence";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

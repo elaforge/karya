@@ -1,4 +1,4 @@
-{ mkDerivation, base, deepseq, QuickCheck, stdenv }:
+{ mkDerivation, base, deepseq, QuickCheck, lib }:
 mkDerivation {
   pname = "dlist";
   version = "1.0";
@@ -7,5 +7,5 @@ mkDerivation {
   testHaskellDepends = [ base QuickCheck ];
   homepage = "https://github.com/spl/dlist";
   description = "Difference lists";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

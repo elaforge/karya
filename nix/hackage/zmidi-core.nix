@@ -1,4 +1,4 @@
-{ mkDerivation, base, binary, bytestring, containers, stdenv }:
+{ mkDerivation, base, binary, bytestring, containers, lib }:
 mkDerivation {
   pname = "zmidi-core";
   version = "0.9.0";
@@ -6,5 +6,5 @@ mkDerivation {
   libraryHaskellDepends = [ base binary bytestring containers ];
   homepage = "https://github.com/stephentetley/zmidi-core";
   description = "Read and write MIDI files";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

@@ -1,6 +1,6 @@
 { mkDerivation, base, binary, bytestring, containers, criterion
 , deepseq, hashable, integer-gmp, integer-logarithms, primitive
-, QuickCheck, smallcheck, stdenv, tasty, tasty-ant-xml, tasty-hunit
+, QuickCheck, smallcheck, lib, tasty, tasty-ant-xml, tasty-hunit
 , tasty-quickcheck, tasty-smallcheck, text
 }:
 mkDerivation {
@@ -18,5 +18,5 @@ mkDerivation {
   benchmarkHaskellDepends = [ base criterion ];
   homepage = "https://github.com/basvandijk/scientific";
   description = "Numbers represented using scientific notation";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

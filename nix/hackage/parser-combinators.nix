@@ -1,4 +1,4 @@
-{ mkDerivation, base, stdenv }:
+{ mkDerivation, base, lib }:
 mkDerivation {
   pname = "parser-combinators";
   version = "1.3.0";
@@ -6,5 +6,5 @@ mkDerivation {
   libraryHaskellDepends = [ base ];
   homepage = "https://github.com/mrkkrp/parser-combinators";
   description = "Lightweight package providing commonly useful parser combinators";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

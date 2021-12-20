@@ -1,4 +1,4 @@
-{ mkDerivation, base, containers, deepseq, stdenv, tasty
+{ mkDerivation, base, containers, deepseq, lib, tasty
 , tasty-hunit, text
 }:
 mkDerivation {
@@ -11,5 +11,5 @@ mkDerivation {
   ];
   homepage = "https://github.com/minad/wl-pprint-annotated#readme";
   description = "Pretty printer with annotation support";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

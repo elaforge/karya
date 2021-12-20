@@ -1,7 +1,7 @@
 { mkDerivation, array, base, bytestring, case-insensitive
 , containers, criterion, deepseq, directory, filepath, ghc-prim
 , http-types, parsec, QuickCheck, quickcheck-unicode, scientific
-, stdenv, tasty, tasty-quickcheck, text, transformers
+, lib, tasty, tasty-quickcheck, text, transformers
 , unordered-containers, vector
 }:
 mkDerivation {
@@ -23,5 +23,5 @@ mkDerivation {
   ];
   homepage = "https://github.com/bgamari/attoparsec";
   description = "Fast combinator parsing for bytestrings and text";
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }

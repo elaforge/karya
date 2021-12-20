@@ -1,5 +1,5 @@
 { mkDerivation, base, bytestring, case-insensitive, containers
-, criterion, deepseq, mtl, parser-combinators, scientific, stdenv
+, criterion, deepseq, mtl, parser-combinators, scientific, lib
 , text, transformers, weigh
 }:
 mkDerivation {
@@ -17,5 +17,5 @@ mkDerivation {
   ];
   homepage = "https://github.com/mrkkrp/megaparsec";
   description = "Monadic parser combinators";
-  license = stdenv.lib.licenses.bsd2;
+  license = lib.licenses.bsd2;
 }
