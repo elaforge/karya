@@ -146,8 +146,8 @@ label_ranks config start_measure rank_durs =
     (ranks, ps) = unzip (drop_0dur rank_durs)
     labels = map join_label $ strip_prefixes "" (config_strip_depth config) $
         convert_labels (config_min_depth config)
-            (config_label_components config) start_measure
-            (collapse_ranks unlabeled ranks)
+            (label_components (config_label config))
+            start_measure (collapse_ranks unlabeled ranks)
     unlabeled = labeled_to_unlabeled_ranks (config_labeled_ranks config)
     -- Appending Meters can result in 0 dur marks in the middle.
     drop_0dur [] = []
@@ -198,7 +198,7 @@ data Config = Config {
     -- | The convention is that the first two ranks, section and measure, are
     -- universal.  So this omits measure, which gets 'measure_labels', starting
     -- from 'config_start_measure'.
-    , config_label_components :: !LabelComponents
+    , config_label :: !LabelConfig
     -- | The ruler should start counting at this number.  This could be measure
     -- number, or gong count, or avartanam count, whatever is the highest visual
     -- 'Label'.
@@ -214,10 +214,16 @@ data Config = Config {
 
 instance Pretty Config where format = Pretty.formatG_
 
+newtype LabelConfig = BigNumber Int
+    deriving (Eq, Show, Pretty)
+
+label_components :: LabelConfig -> LabelComponents
+label_components (BigNumber sub_start) = big_number_components sub_start
+
 default_config :: Config
 default_config = Config
     { config_labeled_ranks = default_labeled_ranks
-    , config_label_components = big_number_components 1
+    , config_label = BigNumber 1
     , config_start_measure = Ruler.config_start_measure Ruler.default_config
     , config_min_depth = 1
     , config_strip_depth = 2

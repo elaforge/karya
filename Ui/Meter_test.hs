@@ -42,7 +42,6 @@ test_to_rank_durations = do
         ]
 
 {-
-
 test_rational_meter :: Test
 test_rational_meter = do
     -- Meters with 1/3 divisions don't get inaccurate.
@@ -123,7 +122,6 @@ test_label_meter = do
 
 config :: Meter.Config
 config = Meter.default_config
-    -- { Meter.config_label_components = Meter.number_components 1 }
 
 extract_zoom :: Double -> [(a, Ruler.Mark)] -> [(a, Ruler.Mark)]
 extract_zoom zoom = mapMaybe $ \(t, m) ->
