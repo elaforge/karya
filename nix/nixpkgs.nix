@@ -1,5 +1,5 @@
 let
-  my-poison = v20-09; # pick your poison
+  my-poison = v21-11; # pick your poison
 
   # https://github.com/NixOS/nixpkgs/commits/nixos-19.09
   # head on 2020-05-23
@@ -13,6 +13,11 @@ let
     version = "20.09";
     commit = "2118cf551b9944cfdb929b8ea03556f097dd0381";
     sha256 = "0ajsxh1clbf3q643gi8v6b0i0nn358hak0f265j7c1lrsbxyw457";
+  };
+  v21-11 = {
+    version = "21.11";
+    commit = "e6377ff35544226392b49fa2cf05590f9f0c4b43";
+    sha256 = "1fra9wwy5gvj5ibayqkzqpwdf715bggc0qbmrfch4fghwvl5m70l";
   };
   unstable = {
     version = "unstable";

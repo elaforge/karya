@@ -37,7 +37,7 @@ let
     in if ver "19.09" then "8.8.2" # ghc883 is not in 1909 yet
     # else if ver "20.09" then "8.8.4"
     else if ver "20.09" then "8.10.3"
-    else if ver "21" then "9.0.1" # unstable
+    else if ver "21.11" then "8.10.7"
     else abort "no ghc version defined for nixpkgs version ${lib.version}";
 
   ghcVersion = "ghc" + builtins.replaceStrings ["."] [""] ghcVersionDots;
@@ -127,24 +127,28 @@ in rec {
 
   # I want some unreleased fixes, for mousewheel and Fl_Image_Surface.
   fltk =
-    let commit = "84c09ae7b2de0ad9142551ebd4f53a7e113902b4";
-    in nixpkgs.fltk14.overrideDerivation (old: {
+    let
+      commit = "84c09ae7b2de0ad9142551ebd4f53a7e113902b4";
       name = "fltk-1.4-${commit}";
       src = builtins.fetchGit {
         url = "https://github.com/fltk/fltk.git";
         rev = commit;
         ref = "master";
       };
-      # buildPhase = ''
-      #   substituteInPlace makeinclude --replace .SILENT "# noisy"
-      #   make -j$NIX_BUILD_CORES
-      # '';
-      nativeBuildInputs = [nixpkgs.autoconf] ++ old.nativeBuildInputs;
-
-      # TODO The nixpkgs version has deps on GL, freetype, libtiff, which
-      # I think I can omit.
-      configureFlags = [];
-    });
+    # It's 21.11 but winds up being 21.11pre-git which is considered < 21.11
+    in if builtins.compareVersions lib.version "21.10" >= 0 then
+      (nixpkgs.fltk14-minimal.override {
+        withShared = false;
+      }).overrideAttrs (old: { inherit name src; })
+    else
+      nixpkgs.fltk14.overrideAttrs (old: {
+        inherit name src;
+        nativeBuildInputs = [nixpkgs.autoconf] ++ old.nativeBuildInputs;
+        # TODO The nixpkgs version has deps on GL, freetype, libtiff, which
+        # I think I can omit.
+        configureFlags = [];
+        # dontUseCmakeConfigure = true; # only necessary for new cmake build
+      });
 
   hackageGhc =
     let wantPkg = pkg:
