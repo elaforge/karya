@@ -3,66 +3,58 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE CPP #-}
-module Ui.Meter (
-    Meter(..)
-    , make_marklist
+-- | Convert Meter.Meter into a low level marklist.
+module Ui.Meter.Make (
+    make_marklist
 #ifdef TESTING
-    , module Ui.Meter
+    , module Ui.Meter.Make
 #endif
 ) where
-import qualified Prelude
-import           Prelude hiding (repeat)
 import qualified Data.List as List
 import qualified Data.Ratio as Ratio
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
-import qualified GHC.Generics as Generics
-
 import qualified Util.Num as Num
-import qualified Util.Pretty as Pretty
 import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
-import qualified Util.Then as Then
 
 import qualified Ui.Color as Color
+import qualified Ui.Meter.Meter as Meter
+import           Ui.Meter.Meter (AbstractMeter(..), Duration, MeasureCount)
 import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
 
 import           Global
 import           Types
 
--- This should replace Ruler.MeterConfig
-data Meter =
-    Marklist Ruler.Marklist
-    -- | Each meter starts at the time and repeats until the next one.
-    -- invariant: ends always get bigger
-    | Measures !Config ![(MeasureCount, Duration, AbstractMeter)]
-    deriving (Show)
+
+-- TODO If I port this to c++, then I can just marshal Config instead of the
+-- vector.  Then, I could only materialize marks that are visible and stop
+-- paying for the micro divisions I hardly ever see.
+--
+-- On the other hand, paying for them once on ruler creation sounds better
+-- than paying for them on every zoom change.
+make_marklist :: Meter.Meter -> Ruler.Marklist
+make_marklist = \case
+    Meter.Marklist v -> v
+    Meter.Measures config measures ->
+        Ruler.marklist $ make_measures config measures
 
 type Marklist = [(TrackTime, Ruler.Mark)]
-type MeasureCount = Int
-
--- * make
-
--- If I port this to c++, then I can just marshal Config instead of the vector.
-make_marklist :: Meter -> Ruler.Marklist
-make_marklist = \case
-    Marklist v -> v
-    Measures config measures -> Ruler.marklist $ make_measures config measures
 
 -- | Repeat each measure for the given count.
 -- This can't express unaligned beats.  If you want a cut-off measure
 -- like 4/4 - 1/16, you would have to create a special measure for it.
 -- If I want that, I can make a function on AbstractMeter.
-make_measures :: Config -> [(MeasureCount, Duration, AbstractMeter)]
+make_measures :: Meter.Config -> [(MeasureCount, Duration, AbstractMeter)]
     -> Marklist
 make_measures config =
-    labeled_marklist 0 . label_ranks config (config_start_measure config)
+    labeled_marklist 0 . label_ranks config (Meter.config_start_measure config)
     . to_rank_durations . map expand
     where
     expand (count, dur, meter) = (tdur, D (replicate count meter))
-        where !tdur = dur / meter_length meter
+        where !tdur = dur / Meter.meter_length meter
 
 -- | The AbstractMeters are concatenated, and each one defines a rank 0.
 -- Each T level gets the given Duration.
@@ -89,9 +81,9 @@ data Measure = Measure {
 -- say I want Section RankName for the measure changes, or every 4 measures
 -- I should just have one big AbstractMeter.
 -- Or compress it with [(Count, AbstractMeter)]
-make_measures_old :: Config -> [(TrackTime, Measure)] -> [Marklist]
+make_measures_old :: Meter.Config -> [(TrackTime, Measure)] -> [Marklist]
 make_measures_old config =
-    Then.mapAccumL make (0, config_start_measure config) done
+    Then.mapAccumL make (0, Meter.config_start_measure config) done
     where
     make (start, start_measure) (end, measure) =
         ( (end, start_measure + ms)
@@ -103,8 +95,8 @@ make_measures_old config =
         [make_measure config start_measure start (start+1) (Measure T 1)]
 
 -- | Repeat the Measure until the end time.
-make_measure :: Config -> MeasureCount -> TrackTime -> TrackTime -> Measure
-    -> Marklist
+make_measure :: Meter.Config -> MeasureCount -> TrackTime -> TrackTime
+    -> Measure -> Marklist
 make_measure config start_measure start end (Measure meter measure_dur) =
     labeled_marklist start $ label_ranks config start_measure $ take marks $
         to_rank_duration stretch (D (Prelude.repeat meter))
@@ -126,6 +118,8 @@ to_rank_duration stretch = group0 . convert 0
         D ms -> (rank, 0) : concatMap (convert (rank+1)) ms
 -}
 
+type Label = Text -- TODO make it ByteString so I can pass to c++ efficiently?
+
 data LabeledMark = LabeledMark {
     m_rank :: !Ruler.Rank
     , m_duration :: !Duration
@@ -136,7 +130,7 @@ instance Pretty LabeledMark where
     pretty (LabeledMark rank dur label) = pretty (rank, dur, label)
 
 -- | Add Labels to the given ruler ranks.
-label_ranks :: Config -> MeasureCount -> [(Ruler.Rank, Duration)]
+label_ranks :: Meter.Config -> MeasureCount -> [(Ruler.Rank, Duration)]
     -> [LabeledMark]
 label_ranks config start_measure rank_durs =
     [ LabeledMark rank dur label
@@ -144,20 +138,21 @@ label_ranks config start_measure rank_durs =
     ]
     where
     (ranks, ps) = unzip (drop_0dur rank_durs)
-    labels = map join_label $ strip_prefixes "" (config_strip_depth config) $
-        convert_labels (config_min_depth config)
-            (label_components (config_label config))
+    labels = map join_label $
+        strip_prefixes "" (Meter.config_strip_depth config) $
+        convert_labels (Meter.config_min_depth config)
+            (label_components (Meter.config_label config))
             start_measure (collapse_ranks unlabeled ranks)
-    unlabeled = labeled_to_unlabeled_ranks (config_labeled_ranks config)
+    unlabeled = labeled_to_unlabeled_ranks (Meter.config_labeled_ranks config)
     -- Appending Meters can result in 0 dur marks in the middle.
     drop_0dur [] = []
     drop_0dur ((r, d) : rank_durs)
         | d == 0 && not (null rank_durs) = drop_0dur rank_durs
         | otherwise = (r, d) : drop_0dur rank_durs
 
-labeled_to_unlabeled_ranks :: Set RankName -> [Ruler.Rank]
+labeled_to_unlabeled_ranks :: Set Meter.RankName -> [Ruler.Rank]
 labeled_to_unlabeled_ranks labeled =
-    [name_to_rank r | r <- all_ranks, not (r `Set.member` labeled)]
+    [Meter.name_to_rank r | r <- Meter.all_ranks, not (r `Set.member` labeled)]
 
 -- | Create a Marklist from a labeled Meter.
 labeled_marklist :: TrackTime -> [LabeledMark] -> Marklist
@@ -190,117 +185,11 @@ labeled_marklist start marks =
         zoom = pixels_to_zoom rank_dur pixels
     ranks_len = length meter_ranks
 
--- * config
-
-data Config = Config {
-    -- | Skip labels for these ranks.
-    config_labeled_ranks :: !(Set RankName)
-    -- | The convention is that the first two ranks, section and measure, are
-    -- universal.  So this omits measure, which gets 'measure_labels', starting
-    -- from 'config_start_measure'.
-    , config_label :: !LabelConfig
-    -- | The ruler should start counting at this number.  This could be measure
-    -- number, or gong count, or avartanam count, whatever is the highest visual
-    -- 'Label'.
-    , config_start_measure :: !MeasureCount
-    -- | Labels have at least this many sections.  Otherwise, trailing sections
-    -- are omitted.
-    , config_min_depth :: !Int
-    -- | Strip leading prefixes to this depth, via 'strip_prefixes'.
-    , config_strip_depth :: !Int
-    -- | Key to 'Ruler.config_name'.
-    , config_name :: !Text
-    } deriving (Show, Generics.Generic)
-
-instance Pretty Config where format = Pretty.formatG_
-
-newtype LabelConfig = BigNumber Int
-    deriving (Eq, Show, Pretty)
-
-label_components :: LabelConfig -> LabelComponents
-label_components (BigNumber sub_start) = big_number_components sub_start
-
-default_config :: Config
-default_config = Config
-    { config_labeled_ranks = default_labeled_ranks
-    , config_label = BigNumber 1
-    , config_start_measure = Ruler.config_start_measure Ruler.default_config
-    , config_min_depth = 1
-    , config_strip_depth = 2
-    , config_name = Ruler.config_name Ruler.default_config
-    }
-
--- ruler_config :: Config -> Ruler.MeterConfig
--- ruler_config config = Ruler.MeterConfig
---     { config_name = config_name config
---     , config_start_measure = config_start_measure config
---     }
-
--- TODO this type is shared with Derive, maybe it should go in its own module?
-data RankName = Section | W | H | Q | E | S | T32 | T64 | T128 | T256
-    deriving (Show, Eq, Ord, Bounded, Enum)
-instance Pretty RankName where pretty = showt
-
-all_ranks :: [RankName]
-all_ranks = [minBound .. maxBound]
-
-name_to_rank :: RankName -> Ruler.Rank
-name_to_rank = fromEnum
-
--- * AbstractMeter
-
-type Duration = TrackTime
-
--- | An AbstractMeter is a structured description of how a unit of time is
--- broken up into hiererchical sections.  A 'T' represents a mark with the
--- unit duration, and a 'D' is a group of Meters.  The rank of each mark is
--- determined by its nesting depth.
---
--- Previously a 'T' could take a duration, but I didn't wind up using that
--- feature, so I removed it.  So meters have to be built of multiples of a unit
--- duration multiplied by some stretch factor.
---
--- An AbstractMeter can be created either by declaring it outright, or by
--- declaring a simpler AbstractMeter and subdividing or repeating it.
-data AbstractMeter = T | D [AbstractMeter]
-    deriving (Eq, Show)
-
--- | Subdivide each mark into the given number @D@s.  This has the effect of
--- putting one layer of subdivision under the current structure.
-subdivide :: Int -> AbstractMeter -> AbstractMeter
-subdivide n = replace_t (D (replicate n T))
-
-subdivides :: [Int] -> AbstractMeter -> AbstractMeter
-subdivides divs meter = foldr subdivide meter (reverse divs)
-
--- | Create a layer that repeats the given meter a certain number of times.
-repeat :: Int -> AbstractMeter -> AbstractMeter
-repeat n meter = D $ replicate n meter
-
-repeats :: [Int] -> AbstractMeter -> AbstractMeter
-repeats ns meter = foldr repeat meter ns
-
--- | Form a meter based on regular subdivision.  E.g. [4, 4] is 4 groups of 4,
--- [3, 3] is like 9\/8, and [4, 3] is 4 groups of 3 (12\/8).
-regular_subdivision :: [Int] -> AbstractMeter
-    -- It's most natural to think of the list as big divisions on the left to
-    -- small divisions on the right, so reverse the list.
-regular_subdivision ns = foldr subdivide T (reverse ns)
-
--- *** AbstractMeter utils
-
--- | Map the given function over all @T@s in the given AbstractMeter.
-replace_t :: AbstractMeter -> AbstractMeter -> AbstractMeter
-replace_t val (D ts) = D (map (replace_t val) ts)
-replace_t val T = val
-
-meter_length :: AbstractMeter -> Duration
-meter_length (D ms) = Num.sum (map meter_length ms)
-meter_length T = 1
 
 -- * labels
 
-type Label = Text -- TODO make it ByteString so I can pass to c++ efficiently?
+label_components :: Meter.LabelConfig -> LabelComponents
+label_components (Meter.BigNumber sub_start) = big_number_components sub_start
 
 -- | This is the prototype for how to draw labels.  The outer list is indexed
 -- by rank, while the inner is has the sequence of labels at that rank.
@@ -443,17 +332,10 @@ r_section, r_1, r_2, r_4, r_8, r_16, r_32, r_64, r_128, r_256 :: Ruler.Rank
 r_section : r_1 : r_2 : r_4 : r_8 : r_16 : r_32 : r_64 : r_128 : r_256 : _ =
   [0..]
 
--- | By convention, ranks divide up the ruler by dividing it by two for each
--- rank.  This is convenient because that's how staff notation works.  But then
--- the labels wind up being all 0s and 1s, which is not that useful.  The ranks
--- in this list don't receive their own label.
-default_labeled_ranks :: Set RankName
-default_labeled_ranks = Set.fromList [W, Q, S, T128]
-
 -- | These are mnemonics for staff notation durations, though they may not
 -- correspond exactly, as documented in "Cmd.Meter".
 rank_names :: [(Ruler.Rank, Text)]
-rank_names = zip [0..] (map (Text.toLower . showt) [Section ..])
+rank_names = zip [0..] (map (Text.toLower . showt) Meter.all_ranks)
 
 rank_to_pixels :: [Int]
 rank_to_pixels = [pixels | (_, _, pixels) <- meter_ranks]

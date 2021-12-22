@@ -2,12 +2,13 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Ui.Meter_test where
+module Ui.Meter.Make_test where
 
 import qualified Data.Text as Text
 
-import qualified Ui.Meter as Meter
-import qualified Ui.Meters as Meters
+import qualified Ui.Meter.Make as Make
+import qualified Ui.Meter.Meter as Meter
+import qualified Ui.Meter.Meters as Meters
 import qualified Ui.Ruler as Ruler
 
 import           Global
@@ -17,7 +18,7 @@ import           Util.Test
 
 test_make_measures :: Test
 test_make_measures = do
-    let f zoom = extract_zoom zoom . Meter.make_measures config
+    let f zoom = extract_zoom zoom . Make.make_measures config
     let marks = f 70 [(2, 1, Meters.m44), (2, 1, Meters.m34)]
     equal (map (Ruler.mark_rank . snd) marks)
         [ 0, 3, 2, 3, 1, 3, 2, 3
@@ -34,7 +35,7 @@ test_make_measures = do
 
 test_to_rank_durations :: Test
 test_to_rank_durations = do
-    let f m = map fst $ Meter.to_rank_durations [(1, m)]
+    let f m = map fst $ Make.to_rank_durations [(1, m)]
     equal (f (Meter.regular_subdivision [4, 4]))
         [ 0, 2, 2, 2, 1, 2, 2, 2
         , 1, 2, 2, 2, 1, 2, 2, 2
@@ -65,7 +66,7 @@ test_rational_meter2 = do
 
 test_apply_labels :: Test
 test_apply_labels = do
-    let f labels = map (Text.intercalate ".") . Meter.apply_labels labels
+    let f labels = map (Text.intercalate ".") . Make.apply_labels labels
     equal (f [] [0, 0]) ["", ""]
     let labels =
             [ map Text.singleton ['A'..'Z']
@@ -89,8 +90,8 @@ test_apply_labels = do
 
 test_strip_prefixes :: Test
 test_strip_prefixes = do
-    let f depth = map Meter.join_label . Meter.strip_prefixes "-" depth
-            . map Meter.split_label
+    let f depth = map Make.join_label . Make.strip_prefixes "-" depth
+            . map Make.split_label
     equal (f 2 ["1.1", "1.2", "1.2.1", "2"]) ["1.1", "-.2", "-.-.1", "2"]
     equal (f 1 ["1.1", "1.2", "1.2.1", "2"]) ["1.1", "-.2", "-.2.1", "2"]
     equal (f 0 ["1.1", "1.2", "1.2.1", "2"]) ["1.1", "1.2", "1.2.1", "2"]
@@ -129,7 +130,7 @@ extract_zoom zoom = mapMaybe $ \(t, m) ->
         else Nothing
 
 mark_name :: Ruler.Mark -> Text
-mark_name = Meter.strip_markup . Ruler.mark_name
+mark_name = Make.strip_markup . Ruler.mark_name
 
-extract_marklist :: Double -> Meter.Marklist -> [(ScoreTime, Text)]
+extract_marklist :: Double -> Make.Marklist -> [(ScoreTime, Text)]
 extract_marklist zoom = map (second mark_name) . extract_zoom zoom

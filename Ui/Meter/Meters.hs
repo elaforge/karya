@@ -6,9 +6,9 @@
 --
 -- Defined separate from "Cmd.Meter" so you can redefine them without reloading
 -- everything that depends on Cmd.Meter.
-module Ui.Meters where
-import qualified Ui.Meter as Meter
-import           Ui.Meter (AbstractMeter(..), regular_subdivision)
+module Ui.Meter.Meters where
+import qualified Ui.Meter.Meter as Meter
+import           Ui.Meter.Meter (AbstractMeter(..), regular_subdivision)
 
 
 -- half/measure, quarter/half, eighth/quarter, ...
