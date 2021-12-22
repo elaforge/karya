@@ -36,10 +36,8 @@ import           Types
 -- On the other hand, paying for them once on ruler creation sounds better
 -- than paying for them on every zoom change.
 make_marklist :: Meter.Meter -> Ruler.Marklist
-make_marklist = \case
-    Meter.Marklist v -> v
-    Meter.Measures config measures ->
-        Ruler.marklist $ make_measures config measures
+make_marklist (Meter.Meter config measures) =
+    Ruler.marklist $ make_measures config measures
 
 type Marklist = [(TrackTime, Ruler.Mark)]
 
@@ -70,53 +68,6 @@ to_rank_durations = group0 . concatMap (uncurry (convert 0))
     convert rank dur meter = case meter of
         T -> [(rank, dur)]
         D ms -> (rank, 0) : concatMap (convert (rank+1) dur) ms
-
-{-
-data Measure = Measure {
-    -- A single measure.
-    measure_meter :: !AbstractMeter
-    , measure_duration :: !Duration
-    } deriving (Show)
-
--- say I want Section RankName for the measure changes, or every 4 measures
--- I should just have one big AbstractMeter.
--- Or compress it with [(Count, AbstractMeter)]
-make_measures_old :: Meter.Config -> [(TrackTime, Measure)] -> [Marklist]
-make_measures_old config =
-    Then.mapAccumL make (0, Meter.config_start_measure config) done
-    where
-    make (start, start_measure) (end, measure) =
-        ( (end, start_measure + ms)
-        , make_measure config start_measure start end measure
-        )
-        where ms = floor $ (end - start) / measure_duration measure
-    -- Append a final measure mark.
-    done (start, start_measure) =
-        [make_measure config start_measure start (start+1) (Measure T 1)]
-
--- | Repeat the Measure until the end time.
-make_measure :: Meter.Config -> MeasureCount -> TrackTime -> TrackTime
-    -> Measure -> Marklist
-make_measure config start_measure start end (Measure meter measure_dur) =
-    labeled_marklist start $ label_ranks config start_measure $ take marks $
-        to_rank_duration stretch (D (Prelude.repeat meter))
-    where
-    marks = floor $ (end - start) / stretch
-    stretch = measure_dur / meter_length meter
-
-to_rank_duration :: Duration -> AbstractMeter -> [(Ruler.Rank, Duration)]
-to_rank_duration stretch = group0 . convert 0
-    where
-    -- Convert returns an intermediate format where all the ranks coexist at
-    -- the same time, by giving them 0 dur.
-    group0 dur_rank = case span ((==0) . snd) dur_rank of
-        (zeros, (rank, dur) : rest) ->
-            (minimum (rank : map fst zeros), dur) : group0 rest
-        (_, []) -> [(0, 0)]
-    convert rank = \case
-        T -> [(rank, stretch)]
-        D ms -> (rank, 0) : concatMap (convert (rank+1)) ms
--}
 
 type Label = Text -- TODO make it ByteString so I can pass to c++ efficiently?
 
@@ -355,12 +306,3 @@ pixels_to_zoom :: Duration -> Int -> Double
 pixels_to_zoom dur pixels
     | dur == 0 = 0
     | otherwise = fromIntegral pixels / ScoreTime.to_double dur
-
--- takeWhileS :: state -> (state -> a -> (state, Bool)) -> [a] -> [a]
--- takeWhileS state f = go state
---     where
---     go _ [] = []
---     go state0 (x : xs)
---         | wanted = x : go state1 xs
---         | otherwise = []
---         where (state1, wanted) = f state0 x

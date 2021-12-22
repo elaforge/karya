@@ -24,17 +24,13 @@ import qualified GHC.Generics as Generics
 
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
-import qualified Ui.Ruler as Ruler
 
 import           Global
 import           Types
 
--- This should replace Ruler.MeterConfig
-data Meter =
-    Marklist Ruler.Marklist
-    -- | Each meter starts at the time and repeats until the next one.
-    -- invariant: ends always get bigger
-    | Measures !Config ![(MeasureCount, Duration, AbstractMeter)]
+
+-- | Duration is of one AbstractMeter, so total duration will be count*dur.
+data Meter = Meter !Config ![(MeasureCount, Duration, AbstractMeter)]
     deriving (Show)
 
 type MeasureCount = Int
@@ -68,8 +64,6 @@ data Config = Config {
     , config_min_depth :: !Int
     -- | Strip leading prefixes to this depth, via 'strip_prefixes'.
     , config_strip_depth :: !Int
-    -- | Key to 'Ruler.config_name'.
-    , config_name :: !Text
     } deriving (Show, Generics.Generic)
 
 instance Pretty Config where format = Pretty.formatG_
@@ -78,10 +72,9 @@ default_config :: Config
 default_config = Config
     { config_labeled_ranks = default_labeled_ranks
     , config_label = BigNumber 1
-    , config_start_measure = Ruler.config_start_measure Ruler.default_config
+    , config_start_measure = 1
     , config_min_depth = 1
     , config_strip_depth = 2
-    , config_name = Ruler.config_name Ruler.default_config
     }
 
 -- | By convention, ranks divide up the ruler by dividing it by two for each
@@ -96,10 +89,12 @@ data RankName = Section | W | H | Q | E | S | T32 | T64 | T128 | T256
     deriving (Show, Eq, Ord, Bounded, Enum)
 instance Pretty RankName where pretty = showt
 
+type Rank = Int -- same as Ruler.Rank
+
 all_ranks :: [RankName]
 all_ranks = [minBound .. maxBound]
 
-name_to_rank :: RankName -> Ruler.Rank
+name_to_rank :: RankName -> Rank
 name_to_rank = fromEnum
 
 newtype LabelConfig = BigNumber Int
