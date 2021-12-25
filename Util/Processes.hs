@@ -19,7 +19,6 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Time as Time
 
-import qualified System.Exit
 import qualified System.Exit as Exit
 import qualified System.IO as IO
 import qualified System.IO.Error as IO.Error
@@ -184,8 +183,8 @@ conversationWith cmd args env getInput notifyOutput action = do
                 Async.waitBoth outThread errThread
                 code <- Process.waitForProcess pid
                 notifyOutput $ Exit $ ExitCode $ case code of
-                    System.Exit.ExitFailure code -> code
-                    System.Exit.ExitSuccess -> 0
+                    Exit.ExitFailure code -> code
+                    Exit.ExitSuccess -> 0
             result <- action `Exception.onException` do
                 mapM_ Async.cancel [inThread, outThread, errThread, complete]
                 -- I could also just return and let withCreateProcess kill it,
@@ -197,8 +196,8 @@ conversationWith cmd args env getInput notifyOutput action = do
                 Process.terminateProcess pid
                 code <- Timeout.timeout killTimeout $ Process.waitForProcess pid
                 notifyOutput $ Exit $ case code of
-                    Just (System.Exit.ExitFailure code) -> ExitCode code
-                    Just System.Exit.ExitSuccess -> ExitCode 0
+                    Just (Exit.ExitFailure code) -> ExitCode code
+                    Just Exit.ExitSuccess -> ExitCode 0
                     Nothing -> KillTimeout
             Async.cancel complete
             return result
@@ -213,7 +212,6 @@ conversationWith cmd args env getInput notifyOutput action = do
         { Process.std_in = Process.CreatePipe
         , Process.std_out = Process.CreatePipe
         , Process.std_err = Process.CreatePipe
-        , Process.close_fds = True
         , Process.env = env
         }
 
