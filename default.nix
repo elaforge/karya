@@ -260,21 +260,13 @@ in rec {
   # Make a nix-shell that can run `mkmk` and `mk`.
   shakeConfig =
     # https://github.com/NixOS/nixpkgs/issues/24237
-    let extraLinkFlags = if isDarwin
-      then ''
+    let
+      extraLinkFlags = if isDarwin then ''
         -- nixpkgs bug on darwin: https://github.com/NixOS/nixpkgs/issues/24237
         , extraLinkFlags = ["-F/System/Library/Frameworks"]
-      ''
-      else "";
-    in nixpkgs.writeText "ShakeConfig.hs" ''
-      ${generatedByNix}
-      module Local.ShakeConfig where
-      import qualified Shake.C as C
-      import Shake.Config
-
-      localConfig = defaultConfig
-          { enableEkg = ${hsBool withEkg}
-          , enableIm = ${hsBool withIm}
+        ''
+        else "";
+      imLibs = if withIm then ''
           , libsamplerate = C.ExternalLibrary
               { C.libLink = ["${libsamplerate}/lib/libsamplerate.a"]
               , C.libCompile = ["-I${libsamplerate}/include"]
@@ -283,7 +275,20 @@ in rec {
               { C.libLink = ["-lrubberband"]
               , C.libCompile = ["-I${rubberband}/include"]
               }
+        ''
+        else "";
+    in nixpkgs.writeText "ShakeConfig.hs" ''
+      ${generatedByNix}
+      {-# OPTIONS_GHC -Wno-unused-imports #-}
+      module Local.ShakeConfig where
+      import qualified Shake.C as C
+      import Shake.Config
+
+      localConfig = defaultConfig
+          { enableEkg = ${hsBool withEkg}
+          , enableIm = ${hsBool withIm}
           , fltkConfig = "${fltk}/bin/fltk-config"
+          ${imLibs}
           ${extraLinkFlags}
           }
     '';

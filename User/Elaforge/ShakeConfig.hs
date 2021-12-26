@@ -13,6 +13,10 @@ localConfig = defaultConfig
     , enableIm = True
     -- , extraDefines = ["-DHACKED_FLTK"]
     , fltkConfig = "/usr/local/src/fltk/fltk-config"
+    , libsamplerate = C.ExternalLibrary
+        { C.libLink = ["/usr/local/src/libsamplerate/src/.libs/libsamplerate.a"]
+        , C.libCompile = ["-I/usr/local/src/libsamplerate"]
+        }
     -- TODO: normally this would come out of NIX_CFLAGS and NIX_LDFLAGS, but I
     -- haven't migrated to consistently using tools/nix-enter yet.
     , rubberband = C.ExternalLibrary

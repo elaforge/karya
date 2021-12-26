@@ -53,10 +53,7 @@ defaultConfig = Config
     , extraDefines = []
     , extraLinkFlags = []
     , fltkConfig = "fltk-config"
-    , libsamplerate = C.ExternalLibrary
-        { C.libLink = ["/usr/local/src/libsamplerate/src/.libs/libsamplerate.a"]
-        , C.libCompile = ["-I/usr/local/src/libsamplerate"]
-        }
+    , libsamplerate = C.library "samplerate"
     , rubberband = C.library "rubberband"
     , globalIncludes = []
     , globalLibDirs = []
