@@ -4,19 +4,22 @@
 }:
 
 stdenv.mkDerivation {
-  name = "rubberband-1.8.2";
+  name = "rubberband-2.0.0";
 
   src = fetchurl {
-    url = "https://breakfastquay.com/files/releases/rubberband-1.8.2.tar.bz2";
-    sha256 = "1jn3ys16g4rz8j3yyj5np589lly0zhs3dr9asd0l9dhmf5mx1gl6";
+    url = "https://breakfastquay.com/files/releases/rubberband-2.0.0.tar.bz2";
+    sha256 = "11h24vz3n035nkj10hw8srpafxk53v1ywg23la337klnaiag1jzc";
   };
 
   phases = "unpackPhase buildPhase installPhase";
   buildPhase = ''
-    substituteInPlace Makefile.osx --replace /usr/local "$out"
+    cp otherbuilds/Makefile.macos .
+    substituteInPlace Makefile.macos --replace /usr/local "$out"
     mkdir -p lib
-    make -f Makefile.osx static dynamic
+    make -f Makefile.macos static
   '';
+  # They recommend meson to build, but the makefile is simpler and seems to
+  # work for a static build.
   installPhase = ''
     mkdir -p $out/include/rubberband $out/lib
     cp rubberband/rubberband-c.h rubberband/RubberBandStretcher.h \
