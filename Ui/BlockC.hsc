@@ -82,6 +82,7 @@ import qualified Ui.Events as Events
 import qualified Ui.PtrMap as PtrMap
 import           Ui.PtrMap (CView)
 import qualified Ui.Ruler as Ruler
+import qualified Ui.Meter.Mark as Mark
 import qualified Ui.RulerC as RulerC
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Sel as Sel
@@ -309,7 +310,7 @@ insert_track view_id tracknum tracklike merged set_style width =
 
 foreign import ccall "insert_track"
     c_insert_track :: Ptr CView -> CInt -> Ptr TracklikePtr -> CInt
-        -> Ptr (Ptr Ruler.Marklist) -> CInt -> IO ()
+        -> Ptr (Ptr Mark.Marklist) -> CInt -> IO ()
 
 remove_track :: ViewId -> TrackNum -> Fltk ()
 remove_track view_id tracknum = fltk "remove_track" (view_id, tracknum) $ do
@@ -341,7 +342,7 @@ update_entire_track update_ruler view_id tracknum tracklike merged set_style =
 
 foreign import ccall "update_track"
     c_update_track :: Ptr CView -> CInt -> Ptr TracklikePtr
-        -> Ptr (Ptr Ruler.Marklist) -> CInt -> CDouble -> CDouble -> IO ()
+        -> Ptr (Ptr Mark.Marklist) -> CInt -> CDouble -> CDouble -> IO ()
 
 -- | Unlike other Fltk functions, this doesn't throw if the ViewId is not
 -- found.  That's because it's called asynchronously when derivation is
@@ -389,7 +390,7 @@ foreign import ccall "gc_waveforms" c_gc_waveforms :: IO ()
 -- | Convert a Tracklike into the set of pointers that c++ knows it as.
 -- A set of event lists can be merged into event tracks.
 with_tracklike :: Bool -> [Events.Events] -> Track.SetStyle -> Block.Tracklike
-    -> (Ptr TracklikePtr -> Ptr (Ptr Ruler.Marklist) -> CInt -> IO ()) -> IO ()
+    -> (Ptr TracklikePtr -> Ptr (Ptr Mark.Marklist) -> CInt -> IO ()) -> IO ()
 with_tracklike update_ruler merged_events set_style tracklike f =
     case tracklike of
         Block.T track ruler -> with_ruler ruler $ \rulerp mlistp len ->

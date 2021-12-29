@@ -12,12 +12,8 @@ import qualified Data.Text as Text
 
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-
 import qualified Cmd.Create as Create
 import qualified Cmd.Load.ModT as ModT
-import qualified Cmd.Ruler.Meter as Meter
-import qualified Cmd.Ruler.Meters as Meters
-
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
@@ -27,6 +23,8 @@ import qualified Perform.Pitch as Pitch
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
+import qualified Ui.Meter.Meter as Meter
+import qualified Ui.Meter.Meters as Meters
 import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Skeleton as Skeleton
@@ -42,19 +40,6 @@ data State = State {
     _tempo :: !ModT.Tempo
     , _instruments :: IntMap ModT.Instrument
     } deriving (Eq, Show)
-
-make_ruler :: TrackTime -> Ruler.Ruler
-make_ruler end =
-    clip_ruler end $ Meter.make_measures Meter.default_config 1 Meters.m44
-        sections (ceiling end)
-    where
-    sections = 1
-
-clip_ruler :: TrackTime -> Ruler.Ruler -> Ruler.Ruler
-clip_ruler at ruler = Ruler.set_meter config (clip mlist) ruler
-    where
-    (config, mlist) = Ruler.get_meter ruler
-    clip = Ruler.marklist . takeWhile ((<=at) . fst) . Ruler.to_list
 
 -- |
 -- Make IntMap Instrument
@@ -95,6 +80,12 @@ convert ns mod = Ui.exec Ui.empty $ do
         { _tempo = ModT._default_tempo mod
         , _instruments = ModT._instruments mod
         }
+
+-- | 4/4 until the end time.
+make_ruler :: TrackTime -> Ruler.Ruler
+make_ruler end = Ruler.meter_ruler $ Meter.clip_start end $
+    Meter.meter Meter.default_config [Meter.Section measures 1 Meters.m44]
+    where measures = ceiling end
 
 ky :: Text
 ky = Text.unlines

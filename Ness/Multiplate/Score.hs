@@ -4,9 +4,11 @@
 
 {-# LANGUAGE RecordWildCards #-}
 module Ness.Multiplate.Score where
-import Ness.Global
-import Ness.Multiplate
+import qualified Util.Control
 import qualified Ness.Util as Util
+
+import           Ness.Global
+import           Ness.Multiplate
 
 
 Util.Interactive {..} = Util.interactive "multiplate" renderAll
@@ -41,7 +43,7 @@ instrument1 = Instrument
         , aHeight = 1.37
         , aC_a = 340.0
         , aRho_a = 1.21
-        , aOutputs = map (uncurry3 AirboxOutput)
+        , aOutputs = map (Util.Control.uncurry3 AirboxOutput)
             [ (0.01, 0.02, 0.6)
             , (-0.6, 0.012, 0.15)
             , (-0.6, 0.012, -0.15)

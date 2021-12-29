@@ -12,7 +12,6 @@ import qualified Util.Doc as Doc
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
-import qualified Cmd.Ruler.Meter as Meter
 import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Make as Make
@@ -33,6 +32,8 @@ import qualified Derive.Warp as Warp
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+import qualified Ui.Meter.Mark as Mark
+import qualified Ui.Meter.Meter as Meter
 import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
 
@@ -150,21 +151,22 @@ c_cf_swing = val_call "cf-swing" Tags.control_function
                     (to_function dyn 0 amount) marks (score dyn pos))
         | otherwise = ScoreT.untyped 0
         where
-        maybe_marks = snd <$> Map.lookup Ruler.meter (DeriveT.dyn_ruler dyn)
+        maybe_marks = snd <$>
+            Map.lookup Ruler.meter_name (DeriveT.dyn_ruler dyn)
 
-cf_swing :: (ScoreTime -> RealTime) -> Ruler.Rank -> Typecheck.Function
-    -> Ruler.Marklist -> ScoreTime -> RealTime
+cf_swing :: (ScoreTime -> RealTime) -> Mark.Rank -> Typecheck.Function
+    -> Mark.Marklist -> ScoreTime -> RealTime
 cf_swing to_real rank amount marks pos = case marks_around rank marks pos of
     Nothing -> 0
     Just (pre, post) -> (to_real post - to_real pre) / 2
         * RealTime.seconds (amount (to_real pos))
         * swing (Num.normalize pre post pos)
 
-marks_around :: Ruler.Rank -> Ruler.Marklist -> ScoreTime
+marks_around :: Mark.Rank -> Mark.Marklist -> ScoreTime
     -> Maybe (ScoreTime, ScoreTime)
 marks_around rank marks pos =
-    (,) <$> get (Ruler.descending pos marks) <*> get (Ruler.ascending pos marks)
-    where get = fmap fst . Seq.head . filter ((<=rank) . Ruler.mark_rank . snd)
+    (,) <$> get (Mark.descending pos marks) <*> get (Mark.ascending pos marks)
+    where get = fmap fst . Seq.head . filter ((<=rank) . Mark.mark_rank . snd)
 
 swing :: ScoreTime -- ^ time from this beat to the next, normalized 0 to 1
     -> RealTime -- ^ amount of swing offset, also normalized 0 to 1

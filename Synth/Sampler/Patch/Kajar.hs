@@ -4,7 +4,6 @@
 
 module Synth.Sampler.Patch.Kajar (patches) where
 import qualified Cmd.Instrument.CUtil as CUtil
-import qualified Cmd.Ruler.Meter as Meter
 import qualified Derive.Attrs as Attrs
 import qualified Derive.C.Bali.Gong as Gong
 import qualified Derive.Call.Module as Module
@@ -18,6 +17,8 @@ import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Patch.Lib.Drum as Drum
 import           Synth.Sampler.Patch.Lib.Drum (Call(..))
 import qualified Synth.Sampler.Patch.Lib.Util as Util
+
+import qualified Ui.Meter.Meter as Meter
 
 import           Global
 

@@ -55,7 +55,6 @@ import qualified Cmd.Performance as Performance
 import qualified Cmd.PlayC as PlayC
 import qualified Cmd.Repl as Repl
 import qualified Cmd.ResponderSync as ResponderSync
-import qualified Cmd.Ruler.Meter as Meter
 import qualified Cmd.Save as Save
 import qualified Cmd.SaveGitT as SaveGitT
 import qualified Cmd.SyncKeycaps as SyncKeycaps
@@ -70,6 +69,7 @@ import qualified Perform.Transport as Transport
 import qualified Synth.Shared.Thru as Shared.Thru
 import qualified Ui.Diff as Diff
 import qualified Ui.Fltk as Fltk
+import qualified Ui.Meter.Meter as Meter
 import qualified Ui.Sync as Sync
 import qualified Ui.Ui as Ui
 import qualified Ui.UiMsg as UiMsg

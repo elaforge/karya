@@ -53,8 +53,6 @@ import qualified Cmd.Repl.LTala as LTala
 import qualified Cmd.Repl.LTrack as LTrack
 import qualified Cmd.Repl.LTuning as LTuning
 import qualified Cmd.Repl.LView as LView
-import qualified Cmd.Ruler.Meter as Meter
-import qualified Cmd.Ruler.Meters as Meters
 import qualified Cmd.Ruler.RulerUtil as RulerUtil
 import qualified Cmd.Ruler.Tala as Tala
 import qualified Cmd.Save as Save
@@ -85,6 +83,8 @@ import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
+import qualified Ui.Meter.Meter as Meter
+import qualified Ui.Meter.Meters as Meters
 import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Skeleton as Skeleton

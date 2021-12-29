@@ -24,7 +24,10 @@ import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.GenId as GenId
 import qualified Ui.Id as Id
+import qualified Ui.Meter.Make as Meter.Make
+import qualified Ui.Meter.Meter as Meter
 import qualified Ui.Ruler as Ruler
+import qualified Ui.Meter.Mark as Mark
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Sel as Sel
 import qualified Ui.Skeleton as Skeleton
@@ -38,7 +41,6 @@ import qualified Ui.Zoom as Zoom
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Instrument.MidiInst as MidiInst
-import qualified Cmd.Ruler.Meter as Meter
 import qualified Cmd.Simple as Simple
 import qualified Cmd.TimeStep as TimeStep
 
@@ -270,12 +272,16 @@ mkblock_named (spec, tracks) = do
     event_end = ceiling . ScoreTime.to_double . maximum . (0:)
         . concatMap (map (\(s, d, _) -> max s (s+d)) . snd)
 
-mkblock_marklist :: Ui.M m => Ruler.Marklist -> BlockId -> Text
+mkblock_meter :: Ui.M m => [Meter.Section] -> BlockId -> Text
     -> [TrackSpec] -> m (BlockId, [TrackId])
-mkblock_marklist marklist block_id title tracks = do
-    ruler_id <- Create.ruler "r" $
-        Ruler.meter_ruler Ruler.default_config marklist
-    mkblock_ruler ruler_id block_id title tracks
+mkblock_meter = undefined
+
+-- mkblock_marklist :: Ui.M m => Mark.Marklist -> BlockId -> Text
+--     -> [TrackSpec] -> m (BlockId, [TrackId])
+-- mkblock_marklist marklist block_id title tracks = do
+--     ruler_id <- Create.ruler "r" $
+--         Ruler.meter_ruler Ruler.default_config marklist
+--     mkblock_ruler ruler_id block_id title tracks
 
 mkblocks_skel :: Ui.M m => [(BlockSpec, [Skeleton.Edge])] -> m ()
 mkblocks_skel blocks = forM_ blocks $ \(block, skel) -> do
@@ -517,10 +523,12 @@ dump_block block_id state =
     convert (start, dur, text) =
         (ScoreTime.from_double start, ScoreTime.from_double dur, text)
 
-extract_rulers :: Ui.State -> [(RulerId, [Meter.LabeledMark])]
-extract_rulers =
-    map (second (map strip . Meter.ruler_meter)) . Map.toList . Ui.state_rulers
-    where strip m = m { Meter.m_label = Meter.strip_markup (Meter.m_label m) }
+-- extract_rulers :: Ui.State -> [(RulerId, [Meter.Make.LabeledMark])]
+-- extract_rulers =
+--     map (second (map strip . Meter.ruler_meter)) . Map.toList . Ui.state_rulers
+--     where
+--     strip m = m
+--         { Meter.Make.m_label = Meter.Make.strip_markup (Meter.Make.m_label m) }
 
 -- * view
 
@@ -567,8 +575,8 @@ default_ruler = mkruler_44 32 1
 default_block_end :: ScoreTime
 default_block_end = Ruler.time_end default_ruler
 
-no_ruler :: Ruler.Ruler
-no_ruler = ruler []
+-- no_ruler :: Ruler.Ruler
+-- no_ruler = ruler []
 
 -- | TimeStep to step by 1 ScoreTime on the default ruler.
 step1 :: TimeStep.TimeStep
@@ -580,38 +588,41 @@ step1 = TimeStep.time_step (TimeStep.AbsoluteMark TimeStep.AllMarklists r_4)
 -- The end of the ruler should be at marks*dist.  An extra mark is created
 -- since marks start at 0.
 mkruler_44 :: Int -> ScoreTime -> Ruler.Ruler
-mkruler_44 marks dist = ruler_ $ meter_marklist $ take (marks + 1) $
-    zip3 (Seq.range_ 0 dist) (cycle [r_1, r_4, r_4, r_4]) labels
-    where
-    labels = concatMap measure [1..]
-        where
-        measure n = map (showt n <>) ["", ".2", ".3", ".4"]
+mkruler_44 marks dist = undefined
 
-meter_marklist :: [(TrackTime, Ruler.Rank, Text)] -> Ruler.Marklist
-meter_marklist marks =
-    Ruler.marklist [(t, mark rank label) | (t, rank, label) <- marks]
-    where
-    mark rank label = Ruler.null_mark
-        { Ruler.mark_rank = rank, Ruler.mark_name = label }
+-- mkruler_44 :: Int -> ScoreTime -> Ruler.Ruler
+-- mkruler_44 marks dist = ruler_ $ meter_marklist $ take (marks + 1) $
+--     zip3 (Seq.range_ 0 dist) (cycle [r_1, r_4, r_4, r_4]) labels
+--     where
+--     labels = concatMap measure [1..]
+--         where
+--         measure n = map (showt n <>) ["", ".2", ".3", ".4"]
+--
+-- meter_marklist :: [(TrackTime, Mark.Rank, Text)] -> Mark.Marklist
+-- meter_marklist marks =
+--     Ruler.marklist [(t, mark rank label) | (t, rank, label) <- marks]
+--     where
+--     mark rank label = Ruler.null_mark
+--         { Ruler.mark_rank = rank, Ruler.mark_name = label }
 
-ruler :: [(TrackTime, Ruler.Rank)] -> Ruler.Ruler
-ruler marks = ruler_ (mk_marklist marks)
+-- ruler :: [(TrackTime, Mark.Rank)] -> Ruler.Ruler
+-- ruler marks = ruler_ (mk_marklist marks)
+--
+-- mk_marklist :: [(TrackTime, Mark.Rank)] -> Mark.Marklist
+-- mk_marklist = Ruler.marklist . map (second mark)
+--     where
+--     mark rank = Ruler.null_mark
+--         { Ruler.mark_rank = rank, Ruler.mark_name = showt rank }
+--
+-- ruler_ :: Mark.Marklist -> Ruler.Ruler
+-- ruler_ meter = Ruler.set_meter Ruler.default_config meter $ Ruler.Ruler
+--     { Ruler.ruler_marklists = mempty
+--     , Ruler.ruler_bg = Config.ruler_bg
+--     , Ruler.ruler_show_names = False
+--     , Ruler.ruler_align_to_bottom = False
+--     }
 
-mk_marklist :: [(TrackTime, Ruler.Rank)] -> Ruler.Marklist
-mk_marklist = Ruler.marklist . map (second mark)
-    where
-    mark rank = Ruler.null_mark
-        { Ruler.mark_rank = rank, Ruler.mark_name = showt rank }
-
-ruler_ :: Ruler.Marklist -> Ruler.Ruler
-ruler_ meter = Ruler.set_meter Ruler.default_config meter $ Ruler.Ruler
-    { Ruler.ruler_marklists = mempty
-    , Ruler.ruler_bg = Config.ruler_bg
-    , Ruler.ruler_show_names = False
-    , Ruler.ruler_align_to_bottom = False
-    }
-
-r_1, r_4 :: Ruler.Rank
+r_1, r_4 :: Mark.Rank
 r_1 = Meter.r_1
 r_4 = Meter.r_4
 

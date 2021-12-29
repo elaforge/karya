@@ -22,7 +22,7 @@ import qualified Data.Time as Time
 
 import qualified Util.Rect as Rect
 import qualified Util.Serialize as Serialize
-import           Util.Serialize (bad_tag, get, get_tag, put, put_tag, Serialize)
+import           Util.Serialize (Serialize, bad_tag, get, get_tag, put, put_tag)
 
 import qualified Derive.REnv as REnv
 import qualified Derive.ScoreT as ScoreT
@@ -38,6 +38,8 @@ import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
+import qualified Ui.Meter.Mark as Mark
+import qualified Ui.Meter.Meter as Meter
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Sel as Sel
 import qualified Ui.Skeleton as Skeleton
@@ -169,14 +171,14 @@ instance Serialize UiConfig.Backend where
         UiConfig.Im -> put_tag 1
         UiConfig.Dummy -> put_tag 2
         UiConfig.Sc -> put_tag 3
-    get = get_tag >>= \tag -> case tag of
+    get = get_tag >>= \case
         0 -> do
             config :: Patch.Config <- get
             return $ UiConfig.Midi config
         1 -> return UiConfig.Im
         2 -> return UiConfig.Dummy
         3 -> return UiConfig.Sc
-        _ -> bad_tag "UiConfig.Backend" tag
+        tag -> bad_tag "UiConfig.Backend" tag
 
 -- | For backward compatibility.
 newtype MidiConfigs = MidiConfigs (Map ScoreT.Instrument Patch.Config)
@@ -184,13 +186,11 @@ newtype MidiConfigs = MidiConfigs (Map ScoreT.Instrument Patch.Config)
 
 instance Serialize MidiConfigs where
     put (MidiConfigs a) = Serialize.put_version 5 >> put a
-    get = do
-        v <- Serialize.get_version
-        case v of
-            5 -> do
-                insts :: Map ScoreT.Instrument Patch.Config <- get
-                return $ MidiConfigs insts
-            _ -> Serialize.bad_version "Patch.MidiConfigs" v
+    get = Serialize.get_version >>= \case
+        5 -> do
+            insts :: Map ScoreT.Instrument Patch.Config <- get
+            return $ MidiConfigs insts
+        v -> Serialize.bad_version "Patch.MidiConfigs" v
 
 instance Serialize UiConfig.Meta where
     put (UiConfig.Meta a b c d e f) = Serialize.put_version 4
@@ -482,47 +482,64 @@ instance Serialize Color.Color where
 -- ** Ruler
 
 instance Serialize Ruler.Ruler where
-    put (Ruler.Ruler a b c d) = Serialize.put_version 7
+    put (Ruler.Ruler a b c d) = Serialize.put_version 8
         >> put a >> put b >> put c >> put d
     get = do
         v <- Serialize.get_version
         case v of
-            6 -> do
-                marklists :: Map Ruler.Name (Maybe Text, Ruler.Marklist) <- get
-                bg :: Color.Color <- get
-                show_names :: Bool <- get
-                align_to_bottom :: Bool <- get
-                return $ Ruler.Ruler (upgrade <$> marklists) bg show_names
-                    align_to_bottom
-                where
-                upgrade (name, mlist) =
-                    ((\n -> Ruler.MeterConfig n 1) <$> name, mlist)
-            7 -> do
-                marklists :: Map Ruler.Name
-                    (Maybe Ruler.MeterConfig, Ruler.Marklist) <- get
+            -- TODO reinstate
+            -- 6 -> do
+            --     marklists :: Map Ruler.Name (Maybe Text, Ruler.Marklist) <- get
+            --     bg :: Color.Color <- get
+            --     show_names :: Bool <- get
+            --     align_to_bottom :: Bool <- get
+            --     return $ Ruler.Ruler (upgrade <$> marklists) bg show_names
+            --         align_to_bottom
+            --     where
+            --     upgrade (name, mlist) =
+            --         ((\n -> Ruler.MeterConfig n 1) <$> name, mlist)
+            -- 7 -> do
+            --     marklists :: Map Ruler.Name
+            --         (Maybe Ruler.MeterConfig, Ruler.Marklist) <- get
+            --     bg :: Color.Color <- get
+            --     show_names :: Bool <- get
+            --     align_to_bottom :: Bool <- get
+            --     return $ Ruler.Ruler marklists bg show_names align_to_bottom
+            8 -> do
+                marklists :: Map Ruler.Name (Maybe Meter.Meter, Mark.Marklist)
+                    <- get
                 bg :: Color.Color <- get
                 show_names :: Bool <- get
                 align_to_bottom :: Bool <- get
                 return $ Ruler.Ruler marklists bg show_names align_to_bottom
             _ -> Serialize.bad_version "Ruler.Ruler" v
 
-instance Serialize Ruler.MeterConfig where
-    put (Ruler.MeterConfig a b) = Serialize.put_version 0 >> put a >> put b
+instance Serialize OldMeterConfig where
+    put (OldMeterConfig a b) = Serialize.put_version 0 >> put a >> put b
     get = Serialize.get_version >>= \case
         0 -> do
             name :: Text <- get
             start_measure :: Int <- get
-            return $ Ruler.MeterConfig name start_measure
-        v -> Serialize.bad_version "Ruler.MeterConfig" v
+            return $ OldMeterConfig name start_measure
+        v -> Serialize.bad_version "OldMeterConfig" v
 
-instance Serialize Ruler.Marklist where
-    put mlist = put (Ruler.marklist_vec mlist)
+-- | Configuration specific to the 'meter' marklist.
+data OldMeterConfig = OldMeterConfig {
+    -- | The type of meter that this marklist represents.  This is looked up in
+    -- a table of meter types to figure out how to do transformations on the
+    -- meter, since different meters follow different rules.
+    config_name :: !Text
+    , config_start_measure :: !Int
+    } deriving (Eq, Show)
+
+instance Serialize Mark.Marklist where
+    put mlist = put (Mark.marklist_vec mlist)
     get = do
-        vec :: Ruler.MarklistVector <- get
-        return $ Ruler.marklist_from_vector vec
+        vec :: Mark.MarklistVector <- get
+        return $ Mark.marklist_from_vector vec
 
-instance Serialize Ruler.Mark where
-    put (Ruler.Mark a b c d e f) = put a >> put b >> put c >> put d >> put e
+instance Serialize Mark.Mark where
+    put (Mark.Mark a b c d e f) = put a >> put b >> put c >> put d >> put e
         >> put f
     get = do
         rank :: Int <- get
@@ -531,7 +548,7 @@ instance Serialize Ruler.Mark where
         name :: Text <- get
         name_zoom :: Double <- get
         zoom :: Double <- get
-        return $ Ruler.Mark rank width color name name_zoom zoom
+        return $ Mark.Mark rank width color name name_zoom zoom
 
 -- ** Track
 

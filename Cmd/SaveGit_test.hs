@@ -89,7 +89,7 @@ test_ruler_checkpoint = Git.initialize $ do
         [ ("create", mkview [("1", [])])
         , (,) "destroy" $ do
             Ui.modify_ruler UiTest.default_ruler_id
-                (const (Right Ruler.no_ruler))
+                (const (Right Ruler.empty_ruler))
             Ui.destroy_ruler UiTest.default_ruler_id
         ]
     -- Mostly just verify that when a ruler is modified and deleted the update

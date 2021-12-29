@@ -29,6 +29,3 @@ type Pan = Double
 -- | Normalized linear position, from 0 to 1.
 type Location = Double
 type Frequency = Double -- hz
-
-uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
-uncurry3 f (a, b, c) = f a b c

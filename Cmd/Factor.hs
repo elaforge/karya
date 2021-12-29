@@ -12,8 +12,6 @@ import qualified Util.Seq as Seq
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Edit as Edit
-import qualified Cmd.Ruler.Meter as Meter
-import qualified Cmd.Ruler.Modify as Ruler.Modify
 import qualified Cmd.Ruler.RulerUtil as RulerUtil
 import qualified Cmd.Selection as Selection
 
@@ -22,6 +20,7 @@ import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
+import qualified Ui.Meter.Meter as Meter
 import qualified Ui.Sel as Sel
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Transform as Transform
@@ -68,8 +67,8 @@ split_time_at from_block_id pos block_name = do
         Ui.insert_events track_id events
     -- Trim rulers on each.
     let dur = Meter.time_to_duration pos
-    local_block from_block_id $ Meter.extract 0 dur
-    local_block to_block_id $ Meter.delete 0 dur
+    local_block from_block_id $ RulerUtil.extract 0 dur
+    local_block to_block_id $ RulerUtil.delete 0 dur
     return to_block_id
 
 split_names :: BlockId -> (Id.Id, Id.Id)
@@ -190,7 +189,7 @@ extract name block_id tracknums track_ids range = do
     delete_empty_tracks to_block_id
     -- Create a clipped ruler.
     local_block to_block_id $
-        Meter.extract (Meter.time_to_duration start)
+        RulerUtil.extract (Meter.time_to_duration start)
             (Meter.time_to_duration end)
     return to_block_id
 
@@ -263,7 +262,7 @@ block_template block_id track_ids range = do
     -- Create a clipped ruler.
     let (start, end) = Events.range_times range
     local_block to_block_id $
-        Meter.extract (Meter.time_to_duration start)
+        RulerUtil.extract (Meter.time_to_duration start)
             (Meter.time_to_duration end)
     return to_block_id
 
@@ -296,12 +295,15 @@ order_block name block_ids = do
 order_track :: Ui.M m => BlockId -> [BlockId] -> m TrackId
 order_track block_id sub_blocks = do
     ruler_ids <- mapM Ui.ruler_of sub_blocks
-    meters <- mapM RulerUtil.get_meter ruler_ids
-    let durs = map Meter.time_end meters
+    -- meters <- mapM RulerUtil.get_meter ruler_ids
+    meters <- undefined
+    let durs = map Meter.meter_end meters
         starts = scanl (+) 0 durs
-        events = [Event.event start dur (block_id_to_call block_id)
-            | (start, dur, block_id) <- zip3 starts durs sub_blocks]
-    local_block block_id $ const $ mconcat meters
+        events =
+            [ Event.event start dur (block_id_to_call block_id)
+            | (start, dur, block_id) <- zip3 starts durs sub_blocks
+            ]
+    -- local_block block_id $ const $ mconcat meters
     Create.track block_id 9999 ">" (Events.from_list events)
 
 block_id_to_call :: BlockId -> Text
@@ -309,6 +311,9 @@ block_id_to_call = Id.ident_name
 
 -- * util
 
-local_block :: Ui.M m => BlockId
-    -> (Meter.LabeledMeter -> Meter.LabeledMeter) -> m [RulerId]
-local_block block_id = RulerUtil.local_block block_id . Ruler.Modify.meter
+local_block :: Ui.M m => BlockId -> (Meter.Meter -> Meter.Meter) -> m ()
+local_block block_id = undefined
+
+-- local_block :: Ui.M m => BlockId
+--     -> (Meter.LabeledMeter -> Meter.LabeledMeter) -> m [RulerId]
+-- local_block block_id = RulerUtil.local_block block_id . Ruler.Modify.meter

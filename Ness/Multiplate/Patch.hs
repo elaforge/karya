@@ -3,9 +3,10 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Ness.Multiplate.Patch where
+import qualified Util.Control
 import qualified Synth.Shared.Control as Control
-import Ness.Global
-import Ness.Multiplate
+
+import           Ness.Multiplate
 
 
 instruments :: [Instrument]
@@ -27,7 +28,7 @@ instrument1 = Instrument
         , aHeight = 1.37
         , aC_a = 340.0
         , aRho_a = 1.21
-        , aOutputs = map (uncurry3 AirboxOutput)
+        , aOutputs = map (Util.Control.uncurry3 AirboxOutput)
             [ (0.01, 0.02, 0.6)
             , (-0.6, 0.012, 0.15)
             , (-0.6, 0.012, -0.15)

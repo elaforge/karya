@@ -74,7 +74,7 @@ import qualified Perform.Pitch as Pitch
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
-import qualified Ui.Ruler as Ruler
+import qualified Ui.Meter.Mark as Mark
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Sel as Sel
 import qualified Ui.Types as Types
@@ -123,7 +123,7 @@ cmd_toggle_val_edit_kbd_entry = Cmd.modify_edit_state $ \st ->
 -- | If the TimeStep is AbsoluteMark or RelativeMark, set its rank.  Otherwise,
 -- set it to the deflt.  This means the marklist names are sticky, so if you
 -- set it manually the default bindings won't mess it up.
-set_step_rank :: Cmd.M m => TimeStep.TimeStep -> Ruler.Rank -> m ()
+set_step_rank :: Cmd.M m => TimeStep.TimeStep -> Mark.Rank -> m ()
 set_step_rank deflt rank = Cmd.modify_edit_state $ \st ->
     st { Cmd.state_time_step =
         set (TimeStep.to_list (Cmd.state_time_step st)) }

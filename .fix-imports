@@ -4,6 +4,7 @@ sort-unqualified-last: t
 
 -- Prefer or don't prefer to resolve to these modules.
 prio-module-high:
+    Ui.Meter.Meter
     Control.Monad.Trans.Resource
     Data.Map Data.Set Data.Vector Data.String Data.Ratio
     GHC.Generics

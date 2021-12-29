@@ -5,7 +5,8 @@
 -- | Support to add or remove time in a score, and have it propagate up to
 -- callers.
 module Cmd.BlockResize (
-    update_callers_rulers, update_callers, push_down_rulers
+    update_callers_rulers
+    -- , update_callers, push_down_rulers
 ) where
 import qualified Data.Foldable as Foldable
 import qualified Data.List as List
@@ -15,9 +16,9 @@ import qualified Data.Tree as Tree
 import qualified Util.Maps as Maps
 import qualified Util.Seq as Seq
 import qualified Cmd.NoteTrackParse as NoteTrackParse
-import qualified Cmd.Ruler.Extract as Extract
-import qualified Cmd.Ruler.Meter as Meter
-import qualified Cmd.Ruler.Modify as Modify
+-- import qualified Cmd.Ruler.Extract as Extract
+-- import qualified Cmd.Ruler.Meter as Meter
+-- import qualified Cmd.Ruler.Modify as Modify
 import qualified Cmd.Ruler.RulerUtil as RulerUtil
 
 import qualified Derive.ParseTitle as ParseTitle
@@ -49,9 +50,10 @@ update_callers block_id pos delta = do
     apply_updates delta (concatMap Foldable.toList updates)
     return updates
 
-push_down_rulers :: Ui.M m => [Tree.Tree Update] -> m ()
-push_down_rulers updates =
-    mapM_ push_down_ruler $ Seq.unique $ map fst $ concatMap bottoms updates
+-- undefined
+-- push_down_rulers :: Ui.M m => [Tree.Tree Update] -> m ()
+-- push_down_rulers updates =
+--     mapM_ push_down_ruler $ Seq.unique $ map fst $ concatMap bottoms updates
 
 modify_time :: Ui.M m => BlockId -> TrackTime -> TrackTime -> m ()
 modify_time block_id pos delta = do
@@ -159,7 +161,11 @@ callers_of callee = strip <$> do
 is_note_track :: Ui.M m => TrackId -> m Bool
 is_note_track = fmap ParseTitle.is_note_track . Ui.get_track_title
 
+-- undefined
+update_rulers :: Ui.M m => BlockId -> TrackTime -> TrackTime -> [Update] -> m ()
+update_rulers _ _ _ _ = return ()
 
+{-
 -- * update_rulers
 
 {- | For a positive delta, copy the ruler from the callee block to its
@@ -220,3 +226,4 @@ extract_meter block_id pos delta = do
     ruler <- Ui.get_ruler =<< Ui.ruler_of block_id
     return $ Meter.extract' pos (pos + delta) $ Meter.marklist_labeled $
         snd $ Ruler.get_meter ruler
+-}

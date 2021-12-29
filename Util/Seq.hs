@@ -574,6 +574,12 @@ drop_before key p = go
             x1 : _ | p >= key x1 -> go xs
             _ -> x0 : xs
 
+-- | takeWhile with state.
+takeWhileS :: state -> (state -> a -> Maybe state) -> [a] -> [a]
+takeWhileS state f = go state
+    where
+    go _ [] = []
+    go !state0 (x : xs) = maybe [] (\state1 -> x : go state1 xs) (f state0 x)
 
 -- ** duplicates
 

@@ -6,6 +6,7 @@
 --
 -- TODO event delay
 module Derive.C.Prelude.Delay (library) where
+import qualified Util.Control as Control
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.Ly as Ly
@@ -113,7 +114,7 @@ c_event_echo = Derive.transformer Module.prelude "event echo" Tags.postproc
         delay <- Post.time_control delay events
         feedback <- Post.control ScoreT.typed_val feedback events
         times <- Post.control (floor . ScoreT.typed_val) times events
-        return $ Post.emap_asc_ (Post.uncurry4 echo_event)
+        return $ Post.emap_asc_ (Control.uncurry4 echo_event)
             (Stream.zip4 delay feedback times events)
 
 -- TODO this modifies the signals to shift by the given amount of time, which

@@ -6180,13 +6180,93 @@ Cmd:
       . What should the interface be?
       * Implement high level Measures -> Marklist
       * put Measures in Cmd.Ruler
-      - Diff should check Ruler change, use UiUpdates
-      - Sync generates a new Marklist for changed RulerIds.
+        . How to break up the modules?
+        . Or maybe just replace MeterConfig with Meter.Meter, that way RulerC
+          stays the same.  The new thing is that callers should manipulate
+          the config, instead of the marklist.  I can enforce that by
+          having them use Ruler.modify_meter etc.
+        . Is this the intended final state though?  Why not?
+        . Circular import since Make imports Ruler for Mark.
+        . I didn't have it before because someone else would have to generate
+          the marklist.  But if that's RulerC then I have no place to cache
+          it.
+        . One way is to require the caller to call make, but better to move
+          Mark and Marklist to a separate Ui.Meter.Marklist
+        . An alternate way is to allow Ruler a config type variable, which
+          is then substituted at the Ui.Ui level.  This would keep Ui.Ruler
+          low level.  But, is that really a benefit?
+        . But it means every instance of Ruler.Ruler would have to
+          have an argument or substitute Ui.Ruler.
+      + update Cmd.Ruler
+        . Much of it can be deleted.
+        . Modification must change to modifying Meter.Config.
+        . I want to be able to clip at an arbitrary time, but changing the the
+          AbstractMeter is not quite right, because 4/4 clipped is different
+          from 4/4 and then 3/4.  Maybe have a overall clip TrackTime?
+        . I could have config_end on the whole config, but what does it mean
+          when it's much shorter than the measures?
+        . I could not allow clip mid-measure but rely on the end-block cue
+          point.  But it seems awkward, e.g. notes will want to go past it.
+        . Ok then do the end time, but have edit functions that keep it up to
+          date.
+        ? I changed double to extend by 4, is there a better way?
+      + Ui.UiTest
+      * Cmd.Ruler.Tala
+      - Cmd.Factor
+        . I can no longer split the meter like I used to, unless I add a start
+          clip.  But maybe I don't want to?
+        . But, I think I want a start clip anyway, because what about pickups?
+        . If I do a _meter_start field, it gets complicated because now I have
+          to shift back all the marks.
+        . But if I clip the meter itself, it doesn't work because it messes up
+          the numbering.  Bother!
+        . Putting start and end in Meter forces me to use the whole Meter type
+          instead of [Sections].  Then what about Config I want to concat
+          Sections?
+        . I guess I can just keep the first Config, if I want to concat meters
+          then one will have to give anyway.
+        . To concat Meters, I need a real clip_end!  Unlike clip_start it
+          doesn't have numbering problems.
+        . But then I think I need a real clip_start too, which means a setting
+          to bias the numbers to the end... but isn't it valid to renumber?
+          The only place it's weird is the pickup, which I can ignore for now.
+        . But the reason to not replace clip_end with a hard clip is that I
+          still want to extend with a full measure.  But actually I think I'd
+          want both ways.  So maybe I force the UI to make the choice, e.g. by
+          trimming off the truncated Section before extending.
+      - Repl.LTala
+      + Repl.LRuler
+      * Cmd.Load.Mod
+        . Same sort of thing for TScore?
+      * re-enable tests in Meter_test
+      - TScore.Check - it constructs a marklist on its own
       - LRuler and Cmd.Ruler.local_double change to modifying Ruler measures
+      - Cmd.BlockResize
+      - Repl.LBlock
+      - Cmd.Ruler.Extract
+      - Example.Integrate
       cleanup:
-        - Split AbstractMeter creation into its own module, and
-          AbstractMeter -> Marklist in another one.
-        - Put RankName into its own module, shared with Derive
+        - Do I need Meter.Make is_edge?
+        - Put RankName into its own module, shared with Derive?
+    ? What's the difference between
+      Measure 3 dur (D (replicate 4 meter))
+      and Measure 1 dur (D (replicate 3 (D replicate 4 meter)))?
+      . In other words, why have Measures at all?
+      . They mark intentional meter changes, so if I extend I don't have to
+        infer from the last toplevel D.  But I could do that... would it be
+        any more ambiguous?
+      . The original idea was to preserve sharing in identical meter subtrees.
+        That implies I should have `Measure dur 3 4 meter` to avoid all the
+        replicate.
+        Measure Duration Sections Measures
+        . The name is pretty bad though, it's more like section groups.
+      . How about rename to Section and replicate them:
+        Section Duration Measures AbstractMeter
+    - After Ui.Meter, maybe I don't need RulerId at all?  Since the config
+      is cheap to copy I could put one on each Track.
+      . But as long as I'm doing Mark conversion in haskell, I should still
+        try to retain sharing, maybe I could memoize it somehow.
+    - I could have note entry at the end automatically extend the block
 
     - meter type and the construction functions should be integrated more
       tightly

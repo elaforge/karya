@@ -32,8 +32,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Integrate.Convert as Convert
 import qualified Cmd.Integrate.Manual as Manual
 import qualified Cmd.Perf as Perf
-import qualified Cmd.Ruler.Meter as Meter
-import qualified Cmd.Ruler.Modify as Ruler.Modify
+import qualified Cmd.Ruler.RulerUtil as RulerUtil
 
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
@@ -50,6 +49,8 @@ import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.GenId as GenId
 import qualified Ui.Id as Id
+import qualified Ui.Meter.Meter as Meter
+import qualified Ui.Ruler as Ruler
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Transform as Transform
@@ -65,7 +66,7 @@ import           Types
 data Block track = Block {
     _block_id :: !BlockId
     , _block_title :: !Text
-    , _meter :: ![Meter.LabeledMark]
+    , _meter :: !Meter.AbstractMeter
     -- | True if this was created via T.SubBlock.
     , _is_sub :: !Bool
     , _tracks :: ![track]
@@ -108,7 +109,7 @@ instance Pretty track => Pretty (Block track) where
         Pretty.record "Block"
             [ ("block_id", Pretty.format block_id)
             , ("block_title", Pretty.format block_title)
-            , ("meter", Pretty.format (length meter) <> " marks")
+            , ("meter", Pretty.format meter)
             , ("is_sub", Pretty.format is_sub)
             , ("tracks", Pretty.format tracks)
             ]
@@ -658,9 +659,21 @@ ui_block block = do
 --         ns = [tracknum .. tracknum+len - 1]
 
 ui_ruler :: Ui.M m => Block NTrack -> m RulerId
-ui_ruler block = Ruler.Modify.replace (_block_id block) $
-    Ruler.Modify.generate_until end (_meter block)
-    where end = track_time $ maximum $ 0 : map _end (_tracks block)
+ui_ruler _ = return Ui.no_ruler -- TODO
+
+ui_ruler1 :: Ui.M m => Block NTrack -> m RulerId
+ui_ruler1 block = RulerUtil.replace (_block_id block) $ const $ Right $
+    Ruler.meter_ruler $
+    Meter.clip_sections end $
+    Meter.meter Meter.default_config [Meter.Section measures 1 (_meter block)]
+    where
+    measures = ceiling end
+    end = track_time $ maximum $ 0 : map _end (_tracks block)
+
+-- ui_ruler :: Ui.M m => Block NTrack -> m RulerId
+-- ui_ruler block = Ruler.Modify.replace (_block_id block) $
+--     Ruler.Modify.generate_until end (_meter block)
+--     where end = track_time $ maximum $ 0 : map _end (_tracks block)
 
 -- * make_blocks
 
@@ -741,7 +754,7 @@ interpret_block config is_sub
         { _block_id = block_id
         , _block_title = title
         , _is_sub = is_sub
-        , _meter = Check.meter_labeled $ Check.config_meter block_config
+        , _meter = Check.meter_ui $ Check.config_meter block_config
         , _tracks =
             [ ParsedTrack
                 { track_config = track_config

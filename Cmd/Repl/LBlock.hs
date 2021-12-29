@@ -281,6 +281,8 @@ stretch factor = (Event.start_ %= (*factor)) . (Event.duration_ %= (*factor))
 
 -- * add / remove time
 
+{-
+
 -- | Add time encompassed by the selection to this block, expand its event in
 -- caller blocks, and renumber the ruler globally.  This is like a super
 -- 'Cmd.Edit.cmd_insert_time'.
@@ -316,3 +318,5 @@ remove_time_ruler = do
     block_id <- Cmd.get_focused_block
     BlockResize.update_callers_rulers block_id (Sel.min sel)
         (- Sel.duration sel)
+
+-}

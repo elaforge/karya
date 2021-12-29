@@ -27,6 +27,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Performance as Performance
 
+import qualified Derive.Control as Control
 import qualified Derive.Controls as Controls
 import qualified Derive.DeriveSaved as DeriveSaved
 import qualified Derive.Expr as Expr
@@ -277,6 +278,4 @@ make_track inst notes =
     events = [(s, d, "") | (s, d, _, _) <- notes]
     pitches = [(s, 0, pitch) | (s, _, pitch, _) <- notes]
     dyns = [(s, 0, ShowVal.show_val dyn) | (s, _, _, dyn) <- notes]
-    mk_events = Events.from_list . map (uncurry3 Event.event)
-
-    uncurry3 f (a, b, c) = f a b c
+    mk_events = Events.from_list . map (Control.uncurry3 Event.event)

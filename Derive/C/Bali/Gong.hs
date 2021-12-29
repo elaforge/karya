@@ -8,7 +8,6 @@ import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
-import qualified Cmd.Ruler.Meter as Meter
 import qualified Derive.Args as Args
 import qualified Derive.C.Prelude.Trill as Trill
 import qualified Derive.Call as Call
@@ -34,6 +33,7 @@ import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
+import qualified Ui.Meter.Meter as Meter
 import qualified Ui.Types as Types
 
 import           Global

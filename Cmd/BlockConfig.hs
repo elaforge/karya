@@ -18,7 +18,7 @@ import qualified Cmd.Create as Create
 import qualified Cmd.Info as Info
 import qualified Cmd.Msg as Msg
 import qualified Cmd.NoteTrackParse as NoteTrackParse
-import qualified Cmd.Ruler
+import qualified Cmd.Ruler as Ruler
 import qualified Cmd.Ruler.RulerUtil as RulerUtil
 import qualified Cmd.Selection as Selection
 import qualified Cmd.Views as Views
@@ -27,6 +27,7 @@ import qualified Derive.ParseTitle as ParseTitle
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
+import qualified Ui.Meter.Meter as Meter
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Ui as Ui
@@ -153,7 +154,7 @@ clip = do
 
 clip_to :: Ui.M m => BlockId -> TrackTime -> m ()
 clip_to block_id end = do
-    RulerUtil.local RulerUtil.Block block_id (Cmd.Ruler.clip end)
+    RulerUtil.local_meter RulerUtil.Block block_id (Meter.clip_end end)
     track_ids <- Ui.track_ids_of block_id
     forM_ track_ids $ \track_id ->
         Ui.modify_events track_id $ Events.clip True end

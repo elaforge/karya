@@ -10,7 +10,6 @@ module User.Elaforge.Instrument.Kontakt.Gong (
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.MidiInst as MidiInst
-import qualified Cmd.Ruler.Meter as Meter
 
 import qualified Derive.Attrs as Attrs
 import qualified Derive.C.Bali.Gong as Gong
@@ -24,6 +23,7 @@ import qualified Derive.Instrument.DUtil as DUtil
 import qualified Instrument.InstT as InstT
 import qualified Midi.Key as Key
 import qualified Perform.RealTime as RealTime
+import qualified Ui.Meter.Meter as Meter
 import qualified User.Elaforge.Instrument.Kontakt.Util as Util
 
 import           Global

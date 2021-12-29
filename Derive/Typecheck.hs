@@ -52,7 +52,6 @@ import qualified Data.Set as Set
 
 import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
-import qualified Cmd.Ruler.Meter as Meter
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.SubT as SubT
 import qualified Derive.Controls as Controls
@@ -70,6 +69,7 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
+import qualified Ui.Meter.Meter as Meter
 import qualified Ui.ScoreTime as ScoreTime
 
 import           Global

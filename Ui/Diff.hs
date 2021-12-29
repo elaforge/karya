@@ -21,6 +21,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
+import qualified Util.Control as Control
 import qualified Util.Logger as Logger
 import qualified Util.Maps as Maps
 import qualified Util.Ranges as Ranges
@@ -64,8 +65,9 @@ diff damage st1 st2 = postproc damage st2 $ run $ do
     let intersect get keys =
             damaged Maps.zipIntersection st1 st2 get (keys damage)
     diff_views st1 st2 damage
-    mapM_ (uncurry3 diff_block) $ intersect Ui.state_blocks Update._blocks
-    mapM_ (uncurry3 (diff_track st2)) $
+    mapM_ (Control.uncurry3 diff_block) $
+        intersect Ui.state_blocks Update._blocks
+    mapM_ (Control.uncurry3 (diff_track st2)) $
         intersect Ui.state_tracks (Map.keysSet . Update._tracks)
     -- I don't diff rulers, since they have lots of things in them and rarely
     -- change.  But that means I need the UiDamage hack, and modifications
@@ -340,7 +342,7 @@ derive_diff st1 st2 damage updates = postproc $ run_derive_diff $
         -- This doesn't check for added or removed tracks, because for them to
         -- have any effect they must be added to or removed from a block, which
         -- 'derive_diff_block' will catch.
-        mapM_ (uncurry3 derive_diff_track) $
+        mapM_ (Control.uncurry3 derive_diff_track) $
             damaged Maps.zipIntersection st1 st2 Ui.state_tracks
                 (Map.keysSet (Update._tracks damage))
     where
@@ -480,9 +482,6 @@ diff_track_events e1 e2 =
 
 
 -- * util
-
-uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
-uncurry3 f (a, b, c) = f a b c
 
 unequal_on :: Eq k => (a -> k) -> a -> a -> Bool
 unequal_on key a b = key a /= key b

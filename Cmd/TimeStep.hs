@@ -36,9 +36,10 @@ import qualified Util.P as P
 import qualified Util.Parse as Parse
 import qualified Util.Seq as Seq
 
-import qualified Cmd.Ruler.Meter as Meter
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
+import qualified Ui.Meter.Mark as Mark
+import qualified Ui.Meter.Meter as Meter
 import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Ui as Ui
@@ -64,7 +65,7 @@ from_list = TimeStep
 to_list :: TimeStep -> [Step]
 to_list (TimeStep steps) = steps
 
-modify_rank :: (Ruler.Rank -> Ruler.Rank) -> TimeStep -> TimeStep
+modify_rank :: (Mark.Rank -> Mark.Rank) -> TimeStep -> TimeStep
 modify_rank f = from_list . map modify . to_list
     where
     modify (AbsoluteMark m r) = AbsoluteMark m (f r)
@@ -73,7 +74,7 @@ modify_rank f = from_list . map modify . to_list
 
 -- | Match on the meter marklist, which is the usual thing to do.
 match_meter :: MarklistMatch
-match_meter = NamedMarklists [Ruler.meter]
+match_meter = NamedMarklists [Ruler.meter_name]
 
 event_edge :: TimeStep
 event_edge =
@@ -85,9 +86,9 @@ data Step =
      -- selection, rather than absolute from the beginning of the block.
     Duration ScoreTime
     -- | Until the next mark that matches.
-    | AbsoluteMark MarklistMatch Ruler.Rank
+    | AbsoluteMark MarklistMatch Mark.Rank
     -- | Until next matching mark + offset from previous mark.
-    | RelativeMark MarklistMatch Ruler.Rank
+    | RelativeMark MarklistMatch Mark.Rank
     -- | Until the end or beginning of the block.
     | BlockEdge
     -- | Until event edges.  EventStart is after EventEnd if the duration is
@@ -157,10 +158,10 @@ parse_time_step = Parse.parse p_time_step
     p_tracknums = P.sepBy Parse.p_nat (P.char ',')
     str = P.string
 
-show_rank :: Ruler.Rank -> Text
+show_rank :: Mark.Rank -> Text
 show_rank rank = fromMaybe ("R" <> showt rank) $ lookup rank Meter.rank_names
 
-parse_rank :: Parse.Parser Ruler.Rank
+parse_rank :: Parse.Parser Mark.Rank
 parse_rank = P.choice $ map P.try
     [P.string name *> return rank | (rank, name) <- Meter.rank_names]
     ++ [P.char 'R' *> Parse.p_nat]
@@ -317,7 +318,7 @@ merge_desc = foldr (Ordered.mergeBy (flip compare)) []
 
 -- | Get all marks from the marklists that match the proper names and
 -- merge their marks into one list.
-get_marks :: Direction -> Bool -> MarklistMatch -> Ruler.Rank -> TrackTime
+get_marks :: Direction -> Bool -> MarklistMatch -> Mark.Rank -> TrackTime
     -> Ruler.Marklists -> [TrackTime]
 get_marks dir minus1 match rank start marklists =
     merge_points dir $ map extract matching
@@ -325,22 +326,22 @@ get_marks dir minus1 match rank start marklists =
     extract = case dir of
         Advance
             | minus1 -> ascending1
-            | otherwise -> with_rank . Ruler.ascending start
+            | otherwise -> with_rank . Mark.ascending start
         Rewind
             | minus1 -> descending1
-            | otherwise -> with_rank . Ruler.descending start
+            | otherwise -> with_rank . Mark.descending start
     matching = map snd $ case match of
         AllMarklists -> Map.elems marklists
         NamedMarklists names -> mapMaybe (flip Map.lookup marklists) names
     ascending1 mlist
         | Just p <- Seq.head marks, p == start = marks
         | otherwise = maybe marks (:marks) $
-            Seq.head (with_rank $ Ruler.descending start mlist)
-        where marks = with_rank $ Ruler.ascending start mlist
+            Seq.head (with_rank $ Mark.descending start mlist)
+        where marks = with_rank $ Mark.ascending start mlist
     descending1 mlist = maybe marks (:marks) $
-        Seq.head (with_rank $ Ruler.ascending start mlist)
-        where marks = with_rank $ Ruler.descending start mlist
-    with_rank = map fst . filter ((<=rank) . Ruler.mark_rank . snd)
+        Seq.head (with_rank $ Mark.ascending start mlist)
+        where marks = with_rank $ Mark.descending start mlist
+    with_rank = map fst . filter ((<=rank) . Mark.mark_rank . snd)
 
 get_ruler :: Ui.M m => BlockId -> TrackNum -> m Ruler.Marklists
 get_ruler block_id tracknum = do

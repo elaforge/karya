@@ -11,105 +11,69 @@
     tisra nadai: @make_meter [Ruler adi_tala 1 3 4 1, Ruler adi_tala 2 4 3 1]@
 -}
 module Cmd.Ruler.Tala (
-    ruler
+    Sections, Avartanams, Nadai
     -- * standard talams
-    , simple, simple_meter
+    , simple
+    , tala_to_meter
     , adi, adi3, adi6
     , adi_tala, dhruva_tala, matya_tala, rupaka_tala, jhampa_tala, triputa_tala
     , ata_tala, eka_tala
     , misra_chapu, kanda_chapu, rupaka_fast
-    -- * define talams
-    , Ruler(..), Sections, Avartanams, Nadai
-    , make_meter
-    , make_config, dummy_config
 ) where
 import qualified Data.Set as Set
 
 import qualified Util.Num as Num
-import qualified Cmd.Ruler.Meter as Meter
-import           Cmd.Ruler.Meter (AbstractMeter(..))
 import qualified Solkattu.Tala as Tala
 import           Solkattu.Tala
-       (adi_tala, ata_tala, dhruva_tala, eka_tala, jhampa_tala, kanda_chapu,
-        matya_tala, misra_chapu, rupaka_fast, rupaka_tala, triputa_tala,
-        Tala(..))
-import qualified Ui.Ruler as Ruler
+    (Tala(..), adi_tala, ata_tala, dhruva_tala, eka_tala, jhampa_tala,
+     kanda_chapu, matya_tala, misra_chapu, rupaka_fast, rupaka_tala,
+     triputa_tala)
+import qualified Ui.Meter.Make as Make
+import qualified Ui.Meter.Meter as Meter
+import           Ui.Meter.Meter (AbstractMeter(..))
 
 import           Global
 
-
-ruler :: Meter.LabeledMeter -> Ruler.Ruler
-ruler = Ruler.meter_ruler (Meter.ruler_config dummy_config)
-    . Meter.labeled_marklist
-
--- * standard talams
-
--- | Create a ruler from just one Tala.  Section is hardcoded to 1 since
--- usually there isn't a section structure.
-simple :: Tala -> Nadai -> Avartanams -> Ruler.Ruler
-simple tala nadai avartanams = ruler $ simple_meter tala nadai 1 avartanams
-
--- | 4 avartanams of the given tala.
-simple_meter :: Tala -> Nadai -> Sections -> Avartanams -> Meter.LabeledMeter
-simple_meter tala nadai sections avartanams = make_meter $ (:[]) $ Ruler
-    { ruler_tala = tala
-    , ruler_sections = sections
-    , ruler_avartanams = avartanams
-    , ruler_nadai = nadai
-    , ruler_dur = 1
-    }
-
--- | n avartanams of everyone's favorite talam.
-adi :: Avartanams -> Ruler.Ruler
-adi = simple adi_tala 4
-
--- | 'adi' but in tisram.
-adi3 :: Avartanams -> Ruler.Ruler
-adi3 = simple adi_tala 3
-
-adi6 :: Avartanams -> Ruler.Ruler
-adi6 = simple adi_tala 6
-
--- * define talams
-
-data Ruler = Ruler {
-    ruler_tala :: !Tala
-    , ruler_sections :: !Sections
-    , ruler_avartanams :: !Avartanams
-    , ruler_nadai :: !Nadai
-    , ruler_dur :: !Meter.Duration -- ^ Duration of each akshara.
-    } deriving (Show)
 
 type Sections = Int
 type Avartanams = Int
 type Nadai = Int
 
--- | Concatenate the rulers and make a meter.
-make_meter :: [Ruler] -> Meter.LabeledMeter
-make_meter rulers = Meter.label_meter (make_config labels) meter
+-- * standard talams
+
+-- | Create a ruler from just one Tala.  Section is hardcoded to 1 since
+-- usually there isn't a section structure.  TODO but often fast ones like
+-- rupaka_fast have a 4x structure.
+simple :: Tala -> Nadai -> Avartanams -> Sections -> Meter.Meter
+simple tala nadai avartanams sections =
+    Meter.meter (tala_config tala) (replicate sections section)
     where
-    meter = concatMap ruler_meter rulers
-    labels = concatMap (tala_labels . ruler_tala) rulers
+    section = Meter.Section avartanams 1 (tala_to_meter tala nadai)
+
+-- | 4 avartanams of everyone's favorite talam.
+adi :: Avartanams -> Meter.Meter
+adi = simple adi_tala 4 1
+
+-- | 'adi' but in tisram.
+adi3 :: Avartanams -> Meter.Meter
+adi3 = simple adi_tala 3 1
+
+adi6 :: Avartanams -> Meter.Meter
+adi6 = simple adi_tala 6 1
 
 -- * implementation
 
-make_config :: [Meter.Label] -> Meter.Config
-make_config labels = Meter.Config
+tala_config :: Tala -> Meter.Config
+tala_config tala = Meter.Config
     { config_labeled_ranks = labeled_ranks
-    , config_label_components = make_components labels
+    , config_label = Meter.Cycle $ tala_labels tala
     , config_start_measure = 1
     , config_min_depth = 1
     , config_strip_depth = 2
-    , config_name = "tala"
     }
 
--- | A config for when I don't need the 'config_label_components'.
--- TODO this is awkward.
-dummy_config :: Meter.Config
-dummy_config = make_config []
-
 -- Ranks (* marks labeled ranks):
--- * r_section is several avartanam -- sections
+-- * r_section is several avartanams -- sections
 -- * r_1 avartanam -- avartanams
 -- * r_2 anga -- based on tala
 -- * r_4 akshara -- basad on akshara type and jati
@@ -122,41 +86,25 @@ dummy_config = make_config []
 labeled_ranks :: Set Meter.RankName
 labeled_ranks = Set.fromList [Meter.W, Meter.Q, Meter.E, Meter.T32, Meter.T128]
 
-ruler_meter :: Ruler -> Meter.Meter
-ruler_meter (Ruler tala sections avartanams nadai dur) =
-    Meter.fit_meter total_dur $
-        replicate sections $ Meter.repeat avartanams $ -- r_section, r_1
-        Meter.subdivides [nadai, 2, 2, 2, 2, 2] $ -- r_8, r_16, r_32, r_64, ...
-        tala_to_meter tala -- r_2, r_4
-    where
-    total_dur = dur * fromIntegral (anga_claps tala * avartanams * sections)
-
-tala_to_meter :: Tala -> AbstractMeter
-tala_to_meter tala = D
-    [ D (replicate (Tala.anga_aksharas (Tala._jati tala) anga) T)
-    | anga <- Tala._angas tala
-    ]
+tala_to_meter :: Tala -> Nadai -> AbstractMeter
+tala_to_meter tala nadai =
+    -- r_8, r_16, r_32, r_64, ...
+    Meter.subdivides [nadai, 2, 2, 2, 2, 2] $ D
+        -- r_2, r_4
+        [ D (replicate (Tala.anga_aksharas (Tala._jati tala) anga) T)
+        | anga <- Tala._angas tala
+        ]
 
 anga_claps :: Tala -> Int
 anga_claps tala =
     Num.sum (map (Tala.anga_aksharas (Tala._jati tala)) (Tala._angas tala))
 
 tala_labels :: Tala -> [Meter.Label]
-tala_labels tala = map Meter.big_label $ concatMap mk (Tala._angas tala)
+tala_labels tala = map Make.big_label $ concatMap mk (Tala._angas tala)
     where
     mk anga = case anga of
         Tala.Clap n -> "X" : replicate (n-1) "-"
         Tala.Wave n -> "O" : replicate (n-1) "-"
-        Tala.I -> take (Tala._jati tala) (Meter.count_from 0)
+        Tala.I -> take (Tala._jati tala) (Make.count_from 0)
         Tala.O -> ["X", "O"]
         Tala.U -> ["X"]
-
-make_components :: [Meter.Label] -> Meter.LabelComponents
-make_components aksharas = Meter.LabelComponents
-    -- avartanam is the measure number
-    [ aksharas -- akshara
-    , numbers -- nadai / gati
-    , numbers, numbers, numbers, numbers
-    ]
-    where
-    numbers = Meter.count_from 1

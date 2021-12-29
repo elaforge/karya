@@ -11,7 +11,6 @@ import qualified Util.Doc as Doc
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
-import qualified Cmd.Ruler.Meter as Meter
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
@@ -25,6 +24,8 @@ import qualified Derive.Library as Library
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
+
+import qualified Ui.Meter.Meter as Meter
 
 import           Global
 import           Types

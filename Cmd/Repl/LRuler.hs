@@ -86,14 +86,17 @@ import qualified Ui.Color as Color
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
+import qualified Ui.Meter.Meter as Meter
+import qualified Ui.Meter.Make as Make
+import qualified Ui.Meter.Mark as Mark
 import qualified Ui.Ui as Ui
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
-import qualified Cmd.Ruler.Extract as Extract
-import qualified Cmd.Ruler.Gong as Gong
-import qualified Cmd.Ruler.Meter as Meter
-import qualified Cmd.Ruler.Modify as Ruler.Modify
+-- import qualified Cmd.Ruler.Extract as Extract
+-- import qualified Cmd.Ruler.Gong as Gong
+-- import qualified Cmd.Ruler.Meter as Meter
+-- import qualified Cmd.Ruler.Modify as Ruler.Modify
 import qualified Cmd.Ruler.RulerUtil as RulerUtil
 import qualified Cmd.Selection as Selection
 
@@ -229,23 +232,25 @@ replace_ruler_id old new = do
 
 -- * query
 
-get_meter :: Ui.M m => BlockId -> m Meter.LabeledMeter
-get_meter block_id =
-    Meter.ruler_meter <$> (Ui.get_ruler =<< Ui.ruler_of block_id)
+get_meter :: Ui.M m => BlockId -> m Meter.Meter
+get_meter block_id = Ruler.get_meter <$> (Ui.get_ruler =<< Ui.ruler_of block_id)
 
-get_marks :: Ui.M m => BlockId -> m [Ruler.PosMark]
+get_sections :: Ui.M m => BlockId -> m [Meter.Section]
+get_sections = fmap Meter.meter_sections . get_meter
+
+get_marks :: Ui.M m => BlockId -> m [(TrackTime, Mark.Mark)]
 get_marks block_id =
-    Ruler.ascending 0 . snd . Ruler.get_meter <$>
+    Mark.ascending 0 . Ruler.get_marklist Ruler.meter_name <$>
         (Ui.get_ruler =<< Ui.ruler_of block_id)
 
 -- | Ruler under the selection having at least the given rank.
-selected_marks :: Cmd.M m => Ruler.Rank -> m [Ruler.PosMark]
+selected_marks :: Cmd.M m => Mark.Rank -> m [(TrackTime, Mark.Mark)]
 selected_marks rank = do
     ruler <- Ui.get_ruler =<< selected
     (start, end) <- selection_range
-    return $ filter ((<=rank) . Ruler.mark_rank . snd) $
-        takeWhile ((<=end) . fst) $ Ruler.ascending start $ snd $
-        Ruler.get_meter ruler
+    return $ filter ((<=rank) . Mark.mark_rank . snd) $
+        takeWhile ((<=end) . fst) $ Mark.ascending start $
+        Ruler.get_marklist Ruler.meter_name ruler
 
 -- | Ruler of the track under the selection.
 selected :: Cmd.M m => m RulerId
@@ -255,23 +260,7 @@ selected = do
 
 -- * Modify
 
--- | Double the meter of the current block. You can then trim it down to size.
-double :: Cmd.M m => m Modify
-double = modify_selected $ \meter -> Seq.rdrop 1 meter <> meter
-    -- The final 0 duration mark should be replaced by the first mark.
-
-ldouble :: Cmd.CmdL [RulerId]
-ldouble = local double
-
--- | Clip the meter to end at the selection.
-clip :: Cmd.M m => m Modify
-clip = do
-    pos <- Selection.point
-    modify_selected $ Meter.extract 0 (Meter.time_to_duration pos)
-
-lclip :: Cmd.CmdL [RulerId]
-lclip = local clip
-
+{-
 -- | Copy the meter under the selection and append it to the end of the ruler.
 append :: Cmd.M m => m Modify
 append = do
@@ -303,34 +292,32 @@ replace insert = do
 replace_range :: TrackTime -> TrackTime -> Meter.LabeledMeter
     -> Meter.LabeledMeter -> Meter.LabeledMeter
 replace_range start end insert meter =
-        before <> Meter.take_before (end - start) insert <> after
-        where
-        before = Meter.take_before start meter
-        after = Meter.drop_until end meter
+    before <> Meter.take_before (end - start) insert <> after
+    where
+    before = Meter.take_before start meter
+    after = Meter.drop_until end meter
+-}
 
--- | Strip out ranks below a certain value, for the whole block.  Larger scale
--- blocks don't need the fine resolution and can wind up with huge rulers.
-strip_ranks :: Cmd.M m => Meter.RankName -> m Modify
-strip_ranks max_rank =
-    modify_selected $ Meter.strip_ranks (Meter.name_to_rank max_rank)
+-- -- TODO could solve by moving meter to c++?
+-- -- | Strip out ranks below a certain value, for the whole block.  Larger scale
+-- -- blocks don't need the fine resolution and can wind up with huge rulers.
+-- strip_ranks :: Cmd.M m => Meter.RankName -> m Modify
+-- strip_ranks max_rank =
+--     modify_selected $ Meter.strip_ranks (Meter.name_to_rank max_rank)
+
+type Sections = Int
+type Measures = Int
 
 -- | Set the ruler to a number of measures of the given meter, where each
 -- measure gets 1t:
 --
 -- > LRuler.local $ LRuler.measures Meters.m44 4 4
 -- > LRuler.modify $ LRuler.measures Meters.m34 4 8
-measures :: Cmd.M m => Meter.AbstractMeter -> Int -- ^ sections
-    -> Int -- ^ measures per section
-    -> m Modify
-measures = measures_from 1
+measures :: Cmd.M m => Meter.AbstractMeter -> Sections -> Measures -> m Modify
+measures meter sections measures = modify_sections $ const $
+    replicate sections $ Meter.Section measures 1 meter
 
-measures_from :: Cmd.M m => Meter.Start -> Meter.AbstractMeter -> Int -> Int
-    -> m Modify
-measures_from start_measure meter sections measures =
-    ruler $ Meter.make_measures
-        (Meter.default_config { Meter.config_start_measure = start_measure })
-        1 meter sections measures
-
+{-
 -- | Create gongs with 'Gong.gongs'.
 gongs :: Cmd.M m => Int -- ^ number of gongs
     -> Int -- ^ number of jegogans in one gong
@@ -349,16 +336,17 @@ fit_to_selection :: Cmd.M m => Meter.Config -> [Meter.AbstractMeter]
 fit_to_selection config meter = do
     pos <- Selection.point
     return $ Meter.fit_ruler config pos meter
+-}
 
 -- | Replace the meter with the concatenation of the rulers of the given
 -- blocks.  This is like 'extract' except it doesn't infer the blocks from the
 -- calls and doesn't scale the extracted rulers.
 concat :: Cmd.M m => [BlockId] -> m Modify
 concat block_ids = do
-    ruler_ids <- mapM Ui.ruler_of block_ids
-    -- Strip the last 0-dur mark off of each meter before concatenating.
-    meters <- map (Seq.rdrop 1) <$> mapM RulerUtil.get_meter ruler_ids
-    modify_selected $ const $ mconcat meters ++ [RulerUtil.final_mark]
+    sections <- mconcat <$> mapM get_sections block_ids
+    modify_sections (const sections)
+
+{-
 
 -- * pull_up, push_down
 
@@ -377,6 +365,7 @@ push_down recursive = do
     if recursive
         then Extract.push_down_recursive False block_id track_id
         else void $ Extract.push_down False block_id track_id
+-}
 
 -- * modify
 
@@ -403,17 +392,16 @@ data Modify = Modify {
     , m_modify :: !RulerUtil.ModifyRuler
     }
 
-modify_selected :: Cmd.M m => (Meter.LabeledMeter -> Meter.LabeledMeter)
-    -> m Modify
+modify_sections :: Cmd.M m => ([Meter.Section] -> [Meter.Section]) -> m Modify
+modify_sections = modify_selected . Meter.modify_sections
+
+modify_config :: Cmd.M m => (Meter.Config -> Meter.Config) -> m Modify
+modify_config = modify_selected . Meter.modify_config
+
+modify_selected :: Cmd.M m => (Meter.Meter -> Meter.Meter) -> m Modify
 modify_selected modify = do
     (block_id, tracknum) <- get_block_track
-    return $ make_modify block_id tracknum (Ruler.Modify.meter modify)
-
--- | Renumber the ruler to start at the given number.
-renumber :: Cmd.M m => Int -> m Modify
-renumber start = do
-    (block_id, tracknum) <- get_block_track
-    return $ make_modify block_id tracknum (Ruler.Modify.renumber start)
+    return $ make_modify block_id tracknum (Right . Ruler.modify_meter modify)
 
 make_modify :: BlockId -> TrackNum -> RulerUtil.ModifyRuler -> Modify
 make_modify block_id tracknum = Modify block_id (RulerUtil.Section tracknum)
@@ -466,29 +454,39 @@ set_end = do
 
 -- * cue
 
-cue :: Ruler.Name
-cue = "cue"
-
 -- | Drop a mark at the selected point in the \"cue\" ruler.
 add_cue :: Text -> Cmd.CmdL RulerId
-add_cue text = do
+add_cue label = do
     (block_id, tracknum, _, pos) <- Selection.get_insert
-    add_cue_at block_id tracknum pos text
+    add_cue_at block_id tracknum pos label
 
 remove_cues :: Cmd.CmdL ()
 remove_cues = do
     block_id <- Cmd.get_focused_block
-    RulerUtil.modify_block block_id $ Right . Ruler.remove_marklist cue
+    RulerUtil.modify_block block_id $ Right . Ruler.remove_marklist cue_name
 
 add_cue_at :: BlockId -> TrackNum -> ScoreTime -> Text -> Cmd.CmdL RulerId
-add_cue_at block_id tracknum pos text =
+add_cue_at block_id tracknum pos label =
     RulerUtil.local_section block_id tracknum $
-        Right . Ruler.modify_marklist cue
-            (Ruler.insert_mark pos (cue_mark text))
+        Right . Ruler.modify_marklist cue_name
+            (Mark.insert_mark pos (cue_mark label))
 
-cue_mark :: Text -> Ruler.Mark
-cue_mark text = Ruler.Mark 0 2 Color.black text 0 0
+cue_mark :: Text -> Mark.Mark
+cue_mark label = Mark.Mark
+    { mark_rank = 0
+    , mark_width = 2
+    , mark_color = Color.black
+    , mark_name = label
+    , mark_name_zoom_level = 0
+    , mark_zoom_level = 0
+    }
 
+cue_name :: Ruler.Name
+cue_name = "cue"
+
+
+{-
+TODO I can't do this unless I expose Make config
 
 -- * colors
 
@@ -499,22 +497,22 @@ reset_colors = do
     ruler_id <- Ui.ruler_of block_id
     Ui.modify_ruler ruler_id (Right . set_colors meter_ranks)
 
-set_colors :: [(Color.Color, Meter.MarkWidth, Int)] -> Ruler.Ruler
+set_colors :: [(Color.Color, Make.MarkWidth, Int)] -> Ruler.Ruler
     -> Ruler.Ruler
 set_colors ranks ruler =
     Ruler.set_meter config
-        (Ruler.marklist $ map (second set) $ Ruler.ascending 0 mlist)
+        (Ruler.marklist $ map (second set) $ Mark.ascending 0 mlist)
         ruler
     where
     (config, mlist) = Ruler.get_meter ruler
-    set mark = case Seq.at ranks (Ruler.mark_rank mark) of
-        Nothing -> error $ "no color for rank: " <> show (Ruler.mark_rank mark)
+    set mark = case Seq.at ranks (Mark.mark_rank mark) of
+        Nothing -> error $ "no color for rank: " <> show (Mark.mark_rank mark)
         Just (color, width, _) -> mark
-            { Ruler.mark_color = color
-            , Ruler.mark_width = width
+            { Mark.mark_color = color
+            , Mark.mark_width = width
             }
 
-meter_ranks :: [(Color.Color, Meter.MarkWidth, Int)]
+meter_ranks :: [(Color.Color, Make.MarkWidth, Int)]
 meter_ranks =
     [ (a3 0.0 0.0 0.0, 3, 8)    -- section
     , (a3 0.2 0.1 0.0, 2, 8)    -- measure / whole
@@ -536,6 +534,7 @@ meter_ranks =
     a2 = alpha 0.4
     a3 = alpha 0.55
     alpha a r g b = Color.rgba r g b a
+-}
 
 -- * util
 

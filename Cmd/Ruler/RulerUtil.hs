@@ -12,20 +12,16 @@ import qualified Data.Maybe as Maybe
 import qualified Util.Seq as Seq
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
+import qualified Ui.Meter.Mark as Mark
+import qualified Ui.Meter.Meter as Meter
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Ui as Ui
 
-import qualified Cmd.Ruler.Meter as Meter
-import Global
-import Types
+import           Global
+import           Types
 
 
-type ModifyRuler = Ruler.Ruler -> Either Text Ruler.Ruler
-
-final_mark :: Meter.LabeledMark
-final_mark = Meter.LabeledMark 0 0 ""
-
--- * constructors
+-- * by marklist
 
 -- | Copy a marklist from one ruler to another.  If it already exists in
 -- the destination ruler, it will be replaced.
@@ -36,14 +32,21 @@ copy_marklist name from_ruler_id to_ruler_id = do
     set_marklist to_ruler_id name mlist
 
 -- | Replace or add a marklist with the given name.
-set_marklist :: Ui.M m => RulerId -> Ruler.Name -> Ruler.Marklist -> m ()
+set_marklist :: Ui.M m => RulerId -> Ruler.Name -> Mark.Marklist -> m ()
 set_marklist ruler_id name mlist =
     Ui.modify_ruler ruler_id (Right . Ruler.set_marklist name mlist)
 
--- * meter
+-- * by Meter
 
-get_meter :: Ui.M m => RulerId -> m Meter.LabeledMeter
-get_meter = fmap Meter.ruler_meter . Ui.get_ruler
+extract :: TrackTime -> TrackTime -> Meter.Meter -> Meter.Meter
+extract start end = Meter.clip_start start . Meter.clip_end end
+
+delete :: TrackTime -> TrackTime -> Meter.Meter -> Meter.Meter
+delete start end = Meter.modify_sections $ \ss -> undefined
+
+-- * ModifyRuler
+
+type ModifyRuler = Ruler.Ruler -> Either Text Ruler.Ruler
 
 -- | The scope of a ruler modification.
 data Scope =
@@ -55,6 +58,16 @@ data Scope =
     | Tracks ![TrackNum]
     deriving (Eq, Show)
 
+-- | Create or replace a ruler for the given block.
+replace :: Ui.M m => BlockId -> ModifyRuler -> m RulerId
+replace block_id modify = do
+    whenM (Maybe.isNothing <$> Ui.lookup_ruler ruler_id) $
+        void $ Ui.create_ruler (Id.unpack_id ruler_id) Ruler.empty_ruler
+    Ui.modify_ruler ruler_id modify
+    return ruler_id
+    where
+    ruler_id = Id.RulerId $ Id.unpack_id block_id
+
 -- ** local
 
 -- | Modify a ruler or rulers, making copies if they're shared outside of
@@ -64,6 +77,12 @@ local scope block_id modify = case scope of
     Block -> local_block block_id modify
     Section tracknum -> (:[]) <$> local_section block_id tracknum modify
     Tracks tracknums -> local_tracks block_id tracknums modify
+
+-- | Like 'local', but specialized to modify the meter.
+local_meter :: Ui.M m => Scope -> BlockId -> (Meter.Meter -> Meter.Meter)
+    -> m [RulerId]
+local_meter scope block_id modify =
+    local scope block_id (Right . Ruler.modify_meter modify)
 
 local_block :: Ui.M m => BlockId -> ModifyRuler -> m [RulerId]
 local_block block_id modify =

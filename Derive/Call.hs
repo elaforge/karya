@@ -17,7 +17,6 @@ import qualified System.Random.Mersenne.Pure64 as Pure64
 
 import qualified Util.Num as Num
 import qualified Util.Random as Random
-import qualified Cmd.Ruler.Meter as Meter
 import qualified Cmd.TimeStep as TimeStep
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
@@ -42,6 +41,7 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
+import qualified Ui.Meter.Meter as Meter
 import qualified Ui.ScoreTime as ScoreTime
 
 import           Global

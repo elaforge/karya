@@ -14,20 +14,21 @@ import qualified Data.Map as Map
 import qualified Util.FFI as FFI
 import qualified Util.TimeVector as TimeVector
 
+import qualified Ui.Meter.Mark as Mark
 import qualified Ui.Ruler as Ruler
 
-import ForeignC
-import Types
+import           ForeignC
+import           Types
 
 
 with_ruler :: Ruler.Ruler
-    -> (Ptr Ruler.Ruler -> Ptr (Ptr Ruler.Marklist) -> CInt -> IO a) -> IO a
+    -> (Ptr Ruler.Ruler -> Ptr (Ptr Mark.Marklist) -> CInt -> IO a) -> IO a
 with_ruler ruler f =
     with ruler $ \rulerp -> with_marklists marklists $ \len mlists ->
         f rulerp mlists (FFI.c_int len)
     where marklists = map snd $ Map.elems $ Ruler.ruler_marklists ruler
 
-no_ruler :: (Ptr Ruler.Ruler -> Ptr (Ptr Ruler.Marklist) -> CInt -> IO a)
+no_ruler :: (Ptr Ruler.Ruler -> Ptr (Ptr Mark.Marklist) -> CInt -> IO a)
     -> IO a
 no_ruler f = f nullPtr nullPtr 0
 
@@ -35,7 +36,7 @@ no_ruler f = f nullPtr nullPtr 0
 
 #include "Ui/c_interface.h"
 
-with_marklists :: [Ruler.Marklist] -> (Int -> Ptr (Ptr Ruler.Marklist) -> IO a)
+with_marklists :: [Mark.Marklist] -> (Int -> Ptr (Ptr Mark.Marklist) -> IO a)
     -> IO a
 with_marklists mlists f = do
     fptrs <- mapM marklist_fptr mlists
@@ -44,30 +45,30 @@ with_marklists mlists f = do
         withArrayLen ptrs f
 
 -- | Create and cache a new marklist pointer, or re-used the cached one.
-marklist_fptr :: Ruler.Marklist -> IO (ForeignPtr Ruler.Marklist)
+marklist_fptr :: Mark.Marklist -> IO (ForeignPtr Mark.Marklist)
 marklist_fptr mlist = MVar.modifyMVar (extract mlist) create
     where
-    extract = (\(Ruler.MarklistPtr a) -> a) . Ruler.marklist_fptr
+    extract = (\(Mark.MarklistPtr a) -> a) . Mark.marklist_fptr
     create (Right fptr) = return (Right fptr, fptr)
     create (Left _) = do
         fptr <- create_marklist mlist
         return (Right fptr, fptr)
 
-create_marklist :: Ruler.Marklist -> IO (ForeignPtr Ruler.Marklist)
+create_marklist :: Mark.Marklist -> IO (ForeignPtr Mark.Marklist)
 create_marklist mlist = do
-    marksp <- newArray $ map PosMark $ Ruler.ascending 0 mlist
+    marksp <- newArray $ map PosMark $ Mark.ascending 0 mlist
     mlistp <- c_create_marklist marksp $ FFI.c_int $
-        TimeVector.length $ Ruler.marklist_vec mlist
+        TimeVector.length $ Mark.marklist_vec mlist
     newForeignPtr c_marklist_decref mlistp
 
 foreign import ccall "create_marklist"
-    c_create_marklist :: Ptr PosMark -> CInt -> IO (Ptr Ruler.Marklist)
+    c_create_marklist :: Ptr PosMark -> CInt -> IO (Ptr Mark.Marklist)
 foreign import ccall "&marklist_decref"
-    c_marklist_decref :: FunPtr (Ptr Ruler.Marklist -> IO ())
+    c_marklist_decref :: FunPtr (Ptr Mark.Marklist -> IO ())
 foreign import ccall "marklist_incref"
-    c_marklist_incref :: Ptr Ruler.Marklist -> IO ()
+    c_marklist_incref :: Ptr Mark.Marklist -> IO ()
 
-newtype PosMark = PosMark (ScoreTime, Ruler.Mark) deriving (Show)
+newtype PosMark = PosMark (ScoreTime, Mark.Mark) deriving (Show)
 
 instance CStorable PosMark where
     sizeOf _ = #size PosMark
@@ -98,20 +99,20 @@ poke_ruler rulerp ruler@(Ruler.Ruler _ bg show_names align_to_bottom) = do
     (#poke RulerConfig, align_to_bottom) rulerp (FFI.c_bool align_to_bottom)
     (#poke RulerConfig, last_mark_pos) rulerp (Ruler.time_end ruler)
 
-instance CStorable Ruler.Mark where
+instance CStorable Mark.Mark where
     sizeOf _ = #size Mark
     alignment _ = alignment (0 :: CDouble)
     peek = error "Mark peek unimplemented"
     poke = poke_mark
 
-poke_mark :: Ptr Ruler.Mark -> Ruler.Mark -> IO ()
-poke_mark markp (Ruler.Mark
-    { Ruler.mark_rank = rank
-    , Ruler.mark_width = width
-    , Ruler.mark_color = color
-    , Ruler.mark_name = name
-    , Ruler.mark_name_zoom_level = name_zoom_level
-    , Ruler.mark_zoom_level = zoom_level
+poke_mark :: Ptr Mark.Mark -> Mark.Mark -> IO ()
+poke_mark markp (Mark.Mark
+    { mark_rank = rank
+    , mark_width = width
+    , mark_color = color
+    , mark_name = name
+    , mark_name_zoom_level = name_zoom_level
+    , mark_zoom_level = zoom_level
     }) = do
         -- Must be freed by the caller.
         namep <- FFI.newCStringNull0 name

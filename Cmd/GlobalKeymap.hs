@@ -56,14 +56,13 @@ import qualified Cmd.Edit as Edit
 import qualified Cmd.Factor as Factor
 import qualified Cmd.Keymap as Keymap
 import           Cmd.Keymap
-       (bind_click, bind_drag, bind_key, bind_key_status, bind_repeatable,
-        command_char, plain_char, plain_key, really_control, shift_char,
-        SimpleMod(..))
+    (SimpleMod(..), bind_click, bind_drag, bind_key, bind_key_status,
+     bind_repeatable, command_char, plain_char, plain_key, really_control,
+     shift_char)
 import qualified Cmd.PhysicalKey as PhysicalKey
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Play as Play
 import qualified Cmd.Ruler
-import qualified Cmd.Ruler.Meter as Meter
 import qualified Cmd.Save as Save
 import qualified Cmd.Selection as Selection
 import qualified Cmd.StepPlay as StepPlay
@@ -76,6 +75,7 @@ import qualified Cmd.Views as Views
 import qualified Derive.Scale as Scale
 import qualified Ui.Block as Block
 import qualified Ui.Key as Key
+import qualified Ui.Meter.Meter as Meter
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Ui as Ui
 
@@ -367,7 +367,7 @@ block_config_bindings = concat
     , command_char 'm' "toggle merged" BlockConfig.toggle_merge_selected
 
     -- The idea is cmd-; works in kbd mode.
-    , command_char ';' "double ruler" Cmd.Ruler.local_double
+    , command_char ';' "extend ruler" (Cmd.Ruler.local_extend 4)
     , plain_char ':' "clip block" BlockConfig.clip
     ]
 
@@ -415,7 +415,7 @@ edit_state_bindings = concat
         ("set step: " <> TimeStep.show_time_step step,
             Edit.set_step_rank step rank)
         where step = TimeStep.time_step (TimeStep.AbsoluteMark meter rank)
-    meter = TimeStep.NamedMarklists [Ruler.meter]
+    meter = TimeStep.NamedMarklists [Ruler.meter_name]
 
 -- delete = remove events and move following events back
 -- clear = just remove events
