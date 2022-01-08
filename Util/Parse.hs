@@ -29,7 +29,8 @@ parse :: Parser a -> Text -> Either Text a
 parse p = Identity.runIdentity . parseM "" p
 
 parseM :: Monad m => FilePath -> ParserT m a -> Text -> m (Either Text a)
-parseM fname p = fmap (first (txt . P.errorBundlePretty)) . P.runParserT p fname
+parseM fname p =
+    fmap (first (txt . P.errorBundlePretty)) . P.runParserT (p <* P.eof) fname
 
 parseS :: state -> FilePath -> ParserS state a -> Text -> Either Text a
 parseS state fname p = fst . flip State.runState state . parseM fname p
