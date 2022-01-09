@@ -213,7 +213,7 @@ insert_track view tracknum tracklike width = send $
     BlockC.insert_track view tracknum tracklike [] set_style width
 
 event_track :: Track.Track -> Block.Tracklike
-event_track events = Block.T events Ruler.empty_ruler
+event_track events = Block.T events Ruler.empty
 
 long_event_track, event_track_1, event_track_2 :: Track.Track
 long_event_track = UiTest.make_track

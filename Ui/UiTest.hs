@@ -594,7 +594,7 @@ mkruler measure_dur end meter =
 mkruler_marks :: [(TrackTime, Mark)] -> Ruler.Ruler
 mkruler_marks marks =
     Ruler.modify_marklists (Map.insert Ruler.meter_name (Nothing, mlist))
-        Ruler.empty_ruler
+        Ruler.empty
     where mlist = Mark.marklist $ map (second (uncurry mkmark)) marks
 
 mkruler_ranks :: [(TrackTime, Mark.Rank)] -> Ruler.Ruler

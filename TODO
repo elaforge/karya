@@ -6255,12 +6255,36 @@ Cmd:
       * Cmd.Ruler.Extract
       * Derive.TScore
       * Example.Integrate
+      * verify fails:
+        save/complete/bloom
+        . expect: loop1 130.16s: chan:0 NoteOn gs5(80) 42
+          got:    loop1 130.16s: chan:0 NoteOn gs5(80) 60
+        . Event (130.16s, .16s) ""
+          { instrument = pno
+          , pitch =
+              Signal 0s <130.16s:80nn,5g#(twelve), 130.32s:80nn,5g#(twelve)>
+          , controls =
+              { %dyn :
+                Signal 0s <130s:.501, 130.19s:.461, 130.19s:.322, 130.32s:.303>
+              }
+          }
+        . 127 * 0.105 = 63.627
+        . old <130.16s:.327, 130.32s:.303>}
+          new <130s:.501, 130.19s:.461, 130.19s:.322, 130.32s:.303>
+        . score:
+          should be 0xb2 * 0x78 = .328 aka velocity 42
+          new is 0xff * 0x78 = vel 60
+        . Why dyn-12-8 not line up in new?
+        . Because in new it's .--.--.--., extra high on the end.
+        . Ruler.bounds_of <$> Ui.get_ruler @dyn-12-8
+          (0, Nothing)
+          new has (0, Just 3)
+    meter cleanup:
       - test for Example.Integrate
-      cleanup:
-        - Do I need Meter.Make is_edge?
-        - Put RankName into its own module, shared with Derive?
-          . Can then fix MSection
-          . Get rid of numeric Rank entirely and use RankName?
+      - Do I need Meter.Make is_edge?
+      - Put RankName into its own module, shared with Derive?
+        . Can then fix MSection
+        . Get rid of numeric Rank entirely and use RankName?
     + Once this is done, what about all the old scores?
       . They will load as hardcoded marklists, but Ruler.get_meter will return
         an empty meter, which probably means they get overwritten.

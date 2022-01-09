@@ -1531,7 +1531,7 @@ events_range events = case minmax events of
 
 get_ruler :: M m => RulerId -> m Ruler.Ruler
 get_ruler ruler_id
-    | ruler_id == no_ruler = return Ruler.empty_ruler
+    | ruler_id == no_ruler = return Ruler.empty
     | otherwise = get >>= lookup_id ruler_id . state_rulers
 
 lookup_ruler :: M m => RulerId -> m (Maybe Ruler.Ruler)

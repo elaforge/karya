@@ -6,7 +6,7 @@ module Ui.Ruler (
     -- * Ruler
     Ruler(..), Marklists, Name
     , meter_ruler, meter_name
-    , empty_ruler
+    , empty
     , get_meter, lookup_meter, set_meter, modify_meter
     , lookup_marklist, get_marklist, set_marklist, remove_marklist
     , modify_marklist, modify_marklists
@@ -66,8 +66,8 @@ instance DeepSeq.NFData Ruler where rnf (Ruler mlists _ _ _) = mlists `seq` ()
 
 -- * ruler
 
-empty_ruler :: Ruler
-empty_ruler = Ruler
+empty :: Ruler
+empty = Ruler
     { ruler_marklists = mempty
     , ruler_bg = Config.ruler_bg
     , ruler_show_names = False
@@ -76,7 +76,7 @@ empty_ruler = Ruler
 
 -- | Create a ruler with just a 'meter' marklist.
 meter_ruler :: Meter.Meter -> Ruler
-meter_ruler meter = set_meter meter empty_ruler
+meter_ruler meter = set_meter meter empty
 
 -- | The meter marklist by convention has marks corresponding to the meter of
 -- the piece.  Other commands may use this to find out where beats are.
@@ -162,6 +162,9 @@ get_bounds ruler = case lookup_marklist bounds_name ruler of
 -- caller can use the end of the last event.
 bounds_of :: Ruler -> (ScoreTime, Maybe ScoreTime)
 bounds_of ruler = case get_bounds ruler of
-    (Nothing, Nothing) -> (0, mb_end)
-    (start, end) -> (fromMaybe 0 start, end <|> mb_end)
-    where mb_end = Meter.meter_end <$> lookup_meter ruler
+    (Nothing, Nothing) -> (0, meter_end)
+    (start, end) -> (fromMaybe 0 start, end <|> meter_end)
+    where
+    meter_end = Meter.meter_end <$> lookup_meter ruler
+        -- Fall back on marklist end, old scores won't have a Meter.Meter.
+        <|> Mark.end <$> lookup_marklist meter_name ruler

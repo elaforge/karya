@@ -82,7 +82,7 @@ data Scope =
 replace :: Ui.M m => BlockId -> ModifyRuler -> m RulerId
 replace block_id modify = do
     whenM (Maybe.isNothing <$> Ui.lookup_ruler ruler_id) $
-        void $ Ui.create_ruler (Id.unpack_id ruler_id) Ruler.empty_ruler
+        void $ Ui.create_ruler (Id.unpack_id ruler_id) Ruler.empty
     Ui.modify_ruler ruler_id modify
     return ruler_id
     where
