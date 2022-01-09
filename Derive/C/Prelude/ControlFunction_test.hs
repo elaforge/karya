@@ -5,7 +5,6 @@
 module Derive.C.Prelude.ControlFunction_test where
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-import qualified Cmd.Ruler.Meter as Meter
 import qualified Derive.Call as Call
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Controls as Controls
@@ -15,6 +14,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
 
 import qualified Perform.Signal as Signal
+import qualified Ui.Meter.Meter as Meter
 import qualified Ui.UiTest as UiTest
 
 import           Global
@@ -57,7 +57,7 @@ test_cf_swing = do
                     "apply-start-offset" $
                 tracks ++ [("> | %start-s = (cf-swing q " <> amount <> ")",
                     [(n, 0, "") | n <- events])]
-        with_ruler = DeriveTest.with_default_ruler . UiTest.ruler
+        with_ruler = DeriveTest.with_default_ruler . UiTest.mkruler_ranks
             . map (second Meter.name_to_rank)
 
     let marks = take 8 $ zip (Seq.range_ 0 2)

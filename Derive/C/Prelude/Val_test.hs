@@ -3,13 +3,13 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.C.Prelude.Val_test where
-import qualified Cmd.Ruler.Meter as Meter
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
 import qualified Perform.NN as NN
+import qualified Ui.Meter.Meter as Meter
 import qualified Ui.UiTest as UiTest
 
 import           Util.Test
@@ -92,7 +92,7 @@ test_timestep = do
             DeriveTest.derive_tracks_setup (DeriveTest.with_default_ruler ruler)
                 "" [(">", [(start, 0, ("d (ts " <> vcall <> ") |"))])]
         extract = Score.event_start
-        ruler = UiTest.ruler $ zip [0, 1, 2, 3, 4, 6, 8, 10, 12]
+        ruler = UiTest.mkruler_ranks $ zip [0, 1, 2, 3, 4, 6, 8, 10, 12]
             (cycle [Meter.r_1, Meter.r_4, Meter.r_4, Meter.r_4])
     let (evts, logs) = run 0 "'r:z'"
     equal evts []

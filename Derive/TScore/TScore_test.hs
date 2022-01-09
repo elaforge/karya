@@ -7,7 +7,6 @@ import qualified Data.Map as Map
 
 import qualified Util.Seq as Seq
 import qualified Cmd.CmdTest as CmdTest
-import qualified Cmd.Ruler.Meter as Meter
 import qualified Derive.TScore.TScore as TScore
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -238,9 +237,9 @@ test_integrate = do
         [ [1, 1, 1]
         , [1, 1, 1]
         ]
-    let [(_rid, marks)] = UiTest.extract_rulers state
-    equal (filter (is_integral . fst) (e_marks marks))
-        [(0, "1"), (1, "2"), (2, "3"), (3, "4")]
+    let e_marks = map (second (filter (is_integral . fst))) . UiTest.e_meters
+    equal (e_marks state)
+        [("top", [(0, (0, "1")), (1, (1, "2")), (2, (1, "3")), (3, (0, "4"))])]
 
     state <- return $ expect_right $ Ui.exec state $ do
         Ui.insert_event (tid "top" 2) (Event.event 1 0 "5p")
@@ -397,9 +396,6 @@ parsed_blocks = fst . expect_right . TScore.parse_blocks
 
 is_integral :: RealFrac a => a -> Bool
 is_integral = (==0) . snd . properFraction
-
-e_marks :: [Meter.LabeledMark] -> [(TrackTime, Meter.Label)]
-e_marks = map (second Meter.m_label) . Seq.scanl_on (+) Meter.m_duration 0
 
 tid :: Text -> TrackNum -> TrackId
 tid block = GenId.track_id_at (UiTest.bid ("untitled/" <> block))

@@ -26,31 +26,19 @@
 
     Examples:
 
-    - Start at a different measure number: @LRuler.local $ LRuler.renumber 7@
+    - Start at a different measure number:
+
+        > LRuler.modify $ LRuler.set_start_measure 4
 
     - Bali: 8 gongs with 4 jegogans per gong.  Since counts are on calung, and
     there are 2 calung per jegogan, this is basically an 8 beat cycle:
 
-        > LRuler.local $ LRuler.gongs 8 4
+        > LRuler.modify $ LRuler.gongs 8 4
 
     - Give the current block 6 sections of standard 4/4 meter, with 4 measures
     per section, where each measure gets 1t:
 
-        > LRuler.local $ LRuler.measures Meters.m44 6 4
-
-    - Or if you want each quarter note to get 1t, and 8 sections with
-    4 measures per section:
-
-        > LRuler.local $ LRuler.ruler $
-        >       Meter.make_measures Meter.default_config 4 Meters.m44 8 4
-
-    - Or put the selection at the where the 4 meters should end, then:
-
-        > LRuler.local $ LRuler.ruler $
-        >       LRuler.fit_to_selection LRuler.config Meter.m44
-
-    - Make the last measure 5/4 by selecting a quarter note and running
-      @LRuler.append@.
+        > LRuler.modify $ LRuler.measures Meters.m44 6 4
 
     - TODO make a middle measure 5/4?
 
@@ -58,7 +46,7 @@
 
         > LRuler.local $ LRuler.ruler $ Tala.adi 8
 
-    - Change the selected tracks to tisram:
+    - Change the selected tracks to 8 avartanams of tisram:
 
         > LRuler.local $ LRuler.tracks $ LRuler.ruler $
         >   Tala.simple Tala.adi_tala 3 8
@@ -75,33 +63,30 @@
         > LRuler.local $ LRuler.tracks $ LRuler.ruler $ LTala.chatis 8 4
 -}
 module Cmd.Repl.LRuler where
-import Prelude hiding (concat)
+import           Prelude hiding (concat)
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
+import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Create as Create
+import qualified Cmd.Ruler.Extract as Extract
+import qualified Cmd.Ruler.Gong as Gong
+import qualified Cmd.Ruler.RulerUtil as RulerUtil
+import qualified Cmd.Selection as Selection
+
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
-import qualified Ui.Ruler as Ruler
-import qualified Ui.Meter.Meter as Meter
-import qualified Ui.Meter.Make as Make
 import qualified Ui.Meter.Mark as Mark
+import qualified Ui.Meter.Meter as Meter
+import qualified Ui.Ruler as Ruler
 import qualified Ui.Ui as Ui
 
-import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Create as Create
--- import qualified Cmd.Ruler.Extract as Extract
--- import qualified Cmd.Ruler.Gong as Gong
--- import qualified Cmd.Ruler.Meter as Meter
--- import qualified Cmd.Ruler.Modify as Ruler.Modify
-import qualified Cmd.Ruler.RulerUtil as RulerUtil
-import qualified Cmd.Selection as Selection
-
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- * general purpose
@@ -208,12 +193,13 @@ set ruler_id block_id scope = do
         return $ zipWith replace [0..] old
 
 -- | Replace the ruler.
-ruler :: Cmd.M m => Ruler.Ruler -> m Modify
-ruler r = do
+ruler :: Cmd.M m => Meter.Meter -> m Modify
+ruler meter = do
     (block_id, tracknum) <- get_block_track
-    return $ make_modify block_id tracknum $ const (Right r)
+    return $ make_modify block_id tracknum $ const $ Right $
+        Ruler.meter_ruler meter
 
-lruler :: Cmd.M m => Ruler.Ruler -> m [RulerId]
+lruler :: Cmd.M m => Meter.Meter -> m [RulerId]
 lruler = local . ruler
 
 -- | Modify all rulers.
@@ -235,7 +221,7 @@ replace_ruler_id old new = do
 get_meter :: Ui.M m => BlockId -> m Meter.Meter
 get_meter block_id = Ruler.get_meter <$> (Ui.get_ruler =<< Ui.ruler_of block_id)
 
-get_sections :: Ui.M m => BlockId -> m [Meter.Section]
+get_sections :: Ui.M m => BlockId -> m [Meter.MSection]
 get_sections = fmap Meter.meter_sections . get_meter
 
 get_marks :: Ui.M m => BlockId -> m [(TrackTime, Mark.Mark)]
@@ -258,49 +244,99 @@ selected = do
     (block_id, tracknum, _, _) <- Selection.get_insert
     Cmd.require "no ruler" =<< Ui.ruler_track_at block_id tracknum
 
+-- * upgrade to Meter.Meter
+
+upgrade_infer :: Meter.AbstractMeter -> Upgrade
+upgrade_infer meter mlist =
+    ( RulerUtil.meter_until meter dur end
+    , "measure " <> show dur <> " end: " <> show end
+    )
+    where (dur, end) = (infer_measure_dur mlist, Mark.end mlist)
+
+infer_measure_dur :: Mark.Marklist -> TrackTime
+infer_measure_dur mlist =
+    maybe 0 fst $ Seq.maximum_on snd $ map (second length) $
+        Seq.keyed_group_sort id $ zipWith subtract starts (drop 1 starts)
+    where
+    starts = map fst . filter ((<= Meter.r_1) . Mark.mark_rank . snd)
+        . Mark.to_list $ mlist
+
+upgrade_gong :: Upgrade
+upgrade_gong mlist = (Gong.until (Mark.end mlist), "")
+
+type Upgrade = Mark.Marklist -> (Meter.Meter, String)
+
+-- |
+-- > LRuler.replace_meters LRuler.upgrade_gong
+-- > LRuler.replace_meters (LRuler.upgrade_infer Meters.m44)
+replace_meters :: Ui.M m => Upgrade -> m String
+replace_meters upgrade = do
+    ruler_ids <- Ui.all_ruler_ids
+    fmap unlines $ forM ruler_ids $ \ruler_id ->
+        ((show ruler_id <> ": ") <>) <$> replace_meter upgrade ruler_id
+
+-- | Add a Meter for the ruler if not already present.
+replace_meter :: Ui.M m => Upgrade -> RulerId -> m String
+replace_meter upgrade ruler_id = do
+    ruler <- Ui.get_ruler ruler_id
+    case Map.lookup Ruler.meter_name (Ruler.ruler_marklists ruler) of
+        Just (Nothing, mlist) -> do
+            let (meter, msg) = upgrade mlist
+            RulerUtil.set_meter ruler_id meter
+            return $ "replaced: " <> msg
+        Just (Just _, _) -> return "already has meter"
+        Nothing -> return "no meter?"
+
 -- * Modify
 
-{-
 -- | Copy the meter under the selection and append it to the end of the ruler.
 append :: Cmd.M m => m Modify
 append = do
     (start, end) <- selection_range
-    modify_selected $ \meter ->
-        meter <> Meter.extract (Meter.time_to_duration start)
-            (Meter.time_to_duration end) meter
+    modify_selected $ Meter.modify_sections $ \ss ->
+        ss <> RulerUtil.extract start end ss
 
 -- | Append another ruler to this one.
 append_ruler_id :: Cmd.M m => RulerId -> m Modify
 append_ruler_id ruler_id = do
-    other <- Meter.ruler_meter <$> Ui.get_ruler ruler_id
-    modify_selected $ (<> other) . Seq.rdrop 1
+    other <- RulerUtil.get_meter ruler_id
+    modify_selected $ (<> other)
 
 -- | Remove the selected range of the ruler and shift the rest up.
 delete :: Cmd.M m => m Modify
 delete = do
     (start, end) <- selection_range
-    modify_selected $ Meter.delete
-        (Meter.time_to_duration start) (Meter.time_to_duration end)
+    modify_selected $ Meter.modify_sections $ RulerUtil.delete start end
 
--- | Replace the selected region with another marklist.
-replace :: Cmd.M m => Meter.LabeledMeter -> m Modify
-replace insert = do
+-- | Insert the selected meter range at the given time.
+insert :: Cmd.M m => TrackTime -> m Modify
+insert at = do
     (start, end) <- selection_range
-    modify_selected $ replace_range start end insert
+    sections <- get_sections =<< Cmd.get_focused_block
+    modify_selected $ Meter.set_sections $
+        Meter.sections_take at sections
+        <> RulerUtil.extract start end sections
+        <> Meter.sections_drop at sections
 
--- | Replace the selected region with another marklist.
-replace_range :: TrackTime -> TrackTime -> Meter.LabeledMeter
-    -> Meter.LabeledMeter -> Meter.LabeledMeter
-replace_range start end insert meter =
-    before <> Meter.take_before (end - start) insert <> after
-    where
-    before = Meter.take_before start meter
-    after = Meter.drop_until end meter
--}
+replace_range :: TrackTime -> TrackTime -> [Meter.MSection] -> Meter.Meter
+    -> Meter.Meter
+replace_range start end insert = Meter.modify_sections $ \ss ->
+    let pre = Meter.sections_take start ss
+        post = Meter.sections_drop end ss
+    in pre <> insert <> post
 
--- -- TODO could solve by moving meter to c++?
--- -- | Strip out ranks below a certain value, for the whole block.  Larger scale
--- -- blocks don't need the fine resolution and can wind up with huge rulers.
+-- -- | Replace the selected region with another marklist.
+-- replace_range :: TrackTime -> TrackTime -> Meter.LabeledMeter
+--     -> Meter.LabeledMeter -> Meter.LabeledMeter
+-- replace_range start end insert meter =
+--     before <> Meter.take_before (end - start) insert <> after
+--     where
+--     before = Meter.take_before start meter
+--     after = Meter.drop_until end meter
+
+-- TODO This is no longer possible since that's now hardcoded at the Meter.Make
+-- level.  Having to do it at all is no good though, I should not have to pay
+-- for marks which are not visible.
 -- strip_ranks :: Cmd.M m => Meter.RankName -> m Modify
 -- strip_ranks max_rank =
 --     modify_selected $ Meter.strip_ranks (Meter.name_to_rank max_rank)
@@ -315,28 +351,11 @@ type Measures = Int
 -- > LRuler.modify $ LRuler.measures Meters.m34 4 8
 measures :: Cmd.M m => Meter.AbstractMeter -> Sections -> Measures -> m Modify
 measures meter sections measures = modify_sections $ const $
-    replicate sections $ Meter.Section measures 1 meter
+    replicate sections $ Meter.MSection measures 1 meter
 
-{-
 -- | Create gongs with 'Gong.gongs'.
-gongs :: Cmd.M m => Int -- ^ number of gongs
-    -> Int -- ^ number of jegogans in one gong
-    -> m Modify
-gongs sections jegog = ruler $ Gong.gongs sections jegog
-
--- | Create a meter ruler fitted to the end of the last event on the block.
-fit_to_end :: Ui.M m => Meter.Config -> [Meter.AbstractMeter]
-    -> BlockId -> m Ruler.Ruler
-fit_to_end config meter block_id = do
-    end <- Ui.block_event_end block_id
-    return $ Meter.fit_ruler config end meter
-
-fit_to_selection :: Cmd.M m => Meter.Config -> [Meter.AbstractMeter]
-    -> m Ruler.Ruler
-fit_to_selection config meter = do
-    pos <- Selection.point
-    return $ Meter.fit_ruler config pos meter
--}
+gongs :: Cmd.M m => Gong.Gongs -> Gong.Jegogans -> m Modify
+gongs sections jegog = ruler $ Gong.regular sections jegog
 
 -- | Replace the meter with the concatenation of the rulers of the given
 -- blocks.  This is like 'extract' except it doesn't infer the blocks from the
@@ -346,8 +365,6 @@ concat block_ids = do
     sections <- mconcat <$> mapM get_sections block_ids
     modify_sections (const sections)
 
-{-
-
 -- * pull_up, push_down
 
 -- | Extract the meter marklists from the sub-blocks called on the given
@@ -355,9 +372,9 @@ concat block_ids = do
 pull_up :: Cmd.M m => m Modify
 pull_up = do
     (block_id, tracknum, track_id, _) <- Selection.get_insert
-    all_meters <- Extract.pull_up block_id track_id
+    meter <- Extract.pull_up block_id track_id
     return $ make_modify block_id tracknum $
-        Ruler.Modify.meter (const all_meters)
+        const $ Right $ Ruler.meter_ruler meter
 
 push_down :: Cmd.M m => Bool -> m ()
 push_down recursive = do
@@ -365,7 +382,6 @@ push_down recursive = do
     if recursive
         then Extract.push_down_recursive False block_id track_id
         else void $ Extract.push_down False block_id track_id
--}
 
 -- * modify
 
@@ -392,11 +408,12 @@ data Modify = Modify {
     , m_modify :: !RulerUtil.ModifyRuler
     }
 
-modify_sections :: Cmd.M m => ([Meter.Section] -> [Meter.Section]) -> m Modify
+modify_sections :: Cmd.M m => ([Meter.MSection] -> [Meter.MSection]) -> m Modify
 modify_sections = modify_selected . Meter.modify_sections
 
-modify_config :: Cmd.M m => (Meter.Config -> Meter.Config) -> m Modify
-modify_config = modify_selected . Meter.modify_config
+set_start_measure :: Cmd.M m => Meter.Measures -> m Modify
+set_start_measure n = modify_selected $ Meter.modify_config $ \c ->
+    c { Meter.config_start_measure = n }
 
 modify_selected :: Cmd.M m => (Meter.Meter -> Meter.Meter) -> m Modify
 modify_selected modify = do
@@ -486,7 +503,7 @@ cue_name = "cue"
 
 
 {-
-TODO I can't do this unless I expose Make config
+TODO I can't restore this unless I expose Make config
 
 -- * colors
 

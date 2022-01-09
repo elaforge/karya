@@ -62,7 +62,7 @@ import           Cmd.Keymap
 import qualified Cmd.PhysicalKey as PhysicalKey
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Play as Play
-import qualified Cmd.Ruler
+import qualified Cmd.RulerCmd as RulerCmd
 import qualified Cmd.Save as Save
 import qualified Cmd.Selection as Selection
 import qualified Cmd.StepPlay as StepPlay
@@ -367,7 +367,7 @@ block_config_bindings = concat
     , command_char 'm' "toggle merged" BlockConfig.toggle_merge_selected
 
     -- The idea is cmd-; works in kbd mode.
-    , command_char ';' "extend ruler" (Cmd.Ruler.local_extend 4)
+    , command_char ';' "add ruler section" RulerCmd.local_add_section
     , plain_char ':' "clip block" BlockConfig.clip
     ]
 

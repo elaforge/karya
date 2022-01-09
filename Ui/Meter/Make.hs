@@ -45,17 +45,13 @@ make_marklist = Mark.marklist . make_measures
 -- If I want that, I can make a function on AbstractMeter.
 make_measures :: Meter.Meter -> [(TrackTime, Mark.Mark)]
 make_measures meter =
-    -- Unlike the usual convention, meter_end includes the end point.  This
-    -- is because I need an explicit mark to mark the end of the block.
-    takeWhile ((<= Meter.meter_end meter) . fst) $
-    -- dropWhile ((< Meter.meter_start meter) . fst) $
     labeled_marklist 0 $
     label_ranks config (Meter.config_start_measure config) $
     to_rank_durations $
     map expand (Meter.meter_sections meter)
     where
     config = Meter.meter_config meter
-    expand (Meter.Section count dur measure) =
+    expand (Meter.MSection count dur measure) =
         (tdur, D (replicate count measure))
         where tdur = dur / fromIntegral (Meter.meter_length measure)
 

@@ -46,6 +46,7 @@ import qualified Ui.Dump as Dump
 import qualified Ui.Event as Event
 import qualified Ui.Fltk as Fltk
 import qualified Ui.Id as Id
+import qualified Ui.Meter.Mark as Mark
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Sel as Sel
 import qualified Ui.Skeleton as Skeleton
@@ -352,14 +353,14 @@ test_selection = do
         set_selection t_view_id (selection 0 10 0 20)
     return ()
 
-cue_marklist :: Ruler.Marklist
-cue_marklist = Ruler.marklist
+cue_marklist :: Mark.Marklist
+cue_marklist = Mark.marklist
     [ (0, mark "start")
     , (2, mark "head explodes")
     ]
 
-mark :: Text -> Ruler.Mark
-mark name = Ruler.Mark 0 3 (Color.rgba 0.4 0 0.4 0.4) name 0 0
+mark :: Text -> Mark.Mark
+mark name = Mark.Mark 0 3 (Color.rgba 0.4 0 0.4 0.4) name 0 0
 
 test_modify_ruler = do
     state <- run Ui.empty $ do
@@ -373,7 +374,7 @@ test_modify_ruler = do
     _ <- io_human "doesn't crash when a track is collapsed" $ run state $ do
         Ui.add_track_flag t_block_id 1 Block.Collapse
         Ui.modify_ruler t_ruler_id $ Right . Ruler.modify_marklists
-            (fmap $ second $ const (Ruler.marklist [(0, mark "new")]))
+            (fmap $ second $ const (Mark.marklist [(0, mark "new")]))
     return ()
 
 -- | Selection is correct even when tracks are added or deleted.

@@ -20,9 +20,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Integrate.Manual as Manual
 import qualified Cmd.ModifyNotes as ModifyNotes
-import qualified Cmd.Ruler.Meter as Meter
-import qualified Cmd.Ruler.Meters as Meters
-import qualified Cmd.Ruler.Modify as Ruler.Modify
+import qualified Cmd.Ruler.RulerUtil as RulerUtil
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.ShowVal as ShowVal
@@ -30,6 +28,8 @@ import qualified Perform.Pitch as Pitch
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
+import qualified Ui.Meter.Meters as Meters
+import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Ui as Ui
 
@@ -53,11 +53,11 @@ integrate_file = do
 integrate_score :: Ui.M m => Text -> Score -> m (Maybe BlockId)
 integrate_score name score = do
     block_id <- Ui.require "invalid name" $ Id.make $ Id.id namespace name
-    -- Make a m44 ruler up to the give end time.  Rulers are pretty
-    -- unreasonably complicated.
+    -- Make a m44 ruler up to the give end time.  Rulers are not quite as
+    -- unreasonably complicated as they used to be.
     let end = ScoreTime.from_double $ maximum [s + d | (s, d, _, _) <- score]
-    ruler_id <- Ruler.Modify.replace block_id $
-        Ruler.Modify.generate_until end $ make_labeled Meters.m44
+    ruler_id <- RulerUtil.replace block_id $ const $ Right $
+        Ruler.meter_ruler $ RulerUtil.meter_until Meters.m44 1 end
     Manual.block source_key block_id ruler_id block_title [(note, controls)]
     where
     (note, controls) = Manual.convert_note_track source_key (note_track 0 score)
@@ -68,10 +68,6 @@ integrate_score name score = do
     -- without name collisions.  It's also convenient to put all generated
     -- score into its own namespace.
     namespace = Id.namespace "ex"
-
-make_labeled :: Meter.AbstractMeter -> [Meter.LabeledMark]
-make_labeled =
-    Meter.label_meter Meter.default_config . Meter.fit_meter 1 . (:[])
 
 -- | Insert 'score' at the selection position.  This is a plain insert, no
 -- fancy integration.  It won't clear out any existing notes, so it'll get

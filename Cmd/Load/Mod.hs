@@ -14,6 +14,8 @@ import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Cmd.Create as Create
 import qualified Cmd.Load.ModT as ModT
+import qualified Cmd.Ruler.RulerUtil as RulerUtil
+
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
@@ -23,7 +25,6 @@ import qualified Perform.Pitch as Pitch
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
-import qualified Ui.Meter.Meter as Meter
 import qualified Ui.Meter.Meters as Meters
 import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
@@ -50,7 +51,8 @@ convert ns mod = Ui.exec Ui.empty $ do
     Ui.set_namespace ns
     bids <- forM blocks $ \(tracks, block_end, _skel) -> do
         bid <- Create.block Ui.no_ruler
-        rid <- Ui.create_ruler (Id.unpack_id bid) (make_ruler block_end)
+        rid <- Ui.create_ruler (Id.unpack_id bid) $
+            Ruler.meter_ruler $ RulerUtil.meter_until Meters.m44 1 block_end
         Create.set_block_ruler rid bid
         forM_ tracks $ \track -> do
             tid <- Create.track_events bid rid 999 40 track
@@ -80,12 +82,6 @@ convert ns mod = Ui.exec Ui.empty $ do
         { _tempo = ModT._default_tempo mod
         , _instruments = ModT._instruments mod
         }
-
--- | 4/4 until the end time.
-make_ruler :: TrackTime -> Ruler.Ruler
-make_ruler end = Ruler.meter_ruler $ Meter.clip_start end $
-    Meter.meter Meter.default_config [Meter.Section measures 1 Meters.m44]
-    where measures = ceiling end
 
 ky :: Text
 ky = Text.unlines

@@ -41,6 +41,7 @@ import qualified Ui.Zoom as Zoom
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Instrument.MidiInst as MidiInst
+import qualified Cmd.Ruler.RulerUtil as RulerUtil
 import qualified Cmd.Simple as Simple
 import qualified Cmd.TimeStep as TimeStep
 
@@ -266,22 +267,11 @@ mkblock_named (spec, tracks) = do
             (Ui.create_ruler (Id.unpack_id default_ruler_id) default_ruler)
             (const (return default_ruler_id))
                 =<< Ui.lookup_ruler default_ruler_id
-    mkblock_ruler ruler_id block_id title tracks
+    mkblock_ruler_id ruler_id block_id title tracks
     where
     event_end :: [TrackSpec] -> Int
     event_end = ceiling . ScoreTime.to_double . maximum . (0:)
         . concatMap (map (\(s, d, _) -> max s (s+d)) . snd)
-
-mkblock_meter :: Ui.M m => [Meter.Section] -> BlockId -> Text
-    -> [TrackSpec] -> m (BlockId, [TrackId])
-mkblock_meter = undefined
-
--- mkblock_marklist :: Ui.M m => Mark.Marklist -> BlockId -> Text
---     -> [TrackSpec] -> m (BlockId, [TrackId])
--- mkblock_marklist marklist block_id title tracks = do
---     ruler_id <- Create.ruler "r" $
---         Ruler.meter_ruler Ruler.default_config marklist
---     mkblock_ruler ruler_id block_id title tracks
 
 mkblocks_skel :: Ui.M m => [(BlockSpec, [Skeleton.Edge])] -> m ()
 mkblocks_skel blocks = forM_ blocks $ \(block, skel) -> do
@@ -292,9 +282,9 @@ mkblocks_skel blocks = forM_ blocks $ \(block, skel) -> do
 -- | Like 'mkblock', but uses the provided ruler instead of creating its
 -- own.  Important if you are creating multiple blocks and don't want
 -- a separate ruler for each.
-mkblock_ruler :: Ui.M m => RulerId -> BlockId -> Text -> [TrackSpec]
+mkblock_ruler_id :: Ui.M m => RulerId -> BlockId -> Text -> [TrackSpec]
     -> m (BlockId, [TrackId])
-mkblock_ruler ruler_id block_id title tracks = do
+mkblock_ruler_id ruler_id block_id title tracks = do
     Ui.set_namespace test_ns
     -- Start at 1 because track 0 is the ruler.
     tids <- forM (zip [1..] tracks) $ \(i, track) ->
@@ -310,6 +300,12 @@ mkblock_ruler ruler_id block_id title tracks = do
     -- there are some instruments defined.
     Ui.modify set_default_allocations
     return (block_id, tids)
+
+mkblock_ruler :: Ui.M m => Ruler.Ruler -> BlockId -> Text -> [TrackSpec]
+    -> m (BlockId, [TrackId])
+mkblock_ruler ruler block_id title tracks = do
+    ruler_id <- Create.ruler "r" ruler
+    mkblock_ruler_id ruler_id block_id title tracks
 
 create_block :: Ui.M m => Id.Id -> Text -> [Block.TracklikeId] -> m BlockId
 create_block block_id title tracks =
@@ -575,12 +571,10 @@ default_ruler = mkruler_44 32 1
 default_block_end :: ScoreTime
 default_block_end = Ruler.time_end default_ruler
 
--- no_ruler :: Ruler.Ruler
--- no_ruler = ruler []
-
 -- | TimeStep to step by 1 ScoreTime on the default ruler.
 step1 :: TimeStep.TimeStep
-step1 = TimeStep.time_step (TimeStep.AbsoluteMark TimeStep.AllMarklists r_4)
+step1 = TimeStep.time_step
+    (TimeStep.AbsoluteMark TimeStep.AllMarklists Meter.r_2)
 
 -- | Create a ruler with a 4/4 "meter" marklist with the given number of marks
 -- at the given distance.  Marks are rank [1, 2, 2, ...].
@@ -588,43 +582,75 @@ step1 = TimeStep.time_step (TimeStep.AbsoluteMark TimeStep.AllMarklists r_4)
 -- The end of the ruler should be at marks*dist.  An extra mark is created
 -- since marks start at 0.
 mkruler_44 :: Int -> ScoreTime -> Ruler.Ruler
-mkruler_44 marks dist = undefined
+mkruler_44 marks dist =
+    mkruler 4 (fromIntegral marks * dist) (Meter.repeat 4 Meter.T)
 
--- mkruler_44 :: Int -> ScoreTime -> Ruler.Ruler
--- mkruler_44 marks dist = ruler_ $ meter_marklist $ take (marks + 1) $
---     zip3 (Seq.range_ 0 dist) (cycle [r_1, r_4, r_4, r_4]) labels
---     where
---     labels = concatMap measure [1..]
---         where
---         measure n = map (showt n <>) ["", ".2", ".3", ".4"]
---
--- meter_marklist :: [(TrackTime, Mark.Rank, Text)] -> Mark.Marklist
--- meter_marklist marks =
---     Ruler.marklist [(t, mark rank label) | (t, rank, label) <- marks]
---     where
---     mark rank label = Ruler.null_mark
---         { Ruler.mark_rank = rank, Ruler.mark_name = label }
+mkruler :: TrackTime -> TrackTime -> Meter.AbstractMeter -> Ruler.Ruler
+mkruler measure_dur end meter =
+    Ruler.meter_ruler $ RulerUtil.meter_until meter measure_dur end
 
--- ruler :: [(TrackTime, Mark.Rank)] -> Ruler.Ruler
--- ruler marks = ruler_ (mk_marklist marks)
---
--- mk_marklist :: [(TrackTime, Mark.Rank)] -> Mark.Marklist
--- mk_marklist = Ruler.marklist . map (second mark)
---     where
---     mark rank = Ruler.null_mark
---         { Ruler.mark_rank = rank, Ruler.mark_name = showt rank }
---
--- ruler_ :: Mark.Marklist -> Ruler.Ruler
--- ruler_ meter = Ruler.set_meter Ruler.default_config meter $ Ruler.Ruler
---     { Ruler.ruler_marklists = mempty
---     , Ruler.ruler_bg = Config.ruler_bg
---     , Ruler.ruler_show_names = False
---     , Ruler.ruler_align_to_bottom = False
---     }
+-- | This makes a meter without a Meter.Meter, which cmds that look at Meter
+-- will be confused by.
+mkruler_marks :: [(TrackTime, Mark)] -> Ruler.Ruler
+mkruler_marks marks =
+    Ruler.modify_marklists (Map.insert Ruler.meter_name (Nothing, mlist))
+        Ruler.empty_ruler
+    where mlist = Mark.marklist $ map (second (uncurry mkmark)) marks
 
-r_1, r_4 :: Mark.Rank
-r_1 = Meter.r_1
-r_4 = Meter.r_4
+mkruler_ranks :: [(TrackTime, Mark.Rank)] -> Ruler.Ruler
+mkruler_ranks = mkruler_marks . map (second (, ""))
+
+e_mark :: Mark.Mark -> Mark
+e_mark m = (Mark.mark_rank m, mark_name m)
+
+mark_name :: Mark.Mark -> Mark.Label
+mark_name = Meter.Make.strip_markup . Mark.mark_name
+
+mkmark :: Mark.Rank -> Mark.Label -> Mark.Mark
+mkmark rank label = Mark.Mark
+    { mark_rank = rank
+    , mark_width = 0
+    , mark_color = Color.black
+    , mark_name = label
+    , mark_name_zoom_level = 0
+    , mark_zoom_level = 0
+    }
+
+e_rulers :: Ui.State -> [(Text, Text)]
+e_rulers state =
+    [ (Id.ident_name bid, e_ruler bid state)
+    | bid <- Map.keys (Ui.state_blocks state)
+    ]
+
+e_ruler :: BlockId -> Ui.State -> Text
+e_ruler bid state = eval state $
+    Text.unwords . map (snd . snd) . ruler_marks <$>
+        (Ui.get_ruler =<< Ui.ruler_of bid)
+
+type Mark = (Mark.Rank, Mark.Label)
+
+e_meters :: Ui.State -> [(Text, [(TrackTime, Mark)])]
+e_meters state =
+    [ (Id.ident_name bid, e_meter bid state)
+    | bid <- Map.keys (Ui.state_blocks state)
+    ]
+
+e_meter :: BlockId -> Ui.State -> [(TrackTime, Mark)]
+e_meter bid state = eval state $
+    ruler_marks <$> (Ui.get_ruler =<< Ui.ruler_of bid)
+
+ruler_marks :: Ruler.Ruler -> [(TrackTime, Mark)]
+ruler_marks =
+    map (second e_mark) . maybe mempty (Mark.to_list . snd)
+    . Map.lookup Ruler.meter_name
+    . Ruler.ruler_marklists
+
+meter_zoom :: Double -> Meter.Meter -> [(TrackTime, Mark)]
+meter_zoom zoom = map (second e_mark) . filter ((<= zoom)
+    . Mark.mark_name_zoom_level . snd) . Meter.Make.make_measures
+
+meter_marklist :: Double -> Meter.Meter -> [(TrackTime, Mark.Label)]
+meter_marklist zoom = map (second snd) . meter_zoom zoom
 
 -- * allocations
 

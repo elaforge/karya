@@ -14,6 +14,7 @@ module Cmd.Ruler.Tala (
     Sections, Avartanams, Nadai
     -- * standard talams
     , simple
+    , make, make_until
     , tala_to_meter
     , adi, adi3, adi6
     , adi_tala, dhruva_tala, matya_tala, rupaka_tala, jhampa_tala, triputa_tala
@@ -23,6 +24,7 @@ module Cmd.Ruler.Tala (
 import qualified Data.Set as Set
 
 import qualified Util.Num as Num
+import qualified Cmd.Ruler.RulerUtil as RulerUtil
 import qualified Solkattu.Tala as Tala
 import           Solkattu.Tala
     (Tala(..), adi_tala, ata_tala, dhruva_tala, eka_tala, jhampa_tala,
@@ -33,6 +35,7 @@ import qualified Ui.Meter.Meter as Meter
 import           Ui.Meter.Meter (AbstractMeter(..))
 
 import           Global
+import           Types
 
 
 type Sections = Int
@@ -41,25 +44,33 @@ type Nadai = Int
 
 -- * standard talams
 
--- | Create a ruler from just one Tala.  Section is hardcoded to 1 since
--- usually there isn't a section structure.  TODO but often fast ones like
--- rupaka_fast have a 4x structure.
-simple :: Tala -> Nadai -> Avartanams -> Sections -> Meter.Meter
-simple tala nadai avartanams sections =
+-- | Simplified version of 'make', avartanam dur and sections hardcoded to 1.
+simple :: Tala -> Nadai -> Avartanams -> Meter.Meter
+simple tala nadai avartanams = make tala nadai 1 avartanams 1
+
+-- TODO too many parameters.. use a record?
+make :: Tala -> Nadai -> Meter.Duration -> Avartanams -> Sections
+    -> Meter.Meter
+make tala nadai avartanam_dur avartanams sections =
     Meter.meter (tala_config tala) (replicate sections section)
     where
-    section = Meter.Section avartanams 1 (tala_to_meter tala nadai)
+    section = Meter.MSection avartanams avartanam_dur (tala_to_meter tala nadai)
+
+make_until :: Tala -> Nadai -> Meter.Duration -> TrackTime -> Meter.Meter
+make_until tala nadai avartanam_dur end =
+    RulerUtil.meter_take end $ make tala nadai avartanam_dur avartanams 1
+    where avartanams = ceiling (end / avartanam_dur)
 
 -- | 4 avartanams of everyone's favorite talam.
 adi :: Avartanams -> Meter.Meter
-adi = simple adi_tala 4 1
+adi = simple adi_tala 4
 
 -- | 'adi' but in tisram.
 adi3 :: Avartanams -> Meter.Meter
-adi3 = simple adi_tala 3 1
+adi3 = simple adi_tala 3
 
 adi6 :: Avartanams -> Meter.Meter
-adi6 = simple adi_tala 6 1
+adi6 = simple adi_tala 6
 
 -- * implementation
 

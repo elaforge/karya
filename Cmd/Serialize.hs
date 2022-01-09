@@ -484,35 +484,39 @@ instance Serialize Color.Color where
 instance Serialize Ruler.Ruler where
     put (Ruler.Ruler a b c d) = Serialize.put_version 8
         >> put a >> put b >> put c >> put d
-    get = do
-        v <- Serialize.get_version
-        case v of
-            -- TODO reinstate
-            -- 6 -> do
-            --     marklists :: Map Ruler.Name (Maybe Text, Ruler.Marklist) <- get
-            --     bg :: Color.Color <- get
-            --     show_names :: Bool <- get
-            --     align_to_bottom :: Bool <- get
-            --     return $ Ruler.Ruler (upgrade <$> marklists) bg show_names
-            --         align_to_bottom
-            --     where
-            --     upgrade (name, mlist) =
-            --         ((\n -> Ruler.MeterConfig n 1) <$> name, mlist)
-            -- 7 -> do
-            --     marklists :: Map Ruler.Name
-            --         (Maybe Ruler.MeterConfig, Ruler.Marklist) <- get
-            --     bg :: Color.Color <- get
-            --     show_names :: Bool <- get
-            --     align_to_bottom :: Bool <- get
-            --     return $ Ruler.Ruler marklists bg show_names align_to_bottom
-            8 -> do
-                marklists :: Map Ruler.Name (Maybe Meter.Meter, Mark.Marklist)
-                    <- get
-                bg :: Color.Color <- get
-                show_names :: Bool <- get
-                align_to_bottom :: Bool <- get
-                return $ Ruler.Ruler marklists bg show_names align_to_bottom
-            _ -> Serialize.bad_version "Ruler.Ruler" v
+    get = Serialize.get_version >>= \case
+        6 -> do
+            marklists :: Map Ruler.Name (Maybe Text, Mark.Marklist) <- get
+            bg :: Color.Color <- get
+            show_names :: Bool <- get
+            align_to_bottom :: Bool <- get
+            return $ Ruler.Ruler (upgrade <$> marklists) bg show_names
+                align_to_bottom
+            where
+            upgrade (_name, mlist) = (Nothing, mlist)
+        7 -> do
+            marklists :: OldMarklists <- get
+            bg :: Color.Color <- get
+            show_names :: Bool <- get
+            align_to_bottom :: Bool <- get
+            return $ Ruler.Ruler (upgrade marklists) bg show_names
+                align_to_bottom
+            where
+            upgrade :: OldMarklists -> Ruler.Marklists
+            upgrade = fmap $ first $ const Nothing
+        -- Upgrade marklists by throwing out the OldMeterConfig.
+        -- Alternately, I could try to automatically figure out what the Meter
+        -- should be...
+        8 -> do
+            marklists :: Map Ruler.Name (Maybe Meter.Meter, Mark.Marklist)
+                <- get
+            bg :: Color.Color <- get
+            show_names :: Bool <- get
+            align_to_bottom :: Bool <- get
+            return $ Ruler.Ruler marklists bg show_names align_to_bottom
+        v -> Serialize.bad_version "Ruler.Ruler" v
+
+type OldMarklists = Map Text (Maybe OldMeterConfig, Mark.Marklist)
 
 instance Serialize OldMeterConfig where
     put (OldMeterConfig a b) = Serialize.put_version 0 >> put a >> put b
@@ -531,6 +535,52 @@ data OldMeterConfig = OldMeterConfig {
     config_name :: !Text
     , config_start_measure :: !Int
     } deriving (Eq, Show)
+
+instance Serialize Meter.Meter where
+    put (Meter.Meter a b) = Serialize.put_version 0 >> put a >> put b
+    get = Serialize.get_version >>= \case
+        0 -> Meter.Meter <$> get <*> get
+        v -> Serialize.bad_version "Meter.Meter" v
+
+instance Serialize Meter.MSection where
+    put (Meter.MSection a b c) =
+        Serialize.put_version 0 >> put a >> put b >> put c
+    get = Serialize.get_version >>= \case
+        0 -> Meter.MSection <$> get <*> get <*> get
+        v -> Serialize.bad_version "Meter.MSection" v
+
+instance Serialize Meter.Config where
+    put (Meter.Config a b c d e) = Serialize.put_version 0
+        >> put a >> put b >> put c >> put d >> put e
+    get = Serialize.get_version >>= \case
+        0 -> Meter.Config <$> get <*> get <*> get <*> get <*> get
+        v -> Serialize.bad_version "Meter.Config" v
+
+instance Serialize Meter.RankName where
+    put a = Serialize.put_version 0 >> Serialize.put_enum a
+    get = Serialize.get_version >>= \case
+        0 -> Serialize.get_enum
+        v -> Serialize.bad_version "Meter.RankName" v
+
+instance Serialize Meter.LabelConfig where
+    put a = Serialize.put_version 0 >> case a of
+        Meter.BigNumber a -> Serialize.put_tag 0 >> put a
+        Meter.Cycle a -> Serialize.put_tag 1 >> put a
+    get = Serialize.get_version >>= \case
+        0 -> Serialize.get_tag >>= \case
+            0 -> Meter.BigNumber <$> get
+            1 -> Meter.Cycle <$> get
+            t -> Serialize.bad_tag "Meter.LabelConfig" t
+        v -> Serialize.bad_version "Meter.LabelConfig" v
+
+instance Serialize Meter.AbstractMeter where
+    put = \case
+        Meter.T -> Serialize.put_tag 0
+        Meter.D ts -> Serialize.put_tag 1 >> put ts
+    get = Serialize.get_tag >>= \case
+        0 -> pure Meter.T
+        1 -> Meter.D <$> get
+        tag -> Serialize.bad_tag "Meter.AbstractMeter" tag
 
 instance Serialize Mark.Marklist where
     put mlist = put (Mark.marklist_vec mlist)

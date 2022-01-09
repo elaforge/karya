@@ -650,6 +650,7 @@ ui_block block = do
         (_block_title block)
         (Block.track (Block.RId ruler_id) Config.ruler_width : btracks)
 
+-- This was obsoleted by Block.Implicit
 -- ui_skeleton :: [NTrack] -> Skeleton.Skeleton
 -- ui_skeleton = Skeleton.make . concat . snd . List.mapAccumL make 1
 --     where
@@ -659,21 +660,11 @@ ui_block block = do
 --         ns = [tracknum .. tracknum+len - 1]
 
 ui_ruler :: Ui.M m => Block NTrack -> m RulerId
-ui_ruler _ = return Ui.no_ruler -- TODO
-
-ui_ruler1 :: Ui.M m => Block NTrack -> m RulerId
-ui_ruler1 block = RulerUtil.replace (_block_id block) $ const $ Right $
-    Ruler.meter_ruler $
-    Meter.clip_sections end $
-    Meter.meter Meter.default_config [Meter.Section measures 1 (_meter block)]
+ui_ruler block = RulerUtil.replace (_block_id block) $ const $ Right $
+    Ruler.meter_ruler $ RulerUtil.meter_until (_meter block) measure_dur end
     where
-    measures = ceiling end
+    measure_dur = 1
     end = track_time $ maximum $ 0 : map _end (_tracks block)
-
--- ui_ruler :: Ui.M m => Block NTrack -> m RulerId
--- ui_ruler block = Ruler.Modify.replace (_block_id block) $
---     Ruler.Modify.generate_until end (_meter block)
---     where end = track_time $ maximum $ 0 : map _end (_tracks block)
 
 -- * make_blocks
 

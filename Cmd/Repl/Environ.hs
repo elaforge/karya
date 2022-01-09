@@ -53,6 +53,7 @@ import qualified Cmd.Repl.LTala as LTala
 import qualified Cmd.Repl.LTrack as LTrack
 import qualified Cmd.Repl.LTuning as LTuning
 import qualified Cmd.Repl.LView as LView
+import qualified Cmd.Ruler.Gong as Gong
 import qualified Cmd.Ruler.RulerUtil as RulerUtil
 import qualified Cmd.Ruler.Tala as Tala
 import qualified Cmd.Save as Save

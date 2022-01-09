@@ -21,6 +21,7 @@ import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Meter.Meter as Meter
+import qualified Ui.Ruler as Ruler
 import qualified Ui.Sel as Sel
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Transform as Transform
@@ -67,8 +68,8 @@ split_time_at from_block_id pos block_name = do
         Ui.insert_events track_id events
     -- Trim rulers on each.
     let dur = Meter.time_to_duration pos
-    local_block from_block_id $ RulerUtil.extract 0 dur
-    local_block to_block_id $ RulerUtil.delete 0 dur
+    local_sections from_block_id $ RulerUtil.extract 0 dur
+    local_sections to_block_id $ RulerUtil.delete 0 dur
     return to_block_id
 
 split_names :: BlockId -> (Id.Id, Id.Id)
@@ -188,7 +189,7 @@ extract name block_id tracknums track_ids range = do
     -- have to get more complicated.
     delete_empty_tracks to_block_id
     -- Create a clipped ruler.
-    local_block to_block_id $
+    local_sections to_block_id $
         RulerUtil.extract (Meter.time_to_duration start)
             (Meter.time_to_duration end)
     return to_block_id
@@ -261,7 +262,7 @@ block_template block_id track_ids range = do
         =<< mapM (Ui.get_tracknum_of block_id) track_ids
     -- Create a clipped ruler.
     let (start, end) = Events.range_times range
-    local_block to_block_id $
+    local_sections to_block_id $
         RulerUtil.extract (Meter.time_to_duration start)
             (Meter.time_to_duration end)
     return to_block_id
@@ -295,15 +296,14 @@ order_block name block_ids = do
 order_track :: Ui.M m => BlockId -> [BlockId] -> m TrackId
 order_track block_id sub_blocks = do
     ruler_ids <- mapM Ui.ruler_of sub_blocks
-    -- meters <- mapM RulerUtil.get_meter ruler_ids
-    meters <- undefined
+    meters <- mapM RulerUtil.get_meter ruler_ids
     let durs = map Meter.meter_end meters
         starts = scanl (+) 0 durs
         events =
             [ Event.event start dur (block_id_to_call block_id)
             | (start, dur, block_id) <- zip3 starts durs sub_blocks
             ]
-    -- local_block block_id $ const $ mconcat meters
+    local_block block_id $ const $ mconcat meters
     Create.track block_id 9999 ">" (Events.from_list events)
 
 block_id_to_call :: BlockId -> Text
@@ -311,9 +311,11 @@ block_id_to_call = Id.ident_name
 
 -- * util
 
-local_block :: Ui.M m => BlockId -> (Meter.Meter -> Meter.Meter) -> m ()
-local_block block_id = undefined
+local_sections :: Ui.M m => BlockId -> ([Meter.MSection] -> [Meter.MSection])
+    -> m ()
+local_sections block_id = local_block block_id . Meter.modify_sections
 
--- local_block :: Ui.M m => BlockId
---     -> (Meter.LabeledMeter -> Meter.LabeledMeter) -> m [RulerId]
--- local_block block_id = RulerUtil.local_block block_id . Ruler.Modify.meter
+local_block :: Ui.M m => BlockId -> (Meter.Meter -> Meter.Meter) -> m ()
+local_block block_id modify = do
+    RulerUtil.local_block block_id (Right . Ruler.modify_meter modify)
+    return ()

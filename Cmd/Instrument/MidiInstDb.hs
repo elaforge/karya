@@ -1,3 +1,7 @@
+-- Copyright 2022 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 module Cmd.Instrument.MidiInstDb (
     save_synth, load_synth
     , generate_names, clean_name

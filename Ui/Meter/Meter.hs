@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 {- | Types to describe meters.
 
     A meter ruler divides up a block analogous to a staff notation meter.  It's
@@ -21,12 +22,14 @@
     amount of time.
 -}
 module Ui.Meter.Meter (
-    Meter, Section(..), Measures
+    Meter(..), MSection(..), Measures
     , meter
-    , meter_config, meter_sections, meter_end
+    , meter_end
     , empty_meter
     , modify_config
-    , modify_sections, clip_start, clip_end
+    , set_sections, modify_sections
+    , sections_split, sections_drop, sections_take
+    , section_starts
     , Duration, time_to_duration
     , Config(..)
     , default_config
@@ -41,7 +44,9 @@ module Ui.Meter.Meter (
     , repeat, repeats
     , regular_subdivision
     , meter_length
-    , drop_meter
+#ifdef TESTING
+    , module Ui.Meter.Meter
+#endif
 ) where
 import           Prelude hiding (repeat)
 import qualified Data.Set as Set
@@ -52,8 +57,6 @@ import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import           Util.Pretty ((<+>))
 import qualified Util.Seq as Seq
-import qualified Util.Serialize as Serialize
-import           Util.Serialize (get, put)
 
 import           Global
 import           Types
@@ -62,26 +65,12 @@ import           Types
 -- | Duration is of one AbstractMeter, so total duration will be count*dur.
 data Meter = Meter {
     meter_config :: !Config
-    -- These are private because 'modify_sections' and 'clip_end' keep
-    -- _meter_end up to date.
-    , _meter_sections :: ![Section] -- I frequently modify the end, Seq, Vector?
-    -- | Trim from the last Section by this amount.
-    , _meter_end :: !TrackTime
+    , meter_sections :: ![MSection] -- I frequently modify the end, Seq, Vector?
     } deriving (Eq, Show)
 
--- | Instances are in here instead of Cmd.Serialize to avoid exporting the
--- record fields.  It's probably not a big deal if I do though.
-instance Serialize.Serialize Meter where
-    put (Meter a b c) = Serialize.put_version 0 >> put a >> put b >> put c
-    get = Serialize.get_version >>= \case
-        0 -> Meter <$> get <*> get <*> get
-        v -> Serialize.bad_version "Meter" v
-
 instance Pretty Meter where
-    format (Meter config sections end) =
-        "Meter" <+> Pretty.format config
-            <+> Pretty.format sections
-            <+> Pretty.format end
+    format (Meter config sections) =
+        "Meter" <+> Pretty.format config <+> Pretty.format sections
 
 instance Semigroup Meter where
     meter1 <> meter2 = meter (meter_config meter1)
@@ -91,19 +80,18 @@ instance Monoid Meter where
     mappend = (<>)
 
 empty_meter :: Meter
-empty_meter = Meter default_config [] 0
-
-meter_sections :: Meter -> [Section]
-meter_sections = _meter_sections
+empty_meter = Meter default_config []
 
 meter_end :: Meter -> TrackTime
-meter_end = _meter_end
+meter_end = Num.sum . map section_duration . meter_sections
 
-meter :: Config -> [Section] -> Meter
+meter :: Config -> [MSection] -> Meter
 meter config sections = set_sections sections $
     modify_config (const config) empty_meter
 
-data Section = Section {
+-- Called MSection due to annoying name clash with RankName Section.
+-- If I change that one, then the change to rank_names affects parsing.
+data MSection = MSection {
     -- | The section contains this many measures.
     section_count :: !Measures
     -- | Each measure has this duration.
@@ -112,80 +100,76 @@ data Section = Section {
     , section_measure :: !AbstractMeter
     } deriving (Eq, Show)
 
-instance Serialize.Serialize Section where
-    put (Section a b c) = Serialize.put_version 0 >> put a >> put b >> put c
-    get = Serialize.get_version >>= \case
-        0 -> Section <$> get <*> get <*> get
-        v -> Serialize.bad_version "Section" v
-
-instance Pretty Section where
-    format (Section measures dur measure) =
-        "Section" <+> Pretty.format measures <+> Pretty.format dur
+instance Pretty MSection where
+    format (MSection measures dur measure) =
+        "MSection" <+> Pretty.format measures <+> Pretty.format dur
             <+> Pretty.format measure
 
 type Measures = Int
 
-section_duration :: Section -> Duration
-section_duration (Section count dur _) = fromIntegral count * dur
+section_duration :: MSection -> Duration
+section_duration (MSection count dur _) = fromIntegral count * dur
 
 modify_config :: (Config -> Config) -> Meter -> Meter
 modify_config modify meter =
     meter { meter_config = modify (meter_config meter) }
 
-set_sections :: [Section] -> Meter -> Meter
+set_sections :: [MSection] -> Meter -> Meter
 set_sections = modify_sections . const
 
-modify_sections :: ([Section] -> [Section]) -> Meter -> Meter
-modify_sections modify meter = meter
-    { _meter_sections = sections
-    , _meter_end = Num.sum (map section_duration sections)
-    }
-    where sections = modify (_meter_sections meter)
+modify_sections :: ([MSection] -> [MSection]) -> Meter -> Meter
+modify_sections modify meter =
+    meter { meter_sections = modify (meter_sections meter) }
 
--- TODO: no good because trimming the AbstractMeter will throw off the labels!
-clip_start :: TrackTime -> Meter -> Meter
-clip_start start | start <= 0 = id
-clip_start start = modify_sections clip
+-- | Trimming the AbstractMeter from the start will change the labels, but
+-- that's probably desired everywhere except a pickup.
+sections_drop :: TrackTime -> [MSection] -> [MSection]
+sections_drop start = snd . sections_split start
+
+sections_take :: TrackTime -> [MSection] -> [MSection]
+sections_take end = fst . sections_split end
+
+sections_split :: TrackTime -> [MSection] -> ([MSection], [MSection])
+sections_split at = if at <= 0 then ([],) else go 0
     where
-    clip sections = case Seq.drop_before fst start (section_starts sections) of
-        [] -> []
-        (s, Section count dur meter) : sections
-            -- Dropped an exact number of Sections.
-            | s >= start -> Section count dur meter : map snd sections
-            -- Dropped >= the final Section.
-            | count2 <= 0 -> map snd sections
-            -- Dropped an exact number of measures.
-            | ts == 0 -> Section count2 dur meter : map snd sections
-            -- Otherwise I dropped a fractional measure and must split a
-            -- Section.
-            | otherwise -> concat
-                [ maybe [] (:[]) $ -- Debug.trace "dropped" $
-                    Section 1 (dur - fromIntegral ts * tlen) <$>
-                        drop_meter ts meter
-                , if count2 <= 1 then [] else [Section (count2 - 1) dur meter]
-                , map snd sections
-                ]
-            where
-            (measures, frac) = -- Debug.trace_ret "mfrac" (start, s, dur) $
-                properFraction $ (start - s) / dur
-            count2 = count - measures
-            tlen = dur / fromIntegral (meter_length meter)
-            ts = floor $ (frac * dur) / tlen
+    go _ [] = ([], [])
+    go t (s : ss)
+        | at >= t2 = first (s:) rest
+        | at <= t = second (s:) rest
+        | otherwise = bimap (pre++) (post++) rest
+        where
+        rest = go t2 ss
+        t2 = t + section_duration s
+        (pre, post) = section_split (at-t) s
 
-clip_end :: TrackTime -> Meter -> Meter
-clip_end end meter
-    | end >= _meter_end meter = meter
-    | otherwise = meter
-        { _meter_sections = sections
-        , _meter_end = min end (Num.sum (map section_duration sections))
-        }
+section_split :: TrackTime -> MSection -> ([MSection], [MSection])
+section_split at (MSection count dur meter)
+    | ts <= 0 = (make_section measures, make_section (count - measures))
+    | otherwise =
+        ( make_section measures ++ maybe [] (:[]) pre_section
+        , maybe [] (:[]) post_section ++ make_section (count-measures-1)
+        )
     where
-    sections = Seq.takeWhileS 0 wanted (meter_sections meter)
-    wanted total_dur (Section count dur _)
-        | total_dur > end = Nothing
-        | otherwise = Just $ total_dur + fromIntegral count * dur
+    make_section m
+        | m <= 0 = []
+        | otherwise = [MSection m dur meter]
+    (pre_section, post_section) =
+        ( MSection 1 (fromIntegral ts * tlen) <$> pre
+        , MSection 1 (dur - fromIntegral ts * tlen) <$> post
+        )
+        where (pre, post) = meter_split ts meter
+    (measures_, frac) = properFraction (at / dur)
+    -- Since Duration is not Rational, I can easily get off and floor or
+    -- ceiling will be surprising half the time.
+    ts_ = round $ (frac * dur) / tlen
+    -- Because I use round, 'ts' could overflow and be ==mlen.
+    (measures, ts)
+        | ts_ >= mlen = (measures_ + 1, ts_ - mlen)
+        | otherwise = (measures_, ts_)
+    mlen = meter_length meter
+    tlen = dur / fromIntegral mlen
 
-section_starts :: [Section] -> [(Duration, Section)]
+section_starts :: [MSection] -> [(Duration, MSection)]
 section_starts sections =
     zip (scanl (+) 0 (map section_duration sections)) sections
 
@@ -225,13 +209,6 @@ data Config = Config {
 
 instance Pretty Config where format = Pretty.formatG_
 
-instance Serialize.Serialize Config where
-    put (Config a b c d e) = Serialize.put_version 0
-        >> put a >> put b >> put c >> put d >> put e
-    get = Serialize.get_version >>= \case
-        0 -> Config <$> get <*> get <*> get <*> get <*> get
-        v -> Serialize.bad_version "Config" v
-
 default_config :: Config
 default_config = Config
     { config_labeled_ranks = default_labeled_ranks
@@ -251,15 +228,9 @@ default_labeled_ranks = Set.fromList [W, Q, S, T128]
 -- * Rank
 
 -- Also used by Derive.Typecheck
-data RankName = SectionR | W | H | Q | E | S | T32 | T64 | T128 | T256
+data RankName = Section | W | H | Q | E | S | T32 | T64 | T128 | T256
     deriving (Show, Eq, Ord, Bounded, Enum)
 instance Pretty RankName where pretty = showt
-
-instance Serialize.Serialize RankName where
-    put a = Serialize.put_version 0 >> Serialize.put_enum a
-    get = Serialize.get_version >>= \case
-        0 -> Serialize.get_enum
-        v -> Serialize.bad_version "RankName" v
 
 type Rank = Int -- same as Mark.Rank
 
@@ -274,17 +245,6 @@ data LabelConfig = BigNumber Int | Cycle [Label]
 type Label = Text -- TODO make it ByteString so I can pass to c++ efficiently?
 
 instance Pretty LabelConfig where pretty = showt
-
-instance Serialize.Serialize LabelConfig where
-    put a = Serialize.put_version 0 >> case a of
-        BigNumber a -> Serialize.put_tag 0 >> put a
-        Cycle a -> Serialize.put_tag 1 >> put a
-    get = Serialize.get_version >>= \case
-        0 -> Serialize.get_tag >>= \case
-            0 -> BigNumber <$> get
-            1 -> Cycle <$> get
-            t -> Serialize.bad_tag "LabelConfig" t
-        v -> Serialize.bad_version "LabelConfig" v
 
 -- | These are the conventional meanings for the ranks.
 r_section, r_1, r_2, r_4, r_8, r_16, r_32, r_64, r_128, r_256 :: Rank
@@ -313,15 +273,6 @@ data AbstractMeter = T | D [AbstractMeter]
     deriving (Eq, Show)
 
 instance Pretty AbstractMeter where pretty = showt
-
-instance Serialize.Serialize AbstractMeter where
-    put = \case
-        T -> Serialize.put_tag 0
-        D ts -> Serialize.put_tag 1 >> mapM_ put ts
-    get = Serialize.get_tag >>= \case
-        0 -> pure T
-        1 -> D <$> get
-        tag -> Serialize.bad_tag "AbstractMeter" tag
 
 -- | Subdivide each mark into the given number @D@s.  This has the effect of
 -- putting one layer of subdivision under the current structure.
@@ -356,19 +307,46 @@ meter_length :: AbstractMeter -> Int
 meter_length (D ms) = Num.sum (map meter_length ms)
 meter_length T = 1
 
--- | Drop the number of Ts.
-drop_meter :: Int -> AbstractMeter -> Maybe AbstractMeter
-drop_meter n m = case snd $ go n [m] of
-    [] -> Nothing
-    [m] -> Just m
-    _ -> error "unreached"
+meter_drop_end :: Int -> AbstractMeter -> Maybe AbstractMeter
+meter_drop_end n
+    | n <= 0 = Just
+    | otherwise = fmap meter_reverse . meter_drop n . meter_reverse
+
+meter_reverse :: AbstractMeter -> AbstractMeter
+meter_reverse = \case
+    T -> T
+    D ts -> D (reverse (map meter_reverse ts))
+
+-- | Drop the number of Ts.  This has to be in Maybe because there's no empty
+-- AbstractMeter.
+meter_drop :: Int -> AbstractMeter -> Maybe AbstractMeter
+meter_drop n = snd . meter_split n
+
+meter_take :: Int -> AbstractMeter -> Maybe AbstractMeter
+meter_take n = fst . meter_split n
+
+meter_split :: Int -> AbstractMeter
+    -> (Maybe AbstractMeter, Maybe AbstractMeter)
+meter_split n m
+    | n <= 0 = (Nothing, Just m)
+    | otherwise = case snd (go n [m]) of
+        (pre, post) -> (Seq.head pre, Seq.head post)
     where
-    go :: Int -> [AbstractMeter] -> (Int, [AbstractMeter])
     go n = \case
-        ts | n <= 0 -> (0, ts)
-        [] -> (n, [])
+        ts | n <= 0 -> (0, ([], ts))
+        [] -> (n, ([], []))
         D subs : ts
-            | n2 <= 0 && not (null subs2) -> (0, D subs2 : ts)
-            | otherwise -> go n2 ts
-            where (n2, subs2) = go n subs
-        T : ts -> go (n-1) ts
+            | n2 <= 0 ->
+                ( 0
+                -- I don't have a use for D [] so those get stripped out.
+                -- TODO should it be D (NonEmpty AbstractMeter) then?
+                , ( if null pre then [] else [D pre]
+                  , if null post then ts else D post : ts
+                  )
+                )
+            | otherwise -> (n3, (D subs : pre2, post2))
+            -- | otherwise -> second (first (D subs :)) (go n2 ts)
+            where
+            (n2, (pre, post)) = go n subs
+            (n3, (pre2, post2)) = go n2 ts
+        T : ts -> second (first (T:)) (go (n-1) ts)

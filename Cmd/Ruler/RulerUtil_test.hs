@@ -6,23 +6,25 @@ module Cmd.Ruler.RulerUtil_test where
 import qualified Data.Map as Map
 
 import qualified Util.Seq as Seq
-import Util.Test
+import qualified Cmd.Create as Create
+import qualified Cmd.Ruler.RulerUtil as RulerUtil
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
+import qualified Ui.Meter.Mark as Mark
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 
-import qualified Cmd.Create as Create
-import qualified Cmd.Ruler.RulerUtil as RulerUtil
-import Global
+import           Global
+import           Util.Test
 
 
+test_modify :: Test
 test_modify = do
     let f with_ruler scope =
             extract $ snd $ run make $
                 RulerUtil.modify scope UiTest.default_block_id
-                    (const $ Right $ mk_ruler ["X", "Y"])
+                    (const $ Right $ mkruler ["X", "Y"])
             where make = if with_ruler then make_sections else make_no_ruler 2
         extract st = (track_rulers st, extract_rulers st)
         xy = ["X", "Y"]
@@ -43,10 +45,11 @@ test_modify = do
     equal (f False (RulerUtil.Section 1))
         (["b1", "b1", "b1"], [("b1", xy)])
 
+test_local :: Test
 test_local = do
     let f scope = extract $ snd $ run make_sections $
             RulerUtil.local scope UiTest.default_block_id
-                (const $ Right $ mk_ruler ["X", "Y"])
+                (const $ Right $ mkruler ["X", "Y"])
         extract st = (track_rulers st, extract_rulers st)
         xy = ["X", "Y"]
         unmodified n = ("s" <> showt n, ["s" <> showt n])
@@ -71,9 +74,9 @@ run make action = UiTest.run Ui.empty (make >> action)
 make_sections :: Ui.M m => m ()
 make_sections = do
     Ui.set_namespace UiTest.test_ns
-    r1 <- Create.ruler "s1" (mk_ruler ["s1"])
+    r1 <- Create.ruler "s1" (mkruler ["s1"])
     t1 <- mktrack 1
-    r2 <- Create.ruler "s2" (mk_ruler ["s2"])
+    r2 <- Create.ruler "s2" (mkruler ["s2"])
     t2 <- mktrack 3
     UiTest.create_block (Id.unpack_id block_id) ""
         [ Block.RId r1, Block.TId t1 r1
@@ -88,41 +91,21 @@ make_sections = do
 
 make_no_ruler :: Ui.M m => Int -> m ()
 make_no_ruler ntracks =
-    void $ UiTest.mkblock_ruler Ui.no_ruler
+    void $ UiTest.mkblock_ruler_id Ui.no_ruler
         UiTest.default_block_id "" (replicate ntracks (">", []))
-
-run_marks :: Int -> Maybe [Mark] -> Ui.StateId a -> (a, Ui.State)
-run_marks ntracks marks action = UiTest.run Ui.empty $ do
-    case marks of
-        Nothing -> UiTest.mkblock_ruler Ui.no_ruler
-            UiTest.default_block_id "" tracks
-        Just marks ->
-            UiTest.mkblock_marklist (mk_marklist marks)
-                UiTest.default_block_id "" tracks
-    action
-    where tracks = replicate ntracks (">", [])
-
-type Mark = Text
 
 track_rulers :: Ui.State -> [Text]
 track_rulers = map Id.ident_name . Block.ruler_ids_of
     . map Block.tracklike_id . Block.block_tracks . head . Map.elems
     . Ui.state_blocks
 
-extract_rulers :: Ui.State -> [(Text, [Text])]
+extract_rulers :: Ui.State -> [(Text, [Mark.Label])]
 extract_rulers =
     map (bimap Id.ident_name extract) . Map.toList . Ui.state_rulers
-    where
-    extract ruler = map (Ruler.mark_name . snd) (Ruler.ascending 0 mlist)
-        where (_config, mlist) = Ruler.get_meter ruler
+    where extract = map (snd . snd) . UiTest.ruler_marks
 
-extract_mark :: Ruler.PosMark -> Mark
-extract_mark (_, m) = Ruler.mark_name m
-
-mk_ruler :: [Mark] -> Ruler.Ruler
-mk_ruler = Ruler.meter_ruler Ruler.default_config . mk_marklist
-
-mk_marklist :: [Mark] -> Ruler.Marklist
-mk_marklist marks = Ruler.marklist
-    [(t, Ruler.null_mark { Ruler.mark_name = label }) | (t, label)
-        <- zip (Seq.range_ 0 1) marks]
+mkruler :: [Mark.Label] -> Ruler.Ruler
+mkruler labels = UiTest.mkruler_marks
+    [ (t, (0, label))
+    | (t, label) <- zip (Seq.range_ 0 1) labels
+    ]

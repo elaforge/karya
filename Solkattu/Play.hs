@@ -19,6 +19,7 @@ import qualified Data.Vector as Vector
 
 import           System.FilePath ((</>))
 
+import qualified Util.Control as Control
 import qualified Util.Log as Log
 import qualified Util.Processes as Processes
 import qualified Util.Seq as Seq
@@ -27,7 +28,6 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Performance as Performance
 
-import qualified Derive.Control as Control
 import qualified Derive.Controls as Controls
 import qualified Derive.DeriveSaved as DeriveSaved
 import qualified Derive.Expr as Expr

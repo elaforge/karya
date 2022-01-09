@@ -5,7 +5,8 @@
 module Cmd.TimeStep_test where
 import qualified Util.Seq as Seq
 import qualified Cmd.TimeStep as TimeStep
-import           Cmd.TimeStep (Step(..), MarklistMatch(..), Tracks(..))
+import           Cmd.TimeStep (MarklistMatch(..), Step(..), Tracks(..))
+import qualified Ui.Meter.Meter as Meter
 import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 
@@ -14,6 +15,7 @@ import           Types
 import           Util.Test
 
 
+test_show_parse_time_step :: Test
 test_show_parse_time_step = do
     let f step = (trip step, Right (mk step))
         trip = TimeStep.parse_time_step . TimeStep.show_time_step . mk
@@ -41,20 +43,31 @@ test_show_parse_time_step = do
     uncurry equal (f
         [Duration 2, RelativeMark (NamedMarklists ["hi", "there"]) 5])
 
+test_parse_time_step :: Test
+test_parse_time_step = do
+    let f = TimeStep.parse_time_step
+    left_like (f "sectionaoeu") "unexpected"
+    right_equal (f "section") $ TimeStep.time_step (AbsoluteMark AllMarklists 0)
+    right_equal (f "R1") $ TimeStep.time_step (AbsoluteMark AllMarklists 1)
+    left_like (f "R-99") "unexpected"
+
+test_snap :: Test
 test_snap = do
     let f step prev ps = UiTest.eval default_ui_state $
             mapM (TimeStep.snap (TimeStep.time_step step)
                 UiTest.default_block_id 1 (Just prev)) ps
     equal (f (Duration 3) 3 (Seq.range 0 6 1)) [0, 0, 0, 3, 3, 3, 6]
-    equal (f (AbsoluteMark AllMarklists UiTest.r_1) 3 (Seq.range 0 6 1))
+    equal (f (AbsoluteMark AllMarklists Meter.r_1) 3 (Seq.range 0 6 1))
         [0, 0, 0, 0, 4, 4, 4]
-    equal (f (RelativeMark AllMarklists UiTest.r_1) 1 (Seq.range 0 6 1))
+    equal (f (RelativeMark AllMarklists Meter.r_1) 1 (Seq.range 0 6 1))
         [-3, 1, 1, 1, 1, 5, 5]
-    equal (f (RelativeMark AllMarklists UiTest.r_1) 5 (Seq.range 0 6 1))
-        [0, 1, 1, 1, 1, 5, 5]
+    equal (f (RelativeMark AllMarklists Meter.r_1) 5 (Seq.range 0 6 1))
+        [-2, -2, 2, 2, 2, 5, 5]
+        -- before Meter change: [0, 1, 1, 1, 1, 5, 5]
     equal (f (EventStart AllTracks) 3 (Seq.range 0 6 1))
         [0, 0, 2, 2, 2, 5, 5]
 
+test_ascending_descending_points :: Test
 test_ascending_descending_points = do
     let f = ascend_descend default_ui_state
     equal (f 3 (Duration 32)) ([3], [3])
@@ -62,15 +75,19 @@ test_ascending_descending_points = do
     equal (f 3 (Duration 3)) ([3, 0], [3, 6])
     equal (f 1 (Duration 3)) ([1],  [1, 4, 7])
 
-    equal (f 0 (AbsoluteMark AllMarklists UiTest.r_1)) ([0], [0, 4])
-    equal (f 1 (AbsoluteMark AllMarklists UiTest.r_1)) ([0], [4])
-    equal (f 0 (AbsoluteMark AllMarklists UiTest.r_4)) ([0], Seq.range 0 7 1)
-    equal (f 1 (AbsoluteMark AllMarklists UiTest.r_4)) ([1, 0], Seq.range 1 7 1)
+    equal (f 0 (AbsoluteMark AllMarklists Meter.r_1)) ([0], [0, 4, 7])
+    equal (f 1 (AbsoluteMark AllMarklists Meter.r_1)) ([0], [4, 7])
+    equal (f 0 (AbsoluteMark AllMarklists Meter.r_4)) ([0], Seq.range 0 7 1)
+    equal (f 1 (AbsoluteMark AllMarklists Meter.r_4)) ([1, 0], Seq.range 1 7 1)
 
-    equal (f 0 (RelativeMark AllMarklists UiTest.r_1)) ([0], [0, 4])
-    equal (f 1 (RelativeMark AllMarklists UiTest.r_1)) ([1, -3], [1, 5])
-    equal (f 4 (RelativeMark AllMarklists UiTest.r_1)) ([4, 0], [4])
-    equal (f 5 (RelativeMark AllMarklists UiTest.r_1)) ([5, 1], [5])
+    equal (f 0 (RelativeMark AllMarklists Meter.r_1)) ([0], [0, 4, 7])
+    equal (f 1 (RelativeMark AllMarklists Meter.r_1)) ([1, -3], [1, 5, 8])
+    equal (f 4 (RelativeMark AllMarklists Meter.r_1)) ([4, 0], [4, 7])
+    equal (f 4 (AbsoluteMark AllMarklists Meter.r_1)) ([4, 0], [4, 7])
+    -- 5 gives 7, 4 0 -> 5, 2, -2
+    equal (f 5 (RelativeMark AllMarklists Meter.r_1)) ([5, 2, -2], [5, 8])
+    -- before Meter change: ([5, 1], [5])
+
     equal (f 1 BlockEdge) ([0], [7])
     equal (f 0 (EventStart CurrentTrack)) ([0], [0, 2])
     equal (f 1 (EventStart CurrentTrack)) ([0], [2])
@@ -82,6 +99,7 @@ test_ascending_descending_points = do
     equal (f 0 (EventEnd CurrentTrack)) ([], [1, 3])
     equal (f 4 (EventEnd CurrentTrack)) ([3, 1], [])
 
+test_get_points_from :: Test
 test_get_points_from = do
     -- Ensure get_points_from is the same as merging the points myself.
     let state = default_ui_state

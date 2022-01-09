@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.Serialize_test where
+import qualified Data.Map as Map
 import qualified Data.Time as Time
 import qualified Data.Vector as Vector
 
@@ -12,6 +13,7 @@ import qualified Midi.Midi as Midi
 import qualified Perform.Lilypond.Types as Lilypond
 import qualified Perform.Midi.Patch as Patch
 import qualified Ui.Block as Block
+import qualified Ui.Ruler as Ruler
 import qualified Ui.Sel as Sel
 import qualified Ui.Track as Track
 import qualified Ui.Ui as Ui
@@ -32,6 +34,8 @@ test_serialize = do
     uncurry right_equal $ run Ui.state_blocks
     uncurry right_equal $ run Ui.state_tracks
     uncurry right_equal $ run Ui.state_rulers
+    uncurry right_equal $
+        run (Ruler.get_meter . head . Map.elems . Ui.state_rulers)
     right_equal (recode Ui.empty) Ui.empty
 
     -- Performance

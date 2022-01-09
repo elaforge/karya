@@ -6,7 +6,7 @@
 -- callers.
 module Cmd.BlockResize (
     update_callers_rulers
-    -- , update_callers, push_down_rulers
+    , update_callers, push_down_rulers
 ) where
 import qualified Data.Foldable as Foldable
 import qualified Data.List as List
@@ -16,15 +16,14 @@ import qualified Data.Tree as Tree
 import qualified Util.Maps as Maps
 import qualified Util.Seq as Seq
 import qualified Cmd.NoteTrackParse as NoteTrackParse
--- import qualified Cmd.Ruler.Extract as Extract
--- import qualified Cmd.Ruler.Meter as Meter
+import qualified Cmd.Ruler.Extract as Extract
 -- import qualified Cmd.Ruler.Modify as Modify
 import qualified Cmd.Ruler.RulerUtil as RulerUtil
 
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
-import qualified Ui.Ruler as Ruler
+import qualified Ui.Meter.Meter as Meter
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Ui as Ui
 
@@ -50,10 +49,9 @@ update_callers block_id pos delta = do
     apply_updates delta (concatMap Foldable.toList updates)
     return updates
 
--- undefined
--- push_down_rulers :: Ui.M m => [Tree.Tree Update] -> m ()
--- push_down_rulers updates =
---     mapM_ push_down_ruler $ Seq.unique $ map fst $ concatMap bottoms updates
+push_down_rulers :: Ui.M m => [Tree.Tree Update] -> m ()
+push_down_rulers updates =
+    mapM_ push_down_ruler $ Seq.unique $ map fst $ concatMap bottoms updates
 
 modify_time :: Ui.M m => BlockId -> TrackTime -> TrackTime -> m ()
 modify_time block_id pos delta = do
@@ -161,11 +159,6 @@ callers_of callee = strip <$> do
 is_note_track :: Ui.M m => TrackId -> m Bool
 is_note_track = fmap ParseTitle.is_note_track . Ui.get_track_title
 
--- undefined
-update_rulers :: Ui.M m => BlockId -> TrackTime -> TrackTime -> [Update] -> m ()
-update_rulers _ _ _ _ = return ()
-
-{-
 -- * update_rulers
 
 {- | For a positive delta, copy the ruler from the callee block to its
@@ -180,22 +173,22 @@ update_rulers _ _ _ _ = return ()
 -}
 update_rulers :: Ui.M m => BlockId -> TrackTime -> TrackTime -> [Update] -> m ()
 update_rulers block_id pos delta top_updates = do
-    meter <- if delta > 0 then extract_meter block_id pos delta
+    fragment <- if delta > 0 then extract_meter block_id pos delta
         else return []
     let msg = "ruler modification is ambiguous due to multiple updated tracks: "
             <> pretty top_updates
     inserts <- Ui.require msg $ insert_points top_updates
     forM_ (Map.toList inserts) $ \(top_block_id, offsets) -> do
-        RulerUtil.local_block top_block_id $ Modify.meter $
-            if delta > 0 then splice meter offsets
+        RulerUtil.local_meter RulerUtil.Block top_block_id $
+            Meter.modify_sections $ if delta > 0
+                then splice fragment offsets
                 else delete (-delta) offsets
         push_down_ruler top_block_id
 
 push_down_ruler :: Ui.M m => BlockId -> m ()
 push_down_ruler block_id = do
-    track_id <- Ui.require ("no note track: " <> pretty block_id)
-        . Seq.head =<< filterM is_note_track
-        =<< Ui.track_ids_of block_id
+    track_id <- Ui.require ("no note track: " <> pretty block_id) . Seq.head
+        =<< filterM is_note_track =<< Ui.track_ids_of block_id
     Extract.push_down_recursive False block_id track_id
 
 insert_points :: [Update] -> Maybe (Map BlockId [TrackTime])
@@ -205,25 +198,23 @@ insert_points = traverse check . Maps.multimap
         Just [offset + Event.start e | offset <- offsets, e <- events]
     check _ = Nothing
 
-splice :: Meter.LabeledMeter -> [TrackTime] -> Meter.LabeledMeter
-    -> Meter.LabeledMeter
-splice fragment offsets = go (List.sort offsets) . Meter.with_starts
+splice :: [Meter.MSection] -> [TrackTime] -> [Meter.MSection]
+    -> [Meter.MSection]
+splice fragment offsets = go (List.sort offsets)
     where
-    go [] meter = map snd meter
-    go (t:ts) meter = map snd pre <> fragment <> go ts post
-        where (pre, post) = span ((<t) . fst) meter
+    go [] sections = sections
+    go (t:ts) sections = pre <> fragment <> go ts post
+        where (pre, post) = Meter.sections_split t sections
 
-delete :: TrackTime -> [TrackTime] -> Meter.LabeledMeter -> Meter.LabeledMeter
-delete delta offsets = go (List.sort offsets) . Meter.with_starts
+delete :: TrackTime -> [TrackTime] -> [Meter.MSection] -> [Meter.MSection]
+delete delta offsets = go (List.sort offsets)
     where
-    go [] meter = map snd meter
-    go (t:ts) meter = map snd pre <> go ts (dropWhile ((< t+delta) . fst) post)
-        where (pre, post) = span ((<t) . fst) meter
+    go [] sections = sections
+    go (t:ts) sections = pre <> go ts (Meter.sections_drop delta post)
+        where (pre, post) = Meter.sections_split t sections
 
 extract_meter :: Ui.M m => BlockId -> TrackTime -> TrackTime
-    -> m Meter.LabeledMeter
+    -> m [Meter.MSection]
 extract_meter block_id pos delta = do
-    ruler <- Ui.get_ruler =<< Ui.ruler_of block_id
-    return $ Meter.extract' pos (pos + delta) $ Meter.marklist_labeled $
-        snd $ Ruler.get_meter ruler
--}
+    meter <- RulerUtil.get_meter =<< Ui.ruler_of block_id
+    return $ RulerUtil.extract pos (pos + delta) (Meter.meter_sections meter)

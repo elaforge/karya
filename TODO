@@ -6197,7 +6197,7 @@ Cmd:
           low level.  But, is that really a benefit?
         . But it means every instance of Ruler.Ruler would have to
           have an argument or substitute Ui.Ruler.
-      + update Cmd.Ruler
+      * update Cmd.Ruler
         . Much of it can be deleted.
         . Modification must change to modifying Meter.Config.
         . I want to be able to clip at an arbitrary time, but changing the the
@@ -6210,9 +6210,12 @@ Cmd:
         . Ok then do the end time, but have edit functions that keep it up to
           date.
         ? I changed double to extend by 4, is there a better way?
-      + Ui.UiTest
+      tests:
+        * Ui.UiTest
+        * Tala_test
+        * Extract_test
       * Cmd.Ruler.Tala
-      - Cmd.Factor
+      * Cmd.Factor
         . I can no longer split the meter like I used to, unless I add a start
           clip.  But maybe I don't want to?
         . But, I think I want a start clip anyway, because what about pickups?
@@ -6234,20 +6237,45 @@ Cmd:
           still want to extend with a full measure.  But actually I think I'd
           want both ways.  So maybe I force the UI to make the choice, e.g. by
           trimming off the truncated Section before extending.
-      - Repl.LTala
-      + Repl.LRuler
+      - test Cmd.Factor
+      - LRuler.reset_colors
+      * Repl.LTala
+      * Repl.LRuler
+        * update haddock
       * Cmd.Load.Mod
         . Same sort of thing for TScore?
       * re-enable tests in Meter_test
-      - TScore.Check - it constructs a marklist on its own
-      - LRuler and Cmd.Ruler.local_double change to modifying Ruler measures
-      - Cmd.BlockResize
-      - Repl.LBlock
-      - Cmd.Ruler.Extract
-      - Example.Integrate
+      * TScore.Check - it constructs a marklist on its own
+      * LRuler and Cmd.Ruler.local_double change to modifying Ruler measures
+      * Cmd.BlockResize
+        . Do I want to preserve this approach?
+        . pull_up seems useful since I can do per-block meters and have the
+          score inherit it.  I'd like to do that for tempo too!
+      * Repl.LBlock
+      * Cmd.Ruler.Extract
+      * Derive.TScore
+      * Example.Integrate
+      - test for Example.Integrate
       cleanup:
         - Do I need Meter.Make is_edge?
         - Put RankName into its own module, shared with Derive?
+          . Can then fix MSection
+          . Get rid of numeric Rank entirely and use RankName?
+    + Once this is done, what about all the old scores?
+      . They will load as hardcoded marklists, but Ruler.get_meter will return
+        an empty meter, which probably means they get overwritten.
+      . I should have an upgrade function to try to infer the Meter.Meter.
+      . I think it's too much work to infer, I can have a few functions to
+        set to meter, talam, gongs.
+      .  Figure out how long measures are by looking for rank 0,1 distances.
+      . Then create a single section with that number of measures, and trim
+        down to the exact size.
+      . Hardcode the meter from an argument.
+      . This leaves out score blocks, but I should be able to use
+        LRuler.pull_up for them.  Though I have to re-enable it first!
+      . Hoever, in many cases I may not care?
+    - If I trim a ruler then the old measure-level mark needs a higher zoom.
+      Shouldn't all marks at the same rank have the same zoom visibility?
     ? What's the difference between
       Measure 3 dur (D (replicate 4 meter))
       and Measure 1 dur (D (replicate 3 (D replicate 4 meter)))?

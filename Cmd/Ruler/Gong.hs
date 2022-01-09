@@ -6,10 +6,14 @@
 module Cmd.Ruler.Gong where
 import qualified Data.Set as Set
 
-import qualified Ui.Ruler as Ruler
-import qualified Cmd.Ruler.Meter as Meter
-import Global
+import qualified Ui.Meter.Meter as Meter
 
+import           Global
+import           Types
+
+
+type Gongs = Int
+type Jegogans = Int
 
 {- | Create a number of gongs, each divided into a number of jegogan strokes.
 
@@ -32,27 +36,34 @@ import Global
           0                                                               1
     @
 -}
-gongs :: Int -- ^ number of gongs
-    -> Int -- ^ number of jegogan in one gong
-    -> Ruler.Ruler
-gongs sections jegog =
-    Meter.make_measures config measure_dur meter sections jegog
+regular :: Gongs -> Jegogans -> Meter.Meter
+regular gongs jegogans = Meter.meter config (replicate gongs section)
     where
-    measure_dur = 2 -- This gives a reasonable kotekan speed at tempo=1.
+    section = Meter.MSection jegogans measure_dur meter
+    meter = Meter.regular_subdivision [2, 2, 2, 2, 2, 2]
 
-meter :: Meter.AbstractMeter
-meter = Meter.regular_subdivision [2, 2, 2, 2, 2, 2]
+until :: TrackTime -> Meter.Meter
+until end =
+    Meter.modify_sections (Meter.sections_take end) $ regular gongs jegogans
+    where
+    jegogans = 4
+    gongs = ceiling $ end / (fromIntegral jegogans * measure_dur)
+
+measure_dur :: TrackTime
+measure_dur = 2 -- This gives a reasonable kotekan speed at tempo=1.
+
+-- | Gong config starts counting from 0.  This is more appropriate for Balinese
+-- and Javenese music which are counted n 1 2 3 .. n
+config :: Meter.Config
+config = Meter.Config
+    { config_labeled_ranks = labeled_ranks
+    , config_label = Meter.BigNumber 0
+    , config_start_measure = 1
+    , config_min_depth = 1
+    , config_strip_depth = 2
+    }
 
 labeled_ranks :: Set Meter.RankName
 labeled_ranks = Set.fromList [Meter.Section, Meter.H, Meter.S, Meter.T128]
     -- Section: gong, W: gong stroke, H: jegog, Q: calung, E: kotekan*2,
     -- S: kotekan*4, ...
-
--- | Gong config starts counting from 0.  This is more appropriate for Balinese
--- and Javenese music.
-config :: Meter.Config
-config = Meter.default_config
-    { Meter.config_labeled_ranks = labeled_ranks
-    , Meter.config_label_components = Meter.big_number_components 0
-    , Meter.config_name = "gong"
-    }

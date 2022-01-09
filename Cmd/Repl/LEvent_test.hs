@@ -3,24 +3,23 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.Repl.LEvent_test where
-import Util.Test
+import qualified Cmd.Repl.LEvent as LEvent
 import qualified Ui.Event as Event
-import qualified Ui.Ruler as Ruler
+import qualified Ui.Meter.Meter as Meter
 import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 
-import qualified Cmd.Repl.LEvent as LEvent
-import Global
-import Types
+import           Types
+import           Util.Test
 
 
+test_quantize_timestep :: Test
 test_quantize_timestep = do
     let f mode step events = LEvent.quantize_timestep mode step
             UiTest.default_block_id (UiTest.mk_tid 1)
             (map UiTest.make_event [(s, e, "") | (s, e) <- events])
         run mode marks step events = map extract <$>
-            run_ruler (make_marklist marks) [(">", [])]
-                (f mode step events)
+            run_ruler marks [(">", [])] (f mode step events)
         extract e = (Event.start e, Event.duration e)
 
     let marks1 = map (, 0) [0, 1, 2, 3, 4]
@@ -55,10 +54,8 @@ test_quantize_timestep = do
     equal (run LEvent.End marks2 "w" [(0.5, 0.1)]) (Just [(0.5, 0.5)])
     equal (run LEvent.End marks2 "w" [(0.5, 0.5)]) (Just [(0.5, 0.5)])
 
-make_marklist :: [(ScoreTime, Ruler.Rank)] -> Ruler.Marklist
-make_marklist = Ruler.marklist . map (second mark)
-    where mark rank = Ruler.null_mark { Ruler.mark_rank = rank }
-
-run_ruler :: Ruler.Marklist -> [UiTest.TrackSpec] -> Ui.StateId a -> a
-run_ruler marklist tracks = UiTest.eval $ UiTest.exec Ui.empty $
-    UiTest.mkblock_marklist marklist UiTest.default_block_id "" tracks
+run_ruler :: [(TrackTime, Meter.Rank)] -> [UiTest.TrackSpec] -> Ui.StateId a
+    -> a
+run_ruler marks tracks = UiTest.eval $ UiTest.exec Ui.empty $
+    UiTest.mkblock_ruler (UiTest.mkruler_ranks marks) UiTest.default_block_id
+        "" tracks

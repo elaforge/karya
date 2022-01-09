@@ -5,23 +5,21 @@
 module Cmd.Responder_test where
 import qualified Data.Vector as Vector
 
-import Util.Test
+import qualified Cmd.Cmd as Cmd
+import qualified Cmd.CmdTest as CmdTest
+import qualified Cmd.ResponderTest as ResponderTest
+
+import qualified Derive.Score as Score
 import qualified Ui.Key as Key
 import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 
-import qualified Cmd.Cmd as Cmd
-import qualified Cmd.CmdTest as CmdTest
-import qualified Cmd.Create as Create
-import qualified Cmd.ResponderTest as ResponderTest
-import qualified Cmd.Ruler.Meter as Meter
-import qualified Cmd.Ruler.Meters as Meters
-
-import qualified Derive.Score as Score
+import           Util.Test
 
 
 -- TODO Do some full-cycle tests.
 
+test_modify_tempo :: Test
 test_modify_tempo = do
     let ustate = UiTest.exec Ui.empty $ do
             UiTest.mkblock_view (UiTest.default_block_name,
@@ -29,11 +27,8 @@ test_modify_tempo = do
                 , (">i1", [(0, 1, ""), (1, 1, "")])
                 ])
             CmdTest.set_point_sel 1 0
-            rid <- Create.ruler "meter44" $
-                Meter.fit_ruler Meter.default_config 16
-                    (replicate 4 Meters.m44_4)
-            ruler <- Ui.get_ruler rid
-            Ui.modify_ruler UiTest.default_ruler_id (const (Right ruler))
+            Ui.modify_ruler UiTest.default_ruler_id $ const $ Right $
+                UiTest.mkruler_44 16 1
     let cstate = ResponderTest.mk_cmd_state ustate (UiTest.default_view_id)
     results <- ResponderTest.thread False (ustate, cstate)
         -- Delete the tempo and set it to 2.
@@ -48,6 +43,7 @@ test_modify_tempo = do
     equal (map Score.event_start $ Vector.toList $ Cmd.perf_events perf)
         [0, 0.5]
 
+test_modify_middle_tempo :: Test
 test_modify_middle_tempo = do
     let states = ResponderTest.mkstates
             [("tempo", [(0, 0, "1")]), (">i1", [(0, 1, ""), (1, 1, "")])]

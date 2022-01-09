@@ -2,8 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Infrastructure for dealing with rulers in a higher level way than as
--- a 'Ruler.Marklist'.
+-- | Infrastructure for dealing with rulers in a higher level way.
 module Cmd.Ruler.RulerUtil where
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -20,6 +19,14 @@ import qualified Ui.Ui as Ui
 import           Global
 import           Types
 
+
+-- * generate
+
+-- | Make a ruler of a single meter until the given end time.
+meter_until :: Meter.AbstractMeter -> TrackTime -> TrackTime -> Meter.Meter
+meter_until meter measure_dur end = meter_take end $
+    Meter.meter Meter.default_config [Meter.MSection measures measure_dur meter]
+    where measures = ceiling (end / measure_dur)
 
 -- * by marklist
 
@@ -38,11 +45,24 @@ set_marklist ruler_id name mlist =
 
 -- * by Meter
 
-extract :: TrackTime -> TrackTime -> Meter.Meter -> Meter.Meter
-extract start end = Meter.clip_start start . Meter.clip_end end
+get_meter :: Ui.M m => RulerId -> m Meter.Meter
+get_meter = fmap Ruler.get_meter . Ui.get_ruler
 
-delete :: TrackTime -> TrackTime -> Meter.Meter -> Meter.Meter
-delete start end = Meter.modify_sections $ \ss -> undefined
+set_meter :: Ui.M m => RulerId -> Meter.Meter -> m ()
+set_meter ruler_id meter = Ui.modify_ruler ruler_id $
+    Right . Ruler.set_meter meter
+
+meter_take :: TrackTime -> Meter.Meter -> Meter.Meter
+meter_take = Meter.modify_sections . Meter.sections_take
+
+meter_drop :: TrackTime -> Meter.Meter -> Meter.Meter
+meter_drop = Meter.modify_sections . Meter.sections_drop
+
+extract :: TrackTime -> TrackTime -> [Meter.MSection] -> [Meter.MSection]
+extract start end = Meter.sections_drop start . Meter.sections_take end
+
+delete :: TrackTime -> TrackTime -> [Meter.MSection] -> [Meter.MSection]
+delete start end ss = Meter.sections_take start ss <> Meter.sections_drop end ss
 
 -- * ModifyRuler
 

@@ -7,25 +7,21 @@ import qualified Data.List as List
 import qualified Data.Text as Text
 
 import qualified Cmd.Ruler.Tala as Tala
-import qualified Ui.Meter.Make as Make
-import qualified Ui.Meter.Mark as Mark
+import qualified Ui.UiTest as UiTest
 
-import           Global
-import           Types
 import           Util.Test
 
 
 test_make_ruler :: Test
 test_make_ruler = do
-    let make zoom = extract_marklist zoom . Make.make_measures
+    let make zoom = UiTest.meter_marklist zoom
     -- TODO used to be at zoom 20, now is at 200
     equal (map snd $ make 200 (Tala.adi 1)) $
         Text.words "1 .1 .2 .3 .X .O .X .O 2"
-    equal (map snd $ extract_marklist 400 $ Make.make_measures (Tala.adi3 1)) $
+    equal (map snd $ UiTest.meter_marklist 400 (Tala.adi3 1)) $
         List.intercalate ["..2", "..3"] $ map (:[]) $
         Text.words "1 .1 .2 .3 .X .O .X .O 2"
-    let ranks = map (Mark.mark_rank . snd) $ extract_zoom 8000 $
-            Make.make_measures (Tala.adi3 1)
+    let ranks = map (fst . snd) $ UiTest.meter_zoom 8000 (Tala.adi3 1)
     equal (filter (<=4) ranks)
         [ 0, 4, 4, 3, 4, 4, 3, 4, 4, 3, 4, 4
         , 2, 4, 4, 3, 4, 4, 2, 4, 4, 3, 4, 4
@@ -58,30 +54,3 @@ test_make_ruler = do
 -- * r_128 -- 2
 -- . r_256 -- 2
 -}
-
--- test_make_meter :: Test
--- test_make_meter = do
---     let f = Meter.labeled_marklist . Tala.make_meter
---         extract = extract_marklist 20
---         chatusra = Tala.Ruler Tala.adi_tala 1 1 4 1
---         tisra = Tala.Ruler Tala.adi_tala 1 1 3 1
---         round_trip = Meter.labeled_marklist . Meter.marklist_labeled
---     let labels = map Meter.join_label $ Meter.strip_prefixes "" 2
---             [ Meter.biggest_label (showt n) : if Text.null o then [] else [o]
---             | n <- [1, 2, 3], o <- adi
---             ]
---         adi = "" : map Meter.big_label ["1", "2", "3", "X", "O", "X", "O"]
---     -- Ensure that concatenated marklists get the right labelling, and that
---     -- rulers with 1/3 divisions still wind up at integral points.  Previously,
---     -- Meter.Meter used ScoreTime, which got inaccurate after consecutive
---     -- additions.
---     equal (extract $ f [chatusra, tisra]) (zip (Seq.range 0 16 1) labels)
---     equal (extract $ round_trip $ f [chatusra, tisra])
---         (zip (Seq.range 0 16 1) labels)
-
-extract_zoom :: Double -> [(a, Mark.Mark)] -> [(a, Mark.Mark)]
-extract_zoom zoom = filter ((<= zoom) . Mark.mark_name_zoom_level . snd)
-
-extract_marklist :: Double -> Make.Marklist -> [(ScoreTime, Text)]
-extract_marklist zoom =
-    map (second (Make.strip_markup . Mark.mark_name)) . extract_zoom zoom
