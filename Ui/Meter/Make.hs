@@ -57,65 +57,68 @@ make_measures meter =
 
 -- | The AbstractMeters are concatenated, and each one defines a rank 0.
 -- Each T level gets the given Duration.
-to_rank_durations :: [(Duration, AbstractMeter)] -> [(Mark.Rank, Duration)]
-to_rank_durations = group0 . concatMap (uncurry (convert 0))
+to_rank_durations :: [(Duration, AbstractMeter)] -> [(Meter.Rank, Duration)]
+to_rank_durations = group0 . concatMap (uncurry (convert minBound))
     where
     -- Convert returns an intermediate format where all the ranks coexist at
     -- the same time, by giving them 0 dur.
-    group0 dur_rank = case span ((==0) . snd) dur_rank of
+    group0 rank_dur = case span ((==0) . snd) rank_dur of
         (zeros, (rank, dur) : rest) ->
             (minimum (rank : map fst zeros), dur) : group0 rest
-        (_, []) -> [(0, 0)]
+        (_, []) -> [(minBound, 0)]
     convert rank dur meter = case meter of
         T -> [(rank, dur)]
-        D ms -> (rank, 0) : concatMap (convert (rank+1) dur) ms
+        D ms -> (rank, 0) : concatMap (convert (next_rank rank) dur) ms
+
+next_rank :: Meter.Rank -> Meter.Rank
+next_rank r
+    | r == maxBound = r
+    | otherwise = succ r
 
 data LabeledMark = LabeledMark {
-    m_rank :: !Mark.Rank
+    m_rank :: !Meter.Rank
     , m_duration :: !Duration
     , m_label :: !Label
     } deriving (Eq, Show)
+
+type RankNum = Int
+
+rank_num :: Meter.Rank -> RankNum
+rank_num = fromEnum
 
 instance Pretty LabeledMark where
     pretty (LabeledMark rank dur label) = pretty (rank, dur, label)
 
 -- | Add Labels to the given ruler ranks.
-label_ranks :: Meter.Config -> Measures -> [(Mark.Rank, Duration)]
+label_ranks :: Meter.Config -> Measures -> [(Meter.Rank, Duration)]
     -> [LabeledMark]
 label_ranks config start_measure rank_durs =
     [ LabeledMark rank dur label
     | (rank, dur, label) <- List.zip3 ranks ps labels
     ]
     where
-    -- (ranks, ps) = unzip (drop_0dur rank_durs)
     (ranks, ps) = unzip rank_durs
     labels = map join_label $
         strip_prefixes "" (Meter.config_strip_depth config) $
         convert_labels (Meter.config_min_depth config)
             (label_components (Meter.config_label config))
-            start_measure (collapse_ranks unlabeled ranks)
+            start_measure
+            (collapse_ranks unlabeled ranks)
     unlabeled = labeled_to_unlabeled_ranks (Meter.config_labeled_ranks config)
-    -- -- Appending Meters can result in 0 dur marks in the middle.
-    -- drop_0dur [] = []
-    -- drop_0dur ((r, d) : rank_durs)
-    --     | d == 0 && not (null rank_durs) = drop_0dur rank_durs
-    --     | otherwise = (r, d) : drop_0dur rank_durs
 
-labeled_to_unlabeled_ranks :: Set Meter.RankName -> [Mark.Rank]
+labeled_to_unlabeled_ranks :: Set Meter.Rank -> [Meter.Rank]
 labeled_to_unlabeled_ranks labeled =
-    [Meter.name_to_rank r | r <- Meter.all_ranks, not (r `Set.member` labeled)]
+    [r | r <- Meter.all_ranks, not (r `Set.member` labeled)]
 
 -- | Create marks from a labeled meter.
 labeled_marklist :: TrackTime -> [LabeledMark] -> [(TrackTime, Mark.Mark)]
 labeled_marklist start marks =
     [ (realToFrac pos, mark dur rank label)
-    | (rank, pos, label, dur)
-        <- List.zip4 ranks
-            (scanl (+) (to_rational start)
-                (map (to_rational . m_duration) marks))
-            (map m_label marks) durs
+    | (rank, pos, label, dur) <- List.zip4 ranks starts (map m_label marks) durs
     ]
     where
+    starts = scanl (+) (to_rational start)
+        (map (to_rational . m_duration) marks)
     -- Avoid accumulating error, as per 'Duration'.
     to_rational t = Ratio.approxRational t 0.0000001
     durs = rank_durs (zip ranks (map m_duration marks))
@@ -129,7 +132,7 @@ labeled_marklist start marks =
         , mark_zoom_level = zoom
         }
         where
-        (color, width, pixels) = meter_ranks !! min rank ranks_len
+        (color, width, pixels) = meter_ranks !! min (rank_num rank) ranks_len
         zoom = pixels_to_zoom rank_dur pixels
     ranks_len = length meter_ranks
 
@@ -187,7 +190,7 @@ split_label = Text.split (=='.')
 -- | Convert label components to label lists based on the given ranks.
 convert_labels :: Int -- ^ Labels have at least this many sections.  Otherwise,
     -- trailing sections are omitted.
-    -> LabelComponents -> Measures -> [Mark.Rank] -> [[Label]]
+    -> LabelComponents -> Measures -> [RankNum] -> [[Label]]
 convert_labels min_depth (LabelComponents components) start_measure ranks =
     strip $ map (map replace) $
         apply_labels (drop start_measure measure_labels : components) ranks
@@ -203,9 +206,9 @@ count_from n = map showt [n..]
 
 -- | The ruler gets cluttered if I label every single rank, so combine the ones
 -- in the given list with the following rank.
-collapse_ranks :: [Mark.Rank] -> [Mark.Rank] -> [Mark.Rank]
-collapse_ranks omit = map (\r -> r - sub r)
-    where sub r = length (takeWhile (<r) omit)
+collapse_ranks :: [Meter.Rank] -> [Meter.Rank] -> [RankNum]
+collapse_ranks omit = map (\r -> rank_num r - below r)
+    where below r = length (takeWhile (<r) omit)
 
 -- | When labels are created, many of them have the same components as the
 -- previous label, e.g. @1.1.1@, @1.1.2@.  Replace leading components up to
@@ -233,7 +236,7 @@ strip_prefixes replacement depth = map strip
 --
 -- The first rank doesn't matter since it always emits the initial state of the
 -- labels.
-apply_labels :: [[Label]] -> [Mark.Rank] -> [[Label]]
+apply_labels :: [[Label]] -> [RankNum] -> [[Label]]
 apply_labels labels =
     (map hd labels :) . snd . List.mapAccumL mk labels . drop 1
     where
@@ -288,7 +291,7 @@ meter_ranks =
 
 -- | The rank duration is the duration until the next mark of equal or greater
 -- (lower) rank.
-rank_durs :: [(Mark.Rank, Duration)] -> [Duration]
+rank_durs :: [(Meter.Rank, Duration)] -> [Duration]
 rank_durs = map rank_dur . List.tails
     where
     rank_dur [] = 0

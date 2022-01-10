@@ -116,7 +116,7 @@ poke_mark markp (Mark.Mark
     }) = do
         -- Must be freed by the caller.
         namep <- FFI.newCStringNull0 name
-        (#poke Mark, rank) markp (FFI.c_int rank)
+        (#poke Mark, rank) markp (FFI.c_int (fromEnum rank))
         (#poke Mark, width) markp (FFI.c_int width)
         (#poke Mark, color) markp color
         (#poke Mark, name) markp namep

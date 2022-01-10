@@ -63,7 +63,7 @@ config = Meter.Config
     , config_strip_depth = 2
     }
 
-labeled_ranks :: Set Meter.RankName
+labeled_ranks :: Set Meter.Rank
 labeled_ranks = Set.fromList [Meter.Section, Meter.H, Meter.S, Meter.T128]
     -- Section: gong, W: gong stroke, H: jegog, Q: calung, E: kotekan*2,
     -- S: kotekan*4, ...

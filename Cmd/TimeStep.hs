@@ -65,7 +65,7 @@ from_list = TimeStep
 to_list :: TimeStep -> [Step]
 to_list (TimeStep steps) = steps
 
-modify_rank :: (Mark.Rank -> Mark.Rank) -> TimeStep -> TimeStep
+modify_rank :: (Meter.Rank -> Meter.Rank) -> TimeStep -> TimeStep
 modify_rank f = from_list . map modify . to_list
     where
     modify (AbsoluteMark m r) = AbsoluteMark m (f r)
@@ -86,9 +86,9 @@ data Step =
      -- selection, rather than absolute from the beginning of the block.
     Duration ScoreTime
     -- | Until the next mark that matches.
-    | AbsoluteMark MarklistMatch Mark.Rank
+    | AbsoluteMark MarklistMatch Meter.Rank
     -- | Until next matching mark + offset from previous mark.
-    | RelativeMark MarklistMatch Mark.Rank
+    | RelativeMark MarklistMatch Meter.Rank
     -- | Until the end or beginning of the block.
     | BlockEdge
     -- | Until event edges.  EventStart is after EventEnd if the duration is
@@ -120,11 +120,12 @@ show_time_step (TimeStep steps)
     show_step step = case step of
         Duration pos -> "d:" <> pretty pos
         RelativeMark mlists rank ->
-            "r:" <> show_marklists mlists <> show_rank rank
+            "r:" <> show_marklists mlists <> Meter.rank_name rank
         BlockEdge -> "END"
         EventStart tracks -> "start" <> show_tracks tracks
         EventEnd tracks -> "end" <> show_tracks tracks
-        AbsoluteMark mlists rank -> show_marklists mlists <> show_rank rank
+        AbsoluteMark mlists rank ->
+            show_marklists mlists <> Meter.rank_name rank
     show_marklists AllMarklists = ""
     show_marklists (NamedMarklists mlists) = Text.intercalate "," mlists <> "|"
     show_tracks CurrentTrack = ""
@@ -158,13 +159,9 @@ parse_time_step = Parse.parse p_time_step
     p_tracknums = P.sepBy Parse.p_nat (P.char ',')
     str = P.string
 
-show_rank :: Mark.Rank -> Text
-show_rank rank = fromMaybe ("R" <> showt rank) $ lookup rank Meter.rank_names
-
-parse_rank :: Parse.Parser Mark.Rank
+parse_rank :: Parse.Parser Meter.Rank
 parse_rank = P.choice $ map P.try
     [P.string name *> return rank | (rank, name) <- Meter.rank_names]
-    ++ [P.char 'R' *> Parse.p_nat]
 
 show_direction :: Direction -> Text
 show_direction Advance = "+"
@@ -318,7 +315,7 @@ merge_desc = foldr (Ordered.mergeBy (flip compare)) []
 
 -- | Get all marks from the marklists that match the proper names and
 -- merge their marks into one list.
-get_marks :: Direction -> Bool -> MarklistMatch -> Mark.Rank -> TrackTime
+get_marks :: Direction -> Bool -> MarklistMatch -> Meter.Rank -> TrackTime
     -> Ruler.Marklists -> [TrackTime]
 get_marks dir minus1 match rank start marklists =
     merge_points dir $ map extract matching

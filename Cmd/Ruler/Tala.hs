@@ -94,7 +94,7 @@ tala_config tala = Meter.Config
 -- . r_64 -- 2
 -- * r_128 -- 2
 -- . r_256 -- 2
-labeled_ranks :: Set Meter.RankName
+labeled_ranks :: Set Meter.Rank
 labeled_ranks = Set.fromList [Meter.W, Meter.Q, Meter.E, Meter.T32, Meter.T128]
 
 tala_to_meter :: Tala -> Nadai -> AbstractMeter

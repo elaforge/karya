@@ -202,7 +202,7 @@ c_cycle = make_cycle "cycle" Nothing Nothing
 
 make_cycle :: Derive.CallName
     -> Maybe (Either Text [DeriveT.Quoted])
-    -> Maybe (Either Meter.RankName Typecheck.DefaultScore)
+    -> Maybe (Either Meter.Rank Typecheck.DefaultScore)
     -> Derive.Generator Score.Event
 make_cycle name default_strokes default_dur =
     Derive.generator module_ name Tags.inst

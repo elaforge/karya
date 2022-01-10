@@ -574,7 +574,7 @@ default_block_end = Ruler.time_end default_ruler
 -- | TimeStep to step by 1 ScoreTime on the default ruler.
 step1 :: TimeStep.TimeStep
 step1 = TimeStep.time_step
-    (TimeStep.AbsoluteMark TimeStep.AllMarklists Meter.r_2)
+    (TimeStep.AbsoluteMark TimeStep.AllMarklists Meter.H)
 
 -- | Create a ruler with a 4/4 "meter" marklist with the given number of marks
 -- at the given distance.  Marks are rank [1, 2, 2, ...].
@@ -597,18 +597,18 @@ mkruler_marks marks =
         Ruler.empty
     where mlist = Mark.marklist $ map (second (uncurry mkmark)) marks
 
-mkruler_ranks :: [(TrackTime, Mark.Rank)] -> Ruler.Ruler
+mkruler_ranks :: [(TrackTime, RankNum)] -> Ruler.Ruler
 mkruler_ranks = mkruler_marks . map (second (, ""))
 
 e_mark :: Mark.Mark -> Mark
-e_mark m = (Mark.mark_rank m, mark_name m)
+e_mark m = (fromEnum (Mark.mark_rank m), mark_name m)
 
 mark_name :: Mark.Mark -> Mark.Label
 mark_name = Meter.Make.strip_markup . Mark.mark_name
 
-mkmark :: Mark.Rank -> Mark.Label -> Mark.Mark
+mkmark :: RankNum -> Mark.Label -> Mark.Mark
 mkmark rank label = Mark.Mark
-    { mark_rank = rank
+    { mark_rank = toEnum rank
     , mark_width = 0
     , mark_color = Color.black
     , mark_name = label
@@ -627,7 +627,8 @@ e_ruler bid state = eval state $
     Text.unwords . map (snd . snd) . ruler_marks <$>
         (Ui.get_ruler =<< Ui.ruler_of bid)
 
-type Mark = (Mark.Rank, Mark.Label)
+type Mark = (RankNum, Mark.Label)
+type RankNum = Int
 
 e_meters :: Ui.State -> [(Text, [(TrackTime, Mark)])]
 e_meters state =

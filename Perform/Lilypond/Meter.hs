@@ -133,8 +133,8 @@ make_meter nums denom meters = Meter nums denom <$> vector
         logBase 2 (fromIntegral expected / fromIntegral ranks)
     expected = Num.sum nums * time_index (Types.dur_to_time denom)
     ranks = Num.sum $ map abstract_length meters
-    to_vector = Vector.fromList . map fst . Meter.Make.to_rank_durations
-        . map (1,)
+    to_vector = Vector.fromList . map (fromEnum . fst)
+        . Meter.Make.to_rank_durations . map (1,)
 
 subdivides :: [Int] -> [AbstractMeter] -> [AbstractMeter]
 subdivides divs meter = foldr subdivide meter (reverse divs)

@@ -22,8 +22,8 @@ test_show_parse_time_step = do
         mk = TimeStep.from_list
     uncurry equal (f [Duration 2])
     uncurry equal (f [Duration 0.5])
-    uncurry equal (f [RelativeMark (NamedMarklists ["hi", "there"]) 5])
-    uncurry equal (f [RelativeMark AllMarklists 5])
+    uncurry equal (f [RelativeMark (NamedMarklists ["hi", "there"]) Meter.E])
+    uncurry equal (f [RelativeMark AllMarklists Meter.E])
     uncurry equal (f [BlockEdge])
 
     uncurry equal (f [EventStart CurrentTrack])
@@ -35,21 +35,23 @@ test_show_parse_time_step = do
 
     -- Test AbsoluteMark especially well because it's at the end of the parse
     -- and has no special prefix.
-    uncurry equal (f [AbsoluteMark (NamedMarklists ["hi"]) 6])
-    uncurry equal (f [AbsoluteMark AllMarklists 7])
-    forM_ [0..7] $ \rank -> uncurry equal (f [AbsoluteMark AllMarklists rank])
-    forM_ [0..7] $ \rank -> uncurry equal (f [AbsoluteMark AllMarklists rank])
-    forM_ [0..7] $ \rank -> uncurry equal (f [AbsoluteMark AllMarklists rank])
-    uncurry equal (f
-        [Duration 2, RelativeMark (NamedMarklists ["hi", "there"]) 5])
+    uncurry equal (f [AbsoluteMark (NamedMarklists ["hi"]) Meter.S])
+    uncurry equal (f [AbsoluteMark AllMarklists Meter.T32])
+    forM_ Meter.all_ranks $ \rank ->
+        uncurry equal (f [AbsoluteMark AllMarklists rank])
+    forM_ Meter.all_ranks $ \rank ->
+        uncurry equal (f [AbsoluteMark AllMarklists rank])
+    forM_ Meter.all_ranks $ \rank ->
+        uncurry equal (f [AbsoluteMark AllMarklists rank])
+    uncurry equal
+        (f [Duration 2, RelativeMark (NamedMarklists ["hi", "there"]) Meter.H])
 
 test_parse_time_step :: Test
 test_parse_time_step = do
     let f = TimeStep.parse_time_step
     left_like (f "sectionaoeu") "unexpected"
-    right_equal (f "section") $ TimeStep.time_step (AbsoluteMark AllMarklists 0)
-    right_equal (f "R1") $ TimeStep.time_step (AbsoluteMark AllMarklists 1)
-    left_like (f "R-99") "unexpected"
+    right_equal (f "section") $
+        TimeStep.time_step (AbsoluteMark AllMarklists Meter.Section)
 
 test_snap :: Test
 test_snap = do
@@ -57,11 +59,11 @@ test_snap = do
             mapM (TimeStep.snap (TimeStep.time_step step)
                 UiTest.default_block_id 1 (Just prev)) ps
     equal (f (Duration 3) 3 (Seq.range 0 6 1)) [0, 0, 0, 3, 3, 3, 6]
-    equal (f (AbsoluteMark AllMarklists Meter.r_1) 3 (Seq.range 0 6 1))
+    equal (f (AbsoluteMark AllMarklists Meter.W) 3 (Seq.range 0 6 1))
         [0, 0, 0, 0, 4, 4, 4]
-    equal (f (RelativeMark AllMarklists Meter.r_1) 1 (Seq.range 0 6 1))
+    equal (f (RelativeMark AllMarklists Meter.W) 1 (Seq.range 0 6 1))
         [-3, 1, 1, 1, 1, 5, 5]
-    equal (f (RelativeMark AllMarklists Meter.r_1) 5 (Seq.range 0 6 1))
+    equal (f (RelativeMark AllMarklists Meter.W) 5 (Seq.range 0 6 1))
         [-2, -2, 2, 2, 2, 5, 5]
         -- before Meter change: [0, 1, 1, 1, 1, 5, 5]
     equal (f (EventStart AllTracks) 3 (Seq.range 0 6 1))
@@ -75,17 +77,17 @@ test_ascending_descending_points = do
     equal (f 3 (Duration 3)) ([3, 0], [3, 6])
     equal (f 1 (Duration 3)) ([1],  [1, 4, 7])
 
-    equal (f 0 (AbsoluteMark AllMarklists Meter.r_1)) ([0], [0, 4, 7])
-    equal (f 1 (AbsoluteMark AllMarklists Meter.r_1)) ([0], [4, 7])
-    equal (f 0 (AbsoluteMark AllMarklists Meter.r_4)) ([0], Seq.range 0 7 1)
-    equal (f 1 (AbsoluteMark AllMarklists Meter.r_4)) ([1, 0], Seq.range 1 7 1)
+    equal (f 0 (AbsoluteMark AllMarklists Meter.W)) ([0], [0, 4, 7])
+    equal (f 1 (AbsoluteMark AllMarklists Meter.W)) ([0], [4, 7])
+    equal (f 0 (AbsoluteMark AllMarklists Meter.Q)) ([0], Seq.range 0 7 1)
+    equal (f 1 (AbsoluteMark AllMarklists Meter.Q)) ([1, 0], Seq.range 1 7 1)
 
-    equal (f 0 (RelativeMark AllMarklists Meter.r_1)) ([0], [0, 4, 7])
-    equal (f 1 (RelativeMark AllMarklists Meter.r_1)) ([1, -3], [1, 5, 8])
-    equal (f 4 (RelativeMark AllMarklists Meter.r_1)) ([4, 0], [4, 7])
-    equal (f 4 (AbsoluteMark AllMarklists Meter.r_1)) ([4, 0], [4, 7])
+    equal (f 0 (RelativeMark AllMarklists Meter.W)) ([0], [0, 4, 7])
+    equal (f 1 (RelativeMark AllMarklists Meter.W)) ([1, -3], [1, 5, 8])
+    equal (f 4 (RelativeMark AllMarklists Meter.W)) ([4, 0], [4, 7])
+    equal (f 4 (AbsoluteMark AllMarklists Meter.W)) ([4, 0], [4, 7])
     -- 5 gives 7, 4 0 -> 5, 2, -2
-    equal (f 5 (RelativeMark AllMarklists Meter.r_1)) ([5, 2, -2], [5, 8])
+    equal (f 5 (RelativeMark AllMarklists Meter.W)) ([5, 2, -2], [5, 8])
     -- before Meter change: ([5, 1], [5])
 
     equal (f 1 BlockEdge) ([0], [7])

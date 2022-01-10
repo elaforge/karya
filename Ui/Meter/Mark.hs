@@ -10,7 +10,6 @@ module Ui.Meter.Mark (
     , end, start
     , insert_mark
     , Mark(..)
-    , Rank
     , Label
 
     -- * for RulerC's eyes only
@@ -27,6 +26,7 @@ import qualified System.IO.Unsafe as Unsafe
 import qualified Util.TimeVector as TimeVector
 import qualified Perform.RealTime as RealTime
 import qualified Ui.Color as Color
+import qualified Ui.Meter.Meter as Meter
 
 import           Global
 import           Types
@@ -124,7 +124,7 @@ data Mark = Mark {
     -- | An arbitrary low integer.  This is the only part of the mark that
     -- matters to the code, the rest is purely visual.  By convention, the
     -- most prominent divisions start at rank 0 and go up from there.
-    mark_rank :: !Rank
+    mark_rank :: !Meter.Rank
     -- | Width in pixels.
     , mark_width :: !Int
     , mark_color :: !Color.Color
@@ -135,9 +135,8 @@ data Mark = Mark {
     -- | The mark itself is only displayed when the zoom factor exeeds this
     -- value.
     , mark_zoom_level :: !Double
-    } deriving (Eq, Show, Read)
+    } deriving (Eq, Show)
 
-type Rank = Int
 type Label = Text
 
 instance DeepSeq.NFData Mark where

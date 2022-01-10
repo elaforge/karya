@@ -269,8 +269,8 @@ class Typecheck a => TypecheckNum a where
 instance Typecheck Bool
 instance ToVal Bool
 
-instance ShowVal.ShowVal Meter.RankName
-instance Typecheck Meter.RankName
+instance ShowVal.ShowVal Meter.Rank
+instance Typecheck Meter.Rank
 
 -- * Typecheck instances
 

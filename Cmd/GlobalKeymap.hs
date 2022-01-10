@@ -385,14 +385,14 @@ edit_state_bindings = concat
         Edit.cmd_toggle_val_edit_kbd_entry
 
     , command_char '0' "set event step" $ Edit.set_step TimeStep.event_step
-    , uncurry (command_char '1') (step_rank Meter.r_section)
-    , uncurry (command_char '2') (step_rank Meter.r_1)
-    , uncurry (command_char '3') (step_rank Meter.r_2)
-    , uncurry (command_char '4') (step_rank Meter.r_4)
-    , uncurry (command_char '5') (step_rank Meter.r_8)
-    , uncurry (command_char '6') (step_rank Meter.r_16)
-    , uncurry (command_char '7') (step_rank Meter.r_32)
-    , uncurry (command_char '8') (step_rank Meter.r_64)
+    , uncurry (command_char '1') (step_rank Meter.Section)
+    , uncurry (command_char '2') (step_rank Meter.W)
+    , uncurry (command_char '3') (step_rank Meter.H)
+    , uncurry (command_char '4') (step_rank Meter.Q)
+    , uncurry (command_char '5') (step_rank Meter.E)
+    , uncurry (command_char '6') (step_rank Meter.S)
+    , uncurry (command_char '7') (step_rank Meter.T32)
+    , uncurry (command_char '8') (step_rank Meter.T64)
     , shift_char '=' "toggle duration" Edit.toggle_note_duration
 
     , bind_key [PrimaryCommand] (Key.Char '`') "toggle absolute/relative step"

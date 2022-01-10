@@ -109,6 +109,7 @@ import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Key as Key
 import qualified Ui.KeycapsT as KeycapsT
+import qualified Ui.Meter.Meter as Meter
 import qualified Ui.Sel as Sel
 import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
@@ -876,8 +877,8 @@ initial_play_state = PlayState
     , state_performance = Map.empty
     , state_current_performance = Map.empty
     , state_performance_threads = Map.empty
-    , state_play_step =
-        TimeStep.time_step $ TimeStep.RelativeMark TimeStep.AllMarklists 0
+    , state_play_step = TimeStep.time_step $
+        TimeStep.RelativeMark TimeStep.AllMarklists Meter.Section
     , state_step = Nothing
     , state_play_multiplier = RealTime.seconds 1
     , state_sync = Nothing
@@ -1005,8 +1006,7 @@ initial_edit_state = EditState {
     , state_advance = True
     , state_chord = False
     , state_record_velocity = False
-    , state_time_step =
-        TimeStep.time_step $ TimeStep.AbsoluteMark TimeStep.AllMarklists 0
+    , state_time_step = state_play_step initial_play_state
     , state_note_duration = TimeStep.event_edge
     , state_note_orientation = Types.Positive
     , state_note_text = ""

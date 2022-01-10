@@ -146,7 +146,7 @@ setup_state :: [Rect.Rect] -> Cmd.State -> Cmd.State
 setup_state screens state = state
     { Cmd.state_edit = (Cmd.state_edit state)
         { Cmd.state_time_step = TimeStep.time_step $
-            TimeStep.AbsoluteMark TimeStep.AllMarklists Meter.r_4
+            TimeStep.AbsoluteMark TimeStep.AllMarklists Meter.Q
         }
     , Cmd.state_hooks = (Cmd.state_hooks state)
         { Cmd.hooks_selection = Internal.default_selection_hooks }

@@ -93,7 +93,7 @@ test_timestep = do
                 "" [(">", [(start, 0, ("d (ts " <> vcall <> ") |"))])]
         extract = Score.event_start
         ruler = UiTest.mkruler_ranks $ zip [0, 1, 2, 3, 4, 6, 8, 10, 12]
-            (cycle [Meter.r_1, Meter.r_4, Meter.r_4, Meter.r_4])
+            (cycle (map fromEnum [Meter.W, Meter.Q, Meter.Q, Meter.Q]))
     let (evts, logs) = run 0 "'r:z'"
     equal evts []
     strings_like logs ["expected Str"]

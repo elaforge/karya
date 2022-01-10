@@ -230,7 +230,7 @@ get_marks block_id =
         (Ui.get_ruler =<< Ui.ruler_of block_id)
 
 -- | Ruler under the selection having at least the given rank.
-selected_marks :: Cmd.M m => Mark.Rank -> m [(TrackTime, Mark.Mark)]
+selected_marks :: Cmd.M m => Meter.Rank -> m [(TrackTime, Mark.Mark)]
 selected_marks rank = do
     ruler <- Ui.get_ruler =<< selected
     (start, end) <- selection_range
@@ -258,7 +258,7 @@ infer_measure_dur mlist =
     maybe 0 fst $ Seq.maximum_on snd $ map (second length) $
         Seq.keyed_group_sort id $ zipWith subtract starts (drop 1 starts)
     where
-    starts = map fst . filter ((<= Meter.r_1) . Mark.mark_rank . snd)
+    starts = map fst . filter ((<= Meter.W) . Mark.mark_rank . snd)
         . Mark.to_list $ mlist
 
 upgrade_gong :: Upgrade
@@ -337,7 +337,7 @@ replace_range start end insert = Meter.modify_sections $ \ss ->
 -- TODO This is no longer possible since that's now hardcoded at the Meter.Make
 -- level.  Having to do it at all is no good though, I should not have to pay
 -- for marks which are not visible.
--- strip_ranks :: Cmd.M m => Meter.RankName -> m Modify
+-- strip_ranks :: Cmd.M m => Meter.Rank -> m Modify
 -- strip_ranks max_rank =
 --     modify_selected $ Meter.strip_ranks (Meter.name_to_rank max_rank)
 
@@ -490,7 +490,7 @@ add_cue_at block_id tracknum pos label =
 
 cue_mark :: Text -> Mark.Mark
 cue_mark label = Mark.Mark
-    { mark_rank = 0
+    { mark_rank = minBound
     , mark_width = 2
     , mark_color = Color.black
     , mark_name = label

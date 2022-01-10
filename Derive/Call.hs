@@ -620,17 +620,16 @@ timestep start ts steps = do
 -- step forward, and then back.  This is because typically you use this to
 -- configure duration for a call, and it's confusing when the call stops
 -- working at the end of the block.
-meter_duration :: ScoreTime -> Meter.RankName -> Int
+meter_duration :: ScoreTime -> Meter.Rank -> Int
     -> Derive.Deriver ScoreTime
 meter_duration start rank steps = do
-    let ts = TimeStep.time_step $
-            TimeStep.RelativeMark TimeStep.match_meter
-                (Meter.name_to_rank rank)
     end <- timestep start ts (map (*steps) [1, -1])
     return $ abs (end - start)
+    where
+    ts = TimeStep.time_step $ TimeStep.RelativeMark TimeStep.match_meter rank
 
 -- | Duration of a single timestep, starting here.
-timestep_duration :: Derive.PassedArgs a -> Meter.RankName
+timestep_duration :: Derive.PassedArgs a -> Meter.Rank
     -> Derive.Deriver ScoreTime
 timestep_duration args step = meter_duration (Args.start args) step 1
 

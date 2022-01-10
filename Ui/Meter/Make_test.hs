@@ -55,7 +55,7 @@ test_sections_take = do
     let make t = Make.make_measures $
             Meter.modify_sections (Meter.sections_take t) mm
     -- starts and ends with rank 0 even if it's cut short
-    equal (map (Mark.mark_rank . snd) (make 0.25))
+    equal (map (fromEnum . Mark.mark_rank . snd) (make 0.25))
         [0, 6, 5, 6, 4, 6, 5, 6, 0]
 
 test_sections_drop :: Test
@@ -87,7 +87,7 @@ make_meter sections =
 
 test_to_rank_durations :: Test
 test_to_rank_durations = do
-    let f m = map fst $ Make.to_rank_durations [(1, m)]
+    let f m = map (fromEnum . fst) $ Make.to_rank_durations [(1, m)]
     equal (f (Meter.regular_subdivision [4, 4]))
         [ 0, 2, 2, 2, 1, 2, 2, 2
         , 1, 2, 2, 2, 1, 2, 2, 2
@@ -105,7 +105,7 @@ test_rational_meter2 :: Test
 test_rational_meter2 = do
     -- Even awkward fractions add up correctly.
     let meter = map fst $ Make.labeled_marklist 0 $
-            replicate 1025 $ Make.LabeledMark 0 dur ""
+            replicate 1025 $ Make.LabeledMark minBound dur ""
         dur = 5/8 / 128
     equal (last meter) 5 -- dur*1024 == 5
 

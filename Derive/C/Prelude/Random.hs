@@ -166,7 +166,7 @@ breakpoints_arg = Sig.check check $ (,)
             <> pretty (map fst pairs)
 
 tempo_alternate_continuous :: DeriveT.Quoted -> [(RealTime, DeriveT.Quoted)]
-    -> Meter.RankName -> Meter.RankName -> Derive.NoteArgs -> Derive.NoteDeriver
+    -> Meter.Rank -> Meter.Rank -> Derive.NoteArgs -> Derive.NoteDeriver
 tempo_alternate_continuous bottom pairs timestep interval args = do
     interval <- Call.meter_duration (Args.start args) interval 1
     let starts = Seq.range (Args.start args) (Args.end args) interval
@@ -201,7 +201,7 @@ switch streams bps = mconcatMap select (Seq.zip_next bps)
         | otherwise =
             Score.set_duration (max 0 (end - Score.event_start event)) event
 
-alternate_indices :: [ScoreTime] -> Meter.RankName -> [RealTime]
+alternate_indices :: [ScoreTime] -> Meter.Rank -> [RealTime]
     -> Derive.Deriver [Int]
     -- ^ time to switch to which index
 alternate_indices starts timestep thresholds = do
@@ -212,7 +212,7 @@ alternate_indices starts timestep thresholds = do
     return $ -- Debug.trace_retp "alt_indices" (thresholds, zip starts durs) $
         map (index_under_threshold thresholds) durs
 
-timestep_dur_at :: Meter.RankName -> ScoreTime -> Derive.Deriver RealTime
+timestep_dur_at :: Meter.Rank -> ScoreTime -> Derive.Deriver RealTime
 timestep_dur_at timestep p = do
     Call.real_duration p =<< Call.meter_duration p timestep 1
 

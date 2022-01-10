@@ -33,9 +33,8 @@ module Ui.Meter.Meter (
     , Duration, time_to_duration
     , Config(..)
     , default_config
-    , RankName(..), all_ranks, name_to_rank
-    , r_section, r_1, r_2, r_4, r_8, r_16, r_32, r_64, r_128, r_256
-    , rank_names
+    , Rank(..), all_ranks
+    , rank_names, rank_name
     , LabelConfig(..)
     , Label
     -- * AbstractMeter
@@ -89,7 +88,7 @@ meter :: Config -> [MSection] -> Meter
 meter config sections = set_sections sections $
     modify_config (const config) empty_meter
 
--- Called MSection due to annoying name clash with RankName Section.
+-- Called MSection due to annoying name clash with Rank Section.
 -- If I change that one, then the change to rank_names affects parsing.
 data MSection = MSection {
     -- | The section contains this many measures.
@@ -193,7 +192,7 @@ time_to_duration = id
 
 data Config = Config {
     -- | Only write labels on these ranks.
-    config_labeled_ranks :: !(Set RankName)
+    config_labeled_ranks :: !(Set Rank)
     -- | How to generate labels.
     , config_label :: !LabelConfig
     -- | The ruler should start counting at this number.  This could be measure
@@ -222,39 +221,32 @@ default_config = Config
 -- rank.  This is convenient because that's how staff notation works.  But then
 -- the labels wind up being all 0s and 1s, which is not that useful.  The ranks
 -- in this list don't receive their own label.
-default_labeled_ranks :: Set RankName
+default_labeled_ranks :: Set Rank
 default_labeled_ranks = Set.fromList [W, Q, S, T128]
 
 -- * Rank
 
 -- Also used by Derive.Typecheck
-data RankName = Section | W | H | Q | E | S | T32 | T64 | T128 | T256
+data Rank = Section | W | H | Q | E | S | T32 | T64 | T128 | T256
     deriving (Show, Eq, Ord, Bounded, Enum)
-instance Pretty RankName where pretty = showt
+instance Pretty Rank where pretty = showt
 
-type Rank = Int -- same as Mark.Rank
-
-all_ranks :: [RankName]
+all_ranks :: [Rank]
 all_ranks = [minBound .. maxBound]
 
-name_to_rank :: RankName -> Rank
-name_to_rank = fromEnum
+-- | These are mnemonics for staff notation durations, though they may not
+-- correspond exactly, as documented in "Cmd.Meter".
+rank_names :: [(Rank, Text)]
+rank_names = zip [minBound ..] (map rank_name all_ranks)
+
+rank_name :: Rank -> Text
+rank_name = Text.toLower . showt
 
 data LabelConfig = BigNumber Int | Cycle [Label]
     deriving (Eq, Show)
 type Label = Text -- TODO make it ByteString so I can pass to c++ efficiently?
 
 instance Pretty LabelConfig where pretty = showt
-
--- | These are the conventional meanings for the ranks.
-r_section, r_1, r_2, r_4, r_8, r_16, r_32, r_64, r_128, r_256 :: Rank
-r_section : r_1 : r_2 : r_4 : r_8 : r_16 : r_32 : r_64 : r_128 : r_256 : _ =
-  [0..]
-
--- | These are mnemonics for staff notation durations, though they may not
--- correspond exactly, as documented in "Cmd.Meter".
-rank_names :: [(Rank, Text)]
-rank_names = zip [0..] (map (Text.toLower . showt) all_ranks)
 
 -- * AbstractMeter
 

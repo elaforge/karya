@@ -143,8 +143,8 @@ set_bounds start end =
         (Nothing, Nothing) -> []
 
 start_mark, end_mark :: Mark.Mark
-start_mark = Mark.Mark 0 2 (Color.rgb 0 0.75 0) "s" 0 0
-end_mark = Mark.Mark 0 2 (Color.rgb 0 0.75 0) "e" 0 0
+start_mark = Mark.Mark minBound 2 (Color.rgb 0 0.75 0) "s" 0 0
+end_mark = Mark.Mark minBound 2 (Color.rgb 0 0.75 0) "e" 0 0
 
 get_bounds :: Ruler -> (Maybe ScoreTime, Maybe ScoreTime)
 get_bounds ruler = case lookup_marklist bounds_name ruler of

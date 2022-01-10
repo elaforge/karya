@@ -5,7 +5,6 @@
 module Cmd.Repl.LEvent_test where
 import qualified Cmd.Repl.LEvent as LEvent
 import qualified Ui.Event as Event
-import qualified Ui.Meter.Meter as Meter
 import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 
@@ -54,8 +53,8 @@ test_quantize_timestep = do
     equal (run LEvent.End marks2 "w" [(0.5, 0.1)]) (Just [(0.5, 0.5)])
     equal (run LEvent.End marks2 "w" [(0.5, 0.5)]) (Just [(0.5, 0.5)])
 
-run_ruler :: [(TrackTime, Meter.Rank)] -> [UiTest.TrackSpec] -> Ui.StateId a
-    -> a
+run_ruler :: [(TrackTime, UiTest.RankNum)] -> [UiTest.TrackSpec]
+    -> Ui.StateId a -> a
 run_ruler marks tracks = UiTest.eval $ UiTest.exec Ui.empty $
     UiTest.mkblock_ruler (UiTest.mkruler_ranks marks) UiTest.default_block_id
         "" tracks

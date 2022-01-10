@@ -147,14 +147,14 @@ c_cf_swing = val_call "cf-swing" Tags.control_function
     cf_swing_ rank amount control dyn pos
         | Just marks <- maybe_marks = ScoreT.untyped $
             dyn_control dyn control pos + RealTime.to_seconds
-                (cf_swing (real dyn) (Meter.name_to_rank rank)
+                (cf_swing (real dyn) rank
                     (to_function dyn 0 amount) marks (score dyn pos))
         | otherwise = ScoreT.untyped 0
         where
         maybe_marks = snd <$>
             Map.lookup Ruler.meter_name (DeriveT.dyn_ruler dyn)
 
-cf_swing :: (ScoreTime -> RealTime) -> Mark.Rank -> Typecheck.Function
+cf_swing :: (ScoreTime -> RealTime) -> Meter.Rank -> Typecheck.Function
     -> Mark.Marklist -> ScoreTime -> RealTime
 cf_swing to_real rank amount marks pos = case marks_around rank marks pos of
     Nothing -> 0
@@ -162,7 +162,7 @@ cf_swing to_real rank amount marks pos = case marks_around rank marks pos of
         * RealTime.seconds (amount (to_real pos))
         * swing (Num.normalize pre post pos)
 
-marks_around :: Mark.Rank -> Mark.Marklist -> ScoreTime
+marks_around :: Meter.Rank -> Mark.Marklist -> ScoreTime
     -> Maybe (ScoreTime, ScoreTime)
 marks_around rank marks pos =
     (,) <$> get (Mark.descending pos marks) <*> get (Mark.ascending pos marks)

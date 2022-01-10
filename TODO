@@ -6282,9 +6282,9 @@ Cmd:
     meter cleanup:
       - test for Example.Integrate
       * Do I need Meter.Make is_edge?
-      - Put RankName into its own module, shared with Derive?
+      / Put RankName into its own module, shared with Derive?
         . Can then fix MSection
-        . Get rid of numeric Rank entirely and use RankName?
+      * Get rid of numeric Rank entirely and use RankName?
     + Once this is done, what about all the old scores?
       . They will load as hardcoded marklists, but Ruler.get_meter will return
         an empty meter, which probably means they get overwritten.

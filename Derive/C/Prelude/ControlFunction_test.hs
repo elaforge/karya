@@ -58,7 +58,7 @@ test_cf_swing = do
                 tracks ++ [("> | %start-s = (cf-swing q " <> amount <> ")",
                     [(n, 0, "") | n <- events])]
         with_ruler = DeriveTest.with_default_ruler . UiTest.mkruler_ranks
-            . map (second Meter.name_to_rank)
+            . map (second fromEnum)
 
     let marks = take 8 $ zip (Seq.range_ 0 2)
             [Meter.H, Meter.Q, Meter.Q, Meter.Q]

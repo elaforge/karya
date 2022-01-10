@@ -360,7 +360,7 @@ cue_marklist = Mark.marklist
     ]
 
 mark :: Text -> Mark.Mark
-mark name = Mark.Mark 0 3 (Color.rgba 0.4 0 0.4 0.4) name 0 0
+mark name = Mark.Mark minBound 3 (Color.rgba 0.4 0 0.4 0.4) name 0 0
 
 test_modify_ruler = do
     state <- run Ui.empty $ do

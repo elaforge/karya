@@ -503,7 +503,8 @@ instance Serialize Ruler.Ruler where
                 align_to_bottom
             where
             upgrade :: OldMarklists -> Ruler.Marklists
-            upgrade = fmap $ first $ const Nothing
+            upgrade = fmap $ \(_config, OldMarklist mlist) ->
+                (Nothing, Mark.marklist_from_vector mlist)
         -- Upgrade marklists by throwing out the OldMeterConfig.
         -- Alternately, I could try to automatically figure out what the Meter
         -- should be...
@@ -516,7 +517,7 @@ instance Serialize Ruler.Ruler where
             return $ Ruler.Ruler marklists bg show_names align_to_bottom
         v -> Serialize.bad_version "Ruler.Ruler" v
 
-type OldMarklists = Map Text (Maybe OldMeterConfig, Mark.Marklist)
+type OldMarklists = Map Text (Maybe OldMeterConfig, OldMarklist)
 
 instance Serialize OldMeterConfig where
     put (OldMeterConfig a b) = Serialize.put_version 0 >> put a >> put b
@@ -556,11 +557,11 @@ instance Serialize Meter.Config where
         0 -> Meter.Config <$> get <*> get <*> get <*> get <*> get
         v -> Serialize.bad_version "Meter.Config" v
 
-instance Serialize Meter.RankName where
+instance Serialize Meter.Rank where
     put a = Serialize.put_version 0 >> Serialize.put_enum a
     get = Serialize.get_version >>= \case
         0 -> Serialize.get_enum
-        v -> Serialize.bad_version "Meter.RankName" v
+        v -> Serialize.bad_version "Meter.Rank" v
 
 instance Serialize Meter.LabelConfig where
     put a = Serialize.put_version 0 >> case a of
@@ -582,15 +583,23 @@ instance Serialize Meter.AbstractMeter where
         1 -> Meter.D <$> get
         tag -> Serialize.bad_tag "Meter.AbstractMeter" tag
 
-instance Serialize Mark.Marklist where
-    put mlist = put (Mark.marklist_vec mlist)
-    get = do
-        vec :: Mark.MarklistVector <- get
-        return $ Mark.marklist_from_vector vec
+-- The old version is unversioned
+newtype OldMarklist = OldMarklist Mark.MarklistVector
+    deriving (Serialize)
 
+instance Serialize Mark.Marklist where
+    put mlist = Serialize.put_version 0 >> put (Mark.marklist_vec mlist)
+    get = Serialize.get_version >>= \case
+        0 -> do
+            vec :: Mark.MarklistVector <- get
+            return $ Mark.marklist_from_vector vec
+        v -> Serialize.bad_version "Mark.Marklist" v
+
+-- TODO I thought to make a new Mark with typed Mark.Rank, but it's
+-- easier to just fromEnum it.
 instance Serialize Mark.Mark where
-    put (Mark.Mark a b c d e f) = put a >> put b >> put c >> put d >> put e
-        >> put f
+    put (Mark.Mark a b c d e f) =
+        put (fromEnum a) >> put b >> put c >> put d >> put e >> put f
     get = do
         rank :: Int <- get
         width :: Int <- get
@@ -598,7 +607,7 @@ instance Serialize Mark.Mark where
         name :: Text <- get
         name_zoom :: Double <- get
         zoom :: Double <- get
-        return $ Mark.Mark rank width color name name_zoom zoom
+        return $ Mark.Mark (toEnum rank) width color name name_zoom zoom
 
 -- ** Track
 
