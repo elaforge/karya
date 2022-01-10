@@ -108,28 +108,25 @@ labeled_to_unlabeled_ranks labeled =
 -- | Create marks from a labeled meter.
 labeled_marklist :: TrackTime -> [LabeledMark] -> [(TrackTime, Mark.Mark)]
 labeled_marklist start marks =
-    [ (realToFrac pos, mark is_edge dur rank label)
-    | (rank, pos, label, dur, is_edge)
-        <- List.zip5 ranks
+    [ (realToFrac pos, mark dur rank label)
+    | (rank, pos, label, dur)
+        <- List.zip4 ranks
             (scanl (+) (to_rational start)
                 (map (to_rational . m_duration) marks))
-            (map m_label marks) durs edges
+            (map m_label marks) durs
     ]
     where
     -- Avoid accumulating error, as per 'Duration'.
     to_rational t = Ratio.approxRational t 0.0000001
-    edges = True : map null (drop 2 (List.tails ranks))
     durs = rank_durs (zip ranks (map m_duration marks))
     ranks = map m_rank marks
-    mark is_edge rank_dur rank name = Mark.Mark
+    mark rank_dur rank name = Mark.Mark
         { mark_rank = rank
         , mark_width = width
         , mark_color = color
         , mark_name = name
         , mark_name_zoom_level = zoom * 2
         , mark_zoom_level = zoom
-        -- , mark_name_zoom_level = if is_edge then 0 else zoom * 2
-        -- , mark_zoom_level = if is_edge then 0 else zoom
         }
         where
         (color, width, pixels) = meter_ranks !! min rank ranks_len

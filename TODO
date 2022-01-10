@@ -6237,7 +6237,7 @@ Cmd:
           still want to extend with a full measure.  But actually I think I'd
           want both ways.  So maybe I force the UI to make the choice, e.g. by
           trimming off the truncated Section before extending.
-      - test Cmd.Factor
+      * test Cmd.Factor
       - LRuler.reset_colors
       * Repl.LTala
       * Repl.LRuler
@@ -6281,7 +6281,7 @@ Cmd:
           new has (0, Just 3)
     meter cleanup:
       - test for Example.Integrate
-      - Do I need Meter.Make is_edge?
+      * Do I need Meter.Make is_edge?
       - Put RankName into its own module, shared with Derive?
         . Can then fix MSection
         . Get rid of numeric Rank entirely and use RankName?
@@ -6298,8 +6298,10 @@ Cmd:
       . This leaves out score blocks, but I should be able to use
         LRuler.pull_up for them.  Though I have to re-enable it first!
       . Hoever, in many cases I may not care?
-    - If I trim a ruler then the old measure-level mark needs a higher zoom.
+    / If I trim a ruler then the old measure-level mark needs a higher zoom.
       Shouldn't all marks at the same rank have the same zoom visibility?
+      . They do, I think it's just a visual effect because it thought the
+        labels overlapped.
     ? What's the difference between
       Measure 3 dur (D (replicate 4 meter))
       and Measure 1 dur (D (replicate 3 (D replicate 4 meter)))?

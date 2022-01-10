@@ -646,8 +646,9 @@ ruler_marks =
     . Ruler.ruler_marklists
 
 meter_zoom :: Double -> Meter.Meter -> [(TrackTime, Mark)]
-meter_zoom zoom = map (second e_mark) . filter ((<= zoom)
-    . Mark.mark_name_zoom_level . snd) . Meter.Make.make_measures
+meter_zoom zoom = map (second e_mark)
+    . filter ((<= zoom) . Mark.mark_name_zoom_level . snd)
+    . Meter.Make.make_measures
 
 meter_marklist :: Double -> Meter.Meter -> [(TrackTime, Mark.Label)]
 meter_marklist zoom = map (second snd) . meter_zoom zoom

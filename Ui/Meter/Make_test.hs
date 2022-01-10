@@ -52,6 +52,11 @@ test_sections_take = do
         ]
     equal (f 0.5) [(0, "1"), (0.25, ".2"), (0.5, "2")]
     equal (f 0) [(0, "1")]
+    let make t = Make.make_measures $
+            Meter.modify_sections (Meter.sections_take t) mm
+    -- starts and ends with rank 0 even if it's cut short
+    equal (map (Mark.mark_rank . snd) (make 0.25))
+        [0, 6, 5, 6, 4, 6, 5, 6, 0]
 
 test_sections_drop :: Test
 test_sections_drop = do
