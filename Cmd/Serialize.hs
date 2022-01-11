@@ -38,6 +38,7 @@ import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
+import qualified Ui.Meter.Make as Meter.Make
 import qualified Ui.Meter.Mark as Mark
 import qualified Ui.Meter.Meter as Meter
 import qualified Ui.Ruler as Ruler
@@ -482,8 +483,15 @@ instance Serialize Color.Color where
 -- ** Ruler
 
 instance Serialize Ruler.Ruler where
-    put (Ruler.Ruler a b c d) = Serialize.put_version 8
-        >> put a >> put b >> put c >> put d
+    put (Ruler.Ruler marklists b c d) = do
+        Serialize.put_version 8
+        put $ strip <$> marklists
+        put b >> put c >> put d
+        where
+        -- I don't actually need to store the Marklist if Meter is set, becasue
+        -- I can regenerate it.
+        strip (Just meter, _mlist) = (Just meter, Mark.empty)
+        strip (Nothing, mlist) = (Nothing, mlist)
     get = Serialize.get_version >>= \case
         6 -> do
             marklists :: Map Ruler.Name (Maybe Text, Mark.Marklist) <- get
@@ -505,18 +513,20 @@ instance Serialize Ruler.Ruler where
             upgrade :: OldMarklists -> Ruler.Marklists
             upgrade = fmap $ \(_config, OldMarklist mlist) ->
                 (Nothing, Mark.marklist_from_vector mlist)
-        -- Upgrade marklists by throwing out the OldMeterConfig.
-        -- Alternately, I could try to automatically figure out what the Meter
-        -- should be...
+            -- Upgrade marklists by throwing out the OldMeterConfig.
+            -- Alternately, I could try to automatically figure out what the
+            -- Meter should be...
         8 -> do
-            -- TODO I don't actually need to store the Marklist if Meter
-            -- is set, becasue I can regenerate it.
             marklists :: Map Ruler.Name (Maybe Meter.Meter, Mark.Marklist)
                 <- get
             bg :: Color.Color <- get
             show_names :: Bool <- get
             align_to_bottom :: Bool <- get
-            return $ Ruler.Ruler marklists bg show_names align_to_bottom
+            return $ Ruler.Ruler (add <$> marklists) bg show_names
+                align_to_bottom
+            where
+            add (Just meter, _) = (Just meter, Meter.Make.make_marklist meter)
+            add (Nothing, mlist) = (Nothing, mlist)
         v -> Serialize.bad_version "Ruler.Ruler" v
 
 type OldMarklists = Map Text (Maybe OldMeterConfig, OldMarklist)
