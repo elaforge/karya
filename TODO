@@ -64,6 +64,7 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
+  - test for Example.Integrate
   - detect recursive block calls immediately and error instead of emitting
     tons of "call stack too deep"
   * bug: I still got a unstoppable playback selection somehow
@@ -6155,7 +6156,7 @@ Cmd:
       maybe step should fail.
 
   ruler: Ruler: Ui.Meter:
-    - push high level ruler rules down to the Ui.Ruler level
+    * push high level ruler rules down to the Ui.Ruler level
       . Meters are complicated, hard to understand, and error prone.
       . I spent ages trying to figure out why 'make_labeled 1' didn't work in
         Derive.TSCore.Check.
@@ -6280,7 +6281,6 @@ Cmd:
           (0, Nothing)
           new has (0, Just 3)
     meter cleanup:
-      - test for Example.Integrate
       * Do I need Meter.Make is_edge?
       / Put RankName into its own module, shared with Derive?
         . Can then fix MSection
@@ -6321,10 +6321,6 @@ Cmd:
       . But as long as I'm doing Mark conversion in haskell, I should still
         try to retain sharing, maybe I could memoize it somehow.
     - I could have note entry at the end automatically extend the block
-
-    - meter type and the construction functions should be integrated more
-      tightly
-    - LRuler.inject, opposite of extract, replaces sub-block rulers
   Cmd.Edit:
     * If I add a note +E, then another, then delete the second, the first one
       stays short.  This is usually not what I want!  Trackers don't have the

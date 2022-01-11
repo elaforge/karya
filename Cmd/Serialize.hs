@@ -509,6 +509,8 @@ instance Serialize Ruler.Ruler where
         -- Alternately, I could try to automatically figure out what the Meter
         -- should be...
         8 -> do
+            -- TODO I don't actually need to store the Marklist if Meter
+            -- is set, becasue I can regenerate it.
             marklists :: Map Ruler.Name (Maybe Meter.Meter, Mark.Marklist)
                 <- get
             bg :: Color.Color <- get
@@ -522,10 +524,7 @@ type OldMarklists = Map Text (Maybe OldMeterConfig, OldMarklist)
 instance Serialize OldMeterConfig where
     put (OldMeterConfig a b) = Serialize.put_version 0 >> put a >> put b
     get = Serialize.get_version >>= \case
-        0 -> do
-            name :: Text <- get
-            start_measure :: Int <- get
-            return $ OldMeterConfig name start_measure
+        0 -> OldMeterConfig <$> get <*> get
         v -> Serialize.bad_version "OldMeterConfig" v
 
 -- | Configuration specific to the 'meter' marklist.
@@ -540,21 +539,35 @@ data OldMeterConfig = OldMeterConfig {
 instance Serialize Meter.Meter where
     put (Meter.Meter a b) = Serialize.put_version 0 >> put a >> put b
     get = Serialize.get_version >>= \case
-        0 -> Meter.Meter <$> get <*> get
+        0 -> do
+            config :: Meter.Config <- get
+            sections :: [Meter.MSection] <- get
+            return $ Meter.Meter config sections
         v -> Serialize.bad_version "Meter.Meter" v
 
 instance Serialize Meter.MSection where
     put (Meter.MSection a b c) =
         Serialize.put_version 0 >> put a >> put b >> put c
     get = Serialize.get_version >>= \case
-        0 -> Meter.MSection <$> get <*> get <*> get
+        0 -> do
+            count :: Meter.Measures <- get
+            measure_duration :: Meter.Duration <- get
+            measure :: Meter.AbstractMeter <- get
+            return $ Meter.MSection count measure_duration measure
         v -> Serialize.bad_version "Meter.MSection" v
 
 instance Serialize Meter.Config where
     put (Meter.Config a b c d e) = Serialize.put_version 0
         >> put a >> put b >> put c >> put d >> put e
     get = Serialize.get_version >>= \case
-        0 -> Meter.Config <$> get <*> get <*> get <*> get <*> get
+        0 -> do
+            labeled_ranks :: Set Meter.Rank <- get
+            label :: Meter.LabelConfig <- get
+            start_measure :: Meter.Measures <- get
+            min_depth :: Int <- get
+            strip_depth :: Int <- get
+            return $ Meter.Config labeled_ranks label start_measure min_depth
+                strip_depth
         v -> Serialize.bad_version "Meter.Config" v
 
 instance Serialize Meter.Rank where
@@ -806,7 +819,9 @@ instance Serialize Common.Config where
 instance Serialize Common.Flag where
     put a = Serialize.put_version 0 >> Serialize.put_enum a
     get = Serialize.get_version >>= \case
-        0 -> Serialize.get_enum
+        0 -> get >>= \(t :: Int) -> case t of
+            0 -> return Common.Triggered
+            _ -> Serialize.bad_tag "Common.Flag" (fromIntegral t)
         v -> Serialize.bad_version "Common.Flag" v
 
 -- ** lilypond
