@@ -37,6 +37,7 @@ import qualified Util.ParseText as ParseText
 import qualified Util.Seq as Seq
 import qualified Util.Then as Then
 
+import qualified Cmd.Ruler.Gong as Gong
 import qualified Cmd.Ruler.Tala as Tala
 import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
@@ -238,7 +239,7 @@ carry_call_duration = flip State.evalState False . EList.mapM (T.map_note carry)
                 return T.CallDuration
             T.NDuration dur
                 | can_carry note dur -> ifM State.get
-                    (State.put True >> return T.CallDuration)
+                    (return T.CallDuration)
                     (return $ T.NDuration dur)
                 | otherwise -> State.put False >> return (T.NDuration dur)
         return $ note { T.note_duration = dur }
@@ -340,10 +341,11 @@ data Meter = Meter {
     -- | This is the duration one one element of 'meter_pattern'.
     , meter_step :: !T.Time
     -- | If true, beats fall at the end of measures.
+    -- TODO has no effect yet, not even sure what it would be for
     , meter_negative :: !Bool
     -- | Meter as used by the UI.
     -- TODO redundant with meter_pattern, merge them?
-    , meter_ui :: !Meter.AbstractMeter
+    , meter_ui :: !(Meter.Config, Meter.AbstractMeter)
     } deriving (Eq, Show)
 
 meter_duration :: Meter -> T.Time
@@ -356,6 +358,7 @@ parse_meter name = case untxt name of
     'a':'d':'i' : n
         | Just n <- ParseText.nat (txt n) -> meter_adi n
         | null n -> meter_adi 4
+    "gong" -> Just meter_gong
     _ -> Nothing
 
 -- If I do akshara as 1, then kanda is 1/5th notes.  I'd want to reduce the
@@ -366,9 +369,18 @@ meter_adi nadai
         { meter_pattern = [2, 0, 0, 0, 1, 0, 1, 0]
         , meter_step = 1
         , meter_negative = False
-        , meter_ui = Tala.tala_to_meter Tala.adi_tala nadai
+        , meter_ui =
+            (Tala.config Tala.adi_tala, Tala.tala_to_meter Tala.adi_tala nadai)
         }
     | otherwise = Nothing
+
+meter_gong :: Meter
+meter_gong = Meter
+    { meter_pattern = [1, 0, 0, 0, 0, 0, 0, 0]
+    , meter_step = 1
+    , meter_negative = True
+    , meter_ui = (Gong.config, Meter.regular_subdivision [2, 2, 2, 2, 2, 2])
+    }
 
 meter_44 :: Meter
 Just meter_44 = simple_meter 4 4
@@ -380,12 +392,8 @@ simple_meter n1 n2 = do
         { meter_pattern = 1 : replicate (n1-1) 0
         , meter_step = 1 / fromIntegral n2
         , meter_negative = False
-        , meter_ui = abs_meter
+        , meter_ui = (Meter.default_config, abs_meter)
         }
-
--- make_labeled :: TrackTime -> Meter.AbstractMeter -> [Meter.LabeledMark]
--- make_labeled dur =
---     Meter.label_meter Meter.default_config . Meter.fit_meter dur . (:[])
 
 -- ** resolve_time
 

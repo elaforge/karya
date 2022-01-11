@@ -587,7 +587,7 @@ mkruler_44 marks dist =
 
 mkruler :: TrackTime -> TrackTime -> Meter.AbstractMeter -> Ruler.Ruler
 mkruler measure_dur end meter =
-    Ruler.meter_ruler $ RulerUtil.meter_until meter measure_dur end
+    Ruler.meter_ruler $ RulerUtil.meter_until meter measure_dur 4 end
 
 -- | This makes a meter without a Meter.Meter, which cmds that look at Meter
 -- will be confused by.

@@ -68,8 +68,10 @@ data Meter = Meter {
     } deriving (Eq, Show)
 
 instance Pretty Meter where
-    format (Meter config sections) =
-        "Meter" <+> Pretty.format config <+> Pretty.format sections
+    format (Meter config sections) = Pretty.record "Meter"
+        [ ("config", Pretty.format config)
+        , ("sections", Pretty.format sections)
+        ]
 
 instance Semigroup Meter where
     meter1 <> meter2 = meter (meter_config meter1)
@@ -85,7 +87,7 @@ meter_end :: Meter -> TrackTime
 meter_end = Num.sum . map section_duration . meter_sections
 
 meter :: Config -> [MSection] -> Meter
-meter config sections = set_sections sections $
+meter config sections = set_sections (filter ((>0) . section_count) sections) $
     modify_config (const config) empty_meter
 
 -- Called MSection due to annoying name clash with Rank Section.

@@ -52,7 +52,7 @@ convert ns mod = Ui.exec Ui.empty $ do
     bids <- forM blocks $ \(tracks, block_end, _skel) -> do
         bid <- Create.block Ui.no_ruler
         rid <- Ui.create_ruler (Id.unpack_id bid) $
-            Ruler.meter_ruler $ RulerUtil.meter_until Meters.m44 1 block_end
+            Ruler.meter_ruler $ RulerUtil.meter_until Meters.m44 1 4 block_end
         Create.set_block_ruler rid bid
         forM_ tracks $ \track -> do
             tid <- Create.track_events bid rid 999 40 track

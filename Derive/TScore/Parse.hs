@@ -104,8 +104,9 @@ directives_of _ = []
 instance Element T.Toplevel where
     parse config = T.ToplevelDirective <$> parse config
         <|> T.BlockDefinition <$> parse config
-    unparse config (T.ToplevelDirective a) = unparse config a
-    unparse config (T.BlockDefinition a) = unparse config a
+    unparse config = \case
+        T.ToplevelDirective a -> unparse config a
+        T.BlockDefinition a -> unparse config a
 
 -- > ns/block = %directive "block title" [ ... ]
 instance Element (T.Block T.WrappedTracks) where
@@ -318,16 +319,17 @@ instance Element (T.Note T.Call (T.NPitch T.Pitch) T.NDuration) where
         where
         p_zero_dur = P.option False (P.char '*' *> pure True)
         make_note pos call pitch zero_dur dur = do
-            let note = T.Note
-                    { note_call = fromMaybe (T.Call "") call
-                    , note_pitch = pitch
-                    , note_zero_duration = zero_dur
-                    , note_duration = dur
-                    , note_pos = pos
-                    }
             -- If I allow "" as a note, I can't get P.many of them.
             guard (note { T.note_pos = T.Pos 0 } /= empty_note)
             return note
+            where
+            note = T.Note
+                { note_call = fromMaybe (T.Call "") call
+                , note_pitch = pitch
+                , note_zero_duration = zero_dur
+                , note_duration = dur
+                , note_pos = pos
+                }
     unparse config (T.Note call pitch zero_dur dur _pos)
         | _default_call config =
             unparse config call
@@ -502,8 +504,9 @@ instance Pretty T.Octave where pretty = unparse default_config
 instance Element T.NDuration where
     parse config =
         P.char '0' *> pure T.CallDuration <|> T.NDuration <$> parse config
-    unparse _ T.CallDuration = "0"
-    unparse config (T.NDuration a) = unparse config a
+    unparse config = \case
+        T.CallDuration -> "0"
+        T.NDuration a -> unparse config a
 
 instance Element T.Duration where
     parse _ = T.Duration

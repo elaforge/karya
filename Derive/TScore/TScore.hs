@@ -66,7 +66,7 @@ import           Types
 data Block track = Block {
     _block_id :: !BlockId
     , _block_title :: !Text
-    , _meter :: !Meter.AbstractMeter
+    , _meter :: !(Meter.Config, Meter.AbstractMeter)
     -- | True if this was created via T.SubBlock.
     , _is_sub :: !Bool
     , _tracks :: ![track]
@@ -661,8 +661,12 @@ ui_block block = do
 
 ui_ruler :: Ui.M m => Block NTrack -> m RulerId
 ui_ruler block = RulerUtil.replace (_block_id block) $ const $ Right $
-    Ruler.meter_ruler $ RulerUtil.meter_until (_meter block) measure_dur end
+    Ruler.meter_ruler $ Meter.modify_config (const config) $
+        RulerUtil.meter_until meter measure_dur per_section end
     where
+    (config, meter) = _meter block
+    -- Hardcode for now, would I want to configure it?
+    per_section = 4
     measure_dur = 1
     end = track_time $ maximum $ 0 : map _end (_tracks block)
 

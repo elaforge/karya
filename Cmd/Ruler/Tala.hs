@@ -17,6 +17,7 @@ module Cmd.Ruler.Tala (
     , make, make_until
     , tala_to_meter
     , adi, adi3, adi6
+    , config
     , adi_tala, dhruva_tala, matya_tala, rupaka_tala, jhampa_tala, triputa_tala
     , ata_tala, eka_tala
     , misra_chapu, kanda_chapu, rupaka_fast
@@ -52,7 +53,7 @@ simple tala nadai avartanams = make tala nadai 1 avartanams 1
 make :: Tala -> Nadai -> Meter.Duration -> Avartanams -> Sections
     -> Meter.Meter
 make tala nadai avartanam_dur avartanams sections =
-    Meter.meter (tala_config tala) (replicate sections section)
+    Meter.meter (config tala) (replicate sections section)
     where
     section = Meter.MSection avartanams avartanam_dur (tala_to_meter tala nadai)
 
@@ -74,8 +75,8 @@ adi6 = simple adi_tala 6
 
 -- * implementation
 
-tala_config :: Tala -> Meter.Config
-tala_config tala = Meter.Config
+config :: Tala -> Meter.Config
+config tala = Meter.Config
     { config_labeled_ranks = labeled_ranks
     , config_label = Meter.Cycle $ tala_labels tala
     , config_start_measure = 1

@@ -23,10 +23,15 @@ import           Types
 -- * generate
 
 -- | Make a ruler of a single meter until the given end time.
-meter_until :: Meter.AbstractMeter -> TrackTime -> TrackTime -> Meter.Meter
-meter_until meter measure_dur end = meter_take end $
-    Meter.meter Meter.default_config [Meter.MSection measures measure_dur meter]
-    where measures = ceiling (end / measure_dur)
+meter_until :: Meter.AbstractMeter -> TrackTime -> Int -> TrackTime
+    -> Meter.Meter
+meter_until meter measure_dur per_section end = meter_take end $
+    Meter.meter Meter.default_config $
+    replicate sections (Meter.MSection per_section measure_dur meter)
+        ++ [Meter.MSection left measure_dur meter]
+    where
+    (sections, left) = measures `divMod` per_section
+    measures = ceiling (end / measure_dur)
 
 -- * by marklist
 

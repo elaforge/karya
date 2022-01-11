@@ -26,6 +26,7 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 external:
+  - c-\ is wrong for local refs, e.g. follow 'parse' in Check_test.hs
   tool to make export lists?
     . Show what is exported but not used outside.
     . weeder can't because it includes used inside.
@@ -7023,6 +7024,17 @@ text score: tscore:
     - adding pitches to a track that didn't have one can insert a pitch track
       on the left side of the note track.
       . E.g. "[s r]/0" then append "g m".
+  - when %default-call, /0 should be the default
+    . how to propagate %default-call to Check.carry_call_duration?
+    . where does the default initial dur get set?
+    . multiplicative and additive have different starts!  By then it's too late
+    . for CallDuration.
+    . Oh start carry_call_duration with True!
+    . I'd have to propagate config_default_call to Check.Config... a simpler
+      way would be to hardcode all unmarked %default-call to CallDuration, why
+      not?
+    . Wait this is no good for drum tracks... bother.  Maybe have a %score
+      directive which is like %default-call except always CallDuration?
   * initialize sc patches
     . first, include the sclang versions in Example/tscore, or in ky
       make some patches:

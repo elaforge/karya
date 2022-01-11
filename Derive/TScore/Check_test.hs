@@ -37,8 +37,7 @@ test_parse_directive = do
 
 test_check :: Test
 test_check = do
-    let f = map extract . check config . parse
-        config = Check.default_config
+    let f = map extract . check Check.default_config . parse
         extract = fmap $ second
             (\n -> (T.note_call n, T.note_pitch n, T.note_duration n))
     equal (f "_ 4s") [Right (1, ("", Just "4s", 1))]

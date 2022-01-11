@@ -3,7 +3,13 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Rulers for Balinese and Javanese music.
-module Cmd.Ruler.Gong where
+module Cmd.Ruler.Gong (
+    Gongs, Jegogans
+    , regular, until
+    , meter
+    , config
+) where
+import           Prelude hiding (until)
 import qualified Data.Set as Set
 
 import qualified Ui.Meter.Meter as Meter
@@ -40,7 +46,6 @@ regular :: Gongs -> Jegogans -> Meter.Meter
 regular gongs jegogans = Meter.meter config (replicate gongs section)
     where
     section = Meter.MSection jegogans measure_dur meter
-    meter = Meter.regular_subdivision [2, 2, 2, 2, 2, 2]
 
 until :: TrackTime -> Meter.Meter
 until end =
@@ -51,6 +56,9 @@ until end =
 
 measure_dur :: TrackTime
 measure_dur = 2 -- This gives a reasonable kotekan speed at tempo=1.
+
+meter :: Meter.AbstractMeter
+meter = Meter.regular_subdivision [2, 2, 2, 2, 2, 2]
 
 -- | Gong config starts counting from 0.  This is more appropriate for Balinese
 -- and Javenese music which are counted n 1 2 3 .. n

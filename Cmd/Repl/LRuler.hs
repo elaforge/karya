@@ -248,7 +248,7 @@ selected = do
 
 upgrade_infer :: Meter.AbstractMeter -> Upgrade
 upgrade_infer meter mlist =
-    ( RulerUtil.meter_until meter dur end
+    ( RulerUtil.meter_until meter dur 4 end
     , "measure " <> show dur <> " end: " <> show end
     )
     where (dur, end) = (infer_measure_dur mlist, Mark.end mlist)

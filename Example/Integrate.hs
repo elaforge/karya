@@ -57,7 +57,7 @@ integrate_score name score = do
     -- unreasonably complicated as they used to be.
     let end = ScoreTime.from_double $ maximum [s + d | (s, d, _, _) <- score]
     ruler_id <- RulerUtil.replace block_id $ const $ Right $
-        Ruler.meter_ruler $ RulerUtil.meter_until Meters.m44 1 end
+        Ruler.meter_ruler $ RulerUtil.meter_until Meters.m44 1 4 end
     Manual.block source_key block_id ruler_id block_title [(note, controls)]
     where
     (note, controls) = Manual.convert_note_track source_key (note_track 0 score)
