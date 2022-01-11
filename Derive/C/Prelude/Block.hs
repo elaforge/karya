@@ -27,6 +27,7 @@ import qualified Derive.PSignal as PSignal
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
+import qualified Derive.Stack as Stack
 import qualified Derive.Stream as Stream
 
 import qualified Perform.Signal as Signal
@@ -97,6 +98,9 @@ c_block block_id = Derive.with_score_duration get_score_duration $
     \ is a relative call and the calling block's namespace and name are\
     \ prepended."
     $ Sig.call0 $ Sub.inverting $ \args -> do
+        stack <- Internal.get_stack
+        when (Stack.Block block_id `elem` Stack.innermost stack) $
+            Derive.throw $ "recursive call to " <> pretty block_id
         -- This ensures that each block call from the same event sees a new
         -- serial number, as documented in 'Derive.CacheKey'.
         Internal.increment_event_serial

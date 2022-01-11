@@ -65,8 +65,9 @@ external:
 
 UNSORTED
   - test for Example.Integrate
-  - detect recursive block calls immediately and error instead of emitting
+  * detect recursive block calls immediately and error instead of emitting
     tons of "call stack too deep"
+    . Don't I already do this!?
   * bug: I still got a unstoppable playback selection somehow
     . save/bug/playback
     . I think playing top block with no children?
@@ -200,8 +201,6 @@ UNSORTED
   * have LInst.list show settings from the instrument
     . Maybe in a different way to show they are inherited?
   - shouldn't Id.clean do validation and return Nothing?
-  / upgrade to ghc-8.10 on hobbes.
-    . Wait for 9.2.
   - upgrade to ghc-9.2.1
     . 9.0 is pretty buggy, wait for 9.2.
     - 9.2.1 has no profiling, wait for 9.2.2:

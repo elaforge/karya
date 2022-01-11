@@ -262,7 +262,7 @@ with_stack frame = localm $ \st -> do
 
 {- | Add a new stack frame and hash it with the random seed.
 
-    I Skip Stack.Call for seed changes.  This is so I can use calls like
+    I skip Stack.Call for seed changes.  This is so I can use calls like
     log-seed to record the seed to hardcode it later, which is the whole point
     of doing this thing where I hash on every stack frame.  Otherwise, the
     presence of the log-seed call itself would be enough to change the seed.

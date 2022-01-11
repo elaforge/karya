@@ -24,6 +24,7 @@ import           Global
 import           Util.Test
 
 
+test_block :: Test
 test_block = do
     -- This also tests Derive.Call.Prelude.Block.lookup_note_call
     let run evts = DeriveTest.extract extract $
@@ -46,6 +47,24 @@ test_block = do
         , ((1, 2, ""), "i", "+a")
         ]
 
+test_block_recursive :: Test
+test_block_recursive = do
+    let run = snd . DeriveTest.extract DeriveTest.e_event
+            . DeriveTest.derive_blocks
+    strings_like (run [("b1", [(">", [(0, 1, "b1")])])])
+        ["recursive call to */b1"]
+    strings_like (run
+        [ ("b1", [(">", [(0, 1, "sub")])])
+        , ("sub=ruler", [(">", [(0, 1, ""), (1, 1, "b1")])])
+        ])
+        ["recursive call to */b1"]
+    strings_like (run
+        [ ("b1", [(">", [(0, 1, "sub")])])
+        , ("sub=ruler", [(">", [(0, 1, ""), (1, 1, "sub")])])
+        ])
+        ["recursive call to */sub"]
+
+test_subblock_placement :: Test
 test_subblock_placement = do
     let run transform = run_sub (with transform) DeriveTest.e_start_dur
             [(">", [(1, 4, "trans | sub")])]
@@ -60,6 +79,7 @@ test_subblock_placement = do
     equal (run (Derive.at 1 . Derive.stretch 2 .Derive.at (-1)))
         ([(1, 4), (5, 4)], [])
 
+test_block_call_overrides_other_calls :: Test
 test_block_call_overrides_other_calls = do
     let run sub_name evts = DeriveTest.extract extract $
             DeriveTest.derive_blocks
@@ -69,6 +89,7 @@ test_block_call_overrides_other_calls = do
     equal (run "xyz" [(0, 2, "o")]) ([(0, "+harm")], [])
     equal (run "o" [(0, 2, "o")]) ([(0, "+"), (1, "+")], [])
 
+test_block_call_overridden_by_instrument_call :: Test
 test_block_call_overridden_by_instrument_call = do
     let run sub_name evts = DeriveTest.extract DeriveTest.e_attributes $
             DeriveTest.derive_blocks_setup (DeriveTest.with_patch set_code "x")
@@ -81,6 +102,7 @@ test_block_call_overridden_by_instrument_call = do
     -- Even though the block is named inst, the inst call still happens.
     equal (run "inst" [(0, 1, "inst")]) (["+mute"], [])
 
+test_block_logical_range :: Test
 test_block_logical_range = do
     let run s e tempo sub = DeriveTest.extract DeriveTest.e_start_dur $
             DeriveTest.derive_blocks_setup
@@ -104,6 +126,7 @@ test_block_logical_range = do
     equal (run (Just 1) (Just 2) [(0, 0, "2"), (1, 0, "1"), (2, 0, "2")] sub012)
         ([(0.5, 0.5), (1, 1), (2, 0.5)], [])
 
+test_relative_block :: Test
 test_relative_block = do
     let run call = DeriveTest.extract DeriveTest.e_note $
             DeriveTest.derive_blocks
@@ -115,6 +138,7 @@ test_relative_block = do
     equal (run "test/top-sub") ([(0, 1, "3c")], [])
     strings_like (snd (run "-bub")) ["note generator not found"]
 
+test_control_scope :: Test
 test_control_scope = do
     let (result, logs) = run_sub mempty extract
             [ ("pedal", [(1, 0, "1"), (3, 0, "0")])
@@ -140,6 +164,7 @@ test_control_scope = do
 
 -- TODO this test is probably only relevant if I wind up replacing
 -- Block.c_block.trim with oriented signals, or something else.
+test_control_scope_negative_orientation :: Test
 test_control_scope_negative_orientation = do
     let run t_dia sub = DeriveTest.extract extract $
             DeriveTest.derive_blocks
@@ -188,6 +213,7 @@ test_control_scope_negative_orientation = do
     -- where
     -- with = CallTest.with_note_generator "" DUtil.constant_pitch
 
+test_trim_controls_problem :: Test
 test_trim_controls_problem = do
     let run = DeriveTest.extract (DeriveTest.e_control "c")
             . DeriveTest.derive_blocks
@@ -217,6 +243,7 @@ run_sub :: DeriveTest.Setup -> (Score.Event -> a) -> [UiTest.TrackSpec]
 run_sub setup extract top sub = DeriveTest.extract extract $
     DeriveTest.derive_blocks_setup setup [("top", top), ("sub=ruler", sub)]
 
+test_score_duration :: Test
 test_score_duration = do
     let run = snd . DeriveTest.extract Score.event_start
             . DeriveTest.derive_blocks_setup
@@ -234,6 +261,7 @@ test_score_duration = do
             ])
         ["Right (CallDuration 4.0)"]
 
+test_real_duration :: Test
 test_real_duration = do
     let run = DeriveTest.r_log_strings
             . DeriveTest.derive_blocks_setup
@@ -263,6 +291,7 @@ test_real_duration = do
             ])
         ["Right (CallDuration 4.0)"]
 
+test_control_block :: Test
 test_control_block = do
     let extract = DeriveTest.e_control "cont"
         derive caller callee = DeriveTest.extract extract $
@@ -277,6 +306,7 @@ test_control_block = do
     equal (derive [(0, 0, "0"), (1, 2, "sub"), (3, 0, "3")] sub)
         ([[(0, 0), (1, 0), (1, 1), (2, 2), (3, 4), (3, 3)]], [])
 
+test_control_block_stack :: Test
 test_control_block_stack = do
     -- Ensure the stack is correct for control block calls.
     let blocks = [("top", top), ("sub", sub)]
