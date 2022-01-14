@@ -44,7 +44,6 @@ readProcessWithExitCode env cmd args stdin = do
             , Process.std_in = Process.CreatePipe
             , Process.std_out = Process.CreatePipe
             , Process.std_err = Process.CreatePipe
-            , Process.close_fds = True
             }
     outMVar <- MVar.newEmptyMVar
     errMVar <- MVar.newEmptyMVar
@@ -109,7 +108,7 @@ call cmd args = Exception.handle ioError $
     where
     -- If I don't close the fds, the subprocess can inherit open fds, with
     -- confusing results.
-    proc = (Process.proc cmd args) { Process.close_fds = True }
+    proc = Process.proc cmd args
     -- In modern GHCs, this will happen when the binary doesn't exist.  The
     -- exception will have the binary name in it, so cmdOf not needed.
     ioError :: IO.Error.IOError -> IO ()
