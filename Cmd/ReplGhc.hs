@@ -16,7 +16,6 @@ import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 
-import qualified Data.Char as Char
 import qualified Data.IORef as IORef
 import qualified Data.List as List
 import qualified Data.Text as Text
@@ -160,19 +159,14 @@ interpreter (Session chan) = do
     expected_reloads = ["User.Elaforge.Repl"] -- TODO should be User.*.Repl
     toplevel_modules = ["Cmd.Repl.Environ", "Local.Repl"]
 
-
 respond :: [String] -> Query -> GHC.GhcT IO Response
-respond toplevel_modules (QCommand e) = RCommand <$> case untxt e of
-    ':' : colon -> colon_cmd (map Char.toLower colon)
-    expr -> (`gcatch` catch) $ make_response <$> compile expr
+respond toplevel_modules (QCommand expr) = RCommand <$> if
+    -- Emitted via :r from the repl.
+    | expr == ":reload" -> make_response <$> reload toplevel_modules
+    | otherwise -> (`gcatch` catch) $ make_response <$> compile (untxt expr)
     where
     catch (exc :: Exception.SomeException) =
         return $ return $ ReplProtocol.error_result $ "Exception: " <> showt exc
-    colon_cmd :: String -> Ghc Cmd
-    colon_cmd cmd
-        | cmd `elem` ["r", "reload"] = make_response <$> reload toplevel_modules
-        | otherwise = return $ return $
-            ReplProtocol.error_result $ "Unknown colon command: " <> showt cmd
 respond _ (QCompletion prefix) = RCompletion <$>
     -- Don't bother with 50 zillion completions.
     if prefix == "" then return [] else do

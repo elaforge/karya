@@ -2,26 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{- | Simple repl to talk to seq.
-
-    Type a command to send it to the sequencer.  Everything in
-    "Cmd.Repl.Environ" and "Cmd.Repl.Global" is in scope.
-
-    The prompt will have the name of the currently loaded score, and history
-    will be written to (and read from) a name.repl file.  Unfortunately you
-    have to hit enter to update it if it changed.  TODO bring back async
-    notification like before?
-
-    Tab completion should work for function names, and filename completion
-    within quotes.
-
-    @:r@ or @:R@ will reload modified modules, but only modify "surface"
-    modules, since the GHC API tends to crash if you make it reload too much.
-    Maybe crashes if it has to reload something with a C dependency.
-
-    @:h@ or @:H@ will open an editor on the history.  You can find a line, edit
-    it, and use ZZ to write it back.
--}
+-- | Simple repl to talk to seq.
 module App.Repl (main) where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Exception as Exception
@@ -53,6 +34,29 @@ import qualified LogView.Tail as Tail
 
 import           Global
 
+
+repl_doc :: Text
+repl_doc =
+    "Type a command to send it to the sequencer.  Everything in\n\
+    \Cmd.Repl.Environ, Cmd.Repl.Global, and Local.Repl is in scope.\n\
+    \^D to quit.\n\
+    \\n\
+    \The prompt will have the name of the currently loaded score.  It will be\n\
+    \red if there is no connection to Karya.\n\
+    \\n\
+    \Line editing can be configured with ~/.haskeline, see haskeline docs\n\
+    \for details.  Tab completion should work for function names, and\n\
+    \filename completion within quotes.  History is saved per-score, so\n\
+    \you should have access to previous commands run on this score.\n\
+    \\n\
+    \Some commands can open an editor on a text file, which is vim only for\n\
+    \now.  Saving the file will send its contents back to Karya.  If you have\n\
+    \an editor open, Karya will not want to quit, but if you force it to\n\
+    \anyway, the editor will be killed and unsaved changes preserved in\n\
+    \log/.\n\
+    \\n\
+    \Colon commands:\n"
+    <> colon_doc
 
 type Input a = Haskeline.InputT IO a
 
@@ -147,17 +151,32 @@ repl addr settings = Exception.mask $ \restore ->
         when continue $ loop settings
     where
     read_eval_print addr connection_error history =
-        maybe (return Quit) (liftIO . eval addr history)
+        maybe (return Quit) (liftIO . eval addr history . Text.strip)
             =<< get_input connection_error history
     catch = return Continue
 
 eval :: Network.Addr -> Maybe FilePath -> Text -> IO Status
-eval addr maybe_history expr
-    | Text.strip expr `elem` [":h", ":H"] = case maybe_history of
+eval addr maybe_history expr = case Text.stripPrefix ":" (Text.toLower expr) of
+    Just "h" -> case maybe_history of
         Nothing -> putStrLn "no history to edit" >> return Continue
-        Just history ->
-            maybe (return Continue) (send_command addr) =<< edit_line history
-    | otherwise = send_command addr expr
+        Just history -> maybe (return Continue) (send_command addr)
+            =<< edit_line history
+    Just "r" -> send_command addr ":reload" -- reload handled in ReplGhc
+    Just "?" -> Text.IO.putStr repl_doc >> return Continue
+    Just _ -> do
+        putStrLn $ "unknown colon command " <> show expr <> ", :? for help"
+        return Continue
+    _ -> send_command addr expr
+
+colon_doc :: Text
+colon_doc =
+    ":? - Help.\n\
+    \:h - Open an editor on the history.  You can find a line, edit it, and\n\
+    \     use ZZ to write it back.\n\
+    \:r - Reload modified modules.  Only modify \"surface\" modules, e.g.\n\
+    \    ones in Cmd/Repl/, since the GHC API tends to crash if you make it\n\
+    \    reload too much.  Maybe it crashes if it has to reload something\n\
+    \    with a C dependency.\n"
 
 send_command :: Network.Addr -> Text -> IO Status
 send_command addr expr
@@ -317,24 +336,45 @@ edit_line fname = with_temp "repl-edit-history-" "" "" $ \tmp -> do
         (Just . Text.strip <$> Text.IO.readFile tmp)
         (return Nothing)
 
--- | TODO If I get as Haskeline.Interrupt here, probably due to
--- 'watch_for_quit', vim will quit and this process will hard lock.  This
--- is specific to vim, it doesn't happen with "sleep".  I suspect it has to
--- do with how interruptible FFI calls are implemented:
--- https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/ffi-chap.html#interruptible-foreign-calls
--- I think I have to wait on both the process and a MVar notification instead
--- of relying on async exceptions, which means I need to use the same mechanism
--- to tell 'watch_for_quit' which mechanism to use.  For the moment though
--- it's too much hassle.
+-- | This will abort the editor on a force-quit from karya.  If I leave it
+-- open, it's too easy to forget, and then load another score, and it wants
+-- to write to the wrong score.
+--
+-- TODO: I would much rather have this trigger the editor to save and quit but
+-- for that I'd need a two way shutdown protocol.
 wait_for_command :: FilePath -> [String] -> IO Bool
 wait_for_command cmd args = do
+    tty_state <- capture "stty" ["-g"]
     (_, _, _, pid) <- Process.createProcess $
         (Process.proc cmd args) { Process.delegate_ctlc = True }
-    Process.waitForProcess pid >>= \case
-        Exit.ExitSuccess -> return True
-        Exit.ExitFailure code -> do
+    Exception.try (Process.waitForProcess pid) >>= \case
+        Left Haskeline.Interrupt -> do
+            Process.terminateProcess pid
+            -- Without this the terminal wedges, probably due to both vim
+            -- and haskeline wanting to mess with terminal state.
+            Process.callProcess "stty" [untxt tty_state]
+            _ <- Process.waitForProcess pid
+            putStrLn "Interrupted by karya quitting, editor killed and tty\
+                \ state restored."
+            putStrLn "Any unsaved edits saved as log/*.swp, vim -r log/*.swp\
+                \ to recover."
+            return False
+        Right Exit.ExitSuccess -> return True
+        Right (Exit.ExitFailure code) -> do
             -- Maybe the binary wasn't found, but vim seems to return 1
             -- unpredictably.
             Log.warn $ "non-zero exit code from "
                 <> showt (cmd : args) <> ": " <> showt code
             return False
+
+-- This can't use readProcess, which always pipes stdin, which stty doesn't
+-- likek.
+capture :: String -> [String] -> IO Text
+capture cmd args =
+    Process.withCreateProcess proc $ \Nothing (Just outh) Nothing pid -> do
+        stdout <- Text.IO.hGetContents outh
+        -- TODO check for error
+        Process.waitForProcess pid
+        return stdout
+    where
+    proc = (Process.proc cmd args) { Process.std_out = Process.CreatePipe }

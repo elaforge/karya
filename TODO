@@ -174,9 +174,6 @@ UNSORTED
       which Cmd.state_play_control to drop.
     . Put a unique ID in there?
     . PlayControl via TVar has identity, can have Eq.
-  - bug: things go haywire if I have a vim open when the app quits,
-    vim stays running, repl dies of SIGPIPE, terminal state is messed up
-    . I think it should quit the vim, but keep the swp file.
   - save/bali is all messed up apparently due to some instrument change
     . add "r" for my reyong to bali.inst
     . gabor has old norots?
@@ -5669,6 +5666,11 @@ midi record:
       speed.  Add, widen, or narrow vibrato.
 
 REPL: repl:
+  * bug: things go haywire if I have a vim open when the app quits,
+    vim stays running, repl dies of SIGPIPE, terminal state is messed up
+    . I think it should quit the vim, but keep the swp file.
+    . Also it thinks its disconnected right after the editor exits.
+  * add :? for help
   - get ghci API to load .o files, specifically vector.cc.o
     . Linux links .o files eagerly, so any dependency on e.g. Audio
       will fail with:
