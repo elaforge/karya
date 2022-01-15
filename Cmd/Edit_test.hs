@@ -148,6 +148,15 @@ test_move_events = do
     equal_e (run bwd 1 1 [(2, -1)]) $ Right ([(1, -1, "a")], [])
     equal_e (run bwd 1 1 [(0, 0), (2, 0)]) $
         Right ([(0, 0, "a"), (1, 0, "b")], [])
+    -- Move multiple.
+    equal_e (run fwd 0 2 [(0, 1), (1, 1), (4, 1)]) $
+        Right ([(1, 1, "a"), (2, 1, "b"), (4, 1, "c")], [])
+    equal_e (run fwd 2 0 [(0, 1), (1, 1), (4, 1)]) $
+        Right ([(1, 1, "a"), (2, 1, "b"), (4, 1, "c")], [])
+    equal_e (run bwd 0 3 [(1, 1), (2, 1), (4, 1)]) $
+        Right ([(0, 1, "a"), (1, 1, "b"), (4, 1, "c")], [])
+    equal_e (run bwd 3 0 [(1, 1), (2, 1), (4, 1)]) $
+        Right ([(0, 1, "a"), (1, 1, "b"), (4, 1, "c")], [])
 
 test_move_events_multiple_tracks_back :: Test
 test_move_events_multiple_tracks_back = do

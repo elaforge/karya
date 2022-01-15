@@ -434,7 +434,9 @@ event_bindings = concat
     , command_char 'o' "join events" Edit.cmd_join_events
     , command_char 'O' "split events" Edit.cmd_split_events
 
-    , command_char 's' "set dur" Edit.cmd_set_duration
+    -- This used to be cmd-s but 'a' is unmapped in kbd entry and I often want
+    -- to adjust note durations.
+    , plain_char 'a' "set dur" Edit.cmd_set_duration
     , command_char 'z' "set call duration" Edit.cmd_set_call_duration
     , command_char 'Z' "toggle zero-dur" Edit.cmd_toggle_zero_timestep
     , command_char 'g' "set start" Edit.cmd_set_start

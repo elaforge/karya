@@ -3,6 +3,61 @@ LEGEND
   ? open question; . note; bug: marks bugs.
   Use indent folding with indent=2.
 
+sigmoid x = 1 / (1 + e ** (-x))
+
+ghc:
+  . Open a feature request ticket with GHC API info.
+  . Open a ticket with info about bake's ghc build papercuts.
+  . ghc api memory use should get much better in 9.4
+    Rather than insert all ModDetails, forget them and just deserialize the
+    interface file.
+  . serialize core / stg
+  ask about recompilation avoidance:
+    . use hash instead of mtime? 9.4 ticket 1939
+    - how about put all the flags etc. in .hi instead of the hash, for better
+      reporting?
+      . why not -ddump-hi-diffs?
+      . maybe just do it?
+  what is the x-axis on the profile?
+    . CPUTime, mutator time
+  what about time profile?
+    . what about entries?
+  eventlog format.rst in ghc source tree
+
+usability:
+  - Is there a better way to write alternate endings?
+    . I would want to write variations of the same block, but the ending
+      depends on the next one.  The unmodified parts should be shared.
+    . The endings may be different durations.
+    . A general way to do it would be make score derivations, but give a name
+      that indicates the next one, like a->b.  Then when rendering 'a',
+      if the next block is 'b', look for a a->b first, and fall back on 'b'
+      otherwise.
+    . The gender piece doesn't actually use this that much, so maybe not.
+      But I've come across this need for alternate endings before.
+      I feel like the problem is representing it in the score though, e.g.
+      writing it as part of the block itself, rather than ending the block
+      and attaching another at the caller's level.
+  - For gender, I want to set a track pattern and have all new blocks do that.
+    . Also the same for a meter.
+    . "new block from template" was supposed to do this, how is it not enough?
+  - It really is annoying to mave to maintain the the score-level blocks,
+    . I really do want them automatic.  TScore is almost this.
+    . Can I make tscore less friction?  What exactly is the friction?
+    . I can't remember the syntax!
+      %meter=gong
+      score = %default-call "block title" [
+        >" | track title" a/0 b c d ...
+      ]
+    . I don't want to need /0.  I could have %score which is like
+      %default-call except always /0.  Seems like a really minor
+      thing though.
+  - Undo not recording during insert causes me to lose stuff.
+  - Zoom to fit text on events.
+  - Shrink tracks to fit text.
+    . Could I even automate this?  Make tracks always wide enough to fit the
+      longest text, up to some limit.
+
 STATUS
   . infer gender damping:
   . text score: tscore:
@@ -58,13 +113,36 @@ external:
         ghc -dep-suffix '' -dep-makefile deps -M App/Main.hs
 
   record screencast of using karya:
-    . show just-r, tuning=limit-5, limit-7
-    . sekar, with track integration
-    . interpolation, docs with LBlock.doc_equal "i>"
-    . show MIDI, im, sc backends
+    basic notes / intro:
+      . basic note entry, with kbd and midi
+      . show keycaps
+      . switch to twelve-r, key changes
+      . other scales, tuning
+      . write a melody, show Factor, put phrase in several spots
+      . refactor to a relative pitch offset
+      . add some random, e.g. alternates
+      . what if I want to change one?  Show integrate?
+      . percussion: write drum track
+      . show sampler/break
+      . show MIDI, im, sc backends
+    im:
+      . sampler
+      . show faust, write a basic patch, use it
+    fancy notes:
+      . sekar, with track integration
+      . balinese stuff
+    full score:
+      . LState.ky
+      . TScore.edit, especially for score sequence
+    controls:
+      . interpolation, docs with LBlock.doc_equal "i>"
+      . high level pitch notation
+      . gamakam
     . using tscore, especially standalone
 
 UNSORTED
+  * Single key to clip notes like cmd-s, but can be used in kbd entry.
+    . 'a' is available
   - test for Example.Integrate
   * detect recursive block calls immediately and error instead of emitting
     tons of "call stack too deep"
@@ -316,27 +394,6 @@ UNSORTED
     . I think commands would fall through in addition to playing a note,
       e.g. jk will do a thru and still move the cursor, which I don't want.
     . I don't want this that much, so leave it be for now.
-  - it would be nice if I could coerce VPitch to NoteNumber
-    . Implementation is in the 'typecheck-instances' branch, but it leads
-      to awkward orphans, so I'm not sure I like it.
-    . Then I can simplify Synth.Faust.Code.c_initialize.
-    . That requires pushing Derive.resolve_pitch into Internal so Typecheck
-      can use it, which in turn brings controls_at.
-    . The other option is to move the Tyepcheck instance out.
-      Or maybe I should move the bits needed by Deriver.Lib to TypecheckT:
-      class Typecheck, ToVal, from_val_simple
-    . But I need Typecheck instances for ScoreT.Instrument Signal.Y Expr.Str
-      DeriveT.Val.
-    . Or, a less disruptive change might be to move some instances to
-      TypecheckI, like Pitch.NoteNumber.  But then they're orphans, and it
-      would be awkward to remember to import TypecheckI.  I suppose Derive.Sig
-      could import it, under the assumption that it's the main user of
-      typecheck, but it's not the only one!
-    . I could move down the instances for those specific things.  It's pretty
-      ad-hoc.
-  - Typecheck PSignal.Pitch instance for NoteNumber could use Twelve.nn_pitch.
-    . Except it can't because of circular dependencies.  Maybe instead
-      Twelve.nn_pitch should replace the one in PSignal.
   - can I tweak individual scale degrees?
     . E.g. ma + 0.25nn, ri + 0.2nn.
     . Maybe just an env var for scale degree would do it.
@@ -6326,12 +6383,27 @@ Cmd:
         . The name is pretty bad though, it's more like section groups.
       . How about rename to Section and replicate them:
         Section Duration Measures AbstractMeter
+    - There's no need for D [] since I never want one.
+      . What's a better encoding?
     - After Ui.Meter, maybe I don't need RulerId at all?  Since the config
       is cheap to copy I could put one on each Track.
       . But as long as I'm doing Mark conversion in haskell, I should still
         try to retain sharing, maybe I could memoize it somehow.
-    - I could have note entry at the end automatically extend the block
+      . But weak pointer lazy... System.Mem.Weak
+        I could put Ord or Hashable on Meter.Meter and make a memo table.
+        I think it would be more expensive, because Meter is still more
+        complicated than RulerId.
+      . But it would remove all the LRuler.gc etc. type stuff.  It's not like
+        I spend a lot of time worrying about that though.
   Cmd.Edit:
+    - What if insert time could extend the meter if necessary?
+      . That would fix a common error of deleting notes at the end on
+        accident.
+      . But it could introduce a new error of changing the length of the block
+        on accident.
+    - I could have note entry at the end automatically extend the meter
+      . But I do have a use for notes at the end of a block though, how would
+        I then express that?
     * If I add a note +E, then another, then delete the second, the first one
       stays short.  This is usually not what I want!  Trackers don't have the
       problem because they mark ends explicitly.
@@ -6361,7 +6433,9 @@ Cmd:
       . What use is +cur then?  I can use arrow to leave gaps.  In practice this
         is often what I want, e.g. kotekan.
       . However, it leaves no way to set separate dur and step.
-    - move events limit:
+    * move events limit:
+      . I often want to move several notes at once.  This is like a little
+        cut and paste.
       . Can I have ^j and ^k only move events up to a limit?  How do I set the
         limit?
       . Here's a use for multiple selections.
@@ -6374,6 +6448,8 @@ Cmd:
         move everything, as long as I move it back.  I guess it's still kind of
         annoying though.
       ? Is move_event_forward / backward with a selection enough?
+      . It's Edit.cmd_move_event_forward and cmd_move_event_backward
+      . Actually it already does that!
     - Make Edit.cmd_invert_orientation set orientation based on the first
       selected event, so I can easily set all to the same.
     - alternate finale-like note entry: hold down step key to set step and
@@ -6443,6 +6519,27 @@ Derive:
       . I can add a 'sekar-pattern = abc', but I need to repeat it whenever
         there is a gap.
   tracklang: TrackLang:
+    - it would be nice if I could coerce VPitch to NoteNumber
+      . Implementation is in the 'typecheck-instances' branch, but it leads
+        to awkward orphans, so I'm not sure I like it.
+      . Then I can simplify Synth.Faust.Code.c_initialize.
+      . That requires pushing Derive.resolve_pitch into Internal so Typecheck
+        can use it, which in turn brings controls_at.
+      . The other option is to move the Tyepcheck instance out.
+        Or maybe I should move the bits needed by Deriver.Lib to TypecheckT:
+        class Typecheck, ToVal, from_val_simple
+      . But I need Typecheck instances for ScoreT.Instrument Signal.Y Expr.Str
+        DeriveT.Val.
+      . Or, a less disruptive change might be to move some instances to
+        TypecheckI, like Pitch.NoteNumber.  But then they're orphans, and it
+        would be awkward to remember to import TypecheckI.  I suppose Derive.Sig
+        could import it, under the assumption that it's the main user of
+        typecheck, but it's not the only one!
+      . I could move down the instances for those specific things.  It's pretty
+        ad-hoc.
+    - Typecheck PSignal.Pitch instance for NoteNumber could use Twelve.nn_pitch.
+      . Except it can't because of circular dependencies.  Maybe instead
+        Twelve.nn_pitch should replace the one in PSignal.
     - It seems there's no way to explicitly pass Nothing if the default is
       Just, because _ turns into set the default.
       . Ultimately I think because VNotGiven is special-cased in Derive.Sig.  I

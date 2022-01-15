@@ -253,17 +253,18 @@ instance Pretty LabelConfig where pretty = showt
 
 -- * AbstractMeter
 
--- | An AbstractMeter is a structured description of how a unit of time is
--- broken up into hiererchical sections.  A 'T' represents a mark with the
--- unit duration, and a 'D' is a group of Meters.  The rank of each mark is
--- determined by its nesting depth.
---
--- Previously a 'T' could take a duration, but I didn't wind up using that
--- feature, so I removed it.  So meters have to be built of multiples of a unit
--- duration multiplied by some stretch factor.
---
--- An AbstractMeter can be created either by declaring it outright, or by
--- declaring a simpler AbstractMeter and subdividing or repeating it.
+{- | An AbstractMeter is a structured description of how a unit of time is
+    broken up into hiererchical sections.  A 'T' represents a mark with the
+    unit duration, and a 'D' is a group of Meters.  The rank of each mark is
+    determined by its nesting depth.
+
+    Previously a 'T' could take a duration, but I didn't wind up using that
+    feature, so I removed it.  So meters have to be built of multiples of a
+    unit duration multiplied by some stretch factor.
+
+    An AbstractMeter can be created either by declaring it outright, or by
+    declaring a simpler AbstractMeter and subdividing or repeating it.
+-}
 data AbstractMeter = T | D [AbstractMeter]
     deriving (Eq, Show)
 
