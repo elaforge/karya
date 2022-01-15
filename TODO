@@ -25,7 +25,8 @@ ghc:
   eventlog format.rst in ghc source tree
 
 usability:
-  - Is there a better way to write alternate endings?
+  - Is there a way I could pre-compile and distribute that via cachix?
+  - Is there a better way to write alternate-endings:
     . I would want to write variations of the same block, but the ending
       depends on the next one.  The unmodified parts should be shared.
     . The endings may be different durations.
@@ -141,141 +142,22 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
-  * Single key to clip notes like cmd-s, but can be used in kbd entry.
-    . 'a' is available
   - test for Example.Integrate
-  * detect recursive block calls immediately and error instead of emitting
-    tons of "call stack too deep"
-    . Don't I already do this!?
-  * bug: I still got a unstoppable playback selection somehow
-    . save/bug/playback
-    . I think playing top block with no children?
-    . No but it happens all the time in the toplevel block when playing from
-      a child.
-    . It happens if the notes have stopped, but there is still empty block
-      left.
-    . It should cancel itself at that point.
-    . But also find out why space doesn't cancel it.
   - bug: I made a top, calling b2, then LBlock.rename @b1, top still had b2
     and play still worked.
     . Cache bug?
     . Can I do quickcheck tests against the cache?
   - extend after delete shouldn't extend if the next event doesn't go to end
     of block
-  * auto skeleton: implicit:
-    . Manual skeleton is too much freedom, I almost never really want
-      multiple tempos, or notes with multiple notes.  Can I have an "inferred
-      skeleton" mode?  It would use the same algorithm as UiTest.
-    . ParseSkeleton.default_parser tracks
-      Wow, this dates from when I thought skeleton would always be implicit.
-      The original plan was that blocks would have a parser.
-      I guess they do now, except I'll hardcode the default for now.
-    . Block.block_skeleton :: Explicit Skeleton | Implicit
-    . Should I try to cache the parsed skeleton to avoid reparsing?  Maybe
-      keep Skeleton in block_skeleton, but if Implicit is set then regen
-      when tracks are added or removed.
-    . Where to do the parse?
-    * haskell level support
-    * make Implicit the new default
-    * fltk: Implicit is displayed as the skeleton but with light gray or
-      something to mark non-editable.
-    * title changes have to trigger a reparse
-    * Create should stop trying to modify skeleton if Implicit
-    * Integrate_test
-    * Factor_test
-    * TScore, can it just use Implicit?
-    * why does setting Block.config_skeleton not trigger unsaved change?
-      . does it trigger rederive?
-        No, but this is fine, because the skeleton change is the real thing.
-      . why can't I undo it?
-      . Because Internal.update_saved calls Diff.score_changed calls
-        Update.is_score_damage, which looks for track and ruler, not block.
-        Why not block?
-      ? If I use block, then even a new score is already Cmd.UnsavedChanges.
-      . Why is score_changed so little?  I guess because everything
-        interesting already emits UiDamage?
-      . It should be cheaper to emit UiDamage explicitly rather than every
-        score_changed has to check all blocks.
-      . But if I use Ui.damage_block I run into the problem above.
-      . How about, have a Ui.damage_config, and then score_changed becomes
-        just that.
-      . Ignoring block ui damage is probably incorrect, it happens
-        if I create or destroy a block with no tracks.  But undo still works!?
-      . It should set state, which has the damage, and then reset
-        UnsavedChanges.
-      . Why do multiple syncs have block damage?  When does it get reset?
-        It sets to Cmd.JustLoaded.  Then the next one will go SavedChanges,
-        then if Diff.score_changed, UnsavedChanges.
-      . sequence:
-        load: JustLoaded
-        JustLoaded -> SavedChanges
-        But, still have block damage, why?
-      . Every Ui.set_block, and hence modify_block, sets block damage.
-        Is that right?
-      . What is block damage intended to mean?
-      . It means diff should check the blocks for changes, there may be some.
-        But there may not be!
-      . So, I should store UiConfig damage explicitly... except I can't
-        because most access is via the Ui.config lens, which doesn't let me
-        do anything.
-    - setting Block.config_skeleton can't be undone
-      . Because SaveGit.should_record assumes Update.BlockConfig is boring.
-      . But I can't tell what changed in there from just the Update.
-      . I'm rethinking if skel config should really go in BlockConfig.
-      . But otherwise I can't fix this because SaveHistory only has UiUpdates,
-        which don't have the actual change.
-      . But this is a lot of hassle for a small annoyance.
   things that make bisecting not work:
     . that rubberband ref in ShakeConfig
     . fltk not version controlled
       . Using nix would solve these.
     . scores are not version controlled
-  features for timing/scan.py
-    * omit empty columns
-    - show differences between rows
-    * use the run time, not the commit time
-      . It does though!  I was confused by UTC.
-  * rename Derive.RestrictedEnviron to REnv
-  / lrange collided with random range, awkward
-    . Should there be a naming convention for e.g. list returning functions?
-  / bug: space right as play gets to the end leads to unstoppable playback line
-    . Can't reproduce it now.
-    . Hopefully fixed by "can't play it's playing"
-  * "can't play it's playing" is annoying, how about on play stop the previous
-    play and start a new one?
-    . The old thread stops, but new one doesn't get the next stop.
-    . Probably because the old stop unsets the new one.
-    . I would want it to only delete the right one.
-    . One way is to not send TransportStopped
-    . But that is sent by wait_for_players, a separate thread.
-    . So, I could send to that thread.  Or be more specific about which
-      which Cmd.state_play_control to drop.
-    . Put a unique ID in there?
-    . PlayControl via TVar has identity, can have Eq.
   - save/bali is all messed up apparently due to some instrument change
     . add "r" for my reyong to bali.inst
     . gabor has old norots?
     . then put some of them into verify so it doesn't happen again!
-  / t-dia doesn't apply to all instruments in
-    `multiple set-pemade set-kantilan`
-    . visible in save/complete/wayang/zach-angkatan
-    . Nope, I just did t-dia= instead of t-dia=+.
-  * why is kontakt/sc-pemade not getting inst-top inst-bottom env?
-    . Because I only inherit the environ if it's Nothing, I don't merge env.
-    . But I did it on purpose, I even switched from not having it.  I guess it
-      was so I could delete keys, but I think I should do that explicitly,
-      I guess via a separate delete_environ?
-    . I have a vague recollection that allocate was supposed to copy the
-      instrument environ so it would be replaced... maybe I had saved
-      bali.inst before that?
-    . Commit 4e31d7dd92908e9658d3cca06e0a88d19fad4c64 says:
-      The idea is that it's a hassle when a patch change makes a bunch of
-      scores out of date, when they just want the default, but it turns out
-      the main culprit, patch tuning, is often only in the allocation after
-      all.
-    . That seems to be an argument to merge though?
-  * have LInst.list show settings from the instrument
-    . Maybe in a different way to show they are inherited?
   - shouldn't Id.clean do validation and return Nothing?
   - upgrade to ghc-9.2.1
     . 9.0 is pretty buggy, wait for 9.2.
@@ -4067,7 +3949,14 @@ local: plugins:
     . If it gets to be too much overhead to link on every single build, then
       I can load dynamically at runtime.
 
-cleanup:
+cleanup: bugs:
+  - setting Block.config_skeleton can't be undone
+    . Because SaveGit.should_record assumes Update.BlockConfig is boring.
+    . But I can't tell what changed in there from just the Update.
+    . I'm rethinking if skel config should really go in BlockConfig.
+    . But otherwise I can't fix this because SaveHistory only has UiUpdates,
+      which don't have the actual change.
+    . But this is a lot of hassle for a small annoyance.
   - Derive.Score is more like ScoreEvent... but Score.event_start is nicer
     than ScoreEvent.event_start.  If I made it just Event, I could say
     ScoreEvent.start.
@@ -5094,119 +4983,6 @@ performance:
         and necessary.
 
 fltk:
-  * bug: solo: mute:
-    . Track 'mute' status gets increasingly off.  Surely this is due to the
-      bug fix in c523680838564ec55752302d1d591482971b9190 where I no longer do
-      only absolute updates to the skeleton.
-    . Commit is wrong :(  What was that bug fix?
-    . It happens in save/bali/kebyar-duduk, e.g. mute reyong part in @b3
-    . It definitely happens occasionally, but always when I'm busy.
-    . It's accurately in a track, but it's on the wrong track.
-    ? Are the skeleton lines also wrong?
-    what happens when I hit S:
-      . BlockC.set_display_track called with DisplayTrack::status, tracknum
-        is from haskell.
-      . Block::set_display_track calls
-        skel_display.set_status(tracknum-1, dtrack.status);
-      . SkeletonDisplay::set_status: tracks[tracknum].status = status;
-    Possibilities:
-      . haskell sends the wrong tracknum
-        . Unlikely because it doesn't seem to be otherwise confused.
-        . Debug by printing the tracknum it sends, and just count.
-        . I can find out with ^a and look at debug output.
-      . SkeletonDisplay is out of sync with the actual tracks
-        . It has vector<Track> internally
-        . In set_config, it has edges but not status, so it reuses previous
-          status, and uses empty status if there are more widths than
-          previously.
-        . widths is from the block, I don't know why it wants to set them,
-          because it's already keeping track incrementally in insert_track
-          etc.
-        . So, either keep trying to make the incremenal update work and find
-          the bug where it gets out of sync, or go all-in on complete updates,
-          and only have one complete update to SkeletonDisplay, which every
-          change triggers.
-        . Incremental update:
-          . How to find where it's getting out of sync?
-          . I can print internal SkeletonDisplay state, but the question is how
-            did it get that way?
-        . For complete update, is there a case where it doesn't have all the
-          info?
-          . info is: SkeletonConfig(edges), [Track(width, status)]
-          . SkeletonConfig calculates track.center, .left, .height internally.
-          . For this I need to store SkeletonConfig and [Status] in Block,
-            or in the tracks themselves, since I need to send them on e.g.
-            remove_track.
-          . Isn't that the same result though?  Those can also get out of
-            sync with the tracks.  Unless they are in Track, but
-            SkeletonConfig is global.
-          . But why is it less likely to get out of sync?  I guess it depends
-            on why it's getting out of sync, which I don't know.
-        . InsertTrack has a (DisplayTrack .. status)
-        . In set_config, it sets edges at once, but if there are more edges
-          than tracks, it assumes they were at the end and copies status
-          from previous ones, seems sketchy.
-        . When is set_config called?
-        . Block::set_skeleton <- BlockC.set_skeleton
-        . Ultimately because Status is from DisplayTrack, which is
-          generated from Block.block_display_tracks while Skeleton is from
-          Block.block_skeleton and integrate info.
-    . SkeletonDisplay tracks
-    . Undo track creation does it!
-    . It does remove the Track, but doesn't recalculate offsets!
-  * bug: floating input in track title gets out of place
-    . cmd-L causes it
-    . Block::floating_open ScoreTime pos -> TrackTile::floating_open
-      ypos affected by: zoom y() title_height
-    . is it y()?
-    . Moving the window manually fixes it.
-    . window()->y() goes from 45 to 23, -22.
-    . haskell asks for 23, but titlebar of 22 puts it at 45
-    . Presumably it previously would send back the actual size?
-    . First resizes
-        Rect(4, 45, 107, 855) -> Rect(0, 23, 107, 855)
-        Rect(4, 45, 107, 855) -> Rect(0, 45, 107, 855)
-      UiUpdate (vid "untitled/b1.v1") (UpdateViewResize
-        (Rect {x = 0, y = 45, w = 107, h = 855})
-        (Padding {left = 6, top = 55, bottom = 24}))
-      UiUpdate (vid "untitled/b1.v1") (UpdateViewResize
-        (Rect {x = 0, y = 23, w = 107, h = 855})
-        (Padding {left = 6, top = 55, bottom = 24}))
-      screen_work_area Rect(0, 23, 1440, 877) titlebar 22
-    . Maybe the order is backwards?
-      > Block::resize Rect(4, 45, 107, 855) -> Rect(0, 23, 107, 855)
-      > Block::resize Rect(4, 45, 107, 855) -> Rect(0, 45, 107, 855)
-        before Rect(0, 45, 107, 855)
-        <view_resize {f='%dyn=.75' v='%dyn=.75' } Rect(0, 45, 107, 855)
-      < after Rect(0, 45, 107, 855)
-        before Rect(0, 23, 107, 855)
-        <view_resize {f='%dyn=.75' v='%dyn=.75' } Rect(0, 23, 107, 855)
-      < after Rect(0, 23, 107, 855)
-    . Recursive call, how does it happen?
-    . hs asks for (0, 23)
-      calls Fl_Window::resize(x, y, w, h)
-      which then calls back with (0, 45)
-      record (0, 45)
-      record (0, 23)
-    . If titlebar==22, what is that 23?
-      screen_work_area Rect(0, 23, 1440, 877) titlebar 22
-      Cmd.gets Cmd.state_screens also has 23, probably from screen_work_area.
-      . Actually menubar pixels seems to be 23
-      . Then I think window title is +22.
-    . Cmd.state_screens is from (UiMsg.UpdateScreenSize screen screens rect)
-      msg_screen_update, indeed from Fl::screen_work_area(x, y, w, h, screen);
-    . What should happen:
-      . Could hs ask for (0, 45)?  It would have to know the derocated_h.
-      . Or, it could ask for (0, 23), but get back a msg for (0, 45)
-      ? Why does BlockWindow::resize -> Fl_Window::resize -> back again?
-      . Fixing y makes it consistent, but the re-entrant call is still there.
-  * remove TrackTile::set_title_height and make it constant?
-  * bug: ever since the slow scrolling: change, I sometimes get a light gray
-    background on track titles.
-    . This is the selections getting in, if I use a blue selection then it's
-      blue.
-    . Am I missing a clip when drawing the selection?
-    . Added a clip, hopefully fixed.
   keycaps:
     notes:
       . It could be useful to display a keyboard along with cmd for each key.
@@ -5723,11 +5499,6 @@ midi record:
       speed.  Add, widen, or narrow vibrato.
 
 REPL: repl:
-  * bug: things go haywire if I have a vim open when the app quits,
-    vim stays running, repl dies of SIGPIPE, terminal state is messed up
-    . I think it should quit the vim, but keep the swp file.
-    . Also it thinks its disconnected right after the editor exits.
-  * add :? for help
   - get ghci API to load .o files, specifically vector.cc.o
     . Linux links .o files eagerly, so any dependency on e.g. Audio
       will fail with:
@@ -6215,143 +5986,7 @@ Cmd:
       maybe step should fail.
 
   ruler: Ruler: Ui.Meter:
-    * LRuler.replace_meters LRuler.upgrade_gong gave me 2t per W, should be 1t
-      . It's intentional, so kotekan is 16th instead of 8th.
-      . But the ruler winds up being .0 .1 instead of .01234567.
-      . The meters of the two are identical though.
-      . It just looks confusing because it has section_measures=1 vs 4.
-        It's actually 1.5 measures.  4 measures is needed for an 8 count.
-        But there's no 0.5 measures, so I have to force a section boundary
-        at that point which is why it looks confusing.
-    * push high level ruler rules down to the Ui.Ruler level
-      . Meters are complicated, hard to understand, and error prone.
-      . I spent ages trying to figure out why 'make_labeled 1' didn't work in
-        Derive.TSCore.Check.
-      . How can I simplify things?  But still support meter / tala / gongs?
-      . The whole renumber fiasco is a fiasco.  Maybe marklist is too low
-        level, can I save the structure in the Ui.Ruler?
-      . Once I can do this, it should be easier to then possibly export
-        the high level description to fltk and avoid copying PosMarks.
-        See ruler-performance:
-      . This comes up because I want to have a 'score' block whose ruler is the
-        concatenation of the rulers underneath, and I'd rather it were that way
-        by definition, rather than because it got copied that way.
-      . In that case, what should the structure be?
-      . I do want to be able to support ruler changes, so whatever it is needs
-        to support ranges.
-      . Alternately, leave fltk low level but push the high level description
-        down to RulerC or another layer in between.  Effectively Cmd.Ruler is
-        this, but it's leaky.
-      . I'm already doing a bit of that in Ui.Ruler.MeterConfig
-      . Gender might be special in that it's essentially unmetered.  So I just
-        need to make numbered measures from the top of the block.
-      . What should the interface be?
-      * Implement high level Measures -> Marklist
-      * put Measures in Cmd.Ruler
-        . How to break up the modules?
-        . Or maybe just replace MeterConfig with Meter.Meter, that way RulerC
-          stays the same.  The new thing is that callers should manipulate
-          the config, instead of the marklist.  I can enforce that by
-          having them use Ruler.modify_meter etc.
-        . Is this the intended final state though?  Why not?
-        . Circular import since Make imports Ruler for Mark.
-        . I didn't have it before because someone else would have to generate
-          the marklist.  But if that's RulerC then I have no place to cache
-          it.
-        . One way is to require the caller to call make, but better to move
-          Mark and Marklist to a separate Ui.Meter.Marklist
-        . An alternate way is to allow Ruler a config type variable, which
-          is then substituted at the Ui.Ui level.  This would keep Ui.Ruler
-          low level.  But, is that really a benefit?
-        . But it means every instance of Ruler.Ruler would have to
-          have an argument or substitute Ui.Ruler.
-      * update Cmd.Ruler
-        . Much of it can be deleted.
-        . Modification must change to modifying Meter.Config.
-        . I want to be able to clip at an arbitrary time, but changing the the
-          AbstractMeter is not quite right, because 4/4 clipped is different
-          from 4/4 and then 3/4.  Maybe have a overall clip TrackTime?
-        . I could have config_end on the whole config, but what does it mean
-          when it's much shorter than the measures?
-        . I could not allow clip mid-measure but rely on the end-block cue
-          point.  But it seems awkward, e.g. notes will want to go past it.
-        . Ok then do the end time, but have edit functions that keep it up to
-          date.
-        ? I changed double to extend by 4, is there a better way?
-      tests:
-        * Ui.UiTest
-        * Tala_test
-        * Extract_test
-      * Cmd.Ruler.Tala
-      * Cmd.Factor
-        . I can no longer split the meter like I used to, unless I add a start
-          clip.  But maybe I don't want to?
-        . But, I think I want a start clip anyway, because what about pickups?
-        . If I do a _meter_start field, it gets complicated because now I have
-          to shift back all the marks.
-        . But if I clip the meter itself, it doesn't work because it messes up
-          the numbering.  Bother!
-        . Putting start and end in Meter forces me to use the whole Meter type
-          instead of [Sections].  Then what about Config I want to concat
-          Sections?
-        . I guess I can just keep the first Config, if I want to concat meters
-          then one will have to give anyway.
-        . To concat Meters, I need a real clip_end!  Unlike clip_start it
-          doesn't have numbering problems.
-        . But then I think I need a real clip_start too, which means a setting
-          to bias the numbers to the end... but isn't it valid to renumber?
-          The only place it's weird is the pickup, which I can ignore for now.
-        . But the reason to not replace clip_end with a hard clip is that I
-          still want to extend with a full measure.  But actually I think I'd
-          want both ways.  So maybe I force the UI to make the choice, e.g. by
-          trimming off the truncated Section before extending.
-      * test Cmd.Factor
       - LRuler.reset_colors
-      * Repl.LTala
-      * Repl.LRuler
-        * update haddock
-      * Cmd.Load.Mod
-        . Same sort of thing for TScore?
-      * re-enable tests in Meter_test
-      * TScore.Check - it constructs a marklist on its own
-      * LRuler and Cmd.Ruler.local_double change to modifying Ruler measures
-      * Cmd.BlockResize
-        . Do I want to preserve this approach?
-        . pull_up seems useful since I can do per-block meters and have the
-          score inherit it.  I'd like to do that for tempo too!
-      * Repl.LBlock
-      * Cmd.Ruler.Extract
-      * Derive.TScore
-      * Example.Integrate
-      * verify fails:
-        save/complete/bloom
-        . expect: loop1 130.16s: chan:0 NoteOn gs5(80) 42
-          got:    loop1 130.16s: chan:0 NoteOn gs5(80) 60
-        . Event (130.16s, .16s) ""
-          { instrument = pno
-          , pitch =
-              Signal 0s <130.16s:80nn,5g#(twelve), 130.32s:80nn,5g#(twelve)>
-          , controls =
-              { %dyn :
-                Signal 0s <130s:.501, 130.19s:.461, 130.19s:.322, 130.32s:.303>
-              }
-          }
-        . 127 * 0.105 = 63.627
-        . old <130.16s:.327, 130.32s:.303>}
-          new <130s:.501, 130.19s:.461, 130.19s:.322, 130.32s:.303>
-        . score:
-          should be 0xb2 * 0x78 = .328 aka velocity 42
-          new is 0xff * 0x78 = vel 60
-        . Why dyn-12-8 not line up in new?
-        . Because in new it's .--.--.--., extra high on the end.
-        . Ruler.bounds_of <$> Ui.get_ruler @dyn-12-8
-          (0, Nothing)
-          new has (0, Just 3)
-    meter cleanup:
-      * Do I need Meter.Make is_edge?
-      / Put RankName into its own module, shared with Derive?
-        . Can then fix MSection
-      * Get rid of numeric Rank entirely and use RankName?
     + Once this is done, what about all the old scores?
       . They will load as hardcoded marklists, but Ruler.get_meter will return
         an empty meter, which probably means they get overwritten.
@@ -6365,24 +6000,6 @@ Cmd:
       . This leaves out score blocks, but I should be able to use
         LRuler.pull_up for them.  Though I have to re-enable it first!
       . Hoever, in many cases I may not care?
-    / If I trim a ruler then the old measure-level mark needs a higher zoom.
-      Shouldn't all marks at the same rank have the same zoom visibility?
-      . They do, I think it's just a visual effect because it thought the
-        labels overlapped.
-    ? What's the difference between
-      Measure 3 dur (D (replicate 4 meter))
-      and Measure 1 dur (D (replicate 3 (D replicate 4 meter)))?
-      . In other words, why have Measures at all?
-      . They mark intentional meter changes, so if I extend I don't have to
-        infer from the last toplevel D.  But I could do that... would it be
-        any more ambiguous?
-      . The original idea was to preserve sharing in identical meter subtrees.
-        That implies I should have `Measure dur 3 4 meter` to avoid all the
-        replicate.
-        Measure Duration Sections Measures
-        . The name is pretty bad though, it's more like section groups.
-      . How about rename to Section and replicate them:
-        Section Duration Measures AbstractMeter
     - There's no need for D [] since I never want one.
       . What's a better encoding?
     - After Ui.Meter, maybe I don't need RulerId at all?  Since the config
@@ -6404,26 +6021,6 @@ Cmd:
     - I could have note entry at the end automatically extend the meter
       . But I do have a use for notes at the end of a block though, how would
         I then express that?
-    * If I add a note +E, then another, then delete the second, the first one
-      stays short.  This is usually not what I want!  Trackers don't have the
-      problem because they mark ends explicitly.
-      . What if, when deleting a note, if +E and it touches this one, then
-        extend the previous one.
-      . Doesn't happen when edit mode is on... but what if I made it only
-        happen when edit is on?
-      . Because EditUtil has a whole other delete routine, should unify them.
-      . Selection.Context has ViewId, but I usually actually want BlockId.
-        . Well, except things in Selection do rely on ViewId.
-      . EditUtil.Pos is also like Context, except it doesn't have point, and
-        it's a on a single track.
-      . So there are 3 levels:
-        Selection.Context: (ViewId, Sel)
-        Selection.Context: (BlockId, Sel) -- no ViewId necessary!
-        EditUtil.Pos: (BlockId, TrackNum, Range)
-          data Pos = Pos !BlockId !TrackNum !TrackTime !TrackTime
-      . NoteTrack has special stuff to delete child track elements, but do
-        I want this only on NoteTrack?  Why not have all tracks fall through
-        to the standard Edit.cmd_clear_and_advance?
     - Should I not advance on delete?  I think advance is fine, if I didn't
       want to advance then I could have overwritten the note.
       . Maybe bind 'x' to clear but no advance.
@@ -6433,23 +6030,6 @@ Cmd:
       . What use is +cur then?  I can use arrow to leave gaps.  In practice this
         is often what I want, e.g. kotekan.
       . However, it leaves no way to set separate dur and step.
-    * move events limit:
-      . I often want to move several notes at once.  This is like a little
-        cut and paste.
-      . Can I have ^j and ^k only move events up to a limit?  How do I set the
-        limit?
-      . Here's a use for multiple selections.
-      . If there's a secondary selection, it should disappear somewhat
-        automatically, so I don't get confused by it still being around.
-      . Maybe I can get space to do that?
-      . Or I could set it to a timestep, e.g. one measure.  Then it would turn
-        into move within measure.
-      . If I stop clipping events at the end of a block, it's not so annoying to
-        move everything, as long as I move it back.  I guess it's still kind of
-        annoying though.
-      ? Is move_event_forward / backward with a selection enough?
-      . It's Edit.cmd_move_event_forward and cmd_move_event_backward
-      . Actually it already does that!
     - Make Edit.cmd_invert_orientation set orientation based on the first
       selected event, so I can easily set all to the same.
     - alternate finale-like note entry: hold down step key to set step and
@@ -7098,14 +6678,8 @@ text score: tscore:
     . But also I need a ky file, and instrument definitions.
       . Maybe nix-style '' strings for embedded ky?
     . But I can dispense with integration.
-    * im: wait for all instruments to start
-      . Otherwise I miss chunks for two instruments starting at 0.
-    * check that %ky and %instrument not set for integrate
     - get MIDI and audio a bit better synchronized
       . Is there a way to actually synchronize, other than play_cache?
-    * Transport.PlayMonitorControl can only monitor one thing, which is MIDI.
-      . It could be a counter for each started player, so it could be used for
-        im direct play too.  Maybe this would even allow stop during the decay?
     - tambura with no elements just made silence, no warnings
     - start from non-zero, and solo/mute
       . But how to indicate where to start?
@@ -7142,17 +6716,6 @@ text score: tscore:
       not?
     . Wait this is no good for drum tracks... bother.  Maybe have a %score
       directive which is like %default-call except always CallDuration?
-  * initialize sc patches
-    . first, include the sclang versions in Example/tscore, or in ky
-      make some patches:
-  * unify ScoreT.Instrument with Shared.Note.InstrumentName, and
-    Shared.Config.InstrumentName
-    . Shared.Config._instrument is ${inst}_${patch}, fix that!
-    . What does clearUnusedInstruments expect?
-      It wants dir names, so wrong for faust!
-  * octave hints seem wrong
-    . 'm ,s' should be the same as 'm s' because both go down, but 'm ,s'
-      seems to go down an extra octave.
   - Similar to renames, is it possible to detect track moves?
     . This also happens when I add a track in the middle.
     . If there are no edits, this works out because it looks like a complete
@@ -7345,44 +6908,38 @@ text score: tscore:
     . So I could do it, but I'd have to pull out resolve_pitch and do that
       first, and change dur and rdur to (Maybe T.NDuration, T.NDuration).
       This means T.Tracks would have to get some more type variables.
-  + copy from:
-    . [s r g]/0 ~ ~ works nicely for repeats, but what if I want to duplicate
-      from another track?
-    . At tracklang, this is what I wanted to use score integration for, but
-      I'd need special support to do it from tscore.  E.g. %integrate-from,
-      and then some kind of "unchanged" note.
-    . If I did support directly in tscore I'd need the same thing, e.g.
-      ^ means "copy from integrate source".
-    . The difference is that integrate would show the connection, and it would
-      reflect changes over.  But I think this means the track is integrated
-      from two places, which is awkward.
-    . A "copy from source" would be pretty straightforward, but limited to 1:1
-      copy.  It would be more powerful to put in a score integrate, and then
-      ^ is a "don't replace", and the rest of the notes become modifications
-      to the integrate destination.
-    . Do the simple copy first.
-    . ^ has a duration, which is the extent of the copied range.  It should
-      carry like notes.
-    . If I make it a TNote then it happens automatically but I get things like
-      call/^, which could be interpreted as "replace call".  It means
-      pitch becomes an Either or something, but it's already a variable, so
-      I can factor it out in a separate pass.  Actually it's probably nicer
-      than being at the Token level for that reason.
-    . The tricky thing is that I need a resolved source before I can resolve
-      the dest.  This is a similar situation to CallDuration.
-    . Can I do it together?  I think not, because a CallDuration dependency is
-      orthogonal.  But it's the same memo table technique, complete with
-      cycle detection.
-    . How to name source?  For intertrack, a %from=tracknum.  If block has
-      %from=blockname, it's like having a %from= on each track, with the
-      corresponding tracknum.
-    * This means I need track directives!
-    * To get the copy ranges I need times.  But I only get times after
-      resolution.  But I need to resolve after the copy.
-      . So maybe I have to do the memoize thing, to copy over resolved notes.
-      . I can do it after resolution, since I don't want to carry durations
-        and pitches.
-      . So I have to plumb the CopyFrom through as a pitch.
+  copy from:
+    notes:
+      . [s r g]/0 ~ ~ works nicely for repeats, but what if I want to duplicate
+        from another track?
+      . At tracklang, this is what I wanted to use score integration for, but
+        I'd need special support to do it from tscore.  E.g. %integrate-from,
+        and then some kind of "unchanged" note.
+      . If I did support directly in tscore I'd need the same thing, e.g.
+        ^ means "copy from integrate source".
+      . The difference is that integrate would show the connection, and it would
+        reflect changes over.  But I think this means the track is integrated
+        from two places, which is awkward.
+      . A "copy from source" would be pretty straightforward, but limited to 1:1
+        copy.  It would be more powerful to put in a score integrate, and then
+        ^ is a "don't replace", and the rest of the notes become modifications
+        to the integrate destination.
+      . Do the simple copy first.
+      . ^ has a duration, which is the extent of the copied range.  It should
+        carry like notes.
+      . If I make it a TNote then it happens automatically but I get things like
+        call/^, which could be interpreted as "replace call".  It means
+        pitch becomes an Either or something, but it's already a variable, so
+        I can factor it out in a separate pass.  Actually it's probably nicer
+        than being at the Token level for that reason.
+      . The tricky thing is that I need a resolved source before I can resolve
+        the dest.  This is a similar situation to CallDuration.
+      . Can I do it together?  I think not, because a CallDuration dependency is
+        orthogonal.  But it's the same memo table technique, complete with
+        cycle detection.
+      . How to name source?  For intertrack, a %from=tracknum.  If block has
+        %from=blockname, it's like having a %from= on each track, with the
+        corresponding tracknum.
     + Figuring out the proper durations can be annoying, can I use
       0 CallDuration to get it to stretch until the next barline or coincident
       assertion?
@@ -7428,7 +6985,7 @@ text score: tscore:
       necessary to get to ||.
     . If I have "copy from", it would do the same: [^* |* ...]
       But why do I need the stretch on both?  I could use a regular barline.
-  - I have a lot of things with alternate endings.
+  - I have a lot of things with alternate-endings:
     . This is part of the general problem of variations.
     . Also endings change depending on where they are going.
     . Copy from block should be able to do this.  But since it's time-locked,
@@ -7687,8 +7244,7 @@ Perform:
       . How to load a synthdef that responds to pitch, amp?
         SynthDef(\test-sine, { |out, freq = 440, dur = 1, amp = 0.5|
             var sig;
-            sig = SinOsc.ar(freq, 0, amp)
-              * EnvGen.kr(
+            sig = SinOsc.ar(freq, 0, amp) * EnvGen.kr(
                 Env.linen(0.05, dur, 0.1), doneAction: Done.freeSelf);
             Out.ar(out, sig ! 2) // sig!2 = [sig, sig]
         }).add;
