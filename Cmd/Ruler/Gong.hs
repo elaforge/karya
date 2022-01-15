@@ -6,6 +6,7 @@
 module Cmd.Ruler.Gong (
     Gongs, Jegogans
     , regular, until
+    , measure_dur
     , meter
     , config
 ) where
@@ -39,13 +40,14 @@ type Jegogans = Int
     .     o                               p                               o
     + Sec O                                                               O
           0       1       2       3       4       5       6       7       8
-          0                                                               1
+        t 0                               1                               2
     @
+
+    So it needs 4 "measures" in one section to make a full 8 count.
 -}
 regular :: Gongs -> Jegogans -> Meter.Meter
 regular gongs jegogans = Meter.meter config (replicate gongs section)
-    where
-    section = Meter.MSection jegogans measure_dur meter
+    where section = Meter.MSection jegogans measure_dur meter
 
 until :: TrackTime -> Meter.Meter
 until end =
@@ -54,8 +56,10 @@ until end =
     jegogans = 4
     gongs = ceiling $ end / (fromIntegral jegogans * measure_dur)
 
+-- | This gives a reasonable kotekan speed at tempo=1.  It makes kotekan into
+-- "s" with one "cycle" of 8 as a "h".  A "w" is 2 cycles and 8 per section.
 measure_dur :: TrackTime
-measure_dur = 2 -- This gives a reasonable kotekan speed at tempo=1.
+measure_dur = 2
 
 meter :: Meter.AbstractMeter
 meter = Meter.regular_subdivision [2, 2, 2, 2, 2, 2]

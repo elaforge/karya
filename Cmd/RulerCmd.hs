@@ -35,7 +35,7 @@ local_extend n = local (extend n)
 
 extend :: Meter.Measures -> Meter.Meter -> Meter.Meter
 extend n = modify_final $ \section -> (:[]) $ section
-    { Meter.section_count = n + Meter.section_count section }
+    { Meter.section_measures = n + Meter.section_measures section }
 
 modify_final :: (Meter.MSection -> [Meter.MSection]) -> Meter.Meter
     -> Meter.Meter

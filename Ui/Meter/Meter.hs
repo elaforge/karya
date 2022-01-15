@@ -87,14 +87,15 @@ meter_end :: Meter -> TrackTime
 meter_end = Num.sum . map section_duration . meter_sections
 
 meter :: Config -> [MSection] -> Meter
-meter config sections = set_sections (filter ((>0) . section_count) sections) $
+meter config sections =
+    set_sections (filter ((>0) . section_measures) sections) $
     modify_config (const config) empty_meter
 
 -- Called MSection due to annoying name clash with Rank Section.
 -- If I change that one, then the change to rank_names affects parsing.
 data MSection = MSection {
     -- | The section contains this many measures.
-    section_count :: !Measures
+    section_measures :: !Measures
     -- | Each measure has this duration.
     , section_measure_duration :: !Duration
     -- | Describe a measure.
@@ -109,7 +110,7 @@ instance Pretty MSection where
 type Measures = Int
 
 section_duration :: MSection -> Duration
-section_duration (MSection count dur _) = fromIntegral count * dur
+section_duration (MSection measures dur _) = fromIntegral measures * dur
 
 modify_config :: (Config -> Config) -> Meter -> Meter
 modify_config modify meter =
@@ -148,7 +149,7 @@ section_split at (MSection count dur meter)
     | ts <= 0 = (make_section measures, make_section (count - measures))
     | otherwise =
         ( make_section measures ++ maybe [] (:[]) pre_section
-        , maybe [] (:[]) post_section ++ make_section (count-measures-1)
+        , maybe [] (:[]) post_section ++ make_section (count - measures-1)
         )
     where
     make_section m

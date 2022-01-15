@@ -6158,6 +6158,14 @@ Cmd:
       maybe step should fail.
 
   ruler: Ruler: Ui.Meter:
+    * LRuler.replace_meters LRuler.upgrade_gong gave me 2t per W, should be 1t
+      . It's intentional, so kotekan is 16th instead of 8th.
+      . But the ruler winds up being .0 .1 instead of .01234567.
+      . The meters of the two are identical though.
+      . It just looks confusing because it has section_measures=1 vs 4.
+        It's actually 1.5 measures.  4 measures is needed for an 8 count.
+        But there's no 0.5 measures, so I have to force a section boundary
+        at that point which is why it looks confusing.
     * push high level ruler rules down to the Ui.Ruler level
       . Meters are complicated, hard to understand, and error prone.
       . I spent ages trying to figure out why 'make_labeled 1' didn't work in

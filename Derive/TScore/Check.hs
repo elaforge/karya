@@ -345,7 +345,7 @@ data Meter = Meter {
     , meter_negative :: !Bool
     -- | Meter as used by the UI.
     -- TODO redundant with meter_pattern, merge them?
-    , meter_ui :: !(Meter.Config, Meter.AbstractMeter)
+    , meter_ui :: !(Meter.Config, Meter.MSection)
     } deriving (Eq, Show)
 
 meter_duration :: Meter -> T.Time
@@ -370,7 +370,9 @@ meter_adi nadai
         , meter_step = 1
         , meter_negative = False
         , meter_ui =
-            (Tala.config Tala.adi_tala, Tala.tala_to_meter Tala.adi_tala nadai)
+            ( Tala.config Tala.adi_tala
+            , Meter.MSection 4 1 (Tala.tala_to_meter Tala.adi_tala nadai)
+            )
         }
     | otherwise = Nothing
 
@@ -379,7 +381,11 @@ meter_gong = Meter
     { meter_pattern = [1, 0, 0, 0, 0, 0, 0, 0]
     , meter_step = 1
     , meter_negative = True
-    , meter_ui = (Gong.config, Meter.regular_subdivision [2, 2, 2, 2, 2, 2])
+    , meter_ui =
+        ( Gong.config
+        , Meter.MSection 4 Gong.measure_dur
+            (Meter.regular_subdivision [2, 2, 2, 2, 2, 2])
+        )
     }
 
 meter_44 :: Meter
@@ -392,7 +398,14 @@ simple_meter n1 n2 = do
         { meter_pattern = 1 : replicate (n1-1) 0
         , meter_step = 1 / fromIntegral n2
         , meter_negative = False
-        , meter_ui = (Meter.default_config, abs_meter)
+        , meter_ui =
+            ( Meter.default_config
+            , Meter.MSection
+                { section_measures = 4
+                , section_measure_duration = 1
+                , section_measure = abs_meter
+                }
+            )
         }
 
 -- ** resolve_time

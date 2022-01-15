@@ -269,22 +269,23 @@ type Upgrade = Mark.Marklist -> (Meter.Meter, String)
 -- |
 -- > LRuler.replace_meters LRuler.upgrade_gong
 -- > LRuler.replace_meters (LRuler.upgrade_infer Meters.m44)
-replace_meters :: Ui.M m => Upgrade -> m String
-replace_meters upgrade = do
+replace_meters :: Ui.M m => Bool -> Upgrade -> m String
+replace_meters force upgrade = do
     ruler_ids <- Ui.all_ruler_ids
     fmap unlines $ forM ruler_ids $ \ruler_id ->
-        ((show ruler_id <> ": ") <>) <$> replace_meter upgrade ruler_id
+        ((show ruler_id <> ": ") <>) <$> replace_meter force upgrade ruler_id
 
 -- | Add a Meter for the ruler if not already present.
-replace_meter :: Ui.M m => Upgrade -> RulerId -> m String
-replace_meter upgrade ruler_id = do
+replace_meter :: Ui.M m => Bool -> Upgrade -> RulerId -> m String
+replace_meter force upgrade ruler_id = do
     ruler <- Ui.get_ruler ruler_id
     case Map.lookup Ruler.meter_name (Ruler.ruler_marklists ruler) of
-        Just (Nothing, mlist) -> do
-            let (meter, msg) = upgrade mlist
-            RulerUtil.set_meter ruler_id meter
-            return $ "replaced: " <> msg
-        Just (Just _, _) -> return "already has meter"
+        Just (old_meter, mlist)
+            | force || old_meter == Nothing -> do
+                let (meter, msg) = upgrade mlist
+                RulerUtil.set_meter ruler_id meter
+                return $ "replaced: " <> msg
+            | otherwise -> return "already has meter"
         Nothing -> return "no meter?"
 
 -- * Modify
