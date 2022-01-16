@@ -3,8 +3,8 @@
 }:
 mkDerivation {
   pname = "ghc-events";
-  version = "0.17.0";
-  sha256 = "8cc5b380cdf821b396c237cde6dcf0713d3d355733a9a8fac231a42113d52c15";
+  version = "0.17.0.1";
+  sha256 = "599f814bd0730716df0f1652ea32d6faa6d61438bb091ef90d2caf7c39a26ec9";
   isLibrary = true;
   isExecutable = true;
   libraryHaskellDepends = [
@@ -12,6 +12,7 @@ mkDerivation {
   ];
   executableHaskellDepends = [ base containers ];
   testHaskellDepends = [ base ];
+  doCheck = false;
   description = "Library and tool for parsing .eventlog files from GHC";
   license = lib.licenses.bsd3;
 }

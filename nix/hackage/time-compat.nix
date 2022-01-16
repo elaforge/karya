@@ -1,17 +1,19 @@
-{ mkDerivation, base, base-compat, base-orphans, deepseq, HUnit
-, QuickCheck, lib, tagged, tasty, tasty-hunit, tasty-quickcheck
-, time
+{ mkDerivation, base, base-compat, base-orphans, deepseq, hashable
+, HUnit, lib, QuickCheck, tagged, tasty, tasty-hunit
+, tasty-quickcheck, time
 }:
 mkDerivation {
   pname = "time-compat";
-  version = "1.9.5";
-  sha256 = "3126b267d19f31d52a3c36f13a8788be03242f829a5bddd8a3084e134d01e3a6";
-  revision = "1";
-  editedCabalFile = "1f6r8cyfgzpfg9nrsqbf99pi44fyds9wcmgwxb4s0zmlb5dbv1m5";
-  libraryHaskellDepends = [ base base-orphans deepseq time ];
+  version = "1.9.6.1";
+  sha256 = "ad07bb00eb9678c2136d3680752b00acc4cbc522654bb3199bf31c61ef1e6b80";
+  revision = "3";
+  editedCabalFile = "1lafp8yk2n8g873ivi36gnwd8syhw5lssm3xj4c1fplnivhg5n22";
+  libraryHaskellDepends = [
+    base base-orphans deepseq hashable time
+  ];
   testHaskellDepends = [
-    base base-compat deepseq HUnit QuickCheck tagged tasty tasty-hunit
-    tasty-quickcheck time
+    base base-compat deepseq hashable HUnit QuickCheck tagged tasty
+    tasty-hunit tasty-quickcheck time
   ];
   homepage = "https://github.com/haskellari/time-compat";
   description = "Compatibility package for time";

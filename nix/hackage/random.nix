@@ -1,23 +1,21 @@
-{ mkDerivation, base, bytestring, containers, deepseq, doctest
-, gauge, mtl, mwc-random, primitive, rdtsc, smallcheck, split
-, splitmix, lib, tasty, tasty-expected-failure, tasty-hunit
-, tasty-smallcheck, time, unliftio, vector
+{ mkDerivation, base, bytestring, containers, deepseq, doctest, lib
+, mtl, primitive, rdtsc, smallcheck, split, splitmix, stm, tasty
+, tasty-bench, tasty-hunit, tasty-inspection-testing
+, tasty-smallcheck, time, transformers
 }:
 mkDerivation {
   pname = "random";
-  version = "1.2.0";
-  sha256 = "e4519cf7c058bfd5bdbe4acc782284acc9e25e74487208619ca83cbcd63fb9de";
-  revision = "5";
-  editedCabalFile = "1jai1pcs39ijdhxc8q36x1yayr8rsblhx3y88paf4bqxrks2vmrh";
+  version = "1.2.1";
+  sha256 = "265c768fc5f2ca53cde6a87e706b4448cad474c3deece933c103f24453661457";
   libraryHaskellDepends = [ base bytestring deepseq mtl splitmix ];
   testHaskellDepends = [
-    base bytestring containers doctest mwc-random primitive smallcheck
-    tasty tasty-expected-failure tasty-hunit tasty-smallcheck unliftio
-    vector
+    base bytestring containers doctest smallcheck stm tasty tasty-hunit
+    tasty-inspection-testing tasty-smallcheck transformers
   ];
   benchmarkHaskellDepends = [
-    base gauge mtl rdtsc split splitmix time
+    base mtl primitive rdtsc split splitmix tasty-bench time
   ];
+  doCheck = false;
   description = "Pseudo-random number generation";
   license = lib.licenses.bsd3;
 }

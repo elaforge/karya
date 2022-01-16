@@ -1,13 +1,13 @@
 { mkDerivation, array, base, bytestring, case-insensitive
-, containers, criterion, deepseq, directory, filepath, ghc-prim
-, http-types, parsec, QuickCheck, quickcheck-unicode, scientific
-, lib, tasty, tasty-quickcheck, text, transformers
+, containers, deepseq, directory, filepath, ghc-prim, http-types
+, lib, parsec, QuickCheck, quickcheck-unicode, scientific, tasty
+, tasty-bench, tasty-quickcheck, text, transformers
 , unordered-containers, vector
 }:
 mkDerivation {
   pname = "attoparsec";
-  version = "0.14.1";
-  sha256 = "870f8f81d90c28f977c02e383fca78617ee3b5ba31bf0b67186add4b36ad29b3";
+  version = "0.14.4";
+  sha256 = "3f337fe58624565de12426f607c23e60c7b09c86b4e3adfc827ca188c9979e6c";
   libraryHaskellDepends = [
     array base bytestring containers deepseq ghc-prim scientific text
     transformers
@@ -17,10 +17,12 @@ mkDerivation {
     scientific tasty tasty-quickcheck text transformers vector
   ];
   benchmarkHaskellDepends = [
-    array base bytestring case-insensitive containers criterion deepseq
-    directory filepath ghc-prim http-types parsec scientific text
+    array base bytestring case-insensitive containers deepseq directory
+    filepath ghc-prim http-types parsec scientific tasty-bench text
     transformers unordered-containers vector
   ];
+  doHaddock = false;
+  doCheck = false;
   homepage = "https://github.com/bgamari/attoparsec";
   description = "Fast combinator parsing for bytestrings and text";
   license = lib.licenses.bsd3;

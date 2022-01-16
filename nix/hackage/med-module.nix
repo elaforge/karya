@@ -11,5 +11,5 @@ mkDerivation {
     base bytestring storable-endian transformers utility-ht
   ];
   description = "Parse song module files from Amiga MED and OctaMED";
-  license = lib.licenses.gpl3;
+  license = lib.licenses.gpl3Only;
 }

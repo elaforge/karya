@@ -1,10 +1,10 @@
-{ mkDerivation, array, base, bytestring, containers, ghc-prim
-, QuickCheck, lib, test-framework, test-framework-quickcheck2
+{ mkDerivation, array, base, bytestring, containers, ghc-prim, lib
+, QuickCheck, test-framework, test-framework-quickcheck2
 }:
 mkDerivation {
   pname = "cereal";
-  version = "0.5.8.1";
-  sha256 = "2d9e88ac934b9ebc058097c72011ff59f3f146176310e1c957a0e4cf63681bd7";
+  version = "0.5.8.2";
+  sha256 = "17121355b92feea2d66220daa0ebb604a774e0d6359e2fc53bab362c44a5764f";
   libraryHaskellDepends = [
     array base bytestring containers ghc-prim
   ];

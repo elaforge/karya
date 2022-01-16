@@ -1,12 +1,10 @@
-{ mkDerivation, base, base16-bytestring, bytestring, criterion
-, pureMD5, lib, tasty, tasty-hunit, tasty-quickcheck
+{ mkDerivation, base, base16-bytestring, bytestring, criterion, lib
+, pureMD5, tasty, tasty-hunit, tasty-quickcheck
 }:
 mkDerivation {
   pname = "cryptohash-md5";
-  version = "0.11.100.1";
-  sha256 = "710bd48770fa3e9a3b05428c6dc77fb72c91956d334a1eb89ded11bb843e18f9";
-  revision = "5";
-  editedCabalFile = "1dxakry5p9dv9p9h617c0295plrfy2n5k13lsgp4gxwb6yzji9d4";
+  version = "0.11.101.0";
+  sha256 = "3b08db0ae39df2b44e83053ad30d7546a4c6200a852c22a240a7e03ae1080f05";
   libraryHaskellDepends = [ base bytestring ];
   testHaskellDepends = [
     base base16-bytestring bytestring pureMD5 tasty tasty-hunit

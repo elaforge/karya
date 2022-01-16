@@ -1,13 +1,15 @@
-{ mkDerivation, base, bytestring, deepseq, ghc-prim, HUnit
-, integer-gmp, QuickCheck, random, lib, test-framework
-, test-framework-hunit, test-framework-quickcheck2, text, unix
+{ mkDerivation, base, base-orphans, bytestring, containers, deepseq
+, ghc-prim, HUnit, integer-gmp, lib, QuickCheck, random
+, test-framework, test-framework-hunit, test-framework-quickcheck2
+, text, unix
 }:
 mkDerivation {
   pname = "hashable";
-  version = "1.3.1.0";
-  sha256 = "8061823a4ac521b53912edcba36b956f3159cb885b07ec119af295a6568ca7c4";
+  version = "1.4.0.2";
+  sha256 = "83606edd356d914c075ecd44f6d5fe91a3b186aa0683c8dd8c9a7e8e22a47600";
   libraryHaskellDepends = [
-    base bytestring deepseq ghc-prim integer-gmp text
+    base base-orphans bytestring containers deepseq ghc-prim
+    integer-gmp text
   ];
   testHaskellDepends = [
     base bytestring ghc-prim HUnit QuickCheck random test-framework
