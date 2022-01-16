@@ -10,6 +10,7 @@ import           Data.Aeson ((.=))
 import qualified Data.ByteString.Lazy as ByteString.Lazy
 import qualified Data.IntMap as IntMap
 import qualified Data.List as List
+import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
@@ -251,7 +252,7 @@ instance Aeson.ToJSON Event where
         Aeson.pairs $ mconcat $
             [ "cat" .= Text.intercalate "," cats
             , "name" .= name
-            , "args" .= Aeson.object (map (second Aeson.toJSON) args)
+            , "args" .= Map.fromList args
             , "pid" .= pid
             , "tid" .= tid
             , "ts" .= ts
@@ -274,7 +275,7 @@ instance Aeson.ToJSON Event where
 
 class Convert a where
     -- (value for ph field, extra fields for the top level)
-    convert :: a -> (Aeson.Value, [(Text, Aeson.Value)])
+    convert :: a -> (Aeson.Value, [(Aeson.Key, Aeson.Value)])
 
 data Phase = PDuration !Duration | PComplete !Complete | PInstant !Instant
     | PCounter !Counter | PAsync !Async | PFlow !Flow | PMetadata !Metadata

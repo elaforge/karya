@@ -40,20 +40,18 @@ let
     in if ver "19.09" then "8.8.2" # ghc883 is not in 1909 yet
     # else if ver "20.09" then "8.8.4"
     else if ver "20.09" then "8.10.3"
-    else if ver "21.11" then "8.10.7"
+    # else if ver "21.11" then "8.10.7"
+    else if ver "21.11" then "9.2.1"
     else abort "no ghc version defined for nixpkgs version ${lib.version}";
 
   ghcVersion = "ghc" + builtins.replaceStrings ["."] [""] ghcVersionDots;
-  getGhc = nixpkgs: nixpkgs.haskell.packages."${ghcVersion}";
-
-  ghc = getGhc nixpkgs;
-  ghc-orig = getGhc nixpkgs-orig;
+  ghc = nixpkgs.haskell.packages.${ghcVersion};
 
   # This should just hit the nixos cache.  The benefit is that it won't reuse
   # my pinned library versions, so I don't have to make sure they're
   # compatible.  The drawback is that it won't use my pinned library versions,
   # so lots of more downloading.
-  haskellBinary = name: ghc-orig."${name}";
+  haskellBinary = name: nixpkgs-orig.haskellPackages.${name};
   # Minimal compile just for build-time binary deps.
   sharedHaskellBinary = name: with nixpkgs.haskell.lib;
     dontCheck (disableLibraryProfiling
@@ -108,7 +106,7 @@ let
 in rec {
   # Put some things in here for convenience from `nix repl default.nix`.
   inherit nixpkgs ghc hackage;
-  inherit nixpkgs-orig ghc-orig;
+  inherit nixpkgs-orig;
   inherit nixpkgs-sys;
   inherit (hackage) nixFiles;
 

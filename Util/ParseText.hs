@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE NondecreasingIndentation #-}
 {- | Parsing utilities for Text, using Attoparsec.
 
     This module also exports some basic combinators.  The idea is that modules
@@ -118,7 +119,7 @@ nat = maybe_parse p_nat
 
 -- * combinators
 
-between :: Parser _a -> Parser _b -> Parser a -> Parser a
+between :: Parser x -> Parser y -> Parser a -> Parser a
 between open close p = open *> p <* close
 
 optional :: Parser a -> Parser (Maybe a)

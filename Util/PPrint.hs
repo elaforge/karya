@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE PackageImports #-}
 {- | This is based on gleb.alexeev\@gmail.com's ipprint package on hackage.
 
     I'm not just using it directly because I want to pass custom formatting
@@ -17,7 +18,7 @@ import qualified Data.Char as Char
 import qualified Data.Maybe as Maybe
 import qualified Language.Haskell.Parser as Parser
 import qualified Language.Haskell.Pretty as Pretty
-import Language.Haskell.Syntax
+import "haskell-src" Language.Haskell.Syntax
 
 import qualified Text.PrettyPrint as PrettyPrint
 import qualified Text.Printf as Printf

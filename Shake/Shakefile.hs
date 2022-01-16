@@ -646,11 +646,15 @@ ghcWarnings config = concat
         , "unused-matches"
         , "wrong-do-bind"
         ] ++ ["partial-fields" | ghcVersion config >= (8, 4, 0)]
-    noWarns
+    noWarns =
+        -- This is just about ($xyz) for TemplateHaskell, which I don't use,
+        -- and (%n) for linear, which I'm unlikely to use.
+        [ "operator-whitespace-ext-conflict"
+        ]
         -- TEST ifdefs can cause duplicate exports if they add X(..) to the
         -- X export.
-        | buildMode config `elem` [Test, Profile] = ["duplicate-exports"]
-        | otherwise = []
+        ++ if buildMode config `elem` [Test, Profile] then ["duplicate-exports"]
+            else []
 
 configure :: IO (Mode -> Config)
 configure = do
@@ -843,6 +847,8 @@ ghcLanguageFlags = map ("-X"++)
     , "GeneralizedNewtypeDeriving"
     , "LambdaCase"
     , "MultiWayIf"
+    -- Used to be standard, 9.2 removed it
+    , "NondecreasingIndentation"
     -- Allow _s in numbers. Harmless, and the _s are nice.
     , "NumericUnderscores"
     -- Without this, it becomes really annoying to use Text everywhere.

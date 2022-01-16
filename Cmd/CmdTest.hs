@@ -157,7 +157,7 @@ update_perf ui_from res = do
     return $ res { result_cmd_state = cmd_state }
 
 -- | Run a DeriveTest extractor on a CmdTest Result.
-extract_derive :: (Score.Event -> a) -> Result _a -> ([a], [Text])
+extract_derive :: (Score.Event -> a) -> Result x -> ([a], [Text])
 extract_derive ex = DeriveTest.extract ex . extract_derive_result
 
 -- | Reconstruct a Derive.Result from the root performance, or throw an

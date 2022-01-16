@@ -60,23 +60,23 @@ test_check_cache = do
             (Ui.config#UiConfig.ky #= ky $ Ui.empty)
             (CmdTest.default_cmd_state { Cmd.state_ky_cache = ky_cache })
         extract Nothing = Right Nothing
-        extract (Just (Cmd.KyCache builtins (Cmd.Fingerprint fnames fprint))) =
+        extract (Just (Cmd.KyCache builtins (Cmd.Fingerprint fnames _fprint))) =
             case builtins of
                 Left err -> Left err
                 Right (builtins, _) ->
-                    Right $ Just (e_builtins builtins, (fnames, fprint))
+                    Right $ Just (e_builtins builtins, fnames)
         extract (Just (Cmd.PermanentKy (builtins, _))) =
-            Right $ Just (e_builtins builtins, ([], 0))
+            Right $ Just (e_builtins builtins, [])
 
     io_equal (extract <$> f Nothing "") (Right Nothing)
     let define_a = "note generator:\na = +a\n"
     result <- f Nothing define_a
-    equal (extract result) (Right (Just (["a"], ([], -3016446480522399283))))
+    equal (extract result) (Right (Just (["a"], [])))
     -- No change, so don't update.
     io_equal (extract <$> f result define_a) (Right Nothing)
     -- Now it has changed.
     io_equal (extract <$> f result "note generator:\nb = +b\n")
-        (Right (Just (["b"], ([], -979862604598470235))))
+        (Right (Just (["b"], [])))
 
     result <- f Nothing "error"
     left_like (extract result) "expected eof"

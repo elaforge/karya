@@ -163,15 +163,22 @@ UNSORTED
     . 9.0 is pretty buggy, wait for 9.2.
     - 9.2.1 has no profiling, wait for 9.2.2:
       https://gitlab.haskell.org/ghc/ghc/-/issues/20707
-    + upgrade modules
-      - easier to wait for 9.2 in nixpkgs?
-      - fclabels, once again it's th, look into th-compat?
+    ? It seems to compile slower, time it to verify.
+    things that broke:
+      errors:
+        . NondecreasingIndentation no longer set by default
+        . ghc package now exports Language.Haskell.Syntax
+        . Type variables starting with _ now disallowed:
+          Found type wildcard ‘_b’
+        . GHC API has changed as expected.
+      warnings:
+        . ($xyz) (%1) -Woperator-whitespace-ext-conflict
+    upgrade modules
+      * easier to wait for 9.2 in nixpkgs?
+      * fclabels, once again it's th, look into th-compat?
         . or maybe switch to microlens, or optics
-      - but meanwhile tons of basic things won't build, wait a while
-    + cryptohash-md5 doesn't build
-      . It's hvr-controlled :(
-      . Built it locally.
-    . Reverted to 8.10, let's wait for 9.0.2.
+      * med-module - bytestring >=0.9.2 && <0.11, ghc has 0.11.1.0
+      * hedgehog - template-haskell >=2.10 && <2.18, ghc has 2.18.0.0
   - I want to do vibrato and vibrato depth, but it's a pain to add new tracks.
     . But it should be in pitch, do I have vibrato settings there?
     . Maybe I should use the provided ways though, or at least be able to.

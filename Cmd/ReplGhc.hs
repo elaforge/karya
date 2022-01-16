@@ -27,13 +27,17 @@ import qualified GHC
 import qualified GHC.Exts
 import qualified GHC.Paths
 
-#if GHC_VERSION >= 90001
+#if GHC_VERSION >= 90201
 
 import qualified Control.Monad.Catch as Catch
 import qualified GHC.Utils.Outputable as Outputable
-import qualified GHC.Driver.Session as DynFlags
 import qualified GHC.Driver.CmdLine as CmdLine
+import qualified GHC.Utils.Logger as Logger
 import           Global (liftIO)
+
+#elif GHC_VERSION >= 90001
+
+#error ghc 9.1 not supported
 
 #elif GHC_VERSION >= 80401
 
@@ -173,7 +177,14 @@ respond _ (QCompletion prefix) = RCompletion <$>
         rdrs <- GHC.getRdrNamesInScope
         dflags <- GHC.getSessionDynFlags
         return $ filter (prefix `Text.isPrefixOf`) $
-            Seq.unique_sort $ map (txt . Outputable.showPpr dflags) rdrs
+            Seq.unique_sort $ map (txt . showPpr dflags) rdrs
+
+showPpr :: Outputable.Outputable a => GHC.DynFlags -> a -> String
+#if GHC_VERSION >= 90201
+showPpr _ = Outputable.showPprUnsafe
+#else
+showPpr = Outputable.showPpr
+#endif
 
 make_response :: Result (Cmd.CmdL ReplProtocol.Result) -> Cmd
 make_response (val, logs, warns) = case val of
@@ -228,6 +239,34 @@ set_context mod_names = do
     GHC.setContext $ GHC.IIDecl prelude
         : map (GHC.IIModule . GHC.mkModuleName) mod_names
 
+-- in Logger
+-- 8e2f85f6b4662676f0d7addaff9bf2c7d751bb63
+
+#if GHC_VERSION >= 90201
+
+collect_logs :: Ghc a -> Ghc (Result a)
+collect_logs action = do
+    logs <- liftIO $ IORef.newIORef []
+    GHC.pushLogHookM $ const (log_action logs)
+    val <- fmap Right action
+        `gcatch` \(exc :: Exception.SomeException) -> return (Left (show exc))
+    GHC.popLogHookM
+    logs <- liftIO $ IORef.readIORef logs
+    -- GHC.getWarnings is gone, apparently replaced by either printing directly
+    -- or throwing an exception, e.g.
+    -- compiler/main/HscTypes.lhs:handleFlagWarnings.
+    let warns = []
+    return (val, reverse logs, warns)
+
+-- type LogAction = DynFlags -> WarnReason -> Severity -> SrcSpan
+--               -> SDoc -> IO ()
+log_action :: IORef.IORef [String] -> Logger.LogAction
+log_action logs _ _ _ _ msg =
+    liftIO $ IORef.modifyIORef logs (formatted:)
+    where formatted = Outputable.showSDocUnsafe msg
+
+#else
+
 -- | Run a Ghc action and collect logs and warns.
 collect_logs :: Ghc a -> Ghc (Result a)
 collect_logs action = do
@@ -243,16 +282,11 @@ collect_logs action = do
     where
     catch_logs logs = modify_flags $ \flags ->
         flags { GHC.log_action = log_action logs }
+    modify_flags :: (GHC.DynFlags -> GHC.DynFlags) -> Ghc ()
+    modify_flags f = do
+        dflags <- GHC.getSessionDynFlags
+        void $ GHC.setSessionDynFlags $! f dflags
 
--- type LogAction = DynFlags -> WarnReason -> Severity -> SrcSpan
---               -> MsgDoc -> IO ()
-
-#if GHC_VERSION >= 90001
-log_action :: IORef.IORef [String] -> DynFlags.LogAction
-log_action logs dflags _warn_reason _severity _span msg =
-    liftIO $ IORef.modifyIORef logs (formatted:)
-    where formatted = Outputable.showSDoc dflags msg
-#else
 log_action :: IORef.IORef [String]
     -> GHC.DynFlags -> DynFlags.WarnReason -> GHC.Severity -> GHC.SrcSpan
     -> Outputable.PprStyle -> Outputable.SDoc -> IO ()
@@ -261,21 +295,25 @@ log_action logs dflags _warn_reason _severity _span style msg =
     where
     formatted = Outputable.showSDoc dflags $
         Outputable.withPprStyle style msg
-#endif
 
-modify_flags :: (GHC.DynFlags -> GHC.DynFlags) -> Ghc ()
-modify_flags f = do
-    dflags <- GHC.getSessionDynFlags
-    void $ GHC.setSessionDynFlags $! f dflags
+#endif
 
 parse_flags :: [String] -> Ghc ()
 parse_flags args = do
     dflags <- GHC.getSessionDynFlags
+#if GHC_VERSION >= 90201
+    logger <- GHC.getLogger
+    (dflags, args_left, warns) <- GHC.parseDynamicFlags logger dflags
+        (map (GHC.mkGeneralLocated "cmdline") args)
+    let un_msg :: CmdLine.Warn -> String
+        un_msg = GHC.unLoc . CmdLine.warnMsg
+#elif GHC_VERSION >= 80401
     (dflags, args_left, warns) <- GHC.parseDynamicFlags dflags
         (map (GHC.mkGeneralLocated "cmdline") args)
-#if GHC_VERSION >= 80401
     let un_msg = GHC.unLoc . CmdLine.warnMsg
 #else
+    (dflags, args_left, warns) <- GHC.parseDynamicFlags dflags
+        (map (GHC.mkGeneralLocated "cmdline") args)
     let un_msg = GHC.unLoc
 #endif
     unless (null warns) $
@@ -287,7 +325,11 @@ parse_flags args = do
     void $ GHC.setSessionDynFlags $ dflags
         { GHC.ghcMode = GHC.CompManager
         , GHC.ghcLink = GHC.LinkInMemory
+#if GHC_VERSION >= 90201
+        , GHC.backend = GHC.Interpreter
+#else
         , GHC.hscTarget = GHC.HscInterpreted
+#endif
         , GHC.verbosity = 1
         }
 

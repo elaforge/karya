@@ -32,24 +32,24 @@ track_id block_id = require_id "track id" . generate_track_id block_id
     =<< Ui.gets Ui.state_tracks
 
 -- | ViewIds look like \"ns/b0.v0\", \"ns/b0.v1\", etc.
-generate_view_id :: BlockId -> Map ViewId _a -> Maybe Id.Id
+generate_view_id :: BlockId -> Map ViewId a -> Maybe Id.Id
 generate_view_id bid views =
     generate_id (Id.id_namespace ident) ident "v" Id.ViewId views
     where ident = Id.unpack_id bid
 
-generate_block_id :: Maybe BlockId -> Id.Namespace -> Map BlockId _a
+generate_block_id :: Maybe BlockId -> Id.Namespace -> Map BlockId a
     -> Maybe Id.Id
 generate_block_id maybe_parent ns blocks =
     generate_id ns parent "b" Id.BlockId blocks
     where parent = maybe (Id.global "") Id.unpack_id maybe_parent
 
-generate_track_id :: BlockId -> Map TrackId _a -> Maybe Id.Id
+generate_track_id :: BlockId -> Map TrackId a -> Maybe Id.Id
 generate_track_id bid tracks =
     generate_id (Id.id_namespace ident) ident "t" Id.TrackId tracks
     where ident = Id.unpack_id bid
 
 generate_id :: Ord a => Id.Namespace -> Id.Id -> Text -> (Id.Id -> a)
-    -> Map a _b -> Maybe Id.Id
+    -> Map a b -> Maybe Id.Id
 generate_id ns parent_id code typ fm =
     List.find (not . (`Map.member` fm) . typ) candidates
     where candidates = ids_for ns (Id.id_name parent_id) code
