@@ -1,0 +1,14 @@
+#!/usr/bin/env zsh
+
+set -eu
+cd $(git rev-parse --show-toplevel)
+
+if [[ -n "${2-}" ]]; then
+    pkg=$1-$2
+else
+    pkg=$1
+fi
+
+set -x
+cabal2nix --no-check cabal://$pkg >nix/hackage/$1.nix
+git diff nix/hackage/$1.nix
