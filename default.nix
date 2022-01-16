@@ -13,6 +13,7 @@
 , withEkg ? false # ekg is really heavy
 , withDocs ? false # deps to build documentation
 , useSystemCc ? false # if false use the nixpkgs c++ compiler
+, useSystemSupercollider ? true # if false use one declared here
 
 # Enable profiling in hackage libraries.  Generally we want this to be able to
 # profile, but it's much faster to build without it.
@@ -111,7 +112,9 @@ in rec {
   inherit nixpkgs-sys;
   inherit (hackage) nixFiles;
 
-  # supercollider = nixpkgs.callPackage nix/supercollider.nix {};
+  # This may be desirable to get a consistent supercollider, especially
+  # one with a consistent jack version.  But the default is to assume
+  # there is already a system supercollider which works.
   supercollider = nixpkgs.libsForQt512.callPackage nix/supercollider.nix {
     fftw = nixpkgs.fftwSinglePrec;
     useIDE = false;
@@ -191,6 +194,8 @@ in rec {
     nixpkgs.coreutils # at least one test uses cat
   ] ++ guard (!useSystemCc) [
     nixpkgs.stdenv.cc
+  ] ++ guard (!useSystemSupercollider) [
+    supercollider
   ];
 
   fontDeps = with nixpkgs; [

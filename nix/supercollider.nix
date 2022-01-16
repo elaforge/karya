@@ -1,4 +1,4 @@
-{ stdenv, mkDerivation, fetchurl, cmake, pkgconfig, alsaLib
+{ stdenv, lib, mkDerivation, fetchurl, cmake, pkgconfig, alsaLib
 , libjack2, libsndfile, fftw, curl, gcc
 , libXt, qtbase, qttools, qtwebengine
 , readline, qtwebsockets, useSCEL ? false, emacs
@@ -10,7 +10,7 @@
 }:
 
 let
-  inherit (stdenv.lib) optional optionals;
+  inherit (lib) optional optionals;
 in
 
 mkDerivation rec {
@@ -51,7 +51,7 @@ mkDerivation rec {
     (optional useSCEL emacs)
   ];
 
-  meta = with stdenv.lib; {
+  meta = with lib; {
     description = "Programming language for real time audio synthesis";
     homepage = "https://supercollider.github.io";
     maintainers = with maintainers; [ mrmebelman ];
