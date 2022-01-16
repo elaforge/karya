@@ -12,6 +12,8 @@
 , withIm ? true # TODO sync this with Shake.Config.enableIm
 , withEkg ? false # ekg is really heavy
 , withDocs ? false # deps to build documentation
+, useSystemCc ? false # if false use the nixpkgs c++ compiler
+
 # Enable profiling in hackage libraries.  Generally we want this to be able to
 # profile, but it's much faster to build without it.
 , profiling ? true
@@ -187,6 +189,8 @@ in rec {
     nixpkgs.zsh
   ] ++ guard isCi [
     nixpkgs.coreutils # at least one test uses cat
+  ] ++ guard (!useSystemCc) [
+    nixpkgs.stdenv.cc
   ];
 
   fontDeps = with nixpkgs; [

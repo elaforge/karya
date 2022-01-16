@@ -33,6 +33,9 @@ is available.  After this you'll need to run `tools/nix-enter` whenever you
 want to build.  I use a special color on `PS1` when `SHLVL` > 1 to indicate
 the subshell.
 
+On OS X, by default you do not even have to install the commandline compiler
+tools, because it will use the ones from nix.
+
 This gets the "everything" build including "im" below.  Since my build file
 is a mess, the non-im build is broken and I don't feel like fixing it at the
 moment.  I'll probably just make the everything build the only build, now that
@@ -73,6 +76,9 @@ Ignore the rest of this file!
 ## the traditional way
 
 This is a lot more work than the nix way!
+
+- On OS X, install commandline tools if you haven't already:
+    `xcode-select --install`
 
 - Install GHC.  I'm using 8.8 now and I dropped support for previous versions.
 8.2 definitely does not work, details at

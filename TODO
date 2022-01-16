@@ -3415,6 +3415,20 @@ shakefile: build:
     . How are you supposed to install deps in the v2 world?
   nix:
     . https://app.cachix.org/cache/elaforge
+    - nix build on OS X:
+      use nix clang instead of commandline tools:
+        . ld: warning: /nix/store/jidccqzwwm1mgynd434ndxk2gykv9dqz-libiconv-50/lib/libiconv.dylib, ignoring unexpected dylib file
+          Seems like all tests do it, but very few opt compiled, what?
+        . link error:
+          Undefined symbols for architecture x86_64:
+            "_OBJC_CLASS_$_NSData", referenced from:
+                objc-class-ref in libfltk.a(Fl_MacOS_Sys_Menu_Bar.mm.o)
+            "_NSDefaultRunLoopMode", referenced from:
+                Fl_Cocoa_Screen_Driver::ready() in libfltk.a(Fl_cocoa.mm.o)
+            [...]
+          ld: symbol(s) not found for architecture x86_64
+        . But linking fltk directly works... is ghc using a different linker?
+        . -v shows it uses nix cc to link.
     - Look into 'tinc', it uses the cabal solver to decide on versions.
     - Broken with withEkg.
       . Because ansi-wl-pprint 0.6.9 doesn't compile, no profiling on

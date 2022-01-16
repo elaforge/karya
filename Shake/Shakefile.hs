@@ -249,7 +249,7 @@ cabalDir = "doc/cabal"
 type Flag = String
 
 data Flags = Flags {
-    -- | -D flags.  This is used by both g++ and ghc.
+    -- | -D flags.  This is used by both c++ and ghc.
     define :: [Flag]
     -- | There's one global list of include dirs, for both haskell and C++.
     -- Technically they don't all need the same dirs, but it doesn't hurt to
@@ -259,7 +259,7 @@ data Flags = Flags {
     -- C++ binaries.  TODO also use when linking hs?
     , cLibDirs :: [Flag]
 
-    -- | Flags for g++.  This is the complete list and includes the 'define's
+    -- | Flags for c++.  This is the complete list and includes the 'define's
     -- and 'cInclude's.  This is global because all CcBinaries get these flags.
     , globalCcFlags :: [Flag]
     -- | Linker flags to link in whatever MIDI driver we are using today.
@@ -1745,7 +1745,7 @@ compileCc config flags cc obj =
     , concat
         -- color=always since I'll be reading the output via pipe.
         -- This is the gcc flag, but clang understands it too.
-        [ ["g++", "-c", "-fdiagnostics-color=always"]
+        [ ["c++", "-c", "-fdiagnostics-color=always"]
         , globalCcFlags (configFlags config)
         , flags
         , ["-o", obj, cc]
@@ -1756,7 +1756,7 @@ linkCc :: [Flag] -> FilePath -> [FilePath] -> Util.Cmdline
 linkCc flags binary objs =
     ( "LD-CC"
     , binary
-    , "g++" : objs ++ flags ++ ["-o", binary]
+    , "c++" : objs ++ flags ++ ["-o", binary]
     )
 
 -- * hsc
@@ -1775,7 +1775,7 @@ hsc2hs config hs hsc =
     , concat
         [ ["hsc2hs", "-I" ++ ghcLib config </> "include"]
         -- Otherwise g++ complains about the offsetof macro hsc2hs uses.
-        , words "-c g++ --cflag -Wno-invalid-offsetof --cflag -std=c++11"
+        , words "-c c++ --cflag -Wno-invalid-offsetof --cflag -std=c++11"
         , cInclude flags ++ C.libCompile (_libfltk (cLibs config))
         , define flags
         , [hsc, "-o", hs]
