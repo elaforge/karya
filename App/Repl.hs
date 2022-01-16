@@ -344,7 +344,7 @@ edit_line fname = with_temp "repl-edit-history-" "" "" $ \tmp -> do
 -- for that I'd need a two way shutdown protocol.
 wait_for_command :: FilePath -> [String] -> IO Bool
 wait_for_command cmd args = do
-    tty_state <- capture "stty" ["-g"]
+    tty_state <- Text.strip <$> capture "stty" ["-g"]
     (_, _, _, pid) <- Process.createProcess $
         (Process.proc cmd args) { Process.delegate_ctlc = True }
     Exception.try (Process.waitForProcess pid) >>= \case

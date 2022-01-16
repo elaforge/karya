@@ -153,7 +153,11 @@ query_cmd :: Network.Addr -> Text -> IO CmdResult
 query_cmd addr cmd = query addr (QCommand cmd) >>= return . \case
     Right (RCommand result) -> result
     Right response -> raw $ "unexpected response: " <> showt response
-    Left exc -> raw $ "exception: " <> showt exc
+    Left exc
+        | IO.Error.isDoesNotExistError exc ->
+            raw $ "addr (" <> showt addr <> ") does not exist,\
+                \ is karya running?"
+        | otherwise -> raw $ "exception: " <> showt exc
 
 -- | A simple one-shot 'query_cmd'.
 query_cmd_simple :: Text -> IO Text
