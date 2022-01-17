@@ -159,14 +159,17 @@ UNSORTED
     . gabor has old norots?
     . then put some of them into verify so it doesn't happen again!
   - shouldn't Id.clean do validation and return Nothing?
-  - upgrade to ghc-9.2.1
+  * upgrade to ghc-9.2.1
     . 9.0 is pretty buggy, wait for 9.2.
     - 9.2.1 has no profiling, wait for 9.2.2:
       https://gitlab.haskell.org/ghc/ghc/-/issues/20707
-    ? It seems to compile slower, time it to verify.
+    It seems to compile slower, time it to verify:
       8.10.7:
-        11:51:03 to 12:04:50
+        11:51:03 to 12:04:50 - 13m47s
         Cmd/GlobalKeymap.hs - 128.13s
+      9.2.1:
+        12:43:18 to 12:53:35 - 10m17s
+        Cmd/GlobalKeymap.hs - 35.97s
     things that broke:
       errors:
         . NondecreasingIndentation no longer set by default
