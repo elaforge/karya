@@ -40,8 +40,8 @@ let
     in if ver "19.09" then "8.8.2" # ghc883 is not in 1909 yet
     # else if ver "20.09" then "8.8.4"
     else if ver "20.09" then "8.10.3"
-    # else if ver "21.11" then "8.10.7"
-    else if ver "21.11" then "9.2.1"
+    else if ver "21.11" then "8.10.7"
+    # else if ver "21.11" then "9.2.1"
     else abort "no ghc version defined for nixpkgs version ${lib.version}";
 
   ghcVersion = "ghc" + builtins.replaceStrings ["."] [""] ghcVersionDots;

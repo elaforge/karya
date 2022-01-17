@@ -649,8 +649,9 @@ ghcWarnings config = concat
     noWarns =
         -- This is just about ($xyz) for TemplateHaskell, which I don't use,
         -- and (%n) for linear, which I'm unlikely to use.
-        [ "operator-whitespace-ext-conflict"
-        ]
+        if ghcVersion config >= (9, 2, 1)
+            then ["operator-whitespace-ext-conflict"]
+            else []
         -- TEST ifdefs can cause duplicate exports if they add X(..) to the
         -- X export.
         ++ if buildMode config `elem` [Test, Profile] then ["duplicate-exports"]

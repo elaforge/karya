@@ -164,6 +164,9 @@ UNSORTED
     - 9.2.1 has no profiling, wait for 9.2.2:
       https://gitlab.haskell.org/ghc/ghc/-/issues/20707
     ? It seems to compile slower, time it to verify.
+      8.10.7:
+        11:51:03 to 12:04:50
+        Cmd/GlobalKeymap.hs - 128.13s
     things that broke:
       errors:
         . NondecreasingIndentation no longer set by default
