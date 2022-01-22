@@ -30,8 +30,7 @@ current = currentPatchGit
 
 showDate :: Time.UTCTime -> Text
 showDate = Text.pack
-    . Time.formatTime Time.defaultTimeLocale
-        (Time.iso8601DateFormat (Just "%H:%M:%S"))
+    . Time.formatTime Time.defaultTimeLocale "%Y-%m-%dT%H:%M:%S"
 
 -- * git
 

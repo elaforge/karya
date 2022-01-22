@@ -26,8 +26,9 @@ data Config = Config {
     -- | Extra flags passed to both C++ and Haskell compiles.  I use them
     -- to enable some purely local hacks, e.g. hacked version of libfltk.
     , extraDefines :: [Flag]
-    -- | Both C++ and ghc (via -optl) get these flags.
-    , extraLinkFlags :: [Flag]
+    -- | C++ links get these via -F and ghc via -framework-path.
+    -- It's just to work around https://github.com/NixOS/nixpkgs/issues/24237
+    , extraFrameworkPaths :: [FilePath]
 
     -- paths
 
@@ -51,7 +52,7 @@ defaultConfig = Config
     , enableEventLog = False
     , enableIm = False
     , extraDefines = []
-    , extraLinkFlags = []
+    , extraFrameworkPaths = []
     , fltkConfig = "fltk-config"
     , libsamplerate = C.library "samplerate"
     , rubberband = C.library "rubberband"

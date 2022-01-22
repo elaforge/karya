@@ -735,7 +735,8 @@ configure = do
             , ["-dynamic" | mode /= Profile]
             , ["-prof" | mode == Profile]
             , map ("-L"<>) (Config.globalLibDirs localConfig)
-            , map ("-optl"<>) (Config.extraLinkFlags localConfig)
+            , map ("-framework-path="<>)
+                (Config.extraFrameworkPaths localConfig)
             ]
         , sandboxFlags = case sandbox of
             Nothing -> []
@@ -1712,10 +1713,12 @@ cBinaryRule infer binary = matchBuildDir (C.binName binary) ?> \fn -> do
     let config = infer fn
     let objs = ccDeps config binary
     need objs
-    let flags = cLibDirs (configFlags config)
-            ++ C.binCompileFlags binary config
-            ++ Config.extraLinkFlags localConfig
-            ++ C.binLinkFlags binary config
+    let flags = concat
+            [ cLibDirs (configFlags config)
+            , C.binCompileFlags binary config
+            , map ("-F"<>) (Config.extraFrameworkPaths localConfig)
+            , C.binLinkFlags binary config
+            ]
     Util.cmdline $ linkCc flags fn objs
     C.binPostproc binary fn
 
@@ -1742,7 +1745,7 @@ ccORule infer = matchObj "**/*.cc.o" ?> \obj -> do
 -- overhead.
 findFlags :: Config -> FilePath -> Maybe [Flag]
 findFlags config obj =
-    ($config) . C.binCompileFlags <$> List.find find ccBinaries
+    ($ config) . C.binCompileFlags <$> List.find find ccBinaries
     where find binary = obj `elem` ccDeps config binary
 
 compileCc :: Config -> [Flag] -> FilePath -> FilePath -> Util.Cmdline

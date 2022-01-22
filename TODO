@@ -25,7 +25,6 @@ ghc:
   eventlog format.rst in ghc source tree
 
 usability:
-  - Is there a way I could pre-compile and distribute that via cachix?
   - Is there a better way to write alternate-endings:
     . I would want to write variations of the same block, but the ending
       depends on the next one.  The unmodified parts should be shared.
@@ -159,17 +158,103 @@ UNSORTED
     . gabor has old norots?
     . then put some of them into verify so it doesn't happen again!
   - shouldn't Id.clean do validation and return Nothing?
+  * link errors in nix build:
+    . Undefined symbols for architecture x86_64:
+       "_OBJC_CLASS_$_NSData", referenced from:
+           objc-class-ref in libfltk.a(Fl_MacOS_Sys_Menu_Bar.o)
+       "_NSDefaultRunLoopMode", referenced from:
+           Fl_Cocoa_Screen_Driver::ready() in libfltk.a(Fl_cocoa.o)
+           Fl_Cocoa_Screen_Driver::wait(double) in libfltk.a(Fl_cocoa.o)
+           Fl_Cocoa_Screen_Driver::open_display_platform() in libfltk.a(Fl_cocoa.o)
+           Fl_Cocoa_Window_Driver::draw_titlebar_to_context(CGContext*, int, int) in libfltk.a(Fl_cocoa.o)
+       "_OBJC_CLASS_$_NSDictionary", referenced from:
+           objc-class-ref in libfltk.a(Fl_cocoa.o)
+       "_OBJC_CLASS_$_NSMutableArray", referenced from:
+           objc-class-ref in libfltk.a(Fl_cocoa.o)
+       "_OBJC_CLASS_$_NSArray", referenced from:
+           objc-class-ref in libfltk.a(Fl_cocoa.o)
+       "_OBJC_CLASS_$_NSDate", referenced from:
+           objc-class-ref in libfltk.a(Fl_cocoa.o)
+      ld: symbol(s) not found for architecture x86_64
+      clang-7: error: linker command failed with exit code 1 (use -v to see invocation)
+    . Successful link with c++:
+      c++ build/debug/obj/fltk/test_block.cc.o build/debug/obj/fltk/fltk.a
+        -I/usr/local/src/libsamplerate -I/usr/local/src/fltk
+        -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_THREAD_SAFE -D_REENTRANT
+        /usr/local/src/libsamplerate/src/.libs/libsamplerate.a
+        -L/usr/local/src/fltk/lib -lfltk -lpthread -framework Cocoa
+        -o build/debug/test_block
+    . Unsuccessful with ghc.
+    . Looks like it's due to missing
+      -F/nix/store/rrxzrwa47dfxz7mm2wz873mkw4ryrigz-apple-framework-CoreFoundation/Library/Frameworks
+    . uniq: 99 -F lines down to 38
+      . but that makes it not link!?  No it's the order.
+    . Likely because ghc doesn't look at NIX_CFLAGS_COMPILE.
+    . Those flags are very redundant, probably nixpkgs bugs with unconditional
+      append.
+    . It's not -F CoreFoundation
+    - I'm still linking /usr/local/src/fltk even under nix?  Probably because
+      hardcoded in User/Elaforge/ShakeConfig.hs
+    . Why can't the ld line reproduce the error anymore?
+    . Must unset NIX_* variables to avoid all the flags getting in anyway!
+    . The args ghc uses gets tons of -L from nix, but not -F
+    . It's -framework-path, but it doesn't help.
+    . It would be nice if I could repro the problem on the c++ link line
+      again!
+    . Maybe it's presence of -F rather than absence?
+      It happens when they're in the wrong order!
+    . Looks like the presence of swift-corefoundation before
+      apple-framework-Cocoa
+    . NIX_CFLAGS_COMPILE_FOR_TARGET and NIX_CFLAGS_COMPILE both have
+      -iframework /nix/store/hmb3wk0iyv6lqqd9lhi8nk2ib8kcxzan-swift-corefoundation/Library/Frameworks
+    . Unsetting those env vars doesn't fix, but somehow they get onto the link
+      line anyway.
+      -framework-path Cocoa becomes necesasry though, so maybe it gets
+      propagated somehow?
+    . Somehow ghc link winds up with the swift -F even if I remove all the nix
+      env vars, how?
+    . Somehow it winds up in framework-dirs for all the pkg .conf files, how?
+    . Must be how ghc.withPackages creates it.
+      generic-builders.nix takes it out of pkgsHostHost and pkgsHostTarget,
+      so why is swift in that stuff?
+    . Whence pkgsHostHost and pkgsHostTarget?
+      whut?  "pkgs* arrays defined in stdenv/setup.hs"
+      . stdenv/setup does fiddle with them, but doesn't set them
+    . Who calls setupCompilerEnvironmentPhase?
+      prePhases has it
+    . Alternately, come from the source, what expression is
+      /nix/store/hmb3wk0iyv6lqqd9lhi8nk2ib8kcxzan-swift-corefoundation?
+      . pkgs/os-specific/darwin/swift-corelibs/corefoundation.nix
+      . nixpkgs.darwin.CF
+    . haskell bindings-GLFW uses it, but I don't use that.
+    . stdenv/darwin/default.nix seems to put it in extraBuildInputs
+    . WAIT I already worked around something like this in Local/ShakeConfig.hs:
+      -- nixpkgs bug on darwin: https://github.com/NixOS/nixpkgs/issues/24237
+      , extraLinkFlags = ["-F/System/Library/Frameworks"]
+      . Maybe I need to send extraLinkFlags to ghc too?
+    . Hmm, I do though, via -optl.  But that line didn't appear on the actual
+      link line.  Why not?
+    . Ahhh because I still use my own ShakeConfig because I have it hardcoded
+      for the non-nix build.
+    . In addition, -optl=-F=... doesn't work, I need to pass -framework-path
+      to ghc.  So it's not extraLinkFlags, it has to be extraFrameworkPaths :/
+
   * upgrade to ghc-9.2.1
     . 9.0 is pretty buggy, wait for 9.2.
     - 9.2.1 has no profiling, wait for 9.2.2:
       https://gitlab.haskell.org/ghc/ghc/-/issues/20707
     It seems to compile slower, time it to verify:
-      8.10.7:
-        11:51:03 to 12:04:50 - 13m47s
-        Cmd/GlobalKeymap.hs - 128.13s
-      9.2.1:
-        12:43:18 to 12:53:35 - 10m17s
-        Cmd/GlobalKeymap.hs - 35.97s
+      linux:
+        8.10.7:
+          11:51:03 to 12:04:50 - 13m47s
+          Cmd/GlobalKeymap.hs - 128.13s
+        9.2.1:
+          12:43:18 to 12:53:35 - 10m17s
+          Cmd/GlobalKeymap.hs - 35.97s
+      os x:
+        9.2.1:
+          15:03:53 to 15:09:31 - 5m38s !!
+          Cmd/GlobalKeymap.hs - 16.10s
     things that broke:
       errors:
         . NondecreasingIndentation no longer set by default
@@ -2749,7 +2834,7 @@ synth: im:
         out of sync.
       . What's so bad about global though?
   sampler: sampler-im:
-    - sometimes file not found is caught, sometimes uncaught:
+    * sometimes file not found is caught, sometimes uncaught:
       SystemError {errorString = "openFile
         \"data/sampler/sc-gamelan/gongs/Kempur-A106.flac\":
         No Error."}
@@ -2779,6 +2864,13 @@ synth: im:
       - support start offset, ratio adjust
       - support time stretch and pitch shift
         . Have to bind to rubberband first.
+    libresample could be slow
+      - Measure it first.  Profile time spent in sampler-im.
+      How do other samplers interpolate?
+        . stargate daw: audiodsp/lib/interpolate-sinc.c
+        . HISE: StreamingSamplerVoice.cpp interpolateMonoSamples
+        ? linuxsampler
+
     - libresample is hard to use.  Alternatives?
       requirements:
         . required: Variable ratios, where it's interpolated per-sample.
@@ -3428,6 +3520,10 @@ shakefile: build:
     . How are you supposed to install deps in the v2 world?
   nix:
     . https://app.cachix.org/cache/elaforge
+    - I don't like how /usr/local/src/fltk leaks into the nix build.  I should
+      probably replace Local/ShakeConfig.hs for the nix build, but I'll get
+      constantly caught out if I don't restore it after nix-shell exits.
+      Unlike env vars, I can't have the filesystem only changed in the shell.
     - nix build on OS X:
       use nix clang instead of commandline tools:
         . ld: warning: /nix/store/jidccqzwwm1mgynd434ndxk2gykv9dqz-libiconv-50/lib/libiconv.dylib, ignoring unexpected dylib file
@@ -3474,7 +3570,13 @@ shakefile: build:
     / Is there a way to configure lilypond to not drag in a whole tex?
       . It should be only necessary to build lilypond, I should be able to
         download it if I use a supported nixpkgs.
-    / make a build expression, which does mkmk, mk.
+    - Is there a way I could pre-compile and distribute that via cachix?
+      . The idea is that people can get an install with just downloading.
+      . Though, they would have to install nix regardless, and assuming the
+        environment is controlled, it should just be a matter of how long
+        you have to wait.
+      . It would be to make a derivation for compile too.  Since the REPL
+        relies on .o files, I have to keep those too.
       . I would have to get all the source into nix, and move the build to
         $out instead of 'build'.
       . But it's maybe useless for karya, since I rely on having the source
@@ -4409,9 +4511,27 @@ performance:
       . -I0 to turn off idle GC.  But it's designed to be good for interactive
         use, and maybe I do pause for >.3s.  Or turn it up to 1sec?
   fltk:
-    - tile based rendering so zooming goes back to being fast
+    - tile based rendering so highly zoomed in goes back to being fast
+      . Check out how ardour does it: https://ardour.org/canvas.html
+        . ardour/libs/canvas
+        . How does it do scrolling?  If it's just that it draws fast enough,
+          then maybe I should just use cairo myself.
+        . Ask on ardour mailing list about it?  What homework to do first?
+          . Compile ardour
+          . Read through source, understand how it does scrolling.
+          . Also do my profiling below *again* to know where my draw time is
+            really going.
+      . If I disable caching and draw the whole window each time, where is the
+        time going?
+        . I did that before, that's why I thought it was text.
+        . If I draw the whole thing, the perfomrance is opposite from the
+          cached way, in that fully zoomed out becomes slow, while zoomed in
+          becomes quick, because fewer things to draw..
+        . In that case, maybe I can switch once the cache goes over a certain
+          multiple of the visible area?
+
       . Alternately, qt supposedly does this stuff "automatically" though no
-        one is clear on it.
+        one is clear on how.
       . I'm then back on the incremental problem, where text visibility is
         dependent on coming from the top.
       . If the expensive part is drawing text, I could draw everything but the
@@ -7476,6 +7596,15 @@ OSC backend
     time.
 
 linux:
+  - ruler lines look fat
+    . I feel like they are 2 pixels on OS X but 3 or 4 on linux.
+    . Or maybe it's that the transparency isn't as transparent?
+    . E.g. trigger line covers up the whole measure line on OS X while on
+      linux it seems to only cover half.
+    . This is probably to do with the fltk HiDPI support.
+      FLTK_SCALING_FACTOR=2
+  - first ruler label draws above the line instead of below
+    . OS X correctly draws it below.
   scrollwheel too slow
     . Can I tune the sensitivity somehow?
   faust segfaults:

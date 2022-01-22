@@ -23,4 +23,6 @@ localConfig = defaultConfig
         { C.libLink = ["/nix/store/zmj1p295p8zaqzk86c39ppi0k2jygiqn-rubberband-2.0.0/lib/librubberband.a"]
         , C.libCompile = ["-I/nix/store/zmj1p295p8zaqzk86c39ppi0k2jygiqn-rubberband-2.0.0/include"]
         }
+    -- TODO: only for the nix build, I should use the nix generated ShakeConfig
+    , extraFrameworkPaths = ["/System/Library/Frameworks"]
     }
