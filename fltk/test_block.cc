@@ -168,6 +168,8 @@ void t1_set()
                 Event(ScoreTime(i*8), ScoreTime(8), "c4", style)));
         }
         break;
+    case Waveform:
+        break;
     }
 }
 

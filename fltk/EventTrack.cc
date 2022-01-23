@@ -332,7 +332,7 @@ EventTrack::set_waveform(int chunknum, const PeakCache::Params &params)
     if (chunknum < 0) {
         body.peak_entries.clear();
     } else {
-        if (chunknum >= body.peak_entries.size())
+        if (chunknum >= util::ssize(body.peak_entries))
             body.peak_entries.resize(size_t(chunknum+1));
         if (!body.peak_entries[chunknum].get()) {
             body.peak_entries[chunknum].reset(
@@ -672,7 +672,7 @@ get_next_start(
     std::vector<std::unique_ptr<PeakCache::MixedEntry>> &peak_entries,
     int chunknum)
 {
-    for (; chunknum < peak_entries.size(); chunknum++) {
+    for (; chunknum < util::ssize(peak_entries); chunknum++) {
         if (peak_entries[chunknum].get())
             return &peak_entries[chunknum]->start;
     }
@@ -718,7 +718,7 @@ EventTrack::Body::draw_waveforms(int min_y, int max_y, ScoreTime start)
         while (chunknum == -1 || (next_start && time >= *next_start)) {
             chunknum++;
             i = 0;
-            if (chunknum >= peak_entries.size())
+            if (chunknum >= util::ssize(peak_entries))
                 break;
             if (peak_entries[chunknum].get()) {
                 time = peak_entries[chunknum]->start;
@@ -732,12 +732,12 @@ EventTrack::Body::draw_waveforms(int min_y, int max_y, ScoreTime start)
             }
         }
         // Out of peaks on the last chunk.
-        if (!next_start && cache.get() && i >= cache->size())
+        if (!next_start && cache.get() && i >= util::ssize(*cache))
             break;
         // i > cache->size() means I ran out of cached peaks before getting to
         // the next chunk start.  This can happen for a sample or two due to
         // pixel roundoff (TODO where exactly?)
-        if (cache.get() && i < cache->size()) {
+        if (cache.get() && i < util::ssize(*cache)) {
             float x = (*cache)[i];
             x *= amplitude_scale;
             x = x * (max_x - min_x) + min_x;
@@ -964,7 +964,7 @@ drawable_pixels(
             // Go forward to find all events starting here.
             // This has to be signed so I can check >=0.
             int prev = index + 1;
-            while (prev < boxes.size() && events[prev].start == event.start)
+            while (prev<util::ssize(boxes) && events[prev].start == event.start)
                 prev++;
             for (--prev; prev >=0; --prev) {
                 if (prev == index)
@@ -1026,7 +1026,7 @@ drawable_pixels(
             int next = index - 1;
             while (next >= 0 && events[next].start == event.start)
                 --next;
-            for (++next; next < boxes.size(); ++next) {
+            for (++next; next < util::ssize(boxes); ++next) {
                 if (next == index)
                     continue;
                 if (is_left && boxes[next].align == EventTrack::Right)
@@ -1190,7 +1190,7 @@ EventTrack::Body::draw_upper_layer(
         f_util::ClipArea clip(IRect(x(), top, w(), drawable));
         int remaining = drawable;
         for (int i = 0;
-            remaining >= 0 && i < boxes[index].lines.size();
+            remaining >= 0 && i < util::ssize(boxes[index].lines);
             remaining -= boxes[index].lines[i].second.h, ++i)
         {
             const std::string &line = boxes[index].lines[i].first;
@@ -1205,7 +1205,7 @@ EventTrack::Body::draw_upper_layer(
                     IRect(x(), top + drawable - 2, w(), 2),
                     Config::abbreviation_color);
             }
-            if (i + 1 == boxes[index].lines.size() && line.back() == ' ') {
+            if (i+1 == util::ssize(boxes[index].lines) && line.back() == ' ') {
                 f_util::draw_rectf(
                     IRect(box.r() - 3, box.y + 1, 2, box.h),
                     Config::trailing_space_color);

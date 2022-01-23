@@ -37,7 +37,7 @@ Keycaps::set_bindings(const std::vector<Binding *> &bindings)
 const char *
 Keycaps::highlighted() const
 {
-    if (0 <= highlight_index && highlight_index < bindings.size()) {
+    if (0 <= highlight_index && highlight_index < util::ssize(bindings)) {
         const char *t = bindings[highlight_index]->doc;
         return t ? t : "";
     }
@@ -87,7 +87,7 @@ Keycaps::draw()
     for (int i = 0; i < layout->rects_len; i++) {
         if (i == highlight_index)
             fl_color(layout->highlight_color.fl());
-        else if (i < bindings.size() && bindings[i]->color != Color::black)
+        else if (i<util::ssize(bindings) && bindings[i]->color != Color::black)
             fl_color(bindings[i]->color.fl());
         else
             fl_color(layout->keycap_color.fl());

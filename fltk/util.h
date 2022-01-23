@@ -72,6 +72,13 @@ operator<<(std::ostream &os, const AssertionError &a)
 
 namespace util {
 
+// c++20 has this in std.
+template<class T> inline int
+ssize(const T &v)
+{
+    return v.size();
+}
+
 // timing //////////////////////////////
 
 class Timing {
