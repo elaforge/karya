@@ -21,7 +21,14 @@
 static const int mac_resizer_width = 0;
 
 // Multiply mousewheel scroll pixels by this.
+// TODO: probably it should be configurable from Local.Config, which should
+// then ship it over at boot time.
+#if __APPLE__
 static const double mousewheel_time_scale = 3;
+#else
+static const double mousewheel_time_scale = 30;
+#endif
+
 static const double mousewheel_track_scale = 3;
 
 // If you create windows that are too small, the initial widget placement gets

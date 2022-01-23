@@ -7618,10 +7618,13 @@ linux:
   * test_block track 2 gets box by M
   * first ruler label draws above the line instead of below
     . OS X correctly draws it below.
-  scrollwheel too slow
+  * scrollwheel too slow
     . Can I tune the sensitivity somehow?
-  faust segfaults:
-    . data/im/notes/test/faust/tambura/faust/b4/faust
+    . Yes, but with hardcoded ifdefs, probably want to do in Local.Config
+      at some point.
+  - faust segfaults:
+    . many will crash in save/test/faust/tambura
+      e.g. data/im/notes/test/faust/tambura/faust/b4/faust
     . faust-im specific or sampler-im does it too?  faust-im
     ? All faust or just tambura?
     ? Faust version?  nix is 2.19.7, mac is 2.5.34

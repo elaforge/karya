@@ -1018,13 +1018,11 @@ hsconfigHRule fn = do
     midiDriver <- Shake.askOracle (Question () :: Question MidiQ)
     Shake.writeFileChanged fn $ unlines
         [ "/* Created automatically by the shakefile. */"
-        , "#ifndef __HSCONFIG_H"
-        , "#define __HSCONFIG_H"
+        , "#pragma once"
         , define useRepl "INTERPRETER_GHC"
         , define True midiDriver
         , define (Config.enableEkg localConfig) "USE_EKG"
         , define (Config.enableIm localConfig) "ENABLE_IM"
-        , "#endif"
         ]
     where
     define b name = (if b then "#define " else "#undef ") ++ name
