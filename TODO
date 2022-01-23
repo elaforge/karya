@@ -7603,6 +7603,8 @@ linux:
       linux it seems to only cover half.
     . This is probably to do with the fltk HiDPI support.
       FLTK_SCALING_FACTOR=2
+    . It looks better with FLTK_SCALING_FACTOR=1, but then everything is tiny.
+  * test_block track 2 gets box by M
   - first ruler label draws above the line instead of below
     . OS X correctly draws it below.
   scrollwheel too slow

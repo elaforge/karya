@@ -252,16 +252,19 @@ SkeletonDisplay::draw()
     // Draw status letters.
     fl_font(Config::font + FL_BOLD, Config::font_size::track_status);
     for (int i = 0; i < ntracks; i++) {
-        std::string str(utf8::encode(tracks[i].status.c1));
-        str.append(utf8::encode(tracks[i].status.c2));
+        std::string str;
+        if (tracks[i].status.c1)
+            str.append(utf8::encode(tracks[i].status.c1));
+        if (tracks[i].status.c2)
+            str.append(utf8::encode(tracks[i].status.c2));
         if (str.size()) {
             // DEBUG("draw " << i << " " << tracks[i].color);
-            int cw = fl_width(str.c_str(), 2);
+            int cw = fl_width(str.c_str(), str.size());
             int xpos = this->x() + tracks[i].center - cw/2;
             fl_color(tracks[i].status.color.fl());
             fl_rectf(xpos-1, bottom - fl_height(), cw + 2, fl_height());
             fl_color(FL_BLACK);
-            fl_draw(str.c_str(), 2, xpos, bottom - fl_descent());
+            fl_draw(str.c_str(), str.size(), xpos, bottom - fl_descent());
         }
     }
 }
