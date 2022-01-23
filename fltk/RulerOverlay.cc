@@ -127,8 +127,8 @@ RulerOverlay::draw(const IRect &box, const Zoom &zoom, const IRect &clip)
     // Later marklists will draw over earlier ones.
     for (auto &mlist : config.marklists) {
         const PosMark *marks_end = mlist->marks + mlist->length;
-        const PosMark *m = std::lower_bound(mlist->marks, marks_end,
-            PosMark(start, Mark()), compare_marks);
+        const PosMark *m = std::lower_bound(
+            mlist->marks, marks_end, PosMark(start, Mark()), compare_marks);
         if (config.show_names && prev_text_is_first(mlist->marks, m))
             m = mlist->marks;
         else
@@ -183,8 +183,9 @@ RulerOverlay::draw_mark(
     {
         static SymbolTable::Style style(
             Config::font, Config::font_size::ruler, FL_BLACK);
+        style.set();
         int xmin = box.x + 2;
-        int ypos = at_zero ? offset + fl_height()  : offset - 1;
+        int ypos = at_zero ? offset + fl_height() : offset - 1;
         SymbolTable::get()->draw(mark.name, IPoint(xmin, ypos), style);
         drew_text = true;
     }

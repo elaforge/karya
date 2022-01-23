@@ -7616,7 +7616,7 @@ linux:
     . It looks better with FLTK_SCALING_FACTOR=1, but then everything is tiny.
     . Maybe related to how OS X has antialiasing, but X doesn't.
   * test_block track 2 gets box by M
-  - first ruler label draws above the line instead of below
+  * first ruler label draws above the line instead of below
     . OS X correctly draws it below.
   scrollwheel too slow
     . Can I tune the sensitivity somehow?
