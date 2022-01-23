@@ -241,20 +241,8 @@ UNSORTED
 
   * upgrade to ghc-9.2.1
     . 9.0 is pretty buggy, wait for 9.2.
-    - 9.2.1 has no profiling, wait for 9.2.2:
+    * 9.2.1 has no profiling, wait for 9.2.2:
       https://gitlab.haskell.org/ghc/ghc/-/issues/20707
-    It seems to compile slower, time it to verify:
-      linux:
-        8.10.7:
-          11:51:03 to 12:04:50 - 13m47s
-          Cmd/GlobalKeymap.hs - 128.13s
-        9.2.1:
-          12:43:18 to 12:53:35 - 10m17s
-          Cmd/GlobalKeymap.hs - 35.97s
-      os x:
-        9.2.1:
-          15:03:53 to 15:09:31 - 5m38s !!
-          Cmd/GlobalKeymap.hs - 16.10s
     things that broke:
       errors:
         . NondecreasingIndentation no longer set by default
@@ -4029,10 +4017,22 @@ external:
     - Cmd/GlobalKeymap.hs 400 lines: with -O: 72.89s, without: 1.26s
       . Something pathological, reduce it and ask on mailing list.
       mac:
-        8.8.3: 60-70s
-        9.0.1: 57s
+        8.8.3:
+          GlobalKeymap: 60-70s
+        9.0.1:
+          GlobalKeymap: 57s
+        9.2.1:
+          seq: 15:03:53 to 15:09:31 - 5m38s
+          GlobalKeymap: 16.10
       linux:
-        8.10.3: 70s.
+        8.10.3:
+          GlobalKeymap: 70s.
+        8.10.7:
+          seq: 13m47s
+          GlobalKeymap: 128.13s
+        9.2.1:
+          seq: 10m17s, 13m37s, 10m24s
+          GlobalKeymap: 35.97, 30.29, 36.14
   hpc:
     - there should be a way to turn off .tix generation
       . also HPCTIXFILE /dev/null shouldn't crash

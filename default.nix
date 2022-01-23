@@ -14,6 +14,7 @@
 , withDocs ? false # deps to build documentation
 , useSystemCc ? false # if false use the nixpkgs c++ compiler
 , useSystemSupercollider ? true # if false use one declared here
+, useGhcVersion ? 9
 
 # Enable profiling in hackage libraries.  Generally we want this to be able to
 # profile, but it's much faster to build without it.
@@ -36,13 +37,23 @@ let
   faust = import nix/faust.nix {};
   inherit (nixpkgs) lib;
 
-  ghcVersionDots = let ver = p: lib.hasPrefix p lib.version;
-    in if ver "19.09" then "8.8.2" # ghc883 is not in 1909 yet
-    # else if ver "20.09" then "8.8.4"
-    else if ver "20.09" then "8.10.3"
-    else if ver "21.11" then "8.10.7"
-    # else if ver "21.11" then "9.2.1"
-    else abort "no ghc version defined for nixpkgs version ${lib.version}";
+  nixpkgsVersion = builtins.head
+    (builtins.match "([0-9]+\\.[0-9]+).*" nixpkgs.lib.version);
+  # I don't think all these old nixpkgs versions still work, due to
+  # hackage deps not in nix/hackage.
+  nixGhcVersions = {
+    "19.09" = { "8" = "8.8.2"; };
+    "20.09" = { "8" = "8.10.3"; };
+    "21.11" = {
+      "8" = "8.10.7";
+      "9" = "9.2.1";
+    };
+  };
+  ghcVersionDots =
+    let v = nixGhcVersions.${nixpkgsVersion}.${toString useGhcVersion} or null;
+    in if v != null then v
+      else abort
+        "ghc ${toString useGhcVersion} not in nixpkgs ${nixpkgsVersion}";
 
   ghcVersion = "ghc" + builtins.replaceStrings ["."] [""] ghcVersionDots;
   ghc = nixpkgs.haskell.packages.${ghcVersion};
