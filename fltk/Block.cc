@@ -796,8 +796,8 @@ BlockWindow::BlockWindow(
 {
     this->callback((Fl_Callback *) block_view_window_cb);
     this->resizable(this);
-    // Fl_Window::resize makes explicit resize()s set size_range to the given
-    // size, and then the system won't let me make it any bigger.
+    // Fl_Double_Window::resize makes explicit resize()s set size_range to the
+    // given size, and then the system won't let me make it any bigger.
     // Explicitly setting it to some big number that fits in a short seems
     // to work around the problem.
     // Contrary to the documentation, setting maxw and maxh to 0 does not
@@ -826,9 +826,9 @@ BlockWindow::resize(int x, int y, int w, int h)
     // Don't make the window taller than will fit on the screen.
     h = std::min(h, sh - titlebar);
 
-    Fl_Window::resize(x, y, w, h);
-    // When Fl_Window::resize is called externally (so not from the OS), it
-    // winds up being called again reentrantly.  Not sure why, but if the OS
+    Fl_Double_Window::resize(x, y, w, h);
+    // When Fl_Double_Window::resize is called externally (so not from the OS),
+    // it winds up being called again reentrantly.  Not sure why, but if the OS
     // adjusts the position, then I would wind up sending the wrong msg_resize
     // second.
     if (reentrant == 1) {

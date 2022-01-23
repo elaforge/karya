@@ -7596,6 +7596,16 @@ OSC backend
     time.
 
 linux:
+  * resizing is broken, it doesn't seem to notify the drawing
+    . Maybe due to trying to fix the re-entrant resize problem?
+    . Should be fixed in newer fltk anyway.
+    . No?  Still buggy.
+    . The children are all sized properly, so it's not that.  They are wanting
+      to draw in the extra area, but fltk or X isn't drawing there.
+    . Neither logview nor browser have the problem, something specific about
+      block.  Also not haskell related, since test_block has it.
+    . I could simplify Block until it goes away, but it's a lot of work.
+    . It's my overridden BlockWindow::resize
   - ruler lines look fat
     . I feel like they are 2 pixels on OS X but 3 or 4 on linux.
     . Or maybe it's that the transparency isn't as transparent?
@@ -7604,6 +7614,7 @@ linux:
     . This is probably to do with the fltk HiDPI support.
       FLTK_SCALING_FACTOR=2
     . It looks better with FLTK_SCALING_FACTOR=1, but then everything is tiny.
+    . Maybe related to how OS X has antialiasing, but X doesn't.
   * test_block track 2 gets box by M
   - first ruler label draws above the line instead of below
     . OS X correctly draws it below.
