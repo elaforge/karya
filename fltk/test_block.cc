@@ -239,11 +239,27 @@ creep_selection(void *vp)
     Fl::repeat_timeout(.1, creep_selection, vp);
 }
 
+
+static void
+fail(const char *msg)
+{
+    fprintf(stderr, "%s\n", msg);
+    exit(1);
+}
+
 static void
 handle_argv(int argc, char **argv)
 {
-    if (argc > 1 && strcmp(argv[1], "log") == 0)
-        MsgCollector::get()->log_collected = true;
+    const char *usage = "usage: test_block [ log ]";
+    if (argc == 1) {
+    } else if (argc == 2) {
+        if (strcmp(argv[1], "log") == 0)
+            MsgCollector::get()->log_collected = true;
+        else
+            fail(usage);
+    } else {
+        fail(usage);
+    }
 }
 
 static TrackSignal *
