@@ -821,15 +821,18 @@ BlockWindow::BlockWindow(
 void
 BlockWindow::resize(int x, int y, int w, int h)
 {
+    // TODO: work around a fltk bug on X11: the decorated_h will be immediately
+    // set to the requested height instead of waiting for superclass resize to
+    // be called.  However, I think it should be right for first window display,
+    // so let's just remember it.
+    static int titlebar = this->decorated_h() - this->h();
     // TODO: fixed at fltk 7e484c6.
     static int reentrant;
     reentrant++;
     int sx, sy, sw, sh;
     Fl::screen_work_area(sx, sy, sw, sh, x, y);
-    int titlebar = this->decorated_h() - this->h();
 
     y = std::max(y, sy + titlebar);
-
     // Don't make the window taller than will fit on the screen.
     h = std::min(h, sh - titlebar);
 

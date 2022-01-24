@@ -53,10 +53,6 @@ usability:
       %default-call except always /0.  Seems like a really minor
       thing though.
   - Undo not recording during insert causes me to lose stuff.
-  - Zoom to fit text on events.
-  - Shrink tracks to fit text.
-    . Could I even automate this?  Make tracks always wide enough to fit the
-      longest text, up to some limit.
 
 STATUS
   . infer gender damping:
@@ -4516,6 +4512,15 @@ performance:
         . ardour/libs/canvas
         . How does it do scrolling?  If it's just that it draws fast enough,
           then maybe I should just use cairo myself.
+        . Canvas::scroll_to -> ScrollGroup::scroll_to -> set _scroll_offset
+          scroll_offset()
+        . ScrollGroup::render doesn't use it?
+          Canvas::canvas_to_window and window_to_canvas:
+            Duple::translate(sgroup->scroll_offset())
+          That just moves the duple... so these are coord space transforms.
+          Item::item_to_window also does it
+        . Item::render calls item_to_window, then render on it.
+        . It sure looks like it just redraws the whole thing each time!
         . Ask on ardour mailing list about it?  What homework to do first?
           . Compile ardour
           . Read through source, understand how it does scrolling.
@@ -5130,6 +5135,31 @@ performance:
         and necessary.
 
 fltk:
+  - Zoom to fit text on events.
+    . The idea is to set time zoom such that all event texts are shown.
+    . Actually a more useful thing might be to zoom such that event texts at
+      a certain timestep are shown.  This is recovering tracker style space
+      efficiency.
+    . Unlike width, height is constant for a font (except symbols!), so
+      I could compute this haskell-side.
+    . In fact, I could replace free zoom with zoom by timestep.
+  - Shrink tracks to fit text.
+    . Could I even automate this?  Make tracks always wide enough to fit the
+      longest text, up to some limit.
+    . Write a query to fltk for the max width.
+    . Or even don't bother, but guess it myself via text.  I guess that's hard
+      to know though since it's variable width fonts.  I could FFI fl_width,
+      but I'm already calling that to draw it, so maybe I just remember the
+      bounding boxes and FFI a call to return that.
+    . It gets complicated if I want to exploit wrapping.  I suppose I could
+      return the widest box at the current width and hence wrapping.
+    . Then it gets more complicated if I want to show right-aligned text.
+      I could expand so no right text is hidden, but that then can unwrap,
+      which results in hiding it again!
+    . What if I made a rule that right aligned text causes wrapping?  Then
+      I just find the max of left width + right width + spacing.
+    . In this case, right text is only hidden if there is a single word in
+      both.
   keycaps:
     notes:
       . It could be useful to display a keyboard along with cmd for each key.
@@ -7596,6 +7626,11 @@ OSC backend
     time.
 
 linux:
+  * maximize via flvwm doesn't draw right
+    . It doesn't resize the widgets until I move the window around.
+  / maximize vertically crashes:
+    . X_CreatePixmap: BadAlloc (insufficient resources for operation) 0x1ed
+    . Gone when I fixed the above, maybe CachedScroll got the wrong height.
   * resizing is broken, it doesn't seem to notify the drawing
     . Maybe due to trying to fix the re-entrant resize problem?
     . Should be fixed in newer fltk anyway.
