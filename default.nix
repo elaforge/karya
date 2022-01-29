@@ -279,9 +279,9 @@ in rec {
   shakeConfig =
     # https://github.com/NixOS/nixpkgs/issues/24237
     let
-      extraLinkFlags = if isDarwin then ''
+      extraFrameworkPaths = if isDarwin then ''
         -- nixpkgs bug on darwin: https://github.com/NixOS/nixpkgs/issues/24237
-        , extraLinkFlags = ["-F/System/Library/Frameworks"]
+        , extraFrameworkPaths = ["/System/Library/Frameworks"]
         ''
         else "";
       imLibs = if withIm then ''
@@ -307,7 +307,7 @@ in rec {
           , enableIm = ${hsBool withIm}
           , fltkConfig = "${fltk}/bin/fltk-config"
           ${imLibs}
-          ${extraLinkFlags}
+          ${extraFrameworkPaths}
           }
     '';
 
