@@ -152,20 +152,29 @@ UNSORTED
     . gabor has old norots?
     . then put some of them into verify so it doesn't happen again!
   - shouldn't Id.clean do validation and return Nothing?
-  + darwin CI:
+  darwin CI:
     . can I put darwin into github CI, to make sure this doesn't happen again?
-    . c2hs can't find <samplerate.h>
+    * c2hs can't find <samplerate.h>
       c2hs --cppopts=-DBUILD_DIR="build/debug" --cppopts=-DGHC_VERSION=90201
         --cppopts=-I. --cppopts=-Ibuild/debug --cppopts=-Ifltk
         --output-dir=build/chs Util/Audio/SampleRateC.chs
       build/chs/Util/Audio/SampleRateC.chs.h:2:10: fatal error: 'samplerate.h'
         file not found
-    . Probably need to inject the NIX_ variable nonsense in there.
-      There is -isystem from NIX_CFLAGS_COMPILE
-    . Alternately, I could restore setting it in shakefile, but getting from
-      the env seems more robust because there are other libs too.
-    . Is there a way to do it that's not just hardcode in Shakefile?
-
+      . Probably need to inject the NIX_ variable nonsense in there.
+        There is -isystem from NIX_CFLAGS_COMPILE
+      . Alternately, I could restore setting it in shakefile, but getting from
+        the env seems more robust because there are other libs too.
+      . Is there a way to do it that's not just hardcode in Shakefile?
+    * test failure:
+      __-> Util/Test/RunTests.hs:321 [test_conversation_not_found]
+        Util.Processes_test.test_conversation_not_found threw exception:
+        no-such-bin: createProcess: posix_spawnp: illegal operation
+        (Inappropriate ioctl for device)
+      . Looks like a ghc 9.2 bug.  But local tests throw
+        createProcess: posix_spawnp: failed (Undefined error: 0)
+      . So which is it?  Looks like illegal op when run from a compiled
+        binary, and errno 0 when called from ghci.
+    - report Processes.binaryNotFound bug somewhere
 
   * darwin link errors:
     / use old nixpkgs?
@@ -3642,20 +3651,8 @@ shakefile: build:
       probably replace Local/ShakeConfig.hs for the nix build, but I'll get
       constantly caught out if I don't restore it after nix-shell exits.
       Unlike env vars, I can't have the filesystem only changed in the shell.
-    - nix build on OS X:
-      use nix clang instead of commandline tools:
-        . ld: warning: /nix/store/jidccqzwwm1mgynd434ndxk2gykv9dqz-libiconv-50/lib/libiconv.dylib, ignoring unexpected dylib file
-          Seems like all tests do it, but very few opt compiled, what?
-        . link error:
-          Undefined symbols for architecture x86_64:
-            "_OBJC_CLASS_$_NSData", referenced from:
-                objc-class-ref in libfltk.a(Fl_MacOS_Sys_Menu_Bar.mm.o)
-            "_NSDefaultRunLoopMode", referenced from:
-                Fl_Cocoa_Screen_Driver::ready() in libfltk.a(Fl_cocoa.mm.o)
-            [...]
-          ld: symbol(s) not found for architecture x86_64
-        . But linking fltk directly works... is ghc using a different linker?
-        . -v shows it uses nix cc to link.
+    - annoying warnings on nix darwin build:
+      . ld: warning: /nix/store/jidccqzwwm1mgynd434ndxk2gykv9dqz-libiconv-50/lib/libiconv.dylib, ignoring unexpected dylib file
     - Look into 'tinc', it uses the cabal solver to decide on versions.
     - Broken with withEkg.
       . Because ansi-wl-pprint 0.6.9 doesn't compile, no profiling on

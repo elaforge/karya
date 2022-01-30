@@ -166,7 +166,7 @@ conversationWith :: FilePath -> [String] -> Maybe [(String, String)]
 conversationWith cmd args env getInput notifyOutput action = do
     -- Apparently binary not found is detected in createProcess.  I think in
     -- previous versions it was detected in waitForProcess.
-    ok <- Exceptions.ignoreEnoent $ Process.withCreateProcess proc $
+    ok <- binaryNotFound $ Process.withCreateProcess proc $
         \(Just stdin) (Just stdout) (Just stderr) pid -> do
             IO.hSetBuffering stdout IO.LineBuffering
             IO.hSetBuffering stderr IO.LineBuffering
@@ -213,6 +213,12 @@ conversationWith cmd args env getInput notifyOutput action = do
         , Process.std_err = Process.CreatePipe
         , Process.env = env
         }
+
+-- | ghc 9.2 seems to have added a bug on darwin where binary not found
+-- is reported as illegal operation from a binary, and errno=0 from ghci.
+binaryNotFound :: IO a -> IO (Maybe a)
+binaryNotFound = Exceptions.ignoreError $ \exc ->
+    IO.Error.isDoesNotExistError exc || IO.Error.isIllegalOperation exc
 
 toUsec :: Time.NominalDiffTime -> Int
 toUsec = round . (*1000000)
