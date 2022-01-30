@@ -667,16 +667,14 @@ ghcWarnings config = concat
         , "unused-matches"
         , "wrong-do-bind"
         ] ++ ["partial-fields" | ghcVersion config >= (8, 4, 0)]
-    noWarns =
+    noWarns = concat
         -- This is just about ($xyz) for TemplateHaskell, which I don't use,
         -- and (%n) for linear, which I'm unlikely to use.
-        if ghcVersion config >= (9, 2, 1)
-            then ["operator-whitespace-ext-conflict"]
-            else []
+        [ ["operator-whitespace-ext-conflict" | ghcVersion config >= (9, 2, 1)]
         -- TEST ifdefs can cause duplicate exports if they add X(..) to the
         -- X export.
-        ++ if buildMode config `elem` [Test, Profile] then ["duplicate-exports"]
-            else []
+        , ["duplicate-exports" | buildMode config `elem` [Test, Profile]]
+        ]
 
 configure :: IO (Mode -> Config)
 configure = do
