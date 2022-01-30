@@ -140,11 +140,13 @@ get = Map.findWithDefault mempty
 -- * generate
 
 cacheGraph :: IO ()
-cacheGraph = Aeson.encodeFile "build/imports.json" =<< generateGraph
+cacheGraph = Aeson.encodeFile cacheFile =<< generateGraph
 
 loadGraph :: IO Graph
-loadGraph = fromMaybe (error "no parse") <$>
-    Aeson.decodeFileStrict' "build/imports.json"
+loadGraph = fromMaybe (error "no parse") <$> Aeson.decodeFileStrict' cacheFile
+
+cacheFile :: FilePath
+cacheFile = "build/imports.json"
 
 generateGraph :: IO Graph
 generateGraph =

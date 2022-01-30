@@ -32,7 +32,7 @@ main = do
     Environment.getArgs >>= \case
         cmd : args -> case Map.lookup cmd commands of
             Nothing -> die "unknown command"
-            Just parse -> case parse args of
+            Just (_, parse) -> case parse args of
                 Left expected -> die $ "expected args: " <> show expected
                     <> " but got: " <> show args
                 Right cmd -> cmd
@@ -40,14 +40,36 @@ main = do
     where
     die msg = do
         putStrLn msg
-        putStrLn $ unwords $ "cmds:" : Map.keys commands
+        mapM_ putStrLn
+            [ cmd <> " - " <> doc
+            | (cmd, (doc, _)) <- Map.toAscList commands
+            ]
 
-commands :: Map String ([String] -> Either [String] (IO ()))
-commands = Map.fromList
-    [ ("cache", parse0 ImportQuery.cacheGraph)
-    , ("weak", parse0 cWeak)
-    , ("rm", parse2 "parent" "removed" cRm)
-    , ("add", parse2 "parent" "new" cAdd)
+type Doc = String
+
+commands :: Map String (Doc, ([String] -> Either [String] (IO ())))
+commands = Map.fromList $ map (\(name, doc, cmd) -> (name, (doc, cmd)))
+    [ ( "cache"
+      , "recreate cache in " <> ImportQuery.cacheFile
+      , parse0 ImportQuery.cacheGraph
+      )
+    , ( "weak"
+      , "Report weak links, which are imports that would reduce the closure\
+        \ by a lot if broken."
+      , parse0 cWeak
+      )
+    , ( "rm"
+      , "Show what would happen to the import closure if an import was removed."
+      , parse2 "parent" "removed" cRm
+      )
+    , ( "add"
+      , "Show what would happen to the import closure if an import was added."
+      , parse2 "parent" "new" cAdd
+      )
+    , ( "path"
+      , "Show the way the parent imports the child."
+      , parse2 "parent" "child" cPath
+      )
     ]
     where
     parse0 cmd = \case
@@ -110,6 +132,13 @@ cAdd parent new = do
             putStrLn "Adds only:"
             putStrLn $ maybe "nothing?" draw $
                 Trees.filter (not . ("*" `Text.isSuffixOf`)) tree
+
+cPath :: Module -> Module -> IO ()
+cPath parent child = do
+    graph <- ImportQuery.loadGraph
+    mapM_ Text.IO.putStrLn $ case ImportQuery.paths graph parent child of
+        [] -> ["no path from " <> parent <> " to " <> child]
+        paths -> map (Text.intercalate " -> ") paths
 
 draw :: Tree.Tree Text -> String
 draw = Tree.drawTree . fmap untxt
