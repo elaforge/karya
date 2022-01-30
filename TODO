@@ -152,7 +152,21 @@ UNSORTED
     . gabor has old norots?
     . then put some of them into verify so it doesn't happen again!
   - shouldn't Id.clean do validation and return Nothing?
-  * can I put darwin into github CI, to make sure this doesn't happen again?
+  + darwin CI:
+    . can I put darwin into github CI, to make sure this doesn't happen again?
+    . c2hs can't find <samplerate.h>
+      c2hs --cppopts=-DBUILD_DIR="build/debug" --cppopts=-DGHC_VERSION=90201
+        --cppopts=-I. --cppopts=-Ibuild/debug --cppopts=-Ifltk
+        --output-dir=build/chs Util/Audio/SampleRateC.chs
+      build/chs/Util/Audio/SampleRateC.chs.h:2:10: fatal error: 'samplerate.h'
+        file not found
+    . Probably need to inject the NIX_ variable nonsense in there.
+      There is -isystem from NIX_CFLAGS_COMPILE
+    . Alternately, I could restore setting it in shakefile, but getting from
+      the env seems more robust because there are other libs too.
+    . Is there a way to do it that's not just hardcode in Shakefile?
+
+
   * darwin link errors:
     / use old nixpkgs?
       . No longer works since hackage stuff changed.  This is really annoying!

@@ -289,6 +289,24 @@ instance Monoid Flags where
     mempty = Flags [] [] [] [] [] [] [] [] []
     mappend = (<>)
 
+-- | Like 'cInclude' except for things which do not wind up using cc, which
+-- means that in a nix-shell they don't get the magic -I flags propagated via
+-- env var, which means I have to do it myself.
+cIncludeUnwrapped :: Flags -> IO [Flag]
+cIncludeUnwrapped flags =
+    (cInclude flags <>) . map ("-I"<>) <$> parseNixIncludeFlags
+    -- They are actually -isystem, which would go after -I and only work with
+    -- #include <>.  I think I don't care though.
+
+parseNixIncludeFlags :: IO [Flag]
+parseNixIncludeFlags =
+    Seq.unique_sort . maybe [] (extract . words) <$>
+        Environment.lookupEnv "NIX_CFLAGS_COMPILE"
+    where
+    extract ("-isystem" : path : ws) = path : extract ws
+    extract (_ : ws) = extract ws
+    extract [] = []
+
 -- * binaries
 
 -- This section has project specific hardcoded lists of files.
@@ -399,6 +417,9 @@ runTests = modeToDir Test </> "RunTests"
 -- deps.
 cppFlags :: Config -> FilePath -> Maybe [String]
 cppFlags config fn
+    -- TODO: I think this cInclude should be cIncludeUnwrapped because it looks
+    -- like nix cpphs isn't wrapped.  But I don't care about system headers for
+    -- the purposes of recompilation, because I don't expect those to change.
     | fn `Set.member` cppInImports = Just $
         cInclude (configFlags config) ++ define (configFlags config)
     | otherwise = Nothing
@@ -1190,10 +1211,11 @@ makeHaddock modeConfig = do
             , " (patch ", SourceControl._hash entry, ")"
             ]
     -- This is like 'ghcFlags', but haddock takes slightly different flags.
+    includeFlags <- liftIO $ cIncludeUnwrapped flags
     let ghcFlags = concat
             [ ghcGlobalFlags
             , define flags
-            , cInclude flags
+            , includeFlags
             , packageFlags flags packages
             , ["-i" <> List.intercalate ":" [hscDir config, chsDir config]]
             ]
@@ -1784,6 +1806,8 @@ hsc2hs config hs hsc =
         [ ["hsc2hs", "-I" ++ ghcLib config </> "include"]
         -- Otherwise g++ complains about the offsetof macro hsc2hs uses.
         , words "-c c++ --cflag -Wno-invalid-offsetof --cflag -std=c++11"
+        -- hsc2hs comes from nix, so it does the nix magic, so
+        -- cIncludeUnwrapped is not necessary.
         , cInclude flags ++ C.libCompile (_libfltk (cLibs config))
         , define flags
         , [hsc, "-o", hs]
@@ -1799,17 +1823,18 @@ chsRule config = chsDir config </> "**/*.hs" %> \hs -> do
     let chs = hsToChs (chsDir config) hs
     includes <- includesOf "chsRule" config [] chs
     logDeps config "*.chs" hs (chs : includes)
-    Util.cmdline $ c2hs config hs chs
+    includeFlags <- liftIO $ cIncludeUnwrapped (configFlags config)
+    Util.cmdline $ c2hs config includeFlags hs chs
 
-c2hs :: Config -> FilePath -> FilePath -> Util.Cmdline
-c2hs config hs chs =
+c2hs :: Config -> [Flag] -> FilePath -> FilePath -> Util.Cmdline
+c2hs config includeFlags hs chs =
     ( "c2hs"
     , hs
     , concat
         [ ["c2hs"]
         , map ("--cppopts="<>) $
             filter (`notElem` platformDefines) (define flags)
-          ++ cInclude flags
+          ++ includeFlags
         , [ "--output-dir=" <> chsDir config
           , chs
           ]
