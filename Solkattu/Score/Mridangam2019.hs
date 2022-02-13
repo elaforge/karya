@@ -383,8 +383,8 @@ e_19_09_23 :: Korvai
 e_19_09_23 = date 2019 9 23 $ ganesh $ exercise $ korvaiS1 adi $
     r2 $ r4 rh & (o'.__.o.o'.__.__.p_.__.__.__.o.o'.__.__.o.__)
     where
-    rh = d.l'.__.l'
-    -- rh2 = d.l'.lt d.l'
+    rh = d.l.__.l -- Mi but on meetu
+    -- rh2 = d.l.lt d.l
 
 -- in kandam, in tisram
 c_19_09_23 :: Korvai

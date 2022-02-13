@@ -31,7 +31,6 @@ data Thoppi =
     deriving (Eq, Ord, Show)
 data Valantalai = Ki | Ta
     | Mi -- ^ light Ki, played with middle finger
-    | Min -- ^ like Mi, but closer to the edge, to allow din to ring
     | Nam
     | Din
     | AraiChapu -- ^ "half chapu", played covering half the valantalai
@@ -56,8 +55,6 @@ data Thom =
 instance Solkattu.Notation Stroke where
     notation (Thoppi t) = Solkattu.notation t
     notation (Valantalai v) = Solkattu.notation v
-    -- There's no uppercase for ', and it's light anyway, so don't show Min.
-    notation (Both t Min) = Solkattu.notation t
     notation (Both t v) = Solkattu.textNotation $ case t of
         Tha _ -> case v of
             Ki -> "P"
@@ -66,10 +63,13 @@ instance Solkattu.Notation Stroke where
             -- small enough to not be too distracting or make the original
             -- character unreadable.
             _ -> Solkattu.notationText v <> overline
-        Thom _ -> case v of
+        Thom Low -> case v of
+            -- These are symbols, so they have no uppercase.
             Kin -> "o" <> cedillaBelow
+            Mi -> "o" <> dotBelow
             Tan -> "ô"
             _ -> Text.toUpper (Solkattu.notationText v)
+        Thom Up -> Solkattu.notationText (Thom Up)
         Gum -> "/"
 
 instance Pretty Stroke where pretty = Solkattu.notationText
@@ -77,6 +77,10 @@ instance Pretty Stroke where pretty = Solkattu.notationText
 -- COMBINING CEDILLA
 cedillaBelow :: Text
 cedillaBelow = "\x0327"
+
+-- COMBINING DOT BELOW
+dotBelow :: Text
+dotBelow = "\x0323"
 
 -- COMBINING OVERLINE
 overline :: Text
@@ -94,7 +98,6 @@ instance Solkattu.Notation Valantalai where
         Ki -> "k"
         Ta -> "t"
         Mi -> "."
-        Min -> "'"
         Nam -> "n"
         Din -> "d"
         AraiChapu -> "u"
@@ -115,7 +118,6 @@ ganeshNotationValantalai = \case
     Ki -> "k"
     Ta -> "t"
     Mi -> "?"
-    Min -> "?"
     Nam -> "n"
     Din -> "i"
     AraiChapu -> "l"
@@ -154,7 +156,7 @@ instance Expr.ToExpr (Realize.Stroke Stroke) where
 
 data Strokes a = Strokes {
     k :: a, t :: a
-    , l :: a, l' :: a
+    , l :: a
     , n :: a, d :: a, u :: a, v :: a, i :: a
     -- | Mnemonic: y = kin = , uses 3 fingers, j = tan = ^ uses 1.
     , y :: a, j :: a
@@ -174,7 +176,6 @@ strokes = Strokes
     { k = Valantalai Ki
     , t = Valantalai Ta
     , l = Valantalai Mi
-    , l' = Valantalai Min
     , n = Valantalai Nam
     , d = Valantalai Din
     , u = Valantalai AraiChapu
@@ -251,9 +252,8 @@ notations = Map.fromList $ (extras++) $ Seq.map_maybe_fst isChar $
     Seq.key_on Solkattu.notationText $ concat
         [ map Thoppi (lhs ++ [Thom Up])
         , map Valantalai rhs
-        -- Omit Min, because it gets omitted on a Both.  Omit other little
-        -- strokes too.
-        , [Both lh rh | lh <- lhs, rh <- rhs, rh `notElem` [Kin, Min, Tan]]
+        -- Omit little strokes, they're probably inaudible on Both anyway.
+        , [Both lh rh | lh <- lhs, rh <- rhs, rh `notElem` [Mi, Kin, Tan]]
         ]
     where
     -- Two ways to write these.
