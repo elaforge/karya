@@ -70,7 +70,8 @@ data UiUpdate =
     | UpdateTimeScroll !ScoreTime
     -- | Size of entire block window, and padding.
     | UpdateViewResize !Rect.Rect !Block.Padding
-    | UpdateTrackWidth !Types.Width
+    -- | TrackWidth.width, TrackWidth.suggested_width
+    | UpdateTrackWidth !Types.Width !Types.Width
     -- | The given view was closed.
     | UpdateClose
     deriving (Eq, Ord, Show)

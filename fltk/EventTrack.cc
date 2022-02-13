@@ -12,6 +12,7 @@
 
 #include "FloatingInput.h"
 #include "SymbolTable.h"
+#include "MsgCollector.h"
 #include "config.h"
 #include "f_util.h"
 #include "util.h"
@@ -41,6 +42,8 @@ static const double trigger_height = 7;
 
 // Don't use INT_MIN because it overflows too easily.
 enum { MIN_PIXEL = -10000, MAX_PIXEL = 10000 };
+
+static const int minimum_suggested_width = 20;
 
 
 // TrackSignal //////////
@@ -150,13 +153,15 @@ operator<<(std::ostream &os, const TrackSignal &sig)
 // EventTrack ///////
 
 EventTrack::EventTrack(
-        const EventTrackConfig &config,
-        const RulerConfig &ruler_config) :
+    int tracknum,
+    const EventTrackConfig &config,
+    const RulerConfig &ruler_config
+) :
     Track("events"),
     title_input(0, 0, 1, 1),
     floating_input(nullptr),
     body_scroll(0, 0, 1, 1),
-        body(config, ruler_config)
+        body(tracknum, config, ruler_config)
 {
     end(); // make sure no one else falls in
     this->add(body_scroll);
@@ -486,9 +491,13 @@ operator<<(std::ostream &os, const EventTrack::TextBox &box)
 // Body ////////////////////////////////
 
 EventTrack::Body::Body(
-        const EventTrackConfig &config,
-        const RulerConfig &ruler_config) :
+    int tracknum,
+    const EventTrackConfig &config,
+    const RulerConfig &ruler_config
+) :
     Fl_Widget(0, 0, 1, 1),
+    tracknum(tracknum),
+    suggested_width(0), // guarantee to emit msg_track_width on the first draw
     config(config), brightness(1),
     ruler_overlay(ruler_config, false)
 {
@@ -577,6 +586,7 @@ EventTrack::Body::draw()
             events[i], wrapped, x(), triggers[i], wrap_width, align,
             start, end);
     }
+    update_suggested_width(boxes);
     util::timing(2, "EventTrack::compute_text_boxes");
 
 
@@ -609,6 +619,69 @@ EventTrack::Body::draw()
         free(events);
         free(ranks);
         util::timing(2, "EventTrack::free_text");
+    }
+}
+
+
+// Figure out the minimum width needed for all of the text boxes to fit.
+// This is made tricky because they wrap, and because there are Left and
+// Right ones.
+static int
+compute_suggested_width(const vector<EventTrack::TextBox> &boxes)
+{
+    const int gap = 5;
+    // Right text doesn't line up flush with the right side of the track.
+    const int gap_r = 3;
+    int width = minimum_suggested_width;
+
+    int right_w = 0;
+    int left_w = 0;
+    int left_b = 0;
+    int right_b = 0;
+
+    // This is conservative since it will do all Left wrapped words before
+    // doing the right ones.  The effect should be that it considers them all
+    // to overlap, so it'll take the longest ones.  If I wanted to be more
+    // aggressive, I could try to iterate the lines in increasing y.
+    for (const EventTrack::TextBox &box : boxes) {
+        for (const auto &line : box.lines) {
+            // DEBUG("line: " << line);
+            if (box.align == EventTrack::Left) {
+                left_w = line.second.w;
+                left_b = line.second.b();
+                if (right_b > line.second.y) {
+                    // DEBUG("l over: " << (left_w + gap + right_w));
+                    width = std::max(width, left_w + gap + right_w);
+                } else {
+                    // DEBUG("l: " << left_w);
+                    width = std::max(width, left_w + gap);
+                }
+            } else {
+                right_w = line.second.w + gap_r;
+                right_b = line.second.b();
+                if (left_b > line.second.y) {
+                    // DEBUG("r over: " << (left_w + gap + right_w));
+                    width = std::max(width, left_w + gap + right_w);
+                } else {
+                    // DEBUG("r: " << left_w);
+                    width = std::max(width, right_w + gap);
+                }
+            }
+            // DEBUG("BOX: " << width);
+        };
+    }
+    // DEBUG("--- final: " << width);
+    return width;
+}
+
+
+void
+EventTrack::Body::update_suggested_width(const vector<TextBox> &boxes)
+{
+    int w = compute_suggested_width(boxes);
+    if (w != this->suggested_width) {
+        this->suggested_width = w;
+        MsgCollector::get()->track(UiMsg::msg_track_width, this, tracknum);
     }
 }
 
@@ -921,7 +994,11 @@ draw_trigger(bool draw_text, int x, double y, int w, const Event &event,
 
 
 /*
-    Find the number of drawable pixels above or below.
+    Find the number of vertical pixels available to draw the event text at the
+    given index.  It will be positive but is understood to extend upwards from
+    the event start of a negative event and downwards for a positive one.
+    0 is returned to prevent text from drawing at all.
+
     This needs the TextBoxes because how much draw space is available depends
     on how they overlap.  It will return either 0, or >= the complete first
     line, since there's not much point displaying a chopped-off single line.
@@ -1140,6 +1217,10 @@ EventTrack::Body::draw_upper_layer(
         prev_limit, track_max);
     util::timing(2, "draw_trigger");
 
+    // // Draw all boxes to debug:
+    // for (auto &line : boxes[index].lines)
+    //     f_util::draw_rect(line.second, Color(0, 0, 0xff));
+
     // for (int i = 0; i < boxes[index].lines.size(); i++) {
     //     TEXT("text box: " << i << ": " << boxes[index].lines[i]);
     // }
@@ -1185,7 +1266,7 @@ EventTrack::Body::draw_upper_layer(
                     Config::trailing_space_color);
             }
         }
-    } else {
+    } else { // event is positive
         const int top = boxes[index].lines[0].second.y;
         f_util::ClipArea clip(IRect(x(), top, w(), drawable));
         int remaining = drawable;

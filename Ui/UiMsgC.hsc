@@ -143,8 +143,10 @@ peek_ui_update type_num msgp = case type_num of
         padding <- (#peek UiMsg, resize.padding) msgp :: IO Block.Padding
         return $ UiMsg.UpdateViewResize rect padding
     (#const UiMsg::msg_track_width) -> do
-        width <- int <$> (#peek UiMsg, track_width.width) msgp :: IO Int
-        return $ UiMsg.UpdateTrackWidth width
+        width <- int <$> (#peek UiMsg, track_width.width) msgp
+        suggested_width <-
+            int <$> (#peek UiMsg, track_width.suggested_width) msgp
+        return $ UiMsg.UpdateTrackWidth width suggested_width
     (#const UiMsg::msg_close) -> return UiMsg.UpdateClose
     _ -> error $ "unknown UiMsg type: " ++ show type_num
 

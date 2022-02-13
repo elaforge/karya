@@ -98,6 +98,19 @@ scroll_to_home = flip Views.set_time_offset 0 =<< Cmd.get_focused_view
 resize_all :: Cmd.M m => m ()
 resize_all = mapM_ (Views.resize_to_fit False) =<< Ui.all_view_ids
 
+set_suggested_track_widths :: Cmd.M m => ViewId -> m ()
+set_suggested_track_widths view_id = do
+    block_id <- Ui.block_id_of view_id
+    tracks <- Ui.block_tracknums block_id
+    let changes = do
+            (track, tracknum) <- tracks
+            let suggested = Block.track_suggested_width track
+            guard (suggested /= Block.track_width track)
+            return (tracknum, suggested)
+    unless (null changes) $ do
+        mapM_ (uncurry (Ui.set_track_width block_id)) changes
+        Views.resize_to_fit False view_id
+
 -- * window management
 
 -- If a window significantly overlaps its left neighbor, and is a certain

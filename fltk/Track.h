@@ -98,6 +98,7 @@ public:
     // This is called before the object is deleted.
     virtual void finalize_callbacks() {}
     virtual std::string dump() const = 0;
+    virtual int get_suggested_width() const { return 0; }
 
     // Only implemented for Event tracks.  Would it be nicer to have one
     // method that returns *EventTrack?

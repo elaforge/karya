@@ -411,7 +411,7 @@ Block::insert_track(int tracknum, const Tracklike &track, int width)
 
     // DEBUG("view insert at " << tracknum);
     if (track.track) {
-        t = new EventTrack(*track.track, *track.ruler);
+        t = new EventTrack(tracknum, *track.track, *track.ruler);
     } else if (track.ruler) {
         t = new RulerTrack(*track.ruler);
     } else {

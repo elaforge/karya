@@ -244,6 +244,8 @@ set_selection_carefully view_id selnum maybe_tracknums sels =
         let tracknums = maybe [0 .. tracks-1] (filter (<tracks)) maybe_tracknums
         BlockC.set_selection view_id selnum tracknums sels
 
+-- ** block misc
+
 floating_input :: Ui.State -> Cmd.FloatingInput -> Fltk.Fltk ()
 floating_input _ (Cmd.FloatingOpen view_id tracknum at text selection) =
     BlockC.floating_open view_id tracknum at text selection

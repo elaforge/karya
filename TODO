@@ -56,7 +56,7 @@ usability:
 
 STATUS
   - linux floating inputs broken
-  + darwin link errors:
+  * darwin link errors:
   - ardour canvas implementation
   - raga-janaka stalled
   - shrink tracks:
@@ -174,8 +174,8 @@ UNSORTED
         createProcess: posix_spawnp: failed (Undefined error: 0)
       . So which is it?  Looks like illegal op when run from a compiled
         binary, and errno 0 when called from ghci.
-    - report Processes.binaryNotFound bug somewhere
-
+    * report Processes.binaryNotFound bug somewhere
+      . https://github.com/haskell/process/issues/233
   * darwin link errors:
     / use old nixpkgs?
       . No longer works since hackage stuff changed.  This is really annoying!
@@ -5280,23 +5280,129 @@ fltk:
     automatically to fit them.
   - shrink tracks:
     . Shrink tracks to fit text width
-    . Could I even automate this?  Make tracks always wide enough to fit the
-      longest text, up to some limit.
-    . Write a query to fltk for the max width.
-    . Or even don't bother, but guess it myself via text.  I guess that's hard
-      to know though since it's variable width fonts.  I could FFI fl_width,
-      but I'm already calling that to draw it, so maybe I just remember the
-      bounding boxes and FFI a call to return that.
-    . It gets complicated if I want to exploit wrapping.  I suppose I could
-      return the widest box at the current width and hence wrapping.
-    . Then it gets more complicated if I want to show right-aligned text.
-      I could expand so no right text is hidden, but that then can unwrap,
-      which results in hiding it again!
-    . What if I made a rule that right aligned text causes wrapping?  Then
-      I just find the max of left width + right width + spacing.
-    . In this case, right text is only hidden if there is a single word in
-      both.
-    . Currently I don't wrap right text at all.
+    plan:
+      * implement with Block.track_suggested_width
+      - It's not right when text is wrapped.
+        . Because boxes are post-wrap, when I really want pre-wrap.
+    notes:
+      . Could I even automate this?  Make tracks always wide enough to fit the
+        longest text, up to some limit.
+      . Write a query to fltk for the max width.
+      . Or even don't bother, but guess it myself via text.  I guess that's hard
+        to know though since it's variable width fonts.  I could FFI fl_width,
+        but I'm already calling that to draw it, so maybe I just remember the
+        bounding boxes and FFI a call to return that.
+      . It gets complicated if I want to exploit wrapping.  I suppose I could
+        return the widest box at the current width and hence wrapping.
+      . Then it gets more complicated if I want to show right-aligned text.
+        I could expand so no right text is hidden, but that then can unwrap,
+        which results in hiding it again!
+      . What if I made a rule that right aligned text causes wrapping?  Then
+        I just find the max of left width + right width + spacing.
+      . In this case, right text is only hidden if there is a single word in
+        both.
+      . Currently I don't wrap right text at all.  So if there is a right,
+        I can't wrap left at all, because before that happens it will hide
+        right.  Of course after it wraps it may reveal right, but it may not.
+      . So one way is to get the unwrapped left width if there is any right.
+      . A fancier way would be to find any wrapped left where right can fit.
+        I would have to try all wrap points from smallest up until I found
+        one where right can fit.  I guess this can be not too expensive because
+        I'm dealing with bounding boxes at this point.
+      . Well, except I currently have unwrapped boxes, so I'd need to change
+        SymbolTable to emit a box for each word.
+      . I still won't wrap right, because it seems much harder to optimize two
+        wrapping problems.
+      . Trying to make use of wrapped can fail because if I increase to fit both
+        sides, now left unwraps, and it no longer fits!
+      . The only way it can work is if right happens to fit before left unwraps.
+        That happens when the next left word is longer than right.
+        Hmm that's not so bad to check?
+      . Or I could have a brief mode that just shows Left and ignores Right, and
+        a wide mode that makes both visible.  I can use wide mode when editing,
+        and short mode for reading.
+      . This is like tracks that are compressed by default, but expand if you
+        have them selected.
+      . Views.resize_to_fit doesn't work after a size change, because it needs
+        a respond cycle to get the TrackWidth messages back.
+      . One way would be to move it to C++, but then what about tiling etc?  It
+        seems better to make it accurate in haskell.
+      . That implies I should be able to interleave haskell and C++ stuff... but
+        that's sort of incompatible with the idea of having pure commands.
+      . So I could either 1 have it be non-pure, and directly query C++ for when
+        I need to interleave, or 2 queue another command for after the UiUpdates
+        come back.
+      . 2 would be less work probably and fit in better with the design, but
+        it's kind of indirect, and I don't have a guarantee that the next msg
+        will be what I want, especially since there will be multiple track
+        resizes, and I want want to wait for all of them.
+      . For 1, what if I skip the Updates and diff nonsense, and directly
+        call the BlockC functions?  If I want to still not be in IO but still
+        interact with it, I'm getting into a free monad thing.
+      . Really it's just that I want window info to be up to date all the time.
+        Currently it gets pushed from the UI, but it would be less error-prone
+        to pull it.  But, that involves IO.  Even though this is really just
+        variable access, since that stuff is all in the C++ side.
+      . I'm a bit afraid of making stuff like Block.view_rect actually
+        unsafePerformIO FFI calls, because those values are mutable.
+      . I could load them on each respond, and I guess it's efficient enough?
+        Wait this is no good, it's still too late!  I need to load immediately.
+      . If I make commands like BringToFront skip all the diff and updates, then
+        I can make more, and can make ResizeToFit.
+      . How about update a suggested size, and then do the track resizes all in
+        haskell?
+      . That would mean another UiMsg.  It seems not great how now I would have
+        to be sending track width info on every single edit, even if I'm not
+        using it, while the command version computes and uses it when needed.
+        Previously I actually did eager compute but now it even gets into a
+        UiMsg.  That means updating the data on the haskell side etc.
+      . I guess it's acceptable overhead, but it seems like I do this kind of
+        too-eager computation a lot.
+      . If I didn't have the c++ / haskell split, this would be much simpler,
+        since I am doing drawing in haskell, then I have the text boxes right
+        there.
+
+  tiling:
+    . Currently I use OS windows and have a few basic utilities for tiling
+      them (just ViewConfig.horizontal_tile actually).  The thought was to
+      use an OS level tiling window manager, which means I can also
+      incorporate separate programs like logview, browser, repl, and text
+      editor.
+    . However, I still haven't incorporated any tiling window manager, and I'm
+      not sure any is actually suitable since I don't necessarily want the
+      window manager to change their sizes, but have karya set the sizes, and
+      the tiling just arranges them.  In addition, window management is
+      different on darwin and X and I really don't want to write a general
+      purpose window manager for either.
+    . I think this route is only tenable if I can e.g. have an xmonad config
+      and a darwin config (hammerspoon?) which work enough like each other.
+    . However, the traditional way is for an app to write its own window
+      manager, so let's explore that:
+      . Create one big window, and windows inside are just widgets.
+      cons:
+        . I would have to integrate logview and browser, and while I'd like to
+          keep them as separate programs, at least they are still haskell+fltk
+          and could maybe at least be kept as separate threads.
+        . The repl and editor are awkward, since I definitely do not want to
+          write a whole terminal emulator that can run vi, and I don't want
+          to write an editor either.
+        . It will never integrate with other programs, like web browser, or
+          if someone wants another editor.
+      pros:
+        . Consistent on X and darwin.
+        . Can get rid of titlebars on darwin.
+        . Can do point to focus consistently.  I think darwin can support this
+          too though, you may not it globally, but only for karya windows.
+          OS level window managers proabbly can't do that.
+        . If the editor is integrated I can have it save when the app quits.
+          This is more of a editor integration thing, and probably possible
+          with vim already.
+        . Could get rid of per-window status bars, one global one.
+      . On the whole, it seems like a lot of work and the cons are still pretty
+        heavy, so I'm inclined to look into external window managers first.
+      Features to research for external window manager:
+        . Is it enough to be able to have [(Title, Rect)] -> [Rect]?
+        . Does hammerspoon provide that?
   keycaps:
     notes:
       . It could be useful to display a keyboard along with cmd for each key.
@@ -7761,6 +7867,9 @@ OSC backend
   - Even if reaktor and supercollider don't understand bundles, I could write
     a scheduler server that takes bundles and emits their msgs at the correct
     time.
+
+darwin:
+  - fltk transparency seems broken under >10.13
 
 linux:
   * maximize via flvwm doesn't draw right

@@ -52,6 +52,9 @@ type UiUpdate = Update Block.Track State
 -- There are also a few mutations that correspond directly 'UiUpdate's which
 -- I just emit directly rather than relying on diff.  Those are converted from
 -- UiDamage by 'to_ui'.
+--
+-- TODO The indirection for BringToFront, TitleFocus, seems a bit fussy.  Can I
+-- just store some Updates in here?
 data UiDamage = UiDamage {
     _views :: Set ViewId
     -- | This means there may have been any change at all inside these blocks,
@@ -180,8 +183,8 @@ instance (Pretty t, Pretty u) => Pretty (Update t u) where
 
 instance Pretty View where
     format update = case update of
-        CreateView -> Pretty.text "CreateView"
-        DestroyView -> Pretty.text "DestroyView"
+        CreateView -> "CreateView"
+        DestroyView -> "DestroyView"
         ViewSize rect -> Pretty.constructor "ViewSize" [Pretty.format rect]
         Status status is_root -> Pretty.constructor "Status"
             [Pretty.format status, Pretty.format is_root]
@@ -190,7 +193,7 @@ instance Pretty View where
         Zoom zoom -> Pretty.constructor "Zoom" [Pretty.format zoom]
         Selection selnum sel -> Pretty.constructor "Selection"
             [Pretty.format selnum, Pretty.format sel]
-        BringToFront -> Pretty.text "BringToFront"
+        BringToFront -> "BringToFront"
         TitleFocus tracknum ->
             Pretty.constructor "TitleFocus" [Pretty.format tracknum]
 

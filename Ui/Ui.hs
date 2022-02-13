@@ -78,10 +78,10 @@ module Ui.Ui (
     , event_track_at, get_event_track_at
     , ruler_track_at, block_ruler
     -- *** tracks by TrackId
-    , track_ids_of, tracknums_of
+    , track_ids_of, tracknums_of, block_tracknums
     , tracknum_of, get_tracknum_of
     -- *** block track
-    , set_track_width
+    , set_track_width, set_track_suggested_width
     , track_flags, track_collapsed
     , toggle_track_flag, add_track_flag, remove_track_flag
     , modify_track_flags
@@ -1050,10 +1050,11 @@ track_ids_of block_id = Block.block_track_ids <$> get_block block_id
 
 -- | Get all TrackIds of the given block, along with their tracknums.
 tracknums_of :: M m => BlockId -> m [(TrackId, TrackNum)]
-tracknums_of block_id = extract <$> get_block block_id
-    where
-    extract = justs . flip zip [0..] . map Block.track_id . Block.block_tracks
-    justs pairs = [(track_id, tracknum) | (Just track_id, tracknum) <- pairs]
+tracknums_of = fmap (Seq.map_maybe_fst Block.track_id) . block_tracknums
+
+-- | Get tracks along with their TrackNums.
+block_tracknums :: M m => BlockId -> m [(Block.Track, TrackNum)]
+block_tracknums = fmap (flip zip [0..] . Block.block_tracks) . get_block
 
 -- | There can only be one TrackId per block, which allows TrackNums and
 -- TrackIds to be interchangeable.  This is enforced by 'insert_track'.
@@ -1073,6 +1074,11 @@ set_track_width :: M m => BlockId -> TrackNum -> Types.Width -> m ()
 set_track_width block_id tracknum width =
     modify_block_track block_id tracknum $ \btrack ->
         btrack { Block.track_width = width }
+
+set_track_suggested_width :: M m => BlockId -> TrackNum -> Types.Width -> m ()
+set_track_suggested_width block_id tracknum width =
+    modify_block_track block_id tracknum $ \btrack ->
+        btrack { Block.track_suggested_width = width }
 
 track_flags :: M m => BlockId -> TrackNum -> m (Set Block.TrackFlag)
 track_flags block_id tracknum =
@@ -1647,6 +1653,23 @@ modify_at msg xs i f = case post of
         <> " of list with length " <> showt (length xs)
     (elt:rest) -> return (pre ++ f elt : rest)
     where (pre, post) = splitAt i xs
+
+{-
+-- | Modify the @i@th element of @xs@ by applying @f@ to it.
+--
+-- As an optimization, this returns Nothing if the modification had no effect.
+-- This assumes that comparing before and after is cheaper than going through
+-- with the modification.  I don't know if it is.  Probably it doesn't matter.
+modify_at :: (M m, Eq a) => Text -> [a] -> Int -> (a -> a) -> m (Maybe [a])
+modify_at msg xs i f = case post of
+    [] -> throw $ msg <> ": can't replace index " <> showt i
+        <> " of list with length " <> showt (length xs)
+    elt : rest
+        | elt == after -> return Nothing
+        | otherwise -> return $ Just $ pre ++ after : rest
+        where after = f elt
+    where (pre, post) = splitAt i xs
+-}
 
 -- * verify
 

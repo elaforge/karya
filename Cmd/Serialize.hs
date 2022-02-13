@@ -333,15 +333,18 @@ instance Serialize Block.NoteDestination where
         v -> Serialize.bad_version "Block.Block" v
 
 instance Serialize Block.Track where
-    put (Block.Track a b c d) = Serialize.put_version 3
-        >> put a >> put b >> put c >> put d
+    -- The suggested_width is actually derived from fltk, so don't save it.
+    -- It's awkward to have it in Block.Track, I have another derived
+    -- field like this in Ruler.Ruler's Marklist when there's a Meter.
+    put (Block.Track id width _suggested flags merged) = Serialize.put_version 3
+        >> put id >> put width>> put flags >> put merged
     get = Serialize.get_version >>= \case
         3 -> do
             id :: Block.TracklikeId <- get
             width :: Types.Width <- get
             flags :: Set Block.TrackFlag <- get
             merged :: Set Types.TrackId <- get
-            return $ Block.Track id width flags merged
+            return $ Block.Track id width width flags merged
         v -> Serialize.bad_version "Block.Track" v
 
 instance Serialize Block.TrackFlag where

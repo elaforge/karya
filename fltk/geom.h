@@ -52,9 +52,6 @@ typedef PointTmpl<bool> BoolPoint;
 
 // Rect
 
-// Rects are stored as x, y, w, h.  Actually, using this instead of
-// x0, y0, x1, y1 seems like a dumb move because that way the whole question
-// of negative widths wouldn't arise.  But I guess x0>x1 is the same problem.
 template<class T>
 struct RectTmpl {
     T x, y, w, h;

@@ -60,7 +60,7 @@ operator<<(std::ostream &os, const UiMsg &m)
         os << *m.resize.rect << " padding=" << m.resize.padding;
         break;
     case UiMsg::msg_track_width:
-        os << m.track_width.width;
+        os << m.track_width.width << "->" << m.track_width.suggested_width;
         break;
     case UiMsg::msg_close:
         break;
@@ -293,6 +293,8 @@ set_update(UiMsg &m, UiMsg::MsgType type, const char *text)
     case UiMsg::msg_track_width:
         ASSERT(m.context.track_type);
         m.track_width.width = block->get_track_width(m.context.tracknum);
+        m.track_width.suggested_width =
+            block->track_at(m.context.tracknum)->get_suggested_width();
         break;
     case UiMsg::msg_close:
         ASSERT(m.context.view); // should have been set by caller

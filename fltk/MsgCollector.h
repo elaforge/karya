@@ -158,6 +158,8 @@ struct UiMsg {
 
     struct TrackWidth {
         int width;
+        // From EventTrack::get_suggested_width()
+        int suggested_width;
     };
 
     struct ScreenSize {

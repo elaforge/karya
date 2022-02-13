@@ -323,6 +323,10 @@ data Track = Track {
     -- out to be too much of a hassle, so now all occurences of a track have
     -- the same width.
     , track_width :: !Types.Width
+    -- | This is a width suggested by fltk that should be enough to show all
+    -- the text.  Unlike the other fields in Track, it's derived from the track
+    -- contents and is automatically updated by the UI.
+    , track_suggested_width :: !Types.Width
     -- | Track display state flags.
     , track_flags :: !(Set TrackFlag)
     -- | Other tracks are displayed behind this one.  Useful to merge a pitch
@@ -334,14 +338,16 @@ track_id :: Track -> Maybe TrackId
 track_id = track_id_of . tracklike_id
 
 instance Pretty Track where
-    pretty (Track tid width flags merged) = pretty tid <> ": "
-        <> Text.unwords [pretty width, pretty flags, pretty merged]
+    pretty (Track tid width suggested flags merged) = pretty tid <> ": "
+        <> Text.unwords
+            [pretty width, pretty suggested, pretty flags, pretty merged]
 
 -- | Construct a 'Track' with defaults.
 track :: TracklikeId -> Types.Width -> Track
 track tracklike_id width = Track
     { tracklike_id = tracklike_id
     , track_width = width
+    , track_suggested_width = width
     , track_flags = mempty
     , track_merged = mempty
     }

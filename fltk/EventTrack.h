@@ -117,7 +117,8 @@ public:
 // been edited.
 class EventTrack : public Track {
 public:
-    EventTrack(const EventTrackConfig &config, const RulerConfig &ruler_config);
+    EventTrack(int tracknum, const EventTrackConfig &config,
+        const RulerConfig &ruler_config);
     void resize(int x, int y, int w, int h) override;
     virtual Fl_Widget &title_widget() override { return title_input; }
     virtual const char *get_title() const override {
@@ -144,6 +145,10 @@ public:
     virtual void finalize_callbacks() override;
     virtual std::string dump() const override;
 
+    virtual int get_suggested_width() const override {
+        return this->body.suggested_width;
+    }
+
     // Whether text is aligned to the left or right side of the track.  Left
     // aligned text has higher drawing priority.
     enum Align { Left, Right };
@@ -163,11 +168,14 @@ private:
     // the body_scroll.
     class Body : public Fl_Widget {
     public:
-        Body(const EventTrackConfig &config, const RulerConfig &ruler_config);
+        Body(int tracknum, const EventTrackConfig &config,
+            const RulerConfig &ruler_config);
         ScoreTime time_end() const;
         void update(const Tracklike &track);
         void set_zoom(const Zoom &new_zoom);
 
+        const int tracknum;
+        int suggested_width;
         Zoom zoom;
         EventTrackConfig config; // Can't be const, I write to it.
         double brightness;
@@ -175,6 +183,7 @@ private:
     protected:
         void draw() override;
     private:
+        void update_suggested_width(const std::vector<TextBox> &boxes);
         void update_size();
         void draw_event_boxes(
             const Event *events, const int *ranks, int count,

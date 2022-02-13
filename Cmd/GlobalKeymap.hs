@@ -319,6 +319,10 @@ view_config_bindings = concat
         (ViewConfig.cmd_zoom_around_insert (*1.25))
     , plain_char '{' "previous selection" (Selection.previous_selection True)
     , plain_char '}' "next selection" (Selection.next_selection True)
+
+    -- TODO experimental
+    , command_char 'q' "set suggested track widths"
+        (ViewConfig.set_suggested_track_widths =<< Cmd.get_focused_view)
     -- I didn't wind up using these very much, so let's see if undo and redo
     -- selection are more useful.
     -- , plain_char '{' "zoom out *.95"

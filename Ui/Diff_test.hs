@@ -30,9 +30,9 @@ test_display_track = do
     let (ui_updates, display_updates) = diff st1 $ Ui.merge_track bid 1 2
     equal ui_updates
         [ Update.Block bid $ Update.BlockTrack 1 $
-            Block.Track (Block.TId tid1 rid) 30 mempty (Set.singleton tid2)
+            Block.Track (Block.TId tid1 rid) 30 30 mempty (Set.singleton tid2)
         , Update.Block bid $ Update.BlockTrack 2 $
-            Block.Track (Block.TId tid2 rid) 30
+            Block.Track (Block.TId tid2 rid) 30 30
                 (Set.singleton Block.Collapse) mempty
         ]
 

@@ -192,7 +192,7 @@ ui_update maybe_tracknum view_id update = case update of
         when (rect /= Block.view_rect view) $ Ui.set_view_rect view_id rect
         when (Block.view_padding view /= padding) $
             Ui.set_view_padding view_id padding
-    UiMsg.UpdateTrackWidth width -> case maybe_tracknum of
+    UiMsg.UpdateTrackWidth width suggested_width -> case maybe_tracknum of
         Just tracknum -> do
             block_id <- Ui.block_id_of view_id
             collapsed <- (Block.Collapse `Set.member`) <$>
@@ -202,6 +202,8 @@ ui_update maybe_tracknum view_id update = case update of
             -- to know which one changed.  See BlockView::track_tile_cb.
             unless collapsed $
                 Ui.set_track_width block_id tracknum width
+            when (suggested_width > 0) $
+                Ui.set_track_suggested_width block_id tracknum suggested_width
         Nothing -> Ui.throw $ "update with no track: " <> showt update
     -- Handled by 'ui_update_state'.
     UiMsg.UpdateClose -> return ()
