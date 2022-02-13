@@ -154,9 +154,9 @@ query_cmd addr cmd = query addr (QCommand cmd) >>= return . \case
     Right (RCommand result) -> result
     Right response -> raw $ "unexpected response: " <> showt response
     Left exc
-        | IO.Error.isDoesNotExistError exc ->
-            raw $ "addr (" <> showt addr <> ") does not exist,\
-                \ is karya running?"
+        | IO.Error.isDoesNotExistError exc -> raw $
+            "addr (" <> showt addr <> ") threw ENOENT,\
+            \ this can happen if karya is not running, or it's stuck."
         | otherwise -> raw $ "exception: " <> showt exc
 
 -- | A simple one-shot 'query_cmd'.
