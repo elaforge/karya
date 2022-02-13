@@ -93,7 +93,7 @@ instance Solkattu.Notation Valantalai where
     notation = Solkattu.textNotation . \case
         Ki -> "k"
         Ta -> "t"
-        Mi -> "l"
+        Mi -> "."
         Min -> "'"
         Nam -> "n"
         Din -> "d"
@@ -260,6 +260,7 @@ notations = Map.fromList $ (extras++) $ Seq.map_maybe_fst isChar $
     extras =
         [ ('y', y strokes)
         , ('j', j strokes)
+        , ('l', l strokes)
         ]
     isChar t = case untxt t of
         [c] -> Just c
