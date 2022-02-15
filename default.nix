@@ -297,7 +297,6 @@ in rec {
       localConfig = defaultConfig
           { enableEkg = ${hsBool withEkg}
           , enableIm = ${hsBool withIm}
-          , fltkConfig = "${fltk}/bin/fltk-config"
           ${extraFrameworkPaths}
           }
     '';
