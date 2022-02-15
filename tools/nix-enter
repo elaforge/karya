@@ -4,7 +4,11 @@
 args=(
     --attr buildEnv
     --arg withDocs true
-    --run "exec $SHELL"
 )
-echo nix-shell $args "$@"
-exec nix-shell $args "$@"
+
+# nix-shell is really slow, because eval is really slow.
+# If I print this out I can copy paste into another terminal to get
+# a shell more quickly.
+drv=$(nix-instantiate $args)
+echo cd $PWD '&& nix-shell --run "exec $SHELL"' $drv
+nix-shell --run "exec $SHELL" $drv
