@@ -19,7 +19,7 @@
 #include "AbbreviatedInput.h"
 #include "CachedScroll.h"
 #include "Event.h"
-#include "FloatingInput.h"
+#include "WrappedInput.h"
 #include "PeakCache.h"
 #include "RulerOverlay.h"
 #include "SelectionOverlay.h"
@@ -208,10 +208,9 @@ private:
         float max_peak;
     };
 
-    void static title_input_focus_cb(Fl_Widget *_w, void *arg);
-    void static floating_input_done_cb(Fl_Widget *_w, void *arg);
-    void focus_title();
-    void unfocus_title();
+    void static title_input_cb(Fl_Widget *_w, void *arg);
+    void title_focused();
+    void title_unfocused();
     // I can't override redraw() since it's not virtual.  I could override it
     // anyway, but it seems sketchy.
     void invalidate() {
@@ -221,15 +220,10 @@ private:
 
     std::unique_ptr<Fl_RGB_Image> draw_cache;
 
-    // This only ever displays the text, since as soon as you try to focus on
-    // it, 'floating_input' will pop up in front.
-    //
-    // Also, even though the title_input is inside the EventTrack object,
-    // the widget is the child of and managed (size and position) by the
-    // TrackTile.
-    AbbreviatedInput title_input;
+    // Even though the title_input is inside the EventTrack object, the widget
+    // is the child of and managed (size and position) by the TrackTile.
+    WrappedInput title_input;
     SelectionOverlay selection_overlay;
-    FloatingInput *floating_input;
 
     CachedScroll body_scroll;
     Body body;

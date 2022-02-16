@@ -7,21 +7,20 @@
 /*
       _________ block (Group) ___
      /              |            \
-    /               |           status_line (Output)
-title ________ body (Tile) ___________________________________
+title               |           status_line (Output)
+      ________ body (Tile) ___________________________________
      /           |           \                                \
 skel_box  skel_display  ruler_group _____________        track_group
                        /       \         \       \         |        \
                     track_box sb_box   time_sb  ruler track_sb  track_scroll
                                                                   /
-                                                              track_tile
-                                                              /
-                                                track | ruler | divider, ...
-                                               /    \
-                                      track_body    track_title
-                                 overlay_ruler
-                                 /
-                             event, ...
+                    _________________________________________ track_tile
+                   /               /
+          track_title        EventTrack | RulerTrack | DividerTrack, ...
+    (via EventTrack         track_body    overlay_ruler
+     ::title_widget)     overlay_ruler
+                           /
+                       event, ...
 */
 
 #include <algorithm>

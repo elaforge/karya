@@ -159,24 +159,6 @@ handle(Fl_Input *input, int evt, bool multiline)
     switch (evt) {
     case FL_KEYDOWN:
         switch (Fl::event_key()) {
-        case FL_Tab: case FL_Enter: case FL_Escape:
-            Fl::focus(input->window());
-            handled = true;
-            break;
-        case FL_Up:
-            if (multiline)
-                return false;
-            else
-                input->position(0);
-            handled = true;
-            break;
-        case FL_Down:
-            if (multiline)
-                return false;
-            else
-                input->position(input->size());
-            handled = true;
-            break;
         case 'h':
             if (state & (FL_META | FL_CTRL)) {
                 move_backward(input, state & FL_SHIFT);
@@ -208,8 +190,6 @@ handle(Fl_Input *input, int evt, bool multiline)
         break;
     case FL_UNFOCUS:
         input->color(FL_WHITE);
-        // So inputs consistently display the same part of text.
-        // input->position(9999);
         input->redraw();
         break;
     }

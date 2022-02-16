@@ -145,8 +145,14 @@ Block::handle(int evt)
 
         }
         return 1;
+    } else if (evt == FL_FOCUS) {
+        // Signify that Block is a valid focus target.  Otherwise fltk will
+        // try to find the first thing it can give focus to when the window
+        // gets focus, and will find the title input.
+        return 1;
+    } else {
+        return Fl_Group::handle(evt);
     }
-    return Fl_Group::handle(evt);
 }
 
 
@@ -739,6 +745,7 @@ Block::title_cb()
     BlockWindow *view = static_cast<BlockWindow *>(window());
     if (Fl::event() == FL_UNFOCUS)
         MsgCollector::get()->view(UiMsg::msg_input, view);
+    // If it got focus or changed size, then update the block sizes.
     bool changed = false;
     if (!*title.value()) {
         // Delay hiding the title until focus is lost.
@@ -815,6 +822,9 @@ BlockWindow::BlockWindow(
     Fl::dnd_text_ops(false); // don't do drag and drop text
     // Fl::visible_focus(false); // doesn't seem to do anything
     // this->border(false);
+    // I don't know that this matters, but let's give fltk something to put
+    // focus on, so it doesn't pick something random.
+    block.take_focus();
 }
 
 
@@ -825,8 +835,11 @@ BlockWindow::resize(int x, int y, int w, int h)
     // set to the requested height instead of waiting for superclass resize to
     // be called.  However, I think it should be right for first window display,
     // so let's just remember it.
+    //
+    // Except that the mechanism fltk works doesn't work for fvwm, so I hope
+    // you don't use fvwm and window decorations.
     static int titlebar = this->decorated_h() - this->h();
-    // TODO: fixed at fltk 7e484c6.
+    // TODO: work around reentrant resize bug in fltk, fixed at fltk 7e484c6.
     static int reentrant;
     reentrant++;
     int sx, sy, sw, sh;
@@ -948,7 +961,6 @@ dispatch_to_keycaps(IPoint mouse)
     }
 }
 
-
 int
 BlockWindow::handle(int evt)
 {
@@ -963,7 +975,11 @@ BlockWindow::handle(int evt)
         highlight_focused(this);
         // This is sent *before* the widget becomes Fl::focus().
         MsgCollector::get()->focus(this);
-        return true;
+        // fltk uses this in Fl_Group::handle to give focus to the last widget
+        // that was focused, via an undocumented hack involved a global
+        // fl_oldfocus variable.  Or it doesn't, I can't tell.  fltk conflates
+        // window level and widget level focus so it seems ambiguous.
+        return Fl_Double_Window::handle(evt);
     case FL_KEYDOWN:
     case FL_KEYUP:
         if (this->testing && Fl::event_key() == FL_Escape) {
@@ -979,13 +995,13 @@ BlockWindow::handle(int evt)
         if (!f_util::rect(this).contains(pos))
             dispatch_to_keycaps(pos);
         break;
-        }
+    }
     }
 
     bool accepted = false;
     if (evt == FL_PUSH || evt == FL_MOVE || evt == FL_MOUSEWHEEL) {
         // see if someone else wants it
-        accepted = Fl_Group::handle(evt);
+        accepted = Fl_Double_Window::handle(evt);
     }
     if (!accepted) {
         switch (evt) {

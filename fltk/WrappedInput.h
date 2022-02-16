@@ -10,19 +10,45 @@
 #include "global.h"
 
 
-// A customized Fl_Multiline_Input that wraps its text.
-//
-// Every time the text changes, figure out word wrapping, and insert newlines
-// as apporpriate.  This only breaks on spaces, and newlines are not allowed
-// in the input, so I can get unwrapped text back by converting newlines to
-// spaces.
-//
-// Then call the callback.  If the number of lines has changed, 'text_height'
-// will return its new height and the parent should resize it appropriately.
+/*
+    A customized Fl_Multiline_Input that wraps its text.
+
+    Every time the text changes, figure out word wrapping, and insert newlines
+    as apporpriate.  This only breaks on spaces, and newlines are not allowed
+    in the input, so I can get unwrapped text back by converting newlines to
+    spaces.
+
+    The callback is called on the initial focus, on each size change, and
+    on unfocus.  If the size changed, 'text_height' will return its new height
+    and the parent should resize it appropriately.  If it's drawing on top of
+    another widget, that widget has to redraw too.
+
+    Since fltk has just the single callback argument which is used up imitating
+    a closure, we have to infer why the callback was called by looking in
+    Fl::event().
+
+    WrappedInput is used in 3 places, each one a bit different:
+
+    TrackTile::floating_input:
+        focus -> nothing
+        resize -> redraw TrackTile
+        unfocus -> send msg, delete widget
+    EventTrack::title_input (callback to TrackTile via Track::title_widget):
+        focus -> expand size if necessary
+        resize -> redraw TrackTile
+        unfocus -> send msg, contract to track size
+    Block::title
+        focus -> nothing
+        resize -> update Block widget positions, redraw Block
+        unfocus -> send msg
+*/
 class WrappedInput : public Fl_Multiline_Input {
 public:
+    // Pass max_width=0 to disable resizing.
     WrappedInput(int x, int y, int w, int h, bool strip, int max_width);
     void resize(int x, int y, int w, int h) override;
+    // Must be mutable so TrackTile can set for EventTrack::title_input.
+    void set_max_width(int w);
     // Use this to set newline-free unwrapped text.
     void set_text(const char *text);
     const char *get_text() const;
@@ -35,13 +61,18 @@ public:
     int text_height() const;
     int suggested_width() const;
     int handle(int evt) override;
+    void update_size();
+
+protected:
+    void draw() override;
+
 private:
     bool wrap_text();
     // Strip spaces from the text on unfocus.
     const bool strip;
     // Don't let suggested_width expand past this.  If 0, suggested_width()
     // always returns w().
-    const int max_width;
+    int max_width;
     // Keep the previous text, to revert on escape.
     std::string last_text;
 };

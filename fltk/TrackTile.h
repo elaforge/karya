@@ -15,14 +15,13 @@
 
     TrackTile____________________________
        |                  \       \      \
-    (Track::title_widget, Track)  ...  FloatingInput (floating_input, temporary)
+    (Track::title_widget, Track)  ...  WrappedInput (floating_input, temporary)
 */
 
 #include <math.h>
 
 #include <FL/Fl_Box.H>
 
-#include "FloatingInput.h"
 #include "MoveTile.h"
 #include "Track.h"
 #include "f_util.h"
@@ -81,7 +80,7 @@ private:
     Zoom zoom;
     Fl_Box track_pad; // box to take up space not covered by tracks
     // Created and destroyed when 'floating_open' is called.
-    FloatingInput *floating_input;
+    WrappedInput *floating_input;
 
     void update_sizes();
     static void title_input_cb_dispatch(Fl_Widget *w, void *arg);

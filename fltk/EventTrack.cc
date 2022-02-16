@@ -10,7 +10,6 @@
 
 #include <FL/fl_draw.H>
 
-#include "FloatingInput.h"
 #include "SymbolTable.h"
 #include "MsgCollector.h"
 #include "config.h"
@@ -18,6 +17,7 @@
 #include "util.h"
 
 #include "EventTrack.h"
+#include "WrappedInput.h"
 
 
 using std::string;
@@ -158,16 +158,17 @@ EventTrack::EventTrack(
     const RulerConfig &ruler_config
 ) :
     Track("events"),
-    title_input(0, 0, 1, 1),
-    floating_input(nullptr),
+    title_input(0, 0, 1, 1, true, 40),
     body_scroll(0, 0, 1, 1),
         body(tracknum, config, ruler_config)
 {
     end(); // make sure no one else falls in
     this->add(body_scroll);
+    // This will be owned by the parent TrackTile.
+    this->remove(title_input);
     body_scroll.add(body);
     body_scroll.set_bg(body.config.bg_color.brightness(body.brightness));
-    title_input.callback(title_input_focus_cb, static_cast<void *>(this));
+    title_input.callback(title_input_cb, static_cast<void *>(this));
 }
 
 
@@ -197,7 +198,7 @@ EventTrack::set_title(const char *title)
 void
 EventTrack::set_title_focus()
 {
-    focus_title();
+    title_input.take_focus();
 }
 
 
@@ -260,59 +261,50 @@ EventTrack::set_track_signal(const TrackSignal &tsig)
 
 
 void
-EventTrack::title_input_focus_cb(Fl_Widget *_w, void *arg)
+EventTrack::title_input_cb(Fl_Widget *w, void *arg)
 {
-    int evt = Fl::event();
     EventTrack *self = static_cast<EventTrack *>(arg);
-    self->focus_title();
+    WrappedInput *input = static_cast<WrappedInput *>(w);
 
-    // Set the insertion point based on the click position.
-    if (evt == FL_PUSH) {
-        int p = self->title_input.mouse_position();
-        // TODO Because I create a new window, it doesn't notice that the mouse
-        // button is down, so a drag will be lost.
-        // Unfortunately it seems giving it a push doesn't work.
-        // self->floating_input->handle(FL_PUSH);
-        self->floating_input->cursor_position(p, p);
+    // WrappedInput documents the things that trigger callback.
+    switch (Fl::event()) {
+    case FL_PUSH:
+        self->title_focused();
+        break;
+    case FL_UNFOCUS:
+        self->title_unfocused();
+        break;
+    default:
+        input->update_size();
+        self->do_callback();
+        break;
     }
 }
 
 
+// Call after the title has gotten focused, to expand it if necessary.
 void
-EventTrack::floating_input_done_cb(Fl_Widget *_w, void *arg)
+EventTrack::title_focused()
 {
-    EventTrack *self = static_cast<EventTrack *>(arg);
-    self->unfocus_title();
+    Fl_Window *win = window();
+    // Can expand out to the right edge of the window.
+    int max_w = win->w() - title_input.x();
+    title_input.set_max_width(max_w);
+    title_input.update_size();
+    // If it expanded, TrackTile will need to redraw.
+    do_callback();
 }
 
-
+// Call after the title has unfocused, to contract.
 void
-EventTrack::focus_title()
+EventTrack::title_unfocused()
 {
-    if (floating_input)
-        return;
-    Fl_Window *w = window();
-    // position of the right edge of the window
-    int max_w = w->w() - title_input.x();
-    this->floating_input = new FloatingInput(
-        w->x() + title_input.x(), w->y() + title_input.y(),
-        title_input.w(), Config::Block::track_title_height,
-        w, title_input.value(), true, max_w);
-    floating_input->callback(floating_input_done_cb, static_cast<void *>(this));
-    int len = strlen(title_input.value());
-    floating_input->cursor_position(len, len);
-}
-
-
-void
-EventTrack::unfocus_title()
-{
-    if (!floating_input)
-        return;
-    set_title(floating_input->get_text());
-    floating_input->hide();
-    Fl::delete_widget(floating_input);
-    this->floating_input = nullptr;
+    // Just force the size back down.  It won't rewrap but that's fine.
+    title_input.size(this->w(), Config::Block::track_title_height);
+    const char *text = title_input.get_text();
+    MsgCollector::get()->track_title(this, body.tracknum, text);
+    // Winds up at TrackTile::title_input_cb, which will redraw TrackTile
+    // since it may have changed size.
     do_callback();
 }
 

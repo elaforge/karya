@@ -7,7 +7,6 @@
 #include <FL/Fl_Window.H>
 #include <FL/Fl_Widget.H>
 
-#include "FloatingInput.h"
 #include "MsgCollector.h"
 #include "WrappedInput.h"
 #include "config.h"
@@ -50,6 +49,15 @@ TrackTile::handle(int evt)
 {
     if (this->floating_input && Fl::event_inside(floating_input))
         return floating_input->handle(evt);
+    if (evt == FL_PUSH || evt == FL_DRAG) {
+        // Give mouse priority to any focused child, which may be a
+        // WrappedInput overlapping other children.
+        for (int i = 0; i < children(); i++) {
+            if (Fl::focus() == child(i) && Fl::event_inside(child(i))) {
+                return Fl::focus()->handle(evt);
+            }
+        }
+    }
     if (evt == FL_PUSH) {
         // If the click is on a track I want to take focus off of a text input.
         for (int i = 0; i < tracks(); i++) {
@@ -75,10 +83,14 @@ TrackTile::set_zoom(const Zoom &zoom)
 // floating input //////////////////////
 
 static void
-floating_input_done_cb(Fl_Widget *_w, void *arg)
+floating_input_cb(Fl_Widget *w, void *arg)
 {
     TrackTile *self = static_cast<TrackTile *>(arg);
-    self->floating_close();
+    WrappedInput *input = static_cast<WrappedInput *>(w);
+    if (Fl::event() == FL_UNFOCUS)
+        self->floating_close();
+    else
+        input->update_size();
 }
 
 void
@@ -101,16 +113,20 @@ TrackTile::floating_open(int tracknum, ScoreTime pos, const char *text,
     ypos = std::min(ypos, max_y);
     xpos += 2;
     int max_w = window()->w() - xpos;
-    this->floating_input = new FloatingInput(
-        window()->x() + xpos, window()->y() + ypos,
-        width, Config::Block::track_title_height,
-        window(), text, false, max_w);
-    floating_input->callback(floating_input_done_cb, static_cast<void *>(this));
-
+    this->floating_input = new WrappedInput(
+        xpos, ypos, width, Config::Block::track_title_height,
+        false, max_w);
+    if (text && *text)
+        floating_input->set_text(text);
+    floating_input->take_focus();
+    floating_input->update_size();
+    this->add(floating_input);
+    floating_input->callback(floating_input_cb, static_cast<void *>(this));
     int len = strlen(text);
-    floating_input->cursor_position(
+    floating_input->position(
         utf8::bytes(text, len, select_end),
         utf8::bytes(text, len, select_start));
+    this->redraw();
 }
 
 
@@ -122,12 +138,14 @@ TrackTile::floating_close()
     MsgCollector::get()->floating_input(
         this,
         floating_input->text_changed() ? floating_input->get_text() : nullptr);
+    this->remove(floating_input);
     floating_input->hide();
     // This function can be called from the callback, and you can't delete
     // yourself from inside a callback without crashing.  So I have to delay
     // the delete until its safe to do so.
     Fl::delete_widget(floating_input);
     this->floating_input = nullptr;
+    this->redraw();
 }
 
 
@@ -201,6 +219,7 @@ TrackTile::insert_track(int tracknum, Track *track, int width)
 
     track->size(width, h() - this->title_height);
     this->insert_child(*track, track_index(tracknum));
+    // EventTrack will call this to tell TrackTile to redraw.
     track->callback(title_input_cb_dispatch, static_cast<void *>(this));
 
     if (!track->track_resizable()) {
@@ -281,6 +300,12 @@ TrackTile::draw()
     if (floating_input != nullptr) {
         draw_child(*floating_input);
     }
+    // Also give draw priority to a focused child, which may be a WrappedInput
+    // overlapping other children.
+    for (int i = 0; i < children(); i++) {
+        if (Fl::focus() == child(i))
+            draw_child(*child(i));
+    }
     util::timing(2, "TrackTile::draw");
 }
 
@@ -323,12 +348,5 @@ TrackTile::title_input_cb_dispatch(Fl_Widget *w, void *arg)
 void
 TrackTile::title_input_cb(Fl_Widget *w)
 {
-    for (int i = 0; i < tracks(); i++) {
-        if (child(track_index(i)) == w) {
-            const char *text = track_at(i)->get_title();
-            if (text != nullptr) {
-                MsgCollector::get()->track_title(this, i + 1, text);
-            }
-        }
-    }
+    redraw();
 }

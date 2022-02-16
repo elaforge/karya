@@ -23,8 +23,9 @@ enum {
 };
 
 
-WrappedInput::WrappedInput(int x, int y, int w, int h, bool strip,
-        int max_width) :
+WrappedInput::WrappedInput(
+    int x, int y, int w, int h, bool strip, int max_width
+) :
     Fl_Multiline_Input(x, y, w, h), strip(strip), max_width(max_width)
 {
     color(FL_WHITE);
@@ -49,12 +50,20 @@ WrappedInput::resize(int x, int y, int w, int h)
 }
 
 void
+WrappedInput::set_max_width(int w)
+{
+    max_width = w;
+    // Even if max_width didn't change, EventTrack::title_focused wants to
+    // expand the size.
+    wrap_text();
+}
+
+void
 WrappedInput::set_text(const char *text)
 {
     this->value(text);
     this->last_text = text;
     wrap_text();
-    do_callback();
 }
 
 
@@ -94,7 +103,7 @@ WrappedInput::suggested_width() const
     const char *start = this->value();
     const char *end = this->value();
     fl_font(Config::font, Config::font_size::input);
-    // Measure the distance between each |.
+    // This prefers to wrap on |s, so measure the distance between each |.
     for (;;) {
         while (*end != '\0' && *end != '|')
             end++;
@@ -137,6 +146,11 @@ is_last_line(const char *text, int size, int i)
 int
 WrappedInput::handle(int evt)
 {
+    if (evt == FL_MOVE)
+        return 0;
+    // if (evt != FL_NO_EVENT)
+    //     DEBUG("input: " << f_util::show_widget(this)
+    //         << ": " << f_util::show_event_info(evt));
     // This is a crazy delicate mess because I have to apply my own key
     // bindings but fall back on the Fl_Multiline_Input ones otherwise.
     if (evt == FL_KEYUP) {
@@ -173,24 +187,51 @@ WrappedInput::handle(int evt)
         handled = Fl_Multiline_Input::handle(evt);
         if (evt == FL_KEYDOWN) {
             this->wrap_text();
-            this->do_callback();
+            int key = Fl::event_key();
+            if (key == FL_Escape || key == FL_Enter || key == FL_Tab) {
+                if (key == FL_Escape) {
+                    this->value(last_text.c_str()); // Revert text.
+                } else {
+                    if (this->strip && input_util::strip_value(this))
+                        this->wrap_text();
+                }
+                Fl::focus(this->window());
+            } else if (suggested_width() != w() || text_height() != h()) {
+                do_callback();
+            }
         }
     }
     if (evt == FL_UNFOCUS) {
-        if (Fl::event_key() == FL_Escape) {
-            this->value(last_text.c_str());
-        } else {
-            if (this->strip && input_util::strip_value(this))
-                this->wrap_text();
-        }
-        this->do_callback();
+        // This is so if the text is larger than fits, it will consistently
+        // display the beginning.
         this->position(0);
+        this->do_callback();
     } else if (evt == FL_FOCUS) {
+        // Save for possible later revert.
         this->last_text = this->value();
         this->do_callback();
     }
     return handled;
 }
+
+void
+WrappedInput::update_size()
+{
+    size(this->suggested_width(), this->text_height());
+}
+
+
+void
+WrappedInput::draw()
+{
+    Fl_Multiline_Input::draw();
+    // Indicate that there is hidden text.
+    if (w() < suggested_width() || h() < text_height()) {
+        fl_color(Config::abbreviation_color.fl());
+        fl_rectf(x(), y() + h() - 3, w(), 3);
+    }
+}
+
 
 static char *
 find_space(char *s, char *end)
@@ -215,18 +256,18 @@ WrappedInput::wrap_text()
 
     char *start_of_line = text;
     char *prev_space = nullptr;
-    const int max_width =
+    const int max_w =
         std::max(this->w(), this->suggested_width()) - horizontal_padding;
 
-    // DEBUG("wrap '" << text << "' " << (end - text) << " w " << max_width);
+    // DEBUG("wrap '" << text << "' " << (end - text) << " w " << max_w);
 
     // Yes, it's yet another wrapping algorithm.  Fortunately, this one is
     // much simpler than the one in SymbolTable.
     // * prev_space ^ space | start_of_line
     //      |
     // aaa bbb ccc
-    // *  ^             < max_width
-    // |  *   ^         > max_width
+    // *  ^             < max_w
+    // |  *   ^         > max_w
     // aaa\n
     // bbb ccc
     // |* ^
@@ -247,9 +288,9 @@ WrappedInput::wrap_text()
         char *space = find_space(
             prev_space ? prev_space + 1 : start_of_line, end);
         double w = fl_width(start_of_line, space - start_of_line);
-        // DEBUG("space " << space - text << " w " << w << " < " << max_width);
-        if (w > max_width) {
-            // One unbreakable word is longer than max_width, so I have to
+        // DEBUG("space " << space - text << " w " << w << " < " << max_w);
+        if (w > max_w) {
+            // One unbreakable word is longer than max_w, so I have to
             // break at the soonest space.
             if (!prev_space)
                 prev_space = space;

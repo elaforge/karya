@@ -5,7 +5,6 @@
 #include <string.h>
 #include <ctype.h>
 
-#include "FloatingInput.h"
 #include "f_util.h"
 #include "util.h"
 
@@ -76,7 +75,7 @@ operator<<(std::ostream &os, const UiMsg &m)
 std::ostream &
 operator<<(std::ostream &os, const UiMsg::Context &c)
 {
-    os << '{';
+    os << "{ ";
     if (c.focus)
         os << "f='" << c.focus->block.get_title() << "' ";
     if (c.view)
@@ -131,15 +130,10 @@ set_context(UiMsg::Context &c, BlockWindow *view)
     if (focus) {
         while (focus && focus->window())
             focus = focus->window();
-        // All windows should be either FloatingInput or BlockWindow.
-        FloatingInput *input = dynamic_cast<FloatingInput *>(focus);
-        if (input != nullptr) {
-            c.focus = dynamic_cast<BlockWindow *>(input->owner());
-        } else {
-            c.focus = dynamic_cast<BlockWindow *>(focus);
-        }
-        // c.focus could be nullptr if it's the keymap window.
-        // ASSERT(c.focus);
+        // All focused windows should be BlockWindows.  There is also
+        // KeycapsWindow, but it doesn't accept focus.
+        BlockWindow *block = dynamic_cast<BlockWindow *>(focus);
+        c.focus = block;
     }
 }
 

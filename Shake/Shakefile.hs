@@ -594,7 +594,6 @@ fltkDeps config = map (srcToObj config . ("fltk"</>))
     , "CachedScroll.cc"
     , "Color.cc"
     , "EventTrack.cc"
-    , "FloatingInput.cc"
     , "Keycaps.cc"
     , "MoveTile.cc"
     , "MsgCollector.cc"

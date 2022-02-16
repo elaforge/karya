@@ -7872,6 +7872,210 @@ darwin:
   - fltk transparency seems broken under >10.13
 
 linux:
+  - decorated_h() is 0 even with decorations, which messes up maximize
+    . How does fltk X implement decorated_h()?
+    . Via XGetWindowAttributes, but it also doesn't include the decorations.
+    + sent to fltk mailing list
+  nonfloating input:
+    . What happens if I just create the widgets without separate windows?
+    . 3 kinds, block, track, floating:
+      . block is always the same width, and tracks its parent.  On enter it
+        just emits a msg with the new text.
+      . track is short when unfocused, but can expand when focused.  On enter
+        it emits a msg, and resets to the minimum size.
+      . floating starts with suggested width, and expands.  On enter it
+        emits a msg and is deleted.
+      . If I use just WrappedInput, then it needs a flag to enable resizing.
+    . If I can't use FL_UNFOCUS anymore, since I also get it on window focus
+      change, I have to make sure click outside the text entry also causes it
+      to emit a msg.
+    . Maybe this is because of fltk conflating two different kinds of focus:
+      OS focus on the window, and window kbd focus on a widget.  Fltk must
+      keep track of kbd focus separately, because it remembers what widget has
+      focus when window focus comes back.  I want to ignore the OS mouse
+      focus, and only trigger on a loss of kbd focus.
+    . Maybe I'm being misled by the example where I start a window without
+      focus and a floating input, that is unlikely.  So maybe I can go with
+      FL_UNFOCUS.  But still it would be nicer to not emit the msg or delete
+      a floating input when another window gets focus!
+    . Maybe I can detect if the whole window lost focus?
+    * Why does the block title get focus when the block does?
+      . I wonder if this has to do with fltk's implicit kbd focus, maybe it's
+        tab navigation?  Can I disable that?
+      . I could with Fl::event_key()==0, but it's not that, because it gets it
+        when the window gets focus.  Why?
+      . Fl_Group::savedfocus_ gets take_focus() on FL_FOCUS, how is that set?
+        global fl_oldfocus, set by Fl::focus()
+      . Previously I worked around that by not calling the Fl_Window::handle
+        but then it doesn't return focus to something already focused.
+      . If the problem is that savedfocus_ gets set to random inputs (why?)
+        then maybe I can keep my own savedfocus.
+      . fl_oldfocus is not the widget, it's null or the window!
+        Could it be savedfocus_?  Nothing else sets it!
+        I don't think it's navkey, but the way it picks first child is
+        suggestive.
+      . Oh the case falls through, I guess because Block doesn't take focus?
+      . I can prevent this by allowing Block to take focus.  But, savedfocus_
+        is not in fact saving focus.  fl_oldfocus is the toplevel FL_UNFOCUS,
+        so maybe it never did save focus.
+
+    * track title
+      . Track::title_widget -> EventTrack::floating_input
+      . I need to have it still be owned by TrackTile so it can draw outside
+        its bounds.
+      . What if I just make FloatingInput not a window?
+        I would remove it entirely, use WrappedInput directly.
+      / Can I make Track::title_widget permanently owned by TrackTile?  If
+        I don't have to replace an input then focus should work better.
+      . It already is!  The difference is that I can get rid of the separate
+        AbbreviatedInput and wrapped FloatingInput.
+      . However, I used the callback for unfocus, now I can't use it for
+        focus detection.
+      . Maybe I use callback for both but pass an arg.
+      . Can I though?  Callback actually gets a widget arg passed by the
+        caller.  I think it's (source_widget, arg)
+      * Ok, here's the original problem I think: Clicks on an expanded input
+        go to the other input underneath.  I need to make it on top somehow,
+        so it gets priority.
+        . Fl_Group goes over the children in *reverse* order, so the last one
+          should get the click.  But, Tile also uses the child order for
+          display, so I can't do that.
+        . Write my own FL_PUSH handler?
+      * Focus from one title to another, the 2nd doesn't expand.
+        . Maybe priority widgets also need to draw last!
+      * It wants to wrap it when displaying.  I need AbbreviatedInput.
+        . No not really though the bar would be nice, I really need to unwrap!
+        . No, it's already unwrapped.  I just need to not rewrap it.
+      * But now it only increases vertical size one char after the wrap.
+        . Don't I need to redraw after a size change?
+        . Yes that fixes it, but now it's messed up when it shrinks.  I need
+          to get the TrackTile to redraw.
+    * block title
+      . Drawing when it wraps is messed up, probably because of lacking the
+        priority nonsense.  But since it doesn't reduce, I'd rather it
+        actually resize itself.
+    * floating input
+      . In TrackTile::floating_open etc.
+      . It displays if I fix (x, y) to window relative, and do a redraw.
+      . But, it loses focus when I focus the window.  Shouldn't the kbd
+        focus remain on the input until explicitly taken off?
+      . For a simple example, when the window gets FL_FOCUS, the last
+        focused input also gets it.  What is different about Block that
+        interrupts that?
+      . Necessary to propagate FL_FOCUS to the Fl_Window
+      . But focus changes puts the cursor back to the beginning!?
+    * return the abbr line
+    - title height is a bit higher than the widgets, even though it does
+      provide a nice spot for the abbr line.
+    - abbr line happens when there is still space
+    * auto set track title focus from haskell not working
+    * track title doesn't expand on the first click, from karya
+      . What are the events?
+      . Correct:
+        fltk/WrappedInput.cc:150 input: <12WrappedInput
+          0x7fb369813110:(24,33,40,20) input="tempo">: FL_PUSH (43, 48)
+        fltk/WrappedInput.cc:150 input: <12WrappedInput
+          0x7fb369813110:(24,33,40,20) input="tempo" focused>: FL_FOCUS
+        fltk/EventTrack.cc:278 cb event FL_PUSH
+        fltk/EventTrack.cc:281 focus title
+        fltk/TrackTile.cc:364 redraw
+        fltk/WrappedInput.cc:150 input: <12WrappedInput
+          0x7fb369813110:(24,33,44,17) input="tempo" focused>: FL_RELEASE (43,
+          48)
+
+      . Incorrect:
+        fltk/WrappedInput.cc:150 input: <12WrappedInput
+          0x7fb1db440880:(24,33,40,20) input="tempo aoeu tnhaoeu aeotuh">:
+          FL_PUSH (46, 47)
+        fltk/WrappedInput.cc:150 input: <12WrappedInput
+          0x7fb1db440880:(24,33,40,20) input="tempo aoeu tnhaoeu aeotuh"
+          focused>: FL_FOCUS
+        fltk/EventTrack.cc:278 cb event FL_PUSH
+        fltk/EventTrack.cc:281 focus title
+        fltk/TrackTile.cc:364 redraw
+        fltk/WrappedInput.cc:150 input: <12WrappedInput
+          0x7fb1db440880:(24,33,83,17) input="tempo aoeu
+          tnhaoeu
+          aeotuh" focused>: FL_RELEASE (46, 47)
+
+  + floating input broken:
+    . Is it because of point to focus?
+    . No, happens even with ClickToFocus.
+    . Also happens with track title, so it's all FloatingInput
+    . Because it's immediately done, because it doesn't have focus.
+      I can get it to have focus by dragging, but then when it loses it
+      somehow the main window doesn't get it back.
+    . Click:
+      . SHOW, FOCUS, wrapped_input_cb but ignore because not ready
+      . input has focus
+      . block title gets FL_LEAVE (?)
+      . get FL_ENTER, FL_LEAVE, FL_LEAVE, FL_ENTER, FL_UNFOCUS
+        I don't know where these events come from!
+      . wrapped_input_cb, and focus is null, so delete
+    . With ClickToFocus, I still get FL_UNFOCUS right after create.
+      It doesn't have all the extra ENTERs and LEAVEs for some reason.
+    . In any case, deleting on unfocus is no good in a world of point to
+      focus.  Text entries do not point to focus, so I need for focus to
+      remain on it until I do return, or click elsewhere in the same app.
+    . This is how input focus works inside the app, so I don't really want
+      a separate Fl_Window.
+    . Also separate window won't work with tiling WMs, unless configured to
+      ignore that window.  Maybe?  If the window is marked transient maybe
+      they don't.
+    . No problems in the block title, so it's a FloatingInput problem.
+    . Why not use an ovelapping Fl_Widget?
+      I think fltk gets weird when widgets overlap?
+    click sequence:
+      . window FL_SHOW
+      . child FL_SHOW
+      . child FL_FOCUS
+      . window cb called, but ignored since it's not marked "ready" and no focus
+      . created input, after child.take_focus(), child focused
+      . FL_NO_EVENT * 24 with dmg=all+child
+      . FL_NO_EVENT with dmg=all+child+expose
+      . FL_NO_EVENT but with no damage
+      . window FL_ENTER
+      . child FL_LEAVE
+      . child FL_ENTER - focused
+      . child FL_LEAVE - focused
+      . window FL_LEAVE
+      . child FL_LEAVE - focused
+      . window FL_ENTER
+      . child FL_ENTER - focused
+      . child FL_UNFOCUS - unfocused
+      . child closes!
+    other event oddity: I only ever get FL_LEAVE, never FL_ENTER?
+    meanwhile on OS X:
+      . window FL_FOCUS
+      . child FL_FOCUS
+      . child FL_UNFOCUS
+      . window FL_UNFOCUS
+      . window FL_FOCUS
+      . child FL_FOCUS
+      . window FL_SHOW
+      . child FL_FOCUS
+    . This seems a lot more reasonable, except of course there is an extra
+      focus/unfocus.
+    ? Callback is called after FL_FOCUS, but child doesn't have focus yet.
+      Is this documented?
+    ? Then gets 26 FL_NO_EVENTs with different damage, what is this?
+    ? Window gets FL_ENTER as expected since the cursor is over it, but
+      why then does the child and parent then get multiple leave and enters?
+    ? Where does the final FL_UNFOCUS come from?
+    ? What about ClickToFocus?
+      . The events seem to be the same
+      . with SloppyFocus I actually see the subwindow as long as the mouse
+        button is down, but disappears as soon as it goes up, but with
+        ClickToFocus I never see the subwindow.
+    ? Is this something specific to block, or can I make a small fltk program
+      that does this?
+    BUT:
+      . Even if I do get it to work, I don't think it works with point to
+        focus, unless there's some way to disable it just for that window,
+        because keyboard focus will leave it!
+      . If I do a widget in fltk, then the focus is managed internally.
+        But fltk doesn't like overlapping widgets?
+      . How about try it to see what goes wrong.
   * maximize via flvwm doesn't draw right
     . It doesn't resize the widgets until I move the window around.
   / maximize vertically crashes:
