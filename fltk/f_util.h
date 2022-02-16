@@ -46,7 +46,7 @@ const char *show_key(int key);
 const char *show_event(int evt);
 // Show extra event information, such as char for key events, position for
 // mouse, etc.
-const char *show_event_info(int evt);
+std::string show_event_info(int evt);
 // Show Fl::event_state().
 const char *show_event_state(int state);
 const char *show_damage(uchar d);

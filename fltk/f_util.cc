@@ -92,26 +92,23 @@ show_event(int evt)
     return fl_eventnames[evt];
 }
 
-const char *
+std::string
 show_event_info(int evt)
 {
-    static char buf[128];
+    std::ostringstream out;
+    out << show_event(evt);
     switch (evt) {
     case FL_PUSH: case FL_DRAG: case FL_RELEASE: case FL_MOVE:
     case FL_MOUSEWHEEL:
-        snprintf(buf, sizeof buf, "(%d, %d)", Fl::event_x(), Fl::event_y());
+        out << " (" << Fl::event_x() << ", " << Fl::event_y() << ")";
         break;
     case FL_KEYDOWN: case FL_KEYUP:
-        // Don't bother with Fl::event_length() because 'buf' isn't returned
-        // with an explicit length.
-        snprintf(buf, sizeof buf, "%s (\"%s\")",
-            show_key(Fl::event_key()), Fl::event_text());
+        out << " " << show_key(Fl::event_key());
         break;
     default:
-        return "unknown";
         break;
     }
-    return buf;
+    return out.str();
 }
 
 
@@ -178,9 +175,12 @@ show_damage(uchar d)
 const char *
 show_widget(const Fl_Widget *w)
 {
+    if (w == nullptr)
+        return "<null>";
     std::ostringstream out;
-    out << typeid(*w).name() << ": ";
-    out << rect(*w);
+    out << "<" << typeid(*w).name() << " " << (void*) w << ":";
+    out << "(" << w->x() << "," << w->y() << "," << w->w() << "," << w->h()
+        << ")";
     if (w->label())
         out << " label=" << '"' << w->label() << '"';
     const Fl_Input_ *input = dynamic_cast<const Fl_Input_ *>(w);
@@ -188,6 +188,9 @@ show_widget(const Fl_Widget *w)
         out << " input=\"" << input->value() << '"';
     if (w->damage())
         out << " dmg=" << show_damage(w->damage());
+    if (Fl::focus() == w)
+        out << " focused";
+    out << ">";
     static std::string outs;
     outs = out.str();
     return outs.c_str();
