@@ -7967,7 +7967,8 @@ linux:
     * return the abbr line
     - title height is a bit higher than the widgets, even though it does
       provide a nice spot for the abbr line.
-    - abbr line happens when there is still space
+    * abbr line happens when there is still space
+      . tempo fits in 37, but suggested_width() is 44
     * auto set track title focus from haskell not working
     * track title doesn't expand on the first click, from karya
       . What are the events?

@@ -103,6 +103,9 @@ WrappedInput::suggested_width() const
     const char *start = this->value();
     const char *end = this->value();
     fl_font(Config::font, Config::font_size::input);
+    // Give one extra character of space, otherwise it wants to wrap.
+    const static int extra_space = fl_width('m');
+
     // This prefers to wrap on |s, so measure the distance between each |.
     for (;;) {
         while (*end != '\0' && *end != '|')
@@ -112,8 +115,8 @@ WrappedInput::suggested_width() const
         if (start == end)
             break;
         // DEBUG("max: " << max_width << " width: " <<
-        //     fl_width('m') + fl_width(start, end - start));
-        width = std::max(width, fl_width('m') + fl_width(start, end - start));
+        //     extra_space + fl_width(start, end - start));
+        width = std::max(width, extra_space + fl_width(start, end - start));
         width = std::min(double(max_width), width);
         start = end;
     }
@@ -224,9 +227,16 @@ WrappedInput::update_size()
 void
 WrappedInput::draw()
 {
+    // suggested_width() adds an extra char to avoid wrapping, but we want the
+    // exact width here.
+    fl_font(Config::font, Config::font_size::input);
+    const static int extra_space = fl_width('m') - 3;
+
     Fl_Multiline_Input::draw();
     // Indicate that there is hidden text.
-    if (w() < suggested_width() || h() < text_height()) {
+    if (w() < suggested_width() - extra_space || h() < text_height()) {
+        // DEBUG(w() << " < " << suggested_width()
+        //     << " || " << h() << " < " << text_height());
         fl_color(Config::abbreviation_color.fl());
         fl_rectf(x(), y() + h() - 3, w(), 3);
     }
