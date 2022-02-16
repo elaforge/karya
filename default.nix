@@ -30,9 +30,15 @@
 }:
 
 let
-  nixpkgs-sys = import <nixpkgs> {};
   nixpkgs = import nix/nixpkgs.nix { inherit config; };
   nixpkgs-orig = import nix/nixpkgs.nix {};
+  # Some things must use system versions, not my pinned versions.
+  # However in CI, there is no system, or rather it's whatever version of
+  # nixpkgs the github action uses, and I don't want to be broken by that.
+  #
+  # TODO: use actual system stuff for non nixos linux.  I think I would just
+  # omit the deps entirely?
+  nixpkgs-sys = if isCi then nixpkgs else import <nixpkgs> {};
   hackage = import nix/hackage.nix {
     inherit ghcVersion profiling profilingDetail;
   };

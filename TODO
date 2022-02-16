@@ -7872,6 +7872,14 @@ darwin:
   - fltk transparency seems broken under >10.13
 
 linux:
+  * ci suddenly doesn't want to see libjack
+    . Well as soon as I put ls in, now it does...
+    . No it doesn't again.
+    . /nix/store/v6z1r780vbgbj3fvs09f6b91fk8dcd13-libjack2-1.9.19/lib/libjack.so.0
+      does exist, why does it find everything else and not this?
+    . nixos links against the exact same v6z1r
+    . but patchelf --print-rpath shows xv36!
+    . rm -rf build fixed it, probably stale .o files
   - decorated_h() is 0 even with decorations, which messes up maximize
     . How does fltk X implement decorated_h()?
     . Via XGetWindowAttributes, but it also doesn't include the decorations.

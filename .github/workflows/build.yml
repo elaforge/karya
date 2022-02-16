@@ -37,9 +37,9 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: build
-          key: ${{ runner.os }}-${{ steps.get-date.outputs.date }}
+          key: ${{ runner.os }}-v1-${{ steps.get-date.outputs.date }}
           restore-keys: |
-            ${{ runner.os }}-
+            ${{ runner.os }}-v1-
       - run: ls -l build || true
 
       # 19.09.2522.75f4ba05c63
