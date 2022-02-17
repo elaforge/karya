@@ -589,8 +589,7 @@ makePlayCacheBinary name main libs objs = (C.binary name [])
 -}
 fltkDeps :: Config -> [FilePath]
 fltkDeps config = map (srcToObj config . ("fltk"</>))
-    [ "AbbreviatedInput.cc"
-    , "Block.cc"
+    [ "Block.cc"
     , "CachedScroll.cc"
     , "Color.cc"
     , "EventTrack.cc"

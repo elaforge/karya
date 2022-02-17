@@ -16,7 +16,6 @@
 #include <FL/Fl_RGB_Image.H>
 #include <FL/Fl_Widget.H>
 
-#include "AbbreviatedInput.h"
 #include "CachedScroll.h"
 #include "Event.h"
 #include "WrappedInput.h"
