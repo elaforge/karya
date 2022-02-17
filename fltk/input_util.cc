@@ -159,6 +159,12 @@ handle(Fl_Input *input, int evt, bool multiline)
     switch (evt) {
     case FL_KEYDOWN:
         switch (Fl::event_key()) {
+        case FL_Enter:
+        case FL_Tab:
+        case FL_Escape:
+            // Just make sure these don't actually enter a character.
+            handled = true;
+            break;
         case 'h':
             if (state & (FL_META | FL_CTRL)) {
                 move_backward(input, state & FL_SHIFT);

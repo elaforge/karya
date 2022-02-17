@@ -188,26 +188,23 @@ WrappedInput::handle(int evt)
     }
     if (!handled) {
         handled = Fl_Multiline_Input::handle(evt);
-        if (evt == FL_KEYDOWN) {
-            this->wrap_text();
-            int key = Fl::event_key();
-            if (key == FL_Escape || key == FL_Enter || key == FL_Tab) {
-                if (key == FL_Escape) {
-                    this->value(last_text.c_str()); // Revert text.
-                } else {
-                    if (this->strip && input_util::strip_value(this))
-                        this->wrap_text();
-                }
-                Fl::focus(this->window());
-            } else if (suggested_width() != w() || text_height() != h()) {
-                do_callback();
+    }
+    if (evt == FL_KEYDOWN) {
+        this->wrap_text();
+        int key = Fl::event_key();
+        if (key == FL_Escape || key == FL_Enter || key == FL_Tab) {
+            if (key == FL_Escape) {
+                this->value(last_text.c_str()); // Revert text.
+            } else {
+                if (this->strip)
+                    input_util::strip_value(this);
             }
+            Fl::focus(this->window());
+        } else if (suggested_width() != w() || text_height() != h()) {
+            do_callback();
         }
     }
     if (evt == FL_UNFOCUS) {
-        // This is so if the text is larger than fits, it will consistently
-        // display the beginning.
-        this->position(0);
         this->do_callback();
     } else if (evt == FL_FOCUS) {
         // Save for possible later revert.
@@ -227,16 +224,18 @@ WrappedInput::update_size()
 void
 WrappedInput::draw()
 {
-    // suggested_width() adds an extra char to avoid wrapping, but we want the
-    // exact width here.
-    fl_font(Config::font, Config::font_size::input);
-    const static int extra_space = fl_width('m') - 3;
-
     Fl_Multiline_Input::draw();
-    // Indicate that there is hidden text.
-    if (w() < suggested_width() - extra_space || h() < text_height()) {
-        // DEBUG(w() << " < " << suggested_width()
-        //     << " || " << h() << " < " << text_height());
+    // if there is >1 line, or the line >w()
+    fl_font(Config::font, Config::font_size::input);
+    int pad = 3; // fl_width seems to guess a bit low.
+
+    // If it has \n it must be focused and hence expanded, or is the block
+    // title, so no abbreviation.  The fl_width is only valid without \n but we
+    // clear those out on unfocus.
+    bool abbreviated =
+        strchr(value(), '\n') == nullptr && fl_width(value()) + pad > w();
+    if (abbreviated) {
+        // Indicate that there is hidden text.
         fl_color(Config::abbreviation_color.fl());
         fl_rectf(x(), y() + h() - 3, w(), 3);
     }

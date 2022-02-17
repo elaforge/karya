@@ -50,8 +50,10 @@ void free_haskell_fun_ptr(void *val);
 // BlockConfig, but it didn't seem useful so they're hardcoded now.
 namespace Block {
     enum {
-        block_title_height = 20,
-        track_title_height = 20,
+        // This corresponds more or less to fl_height() of Config::font at
+        // Config::font_size::input.
+        block_title_height = 17,
+        track_title_height = 17,
         skel_height = 16,
         sb_size = 6,
         status_size = 16,

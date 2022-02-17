@@ -158,6 +158,7 @@ EventTrack::EventTrack(
     const RulerConfig &ruler_config
 ) :
     Track("events"),
+    // 40 is an arbitrary max_width, will be filled in when I know window width
     title_input(0, 0, 1, 1, true, 40),
     body_scroll(0, 0, 1, 1),
         body(tracknum, config, ruler_config)
@@ -303,6 +304,9 @@ EventTrack::title_unfocused()
     title_input.size(this->w(), Config::Block::track_title_height);
     const char *text = title_input.get_text();
     MsgCollector::get()->track_title(this, body.tracknum, text);
+    title_input.value(text);
+    // If it doesn't fit, always show the beginning.
+    title_input.position(0);
     // Winds up at TrackTile::title_input_cb, which will redraw TrackTile
     // since it may have changed size.
     do_callback();

@@ -7973,7 +7973,7 @@ linux:
       . Necessary to propagate FL_FOCUS to the Fl_Window
       . But focus changes puts the cursor back to the beginning!?
     * return the abbr line
-    - title height is a bit higher than the widgets, even though it does
+    * title height is a bit higher than the widgets, even though it does
       provide a nice spot for the abbr line.
     * abbr line happens when there is still space
       . tempo fits in 37, but suggested_width() is 44
@@ -8006,8 +8006,9 @@ linux:
           0x7fb1db440880:(24,33,83,17) input="tempo aoeu
           tnhaoeu
           aeotuh" focused>: FL_RELEASE (46, 47)
+    * when I delete a character, it inserts a space
 
-  + floating input broken:
+  * floating input broken:
     . Is it because of point to focus?
     . No, happens even with ClickToFocus.
     . Also happens with track title, so it's all FloatingInput
