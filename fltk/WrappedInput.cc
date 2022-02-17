@@ -97,7 +97,7 @@ WrappedInput::text_height() const
 int
 WrappedInput::suggested_width() const
 {
-    if (this->max_width == 0)
+    if (max_width == no_wrap || max_width == match_width)
         return w();
     double width = 0;
     const char *start = this->value();
@@ -254,9 +254,11 @@ find_space(char *s, char *end)
     return std::min(space, nl);
 }
 
-bool
+void
 WrappedInput::wrap_text()
 {
+    if (this->max_width == no_wrap)
+        return;
     // Just for memory management.
     std::unique_ptr<char> text_ptr(strdup(this->value()));
     char *text = &*text_ptr;
@@ -334,5 +336,5 @@ WrappedInput::wrap_text()
         // Setting value will destroy the selection, so restore it.
         this->position(pos, mark);
     }
-    return changed;
+    return;
 }

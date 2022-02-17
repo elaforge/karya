@@ -7991,7 +7991,6 @@ linux:
         fltk/WrappedInput.cc:150 input: <12WrappedInput
           0x7fb369813110:(24,33,44,17) input="tempo" focused>: FL_RELEASE (43,
           48)
-
       . Incorrect:
         fltk/WrappedInput.cc:150 input: <12WrappedInput
           0x7fb1db440880:(24,33,40,20) input="tempo aoeu tnhaoeu aeotuh">:
@@ -8007,6 +8006,13 @@ linux:
           tnhaoeu
           aeotuh" focused>: FL_RELEASE (46, 47)
     * when I delete a character, it inserts a space
+    * new track wraps when resizing
+      . Maybe because it never called set_maximum_width?
+      . Setting to a large number seems to fix, but why should it?
+      . It's because WrappedInput::resize does do text wrapping, and has to,
+        for block title.
+      . For unwrap I can set max_width to 0, which is unlimited.
+    - fltk/MsgCollector.cc:434 unknown event: FL_DRAG, drag on track title
 
   * floating input broken:
     . Is it because of point to focus?

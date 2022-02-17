@@ -51,7 +51,7 @@ Block::Block(int x, int y, int w, int h,
         const BlockConfig &config, const char *window_title) :
     Fl_Group(x, y, w, h),
 
-    title(0, 0, 1, 1, true, 0),
+    title(0, 0, 1, 1, true, WrappedInput::match_width),
     status_line(0, 0, 1, 1),
     body(0, 0, 1, 1),
         body_resize_group(0, 0, 1, 1, "resize group"),

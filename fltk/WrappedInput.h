@@ -41,11 +41,23 @@
         focus -> nothing
         resize -> update Block widget positions, redraw Block
         unfocus -> send msg
+
+    TODO: since there are 3 different purposes, maybe there should be an
+    explicit enumeration saying what it's used for, because trying to serve
+    everyone leads to some pretty ad-hoc semantics.
 */
 class WrappedInput : public Fl_Multiline_Input {
 public:
     // Pass max_width=0 to disable resizing.
     WrappedInput(int x, int y, int w, int h, bool strip, int max_width);
+    enum {
+        // Disable wrapping entirely.  This is for collapsed track titles.
+        no_wrap = -1,
+        // Always suggest the same width as the widget actually is.  This is
+        // for block titles, which are resized by their window, not in response
+        // to their contents.
+        match_width = 0
+    };
     void resize(int x, int y, int w, int h) override;
     // Must be mutable so TrackTile can set for EventTrack::title_input.
     void set_max_width(int w);
@@ -67,7 +79,7 @@ protected:
     void draw() override;
 
 private:
-    bool wrap_text();
+    void wrap_text();
     // Strip spaces from the text on unfocus.
     const bool strip;
     // Don't let suggested_width expand past this.  If 0, suggested_width()

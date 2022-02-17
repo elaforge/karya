@@ -159,7 +159,7 @@ EventTrack::EventTrack(
 ) :
     Track("events"),
     // 40 is an arbitrary max_width, will be filled in when I know window width
-    title_input(0, 0, 1, 1, true, 40),
+    title_input(0, 0, 1, 1, true, WrappedInput::no_wrap),
     body_scroll(0, 0, 1, 1),
         body(tracknum, config, ruler_config)
 {
@@ -300,7 +300,7 @@ EventTrack::title_focused()
 void
 EventTrack::title_unfocused()
 {
-    // Just force the size back down.  It won't rewrap but that's fine.
+    title_input.set_max_width(WrappedInput::no_wrap);
     title_input.size(this->w(), Config::Block::track_title_height);
     const char *text = title_input.get_text();
     MsgCollector::get()->track_title(this, body.tracknum, text);
