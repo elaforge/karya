@@ -384,7 +384,8 @@ view_left_padding = #const Config::Block::sb_size
 -- TODO I should actually be getting this from fltk but it's easier to
 -- hardcode for now.  But I need a window, since it comes from
 -- Fl_Window::decorated_h() - Fl_Window::h().  However I can't assume that
--- linux will have 0.
+-- linux will have 0.  Oh and this doesn't work on linux with fvwm anyway,
+-- because fltk can't figure out the decoration size.
 window_decoration_h :: Int
 window_decoration_h = case platform of
     Linux -> 0
@@ -395,6 +396,14 @@ window_decoration_h = case platform of
 bravura :: String
 bravura = "Bravura"
 
+-- | This is enough pixels to display one line of text in the normal font and
+-- size, and not seem cramped.  It corresponds to a bit more than fl_height()
+-- of the 'plain_styles' below.
+--
+-- TODO it could be derived to adjust when the default style changes.
+-- Currently it's derived via the traditional process of zooming and squinting.
+event_text_height :: Int
+event_text_height = 15
 
 -- * event style
 

@@ -13,6 +13,7 @@ module Cmd.TimeStep (
     , modify_rank
     , match_meter
     , event_edge
+    , rank
     , Step(..), Tracks(..)
     , MarklistMatch(..)
     , Direction(..)
@@ -22,6 +23,7 @@ module Cmd.TimeStep (
     -- * step
     , snap
     , step_from, rewind, advance, direction
+    , duration_at
     , get_points_from
 
 #ifdef TESTING
@@ -79,6 +81,9 @@ match_meter = NamedMarklists [Ruler.meter_name]
 event_edge :: TimeStep
 event_edge =
     TimeStep [EventStart CurrentTrack, EventEnd CurrentTrack, BlockEdge]
+
+rank :: Meter.Rank -> TimeStep
+rank = time_step . AbsoluteMark match_meter
 
 -- | The possible matchers for a TimeStep.
 data Step =
@@ -205,6 +210,15 @@ advance = step_from 1
 direction :: Direction -> Int
 direction Advance = 1
 direction Rewind = -1
+
+duration_at :: Ui.M m => BlockId -> TrackNum -> TrackTime -> TimeStep
+    -> m (Maybe ScoreTime)
+duration_at block_id tracknum pos tstep = do
+    pre <- get_points_from Rewind block_id tracknum pos tstep
+    post <- get_points_from Advance block_id tracknum pos tstep
+    return $ case (pre, dropWhile (==pos) post) of
+        (t0 : _, t1 : _) -> Just (t1 - t0)
+        _ -> Nothing
 
 -- | Step in the given direction from the given position, or Nothing if
 -- there is no step from that point.  This may return a point past the end of

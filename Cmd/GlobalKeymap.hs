@@ -76,7 +76,6 @@ import qualified Derive.Scale as Scale
 import qualified Ui.Block as Block
 import qualified Ui.Key as Key
 import qualified Ui.Meter.Meter as Meter
-import qualified Ui.Ruler as Ruler
 import qualified Ui.Ui as Ui
 
 import           Global
@@ -313,22 +312,17 @@ step_play_bindings = concat
 
 view_config_bindings :: Cmd.M m => [Keymap.Binding m]
 view_config_bindings = concat
-    [ plain_char '[' "zoom out *0.8"
-        (ViewConfig.cmd_zoom_around_insert (*0.8))
-    , plain_char ']' "zoom in *1.25"
-        (ViewConfig.cmd_zoom_around_insert (*1.25))
-    , plain_char '{' "previous selection" (Selection.previous_selection True)
-    , plain_char '}' "next selection" (Selection.next_selection True)
+    [ plain_char '[' "zoom out step" (ViewConfig.zoom_by_rank TimeStep.Rewind)
+    , plain_char ']' "zoom in step" (ViewConfig.zoom_by_rank TimeStep.Advance)
+    , plain_char '{' "zoom out *0.8" (ViewConfig.cmd_zoom_around_insert (*0.8))
+    , plain_char '}' "zoom in *1.25" (ViewConfig.cmd_zoom_around_insert (*1.25))
+    -- undo and redo for selection, but I never use it
+    , command_char '[' "previous selection" (Selection.previous_selection True)
+    , command_char ']' "next selection" (Selection.next_selection True)
 
     -- TODO experimental
     , command_char 'q' "set suggested track widths"
         (ViewConfig.set_suggested_track_widths =<< Cmd.get_focused_view)
-    -- I didn't wind up using these very much, so let's see if undo and redo
-    -- selection are more useful.
-    -- , plain_char '{' "zoom out *.95"
-    --     (ViewConfig.cmd_zoom_around_insert (*0.95))
-    -- , plain_char '}' "zoom out * 1/.95"
-    --     (ViewConfig.cmd_zoom_around_insert (* (1/0.95)))
 
     , plain_char '\\' "zoom to ruler or selection"
         ViewConfig.zoom_to_ruler_or_selection
@@ -416,10 +410,10 @@ edit_state_bindings = concat
     ]
     where
     step_rank rank =
-        ("set step: " <> TimeStep.show_time_step step,
-            Edit.set_step_rank step rank)
-        where step = TimeStep.time_step (TimeStep.AbsoluteMark meter rank)
-    meter = TimeStep.NamedMarklists [Ruler.meter_name]
+        ( "set step: " <> TimeStep.show_time_step step
+        , Edit.set_step_rank step rank
+        )
+        where step = TimeStep.rank rank
 
 -- delete = remove events and move following events back
 -- clear = just remove events

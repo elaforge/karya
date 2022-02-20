@@ -8,17 +8,21 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Tuple as Tuple
 
+import qualified Util.Control as Control
 import qualified Util.Lens as Lens
 import qualified Util.Num as Num
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
+import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Selection as Selection
+import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.Views as Views
 
 import qualified Ui.Block as Block
+import qualified Ui.Meter.Meter as Meter
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Sel as Sel
 import qualified Ui.Ui as Ui
@@ -72,6 +76,46 @@ zoom_to :: Cmd.M m => ViewId -> TrackTime -> TrackTime -> m ()
 zoom_to view_id start end =
     Views.set_zoom view_id . Zoom.Zoom start
         =<< Views.zoom_factor view_id (end - start)
+
+-- | Go through zoom factors for timesteps at the current point, and pick the
+-- next larger or smaller one.
+zoom_by_rank :: Cmd.M m => TimeStep.Direction -> m ()
+zoom_by_rank direction = do
+    (view_id, (block_id, tracknum, pos)) <- Selection.get_any_insert
+    factor <- Zoom.factor <$> Ui.get_zoom view_id
+    let dur_at = TimeStep.duration_at block_id tracknum pos . TimeStep.rank
+    mb_factor <- Control.loop1 ranks $ \loop -> \case
+        rank : ranks -> dur_at rank >>= \case
+            Just dur
+                | cmp f factor -> return $ Just f
+                | otherwise -> loop ranks
+                where
+                cmp = case direction of
+                    TimeStep.Advance -> (>)
+                    TimeStep.Rewind -> (<)
+                f = time_to_zoom dur
+            Nothing -> return Nothing
+        [] -> return Nothing
+    whenJust mb_factor $ cmd_zoom_around view_id pos . const
+    where
+    ranks = case direction of
+        TimeStep.Advance -> rs
+        TimeStep.Rewind -> reverse rs
+        where rs = [Meter.W .. maxBound]
+
+-- | Set zoom to where text at the given timestep should be visible.
+-- This means the timestep amount of score should get Config.event_text_height
+-- pixels.
+zoom_to_rank :: Cmd.M m => Meter.Rank -> m ()
+zoom_to_rank rank = do
+    (view_id, (block_id, tracknum, pos)) <- Selection.get_any_insert
+    whenJustM (TimeStep.duration_at block_id tracknum pos tstep) $ \dur ->
+        cmd_zoom_around view_id pos (const (time_to_zoom dur))
+    where tstep = TimeStep.rank rank
+
+time_to_zoom :: TrackTime -> Double
+time_to_zoom step = text / ScoreTime.to_double step
+    where text = fromIntegral Config.event_text_height
 
 -- * scroll
 

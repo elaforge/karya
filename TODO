@@ -55,11 +55,11 @@ usability:
   - Undo not recording during insert causes me to lose stuff.
 
 STATUS
-  - linux floating inputs broken
+  * linux floating inputs broken
   * darwin link errors:
   - ardour canvas implementation
   - raga-janaka stalled
-  - shrink tracks:
+  + shrink tracks:
 
   . infer gender damping:
   - make kendang sampler instrument
@@ -5266,7 +5266,14 @@ performance:
         and necessary.
 
 fltk:
-  - Zoom to fit text on events.
+  - embiggening the rightmost track could embiggen the window too
+    . A more extreme version is to remove horizontal scrolling by making the
+      window always fit the tracks.
+  - fltk/MsgCollector.cc:434 unknown event: FL_DRAG, drag on track title
+  / wrapped event text is drawing past the next event
+    . When did this start happening!?
+    . I can't reproduce it now.
+  * Zoom to fit text on events.
     . The idea is to set time zoom such that all event texts are shown.
     . Actually a more useful thing might be to zoom such that event texts at
       a certain timestep are shown.  This is recovering tracker style space
@@ -5278,12 +5285,15 @@ fltk:
       always have blocks be full height.
   - I may also want to drag tracks horizontally and have the window resize
     automatically to fit them.
-  - shrink tracks:
+  + shrink tracks:
     . Shrink tracks to fit text width
-    plan:
-      * implement with Block.track_suggested_width
-      - It's not right when text is wrapped.
-        . Because boxes are post-wrap, when I really want pre-wrap.
+    * implement with Block.track_suggested_width
+    - It's not right when text is wrapped.
+      . Because boxes are post-wrap, when I really want pre-wrap.
+      . This is bad when adding new long text and then resizing, because new
+        text is naturally too wrapped.
+      . What I really want is to generate boxes wrapped to whatever they can
+        be such that all text is visible.
     notes:
       . Could I even automate this?  Make tracks always wide enough to fit the
         longest text, up to some limit.
@@ -5919,6 +5929,11 @@ midi record:
       speed.  Add, widen, or narrow vibrato.
 
 REPL: repl:
+  - what is actually going on when I get this?
+    . [  6 of 372] Compiling Util.CallStack   ( Util/CallStack.hs, interpreted)
+      [flags changed]
+    . What flags changed to what and why?  Shake sure doesn't think flags
+      changed.
   - get ghci API to load .o files, specifically vector.cc.o
     . Linux links .o files eagerly, so any dependency on e.g. Audio
       will fail with:
@@ -7872,6 +7887,7 @@ darwin:
   - fltk transparency seems broken under >10.13
 
 linux:
+  - gutters between tracks have little artifacts
   * ci suddenly doesn't want to see libjack
     . Well as soon as I put ls in, now it does...
     . No it doesn't again.
@@ -8012,7 +8028,6 @@ linux:
       . It's because WrappedInput::resize does do text wrapping, and has to,
         for block title.
       . For unwrap I can set max_width to 0, which is unlimited.
-    - fltk/MsgCollector.cc:434 unknown event: FL_DRAG, drag on track title
 
   * floating input broken:
     . Is it because of point to focus?
