@@ -429,6 +429,7 @@ MsgCollector::event_handler(int evt)
         // For some reason fltk sends these to the Fl::add_handler on linux.
         return 1;
     case FL_SHORTCUT:
+    case FL_DRAG: // I get these if I drag from a text entry to a track body.
         return 1;
     default:
         DEBUG("unknown event: " << f_util::show_event(evt));

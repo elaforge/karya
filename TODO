@@ -5269,7 +5269,7 @@ fltk:
   - embiggening the rightmost track could embiggen the window too
     . A more extreme version is to remove horizontal scrolling by making the
       window always fit the tracks.
-  - fltk/MsgCollector.cc:434 unknown event: FL_DRAG, drag on track title
+  * fltk/MsgCollector.cc:434 unknown event: FL_DRAG, drag on track title
   / wrapped event text is drawing past the next event
     . When did this start happening!?
     . I can't reproduce it now.
