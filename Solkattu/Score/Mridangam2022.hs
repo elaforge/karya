@@ -5,22 +5,8 @@
 module Solkattu.Score.Mridangam2022 where
 import           Prelude hiding ((.), repeat)
 
-import qualified Solkattu.Tala as Tala
-
 import           Solkattu.Dsl.Mridangam
 
-
--- 2022-02-06
---   noN,d but at 90 and with kandam
---   n,dd,dd: each 2x
---     normal
---     ~~ dN,D,dD
---     ~~ dN,D,dD ~ dn,D,dD
--- 4   all dn,d,dd,
---     on,D,dD, dN,D,dD, ~ ~ dN,D,dN,D,dN,D,d|on,d
---     no thom version
--- 7   second half, with and without thom
--- 8   reduce 4s to 2s
 
 e_n_dd_dd :: Korvai
 e_n_dd_dd = date 2022 2 6 $ exercise $ ganesh $ korvaiS adi
@@ -33,3 +19,17 @@ e_n_dd_dd = date 2022 2 6 $ exercise $ ganesh $ korvaiS adi
     , "on.D." . r2 "dN.D.".d . "on.d." . r2 "dn.d.".d
     , r2 "on.D. pn.d. dN.D.d"
     ]
+
+
+c_22_02_20 :: Korvai
+c_22_02_20 = date 2022 2 20 $ ganesh $ korvaiS adi
+    [ sarvaD_ 4 . __. nd3."N__k__D"
+    , sarvaD_ 4 . u.__3 . nd3."N_k_D"
+    , sarvaD_ 5 . __.nd3."NkD"
+    , sarvaD_ 5 . __.nd3."N__k__D_" . nd3."N_k_D_" . nd3."NkD"
+    , nd3."NkD__".su p6 . nd3."N_k_D__".su (p6.p6) . nd3."N__k__D__"
+        . su (r3 p6)."N_k_D__" . su (r3 p6)."NkD__" . su (r3 p6)
+    ]
+    where
+    nd3 = r3 nd
+    nd = g $ on.su (su ktok).od
