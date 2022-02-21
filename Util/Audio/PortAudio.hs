@@ -77,17 +77,12 @@ write :: forall m rate chan. (MonadIO m, KnownNat chan)
     -> Audio.Audio m rate chan -> m ()
 write pollQuit stream framesPerBuffer = go
     where
-    -- go audio = Audio.next audio >>= \case
-    --     Nothing -> return ()
-    --     Just (block, audio) -> do
-    --         liftIO $ mapM_ writeVector (Audio.blockSamples block)
-    --         go audio
     go audio = liftIO pollQuit >>= \case
         True -> return ()
         False -> do
             (blocks, audio) <- Audio.splitAt framesPerBuffer audio
             if null blocks then return () else do
-                -- I could probably mapm_ writeVector, but this gives
+                -- I could probably mapM_ writeVector, but this gives
                 -- predictable interrupt time and is the size I promised
                 -- Pa_OpenStream.
                 let samples = mconcat $ concatMap Audio.blockSamples blocks

@@ -52,14 +52,30 @@ usability:
     . I don't want to need /0.  I could have %score which is like
       %default-call except always /0.  Seems like a really minor
       thing though.
+    . And for such a minor seeming thing it was incredibly hard to implement
+      and I failed at several ways.  I need %default-call with durations for
+      drums anyway.
+    . What if I just generated a commented out template example the first
+      time?
   - Undo not recording during insert causes me to lose stuff.
 
+darwin:
+  . https://member.ipmu.jp/yuji.tachikawa/MenuMetersElCapitan/
+  . https://github.com/exelban/stats
+  . hammerspoon:
+    https://www.hammerspoon.org/go/?fbclid=IwAR18nzpblvZ9F398nowSvYosdoJoAo6l64jYg9Vu2PjKAiRunt08lFXktAg
+
 STATUS
+  - Biggest problem is input lag when editing, or when rerendering.
+    . I haven't been doing enough editing lately to know what it is.  Once
+      I do that, I have to characterize it so it can be reproduced, and
+      then figure out how to fix.
   * linux floating inputs broken
   * darwin link errors:
   - ardour canvas implementation
   - raga-janaka stalled
   + shrink tracks:
+    . Ok for shrinking, but needs work for expanding.
 
   . infer gender damping:
   - make kendang sampler instrument
@@ -69,7 +85,7 @@ STATUS
     and after warp as function, and linear segments.
     . Mostly done, but I think I want to use criterion on some smaller
       examples, since full scores still seems to be really noisy.
-    . I have this in the 'criterion' branch.  I investigated using 'guage',
+    . I have this in the 'criterion' branch.  I investigated using 'gauge',
       which has fewer dependencies, but it seems one of those is JSON export,
       which I need.
   - Find out why MemoryLeak latency: went up.
@@ -86,25 +102,9 @@ external:
   * vim cmd to use rg to find callers
     . Like ,g but prepend current Module\. to the search string.
       This will miss irregular imports though.
-  Can I write a dep-analyzer to answer questions about the module graph?
-    . What's the max depth of the tree?  Depth from a starting module?
-    . What are a module's transitive deps, and by how many paths does it reach
-      them?  The ones with a low count could be trimmed.
-    . What are the paths from module A to B?
-    . For any of these, do a diff between two git commits.
-    questions:
-      . If I remove Perform.Signal from Derive.ScoreT, does anyone now have
-        fewer deps?  Since I just use it for Signal.Y
-      . Or if I add some import, what do I now depend on that I didn't before?
-      . For each import, print the number of transitive things it imports.
-    can hiedb do this?
-      . Not clear, what is reachable and unreachable?
-      . What is the schema for the db?
-    I can do it with tags?
-      . No, it just registers module names, not imports.
-    Shake.HsDeps creates an import graph.
-      . So does ghc -M, but it doesn't understand .hsc.
-        ghc -dep-suffix '' -dep-makefile deps -M App/Main.hs
+  - find some way to integrate Shake.ImportQuery into my workflow
+    . At least I'd like a warning about what adding or removing an import
+      means.  Maybe that means integrate with fix-imports?
 
   record screencast of using karya:
     basic notes / intro:
@@ -5283,8 +5283,6 @@ fltk:
     . In fact, I could replace free zoom with zoom by timestep.
     . Maybe once I do that, I can try 2D tiling again, because I won't have to
       always have blocks be full height.
-  - I may also want to drag tracks horizontally and have the window resize
-    automatically to fit them.
   + shrink tracks:
     . Shrink tracks to fit text width
     * implement with Block.track_suggested_width

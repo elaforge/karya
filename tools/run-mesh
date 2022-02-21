@@ -1,0 +1,47 @@
+#!/usr/bin/env zsh
+
+# nix build, but segfaults
+# bin=/nix/store/xbbivra1vwrxkpqrl7ifg0gfv16fs2rb-mesh2faust/bin/mesh2faust
+bin=/nix/store/n1v2nbrn5z9p4wvzllddl6rz2s3yc5wy-mesh2faust/bin/mesh2faust
+
+# actually working, compiled against brew arpack
+# bin=../mesh2faust/tools/physicalModeling/mesh2faust/src/mesh2faust
+
+input=/usr/local/src/music/faust/libraries/modalmodels/marimbaBar/marimbaBar.obj
+args=(
+    --infile $input
+
+    --nsynthmodes 50 # max number of modes to be added to the physical model
+    --nfemmodes 200 # modes to be computed for the finite element analysis
+    --maxmode 15000 # maximum frequency of the highest mode
+
+    # --nsynthmodes 5 --nfemmodes 20 --maxmode 15000
+
+    # excitation positions as a list of vertex IDs
+    --expos 2831 3208 3624 3975 4403
+    # --lmexpos 1
+    --freqcontrol --material 1.3E9 0.33 720
+    --name marimbaBarModel
+    --debug
+)
+
+args=(
+    # --infile ~/mesh/reyong-21420-scaled.obj --expos 4104 5170 4749
+
+    # --infile ~/mesh/reyong-94044.obj --expos 23284 23731 19211
+    --infile ~/mesh/reyong-100000.obj --expos 24790 251145 24040 19037
+
+
+    --nsynthmodes 100 # max number of modes to be added to the physical model
+    --nfemmodes 200 # modes to be computed for the finite element analysis
+    --maxmode 15000 # maximum frequency of the highest mode
+
+    # Young's modulus (in N/m^2), Poisson's ratio, and density (in kg/m^3)
+    # aluminum: 70E9 0.35 2700
+    # bronze: 105e9 0.34 8000
+    --material 105e9 0.34 8000
+    --name reyongModel100000
+)
+
+set -x
+time $bin $args

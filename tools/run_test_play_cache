@@ -1,0 +1,13 @@
+#!/usr/bin/env zsh
+# play_cache basically doesn't have tests, and I don't really test c++ anyway.
+# But there are some basic things to exercise it manually in test_play_cache.
+
+set -eux
+
+bin=build/opt/test_play_cache
+mk $bin
+
+$bin wav no-such-file
+$bin wav README.md
+$bin wav data/sampler/armadillo/fishtro-tom.wav
+$bin wav im/preview/sine/80nn.wav

@@ -19,10 +19,12 @@ localConfig = defaultConfig
         }
     -- TODO: normally this would come out of NIX_CFLAGS and NIX_LDFLAGS, but I
     -- haven't migrated to consistently using tools/nix-enter yet.
+
     , rubberband = C.ExternalLibrary
         { C.libLink = ["/nix/store/zmj1p295p8zaqzk86c39ppi0k2jygiqn-rubberband-2.0.0/lib/librubberband.a"]
         , C.libCompile = ["-I/nix/store/zmj1p295p8zaqzk86c39ppi0k2jygiqn-rubberband-2.0.0/include"]
         }
+
     -- TODO: only for the nix build, I should use the nix generated ShakeConfig
-    , extraFrameworkPaths = ["/System/Library/Frameworks"]
+    -- , extraFrameworkPaths = ["/nix/store/rrxzrwa47dfxz7mm2wz873mkw4ryrigz-apple-framework-CoreFoundation/Library/Frameworks"]
     }

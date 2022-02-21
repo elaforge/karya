@@ -394,6 +394,16 @@ add_symbols()
 }
 
 static void
+set_suggested_track_widths(Block *block)
+{
+    for (int i = 1; i < block->tracks(); i++) {
+        int w = block->track_at(i)->get_suggested_width();
+        DEBUG("track " << i << ": " << w);
+        block->set_track_width(i, w);
+    }
+}
+
+static void
 timeout_func(void *unused)
 {
     static int n;
@@ -408,6 +418,7 @@ timeout_func(void *unused)
         // PeakCache::get()->gc();
 
         // block.floating_open(1, ScoreTime(16), "floaty boaty", 20, 20);
+        // set_suggested_track_widths(&block);
         return;
     } else if (n == 1) {
     } else if (n == 2) {
