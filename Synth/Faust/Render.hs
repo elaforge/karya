@@ -262,9 +262,8 @@ render :: (Config.Payload -> IO ())
 render emitMessage patch mbState notifyState controls inputs start end config =
     Audio.NAudio (InstrumentC._outputs patch) $ do
         (key, inst) <- lift $
-            Resource.allocate (InstrumentC.allocate patch) InstrumentC.destroy
+            Resource.allocate (InstrumentC.allocate patch) destroy
         whenJust mbState $ liftIO . InstrumentC.putState inst
-
             -- -- TODO this doesn't seem to be necessary since I can use
             -- -- si.polySmooth.  But leave it here in case I need it after all.
             -- -- I'll probably need it for explicit initilaization, e.g. string
@@ -298,6 +297,12 @@ render emitMessage patch mbState notifyState controls inputs start end config =
                 case result of
                     Nothing -> Resource.release key
                     Just nextStart -> loop (nextStart, nextControls, nextInputs)
+    where
+    destroy inst = do
+        -- I'm about to deallocate the instrument, so replace the unsafe
+        -- pointer to its state with a safe copy.
+        notifyState =<< InstrumentC.getState inst
+        InstrumentC.destroy inst
 
 renderBlock :: MonadIO m => (Config.Payload -> IO ()) -> Config
     -> (Checkpoint.State -> IO ()) -> InstrumentC.Instrument

@@ -8136,13 +8136,16 @@ linux:
     . Can I tune the sensitivity somehow?
     . Yes, but with hardcoded ifdefs, probably want to do in Local.Config
       at some point.
-  - faust segfaults:
+  * faust segfaults:
     . many will crash in save/test/faust/tambura
       e.g. data/im/notes/test/faust/tambura/faust/b4/faust
     . faust-im specific or sampler-im does it too?  faust-im
-    ? All faust or just tambura?
-    ? Faust version?  nix is 2.19.7, mac is 2.5.34
-    ? gcc/clang?
+    . Where is the segfault?
+      . No longer happens if I don't InstrumentC.destroy the patch.
+    . It was getState reading an unsafe pointer after deallocating the patch.
+    . Does sampler-im do this too?
+      . I think yes in theory, no in practice because it doesn't ask.  Fix it
+        anyway.
   jack: JACK:
     bugs
       - something is still wrong, I get "no space in output port" and then

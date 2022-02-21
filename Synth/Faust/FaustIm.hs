@@ -105,18 +105,20 @@ main = do
         put $ EffectC._doc patch
         forM_ (Map.toList (EffectC._controls patch)) $ \(c, (_, doc)) ->
             put $ "control: " <> pretty c <> ": " <> doc
-
     put = Text.IO.putStrLn
 
 usage :: String -> IO a
 usage msg = do
     unless (null msg) $
         putStrLn $ "ERROR: " ++ msg
-    putStr $ GetOpt.usageInfo
-        (unlines
-            [ "faust-im [print-patches | render-preview | notes outputDir]"
-            ])
-        options
+    putStr $ GetOpt.usageInfo "faust-im [ flags ] <cmd>" options
+    mapM_ putStrLn
+        [ "  print-effects"
+        , "  print_patches [ <patch-name> ]"
+        , "  render-preview [ <patch-name> ]"
+        , "  dump <filename>"
+        , "  <notes-filename> <output-dir>"
+        ]
     Exit.exitFailure
 
 data Flag = Progress

@@ -88,6 +88,12 @@ faust_allocate(const Patch *patch, int srate)
 }
 
 void
+faust_destroy(Patch *inst)
+{
+    delete inst;
+}
+
+void
 faust_render(
     Patch *inst,
     int control_size, int controls_per_block,

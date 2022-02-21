@@ -128,7 +128,12 @@ resampleBy config ratios audio = Audio.Audio $ do
         liftIO $ _notifyState config Nothing
         unless (null collect) $
             S.yield $ Audio.Block $ mconcat (reverse collect)
-        lift $ Resource.release key
+        -- Resource.release will delete the state, at which point a pointer
+        -- from unsafeGetState will be dangling.  I think Sampler.Render will
+        -- omit it from the playing notes and not ask for the state anyway, but
+        -- let's not leave a dangling pointer around anyway.
+        liftIO $ _notifyState config Nothing
+        Resource.release key
     yield state now used collect blockLeft block audio
         | blockLeft - generated > 0 = return
             ( now + generated
@@ -143,7 +148,7 @@ resampleBy config ratios audio = Audio.Audio $ do
                 , pretty (_blockSize config) <> ":", pretty sizes
                 ]
             liftIO $ do
-                rState <- SampleRateC.getState state
+                rState <- SampleRateC.unsafeGetState state
                 _notifyState config $ Just (used, rState)
             S.yield $ Audio.Block $ mconcat (reverse (block : collect))
             return

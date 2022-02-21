@@ -12,7 +12,7 @@ module Util.Audio.SampleRateC (
     , Exception(..)
     -- * SavedState
     , SavedState(..)
-    , getState, putState
+    , unsafeGetState, putState
     , getRatio
 ) where
 import qualified Control.Exception as Exception
@@ -124,8 +124,8 @@ data SavedState = SavedState !ByteString.ByteString !ByteString.ByteString
 -- before doing anything with State!
 --
 -- This is only in my fork of libsamplerate, referenced in default.nix.
-getState :: State -> IO SavedState
-getState state = do
+unsafeGetState :: State -> IO SavedState
+unsafeGetState state = do
     let size1 = {#sizeof SRC_STATE_FLAT #}
     ptr <- Foreign.mallocBytes size1
     (size2, state2p) <- src_get_state state (StateFlat ptr)

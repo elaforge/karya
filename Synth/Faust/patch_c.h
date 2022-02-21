@@ -46,7 +46,7 @@ int faust_control_ptrs(Patch *inst, FAUSTFLOAT ***out_vals);
 // This is the way to convert a const Patch to a non-const Patch with internal
 // state.
 Patch *faust_allocate(const Patch *patch, int srate);
-void faust_destroy(Patch *inst) { delete inst; }
+void faust_destroy(Patch *inst);
 
 // Render control_size * controls_per_block frames.  'control_ptrs' and
 // 'controls' should be 'control_count' long, and each array in controls should
