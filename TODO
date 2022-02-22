@@ -55,6 +55,7 @@ usability:
     . And for such a minor seeming thing it was incredibly hard to implement
       and I failed at several ways.  I need %default-call with durations for
       drums anyway.
+    . default-0:
     . What if I just generated a commented out template example the first
       time?
   - Undo not recording during insert causes me to lose stuff.
@@ -135,6 +136,18 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
+  new free vsts:
+    * surge: https://www.youtube-nocookie.com/embed/WtApPwO7pE0
+      . Enable MPE mode?
+    - OB-Xd: https://github.com/reales/OB-Xd
+    - monique: https://github.com/surge-synthesizer/monique-monosynth
+    - samples: https://librewave.com/about/
+    . Since they're free, they can go in User.Empty.Instrument
+    . Or maybe there should be some way of opting into various instruments?
+      I guess that is Local.Instrument, but is there a simpler way to declare
+      which ones?
+    . Just `midi_synths` seems simple enough?  How can I make it simpler?
+    . rename User.Empty to User.Generic?
   - test for Example.Integrate
   - bug: I made a top, calling b2, then LBlock.rename @b1, top still had b2
     and play still worked.
@@ -7138,7 +7151,7 @@ text score: tscore:
     - adding pitches to a track that didn't have one can insert a pitch track
       on the left side of the note track.
       . E.g. "[s r]/0" then append "g m".
-  - when %default-call, /0 should be the default
+  - when %default-call, /0 should be the default default-0:
     . how to propagate %default-call to Check.carry_call_duration?
     . where does the default initial dur get set?
     . multiplicative and additive have different starts!  By then it's too late
@@ -8105,7 +8118,7 @@ linux:
       . If I do a widget in fltk, then the focus is managed internally.
         But fltk doesn't like overlapping widgets?
       . How about try it to see what goes wrong.
-  * maximize via flvwm doesn't draw right
+  * maximize via fvwm doesn't draw right
     . It doesn't resize the widgets until I move the window around.
   / maximize vertically crashes:
     . X_CreatePixmap: BadAlloc (insufficient resources for operation) 0x1ed

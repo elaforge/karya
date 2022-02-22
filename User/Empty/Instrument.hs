@@ -11,11 +11,12 @@ import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.InstT as InstT
 import qualified Midi.Midi as Midi
 import qualified User.Empty.Instrument.GeneralMidi as GeneralMidi
+import qualified User.Empty.Instrument.Surge as Surge
 
 
 -- | Synth declarations for each synth that is declared purely.
 midi_synths :: [MidiInst.Synth]
-midi_synths = [generic_synth, GeneralMidi.synth]
+midi_synths = [generic_synth, GeneralMidi.synth, Surge.synth]
 
 -- | Each synth that caches to disk has a function to make the cache, and one
 -- to load it.

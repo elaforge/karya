@@ -174,7 +174,7 @@ allocations = Ui.config#UiConfig.allocations <#> Ui.get
 -- | Midi.Channel is 0-based, but DAWs are 1-based, so so use 1-based for UI.
 -- 'list' and ultimately 'Info.show_addrs' also display 1-based.
 newtype Channel1 = Channel1 Int
-    deriving (Eq, Show, Num)
+    deriving (Eq, Show, Num, Enum)
 
 to_chan :: Channel1 -> Midi.Channel
 to_chan (Channel1 c)
@@ -192,6 +192,9 @@ add :: Instrument -> Qualified -> Text -> [Channel1] -> Cmd.CmdL ()
 add inst qualified wdev chans =
     add_config inst qualified [((dev, to_chan chan), Nothing) | chan <- chans]
     where dev = Midi.write_device wdev
+
+add_mpe :: Instrument -> Qualified -> Text -> Cmd.CmdL ()
+add_mpe inst qualified wdev = add inst qualified wdev [2..16]
 
 -- | Allocate the given channels for the instrument using its default device.
 add_default :: Instrument -> Qualified -> [Channel1] -> Cmd.CmdL ()

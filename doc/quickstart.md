@@ -108,17 +108,21 @@ some keys are bound by their logical letter, while others are bound by their
 physical position on the keyboard (e.g. kbd entry, where you can play the
 keyboard like an organ).
 
-### if you don't have MIDI setup already
+### where to get instruments
 
-One option is to use im, below.  Another is to try some free ones.  I don't
-know much about the free synth world, but `fluidsynth` is small, simple,
-and can play `.sf2` files which seem to be easily available.  It also makes a
-good way to test if you even have working MIDI.
+One option is to use im, below.  Another is to try some free ones.
 
-- Install `fluidsynth` and a General MIDI soundfont from
-https://github.com/FluidSynth/fluidsynth/wiki/SoundFont
+- https://surge-synthesizer.github.io/index.html
 
-- Run it like
+- https://github.com/surge-synthesizer/monique-monosynth
+
+- https://github.com/reales/OB-Xd
+
+- https://github.com/FluidSynth/fluidsynth/wiki/SoundFont
+
+    `fluidsynth` is small, simple, and can play `.sf2` files which seem to be
+easily available.  It also makes a good way to test if you even have working
+MIDI.  Run it like
 `fluidsynth -a coreaudio -m coremidi -o midi.portname=fluid something.sf2`
 or on linux: `-a jack -m jack`.
 

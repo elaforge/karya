@@ -18,6 +18,7 @@ module Midi.Midi (
     , realtime_sysex
     -- ** rpn / nrpn
     , pitch_bend_range, nrpn_tuning
+    , MpeZone(..), mpe_2_to_16
     , rpn, nrpn
 
     -- * modify
@@ -178,6 +179,33 @@ pitch_bend_range range = rpn (0, 0) (semitones, cents) ++ cancel_rpn
     where
     (semitones, frac) = properFraction range
     cents = round (frac * 100)
+
+data MpeZone = Lower | Upper deriving (Eq, Show)
+
+-- | MPE config where channel 0 is the useless master and 1-15 are used for
+-- notes.  This is the one the MPE doc recommends MPE synths start up in.
+mpe_2_to_16 :: [Message]
+mpe_2_to_16 = mpe_configure Lower (Just 15)
+
+-- | MPE basically means "midi channels actually work."  Except we lose a
+-- channel to be the master channel, where a channel message still affects all
+-- the other channels too.  The MIDI backend doesn't support a separate master
+-- channel, but it seems pretty useless because if I want to affect
+-- all notes, I will send messages for all notes.
+--
+-- Still, MPE support is a good thing because at least 15 channels work
+-- properly, and hopefully 'pitch_bend_range' is supported, though the default
+-- of (-48, +48) is acceptable.
+--
+-- The other MPE innovation is that it might support cc 74, to do something
+-- expressive.
+mpe_configure :: MpeZone -> Maybe Channel -> [Message]
+mpe_configure zone channels =
+    map (ChannelMessage chan) (rpn (0, 6) (fromMaybe 0 channels, 0))
+    where
+    chan = case zone of
+        Lower -> 0
+        Upper -> 15
 
 {- | This is an emulation of 'realtime_tuning' for Kontakt KSP, which
     understands NRPNs, but not sysex.
