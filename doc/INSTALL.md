@@ -53,7 +53,7 @@ Now do the rest of the build steps, same as "the traditional way" below:
     # work on nixos, instead add openlilylib-fonts.bravura to configuration.nix.
     ```
 
-- Run `tools/setup-empty`.  Read it if you want, it's short.
+- Run `tools/setup-generic`.  Read it if you want, it's short.
 
 - `tools/nix-enter` has already created a `Local/ShakeConfig.hs`.  Read it if
 you want.
@@ -86,7 +86,7 @@ This is a lot more work than the nix way!
 
 - Install [non-haskell dependencies](#non-haskell-dependencies).
 
-- Run `tools/setup-empty`.  Read it if you want, it's short.
+- Run `tools/setup-generic`.  Read it if you want, it's short.
 
 - Update `Local/ShakeConfig.hs` to point to where those dependencies are
 installed.

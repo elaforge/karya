@@ -4,7 +4,7 @@
 
 -- | Setup 'StaticConfig.StaticConfig'.  This is an empty example config, which
 -- you'll want to customize locally.
-module User.Empty.Config (load_static_config) where
+module User.Generic.Config (load_static_config) where
 import qualified App.Config as Config
 import qualified App.LoadInstruments as LoadInstruments
 import qualified App.ParseArgs as ParseArgs

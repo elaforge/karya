@@ -7,7 +7,7 @@
 -- This would be in "Local.Config" except that would cause a circular import.
 -- "Cmd.Keymap" imports it, and Cmd.Keymap is a low level module, while
 -- Local.Config is high-level because it imports the entire local config.
-module User.Empty.KeyLayout (layout) where
+module User.Generic.KeyLayout (layout) where
 import qualified Cmd.KeyLayouts as KeyLayouts
 
 

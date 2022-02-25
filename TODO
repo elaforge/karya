@@ -147,7 +147,7 @@ UNSORTED
       I guess that is Local.Instrument, but is there a simpler way to declare
       which ones?
     . Just `midi_synths` seems simple enough?  How can I make it simpler?
-    . rename User.Empty to User.Generic?
+    * rename User.Empty to User.Generic?
   - test for Example.Integrate
   - bug: I made a top, calling b2, then LBlock.rename @b1, top still had b2
     and play still worked.

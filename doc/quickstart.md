@@ -2,7 +2,7 @@
 
 - Intall and compile, as documented in [INSTALL.md.html](INSTALL.md.html).
 
-- You did run `tools/setup-empty`, right?
+- You did run `tools/setup-generic`, right?
 
 - If you will use MIDI: Set up some internal MIDI devices.  On OS X this means
 going to "Audio MIDI Setup", open up "IAC Driver" and add IAC ports.  I add 4
@@ -76,7 +76,7 @@ look at the haddock or source for whatever function.
 ### local config
 
 - Hopefully local configuration is self-explanatory if you know Haskell.  If
-you ran `tools/setup-empty`, then `Local.Config` will be a re-export of
+you ran `tools/setup-generic`, then `Local.Config` will be a re-export of
 'User.Empty.Config'.  So at first you'll probably be editing things in
 `User/Empty`, but of course then git will want you to check that stuff in.  If
 you modify them directly in `Local/`, git won't track that.  Of course, if you

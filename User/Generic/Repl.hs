@@ -7,7 +7,7 @@
 -- Put your own local commands here and reload with @:r@.  You can also put
 -- local imports, e.g.  import modules out of Local.Instrument to get at
 -- per-instrument allocations.
-module User.Empty.Repl where
+module User.Generic.Repl where
 import qualified Util.Log as Log
 import qualified Cmd.Cmd as Cmd
 

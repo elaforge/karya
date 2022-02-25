@@ -34,8 +34,8 @@ import qualified User.Elaforge.Instrument.Tassman as Tassman
 import qualified User.Elaforge.Instrument.Vl1 as Vl1
 import qualified User.Elaforge.Instrument.Vsl as Vsl
 import qualified User.Elaforge.Instrument.Z1 as Z1
-import qualified User.Empty.Instrument.GeneralMidi as GeneralMidi
-import qualified User.Empty.Instrument.Surge as Surge
+import qualified User.Generic.Instrument.GeneralMidi as GeneralMidi
+import qualified User.Generic.Instrument.Surge as Surge
 
 
 -- | Synth declarations for each synth that is declared purely.

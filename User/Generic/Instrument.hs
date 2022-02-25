@@ -5,13 +5,13 @@
 -- | Local instrument definition with nothing in it.  If you have MIDI
 -- instruments you'll want to put some basic configuration in here.
 -- See User\/Elaforge\/Instrument for examples.
-module User.Empty.Instrument (midi_synths, all_loads) where
+module User.Generic.Instrument (midi_synths, all_loads) where
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.InstT as InstT
 import qualified Midi.Midi as Midi
-import qualified User.Empty.Instrument.GeneralMidi as GeneralMidi
-import qualified User.Empty.Instrument.Surge as Surge
+import qualified User.Generic.Instrument.GeneralMidi as GeneralMidi
+import qualified User.Generic.Instrument.Surge as Surge
 
 
 -- | Synth declarations for each synth that is declared purely.
