@@ -87,13 +87,13 @@ qwerty = layout "qwerty" qwerty_unshifted qwerty_shifted
 dvorak :: Layout
 dvorak = layout "dvorak"
     (concat
-        [ "1234567890[]"
+        [ "`1234567890[]"
         , "',.pyfgcrl/=\\"
         , "aoeuidhtns-"
         , ";qjkxbmwvz"
         ])
     (concat
-        [ "!@#$%^&*(){}"
+        [ "~!@#$%^&*(){}"
         , "\"<>PYFGCRL?+|"
         , "AOEUIDHTNS_"
         , ":QJKXBMWVZ"

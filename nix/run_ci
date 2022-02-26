@@ -6,7 +6,12 @@
 set -eux
 
 tools/ncpus
-tools/setup-elaforge
+
+export data=data
+mkdir -p $data
+tools/setup-generic
+
+# tools/setup-elaforge
 
 # Use --digest instead of --modtime so caching works.
 runghc Shake/Shakefile.hs --digest build/opt/shakefile

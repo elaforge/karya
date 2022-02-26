@@ -148,6 +148,23 @@ UNSORTED
       which ones?
     . Just `midi_synths` seems simple enough?  How can I make it simpler?
     * rename User.Empty to User.Generic?
+  * test tools/setup-generic, since I test setup-elaforge normally
+    . Though, could I have a way to to try building all the User.Elaforge
+      stuff too?
+    . Tests break, looks like dependent on KeyLayout.
+    . How to make tests independent of KeyLayout?
+    . They can't be if they're testing keys, but they should at least use a
+      test-specific layout.  Like say qwerty.
+    . PhysicalKey.pitch_map, this in turn directly imports Local.KeyLayout.
+    . What if I propagate it through Local.Config and hence StaticConfig?
+      Eliminate KeyLayout as a separate module.
+    . This means all these functions now need to take a layout input, since
+      it's no longer global.
+    . This in turn means that Keymap can't use physical_key as a function, it
+      must use a separate type which then must be resolved as a special
+      initialize step.
+    . What a pain!  Is there a simpler way to make tests not use Local?
+    . #ifdef hacks to the rescue!
   - test for Example.Integrate
   - bug: I made a top, calling b2, then LBlock.rename @b1, top still had b2
     and play still worked.
