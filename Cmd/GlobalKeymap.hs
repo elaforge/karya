@@ -57,7 +57,7 @@ import qualified Cmd.Factor as Factor
 import qualified Cmd.Keymap as Keymap
 import           Cmd.Keymap
     (SimpleMod(..), bind_click, bind_drag, bind_key, bind_key_status,
-     bind_repeatable, command_char, plain_char, plain_key, really_control,
+     bind_repeatable, command_char, secondary_char, plain_char, plain_key,
      shift_char)
 import qualified Cmd.PhysicalKey as PhysicalKey
 import qualified Cmd.PitchTrack as PitchTrack
@@ -317,8 +317,9 @@ view_config_bindings = concat
     , plain_char '{' "zoom out *0.8" (ViewConfig.cmd_zoom_around_insert (*0.8))
     , plain_char '}' "zoom in *1.25" (ViewConfig.cmd_zoom_around_insert (*1.25))
     -- undo and redo for selection, but I never use it
-    , command_char '[' "previous selection" (Selection.previous_selection True)
-    , command_char ']' "next selection" (Selection.next_selection True)
+    , secondary_char '[' "previous selection"
+        (Selection.previous_selection True)
+    , secondary_char ']' "next selection" (Selection.next_selection True)
 
     -- TODO experimental
     , command_char 'q' "set suggested track widths"
@@ -334,23 +335,27 @@ view_config_bindings = concat
 
     -- Unfortunately cmd-` is taken by an edit state bind, and they all live
     -- there so it would create an inconsistency to move just one.
-    , secondary '`' "cycle focus forward" (ViewConfig.cycle_focus True)
+    , secondary_char '`' "cycle focus forward" (ViewConfig.cycle_focus True)
     , bind_key [SecondaryCommand, Shift] (Key.Char '`') "cycle focus backward"
         (ViewConfig.cycle_focus False)
-    , secondary 'H' "block focus left" $ ViewConfig.move_focus ViewConfig.West
-    , secondary 'J' "block focus down" $ ViewConfig.move_focus ViewConfig.South
-    , secondary 'K' "block focus up" $ ViewConfig.move_focus ViewConfig.North
-    , secondary 'L' "block focus right" $ ViewConfig.move_focus ViewConfig.East
-    , secondary 'W' "close view" (Ui.destroy_view =<< Cmd.get_focused_view)
+    , secondary_char 'H' "block focus left" $
+        ViewConfig.move_focus ViewConfig.West
+    , secondary_char 'J' "block focus down" $
+        ViewConfig.move_focus ViewConfig.South
+    , secondary_char 'K' "block focus up" $
+        ViewConfig.move_focus ViewConfig.North
+    , secondary_char 'L' "block focus right" $
+        ViewConfig.move_focus ViewConfig.East
+    , secondary_char 'W' "close view" $
+        Ui.destroy_view =<< Cmd.get_focused_view
 
-    , secondary 'f' "scroll advance" $ ViewConfig.scroll_pages 0.75
-    , secondary 'b' "scroll rewind" $ ViewConfig.scroll_pages (-0.75)
+    , secondary_char 'f' "scroll advance" $ ViewConfig.scroll_pages 0.75
+    , secondary_char 'b' "scroll rewind" $ ViewConfig.scroll_pages (-0.75)
     , bind_key [] Key.Home "scroll home" ViewConfig.scroll_to_home
     , bind_key [] Key.End "scroll end" ViewConfig.scroll_to_end
     , bind_key [] Key.PageDown "scroll advance" $ ViewConfig.scroll_pages 0.75
     , bind_key [] Key.PageUp "scroll rewind" $ ViewConfig.scroll_pages (-0.75)
     ]
-    where secondary c = bind_key [SecondaryCommand] (Key.Char c)
 
 block_config_bindings :: Cmd.M m => [Keymap.Binding m]
 block_config_bindings = concat
@@ -373,13 +378,10 @@ block_config_bindings = concat
 edit_state_bindings :: Cmd.M m => [Keymap.Binding m]
 edit_state_bindings = concat
     [ plain_key Key.Escape "toggle val edit" Edit.cmd_toggle_val_edit
-    , bind_key [really_control] (Key.Char '[') "toggle val edit"
-        Edit.cmd_toggle_val_edit
+    , command_char '[' "toggle val edit" Edit.cmd_toggle_val_edit
     , bind_key [] Key.Tab "toggle method edit" Edit.cmd_toggle_method_edit
-    , bind_key [really_control] (Key.Char ']') "toggle kbd entry mode"
-        Edit.cmd_toggle_kbd_entry
-    , bind_key [really_control, Shift] (Key.Char '[')
-        "toogle val edit and kbd entry"
+    , command_char ']' "toggle kbd entry mode" Edit.cmd_toggle_kbd_entry
+    , command_char '{' "toogle val edit and kbd entry"
         Edit.cmd_toggle_val_edit_kbd_entry
 
     , command_char '0' "set event step" $ Edit.set_step TimeStep.event_step

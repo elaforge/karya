@@ -163,12 +163,6 @@ data SimpleMod =
     | Mouse Types.MouseButton
     deriving (Eq, Ord, Show)
 
--- | Sometimes you really want to bind to control, regardless of the platform.
-really_control :: SimpleMod
-really_control = case Config.platform of
-    Config.Mac -> SecondaryCommand
-    Config.Linux -> PrimaryCommand
-
 -- | Map a SimpleMod to the Key.Modifiers it implies.
 simple_mod_map :: Map SimpleMod Key.Modifier
 simple_mod_map = Map.fromList $ case Config.platform of
