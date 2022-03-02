@@ -87,10 +87,12 @@ floating_input_cb(Fl_Widget *w, void *arg)
 {
     TrackTile *self = static_cast<TrackTile *>(arg);
     WrappedInput *input = static_cast<WrappedInput *>(w);
-    if (Fl::event() == FL_UNFOCUS)
+    if (Fl::event() == FL_UNFOCUS) {
         self->floating_close();
-    else
+    } else {
         input->update_size();
+        self->redraw();
+    }
 }
 
 void

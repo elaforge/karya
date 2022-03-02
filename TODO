@@ -5296,6 +5296,9 @@ performance:
         and necessary.
 
 fltk:
+  * backspace to make a floating input shrink, doesn't redraw
+  - when editing a floating input or resizing a track afterwards, the whole
+    window went block.  How to reproduce?
   - embiggening the rightmost track could embiggen the window too
     . A more extreme version is to remove horizontal scrolling by making the
       window always fit the tracks.

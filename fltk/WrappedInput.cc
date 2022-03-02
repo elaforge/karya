@@ -201,7 +201,7 @@ WrappedInput::handle(int evt)
             }
             Fl::focus(this->window());
         } else if (suggested_width() != w() || text_height() != h()) {
-            do_callback();
+            this->do_callback();
         }
     }
     if (evt == FL_UNFOCUS) {
