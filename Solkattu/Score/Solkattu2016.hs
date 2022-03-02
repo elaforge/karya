@@ -74,7 +74,7 @@ c_16_12_06_sriram1 = date 2016 12 6 $ source "sriram" $ korvaiS adi mridangam $
 
 c_16_12_06_sriram2 :: Korvai
 c_16_12_06_sriram2 =
-    date 2016 12 6 $ sriram $ korvaiS1 adi mridangam $ nadai 7 $
+    date 2016 12 6 $ source "sriram" $ korvaiS1 adi mridangam $ nadai 7 $
       r2 takadinnanakita . f1       . din.__7
     . r2 takadinnanakita . f1.f2    . din.__7
     . r2 takadinnanakita . f1.f2.f3 . 2^din.__7

@@ -250,34 +250,6 @@ c_17_05_10 = date 2017 5 10 $ ganesh $ korvaiS1 adi insts $
         , (tdgnt, hv r.g.hv p.m.n)
         ] where Sargam.Strokes {..} = Sargam.notes
 
-c_17_05_11 :: Korvai
-c_17_05_11 = date 2017 5 11 $ source "sriram" $
-    korvaiS1 adi (mridangam<>sargam) $ nadai 7 $
-    circum (r2 (takadinna.takita)) (accumulate
-        [ din.__.ta.din.__.tat.__
-        , takita.din.__.tat.__
-        , thom.thom.ka.din.__.tat.__
-        ]) (tam.__7)
-    . tri (p5.tam.__ . p5.tam.__.tam.__ . p5)
-    where
-    mridangam = makeMridangam
-        [ (takita, n.p.k)
-        , (din.ta.din.tat, o&n.k.d.k)
-        , (din.tat, d.k)
-        , (thom.thom.ka, o.o.k)
-        , (tam, u)
-        ]
-    sargam = makeSargam
-        [ (5, hv n_.s.d_.n_.p_)
-        ]
-        [ (takadinna, hv p.m.r.m)
-        , (takita, hv s.r.d_)
-        , (din.ta.din.tat, s.n.s.d)
-        , (din.tat, r.n)
-        , (thom.thom.ka, hv m_.m_.s)
-        , (tam, hv s)
-        ] where Sargam.Strokes {..} = Sargam.notes
-
 c_17_05_19 :: Korvai
 c_17_05_19 = date 2017 5 15 $ exercise $ korvaiS1 adi mridangam $
     tri (tri p8 . tri (kita.thom)) . tri p8 . p5
