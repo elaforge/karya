@@ -26,7 +26,7 @@ enum Events {
 };
 static const Events t1_use_events = Normal;
 // Turn this off just draw a single track.
-static const bool many_tracks = true;
+static const bool many_tracks = false;
 static const bool show_keycaps = false;
 
 // Visible windows.

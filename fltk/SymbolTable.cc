@@ -17,6 +17,13 @@
 using std::string;
 
 
+// Previously, if words didn't wrap, I'd wrap individual glyphs.  However, that
+// meant that Event::suggested_width would be sort of useless because it uses
+// wrapped text, and if text is always able to wrap then it doesn't want to
+// expand.  Also wrapped glyphs are not that readable.  So let's disable it.
+static const bool do_wrap_glyphs = false;
+
+
 SymbolTable::SymbolTable()
 {
     int nfonts = Fl::set_fonts();
@@ -359,13 +366,22 @@ SymbolTable::wrap(const string &text, const Style &style, int wrap_width) const
             // DEBUG(start << "--" << end << ": " << word_box << " > "
             //     << wrap_width << ", line: " << line);
             if (line.empty()) {
-                // A single word doesn't fit, so split by glyph.
-                int end;
-                line_box = wrap_glyphs(text, start, style, wrap_width, &end);
-                // DEBUG("wrap_glyphs: " << start << "--" << end << " box: "
-                //     << line_box);
-                line.append(text, start, end - start);
-                start = end;
+                if (do_wrap_glyphs) {
+                    // A single word doesn't fit, so split by glyph.
+                    int end;
+                    line_box = wrap_glyphs(
+                        text, start, style, wrap_width, &end);
+                    // DEBUG("wrap_glyphs: " << start << "--" << end << " box: "
+                    //     << line_box);
+                    line.append(text, start, end - start);
+                    start = end;
+                } else {
+                    // Otherwise put the whole word on, it will be clipped.
+                    line.append(text, start, end - start);
+                    line_box.x += word_box.x;
+                    line_box.y = std::max(line_box.y, word_box.y);
+                    start = end;
+                }
             }
             // DEBUG("text '" << line << "' sum " << line_box << " recalc "
             //     << measure(line, 0, line.length(), style));

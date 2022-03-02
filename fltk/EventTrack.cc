@@ -1276,10 +1276,16 @@ EventTrack::Body::draw_upper_layer(
             TEXT("POSITIVE: " << box << ": " << line << " left "
                 << remaining << " - " << box.h);
             draw_text_line(line, box, style);
-            // f_util::draw_rect(box, Color(0, 0xff, 0xff));
+            // Text is clipped vertically by the next event.
             if (remaining < box.h) {
                 f_util::draw_rectf(
                     IRect(x(), top + drawable - 2, w(), 2),
+                    Config::abbreviation_color);
+            }
+            // Text is clipped horizontally by the edge of the track.
+            if (box.r() - 1 >= x() + w()) {
+                f_util::draw_rectf(
+                    IRect(x() + w() - 2, box.y, 2, box.h),
                     Config::abbreviation_color);
             }
             if (i+1 == util::ssize(boxes[index].lines) && line.back() == ' ') {
