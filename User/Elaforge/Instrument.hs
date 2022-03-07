@@ -35,6 +35,7 @@ import qualified User.Elaforge.Instrument.Vl1 as Vl1
 import qualified User.Elaforge.Instrument.Vsl as Vsl
 import qualified User.Elaforge.Instrument.Z1 as Z1
 import qualified User.Generic.Instrument.GeneralMidi as GeneralMidi
+import qualified User.Generic.Instrument.OBXd as OBXd
 import qualified User.Generic.Instrument.Surge as Surge
 
 
@@ -48,6 +49,7 @@ midi_synths =
     , Kontakt.synth
     , Massive.synth
     , Morphine.synth
+    , OBXd.synth
     , Pianoteq.synth
     , Reaktor.synth
     , Spicy.synth
