@@ -21,6 +21,7 @@ import qualified Data.Text as Text
 import qualified Data.Time as Time
 
 import qualified Util.Rect as Rect
+import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 import           Util.Serialize (Serialize, bad_tag, get, get_tag, put, put_tag)
 
@@ -699,7 +700,7 @@ instance Serialize Track.RenderSource where
 -- ** Perform.Midi.Patch
 
 instance Serialize Patch.Config where
-    put (Patch.Config a b c) = Serialize.put_version 10
+    put (Patch.Config a b c) = Serialize.put_version 11
         >> put a >> put b >> put c
     get = Serialize.get_version >>= \case
         7 -> do
@@ -710,7 +711,7 @@ instance Serialize Patch.Config where
                     { Patch.config_scale = scale
                     , Patch.config_control_defaults = nonempty control_defaults
                     }
-            return $ Patch.Config alloc mempty settings
+            return $ Patch.Config alloc Nothing settings
         8 -> do
             alloc :: [(Patch.Addr, Maybe Patch.Voices)] <- get
             scale :: Maybe Patch.Scale <- get
@@ -720,23 +721,33 @@ instance Serialize Patch.Config where
                     { Patch.config_scale = scale
                     , Patch.config_control_defaults = nonempty control_defaults
                     }
-            return $ Patch.Config alloc initialization settings
+            return $ Patch.Config alloc (upgrade_initialization initialization)
+                settings
         9 -> do
             alloc :: [(Patch.Addr, Maybe Patch.Voices)] <- get
             control_defaults :: ScoreT.ControlValMap <- get
             initialization :: Set Patch.Initialization <- get
             settings :: Patch.Settings <- get
-            return $ Patch.Config alloc initialization
-                (settings { Patch.config_control_defaults
-                    = nonempty control_defaults })
+            return $ Patch.Config alloc
+                (upgrade_initialization initialization)
+                (settings
+                    { Patch.config_control_defaults = nonempty control_defaults
+                    })
         10 -> do
             alloc :: [(Patch.Addr, Maybe Patch.Voices)] <- get
             initialization :: Set Patch.Initialization <- get
+            settings :: Patch.Settings <- get
+            return $ Patch.Config alloc (upgrade_initialization initialization)
+                settings
+        11 -> do
+            alloc :: [(Patch.Addr, Maybe Patch.Voices)] <- get
+            initialization :: Maybe Patch.Initialization <- get
             settings :: Patch.Settings <- get
             return $ Patch.Config alloc initialization settings
         v -> Serialize.bad_version "Patch.Config" v
         where
         nonempty x = if x == mempty then Nothing else Just x
+        upgrade_initialization = Seq.head . Set.toList
 
 -- | This tags Settings which will have to be upgraded by merging with patch
 -- defaults.

@@ -93,7 +93,7 @@ data Config = Config {
     -- Each Addr has a count of how many simultaneous voices the addr can
     -- handle.  Nothing means there's no limit.
     config_allocation :: ![(Addr, Maybe Voices)]
-    , config_initialization :: !(Set Initialization)
+    , config_initialization :: !(Maybe Initialization)
     , config_settings :: !Settings
     } deriving (Eq, Show, Generics.Generic)
 

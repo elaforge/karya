@@ -6,7 +6,6 @@
 module Cmd.Repl.LInst where
 import           Prelude hiding (lookup)
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified Util.Lens as Lens
@@ -582,25 +581,22 @@ initialize_all = do
 need_initialization :: Ui.M m => m Text
 need_initialization = fmap Text.unlines . mapMaybeM show1 =<< allocated
     where
-    show1 inst = do
-        inits <- init_flags inst
-        return $ if null inits then Nothing
-            else Just $ pretty inst <> ": " <> pretty inits
+    show1 inst = fmap (\init -> pretty inst <> ": " <> pretty init) <$>
+        inst_initialization inst
 
-init_flags :: Ui.M m => ScoreT.Instrument -> m (Set Patch.Initialization)
-init_flags inst = lookup_midi_config inst >>= return . \case
-    Nothing -> mempty
+inst_initialization :: Ui.M m => ScoreT.Instrument
+    -> m (Maybe Patch.Initialization)
+inst_initialization inst = lookup_midi_config inst >>= return . \case
+    Nothing -> Nothing
     Just (_, _, config) -> Patch.config_initialization config
 
 -- | Initialize an instrument according to its 'Patch.config_initialization'.
 initialize_inst :: Cmd.M m => ScoreT.Instrument -> m ()
 initialize_inst inst =
     whenJustM (lookup_midi_config inst) $ \(_, _, config) -> do
-        let inits = Patch.config_initialization config
-        when (Set.member Patch.Tuning inits) $
-            initialize_realtime_tuning inst
-        when (Set.member Patch.NrpnTuning inits) $
-            initialize_nrpn_tuning inst
+        whenJust (Patch.config_initialization config) $ \case
+            Patch.Tuning -> initialize_realtime_tuning inst
+            Patch.NrpnTuning -> initialize_nrpn_tuning inst
         (patch, _) <- Cmd.get_midi_instrument inst
         forM_ (Patch.config_addrs config) $ \addr ->
             send_midi_initialize inst addr (Patch.patch_initialize patch)

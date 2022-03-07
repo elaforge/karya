@@ -24,7 +24,6 @@
 -}
 module Cmd.Repl.LTuning where
 import qualified Data.Maybe as Maybe
-import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Vector.Unboxed as Unboxed
@@ -33,7 +32,6 @@ import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
 
-import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Perf as Perf
@@ -50,12 +48,14 @@ import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Legong as Legong
 import qualified Derive.Scale.Wayang as Wayang
 
+import qualified Instrument.Common as Common
+import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
-import qualified Instrument.Common as Common
 import qualified User.Elaforge.Instrument.Kontakt.Util as Kontakt.Util
-import Global
-import Types
+
+import           Global
+import           Types
 
 
 -- * Patch.Scale
@@ -150,11 +150,11 @@ set_scale inst = do
 retune :: Cmd.M m => Patch.Scale -> m [Util.Instrument]
 retune scale = do
     insts <- LInst.list_midi
-    flags <- mapM (LInst.init_flags . Util.instrument) insts
-    fmap concat $ forM (zip insts flags) $ \(inst, inits) -> if
-        | Set.member Patch.Tuning inits -> realtime inst scale >> return [inst]
-        | Set.member Patch.NrpnTuning inits -> nrpn inst scale >> return [inst]
-        | otherwise -> return []
+    inits <- mapM (LInst.inst_initialization . Util.instrument) insts
+    fmap concat $ forM (zip insts inits) $ \(inst, init) -> case init of
+        Nothing -> return []
+        Just Patch.Tuning -> realtime inst scale >> return [inst]
+        Just Patch.NrpnTuning -> nrpn inst scale >> return [inst]
 
 -- | Show tuning map for debugging.
 get_tuning :: Cmd.M m => Util.Instrument -> Patch.Scale -> m Text
@@ -174,7 +174,7 @@ realtime :: Cmd.M m => Util.Instrument -> Patch.Scale -> m ()
 realtime inst scale = do
     LInst.set_scale scale inst
     LInst.modify_midi_config_
-        (Patch.initialization %= Set.insert Patch.Tuning) inst
+        (Patch.initialization #= Just Patch.Tuning) inst
     LInst.initialize_realtime_tuning (Util.instrument inst)
 
 -- | Just like 'realtime', but send tuning via 'LInst.initialize_nrpn_tuning'.
@@ -182,7 +182,7 @@ nrpn :: Cmd.M m => Util.Instrument -> Patch.Scale -> m ()
 nrpn inst scale = do
     LInst.set_scale scale inst
     LInst.modify_midi_config_
-        (Patch.initialization %= Set.insert Patch.NrpnTuning) inst
+        (Patch.initialization #= Just Patch.NrpnTuning) inst
     LInst.initialize_nrpn_tuning (Util.instrument inst)
 
 -- | Write KSP to retune a 12TET patch.  Don't forget to do 'LInst.set_scale'
