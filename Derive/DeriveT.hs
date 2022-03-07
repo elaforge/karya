@@ -244,7 +244,7 @@ instance ShowVal.ShowVal (RawPitch a) where
 
 -- | Things that can go wrong evaluating a pitch.
 data PitchError =
-    UnparseableNote
+    UnparseableNote !Pitch.Note
     -- | Note out of the scale's range.  The values are transpositions from
     -- the environment, in case it was out of range because of a transposition.
     --
@@ -291,7 +291,7 @@ out_of_range_error semi valid = OutOfRangeError $ OutOfRange
 
 instance Pretty PitchError where
     pretty err = case err of
-        UnparseableNote -> "unparseable note"
+        UnparseableNote note -> "unparseable note: " <> pretty note
         OutOfRangeError err -> pretty err
         InvalidInput -> "invalid input"
         EnvironError key err ->

@@ -81,7 +81,7 @@ make_scale scale_id degrees = Scale.Scale
 
 read_pitch :: Pitch.PitchClass -> Pitch.Note
     -> Either DeriveT.PitchError Pitch.Pitch
-read_pitch per_octave note = justErr DeriveT.UnparseableNote $
+read_pitch per_octave note = justErr (DeriveT.UnparseableNote note) $
     ParseText.maybe_parse (Pitch.pitch <$> ParseText.p_int <*> p_degree)
         (Pitch.note_text note)
     where

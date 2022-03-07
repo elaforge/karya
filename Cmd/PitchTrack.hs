@@ -206,7 +206,7 @@ transpose :: Scale.Transposition -> Pitch.Octave -> Pitch.Step -> ModifyPitch
 transpose transposition octaves steps = \scale env note ->
     case Scale.transpose transposition scale env octaves steps note of
         -- Leave non-pitches alone.
-        Left DeriveT.UnparseableNote -> Right note
+        Left DeriveT.UnparseableNote {} -> Right note
         Left err -> Left (pretty err)
         Right note2 -> Right note2
 

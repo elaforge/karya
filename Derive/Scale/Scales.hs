@@ -123,10 +123,11 @@ type SemisToNoteNumber = PSignal.PitchConfig -> Pitch.Semi
 
 read_note :: DegreeMap -> Pitch.Note -> Either DeriveT.PitchError Pitch.Pitch
 read_note dmap note = semis_to_pitch dmap <$>
-    justErr DeriveT.UnparseableNote (Map.lookup note (dm_to_semis dmap))
+    justErr (DeriveT.UnparseableNote note) (Map.lookup note (dm_to_semis dmap))
 
 show_pitch :: DegreeMap -> Pitch.Pitch -> Either DeriveT.PitchError Pitch.Note
-show_pitch dmap pitch = justErr DeriveT.UnparseableNote $
+show_pitch dmap pitch = justErr
+    (DeriveT.PitchError ("invalid pitch: " <> pretty pitch)) $
     dm_to_note dmap !? pitch_to_semis dmap pitch
 
 -- ** transpose
@@ -212,7 +213,7 @@ type InputToNote = Env.Environ -> Pitch.Input
 input_to_note :: DegreeMap -> InputToNote
 input_to_note dmap _environ (Pitch.Input kbd pitch frac) = do
     steps <- simple_kbd_to_scale dmap kbd pitch
-    note <- justErr DeriveT.UnparseableNote $ dm_to_note dmap !? steps
+    note <- justErr DeriveT.InvalidInput $ dm_to_note dmap !? steps
     return $ ScaleDegree.pitch_expr frac note
 
 type InputToNn = ScoreTime -> Pitch.Input
@@ -278,7 +279,7 @@ computed_input_to_nn input_to_note note_to_call pos input = do
     where
     get_call env = do
         note <- input_to_note env input
-        (note,) <$> justErr DeriveT.UnparseableNote (note_to_call note)
+        (note,) <$> justErr (DeriveT.UnparseableNote note) (note_to_call note)
 
 make_nn :: Maybe Pitch.NoteNumber -> Pitch.NoteNumber -> Maybe Pitch.NoteNumber
     -> Pitch.Frac -> Maybe Pitch.NoteNumber

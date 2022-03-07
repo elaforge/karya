@@ -26,10 +26,10 @@ import Global
 
 -- | A full toplevel expression, sometimes called a "pipeline", because it looks
 -- like "transform | transform | generator arg arg".  Since the only operator
--- is @|@, so a list suffices for an AST.
+-- is @|@, which is basically just application, a list suffices for an AST.
 --
--- This is parameterized by the literal value, so partially parsed exprs are
--- @Expr Text@ while fully parsed ones would be @Expr Val@.
+-- This is parameterized by the literal value, so a tokenized expr is
+-- @Expr Text@ while fully parsed one would be @Expr Val@.
 type Expr val = NonEmpty (Call val)
 data Call val = Call Symbol [Term val]
     deriving (Show, Read, Eq, Functor)

@@ -253,9 +253,9 @@ read_pitch fmt key = fmt_to_absolute fmt key <=< read_relative_pitch fmt
 -- to be separate.
 read_relative_pitch :: Format -> Pitch.Note
     -> Either DeriveT.PitchError RelativePitch
-read_relative_pitch fmt = justErr DeriveT.UnparseableNote
-    . ParseText.maybe_parse (fmt_read fmt)
-    . Pitch.note_text
+read_relative_pitch fmt note = justErr (DeriveT.UnparseableNote note) $
+    ParseText.maybe_parse (fmt_read fmt) $
+    Pitch.note_text note
 
 -- ** make
 

@@ -65,11 +65,22 @@ add_absolute_transposers config nn =
 
 -- | Convert a note and @frac@ arg into a tracklang expression representing
 -- that note.
+--
+-- TODO This is actually totally wrong, because a Pitch.Note isn't expected an
+-- expression, but just the call part of the expression.  Other functions want
+-- to parse it, and they're not expecting spaces in there.  What this should
+-- actually do is return a real @Expr Text@, or a specialized version where
+-- the Call is known to be a Pitch.Note.  But for that, scale_input_to_note
+-- would have to change, and that would probably touch a lot of things.  So
+-- for the moment, I leave this function in place to document where a
+-- hypothetical pitch_expr should be called, but it doesn't actually do
+-- anything.
 pitch_expr :: Double -> Pitch.Note -> Pitch.Note
-pitch_expr frac note
-    | frac == 0 = note
-    | otherwise = Pitch.Note $
-        Pitch.note_text note <> " " <> showt (floor (frac * 100))
+pitch_expr _frac note = note
+-- pitch_expr frac note
+--     | frac == 0 = note
+--     | otherwise = Pitch.Note $
+--         Pitch.note_text note <> " " <> showt (floor (frac * 100))
 
 -- * just
 

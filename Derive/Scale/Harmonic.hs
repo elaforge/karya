@@ -65,7 +65,7 @@ unity_control :: ScoreT.Control
 unity_control = "unity"
 
 read_pitch :: Pitch.Note -> Either DeriveT.PitchError Pitch.Pitch
-read_pitch note = justErr DeriveT.UnparseableNote $
+read_pitch note = justErr (DeriveT.UnparseableNote note) $
     ParseText.maybe_parse (Pitch.pitch <$> p_octave <*> ParseText.p_int)
         (Pitch.note_text note)
     where

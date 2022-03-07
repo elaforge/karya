@@ -73,11 +73,8 @@ STATUS
       then figure out how to fix.
   * linux floating inputs broken
   * darwin link errors:
-  - ardour canvas implementation
   - raga-janaka stalled
-  + shrink tracks:
-    . Ok for shrinking, but needs work for expanding.
-
+  * shrink tracks:
   . infer gender damping:
   - make kendang sampler instrument
     . Make thru work for it, and refactor thru in general.
@@ -136,18 +133,54 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
-  new free vsts:
-    * surge: https://www.youtube-nocookie.com/embed/WtApPwO7pE0
-      . Enable MPE mode?
-    - OB-Xd: https://github.com/reales/OB-Xd
-    - monique: https://github.com/surge-synthesizer/monique-monosynth
-    - samples: https://librewave.com/about/
-    . Since they're free, they can go in User.Empty.Instrument
-    . Or maybe there should be some way of opting into various instruments?
-      I guess that is Local.Instrument, but is there a simpler way to declare
-      which ones?
-    . Just `midi_synths` seems simple enough?  How can I make it simpler?
-    * rename User.Empty to User.Generic?
+  - semara-dana-im fails on ngoret and stops rendering after the 1st block
+    . But I don't want two scores, I want to be able to toggle instrument
+      sets.
+    . I can save and load inst config, why not use that?
+    . It would be more explicit to include them both in `ky` or something,
+      and be able to comment / uncomment.
+  - inst allocation in ky?
+    . I already have something like this in tscore, putting it in ky would
+      generalize.
+  - implicit skeleton doesn't work for dyn over two tracks
+    . Instead, it assigns it to the note track to the left.
+    . How can I disambiguate?
+  / on midi kbd and pitch bend I get
+    . scale_input_to_nn for PianoKbd:5-1+.001: unparseable note: 5r 0
+    . What is the actual Pitch.Note it's trying to parse?
+    . Not necessarily any such thing, Scales throws it without an intermediate
+      Note.
+    . Or should it really be InvalidInput?  Those are silent.
+    . Or it should be valid!  For thru I should remap to an intermediate
+      pitch.  This is coming from computed_input_to_nn.
+    . That means probably input_to_note -> note_to_call
+    . I seem to get it just on pitch bend, no note on.
+    . Because it's thru?  Because it just wants to emit InputNote.PitchChange
+    . This means input_to_note is able to produce a note
+      ScaleDegree.scale_degree won't parse.
+    . But it can!
+    . note_to_call: (Note "5s 38", UnparseableNote (Note "5s 38"))
+    . TheoryFormat.read_relative can't parse a full expression, it's only
+      meant for the "4s" part.
+    . The type Pitch.Note here is incorrect, it shouldn't have a space.
+    . ScaleDegree.pitch_expr should actually return an expr!
+    . However, that means InputToNote and scale_input_to_note must change.
+      Or Pitch.Note needs to be an expr.
+    . The purpose of this is so that I can input note plus pitchbend as a
+      bent note.  Or possibly continuum.  But since I hardly use midi
+      keyboard, I haven't noticed that it's broken, and I'm not even
+      sure if I want it.
+    . The purpose of the thru part is to be able to hear pitch bend or
+      continuum, but it's quite inefficient because it goes through expression
+      and eval back to MIDI, but that's the price to pay for arbitrary pitch
+      mapping, and arbitrary backend too.  So if I want to convert MIDI plus
+      pitch bend to OSC or something, then I would want this.  Assuming thru
+      for OSC is generalized.
+    . Pitch.Note is messy anyway, seems like it should be a subset of
+      Derive.Expr Text.
+  - convert scale_input_to_note to return 'Expr Text'
+    . so ScaleDgree.pitch_expr can actually return an expr
+    . re-enable test in NoteTrack_test.test_cmd_val_edit_advance
   * test tools/setup-generic, since I test setup-elaforge normally
     . Though, could I have a way to to try building all the User.Elaforge
       stuff too?
@@ -705,7 +738,7 @@ UNSORTED
     note = Eval.eval_one_call True $ Expr.call0 Symbols.null_note
   - Since gliss uses a 'n' parameter for note transform, I should use it
     consistently, e.g. in grace and roll.
-  - It's awkward to rearrange tracks and then redo the skeleton.  Since
+  * It's awkward to rearrange tracks and then redo the skeleton.  Since
     I never really want tangled skeleton anyway, can't I make that implicit?
     . I could say the skeleton always goes left to right, and only branches,
       never merges.  So the control is the tree structure and the ordering of
@@ -2149,6 +2182,16 @@ vector: performance:
     that fusion happens.  Surely there are more sophisticated ways though.
 
 instruments:
+  new free vsts:
+    * surge: https://www.youtube-nocookie.com/embed/WtApPwO7pE0
+      . Enable MPE mode?
+    * OB-Xd: https://github.com/reales/OB-Xd
+      . Sounds nice but ccs and pb range seem undocumented.
+    - monique: https://github.com/surge-synthesizer/monique-monosynth
+    - samples: https://librewave.com/about/
+      . Not actually free?  Looks like it uses HISE but the samples are not
+        free.
+  - https://physicalaudio.co.uk/preparation-tutorial/
   ? Follow references in tambura dafx paper.
     Wasn't there something about pluck modelling?
     . http://www.socasites.qub.ac.uk/mvanwalstijn/dafx16a/
@@ -2320,6 +2363,13 @@ instruments:
       . It doesn't need gcc.  I should do the compile with nix though.
   vsts that support mpe:
     . http://www.musicdevelopments.com/syne.html
+  dsp: DSP:
+    . https://github.com/olilarkin/awesome-musicdsp
+    . https://github.com/xunil-cloud/CloudReverb
+    . https://github.com/MeadowlarkDAW/Meadowlark/blob/main/DSP_DESIGN_DOC.md
+    . https://librearts.org/2022/01/2021-recap-2022-preview/#vcv-rack-2-bespoke-synth-et-al
+    . https://www.zrythm.org/en/index.html
+    . https://rust-audio.discourse.group/t/useful-resources-for-learning-about-audio-development/33
 
 synth: im:
   StreamAudio directly to remove DAW + VST requirement
@@ -3027,6 +3077,8 @@ synth: im:
         . stargate daw: audiodsp/lib/interpolate-sinc.c
         . HISE: StreamingSamplerVoice.cpp interpolateMonoSamples
         ? linuxsampler
+      rust one: https://lib.rs/crates/rubato
+        . I don't want to incur a rust dependency just for this though.
 
     - libresample is hard to use.  Alternatives?
       requirements:
@@ -4619,6 +4671,8 @@ performance:
       . Giving up for the moment since I don't understand the output.
       . Maybe it was nonsensical due to auto SCCs?
   research:
+    . ghc compile speed: https://github.com/qnikst/ghc-timings-report
+    . https://www.reddit.com/r/haskell/comments/qv8yhc/how_do_i_learn_about_performance_best_practices/
     . https://ollef.github.io/blog/posts/speeding-up-sixty.html
       ? Look at threadscope again for GC allocation size: -A50m
     . https://hackage.haskell.org/package/stackcollapse-ghc
@@ -5302,6 +5356,8 @@ fltk:
   - embiggening the rightmost track could embiggen the window too
     . A more extreme version is to remove horizontal scrolling by making the
       window always fit the tracks.
+    . How about resizing automatically when it's from a drag?
+      On the other hand, maybe I don't want to encourage manual drags?
   * fltk/MsgCollector.cc:434 unknown event: FL_DRAG, drag on track title
   / wrapped event text is drawing past the next event
     . When did this start happening!?
@@ -6058,6 +6114,8 @@ REPL: repl:
   - :compile cmd that turns on compilation for everything except Environ
   - :module cmd to move evaluation context to a certain module, maybe I
     could also get rid of the need for Cmd.Lang.Environ to import everything.
+  info:
+    . https://gitlab.haskell.org/haskell/ghc-api-compat
 
 solkattu:
   notation conveniences:
