@@ -55,6 +55,8 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Vector.Unboxed as Unboxed
 
+import qualified GHC.Generics as Generics
+
 import qualified Util.Lens as Lens
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
@@ -93,7 +95,7 @@ data Config = Config {
     config_allocation :: ![(Addr, Maybe Voices)]
     , config_initialization :: !(Set Initialization)
     , config_settings :: !Settings
-    } deriving (Eq, Read, Show)
+    } deriving (Eq, Show, Generics.Generic)
 
 allocation = Lens.lens config_allocation
     (\f r -> r { config_allocation = f (config_allocation r) })
@@ -108,20 +110,14 @@ config_addrs = map fst . config_allocation
 config :: [(Addr, Maybe Voices)] -> Config
 config alloc = Config
     { config_allocation = alloc
-    , config_initialization = mempty
+    , config_initialization = Nothing
     , config_settings = mempty
     }
 
 merge_defaults :: Patch -> Config -> Config
 merge_defaults patch = settings %= (<> patch_defaults patch)
 
-instance Pretty Config where
-    format (Config alloc scale initialization) =
-        Pretty.record "Config"
-            [ ("allocation", Pretty.format alloc)
-            , ("scale", Pretty.format scale)
-            , ("initialization", Pretty.format initialization)
-            ]
+instance Pretty Config where format = Pretty.formatG_
 
 -- | Document what kinds of initialization this instrument needs.  Each
 -- instrument is initialized once when the score is loaded.
@@ -161,17 +157,9 @@ data Settings = Settings {
     -- for synthesizer state, so these are only applied during conversion, and
     -- thus should only contain controls the MIDI instrument understands.
     , config_control_defaults :: !(Maybe ScoreT.ControlValMap)
-    } deriving (Eq, Show)
+    } deriving (Eq, Show, Generics.Generic)
 
-instance Pretty Settings where
-    format (Settings flags scale decay pb_range control_defaults) =
-        Pretty.record "Settings"
-            [ ("flags", Pretty.format flags)
-            , ("scale", Pretty.format scale)
-            , ("decay", Pretty.format decay)
-            , ("pitch_bend_range", Pretty.format pb_range)
-            , ("control_defaults", Pretty.format control_defaults)
-            ]
+instance Pretty Settings where format = Pretty.formatG_
 
 instance Semigroup Settings where
     (<>)    (Settings flags1 scale1 decay1 pb_range1 cdefaults1)
