@@ -128,7 +128,7 @@ instance Pretty Config where
 data Initialization =
     Tuning -- ^ Configure tuning with 'Midi.realtime_tuning'.
     | NrpnTuning -- ^ Configure tuning with 'Midi.nrpn_tuning'.
-    deriving (Read, Show, Eq, Ord, Bounded, Enum)
+    deriving (Show, Ord, Eq)
 instance Pretty Initialization where pretty = showt
 
 -- | MIDI instruments are addressed by a (device, channel) pair, allocated in
@@ -161,7 +161,7 @@ data Settings = Settings {
     -- for synthesizer state, so these are only applied during conversion, and
     -- thus should only contain controls the MIDI instrument understands.
     , config_control_defaults :: !(Maybe ScoreT.ControlValMap)
-    } deriving (Eq, Read, Show)
+    } deriving (Eq, Show)
 
 instance Pretty Settings where
     format (Settings flags scale decay pb_range control_defaults) =
@@ -276,7 +276,7 @@ data Scale = Scale {
     -- MIDI key numbers to their NNs, or 'no_pitch' if the patch doesn't
     -- support that key.
     , scale_key_to_nn :: !(Unboxed.Vector Double)
-    } deriving (Eq, Read, Show)
+    } deriving (Eq, Show)
 
 instance Pretty Scale where
     format (Scale name key_to_nn) = Pretty.record "Patch.Scale"
@@ -388,7 +388,7 @@ data Flag =
     | UseFinalNoteOff
     -- | Obsolete, don't use.
     | Old_Triggered
-    deriving (Eq, Ord, Read, Show, Bounded, Enum)
+    deriving (Eq, Ord, Show, Bounded, Enum)
 
 instance Pretty Flag where pretty = showt
 
@@ -457,7 +457,7 @@ data Keyswitch =
     -- for the note's pitch.  This allows simultaneous different notes with
     -- different articulations.
     | Aftertouch !Midi.ControlValue
-    deriving (Eq, Ord, Show, Read)
+    deriving (Eq, Ord, Show)
 
 instance DeepSeq.NFData Keymap where
     rnf (UnpitchedKeymap k) = k `seq` ()

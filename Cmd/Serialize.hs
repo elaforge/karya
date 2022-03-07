@@ -473,8 +473,8 @@ instance Serialize Sel.Selection where
             _ -> Serialize.bad_version "Sel.Selection" v
 
 instance Serialize Sel.Orientation where
-    put = Serialize.put_enum
-    get = Serialize.get_enum
+    put = Serialize.put_enum_old
+    get = Serialize.get_enum_old
 
 -- ** Types, Color, Font
 
@@ -584,9 +584,9 @@ instance Serialize Meter.Config where
         v -> Serialize.bad_version "Meter.Config" v
 
 instance Serialize Meter.Rank where
-    put a = Serialize.put_version 0 >> Serialize.put_enum a
+    put a = Serialize.put_version 0 >> Serialize.put_enum_old a
     get = Serialize.get_version >>= \case
-        0 -> Serialize.get_enum
+        0 -> Serialize.get_enum_old
         v -> Serialize.bad_version "Meter.Rank" v
 
 instance Serialize Meter.LabelConfig where
@@ -752,9 +752,20 @@ instance Serialize Patch.Scale where
     get = Patch.Scale <$> get <*> get
 
 instance Serialize Patch.Initialization where
-    put a = Serialize.put_version 0 >> Serialize.put_enum a
+    put a = do
+        Serialize.put_version 1
+        Serialize.put_enum $ case a of
+            Patch.Tuning -> 0
+            Patch.NrpnTuning -> 1
     get = Serialize.get_version >>= \case
-        0 -> Serialize.get_enum
+        0 -> Serialize.get >>= \n -> case n :: Int of
+            0 -> pure Patch.Tuning
+            1 -> pure Patch.NrpnTuning
+            n -> fail $ "unknown enum val for Patch.Initialization " <> show n
+        1 -> Serialize.get_enum >>= \case
+            0 -> pure Patch.Tuning
+            1 -> pure Patch.NrpnTuning
+            n -> Serialize.bad_enum "Patch.Initialization" n
         v -> Serialize.bad_version "Patch.Initialization" v
 
 instance Serialize Patch.Settings where
@@ -789,8 +800,9 @@ instance Serialize Patch.Settings where
 -- update, and remove Old_Triggered.
 instance Serialize Patch.Flag where
     -- The tag is Int rather than Word8, because this originally used
-    -- Serialize.put_enum and get_enum.  Those are dangerous for compatibility
-    -- though, because when I deleted a Flag it silently broke saves.
+    -- Serialize.put_enum_old and get_enum_old.  Those are dangerous for
+    -- compatibility though, because when I deleted a Flag it silently broke
+    -- saves.
     put = \case
         Patch.Old_Triggered -> tag 0
         Patch.Pressure -> tag 1
@@ -830,7 +842,7 @@ instance Serialize Common.Config where
         v -> Serialize.bad_version "Common.Config" v
 
 instance Serialize Common.Flag where
-    put a = Serialize.put_version 0 >> Serialize.put_enum a
+    put a = Serialize.put_version 0 >> Serialize.put_enum_old a
     get = Serialize.get_version >>= \case
         0 -> get >>= \(t :: Int) -> case t of
             0 -> return Common.Triggered
@@ -869,5 +881,5 @@ instance Serialize Lilypond.StaffConfig where
             _ -> Serialize.bad_version "Lilypond.StaffConfig" v
 
 instance Serialize Lilypond.Duration where
-    put a = Serialize.put_enum a
-    get = Serialize.get_enum
+    put a = Serialize.put_enum_old a
+    get = Serialize.get_enum_old

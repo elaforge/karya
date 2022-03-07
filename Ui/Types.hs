@@ -38,5 +38,5 @@ invert Positive = Negative
 invert Negative = Positive
 
 instance Serialize.Serialize Orientation where
-    put = Serialize.put_enum
-    get = Serialize.get_enum
+    put = Serialize.put_enum_old
+    get = Serialize.get_enum_old

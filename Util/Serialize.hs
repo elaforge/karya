@@ -25,7 +25,8 @@ module Util.Serialize (
     , unserialize
     -- * util
     , get_tag, put_tag, bad_tag
-    , get_enum, put_enum, to_enum
+    , get_enum, put_enum, bad_enum
+    , get_enum_old, put_enum_old
     -- * versions
     , get_version, put_version, bad_version
 ) where
@@ -164,12 +165,15 @@ put_tag = putWord8
 bad_tag :: String -> Word.Word8 -> Get a
 bad_tag typ tag = fail $ "unknown tag for " ++ typ ++ ": " ++ show tag
 
-get_enum :: (Bounded a, Enum a) => Serialize.Get a
-get_enum = get >>= \n ->
+-- TODO don't use this, it's convenient but dangerous!  Because it's then
+-- too easy to change the enum and unknowingly break backward compatibility.
+get_enum_old :: (Bounded a, Enum a) => Serialize.Get a
+get_enum_old = get >>= \n ->
     maybe (fail $ "enum value out of range: " ++ show n) return (to_enum n)
 
-put_enum :: Enum a => a -> Serialize.Put
-put_enum = put . fromEnum
+-- TODO remove, as with get_enum_old
+put_enum_old :: Enum a => a -> Serialize.Put
+put_enum_old = put . fromEnum
 
 -- | A safe version of 'toEnum'.
 to_enum :: forall a. (Enum a, Bounded a) => Int -> Maybe a
@@ -177,6 +181,17 @@ to_enum n
     | fromEnum (minBound :: a) <= n && n <= fromEnum (maxBound :: a) =
         Just (toEnum n)
     | otherwise = Nothing
+
+get_enum :: Serialize.Get Word.Word8
+get_enum = get
+
+-- | It's just put, but make sure it's using Int.  Word8 would be more
+-- suitable.
+put_enum :: Word.Word8 -> Serialize.Put
+put_enum = put
+
+bad_enum :: String -> Word.Word8 -> Get a
+bad_enum name val = fail $ "unknown enum val for " <> name <> ": " <> show val
 
 -- * basic types
 

@@ -310,8 +310,8 @@ instance Serialize.Serialize File where
         tag -> Serialize.bad_tag "File" tag
 
 instance Serialize.Serialize FileType where
-    put = Serialize.put_enum
-    get = Serialize.get_enum
+    put = Serialize.put_enum_old
+    get = Serialize.get_enum_old
 
 instance DeepSeq.NFData CmdResult where
     rnf (CmdResult a b) = a `seq` b `seq` ()
