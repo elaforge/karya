@@ -443,8 +443,8 @@ instance Serialize.Serialize Msg where
     get = Msg <$> get <*> get <*> get <*> get <*> get <*> get
 
 instance Serialize.Serialize Priority where
-    put = Serialize.put_enum_old
-    get = Serialize.get_enum_old
+    put = Serialize.put_enum_unsafe
+    get = Serialize.get_enum_unsafe
 
 instance Serialize.Serialize Data where
     put NoData = put_tag 0

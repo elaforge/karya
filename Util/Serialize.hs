@@ -26,7 +26,7 @@ module Util.Serialize (
     -- * util
     , get_tag, put_tag, bad_tag
     , get_enum, put_enum, bad_enum
-    , get_enum_old, put_enum_old
+    , get_enum_unsafe, put_enum_unsafe
     -- * versions
     , get_version, put_version, bad_version
 ) where
@@ -165,15 +165,18 @@ put_tag = putWord8
 bad_tag :: String -> Word.Word8 -> Get a
 bad_tag typ tag = fail $ "unknown tag for " ++ typ ++ ": " ++ show tag
 
--- TODO don't use this, it's convenient but dangerous!  Because it's then
--- too easy to change the enum and unknowingly break backward compatibility.
-get_enum_old :: (Bounded a, Enum a) => Serialize.Get a
-get_enum_old = get >>= \n ->
+-- | These are convenient but dangerous.  If they are are used in a context
+-- where backward compatibility matters ("Cmd.Serialize") then it's too easy
+-- to break compatibility by adding or removing an enum.
+--
+-- But they're fine if used in an enum that will never change, or where
+-- compatibility doesn't matter.
+get_enum_unsafe :: (Bounded a, Enum a) => Serialize.Get a
+get_enum_unsafe = get >>= \n ->
     maybe (fail $ "enum value out of range: " ++ show n) return (to_enum n)
 
--- TODO remove, as with get_enum_old
-put_enum_old :: Enum a => a -> Serialize.Put
-put_enum_old = put . fromEnum
+put_enum_unsafe :: Enum a => a -> Serialize.Put
+put_enum_unsafe = put . fromEnum
 
 -- | A safe version of 'toEnum'.
 to_enum :: forall a. (Enum a, Bounded a) => Int -> Maybe a

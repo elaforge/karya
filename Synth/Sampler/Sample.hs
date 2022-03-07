@@ -153,8 +153,8 @@ instance Serialize.Serialize Stretch where
     get = fail "no get for Stretch"
 
 instance Serialize.Serialize StretchMode where
-    put = Serialize.put_enum_old
-    get = Serialize.get_enum_old
+    put = Serialize.put_enum_unsafe
+    get = Serialize.get_enum_unsafe
 
 -- | The duration of a note which plays the entire sample.  This should be
 -- longer than any sample, and will be clipped to sample duration.
