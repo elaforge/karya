@@ -165,24 +165,26 @@ make_nested bottom_tracks size depth bottom_size = do
     Ui.modify set_allocations
     where
     go ruler_id block_name 1 = do
-        UiTest.mkblock_ruler ruler_id (UiTest.bid block_name) ""
+        UiTest.mkblock_ruler_id ruler_id (UiTest.bid block_name) ""
             (map (track_take bottom_size) bottom_tracks)
         return ()
     go ruler_id block_name depth = do
         let sub_bids = [block_name <> "." <> showt sub | sub <- [0 .. size-1]]
             step = bottom_size * size^(depth-2)
-        UiTest.mkblock_ruler ruler_id (UiTest.bid block_name) ""
+        UiTest.mkblock_ruler_id ruler_id (UiTest.bid block_name) ""
             (map (track_take size) [ctrack (fromIntegral step) inst1 sub_bids])
         forM_ sub_bids $ \sub -> go ruler_id sub (depth-1)
 
 mkblock :: Ui.M m => [UiTest.TrackSpec] -> m ()
 mkblock tracks = do
     UiTest.mkblock tracks
-    tinfo <- TrackTree.tracks_of UiTest.default_block_id
+    tracks <- TrackTree.tracks_of UiTest.default_block_id
     -- Track slicing makes things much slower.  I should profile that too, but
     -- let's profile without it first.
-    Ui.set_skeleton UiTest.default_block_id $
-        ParseSkeleton.note_bottom_parser tinfo
+    Ui.set_skeleton UiTest.default_block_id $ ParseSkeleton.note_bottom_parser
+        [ ParseSkeleton.Track (Ui.track_tracknum t) (Ui.track_title t)
+        | t <- tracks
+        ]
     Ui.modify set_allocations
 
 -- * implementation

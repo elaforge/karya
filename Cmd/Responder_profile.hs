@@ -17,6 +17,7 @@ import qualified Cmd.TimeStep as TimeStep
 import qualified Derive.Derive_profile as Derive_profile
 import qualified Midi.Midi as Midi
 import qualified Ui.Key as Key
+import qualified Ui.Meter.Meter as Meter
 import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
 import qualified Ui.UiMsg as UiMsg
@@ -66,7 +67,7 @@ profile_selection = do
                 (Ui.state_rulers ui_state) }
     let cmd_state2 = modify_edit_state cmd_state $ \st -> st
             { Cmd.state_time_step = TimeStep.time_step
-                (TimeStep.AbsoluteMark TimeStep.AllMarklists 3)
+                (TimeStep.AbsoluteMark TimeStep.AllMarklists Meter.Q)
             }
     let states = (ui_state2, cmd_state2)
     let one_cycle = take (256*2) (cycle (CmdTest.keypress Key.Down))
