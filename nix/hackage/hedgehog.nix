@@ -1,20 +1,20 @@
-{ mkDerivation, ansi-terminal, async, base, bytestring
+{ mkDerivation, ansi-terminal, async, barbies, base, bytestring
 , concurrent-output, containers, deepseq, directory, erf
-, exceptions, lib, lifted-async, mmorph, monad-control, mtl
-, pretty-show, primitive, random, resourcet, stm, template-haskell
-, text, time, transformers, transformers-base, wl-pprint-annotated
+, exceptions, lifted-async, mmorph, monad-control, mtl, pretty-show
+, primitive, random, resourcet, stdenv, stm, template-haskell, text
+, time, transformers, transformers-base, wl-pprint-annotated
+, lib
 }:
 mkDerivation {
   pname = "hedgehog";
-  version = "1.0.5";
-  sha256 = "263a487be22f2626bc0e719096d8c230c1bd374a91332404af7ca85e29d258e3";
-  revision = "1";
-  editedCabalFile = "0vqjjjvnbb601f6lwm90x80wb6rxhnvi4p8g04g15bfs3kxqw44z";
+  version = "1.1.1";
+  sha256 = "ded621edfef36d2bef2ecce10f331f3327af322de2e30c7bf9fbb3d7985ca7e3";
   libraryHaskellDepends = [
-    ansi-terminal async base bytestring concurrent-output containers
-    deepseq directory erf exceptions lifted-async mmorph monad-control
-    mtl pretty-show primitive random resourcet stm template-haskell
-    text time transformers transformers-base wl-pprint-annotated
+    ansi-terminal async barbies base bytestring concurrent-output
+    containers deepseq directory erf exceptions lifted-async mmorph
+    monad-control mtl pretty-show primitive random resourcet stm
+    template-haskell text time transformers transformers-base
+    wl-pprint-annotated
   ];
   testHaskellDepends = [
     base containers mmorph mtl pretty-show text transformers

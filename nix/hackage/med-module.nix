@@ -3,13 +3,14 @@
 }:
 mkDerivation {
   pname = "med-module";
-  version = "0.1.2.1";
-  sha256 = "f782cfad5cba28e87a24e61c4553e9205689108e08c817a7f8e625d463933e38";
+  version = "0.1.2.2";
+  sha256 = "6aa533c3f2c0d1c21c5148deaeb27d15b6b53f96ffb004e7846b91df13f97c63";
   isLibrary = true;
   isExecutable = true;
   libraryHaskellDepends = [
     base bytestring storable-endian transformers utility-ht
   ];
+  doCheck = false;
   description = "Parse song module files from Amiga MED and OctaMED";
-  license = lib.licenses.gpl3Only;
+  license = lib.licenses.gpl3;
 }

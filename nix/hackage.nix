@@ -49,10 +49,7 @@ let
   disableAutoProf = drv: nixpkgs.haskell.lib.overrideCabal drv
     (drv: { inherit profilingDetail; });
 
-  jailbreaks = [
-    "med-module" # bytestring >=0.9.2 && <0.11
-    "hedgehog" # 1.0.5 has template-haskell <2.18, but github is updated?
-  ];
+  jailbreaks = [];
 
   overrideCabal = name: with nixpkgs.haskell.lib; compose [
     (if profiling then (x: x) else disableLibraryProfiling)
