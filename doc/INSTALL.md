@@ -80,9 +80,9 @@ This is a lot more work than the nix way!
 - On OS X, install commandline tools if you haven't already:
     `xcode-select --install`
 
-- Install GHC.  I'm using 8.8 now and I dropped support for previous versions.
-8.2 definitely does not work, details at
-<https://ghc.haskell.org/trac/ghc/ticket/13604>.
+- Install GHC, either the traditional way or `ghcup` should work.  I'm using
+9.2 now and 8.8 recently, and I've dropped support for previous versions.
+I do not recommend 9.0, it's known to be buggy!
 
 - Install [non-haskell dependencies](#non-haskell-dependencies).
 
@@ -152,22 +152,25 @@ You can do this either the cabal way, or the stack way.
 
 ### cabal way
 
-For whatever reason cabal doesn't install binary dependencies automatically,
-and it doesn't know how to do dependencies between them, so first run:
+Old cabal won't install binary dependencies automatically.  You probably
+don't have a cabal this old, but in case you do:
 
     # These must be separate command lines!  Cabal is not smart about binaries.
     cabal install alex happy
     cabal install c2hs cpphs
 
-New cabal with nix-style builds might have fixed this.
-
 To install the needed haskell dependencies, type:
 
-    cabal sandbox init  # if you're afraid to screw up your haskell installation
     cabal v1-install --only-dependencies
 
-The actual build is with shake, but there's a dummy cabal file with just
-dependencies to make install easier.
+This uses the global package db, and it must since new cabal has removed the
+sandbox option.  In addition, v1 commands are probably on life-support and
+will eventually be removed.  However, v2 commands are still incomplete and
+poorly documented, in that they lack an `install --only-dependencies`
+equivalent where I can get a package-db of the deps needed.
+
+The actual build is with shake, I only use cabal to install hackage
+dependencies.
 
 If you want to build the documentation:
 
@@ -177,6 +180,9 @@ You can also install pandoc with cabal but it has a ridiculous number of
 dependencies.
 
 ### stack way
+
+This is ancient and no one ever used it and probably no longer works.
+Definitely ghc 8.4 won't work!
 
 I don't use stack, but I added some basic support so hopefully this should work:
 
@@ -192,8 +198,14 @@ stack-flavored ghc and packages.
 ## 音, Im, Synth
 
 These are all names for the incomplete offline synthesizer.  It requires a
-bunch of extra dependencies.  First you need more non-haskell dependencies.
-Get the -dev versions as usual:
+bunch of extra dependencies.  If you did the nix way, then you'll already
+have them by default.  In theory you could not have them by turning off
+`withIm` but in practice I think that may be broken.  Since they're easy
+to add with nix I'm not motivated to make every combination work.
+
+But, here are some old docs in the unlikely event that it ever matters:
+
+First you need more non-haskell dependencies.  Get the -dev versions as usual:
 
 - faust - Faust had major stdlib changes a few years back, and if you use a
 conservative distro, the bundled one may be too old.  Install by hand to be

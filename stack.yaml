@@ -1,3 +1,7 @@
+# WARNING: this is ancient, no one ever used it, it probably doesn't work.
+# It's still here in case it needs to be resurrected some day, but nix
+# will always be more reliable.
+#
 # This is an optional stack config, if you want to install dependencies with
 # stack instead of cabal.
 
