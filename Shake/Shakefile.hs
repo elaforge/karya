@@ -39,6 +39,7 @@ import qualified System.IO as IO
 import qualified System.IO.Error as IO.Error
 import qualified System.Posix as Posix
 import qualified System.Process as Process
+import qualified Text.Read as Read
 
 import qualified Util.Exceptions as Exceptions
 import qualified Util.PPrint as PPrint
@@ -896,15 +897,15 @@ packageFlags flags packages =
 -- let's not run ghc again.
 parseGhcVersion :: FilePath -> (Int, Int, Int)
 parseGhcVersion path =
-    -- take 3 to avoid getting confused by versions like 8.0.1.20161213.
-    parse $ take 3 $ Seq.split "." $
-        drop 1 $ dropWhile (/='-') $ FilePath.takeFileName path
+    Maybe.fromMaybe (error $ "parseGhcVersion: can't parse " <> show path) $
+        parse =<< List.find (prefix `List.isPrefixOf`) (Seq.split "/" path)
     where
-    parse cs
-        | all (all Char.isDigit) cs = case map read cs of
-            a : b : c : _ -> (a, b, c)
-            _ -> error $ "parseGhcVersion: can't parse " <> show path
-        | otherwise = error $ "parseGhcVersion: can't parse " <> show path
+    prefix = "ghc-"
+    parse cs = case Seq.split "." (drop (length prefix) cs) of
+        -- take 3 to avoid getting confused by versions like 8.0.1.20161213.
+        a : b : c : _ ->
+            (,,) <$> Read.readMaybe a <*> Read.readMaybe b <*> Read.readMaybe c
+        _ -> Nothing
 
 -- | Generate a number CPP can compare.
 ghcVersionMacro :: (Int, Int, Int) -> String

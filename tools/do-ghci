@@ -16,15 +16,6 @@ args=(
     "${(@f)$(cat $flags)}"
 )
 
-version=$(tools/ghc_version.py)
-if [[ $version -lt 80400 ]]; then
-    # Older ghci prints every loaded module separately, newer ghci just
-    # prints a count.
-    args=(-v0 $args)
-    # disabled in 8.4 due to http://ghc.haskell.org/trac/ghc/ticket/14963
-    args=($args -fdefer-type-errors)
-fi
-
 # Don't use ghci since I run this from a script called ghci, and I don't
 # want to get in a loop.
 exec ghc --interactive $args "$@"
