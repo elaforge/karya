@@ -441,6 +441,11 @@ UNSORTED
       . Do I get this on my old darwin?
       . Yes, known issue in nixpkgs.
       . In any case, downgrade doesn't help.
+  * upgrade to ghc-9.2.2 on the non-nix setup
+    . Should I keep using non-nix?  Why not?  CI has the nix setup covered.
+    . Try out ghcup?  It seems to be basically like set-version.py.
+    . Can I then drop 8.8 compatibility?  It means I could try out
+      OverloadedDotRecords.
   * upgrade to ghc-9.2.1
     . 9.0 is pretty buggy, wait for 9.2.
     * 9.2.1 has no profiling, wait for 9.2.2:
@@ -4232,7 +4237,7 @@ external:
           GlobalKeymap: 57s
         9.2.1:
           seq: 15:03:53 to 15:09:31 - 5m38s
-          GlobalKeymap: 16.10
+          GlobalKeymap: 16.10, 15
       linux:
         8.10.3:
           GlobalKeymap: 70s.

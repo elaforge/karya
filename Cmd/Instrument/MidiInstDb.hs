@@ -15,7 +15,6 @@ import           System.FilePath ((</>))
 
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
-import qualified Util.Maps as Maps
 import qualified Util.Seq as Seq
 
 import qualified App.Config as Config
@@ -72,12 +71,6 @@ db_path app_dir name =
     Path.to_absolute app_dir Config.instrument_cache_dir </> name ++ ".db"
 
 -- * generate_names
-
--- | Like 'generate_names', but don't drop or rename duplicates, just report
--- them as errors.
-check_names :: [MidiInst.Patch] -> (Map InstT.Name MidiInst.Patch, [InstT.Name])
-check_names = second (map fst) . Maps.unique
-    . Seq.key_on (Patch.patch_name . MidiInst.patch_patch)
 
 -- | 'Patch.inst_name' is the name as it appears on the synth, so it's not
 -- guaranteed to be unique.  Also, due to loading from sysexes, there may be

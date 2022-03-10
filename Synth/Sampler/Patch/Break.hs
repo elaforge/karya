@@ -313,8 +313,9 @@ makeBeatMap break = Map.fromList
 
 -- * bpm
 
-printBpms :: IO ()
-printBpms = forM_ allBreaks $ \break -> do
+-- | For use from ghci.
+_printBpms :: IO ()
+_printBpms = forM_ allBreaks $ \break -> do
     Text.IO.putStrLn $ "---- " <> _name break
     Text.IO.putStrLn $ showBpms break
 

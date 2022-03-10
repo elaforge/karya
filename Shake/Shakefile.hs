@@ -648,15 +648,18 @@ ghcWarnings :: Config -> [String]
 ghcWarnings config = concat
     [ ["-W", "-Wcompat"]
     -- pass -Wundef to CPP for warnings on #if TYPO
-    , ["-Wcpp-undef" | ghcVersion config >= (8, 2, 0)]
+    , ["-Wcpp-undef" | ver >= (8, 2, 0)]
     , map ("-W"++) warns
     , map ("-Wno-"++) noWarns
     ]
     where
+    ver = ghcVersion config
     warns =
         [ "identities"
         , "incomplete-record-updates"
         , "missing-fields"
+        -- Super noisy, I can't even write 'deriving (Show)' any more!
+        -- , "missing-deriving-strategies"
         -- Check compatibility with
         -- https://ghc.haskell.org/trac/ghc/wiki/Proposal/MonadOfNoReturn
         , "noncanonical-monad-instances"
@@ -665,11 +668,15 @@ ghcWarnings config = concat
         , "tabs"
         , "unused-matches"
         , "wrong-do-bind"
-        ] ++ ["partial-fields" | ghcVersion config >= (8, 4, 0)]
+        ] ++ concat
+        [ ["partial-fields" | ver >= (8, 4, 0)]
+        , ["invalid-haddock" | ver >= (9, 0, 0)]
+        , ["unused-packages" | ver >= (8, 10, 0)]
+        ]
     noWarns = concat
         -- This is just about ($xyz) for TemplateHaskell, which I don't use,
         -- and (%n) for linear, which I'm unlikely to use.
-        [ ["operator-whitespace-ext-conflict" | ghcVersion config >= (9, 2, 1)]
+        [ ["operator-whitespace-ext-conflict" | ver >= (9, 2, 1)]
         -- TEST ifdefs can cause duplicate exports if they add X(..) to the
         -- X export.
         , ["duplicate-exports" | buildMode config `elem` [Test, Profile]]

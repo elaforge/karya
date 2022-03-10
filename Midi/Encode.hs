@@ -95,7 +95,6 @@ encode (RealtimeMessage (MtcQuarterFrame timing)) =
 encode (RealtimeMessage msg) = B.pack [join4 0xf st]
     where
     st = case msg of
-        MtcQuarterFrame _ -> 0x1 -- not reached, due to pattern match above
         TimingClock -> 0x8
         Start -> 0xa
         Continue -> 0xb

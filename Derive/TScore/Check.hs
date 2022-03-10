@@ -542,10 +542,6 @@ check_beat beat_rank beat rank = (prefix<>) <$> case at of
             <> " (short " <> pretty (t-beat) <> ")"
     (_, at, post) = Map.splitLookup beat beat_rank
 
-show_time :: T.Time -> T.Time -> Text
-show_time cycle_dur t = pretty (cycle :: Int) <> ":" <> pretty beat
-    where (cycle, beat) = t `Num.fDivMod` cycle_dur
-
 duration_of :: Token call pitch (T.Time, tie) -> T.Time
 duration_of = \case
     T.TBarline {} -> 0
