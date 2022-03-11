@@ -23,6 +23,7 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveT as DeriveT
+import qualified Derive.Expr as Expr
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Parse as Parse
 import qualified Derive.Pitches as Pitches
@@ -77,10 +78,14 @@ add_absolute_transposers config nn =
 -- anything.
 pitch_expr :: Double -> Pitch.Note -> Pitch.Note
 pitch_expr _frac note = note
--- pitch_expr frac note
---     | frac == 0 = note
---     | otherwise = Pitch.Note $
---         Pitch.note_text note <> " " <> showt (floor (frac * 100))
+
+_pitch_expr :: Double -> Pitch.Note -> Expr.Expr Expr.MiniVal
+_pitch_expr frac note = Expr.generator $ Expr.call (note_symbol note) $
+    if frac == 0 then []
+    else [Expr.to_val (floor (frac * 100) :: Int)]
+
+note_symbol :: Pitch.Note -> Expr.Symbol
+note_symbol note = Expr.Symbol (Pitch.note_text note)
 
 -- * just
 

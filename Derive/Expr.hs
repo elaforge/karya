@@ -175,6 +175,8 @@ instance Pretty Str where pretty = show_val
 unstr :: Str -> Text
 unstr (Str str) = str
 
+-- * MiniVal
+
 -- | Yes, it's yet another Val variant.  This one is even more mini than
 -- REnv.Val.
 -- TODO NOTE [val-and-minival]
@@ -198,6 +200,8 @@ instance Serialize.Serialize MiniVal where
         1 -> VStr <$> Serialize.get
         tag -> Serialize.bad_tag "MiniVal" tag
 
+class ToVal a where to_val :: a -> MiniVal
 
-num :: Double -> MiniVal
-num = VNum . ScoreT.untyped
+instance ToVal Int where to_val a = to_val (fromIntegral a :: Double)
+instance ToVal Double where to_val = VNum . ScoreT.untyped
+instance ToVal Text where to_val = VStr . Str

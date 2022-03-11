@@ -142,6 +142,53 @@ UNSORTED
   - inst allocation in ky?
     . I already have something like this in tscore, putting it in ky would
       generalize.
+    . Check.parse_instruments -> Parse.p_allocation
+      >pno pianoteq/ midi loop1 0 1 2
+      >tmb faust/tambura4 im
+      >osc sc/inst sc
+      >dum kontakt/sc-calung-pasang dummy
+    . example:
+      instruments:
+      >calung kontakt/sc-calung-pasang    (dummy)
+        { +inst-polos: calung-p
+        , +inst-sangsih: calung-s
+        }
+      >calung-p kontakt/sc-calung loop1 [3]
+        { -inst-bottom: (pitch 4 0)
+        , -inst-top: (pitch 4 6)
+        , +tuning: umbang
+        }
+        (scale legong umbang 49 keys)
+      >m-d kontakt/mridangam-d loop2 [3] {mute}
+    . I could have a generic records and values syntax.  Like JSON but
+      with comments... and no "s?
+      . Also seems like I want tuples?
+        >pemade-p
+          { qualified = 'kontakt/sc-pemade'
+          , config: -- Common.Config
+            { environ = {tuning = 'umbang'}
+            , mute = False, solo = False
+            }
+          , backend: -- Midi Patch.Config | Im | Sc | Dummy
+            { allocation = [("loop1", 6)]
+            , initialization = {} -- Tuning, NrpnTuning
+            , settings =
+              { flags = Nothing?
+              , scale = "legong umbang"
+              , pitch_bend_range = (-12, 12)
+              , control_defaults = {cc1 = 42}
+              }
+            }
+          }
+      . Even so there would be a fair amount of faffing about converting.
+      . Alternately, have a mini format that doesn't affect env, etc.
+        Just name, qualified, alloc, flags, maybe with other values in
+        comments?
+      . But I'm losing track of the original idea to switch between MIDI and
+        im backends.  That's hardly a general purpose thing though.  Why don't
+        I just save and load .inst?
+      . Also I can't move instrument declaration to ky and retain standalone
+        .tscore files.
   - implicit skeleton doesn't work for dyn over two tracks
     . Instead, it assigns it to the note track to the left.
     . How can I disambiguate?
@@ -179,6 +226,7 @@ UNSORTED
     . Pitch.Note is messy anyway, seems like it should be a subset of
       Derive.Expr Text.
   - convert scale_input_to_note to return 'Expr Text'
+    . Actually Expr MiniVal.
     . so ScaleDgree.pitch_expr can actually return an expr
     . re-enable test in NoteTrack_test.test_cmd_val_edit_advance
   * test tools/setup-generic, since I test setup-elaforge normally

@@ -59,7 +59,7 @@ metaExpr (Solkattu.Meta matras name gtype) =
         Solkattu.GSarva -> []
         _ -> case matras of
             Nothing -> []
-            Just matras -> [Expr.num (fromIntegral matras)]
+            Just matras -> [Expr.to_val matras]
 
     where
     call = Expr.Symbol $ fromMaybe (Realize.typeName gtype) name
