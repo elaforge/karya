@@ -133,7 +133,7 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
-  - pitch track added by note entry should auto-embiggen
+  * pitch track added by note entry should auto-embiggen
     . also be collapsed by default?
   - semara-dana-im fails on ngoret and stops rendering after the 1st block
     . But I don't want two scores, I want to be able to toggle instrument
@@ -233,8 +233,7 @@ UNSORTED
       for OSC is generalized.
     . Pitch.Note is messy anyway, seems like it should be a subset of
       Derive.Expr Text.
-  - convert scale_input_to_note to return 'Expr Text'
-    . Actually Expr MiniVal.
+  - convert scale_input_to_note to return 'Expr MiniVal'
     . so ScaleDgree.pitch_expr can actually return an expr
     . re-enable test in NoteTrack_test.test_cmd_val_edit_advance
   * test tools/setup-generic, since I test setup-elaforge normally

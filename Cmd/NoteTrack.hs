@@ -243,18 +243,24 @@ cmd_method_edit msg =
 -- | Create a pitch track.
 create_pitch_track :: Cmd.M m => BlockId -> ControlTrack -> m ()
 create_pitch_track block_id (ControlTrack note pitch) = do
-    Create.track block_id pitch "*" Events.empty
+    create_track block_id pitch "*"
+    when (pitch == note + 1) $ Ui.merge_track block_id note pitch
+    Create.widen =<< Cmd.get_focused_view
     -- Link note track underneath newly created pitch track.
     whenM (Ui.has_explicit_skeleton block_id) $
         Ui.splice_skeleton_below block_id pitch note
 
 create_dyn_track :: Cmd.M m => BlockId -> ControlTrack -> m ()
 create_dyn_track block_id (ControlTrack note dyn) = do
-    tid <- Create.empty_track block_id dyn
+    create_track block_id dyn $
+        ParseTitle.control_to_title (ScoreT.untyped Controls.dynamic)
+    Create.widen =<< Cmd.get_focused_view
     whenM (Ui.has_explicit_skeleton block_id) $
         Ui.splice_skeleton_below block_id dyn note
-    Ui.set_track_title tid $
-        ParseTitle.control_to_title (ScoreT.untyped Controls.dynamic)
+
+create_track :: Cmd.M m => BlockId -> TrackNum -> Text -> m ()
+create_track block_id tracknum title =
+    void $ Create.track block_id tracknum title Events.empty
 
 -- | Ensure that a note event exists at the given spot.  An existing event is
 -- left alone, but if there is no existing event a new one will be created.

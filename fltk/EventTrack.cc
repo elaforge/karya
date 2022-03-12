@@ -43,8 +43,8 @@ static const double trigger_height = 7;
 // Don't use INT_MIN because it overflows too easily.
 enum { MIN_PIXEL = -10000, MAX_PIXEL = 10000 };
 
-// This is enough to fix x00 for a control track.
-static const int minimum_suggested_width = 28;
+// This is enough to fix -x00 for a control track.
+static const int minimum_suggested_width = 29;
 
 
 // TrackSignal //////////
