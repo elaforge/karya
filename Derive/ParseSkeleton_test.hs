@@ -3,36 +3,51 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.ParseSkeleton_test where
-import qualified Util.Graphs_test as Graphs_test
+import qualified Util.Graphs as Graphs
+import qualified Util.Seq as Seq
 import qualified Derive.ParseSkeleton as ParseSkeleton
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Ui.Skeleton as Skeleton
 
+import           Global
 import           Util.Test
 
 
 test_parse :: Test
 test_parse = do
-    let mktracks = map (uncurry ParseSkeleton.Track) . zip [0..]
-    let mkskel = Skeleton.make
     let f = ParseSkeleton.default_parser . mktracks
-    let note_bottom = ParseSkeleton.note_bottom_parser . mktracks
-
+    equal_fmt sfmt (f ["", ""]) (mkskel [(0, 1)])
     -- They're both controls, with no instrument track.
-    skel_equal (f ["", ""]) (mkskel [(0, 1)])
-    skel_equal (f [">i1"]) (mkskel [])
-    skel_equal (f [">i1", "c1", "c2"]) (mkskel [(0, 1), (1, 2)])
+    equal_fmt sfmt (f ["", ""]) (mkskel [(0, 1)])
+    equal_fmt sfmt (f [">i1"]) (mkskel [])
+    equal_fmt sfmt (f [">i1", "c1", "c2"]) (mkskel [(0, 1), (1, 2)])
 
-    skel_equal (f ["c1", ">i1", "c2"]) (mkskel [(0, 1), (1, 2)])
-    skel_equal (f ["c0", ">i1", "c1", ">i2", "tempo", ">i3"])
+    equal_fmt sfmt (f ["c1", ">i1", "c2"]) (mkskel [(0, 1), (1, 2)])
+    equal_fmt sfmt (f ["c0", ">i1", "c1", ">i2", "tempo", ">i3"])
         (mkskel [(0, 1), (1, 2), (0, 3), (4, 5)])
-    skel_equal (f [">i1", "c1", ">i2", "c2"])
+    equal_fmt sfmt (f [">i1", "c1", ">i2", "c2"])
         (mkskel [(0, 1), (2, 3)])
 
+    equal_fmt sfmt (f [">i1", "c1", ">i2", ">i3"])
+        (mkskel [(0, 1)])
+    equal_fmt sfmt (f [">i1", "c1 -->", ">i2", ">i3"])
+        (mkskel [(1, 2), (1, 3)])
+
+test_parse_note_bottom :: Test
+test_parse_note_bottom = do
+    let mktracks = map (uncurry ParseSkeleton.Track) . zip [0..]
+    let f = ParseSkeleton.note_bottom_parser . mktracks
     -- note-bottom parser
-    skel_equal (note_bottom ["tempo", "*p", "c1", ">i1", "c2", ">i2"])
+    equal_fmt sfmt (f ["tempo", "*p", "c1", ">i1", "c2", ">i2"])
         (mkskel [(0, 1), (1, 2), (2, 3), (0, 4), (4, 5)])
-    skel_equal (note_bottom ["c1", ">i1", "c2"])
+    equal_fmt sfmt (f ["c1", ">i1", "c2"])
         (mkskel [(0, 1), (0, 2)])
-    where
-    skel_equal (Skeleton.Skeleton g1) (Skeleton.Skeleton g2) =
-        Graphs_test.graph_equal g1 g2
+
+mktracks :: [Text] -> [ParseSkeleton.Track]
+mktracks = map (uncurry ParseSkeleton.Track) . zip [0..]
+
+mkskel :: [(Int, Int)] -> Skeleton.Skeleton
+mkskel = Skeleton.make
+
+sfmt :: Skeleton.Skeleton -> Text
+sfmt (Skeleton.Skeleton g) = txt $ Graphs.draw g

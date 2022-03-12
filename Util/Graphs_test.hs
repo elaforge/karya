@@ -4,11 +4,14 @@
 
 module Util.Graphs_test where
 import qualified Data.Array.IArray as IArray
+import qualified Data.Graph as Graph
 import qualified Data.List as List
+
 import qualified Util.Graphs as Graphs
-import Util.Graphs (build)
-import Util.Test
-import Global
+import           Util.Graphs (build)
+
+import           Global
+import           Util.Test
 
 
 test_toggle_edge = do
@@ -121,6 +124,7 @@ test_move = do
     -- array [(0,[2]),(1,[]), (2,[1])       0 -> 2 -> 1
     equal (f 2 1 g) (Just (build [(0, 2), (2, 1)]))
 
+graph_equal :: Graph.Graph -> Graph.Graph -> Test
 graph_equal graph1 graph2
     | norm graph1 == norm graph2 = success $ "graph == " <> showt graph1
     | otherwise = failure $ "graph " <> showt graph1 <> ":\n"

@@ -133,6 +133,8 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
+  - pitch track added by note entry should auto-embiggen
+    . also be collapsed by default?
   - semara-dana-im fails on ngoret and stops rendering after the 1st block
     . But I don't want two scores, I want to be able to toggle instrument
       sets.
@@ -189,9 +191,15 @@ UNSORTED
         I just save and load .inst?
       . Also I can't move instrument declaration to ky and retain standalone
         .tscore files.
-  - implicit skeleton doesn't work for dyn over two tracks
+  * implicit skeleton doesn't work for dyn over two tracks
     . Instead, it assigns it to the note track to the left.
     . How can I disambiguate?
+    . The only place is in the title, e.g. 'dyn >' or '^dyn'?
+      It's a bit weird because it has no effect on the track but is a signal
+      to the parse skeleton.
+    . I could do --> which is a nice arrow, but it's a comment... though
+      I guess I already have comment "pragma" in --|
+    . Ok, let's do it.
   / on midi kbd and pitch bend I get
     . scale_input_to_nn for PianoKbd:5-1+.001: unparseable note: 5r 0
     . What is the actual Pitch.Note it's trying to parse?

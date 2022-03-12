@@ -6,6 +6,7 @@ module Derive.ParseSkeleton (
     Track(..)
     , default_parser, note_bottom_parser
 ) where
+import qualified Data.Text as Text
 import qualified Data.Tree as Tree
 
 import qualified Util.Seq as Seq
@@ -49,25 +50,37 @@ make_skeleton :: Tree.Forest Track -> Skeleton.Skeleton
 make_skeleton = Skeleton.make . Trees.edges . map (fmap _tracknum)
 
 -- | [c0 tempo1 i1 c1 tempo2 c2 i2 c3] ->
--- [c0, tempo1 (i1 c1), tempo2 (c2 c2 c3)]
+-- c0 (tempo1 (i1 (c1)) (tempo2 (c2 (i2 (c3)))))
+--
+-- [i1, c1, i2] -> (i1 c1) (i2)
+-- [i1, c1 -->, i2] -> i1 (c1 (i2))
 parse_to_tree :: Bool -> [Track] -> Tree.Forest Track
 parse_to_tree reversed tracks = concatMap parse groups
     where
-    groups = Seq.split_before (ParseTitle.is_tempo_track . _title) tracks
+    groups = split_title ParseTitle.is_tempo_track tracks
     parse = if reversed then reverse_tempo_group else parse_tempo_group
 
 parse_tempo_group :: [Track] -> Tree.Forest Track
-parse_tempo_group tracks = case groups of
+parse_tempo_group = concatMap parse_control_group . split_title is_cgroup
+    where
+    is_cgroup t = ParseTitle.is_control_track t && "-->" `Text.isSuffixOf` t
+    -- Use a --> "pragma" comment to make a control track associate to the
+    -- right.
+
+parse_control_group :: [Track] -> Tree.Forest Track
+parse_control_group tracks = case split_title ParseTitle.is_note_track tracks of
     [] -> []
     non_note : ngroups -> descend non_note (concatMap parse_note_group ngroups)
-    where groups = Seq.split_before (ParseTitle.is_note_track . _title) tracks
+
+split_title :: (Title -> Bool) -> [Track] -> [[Track]]
+split_title f = Seq.split_before (f . _title)
 
 reverse_tempo_group :: [Track] -> Tree.Forest Track
 reverse_tempo_group [] = []
 reverse_tempo_group (track:tracks) =
     [Tree.Node track $ concatMap parse_note_group (shift groups)]
     where
-    groups = Seq.split_before (ParseTitle.is_note_track . _title) tracks
+    groups = split_title ParseTitle.is_note_track tracks
     shift (group : (note : rest) : gs) = (group ++ [note]) : shift (rest : gs)
     shift gs = gs
 
