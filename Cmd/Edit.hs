@@ -773,7 +773,7 @@ edit_point sel = case Sel.orientation sel of
 -- | Open a floating text entry with a selection set.
 open_floating :: Cmd.M m => (Text -> (Int, Int)) -> m Cmd.Status
 open_floating selection = do
-    (view_id, sel) <- Selection.get_view
+    (view_id, sel) <- Selection.get_view_sel
     (_, tracknum, track_id, _) <- Selection.get_insert
     let pos = edit_point sel
     maybe_event <- event_at track_id pos (Sel.event_orientation sel)

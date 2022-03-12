@@ -983,7 +983,7 @@ data EditState = EditState {
     -- allow for tracker-style note entry where newly entered notes extend to
     -- the next note or the end of the block.
     , state_note_duration :: !TimeStep.TimeStep
-    -- | If this is Rewind, create notes with negative durations.
+    -- | If this is Negative, create notes with negative durations.
     , state_note_orientation :: !Types.Orientation
     -- | New notes get this text by default.  This way, you can enter a series
     -- of notes with the same attributes, or whatever.

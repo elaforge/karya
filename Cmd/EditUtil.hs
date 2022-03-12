@@ -66,7 +66,7 @@ instance Pretty Pos where pretty = showt
 
 get_pos :: Cmd.M m => m Pos
 get_pos = do
-    (view_id, sel) <- Selection.get_view
+    (view_id, sel) <- Selection.get_view_sel
     block_id <- Ui.block_id_of view_id
     let (start, dur) = let (s, e) = Sel.range sel
             in case Sel.orientation sel of

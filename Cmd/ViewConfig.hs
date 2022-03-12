@@ -67,7 +67,7 @@ modify_factor view_id f = do
 -- selection if it's not.
 zoom_to_ruler_or_selection :: Cmd.M m => m ()
 zoom_to_ruler_or_selection = do
-    (view_id, sel) <- Selection.get_view
+    (view_id, sel) <- Selection.get_view_sel
     if Sel.is_point sel
         then Views.zoom_to_ruler view_id
         else uncurry (zoom_to view_id) (Sel.range sel)

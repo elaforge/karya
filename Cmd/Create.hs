@@ -409,32 +409,36 @@ assign_tracknums tracknum tree =
 -- | Insert a track after the selection, or just append one if there isn't one.
 -- This is useful for empty blocks which of course have no selection.
 insert_track_right :: Cmd.M m => m TrackId
-insert_track_right = do
-    sel <- Selection.lookup_any_insert
-    case sel of
-        Nothing -> append_track
-        Just (_, (block_id, tracknum, _)) -> do
-            block <- Ui.get_block block_id
-            focused_track (track_after block tracknum)
+insert_track_right = Selection.lookup_any_insert >>= \case
+    Nothing -> append_track
+    Just (_, (block_id, tracknum, _)) -> do
+        block <- Ui.get_block block_id
+        focused_track (track_after block tracknum)
 
 append_track :: Cmd.M m => m TrackId
 append_track = focused_track 99999
 
--- | Add a new track, and widen the view to make sure it's visible.  Give
--- keyboard focus to the title.
 focused_track :: Cmd.M m => TrackNum -> m TrackId
 focused_track tracknum = do
     view_id <- Cmd.get_focused_view
     track_and_widen True view_id tracknum
 
+-- | Add a new track, and widen the view to make sure it's visible.  Give
+-- keyboard focus to the title.  If there's a point selection, move it to
+-- the new track too.
 track_and_widen :: Ui.M m => Bool -> ViewId -> TrackNum -> m TrackId
 track_and_widen focus view_id tracknum = do
     block_id <- Ui.block_id_of view_id
     track_id <- track block_id tracknum "" Events.empty
     widen view_id
     tracknum <- clip_tracknum block_id tracknum
-    when focus $ Ui.damage $
-        mempty { Update._title_focus = Just (view_id, Just tracknum) }
+    when focus $ do
+        Ui.damage $ mempty
+            { Update._title_focus = Just (view_id, Just tracknum) }
+        whenJustM (Selection.lookup_view view_id) $ \sel ->
+            if not (Sel.is_point sel) then return ()
+                else Selection.set_view view_id $ Just $
+                    Sel.modify_tracks (const tracknum) sel
     return track_id
 
 -- | Expand the view horizontally to to fit all tracks.

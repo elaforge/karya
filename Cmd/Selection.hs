@@ -50,6 +50,15 @@ import           Types
 
 -- * cmds
 
+get_view :: Cmd.M m => ViewId -> m Sel.Selection
+get_view = Cmd.abort_unless <=< lookup_view
+
+lookup_view :: Ui.M m => ViewId -> m (Maybe Sel.Selection)
+lookup_view view_id = Ui.get_selection view_id Config.insert_selnum
+
+set_view :: Ui.M m => ViewId -> Maybe Sel.Selection -> m ()
+set_view view_id = Ui.set_selection view_id Config.insert_selnum
+
 {- | Set or unset the selection.
 
     This is the Cmd level of Ui.set_selection and should be called by
@@ -72,6 +81,8 @@ set_without_history view_id = set_selnum view_id Config.insert_selnum
 set_selnum :: Cmd.M m => ViewId -> Sel.Num -> Maybe Sel.Selection -> m ()
 set_selnum view_id selnum maybe_sel
     | selnum == Config.insert_selnum = do
+        -- If the new selection has an opinion about orientation, update
+        -- Cmd.state_note_orientation.
         maybe_sel <- flip traverse maybe_sel $ \sel ->
             case Sel.orientation sel of
                 Sel.None -> do
@@ -94,9 +105,10 @@ set_selnum view_id selnum maybe_sel
 
 get_orientation :: Cmd.M m => m Sel.Orientation
 get_orientation =
-    Cmd.gets (Cmd.state_note_orientation . Cmd.state_edit) >>= return . \case
-        Types.Positive -> Sel.Positive
-        Types.Negative -> Sel.Negative
+    Cmd.gets $ convert . Cmd.state_note_orientation . Cmd.state_edit
+    where
+    convert Types.Positive = Sel.Positive
+    convert Types.Negative = Sel.Negative
 
 mmc_goto_sel :: Cmd.M m => ViewId -> Sel.Selection -> Cmd.SyncConfig -> m ()
 mmc_goto_sel view_id sel sync = do
@@ -155,7 +167,7 @@ update_orientation = whenJustM lookup_context $ \(Context view_id _ sel) ->
 -- | Collapse the selection to a point at its (cur_track, cur_pos).
 to_point :: Cmd.M m => Bool -> m ()
 to_point to_cur_pos = do
-    (view_id, old) <- get_view
+    (view_id, old) <- get_view_sel
     selectable <- Ui.selectable_tracks <$>
         (Ui.get_block =<< Ui.block_id_of view_id)
     let closest = fromMaybe (Sel.cur_track old) $
@@ -210,7 +222,7 @@ step_with :: Cmd.M m => Int -> Move -> TimeStep.TimeStep -> m ()
 step_with steps move step = do
     view_id <- Cmd.get_focused_view
     old@(Sel.Selection start_track start_pos cur_track cur_pos _) <-
-        Cmd.abort_unless =<< Ui.get_selection view_id Config.insert_selnum
+        get_view view_id
     new_pos <- step_from cur_track cur_pos steps step
     let new_sel = case move of
             Extend -> Sel.Selection
@@ -251,7 +263,7 @@ modify :: Cmd.M m => (Block.Block -> Sel.Selection -> Sel.Selection) -> m ()
 modify f = do
     view_id <- Cmd.get_focused_view
     block <- Ui.block_of view_id
-    sel <- Cmd.abort_unless =<< Ui.get_selection view_id Config.insert_selnum
+    sel <- get_view view_id
     let new = f block sel
     set_without_history view_id (Just new)
     auto_scroll view_id (Just sel) new
@@ -285,7 +297,7 @@ get_tracks_from_selection :: Cmd.M m => Bool -- ^ If True, start from the R or
     -- L edge of the selection, rather than 'Sel.cur_track'.
     -> Direction -> m [Ui.TrackInfo]
 get_tracks_from_selection from_edge dir = do
-    (view_id, sel) <- get_view
+    (view_id, sel) <- get_view_sel
     let tracknum = if from_edge
             then (if dir == R then snd else fst) (Sel.track_range sel)
             else Sel.cur_track sel
@@ -303,7 +315,7 @@ get_tracks_from_selection from_edge dir = do
 -- not only not useful, it tends to make cmds that want to get a TrackId abort.
 cmd_track_all :: Cmd.M m => m ()
 cmd_track_all = do
-    (view_id, sel) <- get_view
+    (view_id, sel) <- get_view_sel
     block_id <- Ui.block_id_of view_id
     block_end <- Ui.block_end block_id
     tracks <- Ui.track_count block_id
@@ -329,7 +341,7 @@ select_track_all block_end tracks sel
 -- does, reset the track selection to the previous one.
 cmd_toggle_extend_tracks :: Cmd.M m => m ()
 cmd_toggle_extend_tracks = do
-    (view_id, sel) <- get_view
+    (view_id, sel) <- get_view_sel
     tracks <- Ui.track_count =<< Ui.block_id_of view_id
     let expanded = sel { Sel.cur_track = 1, Sel.start_track = tracks - 1 }
     if sel /= expanded
@@ -370,7 +382,7 @@ cmd_mouse_selection btn extend msg = do
     ((down_tracknum, down_pos), (mouse_tracknum, mouse_pos))
         <- mouse_drag_pos btn msg
     view_id <- Cmd.get_focused_view
-    old_sel <- Ui.get_selection view_id Config.insert_selnum
+    old_sel <- lookup_view view_id
     let (start_tracknum, start_pos) = case (extend, old_sel) of
             (True, Just (Sel.Selection tracknum pos _ _ _)) -> (tracknum, pos)
             _ -> (down_tracknum, down_pos)
@@ -390,7 +402,7 @@ cmd_snap_selection btn extend msg = do
     block_id <- Cmd.get_focused_block
     step <- Cmd.get_current_step
     view_id <- Cmd.get_focused_view
-    old_sel <- Ui.get_selection view_id Config.insert_selnum
+    old_sel <- lookup_view view_id
     snap_pos <- TimeStep.snap step block_id mouse_tracknum
         (Sel.cur_pos <$> old_sel) mouse_pos
     snap_pos <- snap_over_threshold view_id block_id mouse_pos snap_pos
@@ -468,7 +480,7 @@ mouse_drag btn msg = do
 -- follow the selection should use this function.
 set_and_scroll :: Cmd.M m => ViewId -> Sel.Selection -> m ()
 set_and_scroll view_id sel = do
-    old <- Ui.get_selection view_id Config.insert_selnum
+    old <- lookup_view view_id
     auto_scroll view_id old sel
     set view_id (Just sel)
 
@@ -644,7 +656,7 @@ lookup_block_insert block_id = do
     case view_ids of
         [] -> return Nothing
         view_id : _ ->
-            justm (Ui.get_selection view_id Config.insert_selnum) $ \sel ->
+            justm (lookup_view view_id) $ \sel ->
             justm (sel_track block_id sel) $ \track_id ->
             return $ Just
                 (block_id, sel_point_track sel, track_id, sel_point sel)
@@ -689,8 +701,8 @@ get = Cmd.abort_unless =<< lookup
 lookup :: Cmd.M m => m (Maybe Sel.Selection)
 lookup = fmap ctx_selection <$> lookup_context
 
-get_view :: Cmd.M m => m (ViewId, Sel.Selection)
-get_view = ctx_view_selection <$> context
+get_view_sel :: Cmd.M m => m (ViewId, Sel.Selection)
+get_view_sel = ctx_view_selection <$> context
 
 range :: Cmd.M m => m Events.Range
 range = Events.selection_range <$> get
@@ -743,7 +755,7 @@ get_root_insert = maybe get_insert return =<< rootsel
 -- block's first occurrance.
 relative_realtime :: Cmd.M m => BlockId -> m (RealTime, RealTime)
 relative_realtime root_id = do
-    (view_id, sel) <- get_view
+    (view_id, sel) <- get_view_sel
     block_id <- Ui.block_id_of view_id
     track_id <- Cmd.abort_unless =<< sel_track block_id sel
     maybe_root_sel <- lookup_block_insert root_id
@@ -757,7 +769,7 @@ relative_realtime root_id = do
 -- selection's block.  This means that the top should be 0.
 local_realtime :: Cmd.M m => m (BlockId, RealTime, RealTime)
 local_realtime = do
-    (view_id, sel) <- get_view
+    (view_id, sel) <- get_view_sel
     block_id <- Ui.block_id_of view_id
     track_id <- Cmd.abort_unless =<< sel_track block_id sel
     perf <- Cmd.get_performance block_id
