@@ -64,8 +64,13 @@ type Cmdline = (String, String, [String])
 cmdline :: Cmdline -> Shake.Action ()
 cmdline cmd@(abbr, _, cmdline) = do
     fancy <- fancyOutput
-    Shake.putNormal $ unwords $ "%" : cmdline
+    Shake.putNormal $ unwords $ "%" : map quote cmdline
     Shake.traced ("cmdline:" <> abbr) . liftIO $ doCmdline fancy False cmd
+
+quote :: String -> String
+quote w
+    | any (`elem` w) ("\" " :: [Char]) = '\'' : w ++ "'"
+    | otherwise = w
 
 data Metric = Metric {
     metricCpu :: !Double
