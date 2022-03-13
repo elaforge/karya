@@ -3793,8 +3793,10 @@ shakefile: build:
       probably replace Local/ShakeConfig.hs for the nix build, but I'll get
       constantly caught out if I don't restore it after nix-shell exits.
       Unlike env vars, I can't have the filesystem only changed in the shell.
-    - annoying warnings on nix darwin build:
+    * annoying warnings on nix darwin build:
       . ld: warning: /nix/store/jidccqzwwm1mgynd434ndxk2gykv9dqz-libiconv-50/lib/libiconv.dylib, ignoring unexpected dylib file
+      . But only for test build?  Not opt?  Seems to happen only when -fhpc is
+        passed.
     - Look into 'tinc', it uses the cabal solver to decide on versions.
     - Broken with withEkg.
       . Because ansi-wl-pprint 0.6.9 doesn't compile, no profiling on
