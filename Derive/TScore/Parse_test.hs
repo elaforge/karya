@@ -26,8 +26,8 @@ everything_score =
     \-- The supported directives are in 'Check.parse_directive'.\n\
     \%meter=adi\n\
     \%instruments=''\n\
-    \    >i1 a/b loop0 1 -- comments work in multi-line strings\n\
-    \    >i2 c/d\n\
+    \    >i1 a/b [ms] loop0 1 -- comments work in multi-line strings\n\
+    \    >i2 c/d [Ms] -- im instrument, but muted\n\
     \''\n\
     \%ky=''\n\
     \    x y z\n\
@@ -360,15 +360,35 @@ test_p_multi_string = do
 test_parse_allocation :: Test
 test_parse_allocation = do
     let f = Parse.parse_allocation
+    let syn = InstT.Qualified "syn" ""
     right_equal (f ">i syn/p") $
-        T.Allocation "i" (InstT.Qualified "syn" "p") T.ImSc
+        T.Allocation "i" (InstT.Qualified "syn" "p") T.empty_config T.ImSc
     let loop1 = Midi.write_device "loop1"
     right_equal (f ">i syn/ loop1 1 2") $
-        T.Allocation "i" (InstT.Qualified "syn" "") $
-        T.Midi [(loop1, 0), (loop1, 1)]
+        T.Allocation "i" syn T.empty_config
+            (T.Midi loop1 [0, 1])
     left_like (f ">i syn/ loop1 0") "should be in range"
     left_like (f ">i syn/ loop1") "unexpected"
     left_like (f ">i syn/ loop1 x") "unexpected"
+    right_equal (f ">i syn/ [ms]") $
+        T.Allocation "i" syn T.empty_config T.ImSc
+    right_equal (f ">i syn/ [Ms]") $
+        T.Allocation "i" syn (T.Config True False) T.ImSc
+    left_like (f ">i syn/ [msq]") "flags must be"
+
+test_allocations_roundtrip :: Test
+test_allocations_roundtrip = do
+    let syn = InstT.Qualified "syn" "p"
+    let loop1 = Midi.write_device "loop1"
+    let trip alloc =
+            ( Right alloc
+            , Parse.parse_allocation $ Parse.unparse_allocations [alloc]
+            )
+    uncurry equal $ trip $ T.Allocation "i" syn T.empty_config T.ImSc
+    uncurry equal $ trip $ T.Allocation "i" syn (T.Config False True)
+        (T.Midi loop1 [0, 2])
+    uncurry equal $ trip $ T.Allocation "i" syn (T.Config True False)
+        (T.Midi loop1 [2])
 
 -- * implementation
 

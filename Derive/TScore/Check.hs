@@ -143,12 +143,11 @@ parse_instruments val = do
     allocs <- mapM parse $ filter (not . empty . snd) $
         map (second Text.strip) $ zip [1..] $ Text.lines val
     let dups = map head $ filter ((>1) . length) $ Seq.group_sort id $
-            map alloc_name allocs
+            map T.alloc_name allocs
     unless (null dups) $
         Left $ "duplicate instrument definitions: " <> Text.unwords dups
     return allocs
     where
-    alloc_name (T.Allocation inst _ _) = inst
     parse (n, s) = first ((("alloc " <> showt n <> ": ") <>) . txt) $
         Parse.parse_allocation s
 

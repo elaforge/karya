@@ -71,13 +71,26 @@ data Track call = Track {
 data Directive = Directive !Pos !Text !(Maybe Text)
     deriving (Eq, Show)
 
--- This is the same as Simple.Allocations
-data Allocation = Allocation Instrument InstT.Qualified Backend
-    deriving (Eq, Show)
+-- | This is a simplified subset of 'Ui.UiConfig.Allocation'.
+data Allocation = Allocation {
+    alloc_name :: !Instrument
+    , alloc_qualified :: !InstT.Qualified
+    , alloc_config :: !Config
+    , alloc_backend :: !Backend
+    } deriving (Eq, Show)
+
+-- | Subset of 'Instrument.Common.Config'.
+data Config = Config {
+    config_mute :: !Bool
+    , config_solo :: !Bool
+    } deriving (Eq, Show)
+
+empty_config :: Config
+empty_config = Config False False
 
 -- | This is ScoreT.Instrument, but I don't want to import ScoreT here.
 type Instrument = Text
-data Backend = Midi [(Midi.WriteDevice, Midi.Channel)] | ImSc
+data Backend = Midi Midi.WriteDevice [Midi.Channel] | ImSc
     deriving (Eq, Show)
 
 data Token call pitch ndur rdur =

@@ -59,6 +59,7 @@ usability:
     . What if I just generated a commented out template example the first
       time?
   - Undo not recording during insert causes me to lose stuff.
+    . Record in edit mode?  Why not?
 
 darwin:
   . https://member.ipmu.jp/yuji.tachikawa/MenuMetersElCapitan/
@@ -135,13 +136,18 @@ external:
 UNSORTED
   * pitch track added by note entry should auto-embiggen
     . also be collapsed by default?
-  - semara-dana-im fails on ngoret and stops rendering after the 1st block
-    . But I don't want two scores, I want to be able to toggle instrument
-      sets.
-    . I can save and load inst config, why not use that?
-    . It would be more explicit to include them both in `ky` or something,
-      and be able to comment / uncomment.
-  - inst allocation in ky?
+  semara-dana:
+    - '/' or '?' to play from root starts in the wrong spot in dim-g-ang1
+    + there could be a k-inverted notation, since it's common to have both
+      . in semara-dana I used it with ub and ub^
+    - ugal notes still get stuck mutes
+    - semara-dana-im fails on ngoret and stops rendering after the 1st block
+      . But I don't want two scores, I want to be able to toggle instrument
+        sets.
+      . I can save and load inst config, why not use that?
+      . It would be more explicit to include them both in `ky` or something,
+        and be able to comment / uncomment.
+  + inst allocation in ky?
     . I already have something like this in tscore, putting it in ky would
       generalize.
     . Check.parse_instruments -> Parse.p_allocation
@@ -164,6 +170,7 @@ UNSORTED
       >m-d kontakt/mridangam-d loop2 [3] {mute}
     . I could have a generic records and values syntax.  Like JSON but
       with comments... and no "s?
+      . Though if I use literally json and strip comments I can reuse aeson.
       . Also seems like I want tuples?
         >pemade-p
           { qualified = 'kontakt/sc-pemade'
@@ -173,9 +180,9 @@ UNSORTED
             }
           , backend: -- Midi Patch.Config | Im | Sc | Dummy
             { allocation = [("loop1", 6)]
-            , initialization = {} -- Tuning, NrpnTuning
+            , initialization = Tuning | NrpnTuning
             , settings =
-              { flags = Nothing?
+              { flags = {Pressure, HoldKeyswitch, ResumePlay}
               , scale = "legong umbang"
               , pitch_bend_range = (-12, 12)
               , control_defaults = {cc1 = 42}
@@ -191,7 +198,13 @@ UNSORTED
         I just save and load .inst?
       . Also I can't move instrument declaration to ky and retain standalone
         .tscore files.
-  * implicit skeleton doesn't work for dyn over two tracks
+    . It does seem generally useful to have a readable text version of
+      insts, then .inst files could be text, and I could edit in vi.
+    . Alternately, use a vi like a GUI to have a menu of instruments, where
+      I can toggle mute, solo, etc.
+    * parse and unparse with flags
+    - hook that up to LState.ky
+  + implicit skeleton doesn't work for dyn over two tracks
     . Instead, it assigns it to the note track to the left.
     . How can I disambiguate?
     . The only place is in the title, e.g. 'dyn >' or '^dyn'?
@@ -200,6 +213,8 @@ UNSORTED
     . I could do --> which is a nice arrow, but it's a comment... though
       I guess I already have comment "pragma" in --|
     . Ok, let's do it.
+    . Not good enough, because it doesn't preserve the end of the scope.
+    . Maybe I just go back to explicit skeleton then.
   / on midi kbd and pitch bend I get
     . scale_input_to_nn for PianoKbd:5-1+.001: unparseable note: 5r 0
     . What is the actual Pitch.Note it's trying to parse?

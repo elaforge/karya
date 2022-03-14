@@ -46,8 +46,10 @@ import qualified Derive.ScoreT as ScoreT
 import qualified Derive.TScore.T as T
 import qualified Derive.TScore.TScore as TScore
 
+import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
 import qualified Instrument.InstT as InstT
+
 import qualified Local.Config
 import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
@@ -404,16 +406,17 @@ load_score cmd_config source = Except.runExceptT $ do
     let cmd_state =  DeriveSaved.add_library builtins aliases $
             Cmd.initial_state cmd_config
     ui_state <- tryRight $ first pretty $ Ui.exec ui_state $
-        forM_ instruments $ uncurry (allocate cmd_config) . convert_allocation
+        forM_ instruments $ allocate cmd_config . convert_allocation
     return (ui_state, cmd_state)
     where
     -- For now, I don't support ky import.
     ky_paths = []
 
 -- | Like 'Cmd.allocate', but doesn't require Cmd.M.
-allocate :: Ui.M m => Cmd.Config -> ScoreT.Instrument -> UiConfig.Allocation
+allocate :: Ui.M m => Cmd.Config
+    -> (ScoreT.Instrument, UiConfig.Allocation)
     -> m ()
-allocate cmd_config score_inst alloc = do
+allocate cmd_config (score_inst, alloc) = do
     let qualified = UiConfig.alloc_qualified alloc
     inst <- Ui.require ("instrument not in db: " <> pretty qualified) $
         Cmd.state_lookup_qualified cmd_config qualified
@@ -422,13 +425,20 @@ allocate cmd_config score_inst alloc = do
         UiConfig.allocate (Inst.inst_backend inst) score_inst alloc allocs
     Ui.modify_config $ UiConfig.allocations #= allocs
 
-convert_allocation :: T.Allocation -> (ScoreT.Instrument, UiConfig.Allocation)
-convert_allocation (T.Allocation inst qual backend) =
+convert_allocation :: T.Allocation
+    -> (ScoreT.Instrument, UiConfig.Allocation)
+convert_allocation (T.Allocation inst qual config backend) =
     ( ScoreT.Instrument inst
-    , UiConfig.allocation qual $ case backend of
+    , set_config $ UiConfig.allocation qual $ case backend of
         T.ImSc
             | InstT.synth qual == "sc" -> UiConfig.Sc
             | otherwise -> UiConfig.Im
-        T.Midi chans -> UiConfig.Midi $
-            Midi.Patch.config (map (, Nothing) chans)
+        T.Midi wdev chans -> UiConfig.Midi $
+            Midi.Patch.config (map (, Nothing) (map (wdev,) chans))
     )
+    where
+    set_config alloc = alloc { UiConfig.alloc_config = ui_config }
+    ui_config = Common.empty_config
+        { Common.config_mute = T.config_mute config
+        , Common.config_solo = T.config_solo config
+        }
