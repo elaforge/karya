@@ -16,8 +16,9 @@ module Derive.Parse (
     -- * expand macros
     , expand_macros
     -- * ky file
+    , Ky(..), Loaded(..)
     , Definitions(..), Definition
-    , load_ky, find_ky, parse_ky
+    , load_ky
     -- ** types
     , Expr(..), Call(..), Term(..), Var(..)
 #ifdef TESTING
@@ -327,6 +328,9 @@ p_num = do
 
 p_untyped_num :: A.Parser Signal.Y
 p_untyped_num = p_ratio <|> ParseText.p_float
+    -- It may seem as if this should include p_hex, but I don't want it
+    -- for p_num, because none of the type codes make sense for a 0-1
+    -- normalized value.
 
 p_ratio :: A.Parser Signal.Y
 p_ratio = do
@@ -495,52 +499,27 @@ spaces_to_eol = do
 is_whitespace :: Char -> Bool
 is_whitespace c = c == ' ' || c == '\t'
 
--- * definition file
+-- * ky file
 
--- | Parse ky text and load and parse all the files it imports.  'parse_ky'
--- describes the format of the ky file.
-load_ky :: [FilePath] -> Text
-    -> IO (Either ParseText.Error (Definitions, [(FilePath, Text)]))
-    -- ^ (all_definitions, [(import_filename, content)])
-    -- "" is used for the filename for the code in the ky parameter.
-load_ky paths ky = fmap (fmap annotate) . Except.runExceptT $ parse ky
-    where
-    parse content = do
-        (imports, defs) <- tryRight $ parse_ky "" content
-        ((defs, ("", content)) :) <$> load_ky_file paths Set.empty imports
-    annotate results = (mconcat defs, loaded)
-        where (defs, loaded) = unzip results
+-- | A parsed .py file
+data Ky a = Ky {
+    ky_definitions :: Definitions
+    , ky_imports :: [a]
+    } deriving (Show)
 
-load_ky_file :: [FilePath] -> Set FilePath -> [(FilePath, FilePath)]
-    -> Except.ExceptT ParseText.Error IO [(Definitions, (FilePath, Text))]
-load_ky_file _ _ [] = return []
-load_ky_file paths loaded ((fname, lib) : libs)
-    | lib `Set.member` loaded = return []
-    | otherwise = do
-        let prefix = txt lib <> ": "
-        (fname, content) <- tryRight . first (ParseText.message . (prefix<>))
-            =<< liftIO (find_ky paths fname lib)
-        (imports, defs) <- tryRight . first (ParseText.prefix prefix) $
-            parse_ky fname content
-        ((defs, (fname, content)) :) <$>
-            load_ky_file paths (Set.insert lib loaded) (libs ++ imports)
+instance Semigroup (Ky a) where
+    Ky a1 b1 <> Ky a2 b2 = Ky (a1<>a2) (b1<>b2)
+instance Monoid (Ky a) where
+    mempty = Ky mempty mempty
+    mappend = (<>)
 
--- | Find the file in the given paths and return its filename and contents.
-find_ky :: [FilePath] -> FilePath -> FilePath
-    -> IO (Either Text (FilePath, Text))
-find_ky paths from fname =
-    catch_io (txt fname) $ justErr msg <$>
-        firstJusts (map (\dir -> get (dir </> fname)) paths)
-    where
-    msg = "ky file not found: " <> txt fname
-        <> (if from == "" then "" else " from " <> txt from)
-        <> " (searched " <> Text.intercalate ", " (map txt paths) <> ")"
-    get fn = Exceptions.ignoreEnoent $ (,) fn <$> Text.IO.readFile fn
-
--- | Catch any IO exceptions and put them in Left.
-catch_io :: Text -> IO (Either Text a) -> IO (Either Text a)
-catch_io prefix io =
-    either (Left . ((prefix <> ": ") <>) . showt) id <$> Exceptions.tryIO io
+-- | Record a loaded .ky file, with its path and content.
+-- A path of "" is used for the code directly in the UiConfig.
+data Loaded = Loaded !FilePath !Text
+    deriving (Eq, Show)
+-- | A requested import.  Path to .ky file, .ky files it imports.
+data Import = Import !FilePath !String
+    deriving (Eq, Show)
 
 -- | This is a mirror of 'Derive.Library', but with expressions instead of
 -- calls.  (generators, transformers)
@@ -563,6 +542,48 @@ instance Monoid Definitions where
 
 -- | (defining_file, (Symbol, Expr))
 type Definition = (FilePath, (Expr.Symbol, Expr))
+
+-- ** parse ky
+
+-- | Parse ky text and load and parse all the files it imports.  'parse_ky'
+-- describes the format of the ky file.
+load_ky :: [FilePath] -> Text -> IO (Either ParseText.Error (Ky Loaded))
+load_ky paths content = Except.runExceptT $ do
+    ky <- tryRight $ parse_ky "" content
+    kys <- load_ky_file paths Set.empty (ky_imports ky)
+    return $ mconcat $ ky { ky_imports = [Loaded "" content] } : kys
+
+load_ky_file :: [FilePath] -> Set FilePath -> [Import]
+    -> Except.ExceptT ParseText.Error IO [Ky Loaded]
+load_ky_file _ _ [] = return []
+load_ky_file paths loaded (Import fname lib : imports)
+    | lib `Set.member` loaded = return []
+    | otherwise = do
+        let prefix = txt lib <> ": "
+        (fname, content) <- tryRight . first (ParseText.message . (prefix<>))
+            =<< liftIO (find_ky paths fname lib)
+        ky <- tryRight . first (ParseText.prefix prefix) $
+            parse_ky fname content
+        kys <- load_ky_file paths (Set.insert lib loaded)
+            (imports ++ ky_imports ky)
+        return $ ky { ky_imports = [Loaded fname content] } : kys
+
+-- | Find the file in the given paths and return its filename and contents.
+find_ky :: [FilePath] -> FilePath -> FilePath
+    -> IO (Either Text (FilePath, Text))
+find_ky paths from fname =
+    catch_io (txt fname) $ justErr msg <$>
+        firstJusts (map (\dir -> get (dir </> fname)) paths)
+    where
+    msg = "ky file not found: " <> txt fname
+        <> (if from == "" then "" else " from " <> txt from)
+        <> " (searched " <> Text.intercalate ", " (map txt paths) <> ")"
+    get fn = Exceptions.ignoreEnoent $ (,) fn <$> Text.IO.readFile fn
+
+-- | Catch any IO exceptions and put them in Left.
+catch_io :: Text -> IO (Either Text a) -> IO (Either Text a)
+catch_io prefix io =
+    either (Left . ((prefix <> ": ") <>) . showt) id <$> Exceptions.tryIO io
 
 {- | Parse a ky file.  This file gives a way to define new calls in the
     tracklang language, which is less powerful but more concise than haskell.
@@ -596,8 +617,7 @@ type Definition = (FilePath, (Expr.Symbol, Expr))
     - Calls are defined as "Derive.Call.Macro"s, which means they can include
     $variables, which become arguments to the call.
 -}
-parse_ky :: FilePath -> Text
-    -> Either ParseText.Error ([(FilePath, FilePath)], Definitions)
+parse_ky :: FilePath -> Text -> Either ParseText.Error (Ky Import)
 parse_ky fname text = do
     let (imports, sections) = split_sections $ strip_comments $ Text.lines text
     let extra = Set.toList $
@@ -615,12 +635,15 @@ parse_ky fname text = do
     aliases <- first (ParseText.Error Nothing) $ mapM parse_alias (get alias)
     let add_fname = map (fname,)
         add_fname2 = bimap add_fname add_fname
-    return $ (add_fname imports ,) $ Definitions
-        { def_note = add_fname2 $ get2 note
-        , def_control = add_fname2 $ get2 control
-        , def_pitch = add_fname2 $ get2 pitch
-        , def_val = add_fname $ get val
-        , def_aliases = aliases
+    return $ Ky
+        { ky_definitions = Definitions
+            { def_note = add_fname2 $ get2 note
+            , def_control = add_fname2 $ get2 control
+            , def_pitch = add_fname2 $ get2 pitch
+            , def_val = add_fname $ get val
+            , def_aliases = aliases
+            }
+        , ky_imports = map (Import fname) imports
         }
     where
     val = "val"

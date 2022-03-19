@@ -63,7 +63,7 @@ update_cache ui_state cmd_state = do
 check_cache :: Ui.State -> Cmd.State -> IO (Maybe Cmd.KyCache)
 check_cache ui_state cmd_state = run $ do
     when is_permanent abort
-    (defs, imported) <- tryRight . first (Just . ParseText.show_error)
+    Parse.Ky defs imported <- tryRight . first (Just . ParseText.show_error)
         =<< liftIO (Parse.load_ky (state_ky_paths cmd_state)
             (Ui.config#UiConfig.ky #$ ui_state))
     -- This uses the contents of all the files for the fingerprint, which
@@ -72,7 +72,8 @@ check_cache ui_state cmd_state = run $ do
     -- like I had before.
     let fingerprint = Cmd.fingerprint imported
     when (fingerprint == old_fingerprint) abort
-    builtins <- compile_library (map fst imported) $ compile_definitions defs
+    builtins <- compile_library (loaded_fnames imported) $
+        compile_definitions defs
     return (builtins, Map.fromList (Parse.def_aliases defs), fingerprint)
     where
     is_permanent = case Cmd.state_ky_cache cmd_state of
@@ -102,10 +103,13 @@ load paths =
     fmap (first ParseText.show_error) . traverse compile
         <=< Parse.load_ky paths . (Ui.config#UiConfig.ky #$)
     where
-    compile (defs, imported) = do
-        builtins <- compile_library (map fst imported) $
+    compile (Parse.Ky defs imported) = do
+        builtins <- compile_library (loaded_fnames imported) $
             compile_definitions defs
         return (builtins, Map.fromList (Parse.def_aliases defs))
+
+loaded_fnames :: [Parse.Loaded] -> [FilePath]
+loaded_fnames loads = [fname | Parse.Loaded fname _ <- loads]
 
 state_ky_paths :: Cmd.State -> [FilePath]
 state_ky_paths cmd_state = maybe id (:) (Cmd.state_save_dir cmd_state)

@@ -4,9 +4,7 @@
 
 module Derive.ParseSkeleton_test where
 import qualified Util.Graphs as Graphs
-import qualified Util.Seq as Seq
 import qualified Derive.ParseSkeleton as ParseSkeleton
-import qualified Derive.ParseTitle as ParseTitle
 import qualified Ui.Skeleton as Skeleton
 
 import           Global

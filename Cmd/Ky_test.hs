@@ -25,6 +25,7 @@ import           Global
 import           Util.Test
 
 
+test_ky_file :: Test
 test_ky_file = do
     let run text tracks = DeriveTest.extract extract $ CmdTest.eval
             (CmdTest.make_tracks tracks) CmdTest.default_cmd_state $
@@ -55,6 +56,7 @@ test_ky_file = do
     equal (run defs [(">", [(0, 1, "with-a")])]) (["+a"], [])
     equal (run defs [(">", [(0, 1, "d |")])]) (["+a+b"], [])
 
+test_check_cache :: Test
 test_check_cache = do
     let f ky_cache ky = Ky.check_cache
             (Ui.config#UiConfig.ky #= ky $ Ui.empty)
@@ -94,8 +96,12 @@ put_library text = do
     cache <- case Parse.parse_ky "fname.ky" text of
         Left err ->
             return $ Cmd.KyCache (Left (ParseText.show_error err)) mempty
-        Right (imported, defs) -> do
-            builtins <- Ky.compile_library (map snd imported) $
+        Right (Parse.Ky defs imported) -> do
+            -- This is not right for compile_library because it's imports
+            -- and not imported paths, but it doesn't care because it's just
+            -- for the error msg.
+            let imports = [imp | Parse.Import _ imp <- imported]
+            builtins <- Ky.compile_library imports $
                 Ky.compile_definitions defs
             return $ Cmd.KyCache (Right (builtins, mempty)) mempty
     Cmd.modify $ \st -> st { Cmd.state_ky_cache = Just cache }

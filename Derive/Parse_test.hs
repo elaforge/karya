@@ -295,9 +295,12 @@ test_load_ky = do
 
     let write imports =
             writeFile (dir </> "defs") (make_ky imports ["defs-call"])
-    let load = bimap ParseText.show_error (first extract)
+    let load = bimap ParseText.show_error extract
             <$> Parse.load_ky [dir, lib] "import 'defs'"
-        extract = map (fst . snd) . fst . Parse.def_note
+        extract (Parse.Ky defs imports) =
+            ( map (fst . snd) . fst . Parse.def_note $ defs
+            , imports
+            )
     write ["z1"]
     v <- load
     left_like v "ky file not found: z"
@@ -311,10 +314,10 @@ test_load_ky = do
         [lib </> "lib1", lib </> "lib2", dir </> "defs"]
     io_equal load $ Right
         ( ["defs-call", "lib1-call", "lib2-call"]
-        , [ ("", "import 'defs'")
-          , (dir </> "defs", defs)
-          , (lib </> "lib1", lib1)
-          , (lib </> "lib2", lib2)
+        , [ Parse.Loaded "" "import 'defs'"
+          , Parse.Loaded (dir </> "defs") defs
+          , Parse.Loaded (lib </> "lib1") lib1
+          , Parse.Loaded (lib </> "lib2") lib2
           ]
         )
 
@@ -327,7 +330,8 @@ test_parse_ky = do
     let f extract = bimap ParseText.show_error extract
             . Parse.parse_ky "fname.ky"
         note = f e_note . ("note generator:\n"<>)
-        e_note = map (second (head . e_expr) . snd) . fst . Parse.def_note . snd
+        e_note = map (second (head . e_expr) . snd) . fst . Parse.def_note
+            . Parse.ky_definitions
     left_like (f id "x:\na = b\n") "unknown sections: x"
     equal (note " --c\na = b\n\n") $
         Right [("a", ("b", []))]
@@ -342,14 +346,15 @@ test_parse_ky = do
     equal (note "a = c =+ 1\n") $ Right [("a", ("=", ["c", "1", "'+'"]))]
 
     -- imports
-    equal (f fst "import 'x' -- blah\nimport 'y'\n") $
-        Right [("fname.ky", "x"), ("fname.ky", "y")]
-    equal (f fst "import\n\t'x'\n") $ Right [("fname.ky", "x")]
-    left_like (f fst "blort x\nimport y\n") "1:1: expected eof"
+    right_equal (f Parse.ky_imports "import 'x' -- blah\nimport 'y'\n")
+        [Parse.Import "fname.ky" "x", Parse.Import "fname.ky" "y"]
+    right_equal (f Parse.ky_imports "import\n\t'x'\n")
+        [Parse.Import "fname.ky" "x"]
+    left_like (f Parse.ky_imports "blort x\nimport y\n") "1:1: expected eof"
 
-    let aliases = Parse.def_aliases . snd
-    equal (f aliases "alias:\na = b\n")
-        (Right [(ScoreT.Instrument "a", ScoreT.Instrument "b")])
+    let aliases = Parse.def_aliases . Parse.ky_definitions
+    right_equal (f aliases "alias:\na = b\n") $
+        [(ScoreT.Instrument "a", ScoreT.Instrument "b")]
     left_like (f aliases "alias:\n>a = >b\n") "lhs not a valid id"
 
 test_split_sections :: Test
