@@ -11,7 +11,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Expr as Expr
-import qualified Derive.Parse as Parse
+import qualified Derive.Parse.Ky as Ky
 import qualified Derive.Sig as Sig
 import qualified Derive.Typecheck as Typecheck
 
@@ -31,7 +31,7 @@ test_generator = do
     equal (run [("attr", [var "var"]), ("attr", [var "var"])] "m +x +y")
         (["+x+y"], [])
 
-    let val_call arg = Parse.ValCall (Parse.Call "id" [arg])
+    let val_call arg = Ky.ValCall (Ky.Call "id" [arg])
     equal (run [("attr", [val_call (attr "a")])] "m") (["+a"], [])
     equal (run [("attr", [val_call (var "var")])] "m +x") (["+x"], [])
 
@@ -41,7 +41,7 @@ test_val = do
                 [(">", [(0, 1, call)])]
         setup = with_id <> CallTest.with_val_call "m"
             (Macro.val_call Module.prelude "m" mempty "doc" expr)
-        expr = Parse.Call "id" [var "arg"]
+        expr = Ky.Call "id" [var "arg"]
     equal (run "attr (m +a)") (["+a"], [])
 
 with_id :: DeriveTest.Setup
@@ -62,12 +62,12 @@ test_transformer = do
     equal (run [("attr", [var "var"]), ("attr", [var "var"])] "m +x +y")
         (["+x+y+z"], [])
 
-var :: Text -> Parse.Term
-var = Parse.VarTerm . Parse.Var
+var :: Text -> Ky.Term
+var = Ky.VarTerm . Ky.Var
 
-attr :: Text -> Parse.Term
-attr = Parse.Literal . Typecheck.to_val . Attrs.attr
+attr :: Text -> Ky.Term
+attr = Ky.Literal . Typecheck.to_val . Attrs.attr
 
-make_expr :: [(Expr.Symbol, [Parse.Term])] -> Parse.Expr
-make_expr calls = Parse.Expr $ c :| cs
-    where c : cs = map (uncurry Parse.Call) calls
+make_expr :: [(Expr.Symbol, [Ky.Term])] -> Ky.Expr
+make_expr calls = Ky.Expr $ c :| cs
+    where c : cs = map (uncurry Ky.Call) calls

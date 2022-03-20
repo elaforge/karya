@@ -4,7 +4,7 @@
 
 {-# LANGUAGE CPP #-}
 -- | Load ky files, which are separate files containing call definitions.
--- The syntax is defined by 'Parse.parse_ky'.
+-- The syntax is defined by 'Ky.parse_ky'.
 module Cmd.Ky (
     update_cache
     , load
@@ -32,7 +32,7 @@ import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
 import qualified Derive.Library as Library
-import qualified Derive.Parse as Parse
+import qualified Derive.Parse.Ky as Ky
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 
@@ -63,8 +63,8 @@ update_cache ui_state cmd_state = do
 check_cache :: Ui.State -> Cmd.State -> IO (Maybe Cmd.KyCache)
 check_cache ui_state cmd_state = run $ do
     when is_permanent abort
-    Parse.Ky defs imported <- tryRight . first (Just . ParseText.show_error)
-        =<< liftIO (Parse.load_ky (state_ky_paths cmd_state)
+    Ky.Ky defs imported <- tryRight . first (Just . ParseText.show_error)
+        =<< liftIO (Ky.load_ky (state_ky_paths cmd_state)
             (Ui.config#UiConfig.ky #$ ui_state))
     -- This uses the contents of all the files for the fingerprint, which
     -- means it has to read and parse them on each respond cycle.  If this
@@ -74,7 +74,7 @@ check_cache ui_state cmd_state = run $ do
     when (fingerprint == old_fingerprint) abort
     builtins <- compile_library (loaded_fnames imported) $
         compile_definitions defs
-    return (builtins, Map.fromList (Parse.def_aliases defs), fingerprint)
+    return (builtins, Map.fromList (Ky.def_aliases defs), fingerprint)
     where
     is_permanent = case Cmd.state_ky_cache cmd_state of
         Just (Cmd.PermanentKy {}) -> True
@@ -101,15 +101,15 @@ load :: [FilePath] -> Ui.State
     -> IO (Either Text (Derive.Builtins, Derive.InstrumentAliases))
 load paths =
     fmap (first ParseText.show_error) . traverse compile
-        <=< Parse.load_ky paths . (Ui.config#UiConfig.ky #$)
+        <=< Ky.load_ky paths . (Ui.config#UiConfig.ky #$)
     where
-    compile (Parse.Ky defs imported) = do
+    compile (Ky.Ky defs imported) = do
         builtins <- compile_library (loaded_fnames imported) $
             compile_definitions defs
-        return (builtins, Map.fromList (Parse.def_aliases defs))
+        return (builtins, Map.fromList (Ky.def_aliases defs))
 
-loaded_fnames :: [Parse.Loaded] -> [FilePath]
-loaded_fnames loads = [fname | Parse.Loaded fname _ <- loads]
+loaded_fnames :: [Ky.Loaded] -> [FilePath]
+loaded_fnames loads = [fname | Ky.Loaded fname _ <- loads]
 
 state_ky_paths :: Cmd.State -> [FilePath]
 state_ky_paths cmd_state = maybe id (:) (Cmd.state_save_dir cmd_state)
@@ -125,8 +125,8 @@ compile_library imports lib = do
     show_import "" = "<expr>"
     show_import fname = txt (FilePath.takeFileName fname)
 
-compile_definitions :: Parse.Definitions -> Library.Library
-compile_definitions (Parse.Definitions (gnote, tnote) (gcontrol, tcontrol)
+compile_definitions :: Ky.Definitions -> Library.Library
+compile_definitions (Ky.Definitions (gnote, tnote) (gcontrol, tcontrol)
         (gpitch, tpitch) val _aliases) =
     Derive.Scopes
         { scopes_generator = Derive.Scope
@@ -148,26 +148,26 @@ compile_definitions (Parse.Definitions (gnote, tnote) (gcontrol, tcontrol)
     sym_to_name (Expr.Symbol name) = Derive.CallName name
 
 make_generator :: Derive.CallableExpr d => FilePath -> Derive.CallName
-    -> Parse.Expr -> Derive.Generator d
+    -> Ky.Expr -> Derive.Generator d
 make_generator fname name var_expr
     | Just expr <- no_free_vars var_expr = simple_generator fname name expr
     | otherwise = Macro.generator Module.local name mempty
         (Doc.Doc $ "Defined in " <> txt fname <> ".") var_expr
 
 make_transformer :: Derive.CallableExpr d => FilePath -> Derive.CallName
-    -> Parse.Expr -> Derive.Transformer d
+    -> Ky.Expr -> Derive.Transformer d
 make_transformer fname name var_expr
     | Just expr <- no_free_vars var_expr = simple_transformer fname name expr
     | otherwise = Macro.transformer Module.local name mempty
         (Doc.Doc $ "Defined in " <> txt fname <> ".") var_expr
 
-make_val_call :: FilePath -> Derive.CallName -> Parse.Expr -> Derive.ValCall
+make_val_call :: FilePath -> Derive.CallName -> Ky.Expr -> Derive.ValCall
 make_val_call fname name var_expr
     | Just expr <- no_free_vars var_expr = case expr of
         call_expr :| [] -> simple_val_call fname name call_expr
         _ -> broken
     | otherwise = case var_expr of
-        Parse.Expr (call_expr :| []) -> Macro.val_call Module.local name mempty
+        Ky.Expr (call_expr :| []) -> Macro.val_call Module.local name mempty
             (Doc.Doc $ "Defined in " <> txt fname <> ".") call_expr
         _ -> broken
     where
@@ -227,15 +227,15 @@ broken_val_call name msg = Derive.make_val_call Module.local name mempty
     (Doc.Doc msg)
     (Sig.call (Sig.many_vals "arg" "broken") $ \_ _ -> Derive.throw msg)
 
--- | If the Parse.Expr has no 'Parse.VarTerm's, it doesn't need to be a macro.
-no_free_vars :: Parse.Expr -> Maybe DeriveT.Expr
-no_free_vars (Parse.Expr expr) = traverse convent_call expr
+-- | If the Ky.Expr has no 'Ky.VarTerm's, it doesn't need to be a macro.
+no_free_vars :: Ky.Expr -> Maybe DeriveT.Expr
+no_free_vars (Ky.Expr expr) = traverse convent_call expr
     where
-    convent_call (Parse.Call sym terms) =
+    convent_call (Ky.Call sym terms) =
         Expr.Call sym <$> traverse convert_term terms
-    convert_term (Parse.VarTerm _) = Nothing
-    convert_term (Parse.ValCall call) = Expr.ValCall <$> convent_call call
-    convert_term (Parse.Literal val) = Just $ Expr.Literal val
+    convert_term (Ky.VarTerm _) = Nothing
+    convert_term (Ky.ValCall call) = Expr.ValCall <$> convent_call call
+    convert_term (Ky.Literal val) = Just $ Expr.Literal val
 
 make_doc :: FilePath -> Derive.CallName -> DeriveT.Expr -> Doc.Doc
 make_doc fname name expr = Doc.Doc $

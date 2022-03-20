@@ -4,16 +4,10 @@
 
 module Derive.Parse_test where
 import qualified Data.List.NonEmpty as NonEmpty
-import qualified Data.Map as Map
 import qualified Data.Text as Text
-import qualified Data.Text.IO as Text.IO
-
 import qualified GHC.Stack as Stack
-import qualified System.Directory as Directory
-import           System.FilePath ((</>))
 
 import qualified Util.ParseText as ParseText
-import qualified Util.Test.Testing as Testing
 import qualified Derive.Attrs as Attrs
 import qualified Derive.DeriveT as DeriveT
 import           Derive.DeriveT (Ref(..), Val(..))
@@ -280,97 +274,3 @@ test_expand_macros = do
     equal (f "hi [@b0, @b1]") (Right "hi [(b0), (b1)]")
     -- Doesn't substitute macros inside quotes.
     equal (f "hi \"@a\" there") (Right "hi \"@a\" there")
-
--- * ky file
-
-test_load_ky :: Test
-test_load_ky = do
-    let make_ky imports defs = unlines $
-            ["import '" <> i <> "'" | i <- imports]
-            ++ "note generator:" : [d <> " = z" | d <- defs]
-    dir <- Testing.tmp_dir "ky"
-    let lib = dir </> "lib"
-    Directory.createDirectory lib
-    writeFile (lib </> "lib1") $ make_ky ["lib2"] ["lib1-call"]
-
-    let write imports =
-            writeFile (dir </> "defs") (make_ky imports ["defs-call"])
-    let load = bimap ParseText.show_error extract
-            <$> Parse.load_ky [dir, lib] "import 'defs'"
-        extract (Parse.Ky defs imports) =
-            ( map (fst . snd) . fst . Parse.def_note $ defs
-            , imports
-            )
-    write ["z1"]
-    v <- load
-    left_like v "ky file not found: z"
-
-    write ["lib1"]
-    v <- load
-    left_like v "ky file not found: lib2"
-
-    writeFile (lib </> "lib2") $ make_ky [] ["lib2-call"]
-    [lib1, lib2, defs] <- mapM Text.IO.readFile
-        [lib </> "lib1", lib </> "lib2", dir </> "defs"]
-    io_equal load $ Right
-        ( ["defs-call", "lib1-call", "lib2-call"]
-        , [ Parse.Loaded "" "import 'defs'"
-          , Parse.Loaded (dir </> "defs") defs
-          , Parse.Loaded (lib </> "lib1") lib1
-          , Parse.Loaded (lib </> "lib2") lib2
-          ]
-        )
-
-e_expr :: Parse.Expr -> [(Expr.Symbol, [Text])]
-e_expr (Parse.Expr (call :| calls)) = e_call call : map e_call calls
-    where e_call (Parse.Call sym terms) = (sym, map ShowVal.show_val terms)
-
-test_parse_ky :: Test
-test_parse_ky = do
-    let f extract = bimap ParseText.show_error extract
-            . Parse.parse_ky "fname.ky"
-        note = f e_note . ("note generator:\n"<>)
-        e_note = map (second (head . e_expr) . snd) . fst . Parse.def_note
-            . Parse.ky_definitions
-    left_like (f id "x:\na = b\n") "unknown sections: x"
-    equal (note " --c\na = b\n\n") $
-        Right [("a", ("b", []))]
-    equal (note "a = b\n --c\n\n c\nd = e\n  -- hi\n") $
-        Right [("a", ("b", ["c"])), ("d", ("e", []))]
-    equal (note "a = b\n c\n --comment\n\nd = e\n") $
-        Right [("a", ("b", ["c"])), ("d", ("e", []))]
-    left_like (note "a = b\nc\n") "3:1: expected eof"
-    equal (note "a = b $c") $ Right [("a", ("b", ["$c"]))]
-    equal (f e_note "-- hi") (Right [])
-    equal (f e_note "-- note_generator:") (Right [])
-    equal (note "a = c =+ 1\n") $ Right [("a", ("=", ["c", "1", "'+'"]))]
-
-    -- imports
-    right_equal (f Parse.ky_imports "import 'x' -- blah\nimport 'y'\n")
-        [Parse.Import "fname.ky" "x", Parse.Import "fname.ky" "y"]
-    right_equal (f Parse.ky_imports "import\n\t'x'\n")
-        [Parse.Import "fname.ky" "x"]
-    left_like (f Parse.ky_imports "blort x\nimport y\n") "1:1: expected eof"
-
-    let aliases = Parse.def_aliases . Parse.ky_definitions
-    right_equal (f aliases "alias:\na = b\n") $
-        [(ScoreT.Instrument "a", ScoreT.Instrument "b")]
-    left_like (f aliases "alias:\n>a = >b\n") "lhs not a valid id"
-
-test_split_sections :: Test
-test_split_sections = do
-    let f = second Map.toList . Parse.split_sections . Text.lines
-    equal (f "a:\n1\nb:\n2\na:\n3\n") $
-        ("", [("a", [(1, "1"), (5, "3")]), ("b", [(3, "2")])])
-    equal (f "import a\nimport b\na:\n2\n")
-        ("import a\nimport b\n", [("a", [(3, "2")])])
-
-test_p_definition :: Test
-test_p_definition = do
-    let f = bimap ParseText.show_error (second e_expr)
-            . ParseText.parse Parse.p_definition
-    equal (f "a =\n b\n c\n") (Right ("a", [("b", ["c"])]))
-    left_like (f "a =\n b\nc = d\n") "3:1: expected eof"
-    equal (f "a = n +z\n") (Right ("a", [("n", ["+z"])]))
-    equal (f "a = b $c") (Right ("a", [("b", ["$c"])]))
-    equal (f "a = b = $c") (Right ("a", [("=", ["b", "$c"])]))

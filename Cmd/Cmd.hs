@@ -71,7 +71,7 @@ import qualified Cmd.TimeStep as TimeStep
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Derive as Derive
 import qualified Derive.Expr as Expr
-import qualified Derive.Parse as Parse
+import qualified Derive.Parse.Ky as Ky
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.REnv as REnv
 import qualified Derive.Scale as Scale
@@ -691,14 +691,14 @@ instance Monoid Fingerprint where
 instance Pretty Fingerprint where
     pretty (Fingerprint files word) = pretty files <> ":" <> pretty word
 
-fingerprint :: [Parse.Loaded] -> Fingerprint
+fingerprint :: [Ky.Loaded] -> Fingerprint
 fingerprint imports =
     -- The code in 'Ui.ky' gets "" for its filename.
     Fingerprint (filter (not . null) fnames)
         (foldl' Hashable.hashWithSalt 0 contents)
     where
     (fnames, contents) = unzip
-        [(fname, content) | Parse.Loaded fname content <- imports]
+        [(fname, content) | Ky.Loaded fname content <- imports]
 
 initial_state :: Config -> State
 initial_state config = State

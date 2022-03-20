@@ -27,7 +27,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
-import qualified Derive.Parse as Parse
+import qualified Derive.Parse.Ky as Ky
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
@@ -37,35 +37,35 @@ import           Global
 
 
 generator :: Derive.CallableExpr d => Module.Module -> Derive.CallName
-    -> Tags.Tags -> Doc.Doc -> Parse.Expr -> Derive.Generator d
+    -> Tags.Tags -> Doc.Doc -> Ky.Expr -> Derive.Generator d
 generator module_ name tags doc expr =
     Derive.generator module_ name tags (make_doc doc expr) $
         Sig.call (make_signature (extract_vars expr)) (generator_macro expr)
 
 transformer :: Derive.CallableExpr d => Module.Module -> Derive.CallName
-    -> Tags.Tags -> Doc.Doc -> Parse.Expr -> Derive.Transformer d
+    -> Tags.Tags -> Doc.Doc -> Ky.Expr -> Derive.Transformer d
 transformer module_ name tags doc expr =
     Derive.transformer module_ name tags (make_doc doc expr) $
         Sig.callt (make_signature (extract_vars expr)) (transformer_macro expr)
 
 val_call :: Module.Module -> Derive.CallName -> Tags.Tags -> Doc.Doc
-    -> Parse.Call -> Derive.ValCall
+    -> Ky.Call -> Derive.ValCall
 val_call module_ name tags doc call_expr =
     Derive.make_val_call module_ name tags (make_doc doc expr) $
         Sig.call (make_signature (extract_vars expr)) (val_macro call_expr)
-    where expr = Parse.Expr (call_expr :| [])
+    where expr = Ky.Expr (call_expr :| [])
 
-extract_vars :: Parse.Expr -> [(Parse.Var, Expr.Symbol, Int)]
-extract_vars (Parse.Expr calls) = concatMap extract_call (NonEmpty.toList calls)
+extract_vars :: Ky.Expr -> [(Ky.Var, Expr.Symbol, Int)]
+extract_vars (Ky.Expr calls) = concatMap extract_call (NonEmpty.toList calls)
     where
-    extract_call (Parse.Call sym args) =
+    extract_call (Ky.Call sym args) =
         concatMap (extract_arg sym) (zip [0..] args)
     extract_arg sym (argnum, arg) = case arg of
-        Parse.VarTerm var -> [(var, sym, argnum)]
-        Parse.Literal _ -> []
-        Parse.ValCall call -> extract_call call
+        Ky.VarTerm var -> [(var, sym, argnum)]
+        Ky.Literal _ -> []
+        Ky.ValCall call -> extract_call call
 
-generator_macro :: Derive.CallableExpr d => Parse.Expr -> [Sig.Arg]
+generator_macro :: Derive.CallableExpr d => Ky.Expr -> [Sig.Arg]
     -> Derive.PassedArgs d -> Derive.Deriver (Stream.Stream d)
 generator_macro expr vals args = do
     vals <- mapM require_val vals
@@ -79,7 +79,7 @@ generator_macro expr vals args = do
     Eval.apply_transformers ctx (zip trans_calls trans_args) $
         Eval.apply_generator ctx gen_call gen_args
 
-transformer_macro :: Derive.CallableExpr d => Parse.Expr
+transformer_macro :: Derive.CallableExpr d => Ky.Expr
     -> [Sig.Arg] -> Derive.PassedArgs d
     -> Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d)
 transformer_macro expr vals args deriver = do
@@ -91,12 +91,12 @@ transformer_macro expr vals args deriver = do
     trans_calls <- mapM Eval.get_transformer trans_calls
     Eval.apply_transformers ctx (zip trans_calls trans_args) deriver
 
-val_macro :: Parse.Call -> [Sig.Arg] -> Derive.PassedArgs Derive.Tagged
+val_macro :: Ky.Call -> [Sig.Arg] -> Derive.PassedArgs Derive.Tagged
     -> Derive.Deriver DeriveT.Val
 val_macro call_expr vals args = do
     vals <- mapM require_val vals
     call_expr :| _ <- Derive.require_right id $
-        substitute_vars vals (Parse.Expr (call_expr :| []))
+        substitute_vars vals (Ky.Expr (call_expr :| []))
     Eval.eval (Derive.passed_ctx args) (Expr.ValCall call_expr)
 
 split_expr :: DeriveT.Expr -> ([DeriveT.Call], DeriveT.Call)
@@ -106,14 +106,14 @@ eval_args :: Derive.Taggable a => Derive.Context a -> DeriveT.Call
     -> Derive.Deriver (Expr.Symbol, [DeriveT.Val])
 eval_args ctx (Expr.Call sym args) = (,) sym <$> mapM (Eval.eval ctx) args
 
-substitute_vars :: [DeriveT.Val] -> Parse.Expr -> Either Text DeriveT.Expr
-substitute_vars vals (Parse.Expr calls) = run vals (mapM sub_call calls)
+substitute_vars :: [DeriveT.Val] -> Ky.Expr -> Either Text DeriveT.Expr
+substitute_vars vals (Ky.Expr calls) = run vals (mapM sub_call calls)
     where
-    sub_call (Parse.Call sym args) = Expr.Call sym <$> mapM sub_arg args
+    sub_call (Ky.Call sym args) = Expr.Call sym <$> mapM sub_arg args
     sub_arg term = case term of
-        Parse.VarTerm (Parse.Var _) -> Expr.Literal <$> pop
-        Parse.Literal val -> return (Expr.Literal val)
-        Parse.ValCall call -> Expr.ValCall <$> sub_call call
+        Ky.VarTerm (Ky.Var _) -> Expr.Literal <$> pop
+        Ky.Literal val -> return (Expr.Literal val)
+        Ky.ValCall call -> Expr.ValCall <$> sub_call call
     pop = do
         vals <- Monad.State.get
         case vals of
@@ -132,10 +132,10 @@ substitute_vars vals (Parse.Expr calls) = run vals (mapM sub_call calls)
 -- TODO these are all required, but should I support optional args?  But isn't
 -- the whole point of doing this in haskell that I don't get tied up in more
 -- and more hacky language features?
-make_signature :: [(Parse.Var, Expr.Symbol, Int)] -> Sig.Parser [Sig.Arg]
+make_signature :: [(Ky.Var, Expr.Symbol, Int)] -> Sig.Parser [Sig.Arg]
 make_signature vars = Sig.required_vals (map doc vars)
     where
-    doc (Parse.Var var, call, argnum) = Derive.ArgDoc
+    doc (Ky.Var var, call, argnum) = Derive.ArgDoc
         { arg_name = Derive.ArgName var
         , arg_type = ValType.TVal
         , arg_parser = Derive.Required
@@ -154,7 +154,7 @@ ordinal :: Int -> Doc.Doc
 ordinal n = Doc.Doc $ showt n <> case n of
     1 -> "st"; 2 -> "nd"; 3 -> "rd"; _ -> "th"
 
-make_doc :: Doc.Doc -> Parse.Expr -> Doc.Doc
+make_doc :: Doc.Doc -> Ky.Expr -> Doc.Doc
 make_doc (Doc.Doc doc) expr = Doc.Doc $
     Texts.unlines2 ("A macro for: " <> expr_doc <> ".") doc
     where (Doc.Doc expr_doc) = ShowVal.doc expr

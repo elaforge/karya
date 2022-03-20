@@ -15,7 +15,7 @@ import qualified Cmd.PlayUtil as PlayUtil
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Expr as Expr
-import qualified Derive.Parse as Parse
+import qualified Derive.Parse.Ky as Parse.Ky
 
 import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
@@ -93,14 +93,14 @@ e_builtins = concatMap (Map.keys . Derive.call_map) . Map.elems
 
 put_library :: Cmd.M m => Text -> m ()
 put_library text = do
-    cache <- case Parse.parse_ky "fname.ky" text of
+    cache <- case Parse.Ky.parse_ky "fname.ky" text of
         Left err ->
             return $ Cmd.KyCache (Left (ParseText.show_error err)) mempty
-        Right (Parse.Ky defs imported) -> do
+        Right (Parse.Ky.Ky defs imported) -> do
             -- This is not right for compile_library because it's imports
             -- and not imported paths, but it doesn't care because it's just
             -- for the error msg.
-            let imports = [imp | Parse.Import _ imp <- imported]
+            let imports = [imp | Parse.Ky.Import _ imp <- imported]
             builtins <- Ky.compile_library imports $
                 Ky.compile_definitions defs
             return $ Cmd.KyCache (Right (builtins, mempty)) mempty
