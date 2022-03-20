@@ -130,17 +130,18 @@ library = mconcat
             , ir_sangsih_ngotek3    = "2-12-12-"
             , ir_sangsih_ngotek4    = "-01-01-0"
             })
-        , ("k\\\\2", c_kotekan_regular (Just "-1-21-21") Telu)
-        , ("k//2",   c_kotekan_regular (Just "-2-12-12") Telu)
+        , ("k\\\\2", c_kotekan_regular False (Just "-1-21-21") Telu)
+        , ("k//2",   c_kotekan_regular False (Just "-2-12-12") Telu)
         -- This is k// but with sangsih above.
         -- TODO maybe a more natural way to express this would be to make k//
         -- understand sangsih=u?  But then I also need sangsih=d for k\\,
         -- irregular_pattern support for sangsih direction, and they both become
         -- irregular.
-        , ("k//^",   c_kotekan_regular (Just "2-12-12-") Telu)
+        , ("k//^",   c_kotekan_regular False (Just "2-12-12-") Telu)
 
         , ("kotekan", c_kotekan_kernel)
-        , ("k", c_kotekan_regular Nothing Telu)
+        , ("k", c_kotekan_regular False Nothing Telu)
+        , ("k^", c_kotekan_regular True Nothing Telu)
         , ("ke", c_kotekan_explicit)
         ]
     , Library.generators $ Gender.ngoret_variations c_ngoret
@@ -680,8 +681,9 @@ c_kotekan_kernel =
 
 -- | For regular kotekan, the sangsih can be automatically derived from the
 -- polos.
-c_kotekan_regular :: Maybe Text -> KotekanStyle -> Derive.Generator Derive.Note
-c_kotekan_regular maybe_kernel default_style =
+c_kotekan_regular :: Bool -> Maybe Text -> KotekanStyle
+    -> Derive.Generator Derive.Note
+c_kotekan_regular invert maybe_kernel default_style =
     Derive.generator module_ "kotekan" Tags.inst
     ("Render a kotekan pattern from a kernel representing the polos.\
     \ The sangsih is inferred.\n" <> kotekan_doc)
@@ -695,16 +697,19 @@ c_kotekan_regular maybe_kernel default_style =
     ) $ \(kernel_s, style, sangsih_dir, dur, kotekan, pasang, initial_final) ->
     Sub.inverting $ \args -> do
         kernel <- Derive.require_right id $ make_kernel (untxt kernel_s)
-        let sangsih_above = fromMaybe (infer_sangsih kernel) sangsih_dir
+        let sangsih_above = fromMaybe (infer_sangsih invert kernel) sangsih_dir
         pitch <- get_pitch args
         under_threshold <- under_threshold_function kotekan dur
-        let cycle = realize_kernel False sangsih_above style pasang kernel
+        let cycle = realize_kernel invert sangsih_above style pasang kernel
         realize_kotekan_pattern_args args initial_final
             dur pitch under_threshold Repeat cycle
     where
-    infer_sangsih kernel = case Seq.last kernel of
-        Just High -> Call.Down
-        _ -> Call.Up
+    infer_sangsih invert kernel = (if invert then flip else id) $
+        case Seq.last kernel of
+            Just High -> Call.Down
+            _ -> Call.Up
+    flip Call.Up = Call.Down
+    flip Call.Down = Call.Up
 
 c_kotekan_explicit :: Derive.Generator Derive.Note
 c_kotekan_explicit =

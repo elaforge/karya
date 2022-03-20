@@ -33,6 +33,7 @@ import           Util.Test
 
 -- * norot
 
+test_norot :: Test
 test_norot = do
     let run = e_pattern 0 . derive title
         title = " | inst-top = (pitch (4f)) | realize-gangsa 2 | final=t"
@@ -69,6 +70,7 @@ test_norot = do
             (8, 4, "kotekan=2 | norot -- 4f")])
         ([(polos, "1-1-144-4-4-4"), (sangsih, "-2-2-443-3-3-")], [])
 
+test_norot_start_prepare :: Test
 test_norot_start_prepare = do
     let run kotekan = e_pattern 0
             . derive (" | realize-gangsa 1 " <> ngotek kotekan)
@@ -79,12 +81,14 @@ test_norot_start_prepare = do
         ([(polos,   "111-133-333-3-3-3"),
           (sangsih, "-112-334-334-4-4-")], [])
 
+test_norot_prepare :: Test
 test_norot_prepare = do
     let run = derive " | cancel-pasang 2"
     -- No pitch at 0, but it's not a problem because there's no sustain.
     equal (e_pattern 0 $ run [(4, -4, "norot -- 4c"), (4, 4, "4c")])
         ([(pasang, "-1121")], [])
 
+test_norot_final :: Test
 test_norot_final = do
     -- Initial and final get flags.
     let run_flags = DeriveTest.extract Score.event_flags . derive ""
@@ -108,6 +112,7 @@ test_norot_final = do
             [(2, 2, "norot -- 4c"), (8, 2, "4d")])
         (both [(2, 1, "4c"), (3, 1, "4d"), (4, 4, "4c"), (8, 2, "4d")], [])
 
+test_norot_cancel :: Test
 test_norot_cancel = do
     let run = e_pattern 0 . derive title
         title = " | initial=t | norot-dur=1 | cancel-pasang 2"
@@ -126,11 +131,13 @@ test_norot_cancel = do
     equal (run [(0, 2, "nt- -- 4c"), (2, 2, "nt- -- 4d")])
         ([(pasang, "12132")], [])
 
+test_gender_norot :: Test
 test_gender_norot = do
     let run = e_pattern 0 . derive ""
     equal (run [(0, 4, "initial=t | gnorot -- 4e")])
         ([(polos, "32123"), (sangsih, "34343")], [])
 
+test_kotekan_flags :: Test
 test_kotekan_flags = do
     let run kotekan = DeriveTest.extract extract . derive (ngotek kotekan)
         extract e = (Score.event_start e, Score.event_flags e)
@@ -142,6 +149,7 @@ test_kotekan_flags = do
     equal (run True [(0, 4, "initial=f | final=f | k k-121 -- 4c")])
         ([(1, mempty), (2, mempty), (3, mempty), (3, mempty)], [])
 
+test_kotekan_cancel :: Test
 test_kotekan_cancel = do
     -- The final note of the kotekan is cancelled.
     let run = e_pattern 0 . derive title
@@ -179,12 +187,14 @@ test_kotekan_cancel = do
         , []
         )
 
+test_kotekan_infer_duration :: Test
 test_kotekan_infer_duration = do
     let run = derive_polos e_note (" | cancel-pasang | unison" <> ngotek True)
     -- The last note of the kotekan gets an inferred duration to fill the gap.
     equal (run [(0, 4, "k k-121 -- 4c"), (8, 2, "4f")])
         ([(0, 1, "1"), (2, 1, "1"), (3, 1, "2"), (4, 4, "1"), (8, 2, "4")], [])
 
+test_kotekan_special :: Test
 test_kotekan_special = do
     let run kotekan = e_pattern 0
             . derive (ngotek kotekan <> " | cancel-pasang 2")
@@ -207,6 +217,7 @@ test_kotekan_special = do
         ([(polos,   "--3-23-23-1-21-21"),
           (sangsih, "-2-12-12-2-32-32-")], [])
 
+test_kotekan_regular :: Test
 test_kotekan_regular = do
     let run kotekan = e_pattern 2 . derive (ngotek kotekan)
     -- Start at 2 to avoid accidentally working from 0.
@@ -229,24 +240,31 @@ test_kotekan_regular = do
     -- The pattern is lined up to the start.
     equal (run False [(2, 12, "k k-12-1-21 -- 4c")])
         ([(pasang, "1312313213123")], [])
+    -- inverted
+    equal (run True [(2, 8, "k^ k-12-1-21 -- 4e")])
+        ([(polos, "3-32-3-23"), (sangsih, "-1-21-12-")], [])
 
+test_kotekan_explicit :: Test
 test_kotekan_explicit = do
     let run = e_pattern 2 . derive ""
     equal (run [(2, 4, "ke k-21- k32-0 -- 4c")])
         ([(polos, "--32-"), (sangsih, "-43-1")], [])
 
+test_kotekan_alignment :: Test
 test_kotekan_alignment = do
     let run = e_pattern 0 . derive (ngotek False)
     equal (run [(0, 8, "k k-12-1-21 -- 4c")]) ([(pasang, "131231321")], [])
     equal (run [(0, 4, "k k-12-1-21 -- 4c")]) ([(pasang, "13123")], [])
     equal (run [(4, -4, "k k-12-1-21 -- 4c")]) ([(pasang, "-1321")], [])
 
+test_cycles :: Test
 test_cycles = do
     equal (Gangsa.cycles (const ['a', 'b', 'c']) [0..4])
         [(0, 'a'), (1, 'b'), (2, 'c'), (3, 'a'), (4, 'b')]
     equal (Gangsa.cycles_end (const ['a', 'b', 'c']) [0..4])
         [(0, 'b'), (1, 'c'), (2, 'a'), (3, 'b'), (4, 'c')]
 
+test_kotekan_regular_negative :: Test
 test_kotekan_regular_negative = do
     let run kotekan = e_pattern 8
             . derive (" | cancel-pasang | unison" <> ngotek kotekan)
@@ -260,6 +278,7 @@ test_kotekan_regular_negative = do
             ])
         ([(polos, "--12-1-21-23-2-32"), (sangsih, "-3-23-32-4-34-43-")], [])
 
+test_kotekan_regular_jalan :: Test
 test_kotekan_regular_jalan = do
     -- k// and k\\ work as expected.
     let run kotekan = e_pattern 0
@@ -271,6 +290,7 @@ test_kotekan_regular_jalan = do
     equal (run True [(0, 8, "k// -- 4e"), (8, 8, "k\\\\ -- 4c")])
         ([(polos, "3-3-23-23-1-21-21"), (sangsih, "-2-12-12-2-32-32-")], [])
 
+test_kotekan_strange_length :: Test
 test_kotekan_strange_length = do
     let run start kotekan = e_pattern start . derive (ngotek kotekan)
     equal (run 0 True [(0, 8, "k k-121 -- 4c")])
@@ -280,12 +300,14 @@ test_kotekan_strange_length = do
     equal (run 0 True [(0, 12, "k '-12-21' -- 4c")])
         ([(polos, "1-12-21-12-21"), (sangsih, "-3-232-3-232-")], [])
 
+test_unison :: Test
 test_unison = do
     let run = DeriveTest.extract extract . derive " | unison"
         extract e = (Score.event_instrument e, DeriveTest.e_pitch e)
     equal (run [(0, 1, "4c")]) ([(polos, "4c"), (sangsih, "4c")], [])
     equal (run [(0, 1, "p+ | -- 4c")]) ([(polos, "4c")], [])
 
+test_unison_tuning :: Test
 test_unison_tuning = do
     -- This is not so much testing the 'unison' call as making sure the
     -- instrument and tuning are properly set.
@@ -308,6 +330,7 @@ modify_config inst modify = Ui.allocation inst %= fmap update
     update alloc = alloc
         { UiConfig.alloc_config = modify (UiConfig.alloc_config alloc) }
 
+test_kempyung :: Test
 test_kempyung = do
     let run title = DeriveTest.extract extract . derive (title <> " | kempyung")
         extract e = (Score.event_start e, Score.initial_note e)
@@ -317,6 +340,7 @@ test_kempyung = do
     equal (run " | inst-top = (pitch (4f))" notes)
         ([(0, Just "4c"), (0, Just "4f"), (1, Just "4d"), (1, Just "4d")], [])
 
+test_nyog :: Test
 test_nyog = do
     let run title = DeriveTest.extract extract . derive title
         extract e = (Score.event_start e, Score.event_instrument e,
@@ -332,6 +356,7 @@ test_nyog = do
             ((">i3", [(0, 3, "nyog")]) : UiTest.note_track1 ["4c", "4d", "4e"]))
         ([(0, polos, "4c"), (1, sangsih, "4d"), (2, polos, "4e")], [])
 
+test_nyog_norot :: Test
 test_nyog_norot = do
     let run parent notes = DeriveTest.extract extract $
             DeriveTest.derive_tracks_linear (block_title <> ngotek True) $
@@ -356,6 +381,7 @@ test_nyog_norot = do
         , []
         )
 
+test_nyog_instrument_override :: Test
 test_nyog_instrument_override = do
     -- It would be better to not rely on an external instrument, but setting
     -- this up is already really complicated.
@@ -382,6 +408,7 @@ test_nyog_instrument_override = do
     equal (run [(0, 1, "p+ -- 4i"), (1, 1, "4i")])
         ([("pemade-p", (0, 60)), ("pemade-s", (1, 60))], [])
 
+test_noltol :: Test
 test_noltol = do
     let run title = e_by_inst extract . derive (" | realize-noltol | " <> title)
         extract e = (Score.event_start e, e_digit_mute e)
@@ -415,6 +442,7 @@ test_noltol = do
     let result = run ("noltol .1" <> ngotek True) [(0, 8, "k k-12-1-21 -- 4c")]
     equal result (first List.sort result)
 
+test_kotekan_cancel_noltol :: Test
 test_kotekan_cancel_noltol = do
     -- Cancelling works with noltol and kempyung.
     let run postproc = e_by_inst extract . derive (ngotek True <> postproc)

@@ -6962,6 +6962,7 @@ Derive:
       - pick better nns for pemero notes 4 and 7
       - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
     kotekan: gangsa:
+      - kotekan on gangsa didn't say when notes were out of range, just silence
       - >gangsa instrument, which is pemade + kantilan
         . It can be a alias of `multiple`:
           gangsa = multiple "(inst=pemade) "(%t-oct=1 | inst=kantilan)
