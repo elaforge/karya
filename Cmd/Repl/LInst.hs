@@ -111,7 +111,7 @@ pretty_alloc inst inst_environ alloc =
         UiConfig.Midi config -> Info.show_addrs (Patch.config_addrs config)
         UiConfig.Im -> "音"
         UiConfig.Sc -> "sc"
-        UiConfig.Dummy -> "(dummy)"
+        UiConfig.Dummy {} -> "(dummy)"
     -- Put flags in their own column to make them obvious.
     , show_flags (UiConfig.alloc_config alloc)
     , join
@@ -233,13 +233,18 @@ add_play_cache wdev chan =
 -- expected to be converted into other instruments during derivation.  For
 -- instance, pasang instruments are stand-ins for polos sangsih pairs.
 --
--- The qualified name still has to name a valid patch.  Its common config
--- will be used for the allocation, and MIDI-specific fields discarded.
+-- The qualified name still has to name a valid patch, with the Dummy backend.
 add_dummy :: Instrument -> Instrument -> Cmd.CmdL ()
 add_dummy inst qualified = do
     qualified <- parse_qualified qualified
     allocate (Util.instrument inst) $
-        UiConfig.allocation qualified UiConfig.Dummy
+        UiConfig.allocation qualified (UiConfig.Dummy "")
+
+-- | Like 'add_dummy' except it doesn't require a patch.
+add_dummy_ :: Instrument -> Text -> Cmd.CmdL ()
+add_dummy_ inst msg =
+    allocate (Util.instrument inst) $
+        UiConfig.allocation InstT.dummy (UiConfig.Dummy msg)
 
 -- | All allocations should go through this to verify their validity, unless
 -- it's modifying an existing allocation and not changing the Qualified name.

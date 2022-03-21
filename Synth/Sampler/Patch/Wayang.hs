@@ -56,13 +56,20 @@ import           Global
 import           Synth.Types
 
 
-patches :: [Patch.DbPatch]
-patches =
-    map (Patch.DbPatch . make)
+patches :: [Patch.Patch]
+patches = pasang Pemade : pasang Kantilan
+    : map make
         [ (Pemade, Umbang), (Pemade, Isep)
         , (Kantilan, Umbang), (Kantilan, Isep)
         ]
     where
+    pasang inst = (Patch.patch name)
+        { Patch._karyaPatch =
+            ImInst.dummy "must be realized via `unison`, `kempyung`, `k`, &co" $
+            setRange inst $
+            ImInst.make_patch Im.Patch.patch
+        }
+        where name = "wayang-" <> Util.showtLower inst
     make (inst, tuning) =
         (Patch.patch $ Text.intercalate "-"
             ["wayang", Util.showtLower inst, Util.showtLower tuning])

@@ -29,11 +29,11 @@ import Global
 
     > 0         10        20        30        40        50        60        70        80        90        100       110       120    127
     > 01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567
-    > c-2         c-1         c0          c1          c2          c3          c4          c5          c6          c7          c8     g8
-    >                  p----------------------|
+    > c-2         c-1         c0          c1          c2          c3d ef g ab c4d ef g ab c5d ef      c6          c7          c8     g8
+    >                  o---eu-a---io---eu-a---i
     >                              k----------------------|
     >          X X|-----------------------------------------------|
-    >                                                                  p----------------------|
+    >                                                                  o---eu-a---io---eu-a---i
     >                                                                              k----------------------|
     >                                                             |-----------------------------------------------|
 
@@ -43,13 +43,23 @@ import Global
 
     TODO if I want to support both +mute and +mute+loose, perhaps null_call
     should add just +mute, and can inherit +loose if it's set.
+
+    The patches are quite complicated, to capture the structural relations of
+    the 4 instruments in the ensemble.  It can be allocated together in LAlloc.
+
+    k           kontakt/wayang-kantilan dummy -> (k-umbang, k-isep)
+    k-umbang    kontakt/wayang-umbang
+    k-isep      kontakt/wayang-isep
+    p           kontakt/wayang-pemade dummy -> (p-umbang, p-isep)
+    p-umbang    kontakt/wayang-umbang
+    p-isep      kontakt/wayang-isep
 -}
 patches :: [MidiInst.Patch]
 patches = map (MidiInst.code #= code <> with_weak)
     [ set_scale BaliScales.Umbang $ patch "wayang-umbang"
     , set_scale BaliScales.Isep $ patch "wayang-isep"
     , MidiInst.doc #= "Tuned to 12TET." $ patch "wayang12"
-    ] ++ map (MidiInst.code #= Bali.pasang_code <> with_weak)
+    ] ++ map pasang
     [ patch "wayang"
     , MidiInst.range (BaliScales.instrument_range Wayang.pemade) $
         patch "wayang-pemade"
@@ -57,6 +67,9 @@ patches = map (MidiInst.code #= code <> with_weak)
         patch "wayang-kantilan"
     ]
     where
+    pasang =
+        MidiInst.dummy "must be realized via `unison`, `kempyung`, `k`, &co"
+        . (MidiInst.code #= Bali.pasang_code <> with_weak)
     code = MidiInst.postproc (Gangsa.mute_postproc (Attrs.mute <> Attrs.loose))
         <> MidiInst.null_call DUtil.constant_pitch
     with_weak = MidiInst.null_call $ DUtil.zero_duration "note"
@@ -73,8 +86,8 @@ patches = map (MidiInst.code #= code <> with_weak)
             . (Patch.defaults#Patch.decay #= Just 0)
             . (Patch.attribute_map #= attribute_map)
     set_scale tuning =
-        (MidiInst.patch#Patch.defaults#Patch.scale #= Just
-            (Wayang.instrument_scale False Wayang.laras_sawan tuning))
+        (MidiInst.patch#Patch.defaults#Patch.scale
+            #= Just (Wayang.instrument_scale False Wayang.laras_sawan tuning))
         . MidiInst.default_scale Wayang.scale_id
         . MidiInst.environ EnvKey.tuning tuning
 

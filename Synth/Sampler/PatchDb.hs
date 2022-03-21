@@ -47,7 +47,7 @@ db = Patch.db Config.unsafeSamplerRoot $ concat
     , ScGamelan.patches
     , Wayang.patches
     , Zheng.patches
-    , [Patch.DbPatch $ Patch.simple "test" "open.flac" 60]
+    , [Patch.simple "test" "open.flac" 60]
     ]
 
 -- | Declaration for "Local.Instrument".
@@ -55,21 +55,14 @@ synth :: Inst.SynthDecl Cmd.InstrumentCode
 synth = Inst.SynthDecl Config.samplerName "音 sampler" $
     map (second make) (Map.toList (Patch._patches db))
     where
-    make (Patch.DbPatch p) = Inst.Inst
-        { inst_backend = Inst.Im $ patch
-            { Im.Patch.patch_controls = mconcat
-                [ maybe mempty effectControls (Patch._effect p)
-                , Im.Patch.patch_controls patch
-                , Patch.standardControls
-                ]
-            }
-        , inst_common = ImInst.make_code <$> common
-        }
-        where ImInst.Patch patch common = Patch._karyaPatch p
-    make (Patch.DbDummy (Patch.Dummy _ common)) = Inst.Inst
-        { inst_backend = Inst.Dummy
-        , inst_common = ImInst.make_code <$> common
-        }
+    make p = ImInst.make_inst $
+        ImInst.patch#Im.Patch.controls %= update (Patch._effect p) $
+        Patch._karyaPatch p
+    update effect controls = mconcat
+        [ maybe mempty effectControls effect
+        , controls
+        , Patch.standardControls
+        ]
 
 effectControls :: Patch.EffectConfig -> Map Control.Control Text
 effectControls (Patch.EffectConfig name toEffectControl) =

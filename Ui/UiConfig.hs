@@ -192,7 +192,7 @@ verify_backends_match backend alloc = case (alloc_backend alloc, backend) of
     (Midi {}, Inst.Midi {}) -> Nothing
     (Im, Inst.Im {}) -> Nothing
     (Sc, Inst.Sc {}) -> Nothing
-    (Dummy, Inst.Dummy) -> Nothing
+    (Dummy {}, Inst.Dummy {}) -> Nothing
     _ -> Just $ "allocation type " <> backend_name (alloc_backend alloc)
         <> " /= instrument type " <> Inst.backend_name backend
 
@@ -226,8 +226,46 @@ modify_allocation instrument modify (Allocations allocs) = do
         Left "modify_allocation changed the backend"
     return $ Allocations $ Map.insert instrument new_alloc allocs
 
--- | This is the root of the dynamic (per-score) instrument config.  It's
--- divided into common and backend-specific configuration.
+{- | This is the root of the dynamic (per-score) instrument config.  It's
+    divided into common and backend-specific configuration.
+
+    How instruments work:
+
+    The terminology is a bit inconsistent, but the intention is:
+
+    'Inst.Synth' - Container for Patches.
+
+    Patch - Statically declared as haskell source, contains backend-specific
+    configuration, as well as common config in 'Common.Common'.  They are
+    grouped with the unfortunately named 'Inst.Inst', and the backend is
+    'Inst.Backend'.  They all have a unique name which is 'InstT.Qualified'
+    and looks like "synth/patch-name".
+
+    Allocation - An instantiation of a Patch in a particular score, and
+    associates it with an Instrument.  Like Patch, it also has common
+    config in 'Common.Config' and backend-specific config in
+    'Ui.UiConfig.Backend'.  Backend-specific config may be midi devices and
+    channels for midi, and Common.Config can override settings from the Patch's
+    'Common.Common'.  E.g. allocate "vln1" to "vsl/solo-violin" on MIDI chan 1.
+
+    Instrument - The is a bit overloaded, but generally should mean
+    'ScoreT.Instrument', which is just a string used to look up an Allocation.
+
+    Both the Patch and Allocation have Backends and they should match, but this
+    can't be statically ensured because Patch is statically declared in the
+    source while Allocation is dynamic data which is saved to and loaded from
+    the score files.  'verify_backends_match' will check on allocation and
+    'Cmd.Cmd.resolve_instrument' will crash if it notices mismatched backends
+    don't match.
+
+    There is an additional Dummy backend.  This is for instruments which are
+    more abstract and don't correspond to a single Patch, but they can still
+    have Patch level config such as special notation or env vars.  For
+    instance, pemade or gangsa can refer to a whole section, and must be
+    expanded into specific instruments at the derive level.  You can either
+    allocate a Dummy from a Patch with 'Inst.Dummy' backend, or allocate one
+    from InstT.dummy, which will resolve to an empty Patch.
+-}
 data Allocation = Allocation {
     alloc_qualified :: !InstT.Qualified
     , alloc_config :: !Common.Config
@@ -288,15 +326,18 @@ data Backend =
     | Sc
     -- | This is for instruments without a backend.  For example a paired
     -- instrument might be written as one instrument, but realized as two
-    -- different ones.
-    | Dummy
+    -- different ones.  It should be resolved to concrete instruments during
+    -- derivation, and includes an error msg show if that doesn't happen.
+    -- If it's "", inherit the msg from its 'Inst.Dummy', if there is one.
+    | Dummy !Text
     deriving (Eq, Show)
 
 instance Pretty Backend where
-    format (Midi config) = Pretty.format config
-    format Im = "Im"
-    format Sc = "Sc"
-    format Dummy = "Dummy"
+    format = \case
+        Midi config -> Pretty.format config
+        Im -> "Im"
+        Sc -> "Sc"
+        Dummy msg -> "Dummy \"" <> Pretty.text msg <> "\""
 
 -- | Local 'Backend' version of 'Inst.backend_name', keep them consistent.
 backend_name :: Backend -> Text
@@ -304,13 +345,14 @@ backend_name = \case
     Midi {} -> "midi"
     Im -> "音"
     Sc -> "sc"
-    Dummy -> "dummy"
+    Dummy {} -> "dummy"
 
 same_backend :: Backend -> Backend -> Bool
 same_backend b1 b2 = case (b1, b2) of
     (Midi {}, Midi {}) -> True
     (Im, Im) -> True
-    (Dummy, Dummy) -> True
+    (Sc, Sc) -> True
+    (Dummy {}, Dummy {}) -> True
     _ -> False
 
 midi_config :: Backend -> Maybe Patch.Config

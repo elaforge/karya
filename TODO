@@ -6962,6 +6962,43 @@ Derive:
       - pick better nns for pemero notes 4 and 7
       - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
     kotekan: gangsa:
+      cleanup:
+        - sampler Patch.patch include karyaPatch modifier
+        - rm range from LAlloc
+        - better error for out of range in Kontakt/Wayang_test.hs?
+      * error "note with dummy insrument" is confusing
+        . note with dummy instrument: (0s, .17s) pemade 5i
+          {s "untitled/b1 untitled/b1.t2 0-.5"}
+        . It means I need a unison or something.
+        . Either make unison the default, or allow it to have a custom error.
+        . I can put a msg in Dummy, but this turns into more work because I
+          don't actually use Dummy for gangsa patches, but rely on the
+          "allocate as Dummy".  Maybe it's time to get rid of that?
+        . On the other hand, maybe UiConfig.Dummy should be the only one?
+          Otherwise it seems error-prone to have to make them match.
+          That would make any instrument Dummy-able, but there would be
+          no indication it's meant to be used that way except a docs.
+        . Except that the lilypond dummy instrument shouldn't have Midi!
+        . Why does midi wayang have dummy instruments while im wayang doesn't?
+          Looks like LAlloc adds the necessary fields in the alloc.
+        . But how can it do that without a backing instrument?  It uses ""
+          for inst_qualified, which is apparently ok?  Won't that cause
+          problems when Cmd wants to look up the patch?
+        . Looks like yes, maybe it's broken but I haven't hit that?
+        . Yes, LInst.allocate will complain "instrument not in db: /".
+          It's allocated directly via LAlloc though, so I don't hit that?
+          No I do hit it, I must have implemented the checking later!  Ok it's
+          definitely broken.
+        . This means LAlloc doesn't have to pass range, because the patch
+          should have it, but also I have to make dummy patches for
+          sampler/rambat, sampler/wayang-pemade, sampler/wayang-kantilan
+        . Is this really better though?  Doesn't it clutter up patches?
+          I guess it moves some config info from allocs to patches.
+          Isn't it nicer to have it all in allocs?
+        . I could explicitly support or require "/" as the dummy instrument.
+        . If lilypond is the only patch level dummy, then make it Lilypnod
+          backend?
+        . Wait, I must have Inst.Dummy because I need a place to put cmds!
       - kotekan on gangsa didn't say when notes were out of range, just silence
       - >gangsa instrument, which is pemade + kantilan
         . It can be a alias of `multiple`:

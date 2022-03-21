@@ -44,14 +44,15 @@ patches = map add_doc $
     [ pasang True (range_of Legong.jegog) "jegog"
     , pasang True (range_of Legong.calung) "calung"
     , pasang True (range_of Legong.penyacah) "penyacah"
-    , tunggal False Legong.ugal_range "ugal"
+    , [tunggal False Legong.ugal_range "ugal"]
     , pasang False (range_of Legong.pemade) "pemade"
     , pasang False (range_of Legong.kantilan) "kantilan"
     ]
     where
     pasang wrap_octaves range name =
-        tunggal wrap_octaves range name ++
-        [ MidiInst.code #= code $ ranged_patch range (name <> "-pasang")
+        [ tunggal wrap_octaves range name
+        , MidiInst.dummy "must be realized via `unison`, `kempyung`, `k`, &co" $
+            MidiInst.code #= code $ ranged_patch range (name <> "-pasang")
         ]
         where
         wrap = if wrap_octaves then Just range else Nothing
@@ -59,8 +60,7 @@ patches = map add_doc $
             <> MidiInst.null_call DUtil.constant_pitch
             <> Bali.pasang_code
     tunggal wrap_octaves range name =
-        [ MidiInst.code #= code $ gangsa_ks $ ranged_patch range name
-        ]
+        MidiInst.code #= code $ gangsa_ks $ ranged_patch range name
         where
         wrap = if wrap_octaves then Just range else Nothing
         code = Bali.gangsa_note 1 wrap
@@ -126,7 +126,7 @@ kebyar_allocations dev_ = make_config $ concat
     ]
     where
     -- (inst, qualified, gets_chan, environ, scale)
-    make_config :: [(ScoreT.Instrument, Text, Bool,
+    make_config :: [(ScoreT.Instrument, InstT.Qualified, Bool,
             [(EnvKey.Key, REnv.Val)], Maybe Patch.Scale)]
         -> UiConfig.Allocations
     make_config = MidiInst.allocations . snd . List.mapAccumL allocate 0
@@ -143,7 +143,7 @@ kebyar_allocations dev_ = make_config $ concat
                     MidiInst.config1 dev chan
                 -- Pasang instruments don't get an allocation.  Otherwise they
                 -- don't have the right tuning.
-                | otherwise = UiConfig.Dummy
+                | otherwise = UiConfig.Dummy ""
             set_config = Common.cenviron #= REnv.from_list environ
     dev = Midi.write_device dev_
 
@@ -151,12 +151,12 @@ kebyar_allocations dev_ = make_config $ concat
     -- sangsih, but since I don't have that many sample sets I have
     -- a mini-ensemble with only one pair of each gangsa.
     pasang name =
-        [ (ScoreT.Instrument name, sc_qualified name <> "-pasang", False,
+        [ (ScoreT.Instrument name, sc_qualified (name <> "-pasang"), False,
             polos_sangsih name, Nothing)
         , umbang_patch (ScoreT.Instrument $ name <> "-p") name
         , isep_patch (ScoreT.Instrument $ name <> "-s") name
         ]
-    sc_qualified name = synth_name <> "/sc-" <> name
+    sc_qualified name = InstT.Qualified synth_name ("sc-" <> name)
     polos_sangsih name =
         [ (Gangsa.inst_polos, REnv.to_val $ ScoreT.Instrument $ name <> "-p")
         , (Gangsa.inst_sangsih, REnv.to_val $ ScoreT.Instrument $ name <> "-s")

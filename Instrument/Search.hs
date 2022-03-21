@@ -140,18 +140,19 @@ common_tags synth_name inst_name common =
 
 -- | Get tags of an inst, including automatically generated tags.
 inst_tags :: Inst.Backend -> [Tag.Tag]
-inst_tags (Inst.Midi patch) = concat
-    [ [(Tag.backend, "midi")]
-    , control_tags $ Patch.patch_control_map patch
-    , case Patch.patch_initialize patch of
-        Patch.InitializeMidi msgs
-            | any Midi.is_sysex msgs -> [(Tag.sysex, "")]
-            | otherwise -> []
-        _ -> []
-    ]
-inst_tags (Inst.Im _patch) = [(Tag.backend, "im")]
-inst_tags (Inst.Sc _patch) = [(Tag.backend, "sc")]
-inst_tags Inst.Dummy = []
+inst_tags = \case
+    Inst.Midi patch -> concat
+        [ [(Tag.backend, "midi")]
+        , control_tags $ Patch.patch_control_map patch
+        , case Patch.patch_initialize patch of
+            Patch.InitializeMidi msgs
+                | any Midi.is_sysex msgs -> [(Tag.sysex, "")]
+                | otherwise -> []
+            _ -> []
+        ]
+    Inst.Im {} -> [(Tag.backend, "im")]
+    Inst.Sc {} -> [(Tag.backend, "sc")]
+    Inst.Dummy {} -> []
 
 normalize_tags :: [Tag.Tag] -> [Tag.Tag]
 normalize_tags =

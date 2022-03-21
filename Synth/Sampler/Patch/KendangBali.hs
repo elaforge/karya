@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Synth.Sampler.Patch.KendangBali where
+module Synth.Sampler.Patch.KendangBali (patches, allocations) where
 import qualified Data.Set as Set
 import           System.FilePath ((</>))
 
@@ -14,6 +14,7 @@ import qualified Cmd.Instrument.KendangBali as K
 import qualified Derive.Attrs as Attrs
 import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.Common as Common
+import qualified Perform.Im.Patch as Im.Patch
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Patch.Lib.Drum as Drum
 import qualified Synth.Sampler.Patch.Lib.Util as Util
@@ -24,8 +25,8 @@ import qualified Ui.UiConfig as UiConfig
 import           Global
 
 
-patches :: [Patch.DbPatch]
-patches = pasang : map (Patch.DbPatch . make) [Wadon, Lanang]
+patches :: [Patch.Patch]
+patches = pasang : map make [Wadon, Lanang]
     where
     make tuning =
         Drum.patch dir name strokeMap (convertMap tuning) (const config)
@@ -35,10 +36,13 @@ patches = pasang : map (Patch.DbPatch . make) [Wadon, Lanang]
 
     -- TODO thru doesn't work for this, because I have to evaluate the call,
     -- and only MidiThru does that.
-    pasang = Patch.dummy "kendang-bali-pasang" $
-        Common.code #= K.pasang_code $
-        Common.flags %= Set.insert Common.Triggered $
-        Common.common mempty
+    pasang = (Patch.patch "kendang-bali-pasang")
+        { Patch._karyaPatch =
+            ImInst.dummy "requires realize-kendang" $
+            ImInst.code #= K.pasang_code $
+            ImInst.triggered $
+            ImInst.make_patch Im.Patch.patch
+        }
 
 -- | @LInst.merge $ KendangBali.allocations ...@
 allocations :: Text -> UiConfig.Allocations

@@ -78,7 +78,7 @@ derive deriver = do
     add_ly_global = Ui.config#UiConfig.allocations_map
         %= Map.insert Lilypond.Constants.ly_global allocation
     allocation = UiConfig.allocation Lilypond.Constants.ly_qualified
-        UiConfig.Dummy
+        (UiConfig.Dummy "")
 
 -- | Override a few calls with lilypond versions.
 lilypond_scope :: Derive.Scopes -> Derive.Scopes

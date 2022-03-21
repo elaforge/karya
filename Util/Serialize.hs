@@ -17,6 +17,7 @@
 module Util.Serialize (
     encode, decode
     , Serialize(..)
+    , Get, Put
     -- * magic
     , Magic(..)
     , magicBytes

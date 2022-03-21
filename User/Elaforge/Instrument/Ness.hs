@@ -56,7 +56,7 @@ guitar inst = ImInst.code #= code $ ImInst.environ EnvKey.open_strings strings $
             -- TODO use Derive.Controls.finger
             , (Guitar.Patch.c_finger, "Stopping finger weight.")
             ]
-        , Patch.patch_attribute_map = Patch.attribute_map [Attrs.mute]
+        , Patch.patch_attribute_map = Patch.make_attribute_map [Attrs.mute]
         }
     where
     strings = map make_string $ Guitar.iStrings inst

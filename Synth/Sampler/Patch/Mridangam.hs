@@ -18,8 +18,8 @@ import qualified Synth.Sampler.Patch.Lib.Util as Util
 import           Global
 
 
-patches :: [Patch.DbPatch]
-patches = (:[]) $ Patch.DbPatch $ (Patch.patch patchName)
+patches :: [Patch.Patch]
+patches = (:[]) $ (Patch.patch patchName)
     { Patch._dir = dir
     , Patch._convert = convert
     , Patch._preprocess = Drum.inferDuration strokeMap

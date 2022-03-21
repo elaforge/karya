@@ -47,7 +47,7 @@ save_synth app_dir synth_name patches = do
         Instrument.Serialize.InstrumentDb now (strip_code <$> patch_map)
     where
     strip_code :: MidiInst.Patch -> (Patch.Patch, Common.Common ())
-    strip_code (MidiInst.Patch patch common) =
+    strip_code (MidiInst.Patch patch _dummy common) =
         (patch, common { Common.common_code = () })
 
 load_synth :: (Patch.Patch -> MidiInst.Code) -> InstT.SynthName -> Text
@@ -63,8 +63,9 @@ load_synth get_code synth_name doc app_dir = do
             return $ Just $ Inst.SynthDecl synth_name doc
                 (map (second make) (Map.toList patch_map))
     where
-    make (patch, common) = MidiInst.make_inst $ MidiInst.Patch patch $
-        common { Common.common_code = get_code patch }
+    make (patch, common) = MidiInst.make_inst $
+        (MidiInst.common #= common { Common.common_code = get_code patch }) $
+        MidiInst.make_patch patch
 
 db_path :: Path.AppDir -> FilePath -> FilePath
 db_path app_dir name =

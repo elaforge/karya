@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Synth.Sampler.Patch.Metronome where
+module Synth.Sampler.Patch.Metronome (patches) where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
@@ -23,8 +23,8 @@ import qualified Synth.Shared.Signal as Signal
 import           Global
 
 
-patches :: [Patch.DbPatch]
-patches = (:[]) $ Patch.DbPatch $ (Patch.patch "metronome")
+patches :: [Patch.Patch]
+patches = (:[]) $ (Patch.patch "metronome")
     { Patch._dir = "metronome"
     , Patch._convert = convert
     , Patch._allFilenames = Set.fromList $ Map.elems nnToSample

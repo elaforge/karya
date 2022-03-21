@@ -23,9 +23,8 @@ import qualified Ui.Meter.Meter as Meter
 import           Global
 
 
-patches :: [Patch.DbPatch]
-patches = (:[]) $ Patch.DbPatch $
-    Drum.patch dir patchName strokeMap convertMap (const config)
+patches :: [Patch.Patch]
+patches = [Drum.patch dir patchName strokeMap convertMap (const config)]
     where
     config = CUtil.call_config { CUtil._tuning_control = Just "kajar-tune" }
     dir = untxt patchName

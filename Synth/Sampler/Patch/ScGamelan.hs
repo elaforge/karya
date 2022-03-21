@@ -27,8 +27,8 @@ import qualified Synth.Shared.Signal as Signal
 import           Global
 
 
-patches :: [Patch.DbPatch]
-patches = map Patch.DbPatch [gongPatch]
+patches :: [Patch.Patch]
+patches = [gongPatch]
     -- CUtil.simple_drum CUtil.MidiThru Nothing gong_strokes (sc_patch "gong")
     -- : CUtil.simple_drum CUtil.MidiThru Nothing kempli_kajar_notes
     --     (sc_patch "kempli")

@@ -419,7 +419,7 @@ allocate :: Ui.M m => Cmd.Config
 allocate cmd_config (score_inst, alloc) = do
     let qualified = UiConfig.alloc_qualified alloc
     inst <- Ui.require ("instrument not in db: " <> pretty qualified) $
-        Cmd.state_lookup_qualified cmd_config qualified
+        Cmd.inst_lookup qualified (Cmd.config_instrument_db cmd_config)
     allocs <- Ui.config#UiConfig.allocations <#> Ui.get
     allocs <- Ui.require_right id $
         UiConfig.allocate (Inst.inst_backend inst) score_inst alloc allocs

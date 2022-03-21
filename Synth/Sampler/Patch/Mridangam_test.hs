@@ -46,8 +46,7 @@ runNotes title events = (samples, logs ++ convert_logs)
     where
     (notes, logs) = derive title [(">m", events)]
     (samples, convert_logs) = convert patch notes
-    Just (Patch.DbPatch patch) =
-        Patch.lookupPatch "mridangam-d" Mridangam.patches
+    Just patch = Patch.lookupPatch "mridangam-d" Mridangam.patches
 
 convert :: Patch.Patch -> [Note.Note] -> ([Sample.Sample], [Text])
 convert patch notes = (Maybe.catMaybes samples, concat logs)

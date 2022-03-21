@@ -75,21 +75,24 @@ instance Pretty code => Pretty (Inst code) where
         ]
 
 data Backend =
-    Dummy
+    -- | A Dummy instrument should be resolved to concrete instruments during
+    -- derivation.  It includes an error msg show if that doesn't happen.
+    Dummy !Text
     | Midi !Midi.Patch.Patch
     | Im !Im.Patch.Patch
     | Sc !Sc.Patch.Patch
     deriving (Show)
 
 instance Pretty Backend where
-    format Dummy = "Dummy"
-    format (Midi patch) = Pretty.format patch
-    format (Im patch) = Pretty.format patch
-    format (Sc patch) = Pretty.format patch
+    format = \case
+        Dummy msg -> "Dummy \"" <> Pretty.text msg <> "\""
+        Midi patch -> Pretty.format patch
+        Im patch -> Pretty.format patch
+        Sc patch -> Pretty.format patch
 
 backend_name :: Backend -> Text
 backend_name = \case
-    Dummy -> "dummy"
+    Dummy {} -> "dummy"
     Midi {} -> "midi"
     Im {} -> "音"
     Sc {} -> "sc"
@@ -101,7 +104,7 @@ inst_midi inst = case inst_backend inst of
 
 inst_attributes :: Inst code -> [Attrs.Attributes]
 inst_attributes inst = case inst_backend inst of
-    Dummy -> []
+    Dummy {} -> []
     Midi patch -> Common.mapped_attributes $
         Midi.Patch.patch_attribute_map patch
     Im patch -> Common.mapped_attributes $
@@ -180,7 +183,7 @@ db synth_decls = (Db db, synth_errors ++ inst_errors ++ validate_errors)
 -- | Return any errors found in the Inst.
 validate :: Inst code -> [Text]
 validate inst = case inst_backend inst of
-    Dummy -> []
+    Dummy {} -> []
     Midi patch -> Common.overlapping_attributes $
         Midi.Patch.patch_attribute_map patch
     Im patch -> Common.overlapping_attributes $

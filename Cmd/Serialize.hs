@@ -172,15 +172,16 @@ instance Serialize UiConfig.Backend where
     put = \case
         UiConfig.Midi a -> put_tag 0 >> put a
         UiConfig.Im -> put_tag 1
-        UiConfig.Dummy -> put_tag 2
+        UiConfig.Dummy a -> put_tag 4 >> put a
         UiConfig.Sc -> put_tag 3
     get = get_tag >>= \case
         0 -> do
             config :: Patch.Config <- get
             return $ UiConfig.Midi config
         1 -> return UiConfig.Im
-        2 -> return UiConfig.Dummy
+        2 -> return $ UiConfig.Dummy ""
         3 -> return UiConfig.Sc
+        4 -> UiConfig.Dummy <$> (get :: Serialize.Get Text)
         tag -> bad_tag "UiConfig.Backend" tag
 
 -- | For backward compatibility.

@@ -19,6 +19,7 @@ import           Global
 import           Util.Test
 
 
+test_kendang :: Test
 test_kendang = do
     let run extract inst notes = DeriveTest.extract extract $
             derive [(">" <> inst <> inst_title, mknotes notes)]
@@ -42,6 +43,7 @@ test_kendang = do
     equal (run_both "+Ø") ([("w", "+de"), ("l", "+left+tut")], [])
     equal (run_both "+ø") ([("w", "+de"), ("l", "+left+soft+tut")], [])
 
+test_pasang_calls :: Test
 test_pasang_calls = do
     -- every pasang call dispatch to a valid tunggal call
     let tunggal = [K.to_call note | (_, note, _) <- K.tunggal_table]
@@ -50,11 +52,12 @@ test_pasang_calls = do
             let sym = K.to_call note
             equal (Just sym) (List.find (==sym) tunggal)
 
+test_resolve :: Test
 test_resolve = do
     equal KendangBali.resolve_errors []
 
 derive :: [UiTest.TrackSpec] -> Derive.Result
-derive = KontaktTest.derive allocs ""
+derive = KontaktTest.derive (DeriveTest.simple_allocs allocs) ""
     where
     allocs =
         [ ("k", "kontakt/kendang-bali")

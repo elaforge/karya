@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Synth.Sampler.Patch.Rambat where
+module Synth.Sampler.Patch.Rambat (patches, getVariations) where
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -57,8 +57,8 @@ import           Synth.Types
 
 -- Like Wayang, but support short notes.
 
-patches :: [Patch.DbPatch]
-patches = map Patch.DbPatch [make Umbang, make Isep]
+patches :: [Patch.Patch]
+patches = map make [Umbang, Isep]
     where
     make tuning =
         (Patch.patch $ Text.intercalate "-" ["rambat", Util.showtLower tuning])

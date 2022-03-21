@@ -48,8 +48,8 @@ import           Global
 import           Synth.Types
 
 
-patches :: [Patch.DbPatch]
-patches = (:[]) $ Patch.DbPatch $ (Patch.patch "zheng")
+patches :: [Patch.Patch]
+patches = (:[]) $ (Patch.patch "zheng")
     { Patch._dir = dir
     , Patch._convert = convert
     , Patch._allFilenames = Set.fromList $ concat $ concatMap Map.elems $

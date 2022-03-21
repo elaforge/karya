@@ -25,8 +25,8 @@ import qualified Synth.Shared.Signal as Signal
 import           Global
 
 
-patches :: [Patch.DbPatch]
-patches = map Patch.DbPatch (rincik : kopyaks)
+patches :: [Patch.Patch]
+patches = rincik : kopyaks
 
 -- * cengceng rincik
 

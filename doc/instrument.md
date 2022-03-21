@@ -6,6 +6,8 @@ Usually "patch" will mean a backend-specific (likely MIDI) definition, while
 "instrument" means a specific allocation of a patch in a particular score.
 I'm not totally consistent with that terminology, though I try.
 
+There is some more up to date info in 'Ui.UiConfig.Allocation'.
+
 Patches are defined in 'Local.Instrument', which will collect other the
 various instrument definitions together into an 'Instrument.Inst.Db'.  This is
 then used by the 'Instrument.Browser' to search and display patches, or by the

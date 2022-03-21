@@ -32,8 +32,7 @@ import qualified Cmd.Simple as Simple
 import qualified Derive.C.All as C.All
 import qualified Derive.C.Prelude.Block as Prelude.Block
 import qualified Derive.Controls as Controls
-import           Derive.DDebug ()
--- just make sure it compiles
+import           Derive.DDebug () -- just make sure it compiles
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Deriver.Internal as Internal

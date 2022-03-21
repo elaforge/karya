@@ -16,6 +16,7 @@ import           Derive.Attrs (soft)
 import qualified Derive.ScoreT as ScoreT
 
 import qualified Instrument.Common as Common
+import qualified Instrument.InstT as InstT
 import qualified Midi.Key as Key
 import qualified Midi.Key2 as Key2
 import qualified Midi.Midi as Midi
@@ -104,15 +105,16 @@ write_ksp = mapM_ (uncurry Util.write)
 -- | @LInst.merge $ KendangBali.allocations ...@
 allocations :: Text -> Text -> UiConfig.Allocations
 allocations name dev_ = MidiInst.allocations
-    [ (inst $ name <> "w", "kontakt/kendang-bali", id, midi_channel 0)
-    , (inst $ name <> "l", "kontakt/kendang-bali", id, midi_channel 1)
-    , ( inst name, "kontakt/kendang-bali-pasang"
+    [ (inst $ name <> "w", qual "kendang-bali", id, midi_channel 0)
+    , (inst $ name <> "l", qual "kendang-bali", id, midi_channel 1)
+    , ( inst name, qual "kendang-bali-pasang"
       , Common.add_cenviron "wadon" (inst $ name <> "w")
         . Common.add_cenviron "lanang" (inst $ name <> "l")
-      , UiConfig.Dummy
+      , UiConfig.Dummy "requires realize-kendang"
       )
     ]
     where
+    qual = InstT.Qualified "kontakt"
     midi_channel = UiConfig.Midi . MidiInst.config1 dev
     dev = Midi.write_device dev_
     inst = ScoreT.Instrument

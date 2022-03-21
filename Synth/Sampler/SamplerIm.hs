@@ -32,6 +32,7 @@ import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
 import qualified Util.Thread as Thread
 
+import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Attrs as Attrs
 import qualified Derive.ScoreT as ScoreT
 import qualified Perform.RealTime as RealTime
@@ -331,12 +332,12 @@ getPatch db name = case Map.lookup name (Patch._patches db) of
     Nothing -> do
         Log.warn $ "patch not found: " <> name
         return Nothing
-    Just (Patch.DbDummy {}) -> do
+    Just patch | Just {} <- ImInst.patch_dummy (Patch._karyaPatch patch) -> do
         Log.warn $ "dummy patch: " <> name
         return Nothing
-    Just (Patch.DbPatch patch) -> case Patch._effect patch of
+    Just patch -> case Patch._effect patch of
         Nothing -> return $ Just (patch, Nothing)
-        Just effectConf -> case Map.lookup ename EffectC.patches  of
+        Just effectConf -> case Map.lookup ename EffectC.patches of
             Nothing -> do
                 Log.warn $ name <> ": effect not found: " <> ename
                 return Nothing

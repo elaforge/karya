@@ -12,8 +12,8 @@ import qualified Synth.Sampler.Patch.Lib.Util as Util
 import           Global
 
 
-patches :: [Patch.DbPatch]
-patches = (:[]) $ Patch.DbPatch $
+patches :: [Patch.Patch]
+patches = (:[]) $
     Drum.patch dir patchName strokeMap convertMap (const CUtil.call_config)
     where dir = untxt patchName
 

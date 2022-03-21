@@ -18,7 +18,7 @@ module Cmd.Instrument.MidiInst (
     , Patch(..), patch, common
     , make_patch, patch_from_pair, named_patch, default_patch
     -- ** modify
-    , code, doc, attribute_map, decay, synth_controls
+    , dummy, code, doc, attribute_map, decay, synth_controls
     , add_flag, add_flags, pressure, add_common_flag, triggered
     , control_defaults
     -- ** environ
@@ -75,8 +75,10 @@ synth name doc patches =
     where name_of = (patch#Patch.name #$)
 
 make_inst :: Patch -> Inst.Inst Cmd.InstrumentCode
-make_inst (Patch patch common) = Inst.Inst
-    { inst_backend = Inst.Midi patch
+make_inst (Patch patch dummy common) = Inst.Inst
+    { inst_backend = case dummy of
+        Nothing -> Inst.Midi patch
+        Just msg -> Inst.Dummy msg
     , inst_common = common
         { Common.common_code = make_code (Common.common_code common) }
     }
@@ -197,6 +199,7 @@ thru f = mempty { code_thru = Just f }
 
 data Patch = Patch {
     patch_patch :: Patch.Patch
+    , patch_dummy :: Maybe Text
     , patch_common :: Common.Common Code
     }
 
@@ -205,14 +208,16 @@ common = Lens.lens patch_common
     (\f r -> r { patch_common = f (patch_common r) })
 
 instance Pretty Patch where
-    format (Patch patch common) = Pretty.record "Patch"
+    format (Patch patch dummy common) = Pretty.record "Patch"
         [ ("patch", Pretty.format patch)
+        , ("dummy", Pretty.format dummy)
         , ("common", Pretty.format common)
         ]
 
 make_patch :: Patch.Patch -> Patch
 make_patch p = Patch
     { patch_patch = p
+    , patch_dummy = Nothing
     , patch_common = Common.common mempty
     }
 
@@ -233,13 +238,14 @@ named_patch pb_range name controls =
 
 -- | Make a default patch for the synth.
 default_patch :: Control.PbRange -> [(Midi.Control, ScoreT.Control)] -> Patch
-default_patch pb_range controls = Patch
-    { patch_patch = (Patch.patch pb_range Patch.default_name)
+default_patch pb_range controls =
+    make_patch $ (Patch.patch pb_range Patch.default_name)
         { Patch.patch_control_map = Control.control_map controls }
-    , patch_common = Common.common mempty
-    }
 
 -- ** modify
+
+dummy :: Text -> Patch -> Patch
+dummy msg patch = patch { patch_dummy = Just msg }
 
 code :: Lens Patch Code
 code = common # Common.code
@@ -311,7 +317,7 @@ inst_range range =
 -- * Allocations
 
 allocations ::
-    [(ScoreT.Instrument, Text,
+    [(ScoreT.Instrument, InstT.Qualified,
         Common.Config -> Common.Config, UiConfig.Backend)]
     -- ^ (inst, qualified, set_config, backend)
     -> UiConfig.Allocations
@@ -320,7 +326,7 @@ allocations = UiConfig.make_allocations . map make
     make (name, qualified, set_config, backend) =
         ( name
         , UiConfig.Allocation
-            { alloc_qualified = InstT.parse_qualified qualified
+            { alloc_qualified = qualified
             , alloc_config = set_config Common.empty_config
             , alloc_backend = backend
             }

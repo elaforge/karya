@@ -2,20 +2,21 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 module User.Elaforge.Instrument.Kontakt.Reyong_test where
-import Util.Test
+import qualified Derive.DeriveTest as DeriveTest
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import qualified Ui.UiTest as UiTest
-import qualified Derive.DeriveTest as DeriveTest
 import qualified User.Elaforge.Instrument.Kontakt.KontaktTest as KontaktTest
-import Global
+
+import           Global
+import           Util.Test
 
 
 test_aftertouch = do
     let run notes = extract $
             DeriveTest.perform_result (KontaktTest.perform allocs) $
             KontaktTest.derive allocs title $ UiTest.note_spec ("r", notes, [])
-        allocs = [("r", "kontakt/reyong")]
+        allocs = DeriveTest.simple_allocs [("r", "kontakt/reyong")]
         extract ((_, midi), logs) = (mapMaybe e_midi midi, logs)
         e_midi msg = case Midi.channel_message $ Midi.wmsg_msg msg of
             Just (m@(Midi.NoteOn {})) -> Just m

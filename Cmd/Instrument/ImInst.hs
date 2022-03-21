@@ -47,18 +47,26 @@ synth name doc patches =
 
 data Patch = Patch {
     patch_patch :: Patch.Patch
+    , patch_dummy :: Maybe Text
     , patch_common :: Common.Common Code
     }
 
 make_patch :: Patch.Patch -> Patch
 make_patch p = Patch
     { patch_patch = p
+    , patch_dummy = Nothing
     , patch_common = Common.common mempty
     }
 
 patch = Lens.lens patch_patch (\f r -> r { patch_patch = f (patch_patch r) })
 common = Lens.lens patch_common
     (\f r -> r { patch_common = f (patch_common r) })
+
+-- | Cause this to have a Dummy backend.  It's a bit sloppy in that the
+-- contents of 'patch_patch' will be ignored, but it's convenient in that
+-- it lets me reuse all the functions in here for dummies too.
+dummy :: Text -> Patch -> Patch
+dummy msg patch = patch { patch_dummy = Just msg }
 
 code :: Lens Patch Code
 code = common # Common.code
@@ -67,10 +75,11 @@ doc :: Lens Patch Doc.Doc
 doc = common # Common.doc
 
 make_inst :: Patch -> Inst.Inst Cmd.InstrumentCode
-make_inst (Patch patch common) = Inst.Inst
-    { inst_backend = Inst.Im patch
-    , inst_common = common
-        { Common.common_code = MidiInst.make_code (Common.common_code common) }
+make_inst (Patch patch dummy common) = Inst.Inst
+    { inst_backend = case dummy of
+        Nothing -> Inst.Im patch
+        Just msg -> Inst.Dummy msg
+    , inst_common = MidiInst.make_code <$> common
     }
 
 -- TODO: these are copy paste from MidiInst, only 'common' is different.
@@ -78,11 +87,11 @@ make_inst (Patch patch common) = Inst.Inst
 
 -- | The instrument will also set the given environ when it comes into scope.
 environ :: REnv.ToVal a => EnvKey.Key -> a -> Patch -> Patch
-environ name val = common %= common_environ name val
+environ name val = common %= cenviron name val
 
-common_environ :: REnv.ToVal a => EnvKey.Key -> a
+cenviron :: REnv.ToVal a => EnvKey.Key -> a
     -> Common.Common code -> Common.Common code
-common_environ name val =
+cenviron name val =
     Common.environ %= (REnv.from_list [(name, REnv.to_val val)] <>)
 
 -- | The instrument will set the given scale when it comes into scope.
@@ -91,9 +100,12 @@ default_scale = environ EnvKey.scale . Expr.scale_id_to_str
 
 -- | Set instrument range.
 range :: Scale.Range -> Patch -> Patch
-range range =
-    environ EnvKey.instrument_bottom (Scale.range_bottom range)
-    . environ EnvKey.instrument_top (Scale.range_top range)
+range range = common %= crange range
+
+crange :: Scale.Range -> Common.Common code -> Common.Common code
+crange range =
+    cenviron EnvKey.instrument_bottom (Scale.range_bottom range)
+    . cenviron EnvKey.instrument_top (Scale.range_top range)
 
 nn_range :: (Pitch.NoteNumber, Pitch.NoteNumber) -> Patch -> Patch
 nn_range (bottom, top) =
@@ -128,7 +140,7 @@ dummy_allocations :: [(ScoreT.Instrument, Text, Common.Config -> Common.Config)]
     -- ^ (inst, qualified, set_config)
     -> UiConfig.Allocations
 dummy_allocations =
-    UiConfig.make_allocations . map (_make_allocation UiConfig.Dummy)
+    UiConfig.make_allocations . map (_make_allocation (UiConfig.Dummy ""))
 
 _make_allocation :: UiConfig.Backend
     -> (a, Text, Common.Config -> Common.Config) -> (a, UiConfig.Allocation)

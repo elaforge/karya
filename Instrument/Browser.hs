@@ -164,8 +164,8 @@ info_of synth_name name synth_doc (Inst.Inst backend common) tags =
     where
     body = format_fields $ common_fields tags common ++ backend_fields
     backend_fields = case backend of
-        Inst.Dummy -> []
-        Inst.Midi inst -> instrument_fields name inst
+        Inst.Dummy msg -> [("dummy msg", msg)]
+        Inst.Midi inst -> midi_fields name inst
         Inst.Im patch -> im_patch_fields patch
         Inst.Sc patch -> sc_patch_fields patch
 
@@ -201,8 +201,8 @@ common_fields tags common =
         , common_call_map = call_map
         } = common
 
-instrument_fields :: InstT.Name -> Patch.Patch -> [(Text, Text)]
-instrument_fields name patch =
+midi_fields :: InstT.Name -> Patch.Patch -> [(Text, Text)]
+midi_fields name patch =
     -- important properties
     [ ("Flags", Text.intercalate ", " $ map showt $ Set.toList $
         fromMaybe mempty flags)

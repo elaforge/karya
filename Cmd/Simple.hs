@@ -203,7 +203,7 @@ dump_allocations (UiConfig.Allocations allocs) = do
     let simple_alloc = case UiConfig.alloc_backend alloc of
             UiConfig.Midi config -> Midi $ addrs_of config
             UiConfig.Im -> Im
-            UiConfig.Dummy -> Dummy
+            UiConfig.Dummy {} -> Dummy
             UiConfig.Sc -> Sc
     let qualified = InstT.show_qualified $ UiConfig.alloc_qualified alloc
     return (ScoreT.instrument_name inst, (qualified, simple_alloc))
@@ -221,7 +221,7 @@ allocations = UiConfig.Allocations . Map.fromList . map make1
         where
         qualified = InstT.parse_qualified qual
         backend = case simple_alloc of
-            Dummy -> UiConfig.Dummy
+            Dummy -> UiConfig.Dummy ""
             Im -> UiConfig.Im
             Sc -> UiConfig.Sc
             Midi addrs -> UiConfig.Midi $ Patch.config

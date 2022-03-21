@@ -21,6 +21,7 @@ import qualified Instrument.Tag as Tag
 import Global
 
 
+test_search :: Test
 test_search = do
     let f = map InstT.show_qualified . Search.search index . Search.parse
     equal (f "") t_all_insts
@@ -70,5 +71,6 @@ make_db synth_patches = fst $ Inst.db $ map make synth_patches
 make_synth :: InstT.SynthName -> [(Patch.Patch, Text)] -> MidiInst.Synth
 make_synth name = MidiInst.synth name "Test Synth" . map make
     where
-    make (patch, category) = MidiInst.Patch patch (Common.common mempty)
-        { Common.common_tags = [(Tag.category, category)] }
+    make (patch, category) =
+        MidiInst.common#Common.tags #= [(Tag.category, category)] $
+        MidiInst.make_patch patch

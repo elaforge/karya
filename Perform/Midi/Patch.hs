@@ -425,7 +425,7 @@ data Keymap =
     -- | The timbre is mapped over the inclusive MIDI key range from low to
     -- high, where the pitch of the low end of the range is given by the
     -- NoteNumber.  So this transposes the event's pitch and clips it to the
-    -- given range.
+    -- given range.  low, high, nn
     | PitchedKeymap !Midi.Key !Midi.Key !Midi.Key
     deriving (Eq, Ord, Show)
 

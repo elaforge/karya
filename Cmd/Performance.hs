@@ -267,8 +267,9 @@ evaluate_performance im_config lookup_inst wait send_status score_path
     send_status block_id Msg.Deriving
     -- I just force the logs here, and wait for a play to actually write them.
     ((), metric) <- Thread.timeAction $ return $! Msg.force_performance perf
-    forM_ (check_dummy lookup_inst (Msg.perf_events perf)) $ \event ->
+    forM_ (check_dummy lookup_inst (Msg.perf_events perf)) $ \(event, msg) ->
         Log.warn $ "note with dummy instrument: " <> Score.short_event event
+            <> ": " <> msg
     when (Thread.metricWall metric > 1) $
         Log.notice $ "derived " <> showt block_id <> " in "
             <> Thread.showMetric metric
@@ -309,20 +310,21 @@ im_gc output_dir = do
 -- | Return events with a 'Inst.Dummy' backend.  These shouldn't have made it
 -- through to actual performance.
 check_dummy :: (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument)
-    -> Vector.Vector Score.Event -> [Score.Event]
+    -> Vector.Vector Score.Event -> [(Score.Event, Text)]
 check_dummy lookup_inst = snd . Vector.foldl' go (HashSet.empty, [])
     where
     go (seen, warns) event
         | HashSet.member inst seen = (seen, warns)
         | otherwise =
             ( HashSet.insert inst seen
-            , if is_dummy inst then event : warns else warns
+            , maybe warns (\msg -> (event, msg) : warns) (is_dummy inst)
+            -- , if is_dummy inst then event : warns else warns
             )
         where
         inst = Score.event_instrument event
     is_dummy inst = case Cmd.inst_backend <$> lookup_inst inst of
-        Just Cmd.Dummy -> True
-        _ -> False
+        Just (Cmd.Dummy msg) -> Just msg
+        _ -> Nothing
 
 state_wants_waveform :: Ui.State -> TrackId -> Bool
 state_wants_waveform state track_id = maybe False Track.track_waveform $

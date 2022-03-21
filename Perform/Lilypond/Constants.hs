@@ -32,8 +32,13 @@ ly_qualified = InstT.Qualified "ly" "global"
 
 ly_synth :: code -> Inst.SynthDecl code
 ly_synth code = Inst.SynthDecl "ly" "Fake synth for fake lilypond instrument."
-    [("global", Inst.Inst Inst.Dummy (Common.doc #= doc $ Common.common code))]
+    [ ("global"
+      , Inst.Inst (Inst.Dummy dummy_doc)
+        (Common.doc #= doc $ Common.common code)
+      )
+    ]
     where
+    dummy_doc = "fake instrument for lilypond directives"
     doc = "The lilypond deriver will automatically allocate `>ly-global`, and\
         \ instruments with global lilypond directives will get this instrument."
 

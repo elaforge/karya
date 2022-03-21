@@ -53,8 +53,8 @@ import qualified Synth.Shared.Signal as Signal
 import           Global
 
 
-patches :: [Patch.DbPatch]
-patches = map (Patch.DbPatch . make) allBreaks
+patches :: [Patch.Patch]
+patches = map make allBreaks
     where
     make break = (Patch.patch ("break-" <> _name break))
         { Patch._dir = dir

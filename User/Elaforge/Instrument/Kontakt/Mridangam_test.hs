@@ -5,23 +5,22 @@
 module User.Elaforge.Instrument.Kontakt.Mridangam_test where
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-import Util.Test
-
-import qualified Midi.Key as Key
-import qualified Midi.Midi as Midi
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Midi.Key as Key
+import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Types as Midi.Types
+import qualified Ui.UiConfig as UiConfig
 import qualified User.Elaforge.Instrument.Kontakt.KontaktTest as KontaktTest
-import Global
+
+import           Global
+import           Util.Test
 
 
 test_mridangam = do
     let run pitch = KontaktTest.derive allocs ("# = (" <> pitch <> ")")
             . map (((,) ">m") . notes)
         notes ns = [(t, 0, n) | (t, n) <- zip (Seq.range_ 0 1) ns]
-        allocs = [("m", "kontakt/mridangam-d")]
-
     let ((_events, midi), logs) =
             perform $ run "3g#" [["k", "t", "n", "d", "i"]]
     equal logs []
@@ -63,8 +62,8 @@ perform :: Derive.Result
     -> (([Midi.Types.Event], [Midi.WriteMessage]), [Log.Msg])
 perform = KontaktTest.perform allocs . Derive.r_events
 
-allocs :: [(Text, Text)]
-allocs = [("m", "kontakt/mridangam-d")]
+allocs :: UiConfig.Allocations
+allocs = DeriveTest.simple_allocs [("m", "kontakt/mridangam-d")]
 
 e_key :: [Midi.WriteMessage] -> [Midi.Key]
 e_key msgs = [key | Midi.NoteOn key _ <- e_note_on msgs]

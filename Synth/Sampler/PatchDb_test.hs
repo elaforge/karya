@@ -12,6 +12,7 @@ import qualified System.Directory as Directory
 import           System.FilePath ((</>))
 
 import qualified Util.File as File
+import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.PatchDb as PatchDb
 import qualified Synth.Shared.Note as Note
@@ -67,9 +68,11 @@ diff xs ys = ([x | Diff.First x <- diffs], [x | Diff.Second x <- diffs])
 allFilenames :: [(Note.PatchName, FilePath, [FilePath])]
 allFilenames = mapMaybe extract $ Map.toAscList $ Patch._patches PatchDb.db
     where
-    extract (name, Patch.DbPatch patch) = Just
-        ( name
-        , Patch._dir patch
-        , map (Patch._dir patch </>) (Set.toList (Patch._allFilenames patch))
-        )
-    extract (_, Patch.DbDummy _) = Nothing
+    extract (name, patch) = case ImInst.patch_dummy (Patch._karyaPatch patch) of
+        Just _ -> Nothing
+        Nothing -> Just
+            ( name
+            , Patch._dir patch
+            , map (Patch._dir patch </>)
+                (Set.toList (Patch._allFilenames patch))
+            )

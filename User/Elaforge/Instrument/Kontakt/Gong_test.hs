@@ -3,16 +3,16 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module User.Elaforge.Instrument.Kontakt.Gong_test where
-import Util.Test
-import qualified Ui.UiTest as UiTest
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
+import qualified Ui.UiTest as UiTest
 import qualified User.Elaforge.Instrument.Kontakt.Gong as Gong
 import qualified User.Elaforge.Instrument.Kontakt.KontaktTest as KontaktTest
 
-import Global
+import           Global
+import           Util.Test
 
 
 test_resolve = do
@@ -38,4 +38,4 @@ test_nruk = do
         ([(4, o), (4.5, o), (5, o), (5.5, o), (6, "+open+rim")], [])
 
 derive :: Text -> [UiTest.TrackSpec] -> Derive.Result
-derive = KontaktTest.derive [("k", "kontakt/kajar")]
+derive = KontaktTest.derive (DeriveTest.simple_allocs [("k", "kontakt/kajar")])

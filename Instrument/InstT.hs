@@ -42,3 +42,7 @@ parse_qualified text = Qualified pre (Text.drop 1 post)
 
 show_qualified :: Qualified -> Text
 show_qualified (Qualified synth name) = synth <> "/" <> name
+
+-- | This will always resolve to an empty instrument, for Dummy allocations.
+dummy :: Qualified
+dummy = Qualified "dummy" ""

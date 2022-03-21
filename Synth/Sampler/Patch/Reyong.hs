@@ -41,8 +41,8 @@ import           Global
 import           Synth.Types
 
 
-patches :: [Patch.DbPatch]
-patches = map Patch.DbPatch
+patches :: [Patch.Patch]
+patches =
     [ makePatch "reyong-trompong" Nothing $ Scale.Range
         (Scale.range_bottom Legong.trompong_range)
         (Scale.range_top Legong.reyong_range)

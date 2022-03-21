@@ -1496,14 +1496,14 @@ data Backend =
     Midi !Midi.Patch.Patch !Midi.Patch.Config
     | Im !Im.Patch.Patch
     | Sc !Sc.Patch.Patch
-    | Dummy
+    | Dummy !Text
     deriving (Show)
 
 instance Pretty Backend where
     format (Midi patch config) = Pretty.format (patch, config)
     format (Im patch) = Pretty.format patch
     format (Sc patch) = Pretty.format patch
-    format Dummy = "Dummy"
+    format (Dummy msg) = "Dummy \"" <> Pretty.text msg <> "\""
 
 midi_patch :: ResolvedInstrument -> Maybe (Patch.Patch, Patch.Config)
 midi_patch inst = case inst_backend inst of
@@ -1582,24 +1582,17 @@ resolve_instrument :: InstrumentDb -> UiConfig.Allocation
     -> Either Text ResolvedInstrument
 resolve_instrument db alloc = do
     let qualified = UiConfig.alloc_qualified alloc
-    inst <- case (Inst.lookup qualified db, UiConfig.alloc_backend alloc) of
-        (Just inst, _) -> Right inst
-        -- Dummy instruments don't need a db entry.
-        (Nothing, UiConfig.Dummy) ->
-            Right $ Inst.Inst Inst.Dummy (Common.common empty_code)
-        (Nothing, _) -> Left $ "patch not in db: " <> pretty qualified
+    inst <- tryJust ("patch not in db: " <> pretty qualified) $
+        inst_lookup qualified db
     backend <- case (Inst.inst_backend inst, UiConfig.alloc_backend alloc) of
         (Inst.Midi patch, UiConfig.Midi config) ->
             return $ Midi patch (Patch.merge_defaults patch config)
         (Inst.Im patch, UiConfig.Im) -> return $ Im patch
         (Inst.Sc patch, UiConfig.Sc) -> return $ Sc patch
-        (_, UiConfig.Dummy) -> return Dummy
-
-        -- TODO I'd like to do this instead, but unfortunately I use non-Dummy
-        -- dummy instruments like sc-pemade-pasang, for API convenience.  I
-        -- should fix that maybe.
-        -- (Inst.Dummy, UiConfig.Dummy) -> return Dummy
-
+        (Inst.Dummy msg1, UiConfig.Dummy msg2) ->
+            -- If it's a dummy allocation of a dummy patch, then I can use ""
+            -- to use the patch's msg.
+            return $ Dummy $ if msg2 /= "" then msg2 else msg1
         -- 'UiConfig.verify_allocation' should have prevented this.
         (inst_backend, alloc_backend) -> Left $
             "inconsistent backends: " <> pretty (inst_backend, alloc_backend)
@@ -1634,41 +1627,29 @@ resolve_instrument db alloc = do
         Im patch ->
             Common.mapped_attributes $ Im.Patch.patch_attribute_map patch
         Sc _patch -> mempty -- TODO attrs for sc?
-        Dummy -> mempty
+        Dummy {} -> mempty
 
 -- ** lookup qualified name
 
 get_qualified :: M m => InstT.Qualified -> m Inst
 get_qualified qualified =
-    require ("instrument not in db: " <> pretty qualified)
+    require ("patch not in db: " <> pretty qualified)
         =<< lookup_qualified qualified
 
 get_alloc_qualified :: M m => UiConfig.Allocation -> m Inst
-get_alloc_qualified alloc =
-    require ("instrument not in db: "
-            <> pretty (UiConfig.alloc_qualified alloc))
-        =<< lookup_alloc_qualified alloc
-
--- | Lookup an 'InstT.Qualified' in the context of its Allocation.  This is
--- because UiConfig.Dummy instruments can inherit a 'Common.Common' from any
--- backend.
-lookup_alloc_qualified :: M m => UiConfig.Allocation -> m (Maybe Inst)
-lookup_alloc_qualified alloc =
-    fmap inherit <$> lookup_qualified (UiConfig.alloc_qualified alloc)
-    where
-    inherit inst = case UiConfig.alloc_backend alloc of
-        UiConfig.Dummy -> (Inst.backend #= Inst.Dummy) inst
-        _ -> inst
+get_alloc_qualified = get_qualified . UiConfig.alloc_qualified
 
 -- | Look up an instrument that might not be allocated.
 lookup_qualified :: M m => InstT.Qualified -> m (Maybe Inst)
 lookup_qualified qualified = do
     config <- gets state_config
-    return $ state_lookup_qualified config qualified
+    return $ inst_lookup qualified (config_instrument_db config)
 
-state_lookup_qualified :: Config -> InstT.Qualified -> Maybe Inst
-state_lookup_qualified config qualified =
-    Inst.lookup qualified $ config_instrument_db config
+inst_lookup :: InstT.Qualified -> InstrumentDb -> Maybe Inst
+inst_lookup qualified db
+    | qualified == InstT.dummy =
+        Just $ Inst.Inst (Inst.Dummy "") (Common.common empty_code)
+    | otherwise = Inst.lookup qualified db
 
 -- ** misc
 

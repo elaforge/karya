@@ -4,25 +4,30 @@
 
 module User.Elaforge.Instrument.Kontakt.KontaktTest where
 import qualified Util.Log as Log
-import qualified Midi.Midi as Midi
-import qualified Ui.UiTest as UiTest
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Derive.Stream as Stream
 
+import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Types as Midi.Types
+import qualified Ui.UiConfig as UiConfig
+import qualified Ui.UiTest as UiTest
 import qualified User.Elaforge.Instrument.Kontakt as Kontakt
-import Global
+
+import           Global
 
 
-derive :: DeriveTest.SimpleAllocations -> Text -> [UiTest.TrackSpec]
-    -> Derive.Result
+derive :: UiConfig.Allocations -> Text -> [UiTest.TrackSpec] -> Derive.Result
 derive = DeriveTest.derive_tracks_setup . with_synth
 
-with_synth :: DeriveTest.SimpleAllocations -> DeriveTest.Setup
-with_synth allocs = DeriveTest.with_synths_simple allocs [Kontakt.synth]
+with_synth :: UiConfig.Allocations -> DeriveTest.Setup
+with_synth allocs = DeriveTest.with_synths allocs [Kontakt.synth]
 
-perform :: DeriveTest.SimpleAllocations -> Stream.Stream Score.Event
+perform :: UiConfig.Allocations -> Stream.Stream Score.Event
     -> (([Midi.Types.Event], [Midi.WriteMessage]), [Log.Msg])
-perform allocs = DeriveTest.perform_synths_simple allocs [Kontakt.synth]
+perform allocs = DeriveTest.perform_synths allocs [Kontakt.synth]
+
+perform_synth :: UiConfig.Allocations -> Stream.Stream Score.Event
+    -> (([Midi.Types.Event], [Midi.WriteMessage]), [Log.Msg])
+perform_synth allocs = DeriveTest.perform_synths allocs [Kontakt.synth]
