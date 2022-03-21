@@ -14,7 +14,6 @@ import qualified Cmd.Instrument.KendangBali as K
 import qualified Derive.Attrs as Attrs
 import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.Common as Common
-import qualified Perform.Im.Patch as Im.Patch
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Patch.Lib.Drum as Drum
 import qualified Synth.Sampler.Patch.Lib.Util as Util
@@ -36,13 +35,10 @@ patches = pasang : map make [Wadon, Lanang]
 
     -- TODO thru doesn't work for this, because I have to evaluate the call,
     -- and only MidiThru does that.
-    pasang = (Patch.patch "kendang-bali-pasang")
-        { Patch._karyaPatch =
-            ImInst.dummy "requires realize-kendang" $
-            ImInst.code #= K.pasang_code $
-            ImInst.triggered $
-            ImInst.make_patch Im.Patch.patch
-        }
+    pasang = Patch.patchKarya "kendang-bali-pasang" $
+        ImInst.dummy "requires realize-kendang"
+        . (ImInst.code #= K.pasang_code)
+        . ImInst.triggered
 
 -- | @LInst.merge $ KendangBali.allocations ...@
 allocations :: Text -> UiConfig.Allocations
@@ -124,8 +120,9 @@ getFilename tuning = \art dyn var ->
         Wadon -> legongWadonSamples
         Lanang -> legongLanangSamples
 
-makeSampleLists :: IO ()
-makeSampleLists = do
+-- use from ghci
+_makeSampleLists :: IO ()
+_makeSampleLists = do
     Drum.makeFileList (untxt patchName </> "legong/wadon")
         (map show (Util.enumAll :: [Articulation])) "legongWadonSamples"
     Drum.makeFileList (untxt patchName </> "legong/lanang")

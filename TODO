@@ -6963,7 +6963,7 @@ Derive:
       - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
     kotekan: gangsa:
       cleanup:
-        - sampler Patch.patch include karyaPatch modifier
+        * sampler Patch.patch include karyaPatch modifier
         * rm range from LAlloc
         - better error for out of range in Kontakt/Wayang_test.hs?
       * error "note with dummy insrument" is confusing

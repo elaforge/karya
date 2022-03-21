@@ -63,13 +63,9 @@ patches = pasang Pemade : pasang Kantilan
         , (Kantilan, Umbang), (Kantilan, Isep)
         ]
     where
-    pasang inst = (Patch.patch name)
-        { Patch._karyaPatch =
-            ImInst.dummy "must be realized via `unison`, `kempyung`, `k`, &co" $
-            setRange inst $
-            ImInst.make_patch Im.Patch.patch
-        }
-        where name = "wayang-" <> Util.showtLower inst
+    pasang inst = Patch.patchKarya ("wayang-" <> Util.showtLower inst) $
+        ImInst.dummy "must be realized via `unison`, `kempyung`, `k`, &co"
+        . setRange inst
     make (inst, tuning) =
         (Patch.patch $ Text.intercalate "-"
             ["wayang", Util.showtLower inst, Util.showtLower tuning])

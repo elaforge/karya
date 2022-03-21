@@ -73,6 +73,17 @@ patch name = Patch
     , _allFilenames = mempty
     }
 
+patchKarya :: Note.PatchName -> (ImInst.Patch -> ImInst.Patch) -> Patch
+patchKarya name setKarya = Patch
+    { _name = name
+    , _dir = untxt name
+    , _convert = const $ Except.throwError "not implemented"
+    , _preprocess = id
+    , _effect = Nothing
+    , _karyaPatch = setKarya $ ImInst.make_patch Im.Patch.patch
+    , _allFilenames = mempty
+    }
+
 -- | Make a simple patch of a single sample.
 simple :: Note.PatchName -> Sample.SamplePath -> Pitch.NoteNumber -> Patch
 simple name filename sampleNn = (patch name)

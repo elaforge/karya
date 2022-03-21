@@ -4,7 +4,7 @@
 args=(
     --verbose -r --exclude=.DS_Store
     --copy-dirlinks --delete --delete-excluded
-    build/{doc,haddock,hscolour}
+    build/{doc,haddock}
     ofb.net:public_html/karya
 )
 set -eux
