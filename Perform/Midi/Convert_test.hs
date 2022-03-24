@@ -78,7 +78,8 @@ test_convert_pitch = do
     equal (run [event [(0, 1)]]) [Left (0, [(0, NN.d4)])]
     equal (run [event [(0, 100)]])
         [ Left (0, [])
-        , Right "convert pitch: 0s: 232nn out of range {%t-dia: 100}"
+        , Right "convert pitch: 0s: twelve:4c with transposition:\
+            \ {%t-dia: 100}: pitch 232nn out of range {%t-dia: 100}"
         ]
     equal (run [event [(0, 0), (2, 2)]])
         [Left (0, [(0, NN.c4), (1, NN.d4), (2, NN.e4)])]

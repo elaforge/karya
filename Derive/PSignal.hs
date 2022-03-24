@@ -11,6 +11,7 @@ module Derive.PSignal (
     , to_pairs, to_segments
     , constant
     , prepend
+    , ErrorText
     , to_nn
     , unfoldr
 
@@ -123,14 +124,16 @@ prepend :: PSignal -> PSignal -> PSignal
 prepend sig1 sig2 = PSignal $
     Segment.prepend Nothing interpolate (_signal sig1) (_signal sig2)
 
+type ErrorText = Text
+
 -- | Flatten a signal to a non-transposeable Signal.NoteNumber.
 -- TODO I could probably avoid the intermediate list
-to_nn :: PSignal -> (Signal.NoteNumber, [(RealTime, PitchError)])
+to_nn :: PSignal -> (Signal.NoteNumber, [(RealTime, ErrorText)])
 to_nn = extract . Either.partitionEithers . map eval . to_pairs
     where
     extract (errs, nns) = (Signal.from_pairs nns, Seq.unique_sort errs)
     eval (x, pitch) = case pitch_nn (coerce pitch) of
-        Left err -> Left (x, err)
+        Left err -> Left (x, DeriveT.detailed_error pitch err)
         Right (Pitch.NoteNumber nn) -> Right (x, nn)
 
 unfoldr :: (state -> Maybe ((RealTime, Pitch), state)) -> state -> PSignal

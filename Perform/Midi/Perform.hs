@@ -589,7 +589,7 @@ perform_note :: RealTime -> Maybe RealTime -- ^ next note with the same addr
 perform_note prev_note_off next_note_on event addr =
     case event_midi_key event of
         Nothing ->
-            ( [LEvent.Log $ event_warning event "no pitch signal"]
+            ( [LEvent.Log $ event_warning event "event has no valid pitches"]
             , prev_note_off
             )
         Just midi_key -> (merge_events control_msgs note_msgs, note_off)

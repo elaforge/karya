@@ -193,7 +193,7 @@ note_to_call per_octave max_semi scale semis_to_nn semis_to_note =
         where
         semis = floor $ transposition config
         err = DeriveT.OutOfRangeError $ DeriveT.out_of_range
-            { DeriveT.oor_semi = Just (fromIntegral semis)
+            { DeriveT.oor_degree = Just (fromIntegral semis)
             , DeriveT.oor_valid = (0,) <$> max_semi
             }
     transposition config =

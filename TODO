@@ -6968,7 +6968,7 @@ Derive:
       cleanup:
         * sampler Patch.patch include karyaPatch modifier
         * rm range from LAlloc
-        - better error for out of range in Kontakt/Wayang_test.hs?
+        * better error for out of range in Kontakt/Wayang_test.hs?
       * error "note with dummy insrument" is confusing
         . note with dummy instrument: (0s, .17s) pemade 5i
           {s "untitled/b1 untitled/b1.t2 0-.5"}
@@ -7003,6 +7003,19 @@ Derive:
           backend?
         . Wait, I must have Inst.Dummy because I need a place to put cmds!
       - kotekan on gangsa didn't say when notes were out of range, just silence
+        . 4i, 3u - 3u 3a doesn't play
+          pemade inst-bottom: (pitch 4 1), but isn't that 4o?
+          I guess the midi instrument goes down to 4i, and I don't use
+          inst-bottom at all for checks.
+      * When very low has a crummy error:
+        . convert pitch: -100000000000s: (semi: -3) out of range (0, 29)
+          no pitch signal
+        . I could pretty print >=RealTime.large as "(forever)" or something.
+        . It's from Pretty OutOfRange.
+        . convert pitch: -100000000000s: pitch scale degree -3 out of range
+          0--29
+        . Should say which scale!  Who can annotate that?
+        . Should say it symbolically, not scale degree number.
       - >gangsa instrument, which is pemade + kantilan
         . It can be a alias of `multiple`:
           gangsa = multiple "(inst=pemade) "(%t-oct=1 | inst=kantilan)

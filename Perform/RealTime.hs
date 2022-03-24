@@ -107,7 +107,12 @@ instance ShowVal.ShowVal RealTime where
     show_val = (`Text.snoc` suffix) . Num.showFloat 3 . to_seconds
 
 instance Pretty RealTime where
-    pretty t = Num.showFloatP False 2 (to_seconds t) <> Text.singleton suffix
+    pretty t
+        -- Display 'large' specially, to avoid confusing giant numbers.
+        | t Prelude.>= large = "forever"
+        | t Prelude.<= -large = "-forever"
+        | otherwise =
+            Num.showFloatP False 2 (to_seconds t) <> Text.singleton suffix
 
 div :: RealTime -> Double -> RealTime
 div a b = seconds (to_seconds a / b)
@@ -182,7 +187,10 @@ eta = 0.0000000000004
 -- | RealTimes are imprecise, so compare them with this instead of (==).
 (==) :: RealTime -> RealTime -> Bool
 (==) = ApproxEq.eq (to_seconds eta)
+infix 4 ==
 
 (>), (<=) :: RealTime -> RealTime -> Bool
 a > b = a - eta Prelude.> b
 a <= b = not (a > b)
+infix 4 >
+infix 4 <=

@@ -151,8 +151,9 @@ kebyar_allocations dev_ = make_config $ concat
     -- sangsih, but since I don't have that many sample sets I have
     -- a mini-ensemble with only one pair of each gangsa.
     pasang name =
-        [ (ScoreT.Instrument name, sc_qualified (name <> "-pasang"), False,
-            polos_sangsih name, Nothing)
+        [ ( ScoreT.Instrument name, sc_qualified (name <> "-pasang")
+          , False, polos_sangsih name, Nothing
+          )
         , umbang_patch (ScoreT.Instrument $ name <> "-p") name
         , isep_patch (ScoreT.Instrument $ name <> "-s") name
         ]

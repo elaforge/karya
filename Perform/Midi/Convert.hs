@@ -204,7 +204,7 @@ convert_pitch env controls note_end psig = do
             PSignal.apply_environ env psig
     unless (null nn_errs) $ Log.warn $ "convert pitch: "
         <> Text.intercalate ", " (Texts.ellipsisList 4
-            [pretty x <> ": " <> pretty err | (x, err) <- nn_errs])
+            [pretty x <> ": " <> err | (x, err) <- nn_errs])
     return sig
     where
     -- TODO should I also trim the pitch signal to avoid doing extra work?

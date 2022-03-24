@@ -371,7 +371,7 @@ test_no_pitch = do
             { Types.event_pitch = MSignal.constant 0 }
     let (midi, logs) = perform config1 [event]
     equal (map Midi.wmsg_msg midi) []
-    equal logs ["no pitch signal"]
+    equal logs ["event has no valid pitches"]
 
 -- * perform_note
 

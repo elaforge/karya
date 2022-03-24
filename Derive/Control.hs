@@ -437,7 +437,7 @@ get_block_track block_id track_id = do
 -- | Reduce a 'PSignal.PSignal' to raw note numbers, taking the current
 -- transposition environment into account.
 psignal_to_nn :: PSignal.PSignal
-    -> Derive.Deriver (Signal.NoteNumber, [(RealTime, PSignal.PitchError)])
+    -> Derive.Deriver (Signal.NoteNumber, [(RealTime, PSignal.ErrorText)])
 psignal_to_nn sig = do
     controls <- Internal.get_dynamic Derive.state_controls
     return $ PSignal.to_nn $ PSignal.apply_controls controls sig

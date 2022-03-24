@@ -448,7 +448,7 @@ initial_note :: Event -> Maybe Pitch.Note
 initial_note event = note_at (event_start event) event
 
 {-# SCC nn_signal #-}
-nn_signal :: Event -> (Signal.NoteNumber, [(RealTime, PSignal.PitchError)])
+nn_signal :: Event -> (Signal.NoteNumber, [(RealTime, Text)])
 nn_signal event =
     PSignal.to_nn $ PSignal.apply_controls (event_controls event) $
         PSignal.apply_environ (event_environ event) $

@@ -242,17 +242,29 @@ instance Pretty (RawPitch a) where
 instance ShowVal.ShowVal (RawPitch a) where
     show_val pitch = "<pitch: " <> pretty pitch <> ">"
 
+-- | Annotate a PitchError with additional info.  TODO I should probably
+-- accumulate info all the way up to get a full "stack trace" of what happened
+-- to a pitch (e.g. interpolation), which maybe means abandon PitchError and
+-- just use Text, or go ever further with structure?  Meanwhile, this seems
+-- to do ok practically speaking.
+detailed_error :: RawPitch a -> PitchError -> Text
+detailed_error pitch err = mconcat
+    [ pretty (pscale_scale_id scale)
+    , ":"
+    , either pretty pretty $ pitch_eval_note pitch mempty
+    -- TODO the cmap includes non-transposing
+    , if Map.null cmap then "" else " with transposition: " <> pretty cmap
+    , ": ", pretty err
+    ]
+    where
+    PitchConfig _env cmap_all = pitch_config pitch
+    cmap = Map.intersection cmap_all
+        (Map.fromSet (const ()) (pscale_transposers scale))
+    scale = pitch_scale pitch
+
 -- | Things that can go wrong evaluating a pitch.
 data PitchError =
     UnparseableNote !Pitch.Note
-    -- | Note out of the scale's range.  The values are transpositions from
-    -- the environment, in case it was out of range because of a transposition.
-    --
-    -- Some scales have a restricted range, in which case they should throw
-    -- 'out_of_range', which 'pitch_nn' and 'pitch_note' will annotate with the
-    -- transposition signals.  Other scales have unlimited range, in which case
-    -- they're limited by the backend.  In this case 'pitch_nn' checks 0--127,
-    -- which happens to be MIDI's limitation.
     | OutOfRangeError !OutOfRange
     -- | Input note doesn't map to a scale note.
     | InvalidInput
@@ -267,9 +279,18 @@ data PitchError =
     | PitchError !Text
     deriving (Eq, Ord, Show)
 
+{- | Note out of the scale's range.  The values are transpositions from
+    the environment, in case it was out of range because of a transposition.
+
+    Some scales have a restricted range, in which case they should throw
+    'out_of_range', which 'pitch_nn' and 'pitch_note' will annotate with the
+    transposition signals.  Other scales have unlimited range, in which case
+    they're limited by the backend.  In this case 'pitch_nn' checks 0--127,
+    which happens to be MIDI's limitation.
+-}
 data OutOfRange = OutOfRange {
     oor_nn :: !(Maybe Pitch.NoteNumber)
-    , oor_semi :: !(Maybe Pitch.FSemi)
+    , oor_degree :: !(Maybe Pitch.FSemi)
     , oor_valid :: !(Maybe (Int, Int))
     , oor_transposers :: !ScoreT.ControlValMap
     } deriving (Eq, Ord, Show)
@@ -284,7 +305,7 @@ modify_out_of_range _ err = err
 out_of_range_error :: Real a => a -> (Int, Int) -> PitchError
 out_of_range_error semi valid = OutOfRangeError $ OutOfRange
     { oor_nn = Nothing
-    , oor_semi = Just (realToFrac semi)
+    , oor_degree = Just (realToFrac semi)
     , oor_valid = Just valid
     , oor_transposers = mempty
     }
@@ -305,10 +326,11 @@ instance Pretty PitchError where
 instance Pretty OutOfRange where
     pretty (OutOfRange nn semi valid transposers) =
         Text.unwords $ filter (not . Text.null)
-            [ maybe "" pretty nn
-            , maybe "" (\semi -> "(semi: " <> pretty semi <> ")") semi
+            [ "pitch"
+            , maybe "" pretty nn
+            , maybe "" (\n -> "scale degree " <> pretty n) semi
             , "out of range"
-            , maybe "" pretty valid
+            , maybe "" (\(a, b) -> pretty a <> "--" <> pretty b) valid
             , if transposers == mempty then "" else pretty transposers
             ]
 
