@@ -182,7 +182,6 @@ private:
     protected:
         void draw() override;
     private:
-        void update_suggested_width(const std::vector<TextBox> &boxes);
         void update_size();
         void draw_event_boxes(
             const Event *events, const int *ranks, int count,

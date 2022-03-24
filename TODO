@@ -5449,8 +5449,11 @@ fltk:
     . In fact, I could replace free zoom with zoom by timestep.
     . Maybe once I do that, I can try 2D tiling again, because I won't have to
       always have blocks be full height.
-  * shrink tracks:
+  shrink tracks: suggested widths:
     . Shrink tracks to fit text width
+    * doesn't expand properly
+      . If it's a long word, then a short word, it doesn't go to show right
+        side: "blaooeu h"
     * implement with Block.track_suggested_width
     * It's not right when text is wrapped.
       . Because boxes are post-wrap, when I really want pre-wrap.

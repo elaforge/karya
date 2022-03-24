@@ -545,6 +545,92 @@ EventTrack::Body::update_size()
     this->resize(x(), y(), w(), zoom.to_pixels(time_end()) + 4);
 }
 
+// compute_suggested_width //
+
+struct Line {
+    IRect rect;
+    EventTrack::Align align;
+    Line(IRect rect, EventTrack::Align align) : rect(rect), align(align)
+    {}
+    static bool lt(const Line &a, const Line &b) {
+        return a.rect.y < b.rect.y;
+    }
+};
+
+static std::ostream &
+operator<<(std::ostream &os, const Line &a)
+{
+    return os << "Line('" << a.rect << ", " << a.align << ")";
+}
+
+// Flatten TextBoxes and sort by y.
+static vector<Line>
+order_by_line(const vector<EventTrack::TextBox> &boxes)
+{
+    int total = 0;
+    for (const EventTrack::TextBox &box : boxes) {
+        total += box.lines.size();
+    }
+    vector<Line> lines;
+    lines.reserve(total);
+    for (const EventTrack::TextBox &box : boxes) {
+        for (const auto &line : box.lines) {
+            lines.push_back(Line(line.second, box.align));
+        }
+    }
+    std::sort(lines.begin(), lines.end(), Line::lt);
+    return lines;
+}
+
+
+// Figure out the minimum width needed for all of the text boxes to fit.
+// This is made tricky because they wrap, and because there are Left and
+// Right ones.
+static int
+compute_suggested_width(const vector<Line> &lines)
+{
+    const int gap = 5;
+    // Right text doesn't line up flush with the right side of the track.
+    const int gap_r = 3;
+    int width = minimum_suggested_width;
+
+    // For each left, find overlapping rights and expand.  But I might expand
+    // except it would then unwrap.  So I must keep doing it until it stops
+    // expanding.
+    //
+    // The slick way would be to somehow solve this with just the boxes I have
+    // now.  The brute force way would be to just keep rerunning and
+    // rewrapping.  The laziest way is to just rely on the user manually
+    // hitting the expand command until satisfied, so I'll do that for now.
+    IRect left, right;
+    for (int i = 0; i < lines.size(); i++) {
+        const Line &line = lines[i];
+        // DEBUG("line: " << line);
+        int w = 0;
+        if (line.align == EventTrack::Left) {
+            left = line.rect;
+            if (left.y < right.b()) {
+                w = left.w + gap + right.w + gap_r;
+                // DEBUG("left overlap: " << w);
+            } else
+                w = left.w;
+        } else {
+            right = line.rect;
+            if (right.y < left.b()) {
+                w = left.w + gap + right.w + gap_r;
+                // DEBUG("right overlap: " << w);
+            } else
+                w = left.w;
+        }
+        width = std::max(width, w);
+        // DEBUG("width: " << width);
+    }
+
+    return width;
+}
+
+
+// draw //
 
 // Drawing order:
 // EventTrack: bg -> events -> wave -> signal -> ruler -> text -> trigger -> sel
@@ -583,7 +669,15 @@ EventTrack::Body::draw()
             events[i], wrapped, x(), triggers[i], wrap_width, align,
             start, end);
     }
-    update_suggested_width(boxes);
+    {
+        // TODO: could draw_upper_layer be simplified by using 'lines'?
+        const vector<Line> lines(order_by_line(boxes));
+        int w = compute_suggested_width(lines);
+        if (w != this->suggested_width) {
+            this->suggested_width = w;
+            MsgCollector::get()->track(UiMsg::msg_track_width, this, tracknum);
+        }
+    }
     util::timing(2, "EventTrack::compute_text_boxes");
 
 
@@ -616,69 +710,6 @@ EventTrack::Body::draw()
         free(events);
         free(ranks);
         util::timing(2, "EventTrack::free_text");
-    }
-}
-
-
-// Figure out the minimum width needed for all of the text boxes to fit.
-// This is made tricky because they wrap, and because there are Left and
-// Right ones.
-static int
-compute_suggested_width(const vector<EventTrack::TextBox> &boxes)
-{
-    const int gap = 5;
-    // Right text doesn't line up flush with the right side of the track.
-    const int gap_r = 3;
-    int width = minimum_suggested_width;
-
-    int right_w = 0;
-    int left_w = 0;
-    int left_b = 0;
-    int right_b = 0;
-
-    // This is conservative since it will do all Left wrapped words before
-    // doing the right ones.  The effect should be that it considers them all
-    // to overlap, so it'll take the longest ones.  If I wanted to be more
-    // aggressive, I could try to iterate the lines in increasing y.
-    for (const EventTrack::TextBox &box : boxes) {
-        for (const auto &line : box.lines) {
-            // DEBUG("line: " << line);
-            if (box.align == EventTrack::Left) {
-                left_w = line.second.w;
-                left_b = line.second.b();
-                if (right_b > line.second.y) {
-                    // DEBUG("l over: " << (left_w + gap + right_w));
-                    width = std::max(width, left_w + gap + right_w);
-                } else {
-                    // DEBUG("l: " << left_w);
-                    width = std::max(width, left_w + gap);
-                }
-            } else {
-                right_w = line.second.w + gap_r;
-                right_b = line.second.b();
-                if (left_b > line.second.y) {
-                    // DEBUG("r over: " << (left_w + gap + right_w));
-                    width = std::max(width, left_w + gap + right_w);
-                } else {
-                    // DEBUG("r: " << left_w);
-                    width = std::max(width, right_w + gap);
-                }
-            }
-            // DEBUG("BOX: " << width);
-        };
-    }
-    // DEBUG("--- final: " << width);
-    return width;
-}
-
-
-void
-EventTrack::Body::update_suggested_width(const vector<TextBox> &boxes)
-{
-    int w = compute_suggested_width(boxes);
-    if (w != this->suggested_width) {
-        this->suggested_width = w;
-        MsgCollector::get()->track(UiMsg::msg_track_width, this, tracknum);
     }
 }
 
