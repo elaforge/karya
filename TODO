@@ -6929,6 +6929,7 @@ Derive:
         is the "track call" thing I was thinking about a long time ago.
     - Add an input mode for bols.
   bali:
+    - im: unison thru for wayang-pasang, rambat-pasang
     infer gender damping:
       . Also don't damp repeated pitches.
         . Though with rambat this might have the effect of always choosing
@@ -7153,7 +7154,7 @@ Derive:
       - divide infer-damp into infer-hands, and then use hand-damp.
         That way I can put an integrate after infer-hands, as
         a visualization if nothing else.
-      - Damp level is way too high, I have to put %damp=.2 everywhere.
+      * Damp level is way too high, I have to put %damp=.2 everywhere.
       - remove kilit, isn't it just norot now?
       - for infer-damp, also infer damp level
         . Damp gets louder when notes are closer, or faster.

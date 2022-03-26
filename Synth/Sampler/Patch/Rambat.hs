@@ -58,8 +58,10 @@ import           Synth.Types
 -- Like Wayang, but support short notes.
 
 patches :: [Patch.Patch]
-patches = map make [Umbang, Isep]
+patches = pasang : map make [Umbang, Isep]
     where
+    pasang = Patch.patchKarya "rambat" $
+        ImInst.dummy Bali.pasang_msg . setRange
     make tuning =
         (Patch.patch $ Text.intercalate "-" ["rambat", Util.showtLower tuning])
         { Patch._dir = dir

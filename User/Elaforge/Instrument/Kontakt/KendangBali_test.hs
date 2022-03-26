@@ -25,23 +25,26 @@ test_kendang = do
             derive [(">" <> inst <> inst_title, mknotes notes)]
         e_instrument e = (DeriveTest.e_instrument e, DeriveTest.e_attributes e)
         mknotes ns = [(t, 0, n) | (t, n) <- zip (Seq.range_ 0 1) ns]
-    equal (run e_instrument "k" ["PL", "P", "o"])
-        ([("k", "+plak"), ("k", "+pak"), ("k", "+tut")], [])
-    equal (run e_instrument "pasang"
+    equal (run e_instrument "kw" ["PL", "P", "o"])
+        ([("kw", "+plak"), ("kw", "+pak"), ("kw", "+tut")], [])
+    equal (run e_instrument "k"
             ["PL", "k", "P", "t", "T", "u", "U"])
-        ([("l", "+plak"), ("w", "+pak"), ("l", "+pak"),
-            ("w", "+pang"), ("l", "+pang"), ("w", "+tut"), ("l", "+tut")], [])
+        ( [ ("kl", "+plak"), ("kw", "+pak"), ("kl", "+pak"),
+            ("kw", "+pang"), ("kl", "+pang"), ("kw", "+tut"), ("kl", "+tut")
+          ]
+        , []
+        )
 
     -- Soft attributes.
     let e_dyn e = (DeriveTest.e_attributes e, Score.initial_dynamic e)
-    equal (run e_dyn "k" [".", "..", "-", "+"])
+    equal (run e_dyn "kw" [".", "..", "-", "+"])
         ([("+ka+soft", 0.4), ("+ka", 1), ("+de+soft", 0.4), ("+de", 1)], [])
 
     -- Both strokes.
-    let run_both stroke = run e_instrument "pasang" [stroke]
-    equal (run_both "PLPL") ([("w", "+plak"), ("l", "+plak")], [])
-    equal (run_both "+Ø") ([("w", "+de"), ("l", "+left+tut")], [])
-    equal (run_both "+ø") ([("w", "+de"), ("l", "+left+soft+tut")], [])
+    let run_both stroke = run e_instrument "k" [stroke]
+    equal (run_both "PLPL") ([("kw", "+plak"), ("kl", "+plak")], [])
+    equal (run_both "+Ø") ([("kw", "+de"), ("kl", "+left+tut")], [])
+    equal (run_both "+ø") ([("kw", "+de"), ("kl", "+left+soft+tut")], [])
 
 test_pasang_calls :: Test
 test_pasang_calls = do
@@ -57,14 +60,8 @@ test_resolve = do
     equal KendangBali.resolve_errors []
 
 derive :: [UiTest.TrackSpec] -> Derive.Result
-derive = KontaktTest.derive (DeriveTest.simple_allocs allocs) ""
-    where
-    allocs =
-        [ ("k", "kontakt/kendang-bali")
-        , ("pasang", "kontakt/kendang-bali-pasang")
-        , ("w", "kontakt/kendang-bali")
-        , ("l", "kontakt/kendang-bali")
-        ]
+derive = KontaktTest.derive allocs ""
+    where allocs = KendangBali.allocations "k" "test"
 
 inst_title :: Text
-inst_title = " | wadon = w | lanang = l"
+inst_title = " | wadon = kw | lanang = kl"

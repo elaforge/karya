@@ -26,6 +26,7 @@ import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
 
+import qualified Cmd.Instrument.Bali as Bali
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Attrs as Attrs
 import qualified Derive.DeriveT as DeriveT
@@ -64,8 +65,7 @@ patches = pasang Pemade : pasang Kantilan
         ]
     where
     pasang inst = Patch.patchKarya ("wayang-" <> Util.showtLower inst) $
-        ImInst.dummy "must be realized via `unison`, `kempyung`, `k`, &co"
-        . setRange inst
+        ImInst.dummy Bali.pasang_msg . setRange inst
     make (inst, tuning) =
         (Patch.patch $ Text.intercalate "-"
             ["wayang", Util.showtLower inst, Util.showtLower tuning])

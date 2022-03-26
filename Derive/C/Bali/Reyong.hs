@@ -378,7 +378,8 @@ c_kotekan_regular maybe_kernel maybe_dir =
     \ The sangsih is inferred. This can emit notes at both the beginning and\
     \ end of the event, so use `cancel-kotekan` to cancel the extras.")
     $ Sig.call ((,,,,)
-    <$> maybe (Sig.required "kernel" kernel_doc) pure maybe_kernel
+    <$> maybe (Sig.defaulted_env "kernel" Sig.Both "k-12-1-21" kernel_doc) pure
+        maybe_kernel
     <*> maybe
         (Sig.defaulted "dir" Call.Up
             "Inferred part is above or below the explicit one.")

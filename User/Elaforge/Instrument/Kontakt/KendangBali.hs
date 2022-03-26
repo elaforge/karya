@@ -33,7 +33,8 @@ patches =
         patch "kendang-bali"
     , MidiInst.code #= tunggal_code $ CUtil.drum_patch old_tunggal_strokes $
         patch "kendang-bali-old"
-    , MidiInst.code #= K.pasang_code $ MidiInst.triggered $
+    , MidiInst.dummy "requires realize-kendang" $
+        MidiInst.code #= K.pasang_code $ MidiInst.triggered $
         patch "kendang-bali-pasang"
     ]
     where

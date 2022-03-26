@@ -688,7 +688,8 @@ c_kotekan_regular invert maybe_kernel default_style =
     ("Render a kotekan pattern from a kernel representing the polos.\
     \ The sangsih is inferred.\n" <> kotekan_doc)
     $ Sig.call ((,,,,,,)
-    <$> maybe (Sig.required_env "kernel" Sig.Both kernel_doc) pure maybe_kernel
+    <$> maybe (Sig.defaulted_env "kernel" Sig.Both "k-12-1-21" kernel_doc) pure
+        maybe_kernel
     <*> style_arg default_style
     <*> Sig.defaulted_env "sangsih" Sig.Both Nothing
         "Whether sangsih is above or below polos. If not given, sangsih will\

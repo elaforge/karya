@@ -51,8 +51,8 @@ patches = map add_doc $
     where
     pasang wrap_octaves range name =
         [ tunggal wrap_octaves range name
-        , MidiInst.dummy "must be realized via `unison`, `kempyung`, `k`, &co" $
-            MidiInst.code #= code $ ranged_patch range (name <> "-pasang")
+        , MidiInst.dummy Bali.pasang_msg $ MidiInst.code #= code $
+            ranged_patch range (name <> "-pasang")
         ]
         where
         wrap = if wrap_octaves then Just range else Nothing

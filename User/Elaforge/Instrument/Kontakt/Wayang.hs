@@ -67,8 +67,7 @@ patches = map (MidiInst.code #= code <> with_weak)
         patch "wayang-kantilan"
     ]
     where
-    pasang =
-        MidiInst.dummy "must be realized via `unison`, `kempyung`, `k`, &co"
+    pasang = MidiInst.dummy Bali.pasang_msg
         . (MidiInst.code #= Bali.pasang_code <> with_weak)
     code = MidiInst.postproc (Gangsa.mute_postproc (Attrs.mute <> Attrs.loose))
         <> MidiInst.null_call DUtil.constant_pitch

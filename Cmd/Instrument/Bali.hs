@@ -33,6 +33,9 @@ import Global
 import Types
 
 
+pasang_msg :: Text
+pasang_msg = "must be realized via `unison`, `kempyung`, `k`, &co"
+
 -- | Emit events for both polos and sangsih.
 pasang_code :: MidiInst.Code
 pasang_code = MidiInst.thru pasang_thru

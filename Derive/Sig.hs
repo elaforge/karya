@@ -254,7 +254,6 @@ required_env name env_default doc = parser arg_doc $ \state1 ->
         , arg_doc = doc
         }
 
-
 -- | The argument is not required to be present, but if it is, it has to have
 -- either the right type or be VNotGiven.
 defaulted :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
