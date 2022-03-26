@@ -718,7 +718,7 @@ hand_damp damped_insts dur_at =
         | Score.event_instrument event `Set.notMember` damped_insts = [event]
     infer_damp (event, Just next) | too_close event next = [event]
     infer_damp (event, _) = damp event
-    damp event = [event, make_damp 0 1 event]
+    damp event = [event, make_damp 0 event]
     too_close event next =
         (Score.event_start next - Score.event_end event)
             <= dur_at (Score.event_end event)
@@ -775,37 +775,35 @@ infer_damp_voices damped_insts dur_at early_at events = do
     infer1 ((inst, _voice), events)
         | inst `Set.notMember` damped_insts = (events, [])
         | otherwise = (,skipped) $ Seq.merge_on Score.event_start events $ do
-            (Just damp, (event, next)) <- zip damps (Seq.zip_next events)
+            (True, (event, next)) <- zip damps (Seq.zip_next events)
             -- Only apply early_at if this damp would be simultaneous with the
             -- next one.
             let early = case next of
                     Just n | Score.event_end event >= Score.event_start n ->
                         early_at (Score.event_start event)
                     _ -> 0
-            return $ make_damp early damp event
+            return $ make_damp early event
         where
         (damps, skipped) = infer_damp dur_at events
 
 -- | Create a damped note at the end of the given note.
-make_damp :: RealTime -> Signal.Y -> Score.Event -> Score.Event
-make_damp early damp_dyn event =
+make_damp :: RealTime -> Score.Event -> Score.Event
+make_damp early event =
     Score.add_attributes Attrs.mute $ Score.set_dynamic damp $ event
         { Score.event_start = Score.event_end event - early
         , Score.event_duration = 0
         }
     where
-    damp = damp_dyn * maybe 1 ScoreT.typed_val
+    damp = maybe 0.35 ScoreT.typed_val
         (Score.control_at (Score.event_end event) damp_control event)
 
 infer_damp :: (RealTime -> RealTime) -> [Score.Event]
-    -> ([Maybe Signal.Y], [Score.Event])
-    -- ^ dump level for each event, or Nothing if undamped
+    -> ([Bool], [Score.Event])
+    -- ^ (True if corresponding input event should be damped, skipped)
 infer_damp dur_at =
     first (snd . List.mapAccumL infer (0, 0) . Seq.zip_nexts) . assign_hands
     where
-    -- TODO also infer damp level
-    infer prev ((hand, event), nexts) =
-        (hands_state, if damp then Just 1 else Nothing)
+    infer prev ((hand, event), nexts) = (hands_state, damp)
         where
         damp = Score.has_attribute damped event
             || (could_damp event

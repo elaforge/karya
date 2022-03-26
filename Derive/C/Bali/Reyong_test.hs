@@ -306,17 +306,17 @@ e_damp_dyn e
     | otherwise = Nothing
 
 test_infer_damp = do
-    let f dur = map (fromMaybe 0) . fst . Reyong.infer_damp (const dur)
-            . mkevents
+    let f dur = map to_char . fst . Reyong.infer_damp (const dur) . mkevents
+        to_char b = if b then '1' else '0'
     -- Damp with the other hand.
-    equal (f 1 [(0, "4c"), (1, "4d"), (2, "4e")]) [1, 1, 1]
+    equal (f 1 [(0, "4c"), (1, "4d"), (2, "4e")]) "111"
     -- 4e can't be damped because both hands are busy.
-    equal (f 1 [(0, "4d"), (1, "4e"), (2, "4f"), (2, "4d")]) [1, 0, 1, 1]
+    equal (f 1 [(0, "4d"), (1, "4e"), (2, "4f"), (2, "4d")]) "1011"
     -- First 4d can't damp because the same hand is busy, and the other
     -- hand is blocked by the same hand.
-    equal (f 1.1 [(0, "4c"), (1, "4d"), (3, "4d"), (4, "4c")]) [1, 0, 1, 1]
+    equal (f 1.1 [(0, "4c"), (1, "4d"), (3, "4d"), (4, "4c")]) "1011"
     -- But give a bit more time and all is possible.
-    equal (f 0.75 [(0, "4c"), (1, "4d"), (3, "4d"), (4, "4c")]) [1, 1, 1, 1]
+    equal (f 0.75 [(0, "4c"), (1, "4d"), (3, "4d"), (4, "4c")]) "1111"
 
 test_assign_hands = do
     let f = map fst . fst . Reyong.assign_hands . mkevents
