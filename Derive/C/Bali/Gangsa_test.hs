@@ -243,6 +243,9 @@ test_kotekan_regular = do
     -- inverted
     equal (run True [(2, 8, "k^ k-12-1-21 -- 4e")])
         ([(polos, "3-32-3-23"), (sangsih, "-1-21-12-")], [])
+    -- if kotekan ends on 2, then 2 is the destination pitch
+    equal (run True [(2, 8, "k k-21-2-12 -- 4e")])
+        ([(polos, "3-32-3-23"), (sangsih, "-1-21-12-")], [])
 
 test_kotekan_explicit :: Test
 test_kotekan_explicit = do

@@ -639,6 +639,10 @@ timestep_duration args step = meter_duration (Args.start args) step 1
 -- | This is for arguments which can be high or low.
 data UpDown = Up | Down deriving (Show, Enum, Bounded, Eq, Ord)
 
+invert :: UpDown -> UpDown
+invert Up = Down
+invert Down = Up
+
 instance Pretty UpDown where pretty = showt
 instance Typecheck.Typecheck UpDown
 instance ShowVal.ShowVal UpDown where

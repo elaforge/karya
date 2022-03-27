@@ -4,6 +4,7 @@
 
 -- | Calls for reyong and trompong techniques.
 --
+-- >   1        2     3        4
 -- >  /-------\/----\/-------\/----\--\
 -- > 4e 4u 4a 5i 5o 5e 5u 5a 6i 6o 6e 6u
 -- > 3  5  6  1  2  3  5  6  1  2  3  5
@@ -83,12 +84,13 @@ library = mconcat
         , ("nt", c_norot Nothing)
         , ("nt>", c_norot (Just True))
         , ("nt-", c_norot (Just False))
-        , ("k//", c_kotekan_regular (Just "-12-12-1") (Just Call.Down))
-        , ("k\\\\", c_kotekan_regular (Just "-21-21-21") (Just Call.Up))
+        , ("k//", c_kotekan_regular False (Just "-12-12-1") (Just Call.Down))
+        , ("k\\\\", c_kotekan_regular False (Just "-21-21-21") (Just Call.Up))
         , ("k_\\", realize_pattern $ reyong_pattern "-44-43-4" "-11-1-21")
         , ("k//\\\\", realize_pattern $
             reyong_pattern "-4-34-3-43-434-3" "-12-12-21-21-12-")
-        , ("k", c_kotekan_regular Nothing Nothing)
+        , ("k", c_kotekan_regular False Nothing Nothing)
+        , ("k^", c_kotekan_regular True Nothing Nothing)
         , ("t", c_tumpuk)
         , ("a", c_tumpuk_auto)
         , ("o", c_byong)
@@ -370,9 +372,9 @@ filter_voices voices positions
 
 -- * kotekan
 
-c_kotekan_regular :: Maybe Text -> Maybe Call.UpDown
+c_kotekan_regular :: Bool -> Maybe Text -> Maybe Call.UpDown
     -> Derive.Generator Derive.Note
-c_kotekan_regular maybe_kernel maybe_dir =
+c_kotekan_regular inverted maybe_kernel maybe_dir =
     Derive.generator module_ "kotekan" Tags.inst
     ("Render a kotekan pattern from a kernel representing the polos.\
     \ The sangsih is inferred. This can emit notes at both the beginning and\
@@ -389,12 +391,15 @@ c_kotekan_regular maybe_kernel maybe_dir =
     \args -> do
         kernel <- Derive.require_right id $ Gangsa.make_kernel (untxt kernel_s)
         (pitch, show_pitch) <- get_parsed_pitch args
-        pattern <- Derive.require "empty pattern" $ kernel_to_pattern dir kernel
-        let positions = kotekan_pattern 5 (map pos_cek reyong_positions)
-                pattern (Pitch.pitch_pc pitch)
+        pattern <- Derive.require "empty pattern" $
+            kernel_to_pattern dir
+                (if inverted then Gangsa.invert kernel else kernel)
+        let positions = kotekan_pattern per_octave
+                (map pos_cek reyong_positions) pattern (Pitch.pitch_pc pitch)
         mconcatMap
             (realize_notes_args args initial_final show_pitch Gangsa.Repeat dur)
             (filter_voices voices positions)
+    where per_octave = 5
 
 kernel_doc :: Doc.Doc
 kernel_doc = "Transposition steps for the part that ends on the destination\
@@ -422,8 +427,8 @@ kernel_to_pattern :: Call.UpDown -> Gangsa.Kernel -> Maybe KotekanPattern
 kernel_to_pattern direction kernel = do
     -- Reyong doesn't really have polos and sangsih, so here polos is the
     -- one that has the destination.
-    let polos = map to_steps kernel
-        sangsih = map infer_sangsih kernel
+    let polos = map (fmap (+offset) . to_steps) kernel
+        sangsih = map (fmap (+offset) . infer_sangsih) kernel
     sangsih_last <- msum (reverse sangsih)
     polos_last <- msum (reverse polos)
     return $ case direction of
@@ -436,6 +441,13 @@ kernel_to_pattern direction kernel = do
             , kotekan_below = (sangsih, sangsih_last)
             }
     where
+    -- I want the final note to end on the destination, whether it be polos or
+    -- sangsih.  So shift everything to make that happen.  If it's Gap then I
+    -- have no idea, leave it alone.
+    offset = negate $ fromMaybe 0 $ case Seq.last kernel of
+        Just Gangsa.Gap -> infer_sangsih Gangsa.Gap
+        Just a -> to_steps a
+        Nothing -> Nothing
     to_steps a = case a of
         Gangsa.Gap -> Nothing
         Gangsa.Rest -> Nothing
@@ -712,12 +724,12 @@ c_hand_damp = Derive.transformer module_ "hand-damp" Tags.postproc
 hand_damp :: Set ScoreT.Instrument -> (RealTime -> RealTime)
     -> Stream.Stream Score.Event -> Stream.Stream Score.Event
 hand_damp damped_insts dur_at =
-    Post.emap_asc_ infer_damp . Post.next_by Post.hand_key
+    Post.emap_asc_ infer . Post.next_by Post.hand_key
     where
-    infer_damp (event, _)
+    infer (event, _)
         | Score.event_instrument event `Set.notMember` damped_insts = [event]
-    infer_damp (event, Just next) | too_close event next = [event]
-    infer_damp (event, _) = damp event
+    infer (event, Just next) | too_close event next = [event]
+    infer (event, _) = damp event
     damp event = [event, make_damp 0 event]
     too_close event next =
         (Score.event_start next - Score.event_end event)

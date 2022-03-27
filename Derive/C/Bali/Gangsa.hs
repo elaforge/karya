@@ -674,8 +674,8 @@ c_kotekan_kernel =
         kernel <- Derive.require_right id $ make_kernel (untxt kernel_s)
         pitch <- get_pitch args
         under_threshold <- under_threshold_function kotekan dur
-        let cycle = realize_kernel inverted sangsih_above style pasang
-                (rotate rotation kernel)
+        let cycle = realize_kernel sangsih_above style pasang
+                ((if inverted then invert else id) (rotate rotation kernel))
         realize_kotekan_pattern_args args initial_final dur pitch
             under_threshold Repeat cycle
 
@@ -683,7 +683,7 @@ c_kotekan_kernel =
 -- polos.
 c_kotekan_regular :: Bool -> Maybe Text -> KotekanStyle
     -> Derive.Generator Derive.Note
-c_kotekan_regular invert maybe_kernel default_style =
+c_kotekan_regular inverted maybe_kernel default_style =
     Derive.generator module_ "kotekan" Tags.inst
     ("Render a kotekan pattern from a kernel representing the polos.\
     \ The sangsih is inferred.\n" <> kotekan_doc)
@@ -698,19 +698,19 @@ c_kotekan_regular invert maybe_kernel default_style =
     ) $ \(kernel_s, style, sangsih_dir, dur, kotekan, pasang, initial_final) ->
     Sub.inverting $ \args -> do
         kernel <- Derive.require_right id $ make_kernel (untxt kernel_s)
-        let sangsih_above = fromMaybe (infer_sangsih invert kernel) sangsih_dir
+        let sangsih_above = fromMaybe (infer_sangsih inverted kernel)
+                sangsih_dir
         pitch <- get_pitch args
         under_threshold <- under_threshold_function kotekan dur
-        let cycle = realize_kernel invert sangsih_above style pasang kernel
+        let cycle = realize_kernel sangsih_above style pasang
+                (if inverted then invert kernel else kernel)
         realize_kotekan_pattern_args args initial_final
             dur pitch under_threshold Repeat cycle
     where
-    infer_sangsih invert kernel = (if invert then flip else id) $
+    infer_sangsih inverted kernel = (if inverted then Call.invert else id) $
         case Seq.last kernel of
             Just High -> Call.Down
             _ -> Call.Up
-    flip Call.Up = Call.Down
-    flip Call.Down = Call.Up
 
 c_kotekan_explicit :: Derive.Generator Derive.Note
 c_kotekan_explicit =
@@ -762,11 +762,10 @@ kernel_doc = "Polos part in transposition steps.\
     \ avoid needing quotes. Starting with `k` will also require the length to\
     \ be a multiple of 4."
 
-realize_kernel :: Bool -> Call.UpDown -> KotekanStyle
+realize_kernel :: Call.UpDown -> KotekanStyle
     -> Pasang ScoreT.Instrument -> Kernel -> Cycle
-realize_kernel inverted sangsih_above style pasang kernel =
-    end_on_zero $ kernel_to_pattern
-        ((if inverted then invert else id) kernel) sangsih_above style pasang
+realize_kernel sangsih_above style pasang kernel =
+    end_on_zero $ kernel_to_pattern kernel sangsih_above style pasang
 
 -- *** implementation
 

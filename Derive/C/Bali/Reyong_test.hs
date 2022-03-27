@@ -86,17 +86,25 @@ test_kilitan_random_start = do
         not_equal start1 start3
 
 test_kotekan_regular = do
+    let run1 text = first (map snd . take 2) . e_pattern 0
+            . DeriveTest.derive_tracks title_cancel . UiTest.note_track $
+                [(0, 8, text)]
+    -- equal (run1 "k k-12_1-21 -- 4i") (["ueu--ue-u", "i-io-i-oi"], [])
+    equal (run1 "k -- 4i") (["ueu-eue-u", "i-io-i-oi"], [])
+    equal (run1 "k -- 4e") (["e-eu-e-ue", "iai-aia-i"], [])
+    equal (run1 "k -- 4u") (["u-ua-u-au", "oio-ioi-o"], [])
+    -- inferred part plays the below pattern, though voice 1 is always below
+    equal (run1 "k _ d -- 4i") (["-a-ua-au-", "i-io-i-oi"], [])
+    equal (run1 "k^ -- 4i") (["-o-eo-oe-", "i-ia-i-ai"], [])
+    equal (run1 "k^ _ d -- 4i") (["eue-ueu-e", "i-ia-i-ai"], [])
+    equal (run1 "k// -- 4e") (["e-eu-eu-e", "-o-io-io-"], [])
+
     let run voice = first (lookup voice) . e_pattern 0
             . DeriveTest.derive_tracks title_cancel . UiTest.note_track
-    equal (run 1 [(0, 8, "k k-12_1-21 -- 4i")]) (Just "ueu--ue-u", [])
-    equal (run 2 [(0, 8, "k k-12_1-21 -- 4i")]) (Just "i-io-i-oi", [])
-    equal (run 1 [(0, 8, "k// -- 4e")]) (Just "e-eu-eu-e", [])
-    equal (run 2 [(0, 8, "k// -- 4e")]) (Just "-o-io-io-", [])
-
     -- Cancelling favors the end note.
-    equal (run 2 [(0, 8, "k k-12-1-21 -- 4i"), (8, 8, "k// -- 4e")])
+    equal (run 2 [(0, 8, "k -- 4i"), (8, 8, "k// -- 4e")])
         (Just "i-io-i-oio-io-io-", [])
-    equal (run 3 [(0, 8, "k k-12-1-21 -- 4i"), (8, 8, "k// -- 4e")])
+    equal (run 3 [(0, 8, "k -- 4i"), (8, 8, "k// -- 4e")])
         (Just "ueu-eue-u-eu-eu-e", [])
 
 test_kotekan_irregular = do
