@@ -20,6 +20,7 @@ import qualified Control.Monad.State.Strict as Monad.State
 
 import qualified Data.HashSet as HashSet
 import qualified Data.List as List
+import qualified Data.Map.Lazy as Map.Lazy
 import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
@@ -37,6 +38,7 @@ import qualified Util.Control as Control
 import qualified Util.Log as Log
 import qualified Util.Maps as Maps
 import qualified Util.Processes as Processes
+import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 import qualified Util.Vector
 
@@ -48,6 +50,7 @@ import qualified Cmd.PlayUtil as PlayUtil
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
+import qualified Derive.Stack as Stack
 import qualified Derive.Stream as Stream
 
 import qualified Instrument.Inst as Inst
@@ -597,6 +600,7 @@ broken_performance msg = Cmd.Performance
     , perf_warps = mempty
     , perf_track_signals = mempty
     , perf_block_deps = mempty
+    , perf_track_instruments = mempty
     , perf_ui_state = Ui.empty
     }
 
@@ -604,7 +608,7 @@ broken_performance msg = Cmd.Performance
 performance :: Ui.State -> Derive.Result -> Cmd.Performance
 performance state result = Cmd.Performance
     { perf_derive_cache = Derive.r_cache result
-    , perf_events = Vector.fromList events
+    , perf_events = vevents
     , perf_logs = logs
     , perf_logs_written = False
     , perf_track_dynamic = Derive.r_track_dynamic result
@@ -614,13 +618,31 @@ performance state result = Cmd.Performance
     , perf_track_signals = Derive.r_track_signals result
     , perf_block_deps = Derive.collect_block_deps $ Derive.state_collect $
         Derive.r_state result
+    , perf_track_instruments = track_instruments
+        vevents (Map.keys (Ui.state_tracks state))
     , perf_ui_state = state
     }
-    where (events, logs) = Stream.partition (Derive.r_events result)
+    where
+    vevents = Vector.fromList events
+    (events, logs) = Stream.partition (Derive.r_events result)
 
 modify_play_state :: (Cmd.PlayState -> Cmd.PlayState) -> Cmd.State -> Cmd.State
 modify_play_state modify state =
     state { Cmd.state_play = modify (Cmd.state_play state) }
+
+track_instruments :: Vector.Vector Score.Event -> [TrackId]
+    -> Map TrackId (Set ScoreT.Instrument)
+track_instruments events = Map.Lazy.fromAscList . Seq.key_on_snd instruments_of
+    -- fromAscList should be safe since Map.keys returns in order.
+    where
+    -- Go by TrackId, so I can make each Map value lazy, since I will only
+    -- even need the instruments if I do an im mute on the track.
+    instruments_of track_id = Vector.foldl' (get track_id) mempty events
+    get track_id seen event
+        | track_id `elem` track_ids =
+            Set.insert (Score.event_instrument event) seen
+        | otherwise = seen
+        where track_ids = Stack.track_ids_of (Score.event_stack event)
 
 -- * util
 

@@ -169,17 +169,20 @@ extract_derive_result res =
     where
     msg = "extract_derive_result: cmd failed so result is probably not right: "
     mkres = do
-        Cmd.Performance cache events logs _logs_written track_dyn integrated
-            _damage warps tsigs _block_deps _ui_state <- Perf.get_root
-        let stream = Stream.merge_logs logs $
-                Stream.from_sorted_events (Vector.toList events)
+        Cmd.Performance
+            { perf_derive_cache, perf_events, perf_logs
+            , perf_track_dynamic, perf_integrated, perf_warps
+            , perf_track_signals
+            } <- Perf.get_root
+        let stream = Stream.merge_logs perf_logs $
+                Stream.from_sorted_events (Vector.toList perf_events)
         return $ Derive.Result
             { r_events = stream
-            , r_cache = cache
-            , r_track_warps = warps
-            , r_track_signals = tsigs
-            , r_track_dynamic = track_dyn
-            , r_integrated = integrated
+            , r_cache = perf_derive_cache
+            , r_track_warps = perf_warps
+            , r_track_signals = perf_track_signals
+            , r_track_dynamic = perf_track_dynamic
+            , r_integrated = perf_integrated
             , r_state =
                 error "can't fake a Derive.State for an extracted Result"
             }
@@ -510,5 +513,6 @@ empty_performance = Cmd.Performance
     , perf_warps = []
     , perf_track_signals = mempty
     , perf_block_deps = mempty
+    , perf_track_instruments = mempty
     , perf_ui_state = Ui.empty
     }

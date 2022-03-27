@@ -159,6 +159,9 @@ data Performance = Performance {
     , perf_warps :: [TrackWarp.TrackWarp]
     , perf_track_signals :: Track.TrackSignals
     , perf_block_deps :: Derive.BlockDeps
+    -- | Map each track to the instruments on it.  This tries to remain lazy,
+    -- since it's only used by muted_im_instruments.
+    , perf_track_instruments :: Map TrackId (Set ScoreT.Instrument)
     -- | This is the score state at the time of the performance.  It's needed
     -- to interpret 'perf_track_signals', because at the time signals are sent
     -- (in 'Cmd.PlayC.cmd_play_msg'), the Ui.State may have unsynced changes.
@@ -168,7 +171,7 @@ data Performance = Performance {
 -- | Force a Performance so that it can be used without a lag.
 force_performance :: Performance -> ()
 force_performance (Performance _cache events logs _logs_written track_dyn
-        _integrated _damage warps track_sigs block_deps ui_state) =
+        _integrated _damage warps track_sigs block_deps _track_insts ui_state) =
     logs `deepseq` events `deepseq` warps `deepseq` track_dyn
         `deepseq` track_sigs `deepseq` block_deps `deepseq` ui_state
         `deepseq` ()
@@ -181,7 +184,8 @@ instance Show Performance where
 
 instance Pretty Performance where
     format (Performance cache events logs logs_written track_dynamic
-            integrated damage warps track_signals block_deps _ui_state) =
+            integrated damage warps track_signals block_deps track_insts
+            _ui_state) =
         Pretty.record "Performance"
         [ ("cache", Pretty.format $ Map.keys $ (\(Derive.Cache c) -> c) cache)
         , ("events", Pretty.format (Vector.length events))
@@ -193,6 +197,7 @@ instance Pretty Performance where
         , ("warps", Pretty.format warps)
         , ("track_signals", Pretty.format track_signals)
         , ("block_deps", Pretty.format block_deps)
+        , ("track_instruments", Pretty.format track_insts)
         ]
 
 -- * views

@@ -2447,6 +2447,25 @@ instruments:
     . https://rust-audio.discourse.group/t/useful-resources-for-learning-about-audio-development/33
 
 synth: im:
+  - im: unison thru for wayang-pasang, rambat-pasang
+  * im: track solo not working as expected, when I mute >ra or >r
+    . mute works for >r but not for >ra!?
+    . It's because Perf.infer_muted_instruments infers >ra, but the real
+      instruments are >rai >rau
+    . I could fancy up dummy instruments to include their implied real
+      instruments, or I could go lower level and look at the instruments
+      actually emitted by a track.
+    . Of course this could be too many if some other instrument shares the
+      track, but this is a tension between im going by instrument, while
+      instruments are technically track-independent.
+    . For look at track, it has to look at all events so can be expensive.
+      Since mute goes out on every play, I should cache it in Performance.
+    . It would spoil track play laziness, but I haven't had that for quite
+      a while anyway, since Cmd.perf_events is a Vector.
+    . It works, but doesn't seem to be lazy enough, it's forcing all TrackIds
+      instead of just the muted ones.
+    . Taking out of NFData and Map.Lazy fixed it, but can I not even look for
+      non-im instruments?
   StreamAudio directly to remove DAW + VST requirement
     . I could do automatically if there's no play-cache instrument.
     ? Does the blocking API write enough in advance that I don't have to
@@ -6929,7 +6948,9 @@ Derive:
         is the "track call" thing I was thinking about a long time ago.
     - Add an input mode for bols.
   bali:
-    - im: unison thru for wayang-pasang, rambat-pasang
+    - integrate should cancel out {final} notes
+    - LInst.add_im and add should automatically notice when it's a dummy and
+      switch it, with a warning
     infer gender damping:
       . Also don't damp repeated pitches.
         . Though with rambat this might have the effect of always choosing
@@ -7151,6 +7172,7 @@ Derive:
             561   53561
              21      21
     reyong:
+      - realize notes like kempyung... though doing it properly seems hard?
       - divide infer-damp into infer-hands, and then use hand-damp.
         That way I can put an integrate after infer-hands, as
         a visualization if nothing else.

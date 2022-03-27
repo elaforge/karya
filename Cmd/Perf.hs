@@ -14,7 +14,6 @@ import qualified Data.Set as Set
 import qualified Data.Tree as Tree
 
 import qualified Util.Log as Log
-import qualified Util.Maps as Maps
 import qualified Util.Seq as Seq
 import qualified Util.Trees as Trees
 
@@ -313,37 +312,31 @@ lookup_dynamic perf_block_id (block_id, maybe_track_id) =
             return dyn
         Just track_id -> Map.lookup (block_id, track_id) track_dyns
 
--- * infer muted instruments
+-- * muted instruments
 
-infer_muted_instruments :: Cmd.M m => m (Set ScoreT.Instrument)
-infer_muted_instruments = do
+muted_im_instruments :: Cmd.M m => m (Set ScoreT.Instrument)
+muted_im_instruments = do
     allocs <- Ui.gets $ UiConfig.config_allocations . Ui.state_config
-    (<> PlayUtil.muted_instruments allocs) . Map.keysSet <$>
-        infer_muted_instrument_tracks
+    -- Only im does per-instrument muting, so don't bother if I don't have any
+    -- of those.
+    muted <- if UiConfig.has_im allocs then get_muted_instrument_tracks
+        else pure mempty
+    return $ PlayUtil.muted_instruments allocs <> muted
 
--- | Infer that instruments are muted if any of their tracks are muted.  This
--- is just a heuristic because of course a track may have multiple instruments.
--- The only reason I do this is that muting and soloing tracks is easier than
--- instruments since they're on the UI, and im supports only instrument mute,
--- not track mute.
---
--- This should be in PlayUtil along with 'PlayUtil.muted_instruments', but
--- can't due to using 'lookup_instrument' and circular imports.
-infer_muted_instrument_tracks :: Cmd.M m => m (Map ScoreT.Instrument [TrackId])
-infer_muted_instrument_tracks = do
+get_muted_instrument_tracks :: Cmd.M m => m (Set ScoreT.Instrument)
+get_muted_instrument_tracks = do
     muted <- Set.toList <$> PlayUtil.get_muted_tracks
-    instruments <- mapM infer_instrument muted
-    return $ Maps.multimap $ Seq.map_maybe_fst id $ zip instruments muted
+    track_instruments <- Cmd.perf_track_instruments <$> get_root
+    return $ Set.unions $
+        map (fromMaybe mempty . (`Map.lookup` track_instruments)) muted
 
+-- | This is like 'Cmd.perf_track_instruments', except it uses the track titles
+-- instead of the performance.  This means it's less accurate, but can work
+-- even before there's a performance and might be faster.
 infer_instrument :: Cmd.M m => TrackId -> m (Maybe ScoreT.Instrument)
 infer_instrument track_id =
     justm (fmap fst . Seq.head <$> Ui.blocks_with_track_id track_id) $
         \block_id -> lookup_instrument (block_id, Just track_id)
-
-tracks_of_instrument :: Cmd.M m => BlockId -> ScoreT.Instrument -> m [TrackId]
-tracks_of_instrument block_id instrument = do
-    track_ids <- Ui.track_ids_of block_id
-    filterM (fmap (== Just instrument) . infer_instrument) track_ids
 
 -- * default
 

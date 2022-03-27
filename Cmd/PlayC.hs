@@ -185,6 +185,9 @@ start_im_progress ui_chan block_id = do
 get_im_instrument_tracks :: Cmd.M m => BlockId -> m [TrackId]
 get_im_instrument_tracks block_id = do
     track_ids <- Ui.track_ids_of block_id
+    -- TODO This is inaccurate since it doesn't understand dummy instruments.
+    -- But good enough for now?  I avoid perf_track_instruments to avoid
+    -- crashing before the first performance exists.
     insts <- mapM Perf.infer_instrument track_ids
     allocs <- Ui.config#UiConfig.allocations_map <#> Ui.get
     let is_im inst = maybe False UiConfig.is_im_allocation $

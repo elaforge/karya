@@ -9,6 +9,7 @@ module Derive.Stack (
     , block, call, add, member, outermost, innermost
     , block_of, track_of, region_of, call_of
     , block_track_of, block_tracks_of, block_track_region_of
+    , track_ids_of
     , match
     , Frame(..), Serial
     , format_ui, pretty_ui, pretty_ui_, pretty_ui_inner
@@ -151,6 +152,9 @@ block_track_region_of = find . innermost
         (track_id, frames) <- find_rest track_of frames
         (block_id, _) <- find_rest block_of frames
         return (block_id, track_id, region)
+
+track_ids_of :: Stack -> [TrackId]
+track_ids_of = mapMaybe track_of . innermost
 
 -- | Find a value, and return the rest of the list.
 find_rest :: (a -> Maybe b) -> [a] -> Maybe (b, [a])

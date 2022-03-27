@@ -405,7 +405,7 @@ from_realtime block_id repeat_at start_ = do
             \ or set Cmd.config_im_play_direct"
         Left Nothing -> return (mempty, Nothing)
         Left (Just msg) -> Cmd.throw msg
-    muted <- Perf.infer_muted_instruments
+    muted <- Perf.muted_im_instruments
     score_path <- Cmd.gets Cmd.score_path
     let im_msgs = maybe []
             (im_play_msgs score_path block_id muted (start * multiplier))
@@ -487,9 +487,11 @@ lookup_im_config allocs = do
 im_play_msgs :: FilePath -> BlockId -> Set ScoreT.Instrument -> RealTime
     -> Patch.Addr -> [LEvent.LEvent Midi.WriteMessage]
 im_play_msgs score_path block_id muted start (wdev, chan) =
-    zipWith msg ts $ Im.Play.encode_time start
-        ++ Im.Play.encode_play_config score_path block_id muted
-        ++ [Im.Play.start]
+    zipWith msg ts $ concat
+        [ Im.Play.encode_time start
+        , Im.Play.encode_play_config score_path block_id muted
+        , [Im.Play.start]
+        ]
     where
     msg t = LEvent.Event . Midi.WriteMessage wdev t . Midi.ChannelMessage chan
     -- 'encode_time' includes the bit position so it doesn't depend on order,
