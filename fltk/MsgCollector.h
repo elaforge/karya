@@ -199,9 +199,9 @@ public:
     void block(UiMsg::MsgType type, Fl_Widget *w);
     // Record a msg from the given tracknum, where 'w' is within the msg's
     // window.
-    void track(UiMsg::MsgType type, Fl_Widget *w, int tracknum);
+    void track(UiMsg::MsgType type, const Track *track);
     // Record msg_input for text changes.
-    void track_title(Fl_Widget *w, int tracknum, const char *text);
+    void track_title(const EventTrack *track, const char *text);
     void floating_input(Fl_Widget *w, const char *floating_input);
     void view(UiMsg::MsgType type, BlockWindow *view);
 

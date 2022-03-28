@@ -2447,6 +2447,26 @@ instruments:
     . https://rust-audio.discourse.group/t/useful-resources-for-learning-about-audio-development/33
 
 synth: im:
+  * deleting a bunch of notes:
+    assertion: assertion failed at fltk/TrackTile.cc:258 track_at():
+      '0 <= tracknum && tracknum < tracks()': 5
+      TrackTile::track_at
+      TrackTile::get_track_width
+      MsgCollector::push_update
+      MsgCollector::track
+      EventTrack::Body::draw
+      Fl_Widget_Surface::draw
+      CachedScroll::redraw
+      CachedScroll::draw
+      Fl_Group::draw_child::Fl_Widget
+      Fl_Group::draw_children
+    . I wonder if it's due to putting tracknum in EventTrack, since it'll get
+      out of date?
+  - deleting all notes on a track doesn't clear the waveform
+  - play offset not working!?
+  - im: don't redo im when track title was just selected and unselected
+  - im: save_state_as should do im rerender
+  - LInst.add_im and add should automatically notice when it's a dummy and
   - im: unison thru for wayang-pasang, rambat-pasang
   * im: track solo not working as expected, when I mute >ra or >r
     . mute works for >r but not for >ra!?
@@ -5446,6 +5466,8 @@ performance:
         and necessary.
 
 fltk:
+  - WrappedInput doesn't get clicks outside of its track area
+  - WrappedInput expansion incorrect when entering in already-wrapped
   * backspace to make a floating input shrink, doesn't redraw
   - when editing a floating input or resizing a track afterwards, the whole
     window went block.  How to reproduce?
@@ -6949,7 +6971,6 @@ Derive:
     - Add an input mode for bols.
   bali:
     - integrate should cancel out {final} notes
-    - LInst.add_im and add should automatically notice when it's a dummy and
       switch it, with a warning
     infer gender damping:
       . Also don't damp repeated pitches.

@@ -417,7 +417,7 @@ Block::insert_track(int tracknum, const Tracklike &track, int width)
 
     // DEBUG("view insert at " << tracknum);
     if (track.track) {
-        t = new EventTrack(tracknum, *track.track, *track.ruler);
+        t = new EventTrack(*track.track, *track.ruler);
     } else if (track.ruler) {
         t = new RulerTrack(*track.ruler);
     } else {
@@ -722,7 +722,8 @@ Block::track_tile_cb(Fl_Widget *w, void *vp)
             self->skel_display.set_width(i-1, self->get_track_width(i));
         // Don't spam out updates until a release.
         if (Fl::event() == FL_RELEASE)
-            MsgCollector::get()->track(UiMsg::msg_track_width, self, i);
+            MsgCollector::get()->track(
+                UiMsg::msg_track_width, self->track_at(i));
     }
     // body tile drags could resize the skel_display, which will change the
     // visible track area.

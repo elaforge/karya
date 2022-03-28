@@ -333,12 +333,24 @@ MsgCollector::update(UiMsg::MsgType type)
 
 
 static BlockWindow *
-window(Fl_Widget *w)
+window(const Fl_Widget *w)
 {
     if (w)
         return static_cast<BlockWindow *>(w->window());
     else
         return nullptr;
+}
+
+
+static int
+find_tracknum(const BlockWindow *win, const Track *track)
+{
+    const Block &b = win->block;
+    for (int i = 0; i < b.tracks(); i++) {
+        if (b.track_at(i) == track)
+            return i;
+    }
+    ASSERT_MSG(false, "track not in its caller?");
 }
 
 
@@ -350,16 +362,20 @@ MsgCollector::block(UiMsg::MsgType type, Fl_Widget *w)
 
 
 void
-MsgCollector::track(UiMsg::MsgType type, Fl_Widget *w, int tracknum)
+MsgCollector::track(UiMsg::MsgType type, const Track *track)
 {
-    push_update(type, context(window(w), tracknum));
+    BlockWindow *win = window(track);
+    int tracknum = find_tracknum(win, track);
+    push_update(type, context(win, tracknum));
 }
 
 
 void
-MsgCollector::track_title(Fl_Widget *w, int tracknum, const char *text)
+MsgCollector::track_title(const EventTrack *track, const char *text)
 {
-    UiMsg::Context c(context(window(w), tracknum));
+    BlockWindow *win = window(track);
+    int tracknum = find_tracknum(win, track);
+    UiMsg::Context c(context(win, tracknum));
     c.track_type = UiMsg::track_normal;
     push_update(UiMsg::msg_input, c, text);
 }

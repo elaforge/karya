@@ -116,8 +116,7 @@ public:
 // been edited.
 class EventTrack : public Track {
 public:
-    EventTrack(int tracknum, const EventTrackConfig &config,
-        const RulerConfig &ruler_config);
+    EventTrack(const EventTrackConfig &config, const RulerConfig &ruler_config);
     void resize(int x, int y, int w, int h) override;
     virtual Fl_Widget &title_widget() override { return title_input; }
     virtual const char *get_title() const override {
@@ -167,15 +166,15 @@ private:
     // the body_scroll.
     class Body : public Fl_Widget {
     public:
-        Body(int tracknum, const EventTrackConfig &config,
+        Body(const Track &parent, const EventTrackConfig &config,
             const RulerConfig &ruler_config);
         ScoreTime time_end() const;
         void update(const Tracklike &track);
         void set_zoom(const Zoom &new_zoom);
 
-        const int tracknum;
         int suggested_width;
         Zoom zoom;
+        const Track &parent;
         EventTrackConfig config; // Can't be const, I write to it.
         double brightness;
         RulerOverlay ruler_overlay;

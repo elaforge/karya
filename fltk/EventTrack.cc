@@ -154,7 +154,6 @@ operator<<(std::ostream &os, const TrackSignal &sig)
 // EventTrack ///////
 
 EventTrack::EventTrack(
-    int tracknum,
     const EventTrackConfig &config,
     const RulerConfig &ruler_config
 ) :
@@ -162,7 +161,7 @@ EventTrack::EventTrack(
     // 40 is an arbitrary max_width, will be filled in when I know window width
     title_input(0, 0, 1, 1, true, WrappedInput::no_wrap),
     body_scroll(0, 0, 1, 1),
-        body(tracknum, config, ruler_config)
+        body(*this, config, ruler_config)
 {
     end(); // make sure no one else falls in
     this->add(body_scroll);
@@ -304,7 +303,7 @@ EventTrack::title_unfocused()
     title_input.set_max_width(WrappedInput::no_wrap);
     title_input.size(this->w(), Config::Block::track_title_height);
     const char *text = title_input.get_text();
-    MsgCollector::get()->track_title(this, body.tracknum, text);
+    MsgCollector::get()->track_title(this, text);
     title_input.value(text);
     // If it doesn't fit, always show the beginning.
     title_input.position(0);
@@ -488,13 +487,13 @@ operator<<(std::ostream &os, const EventTrack::TextBox &box)
 // Body ////////////////////////////////
 
 EventTrack::Body::Body(
-    int tracknum,
+    const Track &parent,
     const EventTrackConfig &config,
     const RulerConfig &ruler_config
 ) :
     Fl_Widget(0, 0, 1, 1),
-    tracknum(tracknum),
     suggested_width(0), // guarantee to emit msg_track_width on the first draw
+    parent(parent),
     config(config), brightness(1),
     ruler_overlay(ruler_config, false)
 {
@@ -675,7 +674,7 @@ EventTrack::Body::draw()
         int w = compute_suggested_width(lines);
         if (w != this->suggested_width) {
             this->suggested_width = w;
-            MsgCollector::get()->track(UiMsg::msg_track_width, this, tracknum);
+            MsgCollector::get()->track(UiMsg::msg_track_width, &parent);
         }
     }
     util::timing(2, "EventTrack::compute_text_boxes");
