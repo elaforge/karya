@@ -251,20 +251,26 @@ instance DeepSeq.NFData Event where
 instance Pretty Event where
     format (Event start dur text controls pitch pitches
             stack highlight inst env flags delayed_args logs) =
-        Pretty.record ("Event"
-                Pretty.<+> Pretty.format (start, dur)
-                Pretty.<+> Pretty.format text)
-            [ ("instrument", Pretty.format inst)
-            , ("pitch", Pretty.format pitch)
-            , ("pitches", Pretty.format pitches)
-            , ("controls", Pretty.format controls)
-            , ("stack", Pretty.format stack)
-            , ("highlight", Pretty.text $ showt highlight)
-            , ("environ", Pretty.format env)
-            , ("flags", Pretty.format flags)
-            , ("delayed_args", Pretty.format delayed_args)
-            , ("logs", Pretty.format logs)
+        Pretty.record (foldr1 (Pretty.<+>) $ concat
+            [ ["Event", Pretty.format (start, dur)]
+            , [Pretty.format text | text /= ""]
+            , [ Pretty.format attrs
+              | let attrs = DeriveT.environ_attributes env, attrs /= mempty
+              ]
+            ]) $ concat
+            [ [("instrument", Pretty.format inst)]
+            , g "pitch" pitch PSignal.null
+            , g "pitches" pitches Map.null
+            , g "controls" controls Map.null
+            , g "stack" stack (== Stack.empty)
+            , g "highlight" highlight (== Color.NoHighlight)
+            , g "environ" env DeriveT.null
+            , g "flags" flags Set.null
+            , g "delayed_args" delayed_args Map.null
+            , g "logs" logs null
             ]
+        where
+        g name val empty = [(name, Pretty.format val) | not (empty val)]
 
 -- ** delayed args
 

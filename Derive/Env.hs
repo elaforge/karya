@@ -4,13 +4,13 @@
 
 module Derive.Env (
     module Derive.Env
-    , Key, Environ, lookup, insert
+    , Key, Environ, null, lookup, insert
 ) where
 import           Prelude hiding (null, lookup)
 import qualified Data.Map as Map
 
 import qualified Derive.DeriveT as DeriveT
-import           Derive.DeriveT (insert, lookup, Environ(..))
+import           Derive.DeriveT (Environ(..), insert, lookup, null)
 import qualified Derive.EnvKey as EnvKey
 import           Derive.EnvKey (Key)
 import qualified Derive.ShowVal as ShowVal
@@ -21,9 +21,6 @@ import           Global
 
 
 -- * basic functions
-
-null :: Environ -> Bool
-null (Environ env) = Map.null env
 
 from_list :: [(Key, DeriveT.Val)] -> Environ
 from_list = Environ . Map.fromList

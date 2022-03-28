@@ -376,6 +376,9 @@ instance Pretty Environ where
     format (Environ env) = Pretty.formatMap
         . map (bimap Pretty.text Pretty.format) . Map.toList $ env
 
+null :: Environ -> Bool
+null (Environ env) = Map.null env
+
 -- | Insert a val directly, with no typechecking.
 insert :: EnvKey.Key -> Val -> Environ -> Environ
 insert name val (Environ env) = Environ $ Map.insert name val env

@@ -34,6 +34,7 @@ instance Semigroup Highlight where (<>) = max
 instance Monoid Highlight where
     mempty = NoHighlight
     mappend = (<>)
+instance Pretty Highlight where pretty = showt
 
 -- r, g, b, alpha, from 0--1
 data Color = Color !Double !Double !Double !Double
