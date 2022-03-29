@@ -5,6 +5,7 @@
 // Exercise PlayCache internals for manual testing.
 #include <memory>
 #include <iostream>
+#include <string>
 #include <thread>
 #include <unistd.h>
 
@@ -109,21 +110,25 @@ thru()
 }
 
 
-static void
-test_wav(const char *fname)
+static int
+test_wav(const char *fname, int offset)
 {
     Wav *wav;
     Wav::Error err;
+    std::cout << "test_wav('" << fname << "', " << offset << ")\n";
 
-    err = Wav::open(fname, &wav, 0);
-    // assert(wav->channels() == 2);
-    // assert(wav->srate() == 44100);
+    err = Wav::open(fname, &wav, offset);
     if (err) {
         std::cout << fname << ": " << err << "\n";
-        return;
+        return 1;
     }
+    std::cout << "channels:" << wav->channels() << " srate:" << wav->srate()
+        << "\n";
     SF_INFO info = {0};
     SNDFILE *sndfile = sf_open(fname, SFM_READ, &info);
+    if (sf_seek(sndfile, offset, SEEK_SET) == -1) {
+        DEBUG(fname << ": seek to " << offset << ": " << sf_strerror(sndfile));
+    }
 
     const int frames = 64;
     float samples1[frames*2], samples2[frames*2];
@@ -132,16 +137,20 @@ test_wav(const char *fname)
         Frames read1 = wav->read(samples1, frames);
         Frames read2 = sf_readf_float(sndfile, samples2, frames);
         if (read1 != read2) {
-            std::cout << read1 << " != " << read2 << "\n";
-            return;
+            std::cout << "wav read:" << read1 << " != " << "sf read:" << read2
+                << "\n";
+            break;
         }
         if (read1 == 0)
             break;
 
         for (int i = 0; i < read1; i++) {
             if (samples1[i] != samples2[i]) {
-                std::cout << i << ": " << samples1[i] << " != " << samples2[i]
-                    << "\n";
+                if (unequal < 64)
+                    std::cout << i << ": " << samples1[i] << " != "
+                        << samples2[i] << "\n";
+                else if (unequal == 64)
+                    std::cout << "...\n";
                 unequal++;
             } else {
                 equal++;
@@ -152,6 +161,7 @@ test_wav(const char *fname)
     std::cout << "equal: " << equal << " unequal: " << unequal << "\n";
     wav->close();
     sf_close(sndfile);
+    return unequal ? 1 : 0;
 }
 
 
@@ -166,7 +176,9 @@ main(int argc, const char **argv)
     } else if (argc == 2 && cmd == "thru") {
         thru();
     } else if (argc == 3 && cmd == "wav") {
-        test_wav(argv[2]);
+        return test_wav(argv[2], 0);
+    } else if (argc == 4 && cmd == "wav") {
+        return test_wav(argv[2], std::stoi(argv[3]));
     } else {
         std::cout << "test_play_cache"
             " [ semaphore | stream dir | thru | wav file.wav ]\n";

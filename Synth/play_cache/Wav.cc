@@ -90,7 +90,7 @@ Wav::open(const char *fname, Wav **wav, Frames offset)
     if (offset > 0) {
         // TODO I used to check if it's an unexpected large seek, should I?
         // There is a special case where 0 frames is like a full chunk of 0s.
-        if (fseek(fp, sizeof(float) * fmt.channels, SEEK_CUR) != 0)
+        if (fseek(fp, sizeof(float) * fmt.channels * offset, SEEK_CUR) != 0)
             goto on_c_error;
     }
 

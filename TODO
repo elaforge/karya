@@ -2463,7 +2463,7 @@ synth: im:
     . I wonder if it's due to putting tracknum in EventTrack, since it'll get
       out of date?
   - deleting all notes on a track doesn't clear the waveform
-  - play offset not working!?
+  * play offset not working!?
   - im: don't redo im when track title was just selected and unselected
   - im: save_state_as should do im rerender
   - LInst.add_im and add should automatically notice when it's a dummy and
