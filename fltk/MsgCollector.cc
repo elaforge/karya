@@ -258,18 +258,20 @@ set_update(UiMsg &m, UiMsg::MsgType type, const char *text)
     Block *block = &m.context.view->block;
     switch (type) {
     case UiMsg::msg_input:
-        {
-            // If 'text' was given, it's either a track title, block title, or
-            // floating input.  The floating input sets the text to null if
-            // the input is closing with no change.
-            const char *s;
-            if (text)
-                s = text;
-            else if (m.context.track_type == UiMsg::track_floating_input)
-                s = nullptr;
-            else
-                s = block->get_title();
-            m.input.text = s ? strdup(s) : nullptr;
+        // If 'text' was given, it's either a track title, block title, or
+        // floating input.
+        if (!text) {
+            m.input.text = nullptr;
+        } else {
+            // If this was a block title update, the text isn't unwrapped
+            // because the widget itself doesn't contract.  Since I'm copying
+            // it anyway here I can modify it to unwrap.
+            char *copy = strdup(text);
+            for (char *c = copy; *c; c++) {
+                if (*c == '\n')
+                    *c = ' ';
+            }
+            m.input.text = copy;
         }
         break;
     case UiMsg::msg_track_scroll:
@@ -391,9 +393,9 @@ MsgCollector::floating_input(Fl_Widget *w, const char *floating_input)
 
 
 void
-MsgCollector::view(UiMsg::MsgType type, BlockWindow *view)
+MsgCollector::view(UiMsg::MsgType type, BlockWindow *view, const char *title)
 {
-    push_update(type, context(view));
+    push_update(type, context(view), title);
 }
 
 

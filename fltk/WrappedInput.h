@@ -63,7 +63,7 @@ public:
     void set_max_width(int w);
     // Use this to set newline-free unwrapped text.
     void set_text(const char *text);
-    const char *get_text() const;
+    void unwrap();
     // True if the text has changed since the last time this widget got focus.
     // This is used to detect if the edit's changes were reverted by the escape
     // key.

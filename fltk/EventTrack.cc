@@ -302,9 +302,10 @@ EventTrack::title_unfocused()
 {
     title_input.set_max_width(WrappedInput::no_wrap);
     title_input.size(this->w(), Config::Block::track_title_height);
-    const char *text = title_input.get_text();
-    MsgCollector::get()->track_title(this, text);
-    title_input.value(text);
+    title_input.unwrap();
+    const char *text = title_input.value();
+    if (title_input.text_changed())
+        MsgCollector::get()->track_title(this, text);
     // If it doesn't fit, always show the beginning.
     title_input.position(0);
     // Winds up at TrackTile::title_input_cb, which will redraw TrackTile

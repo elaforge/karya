@@ -67,17 +67,15 @@ WrappedInput::set_text(const char *text)
 }
 
 
-const char *
-WrappedInput::get_text() const
+void
+WrappedInput::unwrap()
 {
-    static std::string unwrapped;
-
-    unwrapped = this->value();
+    std::string unwrapped(this->value());
     for (size_t i = 0; i < unwrapped.length(); i++) {
         if (unwrapped[i] == '\n')
             unwrapped[i] = ' ';
     }
-    return unwrapped.c_str();
+    this->value(unwrapped.c_str());
 }
 
 

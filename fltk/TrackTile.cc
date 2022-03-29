@@ -137,9 +137,11 @@ TrackTile::floating_close()
 {
     if (!this->floating_input)
         return;
-    MsgCollector::get()->floating_input(
-        this,
-        floating_input->text_changed() ? floating_input->get_text() : nullptr);
+    floating_input->unwrap();
+    // TODO previously I'd send a msg_input even if there was no change, but
+    // with nullptr.  Why?  Now I don't send it at all if there was no change.
+    if (floating_input->text_changed())
+        MsgCollector::get()->floating_input(this, floating_input->value());
     this->remove(floating_input);
     floating_input->hide();
     // This function can be called from the callback, and you can't delete

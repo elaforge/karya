@@ -203,7 +203,8 @@ public:
     // Record msg_input for text changes.
     void track_title(const EventTrack *track, const char *text);
     void floating_input(Fl_Widget *w, const char *floating_input);
-    void view(UiMsg::MsgType type, BlockWindow *view);
+    void view(
+        UiMsg::MsgType type, BlockWindow *view, const char *text = nullptr);
 
     // Send one msg_screen_size msg for each screen.
     //

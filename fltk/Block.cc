@@ -744,8 +744,8 @@ void
 Block::title_cb()
 {
     BlockWindow *view = static_cast<BlockWindow *>(window());
-    if (Fl::event() == FL_UNFOCUS)
-        MsgCollector::get()->view(UiMsg::msg_input, view);
+    if (Fl::event() == FL_UNFOCUS && title.text_changed())
+        MsgCollector::get()->view(UiMsg::msg_input, view, title.value());
     // If it got focus or changed size, then update the block sizes.
     bool changed = false;
     if (!*title.value()) {

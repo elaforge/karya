@@ -112,7 +112,7 @@ public:
         int selnum, int tracknum, const std::vector<Selection> &sels);
     void set_title(const char *s);
     void set_title_focus() { title.take_focus(); }
-    const char *get_title() const { return title.get_text(); }
+    const char *get_title() const { return title.value(); }
     void set_status(const char *s, const Color &color) {
         status_line.value(s);
         status_line.color(color.fl());
