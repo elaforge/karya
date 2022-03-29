@@ -81,8 +81,10 @@ private:
     Fl_Box track_pad; // box to take up space not covered by tracks
     // Created and destroyed when 'floating_open' is called.
     WrappedInput *floating_input;
+    // Will be set when a track title is focused.
+    Fl_Widget *track_title;
 
     void update_sizes();
     static void title_input_cb_dispatch(Fl_Widget *w, void *arg);
-    void title_input_cb(Fl_Widget *title);
+    void title_input_cb(EventTrack *track);
 };

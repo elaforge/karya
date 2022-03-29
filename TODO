@@ -5468,7 +5468,7 @@ performance:
         and necessary.
 
 fltk:
-  - WrappedInput doesn't get clicks outside of its track area
+  * WrappedInput doesn't get clicks outside of its track area
   - WrappedInput expansion incorrect when entering in already-wrapped
   * backspace to make a floating input shrink, doesn't redraw
   - when editing a floating input or resizing a track afterwards, the whole

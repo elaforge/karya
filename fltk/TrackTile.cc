@@ -21,7 +21,8 @@ TrackTile::TrackTile(int x, int y, int w, int h, Color bg_color,
     MoveTile(x, y, w, h),
     title_height(title_height),
     track_pad(x, y, w, h),
-    floating_input(nullptr)
+    floating_input(nullptr),
+    track_title(nullptr)
 {
     ASSERT(title_height >= 0);
     end(); // don't automatically put more children in here
@@ -49,6 +50,8 @@ TrackTile::handle(int evt)
 {
     if (this->floating_input && Fl::event_inside(floating_input))
         return floating_input->handle(evt);
+    if (this->track_title && Fl::event_inside(track_title))
+        return track_title->handle(evt);
     if (evt == FL_PUSH || evt == FL_DRAG) {
         // Give mouse priority to any focused child, which may be a
         // WrappedInput overlapping other children.
@@ -346,11 +349,18 @@ void
 TrackTile::title_input_cb_dispatch(Fl_Widget *w, void *arg)
 {
     TrackTile *self = static_cast<TrackTile *>(arg);
-    self->title_input_cb(w);
+    EventTrack *track = dynamic_cast<EventTrack *>(w);
+    if (track)
+        self->title_input_cb(track);
 }
 
 void
-TrackTile::title_input_cb(Fl_Widget *w)
+TrackTile::title_input_cb(EventTrack *track)
 {
+    Fl_Widget &w = track->title_widget();
+    if (Fl::focus() == &w)
+        this->track_title = &w;
+    else
+        this->track_title = nullptr;
     redraw();
 }
