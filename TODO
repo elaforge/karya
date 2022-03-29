@@ -2466,7 +2466,8 @@ synth: im:
   * play offset not working!?
   - im: don't redo im when track title was just selected and unselected
   - im: save_state_as should do im rerender
-  - LInst.add_im and add should automatically notice when it's a dummy and
+  * LInst.add_im and add should automatically notice when it's a dummy and
+    switch it, with a warning.
   - im: unison thru for wayang-pasang, rambat-pasang
   * im: track solo not working as expected, when I mute >ra or >r
     . mute works for >r but not for >ra!?
@@ -6971,7 +6972,6 @@ Derive:
     - Add an input mode for bols.
   bali:
     - integrate should cancel out {final} notes
-      switch it, with a warning
     infer gender damping:
       . Also don't damp repeated pitches.
         . Though with rambat this might have the effect of always choosing

@@ -252,8 +252,19 @@ allocate :: Cmd.M m => ScoreT.Instrument -> UiConfig.Allocation -> m ()
 allocate score_inst alloc = do
     inst <- Cmd.get_alloc_qualified alloc
     allocs <- Ui.config#UiConfig.allocations <#> Ui.get
+    backend <- case (UiConfig.alloc_backend alloc, Inst.inst_backend inst) of
+        (backend@(UiConfig.Dummy {}), Inst.Dummy {}) -> return backend
+        -- This is just a convenience, so I can use add_im or something on a
+        -- dummy, instead of the proper 'add_dummy'.
+        (backend, Inst.Dummy {}) -> do
+            Log.warn $ "switched non-dummy alloc "
+                <> pretty (UiConfig.alloc_qualified alloc)
+                <> " (" <> UiConfig.backend_name backend <> ") to dummy"
+            return $ UiConfig.Dummy ""
+        (backend, _) -> return backend
     allocs <- Cmd.require_right id $
-        UiConfig.allocate (Inst.inst_backend inst) score_inst alloc allocs
+        UiConfig.allocate (Inst.inst_backend inst) score_inst
+            (alloc { UiConfig.alloc_backend = backend }) allocs
     Ui.modify_config $ UiConfig.allocations #= allocs
 
 -- | Remove an instrument allocation.
