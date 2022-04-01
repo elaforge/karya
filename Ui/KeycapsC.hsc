@@ -2,9 +2,13 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE NamedFieldPuns #-}
 -- | Low level fltk binding for drawing the keycaps.
 module Ui.KeycapsC (create, destroy, update) where
+##ifdef STUB_OUT_FLTK
+import           Ui.KeycapsCStub
+##else
 import qualified Data.Map as Map
 import qualified Util.FFI as FFI
 import qualified Util.Rect as Rect
@@ -126,3 +130,5 @@ instance CStorable RawBinding where
         (#poke Keycaps::Binding, text) p =<< FFI.newCStringNull0 b_text
         (#poke Keycaps::Binding, doc) p =<< FFI.newCStringNull0 b_doc
         (#poke Keycaps::Binding, color) p $ fromMaybe Color.black b_color
+
+##endif
