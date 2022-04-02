@@ -44,6 +44,7 @@ module Derive.Score (
 import qualified Control.DeepSeq as DeepSeq
 import           Control.DeepSeq (rnf)
 import qualified Data.Dynamic as Dynamic
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
@@ -116,18 +117,19 @@ data Event = Event {
 --
 -- This is the derive equivalent to 'Cmd.Cmd.log_event'.
 short_event :: Event -> Text
-short_event e = pretty $ foldr1 (Pretty.<+>) $ concat $ filter (not . null)
-    [ [Pretty.format (event_start e, event_duration e)]
-    , [Pretty.format (event_instrument e)]
-    , [Pretty.format n | Just n <- [initial_note e]]
-    , [Pretty.format (event_text e) | not (Text.null (event_text e))]
-    , [Pretty.text stack
-        | Just stack <- [Stack.pretty_ui_inner (event_stack e)]]
+short_event e = Text.unwords $ concat
+    [ [pretty (event_start e, event_duration e)]
+    , ["\"" <> event_text e <> "\"" | event_text e /= ""]
+    , [pretty (event_instrument e)]
+    , [pretty n | Just n <- [initial_note e]]
+    , [pretty attrs |  attrs /= mempty]
+    , [stack | Just stack <- [Stack.pretty_ui_inner (event_stack e)]]
     ]
+    where attrs = event_attributes e
 
 short_events :: [Event] -> Text
-short_events =
-    pretty . Pretty.formattedList '[' ']' . map (Pretty.text . short_event)
+short_events events = mconcat $
+    "[" : List.intersperse ", " (map short_event events) ++ ["]"]
 
 empty_event :: Event
 empty_event = Event
@@ -249,11 +251,12 @@ instance DeepSeq.NFData Event where
         rnf (start, dur, text, controls, pitch, pitches, flags, logs)
 
 instance Pretty Event where
-    format (Event start dur text controls pitch pitches
+    format e@(Event start dur text controls pitch pitches
             stack highlight inst env flags delayed_args logs) =
         Pretty.record (foldr1 (Pretty.<+>) $ concat
             [ ["Event", Pretty.format (start, dur)]
             , [Pretty.format text | text /= ""]
+            , [Pretty.format n | Just n <- [initial_note e]]
             , [ Pretty.format attrs
               | let attrs = DeriveT.environ_attributes env, attrs /= mempty
               ]
