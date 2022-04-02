@@ -117,7 +117,10 @@ c_track_integrate = Derive.transformer Module.prelude "track-integrate" mempty
                 -- it intentionally doesn't retain 'Derive.collect_integrated'.
                 track_integrate block_id track_id $
                     fmap (strip_event keep_controls) events
-            _ -> return ()
+            Just (block_id, Nothing) -> Derive.throw $
+                "track integrate seems to be in a block title: "
+                <> pretty block_id
+            Nothing -> return ()
         return Stream.empty
 
 strip_event :: Set ScoreT.Control -> Score.Event -> Score.Event

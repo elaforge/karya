@@ -3982,7 +3982,7 @@ integrate: integration:
       . Is there really a use for this, other than consistency?
       . Yes, I want to do this for generated parts.
   derive integrate:
-    - seems like track integrate < was silently ignored in the block title?
+    * seems like track integrate < was silently ignored in the block title?
       Can it make an error?
     - integrate should cancel out {final} notes
       . Also integrate after infer-damp gets mutes in weird places.
