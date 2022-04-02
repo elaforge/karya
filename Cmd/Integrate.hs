@@ -107,6 +107,11 @@ integrate derived_block_id integrated = do
 -- a list of DeriveDestinations.
 integrate_tracks :: Cmd.M m => BlockId -> TrackId -> Convert.Tracks -> m ()
 integrate_tracks block_id track_id tracks = do
+    block <- Ui.get_block block_id
+    -- This means the < call on a non-top block emitted Cmd.perf_integrated.
+    unless (track_id `elem` Block.block_track_ids block) $
+        Cmd.throw $ "derivation of " <> pretty block_id <> " wanted to derive "
+            <> pretty track_id <> ", which is not in that block"
     itracks <- Block.block_integrated_tracks <$> Ui.get_block block_id
     let dests =
             [ dests
@@ -117,7 +122,8 @@ integrate_tracks block_id track_id tracks = do
         then (:[]) <$> Merge.merge_tracks Merge.KeepTitles block_id tracks []
         else mapM (Merge.merge_tracks Merge.KeepTitles block_id tracks) dests
     unless (null new_dests) $
-        Log.notice $ "derive integrated " <> showt track_id <> " to "
+        Log.notice $ "derive track integrate " <> pretty block_id <> " "
+            <> pretty track_id <> " to "
             <> pretty (map (map (fst . Block.dest_note)) new_dests)
     Ui.modify_integrated_tracks block_id $ replace track_id
         [(track_id, Block.DeriveDestinations dests) | dests <- new_dests]

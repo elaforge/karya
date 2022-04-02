@@ -6,12 +6,18 @@
 module Cmd.Repl.LIntegrate where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Edit as Edit
 import qualified Cmd.Integrate.Merge as Merge
+import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
+
+import qualified Derive.Derive as Derive
+import qualified Derive.Score as Score
+import qualified Derive.Stream as Stream
 
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
@@ -96,8 +102,8 @@ delete_manual key = do
 -- * inspect
 
 -- | Show the integration state in an abbreviated way.
-pretty :: Cmd.M m => m [(TrackId, (Block.Source, Text))]
-pretty = do
+sources :: Cmd.M m => m [(TrackId, (Block.Source, Text))]
+sources = do
     block <- Ui.get_block =<< Cmd.get_focused_block
     return $ map (fmap (fmap Block.short_event_index)) $
         Block.destination_to_source block
@@ -117,6 +123,7 @@ edits block_id track_id = do
     let (deleted, edits) = Merge.diff_events index (Events.ascending events)
     return (Set.toList deleted, filter Merge.is_modified edits)
 
+-- | Show source UI events.
 indices :: Cmd.M m => m [(TrackId, (Block.Source, Block.EventIndex))]
 indices =
     fmap Block.destination_to_source . Ui.get_block =<< Cmd.get_focused_block
@@ -132,3 +139,11 @@ indices_of integrated integrated_tracks =
     dest_indices (_, Block.ScoreDestinations dests) = map snd dests
     derive_indices (Block.NoteDestination _ note controls) =
         note : Map.elems controls
+
+integrated :: Cmd.M m => m Text
+integrated = do
+    integrated <- Cmd.perf_integrated <$> Perf.get_root
+    return $ Text.unlines $ concatMap fmt integrated
+    where
+    fmt (Derive.Integrated source events) =
+        pretty source : Stream.short_events events

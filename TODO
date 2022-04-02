@@ -3982,6 +3982,43 @@ integrate: integration:
       . Is there really a use for this, other than consistency?
       . Yes, I want to do this for generated parts.
   derive integrate:
+    - seems like track integrate < was silently ignored in the block title?
+      Can it make an error?
+    - integrate should cancel out {final} notes
+      . Also integrate after infer-damp gets mutes in weird places.
+      . What are the actual events coming out?
+        They're as expected: ue+ue+u+e+
+      . So what does integrate see and how can I debug it?
+      . Derive.Integrated
+      . LIntegrate.indices - They are the source UI events, not score.
+      * When integrate runs, what performance does it use?
+        . I think it uses both, and crashes confusingly.
+        . When I have even an empty block:
+          derive integrated (tid "untitled/b2.t2") to [[]]
+        . What does the [[]] mean?
+        . integrated_tracks = [((tid "untitled/b2.t2"), DeriveDestinations [])]
+          I think it should never be [].  That implies a derive that produced
+          0 tracks.  Merge.merge_tracks should then produce new ones?
+        . It was created somehow, perhaps due to "removed invalid
+          integrated_tracks"?
+        . That was due to a destination of a track not in the block.
+      . LIntegrate.integrated, it's definitely messed up.
+    - unwarp integration
+      . Due to Internal.in_real_time, but without it, I get the .5 tempo.
+        I think in_real_time doesn't work for anything that places events with
+        Derive.place.  Instead, I need to invert any tempo track.
+      . Since I'll have to save the tempo track anyway, how about instead the
+        block call stashes the surrounding Warp, and then I derive in that?
+      . That's not right though, because I don't want global time, but flat
+        TrackTime.  That really is 1:1, so why doesn't in_real_time work?
+      . I think it can't work right, because infer-damp depends on RealTime,
+        which will be different anyway.
+      . But that should make fewer damps, not broken damps.
+      . damp-dur=.15, notes are at .06, so makes sense they can't damp.
+      . To avoid being messed up by RealTime things, I think I have to
+        derive at tempo, and then unwarp them back.
+      . For that I need the inverse of block tempo... this is the normal
+        inverse warp if integrate is from the local derive.
     - I get redundant pitches on noltol mute notes.
       . Can I omit repeated pitches?
       . Or maybe omit the pitches in the noltol itself so they inherit the
@@ -5472,7 +5509,7 @@ fltk:
   - WrappedInput expansion incorrect when entering in already-wrapped
   * backspace to make a floating input shrink, doesn't redraw
   - when editing a floating input or resizing a track afterwards, the whole
-    window went block.  How to reproduce?
+    window went black.  How to reproduce?
   - embiggening the rightmost track could embiggen the window too
     . A more extreme version is to remove horizontal scrolling by making the
       window always fit the tracks.
@@ -6972,7 +7009,6 @@ Derive:
         is the "track call" thing I was thinking about a long time ago.
     - Add an input mode for bols.
   bali:
-    - integrate should cancel out {final} notes
     infer gender damping:
       . Also don't damp repeated pitches.
         . Though with rambat this might have the effect of always choosing

@@ -701,7 +701,8 @@ set_integrated_block block_id integrated = do
     modify_block block_id $ \block ->
         block { Block.block_integrated = integrated }
     block <- get_block block_id
-    require_valid "set_integrated_block" (fix_integrated_block block_id block)
+    require_valid ("set_integrated_block " <> pretty block_id)
+        (fix_integrated_block block_id block)
 
 modify_integrated_tracks :: M m => BlockId
     -> ([(TrackId, Block.TrackDestinations)]
@@ -713,7 +714,7 @@ modify_integrated_tracks block_id modify = do
             modify (Block.block_integrated_tracks block)
         }
     block <- get_block block_id
-    require_valid "modify_integrated_tracks" $
+    require_valid ("modify_integrated_tracks " <> pretty block_id) $
         fix_integrated_tracks block_id block
 
 -- | Set or clear the block's manual integration 'Block.NoteDestination's.

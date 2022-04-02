@@ -6,6 +6,7 @@ module Cmd.Integrate_test where
 import qualified Data.List as List
 import qualified Data.Map as Map
 
+import qualified Util.Log as Log
 import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
@@ -141,6 +142,22 @@ test_track_integrate = do
     res <- continue res
     equal (e_events res) [(0, 1, "3c"), (1, 1, "4d")]
     equal (has_integrated res) (Just False)
+
+test_track_integrate_subblock :: Test
+test_track_integrate_subblock = do
+    let states = ResponderTest.mkstates_blocks
+            [ ("top", [(">", [(0, 2, "sub")])])
+            , ("sub", [(">i1", [(0, 1, ""), (1, 1, "")])])
+            ]
+    res <- start states $ Ui.set_track_title
+        (UiTest.mk_tid_block (UiTest.bid "sub") 1) ">i1 | <"
+    equal (e_events res) []
+    pprint (e_integrated res)
+    let ui = ResponderTest.result_ui_state res
+    pprint (map (second (Block.block_integrated_tracks)) $
+        Map.toList $ Ui.state_blocks ui)
+    -- No errors.
+    equal (map Log.msg_text (ResponderTest.result_logs res)) []
 
 test_track_modify :: Test
 test_track_modify = do

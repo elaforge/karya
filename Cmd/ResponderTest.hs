@@ -27,6 +27,7 @@ import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TVar as TVar
 
+import qualified Data.IORef as IORef
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text.IO as Text.IO
@@ -41,13 +42,9 @@ import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Thread as Thread
 
-import qualified Midi.Interface as Interface
-import qualified Midi.StubMidi as StubMidi
-import qualified Ui.Fltk as Fltk
-import qualified Ui.Sel as Sel
-import qualified Ui.Ui as Ui
-import qualified Ui.UiTest as UiTest
-import qualified Ui.Update as Update
+import qualified App.Config as Config
+import qualified App.ReplProtocol as ReplProtocol
+import qualified App.StaticConfig as StaticConfig
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
@@ -56,12 +53,16 @@ import qualified Cmd.Performance as Performance
 import qualified Cmd.Repl as Repl
 import qualified Cmd.Responder as Responder
 
-import qualified App.Config as Config
-import qualified App.ReplProtocol as ReplProtocol
-import qualified App.StaticConfig as StaticConfig
+import qualified Midi.Interface as Interface
+import qualified Midi.StubMidi as StubMidi
+import qualified Ui.Fltk as Fltk
+import qualified Ui.Sel as Sel
+import qualified Ui.Ui as Ui
+import qualified Ui.UiTest as UiTest
+import qualified Ui.Update as Update
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- * setup
@@ -115,6 +116,7 @@ data Result = Result {
     -- | CPU seconds it took for this Result to come back.  This doesn't
     -- include waiting for the Msg.
     , result_time :: Seconds
+    , result_logs :: [Log.Msg]
     }
 
 type Seconds = Double
@@ -228,10 +230,12 @@ thread_delay print_timing states ((msg, delay) : msgs) = do
 
 -- * respond_cmd
 
-configure_logging :: IO ()
-configure_logging = do
+configure_logging :: IORef.IORef [Log.Msg] -> IO ()
+configure_logging logs_ref = do
     Log.configure $ \state -> state
-        { Log.state_write_msg = Log.write_formatted IO.stdout
+        { Log.state_write_msg = \msg -> do
+            IORef.modifyIORef' logs_ref (msg:)
+            Log.write_formatted IO.stdout msg
         -- Otherwise the status updates get spammy.
         , Log.state_priority = Log.Notice
         }
@@ -240,8 +244,7 @@ configure_logging = do
 -- | Respond to a single Cmd.  This can be used to test cmds in the full
 -- responder context without having to fiddle around with keymaps.
 respond_cmd :: States -> Cmd.CmdT IO a -> IO Result
-respond_cmd states cmd =
-    configure_logging >> respond1 Nothing states (Just (mkcmd cmd)) magic
+respond_cmd states cmd = respond1 Nothing states (Just (mkcmd cmd)) magic
     where
     -- I run a cmd by adding a cmd that responds only to a specific Msg, and
     -- then sending that Msg.
@@ -262,6 +265,8 @@ respond1 :: Maybe (Chan.Chan Msg.Msg) -> States -> Maybe CmdIO
     -- respond will
     -> Msg.Msg -> IO Result
 respond1 reuse_loopback (ui_state, cmd_state) maybe_cmd msg = do
+    logs_ref <- IORef.newIORef []
+    configure_logging logs_ref
     update_chan <- new_chan
     loopback_chan <- maybe Chan.newChan return reuse_loopback
     (interface, midi_chan) <- make_midi_interface
@@ -275,6 +280,7 @@ respond1 reuse_loopback (ui_state, cmd_state) maybe_cmd msg = do
         updates <- concat <$> get_vals update_chan
         Thread.force updates
         return (rstate, midi, updates)
+    logs <- reverse <$> IORef.readIORef logs_ref
     -- Updates and MIDI are normally forced by syncing with the UI and MIDI
     -- driver, so force explicitly here.  Not sure if this really makes
     -- a difference.
@@ -292,6 +298,7 @@ respond1 reuse_loopback (ui_state, cmd_state) maybe_cmd msg = do
         , result_updates = updates
         , result_loopback = loopback_chan
         , result_time = realToFrac $ Thread.metricCpu metric
+        , result_logs = logs
         }
     where
     set_cmd_state interface = cmd_state

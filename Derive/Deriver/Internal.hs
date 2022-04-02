@@ -456,10 +456,10 @@ increment_event_serial = modify_threaded $ \threaded -> threaded
 
 -- | Am I deriving the toplevel block?
 is_root_block :: Deriver Bool
-is_root_block = do
-    stack <- get_stack
-    let blocks = [bid | Stack.Block bid <- Stack.outermost stack]
-    return $ case blocks of
-        [] -> True
-        [_] -> True
-        _ -> False
+is_root_block = is_root_block_stack <$> get_stack
+    where
+    is_root_block_stack stack =
+        case [bid | Stack.Block bid <- Stack.outermost stack] of
+            [] -> True
+            [_] -> True
+            _ -> False

@@ -339,6 +339,10 @@ e :: [Fmt] -> [Score.Event] -> Text
 e extract = Text.unlines . Texts.columns 1
     . map (\event -> map ($event) (concat extract))
 
+-- | LPerf.en LPerf.sel_events
+en :: Functor f => f [Score.Event] -> f Text
+en = fmap (e [e_note])
+
 type Fmt = [Score.Event -> Text]
 
 -- Start, dur, text.
@@ -347,6 +351,9 @@ e_sdt = e_sd ++ [pretty . Score.event_text]
 e_sd = [pretty . Score.event_start, pretty . Score.event_duration]
 e_sp = e_s ++ e_pitch
 e_s = [pretty . Score.event_start]
+
+e_note :: Fmt
+e_note = e_sd ++ e_pitch ++ e_attr
 
 e_pitch, e_attr, e_inst, e_env :: Fmt
 e_pitch = [maybe "?" PSignal.symbolic_pitch . Score.initial_pitch]

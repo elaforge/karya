@@ -229,10 +229,12 @@ type EventIndex = Map Event.IndexKey Event.Event
 short_event_index :: EventIndex -> Text
 short_event_index index
     | Map.null index = "((empty))"
-    | otherwise = "((" <> showt (Map.size index) <> " "
-        <> pretty (fst (Map.findMin index))
-        <> "--" <> pretty (fst (Map.findMax index))
-        <> "))"
+    | otherwise = mconcat
+        [ "((index size:", showt (Map.size index)
+        , " ", pretty (fst (Map.findMin index))
+        , "--", pretty (fst (Map.findMax index))
+        , "))"
+        ]
 
 instance Pretty NoteDestination where
     format (NoteDestination key note controls) = Pretty.record "NoteDestination"

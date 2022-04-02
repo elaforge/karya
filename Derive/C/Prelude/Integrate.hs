@@ -9,6 +9,7 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
+import qualified Util.Seq as Seq
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
@@ -52,8 +53,7 @@ block_integrate events = do
     -- Only collect an integration if this is the top level block.  Otherwise
     -- I can get integrating blocks called from many places and who knows which
     -- one is supposed to be integrated.
-    maybe_block_id <- frame_of Stack.block_of <$> Internal.get_stack
-    whenJust maybe_block_id $ \block_id -> do
+    whenJustM (toplevel <$> Internal.get_stack) $ \(block_id, _) -> do
         events <- Derive.eval_ui $ unwarp block_id events
         let integrated = Derive.Integrated (Left block_id) events
         Internal.merge_collect $ mempty
@@ -95,9 +95,10 @@ c_track_integrate = Derive.transformer Module.prelude "track-integrate" mempty
         Sig.defaulted "keep-controls" Set.empty
             "If non-empty, remove all but these controls."
     ) $ \keep_controls _args deriver -> do
-        stack <- Internal.get_stack
-        case (frame_of Stack.block_of stack, frame_of Stack.track_of stack) of
-            (Just block_id, Just track_id) -> do
+        -- Similar to block_integrate, only collect an integration if this is
+        -- at the toplevel.
+        toplevel <$> Internal.get_stack >>= \case
+            Just (block_id, Just track_id) -> do
                 -- The derive is intentionally outside of the
                 -- 'only_destinations_damaged' check.  This is because I need
                 -- the collect from it, specifically 'collect_track_dynamic'.
@@ -133,5 +134,7 @@ track_integrate block_id track_id events = do
     Internal.merge_collect $ mempty
         { Derive.collect_integrated = [integrated] }
 
-frame_of :: (Stack.Frame -> Maybe a) -> Stack.Stack -> Maybe a
-frame_of f = msum . map f . Stack.innermost
+toplevel :: Stack.Stack -> Maybe (BlockId, Maybe TrackId)
+toplevel stack = case Stack.block_tracks_of stack of
+    [(block_id, track_ids)] -> Just (block_id, Seq.last track_ids)
+    _ -> Nothing
