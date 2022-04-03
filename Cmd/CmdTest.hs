@@ -108,7 +108,14 @@ make_tracks_ruler = snd . make
 
 -- | Run a cmd and return everything you could possibly be interested in.
 run :: Ui.State -> Cmd.State -> Cmd.CmdId a -> Result a
-run ustate1 cstate1 cmd = Result val cstate2 ustate2 update logs midi_msgs
+run ustate1 cstate1 cmd = Result
+    { result_val = val
+    , result_cmd_state = cstate2
+    , result_ui_state = ustate2
+    , result_ui_damage = update
+    , result_logs = logs
+    , result_thru = midi_msgs
+    }
     where
     (cstate2, midi_msgs, logs, result) = Cmd.run_id ustate1 cstate1 cmd
     (val, ustate2, update) = case result of

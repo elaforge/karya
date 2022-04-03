@@ -4,8 +4,7 @@
 
 {-# LANGUAGE OverloadedStrings #-}
 module Util.Debug (
-    activate, deactivate
-    , full, fullM
+    full, fullM
     -- * forced by evaluation
     , trace, tracep, traces, tracesp
     , tracef, tracefp, trace_ret, trace_retp
@@ -19,33 +18,21 @@ import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Trans as Trans
 
-import qualified Data.IORef as IORef
 import qualified Data.Text as Text
-import Data.Text (Text)
+import           Data.Text (Text)
 import qualified Data.Text.IO as Text.IO
 
-import GHC.Stack (HasCallStack)
+import           GHC.Stack (HasCallStack)
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
 import qualified System.Timeout as Timeout
 
 import qualified Util.CallStack as CallStack
+import qualified Util.Log as Log
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
-import Util.Pretty (Pretty)
+import           Util.Pretty (Pretty)
 
-
-{-# NOINLINE active #-}
-active :: IORef.IORef (Maybe IO.Handle)
-active = Unsafe.unsafePerformIO (IORef.newIORef (Just IO.stdout))
-
--- | Write debug msgs to the given handle.
-activate :: IO.Handle -> IO ()
-activate hdl = IORef.writeIORef active (Just hdl)
-
--- | Suppress debug msgs.
-deactivate :: IO ()
-deactivate = IORef.writeIORef active Nothing
 
 -- | Only apply the function if the val is non-mempty.  Useful for the trace
 -- family.
@@ -151,18 +138,16 @@ write :: HasCallStack => Text -> a -> a
 write msg val = Unsafe.unsafePerformIO $ writeIO msg >> return val
 
 writeIO :: (HasCallStack, Trans.MonadIO m) => Text -> m ()
-writeIO msg = Trans.liftIO $ IORef.readIORef active >>= \x -> case x of
-    Nothing -> return ()
-    Just hdl -> do
-        -- deepseq to prevent debug msgs from being interleaved.
-        ok <- timeout 1 $ Exception.evaluate (DeepSeq.deepseq msg msg)
-        -- I could catch exceptions, but I don't want to catch async exceptions.
-        -- `Exception.catch` \(exc :: Exception.SomeException) ->
-        --     return $ prefix <> "<exception: " <> Text.pack (show exc) <> ">"
-        case ok of
-            Nothing ->
-                Text.IO.hPutStrLn hdl $ prefix <> "<evalutaion timed out>"
-            Just msg -> Text.IO.hPutStrLn hdl msg
+writeIO msg = Trans.liftIO $ do
+    -- deepseq to prevent debug msgs from being interleaved.
+    ok <- timeout 1 $ Exception.evaluate (DeepSeq.deepseq msg msg)
+    -- I could catch exceptions, but I don't want to catch async exceptions.
+    -- `Exception.catch` \(exc :: Exception.SomeException) ->
+    --     return $ prefix <> "<exception: " <> Text.pack (show exc) <> ">"
+    Log.with_stdio_lock $ case ok of
+        Nothing ->
+            Text.IO.hPutStrLn IO.stdout $ prefix <> "<evalutaion timed out>"
+        Just msg -> Text.IO.hPutStrLn IO.stdout msg
 
 timeout :: Double -> IO a -> IO (Maybe a)
 timeout = Timeout.timeout . to_usec

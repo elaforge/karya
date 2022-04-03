@@ -193,10 +193,12 @@ continue_all blocks_gone timeout prev_result =
         | complete_blocks == expected_blocks = return []
         | otherwise = do
             maybe_msg <- read_msg timeout loopback
-            Text.IO.putStrLn $ "ResponderTest.continue: " <> case maybe_msg of
-                Nothing -> "timed out, waiting for " <> pretty expected_blocks
-                    <> ", only got " <> pretty complete_blocks
-                Just msg -> pretty msg
+            Log.with_stdio_lock $ Text.IO.putStrLn $
+                "ResponderTest.continue: " <> case maybe_msg of
+                    Nothing -> "timed out, waiting for "
+                        <> pretty expected_blocks <> ", only got "
+                        <> pretty complete_blocks
+                    Just msg -> pretty msg
             case maybe_msg of
                 Nothing -> return []
                 Just msg -> do
