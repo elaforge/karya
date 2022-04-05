@@ -49,6 +49,7 @@ library :: Library.Library
 library = Library.vals
     [ (">", c_next_val)
     , ("<", c_prev_val)
+    , ("next-event", c_next_event)
     , ("bpm", c_bpm)
     , ("env", c_env)
     , ("ts", c_timestep)
@@ -114,6 +115,14 @@ c_prev_val = val_call "prev-val" Tags.prev
                 maybe (Derive.throw "no previous pitch")
                     (return . DeriveT.VPitch) (PSignal.at start sig)
             _ -> Derive.throw "no previous value"
+
+c_next_event :: Derive.ValCall
+c_next_event = val_call "next-event" Tags.next
+    "Start RealTime of the next event. Only used for tests."
+    $ Sig.call0 $ \args -> do
+        event <- Derive.require "no next event" $
+            Seq.head (Args.next_events args)
+        Derive.score_to_real $ Event.start event
 
 c_bpm :: Derive.ValCall
 c_bpm = val_call "bpm" mempty "Convert bpm to tempo.  This is just (/60)."

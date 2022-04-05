@@ -20,6 +20,7 @@ import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Sig as Sig
 import qualified Derive.Stack as Stack
 import qualified Derive.Stream as Stream
+import qualified Derive.Warp as Warp
 
 import qualified Perform.RealTime as RealTime
 import qualified Ui.TrackTree as TrackTree
@@ -107,10 +108,7 @@ c_track_integrate = Derive.transformer Module.prelude "track-integrate" mempty
                 -- lead to it hanging on to lots of garbage, especially since
                 -- it would never drop track dynamics entries for deleted
                 -- tracks.
-                -- Derive in_real_time, otherwise the tempo would be applied
-                -- twice, once during integration and again during derivation
-                -- of the integrated output.
-                events <- Internal.in_real_time deriver
+                events <- unwarp_events =<< deriver
                 -- I originally guarded this with a hack that would not emit
                 -- track integrates if only the destinations had received
                 -- damage.  But the track cache now serves this purpose, since
@@ -122,6 +120,27 @@ c_track_integrate = Derive.transformer Module.prelude "track-integrate" mempty
                 <> pretty block_id
             Nothing -> return ()
         return Stream.empty
+
+-- | Unwarp integrated events, otherwise the tempo would be applied twice, once
+-- during integration and again during derivation of the integrated output.
+--
+-- Previously I used 'Internal.in_real_time', but it turns out that yields
+-- different results for calls that use RealTime.  To get the same results as a
+-- play would, I have to do the derive normally and then unwrap after the fact.
+-- This doesn't unwarp the control signals, but Integrate.Convert only looks
+-- at values on note starts, so the complete signals don't matter.
+unwarp_events :: Stream.Stream Score.Event
+    -> Derive.Deriver (Stream.Stream Score.Event)
+unwarp_events events = do
+    warp <- Internal.get_dynamic Derive.state_warp
+    return $ fmap (unwarp_event (Warp.unwarp warp)) events
+
+unwarp_event :: (RealTime -> ScoreTime) -> Score.Event -> Score.Event
+unwarp_event to_score event = Score.place start (end - start) event
+    where
+    start = convert (Score.event_start event)
+    end = convert (Score.event_end event)
+    convert = RealTime.from_score . to_score
 
 strip_event :: Set ScoreT.Control -> Score.Event -> Score.Event
 strip_event keep event = event

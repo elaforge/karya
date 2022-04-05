@@ -7,6 +7,9 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 
 import qualified Util.Log as Log
+import qualified Util.Test.Testing as Testing
+import qualified Util.Thread as Thread
+
 import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
@@ -147,10 +150,9 @@ test_track_integrate_subblock :: Test
 test_track_integrate_subblock = do
     let states = ResponderTest.mkstates_blocks
             [ ("top", [(">", [(0, 2, "sub")])])
-            , ("sub", [(">i1", [(0, 1, ""), (1, 1, "")])])
+            , ("sub", [(">i1 | <", [(0, 1, ""), (1, 1, "")])])
             ]
-    res <- start states $ Ui.set_track_title
-        (UiTest.mk_tid_block (UiTest.bid "sub") 1) ">i1 | <"
+    res <- start states (return ())
     equal (e_events res) []
     pprint (e_integrated res)
     let ui = ResponderTest.result_ui_state res
@@ -158,6 +160,29 @@ test_track_integrate_subblock = do
         Map.toList $ Ui.state_blocks ui)
     -- No errors.
     equal (map Log.msg_text (ResponderTest.result_logs res)) []
+
+test_track_integrate_unwarp :: Test
+test_track_integrate_unwarp = do
+    let run tracks = start (ResponderTest.mkstates tracks) (return ())
+    let track = (">i1 | < c", [(0, 0.5, "%c=(next-event) |"), (0.5, 1, "")])
+    res <- run [("tempo", [(0, 0, "1")]), track]
+    -- Avoid stdout mixing with any debug trace from the last performance
+    -- force.
+    Thread.delay 0.1
+    equal (e_block_tracks res) $ Just
+        [ ("tempo", [(0, 0, "1")])
+        , track
+        , (">i1", [(0, 0.5, ""), (0.5, 1, "")])
+        , ("c:s", [(0, 0, "`0x`80")])
+        ]
+    res <- run [("tempo", [(0, 0, ".5")]), track]
+    Thread.delay 0.1
+    equal (e_block_tracks res) $ Just
+        [ ("tempo", [(0, 0, ".5")])
+        , track
+        , (">i1", [(0, 0.5, ""), (0.5, 1, "")])
+        , ("c:s", [(0, 0, "`0x`ff")])
+        ]
 
 test_track_modify :: Test
 test_track_modify = do
@@ -427,6 +452,9 @@ until_complete = ResponderTest.respond_all [] 1
 
 e_tracks :: ResponderTest.Result -> [UiTest.BlockSpec]
 e_tracks = UiTest.extract_blocks . ResponderTest.result_ui_state
+
+e_block_tracks :: ResponderTest.Result -> Maybe [UiTest.TrackSpec]
+e_block_tracks = lookup UiTest.default_block_name . e_tracks
 
 e_track_ids :: ResponderTest.Result -> [(BlockId, [TrackId])]
 e_track_ids = UiTest.extract_track_ids . ResponderTest.result_ui_state

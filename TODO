@@ -4003,7 +4003,7 @@ integrate: integration:
           integrated_tracks"?
         . That was due to a destination of a track not in the block.
       . LIntegrate.integrated, it's definitely messed up.
-    - unwarp integration
+    * unwarp integration
       . Due to Internal.in_real_time, but without it, I get the .5 tempo.
         I think in_real_time doesn't work for anything that places events with
         Derive.place.  Instead, I need to invert any tempo track.
@@ -4019,6 +4019,8 @@ integrate: integration:
         derive at tempo, and then unwarp them back.
       . For that I need the inverse of block tempo... this is the normal
         inverse warp if integrate is from the local derive.
+      . Actually no, I need to derive in normal time, and then unwarp the
+        results.
     - I get redundant pitches on noltol mute notes.
       . Can I omit repeated pitches?
       . Or maybe omit the pitches in the noltol itself so they inherit the
