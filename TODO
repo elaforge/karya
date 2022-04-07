@@ -7232,6 +7232,14 @@ Derive:
             561   53561
              21      21
     reyong:
+      infer-damp integrate:
+        - Instead of +mute, just use zero dur events.  This should also get
+          the dyn right.
+        - Double notes, should be 'u-ua+' but is 'u-uu+'
+          . Probably floating point making the pitch not line up with note
+            start.
+          . Is it not constant pitch signal though!?
+      - what's up with early?  Why would I want to do that?
       - realize notes like kempyung... though doing it properly seems hard?
       - divide infer-damp into infer-hands, and then use hand-damp.
         That way I can put an integrate after infer-hands, as

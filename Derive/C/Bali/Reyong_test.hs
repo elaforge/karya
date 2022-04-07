@@ -8,7 +8,7 @@ import qualified Util.Seq as Seq
 import qualified Derive.Attrs as Attrs
 import qualified Derive.C.Bali.Gangsa_test as Gangsa_test
 import qualified Derive.C.Bali.Reyong as Reyong
-import           Derive.C.Bali.Reyong (Hand(..))
+import           Derive.Call (Hand(..))
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Env as Env
@@ -16,6 +16,7 @@ import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
+import qualified Derive.Stream as Stream
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
@@ -89,7 +90,7 @@ test_kotekan_regular = do
     let run1 text = first (map snd . take 2) . e_pattern 0
             . DeriveTest.derive_tracks title_cancel . UiTest.note_track $
                 [(0, 8, text)]
-    -- equal (run1 "k k-12_1-21 -- 4i") (["ueu--ue-u", "i-io-i-oi"], [])
+    equal (run1 "k k-12_1-21 -- 4i") (["ueu--ue-u", "i-io-i-oi"], [])
     equal (run1 "k -- 4i") (["ueu-eue-u", "i-io-i-oi"], [])
     equal (run1 "k -- 4e") (["e-eu-e-ue", "iai-aia-i"], [])
     equal (run1 "k -- 4u") (["u-ua-u-au", "oio-ioi-o"], [])
@@ -225,11 +226,11 @@ test_c_infer_damp = do
             . UiTest.note_track
     -- +undamped prevents damping.
     equal (run [(0, 1, "4i"), (1, 1, "+undamped -- 4o")])
-        ([(0, "4i", '-'), (1, "4o", '-'), (1, "4i", '+')], [])
+        ([(0, "4i", '-'), (1, "4i", '+'), (1, "4o", '-')], [])
     -- Too fast, no damp for 4i.
     equal (run [(0, 0.5, "4i"), (0.5, 0.5, "4o"), (1, 1, "4i")])
         ( [ (0, "4i", '-'), (0.5, "4o", '-')
-          , (1, "4i", '-'), (1, "4o", '+'), (2, "4i", '+')
+          , (1, "4o", '+'), (1, "4i", '-'), (2, "4i", '+')
           ]
         , []
         )
@@ -237,6 +238,57 @@ test_c_infer_damp = do
     equal (run [(0, 1, "4i"), (1, 1, "4i")])
         ([(0, "4i", '-'), (1, "4i", '-'), (2, "4i", '+')], [])
     equal (run [(0, 1, "4i")]) ([(0, "4i", '-'), (1, "4i", '+')], [])
+
+{-
+test_infer_damp_integrate :: Test
+test_infer_damp_integrate = do
+    -- let run = extract $ DeriveTest.derive_tracks "" $
+    --         UiTest.note_spec
+    --             ( " | < | voices=1 | " <> title_damp 1.5
+    --             , [(0, 1, "4i"), (3, 1, "4o")]
+    --             , []
+    --             )
+    let run integrate = extract $ DeriveTest.derive_tracks ""
+            [ ("tempo", [(0, 0, ".5")])
+            , ( "> " <> (if integrate then "| < " else "")
+                <> "| voices=1 | " <> title_damp 1.2
+              , [(0, 8, "k")]
+              )
+            , ("*", [(0, 0, "4i")])
+            ]
+        extract r = (map e_integrated $ Derive.r_integrated r, es, logs)
+            where (es, logs) = DeriveTest.extract e_damped_event2 r
+        e_integrated = map e_damped_event2 . Stream.events_of
+            . Derive.integrated_events
+        -- e_integrated (Derive.Integrated source events) =
+        --     (source, map e_note (Stream.events_of events))
+        -- e_note e = (DeriveTest.e_start_note e, DeriveTest.e_attributes e)
+        -- e_note e =
+        --     ( Score.event_start e
+        --     , DeriveTest.e_pitch e <> if mute then "+" else ""
+        --     )
+        --     where mute = Score.has_attribute Attrs.mute e
+    equal (run False)
+        ( []
+        , [ (0, "4u"), (1, "4e"), (2, "4u")
+          , (2, "4e+"), (3, "4u+")
+          , (4, "4e"), (5, "4u"), (6, "4e")
+          , (6, "4u+"), (7, "4e+")
+          , (8, "4u"), (9, "4u+")
+          ]
+        , []
+        )
+    equal (run True)
+        ( [[ (0, "4u"), (1, "4e"), (2, "4u")
+          , (2, "4e+"), (3, "4u+")
+          , (4, "4e"), (5, "4u"), (6, "4e")
+          , (6, "4u+"), (7, "4e+")
+          , (8, "4u"), (9, "4u+")
+          ]]
+        , []
+        , []
+        )
+-}
 
 test_c_infer_damp_early = do
     let run = DeriveTest.extract e_damped_event
@@ -254,7 +306,7 @@ test_c_infer_damp_ngoret = do
     -- First note is muted, but the grace note is too quick.
     equal (run [(0, 1, "4i"), (1, 1, "' -- 4e")])
         ( [ (0, "4i", '-'), (0.9, "4o", '-')
-          , (1, "4e", '-'), (1, "4i", '+')
+          , (1, "4i", '+'), (1, "4e", '-')
           , (2, "4e", '+')
           ]
         , []
@@ -279,8 +331,8 @@ test_c_infer_damp_kotekan = do
     equal (run [(0, 4, "k k-12-1-21 -- 4i")])
         ( Just
             [ (0, "5i", '-')
-            , (2, "5i", '-'), (3, "5o", '-')
-            , (3, "5i", '+'), (4, "5o", '+')
+            , (2, "5i", '-'), (3, "5i", '+')
+            , (3, "5o", '-'), (4, "5o", '+')
             ]
         , []
         )
@@ -305,6 +357,11 @@ test_c_infer_damp_cek = do
 e_damped_event :: Score.Event -> (RealTime, Text, Char)
 e_damped_event e = (Score.event_start e, DeriveTest.e_pitch e, e_damped e)
 
+e_damped_event2 :: Score.Event -> (RealTime, Text)
+e_damped_event2 e =
+    (Score.event_start e, DeriveTest.e_pitch e <> if mute then "+" else "")
+    where mute = Score.has_attribute Attrs.mute e
+
 e_damped :: Score.Event -> Char
 e_damped e = if Score.has_attribute Attrs.mute e then '+' else '-'
 
@@ -314,7 +371,8 @@ e_damp_dyn e
     | otherwise = Nothing
 
 test_infer_damp = do
-    let f dur = map to_char . fst . Reyong.infer_damp (const dur) . mkevents
+    let f dur = map (to_char . snd) . fst . Reyong.infer_damp (const dur)
+            . mkevents
         to_char b = if b then '1' else '0'
     -- Damp with the other hand.
     equal (f 1 [(0, "4c"), (1, "4d"), (2, "4e")]) "111"

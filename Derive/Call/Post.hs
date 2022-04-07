@@ -201,6 +201,9 @@ emap_s_ event_of f = concatMapM go . Stream.to_list
     go (LEvent.Event a) = fromMaybe mempty <$>
         Derive.with_event (event_of a) (f a)
 
+merge_asc :: [[Score.Event]] -> [Score.Event]
+merge_asc = Seq.merge_asc_lists Score.event_start
+
 -- * only
 
 -- | Only process the events that match, otherwise pass unchanged.

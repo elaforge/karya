@@ -23,6 +23,7 @@ import qualified Util.Texts as Texts
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
+import qualified Derive.Call as Call
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
@@ -117,6 +118,7 @@ allocate_tracks tracknums = concatMap overlap . Seq.keyed_group_sort group_key
         , Score.event_instrument event
         , PSignal.sig_scale_id (Score.event_pitch event)
         , event_voice event
+        , event_hand event
         )
     tracknum_of tid = Map.lookup tid tracknums
 
@@ -137,38 +139,47 @@ split_overlapping events = track : split_overlapping rest
 event_voice :: Score.Event -> Maybe Voice
 event_voice = Env.maybe_val EnvKey.voice . Score.event_environ
 
+event_hand :: Score.Event -> Maybe Call.Hand
+event_hand = Env.maybe_val EnvKey.hand . Score.event_environ
+
 track_of :: Score.Event -> Maybe TrackId
 track_of = Seq.head . mapMaybe Stack.track_of . Stack.innermost
     . Score.event_stack
 
 -- | This determines how tracks are split when integration recreates track
 -- structure.
-type TrackKey = (Maybe TrackNum, ScoreT.Instrument, Pitch.ScaleId, Maybe Voice)
+type TrackKey =
+    ( Maybe TrackNum, ScoreT.Instrument, Pitch.ScaleId
+    , Maybe Voice, Maybe Call.Hand
+    )
 type Voice = Int
 
 integrate_track :: Config -> (TrackKey, [Score.Event])
     -> Either Error (Track, [Track])
 integrate_track (lookup_call, default_scale_id)
-        ((_, inst, scale_id, voice), events) = do
+        ((_, inst, scale_id, voice, hand), events) = do
     pitch_track <- if no_pitch_signals events then return []
         else case pitch_events default_scale_id scale_id events of
             (track, []) -> return [track]
             (_, errs) -> Left $ Text.intercalate "; " errs
     return
-        ( note_events inst voice (lookup_call inst) events
+        ( note_events inst (voice, hand) (lookup_call inst) events
         , pitch_track ++ control_events events
         )
 
 -- ** note
 
-note_events :: ScoreT.Instrument -> Maybe Voice -> Common.CallMap
-    -> [Score.Event] -> Track
-note_events inst voice call_map events =
+note_events :: ScoreT.Instrument -> (Maybe Voice, Maybe Call.Hand)
+    -> Common.CallMap -> [Score.Event] -> Track
+note_events inst (voice, hand) call_map events =
     make_track note_title (map (note_event call_map) events)
     where
-    note_title = ParseTitle.instrument_to_title inst <> case voice of
-        Nothing -> ""
-        Just v -> " | v=" <> ShowVal.show_val v
+    note_title = Text.intercalate " | " $ filter (/="")
+        [ ParseTitle.instrument_to_title inst
+        , add_env EnvKey.voice voice
+        , add_env EnvKey.hand hand
+        ]
+    add_env key = maybe "" (((key <> "=")<>) . ShowVal.show_val)
 
 note_event :: Common.CallMap -> Score.Event -> Event.Event
 note_event call_map event = ui_event (Score.event_stack event)

@@ -645,6 +645,20 @@ invert Down = Up
 
 instance Pretty UpDown where pretty = showt
 instance Typecheck.Typecheck UpDown
+instance Typecheck.ToVal UpDown
 instance ShowVal.ShowVal UpDown where
     show_val Up = "u"
     show_val Down = "d"
+
+data Hand = L | R deriving (Show, Enum, Bounded, Eq, Ord)
+
+other_hand :: Hand -> Hand
+other_hand L = R
+other_hand R = L
+
+instance Pretty Hand where pretty = showt
+instance Typecheck.Typecheck Hand
+instance Typecheck.ToVal Hand
+instance ShowVal.ShowVal Hand where
+    show_val L = "l"
+    show_val R = "r"

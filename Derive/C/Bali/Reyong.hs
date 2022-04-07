@@ -759,10 +759,11 @@ c_infer_damp = Derive.transformer module_ "infer-damp" Tags.postproc
         early <- Call.to_function early
         -- infer_damp preserves order, so Post.apply is safe.  TODO Is there a
         -- way to express this statically?
-        Post.apply_m (Derive.run_logs
-            . infer_damp_voices (Set.fromList insts) (RealTime.seconds . dur)
-                    (RealTime.seconds . early))
-                =<< deriver
+        Post.apply_m
+            (Derive.run_logs
+                . infer_damp_voices (Set.fromList insts)
+                    (RealTime.seconds . dur) (RealTime.seconds . early))
+            =<< deriver
 
 -- | Multiply this by 'Controls.dynamic' for the dynamic of +mute notes created
 -- by infer-damp.
@@ -782,21 +783,22 @@ infer_damp_voices damped_insts dur_at early_at events = do
             <> Score.short_events skipped
     return damped
     where
-    (damped, skipped) = bimap (Seq.merge_lists Score.event_start) concat
-        . unzip . map infer1 . Seq.keyed_group_sort Post.voice_key $ events
-    infer1 ((inst, _voice), events)
-        | inst `Set.notMember` damped_insts = (events, [])
-        | otherwise = (,skipped) $ Seq.merge_on Score.event_start events $ do
-            (True, (event, next)) <- zip damps (Seq.zip_next events)
-            -- Only apply early_at if this damp would be simultaneous with the
-            -- next one.
-            let early = case next of
-                    Just n | Score.event_end event >= Score.event_start n ->
-                        early_at (Score.event_start event)
-                    _ -> 0
-            return $ make_damp early event
+    (skipped, damped) = bimap concat (Post.merge_asc . map Post.merge_asc)
+        . unzip . map infer_voice . Seq.keyed_group_sort Post.voice_key $
+        events
+    infer_voice ((inst, _voice), events)
+        | inst `Set.notMember` damped_insts = ([], [events])
+        | otherwise =
+            (skipped, zipWith infer_event damps (Seq.zip_next events))
+        where (damps, skipped) = infer_damp dur_at events
+    infer_event (hand, damped) (event, next) =
+        map (Post.add_environ EnvKey.hand hand) $
+            event : if damped then [make_damp early event] else []
         where
-        (damps, skipped) = infer_damp dur_at events
+        early = case next of
+            Just n | Score.event_end event >= Score.event_start n ->
+                early_at (Score.event_start event)
+            _ -> 0
 
 -- | Create a damped note at the end of the given note.
 make_damp :: RealTime -> Score.Event -> Score.Event
@@ -810,12 +812,12 @@ make_damp early event =
         (Score.control_at (Score.event_end event) damp_control event)
 
 infer_damp :: (RealTime -> RealTime) -> [Score.Event]
-    -> ([Bool], [Score.Event])
+    -> ([(Call.Hand, Bool)], [Score.Event])
     -- ^ (True if corresponding input event should be damped, skipped)
 infer_damp dur_at =
     first (snd . List.mapAccumL infer (0, 0) . Seq.zip_nexts) . assign_hands
     where
-    infer prev ((hand, event), nexts) = (hands_state, damp)
+    infer prev ((hand, event), nexts) = (hands_state, (hand, damp))
         where
         damp = Score.has_attribute damped event
             || (could_damp event
@@ -827,18 +829,18 @@ infer_damp dur_at =
         -- changing pitches.
         -- TODO maybe doesn't need a full dur from prev strike?
         other_hand_can_damp = and
-            [ (now - prev_strike (other hand)) >= dur
-            , enough_time (next (other hand))
+            [ (now - prev_strike (Call.other_hand hand)) >= dur
+            , enough_time (next (Call.other_hand hand))
             , maybe True ((/= Score.initial_nn event) . Score.initial_nn . snd)
                 (next hand)
             ]
         now = Score.event_end event
-        prev_strike L = fst prev
-        prev_strike R = snd prev
+        prev_strike Call.L = fst prev
+        prev_strike Call.R = snd prev
         hands_state
             | damp = case hand of
-                L -> (now, snd prev)
-                R -> (fst prev, now)
+                Call.L -> (now, snd prev)
+                Call.R -> (fst prev, now)
             | otherwise = prev
         next hand = Seq.head $ filter ((==hand) . fst) nexts
         enough_time = maybe True
@@ -858,18 +860,11 @@ damped = Attrs.attr "damped"
 undamped :: Attrs.Attributes
 undamped = Attrs.attr "undamped"
 
-data Hand = L | R deriving (Eq, Show)
-instance Pretty Hand where pretty = showt
-
-other :: Hand -> Hand
-other L = R
-other R = L
-
 -- | Assign hands based on the direction of the pitches.  This is a bit
 -- simplistic but hopefully works well enough.
-assign_hands :: [Score.Event] -> ([(Hand, Score.Event)], [Score.Event])
+assign_hands :: [Score.Event] -> ([(Call.Hand, Score.Event)], [Score.Event])
 assign_hands =
-    first (snd . List.mapAccumL assign (L, 999))
+    first (snd . List.mapAccumL assign (Call.L, 999))
         . Seq.partition_on (\e -> (,e) <$> Score.initial_nn e)
     where
     assign (prev_hand, prev_pitch) (pitch, event) =
@@ -877,8 +872,8 @@ assign_hands =
         where
         hand
             | pitch == prev_pitch = prev_hand
-            | pitch > prev_pitch = R
-            | otherwise = L
+            | pitch > prev_pitch = Call.R
+            | otherwise = Call.L
 
 -- * patterns
 
