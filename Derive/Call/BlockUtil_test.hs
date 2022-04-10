@@ -21,6 +21,7 @@ import qualified Ui.UiTest as UiTest
 import           Util.Test
 
 
+test_compile :: Test
 test_compile = do
     let controls = map Score.event_controls
         pitches = map DeriveTest.e_nns
@@ -59,6 +60,7 @@ test_compile = do
         , [(4, 64)]
         ]
 
+test_pitch_map_note :: Test
 test_pitch_map_note = do
     let run next = DeriveTest.extract DeriveTest.e_start_note
             .  DeriveTest.derive_tracks_setup
@@ -80,6 +82,7 @@ test_pitch_map_note = do
             else Args.lookup_prev_pitch args
         Call.place args $ Call.pitched_note pitch
 
+test_pitch_map_pitch :: Test
 test_pitch_map_pitch = do
     let run next = DeriveTest.extract DeriveTest.e_start_note
             .  DeriveTest.derive_tracks_setup
@@ -97,6 +100,7 @@ test_pitch_map_pitch = do
         start <- Args.real_start args
         return $ PSignal.from_pairs $ maybe [] (\p -> [(start, p)]) pitch
 
+test_control_call :: Test
 test_control_call = do
     let run tracks = DeriveTest.extract extract $ DeriveTest.derive_blocks
             [ ("top", tracks)
@@ -109,6 +113,7 @@ test_control_call = do
     equal (run $ UiTest.regular_notes 4 ++ [dyn_call])
         ([(0, 1), (1, 0.5), (2, 1), (3, 0.5)], [])
 
+test_track_voice :: Test
 test_track_voice = do
     let run skel = DeriveTest.extract extract
             . DeriveTest.derive_tracks_setup (DeriveTest.with_skel skel) ""

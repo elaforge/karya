@@ -16,6 +16,7 @@ import qualified Perform.Signal as Signal
 import Global
 
 
+test_derive_expr :: Test
 test_derive_expr = do
     let run extract tracks cmd = CmdTest.extract (extract_events extract) <$>
             CmdTest.run_tracks_with_performance tracks cmd

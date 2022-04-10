@@ -22,6 +22,7 @@ import           Types
 import           Util.Test
 
 
+test_random :: Test
 test_random = do
     let f seed = DeriveTest.extract extract $ DeriveTest.derive_blocks
             [ ("top", [(">", [(0, 1, seed <> "b"), (1, 1, seed <> "b")])])
@@ -84,6 +85,7 @@ e_env block_id tracknum =
     . Map.lookup (block_id, UiTest.mk_tid_block block_id tracknum)
     . Derive.r_track_dynamic
 
+test_randoms_in :: Test
 test_randoms_in = do
     let run seed = expect_right . DeriveTest.eval Ui.empty
             . Derive.with_val EnvKey.seed (seed :: Int)
@@ -99,6 +101,7 @@ test_randoms_in = do
     equal (int 0 0 100) [94, 51, 33, 62]
     equal (int 1 (-100) 100) [-72, 62, -70, 46]
 
+test_pick_weighted :: Test
 test_pick_weighted = do
     let f weights = Call.pick_weighted
             (NonEmpty.fromList (zip weights ("abcdef" :: [Char])))

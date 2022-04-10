@@ -30,6 +30,7 @@ import Global
 import Util.Test
 
 
+test_midi_thru_instrument :: Test
 test_midi_thru_instrument = do
     -- Use *just instead of *twelve, because *twelve has a special thru that
     -- just passes the NN directly.
@@ -64,6 +65,7 @@ test_midi_thru_instrument = do
         (CmdTest.note_on 1 Pitch.middle_c)
     not_equal umbang isep
 
+test_patch_scale :: Test
 test_patch_scale = do
     let run cmd_state inst_db scale =
             run_thru cmd_state " | scale=legong" (set_config inst_db scale)
@@ -141,6 +143,7 @@ run_thru cmd_state title setup (attrs, input) =
 e_midi :: CmdTest.Result a -> ([Midi.Message], [Text])
 e_midi result = (CmdTest.e_midi result, CmdTest.e_logs result)
 
+test_input_to_midi :: Test
 test_input_to_midi = do
     let wdev = UiTest.wdev
         addrs = [(wdev, 0), (wdev, 1), (wdev, 2)]

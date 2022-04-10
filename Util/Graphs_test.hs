@@ -14,6 +14,7 @@ import           Global
 import           Util.Test
 
 
+test_toggle_edge :: Test
 test_toggle_edge = do
     let f = Graphs.toggle_edge
         eq mg1 mg2 = case (mg1, mg2) of
@@ -24,6 +25,7 @@ test_toggle_edge = do
     eq (f (0, 1) (build [(1, 0)])) Nothing
     eq (f (1, 1) (build [])) Nothing
 
+test_splice_above :: Test
 test_splice_above = do
     let f = Graphs.splice_above
 
@@ -42,6 +44,7 @@ test_splice_above = do
     idempotent 1 2 (build [(0, 1), (1, 3), (0, 2), (2, 4)])
     idempotent 3 2 (build [(0, 1), (1, 3), (0, 2), (2, 4)])
 
+test_splice_below :: Test
 test_splice_below = do
     let f = Graphs.splice_below
     graph_equal (f 1 0 (build [])) (build [(0, 1)])
@@ -52,12 +55,14 @@ test_splice_below = do
     graph_equal (Graphs.splice_above 1 2 (build [(2, 0), (2, 3)]))
         (build [(1, 2), (2, 0), (2, 3)])
 
+test_add_edges :: Test
 test_add_edges = do
     let f = Graphs.add_edges
     graph_equal (f [(0, 1)] (build [])) (build [(0, 1)])
     graph_equal (f [(1, 0)] (build [(0, 1)])) (build [(0, 1), (1, 0)])
     graph_equal (f [(0, 1), (1, 0)] (build [])) (build [(0, 1), (1, 0)])
 
+test_remove_edges :: Test
 test_remove_edges = do
     let f = Graphs.remove_edges
     graph_equal (f [(0, 1)] (build [])) (build [])
@@ -66,6 +71,7 @@ test_remove_edges = do
     graph_equal (f [(0, 1)] (build [(0, 1), (0, 2)])) (build [(0, 2)])
     graph_equal (f [(0, 1), (0, 2)] (build [(0, 1), (0, 2)])) (build [])
 
+test_map_vertices :: Test
 test_map_vertices = do
     let f = Graphs.map_vertices
     equal (f (\v -> max 0 (v-1)) (build [(0, 1), (1, 2), (2, 3)]))
@@ -80,6 +86,7 @@ test_map_vertices = do
     equal (f decr xg)
         (build [(0, 1), (0, 2), (3, 1), (3, 2)])
 
+test_insert_vertex :: Test
 test_insert_vertex = do
     let f = Graphs.insert_vertex
         g = build [(0, 1), (1, 2)]
@@ -92,6 +99,7 @@ test_insert_vertex = do
 -- 1 3
 xgraph = build [(0, 2), (4, 2), (2, 1), (2, 3)]
 
+test_unlink_vertex :: Test
 test_unlink_vertex = do
     let f = Graphs.unlink_vertex
     graph_equal (f 0 xgraph) (build [(4, 2), (2, 1), (2, 3)])
@@ -99,6 +107,7 @@ test_unlink_vertex = do
     graph_equal (f 2 xgraph) (build [(0, 1), (0, 3), (4, 1), (4, 3)])
     throws (f (-1) xgraph) "out of range"
 
+test_remove_vertex :: Test
 test_remove_vertex = do
     let f = Graphs.remove_vertex
     -- x 3
@@ -110,6 +119,7 @@ test_remove_vertex = do
     -- 1 3  1 2
     graph_equal (f 2 xgraph) (build [(0, 1), (0, 2), (3, 1), (3, 2)])
 
+test_move :: Test
 test_move = do
     let f = Graphs.move
         g = build [(0, 1), (1, 2)]

@@ -18,6 +18,7 @@ import Global
 import Types
 
 
+test_collect_track_warps :: Test
 test_collect_track_warps = do
     let f tracks = extract . TrackWarp.collect_track_warps tracks
         extract = sort . map extract1

@@ -17,6 +17,7 @@ import qualified Ness.Guitar.Patch as Patch
 import Types
 
 
+test_collectFingers :: Test
 test_collectFingers = do
     let f = fmap (bimap (map e_note) (map e_finger)) . GConvert.collectFingers
             . map mknote

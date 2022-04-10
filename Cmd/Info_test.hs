@@ -15,6 +15,7 @@ import           Global
 import           Util.Test
 
 
+test_block_tracks :: Test
 test_block_tracks = do
     let f skel tracks = UiTest.eval Ui.empty $ do
             let ts = [(t, []) | t <- tracks]
@@ -31,6 +32,7 @@ test_block_tracks = do
         , Info.Track (track ">2" 2) (Info.Note [] [])
         ]
 
+test_track_status :: Test
 test_track_status = do
     let f tracks num = CmdTest.eval ustate CmdTest.default_cmd_state
             (Info.get_track_status UiTest.default_block_id num)

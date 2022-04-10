@@ -11,6 +11,7 @@ import qualified Ui.Id as Id
 import qualified Derive.Stack as Stack
 
 
+test_serialize :: Test
 test_serialize = do
     let roundtrip = Log.deserialize . Log.serialize
     let msg = Log.msg Log.Notice (Just stack) "hi"
@@ -22,6 +23,7 @@ test_serialize = do
         track_id = Id.TrackId $ Id.read_id "t/t2"
     equal (roundtrip msg) (Right msg)
 
+test_id :: Test
 test_id = do
     let run_id = Identity.runIdentity . Log.run
     let logs = snd $ run_id $ do

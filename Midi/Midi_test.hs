@@ -12,6 +12,7 @@ import qualified Midi.Midi as Midi
 import Global
 
 
+test_generate_mtc :: Test
 test_generate_mtc = do
     let f rate = Midi.generate_mtc rate . Midi.seconds_to_frame rate
         one_sec fps = floor $ fps * 4
@@ -23,6 +24,7 @@ test_generate_mtc = do
 is_sorted :: (Ord a) => [a] -> Bool
 is_sorted xs = all (uncurry (<=)) (zip xs (drop 1 xs))
 
+test_seconds_to_smpte :: Test
 test_seconds_to_smpte = do
     let f rate = e_smpte . Midi.seconds_to_smpte rate
         rate = Midi.Frame29_97df
@@ -45,6 +47,7 @@ test_seconds_to_smpte = do
     equalf 0.1 (trip 601) 601
     equal (trip (12*hr)) (12*hr)
 
+test_frame_to_smpte :: Test
 test_frame_to_smpte = do
     let f rate = e_smpte . Midi.frame_to_smpte rate
     equal (f Midi.Frame29_97df 107892) (1, 0, 0, 0)
@@ -53,6 +56,7 @@ test_frame_to_smpte = do
 e_smpte :: Midi.Smpte -> (Word8, Word8, Word8, Word8)
 e_smpte (Midi.Smpte h m s f) = (h, m, s, f)
 
+test_realtime_tuning :: Test
 test_realtime_tuning = do
     let f = ByteString.unpack . Encode.encode . Midi.realtime_tuning
     equal (f [(1, 1.5), (2, 2)])

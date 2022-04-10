@@ -26,6 +26,7 @@ import           Global
 import           Util.Test
 
 
+test_do_save :: Test
 test_do_save = Git.initialize $ do
     repo <- new_repo
     let state = snd $ UiTest.run_mkview
@@ -36,6 +37,7 @@ test_do_save = Git.initialize $ do
     state2 <- fmap (\(a, _, _) -> a) <$> SaveGit.load repo Nothing
     right_equal (strip_views <$> state2) (strip_views state)
 
+test_checkpoint :: Test
 test_checkpoint = Git.initialize $ do
     repo <- new_repo
     [(state1, commit1), (state2, commit2), (state3, commit3),
@@ -83,6 +85,7 @@ test_checkpoint = Git.initialize $ do
     io_equal (load_from repo commit1 (Just commit4) state1)
         (Right (state4, damage 1 2 4))
 
+test_ruler_checkpoint :: Test
 test_ruler_checkpoint = Git.initialize $ do
     repo <- new_repo
     states <- checkpoint_sequence repo
@@ -96,6 +99,7 @@ test_ruler_checkpoint = Git.initialize $ do
     -- here.  Of course I can't test for the log :/
     equal (length states) 2
 
+test_more_checkpoints :: Test
 test_more_checkpoints = Git.initialize $ check_sequence
     [ mkview [("1", [])]
     , void $ Create.block_from_template False UiTest.default_block_id

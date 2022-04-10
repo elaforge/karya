@@ -15,6 +15,7 @@ import           Types
 import           Util.Test
 
 
+test_starts :: Test
 test_starts = do
     let f speed range include_end =
             DeriveTest.eval Ui.empty (Speed.starts speed range include_end)
@@ -32,6 +33,7 @@ test_starts = do
     equalf 0.0001 (f (score_control 12) (s, 4.375 * 2/3) True)
         (Right [s, s + 1/12, s + 2/12, s + 3/12])
 
+test_duration_starts :: Test
 test_duration_starts = do
     let f = Speed.duration_starts
     let s = 4 * 2/3 :: RealTime

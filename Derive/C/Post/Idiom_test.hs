@@ -10,6 +10,7 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
 
+test_pizz_arp :: Test
 test_pizz_arp = do
     let run = DeriveTest.extract DeriveTest.e_note
             . DeriveTest.derive_tracks "pizz-arp .5"
@@ -20,6 +21,7 @@ test_pizz_arp = do
     equal (run [[(0, 1, "4c")], [(0, 1, "+pizz -- 4d"), (1, 1, "+pizz -- 4e")]])
         ([(0, 1, "4c"), (0, 1, "4d"), (1, 1, "4e")], [])
 
+test_avoid_overlap :: Test
 test_avoid_overlap = do
     let run = DeriveTest.extract DeriveTest.e_note
             . DeriveTest.derive_tracks "avoid-overlap .5"
@@ -31,6 +33,7 @@ test_avoid_overlap = do
     equal (run [(0, 0.25, "4c"), (0.25, 0.25, "4c")])
         ([(0, Note.min_duration, "4c"), (0.25, 0.25, "4c")], [])
 
+test_extend_duration :: Test
 test_extend_duration = do
     let run = DeriveTest.extract DeriveTest.e_note
             . DeriveTest.derive_tracks "extend-duration (list +a +b) 2"
@@ -47,6 +50,7 @@ test_extend_duration = do
     equal (run [(0, 1, "+a -- 4c"), (1.5, 1, "+a -- 4c")])
         ([(0, 1.45, "4c"), (1.5, 2, "4c")], [])
 
+test_apply_attributes :: Test
 test_apply_attributes = do
     let run = DeriveTest.extract extract
             . DeriveTest.derive_tracks "apply-attributes"

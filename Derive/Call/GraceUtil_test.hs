@@ -14,6 +14,7 @@ import           Global
 import           Util.Test
 
 
+test_grace_attr :: Test
 test_grace_attr = do
     let run note = DeriveTest.extract extract $
             DeriveTest.derive_tracks_setup setup_call "import europe"
@@ -39,6 +40,7 @@ test_grace_attr = do
         , (2, Attrs.attrs ["whole", "up"])
         ]
 
+test_fit_grace :: Test
 test_fit_grace = do
     let f place notes = GraceUtil.fit_grace place (Just 0) 2 4 notes 1
     equal (f 0 4) [0.5, 1, 1.5, 2]

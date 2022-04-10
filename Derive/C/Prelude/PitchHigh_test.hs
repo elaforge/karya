@@ -8,6 +8,7 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Perform.RealTime as RealTime
 
 
+test_drop :: Test
 test_drop = do
     let run pitches dyn = extract $ DeriveTest.derive_tracks ""
             [(">", [(0, 10, "")]), ("*", pitches), ("dyn", dyn)]
@@ -22,6 +23,7 @@ test_drop = do
         , [(0, 0.5), (1, 0.5), (3, 0)]
         )
 
+test_drop_noninverted :: Test
 test_drop_noninverted = do
     let run ns ps = DeriveTest.extract DeriveTest.e_dyn $
             DeriveTest.derive_tracks "" [(">", ns), ("*", ps)]
@@ -29,6 +31,7 @@ test_drop_noninverted = do
             [(0, 0, "4c"), (1, 0, "drop 2 2 2"), (4, 4, "4c")])
         ([[(0, 1), (1, 1), (3, 0)], [(-RealTime.larger, 1)]], [])
 
+test_drop_lift_note_inverted :: Test
 test_drop_lift_note_inverted = do
     let run note = DeriveTest.extract extract $ DeriveTest.derive_tracks ""
             [(">", [(0, 4, note)]), ("*", [(0, 0, "4c")])]
@@ -49,6 +52,7 @@ test_drop_lift_note_inverted = do
         )
     equal logs []
 
+test_drop_lift_note :: Test
 test_drop_lift_note = do
     let run note = DeriveTest.extract extract $ DeriveTest.derive_tracks ""
             [("*", [(0, 0, "4c")]), (">", [(0, 4, note)])]
@@ -110,6 +114,7 @@ test_drop_lift_note = do
         )
     equal logs []
 
+test_approach_dyn :: Test
 test_approach_dyn = do
     let run pitches = extract $ DeriveTest.derive_tracks "%dyn=.5"
             [(">", [(0, 10, "")]), ("*", pitches)]

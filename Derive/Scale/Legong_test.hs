@@ -17,6 +17,7 @@ import qualified Perform.Pitch as Pitch
 import           Util.Test
 
 
+test_note_to_call :: Test
 test_note_to_call = do
     let run scale title = ScaleTest.note_to_call scale title
         ding = from_4i True Legong.laras_rambat
@@ -43,6 +44,7 @@ test_note_to_call = do
     equal (run "legong | key=baro" "" ["4i"])
         (run "legong | key=selisir" "" ["4e"])
 
+test_note_to_call_mcphee :: Test
 test_note_to_call_mcphee = do
     let run laras key = ScaleTest.note_to_call "legong"
             ("laras=" <> laras <> " | " <> "key=" <> key)
@@ -57,6 +59,7 @@ laras_nns = map Pitch.hz_to_nn $ McPhee.hz $ McPhee.saih_pitu !! 4
 selisir_nns = Vector.toList $ BaliScales.laras_umbang laras
 selisir_hz = map Pitch.nn_to_hz selisir_nns
 
+test_input_to_note :: Test
 test_input_to_note = do
     let f scale key = ScaleTest.input_to_note scale
             (maybe mempty ScaleTest.key_environ key)

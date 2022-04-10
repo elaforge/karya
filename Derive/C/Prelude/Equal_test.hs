@@ -10,6 +10,7 @@ import Global
 import Types
 
 
+test_equal :: Test
 test_equal = do
     -- Test the '=' call, but also test the special parsing Derive.Note deriver
     -- eval in general.
@@ -37,6 +38,7 @@ test_equal = do
     equal (run ">i" [(0, 1, ""), (1, 1, "inst = _ |")])
         ([(0, "i"), (1, "")], [])
 
+test_equal_merge_env :: Test
 test_equal_merge_env = do
     let run evt = DeriveTest.extract (fromMaybe "" . DeriveTest.e_environ "k")
             (DeriveTest.derive_tracks "" [(">", [(0, 1, evt)])])
@@ -47,6 +49,7 @@ test_equal_merge_env = do
     -- Types are preserved.
     equal (run "k=1c | k=+1 |") (["2c"], [])
 
+test_equal_merge_control :: Test
 test_equal_merge_control = do
     let run control evts =
             DeriveTest.extract (DeriveTest.e_control_constant control) $
@@ -68,6 +71,7 @@ test_equal_merge_control = do
     equal (run "t-dia" [(0, 1, "%t-dia = 1 | %t-dia = 1 default |")])
         ([Just 2], [])
 
+test_equal_inst_alias :: Test
 test_equal_inst_alias = do
     let run with_ui title track = DeriveTest.extract DeriveTest.e_instrument $
             DeriveTest.derive_tracks_setup with_ui title
@@ -77,6 +81,7 @@ test_equal_inst_alias = do
     equal (run mempty ">new = i1" ">new") (["i1"], [])
     equal (run mempty ">new = i1 | >newer = new" ">newer") (["i1"], [])
 
+test_equal_note_transformer :: Test
 test_equal_note_transformer = do
     let run events = DeriveTest.extract e_instrument $
             DeriveTest.derive_tracks_linear ""
@@ -89,6 +94,7 @@ test_equal_note_transformer = do
     equal (run [(0, 1, "inst = i1"), (1, 1, "inst = i2")])
         ([(0, "i1"), (1, "i2"), (2, "")], [])
 
+test_equal_call :: Test
 test_equal_call = do
     let run = DeriveTest.extract DeriveTest.e_note . DeriveTest.derive_tracks ""
     -- Rebind a note call.
@@ -112,6 +118,7 @@ test_equal_call = do
             . DeriveTest.derive_tracks ""
     equal (run2 [("> | ^左 = +left", [(0, 1, "左")])]) (["+left"], [])
 
+test_equal_quoted :: Test
 test_equal_quoted = do
     let run title note = DeriveTest.extract extract $
             DeriveTest.derive_tracks "" [(title, [(0, 1, note)])]
@@ -129,6 +136,7 @@ test_equal_quoted = do
     strings_like logs ["too many arguments"]
     equal (run "> | ^z = \"(# = (4c) |)" "z") ([("4c", "+")], [])
 
+test_default_merge :: Test
 test_default_merge = do
     let run title = DeriveTest.extract (DeriveTest.e_control "c") $
             DeriveTest.derive_tracks title

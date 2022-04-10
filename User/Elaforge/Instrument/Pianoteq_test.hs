@@ -17,6 +17,7 @@ import qualified Perform.Midi.Types as Midi.Types
 import qualified User.Elaforge.Instrument.Pianoteq as Pianoteq
 
 
+test_harp_harmonic :: Test
 test_harp_harmonic = do
     let run = perform . Derive.r_events
             . DeriveTest.derive_tracks_setup setup "inst=harp"

@@ -11,15 +11,18 @@ import qualified Derive.ScoreT as ScoreT
 import           Util.Test
 
 
+test_parse_control_title :: Test
 test_parse_control_title = do
     let f = ParseTitle.parse_control_title
     pprint (f "a | b")
 
+test_p_tempo :: Test
 test_p_tempo = do
     let f = ParseText.parse1 ParseTitle.p_control_type
     equal (f "tempo") $ Right (Tempo Nothing)
     equal (f "tempo blah  ") $ Right (Tempo (Just "blah"))
 
+test_p_pitch :: Test
 test_p_pitch = do
     let f = ParseText.parse1 ParseTitle.p_control_type
     equal (f "*") $ Right (Pitch "" (Right ""))
@@ -27,6 +30,7 @@ test_p_pitch = do
     equal (f "*hi #pc") $ Right (Pitch "hi" (Right "pc"))
     equal (f "*hi !tc") $ Right (Pitch "hi" (Left "tc"))
 
+test_p_control :: Test
 test_p_control = do
     let f = ParseText.parse1 ParseTitle.p_control_type
     equal (f "c") $ Right $ Control (Right (ScoreT.untyped "c")) Nothing
@@ -41,6 +45,7 @@ test_p_control = do
         Control (Right (ScoreT.Typed ScoreT.Nn "c")) (Just "add")
     left_like (f "c:z add") "parse error"
 
+test_parse_unparse_control :: Test
 test_parse_unparse_control = do
     let f = fmap ParseTitle.control_type_to_title
             . ParseTitle.parse_control_type
@@ -62,6 +67,7 @@ test_parse_unparse_control = do
     left_like (f "$ bad") "parse error"
     left_like (f "a b c") "parse error"
 
+test_parse_unparse_note :: Test
 test_parse_unparse_note = do
     let f = fmap ParseTitle.unparse_note . ParseTitle.parse_note
     equal (f ">") (Right ">")

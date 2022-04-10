@@ -9,6 +9,7 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Perform.NN as NN
 
 
+test_retune :: Test
 test_retune = do
     let run = DeriveTest.extract DeriveTest.e_nns_rounded
             . DeriveTest.derive_tracks

@@ -13,6 +13,7 @@ import qualified User.Elaforge.Instrument.Kontakt.ScGamelan as ScGamelan
 import Global
 
 
+test_wrap_octaves :: Test
 test_wrap_octaves = do
     let run extract title = DeriveTest.extract extract
             . derive ("scale=legong" <> title) . UiTest.note_track1

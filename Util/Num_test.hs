@@ -7,6 +7,7 @@ import qualified Util.Num as Num
 import Util.Test
 
 
+test_showFloatP :: Test
 test_showFloatP = do
     let f leadingZero = Num.showFloatP leadingZero 3
     equal (f True 0) "0"

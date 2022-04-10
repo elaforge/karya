@@ -11,6 +11,7 @@ import qualified Derive.Scale.Twelve as Twelve
 import qualified Perform.Pitch as Pitch
 
 
+test_show_degree :: Test
 test_show_degree = do
     let f fmt key = TheoryFormat.show_degree fmt (Just (Pitch.Key key))
         rel = TheoryFormat.sargam $ ChromaticScales.relative_fmt

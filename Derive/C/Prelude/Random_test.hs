@@ -10,6 +10,7 @@ import qualified Derive.C.Prelude.Random as Random
 import qualified Derive.DeriveTest as DeriveTest
 
 
+test_omit :: Test
 test_omit = do
     let extract = DeriveTest.extract DeriveTest.e_start_dur
     let run n = extract $ DeriveTest.derive_tracks ""
@@ -27,6 +28,7 @@ test_omit = do
     let present = [1, 2, 4, 6, 8, 9]
     equal (blocks (replicate 10 "sub")) ([(n, 1) | n <- present], [])
 
+test_alternate :: Test
 test_alternate = do
     let run s = DeriveTest.extract DeriveTest.e_pitch $ DeriveTest.derive_blocks
             [ ("top", [(">", [(p, 1, s) | p <- Seq.range 0 5 1])])
@@ -35,6 +37,7 @@ test_alternate = do
             ]
     equal (run "alt s1 s2") (["4d", "4c", "4c", "4d", "4d", "4d"], [])
 
+test_alternate_weighted :: Test
 test_alternate_weighted = do
     let run s = DeriveTest.extract (DeriveTest.e_control "c") $
             DeriveTest.derive_tracks ""
@@ -49,6 +52,7 @@ test_alternate_weighted = do
     equal (runp "alt-w 1 '4c'") ([(0, 1, "4c")], [])
     strings_like (snd (runp "alt-w 1 (4c)")) ["expected Quoted but got Pitch"]
 
+test_alternate_tracks :: Test
 test_alternate_tracks = do
     let run tracks = DeriveTest.extract DeriveTest.e_attributes $
             DeriveTest.derive_tracks_setup (DeriveTest.with_skel skel) ""
@@ -60,6 +64,7 @@ test_alternate_tracks = do
     equal (run [[(0, 1, "alt-t 1 999")], [(0, 1, "+a")], [(0, 1, "+b")]])
         (["+b"], [])
 
+test_tempo_alternate :: Test
 test_tempo_alternate = do
     let run tempo note = DeriveTest.extract DeriveTest.e_pitch $
             DeriveTest.derive_blocks (blocks tempo note)
@@ -74,10 +79,12 @@ test_tempo_alternate = do
     equal (run "1" "t-alt a 2 b") (["4c"], [])
     equal (run ".5" "t-alt a 2 b") (["4d"], [])
 
+test_under_threshold :: Test
 test_under_threshold = do
     let f = Random.under_threshold 'a' [(1, 'b'), (3, 'c')]
     equal (map f [0, 1, 2, 3, 4]) "abbcc"
 
+test_tempo_alternate_continuous :: Test
 test_tempo_alternate_continuous = do
     let run tempo note = DeriveTest.extract extract $
             DeriveTest.derive_blocks (blocks tempo note)
@@ -106,6 +113,7 @@ test_tempo_alternate_continuous = do
     equal (run [(0, ".25"), (2, ".5")] "t-alt-c a 1 b 2 c")
         ([(0, 4, "6c"), (4, 4, "6d"), (8, 4, "5d")], [])
 
+test_select_indices :: Test
 test_select_indices = do
     let f is = map (xs!!) is2
             where (xs, is2) = Random.select_indices ("abcdef" :: [Char]) is

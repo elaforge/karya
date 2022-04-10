@@ -12,14 +12,18 @@
     If a module has a function called @initialize@, it will be called as
     @IO ()@ prior to the tests.
 -}
-module Util.Test.GenerateRunTests (main) where
+module Util.Test.GenerateRunTests (main, patchFile) where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
+
 import qualified System.Environment
 
 import qualified Util.ExtractHs as ExtractHs
 import qualified Util.Regex as Regex
-import Global
+import qualified Util.Seq as Seq
+
+import           Global
 
 
 main :: IO ()
@@ -28,7 +32,7 @@ main = do
     ExtractHs.process args (extract . ExtractHs.stripComments)
         (\_ -> Right . generate)
 
-generate :: Map FilePath ([Test], HasMeta) -> ([Text], Text)
+generate :: Map FilePath ([Test], HasMeta) -> ([ExtractHs.Warning], Text)
 generate fnameTests = (,) warnings $
     testTemplate
         (Text.unlines $ map ExtractHs.makeImport (Map.keys fnameTests))
@@ -76,6 +80,37 @@ hasMeta =
     (\b -> if b then Just "meta" else Nothing) . Regex.matches reg
     where reg = Regex.compileOptionsUnsafe [Regex.Multiline] "^meta\\b"
 
+-- | Add a ':: Test' type signature to naked test declarations.
+patchFile :: FilePath -> IO ()
+patchFile fname = do
+    putStrLn fname
+    content <- Text.IO.readFile fname
+    let tests = extractNakedTests content
+    let out = patchTests fname tests (Text.lines content)
+    Text.IO.writeFile fname $ Text.unlines out
+
+patchTests :: FilePath -> [Test] -> [Text] -> [Text]
+patchTests fname tests = go tests . zip [1..]
+    where
+    go ts@(Test ti name : tests) ((i, line) : lines)
+        | ti == i = name <> " :: Test" : line : go tests lines
+        | otherwise = line : go ts lines
+    go [] lines = map snd lines
+    go tests [] = error $ fname <> ": left over tests: " <> show tests
+
+
+extractNakedTests :: Text -> [Test]
+extractNakedTests = go . zip [1..] . Seq.zip_prev . Text.lines
+    where
+    go ((i, (mb_prev, line)) : lines)
+        | Just def <- hasTestFunction line, Just prev <- mb_prev
+        , not ((def <> " ::") `Text.isPrefixOf` prev) = Test
+            { testLineNumber = i
+            , testName = def
+            } : go lines
+        | otherwise = go lines
+    go [] = []
+
 extractTests :: Text -> [Test]
 extractTests = go . zip [1..] . Text.lines
     where
@@ -83,12 +118,8 @@ extractTests = go . zip [1..] . Text.lines
         | Just def <- hasTestFunction line = Test
             { testLineNumber = i
             , testName = def
-            } : go rest
+            } : go lines
         | otherwise = go lines
-        where
-        rest = dropWhile (isIndented . snd) lines
-        -- TODO does this get fooled by empty lines?
-        isIndented t = " " `Text.isPrefixOf` t || t == "\n"
     go [] = []
 
 hasTestFunction :: Text -> Maybe Text

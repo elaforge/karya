@@ -12,6 +12,7 @@ import qualified User.Elaforge.Instrument.Kontakt as Kontakt
 import qualified User.Elaforge.Instrument.Kontakt.KendangSunda as KendangSunda
 
 
+test_kendang :: Test
 test_kendang = do
     let run control notes = DeriveTest.extract extract $ derive $
             control ++ [(">k", mknotes notes)]
@@ -26,6 +27,7 @@ test_kendang = do
     equal (run [("pitch", [(0, 0, ".45")])] ["o", "e"])
         ([("+dong", [0]), ("+det", [0.45])], [])
 
+test_resolve :: Test
 test_resolve = do
     equal KendangSunda.resolve_errors []
 

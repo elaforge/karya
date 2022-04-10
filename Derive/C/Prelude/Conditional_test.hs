@@ -9,6 +9,7 @@ import qualified Derive.DeriveTest as DeriveTest
 import Global
 
 
+test_c_if_c :: Test
 test_c_if_c = do
     let run control pitch = DeriveTest.extract DeriveTest.e_note $
             DeriveTest.derive_tracks ""

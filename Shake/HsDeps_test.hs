@@ -13,6 +13,7 @@ import qualified Shake.HsDeps as HsDeps
 import qualified Shake.Util as Util
 
 
+test_importsOf :: Test
 test_importsOf = Testing.in_tmp_dir "HsDeps" $ do
     let importsOf generated hs = run $
             HsDeps.importsOf (mkGen generated) Nothing hs

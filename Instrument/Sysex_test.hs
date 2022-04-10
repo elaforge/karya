@@ -12,6 +12,7 @@ import Instrument.Sysex (Record(..))
 import Global
 
 
+test_signed_conversion :: Test
 test_signed_conversion = do
     let f bits = Sysex.to_signed bits . Sysex.from_signed bits
     equal (map (f 4) [0..31]) $ [0..7] ++ replicate (32-8) 7
@@ -19,6 +20,7 @@ test_signed_conversion = do
     equal (map (f 8) [0..31]) [0..31]
     equal (map (f 8) [0, -1 .. -31]) [0, -1 .. -31]
 
+test_decode_encode_bits :: Test
 test_decode_encode_bits = do
     let f widths = Sysex.encode_bits widths . Sysex.decode_bits widths
     equal (map (f [1, 3]) [0..15]) [0..15]
@@ -33,6 +35,7 @@ test_decode_encode_bits = do
     equal (map (Sysex.decode_bits [1, 2]) [0..7])
         [[0, 0], [1, 0], [0, 1], [1, 1], [0, 2], [1, 2], [0, 3], [1, 3]]
 
+test_encode_decode :: Test
 test_encode_decode = do
     let f specs = decode specs <=< encode specs
     let success specs record = (f specs record, Right (record, ""))
@@ -63,6 +66,7 @@ test_encode_decode = do
     uncurry equal (success enum_spec (enum_rmap "y" "d"))
     left_like (f enum_spec (enum_rmap "z" "c")) "unknown enum"
 
+test_union :: Test
 test_union = do
     let f specs = decode specs <=< encode specs
     let success specs record = (f specs record, Right (record, ""))
@@ -85,6 +89,7 @@ test_union = do
 
 type Val = Either String
 
+test_lookup_put_rmap :: Test
 test_lookup_put_rmap = do
     let make str num substr = rmap
             [ ("str", RStr str), ("num", RNum num)

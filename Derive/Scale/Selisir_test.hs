@@ -16,6 +16,7 @@ import qualified Perform.Pitch as Pitch
 import           Util.Test
 
 
+test_note_to_call :: Test
 test_note_to_call = do
     let f laras = ScaleTest.note_to_call "selisir" ("laras=" <> laras)
     let nns n = take n . from_4i True
@@ -30,6 +31,7 @@ test_note_to_call = do
     equal (f "gong-peliatan" ["4i", "4o"])
         (map (Just . Pitch.hz_to_nn) [280, 305], [])
 
+test_input_to_note :: Test
 test_input_to_note = do
     let input_to_note = ScaleTest.input_to_note selisir mempty
         invalid = "invalid input"

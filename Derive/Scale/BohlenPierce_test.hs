@@ -17,6 +17,7 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
+test_note_to_call :: Test
 test_note_to_call = do
     let run ps = DeriveTest.extract extract $ DeriveTest.derive_tracks ""
             [ ("*bp", [(t, 0, p) | (t, p) <- times ps])
@@ -30,6 +31,7 @@ test_note_to_call = do
     equalf 0.001 (run ["4i"]) ([Just (c * 25/9)], [])
     equalf 0.001 (run ["5a"]) ([Just (c * 3)], [])
 
+test_input_to_note :: Test
 test_input_to_note = do
     let f = either pretty Pitch.note_text
             . Scale.scale_input_to_note BP.absolute_scale mempty
@@ -42,6 +44,7 @@ test_input_to_note = do
     equal [f (piano 5 pc) | pc <- [0..6]] $
         ["2h", "2i"] ++ replicate 5 "invalid input"
 
+test_input_to_nn :: Test
 test_input_to_nn = do
     let f input = second (first prettys) $ DeriveTest.eval Ui.empty $
             Scale.scale_input_to_nn BP.absolute_scale 0 input

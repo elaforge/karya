@@ -9,6 +9,7 @@ import Util.Test
 import qualified Util.Vector as Vector
 
 
+test_bracket :: Test
 test_bracket = do
     let f vec a = Vector.bracket (Unboxed.fromList vec) a
     equal (f [] 5) Nothing

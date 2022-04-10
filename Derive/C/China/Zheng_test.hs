@@ -12,6 +12,7 @@ import qualified Ui.UiTest as UiTest
 import           Util.Test
 
 
+test_gliss :: Test
 test_gliss = do
     let run = DeriveTest.extract extract
             . DeriveTest.derive_tracks

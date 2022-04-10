@@ -18,6 +18,7 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
+test_input_to_note :: Test
 test_input_to_note = do
     let f smap key = either pretty Pitch.note_text
             . ChromaticScales.input_to_note smap (ScaleTest.key_environ key)
@@ -39,6 +40,7 @@ test_input_to_note = do
         , "4d", "4d#", "4n", "4n#", "5s", "5s#"
         ]
 
+test_transpose :: Test
 test_transpose = do
     let f smap key_ trans steps =
             ChromaticScales.show_pitch smap key
@@ -54,6 +56,7 @@ test_transpose = do
         map Right ["4s", "4r", "4g", "4m", "4p"]
     equal (f rel "f#-min" Scale.Diatonic 2 "4s") (Right "4g")
 
+test_transpose_controls :: Test
 test_transpose_controls = do
     let f p = DeriveTest.extract Score.initial_nn $
             DeriveTest.derive_tracks "" $ UiTest.note_track [(0, 1, p)]

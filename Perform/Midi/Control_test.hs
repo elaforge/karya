@@ -7,6 +7,7 @@ import Util.Test
 import qualified Perform.Midi.Control as Control
 
 
+test_pitch_to_midi :: Test
 test_pitch_to_midi = do
     let f = Control.pitch_to_midi (-1, 1)
     equal (f 10) (Just (10, 0))

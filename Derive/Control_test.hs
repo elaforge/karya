@@ -34,6 +34,7 @@ derive :: (Score.Event -> a) -> UiTest.TrackSpec -> ([a], [Text])
 derive extract track = DeriveTest.extract extract $
     DeriveTest.derive_tracks "" [(">", [(0, 8, "")]), track]
 
+test_control_track :: Test
 test_control_track = do
     let run = derive (DeriveTest.e_control "cont")
     let events = [(0, 0, "1"), (1, 0, "2")]
@@ -47,6 +48,7 @@ test_control_track = do
         ["not found: abc", "not found: def"]
     equal (run ("cont", events)) ([[(0, 1), (1, 1), (1, 2)]], [])
 
+test_back_to_back_controls :: Test
 test_back_to_back_controls = do
     let run events = DeriveTest.extract (DeriveTest.e_control "c") $
             DeriveTest.derive_tracks ""
@@ -55,6 +57,7 @@ test_back_to_back_controls = do
     equal (run [(0, 0, "0"), (2, -0, "i 2"), (2, 0, "4")])
         ([[(0, 0), (2, 2)], [(2, 4)]], [])
 
+test_back_to_back_pitches :: Test
 test_back_to_back_pitches = do
     let run events = DeriveTest.extract DeriveTest.e_nns $
             DeriveTest.derive_tracks ""
@@ -64,11 +67,13 @@ test_back_to_back_pitches = do
     equal (run [(0, 0, "4c"), (2, -0, "i (4d)"), (2, 0, "4f")])
         ([[(0, NN.c4), (2, NN.d4)], [(2, NN.f4)]], [])
 
+test_hex :: Test
 test_hex = do
     let run events = derive (DeriveTest.e_control "cont") ("cont", events)
     equal (run [(0, 0, "`0x`ff"), (1, 0, "`0x`33"), (2, 0, "`0x`00")])
         ([[(0, 1), (1, 1), (1, 0.2), (2, 0.2), (2, 0)]], [])
 
+test_track_expression :: Test
 test_track_expression = do
     let run = derive (DeriveTest.e_control "cont")
     equal (run ("cont", [(0, 0, "0"), (4, 0, "i 1")]))
@@ -80,6 +85,7 @@ test_track_expression = do
     equal (run_pitch ("* | sh .5", [(0, 0, "4c"), (4, 0, "i (4d)")]))
         ([[(0, NN.c4), (2, NN.c4), (2, NN.cs4), (4, NN.cs4), (4, NN.d4)]], [])
 
+test_derive_control :: Test
 test_derive_control = do
     let ex (sig, logs) = (Signal.to_pairs sig, map DeriveTest.show_log logs)
     let run events = DeriveTest.extract_run ex $
@@ -102,6 +108,7 @@ mktrack :: ScoreTime -> [UiTest.EventSpec] -> TrackTree.Track
 mktrack events_end events = TrackTree.make_track ">" evts events_end
     where evts = Events.from_list (map UiTest.make_event events)
 
+test_pitch_track :: Test
 test_pitch_track = do
     let run = derive DeriveTest.e_nns
 
@@ -121,6 +128,7 @@ test_pitch_track = do
     equal (run ("*twelve", [(0, 0, "4c"), (2, 0, "i (4d)")]))
         ([[(0, 60), (2, 62)]], [])
 
+test_control_merge :: Test
 test_control_merge = do
     let run suf add_suf = extract $ DeriveTest.derive_tracks ""
             [ (">", [(0, 5, "")])
@@ -154,6 +162,7 @@ test_control_merge = do
     equal (run2 "cont" ".5" "cont" ".5") ([[(0, 0.25)]], [])
     equal (run2 "cont" ".5" "cont set" ".5") ([[(0, 0.5)]], [])
 
+test_default_merge :: Test
 test_default_merge = do
     let run control = DeriveTest.extract (DeriveTest.e_control control) $
             DeriveTest.derive_tracks ""
@@ -165,6 +174,7 @@ test_default_merge = do
     equal (run "dyn") ([[(0, 0.25)]], [])
     equal (run "t-dia") ([[(0, 1)]], [])
 
+test_trim_signal :: Test
 test_trim_signal = do
     let run = DeriveTest.extract DeriveTest.e_nns
             . DeriveTest.derive_tracks_setup
@@ -187,6 +197,7 @@ test_trim_signal = do
 
 -- * track signal
 
+test_track_signal_transpose :: Test
 test_track_signal_transpose = do
     let run title = e_tsig_sigs $ DeriveTest.derive_tracks_setup setup title $
             UiTest.note_track [(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4e")]
@@ -197,6 +208,7 @@ test_track_signal_transpose = do
     -- where the transpose control starts.
     equal (run "%t-oct=1") [[(0, 72), (1, 72), (1, 74), (2, 74), (2, 76)]]
 
+test_stash_signal :: Test
 test_stash_signal = do
     -- make sure that TrackSignals are recorded when control tracks are derived
     let itrack = (">i", [])
@@ -230,6 +242,7 @@ test_stash_signal = do
     equal (run [(">", [(0, 1, ""), (1, 1, ""), (2, 1, "")]), ctrack])
         [(csig, 0, 1)]
 
+test_stash_signal_duplicate_samples :: Test
 test_stash_signal_duplicate_samples = do
     let run tracks = e_tsigs $ DeriveTest.derive_tracks_setup
             (DeriveTest.with_tsig_tracknums [1 .. length tracks]) "" tracks
@@ -239,6 +252,7 @@ test_stash_signal_duplicate_samples = do
         ])
         [([(0, 0.5)], 0, 1)]
 
+test_signal_fragments :: Test
 test_signal_fragments = do
     let run tsig_tracks = e_tsigs . DeriveTest.derive_tracks_setup
             (DeriveTest.with_tsigs tsig_tracks) ""
@@ -253,6 +267,7 @@ test_signal_fragments = do
             ])
         [([(0, 0), (8, 1)], 0, 1)]
 
+test_stash_signal_default_tempo :: Test
 test_stash_signal_default_tempo = do
     -- Signal is stretched by the default tempo.
     let r = e_tsigs $ DeriveTest.derive_tracks_setup

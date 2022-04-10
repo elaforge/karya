@@ -18,6 +18,7 @@ title :: Text
 title =
     "import idiom.wind | fundamentals = (list (nn 70) (nn 100)) | wind-idiom"
 
+test_wind :: Test
 test_wind = do
     let run = DeriveTest.extract extract . DeriveTest.derive_tracks title
             . UiTest.note_track . mknotes
@@ -42,6 +43,7 @@ test_wind = do
     equalf 0.01 (run ["set (nn 140)", "set (nn 210)"])
         ([(0, [(0, 140), (1, 140), (1, 140)]), (1, [(1, 210)])], [])
 
+test_find_harmonic :: Test
 test_find_harmonic = do
     let f = Wind.find_harmonic
     equal (f [7, 10] 7) $ Just (7, 1)

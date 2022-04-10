@@ -18,6 +18,7 @@ import           Util.Test
 -- Many functions in Checkpoint are tested by caller tests, e.g.
 -- 'Synth.Faust.Render_test'.
 
+test_hashOverlapping :: Test
 test_hashOverlapping = do
     let f start size = Checkpoint.hashOverlapping start size . map mkSpan
     equal (f 0 1 []) []
@@ -34,6 +35,7 @@ test_hashOverlapping = do
         [x1, y1, x2] -> y1 /= mempty && x1 == x2
         _ -> False
 
+test_groupOverlapping :: Test
 test_groupOverlapping = do
     let f start size = map (map (eSpan . snd))
             . Checkpoint.groupOverlapping start size
@@ -55,6 +57,7 @@ test_groupOverlapping = do
     equal (f 0 2 [(1, 2), (2, 1), (3, 2), (4, 1)])
         [[(1, 2)], [(1, 2), (2, 1), (3, 2)], [(3, 2), (4, 1)]]
 
+test_findLastState :: Test
 test_findLastState = do
     let f files =
             Checkpoint.findLastState (Set.fromList files)

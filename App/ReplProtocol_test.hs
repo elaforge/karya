@@ -9,6 +9,7 @@ import Util.Test
 
 import App.ReplProtocol (Query(..), Response(..), CmdResult(..), Result(..))
 
+test_serialize :: Test
 test_serialize = do
     let f a expected = (expected a, round_trip a)
     uncurry equal (f QSaveFile Right)

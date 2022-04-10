@@ -12,6 +12,7 @@ import qualified Perform.Pitch as Pitch
 import Types
 
 
+test_slur_n :: Test
 test_slur_n = do
     let run title n = DeriveTest.extract e_note_nn $
             DeriveTest.derive_tracks title $ UiTest.regular_notes n
@@ -20,6 +21,7 @@ test_slur_n = do
          , (2, 2, [(2, NN.e3), (3, NN.e3), (3, NN.f3)])
          ], [])
 
+test_slur_dur :: Test
 test_slur_dur = do
     let run title n = DeriveTest.extract e_note_nn $
             DeriveTest.derive_tracks title $ UiTest.regular_notes n

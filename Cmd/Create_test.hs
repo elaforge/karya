@@ -22,6 +22,7 @@ import Global
 import Types
 
 
+test_track_ruler :: Test
 test_track_ruler = do
     let f tracknum = Create.track_events UiTest.default_block_id
             Ui.no_ruler tracknum 20 Track.empty
@@ -48,6 +49,7 @@ test_track_ruler = do
 --     equal (run 5 [(1, 3), (3, 4)] 3)
 --         (Right ([('1', 'x'), ('x', '3'), ('3', '4')], []))
 
+test_splice_above_ancestors :: Test
 test_splice_above_ancestors = do
     let run = run_skel Create.splice_above_ancestors
     equal (run 2 [(1, 2)] (2, 2)) $ Right ([('x', '1'), ('1', '2')], [])
@@ -56,12 +58,14 @@ test_splice_above_ancestors = do
     equal (run 4 [(1, 2), (3, 4)] (1, 4)) $
         Right ([('x', '1'), ('x', '3'), ('1', '2'), ('3', '4')], [])
 
+test_splice_below :: Test
 test_splice_below = do
     let run = run_skel_point Create.splice_below
     equal (run 2 [] 2) (Right ([('2', 'x')], []))
     equal (run 4 [(2, 1), (2, 4)] 2)
         (Right ([('2', 'x'), ('x', '1'), ('x', '4')], []))
 
+test_insert_branch :: Test
 test_insert_branch = do
     let run titles skel sel_track = CmdTest.extract_ui_state extract $
             run_cmd titles skel (CmdTest.set_point_sel sel_track 0
@@ -79,6 +83,7 @@ test_insert_branch = do
         , []
         )
 
+test_make_tracks :: Test
 test_make_tracks = do
     let f tracknum = Create.make_tracks tracknum . make_tree
         make_tree :: [Tree.Tree Text] -> TrackTree.TrackTree
@@ -126,6 +131,7 @@ run_skel m ntracks skel (start_track, end_track) =
         return $ Text.head $
             if Text.null (Text.strip title) then "x" else title
 
+test_find_rect :: Test
 test_find_rect = do
     let f w = Create.find_rect (Just (Rect.xywh 0 0 10 10)) (w, 0) . map rect
         rect (x1, x2) = Rect.xywh x1 0 (x2-x1) 10

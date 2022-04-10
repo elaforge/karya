@@ -7,6 +7,7 @@ import Util.Test
 import qualified Ui.Sel as Sel
 
 
+test_union :: Test
 test_union = do
     let f = Sel.union
         sel st sp ct cp = Sel.Selection st sp ct cp Sel.Positive

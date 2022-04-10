@@ -12,6 +12,7 @@ import           Global
 import           Util.Test
 
 
+test_aftertouch :: Test
 test_aftertouch = do
     let run notes = extract $
             DeriveTest.perform_result (KontaktTest.perform allocs) $

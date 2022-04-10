@@ -19,6 +19,7 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
+test_note_to_nn :: Test
 test_note_to_nn = do
     let f = DeriveTest.extract Score.initial_nn . derive_pitch "twelve" ""
     equal (f "3b") ([Just NN.b3], [])
@@ -31,6 +32,7 @@ test_note_to_nn = do
     equal (f "9g") ([Just NN.g9], [])
     equal (f "9g#") ([Nothing], [])
 
+test_note_to_call_relative :: Test
 test_note_to_call_relative = do
     let f key = DeriveTest.extract Score.initial_nn
             . derive_pitch "twelve-r" key
@@ -45,6 +47,7 @@ test_note_to_call_relative = do
     equal (f "c-min" "4d") ([Just NN.gs4], [])
     equal (f "c-min" "4db") ([Just NN.g4], [])
 
+test_pitch_note_relative :: Test
 test_pitch_note_relative = do
     let f key = DeriveTest.extract Score.initial_note
             . derive_pitch "twelve-r" key
@@ -52,6 +55,7 @@ test_pitch_note_relative = do
     -- Symbolic Pitch.Note is still relative.
     equal (f "b-min" "4s") ([Just "4s"], [])
 
+test_keyed_to_nn :: Test
 test_keyed_to_nn = do
     let run = DeriveTest.extract Score.initial_nn
             . derive_pitch "twelve-k" "d-min"
@@ -65,6 +69,7 @@ test_keyed_to_nn = do
     --         . derive_pitch "twelve-k" "d-min"
     -- equal (runp "4b`n`") ([Just "4b`n`"], [])
 
+test_keyed_input_to_note :: Test
 test_keyed_input_to_note = do
     let f key = either pretty Pitch.note_text <$>
             ChromaticScales.input_to_note Twelve.keyed_scale_map

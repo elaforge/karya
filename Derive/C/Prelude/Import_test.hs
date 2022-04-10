@@ -8,6 +8,7 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
 
+test_import :: Test
 test_import = do
     let run title = DeriveTest.extract Score.event_start $
             DeriveTest.derive_tracks title [(">", [(0, 1, "X")])]

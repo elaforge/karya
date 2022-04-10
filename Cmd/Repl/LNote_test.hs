@@ -9,6 +9,7 @@ import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Repl.LNote as LNote
 
 
+test_sort_on_pitch :: Test
 test_sort_on_pitch = do
     let run high_left tracks =
             CmdTest.e_pitch_tracks <$>

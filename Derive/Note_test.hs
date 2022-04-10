@@ -17,6 +17,7 @@ import           Global
 import           Util.Test
 
 
+test_sub_tracks :: Test
 test_sub_tracks = do
     let run = DeriveTest.derive_tracks ""
     let extract_c e =
@@ -56,6 +57,7 @@ test_sub_tracks = do
         , ((2, 2, ""), [(0, NN.c4), (4, NN.d4)])
         ]
 
+test_derive_track_signals :: Test
 test_derive_track_signals = do
     let run tracknum source =
             map (second (map (second Pitch.nn)))
@@ -88,6 +90,7 @@ test_derive_track_signals = do
         [((UiTest.default_block_id, UiTest.mk_tid 3),
             [(0, 48), (1, 48), (1, 50), (2, 50), (2, 52), (3, 52), (3, 53)])]
 
+test_stash_signal :: Test
 test_stash_signal = do
     let run wanted tempo tracks =
             lookup (UiTest.default_block_id, UiTest.mk_tid 2) $
@@ -108,6 +111,7 @@ test_stash_signal = do
 
 -- * derivers
 
+test_c_note :: Test
 test_c_note = do
     -- Test basic Derive.d_note_track plumbing and the note (null) deriver
     -- along with it.

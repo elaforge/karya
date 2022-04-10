@@ -19,6 +19,7 @@ import           Global
 import           Util.Test
 
 
+test_errors :: Test
 test_errors = do
     let run call = extract_logs $ DeriveTest.derive_tracks ""
                 [ (">", [(0, 1, "")])
@@ -31,6 +32,7 @@ extract_logs :: Derive.Result -> [Text]
 extract_logs = map DeriveTest.show_log_stack . snd . DeriveTest.extract_logs
     . Stream.to_list . Derive.r_events
 
+test_type_error :: Test
 test_type_error = do
     let ints :: Sig.Parser [Int]
         ints = Sig.many "ints" ""
@@ -43,6 +45,7 @@ test_type_error = do
     left_like (call int_sym [str]) "arg 1/int: expected Num"
     left_like (call int_sym [int, int]) "arg 2/sym: expected Str"
 
+test_eval_quoted :: Test
 test_eval_quoted = do
     let int :: Sig.Parser Int
         int = Sig.required "int" "doc"
@@ -65,6 +68,7 @@ test_eval_quoted = do
     equal (run (0 :: Int) quot [quoted "v"])
         (Right (DeriveT.Quoted (Expr.generator0 "v")))
 
+test_deriver :: Test
 test_deriver = do
     let run = DeriveTest.extract DeriveTest.e_note
             . DeriveTest.derive_tracks_setup with_ngen ""
@@ -77,6 +81,7 @@ test_deriver = do
     equal (run [(0, 1, "ngen \"(NOTE) \"(%t-dia=1 | NOTE) -- 4c")])
         ([(0, 1, "4c"), (0, 1, "4d")], [])
 
+test_deriver_children :: Test
 test_deriver_children = do
     let run children skel = DeriveTest.extract DeriveTest.e_note $
             DeriveTest.derive_tracks_setup
@@ -103,6 +108,7 @@ generator = Derive.generator "test" "ngen" mempty "doc" $
         <*> Sig.defaulted "deriver" (return mempty) "doc"
     ) $ \(deriver1, deriver2) _args -> deriver1 <> deriver2
 
+test_not_given :: Test
 test_not_given = do
     let int :: Sig.Parser (Maybe Int)
         int = Sig.optional "int" Nothing ""

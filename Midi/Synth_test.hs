@@ -17,6 +17,7 @@ import qualified Perform.RealTime as RealTime
 import Global
 
 
+test_run :: Test
 test_run = do
     let f = extract id id . run . map mkmsg
     let (active, notes, ws) =
@@ -37,6 +38,7 @@ test_run = do
     match (untxt (Synth.pretty_state state))
         "active:*dev:0 60nn*warns:*sounding notes: *dev:0 60nn*"
 
+test_control :: Test
 test_control = do
     let f = extract controls controls . run . map mkmsg
         controls = Map.assocs . Synth.note_controls
@@ -63,6 +65,7 @@ test_control = do
     equal notes [[(State.CC 2, [(ts 100, 100), (ts 200, 50)])]]
     equal ws []
 
+test_warns :: Test
 test_warns = do
     let f = extract Synth.note_start Synth.note_start . run . map mkmsg
     let (active, notes, warns) = f
@@ -79,6 +82,7 @@ test_warns = do
     equal (f [(100, 0, NoteOn 64 10), (0, 0, NoteOn 68 10)])
         ([ts 0, ts 100], [], [(ts 0, "timestamp less than previous: .1s")])
 
+test_pitch :: Test
 test_pitch = do
     let f = extract Synth.note_pitch id . run . map mkmsg
     let (active, notes, warns) = f

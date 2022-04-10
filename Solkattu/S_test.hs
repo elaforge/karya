@@ -121,6 +121,7 @@ normalizeSpeed :: S.HasMatras a => Tala.Tala -> [Flat g a]
     -> [Flat g (S.State, S.Stroke a)]
 normalizeSpeed tala notes = S.normalizeSpeed (S.maxSpeed notes) tala notes
 
+test_simplify :: Test
 test_simplify = do
     let f = S.simplify
     equal (f [su [note, note]]) [su [note, note]]
@@ -137,6 +138,7 @@ test_simplify = do
     equal (f [speed (-2) [speed 1 [note], speed 2 [note]]])
         [speed (-1) [note], note]
 
+test_noteFMatra :: Test
 test_noteFMatra = do
     let f = S.noteFMatra
     equal (f (tempo 0 4) note) 1

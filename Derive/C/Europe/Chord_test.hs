@@ -8,6 +8,7 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
 
+test_stack :: Test
 test_stack = do
     let run call = DeriveTest.extract extract $
             DeriveTest.derive_tracks "import europe"

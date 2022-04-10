@@ -85,6 +85,7 @@ global_ui_channel :: Fltk.Channel
 {-# NOINLINE global_ui_channel #-}
 global_ui_channel = Unsafe.unsafePerformIO (MVar.newMVar [])
 
+test_create_resize_destroy_view :: Test
 test_create_resize_destroy_view = thread (return Ui.empty) $
     ("view with selection and titles", do
         v1 <- setup_state
@@ -104,6 +105,7 @@ test_create_resize_destroy_view = thread (return Ui.empty) $
     , [])
     : []
 
+test_rename_block :: Test
 test_rename_block = thread run_setup $
     ("block changes BlockId, window recreated with new block", do
         Transform.map_block_ids $ \id ->
@@ -112,6 +114,7 @@ test_rename_block = thread run_setup $
     , [[("window-title", "(bid \"test/newb\") -- (vid \"test/v1\")")]])
     : []
 
+test_create_two_views :: Test
 test_create_two_views = thread run_setup $
     ("view created, has big track, track title changes", do
         b2 <- create_block "b2" ""
@@ -126,6 +129,7 @@ test_create_two_views = thread run_setup $
       ])
     : []
 
+test_set_block_config :: Test
 test_set_block_config = do
     state <- run Ui.empty $ do
         setup_state
@@ -134,7 +138,9 @@ test_set_block_config = do
         let box = Block.Box Color.red ' '
         Ui.set_edit_box t_block_id box box
         Ui.set_play_box t_block_id Color.red
+    return ()
 
+test_set_skeleton :: Test
 test_set_skeleton = do
     let (_, state) = UiTest.run_mkview [("t1", []), ("t2", []), ("t3", [])]
     sync_states Ui.empty state
@@ -146,6 +152,7 @@ test_set_skeleton = do
         Ui.set_skeleton t_block_id (Skeleton.make [])
     return ()
 
+test_zoom_scroll :: Test
 test_zoom_scroll = do
     state <- run Ui.empty $ do
         setup_state
@@ -167,6 +174,7 @@ test_zoom_scroll = do
         run state $ Ui.modify_zoom t_view_id $ const (Zoom.Zoom 0 0)
     return ()
 
+test_set_status :: Test
 test_set_status = do
     state <- run_setup
     state <- io_human "status set" $ run state $ do
@@ -176,6 +184,7 @@ test_set_status = do
         Ui.set_view_status t_view_id (0, "lol") Nothing
     return ()
 
+test_set_track_flags :: Test
 test_set_track_flags = do
     state <- run Ui.empty $ do
         setup_state
@@ -195,6 +204,7 @@ test_set_track_flags = do
         Ui.toggle_track_flag t_block_id 1 Block.Mute
     return ()
 
+test_set_track_width :: Test
 test_set_track_width = do
     state <- io_human "two views" $ run Ui.empty $ do
         UiTest.mkblocks [(t_block, [(">", [])])]
@@ -206,6 +216,7 @@ test_set_track_width = do
         Ui.set_track_width t_block_id 1 100
     return ()
 
+test_adjacent_collapsed_tracks :: Test
 test_adjacent_collapsed_tracks = do
     state <- run Ui.empty $
         UiTest.mkblock_view (t_block, [("1", []), ("2", []), ("3", [])])
@@ -219,6 +230,7 @@ test_adjacent_collapsed_tracks = do
         Ui.toggle_track_flag t_block_id 2 Block.Collapse
     return ()
 
+test_created_merged :: Test
 test_created_merged = do
     state <- io_human "already has merged track" $ run Ui.empty $ do
         UiTest.mkblock_view (t_block,
@@ -232,6 +244,7 @@ test_created_merged = do
         Ui.merge_track t_block_id 1 2
     return ()
 
+test_set_track_merge :: Test
 test_set_track_merge = do
     let ([_, t2], state) = UiTest.run_mkview
             [ ("t1", [(0, 1, "n1"), (2, 1, "")])
@@ -244,6 +257,7 @@ test_set_track_merge = do
         Ui.insert_event t2 (Event.event 0.5 0 "xxx")
     return ()
 
+test_merge_unmerge_track :: Test
 test_merge_unmerge_track = do
     let ([_, t2], state) = UiTest.run_mkview
             [ ("t1", [(0, 1, "n1"), (2, 1, "")])
@@ -260,6 +274,7 @@ test_merge_unmerge_track = do
         Ui.unmerge_track UiTest.default_block_id 1
     return ()
 
+test_update_merged :: Test
 test_update_merged = do
     let (t2, state) = UiTest.run Ui.empty $ do
         [_t1, t2] <- UiTest.mkblock_view (UiTest.default_block_name,
@@ -274,6 +289,7 @@ test_update_merged = do
         Ui.insert_event t2 (Event.event 0.5 0 "xxx")
     return ()
 
+test_insert_remove_track :: Test
 test_insert_remove_track = do
     state <- run_setup
     state <- io_human "new wide track at the end" $ run state $ do
@@ -284,6 +300,7 @@ test_insert_remove_track = do
     return ()
 
 -- Make sure removing and inserting the ruler track makes the others move over.
+test_insert_remove_ruler_track :: Test
 test_insert_remove_ruler_track = do
     state <- run_setup
     io_human "both tracks are replaced" $ run state $ do
@@ -294,6 +311,7 @@ test_insert_remove_ruler_track = do
         insert_track t_block_id 1 (Block.DId UiTest.default_divider) 5
     return ()
 
+test_update_ruler_track :: Test
 test_update_ruler_track = do
     state <- run_setup
     io_human "try to remove ruler, nothing happens" $ run state $ do
@@ -304,6 +322,7 @@ test_update_ruler_track = do
         Ui.set_track_width t_block_id 0 10
     return ()
 
+test_update_track :: Test
 test_update_track = do
     -- sync to initial state
     state <- io_human "create view with one track" run_setup
@@ -315,6 +334,7 @@ test_update_track = do
     return ()
 
 -- multiple simultaneous updates
+test_update_two_tracks :: Test
 test_update_two_tracks = do
     state <- run Ui.empty $ do
         setup_state
@@ -326,6 +346,7 @@ test_update_two_tracks = do
         Ui.set_track_width t_block_id 1 100
     return ()
 
+test_create_track :: Test
 test_create_track = do
     state <- run_setup
     let msg = "new track with selection and new title, all bgs green"
@@ -336,6 +357,7 @@ test_create_track = do
         Ui.set_track_bg t_track1_id Color.green
     return ()
 
+test_alter_track :: Test
 test_alter_track = do
     state <- run_setup
     state <- io_human "track should get wider" $ run state $ do
@@ -345,6 +367,7 @@ test_alter_track = do
         Ui.set_track_ruler t_block_id 1 rid
     return ()
 
+test_selection :: Test
 test_selection = do
     state <- run_setup
     state <- io_human "selection is set" $ run state $ do
@@ -362,6 +385,7 @@ cue_marklist = Mark.marklist
 mark :: Text -> Mark.Mark
 mark name = Mark.Mark minBound 3 (Color.rgba 0.4 0 0.4 0.4) name 0 0
 
+test_modify_ruler :: Test
 test_modify_ruler = do
     state <- run Ui.empty $ do
         setup_state
@@ -378,6 +402,7 @@ test_modify_ruler = do
     return ()
 
 -- | Selection is correct even when tracks are added or deleted.
+test_selection_change_tracks :: Test
 test_selection_change_tracks = do
     state <- run_setup
     state <- run state $
@@ -388,6 +413,7 @@ test_selection_change_tracks = do
         Ui.remove_track t_block_id 1
     return ()
 
+test_insert_into_selection :: Test
 test_insert_into_selection = do
     state <- run Ui.empty $ do
         v1 <- setup_state
@@ -416,7 +442,7 @@ insert_track bid tracknum tracklike_id width =
 -- against each view dump)
 type STest a = (String, Ui.StateT IO a, [[(String, String)]])
 
-thread :: IO Ui.State -> [STest a] -> IO Ui.State
+thread :: IO Ui.State -> [STest a] -> IO ()
 thread setup tests = do
     state <- setup
     (\f -> foldM f state tests) $ \state (desc, action, expected) -> do
@@ -429,6 +455,7 @@ thread setup tests = do
         passed <- match_dumps (txt desc) dumps expected
         unless passed (pause "")
         return state
+    return ()
 
 match_dumps :: Text -> [Dump.Dump] -> [[(String, String)]] -> IO Bool
 match_dumps desc dumps attrs = allM matches (Seq.zip_padded dumps attrs)

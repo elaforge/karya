@@ -12,6 +12,7 @@ import qualified Ui.UiTest as UiTest
 import qualified Cmd.ViewConfig as ViewConfig
 
 
+test_horizontal_tile_rects :: Test
 test_horizontal_tile_rects = do
     let f screen rs = map extract $
             ViewConfig.horizontal_tile_rects (mkrect screen) (map mkrect rs)
@@ -28,6 +29,7 @@ test_horizontal_tile_rects = do
     equal (f (0, 0, 8, 8) [(0, 0, 6, 1), (1, 0, 6, 1)])
         [(0, 0, 6, 1), (2, 0, 6, 1)]
 
+test_fit_rects :: Test
 test_fit_rects = do
     let f = List.sort . map (\(ident, r) -> (Id.ident_name ident, unrect r))
             . ViewConfig.fit_rects (Rect.xywh 0 0 100 100)
@@ -36,6 +38,7 @@ test_fit_rects = do
     equal (f [("a", (0, 0, 2, 2)), ("b", (1, 2, 2, 2))])
         [("a", (0, 0, 2, 2)), ("b", (0, 2, 2, 2))]
 
+test_corners_of :: Test
 test_corners_of = do
     let f = ViewConfig.corners_of (Rect.xywh 0 0 100 100)
     equal (f []) [(0, 0)]

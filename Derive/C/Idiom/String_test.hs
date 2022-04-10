@@ -20,6 +20,7 @@ import           Types
 import           Util.Test
 
 
+test_attack_release :: Test
 test_attack_release = do
     let run = run_string e_nns "bent-string 2 2 1" . UiTest.note_track
     let track p1 p2 p3 = [(0, 5, p1), (5, 5, p2), (10, 5, p3)]
@@ -48,6 +49,7 @@ test_attack_release = do
     equal (run [(1, 1, "4d"), (2, 1, "4d")])
         ([(1, [(1, 62), (2, 62)]), (2, [(2, 62), (6, 62)])], [])
 
+test_string_select :: Test
 test_string_select = do
     let run = run_string extract "bent-string 0 0 1"
         extract e = (e_string e, e_nns e)
@@ -62,12 +64,14 @@ test_string_select = do
 
 -- TODO I have to test this ad-hoc per call until I figure out a better
 -- solution, see NOTE [signal-discontinuity]
+test_signal_discontinuity :: Test
 test_signal_discontinuity = do
     let run = DeriveTest.extract DeriveTest.e_nns
             . DeriveTest.derive_tracks (title <> " | bent-string 0 0 1")
     equal (run [(">", [(0, 2, "")]), ("*", [(0, 0, "4c"), (1, 0, "4d")])])
         ([[(0, NN.c4), (1, NN.c4), (1, NN.d4), (3, NN.d4), (3, NN.c4)]], [])
 
+test_mute_end :: Test
 test_mute_end = do
     let run args = run_string extract ("mute-end " <> args) . UiTest.note_track
         extract e = (DeriveTest.e_start_dur e, Score.initial_dynamic e,
@@ -79,6 +83,7 @@ test_mute_end = do
     equal (run "1 0 .5" [(0, 1, "3c")])
         ([((0, 1), 1, "+"), ((1, 0), 1, "+mute")], [])
 
+test_gliss :: Test
 test_gliss = do
     let run gliss dest = DeriveTest.extract Score.initial_nn $
             DeriveTest.derive_tracks title
@@ -88,6 +93,7 @@ test_gliss = do
     -- Pitches are correct for relative scale.
     equal (run "gliss -1 1" "4s") ([Just NN.e4, Just NN.g4], [])
 
+test_gliss_a :: Test
 test_gliss_a = do
     let run gliss dest = DeriveTest.extract extract $
             DeriveTest.derive_tracks title
@@ -111,6 +117,7 @@ test_gliss_a = do
     equal (run2 "gliss-a 2 1t" "4f") ([2.5, 2.75, 3], [])
     equal (run2 "gliss-a 2 1s" "4f") ([2, 2.5, 3], [])
 
+test_nth_harmonic :: Test
 test_nth_harmonic = do
     let run call pitch = DeriveTest.extract DeriveTest.e_nn_rounded $
             DeriveTest.derive_tracks title $
@@ -120,6 +127,7 @@ test_nth_harmonic = do
     equal (run "string=(4c) | on 2" "4c") ([NN.c5], [])
     equal (run "string=(4c) | on 3" "4c") ([harmonic 3 NN.c4], [])
 
+test_harmonic :: Test
 test_harmonic = do
     let run call pitch = DeriveTest.extract extract $
             DeriveTest.derive_tracks

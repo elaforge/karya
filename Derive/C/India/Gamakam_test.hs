@@ -14,6 +14,7 @@ import Global
 import Types
 
 
+test_kampita :: Test
 test_kampita = do
     let run call end = DeriveTest.extract DeriveTest.e_nns_old $ derive_tracks
             [ (">", [(0, 4, "")])
@@ -26,6 +27,7 @@ test_kampita = do
     equal (run "h 1 | kam (4c) 1 1 1" 3)
         ([[(0, NN.c4), (2, NN.cs4), (3, NN.c3)]], [])
 
+test_kampita_c :: Test
 test_kampita_c = do
     let run = run_diatonic (map snd . DeriveTest.e_nns_old)
         run2 = run_diatonic DeriveTest.e_nns_old
@@ -54,6 +56,7 @@ test_kampita_c = do
     equal (run2 "adjust = shorten | kam^ 1 1 1" 2) ([[(0, 60), (1, 62)]], [])
     equal (run2 "adjust = stretch | kam^ 1 1 1" 2) ([[(0, 60), (2, 62)]], [])
 
+test_nkampita_c :: Test
 test_nkampita_c = do
     let run = run_diatonic DeriveTest.e_nns_old
     strings_like (snd (run "nkam 1 0" 2)) ["cycles: expected Num (>0)"]
@@ -67,6 +70,7 @@ test_nkampita_c = do
         ([[(0, 60), (1, 62), (2, 60), (3, 62), (4, 60)]], [])
     equal (run "nkam^ 1 2" 4) ([[(0, 60), (1, 62), (2, 60), (3, 62)]], [])
 
+test_dip :: Test
 test_dip = do
     let run ex call end = DeriveTest.extract ex $ derive_tracks
             [(">", [(0, 4, "")]), ("*", [(0, 0, call), (end, 0, "3c")])]
@@ -80,6 +84,7 @@ test_dip = do
         , []
         )
 
+test_jaru :: Test
 test_jaru = do
     let run call = DeriveTest.extract DeriveTest.e_nns $
             derive_tracks [(">", [(0, 4, "")]), ("*", [(0, 0, call)])]

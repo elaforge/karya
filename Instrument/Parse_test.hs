@@ -15,6 +15,7 @@ import qualified Instrument.Parse as Parse
 import Global
 
 
+test_parse_annotations :: Test
 test_parse_annotations = do
     let f = second (map extract)
             . Util.Parse.parseS () "" Parse.p_annotation_file
@@ -29,6 +30,7 @@ test_parse_annotations = do
     equal (f "# empty\n") $ Right []
     left_like (f "bad inst\n") "unexpected 'b'"
 
+test_parse_patch_file :: Test
 test_parse_patch_file = do
     let parse ex = extract ex
             . Util.Parse.parseS Parse.empty_state "" Parse.p_patch_file

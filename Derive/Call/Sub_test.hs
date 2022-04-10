@@ -24,6 +24,7 @@ import           Global
 import           Util.Test
 
 
+test_inverting :: Test
 test_inverting = do
     let run = DeriveTest.extract_events extract
             . DeriveTest.derive_tracks_linear ""
@@ -39,6 +40,7 @@ test_inverting = do
     equal (run [(">", []), (">", [(0, 1, "")]), ("*", [(0, 0, "4c")])])
         [((0, 1, "4c"), "+")]
 
+test_inverting_block :: Test
 test_inverting_block = do
     let run = DeriveTest.extract DeriveTest.e_note
             . DeriveTest.derive_blocks
@@ -50,6 +52,7 @@ test_inverting_block = do
             ])
         ([(0, 1, "3c")], [])
 
+test_under_invert :: Test
 test_under_invert = do
     let run under_invert = DeriveTest.extract (DeriveTest.e_control_vals "out")
             . DeriveTest.derive_tracks_setup (call under_invert) ""
@@ -100,6 +103,7 @@ test_under_invert = do
         dyn <- Internal.get_dynamic id
         NoteUtil.make_event args dyn 0 1 mempty
 
+test_inverted_control_scope :: Test
 test_inverted_control_scope = do
     let run = DeriveTest.extract DeriveTest.e_nns
             . DeriveTest.derive_tracks ""
@@ -109,6 +113,7 @@ test_inverted_control_scope = do
     equal (run $ UiTest.note_track [(0, 1, "+a -- 4c"), (1, 1, "4d")])
         ([[(0, 60), (1, 60)], [(1, 62)]], [])
 
+test_overlapping_parent_control_scope :: Test
 test_overlapping_parent_control_scope = do
     let run = DeriveTest.extract DeriveTest.e_nns
             . DeriveTest.derive_tracks_linear "import ly"
@@ -138,6 +143,7 @@ test_overlapping_parent_control_scope = do
         -- TODO should be
         -- ([[(0, NN.c4)], [(1, NN.d4)], [(2, NN.e4)]], [])
 
+test_sub_notes :: Test
 test_sub_notes = do
     let run tracks = DeriveTest.extract extract $
             DeriveTest.derive_tracks_linear "" tracks

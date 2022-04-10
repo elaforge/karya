@@ -15,6 +15,7 @@ import           Types
 import           Util.Test
 
 
+test_sekar :: Test
 test_sekar = do
     let run sekar_event notes = extract $ DeriveTest.derive_tracks_linear
             "import bali.sekar | sekar-arrive=f" $
@@ -67,6 +68,7 @@ test_sekar = do
          , (7, 1, "4e"), (9, 1, "4e")
          ], [])
 
+test_sekar_multiple :: Test
 test_sekar_multiple = do
     let run dur notes = extract $ DeriveTest.derive_tracks_linear
             "import bali.sekar | sekar-arrive=f" $
@@ -78,6 +80,7 @@ test_sekar_multiple = do
     equal (run 6 [(0, 3, "4c"), (3, 1.5, "4d"), (4.5, 1.5, "4e")])
         ([(0, 2, "4c"), (2, 1, "4d"), (3, 2, "4c"), (5, 1, "4e")], [])
 
+test_sekar_arrive :: Test
 test_sekar_arrive = do
     let run e = DeriveTest.extract DeriveTest.e_note . run_ e
         run_ sekar_event notes = DeriveTest.derive_tracks_linear
@@ -123,6 +126,7 @@ make_notes durs = zip3 starts durs pitches
     starts = scanl (+) 2 durs
     pitches = map ("4"<>) ["g", "a", "b", "c", "d", "e", "f"]
 
+test_sekar_regular_arrive :: Test
 test_sekar_regular_arrive = do
     let run sekar_event notes =
             DeriveTest.extract DeriveTest.e_note $ run_ sekar_event notes
@@ -172,6 +176,7 @@ test_sekar_regular_arrive = do
         ([(3, 1, "4a"), (4, 1, "4c"), (5, 1, "4a"), (7, 1, "4a"), (8, 2, "4c")],
             [])
 
+test_drop_until_next :: Test
 test_drop_until_next = do
     let f t = Sekar.drop_until_next (>t)
     equal (f 1 [0..4]) [1..4]
@@ -179,6 +184,7 @@ test_drop_until_next = do
     equal (f 4 [0..4]) [4]
     equal (f 5 [0..4]) [4]
 
+test_div_extract :: Test
 test_div_extract = do
     let f events = Sekar.div_extract (map mkevent events)
         mkevent (s, d, n) = SubT.EventT s d n

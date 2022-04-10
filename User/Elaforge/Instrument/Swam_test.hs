@@ -13,6 +13,7 @@ import qualified User.Elaforge.Instrument.Swam as Swam
 import           Util.Test
 
 
+test_bow :: Test
 test_bow = do
     let run title = DeriveTest.extract extract
             . DeriveTest.derive_tracks_setup setup

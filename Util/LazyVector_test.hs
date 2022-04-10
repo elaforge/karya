@@ -12,6 +12,7 @@ import Util.Test
 -- property: if you construct out of mixed singletons and fromLists, it will
 -- always be the same as using list and (++).
 
+test_builder :: Test
 test_builder = do
     let f = Vector.toList . LazyVector.toStrict . LazyVector.build
         chunks = map Vector.toList . LazyVector.lazyChunks . LazyVector.build

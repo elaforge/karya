@@ -22,8 +22,10 @@ import           Global
 type Error = Text
 type Warning = Text
 
+-- | Extract from haskell source files, and generate output based on it.
 process :: [String] -> (Text -> a)
-    -> (FilePath -> Map FilePath a -> Either Error ([Warning], Text)) -> IO ()
+    -> (FilePath -> Map FilePath a -> Either Error ([Warning], Text))
+    -> IO ()
 process args extract generate = do
     progName <- System.Environment.getProgName
     (outFname, inFnames) <- case args of

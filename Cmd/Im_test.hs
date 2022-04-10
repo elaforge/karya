@@ -24,6 +24,7 @@ import           Global
 import           Util.Test
 
 
+test_respond :: Test
 test_respond = do
     let states = (bimap add_allocation set_db) $ ResponderTest.mkstates $
             UiTest.note_spec

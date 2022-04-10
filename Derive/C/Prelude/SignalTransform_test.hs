@@ -9,6 +9,7 @@ import qualified Derive.Call.CallTest as CallTest
 import qualified Perform.Signal as Signal
 
 
+test_sh_pitch :: Test
 test_sh_pitch = do
     let run = CallTest.run_pitch ""
     equal (run [(0, "4c"), (4, "sh .5 | i (5c)")])
@@ -18,6 +19,7 @@ test_sh_pitch = do
         , (3, 69), (4, 69), (4, 72)
         ]
 
+test_sh_control :: Test
 test_sh_control = do
     let run = CallTest.run_control
     equal (run [(0, "0"), (4, "sh .5 | i 4")])
@@ -27,6 +29,7 @@ test_sh_control = do
         , (2, 2), (3, 2), (3, 3)
         ]
 
+test_quantize :: Test
 test_quantize = do
     let run = CallTest.run_control
     equal (run [(0, "0"), (4, "quantize .25 | i 1")])
@@ -38,6 +41,7 @@ test_quantize = do
     --     , (2, 0.5), (3, 0.5), (3, 0.75), (4, 0.75), (4, 1)
     --     ]
 
+test_slew_limiter :: Test
 test_slew_limiter = do
     let f slope = Signal.to_pairs
             . SignalTransform.slew_limiter slope . Signal.from_pairs

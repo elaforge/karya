@@ -13,6 +13,7 @@ import qualified Ui.UiTest as UiTest
 import           Util.Test
 
 
+test_edo :: Test
 test_edo = do
     let run scale_id divisions intervals pitches = DeriveTest.extract extract $
             DeriveTest.derive_tracks (make_title scale_id intervals divisions) $

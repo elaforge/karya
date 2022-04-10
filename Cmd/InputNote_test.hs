@@ -14,6 +14,7 @@ import qualified Derive.Controls as Controls
 import qualified Perform.Pitch as Pitch
 
 
+test_from_midi :: Test
 test_from_midi = do
     let state = InputNote.ReadDeviceState $ Map.fromList
             [(rdev, InputNote.empty_control_state (-1, 2))]
@@ -63,6 +64,7 @@ test_from_midi = do
         , Just (InputNote.Control (nid 60) Controls.mod 1)
         ]
 
+test_to_midi :: Test
 test_to_midi = do
     let id_to_key ns = Map.fromList
             [(InputNote.NoteId nid, key) | (nid, key) <- ns]

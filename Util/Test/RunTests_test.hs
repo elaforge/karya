@@ -9,6 +9,7 @@ import Util.Test
 import qualified Util.Test.RunTests as RunTests
 
 
+test_extractStats :: Test
 test_extractStats = do
     let f = RunTests.extractStats
     let output =

@@ -9,6 +9,7 @@ import Util.Test
 import qualified User.Elaforge.Instrument.Z1 as Z1
 
 
+test_enkorg :: Test
 test_enkorg = do
     let f bs = (Z1.dekorg (Z1.enkorg (B.pack bs)), B.pack bs)
     uncurry equal (f (0x7f : replicate 7 0))

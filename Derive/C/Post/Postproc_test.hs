@@ -16,6 +16,7 @@ import Global
 
 -- * cancel
 
+test_cancel :: Test
 test_cancel = do
     let run = DeriveTest.extract DeriveTest.e_note
             . DeriveTest.derive_tracks "cancel" . UiTest.note_track
@@ -36,6 +37,7 @@ test_cancel = do
     equal (run (notes "add-flag strong | " "add-flag strong | "))
         ([(2, 2, "4c"), (2, 3, "4d")], [])
 
+test_infer_duration_block :: Test
 test_infer_duration_block = do
     -- The note deriver automatically adds flags so that a note at the end of
     -- a block can cancel the next event and get an inferred duration.
@@ -58,6 +60,7 @@ test_infer_duration_block = do
     -- I can't write single note calls for e.g. percussion.
     equal (run [top, sub [(0, 0, "4c")]]) ([(0, 0, "4c"), (2, 0, "4c")], [])
 
+test_infer_duration :: Test
 test_infer_duration = do
     let run extract = DeriveTest.extract extract
             . DeriveTest.derive_tracks "cancel" . UiTest.note_track
@@ -70,6 +73,7 @@ test_infer_duration = do
             [(0, 0, "add-flag infer-duration | -- 4c"), (4, 1, "4d")])
         ([mempty, mempty], [])
 
+test_suppress_until :: Test
 test_suppress_until = do
     let run = DeriveTest.extract Score.event_start
             . DeriveTest.derive_tracks "cancel 1"
@@ -85,6 +89,7 @@ test_suppress_until = do
             ])
         ([0, 1, 3], [])
 
+test_randomize_start :: Test
 test_randomize_start = do
     let run title = DeriveTest.extract Score.event_start
             . DeriveTest.derive_tracks title
@@ -95,6 +100,7 @@ test_randomize_start = do
 
 -- * other
 
+test_apply_start_offset :: Test
 test_apply_start_offset = do
     let run = DeriveTest.extract DeriveTest.e_note . DeriveTest.derive_blocks
         top = "top -- apply-start-offset .25"
@@ -136,6 +142,7 @@ test_apply_start_offset = do
     equal (run [(top, neighbors "-2")])
         ([(0, min_dur, "4c"), (min_dur, 2 - min_dur, "4d"), (2, 1, "4e")], [])
 
+test_apply_start_offset_sorted :: Test
 test_apply_start_offset_sorted = do
     -- The output is still sorted after applying start offset.
     let run = DeriveTest.extract DeriveTest.e_note
@@ -144,6 +151,7 @@ test_apply_start_offset_sorted = do
     equal (run [(0, 1, "%start-s = 2 | -- 4c"), (1, 1, "4d")])
         ([(1, 1, "4d"), (2, Note.min_duration, "4c")], [])
 
+test_adjust_offset :: Test
 test_adjust_offset = do
     let f (s1, o1) (s2, o2) =
             ( s1 + Postproc.adjust_offset d Nothing (Just (o2, s2)) o1 s1

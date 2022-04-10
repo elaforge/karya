@@ -17,6 +17,7 @@ transform = "import bali.gender"
 ngoret_transform :: Text
 ngoret_transform = transform <> " | realize-ngoret | ngoret-damp-threshold=20"
 
+test_ngoret :: Test
 test_ngoret = do
     -- This also tests some error checking and absolute warp functions.
     let run_e extract = DeriveTest.extract extract
@@ -76,6 +77,7 @@ test_ngoret = do
     equal (run $ c_to_e "" "'n -2 10 0")
         ([(0, 1, "4c"), (1, 1, "4c"), (2, 1, "4e")], [])
 
+test_ngoret_start_control :: Test
 test_ngoret_start_control = do
     let run = DeriveTest.extract DeriveTest.e_note
             . DeriveTest.derive_tracks
@@ -86,6 +88,7 @@ test_ngoret_start_control = do
     equal (run [(0, 4, "4c"), (4, 4, "%start-s = -.5 | ' .5 -- 4e")])
         ([(0, 4.5, "4c"), (3, 1.5, "4d"), (3.5, 4.5, "4e")], [])
 
+test_past_end :: Test
 test_past_end = do
     let run = DeriveTest.extract DeriveTest.e_note . DeriveTest.derive_blocks
     -- A grace note right at the end doesn't cause an error.  Previously this
@@ -100,6 +103,7 @@ test_past_end = do
             ])
         ([(1, 1.5, "3b"), (1.5, 0, "4c")], [])
 
+test_ngoret_infer_duration :: Test
 test_ngoret_infer_duration = do
     let run = DeriveTest.extract DeriveTest.e_note . DeriveTest.derive_blocks
         top = "top -- " <> ngoret_transform <> " | cancel"
@@ -129,6 +133,7 @@ test_ngoret_infer_duration = do
     -- TODO If the grace has the same pitch, then they always get damped
     -- together.
 
+test_ngoret_transpose :: Test
 test_ngoret_transpose = do
     let run = DeriveTest.extract DeriveTest.e_pitch
             . DeriveTest.derive_tracks (ngoret_transform <> " | %t-dia=7")
@@ -137,6 +142,7 @@ test_ngoret_transpose = do
     equal (run [(0, 1, "4c"), (1, 1, "' .5 .5 -- 4e")])
         (["5c", "5d", "5e"], [])
 
+test_realize_damp :: Test
 test_realize_damp = do
     let run = DeriveTest.extract DeriveTest.e_note
             . DeriveTest.derive_tracks ngoret_transform . UiTest.note_track
@@ -148,6 +154,7 @@ test_realize_damp = do
     equal (run [(0, 1, "4c"), (2, 1, "' .5 .5 -- 4e")])
         ([(0, 1, "4c"), (1.5, 1, "4d"), (2, 1, "4e")], [])
 
+test_weak :: Test
 test_weak = do
     let run = DeriveTest.extract (DeriveTest.e_control_vals "mute")
             . DeriveTest.derive_tracks transform
@@ -160,6 +167,7 @@ test_weak = do
 
 -- * im
 
+test_infer_damp_simple :: Test
 test_infer_damp_simple = do
     let run = DeriveTest.extract DeriveTest.e_note
             . DeriveTest.derive_tracks

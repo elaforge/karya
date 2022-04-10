@@ -12,6 +12,7 @@ import qualified Shake.CcDeps as CcDeps
 import qualified Shake.Util as Util
 
 
+test_includesOf :: Test
 test_includesOf = Testing.in_tmp_dir "CcDeps" $ do
     let includesOf gen = CcDeps.includesOf gen []
         transitive gen = CcDeps.transitiveIncludesOf gen []

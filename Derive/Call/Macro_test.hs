@@ -19,6 +19,7 @@ import           Global
 import           Util.Test
 
 
+test_generator :: Test
 test_generator = do
     let run expr call = DeriveTest.extract DeriveTest.e_attributes $
             DeriveTest.derive_tracks_setup (setup (make_expr expr)) ""
@@ -35,6 +36,7 @@ test_generator = do
     equal (run [("attr", [val_call (attr "a")])] "m") (["+a"], [])
     equal (run [("attr", [val_call (var "var")])] "m +x") (["+x"], [])
 
+test_val :: Test
 test_val = do
     let run call = DeriveTest.extract DeriveTest.e_attributes $
             DeriveTest.derive_tracks_setup setup ""
@@ -52,6 +54,7 @@ c_id = Derive.val_call "test" "id" mempty "doc" $
     Sig.call (Sig.required "a" "arg") $ \val _args ->
         return (val :: DeriveT.Val)
 
+test_transformer :: Test
 test_transformer = do
     let run expr call = DeriveTest.extract DeriveTest.e_attributes $
             DeriveTest.derive_tracks_setup (setup (make_expr expr)) ""

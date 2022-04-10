@@ -15,6 +15,7 @@ import Global
 import Types
 
 
+test_set_and_val_to_pitch :: Test
 test_set_and_val_to_pitch = do
     -- This also tests Derive.Deriver.Lib.val_to_pitch, but they should have
     -- the same behaviour.
@@ -31,15 +32,18 @@ test_set_and_val_to_pitch = do
         equal (run modify [(0, 2)] [(0, "4c"), (1, "4d")])
             ([[(0, NN.c4), (1, NN.c4), (1, NN.d4)]], [])
 
+test_set :: Test
 test_set = do
     equal (run [(0, "set (4c)")]) [(0, NN.c4)]
     equal (run [(0, "4c"), (2, "set (4c) | i (4d)")])
         [(0, NN.c4), (2, NN.d4), (2, NN.c4)]
 
+test_set_or_move :: Test
 test_set_or_move = do
     equal (run [(0, "set-or-move (4c) 2"), (2, "set-or-move (4d) 2")])
         [(0, NN.c4), (2, NN.c4), (4, NN.d4)]
 
+test_multiply :: Test
 test_multiply = do
     let run = DeriveTest.extract extract . DeriveTest.derive_tracks ""
             . UiTest.note_track
@@ -48,6 +52,7 @@ test_multiply = do
     equal (run [(1, 1, "* (4c) 2")]) ([([(1, NN.c5)], "4c")], [])
     equal (run [(1, 1, "* (4c) P5")]) ([([(1, NN.g4 + 0.02)], "4c")], [])
 
+test_interpolated_transpose :: Test
 test_interpolated_transpose = do
     -- An even interpolation on an un-equal tempered scale should remain even
     -- after transposition.
@@ -61,6 +66,7 @@ test_interpolated_transpose = do
     equal (run ">") [(0, 1), (4, 3)]
     equal (run "> | %t-chrom = 1") [(0, 3), (4, 4)]
 
+test_transpose_out_of_range :: Test
 test_transpose_out_of_range = do
     equal (run_with_title ">" "twelve" [(0, "4c")])
         ([(0, 60)], [])
@@ -79,6 +85,7 @@ test_transpose_out_of_range = do
                 , ("*" <> pitch_title, [(x, 0, n) | (x, n) <- pitches])
                 ]
 
+test_neighbor :: Test
 test_neighbor = do
     equal (CallTest.run_pitch "" [(0, "n (4c) 1 2")]) [(0, 61), (2, 60)]
     -- Both chromatic and diatonic literals.
@@ -90,6 +97,7 @@ test_neighbor = do
     -- Except when explicitly set to ScoreTime.
     equal (run_tempo 2 [(0, "n (4c) 1d 1t")]) [(0, 62), (0.5, 60)]
 
+test_approach :: Test
 test_approach = do
     equal (run [(0, "4c"), (10, "a 2s"), (20, "4d")])
         [(0, NN.c4), (10, NN.c4), (12, NN.d4), (20, NN.d4)]
@@ -102,9 +110,11 @@ test_approach = do
         , [(20, NN.d4)]
         ]
 
+test_linear :: Test
 test_linear = do
     equal (run [(0, "4c"), (2, "i (4d)")]) [(0, NN.c4), (2, NN.d4)]
 
+test_porta :: Test
 test_porta = do
     equal (run [(0, "4c"), (2, "porta-place=1 | p (4d) 2s")])
         [(0, NN.c4), (2, NN.c4), (4, NN.d4)]
@@ -114,6 +124,7 @@ test_porta = do
             (2, "porta-place=1 | curve=(cf-expon 2) | p (4d) 2s")])
         [(0, NN.c4), (2, NN.c4), (3, 60.5), (4, 62)]
 
+test_linear_next :: Test
 test_linear_next = do
     equal (run [(0, "4c"), (4, "i> (4d)"), (6, "4c")])
         [(0, NN.c4), (4, NN.c4), (6, NN.d4), (6, NN.c4)]

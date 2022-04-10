@@ -14,6 +14,7 @@ import qualified User.Elaforge.Instrument.Vl1Spec as Vl1Spec
 -- -64 - -1, 0, 1 - 63   => 40 - 7f, 00, 01 - 3f (2s complement)
 -- -128 - -1, 0, 1 - 127 => 0100 - 017f, 0000, 0001 - 007f
 
+test_decode_num :: Test
 test_decode_num = do
     let f range = Vl1Spec.decode_num range . ByteString.pack
     equal (map (f (0, 127)) [[0], [0x7f]]) [0, 0x7f]
@@ -24,6 +25,7 @@ test_decode_num = do
     equal (map (f (-127, 127)) [[1, 0], [1, 0x7f], [0], [1], [0x7f]])
         [-128, -1, 0, 1, 127]
 
+test_encode_num :: Test
 test_encode_num = do
     let f range = ByteString.unpack . Vl1Spec.encode_num range
     equal (map (f (0, 127)) [0, 0x7f]) [[0], [0x7f]]

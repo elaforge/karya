@@ -22,6 +22,7 @@ import           Global
 import           Util.Test
 
 
+test_read :: Test
 test_read = do
     let f scale_id pitch = read_scale
             (ScaleTest.get_scale Wayang.scales scale_id) pitch
@@ -34,6 +35,7 @@ test_read = do
     equal (run "wayang" "5i") (run "wayang-pemade" "i^")
     equal (run "wayang" "6i") (run "wayang-kantilan" "i^")
 
+test_note_to_call :: Test
 test_note_to_call = do
     let run laras = ScaleTest.note_to_call "wayang" ("laras=" <> laras)
         umbang = Vector.toList $ BaliScales.laras_umbang Wayang.laras_sawan
@@ -53,6 +55,7 @@ scale_track scale_id pitches =
     ]
     where events = zip (Seq.range_ 0 1) pitches
 
+test_input_to_note :: Test
 test_input_to_note = do
     let f scale = ScaleTest.input_to_note scale mempty
         wayang = ScaleTest.get_scale Wayang.scales "wayang"
@@ -69,6 +72,7 @@ test_input_to_note = do
         , "i^", invalid
         ]
 
+test_input_to_nn :: Test
 test_input_to_nn = do
     let pemade = ScaleTest.get_scale Wayang.scales "wayang-pemade"
         kantilan = ScaleTest.get_scale Wayang.scales "wayang-kantilan"

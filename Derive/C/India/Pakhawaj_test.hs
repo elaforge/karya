@@ -12,6 +12,7 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
 
+test_c_bols :: Test
 test_c_bols = do
     let run dur bols = DeriveTest.extract extract $
             DeriveTest.derive_tracks_linear "import india.pakhawaj"
@@ -22,6 +23,7 @@ test_c_bols = do
         ([(0, "+tet"), (1, "+te"), (2, "+ka"), (3, "+ta"), (4, "+ge"),
             (5, "+di"), (6, "+ge"), (7, "+ne")], [])
 
+test_realize_bols :: Test
 test_realize_bols = do
     let f = Pakhawaj.realize_bols 1.5
     left_like (f [(0, "dha"), (1, "blah")]) "unknown bol"
@@ -30,6 +32,7 @@ test_realize_bols = do
     equal (f [(0, "kt"), (1, "tk")]) $
         Right [(0, One Tet), (0.5, One Te), (1, One Ka), (1.25, One Tet)]
 
+test_infer_tette :: Test
 test_infer_tette = do
     let f = Pakhawaj.infer_tette
     equal (f [One Tette]) [One Tet]
@@ -38,6 +41,7 @@ test_infer_tette = do
     equal (f [Together Ka Tette, One Te]) [Together Ka Tet, One Te]
     equal (f [Together Ka Tette, One Tet]) [Together Ka Te, One Tet]
 
+test_match_syllables :: Test
 test_match_syllables = do
     let f = fmap (map snd) . Pakhawaj.match_syllables . map ((,) ())
             . Text.words

@@ -14,16 +14,19 @@ import Types
 run :: [(ScoreTime, Text)] -> [(RealTime, Signal.Y)]
 run = CallTest.run_control
 
+test_set :: Test
 test_set = do
     equal (run [(0, "1"), (1, "0")]) [(0, 1), (1, 1), (1, 0)]
     equal (run [(0, "1"), (1, "")]) [(0, 1)]
 
+test_set_transformer :: Test
 test_set_transformer = do
     -- interpolate, then set
     equal (run [(0, "1"), (2, "3 | i 0")]) [(0, 1), (2, 0), (2, 3)]
     -- set, then interpolate
     equal (run [(0, "from=0 | i> 1"), (2, "0")]) [(0, 0), (2, 1), (2, 0)]
 
+test_set_prev :: Test
 test_set_prev = do
     let run ex tracks = DeriveTest.extract ex $ DeriveTest.derive_tracks "" $
             (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")]) : tracks
@@ -31,12 +34,14 @@ test_set_prev = do
             [("c", [(0, 0, ".5"), (1, 0, "'"), (2, 0, "'")])])
         ([[(0, 0.5)], [(1, 0.5)], [(2, 0.5)]], [])
 
+test_porta :: Test
 test_porta = do
     equal (run [(0, "0"), (1, "porta-place=1 | p 1 2s")])
         [(0, 0), (1, 0), (3, 1)]
     equal (run [(0, "0"), (1, "porta-place=1 | curve=(cf-expon 2) | p 1 2s")])
         [(0, 0), (1, 0), (2, 0.25), (3, 1)]
 
+test_abs :: Test
 test_abs = do
     let run = DeriveTest.extract (DeriveTest.e_control "c")
             . DeriveTest.derive_tracks_linear "" . (++ [(">", [(0, 1, "")])])
@@ -61,16 +66,19 @@ test_abs = do
     equal (run [("c", [(0, 0, ".5")]), ("c scale", [(0, 0, "abs .25")])])
         ([[(0, 0.25)]], [])
 
+test_linear :: Test
 test_linear = do
     equal (run [(0, "1"), (2, "i 0")]) [(0, 1), (2, 0)]
     -- Explicit duration overrides.
     equal (CallTest.run_control_dur [(0, 0, "1"), (2, 2, "i 0")])
         [(0, 1), (2, 1), (4, 0)]
 
+test_linear_next :: Test
 test_linear_next = do
     equal (run [(0, "1"), (4, "i> 0"), (6, "0")])
         [(0, 1), (4, 1), (6, 0)]
 
+test_exponential :: Test
 test_exponential = do
     equal (run [(0, "1"), (4, "e 0")])
         [(0, 1), (1, 0.9375), (2, 0.75), (3, 0.4375), (4, 0)]
@@ -82,6 +90,7 @@ test_exponential = do
         [(0, 1), (1, 0.5),
             (2, 0.2928932188134524), (3, 0.1339745962155614), (4, 0)]
 
+test_nested :: Test
 test_nested = do
     -- This used to get the wrong result thanks to drop_discontinuity_at
     -- dropping a non-discontinuity with equal samples.
@@ -111,15 +120,18 @@ test_nested = do
 
 -- * misc
 
+test_breakpoint_next :: Test
 test_breakpoint_next = do
     equal (run [(0, "bp> 1"), (4, "0")]) [(0, 1), (4, 1), (4, 0)]
     equal (run [(0, "bp> 1 0"), (4, "0")]) [(0, 1), (4, 0)]
     equal (run [(0, "bp> 1 0 1"), (4, "0")]) [(0, 1), (2, 0), (4, 1), (4, 0)]
 
+test_neighbor :: Test
 test_neighbor = do
     equal (run [(0, "n 1 2")]) [(0, 1), (2, 0)]
     equal (run [(0, "n 2 1")]) [(0, 2), (1, 0)]
 
+test_up_down :: Test
 test_up_down = do
     equal (run [(0, "2"), (1, "d 1 0"), (5, "2")])
         [(0, 2), (1, 2), (3, 0), (5, 0), (5, 2)]
@@ -139,10 +151,12 @@ test_up_down = do
     equal (run [(0, "0"), (1, "u .5 1"), (5, "1")])
         [(0, 0), (1, 0), (3, 1), (5, 1)]
 
+test_down_from :: Test
 test_down_from = do
     equal (run [(0, "df 1 .5 0")]) [(0, 1), (2, 0)]
     equal (run [(0, "df .5 .25 0")]) [(0, 0.5), (2, 0)]
 
+test_pedal :: Test
 test_pedal = do
     equal (CallTest.run_control_dur [(0, 1, "ped .5")])
         [(0, 0.5), (1, 0.5), (1, 0)]
@@ -152,6 +166,7 @@ test_pedal = do
     equal (CallTest.run_control_dur [(0, 0, "pedal-dur=.5 | ped .5")])
         [(0, 0.5), (0.5, 0.5), (0.5, 0)]
 
+test_swell :: Test
 test_swell = do
     equal (CallTest.run_control_dur [(0, 8, "swell 0 1 .5")])
         [(0, 0), (4, 1), (8, 0)]

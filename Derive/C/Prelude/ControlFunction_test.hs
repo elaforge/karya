@@ -21,6 +21,7 @@ import           Global
 import           Util.Test
 
 
+test_cf_rnd :: Test
 test_cf_rnd = do
     let run sus notes = DeriveTest.extract extract $ DeriveTest.derive_tracks ""
             [("> | %sus = " <> sus, [(n, 1, "") | n <- Seq.range' 0 notes 1])]
@@ -33,6 +34,7 @@ test_cf_rnd = do
         all (Num.inRange 0.5 1.5) durs
     pprint durs
 
+test_cf_rnd_transformer :: Test
 test_cf_rnd_transformer = do
     -- A transformer should create a function with random based on position.
     let run notes = DeriveTest.extract extract $
@@ -51,6 +53,7 @@ test_cf_rnd_transformer = do
     check ("not the same: " <> pretty dyns) $ not (all (== head dyns) dyns)
     check ("in range 1--2: " <> pretty dyns) $ all (Num.inRange 1 2) dyns
 
+test_cf_swing :: Test
 test_cf_swing = do
     let run marks amount tracks events = DeriveTest.extract Score.event_start $
             DeriveTest.derive_tracks_setup (with_ruler marks)

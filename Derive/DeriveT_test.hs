@@ -9,6 +9,7 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.DeriveT as DeriveT
 
 
+test_map_str :: Test
 test_map_str = do
     let f modify = fmap (ShowVal.show_val . fmap (DeriveT.map_str modify))
             . Parse.parse_expr

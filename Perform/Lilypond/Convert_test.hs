@@ -14,6 +14,7 @@ import qualified Perform.Lilypond.Types as Types
 import           Util.Test
 
 
+test_convert :: Test
 test_convert = do
     let f scale key = map (fmap extract) . Convert.convert config . map mkevent
             where

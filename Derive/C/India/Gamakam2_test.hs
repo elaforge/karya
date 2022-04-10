@@ -15,6 +15,7 @@ import Global
 import Types
 
 
+test_sequence :: Test
 test_sequence = do
     -- TODO: these are kind of messed up because I should be using nns_literal.
     -- Can't be bothered at the moment though, because I probably won't keep
@@ -63,11 +64,13 @@ test_sequence = do
     equal (run [(0, 8, "@ cur 1 1 ; - -1 ; - 0 ; to 1 1 -- 4c")])
         ([[(0, 61), (1, 59), (4, 60), (8, 61)]], [])
 
+test_flat_start_end :: Test
 test_flat_start_end = do
     let run = run_note_track ""
     equal (run [(0, 4, "@ - 0 1 ; - 1 ; - -1 1 -- 4c")])
         ([[(0, 60), (1, 61), (3, 60)]], [])
 
+test_fade :: Test
 test_fade = do
     let run = run_note_track_dyn ""
     equal (run [(0, 4, "@ ; ; -> 2 -- 4c")])
@@ -77,6 +80,7 @@ test_fade = do
     equal (run [(0, 4, "@ -< 2 ; ; -- 4c")])
         ([([(0, 60), (4, 60)], [(0, 1), (2, 0), (2, 1)])], [])
 
+test_jaru :: Test
 test_jaru = do
     let run = run_note_track "| jaru-time=1 | jaru-transition=1"
     equal (run [(0, 4, "@ J 1 -1 -- 4c")])
@@ -86,6 +90,7 @@ test_jaru = do
     equal (run [(0, 1, "@ J 1 -1 1 -- 4c")])
         ([[(0, 62), (0.5, 59), (1, 62)]], [])
 
+test_kampita :: Test
 test_kampita = do
     let run = run_note_track "| kam-transition=0 | kam-speed=1"
     equal (run [(0, 2.5, "@ ; k 1 ; -- 4c")])
@@ -101,6 +106,7 @@ test_kampita = do
     equal (run [(0, 2.5, "kam-adjust=stretch | @ ; k^ 1 ; -- 4c")])
         ([[(0, 60), (2.5, 61)]], [])
 
+test_nkampita :: Test
 test_nkampita = do
     let run = run_note_track "| nkam-transition=0"
     strings_like (snd (run [(0, 2, "@  ; nk 0 ; -- 4c")]))

@@ -234,6 +234,7 @@ toSamples1 = V.toList . mconcat
 
 -- * render
 
+test_renderControls :: Test
 test_renderControls = do
     let f impulseGate start notes =
             filter (not . null . snd) $ Map.toList $ fmap toSamples1 $
@@ -291,6 +292,7 @@ renderControls impulseGate notes start =
         , _description = ""
         }
 
+test_gateBreakpoints :: Test
 test_gateBreakpoints = do
     let f ns = map (first (AUtil.toFrames . RealTime.seconds)) $
             Render.gateBreakpoints controlSize True
@@ -311,6 +313,7 @@ test_gateBreakpoints = do
     -- equal (f [(1, 1), (3, 1)])
     --     [(1, 0), (1, 1), (2, 1), (2, 0), (3, 0), (3, 1), (4, 1), (4, 0)]
 
+test_controlBreakpoints :: Test
 test_controlBreakpoints = do
     let f = Render.controlBreakpoints 1 False "c" . map make
         make (s, e, cs) = (Note.testNote s e)

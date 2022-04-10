@@ -7,6 +7,7 @@ import Util.Test
 import qualified Derive.DeriveTest as DeriveTest
 
 
+test_reverse :: Test
 test_reverse = do
     let run sub_tracks = extract $ DeriveTest.derive_blocks
             [ ("top=ruler",

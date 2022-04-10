@@ -14,6 +14,7 @@ import qualified Ui.UiTest as UiTest
 import           Util.Test
 
 
+test_harmonic_ly :: Test
 test_harmonic_ly = do
     let run p = LilypondTest.measures ["harmonic"] $
             LilypondTest.derive_tracks $ UiTest.note_track [(0, 4, p)]
@@ -45,6 +46,7 @@ test_harmonic_ly = do
     equal (run2 [(0, 1, "+nv -- 3c"), (1, 1, "o art -- 3d"), (2, 1, "3e")])
         (Right "c4 ^\"nv\" <g,, d,\\harmonic>4 e4 ^\"vib\" r4", [])
 
+test_slur :: Test
 test_slur = do
     let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear ""
         extract = DeriveTest.e_note
@@ -56,6 +58,7 @@ test_slur = do
         , (4, 1, "3g")
         ]
 
+test_attr_slur :: Test
 test_attr_slur = do
     let run = DeriveTest.extract extract
             . DeriveTest.derive_tracks_setup
@@ -72,6 +75,7 @@ test_attr_slur = do
         , (2, 1, "3e", "+")
         ]
 
+test_slur_ly :: Test
 test_slur_ly = do
     let run = LilypondTest.measures [] . LilypondTest.derive_tracks_linear
     equal (run $ (">", [(1, 2, "(")]) : UiTest.regular_notes 4)
@@ -98,6 +102,7 @@ test_slur_ly = do
     equal (run $ (">", [(0, 1, "(")]) : UiTest.regular_notes 1)
         (Right "c4 r4 r2", [])
 
+test_attributed_note_ly :: Test
 test_attributed_note_ly = do
     let run = LilypondTest.measures [] . LilypondTest.derive_tracks_linear
     -- Works as a note transformer.

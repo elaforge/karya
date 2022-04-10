@@ -15,6 +15,7 @@ import Util.Test
 import Global
 
 
+test_render :: Test
 test_render = do
     let f = Format.render "  " 10
     equal (f $ "a" <+/> "b") "a b\n"
@@ -57,6 +58,7 @@ test_render = do
         , "12"
         ]
 
+test_render_double_indent :: Test
 test_render_double_indent = do
     let f = map untxt . Text.lines . Lazy.toStrict . Format.render "  " 10
     let fmt = "{ " <> withIndent
@@ -75,15 +77,18 @@ test_render_double_indent = do
         , "  , k2: v2"
         ]
 
+test_render_full_width :: Test
 test_render_full_width = do
     equal (render 8 $ "1234" </> "1234") ["12341234"]
     equal (render 8 $ "1234" </> "一二三四") ["1234", "一二三四"]
 
+test_text :: Test
 test_text = do
     let f = Format.text
     equal (f "hi\nthere") ("hi" <> Format.newline 1 <> "there")
     equal (f "hi\n\nthere") ("hi" <> Format.newline 2 <> "there")
 
+test_shortForm :: Test
 test_shortForm = do
     let f = Format.render "  "
         sf = Format.shortForm
@@ -99,6 +104,7 @@ test_shortForm = do
         -- [S 0 "abcdef" (Hard 1) [S 0 "123456" (Hard 1) []]]
         -- Unfortunately I can't figure out how to get it to work that way.
 
+test_flatten :: Test
 test_flatten = do
     let f = flatten
     -- Interaction with indent.
@@ -186,6 +192,7 @@ got:
 
 -}
 
+test_flatten_shortForm :: Test
 test_flatten_shortForm = do
     let f = flatten
     equal (f $ Format.shortForm "short" ("long" </> "form"))
@@ -296,6 +303,7 @@ test_flatten_shortForm = do
             ]
         ]
 
+test_spanLine :: Test
 test_spanLine = do
     let f = extract . Format.spanLine 2 6 . map section
         extract (_log, b, pre, post) =
@@ -313,6 +321,7 @@ test_spanLine = do
     equal (f [(0, 0, "123", Hard 1), (2, 2, "456", Space), (2, 2, "z", Space)])
         (False, ["123"], ["456", "z"])
 
+test_findBreak :: Test
 test_findBreak = do
     let f = extract . Format.findBreak . map section
         extract (pre, post) = (map sectionText pre, map sectionText post)

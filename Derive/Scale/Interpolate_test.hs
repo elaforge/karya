@@ -12,6 +12,7 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
+test_interpolate :: Test
 test_interpolate = do
     let run scale_at = DeriveTest.extract extract $ DeriveTest.derive_tracks
             "scale-from=twelve-r | scale-to=raga | key-to=hemavati\

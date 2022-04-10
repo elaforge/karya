@@ -9,6 +9,7 @@ import qualified Derive.Score as Score
 import Global
 
 
+test_ombak :: Test
 test_ombak = do
     let run trans pitch = DeriveTest.extract Score.initial_nn $
             DeriveTest.derive_tracks ""

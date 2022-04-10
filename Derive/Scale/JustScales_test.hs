@@ -25,6 +25,7 @@ import           Global
 import           Util.Test
 
 
+test_note_to_call :: Test
 test_note_to_call = do
     let run_title title ps = DeriveTest.extract extract $
             DeriveTest.derive_tracks ""
@@ -68,6 +69,7 @@ test_note_to_call = do
     equalf 0.001 (runt "limit-5" ["4d"]) ([Just (440 * 9/8)], [])
     equalf 0.001 (runt "limit-7" ["4d"]) ([Just (440 * 8/7)], [])
 
+test_transpose_smooth :: Test
 test_transpose_smooth = do
     let run = DeriveTest.extract DeriveTest.e_nns $
             DeriveTest.derive_tracks "scale=raga | key=kharaharapriya"
@@ -82,6 +84,7 @@ test_transpose_smooth = do
     -- by split_fraction.
     check ("all >0: " <> pretty diffs) $ all (>0) diffs
 
+test_note_to_call_relative :: Test
 test_note_to_call_relative = do
     let run key p = DeriveTest.extract extract $ DeriveTest.derive_tracks ""
             [ ("*just-r | key = " <> key, [(0, 0, p)])
@@ -91,6 +94,7 @@ test_note_to_call_relative = do
     equalf 0.001 (run "a-maj" "4s") ([Just 440], [])
     equalf 0.001 (run "a-maj" "4p") ([Just (440 * 3/2)], [])
 
+test_input_to_note :: Test
 test_input_to_note = do
     let f smap key = either (const "") Pitch.note_text <$>
             JustScales.input_to_note smap (ScaleTest.key_environ key)
@@ -159,6 +163,7 @@ make_scale_map relative per_oct =
         | (c, pc) <- zip "abcdefghijklmnopq" [0..]
         ]
 
+test_input_to_nn :: Test
 test_input_to_nn = do
     let scale = ScaleTest.get_scale Just.scales "just"
     let f = DeriveTest.setup_deriver (DeriveTest.with_key "c-maj")
@@ -168,6 +173,7 @@ test_input_to_nn = do
     equalf 0.01 (run 0) $ Right (Right NN.middle_c)
     equalf 0.01 (run 1) $ Right $ Right $ Pitch.modify_hz (* (9/8)) NN.middle_c
 
+test_transpose_controls :: Test
 test_transpose_controls = do
     let f p = DeriveTest.extract Score.initial_nn $
             DeriveTest.derive_tracks "scale=just" $

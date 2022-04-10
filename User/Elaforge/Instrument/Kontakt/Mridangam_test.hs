@@ -17,6 +17,7 @@ import           Global
 import           Util.Test
 
 
+test_mridangam :: Test
 test_mridangam = do
     let run pitch = KontaktTest.derive allocs ("# = (" <> pitch <> ")")
             . map (((,) ">m") . notes)
@@ -46,6 +47,7 @@ test_mridangam = do
         , Midi.NoteOn Key.c5 127, Midi.NoteOff Key.c5 127
         ]
 
+test_mridangam_pitched_strokes :: Test
 test_mridangam_pitched_strokes = do
     let extract = first (e_key . snd) . perform
     equal (extract $ derive "4d" [["k", "n"]]) ([42, 66], [])

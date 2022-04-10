@@ -15,6 +15,7 @@ import qualified Ui.UiTest as UiTest
 import           Util.Test
 
 
+test_env :: Test
 test_env = do
     let run = CallTest.run_val
     equal (run Nothing "env x")
@@ -24,6 +25,7 @@ test_env = do
     equal (run (Just "x = 42") "env x str")
         (Nothing, ["env \"x\" expected Str but got Num"])
 
+test_prev_next_val :: Test
 test_prev_next_val = do
     let runc control = DeriveTest.extract (DeriveTest.e_control "c") $
             DeriveTest.derive_tracks "" [(">", [(0, 10, "")]), ("c", control)]
@@ -49,6 +51,7 @@ test_prev_next_val = do
     equal (runp [(0, 1, ""), (1, 1, "")] [(0, 0, "set (>)"), (1, 0, "4a")])
         ([(0, 1, "4a"), (1, 1, "4a")], [])
 
+test_linear_next :: Test
 test_linear_next = do
     let run extract track =
             DeriveTest.extract extract $ DeriveTest.derive_tracks ""
@@ -83,10 +86,12 @@ test_linear_next = do
     strings_like (snd $ run DeriveTest.e_dyn ("*", [(0, 0, "xcut (i> hi)")]))
         ["arg 1/bp: expected Num or Pitch"]
 
+test_down_from :: Test
 test_down_from = do
     let run = DeriveTest.extract DeriveTest.e_dyn . DeriveTest.derive_tracks ""
     equal (run [(">", [(0, 4, "%dyn=(df 2 1) |")])]) ([[(0, 2), (2, 0)]], [])
 
+test_timestep :: Test
 test_timestep = do
     let run start vcall = DeriveTest.extract extract $
             DeriveTest.derive_tracks_setup (DeriveTest.with_default_ruler ruler)

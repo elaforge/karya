@@ -15,6 +15,7 @@ import qualified Perform.NN as NN
 import           Util.Test
 
 
+test_composite :: Test
 test_composite = do
     let run = DeriveTest.extract extract
             . DeriveTest.derive_tracks_setup with ""
@@ -35,6 +36,7 @@ test_composite = do
         ]
     equal logs []
 
+test_constant_controls :: Test
 test_constant_controls = do
     let run extract pitch controls tracks = DeriveTest.extract extract $
             DeriveTest.derive_tracks_setup (with pitch controls) "" $

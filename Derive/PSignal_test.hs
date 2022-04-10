@@ -28,6 +28,7 @@ import           Types
 import           Util.Test
 
 
+test_at :: Test
 test_at = do
     let f x = fmap show_pitch . PSignal.at x
     equal (f 0 (PSignal.constant (twelve "4c"))) (Just ("60nn", "4c"))
@@ -36,6 +37,7 @@ test_at = do
     equal (f 0 (PSignal.constant (Pitches.transpose_c 7 (twelve "4c"))))
         (Just ("67nn", "4g"))
 
+test_interpolate :: Test
 test_interpolate = do
     let c4 = twelve "4c"
         g4 = Pitches.transpose_c 7 c4
@@ -45,6 +47,7 @@ test_interpolate = do
             (Segment.Sample 0 g4) (Segment.Sample 10 g4) 5)
         ("67nn", "4g")
 
+test_transpose :: Test
 test_transpose = do
     let c3 = twelve "3c"
         g3 = Pitches.transpose_c 7 c3
@@ -54,6 +57,7 @@ test_transpose = do
     equal (show_pitch <$> Score.pitch_at 0 e) $ Just ("55nn", "3g")
     equal (show_pitch <$> Score.initial_pitch e) $ Just ("55nn", "3g")
 
+test_apply_controls :: Test
 test_apply_controls = do
     let f controls sig = to_pairs $ PSignal.apply_controls
             (mkcontrols controls) (mksignal sig)
@@ -88,6 +92,7 @@ test_apply_controls = do
     equal (f [(trans1, [(0, 1)])] [(0, 1), (1, 1), (1, 2)])
         [(0, Right 2), (1, Right 2), (1, Right 3)]
 
+test_apply_controls_nontransposing :: Test
 test_apply_controls_nontransposing = do
     -- There are controls that influence the tuning but are not transposing.
     -- This just means they don't cause the pitch signal to resample.
@@ -105,6 +110,7 @@ test_apply_controls_nontransposing = do
     equal (f [("a", [(0, 220), (2, 440)])] [(0, 1), (1, 2)])
         [(0, [("a", 220)]), (1, [("a", 330)])]
 
+test_apply_environ :: Test
 test_apply_environ = do
     let f env1 env2 = to_pairs $ PSignal.apply_environ (mkenv env1) $
             mksignal (mkenv env2)

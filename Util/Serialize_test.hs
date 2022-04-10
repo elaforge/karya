@@ -10,6 +10,7 @@ import qualified Util.Serialize as Serialize
 import Util.Test
 
 
+test_serialize :: Test
 test_serialize = do
     let s = "臭味相投" :: Text.Text
         b = Text.Encoding.encodeUtf8 s

@@ -8,6 +8,7 @@ import qualified Perform.Midi.MSignal as MSignal
 import Perform.Midi.MSignal (from_pairs)
 
 
+test_pitches_share :: Test
 test_pitches_share = do
     let sample0 ((_, y) : _) = fromIntegral (floor y)
         sample0 _ = error "empty"

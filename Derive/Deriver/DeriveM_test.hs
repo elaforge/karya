@@ -17,6 +17,7 @@ run :: DeriveM.Deriver State Text Text -> (Either Text Text, State, [Text])
 run d = (result, state, map Log.msg_text logs)
     where (result, state, logs) = DeriveM.run 0 d
 
+test_monad_error :: Test
 test_monad_error = do
     equal (run $ return "a") (Right "a", 0, [])
     equal (run $ Except.throwError "x") (Left "x", 0, [])

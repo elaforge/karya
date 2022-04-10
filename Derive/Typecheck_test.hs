@@ -27,6 +27,7 @@ import           Global
 import           Util.Test
 
 
+test_typecheck :: Test
 test_typecheck = do
     let f :: Typecheck.Typecheck a => Text -> Either Text (Maybe a)
         f = fmap Typecheck.from_val_simple . Parse.parse_val
@@ -38,6 +39,7 @@ test_typecheck = do
         (Right (Just (Typecheck.DefaultDiatonic (Pitch.Chromatic 1))))
     equal (f "1nn") (Right (Just (Typecheck.DefaultDiatonic (Pitch.Nn 1))))
 
+test_coerce_nn :: Test
 test_coerce_nn = do
     -- Various things can be coerced to numeric types.
     let nn = Proxy :: Proxy Pitch.NoteNumber
@@ -52,6 +54,7 @@ test_coerce_nn = do
     -- -- pitch controls can be coerced to pitch
     -- equal (run_type nn [("*", [(0, 0, "4c")])] "#") (Just "60nn", [])
 
+test_coerce_pitch :: Test
 test_coerce_pitch = do
     let pitch = Proxy :: Proxy PSignal.Pitch
     equal (run_type pitch [] "(4c)") (Just "<pitch: 60nn,4c(twelve)>", [])
@@ -63,6 +66,7 @@ test_coerce_pitch = do
         (Just "<pitch: 60nn,4c(twelve)>", [])
 
 
+test_coerce_control :: Test
 test_coerce_control = do
     let double = Proxy :: Proxy Double
     -- controls can be coerced to numbers

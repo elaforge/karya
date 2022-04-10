@@ -26,6 +26,7 @@ import Global
 import Types
 
 
+test_events_from :: Test
 test_events_from = do
     let i1 = UiTest.i1
         i2 = UiTest.i2
@@ -53,6 +54,7 @@ test_events_from = do
     equal (f 1 [(0, 0, i3), (0.98, 0, i3), (2, 0, i3)])
         ([(0.98, 0, i3)], [(2, 0, i3)])
 
+test_control_defaults :: Test
 test_control_defaults = do
     let make = (Ui.allocation UiTest.i1 #= Just alloc)
             . CmdTest.make_tracks . uncurry UiTest.inst_note_track

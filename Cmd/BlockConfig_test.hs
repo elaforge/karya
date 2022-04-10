@@ -10,6 +10,7 @@ import qualified Cmd.BlockConfig as BlockConfig
 import Global
 
 
+test_move_tracks :: Test
 test_move_tracks = do
     let f state sources dest = extract $
             UiTest.exec state $

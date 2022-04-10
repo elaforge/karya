@@ -18,6 +18,7 @@ import           Global
 import           Util.Test
 
 
+test_integrate :: Test
 test_integrate = do
     let f = second (map extract . concatMap flatten) . integrate
         integrate = Convert.integrate (lookup_attrs, Pitch.twelve) tracknums
@@ -72,6 +73,7 @@ test_integrate = do
     event = DeriveTest.mkevent
     inst = "inst"
 
+test_split_overlapping :: Test
 test_split_overlapping = do
     let f = map (map extract) . Convert.split_overlapping . map mkevent
         mkevent (s, e) =

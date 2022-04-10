@@ -25,6 +25,7 @@ import Global
 import Types
 
 
+test_make_states :: Test
 test_make_states = do
     let chan_msgs msgs = [Midi.WriteMessage (Midi.write_device "dev") t
             (Midi.ChannelMessage 0 m) | (t, m) <- msgs]
@@ -44,6 +45,7 @@ test_make_states = do
         , [[]]
         ]
 
+test_move_to :: Test
 test_move_to = do
     res <- prepare_blocks UiTest.default_block_name simple_block
     let sel_from p = do
@@ -60,6 +62,7 @@ test_move_to = do
     io_equal (sel_from 0) ([Midi.NoteOn Key.c4 127], Right ((Just 0), []))
     io_equal (sel_from 1.5) ([Midi.NoteOn Key.c4 127], Right ((Just 0), []))
 
+test_move :: Test
 test_move = do
     res <- prepare_blocks UiTest.default_block_name simple_block
     -- run cmd_set, verify selection is there
@@ -92,6 +95,7 @@ test_move = do
     equal (e_midi res) [Midi.NoteOff Key.f4 0]
     equal (CmdTest.extract_ui get_sel res) $ Right (Just 4, [])
 
+test_move_tracks :: Test
 test_move_tracks = do
     res <- prepare_blocks UiTest.default_block_name
         [(UiTest.default_block_name,

@@ -14,6 +14,7 @@ import Global
 import Types
 
 
+test_events_around :: Test
 test_events_around = do
     let f evts start end = CmdTest.extract (extract . head) $
             run_sel Selection.events_around evts start end

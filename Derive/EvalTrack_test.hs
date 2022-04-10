@@ -45,6 +45,7 @@ import           Util.Test
 module_ :: Module.Module
 module_ = "test-module"
 
+test_event_serial :: Test
 test_event_serial = do
     -- Verify that 'Derive.state_event_serial' is reset for each event.
     --
@@ -72,6 +73,7 @@ test_event_serial = do
         Sig.call (Sig.required "notes" "Number of notes.") $ \notes _args ->
             mconcat $ replicate notes Call.note
 
+test_threaded_last_val :: Test
 test_threaded_last_val = do
     let run notes = DeriveTest.extract (DeriveTest.e_control "c") $
             DeriveTest.derive_tracks_setup with_calls ""
@@ -103,6 +105,7 @@ test_threaded_last_val = do
                     (start + 0.25, y + 0.25)]
                 else []
 
+test_threaded_last_event :: Test
 test_threaded_last_event = do
     let run = snd . DeriveTest.extract id . DeriveTest.derive_tracks_setup
             (with_calls <> DeriveTest.with_linear) ""
@@ -127,6 +130,7 @@ test_threaded_last_event = do
             Log.warn $ showt (Score.event_start prev)
             return Stream.empty
 
+test_assign_controls :: Test
 test_assign_controls = do
     let run inst_title cont_title val = extract $ DeriveTest.derive_tracks ""
             [ (cont_title, [(0, 0, val)])
@@ -163,6 +167,7 @@ test_assign_controls = do
     -- set constant pitch
     equal (run ">i | # = (1c)" "*twelve #foo" "2c") ([("1c", [])], [])
 
+test_environ_across_tracks :: Test
 test_environ_across_tracks = do
     let run tracks = DeriveTest.extract (DeriveTest.e_control "cont") $
             DeriveTest.derive_tracks "" ((">", [(0, 10, "")]) : tracks)
@@ -179,6 +184,7 @@ test_environ_across_tracks = do
     equal (run [("cont2 | srate = .5", []), cont]) ([interpolated], [])
     equal (run [cont, ("cont2 | srate = .5", [])]) ([interpolated], [])
 
+test_call_errors :: Test
 test_call_errors = do
     let derive = extract . DeriveTest.derive_tracks_setup with_trans ""
         with_trans = CallTest.with_note_transformer "test-t" trans
@@ -209,6 +215,7 @@ test_call_errors = do
             Call.control_at c 0
             deriver
 
+test_val_call :: Test
 test_val_call = do
     let extract = DeriveTest.extract (DeriveTest.e_control "cont")
     let run evt = extract $ DeriveTest.derive_tracks_setup with_add1 ""
@@ -225,6 +232,7 @@ test_val_call = do
         (Sig.required "v" "doc") $
         \val _ -> return (val + 1 :: Double)
 
+test_inst_call :: Test
 test_inst_call = do
     let run inst = DeriveTest.extract DeriveTest.e_attributes $
             DeriveTest.derive_tracks_setup with_inst ""
@@ -244,6 +252,7 @@ test_inst_call = do
         , MidiInst.make_patch $ UiTest.make_patch "1"
         ]
 
+test_events_around :: Test
 test_events_around = do
     -- Ensure sliced inverting notes still have access to prev and next events
     -- via the track_around hackery.
@@ -260,6 +269,7 @@ test_events_around = do
         Log.warn $ "next: " <> showt (map Event.start (Args.next_events args))
         return Stream.empty
 
+test_track_dynamic :: Test
 test_track_dynamic = do
     let e_scale_inst dyn =
             (env_lookup EnvKey.scale env, env_lookup EnvKey.instrument env)
@@ -309,6 +319,7 @@ test_track_dynamic = do
             , Just [(0, 0.125)]
             ])
 
+test_track_dynamic_consistent :: Test
 test_track_dynamic_consistent = do
     -- Ensure that all parts of the Dynamic come from the same derivation of
     -- the track.
@@ -327,6 +338,7 @@ test_track_dynamic_consistent = do
     equal (run e_env) (Just "a")
     equal (run e_control) (Just Nothing)
 
+test_prev_val :: Test
 test_prev_val = do
     -- Test the prev_val and saved_val stuff in 'EvalTrack.derive_track'.
     let run = DeriveTest.extract Score.initial_dynamic
@@ -354,6 +366,7 @@ e_track_dynamic :: (Derive.Dynamic -> a) -> Derive.Result
 e_track_dynamic extract = map (first (second UiTest.tid_tracknum))
     . Map.toList . fmap extract . Derive.r_track_dynamic
 
+test_track_dynamic_invert :: Test
 test_track_dynamic_invert = do
     -- Ensure the correct TrackDynamic is collected even in the presence of
     -- inversion.
@@ -367,6 +380,7 @@ test_track_dynamic_invert = do
         , ((UiTest.default_block_id, 2), ("i", "legong"))
         ]
 
+test_note_end :: Test
 test_note_end = do
     let run = DeriveTest.derive_tracks_setup with_call ""
         with_call = CallTest.with_control_generator "g" gen
@@ -383,6 +397,7 @@ test_note_end = do
 
 -- * test orphans
 
+test_orphans :: Test
 test_orphans = do
     let extract = DeriveTest.extract_events Score.event_start
     let run = extract . DeriveTest.derive_tracks_setup
@@ -421,6 +436,7 @@ test_orphans = do
         Log.warn $ pretty subs
         return Stream.empty
 
+test_record_empty_tracks :: Test
 test_record_empty_tracks = do
     -- Ensure that TrackWarps and TrackDynamics are collected for empty tracks.
     let run = DeriveTest.derive_tracks_linear ""
@@ -433,6 +449,7 @@ test_record_empty_tracks = do
     equal (track_dyn result)
         (map (((,) UiTest.default_block_id) . UiTest.mk_tid) [1, 2, 3])
 
+test_empty_parent_track :: Test
 test_empty_parent_track = do
     -- Ensure orphan tracks pick the instrument up from the parent.
     -- Well, the absentee parent, since they're orphans.
@@ -441,6 +458,7 @@ test_empty_parent_track = do
     equal (run [(">i1", [(0, 1, "t")]), (">", [(0, 1, "")])]) ([(0, "i1")], [])
     equal (run [(">i1", []), (">", [(0, 1, "")])]) ([(0, "i1")], [])
 
+test_two_level_orphans :: Test
 test_two_level_orphans = do
     -- Orphan extraction should be recursive, in case there are multiple
     -- intervening empty tracks.
@@ -456,6 +474,7 @@ test_two_level_orphans = do
         ([((0, 1, "4c"), "+a"), ((1, 1, "4d"), "+b"), ((2, 1, "4e"), "+c")],
             [])
 
+test_orphan_ranges :: Test
 test_orphan_ranges = do
     -- These test TrackTree.track_end, indirectly by making sure it clips
     -- or doesn't clip signal correctly.
@@ -480,6 +499,7 @@ test_orphan_ranges = do
 
 -- * misc
 
+test_parse_error :: Test
 test_parse_error = do
     let run = first (map Score.event_start) . DeriveTest.extract_logs
             . Stream.to_list . Derive.r_events . DeriveTest.derive_tracks ""
@@ -489,6 +509,7 @@ test_parse_error = do
         [Just [(Just (UiTest.bid "b1"), Just (UiTest.tid "b1.t1"),
             Just (1, 3))]]
 
+test_exception_reverts_state :: Test
 test_exception_reverts_state = do
     let run = DeriveTest.extract (DeriveTest.e_environ "a")
             . DeriveTest.derive_tracks ""

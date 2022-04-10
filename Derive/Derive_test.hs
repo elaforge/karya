@@ -45,6 +45,7 @@ import           Types
 import           Util.Test
 
 
+test_basic :: Test
 test_basic = do
     -- verify the three phases of derivation
     -- 1: derivation to score events
@@ -88,12 +89,14 @@ test_basic = do
         (Midi.Types.patch_name patch, RealTime.to_seconds start,
             RealTime.to_seconds dur, stack)
 
+test_qualified_symbol :: Test
 test_qualified_symbol = do
     let run = DeriveTest.extract DeriveTest.e_attributes
             . DeriveTest.derive_tracks ""
     equal (run [(">", [(0, 2, "bali.gong.cycle \"(+a) 1")])])
         (["+a", "+a"], [])
 
+test_round_pitch :: Test
 test_round_pitch = do
     -- A note sufficiently close to 4c becomes 4c.
     let ((_, mmsgs), _) =
@@ -102,6 +105,7 @@ test_round_pitch = do
                 [(">i1", [(0, 1, "")]), ("*", [(0, 0, "3b 99.99")])]
     equal (DeriveTest.note_on_vel mmsgs) [(0, Key.c4, 127)]
 
+test_override_default_pitch :: Test
 test_override_default_pitch = do
     let f title pitch = DeriveTest.extract DeriveTest.e_nns $
             DeriveTest.derive_tracks title [(">", [(4, 4, "")]), ("*", pitch)]
@@ -113,6 +117,7 @@ test_override_default_pitch = do
         ([[(4, NN.c4), (6, NN.c4), (8, NN.d4)]], [])
 
 
+test_attributes :: Test
 test_attributes = do
     -- Test that attributes work, through derivation and performance.
     let convert_lookup = DeriveTest.make_convert_lookup allocs db
@@ -151,6 +156,7 @@ note_on_keys :: [Midi.WriteMessage] -> [Midi.Key]
 note_on_keys msgs =
     [nn | Midi.ChannelMessage _ (Midi.NoteOn nn _) <- map Midi.wmsg_msg msgs]
 
+test_stack :: Test
 test_stack = do
     let extract = fst . DeriveTest.extract Score.event_stack
     let stacks = extract $ DeriveTest.derive_blocks
@@ -181,6 +187,7 @@ test_stack = do
         , b0 1 2 ++ sub 1 2
         ]
 
+test_stack_after_exception :: Test
 test_stack_after_exception = do
     -- The stack is properly rewound after an exception.  This actually tests
     -- that the state is rolled back if event evaluation produces an exception,
@@ -199,6 +206,7 @@ test_stack_after_exception = do
         , "top top.t1 4-8 / b2 b2.t1 *"
         ]
 
+test_simple_subderive :: Test
 test_simple_subderive = do
     let (events, msgs) = DeriveTest.extract DeriveTest.e_note $
             DeriveTest.derive_blocks
@@ -211,6 +219,7 @@ test_simple_subderive = do
         , (2, 0.5, "3c"), (2.5, 0.5, "3d")
         ]
 
+test_subderive :: Test
 test_subderive = do
     let run evts = DeriveTest.derive_blocks
             [ ("b0",
@@ -249,6 +258,7 @@ test_subderive = do
     -- pprint $ zip [0,2..] $ map (inv_tempo res) (Seq.range 0 10 2)
     -- pprint $ Derive.state_track_warps state
 
+test_subderive_timing :: Test
 test_subderive_timing = do
     -- Just make sure that sub-blocks stretch to the correct times.
     let (events, logs) = e_events $ DeriveTest.derive_blocks
@@ -264,6 +274,7 @@ test_subderive_timing = do
         ]
     equal logs []
 
+test_subderive_error :: Test
 test_subderive_error = do
     let run evts = e_events $ DeriveTest.derive_blocks
             [ ("b0", [ (">i1", evts) ])
@@ -273,6 +284,7 @@ test_subderive_error = do
     equal events []
     strings_like logs ["track title: parse error"]
 
+test_subderive_multiple :: Test
 test_subderive_multiple = do
     -- make sure subderiving a block with multiple tracks works correctly
     let ((_, mmsgs), logs) =
@@ -296,6 +308,7 @@ test_subderive_multiple = do
         ]
     equal logs []
 
+test_multiple_subderive :: Test
 test_multiple_subderive = do
     -- make sure a sequence of sub calls works
     let res = DeriveTest.derive_blocks
@@ -318,6 +331,7 @@ test_multiple_subderive = do
         , [b0 5, sub 0.5], [b0 6, sub 1]
         ]
 
+test_tempo_compose :: Test
 test_tempo_compose = do
     let run tempo events sub_tempo = e_events $ DeriveTest.derive_blocks
             [ ("b0", [("tempo", tempo), (">i1", events)])
@@ -348,6 +362,7 @@ test_tempo_compose = do
 
     -- TODO test when the subblock has a tempo too
 
+test_warp_ops :: Test
 test_warp_ops = do
     let run op = DeriveTest.eval Ui.empty (op record)
         record = do
@@ -395,6 +410,7 @@ test_warp_ops = do
             . Internal.warp slow)) $
         Right [1, 17]
 
+test_real_to_score_round_trip :: Test
 test_real_to_score_round_trip = do
     let f do_warp = DeriveTest.eval Ui.empty $
             do_warp (Derive.real_to_score =<< Derive.score_to_real 1)
@@ -406,6 +422,7 @@ test_real_to_score_round_trip = do
     equal (f (Internal.warp slow . Derive.stretch 5 . Derive.at 5)) (Right 1)
     equal (f (Derive.stretch 5 . Derive.at 5 . Internal.warp slow)) (Right 1)
 
+test_shift_controls :: Test
 test_shift_controls = do
     let controls = Map.fromList
             [("cont", ScoreT.untyped $
@@ -430,6 +447,7 @@ test_shift_controls = do
     equal (run $ Derive.shift_controls 2) $
         Right ([(2, 1), (4, 2), (6, 0)], ([(2, 60)], []))
 
+test_tempo_funcs1 :: Test
 test_tempo_funcs1 = do
     let ([t_tid, tid1], ui_state) = UiTest.run_mkblock
             [ ("tempo", [(0, 0, "2")])
@@ -447,6 +465,7 @@ test_tempo_funcs1 = do
     equal (map (r_tempo res bid t_tid) (Seq.range 0 10 2))
         (map ((:[]) . RealTime.seconds) (Seq.range 0 5 1))
 
+test_tempo_funcs2 :: Test
 test_tempo_funcs2 = do
     let ([t_tid1, tid1, t_tid2, tid2], ui_state) =
             UiTest.run_mkblock
@@ -477,6 +496,7 @@ inv_tempo :: Derive.Result -> RealTime -> [(BlockId, [(TrackId, ScoreTime)])]
 inv_tempo res =
     map (second List.sort) . List.sort . r_inv_tempo res Transport.StopAtEnd
 
+test_tempo_funcs_multiple_subblocks :: Test
 test_tempo_funcs_multiple_subblocks = do
     -- A single score time can imply multiple real times.
     let res = DeriveTest.derive_blocks
@@ -486,6 +506,7 @@ test_tempo_funcs_multiple_subblocks = do
     equal (r_tempo res (UiTest.bid "sub") (UiTest.mk_tid_name "sub" 1) 0.5)
         [0.5, 1.5]
 
+test_fractional_pitch :: Test
 test_fractional_pitch = do
     -- A pitch that requires pitch bends should distribute across multiple
     -- channels.  Yes, this is also tested in Perform.Midi.Perform, but this
@@ -503,6 +524,7 @@ test_fractional_pitch = do
             <- map Midi.wmsg_msg mmsgs]
         [(0, Key.c4), (1, Key.d4)]
 
+test_control :: Test
 test_control = do
     let ((perf_events, mmsgs), logs) =
             DeriveTest.perform_result DeriveTest.perform_defaults res
@@ -522,6 +544,7 @@ test_control = do
     check ("has cc: " <> pretty mmsgs) $
         any Midi.is_cc (map Midi.wmsg_msg mmsgs)
 
+test_make_inverse_tempo_func :: Test
 test_make_inverse_tempo_func = do
     -- This is actually also tested in test_subderive.
     -- TODO and it belongs in TrackWarp_test now
@@ -536,6 +559,7 @@ test_make_inverse_tempo_func = do
     equal (map (f . RealTime.seconds) [0..3])
         [with_block 0, with_block 2, with_block 4, []]
 
+test_tempo_roundtrip :: Test
 test_tempo_roundtrip = do
     let track_id = Id.TrackId (UiTest.mkid "warp")
         warp = Tempo.tempo_to_warp (Signal.constant 0.987)
@@ -551,6 +575,7 @@ test_tempo_roundtrip = do
     -- expected failure
     -- equal (map snd (concatMap snd stimes)) [0..3]
 
+test_named_pitch :: Test
 test_named_pitch = do
     let run op = DeriveTest.eval Ui.empty (op $ Derive.named_nn_at "psig" 2)
         pitch = DeriveTest.mkpitch12 "4c"
@@ -559,6 +584,7 @@ test_named_pitch = do
     equal (run (with_const "psig")) (Right (Just 60))
     equal (run (with_const "bad")) (Right Nothing)
 
+test_block_end :: Test
 test_block_end = do
     -- Make sure the pitch for the sub block event is trimmed to the end
     -- of the block, since there's no next event for it.
@@ -578,6 +604,7 @@ test_block_end = do
 -- to figure out the right place to test, but as long as they exist I might
 -- as well keep them for regressions.
 
+test_regress_pedal :: Test
 test_regress_pedal = do
     -- Make sure a pedal halfway through a note really only turns on halfway
     -- through the note.
@@ -597,6 +624,7 @@ test_regress_pedal = do
          ("*", [ (10.0, 0.0, "4f")])
         ]), [(1, 2), (2, 3)])]
 
+test_regress_event_end1 :: Test
 test_regress_event_end1 = do
     -- Ensure that notes get the proper next event even when it has been
     -- sliced off.  Previously it extended to the block end and the notes
@@ -618,6 +646,7 @@ test_regress_event_end1 = do
         , ("*", [(0, 0, "4c"), (2, 0, "4d")])
         ]
 
+test_regress_event_end2 :: Test
 test_regress_event_end2 = do
     let res = derive_blocks blocks
         extract e = (Score.event_start e, Score.event_duration e,

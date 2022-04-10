@@ -12,6 +12,7 @@ import qualified Perform.Pitch as Pitch
 import Types
 
 
+test_types_match :: Test
 test_types_match = do
     let f t1 v2 = ValType.types_match t1 (to_type v2)
     equal (f (TNum TScoreTime TAny) (0 :: RealTime)) False

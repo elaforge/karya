@@ -10,6 +10,7 @@ import qualified Derive.DeriveTest as DeriveTest
 import Global
 
 
+test_delay :: Test
 test_delay = do
     let run title pref tracks = DeriveTest.extract_events DeriveTest.e_event $
             DeriveTest.derive_tracks "" (tracks ++ [event])
@@ -31,6 +32,7 @@ test_delay = do
     equal (run ">i | d %delay,1s | d %delay,1s" "" []) $
         [(2, 1, "--1"), (3, 1, "--2")]
 
+test_delay_inverted :: Test
 test_delay_inverted = do
     let run text = extract $ DeriveTest.derive_tracks ""
             [ ("tempo", [(0, 0, "2")])
@@ -41,6 +43,7 @@ test_delay_inverted = do
     equal (run "d 2t |") [(2, 1, "4d")]
     equal (run "d .1s |") [(1.1, 1.0, "4d")]
 
+test_echo :: Test
 test_echo = do
     let (mmsgs, logs) = perform ("echo 2", [(0, 1, ""), (1, 1, "")])
             [("*", [(0, 0, "4c"), (1, 0, "4d")])]
@@ -48,6 +51,7 @@ test_echo = do
     equal (DeriveTest.note_on_vel mmsgs)
         [(0, 60, 127), (1000, 62, 127), (2000, 60, 51), (3000, 62, 51)]
 
+test_event_echo :: Test
 test_event_echo = do
     let (mmsgs, logs) = perform ("e-echo 2", [(0, 1, ""), (1, 1, "")])
             [("*", [(0, 0, "4c"), (1, 0, "4d")])]

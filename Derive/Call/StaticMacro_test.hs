@@ -19,6 +19,7 @@ import qualified Derive.Sig as Sig
 import Global
 
 
+test_generator :: Test
 test_generator = do
     let run trans gen call = DeriveTest.extract DeriveTest.e_attributes $
             DeriveTest.derive_tracks_setup (setup trans gen)
@@ -41,6 +42,7 @@ c_gen :: Derive.Generator Derive.Note
 c_gen = Library.generator $ Make.transform_notes Module.prelude "gen" mempty
     "doc" (Sig.required "attr" "set attr") $ \attrs -> Call.add_attributes attrs
 
+test_transformer :: Test
 test_transformer = do
     let run trans call = DeriveTest.extract DeriveTest.e_attributes $
             DeriveTest.derive_tracks_setup (setup trans) ""

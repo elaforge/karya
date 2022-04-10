@@ -20,10 +20,12 @@ import           Global
 import           Util.Test
 
 
+test_make_keymap :: Test
 test_make_keymap = do
     let (_, errors) = Keymap.make_keymap binds
     strings_like (map untxt errors) ["cmds overlap* [1: 1, 1: 12]"]
 
+test_make_cmd :: Test
 test_make_cmd = do
     let (keymap, _) = Keymap.make_keymap binds
     let cmd = Cmd.call $ Cmd.Keymap keymap
@@ -62,6 +64,7 @@ test_make_cmd = do
     equal (run [Cmd.MouseMod 3 Nothing] (CmdTest.drag 3 0 0))
         (did_run "drag-3" "cmd1")
 
+test_key_repeat :: Test
 test_key_repeat = do
     let (keymap, _) = Keymap.make_keymap $ concat
             [ Keymap.plain_char '1' "1" cmd1

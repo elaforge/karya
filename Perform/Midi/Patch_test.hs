@@ -9,12 +9,14 @@ import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.Common as Common
 
 
+test_convert_scale :: Test
 test_convert_scale = do
     let f scale = Patch.convert_scale (Patch.make_scale "name" scale)
     equal (map (f [(2, 2)]) [1, 2, 3]) [Nothing, Just 2, Nothing]
     equal (map (f [(2, 2), (4, 4)]) [1, 2, 3, 4, 5])
         [Nothing, Just 2, Just 3, Just 4, Nothing]
 
+test_scale_tuning :: Test
 test_scale_tuning = do
     let f attr_map = Patch.scale_tuning attr_map
         scale = Patch.make_scale "scale" [(1, 2), (2, 3.5)]

@@ -7,6 +7,7 @@ import Util.Test
 import qualified Ui.Dump as Dump
 
 
+test_parse :: Test
 test_parse = do
     let f = Dump.parse
     equal (f "x 10") (Right [("x", "10")])

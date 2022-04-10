@@ -21,6 +21,7 @@ import           Global
 import           Util.Test
 
 
+test_predictDuration :: Test
 test_predictDuration = do
     let f = verify Resample.ZeroOrderHold . signal
     -- up octave, ratio = 0.5, duration *= 0.5
@@ -33,6 +34,7 @@ test_predictDuration = do
     equalf 1 (f [(0, 1), (21, 1), (21, 2)] 42) (63, 63)
     uncurry (equalf 2) (f [(0, 1), (21, 2)] 42)
 
+test_actualDuration :: Test
 test_actualDuration = do
     let f quality = actualDuration (mkConfig quality)
         low = Resample.ZeroOrderHold
@@ -44,6 +46,7 @@ test_actualDuration = do
     equal (f high (Signal.constant 2) 42) 84
     equal (f high (Signal.constant 0.5) 42) 21
 
+test_envelopeDur :: Test
 test_envelopeDur = do
     let f start = RenderSample.envelopeDuration start . Signal.from_pairs
     equal (f 0 [(0, 0), (1, 0), (2, 0)]) (Just 0)

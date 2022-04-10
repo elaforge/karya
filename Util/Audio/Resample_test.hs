@@ -21,6 +21,7 @@ import           Util.Test
 -- because I don't have a proper package system, to run these from ghci you
 -- must pass -lsamplerate
 
+test_segmentAt :: Test
 test_segmentAt = do
     let f = Resample.segmentAt 2
     let sig = Signal.from_pairs [(0, 0), (1.25, 1), (4, 0)]

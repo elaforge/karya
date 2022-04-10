@@ -40,6 +40,7 @@ import           Types
 import           Util.Test
 
 
+test_convert :: Test
 test_convert = do
     let run = convert DeriveTest.default_convert_lookup e_pitch
     let noinst n = mkevent n "4c" (ScoreT.Instrument "noinst")
@@ -57,6 +58,7 @@ test_convert = do
             (map RealTime.seconds [0..])
     equal (length (take 3 (run events))) 3
 
+test_rnd_vel :: Test
 test_rnd_vel = do
     let run dyn notes = first extract $ DeriveTest.perform_block
             [ (">i1 | %dyn = " <> dyn, [(n, 1, "") | n <- Seq.range' 0 notes 1])
@@ -70,6 +72,7 @@ test_rnd_vel = do
     check ("not all equal: " <> pretty vels) $ not (all (== head vels) vels)
     check ("in range 40--90: " <> pretty vels) $ all (Num.inRange 40 90) vels
 
+test_convert_pitch :: Test
 test_convert_pitch = do
     let run = convert DeriveTest.default_convert_lookup e_pitch
     let event tsig = DeriveTest.mkevent
@@ -97,6 +100,7 @@ test_convert_pitch = do
             Env.insert_val EnvKey.tuning (ShowVal.show_val BaliScales.Isep)
     equal (run [insert event]) [Left (0, [(0, 60.4)])]
 
+test_patch_scale :: Test
 test_patch_scale = do
     let run config patch pitch =
             first (convert (make_lookup config patch) e_pitch) $
@@ -138,6 +142,7 @@ test_patch_scale = do
     equal (run (Just scale1) pitched_patch "+mute -- 5c")
         ([Left (0, [(0, NN.b2)])], [])
 
+test_convert_dynamic :: Test
 test_convert_dynamic = do
     let run inst = first (convert clookup extract)
             . DeriveTest.extract id . DeriveTest.derive_tracks ""
@@ -164,6 +169,7 @@ test_convert_dynamic = do
     equal (run ">i2 | %attack-vel=.75" [("dyn", [(1, 0, ".5"), (2, 0, "1")])])
         ([Left (0.75, [(1, 0.5), (2, 1)])], [])
 
+test_release_velocity :: Test
 test_release_velocity = do
     let run = first (convert DeriveTest.default_convert_lookup extract)
             . DeriveTest.extract id . DeriveTest.derive_tracks "inst=i1"
@@ -194,6 +200,7 @@ show_logs extract =
 
 -- * instrument scale
 
+test_instrument_scale :: Test
 test_instrument_scale = do
     let ((events, _), logs) = perform patch [("i1", "s/1")]
             [ (">i1", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
@@ -208,6 +215,7 @@ test_instrument_scale = do
 
 -- * keymap
 
+test_pitched_keymap :: Test
 test_pitched_keymap = do
     let patch = set_keymap [bd] $ UiTest.make_patch "1"
         bd = ("bd", Patch.PitchedKeymap Key.c2 Key.c3 Key.c4)
@@ -228,6 +236,7 @@ test_pitched_keymap = do
         , [(3, NN.c3)]
         ]
 
+test_keyswitches :: Test
 test_keyswitches = do
     let run event = extract $
             perform patch [("i1", "s/")] [(">i1 | #=(4c)", [(0, 1, event)])]

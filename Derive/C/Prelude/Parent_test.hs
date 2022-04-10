@@ -17,6 +17,7 @@ import qualified Ui.UiTest as UiTest
 import           Util.Test
 
 
+test_tuplet :: Test
 test_tuplet = do
     let run = DeriveTest.extract_events DeriveTest.e_note
             . DeriveTest.derive_tracks_linear ""
@@ -61,6 +62,7 @@ test_tuplet = do
             : UiTest.note_track [(0, 0, "4c"), (1, 0, "4d")])
         [(0, 0, "4c"), (2, 0, "4d")]
 
+test_tuplet_multiple_tracks :: Test
 test_tuplet_multiple_tracks = do
     let run = DeriveTest.extract_events extract
             . DeriveTest.derive_tracks_setup
@@ -76,6 +78,7 @@ test_tuplet_multiple_tracks = do
         i2 = "i2"
     equal (run tracks) [(i1, 0, 6), (i2, 0, 6), (i1, 6, 6)]
 
+test_tuplet_ly :: Test
 test_tuplet_ly = do
     let run = LilypondTest.measures ["tuplet"]
             . LilypondTest.derive_tracks_linear
@@ -121,6 +124,7 @@ test_tuplet_ly = do
     --             (4, 1, "3g")])
     --     (Right "\\tuplet 2/3 { c2 \\tuplet 2/3 { d2 e2 f2 } } | g2 r2", [])
 
+test_tuplet_ly_articulations :: Test
 test_tuplet_ly_articulations = do
     -- Slurs and articulations work on tuplets.
     let run = LilypondTest.measures ["tuplet"]
@@ -135,6 +139,7 @@ test_tuplet_ly_articulations = do
     equal (run $ parents "+pizz" ++ notes)
         (Right "\\tuplet 3/2 { c2 ^\"pizz.\" d2 e2 } | f2 ^\"arco\" r2", [])
 
+test_tuplet_ly_complex :: Test
 test_tuplet_ly_complex = do
     let run = LilypondTest.measures ["tuplet", "acciaccatura", "p"]
             . LilypondTest.derive_tracks_linear
@@ -178,6 +183,7 @@ test_tuplet_ly_complex = do
             [(0, 1, "dyn p | ly-( | -- 3a"), (1, 1, "3b"), (2, 1, "3c")])
         (Right "\\tuplet 3/2 { a2 ( \\p b2 c2 }", [])
 
+test_arpeggio :: Test
 test_arpeggio = do
     let run = DeriveTest.extract_events DeriveTest.e_note
             . DeriveTest.derive_tracks_setup
@@ -192,6 +198,7 @@ test_arpeggio = do
     equal (run (tracks "`arp-up` 1 0")) [(10, 10, "4c"), (11, 9, "4d")]
     equal (run (tracks "`arp-down` 1 0")) [(10, 10, "4d"), (11, 9, "4c")]
 
+test_arpeggio_ly :: Test
 test_arpeggio_ly = do
     let run skel = LilypondTest.measures ["arpeggioArrowUp", "arpeggio"]
             . LilypondTest.derive_tracks_setup (DeriveTest.with_skel skel)
@@ -202,6 +209,7 @@ test_arpeggio_ly = do
             ])
         (Right "\\arpeggioArrowUp <c d>1 \\arpeggio", [])
 
+test_interpolate :: Test
 test_interpolate = do
     let run at = DeriveTest.extract DeriveTest.e_note $
             DeriveTest.derive_tracks_setup (DeriveTest.with_skel skel) ""
@@ -218,6 +226,7 @@ test_interpolate = do
     equal (run [(4, 0, "1")]) ([(4, 1, "4d"), (7, 1, "4e")], [])
     equal (run [(4, 0, "0"), (6, 0, "1")]) ([(4, 2, "4c"), (7, 1, "4e")], [])
 
+test_interpolate_subs :: Test
 test_interpolate_subs = do
     let f at = fmap unevent . Parent.interpolate_subs at . map mkevent
         mkevent (s, d, n) = SubT.EventT s d n
@@ -233,6 +242,7 @@ test_interpolate_subs = do
     equal (f 0.5 (take 4 events)) $ Just (1.5, 2.5, 'b')
     equal (f 2 (take 4 events)) $ Just (3, 4, 'd')
 
+test_event_interpolate :: Test
 test_event_interpolate = do
     let run at = DeriveTest.extract Score.event_start $
             DeriveTest.derive_tracks_setup (DeriveTest.with_skel skel) ""
@@ -260,6 +270,7 @@ test_event_interpolate = do
     equal (run $ blocks [(0, "0"), (2, ".5"), (4, "1")] loop)
         ([0, 1, 2, 3.25, 4, 5.5], [])
 
+test_cycle :: Test
 test_cycle = do
     let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear ""
         extract e = (Score.event_start e, DeriveTest.e_attributes e)
@@ -269,6 +280,7 @@ test_cycle = do
             ])
         ([(1, "+a"), (2, "+b"), (3, "+a"), (4, "+b")], [])
 
+test_cycle_t :: Test
 test_cycle_t = do
     let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear ""
         extract e = (Score.event_start e, DeriveTest.e_attributes e)

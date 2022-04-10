@@ -28,6 +28,7 @@ import           Types
 import           Util.Test
 
 
+test_simple :: Test
 test_simple = do
     let run = process_simple . map LilypondTest.simple_event
     equal (run [(0, 1, c3)]) $ Right "c4 r4 r2"
@@ -45,6 +46,7 @@ test_simple = do
     equal (run [(8, 1, a3), (9, 1, b3)]) $
         Right "R4*4 | R4*4 | a4 b4 r2"
 
+test_chords :: Test
 test_chords = do
     let run = process_simple . map LilypondTest.simple_event
     -- Homogenous durations.  Also, winds up as <c a> since a is higher than c.
@@ -61,6 +63,7 @@ test_chords = do
     equal (run [(0, 4, c3), (1, 1, d3)]) $
         Right "c4~ <c~ d>4 c2"
 
+test_meters :: Test
 test_meters = do
     let run wanted meters = LilypondTest.extract_simple wanted
             . process (map LilypondTest.parse_meter meters)
@@ -80,6 +83,7 @@ test_meters = do
     equal (run ["time", "bar"] ["4/4", "3/4", "4/4"] []) $
         Right "\\time 4/4 R4*4 | \\time 3/4 R4*3 | \\time 4/4 R4*4 \\bar \"|.\""
 
+test_keys :: Test
 test_keys = do
     let run = LilypondTest.extract_simple ["key"]
             . process_44 . map key_event
@@ -91,6 +95,7 @@ test_keys = do
     equal (run [(0, 2, c3, "c-min"), (4, 4, d3, "c-min")]) $
         Right "\\key c \\minor c2 r2 | d1"
 
+test_dotted_rests :: Test
 test_dotted_rests = do
     let run meter = LilypondTest.extract_simple []
             . process [LilypondTest.parse_meter meter]
@@ -106,6 +111,7 @@ mk_free_code :: RealTime -> Constants.FreeCodePosition -> Text -> Types.Event
 mk_free_code start pos code =
     LilypondTest.environ_event (start, 0, Nothing, free_code pos code)
 
+test_free_code :: Test
 test_free_code = do
     let run = process_simple . map LilypondTest.environ_event
         prepend = free_code Constants.FreePrepend "pre"
@@ -125,6 +131,7 @@ test_free_code = do
             (6, 0, Nothing, prepend), (8, 4, Just b3, [])])
         (Right "a1~ post | pre a1 | b1")
 
+test_free_code_tuplet :: Test
 test_free_code_tuplet = do
     let run = LilypondTest.extract_simple ["tuplet"] . process_44
     let e = LilypondTest.simple_event
@@ -136,6 +143,7 @@ test_free_code_tuplet = do
 note_code :: Constants.CodePosition -> Text -> [(Env.Key, DeriveT.Val)]
 note_code pos code = [(Constants.position_key pos, Typecheck.to_val code)]
 
+test_note_code :: Test
 test_note_code = do
     let run = process_simple . map LilypondTest.environ_event
         c a p d = note_code (Constants.CodePosition a p d) "x"
@@ -164,6 +172,7 @@ test_note_code = do
     -- left_like (run [(0, 8, Just c3, []), (1, 0, Nothing, c Chord Append All)])
     --     "note code without a note to attach"
 
+test_modal_articulations :: Test
 test_modal_articulations = do
     let run = process_simple . map LilypondTest.attrs_event
     -- Not interrupted by rests.
@@ -171,6 +180,7 @@ test_modal_articulations = do
             (3, 1, e3, mempty)]) $
         Right "c4 ^\"pizz.\" r4 d4 e4 ^\"arco\""
 
+test_attrs_to_code :: Test
 test_attrs_to_code = do
     let f = Process.attrs_to_code
     equal (f Attrs.nv Attrs.accent) (["->", "^\"vib\""], Attrs.accent)
@@ -187,6 +197,7 @@ test_attrs_to_code = do
     equal (run [Attrs.nv, Attrs.staccato, mempty])
         (Right "c4 ^\"nv\" d4 -. e4 ^\"vib\" r4")
 
+test_voices :: Test
 test_voices = do
     let run = LilypondTest.extract_lys [] . process_44
             . map LilypondTest.voice_event
@@ -234,6 +245,7 @@ test_voices = do
             ]
 
 
+test_voices_meter :: Test
 test_voices_meter = do
     let run wanted meters = LilypondTest.extract_lys wanted
             . process (map LilypondTest.parse_meter meters)
@@ -250,6 +262,7 @@ test_voices_meter = do
             , Right "r2"
             ]
 
+test_simplify_voices :: Test
 test_simplify_voices = do
     let run = fmap LilypondTest.unwords_right . LilypondTest.extract_lys []
             . process_44 . map LilypondTest.voice_event
@@ -279,6 +292,7 @@ test_simplify_voices = do
             , Left [(VoiceOne, "d1"), (VoiceTwo, "e1")]
             ]
 
+test_free_code_voices :: Test
 test_free_code_voices = do
     let run = LilypondTest.extract_lys []
             . process_44 . map LilypondTest.environ_event
@@ -324,6 +338,7 @@ mk_tuplet start score_dur real_dur =
     (LilypondTest.mkevent start real_dur Nothing LilypondTest.default_inst [])
     { Types.event_environ = Constants.set_tuplet score_dur real_dur }
 
+test_convert_tuplet :: Test
 test_convert_tuplet = do
     let run = second extract . process (replicate 2 Meter.default_meter)
         e = LilypondTest.simple_event
@@ -367,6 +382,7 @@ test_convert_tuplet = do
     -- equal (run nested)
     --     (Right "\\tuplet 3/2 { c2 \\tuplet 3/2 { d2 e2 f2 } } | R4*4")
 
+test_convert_tremolo :: Test
 test_convert_tremolo = do
     let run = second extract . process_44 . map LilypondTest.environ_event
         tremolo start dur =

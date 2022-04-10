@@ -16,6 +16,7 @@ block = Stack.Block . UiTest.bid
 track = Stack.Track . UiTest.tid
 region = Stack.Region
 
+test_block_track_of :: Test
 test_block_track_of = do
     let f = Stack.block_track_of . Stack.from_outermost
     equal (f [block "b"]) Nothing
@@ -27,6 +28,7 @@ test_block_track_of = do
     equal (f [block "b1", track "t1", block "b2", track "t2"])
         (Just (UiTest.bid "test/b2", UiTest.tid "test/t2"))
 
+test_to_ui :: Test
 test_to_ui = do
     let mk = Stack.to_ui . Stack.from_outermost
     equal (mk [block "b1", block "b2"])
@@ -42,6 +44,7 @@ test_to_ui = do
     equal (mk [block "b1", track "t1", region 1 2, region 3 4])
         [(bid "b1", tid "t1", Just (3, 4))]
 
+test_json :: Test
 test_json = do
     let convert :: Stack.Frame -> Either String Stack.Frame
         convert = to_either . Aeson.fromJSON . Aeson.toJSON

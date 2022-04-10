@@ -21,6 +21,7 @@ import qualified User.Elaforge.Instrument.Kontakt.ScGamelan as ScGamelan
 import Util.Test
 
 
+test_pasang_thru :: Test
 test_pasang_thru = do
     -- This is also a test for 'Bali.pasang_thru'.
     let note_on = CmdTest.note_on 1

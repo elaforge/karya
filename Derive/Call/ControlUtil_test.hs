@@ -14,6 +14,7 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Perform.Signal as Signal
 
 
+test_breakpoints :: Test
 test_breakpoints = do
     let make start end = ControlUtil.breakpoints 1 ControlUtil.Linear
             . ControlUtil.distribute start end
@@ -22,6 +23,7 @@ test_breakpoints = do
     equal (f 4 8  [1]) [(4, 1)]
     equal (f 4 8  [0, 1, 0]) [(4, 0), (6, 1), (8, 0)]
 
+test_modify :: Test
 test_modify = do
     let run title = DeriveTest.extract DeriveTest.e_dyn
             . DeriveTest.derive_tracks_setup with_call title
@@ -48,6 +50,7 @@ test_modify = do
         ControlUtil.modify_with Derive.DefaultMerge Controls.dynamic end signal
         return mempty
 
+test_slope_to_limit :: Test
 test_slope_to_limit = do
     let f low high from slope = Signal.to_pairs $
             ControlUtil.slope_to_limit low high from slope 4 8
@@ -65,6 +68,7 @@ test_slope_to_limit = do
     -- TODO not sure this makes sense
     equal (f (Just 0) (Just 2) (-1) (-1)) [(4, 0)]
 
+test_smooth_absolute :: Test
 test_smooth_absolute = do
     let f time = Signal.to_pairs
             . ControlUtil.smooth_absolute ControlUtil.Linear 1 time
@@ -81,6 +85,7 @@ test_smooth_absolute = do
     -- Zero duration.
     equal (f 0 s020) [(0, 0), (2, 0), (2, 2), (4, 2), (4, 0)]
 
+test_smooth_relative :: Test
 test_smooth_relative = do
     let f time = Signal.to_pairs
             . ControlUtil.smooth_relative ControlUtil.Linear 1 (const time)
@@ -91,6 +96,7 @@ test_smooth_relative = do
     equal (f 1 [(0, 0), (4, 4), (8, 0)])
         [(0, 0), (4, 4), (8, 0)]
 
+test_split_samples :: Test
 test_split_samples = do
     let abs = ControlUtil.split_samples_absolute
     equal (abs 1 [(0, 0), (4, 4), (8, 0)])

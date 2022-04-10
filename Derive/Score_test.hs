@@ -14,6 +14,7 @@ import qualified Perform.Signal as Signal
 import           Util.Test
 
 
+test_move :: Test
 test_move = do
     let event = Score.empty_event
             { Score.event_start = 2

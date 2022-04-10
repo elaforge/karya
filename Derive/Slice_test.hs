@@ -27,6 +27,7 @@ import Global
 import Types
 
 
+test_slice :: Test
 test_slice = do
     let f exclusive s e insert = map (fmap extract_tree)
             . map (Slice.slice exclusive s e insert . make_tree)
@@ -48,6 +49,7 @@ test_slice = do
     equal (f False 0 0 Nothing [Node (">", [(0, 0, "a")]) []])
         [Node (">", [(0, 0, "a")]) []]
 
+test_slice_neighbors :: Test
 test_slice_neighbors = do
     let f exclusive s e =
             extract . Slice.slice exclusive s e Nothing . make_tree
@@ -60,6 +62,7 @@ test_slice_neighbors = do
     equal (f False 1 2 (controls [0..4] [notes 0 "xyz" []]))
         (Node ("0", "34") [Node ("x", "z") []])
 
+test_slice_notes :: Test
 test_slice_notes = do
     let f = slice_notes False
     let notes ns = Node (make_notes 0 ns)
@@ -131,6 +134,7 @@ test_slice_notes = do
     --     , [(2, 4, [notes "" [Node (">", [(0, 2, "y")]) []]])]
     --     ]
 
+test_slice_notes_track_id :: Test
 test_slice_notes_track_id = do
     let f = slice_notes_track_id False
     let notes inst ns = Node (make_notes_inst inst 0 ns)
@@ -146,6 +150,7 @@ test_slice_notes_track_id = do
             ])
         ]
 
+test_slice_notes_zero_dur :: Test
 test_slice_notes_zero_dur = do
     let f = slice_notes False
     equal (f 0 2 [Node (">", [(0, 0, "a")]) []])
@@ -157,6 +162,7 @@ test_slice_notes_zero_dur = do
     equal (f 0 2 [Node (">", [(0, 0, "a")]) [Node (">", [(0, 1, "b")]) []]])
         [[(0, 0, [Node (">", [(0, 0, "a")]) [Node (">", [(0, 1, "b")]) []]])]]
 
+test_slice_notes_shift :: Test
 test_slice_notes_shift = do
     -- Verify that shifting and slicing modify track_start, track_end and
     -- track_shifted properly.
@@ -177,6 +183,7 @@ test_slice_notes_shift = do
     -- The end is shorter by 1 because of the shift.
     equal (f 0 32 [tree 1 32]) [[(1, 1, [Node ((0, 31), 2) []])]]
 
+test_slice_include_end :: Test
 test_slice_include_end = do
     let f = slice_notes
     let notes ns = Node (make_notes 0 ns)
@@ -186,6 +193,7 @@ test_slice_include_end = do
         [[(1, 1, [notes "b" []]), (2, 1, [notes "c" []]),
             (3, 1, [notes "d" []])]]
 
+test_slice_notes_sparse :: Test
 test_slice_notes_sparse = do
     -- Ensure that an intervening empty note track doesn't hide the notes
     -- on the track below it.  This is analogous to orphan extraction in the
@@ -258,6 +266,7 @@ extract_notes :: (TrackTree.Track -> a)
 extract_notes f = map $ \(Slice.Track track_id notes) ->
     (track_id, map (\(s, e, t) -> (s, e, map (fmap f) t)) notes)
 
+test_slur :: Test
 test_slur = do
     let run = DeriveTest.extract extract
             . LilypondTest.derive_tracks_linear
@@ -281,6 +290,7 @@ test_slur = do
         ]
     equal logs []
 
+test_strip_empty_tracks :: Test
 test_strip_empty_tracks = do
     let f = map (fmap extract_tree) . Slice.strip_empty_tracks . make_tree
     let empty = Node (make_notes 0 "")
@@ -293,6 +303,7 @@ test_strip_empty_tracks = do
     -- Don't strip when there are notes below.
     equal (f $ controls [notes 'a' []]) [controls [notes 'a' []]]
 
+test_overlaps :: Test
 test_overlaps = do
     let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear ""
         extract e = (DeriveTest.e_pitch e, DeriveTest.e_attributes e)
@@ -392,6 +403,7 @@ test_overlaps = do
         ]
     strings_like logs [overlapping_log]
 
+test_note_transformer_stack :: Test
 test_note_transformer_stack = do
     -- The stack should be correct even in the presence of slicing and
     -- inversion.

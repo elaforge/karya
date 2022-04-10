@@ -20,6 +20,7 @@ import Global
 
 
 
+test_allowed_duration :: Test
 test_allowed_duration = do
     let f meter start dur = to_lily $
             convert_duration (parse_meter meter) True start dur

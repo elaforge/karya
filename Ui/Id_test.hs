@@ -7,6 +7,7 @@ import Util.Test
 import qualified Ui.Id as Id
 
 
+test_read_id :: Test
 test_read_id = do
     let parse mkid a = [(mkid (Id.read_id a), "")]
     equal (reads "(bid \"a/b\")") (parse Id.BlockId "a/b")

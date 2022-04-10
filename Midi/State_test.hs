@@ -9,6 +9,7 @@ import qualified Midi.Midi as Midi
 import qualified Midi.State as State
 
 
+test_play :: Test
 test_play = do
     let f msgs = State.play msgs State.empty
         f2 = f . map chan_msg
@@ -21,6 +22,7 @@ test_play = do
     equal (f2 [Midi.ChannelPressure 42])
         (mkstate [] 0 [(State.Pressure, 42)])
 
+test_diff :: Test
 test_diff = do
     let st1 = State.play
             [chan_msg (Midi.NoteOn 10 20), chan_msg (Midi.ControlChange 42 32),

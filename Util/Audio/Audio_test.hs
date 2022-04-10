@@ -20,6 +20,7 @@ import Util.Test
 import Global
 
 
+test_mix :: Test
 test_mix = do
     let f = concat . toSamples . mixOffset . map (second fromSamples)
     equal (f []) []
@@ -34,6 +35,7 @@ test_mix = do
     -- Deal with empty blocks.
     equal (f [(0, [[1], [], [3]]), (0, [[], [2], []])]) [3, 3]
 
+test_mix2 :: Test
 test_mix2 = do
     let f = concat . toSamples . mixOffset . map (second fromSamples2)
     equal (f [(0, [[0, 1], [2, 3]]), (1, [[4, 5]])])
@@ -45,6 +47,7 @@ mixOffset :: TypeLits.KnownNat chan
     => [(Audio.Frames, Audio.AudioId rate chan)] -> Audio.AudioId rate chan
 mixOffset = Audio.mix . map (\(f, audio) -> Audio.take f Audio.silence <> audio)
 
+test_monoid :: Test
 test_monoid = do
     equal (toSamples mempty) []
     equal (toSamples (mempty <> mempty)) []
@@ -53,6 +56,7 @@ test_monoid = do
     equal (toSamples (fromSamples [[1], [2]] <> fromSamples [[3, 4]]))
         [[1], [2], [3, 4]]
 
+test_nonInterleaved :: Test
 test_nonInterleaved = do
     let f = map (map (V.toList . Audio.blockVector)) . unstream . Audio._nstream
             . Audio.nonInterleaved 0 2 . map fromSamples
@@ -62,6 +66,7 @@ test_nonInterleaved = do
     equal (f [[[1]], [[5, 6, 7, 8]]])
         [[[1], [5, 6]], [[], [7, 8]]]
 
+test_interleaved :: Test
 test_interleaved = do
     equal (interleaved (Proxy @3) [[1, 2], [3, 4]]) $
         Left "can't convert 2 channels to 3"
@@ -74,6 +79,7 @@ interleaved Proxy = fmap (concat . toSamples @10 @outChan)
     . Audio.interleaved . Audio.nonInterleaved 0 Audio.blockSize
     . map fromSamples . map (:[])
 
+test_synchronizeToSize :: Test
 test_synchronizeToSize = do
     let f now = toSamples . Audio.synchronizeToSize now 3 . fromSamples
     equal (f 1 []) []
@@ -82,10 +88,12 @@ test_synchronizeToSize = do
     equal (f 2 [[1, 2, 3]]) [[1], [2, 3]]
     equal (f 3 [[1, 2, 3, 4]]) [[1, 2, 3], [4]]
 
+test_gain :: Test
 test_gain = do
     let f n = concat . toSamples . Audio.gain n . fromSamples
     equal (f 0.5 [[1, 2], [3]]) [0.5, 1, 1.5]
 
+test_multiply :: Test
 test_multiply = do
     let f a1 a2 = concat $ toSamples $
             Audio.multiply (fromSamples a1) (fromSamples a2)
@@ -93,17 +101,20 @@ test_multiply = do
     equal (f [[2]] [[4, 5, 6]]) [2*4]
     equal (f [[2], [3]] [[4, 5, 6]]) [2*4, 3*5]
 
+test_multiply2 :: Test
 test_multiply2 = do
     let f a1 a2 = concat $ toSamples $
             Audio.multiply (fromSamples2 a1) (fromSamples2 a2)
     equal (f [] []) []
     equal (f [[2, 3], [4, 5]] [[4, 5, 6, 7]]) [2*4, 3*5, 4*6, 5*7]
 
+test_mergeChannels :: Test
 test_mergeChannels = do
     let f a1 a2 = toSamples $ Audio.mergeChannels a1 a2
     equal (f (fromSamples []) (fromSamples [])) []
     equal (f (fromSamples [[1, 3]]) (fromSamples [[2], [4]])) [[1, 2], [3, 4]]
 
+test_expandChannels :: Test
 test_expandChannels = do
     let f :: TypeLits.KnownNat chan => [[Audio.Sample]] -> Audio.AudioId 10 chan
         f = Audio.expandChannels . fromSamples
@@ -113,12 +124,14 @@ test_expandChannels = do
     equal (toSamples @10 @2 $ f [[1, 2]]) [[1, 1, 2, 2]]
     equal (toSamples @10 @3 $ f [[1], [2]]) [[1, 1, 1], [2, 2, 2]]
 
+test_mixChannels :: Test
 test_mixChannels = do
     let f :: TypeLits.KnownNat chan => Audio.AudioId 10 chan -> [[Audio.Sample]]
         f = toSamples . Audio.mixChannels
     equal (f $ fromSamples [[1], [2]]) [[1], [2]]
     equal (f $ fromSamples2 [[1, 2], [3, 4]]) [[3], [7]]
 
+test_synchronize :: Test
 test_synchronize = do
     let f a1 a2 = map (bimap (fmap unblock) (fmap unblock)) $ unstream $
             Audio.synchronize a1 a2
@@ -132,6 +145,7 @@ test_synchronize = do
     equal (f (fromSamples [[1]]) (fromSamples2 [[2, 3]]))
         [(Just [1], Just [2, 3])]
 
+test_linear :: Test
 test_linear = do
     let f wanted = concat . toSamples @1 @1 . Audio.take wanted
             . Audio.linear True
@@ -145,6 +159,7 @@ test_linear = do
     -- Infinite final sample.
     equal (f 7 [(0, 0), (4, 4)]) [0, 1, 2, 3, 4, 4, 4]
 
+test_linear_not_forever :: Test
 test_linear_not_forever = do
     let f wanted = concat . toSamples @1 @1 . Audio.take wanted
             . Audio.linear False
@@ -173,12 +188,14 @@ _test_linear_big = do
 unstream :: S.Stream (S.Of a) Identity.Identity () -> [a]
 unstream = Identity.runIdentity . S.toList_
 
+test_deinterleaveV :: Test
 test_deinterleaveV = do
     let f chans = map V.toList . Audio.deinterleaveV chans . V.fromList @Float
     equal (f 1 [1, 2, 3, 4]) [[1, 2, 3, 4]]
     equal (f 2 [1, 2, 3, 4]) [[1, 3], [2, 4]]
     equal (f 3 [1, 2, 3, 4]) [[1], [2], [3]]
 
+test_interleaveV :: Test
 test_interleaveV = do
     let f = V.toList . Audio.interleaveV . map (V.fromList @Float)
     equal (f [[1, 2, 3, 4]]) [1, 2, 3, 4]
@@ -201,6 +218,7 @@ toSamples = map V.toList . Identity.runIdentity . Audio.toSamples
 
 -- * util
 
+test_breakAfter :: Test
 test_breakAfter = do
     let f check = extract . Audio.breakAfter (+) 0 check . S.each
         extract xs = Identity.runIdentity $ do

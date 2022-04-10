@@ -13,6 +13,7 @@ import qualified Cmd.Repl.LPitch as LPitch
 import Global
 
 
+test_change_scale :: Test
 test_change_scale = do
     let run scale pitches to_scale = e_pitch $
             CmdTest.run_tracks (pitch_track scale pitches) $ do
@@ -21,6 +22,7 @@ test_change_scale = do
     equal (run "twelve" ["4c", "i (4d)"] "twelve-r") $
         Right (("*twelve", ["4s", "i (4r)"]), [])
 
+test_to_relative :: Test
 test_to_relative = do
     let run scale pitches diatonic base = e_pitch $
             CmdTest.run_tracks (pitch_track scale pitches) $

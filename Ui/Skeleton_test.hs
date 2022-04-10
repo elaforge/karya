@@ -7,6 +7,7 @@ import Util.Test
 import qualified Ui.Skeleton as Skeleton
 
 
+test_move :: Test
 test_move = do
     let f from to = Skeleton.flatten . Skeleton.move from to . Skeleton.make
     -- let f from to = Skeleton.move from to

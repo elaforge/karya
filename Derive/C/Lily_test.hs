@@ -18,6 +18,7 @@ import qualified Perform.Lilypond.Types as Types
 import Global
 
 
+test_when_ly :: Test
 test_when_ly = do
     let run_ly = extract . LilypondTest.derive_tracks
         run_normal = extract . DeriveTest.derive_tracks "import ly"
@@ -39,6 +40,7 @@ test_when_ly = do
     equal (run_ly tracks) ([((0, 1, "4a"), "+")], [])
     equal (run_normal tracks) ([((0, 1, "4a"), "+a")], [])
 
+test_ly_track :: Test
 test_ly_track = do
     let run_normal =
             DeriveTest.extract ex . DeriveTest.derive_tracks_linear "import ly"
@@ -67,6 +69,7 @@ test_ly_track = do
     equal (run_ly tracks)
         ([("c", "+ly1"), ("d", "+always+ly2"), ("e", "+"), ("f", "+")], [])
 
+test_if_ly :: Test
 test_if_ly = do
     let run = LilypondTest.derive_measures [] . UiTest.note_track
     equal (run [(0, 1, "if-ly +accent +mute -- 4a")])
@@ -80,6 +83,7 @@ test_if_ly = do
     equal (run [(0, 1, "if-ly '' '+mute' -- 4a")])
         (Right "a'4 r4 r2", [])
 
+test_8va :: Test
 test_8va = do
     let run = LilypondTest.derive_measures ["ottava"]
     equal (run $ UiTest.note_track [(0, 1, "8va 1 | -- 4a"), (1, 1, "4b")])
@@ -87,6 +91,7 @@ test_8va = do
     equal (run $ (">", [(0, 1, "8va 1")]) : UiTest.regular_notes 2)
         (Right "\\ottava #1 c4 \\ottava #0 d4 r2", [])
 
+test_xstaff_around :: Test
 test_xstaff_around = do
     let run = LilypondTest.measures ["change"]
              . LilypondTest.derive_tracks_linear
@@ -97,6 +102,7 @@ test_xstaff_around = do
     equal (run $ (">", [(1, 0, "xstaff-a u")]) : UiTest.regular_notes 2)
         (Right "c4 \\change Staff = \"up\" d4 \\change Staff = \"down\" r2", [])
 
+test_clef_dyn :: Test
 test_clef_dyn = do
     let run = LilypondTest.derive_measures ["clef", "f"]
         tracks = (">", [(0, 0, "clef treble | dyn f")]) : UiTest.regular_notes 2
@@ -114,11 +120,13 @@ test_clef_dyn = do
         , []
         )
 
+test_articulation :: Test
 test_articulation = do
     let run = measures_linear []
     equal (run $ (">", [(0, 3, "ly- '>'")]) : UiTest.regular_notes 3)
         (Right "c4 -> d4 -> e4 -> r4", [])
 
+test_ly_notes_attach :: Test
 test_ly_notes_attach = do
     let run = measures_linear ["down"]
     equal (run $ (">", [(0, 3, "ly-attach down")]) : UiTest.regular_notes 3)
@@ -127,6 +135,7 @@ test_ly_notes_attach = do
             : UiTest.regular_notes 3)
         (Right "down c4 down d4 down e4 r4", [])
 
+test_reminder_accidental :: Test
 test_reminder_accidental = do
     let run = LilypondTest.derive_measures [] . UiTest.note_track
     equal (run [(0, 1, "ly-! -- 4a"), (1, 1, "ly-? -- 4b")])
@@ -134,6 +143,7 @@ test_reminder_accidental = do
     equal (run [(0, 8, "ly-! -- 4a")])
         (Right "a'!1~ | a'1", [])
 
+test_tie_direction :: Test
 test_tie_direction = do
     let run = LilypondTest.derive_measures [] . concatMap UiTest.note_track
     equal (run [[(0, 8, "ly-^~ -- 4a"), (8, 8, "ly-_~ -- 4b")]])
@@ -141,12 +151,14 @@ test_tie_direction = do
     equal (run [[(0, 8, "ly-^~ -- 4a")], [(0, 8, "ly-_~ -- 4b")]])
         (Right "<a'^~ b'_~>1 | <a' b'>1", [])
 
+test_hairpin :: Test
 test_hairpin = do
     let run = LilypondTest.derive_measures ["<", ">", "!"]
     equal (run $ (">", [(1, 1, "ly-<"), (3, 0, "ly->")])
             : UiTest.regular_notes 4)
         (Right "c4 d4 \\< e4 \\! f4 \\>", [])
 
+test_ly_text :: Test
 test_ly_text = do
     let run = LilypondTest.derive_measures []
     equal (run $ UiTest.note_track [(0, 1, "ly^ hi | -- 4a")])
@@ -156,6 +168,7 @@ test_ly_text = do
             (">", [(0, 2, "ly_ hi")]) : UiTest.regular_notes 2)
         (Right "c4 _\"hi\" d4 r2", [])
 
+test_ly_slur_beam :: Test
 test_ly_slur_beam = do
     let run = LilypondTest.derive_measures []
     -- Works both as a generator and transformer.
@@ -166,6 +179,7 @@ test_ly_slur_beam = do
             [(0, 2, "ly-[ | -- 3a"), (2, 6, "ly-] | -- 3b")])
         (Right "a2 [ b2~ ] | b1", [])
 
+test_subdivision :: Test
 test_subdivision = do
     let run = LilypondTest.staves [] . LilypondTest.derive_tracks
             . concatMap (uncurry UiTest.inst_note_track)
@@ -213,6 +227,7 @@ test_subdivision = do
             ])
         (Right [("i1", ["r4. c4. | r4. d8~ d4"])], [])
 
+test_movement :: Test
 test_movement = do
     let run = LilypondTest.convert_score . LilypondTest.derive_blocks
     -- Movements split up properly.
@@ -235,6 +250,7 @@ test_movement = do
     equal logs []
     match ly "piece = \"I\" *c4 d4 e4 f4 * piece = \"II\" * c4 d4 e4 f4"
 
+test_attach_and_emit :: Test
 test_attach_and_emit = do
     -- Ensure that attach calls doesn't try to attach code to emit's code
     -- events.
@@ -268,6 +284,7 @@ test_attach_and_emit = do
             : UiTest.note_track1 ["ly-pre a | -- 3c", "ly-pre b | -- 3d"])
         (Right "\\a c4 ( \\b d4 ) r2", [])
 
+test_code_position :: Test
 test_code_position = do
     let runc call pos = LilypondTest.measures ["a"] $
             LilypondTest.derive_tracks $ concatMap UiTest.note_track

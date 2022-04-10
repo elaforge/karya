@@ -11,6 +11,7 @@ import qualified Derive.ValType as ValType
 import Types
 
 
+test_put_val :: Test
 test_put_val = do
     let f key val = either Just (const Nothing) . Env.put_val key val
     equal (f EnvKey.block_end (0 :: ScoreTime) mempty) Nothing

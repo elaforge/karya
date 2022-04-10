@@ -14,6 +14,7 @@ import qualified Ui.UiTest as UiTest
 import           Util.Test
 
 
+test_make_just7 :: Test
 test_make_just7 = do
     let run scale_id intervals ratios pitches = DeriveTest.extract extract $
             DeriveTest.derive_tracks (make_title scale_id intervals ratios) $

@@ -15,6 +15,7 @@ import qualified Ui.Skeleton as Skeleton
 import           Util.Test
 
 
+test_convert_tracks :: Test
 test_convert_tracks = do
     let f = Midi.convert_tracks . map (fmap mkmidi)
     let midi_tracks =
@@ -39,6 +40,7 @@ test_convert_tracks = do
         [(1, 2), (2, 3), (4, 5), (5, 6), (7, 8), (8, 9), (9, 10)]
     equal warns []
 
+test_split_track :: Test
 test_split_track = do
     let f = map extract . fst . Midi.split_track
             . map (fmap (M.ChannelMessage 0))
@@ -65,6 +67,7 @@ test_split_track = do
         , (notes [(0, 4)], pitches [(0, "4d")], dyn [0])
         ]
 
+test_collect_notes :: Test
 test_collect_notes = do
     let f = Midi.collect_notes . mkmidi
     equal (f [on Key.c4]) ([], [(0, Key.c4)])

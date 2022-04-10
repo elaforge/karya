@@ -9,6 +9,7 @@ import Midi.Encode (encode, decode)
 import qualified Midi.Midi as Midi
 
 
+test_encode :: Test
 test_encode = do
     let roundtrip = decode . encode
         check msg = (roundtrip msg, msg)

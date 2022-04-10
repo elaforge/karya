@@ -9,6 +9,7 @@ import qualified Derive.C.All as C.All
 import qualified Derive.Scale.All as Scale.All
 
 
+test_doc_html :: Test
 test_doc_html = do
     -- Mostly this just makes HPC coverage for all the documentation.
     let hstate = ("haddock", mempty)

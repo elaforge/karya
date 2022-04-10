@@ -11,6 +11,7 @@ import Util.Test
 import qualified Util.Test.Testing as Testing
 
 
+test_misc :: Test
 test_misc = Git.initialize $ do
     repo <- new_repo
     io_equal (Git.init repo) True -- created by 'new_repo'
@@ -58,6 +59,7 @@ test_misc = Git.initialize $ do
     io_equal (Git.read_log repo ref) [commit2, commit]
     io_equal (Git.read_log_head repo) [commit2, commit]
 
+test_make_dir :: Test
 test_make_dir = Git.initialize $ do
     let f = Git.make_dir
     equal (f [("foo/bar", "abc"), ("foo/bar/baz", "def")])
@@ -66,6 +68,7 @@ test_make_dir = Git.initialize $ do
         Map.fromList [("a", Git.Dir (Map.fromList
             [("b", Git.File "a"), ("c", Git.File "b")]))]
 
+test_write_dir :: Test
 test_write_dir = Git.initialize $ do
     repo <- new_repo
     let dir1 = expect_right $ Git.make_dir [("a/b", "abc"), ("d", "def")]
@@ -73,6 +76,7 @@ test_write_dir = Git.initialize $ do
     dir2 <- Git.read_dir repo tree
     equal dir1 dir2
 
+test_modify_tree :: Test
 test_modify_tree = Git.initialize $ do
     repo <- new_repo
     let read tree = Git.flatten_dir <$> Git.read_dir repo tree
@@ -82,6 +86,7 @@ test_modify_tree = Git.initialize $ do
     tree <- Git.modify_tree repo tree [Remove "a/b", Add "c" "qqq"]
     io_equal (read tree) [("c", "qqq")]
 
+test_diff_trees :: Test
 test_diff_trees = Git.initialize $ do
     repo <- new_repo
     let make_dir = expect_right . Git.make_dir
@@ -94,6 +99,7 @@ test_diff_trees = Git.initialize $ do
     io_equal (Git.read_dir repo tree2) (make_dir [("a/b", "def"), ("d", "def")])
     io_equal (Git.read_dir repo tree3) (make_dir [("d", "def")])
 
+test_modifications_to_dir :: Test
 test_modifications_to_dir = Git.initialize $ do
     let f = Git.modifications_to_dir
     equal (f [Add "a/b/c" "abc", Add "a/b/c" "def"])

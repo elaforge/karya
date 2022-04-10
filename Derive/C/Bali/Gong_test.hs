@@ -10,6 +10,7 @@ import qualified Ui.UiTest as UiTest
 import           Util.Test
 
 
+test_jegog :: Test
 test_jegog = do
     let title = "import bali.gong | jegog-insts = (list i1) | scale=legong"
             <> " | cancel"
@@ -27,6 +28,7 @@ test_jegog = do
          , (2, 1, "4u", ""), (2, 1, "3u", jegog)
          ], [])
 
+test_nruk :: Test
 test_nruk = do
     let run = DeriveTest.extract Score.event_start
             . DeriveTest.derive_tracks "import bali.gong" . UiTest.note_track
@@ -34,6 +36,7 @@ test_nruk = do
     -- It only emits full duration notes.
     equal (run [(0, 2.15, "nruk 2 2 | --")]) ([0, 0.5, 1, 1.5], [])
 
+test_cycle :: Test
 test_cycle = do
     let run = DeriveTest.extract extract
             . DeriveTest.derive_tracks "import bali.gong" . UiTest.note_track

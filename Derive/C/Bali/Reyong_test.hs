@@ -44,6 +44,7 @@ title_damp_all dur early =
 title_realize :: Text
 title_realize = title <> " | infer-damp-early=0 | realize-reyong i1"
 
+test_articulation :: Test
 test_articulation = do
     let run = e_voice 1 DeriveTest.e_start_note
             . DeriveTest.derive_tracks title_cancel . UiTest.note_track
@@ -53,6 +54,7 @@ test_articulation = do
     -- Not affected by transposition.
     equal (run [(0, 0, "%t-dia=1 | O --")]) (Just [(0, "4e"), (0, "4a")], [])
 
+test_norot :: Test
 test_norot = do
     let run = first (lookup 2) . e_pattern 0
             . DeriveTest.derive_tracks title_cancel . UiTest.note_track
@@ -60,6 +62,7 @@ test_norot = do
     equal (run [(0, 8, "nt -- 4i"), (8, 4, "nt -- 4o")])
         (Just "ioioiooeoeoeo", [])
 
+test_kilitan_prepare :: Test
 test_kilitan_prepare = do
     let run = e_voice 1 DeriveTest.e_start_note
             . DeriveTest.derive_tracks title_cancel . UiTest.note_track
@@ -69,6 +72,7 @@ test_kilitan_prepare = do
             , (5, "4a"), (6, "4u"), (7, "4a"), (8, "4u")
             ], [])
 
+test_kilitan_random_start :: Test
 test_kilitan_random_start = do
     let run = e_by_voice extract
             . DeriveTest.derive_tracks (title <> " | reyong-voices = (list 1 3)\
@@ -86,6 +90,7 @@ test_kilitan_random_start = do
     forM_ (zip (map fst voice1) (map fst voice3)) $ \(start1, start3) ->
         not_equal start1 start3
 
+test_kotekan_regular :: Test
 test_kotekan_regular = do
     let run1 text = first (map snd . take 2) . e_pattern 0
             . DeriveTest.derive_tracks title_cancel . UiTest.note_track $
@@ -108,6 +113,7 @@ test_kotekan_regular = do
     equal (run 3 [(0, 8, "k -- 4i"), (8, 8, "k// -- 4e")])
         (Just "ueu-eue-u-eu-eu-e", [])
 
+test_kotekan_irregular :: Test
 test_kotekan_irregular = do
     let run voice = first (lookup voice) . e_pattern 0
             . DeriveTest.derive_tracks title_cancel . UiTest.note_track
@@ -116,6 +122,7 @@ test_kotekan_irregular = do
     equal (run 1 [(16, -16, "k//\\\\ -- 6i")])
         (Just "--ua-ua-au-au-ua-", [])
 
+test_kotekan_negative_slice :: Test
 test_kotekan_negative_slice = do
     -- This actually ensures that negative slices include the final pitch
     -- sample even when it's under an orphan slice.
@@ -130,6 +137,7 @@ derive_tracks_ruler title tracks =
     DeriveTest.derive_blocks_setup DeriveTest.with_linear
         [(UiTest.default_block_name <> "=ruler -- " <> title, tracks)]
 
+test_cancel_kotekan :: Test
 test_cancel_kotekan = do
     let run = e_pattern 0
             . DeriveTest.derive_tracks (title_cancel <> " | voices=2")
@@ -161,8 +169,10 @@ e_voice voice extract = group_voices . DeriveTest.extract ex
     group_voices = first (lookup (Just voice) . Seq.group_fst)
 
 -- Force all the positions because of partial functions in there.
+test_positions :: Test
 test_positions = forM_ Reyong.reyong_positions $ \pos -> equal pos pos
 
+test_assign_positions :: Test
 test_assign_positions = do
     let f pattern dest = extract $ Reyong.assign_positions pattern 5 dest
             (map Reyong.pos_cek Reyong.reyong_positions)
@@ -176,6 +186,7 @@ test_assign_positions = do
 
 -- * tumpuk
 
+test_tumpuk :: Test
 test_tumpuk = do
     let run = DeriveTest.extract extract
             . DeriveTest.derive_tracks title . UiTest.note_track
@@ -189,10 +200,12 @@ test_tumpuk = do
         ([((0, 1, "4o"), "+"), ((1, 1, "4o"), "+mute"), ((2, 3, "4i"), "+")],
             [])
 
+test_tumpuk_patterns :: Test
 test_tumpuk_patterns = do
     -- Force partial function.
     equal Reyong.tumpuk_patterns Reyong.tumpuk_patterns
 
+test_select_pattern :: Test
 test_select_pattern = do
     let f = Reyong.select_pattern
         rnds = [0, 1/16 .. 1]
@@ -209,6 +222,7 @@ test_select_pattern = do
 
 -- * c_byong
 
+test_c_byong :: Test
 test_c_byong = do
     let run voice = DeriveTest.extract DeriveTest.e_note
             . DeriveTest.derive_tracks (title <> " | v=" <> showt voice)
@@ -220,6 +234,7 @@ test_c_byong = do
 
 -- * damp
 
+test_c_infer_damp :: Test
 test_c_infer_damp = do
     let run = DeriveTest.extract e_damped_event
             . DeriveTest.derive_tracks (title_damp 1 <> " | %damp=.5")
@@ -290,6 +305,7 @@ test_infer_damp_integrate = do
         )
 -}
 
+test_c_infer_damp_early :: Test
 test_c_infer_damp_early = do
     let run = DeriveTest.extract e_damped_event
             . DeriveTest.derive_tracks (title_damp_all 1 0.5)
@@ -299,6 +315,7 @@ test_c_infer_damp_early = do
     equal (run [(0, 1, "4i"), (2, 1, "4i")])
         ([(0, "4i", '-'), (1, "4i", '+'), (2, "4i", '-'), (3, "4i", '+')], [])
 
+test_c_infer_damp_ngoret :: Test
 test_c_infer_damp_ngoret = do
     let run = DeriveTest.extract e_damped_event
             . DeriveTest.derive_tracks title_realize
@@ -313,6 +330,7 @@ test_c_infer_damp_ngoret = do
         )
 
 -- TODO oops, is this a duplicate with the above?
+test_ngoret :: Test
 test_ngoret = do
     let run = DeriveTest.extract (\e -> (e_damp_dyn e, DeriveTest.e_note e))
             . DeriveTest.derive_tracks title_realize
@@ -324,6 +342,7 @@ test_ngoret = do
     let e_damps ns = [(s, p) | (Just _, (s, _, p)) <- ns]
     equal (first e_damps $ run tracks) ([(2, "4i"), (4, "4e")], [])
 
+test_c_infer_damp_kotekan :: Test
 test_c_infer_damp_kotekan = do
     let run = e_voice 2 e_damped_event
             . DeriveTest.derive_tracks (title_damp 1.5) . UiTest.note_track
@@ -337,6 +356,7 @@ test_c_infer_damp_kotekan = do
         , []
         )
 
+test_c_infer_damp_cek :: Test
 test_c_infer_damp_cek = do
     let run = e_voice 1 extract
             . DeriveTest.derive_tracks (title_damp 0.5 <> " | v=1")
@@ -370,6 +390,7 @@ e_damp_dyn e
     | Score.has_attribute Attrs.mute e = Just (Score.initial_dynamic e)
     | otherwise = Nothing
 
+test_infer_damp :: Test
 test_infer_damp = do
     let f dur = map (to_char . snd) . fst . Reyong.infer_damp (const dur)
             . mkevents
@@ -384,6 +405,7 @@ test_infer_damp = do
     -- But give a bit more time and all is possible.
     equal (f 0.75 [(0, "4c"), (1, "4d"), (3, "4d"), (4, "4c")]) "1111"
 
+test_assign_hands :: Test
 test_assign_hands = do
     let f = map fst . fst . Reyong.assign_hands . mkevents
     equal (f [(0, "4c"), (1, "4c"), (2, "4d"), (3, "4d"), (4, "4c")])
@@ -402,6 +424,7 @@ show_pitch (Just (Pitch.Pitch oct (Pitch.Degree d _))) =
 
 -- * octave transposition
 
+test_lower_octave_note :: Test
 test_lower_octave_note = do
     let run = first e_notes
             . DeriveTest.extract (\e -> (e_damp_dyn e, DeriveTest.e_note e))
@@ -413,6 +436,7 @@ test_lower_octave_note = do
     equal (run [(0, 1, "4i"), (1, 1, "vv | ' .5 -- 4e")])
         ([(0, 1, "4i"), (0.5, 0.5, "4o"), (1, 1, "4e"), (1, 1, "3e")], [])
 
+test_upper :: Test
 test_upper = do
     let run tracks skel = DeriveTest.extract extract $
             DeriveTest.derive_tracks_setup (DeriveTest.with_skel skel) title
@@ -434,6 +458,7 @@ test_upper = do
 
 -- * solkattu
 
+test_solkattu_note :: Test
 test_solkattu_note = do
     let run = DeriveTest.extract DeriveTest.e_note
             . DeriveTest.derive_tracks

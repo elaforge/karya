@@ -49,6 +49,7 @@ test_reapply_generator = do
             , Drums.stroke 'b' "b" (Attrs.attr "b")
             ])
 
+test_block_id_to_call :: Test
 test_block_id_to_call = do
     let f parent child = Eval.block_id_to_call True
             (UiTest.bid parent) (UiTest.bid child)

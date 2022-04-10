@@ -18,6 +18,7 @@ import           Global
 import           Util.Test
 
 
+test_note_track_call :: Test
 test_note_track_call = do
     let run = DeriveTest.extract extract
             . DeriveTest.derive_tracks_setup
@@ -27,6 +28,7 @@ test_note_track_call = do
     equal (run [(">i1", [(0, 1, "")])]) ([Just 42], [])
     equal (run [(">i2", [(0, 1, "")])]) ([Nothing], [])
 
+test_sustain_controls :: Test
 test_sustain_controls = do
     let run title = DeriveTest.extract DeriveTest.e_start_dur
             . DeriveTest.derive_tracks title . UiTest.note_track $ [(0, 1, "")]
@@ -45,6 +47,7 @@ test_sustain_controls = do
     -- %sus and staccato multiply.
     equal (run ". | %sus=.5") ([(0, 0.25)], [])
 
+test_orphan_notes :: Test
 test_orphan_notes = do
     -- Slice out orphans that aren't covered by a parent event.
     -- Also tested in 'Derive.Slice_test.test_slice_notes_orphans'.
@@ -67,6 +70,7 @@ test_orphan_notes = do
         ])
         ([((0, 1, "4c"), "+a"), ((1, 1, "4d"), "+")], [])
 
+test_transpose :: Test
 test_transpose = do
     let run = DeriveTest.extract DeriveTest.e_pitch
             . DeriveTest.derive_tracks ""
@@ -74,6 +78,7 @@ test_transpose = do
             ("t-chrom", [(0, 0, "1")])])
         (["4c#"], [])
 
+test_apply_instrument_controls :: Test
 test_apply_instrument_controls = do
     let run title controls = DeriveTest.extract DeriveTest.e_pitch $
             DeriveTest.derive_tracks_setup (with_config controls) title

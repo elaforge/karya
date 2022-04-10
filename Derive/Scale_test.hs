@@ -26,6 +26,7 @@ scale_degrees scale_id environ = do
     nns <- Scale.note_numbers scale environ
     return $ zip3 (Scale.pitches scale environ) (Scale.notes scale environ) nns
 
+test_assign_keys :: Test
 test_assign_keys = do
     let f = Scale.assign_keys 4
     equal (f [1.5]) [(1, 1.5)]

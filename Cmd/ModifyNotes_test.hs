@@ -23,6 +23,7 @@ import           Types
 import           Util.Test
 
 
+test_selected_notes :: Test
 test_selected_notes = do
     let run state start end = CmdTest.result_val $
             CmdTest.run state CmdTest.default_cmd_state $ do
@@ -50,6 +51,7 @@ test_selected_notes = do
     let fancy = mkstate [(">", [(0, 1, "")]), ("add c", [])] [(1, 2)]
     left_like (run fancy 0 2) "complicated controls unsupported"
 
+test_selected_remove :: Test
 test_selected_remove = do
     let run tracks start end = CmdTest.e_tracks $
             CmdTest.run_tracks tracks $ do
@@ -69,6 +71,7 @@ test_selected_remove = do
             0 0) $
         Right ([(">", [(4, -2, "2")]), mkpitch True [0, 3, 4]], [])
 
+test_merge_notes :: Test
 test_merge_notes = do
     let f = extract . head . ModifyNotes.merge_notes . mknotes
         mknotes notes =
@@ -83,6 +86,7 @@ test_merge_notes = do
         ([(0, "0"), (1, "1")],
             mkcontrols [("*", [(0, "4c")]), ("c", [(1, "1")])])
 
+test_write_tracks :: Test
 test_write_tracks = do
     let f state tracknums = write_tracks state tracknums . map mk
         mk (events, controls) =

@@ -27,6 +27,7 @@ import           Types
 import           Util.Test
 
 
+test_diff :: Test
 test_diff = do
     let f old new = extract $ Merge.diff index (mkevent new)
             where index = mkindex [old]
@@ -43,6 +44,7 @@ test_diff = do
     equal (f (0, 1, "a", Just 0) (1, 1, "b", Just 1)) $
         Left (1, 1, "b", Nothing)
 
+test_diff_event :: Test
 test_diff_event = do
     let f old new = Merge.diff_event (mk old) (mk new)
         mk (start, dur, text) = mkevent (start, dur, text, Nothing)
@@ -52,6 +54,7 @@ test_diff_event = do
     equal (f (0, 1, "a") (0, 1, "x a")) [Merge.Set "x a"]
     equal (f (0, 1, "a") (0, 1, "x | a")) [Merge.Prefix "x | "]
 
+test_apply :: Test
 test_apply = do
     let f = apply
     -- Event with a stack.
@@ -90,6 +93,7 @@ apply last_integrate integrated events = map extract_event $ Events.ascending $
 
 -- * derive integrate
 
+test_derive_integrate :: Test
 test_derive_integrate = do
     let f state integrated = return $ derive_integrate state integrated
     let events cs =
@@ -163,6 +167,7 @@ make_convert_tracks =
 
 -- * score integrate
 
+test_score_integrate_delete :: Test
 test_score_integrate_delete = do
     let run state m = return $ run_score_integrate 1 (modify m state)
     let events cs =
@@ -194,6 +199,7 @@ e_event_styles =
         . Events.ascending . Track.track_events))
     . Map.toList . Ui.state_tracks
 
+test_score_integrate :: Test
 test_score_integrate = do
     -- make a block with the source, then modify
     let run state m = return $ run_score_integrate 1 (modify m state)

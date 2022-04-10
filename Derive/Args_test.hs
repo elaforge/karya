@@ -14,6 +14,7 @@ import qualified Ui.UiTest as UiTest
 import           Util.Test
 
 
+test_lookup_next_pitch :: Test
 test_lookup_next_pitch = do
     let run = DeriveTest.extract (DeriveTest.e_environ "next")
             . DeriveTest.derive_tracks_setup

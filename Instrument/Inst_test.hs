@@ -11,6 +11,7 @@ import qualified User.Elaforge.Instrument.Kontakt as Kontakt
 import           Util.Test
 
 
+test_lookup :: Test
 test_lookup = do
     let db = fst $ Inst.db [Kontakt.synth]
     let f synth name = Inst.inst_midi

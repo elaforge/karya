@@ -11,6 +11,7 @@ import qualified Derive.Score as Score
 
 -- Lots of stuff that should probably be in here is in Derive.Derive_test.
 
+test_with_scale :: Test
 test_with_scale = do
     let run title = DeriveTest.extract Score.initial_nn
             . DeriveTest.derive_tracks title . UiTest.note_track1

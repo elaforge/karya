@@ -52,6 +52,7 @@ min_cc_lead = Perform.min_control_lead_time
 
 -- * perform
 
+test_perform :: Test
 test_perform = do
     let f events = do
             let (msgs, warns) = perform config2 $
@@ -123,6 +124,7 @@ test_perform = do
         , ("dev1", 2.0 - gap, (0, NoteOff 60 100))
         ]
 
+test_perform_voices :: Test
 test_perform_voices = do
     let f configs = first e_note_ons . perform (mk_configs configs)
             . map (mkevent . mke)
@@ -147,6 +149,7 @@ test_perform_voices = do
     equal (f [(0, Nothing), (1, Just 1)] [("a", 0), ("b", 0), ("c", 0)])
         ([(0, (0, Key.c4)), (0, (0, Key.cs4)), (0, (0, Key.d4))], [])
 
+test_aftertouch :: Test
 test_aftertouch = do
     let f = e_ts_chan_msg . fst . perform config1
                 . Seq.sort_on Types.event_start . map event
@@ -163,6 +166,7 @@ test_aftertouch = do
         , (1 - gap, 0, NoteOff Key.cs4 100)
         ]
 
+test_controls :: Test
 test_controls = do
     let f extract = first extract . perform config1
             . map mkpevent . (:[])
@@ -179,6 +183,7 @@ test_controls = do
     equal (f e_control (0, 4, [(0, 60)], [("cc1", [(0, 0), (1, 0), (1, 0.5)])]))
         ([(-min_cc_lead, 0), (1, 64)], [])
 
+test_controls_after_note_off :: Test
 test_controls_after_note_off = do
     -- Test that controls happen during note off, but don't interfere with
     -- other notes.  This corresponds to the comment in 'Perform.perform_note'.
@@ -234,6 +239,7 @@ test_controls_after_note_off = do
             ])
         [127, 64]
 
+test_control_lead_time :: Test
 test_control_lead_time = do
     -- verify that controls are given lead time if they are on their own
     -- channels, and not if they aren't
@@ -298,6 +304,7 @@ test_control_lead_time = do
          , (8 - gap, 2, NoteOff 61 100)
          ], [])
 
+test_pedal :: Test
 test_pedal = do
     let f = extract . perform config1 . mkevents
         extract = first $ PerformTest.extract_msg $ PerformTest.e_cc 64
@@ -310,6 +317,7 @@ test_pedal = do
     -- are probably still some cases where this isn't enough, but I'll deal
     -- with them if I come across them.
 
+test_msgs_sorted :: Test
 test_msgs_sorted = do
     -- Ensure that msgs are in order, even after control lead time.
     let f = extract . perform config1 . map mkevent
@@ -325,6 +333,7 @@ test_msgs_sorted = do
 badsig :: ScoreT.Control -> (ScoreT.Control, MSignal.Signal)
 badsig cont = (cont, linear_interp [(0, 0), (1.5, 1.5), (2.5, 0.5), (4, 2)])
 
+test_clip_warns :: Test
 test_clip_warns = do
     let events = [mkevent (patch1, "a", 0, 4, [badsig Controls.vol])]
         (msgs, warns) = perform config1 events
@@ -338,6 +347,7 @@ test_clip_warns = do
         ]
     check ("valid: " <> pretty msgs) (all_msgs_valid msgs)
 
+test_keyswitch_share_chan :: Test
 test_keyswitch_share_chan = do
     let f evts = first extract $ perform config1 (map make evts)
         extract = map snd . e_note_ons
@@ -358,6 +368,7 @@ test_keyswitch_share_chan = do
     equal (f [(ks1, "a", 0), (ks2, "b", 10)])
         ([(0, Key.c1), (0, Key.c4), (0, Key.d1), (0, Key.cs4)], [])
 
+test_perform_lazy :: Test
 test_perform_lazy = do
     let perform evts = perform_notes [(evt, (dev1, 0)) | evt <- evts]
     let endless = map mkevent [(patch1, Text.singleton n, ts, 4, [])
@@ -366,6 +377,7 @@ test_perform_lazy = do
     res <- run_timeout 1 $ return (take 20 msgs)
     equal (fmap length res) (Just 20)
 
+test_no_pitch :: Test
 test_no_pitch = do
     let event = (mkevent (patch1, "a", 0, 2, []))
             { Types.event_pitch = MSignal.constant 0 }
@@ -375,6 +387,7 @@ test_no_pitch = do
 
 -- * perform_note
 
+test_min_duration :: Test
 test_min_duration = do
     let f = extract . expect_no_logs . perform_notes . map make
         extract = mapMaybe $ \wmsg ->
@@ -384,6 +397,7 @@ test_min_duration = do
         min_dur = Perform.min_note_duration
     equal (f [("a", 1, 0)]) [(1, (True, Key.c4)), (1+min_dur, (False, Key.c4))]
 
+test_pitch_curve :: Test
 test_pitch_curve = do
     let event pitch = mkpevent (1, 0.5, pitch, [])
     let f evt = Seq.drop_dups id (map Midi.wmsg_msg msgs)
@@ -413,6 +427,7 @@ test_pitch_curve = do
     equal (head (notes 1 (event [(1, 42.5)])))
         (1 - min_cc_lead, Midi.ChannelMessage 1 (Midi.PitchBend 0.5))
 
+test_keyswitch :: Test
 test_keyswitch = do
     let e_note_on = mapMaybe $ \wmsg ->
             (,) (Midi.wmsg_ts wmsg) <$> note_on_key (Midi.wmsg_msg wmsg)
@@ -497,6 +512,7 @@ test_keyswitch = do
         , (1, Midi.ChannelMessage 0 (Midi.NoteOn Key.cs4 100))
         ]
 
+test_keyswitch_aftertouch :: Test
 test_keyswitch_aftertouch = do
     let f = expect_no_logs . perform_notes . map with_addr
         with_addr (ks, pitch, start, dur) =
@@ -580,6 +596,7 @@ expect_no_logs (_, logs) =
 
 -- * post process
 
+test_post_process_drop_dup_controls :: Test
 test_post_process_drop_dup_controls = do
     let mkcc chan cc val = Midi.ChannelMessage chan (Midi.ControlChange cc val)
         mkpb chan val = Midi.ChannelMessage chan (Midi.PitchBend val)
@@ -604,6 +621,7 @@ test_post_process_drop_dup_controls = do
 
     -- TODO keyswitches
 
+test_post_process_avoid_overlaps :: Test
 test_post_process_avoid_overlaps = do
     let f = extract . fst . perform configs
             . map (\(a, b, c, d) -> mkevent (a, b, c, d, []))
@@ -654,6 +672,7 @@ test_post_process_avoid_overlaps = do
 
 -- * control
 
+test_perform_control :: Test
 test_perform_control = do
     -- Bad signal that goes over 1 in two places.
     let sig = (Controls.vol, linear_interp
@@ -667,6 +686,7 @@ test_perform_control = do
     -- goes over in 2 places
     equal (length warns) 2
 
+test_control_overlap :: Test
 test_control_overlap = do
     -- Ensure that a control that falls within the adjacent_note_gap won't
     -- mess up the next note.
@@ -689,6 +709,7 @@ test_control_overlap = do
 -- * channelize
 
 -- test the overlap map and channel allocation
+test_channelize :: Test
 test_channelize = do
     let pevent (start, dur, psig) = mkpevent (start, dur, psig, [])
         f = map snd . channelize config2 . map pevent
@@ -735,6 +756,7 @@ test_channelize = do
         ])
         [0, 0]
 
+test_can_share_chan :: Test
 test_can_share_chan = do
     let f evt1 evt2 = Maybe.isNothing $
             Perform.can_share_chan (mkpevent evt1) (mkpevent evt2)
@@ -789,6 +811,7 @@ test_can_share_chan = do
     equal (f (mkc 2 1 60 [(0, 1)]) (mkc 2 1 61 [(0, 0)]))
         False
 
+test_overlap_map :: Test
 test_overlap_map = do
     let extent e = (Types.event_start e, Types.event_duration e)
     let f overlapping event =
@@ -817,6 +840,7 @@ channelize configs events = LEvent.events_of $ fst $
 
 -- * allot
 
+test_allot :: Test
 test_allot = do
     let mk inst chan start = (mkevent (inst, "a", start, 1, []), chan)
         mk1 = mk patch1
@@ -832,6 +856,7 @@ test_allot = do
     -- Instruments with no allocation get filtered out.
     equal (f [mk1 1, mk patch2 1, mk1 2]) [0, 1]
 
+test_allot_steal :: Test
 test_allot_steal = do
     let f = extract . allot config1 . map mk . zip (Seq.range_ 0 1)
         extract = first (map (snd . snd)) . LEvent.partition
@@ -840,6 +865,7 @@ test_allot_steal = do
     let (chans, _logs) = f [0, 1, 2, 0]
     equal chans [0, 1, 0, 1]
 
+test_allot_warn :: Test
 test_allot_warn = do
     let f = mapMaybe extract . allot config1
             . map (\(evt, chan) -> (mkevent evt, chan))

@@ -23,6 +23,7 @@ clip_tracks = [("t1", [(0, 2, "c1"), (4, 2, "c2")])]
 
 -- * copy
 
+test_cmd_copy_selection :: Test
 test_cmd_copy_selection = do
     let state = UiTest.exec Ui.empty $
             UiTest.mkviews [(UiTest.default_block_name, [track1, track2])]
@@ -58,6 +59,7 @@ run_sel state cmd strack spos ctrack cpos = e_tracks UiTest.default_block_id $
         CmdTest.set_sel strack spos ctrack cpos
         cmd
 
+test_paste_past_block_end :: Test
 test_paste_past_block_end = do
     -- Events pasted past the end of the block are clipped off.
     let state = mkstate [("t1", [])] clip_tracks
@@ -67,6 +69,7 @@ test_paste_past_block_end = do
     equal (run 1 (end-1) 1 (end-1)) $ Right [("t1", [(end-1, 1, "c1")])]
     equal (run 1 end 1 end) $ Right [("t1", [])]
 
+test_cmd_paste_overwrite :: Test
 test_cmd_paste_overwrite = do
     let run state = run_sel state Clip.cmd_paste_overwrite
     let f = run (mkstate [track1, track2] clip_tracks)
@@ -99,6 +102,7 @@ test_cmd_paste_overwrite = do
     let f = run (mkstate [("t1", [])] [("t1", [(0, 0, "a"), (1, 0, "b")])])
     equal (f 1 1 1 1) $ Right [("t1", [(1, 0, "a"), (2, 0, "b")])]
 
+test_cmd_paste_merge :: Test
 test_cmd_paste_merge = do
     let state = mkstate [track1, track2] clip_tracks
         run = run_sel state
@@ -122,6 +126,7 @@ test_cmd_paste_merge = do
         , track2
         ]
 
+test_cmd_paste_insert :: Test
 test_cmd_paste_insert = do
     let state = mkstate [track1, track2] clip_tracks
         run = run_sel state Clip.cmd_paste_insert
@@ -147,6 +152,7 @@ test_cmd_paste_insert = do
     equal (run 1 (end-2) 1 (end-2)) $ Right
         [("t1", [(end-2, 2, "c")])]
 
+test_cmd_paste_stretch :: Test
 test_cmd_paste_stretch = do
     let run clip_tracks = run_sel (mkstate [("t1", []), ("t2", [])] clip_tracks)
             Clip.cmd_paste_stretch

@@ -15,6 +15,7 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
+test_diatonic_to_chromatic_church :: Test
 test_diatonic_to_chromatic_church = do
     -- Expected intervals.
     let intervals n offset start_on = map fromIntegral $
@@ -46,6 +47,7 @@ test_diatonic_to_chromatic_church = do
     equal (map (f (key "d-min") (n "d")) [0..3]) [0, 2, 3, 5]
     equal (map (f (key "d-min") (n "d")) [0, -1, -2, -3]) [0, -2, -4, -5]
 
+test_diatonic_to_chromatic_other :: Test
 test_diatonic_to_chromatic_other = do
     let f = Theory.diatonic_to_chromatic
     -- octatonic and whole tone
@@ -60,6 +62,7 @@ test_diatonic_to_chromatic_other = do
     equal (map (f (key "a-whole") (n "a")) [0..3]) [0, 2, 4, 6]
     equal (map (f (key "a-whole") (n "a#")) [0..3]) [0, 2, 4, 6]
 
+test_transpose_diatonic :: Test
 test_transpose_diatonic = do
     let f key steps pitch = show_pitch $
             Theory.transpose_diatonic key steps pitch
@@ -81,6 +84,7 @@ test_transpose_diatonic = do
     equal (fs "bb-octa21" "1bb" 8)
         ["1bb", "2c", "2db", "2eb", "2e", "2gb", "2g", "2a", "2bb"]
 
+test_pitch_to_semis :: Test
 test_pitch_to_semis = do
     let semis = Theory.pitch_to_semis Twelve.layout
         pitch k = Theory.semis_to_pitch (key k)
@@ -109,6 +113,7 @@ test_pitch_to_semis = do
     equal (map (show_pitch . pitch "d-hijaz") [14..19])
         ["1d", "1eb", "1e", "1f", "1f#", "1g"]
 
+test_calculate_signature :: Test
 test_calculate_signature = do
     let f note ints = Vector.toList $
             Theory.calculate_signature note
@@ -129,6 +134,7 @@ test_calculate_signature = do
     equal (f (n "cb") [2, 2, 1, 2, 2, 2, 1]) -- cb-major
         [-1, -1, -1, -1, -1, -1, -1]
 
+test_enharmonics_of :: Test
 test_enharmonics_of = do
     let f = map show_pitch . Theory.enharmonics_of Twelve.layout . p
     equal (f "1e") ["1fb", "1dx"]
@@ -142,6 +148,7 @@ test_enharmonics_of = do
     equal (cycle_en "1c") ["1c", "1dbb", "0b#", "1c"]
     equal (cycle_en "1g#") ["1g#", "1ab", "1g#", "1ab"]
 
+test_step_of :: Test
 test_step_of = do
     let f k note = Theory.step_of (key k) (n note)
     -- Diatonic scales care about the letter.

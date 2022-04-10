@@ -21,6 +21,7 @@ import           Util.Test
 
 -- * note calls
 
+test_mordent :: Test
 test_mordent = do
     let run = DeriveTest.extract DeriveTest.e_pitch . run_note
     equal (run (1, 1, "`mordent`")) (["4c", "4d", "4c"], [])
@@ -29,6 +30,7 @@ test_mordent = do
 run_note :: UiTest.EventSpec -> Derive.Result
 run_note note = derive_tracks [(">", [note]), ("*", [(0, 0, "4c")])]
 
+test_grace :: Test
 test_grace = do
     let run extract = DeriveTest.extract extract . derive_tracks
         tracks notes = [(">", notes), ("*", [(0, 0, "4c")])]
@@ -88,6 +90,7 @@ test_grace = do
     equal (run_a $ tracks [(0, 1, "g (4a) (4b)")])
         (["+pizz", "+legato", "+legato"], [])
 
+test_grace_transpose :: Test
 test_grace_transpose = do
     let run = DeriveTest.extract DeriveTest.e_note
             . DeriveTest.derive_tracks "grace-dur=1 | %legato-overlap=0"
@@ -101,6 +104,7 @@ test_grace_transpose = do
     strings_like (snd $ run [(0, 2, "g 2c 1d -- 4c")])
         ["arguments should all have the same type"]
 
+test_grace_hold :: Test
 test_grace_hold = do
     let run = DeriveTest.extract DeriveTest.e_note
             . DeriveTest.derive_tracks "grace-dur=1"
@@ -108,6 +112,7 @@ test_grace_hold = do
     equal (run [(0, 2, "g- 2 1 -- 4c")])
         ([(-2, 4, "4e"), (-1, 3, "4d"), (0, 2, "4c")], [])
 
+test_grace_pitch :: Test
 test_grace_pitch = do
     let run = DeriveTest.extract extract
             . DeriveTest.derive_tracks "grace-dur=1"
@@ -126,12 +131,14 @@ test_grace_pitch = do
         , []
         )
 
+test_basic_grace :: Test
 test_basic_grace = do
     let run = DeriveTest.extract extract . derive_tracks . UiTest.note_track
         extract e = (DeriveTest.e_note e, DeriveTest.e_attributes e)
     equal (run [(0, 2, "grace  (list 1) 1s 1 \"(+a) -- 4c")])
         ([((0, 1, "4d"), "+a"), ((1, 1, "4c"), "+")], [])
 
+test_grace_args :: Test
 test_grace_args = do
     let run = DeriveTest.extract DeriveTest.e_pitch . derive_tracks
             . UiTest.note_track
@@ -143,6 +150,7 @@ test_grace_args = do
     strings_like (snd (run [(1, 1, "g 2 1c -- 4c")]))
         ["arguments should all have the same type"]
 
+test_grace_ly :: Test
 test_grace_ly = do
     let run = LilypondTest.derive_measures ["acciaccatura"]
     equal (run
@@ -159,6 +167,7 @@ test_grace_ly = do
         (Right "<< { VoiceOne: c1 } { VoiceTwo: \\acciaccatura { e8 } d1 } >>",
             [])
 
+test_roll :: Test
 test_roll = do
     let run extract = DeriveTest.extract extract . derive_tracks
     let tracks call = [(">", [(2, 1, call)]), ("*", [(2, 0, "4c")])]
@@ -178,6 +187,7 @@ test_roll = do
 
 -- * pitch calls
 
+test_grace_p :: Test
 test_grace_p = do
     let run = CallTest.run_pitch ""
     equal (run [(0, "grace-dur = 2 | g (4c) -2 -1"), (10, "--|")])
@@ -185,6 +195,7 @@ test_grace_p = do
     equal (run [(0, "grace-dur = 2 | g (4c) -2c -1"), (3, "--|")])
         [(0, NN.as3), (1, NN.as3), (1, NN.b3), (2, NN.b3), (2, NN.c4)]
 
+test_mordent_p :: Test
 test_mordent_p = do
     let run = CallTest.run_pitch ""
     equal (run [(0, "dur=2 | `mordent` (4c)")])

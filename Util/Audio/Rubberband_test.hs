@@ -16,6 +16,7 @@ import qualified Util.Num as Num
 import           Util.Test
 
 
+test_offline_time :: Test
 test_offline_time = do
     let f convert ratio frames =
             fmap (Num.sum . map V.length) $ convert $

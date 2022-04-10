@@ -21,6 +21,7 @@ import qualified User.Elaforge.Instrument.VslInst as VslInst
 import           Util.Test
 
 
+test_attr_priority :: Test
 test_attr_priority = do
     let Just violin = List.find
             ((=="violin") . Patch.patch_name)
@@ -34,6 +35,7 @@ test_attr_priority = do
     -- Everything wins over +nv.
     equal (lookup (VslInst.nv <> VslInst.legato)) (lookup VslInst.legato)
 
+test_strip_attrs :: Test
 test_strip_attrs = do
     let f = map ShowVal.show_val . Vsl.strip_attrs . map Attrs.attrs
     -- Strip them.
@@ -43,6 +45,7 @@ test_strip_attrs = do
     -- Or if it's non-unique with an already stripped one.
     equal (f [["sus"], ["vib"]]) ["+", "+vib"]
 
+test_natural_harmonic :: Test
 test_natural_harmonic = do
     let run attrs pitch = DeriveTest.extract extract $
             DeriveTest.derive_tracks_setup with ""
@@ -67,6 +70,7 @@ test_natural_harmonic = do
     equal (run "+harm+nat+gliss+up" "4g") ([Key.c3], [])
     equal (run "+harm+nat+gliss+down" "4g") ([Key.c3], [])
 
+test_infer_seconds :: Test
 test_infer_seconds = do
     let run call = DeriveTest.extract DeriveTest.e_attributes $
             DeriveTest.derive_tracks_setup with "" [(">v", [(0, 2, call)])]
@@ -75,6 +79,7 @@ test_infer_seconds = do
     equal (run "sec +cresc u") (["+cresc+sec3"], [])
     equal (run "sec +cresc d") (["+cresc+sec1-5"], [])
 
+test_parse_sec :: Test
 test_parse_sec = do
     let f = VslInst.parse_sec
     equal (f $ VslInst.cresc <> VslInst.sec 1.5) (Just (1.5, VslInst.cresc))

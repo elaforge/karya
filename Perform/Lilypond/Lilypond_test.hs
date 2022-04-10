@@ -21,6 +21,7 @@ import           Global
 import           Util.Test
 
 
+test_convert_sections :: Test
 test_convert_sections = do
     let run = LilypondTest.derive_staves []
     let (events, logs) = run $ concatMap UiTest.note_spec
@@ -37,6 +38,7 @@ test_convert_sections = do
         , ("i2", ["r4 g'4 a2~ | a1~ | a1~ | a2 r2"])
         ]
 
+test_staff_configs :: Test
 test_staff_configs = do
     let piano = Types.empty_staff_config
             { Types.staff_long = "piano"
@@ -60,6 +62,7 @@ test_staff_configs = do
         "instrumentName = \"viola\"*shortInstrumentName = \"vla\"*viola code\
         \*instrumentName = \"piano\"*piano code"
 
+test_add_bass_staff :: Test
 test_add_bass_staff = do
     let config = Types.default_config
             { Types.config_staves = [("i1", staff_config)] }
@@ -90,6 +93,7 @@ test_add_bass_staff = do
     -- equal logs []
     -- match text "major s1 |*s1"
 
+test_hands :: Test
 test_hands = do
     let run = LilypondTest.derive_staves
     let (events, logs) = run [] $ concatMap UiTest.note_spec
@@ -112,6 +116,7 @@ test_hands = do
             ])
         (Right [("i1", ["c1", "\\clef bass R4*4"])], [])
 
+test_clefs :: Test
 test_clefs = do
     let f = LilypondTest.derive_measures ["clef"]
     equal (f
@@ -120,6 +125,7 @@ test_clefs = do
             ])
         (Right "\\clef bass c'2 \\clef alto c'2~ | c'1", [])
 
+test_key :: Test
 test_key = do
     let f = LilypondTest.derive_measures ["key"]
     equal (f
@@ -129,6 +135,7 @@ test_key = do
             ])
         (Right "\\key a \\mixolydian c'2 \\key c \\major c'2", [])
 
+test_ly_prepend_append :: Test
 test_ly_prepend_append = do
     let f env = LilypondTest.convert_measures [] $
             map LilypondTest.environ_event [(0, 12, Just LilypondTest.a3, env)]
@@ -146,6 +153,7 @@ test_ly_prepend_append = do
     equal (f (str (key Constants.Prepend Constants.First) "x")) $
         Right "x a1~ | a1~ | a1"
 
+test_ly_code :: Test
 test_ly_code = do
     -- Test stand-alone zero-dur code fragments.
     let f = LilypondTest.measures [] . LilypondTest.derive_tracks_setup calls
@@ -181,6 +189,7 @@ test_ly_code = do
 -- These actually test derivation in lilypond mode.  So maybe they should go
 -- in derive, but if I put them here I can test all the way to lilypond score.
 
+test_clip_block :: Test
 test_clip_block = do
     let run = LilypondTest.extract LilypondTest.e_note
             . LilypondTest.derive_blocks
@@ -196,6 +205,7 @@ test_clip_block = do
             ])
         ([(0, q, "c"), (q, q, "d"), (q*2, Types.dur_to_time Types.D8, "e")], [])
 
+test_ly_global :: Test
 test_ly_global = do
     let run global tracks = LilypondTest.derive_staves ["pre", "tempo"] $
             (">ly-global", global) : concatMap UiTest.note_track tracks
@@ -209,6 +219,7 @@ test_ly_global = do
         (Right [("i1", ["\\tempo slow c4 r4 r2"]),
             ("i2", ["\\tempo slow d4 r4 r2"])], [])
 
+test_meter :: Test
 test_meter = do
     let run meter notes = LilypondTest.derive_measures ["time"] $
             (">", meter) : UiTest.note_track notes
@@ -220,12 +231,14 @@ test_meter = do
             [(0, 3, "4a"), (3, 3, "4b")])
         (Right "\\time 2/4 a'2~ | \\time 4/4 a'4 b'2.", [])
 
+test_enharmonics :: Test
 test_enharmonics = do
     let (events, logs) = LilypondTest.derive_measures [] $ UiTest.note_track
             [(0, 1, "4c#"), (1, 1, "4db"), (2, 1, "4cx")]
     equal logs []
     equal events $ Right "cs'4 df'4 css'4 r4"
 
+test_tempo :: Test
 test_tempo = do
     -- Lilypond derivation is unaffected by the tempo.
     let (events, logs) = LilypondTest.extract extract $
@@ -239,6 +252,7 @@ test_tempo = do
     equal logs []
     equal events [(0, whole), (whole, whole)]
 
+test_attributes :: Test
 test_attributes = do
     let f = LilypondTest.derive_measures []
     equal (f
@@ -247,11 +261,13 @@ test_attributes = do
         ])
         (Right "a'4 -+ b'4 -. c'4 r4", [])
 
+test_modal_attributes :: Test
 test_modal_attributes = do
     let f = LilypondTest.derive_measures [] . (:[("*", [(0, 0, "3c")])])
     equal (f (">", [(0, 1, "+pizz"), (1, 1, "+pizz"), (2, 1, "")]))
         (Right "c4 ^\"pizz.\" c4 c4 ^\"arco\" r4", [])
 
+test_prepend_append :: Test
 test_prepend_append = do
     let f = LilypondTest.derive_measures ["p", "mf"]
     equal (f $
@@ -259,6 +275,7 @@ test_prepend_append = do
             [(0, 1, "4a"), (1, 1, "4b"), (2, 1, "4c"), (3, 1, "4d")])
         (Right "a'4 \\p b'4 c'4 \\mf d'4", [])
 
+test_append_pitch :: Test
 test_append_pitch = do
     let f = LilypondTest.derive_measures []
     -- Append pitch works even on pitches in chords.
@@ -268,6 +285,7 @@ test_append_pitch = do
             ])
         (Right "<c'?~ ef'>2 <c' e'?>2", [])
 
+test_voices :: Test
 test_voices = do
     let f = LilypondTest.derive_measures []
     let tracks = concatMap UiTest.note_track
@@ -281,6 +299,7 @@ test_voices = do
     equal logs []
     match text "voiceOne*voiceTwo*oneVoice"
 
+test_movements :: Test
 test_movements = do
     let run = make_ly Types.default_config
     let (text, logs) = run $
@@ -289,6 +308,7 @@ test_movements = do
     -- \score, first movement, movement title, \score, second movement
     match text "score * c4 d4 e4 f4 *number 2*score * g4 a4 r2"
 
+test_parse_meters :: Test
 test_parse_meters = do
     let f end = fmap (bimap (map pretty) (map pretty))
             . Lilypond.parse_meters 0 (end * Types.time_per_whole)

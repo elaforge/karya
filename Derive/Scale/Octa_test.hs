@@ -15,6 +15,7 @@ import qualified Perform.NN as NN
 import Global
 
 
+test_input_to_nn :: Test
 test_input_to_nn = do
     let octa21 = ScaleTest.get_scale Octa.scales "octa21"
     let f input = second (first prettys) $ DeriveTest.eval Ui.empty $

@@ -29,6 +29,7 @@ manual_test = do
         G.p6 : replicate 5 G.__
 
 
+test_spellRests :: Test
 test_spellRests = do
     let f = mconcat . map toSpace . map Util.Html.un_html
             . Html.spellRests . zip [0..]

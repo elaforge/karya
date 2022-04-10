@@ -7,6 +7,7 @@ import Util.Test
 import qualified Derive.DeriveTest as DeriveTest
 
 
+test_mapc :: Test
 test_mapc = do
     let run extract = DeriveTest.extract extract . DeriveTest.derive_tracks ""
     strings_like

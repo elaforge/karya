@@ -13,6 +13,7 @@ import qualified Solkattu.Tala as Tala
 import Util.Test
 
 
+test_toScore :: Test
 test_toScore = do
     equal (run [] mempty G.p5)
         [ (0, 0, "k"), (1/4, 0, "t"), (2/4, 0, "k"), (3/4, 0, "n")

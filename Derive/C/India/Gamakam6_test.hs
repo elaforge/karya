@@ -17,6 +17,7 @@ import Global
 import Types
 
 
+test_sequence :: Test
 test_sequence = do
     let run c = derive_tracks e_nns $ pitch_gamakam_note
                 [(0, "4c"), (4, "4d"), (6, "4e")]
@@ -47,6 +48,7 @@ drop_last_dups key = go
         | otherwise = x : go xs
     go [] = []
 
+test_parse :: Test
 test_parse = do
     let f = Gamakam.parse
     equal (f "") $ Right []

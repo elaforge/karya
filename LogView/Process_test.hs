@@ -13,12 +13,14 @@ import qualified LogView.Process as Process
 import           Util.Test
 
 
+test_process_msg :: Test
 test_process_msg = do
     let f = fmap (UTF8.toString . Process.style_text) . fst
             . Process.process_msg (Process.initial_state "")
     equal (f (Log.msg Log.Debug Nothing "hi"))
-        (Just "*   LogView/Process_test.hs:19 hi\n")
+        (Just "*   LogView/Process_test.hs:20 hi\n")
 
+test_render_status :: Test
 test_render_status = do
     let status = Map.fromList [("a", "one {click} 1"), ("b", "two")]
     let f = Process.render_status
@@ -26,6 +28,7 @@ test_render_status = do
         "a: one {click} 1 || b: two"
         "DAAAAAACCCCCCCAAEEEEDAAAAA"
 
+test_catch_pattern :: Test
 test_catch_pattern = do
     let f key val = Process.state_status $ snd $ Process.process_msg state $
             mkmsg key val
@@ -39,6 +42,7 @@ test_catch_pattern = do
     -- Key is deleted.
     equal (f "key" "") Map.empty
 
+test_flatten_ranges :: Test
 test_flatten_ranges = do
     let f = Process.flatten_ranges 'z'
     equal (f [((2, 4), 'a')]) [(2, 'z'), (2, 'a')]
@@ -49,6 +53,7 @@ test_flatten_ranges = do
     equal (f [((2, 6), 'a'), ((3, 5), 'b'), ((4, 4), 'c')])
         [(2, 'z'), (1, 'a'), (1, 'b'), (1, 'b'), (1, 'a')]
 
+test_regex_style :: Test
 test_regex_style = do
     let f = UTF8.toString . Process.style_style . Process.run_formatter
             . Process.regex_style Process.style_plain Process.msg_text_regexes

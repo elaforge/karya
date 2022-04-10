@@ -15,6 +15,7 @@ import qualified User.Elaforge.Instrument.Kontakt as Kontakt
 import Global
 
 
+test_sequence :: Test
 test_sequence = do
     let run = DeriveTest.extract extract . derive_tracks ""
         extract e = (Score.event_start e, DeriveTest.e_attributes e)
@@ -44,6 +45,7 @@ test_sequence = do
     -- hardcoded pattern
     equal (run [(2, 2, "tk")]) ([(2, "+ki"), (3, "+tha")], [])
 
+test_tirmanam :: Test
 test_tirmanam = do
     let run = DeriveTest.extract extract . derive_tracks " | cancel"
         extract e = (Score.event_start e, DeriveTest.e_attributes e)
@@ -77,6 +79,7 @@ test_tirmanam = do
     equal (run [(5, -5, "dur=1 | tir t o"), (5, 0, "n"), (6, 0, "d")])
         (zip (Seq.range_ 0 1) (tathom ++ ["+thom", "+din"]), [])
 
+test_stretch_karvai :: Test
 test_stretch_karvai = do
     let f seq karvai matra event =
             Mridangam.stretch_karvai (Mridangam.parse_sequence seq)
@@ -88,6 +91,7 @@ test_stretch_karvai = do
     equal (f "+kn+k_+u_k" "D_" 1 34)
         (Right [(1, Mridangam.Stroke 'D'), (1, Mridangam.Rest)])
 
+test_pattern :: Test
 test_pattern = do
     let run = DeriveTest.extract extract . derive_tracks ""
         extract e = (Score.event_start e, DeriveTest.e_attributes e)

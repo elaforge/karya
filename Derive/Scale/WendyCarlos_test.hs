@@ -10,6 +10,7 @@ import qualified Ui.UiTest as UiTest
 import           Util.Test
 
 
+test_pitches :: Test
 test_pitches = do
     let run title = DeriveTest.extract DeriveTest.e_nns
             . DeriveTest.derive_tracks ("scale=alpha" <> title)
@@ -19,6 +20,7 @@ test_pitches = do
     equal (run " | %a0-nn=1" [(0, 1, "1a"), (1, 1, "1b")])
         ([[(0, 13), (1, 13)], [(1, 13.78)]], [])
 
+test_transpose_controls :: Test
 test_transpose_controls = do
     let f p = DeriveTest.extract Score.initial_nn $
             DeriveTest.derive_tracks "scale=alpha" $

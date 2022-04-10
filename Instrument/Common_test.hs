@@ -11,6 +11,7 @@ import qualified Instrument.Common as Common
 import Global
 
 
+test_overlapping_attributes :: Test
 test_overlapping_attributes = do
     let overlapping = Common.AttributeMap
             [ (mkattrs "", 0)

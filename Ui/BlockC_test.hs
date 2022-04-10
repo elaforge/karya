@@ -55,6 +55,7 @@ send = Fltk.send_action global_ui_channel "test"
 
 -- tests
 
+test_create_set_size :: Test
 test_create_set_size = do
     view <- create_empty_view
     io_human "move and change size" $
@@ -62,6 +63,7 @@ test_create_set_size = do
     io_human "view is destroyed" $
         send $ BlockC.destroy_view view
 
+test_scroll_zoom :: Test
 test_scroll_zoom = do
     view <- create_empty_view
     insert_track view 1 (event_track long_event_track) 200
@@ -84,6 +86,7 @@ test_scroll_zoom = do
     io_human "zoom out back to 1" $
         send $ BlockC.set_zoom view (Zoom.Zoom 0 1)
 
+test_set_selection :: Test
 test_set_selection = do
     view <- create_empty_view
     let ruler = mkruler 20 10
@@ -101,6 +104,7 @@ test_set_selection = do
         ]
     io_human "goes away" $ send $ set []
 
+test_set_config :: Test
 test_set_config = do
     view <- create_empty_view
     let config = Block.default_config
@@ -113,6 +117,7 @@ test_set_config = do
         send $ BlockC.set_config view
             (config { Block.config_sb_box = Block.Box Color.red '中' })
 
+test_set_title :: Test
 test_set_title = do
     view <- create_empty_view
     insert_track view 1 (event_track event_track_1) 20
@@ -127,6 +132,7 @@ test_set_title = do
     io_human "track title cleared" $
         send $ BlockC.set_track_title view 1 ""
 
+test_update_track :: Test
 test_update_track = do
     view <- create_empty_view
     let ruler = mkruler 20 10
@@ -140,6 +146,7 @@ test_update_track = do
         send $ BlockC.update_track True view 2
             (Block.T event_track_2 ruler) [] set_style 0 60
 
+test_insert_remove_track :: Test
 test_insert_remove_track = do
     view <- create_empty_view
     let ruler = mkruler 20 10
@@ -151,6 +158,7 @@ test_insert_remove_track = do
     io_human "remove ruler track, others move over" $
         send $ BlockC.remove_track view 0
 
+test_track_signal :: Test
 test_track_signal = do
     view <- create_empty_view
     let track = Track.set_render_style (Track.Line Nothing) event_track_1
@@ -172,6 +180,7 @@ test_track_signal = do
         send $ BlockC.remove_track view 1
 
 -- This should really be in Ui.SymbolC_test, but I'm lazy.
+test_symbols :: Test
 test_symbols = do
     let sym = Symbol.Symbol "1^" True
             [ Symbol.glyph "1"
@@ -189,6 +198,7 @@ test_symbols = do
         insert_track view 1
             (event_track (UiTest.make_track ("syms", [(0, 16, "`1^`")]))) 40
 
+test_set_ruler_width :: Test
 test_set_ruler_width = do
     view_id <- create_empty_view
     io_human "insert wide then narrow rulers" $ do

@@ -8,6 +8,7 @@ import qualified Derive.Scale.Bali as Bali
 import qualified Perform.Pitch as Pitch
 
 
+test_extend_scale :: Test
 test_extend_scale = do
     let f = Bali.extend_scale 2
         p = Pitch.pitch

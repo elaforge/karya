@@ -8,6 +8,7 @@ import qualified Derive.Scale.Scales as Scales
 import qualified Perform.Pitch as Pitch
 
 
+test_ascii_kbd_pitch :: Test
 test_ascii_kbd_pitch = do
     let f per_oct oct pc = extract $ Scales.ascii_kbd_pitch per_oct $
             Pitch.Pitch oct (Pitch.Degree pc 0)
@@ -32,6 +33,7 @@ test_ascii_kbd_pitch = do
         , (1, 3), (1, 4), (1, 5), (1, 6), (1, 7)
         ]
 
+test_piano_kbd_pitch :: Test
 test_piano_kbd_pitch = do
     let f per_oct oct pc = extract <$> Scales.piano_kbd_pitch 0 per_oct
             (Pitch.Pitch oct (Pitch.Degree pc 0))

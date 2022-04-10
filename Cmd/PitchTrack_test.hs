@@ -92,6 +92,7 @@ test_parse_roundtrip = do
     uncurry equal (f "a | 4c 0")
     uncurry equal (f "tr (4c) 0")
 
+test_modify_note :: Test
 test_modify_note = do
     let f = PitchTrack.modify_note
             (\n -> Right $ Pitch.Note $ "*" <> Pitch.note_text n <> "*")
@@ -104,6 +105,7 @@ test_modify_note = do
     equal (f "x = 'y'") (Right "x = 'y'")
     equal (f "x = (y)") (Right "x = (y)")
 
+test_transpose_selection :: Test
 test_transpose_selection = do
     let f = PitchTrack.transpose_selection Scale.Chromatic
         run events = run_tracks [("*", events)]

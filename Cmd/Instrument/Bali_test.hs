@@ -9,6 +9,7 @@ import qualified Derive.Scale as Scale
 import qualified Perform.Pitch as Pitch
 
 
+test_wrap_octaves :: Test
 test_wrap_octaves = do
     let f low high = unpitch
             . Bali.wrap_octaves (Scale.Range (pitch low) (pitch high)) . pitch

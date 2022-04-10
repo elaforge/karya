@@ -8,6 +8,7 @@ import qualified Ui.UiTest as UiTest
 import qualified Derive.DeriveTest as DeriveTest
 
 
+test_ratio :: Test
 test_ratio = do
     let e_nns = DeriveTest.extract DeriveTest.e_nns
         e_tsig r =

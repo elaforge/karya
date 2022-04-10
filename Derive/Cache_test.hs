@@ -40,6 +40,7 @@ import           Util.Test
 
 -- * other functions
 
+test_invalidate_damaged :: Test
 test_invalidate_damaged = do
     let mkdamage tracks blocks = Derive.ScoreDamage
             (Map.fromList tracks) Set.empty
@@ -83,6 +84,7 @@ test_invalidate_damaged = do
 
 -- Test interaction with the rest of the evaluation system.
 
+test_no_damage :: Test
 test_no_damage = do
     let create = mkblocks
             [ ("top", [(">i", [(0, 1, ""), (1, 2, "sub")])])
@@ -97,6 +99,7 @@ test_no_damage = do
     -- make sure there's stuff in the cache now
     not_equal (r_cache_stacks cached) []
 
+test_cached_track :: Test
 test_cached_track = do
     -- If one track is damaged, it rederives and the other is cached.
     let create = mkblock
@@ -112,6 +115,7 @@ test_cached_track = do
         , "top top.t2 \\*: rederived"
         ]
 
+test_add_remove :: Test
 test_add_remove = do
     -- Make sure I get event damage from adding and removing event.
     let create = mkblocks
@@ -129,6 +133,7 @@ test_add_remove = do
             insert_event "top.t1" 4 1 ""
     equal (diff_events cached uncached) []
 
+test_double_eval :: Test
 test_double_eval = do
     -- Cache entries from a block called multiple times from the same event
     -- won't collide.  This is what 'Derive.key_serial' is for.
@@ -157,6 +162,7 @@ test_double_eval = do
             insert_event "top.t1" 4 1 ""
     equal (diff_events cached uncached) []
 
+test_block_damage :: Test
 test_block_damage = do
     let create = mkblocks
             [ ("top",
@@ -175,6 +181,7 @@ test_block_damage = do
             insert_event "sub.t1" 0 0.5 ""
     equal (diff_events cached uncached) []
 
+test_subblock_damage :: Test
 test_subblock_damage = do
     let create = mkblocks
             [ ("top", [(">i", [(0, 2, "sub")])])
@@ -191,6 +198,7 @@ test_subblock_damage = do
     equal (diff_events cached uncached) []
     equal (DeriveTest.extract Score.event_start cached) ([0, 2], [])
 
+test_config_damage :: Test
 test_config_damage = do
     let create = mkblocks
             [ ("top", [(">i1", [(0, 1, "sub")])])
@@ -213,6 +221,7 @@ modify_alloc_config inst modify =
     mod (Just alloc) = Just $ alloc
         { UiConfig.alloc_config = modify (UiConfig.alloc_config alloc) }
 
+test_logs :: Test
 test_logs = do
     let create = mkblocks
             [ ("top",
@@ -242,6 +251,7 @@ test_logs = do
         , "top top.t1 2-3: sub2 sub2.t1 \\*: rederived"
         ]
 
+test_stats :: Test
 test_stats = do
     let create = mkblocks
             [ ("top",
@@ -265,12 +275,14 @@ test_stats = do
     equal (e_stats cached) $ mempty
         { Derive.cstats_hits = [(Right (UiTest.tid "sub1.t2"), (0, 4))] }
 
+test_extend_control_damage :: Test
 test_extend_control_damage = do
     let f = Cache._extend_control_damage
     equal (f 3 (Events.from_list [Event.event 0 0 "4c"])
             (Ranges.ranges [(2, 5)]))
         (Ranges.ranges [(0, 3)])
 
+test_arrival_notes :: Test
 test_arrival_notes = do
     -- Arrival block calls look at the control at the the bottom, not the top,
     -- so ensure that control damage works for them too.
@@ -285,6 +297,7 @@ test_arrival_notes = do
             insert_event "top.t2" 2 0 "4d"
     equal (diff_events cached uncached) []
 
+test_stack_damage :: Test
 test_stack_damage = do
     -- The stack is the same, since I have an equal, but the actual call
     -- has changed.
@@ -299,6 +312,7 @@ test_stack_damage = do
             insert_event "top.t1" 0 1 "%t-dia = 1 | sub"
     equal (diff_events cached uncached) []
 
+test_failed_sub_track :: Test
 test_failed_sub_track = do
     let create title = mkblocks
             [ ("top", [(">i", [(0, 1, ""), (1, 1, "sub")])])
@@ -333,6 +347,7 @@ test_failed_sub_track = do
         , "top top.t1 1-2: sub * note transformer not found"
         ]
 
+test_has_score_damage :: Test
 test_has_score_damage = do
     let create = mkblocks
             [ ("top", [(">i", [(0, 1, "sub"), (1, 1, "sub"), (2, 1, "sub")])])
@@ -352,6 +367,7 @@ test_has_score_damage = do
         , "top.t1 2-3: * using cache"
         ]
 
+test_callee_damage :: Test
 test_callee_damage = do
     -- test callee damage: sub-block is damaged, it should be rederived
     let parent_sub = mkblocks
@@ -390,6 +406,7 @@ test_callee_damage = do
         , "sub.t1 1-2: * rederived * block damage"
         ]
 
+test_collect :: Test
 test_collect = do
     let blocks = mkblocks
             [ ("top=ruler", [(">i", [(0, 1, "sub"), (1, 1, "sub")])])
@@ -420,6 +437,7 @@ test_collect = do
     equal (Derive.collect_block_deps collect)
         (mk_block_deps ["top", "sub"])
 
+test_block_deps :: Test
 test_block_deps = do
     let run root blocks =
             extract $ Derive.collect_block_deps $ Derive.state_collect $
@@ -438,6 +456,7 @@ test_block_deps = do
     equal (run "b3" blocks)
         (Set.fromList $ map UiTest.bid ["b3", "b2"])
 
+test_collect_indirect_call :: Test
 test_collect_indirect_call = do
     let run note = DeriveTest.derive_blocks
             [ ("top -- ^t = \"(sub)", [(">", [(0, 1, note)])])
@@ -467,6 +486,7 @@ test_collect_indirect_call = do
     equal (e_block_deps (run "sub")) deps
     equal (e_block_deps (run "t")) deps
 
+test_sliced_score_damage :: Test
 test_sliced_score_damage = do
     -- Ensure that a cached call underneath a slice still works correctly.
     -- This is tricky because the cache relies on Stack.Region entries
@@ -490,6 +510,7 @@ test_sliced_score_damage = do
         ]
     b28 = [(">", [(0, 0.5, ""), (0.5, 0.5, ""), (1, 0.5, "")])]
 
+test_sliced_control_damage :: Test
 test_sliced_control_damage = do
     -- Ensure that control damage properly invalidates a call that has been
     -- sliced and shifted.
@@ -513,6 +534,7 @@ test_sliced_control_damage = do
         ]
     sub = [(">", [(0, 1, ""), (1, 1, "")])]
 
+test_control_damage :: Test
 test_control_damage = do
     -- If I modify a control in a certain place, say a pitch track, I don't
     -- want it to derive the whole control.  Then it will damage the whole
@@ -567,6 +589,7 @@ test_control_damage = do
         , "top.t2 1-2: * control damage"
         ]
 
+test_control_damage2 :: Test
 test_control_damage2 = do
     -- Damage extends to the next event.
     let create = mkblocks
@@ -580,6 +603,7 @@ test_control_damage2 = do
             insert_event "top.t2" 0 0 "0.5"
     equal (diff_events cached uncached) []
 
+test_get_control_damage :: Test
 test_get_control_damage = do
     let f events cdmg sdmg = run events $
             get_control_damage (0, 10) (mkcdamage cdmg) (mksdamage sdmg)
@@ -617,6 +641,7 @@ test_get_control_damage = do
         (Map.singleton (UiTest.mk_tid 1) (Ranges.ranges ranges))
         mempty mempty
 
+test_inverted_control_damage :: Test
 test_inverted_control_damage = do
     let create = mkblocks
             [ ("top",
@@ -636,6 +661,7 @@ test_inverted_control_damage = do
         , "top top.t1 1-2: sub * control damage"
         ]
 
+test_control_damage_subblock :: Test
 test_control_damage_subblock = do
     -- Ensure that control damage that touches a block call gets expanded to
     -- cover the entire block.
@@ -669,6 +695,7 @@ test_control_damage_subblock = do
         , "2-4: b1 * control", "0-2: b2 * control", "2-4: b3 * control"
         ]
 
+test_tempo_damage :: Test
 test_tempo_damage = do
     let create = mkblocks
             [ ("top",
@@ -702,6 +729,7 @@ test_tempo_damage = do
     equal (diff_events cached uncached) []
     -- prettyp (DeriveTest.extract DeriveTest.e_note cached)
 
+test_extend_tempo_damage :: Test
 test_extend_tempo_damage = do
     -- Make sure control damage emitted by 'get_tempo_damage' is reasonable.
     let create = mkblock
@@ -713,6 +741,7 @@ test_extend_tempo_damage = do
             Ui.insert_event (top_tid 1) (Event.event 1 0 "2")
     equal (diff_events cached uncached) []
 
+test_block_title_damage :: Test
 test_block_title_damage = do
     -- Changing tempo in the block title invalidates the caches.
     let create =
@@ -725,6 +754,7 @@ test_block_title_damage = do
             Ui.set_block_title (UiTest.bid "top") "%tempo = 1"
     equal (diff_events cached uncached) []
 
+test_track_cache :: Test
 test_track_cache = do
     let create = mkblock
             [ ("dyn", [(0, 0, ".5"), (1, 0, "1")])
@@ -770,6 +800,7 @@ test_track_cache = do
     equal (r_cache_stacks cached)
         ["top * *", "top top.t1 *", "top top.t2 *"]
 
+test_track_cache2 :: Test
 test_track_cache2 = do
     let create = mkblock
             [ ("tempo", [(0, 0, "1")])
