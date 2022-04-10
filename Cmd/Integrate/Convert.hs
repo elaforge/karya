@@ -192,7 +192,7 @@ note_call call_map event = Texts.unwords2
     (maybe "" Expr.unsym (Map.lookup attrs call_map))
     -- Append flags to help with debugging.  The presence of a flag probably
     -- means some postproc step wasn't applied.
-    (if debug || flags == mempty then "" else " -- " <> pretty flags)
+    (if not debug || flags == mempty then "" else " -- " <> pretty flags)
     where
     attrs = Score.event_attributes event
     flags = Score.event_flags event
