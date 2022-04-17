@@ -3982,27 +3982,50 @@ integrate: integration:
       . Is there really a use for this, other than consistency?
       . Yes, I want to do this for generated parts.
   derive integrate:
+    integrate event text:
+      . reyong infer-damp integrate:
+      . Instead of +mute, just use zero dur events.  This should also get
+        the dyn right.
+      . It doesn't stop the notes.
+      . This is because Bali.zero_dur_mute_with reapplies with the 'm',
+        and simply setting to zero dur is not enough without the eval.
+      . So I either have to push the zero dur behaviour down to the
+        sampler, or infer-damp has to re-eval 'm's.
+      . This is another case where I really want to have separate levels
+        of score.  So I'd want an intermediate "concrete reyong score"
+        with exact playing instructions, which infer-damp renders to.
+      . Or not, even if I did re-eval, it actually wouldn't work with
+        integrate, because now I need to lift back up to high level.
+      . So it's actually the usual integrate problem.
+      . Can Common.common_call_map help?  It could go +mute to m (doesn't
+        for reyong), but can't go +mute to zero dur.
+      . Maybe a better way is to directly encode what this should be
+        integrated to?
+      . Why not use Score.event_text?
+        Do I still need a marker to say it's ok to use?  Otherwise won't
+        I double transformations as I emit both the event and the output?
+      . Call map was originally for drums, but won't event_text work for
+        those too?
+      . In fact, `seq` in mridingam would, because it uses re-eval, as
+        presumably so should they all.
+      . I should have tests for all these things:
+        * realize mridangam
+        * reyong infer-damp
+        * reyong byut byong
+          . byong gives a zero duration, gets reinterpreted as mute
+        * normal stuff: +attr, 'm' call, drum strokes, trill, delay
+          . Looks like +attr calls don't put event_text?
+          . It doesn't, I could make it do so, but what about '+attr |'?
+            What about '+attr | block'?  Rendering the attrs directly still
+            seems to make sense, along with mapping back through the call map.
+          . Maybe I should do so only if there is no event_text?
+        . Is it enough to test Convert?
+    * I got confused by >kontakt/reyong which sets *selisir
+      . via MidiInst.default_scale
+      . Why is this ever a good idea?  Can I remove it?
+    - I could use use decimal for typed controls: s, t, nn, c, d
     * seems like track integrate < was silently ignored in the block title?
       Can it make an error?
-    - integrate should cancel out {final} notes
-      . Also integrate after infer-damp gets mutes in weird places.
-      . What are the actual events coming out?
-        They're as expected: ue+ue+u+e+
-      . So what does integrate see and how can I debug it?
-      . Derive.Integrated
-      . LIntegrate.indices - They are the source UI events, not score.
-      * When integrate runs, what performance does it use?
-        . I think it uses both, and crashes confusingly.
-        . When I have even an empty block:
-          derive integrated (tid "untitled/b2.t2") to [[]]
-        . What does the [[]] mean?
-        . integrated_tracks = [((tid "untitled/b2.t2"), DeriveDestinations [])]
-          I think it should never be [].  That implies a derive that produced
-          0 tracks.  Merge.merge_tracks should then produce new ones?
-        . It was created somehow, perhaps due to "removed invalid
-          integrated_tracks"?
-        . That was due to a destination of a track not in the block.
-      . LIntegrate.integrated, it's definitely messed up.
     * unwarp integration
       . Due to Internal.in_real_time, but without it, I get the .5 tempo.
         I think in_real_time doesn't work for anything that places events with
@@ -5466,45 +5489,46 @@ performance:
         a separate repo.
       . The problem is I have to update twice as much stuff, but I don't need
         that many "reference" scores.
-  research using pipes for generators and transformers
-    . or streaming, or https://www.reddit.com/r/haskell/comments/7w79q1/what_is_your_take_on_conduits_pipes_and_streams/
-    . This would handle the composed transforms thing.
-    . What about parallelization?
-    . What about the MergeList idea?
-    . The bigger question is how do I do dynamic state when all the different
-      calls are interleaved?
-    . Actually now I'm thinking pipes aren't suitable for this.  Pipes are
-      about interleaving effects, but derivation is pure.  But not quite,
-      since it does depend on StateT.  In a pipes implementation, a generator
-      would be 'P.Producer Event Deriver ()', and a transformer would take
-      a Producer to another Producer.  Actually, since calls need to typecheck
-      etc., it winds up being:
-        type Events = Producer Event Deriver ()
-        type Generator = Deriver Events
-        type Transformer = Deriver (Events -> Events)
-      . In a pure environment, pipes still give a constant bound on how many
-        elements I hold on to at a time.  But since I look ahead arbitrarily
-        much, maybe I don't want that.
-    . The way to do this without pipes would be for transformer to be
-      Deriver (Stream -> Stream).  Then I can run all the transformers, and
-      then compose all their functions.  At that point, the only thing pipes
-      would really give me is a clear picture of how many elements I need
-      because each one needs to be specifically awaited... but it seems like
-      the look-ahead stuff would be really inconvenient.  And I do the same
-      thing, it's just less convenient with pipes.
-      . It does mean I have to express all transformers purely.  This is true
-        for the non-monadic Post functions, but it means I can't express ones
-        where a previous monadic effect on a previous element effects a later
-        one.  But that only applies to Threaded, and I can get that anyway by
-        threading myself, so maybe there's no problem?
-      . The way to prove that would be to remove the monadic Post.emap
-        functions.
-    . The reason transformers can't interleave is exceptions, and that's
-      an effect, and something like pipes or streaming should be able to
-      interleave that effect, which is what is needed.
-      . Presumably they could also interleave the State effect, but I'd want
-        to take that out.  Though of course keeping the Reader part is fine,
-        and necessary.
+  research:
+    . https://help.apple.com/instruments/mac/10.0/#/dev7b09c84f5
+    pipes for generators and transformers
+      . This would handle the composed transforms thing.
+      . What about parallelization?
+      . What about the MergeList idea?
+      . The bigger question is how do I do dynamic state when all the different
+        calls are interleaved?
+      . Actually now I'm thinking pipes aren't suitable for this.  Pipes are
+        about interleaving effects, but derivation is pure.  But not quite,
+        since it does depend on StateT.  In a pipes implementation, a generator
+        would be 'P.Producer Event Deriver ()', and a transformer would take
+        a Producer to another Producer.  Actually, since calls need to typecheck
+        etc., it winds up being:
+          type Events = Producer Event Deriver ()
+          type Generator = Deriver Events
+          type Transformer = Deriver (Events -> Events)
+        . In a pure environment, pipes still give a constant bound on how many
+          elements I hold on to at a time.  But since I look ahead arbitrarily
+          much, maybe I don't want that.
+      . The way to do this without pipes would be for transformer to be
+        Deriver (Stream -> Stream).  Then I can run all the transformers, and
+        then compose all their functions.  At that point, the only thing pipes
+        would really give me is a clear picture of how many elements I need
+        because each one needs to be specifically awaited... but it seems like
+        the look-ahead stuff would be really inconvenient.  And I do the same
+        thing, it's just less convenient with pipes.
+        . It does mean I have to express all transformers purely.  This is true
+          for the non-monadic Post functions, but it means I can't express ones
+          where a previous monadic effect on a previous element effects a later
+          one.  But that only applies to Threaded, and I can get that anyway by
+          threading myself, so maybe there's no problem?
+        . The way to prove that would be to remove the monadic Post.emap
+          functions.
+      . The reason transformers can't interleave is exceptions, and that's
+        an effect, and something like pipes or streaming should be able to
+        interleave that effect, which is what is needed.
+        . Presumably they could also interleave the State effect, but I'd want
+          to take that out.  Though of course keeping the Reader part is fine,
+          and necessary.
 
 fltk:
   * WrappedInput doesn't get clicks outside of its track area
@@ -7233,8 +7257,7 @@ Derive:
              21      21
     reyong:
       infer-damp integrate:
-        - Instead of +mute, just use zero dur events.  This should also get
-          the dyn right.
+        . see integrate event text:
         - Double notes, should be 'u-ua+' but is 'u-uu+'
           . Probably floating point making the pitch not line up with note
             start.

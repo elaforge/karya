@@ -22,7 +22,7 @@ module Cmd.Instrument.MidiInst (
     , add_flag, add_flags, pressure, add_common_flag, triggered
     , control_defaults
     -- ** environ
-    , environ, default_scale, range, nn_range
+    , environ, range, nn_range
     -- ** per-allocation
     , inst_range
     -- * allocations
@@ -292,10 +292,6 @@ control_defaults controls =
 -- | The instrument will also set the given environ when it comes into scope.
 environ :: REnv.ToVal a => Env.Key -> a -> Patch -> Patch
 environ name val = common %= Common.add_environ name val
-
--- | The instrument will set the given scale when it comes into scope.
-default_scale :: Pitch.ScaleId -> Patch -> Patch
-default_scale = environ EnvKey.scale . Expr.scale_id_to_str
 
 -- | Set instrument range.
 range :: Scale.Range -> Patch -> Patch

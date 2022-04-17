@@ -7,9 +7,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 
 import qualified Util.Log as Log
-import qualified Util.Test.Testing as Testing
 import qualified Util.Thread as Thread
-
 import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
@@ -115,13 +113,17 @@ test_block_integrate_call_map = do
             , []
             )
     res <- start states $ return ()
+    -- prettyp (e_integrated res)
     equal (e_tracks res)
         [ ( "b1 -- <<"
           , UiTest.inst_note_track1 "i1"
             ["+attr1 -- 4c", "+attr2 -- 4d", "+attr3 -- 4e"]
           )
         , ( "b2"
-          , UiTest.inst_note_track1 "i1" ["one -- 4c", "+attr2 -- 4d", "4e"]
+          , UiTest.inst_note_track1 "i1"
+            -- If I put the call map stuff back in Cmd.resolve_instrument,
+            -- these +attr2 etc. will go back.
+            ["one -- 4c", "+attr2 -- 4d", "+attr3 -- 4e"]
           )
         ]
 

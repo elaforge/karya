@@ -2,13 +2,20 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 -- | Calls for reyong and trompong techniques.
 --
 -- >   1        2     3        4
 -- >  /-------\/----\/-------\/----\--\
 -- > 4e 4u 4a 5i 5o 5e 5u 5a 6i 6o 6e 6u
 -- > 3  5  6  1  2  3  5  6  1  2  3  5
-module Derive.C.Bali.Reyong where
+module Derive.C.Bali.Reyong (
+    library
+    , cek
+#ifdef TESTING
+    , module Derive.C.Bali.Reyong
+#endif
+) where
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
@@ -95,16 +102,14 @@ library = mconcat
         , ("a", c_tumpuk_auto)
         , ("o", c_byong)
         , (":", c_pitches [Pitch.pitch 4 2, Pitch.pitch 5 0])
-        , ("/", articulation False "cek-loose"
-            ((:[]) . pos_cek) (cek <> Attrs.open))
-        , ("//", articulation True "cek-loose"
-            ((:[]) . pos_cek) (cek <> Attrs.open))
-        , ("X", articulation False "cek" ((:[]) . pos_cek) cek)
-        , ("XX", articulation True "cek" ((:[]) . pos_cek) cek)
-        , ("O", articulation False "byong" pos_byong mempty)
-        , ("-", articulation False "byut-loose"
-            pos_byong (Attrs.mute <> Attrs.open))
-        , ("+", articulation False "byut" pos_byong Attrs.mute)
+        , ("/", articulation "cek-loose" ((:[]) . pos_cek) (cek <> Attrs.open))
+        , ("//", articulation "cek-loose"
+            (replicate 2 . pos_cek) (cek <> Attrs.open))
+        , ("X", articulation "cek" ((:[]) . pos_cek) cek)
+        , ("XX", articulation "cek" (replicate 2 . pos_cek) cek)
+        , ("O", articulation "byong" pos_byong mempty)
+        , ("-", articulation "byut-loose" pos_byong (Attrs.mute <> Attrs.open))
+        , ("+", articulation "byut" pos_byong Attrs.mute)
 
         , ("n1", c_solkattu_note [0])
         , ("n2", c_solkattu_note [1])
@@ -484,21 +489,24 @@ infer_prepare args prepare = do
 
 -- * articulation
 
-make_articulation :: [Position] -> Bool -> Derive.CallName
+make_articulation :: [Position] -> Derive.CallName
     -> (Position -> [Pitch.Pitch]) -> Attrs.Attributes
     -> Derive.Generator Derive.Note
-make_articulation positions double name get_notes attrs =
+make_articulation positions name get_notes attrs =
     Derive.generator module_ name Tags.inst
     "Reyong articulation. The doubled variants emit two notes, and rely on\
     \ start time randomization so they're not exactly simultaneous." $
     Sig.call voices_env $ \voices -> Sub.inverting $ \args -> do
         (_, show_pitch, _) <- Call.get_pitch_functions
-        mconcat $ concat $ replicate (if double then 2 else 1) $
-            map (realize show_pitch args) (filter_voices voices positions)
+        mconcat $ map (realize show_pitch args) (filter_voices voices positions)
     where
-    realize show_pitch args (voice, position) = mconcatMap
-        (Call.place args . realize_note show_pitch voice (Args.start args))
-        (map (\p -> (p, attrs)) (get_notes position))
+    realize show_pitch args (voice, position) = hands $ map
+        (Call.place args . realize_note show_pitch voice (Args.start args)) $
+        map (\p -> (p, attrs)) (get_notes position)
+    hands [n] = n
+    hands [n1, n2] = hand Call.L n1 <> hand Call.R n2
+        where hand = Derive.with_val EnvKey.hand . ShowVal.show_val
+    hands ns = mconcat ns
 
 type Voice = Int
 
@@ -803,7 +811,8 @@ infer_damp_voices damped_insts dur_at early_at events = do
 -- | Create a damped note at the end of the given note.
 make_damp :: RealTime -> Score.Event -> Score.Event
 make_damp early event =
-    Score.add_attributes Attrs.mute $ Score.set_dynamic damp $ event
+    Score.add_attributes Attrs.mute $ Score.set_dynamic damp $
+    event
         { Score.event_start = Score.event_end event - early
         , Score.event_duration = 0
         }

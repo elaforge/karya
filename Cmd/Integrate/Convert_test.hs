@@ -5,26 +5,113 @@
 module Cmd.Integrate.Convert_test where
 import qualified Data.Map as Map
 
+import qualified Util.Texts as Texts
 import qualified Cmd.Integrate.Convert as Convert
 import qualified Derive.Attrs as Attrs
+import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
+import qualified Derive.Stream as Stream
 
 import qualified Perform.Pitch as Pitch
 import qualified Ui.UiTest as UiTest
+import qualified User.Elaforge.Instrument.Kontakt as Kontakt
 
 import           Global
 import           Util.Test
 
 
+test_convert :: Test
+test_convert = do
+    let no_dur = first $ map $ second $ map $ \(s, _, t) -> (s, t)
+    let derive0 ptitle = no_dur . derive ptitle
+    equal (derive ("kontakt/", "") [(0, 1, "d .25 | -- 4c")])
+        ([(">i", [(0.25, 1, "")]), ("*", [(0.25, 0, "4c")])], [])
+    equal (derive ("kontakt/", "") [(0, 4, "tr 1d 1 -- 4c")])
+        ( [ (">i", map (, 1, "") [0, 1, 2, 3])
+          , ("*", [(0, 0, "4c"), (1, 0, "4d"), (2, 0, "4c"), (3, 0, "4d")])
+          ]
+        , []
+        )
+    equal (derive ("kontakt/sc-pemade", "") [(0, 1, "4c"), (1, 0, "+mute --")])
+        ( [ (">i", [(0, 1, ""), (1, 0, "+mute")])
+          , ("*", [(0, 0, "4c"), (1, 0, "4c")])
+          ]
+        , []
+        )
+    equal (derive0 ("kontakt/sc-pemade", "") [(0, 0, ""), (1, 0, "+attr | --")])
+        ( [ (">i", [(0, "+mute"), (1, "+attr+mute")])]
+        , []
+        )
+    equal (derive0 ("kontakt/sc-gong", "") [(0, 0, "o --"), (1, 0, "m --")])
+        ( [(">i", [(0, "o"), (1, "m")])]
+        , []
+        )
+
+    let mridangam = derive0
+            ("kontakt/mridangam-d", "#=(natural) | import india.mridangam")
+    equal (mridangam [(0, 0, "n --"), (1, 0, "d --")])
+        ( [(">i", [(0, "n"), (1, "d")])]
+        , []
+        )
+    equal (mridangam [(7, -7, "tir k d_ --")])
+        ( [(">i", [(0, "k"), (1, "d"), (3, "k"), (4, "d"), (6, "k"), (7, "d")])]
+        , []
+        )
+
+    let reyong = derive0 ("kontakt/reyong", "import bali.reyong | voices=1")
+    equal (reyong [(0, 0, "+ --"), (1, 0, "XX --")])
+        ( [ (">i | v=1 | hand=l", [(0, "+mute"), (1, "+cek")])
+          , ("*", [(0, "4e"), (1, "4f")])
+          , (">i | v=1 | hand=r", [(0, "+mute"), (1, "+cek")])
+          , ("*", [(0, "4g"), (1, "4f")])
+          ]
+        , []
+        )
+    equal (reyong [(0, 8, "k -- 4c")])
+        ( [ (">i | v=1", map (, "") [0, 1, 2, 4, 5, 6, 8])
+          , ( "*"
+            , zip [0, 1, 2, 4, 5, 6, 8]
+                ["4f", "4e", "4f", "4e", "4f", "4e", "4f"]
+            )
+          ]
+        , []
+        )
+
+derive :: (Text, Convert.Title) -> [UiTest.EventSpec]
+    -> ([(Convert.Title, [UiTest.EventSpec])], [Text])
+derive (patch, title) pitches =
+    (map extract (concatMap flatten converted), logs0 ++ logs ++ errors)
+    where
+    inst = "i"
+    allocs = [(inst, patch)]
+    result = -- Debug.tracefp "e" Derive.r_events $
+        DeriveTest.derive_tracks_setup (with_synth allocs)
+            (Texts.join2 " | " "inst=i" title) $
+        UiTest.note_spec (inst <> " | <", pitches, [])
+    logs0 = snd $ DeriveTest.extract id result
+    (events, logs) = DeriveTest.extract_levents id $ Stream.to_list $
+        Derive.integrated_events $ head $ Derive.r_integrated result
+    (errors, converted) = integrate events
+    flatten (note, controls) = note : controls
+    extract (Convert.Track title events) =
+        (title, map UiTest.extract_event events)
+
+with_synth :: DeriveTest.SimpleAllocations -> DeriveTest.Setup
+with_synth allocs =
+    DeriveTest.with_synths (DeriveTest.simple_allocs allocs) [Kontakt.synth]
+
+integrate :: [Score.Event] -> ([Convert.Error], Convert.Tracks)
+integrate = Convert.integrate (lookup_attrs, Pitch.twelve) tracknums
+    where
+    lookup_attrs = const mempty
+    tracknums = Map.fromList [(UiTest.mk_tid n, n) | n <- [1..10]]
+
 test_integrate :: Test
 test_integrate = do
     let f = second (map extract . concatMap flatten) . integrate
-        integrate = Convert.integrate (lookup_attrs, Pitch.twelve) tracknums
         plak = Attrs.attr "plak"
-        lookup_attrs = const $ Map.fromList [(plak, "plak")]
-        tracknums = Map.fromList [(UiTest.mk_tid n, n) | n <- [1..10]]
         flatten (note, controls) = note : controls
         extract (Convert.Track title events) =
             (title, map UiTest.extract_event events)
@@ -41,7 +128,7 @@ test_integrate = do
     let set = Score.modify_attributes . const
     equal (f [set plak (no_pitch (0, 1, []))])
         ( []
-        , [(">inst", [(0, 1, "plak")])]
+        , [(">inst", [(0, 1, "+plak")])]
         )
 
     -- Duplicate controls are suppressed.
@@ -81,3 +168,5 @@ test_split_overlapping = do
         extract e = (Score.event_start e, Score.event_duration e)
     equal (f [(0, 1), (1, 1)]) [[(0, 1), (1, 1)]]
     equal (f [(0, 1), (0.5, 1), (1, 1)]) [[(0, 1), (1, 1)], [(0.5, 1)]]
+    equal (f [(0, 0), (0, 0), (1, 0), (1, 0)])
+        [[(0, 0), (1, 0)], [(0, 0), (1, 0)]]

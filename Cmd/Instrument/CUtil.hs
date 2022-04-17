@@ -453,7 +453,7 @@ drum_call (CallConfig tuning_control mb_natural_nn stroke_dyn transform)
     ) $ \(dyn, mb_pitch) -> Sub.inverting $ \args ->
         Call.multiply_dynamic (stroke_dyn * dyn) $ Call.add_attributes attrs $
             with_tuning args $ transform $ set_pitch mb_pitch $
-            Note.default_note Note.no_duration_attributes args
+            Note.default_note_integrate name Note.no_duration_attributes args
     where
     with_tuning args = maybe id (apply_tuning_control args) tuning_control
     set_pitch mb_pitch = case mb_natural_nn of

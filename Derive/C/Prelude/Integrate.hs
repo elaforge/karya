@@ -12,6 +12,7 @@ import qualified Data.Set as Set
 import qualified Util.Seq as Seq
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.Module as Module
+import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Library as Library
@@ -44,19 +45,28 @@ c_block_integrate :: Derive.Transformer Derive.Note
 c_block_integrate = Derive.transformer Module.prelude "block-integrate" mempty
     ("Integrate the output into a new block. The events are returned as-is\
     \ so the block can still be played normally."
-    ) $ Sig.call0t $ \_ deriver -> do
+    ) $ Sig.callt (
+        Sig.defaulted "keep-controls" (Set.fromList [Controls.dynamic])
+            "Keep only these controls. Transposers are always kept."
+    ) $ \keep_controls _ deriver -> do
         events <- deriver
-        block_integrate events
+        block_integrate keep_controls events
         return events
 
-block_integrate :: Stream.Stream Score.Event -> Derive.Deriver ()
-block_integrate events = do
+block_integrate :: Set ScoreT.Control -> Stream.Stream Score.Event
+    -> Derive.Deriver ()
+block_integrate keep_controls events = do
     -- Only collect an integration if this is the top level block.  Otherwise
     -- I can get integrating blocks called from many places and who knows which
     -- one is supposed to be integrated.
-    whenJustM (toplevel <$> Internal.get_stack) $ \(block_id, _) -> do
+    whenJustM (toplevel <$> Internal.get_stack) $ \(block_id, mb_track_id) -> do
+        whenJust mb_track_id $ \track_id ->
+            Derive.throw $ "block integrate seems to be in a track title: "
+                <> pretty track_id
         events <- Derive.eval_ui $ unwarp block_id events
-        let integrated = Derive.Integrated (Left block_id) events
+        let keep = keep_controls <> Set.fromList Controls.transposers
+        let integrated = Derive.Integrated (Left block_id) $
+                fmap (strip_event keep) events
         Internal.merge_collect $ mempty
             { Derive.collect_integrated = [integrated] }
 
@@ -93,8 +103,8 @@ c_track_integrate = Derive.transformer Module.prelude "track-integrate" mempty
     \ you can chose whether or not to play it, an integrated track\
     \ is part of a block, so it plays whether you want it or not."
     ) $ Sig.callt (
-        Sig.defaulted "keep-controls" Set.empty
-            "If non-empty, remove all but these controls."
+        Sig.defaulted "keep-controls" (Set.fromList [Controls.dynamic])
+            "Keep only these controls. Transposers are always kept."
     ) $ \keep_controls _args deriver -> do
         -- Similar to block_integrate, only collect an integration if this is
         -- at the toplevel.
@@ -109,12 +119,17 @@ c_track_integrate = Derive.transformer Module.prelude "track-integrate" mempty
                 -- it would never drop track dynamics entries for deleted
                 -- tracks.
                 events <- unwarp_events =<< deriver
+                -- Always include transposers because they affect the pitches.
+                -- TODO: technically they should be from pscale_transposers,
+                -- but that's so much work to collect, let's just assume the
+                -- standards.
+                let keep = keep_controls <> Set.fromList Controls.transposers
                 -- I originally guarded this with a hack that would not emit
                 -- track integrates if only the destinations had received
                 -- damage.  But the track cache now serves this purpose, since
                 -- it intentionally doesn't retain 'Derive.collect_integrated'.
-                track_integrate block_id track_id $
-                    fmap (strip_event keep_controls) events
+                track_integrate block_id track_id $ -- Debug.tracep "es" $
+                    fmap (strip_event keep) events
             Just (block_id, Nothing) -> Derive.throw $
                 "track integrate seems to be in a block title: "
                 <> pretty block_id

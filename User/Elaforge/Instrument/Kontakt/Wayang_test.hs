@@ -40,7 +40,7 @@ test_wayang_zero_dur :: Test
 test_wayang_zero_dur = do
     let run = DeriveTest.extract extract
             . DeriveTest.derive_blocks_setup (KontaktTest.with_synth allocs)
-        top = "top -- inst=pu | cancel"
+        top = "top -- scale=wayang | inst=pu | cancel"
         extract e = (Score.event_duration e,
             not $ null $ DeriveTest.e_control "mute" e)
     -- should be muted, since it's 0 dur and not the end

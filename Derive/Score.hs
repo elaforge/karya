@@ -79,6 +79,10 @@ data Event = Event {
     -- | This is the text of the call that created the event.  It's basically
     -- just for debugging.
     , event_text :: !Text
+    -- | If the event is integrated back to a Ui.Event, use this text.  This is
+    -- so calls can explicitly set how they would like their events to be
+    -- integrated.  Otherwise, Integrate.Convert will try to infer something.
+    , event_integrate :: !Text
     , event_controls :: !DeriveT.ControlMap
     , event_pitch :: !PSignal.PSignal
     -- | Named pitch signals.
@@ -120,6 +124,7 @@ short_event :: Event -> Text
 short_event e = Text.unwords $ concat
     [ [pretty (event_start e, event_duration e)]
     , ["\"" <> event_text e <> "\"" | event_text e /= ""]
+    , ["'" <> event_integrate e <> "'" | event_integrate e /= ""]
     , [pretty (event_instrument e)]
     , [pretty n | Just n <- [initial_note e]]
     , [pretty attrs |  attrs /= mempty]
@@ -136,6 +141,7 @@ empty_event = Event
     { event_start = 0
     , event_duration = 0
     , event_text = mempty
+    , event_integrate = mempty
     , event_controls = mempty
     , event_pitch = mempty
     , event_pitches = mempty
@@ -245,17 +251,18 @@ remove_attributes attrs event
     | otherwise = modify_attributes (Attrs.remove attrs) event
 
 instance DeepSeq.NFData Event where
-    rnf (Event start dur text controls pitch pitches _ _ _ _
+    rnf (Event start dur _text _integrate controls pitch pitches _ _ _ _
             flags _delayed_args logs) =
         -- I can't force Dynamic, so leave off _delayed_args.
-        rnf (start, dur, text, controls, pitch, pitches, flags, logs)
+        rnf (start, dur, controls, pitch, pitches, flags, logs)
 
 instance Pretty Event where
-    format e@(Event start dur text controls pitch pitches
+    format e@(Event start dur text integrate controls pitch pitches
             stack highlight inst env flags delayed_args logs) =
         Pretty.record (foldr1 (Pretty.<+>) $ concat
             [ ["Event", Pretty.format (start, dur)]
-            , [Pretty.format text | text /= ""]
+            , [Pretty.text $ "\"" <> text <> "\"" | text /= ""]
+            , [Pretty.text $ "'" <> integrate <> "'" | integrate /= ""]
             , [Pretty.format n | Just n <- [initial_note e]]
             , [ Pretty.format attrs
               | let attrs = DeriveT.environ_attributes env, attrs /= mempty

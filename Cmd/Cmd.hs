@@ -1597,7 +1597,7 @@ resolve_instrument db alloc = do
         (inst_backend, alloc_backend) -> Left $
             "inconsistent backends: " <> pretty (inst_backend, alloc_backend)
     return $ ResolvedInstrument
-        { inst_instrument = merge_call_map backend inst
+        { inst_instrument = inst -- merge_call_map backend inst
         , inst_qualified = qualified
         , inst_common_config =
             merge_environ (Inst.inst_common inst) (UiConfig.alloc_config alloc)
@@ -1612,6 +1612,10 @@ resolve_instrument db alloc = do
     merge_environ :: Common.Common InstrumentCode -> Common.Config
         -> Common.Config
     merge_environ common = Common.cenviron %= (Common.common_environ common <>)
+
+    -- TODO: I'm not sure if I want this or not... now Convert converts all
+    -- attrs, while this had the effect of only converting supported ones.
+    -- Which seems generally nice, so I'll leave the code here.
     -- Put the attrs the instrument understands in the CallMap as +attr calls.
     -- If there isn't already a higher level call in there, then at least we
     -- don't lose the attrs entirely.

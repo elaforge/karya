@@ -901,7 +901,7 @@ mkevent_scale_key scale key (start, dur, pitch, controls, inst) =
     Score.empty_event
         { Score.event_start = start
         , Score.event_duration = dur
-        , Score.event_text = pitch
+        , Score.event_text = ""
         , Score.event_controls = mkcontrols controls
         , Score.event_pitch = PSignal.from_sample start (mkpitch scale pitch)
         , Score.event_stack = fake_stack

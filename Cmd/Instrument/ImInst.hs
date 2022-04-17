@@ -16,13 +16,12 @@ import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import           Cmd.Instrument.MidiInst
-       (allocations, both, cmd, generator, inst_range, make_code, note_calls,
-        note_generators, note_transformers, null_call, postproc, transformer,
-        val_calls, Code)
+    (Code, allocations, both, cmd, generator, inst_range, make_code, note_calls,
+     note_generators, note_transformers, null_call, postproc, transformer,
+     val_calls)
 import qualified Cmd.MidiThru as MidiThru
 
 import qualified Derive.EnvKey as EnvKey
-import qualified Derive.Expr as Expr
 import qualified Derive.REnv as REnv
 import qualified Derive.Scale as Scale
 import qualified Derive.ScoreT as ScoreT
@@ -93,10 +92,6 @@ cenviron :: REnv.ToVal a => EnvKey.Key -> a
     -> Common.Common code -> Common.Common code
 cenviron name val =
     Common.environ %= (REnv.from_list [(name, REnv.to_val val)] <>)
-
--- | The instrument will set the given scale when it comes into scope.
-default_scale :: Pitch.ScaleId -> Patch -> Patch
-default_scale = environ EnvKey.scale . Expr.scale_id_to_str
 
 -- | Set instrument range.
 range :: Scale.Range -> Patch -> Patch

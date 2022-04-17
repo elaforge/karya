@@ -93,8 +93,7 @@ patches = pasang Pemade : pasang Kantilan
     setRange inst = ImInst.range $ BaliScales.instrument_range $ case inst of
         Pemade -> Wayang.pemade
         Kantilan -> Wayang.kantilan
-    setTuning tuning = -- ImInst.default_scale Wayang.scale_id
-        ImInst.environ EnvKey.tuning (ShowVal.show_val tuning)
+    setTuning tuning = ImInst.environ EnvKey.tuning (ShowVal.show_val tuning)
     with_symbolic_pitch = DUtil.when_env "symbolic-pitch" (Just True) $
         DUtil.add_symbolic_pitch_convert pitchConvert
 

@@ -34,23 +34,24 @@ import           Types
 -- control trimming and control function value stashing that the perform layer
 -- relies on.
 make_event :: Derive.PassedArgs a -> Derive.Dynamic -> RealTime -> RealTime
-    -> Flags.Flags -> Derive.Deriver Score.Event
-make_event args dyn start dur flags = do
+    -> Text -> Flags.Flags -> Derive.Deriver Score.Event
+make_event args dyn start dur integrate flags = do
     control_vals <- Derive.controls_at start
-    make_event_control_vals control_vals args dyn start dur flags
+    make_event_control_vals control_vals args dyn start dur integrate flags
 
 -- | Specialized version of 'make_event' just so I can avoid calling
 -- Derive.controls_at twice.
 make_event_control_vals :: ScoreT.ControlValMap -> Derive.PassedArgs a
-    -> Derive.Dynamic -> RealTime -> RealTime -> Flags.Flags
+    -> Derive.Dynamic -> RealTime -> RealTime -> Text -> Flags.Flags
     -> Derive.Deriver Score.Event
-make_event_control_vals control_vals args dyn start dur flags = do
+make_event_control_vals control_vals args dyn start dur integrate flags = do
     offset <- get_start_offset start
     Internal.increment_event_serial
     return $! Score.Event
         { event_start = start
         , event_duration = dur
         , event_text = Event.text (Args.event args)
+        , event_integrate = integrate
         , event_controls = controls
         , event_pitch = trim_pitch start (Derive.state_pitch dyn)
         -- I don't have to trim these because the performer doesn't use them,

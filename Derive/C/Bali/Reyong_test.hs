@@ -16,7 +16,6 @@ import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
-import qualified Derive.Stream as Stream
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal

@@ -7,7 +7,9 @@ module Derive.C.Prelude.Note (
     library
     , c_note, transformed_note, note_call
     , Config(..), use_attributes, no_duration_attributes
-    , GenerateNote, default_note, note_flags
+    , GenerateNote
+    , default_note, default_note_integrate
+    , note_flags
     , adjust_duration
     , min_duration
 ) where
@@ -71,7 +73,7 @@ c_with_attributes = Make.transform_notes Module.prelude "note" mempty
 -- * note
 
 c_note :: Derive.Generator Derive.Note
-c_note = note_call "note" "" mempty (default_note use_attributes)
+c_note = note_call "note" "" mempty $ default_note use_attributes
 
 -- | Create a standard note call with a transformer applied.
 transformed_note :: Doc.Doc -> Tags.Tags
@@ -183,9 +185,21 @@ no_duration_attributes :: Config
 no_duration_attributes = Config False False
 
 -- | The actual note generator.
-{-# SCC default_note #-}
 default_note :: Config -> GenerateNote
-default_note config args = do
+default_note config args = default_note_integrate integrate config args
+    where
+    -- Score.event_text can be set explicitly to affect the integrated note.
+    -- But, I hardcode to "" by default.  I could try to have calls such as
+    -- "m" or "+attr" put that into the text, but ultimately I think integrate
+    -- should infer that from the Score.Event itself if at all.  Otherwise,
+    -- I don't see how things like combined attributes or attributes over
+    -- multiple notes could possible be correct.
+    integrate = ""
+
+-- | Like 'default_note', except allow to set 'Derive.Score.event_integrate'.
+{-# SCC default_note_integrate #-}
+default_note_integrate :: Text -> Config -> GenerateNote
+default_note_integrate integrate config args = do
     start <- Args.real_start args
     end <- Args.real_end args
     dyn <- Internal.get_dynamic id
@@ -198,7 +212,7 @@ default_note config args = do
             Env.get_val EnvKey.attributes (Derive.state_environ dyn)
     let adjusted_end = duration_attributes config control_vals attrs start end
     Stream.from_event <$> NoteUtil.make_event_control_vals
-        control_vals args dyn start (adjusted_end - start) flags
+        control_vals args dyn start (adjusted_end - start) integrate flags
 
 note_flags :: Bool -> Stack.Stack -> Env.Environ -> Flags.Flags
 note_flags zero_dur stack environ

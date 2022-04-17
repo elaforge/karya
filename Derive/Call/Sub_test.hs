@@ -101,7 +101,7 @@ test_under_invert = do
     gen :: Derive.Generator Derive.Note
     gen = Derive.generator1 "mod" "gen" mempty "doc" $ Sig.call0 $ \args -> do
         dyn <- Internal.get_dynamic id
-        NoteUtil.make_event args dyn 0 1 mempty
+        NoteUtil.make_event args dyn 0 1 "" mempty
 
 test_inverted_control_scope :: Test
 test_inverted_control_scope = do

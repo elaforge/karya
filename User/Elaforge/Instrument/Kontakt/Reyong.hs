@@ -33,7 +33,6 @@ patches =
     tuning = BaliScales.Umbang -- TODO verify how mine are tuned
     set_scale =
         (MidiInst.patch#Patch.defaults#Patch.scale #= Just instrument_scale)
-        . MidiInst.default_scale Selisir.scale_id
         . MidiInst.environ EnvKey.tuning tuning
     -- Trompong starts at 3a, trompong + reyong has 15 keys.
     instrument_scale =

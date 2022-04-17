@@ -22,7 +22,7 @@ import qualified Instrument.Common as Common
 import qualified Midi.Key2 as Key2
 import qualified Perform.Midi.Patch as Patch
 
-import Global
+import           Global
 
 
 {- | Layout:
@@ -87,7 +87,6 @@ patches = map (MidiInst.code #= code <> with_weak)
     set_scale tuning =
         (MidiInst.patch#Patch.defaults#Patch.scale
             #= Just (Wayang.instrument_scale False Wayang.laras_sawan tuning))
-        . MidiInst.default_scale Wayang.scale_id
         . MidiInst.environ EnvKey.tuning tuning
 
 attribute_map :: Patch.AttributeMap

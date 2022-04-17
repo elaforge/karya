@@ -86,8 +86,7 @@ patches = pasang : map make [Umbang, Isep]
             <> Util.thru dir (convert tuning)
             <> ImInst.postproc DUtil.with_symbolic_pitch
     setRange = ImInst.range Legong.rambat_range
-    setTuning tuning = -- ImInst.default_scale Legong.scale_id
-        ImInst.environ EnvKey.tuning (tuningVal tuning :: Text)
+    setTuning tuning = ImInst.environ EnvKey.tuning (tuningVal tuning :: Text)
 
     tuningVal Umbang = "umbang"
     tuningVal Isep = "isep"

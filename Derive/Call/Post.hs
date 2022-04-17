@@ -368,7 +368,7 @@ make_delayed :: Derive.PassedArgs a -> RealTime -> [DeriveT.Val]
 make_delayed args start event_args = do
     dyn <- Internal.get_dynamic id
     Stream.from_event . delayed_event event_args <$>
-        NoteUtil.make_event args dyn start 0 mempty
+        NoteUtil.make_event args dyn start 0 "" mempty
 
 delayed_event :: [DeriveT.Val] -> Score.Event -> Score.Event
 delayed_event args = Score.modify_environ $
