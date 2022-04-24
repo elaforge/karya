@@ -135,7 +135,8 @@ scores = map Korvai.inferMetadataS
     , setLocation ("Solkattu.Score.Mridangam2021",152,"e_21_08_15") $ Single Solkattu.Score.Mridangam2021.e_21_08_15
     , setLocation ("Solkattu.Score.Mridangam2021",235,"e_21_10_10") $ Single Solkattu.Score.Mridangam2021.e_21_10_10
     , setLocation ("Solkattu.Score.Mridangam2022",11,"e_n_dd_dd") $ Single Solkattu.Score.Mridangam2022.e_n_dd_dd
-    , setLocation ("Solkattu.Score.Mridangam2022",24,"c_22_02_20") $ Single Solkattu.Score.Mridangam2022.c_22_02_20
+    , setLocation ("Solkattu.Score.Mridangam2022",24,"e_n_dd_dd3") $ Single Solkattu.Score.Mridangam2022.e_n_dd_dd3
+    , setLocation ("Solkattu.Score.Mridangam2022",37,"c_22_02_20") $ Single Solkattu.Score.Mridangam2022.c_22_02_20
     , setLocation ("Solkattu.Score.MridangamSarva",19,"kir1") $ Single Solkattu.Score.MridangamSarva.kir1
     , setLocation ("Solkattu.Score.MridangamSarva",24,"kir2") $ Single Solkattu.Score.MridangamSarva.kir2
     , setLocation ("Solkattu.Score.MridangamSarva",44,"kir3") $ Single Solkattu.Score.MridangamSarva.kir3
@@ -153,7 +154,8 @@ scores = map Korvai.inferMetadataS
     , setLocation ("Solkattu.Score.MridangamSarva",148,"c_18_05_25") $ Single Solkattu.Score.MridangamSarva.c_18_05_25
     , setLocation ("Solkattu.Score.MridangamTirmanam",14,"tir_short_adi") $ Single Solkattu.Score.MridangamTirmanam.tir_short_adi
     , setLocation ("Solkattu.Score.MridangamTirmanam",22,"tir_long_adi") $ Single Solkattu.Score.MridangamTirmanam.tir_long_adi
-    , setLocation ("Solkattu.Score.MridangamTirmanam",31,"tir_long_rupaka") $ Single Solkattu.Score.MridangamTirmanam.tir_long_rupaka
+    , setLocation ("Solkattu.Score.MridangamTirmanam",32,"tir_sam_adi_kirkalam") $ Single Solkattu.Score.MridangamTirmanam.tir_sam_adi_kirkalam
+    , setLocation ("Solkattu.Score.MridangamTirmanam",37,"tir_long_rupaka") $ Single Solkattu.Score.MridangamTirmanam.tir_long_rupaka
     , setLocation ("Solkattu.Score.Solkattu2013",20,"c_13_07_23") $ Single Solkattu.Score.Solkattu2013.c_13_07_23
     , setLocation ("Solkattu.Score.Solkattu2013",27,"c_13_08_14") $ Single Solkattu.Score.Solkattu2013.c_13_08_14
     , setLocation ("Solkattu.Score.Solkattu2013",68,"c_yt1") $ Single Solkattu.Score.Solkattu2013.c_yt1

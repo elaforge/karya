@@ -17,9 +17,22 @@ e_n_dd_dd = date 2022 2 6 $ exercise $ ganesh $ korvaiS adi
     , "on.D.dD. dN.D.dD." . r3 "dN.D.".d
       . "on.d.dd. dn.d.dd." . r3 "dn.d.".d
     , "on.D." . r2 "dN.D.".d . "on.d." . r2 "dn.d.".d
-    , r2 "on.D. pn.d. dN.D.d"
+    , r2 $ g "on.D.dN." . g "pn.d.dn."
+    , r4 (g "on.D.d" . g "pn.d.d") . r2 (g "on.d" . g "pn.d")
     ]
 
+e_n_dd_dd3 :: Korvai
+e_n_dd_dd3 = date 2022 2 6 $ exercise $ ganesh $ korvaiS adi $ map (nadai 6)
+    [ r3 (g "N.dD.dD.")   . o & (r2 (g "n.dd.dd.")) . g "n.dD.dD."
+    , o & (r2 (g "n.dD.dD.")) . g "dN.D.dD." . r2 (g "n.dd.dd.") . g "n.dD.dD."
+    , r3 $ g "N.dD.dD." . g "dN.D.dD."
+    , r3 $ g "on.D.dD." . g "dn.d.dd."
+    -- TODO middle one without thom
+    , r3 $ g "on.D.dD." . g "dN.D.dD." . r3 (g "dN.D.").d
+    , r3 $ g "on.D." . r2 (g "dN.D.").d . (g "on.d.") . r2 (g "dn.d.").d
+    , r3 $ g "on.d.dN." . g "pn.d.dn."
+    , r2 (g "on.d.d" . g "pn.d.d") . r3 (g "on.d" . g "pn.d")
+    ]
 
 c_22_02_20 :: Korvai
 c_22_02_20 = date 2022 2 20 $ ganesh $ korvaiS adi

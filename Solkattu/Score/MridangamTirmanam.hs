@@ -28,6 +28,12 @@ tir_long_adi = tirmanam $ korvaiS adi
         . od
     ]
 
+-- sam to sam
+tir_sam_adi_kirkalam :: Korvai
+tir_sam_adi_kirkalam = tirmanam $ korvaiS adi
+    [ tri_ "D__k" "kookokk_"
+    ]
+
 tir_long_rupaka :: Korvai
 tir_long_rupaka = tirmanam $ korvaiS Tala.rupaka_fast
     -- 20:06
