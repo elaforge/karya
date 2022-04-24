@@ -37,7 +37,7 @@ data Track = Track {
     -- | If True, and this track has im notes, display the waveform on the
     -- track.
     , track_waveform :: !Bool
-    } deriving (Eq, Show, Read)
+    } deriving (Eq, Show)
 
 instance Pretty Track where
     format (Track title events _bg render _waveform) = Pretty.record "Track"
@@ -91,7 +91,7 @@ type TrackBg = Track -> Color.Color
 data RenderConfig = RenderConfig {
     render_style :: !RenderStyle
     , render_color :: !Color.Color
-    } deriving (Eq, Show, Read)
+    } deriving (Eq, Show)
 
 no_render :: RenderConfig
 no_render = RenderConfig NoRender Config.track_signal_color
@@ -114,10 +114,10 @@ instance Pretty RenderConfig where
 -- and looks for that signal.
 data RenderStyle = NoRender | Line !(Maybe RenderSource)
     | Filled !(Maybe RenderSource)
-    deriving (Eq, Read, Show)
+    deriving (Eq, Show)
 
 data RenderSource = Control ScoreT.Control | Pitch ScoreT.PControl
-    deriving (Eq, Read, Show)
+    deriving (Eq, Show)
 
 instance Pretty RenderSource where
     pretty (Control c) = "Control " <> pretty c

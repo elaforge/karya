@@ -85,14 +85,14 @@ data Event = Event {
     -- | If this event was integrated from another event as by
     -- "Derive.Call.Integrate", this will have the stack of the source event.
     , _stack :: !(Maybe Stack)
-    } deriving (Eq, Read, Show)
+    } deriving (Eq, Show)
 
 data Stack = Stack {
     -- | The stack is used so the event retains a reference to its generating
     -- event.
     stack_stack :: !Stack.Stack
     , stack_key :: !IndexKey
-    } deriving (Eq, Ord, Read, Show)
+    } deriving (Eq, Ord, Show)
 
 instance DeepSeq.NFData Stack where
     rnf = DeepSeq.rnf . stack_stack

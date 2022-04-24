@@ -316,7 +316,7 @@ split_at_before pos events
 -- This type should remain abstract, and you should manipulate events using
 -- functions in this module.
 newtype Events = Events EventMap
-    deriving (DeepSeq.NFData, Eq, Show, Read)
+    deriving (DeepSeq.NFData, Eq, Show)
 
 type EventMap = Map Key Event.Event
 
@@ -326,7 +326,7 @@ type EventMap = Map Key Event.Event
 -- 'Event.Event'.  I used to have them separate, but it was a pain to pass
 -- (ScoreTime, Event) pairs around everywhere.
 data Key = Key !TrackTime !Types.Orientation
-    deriving (Eq, Ord, Show, Read)
+    deriving (Eq, Ord, Show)
 
 instance DeepSeq.NFData Key where rnf _ = ()
 

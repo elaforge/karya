@@ -160,7 +160,7 @@ data TrackDestinations =
     -- | A score integrate is always just one track along with its descendents.
     -- It's not necessarily a note track.
     | ScoreDestinations !ScoreDestinations
-    deriving (Eq, Show, Read)
+    deriving (Eq, Show)
 
 dest_track_ids :: TrackDestinations -> [TrackId]
 dest_track_ids = \case
@@ -207,7 +207,7 @@ data NoteDestination = NoteDestination {
     , dest_note :: !(TrackId, EventIndex)
     -- | Map from control name to the track which was created for it.
     , dest_controls :: !(Map Text (TrackId, EventIndex))
-    } deriving (Eq, Show, Read)
+    } deriving (Eq, Show)
 
 note_dest_track_ids :: NoteDestination -> [TrackId]
 note_dest_track_ids (NoteDestination _ note controls) =
@@ -222,8 +222,8 @@ empty_destination key note controls = NoteDestination
     }
 
 -- | This is a picture of the integrated events that were used to create an
--- integrated block.  By taking its difference against the current contents of
--- the block I can figure out user edits.
+-- integrated block or track.  By taking its difference against the current
+-- contents of the block I can figure out user edits.
 type EventIndex = Map Event.IndexKey Event.Event
 
 short_event_index :: EventIndex -> Text
@@ -307,7 +307,7 @@ instance Pretty Config where format = Pretty.formatG_
 
 -- | One of those colored boxes wedged into the corners of the block window.
 data Box = Box { box_color :: !Color.Color, box_char :: !Char }
-    deriving (Eq, Show, Read)
+    deriving (Eq, Show)
 
 instance Pretty Box where
     pretty (Box color c) =
@@ -334,7 +334,7 @@ data Track = Track {
     -- | Other tracks are displayed behind this one.  Useful to merge a pitch
     -- track into its note track.
     , track_merged :: !(Set TrackId)
-    } deriving (Eq, Show, Read)
+    } deriving (Eq, Show)
 
 track_id :: Track -> Maybe TrackId
 track_id = track_id_of . tracklike_id
@@ -386,7 +386,7 @@ data DisplayTrack = DisplayTrack {
     , dtrack_merged :: !(Set TrackId)
     , dtrack_status :: !Status
     , dtrack_event_brightness :: !Double
-    } deriving (Eq, Show, Read)
+    } deriving (Eq, Show)
 
 instance Pretty DisplayTrack where
     format (DisplayTrack tlike_id width merged status _bright) =
@@ -400,7 +400,7 @@ instance Pretty DisplayTrack where
 -- | This has a 2 character string to display above the track, and a background
 -- color.  TODO change to Char Char
 data Status = Status !String !Color.Color
-    deriving (Eq, Show, Read)
+    deriving (Eq, Show)
 
 instance Pretty Status where pretty (Status cs color) = pretty (cs, color)
 
@@ -421,7 +421,7 @@ data TrackFlag =
     -- derivation.  Since Mute and Solo work after derivation, they don't
     -- require a rederive but also can't mute a single control track.
     | Disable
-    deriving (Eq, Ord, Enum, Bounded, Show, Read)
+    deriving (Eq, Ord, Enum, Bounded, Show)
 
 instance Pretty TrackFlag where pretty = showt
 
@@ -488,7 +488,7 @@ data TracklikeId =
     TId TrackId RulerId
     | RId RulerId
     | DId Divider
-    deriving (Eq, Ord, Show, Read)
+    deriving (Eq, Ord, Show)
 
 instance Pretty TracklikeId where
     pretty tlike_id = case tlike_id of
@@ -538,7 +538,7 @@ rulers_of :: [Tracklike] -> [Ruler.Ruler]
 rulers_of = mapMaybe ruler_of
 
 -- | A divider separating tracks.  Defined here in Block since it's so trivial.
-newtype Divider = Divider Color.Color deriving (Eq, Ord, Show, Read)
+newtype Divider = Divider Color.Color deriving (Eq, Ord, Show)
 
 -- * block view
 
@@ -556,7 +556,7 @@ data View = View {
     , view_track_scroll :: !Types.Width
     , view_zoom :: !Zoom.Zoom
     , view_selections :: !(Map Sel.Num Sel.Selection)
-    } deriving (Eq, Ord, Show, Read)
+    } deriving (Eq, Ord, Show)
 
 instance Pretty View where
     format (View block rect padding status tscroll zoom sels) =
@@ -602,7 +602,7 @@ data Padding = Padding {
     , top :: !Int
     , bottom :: !Int
     -- Right padding is not necessary, because I can add up track widths.
-    } deriving (Eq, Ord, Show, Read)
+    } deriving (Eq, Ord, Show)
 
 instance Pretty Padding where
     pretty (Padding left top bottom) = pretty (left, top, bottom)
