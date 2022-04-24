@@ -4,6 +4,7 @@
 
 -- | Functions to deal with derive and score integration.
 module Cmd.Repl.LIntegrate where
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
@@ -16,7 +17,7 @@ import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.Derive as Derive
-import qualified Derive.Score as Score
+import qualified Derive.Stack as Stack
 import qualified Derive.Stream as Stream
 
 import qualified Ui.Block as Block
@@ -101,9 +102,50 @@ delete_manual key = do
 
 -- * inspect
 
+track_sources :: Cmd.M m => m Text
+track_sources = do
+    block <- Ui.get_block =<< Cmd.get_focused_block
+    return $ Text.unlines $ List.intercalate [""] $ map show_source $
+        Block.block_integrated_tracks block
+    where
+    show_source (source, dests) =
+        "=== source: " <> pretty source : show_track_dests dests
+
+show_track_dests :: Block.TrackDestinations -> [Text]
+show_track_dests = \case
+    Block.DeriveDestinations dests -> concatMap show_dest dests
+    Block.ScoreDestinations dests -> concatMap show_score_dest dests
+
+show_score_dest :: (TrackId, (TrackId, Block.EventIndex)) -> [Text]
+show_score_dest (source, (dest, events)) =
+    "== " <> pretty source <> " -> " <> pretty dest <> ":"
+    : show_index events
+
+show_dest :: Block.NoteDestination -> [Text]
+show_dest (Block.NoteDestination key note controls) =
+    "== key: " <> pretty key
+        : "== note: " <> pretty (fst note) : show_index (snd note)
+        ++ concatMap show_control (Map.toList controls)
+    where
+    show_control (name, (track_id, index)) =
+        "== control " <> name <> ": " <> pretty track_id
+        : show_index index
+
+show_index :: Block.EventIndex -> [Text]
+show_index = map show_event . Map.elems
+
+show_event :: Event.Event -> Text
+show_event e = mconcat
+    [ pretty (Event.start e), "+", pretty (Event.duration e)
+    , " ", pretty (Event.text e)
+    , " ", fromMaybe "?" $
+        Stack.pretty_ui_inner . Event.stack_stack =<< Event.stack e
+    ]
+
 -- | Show the integration state in an abbreviated way.
-sources :: Cmd.M m => m [(TrackId, (Block.Source, Text))]
-sources = do
+-- This is an inverse mapping from dest to source.
+dest_to_sources :: Cmd.M m => m [(TrackId, (Block.Source, Text))]
+dest_to_sources = do
     block <- Ui.get_block =<< Cmd.get_focused_block
     return $ map (fmap (fmap Block.short_event_index)) $
         Block.destination_to_source block
@@ -140,9 +182,12 @@ indices_of integrated integrated_tracks =
     derive_indices (Block.NoteDestination _ note controls) =
         note : Map.elems controls
 
+-- | This is always going to be empty because cache strips collect_integrated.
+-- That's too bad because sometimes I want to see the original events, for
+-- debugging.
 integrated :: Cmd.M m => m Text
 integrated = do
-    integrated <- Cmd.perf_integrated <$> Perf.get_root
+    integrated <- Cmd.perf_integrated <$> (Perf.get =<< Cmd.get_focused_block)
     return $ Text.unlines $ concatMap fmt integrated
     where
     fmt (Derive.Integrated source events) =

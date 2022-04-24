@@ -800,8 +800,9 @@ infer_damp_voices damped_insts dur_at early_at events = do
             (skipped, zipWith infer_event damps (Seq.zip_next events))
         where (damps, skipped) = infer_damp dur_at events
     infer_event (hand, damped) (event, next) =
-        map (Post.add_environ EnvKey.hand hand) $
-            event : if damped then [make_damp early event] else []
+        map (Post.add_environ EnvKey.hand hand) $ if damped
+            then [Score.duration (subtract early) event, make_damp early event]
+            else [event]
         where
         early = case next of
             Just n | Score.event_end event >= Score.event_start n ->

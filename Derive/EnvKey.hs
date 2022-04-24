@@ -102,6 +102,11 @@ track_voice = "track-voice"
 suppress_until :: Key
 suppress_until = "suppress-until"
 
+-- | VNum: Save ambient dyn before an integrate.  See usage in
+-- "Cmd.Integrate.Convert".
+dynamic_integrate :: Key
+dynamic_integrate = "dyn-integrate"
+
 -- | VNum: This is a bit of a hack for the dynamic to velocity conversion in
 -- "Perform.Midi.Convert".  The default note deriver stashes the control
 -- function output here so it can use it for note on velocity.  Otherwise I

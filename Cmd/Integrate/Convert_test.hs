@@ -12,6 +12,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stream as Stream
 
 import qualified Perform.Pitch as Pitch
@@ -25,16 +26,17 @@ import           Util.Test
 test_convert :: Test
 test_convert = do
     let no_dur = first $ map $ second $ map $ \(s, _, t) -> (s, t)
-    let derive0 ptitle = no_dur . derive ptitle
-    equal (derive ("kontakt/", "") [(0, 1, "d .25 | -- 4c")])
+    let derive0 (patch, title) = no_dur . derive (patch, title, "")
+    equal (derive ("kontakt/", "", "") [(0, 1, "d .25 | -- 4c")])
         ([(">i", [(0.25, 1, "")]), ("*", [(0.25, 0, "4c")])], [])
-    equal (derive ("kontakt/", "") [(0, 4, "tr 1d 1 -- 4c")])
+    equal (derive ("kontakt/", "", "") [(0, 4, "tr 1d 1 -- 4c")])
         ( [ (">i", map (, 1, "") [0, 1, 2, 3])
           , ("*", [(0, 0, "4c"), (1, 0, "4d"), (2, 0, "4c"), (3, 0, "4d")])
           ]
         , []
         )
-    equal (derive ("kontakt/sc-pemade", "") [(0, 1, "4c"), (1, 0, "+mute --")])
+    equal (derive ("kontakt/sc-pemade", "", "")
+        [(0, 1, "4c"), (1, 0, "+mute --")])
         ( [ (">i", [(0, 1, ""), (1, 0, "+mute")])
           , ("*", [(0, 0, "4c"), (1, 0, "4c")])
           ]
@@ -79,17 +81,58 @@ test_convert = do
         , []
         )
 
-derive :: (Text, Convert.Title) -> [UiTest.EventSpec]
+test_convert_dyn :: Test
+test_convert_dyn = do
+    let no_dur = first $ map $ second $ map $ \(s, _, t) -> (s, t)
+    let derive0 title pre_integrate = no_dur
+            . derive
+                ( "kontakt/"
+                , Texts.join2 " | " "weak-dyn=.5" title
+                , pre_integrate
+                )
+    -- No dyn track if it's just the default value.
+    equal (derive0 "" "" [(0, 1, "4c")])
+        ([(">i", [(0, "")]), ("*", [(0, "4c")])], [])
+    equal (derive0 "%dyn=.5" "" [(0, 1, "4c")])
+        ([(">i", [(0, "")]), ("*", [(0, "4c")])], [])
+    equal (derive0 "" "" [(0, 1, "4c"), (1, 1, "^ -- 4c")])
+        ( [ (">i", [(0, ""), (1, "")]), ("*", [(0, "4c"), (1, "4c")])
+          , ("dyn", [(0, "`0x`ff"), (1, "`0x`80")])
+          ]
+        , []
+        )
+    equal (derive0 "%dyn=.5" "" [(1, 1, "4c"), (2, 1, "^ -- 4c"), (3, 1, "4c")])
+        ( [ (">i", map (,"") [1, 2, 3])
+          , ("*", map (,"4c") [1, 2, 3])
+          , ("dyn", [(1, "`0x`ff"), (2, "`0x`80"), (3, "`0x`ff")])
+          ]
+        , []
+        )
+    -- Ensure dynamic invert works even when it's set post-integrate.
+    equal (derive0 "%dyn=.75" "%dyn=.6" [(1, 1, "4c"), (2, 1, "^ -- 4c")])
+        ( [ (">i", [(1, ""), (2, "")])
+          , ("*", [(1, "4c"), (2, "4c")])
+          , ( "dyn"
+            , [ (1, ShowVal.show_hex_val (0.6 / 0.75))
+              , (2, ShowVal.show_hex_val (0.3 / 0.75))
+              ]
+            )
+          ]
+        , []
+        )
+
+derive :: (Text, Convert.Title, Convert.Title) -> [UiTest.EventSpec]
     -> ([(Convert.Title, [UiTest.EventSpec])], [Text])
-derive (patch, title) pitches =
+derive (patch, title, pre_integrate) pitches =
     (map extract (concatMap flatten converted), logs0 ++ logs ++ errors)
     where
     inst = "i"
     allocs = [(inst, patch)]
-    result = -- Debug.tracefp "e" Derive.r_events $
+    result =
         DeriveTest.derive_tracks_setup (with_synth allocs)
             (Texts.join2 " | " "inst=i" title) $
-        UiTest.note_spec (inst <> " | <", pitches, [])
+        UiTest.note_spec
+            (Texts.join2 " | " (inst <> " | <") pre_integrate, pitches, [])
     logs0 = snd $ DeriveTest.extract id result
     (events, logs) = DeriveTest.extract_levents id $ Stream.to_list $
         Derive.integrated_events $ head $ Derive.r_integrated result

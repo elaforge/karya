@@ -10,11 +10,13 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 import qualified Util.Seq as Seq
+import qualified Derive.Call as Call
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.Module as Module
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Library as Library
 import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
@@ -109,6 +111,9 @@ c_track_integrate = Derive.transformer Module.prelude "track-integrate" mempty
         -- Similar to block_integrate, only collect an integration if this is
         -- at the toplevel.
         toplevel <$> Internal.get_stack >>= \case
+            Just (block_id, Nothing) -> Derive.throw $
+                "track integrate seems to be in a block title: "
+                <> pretty block_id
             Just (block_id, Just track_id) -> do
                 -- The derive is intentionally outside of the
                 -- 'only_destinations_damaged' check.  This is because I need
@@ -118,7 +123,7 @@ c_track_integrate = Derive.transformer Module.prelude "track-integrate" mempty
                 -- lead to it hanging on to lots of garbage, especially since
                 -- it would never drop track dynamics entries for deleted
                 -- tracks.
-                events <- unwarp_events =<< deriver
+                events <- unwarp_events =<< integrate_derive deriver
                 -- Always include transposers because they affect the pitches.
                 -- TODO: technically they should be from pscale_transposers,
                 -- but that's so much work to collect, let's just assume the
@@ -128,13 +133,16 @@ c_track_integrate = Derive.transformer Module.prelude "track-integrate" mempty
                 -- track integrates if only the destinations had received
                 -- damage.  But the track cache now serves this purpose, since
                 -- it intentionally doesn't retain 'Derive.collect_integrated'.
-                track_integrate block_id track_id $ -- Debug.tracep "es" $
+                track_integrate block_id track_id $
                     fmap (strip_event keep) events
-            Just (block_id, Nothing) -> Derive.throw $
-                "track integrate seems to be in a block title: "
-                <> pretty block_id
             Nothing -> return ()
         return Stream.empty
+
+integrate_derive :: Derive.Deriver a -> Derive.Deriver a
+integrate_derive deriver = do
+    -- See comment in "Cmd.Integrate.Convert" for why.
+    dyn <- Call.dynamic 0
+    Derive.with_val EnvKey.dynamic_integrate dyn deriver
 
 -- | Unwarp integrated events, otherwise the tempo would be applied twice, once
 -- during integration and again during derivation of the integrated output.

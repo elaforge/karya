@@ -270,27 +270,32 @@ control_track :: [Score.Event] -> ScoreT.Typed ScoreT.Control -> Track
 control_track events control =
     make_track (ParseTitle.control_to_title control) ui_events
     where
-    ui_events = drop_dyn $ tidy_controls $
-        map (signal_events (ScoreT.typed_val control)) events
+    ui_events = drop_dyn $ tidy_controls $ map (signal_events c) events
     -- Don't emit a dyn track if it's just the default.
-    -- TODO generalize this to everything in in Derive.initial_controls
-    drop_dyn [event]
-        | ScoreT.typed_val control == Controls.dynamic
-            && Event.text event == default_dyn = []
-    drop_dyn events = events
-    default_dyn = ShowVal.show_hex_val Derive.default_dynamic
+    drop_dyn events = case Map.lookup c Derive.initial_control_vals of
+        Just val | all ((==t) . Event.text) events -> []
+            where t = ShowVal.show_hex_val val
+        _ -> events
     tidy_controls = clip_to_zero . drop_dups . clip_concat
+    c = ScoreT.typed_val control
 
 signal_events :: ScoreT.Control -> Score.Event -> [Event.Event]
 signal_events control event = case Score.event_control control event of
     Nothing -> []
-    Just sig ->
-        [ ui_event (Score.event_stack event)
-            (RealTime.to_score x) 0 (ShowVal.show_hex_val y)
-        | (x, y) <- Signal.to_pairs $
-            Signal.clip_before start (ScoreT.typed_val sig)
-        ]
-    where start = Score.event_start event
+    Just sig -> map (uncurry mk) $ Signal.to_pairs $
+        Signal.clip_before start (ScoreT.typed_val sig)
+    where
+    -- Suppose ambient dyn is .75, but then post integrate it is set to .6.
+    -- Since the dyn track multiplies by default, this would wind up doubly
+    -- applying the .75, for .75*.6.  So the integrate call saves its ambient
+    -- dyn so we can invert it here.
+    invert
+        | control == Controls.dynamic = fromMaybe 1 $
+            Env.maybe_val EnvKey.dynamic_integrate $ Score.event_environ event
+        | otherwise = 1
+    start = Score.event_start event
+    mk x y = ui_event (Score.event_stack event) (RealTime.to_score x) 0
+        (ShowVal.show_hex_val (y / invert))
 
 -- * util
 

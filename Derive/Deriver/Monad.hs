@@ -56,7 +56,7 @@ module Derive.Deriver.Monad (
     , Threaded(..), initial_threaded
     , Dynamic(..), InstrumentAliases, Inversion(..), initial_dynamic
     , strip_dynamic
-    , initial_controls, default_dynamic
+    , initial_controls, initial_control_vals, default_dynamic
 
     -- ** scope
     , Builtins
@@ -617,8 +617,11 @@ strip_dynamic dyn = dyn { state_pitch_map = Nothing }
 
 -- | Initial control environment.
 initial_controls :: DeriveT.ControlMap
-initial_controls = Map.fromList
-    [ (Controls.dynamic, ScoreT.untyped (Signal.constant default_dynamic))
+initial_controls = ScoreT.untyped . Signal.constant <$> initial_control_vals
+
+initial_control_vals :: Map ScoreT.Control Signal.Y
+initial_control_vals = Map.fromList
+    [ (Controls.dynamic, default_dynamic)
     ]
 
 initial_control_merge_defaults :: Map ScoreT.Control Merger

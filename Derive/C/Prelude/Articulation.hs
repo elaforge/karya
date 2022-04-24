@@ -363,7 +363,7 @@ c_accent = Make.transform_notes Module.prelude "accent" Tags.ly
         Call.add_attributes Attrs.accent . Call.multiply_dynamic dyn
 
 c_weak :: Library.Calls Derive.Note
-c_weak = Make.transform_notes Module.prelude "weaken" mempty
+c_weak = Make.transform_notes Module.prelude "weak" mempty
     "Weaken the note by multiplying its dynamic."
     (defaulted "dyn" 0.35 "Multiply dynamic.") $ \dyn ->
         Call.multiply_dynamic dyn

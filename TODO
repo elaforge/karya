@@ -3982,6 +3982,37 @@ integrate: integration:
       . Is there really a use for this, other than consistency?
       . Yes, I want to do this for generated parts.
   derive integrate:
+    * capture ambient dyn so I can cancel it out so I don't double apply it
+      . I can capture all controls, but what do with it?
+      . If it's .5, and the issue is .25, then I should *2.  But only if it
+        has .25 because it was *.5.
+      . Prelude.Control.set_absolute
+      . Oh what if I derive without controls?  I can't do that for all
+        controls, but maybe I reuse keep_controls.
+      . Works except I wind up with 0 instead of 1 for the leading section.
+      . Fixed but it's wrong, it should be on all events without dyn.
+      . For reyong I still wind up with 0x99, that's .6, which is from the
+        track title.  That's actually correct!
+      . Why does it sound so much softer then?
+      . It winds up with .45, not .6, why?  That's .75 * 0x99.  So this is
+        because %dyn=x overrides dyn, while 0x99 multiplies.
+      . The problem is that unsetting dyn in integrate doesn't work on a
+        set inside the deriver.
+      . But, don't I want that to affect it?  The set is integrated out, as
+        intended.  The thing that's not intended is the set becomes
+        a multiply.
+      . What if I don't reset dyn at all, but record ambient dyn, then invert?
+        0.5 becomse 0.5 0.25 0.5.
+    - triggered instruments (like reyong) can ignore durations to merge tracks
+      . Except that reyong is not Triggered, because I nominally have duration
+        before damping.
+      . Maybe infer-damp should set all duration to 0?
+      . No, because 0 dur already means mute!
+    - reyong +mute should map back to zero dur
+      . Except it has to be actually less dyn, since otherwise byuts would get
+        it.  The problem is to capture the intent that it's a damp, not
+        a mute.  Maybe then I should use +damp!  But I do still want to
+        control dyn.
     integrate event text:
       . reyong infer-damp integrate:
       . Instead of +mute, just use zero dur events.  This should also get
@@ -4006,7 +4037,7 @@ integrate: integration:
         I double transformations as I emit both the event and the output?
       . Call map was originally for drums, but won't event_text work for
         those too?
-      . In fact, `seq` in mridingam would, because it uses re-eval, as
+      . In fact, `seq` in mridangam would, because it uses re-eval, as
         presumably so should they all.
       . I should have tests for all these things:
         * realize mridangam
@@ -4712,6 +4743,7 @@ cleanup: bugs:
       . format "from={} | {} {}" ('val vol, 'str c, 'val val)
       . I don't like it because the format type is out of context.
     . formatting: import a bunch of formatters plus (%), type-safe
+      . https://hackage.haskell.org/package/formatting
       . Probably worse errors.
       . format ("from="%'val%" | "%'str%" "%'val) vol c val
       . Still much noisier than "from=%v | %s %v".
@@ -4786,6 +4818,20 @@ performance:
       . Debug.Trace.traceMarker
         eventlog2html -i can filter markers
       profile by info table (new): -hi
+        . A new heap profiling mode, -hi, profile by info table allows for
+          fine-grain banding by the info table address of a closure. The
+          profiling mode is intended to be used with -finfo-table-map and can
+          best be consumed with eventlog2html.  This profiling mode does not
+          require a profiling build.
+        . GHC now supports a flag, -fprof-callers=⟨name⟩, for requesting that
+          the compiler automatically insert cost-centres on all call-sites of
+          the named function.
+        . A new debugging facility, -finfo-table-map, which embeds a mapping
+          from the address of an info table to information about that info
+          table, including an approximate source position.
+          -fdistinct-constructor-tables is also useful with this flag to give
+          each usage of a data constructor its own unique info table so they can
+          be distinguished in gdb and heap profiles.
         . https://well-typed.com/blog/2021/01/first-look-at-hi-profiling-mode/
         . need -finfo-table-map -fdistinct-constructor-tables
         . eventlog2html detailed pane now has extra columns
