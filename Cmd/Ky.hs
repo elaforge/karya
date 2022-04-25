@@ -32,6 +32,7 @@ import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
 import qualified Derive.Library as Library
+import qualified Derive.Parse.Instruments as Instruments
 import qualified Derive.Parse.Ky as Ky
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
@@ -44,26 +45,41 @@ import           Global
 
 -- | Check if ky files have changed, and if they have, update
 -- 'Cmd.state_ky_cache' and clear the performances.
-update_cache :: Ui.State -> Cmd.State -> IO Cmd.State
-update_cache ui_state cmd_state = do
-    cache <- check_cache ui_state cmd_state
-    return $ case cache of
-        Nothing -> cmd_state
-        Just ky_cache -> cmd_state
+update_cache :: Ui.State -> Cmd.State -> IO (Ui.State, Cmd.State)
+update_cache ui_state cmd_state = check_cache ui_state cmd_state >>= \case
+    Nothing -> return (ui_state, cmd_state)
+    Just (ky_cache, mb_allocs) -> do
+        let olds = Ui.config#UiConfig.allocations #$ ui_state
+        to_state <- case mb_allocs of
+            Nothing -> return ui_state
+            Just allocs -> do
+                news <- apply_allocs allocs olds
+                return $ Ui.config#UiConfig.allocations #= news $ ui_state
+        return $ (to_state,) $ cmd_state
             { Cmd.state_ky_cache = Just ky_cache
             , Cmd.state_play = (Cmd.state_play cmd_state)
+                -- TODO should I kill threads?
                 { Cmd.state_performance = mempty
                 , Cmd.state_current_performance = mempty
                 , Cmd.state_performance_threads = mempty
                 }
             }
 
+apply_allocs :: [Instruments.Allocation] -> UiConfig.Allocations
+    -> IO UiConfig.Allocations
+apply_allocs allocs olds = case Instruments.update_ui allocs olds of
+    Left err -> do
+        Log.warn $ "instruments from ky: " <> err
+        return olds
+    Right allocs -> return allocs
+
 -- | Reload the ky files if they're out of date, Nothing if no reload is
 -- needed.
-check_cache :: Ui.State -> Cmd.State -> IO (Maybe Cmd.KyCache)
+check_cache :: Ui.State -> Cmd.State
+    -> IO (Maybe (Cmd.KyCache, Maybe [Instruments.Allocation]))
 check_cache ui_state cmd_state = run $ do
     when is_permanent abort
-    Ky.Ky defs imported <- tryRight . first (Just . ParseText.show_error)
+    Ky.Ky defs imported allocs <- tryRight . first (Just . ParseText.show_error)
         =<< liftIO (Ky.load_ky (state_ky_paths cmd_state)
             (Ui.config#UiConfig.ky #$ ui_state))
     -- This uses the contents of all the files for the fingerprint, which
@@ -74,7 +90,7 @@ check_cache ui_state cmd_state = run $ do
     when (fingerprint == old_fingerprint) abort
     builtins <- compile_library (loaded_fnames imported) $
         compile_definitions defs
-    return (builtins, Map.fromList (Ky.def_aliases defs), fingerprint)
+    return ((builtins, Map.fromList (Ky.def_aliases defs), fingerprint), allocs)
     where
     is_permanent = case Cmd.state_ky_cache cmd_state of
         Just (Cmd.PermanentKy {}) -> True
@@ -93,20 +109,21 @@ check_cache ui_state cmd_state = run $ do
     apply (Left Nothing) = Nothing
     apply (Left (Just err))
         | failed_previously err = Nothing
-        | otherwise = Just $ Cmd.KyCache (Left err) mempty
-    apply (Right (builtins, aliases, fingerprint)) =
-        Just $ Cmd.KyCache (Right (builtins, aliases)) fingerprint
+        | otherwise = Just (Cmd.KyCache (Left err) mempty, Nothing)
+    apply (Right ((builtins, aliases, fingerprint), allocs)) =
+        Just (Cmd.KyCache (Right (builtins, aliases)) fingerprint, allocs)
 
 load :: [FilePath] -> Ui.State
-    -> IO (Either Text (Derive.Builtins, Derive.InstrumentAliases))
+    -> IO (Either Text (Derive.Builtins, Derive.InstrumentAliases,
+        Maybe [Instruments.Allocation]))
 load paths =
     fmap (first ParseText.show_error) . traverse compile
         <=< Ky.load_ky paths . (Ui.config#UiConfig.ky #$)
     where
-    compile (Ky.Ky defs imported) = do
+    compile (Ky.Ky defs imported allocs) = do
         builtins <- compile_library (loaded_fnames imported) $
             compile_definitions defs
-        return (builtins, Map.fromList (Ky.def_aliases defs))
+        return (builtins, Map.fromList (Ky.def_aliases defs), allocs)
 
 loaded_fnames :: [Ky.Loaded] -> [FilePath]
 loaded_fnames loads = [fname | Ky.Loaded fname _ <- loads]

@@ -55,7 +55,7 @@ from_list :: [(EnvKey.Key, Val)] -> Environ
 from_list = Environ . Map.fromList
 
 convert :: Environ -> DeriveT.Environ
-convert (Environ env) = DeriveT.Environ $ convert_val <$> env
+convert (Environ env) = DeriveT.Environ $ promote <$> env
 
 lookup :: EnvKey.Key -> Environ -> Maybe Val
 lookup key (Environ env) = Map.lookup key env
@@ -82,8 +82,8 @@ data Val =
     | VList ![Val]
     deriving (Eq, Show)
 
-convert_val :: Val -> DeriveT.Val
-convert_val val = case val of
+promote :: Val -> DeriveT.Val
+promote val = case val of
     VNum v -> DeriveT.VNum v
     VAttributes v -> DeriveT.VAttributes v
     VControlRef v -> DeriveT.VControlRef v
@@ -91,11 +91,11 @@ convert_val val = case val of
         DeriveT.VPitch $ PSignal.constant_pitch scale_id note nn
     VNotePitch v -> DeriveT.VNotePitch v
     VStr v -> DeriveT.VStr v
-    VQuoted v -> DeriveT.VQuoted $ DeriveT.Quoted $
-        Expr.map_literals convert_val v
-    VList v -> DeriveT.VList $ map convert_val v
+    VQuoted v -> DeriveT.VQuoted $ DeriveT.Quoted $ Expr.map_literals promote v
+    VList v -> DeriveT.VList $ map promote v
 
-instance Pretty Val where format = Pretty.format . convert_val
+instance Pretty Val where format = Pretty.format . promote
+instance ShowVal.ShowVal Val where show_val = ShowVal.show_val . promote
 
 -- | This duplicates 'TrackLang.Typecheck', but then so does this whole module.
 -- In any case, it's convenient for creaing 'Environ's.

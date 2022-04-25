@@ -21,7 +21,6 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
-import qualified Data.Traversable as Traversable
 
 import           System.FilePath ((</>))
 
@@ -32,6 +31,7 @@ import qualified Util.Seq as Seq
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Expr as Expr
 import qualified Derive.Parse as Parse
+import qualified Derive.Parse.Instruments as Instruments
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Symbols as Symbols
@@ -45,12 +45,14 @@ import           Global
 data Ky a = Ky {
     ky_definitions :: Definitions
     , ky_imports :: [a]
+    -- | Nothing if there is no instrument section.
+    , ky_allocations :: Maybe [Instruments.Allocation]
     } deriving (Show)
 
 instance Semigroup (Ky a) where
-    Ky a1 b1 <> Ky a2 b2 = Ky (a1<>a2) (b1<>b2)
+    Ky a1 b1 c1 <> Ky a2 b2 c2 = Ky (a1<>a2) (b1<>b2) (c1<>c2)
 instance Monoid (Ky a) where
-    mempty = Ky mempty mempty
+    mempty = Ky mempty mempty mempty
     mappend = (<>)
 
 -- | Record a loaded .ky file, with its path and content.
@@ -160,19 +162,24 @@ catch_io prefix io =
 parse_ky :: FilePath -> Text -> Either ParseText.Error (Ky Import)
 parse_ky fname text = do
     let (imports, sections) = split_sections $ strip_comments $ Text.lines text
+    (instrument_section, sections) <- return
+        ( Map.lookup instrument sections
+        , Map.delete instrument sections
+        )
     let extra = Set.toList $
             Map.keysSet sections `Set.difference` Set.fromList valid_headers
     unless (null extra) $
         Left $ ParseText.message $
             "unknown sections: " <> Text.intercalate ", " extra
     imports <- ParseText.parse p_imports imports
-    parsed <- Traversable.traverse parse_section sections
+    parsed <- traverse parse_section sections
     let get header = Map.findWithDefault [] header parsed
         get2 kind =
             ( get (kind <> " " <> generator)
             , get (kind <> " " <> transformer)
             )
     aliases <- first (ParseText.Error Nothing) $ mapM parse_alias (get alias)
+    allocs <- traverse (traverse parse_allocation) instrument_section
     let add_fname = map (fname,)
         add_fname2 = bimap add_fname add_fname
     return $ Ky
@@ -184,6 +191,7 @@ parse_ky fname text = do
             , def_aliases = aliases
             }
         , ky_imports = map (Import fname) imports
+        , ky_allocations = allocs
         }
     where
     val = "val"
@@ -193,6 +201,7 @@ parse_ky fname text = do
     generator = "generator"
     transformer = "transformer"
     alias = "alias"
+    instrument = Instruments.instrument_section
     valid_headers = val : alias :
         [ t1 <> " " <> t2
         | t1 <- [note, control, pitch], t2 <- [generator, transformer]
@@ -202,6 +211,11 @@ parse_ky fname text = do
         first (ParseText.offset (lineno, 0)) $ ParseText.parse p_section $
             Text.unlines (line0 : map snd lines)
     strip_comments = filter (not . ("--" `Text.isPrefixOf`) . Text.stripStart)
+
+parse_allocation :: (Int, Text) -> Either ParseText.Error Instruments.Allocation
+parse_allocation (lineno, line) =
+    first (ParseText.offset (lineno, 0)) $
+        ParseText.parse Instruments.p_allocation line
 
 -- | The alias section allows only @alias = inst@ definitions.
 parse_alias :: (Expr.Symbol, Expr)
@@ -217,6 +231,7 @@ parse_alias (lhs, rhs) = first (msg<>) $ case rhs of
     msg = "alias " <> ShowVal.show_val lhs <> " = " <> ShowVal.show_val rhs
         <> ": "
 
+-- | Split sections into a Map with section name keys, and numbered lines.
 split_sections :: [Text] -> (Text, Map Text [(Int, Text)])
 split_sections =
     second (Map.fromListWith (flip (++)) . concatMap split_header)

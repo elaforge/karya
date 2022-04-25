@@ -58,7 +58,7 @@ test_ky_file = do
 
 test_check_cache :: Test
 test_check_cache = do
-    let f ky_cache ky = Ky.check_cache
+    let f ky_cache ky = fmap (fmap fst) $ Ky.check_cache
             (Ui.config#UiConfig.ky #= ky $ Ui.empty)
             (CmdTest.default_cmd_state { Cmd.state_ky_cache = ky_cache })
         extract Nothing = Right Nothing
@@ -96,7 +96,7 @@ put_library text = do
     cache <- case Parse.Ky.parse_ky "fname.ky" text of
         Left err ->
             return $ Cmd.KyCache (Left (ParseText.show_error err)) mempty
-        Right (Parse.Ky.Ky defs imported) -> do
+        Right (Parse.Ky.Ky defs imported _allocs) -> do
             -- This is not right for compile_library because it's imports
             -- and not imported paths, but it doesn't care because it's just
             -- for the error msg.

@@ -214,20 +214,22 @@ dump_allocations (UiConfig.Allocations allocs) = do
         ]
 
 allocations :: Allocations -> UiConfig.Allocations
-allocations = UiConfig.Allocations . Map.fromList . map make1
+allocations = UiConfig.Allocations . Map.fromList . map allocation
+
+allocation :: (Instrument, (Qualified, Allocation))
+    -> (ScoreT.Instrument, UiConfig.Allocation)
+allocation (inst, (qual, simple_alloc)) =
+    (ScoreT.Instrument inst, UiConfig.allocation qualified backend)
     where
-    make1 (inst, (qual, simple_alloc)) =
-        (ScoreT.Instrument inst, UiConfig.allocation qualified backend)
-        where
-        qualified = InstT.parse_qualified qual
-        backend = case simple_alloc of
-            Dummy -> UiConfig.Dummy ""
-            Im -> UiConfig.Im
-            Sc -> UiConfig.Sc
-            Midi addrs -> UiConfig.Midi $ Patch.config
-                [ ((Midi.write_device dev, chan), Nothing)
-                | (dev,chan) <- addrs
-                ]
+    qualified = InstT.parse_qualified qual
+    backend = case simple_alloc of
+        Dummy -> UiConfig.Dummy ""
+        Im -> UiConfig.Im
+        Sc -> UiConfig.Sc
+        Midi addrs -> UiConfig.Midi $ Patch.config
+            [ ((Midi.write_device dev, chan), Nothing)
+            | (dev,chan) <- addrs
+            ]
 
 
 -- * ExactPerfEvent

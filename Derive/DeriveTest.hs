@@ -946,9 +946,3 @@ make_damage :: Text -> TrackNum -> ScoreTime -> ScoreTime
 make_damage block tracknum s e = Derive.ScoreDamage
     (Map.singleton (UiTest.mk_tid_name block tracknum) (Ranges.range s e))
     (Set.singleton (UiTest.bid block)) mempty
-
--- | A simple config for testing.  It's only suitable for tests because
--- normally a Config will have its 'Patch.config_settings' initialized from
--- the Patch.
-simple_midi_config :: Patch.Config
-simple_midi_config = Patch.config [((UiTest.wdev, 0), Nothing)]

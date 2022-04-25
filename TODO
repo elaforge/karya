@@ -148,6 +148,49 @@ UNSORTED
       . It would be more explicit to include them both in `ky` or something,
         and be able to comment / uncomment.
   + inst allocation in ky?
+    where am I:
+      . Originally did PVal to parse the config.
+      . Discovered it shares almost everything with DeriveT.Val except Record,
+        switched to Derive.Parse.Record
+      . Then I got tangled up because I want an REnv with RVal, but p_val
+        parses DVal... though it should actually parse an RVal, which made me
+        think I should refactor it to parse RVal and that project that into
+        a DVal via RVal.convert_val.  How about RVal.promote?
+      . VList has Vals, not RVals.
+      . Can I do just the top line first?
+      . Attoparsec errors are always "expected eof" since it always
+        backtracks.  Can't I use megaparsec for this?  I only need to use
+        attoparsec for val, since I don't want to rewrite that.  But I could
+        even use megaparsec up to the { and then switch to attoparsec :/
+      . Or move all of ky in megaparsec, and embed just p_val in attoparsec.
+      . Look into this later, for now just have bad errors.
+      . This gets kind of complicated because I need to merge configs now.
+      * Must call Instruments.update_ui at some point, in Ky.update_cache?
+        . Previously all it had to do was put in ky cache, and then it gets
+          pulled out on play, but now I have to update Ui.State.
+      * insert unparse_allocations into the ky file
+        . If I switch to having the entire config, I can get rid of this.
+      - error is only detected when I play after saving, that's too late
+        . Can I immediately report on ky save?
+        . It would have to throw from LState.set_ky.
+        . It always had this problem, it's orthogonal.
+      - infer NonMidi backend based on inst db
+    parse entire config:
+      - implement Record below, so I can parse it
+        . implement p_rval
+      - parse the generic Record to a UiConfig.Allocation.
+      . Now I have redundant Allocations in both UiConfig and ky, do I want to
+        no longer serialize UiConfig.config_allocations?
+      . For backward compatibility, I'll still want to unparse UiConfig into
+        the ky if it doesn't already have one.  Or maybe just always do it
+        anyway to keep it normalized?  Nah, then I'd lose comments.
+    cleanup:
+      - unify with TScore
+      - kill threads in Cmd.Ky.update_cache?
+      - switch Derive.Parse.Instruments to megaparsec, and "shell out" to
+        attoparsec just for p_val.
+      - Refactor to remove the duplication by embedding an RVal in a DVal.
+      - Experiment to see if megaparsec is just as fast as attoparsec now.
     . I already have something like this in tscore, putting it in ky would
       generalize.
     . Check.parse_instruments -> Parse.p_allocation
@@ -189,6 +232,22 @@ UNSORTED
               }
             }
           }
+      . >pemade-p kontakt/sc-pemade [ms] {"tuning": "umbang"} loop1 6
+        { "initialization": "Tuning" | "NrpnTuning"
+        , "settings":
+          { "flags": ["Pressure", "HoldKeyswitch", "ResumePlay"]
+          , "scale": "legong umbang"
+          , "pitch_bend_range": [-12, 12]
+          , "control_defaults": {"cc1": 42}
+          }
+        }
+        . The quotes on keys are annoying, since this really has nothing
+          to do with javascript.
+        . There are various quoteless json things, but no haskell parsers.
+        . However, I'm going to want comments anyway, and to use --.
+        . Probably is not that hard to write, actually:
+          data Val = Record (Map Text Val) | List [Val]
+            | Number Double | Str Text
       . Even so there would be a fair amount of faffing about converting.
       . Alternately, have a mini format that doesn't affect env, etc.
         Just name, qualified, alloc, flags, maybe with other values in
@@ -198,12 +257,36 @@ UNSORTED
         I just save and load .inst?
       . Also I can't move instrument declaration to ky and retain standalone
         .tscore files.
+      . >pemade-p kontakt/sc-pemade [ms] loop1 6 {
+            -- common
+            environ: {tuning: 'umbang'},
+            controls: {dyn: .5},
+            -- midi
+            initialization: 'Tuning',
+            settings: {
+              flags: ['Pressure', 'HoldKeyswitch', 'ResumePlay'],
+              scale: 'legong umbang',
+              pitch_bend_range: [-12, 12],
+              control_defaults: {cc1: 42},
+            }
+        }
     . It does seem generally useful to have a readable text version of
       insts, then .inst files could be text, and I could edit in vi.
     . Alternately, use a vi like a GUI to have a menu of instruments, where
       I can toggle mute, solo, etc.
     * parse and unparse with flags
     - hook that up to LState.ky
+      . I'd have to move all the TScore types to Derive.Parse, which is
+        unappealing since megaparsec -> attoparsec and I'd need to move
+        all the types too.
+    . If I put allocs entirely in ky, it would allow me to have allocs in
+      imported .ky files.  In fact, .inst goes away and becomes .ky.
+    . Taken to its logical conclusion, this then removes the various alloc
+      functions in LInst in favor of editing a special language in ky.
+    . I can still have them though, and the "generate" ones may be useful,
+      but they would become an unparse and insert into ky.
+    . The cost is a much more elaborate values syntax
+    . Is this good?  Not sure.
   + implicit skeleton doesn't work for dyn over two tracks
     . Instead, it assigns it to the note track to the left.
     . How can I disambiguate?

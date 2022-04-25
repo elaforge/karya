@@ -109,7 +109,7 @@ test_patch_scale = do
         make_lookup config patch = DeriveTest.make_convert_lookup_for UiTest.i1
             (make_config config) patch
         make_config scale = Patch.settings#Patch.scale #= scale $
-            DeriveTest.simple_midi_config
+            UiTest.midi_config [0]
         patch = Patch.patch (-1, 1) "1"
 
     equal (run Nothing patch "4c") ([Left (0, [(0, NN.c4)])], [])

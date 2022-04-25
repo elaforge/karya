@@ -39,6 +39,7 @@ import qualified Cmd.Save as Save
 
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
+import qualified Derive.Parse.Instruments as Instruments
 import qualified Derive.Stream as Stream
 
 import qualified Midi.Midi as Midi
@@ -105,7 +106,7 @@ ky = do
         }
 
 get_ky :: Ui.M m => m Text
-get_ky = Ui.config#UiConfig.ky <#> Ui.get
+get_ky = Instruments.get_ky
 
 set_ky :: Ui.M m => Text -> m ()
 set_ky = Ui.modify_config . (UiConfig.ky #=)

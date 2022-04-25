@@ -21,6 +21,7 @@ import           Derive.TestInstances ()
 import           Global
 import           Util.Test
 
+
 test_load_ky :: Test
 test_load_ky = do
     let make_ky imports defs = unlines $
@@ -35,9 +36,10 @@ test_load_ky = do
             writeFile (dir </> "defs") (make_ky imports ["defs-call"])
     let load = bimap ParseText.show_error extract
             <$> Ky.load_ky [dir, lib] "import 'defs'"
-        extract (Ky.Ky defs imports) =
+        extract (Ky.Ky defs imports allocs) =
             ( map (fst . snd) . fst . Ky.def_note $ defs
             , imports
+            , allocs
             )
     write ["z1"]
     v <- load
@@ -57,6 +59,7 @@ test_load_ky = do
           , Ky.Loaded (lib </> "lib1") lib1
           , Ky.Loaded (lib </> "lib2") lib2
           ]
+        , Nothing
         )
 
 e_expr :: Ky.Expr -> [(Expr.Symbol, [Text])]

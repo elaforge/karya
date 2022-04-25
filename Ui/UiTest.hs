@@ -657,8 +657,11 @@ meter_marklist zoom = map (second snd) . meter_zoom zoom
 -- * allocations
 
 midi_allocation :: Text -> Patch.Config -> UiConfig.Allocation
-midi_allocation qualified config = UiConfig.allocation
-    (InstT.parse_qualified qualified) (UiConfig.Midi config)
+midi_allocation qualified config =
+    UiConfig.allocation (InstT.parse_qualified qualified) (UiConfig.Midi config)
+
+midi_config :: [Midi.Channel] -> Patch.Config
+midi_config chans = Patch.config [((wdev, chan), Nothing) | chan <- chans]
 
 -- | Make Simple.Allocations from (inst, qualified, [chan]).
 midi_allocations :: [(Text, Text, [Midi.Channel])] -> UiConfig.Allocations
@@ -666,6 +669,15 @@ midi_allocations allocs = Simple.allocations
     [ (inst, (qualified, Simple.Midi $ map (wdev_name,) chans))
     | (inst, qualified, chans) <- allocs
     ]
+
+mk_allocation :: (Simple.Instrument, Simple.Qualified, Maybe [Midi.Channel])
+    -> (ScoreT.Instrument, UiConfig.Allocation)
+mk_allocation (inst, qual, backend) = Simple.allocation
+    (inst, (qual, maybe Simple.Im (Simple.Midi . map (wdev_name,)) backend))
+
+mk_allocations :: [(Simple.Instrument, Simple.Qualified, Maybe [Midi.Channel])]
+    -> UiConfig.Allocations
+mk_allocations = UiConfig.Allocations . Map.fromList . map mk_allocation
 
 set_default_allocations :: Ui.State -> Ui.State
 set_default_allocations = Ui.config#UiConfig.allocations #= default_allocations

@@ -61,7 +61,7 @@ test_control_defaults = do
         alloc = UiTest.midi_allocation "s/1" $
             Patch.settings#Patch.control_defaults
                 #= Just (Map.fromList [("cc17", 0.5)]) $
-            DeriveTest.simple_midi_config
+            UiTest.midi_config [0]
         extract = first $ fmap (map snd . DeriveTest.midi_channel)
     let run state = extract $ perform_events state UiTest.default_block_id
     let (midi, logs) = run $ make ("i1", [(0, 1, "4c")])

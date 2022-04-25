@@ -312,7 +312,7 @@ post_cmd state ui_from ui_to cmd_to ui_damage status = do
     Trace.trace "cmd"
     -- Load external definitions and cache them in Cmd.State, so cmds don't
     -- have a dependency on IO.
-    !cmd_to <- Ky.update_cache ui_to cmd_to
+    (!ui_to, !cmd_to) <- Ky.update_cache ui_to cmd_to
     Trace.trace "ky"
     !cmd_to <- handle_special_status (state_ui_channel state) ui_to cmd_to
         (state_transport_info state) status
