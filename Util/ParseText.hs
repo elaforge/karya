@@ -29,11 +29,9 @@ type Parser a = A.Parser a
 -- | Parse all the text, and annotate the error with the char number.  For
 -- single-line input.
 parse1 :: Parser a -> Text -> Either Text a
-parse1 p text = case parse_all p text of
-    Right val -> Right val
-    Left (rest, msg) -> Left $
-        "parse error: char " <> maybe "?" showt col <> " of "
-            <> error_context col text <> ": " <> msg
+parse1 p text = first fmt $ parse_all p text
+    where
+    fmt (rest, msg) = "parse error: " <> error_context col text <> ": " <> msg
         where col = infer_column text rest
 
 -- | Parse all of the text, and annotate the error with line number and column.
@@ -69,8 +67,11 @@ show_error (Error (Just (line, (row, column))) msg) = mconcat
 
 error_context :: Maybe Int -> Text -> Text
 error_context Nothing expr = "\"" <> expr <> "\""
-error_context (Just i) expr = "\"" <> pre <> "»" <> post <> "\""
-    where (pre, post) = (Text.take i expr, Text.drop i expr)
+error_context (Just i) expr = "\"" <> pre <> char <> post <> "\""
+    where
+    (pre, post) = (Text.take i expr, Text.drop i expr)
+    -- This just has to look distinctively not like ascii and stick out a bit.
+    char = "⎣"
 
 parse_all :: A.Parser a -> Text -> Either (Text, Text) a
 parse_all p text = go (A.parse p text)
@@ -90,14 +91,13 @@ infer_location text rest = infer =<< infer_column text rest
     where
     infer i = extract i <$> List.find (\(_, end, _) -> end > i)
         (zip3 sums (drop 1 sums) (zip [1..] lines))
-    extract i (start, _, (row, line)) = (line, (row, i - start))
+    extract i (start, _, (row, line)) = (line, (row, i - start + 1))
     sums = scanl (+) 0 (map ((+1) . Text.length) lines)
     lines = Text.lines text
 
 infer_column :: Text -> Text -> Maybe Int
 infer_column text rest
-    | rest `Text.isSuffixOf` text =
-        Just $ Text.length text - Text.length rest + 1
+    | rest `Text.isSuffixOf` text = Just $ Text.length text - Text.length rest
     | otherwise = Nothing
 
 -- * casual parsing
