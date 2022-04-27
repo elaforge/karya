@@ -182,7 +182,7 @@ UNSORTED
           libraries.
         . How then do I not do it twice?  I guess if Ky.set sets it, then
           check cache should return a no-op, right?  Verify!
-      - report duplicate instruments
+      * report duplicate instruments
       - infer NonMidi backend based on inst db
       - bad parse error in instrument:
         . 5:1: string in line "p⎣no pianoteq/ [ms] loop1 1 2 3 4 5 6 7 8"

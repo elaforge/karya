@@ -99,10 +99,14 @@ from_ui inst alloc = do
 
 update_ui :: [Allocation] -> UiConfig.Allocations
     -> Either Error UiConfig.Allocations
-update_ui allocs (UiConfig.Allocations olds) =
+update_ui allocs (UiConfig.Allocations olds) = do
+    allocs <- check $ Maps.unique2 $ Seq.key_on alloc_name allocs
     fmap (UiConfig.Allocations . Map.fromList) $ mapMaybeM make $
-        Maps.pairs (Map.fromList (Seq.key_on alloc_name allocs)) olds
+        Maps.pairs allocs olds
     where
+    check (m, []) = return m
+    check (_, dups) = Left $ "duplicate names: "
+        <> Text.unwords (map (ScoreT.instrument_name . fst) dups)
     make = \case
         (inst, Seq.Both alloc old) -> Just  . (inst,) <$> to_ui alloc (Just old)
         (inst, Seq.First alloc) -> Just . (inst,) <$> to_ui alloc Nothing
