@@ -91,7 +91,7 @@ type Definition = (FilePath, (Expr.Symbol, Expr))
 -- describes the format of the ky file.
 load_ky :: [FilePath] -> Text -> IO (Either ParseText.Error (Ky Loaded))
 load_ky paths content = Except.runExceptT $ do
-    ky <- tryRight $ parse_ky "" content
+    ky <- tryRight $ first (ParseText.prefix "<score>: ") $ parse_ky "" content
     kys <- load_ky_file paths Set.empty (ky_imports ky)
     return $ mconcat $ ky { ky_imports = [Loaded "" content] } : kys
 

@@ -2,6 +2,7 @@
 syn match kySection "^\(note\|control\|pitch\) \(generator\|transformer\):$"
 syn match kySection "^val:$"
 syn match kySection "^alias:$"
+syn match kySection "^instrument:$"
 hi kySection cterm=underline
 
 syn keyword kyKeyword import imports

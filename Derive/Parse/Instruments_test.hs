@@ -6,7 +6,6 @@ module Derive.Parse.Instruments_test where
 import qualified Data.Map as Map
 
 import qualified Util.ParseText as ParseText
-import qualified Cmd.Simple as Simple
 import qualified Derive.Parse.Instruments as I
 import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.Common as Common

@@ -76,7 +76,9 @@ error_context (Just i) expr = "\"" <> pre <> char <> post <> "\""
 parse_all :: A.Parser a -> Text -> Either (Text, Text) a
 parse_all p text = go (A.parse p text)
     where
-    go (A.Fail rest contexts msg) = Left (rest, txt msg <> c)
+    -- The msg can be really unclear, like "string", so put quotes on to
+    -- at least tell it's trying to be an error.
+    go (A.Fail rest contexts msg) = Left (rest, "'" <> txt msg <> "'" <> c)
         where
         c = if null contexts then ""
             else " [" <> Text.intercalate ", " (map txt contexts) <> "]"

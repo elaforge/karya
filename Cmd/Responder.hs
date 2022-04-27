@@ -72,6 +72,7 @@ import qualified Ui.Fltk as Fltk
 import qualified Ui.Meter.Meter as Meter
 import qualified Ui.Sync as Sync
 import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Update as Update
 
@@ -312,7 +313,10 @@ post_cmd state ui_from ui_to cmd_to ui_damage status = do
     Trace.trace "cmd"
     -- Load external definitions and cache them in Cmd.State, so cmds don't
     -- have a dependency on IO.
-    (!ui_to, !cmd_to) <- Ky.update_cache ui_to cmd_to
+    (!ui_to, !cmd_to, logs) <- fromMaybe (ui_to, cmd_to, []) <$>
+        Ky.update ui_to cmd_to (Ui.config#UiConfig.ky #$ ui_to)
+    mapM_ Log.write logs
+
     Trace.trace "ky"
     !cmd_to <- handle_special_status (state_ui_channel state) ui_to cmd_to
         (state_transport_info state) status

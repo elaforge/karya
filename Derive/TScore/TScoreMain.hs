@@ -401,8 +401,8 @@ load_score :: Cmd.Config -> Text -> IO (Either Error (Ui.State, Cmd.State))
 load_score cmd_config source = Except.runExceptT $ do
     (ui_state, instruments) <- tryRight $ TScore.parse_score source
     -- TODO adjust starting line in error
-    (builtins, aliases) <- tryRight . first ("parsing %ky: "<>)
-        =<< liftIO (Ky.load ky_paths ui_state)
+    (builtins, aliases, allocs) <- tryRight . first ("parsing %ky: "<>)
+        =<< liftIO (Ky.load ky_paths (Ui.config#UiConfig.ky #$ ui_state))
     let cmd_state =  DeriveSaved.add_library builtins aliases $
             Cmd.initial_state cmd_config
     ui_state <- tryRight $ first pretty $ Ui.exec ui_state $

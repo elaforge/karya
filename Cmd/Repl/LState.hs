@@ -28,6 +28,7 @@ import qualified Cmd.Clip as Clip
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.DiffPerformance as DiffPerformance
+import qualified Cmd.Ky as Ky
 import qualified Cmd.Lilypond
 import qualified Cmd.Load.Midi as Load.Midi
 import qualified Cmd.Msg as Msg
@@ -108,8 +109,8 @@ ky = do
 get_ky :: Ui.M m => m Text
 get_ky = Instruments.get_ky
 
-set_ky :: Ui.M m => Text -> m ()
-set_ky = Ui.modify_config . (UiConfig.ky #=)
+set_ky :: Text -> Cmd.CmdT IO Text
+set_ky = Ky.set
 
 -- ** meta
 

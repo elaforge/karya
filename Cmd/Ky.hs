@@ -6,7 +6,8 @@
 -- | Load ky files, which are separate files containing call definitions.
 -- The syntax is defined by 'Ky.parse_ky'.
 module Cmd.Ky (
-    update_cache
+    update
+    , set
     , load
     , compile_definitions
 #ifdef TESTING
@@ -45,85 +46,105 @@ import           Global
 
 -- | Check if ky files have changed, and if they have, update
 -- 'Cmd.state_ky_cache' and clear the performances.
-update_cache :: Ui.State -> Cmd.State -> IO (Ui.State, Cmd.State)
-update_cache ui_state cmd_state = check_cache ui_state cmd_state >>= \case
-    Nothing -> return (ui_state, cmd_state)
-    Just (ky_cache, mb_allocs) -> do
-        let olds = Ui.config#UiConfig.allocations #$ ui_state
-        to_state <- case mb_allocs of
-            Nothing -> return ui_state
-            Just allocs -> do
-                news <- apply_allocs allocs olds
-                return $ Ui.config#UiConfig.allocations #= news $ ui_state
-        return $ (to_state,) $ cmd_state
-            { Cmd.state_ky_cache = Just ky_cache
-            , Cmd.state_play = (Cmd.state_play cmd_state)
-                -- TODO should I kill threads?
-                { Cmd.state_performance = mempty
-                , Cmd.state_current_performance = mempty
-                , Cmd.state_performance_threads = mempty
+update :: Ui.State -> Cmd.State -> Text
+    -> IO (Maybe (Ui.State, Cmd.State, [Log.Msg]))
+update ui_state cmd_state ky_text =
+    justm (check_cache cache allocs paths ky_text) $
+    \((ky_cache, allocs), logs) -> do
+        return $ Just
+            ( Ui.config#UiConfig.allocations #= allocs $
+                -- Should already be set when Responder calls me, but not
+                -- when 'set' calls me.
+                Ui.config#UiConfig.ky #= ky_text $ ui_state
+            , cmd_state
+                { Cmd.state_ky_cache = Just ky_cache
+                , Cmd.state_play = (Cmd.state_play cmd_state)
+                    -- TODO should I kill threads?
+                    { Cmd.state_performance = mempty
+                    , Cmd.state_current_performance = mempty
+                    , Cmd.state_performance_threads = mempty
+                    }
                 }
-            }
+            , logs
+            )
+    where
+    allocs = Ui.config#UiConfig.allocations #$ ui_state
+    cache = Cmd.state_ky_cache cmd_state
+    paths = state_ky_paths cmd_state
 
-apply_allocs :: [Instruments.Allocation] -> UiConfig.Allocations
-    -> IO UiConfig.Allocations
-apply_allocs allocs olds = case Instruments.update_ui allocs olds of
-    Left err -> do
-        Log.warn $ "instruments from ky: " <> err
-        return olds
-    Right allocs -> return allocs
+set :: Text -> Cmd.CmdT IO Text
+set ky_text = do
+    cmd_state <- Cmd.get
+    ui_state <- Ui.get
+    liftIO (update ui_state cmd_state ky_text) >>= \case
+        Nothing -> return ""
+        Just (ui_state, cmd_state, logs) -> case Cmd.state_ky_cache cmd_state of
+            Just (Cmd.KyCache (Left err) _) ->
+                return $ Text.unlines $ err : map Log.format_msg logs
+            _ -> do
+                Cmd.put cmd_state
+                Ui.unsafe_put ui_state
+                return $ Text.unlines $ map Log.format_msg logs
 
 -- | Reload the ky files if they're out of date, Nothing if no reload is
 -- needed.
-check_cache :: Ui.State -> Cmd.State
-    -> IO (Maybe (Cmd.KyCache, Maybe [Instruments.Allocation]))
-check_cache ui_state cmd_state = run $ do
+check_cache :: Maybe Cmd.KyCache -> UiConfig.Allocations -> [FilePath] -> Text
+    -> IO (Maybe ((Cmd.KyCache, UiConfig.Allocations), [Log.Msg]))
+check_cache prev_cache old_allocs paths ky_text = fmap apply $ run $ do
     when is_permanent abort
-    Ky.Ky defs imported allocs <- tryRight . first (Just . ParseText.show_error)
-        =<< liftIO (Ky.load_ky (state_ky_paths cmd_state)
-            (Ui.config#UiConfig.ky #$ ui_state))
+    Ky.Ky defs imported allocs <- try . first ParseText.show_error
+        =<< liftIO (Ky.load_ky paths ky_text)
     -- This uses the contents of all the files for the fingerprint, which
     -- means it has to read and parse them on each respond cycle.  If this
     -- turns out to be too expensive, I can go back to the modification time
     -- like I had before.
     let fingerprint = Cmd.fingerprint imported
-    when (fingerprint == old_fingerprint) abort
-    builtins <- compile_library (loaded_fnames imported) $
-        compile_definitions defs
-    return ((builtins, Map.fromList (Ky.def_aliases defs), fingerprint), allocs)
+    when (old_fingerprint == fingerprint) abort
+    let (builtins, logs) = compile_library (loaded_fnames imported) $
+            compile_definitions defs
+    allocs <- maybe (return old_allocs)
+        (\a -> try $ Instruments.update_ui a old_allocs) allocs
+    return
+        ( (builtins, Map.fromList (Ky.def_aliases defs), fingerprint, allocs)
+        , logs
+        )
     where
-    is_permanent = case Cmd.state_ky_cache cmd_state of
-        Just (Cmd.PermanentKy {}) -> True
-        _ -> False
-    old_fingerprint = case Cmd.state_ky_cache cmd_state of
-        Just (Cmd.KyCache _ fprint) -> fprint
-        _ -> mempty
-    -- If it failed last time then don't replace the error.  Otherwise, I'll
-    -- continually clear the performance and get an endless loop.
-    failed_previously err = case Cmd.state_ky_cache cmd_state of
-        Just (Cmd.KyCache (Left old_err) _) -> err == old_err
-        _ -> False
-
-    abort = Except.throwError Nothing
-    run = fmap apply . Except.runExceptT
+    run = Except.runExceptT
     apply (Left Nothing) = Nothing
     apply (Left (Just err))
         | failed_previously err = Nothing
-        | otherwise = Just (Cmd.KyCache (Left err) mempty, Nothing)
-    apply (Right ((builtins, aliases, fingerprint), allocs)) =
-        Just (Cmd.KyCache (Right (builtins, aliases)) fingerprint, allocs)
+        | otherwise = Just ((Cmd.KyCache (Left err) mempty, old_allocs), [])
+    apply (Right ((builtins, aliases, fingerprint, allocs), logs)) = Just
+        ((Cmd.KyCache (Right (builtins, aliases)) fingerprint, allocs), logs)
+    try = tryRight . first Just
+    abort = Except.throwError Nothing
+    old_fingerprint = case prev_cache of
+        Just (Cmd.KyCache _ fprint) -> fprint
+        _ -> mempty
+    is_permanent = case prev_cache of
+        Just (Cmd.PermanentKy {}) -> True
+        _ -> False
+    -- If it failed last time then don't replace the error.  Otherwise, I'll
+    -- continually clear the performance and get an endless loop.
+    failed_previously err = case prev_cache of
+        Just (Cmd.KyCache (Left old_err) _) -> err == old_err
+        _ -> False
 
-load :: [FilePath] -> Ui.State
-    -> IO (Either Text (Derive.Builtins, Derive.InstrumentAliases,
-        Maybe [Instruments.Allocation]))
-load paths =
-    fmap (first ParseText.show_error) . traverse compile
-        <=< Ky.load_ky paths . (Ui.config#UiConfig.ky #$)
-    where
-    compile (Ky.Ky defs imported allocs) = do
-        builtins <- compile_library (loaded_fnames imported) $
-            compile_definitions defs
-        return (builtins, Map.fromList (Ky.def_aliases defs), allocs)
+-- | Like 'check_cache', but assuming no existing cmd or ui state.
+load :: [FilePath] -> Text
+    -> IO (Either Text
+        (Derive.Builtins, Derive.InstrumentAliases, UiConfig.Allocations))
+load paths ky_text = check_cache Nothing mempty paths ky_text >>= \case
+    Just (result, logs) -> do
+        mapM_ Log.write logs
+        return $ case result of
+            (Cmd.KyCache (Left err) _, _) -> Left err
+            (Cmd.KyCache (Right (builtins, aliases)) _, allocs) ->
+                Right (builtins, aliases, allocs)
+            -- Should not happen, because it passes Nothing for prev_cache
+            _ -> Right (mempty, mempty, mempty)
+    -- Should not happen, because it passes Nothing for prev_cache
+    Nothing -> return $ Right (mempty, mempty, mempty)
 
 loaded_fnames :: [Ky.Loaded] -> [FilePath]
 loaded_fnames loads = [fname | Ky.Loaded fname _ <- loads]
@@ -132,15 +153,14 @@ state_ky_paths :: Cmd.State -> [FilePath]
 state_ky_paths cmd_state = maybe id (:) (Cmd.state_save_dir cmd_state)
     (Cmd.config_ky_paths (Cmd.state_config cmd_state))
 
-compile_library :: Log.LogMonad m => [FilePath] -> Library.Library
-    -> m Derive.Builtins
-compile_library imports lib = do
+compile_library :: [FilePath] -> Library.Library -> (Derive.Builtins, [Log.Msg])
+compile_library imports lib = Log.run_id $ do
     Log.notice $
         "reloaded ky: [" <> Text.unwords (map show_import imports) <> "]"
     Library.compile_log lib
-    where
-    show_import "" = "<expr>"
-    show_import fname = txt (FilePath.takeFileName fname)
+
+show_import "" = "<score>"
+show_import fname = txt (FilePath.takeFileName fname)
 
 compile_definitions :: Ky.Definitions -> Library.Library
 compile_definitions (Ky.Definitions (gnote, tnote) (gcontrol, tcontrol)

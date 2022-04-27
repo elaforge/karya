@@ -190,7 +190,8 @@ load_score fname = fmap fst $ time ("load " <> txt fname) (\_ _ -> "") $
                 return (state, FilePath.takeDirectory (Path.to_path fname))
         app_dir <- liftIO Path.get_app_dir
         let paths = dir : map (Path.to_absolute app_dir) Config.ky_paths
-        (builtins, aliases, _allocs) <- require_right $ Ky.load paths state
+        (builtins, aliases, _allocs) <- require_right $
+            Ky.load paths (Ui.config#UiConfig.ky #$ state)
         return (state, builtins, aliases)
 
 require_right :: IO (Either Text a) -> Except.ExceptT Text IO a
