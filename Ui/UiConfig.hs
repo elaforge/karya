@@ -27,6 +27,7 @@ module Ui.UiConfig (
 
     , Backend(..), backend_name
     , midi_config
+    , convert_backend
     , Meta(..)
     , empty_meta
     , creation, last_save, notes, midi_performances, lilypond_performances
@@ -358,6 +359,13 @@ same_backend b1 b2 = case (b1, b2) of
 midi_config :: Backend -> Maybe Patch.Config
 midi_config (Midi config) = Just config
 midi_config _ = Nothing
+
+convert_backend :: Inst.Backend -> Backend
+convert_backend = \case
+    Inst.Dummy {} -> Dummy ""
+    Inst.Midi {} -> Midi $ Patch.config []
+    Inst.Im {} -> Im
+    Inst.Sc {} -> Sc
 
 -- | Extra data that doesn't have any effect on the score.
 data Meta = Meta {

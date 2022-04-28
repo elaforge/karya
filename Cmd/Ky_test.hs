@@ -17,8 +17,8 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Expr as Expr
 import qualified Derive.Parse.Ky as Parse.Ky
 
-import qualified Ui.Ui as Ui
-import qualified Ui.UiConfig as UiConfig
+import qualified Instrument.Inst as Inst
+import qualified Instrument.InstT as InstT
 import qualified Ui.UiTest as UiTest
 
 import           Global
@@ -58,9 +58,8 @@ test_ky_file = do
 
 test_check_cache :: Test
 test_check_cache = do
-    let f ky_cache ky = fmap (fmap fst) $ Ky.check_cache
-            (Ui.config#UiConfig.ky #= ky $ Ui.empty)
-            (CmdTest.default_cmd_state { Cmd.state_ky_cache = ky_cache })
+    let f ky_cache ky = fmap (fmap (fst . fst)) $
+            Ky.check_cache lookup_backend ky_cache mempty [] ky
         extract Nothing = Right Nothing
         extract (Just (Cmd.KyCache builtins (Cmd.Fingerprint fnames _fprint))) =
             case builtins of
@@ -69,7 +68,6 @@ test_check_cache = do
                     Right $ Just (e_builtins builtins, fnames)
         extract (Just (Cmd.PermanentKy (builtins, _))) =
             Right $ Just (e_builtins builtins, [])
-
     io_equal (extract <$> f Nothing "") (Right Nothing)
     let define_a = "note generator:\na = +a\n"
     result <- f Nothing define_a
@@ -87,6 +85,9 @@ test_check_cache = do
 
     -- TODO track imported files
 
+lookup_backend :: InstT.Qualified -> Maybe Inst.Backend
+lookup_backend _qual = Nothing
+
 e_builtins :: Derive.Builtins -> [Expr.Symbol]
 e_builtins = concatMap (Map.keys . Derive.call_map) . Map.elems
     . Derive.scope_note . Derive.scopes_generator
@@ -101,7 +102,7 @@ put_library text = do
             -- and not imported paths, but it doesn't care because it's just
             -- for the error msg.
             let imports = [imp | Parse.Ky.Import _ imp <- imported]
-            builtins <- Ky.compile_library imports $
-                Ky.compile_definitions defs
+            let (builtins, _logs) = Ky.compile_library imports $
+                    Ky.compile_definitions defs
             return $ Cmd.KyCache (Right (builtins, mempty)) mempty
     Cmd.modify $ \st -> st { Cmd.state_ky_cache = Just cache }

@@ -12,6 +12,7 @@ module Derive.REnv (
     , Val(..)
     , ConstantPitch(..)
     , ToVal(..)
+    , Expr, Call, Term
 ) where
 import           Prelude hiding (lookup, null)
 import qualified Data.Map as Map

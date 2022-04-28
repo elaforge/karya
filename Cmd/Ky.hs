@@ -38,6 +38,8 @@ import qualified Derive.Parse.Ky as Ky
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 
+import qualified Instrument.Inst as Inst
+import qualified Instrument.InstT as InstT
 import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
 
@@ -49,7 +51,7 @@ import           Global
 update :: Ui.State -> Cmd.State -> Text
     -> IO (Maybe (Ui.State, Cmd.State, [Log.Msg]))
 update ui_state cmd_state ky_text =
-    justm (check_cache cache allocs paths ky_text) $
+    justm (check_cache lookup_backend cache allocs paths ky_text) $
     \((ky_cache, allocs), logs) -> do
         return $ Just
             ( Ui.config#UiConfig.allocations #= allocs $
@@ -68,9 +70,15 @@ update ui_state cmd_state ky_text =
             , logs
             )
     where
+    lookup_backend = get_lookup_backend cmd_state
     allocs = Ui.config#UiConfig.allocations #$ ui_state
     cache = Cmd.state_ky_cache cmd_state
     paths = state_ky_paths cmd_state
+
+get_lookup_backend :: Cmd.State -> InstT.Qualified -> Maybe Inst.Backend
+get_lookup_backend state qualified = Inst.inst_backend <$>
+    Cmd.inst_lookup qualified
+        (Cmd.config_instrument_db (Cmd.state_config state))
 
 set :: Text -> Cmd.CmdT IO Text
 set ky_text = do
@@ -78,21 +86,23 @@ set ky_text = do
     ui_state <- Ui.get
     liftIO (update ui_state cmd_state ky_text) >>= \case
         Nothing -> return ""
-        Just (ui_state, cmd_state, logs) -> case Cmd.state_ky_cache cmd_state of
-            Just (Cmd.KyCache (Left err) _) ->
-                return $ Text.unlines $ err : map Log.format_msg logs
-            _ -> do
-                Cmd.put cmd_state
-                Ui.unsafe_put ui_state
-                return $ Text.unlines $ map Log.format_msg logs
+        -- Logs are just boring stuff about reloaded files.
+        Just (ui_state, cmd_state, _logs) ->
+            case Cmd.state_ky_cache cmd_state of
+                Just (Cmd.KyCache (Left err) _) -> return err
+                _ -> do
+                    Cmd.put cmd_state
+                    Ui.unsafe_put ui_state
+                    return ""
 
 -- | Reload the ky files if they're out of date, Nothing if no reload is
 -- needed.
-check_cache :: Maybe Cmd.KyCache -> UiConfig.Allocations -> [FilePath] -> Text
+check_cache :: (InstT.Qualified -> Maybe Inst.Backend) -> Maybe Cmd.KyCache
+    -> UiConfig.Allocations -> [FilePath] -> Text
     -> IO (Maybe ((Cmd.KyCache, UiConfig.Allocations), [Log.Msg]))
-check_cache prev_cache old_allocs paths ky_text = fmap apply $ run $ do
+check_cache lookup_backend prev_cache old_allocs paths ky_text = run $ do
     when is_permanent abort
-    Ky.Ky defs imported allocs <- try . first ParseText.show_error
+    Ky.Ky defs imported mb_allocs <- try . first ParseText.show_error
         =<< liftIO (Ky.load_ky paths ky_text)
     -- This uses the contents of all the files for the fingerprint, which
     -- means it has to read and parse them on each respond cycle.  If this
@@ -102,14 +112,16 @@ check_cache prev_cache old_allocs paths ky_text = fmap apply $ run $ do
     when (old_fingerprint == fingerprint) abort
     let (builtins, logs) = compile_library (loaded_fnames imported) $
             compile_definitions defs
-    allocs <- maybe (return old_allocs)
-        (\a -> try $ Instruments.update_ui a old_allocs) allocs
+    allocs <- case mb_allocs of
+        Nothing -> return old_allocs
+        Just allocs -> try $
+            Instruments.update_ui lookup_backend allocs old_allocs
     return
         ( (builtins, Map.fromList (Ky.def_aliases defs), fingerprint, allocs)
         , logs
         )
     where
-    run = Except.runExceptT
+    run = fmap apply . Except.runExceptT
     apply (Left Nothing) = Nothing
     apply (Left (Just err))
         | failed_previously err = Nothing
@@ -132,19 +144,21 @@ check_cache prev_cache old_allocs paths ky_text = fmap apply $ run $ do
 
 -- | Like 'check_cache', but assuming no existing cmd or ui state.
 load :: [FilePath] -> Text
-    -> IO (Either Text
-        (Derive.Builtins, Derive.InstrumentAliases, UiConfig.Allocations))
-load paths ky_text = check_cache Nothing mempty paths ky_text >>= \case
-    Just (result, logs) -> do
-        mapM_ Log.write logs
-        return $ case result of
-            (Cmd.KyCache (Left err) _, _) -> Left err
-            (Cmd.KyCache (Right (builtins, aliases)) _, allocs) ->
-                Right (builtins, aliases, allocs)
-            -- Should not happen, because it passes Nothing for prev_cache
-            _ -> Right (mempty, mempty, mempty)
-    -- Should not happen, because it passes Nothing for prev_cache
-    Nothing -> return $ Right (mempty, mempty, mempty)
+    -> IO (Either Text (Derive.Builtins, Derive.InstrumentAliases))
+load paths ky_text =
+    bimap ParseText.show_error compile <$> liftIO (Ky.load_ky paths ky_text)
+    where
+    -- Instrument allocations are stored in the score state, and if there is
+    -- anything in the ky text it should be the same as in the score state.
+    -- If I ever move the the state entirely to ky then this will need to
+    -- parse and return them, but meanwhile existing scores don't have allocs
+    -- in the ky.
+    compile (Ky.Ky defs imported _allocs) =
+        (builtins, Map.fromList (Ky.def_aliases defs))
+        where
+        -- Logs are boring, just loaded this or that.
+        (builtins, _logs) = compile_library (loaded_fnames imported) $
+            compile_definitions defs
 
 loaded_fnames :: [Ky.Loaded] -> [FilePath]
 loaded_fnames loads = [fname | Ky.Loaded fname _ <- loads]

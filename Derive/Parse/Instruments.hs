@@ -25,7 +25,9 @@ import qualified Util.Texts as Texts
 
 import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.Common as Common
+import qualified Instrument.Inst as Inst
 import qualified Instrument.InstT as InstT
+
 import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Patch as Midi.Patch
 import qualified Ui.Ui as Ui
@@ -97,24 +99,41 @@ from_ui inst alloc = do
             [(wdev, chans)] -> Right $ Midi wdev chans
             allocs -> Left $ "midi config too complicated for: " <> showt allocs
 
-update_ui :: [Allocation] -> UiConfig.Allocations
-    -> Either Error UiConfig.Allocations
-update_ui allocs (UiConfig.Allocations olds) = do
+type LookupBackend = InstT.Qualified -> Maybe Inst.Backend
+
+update_ui :: LookupBackend -> [Allocation]
+    -> UiConfig.Allocations -> Either Error UiConfig.Allocations
+update_ui lookup_backend allocs (UiConfig.Allocations olds) = do
     allocs <- check $ Maps.unique2 $ Seq.key_on alloc_name allocs
-    fmap (UiConfig.Allocations . Map.fromList) $ mapMaybeM make $
-        Maps.pairs allocs olds
+    inst_allocs <- mapMaybeM inherit $ Maps.pairs allocs olds
+    add_allocations lookup_backend mempty inst_allocs
     where
     check (m, []) = return m
     check (_, dups) = Left $ "duplicate names: "
         <> Text.unwords (map (ScoreT.instrument_name . fst) dups)
-    make = \case
-        (inst, Seq.Both alloc old) -> Just  . (inst,) <$> to_ui alloc (Just old)
-        (inst, Seq.First alloc) -> Just . (inst,) <$> to_ui alloc Nothing
+    -- Since a parsed Allocation doesn't have all possible data, inherit
+    -- the rest from an already existing allocation with this name.
+    inherit = \case
+        (inst, Seq.Both alloc old) ->
+            Just  . (inst,) <$> to_ui lookup_backend alloc (Just old)
+        (inst, Seq.First alloc) ->
+            Just . (inst,) <$> to_ui lookup_backend alloc Nothing
         (_, Seq.Second _) -> return Nothing
 
-to_ui :: Allocation -> Maybe UiConfig.Allocation
+add_allocations :: LookupBackend
+    -> UiConfig.Allocations -> [(ScoreT.Instrument, UiConfig.Allocation)]
+    -> Either Error UiConfig.Allocations
+add_allocations lookup_backend = foldM add
+    where
+    add allocs (inst, alloc) = do
+        let qual = UiConfig.alloc_qualified alloc
+        backend <- tryJust ("patch not found: " <> pretty qual) $
+            lookup_backend qual
+        UiConfig.allocate backend inst alloc allocs
+
+to_ui :: LookupBackend -> Allocation -> Maybe UiConfig.Allocation
     -> Either Error UiConfig.Allocation
-to_ui (Allocation _name qualified (Config mute solo) backend) old = do
+to_ui lookup_backend (Allocation _name qual (Config mute solo) backend) old = do
     ui_backend <- case (backend, UiConfig.alloc_backend <$> old) of
         (Midi wdev chans, Just (UiConfig.Midi config)) -> return $
             UiConfig.Midi $ config
@@ -128,9 +147,11 @@ to_ui (Allocation _name qualified (Config mute solo) backend) old = do
             Left $ "tried to turn into midi: " <> UiConfig.backend_name backend
         (NonMidi, Just (UiConfig.Midi {})) -> Left "midi inst with no channels"
         (NonMidi, Just backend) -> return backend
-        (NonMidi, Nothing) -> Left "TODO should infer backend"
+        (NonMidi, Nothing) -> case lookup_backend qual of
+            Nothing -> Left $ "patch not found: " <> pretty qual
+            Just backend -> return $ UiConfig.convert_backend backend
     return $ UiConfig.Allocation
-        { alloc_qualified = qualified
+        { alloc_qualified = qual
         , alloc_config = (maybe Common.empty_config UiConfig.alloc_config old)
             { Common.config_mute = mute
             , Common.config_solo = solo

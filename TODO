@@ -183,13 +183,14 @@ UNSORTED
         . How then do I not do it twice?  I guess if Ky.set sets it, then
           check cache should return a no-op, right?  Verify!
       * report duplicate instruments
-      - infer NonMidi backend based on inst db
+      * infer NonMidi backend based on inst db
       - bad parse error in instrument:
         . 5:1: string in line "p⎣no pianoteq/ [ms] loop1 1 2 3 4 5 6 7 8"
         . attoparsec msg is "string".. wut?
     parse entire config:
       - implement Record below, so I can parse it
         . implement p_rval
+        . for this, I need to implement attoparse :: A.Parser a -> Parser a
       - parse the generic Record to a UiConfig.Allocation.
       . Now I have redundant Allocations in both UiConfig and ky, do I want to
         no longer serialize UiConfig.config_allocations?
@@ -201,7 +202,27 @@ UNSORTED
       - kill threads in Cmd.Ky.update_cache?
       - switch Derive.Parse.Instruments to megaparsec, and "shell out" to
         attoparsec just for p_val.
+        . attoparse :: A.Parser a -> Parser a
       - Refactor to remove the duplication by embedding an RVal in a DVal.
+        . type              DVal    RVal (* has parser, - has type)
+          Num               *       -
+          Attributes        *       -
+          ControlRef        *       -
+          ConstantPitch             - (promote to Pitch)
+          Pitch             -
+          PControlRef       *
+          NotePitch         -       -
+          Str               *       -
+          Quoted            *       - (of Expr DVal and Expr RVal)
+          ControlFunction   *
+          NotGiven          *
+          Separator         *
+          List              *       - (of DVals and RVals respectively)
+        . Quoted and List have the same problem, where they need to be
+          parameterized by val.
+        . Except ConstantPitch, I could just embed RVal directly
+
+        . RVal is missing VPControlRef, VNotGiven, VSeparator, VConstantPitch
       - Experiment to see if megaparsec is just as fast as attoparsec now.
     . I already have something like this in tscore, putting it in ky would
       generalize.

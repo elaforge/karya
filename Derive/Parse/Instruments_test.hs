@@ -9,8 +9,12 @@ import qualified Util.ParseText as ParseText
 import qualified Derive.Parse.Instruments as I
 import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.Common as Common
+import qualified Instrument.Inst as Inst
 import qualified Instrument.InstT as InstT
+
 import qualified Midi.Midi as Midi
+import qualified Perform.Im.Patch as Im.Patch
+import qualified Perform.Midi.Patch as Midi.Patch
 import qualified Ui.UiConfig as UiConfig
 import qualified Ui.UiTest as UiTest
 
@@ -21,24 +25,32 @@ import           Util.Test
 test_update_ui :: Test
 test_update_ui = do
     let f allocs = fmap (Map.toList . UiConfig.unallocations)
-            . I.update_ui (map mkalloc allocs) . UiTest.mk_allocations
-    let syn = "syn/"
+            . I.update_ui lookup_backend (map mkalloc allocs)
+            . UiTest.mk_allocations
+    let midi = "midi/"
     right_equal (f [] []) []
-    right_equal (f [] [("i", syn, Just [0])]) []
+    right_equal (f [] [("i", midi, Just [0])]) []
     right_equal
-        (f [("i", syn, (True, False), Just [1])] [("i", syn, Just [0])])
+        (f [("i", midi, (True, False), Just [1])] [("i", midi, Just [0])])
         [ ( "i"
-          , (UiTest.midi_allocation syn (UiTest.midi_config [1]))
+          , (UiTest.midi_allocation midi (UiTest.midi_config [1]))
             { UiConfig.alloc_config = Common.empty_config
                 { Common.config_mute = True }
             }
           )
         ]
-    let non_midi = [("i", syn, (False, False), Nothing)]
-    right_equal (f non_midi [("i", syn, Nothing)]) $ map UiTest.mk_allocation
-        [ ("i", syn, Nothing)
-        ]
-    left_like (f non_midi []) "TODO should infer backend"
+    let im = [("i", "im/", (False, False), Nothing)]
+    right_equal (f im [("i", midi, Nothing)]) $
+        map UiTest.mk_allocation [("i", "im/", Nothing)]
+    right_equal (f im []) $
+        map UiTest.mk_allocation [("i", "im/", Nothing)]
+
+lookup_backend :: InstT.Qualified -> Maybe Inst.Backend
+lookup_backend qual
+    | q == "midi/" = Just $ Inst.Midi $ Midi.Patch.patch (-2, 2) "name"
+    | q == "im/" = Just $ Inst.Im Im.Patch.patch
+    | otherwise = Nothing
+    where q = InstT.show_qualified qual
 
 mkalloc :: (ScoreT.Instrument, Text, (Bool, Bool), Maybe [Midi.Channel])
     -> I.Allocation
