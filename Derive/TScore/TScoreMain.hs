@@ -268,9 +268,10 @@ sc_initialize :: Cmd.CmdT IO ()
 sc_initialize = do
     insts <- Ui.get_config $ Map.keys . UiConfig.unallocations
         . UiConfig.config_allocations
-    insts <- mapM Cmd.get_instrument insts
-    liftIO $ Sc.Play.add_default_group
-    liftIO $ sc_initialize_patches $ mapMaybe Cmd.sc_patch insts
+    patches <- mapMaybe Cmd.sc_patch <$> mapM Cmd.get_instrument insts
+    unless (null patches) $ liftIO $ do
+        Sc.Play.add_default_group
+        sc_initialize_patches patches
 
 sc_initialize_patches :: [Sc.Patch.Patch] -> IO ()
 sc_initialize_patches patches = Sc.Play.version >>= \case
