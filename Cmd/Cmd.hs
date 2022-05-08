@@ -1649,6 +1649,10 @@ lookup_qualified qualified = do
     config <- gets state_config
     return $ inst_lookup qualified (config_instrument_db config)
 
+get_lookup_backend :: State -> InstT.Qualified -> Maybe Inst.Backend
+get_lookup_backend state qualified = Inst.inst_backend <$>
+    inst_lookup qualified (config_instrument_db (state_config state))
+
 inst_lookup :: InstT.Qualified -> InstrumentDb -> Maybe Inst
 inst_lookup qualified db
     | qualified == InstT.dummy =

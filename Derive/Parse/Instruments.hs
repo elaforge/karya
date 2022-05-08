@@ -12,14 +12,14 @@ module Derive.Parse.Instruments (
     , p_allocation
     , unparse_allocations
 ) where
-import qualified Data.Attoparsec.Text as A
 import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Util.Maps as Maps
 import qualified Util.Num as Num
-import qualified Util.ParseText as ParseText
+import qualified Util.P as P
+import qualified Util.Parse as Parse
 import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
 
@@ -36,7 +36,7 @@ import qualified Ui.UiConfig as UiConfig
 import           Global
 
 
-type Parser a = A.Parser a
+type Parser a = P.Parser a
 type Error = Text
 
 -- | This is a simplified subset of 'Ui.UiConfig.Allocation'.
@@ -180,8 +180,8 @@ un_allocation (Allocation name qualified config backend) =
     ]
 
 p_config :: Parser Config
-p_config = A.option empty_config $ ParseText.between (A.char '[') (A.char ']') $
-    check . untxt =<< A.takeWhile (/=']')
+p_config = P.option empty_config $ P.between (P.char '[') (P.char ']') $
+    check . untxt =<< P.takeWhile (/=']')
     where
     check cs
         | all ((`elem` ['m', 's']) . Char.toLower) cs =
@@ -198,11 +198,11 @@ un_config (Config mute solo) =
 p_backend :: Parser Backend
 p_backend =
     Midi <$> lexeme (Midi.write_device <$> p_word "")
-        <*> A.many1 (lexeme p_chan)
+        <*> P.some (lexeme p_chan)
     <|> pure NonMidi
     where
     p_chan = do
-        chan <- ParseText.p_nat
+        chan <- Parse.p_nat
         if Num.inRange 1 17 chan then return $ fromIntegral (chan - 1)
             else fail $ "midi channel should be in range 1--16: " <> show chan
 
@@ -215,16 +215,16 @@ un_backend = \case
 -- * util
 
 p_word :: [Char] -> Parser Text
-p_word extra = A.takeWhile1 $ \c -> any ($c)
+p_word extra = P.takeWhile1 $ \c -> any ($c)
     [ Char.isAsciiLower, Char.isAsciiUpper, Char.isDigit
     , (`elem` ("-" :: [Char]))
     , (`elem` extra)
     ]
 
 spaces :: Parser ()
-spaces = A.skipMany $
-    ("--" *> A.skipWhile (/='\n') *> A.skipWhile (=='\n'))
-    <|> A.skipMany1 (A.satisfy $ \c -> c == ' ' || c == '\n')
+spaces = P.skipMany $
+    ("--" *> P.skipWhile (/='\n') *> P.skipWhile (=='\n'))
+    <|> P.skipSome (P.satisfy $ \c -> c == ' ' || c == '\n')
 
 lexeme :: Parser a -> Parser a
 lexeme = (<* spaces)

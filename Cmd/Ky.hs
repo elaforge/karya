@@ -70,15 +70,10 @@ update ui_state cmd_state ky_text =
             , logs
             )
     where
-    lookup_backend = get_lookup_backend cmd_state
+    lookup_backend = Cmd.get_lookup_backend cmd_state
     allocs = Ui.config#UiConfig.allocations #$ ui_state
     cache = Cmd.state_ky_cache cmd_state
     paths = state_ky_paths cmd_state
-
-get_lookup_backend :: Cmd.State -> InstT.Qualified -> Maybe Inst.Backend
-get_lookup_backend state qualified = Inst.inst_backend <$>
-    Cmd.inst_lookup qualified
-        (Cmd.config_instrument_db (Cmd.state_config state))
 
 set :: Text -> Cmd.CmdT IO Text
 set ky_text = do

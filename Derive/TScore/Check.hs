@@ -41,6 +41,7 @@ import qualified Cmd.Ruler.Gong as Gong
 import qualified Cmd.Ruler.Tala as Tala
 import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
+import qualified Derive.Parse.Instruments as Instruments
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.TScore.Parse as Parse
 import qualified Derive.TScore.T as T
@@ -62,7 +63,7 @@ data Config = Config {
     -- | Use negative durations.  Notes arrive at beats instead of departing
     -- from them.
     , config_negative :: !Bool
-    , config_instruments :: ![T.Allocation]
+    , config_instruments :: ![Instruments.Allocation]
     , config_ky :: !Text
     } deriving (Show)
 
@@ -134,7 +135,7 @@ parse_directive scope (T.Directive pos name maybe_val) config =
     set_config setter parse val = fmap (setter config) (lookup parse val)
     lookup parse val = tryJust ("unknown " <> name <> ": " <> val) (parse val)
 
-parse_instruments :: Text -> Either Text [T.Allocation]
+parse_instruments :: Text -> Either Text [Instruments.Allocation]
 parse_instruments val = do
     -- Instrument parsing is line-oriented, which is awkward with the
     -- usuall comment/whitespace handling, so I have to account for
@@ -143,9 +144,10 @@ parse_instruments val = do
     allocs <- mapM parse $ filter (not . empty . snd) $
         map (second Text.strip) $ zip [1..] $ Text.lines val
     let dups = map head $ filter ((>1) . length) $ Seq.group_sort id $
-            map T.alloc_name allocs
+            map Instruments.alloc_name allocs
     unless (null dups) $
-        Left $ "duplicate instrument definitions: " <> Text.unwords dups
+        Left $ "duplicate instrument definitions: "
+            <> Text.unwords (map pretty dups)
     return allocs
     where
     parse (n, s) = first ((("alloc " <> showt n <> ": ") <>) . txt) $

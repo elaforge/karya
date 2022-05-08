@@ -10,6 +10,7 @@ import qualified Util.EList as EList
 import           Util.Test hiding (check)
 import qualified Util.Test.Testing as Testing
 
+import qualified Derive.Parse.Instruments as Instruments
 import qualified Derive.TScore.Check as Check
 import qualified Derive.TScore.Parse as Parse
 import qualified Derive.TScore.T as T
@@ -32,7 +33,9 @@ test_parse_directive = do
         "duplicate instrument definitions: i"
     left_like (f "block = %instruments=''>i a/b'' []") "must be at global"
     right_equal (f "%instruments=''\n  >i a/b\n''")
-        [T.Allocation "i" (InstT.Qualified "a" "b") T.empty_config T.ImSc]
+        [ Instruments.Allocation "i" (InstT.Qualified "a" "b")
+            Instruments.empty_config Instruments.NonMidi
+        ]
     right_equal (f "%instruments=''\n  -- >i a/b\n''") []
 
 test_check :: Test

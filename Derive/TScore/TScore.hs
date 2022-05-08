@@ -37,6 +37,7 @@ import qualified Cmd.Ruler.RulerUtil as RulerUtil
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
 import qualified Derive.Note
+import qualified Derive.Parse.Instruments as Instruments
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
@@ -279,7 +280,7 @@ data DeriveArgs =
         Derive.InstrumentAliases
     deriving (Show)
 
-make_derive_args :: Cmd.Config -> [T.Allocation] -> Text
+make_derive_args :: Cmd.Config -> [Instruments.Allocation] -> Text
     -> Either Error DeriveArgs
 make_derive_args cmd_config allocs ky = do
     (builtins, aliases) <- parse_ky ky
@@ -288,7 +289,8 @@ make_derive_args cmd_config allocs ky = do
     where
     parse_ky :: Text -> Either Error (Derive.Builtins, Derive.InstrumentAliases)
     parse_ky = undefined -- TODO
-    convert_allocations :: [T.Allocation] -> Either Error UiConfig.Allocations
+    convert_allocations :: [Instruments.Allocation]
+        -> Either Error UiConfig.Allocations
     convert_allocations = undefined -- TODO
 
 get_external_duration2 :: DeriveArgs -> GetExternalCallDuration
@@ -615,12 +617,12 @@ source_key = "tscore"
 
 -- * ui_state
 
-parse_score :: Text -> Either Error (Ui.State, [T.Allocation])
+parse_score :: Text -> Either Error (Ui.State, [Instruments.Allocation])
 parse_score = score_to_ui get_ext_dur
     where get_ext_dur _ _ = (Left "external call duration not supported", [])
 
 score_to_ui :: GetExternalCallDuration -> Text
-    -> Either Error (Ui.State, [T.Allocation])
+    -> Either Error (Ui.State, [Instruments.Allocation])
 score_to_ui get_ext_dur source = do
     (blocks, ScoreConfig instruments ky) <- track_blocks
         (UiConfig.config_namespace UiConfig.empty_config)
@@ -670,7 +672,7 @@ ui_ruler block = RulerUtil.replace (_block_id block) $ const $ Right $
 -- * make_blocks
 
 data ScoreConfig = ScoreConfig {
-    config_instruments :: ![T.Allocation]
+    config_instruments :: ![Instruments.Allocation]
     , config_ky :: !Text
     } deriving (Eq, Show)
 

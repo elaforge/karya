@@ -12,8 +12,6 @@ import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
-import qualified Instrument.InstT as InstT
-import qualified Midi.Midi as Midi
 import qualified Ui.Id as Id
 
 import           Global
@@ -69,28 +67,6 @@ data Track call = Track {
     } deriving (Eq, Show)
 
 data Directive = Directive !Pos !Text !(Maybe Text)
-    deriving (Eq, Show)
-
--- | This is a simplified subset of 'Ui.UiConfig.Allocation'.
-data Allocation = Allocation {
-    alloc_name :: !Instrument
-    , alloc_qualified :: !InstT.Qualified
-    , alloc_config :: !Config
-    , alloc_backend :: !Backend
-    } deriving (Eq, Show)
-
--- | Subset of 'Instrument.Common.Config'.
-data Config = Config {
-    config_mute :: !Bool
-    , config_solo :: !Bool
-    } deriving (Eq, Show)
-
-empty_config :: Config
-empty_config = Config False False
-
--- | This is ScoreT.Instrument, but I don't want to import ScoreT here.
-type Instrument = Text
-data Backend = Midi Midi.WriteDevice [Midi.Channel] | ImSc
     deriving (Eq, Show)
 
 data Token call pitch ndur rdur =

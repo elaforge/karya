@@ -11,8 +11,6 @@ import qualified Derive.TScore.Parse as Parse
 import qualified Derive.TScore.T as T
 import qualified Derive.TScore.TScore as TScore
 
-import qualified Instrument.InstT as InstT
-import qualified Midi.Midi as Midi
 import qualified Ui.Id as Id
 
 import           Global
@@ -356,39 +354,6 @@ test_p_multi_string = do
         \  hi\n\
         \  there\n\
         \''") "hi\nthere"
-
-test_parse_allocation :: Test
-test_parse_allocation = do
-    let f = Parse.parse_allocation
-    let syn = InstT.Qualified "syn" ""
-    right_equal (f ">i syn/p") $
-        T.Allocation "i" (InstT.Qualified "syn" "p") T.empty_config T.ImSc
-    let loop1 = Midi.write_device "loop1"
-    right_equal (f ">i syn/ loop1 1 2") $
-        T.Allocation "i" syn T.empty_config
-            (T.Midi loop1 [0, 1])
-    left_like (f ">i syn/ loop1 0") "should be in range"
-    left_like (f ">i syn/ loop1") "unexpected"
-    left_like (f ">i syn/ loop1 x") "unexpected"
-    right_equal (f ">i syn/ [ms]") $
-        T.Allocation "i" syn T.empty_config T.ImSc
-    right_equal (f ">i syn/ [Ms]") $
-        T.Allocation "i" syn (T.Config True False) T.ImSc
-    left_like (f ">i syn/ [msq]") "flags must be"
-
-test_allocations_roundtrip :: Test
-test_allocations_roundtrip = do
-    let syn = InstT.Qualified "syn" "p"
-    let loop1 = Midi.write_device "loop1"
-    let trip alloc =
-            ( Right alloc
-            , Parse.parse_allocation $ Parse.unparse_allocations [alloc]
-            )
-    uncurry equal $ trip $ T.Allocation "i" syn T.empty_config T.ImSc
-    uncurry equal $ trip $ T.Allocation "i" syn (T.Config False True)
-        (T.Midi loop1 [0, 2])
-    uncurry equal $ trip $ T.Allocation "i" syn (T.Config True False)
-        (T.Midi loop1 [2])
 
 -- * implementation
 

@@ -25,6 +25,7 @@ import qualified Data.Text.IO as Text.IO
 import           System.FilePath ((</>))
 
 import qualified Util.Exceptions as Exceptions
+import qualified Util.Parse
 import qualified Util.ParseText as ParseText
 import qualified Util.Seq as Seq
 
@@ -214,8 +215,13 @@ parse_ky fname text = do
 
 parse_allocation :: (Int, Text) -> Either ParseText.Error Instruments.Allocation
 parse_allocation (lineno, line) =
-    first (ParseText.offset (lineno, 0)) $
-        ParseText.parse Instruments.p_allocation line
+    first fmt $ Util.Parse.parse Instruments.p_allocation line
+    where
+    fmt msg = ParseText.Error
+        -- TODO I could extract the column from the megaparsec error
+        { _position = Just (line, (lineno, 1))
+        , _message = msg
+        }
 
 -- | The alias section allows only @alias = inst@ definitions.
 parse_alias :: (Expr.Symbol, Expr)

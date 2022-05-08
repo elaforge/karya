@@ -5,7 +5,7 @@ module Derive.Parse.Instruments_test where
 
 import qualified Data.Map as Map
 
-import qualified Util.ParseText as ParseText
+import qualified Util.Parse as Parse
 import qualified Derive.Parse.Instruments as I
 import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.Common as Common
@@ -72,16 +72,14 @@ test_parse_allocation = do
     let loop1 = Midi.write_device "loop1"
     right_equal (f ">i syn/ loop1 1 2") $
         I.Allocation "i" syn I.empty_config (I.Midi loop1 [0, 1])
-    -- TODO attoparsec has bad errors, switch to megaparsec
-    left_like (f ">i syn/ loop1 0") "parse error" -- "should be in range"
-    left_like (f ">i syn/ loop1") "parse error"
-    left_like (f ">i syn/ loop1 x") "parse error"
+    left_like (f ">i syn/ loop1 0") "should be in range"
+    left_like (f ">i syn/ loop1") "expecting * nat"
+    left_like (f ">i syn/ loop1 x") "expecting * nat"
     right_equal (f ">i syn/ [ms]") $
         I.Allocation "i" syn I.empty_config I.NonMidi
     right_equal (f ">i syn/ [Ms]") $
         I.Allocation "i" syn (I.Config True False) I.NonMidi
-    -- TODO
-    left_like (f ">i syn/ [msq]") "parse error" -- "flags must be"
+    left_like (f ">i syn/ [msq]") "flags must be"
 
 test_allocation_roundtrip :: Test
 test_allocation_roundtrip = do
@@ -98,4 +96,4 @@ test_allocation_roundtrip = do
         (I.Midi loop1 [2])
 
 parse :: Text -> Either Text I.Allocation
-parse = ParseText.parse1 I.p_allocation
+parse = Parse.parse I.p_allocation

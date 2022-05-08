@@ -24,15 +24,12 @@ import qualified Data.Text as Text
 import qualified Data.Void as Void
 
 import qualified Util.Control as Control
-import qualified Util.Num as Num
 import qualified Util.P as P
 import           Util.P ((<?>))
 import qualified Util.Parse as Parse
-import qualified Util.Texts as Texts
 
+import qualified Derive.Parse.Instruments as Instruments
 import qualified Derive.TScore.T as T
-import qualified Instrument.InstT as InstT
-import qualified Midi.Midi as Midi
 import qualified Ui.Id as Id
 
 import           Global
@@ -225,63 +222,11 @@ dedent t = Text.strip $ case Text.lines (Text.dropWhile (=='\n') t) of
         where indent = Text.takeWhile Char.isSpace x
     where strip pref s = fromMaybe s $ Text.stripPrefix pref s
 
-parse_allocation :: Text -> Either String T.Allocation
-parse_allocation = parse_text (p_whitespace *> p_allocation)
+parse_allocation :: Text -> Either String Instruments.Allocation
+parse_allocation = parse_text Instruments.p_allocation
 
-unparse_allocations :: [T.Allocation] -> Text
-unparse_allocations = Text.unlines . Texts.columns 1 . map un_allocation
-
--- |
--- > >pno pianoteq/      [ms] loop1 1 2 3
--- > >tmb faust/tambura4 [ms]
-p_allocation :: Parser T.Allocation
-p_allocation = T.Allocation
-    <$> (lexeme $ ">" *> p_word)
-    <*> lexeme (InstT.parse_qualified <$> p_word)
-    <*> lexeme p_config
-    <*> p_backend
-
--- | Undo p_allocation.  This isn't using Element because I want to line up
--- columns.  Also I don't use unparse on allocations.
-un_allocation :: T.Allocation -> [Text]
-un_allocation (T.Allocation name qualified config backend) =
-    [ ">" <> name
-    , InstT.show_qualified qualified
-    , un_config config
-    , un_backend backend
-    ]
-
-p_config :: Parser T.Config
-p_config = P.option T.empty_config $ P.between (P.char '[') (P.char ']') $
-    check . untxt =<< P.takeWhile (/=']')
-    where
-    check cs
-        | all ((`elem` ['m', 's']) . Char.toLower) cs =
-            return $ T.Config
-                { config_mute = 'M' `elem` cs
-                , config_solo = 'S' `elem` cs
-                }
-        | otherwise = fail $ "flags must be [MSms]: " <> show cs
-
-un_config :: T.Config -> Text
-un_config (T.Config mute solo) =
-    "[" <> (if mute then "M" else "m") <> (if solo then "S" else "s") <> "]"
-
-p_backend :: Parser T.Backend
-p_backend = (P.eof *> pure T.ImSc)
-    <|> T.Midi <$> lexeme (Midi.write_device <$> p_word)
-        <*> P.some (lexeme p_chan)
-    where
-    p_chan = do
-        chan <- Parse.p_nat
-        if Num.inRange 1 17 chan then return $ fromIntegral (chan - 1)
-            else fail $ "midi channel should be in range 1--16: " <> show chan
-
-un_backend :: T.Backend -> Text
-un_backend = \case
-    T.Midi wdev chans ->
-        Text.unwords $ Midi.write_device_text wdev : map (showt . (+1)) chans
-    T.ImSc -> ""
+unparse_allocations :: [Instruments.Allocation] -> Text
+unparse_allocations = Instruments.unparse_allocations
 
 type Token = T.Token T.Call (T.NPitch T.Pitch) T.NDuration T.Duration
 

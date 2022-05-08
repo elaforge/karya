@@ -138,7 +138,7 @@ UNSORTED
     . also be collapsed by default?
   semara-dana:
     - '/' or '?' to play from root starts in the wrong spot in dim-g-ang1
-    + there could be a k-inverted notation, since it's common to have both
+    * there could be a k-inverted notation, since it's common to have both
       . in semara-dana I used it with ub and ub^
     - ugal notes still get stuck mutes
     - semara-dana-im fails on ngoret and stops rendering after the 1st block
@@ -184,13 +184,16 @@ UNSORTED
           check cache should return a no-op, right?  Verify!
       * report duplicate instruments
       * infer NonMidi backend based on inst db
-      - bad parse error in instrument:
+      * bad parse error in instrument:
         . 5:1: string in line "p⎣no pianoteq/ [ms] loop1 1 2 3 4 5 6 7 8"
         . attoparsec msg is "string".. wut?
+        . I think the only way out is switch to megaparsec, or fork attoparsec
+          to not always backtrack.
     parse entire config:
       - implement Record below, so I can parse it
         . implement p_rval
         . for this, I need to implement attoparse :: A.Parser a -> Parser a
+        . Even if I have that, I still don't have an rval parser.
       - parse the generic Record to a UiConfig.Allocation.
       . Now I have redundant Allocations in both UiConfig and ky, do I want to
         no longer serialize UiConfig.config_allocations?
@@ -198,9 +201,11 @@ UNSORTED
         the ky if it doesn't already have one.  Or maybe just always do it
         anyway to keep it normalized?  Nah, then I'd lose comments.
     cleanup:
-      - unify with TScore
+      * unify with TScore
+        . But this will make errors bad because of attoparsec.  So first
+          implement 'attoparse' so it can be in megaparsec.
       - kill threads in Cmd.Ky.update_cache?
-      - switch Derive.Parse.Instruments to megaparsec, and "shell out" to
+      * switch Derive.Parse.Instruments to megaparsec, and "shell out" to
         attoparsec just for p_val.
         . attoparse :: A.Parser a -> Parser a
       - Refactor to remove the duplication by embedding an RVal in a DVal.
@@ -220,9 +225,20 @@ UNSORTED
           List              *       - (of DVals and RVals respectively)
         . Quoted and List have the same problem, where they need to be
           parameterized by val.
-        . Except ConstantPitch, I could just embed RVal directly
-
-        . RVal is missing VPControlRef, VNotGiven, VSeparator, VConstantPitch
+        . So:
+          data RVal val = VList [val]
+          data DVal = RVal (RVal DVal) | VControlFunction
+        . The non-parseable thing is really just Pitch and ControlFunction.
+          Could I define a literal for Pitch?  Basically that's what
+          ConstantPitch is.  If it gets serialized and deserialized it would
+          lose its transpose, but that's ok, right?
+        . Then I have ControlFunction, which is a haskell function.
+        . The main thing is I can't serialize this, so I can't put it in an
+          instrument.  Except, I could serialize it as the expression that
+          creates it, like `cf-rnd 1 2`, but deserialize would have to mean
+          evaluate it in the standard library context.  This is the same as
+          the "literal" syntax for list, (list 1 2).
+        . If I do this, I can eliminate REnv and RVal entirely.
       - Experiment to see if megaparsec is just as fast as attoparsec now.
     . I already have something like this in tscore, putting it in ky would
       generalize.

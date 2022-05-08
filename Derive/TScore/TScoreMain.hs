@@ -41,22 +41,19 @@ import qualified Cmd.Simple as Simple
 
 import qualified Derive.DeriveSaved as DeriveSaved
 import qualified Derive.LEvent as LEvent
+import qualified Derive.Parse.Instruments as Instruments
 import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.TScore.T as T
 import qualified Derive.TScore.TScore as TScore
 
-import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
-import qualified Instrument.InstT as InstT
-
 import qualified Local.Config
 import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
 import qualified Midi.MidiDriver as MidiDriver
 
 import qualified Perform.Im.Convert as Im.Convert
-import qualified Perform.Midi.Patch as Midi.Patch
 import qualified Perform.Midi.Play as Midi.Play
 import qualified Perform.Sc.Note as Sc.Note
 import qualified Perform.Sc.Patch as Sc.Patch
@@ -399,46 +396,16 @@ load_cmd_config midi_interface = do
 
 load_score :: Cmd.Config -> Text -> IO (Either Error (Ui.State, Cmd.State))
 load_score cmd_config source = Except.runExceptT $ do
-    (ui_state, instruments) <- tryRight $ TScore.parse_score source
+    (ui_state, allocs) <- tryRight $ TScore.parse_score source
     -- TODO adjust starting line in error
     (builtins, aliases) <- tryRight . first ("parsing %ky: "<>)
         =<< liftIO (Ky.load ky_paths (Ui.config#UiConfig.ky #$ ui_state))
     let cmd_state =  DeriveSaved.add_library builtins aliases $
             Cmd.initial_state cmd_config
-    ui_state <- tryRight $ first pretty $ Ui.exec ui_state $
-        forM_ instruments $ allocate cmd_config . convert_allocation
-    return (ui_state, cmd_state)
+    allocs <- tryRight $ Instruments.update_ui
+        (Cmd.get_lookup_backend cmd_state) allocs
+        (Ui.config#UiConfig.allocations #$ ui_state)
+    return (Ui.config#UiConfig.allocations #= allocs $ ui_state, cmd_state)
     where
     -- For now, I don't support ky import.
     ky_paths = []
-
--- | Like 'Cmd.allocate', but doesn't require Cmd.M.
-allocate :: Ui.M m => Cmd.Config
-    -> (ScoreT.Instrument, UiConfig.Allocation)
-    -> m ()
-allocate cmd_config (score_inst, alloc) = do
-    let qualified = UiConfig.alloc_qualified alloc
-    inst <- Ui.require ("instrument not in db: " <> pretty qualified) $
-        Cmd.inst_lookup qualified (Cmd.config_instrument_db cmd_config)
-    allocs <- Ui.config#UiConfig.allocations <#> Ui.get
-    allocs <- Ui.require_right id $
-        UiConfig.allocate (Inst.inst_backend inst) score_inst alloc allocs
-    Ui.modify_config $ UiConfig.allocations #= allocs
-
-convert_allocation :: T.Allocation
-    -> (ScoreT.Instrument, UiConfig.Allocation)
-convert_allocation (T.Allocation inst qual config backend) =
-    ( ScoreT.Instrument inst
-    , set_config $ UiConfig.allocation qual $ case backend of
-        T.ImSc
-            | InstT.synth qual == "sc" -> UiConfig.Sc
-            | otherwise -> UiConfig.Im
-        T.Midi wdev chans -> UiConfig.Midi $
-            Midi.Patch.config (map (, Nothing) (map (wdev,) chans))
-    )
-    where
-    set_config alloc = alloc { UiConfig.alloc_config = ui_config }
-    ui_config = Common.empty_config
-        { Common.config_mute = T.config_mute config
-        , Common.config_solo = T.config_solo config
-        }

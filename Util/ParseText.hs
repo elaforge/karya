@@ -42,8 +42,9 @@ parse p text = case parse_all p text of
         where loc = infer_location text rest
 
 data Error = Error {
+    -- | Line with the error, and 1-based row and column.
     _position :: Maybe (Text, (Row, Column))
-    , _message ::Text
+    , _message :: Text
     } deriving (Eq, Show)
 type Row = Int
 type Column = Int
