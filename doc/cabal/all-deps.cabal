@@ -85,7 +85,7 @@ library
         terminfo,
         text,
         time,
-        transformers >=0.4,
+        transformers >=0.5.6.0,
         unix,
         unordered-containers,
         utf8-string,
@@ -93,6 +93,5 @@ library
         vivid-osc,
         vivid-supercollider,
         wcwidth,
-        writer-cps-mtl,
         zlib,
         zmidi-core >=0.6

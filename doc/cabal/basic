@@ -57,6 +57,5 @@ unordered-containers
 utf8-string
 vector
 wcwidth
-writer-cps-mtl
 zlib
 zmidi-core

@@ -83,8 +83,7 @@ basicPackages = concat
     , [("extra", ">=1.3")]
     , [("exceptions", "")] -- only ghc 9
     , w "unordered-containers"
-    , [("transformers", ">=0.4"), ("mtl", ">=2.2.1")]
-    , w "writer-cps-mtl"
+    , [("transformers", ">=0.5.6.0"), ("mtl", ">=2.2.1")]
     , w "vector utf8-string"
     , w "c-storable"
     -- shakefile

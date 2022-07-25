@@ -56,9 +56,7 @@ module Solkattu.Realize (
     , Realized
 ) where
 import qualified Control.DeepSeq as DeepSeq
-import qualified Control.Monad.Writer as Writer
-import qualified Control.Monad.Writer.CPS as Writer.CPS
-
+import qualified Control.Monad.Trans.Writer.CPS as Writer
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
@@ -530,7 +528,7 @@ realize_ :: (Pretty sollu, Ord sollu)
 realize_ realizePattern toStrokes tala =
     -- The writer keeps track of the set of sollu patterns I've used, so I can
     -- warn about unused ones.
-    Writer.CPS.runWriter
+    Writer.runWriter
         . fmap (UF.concatMap convertGroups)
         . UF.processM realize1
         . flatToState (S.stateFrom tala 0) -- TODO use eddupu
