@@ -962,6 +962,9 @@ main = Concurrent.withConcurrentOutput $ Regions.displayConsoleRegions $ do
             fn %> extractDoc (modeConfig Debug)
         testRules (modeConfig Test)
         profileRules (modeConfig Profile)
+        -- Opt in case profiling flags make a difference, but they can't
+        -- use UiTest.
+        criterionRules (modeConfig Opt)
         criterionRules (modeConfig Profile)
         criterionRules (modeConfig Test) -- for typecheck-ci
         markdownRule (buildDir (modeConfig Opt) </> "linkify")

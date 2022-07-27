@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE Rank2Types #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 -- | This is the core of the Deriver monad, instantiated in detail in
 -- "Derive.Deriver.Monad".
 module Derive.Deriver.DeriveM (
@@ -76,7 +75,6 @@ apC mf ma = do
 
 instance Monad (Deriver st err) where
     (>>=) = bindC
-    -- fail = throw
 
 {-# INLINE bindC #-}
 bindC :: Deriver st err a -> (a -> Deriver st err b) -> Deriver st err b
