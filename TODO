@@ -6,6 +6,7 @@ LEGEND
 sigmoid x = 1 / (1 + e ** (-x))
 
 ghc:
+  . ghc core without GHC.Num.+ -> -dsuppress-module-prefixes
   . Open a feature request ticket with GHC API info.
   . Open a ticket with info about bake's ghc build papercuts.
   . ghc api memory use should get much better in 9.4
@@ -106,6 +107,7 @@ external:
       means.  Maybe that means integrate with fix-imports?
 
   record screencast of using karya:
+    . https://neilmitchell.blogspot.com/2021/01/recording-video.html
     basic notes / intro:
       . basic note entry, with kbd and midi
       . show keycaps
@@ -134,6 +136,10 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
+  * refused to play due to no root_id
+    . How does that even happen?  I thought Ui would choose another root?
+    . Why does playing a block locally require a root?
+    . Because im gets muted tracks from the root.
   * pitch track added by note entry should auto-embiggen
     . also be collapsed by default?
   semara-dana:
@@ -1306,41 +1312,6 @@ UNSORTED
 IN PROGRESS / branch: branches:
   . This has longer term projects, which are partially complete.
   - ControlFunctions are still super confusing. NOTE [fix-control-functions]
-    . Yet another confusing thing is that they don't work for arbitrary
-      signals given to notes.  I think it would be better to override '' to
-      get e.g. %location as %location + rnd ...
-    . E.g.  '%strength=.5 | %strength=(cf-rnd ...)' means it looks like
-      %strength is .5, but it's actually not, and the only way to get rid of
-      the CF is %strength=_.
-    . Also the whole implementation is a mess.  Isn't there some other way to
-      randomize signals?
-    . I could pass a Quoted, and then control functions are val calls that
-      return Quoteds: (cf-rnd control 0 1)
-    . Then I want to be able to treat those as signals, or coerce them both
-      to the same thing.  Really that's a SignalFunction, or maybe just
-      RealTime -> Deriver Y.  So this turns into the problem of how to coerce
-      various types into SignalFunction, but not have to have an opaque
-      SignalFunction for all the defaults.
-    . I could have a Convert typeclass.  In fact maybe it would be cleaner to
-      split Typecheck and Convert?
-      Typecheck: Val -> Maybe a, Convert: a -> b
-      Convert would be: Int -> SignalFunction.
-    . I think this won't work because the intermediate 'a' will be
-      ambiguous.
-    . I can always have a Default class that is used only for Sig defaults,
-      and provides both ShowVal and the coercion.  It would mean I have to
-      duplicate everything in Typecheck, unless I use an overlapping
-      typeclass.  Or I could default to... what exactly?
-    . The problem with `Convert a b` is that 'a' needs a type annotation,
-      which would make signatures annoying to write.  Normally I don't need
-      them because they are the Typecheck val, which already needs to be
-      fixed.
-    . Or I could have defaults be either a Typecheck val, or
-      (Doc, Typecheck val), and then have an explicit constructor for Function
-      which promotes various types to (Doc, Function).
-    . Give hs-boot another try, but maybe wait for 9.2, this may help:
-      https://gitlab.haskell.org/ghc/ghc/-/merge_requests/5661
-      . Not in 9.2, probably have to wait for 9.4
   Support for adding or removing time in the middle of a score:
     . Status: this is implemented manually via Cmd.BlockResize, and
       specifically LBlock.add_time and remove_time.  It seems to work, but I
@@ -1902,6 +1873,62 @@ oriented signals
 
 ControlFunction:
   . NOTE [fix-control-functions]
+  newer notes:
+    . Randomized values, or specifically values that can rely on random seed.
+      Also I want other things from env and controls while I'm at it.
+      . ScoreT.Control -> Dynamic -> RealTime -> ScoreT.Typed Signal.Y
+    . Transformed values without having to materialize samples, e.g. (*n)
+      without forcing the whole signal.
+    . What if I merge this directly into Perform.Signal, or a wrapper of it?
+      That would merge it into Score.event_control_map and might remove some
+      of the error-proneness.
+    . In order to print and serialize functions, I reify their expressions.
+    . I would do that for theoretical instruments with cfs in their env, but
+      in practice can't I express this as `>inst = xyz`?  In that case, why
+      do I need a separate inst env at all?
+    . So maybe instead of Common.common_environ and config_environ, I could
+      have Text which is put into the instrument title.
+    . So I could remove REnv this way, either by removing instrument environ
+      completely, or by making it just an error to serialize ControlFunction.
+      But this is orthogonal to fixing ControlFunction.
+    . But I think Derive.Function actually is a solution, in that it should
+      get rid of the UI awkwardness.  Will it have a Typecheck instance?
+  notes:
+    . Yet another confusing thing is that they don't work for arbitrary
+      signals given to notes.  I think it would be better to override '' to
+      get e.g. %location as %location + rnd ...
+    . E.g. '%strength=.5 | %strength=(cf-rnd ...)' means it looks like
+      %strength is .5, but it's actually not, and the only way to get rid of
+      the CF is %strength=_.
+    . Also the whole implementation is a mess.  Isn't there some other way to
+      randomize signals?
+    . I could pass a Quoted, and then control functions are val calls that
+      return Quoteds: (cf-rnd control 0 1)
+    . Then I want to be able to treat those as signals, or coerce them both
+      to the same thing.  Really that's a SignalFunction, or maybe just
+      RealTime -> Deriver Y.  So this turns into the problem of how to coerce
+      various types into SignalFunction, but not have to have an opaque
+      SignalFunction for all the defaults.
+    . I could have a Convert typeclass.  In fact maybe it would be cleaner to
+      split Typecheck and Convert?
+      Typecheck: Val -> Maybe a, Convert: a -> b
+      Convert would be: Int -> SignalFunction.
+    . I think this won't work because the intermediate 'a' will be
+      ambiguous.
+    . I can always have a Default class that is used only for Sig defaults,
+      and provides both ShowVal and the coercion.  It would mean I have to
+      duplicate everything in Typecheck, unless I use an overlapping
+      typeclass.  Or I could default to... what exactly?
+    . The problem with `Convert a b` is that 'a' needs a type annotation,
+      which would make signatures annoying to write.  Normally I don't need
+      them because they are the Typecheck val, which already needs to be
+      fixed.
+    . Or I could have defaults be either a Typecheck val, or
+      (Doc, Typecheck val), and then have an explicit constructor for Function
+      which promotes various types to (Doc, Function).
+    . Give hs-boot another try, but maybe wait for 9.2, this may help:
+      https://gitlab.haskell.org/ghc/ghc/-/merge_requests/5661
+      . Not in 9.2, probably have to wait for 9.4
   examples:
     . Sig.defaulted "dur" (Sig.control "damp-dur" 0.15) "doc"
       . The arg then has Control.to_function called on it.
@@ -4882,6 +4909,35 @@ cleanup: bugs:
     . fmt: even more operators and imports
 
 performance:
+  effects / monads:
+    Cmd:
+      . I use Cmd.M m => ..., which means cmds are all polymorphic, which
+        presumably prevents monadic stuff from getting optimized.
+      ? Does it?
+      ? If it does, can I fix it?
+        . One brute force way might be INLINEABLE on all Ui.M?
+        . Cmd.M is so I can use cmds with both IO and Identity (is it true?),
+          if so shouldn't I be able to use non-IO cmds in Identity with zero
+          overhead?  And if so, how?
+        . I haven't cared about this because I don't think relevant time is being
+          spent in Cmd, it's all in Derive.
+    Derive:
+      . Is continuation based except still allocating on each bind?
+      . Try INLINEABLE on DeriveM?
+      . I want to make sure bind is a known call.
+      . Also bind should not allocate.
+      . I use CPS, which is a lambda, still a closure.
+      . Maybe this is why I saw no improvement when switching to CPS.
+      . If I switched back to Either, and monomorphic everything, do I eliminate
+        the allocation?
+      . Alternately, `effectful` uses IO exceptions.
+      * Write some micro benchmark operations on DeriveM
+      / Run the score profiles and micro benchmarks before and after INLINEABLE.
+        . I think no need, if it's truly zero overhead.
+      / Try going from the custom CPS monad to a mtl stack.
+      - look at Deriver core
+      https://www.youtube.com/watch?v=0jI-AlWEwYI
+        . https://github.com/ocharles/effect-zoo
   ruler: ruler-performance:
     . The ruler model of having all the marks all the time seems like it
       doesn't scale up to large blocks.  I would rather transmit minimal data,

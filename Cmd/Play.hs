@@ -405,7 +405,7 @@ from_realtime block_id repeat_at start_ = do
             \ or set Cmd.config_im_play_direct"
         Left Nothing -> return (mempty, Nothing)
         Left (Just msg) -> Cmd.throw msg
-    muted <- Perf.muted_im_instruments
+    muted <- Perf.muted_im_instruments block_id
     score_path <- Cmd.gets Cmd.score_path
     let im_msgs = maybe []
             (im_play_msgs score_path block_id muted (start * multiplier))

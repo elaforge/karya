@@ -314,19 +314,20 @@ lookup_dynamic perf_block_id (block_id, maybe_track_id) =
 
 -- * muted instruments
 
-muted_im_instruments :: Cmd.M m => m (Set ScoreT.Instrument)
-muted_im_instruments = do
+muted_im_instruments :: Cmd.M m => BlockId -> m (Set ScoreT.Instrument)
+muted_im_instruments block_id = do
     allocs <- Ui.gets $ UiConfig.config_allocations . Ui.state_config
     -- Only im does per-instrument muting, so don't bother if I don't have any
     -- of those.
-    muted <- if UiConfig.has_im allocs then get_muted_instrument_tracks
+    muted <- if UiConfig.has_im allocs
+        then get_muted_instrument_tracks block_id
         else pure mempty
     return $ PlayUtil.muted_instruments allocs <> muted
 
-get_muted_instrument_tracks :: Cmd.M m => m (Set ScoreT.Instrument)
-get_muted_instrument_tracks = do
+get_muted_instrument_tracks :: Cmd.M m => BlockId -> m (Set ScoreT.Instrument)
+get_muted_instrument_tracks block_id = do
     muted <- Set.toList <$> PlayUtil.get_muted_tracks
-    track_instruments <- Cmd.perf_track_instruments <$> get_root
+    track_instruments <- Cmd.perf_track_instruments <$> get block_id
     return $ Set.unions $
         map (fromMaybe mempty . (`Map.lookup` track_instruments)) muted
 

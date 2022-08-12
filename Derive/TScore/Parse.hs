@@ -513,7 +513,7 @@ p_whitespace = void $ P.skipMany $ P.space1 <|> p_comment
     where
     p_comment = do
         P.string "--"
-        P.takeWhile (/='\n')
+        P.skipWhile (/='\n')
         P.option () (void $ P.char '\n')
 
 strip_comment :: Text -> Text
