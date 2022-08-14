@@ -10,7 +10,6 @@
 module Util.Seed (
     Seed(to_seed), (&)
 ) where
-import qualified Data.Primitive.PrimArray as PrimArray
 import qualified Data.Text as Text
 import qualified Data.Text.Array as Text.Array
 import qualified Data.Text.Internal as Text.Internal
@@ -52,24 +51,17 @@ simple_text :: Int -> Text.Text -> Int
 simple_text = Text.foldl' (\n -> (n+) . fromEnum)
 
 _prim_text :: Int -> Text.Text -> Int
-_prim_text salt t = salt `combine` fromIntegral (prim_text_sum t)
+_prim_text salt t = salt `combine` prim_text_sum t
 
--- | Sum the Word16 components of the Text directly.  In theory this should be
--- faster than Text.foldl', since it skips decoding UTF16 to a Char, but in
--- practice it seems to be just the same.
---
--- This is only 16 bits so it'll wrap before an Int, but since seed winds up
--- getting trimmed to 0-999, I don't really care.
-prim_text_sum :: Text.Text -> Word.Word16
-prim_text_sum (Text.Internal.Text tarray offset len) = go 0 offset
+-- | Sum the components of the Text directly.  In theory this should be faster
+-- than Text.foldl', since it skips decoding to a Char, but in practice it
+-- seems to be just the same.
+prim_text_sum :: Text.Text -> Int
+prim_text_sum (Text.Internal.Text array offset len) = go 0 offset
     where
-    go !accum !offset
+    go !accum offset
         | offset < end =
-            let !v = PrimArray.indexPrimArray array offset
+            let !v = fromIntegral $ Text.Array.unsafeIndex array offset
             in go (accum + v) (offset+1)
         | otherwise = accum
     end = offset + len
-    array = toPrim tarray
-
-toPrim :: Text.Array.Array -> PrimArray.PrimArray Word.Word16
-toPrim array = PrimArray.PrimArray (Text.Array.aBA array)

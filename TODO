@@ -136,6 +136,35 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
+  - try out text-2 and see if performance changes
+    . However it's a bootlib, can I really change those?
+    . Maybe, ghc doesn't depend on it.
+    * Try a nix build to see if all my deps have caught up to it.
+      . megaparsec ==9.2.1,
+        ghc-events ==0.17.0.3,
+        concurrent-output ==1.10.16,
+    - why is attoparsec not found in nix build?
+      . it's only attoparsec, data-ordlist is fine
+      . Does not apply to ghci
+      . Works if I omit -hide-all-packages *and* -package=attoparsec
+    . I can do a non-nix build, but it's then a pain to switch back and forth,
+      especially since cabal sandbox is gone.
+    . But upgrading packages is actually no problem, let's try that.
+    . But upgrading text-2 will require recompiling tons of stuff, so not so
+      easy.
+  - space leaks:
+    . https://kodimensional.dev/space-leak
+    . look for puts into MVar and IORef, make sure they are !
+    . returning a value with local refs maybe uses 'return $! ...'.
+    . Beware of Maybe and (,) etc.  Use
+      https://hackage.haskell.org/package/strict-wrapper
+      or https://hackage.haskell.org/package/strict
+    . strict-wrapper requires a lot of Strict noise, wrapping each type but
+      also wrapping each construction and deconstruction.  The significant
+      types are just Maybe, Either, (,).
+    . strict has awkward names, must be used qualified but reuses Maybe name
+      and all functions.  So if I do that, write my own SMaybe and SEither.
+    . I could also try more StrictData, and put ~ on explicitly lazy fields.
   * refused to play due to no root_id
     . How does that even happen?  I thought Ui would choose another root?
     . Why does playing a block locally require a root?

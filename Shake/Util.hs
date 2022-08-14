@@ -101,7 +101,7 @@ doCmdline fancyOutput keepGoing (abbr, output, cmd_:args) = do
     notRequired <- withRegion (do
         (exit, ghcNotRequired) <- createProcessConcurrent "nice" (cmd:args)
         when (not keepGoing && exit /= Exit.ExitSuccess) $
-            errorIO $ "Failed:\n" ++ unwords (cmd : args)
+            errorIO $ "Failed:\n" ++ unwords (map quote (cmd : args))
         return ghcNotRequired
         ) `Exception.onException` do
             timing <- showMetric start
