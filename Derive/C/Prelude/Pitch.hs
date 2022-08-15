@@ -198,7 +198,7 @@ c_porta = generator1 "porta" mempty
     <$> PitchUtil.pitch_arg
     <*> defaulted "time" ControlUtil.default_interpolation_time
         "Time to reach destination."
-    <*> Sig.defaulted_env "place" Sig.Both (Typecheck.Normalized 0.5)
+    <*> Sig.defaulted_env "place" Sig.Both (Typecheck.Normalized 1)
         "Placement, from before to after the call."
     <*> PitchUtil.from_env <*> ControlUtil.curve_env
     ) $ \(to, Typecheck.DefaultReal time, place, from, curve) args -> do
