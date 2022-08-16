@@ -8,12 +8,14 @@ attoparsec
 base
 base64-bytestring
 binary
+bindings-portaudio
 bytestring
 c-storable
 cereal
 colour
 concurrent-output
 containers
+cryptohash-md5
 data-ordlist
 deepseq
 directory
@@ -31,6 +33,8 @@ haskeline
 haskell-src
 hedgehog
 hlibgit2
+hsndfile
+hsndfile-vector
 med-module
 megaparsec
 mersenne-random-pure64
@@ -45,6 +49,7 @@ primitive
 process
 random
 random-shuffle
+resourcet
 shake
 stm
 streaming
@@ -56,6 +61,8 @@ unix
 unordered-containers
 utf8-string
 vector
+vivid-osc
+vivid-supercollider
 wcwidth
 zlib
 zmidi-core

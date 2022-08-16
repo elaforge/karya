@@ -9,7 +9,7 @@ module Shake.Util (
     , findFiles, findHs, runIO
 
     -- * ghc
-    , sandboxPackageDb
+    , queryCabalRepl
     -- * platform
     , Platform(..), platform
     -- * general
@@ -24,7 +24,6 @@ import           Control.Monad.Trans (liftIO)
 import qualified Data.Char as Char
 import qualified Data.Function as Function
 import qualified Data.IORef as IORef
-import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Time as Time
@@ -44,7 +43,6 @@ import qualified System.Process as Process
 import qualified Text.Printf as Printf
 
 import qualified Util.Exceptions as Exceptions
-import qualified Util.Seq as Seq
 
 import           Control.Monad
 
@@ -224,16 +222,17 @@ platform = case System.Info.os of
 
 -- * ghc
 
--- | If there is a cabal sandbox in the current directory, return the path to
--- its package db.
-sandboxPackageDb :: IO (Maybe FilePath)
-sandboxPackageDb = do
-    text <- Exceptions.ignoreEnoent $ Text.IO.readFile "cabal.sandbox.config"
-    return $ parse =<< text
+queryCabalRepl :: IO [String]
+queryCabalRepl =
+    parseCabalRepl <$> Process.readProcess "cabal" ["repl", "--verbose"] ""
+
+parseCabalRepl :: String -> [String]
+parseCabalRepl = concatMap (parse . words) . lines
     where
-    -- package-db: /Users/elaforge/src/seq/sandbox/.cabal-sandbox/...
-    parse = fmap Text.unpack . Seq.head
-        . Maybe.mapMaybe (Text.stripPrefix "package-db: ") . Text.lines
+    parse ("-package-db" : db : rest) = "-package-db" : db : parse rest
+    parse ("-package-id" : pkg : rest) = "-package-id" : pkg : parse rest
+    parse (_ : xs) = parse xs
+    parse [] = []
 
 -- * general
 

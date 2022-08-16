@@ -6,6 +6,7 @@
 {-# LANGUAGE DisambiguateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -16,12 +17,17 @@
 module Shake.Shakefile where
 import qualified Control.DeepSeq as DeepSeq
 import           Control.Monad.Trans (liftIO)
+
 import qualified Data.Binary as Binary
+import qualified Data.Bits as Bits
+import qualified Data.ByteString as ByteString
+import qualified Data.ByteString.Base64.URL as Base64.URL
+import qualified Data.ByteString.Char8 as ByteString.Char8
 import qualified Data.Char as Char
 import qualified Data.Hashable as Hashable
 import qualified Data.List as List
-import           Data.Map (Map)
 import qualified Data.Map as Map
+import           Data.Map (Map)
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
@@ -39,6 +45,7 @@ import qualified System.IO as IO
 import qualified System.IO.Error as IO.Error
 import qualified System.Posix as Posix
 import qualified System.Process as Process
+
 import qualified Text.Read as Read
 
 import qualified Util.Exceptions as Exceptions
@@ -117,26 +124,17 @@ basicPackages = concat
     , w "med-module" -- for Cmd.Load.Med
     , w "base64-bytestring" -- for hashes in incremental rendering
 
+    -- used only by App.ConvertEventLog
     , [("ghc-events", ">=0.15")]
-    ]
-    where w = map (\p -> (p, "")) . words
 
--- | Packages needed only for targets in Synth.
-imPackages :: [(Package, String)]
-imPackages = concat
-    [ w "hsndfile hsndfile-vector"
+    -- im, packages needed only for targets in Synth.
+    , w "hsndfile hsndfile-vector"
     , w "cryptohash-md5" -- Synth.Shared.Note.hash
     , w "resourcet"
     , w "bindings-portaudio"
     , w "vivid-osc vivid-supercollider" -- Perform.Sc
     ]
     where w = map (\p -> (p, "")) . words
-
--- These have im-specific deps that might not be installed
--- TODO NOTE [no-package]
-requiresSynthPackages :: FilePath -> Bool
-requiresSynthPackages hs =
-    any (`List.isPrefixOf` hs) ["Synth/", "Ness/", "Util/Audio/"]
 
 -- | These are used in the Ness.* hierarchy, which probably only I use, and
 -- only from ghci, so I can omit the deps from common use.
@@ -149,7 +147,6 @@ nessPackages = concat
 enabledPackages :: [(Package, String)]
 enabledPackages = concat
     [ basicPackages
-    , if Config.enableIm localConfig then imPackages else []
     , if Config.enableEkg localConfig then ekgPackages else []
     ]
 
@@ -157,7 +154,6 @@ enabledPackages = concat
 reallyAllPackages :: [(Package, String)]
 reallyAllPackages = concat
     [ basicPackages
-    , imPackages
     , ekgPackages
     -- conduit-audio is heavy, if I re-use ness I can port to Util.Audio.
     -- , nessPackages
@@ -270,23 +266,22 @@ data Flags = Flags {
     , hcFlags :: [Flag]
     -- | Flags needed when linking haskell.  Doesn't include the -packages.
     , hLinkFlags :: [Flag]
-    -- | Package DB flags to use a cabal sandbox, if there is one.
-    , sandboxFlags :: [Flag]
-    -- | -package-db flags for ghci-flags.  This comes from GHC_PACKAGE_PATH,
-    -- as set by tools/use-stack, and that's enough for ghc, but I need the
+    -- | -package-db flags for ghc and ghci-flags.  This comes from either
+    -- GHC_PACKAGE_PATH as set by tools/use-stack, or the v2 cabal package
+    -- store.  GHC_PACKAGE_PATH is already enough for ghc, but I need the
     -- explicit flags for the GHC API.
     , packageDbFlags :: [Flag]
     } deriving (Show)
 
 -- TODO surely there is a GHC.Generic way to do this
 instance Semigroup Flags where
-    (<>)    (Flags a1 b1 c1 d1 e1 f1 g1 h1 i1)
-            (Flags a2 b2 c2 d2 e2 f2 g2 h2 i2) =
+    (<>)    (Flags a1 b1 c1 d1 e1 f1 g1 h1)
+            (Flags a2 b2 c2 d2 e2 f2 g2 h2) =
         Flags (a1<>a2) (b1<>b2) (c1<>c2) (d1<>d2) (e1<>e2) (f1<>f2) (g1<>g2)
-            (h1<>h2) (i1<>i2)
+            (h1<>h2)
 
 instance Monoid Flags where
-    mempty = Flags [] [] [] [] [] [] [] [] []
+    mempty = Flags [] [] [] [] [] [] [] []
     mappend = (<>)
 
 -- | Like 'cInclude' except for things which do not wind up using cc, which
@@ -381,11 +376,10 @@ hsBinaries =
     , plain "update" "App/Update.hs"
     , (plain "verify_performance" "App/VerifyPerformance.hs")
         { hsRtsFlags = ["-N", "-A8m"] }
+    -- im
+    , plain "sampler-im" "Synth/Sampler/SamplerIm.hs"
+    , plain "faust-im" "Synth/Faust/FaustIm.hs"
     ]
-    ++ if not (Config.enableIm localConfig) then [] else
-        [ plain "sampler-im" "Synth/Sampler/SamplerIm.hs"
-        , plain "faust-im" "Synth/Faust/FaustIm.hs"
-        ]
     where
     plain name main = HsBinary
         { hsName = name
@@ -505,8 +499,8 @@ ccBinaries =
         [ "LogView/test_logview.cc.o", "LogView/logview_ui.cc.o"
         , "fltk/f_util.cc.o"
         ]
-    ] ++ if not (Config.enableIm localConfig) then [] else
-    [ playCacheBinary
+    -- im
+    , playCacheBinary
     , pannerBinary
     , makePlayCacheBinary "test_play_cache" "test_play_cache.cc" [libsndfile] []
     ]
@@ -670,7 +664,9 @@ ghcWarnings config = concat
         ] ++ concat
         [ ["partial-fields" | ver >= (8, 4, 0)]
         , ["invalid-haddock" | ver >= (9, 0, 0)]
-        , ["unused-packages" | ver >= (8, 10, 0)]
+        -- This has many false positives because it doesn't know what binary
+        -- I'm building.
+        -- , ["unused-packages" | ver >= (8, 10, 0)]
         ]
     noWarns = concat
         -- This is just about ($xyz) for TemplateHaskell, which I don't use,
@@ -690,7 +686,13 @@ configure = do
     ghcLib <- run ghcBinary ["--print-libdir"]
     let ghcVersion = parseGhcVersion ghcLib
     ccVersion <- run "cc" ["--version"]
-    sandbox <- Util.sandboxPackageDb
+    -- When configured for v2 cabal, then use this package db.
+    mbPackageFlags <- if Config.useCabalV2 localConfig
+        then Just <$> buildV2Flags
+        else return $ Seq.split ":" <$> lookup "GHC_PACKAGE_PATH" env
+    -- let v2CabalPackageDb = Just
+    --         "/Users/elaforge/.cabal/store/ghc-9.2.2/package.db\
+    --         \:/Users/elaforge/src/seq/main/dist-newstyle/packagedb/ghc-9.2.2"
     -- TODO this breaks if you run from a different directory
     rootDir <- Directory.getCurrentDirectory
     return $ \mode -> Config
@@ -707,8 +709,7 @@ configure = do
                 }
             }
         , configFlags = setGlobalCcFlags mode $ mconcat
-            [ configFlags sandbox mode ghcVersion
-                (lookup "GHC_PACKAGE_PATH" env)
+            [ configFlags mode ghcVersion mbPackageFlags
             , osFlags midi
             ]
         , ghcVersion = ghcVersion
@@ -716,7 +717,7 @@ configure = do
         , rootDir = rootDir
         }
     where
-    configFlags sandbox mode ghcVersion ghcPackagePath = mempty
+    configFlags mode ghcVersion mbPackageFlags = mempty
         { define = concat
             [ ["-DTESTING" | mode `elem` [Test, Profile]]
             , ["-DSTUB_OUT_FLTK" | mode == Test]
@@ -730,9 +731,8 @@ configure = do
             -- TODO this breaks the idea of modular libraries, but the haskell
             -- flags really have to be global, because any difference in CPP
             -- flags causes ghc to not want to load .o files.
-            , concat [C.libCompile libsamplerate | Config.enableIm localConfig]
-            , concat [C.libCompile (Config.rubberband localConfig)
-                | Config.enableIm localConfig]
+            , C.libCompile libsamplerate
+            , C.libCompile (Config.rubberband localConfig)
             , map ("-I"<>) (Config.globalIncludes localConfig)
             ]
         , cLibDirs = map ("-L"<>) $ Config.globalLibDirs localConfig
@@ -762,11 +762,9 @@ configure = do
             , map ("-framework-path="<>)
                 (Config.extraFrameworkPaths localConfig)
             ]
-        , sandboxFlags = case sandbox of
-            Nothing -> []
-            Just path -> ["-no-user-package-db", "-package-db", path]
-        , packageDbFlags = map ("-package-db="<>) $
-            maybe [] (Seq.split ":") ghcPackagePath
+        , packageDbFlags = case mbPackageFlags of
+            Nothing -> map (("-package="<>) . fst) enabledPackages
+            Just flags -> "-no-user-package-db" : "-hide-all-packages" : flags
         }
     -- This one breaks the monoid pattern because it groups other flags,
     -- which is because the flags are a mess and not in any kind of normal
@@ -804,11 +802,10 @@ configure = do
                 then frameworks ["CoreFoundation", "CoreMIDI", "CoreAudio"]
                 else []
             -- librubberband uses this.  TODO I really need modular libraries!
-            , hLinkFlags = if not (Config.enableIm localConfig) then []
-                else frameworks ["Accelerate"]
+            , hLinkFlags = frameworks ["Accelerate"]
             }
         Util.Linux -> mempty
-            { midiLd = if midi == JackMidi || Config.enableIm localConfig
+            { midiLd = if midi == JackMidi
                 -- -ljack is needed for PortAudio.initialize, or it will fail
                 -- with errors like "Client name conflicts with another running
                 -- client".  Why must jack be so unfriendly?
@@ -818,6 +815,34 @@ configure = do
             }
     run cmd args = strip <$> Process.readProcess cmd args ""
     frameworks = concatMap (\f -> ["-framework", f])
+
+-- | Cabal v2 doesn't seem to expose the package flags, but I can get them out
+-- of @cabal repl --verbose@.  It's very slow so I cache it.  It happens before
+-- all the shake setup so I cache it manually instead of using shake.
+buildV2Flags :: IO [String]
+buildV2Flags = do
+    hash <- hashFile "karya.cabal"
+    let path = build </> "package-flags." <> hash
+    Directory.doesFileExist path >>= \case
+        True -> words <$> readFile path
+        False -> do
+            putStrLn $ "generating " <> path
+            flags <- Util.queryCabalRepl
+            Directory.createDirectoryIfMissing True
+                (FilePath.takeDirectory path)
+            writeFile path $ unwords flags
+            putStrLn $ "wrote " <> path
+            return flags
+
+hashFile :: FilePath -> IO String
+hashFile fname =
+    ByteString.Char8.unpack . ByteString.Char8.dropWhileEnd (=='=')
+    . Base64.URL.encode . intToBytes . Hashable.hash <$>
+            ByteString.readFile fname
+
+intToBytes :: Int -> ByteString.ByteString
+intToBytes i = ByteString.pack $ map get [0..7]
+    where get byte = fromIntegral (Bits.shiftR i (byte*8) Bits..&. 0xff)
 
 configureFltk :: FilePath -> IO (String, [Flag], [Flag])
 configureFltk fltkConfig = do
@@ -894,10 +919,6 @@ ghcLanguageFlags = map ("-X"++)
 platformDefines :: [Flag]
 platformDefines = ["-D__APPLE__", "-D__linux__"]
 
-packageFlags :: Flags -> [Package] -> [Flag]
-packageFlags flags packages =
-    sandboxFlags flags ++ "-hide-all-packages" : map ("-package="++) packages
-
 -- | Parse the GHC version out of the @ghc --print-libdir@ path.  Technically
 -- I should probably use ghc --numeric-version, but I already have libdir so
 -- let's not run ghc again.
@@ -936,12 +957,12 @@ main = Concurrent.withConcurrentOutput $ Regions.displayConsoleRegions $ do
     modeConfig <- configure
     writeGhciFlags modeConfig
     makeDataLinks
-    writeDeps cabalDir [("basic", basicPackages), ("im", imPackages)]
+    writeDeps cabalDir [("basic", basicPackages)]
     args <- Environment.getArgs
     Shake.shakeArgsWith (options args) [] $ \[] targets -> return $ Just $ do
-        cabalRule basicPackages "karya.cabal"
-        cabalRule reallyAllPackages (cabalDir </> "all-deps.cabal")
-        when (Config.enableIm localConfig) faustRules
+        -- TODO emit flag guards?
+        cabalRule enabledPackages "karya.cabal"
+        faustRules
         generateKorvais
         matchBuildDir hsconfigH ?> hsconfigHRule
         let infer = inferConfig modeConfig
@@ -1049,7 +1070,7 @@ hsconfigHRule fn = do
         , define useRepl "INTERPRETER_GHC"
         , define True midiDriver
         , define (Config.enableEkg localConfig) "USE_EKG"
-        , define (Config.enableIm localConfig) "ENABLE_IM"
+        , define True "ENABLE_IM"
         ]
     where
     define b name = (if b then "#define " else "#undef ") ++ name
@@ -1222,7 +1243,7 @@ makeHaddock modeConfig = do
             [ ghcGlobalFlags
             , define flags
             , includeFlags
-            , packageFlags flags packages
+            , packageDbFlags flags
             , ["-i" <> List.intercalate ":" [hscDir config, chsDir config]]
             ]
     Util.system "haddock" $
@@ -1293,7 +1314,7 @@ wantsHaddock config hs = not $ or $
     , "Test.hs" `List.isSuffixOf` hs
     , "TestInstances.hs" `List.isSuffixOf` hs
     , hs == "Derive/DeriveQuickCheck.hs"
-    ] ++ if Config.enableIm localConfig then [] else [requiresSynthPackages hs]
+    ]
     where midi = midiConfig config
 
 -- ** packages
@@ -1336,7 +1357,7 @@ buildHs config rtsFlags libs extraPackages hs fn = do
             concat [Map.findWithDefault [] src hsToCc | src <- srcs]
         objs = List.nub (map (srcToObj config) (ccs ++ srcs)) ++ libs
     logDeps config "build" fn objs
-    Util.cmdline $ linkHs config rtsFlags fn (extraPackages ++ allPackages) objs
+    Util.cmdline $ linkHs config rtsFlags fn objs
 
 data BundleType = APPL | BNDL
     deriving (Show)
@@ -1401,9 +1422,7 @@ generateTestHs suffix fn = do
     Util.system generate (fn : tests)
 
 wantsTest :: FilePath -> Bool
-wantsTest hs = if Config.enableIm localConfig then True
-    else not (requiresSynthPackages hs)
-    -- TODO NOTE [no-package]
+wantsTest _hs = True
 
 -- | Build build/(mode)/RunCriterion-A.B.C from A/B/C_criterion.hs
 criterionRules :: Config -> Shake.Rules ()
@@ -1624,7 +1643,8 @@ compileHs packages config hs =
     -- color=always since I'll be reading the output via pipe.
     , ghcBinary : "-c" : "-fdiagnostics-color=always" : concat
         [ ghcFlags config, hcFlags (configFlags config)
-        , packageFlags (configFlags config) packages, mainIs
+        , packageDbFlags (configFlags config)
+        , mainIs
         , [hs, "-o", srcToObj config hs]
         ]
     )
@@ -1635,16 +1655,18 @@ compileHs packages config hs =
             ["-main-is", pathToModule hs]
         | otherwise = []
 
-linkHs :: Config -> [Flag] -> FilePath -> [Package] -> [FilePath]
+linkHs :: Config -> [Flag] -> FilePath -> [FilePath]
     -> Util.Cmdline
-linkHs config rtsFlags output packages objs =
+linkHs config rtsFlags output objs =
     ( "LD-HS"
     , output
     , ghcBinary : concat
         [ midiLd flags
         , hLinkFlags flags
         , ["-with-rtsopts=" <> unwords rtsFlags | not (null rtsFlags)]
-        , ["-lstdc++"], packageFlags flags packages, objs
+        , ["-lstdc++"]
+        , packageDbFlags flags
+        , objs
         -- Suppress "warning: text-based stub file" after OSX command line
         -- tools update.
         , concat
@@ -1656,9 +1678,8 @@ linkHs config rtsFlags output packages objs =
         -- In fact all the binaries link all the C libs.  I need the shakefile
         -- refactor to fix this.
         , C.libLink (_libfltk (cLibs config))
-        , concat [C.libLink libsamplerate | Config.enableIm localConfig]
-        , concat [C.libLink (Config.rubberband localConfig)
-            | Config.enableIm localConfig]
+        , C.libLink libsamplerate
+        , C.libLink (Config.rubberband localConfig)
         , ["-o", output]
         ]
     )
@@ -1712,7 +1733,6 @@ ghciFlags :: Config -> [Flag]
 ghciFlags config = concat
     [ filter wanted $ hcFlags (configFlags config)
     , ghcFlags config
-    , sandboxFlags (configFlags config)
     -- Without this, GHC API won't load compiled modules.
     -- See https://ghc.haskell.org/trac/ghc/ticket/13604
     , if | version <= (8, 0, 2) -> []

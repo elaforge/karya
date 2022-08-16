@@ -136,22 +136,6 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
-  - try out text-2 and see if performance changes
-    . However it's a bootlib, can I really change those?
-    . Maybe, ghc doesn't depend on it.
-    * Try a nix build to see if all my deps have caught up to it.
-      . megaparsec ==9.2.1,
-        ghc-events ==0.17.0.3,
-        concurrent-output ==1.10.16,
-    - why is attoparsec not found in nix build?
-      . it's only attoparsec, data-ordlist is fine
-      . Does not apply to ghci
-      . Works if I omit -hide-all-packages *and* -package=attoparsec
-    . I can do a non-nix build, but it's then a pain to switch back and forth,
-      especially since cabal sandbox is gone.
-    . But upgrading packages is actually no problem, let's try that.
-    . But upgrading text-2 will require recompiling tons of stuff, so not so
-      easy.
   - space leaks:
     . https://kodimensional.dev/space-leak
     . look for puts into MVar and IORef, make sure they are !
@@ -4020,17 +4004,81 @@ shakefile: build:
     . It's easier to use Quiet, otherwise shake wants to print too much stuff.
   - run with --lint-fsatrace:
     . https://well-typed.com/blog/2019/08/exploring-cloud-builds-in-hadrian/
-  / Use nix-style "v2" packages
-    . https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/packages.html#package-environments
-    . Either use -package-env flag or write .ghc.environment.arch-os-version
-    . Then stop passing flags on the cmdline.
-    . Install deps with: cabal build --only-dep
-    . But it's broken, hlibgit2 fails on '#include <openssl/sha.h>', and
-      --extra-include-dirs=/usr/local/opt/openssl/include
-      --extra-lib-dirs=/usr/local/opt/openssl/lib
-      has no effect, and I can't build it manually due to the cabal version
-      mismatch.
-    . How are you supposed to install deps in the v2 world?
+  - try out text-2 and see if performance changes
+    . However it's a bootlib, can I really change those?
+    . Maybe, ghc doesn't depend on it.
+    * Try a nix build to see if all my deps have caught up to it.
+      . megaparsec ==9.2.1,
+        ghc-events ==0.17.0.3,
+        concurrent-output ==1.10.16,
+    . I can do a non-nix build, but it's then a pain to switch back and forth,
+      especially since cabal sandbox is gone.
+    . But upgrading packages is actually no problem, let's try that.
+    . But upgrading text-2 will require recompiling tons of stuff, so not so
+      easy.
+    . Maybe imitate it by moving ~/.cabal and ~/.ghc?
+  + support cabal v2
+    - ensure tests, criterion, haddock, etc. all work
+    * remove the all-deps.cabal thing
+      . This means enableIm is always on, so I can remove that too.
+    - use cabal flags for optional deps like ekg and criterion
+      . If I put -package flags in packageDbFlags then I lose the extra
+        packages for compileHs and linkHs.
+        . They can't work anyway for cabal v2 because I need -package-id.
+        . They're just used for ekg I think, so maybe instead I add that via
+          cabal flags.
+        . Actually it's for criterion.
+        . It's still useful to include the packages conditionally, and in fact
+          I can do that except that bizarre vowel-less naming scheme.
+    * new warning from ghc api:
+      . The following packages were specified via -package or -package-id
+        flags, but were not needed for compilation:
+    - link warnings:
+      . ld: warning: text-based stub file
+        /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/SharedFileList.framework/Versions/A/SharedFileList.tbd
+        and library file
+        /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/SharedFileList.framework/Versions/A/SharedFileList
+        are out of sync. Falling back to library file for linking.
+    * update docs
+      . hlibgit2 on hackage won't build, have to have instructions to
+        git clone and modify cabal.project
+    notes:
+      . https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/packages.html#package-environments
+      . Either use -package-env flag or write .ghc.environment.arch-os-version
+      . Then stop passing flags on the cmdline.
+      . Install deps with: cabal build --only-dep
+      . But it's broken, hlibgit2 fails on '#include <openssl/sha.h>', and
+        --extra-include-dirs=/usr/local/opt/openssl/include
+        --extra-lib-dirs=/usr/local/opt/openssl/lib
+        has no effect, and I can't build it manually due to the cabal version
+        mismatch.
+      . How are you supposed to install deps in the v2 world?
+      . Declaring e.g. c-storable as a "local package" could make it easier
+        to use that since I could change it.  But maybe not since I'm not
+        building with cabal?
+      . deps are in ~/.cabal/store/ghc-9.2.2/package.db
+      . Compiles with:
+        -hide-all-packages -no-user-package-db
+        -package-db /Users/elaforge/.cabal/store/ghc-9.2.2/package.db
+        -package-id base-4.16.1.0 -package-id bytestring-0.11.3.0 ...
+      . hlibgit2 *still* fails, can I use cabal.project to force the flag on
+        that one?
+        packages: ./*.cabal
+        constraints:
+            ghc-lib-parser-ex -no-ghc-lib -auto
+      . Fixed in head, it was the custom cabal build:
+        https://github.com/jwiegley/gitlib/issues/92
+      . Indeed I wind up with multiple packages with the same version, how
+        does cabal distinguish?
+      . `cabal repl --verbose' has to print it?
+        Yes indeed, but there's apparently no way to just ask for it, though
+        I colud just parse output from cabal repl...
+      . It's very slow though.  Can I build it?  Inputs are karya.cabal, so it
+        would hardly ever rebuild.
+      . That would mean I have to put configure after build, which seems
+        awkward.
+      . I could do a simple build manually, write
+        build/package-flags-$(hash karya.cabal)
   nix:
     . https://app.cachix.org/cache/elaforge
     - I don't like how /usr/local/src/fltk leaks into the nix build.  I should

@@ -1,5 +1,4 @@
-# Read a json file produced by make_hackage.py with package versions.
-# TODO either port it to nix, or run the script as a derivation
+# Import cabal2nix expressions to build a hackage package set.
 { ghcVersion, profiling, profilingDetail }:
 let
   nixpkgs = import ./nixpkgs.nix { inherit config; };

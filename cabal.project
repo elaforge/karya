@@ -1,0 +1,5 @@
+packages:
+    karya.cabal
+    -- hlibgit2-0.18.0.16 on hackage doesn't build with cabal v2, but the
+    -- github version does, so clone it and add the local path here.
+    /usr/local/src/hs/gitlib/hlibgit2/*.cabal

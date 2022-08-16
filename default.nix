@@ -11,7 +11,6 @@
 # Building lilypond drags in all of texlive.  It's also marked broken on
 # darwin for 19.09.
 { withLilypond ? false
-, withIm ? true # TODO sync this with Shake.Config.enableIm
 , withEkg ? false # ekg is really heavy
 , withDocs ? false # deps to build documentation
 , useSystemCc ? false # if false use the nixpkgs c++ compiler
@@ -179,7 +178,6 @@ in rec {
     in ghc.ghcWithPackages (pkgs: map (pkg: pkgs."${pkg}") (
       builtins.filter wantPkg (builtins.concatLists [
         (readLines doc/cabal/basic)
-        (guard withIm (readLines doc/cabal/im))
         (guard withEkg ["ekg"])
       ])
     ));
@@ -276,9 +274,9 @@ in rec {
 
   deps = builtins.concatLists [
     basicDeps
+    imDeps
     (guard (!isCi) interactiveDeps)
     (guard withDocs docDeps)
-    (guard withIm imDeps)
     (guard withLilypond [nixpkgs.lilypond])
   ];
 
@@ -302,7 +300,6 @@ in rec {
 
       localConfig = defaultConfig
           { enableEkg = ${hsBool withEkg}
-          , enableIm = ${hsBool withIm}
           ${extraFrameworkPaths}
           }
     '';

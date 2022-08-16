@@ -13,16 +13,16 @@ type Flag = String
 data Config = Config {
     -- switches
 
+    -- | If True, expect that hackage packages were built and installed via
+    -- @cabal v2-build --only-dep@ instead of @cabal v1-install --only-dep@
+    useCabalV2 :: Bool
     -- | If true, link in the EKG library for realtime monitoring.  But it
     -- requires the ekg package with a giant set of dependencies so it's
     -- disabled by default.
-    enableEkg :: Bool
+    , enableEkg :: Bool
     -- | Link with the -eventlog RTS, for threadscope.  Presumably it hurts
     -- performance, so it's off by default.
     , enableEventLog :: Bool
-    -- | If True, compile the im offline synthesizers and PlayCache VST from
-    -- the Synth hierarchy.  This requires a bunch of extra dependencies.
-    , enableIm :: Bool
     -- | Extra flags passed to both C++ and Haskell compiles.  I use them
     -- to enable some purely local hacks, e.g. hacked version of libfltk.
     , extraDefines :: [Flag]
@@ -48,9 +48,9 @@ data Config = Config {
 
 defaultConfig :: Config
 defaultConfig = Config
-    { enableEkg = False
+    { useCabalV2 = False
+    , enableEkg = False
     , enableEventLog = False
-    , enableIm = False
     , extraDefines = []
     , extraFrameworkPaths = []
     , fltkConfig = "fltk-config"

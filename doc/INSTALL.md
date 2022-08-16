@@ -148,9 +148,21 @@ found you might have to edit a font name in `App/Config.hsc`.
 
 ## Haskell dependencies
 
-You can do this either the cabal way, or the stack way.
+You can do this either the cabal ways, or the stack way.
 
-### cabal way
+### cabal v2 way
+
+Cabal v2 is supposed to replace v1 some day.  It has some problems I'm
+hopefully able to work around.  Firstly, it can't build `hlibgit2` from
+hackage, but can from head.  So clone that to some local directory, and update
+`cabal.project` to point to that path.  Then build dependencies with:
+
+    cabal v2-build --only-dep
+
+Then do `mkmk` and continue the steps documented above.  Hopefully this is
+enough to make it work!
+
+### cabal v1 way
 
 Old cabal won't install binary dependencies automatically.  You probably
 don't have a cabal this old, but in case you do:
@@ -165,9 +177,7 @@ To install the needed haskell dependencies, type:
 
 This uses the global package db, and it must since new cabal has removed the
 sandbox option.  In addition, v1 commands are probably on life-support and
-will eventually be removed.  However, v2 commands are still incomplete and
-poorly documented, in that they lack an `install --only-dependencies`
-equivalent where I can get a package-db of the deps needed.
+will eventually be removed.
 
 The actual build is with shake, I only use cabal to install hackage
 dependencies.
@@ -197,13 +207,10 @@ stack-flavored ghc and packages.
 
 ## 音, Im, Synth
 
-These are all names for the incomplete offline synthesizer.  It requires a
-bunch of extra dependencies.  If you did the nix way, then you'll already
-have them by default.  In theory you could not have them by turning off
-`withIm` but in practice I think that may be broken.  Since they're easy
-to add with nix I'm not motivated to make every combination work.
+These are all names for the offline synthesizer.  It requires a bunch of extra
+dependencies.  If you did the nix way, then you'll already have them.
 
-But, here are some old docs in the unlikely event that it ever matters:
+Otherwise, here are old docs for installing by hand, the non-nix way:
 
 First you need more non-haskell dependencies.  Get the -dev versions as usual:
 
@@ -225,15 +232,6 @@ need to update Local/ShakeConfig.hs update the `libsamplerate` field with
 the link and compile flags.
 
 - libsndfile - Use your package manager.
-
-Turn on `enableIm` in `Local.ShakeConfig`, and add a bunch more haskell deps:
-
-    cd doc/cabal && cabal install --only-dependencies
-
-Or, if you're doing it the stack way:
-
-    cp doc/cabal/all-deps.cabal karya.cabal
-    vi stack.yaml # uncomment the stuff in there that says to
 
 ## Misc
 
