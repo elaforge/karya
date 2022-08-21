@@ -124,9 +124,6 @@ basicPackages = concat
     , w "med-module" -- for Cmd.Load.Med
     , w "base64-bytestring" -- for hashes in incremental rendering
 
-    -- used only by App.ConvertEventLog
-    , [("ghc-events", ">=0.15")]
-
     -- im, packages needed only for targets in Synth.
     , w "hsndfile hsndfile-vector"
     , w "cryptohash-md5" -- Synth.Shared.Note.hash
@@ -136,11 +133,18 @@ basicPackages = concat
     ]
     where w = map (\p -> (p, "")) . words
 
--- | These are used in the Ness.* hierarchy, which probably only I use, and
--- only from ghci, so I can omit the deps from common use.
-nessPackages :: [(Package, String)]
-nessPackages = concat
-    [ w "conduit-audio conduit-audio-sndfile conduit-audio-samplerate"
+-- | These get emitted in the generated karya.cabal as optional sections.
+optionalPackages :: Map String [(Package, String)]
+optionalPackages = Map.fromList
+    -- used only by App.ConvertEventLog
+    [ ("ghc-events", [("ghc-events", ">=0.15")])
+    -- criterion has many deps, and only needed by criterion benchmarks
+    , ("criterion", [("criterion", "")])
+    -- ekg also has many deps
+    , ("ekg", ekgPackages)
+    -- These are used in the Ness.* hierarchy, which probably only I use, and
+    -- only from ghci, so I can omit the deps from common use.
+    , ("ness", w "conduit-audio conduit-audio-sndfile conduit-audio-samplerate")
     ]
     where w = map (\p -> (p, "")) . words
 
@@ -155,8 +159,6 @@ reallyAllPackages :: [(Package, String)]
 reallyAllPackages = concat
     [ basicPackages
     , ekgPackages
-    -- conduit-audio is heavy, if I re-use ness I can port to Util.Audio.
-    -- , nessPackages
     ]
 
 ekgPackages :: [(Package, String)]
@@ -821,7 +823,11 @@ configure = do
 -- all the shake setup so I cache it manually instead of using shake.
 buildV2Flags :: IO [String]
 buildV2Flags = do
-    hash <- hashFile "karya.cabal"
+    -- Reconfiguring with new flags will change the package list.
+    h1 <- hashFile "karya.cabal"
+    h2 <- Maybe.fromMaybe 0 <$>
+        Exceptions.ignoreEnoent (hashFile "cabal.project.local")
+    let hash = encodeHash (Hashable.hash (h1, h2))
     let path = build </> "package-flags." <> hash
     Directory.doesFileExist path >>= \case
         True -> words <$> readFile path
@@ -834,11 +840,12 @@ buildV2Flags = do
             putStrLn $ "wrote " <> path
             return flags
 
-hashFile :: FilePath -> IO String
-hashFile fname =
-    ByteString.Char8.unpack . ByteString.Char8.dropWhileEnd (=='=')
-    . Base64.URL.encode . intToBytes . Hashable.hash <$>
-            ByteString.readFile fname
+hashFile :: FilePath -> IO Int
+hashFile = fmap Hashable.hash . ByteString.readFile
+
+encodeHash :: Int -> String
+encodeHash = ByteString.Char8.unpack . ByteString.Char8.dropWhileEnd (=='=')
+    . Base64.URL.encode . intToBytes
 
 intToBytes :: Int -> ByteString.ByteString
 intToBytes i = ByteString.pack $ map get [0..7]
@@ -960,8 +967,7 @@ main = Concurrent.withConcurrentOutput $ Regions.displayConsoleRegions $ do
     writeDeps cabalDir [("basic", basicPackages)]
     args <- Environment.getArgs
     Shake.shakeArgsWith (options args) [] $ \[] targets -> return $ Just $ do
-        -- TODO emit flag guards?
-        cabalRule enabledPackages "karya.cabal"
+        cabalRule "karya.cabal"
         faustRules
         generateKorvais
         matchBuildDir hsconfigH ?> hsconfigHRule
@@ -1319,17 +1325,39 @@ wantsHaddock config hs = not $ or $
 
 -- ** packages
 
-cabalRule :: [(Package, String)] -> FilePath -> Shake.Rules ()
-cabalRule packages fn = (>> Shake.want [fn]) $ fn %> \_ -> do
+cabalRule :: FilePath -> Shake.Rules ()
+cabalRule fn = (>> Shake.want [fn]) $ fn %> \_ -> do
     Shake.alwaysRerun
     template <- Shake.readFile' (cabalDir </> "karya.cabal.template")
-    Shake.writeFileChanged fn $ template ++ buildDepends ++ "\n"
+    Shake.writeFileChanged fn $ template <> cabalFile
+
+cabalFile :: String
+cabalFile = unlines $ concat
+    [ concatMap declareCondition (Map.keys optionalPackages)
+    , [ ""
+      , "library"
+      , indent 1 "build-tool-depends: cpphs:cpphs, c2hs:c2hs"
+      , indent 1 "build-depends:"
+      ]
+    , dependsList 2 basicPackages
+    , concatMap mkCond $ Map.toAscList optionalPackages
+    ]
     where
-    indent = replicate 8 ' '
-    buildDepends = (indent<>) $ List.intercalate (",\n" ++ indent) $
-        List.sort $ map mkline packages
-    mkline (package, constraint) =
-        package ++ if null constraint then "" else " " ++ constraint
+    declareCondition name =
+        [ "flag " <> name
+        , indent 1 "default: False"
+        ]
+    mkCond (name, pkgs) =
+        [ indent 1 $ "if flag(" <> name <> ")"
+        , indent 2 "build-depends:"
+        ] ++ dependsList 3 pkgs
+    dependsList n = commas . map (mkLine n) . List.sort
+    mkLine n (package, constraint) =
+        indent n $ package <> if null constraint then "" else " " <> constraint
+    indent n = (replicate (n*4) ' ' <>)
+    commas [x] = [x]
+    commas (x:xs) = x <> "," : commas xs
+    commas [] = []
 
 -- ** hs
 

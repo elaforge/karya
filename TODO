@@ -4018,10 +4018,17 @@ shakefile: build:
       easy.
     . Maybe imitate it by moving ~/.cabal and ~/.ghc?
   + support cabal v2
-    - ensure tests, criterion, haddock, etc. all work
+    . ensure works:
+      * tests
+      * criterion
+      - haddock
+        . haddock: internal error:
+          /Users/elaforge/.cabal/share/doc/x86_64-osx-ghc-9.2.2/primitive-0.7.3.0/html/primitive.haddock:
+          openBinaryFile: does not exist (No such file or directory)
+      - nix build
     * remove the all-deps.cabal thing
       . This means enableIm is always on, so I can remove that too.
-    - use cabal flags for optional deps like ekg and criterion
+    * use cabal flags for optional deps like ekg and criterion
       . If I put -package flags in packageDbFlags then I lose the extra
         packages for compileHs and linkHs.
         . They can't work anyway for cabal v2 because I need -package-id.

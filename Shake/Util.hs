@@ -229,8 +229,8 @@ queryCabalRepl =
 parseCabalRepl :: String -> [String]
 parseCabalRepl = concatMap (parse . words) . lines
     where
-    parse ("-package-db" : db : rest) = "-package-db" : db : parse rest
-    parse ("-package-id" : pkg : rest) = "-package-id" : pkg : parse rest
+    parse ("-package-db" : db : rest) = "-package-db=" <> db : parse rest
+    parse ("-package-id" : pkg : rest) = "-package-id=" <> pkg : parse rest
     parse (_ : xs) = parse xs
     parse [] = []
 
