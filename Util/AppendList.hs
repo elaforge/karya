@@ -26,11 +26,10 @@ instance Functor AppendList where
     fmap f (Many xs) = Many (fmap f xs)
 
 instance Semigroup (AppendList a) where
-    (<>) = mappend
+    (<>) = append
 
 instance Monoid (AppendList a) where
     mempty = empty
-    mappend = append
 
 empty :: AppendList a
 empty = Nil

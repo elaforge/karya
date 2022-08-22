@@ -4021,11 +4021,14 @@ shakefile: build:
     . ensure works:
       * tests
       * criterion
-      - haddock
+      * haddock
         . haddock: internal error:
           /Users/elaforge/.cabal/share/doc/x86_64-osx-ghc-9.2.2/primitive-0.7.3.0/html/primitive.haddock:
           openBinaryFile: does not exist (No such file or directory)
       - nix build
+        . Could not load module ‘Prelude’
+        . after -hide-all-packages there are no package lines.
+      * haddock on v1
     * remove the all-deps.cabal thing
       . This means enableIm is always on, so I can remove that too.
     * use cabal flags for optional deps like ekg and criterion
@@ -4041,6 +4044,9 @@ shakefile: build:
       . The following packages were specified via -package or -package-id
         flags, but were not needed for compilation:
     - link warnings:
+      . I could just move them out of the way, but I get permission denied,
+        some kind of extended attribute protection?
+      . Alternately, a system update should fix them.
       . ld: warning: text-based stub file
         /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/SharedFileList.framework/Versions/A/SharedFileList.tbd
         and library file

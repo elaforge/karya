@@ -17,13 +17,13 @@
 module Shake.Shakefile where
 import qualified Control.DeepSeq as DeepSeq
 import           Control.Monad.Trans (liftIO)
-
 import qualified Data.Binary as Binary
 import qualified Data.Bits as Bits
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Base64.URL as Base64.URL
 import qualified Data.ByteString.Char8 as ByteString.Char8
 import qualified Data.Char as Char
+import qualified Data.Either as Either
 import qualified Data.Hashable as Hashable
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -1231,12 +1231,10 @@ getMarkdown = map (docDir</>) <$> Shake.getDirectoryFiles docDir ["*.md"]
 makeHaddock :: (Mode -> Config) -> Shake.Action [FilePath]
 makeHaddock modeConfig = do
     let config = modeConfig Debug
-    -- let packages = map fst (reallyAllPackages ++ nessPackages)
-    let packages = map fst enabledPackages
     hs <- filter (wantsHaddock config) <$> liftIO (getAllHs (Just config))
     need $ hsconfigPath config : hs
     let flags = configFlags config
-    interfaces <- liftIO $ getHaddockInterfaces packages
+    interfaces <- liftIO $ getHaddockInterfaces (packageDbFlags flags)
     entry <- liftIO $ either Util.errorIO return =<< SourceControl.current "."
     let title = mconcat
             [ "Karya, built on "
@@ -1272,14 +1270,36 @@ makeHaddock modeConfig = do
     return hs
 
 -- | Get paths to haddock interface files for all the packages.
-getHaddockInterfaces :: [Package] -> IO [String]
-getHaddockInterfaces packages = do
+getHaddockInterfaces :: [Flag] -> IO [String]
+getHaddockInterfaces packageDbFlags = do
     -- ghc-pkg annoyingly provides no way to get a field from a list of
     -- packages.
-    interfaces <- forM packages $ \package -> Process.readProcess "ghc-pkg"
-        ["field", package, "haddock-interfaces"] ""
-    return $ map extract interfaces
-    where extract = drop 1 . dropWhile (/=' ') . takeWhile (/='\n')
+    --
+    -- TODO why do I have to do this?  Isn't there a less manual way to run
+    -- haddock?
+    interfaces <- forM packages $ \package ->
+        Process.readProcess "ghc-pkg"
+            (flags ++ ["field", package, "haddock-interfaces"])
+            ""
+    -- Some pkgs, like primitive, don't seem to to include .haddock for some
+    -- reason.
+    filterM Directory.doesPathExist $ map extract interfaces
+    where
+    -- --unit-id lets the -package-id flags work, necessary for v2.
+    -- --global re-enables the global db, necessary for bootlibs.
+    flags
+        | Config.useCabalV2 localConfig = "--unit-id" : "--global" : packageDbs
+        | otherwise = packageDbs
+    -- ghc-pkg uses similar but not the same flags as ghc itself.
+    (packageDbs, packages) = Either.partitionEithers $
+        Maybe.mapMaybe adjust packageDbFlags
+    adjust flag
+        | "-package-db=" `List.isPrefixOf` flag = Just $ Left $ "-" <> flag
+        | (pkg, True) <- Seq.drop_prefix "-package-id=" flag = Just $ Right pkg
+        | (pkg, True) <- Seq.drop_prefix "-package=" flag = Just $ Right pkg
+        | flag `elem` ["-no-user-package-db", "-hide-all-packages"] = Nothing
+        | otherwise = error $ "unrecognized packageDbFlags flag: " <> flag
+    extract = drop 1 . dropWhile (/=' ') . takeWhile (/='\n')
 
 -- | Get all hs files in the repo, in their .hs form (so it's the generated
 -- output from .hsc or .chs).
@@ -1319,6 +1339,7 @@ wantsHaddock config hs = not $ or $
     -- let's just omit them.
     , "Test.hs" `List.isSuffixOf` hs
     , "TestInstances.hs" `List.isSuffixOf` hs
+    , hs == "App/ConvertEventLog.hs" -- requires ghc-events package
     , hs == "Derive/DeriveQuickCheck.hs"
     ]
     where midi = midiConfig config
