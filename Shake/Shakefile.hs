@@ -14,7 +14,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ViewPatterns #-}
 -- | Shakefile for seq and associated binaries.
-module Shake.Shakefile where
+module Shake.Shakefile (main) where
 import qualified Control.DeepSeq as DeepSeq
 import           Control.Monad.Trans (liftIO)
 import qualified Data.Binary as Binary
@@ -39,6 +39,7 @@ import qualified System.Console.Concurrent as Concurrent
 import qualified System.Console.Regions as Regions
 import qualified System.Directory as Directory
 import qualified System.Environment as Environment
+import qualified System.Exit as Exit
 import qualified System.FilePath as FilePath
 import           System.FilePath ((</>))
 import qualified System.IO as IO
@@ -268,10 +269,7 @@ data Flags = Flags {
     , hcFlags :: [Flag]
     -- | Flags needed when linking haskell.  Doesn't include the -packages.
     , hLinkFlags :: [Flag]
-    -- | -package-db flags for ghc and ghci-flags.  This comes from either
-    -- GHC_PACKAGE_PATH as set by tools/use-stack, or the v2 cabal package
-    -- store.  GHC_PACKAGE_PATH is already enough for ghc, but I need the
-    -- explicit flags for the GHC API.
+    -- | -package-db flags for ghc and ghci-flags.
     , packageDbFlags :: [Flag]
     } deriving (Show)
 
@@ -691,10 +689,7 @@ configure = do
     -- When configured for v2 cabal, then use this package db.
     mbPackageFlags <- if Config.useCabalV2 localConfig
         then Just <$> buildV2Flags
-        else return $ Seq.split ":" <$> lookup "GHC_PACKAGE_PATH" env
-    -- let v2CabalPackageDb = Just
-    --         "/Users/elaforge/.cabal/store/ghc-9.2.2/package.db\
-    --         \:/Users/elaforge/src/seq/main/dist-newstyle/packagedb/ghc-9.2.2"
+        else return Nothing
     -- TODO this breaks if you run from a different directory
     rootDir <- Directory.getCurrentDirectory
     return $ \mode -> Config
@@ -962,10 +957,17 @@ main = Concurrent.withConcurrentOutput $ Regions.displayConsoleRegions $ do
     IO.hSetBuffering IO.stdout IO.LineBuffering
     env <- Environment.getEnvironment
     modeConfig <- configure
+    args <- Environment.getArgs
+    -- Special mode to show the auto detected config.
+    case args of
+        ["debug"] -> printConfig $ modeConfig Debug
+        ["opt"] -> printConfig $ modeConfig Opt
+        ["test"] -> printConfig $ modeConfig Test
+        ["profile"] -> printConfig $ modeConfig Profile
+        _ -> return ()
     writeGhciFlags modeConfig
     makeDataLinks
     writeDeps cabalDir [("basic", basicPackages)]
-    args <- Environment.getArgs
     Shake.shakeArgsWith (options args) [] $ \[] targets -> return $ Just $ do
         cabalRule "karya.cabal"
         faustRules
@@ -1000,6 +1002,11 @@ main = Concurrent.withConcurrentOutput $ Regions.displayConsoleRegions $ do
         hsOHiRule infer
         ccORule infer
         dispatch modeConfig targets
+
+printConfig :: Config -> IO ()
+printConfig config = do
+    PPrint.pprint config
+    Exit.exitSuccess
 
 -- ** oracle
 

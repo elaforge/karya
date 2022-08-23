@@ -7,6 +7,4 @@
 # modules are few and rarely modified.
 # Also .fix-imports needs the list.
 
-. tools/use-stack
-
 exec runghc Shake/Shakefile.hs "$@" build/opt/shakefile

@@ -4025,7 +4025,7 @@ shakefile: build:
         . haddock: internal error:
           /Users/elaforge/.cabal/share/doc/x86_64-osx-ghc-9.2.2/primitive-0.7.3.0/html/primitive.haddock:
           openBinaryFile: does not exist (No such file or directory)
-      - nix build
+      * nix build
         . Could not load module ‘Prelude’
         . after -hide-all-packages there are no package lines.
       * haddock on v1

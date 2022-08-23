@@ -177,7 +177,7 @@ in rec {
         pkg != "ghc" ;
     in ghc.ghcWithPackages (pkgs: map (pkg: pkgs."${pkg}") (
       builtins.filter wantPkg (builtins.concatLists [
-        (readLines doc/cabal/basic)
+        (readLines doc/cabal/nix-packages)
         (guard withEkg ["ekg"])
       ])
     ));

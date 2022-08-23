@@ -25,6 +25,7 @@ extra
 fclabels
 filepath
 ghc
+ghc-events
 ghc-paths
 ghc-prim
 hashable

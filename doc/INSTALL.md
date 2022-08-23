@@ -148,7 +148,7 @@ found you might have to edit a font name in `App/Config.hsc`.
 
 ## Haskell dependencies
 
-You can do this either the cabal ways, or the stack way.
+You can do this either the cabal v1 way or the v2 way.
 
 ### cabal v2 way
 
@@ -191,19 +191,8 @@ dependencies.
 
 ### stack way
 
-This is ancient and no one ever used it and probably no longer works.
-Definitely ghc 8.4 won't work!
-
-I don't use stack, but I added some basic support so hopefully this should work:
-
-    stack setup # stack.yaml uses 8.4.4
-    stack install alex happy c2hs cpphs
-    # Put ~/.local/bin in $PATH if stack warns you about that.
-    stack install --only-dependencies
-
-From here on, you will need to `export use_stack=t`.  Then when you run
-`bin/mkmk` and `bin/mk`, it will use `stack path` to find where to get the
-stack-flavored ghc and packages.
+I removed this because no one ever used it.  There's not much reason to
+use stack any more.
 
 ## 音, Im, Synth
 

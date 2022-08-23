@@ -3,8 +3,6 @@
 flags=${1?}
 shift
 
-. tools/use-stack
-
 args=(
     # Turn off idle time GC, since it causes input lag when lots of modules
     # are loaded.
