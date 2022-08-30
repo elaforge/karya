@@ -31,8 +31,6 @@ flag criterion
     default: False
 flag ekg
     default: False
-flag ghc-events
-    default: False
 flag ness
     default: False
 
@@ -66,6 +64,7 @@ library
         fclabels >=2,
         filepath,
         ghc,
+        ghc-events >=0.15,
         ghc-paths,
         ghc-prim,
         hashable,
@@ -112,9 +111,6 @@ library
     if flag(ekg)
         build-depends:
             ekg
-    if flag(ghc-events)
-        build-depends:
-            ghc-events >=0.15
     if flag(ness)
         build-depends:
             conduit-audio,

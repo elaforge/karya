@@ -71,10 +71,9 @@ import           Control.Monad
 
 -- | Package, with or without version e.g. containers-0.5.5.1
 type Package = String
-
--- | This is the big list of enabled packages.
-allPackages :: [Package]
-allPackages = map fst enabledPackages
+-- | An exact package id suitable for the -package-id flag.
+newtype PackageId = PackageId String
+    deriving (Eq, Show)
 
 -- NOTE:
 -- Remember to run tools/freeze_deps.hs after changing any of these.
@@ -131,16 +130,16 @@ basicPackages = concat
     , w "resourcet"
     , w "bindings-portaudio"
     , w "vivid-osc vivid-supercollider" -- Perform.Sc
+    -- used only by App.ConvertEventLog
+    , [("ghc-events", ">=0.15")]
     ]
     where w = map (\p -> (p, "")) . words
 
 -- | These get emitted in the generated karya.cabal as optional sections.
 optionalPackages :: Map String [(Package, String)]
 optionalPackages = Map.fromList
-    -- used only by App.ConvertEventLog
-    [ ("ghc-events", [("ghc-events", ">=0.15")])
     -- criterion has many deps, and only needed by criterion benchmarks
-    , ("criterion", [("criterion", "")])
+    [ ("criterion", [("criterion", "")])
     -- ekg also has many deps
     , ("ekg", ekgPackages)
     -- These are used in the Ness.* hierarchy, which probably only I use, and
@@ -149,28 +148,24 @@ optionalPackages = Map.fromList
     ]
     where w = map (\p -> (p, "")) . words
 
-enabledPackages :: [(Package, String)]
-enabledPackages = concat
+enabledPackages :: [Package]
+enabledPackages = map fst $ concat
     [ basicPackages
     , if Config.enableEkg localConfig then ekgPackages else []
     ]
 
--- | All packages, not just enabled ones.
-reallyAllPackages :: [(Package, String)]
-reallyAllPackages = concat
+-- | Packages supplied by tools/nix-enter.  These are also used by the CI
+-- build.
+nixPackages :: [Package]
+nixPackages = map fst $ concat
     [ basicPackages
-    , ekgPackages
+    -- , get "criterion"
     ]
+    -- where
+    -- get p = Map.findWithDefault [] p optionalPackages
 
 ekgPackages :: [(Package, String)]
 ekgPackages = [("ekg", "")]
-
--- | This is a hack so I can add packages that aren't in 'enabledPackages'.
--- This is for packages with tons of dependencies that I usually don't need.
-extraPackagesFor :: FilePath -> [Package]
-extraPackagesFor obj
-    | (criterionHsSuffix <> ".o") `List.isSuffixOf` obj = ["criterion"]
-    | otherwise = []
 
 -- * config implementation
 
@@ -269,20 +264,20 @@ data Flags = Flags {
     , hcFlags :: [Flag]
     -- | Flags needed when linking haskell.  Doesn't include the -packages.
     , hLinkFlags :: [Flag]
-    -- | -package-db flags for ghc and ghci-flags.
-    , packageDbFlags :: [Flag]
+    -- | package db paths.
+    , packageDbs :: [FilePath]
+    , packageIds :: [PackageId]
     } deriving (Show)
 
 -- TODO surely there is a GHC.Generic way to do this
 instance Semigroup Flags where
-    (<>)    (Flags a1 b1 c1 d1 e1 f1 g1 h1)
-            (Flags a2 b2 c2 d2 e2 f2 g2 h2) =
+    (<>)    (Flags a1 b1 c1 d1 e1 f1 g1 h1 i1)
+            (Flags a2 b2 c2 d2 e2 f2 g2 h2 i2) =
         Flags (a1<>a2) (b1<>b2) (c1<>c2) (d1<>d2) (e1<>e2) (f1<>f2) (g1<>g2)
-            (h1<>h2)
+            (h1<>h2) (i1<>i2)
 
 instance Monoid Flags where
-    mempty = Flags [] [] [] [] [] [] [] []
-    mappend = (<>)
+    mempty = Flags [] [] [] [] [] [] [] [] []
 
 -- | Like 'cInclude' except for things which do not wind up using cc, which
 -- means that in a nix-shell they don't get the magic -I flags propagated via
@@ -687,9 +682,9 @@ configure = do
     let ghcVersion = parseGhcVersion ghcLib
     ccVersion <- run "cc" ["--version"]
     -- When configured for v2 cabal, then use this package db.
-    mbPackageFlags <- if Config.useCabalV2 localConfig
-        then Just <$> buildV2Flags
-        else return Nothing
+    buildV2Flags <- if Config.useCabalV2 localConfig
+        then getBuildV2Flags
+        else return []
     -- TODO this breaks if you run from a different directory
     rootDir <- Directory.getCurrentDirectory
     return $ \mode -> Config
@@ -706,7 +701,7 @@ configure = do
                 }
             }
         , configFlags = setGlobalCcFlags mode $ mconcat
-            [ configFlags mode ghcVersion mbPackageFlags
+            [ configFlags mode ghcVersion buildV2Flags
             , osFlags midi
             ]
         , ghcVersion = ghcVersion
@@ -714,7 +709,9 @@ configure = do
         , rootDir = rootDir
         }
     where
-    configFlags mode ghcVersion mbPackageFlags = mempty
+    configFlags mode ghcVersion buildV2Flags =
+        if not (null rest2) then error $ "unrecognized flags: " <> unwords rest2
+        else mempty
         { define = concat
             [ ["-DTESTING" | mode `elem` [Test, Profile]]
             , ["-DSTUB_OUT_FLTK" | mode == Test]
@@ -759,10 +756,17 @@ configure = do
             , map ("-framework-path="<>)
                 (Config.extraFrameworkPaths localConfig)
             ]
-        , packageDbFlags = case mbPackageFlags of
-            Nothing -> map (("-package="<>) . fst) enabledPackages
-            Just flags -> "-no-user-package-db" : "-hide-all-packages" : flags
+        , packageDbs = packageDbs
+        , packageIds = map PackageId packageIds
         }
+        where
+        stripPrefix p s = case Seq.drop_prefix p s of
+            (s, True) -> Just s
+            (_, False) -> Nothing
+        (packageDbs, rest1) = Seq.partition_on (stripPrefix "-package-db=")
+            buildV2Flags
+        (packageIds, rest2) = Seq.partition_on (stripPrefix "-package-id=")
+            rest1
     -- This one breaks the monoid pattern because it groups other flags,
     -- which is because the flags are a mess and not in any kind of normal
     -- form.
@@ -816,8 +820,8 @@ configure = do
 -- | Cabal v2 doesn't seem to expose the package flags, but I can get them out
 -- of @cabal repl --verbose@.  It's very slow so I cache it.  It happens before
 -- all the shake setup so I cache it manually instead of using shake.
-buildV2Flags :: IO [String]
-buildV2Flags = do
+getBuildV2Flags :: IO [String]
+getBuildV2Flags = do
     -- Reconfiguring with new flags will change the package list.
     h1 <- hashFile "karya.cabal"
     h2 <- Maybe.fromMaybe 0 <$>
@@ -921,6 +925,23 @@ ghcLanguageFlags = map ("-X"++)
 platformDefines :: [Flag]
 platformDefines = ["-D__APPLE__", "-D__linux__"]
 
+packageFlags :: Flags -> Maybe FilePath -> [Flag]
+packageFlags flags mbHs
+    | null (packageIds flags) =
+        map ("-package="<>) (extra ++ enabledPackages)
+    | otherwise = "-no-user-package-db" : "-hide-all-packages"
+        : map ("-package-db="<>) (packageDbs flags)
+        ++ map (\(PackageId pkg) -> "-package-id=" <> pkg) (packageIds flags)
+    where
+    extra = maybe [] extraPackagesFor mbHs
+
+-- | This is a hack so I can add packages that aren't in 'enabledPackages'.
+-- This is for packages with tons of dependencies that I usually don't need.
+extraPackagesFor :: FilePath -> [Package]
+extraPackagesFor hs
+    | criterionHsSuffix `List.isSuffixOf` hs = ["criterion"]
+    | otherwise = []
+
 -- | Parse the GHC version out of the @ghc --print-libdir@ path.  Technically
 -- I should probably use ghc --numeric-version, but I already have libdir so
 -- let's not run ghc again.
@@ -967,7 +988,7 @@ main = Concurrent.withConcurrentOutput $ Regions.displayConsoleRegions $ do
         _ -> return ()
     writeGhciFlags modeConfig
     makeDataLinks
-    writeDeps cabalDir [("basic", basicPackages)]
+    writeDeps (cabalDir </> "nix-packages") nixPackages
     Shake.shakeArgsWith (options args) [] $ \[] targets -> return $ Just $ do
         cabalRule "karya.cabal"
         faustRules
@@ -1241,7 +1262,7 @@ makeHaddock modeConfig = do
     hs <- filter (wantsHaddock config) <$> liftIO (getAllHs (Just config))
     need $ hsconfigPath config : hs
     let flags = configFlags config
-    interfaces <- liftIO $ getHaddockInterfaces (packageDbFlags flags)
+    interfaces <- liftIO $ getHaddockInterfaces (packageFlags flags Nothing)
     entry <- liftIO $ either Util.errorIO return =<< SourceControl.current "."
     let title = mconcat
             [ "Karya, built on "
@@ -1254,7 +1275,7 @@ makeHaddock modeConfig = do
             [ ghcGlobalFlags
             , define flags
             , includeFlags
-            , packageDbFlags flags
+            , packageFlags flags Nothing
             , ["-i" <> List.intercalate ":" [hscDir config, chsDir config]]
             ]
     Util.system "haddock" $
@@ -1298,6 +1319,8 @@ getHaddockInterfaces packageDbFlags = do
         | Config.useCabalV2 localConfig = "--unit-id" : "--global" : packageDbs
         | otherwise = packageDbs
     -- ghc-pkg uses similar but not the same flags as ghc itself.
+    -- TODO get them directly from Flags, where packageDbs and packageIds are
+    -- still separated
     (packageDbs, packages) = Either.partitionEithers $
         Maybe.mapMaybe adjust packageDbFlags
     adjust flag
@@ -1346,7 +1369,6 @@ wantsHaddock config hs = not $ or $
     -- let's just omit them.
     , "Test.hs" `List.isSuffixOf` hs
     , "TestInstances.hs" `List.isSuffixOf` hs
-    , hs == "App/ConvertEventLog.hs" -- requires ghc-events package
     , hs == "Derive/DeriveQuickCheck.hs"
     ]
     where midi = midiConfig config
@@ -1394,17 +1416,17 @@ hsBinaryRule infer binary = matchBuildDir (hsName binary) ?> \fn -> do
     let config = infer fn
     hs <- maybe (Util.errorIO $ "no main module for " ++ fn) return
         (Map.lookup (FilePath.takeFileName fn) nameToMain)
-    buildHs config (hsRtsFlags binary) (map (oDir config </>)
-        (hsDeps binary)) [] hs fn
+    buildHs config (hsRtsFlags binary) (map (oDir config </>) (hsDeps binary))
+        hs fn
     case hsGui binary of
         NoGui -> return ()
         MakeBundle -> makeBundle False fn
         HasIcon -> makeBundle True fn
 
 -- | Build a haskell binary.
-buildHs :: Config -> [Flag] -> [FilePath] -> [Package] -> FilePath -> FilePath
+buildHs :: Config -> [Flag] -> [FilePath] -> FilePath -> FilePath
     -> Shake.Action ()
-buildHs config rtsFlags libs extraPackages hs fn = do
+buildHs config rtsFlags libs hs fn = do
     -- Actually I only need it if this binary imports a module that uses
     -- hsconfig.h, but it's cheap to generate so lets always do it.
     need [hsconfigPath config]
@@ -1413,7 +1435,7 @@ buildHs config rtsFlags libs extraPackages hs fn = do
             concat [Map.findWithDefault [] src hsToCc | src <- srcs]
         objs = List.nub (map (srcToObj config) (ccs ++ srcs)) ++ libs
     logDeps config "build" fn objs
-    Util.cmdline $ linkHs config rtsFlags fn objs
+    Util.cmdline $ linkHs config rtsFlags fn hs objs
 
 data BundleType = APPL | BNDL
     deriving (Show)
@@ -1443,7 +1465,7 @@ testRules config = do
     runTestsBinary runTests ?> \fn -> do
         -- The UI tests use fltk.a.  It would be nicer to have it
         -- automatically added when any .o that uses it is linked in.
-        buildHs config defaultRtsFlags [oDir config </> "fltk/fltk.a"] []
+        buildHs config defaultRtsFlags [oDir config </> "fltk/fltk.a"]
             (fn ++ ".hs") fn
         -- A stale .tix file from a previous compile will cause any binary to
         -- instantly crash, and there's no way to turn off .tix generation.
@@ -1453,7 +1475,7 @@ profileRules :: Config -> Shake.Rules ()
 profileRules config = do
     runProfile ++ "*.hs" %> generateTestHs "_profile"
     runTestsBinary runProfile ?> \fn ->
-        buildHs config defaultRtsFlags [oDir config </> "fltk/fltk.a"] []
+        buildHs config defaultRtsFlags [oDir config </> "fltk/fltk.a"]
             (fn ++ ".hs") fn
 
 -- | Match Run(Tests|Profile)(-A.B)?.hs
@@ -1485,7 +1507,7 @@ criterionRules :: Config -> Shake.Rules ()
 criterionRules config = buildDir config </> "RunCriterion-*" %> \fn -> do
     let hs = runCriterionToSrc config fn
     need [hs]
-    buildHs config defaultRtsFlags [] ["criterion"] hs fn
+    buildHs config defaultRtsFlags [] hs fn
 
 -- | build/(mode)/RunCriterion-Derive.Derive -> Derive/Derive_criterion.hs
 runCriterionToSrc :: Config -> FilePath -> FilePath
@@ -1666,7 +1688,7 @@ hsOHiRule infer = matchHsObjHi &?> \fns -> do
     -- updaing the timestamp on the .hi file if its .o didn't need to be
     -- recompiled, so hopefully this will avoid some work.
     logDeps config "*.hs.o *.hi" obj (hs : includes ++ his)
-    Util.cmdline $ compileHs (extraPackagesFor obj ++ allPackages) config hs
+    Util.cmdline $ compileHs config hs
 
 objToHsc :: Config -> FilePath -> FilePath
 objToHsc config obj = objToSrc config obj ++ "c"
@@ -1692,14 +1714,14 @@ matchHsObjHi fn
         || runProfile `List.isPrefixOf` hs || runTests `List.isPrefixOf` hs
         || criterionHsSuffix `List.isSuffixOf` hs
 
-compileHs :: [Package] -> Config -> FilePath -> Util.Cmdline
-compileHs packages config hs =
+compileHs :: Config -> FilePath -> Util.Cmdline
+compileHs config hs =
     ( "GHC " <> show (buildMode config)
     , hs
     -- color=always since I'll be reading the output via pipe.
     , ghcBinary : "-c" : "-fdiagnostics-color=always" : concat
         [ ghcFlags config, hcFlags (configFlags config)
-        , packageDbFlags (configFlags config)
+        , packageFlags (configFlags config) (Just hs)
         , mainIs
         , [hs, "-o", srcToObj config hs]
         ]
@@ -1711,9 +1733,9 @@ compileHs packages config hs =
             ["-main-is", pathToModule hs]
         | otherwise = []
 
-linkHs :: Config -> [Flag] -> FilePath -> [FilePath]
+linkHs :: Config -> [Flag] -> FilePath -> FilePath -> [FilePath]
     -> Util.Cmdline
-linkHs config rtsFlags output objs =
+linkHs config rtsFlags output hs objs =
     ( "LD-HS"
     , output
     , ghcBinary : concat
@@ -1721,7 +1743,7 @@ linkHs config rtsFlags output objs =
         , hLinkFlags flags
         , ["-with-rtsopts=" <> unwords rtsFlags | not (null rtsFlags)]
         , ["-lstdc++"]
-        , packageDbFlags flags
+        , packageFlags flags (Just hs)
         , objs
         -- Suppress "warning: text-based stub file" after OSX command line
         -- tools update.
@@ -1756,9 +1778,8 @@ writeGhciFlags modeConfig =
 
 -- | Write the deps files, which are like cabal files but easier to parse.
 -- Used by the nix build.
-writeDeps :: FilePath -> [(String, [(Package, String)])] -> IO ()
-writeDeps dir namePackages = forM_ namePackages $ \(name, pkgs) ->
-    writeFile (dir </> name) $ unlines $ List.sort $ map fst pkgs
+writeDeps :: FilePath -> [Package] -> IO ()
+writeDeps fname = writeFile fname . unlines . List.sort
 
 -- | Make links to large binary files I don't want to put into source control.
 makeDataLinks :: IO ()
@@ -1797,7 +1818,7 @@ ghciFlags config = concat
             "ghc 8.2 doesn't support the flags needed to make the REPL work,\
             \ use 8.0 or 8.4, see doc/INSTALL.md for details"
          | otherwise -> ["-fignore-optim-changes", "-fignore-hpc-changes"]
-    , packageDbFlags (configFlags config)
+    , packageFlags (configFlags config) Nothing
     ]
     where
     version = ghcVersion config

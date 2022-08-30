@@ -4028,6 +4028,35 @@ shakefile: build:
       * nix build
         . Could not load module ‘Prelude’
         . after -hide-all-packages there are no package lines.
+        / ghc-events dep is annoying
+          . I would need the extraPackages, except that's pretty hacky and
+            annoying.  Also I'm not sure how it could work for the package-id
+            thing.  I guess I'd need a whole mapping mechanism to get the IDs,
+            which is doable but kind of a pain.
+          . v2 can just provide them all, because it gets chosen at configure
+            time.  So let's do that for the others too.
+          . Ok but then how do I know in the shakefile which packages are
+            enabled?  v2 uses 'cabal repl' to ask for them.
+          . For nix I can just list them all, but that's no good for v1 style.
+          . For nix and v1 I just want to use whatever packages are needed.
+          . Ok so then we're back to separate strategies for v1 and v2.
+          . If I use all of them, how does criterion work for v1?
+          . Why not list them all for v1?  That's what enablePackages was
+            supposed to be.  And I need that anyway for ghci.
+          . Ok then the problem is that v2 does config with cabal configure,
+            but v1 and nix need it in another spot.  In that case, can
+            I do the same?  I guess I need a configure equivalent, like
+            Config.enableEkg.
+          . In practice it worked for criterion because they are leaves.
+          . Simplification for nix is everything is always on, except not
+            really ekg so not.
+          . Ok so Shakefile writes files for flag, then default.nix takes
+            [str] for flag->deps.
+          . Too much hassle, how about just comment out ghc-events since I'm
+            not using it.  Then nix has everything except ekg hardcoded.
+          . I think eventually v1 will have to go away, so it'll be nix+v2.
+            So I should ask about how to better get package flags, then use
+            that also for fix-imports.
       * haddock on v1
     * remove the all-deps.cabal thing
       . This means enableIm is always on, so I can remove that too.
