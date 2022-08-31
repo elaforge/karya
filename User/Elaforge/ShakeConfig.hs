@@ -9,6 +9,7 @@ import           Shake.Config
 localConfig :: Config
 localConfig = defaultConfig
     { enableEkg = False
+    , useCabalV2 = True
     , enableEventLog = True
     -- , extraDefines = ["-DHACKED_FLTK"]
     , fltkConfig = "/usr/local/src/fltk/fltk-config"

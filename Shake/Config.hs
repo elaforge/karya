@@ -48,7 +48,7 @@ data Config = Config {
 
 defaultConfig :: Config
 defaultConfig = Config
-    { useCabalV2 = False
+    { useCabalV2 = True
     , enableEkg = False
     , enableEventLog = False
     , extraDefines = []

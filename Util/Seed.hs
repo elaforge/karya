@@ -65,3 +65,41 @@ prim_text_sum (Text.Internal.Text array offset len) = go 0 offset
             in go (accum + v) (offset+1)
         | otherwise = accum
     end = offset + len
+
+-- TODO: hashable now uses C for this: hashable_fnv_hash_offset
+-- I'll probably get vectorization and a big speedup if I do the same,
+-- just like vectorc.cc
+-- On the other hand, I probably don't hash large Texts so maybe irrelevant.
+{-
+hashByteArrayWithSalt
+    :: ByteArray#  -- ^ data to hash
+    -> Int         -- ^ offset, in bytes
+    -> Int         -- ^ length, in bytes
+    -> Salt        -- ^ salt
+    -> Salt        -- ^ hash value
+hashByteArrayWithSalt ba !off !len !h =
+    fromIntegral $ c_hashByteArray ba (fromIntegral off) (fromIntegral len)
+    (fromIntegral h)
+
+foreign import capi unsafe "HsHashable.h hashable_fnv_hash_offset"
+    c_hashByteArray :: ByteArray# -> Int64 -> Int64 -> Int64 -> Word64
+
+FNV_UNSIGNED
+hashable_fnv_hash(const unsigned char* str, FNV_SIGNED len, FNV_UNSIGNED salt)
+{
+  FNV_UNSIGNED hash = salt;
+  while (len--) {
+    hash = (hash * FNV_PRIME) ^ *str++;
+  }
+
+  return hash;
+}
+
+FNV_UNSIGNED
+hashable_fnv_hash_offset(
+    const unsigned char* str, FNV_SIGNED offset, FNV_SIGNED len,
+    FNV_UNSIGNED salt)
+{
+    return hashable_fnv_hash(str + offset, len, salt);
+}
+-}

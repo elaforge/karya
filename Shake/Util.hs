@@ -9,7 +9,8 @@ module Shake.Util (
     , findFiles, findHs, runIO
 
     -- * ghc
-    , queryCabalRepl
+    , PackageId(..)
+    , readGhcEnvironment
     -- * platform
     , Platform(..), platform
     -- * general
@@ -22,9 +23,13 @@ import qualified Control.Monad.Trans as Trans
 import           Control.Monad.Trans (liftIO)
 
 import qualified Data.Char as Char
+import qualified Data.Either as Either
 import qualified Data.Function as Function
 import qualified Data.IORef as IORef
+import qualified Data.List as List
+import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
+import           Data.Text (Text)
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Time as Time
 
@@ -33,6 +38,7 @@ import qualified Development.Shake.FilePath as FilePath
 import qualified System.CPUTime as CPUTime
 import qualified System.Console.Concurrent as Concurrent
 import qualified System.Console.Regions as Regions
+import qualified System.Directory as Directory
 import qualified System.Exit as Exit
 import qualified System.FilePath
 import           System.FilePath ((</>))
@@ -222,17 +228,25 @@ platform = case System.Info.os of
 
 -- * ghc
 
-queryCabalRepl :: IO [String]
-queryCabalRepl =
-    parseCabalRepl <$> Process.readProcess "cabal" ["repl", "--verbose"] ""
+-- | An exact package id suitable for the -package-id flag.
+newtype PackageId = PackageId String
+    deriving (Eq, Show)
 
-parseCabalRepl :: String -> [String]
-parseCabalRepl = concatMap (parse . words) . lines
-    where
-    parse ("-package-db" : db : rest) = "-package-db=" <> db : parse rest
-    parse ("-package-id" : pkg : rest) = "-package-id=" <> pkg : parse rest
-    parse (_ : xs) = parse xs
-    parse [] = []
+readGhcEnvironment :: IO (Maybe ([FilePath], [PackageId]))
+readGhcEnvironment = do
+    fns <- Directory.listDirectory "."
+    case filter (".ghc.environment." `List.isPrefixOf`) fns of
+        [] -> return Nothing
+        [fn] -> Just . Either.partitionEithers
+            . Maybe.mapMaybe parseGhcEnvironment . Text.lines <$>
+                Text.IO.readFile fn
+        fns -> errorIO $ "multiple .ghc.environment.* files: " <> show fns
+
+parseGhcEnvironment :: Text -> Maybe (Either FilePath PackageId)
+parseGhcEnvironment line = case Text.words line of
+    ["package-db", path] -> Just $ Left $ Text.unpack path
+    ["package-id", pkg] -> Just $ Right $ PackageId $ Text.unpack pkg
+    _ -> Nothing
 
 -- * general
 

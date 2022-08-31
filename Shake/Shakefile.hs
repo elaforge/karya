@@ -18,10 +18,6 @@ module Shake.Shakefile (main) where
 import qualified Control.DeepSeq as DeepSeq
 import           Control.Monad.Trans (liftIO)
 import qualified Data.Binary as Binary
-import qualified Data.Bits as Bits
-import qualified Data.ByteString as ByteString
-import qualified Data.ByteString.Base64.URL as Base64.URL
-import qualified Data.ByteString.Char8 as ByteString.Char8
 import qualified Data.Char as Char
 import qualified Data.Either as Either
 import qualified Data.Hashable as Hashable
@@ -71,9 +67,6 @@ import           Control.Monad
 
 -- | Package, with or without version e.g. containers-0.5.5.1
 type Package = String
--- | An exact package id suitable for the -package-id flag.
-newtype PackageId = PackageId String
-    deriving (Eq, Show)
 
 -- NOTE:
 -- Remember to run tools/freeze_deps.hs after changing any of these.
@@ -266,7 +259,7 @@ data Flags = Flags {
     , hLinkFlags :: [Flag]
     -- | package db paths.
     , packageDbs :: [FilePath]
-    , packageIds :: [PackageId]
+    , packageIds :: [Util.PackageId]
     } deriving (Show)
 
 -- TODO surely there is a GHC.Generic way to do this
@@ -682,9 +675,13 @@ configure = do
     let ghcVersion = parseGhcVersion ghcLib
     ccVersion <- run "cc" ["--version"]
     -- When configured for v2 cabal, then use this package db.
-    buildV2Flags <- if Config.useCabalV2 localConfig
-        then getBuildV2Flags
-        else return []
+    -- cabal.project should have had it write .ghc.environment.
+    packageDbIds <- if Config.useCabalV2 localConfig
+        then maybe
+            (Util.errorIO "useCabalV2=True but no .ghc.environment,\
+                \ should have been created by cabal build --only-dep")
+            (return . Just) =<< Util.readGhcEnvironment
+        else return Nothing
     -- TODO this breaks if you run from a different directory
     rootDir <- Directory.getCurrentDirectory
     return $ \mode -> Config
@@ -701,7 +698,7 @@ configure = do
                 }
             }
         , configFlags = setGlobalCcFlags mode $ mconcat
-            [ configFlags mode ghcVersion buildV2Flags
+            [ configFlags mode ghcVersion packageDbIds
             , osFlags midi
             ]
         , ghcVersion = ghcVersion
@@ -709,9 +706,7 @@ configure = do
         , rootDir = rootDir
         }
     where
-    configFlags mode ghcVersion buildV2Flags =
-        if not (null rest2) then error $ "unrecognized flags: " <> unwords rest2
-        else mempty
+    configFlags mode ghcVersion packageDbIds = mempty
         { define = concat
             [ ["-DTESTING" | mode `elem` [Test, Profile]]
             , ["-DSTUB_OUT_FLTK" | mode == Test]
@@ -756,17 +751,9 @@ configure = do
             , map ("-framework-path="<>)
                 (Config.extraFrameworkPaths localConfig)
             ]
-        , packageDbs = packageDbs
-        , packageIds = map PackageId packageIds
+        , packageDbs = maybe [] fst packageDbIds
+        , packageIds = maybe [] snd packageDbIds
         }
-        where
-        stripPrefix p s = case Seq.drop_prefix p s of
-            (s, True) -> Just s
-            (_, False) -> Nothing
-        (packageDbs, rest1) = Seq.partition_on (stripPrefix "-package-db=")
-            buildV2Flags
-        (packageIds, rest2) = Seq.partition_on (stripPrefix "-package-id=")
-            rest1
     -- This one breaks the monoid pattern because it groups other flags,
     -- which is because the flags are a mess and not in any kind of normal
     -- form.
@@ -816,39 +803,6 @@ configure = do
             }
     run cmd args = strip <$> Process.readProcess cmd args ""
     frameworks = concatMap (\f -> ["-framework", f])
-
--- | Cabal v2 doesn't seem to expose the package flags, but I can get them out
--- of @cabal repl --verbose@.  It's very slow so I cache it.  It happens before
--- all the shake setup so I cache it manually instead of using shake.
-getBuildV2Flags :: IO [String]
-getBuildV2Flags = do
-    -- Reconfiguring with new flags will change the package list.
-    h1 <- hashFile "karya.cabal"
-    h2 <- Maybe.fromMaybe 0 <$>
-        Exceptions.ignoreEnoent (hashFile "cabal.project.local")
-    let hash = encodeHash (Hashable.hash (h1, h2))
-    let path = build </> "package-flags." <> hash
-    Directory.doesFileExist path >>= \case
-        True -> words <$> readFile path
-        False -> do
-            putStrLn $ "generating " <> path
-            flags <- Util.queryCabalRepl
-            Directory.createDirectoryIfMissing True
-                (FilePath.takeDirectory path)
-            writeFile path $ unwords flags
-            putStrLn $ "wrote " <> path
-            return flags
-
-hashFile :: FilePath -> IO Int
-hashFile = fmap Hashable.hash . ByteString.readFile
-
-encodeHash :: Int -> String
-encodeHash = ByteString.Char8.unpack . ByteString.Char8.dropWhileEnd (=='=')
-    . Base64.URL.encode . intToBytes
-
-intToBytes :: Int -> ByteString.ByteString
-intToBytes i = ByteString.pack $ map get [0..7]
-    where get byte = fromIntegral (Bits.shiftR i (byte*8) Bits..&. 0xff)
 
 configureFltk :: FilePath -> IO (String, [Flag], [Flag])
 configureFltk fltkConfig = do
@@ -931,7 +885,8 @@ packageFlags flags mbHs
         map ("-package="<>) (extra ++ enabledPackages)
     | otherwise = "-no-user-package-db" : "-hide-all-packages"
         : map ("-package-db="<>) (packageDbs flags)
-        ++ map (\(PackageId pkg) -> "-package-id=" <> pkg) (packageIds flags)
+        ++ map (\(Util.PackageId pkg) -> "-package-id=" <> pkg)
+            (packageIds flags)
     where
     extra = maybe [] extraPackagesFor mbHs
 
