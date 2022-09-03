@@ -6,7 +6,11 @@ LEGEND
 sigmoid x = 1 / (1 + e ** (-x))
 
 ghc:
-  . ghc core without GHC.Num.+ -> -dsuppress-module-prefixes
+  . make core easier to read:
+    https://www.youtube.com/watch?v=yRVjR9XcuPU&ab_channel=Tweag
+    -dsuppress-module-prefixes -dsuppress-coercions
+    -dsuppress-type-applications
+    -ddump-to-file -ddump-simpl
   . Open a feature request ticket with GHC API info.
   . Open a ticket with info about bake's ghc build papercuts.
   . ghc api memory use should get much better in 9.4
@@ -62,21 +66,12 @@ usability:
   - Undo not recording during insert causes me to lose stuff.
     . Record in edit mode?  Why not?
 
-darwin:
-  . https://member.ipmu.jp/yuji.tachikawa/MenuMetersElCapitan/
-  . https://github.com/exelban/stats
-  . hammerspoon:
-    https://www.hammerspoon.org/go/?fbclid=IwAR18nzpblvZ9F398nowSvYosdoJoAo6l64jYg9Vu2PjKAiRunt08lFXktAg
-
 STATUS
   - Biggest problem is input lag when editing, or when rerendering.
     . I haven't been doing enough editing lately to know what it is.  Once
       I do that, I have to characterize it so it can be reproduced, and
       then figure out how to fix.
-  * linux floating inputs broken
-  * darwin link errors:
   - raga-janaka stalled
-  * shrink tracks:
   . infer gender damping:
   - make kendang sampler instrument
     . Make thru work for it, and refactor thru in general.
@@ -99,13 +94,9 @@ external:
       Cmd.Selection.*... but that defs, not refs.
       For each Cmd.Selection.*, grep for Selection.that in non
       Cmd/Selection.hs
-  * vim cmd to use rg to find callers
-    . Like ,g but prepend current Module\. to the search string.
-      This will miss irregular imports though.
   - find some way to integrate Shake.ImportQuery into my workflow
     . At least I'd like a warning about what adding or removing an import
       means.  Maybe that means integrate with fix-imports?
-
   record screencast of using karya:
     . https://neilmitchell.blogspot.com/2021/01/recording-video.html
     basic notes / intro:
@@ -149,16 +140,8 @@ UNSORTED
     . strict has awkward names, must be used qualified but reuses Maybe name
       and all functions.  So if I do that, write my own SMaybe and SEither.
     . I could also try more StrictData, and put ~ on explicitly lazy fields.
-  * refused to play due to no root_id
-    . How does that even happen?  I thought Ui would choose another root?
-    . Why does playing a block locally require a root?
-    . Because im gets muted tracks from the root.
-  * pitch track added by note entry should auto-embiggen
-    . also be collapsed by default?
   semara-dana:
     - '/' or '?' to play from root starts in the wrong spot in dim-g-ang1
-    * there could be a k-inverted notation, since it's common to have both
-      . in semara-dana I used it with ub and ub^
     - ugal notes still get stuck mutes
     - semara-dana-im fails on ngoret and stops rendering after the 1st block
       . But I don't want two scores, I want to be able to toggle instrument
@@ -402,23 +385,6 @@ UNSORTED
   - convert scale_input_to_note to return 'Expr MiniVal'
     . so ScaleDgree.pitch_expr can actually return an expr
     . re-enable test in NoteTrack_test.test_cmd_val_edit_advance
-  * test tools/setup-generic, since I test setup-elaforge normally
-    . Though, could I have a way to to try building all the User.Elaforge
-      stuff too?
-    . Tests break, looks like dependent on KeyLayout.
-    . How to make tests independent of KeyLayout?
-    . They can't be if they're testing keys, but they should at least use a
-      test-specific layout.  Like say qwerty.
-    . PhysicalKey.pitch_map, this in turn directly imports Local.KeyLayout.
-    . What if I propagate it through Local.Config and hence StaticConfig?
-      Eliminate KeyLayout as a separate module.
-    . This means all these functions now need to take a layout input, since
-      it's no longer global.
-    . This in turn means that Keymap can't use physical_key as a function, it
-      must use a separate type which then must be resolved as a special
-      initialize step.
-    . What a pain!  Is there a simpler way to make tests not use Local?
-    . #ifdef hacks to the rescue!
   - test for Example.Integrate
   - bug: I made a top, calling b2, then LBlock.rename @b1, top still had b2
     and play still worked.
@@ -436,256 +402,6 @@ UNSORTED
     . gabor has old norots?
     . then put some of them into verify so it doesn't happen again!
   - shouldn't Id.clean do validation and return Nothing?
-  darwin CI:
-    . can I put darwin into github CI, to make sure this doesn't happen again?
-    * c2hs can't find <samplerate.h>
-      c2hs --cppopts=-DBUILD_DIR="build/debug" --cppopts=-DGHC_VERSION=90201
-        --cppopts=-I. --cppopts=-Ibuild/debug --cppopts=-Ifltk
-        --output-dir=build/chs Util/Audio/SampleRateC.chs
-      build/chs/Util/Audio/SampleRateC.chs.h:2:10: fatal error: 'samplerate.h'
-        file not found
-      . Probably need to inject the NIX_ variable nonsense in there.
-        There is -isystem from NIX_CFLAGS_COMPILE
-      . Alternately, I could restore setting it in shakefile, but getting from
-        the env seems more robust because there are other libs too.
-      . Is there a way to do it that's not just hardcode in Shakefile?
-    * test failure:
-      __-> Util/Test/RunTests.hs:321 [test_conversation_not_found]
-        Util.Processes_test.test_conversation_not_found threw exception:
-        no-such-bin: createProcess: posix_spawnp: illegal operation
-        (Inappropriate ioctl for device)
-      . Looks like a ghc 9.2 bug.  But local tests throw
-        createProcess: posix_spawnp: failed (Undefined error: 0)
-      . So which is it?  Looks like illegal op when run from a compiled
-        binary, and errno 0 when called from ghci.
-    * report Processes.binaryNotFound bug somewhere
-      . https://github.com/haskell/process/issues/233
-  * darwin link errors:
-    / use old nixpkgs?
-      . No longer works since hackage stuff changed.  This is really annoying!
-      . semigroupoids claims missing
-        base-orphans >=0.8.4 && <1, bifunctors >=5.5.9 && <6
-        but it has them!?
-      . How does nixpkgs tell it what it has?
-      . Well, it seems to happen on old nixpkgs anyway.
-
-    . Undefined symbols for architecture x86_64:
-       "_OBJC_CLASS_$_NSData", referenced from:
-           objc-class-ref in libfltk.a(Fl_MacOS_Sys_Menu_Bar.o)
-       "_NSDefaultRunLoopMode", referenced from:
-           Fl_Cocoa_Screen_Driver::ready() in libfltk.a(Fl_cocoa.o)
-           Fl_Cocoa_Screen_Driver::wait(double) in libfltk.a(Fl_cocoa.o)
-           Fl_Cocoa_Screen_Driver::open_display_platform() in libfltk.a(Fl_cocoa.o)
-           Fl_Cocoa_Window_Driver::draw_titlebar_to_context(CGContext*, int, int) in libfltk.a(Fl_cocoa.o)
-       "_OBJC_CLASS_$_NSDictionary", referenced from:
-           objc-class-ref in libfltk.a(Fl_cocoa.o)
-       "_OBJC_CLASS_$_NSMutableArray", referenced from:
-           objc-class-ref in libfltk.a(Fl_cocoa.o)
-       "_OBJC_CLASS_$_NSArray", referenced from:
-           objc-class-ref in libfltk.a(Fl_cocoa.o)
-       "_OBJC_CLASS_$_NSDate", referenced from:
-           objc-class-ref in libfltk.a(Fl_cocoa.o)
-      ld: symbol(s) not found for architecture x86_64
-      clang-7: error: linker command failed with exit code 1 (use -v to see invocation)
-    . Successful link with c++:
-      c++ build/debug/obj/fltk/test_block.cc.o build/debug/obj/fltk/fltk.a
-        -I/usr/local/src/libsamplerate -I/usr/local/src/fltk
-        -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_THREAD_SAFE -D_REENTRANT
-        /usr/local/src/libsamplerate/src/.libs/libsamplerate.a
-        -L/usr/local/src/fltk/lib -lfltk -lpthread -framework Cocoa
-        -o build/debug/test_block
-    . Unsuccessful with ghc.
-    . Looks like it's due to missing
-      -F/nix/store/rrxzrwa47dfxz7mm2wz873mkw4ryrigz-apple-framework-CoreFoundation/Library/Frameworks
-    . uniq: 99 -F lines down to 38
-      . but that makes it not link!?  No it's the order.
-    . Likely because ghc doesn't look at NIX_CFLAGS_COMPILE.
-    . Those flags are very redundant, probably nixpkgs bugs with unconditional
-      append.
-    . It's not -F CoreFoundation
-    - I'm still linking /usr/local/src/fltk even under nix?  Probably because
-      hardcoded in User/Elaforge/ShakeConfig.hs
-    . Why can't the ld line reproduce the error anymore?
-    . Must unset NIX_* variables to avoid all the flags getting in anyway!
-    . The args ghc uses gets tons of -L from nix, but not -F
-    . It's -framework-path, but it doesn't help.
-    . It would be nice if I could repro the problem on the c++ link line
-      again!
-    . Maybe it's presence of -F rather than absence?
-      It happens when they're in the wrong order!
-    . Looks like the presence of swift-corefoundation before
-      apple-framework-Cocoa
-    . NIX_CFLAGS_COMPILE_FOR_TARGET and NIX_CFLAGS_COMPILE both have
-      -iframework /nix/store/hmb3wk0iyv6lqqd9lhi8nk2ib8kcxzan-swift-corefoundation/Library/Frameworks
-    . Unsetting those env vars doesn't fix, but somehow they get onto the link
-      line anyway.
-      -framework-path Cocoa becomes necesasry though, so maybe it gets
-      propagated somehow?
-    . Somehow ghc link winds up with the swift -F even if I remove all the nix
-      env vars, how?
-    . Somehow it winds up in framework-dirs for all the pkg .conf files, how?
-    . Must be how ghc.withPackages creates it.
-      generic-builders.nix takes it out of pkgsHostHost and pkgsHostTarget,
-      so why is swift in that stuff?
-    . Whence pkgsHostHost and pkgsHostTarget?
-      whut?  "pkgs* arrays defined in stdenv/setup.hs"
-      . stdenv/setup does fiddle with them, but doesn't set them
-    . Who calls setupCompilerEnvironmentPhase?
-      prePhases has it
-    . Alternately, come from the source, what expression is
-      /nix/store/hmb3wk0iyv6lqqd9lhi8nk2ib8kcxzan-swift-corefoundation?
-      . pkgs/os-specific/darwin/swift-corelibs/corefoundation.nix
-      . nixpkgs.darwin.CF
-    . haskell bindings-GLFW uses it, but I don't use that.
-    . WAIT I already worked around something like this in Local/ShakeConfig.hs:
-      -- nixpkgs bug on darwin: https://github.com/NixOS/nixpkgs/issues/24237
-      , extraLinkFlags = ["-F/System/Library/Frameworks"]
-      . Maybe I need to send extraLinkFlags to ghc too?
-    . Hmm, I do though, via -optl.  But that line didn't appear on the actual
-      link line.  Why not?
-    . Ahhh because I still use my own ShakeConfig because I have it hardcoded
-      for the non-nix build.
-    . In addition, -optl=-F=... doesn't work, I need to pass -framework-path
-      to ghc.  So it's not extraLinkFlags, it has to be extraFrameworkPaths :/
-    . Ok, -F/System/Library/Frameworks is not working on the 11.6 mac.
-    From linking C++, it seems to be it works if:
-      . both CoreFoundation and swift out
-      . CoreFoundation in, swift out
-      . both in, swift comes after
-    Broken if:
-      . swift in, CoreFoundation out
-      . both in but swift comes first
-    . So oddly, while CoreFoundation seems to be unnecessary, if it's in the
-      path, then swift messes it up
-    . Perhaps -F/System/Library/Frameworks fixes it because it forces
-      CoreFoundation to be found first?
-    . However, -F first doesn't seem to work on the link line generated by
-      ghc, but I can't reorder the the ghc line due to its mysterious tmp
-      .o.
-    . swift has CoreFoundation.framework, so that would be why.
-    So what next?
-    . Get that swift nonsense out entirely.  It seems weird and incorrect
-      that every single hackage package has it hardcoded in.
-      /nix/store/pzd7y4s785im5ap1mvq5f3fwjdi4rh20-vector-0.12.3.1/lib/ghc-9.2.1/
-        package.conf.d/vector-0.12.3.1-t7kIVJHP059FIXqllm4bX.conf
-    . What if I just patch that out somehow?
-    . For some reason, override doesn't work on darwin.CF, maybe because it
-      has weird hacks into stdenv, since it crashes if I remove
-      overrideScope.
-    . stdenv/darwin/default.nix seems to put it in extraBuildInputs
-      It's undocumented, where does it go?
-      stdenv/generic/default.nix: defaultBuildInputs
-    . How does hackage framework-dirs get set?
-      configureFlags: --extra-framework-dirs=...swift
-      . Comes out of pkgsHostHost and pkgsHostTarget, it just snags everything
-        in those that have a $p/Library/Frameworks subdir.
-    / Try patching nixpkgs to just not pass that flag.
-      . Requires a recompile of everything, but I'll need it anyawy.
-      . It even wants to recompile ghc itself, WTF?
-        pre:  /nix/store/m5lzahwb1p7lq2r223w6l241g8w4jpia-ghc-9.2.1.drv
-        post: /nix/store/s3x4w2gvsb21cp5ynszmnfphm0j2qb6m-ghc-9.2.1.drv
-      . Because ghc uses alex and happy, which are affected by the change.
-      . But if ghc doesn't propagate that flag, I don't need to recompile it.
-      . For some reason base.conf doesn't have framework-dirs:, maybe because
-        it doesn't wind up in ghc's pkgsHostHost or pkgsHostTarget?
-      . How can I cut it out of those?
-      . They are not in build inputs, must be set via setup hook in
-        propagatedBuildInputs or something
-      . Hooks are run inside pkgsHostTarget, but how does it get set in the
-        first place?
-      . "each deps<host><target> is taken from automatically taken from
-        pkgs<host><target>" - that implies pkgs comes first, except deps* are
-        actually in the drv env, not pkgs*.
-      . /nix/store/gjlfv529myzkpym2zbnhgpshq9rjv0bs-aeson-2.0.3.0.drv
-      . aeson.drv does have $pkgsHostHost and $pkgsHostTarget, but they don't
-        have swift.
-      . Try doing the build manually and see where configureFlags comes in.
-      . This is from prePhases, $setupCompilerPhase!
-      . Aha it is in $pkgsHostTarget, I was misled by stupid bash arrays.
-      . Ok so whence pkgsHostTarget?
-        Not in the .drv, does nix-shell run setup?  Yes, must have been set
-        there.
-      . It must be _addToEnv, but it doesn't actually put anything into pkgs*,
-        but uses them to run hooks instead.
-      . I think it does, but indirectly via varVar, yay shell "pointers".
-      . findInputs...
-      . What do I really want to know?  WHERE does that swift thing come from?
-        It must be one of the inputs to findInputs, which are?
-        If findInputs output is pkgs*, what are its inputs?
-      . AHA, $defaultNativeBuildInputs, and $defaultBuildInputs
-      . Clearly they thought this should really be in all builds, why though?
-        It would be really good to know the difference between CF and
-        cf-private, why I get both, and why fltk doesn't like CF (swift).
-      . Meanwhile, what is the easiest way to hack that flag out of the link
-        line?
-    * Figure out a low level way to get those -F flags out of ghc link to
-      verify that it actually would fix the problem.
-      . Can I ask ghc to use a custom cc wrapper?
-      . settings has "C compiler command"
-      . Apparently no way to override other than editing that file, but hard
-        in nix :/
-      . I can edit the file though.  But no good, maybe env vars are still
-        set?
-      . Without vars, can't find Cocoa.  Even if I include it explicitly.
-      . Turns out ghc uses @-args to indirect, have to expand that out.
-        And they use ""s, have to strip those.
-      . Holy cow, yes I can get it to build by filtering out swift.
-      . Needless to say this is not a realistic final solution.
-      . vi /nix/store/pnrxhcczrx89wp18wfbjvadfgc50pd9a-ghc-9.2.1/lib/ghc-9.2.1/settings
-        set ,("C compiler command", "/Users/elaforge/src/karya/ccwrap.py")
-    . As an aside, /nix/store/pnrxhcczrx89wp18wfbjvadfgc50pd9a-ghc-9.2.1 in
-      multiple places is probably why all the duplicated flags.
-    . Note swift is already in NIX_CFLAGS_COMPILE, but dunno if that has
-      anything to do with the pkgs* stuff.
-    * What is a real solution?
-      . swift in defaultInputs just sounds wrong, though it was presumably
-        put there for a reason.
-      . But why does this only happen for ghc builds, not c++?
-      . It must have to do with how the cc wrapper uses the env vars to put
-        the flags on, though NIX_CFLAGS_COMPILE_FOR_TARGET and
-        NIX_CFLAGS_COMPILE do contain swift, and near the end.
-      . With -F, is it first match wins or last match wins?
-        Since it works if swift comes second... maybe I actually want swift
-        and not the non-swift and the problem is ghc for some reason gets
-        both?
-      . In that case, where does non-swift come from?
-      . Actually ghc looks like only swift, so...
-      . Holy cow, it works if I put on -framework-path
-        /nix/store/rrxzrwa47dfxz7mm2wz873mkw4ryrigz-apple-framework-CoreFoundation/Library/Frameworks
-      . So I guess it goes first and we are then happy?
-      . Can I add cf-private to my link line?
-    / Is it due to new nixpkgs?  Downgrade and see.
-      . I can't tell, because now *all* compiles seem to fail, with
-        ld: file not found: /usr/lib/system/libcache.dylib for architecture x86_64
-      . Presumably this is an impure dependency which is maybe gone on newer
-        darwin.
-      . Do I get this on my old darwin?
-      . Yes, known issue in nixpkgs.
-      . In any case, downgrade doesn't help.
-  * upgrade to ghc-9.2.2 on the non-nix setup
-    . Should I keep using non-nix?  Why not?  CI has the nix setup covered.
-    . Try out ghcup?  It seems to be basically like set-version.py.
-    . Can I then drop 8.8 compatibility?  It means I could try out
-      OverloadedDotRecords.
-  * upgrade to ghc-9.2.1
-    . 9.0 is pretty buggy, wait for 9.2.
-    * 9.2.1 has no profiling, wait for 9.2.2:
-      https://gitlab.haskell.org/ghc/ghc/-/issues/20707
-    things that broke:
-      errors:
-        . NondecreasingIndentation no longer set by default
-        . ghc package now exports Language.Haskell.Syntax
-        . Type variables starting with _ now disallowed:
-          Found type wildcard ‘_b’
-        . GHC API has changed as expected.
-      warnings:
-        . ($xyz) (%1) -Woperator-whitespace-ext-conflict
-    upgrade modules
-      * easier to wait for 9.2 in nixpkgs?
-      * fclabels, once again it's th, look into th-compat?
-        . or maybe switch to microlens, or optics
-      * med-module - bytestring >=0.9.2 && <0.11, ghc has 0.11.1.0
-      * hedgehog - template-haskell >=2.10 && <2.18, ghc has 2.18.0.0
   - I want to do vibrato and vibrato depth, but it's a pain to add new tracks.
     . But it should be in pitch, do I have vibrato settings there?
     . Maybe I should use the provided ways though, or at least be able to.
@@ -964,34 +680,6 @@ UNSORTED
     note = Eval.eval_one_call True $ Expr.call0 Symbols.null_note
   - Since gliss uses a 'n' parameter for note transform, I should use it
     consistently, e.g. in grace and roll.
-  * It's awkward to rearrange tracks and then redo the skeleton.  Since
-    I never really want tangled skeleton anyway, can't I make that implicit?
-    . I could say the skeleton always goes left to right, and only branches,
-      never merges.  So the control is the tree structure and the ordering of
-      the toplevel tracks, and I think the rest can be inferred.
-    . Write infer_order_from_skeleton, and infer_skeleton_from_order.  I can
-      invoke the first after modifying the skeleton, and the second after
-      moving a track.
-    . Actually, how can the second work, if I don't have the tree structure?
-      If I just have the first I would have to move tracks by modifying the
-      skeleton, but that seems pretty awkward.
-    . The restricted skeleton is like that which is used by integration and
-      ModifyNotes: [(Note, [Control])].  Except I have a tree of controls on
-      top: [TopControl] where
-        data TopControl = TopControl Title [TopControl]
-          | TopNote Note
-        data Note = Note Title [Control]
-        data Control = Control Title
-    . Or maybe I could address it directly by making track move work on the
-      whole note track.  I can already do this by just selecting all the
-      children, but this would make it automatic.
-    . But I originally added this entry because I was swapping a control from
-      below to above.
-    . I guess I could have a move variant that keeps the skeleton the same.
-    . The other annoying thing is having to manually add e.g. the tempo track
-      to all new note tracks.  I sort of get around this with the insert-above
-      etc. cmds, maybe I just need to make those smarter, or understand them
-      better?
   . What would I actually need to have a useful TrackTime?
     . TrackTimes come from Events, and they are absolute measures.  Addition
       and subtraction yields ScoreTimes:
@@ -2430,10 +2118,6 @@ vector: performance:
 
 instruments:
   new free vsts:
-    * surge: https://www.youtube-nocookie.com/embed/WtApPwO7pE0
-      . Enable MPE mode?
-    * OB-Xd: https://github.com/reales/OB-Xd
-      . Sounds nice but ccs and pb range seem undocumented.
     - monique: https://github.com/surge-synthesizer/monique-monosynth
     - samples: https://librewave.com/about/
       . Not actually free?  Looks like it uses HISE but the samples are not
@@ -2619,47 +2303,9 @@ instruments:
     . https://rust-audio.discourse.group/t/useful-resources-for-learning-about-audio-development/33
 
 synth: im:
-  * deleting a bunch of notes:
-    assertion: assertion failed at fltk/TrackTile.cc:258 track_at():
-      '0 <= tracknum && tracknum < tracks()': 5
-      TrackTile::track_at
-      TrackTile::get_track_width
-      MsgCollector::push_update
-      MsgCollector::track
-      EventTrack::Body::draw
-      Fl_Widget_Surface::draw
-      CachedScroll::redraw
-      CachedScroll::draw
-      Fl_Group::draw_child::Fl_Widget
-      Fl_Group::draw_children
-    . I wonder if it's due to putting tracknum in EventTrack, since it'll get
-      out of date?
   - deleting all notes on a track doesn't clear the waveform
-  * play offset not working!?
-  * im: don't redo im when track title was just selected and unselected
-    . I think fltk used to not even emit the msg when it was unchanged.
   - im: save_state_as should do im rerender
-  * LInst.add_im and add should automatically notice when it's a dummy and
-    switch it, with a warning.
   - im: unison thru for wayang-pasang, rambat-pasang
-  * im: track solo not working as expected, when I mute >ra or >r
-    . mute works for >r but not for >ra!?
-    . It's because Perf.infer_muted_instruments infers >ra, but the real
-      instruments are >rai >rau
-    . I could fancy up dummy instruments to include their implied real
-      instruments, or I could go lower level and look at the instruments
-      actually emitted by a track.
-    . Of course this could be too many if some other instrument shares the
-      track, but this is a tension between im going by instrument, while
-      instruments are technically track-independent.
-    . For look at track, it has to look at all events so can be expensive.
-      Since mute goes out on every play, I should cache it in Performance.
-    . It would spoil track play laziness, but I haven't had that for quite
-      a while anyway, since Cmd.perf_events is a Vector.
-    . It works, but doesn't seem to be lazy enough, it's forcing all TrackIds
-      instead of just the muted ones.
-    . Taking out of NFData and Map.Lazy fixed it, but can I not even look for
-      non-im instruments?
   StreamAudio directly to remove DAW + VST requirement
     . I could do automatically if there's no play-cache instrument.
     ? Does the blocking API write enough in advance that I don't have to
@@ -3329,11 +2975,6 @@ synth: im:
         out of sync.
       . What's so bad about global though?
   sampler: sampler-im:
-    * sometimes file not found is caught, sometimes uncaught:
-      SystemError {errorString = "openFile
-        \"data/sampler/sc-gamelan/gongs/Kempur-A106.flac\":
-        No Error."}
-      . Looks like yet another hsndfile bug... should I upstream my fixes?
     - even though I don't need a voice limit, it would still improve
       performance.  E.g. long cengceng tails add up to a lot of voices.
     ? anything to learn from HISE?
@@ -4004,134 +3645,12 @@ shakefile: build:
     . It's easier to use Quiet, otherwise shake wants to print too much stuff.
   - run with --lint-fsatrace:
     . https://well-typed.com/blog/2019/08/exploring-cloud-builds-in-hadrian/
-  * try out text-2 and see if performance changes
-    . However it's a bootlib, can I really change those?
-    . Maybe, ghc doesn't depend on it.
-    * Try a nix build to see if all my deps have caught up to it.
-      . megaparsec ==9.2.1,
-        ghc-events ==0.17.0.3,
-        concurrent-output ==1.10.16,
-    . I can do a non-nix build, but it's then a pain to switch back and forth,
-      especially since cabal sandbox is gone.
-    . But upgrading packages is actually no problem, let's try that.
-    . But upgrading text-2 will require recompiling tons of stuff, so not so
-      easy.
-    . Maybe imitate it by moving ~/.cabal and ~/.ghc?
-    . maybe a little help?
-  * support cabal v2
-    . ensure works:
-      * tests
-      * criterion
-      * haddock
-        . haddock: internal error:
-          /Users/elaforge/.cabal/share/doc/x86_64-osx-ghc-9.2.2/primitive-0.7.3.0/html/primitive.haddock:
-          openBinaryFile: does not exist (No such file or directory)
-      * nix build
-        . Could not load module ‘Prelude’
-        . after -hide-all-packages there are no package lines.
-        / ghc-events dep is annoying
-          . I would need the extraPackages, except that's pretty hacky and
-            annoying.  Also I'm not sure how it could work for the package-id
-            thing.  I guess I'd need a whole mapping mechanism to get the IDs,
-            which is doable but kind of a pain.
-          . v2 can just provide them all, because it gets chosen at configure
-            time.  So let's do that for the others too.
-          . Ok but then how do I know in the shakefile which packages are
-            enabled?  v2 uses 'cabal repl' to ask for them.
-          . For nix I can just list them all, but that's no good for v1 style.
-          . For nix and v1 I just want to use whatever packages are needed.
-          . Ok so then we're back to separate strategies for v1 and v2.
-          . If I use all of them, how does criterion work for v1?
-          . Why not list them all for v1?  That's what enablePackages was
-            supposed to be.  And I need that anyway for ghci.
-          . Ok then the problem is that v2 does config with cabal configure,
-            but v1 and nix need it in another spot.  In that case, can
-            I do the same?  I guess I need a configure equivalent, like
-            Config.enableEkg.
-          . In practice it worked for criterion because they are leaves.
-          . Simplification for nix is everything is always on, except not
-            really ekg so not.
-          . Ok so Shakefile writes files for flag, then default.nix takes
-            [str] for flag->deps.
-          . Too much hassle, how about just comment out ghc-events since I'm
-            not using it.  Then nix has everything except ekg hardcoded.
-          . I think eventually v1 will have to go away, so it'll be nix+v2.
-            So I should ask about how to better get package flags, then use
-            that also for fix-imports.
-      * haddock on v1
-    * remove the all-deps.cabal thing
-      . This means enableIm is always on, so I can remove that too.
-    * use cabal flags for optional deps like ekg and criterion
-      . If I put -package flags in packageDbFlags then I lose the extra
-        packages for compileHs and linkHs.
-        . They can't work anyway for cabal v2 because I need -package-id.
-        . They're just used for ekg I think, so maybe instead I add that via
-          cabal flags.
-        . Actually it's for criterion.
-        . It's still useful to include the packages conditionally, and in fact
-          I can do that except that bizarre vowel-less naming scheme.
-    * new warning from ghc api:
-      . The following packages were specified via -package or -package-id
-        flags, but were not needed for compilation:
-    * link warnings:
-      . I could just move them out of the way, but I get permission denied,
-        some kind of extended attribute protection?
-      . Alternately, a system update should fix them.
-      . ld: warning: text-based stub file
-        /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/SharedFileList.framework/Versions/A/SharedFileList.tbd
-        and library file
-        /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/SharedFileList.framework/Versions/A/SharedFileList
-        are out of sync. Falling back to library file for linking.
-    * update docs
-      . hlibgit2 on hackage won't build, have to have instructions to
-        git clone and modify cabal.project
-    notes:
-      . https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/packages.html#package-environments
-      . Either use -package-env flag or write .ghc.environment.arch-os-version
-      . Then stop passing flags on the cmdline.
-      . Install deps with: cabal build --only-dep
-      . But it's broken, hlibgit2 fails on '#include <openssl/sha.h>', and
-        --extra-include-dirs=/usr/local/opt/openssl/include
-        --extra-lib-dirs=/usr/local/opt/openssl/lib
-        has no effect, and I can't build it manually due to the cabal version
-        mismatch.
-      . How are you supposed to install deps in the v2 world?
-      . Declaring e.g. c-storable as a "local package" could make it easier
-        to use that since I could change it.  But maybe not since I'm not
-        building with cabal?
-      . deps are in ~/.cabal/store/ghc-9.2.2/package.db
-      . Compiles with:
-        -hide-all-packages -no-user-package-db
-        -package-db /Users/elaforge/.cabal/store/ghc-9.2.2/package.db
-        -package-id base-4.16.1.0 -package-id bytestring-0.11.3.0 ...
-      . hlibgit2 *still* fails, can I use cabal.project to force the flag on
-        that one?
-        packages: ./*.cabal
-        constraints:
-            ghc-lib-parser-ex -no-ghc-lib -auto
-      . Fixed in head, it was the custom cabal build:
-        https://github.com/jwiegley/gitlib/issues/92
-      . Indeed I wind up with multiple packages with the same version, how
-        does cabal distinguish?
-      . `cabal repl --verbose' has to print it?
-        Yes indeed, but there's apparently no way to just ask for it, though
-        I colud just parse output from cabal repl...
-      . It's very slow though.  Can I build it?  Inputs are karya.cabal, so it
-        would hardly ever rebuild.
-      . That would mean I have to put configure after build, which seems
-        awkward.
-      . I could do a simple build manually, write
-        build/package-flags-$(hash karya.cabal)
   nix:
     . https://app.cachix.org/cache/elaforge
     - I don't like how /usr/local/src/fltk leaks into the nix build.  I should
       probably replace Local/ShakeConfig.hs for the nix build, but I'll get
       constantly caught out if I don't restore it after nix-shell exits.
       Unlike env vars, I can't have the filesystem only changed in the shell.
-    * annoying warnings on nix darwin build:
-      . ld: warning: /nix/store/jidccqzwwm1mgynd434ndxk2gykv9dqz-libiconv-50/lib/libiconv.dylib, ignoring unexpected dylib file
-      . But only for test build?  Not opt?  Seems to happen only when -fhpc is
-        passed.
     - Look into 'tinc', it uses the cabal solver to decide on versions.
     - Broken with withEkg.
       . Because ansi-wl-pprint 0.6.9 doesn't compile, no profiling on
@@ -4261,27 +3780,6 @@ integrate: integration:
       . Is there really a use for this, other than consistency?
       . Yes, I want to do this for generated parts.
   derive integrate:
-    * capture ambient dyn so I can cancel it out so I don't double apply it
-      . I can capture all controls, but what do with it?
-      . If it's .5, and the issue is .25, then I should *2.  But only if it
-        has .25 because it was *.5.
-      . Prelude.Control.set_absolute
-      . Oh what if I derive without controls?  I can't do that for all
-        controls, but maybe I reuse keep_controls.
-      . Works except I wind up with 0 instead of 1 for the leading section.
-      . Fixed but it's wrong, it should be on all events without dyn.
-      . For reyong I still wind up with 0x99, that's .6, which is from the
-        track title.  That's actually correct!
-      . Why does it sound so much softer then?
-      . It winds up with .45, not .6, why?  That's .75 * 0x99.  So this is
-        because %dyn=x overrides dyn, while 0x99 multiplies.
-      . The problem is that unsetting dyn in integrate doesn't work on a
-        set inside the deriver.
-      . But, don't I want that to affect it?  The set is integrated out, as
-        intended.  The thing that's not intended is the set becomes
-        a multiply.
-      . What if I don't reset dyn at all, but record ambient dyn, then invert?
-        0.5 becomse 0.5 0.25 0.5.
     - triggered instruments (like reyong) can ignore durations to merge tracks
       . Except that reyong is not Triggered, because I nominally have duration
         before damping.
@@ -4292,68 +3790,7 @@ integrate: integration:
         it.  The problem is to capture the intent that it's a damp, not
         a mute.  Maybe then I should use +damp!  But I do still want to
         control dyn.
-    integrate event text:
-      . reyong infer-damp integrate:
-      . Instead of +mute, just use zero dur events.  This should also get
-        the dyn right.
-      . It doesn't stop the notes.
-      . This is because Bali.zero_dur_mute_with reapplies with the 'm',
-        and simply setting to zero dur is not enough without the eval.
-      . So I either have to push the zero dur behaviour down to the
-        sampler, or infer-damp has to re-eval 'm's.
-      . This is another case where I really want to have separate levels
-        of score.  So I'd want an intermediate "concrete reyong score"
-        with exact playing instructions, which infer-damp renders to.
-      . Or not, even if I did re-eval, it actually wouldn't work with
-        integrate, because now I need to lift back up to high level.
-      . So it's actually the usual integrate problem.
-      . Can Common.common_call_map help?  It could go +mute to m (doesn't
-        for reyong), but can't go +mute to zero dur.
-      . Maybe a better way is to directly encode what this should be
-        integrated to?
-      . Why not use Score.event_text?
-        Do I still need a marker to say it's ok to use?  Otherwise won't
-        I double transformations as I emit both the event and the output?
-      . Call map was originally for drums, but won't event_text work for
-        those too?
-      . In fact, `seq` in mridangam would, because it uses re-eval, as
-        presumably so should they all.
-      . I should have tests for all these things:
-        * realize mridangam
-        * reyong infer-damp
-        * reyong byut byong
-          . byong gives a zero duration, gets reinterpreted as mute
-        * normal stuff: +attr, 'm' call, drum strokes, trill, delay
-          . Looks like +attr calls don't put event_text?
-          . It doesn't, I could make it do so, but what about '+attr |'?
-            What about '+attr | block'?  Rendering the attrs directly still
-            seems to make sense, along with mapping back through the call map.
-          . Maybe I should do so only if there is no event_text?
-        . Is it enough to test Convert?
-    * I got confused by >kontakt/reyong which sets *selisir
-      . via MidiInst.default_scale
-      . Why is this ever a good idea?  Can I remove it?
     - I could use use decimal for typed controls: s, t, nn, c, d
-    * seems like track integrate < was silently ignored in the block title?
-      Can it make an error?
-    * unwarp integration
-      . Due to Internal.in_real_time, but without it, I get the .5 tempo.
-        I think in_real_time doesn't work for anything that places events with
-        Derive.place.  Instead, I need to invert any tempo track.
-      . Since I'll have to save the tempo track anyway, how about instead the
-        block call stashes the surrounding Warp, and then I derive in that?
-      . That's not right though, because I don't want global time, but flat
-        TrackTime.  That really is 1:1, so why doesn't in_real_time work?
-      . I think it can't work right, because infer-damp depends on RealTime,
-        which will be different anyway.
-      . But that should make fewer damps, not broken damps.
-      . damp-dur=.15, notes are at .06, so makes sense they can't damp.
-      . To avoid being messed up by RealTime things, I think I have to
-        derive at tempo, and then unwarp them back.
-      . For that I need the inverse of block tempo... this is the normal
-        inverse warp if integrate is from the local derive.
-      . Actually no, I need to derive in normal time, and then unwarp the
-        results.
     - I get redundant pitches on noltol mute notes.
       . Can I omit repeated pitches?
       . Or maybe omit the pitches in the noltol itself so they inherit the
@@ -5885,9 +5322,7 @@ performance:
           and necessary.
 
 fltk:
-  * WrappedInput doesn't get clicks outside of its track area
   - WrappedInput expansion incorrect when entering in already-wrapped
-  * backspace to make a floating input shrink, doesn't redraw
   - when editing a floating input or resizing a track afterwards, the whole
     window went black.  How to reproduce?
   - embiggening the rightmost track could embiggen the window too
@@ -5895,36 +5330,8 @@ fltk:
       window always fit the tracks.
     . How about resizing automatically when it's from a drag?
       On the other hand, maybe I don't want to encourage manual drags?
-  * fltk/MsgCollector.cc:434 unknown event: FL_DRAG, drag on track title
-  / wrapped event text is drawing past the next event
-    . When did this start happening!?
-    . I can't reproduce it now.
-  * Zoom to fit text on events.
-    . The idea is to set time zoom such that all event texts are shown.
-    . Actually a more useful thing might be to zoom such that event texts at
-      a certain timestep are shown.  This is recovering tracker style space
-      efficiency.
-    . Unlike width, height is constant for a font (except symbols!), so
-      I could compute this haskell-side.
-    . In fact, I could replace free zoom with zoom by timestep.
-    . Maybe once I do that, I can try 2D tiling again, because I won't have to
-      always have blocks be full height.
   shrink tracks: suggested widths:
     . Shrink tracks to fit text width
-    * doesn't expand properly
-      . If it's a long word, then a short word, it doesn't go to show right
-        side: "blaooeu h"
-    * implement with Block.track_suggested_width
-    * It's not right when text is wrapped.
-      . Because boxes are post-wrap, when I really want pre-wrap.
-      . This is bad when adding new long text and then resizing, because new
-        text is naturally too wrapped.
-      . What I really want is to generate boxes wrapped to whatever they can
-        be such that all text is visible.
-      . However, if it's not free then I don't want to do it all the time,
-        only on request.
-      . I can put a flag in saying if letters have wrapped.
-      . What if I don't wrap letters?  Do I ever want that?
     notes:
       . Could I even automate this?  Make tracks always wide enough to fit the
         longest text, up to some limit.
@@ -7425,57 +6832,11 @@ Derive:
       - pick better nns for pemero notes 4 and 7
       - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
     kotekan: gangsa:
-      cleanup:
-        * sampler Patch.patch include karyaPatch modifier
-        * rm range from LAlloc
-        * better error for out of range in Kontakt/Wayang_test.hs?
-      * error "note with dummy insrument" is confusing
-        . note with dummy instrument: (0s, .17s) pemade 5i
-          {s "untitled/b1 untitled/b1.t2 0-.5"}
-        . It means I need a unison or something.
-        . Either make unison the default, or allow it to have a custom error.
-        . I can put a msg in Dummy, but this turns into more work because I
-          don't actually use Dummy for gangsa patches, but rely on the
-          "allocate as Dummy".  Maybe it's time to get rid of that?
-        . On the other hand, maybe UiConfig.Dummy should be the only one?
-          Otherwise it seems error-prone to have to make them match.
-          That would make any instrument Dummy-able, but there would be
-          no indication it's meant to be used that way except a docs.
-        . Except that the lilypond dummy instrument shouldn't have Midi!
-        . Why does midi wayang have dummy instruments while im wayang doesn't?
-          Looks like LAlloc adds the necessary fields in the alloc.
-        . But how can it do that without a backing instrument?  It uses ""
-          for inst_qualified, which is apparently ok?  Won't that cause
-          problems when Cmd wants to look up the patch?
-        . Looks like yes, maybe it's broken but I haven't hit that?
-        . Yes, LInst.allocate will complain "instrument not in db: /".
-          It's allocated directly via LAlloc though, so I don't hit that?
-          No I do hit it, I must have implemented the checking later!  Ok it's
-          definitely broken.
-        . This means LAlloc doesn't have to pass range, because the patch
-          should have it, but also I have to make dummy patches for
-          sampler/rambat, sampler/wayang-pemade, sampler/wayang-kantilan
-        . Is this really better though?  Doesn't it clutter up patches?
-          I guess it moves some config info from allocs to patches.
-          Isn't it nicer to have it all in allocs?
-        . I could explicitly support or require "/" as the dummy instrument.
-        . If lilypond is the only patch level dummy, then make it Lilypnod
-          backend?
-        . Wait, I must have Inst.Dummy because I need a place to put cmds!
       - kotekan on gangsa didn't say when notes were out of range, just silence
         . 4i, 3u - 3u 3a doesn't play
           pemade inst-bottom: (pitch 4 1), but isn't that 4o?
           I guess the midi instrument goes down to 4i, and I don't use
           inst-bottom at all for checks.
-      * When very low has a crummy error:
-        . convert pitch: -100000000000s: (semi: -3) out of range (0, 29)
-          no pitch signal
-        . I could pretty print >=RealTime.large as "(forever)" or something.
-        . It's from Pretty OutOfRange.
-        . convert pitch: -100000000000s: pitch scale degree -3 out of range
-          0--29
-        . Should say which scale!  Who can annotate that?
-        . Should say it symbolically, not scale degree number.
       - >gangsa instrument, which is pemade + kantilan
         . It can be a alias of `multiple`:
           gangsa = multiple "(inst=pemade) "(%t-oct=1 | inst=kantilan)
@@ -7596,8 +6957,6 @@ Derive:
         I duplicate the entire structure, from score on down.  Score
         integration could theoretically do that.
     trompong:
-      * octaves shouldn't be able to infer damping
-        . E.g. (6e 6o 6o, 5e - 5o)
       - I need a better way to notate a section as lower octave.
         . vv doesn't work is a note parent.
         . This is similar to octaves notation for gender rambat.
@@ -7621,7 +6980,6 @@ Derive:
       - divide infer-damp into infer-hands, and then use hand-damp.
         That way I can put an integrate after infer-hands, as
         a visualization if nothing else.
-      * Damp level is way too high, I have to put %damp=.2 everywhere.
       - remove kilit, isn't it just norot now?
       - for infer-damp, also infer damp level
         . Damp gets louder when notes are closer, or faster.
@@ -8117,7 +7475,7 @@ text score: tscore:
     . Also endings change depending on where they are going.
     . Copy from block should be able to do this.  But since it's time-locked,
       it wouldn't work for an alternate beginning.
-  * negative durations:
+  + negative durations:
     . So I can put beats at the end:
        e o u e | i o a i | ~ o ~ e |
          o-2 e |   o   i |   ~   e |
@@ -8580,14 +7938,6 @@ darwin:
 
 linux:
   - gutters between tracks have little artifacts
-  * ci suddenly doesn't want to see libjack
-    . Well as soon as I put ls in, now it does...
-    . No it doesn't again.
-    . /nix/store/v6z1r780vbgbj3fvs09f6b91fk8dcd13-libjack2-1.9.19/lib/libjack.so.0
-      does exist, why does it find everything else and not this?
-    . nixos links against the exact same v6z1r
-    . but patchelf --print-rpath shows xv36!
-    . rm -rf build fixed it, probably stale .o files
   - decorated_h() is 0 even with decorations, which messes up maximize
     . How does fltk X implement decorated_h()?
     . Via XGetWindowAttributes, but it also doesn't include the decorations.
@@ -8721,99 +8071,6 @@ linux:
         for block title.
       . For unwrap I can set max_width to 0, which is unlimited.
 
-  * floating input broken:
-    . Is it because of point to focus?
-    . No, happens even with ClickToFocus.
-    . Also happens with track title, so it's all FloatingInput
-    . Because it's immediately done, because it doesn't have focus.
-      I can get it to have focus by dragging, but then when it loses it
-      somehow the main window doesn't get it back.
-    . Click:
-      . SHOW, FOCUS, wrapped_input_cb but ignore because not ready
-      . input has focus
-      . block title gets FL_LEAVE (?)
-      . get FL_ENTER, FL_LEAVE, FL_LEAVE, FL_ENTER, FL_UNFOCUS
-        I don't know where these events come from!
-      . wrapped_input_cb, and focus is null, so delete
-    . With ClickToFocus, I still get FL_UNFOCUS right after create.
-      It doesn't have all the extra ENTERs and LEAVEs for some reason.
-    . In any case, deleting on unfocus is no good in a world of point to
-      focus.  Text entries do not point to focus, so I need for focus to
-      remain on it until I do return, or click elsewhere in the same app.
-    . This is how input focus works inside the app, so I don't really want
-      a separate Fl_Window.
-    . Also separate window won't work with tiling WMs, unless configured to
-      ignore that window.  Maybe?  If the window is marked transient maybe
-      they don't.
-    . No problems in the block title, so it's a FloatingInput problem.
-    . Why not use an ovelapping Fl_Widget?
-      I think fltk gets weird when widgets overlap?
-    click sequence:
-      . window FL_SHOW
-      . child FL_SHOW
-      . child FL_FOCUS
-      . window cb called, but ignored since it's not marked "ready" and no focus
-      . created input, after child.take_focus(), child focused
-      . FL_NO_EVENT * 24 with dmg=all+child
-      . FL_NO_EVENT with dmg=all+child+expose
-      . FL_NO_EVENT but with no damage
-      . window FL_ENTER
-      . child FL_LEAVE
-      . child FL_ENTER - focused
-      . child FL_LEAVE - focused
-      . window FL_LEAVE
-      . child FL_LEAVE - focused
-      . window FL_ENTER
-      . child FL_ENTER - focused
-      . child FL_UNFOCUS - unfocused
-      . child closes!
-    other event oddity: I only ever get FL_LEAVE, never FL_ENTER?
-    meanwhile on OS X:
-      . window FL_FOCUS
-      . child FL_FOCUS
-      . child FL_UNFOCUS
-      . window FL_UNFOCUS
-      . window FL_FOCUS
-      . child FL_FOCUS
-      . window FL_SHOW
-      . child FL_FOCUS
-    . This seems a lot more reasonable, except of course there is an extra
-      focus/unfocus.
-    ? Callback is called after FL_FOCUS, but child doesn't have focus yet.
-      Is this documented?
-    ? Then gets 26 FL_NO_EVENTs with different damage, what is this?
-    ? Window gets FL_ENTER as expected since the cursor is over it, but
-      why then does the child and parent then get multiple leave and enters?
-    ? Where does the final FL_UNFOCUS come from?
-    ? What about ClickToFocus?
-      . The events seem to be the same
-      . with SloppyFocus I actually see the subwindow as long as the mouse
-        button is down, but disappears as soon as it goes up, but with
-        ClickToFocus I never see the subwindow.
-    ? Is this something specific to block, or can I make a small fltk program
-      that does this?
-    BUT:
-      . Even if I do get it to work, I don't think it works with point to
-        focus, unless there's some way to disable it just for that window,
-        because keyboard focus will leave it!
-      . If I do a widget in fltk, then the focus is managed internally.
-        But fltk doesn't like overlapping widgets?
-      . How about try it to see what goes wrong.
-  * maximize via fvwm doesn't draw right
-    . It doesn't resize the widgets until I move the window around.
-  / maximize vertically crashes:
-    . X_CreatePixmap: BadAlloc (insufficient resources for operation) 0x1ed
-    . Gone when I fixed the above, maybe CachedScroll got the wrong height.
-  * resizing is broken, it doesn't seem to notify the drawing
-    . Maybe due to trying to fix the re-entrant resize problem?
-    . Should be fixed in newer fltk anyway.
-    . No?  Still buggy.
-    . The children are all sized properly, so it's not that.  They are wanting
-      to draw in the extra area, but fltk or X isn't drawing there.
-    . Neither logview nor browser have the problem, something specific about
-      block.  Also not haskell related, since test_block has it.
-    . I could simplify Block until it goes away, but it's a lot of work.
-    . It's my overridden BlockWindow::resize
   - ruler lines look fat
     . I feel like they are 2 pixels on OS X but 3 or 4 on linux.
     . Or maybe it's that the transparency isn't as transparent?
@@ -8823,23 +8080,6 @@ linux:
       FLTK_SCALING_FACTOR=2
     . It looks better with FLTK_SCALING_FACTOR=1, but then everything is tiny.
     . Maybe related to how OS X has antialiasing, but X doesn't.
-  * test_block track 2 gets box by M
-  * first ruler label draws above the line instead of below
-    . OS X correctly draws it below.
-  * scrollwheel too slow
-    . Can I tune the sensitivity somehow?
-    . Yes, but with hardcoded ifdefs, probably want to do in Local.Config
-      at some point.
-  * faust segfaults:
-    . many will crash in save/test/faust/tambura
-      e.g. data/im/notes/test/faust/tambura/faust/b4/faust
-    . faust-im specific or sampler-im does it too?  faust-im
-    . Where is the segfault?
-      . No longer happens if I don't InstrumentC.destroy the patch.
-    . It was getState reading an unsafe pointer after deallocating the patch.
-    . Does sampler-im do this too?
-      . I think yes in theory, no in practice because it doesn't ask.  Fix it
-        anyway.
   jack: JACK:
     bugs
       - something is still wrong, I get "no space in output port" and then
