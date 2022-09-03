@@ -4004,7 +4004,7 @@ shakefile: build:
     . It's easier to use Quiet, otherwise shake wants to print too much stuff.
   - run with --lint-fsatrace:
     . https://well-typed.com/blog/2019/08/exploring-cloud-builds-in-hadrian/
-  - try out text-2 and see if performance changes
+  * try out text-2 and see if performance changes
     . However it's a bootlib, can I really change those?
     . Maybe, ghc doesn't depend on it.
     * Try a nix build to see if all my deps have caught up to it.
@@ -4017,7 +4017,8 @@ shakefile: build:
     . But upgrading text-2 will require recompiling tons of stuff, so not so
       easy.
     . Maybe imitate it by moving ~/.cabal and ~/.ghc?
-  + support cabal v2
+    . maybe a little help?
+  * support cabal v2
     . ensure works:
       * tests
       * criterion
@@ -4072,7 +4073,7 @@ shakefile: build:
     * new warning from ghc api:
       . The following packages were specified via -package or -package-id
         flags, but were not needed for compilation:
-    - link warnings:
+    * link warnings:
       . I could just move them out of the way, but I get permission denied,
         some kind of extended attribute protection?
       . Alternately, a system update should fix them.
