@@ -76,14 +76,6 @@ STATUS
   - make kendang sampler instrument
     . Make thru work for it, and refactor thru in general.
     . refactor thru:
-  + I should set up organized profiling, especially so I can profile before
-    and after warp as function, and linear segments.
-    . Mostly done, but I think I want to use criterion on some smaller
-      examples, since full scores still seems to be really noisy.
-    . I have this in the 'criterion' branch.  I investigated using 'gauge',
-      which has fewer dependencies, but it seems one of those is JSON export,
-      which I need.
-  - Find out why MemoryLeak latency: went up.
 
 external:
   - c-\ is wrong for local refs, e.g. follow 'parse' in Check_test.hs

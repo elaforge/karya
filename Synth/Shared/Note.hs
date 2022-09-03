@@ -159,7 +159,7 @@ encodeHash :: Hash -> String
 encodeHash (Hash hash) = ByteString.Char8.unpack $ fingerprint hash
 
 fingerprint :: ByteString.ByteString -> ByteString.ByteString
-fingerprint = fst . ByteString.Char8.spanEnd (=='=') . Base64.URL.encode
+fingerprint = ByteString.Char8.dropWhileEnd (=='=') . Base64.URL.encode
 
 instance Semigroup Hash where
     Hash h1 <> Hash h2

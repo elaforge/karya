@@ -46,3 +46,42 @@ c_22_02_20 = date 2022 2 20 $ ganesh $ korvaiS adi
     where
     nd3 = r3 nd
     nd = g $ on.su (su ktok).od
+
+c_22_03_02 :: Korvai
+c_22_03_02 = date 2022 3 2 $ ganesh $ korvaiS adi
+    [ "NNkD__NkNNkD__nknnkd__nknnkd" . p.u.su ktok
+    , "NNkD__NkNNkD__nknnkd_knd_knd__k_"
+    , make "kktkkooko"
+    , make (su ("ktknpktk".nakatiku) . o)
+    , make (su (r2 "Nkpknook") . o)
+    ]
+    where
+    make p9 = tri_ (su p6) (g p9 . "NkD__")
+        . su p6.u.__.su (kp.p6).u.__ . su (kpnp.p6)
+
+x_22_07_09 :: Korvai
+x_22_07_09 = elaforge $ comment "solo from dream" $ korvaiS1 adi $
+    -- From dream where I was singing with a large group.  Later switched
+    -- to mridangam but couldn't get a comfortable seat.  Famous player was
+    -- next to me.  After that a dream where I was doing something like this
+    -- solo.
+    -- all closed strokes, in this style but stretched out longer
+    -- K is hv, or rather preceding strokes are lt
+    "kktkkpkpkk" . su "pktkpkpktk" . "p_"."tkkpkkpkp" . su "ktkpktkp" ."k_"
+    . su "pktkpktkpktkpkpktkpkpktk".p.__.su "pkK_pkK_pktkpkpktk"."p_"
+    . su "pkK_pkpkK__kpkpkK_" . "_".su"_k"
+    -- TODO fix this up so it lines up better
+    . "Kkkkkktkkpkpkkpp".su "pktpkpktk"."p_kk".su "pktpkpktk"."p__kkk"
+    . su "pkpktpktkpktkp"."___".plak.__ . su "pktkpktk"."p___".plak.plak.__
+    . su "pktkpkpktkpkpktk"."p__"
+    . lt (su "pktkpktkpktkpktk".su (r6 "pkt").p.__).plak . su (r5 "pkt".__).__
+    . plak.__.tri_ plak (su "pktpkt__") . "__________"
+    -- after a long while do nam
+    . hv k.su pk."pkpkkppkpkkp"."NN". __.su pk."pkpkkppkkpk".su pk."pk"
+    . hv k.su pk."pkpkkppkpkkp"."NN". __.su pk."pkkp"."NN".__."kkp_kkp"
+    -- etc.
+    where
+    -- but tha with fingers in the middle
+    plak = hv (p&k)
+
+elaforge = source "elaforge"

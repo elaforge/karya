@@ -267,10 +267,16 @@ data Scale = Scale {
     } deriving (Eq, Show)
 
 instance Pretty Scale where
-    format (Scale name key_to_nn) = Pretty.record "Patch.Scale"
-        [ ("name", Pretty.format name)
-        , ("key_to_nn", Pretty.format key_to_nn)
-        ]
+    format (Scale name _) = Pretty.constructor "Patch.Scale" [Pretty.text name]
+    -- key_to_nn is kind of noisy and usually not interesting
+    -- format (Scale name key_to_nn) = Pretty.record "Patch.Scale"
+    --     [ ("name", Pretty.format name)
+    --     , ("key_to_nn", Pretty.format $
+    --         List.dropWhileEnd (== -1) $ dropWhile (== -1) $
+    --         Unboxed.toList key_to_nn)
+    --     ]
+    --     stripped xs =
+    --         where ys = List.dropWhileEnd (== -1) $ dropWhile (== -1) xs
 
 no_pitch :: Double
 no_pitch = -1
