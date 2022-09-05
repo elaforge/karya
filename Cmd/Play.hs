@@ -154,6 +154,10 @@ has_im = Maybe.isJust <$> im_addr
 
 -- * play
 
+set_previous_play :: Cmd.M m => Text -> Cmd.CmdId Cmd.PlayArgs -> m ()
+set_previous_play name cmd = Cmd.modify_play_state $ \st ->
+    st { Cmd.state_previous_play = Just (Cmd.PlayCmd name cmd) }
+
 -- | Play the local block from its beginning.
 local_block :: Cmd.M m => m Cmd.PlayArgs
 local_block = do

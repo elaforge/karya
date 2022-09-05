@@ -107,12 +107,22 @@ all_keymap_errors :: [Text]
 io_bindings :: [Keymap.Binding (Cmd.CmdT IO)]
 io_bindings = concat
     [ file_bindings, undo_bindings, quit_bindings
-    -- This actually belongs in 'play_bindings', but needs to be in IO.
-    , plain_char ' ' "stop then selection to point" context_stop
+    -- This actually belongs in 'play_bindings', but needs to be in IO, because
+    -- stopping involves possibly killing threads and stopping audio.
+    , bind_key_status [] (Key.Char ' ') "stop or play" stop_or_play
     ]
 
-context_stop :: Cmd.CmdT IO ()
-context_stop = unlessM Play.cmd_context_stop (Selection.to_point True)
+-- Previously a second space would contract the selection, but it didn't seem
+-- that useful.
+-- context_stop :: Cmd.CmdT IO ()
+-- context_stop = unlessM Play.cmd_context_stop (Selection.to_point True)
+
+stop_or_play :: Cmd.CmdT IO Cmd.Status
+stop_or_play = Play.cmd_context_stop >>= \case
+    True -> return Cmd.Done
+    False -> Cmd.gets (Cmd.state_previous_play . Cmd.state_play) >>= \case
+        Nothing -> Cmd.Play <$> Play.root_top
+        Just (Cmd.PlayCmd _ cmd) -> Cmd.Play <$> Cmd.lift_id cmd
 
 file_bindings :: [Keymap.Binding (Cmd.CmdT IO)]
 file_bindings = concat
@@ -171,8 +181,8 @@ play_bindings = concat
     , bind prev root "play root from top of window" Play.root_top
     ]
     where
-    bind smods key desc cmd =
-        bind_key_status smods key desc (Cmd.Play <$> cmd)
+    bind smods key desc cmd = bind_key_status smods key desc $
+        Cmd.Play <$> (cmd <* Play.set_previous_play desc cmd)
     block = [PrimaryCommand]
     sel = [Shift]
     prev = []

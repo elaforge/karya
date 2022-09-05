@@ -846,7 +846,13 @@ data PlayState = PlayState {
     -- minimum and maximum when multiple instruments live on one track.
     , state_im_progress :: !(Map BlockId (Map TrackId
         (Map ScoreT.Instrument (RealTime, RealTime))))
+    , state_previous_play :: !(Maybe PlayCmd)
     } deriving (Show)
+
+-- | Wrapper around CmdId PlayArgs to make it Showable.
+data PlayCmd = PlayCmd !Text !(CmdId PlayArgs)
+instance Show PlayCmd where
+    show (PlayCmd name _) = "PlayCmd " <> show name
 
 -- | Wrap Async to make it showable.  I use Async instead of ThreadId because
 -- I want to make sure they can run their finalizers when the app quits, and
@@ -886,6 +892,7 @@ initial_play_state = PlayState
     , state_play_multiplier = RealTime.seconds 1
     , state_sync = Nothing
     , state_im_progress = mempty
+    , state_previous_play = Nothing
     }
 
 -- | Step play is a way of playing back the performance in non-realtime.
