@@ -3,18 +3,63 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Ui.Ui_test where
+import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
+
 import qualified Util.Ranges as Ranges
 import qualified Cmd.Create as Create
+import qualified Cmd.Integrate as Integrate
 import qualified Ui.Block as Block
+import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Skeleton as Skeleton
+import qualified Ui.Track as Track
 import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
+import qualified Ui.Update as Update
 
 import           Global
 import           Types
 import           Util.Test
 
+
+test_modify_integrated_tracks :: Test
+test_modify_integrated_tracks = do
+    let ([tid], state) = UiTest.run_mkblock [(">", [(0, 1, "a")])]
+    state <- return $ score_integrate tid $ expect_right $ Ui.exec state $
+        add_integrated_track tid
+    equal (extract_tracks state)
+        [ (UiTest.mk_tid 1, [("a", False)])
+        , (UiTest.mk_tid 2, [("a", True)])
+        ]
+    right_equal (extract_tracks <$> Ui.exec state clear_score_track)
+        [ (UiTest.mk_tid 1, [("a", False)])
+        , (UiTest.mk_tid 2, [("a", False)])
+        ]
+
+-- This is all pretty complicated just for modify_integrated_tracks, maybe
+-- I should use this technique in Integrate_test.
+extract_tracks :: Ui.State -> [(TrackId, [(Text, Bool)])]
+extract_tracks = map (second extract) . Map.toList . Ui.state_tracks
+    where
+    extract = map event . Events.ascending . Track.track_events
+    event e = (Event.text e, Maybe.isJust $ Event.stack e)
+
+score_integrate :: TrackId -> Ui.State -> Ui.State
+score_integrate tid state = UiTest.trace_logs logs state2
+    where
+    (logs, state2, _damage) = expect_right $
+        Integrate.score_integrate [update] state
+    update = Update.Track tid Update.TrackAllEvents
+
+add_integrated_track :: Ui.M m => TrackId -> m ()
+add_integrated_track tid =
+    Ui.modify_integrated_tracks UiTest.default_block_id $
+        ((tid, Block.ScoreDestinations []) :)
+
+clear_score_track :: Ui.M m => m ()
+clear_score_track =
+    Ui.modify_integrated_tracks UiTest.default_block_id (const [])
 
 test_implicit_skeleton :: Test
 test_implicit_skeleton = do

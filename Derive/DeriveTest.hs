@@ -588,7 +588,7 @@ make_convert_lookup allocs db =
 -- *** log msgs
 
 trace_logs :: [Log.Msg] -> a -> a
-trace_logs logs = trace_all_logs (filter interesting_log logs)
+trace_logs = trace_all_logs . filter interesting_log
 
 -- | Write log msgs with 'Debug.trace_str', for debugging.
 trace_all_logs :: [Log.Msg] -> a -> a

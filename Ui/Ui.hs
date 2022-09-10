@@ -709,6 +709,7 @@ modify_integrated_tracks :: M m => BlockId
         -> [(TrackId, Block.TrackDestinations)])
     -> m ()
 modify_integrated_tracks block_id modify = do
+    pre <- dest_track_ids <$> get_block block_id
     modify_block block_id $ \block -> block
         { Block.block_integrated_tracks =
             modify (Block.block_integrated_tracks block)
@@ -716,6 +717,16 @@ modify_integrated_tracks block_id modify = do
     block <- get_block block_id
     require_valid ("modify_integrated_tracks " <> pretty block_id) $
         fix_integrated_tracks block_id block
+    -- fix_integrated_tracks will detect integrates where the track is gone.
+    -- If the track remains but a previously existing integration was deleted,
+    -- clear out the corresponding Event.stacks.
+    let post = dest_track_ids block
+    let gone = filter (`notElem` post) pre
+    mapM_ clear_integration gone
+    where
+    -- TODO This also gets derive integration, is that correct?
+    dest_track_ids = concatMap (Block.dest_track_ids . snd)
+        . Block.block_integrated_tracks
 
 -- | Set or clear the block's manual integration 'Block.NoteDestination's.
 -- This just attaches (or removes) the integrate information to the block so

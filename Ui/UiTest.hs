@@ -11,6 +11,8 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
+import qualified Util.Debug as Debug
+import qualified Util.Log as Log
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 import qualified Util.Test.Testing as Testing
@@ -463,6 +465,13 @@ add_pitches = go ""
 
 
 -- * state to spec
+
+trace_logs :: [Log.Msg] -> a -> a
+trace_logs logs val
+    | null logs = val
+    | otherwise = Debug.trace_str
+        (Text.stripEnd $ Text.unlines $ "\tlogged:" : map Log.format_msg logs)
+        val
 
 -- | Get the names and tracks of the default block.
 extract_tracks :: Ui.State -> [TrackSpec]

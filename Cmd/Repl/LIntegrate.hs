@@ -78,6 +78,15 @@ score_track = do
         ((track_id, Block.ScoreDestinations []) :)
     Cmd.inflict_track_damage block_id track_id
 
+clear_score_track :: Cmd.M m => m ()
+clear_score_track = do
+    (block_id, _, track_ids, _) <- Selection.tracks
+    Ui.modify_integrated_tracks block_id $ filter ((`notElem` track_ids) . fst)
+
+clear_score_tracks_of :: Ui.M m => BlockId -> m ()
+clear_score_tracks_of block_id =
+    Ui.modify_integrated_tracks block_id (const [])
+
 
 -- * revert
 

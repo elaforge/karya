@@ -119,6 +119,35 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
+  - why do I need UiConfig.meta_notes when I could put it in a comment in
+    UiConfig.config_ky?
+  * clear score track doesn't change the event text style
+    . Because events still have stacks.
+    . Can I make Ui.modify_integrated_tracks do it?
+    How do events get styles?
+      . presence of Event.stack causes Internal.set_style to set
+        Config.integrated_style
+      . ResponderSync calls Internal.set_style -> Sync set_style -> BlockC
+  - why do a get a short note when a track of the same instrument is muted?
+    . LPerf.sel_midi_events has dur .25, but midi has:
+      [ loop1 1.75s: chan:1 NoteOn e6(88) 64
+      , loop1 1.75s: chan:1 NoteOff e6(88) 100
+      , loop1 1.75s: chan:1 NoteOn e6(88) 64
+      , loop1 1.99s: chan:1 NoteOff e6(88) 64
+      ]
+    . why NoteOf vel of 100?  Source event has velocity = (.5, .5)
+    . The 100 is probably from Perform.default_velocity
+    . These are all duplicated notes!  So the mute is not really happening!
+    how to make this easier to debug?
+      - visualization for MIDI events?
+        . Or analysis back into notes and durations?
+        . I could tag things like overlapping NoteOns, orphan NoteOffs, etc.
+        . Doesn't Midi.State already do that kind of thing?
+          Or Midi.Synth?
+      - A trace for how each MIDI event is generated?
+        . At least keep a reference to the generating perform event.
+        . But I want to do it so it's efficient in the usual case when I don't
+          want it.
   - space leaks:
     . https://kodimensional.dev/space-leak
     . look for puts into MVar and IORef, make sure they are !
@@ -159,30 +188,6 @@ UNSORTED
       . Or move all of ky in megaparsec, and embed just p_val in attoparsec.
       . Look into this later, for now just have bad errors.
       . This gets kind of complicated because I need to merge configs now.
-      * Must call Instruments.update_ui at some point, in Ky.update_cache?
-        . Previously all it had to do was put in ky cache, and then it gets
-          pulled out on play, but now I have to update Ui.State.
-      * insert unparse_allocations into the ky file
-        . If I switch to having the entire config, I can get rid of this.
-      * error is only detected when I play after saving, that's too late
-        . Can I immediately report on ky save?
-        . It would have to throw from LState.set_ky.
-        . It always had this problem, it's orthogonal.
-        . I would need to eagerly do the ky load on save.
-        . But I don't want to parse and check it twice, so can I just take ky
-          text on change and parse and put in place?  check_cache is actually
-          designed for the original use, which is editing an external file
-          and watching for changes.  This still applies for imported
-          libraries.
-        . How then do I not do it twice?  I guess if Ky.set sets it, then
-          check cache should return a no-op, right?  Verify!
-      * report duplicate instruments
-      * infer NonMidi backend based on inst db
-      * bad parse error in instrument:
-        . 5:1: string in line "p⎣no pianoteq/ [ms] loop1 1 2 3 4 5 6 7 8"
-        . attoparsec msg is "string".. wut?
-        . I think the only way out is switch to megaparsec, or fork attoparsec
-          to not always backtrack.
     parse entire config:
       - implement Record below, so I can parse it
         . implement p_rval
