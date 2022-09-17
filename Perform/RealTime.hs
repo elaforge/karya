@@ -109,8 +109,8 @@ instance ShowVal.ShowVal RealTime where
 instance Pretty RealTime where
     pretty t
         -- Display 'large' specially, to avoid confusing giant numbers.
-        | t Prelude.>= large = "forever"
-        | t Prelude.<= -large = "-forever"
+        | t Prelude.>= large = "large"
+        | t Prelude.<= -large = "-large"
         | otherwise =
             Num.showFloatP False 2 (to_seconds t) <> Text.singleton suffix
 
@@ -137,7 +137,7 @@ large :: RealTime
 large = 1e10
 
 -- | Comfortably bigger than 'large', so it won't cross large given normal
--- amonuts of time shift.
+-- amounts of time shift.
 larger :: RealTime
 larger = 1e11
 

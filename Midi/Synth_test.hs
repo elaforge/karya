@@ -4,39 +4,20 @@
 
 module Midi.Synth_test where
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 
-import Util.Test
-import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
-import Midi.Midi (ChannelMessage(..))
+import           Midi.Midi (ChannelMessage(..))
 import qualified Midi.State as State
 import qualified Midi.Synth as Synth
 
-import qualified Perform.NN as NN
 import qualified Perform.RealTime as RealTime
-import Global
+
+import           Global
+import           Util.Test
 
 
-test_run :: Test
-test_run = do
-    let f = extract id id . run . map mkmsg
-    let (active, notes, ws) =
-            f [(0, 0, NoteOn Key.c4 38), (1000, 0, NoteOff Key.c4 38)]
-    equal active []
-    equal notes
-        [ Synth.Note (ts 0) (ts 1000) Key.c4 38 NN.c4 [] Map.empty
-            (Midi.write_device "dev", 0)
-        ]
-    equal ws []
-
-    let state = run $ map mkmsg
-            [ (0, 0, NoteOn Key.c4 38), (10, 0, NoteOn Key.c4 38)
-            , (20, 0, ControlChange 1 100)
-            , (20, 0, ControlChange 2 100)
-            , (30, 0, ControlChange 2 50)
-            ]
-    match (untxt (Synth.pretty_state state))
-        "active:*dev:0 60nn*warns:*sounding notes: *dev:0 60nn*"
+-- These tests overlap with each other.
 
 test_control :: Test
 test_control = do
@@ -76,11 +57,43 @@ test_warns = do
     equal active []
     equal notes [ts 100] -- one one cancelled
     equal (map fst warns) [ts 100, ts 200]
-    strings_like (map (untxt . snd) warns)
-        ["sounding notes: [dev:0 64nn", "multiple sounding notes:"]
-
+    strings_like (map snd warns)
+        [ "sounding notes: [dev:0 e4(64) 0s--"
+        , "multiple sounding notes:"
+        ]
     equal (f [(100, 0, NoteOn 64 10), (0, 0, NoteOn 68 10)])
         ([ts 0, ts 100], [], [(ts 0, "timestamp less than previous: .1s")])
+
+test_pretty :: Test
+test_pretty = do
+    let f = map Text.strip . Text.lines . Synth.pretty_state . run . map mkmsg
+        chan0 = in_order . map (0,)
+    strings_like (f $ in_order
+        [ (0, NoteOn 64 10), (0, NoteOn 64 20)
+        , (0, NoteOff 64 30), (0, NoteOff 64 40)
+        ])
+        [ "warns:"
+        -- overlapped NoteOn
+        , "1s dev:0 NoteOn e4(64) 20: sounding notes: [dev:0 e4(64) 0s--"
+        -- ambiguous NoteOff
+        , "2s dev:0 NoteOff e4(64) 30: multiple sounding notes: [dev:0 e4(64)\
+            \ 1s--"
+        -- extra NoteOff, assuming the previous cancelled both
+        , "3s dev:0 NoteOff e4(64) 40: no sounding notes"
+        , "notes:"
+        -- should probably be 0s--2s
+        , "dev:0 e4(64) 1s--2s: vel:14"
+        ]
+
+    equal (f $ chan0 [PitchBend 0, NoteOn 60 10, PitchBend 0, NoteOn 60 0])
+        [ "notes:"
+        , "dev:0 c4(60) 1s--3s: vel:0a"
+        ]
+    equal (f $ chan0
+        [PitchBend 1, NoteOn 60 10, PitchBend 0.5, PitchBend 0, NoteOn 60 0])
+        [ "notes:"
+        , "dev:0 c4(60) 1s--4s: vel:0a p:[(1s, 62nn), (2s, 61nn), (3s, 60nn)]"
+        ]
 
 test_pitch :: Test
 test_pitch = do
@@ -93,8 +106,8 @@ test_pitch = do
             , (1000, 0, NoteOff 64 38)
             ]
     equal active []
-    equal (map Synth.note_pitch notes) [64.5]
-    equal (map Synth.note_pitches notes) [[(ts 100, 65), (ts 200, 63)]]
+    equal (map Synth.note_pitch notes) [65]
+    equal (map Synth.note_pitches notes) [[(ts 100, 66), (ts 200, 62)]]
     equal warns []
 
 run :: [Midi.WriteMessage] -> Synth.State
@@ -115,3 +128,10 @@ mkmsg :: (Integer, Midi.Channel, ChannelMessage) -> Midi.WriteMessage
 mkmsg (ts, chan, msg) = Midi.WriteMessage
     (Midi.write_device "dev") (RealTime.milliseconds ts)
     (Midi.ChannelMessage chan msg)
+
+in_order :: [(Midi.Channel, ChannelMessage)]
+    -> [(Integer, Midi.Channel, ChannelMessage)]
+in_order msgs =
+    [ (ts * 1000, chan, msg)
+    | (ts, (chan, msg)) <- zip [0..] msgs
+    ]

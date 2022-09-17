@@ -18,11 +18,13 @@ import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Midi.Midi as Midi
 import qualified Midi.State as MState
-import Midi.State (Addr)
+import           Midi.State (Addr)
 
 import qualified Perform.Pitch as Pitch
-import Global
-import Types
+import qualified Perform.RealTime as RealTime
+
+import           Global
+import           Types
 
 
 -- * analyze
@@ -45,31 +47,40 @@ round_cents = (/100) . Pitch.nn . round . (*100)
 -- * compute
 
 data State = State {
-    state_channel :: !MState.State
+    -- constant
+    state_pb_range :: !(Map Addr PbRange)
+
+    , state_channel :: !MState.State
     -- | Notes still sounding.  This retains notes for 'deactivate_time' after
     -- their note-off to capture controls during the decay.
     , state_active :: !(Map Addr [SoundingNote])
     , state_notes :: ![Note]
     , state_warns :: ![(Midi.WriteMessage, Text)]
-    , state_pb_range :: !(Map Addr PbRange)
     } deriving (Show)
+
+empty_state :: State
+empty_state = State
+    { state_pb_range = mempty
+    , state_channel = MState.empty
+    , state_active = mempty
+    , state_notes = []
+    , state_warns = []
+    }
 
 -- | (down, up)
 type PbRange = (Pitch.NoteNumber, Pitch.NoteNumber)
 
 get_pb_range :: Addr -> State -> PbRange
-get_pb_range addr = Map.findWithDefault (-1, 1) addr . state_pb_range
-
-empty_state :: State
-empty_state = State MState.empty mempty [] [] mempty
+get_pb_range addr = Map.findWithDefault (-2, 2) addr . state_pb_range
+    -- This (-2, 2) thing is probably wrong, maybe I should crash.
 
 -- | SoundingNotes may still be open.
 type SoundingNote = NoteT (Maybe RealTime)
 type Note = NoteT RealTime
 
-data NoteT dur = Note {
+data NoteT end = Note {
     note_start :: RealTime
-    , note_duration :: dur
+    , note_end :: end
     , note_key :: Midi.Key
     , note_vel :: Midi.Velocity
     , note_pitch :: Pitch.NoteNumber
@@ -94,7 +105,7 @@ run state msgs = postproc $ run_state (mapM_ msg1 (Seq.zip_prev msgs))
     where
     run_state = Identity.runIdentity . flip State.execStateT state
     msg1 (prev, wmsg) = flip Reader.runReaderT wmsg $ do
-        let prev_t = maybe 0 Midi.wmsg_ts prev
+        let prev_t = maybe (-RealTime.larger) Midi.wmsg_ts prev
         when (Midi.wmsg_ts wmsg < prev_t) $
             warn $ "timestamp less than previous: " <> pretty prev_t
         run_msg wmsg
@@ -151,12 +162,12 @@ deactivate now state = state
         map (second (List.partition note_done)) $
         Map.toList (state_active state)
     still_active = Map.fromList $ filter (not . null . snd) $ zip addrs active
-    note_done note = case note_duration note of
+    note_done note = case note_end note of
         Just d -> now >= d + deactivate_time
         Nothing -> False
-    close note = case note_duration note of
+    close note = case note_end note of
         Nothing -> Nothing
-        Just d -> Just $ note { note_duration = d }
+        Just d -> Just $ note { note_end = d }
 
 deactivate_time :: RealTime
 deactivate_time = 1
@@ -177,7 +188,7 @@ make_note :: PbRange -> MState.Channel -> Addr -> RealTime -> Midi.Key
     -> Midi.Velocity -> SoundingNote
 make_note pb_range state addr start key vel = Note
     { note_start = start
-    , note_duration = Nothing
+    , note_end = Nothing
     , note_key = key
     , note_vel = vel
     , note_pitch = convert_pitch pb_range key (MState.chan_pb state)
@@ -196,11 +207,14 @@ note_off addr ts key = do
         n : ns -> do
             unless (null ns) $
                 warn $ "multiple sounding notes: " <> pretty sounding
+            when (ts - note_start n < 0.01) $
+                warn $ "short note: dur " <> pretty (ts - note_start n)
+                    <> " of " <> pretty n
             modify_notes addr $ const $
-                n { note_duration = Just ts } : rest
+                n { note_end = Just ts } : rest
 
 key_sounding :: Midi.Key -> SoundingNote -> Bool
-key_sounding key n = note_duration n == Nothing && note_key n == key
+key_sounding key n = note_end n == Nothing && note_key n == key
 
 -- | Append a CC change to all sounding notes.
 control :: Addr -> RealTime -> MState.Control -> Midi.ControlValue -> SynthM ()
@@ -245,23 +259,28 @@ warn msg = do
 
 -- | Format synth state in an easier to read way.
 pretty_state :: State -> Text
-pretty_state (State _chan active notes warns _) = Text.intercalate "\n" $ concat
-    [ ["active:"], map pretty (concat (Map.elems active))
-    , ["", "warns:"], map pretty_warn warns
-    , ["", "notes:"], map pretty notes
-    ]
+pretty_state (State _pb_range _chan active notes warns) =
+    Text.intercalate "\n" $ concatMap (\(a, b) -> "  " <> a : b) $
+    filter (not . null . snd)
+        [ ("active:", map pretty (concat (Map.elems active)))
+        , ("warns:", map pretty_warn warns)
+        , ("notes:", map pretty notes)
+        ]
 
-instance Pretty dur => Pretty (NoteT dur) where
-    pretty (Note start dur _key vel pitch pitches controls (dev, chan)) =
+instance Pretty end => Pretty (NoteT end) where
+    pretty (Note start end key vel pitch0 pitches1 controls (dev, chan)) =
         Text.unwords $ filter (not . Text.null)
-            [ addr_s, pretty (round_cents pitch)
-            , pretty start <> "--" <> pretty dur <> ":"
+            [ addr_s, pretty key
+            , pretty start <> "--" <> pretty end <> ":"
             , "vel:" <> Num.hex 2 vel
-            , if null pitches then "" else " p:" <> pretty pitches
+            , if null pitches then "" else "p:" <> pretty pitches
             , if Map.null controls then ""
-                else " c:" <> pretty_controls controls
+                else "c:" <> pretty_controls controls
             ]
-        where addr_s = pretty dev <> ":" <> showt chan
+        where
+        pitches = dropWhile ((== Midi.from_key key) . snd) $
+            (start, pitch0) : pitches1
+        addr_s = pretty dev <> ":" <> showt chan
 
 pretty_controls :: ControlMap -> Text
 pretty_controls controls = Text.intercalate "\n\t"
@@ -270,6 +289,6 @@ pretty_controls controls = Text.intercalate "\n\t"
 pretty_warn :: (Midi.WriteMessage, Text) -> Text
 pretty_warn (Midi.WriteMessage dev ts (Midi.ChannelMessage chan msg), warn) =
     pretty ts <> " " <> pretty dev <> ":" <> showt chan
-        <> " " <> showt msg <> ": " <> warn
+        <> " " <> pretty msg <> ": " <> warn
 pretty_warn (Midi.WriteMessage dev ts msg, warn) =
-    pretty ts <> " " <> pretty dev <> ":" <> showt msg <> ": " <> warn
+    pretty ts <> " " <> pretty dev <> ":" <> pretty msg <> ": " <> warn

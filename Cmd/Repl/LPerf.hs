@@ -41,6 +41,7 @@ import qualified Derive.TrackWarp as TrackWarp
 import qualified Derive.Warp as Warp
 
 import qualified Midi.Midi as Midi
+import qualified Midi.Synth as Synth
 import qualified Perform.Im.Convert as Im.Convert
 import qualified Perform.Midi.Convert as Midi.Convert
 import qualified Perform.Midi.MSignal as MSignal
@@ -498,6 +499,11 @@ perform_midi_events events = do
 -- MIDI events don't retain the stack.
 sel_midi :: Cmd.M m => m Perform.MidiEvents
 sel_midi = get_sel_midi Local
+
+-- | Analyze a section of MIDI for debugging.
+analyze_midi :: [LEvent.LEvent Midi.WriteMessage] -> Text
+analyze_midi =
+    Synth.pretty_state . Synth.run Synth.empty_state . LEvent.events_of
 
 root_sel_midi :: Cmd.M m => m Perform.MidiEvents
 root_sel_midi = get_sel_midi Root

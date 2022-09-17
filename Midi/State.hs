@@ -24,7 +24,8 @@ import qualified Midi.Midi as Midi
 import Global
 
 
-newtype State = State (Map Addr Channel) deriving (Eq, Show, Pretty)
+newtype State = State (Map Addr Channel)
+    deriving (Eq, Show, Pretty)
 
 empty :: State
 empty = State Map.empty
