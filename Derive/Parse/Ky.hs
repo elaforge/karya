@@ -25,6 +25,7 @@ import qualified Data.Text.IO as Text.IO
 import           System.FilePath ((</>))
 
 import qualified Util.Exceptions as Exceptions
+import qualified Util.Maps as Maps
 import qualified Util.Parse
 import qualified Util.ParseText as ParseText
 import qualified Util.Seq as Seq
@@ -162,10 +163,11 @@ catch_io prefix io =
 -}
 parse_ky :: FilePath -> Text -> Either ParseText.Error (Ky Import)
 parse_ky fname text = do
-    let (imports, sections) = split_sections $ strip_comments $ Text.lines text
+    (imports, sections) <- first ParseText.message $ split_sections $
+        Text.lines text
     (instrument_section, sections) <- return
-        ( Map.lookup instrument sections
-        , Map.delete instrument sections
+        ( Map.lookup Instruments.instrument_section sections
+        , Map.delete Instruments.instrument_section sections
         )
     let extra = Set.toList $
             Map.keysSet sections `Set.difference` Set.fromList valid_headers
@@ -202,7 +204,6 @@ parse_ky fname text = do
     generator = "generator"
     transformer = "transformer"
     alias = "alias"
-    instrument = Instruments.instrument_section
     valid_headers = val : alias :
         [ t1 <> " " <> t2
         | t1 <- [note, control, pitch], t2 <- [generator, transformer]
@@ -211,7 +212,6 @@ parse_ky fname text = do
     parse_section ((lineno, line0) : lines) =
         first (ParseText.offset (lineno, 0)) $ ParseText.parse p_section $
             Text.unlines (line0 : map snd lines)
-    strip_comments = filter (not . ("--" `Text.isPrefixOf`) . Text.stripStart)
 
 parse_allocation :: (Int, Text) -> Either ParseText.Error Instruments.Allocation
 parse_allocation (lineno, line) =
@@ -237,20 +237,31 @@ parse_alias (lhs, rhs) = first (msg<>) $ case rhs of
     msg = "alias " <> ShowVal.show_val lhs <> " = " <> ShowVal.show_val rhs
         <> ": "
 
+type Error = Text
+
 -- | Split sections into a Map with section name keys, and numbered lines.
-split_sections :: [Text] -> (Text, Map Text [(Int, Text)])
+split_sections :: [Text] -> Either Error (Text, Map Text [(Int, Text)])
 split_sections =
-    second (Map.fromListWith (flip (++)) . concatMap split_header)
-        . split_imports . Seq.split_before is_header . zip [0..]
+    traverse check . second (Maps.unique2 . concatMap split_header)
+        . split_imports . Seq.split_before is_header
+        . filter (not . is_empty . snd)
+        . zip [0..]
     where
+    check (sections, []) = Right sections
+    check (_, dups) =
+        Left $ "duplicate sections: " <> Text.unwords (map fst dups)
     is_header = (":" `Text.isSuffixOf`) . snd
     split_imports [] = ("", [])
     split_imports ([] : sections) = ("", sections)
     split_imports (imports : sections) =
         (Text.unlines $ map snd imports, sections)
-    strip_colon (_, header) = Text.take (Text.length header - 1) header
     split_header [] = []
     split_header (header : section) = [(strip_colon header, section)]
+    strip_colon (_, header) = Text.take (Text.length header - 1) header
+
+is_empty :: Text -> Bool
+is_empty line = s == "" || "--" `Text.isPrefixOf` s
+    where s = Text.stripStart line
 
 p_imports :: A.Parser [FilePath]
 p_imports =

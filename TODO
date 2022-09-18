@@ -119,8 +119,47 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
+  ? suddenly new instruments don't get midi, wtf?
+    . It was reaper "record monitoring".
+    . Since I forget this a lot, can I have some way to remind myself?
+  ky instruments section buggy:
+    - LState.ky is not having new instruments I added
+      . Even worse it seems like this causes new allocations to not get saved!
+      . Either LInst.add has to edit the ky, or I have to get rid of it and
+        allow only ky.
+      . Not just LInst.add though, I used LInst.replace $ LAlloc...
+      . Since the source of truth is not ky, I must not privilege it.
+        I originally kept it so I could preserve order and comments.
+        I guess I can still do that, but have to regenerate it each time
+        insteat of the first time only.
+    - when I add kontakt/wayang-pemade, it says "send: midi inst with no
+      channels"
+      . But it's not a midi inst!
+      . No wait now it works, did I accidentally put loop on before?
+      ? Anyway how does it know the corect backend?
+    - Also it then loses all edits.
+    * instruments doesn't like empty lines!
+  - LPerf.sel_midi gets muted tracks, but more importantly, non selected
+    tracks!
+  - automatically collapse empty tracks?
+  - I still want a way to impose a track template across existing blocks, e.g.
+    add an instrument.
+  - wayang pemade calung 3u sample has a clunk
+    . is there the same in im-sampler?
+    . 71-65-108-calung2.ncw
+  - why does the first measure of the blocks twice as long?
+  - I keep looking for LBlock.doc in LDoc, should I move it there?
+  - ^z on vi from a repl messes up tty state
+    . Probably have to stty restore or something?
+    . If I'm making ky more central, then maybe I have a way to edit it
+      separately from the repl?
   - why do I need UiConfig.meta_notes when I could put it in a comment in
     UiConfig.config_ky?
+    . It would be a bit better for searching if I ever wanted to do that, but
+      I could also just grep ky text.
+    . In fact I could put all UiConfig.Config stuff in there, such as
+      namespace, root, lilypond, default_tempo, etc.
+    . Why not merge ky and tscore too?
   * clear score track doesn't change the event text style
     . Because events still have stacks.
     . Can I make Ui.modify_integrated_tracks do it?

@@ -100,11 +100,22 @@ test_parse_ky = do
 
 test_split_sections :: Test
 test_split_sections = do
-    let f = second Map.toList . Ky.split_sections . Text.lines
-    equal (f "a:\n1\nb:\n2\na:\n3\n") $
-        ("", [("a", [(1, "1"), (5, "3")]), ("b", [(3, "2")])])
-    equal (f "import a\nimport b\na:\n2\n")
-        ("import a\nimport b\n", [("a", [(3, "2")])])
+    let f = Ky.split_sections
+    right_equal (f
+        [ "import x"
+        , "  -- hi"
+        , "sec1:"
+        , "hi"
+        , ""
+        , "-- xyz"
+        , "sec2:"
+        , "there"
+        ])
+        ( "import x\n"
+        , Map.fromList [("sec1", [(3, "hi")]), ("sec2", [(7, "there")])]
+        )
+    left_like (f ["sec1:", "hi", "sec1:", "there"])
+        "duplicate sections: sec1"
 
 test_p_definition :: Test
 test_p_definition = do
