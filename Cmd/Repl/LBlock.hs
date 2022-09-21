@@ -103,6 +103,16 @@ set_all_implicit = do
     block_ids <- Ui.gets $ Map.keys . Ui.state_blocks
     mapM_ (\b -> Ui.set_skeleton_config b Block.Implicit) block_ids
 
+set_explicit :: Cmd.M m => m ()
+set_explicit = do
+    block_id <- Cmd.get_focused_block
+    Ui.set_skeleton_config block_id Block.Explicit
+
+set_implicit :: Cmd.M m => m ()
+set_implicit = do
+    block_id <- Cmd.get_focused_block
+    Ui.set_skeleton_config block_id Block.Implicit
+
 -- * doc
 
 doc :: Cmd.CmdL Text
