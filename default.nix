@@ -299,7 +299,8 @@ in rec {
       import Shake.Config
 
       localConfig = defaultConfig
-          { enableEkg = ${hsBool withEkg}
+          { useCabalV2 = False -- we're using nix, not cabal
+          , enableEkg = ${hsBool withEkg}
           ${extraFrameworkPaths}
           }
     '';
