@@ -56,6 +56,10 @@ instance Solkattu.Notation Stroke where
     notation (Thoppi t) = Solkattu.notation t
     notation (Valantalai v) = Solkattu.notation v
     notation (Both t v) = Solkattu.textNotation $ case t of
+        -- The convention is that thom & x is written as X.  That leaves
+        -- tha & x.  I can't think of any systematic ascii transformation for x
+        -- so I use a unicode overline thing.  However, p&k and p&t are pretty
+        -- common, so I have irregular ad-hoc P and X for them.
         Tha _ -> case v of
             Ki -> "P"
             Ta -> "X"
@@ -279,21 +283,21 @@ printNotations = mapM_ putStrLn
 postprocess :: [Technique.Flat Stroke] -> [Technique.Flat Stroke]
 postprocess = Technique.postprocess $ Technique.plain technique
 
--- There are extended analogues of this, e.g.:
--- [on, k] to [k, on, k] -> on [k, on, ..]
--- But to apply it I'd have to extend from ktk to ntn, and also to apply
--- across intervening 'k's, so no need until I see more examples.
 technique :: Technique.Technique Stroke
-technique prevs@(prev:_) cur (next:_)
-    -- (k, t, [k, ..]) -> k, [k, ..]
-    | map val [prev, cur, next] == map Just [Ki, Ta, Ki] = Just $ setVal Ki cur
-    -- (ko, o, [k, ..]) -> p, [k, ..]
-    | Seq.rtake 2 prevs ++ [cur, next] == [k, o, o, k] = Just p
+technique prevs cur (next:_)
+    -- There are extended analogues of this, e.g.:
+    -- [on, k] to [k, on, k] -> on [k, on, ..]
+    -- But to apply it I'd have to extend from ktk to ntn, and also to apply
+    -- across intervening 'k's, so no need until I see more examples.
+    | prev 1 == ([k], t, k) = Just k
+    | prev 1 == ([k], p&t, k) = Just (p&k)
+    -- Sometimes this happens but sometimes not.  I guess if it matters, I'll
+    -- want a way to opt in to specific techniques.
+    | prev 2 == ([k, o], o, k) = Just p
     where
+    prev n = (Seq.rtake n prevs, cur, next)
     Strokes {..} = strokes
-    val (Valantalai s) = Just s
-    val (Both _ s) = Just s
-    val _ = Nothing
+    (&) = bothStrokes
 technique _ _ _ = Nothing
 
 -- * patterns

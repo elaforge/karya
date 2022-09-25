@@ -48,7 +48,7 @@ c_14_01_14 = date 2014 1 14 $ ganesh $ korvaiS adi mridangam
         . sarvaA_ 4 theme . sarvaA_ 4 (dropM 1 theme)
         . __a 2 theme . __a 2 (dropM 1 theme)
         . __a 2 theme . r2 (__ . dropM 3 theme)
-    , tri_ (tam.__) reduce -- TODO u, i, u substitution
+    , tri_ (tam.__) reduce
     , trin (tam.__) reduce reduce expand
     , tri_ (tam.__) expand
 
@@ -74,6 +74,7 @@ c_14_01_14 = date 2014 1 14 $ ganesh $ korvaiS adi mridangam
         [ (theme, p.k.t.k.k.t.o)
         , (tat.di, k.t)
         , (tam, u)
+        , (mid^tam, i)
         ]
 
 c_14_02_05 :: Korvai
