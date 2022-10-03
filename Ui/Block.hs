@@ -360,6 +360,8 @@ modify_id f track = track { tracklike_id = f (tracklike_id track) }
 colored_divider :: Color.Color -> Track
 colored_divider color = track (DId (Divider color)) 3
 
+-- | A generic divider to insert manually as a visual aid.  Imitates the
+-- background color.
 divider :: Track
 divider = colored_divider (Color.rgb 0.8 0.8 0.8)
 

@@ -132,16 +132,38 @@ UNSORTED
         I originally kept it so I could preserve order and comments.
         I guess I can still do that, but have to regenerate it each time
         insteat of the first time only.
+      . To go all-in on instruments in ky, I need to complete the ky-record
+        stuff, then remove UiConfig.config_allocations entirely.  It will
+        exist entirely as the parsed output of ky.
     - when I add kontakt/wayang-pemade, it says "send: midi inst with no
       channels"
       . But it's not a midi inst!
       . No wait now it works, did I accidentally put loop on before?
       ? Anyway how does it know the corect backend?
-    - Also it then loses all edits.
     * instruments doesn't like empty lines!
   - LPerf.sel_midi gets muted tracks, but more importantly, non selected
     tracks!
   - automatically collapse empty tracks?
+    . Can't be totally automatic because new tracks!
+    . Could it be like block title, where a selection keeps it open?
+    . Or overload cmd-M to collapse empties?
+  - different color for collapsed and merge-collapsed
+    . For different colors, Collapse would have to take an argument.
+    . Or I need a separate MergeCollapse, but then it's awkward, you can
+      have both.
+    . But if it has an arg, it's no longer Enum, do I use that?
+    . Still I think an extra enum value would be most convenient, for
+      serialize too.
+  * bug: cmd-C to collapse a merged note track, expands it, but with
+    right-text, and it doesn't think it's expanded
+    . Also shift-click expands collapsed, which is probably confusing.
+      Collapse and merge should be distinct.
+    . How about use different colors?
+    . Merge is implemented as a collapse, but I think I'll need separate
+      types.
+    . cmd-C expands merged because it sees the merged track as collapsed.
+      Instead, notice if it's merged and collapse just the parent.
+      . On expand, notice if it's merged, and if so, expand the merged-into.
   - I still want a way to impose a track template across existing blocks, e.g.
     add an instrument.
   - wayang pemade calung 3u sample has a clunk
@@ -3052,6 +3074,7 @@ synth: im:
         . wanted: Smaller state.
         . wanted: Do the SampleNn -> Nn -> Ratio calculation per-sample, so
           I don't have to a resample in Sample.pitchToRatioSignal.
+      . https://github.com/avaneev/r8brain-free-src
       . https://github.com/jniemann66/ReSampler
         No library, not clear if it supports variable sample rate.
       . https://kokkinizita.linuxaudio.org/linuxaudio/zita-resampler/resampler.html
@@ -4971,6 +4994,10 @@ performance:
   derive:
     parser:
       -fexpose-all-unfoldings can speed up parsec, at the cost of code size
+      . try https://hackage.haskell.org/package/flatparse
+        https://www.reddit.com/r/haskell/comments/xc936e/performance_comparison_of_popular_parser_libraries/
+        But first, make sure parsing is actually relevant to performance,
+        after the caching.
     suspected problems:
       . transformer streaming:
       . signal resampling: Signal.map_y
