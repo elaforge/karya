@@ -147,13 +147,16 @@ UNSORTED
     . Can't be totally automatic because new tracks!
     . Could it be like block title, where a selection keeps it open?
     . Or overload cmd-M to collapse empties?
-  - different color for collapsed and merge-collapsed
+  . I don't think I want auto-expand on selection because selection skipping
+    is part of the point of collapse.
+  * different color for collapsed and merge-collapsed
     . For different colors, Collapse would have to take an argument.
     . Or I need a separate MergeCollapse, but then it's awkward, you can
       have both.
     . But if it has an arg, it's no longer Enum, do I use that?
     . Still I think an extra enum value would be most convenient, for
       serialize too.
+    . A separate Merged would make it easier to ignore them.
   * bug: cmd-C to collapse a merged note track, expands it, but with
     right-text, and it doesn't think it's expanded
     . Also shift-click expands collapsed, which is probably confusing.

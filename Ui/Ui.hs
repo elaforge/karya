@@ -1098,7 +1098,8 @@ track_flags block_id tracknum =
 
 track_collapsed :: M m => BlockId -> TrackNum -> m Bool
 track_collapsed block_id tracknum =
-    Block.track_collapsed <$> get_block_track_at block_id tracknum
+    Block.is_collapsed . Block.track_flags <$>
+        get_block_track_at block_id tracknum
 
 toggle_track_flag :: M m => BlockId -> TrackNum -> Block.TrackFlag -> m ()
 toggle_track_flag block_id tracknum flag =
@@ -1111,15 +1112,26 @@ toggle_track_flag block_id tracknum flag =
 add_track_flag, remove_track_flag
     :: M m => BlockId -> TrackNum -> Block.TrackFlag -> m ()
 add_track_flag block_id tracknum flag =
-    modify_track_flags block_id tracknum (Set.insert flag)
+    modify_track_flags block_id tracknum $ Set.insert flag
 remove_track_flag block_id tracknum flag =
-    modify_track_flags block_id tracknum (Set.delete flag)
+    modify_track_flags block_id tracknum $ case flag of
+        -- Block.Merge -> Set.delete flag . Set.delete Block.Collapse
+        _ -> Set.delete flag
 
 modify_track_flags :: M m => BlockId -> TrackNum
     -> (Set Block.TrackFlag -> Set Block.TrackFlag) -> m ()
-modify_track_flags block_id tracknum f =
+modify_track_flags block_id tracknum modify =
     modify_block_track block_id tracknum $ \btrack ->
-        btrack { Block.track_flags = f (Block.track_flags btrack) }
+        -- Don't allow both Merge and Collapse to be set, prefer Merge.
+        -- This is so I can Collapse a bunch of tracks, and the Merged ones
+        -- will stay the way they are.  Merge also has priority in
+        -- Block.display_track, but having both set leads to confusing UI.
+        let flags = modify (Block.track_flags btrack)
+        in btrack
+            { Block.track_flags = if Set.member Block.Merge flags
+                then Set.delete Block.Collapse flags
+                else flags
+            }
 
 set_track_ruler :: M m => BlockId -> TrackNum -> RulerId -> m ()
 set_track_ruler block_id tracknum ruler_id = do
@@ -1133,7 +1145,7 @@ merge_track block_id to from = do
     from_id <- get_event_track_at block_id from
     modify_block_track block_id to $ \btrack -> btrack
         { Block.track_merged = Set.insert from_id (Block.track_merged btrack) }
-    add_track_flag block_id from Block.Collapse
+    add_track_flag block_id from Block.Merge
 
 -- | Reverse 'merge_track': remove the merged tracks and expand their
 -- occurrances in the given block.  \"Unmerge\" is not a graceful term, but at
@@ -1144,7 +1156,7 @@ unmerge_track block_id tracknum = do
     unmerged_tracknums <- mapMaybeM (tracknum_of block_id)
         (Set.toList track_ids)
     forM_ unmerged_tracknums $ \tracknum ->
-        remove_track_flag block_id tracknum Block.Collapse
+        remove_track_flag block_id tracknum Block.Merge
     set_merged_tracks block_id tracknum mempty
 
 set_merged_tracks :: M m => BlockId -> TrackNum -> Set TrackId -> m ()

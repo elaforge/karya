@@ -347,18 +347,19 @@ instance Serialize Block.Track where
         v -> bad_version "Block.Track" v
 
 instance Serialize Block.TrackFlag where
-    put Block.Collapse = put_tag 0
-    put Block.Solo = put_tag 1
-    put Block.Mute = put_tag 2
-    put Block.Disable = put_tag 3
-    get = do
-        tag <- get_tag
-        case tag of
-            0 -> return Block.Collapse
-            1 -> return Block.Solo
-            2 -> return Block.Mute
-            3 -> return Block.Disable
-            _ -> bad_tag "Block.TrackFlag" tag
+    put = put_tag . \case
+        Block.Collapse -> 0
+        Block.Solo -> 1
+        Block.Mute -> 2
+        Block.Disable -> 3
+        Block.Merge -> 4
+    get = get_tag >>= \case
+        0 -> return Block.Collapse
+        1 -> return Block.Solo
+        2 -> return Block.Mute
+        3 -> return Block.Disable
+        4 -> return Block.Merge
+        tag -> bad_tag "Block.TrackFlag" tag
 
 instance Serialize Block.TracklikeId where
     put (Block.TId a b) = put_tag 0 >> put a >> put b

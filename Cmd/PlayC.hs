@@ -303,9 +303,11 @@ rendering_tracks block_id state = Ui.eval state $ do
         (view_id, tracks) <- zip view_ids btracks
         ((tracknum, track_id, flags), track) <- tracks
         -- I don't want to send even an empty signal to these.
-        guard $ Block.Collapse `Set.notMember` flags
-        return (view_id, track_id, tracknum,
-            Block.track_wants_signal flags track)
+        guard $ not $ Block.is_collapsed flags
+        return
+            ( view_id, track_id, tracknum
+            , Block.track_wants_signal flags track
+            )
     where
     get_tracks block = zip triples <$> mapM Ui.get_track track_ids
         where

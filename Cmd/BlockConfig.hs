@@ -4,7 +4,23 @@
 
 -- | Cmds that affect global block config but don't fit into any of the
 -- more specefic modules.
-module Cmd.BlockConfig where
+module Cmd.BlockConfig (
+    cmd_toggle_edge
+    , toggle_merge_all
+    , toggle_merge_selected
+    , cmd_open_block
+    , cmd_add_block_title
+    , clip
+    , collapse_children
+    , expand_children
+    , append
+    , cmd_toggle_flag
+    , cmd_set_solo
+    , cmd_mute_or_unsolo
+    , cmd_expand_track
+    , cmd_move_tracks
+    , move_tracks
+) where
 import qualified Data.List as List
 import qualified Data.Set as Set
 import qualified Data.Text as Text
@@ -209,29 +225,11 @@ append dest source = do
 cmd_toggle_flag :: Cmd.M m => Block.TrackFlag -> m ()
 cmd_toggle_flag flag = do
     (block_id, tracknums, _, _) <- Selection.tracks
-    case flag of
-        Block.Collapse -> toggle_collapse block_id tracknums
-        _ -> do
-            flags <- mapM (Ui.track_flags block_id) tracknums
-            let set = any (Set.member flag) flags
-            forM_ tracknums $ \tracknum -> if set
-                then Ui.remove_track_flag block_id tracknum flag
-                else Ui.add_track_flag block_id tracknum flag
-
--- | Don't count merge-collapsed.  This is Collapse tracks +1 of a merged one,
--- because 'toggle_merge' uses tracknum+1.  I could actually check the merge
--- source, but I don't want to support irregular merges.
-toggle_collapse :: Ui.M m => BlockId -> [TrackNum] -> m ()
-toggle_collapse block_id tracknums = do
-    merged <- mapM (Ui.track_merged block_id) tracknums
-    tracknums <- return [t | (t, False) <- zip tracknums (False : merged)]
     flags <- mapM (Ui.track_flags block_id) tracknums
     let set = any (Set.member flag) flags
     forM_ tracknums $ \tracknum -> if set
         then Ui.remove_track_flag block_id tracknum flag
         else Ui.add_track_flag block_id tracknum flag
-    where
-    flag = Block.Collapse
 
 cmd_toggle_flag_clicked :: Cmd.M m => Block.TrackFlag -> Msg.Msg -> m ()
 cmd_toggle_flag_clicked flag msg = do
@@ -265,24 +263,15 @@ cmd_expand_track msg = do
     tracknum <- Cmd.abort_unless $ clicked_track msg
     expand_track block_id tracknum
 
--- | Expand collapsed track.  Consistent with 'toggle_collapse', don't expand
--- a Collapse due to merge, but expand the previous tracknum.
+-- | Expand collapsed track.  If it's Merged, try to expand the one to the
+-- left.  If a track with a merged is collapsed, this let's me click on either
+-- to expand.
 expand_track :: Ui.M m => BlockId -> TrackNum -> m ()
 expand_track block_id tracknum = do
-    prev_merged <- if tracknum <= 1
-        then return False
-        else Ui.track_merged block_id (tracknum - 1)
+    flags <- Ui.track_flags block_id tracknum
     Ui.remove_track_flag block_id
-        (if prev_merged then tracknum - 1 else tracknum) Block.Collapse
-
-expand_or_unmerge :: Ui.M m => BlockId -> TrackNum -> m ()
-expand_or_unmerge block_id tracknum = do
-    track_id <- Ui.get_event_track_at block_id tracknum
-    btracks <- zip [0..] . Block.block_tracks <$> Ui.get_block block_id
-    case List.find (Set.member track_id . Block.track_merged . snd) btracks of
-        Just (merged_tracknum, _) ->
-            Ui.unmerge_track block_id merged_tracknum
-        Nothing -> Ui.remove_track_flag block_id tracknum Block.Collapse
+        (if Set.member Block.Merge flags then tracknum - 1 else tracknum)
+        Block.Collapse
 
 -- | Move selected tracks to the left of the clicked track.
 cmd_move_tracks :: Cmd.M m => Msg.Msg -> m ()

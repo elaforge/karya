@@ -17,7 +17,6 @@ module Cmd.Internal (
 ) where
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified Util.GitT as GitT
@@ -195,7 +194,7 @@ ui_update maybe_tracknum view_id update = case update of
     UiMsg.UpdateTrackWidth width suggested_width -> case maybe_tracknum of
         Just tracknum -> do
             block_id <- Ui.block_id_of view_id
-            collapsed <- (Block.Collapse `Set.member`) <$>
+            collapsed <- Block.is_collapsed <$>
                 Ui.track_flags block_id tracknum
             -- fltk shouldn't send widths for collapsed tracks, but it does
             -- anyway because otherwise it would have to cache the track sizes

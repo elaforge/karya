@@ -20,7 +20,8 @@ module Ui.Block (
     , Track(..), track_id, track
     , modify_id
     , divider
-    , track_collapsed, track_selectable, track_wants_signal
+    , is_collapsed
+    , track_selectable, track_wants_signal
     -- ** DisplayTrack
     , DisplayTrack(..), Status(..), empty_status, TrackFlag(..)
     , block_display_tracks
@@ -365,12 +366,12 @@ colored_divider color = track (DId (Divider color)) 3
 divider :: Track
 divider = colored_divider (Color.rgb 0.8 0.8 0.8)
 
-track_collapsed :: Track -> Bool
-track_collapsed = (Collapse `Set.member`) . track_flags
+is_collapsed :: Set TrackFlag -> Bool
+is_collapsed flags = Set.member Collapse flags || Set.member Merge flags
 
 track_selectable :: Track -> Bool
 track_selectable track@(Track { tracklike_id = TId _ _}) =
-    not (track_collapsed track)
+    not $ is_collapsed (track_flags track)
 track_selectable _ = False
 
 -- | Don't send a track signal to a track unless it actually wants to draw it.
@@ -378,6 +379,7 @@ track_wants_signal :: Set TrackFlag -> Track.Track -> Bool
 track_wants_signal flags track =
     Track.render_style (Track.track_render track) /= Track.NoRender
     && Collapse `Set.notMember` flags
+    && Merge `Set.notMember` flags
 
 -- | This is the low-level representation of a track, which directly
 -- corresponds with what is displayed by the UI.  The DisplayTracks should be
@@ -413,6 +415,7 @@ empty_status = Status "" Color.black
 data TrackFlag =
     -- | Track is collapsed to take up less space.
     Collapse
+    | Merge
     -- | UI shows solo indication.  If any tracks are soloed on a block, only
     -- those tracks are played.
     | Solo
@@ -429,22 +432,23 @@ instance Pretty TrackFlag where pretty = showt
 
 -- | Convert logical block level tracks to display tracks.
 block_display_tracks :: Block -> [DisplayTrack]
-block_display_tracks = merge_collapsed . map display_track . block_tracks
+block_display_tracks = join_collapsed . map display_track . block_tracks
 
 -- | Merge consecutive collapsed tracks.
-merge_collapsed :: [DisplayTrack] -> [DisplayTrack]
-merge_collapsed = id
+join_collapsed :: [DisplayTrack] -> [DisplayTrack]
+join_collapsed = id
 -- TODO I tried this and it looks nice but I'd need to also eliminate the
 -- tracks from a Block.display_skeleton and Block.display_integrate_skeleton
 -- and I'm not sure it's worth it.
--- merge_collapsed = mapMaybe Seq.head
+-- join_collapsed = mapMaybe Seq.head
 --     . List.groupBy (\a b -> a == collapsed_track && b == collapsed_track)
 
 -- | This is not exported so callers are forced to go through
 -- 'block_display_tracks'.
 display_track :: Track -> DisplayTrack
 display_track track
-    | track_collapsed track = collapsed_track
+    | has_flag Merge = merged_track
+    | has_flag Collapse = collapsed_track
     | otherwise = DisplayTrack
         { dtracklike_id = tracklike_id track
         , dtrack_width = track_width track
@@ -452,11 +456,23 @@ display_track track
         , dtrack_status = status
         , dtrack_event_brightness = brightness
         }
-    where (status, brightness) = flags_to_status (track_flags track)
+    where
+    (status, brightness) = flags_to_status (track_flags track)
+    has_flag flag = Set.member flag (track_flags track)
 
 -- | Collapsed tracks are replaced with a divider.
 collapsed_track :: DisplayTrack
 collapsed_track = DisplayTrack
+    { dtracklike_id = DId $ Divider $
+        Color.brightness 0.5 Config.abbreviation_color
+    , dtrack_width = Config.collapsed_width -- TODO maybe a bit wider?
+    , dtrack_merged = mempty
+    , dtrack_status = empty_status
+    , dtrack_event_brightness = 1
+    }
+
+merged_track :: DisplayTrack
+merged_track = DisplayTrack
     { dtracklike_id = DId (Divider Config.abbreviation_color)
     , dtrack_width = Config.collapsed_width
     , dtrack_merged = mempty
@@ -484,6 +500,7 @@ flag_char status = case status of
     Solo -> 'S'
     Mute -> 'M'
     Collapse -> ' '
+    Merge -> ' '
 
 data TracklikeId =
     -- | Tracks may have a Ruler overlay

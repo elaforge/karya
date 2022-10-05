@@ -425,6 +425,7 @@ flags_differ track1 track2 = relevant track1 /= relevant track2
         -- collapsed tracks, but lots of tracks are collapsed and usually not
         -- expanded, and I'd like derivation to be efficient.
         Block.Collapse -> True
+        Block.Merge -> True
         -- These flags are handled by filtering in the player.
         Block.Solo -> False
         Block.Mute -> False
