@@ -15,6 +15,7 @@ module Cmd.BlockConfig (
     , expand_children
     , append
     , cmd_toggle_flag
+    , toggle_collapse_empty
     , cmd_set_solo
     , cmd_mute_or_unsolo
     , cmd_expand_track
@@ -24,10 +25,12 @@ module Cmd.BlockConfig (
 import qualified Data.List as List
 import qualified Data.Set as Set
 import qualified Data.Text as Text
+import qualified Data.Tree as Tree
 
 import qualified Util.Log as Log
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
+import qualified Util.Trees as Trees
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -231,11 +234,26 @@ cmd_toggle_flag flag = do
         then Ui.remove_track_flag block_id tracknum flag
         else Ui.add_track_flag block_id tracknum flag
 
-cmd_toggle_flag_clicked :: Cmd.M m => Block.TrackFlag -> Msg.Msg -> m ()
-cmd_toggle_flag_clicked flag msg = do
-    tracknum <- Cmd.abort_unless $ clicked_track msg
-    block_id <- Cmd.get_focused_block
-    Ui.toggle_track_flag block_id tracknum flag
+-- | Collapse all tracks that are empty and have all empty children.  If
+-- everything empty is collapsed, expand them all.  Don't consider
+-- merge-collapsed.
+toggle_collapse_empty :: Ui.M m => BlockId -> m ()
+toggle_collapse_empty block_id = do
+    tracks <- TrackTree.track_tree_of block_id
+    tracks <- traverse (traverse (\t -> (t,) <$> is_empty t)) tracks
+    let empty = concatMap empty_tracks tracks
+    all_collapsed <- allM is_collapsed empty
+    forM_ (map Ui.track_tracknum empty) $ \tracknum -> if all_collapsed
+        then Ui.remove_track_flag block_id tracknum Block.Collapse
+        else Ui.add_track_flag block_id tracknum Block.Collapse
+    where
+    is_empty = fmap Events.null . Ui.get_events . Ui.track_id
+    is_collapsed = fmap Block.is_collapsed . Ui.track_flags block_id
+        . Ui.track_tracknum
+    empty_tracks (Tree.Node (track, empty) children)
+        | empty && all snd leaves = track : map fst leaves
+        | otherwise = concatMap empty_tracks children
+        where leaves = concatMap Trees.leaves children
 
 -- | Enable Solo on the track and disable Mute.  It's bound to a double click
 -- so when this cmd fires I have to do undo the results of the single click.

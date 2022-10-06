@@ -33,7 +33,7 @@ test_display_track = do
             Block.Track (Block.TId tid1 rid) 30 30 mempty (Set.singleton tid2)
         , Update.Block bid $ Update.BlockTrack 2 $
             Block.Track (Block.TId tid2 rid) 30 30
-                (Set.singleton Block.Collapse) mempty
+                (Set.singleton Block.Merge) mempty
         ]
 
     let div = Block.DId (Block.Divider Config.abbreviation_color)

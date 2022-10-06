@@ -143,7 +143,7 @@ UNSORTED
     * instruments doesn't like empty lines!
   - LPerf.sel_midi gets muted tracks, but more importantly, non selected
     tracks!
-  - automatically collapse empty tracks?
+  * automatically collapse empty tracks?
     . Can't be totally automatic because new tracks!
     . Could it be like block title, where a selection keeps it open?
     . Or overload cmd-M to collapse empties?
