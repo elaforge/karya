@@ -107,10 +107,13 @@ check_cache lookup_backend prev_cache old_allocs paths ky_text = run $ do
     when (old_fingerprint == fingerprint) abort
     let (builtins, logs) = compile_library (loaded_fnames imported) $
             compile_definitions defs
-    allocs <- case mb_allocs of
-        Nothing -> return old_allocs
-        Just allocs -> try $
-            Instruments.update_ui lookup_backend allocs old_allocs
+    -- TODO Disable the instruments section, it's buggy because it doesn't pick
+    -- up new ones.
+    let allocs = old_allocs
+    -- allocs <- case mb_allocs of
+    --     Nothing -> return old_allocs
+    --     Just allocs -> try $
+    --         Instruments.update_ui lookup_backend allocs old_allocs
     return
         ( (builtins, Map.fromList (Ky.def_aliases defs), fingerprint, allocs)
         , logs
