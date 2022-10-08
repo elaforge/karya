@@ -85,3 +85,17 @@ x_22_07_09 = elaforge $ comment "solo from dream" $ korvaiS1 adi $
     plak = hv (p&k)
 
 elaforge = source "elaforge"
+
+s_22_09_25 :: Korvai
+s_22_09_25 = sollu $ korvaiS (beats 2) $ map su
+    [ "ktokou_kokokou_k"
+    , "okou_kokou_kou_k"
+    , "npk_u_pk".nakatiku
+    , "____u_pk".nakatiku
+    , "kookD_kookD_kook"
+    , r2 "o_knookn"
+    , "___kpktknkoN_N_k"
+    , "oo_".tri_ "D_" "N_k"
+    , "ktokn_o_ktoknook"
+    , "ktokotokotokotok"
+    ]

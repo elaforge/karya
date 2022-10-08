@@ -6,7 +6,7 @@
 module Solkattu.Dsl.Metadata (
     comment, date, source, similarTo
     , recording
-    , korvaiT, koraippu, mohra, mohraKorvai, sarvalaghu, tirmanam
+    , korvaiT, koraippu, mohra, mohraKorvai, sarvalaghu, tirmanam, sollu
     , sequenceT, faran, exercise, trikalam
     , withType
 ) where
@@ -66,6 +66,10 @@ sarvalaghu = withType "sarvalaghu"
 -- | A short cadence, suitable to end a phrase or section.
 tirmanam :: Korvai -> Korvai
 tirmanam = withType "tirmanam"
+
+-- | Shorter than a tirmanam and usually not having structure, just a fill.
+sollu :: Korvai -> Korvai
+sollu = withType "sollu"
 
 -- | A development sequence, possibly leading to a korvai.
 sequenceT :: Korvai -> Korvai
