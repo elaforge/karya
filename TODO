@@ -6206,6 +6206,10 @@ solkattu:
         enough to pick random but twice as likely to pick with score one
         lower.
   technique:
+    * doesn't work on a group, e.g. dropM 1 (g "ktk")
+      . Because postprocess doesn't look inside the group.
+      . dropM could replace a "no-op" group
+      . Similarly dropM 1 . dropM 2 could replace with a dropM 3.
     - o with space can become od.
       . I guess I would want to tag a stroke, and technique postproc can then
         apply it if appropriate.

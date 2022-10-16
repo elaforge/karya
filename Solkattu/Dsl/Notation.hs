@@ -445,7 +445,17 @@ pattern :: SequenceT sollu -> SequenceT sollu
 pattern = _groupWith (Solkattu.meta Solkattu.GExplicitPattern)
 
 reduction :: FMatra -> Solkattu.Side -> SequenceT sollu -> SequenceT sollu
-reduction split side = S.singleton . S.Group group . S.toList
+reduction split side sols = case S.toList sols of
+    -- If it's a "plain" group, replace the group.  This means
+    -- dropM 1 (g xyz) won't be a nested group and won't confuse technique
+    -- postprocess.
+    -- TODO maybe _groupWith should do this to make it universal
+    -- TODO also I could combine reductions so dropM 1 . dropM 2 = dropM 3.
+    -- But I won't unless I have a reason to want that.
+    [S.Group g sols]
+        | g == Solkattu.GMeta (Solkattu.meta Solkattu.GGroup) ->
+            S.singleton $ S.Group group sols
+    sols -> S.singleton $ S.Group group sols
     where
     group = Solkattu.GReduction $ Solkattu.Reduction
         { _split = split
