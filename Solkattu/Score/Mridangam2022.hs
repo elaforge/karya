@@ -110,8 +110,7 @@ e_22_10_16 = exercise $ date 2022 10 16 $ korvaiS adi
 t_endaro_ending :: Korvai
 t_endaro_ending =
     -- From pancaratnam house concert.
-    recording "Endaro Mahanubhavulu 2017-01-16.mp3"
-        (Just ((0, 13, 43), (0, 14, 0))) $
+    recording "Endaro Mahanubhavulu 2017-01-16.mp3" "13:43" $
     date 2017 1 16 $ korvaiS adi
     [ __D 3 . "__" . "ndD".su "_k"."od"
     . "pkd".su "pknpk_u_pk".su nakatiku."ooou"

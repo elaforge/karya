@@ -150,7 +150,7 @@ e_19_10_14_kandam = date 2019 10 14 $ ganesh $ korvaiS adi mempty $
 
 c_19_10_28_kandam :: Korvai
 c_19_10_28_kandam = date 2019 10 28 $ source "Patri Satish Kumar" $
-    recording "https://youtu.be/XpIMZwz-YbI?t=373" Nothing $
+    recording "https://youtu.be/XpIMZwz-YbI" "6:13" $
     korvaiS adi mridangam $
     map (nadai 5)
     [ suffixes (takadinna.din.__.takita.din.__.taka.din.__)

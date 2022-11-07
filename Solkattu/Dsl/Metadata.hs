@@ -10,13 +10,16 @@ module Solkattu.Dsl.Metadata (
     , sequenceT, faran, exercise, trikalam
     , withType
 ) where
+import qualified Text.Read as Read
+
 import qualified Util.CallStack as CallStack
+import qualified Util.Seq as Seq
 import qualified Solkattu.Korvai as Korvai
-import Solkattu.Korvai (Korvai)
+import           Solkattu.Korvai (Korvai)
 import qualified Solkattu.Metadata as Metadata
 import qualified Solkattu.Tags as Tags
 
-import Global
+import           Global
 
 
 -- | Attach a generic comment.
@@ -40,11 +43,31 @@ similarTo module_ variableName =
 
 -- | A recording where the clip is played.
 recording :: CallStack.Stack => Text -- ^ URL to the recording or video
-    -> Maybe (Metadata.Time, Metadata.Time)
-    -- ^ start and end time of the clip within the recording
+    -> String -- ^ start and end time of the clip within the recording
     -> Korvai -> Korvai
-recording url maybeRange =
-    withTag Tags.recording (Metadata.showRecording url maybeRange)
+recording url range = withTag Tags.recording $
+    Metadata.showRecording url $ parseRange range
+    -- showRecording will turn it right back into a string, but by parsing here
+    -- it gets validated.
+
+parseRange :: String -> Maybe (Metadata.Time, Maybe Metadata.Time)
+parseRange "" = Nothing
+parseRange str = case range of
+    Nothing -> error $ "no parse for time range: " <> show str
+    Just (start, Just end) | end <= start ->
+        error $ "end before start: " <> show (start, end)
+    Just (start, end) -> Just (start, end)
+    where
+    range = (,) <$> parseTime start
+        <*> (if end == "" then pure Nothing else Just <$> parseTime end)
+    (start, end) = second (dropWhile (=='-')) $ break (=='-') str
+
+parseTime :: String -> Maybe (Int, Int, Int)
+parseTime str = case mapM Read.readMaybe $ Seq.split ":" str of
+    Just [h, m, s] -> Just (h, m, s)
+    Just [m, s] -> Just (0, m, s)
+    Just [s] -> Just (0, 0, s)
+    _ -> Nothing
 
 -- * types
 

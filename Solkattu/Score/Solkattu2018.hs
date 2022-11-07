@@ -17,8 +17,7 @@ import           Solkattu.Dsl.Solkattu
 
 yt_mannargudi1 :: Korvai
 yt_mannargudi1 = source "Mannargudi Easwaran" $
-        recording "https://www.youtube.com/watch?v=E7PLgnsFBaI"
-            (Just ((0, 4, 05), (0, 5, 22))) $
+        recording "https://www.youtube.com/watch?v=E7PLgnsFBaI" "4:05-5:22" $
         date 2018 1 12 $
         korvai adi mridangam $ map (fmap su)
     [ endOn 4 $ devel $
@@ -70,8 +69,7 @@ in4 = appendEach 2 (__.__)
 
 yt_mannargudi2 :: Korvai
 yt_mannargudi2 = source "Mannargudi Easwaran" $
-        recording "https://www.youtube.com/watch?v=E7PLgnsFBaI"
-            (Just ((0, 9, 30), (0, 10, 30))) $
+        recording "https://www.youtube.com/watch?v=E7PLgnsFBaI" "9:30-10:30" $
         date 2018 2 26 $
         korvai adi mridangam $ map (fmap (nadai 6 • su))
     [ devel $
@@ -111,8 +109,7 @@ yt_mannargudi2 = source "Mannargudi Easwaran" $
 
 yt_pmi1 :: Korvai
 yt_pmi1 = source "Palakkad Mani Iyer" $
-        recording "https://www.youtube.com/watch?v=J2xgcBY4cXg"
-            (Just ((0, 3, 50), (0, 4, 40))) $
+        recording "https://www.youtube.com/watch?v=J2xgcBY4cXg" "3:50-4:40" $
         date 2018 1 12 $
         korvaiS Tala.triputa_tala mridangam $
     [ __.__.sar1.sar2.__.na.na.din.__
@@ -153,8 +150,7 @@ yt_pmi1 = source "Palakkad Mani Iyer" $
 
 yt_karaikudi1 :: Korvai
 yt_karaikudi1 = source "Karaikudi Mani" $
-        recording "https://www.youtube.com/watch?v=_33FkETjQoc"
-            (Just ((0, 1, 34), (0, 2, 53))) $
+        recording "https://www.youtube.com/watch?v=_33FkETjQoc" "1:34-2:53" $
         similarTo "Solkattu2016" "c_16_12_06_sriram1" $
         date 2018 1 12 $
         korvai adi mridangam

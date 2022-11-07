@@ -62,11 +62,12 @@ checkDate y m d
 -- | (hour, minute, second)
 type Time = (Int, Int, Int)
 
-showRecording :: CallStack.Stack => Text -> Maybe (Time, Time) -> Text
-showRecording url maybeRange = Text.unwords $
-    url : case maybeRange of
-        Nothing -> []
-        Just (start, end) -> [showTime start, showTime end]
+showRecording :: CallStack.Stack => Text -> Maybe (Time, Maybe Time) -> Text
+showRecording url maybeRange = Text.unwords $ url : case maybeRange of
+    Nothing -> []
+    Just (start, end) -> showTime start : maybe [] ((:[]) . showTime) end
+    -- TODO could recognize youtube urls and append the ?t=123
+
 
 parseRecording :: Text -> Maybe (Text, Maybe (Time, Time))
 parseRecording s = case Text.words s of
