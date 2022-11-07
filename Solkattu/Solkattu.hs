@@ -58,7 +58,8 @@
     \"Sequence\" is a newtype for a list of those, but is abstractly the monoid
     where you can put together notation to form a score.
 -}
-{-# LANGUAGE DeriveFunctor, DeriveTraversable #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveTraversable #-}
 module Solkattu.Solkattu where
 import qualified Control.Exception as Exception
 import qualified Control.Monad.State.Strict as State

@@ -79,16 +79,11 @@ c_14_01_14 = date 2014 1 14 $ ganesh $ korvaiS adi mridangam
 
 c_14_02_05 :: Korvai
 c_14_02_05 = date 2014 2 5 $ ganesh $ korvaiS adi mridangam $
-    [ utarangam . purvangam (tam.__)
-        (replicate 3 (tadi_ . ta_kitathom.ta_kitathom))
-    , utarangam . purvangam (tam.__)
-        [tadi_ . repeat n ta_kitathom | n <- [1, 2, 3]]
-    , utarangam . purvangam (tam.__) (replicate 3 (tadi_ . ta.p5))
-    , utarangam . purvangam (tam.__) (replicate 3 (p6 . su p6))
+    [ utarangam . purvangam (replicate 3 (tadi_ . ta_kitathom.ta_kitathom))
+    , utarangam . purvangam [tadi_ . repeat n ta_kitathom | n <- [1, 2, 3]]
+    , utarangam . purvangam (replicate 3 (tadi_ . ta.p5))
+    , utarangam . purvangam (replicate 3 (p6 . su p6))
 
-    -- date 2014 2 20
-    , utarangam2
-        . purvangam (tam.__.ga) (replicate 3 (tadi_ . ta_kitathom.ta_kitathom))
     -- 2022-10-10
     , theme . r3 (tat_din 3)
         . dropM 1 theme . r3 (tat_din 2)
@@ -97,6 +92,9 @@ c_14_02_05 = date 2014 2 5 $ ganesh $ korvaiS adi mridangam $
     , prefixes [theme, dropM 1 theme, dropM 2 theme]
         (tat_din 3.tat_din 2.tat_din 1)
         . purvangam2
+    -- 2022-10-16
+    , theme2.tat_din 3 . dropM 1 theme2.tat_din 2 . dropM 2 theme2.tat_din 1
+        . tri_tk (tam.__) (p62.su p62)
     ]
     where
     tat_din n = tat.__n n.din.__3
@@ -105,20 +103,20 @@ c_14_02_05 = date 2014 2 5 $ ganesh $ korvaiS adi mridangam $
     utarangam =   theme . tat_din 3
         . dropM 1 theme . tat_din 2
         . dropM 2 theme . tat_din 1
-    utarangam2 =  theme . r3 (tat_din 3)
-        . dropM 1 theme . r3 (tat_din 2)
-        . dropM 2 theme . r3 (tat_din 1)
-    purvangam karv seqs = join karv $ zipWith (.) [ø, su kp, su kpnp] seqs
+    purvangam seqs = join (tam.__) $ zipWith (.) [ø, su kp, su kpnp] seqs
     purvangam2 = tri_tk (tam.__3) (p6.su p6)
     tri_tk sep p = p.sep.su kp.p.sep.su kpnp.p
     theme = g $ tha.ki.ta.ta . su kita . thom
+    theme2 = g $ su $ taka.kita.taka.tari.kita.taka
+    p62 = pattern $ tat.dit.__.su (kita.kita).thom
     ta_kitathom = dropM 3 theme
     mridangam = makeMridangam
         [ (theme, p.k.t.k.k.t.o)
+        , (theme2, "upktpkpktkno")
+        , (p62, "kt_ktkto")
         , (tat.din, k.od)
         , (ta.di, k.t)
         , (ta, k)
-        , (ga, lt p)
         , (p5, n.__.k.t.p.k.p.t.o.__)
         , (tam, od)
         ]

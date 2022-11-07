@@ -99,3 +99,22 @@ s_22_09_25 = sollu $ korvaiS (beats 2) $ map su
     , "ktokn_o_ktoknook"
     , "ktokotokotokotok"
     ]
+
+e_22_10_16 :: Korvai
+e_22_10_16 = exercise $ date 2022 10 16 $ korvaiS adi
+    [ r2 $ r2 "nddd" & "oooo_oo_" . r2 "nddd" & "___o_oo"
+    , r4 "n,nd" & "o_oo_oo" . r2 "n,nd" & "o_oo_oo"
+        . "pku".su ("pk".nakatiku)
+    ]
+
+t_endaro_ending :: Korvai
+t_endaro_ending =
+    -- From pancaratnam house concert.
+    recording "Endaro Mahanubhavulu 2017-01-16.mp3"
+        (Just ((0, 13, 43), (0, 14, 0))) $
+    date 2017 1 16 $ korvaiS adi
+    [ __D 3 . "__" . "ndD".su "_k"."od"
+    . "pkd".su "pknpk_u_pk".su nakatiku."ooou"
+    . "pkd".su "pknpk_u_pk".su nakatiku.su nakatiku
+    . su (r2 (r2 ("N_pk".nakatiku).nakatiku) . r4 "N_ktok")
+    ]
