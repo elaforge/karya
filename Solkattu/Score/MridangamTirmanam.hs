@@ -39,3 +39,36 @@ tir_long_rupaka = tirmanam $ korvaiS Tala.rupaka_fast
     -- 20:06
     [ tri_ (od.__.k) (su (ktkt.p.kt.p.hv k.t.kt.p.k).od.od.k)
     ]
+
+-- https://www.youtube.com/watch?v=lSVqfzQBkMs
+tir_mysore_vidiraj22 :: Korvai
+tir_mysore_vidiraj22 = tirmanam $ korvaiS adi
+    -- 15
+    [ __D 4 . r3 (__ . tri_ "D_o" "NNk")
+    , __D 4 . __ . tri_ (su "D_ktpk") "NNk"
+    , __D 4 . __ . su (tri_ (o&v.__.ktok) (r2 (o&v.__.o)))
+    , __D 4 . __ . tri_ "v_o" (su "okokk_")
+    -- 16
+    , __D 4 . tri_ "D_" (su "t_o_ktok")
+    , __D 4 . tri_ "D_" (su "k_oD_N_k")
+    -- 24
+    , __D 2 . tri_ "D_o" "NNkNNk"
+    , __D 2 . tri_ (su "D_ktok") (su "N_N_pkN_N_pk")
+    , __D 2 . tri_ (su "D_ktok") (su "ookD_kD_D_k_") -- (su "ookD_kookD_k")
+    , __D 2 . tri_ (su "D_ktok") (su "npkD_kD_D_k_") -- (su "npknpknpknpk")
+    , __D 2 . tri_ (su "D_ktok") (su "NkoD_kD_D_k_")
+    , __D 2 . tri_ (o&v.__.o) (su "ktkto_ktkto_")
+
+    , __D 2 . tri_ (su "D_pkno") "DDkDDk"
+    -- 32
+    , let kook = su "kook" in
+        kook."D_kD_" . kook."D_kD_k_D_" . kook."D_kD_k_D_k__"
+
+    ]
+
+tir_itunes :: Korvai
+tir_itunes = tirmanam $ source "Mannargudi Easwaran" $ korvaiS adi
+    [ __D 7 . r2 (tri_ "D__" (su "kook"))
+        -- TODO more elegant way to put in the extra k?
+        . su "kook" . "D__" . su "kook" . "D_k" . su "kook"
+    ]

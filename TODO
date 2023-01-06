@@ -43,9 +43,13 @@ usability:
       I feel like the problem is representing it in the score though, e.g.
       writing it as part of the block itself, rather than ending the block
       and attaching another at the caller's level.
+    . salya-satyawati has one, I used final=t and awkward extra tracks.
   - For gender, I want to set a track pattern and have all new blocks do that.
     . Also the same for a meter.
     . "new block from template" was supposed to do this, how is it not enough?
+    . Well, it's not retroactive.
+    . Also I'd want to do a score integrate to left hand, how to do?
+    - Template copy should copy score integrates.
   - It really is annoying to mave to maintain the the score-level blocks,
     . I really do want them automatic.  TScore is almost this.
     . Can I make tscore less friction?  What exactly is the friction?
@@ -4483,6 +4487,8 @@ cleanup: bugs:
     - If State.allocations is so read-only, why not make it a plain function?
       . Tests use it to write...
   / Research a better solution to records: record:
+    . https://tbx.at/posts/lens-impressions/
+      Lots of people advocate generic-lens.
     . generic-lens combined with generic-lens-labels, OverloadedLabels, and
       DuplicateRecordFields
     . Or, https://hackage.haskell.org/package/optics-core Optics.Label
@@ -4641,6 +4647,7 @@ performance:
           be distinguished in gdb and heap profiles.
         . https://well-typed.com/blog/2021/01/first-look-at-hi-profiling-mode/
         . need -finfo-table-map -fdistinct-constructor-tables
+        . https://www.youtube.com/watch?v=vCv1vnY87NI&list=PLxxF72uPfQVRQXih84omWRmacz1lwejc6&index=8&ab_channel=TNGTechnologyConsultingGmbH
         . eventlog2html detailed pane now has extra columns
           ARR_WORDS Cmm$ghc_1.cmm - from RTS
         . also can look for THUNK to make sure they are where expected

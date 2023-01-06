@@ -161,6 +161,8 @@ scores = map Korvai.inferMetadataS
     , setLocation ("Solkattu.Score.MridangamTirmanam",22,"tir_long_adi") $ Single Solkattu.Score.MridangamTirmanam.tir_long_adi
     , setLocation ("Solkattu.Score.MridangamTirmanam",32,"tir_sam_adi_kirkalam") $ Single Solkattu.Score.MridangamTirmanam.tir_sam_adi_kirkalam
     , setLocation ("Solkattu.Score.MridangamTirmanam",37,"tir_long_rupaka") $ Single Solkattu.Score.MridangamTirmanam.tir_long_rupaka
+    , setLocation ("Solkattu.Score.MridangamTirmanam",44,"tir_mysore_vidiraj22") $ Single Solkattu.Score.MridangamTirmanam.tir_mysore_vidiraj22
+    , setLocation ("Solkattu.Score.MridangamTirmanam",69,"tir_itunes") $ Single Solkattu.Score.MridangamTirmanam.tir_itunes
     , setLocation ("Solkattu.Score.Solkattu2013",20,"c_13_07_23") $ Single Solkattu.Score.Solkattu2013.c_13_07_23
     , setLocation ("Solkattu.Score.Solkattu2013",27,"c_13_08_14") $ Single Solkattu.Score.Solkattu2013.c_13_08_14
     , setLocation ("Solkattu.Score.Solkattu2013",68,"c_yt1") $ Single Solkattu.Score.Solkattu2013.c_yt1

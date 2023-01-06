@@ -35,7 +35,7 @@ import qualified Derive.Stack as Stack
 
 import qualified Perform.Pitch as Pitch
 import qualified Solkattu.Db as Db
-import           Solkattu.Db hiding (realize, searchp)
+import           Solkattu.Db hiding (realize, search, searchp)
 import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Instrument.ToScore as ToScore
 import qualified Solkattu.Korvai as Korvai

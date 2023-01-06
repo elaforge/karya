@@ -61,8 +61,8 @@ aroundDate date days =
 ofType :: Text -> Korvai.Score -> Bool
 ofType type_ = (type_ `elem`) . Metadata.scoreTag "type"
 
-variableName :: Text -> Korvai.Score -> Bool
-variableName name = (name `Text.isInfixOf`) . Metadata.moduleVariable
+nameLike :: Text -> Korvai.Score -> Bool
+nameLike name = (name `Text.isInfixOf`) . qualifiedName
 
 hasInstrument :: Text -> Korvai.Score -> Bool
 hasInstrument inst = (inst `elem`) . Metadata.scoreTag "instrument"
@@ -78,9 +78,14 @@ date = Metadata.makeDate
 -- * search
 
 searchp :: [Korvai.Score -> Bool] -> IO ()
-searchp = Text.IO.putStrLn . formats . searchAll id
+searchp = Text.IO.putStrLn . formats . search
 
+-- | Select scores to search.  Filter can only look at one score at a time,
+-- this can select a group of them.
 type Select = forall i. [(i, Korvai.Score)] -> [(i, Korvai.Score)]
+
+search :: [Korvai.Score -> Bool] -> [(Int, Korvai.Score)]
+search = searchAll id
 
 searchAll :: Select -> [Korvai.Score -> Bool] -> [(Int, Korvai.Score)]
 searchAll select predicates = filter (predicate . snd) $ select scores
@@ -91,11 +96,8 @@ formats = Text.stripEnd . Text.unlines . map format
 
 format :: (Int, Korvai.Score) -> Text
 format (i, score) = mconcat
-    [ showt i
-    , ": "
-    , Metadata.showLocation $ Metadata.scoreLocation score
-    , " -- " <> maybe "no date" showt date
-    , "\n"
+    [ showt i, ": "
+    , qualifiedName score, " -- " <> maybe "no date" showt date, "\n"
     , tagsText
     ]
     where
@@ -133,9 +135,12 @@ writeHtmlTo dir = do
     write1 score = Html.writeAll (dir </> scoreFname score <> ".html") score
 
 scoreFname :: Korvai.Score -> FilePath
-scoreFname score = untxt $ mod <> "." <> variableName
-    where
-    (mod, _, variableName) = Korvai._location $ Korvai.scoreMetadata score
+scoreFname = untxt . qualifiedName
+
+qualifiedName :: Korvai.Score -> Text
+qualifiedName score = mod <> "." <> name
+    where (mod, _, name) = Korvai._location $ Korvai.scoreMetadata score
+
 
 -- ** writeText
 

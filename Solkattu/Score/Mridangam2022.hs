@@ -112,8 +112,9 @@ t_endaro_ending =
     -- From pancaratnam house concert.
     recording "Endaro Mahanubhavulu 2017-01-16.mp3" "13:43" $
     date 2017 1 16 $ korvaiS adi
-    [ __D 3 . "__" . "ndD".su "_k"."od"
+    [ __D 3 . "__" . "noD".su "_k"."od"
     . "pkd".su "pknpk_u_pk".su nakatiku."ooou"
     . "pkd".su "pknpk_u_pk".su nakatiku.su nakatiku
-    . su (r2 (r2 ("N_pk".nakatiku).nakatiku) . r4 "N_ktok")
+    . su (r2 (r2 ("N_pk".nakatiku).nakatiku) . r4 (g "N_ktok"))
+                                                -- . "oktk ok oktk oko")
     ]
