@@ -33,8 +33,10 @@ import qualified Data.DList as DList
 import qualified Data.List as List
 import qualified Data.Set as Set
 
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
+
 import qualified Derive.Call as Call
 import qualified Derive.Call.NoteUtil as NoteUtil
 import qualified Derive.Derive as Derive
@@ -173,7 +175,7 @@ emap_asc_m :: (a -> Score.Event)
     -- ^ Process an event. Exceptions are caught and logged.
     -> state -> Stream a -> Derive.Deriver (state, Stream Score.Event)
 emap_asc_m event_of f state =
-    fmap (second merge) . Seq.mapAccumLM go state . Stream.to_list
+    fmap (second merge) . Lists.mapAccumLM go state . Stream.to_list
     where
     merge = Stream.merge_asc_lists . map Stream.from_sorted_list
     go state (LEvent.Event event) =

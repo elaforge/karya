@@ -6,6 +6,7 @@
 module Derive.C.Europe.Chord (library) where
 import qualified Data.Map as Map
 
+import qualified Util.Lists as Lists
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
@@ -102,7 +103,7 @@ type Interval = Either PSignal.Pitch (Either Pitch.Step Text)
 
 resolve_intervals :: PSignal.Pitch -> [Interval]
     -> Derive.Deriver [PSignal.Pitch]
-resolve_intervals b = fmap snd . Seq.mapAccumLM resolve b
+resolve_intervals b = fmap snd . Lists.mapAccumLM resolve b
     where
     resolve _ (Left pitch) = return (pitch, pitch)
     resolve base (Right (Left steps)) = return (p, p)

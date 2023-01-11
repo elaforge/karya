@@ -8,7 +8,7 @@
 -- subset I want to bind to keys.  Perhaps I should move the logic from LRuler
 -- here and have LRuler use these definitions.
 module Cmd.RulerCmd where
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Ruler.RulerUtil as RulerUtil
 import qualified Cmd.Selection as Selection
@@ -39,7 +39,7 @@ extend n = modify_final $ \section -> (:[]) $ section
 
 modify_final :: (Meter.MSection -> [Meter.MSection]) -> Meter.Meter
     -> Meter.Meter
-modify_final modify = Meter.modify_sections $ \ss -> case Seq.viewr ss of
+modify_final modify = Meter.modify_sections $ \ss -> case Lists.unsnoc ss of
     Just (ss, s) -> ss ++ modify s
     Nothing -> modify default_section
 

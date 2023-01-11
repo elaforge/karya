@@ -15,8 +15,10 @@ import qualified Data.Tree as Tree
 import qualified System.FilePath as FilePath
 import qualified System.Process as Process
 
+import qualified Util.Lists as Lists
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+
 import qualified Shake.HsDeps as HsDeps
 
 import           Global
@@ -152,7 +154,7 @@ generateGraph :: IO Graph
 generateGraph =
     fmap (Map.fromList . map (bimap fileToModule (map fileToModule))
         . Maybe.catMaybes . snd) $
-        Seq.mapAccumLM get Set.empty =<< getAllHs
+        Lists.mapAccumLM get Set.empty =<< getAllHs
     where
     get seen fname
         | Set.member fname seen = return (seen, Nothing)

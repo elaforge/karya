@@ -21,6 +21,7 @@ module Cmd.ControlTrack (
 ) where
 import qualified Data.Text as Text
 
+import qualified Util.Lists as Lists
 import qualified Util.Seq as Seq
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
@@ -258,7 +259,7 @@ parse = parse_general (\method val args -> (method, val, args))
 
 parse_general :: (Text -> Text -> [Text] -> (Text, Text, [Text]))
     -> Text -> Partial
-parse_general split_expr = make . Seq.viewr . Parse.split_pipeline
+parse_general split_expr = make . Lists.unsnoc . Parse.split_pipeline
     where
     make Nothing = Partial [] "" "" [] ""
     make (Just (transform, expr)) = Partial
@@ -269,7 +270,7 @@ parse_general split_expr = make . Seq.viewr . Parse.split_pipeline
         , _comment = comment
         }
         where
-        (expr2, comment) = case Seq.viewr expr of
+        (expr2, comment) = case Lists.unsnoc expr of
             Just (expr, comment) | "--" `Text.isPrefixOf` comment ->
                 (expr, comment)
             _ -> (expr, "")

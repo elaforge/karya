@@ -28,6 +28,7 @@ import qualified Data.Text.Lazy.Encoding as Lazy.Encoding
 import qualified System.FilePath as FilePath
 import           System.FilePath ((</>))
 
+import qualified Util.Lists as Lists
 import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
 
@@ -216,7 +217,7 @@ haddockUrl files haddockDir text
     moduleLink path = strip $ haddockDir </> Seq.join "-" path ++ ".html"
     strip ('.' : '/' : path) = path
     strip path = path
-    symbolLink = case Seq.viewr components of
+    symbolLink = case Lists.unsnoc components of
         Just (mod, sym) -> Just $ moduleLink mod ++ symbolAnchor sym
         Nothing -> Nothing
 

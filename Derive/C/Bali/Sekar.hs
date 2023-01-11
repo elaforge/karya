@@ -11,6 +11,7 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
+import qualified Util.Lists as Lists
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
@@ -177,7 +178,7 @@ sekar_direct_arrive range patterns events_ =
     -- duration to the destination note.
     events = case events_ of
         [] -> []
-        rest : events -> case Seq.viewr events of
+        rest : events -> case Lists.unsnoc events of
             Nothing -> events
             Just (initial, final)
                 | SubT._start final >= snd range ->

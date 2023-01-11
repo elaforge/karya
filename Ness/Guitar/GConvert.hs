@@ -7,19 +7,21 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
+import qualified Util.Lists as Lists
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+
 import qualified Derive.Attrs as Attrs
+import qualified Ness.Guitar as Guitar
+import qualified Ness.Guitar.Patch as Patch
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
 
-import Global
-import Ness.Global
-import qualified Ness.Guitar as Guitar
-import qualified Ness.Guitar.Patch as Patch
+import           Global
+import           Ness.Global
 
 
 -- | Scale dynamic=1 to this.
@@ -184,7 +186,7 @@ fingerMovement string notes pitch fingerWeight =
         -- Extend the last sample since karya assumes it's constant after the
         -- end, but the pitch of multiple notes have been joined.
         -- TODO see if this is fixed now
-        here = case Seq.viewr pitches of
+        here = case Lists.unsnoc pitches of
             Just (ps, (t, p))
                 | t < nextAttack -> ps ++ [(t, p), (nextAttack, p)]
                 | otherwise -> pitches

@@ -24,6 +24,7 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 import qualified Util.Doc as Doc
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
@@ -201,7 +202,8 @@ realize_tumpuk prev event_start event_end place prev_pitch event_pitch dur
             Call.add_attributes attrs $ Call.pitched_note pitch
 
 parse_tumpuk :: [Char] -> Either Text [TumpukNote]
-parse_tumpuk = fmap (Maybe.catMaybes . snd) . Seq.mapAccumLM parse (Transpose 0)
+parse_tumpuk =
+    fmap (Maybe.catMaybes . snd) . Lists.mapAccumLM parse (Transpose 0)
     where
     parse pitch c = case Map.lookup c articulations of
         Just (attrs, dyn) -> Right (pitch, Just (pitch, attrs, dyn))

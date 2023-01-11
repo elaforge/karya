@@ -17,6 +17,7 @@ import qualified Data.Time.Calendar as Calendar
 
 import qualified GHC.Generics as Generics
 
+import qualified Util.Lists as Lists
 import qualified Util.Maps as Maps
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
@@ -251,7 +252,7 @@ section seq = Section
     }
 
 inferSections :: [SequenceT sollu] -> [Section (SequenceT sollu)]
-inferSections seqs = case Seq.viewr (map section seqs) of
+inferSections seqs = case Lists.unsnoc (map section seqs) of
     Just (inits, last) ->
         map (addSectionTags (Tags.withType Tags.development)) inits
         ++ [addSectionTags (Tags.withType Tags.ending) last]

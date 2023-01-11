@@ -9,6 +9,7 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
+import qualified Util.Lists as Lists
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.Test.ApproxEq as ApproxEq
@@ -265,7 +266,7 @@ stretch_karvai sequence karvai matra_dur event_dur = if
         | not (Num.integral (karvai_dur / matra_dur)) ->
             Left $ "karvai would have to be " <> pretty (karvai_dur / matra_dur)
                 <> " matras"
-        | otherwise -> case Seq.viewr karvai of
+        | otherwise -> case Lists.unsnoc karvai of
             Nothing -> Right [(karvai_dur, Rest)]
             Just (ks, k) ->
                 Right $ map (matra_dur,) ks ++ [(stretch_dur, k)]

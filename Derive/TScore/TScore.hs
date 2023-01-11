@@ -21,6 +21,7 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty
@@ -786,7 +787,7 @@ resolve_sub_tracks block_id (T.Tracks tracks) =
 
 resolve_sub_tokens :: BlockId -> TrackNum -> [T.Token T.Call pitch ndur rdur]
     -> ResolveM [T.Token T.CallText pitch ndur rdur]
-resolve_sub_tokens block_id tracknum = fmap snd . Seq.mapAccumLM resolve [1..]
+resolve_sub_tokens block_id tracknum = fmap snd . Lists.mapAccumLM resolve [1..]
     where
     resolve (n:ns) (T.TNote pos note) = case T.note_call note of
         T.SubBlock prefix subs -> do

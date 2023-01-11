@@ -551,10 +551,6 @@ head (x:_) = Just x
 last [] = Nothing
 last xs = Just (List.last xs)
 
-tail :: [a] -> Maybe [a]
-tail [] = Nothing
-tail (_:xs) = Just xs
-
 -- | Drop until the last element before or equal to the given element.
 drop_before :: Ord key => (a -> key) -> key -> [a] -> [a]
 drop_before key p = go
@@ -565,13 +561,6 @@ drop_before key p = go
         | otherwise = case xs of
             x1 : _ | p >= key x1 -> go xs
             _ -> x0 : xs
-
--- | takeWhile with state.
-takeWhileS :: state -> (state -> a -> Maybe state) -> [a] -> [a]
-takeWhileS state f = go state
-    where
-    go _ [] = []
-    go !state0 (x : xs) = maybe [] (\state1 -> x : go state1 xs) (f state0 x)
 
 -- ** duplicates
 
@@ -717,14 +706,6 @@ span_end_while :: (a -> Maybe b) -> [a] -> ([a], [b])
 span_end_while f xs = (reverse post, reverse pre)
     where (pre, post) = span_while f (reverse xs)
 
--- | List initial and final element, if any.
-viewr :: [a] -> Maybe ([a], a)
-viewr [] = Nothing
-viewr (x:xs) = Just $ go x xs
-    where
-    go x0 [] = ([], x0)
-    go x0 (x:xs) = let (pre, post) = go x xs in (x0:pre, post)
-
 -- ** split and join
 
 -- | Split before places where the function matches.
@@ -803,17 +784,3 @@ replace1 from to = concatMap (\v -> if v == from then to else [v])
 
 count :: Foldable t => (a -> Bool) -> t a -> Int
 count f = List.foldl' (\n c -> if f c then n + 1 else n) 0
-
-
--- * monadic
-
--- | Like 'List.mapAccumL', but monadic.  Strict in the accumulator.
-mapAccumLM :: Monad m => (state -> x -> m (state, y)) -> state -> [x]
-    -> m (state, [y])
-mapAccumLM f = go
-    where
-    go !state [] = return (state, [])
-    go !state (x:xs) = do
-        (state, y) <- f state x
-        (state, ys) <- go state xs
-        return (state, y : ys)
