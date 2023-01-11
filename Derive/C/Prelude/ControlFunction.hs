@@ -233,7 +233,7 @@ to_typed_function dyn deflt control =
     case to_signal_or_function dyn control of
         Nothing -> const deflt
         Just (Left sig) -> Derive.signal_function sig
-        Just (Right f) -> DeriveT.call_control_function f score_control dyn
+        Just (Right f) -> DeriveT.cf_function f score_control dyn
     where
     score_control = case control of
         DeriveT.ControlSignal {} -> Controls.null

@@ -651,7 +651,7 @@ lookup_control_function control = do
         Nothing -> return Nothing
         Just f -> do
             dyn <- Internal.get_control_function_dynamic
-            return $ Just $ DeriveT.call_control_function f control dyn
+            return $ Just $ DeriveT.cf_function f control dyn
 
 untyped_control_at :: ScoreT.Control -> RealTime -> Deriver (Maybe Signal.Y)
 untyped_control_at cont = fmap (fmap ScoreT.typed_val) . control_at cont
@@ -682,7 +682,7 @@ state_controls_at pos ruler dyn serial =
         Seq.Second sig -> Signal.at pos (ScoreT.typed_val sig)
         where
         call control f = ScoreT.typed_val $
-            DeriveT.call_control_function f control cf_dyn pos
+            DeriveT.cf_function f control cf_dyn pos
 
 -- *** control signal
 

@@ -186,7 +186,7 @@ cf_to_curve :: DeriveT.ControlFunction -> Curve
 cf_to_curve cf@(DeriveT.ControlFunction name _)
     | name == cf_linear_name = Linear
     | otherwise = Function $ ScoreT.typed_val
-        . DeriveT.call_control_function cf Controls.null DeriveT.empty_dynamic
+        . DeriveT.cf_function cf Controls.null DeriveT.empty_dynamic
         . RealTime.seconds
 
 -- * interpolate

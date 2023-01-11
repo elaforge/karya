@@ -359,7 +359,7 @@ num_to_checked_function make check_type = num_to_function $ \f ->
 
 -- | Evaluate a control function with no backing control.
 control_function :: DeriveT.ControlFunction -> Derive.Deriver TypedFunction
-control_function cf = DeriveT.call_control_function cf Controls.null <$>
+control_function cf = DeriveT.cf_function cf Controls.null <$>
     Internal.get_control_function_dynamic
 
 -- *** eval only
@@ -784,7 +784,7 @@ convert_to_function :: DeriveT.ControlRef
 convert_to_function control = either (return . signal_function) from_function
     where
     signal_function sig t = Signal.at t <$> sig
-    from_function f = DeriveT.call_control_function f score_control <$>
+    from_function f = DeriveT.cf_function f score_control <$>
         Internal.get_control_function_dynamic
     score_control = case control of
         DeriveT.ControlSignal {} -> Controls.null

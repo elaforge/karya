@@ -717,25 +717,27 @@ type PitchMap = Map ScoreT.PControl PSignal
 
     See NOTE [control-function].
 -}
-data ControlFunction =
+data ControlFunction = ControlFunction {
+    -- | The expression that created this, for serialization.
+    -- TODO except not yet.
+    cf_name :: !Text
     -- | Control is the control name this function was bound to, if it was
     -- bound to one.  Dynamic is a stripped down Derive State.  For
     -- ControlFunctions that represent a control signal, the RealTime is the
     -- desired X value, otherwise it's just some number.
-    ControlFunction !Text
-        !(ScoreT.Control -> Dynamic -> RealTime -> ScoreT.Typed Signal.Y)
+    , cf_function :: !(ScoreT.Control -> Dynamic -> RealTime
+        -> ScoreT.Typed Signal.Y)
+    }
 
-instance Show ControlFunction where show = untxt . ShowVal.show_val
-instance Pretty ControlFunction where pretty = showt
--- | Not parseable.
-instance ShowVal.ShowVal ControlFunction where
-    show_val (ControlFunction name _) = "((ControlFunction " <> name <> "))"
 instance DeepSeq.NFData ControlFunction where
-    rnf (ControlFunction a b) = a `seq` b `seq` ()
+    rnf _ = () -- bogus instance so Derive.Dynamic can have one
+instance Show ControlFunction where show = untxt . pretty
+instance Pretty ControlFunction where
+    pretty cf = "((ControlFunction " <> cf_name cf <> "))"
 
-call_control_function :: ControlFunction -> ScoreT.Control -> Dynamic
-    -> RealTime -> (ScoreT.Typed Signal.Y)
-call_control_function (ControlFunction _ f) = f
+-- | TODO this isn't a real ShowVal, I'd have to record the whole expression.
+instance ShowVal.ShowVal ControlFunction where
+    show_val = cf_name
 
 -- | Modify the underlying function, presumably to compose something onto the
 -- input or output.
@@ -772,6 +774,27 @@ empty_dynamic = Dynamic
     }
 
 {- NOTE [control-function]
+
+    . The UI is what I want, which is that I write a start=(rnd .1 .3), so
+    let's keep that.  Then it gets serialized as an expression (rnd .1 .3).
+
+    Stuff I don't like:
+
+    . The UI where it's in a different namespace than signals, so dyn=(rnd) vs
+    %dyn=.5.  Maybe this comes from the signal vs env namespace though.
+
+    . UI where they have an implicit signal backing.  I think I don't need
+    that, if it's a random addition it should be explicit, like
+    dyn=%dyn + rnd .5.  If they are in the same namespace then something like
+    dyn=(+ dyn (rnd .5)), or even dyn=+(rnd .5)
+
+    . Also plenty is wrong with the implementation, extra Dynamic.
+
+    Problems to solve:
+    - Unify signal and env namespaces.
+    - Unify Val and RVal.  Make Val serializable.
+    - Make so calls can coerce to TypedFunction.
+    - Unify ControlFunction with ValCall.
 
     Control functions add unwanted complexity, but I couldn't think of
     a simpler way to randomized or synthesized control values.  Here's the
