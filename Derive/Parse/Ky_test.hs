@@ -184,15 +184,3 @@ test_replace_section = do
     equal (f ["sec1:", "a"]) ["sec1:", "a", "", "sec:", "!"]
     equal (f ["sec1:", "a", "sec:", "b", "", "sec2:", "c"])
         ["sec1:", "a", "sec:", "!", "b", "", "sec2:", "c"]
-
-test_split_with :: Test
-test_split_with = do
-    let f = Ky.split_with match
-        match = \case
-            'c' -> Just 'c'
-            'e' -> Just 'e'
-            _ -> Nothing
-    equal (f "") ("", [])
-    equal (f "c") ("", [('c', "")])
-    equal (f "abcd") ("ab", [('c', "d")])
-    equal (f "abcdef") ("ab", [('c', "d"), ('e', "f")])

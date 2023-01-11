@@ -27,6 +27,7 @@ import qualified Data.Text.IO as Text.IO
 import           System.FilePath ((</>))
 
 import qualified Util.Exceptions as Exceptions
+import qualified Util.Lists as Lists
 import qualified Util.Maps as Maps
 import qualified Util.Parse
 import qualified Util.ParseText as ParseText
@@ -303,7 +304,7 @@ checked_sections = traverse check . extract . parse_sections
 -- section before the first section title, used for imports.
 parse_sections :: Code -> [Section]
 parse_sections =
-    merge . split_with parse_header . zip [0..] . Text.lines
+    merge . Lists.splitWith parse_header . zip [0..] . Text.lines
     where
     merge (pre, sections) = ("", pre) : sections
     parse_header (_, line)
@@ -437,23 +438,3 @@ p_var = A.char '$' *> (Var <$> A.takeWhile1 is_var_char)
 
 is_var_char :: Char -> Bool
 is_var_char c = 'a' <= c || 'z' <= c || c == '-'
-
--- * Lists
-
-split_with :: (a -> Maybe b) -> [a] -> ([a], [(b, [a])])
-split_with match = go1
-    where
-    go1 as = case break_with match as of
-        (pre, Nothing) -> (pre, [])
-        (pre, Just (b, post)) -> (pre, go2 b post)
-    go2 b0 as = case break_with match as of
-        (pre, Nothing) -> [(b0, pre)]
-        (pre, Just (b1, post)) -> (b0, pre) : go2 b1 post
-
-break_with :: (a -> Maybe b) -> [a] -> ([a], Maybe (b, [a]))
-break_with f = go
-    where
-    go (a : as) = case f a of
-        Just b -> ([], Just (b, as))
-        Nothing -> first (a:) (go as)
-    go [] = ([], Nothing)
