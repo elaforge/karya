@@ -346,7 +346,7 @@ get_root :: Ui.State -> Either Text BlockId
 get_root state = justErr "no root block" $ Ui.config#UiConfig.root #$ state
 
 basename :: FilePath -> FilePath
-basename = FilePath.takeFileName . Seq.rdrop_while (=='/')
+basename = FilePath.takeFileName . List.dropWhileEnd (=='/')
 
 write_timing :: FilePath -> Timings -> IO ()
 write_timing fname timings = ByteString.Lazy.writeFile fname $ (<>"\n") $

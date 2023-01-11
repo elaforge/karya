@@ -13,6 +13,8 @@ import qualified Text.Printf as Printf
 
 import qualified Util.Html as Html
 import qualified Util.Seq as Seq
+import qualified Util.Texts as Texts
+
 import qualified App.Path as Path
 import qualified Cmd.CallDoc as CallDoc
 import qualified Cmd.Cmd as Cmd
@@ -112,7 +114,7 @@ txt_fmt :: Binds -> Text
 txt_fmt = Text.unlines . map (uncurry show_binding)
 
 show_binding :: Text -> [Cmd.KeySpec] -> Text
-show_binding name keyspecs = Seq.join2 " - " mods name
+show_binding name keyspecs = Texts.join2 " - " mods name
     where mods = "[" <> Text.intercalate ", " (map pretty keyspecs) <> "]"
 
 -- * html fmt
@@ -149,6 +151,6 @@ html_binding name keyspecs =
 
 html_keyspec :: Cmd.KeySpec -> Text
 html_keyspec (Cmd.KeySpec mods bindable) =
-    Seq.join2 " " (show_mods mods)
+    Texts.join2 " " (show_mods mods)
         ("<b>" <> Cmd.show_bindable False bindable <> "</b>")
     where show_mods = Text.intercalate " + " . map Cmd.show_mod . Set.toList

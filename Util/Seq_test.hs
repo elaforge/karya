@@ -68,13 +68,6 @@ test_split_before = do
     equal (f [1, 2, 3, 1, 2]) [[], [1, 2, 3], [1, 2]]
     equal (f [2, 3, 1, 2]) [[2, 3], [1, 2]]
 
-test_split_after :: Test
-test_split_after = do
-    let f = Seq.split_after (==1)
-    equal (f []) []
-    equal (f [1, 2, 3, 1, 2]) [[1], [2, 3, 1], [2]]
-    equal (f [2, 3, 1, 2]) [[2, 3, 1], [2]]
-
 test_drop_before :: Test
 test_drop_before = do
     let f n = Seq.head $ Seq.drop_before id n [1..4]

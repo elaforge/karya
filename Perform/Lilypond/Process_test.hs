@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Perform.Lilypond.Process_test where
+import qualified Data.List as List
 import qualified Data.Text as Text
 
 import qualified Util.Log as Log
@@ -15,7 +16,7 @@ import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Lilypond.Constants as Constants
 import           Perform.Lilypond.Constants
-       (Attach(..), Position(..), Distribution(..))
+    (Attach(..), Distribution(..), Position(..))
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
 import           Perform.Lilypond.LilypondTest (a3, b3, c3, d3, e3, f3)
 import qualified Perform.Lilypond.Meter as Meter
@@ -244,7 +245,6 @@ test_voices = do
             , Right "r4"
             ]
 
-
 test_voices_meter :: Test
 test_voices_meter = do
     let run wanted meters = LilypondTest.extract_lys wanted
@@ -413,7 +413,7 @@ test_convert_tremolo = do
 strip_ly :: [Process.Ly] -> [Process.Ly]
 strip_ly lys
     | null post = pre
-    | otherwise = Seq.rdrop_while is_bar $ drop 1 post
+    | otherwise = List.dropWhileEnd is_bar $ drop 1 post
     where
     (pre, post) = break is_major lys
     is_major (Process.LyCode "\\key c \\major") = True

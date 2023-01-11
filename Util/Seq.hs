@@ -6,7 +6,7 @@
 module Util.Seq where
 import           Prelude hiding (head, last, tail)
 import qualified Data.Algorithm.Diff as Diff
-import           Data.Bifunctor (first, second, Bifunctor(bimap))
+import           Data.Bifunctor (Bifunctor(bimap), first, second)
 import qualified Data.Char as Char
 import qualified Data.Either as Either
 import           Data.Function (on)
@@ -17,8 +17,6 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Ord as Ord
 import qualified Data.Set as Set
-
-import qualified Util.Then as Then
 
 
 -- | This is just a list, but is documentation that a return value will never
@@ -674,14 +672,9 @@ rdrop n = either id (const []) . foldr f (Right n)
         | otherwise = Right (n-1)
     f x (Left xs) = Left (x:xs)
 
--- | The same as 'List.dropWhileEnd` except I also have all the other from-end
--- variants.
-rdrop_while :: (a -> Bool) -> [a] -> [a]
-rdrop_while = List.dropWhileEnd
-
 lstrip, rstrip, strip :: String -> String
 lstrip = dropWhile Char.isSpace
-rstrip = rdrop_while Char.isSpace
+rstrip = List.dropWhileEnd Char.isSpace
 strip = rstrip . lstrip
 
 -- | If the list doesn't have the given prefix, return the original list and
@@ -759,25 +752,6 @@ split_before f = go
     cons1 x [] = [[x]]
     cons1 x (g:gs) = (x:g) : gs
 
--- | Like 'split_before', but express the NonEmpty parts in the type.
---
--- > > split_before_ne (==1) [1, 2, 1]
--- > ([], [1 :| [2], 1 :| []])
-split_before_ne :: (a -> Bool) -> [a] -> ([a], [NonEmpty a])
-split_before_ne f = second go . break f
-    where
-    go [] = []
-    go (x : xs) = (x :| pre) : go post
-        where (pre, post) = break f xs
-
--- | Split after places where the function matches.
-split_after :: (a -> Bool) -> [a] -> [[a]]
-split_after f = go
-    where
-    go [] = []
-    go xs = pre : go post
-        where (pre, post) = Then.break1 f xs
-
 -- | Split @xs@ on @sep@, dropping @sep@ from the result.
 split :: Eq a => NonNull a -> [a] -> NonNull [a]
 split [] = error "Util.Seq.split: empty separator"
@@ -787,11 +761,6 @@ split sep = go
         | null post = [pre]
         | otherwise = pre : go (drop (length sep) post)
         where (pre, post) = break_tails (sep `List.isPrefixOf`) xs
-
--- | Like 'split', but it returns [] if the input was null.
-split_null :: Eq a => NonNull a -> [a] -> [[a]]
-split_null _ [] = []
-split_null sep xs = split sep xs
 
 -- | Like 'split', but split on a single element.
 split1 :: Eq a => a -> [a] -> [[a]]
@@ -805,13 +774,6 @@ split1 sep = go
 -- | Interspense a separator and concat.
 join :: Monoid a => a -> [a] -> a
 join sep = mconcat . List.intersperse sep
-
--- | Binary join, but the separator is only used if both joinees are non-empty.
-join2 :: (Monoid a, Eq a) => a -> a -> a -> a
-join2 sep x y
-    | y == mempty = x
-    | x == mempty = y
-    | otherwise = x <> sep <> y
 
 -- | Split the list on the points where the given function returns true.
 --

@@ -59,6 +59,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
+import qualified Util.Texts as Texts
 
 import qualified App.Config as Config
 import qualified App.Path as Path
@@ -239,7 +240,7 @@ instance Pretty (NamedCmd m) where
 
 instance Pretty KeySpec where
     pretty (KeySpec mods bindable) =
-        Seq.join2 " " (show_mods mods) (show_bindable True bindable)
+        Texts.join2 " " (show_mods mods) (show_bindable True bindable)
         where show_mods = Text.intercalate " + " . map show_mod . Set.toList
 
 show_mod :: Modifier -> Text
