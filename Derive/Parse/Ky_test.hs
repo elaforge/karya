@@ -103,12 +103,6 @@ test_parse_ky = do
         [(ScoreT.Instrument "a", ScoreT.Instrument "b")]
     left_like (f aliases "alias:\n>a = >b\n") "lhs not a valid id"
 
--- TODO whitespace changes are not highlighted
-tt = do
-    equal "abc\n" "abc"
-    Text.IO.putStrLn $
-        Testing.pretty_compare "==" "/=" False "abc\n" "abc" False
-
 test_merge_instruments :: Test
 test_merge_instruments = do
     let f allocs = Text.lines . Ky.merge_instruments (map mkalloc allocs)
