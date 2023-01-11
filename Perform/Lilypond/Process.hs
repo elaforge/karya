@@ -28,6 +28,7 @@ import qualified Data.Ratio as Ratio
 import qualified Data.Text as Text
 
 import qualified Util.Log as Log
+import qualified Util.NEs as NEs
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -46,7 +47,7 @@ import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.Lilypond.Meter as Meter
 import qualified Perform.Lilypond.Types as Types
 import           Perform.Lilypond.Types
-       (event_attributes, event_end, to_lily, Time, ToLily, Event(..))
+    (Event(..), Time, ToLily, event_attributes, event_end, to_lily)
 import qualified Perform.Pitch as Pitch
 
 import           Global
@@ -716,7 +717,7 @@ make_note config measure_start prev_attrs maybe_meter chord next =
             in_measure = start - measure_start
     -- Maximum end, the actual end may be shorter since it has to conform to
     -- a Duration.
-    max_end = min_if next $ Seq.ne_minimum (fmap event_end chord)
+    max_end = min_if next $ NEs.minimum (fmap event_end chord)
     is_rest = null note_pitches
 
 events_note_code :: Constants.Attach -> Bool -> Bool -> [Event]

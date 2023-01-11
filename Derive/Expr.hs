@@ -14,14 +14,16 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.String as String
 import qualified Data.Text as Text
 
+import qualified Util.NEs as NEs
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
+
 import qualified Derive.ScoreT as ScoreT
 import           Derive.ShowVal (ShowVal(show_val))
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
-import Global
+import           Global
 
 
 -- | A full toplevel expression, sometimes called a "pipeline", because it looks
@@ -114,7 +116,7 @@ generator0 = generator . call0
 
 -- | Split into (transformers, generator).  Inverse of 'expr'.
 split :: Expr val -> ([Call val], Call val)
-split = Seq.ne_viewr
+split = NEs.unsnoc
 
 -- | Make a Call with Literal args.
 call :: Symbol -> [val] -> Call val

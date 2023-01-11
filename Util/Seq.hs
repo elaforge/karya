@@ -238,12 +238,6 @@ maximum :: Ord a => [a] -> Maybe a
 maximum [] = Nothing
 maximum xs = Just (List.maximum xs)
 
-ne_minimum :: Ord a => NonEmpty a -> a
-ne_minimum (x :| xs) = List.minimum (x : xs)
-
-ne_maximum :: Ord a => NonEmpty a -> a
-ne_maximum (x :| xs) = List.maximum (x : xs)
-
 -- * ordered lists
 
 insert_on :: Ord k => (a -> k) -> a -> [a] -> [a]
@@ -730,10 +724,6 @@ viewr (x:xs) = Just $ go x xs
     where
     go x0 [] = ([], x0)
     go x0 (x:xs) = let (pre, post) = go x xs in (x0:pre, post)
-
-ne_viewr :: NonEmpty a -> ([a], a)
-ne_viewr (x :| xs) =
-    Maybe.fromMaybe (error "ne_viewr: not reached") (viewr (x : xs))
 
 -- ** split and join
 

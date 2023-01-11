@@ -18,7 +18,7 @@ import qualified Control.Monad.State as Monad.State
 import qualified Data.List.NonEmpty as NonEmpty
 
 import qualified Util.Doc as Doc
-import qualified Util.Seq as Seq
+import qualified Util.NEs as NEs
 import qualified Util.Texts as Texts
 
 import qualified Derive.Call.Module as Module
@@ -100,7 +100,7 @@ val_macro call_expr vals args = do
     Eval.eval (Derive.passed_ctx args) (Expr.ValCall call_expr)
 
 split_expr :: DeriveT.Expr -> ([DeriveT.Call], DeriveT.Call)
-split_expr = Seq.ne_viewr
+split_expr = NEs.unsnoc
 
 eval_args :: Derive.Taggable a => Derive.Context a -> DeriveT.Call
     -> Derive.Deriver (Expr.Symbol, [DeriveT.Val])
