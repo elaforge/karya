@@ -4,6 +4,7 @@
 module Derive.Parse.Instruments_test where
 
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 
 import qualified Util.Parse as Parse
 import qualified Derive.Parse.Instruments as I
@@ -87,7 +88,7 @@ test_allocation_roundtrip = do
     let loop1 = Midi.write_device "loop1"
     let trip alloc =
             ( Right alloc
-            , parse $ I.unparse_allocations [alloc]
+            , parse $ Text.unlines $ I.unparse_allocations [(Just alloc, "")]
             )
     uncurry equal $ trip $ I.Allocation "i" syn I.empty_config I.NonMidi
     uncurry equal $ trip $ I.Allocation "i" syn (I.Config False True)

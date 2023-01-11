@@ -7,6 +7,7 @@ module Derive.Parse.Ky (
     Ky(..), Loaded(..)
     , Definitions(..), Definition
     , load_ky
+    , get_ky
     -- ** types
     , Expr(..), Call(..), Term(..), Var(..)
 #ifdef TESTING
@@ -16,6 +17,7 @@ module Derive.Parse.Ky (
 import           Control.Applicative (many)
 import qualified Control.Monad.Except as Except
 import qualified Data.Attoparsec.Text as A
+import qualified Data.Char as Char
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -39,9 +41,15 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Symbols as Symbols
 
 import qualified Ui.Id as Id
+import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
 
 import           Global
 
+
+type Error = Text
+-- | Ky code.  For the whole file or whole sections, not fragments or lines.
+type Code = Text
 
 -- | A parsed .ky file
 data Ky a = Ky {
@@ -59,7 +67,7 @@ instance Monoid (Ky a) where
 
 -- | Record a loaded .ky file, with its path and content.
 -- A path of "" is used for the code directly in the UiConfig.
-data Loaded = Loaded !FilePath !Text
+data Loaded = Loaded !FilePath !Code
     deriving (Eq, Show)
 -- | A requested import.  Path to .ky file, .ky files it imports.
 data Import = Import !FilePath !String
@@ -91,7 +99,7 @@ type Definition = (FilePath, (Expr.Symbol, Expr))
 
 -- | Parse ky text and load and parse all the files it imports.  'parse_ky'
 -- describes the format of the ky file.
-load_ky :: [FilePath] -> Text -> IO (Either ParseText.Error (Ky Loaded))
+load_ky :: [FilePath] -> Code -> IO (Either ParseText.Error (Ky Loaded))
 load_ky paths content = Except.runExceptT $ do
     ky <- tryRight $ first (ParseText.prefix "<score>: ") $ parse_ky "" content
     kys <- load_ky_file paths Set.empty (ky_imports ky)
@@ -114,7 +122,7 @@ load_ky_file paths loaded (Import fname lib : imports)
 
 -- | Find the file in the given paths and return its filename and contents.
 find_ky :: [FilePath] -> FilePath -> FilePath
-    -> IO (Either Text (FilePath, Text))
+    -> IO (Either Error (FilePath, Code))
 find_ky paths from fname =
     catch_io (txt fname) $ justErr msg <$>
         firstJusts (map (\dir -> get (dir </> fname)) paths)
@@ -125,7 +133,7 @@ find_ky paths from fname =
     get fn = Exceptions.ignoreEnoent $ (,) fn <$> Text.IO.readFile fn
 
 -- | Catch any IO exceptions and put them in Left.
-catch_io :: Text -> IO (Either Text a) -> IO (Either Text a)
+catch_io :: Text -> IO (Either Error a) -> IO (Either Error a)
 catch_io prefix io =
     either (Left . ((prefix <> ": ") <>) . showt) id <$> Exceptions.tryIO io
 
@@ -161,10 +169,9 @@ catch_io prefix io =
     - Calls are defined as "Derive.Call.Macro"s, which means they can include
     $variables, which become arguments to the call.
 -}
-parse_ky :: FilePath -> Text -> Either ParseText.Error (Ky Import)
+parse_ky :: FilePath -> Code -> Either ParseText.Error (Ky Import)
 parse_ky fname text = do
-    (imports, sections) <- first ParseText.message $ split_sections $
-        Text.lines text
+    (imports, sections) <- first ParseText.message $ checked_sections text
     (instrument_section, sections) <- return
         ( Map.lookup Instruments.instrument_section sections
         , Map.delete Instruments.instrument_section sections
@@ -182,7 +189,7 @@ parse_ky fname text = do
             , get (kind <> " " <> transformer)
             )
     aliases <- first (ParseText.Error Nothing) $ mapM parse_alias (get alias)
-    allocs <- traverse (traverse parse_allocation) instrument_section
+    allocs <- traverse (traverse parse_instrument) instrument_section
     let add_fname = map (fname,)
         add_fname2 = bimap add_fname add_fname
     return $ Ky
@@ -213,8 +220,8 @@ parse_ky fname text = do
         first (ParseText.offset (lineno, 0)) $ ParseText.parse p_section $
             Text.unlines (line0 : map snd lines)
 
-parse_allocation :: (Int, Text) -> Either ParseText.Error Instruments.Allocation
-parse_allocation (lineno, line) =
+parse_instrument :: (Int, Text) -> Either ParseText.Error Instruments.Allocation
+parse_instrument (lineno, line) =
     first fmt $ Util.Parse.parse Instruments.p_allocation line
     where
     fmt msg = ParseText.Error
@@ -225,7 +232,7 @@ parse_allocation (lineno, line) =
 
 -- | The alias section allows only @alias = inst@ definitions.
 parse_alias :: (Expr.Symbol, Expr)
-    -> Either Text (ScoreT.Instrument, ScoreT.Instrument)
+    -> Either Error (ScoreT.Instrument, ScoreT.Instrument)
 parse_alias (lhs, rhs) = first (msg<>) $ case rhs of
     Expr (Call rhs [] :| [])
         | not (Id.valid_symbol (Expr.unsym lhs)) -> Left "lhs not a valid id"
@@ -237,31 +244,98 @@ parse_alias (lhs, rhs) = first (msg<>) $ case rhs of
     msg = "alias " <> ShowVal.show_val lhs <> " = " <> ShowVal.show_val rhs
         <> ": "
 
-type Error = Text
+-- | Get UiConfig.ky with UiConfig.allocations merged in.  See
+-- "Derive.Parse.Instruments".
+get_ky :: Ui.M m => m Code
+get_ky = do
+    ky <- Ui.config#UiConfig.ky <#> Ui.get
+    allocs <- Ui.config#UiConfig.allocations <#> Ui.get
+    allocs <- Ui.require_right id $ mapM (uncurry Instruments.from_ui) $
+        Map.toList $ UiConfig.unallocations allocs
+    return $ merge_instruments allocs ky
+
+-- | Update a ky instruments section with Allocations.
+merge_instruments :: [Instruments.Allocation] -> Code -> Code
+merge_instruments allocs = replace_section Instruments.instrument_section merge
+    where
+    merge lines
+        | null added && null removed = lines -- Common case of no changes.
+        | otherwise = Instruments.unparse_allocations $
+            -- Added allocs have no comment.
+            map ((, "") . Just) added_allocs ++ mapMaybe update inst_lines
+        where
+        added_allocs =
+            filter ((`Set.member` added) . Instruments.alloc_name) allocs
+        added = new_insts `Set.difference` old_insts
+        removed = old_insts `Set.difference` new_insts
+        new_insts = Set.fromList $ map Instruments.alloc_name allocs
+        old_insts = Set.fromList (mapMaybe fst inst_lines)
+        inst_lines = Seq.key_on inst_of lines
+    update (Nothing, line) = Just (Nothing, line)
+    update (Just inst, line) = case Map.lookup inst inst_alloc of
+        Nothing -> Nothing
+        Just alloc -> Just (Just alloc, comment)
+            where comment = snd $ Text.breakOn "--" line
+    inst_alloc = Map.fromList (Seq.key_on Instruments.alloc_name allocs)
+    inst_of = either (const Nothing) (Just . Instruments.alloc_name)
+        . Util.Parse.parse Instruments.p_allocation
+
+-- * parse ky file
+
+-- | Most of the sections are not line-oriented, but the instrument section is.
+-- Line numbers are used for to add as offsets to parsing errors.
+type Section = (Title, [(Line, Text)])
+type Title = Text
+type Line = Int
 
 -- | Split sections into a Map with section name keys, and numbered lines.
-split_sections :: [Text] -> Either Error (Text, Map Text [(Int, Text)])
-split_sections =
-    traverse check . second (Maps.unique2 . concatMap split_header)
-        . split_imports . Seq.split_before is_header
-        . filter (not . is_empty . snd)
-        . zip [0..]
+checked_sections :: Code -> Either Error (Code, Map Title [(Line, Text)])
+checked_sections = traverse check . extract . parse_sections
     where
     check (sections, []) = Right sections
     check (_, dups) =
         Left $ "duplicate sections: " <> Text.unwords (map fst dups)
-    is_header = (":" `Text.isSuffixOf`) . snd
-    split_imports [] = ("", [])
-    split_imports ([] : sections) = ("", sections)
-    split_imports (imports : sections) =
-        (Text.unlines $ map snd imports, sections)
-    split_header [] = []
-    split_header (header : section) = [(strip_colon header, section)]
-    strip_colon (_, header) = Text.take (Text.length header - 1) header
+    extract ((_, pre) : sections) =
+        (Text.unlines (map snd pre), Maps.unique2 sections)
+    extract [] = ("", (mempty, []))
 
-is_empty :: Text -> Bool
-is_empty line = s == "" || "--" `Text.isPrefixOf` s
-    where s = Text.stripStart line
+-- | Split ky code into Sections.  A Title of "" is used for the implicit
+-- section before the first section title, used for imports.
+parse_sections :: Code -> [Section]
+parse_sections =
+    merge . split_with parse_header . zip [0..] . Text.lines
+    where
+    merge (pre, sections) = ("", pre) : sections
+    parse_header (_, line)
+        | not ("--" `Text.isPrefixOf` line), Just (c, _) <- Text.uncons line
+                , not (Char.isSpace c) =
+            Text.stripSuffix ":" line
+        | otherwise = Nothing
+
+unparse_section :: (Title, [(line, Text)]) -> Code
+unparse_section (section, lines) =
+    (if section == "" then "" else section <> ":\n")
+        <> Text.unlines (map snd lines)
+
+replace_section :: Title -> ([Text] -> [Text]) -> Code -> Code
+replace_section title modify code =
+    mconcatMap unparse_section $ concat
+        [ if add_separator then Seq.map_last (second (++empty)) pre else pre
+        , [(title, map (0,) new) | not (null new)]
+        , drop 1 post
+        ]
+    where
+    -- Extra hack for aesthetics: add an extra line if there is a non-""
+    -- section above and this section is inserted.
+    add_separator = null post && not (null (dropWhile ((=="") . fst) pre))
+    empty = [(0, "")]
+    new = modify $ case post of
+        [] -> []
+        (_, lines) : _ -> map snd lines
+    sections = parse_sections code
+    (pre, post) = break ((==title) . fst) sections
+
+-- * parse inside sections
 
 p_imports :: A.Parser [FilePath]
 p_imports =
@@ -363,3 +437,23 @@ p_var = A.char '$' *> (Var <$> A.takeWhile1 is_var_char)
 
 is_var_char :: Char -> Bool
 is_var_char c = 'a' <= c || 'z' <= c || c == '-'
+
+-- * Lists
+
+split_with :: (a -> Maybe b) -> [a] -> ([a], [(b, [a])])
+split_with match = go1
+    where
+    go1 as = case break_with match as of
+        (pre, Nothing) -> (pre, [])
+        (pre, Just (b, post)) -> (pre, go2 b post)
+    go2 b0 as = case break_with match as of
+        (pre, Nothing) -> [(b0, pre)]
+        (pre, Just (b1, post)) -> (b0, pre) : go2 b1 post
+
+break_with :: (a -> Maybe b) -> [a] -> ([a], Maybe (b, [a]))
+break_with f = go
+    where
+    go (a : as) = case f a of
+        Just b -> ([], Just (b, as))
+        Nothing -> first (a:) (go as)
+    go [] = ([], Nothing)

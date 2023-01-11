@@ -226,7 +226,8 @@ parse_allocation :: Text -> Either String Instruments.Allocation
 parse_allocation = parse_text Instruments.p_allocation
 
 unparse_allocations :: [Instruments.Allocation] -> Text
-unparse_allocations = Instruments.unparse_allocations
+unparse_allocations =
+    Text.unlines . Instruments.unparse_allocations . map ((, "") . Just)
 
 type Token = T.Token T.Call (T.NPitch T.Pitch) T.NDuration T.Duration
 

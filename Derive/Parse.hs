@@ -454,6 +454,7 @@ is_toplevel_word_char c = ShowVal.is_unquoted_body c
     && c /= ';' -- This is so the ; separator can appear anywhere.
     -- TODO remove it when I remove VSeparator
 
+-- | Anything except whitespace, "=);"
 is_word_char :: Char -> Bool
 is_word_char c = is_toplevel_word_char c && c /= ')'
 

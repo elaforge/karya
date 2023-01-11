@@ -13,10 +13,15 @@ import           System.FilePath ((</>))
 import qualified Util.ParseText as ParseText
 import qualified Util.Test.Testing as Testing
 import qualified Derive.Expr as Expr
+import qualified Derive.Parse.Instruments as Instruments
 import qualified Derive.Parse.Ky as Ky
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import           Derive.TestInstances ()
+
+import qualified Instrument.InstT as InstT
+import qualified Midi.Midi as Midi
+import qualified Ui.UiTest as UiTest
 
 import           Global
 import           Util.Test
@@ -98,24 +103,47 @@ test_parse_ky = do
         [(ScoreT.Instrument "a", ScoreT.Instrument "b")]
     left_like (f aliases "alias:\n>a = >b\n") "lhs not a valid id"
 
-test_split_sections :: Test
-test_split_sections = do
-    let f = Ky.split_sections
-    right_equal (f
-        [ "import x"
-        , "  -- hi"
-        , "sec1:"
-        , "hi"
-        , ""
-        , "-- xyz"
-        , "sec2:"
-        , "there"
-        ])
-        ( "import x\n"
-        , Map.fromList [("sec1", [(3, "hi")]), ("sec2", [(7, "there")])]
-        )
-    left_like (f ["sec1:", "hi", "sec1:", "there"])
-        "duplicate sections: sec1"
+-- TODO whitespace changes are not highlighted
+tt = do
+    equal "abc\n" "abc"
+    Text.IO.putStrLn $
+        Testing.pretty_compare "==" "/=" False "abc\n" "abc" False
+
+test_merge_instruments :: Test
+test_merge_instruments = do
+    let f allocs = Text.lines . Ky.merge_instruments (map mkalloc allocs)
+            . Text.unlines
+    let instrument = "instrument:"
+    equal (f [] []) []
+    equal (f [("a", "a/b", [0])] []) [instrument, ">a a/b [ms] wdev 1"]
+    let allocs =
+            [ ("new", "a/b", [0])
+            , ("exist", "a/b", [1])
+            ]
+        ky =
+            [ instrument
+            , "-- exist"
+            , ">exist a/b [ms] wdev 15 16 -- hi"
+            , "-- old"
+            , ">old a/b [ms] wdev 15"
+            ]
+    -- >new goes at the top, >exist is updated, >old is removed
+    -- Fancy column formatting is gratuitous.
+    equal (f allocs ky)
+        [ instrument
+        , ">new   a/b [ms] wdev 1"
+        , "-- exist"
+        , ">exist a/b [ms] wdev 2 -- hi"
+        , "-- old"
+        ]
+
+mkalloc :: (ScoreT.Instrument, Text, [Midi.Channel]) -> Instruments.Allocation
+mkalloc (name, qual, chans) = Instruments.Allocation
+    { alloc_name =  name
+    , alloc_qualified = InstT.parse_qualified qual
+    , alloc_config = Instruments.Config False False
+    , alloc_backend = Instruments.Midi UiTest.wdev chans
+    }
 
 test_p_definition :: Test
 test_p_definition = do
@@ -126,3 +154,45 @@ test_p_definition = do
     equal (f "a = n +z\n") (Right ("a", [("n", ["+z"])]))
     equal (f "a = b $c") (Right ("a", [("b", ["$c"])]))
     equal (f "a = b = $c") (Right ("a", [("=", ["b", "$c"])]))
+
+test_checked_sections :: Test
+test_checked_sections = do
+    let f = Ky.checked_sections . Text.unlines
+    right_equal (f
+        [ "import x"
+        , "-- hi:"
+        , "sec1:"
+        , "hi"
+        , ""
+        , "-- xyz:"
+        , "sec2:"
+        , "there"
+        ])
+        ( "import x\n-- hi:\n"
+        , Map.fromList
+            [ ("sec1", [(3, "hi"), (4, ""), (5, "-- xyz:")])
+            , ("sec2", [(7, "there")])
+            ]
+        )
+    left_like (f ["sec1:", "hi", "sec1:", "there"])
+        "duplicate sections: sec1"
+
+test_replace_section :: Test
+test_replace_section = do
+    let f = Text.lines . Ky.replace_section "sec" ("!":) . Text.unlines
+    equal (f []) ["sec:", "!"]
+    equal (f ["sec1:", "a"]) ["sec1:", "a", "", "sec:", "!"]
+    equal (f ["sec1:", "a", "sec:", "b", "", "sec2:", "c"])
+        ["sec1:", "a", "sec:", "!", "b", "", "sec2:", "c"]
+
+test_split_with :: Test
+test_split_with = do
+    let f = Ky.split_with match
+        match = \case
+            'c' -> Just 'c'
+            'e' -> Just 'e'
+            _ -> Nothing
+    equal (f "") ("", [])
+    equal (f "c") ("", [('c', "")])
+    equal (f "abcd") ("ab", [('c', "d")])
+    equal (f "abcdef") ("ab", [('c', "d"), ('e', "f")])

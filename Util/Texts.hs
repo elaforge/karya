@@ -12,6 +12,7 @@ import qualified Control.Monad.Identity as Identity
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Lazy as ByteString.Lazy
 import qualified Data.Char as Char
+import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -124,11 +125,16 @@ enumeration = join "\n" . map ("- "<>)
 
 -- | Format the given rows into columns, aligned vertically.
 columns :: Int -> [[Text]] -> [Text]
-columns padding rows = map formatRow rows
+columns padding = columnsSome padding . map Right
+
+-- | Like 'columns', but some rows can opt out of formatting by being Left.
+columnsSome :: Int -> [Either Text [Text]] -> [Text]
+columnsSome padding rows = map formatRow rows
     where
-    formatRow = Text.stripEnd . mconcat . zipWith pad widths
+    formatRow = either id (Text.stripEnd . mconcat . zipWith pad widths)
     pad w = Text.justifyLeft (w + padding) ' '
-    byCol = map (map (Maybe.fromMaybe Text.empty)) (Seq.rotate2 rows)
+    byCol = map (map (Maybe.fromMaybe Text.empty))
+        (Seq.rotate2 (Either.rights rows))
     widths = map (List.maximum . (0:) . map Text.length) byCol
 
 -- | Apply a function to the contents delimited by the given Char.  You can

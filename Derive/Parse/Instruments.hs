@@ -1,11 +1,34 @@
 -- Copyright 2022 Evan Laforge
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
+{- | Parsing support for the "instrument:" section of the ky file.
+
+    This is an awkward hybrid.  Firstly, the name is inconsistent, internally
+    they are called "allocation" because "instrument" usually corresponds to
+    'ScoreT.Instrument', while the allocation is the thing tying instrument
+    to patch.  But at the UI level I find "allocation" too vague and use
+    "instrument" for both concepts.
+
+    But the main thing is that Allocation corresponds only to a subset of
+    the actual 'Ui.UiConfig.Allocation'.  The real source of truth is
+    UiConfig.Allocation.  So the ky equivalent has to merge in any changes
+    that may have happened to the config (done in Parse.Ky.merge_instruments),
+    which means automatically updating source, which is fiddly as usual.
+
+    A more traditional and simpler way would be to make the ky source be the
+    source of truth, but that would mean having it serialize all the fields.  I
+    got pretty far down this route, but it got pretty complicated because
+    there's a whole new expression language and serialization layer, and I
+    become unsure if it was really a good idea.
+
+    So we do complicated merging for now.
+-}
 module Derive.Parse.Instruments (
     Allocation(..)
     , Config(..), empty_config
     , Backend(..)
-    , get_ky
+    , from_ui
     , instrument_section
     , update_ui
     -- * parse
@@ -13,7 +36,6 @@ module Derive.Parse.Instruments (
     , unparse_allocations
 ) where
 import qualified Data.Char as Char
-import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Util.Maps as Maps
@@ -30,7 +52,6 @@ import qualified Instrument.InstT as InstT
 
 import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Patch as Midi.Patch
-import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
 
 import           Global
@@ -61,19 +82,6 @@ data Backend = Midi Midi.WriteDevice [Midi.Channel] | NonMidi
 
 -- * instruments
 
-get_ky :: Ui.M m => m Text
-get_ky = do
-    ky <- Ui.config#UiConfig.ky <#> Ui.get
-    if instrument `elem` Text.lines ky then return ky
-        else do
-            allocs <- Ui.config#UiConfig.allocations <#> Ui.get
-            allocs <- Ui.require_right id $ mapM (uncurry from_ui) $
-                Map.toList $ UiConfig.unallocations allocs
-            return $ Texts.join2 "\n\n" ky $
-                instrument <> "\n" <> unparse_allocations allocs
-    where
-    instrument = instrument_section <> ":"
-
 instrument_section :: Text
 instrument_section = "instrument"
 
@@ -101,6 +109,8 @@ from_ui inst alloc = do
 
 type LookupBackend = InstT.Qualified -> Maybe Inst.Backend
 
+-- | Merge the Allocations parsed from the instrument section into the
+-- Ui level config.
 update_ui :: LookupBackend -> [Allocation]
     -> UiConfig.Allocations -> Either Error UiConfig.Allocations
 update_ui lookup_backend allocs (UiConfig.Allocations olds) = do
@@ -168,8 +178,14 @@ p_allocation = Allocation
     <*> lexeme p_config
     <*> p_backend
 
-unparse_allocations :: [Allocation] -> Text
-unparse_allocations = Text.unlines . Texts.columns 1 . map un_allocation
+type Comment = Text
+
+unparse_allocations :: [(Maybe Allocation, Comment)] -> [Text]
+unparse_allocations allocs = Texts.columnsSome 1
+    [ maybe (Left cmt) (Right . (++cmts) . un_allocation) mb_alloc
+    | (mb_alloc, cmt) <- allocs
+    , let cmts = filter (/="") [cmt]
+    ]
 
 un_allocation :: Allocation -> [Text]
 un_allocation (Allocation name qualified config backend) =
