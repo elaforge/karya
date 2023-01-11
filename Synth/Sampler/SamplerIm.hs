@@ -25,6 +25,7 @@ import qualified Text.Read as Read
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.Resample as Resample
 import qualified Util.Limit as Limit
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
@@ -249,7 +250,7 @@ dumpSamples db notes = do
         sample = Sample.sample note
 
 sampleName :: FilePath -> FilePath
-sampleName = FilePath.joinPath . Seq.rtake 2 . FilePath.splitPath
+sampleName = FilePath.joinPath . Lists.takeEnd 2 . FilePath.splitPath
 
 convertNotes :: Patch.Db -> [Note.Note]
     -> IO [(Patch.Patch, (ScoreT.Instrument, [(Note.Note, Sample.Note)]))]

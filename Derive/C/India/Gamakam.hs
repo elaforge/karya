@@ -40,7 +40,9 @@ module Derive.C.India.Gamakam where
 import qualified Data.List.NonEmpty as NonEmpty
 
 import qualified Util.Doc as Doc
+import qualified Util.Lists as Lists
 import qualified Util.Seq as Seq
+
 import qualified Derive.Args as Args
 import qualified Derive.C.Prelude.Trill as Trill
 import qualified Derive.Call as Call
@@ -330,7 +332,7 @@ c_nkampita_c start_dir end_dir = generator1 "nkam" mempty
                 (num_transitions - 1) / RealTime.to_seconds (end - start)
         transitions <- trill_transitions Nothing Trill.Shorten lilt hold speed
                 (Args.range_or_next args)
-        smooth_trill (-transition) val1 val2 (Seq.rdrop 1 transitions)
+        smooth_trill (-transition) val1 val2 (Lists.dropEnd 1 transitions)
 
 -- | Ok, this name is terrible but what else is better?
 c_dip_c :: Derive.Generator Derive.Control

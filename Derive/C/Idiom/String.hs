@@ -7,8 +7,10 @@
 module Derive.C.Idiom.String where
 import qualified Data.Map as Map
 
+import qualified Util.Lists as Lists
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call as Call
@@ -339,7 +341,7 @@ gliss_pitches open_strings dest_pitch gliss_start = do
         then reverse $ take gliss_start $ map fst $
             dropWhile ((<=dest_nn) . snd) strings
         -- 5 -> 0 2 4
-        else Seq.rtake (-gliss_start) $ map fst $
+        else Lists.takeEnd (-gliss_start) $ map fst $
             takeWhile ((<dest_nn) . snd) strings
 
 gliss :: [PSignal.Pitch] -> RealTime -> Signal.Y -> Signal.Y -> RealTime

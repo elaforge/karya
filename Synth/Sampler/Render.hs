@@ -21,6 +21,7 @@ import qualified System.IO.Error as IO.Error
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.Resample as Resample
 import qualified Util.Control
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -308,7 +309,7 @@ eNote n =
     ( prettyF $ Sample.start n
     , prettyF $ Sample.duration n
     , Sample.ratios $ Sample.sample n
-    , FilePath.joinPath $ Seq.rtake 3 $ FilePath.splitPath $
+    , FilePath.joinPath $ Lists.takeEnd 3 $ FilePath.splitPath $
         Sample.filename $ Sample.sample n
     )
 

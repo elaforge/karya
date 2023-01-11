@@ -5,6 +5,7 @@
 -- | Calls that generate grace notes.  These are short sequences of quick notes
 -- whose duration is generally independent of the tempo.
 module Derive.C.Prelude.Grace (library) where
+import qualified Util.Lists as Lists
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
@@ -132,7 +133,7 @@ roll times time dyn_scale args = do
     start <- Args.real_start args
     pitch <- Call.get_pitch start
     dyn <- Call.dynamic start
-    notes <- Seq.rdrop 1 <$> GraceUtil.repeat_notes
+    notes <- Lists.dropEnd 1 <$> GraceUtil.repeat_notes
         (Call.with_pitch pitch Call.note) (times+1) time 0 args
     Sub.derive (map (fmap (Call.with_dynamic (dyn*dyn_scale))) notes)
         <> Call.placed_note args

@@ -10,7 +10,9 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
+import qualified Util.Lists as Lists
 import qualified Util.Seq as Seq
+
 import qualified Derive.Expr as Expr
 import qualified Derive.Symbols as Symbols
 import qualified Solkattu.Realize as Realize
@@ -295,7 +297,7 @@ technique prevs cur (next:_)
     -- want a way to opt in to specific techniques.
     | prev 2 == ([k, o], o, k) = Just p
     where
-    prev n = (Seq.rtake n prevs, cur, next)
+    prev n = (Lists.takeEnd n prevs, cur, next)
     Strokes {..} = strokes
     (&) = bothStrokes
 technique _ _ _ = Nothing

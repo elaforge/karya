@@ -67,6 +67,7 @@ import qualified Util.Format as Format
 import           Util.Format
     (Doc, indent, indentLine, indent_, render, string, text, withIndent,
      wrapWords, (<+/>), (<+>), (<//>), (</>))
+import qualified Util.Lists as Lists
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
@@ -314,7 +315,7 @@ instance Pretty ByteString.ByteString where
     format bs = case Encoding.decodeUtf8' bs of
         -- If it's binary, quote like a string.  Unfortunately, show will add
         -- extra "s which format will then add again.
-        Left _ -> format $ Seq.rdrop 1 $ drop 1 $ show bs
+        Left _ -> format $ Lists.dropEnd 1 $ drop 1 $ show bs
         Right txt -> format txt
 
 instance Pretty Text where

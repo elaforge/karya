@@ -5,7 +5,7 @@
 -- | Support types for Balinese scales.  Unlike BaliScales, this should be
 -- independent of the scale framework and have light dependencies.
 module Derive.Scale.Bali where
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Perform.Pitch as Pitch
 
 
@@ -32,5 +32,5 @@ extend_scale per_octave low high start nns =
         ]
     up =
         [ nn + 12 * fromIntegral oct
-        | oct <- [1..], nn <- Seq.rtake per_octave nns
+        | oct <- [1..], nn <- Lists.takeEnd per_octave nns
         ]

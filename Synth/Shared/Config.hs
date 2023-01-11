@@ -28,9 +28,9 @@ import qualified Text.Read as Read
 
 import qualified Util.Audio.AudioT as AudioT
 import qualified Util.Exceptions as Exceptions
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
 
 import qualified App.Config
@@ -327,4 +327,4 @@ parseMessage = Aeson.decode . Texts.toLazyByteString
 -- .../im/cache/$scorePath/$scoreFname/$namespace/$block/$instrument
 pathToBlockId :: FilePath -> Id.BlockId
 pathToBlockId = Id.BlockId . Id.read_id
-    . Text.intercalate "/" . take 2 . Seq.rtake 3 . Text.splitOn "/" . txt
+    . Text.intercalate "/" . take 2 . Lists.takeEnd 3 . Text.splitOn "/" . txt

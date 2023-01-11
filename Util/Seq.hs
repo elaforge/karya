@@ -629,32 +629,6 @@ unique_on f xs = go Set.empty xs
 unique_sort :: Ord a => [a] -> [a]
 unique_sort = Set.toList . Set.fromList
 
--- ** right variants
-
-rtake :: Int -> [a] -> [a]
-rtake n = snd . foldr go (n, [])
-    where
-    go x (n, xs)
-        | n <= 0 = (0, xs)
-        | otherwise = (n - 1, x : xs)
-
-rtake_while :: (a -> Bool) -> [a] -> [a]
-rtake_while f = either id (const []) . foldr go (Right [])
-    where
-    -- Left means I'm done taking.
-    go _ (Left xs) = Left xs
-    go x (Right xs)
-        | f x = Right (x:xs)
-        | otherwise = Left xs
-
-rdrop :: Int -> [a] -> [a]
-rdrop n = either id (const []) . foldr f (Right n)
-    where
-    f x (Right n)
-        | n <= 0 = Left [x]
-        | otherwise = Right (n-1)
-    f x (Left xs) = Left (x:xs)
-
 lstrip, rstrip, strip :: String -> String
 lstrip = dropWhile Char.isSpace
 rstrip = List.dropWhileEnd Char.isSpace
@@ -687,11 +661,6 @@ break_tails f lst@(x:xs)
     | f lst = ([], lst)
     | otherwise = let (pre, post) = break_tails f xs in (x:pre, post)
 
--- | 'List.span' from the end of the list.
-span_end :: (a -> Bool) -> [a] -> ([a], [a])
-span_end f xs = (reverse post, reverse pre)
-    where (pre, post) = span f (reverse xs)
-
 -- | Like 'span', but it can transform the spanned sublist.
 span_while :: (a -> Maybe b) -> [a] -> ([b], [a])
 span_while f = go
@@ -700,11 +669,6 @@ span_while f = go
     go (a:as) = case f a of
         Just b -> first (b:) (go as)
         Nothing -> ([], a : as)
-
--- | 'span_while' from the end of the list.
-span_end_while :: (a -> Maybe b) -> [a] -> ([a], [b])
-span_end_while f xs = (reverse post, reverse pre)
-    where (pre, post) = span_while f (reverse xs)
 
 -- ** split and join
 

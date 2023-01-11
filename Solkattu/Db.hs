@@ -21,6 +21,7 @@ import           System.FilePath ((</>))
 import qualified Util.CallStack as CallStack
 import qualified Util.File as File
 import qualified Util.Html
+import qualified Util.Lists as Lists
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.SourceControl as SourceControl
@@ -48,7 +49,7 @@ scores = zip [0..] (List.sortOn key All.scores)
 
 -- | The number of date groups starting from the most recent.
 recentDates :: Int -> Select
-recentDates groups = concat . Seq.rtake groups
+recentDates groups = concat . Lists.takeEnd groups
     . Seq.group_sort (Korvai._date . Korvai.scoreMetadata . snd)
 
 aroundDate :: Calendar.Day -> Integer -> Korvai.Korvai -> Bool

@@ -9,6 +9,10 @@ module Util.Lists (
     head, tail
     , last
     , unsnoc
+    -- * sublists
+    , takeEnd
+    , dropEnd
+    , takeWhileEnd
     -- * split / join
     , splitWith
     , breakWith
@@ -44,6 +48,30 @@ unsnoc (x:xs) = Just $ go x xs
     go x0 (x:xs) = let (pre, post) = go x xs in (x0:pre, post)
 
 -- * sublists
+
+takeEnd :: Int -> [a] -> [a]
+takeEnd n = snd . foldr go (n, [])
+    where
+    go x (n, xs)
+        | n <= 0 = (0, xs)
+        | otherwise = (n - 1, x : xs)
+
+dropEnd :: Int -> [a] -> [a]
+dropEnd n = either id (const []) . foldr f (Right n)
+    where
+    f x (Right n)
+        | n <= 0 = Left [x]
+        | otherwise = Right (n-1)
+    f x (Left xs) = Left (x:xs)
+
+takeWhileEnd :: (a -> Bool) -> [a] -> [a]
+takeWhileEnd f = either id (const []) . foldr go (Right [])
+    where
+    -- Left means I'm done taking.
+    go _ (Left xs) = Left xs
+    go x (Right xs)
+        | f x = Right (x:xs)
+        | otherwise = Left xs
 
 -- * split / join
 

@@ -14,10 +14,10 @@ import qualified GHC.TypeLits as TypeLits
 import qualified Streaming.Prelude as S
 
 import qualified Util.Audio.Audio as Audio
-import qualified Util.Seq as Seq
-import Util.Test
+import qualified Util.Lists as Lists
 
-import Global
+import           Global
+import           Util.Test
 
 
 test_mix :: Test
@@ -181,7 +181,7 @@ _test_linear_big = do
     annotate frame block = (frame + len,) $ Text.unwords
         [ showt frame, showt len
         , pretty (fromIntegral frame / 44100 :: Double)
-        , pretty (take 4 block), "...", pretty (Seq.rtake 4 block)
+        , pretty (take 4 block), "...", pretty (Lists.takeEnd 4 block)
         ]
         where len = length block
 

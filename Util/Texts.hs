@@ -206,7 +206,7 @@ type Url = String
 haddockUrl :: Files -> FilePath -> Text -> Maybe Url
 haddockUrl files haddockDir text
     | moduleExists components = Just $ moduleLink components
-    | moduleExists (Seq.rdrop 1 components) = symbolLink
+    | moduleExists (Lists.dropEnd 1 components) = symbolLink
     | otherwise = Nothing
     where
     components = map Text.unpack $ Text.split (=='.') text

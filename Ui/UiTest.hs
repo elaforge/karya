@@ -12,6 +12,7 @@ import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Debug as Debug
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
@@ -358,7 +359,7 @@ mk_tid_name = mk_tid_block . bid
 
 -- | Get a TrackNum back out of a 'mk_tid' call.
 tid_tracknum :: TrackId -> TrackNum
-tid_tracknum = parse . Seq.rtake_while Char.isDigit . untxt . Id.ident_name
+tid_tracknum = parse . Lists.takeWhileEnd Char.isDigit . untxt . Id.ident_name
     where
     parse "" = -1
     parse ds = read ds

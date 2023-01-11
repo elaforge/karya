@@ -24,7 +24,7 @@ type Flat stroke =
 -- be a per-Korvai thing.
 type Technique stroke = [stroke] -- ^ Dropped strokes.  These are in original
     -- order, which means if you want to see the previous strokes, you have to
-    -- use Seq.rtake.
+    -- use Lists.takeEnd.
     -> stroke -- ^ current
     -> [stroke] -- ^ next
     -> Maybe stroke -- ^ Nothing to not modify
