@@ -176,6 +176,12 @@ equal_ a b
     | otherwise = failure (cmp False) >> return False
     where cmp = pretty_compare "==" "/=" True a b
 
+not_equal :: (HasCallStack, Show a, Eq a) => a -> a -> Test
+not_equal a b
+    | a == b = failure $ cmp True
+    | otherwise = success $ cmp False
+    where cmp = pretty_compare "==" "/=" False a b
+
 equal_fmt :: (HasCallStack, Eq a, Show a) => (a -> Text) -> a -> a -> Test
 equal_fmt fmt a b = do
     ok <- equal_ a b
@@ -184,8 +190,8 @@ equal_fmt fmt a b = do
         Text.IO.putStrLn $ show_diff pa pb
     where
     show_diff pretty_a pretty_b = fmt_lines "/="
-        (Text.lines $ highlight_lines color diff_a pretty_a)
-        (Text.lines $ highlight_lines color diff_b pretty_b)
+        (highlight_lines color diff_a $ Text.lines pretty_a)
+        (highlight_lines color diff_b $ Text.lines pretty_b)
         where
         color = failure_color
         (diff_a, diff_b) = diff_ranges pretty_a pretty_b
@@ -197,12 +203,6 @@ equal_on :: (HasCallStack, Eq b, Show a, Show b) => (a -> b) -> a -> b -> Test
 equal_on f a b = do
     ok <- equal_ (f a) b
     unless ok $ Text.IO.putStrLn (pshowt a)
-
-not_equal :: (HasCallStack, Show a, Eq a) => a -> a -> Test
-not_equal a b
-    | a == b = failure $ cmp True
-    | otherwise = success $ cmp False
-    where cmp = pretty_compare "==" "/=" False a b
 
 right_equal :: (HasCallStack, Show err, Show a, Eq a) => Either err a -> a
     -> Test
@@ -220,8 +220,8 @@ pretty_compare :: Show a =>
 pretty_compare equal inequal expect_equal a b is_equal
     | is_equal && expect_equal = equal <> " " <> ellipse (showt a)
     | otherwise = fmt_lines inequal
-        (Text.lines $ highlight_lines color diff_a pretty_a)
-        (Text.lines $ highlight_lines color diff_b pretty_b)
+        (highlight_lines color diff_a $ Text.lines pretty_a)
+        (highlight_lines color diff_b $ Text.lines pretty_b)
     where
     color = if expect_equal then failure_color else success_color
     (diff_a, diff_b) = diff_ranges pretty_a pretty_b
@@ -236,8 +236,8 @@ pretty_compare equal inequal expect_equal a b is_equal
     maxlen = 400
 
 -- | Apply color ranges as produced by 'diff_ranges'.
-highlight_lines :: ColorCode -> IntMap.IntMap [CharRange] -> Text -> Text
-highlight_lines color nums = Text.unlines . zipWith hi [0..] . Text.lines
+highlight_lines :: ColorCode -> IntMap.IntMap [CharRange] -> [Text] -> [Text]
+highlight_lines color nums = zipWith hi [0..]
     where
     hi i line = case IntMap.lookup i nums of
         Just ranges -> highlight_ranges color ranges line
