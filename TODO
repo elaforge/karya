@@ -6620,37 +6620,61 @@ Cmd:
 
 Derive:
   unify-env:
-    . Merge Derive.state_controls and Derive.state_pitches and
-      Derive.state_pitch into Derive.state_environ.
-      state_pitch becomes EnvKey.pitch.
-    . I would need Val for signals:
-      VControlRef -> VSignal Signal
-      VPControlRef -> VPSignal PSignal
-    . But the %c,1 syntax is still useful because it's concise.  Maybe it
-      becomes sugar for (control c 1), which looks up in env and asserts
-      VSignal.
-    . Similarly, #p or (# p (4c)), though rename to (pcontrol p (4c)) for
-      consistency.
-    . But these can't be in ShowVal.  But the more seriously, the binding
-      is too early.  E.g. if %speed is an arg default, getting the signal
-      must be delayed until it's actually used.
-    . So I continue with VControlRef and VPControlRef.
-    . Putting into Environ is to eliminate '%c=5' vs c=5.
-    . But if I'm carrying around refs, then where are the actual signals
-      stored?
-    . So maybe it's just the syntax, I can eliminate %c=5, then c=5 is the
-      same, but get a control val becomes look in environ.  If it finds
-      a number, it's a constant, if it's a ref, then look up the control.
+    * stash or complete ToVal default thing
+      . Let's complete, I think I'm going to want it anyway.
+      . But only have to fix ambiguity, don't need to convert Call.control_at
+        calls.  They will get updated when I update Derive.get_control stuff
+    - rename Derive.EnvKey to shorter Derive.Key?
+    - move Derive.Controls into Derive.EnvKey
+    - allow Signal and PSignal in Environ, need VSignal and VPSignal
+    - remove %c=... equal syntax
+    - implement (control c 1) and (pcontrol c 1) val calls
+    - %c,1 syntax sugar for "(control c 1).  Quoted evaluation in args should
+      handle it.
+      . Or have a separate constructor with the same effect, so I can easily
+        have ShowVal take it back to %-syntax.
+    - Derive.with_control etc. look in environ
+    notes:
+      design:
+        . c=1 in the environ means that args called c default to 1.
+        . All numeric args can be signals, if the call wants a signal it
+          gets Function, if scalar it coerces to Int or similar.
+        . A control track is like c=(....).  You can also write it inline with
+          a val call like c=(signal .1 .5 1) or whatever.
+        . If you want to set or default to a signal which is looked up at call
+          time, you can use the delayed lookup, like arg=%c, sugar for
+          "(control c)
+      . Merge Derive.state_controls and Derive.state_pitches and
+        Derive.state_pitch into Derive.state_environ.
+        state_pitch becomes EnvKey.pitch.
+      . I would need Val for signals:
+        VControlRef -> VSignal Signal
+        VPControlRef -> VPSignal PSignal
+      . But the %c,1 syntax is still useful because it's concise.  Maybe it
+        becomes sugar for (control c 1), which looks up in env and asserts
+        VSignal.
+      . Similarly, #p or (# p (4c)), though rename to (pcontrol p (4c)) for
+        consistency.
+      . But these can't be in ShowVal.  But the more seriously, the binding
+        is too early.  E.g. if %speed is an arg default, getting the signal
+        must be delayed until it's actually used.
+      . So I continue with VControlRef and VPControlRef.
+      . Putting into Environ is to eliminate '%c=5' vs c=5.
+      . But if I'm carrying around refs, then where are the actual signals
+        stored?
+      . So maybe it's just the syntax, I can eliminate %c=5, then c=5 is the
+        same, but get a control val becomes look in environ.  If it finds
+        a number, it's a constant, if it's a ref, then look up the control.
     So the change requires:
-      - Call.typed_control_at etc. must also handle VNum.
-        . It's too late since it already expects ControlRef.
-        . So I need Typecheck Function.
-        . Actually I already have it.  But I need to use it always, because
-          anyone still using Call.control_at will just silently not work with
-          VNum.
-        . Convert some calls to see if there's any complication.
-        . Yes, I have default ControlRef but can't convert to a different
-          type.
+      . Call.typed_control_at etc. must also handle VNum.
+      . It's too late since it already expects ControlRef.
+      . So I need Typecheck Function.
+      . Actually I already have it.  But I need to use it always, because
+        anyone still using Call.control_at will just silently not work with
+        VNum.
+      . Convert some calls to see if there's any complication.
+      . Yes, I have default ControlRef but can't convert to a different
+        type.
     Unify Environ and ControlMap:
       . I can get most of the benefit by unifying the syntax: x=y becomes set
         a control or env depending on the type of the rhs.
@@ -6661,24 +6685,66 @@ Derive:
         Map Key (NumSignal | ValSignal | PitchSignal)
       . This means I can also get rid of the separate pitch and named pitches,
         and just have a signal named "pitch".
+    misc:
+      . change control lookups in Derive to look in environ
+      . I have programmatic things doing 'with_control "c" ...' and derivers
+        look directly in Derive.state_controls.
+      . In fact, if I did this, do I even need the Typecheck instances?
+        Call.control_at etc. would need to look in environ instead?
+      . Restate the goal:
+        . Eliminate '%c=1' -> 'c=1', '#=(4c)' -> pitch=(4c)
+        . I still need ControlMap since the signals have to go somewhere,
+          and I want to actually pass around references to them, because
+          argument defaults happen before signals exist.
+        . So ControlMap becomes kind of a heap which is addressed via
+          ControlRefs.
+        . What if I represented control ref specifically as a delayed
+          control fetch, e.g. "(control c)?
+        . This is pretty much the idea above except delayed via ".  I don't
+          need to unify with Quoted, it might be more convenient to keep as
+          ControlRef, but it's logically a Quoted.
+        . Is that not what it already is?
+        . ... TODO
+      . What would the types be though?
+        get_controls :: Deriver DeriveT.ControlMap
   Typecheck TypedFunction: Typecheck Function:
-    . Typecheck coerces to TypedFunction as a common signal type
-    . Couldn't match expected type:
-      RealTime -> Perform.Signal.Y
-                  with actual type:
-      DeriveT.Ref ScoreT.Control (ScoreT.Typed Perform.Signal.Control)
-    - It turns out this is not so useful because a default TypedFunction
-      doesn't have a default control name like a Sig.typed_control does.
-      The documentation is also worse.  The way to fix this would be to
-      let the default be any coercible type.  But to do that and be type safe
-      I'd want a separate class for pairs of types that can definitely be
-      converted.
-      . Possibly a way around is to include ControlFunction in ControlRef...
-        but why do I want so much to pass control functions?  Especially since
-        I can already pass a concrete signal as a ControlSignal.
-    . Wait wouldn't Convert a b work after all?  The default fixes 'a' and
-      the Typecheck value fixes b.
-    . Convert ControlRef TypedFunction
+    + add TimeFunction{Real,Score}, TransposeFunction{Diatonic,Chromatic,Nn}
+      . Incomplete, but the pattern is easy.
+      . Is there a way to parameterize such as 'TimeFunction Real'?  Perhaps
+        that is what that 'Originally I used DataKinds' comment is about.
+    - use Function family in calls
+      . Function, TypedFunction, TimeFunction{Real,Score},
+        TransposeFunction{Diatonic,Chromatic,Nn}
+      . I have existing ones in DefaultRealTimeFunction but they return
+        the Function and type separately, rather than a typed function.
+        Why did I do it this way?  Are there places where this is more
+        convenient?
+      . Inside Typecheck I want to return the type separately so I can
+        typecheck without calling the function.
+      - ControlFunctions don't allow to return the type separately, fix that
+        when I clean up ControlFunctions.
+      - Is there a way to force Function use, for consistency?  I suppose
+        . I could remove Typecheck instances for ControlRef, but wait for
+          unify-env first.
+        . Or just remove Call.control_at family, only access is through
+          Typecheck.
+    notes:
+      . Couldn't match expected type:
+        RealTime -> Perform.Signal.Y
+                    with actual type:
+        DeriveT.Ref ScoreT.Control (ScoreT.Typed Perform.Signal.Control)
+      . It turns out this is not so useful because a default TypedFunction
+        doesn't have a default control name like a Sig.typed_control does.
+        The documentation is also worse.  The way to fix this would be to
+        let the default be any coercible type.  But to do that and be type safe
+        I'd want a separate class for pairs of types that can definitely be
+        converted.
+        . Possibly a way around is to include ControlFunction in ControlRef...
+          but why do I want so much to pass control functions?  Especially since
+          I can already pass a concrete signal as a ControlSignal.
+      . Wait wouldn't Convert a b work after all?  The default fixes 'a' and
+        the Typecheck value fixes b.
+      . Convert ControlRef TypedFunction
       . Can't do this, that's already Typecheck.
       . Problem is that default value must be the same type as the Typecheck
         value.  But I need it to be something which is typecheck-able into
@@ -6694,30 +6760,9 @@ Derive:
       . I think the default has to be stored as Val
       . So mabye it's just ToVal.
       . Seems to work, just have to put types on overloaded literals.
-      - Replace
-        . time <- Derive.real =<< Call.time_control_at Typecheck.Real time start
-        . with Typecheck.DefaultRealTimeFunction
-      - change control lookups in Derive to look in environ
-        . I have programmatic things doing 'with_control "c" ...' and derivers
-          look directly in Derive.state_controls.
-        . In fact, if I did this, do I even need the Typecheck instances?
-          Call.control_at etc. would need to look in environ instead?
-        . Restate the goal:
-          . Eliminate '%c=1' -> 'c=1', '#=(4c)' -> pitch=(4c)
-          . I still need ControlMap since the signals have to go somewhere,
-            and I want to actually pass around references to them, because
-            argument defaults happen before signals exist.
-          . So ControlMap becomes kind of a heap which is addressed via
-            ControlRefs.
-          . What if I represented control ref specifically as a delayed
-            control fetch, e.g. "(control c)?
-          . This is pretty much the idea above except delayed via ".  I don't
-            need to unify with Quoted, it might be more convenient to keep as
-            ControlRef, but it's logically a Quoted.
-          . Is that not what it already is?
-          . ... TODO
-        . What would the types be though?
-          get_controls :: Deriver DeriveT.ControlMap
+      . Replace
+        time <- Derive.real =<< Call.time_control_at Typecheck.Real time start
+        with Typecheck.DefaultRealTimeFunction
     coerce:
       . Then I want to be able to treat those as signals, or coerce them both
         to the same thing.  Really that's a SignalFunction, or maybe just

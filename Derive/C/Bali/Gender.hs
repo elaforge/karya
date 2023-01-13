@@ -107,16 +107,20 @@ ngoret module_ late_damping damp_arg interval_arg =
         "A grace note with this much time will cause the previous note to be\
         \ shortened to not overlap. Under the threshold, and the damping of\
         \ the previous note will be delayed until the end of the grace note."
+    -- ) $ \(maybe_interval, Typecheck.TimeFunctionReal time, damp, dyn_scale,
+    --     damp_threshold) args ->
     ) $ \(maybe_interval, time, damp, dyn_scale, damp_threshold) args ->
     Sub.inverting_args args $ \args -> do
         start <- Args.real_start args
         time <- Derive.real =<< Call.time_control_at Typecheck.Real time start
+        -- time <- Derive.real $ time start
         damp <- Derive.real =<< Call.time_control_at Typecheck.Real damp start
         maybe_pitch <- case maybe_interval of
             Nothing -> return Nothing
             Just transpose ->
                 Just . Pitches.transpose transpose <$> Call.get_pitch start
         dyn_scale <- Call.control_at dyn_scale start
+        -- dyn_scale <- pure $ dyn_scale start
         dyn <- (*dyn_scale) <$> Call.dynamic start
 
         grace_start <- Derive.score (start - time)

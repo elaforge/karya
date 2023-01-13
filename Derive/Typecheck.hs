@@ -8,6 +8,8 @@
 module Derive.Typecheck (
     -- * signal functions
     TypedFunction, Function
+    , DefaultRealTimeFunction(..)
+    , TimeFunctionReal(..), TimeFunctionScore(..)
 
     -- * type wrappers
     , DefaultReal(..), DefaultScore(..)
@@ -354,11 +356,21 @@ num_to_function check = \case
     _ -> failure
 
 -- | Like 'num_to_function', but take a constructor with a type argument,
--- and a separate function to verify the type.
-num_to_checked_function :: (Function -> typ -> b)
+-- and a separate function to verify the type.  This returns the type and
+-- Function separately.
+num_to_type_and_function :: (Function -> typ -> b)
     -> (ScoreT.Type -> Maybe typ) -> Val -> Checked b
-num_to_checked_function make check_type = num_to_function $ \f ->
+num_to_type_and_function make check_type = num_to_function $ \f ->
     make (ScoreT.typed_val . f) <$> check_type (ScoreT.type_of (f 0))
+
+-- | Like 'num_to_function', but if the type is right, wrap the value in
+-- a more specific type, like DeriveT.Duration.
+num_to_typed_function :: (ScoreT.Type -> Maybe (Signal.Y -> a)) -> Val
+    -> Checked (RealTime -> a)
+num_to_typed_function check_type = num_to_function $ \f ->
+    -- TODO I call f at 0 to get the type, but if I change num_to_function to
+    -- use to_type_and_function, I don't have to
+    (. ScoreT.typed_val . f) <$> check_type (ScoreT.type_of (f 0))
 
 -- | Evaluate a control function with no backing control.
 control_function :: DeriveT.ControlFunction -> Derive.Deriver TypedFunction
@@ -377,10 +389,38 @@ instance Typecheck Function where
     from_val = num_to_function (Just . fmap ScoreT.typed_val)
     to_type _ = ValType.TOther "untyped number or signal"
 
+time_constructor :: TimeType -> ScoreT.Type
+    -> Maybe (Signal.Y -> DeriveT.Duration)
+time_constructor deflt typ = case time_type deflt typ of
+    Just Real -> Just $ DeriveT.RealDuration . RealTime.seconds
+    Just Score -> Just $ DeriveT.ScoreDuration . ScoreTime.from_double
+    Nothing -> Nothing
+
+-- type TimeFunction = RealTime -> DeriveT.Duration
+-- instance Typecheck TimeFunction where
+--     from_val = num_to_typed_function (time_constructor Real)
+--     to_type _ = ValType.TOther "time number or signal"
+
+-- | Wrappers that produce a Duration function.  They differ in whether Untyped
+-- defaults to Real or Score.
+newtype TimeFunctionReal = TimeFunctionReal (RealTime -> DeriveT.Duration)
+newtype TimeFunctionScore = TimeFunctionScore (RealTime -> DeriveT.Duration)
+
+instance Typecheck TimeFunctionReal where
+    from_val = fmap TimeFunctionReal
+        . num_to_typed_function (time_constructor Real)
+    to_type _ = ValType.TOther "time number or signal, default real"
+instance Typecheck TimeFunctionScore where
+    from_val = fmap TimeFunctionScore
+        . num_to_typed_function (time_constructor Score)
+    to_type _ = ValType.TOther "time number or signal, default score"
+
+-- | This returns the function and the type separately, which is kind of weird.
+-- Shouldn't it be combined into (Y -> DeriveT.Duratin)?
 data DefaultRealTimeFunction = DefaultRealTimeFunction !Function !TimeType
 
 instance Typecheck DefaultRealTimeFunction where
-    from_val = num_to_checked_function DefaultRealTimeFunction (time_type Real)
+    from_val = num_to_type_and_function DefaultRealTimeFunction (time_type Real)
     to_type _ = ValType.TOther "time number or signal"
 
 -- Originally I used DataKinds e.g.
@@ -390,20 +430,20 @@ instance Typecheck DefaultRealTimeFunction where
 data TransposeFunctionDiatonic =
     TransposeFunctionDiatonic !Function !ScoreT.Control
 instance Typecheck TransposeFunctionDiatonic where
-    from_val = num_to_checked_function TransposeFunctionDiatonic
+    from_val = num_to_type_and_function TransposeFunctionDiatonic
         (type_to_control Diatonic)
     to_type _ = ValType.TOther "transpose number or signal, default diatonic"
 
 data TransposeFunctionChromatic =
     TransposeFunctionChromatic !Function !ScoreT.Control
 instance Typecheck TransposeFunctionChromatic where
-    from_val = num_to_checked_function TransposeFunctionChromatic
+    from_val = num_to_type_and_function TransposeFunctionChromatic
         (type_to_control Chromatic)
     to_type _ = ValType.TOther "transpose number or signal, default chromatic"
 
 data TransposeFunctionNn = TransposeFunctionNn !Function !ScoreT.Control
 instance Typecheck TransposeFunctionNn where
-    from_val = num_to_checked_function TransposeFunctionNn
+    from_val = num_to_type_and_function TransposeFunctionNn
         (type_to_control Nn)
     to_type _ = ValType.TOther "transpose number or signal, default nn"
 
@@ -781,6 +821,7 @@ to_typed_function control =
 to_function :: DeriveT.ControlRef -> Derive.Deriver Function
 to_function = fmap (ScoreT.typed_val .) . to_typed_function
 
+-- TODO: replace this with convert_to_type_and_function.
 convert_to_function :: DeriveT.ControlRef
     -> Either (ScoreT.Typed Signal.Control) DeriveT.ControlFunction
     -> Derive.Deriver TypedFunction
@@ -789,6 +830,29 @@ convert_to_function control = either (return . signal_function) from_function
     signal_function sig t = Signal.at t <$> sig
     from_function f = DeriveT.cf_function f score_control <$>
         Internal.get_control_function_dynamic
+    score_control = case control of
+        DeriveT.ControlSignal {} -> Controls.null
+        DeriveT.DefaultedControl cont _ -> cont
+        DeriveT.LiteralControl cont -> cont
+
+to_type_and_function :: DeriveT.ControlRef
+    -> Derive.Deriver (ScoreT.Type, Function)
+to_type_and_function control =
+    convert_to_type_and_function control =<< to_signal_or_function control
+
+convert_to_type_and_function :: DeriveT.ControlRef
+    -> Either (ScoreT.Typed Signal.Control) DeriveT.ControlFunction
+    -> Derive.Deriver (ScoreT.Type, Function)
+convert_to_type_and_function control =
+    either (return . signal_function) from_cf
+    where
+    signal_function (ScoreT.Typed typ sig) = (typ, \t -> Signal.at t sig)
+    from_cf cf = get <$> Internal.get_control_function_dynamic
+        where
+        -- TODO type should be in ControlFunction rather than the function
+        -- return value, so I don't have to call it on 0.
+        get dyn = (ScoreT.type_of (f 0), ScoreT.typed_val . f)
+            where f = DeriveT.cf_function cf score_control dyn
     score_control = case control of
         DeriveT.ControlSignal {} -> Controls.null
         DeriveT.DefaultedControl cont _ -> cont
