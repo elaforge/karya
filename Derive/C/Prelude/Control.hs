@@ -212,7 +212,7 @@ c_neighbor = generator1 "neighbor" mempty
     ("Emit a slide from a value to 0 in absolute time. This is the control\
     \ equivalent of the neighbor pitch call."
     ) $ Sig.call ((,,)
-    <$> Sig.defaulted "neighbor" 1 "Start at this value."
+    <$> Sig.defaulted "neighbor" (1 :: Double) "Start at this value."
     <*> Sig.defaulted "time" (Typecheck.real 0.1) "Time taken to get to 0."
     <*> ControlUtil.curve_env
     ) $ \(neighbor, Typecheck.DefaultReal time, curve) args -> do
@@ -224,8 +224,8 @@ c_up = generator1 "u" Tags.prev
     "Ascend at the given speed until the value reaches a limit or the next\
     \ event."
     $ Sig.call ((,,,)
-    <$> Sig.defaulted "speed" 1 "Ascend this amount per second."
-    <*> Sig.defaulted "limit" Nothing "Stop at this value."
+    <$> Sig.defaulted "speed" (1 :: Double) "Ascend this amount per second."
+    <*> Sig.defaulted "limit" (Nothing :: Maybe Double) "Stop at this value."
     <*> ControlUtil.from_env
     <*> Sig.environ_key EnvKey.control_gt_0 False
         "Whether or not to limit to 1 by default."
@@ -239,8 +239,8 @@ c_down = generator1 "d" Tags.prev
     "Descend at the given speed until the value reaches a limit or the next\
     \ event."
     $ Sig.call ((,,)
-    <$> Sig.defaulted "speed" 1 "Descend this amount per second."
-    <*> Sig.defaulted "limit" 0 "Stop at this value."
+    <$> Sig.defaulted "speed" (1 :: Double) "Descend this amount per second."
+    <*> Sig.defaulted "limit" (0 :: Double) "Stop at this value."
     <*> ControlUtil.from_env
     ) $ \(speed, limit, from) args ->
         make_slope args (Just limit) Nothing from (-speed)
@@ -250,18 +250,18 @@ c_down_from = generator1 "df" mempty
     "Drop from a certain value. This is like `d` with `from`, but more\
     \ convenient to write."
     $ Sig.call ((,,)
-    <$> Sig.defaulted "from" 1 "Start at this value."
-    <*> Sig.defaulted "speed" 1 "Descend this amount per second."
-    <*> Sig.defaulted "limit" 0 "Stop at this value."
+    <$> Sig.defaulted "from" (1 :: Double) "Start at this value."
+    <*> Sig.defaulted "speed" (1 :: Double) "Descend this amount per second."
+    <*> Sig.defaulted "limit" (0 :: Double) "Stop at this value."
     ) $ \(from, speed, limit) args ->
         make_slope args (Just limit) Nothing (Just from) (-speed)
 
 c_up_from :: Derive.Generator Derive.Control
 c_up_from = generator1 "uf" mempty "Like df, but up."
     $ Sig.call ((,,)
-    <$> Sig.defaulted "from" 0 "Start at this value."
-    <*> Sig.defaulted "speed" 1 "Ascend this amount per second."
-    <*> Sig.defaulted "limit" 1 "Stop at this value."
+    <$> Sig.defaulted "from" (0 :: Double) "Start at this value."
+    <*> Sig.defaulted "speed" (1 :: Double) "Ascend this amount per second."
+    <*> Sig.defaulted "limit" (1 :: Double) "Stop at this value."
     ) $ \(from, speed, limit) args ->
         make_slope args (Just limit) Nothing (Just from) speed
 
@@ -280,8 +280,8 @@ c_pedal = generator1 "pedal" mempty
     \ the given value for the event's duration, and reset to the old\
     \ value afterwards."
     ) $ Sig.call ((,)
-    <$> Sig.defaulted "val" 1 "Set to this value."
-    <*> Sig.environ "dur" Sig.Prefixed 0.05
+    <$> Sig.defaulted "val" (1 :: Double) "Set to this value."
+    <*> Sig.environ "dur" Sig.Prefixed (0.05 :: Double)
         "Use this duration if the event duration is 0."
     ) $ \(val, dur) args -> do
         (start, end) <- Args.real_range args
@@ -295,8 +295,9 @@ c_swell = generator1 "swell" mempty
     \ original value. Uses duration."
     $ Sig.call ((,,)
     <$> Sig.required "val" "Start value."
-    <*> Sig.defaulted "peak" 1 "Interpolate to this value."
-    <*> Sig.defaulted "bias" 0.5 "0 puts the peak at the start, 1 at the end."
+    <*> Sig.defaulted "peak" (1 :: Double) "Interpolate to this value."
+    <*> Sig.defaulted "bias" (0.5 :: Double)
+        "0 puts the peak at the start, 1 at the end."
     ) $ \(val, peak, bias) args -> do
         (start, end) <- Args.real_range args
         let middle = Num.clamp start end $

@@ -426,8 +426,10 @@ c_infer_seconds = Make.transform_notes Module.instrument "infer-seconds"
     "Infer a `+sec#` attr based on the duration of the event and the available\
     \ keymaps for the current instrument and attribute set."
     ((,)
-    <$> Sig.defaulted "attrs" mempty "Add these attributes."
-    <*> Sig.defaulted "round" Nothing "Round up to a longer `+sec#` attribute,\
+    <$> Sig.defaulted "attrs" (mempty :: Attrs.Attributes)
+        "Add these attributes."
+    <*> Sig.defaulted "round" (Nothing :: Maybe Sig.Dummy)
+        "Round up to a longer `+sec#` attribute,\
         \ down to a shorter one, or to the closest."
     ) $ \(attrs, round) deriver -> do
         (_, inst) <- Derive.get_instrument =<< Call.get_instrument

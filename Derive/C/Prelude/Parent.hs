@@ -150,8 +150,9 @@ c_real_arpeggio arp = Derive.generator Module.prelude "arp" Tags.subs
     \ pitches of the sub notes (they may not have a single pitch) so\
     \ it's not actually \"up\" or \"down\"."
     ) $ Sig.call ((,)
-    <$> Sig.defaulted "time" 0.1 "This much RealTime between each note."
-    <*> Sig.defaulted "random" 0.5
+    <$> Sig.defaulted "time" (0.1 :: Double)
+        "This much RealTime between each note."
+    <*> Sig.defaulted "random" (0.5 :: Double)
         "Each note can vary randomly by `+- time/2 * random`."
     ) $ \(time, random) args -> lily_code args $
         arpeggio arp (RealTime.seconds time) random =<< Sub.sub_events args
@@ -254,8 +255,8 @@ c_event_interpolate :: Derive.Generator Derive.Note
 c_event_interpolate = Derive.generator Module.prelude "e-interpolate" Tags.subs
     "Interpolate rhythms of the transformed sequence."
     $ Sig.call ((,,)
-    <$> Sig.defaulted "notes" Nothing "source deriver"
-    <*> Sig.defaulted "model" Nothing "rhythm model"
+    <$> Sig.defaulted "notes" (Nothing :: Maybe Sig.Dummy) "source deriver"
+    <*> Sig.defaulted "model" (Nothing :: Maybe Sig.Dummy) "rhythm model"
     <*> Sig.defaulted "at" (Sig.control "at" 0) "interpolate position"
     ) $ \(mb_notes, mb_model, at) args -> do
         at <- Call.to_function at

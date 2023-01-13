@@ -173,12 +173,14 @@ c_break naturalBpm beatMap perMeasure mbFrame =
         <$> maybe (Left <$> beat_arg) (pure . Right) mbFrame
         <*> Sig.defaulted "pre" (Typecheck.score 0)
             "Move note start back by this much, along with the offset."
-        <*> Sig.defaulted "pitch" 0 "Pitch offset."
-        <*> Sig.defaulted "pitch-shift" 0 "Pitch offset, not affecting time."
+        <*> Sig.defaulted "pitch" (0 :: Double) "Pitch offset."
+        <*> Sig.defaulted "pitch-shift" (0 :: Double)
+            "Pitch offset, not affecting time."
         <*> Sig.defaulted "bpm" naturalBpm "Set BPM."
         <*> Sig.defaulted "bpm-mode" Pitch
             "How to adjust bpm, by changing pitch, or stretching time."
-    ) $ \(beatOrFrame, pre, pitch, pitchShift, bpm, bpmMode) ->
+    ) $ \(beatOrFrame, Typecheck.DefaultScore pre, pitch, pitchShift, bpm,
+        bpmMode) ->
     Sub.inverting $ \args -> do
         frame <- either (lookupBeat beatMap) return beatOrFrame
         let (start, dur) = Args.extent args

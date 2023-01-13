@@ -774,16 +774,6 @@ UNSORTED
         make the things that require them not accept ScoreTime.  I'd need to
         go review why I made calls non-normalized in the first place, and see
         how much those reasons still hold.
-  Unify Environ and ControlMap:
-    . I can get most of the benefit by unifying the syntax: x=y becomes set
-      a control or env depending on the type of the rhs.
-    . However, they're still separate which means I can make an "invisible"
-      numeric env in haskell.
-    . Also, I would need Derive.Sig to default from numeric controls.
-    . I guess it would then be better to have a single
-      Map Key (NumSignal | ValSignal | PitchSignal)
-    . This means I can also get rid of the separate pitch and named pitches,
-      and just have a signal named "pitch".
   cleanup from linear:
     - rename RealTime.seconds to from_seconds etc.
       . I'm kind of reluctant because RealTime.seconds reads nicely and
@@ -1439,7 +1429,7 @@ UNIFY:
     . I would need to expose TimeVector a, since Segment and interpolation
       doesn't apply to arbitrary Vals.  If I still have VNum though, I'll
       still have the ambiguity.
-  - signal arguments:
+  + signal arguments:
     . They should all coerce to SignalFunction, with no need for
       Call.to_function.
   - controls and ControlFunctions:
@@ -6629,6 +6619,139 @@ Cmd:
       a bit of a hassle.
 
 Derive:
+  unify-env:
+    . Merge Derive.state_controls and Derive.state_pitches and
+      Derive.state_pitch into Derive.state_environ.
+      state_pitch becomes EnvKey.pitch.
+    . I would need Val for signals:
+      VControlRef -> VSignal Signal
+      VPControlRef -> VPSignal PSignal
+    . But the %c,1 syntax is still useful because it's concise.  Maybe it
+      becomes sugar for (control c 1), which looks up in env and asserts
+      VSignal.
+    . Similarly, #p or (# p (4c)), though rename to (pcontrol p (4c)) for
+      consistency.
+    . But these can't be in ShowVal.  But the more seriously, the binding
+      is too early.  E.g. if %speed is an arg default, getting the signal
+      must be delayed until it's actually used.
+    . So I continue with VControlRef and VPControlRef.
+    . Putting into Environ is to eliminate '%c=5' vs c=5.
+    . But if I'm carrying around refs, then where are the actual signals
+      stored?
+    . So maybe it's just the syntax, I can eliminate %c=5, then c=5 is the
+      same, but get a control val becomes look in environ.  If it finds
+      a number, it's a constant, if it's a ref, then look up the control.
+    So the change requires:
+      - Call.typed_control_at etc. must also handle VNum.
+        . It's too late since it already expects ControlRef.
+        . So I need Typecheck Function.
+        . Actually I already have it.  But I need to use it always, because
+          anyone still using Call.control_at will just silently not work with
+          VNum.
+        . Convert some calls to see if there's any complication.
+        . Yes, I have default ControlRef but can't convert to a different
+          type.
+    Unify Environ and ControlMap:
+      . I can get most of the benefit by unifying the syntax: x=y becomes set
+        a control or env depending on the type of the rhs.
+      . However, they're still separate which means I can make an "invisible"
+        numeric env in haskell.
+      . Also, I would need Derive.Sig to default from numeric controls.
+      . I guess it would then be better to have a single
+        Map Key (NumSignal | ValSignal | PitchSignal)
+      . This means I can also get rid of the separate pitch and named pitches,
+        and just have a signal named "pitch".
+  Typecheck TypedFunction: Typecheck Function:
+    . Typecheck coerces to TypedFunction as a common signal type
+    . Couldn't match expected type:
+      RealTime -> Perform.Signal.Y
+                  with actual type:
+      DeriveT.Ref ScoreT.Control (ScoreT.Typed Perform.Signal.Control)
+    - It turns out this is not so useful because a default TypedFunction
+      doesn't have a default control name like a Sig.typed_control does.
+      The documentation is also worse.  The way to fix this would be to
+      let the default be any coercible type.  But to do that and be type safe
+      I'd want a separate class for pairs of types that can definitely be
+      converted.
+      . Possibly a way around is to include ControlFunction in ControlRef...
+        but why do I want so much to pass control functions?  Especially since
+        I can already pass a concrete signal as a ControlSignal.
+    . Wait wouldn't Convert a b work after all?  The default fixes 'a' and
+      the Typecheck value fixes b.
+    . Convert ControlRef TypedFunction
+      . Can't do this, that's already Typecheck.
+      . Problem is that default value must be the same type as the Typecheck
+        value.  But I need it to be something which is typecheck-able into
+        the value.  So I could make it Val, but then I could put in something
+        that never typechecks.
+      . I could just live with that, the problem would be obvious on the first
+        test.
+      . To have haskell check, I need something like Val but only with
+        instances that typecheck.
+      . I want 'Sig.defaulted "arg" (typed_control "c" 0.1 ScoreT.Real) ""'
+        to typecheck, but 'Sig.defaulted "arg" "sym" ""' should not,
+        because "sym" -/-> TypedFunction.
+      . I think the default has to be stored as Val
+      . So mabye it's just ToVal.
+      . Seems to work, just have to put types on overloaded literals.
+      - Replace
+        . time <- Derive.real =<< Call.time_control_at Typecheck.Real time start
+        . with Typecheck.DefaultRealTimeFunction
+      - change control lookups in Derive to look in environ
+        . I have programmatic things doing 'with_control "c" ...' and derivers
+          look directly in Derive.state_controls.
+        . In fact, if I did this, do I even need the Typecheck instances?
+          Call.control_at etc. would need to look in environ instead?
+        . Restate the goal:
+          . Eliminate '%c=1' -> 'c=1', '#=(4c)' -> pitch=(4c)
+          . I still need ControlMap since the signals have to go somewhere,
+            and I want to actually pass around references to them, because
+            argument defaults happen before signals exist.
+          . So ControlMap becomes kind of a heap which is addressed via
+            ControlRefs.
+          . What if I represented control ref specifically as a delayed
+            control fetch, e.g. "(control c)?
+          . This is pretty much the idea above except delayed via ".  I don't
+            need to unify with Quoted, it might be more convenient to keep as
+            ControlRef, but it's logically a Quoted.
+          . Is that not what it already is?
+          . ... TODO
+        . What would the types be though?
+          get_controls :: Deriver DeriveT.ControlMap
+    coerce:
+      . Then I want to be able to treat those as signals, or coerce them both
+        to the same thing.  Really that's a SignalFunction, or maybe just
+        RealTime -> Deriver Y.  So this turns into the problem of how to
+        coerce various types into SignalFunction, but not have to have an
+        opaque SignalFunction for all the defaults.
+      . I could have a Convert typeclass.  In fact maybe it would be cleaner
+        to split Typecheck and Convert?
+        Typecheck: Val -> Maybe a, Convert: a -> b
+        Convert would be: Int -> SignalFunction.
+      . I think this won't work because the intermediate 'a' will be
+        ambiguous.
+      . I can always have a Default class that is used only for Sig defaults,
+        and provides both ShowVal and the coercion.  It would mean I have to
+        duplicate everything in Typecheck, unless I use an overlapping
+        typeclass.  Or I could default to... what exactly?
+      . The problem with `Convert a b` is that 'a' needs a type annotation,
+        which would make signatures annoying to write.  Normally I don't need
+        them because they are the Typecheck val, which already needs to be
+        fixed.
+      . Or I could have defaults be either a Typecheck val, or
+        (Doc, Typecheck val), and then have an explicit constructor for
+        Function which promotes various types to (Doc, Function).
+      . I think this decouples the default type and the arg type... no it
+        doesn't, it's only if I want to take a Function.  So maybe I have a
+        constructor 'Typecheck.function :: Y -> DocFunction'
+      . Or, maybe I can have Sig functions take a 'WithDoc a', and there's a
+        'instance ShowVal a => ToWithDoc a', and an overlapping instance for
+        something already WithDoc, for non ShowVal instances.  Actually
+        I probably don't need this, put a method in Typecheck and leave it
+        default if ShowVal?
+  . It would be nice to be able to have an arg default to ControlRef and
+    have typecheck coerce to scalar via Call.control_at.  But once again the
+    problem is that I can't coerce to a type different from the default.
   random:
     . https://alexey.kuleshevi.ch/blog/2019/12/21/random-benchmarks/
     . randomR goes through Integer, so it's slow
@@ -6770,19 +6893,6 @@ Derive:
         . For blocks, it's actually almost that, except I have to translate
           back by the start time first.  This is because blocks are already
           normalized to the event duration.  I think?
-    Typecheck coerces to TypedFunction as a common signal type
-      - It turns out this is not so useful because a default TypedFunction
-        doesn't have a default control name like a Sig.typed_control does.
-        The documentation is also worse.  The way to fix this would be to
-        let the default be any coercible type.  But to do that and be type safe
-        I'd want a separate class for pairs of types that can definitely be
-        converted.
-        . Possibly a way around is to include ControlFunction in ControlRef...
-          but why do I want so much to pass control functions?  Especially since
-          I can already pass a concrete signal as a ControlSignal.
-    . It would be nice to be able to have an arg default to ControlRef and
-      have typecheck coerce to scalar via Call.control_at.  But once again the
-      problem is that I can't coerce to a type different from the default.
     - if I had a boolean type, I could generalize calls in Conditional:
       . when-e key -> when (env key)
         when-e key val -> when (= (env key) val)
@@ -6791,8 +6901,6 @@ Derive:
       . However, they get more wordy, so maybe I don't want it.  E.g. for
         cond I'd actually want a 'switch %cont' and then I need either
         partially applied functions, or just write 'switch<'.
-    - replace VAttributes with a general purpose VSet.
-      . No users though?
     - there should be a character that triggers a parse failure, which is used
       by invalid ShowVal instances like ShowVal Pitch
     - it's confusing how some calls expect env vals like 'x = 1' and some

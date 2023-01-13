@@ -154,7 +154,7 @@ c_note_trill use_attributes hardcoded_start hardcoded_end =
 
 neighbor_arg :: Sig.Parser Neighbor
 neighbor_arg = Sig.defaulted "neighbor"
-    (Left $ Sig.typed_control "tr-neighbor" 1 ScoreT.Diatonic)
+    (Left $ Sig.typed_control "tr-neighbor" 1 ScoreT.Diatonic :: Neighbor)
     "Alternate with a pitch at this interval."
 
 type Neighbor = Either DeriveT.ControlRef PSignal.Pitch
@@ -580,8 +580,8 @@ c_saw = Derive.generator1 Module.prelude "saw" mempty
     \ an upward slope by setting `from` and `to`."
     $ Sig.call ((,,)
     <$> Speed.arg
-    <*> Sig.defaulted "from" 1 "Start from this value."
-    <*> Sig.defaulted "to" 0 "End at this value."
+    <*> Sig.defaulted "from" (1 :: Double) "Start from this value."
+    <*> Sig.defaulted "to" (0 :: Double) "End at this value."
     ) $ \(speed, from, to) args -> do
         starts <- Speed.starts speed (Args.range_or_next args) True
         srate <- Call.get_srate
@@ -604,8 +604,8 @@ c_sine mode = Derive.generator1 Module.prelude "sine" mempty
     $ Sig.call ((,,)
     <$> Sig.defaulted "speed" (Sig.typed_control "sine-speed" 1 ScoreT.Real)
         "Frequency."
-    <*> Sig.defaulted "amp" 1 "Amplitude, measured center to peak."
-    <*> Sig.defaulted "offset" 0 "Center point."
+    <*> Sig.defaulted "amp" (1 :: Double) "Amplitude, measured center to peak."
+    <*> Sig.defaulted "offset" (0 :: Double) "Center point."
     ) $ \(speed, amp, offset) args -> do
         (speed_sig, time_type) <- Call.to_time_function Typecheck.Real speed
         case time_type of
@@ -677,6 +677,7 @@ trill_speed_arg =
 data Direction = High | Low deriving (Bounded, Eq, Enum, Show)
 instance ShowVal.ShowVal Direction
 instance Typecheck.Typecheck Direction
+instance Typecheck.ToVal Direction
 
 -- | This is the like 'Direction', but in terms of the unison and neighbor
 -- pitches, instead of high and low.
@@ -694,12 +695,14 @@ config_arg start_dir end_dir =
         <*> bias <*> pure False
     where
     start = case start_dir of
-        Nothing -> Sig.environ "tr-start" Sig.Unprefixed Nothing
+        Nothing -> Sig.environ "tr-start" Sig.Unprefixed
+            (Nothing :: Maybe Direction)
             "Which note the trill starts with. If not given, it will start\
             \ the unison note, which means it may move up or down."
         Just dir -> pure $ Just dir
     end = case end_dir of
-        Nothing -> Sig.environ "tr-end" Sig.Unprefixed Nothing
+        Nothing -> Sig.environ "tr-end" Sig.Unprefixed
+            (Nothing :: Maybe Direction)
             "Which note the trill ends with. If not given, it can end with\
             \ either."
         Just dir -> pure $ Just dir
@@ -763,6 +766,7 @@ data Adjust =
 
 instance ShowVal.ShowVal Adjust
 instance Typecheck.Typecheck Adjust
+instance Typecheck.ToVal Adjust
 
 adjust_env :: Sig.Parser Adjust
 adjust_env = Sig.environ "adjust" Sig.Both Shorten

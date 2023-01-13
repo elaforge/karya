@@ -106,7 +106,7 @@ equal_args = (,,)
         \ infix parsing for `=`. Symbolic prefixes determine what is\
         \ assigned, and the valid types for the rhs."
     <*> Sig.required "rhs" "Source of the assignment."
-    <*> (parse_merge <$> Sig.defaulted "merge" "set" merge_doc)
+    <*> (parse_merge <$> Sig.defaulted "merge" ("set" :: Text) merge_doc)
 
 merge_doc :: Doc.Doc
 merge_doc = "Merge operator. This can be `default` to use the default for the\

@@ -65,7 +65,7 @@ note_call note ratio = Derive.val_call Module.scale "ratio" mempty
     <> ShowVal.doc pcontrol_ref
     <> " signal. A negative ratio divides, a positive one multiplies."
     ) $ Sig.call
-    (defaulted "hz" 0 "Add an absolute hz value to the output.") $
+    (defaulted "hz" (0 :: Double) "Add an absolute hz value to the output.") $
     \hz args -> do
         start <- Args.real_start args
         env <- Derive.get_environ

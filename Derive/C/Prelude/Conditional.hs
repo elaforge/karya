@@ -52,7 +52,8 @@ c_if_e = Derive.generator Module.prelude "if-e" mempty
     "Derive based on the value of an environment variable."
     $ Sig.call ((,,,)
     <$> Sig.required "name" "Environ key."
-    <*> Sig.defaulted "value" Nothing "Environ value. If not given, require\
+    <*> Sig.defaulted "value" (Nothing :: Maybe DeriveT.Val)
+        "Environ value. If not given, require\
         \ only that the environ key is set."
     <*> Sig.required "true" "Eval if true."
     <*> Sig.required "false" "Eval if false."
@@ -141,7 +142,8 @@ c_when_e inverted = Derive.transformer Module.prelude "when-e" mempty
     \ solo a bit of score to one particular instrument."
     $ Sig.callt ((,)
     <$> Sig.required "name" "Environ key."
-    <*> Sig.defaulted "value" Nothing "Environ value. If not given, require\
+    <*> Sig.defaulted "value" (Nothing :: Maybe DeriveT.Val)
+        "Environ value. If not given, require\
         \ only that the environ key is set."
     ) $ \(name, maybe_value) _args deriver ->
         ifM (invert $ has_environ name maybe_value) deriver

@@ -26,14 +26,16 @@ import           Global
 -- TODO if Sig.Parser supported Deriver eval, I could make these return String.
 open_strings_env :: Sig.Parser [PSignal.Pitch]
 open_strings_env = Sig.check non_empty $
-    Sig.environ_key EnvKey.open_strings [] "Pitches of open strings."
+    Sig.environ_key EnvKey.open_strings ([] :: [PSignal.Pitch])
+        "Pitches of open strings."
     where
     non_empty [] = Just "open-strings required"
     non_empty _ = Nothing
 
 string_env :: Sig.Parser (Maybe PSignal.Pitch)
 string_env =
-    Sig.environ_key EnvKey.string Nothing "Play on this string."
+    Sig.environ_key EnvKey.string (Nothing :: Maybe PSignal.Pitch)
+        "Play on this string."
 
 with_string :: String -> Derive.Deriver a -> Derive.Deriver a
 with_string = Derive.with_val EnvKey.string . str_val

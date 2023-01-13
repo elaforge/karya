@@ -68,7 +68,7 @@ pitch_arg = Sig.required "pitch"
 -- | Use this for calls that start from the previous value, to give a way
 -- to override that behaviour.
 from_env :: Sig.Parser (Maybe PSignal.Pitch)
-from_env = Sig.environ "from" Sig.Both Nothing
+from_env = Sig.environ "from" Sig.Both (Nothing :: Maybe Sig.Dummy)
     "Start from this pitch. If unset, use the previous pitch."
 
 prev_val :: Maybe PSignal.Pitch -> Derive.PitchArgs -> Maybe PSignal.Pitch

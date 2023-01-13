@@ -72,6 +72,7 @@ data Distribution =
 
 instance ShowVal.ShowVal Distribution
 instance Typecheck.Typecheck Distribution
+instance Typecheck.ToVal Distribution
 
 c_cf_rnd :: (Signal.Y -> Signal.Y -> Signal.Y) -> Derive.ValCall
 c_cf_rnd combine = val_call "cf-rnd"
@@ -97,7 +98,7 @@ c_cf_rnd_around combine = val_call "cf-rnd-a"
     \ while the `+` and `*` variants add to and multiply with it."
     $ Sig.call ((,,)
     <$> Sig.required "range" "Range this far from the center."
-    <*> Sig.defaulted "center" 0 "Center of the range."
+    <*> Sig.defaulted "center" (0 :: Double) "Center of the range."
     <*> Sig.environ "distribution" Sig.Prefixed Normal "Random distribution."
     ) $ \(range, center, distribution) _args -> return $!
         DeriveT.ControlFunction "cf-rnd-a" $ \control dyn pos ->
@@ -180,8 +181,8 @@ c_cf_clamp = val_call "cf-clamp" Tags.control_function
     "Clamp the output of a control function to the given range."
     $ Sig.call ((,,)
     <$> Sig.required "cf" "Control function."
-    <*> Sig.defaulted "low" 0 "Low value."
-    <*> Sig.defaulted "high" 1 "High value."
+    <*> Sig.defaulted "low" (0 :: Double) "Low value."
+    <*> Sig.defaulted "high" (1 :: Double) "High value."
     ) $ \(cf, low, high) _args ->
         return $ cf_compose "cf-clamp" (Num.clamp low high) cf
 

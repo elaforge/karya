@@ -156,7 +156,7 @@ nruk_args :: Sig.Parser (Speed.Speed, Speed.Speed, Signal.Y, DeriveT.Duration)
 nruk_args = (,,,)
     <$> Sig.defaulted "start" (Speed.Real 4) "Start speed."
     <*> Sig.defaulted "end" (Speed.Real 19) "End speed."
-    <*> Sig.defaulted "end-dyn" 0.15
+    <*> Sig.defaulted "end-dyn" (0.15 :: Double)
         "Dyn multiplier when the stroke duration reaches 0."
     <*> Trill.hold_env
 

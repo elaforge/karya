@@ -267,7 +267,14 @@ instance Pretty TypeErrorT where
         , case mb_received of
             Just received -> " but got " <> pretty (ValType.type_of received)
                 <> ": " <> pretty received
-            Nothing -> " but got no value"
+            Nothing -> case source of
+                -- Otherwise the error is confusing, subtracks don't have
+                -- error_received since they don't fit in a DeriveT.Val.
+                -- But I only saw this due to Typecheck Maybe not propagating
+                -- from_subtrack.
+                SubTrack _ ->
+                    " but subtrack didn't make it through from_subtrack"
+                _ -> " but got no value"
         , maybe "" show_derive_error derive_error
         ]
         where

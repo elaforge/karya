@@ -38,7 +38,8 @@ c_bols = Derive.generator ("india" <> "pakhawaj") "bols"
     ("Interpret pakhawaj bols in sub events.  Bols: "
         <> Texts.join " / " (map (Doc.Doc . Text.unwords . fst) all_bols))
     $ Sig.call (
-        Sig.defaulted "flam" 0.15 "Time between flam type bols like `kre`."
+        Sig.defaulted "flam" (0.15 :: Double)
+            "Time between flam type bols like `kre`."
     ) $ \flam_dur  args -> do
         args <- Derive.require_right id $
             Sub.modify_notes (realize_events (Args.end args) flam_dur) args

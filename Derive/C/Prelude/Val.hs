@@ -134,10 +134,11 @@ c_env = val_call "env" mempty
     "Look up the given val in the environ."
     $ Sig.call ((,)
     <$> Sig.required "name" "Look up the value of this key."
-    <*> Sig.defaulted "default" Nothing "If given, this is the default value\
-        \ when the key isn't present. If not given, a missing key will throw an\
-        \ exception. The presence of a default will also make the lookup\
-        \ expect the same type as the default."
+    <*> Sig.defaulted "default" (Nothing :: Maybe DeriveT.Val)
+        "If given, this is the default value when the key isn't present. If\
+        \ not given, a missing key will throw an exception. The presence of\
+        \ a default will also make the lookup expect the same type as the\
+        \ default."
     ) $ \(name, maybe_deflt) _args -> case maybe_deflt of
         Nothing -> Derive.get_val name
         Just deflt -> check name deflt =<< Derive.lookup_val name
@@ -156,7 +157,7 @@ c_timestep = val_call "timestep" mempty
     \ position. This is for durations, so it only works with RelativeMark."
     ) $ Sig.call ((,)
     <$> Sig.required "rank" "Emit a duration of this rank."
-    <*> Sig.defaulted "steps" 1 "This number of steps of that rank."
+    <*> Sig.defaulted "steps" (1 :: Int) "This number of steps of that rank."
     ) $ \(rank, steps) args -> DeriveT.score_time <$>
         Call.meter_duration (Args.start args) rank steps
 
@@ -247,11 +248,11 @@ c_realtime = val_call "realtime" mempty
 c_pitch :: Derive.ValCall
 c_pitch = val_call "pitch" mempty "Create a 'Perform.Pitch.Pitch'."
     $ Sig.call ((,,)
-    <$> Sig.defaulted_env "oct" Sig.None (Left 0)
+    <$> Sig.defaulted_env "oct" Sig.None (Left 0 :: Either Int Int)
         "Octave, or a pitch name or pitch. If it's a pitch name or pitch, the\
         \ `pc` and `accs` args must be 0."
-    <*> Sig.defaulted_env "pc" Sig.None 0 "Pitch class."
-    <*> Sig.defaulted_env "accs" Sig.None 0 "Accidentals."
+    <*> Sig.defaulted_env "pc" Sig.None (0 :: Int) "Pitch class."
+    <*> Sig.defaulted_env "accs" Sig.None (0 :: Int) "Accidentals."
     ) $ \(oct, pc, accs) _ -> make_pitch oct pc accs
 
 make_pitch :: Either Pitch.Octave (Either Text PSignal.Pitch)
@@ -277,7 +278,7 @@ c_pcontrol_ref = val_call "pcontrol-ref" mempty
     \ you need this call."
     $ Sig.call ((,)
     <$> Sig.required "name" "Name of pitch signal."
-    <*> Sig.defaulted "default" Nothing
+    <*> Sig.defaulted "default" (Nothing :: Maybe PSignal.Pitch)
         "Default pitch, if the signal is not set."
     ) $ \(pcontrol, maybe_default) _ -> return $ case maybe_default of
         Nothing -> DeriveT.LiteralControl (pcontrol :: ScoreT.PControl)
@@ -288,7 +289,7 @@ c_pcontrol_ref = val_call "pcontrol-ref" mempty
 
 c_get_pitch :: Derive.ValCall
 c_get_pitch = val_call "pitch" mempty "Get the current pitch." $
-    Sig.call (Sig.defaulted "control" ""
+    Sig.call (Sig.defaulted "control" ("" :: Text)
         "The default pitch if empty, otherwise, get the named pitch.") $
     \control args -> Derive.require "pitch"
         =<< Derive.named_pitch_at control =<< Args.real_start args
@@ -305,7 +306,7 @@ c_exp_next :: Derive.ValCall
 c_exp_next = val_call "exp-next" mempty
     "Create curved lines between the given breakpoints."
     $ Sig.call ((,)
-    <$> Sig.defaulted "exp" 2 ControlUtil.exponential_doc
+    <$> Sig.defaulted "exp" (2 :: Double) ControlUtil.exponential_doc
     <*> breakpoints_arg
     ) $ \(exp, vals) args ->
         breakpoints 1 (ControlUtil.Function $ ControlUtil.expon exp) vals args
@@ -319,8 +320,8 @@ c_down_from :: Derive.ValCall
 c_down_from = val_call "down-from" mempty
     "Go down from a starting value at a certain rate."
     $ Sig.call ((,)
-    <$> Sig.defaulted "from" 1 "Start at this value."
-    <*> Sig.defaulted "speed" 1 "Descend this amount per second."
+    <$> Sig.defaulted "from" (1 :: Double) "Start at this value."
+    <*> Sig.defaulted "speed" (1 :: Double) "Descend this amount per second."
     ) $ \(from, speed) args -> do
         (start, end) <- Args.real_range_or_next args
         return $ DeriveT.VControlRef $ DeriveT.ControlSignal $

@@ -56,7 +56,7 @@ wind_idiom fundamentals = return . Post.emap1_ (process fundamentals)
 
 fundamentals_env :: Sig.Parser [Either Pitch.NoteNumber PSignal.Pitch]
 fundamentals_env = Sig.check non_empty $
-    Sig.environ "fundamentals" Sig.Unprefixed []
+    Sig.environ "fundamentals" Sig.Unprefixed ([] :: [Pitch.NoteNumber])
         "Fundamentals for this instrument."
     where
     non_empty xs

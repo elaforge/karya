@@ -156,7 +156,9 @@ c_if_ly = generator "if-ly"
 c_8va :: Library.Calls Derive.Note
 c_8va = emit_pair "ottava" "Emit lilypond ottava mark.\
     \ If it has duration, end with `8va 0`."
-    (Sig.defaulted "octave" 0 "Transpose this many octaves up or down.") $
+    (Sig.defaulted "octave" (0 :: Double)
+        "Transpose this many octaves up or down."
+    ) $
     \oct -> (ottava oct, ottava 0)
     where
     ottava n =

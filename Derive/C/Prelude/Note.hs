@@ -136,7 +136,8 @@ c_note_track = Derive.transformer Module.prelude "note-track" mempty
     \ instrument, starting with `>`, it will be called after setting the\
     \ instrument. This way, you can set instrument-specific variables or\
     \ transformations.")
-    $ Sig.callt (Sig.defaulted_env "inst" Derive.None Nothing
+    $ Sig.callt (Sig.defaulted_env "inst" Derive.None
+        (Nothing :: Maybe ScoreT.Instrument)
         "Set this instrument and run the transformer, if it exists."
     ) $ \inst args deriver -> note_track (Derive.passed_ctx args) inst deriver
 

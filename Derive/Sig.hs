@@ -82,6 +82,7 @@ module Derive.Sig (
     Parser, Generator, Transformer
     , Arg(..)
     , check, parse_or_throw, require_right, parse, parse_vals
+    , Dummy
     -- * parsers
     , no_args
     , required, required_env
@@ -225,6 +226,15 @@ parse_vals parser ctx name vals = run_parser parser . make_state <$> Derive.get
         , state_context = ctx
         }
 
+-- | Now that the default can be any ToVal and may be a different type than the
+-- parser, it can get ambiguous, especially if it's a Nothing or [].  Since all
+-- that matters is (show_val . to_val), and show_val of Nothing or [] is always
+-- _ or (list), the type doesn't matter.  I could use Int, but I'll use this to
+-- explicitly mark that it doesn't matter.
+data Dummy
+instance Typecheck.ToVal Dummy where
+    to_val _ = DeriveT.VNotGiven
+
 -- * parsers
 
 -- | Parser for nullary calls.  Either use this with 'call' and 'callt', or use
@@ -256,25 +266,25 @@ required_env name env_default doc = parser arg_doc $ \state1 ->
 
 -- | The argument is not required to be present, but if it is, it has to have
 -- either the right type or be VNotGiven.
-defaulted :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
-    ArgName -> a -> Doc.Doc -> Parser a
+defaulted :: forall a deflt.  (Typecheck.Typecheck a, Typecheck.ToVal deflt)
+    => ArgName -> deflt -> Doc.Doc -> Parser a
 defaulted name = defaulted_env name Derive.Prefixed
 
-defaulted_env :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) => ArgName
-    -> Derive.EnvironDefault -> a -> Doc.Doc -> Parser a
+defaulted_env :: forall a deflt.
+    (Typecheck.Typecheck a, Typecheck.ToVal deflt)
+    => ArgName -> Derive.EnvironDefault -> deflt -> Doc.Doc -> Parser a
 defaulted_env name env_default deflt =
-    defaulted_env_ name env_default (Left deflt)
+    defaulted_env_ name env_default (Left (Typecheck.to_val deflt))
 
 -- | The defaulted value can be a 'DeriveT.Quoted', which will be evaluated
 -- if needed.
-defaulted_env_quoted :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
+defaulted_env_quoted :: forall a. Typecheck.Typecheck a =>
     ArgName -> Derive.EnvironDefault -> DeriveT.Quoted -> Doc.Doc -> Parser a
-defaulted_env_quoted name env_default quoted =
-    defaulted_env_ name env_default (Right quoted)
+defaulted_env_quoted name env_default = defaulted_env_ name env_default . Right
 
-defaulted_env_ :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
-    ArgName -> Derive.EnvironDefault -> Either a DeriveT.Quoted -> Doc.Doc
-    -> Parser a
+defaulted_env_ :: forall a. Typecheck.Typecheck a
+    => ArgName -> Derive.EnvironDefault -> Either DeriveT.Val DeriveT.Quoted
+    -> Doc.Doc -> Parser a
 defaulted_env_ name env_default deflt_quoted doc = parser arg_doc $ \state1 ->
     case get_val env_default state1 name of
         Nothing -> deflt state1
@@ -288,8 +298,8 @@ defaulted_env_ name env_default deflt_quoted doc = parser arg_doc $ \state1 ->
     arg_doc = Derive.ArgDoc
         { arg_name = name
         , arg_type = expected
-        , arg_parser = Derive.Defaulted $
-            either ShowVal.show_val ShowVal.show_val deflt_quoted
+        , arg_parser = Derive.Defaulted $ ShowVal.show_val $
+            either id Typecheck.to_val deflt_quoted
         , arg_environ_default = env_default
         , arg_doc = doc
         }
@@ -297,18 +307,21 @@ defaulted_env_ name env_default deflt_quoted doc = parser arg_doc $ \state1 ->
 -- | This is either 'required' or 'defaulted', depending on if there's a
 -- default value.  Useful for making call variants with instrument-specific
 -- defaults.
-maybe_defaulted :: (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
-    ArgName -> Maybe a -> Doc.Doc -> Parser a
+maybe_defaulted :: (Typecheck.Typecheck a, Typecheck.ToVal deflt) =>
+    ArgName -> Maybe deflt -> Doc.Doc -> Parser a
 maybe_defaulted name Nothing doc = required name doc
 maybe_defaulted name (Just deflt) doc = defaulted name deflt doc
 
 -- | Eval a Quoted default value.
 eval_default :: forall a. Typecheck.Typecheck a => Derive.ArgDoc
-    -> Derive.ErrorPlace -> ArgName -> State -> Either a DeriveT.Quoted
-    -> Either Error (State, a)
-eval_default _ _ _ state (Left a) = return (state, a)
-eval_default arg_doc place name state (Right quoted) =
-    case eval_quoted state quoted of
+    -> Derive.ErrorPlace -> ArgName -> State
+    -> Either DeriveT.Val DeriveT.Quoted -> Either Error (State, a)
+eval_default arg_doc place name state = \case
+    Left val -> (state,) <$>
+        check_arg state arg_doc place name (LiteralArg val)
+    Right quoted -> case eval_quoted state quoted of
+        Right val -> (state,) <$>
+            check_arg state arg_doc place name (LiteralArg val)
         Left err -> Left $ Derive.TypeError $ Derive.TypeErrorT
             { error_place = place
             , error_source = Derive.Quoted quoted
@@ -317,8 +330,6 @@ eval_default arg_doc place name state (Right quoted) =
             , error_received = Nothing
             , error_derive = Just err
             }
-        Right val -> (state,) <$>
-            check_arg state arg_doc place name (LiteralArg val)
     where
     expected_type = Typecheck.to_type (Proxy :: Proxy a)
 
@@ -328,28 +339,27 @@ eval_default arg_doc place name state (Right quoted) =
 --
 -- Of course, the call could just look in the environ itself, but this way it's
 -- uniform and automatically documented.
-environ :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
+environ :: forall a deflt. (Typecheck.Typecheck a, Typecheck.ToVal deflt) =>
     ArgName -> Derive.EnvironDefault
     -- ^ None doesn't make any sense, but, well, don't pass that then.
-    -> a -> Doc.Doc -> Parser a
-environ name env_default = environ_ name env_default . Left
+    -> deflt -> Doc.Doc -> Parser a
+environ name env_default = environ_ name env_default . Left . Typecheck.to_val
 
 -- | A shortcut for an unprefixed environ key.
-environ_key :: (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
-    Env.Key -> a -> Doc.Doc -> Parser a
+environ_key :: (Typecheck.Typecheck a, Typecheck.ToVal deflt) =>
+    Env.Key -> deflt -> Doc.Doc -> Parser a
 environ_key key = environ (Derive.ArgName key) Unprefixed
 
 -- | This is like 'environ', but the default is a 'DeriveT.Quoted', which
 -- will be evaluated if needed.
-environ_quoted :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
+environ_quoted :: forall a. Typecheck.Typecheck a =>
     ArgName -> Derive.EnvironDefault -> DeriveT.Quoted -> Doc.Doc -> Parser a
 environ_quoted name env_default = environ_ name env_default . Right
 
 -- Internal function that handles both quoted and unquoted default.
-environ_ :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
-    ArgName -> Derive.EnvironDefault
+environ_ :: forall a. Typecheck.Typecheck a => ArgName -> Derive.EnvironDefault
     -- ^ None doesn't make any sense, but, well, don't pass that then.
-    -> Either a DeriveT.Quoted -> Doc.Doc -> Parser a
+    -> Either DeriveT.Val DeriveT.Quoted -> Doc.Doc -> Parser a
 environ_ name env_default quoted doc = parser arg_doc $ \state ->
     case lookup_default env_default state name of
         Nothing -> deflt state
@@ -563,7 +573,7 @@ get_val env_default state name = case state_vals state of
 
 check_arg :: forall a. Typecheck.Typecheck a => State -> Derive.ArgDoc
     -> Derive.ErrorPlace -> ArgName -> Arg -> Either Error a
-check_arg state arg_doc place name arg = case arg of
+check_arg state arg_doc place name = \case
     LiteralArg val -> case from_val state val of
         Left err -> Left $ type_error Derive.Literal (Just val) (Just err)
         Right (Just a) -> Right a
@@ -592,7 +602,6 @@ check_arg state arg_doc place name arg = case arg of
         , error_received = maybe_val
         , error_derive = derive
         }
-    -- expected = Typecheck.to_type (Proxy :: Proxy a)
 
 -- | Typecheck a Val, evaluating if necessary.
 from_val :: Typecheck.Typecheck a => State -> DeriveT.Val

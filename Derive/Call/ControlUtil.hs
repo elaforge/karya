@@ -87,7 +87,7 @@ interpolator_call name_suffix (CurveD name get_arg curve) interpolator_time =
 -- | Use this for calls that start from the previous value, to give a way
 -- to override that behaviour.
 from_env :: Sig.Parser (Maybe Signal.Y)
-from_env = Sig.environ "from" Sig.Both Nothing
+from_env = Sig.environ "from" Sig.Both (Nothing :: Maybe Sig.Dummy)
     "Start from this value. If unset, use the previous value."
 
 prev_val :: Maybe Signal.Y -> Derive.ControlArgs -> Maybe Signal.Y
@@ -165,7 +165,8 @@ cf_linear_name = "cf-linear"
 
 curve_time_env :: Sig.Parser (Curve, RealTime)
 curve_time_env = (,) <$> curve_env <*> time
-    where time = Sig.environ "curve-time" Sig.Both 0 "Curve transition time."
+    where
+    time = Sig.environ "curve-time" Sig.Both (0 :: Int) "Curve transition time."
 
 make_curve_call :: Maybe Doc.Doc -> CurveD -> Derive.ValCall
 make_curve_call doc (CurveD name get_arg curve) =
@@ -259,7 +260,7 @@ slope_to_limit low high from slope start end
 exponential_curve :: CurveD
 exponential_curve = CurveD "expon" args (Function . expon)
     where
-    args = Sig.defaulted "expon" 2 exponential_doc
+    args = Sig.defaulted "expon" (2 :: Double) exponential_doc
 
 exponential_doc :: Doc.Doc
 exponential_doc =
@@ -291,8 +292,8 @@ sigmoid_curve = CurveD "sigmoid" args curve
     where
     curve (w1, w2) = Function $ sigmoid w1 w2
     args = (,)
-        <$> Sig.defaulted "w1" 0.5 "Start weight."
-        <*> Sig.defaulted "w2" 0.5 "End weight."
+        <$> Sig.defaulted "w1" (0.5 :: Double) "Start weight."
+        <*> Sig.defaulted "w2" (0.5 :: Double) "End weight."
 
 type Point = (Double, Double)
 

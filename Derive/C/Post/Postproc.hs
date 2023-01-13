@@ -78,8 +78,8 @@ make_cancel cancel key =
             =<< deriver
 
 final_duration_arg :: Sig.Parser RealTime
-final_duration_arg = Sig.defaulted_env "final-duration" Sig.Unprefixed 1
-    "If there is no following note, infer this duration."
+final_duration_arg = Sig.defaulted_env "final-duration" Sig.Unprefixed
+    (1 :: RealTime) "If there is no following note, infer this duration."
 
 group_and_cancel :: Ord key => Cancel -> Key key -> RealTime
     -> Events -> Either Text Events
@@ -229,7 +229,8 @@ c_apply_start_offset =
      <> ShowVal.doc Controls.start_t <> " controls, so if you want those\
      \ controls to have an effect, you have to use this postproc."
     ) $ Sig.callt (
-        Sig.defaulted "min-duration" Nothing "If given, notes on the same hand\
+        Sig.defaulted "min-duration" (Nothing :: Maybe RealTime)
+            "If given, notes on the same hand\
             \ won't be moved closer than this time. Otherwise, hand and\
             \ instrument is ignored."
     ) $ \min_dur _args deriver -> apply_start_offset min_dur <$> deriver

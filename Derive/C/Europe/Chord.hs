@@ -51,7 +51,7 @@ c_chord dir = Derive.generator Module.europe "chord" mempty
     \ the usual kind of chord notation because the base pitch is given\
     \ separately, and it has to be non-ambiguous, but the idea is the same."
     $ Sig.call ((,)
-    <$> Sig.defaulted "name" "" "Chord name."
+    <$> Sig.defaulted "name" ("" :: Text) "Chord name."
     <*> time_env
     ) $ \(name, time) -> Sub.inverting $ \args -> do
         base <- Call.get_pitch =<< Args.real_start args

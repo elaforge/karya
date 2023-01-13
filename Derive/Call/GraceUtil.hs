@@ -53,7 +53,7 @@ grace_dur_env = Typecheck._real <$>
 grace_dyn_env :: Sig.Parser Double
 grace_dyn_env =
     Typecheck.non_negative <$> Sig.environ "grace-dyn" Sig.Unprefixed
-        0.5 "Scale the dyn of the grace notes."
+        (0.5 :: Double) "Scale the dyn of the grace notes."
 
 grace_place_env :: Sig.Parser DeriveT.ControlRef
 grace_place_env = Sig.environ "place" Sig.Both
@@ -176,7 +176,7 @@ c_attr_grace supported =
     <> Doc.commas (map ShowVal.doc (Map.elems supported))
     ) $ Sig.call ((,,,)
     <$> grace_pitches_arg <*> grace_dyn_env <*> grace_envs
-    <*> Sig.environ "attr" Sig.Prefixed Nothing
+    <*> Sig.environ "attr" Sig.Prefixed (Nothing :: Maybe Sig.Dummy)
         "If given, put this attr on the grace notes. Otherwise, pick a grace\
         \ note from the support list."
     ) $ \(pitches, dyn, (grace_dur, place), attr) -> Sub.inverting $ \args -> do

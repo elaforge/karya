@@ -253,6 +253,6 @@ c_val_alternate_weighted = Derive.val_call Module.prelude "alternate-weighted"
 c_range :: Derive.ValCall
 c_range = Derive.val_call Module.prelude "range" Tags.random
     "Pick a random number within a range." $ Sig.call ((,)
-    <$> Sig.defaulted "low" 0 "Bottom of range, inclusive."
-    <*> Sig.defaulted "high" 1 "Top of range, inclusive."
+    <$> Sig.defaulted "low" (0 :: Int) "Bottom of range, inclusive."
+    <*> Sig.defaulted "high" (1 :: Int) "Top of range, inclusive."
     ) $ \(low, high) _args -> Call.random_in low high :: Derive.Deriver Double

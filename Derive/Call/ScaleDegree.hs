@@ -45,7 +45,7 @@ scale_degree :: PSignal.Scale -> Scale.PitchNn -> Scale.PitchNote
     -> Derive.ValCall
 scale_degree scale pitch_nn pitch_note = Derive.val_call Module.scale
     "pitch" mempty "Emit the pitch of a scale degree." $
-    Sig.call (Sig.defaulted "frac" 0
+    Sig.call (Sig.defaulted "frac" (0 :: Double)
         "Add this many hundredths of a scale degree to the output.")
     $ \frac _args -> do
         env <- Derive.get_environ

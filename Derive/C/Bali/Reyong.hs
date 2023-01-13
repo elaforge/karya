@@ -145,7 +145,7 @@ c_ngoret :: Sig.Parser (Maybe Pitch.Transpose) -> Derive.Generator Derive.Note
 c_ngoret = Gender.ngoret module_ False (pure (DeriveT.constant_control 0))
 
 voices_env :: Sig.Parser [Voice]
-voices_env = Sig.environ "voices" Sig.Both []
+voices_env = Sig.environ "voices" Sig.Both ([] :: [Sig.Dummy])
     "Only emit notes for these positions, from 1 to 4. Empty means all of them."
 
 -- * tumpuk
@@ -156,7 +156,7 @@ c_tumpuk = Derive.generator module_ "tumpuk" Tags.inst "Pile up notes together."
     <$> Sig.required "notes"
         ("Articulations, from " <> Doc.literal (txt (Map.keys articulations))
         <> ", pitches from `edcba0123456789`, or a space for a rest.")
-    <*> Sig.defaulted "dur" 0.1 "Duration of each note."
+    <*> Sig.defaulted "dur" (0.1 :: Double) "Duration of each note."
     <*> place_env
     ) $ \(notes, dur, place) -> Sub.inverting $ \args -> do
         notes <- Derive.require_right id $ parse_tumpuk (untxt notes)
@@ -387,8 +387,9 @@ c_kotekan_regular inverted maybe_kernel maybe_dir =
     \ The sangsih is inferred. This can emit notes at both the beginning and\
     \ end of the event, so use `cancel-kotekan` to cancel the extras.")
     $ Sig.call ((,,,,)
-    <$> maybe (Sig.defaulted_env "kernel" Sig.Both "k-12-1-21" kernel_doc) pure
-        maybe_kernel
+    <$> maybe
+        (Sig.defaulted_env "kernel" Sig.Both ("k-12-1-21" :: Text) kernel_doc)
+        pure maybe_kernel
     <*> maybe
         (Sig.defaulted "dir" Call.Up
             "Inferred part is above or below the explicit one.")

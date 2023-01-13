@@ -47,7 +47,7 @@ c_sample = Derive.generator Module.instrument "sample" mempty doc $
     Sig.call ((,,)
         <$> Sig.required "name" "name of sample"
         <*> Sig.required "dir" "directory of sample"
-        <*> Sig.defaulted "ext" "flac" "extension of sample"
+        <*> Sig.defaulted "ext" ("flac" :: Text) "extension of sample"
     ) $ \(sample, dir, ext) args -> do
         when (Text.null sample) $ Derive.throw "no sample"
         when (Text.null dir) $ Derive.throw "no sample dir"

@@ -85,9 +85,10 @@ sequence_arg = parse_sequence <$> Sig.required_env "sequence" Sig.Unprefixed
     "Single letter stroke names.  `_` or space is a rest."
 
 dur_arg :: Sig.Parser ScoreTime
-dur_arg = Typecheck.non_negative <$> Sig.defaulted_env "dur" Sig.Both 0
-    "Duration for each letter in the sequence. If 0, the sequence will\
-    \ stretch to the event's duration."
+dur_arg = Typecheck.non_negative <$>
+    Sig.defaulted_env "dur" Sig.Both (0 :: ScoreTime)
+        "Duration for each letter in the sequence. If 0, the sequence will\
+        \ stretch to the event's duration."
 
 m_sequence :: [(S.Duration, Maybe Derive.NoteDeriver)] -> ScoreTime
     -> (TrackTime, TrackTime) -> Types.Orientation -> Derive.NoteDeriver
@@ -207,7 +208,7 @@ c_tirmanam = Derive.with_score_duration score_duration $
     where
     signature = (,,)
         <$> sequence_arg
-        <*> (parse_sequence <$> Sig.defaulted "karvai" ""
+        <*> (parse_sequence <$> Sig.defaulted "karvai" ("" :: Text)
         "Separates each sequence. If it's empty or a single non-rest, then the\
         \ gap can stretch to an integral number of matras.")
         <*> dur_arg -- TODO nadai arg?

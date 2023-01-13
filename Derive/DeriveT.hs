@@ -795,6 +795,7 @@ empty_dynamic = Dynamic
     - Unify Val and RVal.  Make Val serializable.
     - Make so calls can coerce to TypedFunction.
     - Unify ControlFunction with ValCall.
+      . Why though?  Can't it be its own thing?
 
     Control functions add unwanted complexity, but I couldn't think of
     a simpler way to randomized or synthesized control values.  Here's the

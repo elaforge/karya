@@ -99,7 +99,7 @@ c_basic_grace = Derive.generator Module.prelude "basic-grace"
     <$> Sig.required_env "pitches" Sig.None GraceUtil.grace_pitches_doc
     <*> Sig.required_env "dur" Sig.None "Duration of grace notes."
     <*> Sig.required_env "place" Sig.None GraceUtil.grace_place_doc
-    <*> Sig.defaulted_env "transformer" Sig.None Nothing
+    <*> Sig.defaulted_env "transformer" Sig.None (Nothing :: Maybe Sig.Dummy)
         "Apply a transformer to grace notes."
     ) $ \(pitches, grace_dur, place, maybe_transform) ->
     Sub.inverting $ \args -> do
@@ -120,10 +120,10 @@ c_roll = Derive.generator Module.prelude "roll" Tags.ornament
     \ The extra notes always fall before the main one, because `trem` covers\
     \ the afterwards case."
     $ Sig.call ((,,)
-    <$> Sig.defaulted "times" 1 "Number of grace notes."
+    <$> Sig.defaulted "times" (1 :: Int) "Number of grace notes."
     <*> Sig.defaulted "time" GraceUtil.default_grace_dur
         "Time between the strokes."
-    <*> Sig.defaulted "dyn" 0.5 "Dyn scale for the grace notes."
+    <*> Sig.defaulted "dyn" (0.5 :: Double) "Dyn scale for the grace notes."
     ) $ \(times, Typecheck.DefaultReal time, dyn_scale) ->
     Sub.inverting $ roll (round (times :: Double)) time dyn_scale
 

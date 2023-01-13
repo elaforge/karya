@@ -120,7 +120,7 @@ c_multiply = generator1 "multiply" mempty
     "Emit the given pitch multiplied by a factor."
     $ Sig.call ((,)
     <$> required "pitch" "Source pitch."
-    <*> defaulted "interval" (Left 0)
+    <*> defaulted "interval" (Left 0 :: Either Pitch.Hz Pitch.Hz)
         (ScaleDegree.interval_arg_doc intervals)
     ) $ \(pitch, interval) args -> do
         interval <- ScaleDegree.resolve_intervals intervals [interval]

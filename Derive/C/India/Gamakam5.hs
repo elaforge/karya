@@ -564,7 +564,8 @@ dc_set_dyn = DynCall "Set from dyn." required_dyn_arg $ \to _ctx -> do
     return mempty
 
 dyn_arg :: Sig.Parser (Maybe Signal.Y)
-dyn_arg = fmap arg_to_dyn <$> Sig.defaulted "move" Nothing "Move to n/9."
+dyn_arg = fmap arg_to_dyn <$> Sig.defaulted "move" (Nothing :: Maybe Sig.Dummy)
+    "Move to n/9."
 
 required_dyn_arg :: Sig.Parser Signal.Y
 required_dyn_arg = arg_to_dyn <$> Sig.required "move" "Move to n/9."
@@ -618,6 +619,7 @@ apply_arg call name arg = call
     -- I've already hardcoded the argument, but 'eval_pitch' will want to apply
     -- it anyway, since it can't tell the difference from an alias call and
     -- a normal call.
+    ignore :: Sig.Parser DeriveT.Val
     ignore = Sig.defaulted "ignore" (DeriveT.num 0) ""
 
 -- ** PitchCall implementation

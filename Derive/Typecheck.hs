@@ -2,9 +2,9 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE ConstraintKinds #-}
 module Derive.Typecheck (
     -- * signal functions
     TypedFunction, Function
@@ -271,6 +271,7 @@ instance ToVal Bool
 
 instance ShowVal.ShowVal Meter.Rank
 instance Typecheck Meter.Rank
+instance ToVal Meter.Rank
 
 -- * Typecheck instances
 
@@ -285,6 +286,8 @@ instance Typecheck a => Typecheck (Maybe a) where
     from_val VNotGiven = success Nothing
     from_val a = Just <$> from_val a
     to_type _ = ValType.TMaybe $ to_type (Proxy :: Proxy a)
+    -- Propagate from_subtrack through a Maybe, so they can be optional.
+    from_subtrack = fmap Just . from_subtrack
 instance ToVal a => ToVal (Maybe a) where
     to_val = maybe VNotGiven to_val
 
@@ -344,7 +347,7 @@ num_to_scalar check val = case val of
 -- | Coerce any numeric value to a function, and check it against the given
 -- function.
 num_to_function :: (TypedFunction -> Maybe a) -> Val -> Checked a
-num_to_function check val = case val of
+num_to_function check = \case
     VNum a -> Val $ maybe Failure Success $ check $ const a
     VControlRef cref -> Eval $ const $ check <$> to_typed_function cref
     VControlFunction cf -> Eval $ const $ check <$> control_function cf
@@ -794,7 +797,7 @@ convert_to_function control = either (return . signal_function) from_function
 to_signal_or_function :: DeriveT.ControlRef
     -> Derive.Deriver (Either (ScoreT.Typed Signal.Control)
         DeriveT.ControlFunction)
-to_signal_or_function control = case control of
+to_signal_or_function = \case
     DeriveT.ControlSignal sig -> return $ Left sig
     DeriveT.DefaultedControl cont deflt ->
         get_control (ScoreT.type_of deflt) (return (Left deflt)) cont

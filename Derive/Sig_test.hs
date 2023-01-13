@@ -39,7 +39,9 @@ test_type_error = do
         str = DeriveT.str "hi"
         int = DeriveT.num 42
         int_sym :: Sig.Parser (Int, Expr.Str)
-        int_sym = (,) <$> Sig.required "int" "" <*> Sig.defaulted "sym" "" ""
+        int_sym = (,)
+            <$> Sig.required "int" ""
+            <*> Sig.defaulted "sym" ("" :: Text) ""
     left_like (call ints [str])
         "arg 1/ints: expected Num (integral) but got Str: hi"
     left_like (call int_sym [str]) "arg 1/int: expected Num"
@@ -105,8 +107,8 @@ generator :: Derive.Generator Derive.Note
 generator = Derive.generator "test" "ngen" mempty "doc" $
     Sig.call_sub ((,)
         <$> Sig.required "deriver" "doc"
-        <*> Sig.defaulted "deriver" (return mempty) "doc"
-    ) $ \(deriver1, deriver2) _args -> deriver1 <> deriver2
+        <*> Sig.defaulted "deriver" (Nothing :: Maybe Sig.Dummy) "doc"
+    ) $ \(deriver1, deriver2) _args -> deriver1 <> fromMaybe mempty deriver2
 
 test_not_given :: Test
 test_not_given = do

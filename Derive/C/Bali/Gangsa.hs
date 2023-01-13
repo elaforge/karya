@@ -661,7 +661,8 @@ c_kotekan_kernel =
     ("Render a kotekan pattern from a kernel. The sangsih part is inferred.\n"
         <> kotekan_doc)
     $ Sig.call ((,,,,,,,,)
-    <$> Sig.defaulted "rotation" 0 "Rotate kernel to make a different pattern."
+    <$> Sig.defaulted "rotation" (0 :: Double)
+        "Rotate kernel to make a different pattern."
     <*> style_arg Telu
     <*> Sig.defaulted_env "sangsih" Sig.Both Call.Up
         "Whether sangsih is above or below polos."
@@ -688,10 +689,11 @@ c_kotekan_regular inverted maybe_kernel default_style =
     ("Render a kotekan pattern from a kernel representing the polos.\
     \ The sangsih is inferred.\n" <> kotekan_doc)
     $ Sig.call ((,,,,,,)
-    <$> maybe (Sig.defaulted_env "kernel" Sig.Both "k-12-1-21" kernel_doc) pure
-        maybe_kernel
+    <$> maybe
+        (Sig.defaulted_env "kernel" Sig.Both ("k-12-1-21" :: Text) kernel_doc)
+        pure maybe_kernel
     <*> style_arg default_style
-    <*> Sig.defaulted_env "sangsih" Sig.Both Nothing
+    <*> Sig.defaulted_env "sangsih" Sig.Both (Nothing :: Maybe Sig.Dummy)
         "Whether sangsih is above or below polos. If not given, sangsih will\
         \ be above if the polos ends on a low note or rest, below otherwise."
     <*> dur_env <*> kotekan_env <*> pasang_env <*> infer_initial_final_env
@@ -1086,10 +1088,12 @@ data NorotStyle =
 
 instance ShowVal.ShowVal NorotStyle
 instance Typecheck.Typecheck NorotStyle
+instance Typecheck.ToVal NorotStyle
 
 data KotekanStyle = Telu | Pat deriving (Bounded, Eq, Enum, Show)
 instance ShowVal.ShowVal KotekanStyle
 instance Typecheck.Typecheck KotekanStyle
+instance Typecheck.ToVal KotekanStyle
 
 -- * postproc
 
@@ -1206,7 +1210,8 @@ c_noltol = Derive.transformer module_ "noltol" Tags.delayed
     $ Sig.callt ((,,)
     <$> Sig.defaulted "time" (Sig.control "noltol" 0.1)
         "Play noltol if the time available exceeds this threshold."
-    <*> Sig.defaulted "damp-dyn" 0.65 "Damped notes are multiplied by this dyn."
+    <*> Sig.defaulted "damp-dyn" (0.65 :: Double)
+        "Damped notes are multiplied by this dyn."
     <*> dur_env
     ) $ \(threshold, damp_dyn, max_dur) args deriver -> do
         max_dur <- Call.real_duration (Args.start args) max_dur
@@ -1319,7 +1324,7 @@ kotekan_env =
 
 infer_initial_final_env :: Sig.Parser (Maybe Bool, Bool)
 infer_initial_final_env = (,)
-    <$> Sig.environ "initial" Sig.Unprefixed Nothing
+    <$> Sig.environ "initial" Sig.Unprefixed (Nothing :: Maybe Sig.Dummy)
         "If true, include an initial note, which is the same as the final note.\
         \ This is suitable for the start of a sequence of kotekan calls.\
         \ If not given, infer false for negative duration, true for positive."
@@ -1340,7 +1345,8 @@ initial_final_env = (,)
         "If true, include the final note, at the event end."
 
 instrument_top_env :: Sig.Parser (Maybe Pitch.Pitch)
-instrument_top_env = Sig.environ_key EnvKey.instrument_top Nothing
+instrument_top_env = Sig.environ_key EnvKey.instrument_top
+    (Nothing :: Maybe Sig.Dummy)
     "Top pitch this instrument can play. Normally the instrument sets\
     \ it via the instrument environ."
 

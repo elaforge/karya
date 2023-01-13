@@ -110,10 +110,11 @@ make_note_fade name doc pitch_dir align align_fade =
 fade_args :: Sig.Parser (Either Pitch.Transpose PSignal.Pitch,
     Typecheck.DefaultReal, Maybe Typecheck.DefaultReal, ControlUtil.Curve)
 fade_args = (,,,)
-    <$> defaulted "interval" (Left (Pitch.Chromatic 7))
+    <$> defaulted "interval"
+        (Left (Pitch.Chromatic 7) :: Either Pitch.Transpose Sig.Dummy)
         "Interval or destination pitch."
     <*> defaulted "time" (Typecheck.real 0.25) "Time to the destination pitch."
-    <*> defaulted "fade" Nothing
+    <*> defaulted "fade" (Nothing :: Maybe Sig.Dummy)
         "Time to fade from or to nothing. If the fade is longer than the pitch\
         \ time, the pitch will finish moving before the dyn has faded out."
     <*> ControlUtil.curve_env
@@ -155,7 +156,7 @@ c_approach_dyn = Derive.generator1 Module.prelude "approach-dyn"
     $ Sig.call ((,,)
     <$> defaulted "time" (Typecheck.real 0.2)
         "Time to get to destination pitch and dyn."
-    <*> defaulted "dyn" 0.25 "Drop `dyn` by this factor."
+    <*> defaulted "dyn" (0.25 :: Double) "Drop `dyn` by this factor."
     <*> ControlUtil.curve_env
     ) $ \(Typecheck.DefaultReal time, dyn, curve) args -> do
         (start, end) <- Call.duration_from_start args time

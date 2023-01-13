@@ -447,9 +447,10 @@ drum_call (CallConfig tuning_control mb_natural_nn stroke_dyn transform)
         (Expr.Symbol name) attrs =
     Derive.generator Module.instrument (Derive.CallName name) Tags.attr doc $
     Sig.call ((,)
-        <$> Sig.defaulted "dyn" 1 "Dyn multiplier."
+        <$> Sig.defaulted "dyn" (1 :: Double) "Dyn multiplier."
         <*> (if Maybe.isNothing mb_natural_nn then pure Nothing
-            else Sig.environ "pitch" Derive.Prefixed Nothing "doc")
+            else Sig.environ "pitch" Derive.Prefixed
+                (Nothing :: Maybe Sig.Dummy) "doc")
     ) $ \(dyn, mb_pitch) -> Sub.inverting $ \args ->
         Call.multiply_dynamic (stroke_dyn * dyn) $ Call.add_attributes attrs $
             with_tuning args $ transform $ set_pitch mb_pitch $

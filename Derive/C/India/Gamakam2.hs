@@ -393,7 +393,7 @@ c_flat_start :: Derive.Generator Derive.Pitch
 c_flat_start = generator1 "flat-start" mempty
     "Emit a flat pitch for the given duration."
     $ Sig.call ((,)
-    <$> Sig.defaulted "pitch" Nothing
+    <$> Sig.defaulted "pitch" (Nothing :: Maybe Sig.Dummy)
         "Emit this pitch, or continue the previous pitch if not given."
     <*> Sig.defaulted "time" (Typecheck.real 0.15)
         "Pitch lasts for this duration."
@@ -424,10 +424,11 @@ c_from pitch_from fade = generator1 "from" mempty
     $ Sig.call ((,,,)
     <$> case pitch_from of
         PitchFromPrev -> pure Nothing
-        PitchFromCurrent -> Sig.defaulted "from" Nothing
+        PitchFromCurrent -> Sig.defaulted "from" (Nothing :: Maybe Sig.Dummy)
             "Come from this pitch, or the previous one."
     <*> Sig.defaulted "transition" default_transition "Time to destination."
-    <*> Sig.defaulted "to" Nothing "Go to this pitch, or the current one."
+    <*> Sig.defaulted "to" (Nothing :: Maybe Sig.Dummy)
+        "Go to this pitch, or the current one."
     <*> ControlUtil.curve_env
     ) $ \(from_pitch, Typecheck.DefaultReal time, maybe_to_pitch, curve)
             args -> do
@@ -492,7 +493,7 @@ c_jaru append_zero = generator1 "jaru" mempty
     <$> Sig.many1 "interval" "Intervals from base pitch."
     <*> Sig.environ "time" Sig.Both default_transition "Time for each note."
     -- TODO This should also be a Duration
-    <*> Sig.environ "transition" Sig.Both Nothing
+    <*> Sig.environ "transition" Sig.Both (Nothing :: Maybe Sig.Dummy)
         "Time for each slide, defaults to `time`."
     <*> ControlUtil.curve_env
     ) $ \(intervals, Typecheck.DefaultReal time_, maybe_transition, curve)
@@ -532,7 +533,7 @@ jaru curve srate start time transition intervals =
 
 c_flat :: Derive.Generator Derive.Pitch
 c_flat = generator1 "flat" mempty "Emit a flat pitch."
-    $ Sig.call (Sig.defaulted "pitch" Nothing
+    $ Sig.call (Sig.defaulted "pitch" (Nothing :: Maybe Sig.Dummy)
         "Emit this pitch, or continue the previous pitch if not given.")
     $ \maybe_pitch args -> do
         start <- Args.real_start args
@@ -582,7 +583,8 @@ c_nkampita doc kam_args end_dir = generator1 "nkam" mempty
     \ before the next event."
     <> if doc == "" then "" else "\n" <> doc)
     $ Sig.call ((,,,)
-    <$> (Typecheck.positive <$> Sig.defaulted "cycles" 1 "Number of cycles.")
+    <$> (Typecheck.positive <$> Sig.defaulted "cycles" (1 :: Double)
+        "Number of cycles.")
     <*> kampita_pitch_args kam_args
     <*> kampita_env <*> ControlUtil.curve_env
     ) $ \(cycles, pitches, (transition, hold, lilt, adjust), curve) args -> do
@@ -636,7 +638,7 @@ kampita_env = (,,,)
     <*> Trill.hold_env <*> lilt_env <*> Trill.adjust_env
     where
     lilt_env :: Sig.Parser Double
-    lilt_env = Sig.environ "lilt" Sig.Prefixed 0
+    lilt_env = Sig.environ "lilt" Sig.Prefixed (0 :: Double)
         "Lilt is a horizontal bias to the vibrato. A lilt of 1 would place\
         \ each neighbor on top of the following unison, while -1 would place\
         \ it on the previous one. So it should range from -1 < lilt < 1."
@@ -713,7 +715,7 @@ c_flat_end :: Derive.Generator Derive.Pitch
 c_flat_end = generator1 "flat-end" mempty
     "Emit a flat pitch for the given duration."
     $ Sig.call ((,)
-    <$> Sig.defaulted "pitch" Nothing
+    <$> Sig.defaulted "pitch" (Nothing :: Maybe Sig.Dummy)
         "Emit this pitch, or continue the previous pitch if not given."
     <*> Sig.defaulted "time" (Typecheck.real 0.15)
         "Pitch lasts for this duration."

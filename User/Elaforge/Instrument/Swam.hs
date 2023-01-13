@@ -262,8 +262,8 @@ control_call name doc control val = MidiInst.both name $
 c_harsh :: Library.Calls Derive.Note
 c_harsh = Make.transform_notes Module.instrument "harsh" mempty
     "Harsh attack." ((,)
-    <$> Sig.defaulted "val" 1 "How much bow pressure."
-    <*> Sig.defaulted "dur" 0.15 "How long."
+    <$> Sig.defaulted "val" (1 :: Double) "How much bow pressure."
+    <*> Sig.defaulted "dur" (0.15 :: Double) "How long."
     ) $ \(val, dur) -> fmap $ Post.emap1_ (attack val dur)
     where
     attack val dur event =
@@ -290,7 +290,8 @@ c_harmonic = Make.transform_notes Module.instrument "harmonic"
     (Tags.attr <> Tags.ly)
     "Harmonic, with lilypond for natural and artificial harmonic notation."
     ((,)
-    <$> Sig.defaulted "n" 2 "Which harmonic. SWAM only supports 2 and 3."
+    <$> Sig.defaulted "n" (2 :: Double)
+        "Which harmonic. SWAM only supports 2 and 3."
     <*> Articulation.lily_harmonic_sig
     ) $ \(harm, lily_args) deriver -> Ly.when_lilypond
         (Articulation.lily_harmonic lily_args (htype harm) deriver)
@@ -315,8 +316,8 @@ c_damp = Derive.generator Module.instrument "damp" mempty
     "Emit a damped stroke." $
     Sig.call ((,)
     <$> Sig.defaulted "dur" (Typecheck.real 0.05) "Duration."
-    <*> Sig.defaulted "dyn" 0.5 "Dynamic scale."
-    ) $ \(dur, dyn) -> Sub.inverting $ \args -> do
+    <*> Sig.defaulted "dyn" (0.5 :: Double) "Dynamic scale."
+    ) $ \(Typecheck.DefaultReal dur, dyn) -> Sub.inverting $ \args -> do
         dur <- Derive.score dur
         Derive.place (Args.start args) dur $
             Derive.with_val "bow-lift" (ShowVal.show_val False) $

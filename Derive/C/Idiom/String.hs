@@ -309,10 +309,12 @@ make_gliss name is_absolute = Derive.generator module_ name mempty
             "Time in which to play the glissando."
         else Sig.defaulted "time" (Typecheck.real 0.075)
             "Time between each note.")
-    <*> Sig.defaulted "dyn" Nothing "Start at this dyn, and interpolate\
+    <*> Sig.defaulted "dyn" (Nothing :: Maybe Sig.Dummy)
+        "Start at this dyn, and interpolate\
         \ to the destination dyn. If not given, the dyn is constant."
     <*> StringUtil.open_strings_env
-    ) $ \(gliss_start, time, maybe_start_dyn, open_strings) ->
+    ) $ \(gliss_start, Typecheck.DefaultReal time, maybe_start_dyn,
+        open_strings) ->
     Sub.inverting $ \args -> do
         end <- Args.real_start args
         time <- Call.real_duration end time
@@ -365,7 +367,8 @@ c_nth_harmonic :: Derive.Generator Derive.Note
 c_nth_harmonic = Derive.generator module_ "harmonic" Tags.inst
     "Play a specific harmonic on a specific string."
     $ Sig.call ((,,)
-    <$> (Typecheck.positive <$> Sig.defaulted "n" 1 "Play this harmonic.")
+    <$> (Typecheck.positive <$>
+        Sig.defaulted "n" (1 :: Int) "Play this harmonic.")
     <*> finger_arg
     <*> Sig.required_environ_key EnvKey.string "Play on this string."
     ) $ \(harmonic, finger, string) -> Sub.inverting $ \args -> do

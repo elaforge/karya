@@ -2,7 +2,8 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE RecordWildCards, DeriveFunctor #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE RecordWildCards #-}
 -- | Realize an abstract solkattu Notes to concrete mridangam 'Note's.
 module Solkattu.Instrument.Mridangam where
 import qualified Data.List as List

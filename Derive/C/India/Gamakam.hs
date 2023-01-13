@@ -118,7 +118,8 @@ neighbor_arg = defaulted "neighbor"
     "Alternate between 0 and this value."
 
 lilt_env :: Sig.Parser Double
-lilt_env = Sig.environ "lilt" Sig.Both 0 "Lilt is a horizontal bias to the\
+lilt_env = Sig.environ "lilt" Sig.Both (0 :: Double)
+    "Lilt is a horizontal bias to the\
     \ vibrato. A lilt of 1 would place each neighbor on top of the\
     \ following unison, while -1 would place it on the previous one.\
     \ So it should range from -1 < lilt < 1."
@@ -182,9 +183,9 @@ c_dip = generator1 "dip" mempty
     $ Sig.call ((,,,,,)
     <$> required "pitch" "Base pitch."
     <*> defaulted "high" (Typecheck.diatonic 1) "High interval."
-    <*> defaulted "low" (-1) "Low interval."
+    <*> defaulted "low" (-1 :: Double) "Low interval."
     <*> speed_arg
-    <*> defaulted "dyn" 0.5 "Multiply dyn by this amount."
+    <*> defaulted "dyn" (0.5 :: Double) "Multiply dyn by this amount."
     <*> Sig.environ "transition" Sig.Both transition_default
         "Time for each slide."
     ) $ \(pitch, Typecheck.DefaultDiatonic high_, low, speed, dyn_scale,
@@ -204,7 +205,7 @@ c_jaru = generator1 "jaru" mempty
     <$> required "pitch" "Base pitch."
     <*> Sig.many1 "interval" "Intervals from base pitch."
     <*> Sig.environ "time" Sig.Both jaru_time_default "Time for each note."
-    <*> Sig.environ "transition" Sig.Both Nothing
+    <*> Sig.environ "transition" Sig.Both (Nothing :: Maybe Sig.Dummy)
         "Time for each slide, defaults to `time`."
     ) $ \(pitch, intervals, time, maybe_transition) args -> do
         start <- Args.real_start args
@@ -230,7 +231,7 @@ c_jaru_intervals transpose intervals = generator1 "jaru" mempty
     $ Sig.call ((,,)
     <$> required "pitch" "Base pitch."
     <*> defaulted "time" jaru_time_default "Time for each note."
-    <*> defaulted "transition" Nothing
+    <*> defaulted "transition" (Nothing :: Maybe Sig.Dummy)
         "Time for each slide, defaults to `time`."
     ) $ \(pitch, time, maybe_transition) args -> do
         start <- Args.real_start args
@@ -313,7 +314,8 @@ c_nkampita_c start_dir end_dir = generator1 "nkam" mempty
     \ before the next event."
     $ Sig.call ((,,,,)
     <$> neighbor_arg
-    <*> (Typecheck.positive <$> defaulted "cycles" 1 "Number of cycles.")
+    <*> (Typecheck.positive <$> defaulted "cycles" (1 :: Double)
+        "Number of cycles.")
     <*> lilt_env <*> Trill.hold_env
     <*> Sig.environ "transition" Sig.Both transition_default
         "Time for each slide."
@@ -341,10 +343,10 @@ c_dip_c = generator1 "dip" mempty
     \ when avoiding a swaram, since it doesn't necessarily emit the base\
     \ pitch."
     $ Sig.call ((,,,,)
-    <$> defaulted "high" 1 "High interval."
-    <*> defaulted "low" (-1) "Low interval."
+    <$> defaulted "high" (1 :: Double) "High interval."
+    <*> defaulted "low" (-1 :: Double) "Low interval."
     <*> speed_arg
-    <*> defaulted "dyn" 0.5 "Multiply dyn by this amount."
+    <*> defaulted "dyn" (0.5 :: Double) "Multiply dyn by this amount."
     <*> Sig.environ "transition" Sig.Both transition_default
         "Time for each slide."
     ) $ \(high, low, speed, dyn_scale, transition) args ->
@@ -385,7 +387,7 @@ c_jaru_intervals_c intervals = generator1 "jaru" mempty
     ("This is `jaru` hardcoded to " <> Doc.pretty intervals <> ".")
     $ Sig.call ((,)
     <$> defaulted "time" jaru_time_default "Time for each note."
-    <*> defaulted "transition" Nothing
+    <*> defaulted "transition" (Nothing :: Maybe Sig.Dummy)
         "Time for each slide, defaults to `time`."
     ) $ \(time, maybe_transition) args -> do
         start <- Args.real_start args

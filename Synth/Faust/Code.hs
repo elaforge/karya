@@ -22,7 +22,7 @@ note_terminate control decay = Derive.transformer Module.instrument
     "note-terminate" (Tags.postproc <> Tags.inst)
     "Terminate a note with a control change."
     $ Sig.callt (
-    Sig.defaulted "value" 0.1 "Move to this value."
+    Sig.defaulted "value" (0.1 :: Double) "Move to this value."
     ) $ \value _args -> fmap (Post.emap1_ (apply decay value))
     where
     apply decay value event = Score.modify_control control
