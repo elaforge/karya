@@ -318,7 +318,7 @@ flatDuration = Num.sum . map (uncurry S.noteDuration) . S.tempoNotes
     If I ever have a use for e.g. (taka.p5, ...) then I could reconsider.
 -}
 data StrokeMap stroke = StrokeMap {
-    smapSolluMap :: SolluMap stroke
+    smapSolluMap :: SolluMap Solkattu.Sollu stroke
     -- | Shadowed SolluMapKeys, saved here to warn about them later.
     , smapSolluShadows ::
         [(SolluMapKey Solkattu.Sollu, [Maybe (Stroke stroke)])]
@@ -410,8 +410,8 @@ lookupPattern p (PatternMap pmap) = Map.lookup p pmap
 -- | Sollus and Strokes should be the same length.  This is enforced in the
 -- constructor 'solluMap'.  Nothing is a rest, which means a sollu can map
 -- to silence, which actually happens in practice.
-newtype SolluMap stroke =
-    SolluMap (Map (SolluMapKey Solkattu.Sollu) [Maybe (Stroke stroke)])
+newtype SolluMap sollu stroke =
+    SolluMap (Map (SolluMapKey sollu) [Maybe (Stroke stroke)])
     deriving (Eq, Show, Pretty, Semigroup, Monoid)
 type SolluMapKey sollu = (Maybe Solkattu.Tag, [sollu])
 
@@ -420,18 +420,18 @@ prettyKey (tag, sollus) = maybe ""  ((<>"^") . pretty) tag <> pretty sollus
 
 -- | Verify and costruct a SolluMap from a list of pairs.  Later pairs win over
 -- earlier ones.
-solluMap :: Pretty stroke =>
-    [(S.Sequence g (Solkattu.Note Solkattu.Sollu), [SNote stroke])]
-    -> Either Error (SolluMap stroke,
-        [(SolluMapKey Solkattu.Sollu, [Maybe (Stroke stroke)])])
+solluMap :: (Pretty stroke, Pretty sollu, Ord sollu)
+    => [(S.Sequence g (Solkattu.Note sollu), [SNote stroke])]
+    -> Either Error (SolluMap sollu stroke,
+        [(SolluMapKey sollu, [Maybe (Stroke stroke)])])
 solluMap = fmap (first SolluMap . Maps.unique . reverse) . mapM verifySolluMap
 
 -- | A sollu can map to a rest stroke: tang.ga, where ga is silent Or
 -- taka.tarikita played N_ktpk.  But I don't think a rest sollu can map to
 -- a stroke, and in fact it won't work since I look up by sollus only.
-verifySolluMap :: Pretty stroke
-    => (S.Sequence g (Solkattu.Note Solkattu.Sollu), [SNote stroke])
-    -> Either Error (SolluMapKey Solkattu.Sollu, [Maybe (Stroke stroke)])
+verifySolluMap :: (Pretty stroke, Pretty sollu)
+    => (S.Sequence g (Solkattu.Note sollu), [SNote stroke])
+    -> Either Error (SolluMapKey sollu, [Maybe (Stroke stroke)])
 verifySolluMap (sollus, strokes) = do
     (tag, mbSollus) <- verifySolluKey $ S.toList sollus
 
@@ -464,8 +464,8 @@ zipTails :: [a] -> [b] -> [([a], [b])]
 zipTails as bs = filter (\(as, bs) -> not (null as && null bs)) $
     zip (List.tails as) (List.tails bs)
 
-verifySolluKey :: [S.Note g (Solkattu.Note Solkattu.Sollu)]
-    -> Either Error (SolluMapKey (Maybe Solkattu.Sollu))
+verifySolluKey :: Pretty sollu => [S.Note g (Solkattu.Note sollu)]
+    -> Either Error (SolluMapKey (Maybe sollu))
 verifySolluKey sollus_ = do
     let sollus = map (S.mapGroup (const ())) sollus_
     let throw = Left . ((pretty sollus <> ": ")<>)
@@ -788,7 +788,8 @@ realizeStroke = ToStrokes
 -- The Stroke is extraneous and is ignored, it's just for uniformity with
 -- 'realizeStroke', since 'Korvai.KorvaiSections' no longer has a separate
 -- case for Sollu which allowed it to omit the Realize.Stroke.
-realizeSollu :: SolluMap stroke -> ToStrokes (Stroke Solkattu.Sollu) stroke
+realizeSollu :: Ord sollu => SolluMap sollu stroke
+    -> ToStrokes (Stroke sollu) stroke
 realizeSollu (SolluMap smap) = ToStrokes
     { _longestKey =
         fromMaybe 0 $ Seq.maximum (map (length . snd) (Map.keys smap))

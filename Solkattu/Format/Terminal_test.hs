@@ -401,13 +401,13 @@ korvai tala = Korvai.korvai tala defaultStrokeMap
 
 -- * TODO duplicated with Realize_test
 
-realize :: Realize.SolluMap M.Stroke
+realize :: Realize.SolluMap Solkattu.Sollu M.Stroke
     -> S.Sequence Solkattu.Group (Solkattu.Note Sollu)
     -> Either Text [Format.Flat M.Stroke]
 realize = realizeP Nothing
 
 realizeP :: Maybe (Realize.PatternMap M.Stroke)
-    -> Realize.SolluMap M.Stroke
+    -> Realize.SolluMap Solkattu.Sollu M.Stroke
     -> S.Sequence Solkattu.Group (Solkattu.Note Sollu)
     -> Either Text [Format.Flat M.Stroke]
 realizeP pmap smap = fmap Format.mapGroups
@@ -424,7 +424,7 @@ formatLines :: Solkattu.Notation stroke => Format.Abstraction -> Int
 formatLines abstraction strokeWidth width tala notes =
     Terminal.formatLines abstraction strokeWidth width tala notes
 
-defaultSolluMap :: Realize.SolluMap M.Stroke
+defaultSolluMap :: Realize.SolluMap Solkattu.Sollu M.Stroke
 defaultSolluMap = fst $ expect_right $ Realize.solluMap $ solkattuToRealize
     [ (G.thom, o)
     ]

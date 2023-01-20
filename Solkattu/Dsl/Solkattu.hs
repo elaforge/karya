@@ -50,6 +50,10 @@ instance String.IsString Sequence where
 instance String.IsString SequenceM where
     fromString = strM
 
+-- | Parse a string to sollus.  Look for syllables inside words.
+strS :: CallStack.Stack => Text -> Sequence
+strS str = mconcat $ map (maybe __ _sollu) $ check $ Solkattu.parseSollus str
+
 -- * sollus
 
 _sollu :: Solkattu.Sollu -> Sequence
@@ -87,10 +91,6 @@ ti = _sollu Solkattu.Ti
 tang = _sollu Solkattu.Tang
 tong = _sollu Solkattu.Tong
 lang = _sollu Solkattu.Lang
-
--- | Parse a string to sollus.  Look for syllables inside words.
-strS :: CallStack.Stack => Text -> Sequence
-strS str = mconcat $ map (maybe __ _sollu) $ check $ Solkattu.parseSollus str
 
 -- * fragments
 

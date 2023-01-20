@@ -355,14 +355,14 @@ checkSolluMap :: CallStack.Stack =>
     [ ( S.Sequence g (Note Sollu)
       , S.Sequence g (Note (Realize.Stroke M.Stroke))
       )
-    ] -> Realize.SolluMap M.Stroke
+    ] -> Realize.SolluMap Solkattu.Sollu M.Stroke
 checkSolluMap = expect_right . makeSolluMap
 
 makeSolluMap ::
     [ ( S.Sequence g (Note Sollu)
       , S.Sequence g (Note (Realize.Stroke M.Stroke))
       )
-    ] -> Either Text (Realize.SolluMap M.Stroke)
+    ] -> Either Text (Realize.SolluMap Solkattu.Sollu M.Stroke)
 makeSolluMap = fmap fst . Realize.solluMap . solkattuToRealize
 
 makeMridangam :: G.StrokeMap M.Stroke -> Realize.StrokeMap M.Stroke
@@ -371,13 +371,13 @@ makeMridangam = expect_right . Korvai.smapMridangam . G.makeMridangam0
 -- | Realize sollus.  Since this doesn't go through 'Korvai.realizeSection',
 -- it omits the post-realize checks, so no 'Realize.Warning's.
 realizeSollu :: Solkattu.Notation stroke
-    => Realize.SolluMap stroke
+    => Realize.SolluMap Solkattu.Sollu stroke
     -> S.Sequence Solkattu.Group (Note Sollu)
     -> Either Text [Realize.Note stroke]
 realizeSollu smap = fmap S.flattenedNotes . realizeSolluMap smap
 
 realizeSolluMap :: Solkattu.Notation stroke
-    => Realize.SolluMap stroke
+    => Realize.SolluMap Solkattu.Sollu stroke
     -> S.Sequence Solkattu.Group (Note Sollu)
     -> Either Text [Realize.Realized stroke]
 realizeSolluMap solluMap = realizeStrokeMap smap
@@ -398,7 +398,7 @@ realizeStrokeMap smap =
     . S.flatten . S.toList
     . fmap (fmap Realize.stroke)
 
-solluMap :: Realize.SolluMap M.Stroke
+solluMap :: Realize.SolluMap Solkattu.Sollu M.Stroke
 solluMap = checkSolluMap
     [ (thom, o)
     ]

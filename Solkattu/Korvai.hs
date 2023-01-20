@@ -25,12 +25,14 @@ import qualified Util.Seq as Seq
 import qualified Util.Styled as Styled
 
 import qualified Derive.Expr as Expr
+import qualified Solkattu.Bol as Bol
 import qualified Solkattu.Instrument.KendangPasang as KendangPasang
 import qualified Solkattu.Instrument.KendangTunggal as KendangTunggal
 import qualified Solkattu.Instrument.Konnakol as Konnakol
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Instrument.Reyong as Reyong
 import qualified Solkattu.Instrument.Sargam as Sargam
+import qualified Solkattu.Instrument.Tabla as Tabla
 import qualified Solkattu.Instrument.ToScore as ToScore
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
@@ -131,6 +133,15 @@ kendangTunggalKorvai :: Tala.Tala -> Realize.PatternMap KendangTunggal.Stroke
     -> [Section (SequenceT (Realize.Stroke KendangTunggal.Stroke))] -> Korvai
 kendangTunggalKorvai = instrumentKorvai IKendangTunggal
 
+tablaKorvai :: Tala.Tala
+    -> [Section (SequenceT (Realize.Stroke Bol.Bol))] -> Korvai
+tablaKorvai tala sections = Korvai
+    { korvaiSections = KorvaiSections IBol sections
+    , korvaiStrokeMaps = mempty
+    , korvaiTala = tala
+    , korvaiMetadata = mempty
+    }
+
 instrumentKorvai :: Instrument stroke -> Tala.Tala
     -> Realize.PatternMap stroke
     -> [Section (SequenceT (Realize.Stroke stroke))]
@@ -183,6 +194,8 @@ getSections inst ktype = case (inst, ktype) of
     (IKendangPasang, KorvaiSections IKendangPasang sections) -> Just sections
     (IReyong, KorvaiSections IReyong sections) -> Just sections
     (ISargam, KorvaiSections ISargam sections) -> Just sections
+    (IBol, KorvaiSections IBol sections) -> Just sections
+    (ITabla, KorvaiSections ITabla sections) -> Just sections
     _ -> Nothing
 
 data GInstrument = forall stroke.
@@ -268,6 +281,8 @@ data Instrument stroke where
     IKendangPasang :: Instrument KendangPasang.Stroke
     IReyong :: Instrument Reyong.Stroke
     ISargam :: Instrument Sargam.Stroke
+    IBol :: Instrument Bol.Bol
+    ITabla :: Instrument Tabla.Stroke
 
 instrumentName :: Instrument stroke -> Text
 instrumentName = \case
@@ -277,6 +292,8 @@ instrumentName = \case
     IKendangPasang -> "kendang pasang"
     IReyong -> "reyong"
     ISargam -> "sargam"
+    IBol -> "bol"
+    ITabla -> "tabla"
 
 getStrokeMap :: Instrument stroke -> StrokeMaps -> StrokeMap stroke
 getStrokeMap inst smap = case inst of
@@ -287,6 +304,8 @@ getStrokeMap inst smap = case inst of
     IKendangPasang -> smapKendangPasang smap
     IReyong -> smapReyong smap
     ISargam -> smapSargam smap
+    IBol -> Right mempty -- like IKonnakol except no patterns
+    ITabla -> Left "tabla should have had a hardcoded stroke map"
 
 setStrokeMap :: Instrument stroke -> StrokeMap stroke -> StrokeMaps
 setStrokeMap inst smap = case inst of
@@ -296,6 +315,8 @@ setStrokeMap inst smap = case inst of
     IKendangPasang -> mempty { smapKendangPasang = smap }
     IReyong -> mempty { smapReyong = smap }
     ISargam -> mempty { smapSargam = smap }
+    IBol -> mempty
+    ITabla -> mempty
 
 instPostprocess :: Instrument stroke -> [Flat stroke] -> [Flat stroke]
 instPostprocess = \case
@@ -333,6 +354,12 @@ realize inst korvai = case getStrokeMap inst (korvaiStrokeMaps korvai) of
                 map (realizeSection tala toStrokes smap postproc) sections
                 where
                 toStrokes = Realize.realizeSollu (Realize.smapSolluMap smap)
+            -- IBol can be realized to ITabla.
+            -- TODO doesn't work yet, how to restrict to stroke ~ Tabla.Stroke?
+            -- KorvaiSections IBol sections ->
+            --     map (realizeSection tala toStrokes smap postproc) sections
+            --     where
+            --     toStrokes = Realize.realizeSollu Bol.bolMap
             KorvaiSections kinst _ -> (:[]) $ Left $ "can't realize "
                 <> instrumentName kinst <> " as " <> instrumentName inst
     where

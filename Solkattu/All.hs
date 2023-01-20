@@ -31,6 +31,7 @@ import qualified Solkattu.Score.Solkattu2019
 import qualified Solkattu.Score.Solkattu2020
 import qualified Solkattu.Score.Solkattu2021
 import qualified Solkattu.Score.SolkattuMohra
+import qualified Solkattu.Score.TablaQaida
 
 
 scores :: [Korvai.Score]
@@ -288,4 +289,6 @@ scores = map Korvai.inferMetadataS
     , setLocation ("Solkattu.Score.SolkattuMohra",95,"c_mohra2") $ Single Solkattu.Score.SolkattuMohra.c_mohra2
     , setLocation ("Solkattu.Score.SolkattuMohra",113,"c_mohra_youtube") $ Single Solkattu.Score.SolkattuMohra.c_mohra_youtube
     , setLocation ("Solkattu.Score.SolkattuMohra",139,"misra1") $ Single Solkattu.Score.SolkattuMohra.misra1
+    , setLocation ("Solkattu.Score.TablaQaida",11,"qaida1") $ Single Solkattu.Score.TablaQaida.qaida1
+    , setLocation ("Solkattu.Score.TablaQaida",40,"qaida2") $ Single Solkattu.Score.TablaQaida.qaida2
     ]

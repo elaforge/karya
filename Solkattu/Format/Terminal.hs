@@ -6,7 +6,7 @@
 {-# LANGUAGE GADTs #-}
 -- | Convert realized 'S.Flat' output to text for the terminal.
 module Solkattu.Format.Terminal (
-    renderAll, printInstrument, printKonnakol
+    renderAll, printInstrument, printKonnakol, printBol
     , Config(..), defaultConfig, konnakolConfig
     , formatInstrument
 #ifdef TESTING
@@ -94,6 +94,10 @@ printInstrument instrument abstraction =
 printKonnakol :: Config -> Korvai.Korvai -> IO ()
 printKonnakol config =
     mapM_ Text.IO.putStrLn . fst . formatInstrument config Korvai.IKonnakol Just
+
+printBol :: Config -> Korvai.Korvai -> IO ()
+printBol config =
+    mapM_ Text.IO.putStrLn . fst . formatInstrument config Korvai.IBol Just
 
 formatScore
     :: (Solkattu.Notation stroke1, Solkattu.Notation stroke2, Ord stroke1)

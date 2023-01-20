@@ -308,30 +308,34 @@ instance Pretty Sollu where pretty = notationText
 -- ** parseSollus
 
 parseSollus :: Text -> Either Error [Maybe Sollu]
-parseSollus = fmap concat . mapM parse . Text.words
+parseSollus = parseSyllables allSollus
+
+allSollus :: [(Text, Sollu)]
+allSollus = Seq.key_on notationText $ filter (/= NoSollu) [minBound ..]
+
+parseSyllables :: Show sollu => [(Text, sollu)] -> Text
+    -> Either Error [Maybe sollu]
+parseSyllables solluMap = fmap concat . mapM parse . Text.words
     where
-    parse w = case parseSollusWord w of
+    parse w = case parseSyllablesWord solluMap w of
         [] -> Left $ "no parse for " <> showt w
         [sollus] -> Right sollus
         xs -> Left $ "multiple parses for " <> showt w <> ": " <> showt xs
 
-parseSollusWord :: Text -> [[Maybe Sollu]]
-parseSollusWord = go
+parseSyllablesWord :: [(Text, sollu)] -> Text -> [[Maybe sollu]]
+parseSyllablesWord solluMap = go
     where
     go prefix
         | Text.null prefix = [[]]
         | has "_" = map (Nothing :) (go (Text.drop 1 prefix))
         | otherwise = do
-            (str, sollu) <- filter (has . fst) allSollus
+            (str, sollu) <- filter (has . fst) solluMap
             let suffix = Text.drop (Text.length str) prefix
             -- Allow an elided n, e.g. tadinginathom vs. tadinginnathom.
             suffix <- suffix : if "n" `Text.isSuffixOf` str
                 then ["n" <> suffix] else []
             (Just sollu :) <$> go suffix
         where has = (`Text.isPrefixOf` prefix)
-
-allSollus :: [(Text, Sollu)]
-allSollus = Seq.key_on notationText $ filter (/= NoSollu) [minBound .. maxBound]
 
 -- * durations
 

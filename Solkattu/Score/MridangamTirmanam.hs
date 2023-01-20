@@ -72,3 +72,8 @@ tir_itunes = tirmanam $ source "Mannargudi Easwaran" $ korvaiS adi
         -- TODO more elegant way to put in the extra k?
         . su "kook" . "D__" . su "kook" . "D_k" . su "kook"
     ]
+
+tir_sivamani :: Korvai
+tir_sivamani = tirmanam $ korvaiS adi
+    [ __D 2 . tri_ (su "v_pkno") "DD_NN_" -- another 63636
+    ]

@@ -236,11 +236,11 @@ sarva_20_06_05 :: Korvai
 sarva_20_06_05 = date 2020 6 5 $ ganesh $ korvaiS1 adi $
     -- 8*7 + 8 = 8 = 4 avartanams
       g7 (p&v.p&v.__     .su (d.o).od.od.on   . on.d.d.n.d.d.n)
-    . g7 (p&v.p&v.__     .su (on.o).od.od.on . on.d.d.su (n.o.o.v.o.o.o.v))
-    . g7 (su (o.k).od.__ .su (on.o).od.od.od
+    . g7 (p&v.p&v.__     .su (on.o).od.od.on  . on.d.d.su (n.o.o.v.o.o.o.v))
+    . g7 (su (o.k).od.__ .su (on.o).od.od.on
                             . on.d. d.su (n.o.o.v.o.su (__.k).o.v))
-    . g7 (su (o.k).od.__ .su (on.o).od.od.od . su (on.o).od.od. oktk4)
-    . g7 (su (o'.k).od.__.su (on.o).od.od.od . on.od.__      . oktk4)
+    . g7 (su (o.k).od.__ .su (on.o).od.od.on . su (on.o).od.od. oktk4)
+    . g7 (su (o'.k).od.__.su (on.o).od.od.on . on.od.__      . oktk4)
     . g7 (r2 $ o'.od.__  .oktk4)
     . g7 (r2 $ o'.od.__  .oktk4)
     . g7 (o'.od.__       .oktk4 . o'.o'.__.oktk4) -- TODO slow gumiki

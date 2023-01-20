@@ -6146,6 +6146,32 @@ REPL: repl:
     . https://gitlab.haskell.org/haskell/ghc-api-compat
 
 solkattu:
+  bol:
+    - support hindustani tal
+    - realize to strokes
+      . I could use the same approach as StrokeMaps, but it would need to be
+        parameterized by both sollu and stroke.
+      . This seems overcomplicated because I can probably use a hardcoded
+        StrokeMap.
+      . On the other hand, would it make it easier if I want to realize bols
+        on tabla vs. pakhawaj vs. mridangam?
+      . In theory depending on both should be easy, just case on two things,
+        but maybe it would require another GADT to reflect up to the type
+        level?
+    - section types for palta, tihai
+    - Terminal.renderAll and Html.writeAll don't understand bols
+    ? print taa as tA or Ta?  On the other hand it's nice that it's the same
+      length as dha, since it alternates with it.
+    notes:
+      . Support for pakhawaj and tabla bols.
+      . Tabla is different in that bols directly correspond to strokes.
+      . Just we have extra sequences, which have set meanings.
+      . So no StrokeMap is needed, or rather I can have a global hardcoded one.
+      . Korvai is hardcoded to Sollu, I could generalize or I could just make
+        a new type.
+      . But if I'm not using Korvai, I can't use Solkattu.Db or All.  Stuff
+        like LSol all gets duplicated, when it need not be, we only care that
+        there's a thing with metadata and can produce notation.
   notation conveniences:
     / mark karvai groups automatically?  I don't have to highlight it.
       . If I'm not going to highlight, why bother?
