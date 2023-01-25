@@ -120,3 +120,6 @@ akash = source "akash"
 
 qaida :: Korvai -> Korvai
 qaida = withType "qaida"
+
+tukra :: Korvai -> Korvai
+tukra = withType "tukra"

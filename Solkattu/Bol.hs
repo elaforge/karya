@@ -42,9 +42,7 @@ import qualified Data.Text as Text
 import qualified Util.Seq as Seq
 import qualified Solkattu.Instrument.Tabla as Tabla
 import qualified Solkattu.Realize as Realize
-import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
-import qualified Solkattu.Tags as Tags
 
 import           Global
 
@@ -55,7 +53,10 @@ type BolT = Text
 type Error = Text
 
 data Bol =
-    Dha | Di | Ga | Ge | Ka | Ki | Na | Ne | Ra | Ta | Taa | Te | Tet | Ti | Tu
+    Dha | Dhet | Di | Din | Dhi | Dhin | Dhit | Ga | Gi | Ge | Ghen
+    | Ka | Kat | Kre | Ki | Na | Ne | Ra | Ri | Ran
+    | Ta | Tak | Taa | Te | Tet | Ti | Tu
+    | Kran -- TODO 2 beats?
     deriving (Eq, Ord, Enum, Bounded, Show)
 
 instance Solkattu.Notation Bol where

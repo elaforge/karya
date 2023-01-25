@@ -118,3 +118,10 @@ t_endaro_ending =
     . su (r2 (r2 ("N_pk".nakatiku).nakatiku) . r4 (g "N_ktok"))
                                                 -- . "oktk ok oktk oko")
     ]
+
+ex_1 :: Korvai
+ex_1 = korvaiS1 adi "D,p,n,d,^,d,d,^,"
+    -- dhinna gina taka dhinna
+    -- gina dhinna dhinna gina
+    -- tinna gina taka tinna
+    -- gina dhinna dhinna gina
