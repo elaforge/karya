@@ -296,7 +296,8 @@ instrumentName = \case
     IBol -> "bol"
     ITabla -> "tabla"
 
-getStrokeMap :: Instrument stroke -> StrokeMaps -> StrokeMap stroke
+getStrokeMap :: Instrument stroke -> StrokeMaps
+    -> StrokeMap Solkattu.Sollu stroke
 getStrokeMap inst smap = case inst of
     IKonnakol -> Right $ mempty
         { Realize.smapPatternMap = Konnakol.defaultPatterns }
@@ -308,7 +309,8 @@ getStrokeMap inst smap = case inst of
     IBol -> Right mempty -- like IKonnakol except no patterns
     ITabla -> Left "tabla should have had a hardcoded stroke map"
 
-setStrokeMap :: Instrument stroke -> StrokeMap stroke -> StrokeMaps
+setStrokeMap :: Instrument stroke -> StrokeMap Solkattu.Sollu stroke
+    -> StrokeMaps
 setStrokeMap inst smap = case inst of
     IKonnakol -> mempty
     IMridangam -> mempty { smapMridangam = smap }
@@ -370,7 +372,7 @@ realize inst korvai = case getStrokeMap inst (korvaiStrokeMaps korvai) of
 realizeSection :: (Ord sollu, Pretty sollu, Solkattu.Notation stroke)
     => Talas.Tala
     -> Realize.ToStrokes sollu stroke
-    -> Realize.StrokeMap stroke
+    -> Realize.StrokeMap Solkattu.Sollu stroke
     -> ([Flat stroke] -> [Flat stroke])
     -> Section (SequenceT sollu)
     -> Either Error (Realized stroke)
@@ -600,14 +602,14 @@ sectionAvartanams tala section = floor $ dur / talaAksharas
 -- | This can be a Left because it comes from one of the instrument-specific
 -- 'StrokeMaps' fields, which can be Left if 'Realize.strokeMap' verification
 -- failed.
-type StrokeMap stroke = Either Error (Realize.StrokeMap stroke)
+type StrokeMap sollu stroke = Either Error (Realize.StrokeMap sollu stroke)
 
 data StrokeMaps = StrokeMaps {
-    smapMridangam :: StrokeMap Mridangam.Stroke
-    , smapKendangTunggal :: StrokeMap KendangTunggal.Stroke
-    , smapKendangPasang :: StrokeMap KendangPasang.Stroke
-    , smapReyong :: StrokeMap Reyong.Stroke
-    , smapSargam :: StrokeMap Sargam.Stroke
+    smapMridangam        :: StrokeMap Solkattu.Sollu Mridangam.Stroke
+    , smapKendangTunggal :: StrokeMap Solkattu.Sollu KendangTunggal.Stroke
+    , smapKendangPasang  :: StrokeMap Solkattu.Sollu KendangPasang.Stroke
+    , smapReyong         :: StrokeMap Solkattu.Sollu Reyong.Stroke
+    , smapSargam         :: StrokeMap Solkattu.Sollu Sargam.Stroke
     } deriving (Eq, Show, Generics.Generic)
 
 instance Semigroup StrokeMaps where

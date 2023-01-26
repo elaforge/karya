@@ -320,7 +320,7 @@ test_checkAlignmentNadaiChange = do
         (Right Nothing)
     equal (f (sequence G.p7)) (Right Nothing)
 
-tdktSmap :: Realize.StrokeMap M.Stroke
+tdktSmap :: Realize.StrokeMap Sollu M.Stroke
 tdktSmap = makeMridangam
     [ (ta, k)
     , (di, t)
@@ -330,7 +330,7 @@ tdktSmap = makeMridangam
     ]
     where M.Strokes {..} = M.notes
 
-checkAlignment :: Solkattu.Notation stroke => Realize.StrokeMap stroke
+checkAlignment :: Solkattu.Notation stroke => Realize.StrokeMap Sollu stroke
     -> Tala.Akshara -> S.Duration -> S.Duration -> Korvai.Sequence
     -> Either Text (Maybe Realize.Warning)
 checkAlignment smap talaAksharas startOn endOn =
@@ -370,7 +370,7 @@ makeSolluMap ::
     ] -> Either Text (Realize.SolluMap Solkattu.Sollu M.Stroke)
 makeSolluMap = fmap fst . Realize.solluMap . solkattuToRealize
 
-makeMridangam :: G.StrokeMap M.Stroke -> Realize.StrokeMap M.Stroke
+makeMridangam :: G.StrokeMap M.Stroke -> Realize.StrokeMap Sollu M.Stroke
 makeMridangam = expect_right . Korvai.smapMridangam . G.makeMridangam0
 
 -- | Realize sollus.  Since this doesn't go through 'Korvai.realizeSection',
@@ -393,7 +393,7 @@ realizeSolluMap solluMap = realizeStrokeMap smap
         , smapPatternMap = mempty
         }
 
-realizeStrokeMap :: Solkattu.Notation stroke => Realize.StrokeMap stroke
+realizeStrokeMap :: Solkattu.Notation stroke => Realize.StrokeMap Sollu stroke
     -> S.Sequence Solkattu.Group (Note Sollu)
     -> Either Text [Realize.Realized stroke]
 realizeStrokeMap smap =

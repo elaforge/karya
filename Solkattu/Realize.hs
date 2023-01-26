@@ -315,39 +315,38 @@ flatDuration = Num.sum . map (uncurry S.noteDuration) . S.tempoNotes
     have tempo changes since they always substitute a single Solkattu.Note.
     If I ever have a use for e.g. (taka.p5, ...) then I could reconsider.
 -}
-data StrokeMap stroke = StrokeMap {
-    smapSolluMap :: SolluMap Solkattu.Sollu stroke
+data StrokeMap sollu stroke = StrokeMap {
+    smapSolluMap :: SolluMap sollu stroke
     -- | Shadowed SolluMapKeys, saved here to warn about them later.
-    , smapSolluShadows ::
-        [(SolluMapKey Solkattu.Sollu, [Maybe (Stroke stroke)])]
+    , smapSolluShadows :: [(SolluMapKey sollu, [Maybe (Stroke stroke)])]
     , smapPatternMap :: PatternMap stroke
     } deriving (Eq, Show, Generics.Generic)
 
-isInstrumentEmpty :: StrokeMap stroke -> Bool
+isInstrumentEmpty :: StrokeMap sollu stroke -> Bool
 isInstrumentEmpty (StrokeMap (SolluMap smap) _ (PatternMap patternMap)) =
     Map.null smap && Map.null patternMap
 
-smapKeys :: StrokeMap stroke -> Set (SolluMapKey Solkattu.Sollu)
+smapKeys :: StrokeMap sollu stroke -> Set (SolluMapKey sollu)
 smapKeys smap = Map.keysSet m
     where SolluMap m = smapSolluMap smap
 
-instance Semigroup (StrokeMap stroke) where
+instance Ord sollu => Semigroup (StrokeMap sollu stroke) where
     StrokeMap a1 b1 c1 <> StrokeMap a2 b2 c2 =
         StrokeMap (a1<>a2) (b1<>b2) (c1<>c2)
-instance Monoid (StrokeMap stroke) where
+instance Ord sollu => Monoid (StrokeMap sollu stroke) where
     mempty = StrokeMap mempty mempty mempty
     mappend = (<>)
 
-instance Pretty stroke => Pretty (StrokeMap stroke) where
+instance (Pretty sollu, Pretty stroke) => Pretty (StrokeMap sollu stroke) where
     format = Pretty.formatGCamel
 
 -- | Verify a list of pairs stroke map and put them in an 'StrokeMap'.
-strokeMap :: Pretty stroke => PatternMap stroke
-    -> [ ( S.Sequence g (Solkattu.Note Solkattu.Sollu)
+strokeMap :: (Pretty sollu, Ord sollu, Pretty stroke) => PatternMap stroke
+    -> [ ( S.Sequence g (Solkattu.Note sollu)
          , S.Sequence g (Solkattu.Note (Stroke stroke))
          )
        ]
-    -> Either Error (StrokeMap stroke)
+    -> Either Error (StrokeMap sollu stroke)
 strokeMap pmap strokes = do
     strokes <- mapM (traverse solkattuToRealize) strokes
     (smap, solluShadows) <- solluMap strokes
@@ -512,7 +511,7 @@ instance Pretty stroke => Pretty (Reduction stroke) where
 type Realized stroke = S.Flat (Group (Stroke stroke)) (Note stroke)
 
 realize :: (Pretty sollu, Ord sollu)
-    => StrokeMap stroke -> ToStrokes sollu stroke
+    => StrokeMap Solkattu.Sollu stroke -> ToStrokes sollu stroke
     -> Tala.Akshara -> [S.Flat Solkattu.Group (Solkattu.Note sollu)]
     -> (UF.UntilFail Error (Realized stroke), Set (SolluMapKey sollu))
 realize smap = realize_ (realizePattern (smapPatternMap smap))
