@@ -3,7 +3,26 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | The 'Tala' type, which describes a Carnatic tala.
-module Solkattu.Tala where
+module Solkattu.Tala (
+    Akshara
+    , anga_aksharas
+    , tala_angas
+    , tala_aksharas
+    , tala_labels
+    , Tala(..)
+    , tala_name
+    , Anga(..)
+    -- * talas
+    , dhruva, matya, rupaka, jhampa, triputa, ata, eka
+    , dhruva_tala, matya_tala, rupaka_tala, jhampa_tala, triputa_tala, ata_tala
+    , eka_tala
+    , adi_tala
+    , misra_chapu
+    , kanda_chapu
+    , rupaka_fast
+    , any_beats
+    , beats
+) where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
@@ -24,7 +43,7 @@ anga_aksharas jati anga = case anga of
     U -> 1
 
 anga_labels :: Jati -> Anga -> [Text]
-anga_labels jati anga = case anga of
+anga_labels jati = \case
     Clap n -> "X" : replicate (n-1) "-"
     Wave n -> "O" : replicate (n-1) "-"
     I -> take jati (map showt [0..])

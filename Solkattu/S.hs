@@ -305,12 +305,13 @@ maxSpeed = maximum . (_speed defaultTempo :) . map _speed . tempoOf
 -- no group in here, presumably it's already been stripped out, which of you
 -- should only have done if it's no longer needed, which is the case post
 -- realize.
-tempoToState :: HasMatras a => Tala.Tala -> Duration -- ^ start time
+tempoToState :: HasMatras a => Tala.Akshara -> Duration -- ^ start time
     -> [(Tempo, a)] -> (State, [(State, a)])
-tempoToState tala start = List.mapAccumL toState (stateFrom tala start)
+tempoToState talaAksharas start =
+    List.mapAccumL toState (stateFrom talaAksharas start)
     where
     toState state (tempo, note) =
-        ( advanceStateBy tala dur state
+        ( advanceStateBy talaAksharas dur state
         , (state { stateTempo = tempo }, note)
         )
         where dur = noteDuration tempo note
@@ -319,12 +320,12 @@ tempoToState tala start = List.mapAccumL toState (stateFrom tala start)
 --
 -- I need to look in the group to know what the actual duration is,
 -- unfortunately.
-flatToState :: (Flat g a -> Duration) -> Tala.Tala -> State
+flatToState :: (Flat g a -> Duration) -> Tala.Akshara -> State
     -> [Flat g a] -> (State, [(State, Flat g a)])
-flatToState flatDuration tala st = List.mapAccumL toState st
+flatToState flatDuration talaAksharas st = List.mapAccumL toState st
     where
     toState state flat =
-        ( advanceStateBy tala (flatDuration flat) state
+        ( advanceStateBy talaAksharas (flatDuration flat) state
         , (state { stateTempo = flatTempo flat }, flat)
         )
 
@@ -353,14 +354,14 @@ instance Pretty a => Pretty (Stroke a) where
 --
 -- This normalizes speed, not nadai, because Realize.format lays out notation
 -- by nadai, not in absolute time.
-normalizeSpeed :: HasMatras a => Speed -> Tala.Tala
+normalizeSpeed :: HasMatras a => Speed -> Tala.Akshara
     -> [Flat g a] -> [Flat g (State, (Stroke a))]
-normalizeSpeed toSpeed tala flattened = fst $
+normalizeSpeed toSpeed talaAksharas flattened = fst $
     State.runState (mapM addState (concatMap expand flattened)) initialState
     where
     addState (FNote tempo stroke) = do
         state <- State.get
-        State.modify' $ advanceStateBy tala (matraDuration tempo)
+        State.modify' $ advanceStateBy talaAksharas (matraDuration tempo)
         return $ FNote tempo (state { stateTempo = tempo }, stroke)
     addState (FGroup tempo g children) =
         FGroup tempo g <$> mapM addState children
@@ -468,8 +469,8 @@ instance Pretty State where
             , ("tempo", Pretty.format tempo)
             ]
 
-stateFrom :: Tala.Tala -> Duration -> State
-stateFrom tala dur = advanceStateBy tala dur initialState
+stateFrom :: Tala.Akshara -> Duration -> State
+stateFrom talaAksharas dur = advanceStateBy talaAksharas dur initialState
 
 initialState :: State
 initialState = State
@@ -488,9 +489,9 @@ stateMatraPosition :: State -> Duration
 stateMatraPosition state = fromIntegral (stateAkshara state) + stateMatra state
 
 -- | Absolute number of aksharas from the beginning of the sequence.
-stateAbsoluteAkshara :: Tala.Tala -> State -> Duration
-stateAbsoluteAkshara tala state =
-    fromIntegral (stateAvartanam state * Tala.tala_aksharas tala)
+stateAbsoluteAkshara :: Tala.Akshara -> State -> Duration
+stateAbsoluteAkshara talaAksharas state =
+    fromIntegral (stateAvartanam state * talaAksharas)
         + stateMatraPosition state
 
 -- | Show avartanam, akshara, and matra as avartanam:akshara+n/d.
@@ -538,8 +539,8 @@ matraDuration :: Tempo -> Duration
 matraDuration tempo =
     1 / speedFactor (_speed tempo) / fromIntegral (_nadai tempo)
 
-advanceStateBy :: Tala.Tala -> Duration -> State -> State
-advanceStateBy tala duration state = State
+advanceStateBy :: Tala.Akshara -> Duration -> State -> State
+advanceStateBy talaAksharas duration state = State
     { stateAvartanam = stateAvartanam state + aksharaCarry
     , stateAkshara = akshara
     , stateMatra = dur
@@ -549,6 +550,5 @@ advanceStateBy tala duration state = State
     where
     (durCarry, dur) = properFraction $ stateMatra state + duration
     (aksharaCarry, akshara)
-        | avartanam == 0 = (0, stateAkshara state + durCarry)
-        | otherwise = (stateAkshara state + durCarry) `divMod` avartanam
-        where avartanam = Tala.tala_aksharas tala
+        | talaAksharas == 0 = (0, stateAkshara state + durCarry)
+        | otherwise = (stateAkshara state + durCarry) `divMod` talaAksharas

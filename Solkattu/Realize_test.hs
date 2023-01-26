@@ -205,7 +205,7 @@ test_realizePatterns :: Test
 test_realizePatterns = do
     let f pmap = Realize.formatError . fst
             . Realize.realize_ (Realize.realizePattern pmap)
-                (Realize.realizeSollu solluMap) Tala.adi_tala
+                (Realize.realizeSollu solluMap) adiAksharas
             . S.flatten . S.toList
     let eStrokes = eWords . fmap S.flattenedNotes
     equal (eStrokes $ f (M.families567 !! 0) G.p5)
@@ -261,7 +261,7 @@ test_checkD = do
 
 test_checkAlignment :: Test
 test_checkAlignment = do
-    let f = checkAlignment tdktSmap G.adi 0 0
+    let f = checkAlignment tdktSmap adiAksharas 0 0
         tdkt = cycle [ta, di, ki, ta]
         mtake n = mconcat . take n
     equal (f mempty) (Right Nothing)
@@ -283,7 +283,7 @@ test_checkAlignment = do
 
 test_checkAlignment_eddupu :: Test
 test_checkAlignment_eddupu = do
-    let f = checkAlignment tdktSmap G.adi
+    let f = checkAlignment tdktSmap adiAksharas
         tdkt = cycle [ta, di, ki, ta]
         mtake n = mconcat . take n
     equal (f 0 1 (mtake 8 tdkt)) $ Right $ Just $ Realize.Warning
@@ -298,7 +298,7 @@ test_checkAlignment_eddupu = do
 
 test_checkAlignmentNadaiChange :: Test
 test_checkAlignmentNadaiChange = do
-    let f = checkAlignment tdktSmap G.adi 0 0
+    let f = checkAlignment tdktSmap adiAksharas 0 0
     -- Change nadai in the middle of an akshara.
     right_equal (f (ta <> di <> G.nadai 6 (mconcat [ta, di, ki]))) $ Just $
         Realize.Warning Nothing
@@ -330,13 +330,16 @@ tdktSmap = makeMridangam
     where M.Strokes {..} = M.notes
 
 checkAlignment :: Solkattu.Notation stroke => Realize.StrokeMap stroke
-    -> Tala.Tala -> S.Duration -> S.Duration -> Korvai.Sequence
+    -> Tala.Akshara -> S.Duration -> S.Duration -> Korvai.Sequence
     -> Either Text (Maybe Realize.Warning)
-checkAlignment smap tala startOn endOn =
-    fmap (Realize.checkAlignment tala startOn endOn . S.tempoNotes)
+checkAlignment smap talaAksharas startOn endOn =
+    fmap (Realize.checkAlignment talaAksharas startOn endOn . S.tempoNotes)
         . realizeStrokeMap smap
 
 -- * util
+
+adiAksharas :: Tala.Akshara
+adiAksharas = Tala.tala_aksharas Tala.adi_tala
 
 eWords :: Pretty b => Either a [b] -> Either a Text
 eWords = fmap (Text.unwords . map pretty)
@@ -394,7 +397,7 @@ realizeStrokeMap :: Solkattu.Notation stroke => Realize.StrokeMap stroke
 realizeStrokeMap smap =
     Realize.formatError . fst
     . Realize.realize smap (Realize.realizeSollu (Realize.smapSolluMap smap))
-        Tala.adi_tala
+        adiAksharas
     . S.flatten . S.toList
     . fmap (fmap Realize.stroke)
 

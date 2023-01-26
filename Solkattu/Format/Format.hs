@@ -162,10 +162,10 @@ makeGroupsAbstractScore abstraction = concatMap combine
         where meta = groupToMeta group
     combine n = [n]
 
-normalizeSpeed :: S.Speed -> Tala.Tala -> [Flat stroke]
+normalizeSpeed :: S.Speed -> Tala.Akshara -> [Flat stroke]
     -> [NormalizedFlat stroke]
-normalizeSpeed toSpeed tala =
-    fmap (fmap (fmap normalizeRest)) . S.normalizeSpeed toSpeed tala
+normalizeSpeed toSpeed talaAksharas =
+    fmap (fmap (fmap normalizeRest)) . S.normalizeSpeed toSpeed talaAksharas
     . S.filterFlat (not . isAlignment)
     where
     isAlignment (Realize.Alignment {}) = True

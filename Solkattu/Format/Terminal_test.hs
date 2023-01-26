@@ -182,8 +182,9 @@ test_spellRests = do
 test_inferRuler :: Test
 test_inferRuler = do
     let f = Format.inferRuler 0 tala4 2
-            . map fst . S.flattenedNotes . Format.normalizeSpeed 0 tala4 . fst
-            . expect_right
+            . map fst . S.flattenedNotes
+            . Format.normalizeSpeed 0 (Tala.tala_aksharas tala4)
+            . fst . expect_right
             . kRealize tala4
     let tas nadai n = G.nadai nadai (G.repeat n G.ta)
     equal (f (tas 2 4)) [("X:2", 2), ("O", 2)]
@@ -412,7 +413,8 @@ realizeP :: Maybe (Realize.PatternMap M.Stroke)
     -> Either Text [Format.Flat M.Stroke]
 realizeP pmap smap = fmap Format.mapGroups
     . Realize.formatError . fst
-    . Realize.realize_ pattern (Realize.realizeSollu smap) Tala.adi_tala
+    . Realize.realize_ pattern (Realize.realizeSollu smap)
+        (Tala.tala_aksharas Tala.adi_tala)
     . S.flatten . S.toList
     . fmap (fmap Realize.stroke)
     where

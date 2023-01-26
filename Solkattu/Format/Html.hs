@@ -447,7 +447,7 @@ formatAvartanams config toSpeed prevRuler tala =
     . Format.breakAvartanams
     . concatMap makeSymbols
     . Format.makeGroupsAbstract (_abstraction config)
-    . Format.normalizeSpeed toSpeed tala
+    . Format.normalizeSpeed toSpeed (Tala.tala_aksharas tala)
 
 type Line = [(S.State, Symbol)]
 

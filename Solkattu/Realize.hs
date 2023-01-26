@@ -244,13 +244,12 @@ data Warning = Warning (Maybe Int) !Text
 
 -- | Verify that the notes start and end at sam, and the given Alignments
 -- fall where expected.
-checkAlignment :: Tala.Tala -> S.Duration -> S.Duration
+checkAlignment :: Tala.Akshara -> S.Duration -> S.Duration
     -> [(S.Tempo, Note stroke)] -> Maybe Warning
-checkAlignment tala startOn endOn notes
-    | tala == Tala.any_beats = Nothing
-    | otherwise = msum (map verify (zip [0..] states)) <|> checkEnd
+checkAlignment talaAksharas startOn endOn notes =
+    msum (map verify (zip [0..] states)) <|> checkEnd
     where
-    (finalState, states) = S.tempoToState tala startOn notes
+    (finalState, states) = S.tempoToState talaAksharas startOn notes
     -- If finalState is at 0, the section is up to but not including the end,
     -- if the finalNote is, then there is an extra note that lands on 0.
     checkEnd
@@ -264,8 +263,7 @@ checkAlignment tala startOn endOn notes
             | endOn > 0 = "+" <> pretty endOn
             | otherwise = pretty endOn
         finalNote = fst <$> List.find (not . isSpace . snd) (reverse states)
-        left = fromIntegral (Tala.tala_aksharas tala)
-            - S.stateMatraPosition finalState
+        left = fromIntegral talaAksharas - S.stateMatraPosition finalState
     verify (i, (state, Alignment akshara))
         | atAkshara akshara state = Nothing
         | otherwise = Just $ Warning (Just i) $
@@ -276,7 +274,7 @@ checkAlignment tala startOn endOn notes
     isSpace _ = False
     atEnd state
         | endOn >= 0 = akshara == endOn
-        | otherwise = akshara - fromIntegral (Tala.tala_aksharas tala) == endOn
+        | otherwise = akshara - fromIntegral talaAksharas == endOn
         where akshara = S.stateMatraPosition state
     atAkshara akshara state =
         S.stateAkshara state == akshara && S.stateMatra state == 0
@@ -515,7 +513,7 @@ type Realized stroke = S.Flat (Group (Stroke stroke)) (Note stroke)
 
 realize :: (Pretty sollu, Ord sollu)
     => StrokeMap stroke -> ToStrokes sollu stroke
-    -> Tala.Tala -> [S.Flat Solkattu.Group (Solkattu.Note sollu)]
+    -> Tala.Akshara -> [S.Flat Solkattu.Group (Solkattu.Note sollu)]
     -> (UF.UntilFail Error (Realized stroke), Set (SolluMapKey sollu))
 realize smap = realize_ (realizePattern (smapPatternMap smap))
     -- TODO just pass PatternMap, since I don't parameterize anymore.
@@ -523,17 +521,18 @@ realize smap = realize_ (realizePattern (smapPatternMap smap))
 
 realize_ :: (Pretty sollu, Ord sollu)
     => RealizePattern S.Tempo stroke -> ToStrokes sollu stroke
-    -> Tala.Tala -> [S.Flat Solkattu.Group (Solkattu.Note sollu)]
+    -> Tala.Akshara -> [S.Flat Solkattu.Group (Solkattu.Note sollu)]
     -> (UF.UntilFail Error (Realized stroke), Set (SolluMapKey sollu))
-realize_ realizePattern toStrokes tala =
+realize_ realizePattern toStrokes talaAksharas =
     -- The writer keeps track of the set of sollu patterns I've used, so I can
     -- warn about unused ones.
     Writer.runWriter
         . fmap (UF.concatMap convertGroups)
         . UF.processM realize1
-        . flatToState (S.stateFrom tala 0) -- TODO use eddupu
+        . flatToState (S.stateFrom talaAksharas 0) -- TODO use eddupu
     where
-    flatToState state = snd . S.flatToState Solkattu.flatDuration tala state
+    flatToState state =
+        snd . S.flatToState Solkattu.flatDuration talaAksharas state
     realize1 (state, note@(S.FNote tempo n)) notes = case n of
         Solkattu.Alignment n -> return
             (UF.singleton $ S.FNote tempo (Alignment n), notes)
@@ -568,15 +567,16 @@ realize_ realizePattern toStrokes tala =
             -- relies on an explicit Abstract since it flattens out groups.
             UF.singleton $ S.FGroup tempo (Solkattu.GMeta m)
                 [S.FNote tempo (Abstract m)]
-        | otherwise = case realizeSarva toStrokes tala tempo matras children of
-            Left err -> return $ UF.Fail $ "sarva: " <> err
-            Right (matched, strokes) -> do
-                Writer.tell $ Set.singleton matched
-                -- I keep this as a group so format can highlight it.  Also,
-                -- even though I realized the sarva, I might as well leave the
-                -- duration on.
-                return $ UF.singleton $
-                    S.FGroup tempo (Solkattu.GMeta m) strokes
+        | otherwise =
+            case realizeSarva toStrokes talaAksharas tempo matras children of
+                Left err -> return $ UF.Fail $ "sarva: " <> err
+                Right (matched, strokes) -> do
+                    Writer.tell $ Set.singleton matched
+                    -- I keep this as a group so format can highlight it.  Also,
+                    -- even though I realized the sarva, I might as well leave
+                    -- the duration on.
+                    return $ UF.singleton $
+                        S.FGroup tempo (Solkattu.GMeta m) strokes
     realizeGroup tempo group children = do
         rest <- UF.toList <$> UF.processM realize1 children
         return $ case rest of
@@ -588,11 +588,12 @@ realize_ realizePattern toStrokes tala =
 
 -- | Realize a 'Solkattu.GSarva' group, by matching the sollus, and then
 -- cycling the strokes for the given duration.
-realizeSarva :: Pretty sollu => ToStrokes sollu stroke -> Tala.Tala -> S.Tempo
-    -> S.Matra -> [(S.State, S.Flat Solkattu.Group (Solkattu.Note sollu))]
+realizeSarva :: Pretty sollu => ToStrokes sollu stroke -> Tala.Akshara
+    -> S.Tempo -> S.Matra
+    -> [(S.State, S.Flat Solkattu.Group (Solkattu.Note sollu))]
     -> Either Error (SolluMapKey sollu, [S.Flat Solkattu.Group (Note stroke)])
 realizeSarva _ _ _ _ [] = Left "empty sarva group"
-realizeSarva toStrokes tala tempo matras children@((state, _) : _) = do
+realizeSarva toStrokes talaAksharas tempo matras children@((state, _) : _) = do
     (matched, (strokes, left)) <- findSequence toStrokes children
     -- Trailing rests are ok, as long as I include them in the output.
     rests <- tryJust
@@ -610,7 +611,7 @@ realizeSarva toStrokes tala tempo matras children@((state, _) : _) = do
     (_, (strokes, _)) <- splitStrokes dur strokes
     return (matched, strokes)
     where
-    offset = S.stateAbsoluteAkshara tala state
+    offset = S.stateAbsoluteAkshara talaAksharas state
     getRest (S.FNote tempo (Solkattu.Space space)) = Just (tempo, Space space)
     getRest _ = Nothing
     dur = S.matraDuration tempo * fromIntegral matras

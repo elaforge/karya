@@ -293,7 +293,7 @@ formatLines abstraction strokeWidth width tala notes =
         . overlapSymbols strokeWidth
         . concatMap (makeSymbols strokeWidth tala angas)
         . Format.makeGroupsAbstract abstraction
-        . Format.normalizeSpeed toSpeed tala
+        . Format.normalizeSpeed toSpeed (Tala.tala_aksharas tala)
         $ notes
     where
     angas = Format.angaSet tala

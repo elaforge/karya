@@ -133,15 +133,6 @@ kendangTunggalKorvai :: Tala.Tala -> Realize.PatternMap KendangTunggal.Stroke
     -> [Section (SequenceT (Realize.Stroke KendangTunggal.Stroke))] -> Korvai
 kendangTunggalKorvai = instrumentKorvai IKendangTunggal
 
-tablaKorvai :: Tala.Tala
-    -> [Section (SequenceT (Realize.Stroke Bol.Bol))] -> Korvai
-tablaKorvai tala sections = Korvai
-    { korvaiSections = KorvaiSections IBol sections
-    , korvaiStrokeMaps = mempty
-    , korvaiTala = tala
-    , korvaiMetadata = mempty
-    }
-
 instrumentKorvai :: Instrument stroke -> Tala.Tala
     -> Realize.PatternMap stroke
     -> [Section (SequenceT (Realize.Stroke stroke))]
@@ -150,6 +141,15 @@ instrumentKorvai inst tala pmap sections = Korvai
     { korvaiSections = KorvaiSections inst sections
     , korvaiStrokeMaps =
         setStrokeMap inst $ Right $ mempty { Realize.smapPatternMap = pmap }
+    , korvaiTala = tala
+    , korvaiMetadata = mempty
+    }
+
+tablaKorvai :: Tala.Tala
+    -> [Section (SequenceT (Realize.Stroke Bol.Bol))] -> Korvai
+tablaKorvai tala sections = Korvai
+    { korvaiSections = KorvaiSections IBol sections
+    , korvaiStrokeMaps = mempty
     , korvaiTala = tala
     , korvaiMetadata = mempty
     }
@@ -375,25 +375,31 @@ realizeSection :: (Ord sollu, Pretty sollu, Solkattu.Notation stroke)
     -> Either Error (Realized stroke)
 realizeSection tala toStrokes smap postproc section = do
     realized <- Realize.formatError $ fst $
-        Realize.realize smap toStrokes tala $ flatten $
+        Realize.realize smap toStrokes (Tala.tala_aksharas tala) $ flatten $
         sectionSequence section
-    let alignWarn = Realize.checkAlignment tala
-            (sectionStart section) (sectionEnd section)
-            (S.tempoNotes realized)
+    let alignWarn = checkAlignment realized
     (realized, durationWarns) <- return $ Realize.checkDuration realized
     startSpace <- spaces (inferNadai realized) (sectionStart section)
     return
         ( postproc $ startSpace ++ realized
         , maybe [] (:[]) alignWarn ++ durationWarns
         )
+    where
+    checkAlignment realized
+        | tala == Tala.any_beats = Nothing
+        | otherwise = Realize.checkAlignment
+            (Tala.tala_aksharas tala)
+            (sectionStart section) (sectionEnd section)
+            (S.tempoNotes realized)
 
 allMatchedSollus :: Instrument stroke -> Korvai
     -> Set (Realize.SolluMapKey Solkattu.Sollu)
 allMatchedSollus instrument korvai = case korvaiSections korvai of
     KorvaiSections IKonnakol sections -> Set.map strip $
-        mconcatMap (matchedSollus toStrokes (korvaiTala korvai)) sections
+        mconcatMap (matchedSollus toStrokes talaAksharas) sections
     _ -> mempty
     where
+    talaAksharas = Tala.tala_aksharas (korvaiTala korvai)
     -- For uniformity with instruments, IKonnakol also maps from
     -- (Realize.Stroke Sollu) even though I don't use emphasis.  So shim it
     -- back to plain Sollus.
@@ -402,11 +408,11 @@ allMatchedSollus instrument korvai = case korvaiSections korvai of
     solluMap = either mempty Realize.smapSolluMap smap
     smap = getStrokeMap instrument (korvaiStrokeMaps korvai)
 
-matchedSollus :: (Pretty sollu, Ord sollu)
-    => Realize.ToStrokes sollu stroke -> Tala.Tala -> Section (SequenceT sollu)
+matchedSollus :: (Pretty sollu, Ord sollu) => Realize.ToStrokes sollu stroke
+    -> Tala.Akshara -> Section (SequenceT sollu)
     -> Set (Realize.SolluMapKey sollu)
-matchedSollus toStrokes tala =
-    snd . Realize.realize_ dummyPattern toStrokes tala . flatten
+matchedSollus toStrokes talaAksharas =
+    snd . Realize.realize_ dummyPattern toStrokes talaAksharas . flatten
         . sectionSequence
     where
     -- Since I'm just looking for used sollus, I can just map all patterns to
