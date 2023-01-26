@@ -12,7 +12,7 @@ import qualified Util.CallStack as CallStack
 import qualified Solkattu.Dsl.Mridangam as R
 import qualified Solkattu.Dsl.Solkattu as G
 import           Solkattu.Dsl.Solkattu
-       (__, di, din, ga, ka, ki, na, ta, tang, tha, thom, (^))
+    (__, di, din, ga, ka, ki, na, ta, tang, tha, thom, (^))
 import qualified Solkattu.Instrument.Mridangam as M
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Realize as Realize
@@ -20,6 +20,7 @@ import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import           Solkattu.Solkattu (Note(..), Sollu(..))
 import qualified Solkattu.Tala as Tala
+import qualified Solkattu.Talas as Talas
 
 import           Global
 import           Util.Test
@@ -352,7 +353,8 @@ prettyStrokes = second (first (Text.unwords . map pretty . S.flattenedNotes))
 realizeM :: Tala.Tala -> Korvai.SequenceT (Realize.Stroke M.Stroke)
     -> Either Korvai.Error ([Korvai.Flat M.Stroke], [Realize.Warning])
 realizeM tala =
-    Korvai.realizeSection tala Realize.realizeStroke mempty id . Korvai.section
+    Korvai.realizeSection (Talas.Carnatic tala) Realize.realizeStroke mempty id
+    . Korvai.section
 
 checkSolluMap :: CallStack.Stack =>
     [ ( S.Sequence g (Note Sollu)

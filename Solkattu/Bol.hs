@@ -36,7 +36,11 @@
     pakhawaj dha is like thom + chapu while tabla is like thom + din.  When
     realizing bols on mridangam, I can use the pakhawaj style.
 -}
-module Solkattu.Bol where
+module Solkattu.Bol (
+    Bol(..)
+    , parseBols
+    , Bols(..)
+) where
 import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
@@ -128,25 +132,3 @@ sequences =
     notes = map (Note . One)
     notes2 = map (Notes . notes)
 -}
-
--- * Tal
-
--- TODO I wound up using Carnatic Tala because I wound up using Korvai, but
--- I'll need some way to reconcile.
-data Tal = Tal {
-    talName :: Text
-    , talVibhags :: [(Tali, Matras)]
-    } deriving (Show)
-
-type Matras = Int
-data Tali = Tali | Kali
-    deriving (Show)
-
-tintal :: Tal
-tintal = Tal "tintal" [(Tali, 4), (Tali, 4), (Kali, 4), (Tali, 4)]
-
-jhaptal :: Tal
-jhaptal = Tal "jhaptal" [(Tali, 2), (Tali, 3), (Kali, 2), (Tali, 3)]
-
-rupak :: Tal
-rupak = Tal "rupak" [(Kali, 3), (Tali, 2), (Tali, 2)]

@@ -39,6 +39,7 @@ import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tags as Tags
 import qualified Solkattu.Tala as Tala
+import qualified Solkattu.Talas as Talas
 
 import           Global
 
@@ -93,7 +94,7 @@ realizeScore realize = \case
 data Korvai = Korvai {
     korvaiSections :: !KorvaiSections
     , korvaiStrokeMaps :: !StrokeMaps
-    , korvaiTala :: !Tala.Tala
+    , korvaiTala :: !Talas.Tala
     , korvaiMetadata :: !Metadata
     } deriving (Show, Generics.Generic)
 
@@ -107,7 +108,7 @@ korvai tala strokeMaps sections = Korvai
         (fmap (fmap (fmap (fmap Realize.stroke))) sections)
         -- Wrap up in dummy Realize.Strokes, see 'Realize.realizeSollu'.
     , korvaiStrokeMaps = strokeMaps
-    , korvaiTala = tala
+    , korvaiTala = Talas.Carnatic tala
     , korvaiMetadata = mempty
     }
 
@@ -141,16 +142,16 @@ instrumentKorvai inst tala pmap sections = Korvai
     { korvaiSections = KorvaiSections inst sections
     , korvaiStrokeMaps =
         setStrokeMap inst $ Right $ mempty { Realize.smapPatternMap = pmap }
-    , korvaiTala = tala
+    , korvaiTala = Talas.Carnatic tala
     , korvaiMetadata = mempty
     }
 
-tablaKorvai :: Tala.Tala
+tablaKorvai :: Talas.Tal
     -> [Section (SequenceT (Realize.Stroke Bol.Bol))] -> Korvai
 tablaKorvai tala sections = Korvai
     { korvaiSections = KorvaiSections IBol sections
     , korvaiStrokeMaps = mempty
-    , korvaiTala = tala
+    , korvaiTala = Talas.Hindustani tala
     , korvaiMetadata = mempty
     }
 
@@ -367,7 +368,7 @@ realize inst korvai = case getStrokeMap inst (korvaiStrokeMaps korvai) of
     postproc = instPostprocess inst
 
 realizeSection :: (Ord sollu, Pretty sollu, Solkattu.Notation stroke)
-    => Tala.Tala
+    => Talas.Tala
     -> Realize.ToStrokes sollu stroke
     -> Realize.StrokeMap stroke
     -> ([Flat stroke] -> [Flat stroke])
@@ -375,7 +376,7 @@ realizeSection :: (Ord sollu, Pretty sollu, Solkattu.Notation stroke)
     -> Either Error (Realized stroke)
 realizeSection tala toStrokes smap postproc section = do
     realized <- Realize.formatError $ fst $
-        Realize.realize smap toStrokes (Tala.tala_aksharas tala) $ flatten $
+        Realize.realize smap toStrokes (Talas.aksharas tala) $ flatten $
         sectionSequence section
     let alignWarn = checkAlignment realized
     (realized, durationWarns) <- return $ Realize.checkDuration realized
@@ -386,9 +387,9 @@ realizeSection tala toStrokes smap postproc section = do
         )
     where
     checkAlignment realized
-        | tala == Tala.any_beats = Nothing
+        | tala == Talas.Carnatic Tala.any_beats = Nothing
         | otherwise = Realize.checkAlignment
-            (Tala.tala_aksharas tala)
+            (Talas.aksharas tala)
             (sectionStart section) (sectionEnd section)
             (S.tempoNotes realized)
 
@@ -399,7 +400,7 @@ allMatchedSollus instrument korvai = case korvaiSections korvai of
         mconcatMap (matchedSollus toStrokes talaAksharas) sections
     _ -> mempty
     where
-    talaAksharas = Tala.tala_aksharas (korvaiTala korvai)
+    talaAksharas = Talas.aksharas (korvaiTala korvai)
     -- For uniformity with instruments, IKonnakol also maps from
     -- (Realize.Stroke Sollu) even though I don't use emphasis.  So shim it
     -- back to plain Sollus.
@@ -551,7 +552,7 @@ inferKorvaiMetadata korvai =
 
 inferKorvaiTags :: Korvai -> Tags.Tags
 inferKorvaiTags korvai = Tags.Tags $ Maps.multimap $ concat
-    [ [ ("tala", Tala._name tala)
+    [ [ ("tala", Talas.name tala)
       , ("sections", showt sections)
       , ("avartanams", pretty avartanams)
       ]
@@ -570,7 +571,7 @@ inferKorvaiTags korvai = Tags.Tags $ Maps.multimap $ concat
     avartanams = Num.sum $ case korvaiSections korvai of
         KorvaiSections _ sections -> map (sectionAvartanams tala) sections
 
-inferSectionTags :: Tala.Tala -> Section (SequenceT sollu) -> Tags.Tags
+inferSectionTags :: Talas.Tala -> Section (SequenceT sollu) -> Tags.Tags
 inferSectionTags tala section = Tags.Tags $ Map.fromList $
     [ ("avartanams", [pretty $ sectionAvartanams tala section])
     , ("nadai", map pretty nadais)
@@ -584,12 +585,12 @@ inferSectionTags tala section = Tags.Tags $ Map.fromList $
     nadais = Seq.unique_sort $ map S._nadai tempos
     speeds = Seq.unique_sort $ map S._speed tempos
 
-sectionAvartanams :: Tala.Tala -> Section (SequenceT sollu) -> Int
+sectionAvartanams :: Talas.Tala -> Section (SequenceT sollu) -> Int
 sectionAvartanams tala section = floor $ dur / talaAksharas
     -- Take the floor because there may be a final note as supported by
     -- Realize.checkAlignment.
     where
-    talaAksharas = fromIntegral (Tala.tala_aksharas tala)
+    talaAksharas = fromIntegral (Talas.aksharas tala)
     seq = mapSollu (const ()) (sectionSequence section)
     dur = Solkattu.durationOf S.defaultTempo seq
 

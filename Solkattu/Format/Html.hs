@@ -29,7 +29,7 @@ import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tags as Tags
-import qualified Solkattu.Tala as Tala
+import qualified Solkattu.Talas as Talas
 
 import           Global
 
@@ -433,11 +433,11 @@ showDate :: Calendar.Day -> Text
 showDate = txt . Calendar.showGregorian
 
 scoreTalas :: Korvai.Score -> [Text]
-scoreTalas = Seq.unique . map (Tala.tala_name . Korvai.korvaiTala)
+scoreTalas = Seq.unique . map (Talas.name . Korvai.korvaiTala)
     . Korvai.scoreKorvais
 
 formatAvartanams :: Solkattu.Notation stroke => Config -> S.Speed
-    -> Format.PrevRuler -> Tala.Tala
+    -> Format.PrevRuler -> Talas.Tala
     -> [S.Flat Solkattu.Meta (Realize.Note stroke)]
     -> (Format.PrevRuler, [(Maybe Format.Ruler, Line)])
 formatAvartanams config toSpeed prevRuler tala =
@@ -447,7 +447,7 @@ formatAvartanams config toSpeed prevRuler tala =
     . Format.breakAvartanams
     . concatMap makeSymbols
     . Format.makeGroupsAbstract (_abstraction config)
-    . Format.normalizeSpeed toSpeed (Tala.tala_aksharas tala)
+    . Format.normalizeSpeed toSpeed (Talas.aksharas tala)
 
 type Line = [(S.State, Symbol)]
 
@@ -505,7 +505,7 @@ makeSymbols = go
             | otherwise = noteStyle
         (noteStyle, notation) = Solkattu.notation n
 
-formatTable :: Tala.Tala -> Int -> Korvai.Section ()
+formatTable :: Talas.Tala -> Int -> Korvai.Section ()
     -> [(Maybe Format.Ruler, [(S.State, Symbol)])] -> [(Bool, [Html.Html])]
 formatTable tala _sectionIndex section rows = map row $ zipFirstFinal rows
     where
@@ -550,7 +550,7 @@ formatTable tala _sectionIndex section rows = map row $ zipFirstFinal rows
             , maybe [] (:[]) (_style sym)
             , ["finalLine" | isFinal]
             ]
-    angas = Format.angaSet tala
+    angas = Talas.angaSet tala
 
 zipFirstFinal :: [a] -> [(Bool, a, Bool)]
 zipFirstFinal =

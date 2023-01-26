@@ -46,6 +46,7 @@ import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tala as Tala
+import qualified Solkattu.Talas as Talas
 
 import qualified Synth.Sampler.PatchDb as Sampler.PatchDb
 import qualified Synth.Shared.Config as Config
@@ -249,9 +250,11 @@ to_note_track to_score akshara_dur strokes =
 --
 -- TODO this is just [(start, dur, pitch, dyn)] -> [Track], which I should have
 -- already.
-tala_metronome :: Tala.Tala -> TrackTime -> TrackTime
+tala_metronome :: Talas.Tala -> TrackTime -> TrackTime
     -> [(TrackTime, TrackTime, Text, Double)]
-tala_metronome tala akshara_dur end = takeWhile (\(s, _, _, _) -> s < end)
+tala_metronome (Talas.Hindustani _) _ _ = error "hindustani not implemented"
+tala_metronome (Talas.Carnatic tala) akshara_dur end =
+        takeWhile (\(s, _, _, _) -> s < end)
     [ (s, 0, pitch, dyn)
     | (s, Just (pitch, dyn)) <- zip (Seq.range_ 0 akshara_dur) (cycle pattern)
     ]

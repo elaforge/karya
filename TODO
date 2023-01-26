@@ -6147,7 +6147,9 @@ REPL: repl:
 
 solkattu:
   bol:
-    - support hindustani tal
+    * support hindustani tal
+      . Kind of awkward though.
+    - support Talas.Hindustani in Play.tala_metronome
     - realize to strokes
       . I could use the same approach as StrokeMaps, but it would need to be
         parameterized by both sollu and stroke.

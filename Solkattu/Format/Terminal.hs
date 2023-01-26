@@ -30,6 +30,7 @@ import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tags as Tags
 import qualified Solkattu.Tala as Tala
+import qualified Solkattu.Talas as Talas
 
 import           Global
 
@@ -131,7 +132,7 @@ formatInstrument config instrument postproc korvai =
 korvaiTags :: Korvai.Korvai -> [Tags.Tags]
 korvaiTags = map Korvai.sectionTags . Korvai.genericSections
 
-formatResults :: Solkattu.Notation stroke => Config -> Tala.Tala
+formatResults :: Solkattu.Notation stroke => Config -> Talas.Tala
     -> [ ( Tags.Tags
          , Either Error ([Format.Flat stroke], [Realize.Warning])
          )
@@ -209,7 +210,7 @@ data LineType = Ruler | AvartanamStart | AvartanamContinue
 -- I only emit the first part of the ruler.  Otherwise I'd have to have
 -- a multiple line ruler too, which might be too much clutter.  I'll have to
 -- see how it works out in practice.
-format :: Solkattu.Notation stroke => Config -> PrevRuler -> Tala.Tala
+format :: Solkattu.Notation stroke => Config -> PrevRuler -> Talas.Tala
     -> [Format.Flat stroke] -> (Int, (PrevRuler, [(LineType, Styled.Styled)]))
 format config prevRuler tala notes =
     (strokeWidth,) $
@@ -284,7 +285,7 @@ isRest = (=="_") . Text.strip . _text
 
 -- | Break into [avartanam], where avartanam = [line].
 formatLines :: Solkattu.Notation stroke => Format.Abstraction -> Int
-    -> Int -> Tala.Tala -> [Format.Flat stroke] -> [[[(S.State, Symbol)]]]
+    -> Int -> Talas.Tala -> [Format.Flat stroke] -> [[[(S.State, Symbol)]]]
 formatLines abstraction strokeWidth width tala notes =
     map (map (Format.mapSnd (spellRests strokeWidth)))
         . Format.formatFinalAvartanam isRest
@@ -293,10 +294,10 @@ formatLines abstraction strokeWidth width tala notes =
         . overlapSymbols strokeWidth
         . concatMap (makeSymbols strokeWidth tala angas)
         . Format.makeGroupsAbstract abstraction
-        . Format.normalizeSpeed toSpeed (Tala.tala_aksharas tala)
+        . Format.normalizeSpeed toSpeed (Talas.aksharas tala)
         $ notes
     where
-    angas = Format.angaSet tala
+    angas = Talas.angaSet tala
     toSpeed = S.maxSpeed notes
 
 -- | Long names will overlap following _isSustain ones.
@@ -322,7 +323,7 @@ overlapSymbols strokeWidth = snd . mapAccumLSnd combine ("", Nothing)
         newText = prefix
             <> snd (textSplitAt (Realize.textLength prefix) (_text sym))
 
-makeSymbols :: Solkattu.Notation stroke => Int -> Tala.Tala -> Set Tala.Akshara
+makeSymbols :: Solkattu.Notation stroke => Int -> Talas.Tala -> Set Tala.Akshara
     -> Format.NormalizedFlat stroke -> [(S.State, Symbol)]
 makeSymbols strokeWidth tala angas = go
     where
@@ -380,15 +381,17 @@ makeSymbols strokeWidth tala angas = go
 
 -- | Chapu talams are generally fast, so only emphasize the angas.  Other talas
 -- are slower, and without such a strong beat, so emphasize every akshara.
-shouldEmphasize :: Tala.Tala -> Set Tala.Akshara -> S.State -> Bool
+shouldEmphasize :: Talas.Tala -> Set Tala.Akshara -> S.State -> Bool
 shouldEmphasize tala angas state
     | isChapu = Format.onAnga angas state
     | otherwise = Format.onAkshara state
     where
-    isChapu = case Tala._angas tala of
-        Tala.Wave _ : _ -> True
-        Tala.Clap _ : _ -> True
-        _ -> False
+    isChapu = case tala of
+        Talas.Carnatic tala -> case Tala._angas tala of
+            Tala.Wave _ : _ -> True
+            Tala.Clap _ : _ -> True
+            _ -> False
+        Talas.Hindustani _ -> False -- TODO there are fast tals also
 
 -- | If the text goes over the width, break at the middle akshara, or the
 -- last one before the width if there isn't a middle.

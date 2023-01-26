@@ -5,6 +5,7 @@
 -- | Details in "Solkattu.Bol".
 module Solkattu.Dsl.Bol (
     module Solkattu.Dsl.Bol
+    , module Solkattu.Talas
     , module Solkattu.Dsl.Generic
     , module Solkattu.Dsl.Interactive
 ) where
@@ -13,13 +14,14 @@ import qualified Data.String as String
 
 import qualified Util.CallStack as CallStack
 import qualified Solkattu.Bol as Bol
+import           Solkattu.Talas (tintal, kehrwa, jhaptal, rupak)
 import           Solkattu.Dsl.Interactive (diff, diffw)
 import qualified Solkattu.Format.Terminal as Terminal
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
-import qualified Solkattu.Tala as Tala
+import qualified Solkattu.Talas as Talas
 
 import           Global
 import           Solkattu.Dsl.Generic
@@ -101,16 +103,16 @@ _printInstrument postproc inst setConfig =
 
 -- * korvai
 
-korvai :: Tala.Tala -> [Section] -> Korvai
+korvai :: Talas.Tal -> [Section] -> Korvai
 korvai = Korvai.tablaKorvai
 
-korvai1 :: Tala.Tala -> Section -> Korvai
+korvai1 :: Talas.Tal -> Section -> Korvai
 korvai1 tala section = korvai tala [section]
 
-korvaiS :: Tala.Tala -> [Sequence] -> Korvai
+korvaiS :: Talas.Tal -> [Sequence] -> Korvai
 korvaiS tala = korvai tala • Korvai.inferSections
 
-korvaiS1 :: Tala.Tala -> Sequence -> Korvai
+korvaiS1 :: Talas.Tal -> Sequence -> Korvai
 korvaiS1 tala seq = korvaiS tala [seq]
 
 -- * metadata

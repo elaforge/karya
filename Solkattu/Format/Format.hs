@@ -41,6 +41,7 @@ import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tags as Tags
 import qualified Solkattu.Tala as Tala
+import qualified Solkattu.Talas as Talas
 
 import           Global
 
@@ -218,7 +219,7 @@ type Ruler = [(Text, Int)]
 type PrevRuler = (Maybe Ruler, Int)
 type Line sym = [(S.State, sym)]
 
-pairWithRuler :: Int -> PrevRuler -> Tala.Tala -> Int
+pairWithRuler :: Int -> PrevRuler -> Talas.Tala -> Int
     -> [[Line sym]] -> (PrevRuler, [[(Maybe Ruler, Line sym)]])
 pairWithRuler rulerEach prevRuler tala strokeWidth =
     List.mapAccumL (List.mapAccumL strip) prevRuler
@@ -258,13 +259,13 @@ inheritRuler prev cur
 -- to figure out the mark spacing.  Otherwise I wouldn't know where nadai
 -- changes occur.  But it does mean I can't generate ruler if I run out of
 -- strokes, which is a bit annoying for incomplete korvais or ones with eddupu.
-inferRuler :: Tala.Akshara -> Tala.Tala -> Int -> [S.State] -> Ruler
+inferRuler :: Tala.Akshara -> Talas.Tala -> Int -> [S.State] -> Ruler
 inferRuler startAkshara tala strokeWidth =
     merge
     . map (second length)
     . concat . snd . List.mapAccumL insertNadai 0
     . concatMap insertDots
-    . zip (drop startAkshara (Tala.tala_labels tala))
+    . zip (drop startAkshara (Talas.labels tala))
     . dropWhile null
     . Seq.split_before onAkshara
     where
