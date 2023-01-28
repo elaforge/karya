@@ -79,7 +79,8 @@ basicPackages = concat
     , w "directory filepath process bytestring time unix array"
     , w "ghc-prim primitive"
     --  basic
-    , w "deepseq data-ordlist cereal random text stm network"
+    , w "deepseq data-ordlist cereal random stm network"
+    , [("text", ">=2")] -- force utf8 version
     , [("extra", ">=1.3")]
     , [("exceptions", "")] -- only ghc 9
     , w "unordered-containers"

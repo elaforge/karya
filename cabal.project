@@ -2,6 +2,11 @@ packages:
     karya.cabal
     -- hlibgit2-0.18.0.16 on hackage doesn't build with cabal v2, but the
     -- github version does, so clone it and add the local path here.
+    --
+    -- error:
+    -- In file included from libgit2/src/hash.h:22:0: error:
+    -- libgit2/src/hash/hash_openssl.h:13:10: error:
+    --      fatal error: 'openssl/sha.h' file not found
     /usr/local/src/hs/gitlib/hlibgit2/*.cabal
 
 -- Write a .ghc.environment.* file.  The shakefile will look for it.

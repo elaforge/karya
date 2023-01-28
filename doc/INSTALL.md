@@ -155,12 +155,15 @@ You can do this either the cabal v1 way or the v2 way.
 Cabal v2 is supposed to replace v1 some day.  It has some problems I'm
 hopefully able to work around.  Firstly, it can't build `hlibgit2` from
 hackage, but can from head.  So clone that to some local directory, and update
-`cabal.project` to point to that path.  Then build dependencies with:
+`cabal.project` to point to that path if it's not /usr/local/src.  Then build
+dependencies with:
 
+    cabal v2-configure
     cabal v2-build --only-dep
 
-Then do `mkmk` and continue the steps documented above.  Hopefully this is
-enough to make it work!
+If configure is unhappy about versions, remove `cabal.project.freeze` and
+try again.  Then do `mkmk` and continue the steps documented above.  Hopefully
+this is enough to make it work!
 
 ### cabal v1 way
 
