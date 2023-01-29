@@ -62,7 +62,6 @@ qaida2 = qaida $ akash $ korvaiS kehrwa $ map sd
         -- . "tu na kt tk taa trkt tk tu na kt tk dha _ kt tk"
     ]
 
--- kran = talang
 -- farmaisi chakradar paran
 farmaisi :: Korvai
 farmaisi = akash $ korvaiS1 tintal $ nadai 3 $

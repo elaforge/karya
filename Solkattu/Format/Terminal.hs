@@ -7,7 +7,8 @@
 -- | Convert realized 'S.Flat' output to text for the terminal.
 module Solkattu.Format.Terminal (
     renderAll, printInstrument, printKonnakol, printBol
-    , Config(..), defaultConfig, konnakolConfig
+    , Config(..), defaultConfig
+    , konnakolConfig, bolConfig
     , formatInstrument
 #ifdef TESTING
     , module Solkattu.Format.Terminal
@@ -60,11 +61,17 @@ defaultConfig = Config
     }
 
 konnakolConfig :: Config
-konnakolConfig = Config
-    { _rulerEach = 4
-    , _terminalWidth = 100
+konnakolConfig = defaultConfig
+    { _terminalWidth = 100
     , _overrideStrokeWidth = Just 3
-    , _abstraction = Format.defaultAbstraction
+    }
+
+bolConfig :: Config
+bolConfig = defaultConfig
+    { _terminalWidth = 100
+    -- 3 means dha and taa will fit, but it leads to excessively wide display.
+    -- In practice dha often has a rest afterwards anyway.
+    , _overrideStrokeWidth = Just 2
     }
 
 -- * write
@@ -80,6 +87,7 @@ renderAll abstraction score = concatMap write1 $ Format.scoreInstruments score
         where
         config = case inst of
             Korvai.IKonnakol -> konnakolConfig
+            Korvai.IBol -> bolConfig
             _ -> defaultConfig
 
 -- * format
@@ -89,12 +97,13 @@ printInstrument :: (Solkattu.Notation stroke, Ord stroke)
     -> IO ()
 printInstrument instrument abstraction =
     mapM_ Text.IO.putStrLn . fst
-    . formatInstrument (defaultConfig { _abstraction = abstraction }) instrument
-        Just
+    . formatInstrument (defaultConfig { _abstraction = abstraction })
+        instrument Just
 
 printKonnakol :: Config -> Korvai.Korvai -> IO ()
 printKonnakol config =
-    mapM_ Text.IO.putStrLn . fst . formatInstrument config Korvai.IKonnakol Just
+    mapM_ Text.IO.putStrLn . fst
+        . formatInstrument config Korvai.IKonnakol Just
 
 printBol :: Config -> Korvai.Korvai -> IO ()
 printBol config =
@@ -148,7 +157,8 @@ formatResults config tala results =
     show1 prevRuler (section, (tags, Right (notes, warnings))) =
         ( nextRuler
         -- Use an empty section with commentS to describe what to play.
-        , if null notes then (:[]) $ sectionNumber False section
+        , if null notes
+            then (:[]) $ sectionNumber False section
                 <> maybe "empty" Text.unwords
                     (Map.lookup Tags.comment (Tags.untags tags))
             else sectionFmt section tags lines
@@ -174,7 +184,6 @@ formatResults config tala results =
         . snd . List.mapAccumL (addHeader tags section) False
         . map (second (Text.strip . Styled.toText))
         where
-        -- tagsText = showt tags
         tagsText = Format.showTags tags
     addHeader tags section showedNumber (AvartanamStart, line) =
         ( True

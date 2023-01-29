@@ -25,7 +25,7 @@ module Solkattu.Dsl.Generic (
     , hv, lt
     , akshara, sam, (§)
     -- * Config
-    , wide
+    , wider
     , abstract, concrete
     , Abstraction
     , patterns, namedGroups, allAbstract
@@ -159,8 +159,8 @@ mapSollu = fmap • fmap
 
 -- * Config
 
-wide :: Terminal.Config -> Terminal.Config
-wide config =
+wider :: Terminal.Config -> Terminal.Config
+wider config =
     config { Terminal._terminalWidth = Terminal._terminalWidth config + 40 }
 
 abstract :: Abstraction -> Terminal.Config -> Terminal.Config

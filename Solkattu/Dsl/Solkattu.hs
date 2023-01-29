@@ -392,11 +392,11 @@ realizeSargam :: (Terminal.Config -> Terminal.Config) -> Korvai.Korvai -> IO ()
 realizeSargam = _printInstrument Just Korvai.ISargam
 
 realizeKon :: Korvai -> IO ()
-realizeKon = Terminal.printKonnakol (wide Terminal.defaultConfig)
+realizeKon = Terminal.printKonnakol (wider Terminal.defaultConfig)
 
 realizeKon_ :: Int -> Korvai -> IO ()
 realizeKon_ width = Terminal.printKonnakol
-    (concrete $ Terminal.defaultConfig { Terminal._terminalWidth = width })
+    (concrete $ Terminal.konnakolConfig { Terminal._terminalWidth = width })
 
 -- | 'Korvai.realizeScore' specialized to mridangam, and disbale the usual lint
 -- and diff.

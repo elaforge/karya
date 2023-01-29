@@ -80,11 +80,11 @@ tetekata = namedT Solkattu.GPattern "8n" $
 -- * realize
 
 realize :: Korvai -> IO ()
-realize = Terminal.printBol (concrete $ wide Terminal.defaultConfig)
+realize = Terminal.printBol (concrete Terminal.bolConfig)
 
 realize_ :: Int -> Korvai -> IO ()
 realize_ width = Terminal.printBol
-    (concrete $ Terminal.defaultConfig { Terminal._terminalWidth = width })
+    (concrete $ Terminal.bolConfig { Terminal._terminalWidth = width })
 
 {-
 realizet :: Korvai.Korvai -> IO ()
