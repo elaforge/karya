@@ -163,8 +163,8 @@ c_17_04_04 = date 2017 4 4 $ source "subash chandran" $
     where
     purvangam = tat.__3 . din.__3 . tadimi
               . ta.taka. din.__3 . tadimi
-    utarangam n p p2 =
-        spread 4 p . spread 3 p . spread 2 p . tri_ (din.__n n) p2
+    utarangam n p p2 = g (spread 4 p) . g (spread 3 p) . g (spread 2 p)
+        . tri_ (din.__n n) (g p2)
     tadimi = ta.di.mi.ta.takadinna
     mridangam = makeMridangam
         [ (tat.din, k.od)
@@ -181,15 +181,15 @@ c_17_04_04 = date 2017 4 4 $ source "subash chandran" $
 c_17_04_23 :: Korvai
 c_17_04_23 = date 2017 4 23 $ ganesh $ korvaiS adi mridangam $
     map sd -- remove for melkalam
-    [ purvangam . utarangam (group (kp.tdgnt)) (group (kp.tdgnt))
+    [ purvangam . utarangam (g (kp.tdgnt)) (g (kp.tdgnt))
     , purvangam . su (r32111 tdgnt . r32111 (taka.tdgnt)
         . r32111 (taka.na.ka.tdgnt))
     , purvangam . utarangam (su (ta.__3.din.__3.gin.__3.na.__3.thom.__2)) p7
     ]
     where
-    r32111 ns = spread 3 ns . spread 2 ns . ns . ns . ns
-    purvangam = tri_ (din.__3) (group (ta.__3.ta.takadinna))
-        . sandi (group (ta.takadinna)) (tri_ (din.__2) (group (ta.takadinna)))
+    r32111 ns = g (spread 3 ns) . g (spread 2 ns) . r3 (g ns)
+    purvangam = tri_ (din.__3) (g (ta.__3.ta.takadinna))
+        . sandi (g (ta.takadinna)) (tri_ (din.__2) (g (ta.takadinna)))
     utarangam p7 p7' = mconcat
         [ sd p7 . p7 . su end
         | end <- [p7', p7'.p7', p7'.p7'.p7']

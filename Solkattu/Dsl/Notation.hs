@@ -277,7 +277,7 @@ r8 = repeat 8
 join :: SequenceT sollu -> [SequenceT sollu] -> SequenceT sollu
 join sep = S.fromList . List.intercalate (S.toList sep) . map S.toList
 
--- | Intersperse between each stroke.
+-- | Intersperse between each stroke.  TODO won't look inside a group
 inter :: SequenceT sollu -> SequenceT sollu -> SequenceT sollu
 inter sep = go . S.toList
     where
