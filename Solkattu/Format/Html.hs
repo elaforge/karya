@@ -443,7 +443,7 @@ formatAvartanams :: Solkattu.Notation stroke => Config -> S.Speed
 formatAvartanams config toSpeed prevRuler tala =
     second concat
     . Format.pairWithRuler (_rulerEach config) prevRuler tala 1
-    . Format.formatFinalAvartanam (isRest . _html) . map (:[])
+    . Format.formatFinalAvartanam (isRest . _html) (const False) . map (:[])
     . Format.breakAvartanams
     . concatMap makeSymbols
     . Format.makeGroupsAbstract (_abstraction config)

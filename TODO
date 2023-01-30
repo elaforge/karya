@@ -6160,6 +6160,9 @@ solkattu:
       . In theory depending on both should be easy, just case on two things,
         but maybe it would require another GADT to reflect up to the type
         level?
+      . branch solkattu-tabla:
+      . gave sollu arg to Instrument but doesn't seem to be enough to infer
+        sollu ~ Bol.
     - section types for palta, tihai
     - Terminal.renderAll and Html.writeAll don't understand bols
     ? print taa as tA or Ta?  On the other hand it's nice that it's the same

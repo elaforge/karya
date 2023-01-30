@@ -374,15 +374,11 @@ realizek2 = _printInstrument Just Korvai.IKendangPasang concrete
 realizek2p = _printInstrument Just Korvai.IKendangPasang id
 
 realizeWadon :: Korvai.Korvai -> IO ()
-realizeWadon = _printInstrument
-    -- (either Just (const Nothing) • KendangPasang.toTunggal)
-    (Just • KendangPasang.toWadon)
+realizeWadon = _printInstrument (Just • KendangPasang.toWadon)
     Korvai.IKendangPasang concrete
 
 realizeLanang :: Korvai.Korvai -> IO ()
-realizeLanang = _printInstrument
-    -- (either (const Nothing) Just • KendangPasang.toTunggal)
-    (Just • KendangPasang.toLanang)
+realizeLanang = _printInstrument (Just • KendangPasang.toLanang)
     Korvai.IKendangPasang concrete
 
 realizeR :: (Terminal.Config -> Terminal.Config) -> Korvai.Korvai -> IO ()

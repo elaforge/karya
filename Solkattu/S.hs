@@ -19,6 +19,7 @@ module Solkattu.S (
     , simplify
     , map1
     , filterNotes
+    , dropEndWhile
     -- * tempo
     , Tempo(..), defaultTempo
     , changeTempo
@@ -216,6 +217,23 @@ filterNotes f = apply go
         note@(Note a) -> if f a then Just note else Nothing
         TempoChange change ns -> Just $ TempoChange change (go ns)
         Group g ns -> Just $ Group g (go ns)
+
+-- TODO I didn't wind up using this, but maybe it'll still be useful?
+dropEndWhile :: (a -> Bool) -> Sequence g a -> Sequence g a
+dropEndWhile f = apply go
+    where
+    go = List.reverse . strip . List.reverse
+    strip [] = []
+    strip (n : ns) = case n of
+        Note a
+            | f a -> strip ns
+            | otherwise -> n : ns
+        Group g gs -> case go gs of
+            [] -> strip ns
+            gs -> Group g gs : ns
+        TempoChange t gs -> case go gs of
+            [] -> strip ns
+            gs -> TempoChange t gs : ns
 
 -- * flatten
 

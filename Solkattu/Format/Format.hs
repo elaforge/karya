@@ -187,15 +187,21 @@ breakAvartanams = dropWhile null . Seq.split_before (onSam . fst)
 
 -- | If the final non-rest is at sam, drop trailing rests, and don't wrap it
 -- onto the next line.
-formatFinalAvartanam :: (note -> Bool) -> [[[(a, note)]]]
-    -- ^ [avartanams], broken by lines
+formatFinalAvartanam :: (note -> Bool) -> (note -> Bool)
+    -> [[[(a, note)]]] -- ^ [avartanams], broken by lines
     -> [[[(a, note)]]]
-formatFinalAvartanam isRest avartanams = case reverse avartanams of
-    [final : rests] : penultimate : prevs
-        | not (isRest (snd final)) && all (isRest . snd) rests ->
-            reverse $ (Seq.map_last (++[final]) penultimate) : prevs
-        | otherwise -> avartanams
+formatFinalAvartanam isRest isOverlap avartanams = case reverse avartanams of
+    [final] : penultimate : prevs
+        | Just extra <- isTail final ->
+            reverse $ (Seq.map_last (++extra) penultimate) : prevs
     _ -> avartanams
+    where
+    -- A tail is one non-rest, n overlapSymbols, n rests.
+    isTail (n : ns)
+        | not (isRest (snd n)) && all (isRest . snd) post = Just (n : pre)
+        where (pre, post) = span (isOverlap . snd) ns
+    isTail _ = Nothing
+
 
 onSam :: S.State -> Bool
 onSam state = S.stateMatra state == 0 && S.stateAkshara state == 0

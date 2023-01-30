@@ -130,8 +130,9 @@ formatInstrument
     => Config
     -> Korvai.Instrument stroke1
     -> (Realize.Stroke stroke1 -> Maybe (Realize.Stroke stroke2))
-    -> Korvai.Korvai -> ([Text], Bool)
-    -- ^ (lines, hadError)
+    -- ^ postproc used to split wadon/lanang
+    -> Korvai.Korvai
+    -> ([Text], Bool) -- ^ (lines, hadError)
 formatInstrument config instrument postproc korvai =
     formatResults config (Korvai.korvaiTala korvai) $ zip (korvaiTags korvai) $
         map (fmap (first (Korvai.mapStrokeRest postproc))) $
@@ -297,7 +298,7 @@ formatLines :: Solkattu.Notation stroke => Format.Abstraction -> Int
     -> Int -> Talas.Tala -> [Format.Flat stroke] -> [[[(S.State, Symbol)]]]
 formatLines abstraction strokeWidth width tala notes =
     map (map (Format.mapSnd (spellRests strokeWidth)))
-        . Format.formatFinalAvartanam isRest
+        . Format.formatFinalAvartanam isRest _isOverlappingSymbol
         . map (breakLine width)
         . Format.breakAvartanams
         . overlapSymbols strokeWidth
@@ -327,6 +328,7 @@ overlapSymbols strokeWidth = snd . mapAccumLSnd combine ("", Nothing)
             { _text = newText
             , _highlight = _highlight overlapSym
             , _emphasize = _emphasize overlapSym
+            , _isOverlappingSymbol = True
             }
         where
         newText = prefix
@@ -386,6 +388,7 @@ makeSymbols strokeWidth tala angas = go
         , _isSustain = isSustain
         , _emphasize = shouldEmphasize tala angas state
         , _highlight = Nothing
+        , _isOverlappingSymbol = False
         }
 
 -- | Chapu talams are generally fast, so only emphasize the angas.  Other talas
@@ -434,13 +437,20 @@ breakBefore maxWidth =
 data Symbol = Symbol {
     _text :: !Text
     , _style :: !Styled.Style
+    -- | If this was from a S.Sustain, which comes from S.hasSustain.  This
+    -- differentiates a stroke followed by rests from a sequence that continues
+    -- over a time range.
     , _isSustain :: !Bool
     , _emphasize :: !Bool
     , _highlight :: !(Maybe (Format.Highlight, Styled.Color))
+    -- | True if this is the non-first part of a Symbol split via
+    -- overlapSymbols.  This is so that Format.formatFinalAvartanam can
+    -- consider it a single symbol.
+    , _isOverlappingSymbol :: !Bool
     } deriving (Eq, Show)
 
 instance Pretty Symbol where
-    pretty (Symbol text _style _isSustain emphasize highlight) =
+    pretty (Symbol text _style _isSustain emphasize highlight _) =
         text <> (if emphasize then "(b)" else "")
         <> case highlight of
             Nothing -> ""
@@ -449,7 +459,7 @@ instance Pretty Symbol where
             Just (Format.EndHighlight, _) -> "|"
 
 formatSymbol :: Symbol -> Styled.Styled
-formatSymbol (Symbol text style _isSustain emph highlight) =
+formatSymbol (Symbol text style _isSustain emph highlight _) =
     (case highlight of
         Nothing -> id
         Just (Format.StartHighlight, color) -> Styled.bg color

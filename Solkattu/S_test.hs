@@ -117,6 +117,16 @@ test_normalizeSpeedGroups = do
             ]
         ]
 
+test_dropEndWhile :: Test
+test_dropEndWhile = do
+    let f = S.toList . S.dropEndWhile (==0) . S.fromList
+    let n :: Int -> Note Char Int
+        n = S.Note
+    equal (f [n 1]) [n 1]
+    equal (f [n 0, n 1, n 2, n 0]) [n 0, n 1, n 2]
+    equal (f [n 1, nadai 2 [n 1, n 2, n 0]]) [n 1, nadai 2 [n 1, n 2]]
+    equal (f [n 1, n 0, nadai 2 [n 0, n 0]]) [n 1]
+
 adiAksharas :: Tala.Akshara
 adiAksharas = Tala.tala_aksharas Tala.adi_tala
 
