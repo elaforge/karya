@@ -783,8 +783,7 @@ instance (Semigroup gen, Semigroup trans, Semigroup track, Semigroup val) =>
         Semigroup (ScopesT gen trans track val) where
     Scopes a1 a2 a3 a4 <> Scopes b1 b2 b3 b4 =
         Scopes (a1<>b1) (a2<>b2) (a3<>b3) (a4<>b4)
-instance (Monoid gen, Monoid trans, Monoid track, Monoid val,
-          Semigroup gen, Semigroup trans, Semigroup track, Semigroup val) =>
+instance (Monoid gen, Monoid trans, Monoid track, Monoid val) =>
         Monoid (ScopesT gen trans track val) where
     mempty = Scopes mempty mempty mempty mempty
     mappend = (<>)
@@ -814,8 +813,7 @@ instance (Semigroup note, Semigroup control, Semigroup pitch) =>
         Semigroup (Scope note control pitch) where
     Scope a1 a2 a3 <> Scope b1 b2 b3 =
         Scope (a1<>b1) (a2<>b2) (a3<>b3)
-instance (Monoid note, Monoid control, Monoid pitch,
-          Semigroup note, Semigroup control, Semigroup pitch) =>
+instance (Monoid note, Monoid control, Monoid pitch) =>
         Monoid (Scope note control pitch) where
     mempty = Scope mempty mempty mempty
     mappend = (<>)

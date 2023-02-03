@@ -455,7 +455,7 @@ class (Log.LogMonad m, Ui.M m) => M m where
     abort :: m a
     catch_abort :: m a -> m (Maybe a)
 
-instance (Applicative m, Monad m) => M (CmdT m) where
+instance Monad m => M (CmdT m) where
     get = (CmdT . lift) MonadState.get
     put st = (CmdT . lift) (MonadState.put st)
     write_thru msg = (CmdT . lift . lift) (Logger.log msg)

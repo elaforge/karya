@@ -168,7 +168,7 @@ instance Functor Typed where
 
 instance Semigroup a => Semigroup (Typed a) where
     Typed t1 v1 <> Typed t2 v2 = Typed (t1<>t2) (v1<>v2)
-instance (Semigroup a, Monoid a) => Monoid (Typed a) where
+instance Monoid a => Monoid (Typed a) where
     mempty = Typed mempty mempty
     mappend = (<>)
 
