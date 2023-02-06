@@ -84,8 +84,6 @@ x_22_07_09 = elaforge $ comment "solo from dream" $ korvaiS1 adi $
     -- but tha with fingers in the middle
     plak = hv (p&k)
 
-elaforge = source "elaforge"
-
 s_22_09_25 :: Korvai
 s_22_09_25 = sollu $ korvaiS (beats 2) $ map su
     [ "ktokou_kokokou_k"
@@ -119,9 +117,13 @@ t_endaro_ending =
                                                 -- . "oktk ok oktk oko")
     ]
 
-ex_1 :: Korvai
-ex_1 = korvaiS1 adi "D,p,n,d,^,d,d,^,"
+akash_sarva :: Korvai
+akash_sarva = date 2023 2 5 $ source "akash" $ korvaiS1 adi $
+    r2 "D,p,n,d,^,d,d,^,"
     -- dhinna gina taka dhinna
     -- gina dhinna dhinna gina
     -- tinna gina taka tinna
     -- gina dhinna dhinna gina
+
+elaforge :: Korvai -> Korvai
+elaforge = source "elaforge"

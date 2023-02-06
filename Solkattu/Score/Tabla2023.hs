@@ -81,7 +81,7 @@ tukra2_chakradar = tukra $ akash $ korvaiS1 tintal $
     r2 "dha ga tette taa ge tette"
     . "kre dhet tette dha ge tette" . "gadi gene na ge tette"
     . "dhet _ dhet _"
-      . tri_ "dha_dha_" (tri_ "dha_" (g "trkt dhet _ tage _ na"))
+      . tri_ "dha_dha_" (tri_ "dha_" (g "trkt dhet _ taage _ na"))
 
 tukra3_otaan :: Korvai
 tukra3_otaan = tukra $ akash $ korvaiS1 tintal $
@@ -109,3 +109,13 @@ tukra6 = tukra $ akash $ korvaiS1 tintal $ nadai 3 $
     "dha _ na dhikita dha trkt dhi kita"
     . "ka tette tukita dhi gene nagene"
     . "takita taa_na taa__" . tri_ "dha__" "kredhadha"
+
+awantika :: Korvai
+awantika = akash $ comment "Akash did for kathak dance with Awantika." $
+    korvaiS1 tintal $ sd $ -- TODO should not be sd but wraps better that way
+    r3 (g ("dha dha ".tkttktdhom))
+        . __ . r3 (g ("dha ti dha ".tkttktdhom))
+        . __ . r3 (g ("dha dha ti dha ".tkttktdhom))
+    where
+    tkttktdhom = tkt.tkt.dhom
+    tkt = su "takita"

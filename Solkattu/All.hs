@@ -140,10 +140,10 @@ scores = map Korvai.inferMetadataS
     , setLocation ("Solkattu.Score.Mridangam2022",37,"c_22_02_20") $ Single Solkattu.Score.Mridangam2022.c_22_02_20
     , setLocation ("Solkattu.Score.Mridangam2022",50,"c_22_03_02") $ Single Solkattu.Score.Mridangam2022.c_22_03_02
     , setLocation ("Solkattu.Score.Mridangam2022",62,"x_22_07_09") $ Single Solkattu.Score.Mridangam2022.x_22_07_09
-    , setLocation ("Solkattu.Score.Mridangam2022",89,"s_22_09_25") $ Single Solkattu.Score.Mridangam2022.s_22_09_25
-    , setLocation ("Solkattu.Score.Mridangam2022",103,"e_22_10_16") $ Single Solkattu.Score.Mridangam2022.e_22_10_16
-    , setLocation ("Solkattu.Score.Mridangam2022",110,"t_endaro_ending") $ Single Solkattu.Score.Mridangam2022.t_endaro_ending
-    , setLocation ("Solkattu.Score.Mridangam2022",122,"ex_1") $ Single Solkattu.Score.Mridangam2022.ex_1
+    , setLocation ("Solkattu.Score.Mridangam2022",87,"s_22_09_25") $ Single Solkattu.Score.Mridangam2022.s_22_09_25
+    , setLocation ("Solkattu.Score.Mridangam2022",101,"e_22_10_16") $ Single Solkattu.Score.Mridangam2022.e_22_10_16
+    , setLocation ("Solkattu.Score.Mridangam2022",108,"t_endaro_ending") $ Single Solkattu.Score.Mridangam2022.t_endaro_ending
+    , setLocation ("Solkattu.Score.Mridangam2022",120,"akash_sarva") $ Single Solkattu.Score.Mridangam2022.akash_sarva
     , setLocation ("Solkattu.Score.MridangamSarva",19,"kir1") $ Single Solkattu.Score.MridangamSarva.kir1
     , setLocation ("Solkattu.Score.MridangamSarva",24,"kir2") $ Single Solkattu.Score.MridangamSarva.kir2
     , setLocation ("Solkattu.Score.MridangamSarva",44,"kir3") $ Single Solkattu.Score.MridangamSarva.kir3
@@ -300,4 +300,5 @@ scores = map Korvai.inferMetadataS
     , setLocation ("Solkattu.Score.Tabla2023",92,"tukra4") $ Single Solkattu.Score.Tabla2023.tukra4
     , setLocation ("Solkattu.Score.Tabla2023",98,"tukra5") $ Single Solkattu.Score.Tabla2023.tukra5
     , setLocation ("Solkattu.Score.Tabla2023",107,"tukra6") $ Single Solkattu.Score.Tabla2023.tukra6
+    , setLocation ("Solkattu.Score.Tabla2023",113,"awantika") $ Single Solkattu.Score.Tabla2023.awantika
     ]

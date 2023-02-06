@@ -57,7 +57,7 @@ type BolT = Text
 type Error = Text
 
 data Bol =
-    Dha | Dhet | Di | Din | Dhi | Dhin | Dhit | Ga | Gi | Ge | Ghen
+    Dha | Dhet |Dhom | Di | Din | Dhi | Dhin | Dhit | Ga | Gi | Ge | Ghen
     | Ka | Kat | Kre | Ki | Na | Ne | Ra | Ri | Ran
     | Ta | Tak | Taa | Te | Tet | Ti | Tu
     | Kran -- TODO 2 beats?
@@ -108,6 +108,11 @@ single_bols =
     , (["dhin"], Together Ge Di)
     , (["dhet"], Together Ge Tette)
     ]
+
+-- kre: p+k
+-- dhet: ok
+-- dhi: dha
+-- dhom: dha
 
 -- TODO the length of the syllables should be the same as the length of the
 -- bols or the extras will be silently dropped.

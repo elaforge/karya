@@ -50,6 +50,7 @@ _bol :: Bol.Bol -> Sequence
 _bol s = S.singleton $ S.Note (Solkattu.Note (Solkattu.note (Realize.stroke s)))
 
 dha = _bol Bol.Dha
+dhom= _bol Bol.Dhom
 ti  = _bol Bol.Ti
 ra  = _bol Bol.Ra
 ki  = _bol Bol.Ki
