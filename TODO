@@ -6664,7 +6664,7 @@ Derive:
   unify-env: unified-env:
     - What about backward compatibility for old scores?
       . Write a converter, or put % back in to equal as a shim.
-    - (signal) val call: Sig.optional doesn't seem to work for type arg
+    * (signal) val call: Sig.optional doesn't seem to work for type arg
     - implement (psignal ...)
     - Pitch_test test_porta, doesn't pick up curve=(cf-expn) arg.
       . It's because equal used to assign %c=(cf) to

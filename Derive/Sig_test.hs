@@ -110,8 +110,8 @@ generator = Derive.generator "test" "ngen" mempty "doc" $
         <*> Sig.defaulted "deriver" (Nothing :: Maybe Sig.Dummy) "doc"
     ) $ \(deriver1, deriver2) _args -> deriver1 <> fromMaybe mempty deriver2
 
-test_not_given :: Test
-test_not_given = do
+test_optional :: Test
+test_optional = do
     let int :: Sig.Parser (Maybe Int)
         int = Sig.optional "int" Nothing ""
         ints :: Sig.Parser [Int]
@@ -125,6 +125,13 @@ test_not_given = do
         (Right (Just 42, [52]))
     equal (call ((,) <$> int <*> ints) [DeriveT.VNotGiven, num 52])
         (Right (Nothing, [52]))
+    let text :: Sig.Parser Text
+        text = Sig.optional "text" "x" ""
+    let t = Typecheck.to_val @Text
+    equal (call ((,) <$> text <*> ints) [t "hi", num 42, num 52])
+        (Right ("hi", [42, 52]))
+    equal (call ((,) <$> text <*> ints) [num 42, num 52])
+        (Right ("x", [42, 52]))
 
 call :: Sig.Parser a -> [DeriveT.Val] -> Either Text a
 call = call_with id
