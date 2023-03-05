@@ -284,10 +284,8 @@ c_pcontrol_ref = val_call "pcontrol-ref" mempty
     <$> Sig.required "name" "Name of pitch signal."
     <*> Sig.defaulted "default" (Nothing :: Maybe PSignal.Pitch)
         "Default pitch, if the signal is not set."
-    ) $ \(name, maybe_default) _ -> return $ case maybe_default of
-        Nothing -> DeriveT.LiteralControl (ScoreT.PControl name)
-        Just pitch -> DeriveT.DefaultedControl (ScoreT.PControl name)
-            (PSignal.constant pitch)
+    ) $ \(name, mb_default) _ -> return $
+        DeriveT.Ref (ScoreT.PControl name) (PSignal.constant <$> mb_default)
 
 c_signal :: Derive.ValCall
 c_signal = val_call "signal" mempty

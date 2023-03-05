@@ -854,18 +854,16 @@ lookup_function ref = resolve_cf =<< resolve_signal ref
             Just cf -> do
                 cf_dyn <- Internal.get_control_function_dynamic
                 return $ Just $ inherit_type $ retype_cf cf control cf_dyn
-    -- If the ControlFunction is untyped, and this was a DefaultedControl with
-    -- a type, use that type.  Say I have `trans = (cf-rnd 1 3) | %trans,1d`,
-    -- the cf-rnd will pick up Diatonic from the 1d.
+    -- If the ControlFunction is untyped, and the Ref has a default with a
+    -- type, use that type.  Say I have `trans = (cf-rnd 1 3) | %trans,1d`, the
+    -- cf-rnd will pick up Diatonic from the 1d.
     -- TODO maybe I should have a way to directly set the type for cf-rnd?
     inherit_type (ScoreT.Typed typ a) = ScoreT.Typed (typ <> default_type) a
     default_type = case ref of
-        DeriveT.DefaultedControl _ deflt -> ScoreT.type_of deflt
+        DeriveT.Ref _ (Just deflt) -> ScoreT.type_of deflt
         _ -> ScoreT.Untyped
     mb_control = case ref of
-        DeriveT.ControlSignal _ -> Nothing
-        DeriveT.DefaultedControl control _ -> Just control
-        DeriveT.LiteralControl control -> Just control
+        DeriveT.Ref control _ -> Just control
     get_cf control = Internal.get_dynamic $
         Map.lookup control . Derive.state_control_functions
 
@@ -873,11 +871,8 @@ lookup_function ref = resolve_cf =<< resolve_signal ref
 -- into account, but is necessary when you need the actual signal.
 resolve_signal :: DeriveT.ControlRef
     -> Derive.Deriver (Maybe DeriveT.TypedSignal)
-resolve_signal = \case
-    DeriveT.ControlSignal sig -> return $ Just sig
-    DeriveT.DefaultedControl control deflt ->
-        Just . fromMaybe deflt <$> lookup_signal control
-    DeriveT.LiteralControl control -> lookup_signal control
+resolve_signal (DeriveT.Ref control deflt) =
+    ((<|>) deflt) <$> lookup_signal control
 
 coerce_to_signal :: Val -> Checked DeriveT.TypedSignal
 coerce_to_signal val = case val_to_signal val of
@@ -937,13 +932,10 @@ coerce_to_pitch_signal val = case val_to_pitch_signal val of
 -- | This is the pitch version of 'resolve_control_ref', except simpler
 -- because there's no pitch equivalent of ControlFunction.
 resolve_pitch_ref :: DeriveT.PControlRef -> Derive.Deriver PSignal.PSignal
-resolve_pitch_ref = \case
-    DeriveT.ControlSignal sig -> return sig
-    DeriveT.DefaultedControl control deflt ->
-        fromMaybe deflt <$> lookup_pitch_signal control
-    DeriveT.LiteralControl control -> Derive.require
+resolve_pitch_ref (DeriveT.Ref control deflt) =
+    Derive.require
         ("named pitch not found and no default: " <> ShowVal.show_val control)
-        =<< lookup_pitch_signal control
+            =<< (<|> deflt) <$> lookup_pitch_signal control
 
 -- | This should be in Deriver.Lib, but has to be here so the instance
 -- Typecheck PitchFunction can be declared here and avoid circular import.

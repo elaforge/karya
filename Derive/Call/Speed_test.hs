@@ -19,8 +19,6 @@ test_starts = do
     let f speed (range :: (RealTime, RealTime)) include_end =
             DeriveTest.eval Ui.empty (Speed.starts speed range include_end)
         fun dtype val = Typecheck.RealTimeFunctionT dtype (const val)
-        -- score_control = DeriveT.ControlSignal . ScoreT.Typed ScoreT.Score
-        --     . Signal.constant
     equal (f (fun ScoreT.TReal 1) (1, 4) True) (Right [1, 2, 3, 4])
     equal (f (fun ScoreT.TScore 1) (1, 4) True) (Right [1, 2, 3, 4])
     equal (f (fun ScoreT.TScore 2) (0, 2) False) (Right [0, 0.5, 1, 1.5])

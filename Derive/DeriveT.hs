@@ -628,26 +628,29 @@ quoted0 sym = quoted sym []
 type ControlRef = Ref ScoreT.Control (ScoreT.Typed Signal.Control)
 type PControlRef = Ref ScoreT.PControl PSignal
 
-data Ref control val =
-    -- | A signal literal.
-    ControlSignal val
-    -- | If the control isn't present, use the given default.
-    | DefaultedControl control val
-    -- | Throw an exception if the control isn't present.
-    | LiteralControl control
-    deriving (Eq, Read, Show)
+data Ref control val = Ref control (Maybe val)
+    deriving (Eq, Show)
 
-instance (Serialize.Serialize val, Serialize.Serialize control) =>
+instance (Serialize.Serialize control, Serialize.Serialize val) =>
         Serialize.Serialize (Ref control val) where
-    put val = case val of
-        ControlSignal a -> Serialize.put_tag 0 >> Serialize.put a
-        DefaultedControl a b -> Serialize.put_tag 1 >> Serialize.put a
-            >> Serialize.put b
-        LiteralControl a -> Serialize.put_tag 2 >> Serialize.put a
+    put (Ref a b) = Serialize.put_tag 3 >> Serialize.put a >> Serialize.put b
+    {-
+        This has to be careful to maintain compatibility with the old Ref:
+
+        data Ref control val =
+            ControlSignal val
+            | DefaultedControl control val
+            | LiteralControl control
+        get = Serialize.get_tag >>= \case
+            0 -> ControlSignal <$> Serialize.get
+            1 -> DefaultedControl <$> Serialize.get <*> Serialize.get
+            2 -> LiteralControl <$> Serialize.get
+    -}
     get = Serialize.get_tag >>= \case
-        0 -> ControlSignal <$> Serialize.get
-        1 -> DefaultedControl <$> Serialize.get <*> Serialize.get
-        2 -> LiteralControl <$> Serialize.get
+        0 -> fail "new Ref doesn't have ControlSignal"
+        1 -> Ref <$> Serialize.get <*> (Just <$> Serialize.get)
+        2 -> Ref <$> Serialize.get <*> pure Nothing
+        3 -> Ref <$> Serialize.get <*> Serialize.get
         n -> Serialize.bad_tag "DeriveT.Ref" n
 
 instance ShowVal.ShowVal ControlRef where
@@ -668,11 +671,8 @@ instance ShowVal.ShowVal PControlRef where
 instance Pretty PControlRef where pretty = ShowVal.show_val
 
 show_ref :: ShowVal.ShowVal sig => (control -> Text) -> Ref control sig -> Text
-show_ref ref_text = \case
-    ControlSignal sig -> ShowVal.show_val sig
-    DefaultedControl control deflt ->
-        ref_text control <> "," <> ShowVal.show_val deflt
-    LiteralControl control -> ref_text control
+show_ref ref_text (Ref control deflt) =
+        ref_text control <> maybe "" (("," <>) . ShowVal.show_val) deflt
 
 -- * Expr
 

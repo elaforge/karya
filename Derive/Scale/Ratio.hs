@@ -77,7 +77,7 @@ note_call note ratio = Derive.val_call Module.scale "ratio" mempty
             pscale (const $ return out_nn) (const $ return note)
             (PSignal.PitchConfig env mempty)
     where
-    pcontrol_ref = DeriveT.LiteralControl control :: DeriveT.PControlRef
+    pcontrol_ref = DeriveT.Ref control Nothing :: DeriveT.PControlRef
     control = "ratio-source"
     pcontrol = "ratio-source" -- TODO remove
     pscale = Pitches.scale scale

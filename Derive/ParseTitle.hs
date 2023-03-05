@@ -110,8 +110,9 @@ p_pitch :: A.Parser ControlType
 p_pitch = Pitch
     <$> lexeme p_scale_id
     <*> (lexeme $ (Left <$> p_track_call)
-        <|> (Right <$>
-            A.option ScoreT.default_pitch (lexeme Parse.p_pcontrol_ref)))
+        <|> (Right <$> A.option ScoreT.default_pitch (lexeme pcontrol)))
+    where
+    pcontrol = (\(DeriveT.Ref c _) -> c) <$> Parse.p_pcontrol_ref
 
 -- | (!track-call | % | control:typ) merge
 p_control :: A.Parser ControlType
@@ -155,7 +156,7 @@ control_type_to_title ctype = Text.unwords $ case ctype of
     -- I use the # ref prefix in the pitch track title as special syntax.
     -- I guess it's a mnemonic for the ref that will resolve this signal.
     show_ref =
-        ShowVal.show_val . DeriveT.VPControlRef . DeriveT.LiteralControl
+        ShowVal.show_val . DeriveT.VPControlRef . flip DeriveT.Ref Nothing
 
 -- | This is different from ShowVal (Typed Control) because the control doesn't
 -- need a % in the control track title.

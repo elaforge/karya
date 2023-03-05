@@ -141,7 +141,7 @@ c_cf_swing = val_call "cf-swing" Tags.control_function
     <$> Sig.defaulted "rank" Meter.Q
         "The time steps are on the beat, and midway between offset by the\
         \ given amount."
-    <*> Sig.defaulted "amount" (defaulted_control "swing" (1/3))
+    <*> Sig.defaulted "amount" (make_ref "swing" (1/3))
         "Swing amount, multiplied by the rank duration / 2."
     ) $ \(rank, amount) _args -> do
         amount <- from_control_ref amount
@@ -157,22 +157,25 @@ c_cf_swing = val_call "cf-swing" Tags.control_function
         maybe_marks = snd <$>
             Map.lookup Ruler.meter_name (DeriveT.dyn_ruler dyn)
 
+-- | TODO Hacky ref, should be temporary until I clean up cfs.
+type Ref = Either DeriveT.ControlRef (ScoreT.Typed Signal.Y)
+
 -- | I intentionally don't have Typecheck ControlRef, because in almost
 -- all cases it should just be a scalar or function.  But ControlFunctions
 -- are like little calls, so they need to delay control resolution just
 -- like calls do, so they wind up duplicating all that.  TODO if I'm able to
 -- unify calls and ControlFunctions then this goes away.
-from_control_ref :: DeriveT.Val -> Derive.Deriver DeriveT.ControlRef
+from_control_ref :: DeriveT.Val -> Derive.Deriver Ref
 from_control_ref = \case
-    DeriveT.VControlRef ref -> pure ref
-    DeriveT.VNum num -> pure $ DeriveT.ControlSignal $ Signal.constant <$> num
-    val -> Derive.throw $ "expected ControlRef or VNum, but got "
+    DeriveT.VControlRef ref -> pure $ Left ref
+    DeriveT.VNum num -> pure $ Right num
+    val -> Derive.throw $ "expected ControlRef or Num, but got "
         <> pretty (ValType.type_of val)
 
 -- | Defaulted control from a RealTime.
-defaulted_control :: ScoreT.Control -> RealTime -> DeriveT.ControlRef
-defaulted_control c deflt = DeriveT.DefaultedControl c $
-    ScoreT.untyped $ Signal.constant (RealTime.to_seconds deflt)
+make_ref :: ScoreT.Control -> RealTime -> DeriveT.ControlRef
+make_ref c deflt = DeriveT.Ref c $
+    Just $ ScoreT.untyped $ Signal.constant (RealTime.to_seconds deflt)
 
 cf_swing :: (ScoreTime -> RealTime) -> Meter.Rank -> DeriveT.Function
     -> Mark.Marklist -> ScoreTime -> RealTime
@@ -247,17 +250,16 @@ score dyn = Warp.unwarp (DeriveT.dyn_warp dyn)
 
 -- ** ControlRef
 
-to_function :: DeriveT.Dynamic -> Signal.Y -> DeriveT.ControlRef
-    -> DeriveT.Function
+to_function :: DeriveT.Dynamic -> Signal.Y -> Ref -> DeriveT.Function
 to_function dyn deflt =
     ScoreT.typed_val . to_typed_function dyn (ScoreT.untyped deflt)
 
 -- | TODO duplicated with Typecheck.val_to_function_dyn except it
 -- can't be in Deriver.
-to_typed_function :: DeriveT.Dynamic -> ScoreT.Typed Signal.Y
-    -> DeriveT.ControlRef -> DeriveT.TypedFunction
-to_typed_function dyn deflt control =
-    case to_signal_or_function dyn control of
+to_typed_function :: DeriveT.Dynamic -> ScoreT.Typed Signal.Y -> Ref
+    -> DeriveT.TypedFunction
+to_typed_function dyn deflt ref =
+    case to_signal_or_function dyn ref of
         Nothing -> const <$> deflt
         Just (Left typed_sig) -> (\sig t -> Signal.at t sig) <$> typed_sig
         -- TODO discard its type and put on Untyped, it's ok because only
@@ -266,28 +268,28 @@ to_typed_function dyn deflt control =
         Just (Right cf) -> ScoreT.Typed ScoreT.Untyped $
             ScoreT.typed_val . DeriveT.cf_function cf score_control dyn
     where
-    score_control = case control of
-        DeriveT.ControlSignal {} -> Controls.null
-        DeriveT.DefaultedControl cont _ -> cont
-        DeriveT.LiteralControl cont -> cont
+    score_control = case ref of
+        Left (DeriveT.Ref c _) -> c
+        Right _ -> Controls.null
 
 -- | TODO this is a copy of Typecheck.to_signal_or_function, except it
 -- uses DeriveT.Dynamic instead of Derive.Dynamic, which illustrates the
 -- duplication that happens due to ControlFunction not being Deriver
-to_signal_or_function :: DeriveT.Dynamic -> DeriveT.ControlRef
+to_signal_or_function :: DeriveT.Dynamic -> Ref
     -> Maybe (Either (ScoreT.Typed Signal.Control) DeriveT.ControlFunction)
 to_signal_or_function dyn = \case
-    DeriveT.ControlSignal sig -> return $ Left sig
-    DeriveT.DefaultedControl cont deflt ->
-        get_control (ScoreT.type_of deflt) (return $ Left deflt) cont
-    DeriveT.LiteralControl cont ->
-        get_control ScoreT.Untyped Nothing cont
+    Right sig -> return $ Left $ Signal.constant <$> sig
+    Left (DeriveT.Ref control deflt) ->
+        get_control control $ case deflt of
+            Nothing -> (ScoreT.Untyped, Nothing)
+            Just sig -> (ScoreT.type_of sig, return $ Left sig)
     where
-    get_control default_type deflt cont = case lookup_function cont of
+    get_control control (default_type, deflt) = case lookup_function control of
         Just f -> return $ Right $
             DeriveT.modify_control_function (inherit_type default_type .) f
-        Nothing -> maybe deflt (return . Left) $ lookup_signal cont
-    lookup_function cont = Map.lookup cont $ DeriveT.dyn_control_functions dyn
+        Nothing -> maybe deflt (return . Left) $ lookup_signal control
+    lookup_function control =
+        Map.lookup control $ DeriveT.dyn_control_functions dyn
     lookup_signal = dyn_signal dyn
     -- If the signal was untyped, it gets the type of the default, since
     -- presumably the caller expects that type.

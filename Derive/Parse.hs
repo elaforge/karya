@@ -301,7 +301,7 @@ p_val =
     <|> DeriveT.VNum <$> p_num
     <|> DeriveT.VStr <$> p_str
     <|> DeriveT.VControlRef <$> p_control_ref
-    <|> DeriveT.VPControlRef . DeriveT.LiteralControl <$> p_pcontrol_ref
+    <|> DeriveT.VPControlRef <$> p_pcontrol_ref
     <|> DeriveT.VQuoted <$> p_quoted
     <|> (A.char '_' >> return DeriveT.VNotGiven)
     <|> (A.char ';' >> return DeriveT.VSeparator)
@@ -371,20 +371,18 @@ p_control_ref = do
     A.char '%'
     control <- ScoreT.unchecked_control <$> A.option "" (p_identifier False ",")
     deflt <- ParseText.optional (A.char ',' >> p_num)
-    return $ case deflt of
-        Nothing -> DeriveT.LiteralControl control
-        Just val -> DeriveT.DefaultedControl control (Signal.constant <$> val)
+    return $ DeriveT.Ref control (fmap Signal.constant <$> deflt)
     <?> "control"
 
 -- | Unlike 'p_control_ref', this doesn't parse a comma and a default value,
 -- because pitches don't have literals.  Instead, use the @#@ val call.
--- I return PControl directly since it's always LiteralControl, and so
--- ParseTitle can use it.
-p_pcontrol_ref :: A.Parser ScoreT.PControl
-p_pcontrol_ref = do
-    A.char '#'
-    ScoreT.unchecked_pcontrol <$> p_identifier True ""
-    <?> "pitch control"
+p_pcontrol_ref :: A.Parser DeriveT.PControlRef
+p_pcontrol_ref = DeriveT.Ref <$> p_pcontrol <*> pure Nothing
+    where
+    p_pcontrol = do
+        A.char '#'
+        ScoreT.unchecked_pcontrol <$> p_identifier True ""
+        <?> "pitch control"
 
 p_quoted :: A.Parser DeriveT.Quoted
 p_quoted = ParseText.between "\"(" ")" (DeriveT.Quoted <$> p_expr False)

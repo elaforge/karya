@@ -43,7 +43,7 @@ test_cf_rnd_transformer = do
         trans = CallTest.with_note_transformer "t" $ CallTest.transformer $
             \_args deriver -> do
                 c_at <- fmap ScoreT.typed_val $
-                    Typecheck.resolve_function $ DeriveT.LiteralControl "c"
+                    Typecheck.resolve_function $ DeriveT.Ref "c" Nothing
                 fmap (set_dyn c_at) <$> deriver
         set_dyn c_at event = Score.set_control Controls.dynamic
             (ScoreT.untyped (Signal.constant (c_at (Score.event_start event))))

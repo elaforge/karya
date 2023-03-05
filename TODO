@@ -6674,8 +6674,6 @@ Derive:
         c=(cf) looks up existing c signal, and puts it in the cf.
       . But for now, maybe I just break those tests?
     ControlFunction cleanup:
-      - put typed on the function, not in the return
-        . Eliminate Typecheck.retype_cf
       - eliminate separate namespace
         . Why the separate state_control_functions namespace when I have
           VControlFunction?
@@ -6687,6 +6685,19 @@ Derive:
         . Let's do this later, this commit already has too much.
         . Or I would have to be explicit like c=(cf %c), except I can't
           because `c` is replaced.
+        . Some cfs don't take a control, should I have separate types so I
+          can throw an error?  Or they just ignore the control arg?
+          . E.g. dyn=(cf-curve 1 2 3) is probably a mistake.
+          . On the other hand, what about c=(cf-sine ...)?
+          . Would it be confusing when a pure cf doesn't act like a signal?
+            E.g. `c=(cf-sine ..) | c=+1` should be an error, but
+            `c=(cf-rnd ..) | c=+1` is fine, assuming %c later exists.
+          . I could get that error by throwing when trying to put a control
+            into a pure cf.
+          . Backed cf should get its type from the backing signal.
+            Pure cf has its own type.
+      - put typed on the function, not in the return
+        . Eliminate Typecheck.retype_cf
       . Remember CFs are also used for curves, e.g. ControlUtil.curve_arg
     changes:
       name changes:
@@ -6703,7 +6714,7 @@ Derive:
       . pitch xcut args become required instead of #xcut1 #xcut2
       . Gangsa.c_noltol: "noltol" -> "noltol-time"
     cleanup:
-      - remove DeriveT.Ref ControlSignal
+      * remove DeriveT.Ref ControlSignal
       - remove Lib state_signals, state_functions
       - ControlValMap in ScoreT but ControlMap in DeriveT
       - how about unifying VNum and VSignal, but having a special constant

@@ -604,10 +604,10 @@ lookup_signal :: ScoreT.Control -> Deriver (Maybe (ScoreT.Typed Signal.Control))
 lookup_signal = Typecheck.lookup_signal
 
 lookup_function :: ScoreT.Control -> Deriver (Maybe DeriveT.TypedFunction)
-lookup_function = Typecheck.lookup_function . DeriveT.LiteralControl
+lookup_function = Typecheck.lookup_function . flip DeriveT.Ref Nothing
 
 get_function :: ScoreT.Control -> Deriver DeriveT.TypedFunction
-get_function = Typecheck.resolve_function . DeriveT.LiteralControl
+get_function = Typecheck.resolve_function . flip DeriveT.Ref Nothing
 
 -- | Get the control value at the given time, taking 'state_control_functions'
 -- into account.

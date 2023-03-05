@@ -28,10 +28,12 @@
     In addition, an arg may be a 'DeriveT.VPControlRef' or
     'DeriveT.ControlRef', which introduces yet another way to provide the
     value.  An argument @required_control \"c\"@ will pass
-    a 'DeriveT.LiteralControl'.  Technically it's then up to the call to
+    a 'DeriveT.Ref'.  Technically it's then up to the call to
     decide what to do with it, but it will likely look it up at its chosen
     point in time, which means you can provide the value by providing a @c@
     control track or binding it explicitly e.g. @%c = .5 | call@.
+    TODO: out of date, there is no longer Typecheck ControlRef, they are
+    resolved by Typecheck.from_val
 
     - To further complicate the matter, the control arg may itself have a
     default, to relieve the caller from always having to provide that control.

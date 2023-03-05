@@ -45,8 +45,7 @@ test_parse_expr = do
     equal (f "a | b = 4 | . sym %sig") $ Right
         [ Call "a" []
         , Call "=" (map Literal [VStr "b", vnum 4])
-        , Call "." (map Literal
-            [VStr "sym", VControlRef (LiteralControl "sig")])
+        , Call "." (map Literal [VStr "sym", VControlRef (Ref "sig" Nothing)])
         ]
 
     -- A toplevel symbol can have anything except =.
@@ -132,18 +131,17 @@ invertible_vals =
     , ("'bad string", Nothing)
     , ("a'b", Nothing)
 
-    , ("%", Just $ VControlRef $ LiteralControl "")
-    , ("%sig", Just $ VControlRef $ LiteralControl "sig")
+    , ("%", Just $ VControlRef $ Ref "" Nothing)
+    , ("%sig", Just $ VControlRef $ Ref "sig" Nothing)
     , ("%sig,0", Just $ VControlRef $
-        DefaultedControl "sig" (ScoreT.untyped (Signal.constant 0)))
-    , ("%sig,4s", Just $ VControlRef $
-        DefaultedControl "sig"
-        (ScoreT.Typed ScoreT.Real (Signal.constant 4)))
+        Ref "sig" (Just (ScoreT.untyped (Signal.constant 0))))
+    , ("%sig,4s", Just $ VControlRef $ Ref "sig"
+        (Just (ScoreT.Typed ScoreT.Real (Signal.constant 4))))
     , ("%sig,4q", Nothing)
     , ("%sig,", Nothing)
 
-    , ("#", Just $ VPControlRef $ LiteralControl "")
-    , ("#sig", Just $ VPControlRef $ LiteralControl "sig")
+    , ("#", Just $ VPControlRef $ Ref "" Nothing)
+    , ("#sig", Just $ VPControlRef $ Ref "sig" Nothing)
 
     , ("\"(a b)", Just $ VQuoted $ DeriveT.Quoted $
         Call (Expr.Symbol "a") [Literal (VStr "b")] :| [])
