@@ -31,8 +31,8 @@ patches =
     where
     composite_code = MidiInst.note_generators
         [(call, composite call) | call <- map (Drums._name . fst) stroke_keys]
-    composite call = DUtil.redirect_pitch "comb" ""
-        (Just (Set.fromList ["mix", "fbk"])) call Nothing
+    composite call = DUtil.redirect_pitch "comb"
+        "" (Set.fromList ["mix", "fbk"]) call mempty
     composite_doc = "This drum takes a pitch signal, which is then sent\
         \ to the `composite-pitched` instrument, which is a tuned comb filter.\
         \ The audio routing has to be set up in the VST host."

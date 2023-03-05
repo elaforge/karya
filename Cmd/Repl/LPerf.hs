@@ -86,7 +86,7 @@ environ = Perf.lookup_environ =<< Selection.track
 
 -- | Controls in scope at the insert point.
 controls :: Cmd.M m => Source -> m DeriveT.ControlMap
-controls source = Derive.state_controls <$> dynamic source
+controls source = Derive.state_signals <$> dynamic source
 
 -- | The control vals at the insertion point, taking the control functions into
 -- account.
@@ -100,14 +100,16 @@ control_vals source = do
     pos <- get_realtime source
     -- I can't get 'Derive.state_event_serial' back, so the randomization will
     -- likely be different.
-    return $ Derive.state_controls_at pos mlists dyn 0
+    let serial = 0
+    let fs = Derive.state_functions dyn mlists serial
+    return $ ($ pos) . ScoreT.typed_val <$> fs
 
 -- | Like 'control_vals', but without control functions.
 raw_control_vals :: Cmd.M m => Source -> m ScoreT.TypedControlValMap
 raw_control_vals source = do
     dyn <- dynamic source
     pos <- get_realtime source
-    return $ fmap (fmap (Signal.at pos)) (Derive.state_controls dyn)
+    return $ fmap (fmap (Signal.at pos)) (Derive.state_signals dyn)
 
 aliases :: Cmd.M m => m (Map ScoreT.Instrument ScoreT.Instrument)
 aliases = Derive.state_instrument_aliases <$> dynamic Root

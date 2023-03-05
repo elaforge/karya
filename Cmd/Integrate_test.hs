@@ -166,7 +166,7 @@ test_track_integrate_subblock = do
 test_track_integrate_unwarp :: Test
 test_track_integrate_unwarp = do
     let run tracks = start (ResponderTest.mkstates tracks) (return ())
-    let track = (">i1 | < c", [(0, 0.5, "%c=(next-event) |"), (0.5, 1, "")])
+    let track = (">i1 | < c", [(0, 0.5, "c=(next-event) |"), (0.5, 1, "")])
     res <- run [("tempo", [(0, 0, "1")]), track]
     -- Avoid stdout mixing with any debug trace from the last performance
     -- force.

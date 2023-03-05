@@ -17,7 +17,7 @@ test_bow :: Test
 test_bow = do
     let run title = DeriveTest.extract extract
             . DeriveTest.derive_tracks_setup setup
-                ("inst=i | %dyn=.75" <> title)
+                ("inst=i | dyn=.75" <> title)
             . UiTest.note_track1
         extract e = (Score.event_start e,
             DeriveTest.e_initial_control Controls.dynamic e)

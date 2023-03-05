@@ -85,7 +85,7 @@ test_ngoret_start_control = do
             . UiTest.note_track
     -- Ensure that it obeys start offset controls, and doesn't mess up the
     -- pitch.
-    equal (run [(0, 4, "4c"), (4, 4, "%start-s = -.5 | ' .5 -- 4e")])
+    equal (run [(0, 4, "4c"), (4, 4, "start-s = -.5 | ' .5 -- 4e")])
         ([(0, 4.5, "4c"), (3, 1.5, "4d"), (3.5, 4.5, "4e")], [])
 
 test_past_end :: Test
@@ -136,7 +136,7 @@ test_ngoret_infer_duration = do
 test_ngoret_transpose :: Test
 test_ngoret_transpose = do
     let run = DeriveTest.extract DeriveTest.e_pitch
-            . DeriveTest.derive_tracks (ngoret_transform <> " | %t-dia=7")
+            . DeriveTest.derive_tracks (ngoret_transform <> " | t-dia=7")
             . UiTest.note_track
     -- Make sure the transposition doesn't get applied twice.
     equal (run [(0, 1, "4c"), (1, 1, "' .5 .5 -- 4e")])

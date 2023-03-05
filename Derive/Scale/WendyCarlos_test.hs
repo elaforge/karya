@@ -17,7 +17,7 @@ test_pitches = do
             . UiTest.note_track
     equal (run "" [(0, 1, "1a"), (1, 1, "1b")])
         ([[(0, 12), (1, 12)], [(1, 12.78)]], [])
-    equal (run " | %a0-nn=1" [(0, 1, "1a"), (1, 1, "1b")])
+    equal (run " | a0-nn=1" [(0, 1, "1a"), (1, 1, "1b")])
         ([[(0, 13), (1, 13)], [(1, 13.78)]], [])
 
 test_transpose_controls :: Test
@@ -26,6 +26,6 @@ test_transpose_controls = do
             DeriveTest.derive_tracks "scale=alpha" $
             UiTest.note_track [(0, 1, p)]
     equal (f "1a") ([Just 12], [])
-    equal (f "%t-chrom=1 | -- 1a") ([Just 12.78], [])
-    equal (f "%t-dia=1 | -- 1a") ([Just 12.78], [])
-    equal (f "%t-oct=1 | -- 1a") ([Just 24], [])
+    equal (f "t-chrom=1 | -- 1a") ([Just 12.78], [])
+    equal (f "t-dia=1 | -- 1a") ([Just 12.78], [])
+    equal (f "t-oct=1 | -- 1a") ([Just 24], [])

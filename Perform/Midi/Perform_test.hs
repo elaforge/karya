@@ -340,10 +340,10 @@ test_clip_warns = do
     -- TODO check that warnings came at the right places
     -- check that the clips happen at the same places as the warnings
     equal warns
-        [ "%vol clipped: 1.5s--2.5s"
+        [ "vol clipped: 1.5s--2.5s"
         -- TODO this used to be (3.5, 4) but I can't be bothered to find out
         -- why it changed when RealTime became integral
-        , "%vol clipped: 4s--4s"
+        , "vol clipped: 4s--4s"
         ]
     check ("valid: " <> pretty msgs) (all_msgs_valid msgs)
 

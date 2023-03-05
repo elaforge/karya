@@ -69,14 +69,16 @@ c_pitch_trill start_dir = Derive.generator1 module_ "tr" mempty
         trill_signal start_dir pitch neighbor speed hold args
 
 trill_signal :: Maybe Trill.Direction -> PSignal.Pitch
-    -> DeriveT.ControlRef -> DeriveT.ControlRef -> DeriveT.Duration
-    -> Derive.PassedArgs a -> Derive.Deriver PSignal.PSignal
-trill_signal start_dir pitch neighbor speed hold args = do
-    (transpose, control) <- Trill.get_trill_control_smooth config Typecheck.Nn
-        curve (Args.range_or_next args) neighbor
+    -> Typecheck.NnTransposeFunctionT -> Typecheck.RealTimeFunctionT
+    -> DeriveT.Duration -> Derive.PassedArgs a
+    -> Derive.Deriver PSignal.PSignal
+trill_signal start_dir pitch (Typecheck.NnTransposeFunctionT ttype neighbor)
+        speed hold args = do
+    transpose <- Trill.get_trill_control_smooth config curve
+        (Args.range_or_next args) neighbor
     start <- Args.real_start args
-    return $ PSignal.apply_control control (ScoreT.untyped transpose) $
-        PSignal.from_sample start pitch
+    return $ PSignal.apply_control (Typecheck.transpose_control ttype)
+        (ScoreT.untyped transpose) (PSignal.from_sample start pitch)
     where
     config = Trill.Config
         { _speed = speed
@@ -92,11 +94,9 @@ trill_signal start_dir pitch neighbor speed hold args = do
     -- as linear, and linear should be cheaper.
     -- curve = ControlUtil.Function $ ControlUtil.sigmoid 0.5 0.5
 
-neighbor_arg :: Sig.Parser DeriveT.ControlRef
-neighbor_arg = Sig.defaulted "neighbor"
-    (Sig.typed_control "tr-neighbor" 1 ScoreT.Nn)
+neighbor_arg :: Sig.Parser Typecheck.NnTransposeFunctionT
+neighbor_arg = Sig.defaulted "neighbor" (1 :: Int)
     "Alternate with a pitch at this interval."
 
-speed_arg :: Sig.Parser DeriveT.ControlRef
-speed_arg = Sig.defaulted "speed" (Sig.typed_control "tr-speed" 20 ScoreT.Real)
-    "Alternate pitches at this speed."
+speed_arg :: Sig.Parser Typecheck.RealTimeFunctionT
+speed_arg = Sig.defaulted "speed" (20 :: Int) "Alternate pitches at this speed."

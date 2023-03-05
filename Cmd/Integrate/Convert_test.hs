@@ -93,7 +93,7 @@ test_convert_dyn = do
     -- No dyn track if it's just the default value.
     equal (derive0 "" "" [(0, 1, "4c")])
         ([(">i", [(0, "")]), ("*", [(0, "4c")])], [])
-    equal (derive0 "%dyn=.5" "" [(0, 1, "4c")])
+    equal (derive0 "dyn=.5" "" [(0, 1, "4c")])
         ([(">i", [(0, "")]), ("*", [(0, "4c")])], [])
     equal (derive0 "" "" [(0, 1, "4c"), (1, 1, "^ -- 4c")])
         ( [ (">i", [(0, ""), (1, "")]), ("*", [(0, "4c"), (1, "4c")])
@@ -101,7 +101,7 @@ test_convert_dyn = do
           ]
         , []
         )
-    equal (derive0 "%dyn=.5" "" [(1, 1, "4c"), (2, 1, "^ -- 4c"), (3, 1, "4c")])
+    equal (derive0 "dyn=.5" "" [(1, 1, "4c"), (2, 1, "^ -- 4c"), (3, 1, "4c")])
         ( [ (">i", map (,"") [1, 2, 3])
           , ("*", map (,"4c") [1, 2, 3])
           , ("dyn", [(1, "`0x`ff"), (2, "`0x`80"), (3, "`0x`ff")])
@@ -109,7 +109,7 @@ test_convert_dyn = do
         , []
         )
     -- Ensure dynamic invert works even when it's set post-integrate.
-    equal (derive0 "%dyn=.75" "%dyn=.6" [(1, 1, "4c"), (2, 1, "^ -- 4c")])
+    equal (derive0 "dyn=.75" "dyn=.6" [(1, 1, "4c"), (2, 1, "^ -- 4c")])
         ( [ (">i", [(1, ""), (2, "")])
           , ("*", [(1, "4c"), (2, "4c")])
           , ( "dyn"

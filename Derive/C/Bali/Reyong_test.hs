@@ -51,7 +51,7 @@ test_articulation = do
         (Just [(0, "4u"), (1, "4e"), (1, "4a"), (2, "4e"), (2, "4a")], [])
     equal (run [(0, 0, "XX --")]) (Just [(0, "4u"), (0, "4u")], [])
     -- Not affected by transposition.
-    equal (run [(0, 0, "%t-dia=1 | O --")]) (Just [(0, "4e"), (0, "4a")], [])
+    equal (run [(0, 0, "t-dia=1 | O --")]) (Just [(0, "4e"), (0, "4a")], [])
 
 test_norot :: Test
 test_norot = do
@@ -75,7 +75,7 @@ test_kilitan_random_start :: Test
 test_kilitan_random_start = do
     let run = e_by_voice extract
             . DeriveTest.derive_tracks (title <> " | reyong-voices = (list 1 3)\
-                \ | apply-start-offset | %start-s = (cf-rnd-a .5)")
+                \ | apply-start-offset | start-s = (cf-rnd-a .5)")
             . UiTest.note_track
         extract e = (Score.event_start e, DeriveTest.e_pitch e)
     -- Notes all created by the same call all have unique randomization.
@@ -236,7 +236,7 @@ test_c_byong = do
 test_c_infer_damp :: Test
 test_c_infer_damp = do
     let run = DeriveTest.extract e_damped_event
-            . DeriveTest.derive_tracks (title_damp 1 <> " | %damp=.5")
+            . DeriveTest.derive_tracks (title_damp 1 <> " | damp=.5")
             . UiTest.note_track
     -- +undamped prevents damping.
     equal (run [(0, 1, "4i"), (1, 1, "+undamped -- 4o")])

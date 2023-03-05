@@ -207,8 +207,8 @@ mute_postproc mute_attr event = (,[]) $
 -- * ngoret
 
 c_ngoret :: Sig.Parser (Maybe Pitch.Transpose) -> Derive.Generator Derive.Note
-c_ngoret = Gender.ngoret module_ False $ Sig.defaulted "damp"
-    (Sig.typed_control "ngoret-damp" 0.15 ScoreT.Real)
+c_ngoret = Gender.ngoret module_ False $
+    Sig.defaulted "damp" (0.15 :: RealTime)
     "Time that the grace note overlaps with this one. So the total\
     \ duration is time+damp, though it will be clipped to the\
     \ end of the current note."
@@ -997,15 +997,14 @@ kotekan_note inst steps = KotekanNote
 muted_note :: KotekanNote -> KotekanNote
 muted_note note = note { note_muted = True }
 
-under_threshold_function :: DeriveT.ControlRef -> ScoreTime
+under_threshold_function :: (RealTime -> RealTime) -> ScoreTime
     -> Derive.Deriver (ScoreTime -> Bool) -- ^ say if a note at this time
     -- with the given duration would be under the kotekan threshold
 under_threshold_function kotekan dur = do
     to_real <- Derive.real_function
-    kotekan <- Call.to_function kotekan
     return $ \t ->
         let real = to_real t
-        in to_real (t+dur) - real < RealTime.seconds (kotekan real)
+        in to_real (t+dur) - real < kotekan real
 
 -- | Repeatedly call a cycle generating function to create notes.  The result
 -- will presumably be passed to 'realize_notes' to convert the notes into
@@ -1208,7 +1207,7 @@ c_noltol = Derive.transformer module_ "noltol" Tags.delayed
     \ end the note with a `+mute`d copy of itself. This only happens if\
     \ the duration of the note is at or below the `kotekan-dur`."
     $ Sig.callt ((,,)
-    <$> Sig.defaulted "time" (Sig.control "noltol" 0.1)
+    <$> Sig.defaulted "time" (0.1 :: Double)
         "Play noltol if the time available exceeds this threshold."
     <*> Sig.defaulted "damp-dyn" (0.65 :: Double)
         "Damped notes are multiplied by this dyn."
@@ -1216,7 +1215,7 @@ c_noltol = Derive.transformer module_ "noltol" Tags.delayed
     ) $ \(threshold, damp_dyn, max_dur) args deriver -> do
         max_dur <- Call.real_duration (Args.start args) max_dur
         events <- deriver
-        times <- Post.time_control threshold events
+        let times = Post.real_time_control threshold events
         return $ Post.emap1_ (put damp_dyn max_dur) $ Stream.zip times events
         where
         put damp_dyn max_dur (threshold, event) =
@@ -1316,9 +1315,9 @@ dur_env :: Sig.Parser ScoreTime
 dur_env = Sig.environ_quoted "kotekan-dur" Sig.Unprefixed
     (DeriveT.quoted "ts" [DeriveT.str "s"]) "Duration of derived notes."
 
-kotekan_env :: Sig.Parser DeriveT.ControlRef
-kotekan_env =
-    Sig.environ "kotekan" Sig.Unprefixed (DeriveT.constant_control 0.15)
+kotekan_env :: Sig.Parser (RealTime -> RealTime)
+kotekan_env = fmap (RealTime.seconds .) $
+    Sig.environ "kotekan" Sig.Unprefixed (0.15 :: RealTime)
         "If note durations are below this, divide the parts between polos and\
         \ sangsih."
 

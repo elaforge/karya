@@ -16,13 +16,11 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Library as Library
 import qualified Derive.Score as Score
-import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
-import qualified Perform.Signal as Signal
 
 import           Types
 
@@ -47,12 +45,11 @@ c_delay = Derive.transformer Module.prelude "delay" Tags.ly
     ("Simple abstract delay. As with `echo`, abstract means it happens in the\
     \ score, so events may not be delayed evenly if the tempo is changing."
     ) $ Sig.callt
-    ( Sig.defaulted "time" (Sig.typed_control "delay-time" 0.1 ScoreT.Real)
-        "Delay time."
-    ) $ \time args deriver -> Ly.when_lilypond deriver $ do
+    ( Sig.defaulted "time" (0.1 :: RealTime) "Delay time."
+    ) $ \(Typecheck.RealTimeFunction time) args deriver ->
+    Ly.when_lilypond deriver $ do
         start <- Args.real_start args
-        delay <- Call.score_duration start
-            =<< Call.time_control_at Typecheck.Real time start
+        delay <- Call.score_duration start (time start)
         Derive.at delay deriver
 
 c_delay_c :: Derive.Taggable a => Derive.Transformer a
@@ -75,17 +72,12 @@ c_echo = Derive.transformer Module.prelude "echo" mempty
     \ so you can't vary them over the scope of the echo like you can\
     \ with `e-echo`."
     ) $ Sig.callt ((,,)
-    <$> Sig.defaulted "delay" (Sig.control "echo-delay" 1) "Delay time."
-    <*> Sig.defaulted "feedback" (Sig.control "echo-feedback" 0.4)
+    <$> Sig.defaulted "delay" (1 :: ScoreTime) "Delay time."
+    <*> Sig.defaulted "feedback" (0.4 :: Double)
         "The %dyn of each echo is multiplied by this amount."
-    <*> Sig.defaulted "times" (Sig.control "echo-times" 1)
+    <*> Sig.defaulted "times" (1 :: Int)
         "Number of echoes, not counting the original."
-    ) $ \(delay, feedback, times) args deriver -> do
-        now <- Args.real_start args
-        delay <- Signal.y_to_score <$> Call.control_at delay now
-        feedback <- Call.control_at feedback now
-        times <- floor <$> Call.control_at times now
-        echo delay feedback times deriver
+    ) $ \(delay, feedback, times) _args -> echo delay feedback times
 
 echo :: ScoreTime -> Double -> Int -> Derive.NoteDeriver -> Derive.NoteDeriver
 echo delay feedback times deriver
@@ -99,21 +91,21 @@ echo delay feedback times deriver
 -- Args are the same as 'c_echo', except that their signals are sampled at
 -- every event, so parameters can vary over the course of the effect.
 c_event_echo :: Derive.Transformer Derive.Note
-c_event_echo = Derive.transformer Module.prelude "event echo" Tags.postproc
+c_event_echo = Derive.transformer Module.prelude "e-echo" Tags.postproc
     ("Concrete echo.  All events are delayed by the same amount.  Also, the\
     \ parameter signals are sampled at every event, so they can vary\
     \ over the course of the echo."
     ) $ Sig.callt ((,,)
-    <$> Sig.defaulted "delay" (Sig.control "echo-delay" 1) "Delay time."
-    <*> Sig.defaulted "feedback" (Sig.control "echo-feedback" 0.4)
+    <$> Sig.defaulted "delay" (1 :: RealTime) "Delay time."
+    <*> Sig.defaulted "feedback" (0.4 :: Double)
         "The %dyn of each echo is multiplied by this amount."
-    <*> Sig.defaulted "times" (Sig.control "echo-times" 1)
+    <*> Sig.defaulted "times" (1 :: Int)
         "Number of echoes, not counting the original."
     ) $ \(delay, feedback, times) _args deriver -> do
         events <- deriver
-        delay <- Post.time_control delay events
-        feedback <- Post.control ScoreT.typed_val feedback events
-        times <- Post.control (floor . ScoreT.typed_val) times events
+        delay <- pure $ Post.real_time_control delay events
+        feedback <- pure $ Post.control feedback events
+        times <- pure $ map floor $ Post.control times events
         return $ Post.emap_asc_ (Control.uncurry4 echo_event)
             (Stream.zip4 delay feedback times events)
 

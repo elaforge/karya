@@ -237,7 +237,7 @@ test_pitch_trill = do
     let run_neighbor suffix val = extract $ derive_tracks
             [ (">", [(0, 3, "")])
             , ("tr-neighbor" <> suffix, [(0, 0, val)])
-            , ("*", [(0, 0, "tr (4c) _ 1"), (3, 0, "--|")])
+            , ("*", [(0, 0, "tr (4c) %tr-neighbor 1"), (3, 0, "--|")])
             ]
     equal (run_neighbor "" "1") ([flat [(0, 60), (1, 62), (2, 60)]], [])
     equal (run_neighbor "" "-2") ([flat [(0, 60), (1, 57), (2, 60)]], [])
@@ -257,8 +257,12 @@ test_pitch_trill = do
     equal (run_speed "") (trill [0, 0.5, 1], [])
     equal (run_speed ":s") (trill [0, 0.5, 1], [])
     equal (run_speed ":t") (trill [0, 0.25, 0.5, 0.75, 1, 1.25], [])
-    equal (run_speed ":d") ([[]],
-        ["expected time type for %tr-speed,14s but got Diatonic"])
+    equal (run_speed ":d")
+        ( [[]]
+        , [ "TypeError: arg 3/speed: expected time signal (default real)\
+            \ but got Signal (Transpose): (signal d 0 2)"
+          ]
+        )
 
 test_pitch_trill2 :: Test
 test_pitch_trill2 = do
@@ -367,14 +371,14 @@ test_moving_trill = do
 
 test_real_trill :: Test
 test_real_trill = do
-    let f neighbor speed = fst <$> Trill.get_trill_control (config speed)
-            Typecheck.Diatonic (0, 1) (mkcontrol ScoreT.Chromatic neighbor)
+    let f neighbor speed = Trill.get_trill_control (config speed) (0, 1)
+            (`Signal.at` neighbor)
         config speed = Trill.Config
             { _start_dir = Nothing
             , _end_dir = Nothing
             , _adjust = Trill.Shorten
             , _hold = DeriveT.RealDuration 0
-            , _speed = mkcontrol ScoreT.Real speed
+            , _speed = mkfun ScoreT.TReal speed
             , _bias = 0
             , _include_end = False
             }
@@ -395,15 +399,14 @@ test_real_trill = do
 
 test_score_trill :: Test
 test_score_trill = do
-    let f dur neighbor speed = fst <$>
-            Trill.get_trill_control (config speed) Typecheck.Diatonic (0, dur)
-                (mkcontrol ScoreT.Chromatic neighbor)
+    let f dur neighbor speed = Trill.get_trill_control (config speed) (0, dur)
+                (`Signal.at` neighbor)
         config speed = Trill.Config
             { _start_dir = Nothing
             , _end_dir = Nothing
             , _adjust = Trill.Shorten
             , _hold = DeriveT.RealDuration 0
-            , _speed = mkcontrol ScoreT.Score speed
+            , _speed = mkfun ScoreT.TScore speed
             , _bias = 0
             , _include_end = False
             }
@@ -411,17 +414,15 @@ test_score_trill = do
         cnst = Signal.constant
     equal (run $ f 1 (cnst 1) (cnst 2)) $
         Right [(0, 0), (0.5, 1)]
-
     -- If the event was length 2 there should be 2 cycles
     equal (run $ f 2 (cnst 1) (cnst 2)) $
         Right [(0, 0), (0.5, 1), (1, 0), (1.5, 1)]
-
     -- Trill speed affected by stretch.
     equal (run $ Derive.stretch 2 $ f 1 (cnst 1) (cnst 2)) $
         Right [(0, 0), (1, 1)]
 
-mkcontrol :: ScoreT.Type -> Signal.Control -> DeriveT.ControlRef
-mkcontrol typ = DeriveT.ControlSignal . ScoreT.Typed typ
+mkfun :: ScoreT.TimeT -> Signal.Control -> Typecheck.RealTimeFunctionT
+mkfun typ sig = Typecheck.RealTimeFunctionT typ (`Signal.at` sig)
 
 test_xcut_pitch :: Test
 test_xcut_pitch = do
@@ -430,8 +431,8 @@ test_xcut_pitch = do
             (">", [(0, 4, "")]) : tracks
     let flat = DeriveTest.flat_segments
     equal (f
-            [ ("* #xcut1", [(0, 0, "4c")])
-            , ("* #xcut2", [(0, 0, "5c")])
+            [ ("* #xcut-fst", [(0, 0, "4c")])
+            , ("* #xcut-snd", [(0, 0, "5c")])
             , ("*", [(0, 0, "xcut _ _ 1"), (4, 0, "--|")])
             ])
         ([flat [(0, 60), (1, 72), (2, 60), (3, 72)]], [])
@@ -458,7 +459,7 @@ test_control_trill = do
     equal (run 0.5 "tr 1 1s") ([trill [0, 1, 2, 3, 4, 5]], [])
     equal (run 0.5 "tr 1 1t") ([trill [0, 2, 4]], [])
     strings_like (snd (run 1 "tr 1 1d"))
-        ["expected time type for 1d but got Diatonic"]
+        ["expected time signal (default real) but got Num* 1d"]
 
 test_xcut_control :: Test
 test_xcut_control = do

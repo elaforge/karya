@@ -64,17 +64,17 @@ test_interpolated_transpose = do
             ]
         extract = head . DeriveTest.extract_events DeriveTest.e_nns
     equal (run ">") [(0, 1), (4, 3)]
-    equal (run "> | %t-chrom = 1") [(0, 3), (4, 4)]
+    equal (run "> | t-chrom = 1") [(0, 3), (4, 4)]
 
 test_transpose_out_of_range :: Test
 test_transpose_out_of_range = do
     equal (run_with_title ">" "twelve" [(0, "4c")])
         ([(0, 60)], [])
-    equal (run_with_title "> | %t-chrom = 10" "twelve" [(0, "4c")])
+    equal (run_with_title "> | t-chrom = 10" "twelve" [(0, "4c")])
         ([(0, 70)], [])
-    equal (run_with_title "> | %t-chrom = -10" "twelve" [(0, "4c")])
+    equal (run_with_title "> | t-chrom = -10" "twelve" [(0, "4c")])
         ([(0, 50)], [])
-    let (sig, errs) = run_with_title "> | %t-chrom = 200" "twelve" [(0, "4c")]
+    let (sig, errs) = run_with_title "> | t-chrom = 200" "twelve" [(0, "4c")]
     equal sig []
     strings_like errs ["260nn out of range"]
     where
@@ -120,6 +120,7 @@ test_porta = do
         [(0, NN.c4), (2, NN.c4), (4, NN.d4)]
     equal (run [(0, "4c"), (2, "porta-place=0 | p (4d) 1s")])
         [(0, NN.c4), (1, NN.c4), (2, NN.d4)]
+    -- TODO broken because %curve=(cf) is gone now.
     equal (run [(0, "4c"),
             (2, "porta-place=1 | curve=(cf-expon 2) | p (4d) 2s")])
         [(0, NN.c4), (2, NN.c4), (3, 60.5), (4, 62)]

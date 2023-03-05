@@ -16,7 +16,7 @@
     > ref       DeriveT.ControlRef        DeriveT.PControlRef     Ref
 -}
 module Derive.DeriveT where
-import Prelude hiding (lookup)
+import           Prelude hiding (lookup)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Coerce as Coerce
 import qualified Data.List.NonEmpty as NonEmpty
@@ -27,6 +27,7 @@ import qualified Data.Text as Text
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Segment as Segment
+import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 
 import qualified Derive.Attrs as Attrs
@@ -43,8 +44,8 @@ import qualified Perform.Signal as Signal
 import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 {-
@@ -351,6 +352,8 @@ data Duration = RealDuration RealTime
     | ScoreDuration ScoreTime
     deriving (Eq, Show)
 
+data TimeType = Real | Score deriving (Eq, Show)
+
 instance ShowVal.ShowVal Duration where
     show_val (RealDuration x) = ShowVal.show_val x
     show_val (ScoreDuration x) = ShowVal.show_val x
@@ -404,6 +407,10 @@ data Val =
     --
     -- Literal: @42.23@, @-.4@, @1c@, @-2.4d@, @3/2@, @-3/2@, @0x7f@.
     VNum !(ScoreT.Typed Signal.Y)
+    | VSignal !(ScoreT.Typed Signal.Control)
+    -- | No literal, but is returned from val calls, notably scale calls.
+    | VPitch !Pitch
+    | VPSignal !PSignal
     -- | A set of Attributes for an instrument.
     --
     -- Literal: @+attr@, @+attr1+attr2@.
@@ -421,9 +428,6 @@ data Val =
     --
     -- Literal: @\#@, @\#pitch@, @(# pitch (4c))@
     | VPControlRef !PControlRef
-
-    -- | No literal, but is returned from val calls, notably scale calls.
-    | VPitch !Pitch
 
     -- | A parsed 'Pitch.Note'.  This is useful for things for which a textual
     -- 'Pitch.Note' is too high level and a numerical 'Pitch.NoteNumber' is too
@@ -469,12 +473,16 @@ data Val =
 vals_equal :: Val -> Val -> Maybe Bool
 vals_equal x y = case (x, y) of
     (VNum a, VNum b) -> Just $ a == b
+    (VSignal a, VSignal b) -> Just $ a == b
+    (VPitch a, VPitch b) -> Just $ pitches_equal a b
+    -- I'm not going to implement this right now.  vals_equal is only used in
+    -- Conditional anyway, and who is going to be comparing pitch signals?
+    (VPSignal _, VPSignal _) -> Nothing
     (VAttributes a, VAttributes b) -> Just $ a == b
     (VControlRef a, VControlRef b) -> Just $ a == b
     -- This could use pitches_equal, but don't bother until I have a need for
     -- it.
     (VPControlRef _, VPControlRef _) -> Nothing
-    (VPitch a, VPitch b) -> Just $ pitches_equal a b
     (VNotePitch a, VNotePitch b) -> Just $ a == b
     (VStr a, VStr b) -> Just $ a == b
     (VQuoted (Quoted a), VQuoted (Quoted b)) ->
@@ -506,10 +514,12 @@ val_to_mini = \case
 instance ShowVal.ShowVal Val where
     show_val val = case val of
         VNum d -> ShowVal.show_val d
-        VAttributes attrs -> ShowVal.show_val attrs
-        VControlRef control -> ShowVal.show_val control
-        VPControlRef control -> ShowVal.show_val control
+        VSignal sig -> show_signal sig
         VPitch pitch -> ShowVal.show_val pitch
+        VPSignal sig -> show_psignal sig
+        VAttributes attrs -> ShowVal.show_val attrs
+        VControlRef ref -> ShowVal.show_val ref
+        VPControlRef ref -> ShowVal.show_val ref
         VNotePitch pitch -> ShowVal.show_val pitch
         VStr str -> ShowVal.show_val str
         VQuoted quoted -> ShowVal.show_val quoted
@@ -517,6 +527,47 @@ instance ShowVal.ShowVal Val where
         VNotGiven -> "_"
         VSeparator -> ";"
         VList vals -> ShowVal.show_val vals
+
+instance ShowVal.ShowVal (ScoreT.Typed Signal.Control) where
+    show_val = show_signal
+
+-- | ShowVal for VSignal.
+--
+-- > 1c -- constant with chromatic type
+-- > (signal 0 1 1 1) -- [(0, 1), (1, 1)], untyped
+show_signal :: ScoreT.Typed Signal.Control -> Text
+show_signal (ScoreT.Typed typ sig)
+    | Just c <- Signal.constant_val sig = ShowVal.show_val (ScoreT.Typed typ c)
+    | otherwise = Text.unwords $ Seq.map_last (<>")") $
+        "(signal" : filter (/="") [ShowVal.show_val typ] ++
+            [ ShowVal.show_val v
+            | (x, y) <- Signal.to_pairs sig, v <- [RealTime.to_seconds x, y]
+            ]
+
+instance ShowVal.ShowVal PSignal where show_val = show_psignal
+
+-- | ShowVal for VPSignal.
+--
+-- TODO probably bogus? ShowVal (RawPitch a) just punts and uses <>s
+-- Which this also uses.  Ideal if I can get back to symbolic, like (4c).
+-- Otherwise, convert to nn, since symbolic depends on what's in scope?
+-- The fact that I never trip on <>s implies that improper ShowVal for
+-- pitch is not practically a problem.
+show_psignal :: PSignal -> Text
+show_psignal sig
+    | Just c <- constant_val sig = ShowVal.show_val c
+    | otherwise = Text.unwords $ Seq.map_last (<>")") $
+        "(psignal" :
+            [ s
+            | (x, y) <- to_pairs sig
+            , s <- [ShowVal.show_val x, ShowVal.show_val y]
+            ]
+    where
+    -- These are in PSignal, but have to be here too to avoid a circular
+    -- import.
+    constant_val :: PSignal -> Maybe Pitch
+    constant_val = Segment.constant_val . _signal
+    to_pairs = Segment.to_pairs . _signal
 
 instance Pretty Val where
     pretty = ShowVal.show_val
@@ -574,6 +625,9 @@ quoted0 sym = quoted sym []
 
 -- ** Ref
 
+type ControlRef = Ref ScoreT.Control (ScoreT.Typed Signal.Control)
+type PControlRef = Ref ScoreT.PControl PSignal
+
 data Ref control val =
     -- | A signal literal.
     ControlSignal val
@@ -582,9 +636,6 @@ data Ref control val =
     -- | Throw an exception if the control isn't present.
     | LiteralControl control
     deriving (Eq, Read, Show)
-
-type ControlRef = Ref ScoreT.Control (ScoreT.Typed Signal.Control)
-type PControlRef = Ref ScoreT.PControl PSignal
 
 instance (Serialize.Serialize val, Serialize.Serialize control) =>
         Serialize.Serialize (Ref control val) where
@@ -599,12 +650,8 @@ instance (Serialize.Serialize val, Serialize.Serialize control) =>
         2 -> LiteralControl <$> Serialize.get
         n -> Serialize.bad_tag "DeriveT.Ref" n
 
--- | This can only represent constant signals, since there's no literal for an
--- arbitrary signal.  Non-constant signals will turn into a constant of
--- whatever was at 0.
 instance ShowVal.ShowVal ControlRef where
-    show_val = show_control $ \(ScoreT.Typed typ sig) ->
-        ShowVal.show_val (Signal.at 0 sig) <> ScoreT.type_to_code typ
+    show_val = show_ref (Text.cons '%' . ScoreT.control_name)
 
 instance Pretty ControlRef where pretty = ShowVal.show_val
 
@@ -616,26 +663,16 @@ instance Pretty ControlRef where pretty = ShowVal.show_val
 -- accurately since it doesn't take things like pitch interpolation into
 -- account.
 instance ShowVal.ShowVal PControlRef where
-    show_val = show_control $
-        maybe "<none>" (ShowVal.show_val . snd) . Segment.head . _signal
+    show_val = show_ref (Text.cons '#' . ScoreT.pcontrol_name)
 
 instance Pretty PControlRef where pretty = ShowVal.show_val
 
-show_control :: ShowVal.ShowVal control => (sig -> Text) -> Ref control sig
-    -> Text
-show_control sig_text control = case control of
-    ControlSignal sig -> sig_text sig
+show_ref :: ShowVal.ShowVal sig => (control -> Text) -> Ref control sig -> Text
+show_ref ref_text = \case
+    ControlSignal sig -> ShowVal.show_val sig
     DefaultedControl control deflt ->
-        ShowVal.show_val control <> "," <> sig_text deflt
-    LiteralControl control -> ShowVal.show_val control
-
--- | Defaulted control from a RealTime.
-real_control :: ScoreT.Control -> RealTime -> ControlRef
-real_control c deflt = DefaultedControl c $
-    ScoreT.untyped $ Signal.constant (RealTime.to_seconds deflt)
-
-constant_control :: Signal.Y -> ControlRef
-constant_control = ControlSignal . ScoreT.untyped . Signal.constant
+        ref_text control <> "," <> ShowVal.show_val deflt
+    LiteralControl control -> ref_text control
 
 -- * Expr
 
@@ -685,6 +722,13 @@ type ControlMap = Map ScoreT.Control (ScoreT.Typed Signal.Control)
 type ControlFunctionMap = Map ScoreT.Control ControlFunction
 type PitchMap = Map ScoreT.PControl PSignal
 
+type FunctionMap = Map ScoreT.Control TypedFunction
+type Function = RealTime -> Signal.Y
+type PitchFunction = RealTime -> Maybe Pitch
+
+type TypedFunction = ScoreT.Typed (RealTime -> Signal.Y)
+type TypedSignal = ScoreT.Typed Signal.Control
+
 -- * ControlFunction
 
 {- | Another representation of a signal, complementary to 'Signal.Control'.
@@ -725,8 +769,20 @@ data ControlFunction = ControlFunction {
     -- bound to one.  Dynamic is a stripped down Derive State.  For
     -- ControlFunctions that represent a control signal, the RealTime is the
     -- desired X value, otherwise it's just some number.
+    -- TODO what is "some number"?
     , cf_function :: !(ScoreT.Control -> Dynamic -> RealTime
         -> ScoreT.Typed Signal.Y)
+    -- TODO do it like this
+    -- , cf_function :: !(ScoreT.Typed
+    --     (ScoreT.Control -> Dynamic -> RealTime -> Signal.Y))
+
+    -- TODO and embed the optional modified signal in here so it can be
+    -- reassigned later?  This is to eliminate the separate namespace.
+    -- The reason the namespace exists is to be able to have both
+    -- dyn signal + cf-rnd cf on top of it.
+    -- , cf_function :: !(Maybe (ScoreT.Typed Signal.Control) -> Dynamic
+    --     -> RealTime -> ScoreT.Typed Signal.Y)
+    -- , cf_signal :: !(Maybe (ScoreT.Typed Signal.Control))
     }
 
 instance DeepSeq.NFData ControlFunction where
@@ -750,9 +806,7 @@ modify_control_function modify (ControlFunction name f) =
 -- | A stripped down "Derive.Deriver.Monad.Dynamic" for ControlFunctions
 -- to use.  The duplication is unfortunate, see 'ControlFunction'.
 data Dynamic = Dynamic {
-    dyn_controls :: !ControlMap
-    , dyn_control_functions :: !ControlFunctionMap
-    , dyn_pitches :: !PitchMap
+    dyn_control_functions :: !ControlFunctionMap
     , dyn_pitch :: !PSignal
     , dyn_environ :: !Environ
     -- | This is from 'Derive.Deriver.Monad.state_event_serial'.
@@ -763,9 +817,7 @@ data Dynamic = Dynamic {
 
 empty_dynamic :: Dynamic
 empty_dynamic = Dynamic
-    { dyn_controls = mempty
-    , dyn_control_functions = mempty
-    , dyn_pitches = mempty
+    { dyn_control_functions = mempty
     , dyn_pitch = mempty
     , dyn_environ = mempty
     , dyn_event_serial = 0

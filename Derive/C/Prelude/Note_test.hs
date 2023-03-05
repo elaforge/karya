@@ -33,19 +33,19 @@ test_sustain_controls = do
     let run title = DeriveTest.extract DeriveTest.e_start_dur
             . DeriveTest.derive_tracks title . UiTest.note_track $ [(0, 1, "")]
     equal (run "") ([(0, 1)], [])
-    equal (run "%sus-set = .25") ([(0, 0.25)], [])
-    equal (run "%sus-abs = .25") ([(0, 1.25)], [])
-    equal (run "%sus = .5") ([(0, 0.5)], [])
-    -- First %sus, then %sus-abs.
-    equal (run "%sus=.5 | %sus-abs=-.25") ([(0, 0.25)], [])
-    -- %sus-set overrides them all.
-    equal (run "%sus=.5 | %sus-abs=-.25 | %sus-set=.75") ([(0, 0.75)], [])
+    equal (run "sus-set = .25") ([(0, 0.25)], [])
+    equal (run "sus-abs = .25") ([(0, 1.25)], [])
+    equal (run "sus = .5") ([(0, 0.5)], [])
+    -- First sus, then sus-abs.
+    equal (run "sus=.5 | sus-abs=-.25") ([(0, 0.25)], [])
+    -- sus-set overrides them all.
+    equal (run "sus=.5 | sus-abs=-.25 | sus-set=.75") ([(0, 0.75)], [])
     equal (run ".") ([(0, 0.5)], [])
-    -- First staccato will override %sus-abs.  Not sure why, but it was on
+    -- First staccato will override sus-abs.  Not sure why, but it was on
     -- purpose.
-    equal (run ". | %sus-abs=-.25") ([(0, 0.5)], [])
-    -- %sus and staccato multiply.
-    equal (run ". | %sus=.5") ([(0, 0.25)], [])
+    equal (run ". | sus-abs=-.25") ([(0, 0.5)], [])
+    -- sus and staccato multiply.
+    equal (run ". | sus=.5") ([(0, 0.25)], [])
 
 test_orphan_notes :: Test
 test_orphan_notes = do
@@ -92,6 +92,6 @@ test_apply_instrument_controls = do
     let octave_up = Map.fromList [(Controls.octave, 1)]
     equal (run "" octave_up) (["5c"], [])
     -- Controls are merged with their default mergers.
-    equal (run "%t-oct=1" octave_up) (["6c"], [])
+    equal (run "t-oct=1" octave_up) (["6c"], [])
     -- Controls don't get applied multiple times.
     equal (run "inst = i1" octave_up) (["5c"], [])

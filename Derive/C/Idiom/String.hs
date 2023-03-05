@@ -36,7 +36,6 @@ import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import           Derive.Sig (control)
 import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
@@ -77,20 +76,17 @@ c_bent_string = Derive.transformer module_ "bent-string"
     <> ShowVal.doc EnvKey.string <> " variable.\
     \\nFurther documentation is in 'Derive.Call.Idiom.String'.")
     $ Sig.callt ((,,,)
-    <$> Sig.defaulted "attack" (control "string-attack" 0.15)
+    <$> Sig.defaulted "attack" (0.15 :: Double)
         "Time for a string to bend to its desired pitch. A fast attack\
         \ sounds like a stopped string."
-    <*> Sig.defaulted "release" (control "string-release" 0.1)
+    <*> Sig.defaulted "release" (0.1 :: Double)
         "Time for a string to return to its original pitch."
-    <*> Sig.defaulted "delay" (control "string-delay" 0)
+    <*> Sig.defaulted "delay" (0 :: Double)
         "If the string won't be used for the following note, it will be\
         \ released after this delay."
     <*> StringUtil.open_strings_env
     ) $ \(attack, release, release_delay, open_strings) _args deriver ->
     Ly.when_lilypond deriver $ do
-        attack <- Typecheck.to_typed_function attack
-        release <- Typecheck.to_typed_function release
-        release_delay <- Typecheck.to_typed_function release_delay
         -- TODO I used to use just the pitch, but the index is more useful when
         -- the pitch can change.  But I have to use pitch for harmonics below
         -- because they don't always require open_strings.
@@ -104,29 +100,27 @@ c_stopped_string = Derive.transformer module_ "stopped-string"
     "A specialization of `bent-string` but for stopped strings, like the\
     \ violin family, where strings instantly jump to their pitches."
     $ Sig.callt ((,,)
-    <$> Sig.defaulted "delay" (control "string-delay" 0)
-        "String release delay time."
+    <$> Sig.defaulted "delay" (0 :: RealTime) "String release delay time."
     <*> StringUtil.open_strings_env <*> StringUtil.string_env
     ) $ \(release_delay, open_strings, string) _args deriver -> case string of
         Just _ -> deriver -- presumably they will all get a constant string
         Nothing -> do
             open_strings <- StringUtil.indexed_strings open_strings
-            release_delay <- Typecheck.to_typed_function release_delay
             config <- make_config
-                (const (ScoreT.untyped 0)) release_delay
-                (const (ScoreT.untyped 0)) open_strings
+                (ScoreT.untyped (const 0)) release_delay
+                (ScoreT.untyped (const 0)) open_strings
             string_idiom config =<< deriver
 
 data Config = Config {
     _open_strings :: Map Pitch.NoteNumber StringUtil.String
     -- | (curve, time)
-    , _attack_curve :: (PitchUtil.Interpolate, Typecheck.TypedFunction)
-    , _release_curve :: (PitchUtil.Interpolate, Typecheck.TypedFunction)
-    , _release_delay :: Typecheck.TypedFunction
+    , _attack_curve :: (PitchUtil.Interpolate, DeriveT.TypedFunction)
+    , _release_curve :: (PitchUtil.Interpolate, DeriveT.TypedFunction)
+    , _release_delay :: DeriveT.TypedFunction
     }
 
-make_config :: Typecheck.TypedFunction -> Typecheck.TypedFunction
-    -> Typecheck.TypedFunction -> [StringUtil.String] -> Derive.Deriver Config
+make_config :: DeriveT.TypedFunction -> DeriveT.TypedFunction
+    -> DeriveT.TypedFunction -> [StringUtil.String] -> Derive.Deriver Config
 make_config attack_dur release_delay release_dur open_strings = do
     srate <- Call.get_srate
     let linear = PitchUtil.segment srate ControlUtil.Linear
@@ -249,16 +243,14 @@ c_mute_end = Derive.transformer module_ "mute-end"
     <*> Sig.required "dur" "Duration of mute note. If it's zero, its omitted\
         \ and only the +mute note is emitted."
     <*> Sig.required "dyn" "Dyn of mute note."
-    ) $ \(threshold, dur, dyn) _args deriver -> Ly.when_lilypond deriver $ do
-        dur <- Typecheck.to_function dur
-        dyn <- Typecheck.to_function dyn
-        Post.emap_ (mute_end (RealTime.seconds . dur) dyn threshold)
+    ) $ \(threshold, dur, dyn) _args deriver -> Ly.when_lilypond deriver $
+        Post.emap_ (mute_end dur dyn threshold)
             . Post.nexts_by string_of <$> deriver
     where
     string_of :: Score.Event -> Maybe Text
     string_of = Env.maybe_val EnvKey.string . Score.event_environ
 
-mute_end :: (RealTime -> RealTime) -> Typecheck.Function -> RealTime
+mute_end :: (RealTime -> RealTime) -> DeriveT.Function -> RealTime
     -> (Score.Event, [Score.Event]) -> [Score.Event]
 mute_end dur_at dyn_at threshold (event, nexts)
     | should_mute = event
@@ -373,7 +365,6 @@ c_nth_harmonic = Derive.generator module_ "harmonic" Tags.inst
     <*> Sig.required_environ_key EnvKey.string "Play on this string."
     ) $ \(harmonic, finger, string) -> Sub.inverting $ \args -> do
         string <- StringUtil.string string
-        finger <- Call.control_at finger =<< Args.real_start args
         Call.place args $
             Derive.with_constant_control Controls.finger finger $
             Call.pitched_note $
@@ -395,7 +386,6 @@ c_harmonic = Derive.generator module_ "harmonic" Tags.inst
         nn <- Pitches.pitch_nn =<< Call.get_transposed =<< Args.real_start args
         open_strings <- mapM StringUtil.string open_strings
         maybe_string <- traverse StringUtil.string maybe_string
-        finger <- Call.control_at finger =<< Args.real_start args
         (string, harmonic) <- Derive.require_right id $
             StringUtil.find_harmonic h1_ok highest_harmonic open_strings
                 maybe_string nn
@@ -410,6 +400,6 @@ highest_harmonic = 13
 touch_interval :: Int -> Pitch.NoteNumber -> Pitch.NoteNumber
 touch_interval harmonic = Pitch.modify_hz (* fromIntegral harmonic)
 
-finger_arg :: Sig.Parser DeriveT.ControlRef
-finger_arg = Sig.defaulted "finger" (DeriveT.constant_control 0.035)
+finger_arg :: Sig.Parser Double
+finger_arg = Sig.defaulted "finger" (0.035 :: Double)
     "Weight of the finger touching the string, in newtons."

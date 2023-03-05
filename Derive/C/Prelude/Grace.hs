@@ -134,7 +134,8 @@ roll times time dyn_scale args = do
     pitch <- Call.get_pitch start
     dyn <- Call.dynamic start
     notes <- Lists.dropEnd 1 <$> GraceUtil.repeat_notes
-        (Call.with_pitch pitch Call.note) (times+1) time 0 args
+        (Call.with_pitch pitch Call.note) (times+1) time
+            (Typecheck.Normalized 0) args
     Sub.derive (map (fmap (Call.with_dynamic (dyn*dyn_scale))) notes)
         <> Call.placed_note args
 

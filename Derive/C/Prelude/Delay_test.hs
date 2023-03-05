@@ -3,11 +3,13 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.C.Prelude.Delay_test where
-import Util.Test
+import qualified Derive.DeriveTest as DeriveTest
+import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import qualified Ui.UiTest as UiTest
-import qualified Derive.DeriveTest as DeriveTest
-import Global
+
+import           Global
+import           Util.Test
 
 
 test_delay :: Test
@@ -57,18 +59,20 @@ test_event_echo = do
             [("*", [(0, 0, "4c"), (1, 0, "4d")])]
     equal logs []
     equal (DeriveTest.note_on_vel mmsgs)
-        [(0, 60, 127), (1000, 62, 127), (2000, 60, 51), (3000, 62, 51)]
+        [ (0, Key.c4, 127)
+        , (1000, Key.d4, 127), (2000, 60, 51), (3000, Key.d4, 51)
+        ]
 
     let (mmsgs, logs) = perform
             ("e-echo %edelay", [(0, 1, ""), (1, 1, "")])
             [ ("*", [(0, 0, "4c"), (1, 0, "4d")])
             , ("edelay", [(0, 0, "2"), (1, 0, "4")])
-            , ("echo-times", [(0, 0, "1"), (1, 0, "2")])
+            , ("e-echo-times", [(0, 0, "1"), (1, 0, "2")])
             ]
     equal logs []
     equal (DeriveTest.note_on_vel mmsgs)
-        [ (0, 60, 127), (1000, 62, 127)
-        , (2000, 60, 51), (5000, 62, 51), (9000, 62, 20)
+        [ (0, Key.c4, 127), (1000, Key.d4, 127)
+        , (2000, Key.c4, 51), (5000, Key.d4, 51), (9000, Key.d4, 20)
         ]
 
 perform :: (Text, [UiTest.EventSpec]) -> [UiTest.TrackSpec]

@@ -6,7 +6,6 @@
 module Derive.C.Post.Retune (library) where
 import qualified Util.Num as Num
 import qualified Util.Segment as Segment
-import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
@@ -23,8 +22,8 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 library :: Library.Library
@@ -48,19 +47,13 @@ c_retune = Derive.transformer module_ "retune" Tags.delayed
     \ effect is scaled by the time and pitch distance from the previous note,\
     \ as documeneted in 'Derive.Call.Post.Retune.pitch_scale'."
     $ Sig.callt ((,)
-    <$> Sig.defaulted "time" (Sig.control "retune-time" 0.15)
+    <$> Sig.defaulted "time" (0.15 :: Double)
         "RealTime to get to the intended pitch."
-    <*> Sig.defaulted "dist" (Sig.control "retune-dist" 0.15)
+    <*> Sig.defaulted "dist" (0.15 :: Double)
         "Out of tune distance, in NNs. Presumably this should be set to a\
         \ control function with a bimodal distribution."
-    ) $ \(time, dist) args deriver -> do
-        start <- Args.real_start args
-        -- TODO typecheck
-        time <- RealTime.seconds <$> Call.control_at time start
-        dist <- Pitch.nn <$> Call.control_at dist start
-        Post.emap1_ (put time dist) <$> deriver
-    where
-    put time dist = Score.put_arg retune_arg ((time, dist) :: RetuneArg)
+    ) $ \(time, dist) _args -> fmap (Post.emap1_ (put time dist))
+    where put time dist = Score.put_arg retune_arg ((time, dist) :: RetuneArg)
 
 c_realize_retune :: Derive.Transformer Derive.Note
 c_realize_retune = Derive.transformer module_ "retune-realize"

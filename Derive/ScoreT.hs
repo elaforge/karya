@@ -7,11 +7,14 @@
 module Derive.ScoreT where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Hashable as Hashable
+import qualified Data.Map as Map
 import qualified Data.String as String
 import qualified Data.Text as Text
 
 import qualified Util.Pretty as Pretty
+import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
+
 import qualified Derive.ShowVal as ShowVal
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
@@ -54,13 +57,12 @@ instance ShowVal.ShowVal Instrument where
 -- A Control should be a valid identifier as defined by 'Ui.Id.valid_symbol'.
 newtype Control = Control Text
     deriving (Eq, Ord, Read, Show, DeepSeq.NFData, Serialize.Serialize,
-        String.IsString)
+        String.IsString, ShowVal.ShowVal)
+
+instance Pretty Control where pretty = ShowVal.show_val
 
 control_name :: Control -> Text
 control_name (Control name) = name
-
-instance Pretty Control where pretty = ShowVal.show_val
-instance ShowVal.ShowVal Control where show_val (Control c) = Text.cons '%' c
 
 -- | Use this constructor when making a Control from user input.  Literals
 -- can use the IsString instance.
@@ -92,7 +94,16 @@ default_pitch :: PControl
 default_pitch = ""
 
 instance Pretty PControl where pretty = ShowVal.show_val
-instance ShowVal.ShowVal PControl where show_val (PControl c) = Text.cons '#' c
+instance ShowVal.ShowVal PControl where
+    show_val p@(PControl s)
+        -- Invert the # -> default pitch mapping in
+        -- Typecheck.lookup_pitch_signal.  This is kind of bogus because the #
+        -- syntax belongs to the PControlRef, not the control name itself.
+        -- But otherwise I get ''s which look confusing in errors?  I guess
+        -- the issue is that there actually is a separate state_pitch, it's
+        -- not in state_environ, so '' is not its actual name.
+        | p == default_pitch = "#"
+        | otherwise = ShowVal.show_val s
 
 
 -- | Use this constructor when making a PControl from user input.  Literals
@@ -116,8 +127,12 @@ parse_generic_control name = case Text.uncons name of
 -- ** Type
 
 -- | Tag for the type of the values in a control signal.
-data Type = Untyped | Chromatic | Diatonic | Nn | Score | Real
-    deriving (Eq, Enum, Ord, Read, Show)
+-- Untyped goes last because the parser tries them in order.
+data Type = Chromatic | Diatonic | Nn | Score | Real | Untyped
+    deriving (Eq, Enum, Ord, Bounded, Show)
+
+all_types :: [Type]
+all_types = [minBound ..]
 
 instance Pretty Type where pretty = showt
 
@@ -125,12 +140,84 @@ instance Serialize.Serialize Type where
     put = Serialize.put . fromEnum
     get = toEnum <$> Serialize.get
 
-all_types :: [Type]
-all_types = [Chromatic, Diatonic, Nn, Score, Real, Untyped]
-    -- Untyped goes last because the parser tries them in order.
+instance ShowVal.ShowVal Type where
+    show_val = type_to_code
+
+-- **
+
+-- This feels clumsy.
+-- What I want to express is subtyping.
+
+data TimeT = TReal | TScore
+    deriving (Eq, Ord, Show)
+
+instance Pretty TimeT where pretty = showt
+
+data TransposeT = TDiatonic | TChromatic | TNn
+    deriving (Eq, Ord, Show)
+
+instance Pretty TransposeT where pretty = showt
+
+-- | Some calls can operate in either RealTime or ScoreTime.
+data Duration = RealDuration RealTime.RealTime
+    | ScoreDuration ScoreTime.ScoreTime
+    deriving (Eq, Show)
+
+time_t :: TimeT -> Type -> Maybe TimeT
+time_t deflt = \case
+    Untyped -> Just deflt
+    Real -> Just TReal
+    Score -> Just TScore
+    _ -> Nothing
+
+transpose_t :: TransposeT -> Type -> Maybe TransposeT
+transpose_t deflt = \case
+    Untyped -> Just deflt
+    Diatonic -> Just TDiatonic
+    Chromatic -> Just TChromatic
+    Nn -> Just TNn
+    _ -> Nothing
+
+duration :: TimeT -> Typed Signal.Y -> Maybe Duration
+duration deflt (Typed typ val) = case typ of
+    Score -> Just $ ScoreDuration (ScoreTime.from_double val)
+    Real -> Just $ RealDuration (RealTime.seconds val)
+    Untyped -> case deflt of
+        TScore -> Just $ ScoreDuration (ScoreTime.from_double val)
+        TReal -> Just $ RealDuration (RealTime.seconds val)
+    _ -> Nothing
+
+-- The transpose equilavents are in Perform.Pitch.Transpose
+
+{-
+data Type = Time TimeT | Transpose TransposeT | Untyped
+data TimeT = Real | Score
+data TransposeT = Chromatic | Diatonic | Nn
+
+data Duration = RealD RealTime | ScoreD ScoreTime
+
+duration :: TimeT ->
+duration deflt (Typed typ val) = case typ of
+    Time ttype -> to_duration ttype val
+    Untyped -> to_duration deflt val
+
+data Category = TimeT TimeT | TransposeT TransposeT | TUntyped
+    deriving (Eq, Ord, Show)
+
+category :: Type -> Category
+category = \case
+    Chromatic -> TTranspose TChromatic
+    Diatonic -> TTranspose TDiatonic
+    Nn -> TTranspose TNn
+    Real -> TTime TReal
+    Score -> TTime TScore
+    Untyped -> TUntyped
+-}
+
+-- **
 
 type_to_code :: Type -> Text
-type_to_code typ = case typ of
+type_to_code = \case
     Untyped -> ""
     Chromatic -> "c"
     Diatonic -> "d"
@@ -139,14 +226,8 @@ type_to_code typ = case typ of
     Real -> Text.singleton RealTime.suffix -- s for seconds
 
 code_to_type :: Text -> Maybe Type
-code_to_type s = case s of
-    "c" -> Just Chromatic
-    "d" -> Just Diatonic
-    "nn" -> Just Nn
-    "t" -> Just Score
-    "s" -> Just Real
-    "" -> Just Untyped
-    _ -> Nothing
+code_to_type = (`Map.lookup` enum_map)
+    where enum_map = Map.fromList $ Seq.key_on ShowVal.show_val [minBound ..]
 
 instance Semigroup Type where
     Untyped <> typed = typed
@@ -158,7 +239,7 @@ instance Monoid Type where
 data Typed a = Typed {
     type_of :: !Type
     , typed_val :: !a
-    } deriving (Eq, Ord, Read, Show)
+    } deriving (Eq, Ord, Show)
 
 instance DeepSeq.NFData a => DeepSeq.NFData (Typed a) where
     rnf (Typed typ val) = typ `seq` DeepSeq.rnf val

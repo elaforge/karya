@@ -64,6 +64,9 @@ library = Library.vals
     , ("rt", c_realtime)
     , ("pitch", c_pitch)
     , ("#", c_pcontrol_ref)
+    , ("signal", c_signal)
+    -- , ("control", c_control)
+    -- , ("pcontrol", c_pcontrol)
     -- lookup
     , ("<-#", c_get_pitch)
     -- generate signals
@@ -275,15 +278,60 @@ c_pcontrol_ref :: Derive.ValCall
 c_pcontrol_ref = val_call "pcontrol-ref" mempty
     "Create a 'Derive.DeriveT.PControlRef'. For control literals, the\
     \ `#name` syntax suffices, but if you want to give a default pitch,\
-    \ you need this call."
+    \ you need this call. This is because pitches are calls, and while\
+    \ `%c,1` can be parsed as-is, `#p,(4c)` needs an evaluation."
     $ Sig.call ((,)
     <$> Sig.required "name" "Name of pitch signal."
     <*> Sig.defaulted "default" (Nothing :: Maybe PSignal.Pitch)
         "Default pitch, if the signal is not set."
-    ) $ \(pcontrol, maybe_default) _ -> return $ case maybe_default of
-        Nothing -> DeriveT.LiteralControl (pcontrol :: ScoreT.PControl)
-        Just pitch -> DeriveT.DefaultedControl pcontrol
+    ) $ \(name, maybe_default) _ -> return $ case maybe_default of
+        Nothing -> DeriveT.LiteralControl (ScoreT.PControl name)
+        Just pitch -> DeriveT.DefaultedControl (ScoreT.PControl name)
             (PSignal.constant pitch)
+
+c_signal :: Derive.ValCall
+c_signal = val_call "signal" mempty
+    "Create a signal. This is the control signal literal."
+    $ Sig.call ((,)
+        <$> Sig.optional_env "type" Derive.None "" "Type code."
+        <*> Sig.many_pairs "breakpoints" "Breakpoints."
+    ) $ \(type_code, bps) _ -> do
+        typ <- Derive.require ("unknown type code: " <> type_code)
+            (ScoreT.code_to_type type_code)
+        return $ DeriveT.VSignal $ ScoreT.Typed typ $ Signal.from_pairs bps
+
+{-
+c_control :: Derive.ValCall
+c_control = val_call "control" mempty
+    "Reference to a signal. Like 'env' but specialized to a signal.\
+    \ This is the literal backing the %c,1 syntax sugar."
+    -- TODO except it's not, not yet
+    $ Sig.call ((,)
+    <$> Sig.required "name" "Look up a signal under this key."
+    <*> Sig.defaulted "default" (Nothing :: Maybe (ScoreT.Typed Signal.Y))
+        "Returned when the name isn't present."
+    ) $ \(name, maybe_default) _args -> do
+        Typecheck.lookup_signal name >>= \case
+            Nothing -> Derive.require
+                ("no control and no default: " <> ShowVal.show_val name)
+                maybe_default
+            Just tsig -> return tsig
+
+c_pcontrol :: Derive.ValCall
+c_pcontrol = val_call "pcontrol" mempty
+    "Reference to a pitch signal. Like 'env' but specialized to a pitch signal.\
+    \ This is the literal backing the #c,(4c) syntax sugar."
+    $ Sig.call ((,)
+    <$> Sig.required "name" "Look up a signal under this key."
+    <*> Sig.defaulted "default" (Nothing :: Maybe Sig.Dummy)
+        "Returned when the name isn't present."
+    ) $ \(name, maybe_default) _args ->
+        Typecheck.lookup_pitch_signal name >>= \case
+            Nothing -> Derive.require
+                ("no pitch control and no default: " <> ShowVal.show_val name)
+                maybe_default
+            Just psig -> return psig
+-}
 
 -- * lookup
 
@@ -324,8 +372,7 @@ c_down_from = val_call "down-from" mempty
     <*> Sig.defaulted "speed" (1 :: Double) "Descend this amount per second."
     ) $ \(from, speed) args -> do
         (start, end) <- Args.real_range_or_next args
-        return $ DeriveT.VControlRef $ DeriveT.ControlSignal $
-            ScoreT.untyped $
+        return $ ScoreT.untyped $
             ControlUtil.slope_to_limit (Just 0) Nothing from (-speed) start end
 
 -- ** implementation
@@ -337,10 +384,10 @@ breakpoints argnum curve vals args = do
     srate <- Call.get_srate
     vals <- num_or_pitch (Args.start args) argnum vals
     return $ case vals of
-        Left nums -> DeriveT.VControlRef $ DeriveT.ControlSignal $
+        Left nums -> DeriveT.VSignal $
             ScoreT.untyped $ ControlUtil.breakpoints srate curve $
             ControlUtil.distribute start end nums
-        Right pitches -> DeriveT.VPControlRef $ DeriveT.ControlSignal $
+        Right pitches -> DeriveT.VPSignal $
             PitchUtil.breakpoints srate curve $
             ControlUtil.distribute start end pitches
 

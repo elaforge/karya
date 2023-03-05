@@ -56,7 +56,7 @@ module Derive.Deriver.Monad (
     , Threaded(..), initial_threaded
     , Dynamic(..), InstrumentAliases, Inversion(..), initial_dynamic
     , strip_dynamic
-    , initial_controls, initial_control_vals, default_dynamic
+    , initial_environ, initial_controls, initial_control_vals, default_dynamic
 
     -- ** scope
     , Builtins
@@ -261,32 +261,35 @@ instance Pretty CallError where
 
 instance Pretty TypeErrorT where
     pretty (TypeErrorT place source (ArgName arg_name) expected mb_received
-            derive_error) = mconcat
+            derive_error) = mconcat $
         [ "arg ", pretty place, "/", arg_name
         , source_desc, ": expected ", pretty expected
-        , case mb_received of
-            Just received -> " but got " <> pretty (ValType.type_of received)
-                <> ": " <> pretty received
+        ] ++ case mb_received of
+            Just received -> case derive_error of
+                Nothing ->
+                    [ " but got ", pretty (ValType.type_of received)
+                    , ": " <> pretty received
+                    ]
+                -- The srcpos and stack of the derive error is probably not
+                -- interesting, so I strip those out.
+                Just (Error _ _ msg) ->
+                    [ " but couldn't convert "
+                    , pretty (ValType.type_of received)
+                    ,  " ", pretty received, ": ", pretty msg
+                    ]
             Nothing -> case source of
                 -- Otherwise the error is confusing, subtracks don't have
                 -- error_received since they don't fit in a DeriveT.Val.
                 -- But I only saw this due to Typecheck Maybe not propagating
                 -- from_subtrack.
                 SubTrack _ ->
-                    " but subtrack didn't make it through from_subtrack"
-                _ -> " but got no value"
-        , maybe "" show_derive_error derive_error
-        ]
+                    [" but subtrack didn't make it through from_subtrack"]
+                _ -> [" but got no value"]
         where
         source_desc = case source of
             Literal -> ""
             Quoted call -> " from " <> ShowVal.show_val call
             SubTrack source -> " from subtrack:" <> either id showt source
-        -- The srcpos and stack of the derive error is probably not
-        -- interesting, so I strip those out.
-        show_derive_error (Error _ _ error_val) =
-            " (the type conversion required derivation, which crashed: "
-            <> pretty error_val <> ")"
 
 instance Pretty ErrorPlace where
     pretty (TypeErrorArg num) = showt (num + 1)
@@ -503,18 +506,13 @@ initial_threaded = Threaded mempty 0
 -- | This is a dynamically scoped environment that applies to generated events
 -- inside its scope.
 data Dynamic = Dynamic {
-    -- | Derivers can modify it for sub-derivers, or look at it, whether to
-    -- attach to an Event or to handle internally.
-    state_controls :: !DeriveT.ControlMap
     -- | Function variant of controls.  Normally they modify a backing
     -- 'Signal.Control', but could be synthesized as well.  See
     -- 'DeriveT.ControlFunction' for details.
-    , state_control_functions :: !DeriveT.ControlFunctionMap
+    state_control_functions :: !DeriveT.ControlFunctionMap
     , state_control_merge_defaults :: !(Map ScoreT.Control Merger)
-    -- | Named pitch signals.
-    , state_pitches :: !DeriveT.PitchMap
     -- | The unnamed pitch signal currently in scope.  This is the pitch signal
-    -- that's applied to notes by default.  It's split off from 'state_pitches'
+    -- that's applied to notes by default.  It's split off from 'state_environ'
     -- because it's convenient to guarentee that the main pitch signal is
     -- always present.
     , state_pitch :: !PSignal.PSignal
@@ -594,12 +592,10 @@ instance Pretty Inversion where
 
 initial_dynamic :: DeriveT.Environ -> Dynamic
 initial_dynamic environ = Dynamic
-    { state_controls = initial_controls
-    , state_control_functions = mempty
+    { state_control_functions = mempty
     , state_control_merge_defaults = initial_control_merge_defaults
-    , state_pitches = Map.empty
     , state_pitch = mempty
-    , state_environ = environ
+    , state_environ = environ <> initial_environ
     , state_warp = Warp.identity
     , state_scopes = mempty
     , state_instrument_aliases = mempty
@@ -622,6 +618,15 @@ strip_dynamic :: Dynamic -> Dynamic
 strip_dynamic dyn = dyn { state_pitch_map = Nothing }
 {-# INLINE strip_dynamic #-}
 
+-- TODO This could go into PlayUtil.initial_environ, but there are
+-- already a bunch of tests that call initial_dynamic directly and
+-- probably rely on these controls being in there.
+initial_environ :: DeriveT.Environ
+initial_environ = DeriveT.Environ $ Map.fromAscList
+    [ (ScoreT.control_name c, DeriveT.VSignal s)
+    | (c, s) <- Map.toAscList initial_controls
+    ]
+
 -- | Initial control environment.
 initial_controls :: DeriveT.ControlMap
 initial_controls = ScoreT.untyped . Signal.constant <$> initial_control_vals
@@ -642,14 +647,12 @@ default_dynamic :: Signal.Y
 default_dynamic = 1
 
 instance Pretty Dynamic where
-    format (Dynamic controls cfuncs cmerge pitches pitch environ warp scopes
+    format (Dynamic cfuncs cmerge pitch environ warp scopes
             aliases control_damage _under_invert inversion pitch_map
             note_track stack mode) =
         Pretty.record "Dynamic"
-            [ ("controls", Pretty.format controls)
-            , ("control_functions", Pretty.format cfuncs)
+            [ ("control_functions", Pretty.format cfuncs)
             , ("control_merge_defaults", Pretty.format cmerge)
-            , ("pitches", Pretty.format pitches)
             , ("pitch", Pretty.format pitch)
             , ("environ", Pretty.format environ)
             , ("warp", Pretty.format warp)
@@ -664,10 +667,10 @@ instance Pretty Dynamic where
             ]
 
 instance DeepSeq.NFData Dynamic where
-    rnf (Dynamic controls cfuncs cmerge pitches pitch environ warp _scopes
+    rnf (Dynamic cfuncs cmerge pitch environ warp _scopes
             aliases control_damage _under_invert _inversion pitch_map
             note_track stack _mode) =
-        rnf controls `seq` rnf cfuncs `seq` rnf cmerge `seq` rnf pitches
+        rnf cfuncs `seq` rnf cmerge
         `seq` rnf pitch `seq` rnf environ `seq` rnf warp `seq` rnf aliases
         `seq` rnf control_damage `seq` rnf pitch_map `seq` rnf note_track
         `seq` rnf stack

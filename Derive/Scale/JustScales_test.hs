@@ -36,9 +36,9 @@ test_note_to_call = do
             times = zip (Seq.range_ 0 1)
         extract = fmap Pitch.nn_to_hz . Score.initial_nn
     let run key base =
-            run_title ("> | %just-base = " <> base <> " | key = " <> key)
+            run_title ("> | just-base = " <> base <> " | key = " <> key)
 
-    -- Scale starts at 4c by default, and tunes to %just-base.
+    -- Scale starts at 4c by default, and tunes to just-base.
     equalf 0.001 (run "c-maj" "440" ["4c"]) ([Just 440], [])
     equalf 0.001 (run "a-maj" "440" ["4a"]) ([Just 440], [])
 
@@ -65,7 +65,7 @@ test_note_to_call = do
         ([Just 440, Just $ 440 * acc, Just $ 440 / acc], [])
 
     -- tuning
-    let runt t = run_title ("> | %just-base=440 | key=c-maj | tuning=" <> t)
+    let runt t = run_title ("> | just-base=440 | key=c-maj | tuning=" <> t)
     equalf 0.001 (runt "limit-5" ["4d"]) ([Just (440 * 9/8)], [])
     equalf 0.001 (runt "limit-7" ["4d"]) ([Just (440 * 8/7)], [])
 
@@ -88,7 +88,7 @@ test_note_to_call_relative :: Test
 test_note_to_call_relative = do
     let run key p = DeriveTest.extract extract $ DeriveTest.derive_tracks ""
             [ ("*just-r | key = " <> key, [(0, 0, p)])
-            , ("> | %just-base = 440", [(0, 1, "")])
+            , ("> | just-base = 440", [(0, 1, "")])
             ]
         extract = fmap Pitch.nn_to_hz . Score.initial_nn
     equalf 0.001 (run "a-maj" "4s") ([Just 440], [])
@@ -179,6 +179,6 @@ test_transpose_controls = do
             DeriveTest.derive_tracks "scale=just" $
             UiTest.note_track [(0, 1, p)]
         d4 = Pitch.modify_hz (* (9/8)) NN.c4
-    equalf 0.01 (f "%t-chrom=1 | -- 4c") ([Just d4], [])
-    equalf 0.01 (f "%t-dia=1 | -- 4c") ([Just d4], [])
-    equalf 0.01 (f "%t-oct=1 | -- 4c") ([Just NN.c5], [])
+    equalf 0.01 (f "t-chrom=1 | -- 4c") ([Just d4], [])
+    equalf 0.01 (f "t-dia=1 | -- 4c") ([Just d4], [])
+    equalf 0.01 (f "t-oct=1 | -- 4c") ([Just NN.c5], [])

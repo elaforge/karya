@@ -6,7 +6,6 @@
 module User.Elaforge.Instrument.Kontakt.Wayang where
 import qualified Cmd.Instrument.Bali as Bali
 import qualified Cmd.Instrument.MidiInst as MidiInst
-import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.C.Bali.Gangsa as Gangsa
 import qualified Derive.C.Bali.Gender as Gender
@@ -16,7 +15,6 @@ import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Wayang as Wayang
-import qualified Derive.Sig as Sig
 
 import qualified Instrument.Common as Common
 import qualified Midi.Key2 as Key2
@@ -74,11 +72,8 @@ patches = map (MidiInst.code #= code <> with_weak)
     with_weak = MidiInst.null_call $ DUtil.zero_duration "note"
         "This a normal note with non-zero duration, but when the duration is\
         \ zero, it uses the `weak` call."
-        (Sub.inverting weak_call)
+        (Sub.inverting Gender.weak_call)
         (Sub.inverting $ Note.default_note Note.use_attributes)
-    weak_call args =
-        Gender.weak (Sig.control "strength" 0.5) (Args.set_duration dur args)
-        where dur = Args.next args - Args.start args
     patch name = set_params $ MidiInst.named_patch (-24, 24) name []
     set_params = MidiInst.patch
         %= MidiInst.add_flags [Patch.UseFinalNoteOff]

@@ -29,8 +29,7 @@ module Derive.Deriver.Lib (
     , with_val, with_vals
     , with_environ
     , with_val_raw
-    , delete_val
-    , with_merged_numeric_val
+    , remove_val, remove_vals
     , modify_val
     , with_scale, with_instrument
     , with_instrument_alias, with_instrument_aliases
@@ -38,20 +37,20 @@ module Derive.Deriver.Lib (
     , get_instrument, lookup_instrument
 
     -- ** control
-    , lookup_control
+    , lookup_signal
+    , lookup_function, get_function
     , is_control_set
-    , signal_function
-    , lookup_control_signal
-    , get_controls
-    , get_control_functions
+    , get_control_map
+    , get_function_map
+    , state_signals, state_functions -- TODO remove junk
     , control_at, untyped_control_at, controls_at
-    , state_controls_at
+    , modify_signals
 
     -- *** control signal
-    , with_control, with_constant_control, with_controls
+    , with_control, with_constant_control
+    , with_controls
     , remove_controls
     , with_control_function
-    , with_control_maps
     , with_merged_control, with_merged_controls
     , resolve_merge
     , get_control_merge
@@ -66,8 +65,9 @@ module Derive.Deriver.Lib (
     , pitch_at, named_pitch_at
     , resolve_pitch
     , nn_at
-    , get_pitch, get_named_pitch
+    , get_pitch
     , named_nn_at
+    , lookup_pitch_signal
     , logged_pitch_nn
 
     -- *** with signal
@@ -384,18 +384,24 @@ get_val key = do
     val <- lookup_val key
     maybe (throw $ "environ val not found: " <> pretty key) return val
 
--- | Set the given val dynamically within the given computation.  This is
--- analogous to a dynamic let.
---
--- There is intentionally no way to modify the environment via assignment.
--- It would introduce an order of execution dependency that would complicate
--- caching as well as have a confusing non-local effect.
---
--- This dispatches to 'with_scale' or 'with_instrument' if it's setting the
--- scale or instrument, so scale or instrument scopes are always set when scale
--- and instrument are.
+{- | Set the given val dynamically within the given computation.  This is
+    analogous to a dynamic let.
+
+    Remove on VNotGiven, which is what any Nothing will become.  There's no use
+    for a VNotGiven in the environ.  The main way this is used is the @val=_@
+    c_equal syntax.
+
+    There is intentionally no way to modify the environment via assignment.
+    It would introduce an order of execution dependency that would complicate
+    caching as well as have a confusing non-local effect.
+
+    This dispatches to 'with_scale' or 'with_instrument' if it's setting the
+    scale or instrument, so scale or instrument scopes are always set when scale
+    and instrument are.
+-}
 with_val :: Typecheck.ToVal val => Env.Key -> val -> Deriver a -> Deriver a
 with_val key val deriver
+    | DeriveT.VNotGiven <- v = remove_val key deriver
     | key == EnvKey.scale, Just scale_id <- DeriveT.to_scale_id v = do
         scale <- get_scale scale_id
         with_scale scale deriver
@@ -428,41 +434,26 @@ with_environ environ
     | otherwise = Internal.local $ \state -> state
         { state_environ = environ <> state_environ state }
 
--- | Like 'with_val', but don't set scopes for instrument and scale.
+-- | Like 'with_val', but don't set scopes for instrument and scale.  Also
+-- don't check for types, so you can replace a val with one of a different
+-- type.  Due to this it's also more efficient.
 with_val_raw :: Typecheck.ToVal val => Env.Key -> val -> Deriver a -> Deriver a
-with_val_raw key val = Internal.localm $ \state -> do
-    environ <- insert_environ key val (state_environ state)
-    environ `seq` return $! state { state_environ = environ }
-    where insert_environ key val = require_right id . Env.put_val_error key val
+with_val_raw key val = Internal.local $ \state -> state
+    { state_environ = Env.insert_val key val (state_environ state) }
 
-delete_val :: Env.Key -> Deriver a -> Deriver a
-delete_val key = Internal.local $ \state ->
-    state { state_environ = Env.delete key $ state_environ state }
+with_vals_raw :: Typecheck.ToVal val => [(EnvKey.Key, val)] -> Deriver a
+    -> Deriver a
+with_vals_raw vals =
+    with_environ $ Env.from_list (map (second Typecheck.to_val) vals)
 
--- | This is the Env version of with_merged_control.  It only works on numeric
--- env vals.
-with_merged_numeric_val :: Merger -> Env.Key -> Signal.Y
-    -> Deriver a -> Deriver a
-with_merged_numeric_val merger key val = case merger of
-    Set -> with_val key val
-    Unset -> \deriver -> do
-        old <- lookup_val key -- throw if not numeric
-        if (old :: Maybe Signal.Y) == Nothing
-            then with_val key val deriver
-            else deriver
-    Merger name merge ident -> Internal.localm $ \state -> do
-        (typ, old) <- case Env.checked_val2 key (state_environ state) of
-            Nothing -> return (ScoreT.Untyped, ident)
-            Just (Right (ScoreT.Typed typ old)) -> return (typ, old)
-            Just (Left err) -> throw err
-        -- This is a hack to reuse Merger, which is defined on Signal, not Y.
-        -- It could be defined on Y, but then I'd have to directly use
-        -- Signal.linear_operator instead of Signal.sig_add, and I don't trust
-        -- that I'll never have a non-linear merger.
-        new <- require ("merger " <> name <> " produced an empty signal") $
-            Signal.constant_val $
-            merge (Signal.constant old) (Signal.constant val)
-        return $! insert_env key (ScoreT.Typed typ new) state
+remove_val :: Env.Key -> Deriver a -> Deriver a
+remove_val = remove_vals . (:[])
+-- remove_val key = Internal.local $ \state ->
+--     state { state_environ = Env.delete key $ state_environ state }
+
+remove_vals :: [Env.Key] -> Deriver a -> Deriver a
+remove_vals keys = Internal.local $ \state ->
+    state { state_environ = foldr Env.delete (state_environ state) keys }
 
 modify_val :: (Typecheck.Typecheck val, Typecheck.ToVal val) => Env.Key
     -> (Maybe val -> val) -> Deriver a -> Deriver a
@@ -609,123 +600,155 @@ lookup_instrument inst = do
 
 -- ** control
 
--- | Return an entire signal.
-lookup_control :: ScoreT.Control
-    -> Deriver (Maybe (RealTime -> ScoreT.Typed Signal.Y))
-lookup_control control = lookup_control_function control >>= \case
-    Just f -> return $ Just f
-    Nothing -> lookup_control_signal control >>= return . fmap signal_function
+lookup_signal :: ScoreT.Control -> Deriver (Maybe (ScoreT.Typed Signal.Control))
+lookup_signal = Typecheck.lookup_signal
 
-is_control_set :: ScoreT.Control -> Deriver Bool
-is_control_set = fmap Maybe.isJust . lookup_control
+lookup_function :: ScoreT.Control -> Deriver (Maybe DeriveT.TypedFunction)
+lookup_function = Typecheck.lookup_function . DeriveT.LiteralControl
 
-signal_function :: ScoreT.Typed Signal.Control
-    -> (RealTime -> ScoreT.Typed Signal.Y)
-signal_function sig t = Signal.at t <$> sig
-
-lookup_control_signal :: ScoreT.Control
-    -> Deriver (Maybe (ScoreT.Typed Signal.Control))
-lookup_control_signal control = Map.lookup control <$> get_controls
-
-get_controls :: Deriver DeriveT.ControlMap
-get_controls = Internal.get_dynamic state_controls
-
-get_control_functions :: Deriver DeriveT.ControlFunctionMap
-get_control_functions = Internal.get_dynamic state_control_functions
+get_function :: ScoreT.Control -> Deriver DeriveT.TypedFunction
+get_function = Typecheck.resolve_function . DeriveT.LiteralControl
 
 -- | Get the control value at the given time, taking 'state_control_functions'
 -- into account.
 control_at :: ScoreT.Control -> RealTime
     -> Deriver (Maybe (ScoreT.Typed Signal.Y))
-control_at control pos = lookup_control_function control >>= \case
-    Just f -> return $ Just $ f pos
-    Nothing -> do
-        maybe_sig <- Map.lookup control <$> get_controls
-        return $ fmap (Signal.at pos) <$> maybe_sig
-
-lookup_control_function :: ScoreT.Control
-    -> Deriver (Maybe (RealTime -> ScoreT.Typed Signal.Y))
-lookup_control_function control = do
-    functions <- Internal.get_dynamic state_control_functions
-    case Map.lookup control functions of
-        Nothing -> return Nothing
-        Just f -> do
-            dyn <- Internal.get_control_function_dynamic
-            return $ Just $ DeriveT.cf_function f control dyn
+control_at control pos = fmap (fmap ($ pos)) <$> lookup_function control
 
 untyped_control_at :: ScoreT.Control -> RealTime -> Deriver (Maybe Signal.Y)
-untyped_control_at cont = fmap (fmap ScoreT.typed_val) . control_at cont
+untyped_control_at control = fmap (fmap ScoreT.typed_val) . control_at control
+
+is_control_set :: ScoreT.Control -> Deriver Bool
+is_control_set = is_val_set . ScoreT.control_name
+
+-- *** all signals / functions
+
+-- TODO for notes, to get just signals, no cfs.  Keeping with function / signal
+-- naming, should be get_signals and SignalMap?
+get_control_map :: Deriver DeriveT.ControlMap
+get_control_map =
+    fmap Map.fromList $ mapMaybeM convert . Env.to_list =<< Internal.get_environ
+    where
+    convert (key, val) = fmap (ScoreT.Control key,) <$> to_signal val
+    to_signal val = case Typecheck.val_to_signal val of
+        Nothing -> return Nothing
+        Just (Right sig) -> return $ Just sig
+        Just (Left dsig) -> Just <$> dsig
+
+-- | Like 'get_function', but get them all.
+get_function_map :: Deriver DeriveT.FunctionMap
+get_function_map = do
+    cf_dyn <- Internal.get_control_function_dynamic
+    dyn <- Internal.get_dynamic id
+    fmap Map.fromAscList $ mapMaybeM (convert cf_dyn) $ Maps.pairs
+        (state_control_functions dyn)
+        (Map.mapKeys ScoreT.Control (Env.to_map (state_environ dyn)))
+    where
+    convert cf_dyn (control, p) = fmap (fmap (control,)) $ case p of
+        Seq.Both cf _ -> return $ Just $ Typecheck.retype_cf cf control cf_dyn
+        Seq.First cf -> return $ Just $ Typecheck.retype_cf cf control cf_dyn
+        Seq.Second val ->
+            case Typecheck.val_to_function_dyn cf_dyn (Just control) val of
+                Nothing -> return Nothing
+                Just (Right f) -> return $ Just f
+                Just (Left df) -> Just <$> df
 
 -- | Get a ControlValMap at the given time, taking 'state_control_functions'
 -- into account.
 {-# SCC controls_at #-}
 controls_at :: RealTime -> Deriver ScoreT.ControlValMap
-controls_at pos = do
-    state <- get
-    ruler <- Internal.get_ruler
-    return $! state_controls_at pos ruler (state_dynamic state)
-        (state_event_serial (state_threaded state))
+controls_at = fmap (fmap ScoreT.typed_val) . typed_controls_at
 
-{-# SCC state_controls_at #-}
-state_controls_at :: RealTime -> Ruler.Marklists
-    -- ^ Ruler marklists from the same track as the Dynamic.  Needed by
-    -- control functions, via 'DeriveT.dyn_ruler'.
-    -> Dynamic -> Int -- ^ 'state_event_serial'
-    -> ScoreT.ControlValMap
-state_controls_at pos ruler dyn serial =
-    Map.mapWithKey (resolve (Internal.convert_dynamic ruler dyn serial) pos) $
-    Maps.paired (state_control_functions dyn) (state_controls dyn)
+typed_controls_at :: RealTime -> Deriver ScoreT.TypedControlValMap
+typed_controls_at pos = fmap (fmap ($ pos)) <$> get_function_map
+
+-- | Modify all VSignal and VPSignal types in environ.
+modify_signals :: (Signal.Control -> Signal.Control)
+    -> (PSignal.PSignal -> PSignal.PSignal) -> Deriver a -> Deriver a
+modify_signals modify_control modify_pitch = Internal.local $ \state -> state
+    { state_environ = Env.map update (state_environ state)
+    , state_pitch = modify_pitch (state_pitch state)
+    }
     where
-    resolve cf_dyn pos k p = case p of
-        Seq.Both f _ -> call k f
-        Seq.First f -> call k f
-        Seq.Second sig -> Signal.at pos (ScoreT.typed_val sig)
-        where
-        call control f = ScoreT.typed_val $
-            DeriveT.cf_function f control cf_dyn pos
+    update = \case
+        DeriveT.VSignal sig -> DeriveT.VSignal (modify_control <$> sig)
+        DeriveT.VPSignal sig -> DeriveT.VPSignal (modify_pitch sig)
+        val -> val
+
+-- | Get all signals in the environ.  This is like 'get_control_map', but
+-- doesn't resolve ControlRefs.
+-- TODO remove it, only used by LPerf and Derive_test
+state_signals :: Dynamic -> DeriveT.ControlMap
+state_signals =
+    Map.mapKeys ScoreT.Control . Map.mapMaybe is_signal
+        . Env.to_map . state_environ
+    where
+    is_signal val = case Typecheck.val_to_signal val of
+        Just (Right sig) -> Just sig
+        _ -> Nothing
+
+-- TODO remove it, only used by LPerf
+state_functions :: Dynamic -> Ruler.Marklists -> Stack.Serial
+    -> DeriveT.FunctionMap
+state_functions dyn mlists serial = Map.fromList
+    [ (control, f)
+    | (name, val) <- Env.to_list env
+    , let control = ScoreT.Control name
+    , Just f <- [val_to_function_dyn cf_dyn control val]
+    ]
+    where
+    cf_dyn = Internal.convert_dynamic mlists dyn serial
+    env = state_environ dyn
+    val_to_function_dyn :: DeriveT.Dynamic -> ScoreT.Control -> DeriveT.Val
+        -> Maybe DeriveT.TypedFunction
+    val_to_function_dyn dyn control val =
+        case Typecheck.val_to_function_dyn dyn (Just control) val of
+            Just (Right f) -> Just f
+            _ -> Nothing
 
 -- *** control signal
 
-with_control :: ScoreT.Control -> ScoreT.Typed Signal.Control
-    -> Deriver a -> Deriver a
-with_control control signal = with_controls [(control, signal)]
+with_control :: ScoreT.Control -> ScoreT.Typed Signal.Control -> Deriver a
+    -> Deriver a
+with_control control signal = with_val_raw (ScoreT.control_name control) signal
 
 with_constant_control :: ScoreT.Control -> Signal.Y -> Deriver a -> Deriver a
 with_constant_control control val =
     with_control control (ScoreT.untyped (Signal.constant val))
 
-with_controls :: [(ScoreT.Control, ScoreT.Typed Signal.Control)]
-    -> Deriver a -> Deriver a
-with_controls controls
-    | null controls = id
-    | otherwise = Internal.local $ \state -> state
-        { state_controls = Maps.insertList controls (state_controls state)
-        }
+with_controls :: [(ScoreT.Control, ScoreT.Typed Signal.Control)] -> Deriver a
+    -> Deriver a
+with_controls controls =
+    with_vals_raw (map (first ScoreT.control_name) controls)
+
+-- TODO replace doesn't make so much sense with unify-env
+-- | Like 'with_controls', but delete all other signals at the same time.
+-- A signal is anything that can be coerced into one via
+-- 'Typecheck.val_to_signal'.  Does not do anything with ControlFunctions!
+-- replace_controls :: [(ScoreT.Control, ScoreT.Typed Signal.Control)]
+--     -> Deriver a -> Deriver a
+-- replace_controls controls = Internal.local $ \state ->
+--     state { state_environ = replace (state_environ state) }
+--     where
+--     replace = Env.from_map . (Map.fromList converted <>)
+--         . Map.filter (Either.isRight . Typecheck.val_to_signal) . Env.to_map
+--     converted = map (bimap ScoreT.control_name Typecheck.to_val) controls
 
 -- | Remove both controls and control functions.  Use this when a control has
 -- already been applied, and you don't want it to affect further derivation.
 remove_controls :: [ScoreT.Control] -> Deriver a -> Deriver a
-remove_controls controls
-    | null controls = id
-    | otherwise = Internal.local $ \state -> state
-        { state_controls = Maps.deleteKeys controls (state_controls state)
-        , state_control_functions =
-            Maps.deleteKeys controls (state_control_functions state)
-        }
+remove_controls controls = Internal.local $ \state -> state
+    { state_environ = foldr Env.delete (state_environ state) keys
+    , state_control_functions =
+        Maps.deleteKeys controls (state_control_functions state)
+    }
+    where keys = map ScoreT.control_name controls
 
 with_control_function :: ScoreT.Control -> DeriveT.ControlFunction
     -> Deriver a -> Deriver a
 with_control_function control f = Internal.local $ \state -> state
     { state_control_functions =
         Map.insert control f (state_control_functions state)
-    }
-
--- | Replace the controls entirely.
-with_control_maps :: DeriveT.ControlMap -> DeriveT.ControlFunctionMap
-    -> Deriver a -> Deriver a
-with_control_maps cmap cfuncs = Internal.local $ \state -> state
-    { state_controls = cmap
-    , state_control_functions = cfuncs
     }
 
 -- | Modify the given control according to the Merger.
@@ -738,8 +761,8 @@ with_control_maps cmap cfuncs = Internal.local $ \state -> state
 with_merged_control :: Merger -> ScoreT.Control -> ScoreT.Typed Signal.Control
     -> Deriver a -> Deriver a
 with_merged_control merger control signal deriver = do
-    controls <- get_controls
-    let new = merge merger (Map.lookup control controls) signal
+    mb_sig <- lookup_signal control
+    let new = merge merger mb_sig signal
     with_control control new deriver
 
 -- | Like 'with_controls', but merge them with their respective default
@@ -749,11 +772,10 @@ with_merged_controls :: [(ScoreT.Control, ScoreT.Typed Signal.Control)]
 with_merged_controls control_vals deriver
     | null control_vals = deriver
     | otherwise = do
-        let (controls, new_vals) = unzip control_vals
+        let (controls, new_sigs) = unzip control_vals
         mergers <- mapM get_default_merger controls
-        signals <- get_controls
-        let old_vals = map (flip Map.lookup signals) controls
-            merged = zipWith3 merge mergers old_vals new_vals
+        old_sigs <- mapM lookup_signal controls
+        let merged = zipWith3 merge mergers old_sigs new_sigs
         with_controls (zip controls merged) deriver
 
 resolve_merge :: Merge -> ScoreT.Control -> Deriver Merger
@@ -838,9 +860,7 @@ pitch_at pos = PSignal.at pos <$> get_pitch
 
 -- | Like 'pitch_at', this is a raw pitch.
 named_pitch_at :: ScoreT.PControl -> RealTime -> Deriver (Maybe PSignal.Pitch)
-named_pitch_at name pos = do
-    psig <- get_named_pitch name
-    return $ PSignal.at pos =<< psig
+named_pitch_at name pos = PSignal.at pos <$> get_pitch_signal name
 
 -- | Resolve the raw pitch returned from 'pitch_at' to the final transposed
 -- pitch.
@@ -858,8 +878,17 @@ nn_at pos = justm (pitch_at pos) $ \pitch ->
 get_pitch :: Deriver PSignal.PSignal
 get_pitch = Internal.get_dynamic state_pitch
 
-get_named_pitch :: ScoreT.PControl -> Deriver (Maybe PSignal.PSignal)
-get_named_pitch = Internal.get_named_pitch
+-- | Re-export 'Typecheck.lookup_pitch_signal', defined there to avoid
+-- circular import.
+lookup_pitch_signal :: ScoreT.PControl -> Deriver (Maybe PSignal.PSignal)
+lookup_pitch_signal = Typecheck.lookup_pitch_signal
+
+get_pitch_signal :: ScoreT.PControl -> Deriver PSignal.PSignal
+get_pitch_signal pcontrol =
+    -- The PControl itself doesn't add the # because that's the ref syntax,
+    -- but let's add the # to remind that it's a PControl.
+    require ("no named pitch #" <> ShowVal.show_val pcontrol)
+        =<< lookup_pitch_signal pcontrol
 
 named_nn_at :: ScoreT.PControl -> RealTime -> Deriver (Maybe Pitch.NoteNumber)
 named_nn_at name pos = do
@@ -882,6 +911,7 @@ logged_pitch_nn msg pitch = case PSignal.pitch_nn pitch of
 with_pitch :: PSignal.PSignal -> Deriver a -> Deriver a
 with_pitch = modify_pitch ScoreT.default_pitch . const
 
+-- TODO now that named pitch is just env VPSignals, do I really need this?
 with_named_pitch :: ScoreT.PControl -> PSignal.PSignal -> Deriver a -> Deriver a
 with_named_pitch pcontrol = modify_pitch pcontrol . const
 
@@ -893,11 +923,13 @@ remove_pitch = modify_pitch ScoreT.default_pitch (const mempty)
 
 modify_pitch :: ScoreT.PControl -> (Maybe PSignal.PSignal -> PSignal.PSignal)
     -> Deriver a -> Deriver a
-modify_pitch pcontrol f
-    | pcontrol == ScoreT.default_pitch = Internal.local $ \state ->
-        state { state_pitch = f (Just (state_pitch state)) }
-    | otherwise = Internal.local $ \state -> state
-        { state_pitches = Map.alter (Just . f) pcontrol (state_pitches state) }
+modify_pitch pcontrol modify deriver
+    | pcontrol == ScoreT.default_pitch = Internal.local
+        (\state -> state { state_pitch = modify (Just (state_pitch state)) })
+        deriver
+    | otherwise = do
+        mb_sig <- lookup_val (ScoreT.pcontrol_name pcontrol)
+        with_val_raw (ScoreT.pcontrol_name pcontrol) (modify mb_sig) deriver
 
 -- * run monad
 
@@ -979,15 +1011,7 @@ with_event event = catch False . with_event_stack event
 shift_controls :: ScoreTime -> Deriver a -> Deriver a
 shift_controls shift deriver = do
     real <- Internal.real shift
-    Internal.local
-        (\state -> state
-            { state_controls = nudge real (state_controls state)
-            , state_pitch = nudge_pitch real (state_pitch state)
-            })
-        deriver
-    where
-    nudge delay = Map.map (fmap (Signal.shift delay))
-    nudge_pitch = PSignal.shift
+    modify_signals (Signal.shift real) (PSignal.shift real) deriver
 
 -- * call
 

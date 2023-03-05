@@ -21,7 +21,7 @@ test_sequence = do
     equal (run 0 1 "sequence sub-cd") ([(0, 0.5, "4c"), (0.5, 0.5, "4d")], [])
     equal (run 0 3 "sequence sub-cd sub-e")
         ([(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4e")], [])
-    equal (run 0 3 "sequence \"(%t-dia=1 | sub-e) sub-cd")
+    equal (run 0 3 "sequence \"(t-dia=1 | sub-e) sub-cd")
         ([(0, 1, "4f"), (1, 1, "4c"), (2, 1, "4d")], [])
     -- Duration is the sum of callees, so I can sequence sequences.
     equal (run 0 4 "sequence \"(sequence sub-e sub-e) sub-cd")

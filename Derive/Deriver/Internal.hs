@@ -16,7 +16,6 @@ import qualified Util.Seed as Seed
 
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.EnvKey as EnvKey
-import qualified Derive.PSignal as PSignal
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackWarp as TrackWarp
@@ -74,11 +73,6 @@ detached_local modify_dynamic deriver = do
 
 set_threaded :: Threaded -> Deriver ()
 set_threaded threaded = modify $ \st -> st { state_threaded = threaded }
-
-get_named_pitch :: ScoreT.PControl -> Deriver (Maybe PSignal.PSignal)
-get_named_pitch name
-    | name == ScoreT.default_pitch = Just <$> get_dynamic state_pitch
-    | otherwise = Map.lookup name <$> get_dynamic state_pitches
 
 -- * Collect
 
@@ -416,9 +410,7 @@ get_control_function_dynamic = do
 convert_dynamic :: Ruler.Marklists -> Dynamic -> Stack.Serial
     -> DeriveT.Dynamic
 convert_dynamic ruler dyn serial = DeriveT.Dynamic
-    { dyn_controls = state_controls dyn
-    , dyn_control_functions = state_control_functions dyn
-    , dyn_pitches = state_pitches dyn
+    { dyn_control_functions = state_control_functions dyn
     , dyn_pitch = state_pitch dyn
     , dyn_environ = state_environ dyn
     , dyn_event_serial = serial

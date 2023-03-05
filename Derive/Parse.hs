@@ -12,7 +12,7 @@ module Derive.Parse (
     , unparsed_call
 
     -- * parsers
-    , lexeme, p_pipe, p_expr, p_pcontrol, p_identifier, p_symbol
+    , lexeme, p_pipe, p_expr, p_pcontrol_ref, p_identifier, p_symbol
     -- * expand macros
     , expand_macros
     -- * for Parse.Ky
@@ -301,7 +301,7 @@ p_val =
     <|> DeriveT.VNum <$> p_num
     <|> DeriveT.VStr <$> p_str
     <|> DeriveT.VControlRef <$> p_control_ref
-    <|> DeriveT.VPControlRef . DeriveT.LiteralControl <$> p_pcontrol
+    <|> DeriveT.VPControlRef . DeriveT.LiteralControl <$> p_pcontrol_ref
     <|> DeriveT.VQuoted <$> p_quoted
     <|> (A.char '_' >> return DeriveT.VNotGiven)
     <|> (A.char ';' >> return DeriveT.VSeparator)
@@ -377,10 +377,11 @@ p_control_ref = do
     <?> "control"
 
 -- | Unlike 'p_control_ref', this doesn't parse a comma and a default value,
--- because pitches don't have literals.  Instead, use the @pitch-control@ val
--- call.
-p_pcontrol :: A.Parser ScoreT.PControl
-p_pcontrol = do
+-- because pitches don't have literals.  Instead, use the @#@ val call.
+-- I return PControl directly since it's always LiteralControl, and so
+-- ParseTitle can use it.
+p_pcontrol_ref :: A.Parser ScoreT.PControl
+p_pcontrol_ref = do
     A.char '#'
     ScoreT.unchecked_pcontrol <$> p_identifier True ""
     <?> "pitch control"

@@ -206,7 +206,7 @@ test_track_signal_transpose = do
     -- Make sure the transposition doesn't mess up the signal.  This tests
     -- that PSignal.apply_controls doesn't create pitch signal starting at 0
     -- where the transpose control starts.
-    equal (run "%t-oct=1") [[(0, 72), (1, 72), (1, 74), (2, 74), (2, 76)]]
+    equal (run "t-oct=1") [[(0, 72), (1, 72), (1, 74), (2, 74), (2, 76)]]
 
 test_stash_signal :: Test
 test_stash_signal = do

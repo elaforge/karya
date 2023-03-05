@@ -19,6 +19,8 @@ import           Global
 
 data Type =
     TNum NumType NumValue
+    | TSignal !SignalType
+    | TPSignal
     | TAttributes | TControlRef | TPControlRef | TPitch | TNotePitch
     -- | Text string, with enum values if it's an enum.
     | TStr (Maybe [Text]) | TControl | TPControl
@@ -39,6 +41,19 @@ data Type =
     -- get this, as a plain description.
     | TOther !Text
     deriving (Eq, Ord, Show)
+
+-- TODO semi redundant with Typecheck.TimeType and TransposeType
+data SignalType = SignalUntyped | SignalTranspose | SignalTime
+    deriving (Eq, Ord, Show)
+
+signal_type :: ScoreT.Type -> SignalType
+signal_type = \case
+    ScoreT.Chromatic -> SignalTranspose
+    ScoreT.Diatonic -> SignalTranspose
+    ScoreT.Nn -> SignalTranspose
+    ScoreT.Real -> SignalTime
+    ScoreT.Score -> SignalTime
+    ScoreT.Untyped -> SignalUntyped
 
 -- | These are kind of muddled.  This is because they were originally just
 -- documentation, so the more specific the better, but are also used for
@@ -103,21 +118,25 @@ subtypes_of n
     transpose = [TTranspose, TDefaultDiatonic, TDefaultChromatic, TNoteNumber]
 
 instance Pretty Type where
-    pretty (TMaybe typ) = "Maybe " <> pretty typ
-    pretty (TEither a b) = pretty a <> " or " <> pretty b
-    pretty (TPair a b) = "(" <> pretty a <> ", " <> pretty b <> ")"
-    pretty (TNum typ val) = append_parens "Num" $
-        Texts.join2 ", " (pretty typ) (pretty val)
-    pretty (TStr enums) = append_parens "Str" $ maybe "" Text.unwords enums
-    -- There is no corresponding Val type for these, so I might as well be
-    -- clear about what they mean.
-    pretty TControl = append_parens "Control" Id.symbol_description
-    pretty TPControl = append_parens "PControl" ("#" <> Id.symbol_description)
-    pretty (TList typ) = "list of " <> pretty typ
-    pretty (TOther text) = text
-    pretty TNotGiven = "_"
-    pretty (TDeriver name) = name <> " deriver"
-    pretty typ = Text.drop 1 (showt typ)
+    pretty = \case
+        TMaybe typ -> "Maybe " <> pretty typ
+        TEither a b -> pretty a <> " or " <> pretty b
+        TPair a b -> "(" <> pretty a <> ", " <> pretty b <> ")"
+        TNum typ val -> append_parens "Num" $
+            Texts.join2 ", " (pretty typ) (pretty val)
+        TSignal sig -> "Signal" <> case sig of
+            SignalUntyped -> ""
+            _ -> " (" <> Texts.dropPrefix "Signal" (showt sig) <> ")"
+        TStr enums -> append_parens "Str" $ maybe "" Text.unwords enums
+        -- There is no corresponding Val type for these, so I might as well be
+        -- clear about what they mean.
+        TControl -> append_parens "Control" Id.symbol_description
+        TPControl -> append_parens "PControl" ("#" <> Id.symbol_description)
+        TList typ -> "list of " <> pretty typ
+        TOther text -> text
+        TNotGiven -> "_"
+        TDeriver name -> name <> " deriver"
+        typ -> Text.drop 1 (showt typ)
 
 append_parens :: Text -> Text -> Text
 append_parens name desc
@@ -125,7 +144,7 @@ append_parens name desc
     | otherwise = name <> " (" <> desc <> ")"
 
 instance Pretty NumType where
-    pretty t = case t of
+    pretty = \case
         TUntyped -> ""
         TInt -> "integral"
         TTranspose -> "Transposition"
@@ -139,7 +158,7 @@ instance Pretty NumType where
         TNoteNumber -> "NN"
 
 instance Pretty NumValue where
-    pretty t = case t of
+    pretty = \case
         TAny -> ""
         TNonNegative -> ">=0"
         TPositive -> ">0"
@@ -154,11 +173,13 @@ infer_type_of :: Bool -- ^ If True, infer the most specific type possible.
     -- 'Derive.Env.put_val' gets a 1 it doesn't mean it's intended to be a
     -- TPositive.
     -> Val -> Type
-infer_type_of specific val = case val of
+infer_type_of specific = \case
     VNum (ScoreT.Typed typ val) -> TNum (to_num_type typ) $ if specific
         then (if val > 0 then TPositive
             else if val >= 0 then TNonNegative else TAny)
         else TAny
+    VSignal sig -> TSignal (signal_type (ScoreT.type_of sig))
+    VPSignal {} -> TPSignal
     VAttributes {} -> TAttributes
     VControlRef {} -> TControlRef
     VPControlRef {} -> TPControlRef
@@ -172,7 +193,7 @@ infer_type_of specific val = case val of
     VList {} -> TList TVal
 
 to_num_type :: ScoreT.Type -> NumType
-to_num_type typ = case typ of
+to_num_type = \case
     ScoreT.Untyped -> TUntyped
     ScoreT.Real -> TRealTime
     ScoreT.Score -> TScoreTime

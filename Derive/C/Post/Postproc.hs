@@ -205,7 +205,7 @@ suppress_notes =
 c_randomize_start :: Derive.Transformer Derive.Note
 c_randomize_start = StaticMacro.check "c_randomize_start" $
     StaticMacro.transformer module_ "randomize-start" Tags.postproc ""
-        -- apply-start-offset | %start-s = (cf-rnd-a+ $)
+        -- apply-start-offset | start-s = (cf-rnd-a+ $)
         [ StaticMacro.Call c_apply_start_offset []
         , StaticMacro.Call Equal.c_equal
             [ StaticMacro.literal (ShowVal.show_val Controls.start_s)

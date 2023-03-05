@@ -19,16 +19,21 @@ test_composite :: Test
 test_composite = do
     let run = DeriveTest.extract extract
             . DeriveTest.derive_tracks_setup with ""
-        extract e = (DeriveTest.e_instrument e, DeriveTest.e_attributes e,
-            DeriveTest.e_pitch e,
-            DeriveTest.e_control "c1" e, DeriveTest.e_control "c2" e)
-        with = CallTest.with_note_generator "a" $ DUtil.redirect_pitch "redir"
-            "+pitch" (Just (Set.fromList ["c1"])) "+nopitch" Nothing
+        extract e =
+            ( DeriveTest.e_instrument e, DeriveTest.e_attributes e
+            , DeriveTest.e_pitch e
+            , DeriveTest.e_control "c1" e, DeriveTest.e_control "c2" e
+            )
+        with = CallTest.with_note_generator "a" $
+            DUtil.redirect_pitch "redir"
+                "+pitch" (Set.fromList ["c1"])
+                "+nopitch" (Set.fromList ["c2"])
         title = "> | redir-pitched = i1 | redir-unpitched = i2"
     let (result, logs) = run
             [ (title, [(0, 1, "a")])
             , ("*", [(0, 0, "4c")])
-            , ("c1", [(0, 0, ".5")]), ("c2", [(0, 0, "1")])
+            , ("c1", [(0, 0, ".5")])
+            , ("c2", [(0, 0, "1")])
             ]
     equal result
         [ ("i1", "+pitch", "4c", [(0, 0.5)], [])

@@ -60,9 +60,9 @@ test_transpose_controls :: Test
 test_transpose_controls = do
     let f p = DeriveTest.extract Score.initial_nn $
             DeriveTest.derive_tracks "" $ UiTest.note_track [(0, 1, p)]
-    equal (f "%t-chrom=1 | -- 4c") ([Just NN.cs4], [])
-    equal (f "%t-dia=1 | -- 4c") ([Just NN.d4], [])
-    equal (f "%t-oct=1 | -- 4c") ([Just NN.c5], [])
-    equal (f "%t-chrom=.5 | -- 4c") ([Just $ NN.c4 + 0.5], [])
-    equal (f "%t-dia=.5 | -- 4c") ([Just $ NN.cs4], [])
-    equal (f "%t-oct=.5 | -- 4c") ([Just $ NN.fs4], [])
+    equal (f "t-chrom=1 | -- 4c") ([Just NN.cs4], [])
+    equal (f "t-dia=1 | -- 4c") ([Just NN.d4], [])
+    equal (f "t-oct=1 | -- 4c") ([Just NN.c5], [])
+    equal (f "t-chrom=.5 | -- 4c") ([Just $ NN.c4 + 0.5], [])
+    equal (f "t-dia=.5 | -- 4c") ([Just $ NN.cs4], [])
+    equal (f "t-oct=.5 | -- 4c") ([Just $ NN.fs4], [])

@@ -10,6 +10,7 @@ module Derive.PSignal (
     , from_pairs, from_sample, from_segments
     , to_pairs, to_segments
     , constant
+    , constant_val
     , prepend
     , ErrorText
     , to_nn
@@ -120,6 +121,9 @@ to_segments = Segment.to_segments . _signal
 constant :: Pitch -> PSignal
 constant = PSignal . Segment.constant
 
+constant_val :: PSignal -> Maybe Pitch
+constant_val = Segment.constant_val . _signal
+
 prepend :: PSignal -> PSignal -> PSignal
 prepend sig1 sig2 = PSignal $
     Segment.prepend Nothing interpolate (_signal sig1) (_signal sig2)
@@ -194,9 +198,10 @@ apply_controls cmap psig = case Seq.head (to_pairs psig) of
         -- plus one for the transition from zero added by
         -- 'Segment.add_zero_transition'.
         make (_, Nothing, _) = Nothing
-        make (x, Just pitch, controls) = Just $ (x,) $ coerce $ apply cmap pitch
+        make (x, Just pitch, controls) =
+            Just $ (x,) $ coerce $ apply cmap2 pitch
             where
-            cmap = Map.fromAscList (zip control_names controls)
+            cmap2 = Map.fromAscList (zip control_names controls)
                 <> controls_at x non_transposers
         control_resamples
             | List.null control_samples = replicate (length xs) []

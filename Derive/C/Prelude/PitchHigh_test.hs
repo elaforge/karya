@@ -116,7 +116,7 @@ test_drop_lift_note = do
 
 test_approach_dyn :: Test
 test_approach_dyn = do
-    let run pitches = extract $ DeriveTest.derive_tracks "%dyn=.5"
+    let run pitches = extract $ DeriveTest.derive_tracks "dyn=.5"
             [(">", [(0, 10, "")]), ("*", pitches)]
         extract = head . (DeriveTest.extract_events $ \e ->
             (DeriveTest.e_nns e, DeriveTest.e_dyn e))

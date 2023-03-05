@@ -21,10 +21,10 @@ test_wrap_octaves = do
             ["3u", "4i", "4u", "5i"])
         (["4u", "4i", "4u", "4i"], [])
     -- Ensure transposition isn't applied twice.
-    equal (run DeriveTest.e_pitch " | inst = calung-p | %t-dia=1" ["4a"])
+    equal (run DeriveTest.e_pitch " | inst = calung-p | t-dia=1" ["4a"])
         (["4i"], [])
     -- I can wrap even if it goes below the range of the scale itself.
-    equal (run DeriveTest.e_pitch " | inst = jegog-p | %t-dia=-1" ["3i"])
+    equal (run DeriveTest.e_pitch " | inst = jegog-p | t-dia=-1" ["3i"])
         (["3a"], [])
     let extract e = (DeriveTest.e_instrument e, DeriveTest.e_pitch e)
     equal (run extract " | inst = calung | import bali.gangsa | unison"

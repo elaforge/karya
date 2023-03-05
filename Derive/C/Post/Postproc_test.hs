@@ -105,20 +105,20 @@ test_apply_start_offset = do
     let run = DeriveTest.extract DeriveTest.e_note . DeriveTest.derive_blocks
         top = "top -- apply-start-offset .25"
         min_dur = 0.25
-    equal (run [(top, UiTest.note_track [(1, 1, "%start-s=1 | -- 4c")])])
+    equal (run [(top, UiTest.note_track [(1, 1, "start-s=1 | -- 4c")])])
         ([(2, min_dur, "4c")], [])
     equal (run
-            [ (top, UiTest.note_track [(2, 2, "%start-s = -1 | sub -- 4c")])
+            [ (top, UiTest.note_track [(2, 2, "start-s = -1 | sub -- 4c")])
             , ("sub=ruler", [(">", [(0, 1, "")])])
             ])
         ([(1, 3, "4c")], [])
     equal (run [(top, ("tempo", [(0, 0, "2")])
-            : UiTest.note_track [(2, 2, "%start-t=1 | -- 4c")])])
+            : UiTest.note_track [(2, 2, "start-t=1 | -- 4c")])])
         ([(1.5, 0.5, "4c")], [])
 
     -- 0   1   2   3
     -- 4c--4d--4e--|
-    let start offset = "%start-s = " <> offset
+    let start offset = "start-s = " <> offset
     let neighbors offset = UiTest.note_track
             [(0, 1, "4c"), (1, 1, start offset <> " | -- 4d") , (2, 1, "4e")]
 
@@ -127,13 +127,13 @@ test_apply_start_offset = do
 
     -- It's already overlapping, so don't change the duration.
     equal (run [(top, UiTest.note_track
-            [ (0, 1, "%sus=1.5 | -- 4c"), (1, 1, start "-.5" <> " | -- 4d")
+            [ (0, 1, "sus=1.5 | -- 4c"), (1, 1, start "-.5" <> " | -- 4d")
             , (2, 1, "4e")
             ])])
         ([(0, 1.5, "4c"), (0.5, 1.5, "4d"), (2, 1, "4e")], [])
     -- Not overlapping, but will shorten.
     equal (run [(top, UiTest.note_track
-            [ (0, 1, "%sus=.75 | -- 4c"), (1, 1, start "-.5" <> " | -- 4d")
+            [ (0, 1, "sus=.75 | -- 4c"), (1, 1, start "-.5" <> " | -- 4d")
             , (2, 1, "4e")
             ])])
         ([(0, 0.5, "4c"), (0.5, 1.5, "4d"), (2, 1, "4e")], [])
@@ -148,7 +148,7 @@ test_apply_start_offset_sorted = do
     let run = DeriveTest.extract DeriveTest.e_note
             . DeriveTest.derive_tracks "apply-start-offset"
             . UiTest.note_track
-    equal (run [(0, 1, "%start-s = 2 | -- 4c"), (1, 1, "4d")])
+    equal (run [(0, 1, "start-s = 2 | -- 4c"), (1, 1, "4d")])
         ([(1, 1, "4d"), (2, Note.min_duration, "4c")], [])
 
 test_adjust_offset :: Test

@@ -39,10 +39,8 @@ import qualified Derive.PSignal as PSignal
 import qualified Derive.Parse as Parse
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
-import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import           Derive.Sig (defaulted)
 import qualified Derive.Symbols as Symbols
 import qualified Derive.Typecheck as Typecheck
 
@@ -251,17 +249,16 @@ c_slur direction = Derive.generator Module.prelude "legato"
     \\nThe `^` and `_` variants are the same in normal performance, but force\
     \ lilypond slurs to go above or below, respectively."
     $ Sig.call ((,,)
-    <$> defaulted "overlap" (Sig.typed_control "legato-overlap" 0.1 ScoreT.Real)
+    <$> Sig.defaulted "overlap" (0.1 :: RealTime)
         "All notes but the last have their durations extended by this amount."
-    <*> defaulted "detach" (Nothing :: Maybe Sig.Dummy)
+    <*> Sig.defaulted "detach" (Nothing :: Maybe Sig.Dummy)
         "Shorten the final note by this amount, by setting `%sus-abs`.\
         \ The distinction between not given and 0 is important, because 0\
         \ will still override `%sus-abs`, which you may not want."
-    <*> defaulted "dyn" (1 :: Double)
+    <*> Sig.defaulted "dyn" (1 :: Double)
         "Scale dyn for notes after the first one by this amount."
     ) $ \(overlap, maybe_detach, dyn) args ->
-    Ly.when_lilypond (lily_slur direction args) $ do
-        overlap <- Call.real_time_at overlap =<< Args.real_start args
+    Ly.when_lilypond (lily_slur direction args) $
         note_slur overlap maybe_detach dyn =<< Sub.sub_events args
 
 note_slur :: RealTime -> Maybe RealTime -> Signal.Y -> [[SubT.Event]]
@@ -304,10 +301,10 @@ c_attr_slur first_attr rest_attr = Derive.generator Module.instrument "legato"
     \ instruments that understand it, for instance with a keyswitch for\
     \ transition samples."
     $ Sig.call ((,)
-    <$> defaulted "detach" (Nothing :: Maybe Sig.Dummy)
+    <$> Sig.defaulted "detach" (Nothing :: Maybe Sig.Dummy)
         "If set, shorten the final note by this\
         \ amount. This is to avoid triggering legato from the previous note."
-    <*> defaulted "dyn" (1 :: Double)
+    <*> Sig.defaulted "dyn" (1 :: Double)
         "Scale dyn for notes after the first one by\
         \ this amount. Otherwise, transition samples can be too loud."
     ) $ \(detach, dyn) args -> Ly.when_lilypond (lily_slur Nothing args) $
@@ -355,19 +352,19 @@ c_shorten_lengthen shorten = Make.transform_notes Module.prelude
     (if shorten then "shorten" else "lengthen") mempty
     ("Lengthen or Shorten a note duration, by adding to or subtracting from "
         <> ShowVal.doc Controls.sustain_abs <> ".")
-    (defaulted "time" (0.15 :: Double) "Subtract this duration.") $ \time ->
+    (Sig.defaulted "time" (0.15 :: Double) "Subtract this duration.") $ \time ->
         Call.with_constant Controls.sustain_abs
             (if shorten then -time else time)
 
 c_accent :: Library.Calls Derive.Note
 c_accent = Make.transform_notes Module.prelude "accent" Tags.ly
     "Accent the note by multiplying its dynamic."
-    (defaulted "dyn" (1.5 :: Double) "Multiply dynamic.") $ \dyn ->
+    (Sig.defaulted "dyn" (1.5 :: Double) "Multiply dynamic.") $ \dyn ->
         -- Adding Attrs.accent makes lilypond attach a '>'.
         Call.add_attributes Attrs.accent . Call.multiply_dynamic dyn
 
 c_weak :: Library.Calls Derive.Note
 c_weak = Make.transform_notes Module.prelude "weak" mempty
     "Weaken the note by multiplying its dynamic."
-    (defaulted "dyn" (0.35 :: Double) "Multiply dynamic.") $ \dyn ->
+    (Sig.defaulted "dyn" (0.35 :: Double) "Multiply dynamic.") $ \dyn ->
         Call.multiply_dynamic dyn

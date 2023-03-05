@@ -40,6 +40,7 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
 import           Global
+import           Types
 
 
 {-
@@ -274,14 +275,10 @@ c_harsh = Make.transform_notes Module.instrument "harsh" mempty
 
 c_spiccato :: Library.Calls Derive.Note
 c_spiccato = Make.transform_notes Module.instrument "spic" mempty "Spiccato."
-    (Sig.defaulted "dur" (Sig.typed_control "spic-dur" 0.05 ScoreT.Real)
-        "How long."
-    ) $ \dur deriver -> do
+    (Sig.defaulted "dur" (0.05 :: RealTime) "How long."
+    ) $ \(Typecheck.RealTimeFunctionT dur_t dur) deriver -> do
         events <- Derive.with_val "bow-lift" (ShowVal.show_val True) deriver
-        -- This is a lot of work to make spic-dur be a signal, but it seems not
-        -- actually that useful, since if I want variable durations I can just
-        -- use sus-set directly.
-        durs <- Post.duration_control Typecheck.Real dur events
+        durs <- Post.duration_control dur_t dur events
         return $ Post.emap1_ (uncurry Score.set_duration)
             (Stream.zip durs events)
 

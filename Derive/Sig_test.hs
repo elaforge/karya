@@ -76,11 +76,11 @@ test_deriver = do
             . DeriveTest.derive_tracks_setup with_ngen ""
             . UiTest.note_track
     equal (run [(0, 1, "ngen NOTE -- 4c")]) ([(0, 1, "4c")], [])
-    equal (run [(0, 1, "ngen \"(%t-dia=1 | NOTE) -- 4c")]) ([(0, 1, "4d")], [])
+    equal (run [(0, 1, "ngen \"(t-dia=1 | NOTE) -- 4c")]) ([(0, 1, "4d")], [])
     -- The derive is evaluated in 'ngen', so that's whene the error comes from.
     equal (run [(0, 1, "ngen \"(NOTE 1 2 3) -- 4c")])
         ([], ["too many arguments: 1, 2, 3"])
-    equal (run [(0, 1, "ngen \"(NOTE) \"(%t-dia=1 | NOTE) -- 4c")])
+    equal (run [(0, 1, "ngen \"(NOTE) \"(t-dia=1 | NOTE) -- 4c")])
         ([(0, 1, "4c"), (0, 1, "4d")], [])
 
 test_deriver_children :: Test

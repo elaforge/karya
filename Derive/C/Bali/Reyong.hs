@@ -55,6 +55,7 @@ import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
@@ -142,7 +143,8 @@ reyong_pattern :: [Char] -> [Char] -> Pattern
 reyong_pattern above below = make_pattern $ parse_kotekan above below
 
 c_ngoret :: Sig.Parser (Maybe Pitch.Transpose) -> Derive.Generator Derive.Note
-c_ngoret = Gender.ngoret module_ False (pure (DeriveT.constant_control 0))
+c_ngoret = Gender.ngoret module_ False
+    (pure $ Typecheck.RealTimeFunction $ const (DeriveT.RealDuration 0))
 
 voices_env :: Sig.Parser [Voice]
 voices_env = Sig.environ "voices" Sig.Both ([] :: [Sig.Dummy])
@@ -162,18 +164,17 @@ c_tumpuk = Derive.generator module_ "tumpuk" Tags.inst "Pile up notes together."
         notes <- Derive.require_right id $ parse_tumpuk (untxt notes)
         tumpuk args place dur notes
 
-tumpuk :: Derive.PassedArgs Score.Event -> DeriveT.ControlRef -> RealTime
+tumpuk :: Derive.PassedArgs Score.Event -> Typecheck.Normalized -> RealTime
     -> [TumpukNote] -> Derive.NoteDeriver
 tumpuk args place dur notes = do
     (start, end) <- Args.real_range args
     prev <- traverse Derive.real $ Args.prev_start args
-    place <- Call.control_at place start
     pitch <- Call.get_pitch start
     realize_tumpuk prev start end place (Args.prev_event_pitch args) pitch dur
         notes
 
-place_env :: Sig.Parser DeriveT.ControlRef
-place_env = Sig.environ "place" Sig.Both (Sig.control "place" 1)
+place_env :: Sig.Parser Typecheck.Normalized
+place_env = Sig.environ "place" Sig.Both (1 :: Double)
     "At 0, grace notes fall before their base note.  At 1, grace notes fall on\
     \ the base note, and the base note is delayed."
 
@@ -182,14 +183,14 @@ type TumpukNote = (TumpukPitch, Attrs.Attributes, Dyn)
 data TumpukPitch = Transpose Pitch.Step | Prev deriving (Eq, Show)
 type Dyn = Signal.Y
 
-realize_tumpuk :: Maybe RealTime -> RealTime -> RealTime -> Double
-    -> Maybe PSignal.Pitch -> PSignal.Pitch -> RealTime -> [TumpukNote]
-    -> Derive.NoteDeriver
+realize_tumpuk :: Maybe RealTime -> RealTime -> RealTime
+    -> Typecheck.Normalized -> Maybe PSignal.Pitch -> PSignal.Pitch
+    -> RealTime -> [TumpukNote] -> Derive.NoteDeriver
 realize_tumpuk prev event_start event_end place prev_pitch event_pitch dur
         notes =
     mconcatMap realize $ filter ((>0) . note_dyn . fst) $ zip notes extents
     where
-    extents = GraceUtil.fit_grace_durs (RealTime.seconds place)
+    extents = GraceUtil.fit_grace_durs place
         prev event_start event_end (length notes) dur
     note_dyn (_, _, dyn) = dyn
     realize ((tpitch, attrs, dyn), (real_start, dur)) = do
@@ -725,12 +726,11 @@ c_hand_damp = Derive.transformer module_ "hand-damp" Tags.postproc
     "Damping when the parts are already divided by hand."
     $ Sig.callt ((,)
         <$> Sig.required "insts" "Apply damping to these instruments."
-        <*> Sig.defaulted "dur" (Sig.control "damp-dur" 0.15)
+        <*> Sig.defaulted "dur" (0.15 :: RealTime)
             "There must be at least this much time between the end of a note\
             \ and the start of the next to damp."
-    ) $ \(insts, dur) _args deriver -> do
-        dur <- Call.to_function dur
-        hand_damp (Set.fromList insts) (RealTime.seconds . dur) <$> deriver
+    ) $ \(insts, dur) _args deriver ->
+        hand_damp (Set.fromList insts) dur <$> deriver
 
 hand_damp :: Set ScoreT.Instrument -> (RealTime -> RealTime)
     -> Stream.Stream Score.Event -> Stream.Stream Score.Event
@@ -757,23 +757,19 @@ c_infer_damp = Derive.transformer module_ "infer-damp" Tags.postproc
     \ end.")
     $ Sig.callt ((,,)
         <$> Sig.required "insts" "Apply damping to these instruments."
-        <*> Sig.defaulted "dur" (Sig.control "damp-dur" 0.15)
+        <*> Sig.defaulted "dur" (0.15 :: RealTime)
             "This is how fast the player is able to damp. A note is only damped\
             \ if there is a hand available which has this much time to move\
             \ into position for the damp stroke, and then move into position\
             \ for its next note afterwards."
-        <*> Sig.defaulted "early" (Sig.control "early" 0.025)
+        <*> Sig.defaulted "early" (0.025 :: RealTime)
             "Damp this much before the next note, if it would be simultaneous\
             \ with the next start."
-    ) $ \(insts, dur, early) _args deriver -> do
-        dur <- Call.to_function dur
-        early <- Call.to_function early
+    ) $ \(insts, dur, early) _args deriver ->
         -- infer_damp preserves order, so Post.apply is safe.  TODO Is there a
         -- way to express this statically?
         Post.apply_m
-            (Derive.run_logs
-                . infer_damp_voices (Set.fromList insts)
-                    (RealTime.seconds . dur) (RealTime.seconds . early))
+            (Derive.run_logs . infer_damp_voices (Set.fromList insts) dur early)
             =<< deriver
 
 -- | Multiply this by 'Controls.dynamic' for the dynamic of +mute notes created

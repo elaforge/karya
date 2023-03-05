@@ -439,7 +439,7 @@ get_block_track block_id track_id = do
 psignal_to_nn :: PSignal.PSignal
     -> Derive.Deriver (Signal.NoteNumber, [(RealTime, PSignal.ErrorText)])
 psignal_to_nn sig = do
-    controls <- Internal.get_dynamic Derive.state_controls
+    controls <- Derive.get_control_map
     return $ PSignal.to_nn $ PSignal.apply_controls controls sig
 
 with_control_env :: ScoreT.Control -> Derive.Merger -> Derive.Deriver a

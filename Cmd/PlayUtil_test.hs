@@ -70,7 +70,7 @@ test_control_defaults = do
         Right [Midi.ControlChange 17 64, Midi.NoteOn Key.c4 127,
             Midi.NoteOff Key.c4 127]
     -- Default controls won't override an existing one.
-    let (midi, logs) = run $ make ("i1 | %cc17=0", [(0, 1, "4c")])
+    let (midi, logs) = run $ make ("i1 | cc17=0", [(0, 1, "4c")])
     equal logs []
     equal midi $
         Right [Midi.ControlChange 17 0, Midi.NoteOn Key.c4 127,

@@ -303,13 +303,13 @@ test_stack_damage = do
     -- has changed.
     let create = mkblocks
             [ ("top",
-                [ (">", [(0, 1, "%x = 1 | sub")])
+                [ (">", [(0, 1, "x = 1 | sub")])
                 , ("*", [(0, 0, "4c")])
                 ])
             , ("sub=ruler", [(">", [(0, 1, "")])])
             ]
     let (_, cached, uncached) = compare_cached create $
-            insert_event "top.t1" 0 1 "%t-dia = 1 | sub"
+            insert_event "top.t1" 0 1 "t-dia = 1 | sub"
     equal (diff_events cached uncached) []
 
 test_failed_sub_track :: Test
@@ -749,9 +749,9 @@ test_block_title_damage = do
                 [ ("top", [(">", [(0, 2, "sub")])])
                 , ("sub=ruler", UiTest.regular_notes 2)
                 ]
-            <* Ui.set_block_title (UiTest.bid "top") "%tempo = 2"
+            <* Ui.set_block_title (UiTest.bid "top") "tempo = 2"
     let (_, cached, uncached) = compare_cached create $
-            Ui.set_block_title (UiTest.bid "top") "%tempo = 1"
+            Ui.set_block_title (UiTest.bid "top") "tempo = 1"
     equal (diff_events cached uncached) []
 
 test_track_cache :: Test

@@ -32,10 +32,7 @@ import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Lilypond as Lilypond
 import qualified Perform.Pitch as Pitch
-import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
-
-import qualified Ui.ScoreTime as ScoreTime
 
 import           Global
 import           Types
@@ -43,7 +40,7 @@ import           Types
 
 -- * standard args
 
-grace_envs :: Sig.Parser (DeriveT.Duration, DeriveT.ControlRef)
+grace_envs :: Sig.Parser (DeriveT.Duration, Typecheck.Normalized)
 grace_envs = (,) <$> grace_dur_env <*> grace_place_env
 
 grace_dur_env :: Sig.Parser DeriveT.Duration
@@ -55,9 +52,8 @@ grace_dyn_env =
     Typecheck.non_negative <$> Sig.environ "grace-dyn" Sig.Unprefixed
         (0.5 :: Double) "Scale the dyn of the grace notes."
 
-grace_place_env :: Sig.Parser DeriveT.ControlRef
-grace_place_env = Sig.environ "place" Sig.Both
-    (Sig.control "place" 0) grace_place_doc
+grace_place_env :: Sig.Parser Typecheck.Normalized
+grace_place_env = Sig.environ "place" Sig.Both (0 :: Double) grace_place_doc
 
 grace_place_doc :: Doc.Doc
 grace_place_doc =
@@ -116,31 +112,29 @@ make_grace_pitch module_ doc derive =
             derive args notes
 
 repeat_notes :: Derive.NoteDeriver -> Int -> DeriveT.Duration
-    -> Signal.Y -- ^ placement, 'grace_place_doc'
+    -> Typecheck.Normalized -- ^ placement, 'grace_place_doc'
     -> Derive.PassedArgs a -> Derive.Deriver [SubT.Event]
 repeat_notes note times time place args =
     make_grace_notes (Args.prev_start args)
-        (Args.range_or_next args) (replicate times note) time
-        (DeriveT.constant_control place)
+        (Args.range_or_next args) (replicate times note) time place
 
 make_grace_notes :: Maybe ScoreTime -> (ScoreTime, ScoreTime) -- ^ (start, end)
     -> [note] -- ^ the last note is the destination
     -> DeriveT.Duration
-    -> DeriveT.ControlRef -- ^ placement, see 'grace_place_doc'
+    -> Typecheck.Normalized -- ^ placement, see 'grace_place_doc'
     -> Derive.Deriver [SubT.EventT note]
 make_grace_notes prev (start, end) notes grace_dur place = do
-    real_start <- Derive.real start
-    place <- Num.clamp 0 1 <$> Call.control_at place real_start
     case grace_dur of
         DeriveT.ScoreDuration grace_dur -> do
-            let extents = fit_grace_durs (ScoreTime.from_double place)
-                    prev start end (length notes) grace_dur
+            let extents = fit_grace_durs place prev start end (length notes)
+                    grace_dur
             return [SubT.EventT s d n | ((s, d), n) <- zip extents notes]
         DeriveT.RealDuration grace_dur -> do
+            real_start <- Derive.real start
             real_end <- Derive.real end
             real_prev <- maybe (return Nothing) ((Just <$>) . Derive.real) prev
-            let extents = fit_grace_durs (RealTime.seconds place)
-                    real_prev real_start real_end (length notes) grace_dur
+            let extents = fit_grace_durs place real_prev real_start real_end
+                    (length notes) grace_dur
             zipWithM note_real extents notes
     where
     note_real (start, dur) note = do
@@ -214,7 +208,7 @@ grace_attributes _ _ _ _ = return Nothing
 -- * util
 
 legato_grace :: Derive.NoteArgs -> Signal.Y -> [PSignal.Pitch]
-    -> DeriveT.Duration -> DeriveT.ControlRef -> Derive.NoteDeriver
+    -> DeriveT.Duration -> Typecheck.Normalized -> Derive.NoteDeriver
 legato_grace args dyn_scale pitches grace_dur place = do
     dyn <- (*dyn_scale) <$> (Call.dynamic =<< Args.real_start args)
     events <- basic_grace_transform args pitches (Call.with_dynamic dyn)
@@ -225,7 +219,7 @@ legato_grace args dyn_scale pitches grace_dur place = do
         Sub.reapply_call (Args.context args) "(" [] [events]
 
 basic_grace_dyn :: Signal.Y -> Derive.PassedArgs a -> [PSignal.Pitch]
-    -> DeriveT.Duration -> DeriveT.ControlRef -> Derive.NoteDeriver
+    -> DeriveT.Duration -> Typecheck.Normalized -> Derive.NoteDeriver
 basic_grace_dyn dyn_scale args pitches grace_dur place = do
     dyn <- (*dyn_scale) <$> (Call.dynamic =<< Args.real_start args)
     Sub.derive =<< basic_grace_transform args pitches (Call.with_dynamic dyn)
@@ -233,32 +227,34 @@ basic_grace_dyn dyn_scale args pitches grace_dur place = do
 
 basic_grace_transform :: Derive.PassedArgs a -> [PSignal.Pitch]
     -> (Derive.NoteDeriver -> Derive.NoteDeriver)
-    -> DeriveT.Duration -> DeriveT.ControlRef -> Derive.Deriver [SubT.Event]
+    -> DeriveT.Duration -> Typecheck.Normalized -> Derive.Deriver [SubT.Event]
 basic_grace_transform args pitches transform = basic_grace args notes
     where notes = map (transform . Call.pitched_note) pitches ++ [Call.note]
 
 basic_grace :: Derive.PassedArgs a -> [note]
-    -> DeriveT.Duration -> DeriveT.ControlRef
+    -> DeriveT.Duration -> Typecheck.Normalized
     -> Derive.Deriver [SubT.EventT note]
 basic_grace args pitches =
     make_grace_notes (Args.prev_start args) (Args.range_or_next args) pitches
 
 -- | Determine grace note starting times and durations if they are to fit in
 -- the given time range, shortening them if they don't fit.
-fit_grace_durs :: (Fractional a, Ord a) => a -> Maybe a -> a -> a -> Int -> a
-    -> [(a, a)]
+fit_grace_durs :: (Fractional a, Ord a) => Typecheck.Normalized -> Maybe a
+    -> a -> a -> Int -> a -> [(a, a)]
 fit_grace_durs place prev start end notes dur =
     map add_dur $ Seq.zip_next $ fit_grace place prev start end notes dur
     where
     add_dur (x, Nothing) = (x, end - x)
     add_dur (x, Just next) = (x, next - x)
 
-fit_grace :: (Fractional a, Ord a) => a -- ^ placement, see 'grace_place_doc'
+fit_grace :: (Fractional a, Ord a)
+    => Typecheck.Normalized -- ^ placement, see 'grace_place_doc'
     -> Maybe a -> a -> a -> Int -> a -> [a]
-fit_grace place maybe_prev start end notes dur
+fit_grace (Typecheck.Normalized place) maybe_prev start end notes dur
     | place <= 0 = before
     | place >= 1 = after
-    | otherwise = zipWith (\x y -> Num.scale x y place) before after
+    | otherwise =
+        zipWith (\x y -> Num.scale x y (realToFrac place)) before after
     where
     after = fit_after start end notes dur
     before = fit_before maybe_prev start notes dur

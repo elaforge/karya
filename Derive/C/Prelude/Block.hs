@@ -141,14 +141,9 @@ c_block block_id = Derive.with_score_duration get_score_duration $
 -- it drops a sample that I don't actually want to drop for non-final events.
 -- Not to mention it's inefficient.
 trim_controls :: RealTime -> Derive.Deriver a -> Derive.Deriver a
-trim_controls end = Internal.local $ \dyn -> dyn
-    { Derive.state_controls = fmap (Signal.drop_discontinuity_at end) <$>
-        Derive.state_controls dyn
-    , Derive.state_pitch =
-        PSignal.drop_discontinuity_at end (Derive.state_pitch dyn)
-    , Derive.state_pitches = PSignal.drop_discontinuity_at end <$>
-        Derive.state_pitches dyn
-    }
+trim_controls end =
+    Derive.modify_signals (Signal.drop_discontinuity_at end)
+        (PSignal.drop_discontinuity_at end)
 
 d_block :: BlockId -> Derive.NoteDeriver
 d_block block_id = do
@@ -230,7 +225,7 @@ c_capture_null_control = Derive.generator1 Module.internal
     \ bottom of a control block."
     ) $ Sig.call0 $ \_ -> do
         sig <- Derive.require "no null control to capture"
-            =<< Derive.lookup_control_signal Controls.null
+            =<< Derive.lookup_signal Controls.null
         stack <- Derive.get_stack
         return $! Score.set_control Controls.null sig Score.empty_event
             { Score.event_stack = stack }

@@ -80,6 +80,9 @@ STATUS
     . refactor thru:
 
 external:
+  - fix-imports on Derive/C/Prelude/Val.hs can't find Data.Attoparsec.Text.
+    Is fix-imports not getting the cabal v2 environ?
+    . Also no System.Random.Mersenne.Pure64
   - c-\ is wrong for local refs, e.g. follow 'parse' in Check_test.hs
   tool to make export lists?
     . Show what is exported but not used outside.
@@ -128,6 +131,14 @@ sketch:
   2 6 1 6 5 56 61 12 23 5 5 353 2 2 121
 
 UNSORTED
+  - upgrade to ghc 9.4:
+    . Enable -fworker-wrapper-cbv, usually good but not on by default.
+    . Will this affect GhcRepl?
+      The load function no longer automatically caches interface files in
+      memory between calls. If you want to use a cache then you can supply one
+      explicitly using the loadWithCache function, with your own
+      implementation or a simple cache created by newIfaceCache.
+
   - use Vector.Primitive or Vector.Storable, not Unboxed:
     . https://github.com/haskell/vector/issues/250
   ? suddenly new instruments don't get midi, wtf?
@@ -6650,21 +6661,307 @@ Cmd:
       a bit of a hassle.
 
 Derive:
-  unify-env:
+  unify-env: unified-env:
+    - What about backward compatibility for old scores?
+      . Write a converter, or put % back in to equal as a shim.
+    - (signal) val call: Sig.optional doesn't seem to work for type arg
+    - implement (psignal ...)
+    - Pitch_test test_porta, doesn't pick up curve=(cf-expn) arg.
+      . It's because equal used to assign %c=(cf) to
+        state_control_functions, but c=(cf) to just a val, but now I
+        lack the distinction.
+      . Eliminate the separate namespace and this goes away, becomes
+        c=(cf) looks up existing c signal, and puts it in the cf.
+      . But for now, maybe I just break those tests?
+    ControlFunction cleanup:
+      - put typed on the function, not in the return
+        . Eliminate Typecheck.retype_cf
+      - eliminate separate namespace
+        . Why the separate state_control_functions namespace when I have
+          VControlFunction?
+        . It was so I can have a cf with the same name as an underlying
+          control, which doesn't replace it, and the underlying control can
+          change.  So e.g. dyn + cf-rnd.
+        . What if ControlFunction had a signal inside, and assigning to it
+          would update the signal inside?  Advantage is harder to forget.
+        . Let's do this later, this commit already has too much.
+        . Or I would have to be explicit like c=(cf %c), except I can't
+          because `c` is replaced.
+      . Remember CFs are also used for curves, e.g. ControlUtil.curve_arg
+    changes:
+      name changes:
+        . Gangsa: %noltol -> noltol-time
+        . Reyong: %damp-dur -> infer-damp-dur, %early -> infer-damp-early
+        . Conditional: %var -> when-c-control
+        . Delay: %echo-delay -> e-echo-delay,
+          %echo-feedback -> e-echo_feedback, %echo-times -> e-echo-times
+        . Random: %omit -> omit-chance
+        . Trill: %xcut[12] -> xcut-fst xcut-snd
+        . Users of Speed.arg: %speed -> $name-speed
+      . omit-chance should look for omit and omit-chance signals
+        but will look for chance, omit-chance
+      . pitch xcut args become required instead of #xcut1 #xcut2
+      . Gangsa.c_noltol: "noltol" -> "noltol-time"
+    cleanup:
+      - remove DeriveT.Ref ControlSignal
+      - remove Lib state_signals, state_functions
+      - ControlValMap in ScoreT but ControlMap in DeriveT
+      - how about unifying VNum and VSignal, but having a special constant
+        constructor for Segment?
+        . Actually it's not necessary, but would get rid of the sketchy
+          -RealTime.large nonsense.
+        . But at the cost of a bunch of case branches.
+      - Can then remove Typecheck.DefaultReal etc.
+        . Or rather, use that name for RealTimeFunction
+      remove deprecated stuff:
+        - Typecheck deprecated
+        - Lib.lookup_pitch_signal
+        - I think Val.c_control and c_pcontrol are not necessary, because I'm
+          still using ControlRef.
+      - PSignal.at and Signal.at should go (vector, index) to match Map Vector
+        etc.
+      - ControlFunction takes a ScoreT.Control so I can write `x=(cf-y ..)`
+        and it applies on top of an existing x signal.
+        . If I look up the control in cf-y, then it's too early binding,
+          I want to delay lookup, same rationale as control ref.
+        . It would be clearer to put the base signal in the cf call like
+          (cf-y %y ...), but if they're now living in the same namespace,
+          then I can't do the late binding thing.  So maybe this is why
+          ControlFunctions live in their own namespace.
+      - Should I propagate this change to Score.Event?
+        . Pros: consistency, Note just copies over the environ
+        . Cons: postproc has to change, e.g. Score.move_event
+      / Midi.Event?  No there is no env.
+      - Synth.Shared.Note?  It doesn't have environ, just controls, but it
+        wants signals, at the least have to make sure scalars get coerced.
+      - remove checked ScoreT.control stuff?
+        . I think the purpose was to check control titles, but I can just do
+          that in ParseTitle.
+      - rename ScoreT.Typed { type_of, val_of }
+      - put env arg 1st for Sig.defaulted_env etc.?
+    ideas:
+      - should I have a (TimeT, Function) pair so RealTimeFunctionT etc. just
+        sets default?  Post.duration_control would use it.
+        Also Trill.Config.
+        . rationalize names for RealTimeFunctionT and RealTimeFunction
+        - Rename Typecheck.RealTimeFunction to DefaultRealFunction?
+          Or maybe just RealFunction, ScoreFunction, DiatonicFunction,
+          ChromaticFunction, ...?
+      - what if I want a function RealTime -> Normalized?
+        . I guess I can check it if it's a constant, but only at runtime if
+          it's a signal or function.
+        . Maybe not worth it.
+      - XyzTransposeFunctionT should have a Control versions? Many callers
+        just pass to Typecheck.transpose_control
+    unify VControl and VNum
+      . Would it make it easier to have a separate value for constant signal?
+        No more -RealTime.large nonsense.
+      . Alternately, I can define the value before the first segment:
+        Signal { offset :: X, constant :: Y, vector :: v }
+      / What if I generalized VNum to VSignal and VPitch to
+        VPSignal?  I'd want to display and treat it separately, but I do have
+        a special form for constant signals.
+        . It would simplify typecheck instances, since the scalars would
+          disappear.
+        . But passing a simple number would wind up in Eval, because it wants
+          the start pos, which is ignored.  Seems inefficient?
+    status:
+      * fix tests: 153 failed, 119, 94, 86, 60, 38, 16, 402, 10, 5, 2
+        * ParseTitle.test_parse_unparse_control:
+          . have to decide if I want to use #
+        * Args_test.test_lookup_next_pitch
+          . Nothing -> NotGiven -> unset.  Promoted to with_val.  Why did this
+            work before?
+        * DUtil_test.test_composite
+        * WTF now 402 failures after typecheck scalar position fix?
+          . With this fix, even a num or signal typecheck now is in Eval,
+            because it needs the time.
+          . Relevant because Env usse Typecheck.from_val_simple, which doesn't
+            eval.
+          . Num is constant so can avoid, but what about signal?
+          . Key thing is that for type checking we don't need the time.
+          . Well, except for Normalized etc.  So how to check if a signal
+            is normalized without a time?
+          . This is a new ability, previously e.g. srate could only be
+            a constant, but if I want to allow it to vary, then e.g.
+            Call.get_srate must get a start time!
+          . I can get this "for free" in typecheck, but not when fetching env
+            vals by hand.
+          . So should Derive.get_val take a time?  Non numeric values are
+            still constant, though I did consider changing that with the
+            polymorphic signals idea.
+          . For the moment though, I can just require VNum.
+        * ControlFunction_test - cfs not working
+      * post test fix, check diffs for Sig.control and Sig.typed_control
+        which remove useful shortcuts like "at".  Remmeber Sig.defaulted
+        defaults to Sig.Prefixed!
+      * If I want 'x=%y' to work, then state_signals must also resolve
+        ControlRefs.  But I think this is good, because otherwise I can't delay
+        a signal lookup, which is exactly what % is for.
+        . This is also a reason for % over "(..), unless I want to make any
+          env lookup also evaluated a Quoted.
+      . Moved TimeT and Duration to ScoreT.
+      . I wound up with both Typecheck.RealTimeFunction and RealTimeFunctionT,
+        because different places want different things.
+      * updated Equal
+      * ControlFunction
+      * Removed Sig.control, convert rest of calls away.
+        I have to do it because of namespace collision.
+
+    . If I desugar control and pitch refs to "(control ...) then I don't have
+      to do the Typecheck.resolve_control_ref stuff, and there's no chance to
+      forget to do it and not support % syntax.
+    * remove state_pitches
+    * ControlFunction DeriveT.dyn_controls should use dyn_environ
+    * remove state_controls
+    * tests
+      . Now if I set a control, it goes in environ.  Then it shows up as
+        a default arg of signal type.  Previously it would be empty, so we
+        get the ref default, which then looks it up.
+      . That's fine if I take a signal or function, but if I take a ref
+        I think I'll never see it due to this?
+      . Only if I explicitly pass %ref, otherwise it will hit the environ
+        defaulting first.
+      . What if I eliminate ref entirely?  I couldn't pass a different control
+        as an arg, which I guess is useful.
+      . I think this is actually good but meanwhile I want a compatibility
+        hack so I can change refs to functions gradually.
+      . How?  I could have a shim to ignore VPSignal defaults.  No good
+        because I still have to convert everything and remove it.
+      . Can't think of a way.  How much work to convert refs now?
+      . Lots of work...
+    - Make DeriveT.Function into a newtype so I can have Show?
+    - Typecheck.RealTimeFunction etc is inflexible because I want just
+      (TimeType, Function), this could be a problem passing into functions.
+      . newtype RealTimeFunction = RealTimeFunction (TimeType, Function)?
+      . Actually it's ok because I can put in any TimeType I want, but it's
+        ugly because functions have to pick an arbitrary type.
+      . Maybe I can factor defaults into `newtype Def a = Def a`
+    - Put signal category in ValType.TSignal
+    / Consolidate type->category mapping in ScoreT?
+      Currently in Typecheck, ValType, ScoreT
+    * why not TypedFunction = ScoreT.Typed Function?
+    - delete ControlSignal, replaced with VSignal and VPSignal
+    * remove %c=... equal syntax
+    implement undefined:
+      * Typecheck
+      * ControlFunction.to_function
+    * compile:
+      * put Typecheck instances back
+      * implement Typecheck.to_typed_function, pitch_at
+      / make pitches from PitchFunction back to PSignal?
+        . There's no ControlFunction so I don't need it.
+        . DUtil needs a signal to put back into the env.  In general,
+          functions are one-way so less flexible.
+        . But now I'm asymmetric with controls, isn't that weird?
+        . This is so I can copy the pitch from one place to another.  I'll
+          want to do the same for controls.  And it's possible, just copy the
+          original value over, no need to convert to signal or function.
+        . So this is just a val copy, but do a typecheck to make sure it looks
+          like a pitch?  Or why bother, if it's wrong, the copied-to place
+          will crash.
+        . But using get_val + with_val is no good because of
+          ScoreT.default_pitch.
+        . I was considering pushing pitch down into Env, since it's really
+          just an optimization, this would be a place where it helps.
+        . Hmm but if state_pitch is PSignal only, then I really can't just
+          copy the Val over.
+    . Consider how I want to treat ControlRef and PControlRef.
+      . Currently it usually gets automatically dereferenced even in a loop
+        which seems good, but I should be consistent about it.
+      . Maybe I can remove the inconsistencies once I get rid of the old
+        non-function using things.
+      . But the problem remains that Function is not a Val, so I will still
+        need signals.
+    * test DUtil.composite_call, since I changed its behaviour
+    * Typecheck should have a sequence:
+      . to_type_function -> to_typed_function -> to_scalar etc.
+    * Internal.get_named_pitch control
     * stash or complete ToVal default thing
       . Let's complete, I think I'm going to want it anyway.
       . But only have to fix ambiguity, don't need to convert Call.control_at
         calls.  They will get updated when I update Derive.get_control stuff
-    - rename Derive.EnvKey to shorter Derive.Key?
-    - move Derive.Controls into Derive.EnvKey
-    - allow Signal and PSignal in Environ, need VSignal and VPSignal
-    - remove %c=... equal syntax
-    - implement (control c 1) and (pcontrol c 1) val calls
-    - %c,1 syntax sugar for "(control c 1).  Quoted evaluation in args should
+    * allow Signal and PSignal in Environ, need VSignal and VPSignal
+      . It's already in Ref ControlSignal, so this becomes move it into its own
+        type.
+    * implement (control c 1) and (pcontrol c (4c)) val calls
+    * Update Derive.Lib primitives to look in env, not state_controls
+      . Functions that operate on all controls get more annoying, but can
+        filter env for VSignal.
+      . Instead of doing at Typecheck, I could push TypedFunction down to
+        Derive.Lib.
+      . I'm going to want to unify ControlFunction too, in fact there's
+        already VControlFunction.
+      . Let's just not support ControlFunctions for now, at the end I'll get
+        rid of the separate state_control_functions and the notion of
+        a control backing.
+      . Typed ScoreT.Control becomes untyped EnvKey = Text.  OK I guess?
+      . Nah, let's keep using ScoreT.Control.
+    * Note has to look in env, not state_controls.
+      . controls_at, state_controls_at - I still need a distinction between
+        signal and function.  But ControlMap could be a specialized Environ:
+          Map ScoreT.Control (Either Function Signal)
+      . Or separate maps, since I may have dyn+rnd, but still want the
+        underlying dyn signal.
+      . How do I express this if ControlFunction is unified into Environ?
+      . Maybe if it has a backing signal, it has that signal inside and Note
+        can pull it out.
+      . Can I remove NoteUtil.stash_convert_values and NOTE
+        [EnvKey.dynamic_val]?
+        This is due to the function vs. signal issue, I think if I convert
+        Score.Event too then I don't need the special case stash.
+    / %c,1 syntax sugar for "(control c 1).  Quoted evaluation in args should
       handle it.
-      . Or have a separate constructor with the same effect, so I can easily
-        have ShowVal take it back to %-syntax.
-    - Derive.with_control etc. look in environ
+      . Or leave ControlRef as a separate constructor with the same effect, so
+        I can easily have ShowVal take it back to %-syntax.  In this case,
+        Sig has to be extended to recognize those like Quoted.
+    / rename Derive.EnvKey to shorter Derive.Key?
+      . Not so relevant since I'm still using ScoreT.Control.
+    / move Derive.Controls into Derive.EnvKey
+    * allow Signal and PSignal in Environ, need VSignal and VPSignal
+      . It's already in Ref ControlSignal, so this becomes move it into its own
+        type.
+    * implement (control c 1) and (pcontrol c (4c)) val calls
+    + Update Derive.Lib primitives to look in env, not state_controls
+      . Functions that operate on all controls get more annoying, but can
+        filter env for VSignal.
+      . Instead of doing at Typecheck, I could push TypedFunction down to
+        Derive.Lib.
+      . I'm going to want to unify ControlFunction too, in fact there's
+        already VControlFunction.
+      . Let's just not support ControlFunctions for now, at the end I'll get
+        rid of the separate state_control_functions and the notion of
+        a control backing.
+      . Typed ScoreT.Control becomes untyped EnvKey = Text.  OK I guess?
+      . Nah, let's keep using ScoreT.Control.
+      / Convert pitch calls, they go in Controls.pitch
+        . Actually let's keep it separate, it should be faster to do direct
+          access with no typecheck.  But I can make it look like it's in
+          environ by hooking with_val and lookup_val.
+        . Actually why even do that?  I can leave # as the name for the
+          default pitch, there doesn't seem to be a need for lookup_val
+          "pitch" to also return it.
+      . If I make VNum coerce to VSignal, then replace controls should also
+        replace VNums, but there are probably various nums I don't want to
+        convert to controls?  Or maybe I shouldn't worry about extra controls.
+        In that case, don't replace controls at all?
+    * ControlFunction Dynamic also has separate dyn_controls etc.
+      . It should have just dyn_environ, dyn_pitch
+    * Note has to look in env, not state_controls.
+      . controls_at, state_controls_at - I still need a distinction between
+        signal and function.  But ControlMap could be a specialized Environ:
+          Map ScoreT.Control (Either Function Signal)
+      . Or separate maps, since I may have dyn+rnd, but still want the
+        underlying dyn signal.
+      . How do I express this if ControlFunction is unified into Environ?
+      . Maybe if it has a backing signal, it has that signal inside and Note
+        can pull it out.
+      . Can I remove NoteUtil.stash_convert_values and NOTE
+        [EnvKey.dynamic_val]?
+        This is due to the function vs. signal issue, I think if I convert
+        Score.Event too then I don't need the special case stash.
+    * Derive.with_control etc. look in environ
+    * remove Typecheck ControlRef instances, calls should be using Function
     notes:
       design:
         . c=1 in the environ means that args called c default to 1.
@@ -6735,15 +7032,14 @@ Derive:
           need to unify with Quoted, it might be more convenient to keep as
           ControlRef, but it's logically a Quoted.
         . Is that not what it already is?
-        . ... TODO
       . What would the types be though?
         get_controls :: Deriver DeriveT.ControlMap
   Typecheck TypedFunction: Typecheck Function:
-    + add TimeFunction{Real,Score}, TransposeFunction{Diatonic,Chromatic,Nn}
+    * add TimeFunction{Real,Score}, TransposeFunction{Diatonic,Chromatic,Nn}
       . Incomplete, but the pattern is easy.
       . Is there a way to parameterize such as 'TimeFunction Real'?  Perhaps
         that is what that 'Originally I used DataKinds' comment is about.
-    - use Function family in calls
+    * use Function family in calls
       . Function, TypedFunction, TimeFunction{Real,Score},
         TransposeFunction{Diatonic,Chromatic,Nn}
       . I have existing ones in DefaultRealTimeFunction but they return
@@ -6752,9 +7048,7 @@ Derive:
         convenient?
       . Inside Typecheck I want to return the type separately so I can
         typecheck without calling the function.
-      - ControlFunctions don't allow to return the type separately, fix that
-        when I clean up ControlFunctions.
-      - Is there a way to force Function use, for consistency?  I suppose
+      * Is there a way to force Function use, for consistency?  I suppose
         . I could remove Typecheck instances for ControlRef, but wait for
           unify-env first.
         . Or just remove Call.control_at family, only access is through

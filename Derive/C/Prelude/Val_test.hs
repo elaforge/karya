@@ -89,7 +89,7 @@ test_linear_next = do
 test_down_from :: Test
 test_down_from = do
     let run = DeriveTest.extract DeriveTest.e_dyn . DeriveTest.derive_tracks ""
-    equal (run [(">", [(0, 4, "%dyn=(df 2 1) |")])]) ([[(0, 2), (2, 0)]], [])
+    equal (run [(">", [(0, 4, "dyn=(df 2 1) |")])]) ([[(0, 2), (2, 0)]], [])
 
 test_timestep :: Test
 test_timestep = do

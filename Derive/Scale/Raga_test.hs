@@ -22,7 +22,7 @@ test_pitch = do
             ]
             where
             times = zip (Seq.range_ 0 1)
-            title = "> | %just-base = " <> base <> " | key = " <> key
+            title = "> | just-base = " <> base <> " | key = " <> key
         extract = Score.initial_nn
     equalf 0.01 (run "hemavati" "(hz g3)" ["3s"]) ([Just NN.g3], [])
 

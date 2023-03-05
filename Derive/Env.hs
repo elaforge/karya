@@ -6,7 +6,7 @@ module Derive.Env (
     module Derive.Env
     , Key, Environ, null, lookup, insert
 ) where
-import           Prelude hiding (null, lookup)
+import           Prelude hiding (map, null, lookup)
 import qualified Data.Map as Map
 
 import qualified Derive.DeriveT as DeriveT
@@ -28,11 +28,20 @@ from_list = Environ . Map.fromList
 to_list :: Environ -> [(Key, DeriveT.Val)]
 to_list (Environ env) = Map.toList env
 
+to_map :: Environ -> Map Key DeriveT.Val
+to_map (Environ env) = env
+
+from_map :: Map Key DeriveT.Val -> Environ
+from_map = Environ
+
 delete :: Key -> Environ -> Environ
 delete key (Environ env) = Environ $ Map.delete key env
 
 is_set :: Key -> Environ -> Bool
 is_set key (Environ env) = Map.member key env
+
+map :: (DeriveT.Val -> DeriveT.Val) -> Environ -> Environ
+map f (Environ env) = Environ $ f <$> env
 
 -- * typechecking
 
@@ -107,7 +116,7 @@ checked_val :: forall a. Typecheck.Typecheck a => Key -> Environ
 checked_val key environ = case get_val key environ of
     Left NotFound -> return Nothing
     Left (WrongType typ) ->
-        Left $ showt key <> ": expected " <> pretty return_type
+        Left $ pretty key <> ": expected " <> pretty return_type
             <> " but val type is " <> pretty typ
     Right v -> return (Just v)
     where return_type = Typecheck.to_type (Proxy :: Proxy a)

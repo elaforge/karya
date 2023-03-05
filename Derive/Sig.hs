@@ -93,7 +93,6 @@ module Derive.Sig (
     , required_vals
     -- ** defaults
     , EnvironDefault(..)
-    , control, typed_control, required_control, pitch
     , prefixed_environ, environ_keys
     -- * call
     , call, call_sub, call0, callt, call0t
@@ -110,13 +109,11 @@ import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Env as Env
 import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
-import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 import qualified Derive.ValType as ValType
 
-import qualified Perform.Signal as Signal
 import qualified Ui.Event as Event
 
 import           Global
@@ -335,7 +332,7 @@ eval_default arg_doc place name state = \case
 
 -- | This is an argument which is not actually parsed from the argument list.
 -- Instead it's looked up it the environ according to the normal defaulting
--- rules.
+-- rules.  So it's like 'defaulted' except there is no positional argument.
 --
 -- Of course, the call could just look in the environ itself, but this way it's
 -- uniform and automatically documented.
@@ -535,26 +532,6 @@ environ_error state name =
 
 increment_argnum :: Int -> State -> State
 increment_argnum n state = state { state_argnum = n + state_argnum state }
-
--- ** defaults
-
--- | The argument's value is taken from the given signal, with the given
--- default.  If the value isn't given, the default is Untyped.
-control :: ScoreT.Control -> Signal.Y -> DeriveT.ControlRef
-control name deflt = typed_control name deflt ScoreT.Untyped
-
--- | Like 'control', but the default can have a type.
-typed_control :: ScoreT.Control -> Signal.Y -> ScoreT.Type
-    -> DeriveT.ControlRef
-typed_control name deflt typ =
-    DeriveT.DefaultedControl name (ScoreT.Typed typ (Signal.constant deflt))
-
-required_control :: ScoreT.Control -> DeriveT.ControlRef
-required_control = DeriveT.LiteralControl
-
--- | Pitch signal.  There's no default because that would depend on the scale.
-pitch :: ScoreT.PControl -> DeriveT.PControlRef
-pitch = DeriveT.LiteralControl
 
 -- ** util
 

@@ -218,26 +218,21 @@ has_instrument wanted = (`Set.member` set) . Score.event_instrument
 
 -- ** unthreaded state
 
-control :: (ScoreT.Typed Signal.Y -> a) -> DeriveT.ControlRef
-    -> Stream Score.Event -> Derive.Deriver [a]
-control f c events = do
-    sig <- Typecheck.to_typed_function c
-    return $ map (f . sig . Score.event_start) (Stream.events_of events)
+control :: DeriveT.Function -> Stream Score.Event -> [Signal.Y]
+control f = map (f . Score.event_start) . Stream.events_of
 
-time_control :: DeriveT.ControlRef -> Stream Score.Event
-    -> Derive.Deriver [RealTime]
-time_control = control (RealTime.seconds . ScoreT.typed_val)
+real_time_control :: DeriveT.Function -> Stream Score.Event -> [RealTime]
+real_time_control f = map RealTime.seconds . control f
 
 -- | Take a typed signal to RealTime durations.
-duration_control :: Typecheck.TimeType -> DeriveT.ControlRef
+duration_control :: ScoreT.TimeT -> DeriveT.Function
     -> Stream Score.Event -> Derive.Deriver [RealTime]
-duration_control default_type control events = do
-    (sig, time) <- Call.to_time_function default_type control
+duration_control time_t f events = do
     let starts = map Score.event_start (Stream.events_of events)
-    case time of
-        Typecheck.Real -> return $ map (RealTime.seconds . sig) starts
-        Typecheck.Score ->
-            mapM (\t -> Call.real_duration t (ScoreTime.from_double (sig t)))
+    case time_t of
+        ScoreT.TReal -> return $ map (RealTime.seconds . f) starts
+        ScoreT.TScore ->
+            mapM (\t -> Call.real_duration t (ScoreTime.from_double (f t)))
                 starts
 
 -- | Zip each event up with its neighbors.

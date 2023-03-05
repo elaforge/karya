@@ -61,7 +61,7 @@ test_convert = do
 test_rnd_vel :: Test
 test_rnd_vel = do
     let run dyn notes = first extract $ DeriveTest.perform_block
-            [ (">i1 | %dyn = " <> dyn, [(n, 1, "") | n <- Seq.range' 0 notes 1])
+            [ (">i1 | dyn = " <> dyn, [(n, 1, "") | n <- Seq.range' 0 notes 1])
             , ("*", [(0, 0, "4c")])
             ]
         extract midi = [vel | (_, _, vel) <- DeriveTest.note_on_vel midi]
@@ -82,7 +82,7 @@ test_convert_pitch = do
     equal (run [event [(0, 100)]])
         [ Left (0, [])
         , Right "convert pitch: 0s: twelve:4c with transposition:\
-            \ {%t-dia: 100}: pitch 232nn out of range {%t-dia: 100}"
+            \ {t-dia: 100}: pitch 232nn out of range {t-dia: 100}"
         ]
     equal (run [event [(0, 0), (2, 2)]])
         [Left (0, [(0, NN.c4), (1, NN.d4), (2, NN.e4)])]
@@ -165,8 +165,8 @@ test_convert_dynamic = do
     -- For pressure, dyn goes to breath.
     equal (run ">i2" [("dyn", [(1, 0, ".5"), (2, 0, "1")])])
         ([Left (0.5, [(1, 0.5), (2, 1)])], [])
-    -- %attack-vel overrides the velocity.
-    equal (run ">i2 | %attack-vel=.75" [("dyn", [(1, 0, ".5"), (2, 0, "1")])])
+    -- attack-vel overrides the velocity.
+    equal (run ">i2 | attack-vel=.75" [("dyn", [(1, 0, ".5"), (2, 0, "1")])])
         ([Left (0.75, [(1, 0.5), (2, 1)])], [])
 
 test_release_velocity :: Test
@@ -176,8 +176,8 @@ test_release_velocity = do
             . UiTest.note_track
         extract e =
             (Types.event_start_velocity e, Types.event_end_velocity e)
-    equal (run [(0, 1, "%dyn=.5 | -- 4c")]) ([Left (0.5, 0.5)], [])
-    equal (run [(0, 1, "%dyn=.5 | %release-vel=.25 | -- 4c")])
+    equal (run [(0, 1, "dyn=.5 | -- 4c")]) ([Left (0.5, 0.5)], [])
+    equal (run [(0, 1, "dyn=.5 | release-vel=.25 | -- 4c")])
         ([Left (0.5, 0.25)], [])
 
 mkevent :: RealTime -> Text -> ScoreT.Instrument -> Score.Event

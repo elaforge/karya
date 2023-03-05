@@ -32,7 +32,7 @@ test_ratio = do
             , ("*twelve #ratio-source", [(0, 0, "4c")])
             ]
     equal (e_nns $ DeriveTest.derive_tracks "" tracks)
-        ([[]], ["ratio scale requires #ratio-source"])
+        ([[]], ["no named pitch #ratio-source"])
 
     -- This actually tests that Control.eval_signal sets the scale properly.
     equalf 0.001 (e_tsig $ run "2/1" "4c") (Just [(0, 72)], [])

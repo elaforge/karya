@@ -139,26 +139,25 @@ test_assign_controls = do
             ]
         extract = DeriveTest.extract $ \e ->
             (DeriveTest.e_pitch e, DeriveTest.e_control "cont" e)
-
     -- normal
     equal (run ">i" "cont" "1") ([("4c", [(0, 1)])], [])
     -- not seen
     equal (run ">i" "gont" "1") ([("4c", [])], [])
 
     -- a non-existent control with no default is an error
-    let (events, logs) = run ">i | %cont = %bonk" "gont" "1"
+    let (events, logs) = run ">i | cont = %bonk" "gont" "1"
     equal events []
-    strings_like logs ["not found: Control \"bonk\""]
+    strings_like logs ["control not found: %bonk"]
     -- control assigned
-    equal (run ">i | %cont = %gont" "gont" "1") ([("4c", [(0, 1)])], [])
+    equal (run ">i | cont = %gont" "gont" "1") ([("4c", [(0, 1)])], [])
 
     -- set a constant signal
-    equal (run ">i | %cont = 42" "gont" "1")
+    equal (run ">i | cont = 42" "gont" "1")
         ([("4c", [(-RealTime.larger, 42)])], [])
     -- set constant signal with a default
-    equal (run ">i | %cont = %gont,42" "bonk" "1")
+    equal (run ">i | cont = %gont,42" "bonk" "1")
         ([("4c", [(-RealTime.larger, 42)])], [])
-    equal (run ">i | %cont = %gont,42" "gont" "1") ([("4c", [(0, 1)])], [])
+    equal (run ">i | cont = %gont,42" "gont" "1") ([("4c", [(0, 1)])], [])
 
     -- named pitch doesn't show up
     equal (run ">i" "*twelve #foo" "2c") ([("4c", [])], [])
@@ -195,11 +194,12 @@ test_call_errors = do
     let run_title title = derive [(title, [(0, 1, "--1")])]
     left_like (run_title ">i | no-such-call")
         "note transformer not found: no-such-call"
-    left_like (run_title ">i | test-t bad-arg") "expected ControlRef but got"
+    left_like (run_title ">i | test-t bad-arg") "expected Num but got Str"
     left_like (run_title ">i | test-t 1 2 3 4") "too many arguments"
-    left_like (run_title ">i | test-t") "not found and no default"
-    left_like (run_title ">i | test-t _") "not found and no default"
-    left_like (run_title ">i | test-t %delay") "not found and no default"
+    left_like (run_title ">i | test-t") "expected an argument at \"test\""
+    left_like (run_title ">i | test-t _") "expected Num but got _"
+    left_like (run_title ">i | test-t %delay")
+        "couldn't convert ControlRef %delay: control not found"
 
     let run_evt evt = derive [(">i", [(0, 1, evt)])]
     left_like (run_evt "no-such-call") "note generator not found: no-such-call"
@@ -210,10 +210,8 @@ test_call_errors = do
         (Right [(0, 1, "test-t 2 | test-t 1 |")])
     where
     trans = CallTest.transformer_args $ Sig.callt
-        (Sig.defaulted "arg1" (Sig.required_control "test") "doc") $
-        \c _args deriver -> do
-            Call.control_at c 0
-            deriver
+        (Sig.required "test" "doc") $ \c  _args deriver ->
+            Derive.with_constant_control "c" c deriver
 
 test_val_call :: Test
 test_val_call = do
@@ -304,8 +302,9 @@ test_track_dynamic = do
             , ("dyn", [(0, 0, ".25"), (1, 0, ".5"), (2, 0, ".75")])
             , ("dyn", [(0, 0, ".25"), (1, 0, ".5"), (2, 0, ".75")])
             ]
-    let e_dyn dyn = Signal.to_pairs . ScoreT.typed_val <$>
-            Map.lookup Controls.dynamic (Derive.state_controls dyn)
+    let e_dyn = fmap (Signal.to_pairs . ScoreT.typed_val)
+            . DeriveTest.lookup_control Controls.dynamic
+            -- Map.lookup Controls.dynamic (Derive.state_signals dyn)
         e_scale = env_lookup EnvKey.scale . Derive.state_environ
         all_tracks = [(block_id, n) | n <- [1..5]]
     equal (e_track_dynamic e_scale res)
@@ -327,13 +326,13 @@ test_track_dynamic_consistent = do
             e_track_dynamic extract $ DeriveTest.derive_blocks
             [ ("top",
                 [ ("> | env = a", [(0, 1, "sub")])
-                , ("> | env = b | %c = 1", [(0, 1, "sub")])
+                , ("> | env = b | c = 1", [(0, 1, "sub")])
                 ])
             , ("sub=ruler", [(">", [(0, 1, "")])])
             ]
         e_env = env_lookup "env" . Derive.state_environ
-        e_control = fmap (Signal.to_pairs . ScoreT.typed_val) . Map.lookup "c"
-            . Derive.state_controls
+        e_control = fmap (Signal.to_pairs . ScoreT.typed_val)
+            . DeriveTest.lookup_control "c"
     -- %c is only set in the env=b branch, so it shouldn't be set when env=a.
     equal (run e_env) (Just "a")
     equal (run e_control) (Just Nothing)

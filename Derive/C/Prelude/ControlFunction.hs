@@ -26,6 +26,7 @@ import qualified Derive.Expr as Expr
 import qualified Derive.Library as Library
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
+import qualified Derive.ValType as ValType
 import qualified Derive.Sig as Sig
 import qualified Derive.Typecheck as Typecheck
 import qualified Derive.Warp as Warp
@@ -140,10 +141,11 @@ c_cf_swing = val_call "cf-swing" Tags.control_function
     <$> Sig.defaulted "rank" Meter.Q
         "The time steps are on the beat, and midway between offset by the\
         \ given amount."
-    <*> Sig.defaulted "amount" (DeriveT.real_control "swing" (1/3))
+    <*> Sig.defaulted "amount" (defaulted_control "swing" (1/3))
         "Swing amount, multiplied by the rank duration / 2."
-    ) $ \(rank, amount) _args -> return $!
-        DeriveT.ControlFunction "cf-swing" (cf_swing_ rank amount)
+    ) $ \(rank, amount) _args -> do
+        amount <- from_control_ref amount
+        return $! DeriveT.ControlFunction "cf-swing" (cf_swing_ rank amount)
     where
     cf_swing_ rank amount control dyn pos
         | Just marks <- maybe_marks = ScoreT.untyped $
@@ -155,7 +157,24 @@ c_cf_swing = val_call "cf-swing" Tags.control_function
         maybe_marks = snd <$>
             Map.lookup Ruler.meter_name (DeriveT.dyn_ruler dyn)
 
-cf_swing :: (ScoreTime -> RealTime) -> Meter.Rank -> Typecheck.Function
+-- | I intentionally don't have Typecheck ControlRef, because in almost
+-- all cases it should just be a scalar or function.  But ControlFunctions
+-- are like little calls, so they need to delay control resolution just
+-- like calls do, so they wind up duplicating all that.  TODO if I'm able to
+-- unify calls and ControlFunctions then this goes away.
+from_control_ref :: DeriveT.Val -> Derive.Deriver DeriveT.ControlRef
+from_control_ref = \case
+    DeriveT.VControlRef ref -> pure ref
+    DeriveT.VNum num -> pure $ DeriveT.ControlSignal $ Signal.constant <$> num
+    val -> Derive.throw $ "expected ControlRef or VNum, but got "
+        <> pretty (ValType.type_of val)
+
+-- | Defaulted control from a RealTime.
+defaulted_control :: ScoreT.Control -> RealTime -> DeriveT.ControlRef
+defaulted_control c deflt = DeriveT.DefaultedControl c $
+    ScoreT.untyped $ Signal.constant (RealTime.to_seconds deflt)
+
+cf_swing :: (ScoreTime -> RealTime) -> Meter.Rank -> DeriveT.Function
     -> Mark.Marklist -> ScoreTime -> RealTime
 cf_swing to_real rank amount marks pos = case marks_around rank marks pos of
     Nothing -> 0
@@ -208,12 +227,17 @@ curves =
 
 dyn_seed :: DeriveT.Dynamic -> Double
 dyn_seed dyn = fromIntegral (DeriveT.dyn_event_serial dyn) + seed dyn
-    where
-    seed = fromMaybe 0 . Env.maybe_val EnvKey.seed . DeriveT.dyn_environ
+    where seed = fromMaybe 0 . Env.maybe_val EnvKey.seed . DeriveT.dyn_environ
 
 dyn_control :: DeriveT.Dynamic -> ScoreT.Control -> RealTime -> Double
-dyn_control dyn control pos = maybe 0 (Signal.at pos . ScoreT.typed_val) $
-    Map.lookup control $ DeriveT.dyn_controls dyn
+dyn_control dyn control pos =
+    maybe 0 (Signal.at pos . ScoreT.typed_val) $ dyn_signal dyn control
+
+dyn_signal :: DeriveT.Dynamic -> ScoreT.Control
+    -> Maybe (ScoreT.Typed Signal.Control)
+dyn_signal dyn control =
+    either (const Nothing) Just =<< Typecheck.val_to_signal
+        =<< Env.lookup (ScoreT.control_name control) (DeriveT.dyn_environ dyn)
 
 real :: DeriveT.Dynamic -> ScoreTime -> RealTime
 real dyn = Warp.warp (DeriveT.dyn_warp dyn)
@@ -224,42 +248,47 @@ score dyn = Warp.unwarp (DeriveT.dyn_warp dyn)
 -- ** ControlRef
 
 to_function :: DeriveT.Dynamic -> Signal.Y -> DeriveT.ControlRef
-    -> Typecheck.Function
+    -> DeriveT.Function
 to_function dyn deflt =
-    (ScoreT.typed_val .) . to_typed_function dyn (ScoreT.untyped deflt)
+    ScoreT.typed_val . to_typed_function dyn (ScoreT.untyped deflt)
 
+-- | TODO duplicated with Typecheck.val_to_function_dyn except it
+-- can't be in Deriver.
 to_typed_function :: DeriveT.Dynamic -> ScoreT.Typed Signal.Y
-    -> DeriveT.ControlRef -> Typecheck.TypedFunction
+    -> DeriveT.ControlRef -> DeriveT.TypedFunction
 to_typed_function dyn deflt control =
     case to_signal_or_function dyn control of
-        Nothing -> const deflt
-        Just (Left sig) -> Derive.signal_function sig
-        Just (Right f) -> DeriveT.cf_function f score_control dyn
+        Nothing -> const <$> deflt
+        Just (Left typed_sig) -> (\sig t -> Signal.at t sig) <$> typed_sig
+        -- TODO discard its type and put on Untyped, it's ok because only
+        -- to_function uses this.  Later I want to put the Typed outside the
+        -- function.
+        Just (Right cf) -> ScoreT.Typed ScoreT.Untyped $
+            ScoreT.typed_val . DeriveT.cf_function cf score_control dyn
     where
     score_control = case control of
         DeriveT.ControlSignal {} -> Controls.null
         DeriveT.DefaultedControl cont _ -> cont
         DeriveT.LiteralControl cont -> cont
 
+-- | TODO this is a copy of Typecheck.to_signal_or_function, except it
+-- uses DeriveT.Dynamic instead of Derive.Dynamic, which illustrates the
+-- duplication that happens due to ControlFunction not being Deriver
 to_signal_or_function :: DeriveT.Dynamic -> DeriveT.ControlRef
     -> Maybe (Either (ScoreT.Typed Signal.Control) DeriveT.ControlFunction)
-to_signal_or_function dyn control = case control of
+to_signal_or_function dyn = \case
     DeriveT.ControlSignal sig -> return $ Left sig
     DeriveT.DefaultedControl cont deflt ->
         get_control (ScoreT.type_of deflt) (return $ Left deflt) cont
     DeriveT.LiteralControl cont ->
         get_control ScoreT.Untyped Nothing cont
     where
-    get_control default_type deflt cont = case get_function cont of
+    get_control default_type deflt cont = case lookup_function cont of
         Just f -> return $ Right $
             DeriveT.modify_control_function (inherit_type default_type .) f
-        Nothing -> case get_signal cont of
-            Just sig -> return $ Left sig
-            Nothing -> deflt
-
-    get_function cont = Map.lookup cont $ DeriveT.dyn_control_functions dyn
-    get_signal cont = Map.lookup cont $ DeriveT.dyn_controls dyn
-
+        Nothing -> maybe deflt (return . Left) $ lookup_signal cont
+    lookup_function cont = Map.lookup cont $ DeriveT.dyn_control_functions dyn
+    lookup_signal = dyn_signal dyn
     -- If the signal was untyped, it gets the type of the default, since
     -- presumably the caller expects that type.
     inherit_type default_type val =

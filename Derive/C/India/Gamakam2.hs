@@ -565,8 +565,7 @@ c_kampita doc kam_args end_dir = generator1 "kam" mempty
     <> if doc == "" then "" else "\n" <> doc)
     $ Sig.call ((,,,)
     <$> kampita_pitch_args kam_args
-    <*> Sig.defaulted "speed" (Sig.typed_control "kam-speed" 6 ScoreT.Real)
-        "Alternate pitches at this speed."
+    <*> Sig.defaulted "speed" (6 :: Double) "Alternate pitches at this speed."
     <*> kampita_env <*> ControlUtil.curve_env
     ) $ \(pitches, speed, (transition, hold, lilt, adjust), curve) args -> do
         (pitches, control) <- resolve_pitches kam_args pitches
@@ -595,19 +594,23 @@ c_nkampita doc kam_args end_dir = generator1 "nkam" mempty
         -- 'end_dir' may reduce the number of transitions, to a minimum of 2,
         -- which winds up sounding like a single transition: [0, 1].
         let num_transitions = cycles * 2 + if even == Just True then 0 else 1
-        let speed = DeriveT.constant_control $
-                (num_transitions - 1) / RealTime.to_seconds (end - start)
+        let speed = Typecheck.RealTimeFunctionT ScoreT.TReal
+                (const $ (num_transitions - 1)
+                    / RealTime.to_seconds (end - start))
         transpose <- kampita_transpose curve even adjust pitches speed
             transition hold lilt (Args.range args)
         kampita start args control transpose
 
 -- ** implementation
 
-resolve_pitches :: KampitaArgs -> (DeriveT.ControlRef, DeriveT.ControlRef)
-    -> Derive.Deriver ((Typecheck.Function, Typecheck.Function), ScoreT.Control)
-resolve_pitches kam_args (pitch1, pitch2) = do
-    (pitch1, control1) <- Call.to_transpose_function Typecheck.Nn pitch1
-    (pitch2, control2) <- Call.to_transpose_function Typecheck.Nn pitch2
+resolve_pitches :: KampitaArgs
+    -> (Typecheck.NnTransposeFunctionT, Typecheck.NnTransposeFunctionT)
+    -> Derive.Deriver ((DeriveT.Function, DeriveT.Function), ScoreT.Control)
+resolve_pitches kam_args
+        ( Typecheck.NnTransposeFunctionT ttype1 pitch1
+        , Typecheck.NnTransposeFunctionT ttype2 pitch2) = do
+    let control1 = Typecheck.transpose_control ttype1
+    let control2 = Typecheck.transpose_control ttype2
     let two_pitches = case kam_args of
             Kampita2 -> False
             _ -> True
@@ -617,19 +620,18 @@ resolve_pitches kam_args (pitch1, pitch2) = do
     return ((pitch1, pitch2), control1)
 
 kampita_pitch_args :: KampitaArgs
-    -> Sig.Parser (DeriveT.ControlRef, DeriveT.ControlRef)
+    -> Sig.Parser
+        (Typecheck.NnTransposeFunctionT, Typecheck.NnTransposeFunctionT)
 kampita_pitch_args kam_args = case kam_args of
     Kampita0 p1 p2 -> (,) <$> pure (control p1) <*> pure (control p2)
     Kampita1 p1 -> (,) <$> pure (control p1)
-        <*> Sig.defaulted "neighbor" (sig "kam-neighbor" 1)
+        <*> Sig.defaulted "neighbor" (1 :: Double)
             "Alternate with a pitch at this interval."
     Kampita2 -> (,)
-        <$> Sig.defaulted "pitch1" (sig "kam-pitch1" 0) "First interval."
-        <*> Sig.defaulted "pitch2" (sig "kam-pitch2" 1) "Second interval."
+        <$> Sig.defaulted "pitch1" (0 :: Double) "First interval."
+        <*> Sig.defaulted "pitch2" (1 :: Double) "Second interval."
     where
-    control val =
-        DeriveT.ControlSignal $ ScoreT.untyped (Signal.constant val)
-    sig name deflt = Sig.typed_control name deflt ScoreT.Nn
+    control val = Typecheck.NnTransposeFunctionT ScoreT.TNn (const val)
 
 kampita_env :: Sig.Parser (RealTime, DeriveT.Duration, Double, Trill.Adjust)
 kampita_env = (,,,)
@@ -658,7 +660,7 @@ kampita start args control transpose = do
 
 -- | You don't think there are too many arguments, do you?
 kampita_transpose :: ControlUtil.Curve -> Maybe Bool -> Trill.Adjust
-    -> (Typecheck.Function, Typecheck.Function) -> DeriveT.ControlRef
+    -> (DeriveT.Function, DeriveT.Function) -> Typecheck.RealTimeFunctionT
     -> RealTime -> DeriveT.Duration -> Double -> (ScoreTime, ScoreTime)
     -> Derive.Deriver Signal.Control
 kampita_transpose curve even adjust (pitch1, pitch2) speed transition hold lilt
@@ -667,21 +669,21 @@ kampita_transpose curve even adjust (pitch1, pitch2) speed transition hold lilt
     smooth_trill curve (-transition) pitch1 pitch2
         =<< trill_transitions even adjust lilt hold speed (start, end)
 
-smooth_trill :: ControlUtil.Curve -> RealTime -> Typecheck.Function
-    -> Typecheck.Function -> [RealTime] -> Derive.Deriver Signal.Control
+smooth_trill :: ControlUtil.Curve -> RealTime -> DeriveT.Function
+    -> DeriveT.Function -> [RealTime] -> Derive.Deriver Signal.Control
 smooth_trill curve time val1 val2 transitions = do
     srate <- Call.get_srate
     return $ ControlUtil.smooth_absolute curve srate time $
         trill_from_transitions val1 val2 transitions
 
 -- | Make a trill signal from a list of transition times.
-trill_from_transitions :: Typecheck.Function -> Typecheck.Function
+trill_from_transitions :: DeriveT.Function -> DeriveT.Function
     -> [RealTime] -> [(RealTime, Signal.Y)]
 trill_from_transitions val1 val2 transitions =
     [(x, sig x) | (x, sig) <- zip transitions (cycle [val1, val2])]
 
 trill_transitions :: Maybe Bool -> Trill.Adjust -> Double -> ScoreTime
-    -> DeriveT.ControlRef -> (ScoreTime, ScoreTime)
+    -> Typecheck.RealTimeFunctionT -> (ScoreTime, ScoreTime)
     -> Derive.Deriver [RealTime]
 trill_transitions even adjust bias hold speed start_end =
     Trill.adjusted_transitions config hold even start_end
@@ -700,8 +702,7 @@ trill_transitions even adjust bias hold speed start_end =
         , _include_end = True
         }
 
-end_wants_even_transitions :: RealTime
-    -> (Typecheck.Function, Typecheck.Function)
+end_wants_even_transitions :: RealTime -> (DeriveT.Function, DeriveT.Function)
     -> Maybe Trill.Direction -> Maybe Bool
 end_wants_even_transitions start (pitch1, pitch2) dir = case dir of
     Nothing -> Nothing

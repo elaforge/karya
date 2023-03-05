@@ -17,7 +17,7 @@ test_equal = do
     let run title evts = DeriveTest.extract e_instrument $
             DeriveTest.derive_tracks "" [(title, evts)]
     strings_like (snd $ run ">" [(0, 1, "%c = i |")])
-        ["expected *, but got Str"]
+        ["tried to assign to invalid symbol name"]
     -- log stack should be at the track level
     let (evts, logs) = run "> | inst = 42" [(0, 1, "")]
     equal evts []
@@ -43,9 +43,11 @@ test_equal_merge_env = do
     let run evt = DeriveTest.extract (fromMaybe "" . DeriveTest.e_environ "k")
             (DeriveTest.derive_tracks "" [(">", [(0, 1, evt)])])
     equal (run "k=1 | k=+1 |") (["2"], [])
-    strings_like (snd $ run "k=c | k=+1 |") ["expected Num"]
-    strings_like (snd $ run "k=1 | k=+c |") ["merge is only supported when"]
-    strings_like (snd $ run "k=1 | k =+ 1c |") ["merge is only supported when"]
+    strings_like (snd $ run "k=c | k=+1 |") ["can't be coerced to signal: c"]
+    strings_like (snd $ run "k=1 | k=+c |")
+        [ "merge is only supported for numeric types, tried to merge Str\
+          \ with add"
+        ]
     -- Types are preserved.
     equal (run "k=1c | k=+1 |") (["2c"], [])
 
@@ -54,21 +56,21 @@ test_equal_merge_control = do
     let run control evts =
             DeriveTest.extract (DeriveTest.e_control_constant control) $
             DeriveTest.derive_tracks "" [(">", evts)]
-    equal (run "c" [(0, 1, "%c = .5 | %c = .5 add |")]) ([Just 1], [])
+    equal (run "c" [(0, 1, "c = .5 | c = .5 add |")]) ([Just 1], [])
     -- Default is multiply.
-    equal (run "c" [(0, 1, "%c = .5 | %c = .25 default |")])
+    equal (run "c" [(0, 1, "c = .5 | c = .25 default |")])
         ([Just (0.5 * 0.25)], [])
-    equal (run "c" [(0, 1, "%c = .5 | %c =+ .5 |")]) ([Just 1], [])
-    equal (run "c" [(0, 1, "%c = .5 | %c =* .5 |")]) ([Just 0.25], [])
-    equal (run "c" [(0, 1, "%c=5 | %c =- 2 |")]) ([Just 3], [])
-    equal (run "c" [(0, 1, "%c =- 2 |")]) ([Just (-2)], [])
+    equal (run "c" [(0, 1, "c = .5 | c =+ .5 |")]) ([Just 1], [])
+    equal (run "c" [(0, 1, "c = .5 | c =* .5 |")]) ([Just 0.25], [])
+    equal (run "c" [(0, 1, "c=5 | c =- 2 |")]) ([Just 3], [])
+    equal (run "c" [(0, 1, "c =- 2 |")]) ([Just (-2)], [])
 
-    equal (run "c" [(0, 1, "%c = 2 sub |")]) ([Just (-2)], [])
+    equal (run "c" [(0, 1, "c = 2 sub |")]) ([Just (-2)], [])
     -- =-1 is parsed as =- 1.
-    equal (run "c" [(0, 1, "%c = 2 | %c=-1 |")]) ([Just 1], [])
+    equal (run "c" [(0, 1, "c = 2 | c=-1 |")]) ([Just 1], [])
 
     -- Transposers default to add.
-    equal (run "t-dia" [(0, 1, "%t-dia = 1 | %t-dia = 1 default |")])
+    equal (run "t-dia" [(0, 1, "t-dia = 1 | t-dia = 1 default |")])
         ([Just 2], [])
 
 test_equal_inst_alias :: Test

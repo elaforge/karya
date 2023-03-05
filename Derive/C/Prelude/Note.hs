@@ -208,12 +208,15 @@ default_note_integrate integrate config args = do
     -- Details in "Derive.Call.Post.ArrivalNote".
     let flags = note_flags (start == end) (Derive.state_stack dyn)
             (Derive.state_environ dyn)
-    control_vals <- Derive.controls_at start
+    cvmap <- Derive.controls_at start
+    cmap <- Derive.get_control_map
+    -- Debug.tracepM "note env" =<< Derive.get_environ
+    -- Debug.tracepM "cvmap" cvmap
     let attrs = either (const mempty) id $
             Env.get_val EnvKey.attributes (Derive.state_environ dyn)
-    let adjusted_end = duration_attributes config control_vals attrs start end
+    let adjusted_end = duration_attributes config cvmap attrs start end
     Stream.from_event <$> NoteUtil.make_event_control_vals
-        control_vals args dyn start (adjusted_end - start) integrate flags
+        cvmap cmap args dyn start (adjusted_end - start) integrate flags
 
 note_flags :: Bool -> Stack.Stack -> Env.Environ -> Flags.Flags
 note_flags zero_dur stack environ

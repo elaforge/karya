@@ -12,20 +12,17 @@ import qualified Data.Text as Text
 import qualified Util.Seq as Seq
 import qualified Derive.Attrs as Attrs
 import qualified Derive.C.Prelude.Note as Note
-import qualified Derive.Call as Call
 import qualified Derive.Call.Ly as Ly
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
-import qualified Derive.DeriveT as DeriveT
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Library as Library
 import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import           Derive.Sig (control, defaulted)
 import qualified Derive.Stream as Stream
 
 import qualified Perform.RealTime as RealTime
@@ -50,19 +47,18 @@ c_pizz_arp = Derive.transformer Module.prelude "pizz-arp"
     (Tags.postproc <> Tags.inst)
     "Arpeggiate simultaneous notes with `+pizz`. The order is arbitrary but\
     \ probably in track order.  TODO sort by pitch?" $
-    Sig.callt (defaulted "time" (control "pizz-arp-time" 0.02)
-        "Insert this much time between each note.") $
+    Sig.callt (Sig.defaulted "time" (0.02 :: RealTime)
+        "Insert this much time between each note."
+    ) $
     \time _args deriver -> Ly.when_lilypond deriver $
         pizz_arp time =<< deriver
 
-pizz_arp :: DeriveT.ControlRef -> Stream.Stream Score.Event
-    -> Derive.NoteDeriver
+pizz_arp :: RealTime -> Stream.Stream Score.Event -> Derive.NoteDeriver
 pizz_arp time = map_simultaneous 0.025 (Score.has_attribute Attrs.pizz) $
-    \(event :| chord) -> do
-        let start = Score.event_start event
-        time <- RealTime.seconds <$> Call.control_at time start
-        return [Score.move (+t) event
-            | (t, event) <- zip (Seq.range_ 0 time) (event : chord)]
+    \(event :| chord) -> return
+        [ Score.move (+t) event
+        | (t, event) <- zip (Seq.range_ 0 time) (event : chord)
+        ]
 
 map_simultaneous :: RealTime
     -- ^ events starting closer than this amount are considered simultaneous
@@ -101,7 +97,7 @@ c_avoid_overlap = Derive.transformer Module.prelude "avoid-overlap"
     \ don't overlap with each other.  This simulates keyboard instruments, \
     \ where you have to release a key before striking the same key again.\
     \ This also happens to be what MIDI expects, since it's based on keyboards."
-    $ Sig.callt (defaulted "time" (0.1 :: Double)
+    $ Sig.callt (Sig.defaulted "time" (0.1 :: Double)
         "Ensure at least this much time between two notes of the same pitch.")
     $ \time _args deriver -> Ly.when_lilypond deriver $
         avoid_overlap time <$> deriver
@@ -143,8 +139,8 @@ c_zero_duration_mute = Derive.transformer Module.prelude
     "zero-duration-mute" (Tags.postproc <> Tags.inst)
     "Add attributes to zero duration events."
     $ Sig.callt ((,)
-    <$> defaulted "attr" Attrs.mute "Add this attribute."
-    <*> defaulted "dyn" (0.75 :: Double) "Scale dynamic by this amount."
+    <$> Sig.defaulted "attr" Attrs.mute "Add this attribute."
+    <*> Sig.defaulted "dyn" (0.75 :: Double) "Scale dynamic by this amount."
     ) $ \(attrs, dyn) _args deriver -> Post.emap1_ (add attrs dyn) <$> deriver
     where
     add attrs dyn event

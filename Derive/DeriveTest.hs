@@ -537,13 +537,14 @@ default_constant ui_state cache damage = Derive.initial_constant ui_state
 default_dynamic :: Derive.Dynamic
 default_dynamic = Derive.initial_dynamic default_environ
 
+-- | This will replace Monad.initial_dynamic state_environ entirely.
 default_environ :: Env.Environ
 default_environ = Env.from_list
     -- tests are easier to write and read with integral interpolation
     [ (EnvKey.srate, DeriveT.num 1)
     , (EnvKey.scale, DeriveT.VStr (Expr.scale_id_to_str Twelve.scale_id))
     , (EnvKey.attributes, DeriveT.VAttributes mempty)
-    ]
+    ] <> Derive.initial_environ
 
 -- *** instrument defaults
 
@@ -673,6 +674,14 @@ e_control control event = Seq.drop_dups id $
 e_controls :: Score.Event -> [(ScoreT.Control, [(Signal.X, Signal.Y)])]
 e_controls = map (second (Signal.to_pairs . ScoreT.typed_val)) . Map.toList
     . Score.event_controls
+
+lookup_control :: ScoreT.Control -> Derive.Dynamic -> Maybe DeriveT.TypedSignal
+lookup_control (ScoreT.Control c) =
+    to_signal <=< Env.lookup c . Derive.state_environ
+    where
+    to_signal val = case Typecheck.val_to_signal val of
+        Just (Right sig) -> Just sig
+        _ -> Nothing
 
 e_control_vals :: ScoreT.Control -> Score.Event -> [Signal.Y]
 e_control_vals control = map snd . Seq.drop_initial_dups fst . e_control control
@@ -858,15 +867,14 @@ c_note s_start dur = do
     inst <- Derive.get_val EnvKey.instrument
     environ <- Derive.get_environ
     st <- Derive.gets Derive.state_dynamic
-    let controls = Derive.state_controls st
-        pitch_sig = Derive.state_pitch st
+    cmap <- Derive.get_control_map
     return $! Stream.from_event $! Score.empty_event
         { Score.event_start = start
         , Score.event_duration = end - start
         , Score.event_text = "evt"
-        , Score.event_controls = controls
-        , Score.event_pitch = pitch_sig
-        , Score.event_pitches = Derive.state_pitches st
+        , Score.event_controls = cmap
+        , Score.event_pitch = Derive.state_pitch st
+        , Score.event_pitches = mempty
         , Score.event_instrument = inst
         , Score.event_environ = environ
         }

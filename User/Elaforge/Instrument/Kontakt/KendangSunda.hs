@@ -11,7 +11,6 @@ import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.MidiInst as MidiInst
 
-import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.C.Prelude.Note as Note
 import qualified Derive.Call as Call
@@ -71,16 +70,12 @@ data Pitch = Low | Middle | High deriving (Show)
 c_det :: Maybe Pitch -> Derive.Generator Derive.Note
 c_det vague_pitch = Derive.generator Module.instrument name Tags.attr doc $
     Sig.call (
-        Sig.defaulted "pitch" (Sig.control pitch_control pitch_default)
+        Sig.defaulted_env "pitch" Derive.Unprefixed pitch_default
             "0 is the open pitch, and 1 is the highest pitch."
-    ) $ \pitch args -> do
-        -- The pitch control may already be in the environ, but not if it was
-        -- given as a literal or default arg only.
-        pitch <- Call.control_at pitch =<< Args.real_start args
-        Call.add_attributes attrs $
-            CUtil.apply_tuning_control args tuning_control $
-            Derive.with_constant_control pitch_control pitch $
-            Note.default_note Note.no_duration_attributes args
+    ) $ \pitch args -> Call.add_attributes attrs $
+        CUtil.apply_tuning_control args tuning_control $
+        Derive.with_constant_control pitch_control pitch $
+        Note.default_note Note.no_duration_attributes args
     where
     doc = "This takes a pitch argument and is split into separate calls so\
         \ there can be separate defaults for low, middle, and high."
@@ -89,6 +84,7 @@ c_det vague_pitch = Derive.generator Module.instrument name Tags.attr doc $
         Just Low -> "det-low"
         Just Middle -> "det-mid"
         Just High -> "det-high"
+    pitch_default :: Double
     pitch_default = case vague_pitch of
         Nothing -> 0.5
         Just Low -> 0.25

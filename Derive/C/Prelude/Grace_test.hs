@@ -34,10 +34,10 @@ test_grace :: Test
 test_grace = do
     let run extract = DeriveTest.extract extract . derive_tracks
         tracks notes = [(">", notes), ("*", [(0, 0, "4c")])]
-        prefix = "legato-detach = 0 | %legato-overlap = 0 | grace-dur = 1 |"
+        prefix = "legato-detach = 0 | legato-overlap = 0 | grace-dur = 1 |"
 
     let legato_tracks note = tracks [(2, 1,
-            "legato-detach = .25 | grace-dur = 1 | %legato-overlap = .5 | "
+            "legato-detach = .25 | grace-dur = 1 | legato-overlap = .5 | "
                 <> note)]
         dur = 1
         overlap = 0.5
@@ -62,7 +62,7 @@ test_grace = do
 
     -- grace-dur defaults to RealTime, but can be ScoreTime.
     let tempo_tracks note = ("tempo", [(0, 0, "2")])
-            : tracks [(4, 2, "%legato-overlap = 0 | " <> note)]
+            : tracks [(4, 2, "legato-overlap = 0 | " <> note)]
     equal (run_n $ tempo_tracks "grace-dur = 1 | g (4b)")
         ([(1, 1, "4b"), (2, 1, "4c")], [])
     equal (run_n $ tempo_tracks "grace-dur = 1t | g (4b)")
@@ -70,16 +70,16 @@ test_grace = do
 
     -- grace-place
     let place_tracks note = tracks [(2, 2, prefix <> note)]
-    equal (run_n $ place_tracks "%place = 1 | g (4b)")
+    equal (run_n $ place_tracks "place = 1 | g (4b)")
         ([(2, 1, "4b"), (3, 1, "4c")], [])
     -- Grace notes shorten if the note can't accomodate them all.
-    equal (run_n $ place_tracks "%place = 1 | g (4a) (4b) (4d)")
+    equal (run_n $ place_tracks "place = 1 | g (4a) (4b) (4d)")
         ( [ (2, 0.5, "4a"), (2.5, 0.5, "4b")
           , (3, 0.5, "4d"), (3.5, 0.5, "4c")
           ]
         , []
         )
-    equal (run_n $ place_tracks "%place = .5 | g (4b)")
+    equal (run_n $ place_tracks "place = .5 | g (4b)")
         ([(1.5, 1, "4b"), (2.5, 1.5, "4c")], [])
 
     -- Ensure grace works with attr slur.
@@ -93,7 +93,7 @@ test_grace = do
 test_grace_transpose :: Test
 test_grace_transpose = do
     let run = DeriveTest.extract DeriveTest.e_note
-            . DeriveTest.derive_tracks "grace-dur=1 | %legato-overlap=0"
+            . DeriveTest.derive_tracks "grace-dur=1 | legato-overlap=0"
             . UiTest.note_track
     -- default to diatonic
     equal (run [(0, 2, "g 2 1 -- 4c")])

@@ -7,7 +7,7 @@
 module Derive.C.Bali.Gender (
     library, ngoret_variations
     , interval_arg, ngoret, c_realize_ngoret, realize_ngoret
-    , weak
+    , weak, weak_call
 ) where
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
@@ -19,7 +19,6 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
-import qualified Derive.DeriveT as DeriveT
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
 import qualified Derive.Flags as Flags
@@ -30,11 +29,11 @@ import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import           Derive.Sig (control, typed_control)
 import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
+import qualified Perform.Signal as Signal
 
 import           Global
 import           Types
@@ -69,8 +68,7 @@ gender_ngoret :: Sig.Parser (Maybe Pitch.Transpose)
     -> Derive.Generator Derive.Note
 gender_ngoret = ngoret module_ True damp_arg
     where
-    damp_arg =
-        Sig.defaulted "damp" (typed_control "ngoret-damp" 0.5 ScoreT.Real)
+    damp_arg = Sig.defaulted "damp" (0.5 :: RealTime)
         "Time that the grace note overlaps with this one. So the total\
         \ duration is time+damp, though it will be clipped to the\
         \ end of the current note."
@@ -83,7 +81,7 @@ interval_arg = Typecheck.default_diatonic <$> Sig.required "interval"
 -- behaviour.
 ngoret :: Module.Module -> Bool
     -- ^ Extend the previous note's duration to the end of the grace note.
-    -> Sig.Parser DeriveT.ControlRef
+    -> Sig.Parser Typecheck.RealTimeFunction
     -- ^ Time grace note overlaps with this one.
     -> Sig.Parser (Maybe Pitch.Transpose)
     -> Derive.Generator Derive.Note
@@ -96,31 +94,31 @@ ngoret module_ late_damping damp_arg interval_arg =
     \\nThis requires the `realize-ngoret` postproc."
     ) $ Sig.call ((,,,,)
     <$> interval_arg
-    <*> Sig.defaulted "time" (typed_control "ngoret-time" 0.1 ScoreT.Real)
+    <*> Sig.defaulted "time" (0.1 :: Double)
         "Time between the grace note start and the main note. If there isn't\
         \ enough room after the previous note, it will be halfway between\
         \ the previous note and this one."
     <*> damp_arg
-    <*> Sig.defaulted "dyn" (control "ngoret-dyn" 0.75)
+    <*> Sig.defaulted "dyn" (0.75 :: Double)
         "The grace note's dyn will be this multiplier of the current dyn."
     <*> Sig.environ "damp-threshold" Sig.Prefixed  (0.15 :: Double)
         "A grace note with this much time will cause the previous note to be\
         \ shortened to not overlap. Under the threshold, and the damping of\
         \ the previous note will be delayed until the end of the grace note."
-    -- ) $ \(maybe_interval, Typecheck.TimeFunctionReal time, damp, dyn_scale,
-    --     damp_threshold) args ->
-    ) $ \(maybe_interval, time, damp, dyn_scale, damp_threshold) args ->
+    ) $ \(maybe_interval
+        , Typecheck.RealTimeFunction time
+        , Typecheck.RealTimeFunction damp
+        , dyn_scale
+        , damp_threshold
+        ) args ->
     Sub.inverting_args args $ \args -> do
         start <- Args.real_start args
-        time <- Derive.real =<< Call.time_control_at Typecheck.Real time start
-        -- time <- Derive.real $ time start
-        damp <- Derive.real =<< Call.time_control_at Typecheck.Real damp start
+        time <- Derive.real (time start)
+        damp <- Derive.real (damp start)
         maybe_pitch <- case maybe_interval of
             Nothing -> return Nothing
             Just transpose ->
                 Just . Pitches.transpose transpose <$> Call.get_pitch start
-        dyn_scale <- Call.control_at dyn_scale start
-        -- dyn_scale <- pure $ dyn_scale start
         dyn <- (*dyn_scale) <$> Call.dynamic start
 
         grace_start <- Derive.score (start - time)
@@ -238,21 +236,31 @@ c_weak :: Derive.Generator Derive.Note
 c_weak = Derive.generator module_ "weak" Tags.inst
     "Weak notes are filler notes."
     $ Sig.call (
-    Sig.defaulted "strength" (control "strength" 0.5)
+    Sig.defaulted_env "strength" Derive.Unprefixed (0.5 :: Double)
         "From low strength to high, omit the note, then play it muted, and\
         \ then play it open but softly."
     ) $ \strength -> Sub.inverting (weak strength)
 
-weak :: DeriveT.ControlRef -> Derive.PassedArgs a -> Derive.NoteDeriver
+weak :: Signal.Y -> Derive.PassedArgs a -> Derive.NoteDeriver
 weak strength args = do
-    strength <- Call.control_at strength =<< Args.real_start args
-    -- This biases %mute values to be lower, and 0 before it unmutes.
+    -- This biases mute values to be lower, and 0 before it unmutes.
     let mute = max 0 $ 1 - (strength + (1 - unmute_threshold))
     if strength <= omit_threshold then mempty
         else Call.with_constant Controls.mute mute $ Call.placed_note args
     where
     omit_threshold = 0.25
     unmute_threshold = 0.75
+
+weak_call :: Derive.PassedArgs a -> Derive.NoteDeriver
+weak_call args = do
+    -- TODO This is nonstandard, because usually signals are resolved
+    -- implicitly as arguments.  But DUtil.zero_duration doesn't really plug
+    -- into Sig.call.  Maybe it should reapply `weak` instead of calling it
+    -- directly?  In any case, I think the result should be the same.
+    strength <- fmap (maybe 0.5 ScoreT.typed_val) $
+        Derive.control_at "strength" =<< Args.real_start args
+    weak strength (Args.set_duration dur args)
+    where dur = Args.next args - Args.start args
 
 -- * im
 

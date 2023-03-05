@@ -17,7 +17,6 @@ import qualified Derive.ValType as ValType
 import qualified Derive.Warp as Warp
 
 import qualified Perform.RealTime as RealTime
-import qualified Perform.Signal as Signal
 import qualified Ui.ScoreTime as ScoreTime
 
 import           Global
@@ -29,11 +28,12 @@ data Speed = Score !ScoreTime | Real !RealTime
 
 -- TODO this is a lot of boilerplate just to participate in Typecheck.
 instance Typecheck.Typecheck Speed where
-    from_val = Typecheck.num_to_scalar $ \(ScoreT.Typed typ val) -> case typ of
-        ScoreT.Untyped -> Just $ Real (RealTime.seconds val)
-        ScoreT.Real -> Just $ Real (RealTime.seconds val)
-        ScoreT.Score -> Just $ Score (ScoreTime.from_double val)
-        _ -> Nothing
+    from_val = Typecheck.coerce_to_scalar $ \(ScoreT.Typed typ val) ->
+        case typ of
+            ScoreT.Untyped -> Just $ Real (RealTime.seconds val)
+            ScoreT.Real -> Just $ Real (RealTime.seconds val)
+            ScoreT.Score -> Just $ Score (ScoreTime.from_double val)
+            _ -> Nothing
     to_type = Typecheck.num_to_type
 instance Typecheck.ToVal Speed where
     to_val (Score a) = Typecheck.to_val a
@@ -44,28 +44,27 @@ instance ShowVal.ShowVal Speed where
     show_val (Score s) = ShowVal.show_val s
     show_val (Real s) = ShowVal.show_val s
 
-arg :: Sig.Parser DeriveT.ControlRef
-arg = Sig.defaulted "speed" (Sig.typed_control "speed" 10 ScoreT.Real)
+arg :: Sig.Parser Typecheck.RealTimeFunctionT
+arg = Sig.defaulted_env "speed" Derive.Both (10 :: Int)
     "Repeat at this speed.  If it's a RealTime, the value is the number of\
     \ repeats per second, which will be unaffected by the tempo. If it's\
     \ a ScoreTime, the value is the number of repeats per ScoreTime\
     \ unit, and will stretch along with tempo changes."
 
 -- | Get start times until the end of the range, at the given speed.
-starts :: Derive.Time t => DeriveT.ControlRef -> (t, t)
+starts :: Derive.Time t => Typecheck.RealTimeFunctionT -> (t, t)
     -> Bool -- ^ If True, include a sample at the end time.
     -> Derive.Deriver [RealTime]
-starts speed (start_, end_) include_end = do
-    (speed_sig, time_type) <- Call.to_time_function Typecheck.Real speed
+starts (Typecheck.RealTimeFunctionT ttype speed) (start_, end_) include_end = do
     let take_until e = if include_end then id else takeWhile (<e)
-    case time_type of
-        Typecheck.Real -> do
+    case ttype of
+        ScoreT.TReal -> do
             (start, end) <- (,) <$> Derive.real start_ <*> Derive.real end_
-            take_until end <$> real_starts speed_sig start end
-        Typecheck.Score -> do
+            take_until end <$> real_starts speed start end
+        ScoreT.TScore -> do
             (start, end) <- (,) <$> Derive.score start_ <*> Derive.score end_
             mapM Derive.real . take_until end =<<
-                score_starts speed_sig start end
+                score_starts speed start end
 
 -- | Get start times for a changing speed.  The difference with 'starts' is
 -- that the start and end speeds can be different types.
@@ -90,7 +89,7 @@ speed_to_duration (Real t) = DeriveT.RealDuration (1/t)
 -- is taken as hertz in real time, and must be >0.
 --
 -- This returns samples up to and including the end.
-real_starts :: (RealTime -> Signal.Y) -> RealTime -> RealTime
+real_starts :: DeriveT.Function -> RealTime -> RealTime
     -> Derive.Deriver [RealTime]
 real_starts speed_sig start end = Derive.require_right id $
     duration_starts (RealTime.seconds . (1/) . speed_sig) start end
@@ -103,7 +102,7 @@ real_starts speed_sig start end = Derive.require_right id $
 -- tempo in effect.
 --
 -- This returns samples up to and including the end.
-score_starts :: (RealTime -> Signal.Y) -> ScoreTime -> ScoreTime
+score_starts :: DeriveT.Function -> ScoreTime -> ScoreTime
     -> Derive.Deriver [ScoreTime]
 score_starts speed_sig start end = do
     dur_sig <- convert_score_signal speed_sig
@@ -112,7 +111,7 @@ score_starts speed_sig start end = do
 
 -- | Convert a function from RealTime to a ScoreTime duration to a function
 -- from ScoreTime to ScoreTime duration.
-convert_score_signal :: Typecheck.Function
+convert_score_signal :: DeriveT.Function
     -> Derive.Deriver (ScoreTime -> ScoreTime)
 convert_score_signal f = do
     warp <- Internal.get_warp

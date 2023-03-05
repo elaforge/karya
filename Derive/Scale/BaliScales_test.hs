@@ -19,8 +19,8 @@ test_ombak = do
     equal (run "| tuning = isep" "4e") ([Just 67.6], [])
 
     let both ombak =
-            ( run ("| tuning=umbang | %ombak=" <> showt ombak) "4e"
-            , run ("| tuning=isep | %ombak=" <> showt ombak) "4e"
+            ( run ("| tuning=umbang | ombak=" <> showt ombak) "4e"
+            , run ("| tuning=isep | ombak=" <> showt ombak) "4e"
             )
     equalf 0.01 (both 5)  (([Just 67.338], []), ([Just 67.553], []))
     equalf 0.01 (both 10) (([Just 67.229], []), ([Just 67.66], []))

@@ -161,10 +161,10 @@ make_state instrument transform track_groups = Ui.exec Ui.empty $ do
             , transform
             , "scale = just-r"
             , "key = d-maj"
-            -- , "%just-base = (hz (<-#))"
+            -- , "just-base = (hz (<-#))"
             -- Mridangam claims (natural) is 62.1, but it sounds more like 62.5
             -- TODO fix this
-            , "%just-base = (hz 62.5)"
+            , "just-base = (hz 62.5)"
             ]
     bid <- Ui.create_block bid title []
     Ui.set_root_id bid

@@ -15,7 +15,8 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
--- | Modify a deriver to add 'Controls.variation', for patches that use it.
+-- | Modify a deriver to add 'Controls.variation'.  Only set it if it isn't
+-- already set.
 withVariation :: Derive.Deriver a -> Derive.Deriver a
 withVariation deriver =
     ifM (Derive.is_control_set Controls.variation) deriver $ do

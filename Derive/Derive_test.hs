@@ -15,8 +15,10 @@ import qualified Util.Seq as Seq
 import qualified Cmd.Simple as Simple
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Deriver.Internal as Internal
+import qualified Derive.Env as Env
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
@@ -103,6 +105,7 @@ test_round_pitch = do
             DeriveTest.perform_result DeriveTest.perform_defaults $
             DeriveTest.derive_tracks ""
                 [(">i1", [(0, 1, "")]), ("*", [(0, 0, "3b 99.99")])]
+    -- 100 means it's not getting a dyn, and is using the default
     equal (DeriveTest.note_on_vel mmsgs) [(0, Key.c4, 127)]
 
 test_override_default_pitch :: Test
@@ -424,19 +427,19 @@ test_real_to_score_round_trip = do
 
 test_shift_controls :: Test
 test_shift_controls = do
-    let controls = Map.fromList
-            [("cont", ScoreT.untyped $
-                Signal.from_pairs [(0, 1), (2, 2), (4, 0)])]
-        psig = DeriveTest.psignal [(0, "4c")]
     let set_controls = DeriveTest.modify_dynamic $ \st -> st
-            { Derive.state_controls = controls
-            , Derive.state_pitch = psig
+            { Derive.state_environ = Env.from_list
+                [ ( "cont"
+                  , to_signal $ Signal.from_pairs [(0, 1), (2, 2), (4, 0)]
+                  )
+                ]
+            , Derive.state_pitch = DeriveTest.psignal [(0, "4c")]
             }
     let run op = DeriveTest.extract_run extract $
             DeriveTest.run Ui.empty (set_controls >> op get)
             where
             get = do
-                conts <- Internal.get_dynamic Derive.state_controls
+                conts <- Internal.get_dynamic Derive.state_signals
                 psig <- Internal.get_dynamic Derive.state_pitch
                 return (conts, psig)
             extract (conts, pitch) =
@@ -446,6 +449,9 @@ test_shift_controls = do
     equal (run id) $ Right ([(0, 1), (2, 2), (4, 0)], ([(0, 60)], []))
     equal (run $ Derive.shift_controls 2) $
         Right ([(2, 1), (4, 2), (6, 0)], ([(2, 60)], []))
+
+to_signal :: Signal.Control -> DeriveT.Val
+to_signal = DeriveT.VSignal . ScoreT.untyped
 
 test_tempo_funcs1 :: Test
 test_tempo_funcs1 = do
@@ -582,7 +588,7 @@ test_named_pitch = do
         with_const pname = Derive.with_named_pitch pname
             (PSignal.constant pitch)
     equal (run (with_const "psig")) (Right (Just 60))
-    equal (run (with_const "bad")) (Right Nothing)
+    left_like (run (with_const "bad")) "no named pitch #psig"
 
 test_block_end :: Test
 test_block_end = do

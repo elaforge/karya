@@ -154,7 +154,7 @@ doubled_call callee name place default_time default_dyn_scale = generator name
         let with_dyn = Call.with_dynamic (dyn * dyn_scale)
         let note = Eval.reapply_generator_normalized args callee
         notes <- GraceUtil.repeat_notes note 2 time
-            (if place == Before then 0 else 1) args
+            (Typecheck.Normalized $ if place == Before then 0 else 1) args
         case notes of
             [first, second]
                 | place == Before -> Sub.derive [with_dyn <$> first, second]
@@ -170,7 +170,7 @@ composite_doc = "Composite instrument calls create notes for multiple\
     \ composite instrument itself doesn't wind up in the output, so it\
     \ should have an empty allocation."
 
--- | A composite patch corresponds to multiple underlying MIDI patches.
+-- | A composite patch corresponds to multiple underlying patches.
 --
 -- This is useful for instruments with multiple pitches, e.g. a drum with
 -- a keymap for strokes as well as a tuned pitch, or a pitched instrument with
@@ -187,7 +187,7 @@ data Composite = Composite {
 instance Pretty Composite where
     pretty (Composite call inst pitch controls) = Text.unwords
         [ pretty inst <> ":", pretty call, ppitch
-        , maybe "(all)" pretty controls
+        , show_controls controls
         ]
         where
         ppitch = case pitch of
@@ -195,12 +195,23 @@ instance Pretty Composite where
             Pitch control -> ShowVal.show_val control
 
 data Pitch = NoPitch | Pitch ScoreT.PControl deriving (Show)
--- | If Nothing, then this Composite gets all the controls that are not given
--- to other instruments.  Otherwise, it only gets the named ones.
-type Controls = Maybe (Set ScoreT.Control)
 
-show_controls :: Controls -> Doc.Doc
-show_controls = Doc.Doc . maybe "(all)" pretty
+-- | Assigning a control to a composite actually means the other composite
+-- parts will *not* get it.  This is because derivers naturally inherit the
+-- entire environment, and it seems better to list what it should have, and not
+-- exhaustively list all it gets.
+--
+-- So if this is empty it gets all controls, and if it's not, it still gets the
+-- named controls but other composites don't.
+type Controls = Set ScoreT.Control
+
+show_controls :: Controls -> Text
+show_controls cs
+    | Set.null cs = "(all)"
+    | otherwise = pretty cs
+
+controls_doc :: Controls -> Doc.Doc
+controls_doc = Doc.Doc . show_controls
 
 redirect_pitch :: Derive.CallName -> Expr.Symbol -> Controls
     -> Expr.Symbol -> Controls -> Derive.Generator Derive.Note
@@ -211,9 +222,9 @@ redirect_pitch name pitched_call pitched_controls unpitched_call
     $ Sig.call ((,)
     <$> Sig.required_environ "pitched" Sig.Prefixed
         ("This instrument gets the pitch signal and controls: "
-            <> show_controls pitched_controls)
+            <> controls_doc pitched_controls)
     <*> Sig.required_environ "unpitched" Sig.Prefixed
-        ("This instrument gets controls: " <> show_controls unpitched_controls)
+        ("This instrument gets controls: " <> controls_doc unpitched_controls)
     ) $ \(pitched, unpitched) -> Sub.inverting $ \args -> composite_call args
         [ Composite pitched_call pitched (Pitch ScoreT.default_pitch)
             pitched_controls
@@ -228,35 +239,36 @@ double_pitch name base_controls pcontrol secondary_controls =
     $ Sig.call ((,)
     <$> Sig.required_environ "base-inst" Sig.Prefixed
         ("Instrument that gets `#`, and controls: "
-            <> show_controls base_controls)
+            <> controls_doc base_controls)
     <*> Sig.required_environ "second-inst" Sig.Prefixed
         ("Instrument that gets " <> ShowVal.doc pcontrol
-            <> ", and controls: " <> show_controls secondary_controls)
+            <> ", and controls: " <> controls_doc secondary_controls)
     ) $ \(inst1, inst2) -> Sub.inverting $ \args -> composite_call args
         [ Composite "" inst1 (Pitch ScoreT.default_pitch) base_controls
         , Composite "" inst2 (Pitch pcontrol) secondary_controls
         ]
 
+-- | See 'Composite'.
 composite_call :: Derive.NoteArgs -> [Composite] -> Derive.NoteDeriver
 composite_call args composites = mconcatMap (split args) composites
     where
-    allocated = mconcatMap (fromMaybe mempty . c_controls) composites
     split args (Composite call inst pitch controls) =
         Derive.with_instrument inst $ with_pitch pitch $
-        with_controls controls $ Eval.reapply_generator args call
+        replace_controls controls $
+        Eval.reapply_generator args call
     with_pitch p deriver = case p of
         NoPitch -> Derive.with_pitch mempty deriver
         Pitch control
             | control == ScoreT.default_pitch -> deriver
             | otherwise -> do
-                sig <- Derive.get_named_pitch control
-                Derive.with_pitch (fromMaybe mempty sig) deriver
-    with_controls controls deriver = do
-        cmap <- Derive.get_controls
-        cfuncs <- Derive.get_control_functions
-        let strip = Map.filterWithKey $ \control _ -> maybe
-                (Set.notMember control allocated) (Set.member control) controls
-        Derive.with_control_maps (strip cmap) (strip cfuncs) deriver
+                mb_psig <- Derive.lookup_pitch_signal control
+                Derive.with_pitch (fromMaybe mempty mb_psig) deriver
+    replace_controls controls deriver = do
+        -- This is not so much add the desired controls, because they're all
+        -- ready there, but remove the rest.
+        let not_mine = used_controls `Set.difference` controls
+        Derive.remove_controls (Set.toList not_mine) deriver
+    used_controls = mconcatMap c_controls composites
 
 
 -- * control vals

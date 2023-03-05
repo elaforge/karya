@@ -46,10 +46,10 @@ test_midi_thru_instrument = do
     -- Input out of range is not an error.
     io_equal (e_note <$> run cstate "" (CmdTest.note_on 1 (Pitch.pitch 99 0)))
         ([], [])
-    io_equal (e_note <$> run cstate " | %t-oct=1" middle_c)
+    io_equal (e_note <$> run cstate " | t-oct=1" middle_c)
         ([Midi.NoteOn Key.c5 127], [])
     -- Only octave transposition is applied.
-    io_equal (e_note <$> run cstate " | %t-dia=1" middle_c)
+    io_equal (e_note <$> run cstate " | t-dia=1" middle_c)
         ([Midi.NoteOn Key.c4 127], [])
 
     -- io_equal (run e_note "" middle_c) ([Midi.NoteOn Key.c4 127], [])

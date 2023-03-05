@@ -30,6 +30,7 @@ import qualified Derive.Library as Library
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.RealTime as RealTime
@@ -215,9 +216,10 @@ c_interpolate = Derive.generator Module.prelude "interpolate" Tags.subs
     \ same number of events. This interpolates rhythm only. To interpolate\
     \ pitch and controls, it would need to work at the score event level,\
     \ rather than ui events."
-    $ Sig.call (Sig.defaulted "at" (Sig.control "at" 0) "interpolate position")
-    $ \at args -> do
-        at <- Call.to_function at
+    $ Sig.call (
+        Sig.defaulted_env "at" Sig.Both (Typecheck.Normalized 0)
+            "interpolate position"
+    ) $ \at args -> do
         tracks <- filter (not . null) <$> Sub.sub_events args
         unless (all_equal (map length tracks)) $
             Derive.throw $ "sub tracks should have the same number of events: "
@@ -257,9 +259,9 @@ c_event_interpolate = Derive.generator Module.prelude "e-interpolate" Tags.subs
     $ Sig.call ((,,)
     <$> Sig.defaulted "notes" (Nothing :: Maybe Sig.Dummy) "source deriver"
     <*> Sig.defaulted "model" (Nothing :: Maybe Sig.Dummy) "rhythm model"
-    <*> Sig.defaulted "at" (Sig.control "at" 0) "interpolate position"
+    <*> Sig.defaulted_env "at" Sig.Both (Typecheck.Normalized 0)
+        "interpolate position"
     ) $ \(mb_notes, mb_model, at) args -> do
-        at <- Call.to_function at
         (model, notes) <- resolve_derivers2 args
             ("model", mb_model) ("notes", mb_notes)
         let start_dur e = (Score.event_start e, Score.event_duration e)

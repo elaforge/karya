@@ -363,7 +363,7 @@ smooth_absolute curve srate time =
     breakpoints srate curve . split_samples_absolute time
 
 -- | Smooth with 'split_samples_relative'.
-smooth_relative :: Curve -> RealTime -> Typecheck.Function
+smooth_relative :: Curve -> RealTime -> DeriveT.Function
     -> [(RealTime, Signal.Y)] -> Signal.Control
 smooth_relative curve srate time_at =
     breakpoints srate curve . split_samples_relative time_at
@@ -400,7 +400,7 @@ split_samples_absolute time
 -- > 0 1 2 3 4 5 6 7 8
 -- > 0-------1-------0
 -- > 0-----0=1-----1=0 time_at = const 0.25
-split_samples_relative :: Typecheck.Function -> [(RealTime, y)]
+split_samples_relative :: DeriveT.Function -> [(RealTime, y)]
     -> [(RealTime, y)]
 split_samples_relative time_at = concatMap split . Seq.zip_next
     where
@@ -434,7 +434,7 @@ modify_with merge control end sig = do
         Derive.Set -> do
             -- There's no identity for Set, so I have to slice the signal
             -- myself.
-            maybe_old <- Derive.lookup_control_signal control
+            maybe_old <- Derive.lookup_signal control
             return $ case ScoreT.typed_val <$> maybe_old of
                 Nothing -> sig
                 Just old -> old <> sig <> Signal.clip_before end old

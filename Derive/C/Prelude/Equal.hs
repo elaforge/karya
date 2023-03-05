@@ -17,7 +17,6 @@ import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
 import qualified Derive.Args as Args
-import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
@@ -37,6 +36,7 @@ import qualified Derive.ValType as ValType
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
+import qualified Ui.Id as Id
 
 import           Global
 
@@ -162,15 +162,13 @@ equal_doc =
     \\nIf you bind a call to a quoted expression, this creates a new\
     \ call: `^abc = \"(a b c)` will create a `abc` call, which is a macro for\
     \ `a b c`. The created call does not take arguments.\
-    \\nSet constant signals by assigning to a signal literal: `%c = .5` or\
-    \ pitch: `#p = (4c)`.  `# = (4c)` sets the default pitch signal.\
-    \ You can rename a signal via `%a = %b` or `#x = #y`. Control signal\
-    \ assignment also supports the same merge functions as the control track:\
-    \ `%a = .5 add` or `%a = %b add`.  However, the second example throws an\
-    \ error if `%b` is a ControlFunction. `%a = .5 default` will combine with\
-    \ `a`'s default merge function. Assigning to `_` unsets the control, and\
-    \ any ControlFunction.\\n\
-    \ The `=` operator can be suffixed with symbol, which will become the last\
+    \\nSet the default pitch signal with `#`, e.g. `# = (4c)` or `# = 45nn`.\
+    \ Control signal assignment also supports the same merge functions as the\
+    \ control track: `a = .5 add` or `a = %b add`.  However, the second example\
+    \ throws an error if `%b` is a ControlFunction. `a = .5 default` will\
+    \ combine with `a`'s default merge function. Assigning to `_` unsets the\
+    \ control, and any ControlFunction.\
+    \\nThe `=` operator can be suffixed with symbol, which will become the last\
     \ argument, so `%x=+1` becomes `%x = 1 '+'`.  Note that the order\
     \ is backwards from the usual `+=`, which is ultimately because the first\
     \ word can have almost any character except space and `=`. Also, `x=-1` is\
@@ -206,67 +204,46 @@ parse_equal Set lhs rhs
                 (ScoreT.Instrument inst)
         _ -> Left $ "aliasing an instrument expected an instrument rhs, got "
             <> pretty (ValType.type_of rhs)
-parse_equal merge lhs rhs
-    -- Assign to control.
-    | Just control <- is_control =<< parse_val lhs = case rhs of
-        DeriveT.VControlRef rhs -> Right $ \deriver ->
-            Typecheck.to_signal_or_function rhs >>= \case
-                Left sig -> do
-                    merger <- get_merger control merge
-                    Derive.with_merged_control merger control sig deriver
-                Right f -> case merge of
-                    Set -> Derive.with_control_function control f deriver
-                    merge -> Derive.throw_arg_error $ merge_error merge
-        DeriveT.VNum rhs -> Right $ \deriver -> do
-            merger <- get_merger control merge
-            Derive.with_merged_control merger control (fmap Signal.constant rhs)
-                deriver
-        DeriveT.VControlFunction f -> case merge of
-            Set -> Right $ Derive.with_control_function control f
-            merge -> Left $ merge_error merge
-        DeriveT.VNotGiven -> Right $ Derive.remove_controls [control]
-        _ -> Left $ "binding a control expected a control, num, control\
-            \ function, or _, but got " <> pretty (ValType.type_of rhs)
-    where
-    is_control (DeriveT.VControlRef (DeriveT.LiteralControl c)) = Just c
-    is_control _ = Nothing
-parse_equal _ lhs rhs
-    -- Assign to pitch control.
-    | Just control <- is_pitch =<< parse_val lhs = case rhs of
-        DeriveT.VPitch rhs ->
-            Right $ Derive.with_named_pitch control (PSignal.constant rhs)
-        DeriveT.VPControlRef rhs -> Right $ \deriver -> do
-            sig <- Call.to_psignal rhs
-            Derive.with_named_pitch control sig deriver
-        DeriveT.VNum (ScoreT.Typed ScoreT.Nn nn) ->
-            Right $ Derive.with_named_pitch control
+-- TODO should I centralize the parsing of #?  Or is equal the only place that
+-- needs this notation where # is state_pitch?  I used to parse a VPControlRef
+parse_equal Set "#" rhs = case rhs of
+    DeriveT.VPitch p -> Right $ Derive.with_pitch (PSignal.constant p)
+    DeriveT.VPSignal sig -> Right $ Derive.with_pitch sig
+    DeriveT.VNum (ScoreT.Typed typ nn)
+        | typ == ScoreT.Untyped || typ == ScoreT.Nn ->
+            Right $ Derive.with_pitch
                 (PSignal.constant (PSignal.nn_pitch (Pitch.nn nn)))
-        DeriveT.VNotGiven -> Right $ Derive.with_named_pitch control mempty
-        _ -> Left $ "binding a pitch signal expected a pitch, pitch"
-            <> " control, or nn, but got " <> pretty (ValType.type_of rhs)
+    DeriveT.VNotGiven -> Right $ Derive.with_pitch mempty
+    DeriveT.VPControlRef ref -> Right $ \deriver -> do
+        sig <- Typecheck.resolve_pitch_ref ref
+        Derive.with_pitch sig deriver
+    _ -> Left $ "binding a pitch signal expected a pitch, pitch"
+        <> " signal, or nn, but got " <> pretty (ValType.type_of rhs)
+parse_equal Set lhs rhs
+    | not (Id.valid_symbol lhs) = Left $
+        "tried to assign to invalid symbol name: " <> ShowVal.show_val lhs
+    | otherwise = Right $ case rhs of
+        DeriveT.VControlFunction cf ->
+            Derive.with_control_function (ScoreT.Control lhs) cf
+        _ -> Derive.with_val lhs rhs
+-- if rhs is a signal or number, then merge is ok
+parse_equal merge lhs rhs = case rhs of
+    DeriveT.VNum num -> Right $ merge_signal (Signal.constant <$> num)
+    DeriveT.VSignal sig -> Right $ merge_signal sig
+    _ -> Left $ "merge is only supported for numeric types, tried to merge "
+        <> pretty (ValType.type_of rhs) <> " with " <> ShowVal.show_val merge
     where
-    is_pitch (DeriveT.VPControlRef (DeriveT.LiteralControl c)) = Just c
-    is_pitch _ = Nothing
-parse_equal Set lhs val = Right $ Derive.with_val lhs val
-parse_equal (Merge merge) lhs (DeriveT.VNum (ScoreT.Typed ScoreT.Untyped val)) =
-    Right $ \deriver -> do
-        merger <- Derive.get_control_merge merge
-        Derive.with_merged_numeric_val merger lhs val deriver
-parse_equal merge _ _ = Left $ merge_error merge
-
-merge_error :: Merge -> Text
-merge_error merge = "merge is only supported when assigning to a control or\
-    \ untyped numeric env: " <> ShowVal.show_val merge
+    merge_signal sig deriver = do
+        merger <- get_merger control merge
+        Derive.with_merged_control merger control sig deriver
+    control = ScoreT.Control lhs
 
 -- | Unlike 'Derive.MergeDefault', the default is Derive.Set.
 get_merger :: ScoreT.Control -> Merge -> Derive.Deriver Derive.Merger
-get_merger control merge = case merge of
+get_merger control = \case
     Set -> return Derive.Set
     Default -> Derive.get_default_merger control
     Merge merge -> Derive.get_control_merge merge
-
-parse_val :: Text -> Maybe DeriveT.Val
-parse_val = either (const Nothing) Just . Parse.parse_val
 
 -- | Look up a call with the given Symbol and add it as an override to the
 -- scope given by the lenses.  I wanted to pass just one lens, but apparently

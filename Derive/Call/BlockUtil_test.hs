@@ -23,7 +23,7 @@ import           Util.Test
 
 test_compile :: Test
 test_compile = do
-    let controls = map Score.event_controls
+    let controls = map (Map.lookup "c1" . Score.event_controls)
         pitches = map DeriveTest.e_nns
 
     let derive tracks = DeriveTest.extract id $ DeriveTest.derive_tracks "" $
@@ -32,8 +32,7 @@ test_compile = do
         (snd $ derive [(">", [(0, 1, "")]), ("*bogus-scale", [(0, 0, ".1")])])
         ["*unknown scale: bogus-scale"]
 
-    let mkcont vals = Map.union Derive.initial_controls
-            (Map.singleton "c1" (ScoreT.untyped (Signal.from_pairs vals)))
+    let mkcont = ScoreT.untyped . Signal.from_pairs
         no_pitch = []
     let (events, logs) = derive
             [ ("*", [(0, 0, ".1")])
@@ -41,8 +40,8 @@ test_compile = do
             , ("c1", [(0, 0, "3"), (1, 0, "2"), (2, 0, "1")])
             ]
     strings_like logs ["not found: .1"]
-    equal (controls events)
-        [mkcont [(0, 3)], mkcont [(0.5, 2)], mkcont [(1, 1)]]
+    equal (controls events) $
+        map Just [mkcont [(0, 3)], mkcont [(0.5, 2)], mkcont [(1, 1)]]
     equal (pitches events) [no_pitch, no_pitch, no_pitch]
 
     let (events, logs) = derive

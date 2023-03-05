@@ -48,134 +48,6 @@ import           Global
 import           Types
 
 
--- * signals
-
--- | To accomodate both normal calls, which are in score time, and post
--- processing calls, which are in real time, these functions take RealTimes.
-control_at :: DeriveT.ControlRef -> RealTime -> Derive.Deriver Signal.Y
-control_at control pos = ScoreT.typed_val <$> typed_control_at control pos
-
-typed_control_at :: DeriveT.ControlRef -> RealTime
-    -> Derive.Deriver (ScoreT.Typed Signal.Y)
-typed_control_at control pos = case control of
-    DeriveT.ControlSignal sig -> return $ Signal.at pos <$> sig
-    DeriveT.DefaultedControl cont deflt ->
-        fromMaybe (Signal.at pos <$> deflt) <$> Derive.control_at cont pos
-    DeriveT.LiteralControl cont ->
-        Derive.require ("not found and no default: " <> ShowVal.show_val cont)
-            =<< Derive.control_at cont pos
-
--- TODO callers should use Typecheck.DefaultRealTimeFunction
-time_control_at :: Typecheck.TimeType -> DeriveT.ControlRef -> RealTime
-    -> Derive.Deriver DeriveT.Duration
-time_control_at default_type control pos = do
-    ScoreT.Typed typ val <- typed_control_at control pos
-    time_type <- case typ of
-        ScoreT.Untyped -> return default_type
-        ScoreT.Score -> return Typecheck.Score
-        ScoreT.Real -> return Typecheck.Real
-        _ -> Derive.throw $ "expected time type for "
-            <> ShowVal.show_val control <> " but got " <> pretty typ
-    return $ case time_type of
-        Typecheck.Real -> DeriveT.RealDuration (RealTime.seconds val)
-        Typecheck.Score -> DeriveT.ScoreDuration (ScoreTime.from_double val)
-
-real_time_at :: DeriveT.ControlRef -> RealTime -> Derive.Deriver RealTime
-real_time_at control pos = do
-    val <- time_control_at Typecheck.Real control pos
-    case val of
-        DeriveT.RealDuration t -> return t
-        DeriveT.ScoreDuration t -> Derive.throw $ "expected RealTime for "
-            <> ShowVal.show_val control <> " but got " <> ShowVal.show_val t
-
-transpose_control_at :: Typecheck.TransposeType -> DeriveT.ControlRef
-    -> RealTime -> Derive.Deriver (Signal.Y, Typecheck.TransposeType)
-transpose_control_at default_type control pos = do
-    ScoreT.Typed typ val <- typed_control_at control pos
-    transpose_type <- case typ of
-        ScoreT.Untyped -> return default_type
-        ScoreT.Chromatic -> return Typecheck.Chromatic
-        ScoreT.Diatonic -> return Typecheck.Diatonic
-        _ -> Derive.throw $ "expected transpose type for "
-            <> ShowVal.show_val control <> " but got " <> pretty typ
-    return (val, transpose_type)
-
-
--- * function and signal
-
-to_function :: DeriveT.ControlRef -> Derive.Deriver Typecheck.Function
-to_function = fmap (ScoreT.typed_val .) . Typecheck.to_typed_function
-
--- | Convert a ControlRef to a control signal.  If there is
--- a 'DeriveT.ControlFunction' it will be ignored.
-to_typed_signal :: DeriveT.ControlRef
-    -> Derive.Deriver (ScoreT.Typed Signal.Control)
-to_typed_signal control =
-    either return (const $ Derive.throw $ "not found: " <> pretty control)
-        =<< Typecheck.to_signal_or_function control
-
-to_signal :: DeriveT.ControlRef -> Derive.Deriver Signal.Control
-to_signal = fmap ScoreT.typed_val . to_typed_signal
-
--- | Version of 'to_function' specialized for transpose signals.  Throws if
--- the signal had a non-transpose type.
-to_transpose_function :: Typecheck.TransposeType -> DeriveT.ControlRef
-    -> Derive.Deriver (Typecheck.Function, ScoreT.Control)
-    -- ^ (signal, appropriate transpose control)
-to_transpose_function default_type control = do
-    sig <- Typecheck.to_typed_function control
-    -- Previously, I directly returned ScoreT.Typed Signal.Control so I could
-    -- look at their types.  A function is more powerful but I have to actually
-    -- call it to find the type.
-    let typ = ScoreT.type_of (sig 0)
-        untyped = ScoreT.typed_val . sig
-    case typ of
-        ScoreT.Untyped ->
-            return (untyped, Typecheck.transpose_control default_type)
-        _ -> case Controls.transpose_type typ of
-            Just control -> return (untyped, control)
-            _ -> Derive.throw $ "expected transpose type for "
-                <> ShowVal.show_val control <> " but got " <> pretty typ
-
--- | Version of 'to_function' that will complain if the control isn't a time
--- type.
-to_time_function :: Typecheck.TimeType -> DeriveT.ControlRef
-    -> Derive.Deriver (Typecheck.Function, Typecheck.TimeType)
-to_time_function default_type control = do
-    sig <- Typecheck.to_typed_function control
-    let typ = ScoreT.type_of (sig 0)
-        untyped = ScoreT.typed_val . sig
-    case typ of
-        ScoreT.Untyped -> return (untyped, default_type)
-        ScoreT.Score -> return (untyped, Typecheck.Score)
-        ScoreT.Real -> return (untyped, Typecheck.Real)
-        _ -> Derive.throw $ "expected time type for "
-            <> ShowVal.show_val control <> " but got " <> pretty typ
-
--- TODO maybe pos should be be ScoreTime so I can pass it to eval_pitch?
-pitch_at :: RealTime -> DeriveT.PControlRef -> Derive.Deriver PSignal.Pitch
-pitch_at = Typecheck.pitch_at
-
-to_psignal :: DeriveT.PControlRef -> Derive.Deriver PSignal.PSignal
-to_psignal control = case control of
-    DeriveT.ControlSignal sig -> return sig
-    DeriveT.DefaultedControl cont deflt ->
-        maybe (return deflt) return =<< Derive.get_named_pitch cont
-    DeriveT.LiteralControl cont ->
-        Derive.require ("not found: " <> showt cont)
-            =<< Derive.get_named_pitch cont
-
-nn_at :: RealTime -> DeriveT.PControlRef
-    -> Derive.Deriver (Maybe Pitch.NoteNumber)
-nn_at pos control = -- TODO throw exception?
-    Derive.logged_pitch_nn ("Util.nn_at " <> pretty (pos, control))
-        =<< Derive.resolve_pitch pos
-        =<< pitch_at pos control
-
-real_duration_at :: Typecheck.TypedFunction -> RealTime
-    -> Derive.Deriver RealTime
-real_duration_at f t = typed_real_duration Typecheck.Real t (f t)
-
 -- * dynamic
 
 -- | Unlike 'Derive.pitch_at', the transposition has already been applied.
@@ -591,17 +463,21 @@ duration_from_end args t = do
     return (end - dur, end)
 
 -- | This is 'real_duration', but takes a ScoreT.Typed Signal.Y.
-typed_real_duration :: Derive.Time t => Typecheck.TimeType -> t
+typed_real_duration :: Derive.Time t => ScoreT.TimeT -> t
     -> ScoreT.Typed Signal.Y -> Derive.Deriver RealTime
 typed_real_duration default_type from (ScoreT.Typed typ val)
     | typ == ScoreT.Real
-        || typ == ScoreT.Untyped && default_type == Typecheck.Real =
+        || typ == ScoreT.Untyped && default_type == ScoreT.TReal =
             return (RealTime.seconds val)
     | typ == ScoreT.Score
-        || typ == ScoreT.Untyped && default_type == Typecheck.Score =
+        || typ == ScoreT.Untyped && default_type == ScoreT.TScore =
             real_duration from (ScoreTime.from_double val)
     | otherwise = Derive.throw $
         "expected time type for " <> ShowVal.show_val (ScoreT.Typed typ val)
+
+real_duration_at :: DeriveT.TypedFunction -> RealTime
+    -> Derive.Deriver RealTime
+real_duration_at f t = typed_real_duration ScoreT.TReal t (($ t) <$> f)
 
 -- ** timestep
 

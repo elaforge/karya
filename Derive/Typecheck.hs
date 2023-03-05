@@ -7,9 +7,11 @@
 {-# LANGUAGE DeriveFunctor #-}
 module Derive.Typecheck (
     -- * signal functions
-    TypedFunction, Function
-    , DefaultRealTimeFunction(..)
-    , TimeFunctionReal(..), TimeFunctionScore(..)
+    RealTimeFunction(..), ScoreTimeFunction(..)
+    , RealTimeFunctionT(..), ScoreTimeFunctionT(..)
+    , DiatonicTransposeFunctionT(..)
+    , ChromaticTransposeFunctionT(..)
+    , NnTransposeFunctionT(..)
 
     -- * type wrappers
     , DefaultReal(..), DefaultScore(..)
@@ -33,19 +35,23 @@ module Derive.Typecheck (
     , num_to_type
     , TypecheckNum(..)
 
-    -- ** numeric types
-    , num_to_scalar
-
     -- * util
-    , TimeType(..), time_type
-    , TransposeType(..), transpose_type, to_transpose, transpose_control
+    , to_transpose, transpose_control
 
-    -- ** to_typed_function
-    , to_typed_function
-    , to_function
-    , convert_to_function
-    , to_signal_or_function
-    , pitch_at
+    -- * controls
+    , coerce_to_scalar
+    , lookup_function
+    , lookup_signal
+    , val_to_signal
+    , val_to_function, val_to_function_dyn, retype_cf
+
+    -- * pitch signals
+    , val_to_pitch_signal
+    , lookup_pitch_signal
+    , resolve_pitch_ref
+
+    -- * compatibility
+    , resolve_function
 ) where
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
@@ -77,11 +83,6 @@ import qualified Ui.ScoreTime as ScoreTime
 import           Global
 import           Types
 
-
--- * signal functions
-
-type TypedFunction = RealTime -> ScoreT.Typed Signal.Y
-type Function = RealTime -> Signal.Y
 
 -- * type wrappers
 
@@ -259,8 +260,7 @@ from_val_symbol syms = \case
     -- for inlining.
 
 enum_map :: forall a. TEnum a => Map Text a
-enum_map = Map.fromList $ Seq.key_on ShowVal.show_val vals
-    where vals = [minBound :: a .. maxBound]
+enum_map = Map.fromList $ Seq.key_on ShowVal.show_val [minBound ..]
 
 num_to_type :: TypecheckNum a => Proxy a -> ValType.Type
 num_to_type proxy = ValType.TNum (num_type proxy) ValType.TAny
@@ -274,6 +274,9 @@ instance ToVal Bool
 instance ShowVal.ShowVal Meter.Rank
 instance Typecheck Meter.Rank
 instance ToVal Meter.Rank
+
+instance Typecheck ScoreT.Type
+instance ToVal ScoreT.Type
 
 -- * Typecheck instances
 
@@ -337,136 +340,127 @@ instance (ToVal a, ToVal b) => ToVal (Either a b) where
 
 -- ** numeric types
 
--- | Coerce any numeric value to a ScoreT.Typed Signal.Y, and check it against
--- the given function.
-num_to_scalar :: (ScoreT.Typed Signal.Y -> Maybe a) -> Val -> Checked a
-num_to_scalar check val = case val of
-    VNum a -> Val $ maybe Failure Success $ check a
-    VControlRef cref -> Eval $ \p -> check . ($p) <$> to_typed_function cref
-    VControlFunction cf -> Eval $ \p -> check . ($p) <$> control_function cf
-    _ -> failure
 
--- | Coerce any numeric value to a function, and check it against the given
--- function.
-num_to_function :: (TypedFunction -> Maybe a) -> Val -> Checked a
-num_to_function check = \case
-    VNum a -> Val $ maybe Failure Success $ check $ const a
-    VControlRef cref -> Eval $ const $ check <$> to_typed_function cref
-    VControlFunction cf -> Eval $ const $ check <$> control_function cf
-    _ -> failure
+-- | Signal.Control has ToVal but not Typecheck, because calls should be
+-- using Function.
+instance ToVal DeriveT.TypedSignal where to_val = VSignal
+instance ToVal PSignal.PSignal where to_val = VPSignal
 
--- | Like 'num_to_function', but take a constructor with a type argument,
--- and a separate function to verify the type.  This returns the type and
--- Function separately.
-num_to_type_and_function :: (Function -> typ -> b)
-    -> (ScoreT.Type -> Maybe typ) -> Val -> Checked b
-num_to_type_and_function make check_type = num_to_function $ \f ->
-    make (ScoreT.typed_val . f) <$> check_type (ScoreT.type_of (f 0))
+instance Typecheck DeriveT.TypedSignal where
+    from_val = coerce_to_signal
+    to_type _ = ValType.TSignal ValType.SignalUntyped
 
--- | Like 'num_to_function', but if the type is right, wrap the value in
--- a more specific type, like DeriveT.Duration.
-num_to_typed_function :: (ScoreT.Type -> Maybe (Signal.Y -> a)) -> Val
-    -> Checked (RealTime -> a)
-num_to_typed_function check_type = num_to_function $ \f ->
-    -- TODO I call f at 0 to get the type, but if I change num_to_function to
-    -- use to_type_and_function, I don't have to
-    (. ScoreT.typed_val . f) <$> check_type (ScoreT.type_of (f 0))
-
--- | Evaluate a control function with no backing control.
-control_function :: DeriveT.ControlFunction -> Derive.Deriver TypedFunction
-control_function cf = DeriveT.cf_function cf Controls.null <$>
-    Internal.get_control_function_dynamic
+instance Typecheck Signal.Control where
+    from_val = fmap ScoreT.typed_val . from_val
+    to_type _ = ValType.TSignal ValType.SignalUntyped
 
 -- *** eval only
 
--- These don't have ToVal instances.
+-- These don't have ToVal instances.  This means they can be used in a call,
+-- but not turned back into a Val to put in the environ, or printed in log
+-- msgs.
 
-instance Typecheck TypedFunction where
-    from_val = num_to_function Just
-    to_type _ = ValType.TOther "typed number or signal"
+instance Typecheck DeriveT.TypedFunction where
+    from_val = coerce_to_function Just
+    to_type _ = ValType.TOther "typed signal"
 
-instance Typecheck Function where
-    from_val = num_to_function (Just . fmap ScoreT.typed_val)
-    to_type _ = ValType.TOther "untyped number or signal"
+instance Typecheck DeriveT.Function where
+    from_val = fmap ScoreT.typed_val . from_val
+    to_type _ = ValType.TOther "untyped signal"
 
-time_constructor :: TimeType -> ScoreT.Type
+instance Typecheck (RealTime -> RealTime) where
+    from_val = coerce_to_function $ \(ScoreT.Typed typ f) -> case typ of
+        ScoreT.Real -> Just (RealTime.seconds . f)
+        ScoreT.Untyped -> Just (RealTime.seconds . f)
+        _ -> Nothing
+    to_type _ = ValType.TOther "realtime signal"
+
+instance Typecheck PSignal.PSignal where
+    from_val = coerce_to_pitch_signal
+    to_type _ = ValType.TPSignal
+
+instance Typecheck DeriveT.PitchFunction where
+    from_val = fmap (flip PSignal.at) . coerce_to_pitch_signal
+    to_type _ = ValType.TPSignal
+
+-- Returning Duration is convenient for Derive.real or Derive.score, e.g.
+-- Gender.ngoret.
+data RealTimeFunction = RealTimeFunction !(RealTime -> DeriveT.Duration)
+data ScoreTimeFunction = ScoreTimeFunction !(RealTime -> DeriveT.Duration)
+
+-- | Returning them separately is used in (at least) Speed.starts
+data RealTimeFunctionT = RealTimeFunctionT !ScoreT.TimeT !DeriveT.Function
+data ScoreTimeFunctionT = ScoreTimeFunctionT !ScoreT.TimeT !DeriveT.Function
+
+instance Typecheck RealTimeFunctionT where
+    from_val = coerce_to_typed_function RealTimeFunctionT
+        (ScoreT.time_t ScoreT.TReal)
+    to_type _ = ValType.TOther "time signal (default real)"
+instance Typecheck ScoreTimeFunctionT where
+    from_val = coerce_to_typed_function ScoreTimeFunctionT
+        (ScoreT.time_t ScoreT.TScore)
+    to_type _ = ValType.TOther "time signal (default score)"
+
+instance Typecheck RealTimeFunction where
+    from_val = coerce_to_typed_function (\dur f -> RealTimeFunction $ dur . f)
+        (time_constructor ScoreT.TReal)
+    to_type _ = ValType.TOther "time signal (default real)"
+
+instance Typecheck ScoreTimeFunction where
+    from_val = coerce_to_typed_function (\dur f -> ScoreTimeFunction $ dur . f)
+        (time_constructor ScoreT.TScore)
+    to_type _ = ValType.TOther "time signal (default score)"
+
+time_constructor :: ScoreT.TimeT -> ScoreT.Type
     -> Maybe (Signal.Y -> DeriveT.Duration)
-time_constructor deflt typ = case time_type deflt typ of
-    Just Real -> Just $ DeriveT.RealDuration . RealTime.seconds
-    Just Score -> Just $ DeriveT.ScoreDuration . ScoreTime.from_double
+time_constructor deflt typ = case ScoreT.time_t deflt typ of
+    Just ScoreT.TReal -> Just $ DeriveT.RealDuration . RealTime.seconds
+    Just ScoreT.TScore -> Just $ DeriveT.ScoreDuration . ScoreTime.from_double
     Nothing -> Nothing
-
--- type TimeFunction = RealTime -> DeriveT.Duration
--- instance Typecheck TimeFunction where
---     from_val = num_to_typed_function (time_constructor Real)
---     to_type _ = ValType.TOther "time number or signal"
-
--- | Wrappers that produce a Duration function.  They differ in whether Untyped
--- defaults to Real or Score.
-newtype TimeFunctionReal = TimeFunctionReal (RealTime -> DeriveT.Duration)
-newtype TimeFunctionScore = TimeFunctionScore (RealTime -> DeriveT.Duration)
-
-instance Typecheck TimeFunctionReal where
-    from_val = fmap TimeFunctionReal
-        . num_to_typed_function (time_constructor Real)
-    to_type _ = ValType.TOther "time number or signal, default real"
-instance Typecheck TimeFunctionScore where
-    from_val = fmap TimeFunctionScore
-        . num_to_typed_function (time_constructor Score)
-    to_type _ = ValType.TOther "time number or signal, default score"
-
--- | This returns the function and the type separately, which is kind of weird.
--- Shouldn't it be combined into (Y -> DeriveT.Duratin)?
-data DefaultRealTimeFunction = DefaultRealTimeFunction !Function !TimeType
-
-instance Typecheck DefaultRealTimeFunction where
-    from_val = num_to_type_and_function DefaultRealTimeFunction (time_type Real)
-    to_type _ = ValType.TOther "time number or signal"
 
 -- Originally I used DataKinds e.g.
 -- TransposeFunction (deflt :: TransposeType), but it seemed less
 -- convenient than separate data types.
 
-data TransposeFunctionDiatonic =
-    TransposeFunctionDiatonic !Function !ScoreT.Control
-instance Typecheck TransposeFunctionDiatonic where
-    from_val = num_to_type_and_function TransposeFunctionDiatonic
-        (type_to_control Diatonic)
-    to_type _ = ValType.TOther "transpose number or signal, default diatonic"
+data DiatonicTransposeFunctionT =
+    DiatonicTransposeFunctionT !ScoreT.TransposeT !DeriveT.Function
+instance Typecheck DiatonicTransposeFunctionT where
+    from_val = coerce_to_typed_function DiatonicTransposeFunctionT
+        (ScoreT.transpose_t ScoreT.TDiatonic)
+    to_type _ = ValType.TOther "transpose signal (default diatonic)"
 
-data TransposeFunctionChromatic =
-    TransposeFunctionChromatic !Function !ScoreT.Control
-instance Typecheck TransposeFunctionChromatic where
-    from_val = num_to_type_and_function TransposeFunctionChromatic
-        (type_to_control Chromatic)
-    to_type _ = ValType.TOther "transpose number or signal, default chromatic"
+data ChromaticTransposeFunctionT =
+    ChromaticTransposeFunctionT !ScoreT.TransposeT !DeriveT.Function
+instance Typecheck ChromaticTransposeFunctionT where
+    from_val = coerce_to_typed_function ChromaticTransposeFunctionT
+        (ScoreT.transpose_t ScoreT.TChromatic)
+    to_type _ = ValType.TOther "transpose signal (default chromatic)"
 
-data TransposeFunctionNn = TransposeFunctionNn !Function !ScoreT.Control
-instance Typecheck TransposeFunctionNn where
-    from_val = num_to_type_and_function TransposeFunctionNn
-        (type_to_control Nn)
-    to_type _ = ValType.TOther "transpose number or signal, default nn"
+data NnTransposeFunctionT =
+    NnTransposeFunctionT !ScoreT.TransposeT !DeriveT.Function
+instance Typecheck NnTransposeFunctionT where
+    from_val = coerce_to_typed_function NnTransposeFunctionT
+        (ScoreT.transpose_t ScoreT.TNn)
+    to_type _ = ValType.TOther "transpose signal (default nn)"
 
-type_to_control :: TransposeType -> ScoreT.Type -> Maybe ScoreT.Control
-type_to_control deflt = fmap transpose_control . transpose_type deflt
 
 -- *** scalar
 
 instance Typecheck (ScoreT.Typed Signal.Y) where
-    from_val = num_to_scalar Just
+    from_val = coerce_to_scalar Just
     to_type = num_to_type
 instance ToVal (ScoreT.Typed Signal.Y) where to_val = VNum
 instance TypecheckNum (ScoreT.Typed Signal.Y) where
     num_type _ = ValType.TUntyped
 
 instance Typecheck Double where
-    from_val = num_to_scalar (Just . ScoreT.typed_val)
+    from_val = coerce_to_scalar (Just . ScoreT.typed_val)
     to_type = num_to_type
 instance ToVal Double where to_val = VNum . ScoreT.untyped
 instance TypecheckNum Double where num_type _ = ValType.TUntyped
 
 instance Typecheck (Ratio.Ratio Int) where
-    from_val = num_to_scalar $
+    from_val = coerce_to_scalar $
         Just . realToFrac . flip Ratio.approxRational 0.001 . ScoreT.typed_val
     to_type = num_to_type
 instance ToVal (Ratio.Ratio Int) where
@@ -482,7 +476,7 @@ instance Typecheck Integer where
     to_type = num_to_type
 
 from_integral_val :: Integral a => Val -> Checked a
-from_integral_val = num_to_scalar (check . ScoreT.typed_val)
+from_integral_val = coerce_to_scalar (check . ScoreT.typed_val)
     where
     check a = if frac == 0 then Just int else Nothing
         where (int, frac) = properFraction a
@@ -504,7 +498,7 @@ instance TypecheckNum Integer where num_type _ = ValType.TInt
 -- specify a default by taking a 'DefaultScore' or 'DefaultReal', or require
 -- the caller to distinguish with 'DeriveT.Duration'.
 instance Typecheck Pitch.Transpose where
-    from_val = num_to_scalar $ \(ScoreT.Typed typ val) -> case typ of
+    from_val = coerce_to_scalar $ \(ScoreT.Typed typ val) -> case typ of
         ScoreT.Untyped -> Just (Pitch.Chromatic val)
         ScoreT.Chromatic -> Just (Pitch.Chromatic val)
         ScoreT.Diatonic -> Just (Pitch.Diatonic val)
@@ -520,7 +514,7 @@ instance ToVal Pitch.Transpose where
 
 -- | But some calls want to default to diatonic, not chromatic.
 instance Typecheck DefaultDiatonic where
-    from_val = num_to_scalar $ \(ScoreT.Typed typ val) ->
+    from_val = coerce_to_scalar $ \(ScoreT.Typed typ val) ->
         DefaultDiatonic <$> case typ of
             ScoreT.Untyped -> Just (Pitch.Diatonic val)
             ScoreT.Chromatic -> Just (Pitch.Chromatic val)
@@ -533,7 +527,7 @@ instance TypecheckNum DefaultDiatonic where
     num_type _ = ValType.TDefaultDiatonic
 
 instance Typecheck Pitch.NoteNumber where
-    from_val = num_to_scalar $ \(ScoreT.Typed typ val) ->
+    from_val = coerce_to_scalar $ \(ScoreT.Typed typ val) ->
         Pitch.nn <$> case typ of
             ScoreT.Untyped -> Just val
             ScoreT.Nn -> Just val
@@ -544,7 +538,7 @@ instance ToVal Pitch.NoteNumber where
 instance TypecheckNum Pitch.NoteNumber where num_type _ = ValType.TNoteNumber
 
 instance Typecheck ScoreTime where
-    from_val = num_to_scalar $ \(ScoreT.Typed typ val) ->
+    from_val = coerce_to_scalar $ \(ScoreT.Typed typ val) ->
         ScoreTime.from_double <$> case typ of
             ScoreT.Untyped -> Just val
             ScoreT.Score -> Just val
@@ -555,7 +549,7 @@ instance ToVal ScoreTime where
 instance TypecheckNum ScoreTime where num_type _ = ValType.TScoreTime
 
 instance Typecheck RealTime where
-    from_val = num_to_scalar $ \(ScoreT.Typed typ val) ->
+    from_val = coerce_to_scalar $ \(ScoreT.Typed typ val) ->
         RealTime.seconds <$> case typ of
             ScoreT.Untyped -> Just val
             ScoreT.Real -> Just val
@@ -566,7 +560,7 @@ instance ToVal RealTime where
 instance TypecheckNum RealTime where num_type _ = ValType.TRealTime
 
 instance Typecheck DeriveT.Duration where
-    from_val = num_to_scalar $ \(ScoreT.Typed typ val) -> case typ of
+    from_val = coerce_to_scalar $ \(ScoreT.Typed typ val) -> case typ of
         -- Untyped is abiguous, and there doesn't seem to be a natural
         -- default.
         ScoreT.Score -> Just $ DeriveT.ScoreDuration (ScoreTime.from_double val)
@@ -580,7 +574,7 @@ instance ToVal DeriveT.Duration where
 instance TypecheckNum DeriveT.Duration where num_type _ = ValType.TTime
 
 instance Typecheck DefaultReal where
-    from_val = num_to_scalar $ \(ScoreT.Typed typ val) ->
+    from_val = coerce_to_scalar $ \(ScoreT.Typed typ val) ->
         DefaultReal <$> case typ of
             ScoreT.Untyped ->
                 Just $ DeriveT.RealDuration (RealTime.seconds val)
@@ -593,7 +587,7 @@ instance ToVal DefaultReal where to_val (DefaultReal a) = to_val a
 instance TypecheckNum DefaultReal where num_type _ = ValType.TDefaultReal
 
 instance Typecheck DefaultScore where
-    from_val = num_to_scalar $ \(ScoreT.Typed typ val) ->
+    from_val = coerce_to_scalar $ \(ScoreT.Typed typ val) ->
         DefaultScore <$> case typ of
             ScoreT.Untyped ->
                 Just $ DeriveT.ScoreDuration (ScoreTime.from_double val)
@@ -625,7 +619,7 @@ instance ToVal a => ToVal (NonNegative a) where
     to_val (NonNegative val) = to_val val
 
 instance Typecheck Normalized where
-    from_val = num_to_scalar (check . ScoreT.typed_val)
+    from_val = coerce_to_scalar (check . ScoreT.typed_val)
         where
         check a
             | 0 <= a && a <= 1 = Just (Normalized a)
@@ -634,7 +628,7 @@ instance Typecheck Normalized where
 instance ToVal Normalized where to_val = VNum . ScoreT.untyped . normalized
 
 instance Typecheck NormalizedBipolar where
-    from_val = num_to_scalar (check . ScoreT.typed_val)
+    from_val = coerce_to_scalar (check . ScoreT.typed_val)
         where
         check a
             | -1 <= a && a <= 1 = Just (NormalizedBipolar a)
@@ -687,29 +681,14 @@ instance Typecheck Attrs.Attributes where
     to_type _ = ValType.TAttributes
 instance ToVal Attrs.Attributes where to_val = VAttributes
 
--- | Use a 'TypedFunction' or 'Function' instead of this.
-instance Typecheck DeriveT.ControlRef where
-    from_val (VControlRef a) = success a
-    from_val (VNum a) = success $ DeriveT.ControlSignal $
-        Signal.constant <$> a
-    from_val _ = failure
-    to_type _ = ValType.TControlRef
+-- Intentionally no Typecheck ControlRef, use Function instances.
 instance ToVal DeriveT.ControlRef where to_val = VControlRef
 
-instance Typecheck DeriveT.PControlRef where
-    from_val (VPControlRef a) = success a
-    from_val (VPitch a) = success $ DeriveT.ControlSignal $
-        PSignal.constant a
-    from_val _ = failure
-    to_type _ = ValType.TPControlRef
+-- Intentionally no Typecheck PControlRef, use PSignal instances.
 instance ToVal DeriveT.PControlRef where to_val = VPControlRef
 
 instance Typecheck PSignal.Pitch where
-    from_val (VPitch a) = success a
-    from_val (VPControlRef pref) = Eval $ \pos -> Just <$> pitch_at pos pref
-    from_val (VNum (ScoreT.Typed ScoreT.Nn nn)) =
-        success $ PSignal.nn_pitch (Pitch.nn nn)
-    from_val _ = failure
+    from_val = coerce_to_pitch
     to_type _ = ValType.TPitch
 instance ToVal PSignal.Pitch where to_val = VPitch
 
@@ -773,141 +752,229 @@ instance ToVal NotGiven where
 -- transpose types.  Surely there's a better way?  Maybe put the two kinds into
 -- a typeclass?
 
-data TimeType = Real | Score deriving (Eq, Show)
-
-instance Pretty TimeType where pretty = showt
-
-time_type :: TimeType -> ScoreT.Type -> Maybe TimeType
-time_type deflt typ = case typ of
-    ScoreT.Untyped -> Just deflt
-    ScoreT.Real -> Just Real
-    ScoreT.Score -> Just Score
-    _ -> Nothing
-
-data TransposeType = Diatonic | Chromatic | Nn deriving (Eq, Show)
-
-instance Pretty TransposeType where pretty = showt
-
-transpose_type :: TransposeType -> ScoreT.Type -> Maybe TransposeType
-transpose_type deflt typ = case typ of
-    ScoreT.Untyped -> Just deflt
-    ScoreT.Diatonic -> Just Diatonic
-    ScoreT.Chromatic -> Just Chromatic
-    ScoreT.Nn -> Just Nn
-    _ -> Nothing
-
-to_transpose :: TransposeType -> Double -> Pitch.Transpose
+to_transpose :: ScoreT.TransposeT -> Double -> Pitch.Transpose
 to_transpose typ val = case typ of
-    Diatonic -> Pitch.Diatonic val
-    Chromatic -> Pitch.Chromatic val
-    Nn -> Pitch.Nn val
+    ScoreT.TDiatonic -> Pitch.Diatonic val
+    ScoreT.TChromatic -> Pitch.Chromatic val
+    ScoreT.TNn -> Pitch.Nn val
 
-transpose_control :: TransposeType -> ScoreT.Control
-transpose_control Diatonic = Controls.diatonic
-transpose_control Chromatic = Controls.chromatic
-transpose_control Nn = Controls.nn
+transpose_control :: ScoreT.TransposeT -> ScoreT.Control
+transpose_control = \case
+    ScoreT.TDiatonic -> Controls.diatonic
+    ScoreT.TChromatic -> Controls.chromatic
+    ScoreT.TNn -> Controls.nn
 
--- ** to_typed_function
+-- ** controls
 
--- | Convert a 'DeriveT.ControlRef' to a function.
+coerce_to_typed_function :: (typ -> DeriveT.Function -> b)
+    -> (ScoreT.Type -> Maybe typ) -> Val -> Checked b
+coerce_to_typed_function make check = coerce_to_function $
+    \(ScoreT.Typed typ f) -> flip make f <$> check typ
+
+-- | Coerce any numeric value to a ScoreT.Typed Signal.Y, and check it against
+-- the given function.
+coerce_to_scalar :: (ScoreT.Typed Signal.Y -> Maybe a) -> Val -> Checked a
+coerce_to_scalar check = \case
+    -- It's important that constant VNums remain Val, which means they don't
+    -- need Eval, which means they don't need a time.  This is because
+    -- non-signal constants in the environ like srate use from_val_simple,
+    -- which ignores Eval.  TODO if I want all numeric values to be variable,
+    -- then I should merge control_at with Derive.get_val, so it takes a time.
+    VNum num -> Val $ maybe Failure Success $ check num
+    val -> case val_to_function Nothing val of
+        Just (Right tf) -> Eval $ \t -> return $ check (($ t) <$> tf)
+        Just (Left df) -> Eval $ \t -> check . (($ t) <$>) <$> df
+        Nothing -> failure
+
+-- | Coerce any numeric value to a function, and check it against the given
+-- function.
+coerce_to_function :: (DeriveT.TypedFunction -> Maybe a) -> Val -> Checked a
+coerce_to_function check val = case val_to_function Nothing val of
+    Just (Right f) -> Val $ maybe Failure Success $ check f
+    -- Eval's t time is thrown away, because I'm creating a function and thus
+    -- don't need to know at which time to evaluate it.
+    Just (Left df) -> Eval $ \_t -> check <$> df
+    Nothing -> failure
+
+val_to_function :: Maybe ScoreT.Control -> Val
+    -> Maybe (Either (Derive.Deriver DeriveT.TypedFunction)
+        DeriveT.TypedFunction)
+val_to_function mb_control = \case
+    VNum num -> Just $ Right $ const <$> num
+    VSignal sig -> Just $ Right $ flip Signal.at <$> sig
+    VControlRef ref -> Just $ Left $ resolve_function ref
+    VControlFunction cf -> Just $ Left $ do
+        cf_dyn <- Internal.get_control_function_dynamic
+        return $ retype_cf cf (fromMaybe Controls.null mb_control) cf_dyn
+    _ -> Nothing
+
+-- | Unfortunately Internal.get_control_function_dynamic is non-trivial,
+-- so it makes sense to do it only once when converting many.
 --
--- If a signal exists but doesn't have a type, the type will be inherited from
--- the default.  This way a call can cause a signal parameter to default to
--- a certain type.
-to_typed_function :: DeriveT.ControlRef -> Derive.Deriver TypedFunction
-to_typed_function control =
-    convert_to_function control =<< to_signal_or_function control
+-- TODO does it really?  It seems like a bogus tradeoff to have to make.
+-- I could cache it, but is that not what this is?
+val_to_function_dyn :: DeriveT.Dynamic -> Maybe ScoreT.Control -> Val
+    -> Maybe (Either (Derive.Deriver DeriveT.TypedFunction)
+        DeriveT.TypedFunction)
+val_to_function_dyn cf_dyn mb_control = \case
+    VNum num -> Just $ Right $ const <$> num
+    VSignal sig -> Just $ Right $ flip Signal.at <$> sig
+    VControlRef ref -> Just $ Left $ resolve_function ref
+    VControlFunction cf -> Just $ Right $
+        retype_cf cf (fromMaybe Controls.null mb_control) cf_dyn
+    _ -> Nothing
 
-to_function :: DeriveT.ControlRef -> Derive.Deriver Function
-to_function = fmap (ScoreT.typed_val .) . to_typed_function
+-- TODO type should be in ControlFunction rather than the function return
+-- value, so I don't have to call it
+retype_cf :: DeriveT.ControlFunction -> ScoreT.Control -> DeriveT.Dynamic
+    -> DeriveT.TypedFunction
+retype_cf cf control cf_dyn =
+    ScoreT.Typed (ScoreT.type_of (f 0)) (ScoreT.typed_val . f)
+    where f = DeriveT.cf_function cf control cf_dyn
 
--- TODO: replace this with convert_to_type_and_function.
-convert_to_function :: DeriveT.ControlRef
-    -> Either (ScoreT.Typed Signal.Control) DeriveT.ControlFunction
-    -> Derive.Deriver TypedFunction
-convert_to_function control = either (return . signal_function) from_function
+resolve_function :: DeriveT.ControlRef -> Derive.Deriver DeriveT.TypedFunction
+resolve_function ref =
+    Derive.require ("control not found: " <> ShowVal.show_val ref)
+        =<< lookup_function ref
+
+-- | Resolve a ref to a function, applying a ControlFunction if there is one.
+lookup_function :: DeriveT.ControlRef
+    -> Derive.Deriver (Maybe DeriveT.TypedFunction)
+lookup_function ref = resolve_cf =<< resolve_signal ref
     where
-    signal_function sig t = Signal.at t <$> sig
-    from_function f = DeriveT.cf_function f score_control <$>
-        Internal.get_control_function_dynamic
-    score_control = case control of
-        DeriveT.ControlSignal {} -> Controls.null
-        DeriveT.DefaultedControl cont _ -> cont
-        DeriveT.LiteralControl cont -> cont
+    resolve_cf mb_sig = case mb_control of
+        Nothing -> return Nothing
+        Just control -> get_cf control >>= \case
+            Nothing -> return $ signal_to_function <$> mb_sig
+                where signal_to_function = fmap (flip Signal.at)
+            -- Here is ControlFunction again!  This is because of the
+            -- duplication between state_control_functions and
+            -- VControlFunction.  TODO remove it!  See DeriveT.ControlFunction
+            -- for why it exists.
+            Just cf -> do
+                cf_dyn <- Internal.get_control_function_dynamic
+                return $ Just $ inherit_type $ retype_cf cf control cf_dyn
+    -- If the ControlFunction is untyped, and this was a DefaultedControl with
+    -- a type, use that type.  Say I have `trans = (cf-rnd 1 3) | %trans,1d`,
+    -- the cf-rnd will pick up Diatonic from the 1d.
+    -- TODO maybe I should have a way to directly set the type for cf-rnd?
+    inherit_type (ScoreT.Typed typ a) = ScoreT.Typed (typ <> default_type) a
+    default_type = case ref of
+        DeriveT.DefaultedControl _ deflt -> ScoreT.type_of deflt
+        _ -> ScoreT.Untyped
+    mb_control = case ref of
+        DeriveT.ControlSignal _ -> Nothing
+        DeriveT.DefaultedControl control _ -> Just control
+        DeriveT.LiteralControl control -> Just control
+    get_cf control = Internal.get_dynamic $
+        Map.lookup control . Derive.state_control_functions
 
-to_type_and_function :: DeriveT.ControlRef
-    -> Derive.Deriver (ScoreT.Type, Function)
-to_type_and_function control =
-    convert_to_type_and_function control =<< to_signal_or_function control
-
-convert_to_type_and_function :: DeriveT.ControlRef
-    -> Either (ScoreT.Typed Signal.Control) DeriveT.ControlFunction
-    -> Derive.Deriver (ScoreT.Type, Function)
-convert_to_type_and_function control =
-    either (return . signal_function) from_cf
-    where
-    signal_function (ScoreT.Typed typ sig) = (typ, \t -> Signal.at t sig)
-    from_cf cf = get <$> Internal.get_control_function_dynamic
-        where
-        -- TODO type should be in ControlFunction rather than the function
-        -- return value, so I don't have to call it on 0.
-        get dyn = (ScoreT.type_of (f 0), ScoreT.typed_val . f)
-            where f = DeriveT.cf_function cf score_control dyn
-    score_control = case control of
-        DeriveT.ControlSignal {} -> Controls.null
-        DeriveT.DefaultedControl cont _ -> cont
-        DeriveT.LiteralControl cont -> cont
-
-to_signal_or_function :: DeriveT.ControlRef
-    -> Derive.Deriver (Either (ScoreT.Typed Signal.Control)
-        DeriveT.ControlFunction)
-to_signal_or_function = \case
-    DeriveT.ControlSignal sig -> return $ Left sig
-    DeriveT.DefaultedControl cont deflt ->
-        get_control (ScoreT.type_of deflt) (return (Left deflt)) cont
-    DeriveT.LiteralControl cont ->
-        get_control ScoreT.Untyped (Derive.throw $ "not found: " <> showt cont)
-            cont
-    where
-    get_control default_type deflt cont = get_function cont >>= \case
-        Just f -> return $ Right $
-            DeriveT.modify_control_function (inherit_type default_type .) f
-        Nothing -> get_control_signal cont >>= \case
-            Just sig -> return $ Left sig
-            Nothing -> deflt
-    get_function cont = Internal.get_dynamic $
-        Map.lookup cont . Derive.state_control_functions
-    -- If the signal was untyped, it gets the type of the default, since
-    -- presumably the caller expects that type.
-    inherit_type default_type val =
-        val { ScoreT.type_of = ScoreT.type_of val <> default_type }
-    get_control_signal control = Map.lookup control <$>
-        Internal.get_dynamic Derive.state_controls
-
--- | This is the pitch signal version of 'to_signal_or_function', except
--- simpler because there's no pitch equivalent of ControlFunction.
---
--- I could actually have a pitch version of 'Function', which I guess would be
--- called PitchFunction, except be unlike ControlFunction, in that it actually
--- is a function, where ControlFunction isn't.   What a mess, I wish I could
--- get rid of ControlFunction...
-pitch_at :: RealTime -> DeriveT.PControlRef -> Derive.Deriver PSignal.Pitch
-pitch_at pos control = case control of
-    DeriveT.ControlSignal sig -> require sig
+-- | Resolve ref to a DeriveT.TypedSignal.  This does not take ControlFunctions
+-- into account, but is necessary when you need the actual signal.
+resolve_signal :: DeriveT.ControlRef
+    -> Derive.Deriver (Maybe DeriveT.TypedSignal)
+resolve_signal = \case
+    DeriveT.ControlSignal sig -> return $ Just sig
     DeriveT.DefaultedControl control deflt ->
-        maybe (require deflt) return =<< named_pitch_at control
-    DeriveT.LiteralControl control -> do
-        Derive.require
-            ("pitch not found and no default given: " <> showt control)
-            =<< named_pitch_at control
+        Just . fromMaybe deflt <$> lookup_signal control
+    DeriveT.LiteralControl control -> lookup_signal control
+
+coerce_to_signal :: Val -> Checked DeriveT.TypedSignal
+coerce_to_signal val = case val_to_signal val of
+    Nothing -> failure
+    Just (Left dsig) -> Eval $ \_ -> Just <$> dsig
+    Just (Right sig) -> success sig
+
+-- | As with 'lookup_pitch_function', this should be in Deriver.Lib.
+lookup_signal :: ScoreT.Control -> Derive.Deriver (Maybe DeriveT.TypedSignal)
+lookup_signal control =
+    traverse get . DeriveT.lookup (ScoreT.control_name control)
+        =<< Internal.get_environ
     where
-    -- There is a Derive.named_pitch_at, but it's in Derive.Deriver.Lib, which
-    -- imports this.
-    named_pitch_at control = do
-        maybe_sig <- Internal.get_named_pitch control
-        return $ PSignal.at pos =<< maybe_sig
-    require = Derive.require ("ControlSignal pitch at " <> pretty pos)
-        . PSignal.at pos
+    get val = case val_to_signal val of
+        Nothing -> Derive.throw $ "can't be coerced to signal: "
+            <> ShowVal.show_val val
+        Just (Left df) -> df
+        Just (Right f) -> return f
+
+val_to_signal :: DeriveT.Val
+    -> Maybe (Either (Derive.Deriver DeriveT.TypedSignal) DeriveT.TypedSignal)
+val_to_signal = \case
+    DeriveT.VNum (ScoreT.Typed typ a) ->
+        Just $ Right $ ScoreT.Typed typ (Signal.constant a)
+    DeriveT.VSignal a -> Just $ Right a
+    DeriveT.VControlRef ref -> Just $ Left $
+        Derive.require ("control not found: " <> ShowVal.show_val ref)
+            =<< resolve_signal ref
+    _ -> Nothing
+
+
+-- ** pitch signals
+
+-- Unlike controls, this works with signals instead of functions.  Ultimately
+-- this is because there is no equaivalent of ControlFunction.  Signals are
+-- less flexible than functions, but more useful since I can splice a signal
+-- back into the environment, while functions are opaque.
+
+-- | This is the pitch version of 'coerce_to_scalar'.
+coerce_to_pitch :: Val -> Checked PSignal.Pitch
+coerce_to_pitch val = case val_to_pitch_signal val of
+    Nothing -> failure
+    Just (Left dsig) -> Eval $ \pos ->
+        fmap Just . require pos . (PSignal.at pos) =<< dsig
+    Just (Right sig) -> Eval $ \pos ->
+        Just <$> require pos (PSignal.at pos sig)
+    where
+    require pos = Derive.require $
+        "no pitch at " <> pretty pos <> " for " <> ShowVal.show_val val
+
+coerce_to_pitch_signal :: Val -> Checked PSignal.PSignal
+coerce_to_pitch_signal val = case val_to_pitch_signal val of
+    Nothing -> failure
+    Just (Left dsig) -> Eval $ \_ -> Just <$> dsig
+    Just (Right sig) -> success sig
+
+-- | This is the pitch version of 'resolve_control_ref', except simpler
+-- because there's no pitch equivalent of ControlFunction.
+resolve_pitch_ref :: DeriveT.PControlRef -> Derive.Deriver PSignal.PSignal
+resolve_pitch_ref = \case
+    DeriveT.ControlSignal sig -> return sig
+    DeriveT.DefaultedControl control deflt ->
+        fromMaybe deflt <$> lookup_pitch_signal control
+    DeriveT.LiteralControl control -> Derive.require
+        ("named pitch not found and no default: " <> ShowVal.show_val control)
+        =<< lookup_pitch_signal control
+
+-- | This should be in Deriver.Lib, but has to be here so the instance
+-- Typecheck PitchFunction can be declared here and avoid circular import.
+lookup_pitch_signal :: ScoreT.PControl -> Derive.Deriver (Maybe PSignal.PSignal)
+lookup_pitch_signal pcontrol
+    | pcontrol == ScoreT.default_pitch =
+        Just <$> Internal.get_dynamic Derive.state_pitch
+    | otherwise =
+        traverse get . DeriveT.lookup (ScoreT.pcontrol_name pcontrol)
+            =<< Internal.get_environ
+    where
+    -- This is recursive, because if a PControl resolves to a VPControlRef
+    -- it will trigger another lookup.  If the refs point to each other then
+    -- we will loop, so don't do that!  This also re-implements Env.checked_val
+    -- to avoid circular import.
+    get val = case val_to_pitch_signal val of
+        Nothing -> Derive.throw $
+            pretty pcontrol <> ": " <> pretty (ValType.type_of val)
+                <> " can't be coerced to pitch signal"
+        Just (Left df) -> df
+        Just (Right f) -> return f
+
+val_to_pitch_signal :: DeriveT.Val
+    -> Maybe (Either (Derive.Deriver PSignal.PSignal) PSignal.PSignal)
+val_to_pitch_signal = \case
+    VPControlRef ref -> Just $ Left $ resolve_pitch_ref ref
+    VPitch pitch -> Just $ Right $ PSignal.constant pitch
+    VPSignal sig -> Just $ Right sig
+    VNum (ScoreT.Typed ScoreT.Nn nn) ->
+        Just $ Right $ PSignal.constant $ PSignal.nn_pitch (Pitch.nn nn)
+    _ -> Nothing
 
 -- * sub tracks
 

@@ -36,15 +36,17 @@ import           Types
 make_event :: Derive.PassedArgs a -> Derive.Dynamic -> RealTime -> RealTime
     -> Text -> Flags.Flags -> Derive.Deriver Score.Event
 make_event args dyn start dur integrate flags = do
-    control_vals <- Derive.controls_at start
-    make_event_control_vals control_vals args dyn start dur integrate flags
+    cvmap <- Derive.controls_at start
+    cmap <- Derive.get_control_map
+    make_event_control_vals cvmap cmap args dyn start dur integrate flags
 
 -- | Specialized version of 'make_event' just so I can avoid calling
 -- Derive.controls_at twice.
-make_event_control_vals :: ScoreT.ControlValMap -> Derive.PassedArgs a
-    -> Derive.Dynamic -> RealTime -> RealTime -> Text -> Flags.Flags
+make_event_control_vals :: ScoreT.ControlValMap -> DeriveT.ControlMap
+    -> Derive.PassedArgs a -> Derive.Dynamic -> RealTime -> RealTime -> Text
+    -> Flags.Flags
     -> Derive.Deriver Score.Event
-make_event_control_vals control_vals args dyn start dur integrate flags = do
+make_event_control_vals cvmap cmap args dyn start dur integrate flags = do
     offset <- get_start_offset start
     Internal.increment_event_serial
     return $! Score.Event
@@ -52,23 +54,19 @@ make_event_control_vals control_vals args dyn start dur integrate flags = do
         , event_duration = dur
         , event_text = Event.text (Args.event args)
         , event_integrate = integrate
-        , event_controls = controls
+        , event_controls = trim_controls start cmap
         , event_pitch = trim_pitch start (Derive.state_pitch dyn)
-        -- I don't have to trim these because the performer doesn't use them,
-        -- they're only there for any possible postproc.
-        , event_pitches = Derive.state_pitches dyn
+        , event_pitches = mempty
         , event_stack = Derive.state_stack dyn
         , event_highlight = Color.NoHighlight
         , event_instrument = fromMaybe ScoreT.empty_instrument $
             Env.maybe_val EnvKey.instrument environ
-        , event_environ = stash_convert_values control_vals offset environ
+        , event_environ = stash_convert_values cvmap offset environ
         , event_flags = flags
         , event_delayed_args = mempty
         , event_logs = []
         }
-    where
-    controls = trim_controls start (Derive.state_controls dyn)
-    environ = Derive.state_environ dyn
+    where environ = Derive.state_environ dyn
 
 -- | Stash the dynamic value from the ControlValMap in
 -- 'Controls.dynamic_function'.  Gory details in NOTE [EnvKey.dynamic_val].

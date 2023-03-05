@@ -191,7 +191,6 @@ strip_dynamic dyn = dyn
     --      -- :: !BaseTypes.ControlFunctionMap
     -- , Derive.state_control_merge_defaults = mempty
     --     -- Map ScoreT.Control (Merger Signal.Control)
-    -- , Derive.state_pitches = mempty -- :: !DeriveT.PitchMap
     -- , Derive.state_pitch = mempty -- :: !PSignal.PSignal
     -- , Derive.state_environ = mempty -- :: !BaseTypes.Environ
     -- -- , Derive.state_warp = -- :: !Score.Warp

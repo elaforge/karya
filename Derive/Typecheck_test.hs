@@ -39,6 +39,22 @@ test_typecheck = do
         (Right (Just (Typecheck.DefaultDiatonic (Pitch.Chromatic 1))))
     equal (f "1nn") (Right (Just (Typecheck.DefaultDiatonic (Pitch.Nn 1))))
 
+test_coerce_numeric :: Test
+test_coerce_numeric = do
+    let d = Proxy @Double
+    equal (run_type d [("c", [(0, 0, "3")])] "%c")
+        (Just "3", [])
+    -- This winds up at resolve_function, which then gets evaluated at event
+    -- time.
+    equal (run_type d [("c", [(0, 0, "3"), (1, 0, "4")])] "%c")
+        (Just "4", [])
+    -- This winds up being defaulted direcly to the signal, and evaluated at
+    -- event time.
+    equal (run_type d [("capture-val", [(0, 0, "3"), (1, 0, "4")])] "_")
+        (Just "4", [])
+    -- Same, without the defaulting.
+    equal (run_type d [] "(signal 0 3 1 4)") (Just "4", [])
+
 test_coerce_nn :: Test
 test_coerce_nn = do
     -- Various things can be coerced to numeric types.
@@ -46,7 +62,7 @@ test_coerce_nn = do
     equal (run_type nn [] "42") (Just "42nn", [])
     equal (run_type nn [] "42nn") (Just "42nn", [])
     strings_like (snd $ run_type nn [] "42c")
-        ["expected Num (NN) but got Num (Transposition"]
+        ["expected Maybe Num (NN) but got Num (Transposition"]
 
     -- TODO need to evaluate a pitch in Typecheck for this.
     -- -- coerce VPitch to NoteNumber
@@ -60,11 +76,17 @@ test_coerce_pitch = do
     equal (run_type pitch [] "(4c)") (Just "<pitch: 60nn,4c(twelve)>", [])
     equal (run_type pitch [("*", [(0, 0, "4c")])] "#")
         (Just "<pitch: 60nn,4c(twelve)>", [])
+    -- It gets the default pitch but there's no pitch signal there.
     strings_like (snd $ run_type pitch [] "#")
-        ["pitch not found and no default given"]
-    equal (run_type pitch [] "(# '' (4c))")
+        [ "expected Maybe Pitch but couldn't convert PControlRef #:\
+          \ no pitch at 1s"
+        ]
+    strings_like (snd $ run_type pitch [] "#x")
+        ["named pitch not found and no default"]
+    strings_like (snd $ run_type pitch [] "(# x)")
+        ["named pitch not found and no default"]
+    equal (run_type pitch [] "(# x (4c))")
         (Just "<pitch: 60nn,4c(twelve)>", [])
-
 
 test_coerce_control :: Test
 test_coerce_control = do
@@ -77,7 +99,11 @@ test_coerce_control = do
 
 run_type :: forall arg. (ShowVal.ShowVal arg, Typecheck.Typecheck arg)
     => Proxy arg -> [UiTest.TrackSpec] -> Text -> (Maybe Text, [Text])
-run_type _ controls arg =
+run_type _ = capture (ShowVal.show_val :: arg -> Text)
+
+capture :: Typecheck.Typecheck arg => (arg -> Text) -> [UiTest.TrackSpec]
+    -> Text -> (Maybe Text, [Text])
+capture show_val controls arg =
     extract $ DeriveTest.derive_tracks_setup
         (CallTest.with_note_generator "capture" c_capture) ""
         (controls ++ [(">", [(1, 1, "capture " <> arg)])])
@@ -86,9 +112,10 @@ run_type _ controls arg =
     from_str _ = Nothing
     extract = first (from_str <=< Monad.join . Seq.head)
         . DeriveTest.extract (Env.lookup "capture" . Score.event_environ)
-    show_val :: arg -> Text
-    show_val = ShowVal.show_val
     c_capture :: Derive.Generator Derive.Note
     c_capture = Derive.generator CallTest.module_ "capture" mempty "" $
-        Sig.call (Sig.required "val" "Val.") $ \val _args ->
-            Derive.with_val "capture" (show_val val) Call.note
+        Sig.call (Sig.required "val" "Val.") $ \val _args -> do
+            -- srate <- Call.get_srate
+            -- srate <- Derive.get_val EnvKey.srate
+            -- Debug.traceM "srate" (srate :: Double)
+            Derive.with_val "capture" (maybe "?" show_val val) Call.note

@@ -9,6 +9,7 @@ import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.GraceUtil as GraceUtil
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Typecheck as Typecheck
 
 import           Global
 import           Util.Test
@@ -18,7 +19,7 @@ test_grace_attr :: Test
 test_grace_attr = do
     let run note = DeriveTest.extract extract $
             DeriveTest.derive_tracks_setup setup_call "import europe"
-                [ ("> | %legato-overlap = .5 | grace-dur = 1", [note])
+                [ ("> | legato-overlap = .5 | grace-dur = 1", [note])
                 , ("*", [(0, 0, "4c")])
                 ]
         extract e = (DeriveTest.e_start_dur e, DeriveTest.e_pitch e,
@@ -42,7 +43,8 @@ test_grace_attr = do
 
 test_fit_grace :: Test
 test_fit_grace = do
-    let f place notes = GraceUtil.fit_grace place (Just 0) 2 4 notes 1
+    let f place notes = GraceUtil.fit_grace (Typecheck.Normalized place)
+            (Just 0) 2 4 notes 1
     equal (f 0 4) [0.5, 1, 1.5, 2]
     equal (f 1 4) [2, 2.5, 3, 3.5]
     equal (f 0.5 4) [1.25, 1.75, 2.25, 2.75]

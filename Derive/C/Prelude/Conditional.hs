@@ -8,7 +8,6 @@ import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 
 import qualified Derive.Args as Args
-import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveT as DeriveT
@@ -124,16 +123,11 @@ c_when_c inverted = Derive.transformer Module.prelude "when-c" mempty
     \ `%var` control to select among different variations."
     $ Sig.callt ((,)
     <$> Sig.required "val" "Value."
-    <*> Sig.defaulted "control" (Sig.control "var" 0) "Control."
-    ) $ \(val, control) args deriver ->
-        ifM (invert . has_control control val =<< Args.real_start args)
-            deriver (return Stream.empty)
-    where invert = if inverted then (not <$>) else id
-
-has_control :: DeriveT.ControlRef -> Int -> RealTime -> Derive.Deriver Bool
-has_control control val pos = do
-    cval <- Call.control_at control pos
-    return $ round cval == val
+    <*> Sig.defaulted "control" (0 :: Double) "Control."
+    ) $ \(val :: Int, control :: Double) _args deriver ->
+        if invert (round control == val)
+            then deriver else return Stream.empty
+    where invert = if inverted then not else id
 
 c_when_e :: Derive.Taggable d => Bool -> Derive.Transformer d
 c_when_e inverted = Derive.transformer Module.prelude "when-e" mempty

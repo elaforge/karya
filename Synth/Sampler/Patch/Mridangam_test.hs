@@ -29,10 +29,10 @@ test_variations = do
     let run title = runNotes title
         -- extract = Sample.filename . snd
     let histo = map (second length) . Seq.keyed_group_sort id
-    -- prettyp (run "%dyn=.75" [(0, 0, "k")])
+    -- prettyp (run "dyn=.75" [(0, 0, "k")])
     -- A normal-ish curve, centering around 95.25.
     equal (first (histo . map Sample.filename) $
-            run "%dyn=.75" [(t, 0, "k") | t <- Seq.range 0 20 1])
+            run "dyn=.75" [(t, 0, "k") | t <- Seq.range 0 20 1])
         ( [ ("Ki/36-42-47-89-91-ki.flac", 2)
           , ("Ki/36-42-47-92-94-ki.flac", 8)
           , ("Ki/36-42-47-95-97-ki.flac", 6)

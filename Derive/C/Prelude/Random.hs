@@ -57,10 +57,9 @@ c_omit :: Derive.CallableExpr d => Derive.Transformer d
 c_omit = Derive.transformer Module.prelude "omit" Tags.random
     "Omit the derived call a certain percentage of the time."
     $ Sig.callt
-    (Sig.defaulted "chance" (Sig.control "omit" 0.5)
+    (Sig.defaulted "chance" (0.5 :: Double)
         "Chance, from 0 to 1, that the transformed note will be omitted."
-    ) $ \omit args deriver -> do
-        omit <- Call.control_at omit =<< Args.real_start args
+    ) $ \omit _args deriver ->
         ifM (Call.chance omit) (return Stream.empty) deriver
 
 c_log_seed :: Derive.CallableExpr d => Derive.Transformer d
