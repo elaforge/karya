@@ -50,7 +50,6 @@ module Derive.Deriver.Lib (
     , with_control, with_constant_control
     , with_controls
     , remove_controls
-    , with_control_function
     , with_merged_control, with_merged_controls
     , resolve_merge
     , get_control_merge
@@ -401,13 +400,17 @@ get_val key = do
 -}
 with_val :: Typecheck.ToVal val => Env.Key -> val -> Deriver a -> Deriver a
 with_val key val deriver
-    | DeriveT.VNotGiven <- v = remove_val key deriver
     | key == EnvKey.scale, Just scale_id <- DeriveT.to_scale_id v = do
         scale <- get_scale scale_id
         with_scale scale deriver
     | key == EnvKey.instrument, Just inst <- Typecheck.from_val_simple v =
         with_instrument inst deriver
-    | otherwise = with_val_raw key val deriver
+    | otherwise = do
+        env <- Internal.get_environ
+        case Env.put_val key v env of
+            Left err -> throw err
+            Right env -> Internal.local
+                (\state -> state { state_environ = env }) deriver
     where v = Typecheck.to_val val
 
 -- | Like 'with_val', but should be slightly more efficient for setting
@@ -421,7 +424,7 @@ with_vals vals deriver
     where
     with state = do
         environ <- either throw return $
-            foldr (\(k, v) env -> Env.put_val_error k v =<< env)
+            foldr (\(k, v) env -> Env.put_val k v =<< env)
                 (return $ state_environ state) vals
         environ `seq` return $! state { state_environ = environ }
 
@@ -609,8 +612,7 @@ lookup_function = Typecheck.lookup_function . flip DeriveT.Ref Nothing
 get_function :: ScoreT.Control -> Deriver DeriveT.TypedFunction
 get_function = Typecheck.resolve_function . flip DeriveT.Ref Nothing
 
--- | Get the control value at the given time, taking 'state_control_functions'
--- into account.
+-- | Get the control value at the given time.
 control_at :: ScoreT.Control -> RealTime
     -> Deriver (Maybe (ScoreT.Typed Signal.Y))
 control_at control pos = fmap (fmap ($ pos)) <$> lookup_function control
@@ -639,22 +641,15 @@ get_control_map =
 get_function_map :: Deriver DeriveT.FunctionMap
 get_function_map = do
     cf_dyn <- Internal.get_control_function_dynamic
-    dyn <- Internal.get_dynamic id
-    fmap Map.fromAscList $ mapMaybeM (convert cf_dyn) $ Maps.pairs
-        (state_control_functions dyn)
-        (Map.mapKeys ScoreT.Control (Env.to_map (state_environ dyn)))
-    where
-    convert cf_dyn (control, p) = fmap (fmap (control,)) $ case p of
-        Seq.Both cf _ -> return $ Just $ Typecheck.retype_cf cf control cf_dyn
-        Seq.First cf -> return $ Just $ Typecheck.retype_cf cf control cf_dyn
-        Seq.Second val ->
-            case Typecheck.val_to_function_dyn cf_dyn (Just control) val of
-                Nothing -> return Nothing
-                Just (Right f) -> return $ Just f
-                Just (Left df) -> Just <$> df
+    let to_function val = case Typecheck.val_to_function_dyn cf_dyn val of
+            Nothing -> return Nothing
+            Just (Right tf) -> return $ Just tf
+            Just (Left dtf) -> Just <$> dtf
+    let resolve (key, val) = fmap (ScoreT.Control key,) <$> to_function val
+    Map.fromAscList <$>
+        (mapMaybeM resolve . Env.to_list =<< Internal.get_environ)
 
--- | Get a ControlValMap at the given time, taking 'state_control_functions'
--- into account.
+-- | Get a ControlValMap at the given time.
 {-# SCC controls_at #-}
 controls_at :: RealTime -> Deriver ScoreT.ControlValMap
 controls_at = fmap (fmap ScoreT.typed_val) . typed_controls_at
@@ -688,21 +683,21 @@ state_signals =
         _ -> Nothing
 
 -- TODO remove it, only used by LPerf
+-- maybe generalize 'get_function_map' to take cf_dyn and environ
 state_functions :: Dynamic -> Ruler.Marklists -> Stack.Serial
     -> DeriveT.FunctionMap
 state_functions dyn mlists serial = Map.fromList
-    [ (control, f)
+    [ (ScoreT.Control name, f)
     | (name, val) <- Env.to_list env
-    , let control = ScoreT.Control name
-    , Just f <- [val_to_function_dyn cf_dyn control val]
+    , Just f <- [val_to_function_dyn cf_dyn val]
     ]
     where
     cf_dyn = Internal.convert_dynamic mlists dyn serial
     env = state_environ dyn
-    val_to_function_dyn :: DeriveT.Dynamic -> ScoreT.Control -> DeriveT.Val
+    val_to_function_dyn :: DeriveT.Dynamic -> DeriveT.Val
         -> Maybe DeriveT.TypedFunction
-    val_to_function_dyn dyn control val =
-        case Typecheck.val_to_function_dyn dyn (Just control) val of
+    val_to_function_dyn dyn val =
+        case Typecheck.val_to_function_dyn dyn val of
             Just (Right f) -> Just f
             _ -> Nothing
 
@@ -738,18 +733,8 @@ with_controls controls =
 -- already been applied, and you don't want it to affect further derivation.
 remove_controls :: [ScoreT.Control] -> Deriver a -> Deriver a
 remove_controls controls = Internal.local $ \state -> state
-    { state_environ = foldr Env.delete (state_environ state) keys
-    , state_control_functions =
-        Maps.deleteKeys controls (state_control_functions state)
-    }
+    { state_environ = foldr Env.delete (state_environ state) keys }
     where keys = map ScoreT.control_name controls
-
-with_control_function :: ScoreT.Control -> DeriveT.ControlFunction
-    -> Deriver a -> Deriver a
-with_control_function control f = Internal.local $ \state -> state
-    { state_control_functions =
-        Map.insert control f (state_control_functions state)
-    }
 
 -- | Modify the given control according to the Merger.
 --

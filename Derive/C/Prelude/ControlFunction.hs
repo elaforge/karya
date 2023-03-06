@@ -76,8 +76,7 @@ instance Typecheck.Typecheck Distribution
 instance Typecheck.ToVal Distribution
 
 c_cf_rnd :: (Signal.Y -> Signal.Y -> Signal.Y) -> Derive.ValCall
-c_cf_rnd combine = val_call "cf-rnd"
-    (Tags.control_function <> Tags.random)
+c_cf_rnd combine = val_call "cf-rnd" (Tags.control_function <> Tags.random)
     "Randomize a control. Normally it replaces the control of the same name,\
     \ while the `+` and `*` variants add to and multiply with it."
     $ Sig.call ((,,)
@@ -85,11 +84,17 @@ c_cf_rnd combine = val_call "cf-rnd"
     <*> Sig.required "high" "High end of the range."
     <*> Sig.environ "distribution" Sig.Prefixed Normal "Random distribution."
     ) $ \(low, high, distribution) _args -> return $!
-        DeriveT.ControlFunction "cf-rnd" $ \control dyn pos ->
-            ScoreT.untyped $ combine
-                (cf_rnd distribution low high
-                    (random_stream pos (dyn_seed dyn)))
-                (dyn_control dyn control pos)
+        make_cf "cf-rnd" $ \cf_dyn control pos -> combine
+            (cf_rnd distribution low high (random_stream pos (dyn_seed cf_dyn)))
+            (Signal.at pos control)
+
+make_cf :: Text -> (DeriveT.Dynamic -> Signal.Control -> RealTime -> Signal.Y)
+    -> DeriveT.ControlFunction
+make_cf name f = DeriveT.ControlFunction
+    { cf_name = name
+    , cf_function =
+        DeriveT.CFBacked (ScoreT.untyped (Signal.constant 0)) f
+    }
 
 c_cf_rnd_around :: (Signal.Y -> Signal.Y -> Signal.Y) -> Derive.ValCall
 c_cf_rnd_around combine = val_call "cf-rnd-a"
@@ -102,11 +107,10 @@ c_cf_rnd_around combine = val_call "cf-rnd-a"
     <*> Sig.defaulted "center" (0 :: Double) "Center of the range."
     <*> Sig.environ "distribution" Sig.Prefixed Normal "Random distribution."
     ) $ \(range, center, distribution) _args -> return $!
-        DeriveT.ControlFunction "cf-rnd-a" $ \control dyn pos ->
-            ScoreT.untyped $ combine
-                (cf_rnd distribution (center-range) (center+range)
-                    (random_stream pos (dyn_seed dyn)))
-                (dyn_control dyn control pos)
+        make_cf "cf-rnd-a" $ \cf_dyn control pos -> combine
+            (cf_rnd distribution (center-range) (center+range)
+                (random_stream pos (dyn_seed cf_dyn)))
+            (Signal.at pos control)
 
 c_cf_rnd01 :: Derive.ValCall
 c_cf_rnd01 = Make.modify_vcall (c_cf_rnd (+)) Module.prelude "cf-rnd01"
@@ -145,17 +149,17 @@ c_cf_swing = val_call "cf-swing" Tags.control_function
         "Swing amount, multiplied by the rank duration / 2."
     ) $ \(rank, amount) _args -> do
         amount <- from_control_ref amount
-        return $! DeriveT.ControlFunction "cf-swing" (cf_swing_ rank amount)
+        return $! make_cf "cf-swing" (swing rank amount)
     where
-    cf_swing_ rank amount control dyn pos
-        | Just marks <- maybe_marks = ScoreT.untyped $
-            dyn_control dyn control pos + RealTime.to_seconds
-                (cf_swing (real dyn) rank
-                    (to_function dyn 0 amount) marks (score dyn pos))
-        | otherwise = ScoreT.untyped 0
+    swing rank amount cf_dyn control pos
+        | Just marks <- maybe_marks =
+            Signal.at pos control
+                + RealTime.to_seconds (cf_swing (real cf_dyn) rank
+                        (to_function cf_dyn 0 amount) marks (score cf_dyn pos))
+        | otherwise = 0
         where
         maybe_marks = snd <$>
-            Map.lookup Ruler.meter_name (DeriveT.dyn_ruler dyn)
+            Map.lookup Ruler.meter_name (DeriveT.dyn_ruler cf_dyn)
 
 -- | TODO Hacky ref, should be temporary until I clean up cfs.
 type Ref = Either DeriveT.ControlRef (ScoreT.Typed Signal.Y)
@@ -210,9 +214,13 @@ c_cf_clamp = val_call "cf-clamp" Tags.control_function
 
 cf_compose :: Text -> (Signal.Y -> Signal.Y) -> DeriveT.ControlFunction
     -> DeriveT.ControlFunction
-cf_compose name f (DeriveT.ControlFunction cf_name cf) =
-    DeriveT.ControlFunction (name <> " . " <> cf_name)
-        (\c dyn x -> f <$> cf c dyn x)
+cf_compose name f cf = DeriveT.ControlFunction
+    { cf_name = name
+    , cf_function = case DeriveT.cf_function cf of
+        DeriveT.CFPure typ cfp -> DeriveT.CFPure typ (f . cfp)
+        DeriveT.CFBacked sig cfp -> DeriveT.CFBacked sig $
+            \dyn c -> (f . cfp dyn c)
+    }
 
 -- * curve interpolators
 
@@ -232,69 +240,39 @@ dyn_seed :: DeriveT.Dynamic -> Double
 dyn_seed dyn = fromIntegral (DeriveT.dyn_event_serial dyn) + seed dyn
     where seed = fromMaybe 0 . Env.maybe_val EnvKey.seed . DeriveT.dyn_environ
 
-dyn_control :: DeriveT.Dynamic -> ScoreT.Control -> RealTime -> Double
-dyn_control dyn control pos =
-    maybe 0 (Signal.at pos . ScoreT.typed_val) $ dyn_signal dyn control
-
-dyn_signal :: DeriveT.Dynamic -> ScoreT.Control
-    -> Maybe (ScoreT.Typed Signal.Control)
-dyn_signal dyn control =
-    either (const Nothing) Just =<< Typecheck.val_to_signal
-        =<< Env.lookup (ScoreT.control_name control) (DeriveT.dyn_environ dyn)
-
 real :: DeriveT.Dynamic -> ScoreTime -> RealTime
-real dyn = Warp.warp (DeriveT.dyn_warp dyn)
+real = Warp.warp . DeriveT.dyn_warp
 
 score :: DeriveT.Dynamic -> RealTime -> ScoreTime
-score dyn = Warp.unwarp (DeriveT.dyn_warp dyn)
+score = Warp.unwarp . DeriveT.dyn_warp
 
 -- ** ControlRef
 
 to_function :: DeriveT.Dynamic -> Signal.Y -> Ref -> DeriveT.Function
-to_function dyn deflt =
-    ScoreT.typed_val . to_typed_function dyn (ScoreT.untyped deflt)
+to_function cf_dyn deflt =
+    maybe (const deflt) ScoreT.typed_val . lookup_function cf_dyn
 
--- | TODO duplicated with Typecheck.val_to_function_dyn except it
+-- | TODO duplicated with Typecheck.lookup_function except it
 -- can't be in Deriver.
-to_typed_function :: DeriveT.Dynamic -> ScoreT.Typed Signal.Y -> Ref
-    -> DeriveT.TypedFunction
-to_typed_function dyn deflt ref =
-    case to_signal_or_function dyn ref of
-        Nothing -> const <$> deflt
-        Just (Left typed_sig) -> (\sig t -> Signal.at t sig) <$> typed_sig
-        -- TODO discard its type and put on Untyped, it's ok because only
-        -- to_function uses this.  Later I want to put the Typed outside the
-        -- function.
-        Just (Right cf) -> ScoreT.Typed ScoreT.Untyped $
-            ScoreT.typed_val . DeriveT.cf_function cf score_control dyn
+lookup_function :: DeriveT.Dynamic -> Ref -> Maybe DeriveT.TypedFunction
+lookup_function _ (Right ty) = Just $ const <$> ty
+lookup_function cf_dyn (Left (DeriveT.Ref control deflt)) =
+    maybe deflt_f get $ DeriveT.lookup (ScoreT.control_name control) $
+        DeriveT.dyn_environ cf_dyn
     where
-    score_control = case ref of
-        Left (DeriveT.Ref c _) -> c
-        Right _ -> Controls.null
+    deflt_f = fmap (flip Signal.at) <$> deflt
+    get = val_to_function cf_dyn
 
--- | TODO this is a copy of Typecheck.to_signal_or_function, except it
--- uses DeriveT.Dynamic instead of Derive.Dynamic, which illustrates the
--- duplication that happens due to ControlFunction not being Deriver
-to_signal_or_function :: DeriveT.Dynamic -> Ref
-    -> Maybe (Either (ScoreT.Typed Signal.Control) DeriveT.ControlFunction)
-to_signal_or_function dyn = \case
-    Right sig -> return $ Left $ Signal.constant <$> sig
-    Left (DeriveT.Ref control deflt) ->
-        get_control control $ case deflt of
-            Nothing -> (ScoreT.Untyped, Nothing)
-            Just sig -> (ScoreT.type_of sig, return $ Left sig)
-    where
-    get_control control (default_type, deflt) = case lookup_function control of
-        Just f -> return $ Right $
-            DeriveT.modify_control_function (inherit_type default_type .) f
-        Nothing -> maybe deflt (return . Left) $ lookup_signal control
-    lookup_function control =
-        Map.lookup control $ DeriveT.dyn_control_functions dyn
-    lookup_signal = dyn_signal dyn
-    -- If the signal was untyped, it gets the type of the default, since
-    -- presumably the caller expects that type.
-    inherit_type default_type val =
-        val { ScoreT.type_of = ScoreT.type_of val <> default_type }
+val_to_function :: DeriveT.Dynamic -> DeriveT.Val
+    -> Maybe DeriveT.TypedFunction
+val_to_function cf_dyn = \case
+    DeriveT.VNum num -> Just $ const <$> num
+    DeriveT.VSignal sig -> Just $ flip Signal.at <$> sig
+    DeriveT.VControlRef ref -> lookup_function cf_dyn (Left ref)
+    DeriveT.VControlFunction cf -> Just $
+        DeriveT.call_cfunction cf_dyn (DeriveT.cf_function cf)
+    _ -> Nothing
+
 
 -- * misc
 

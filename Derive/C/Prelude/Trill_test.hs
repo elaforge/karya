@@ -260,7 +260,7 @@ test_pitch_trill = do
     equal (run_speed ":d")
         ( [[]]
         , [ "TypeError: arg 3/speed: expected time signal (default real)\
-            \ but got Signal (Transpose): (signal d 0 2)"
+            \ but got Signal (Transposition): (signal d 0 2)"
           ]
         )
 

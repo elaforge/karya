@@ -177,17 +177,23 @@ make_curve_call doc (CurveD name get_arg curve) =
 
 -- | Stuff a curve function into a ControlFunction.
 curve_to_cf :: Text -> Curve -> DeriveT.ControlFunction
-curve_to_cf name (Function curvef) = DeriveT.ControlFunction name $
-    \_ _ -> ScoreT.untyped . curvef . RealTime.to_seconds
-curve_to_cf _ Linear = DeriveT.ControlFunction cf_linear_name $
-    \_ _ -> ScoreT.untyped . RealTime.to_seconds
+curve_to_cf name = \case
+    Function curvef -> DeriveT.ControlFunction
+        { cf_name = name
+        , cf_function = DeriveT.CFPure ScoreT.Untyped
+            (curvef . RealTime.to_seconds)
+        }
+    Linear -> DeriveT.ControlFunction
+        { cf_name = cf_linear_name
+        , cf_function = DeriveT.CFPure ScoreT.Untyped RealTime.to_seconds
+        }
 
 -- | Convert a ControlFunction back into a curve function.
 cf_to_curve :: DeriveT.ControlFunction -> Curve
-cf_to_curve cf@(DeriveT.ControlFunction name _)
+cf_to_curve (DeriveT.ControlFunction name cf)
     | name == cf_linear_name = Linear
-    | otherwise = Function $ ScoreT.typed_val
-        . DeriveT.cf_function cf Controls.null DeriveT.empty_dynamic
+    | otherwise = Function $
+        ScoreT.typed_val (DeriveT.call_cfunction DeriveT.empty_dynamic cf)
         . RealTime.seconds
 
 -- * interpolate

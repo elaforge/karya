@@ -16,11 +16,14 @@ import qualified Derive.Expr as Expr
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
+import qualified Perform.Signal as Signal
+import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 
 import           Global
@@ -96,6 +99,37 @@ test_coerce_control = do
     equal (run_type double [("c", [(0, 0, "42"), (2, 0, "i 43")])] "%c")
         (Just "42.5", [])
 
+test_resolve_signal :: Test
+test_resolve_signal = do
+    let f with ref = DeriveTest.eval Ui.empty
+            (with (Typecheck.resolve_signal ref))
+    let mksig = ScoreT.untyped . Signal.constant
+    let ref_sig c sig = DeriveT.Ref c (Just (mksig sig)) :: DeriveT.ControlRef
+    let ref c = DeriveT.Ref c Nothing :: DeriveT.ControlRef
+    let withc = Derive.with_constant_control "c" 2
+    right_equal (f id (ref "c")) Nothing
+    right_equal (f id (ref_sig "c" 42)) $ Just (mksig 42)
+    right_equal (f withc (ref "c")) $
+        Just (mksig 2)
+    right_equal (f withc (ref_sig "c" 42)) $ Just (mksig 2)
+    -- multiple levels of refs
+    -- An intermediate lookup failure throws instead of returning Nothing,
+    -- which is irregular, but I think I don't mind it for now, since something
+    -- fishy may be going on.
+    left_like
+        (f (Derive.with_val "a" (ref "b") . withc) (ref "a")) $
+        "control not found: %b"
+    -- a->b->c works even though I'm not sure if it should.
+    right_equal
+        (f (Derive.with_val "a" (ref "b") . Derive.with_val "b" (ref "c")
+                . withc)
+            (ref "a")) $
+        Just (mksig 2)
+    -- This will loop, no cycle detection!  TODO
+    -- right_equal
+    --     (f (Derive.with_val "a" (ref "b") . Derive.with_val "b" (ref "a"))
+    --         (ref "a")) $
+    --     Just (mksig 2)
 
 run_type :: forall arg. (ShowVal.ShowVal arg, Typecheck.Typecheck arg)
     => Proxy arg -> [UiTest.TrackSpec] -> Text -> (Maybe Text, [Text])

@@ -625,7 +625,7 @@ quoted0 sym = quoted sym []
 
 -- ** Ref
 
-type ControlRef = Ref ScoreT.Control (ScoreT.Typed Signal.Control)
+type ControlRef = Ref ScoreT.Control TypedSignal
 type PControlRef = Ref ScoreT.PControl PSignal
 
 data Ref control val = Ref control (Maybe val)
@@ -718,8 +718,7 @@ map_str f = call
 
 -- ** ControlMap
 
-type ControlMap = Map ScoreT.Control (ScoreT.Typed Signal.Control)
-type ControlFunctionMap = Map ScoreT.Control ControlFunction
+type ControlMap = Map ScoreT.Control TypedSignal
 type PitchMap = Map ScoreT.PControl PSignal
 
 type FunctionMap = Map ScoreT.Control TypedFunction
@@ -762,28 +761,28 @@ type TypedSignal = ScoreT.Typed Signal.Control
     See NOTE [control-function].
 -}
 data ControlFunction = ControlFunction {
-    -- | The expression that created this, for serialization.
-    -- TODO except not yet.
+    -- | Human readable name.
+    --
+    -- TODO I thought of making it the expression that created this, for
+    -- serialization, but not implemented yet.
     cf_name :: !Text
-    -- | Control is the control name this function was bound to, if it was
-    -- bound to one.  Dynamic is a stripped down Derive State.  For
-    -- ControlFunctions that represent a control signal, the RealTime is the
-    -- desired X value, otherwise it's just some number.
-    -- TODO what is "some number"?
-    , cf_function :: !(ScoreT.Control -> Dynamic -> RealTime
-        -> ScoreT.Typed Signal.Y)
-    -- TODO do it like this
-    -- , cf_function :: !(ScoreT.Typed
-    --     (ScoreT.Control -> Dynamic -> RealTime -> Signal.Y))
-
-    -- TODO and embed the optional modified signal in here so it can be
-    -- reassigned later?  This is to eliminate the separate namespace.
-    -- The reason the namespace exists is to be able to have both
-    -- dyn signal + cf-rnd cf on top of it.
-    -- , cf_function :: !(Maybe (ScoreT.Typed Signal.Control) -> Dynamic
-    --     -> RealTime -> ScoreT.Typed Signal.Y)
-    -- , cf_signal :: !(Maybe (ScoreT.Typed Signal.Control))
+    , cf_function :: !CFunction
     }
+
+data CFunction =
+    {- | This is modifying an underlying signal.
+
+        The function may be created before the signal it modifies, e.g.
+        @dyn=(cf-rnd .2)@ will apply to whatever values the @dyn@ signal later
+        takes. There is special hackery in Env.put_val to merge a signal into a
+        CFBacked ControlFunction if present.  The signal should start at const
+        0 by convention, since many functions make sense against 0 too, and
+        it would be annoying to plumb out an error from 'call_cfunction'.
+    -}
+    CFBacked TypedSignal (Dynamic -> Signal.Control -> RealTime -> Signal.Y)
+    -- | A simple opaque function.  TODO kind of a different type from
+    -- CFBacked, split them?  Doesn't need Dynamic.
+    | CFPure ScoreT.Type (RealTime -> Signal.Y)
 
 instance DeepSeq.NFData ControlFunction where
     rnf _ = () -- bogus instance so Derive.Dynamic can have one
@@ -795,19 +794,15 @@ instance Pretty ControlFunction where
 instance ShowVal.ShowVal ControlFunction where
     show_val = cf_name
 
--- | Modify the underlying function, presumably to compose something onto the
--- input or output.
-modify_control_function ::
-    ((RealTime -> ScoreT.Typed Signal.Y) -> (RealTime -> ScoreT.Typed Signal.Y))
-    -> ControlFunction -> ControlFunction
-modify_control_function modify (ControlFunction name f) =
-    ControlFunction name (\dyn control -> modify (f dyn control))
+call_cfunction :: Dynamic -> CFunction -> TypedFunction
+call_cfunction cf_dyn = \case
+    CFBacked (ScoreT.Typed typ signal) f -> ScoreT.Typed typ (f cf_dyn signal)
+    CFPure typ f -> ScoreT.Typed typ f
 
 -- | A stripped down "Derive.Deriver.Monad.Dynamic" for ControlFunctions
 -- to use.  The duplication is unfortunate, see 'ControlFunction'.
 data Dynamic = Dynamic {
-    dyn_control_functions :: !ControlFunctionMap
-    , dyn_pitch :: !PSignal
+    dyn_pitch :: !PSignal
     , dyn_environ :: !Environ
     -- | This is from 'Derive.Deriver.Monad.state_event_serial'.
     , dyn_event_serial :: !Int
@@ -817,8 +812,7 @@ data Dynamic = Dynamic {
 
 empty_dynamic :: Dynamic
 empty_dynamic = Dynamic
-    { dyn_control_functions = mempty
-    , dyn_pitch = mempty
+    { dyn_pitch = mempty
     , dyn_environ = mempty
     , dyn_event_serial = 0
     , dyn_warp = Warp.identity

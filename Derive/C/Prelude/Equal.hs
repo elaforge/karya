@@ -222,10 +222,7 @@ parse_equal Set "#" rhs = case rhs of
 parse_equal Set lhs rhs
     | not (Id.valid_symbol lhs) = Left $
         "tried to assign to invalid symbol name: " <> ShowVal.show_val lhs
-    | otherwise = Right $ case rhs of
-        DeriveT.VControlFunction cf ->
-            Derive.with_control_function (ScoreT.Control lhs) cf
-        _ -> Derive.with_val lhs rhs
+    | otherwise = Right $ Derive.with_val lhs rhs
 -- if rhs is a signal or number, then merge is ok
 parse_equal merge lhs rhs = case rhs of
     DeriveT.VNum num -> Right $ merge_signal (Signal.constant <$> num)

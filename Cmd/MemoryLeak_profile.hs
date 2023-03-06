@@ -187,8 +187,6 @@ strip_event event = event
 strip_dynamic :: Derive.Dynamic -> Derive.Dynamic
 strip_dynamic dyn = dyn
     -- { Derive.state_controls = mempty -- !DeriveT.ControlMap
-    -- , Derive.state_control_functions = mempty
-    --      -- :: !BaseTypes.ControlFunctionMap
     -- , Derive.state_control_merge_defaults = mempty
     --     -- Map ScoreT.Control (Merger Signal.Control)
     -- , Derive.state_pitch = mempty -- :: !PSignal.PSignal

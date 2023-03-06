@@ -17,6 +17,8 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Typecheck as Typecheck
 import qualified Derive.ValType as ValType
 
+import qualified Perform.Signal as Signal
+
 import           Global
 
 
@@ -45,34 +47,61 @@ map f (Environ env) = Environ $ f <$> env
 
 -- * typechecking
 
+type Error = Text
+
 -- | Insert a new val, but return Left if it changes the type of an existing
 -- one, so once you put a key of a given type into the environ, it can only
 -- ever be overwritten by a Val of the same type.  The idea is that being
 -- inconsistent with types will just lead to confusion.
 --
 -- 'DeriveT.VNotGiven' is another special case, it deletes the given key.
-put_val :: Typecheck.ToVal a => Key -> a -> Environ
-    -> Either ValType.Type Environ
-put_val key val environ
-    | DeriveT.VNotGiven <- new_val = Right $ delete key environ
-    | otherwise = case lookup key environ of
-        Nothing -> case Map.lookup key hardcoded_types of
-            Just expected | not $
-                ValType.types_match expected (ValType.type_of new_val) ->
-                    Left expected
-            _ -> Right $ insert key new_val environ
-        Just old_val -> case ValType.val_types_match old_val new_val of
-            Just expected -> Left expected
-            Nothing -> Right $ insert key new_val environ
-    where new_val = Typecheck.to_val val
-
--- | Like 'put_val', but format the error msg.
-put_val_error :: Typecheck.ToVal a => Key -> a -> Environ -> Either Text Environ
-put_val_error key val = first fmt . put_val key val
+put_val :: Typecheck.ToVal a => Key -> a -> Environ -> Either Error Environ
+put_val key val environ = case lookup key environ of
+    Nothing -> case Map.lookup key hardcoded_types of
+        Just expected | not $
+            ValType.types_match expected (ValType.type_of rhs) ->
+                Left $ type_error key rhs expected
+        _ -> Right $ case rhs of
+            DeriveT.VNotGiven -> environ
+            _ -> insert key rhs environ
+    Just lhs -> assign (lhs, rhs)
     where
-    fmt typ = "can't set " <> pretty key <> " to "
-        <> ShowVal.show_val (Typecheck.to_val val) <> ", expected "
-        <> pretty typ
+    rhs = Typecheck.to_val val
+    assign = \case
+        (_, DeriveT.VNotGiven) -> Right $ delete key environ
+        (DeriveT.VControlFunction cf, rhs)
+            | Just cf <- merge_cf cf rhs -> add <$> cf
+        -- As a special hack, while `lhs=(cf) | lhs=1` is fine because
+        -- the num coerces to a constant signal, let's disallow the other
+        -- way.  This is because numeric constants are common and turning
+        -- them into a function means plain Derive.get_val will stop working,
+        -- e.g. Call.get_srate.
+        (lhs, DeriveT.VControlFunction cf)
+            | Just cf <- merge_cf cf lhs -> add <$> cf
+        (lhs, rhs) -> case ValType.val_types_match lhs rhs of
+            Just expected -> Left $ type_error key rhs expected
+            Nothing -> Right $ add rhs
+    merge_cf cf = \case
+        DeriveT.VSignal sig -> Just $ DeriveT.VControlFunction <$>
+            cf_set_control sig cf
+        -- Anything else gets type checked and replaced.
+        _ -> Nothing
+    add rhs = insert key rhs environ
+
+cf_set_control :: DeriveT.TypedSignal -> DeriveT.ControlFunction
+    -> Either Error DeriveT.ControlFunction
+cf_set_control sig cf = case DeriveT.cf_function cf of
+    DeriveT.CFBacked _ f -> Right $
+        cf { DeriveT.cf_function = DeriveT.CFBacked sig f }
+    -- TODO If I make CFPure a separate type, this goes away.
+    DeriveT.CFPure {} -> Left $ "can't merge "
+        <> ShowVal.show_val sig <> " into pure ControlFunction"
+
+type_error :: Key -> DeriveT.Val -> ValType.Type -> Error
+type_error key val expected = mconcat
+    [ "can't set ", pretty key, " to ", ShowVal.show_val val, ", expected "
+    , pretty expected, " but got ", pretty (ValType.type_of val)
+    ]
 
 -- | Insert a val without typechecking.
 insert_val :: Typecheck.ToVal a => Key -> a -> Environ -> Environ

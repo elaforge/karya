@@ -19,7 +19,7 @@ import           Global
 
 data Type =
     TNum NumType NumValue
-    | TSignal !SignalType
+    | TSignal NumType
     | TPSignal
     | TAttributes | TControlRef | TPControlRef | TPitch | TNotePitch
     -- | Text string, with enum values if it's an enum.
@@ -41,19 +41,6 @@ data Type =
     -- get this, as a plain description.
     | TOther !Text
     deriving (Eq, Ord, Show)
-
--- TODO semi redundant with Typecheck.TimeType and TransposeType
-data SignalType = SignalUntyped | SignalTranspose | SignalTime
-    deriving (Eq, Ord, Show)
-
-signal_type :: ScoreT.Type -> SignalType
-signal_type = \case
-    ScoreT.Chromatic -> SignalTranspose
-    ScoreT.Diatonic -> SignalTranspose
-    ScoreT.Nn -> SignalTranspose
-    ScoreT.Real -> SignalTime
-    ScoreT.Score -> SignalTime
-    ScoreT.Untyped -> SignalUntyped
 
 -- | These are kind of muddled.  This is because they were originally just
 -- documentation, so the more specific the better, but are also used for
@@ -90,14 +77,21 @@ data NumValue = TAny
 -- right way to do this sort of thing.
 types_match :: Type -> Type -> Bool
 types_match t1 t2 = case (t1, t2) of
-    (TNum n1 v1, TNum n2 v2) -> num_types_match n1 n2 && num_vals_match v1 v2
+    (TNum t1 v1, TNum t2 v2) -> num_types_match t1 t2 && num_vals_match v1 v2
+    (TSignal t1, TSignal t2) -> num_types_match t1 t2
+    -- TSignal and TNum are inter-convertible where TNum becomes a constant
+    -- signal.  But TSignal doesn't have NumValue because it would be
+    -- inefficient to check it for a whole signal.
+    -- TODO I could merge the types
+    (TSignal t1, TNum t2 _) -> num_types_match t1 t2
+    (TNum t1 _, TSignal t2) -> num_types_match t1 t2
     (TMaybe t1, TMaybe t2) -> types_match t1 t2
     (TPair t1 t2, TPair u1 u2) -> types_match t1 u1 && types_match t2 u2
     (TEither t1 u1, TEither t2 u2) -> types_match t1 t2 && types_match u1 u2
     (TList t1, TList t2) -> types_match t1 t2
     (t1, t2) -> t1 == t2
     where
-    num_types_match n1 n2 = n2 `elem` subtypes_of n1
+    num_types_match t1 t2 = t2 `elem` subtypes_of t1
     num_vals_match v1 v2 = v1 <= v2
 
 -- | Nothing if the type of the rhs matches the lhs, otherwise the expected
@@ -108,6 +102,7 @@ val_types_match lhs rhs
     | otherwise = Just expected
     where expected = infer_type_of False lhs
 
+-- TODO: overlapping with categorization in ScoreT.
 subtypes_of :: NumType -> [NumType]
 subtypes_of n
     | n `elem` [TTime, TDefaultReal, TDefaultScore] =
@@ -124,9 +119,7 @@ instance Pretty Type where
         TPair a b -> "(" <> pretty a <> ", " <> pretty b <> ")"
         TNum typ val -> append_parens "Num" $
             Texts.join2 ", " (pretty typ) (pretty val)
-        TSignal sig -> "Signal" <> case sig of
-            SignalUntyped -> ""
-            _ -> " (" <> Texts.dropPrefix "Signal" (showt sig) <> ")"
+        TSignal typ -> append_parens "Signal" (pretty typ)
         TStr enums -> append_parens "Str" $ maybe "" Text.unwords enums
         -- There is no corresponding Val type for these, so I might as well be
         -- clear about what they mean.
@@ -178,7 +171,7 @@ infer_type_of specific = \case
         then (if val > 0 then TPositive
             else if val >= 0 then TNonNegative else TAny)
         else TAny
-    VSignal sig -> TSignal (signal_type (ScoreT.type_of sig))
+    VSignal sig -> TSignal (to_num_type (ScoreT.type_of sig))
     VPSignal {} -> TPSignal
     VAttributes {} -> TAttributes
     VControlRef {} -> TControlRef

@@ -410,8 +410,7 @@ get_control_function_dynamic = do
 convert_dynamic :: Ruler.Marklists -> Dynamic -> Stack.Serial
     -> DeriveT.Dynamic
 convert_dynamic ruler dyn serial = DeriveT.Dynamic
-    { dyn_control_functions = state_control_functions dyn
-    , dyn_pitch = state_pitch dyn
+    { dyn_pitch = state_pitch dyn
     , dyn_environ = state_environ dyn
     , dyn_event_serial = serial
     , dyn_warp = state_warp dyn

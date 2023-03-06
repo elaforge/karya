@@ -506,11 +506,7 @@ initial_threaded = Threaded mempty 0
 -- | This is a dynamically scoped environment that applies to generated events
 -- inside its scope.
 data Dynamic = Dynamic {
-    -- | Function variant of controls.  Normally they modify a backing
-    -- 'Signal.Control', but could be synthesized as well.  See
-    -- 'DeriveT.ControlFunction' for details.
-    state_control_functions :: !DeriveT.ControlFunctionMap
-    , state_control_merge_defaults :: !(Map ScoreT.Control Merger)
+    state_control_merge_defaults :: !(Map ScoreT.Control Merger)
     -- | The unnamed pitch signal currently in scope.  This is the pitch signal
     -- that's applied to notes by default.  It's split off from 'state_environ'
     -- because it's convenient to guarentee that the main pitch signal is
@@ -592,8 +588,7 @@ instance Pretty Inversion where
 
 initial_dynamic :: DeriveT.Environ -> Dynamic
 initial_dynamic environ = Dynamic
-    { state_control_functions = mempty
-    , state_control_merge_defaults = initial_control_merge_defaults
+    { state_control_merge_defaults = initial_control_merge_defaults
     , state_pitch = mempty
     , state_environ = environ <> initial_environ
     , state_warp = Warp.identity
@@ -647,12 +642,11 @@ default_dynamic :: Signal.Y
 default_dynamic = 1
 
 instance Pretty Dynamic where
-    format (Dynamic cfuncs cmerge pitch environ warp scopes
+    format (Dynamic cmerge pitch environ warp scopes
             aliases control_damage _under_invert inversion pitch_map
             note_track stack mode) =
         Pretty.record "Dynamic"
-            [ ("control_functions", Pretty.format cfuncs)
-            , ("control_merge_defaults", Pretty.format cmerge)
+            [ ("control_merge_defaults", Pretty.format cmerge)
             , ("pitch", Pretty.format pitch)
             , ("environ", Pretty.format environ)
             , ("warp", Pretty.format warp)
@@ -667,13 +661,12 @@ instance Pretty Dynamic where
             ]
 
 instance DeepSeq.NFData Dynamic where
-    rnf (Dynamic cfuncs cmerge pitch environ warp _scopes
+    rnf (Dynamic cmerge pitch environ warp _scopes
             aliases control_damage _under_invert _inversion pitch_map
             note_track stack _mode) =
-        rnf cfuncs `seq` rnf cmerge
-        `seq` rnf pitch `seq` rnf environ `seq` rnf warp `seq` rnf aliases
-        `seq` rnf control_damage `seq` rnf pitch_map `seq` rnf note_track
-        `seq` rnf stack
+        rnf cmerge `seq` rnf pitch `seq` rnf environ `seq` rnf warp
+        `seq` rnf aliases `seq` rnf control_damage `seq` rnf pitch_map
+        `seq` rnf note_track `seq` rnf stack
 
 -- ** scope
 

@@ -385,7 +385,7 @@ delayed_args (Expr.Symbol call) event
 put_environ :: Typecheck.ToVal a => Env.Key -> a -> Score.Event
     -> Either Text Score.Event
 put_environ name val event =
-    case Env.put_val_error name val (Score.event_environ event) of
+    case Env.put_val name val (Score.event_environ event) of
         Left err -> Left err
         Right env -> Right $ event { Score.event_environ = env }
 

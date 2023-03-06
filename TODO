@@ -6666,15 +6666,69 @@ Derive:
       . Write a converter, or put % back in to equal as a shim.
     * (signal) val call: Sig.optional doesn't seem to work for type arg
     - implement (psignal ...)
-    - Pitch_test test_porta, doesn't pick up curve=(cf-expn) arg.
+    * Pitch_test test_porta, doesn't pick up curve=(cf-expn) arg.
       . It's because equal used to assign %c=(cf) to
         state_control_functions, but c=(cf) to just a val, but now I
         lack the distinction.
       . Eliminate the separate namespace and this goes away, becomes
         c=(cf) looks up existing c signal, and puts it in the cf.
       . But for now, maybe I just break those tests?
+    - Either propagate cf_dyn in Typecheck.val_to_function_dyn, or
+      verify that laziness works.  If the latter, then it's good for
+      CFPure, which doesn't use cf_dyn.
+      . If it doesn't, maybe I should have a separate Val type for it,
+        this way the type checking in Env.put_val would just work.
+    - split CFPure into a separate Val type
+      . Some hackery in Env would go away.
+      . Some cfs don't take a control, should I have separate types so I
+        can throw an error?  Or they just ignore the control arg?
+        . E.g. dyn=(cf-curve 1 2 3) is probably a mistake.
+        . On the other hand, what about c=(cf-sine ...)?
+        . Would it be confusing when a pure cf doesn't act like a signal?
+          E.g. `c=(cf-sine ..) | c=+1` should be an error, but
+          `c=(cf-rnd ..) | c=+1` is fine, assuming %c later exists.
+        . I could get that error by throwing when trying to put a control
+          into a pure cf.
+    - Unify VNum and VSignal
+      . Have a special constant constructor for Segment?
+      . Actually it's not necessary, but would get rid of the sketchy
+        -RealTime.large nonsense.
+      . But at the cost of a bunch of case branches.
+      . Also a million tests that use Signal.to_pairs.. though I could do
+        -large for compatibility.
+      . Can then remove Typecheck.DefaultReal etc.
+        . Or rather, use that name for RealTimeFunction
+      . Against: Seems like `lhs=1 | lhs=(cf)` should error, because
+        accidentally turning srate into a function will break stuff.  Or,
+        don't coerce num into a constant would be clearer.  This is against
+        the idea of unifying VSignal and VNum, logic is that VNum is
+        distinctive because you definitely don't need a time to get it.  But,
+        if I want to unify, maybe changing all those get_srate to be
+        get_srate_at is already a precondition.
+      . Also, VNum has ValType.NumValue like Positive.  This is difficult for
+        a signal.
     ControlFunction cleanup:
-      - eliminate separate namespace
+      * eliminate separate namespace
+        * make Equal merge CFBacked and controls, or error
+        * call_cfunction on CFBacked should fail if there's no signal
+          . CFPure can't fail, another reason to separate them
+          . Or I can just default to const 0.  Turns out things like cf-rnd
+            already makes sense that way.
+          . Remove the Maybe then?
+        * EvalTrack_test failure:
+          cont = %gont,42 should look for `gont`, but doesn't find it?
+          . If it gets resolved by equal then it's too early.  It should be
+            resolved by the note.
+        * broke tests: can't set "dyn" to .5, expected Signal but got Num
+        * ControlFunction should look up controls in make_cf
+          . But how can it, it doesn't know the name it's bound to.
+          . So Equal has to do this!
+          . Or push it down to Derive.with_val
+          . with_val never did typechecking!  In fact, VNotGiven was
+            already handled in Env.put_val, but with_val didn't use it!
+        * How to support CFs that modify other CFs?
+          . A bit more complicated now that there is CFPure.
+        * ControlFunction lookups also simplified like Typecheck
         . Why the separate state_control_functions namespace when I have
           VControlFunction?
         . It was so I can have a cf with the same name as an underlying
@@ -6685,18 +6739,9 @@ Derive:
         . Let's do this later, this commit already has too much.
         . Or I would have to be explicit like c=(cf %c), except I can't
           because `c` is replaced.
-        . Some cfs don't take a control, should I have separate types so I
-          can throw an error?  Or they just ignore the control arg?
-          . E.g. dyn=(cf-curve 1 2 3) is probably a mistake.
-          . On the other hand, what about c=(cf-sine ...)?
-          . Would it be confusing when a pure cf doesn't act like a signal?
-            E.g. `c=(cf-sine ..) | c=+1` should be an error, but
-            `c=(cf-rnd ..) | c=+1` is fine, assuming %c later exists.
-          . I could get that error by throwing when trying to put a control
-            into a pure cf.
           . Backed cf should get its type from the backing signal.
             Pure cf has its own type.
-      - put typed on the function, not in the return
+      * put typed on the function, not in the return
         . Eliminate Typecheck.retype_cf
       . Remember CFs are also used for curves, e.g. ControlUtil.curve_arg
     changes:
@@ -6714,16 +6759,13 @@ Derive:
       . pitch xcut args become required instead of #xcut1 #xcut2
       . Gangsa.c_noltol: "noltol" -> "noltol-time"
     cleanup:
+      - convert Ref default to a scalar?  In theory I could have
+        `%x,(signal 1 2 3 4)`, but in practice I don't see myself doing that.
+        . Do it now and I don't need Serialize compatibility.
+      - Signal.at order seems backwards, if it's (!) it should go sig `at` pos
       * remove DeriveT.Ref ControlSignal
       - remove Lib state_signals, state_functions
       - ControlValMap in ScoreT but ControlMap in DeriveT
-      - how about unifying VNum and VSignal, but having a special constant
-        constructor for Segment?
-        . Actually it's not necessary, but would get rid of the sketchy
-          -RealTime.large nonsense.
-        . But at the cost of a bunch of case branches.
-      - Can then remove Typecheck.DefaultReal etc.
-        . Or rather, use that name for RealTimeFunction
       remove deprecated stuff:
         - Typecheck deprecated
         - Lib.lookup_pitch_signal
@@ -6818,7 +6860,6 @@ Derive:
       * ControlFunction
       * Removed Sig.control, convert rest of calls away.
         I have to do it because of namespace collision.
-
     . If I desugar control and pitch refs to "(control ...) then I don't have
       to do the Typecheck.resolve_control_ref stuff, and there's no chance to
       forget to do it and not support % syntax.
@@ -6848,11 +6889,11 @@ Derive:
       . Actually it's ok because I can put in any TimeType I want, but it's
         ugly because functions have to pick an arbitrary type.
       . Maybe I can factor defaults into `newtype Def a = Def a`
-    - Put signal category in ValType.TSignal
+    / Put signal category in ValType.TSignal
     / Consolidate type->category mapping in ScoreT?
       Currently in Typecheck, ValType, ScoreT
     * why not TypedFunction = ScoreT.Typed Function?
-    - delete ControlSignal, replaced with VSignal and VPSignal
+    * delete ControlSignal, replaced with VSignal and VPSignal
     * remove %c=... equal syntax
     implement undefined:
       * Typecheck

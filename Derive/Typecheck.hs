@@ -43,7 +43,8 @@ module Derive.Typecheck (
     , lookup_function
     , lookup_signal
     , val_to_signal
-    , val_to_function, val_to_function_dyn, retype_cf
+    , val_to_function, val_to_function_dyn
+    , resolve_signal
 
     -- * pitch signals
     , val_to_pitch_signal
@@ -348,11 +349,11 @@ instance ToVal PSignal.PSignal where to_val = VPSignal
 
 instance Typecheck DeriveT.TypedSignal where
     from_val = coerce_to_signal
-    to_type _ = ValType.TSignal ValType.SignalUntyped
+    to_type _ = ValType.TSignal ValType.TUntyped
 
 instance Typecheck Signal.Control where
     from_val = fmap ScoreT.typed_val . from_val
-    to_type _ = ValType.TSignal ValType.SignalUntyped
+    to_type _ = ValType.TSignal ValType.TUntyped
 
 -- *** eval only
 
@@ -781,7 +782,7 @@ coerce_to_scalar check = \case
     -- which ignores Eval.  TODO if I want all numeric values to be variable,
     -- then I should merge control_at with Derive.get_val, so it takes a time.
     VNum num -> Val $ maybe Failure Success $ check num
-    val -> case val_to_function Nothing val of
+    val -> case val_to_function val of
         Just (Right tf) -> Eval $ \t -> return $ check (($ t) <$> tf)
         Just (Left df) -> Eval $ \t -> check . (($ t) <$>) <$> df
         Nothing -> failure
@@ -789,23 +790,23 @@ coerce_to_scalar check = \case
 -- | Coerce any numeric value to a function, and check it against the given
 -- function.
 coerce_to_function :: (DeriveT.TypedFunction -> Maybe a) -> Val -> Checked a
-coerce_to_function check val = case val_to_function Nothing val of
+coerce_to_function check val = case val_to_function val of
     Just (Right f) -> Val $ maybe Failure Success $ check f
     -- Eval's t time is thrown away, because I'm creating a function and thus
     -- don't need to know at which time to evaluate it.
     Just (Left df) -> Eval $ \_t -> check <$> df
     Nothing -> failure
 
-val_to_function :: Maybe ScoreT.Control -> Val
+val_to_function :: Val
     -> Maybe (Either (Derive.Deriver DeriveT.TypedFunction)
         DeriveT.TypedFunction)
-val_to_function mb_control = \case
+val_to_function = \case
     VNum num -> Just $ Right $ const <$> num
     VSignal sig -> Just $ Right $ flip Signal.at <$> sig
     VControlRef ref -> Just $ Left $ resolve_function ref
     VControlFunction cf -> Just $ Left $ do
         cf_dyn <- Internal.get_control_function_dynamic
-        return $ retype_cf cf (fromMaybe Controls.null mb_control) cf_dyn
+        return $ DeriveT.call_cfunction cf_dyn (DeriveT.cf_function cf)
     _ -> Nothing
 
 -- | Unfortunately Internal.get_control_function_dynamic is non-trivial,
@@ -813,24 +814,19 @@ val_to_function mb_control = \case
 --
 -- TODO does it really?  It seems like a bogus tradeoff to have to make.
 -- I could cache it, but is that not what this is?
-val_to_function_dyn :: DeriveT.Dynamic -> Maybe ScoreT.Control -> Val
+-- If it's cheap to call Internal.get_control_function_dynamic and only
+-- expensive to force it, then I should always pass it, and rely on laziness.
+val_to_function_dyn :: DeriveT.Dynamic -> Val
     -> Maybe (Either (Derive.Deriver DeriveT.TypedFunction)
         DeriveT.TypedFunction)
-val_to_function_dyn cf_dyn mb_control = \case
+val_to_function_dyn cf_dyn = \case
     VNum num -> Just $ Right $ const <$> num
     VSignal sig -> Just $ Right $ flip Signal.at <$> sig
+    -- TODO propagate cf_dyn through
     VControlRef ref -> Just $ Left $ resolve_function ref
     VControlFunction cf -> Just $ Right $
-        retype_cf cf (fromMaybe Controls.null mb_control) cf_dyn
+        DeriveT.call_cfunction cf_dyn (DeriveT.cf_function cf)
     _ -> Nothing
-
--- TODO type should be in ControlFunction rather than the function return
--- value, so I don't have to call it
-retype_cf :: DeriveT.ControlFunction -> ScoreT.Control -> DeriveT.Dynamic
-    -> DeriveT.TypedFunction
-retype_cf cf control cf_dyn =
-    ScoreT.Typed (ScoreT.type_of (f 0)) (ScoreT.typed_val . f)
-    where f = DeriveT.cf_function cf control cf_dyn
 
 resolve_function :: DeriveT.ControlRef -> Derive.Deriver DeriveT.TypedFunction
 resolve_function ref =
@@ -840,39 +836,23 @@ resolve_function ref =
 -- | Resolve a ref to a function, applying a ControlFunction if there is one.
 lookup_function :: DeriveT.ControlRef
     -> Derive.Deriver (Maybe DeriveT.TypedFunction)
-lookup_function ref = resolve_cf =<< resolve_signal ref
+lookup_function (DeriveT.Ref control deflt) = do
+    maybe (return deflt_f) get . DeriveT.lookup (ScoreT.control_name control)
+        =<< Internal.get_environ
     where
-    resolve_cf mb_sig = case mb_control of
+    deflt_f = fmap (flip Signal.at) <$> deflt
+    get :: Val -> Derive.Deriver (Maybe DeriveT.TypedFunction)
+    get val = case val_to_function val of
         Nothing -> return Nothing
-        Just control -> get_cf control >>= \case
-            Nothing -> return $ signal_to_function <$> mb_sig
-                where signal_to_function = fmap (flip Signal.at)
-            -- Here is ControlFunction again!  This is because of the
-            -- duplication between state_control_functions and
-            -- VControlFunction.  TODO remove it!  See DeriveT.ControlFunction
-            -- for why it exists.
-            Just cf -> do
-                cf_dyn <- Internal.get_control_function_dynamic
-                return $ Just $ inherit_type $ retype_cf cf control cf_dyn
-    -- If the ControlFunction is untyped, and the Ref has a default with a
-    -- type, use that type.  Say I have `trans = (cf-rnd 1 3) | %trans,1d`, the
-    -- cf-rnd will pick up Diatonic from the 1d.
-    -- TODO maybe I should have a way to directly set the type for cf-rnd?
-    inherit_type (ScoreT.Typed typ a) = ScoreT.Typed (typ <> default_type) a
-    default_type = case ref of
-        DeriveT.Ref _ (Just deflt) -> ScoreT.type_of deflt
-        _ -> ScoreT.Untyped
-    mb_control = case ref of
-        DeriveT.Ref control _ -> Just control
-    get_cf control = Internal.get_dynamic $
-        Map.lookup control . Derive.state_control_functions
+        Just (Right tf) -> return $ Just tf
+        Just (Left dtf) -> Just <$> dtf
 
 -- | Resolve ref to a DeriveT.TypedSignal.  This does not take ControlFunctions
 -- into account, but is necessary when you need the actual signal.
 resolve_signal :: DeriveT.ControlRef
     -> Derive.Deriver (Maybe DeriveT.TypedSignal)
 resolve_signal (DeriveT.Ref control deflt) =
-    ((<|>) deflt) <$> lookup_signal control
+    (<|> deflt) <$> lookup_signal control
 
 coerce_to_signal :: Val -> Checked DeriveT.TypedSignal
 coerce_to_signal val = case val_to_signal val of

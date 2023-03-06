@@ -123,12 +123,13 @@ run_ ui_state m = case Derive.run derive_state m of
 extract_run :: (a -> b) -> Either Text (a, Derive.State, [Log.Msg])
     -> Either Text b
 extract_run _ (Left err) = Left err
-extract_run f (Right (val, _, msgs)) = Right $ trace_logs msgs (f val)
+extract_run extract (Right (val, _, msgs)) =
+    Right $ trace_logs msgs (extract val)
 
 run_events :: (a -> b)
     -> Either Text ([LEvent.LEvent a], Derive.State, [Log.Msg])
     -> Either Text ([b], [Text])
-run_events f = extract_run $ extract_levents f
+run_events extract = extract_run $ extract_levents extract
 
 eval :: Ui.State -> Derive.Deriver a -> Either Text a
 eval ui_state m = extract_run id (run ui_state m)
