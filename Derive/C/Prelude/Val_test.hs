@@ -3,15 +3,24 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.C.Prelude.Val_test where
+import qualified Util.Texts as Texts
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
+import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.NN as NN
+import qualified Perform.Pitch as Pitch
+import qualified Perform.Signal as Signal
+
 import qualified Ui.Meter.Meter as Meter
 import qualified Ui.UiTest as UiTest
 
+import           Global
+import           Types
 import           Util.Test
 
 
@@ -123,3 +132,43 @@ test_timestep = do
 
     -- TODO should be an error, there are no sixteenths
     equal (run 0 "s") ([1], [])
+
+test_signal :: Test
+test_signal = do
+    let run = CallTest.run_val Nothing
+    let mksig typ = DeriveT.VSignal . ScoreT.Typed typ . Signal.from_pairs
+    equal (run "signal") (Just (mksig ScoreT.Untyped []), [])
+    equal (run "signal 0 2") (Just (mksig ScoreT.Untyped [(0, 2)]), [])
+    equal (run "signal d 0 2") (Just (mksig ScoreT.Diatonic [(0, 2)]), [])
+    let roundtrip sig =
+            ( run (strip_parens (ShowVal.show_val sig))
+            , (Just sig, [])
+            )
+    uncurry equal (roundtrip (mksig ScoreT.Untyped [(0, 2)]))
+    uncurry equal (roundtrip (mksig ScoreT.Nn [(1, 2), (3, 4)]))
+    pprint (ShowVal.show_val (mksig ScoreT.Chromatic [(0, 2)]))
+    pprint (ShowVal.show_val (mksig ScoreT.Nn [(0, 2), (2, 4)]))
+
+strip_parens :: Text -> Text
+strip_parens = Texts.dropPrefix "(" . Texts.dropSuffix ")"
+
+test_psignal :: Test
+test_psignal = do
+    let run = first (fmap un_psig) . CallTest.run_val Nothing
+    let mksig = DeriveT.VPSignal . PSignal.from_pairs
+            . map (fmap PSignal.nn_pitch)
+    equal (run "psignal") (Just [], [])
+    equal (run "psignal 0 (4c)") (Just [(0, Right NN.c4)], [])
+    -- These won't be parseable so no roundtrip for this one.
+    pprint (ShowVal.show_val (mksig [(0, 2)]))
+    pprint (ShowVal.show_val (mksig [(0, 2), (2, 4)]))
+
+un_psig :: DeriveT.Val
+    -> [(RealTime, Either PSignal.PitchError Pitch.NoteNumber)]
+un_psig =
+    map (second (DeriveT.pitch_nn . DeriveT.coerce))
+        . PSignal.to_pairs . expect_psig
+    where
+    expect_psig (DeriveT.VPSignal sig) = sig
+    expect_psig val = error $ "expected VPSignal: "
+        <> untxt (ShowVal.show_val val)

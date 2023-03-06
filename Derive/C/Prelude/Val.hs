@@ -65,6 +65,7 @@ library = Library.vals
     , ("pitch", c_pitch)
     , ("#", c_pcontrol_ref)
     , ("signal", c_signal)
+    , ("psignal", c_psignal)
     -- , ("control", c_control)
     -- , ("pcontrol", c_pcontrol)
     -- lookup
@@ -287,6 +288,8 @@ c_pcontrol_ref = val_call "pcontrol-ref" mempty
     ) $ \(name, mb_default) _ -> return $
         DeriveT.Ref (ScoreT.PControl name) (PSignal.constant <$> mb_default)
 
+-- | This should be the inverse of ShowVal (ScoreT.Typed Signal.Control).
+-- See 'DeriveT.show_signal'.
 c_signal :: Derive.ValCall
 c_signal = val_call "signal" mempty
     "Create a signal. This is the control signal literal."
@@ -297,6 +300,14 @@ c_signal = val_call "signal" mempty
         typ <- Derive.require ("unknown type code: " <> type_code)
             (ScoreT.code_to_type type_code)
         return $ DeriveT.VSignal $ ScoreT.Typed typ $ Signal.from_pairs bps
+
+-- | Like c_signal, should be the inverse of ShowVal PSignal.PSignal, except
+-- it can't because I can't show pitches.
+-- See 'DeriveT.show_psignal'.
+c_psignal :: Derive.ValCall
+c_psignal = val_call "psignal" mempty "Create a pitch signal."
+    $ Sig.call (Sig.many_pairs "breakpoints" "Breakpoints.")
+    $ \bps _ -> return $ DeriveT.VPSignal $ PSignal.from_pairs bps
 
 {-
 c_control :: Derive.ValCall

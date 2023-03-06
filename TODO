@@ -6664,8 +6664,10 @@ Derive:
   unify-env: unified-env:
     - What about backward compatibility for old scores?
       . Write a converter, or put % back in to equal as a shim.
+      . Converter is better, shim lifespan is indefinite.
+      . Also can delete all the states I can't load.
     * (signal) val call: Sig.optional doesn't seem to work for type arg
-    - implement (psignal ...)
+    * implement (psignal ...)
     * Pitch_test test_porta, doesn't pick up curve=(cf-expn) arg.
       . It's because equal used to assign %c=(cf) to
         state_control_functions, but c=(cf) to just a val, but now I
@@ -6762,7 +6764,9 @@ Derive:
       - convert Ref default to a scalar?  In theory I could have
         `%x,(signal 1 2 3 4)`, but in practice I don't see myself doing that.
         . Do it now and I don't need Serialize compatibility.
-      - Signal.at order seems backwards, if it's (!) it should go sig `at` pos
+        . Why though?  Maybe I'll construct those in code?  Since
+          resolve_signal returns a TypedSignal anyway, I'd have to make
+          a constant.
       * remove DeriveT.Ref ControlSignal
       - remove Lib state_signals, state_functions
       - ControlValMap in ScoreT but ControlMap in DeriveT
@@ -6773,7 +6777,7 @@ Derive:
           still using ControlRef.
       - PSignal.at and Signal.at should go (vector, index) to match Map Vector
         etc.
-      - ControlFunction takes a ScoreT.Control so I can write `x=(cf-y ..)`
+      * ControlFunction takes a ScoreT.Control so I can write `x=(cf-y ..)`
         and it applies on top of an existing x signal.
         . If I look up the control in cf-y, then it's too early binding,
           I want to delay lookup, same rationale as control ref.
@@ -6781,16 +6785,18 @@ Derive:
           (cf-y %y ...), but if they're now living in the same namespace,
           then I can't do the late binding thing.  So maybe this is why
           ControlFunctions live in their own namespace.
-      - Should I propagate this change to Score.Event?
-        . Pros: consistency, Note just copies over the environ
-        . Cons: postproc has to change, e.g. Score.move_event
+      - Should I also remove Score.event_controls?
+        . Pros: consistency, Note just copies over the environ, can't
+          have a same-named VNum in score_environ.
+        . Cons: postproc has to change, e.g. Score.move_event.  I don't get
+          the UI benefit since it's internal.
       / Midi.Event?  No there is no env.
       - Synth.Shared.Note?  It doesn't have environ, just controls, but it
         wants signals, at the least have to make sure scalars get coerced.
       - remove checked ScoreT.control stuff?
         . I think the purpose was to check control titles, but I can just do
           that in ParseTitle.
-      - rename ScoreT.Typed { type_of, val_of }
+      - rename ScoreT.Typed typed_val to type_of: { type_of, val_of }
       - put env arg 1st for Sig.defaulted_env etc.?
     ideas:
       - should I have a (TimeT, Function) pair so RealTimeFunctionT etc. just
@@ -6810,7 +6816,10 @@ Derive:
       . Would it make it easier to have a separate value for constant signal?
         No more -RealTime.large nonsense.
       . Alternately, I can define the value before the first segment:
-        Signal { offset :: X, constant :: Y, vector :: v }
+        Segment.Signal { _offset :: X, _constant :: Y, _vector :: v }
+        This makes all signals explicitly defined everywhere.
+        . Not applicable to PSignal though, because I do want to have
+          an unset region, since there's no good default pitch.
       / What if I generalized VNum to VSignal and VPitch to
         VPSignal?  I'd want to display and treat it separately, but I do have
         a special form for constant signals.

@@ -117,9 +117,10 @@ ellipsisList max xs
     where (pre, post) = splitAt max xs
 
 dropPrefix :: Text -> Text -> Text
-dropPrefix prefix text
-    | prefix `Text.isPrefixOf` text = Text.drop (Text.length prefix) text
-    | otherwise = text
+dropPrefix prefix text = Maybe.fromMaybe text (Text.stripPrefix prefix text)
+
+dropSuffix :: Text -> Text -> Text
+dropSuffix suffix text = Maybe.fromMaybe text (Text.stripSuffix suffix text)
 
 enumeration :: (Textlike a, Monoid a, String.IsString a) => [a] -> a
 enumeration = join "\n" . map ("- "<>)
