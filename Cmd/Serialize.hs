@@ -491,14 +491,15 @@ instance Serialize Ruler.Ruler where
         strip (Nothing, mlist) = (Nothing, mlist)
     get = get_version >>= \case
         6 -> do
-            marklists :: Map Ruler.Name (Maybe Text, Mark.Marklist) <- get
+            marklists :: Map Ruler.Name (Maybe Text, OldMarklist) <- get
             bg :: Color.Color <- get
             show_names :: Bool <- get
             align_to_bottom :: Bool <- get
             return $ Ruler.Ruler (upgrade <$> marklists) bg show_names
                 align_to_bottom
             where
-            upgrade (_name, mlist) = (Nothing, mlist)
+            upgrade (_name, OldMarklist mlist) =
+                (Nothing, Mark.marklist_from_vector mlist)
         7 -> do
             marklists :: OldMarklists <- get
             bg :: Color.Color <- get
