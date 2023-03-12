@@ -3,7 +3,7 @@
 ''
 %ky=''
     note transformer:
-    GLOBAL = scale = twelve-r | key=c-min | %dyn=.75
+    GLOBAL = scale = twelve-r | key=c-min | dyn=.75
 ''
 
 %scale=sargam

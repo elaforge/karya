@@ -6,7 +6,7 @@
     note transformer:
     GLOBAL = scale = twelve-r | key=c-min
     >tmb = element=0
-    >pno = %dyn=.4
+    >pno = dyn=.4
 ''
 
 %scale=sargam

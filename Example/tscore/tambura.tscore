@@ -35,7 +35,7 @@
 
 %scale=sargam
 
-score = "%sympathy=.65 | %jawari=.15" [
+score = "sympathy=.65 | jawari=.15" [
     >tmb 2s4:1 | 2p | 3s | 2p | 2s
 
     -- change >tmb8 to >tmb for single string style
@@ -44,7 +44,7 @@ score = "%sympathy=.65 | %jawari=.15" [
         tr/r tr/s s~ . |
 
     -- TODO mix MIDI and im, but out of sync at the moment
-    -- >"pno | %dyn=.3" 3s2   r        | p4 m p g | r g n2
+    -- >"pno | dyn=.3" 3s2   r        | p4 m p g | r g n2
 ]
 
 scratch = [
