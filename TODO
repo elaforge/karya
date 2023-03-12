@@ -6666,6 +6666,19 @@ Derive:
       . Write a converter, or put % back in to equal as a shim.
       . Converter is better, shim lifespan is indefinite.
       . Also can delete all the states I can't load.
+      . Do a profile run once they're fixed.
+      . Apparently I haven't written this yet.  Add features to
+        App.Update?
+      . search: track title, event text, config_ky, config_tscore
+        I could parse but maybe regex is enough?
+        '%([0-9a-z._-] *=)' -> '\1'
+        . tscore already uses leading %ky=''...'', and 'score = %default',
+          don't match those.  I want track titles and event text and inside
+          ky.
+        . Show suggested changes, make changes, save backup.
+        * replace on *.ky
+      tools/update_all.py changes:
+        * modify in place, assume direcotry is backed up or in source control
     * (signal) val call: Sig.optional doesn't seem to work for type arg
     * implement (psignal ...)
     * Pitch_test test_porta, doesn't pick up curve=(cf-expn) arg.

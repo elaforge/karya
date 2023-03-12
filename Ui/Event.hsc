@@ -29,6 +29,7 @@ module Ui.Event (
     -- * access
     , start, duration, text, style, stack
     , start_, duration_, text_, style_, stack_, end_
+    , set_text_raw
     , end, range, overlaps, min, max
     -- ** Orientation
     , orientation, orientation_of
@@ -163,6 +164,9 @@ duration_ =
 
 text_ :: Lens Event Text
 text_ = event_lens True _text (\val event -> event { _text = val })
+
+set_text_raw :: Text -> Event -> Event
+set_text_raw t event = event { _text = t }
 
 style_ :: Lens Event Style.StyleId
 style_ = event_lens False _style (\val event -> event { _style = val })

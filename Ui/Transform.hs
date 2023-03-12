@@ -10,10 +10,12 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
+import qualified Util.Logger as Logger
 import qualified Util.Maps as Maps
 import qualified Util.Memory as Memory
 import qualified Util.Num as Num
 
+import qualified Derive.ShowVal as ShowVal
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -184,6 +186,43 @@ replace_namespace ns from to = to
         Map.union (Map.filterWithKey (\k _ -> wanted k) (field from)) (field to)
         where wanted = (==ns) . Id.ident_namespace
 
+-- * code
+
+type UpdateM a = Logger.Logger Text a
+
+-- | Modify tracklang code: block titles, track titles, events.
+map_code :: (Text -> Text) -> Ui.State -> (Ui.State, [Text])
+map_code modify state = Logger.runId $ do
+    tracks <- mapM (\(tid, track) -> (tid,) <$> u_track tid track)
+        (Map.toList (Ui.state_tracks state))
+    blocks <- mapM (\(bid, block) -> (bid,) <$> u_block bid block)
+        (Map.toList (Ui.state_blocks state))
+    return $ state
+        { Ui.state_tracks = Map.fromList tracks
+        , Ui.state_blocks = Map.fromList blocks
+        }
+    where
+    u_track track_id track = do
+        let old = Track.track_title track
+        let new = modify old
+        log (pretty track_id) old new
+        events <- Events.from_list <$>
+            mapM u_event (Events.ascending (Track.track_events track))
+        return $ track { Track.track_title = new, Track.track_events = events }
+    u_event event = do
+        let old = Event.text event
+        let new = modify old
+        log (pretty (Event.start event)) old new
+        return $ Event.set_text_raw new event
+    u_block block_id block = do
+        let old = Block.block_title block
+        let new = modify old
+        log (pretty block_id) old new
+        return $ block { Block.block_title = new }
+    log place old new
+        | new /= old = Logger.log $ place <> ": "
+            <> ShowVal.show_val old <> " -> " <> ShowVal.show_val new
+        | otherwise = return ()
 
 -- * merge
 

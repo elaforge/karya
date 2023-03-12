@@ -47,6 +47,7 @@ module Util.Test.Testing (
     , tmp_dir, in_tmp_dir, tmp_base_dir
 
     -- * util
+    , colored_diff
     , force
 ) where
 import qualified Control.DeepSeq as DeepSeq
@@ -234,6 +235,17 @@ pretty_compare equal inequal expect_equal a b is_equal
         | otherwise = s
         where len = Text.length s
     maxlen = 400
+
+-- TODO move this or something like it to Texts?
+colored_diff :: Text -> Text -> Text
+colored_diff a b =
+    Text.unlines $ highlight_lines color diff_a $ Text.lines a
+    -- fmt_lines "->"
+    --     (highlight_lines color diff_a $ Text.lines a)
+    --     (highlight_lines color diff_b $ Text.lines b)
+    where
+    color = failure_color
+    (diff_a, diff_b) = diff_ranges a b
 
 -- | Apply color ranges as produced by 'diff_ranges'.
 highlight_lines :: ColorCode -> IntMap.IntMap [CharRange] -> [Text] -> [Text]

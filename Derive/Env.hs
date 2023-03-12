@@ -17,8 +17,6 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Typecheck as Typecheck
 import qualified Derive.ValType as ValType
 
-import qualified Perform.Signal as Signal
-
 import           Global
 
 

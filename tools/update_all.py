@@ -1,20 +1,18 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2013 Evan Laforge
 # This program is distributed under the terms of the GNU General Public
 # License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 '''Update all the saved scores with build/opt/update.
 
-This will backup save, and copy everything from save to save.new.
+This will copy everything from save to save.new.
 '''
 
-from __future__ import print_function
 import sys, os, subprocess, gzip
 
 dry_run = True
 
 update = 'build/opt/update'
-backup = '../save-backup/backup'
 
 def main():
     global dry_run
@@ -25,10 +23,11 @@ def main():
     else:
         print('usage: %s [ dry-run | for-real ]' % (sys.argv[0],))
         return
-    run('bin/mk', update)
-    run(backup)
-    update_dir('save', 'save.new')
-    os.path.walk('save.new', rename_git, None)
+    run(['bin/mk', update])
+    skipped = update_dir('save', 'save.new')
+    os.walk('save.new', rename_git, None)
+    print('skipped:')
+    print('\n'.join(skipped))
 
 ex_git = 'ex-git'
 
@@ -54,40 +53,46 @@ def rename(source, dest):
         os.rename(source, dest)
 
 def update_dir(source, dest):
-    subprocess.call(['mkdir', '-p', dest])
+    run(['mkdir', '-p', dest])
+    skipped = []
     for fn in os.listdir(source):
         if fn.startswith('.'):
             continue
-        update_file(os.path.join(source, fn), os.path.join(dest, fn))
+        skipped += update_file(os.path.join(source, fn), os.path.join(dest, fn))
+    return skipped
 
 def update_file(source, dest):
-    if not dry_run:
-        print(source, '->', dest)
+    skipped = []
+    # if not dry_run:
+    #     print(source, '->', dest)
     if source.endswith('.git'):
         dest = dest[:-3] + ex_git
-        run(update, source, dest)
-    elif os.path.basename(source) == 'ly':
-        run('cp', '-R', source, dest)
+        run([update, source, dest])
     elif os.path.isdir(source):
-        update_dir(source, dest)
-    elif is_score(source):
-        run(update, source, dest)
+        skipped += update_dir(source, dest)
+    elif is_score(source) or source.endswith('.ky'):
+        if not run([update, source, dest], fail_ok=True):
+            skipped.append(source)
     else:
-        run('cp', '-R', source, dest)
+        run(['cp', '-R', source, dest], noisy=False)
+    return skipped
 
-def run(bin, *args):
-    print(bin, ' '.join(args))
-    if not dry_run:
-        code = subprocess.call([bin] + list(args))
-        if code != 0:
-            raise ValueError(code)
+def run(cmd, fail_ok=False, noisy=True):
+    if noisy:
+        print("%", *cmd, flush=True)
+    if dry_run:
+        return True
+    code = subprocess.call(cmd)
+    if not fail_ok and code != 0:
+        raise ValueError(code)
+    return code == 0
 
 def is_score(fn):
     try:
         with gzip.GzipFile(fn) as fp:
             # From Cmd.Serialize.score_magic
             # TODO I should have a haskell program for this.
-            return fp.read(4) == 'scor'
+            return fp.read(4) == b'scor'
     except IOError:
         return False
 
