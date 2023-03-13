@@ -6,7 +6,16 @@
 --
 -- This is in its own module so "Derive.Deriver.Monad" can import it without
 -- importing "Derive.Typecheck".
-module Derive.ValType where
+module Derive.ValType (
+    Type(..)
+    , NumType(..)
+    , NumValue(..)
+    , types_match
+    , val_types_match
+    , type_of
+    , infer_type_of
+) where
+import qualified Data.List as List
 import qualified Data.Text as Text
 
 import qualified Util.Texts as Texts
@@ -18,15 +27,15 @@ import           Global
 
 
 data Type =
-    TNum NumType NumValue
+    -- | This is the \"any\" type.
+    TVal
+    | TNum NumType NumValue
     | TSignal NumType
     | TPSignal
     | TAttributes | TControlRef | TPControlRef | TPitch | TNotePitch
     -- | Text string, with enum values if it's an enum.
     | TStr (Maybe [Text]) | TControl | TPControl
     | TNotGiven | TSeparator | TMaybe Type | TEither Type Type
-    -- | This is the \"any\" type.
-    | TVal
     -- | Two types in sequence.  This has no corresponding Typecheck instance
     -- since it doesn't correspond to a single Val, but is used by "Derive.Sig"
     -- for documentation.
@@ -42,6 +51,19 @@ data Type =
     | TOther !Text
     deriving (Eq, Ord, Show)
 
+-- | Get the intersection of the types.  If there's no intersection, it winds
+-- up at TVal.  This is for 'infer_type_of'
+instance Semigroup Type where
+    TNum nt1 vt1 <> TNum nt2 vt2 = TNum (nt1<>nt2) (vt1<>vt2)
+    TSignal t1 <> TSignal t2 = TSignal (t1<>t2)
+    TMaybe t1 <> TMaybe t2 = TMaybe (t1 <> t2)
+    TEither t1 u1 <> TEither t2 u2 = TEither (t1<>t2) (u1<>u2)
+    TPair t1 u1 <> TPair t2 u2 = TPair (t1<>t2) (u1<>u2)
+    TList t1 <> TList t2 = TList (t1<>t2)
+    t1 <> t2
+        | t1 == t2 = t1
+        | otherwise = TVal
+
 -- | These are kind of muddled.  This is because they were originally just
 -- documentation, so the more specific the better, but are also used for
 -- typechecking in 'Derive.Env.put_val', so the subtype relations need to be
@@ -52,8 +74,14 @@ data NumType = TUntyped | TInt
     | TTime | TDefaultReal | TDefaultScore | TRealTime | TScoreTime
     deriving (Eq, Ord, Show)
 
+instance Semigroup NumType where
+    t1 <> t2
+        | t1 == t2 = t1
+        | otherwise = TUntyped -- TODO TTranspose super and TTime super
+
 -- | Numeric subtypes.
-data NumValue = TAny
+data NumValue =
+    TAny
     -- | >=0
     | TNonNegative
     -- | >0
@@ -63,6 +91,11 @@ data NumValue = TAny
     -- | -1 <= a <= 1
     | TNormalizedBipolar
     deriving (Eq, Ord, Show)
+
+instance Semigroup NumValue where
+    t1 <> t2
+        | t1 == t2 = t1
+        | otherwise = TAny -- TODO subtypes
 
 -- | This typechecking already exists in the Typecheck instances, but all it
 -- can do is go from a Val to a @Typecheck a => Maybe a@.  So I can't reuse it
@@ -89,10 +122,12 @@ types_match t1 t2 = case (t1, t2) of
     (TPair t1 t2, TPair u1 u2) -> types_match t1 u1 && types_match t2 u2
     (TEither t1 u1, TEither t2 u2) -> types_match t1 t2 && types_match u1 u2
     (TList t1, TList t2) -> types_match t1 t2
+    (TVal, _) -> True
+    (_, TVal) -> True
     (t1, t2) -> t1 == t2
     where
     num_types_match t1 t2 = t2 `elem` subtypes_of t1
-    num_vals_match v1 v2 = v1 <= v2
+    num_vals_match v1 v2 = v1 == TAny || v2 == TAny || v1 == v2
 
 -- | Nothing if the type of the rhs matches the lhs, otherwise the expected
 -- type.
@@ -183,7 +218,9 @@ infer_type_of specific = \case
     VControlFunction {} -> TControlFunction
     VNotGiven -> TNotGiven
     VSeparator -> TSeparator
-    VList {} -> TList TVal
+    VList [] -> TList TVal
+    -- Could use NonEmpty and sconcat, but too much bother.
+    VList vs -> TList (List.foldl1' (<>) (map (infer_type_of specific) vs))
 
 to_num_type :: ScoreT.Type -> NumType
 to_num_type = \case

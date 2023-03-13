@@ -56,9 +56,10 @@ instance Typecheck.Typecheck Color.Highlight
 -- | This is a generator that goes on null call, not a transformer over
 -- everything.
 c_highlight_strings_note :: Derive.Generator Derive.Note
-c_highlight_strings_note = Note.transformed_note
+c_highlight_strings_note = Note.transformed_note_name "note-highlight"
     ("Highlight any notes whose initial pitch isn't in "
-    <> ShowVal.doc EnvKey.open_strings <> ".") mempty $ \args deriver -> do
+        <> ShowVal.doc EnvKey.open_strings <> ".")
+    mempty $ \args deriver -> do
         pos <- Args.real_start args
         out_of_range (Args.start args) $ open_strings pos warn_non_open deriver
 

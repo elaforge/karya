@@ -6661,8 +6661,55 @@ Cmd:
       a bit of a hassle.
 
 Derive:
+  - make note call show up on the stack
+    . It's transformed_note which uses "note" name, but if I put in
+      a name I get it in the stack but last thing is still note-track.
+    . Stack is: note-track, 0t--.25t, note, 0, (tid "untitled/b3.t3"),
+      (tid "untitled/b3.t2"), note-track, 0t--.25t
+    . What's that stuff under note?  Presumably inversion?
+      But why note-track at the bottom?
+    . This seems to be normal, Derive_test.test_basic shows it, why though?
+    ? Also do I need redundant Block and block call?  All those Serial 0s?
+      Should I merge Region into Call?
+  - Env: would it be more efficient to remove WrongType and use Nothing?
+  - remove separate NumValue and NumType
+    . There's not much use for say Normalized ScoreTime, though I guess maybe
+      Positive ScoreTime.
+    . Also NumValue is dependent on the value, while NumType is from
+      ScoreT.Typed.
+    . All this ValType.types_match stuff is for putting vals out of Env.  But
+      do I really need to be so fancy?  Can't I just say as long as it's the
+      same Val type?
+    . The rest is just for documentation, I just want to be able to document
+      what Typecheck.from_val expects.
+    . This is independent of inferring a good (documentation!) type from
+      a val, so I can give a better error from Env.checked_val.
+      I think it should just print the actual val, no need to infer anything.
+
   unify-env: unified-env:
-    - What about backward compatibility for old scores?
+    + What about backward compatibility for old scores?
+      failed:
+        - save/complete/blue-hat
+          velocity 100 -> 127
+        - save/complete/wayang/cerucuk-punyah.state
+        - save/complete/wayang/delima-manis
+        - save/complete/wayang/p1
+        - save/complete/wayang/p2
+        - save/complete/wayang/p4
+        - save/complete/wayang/p8
+          can't set "strength" to cf-clamp, expected Num but got ControlFunction
+        * save/complete/yangqin-zheng-kendang/house-2014
+        * save/complete/yangqin-zheng-kendang/huiyin-concert
+          "open-strings": expected list of Pitch but val type is list of Val
+          open-strings is set from Kontakt standard-strings
+          read via...
+          . I'll bet it's highlight, doesn't appear in the stack!
+          . It's because highlight uses Derive.lookup_val, and Typecheck for
+            scalar pitch requires Eval even for NN Num
+          - Fix Typecheck.coerce_to_pitch
+          - make lookup_val error better
+            . "but val type is list of Val" is misleading, it really is list
+              of Num (NN) but I can't convert it to a pitch because bug.
       . Write a converter, or put % back in to equal as a shim.
       . Converter is better, shim lifespan is indefinite.
       . Also can delete all the states I can't load.

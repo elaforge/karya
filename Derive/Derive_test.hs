@@ -71,13 +71,27 @@ test_basic = do
     equal (DeriveTest.note_on_vel mmsgs) [(0, 60, 127), (16000, 61, 64)]
     equal logs []
     where
+    {-
+        b1
+        t1  t2  t3  (t1)
+        >i1 *   dyn (note-track)
+        |   4c  1   |
+        |           |
+        v           v
+        |   4c# .5  |
+        |           |
+        v           v
+    -}
     mkstack (s, e) = Stack.from_outermost
-        [ block_call UiTest.default_block_id, Stack.Serial 0
+        [ block_call UiTest.default_block_id
+        , Stack.Serial 0
         , Stack.Block UiTest.default_block_id
         , Stack.Track (UiTest.mk_tid 1)
         -- track title and event for note track
-        , Stack.Call "note-track", Stack.Region s e
-        , Stack.Call "note", Stack.Serial 0
+        , Stack.Call "note-track"
+        , Stack.Region s e
+        , Stack.Call "note"
+        , Stack.Serial 0
         , Stack.Track (UiTest.mk_tid 2)
         , Stack.Track (UiTest.mk_tid 3)
         -- t1 shows up again inverted

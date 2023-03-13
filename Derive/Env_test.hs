@@ -8,9 +8,11 @@ import qualified Data.Map as Map
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.PSignal as PSignal
 import qualified Derive.ScoreT as ScoreT
 import           Derive.TestInstances ()
 import qualified Derive.Typecheck as Typecheck
+import qualified Derive.ValType as ValType
 
 import qualified Perform.Signal as Signal
 
@@ -41,6 +43,25 @@ test_put_val = do
     right_equal (put_env "k" DeriveT.VNotGiven []) mempty
     right_equal (put_env "k" DeriveT.VNotGiven [("k", DeriveT.num 1)]) mempty
     -- untested: hardcoded_types
+
+test_checked_val :: Test
+test_checked_val = do
+    let f v = Env.checked_val "k" $ Env.from_list [("k", v)]
+    let nn = DeriveT.VNum . ScoreT.Typed ScoreT.Nn
+    left_like (fmap (pretty @(Maybe PSignal.Pitch)) (f (DeriveT.num 45)))
+        "expected Pitch but env val is Num"
+    right_equal (fmap (pretty @(Maybe PSignal.Pitch)) (f (nn 45)))
+        "45nn,45nn(no-scale)"
+    left_like (fmap (pretty @(Maybe [PSignal.Pitch]))
+        (f (DeriveT.VList [DeriveT.num 45])))
+        "expected list of Pitch but env val is list of Num"
+    right_equal
+        (fmap (pretty @(Maybe [PSignal.Pitch])) (f (DeriveT.VList [nn 45])))
+        "[45nn,45nn(no-scale)]"
+    left_like (fmap (pretty @(Maybe Int)) (f (DeriveT.VList [nn 45])))
+        "expected Num (integral) but env val is list of Num"
+    right_equal (fmap (pretty @(Maybe [Int])) (f (DeriveT.VList [nn 45])))
+        "[45]"
 
 test_put_val_cf :: Test
 test_put_val_cf = do

@@ -5,7 +5,9 @@
 -- | Basic calls for note tracks.
 module Derive.C.Prelude.Note (
     library
-    , c_note, transformed_note, note_call
+    , c_note
+    , transformed_note, transformed_note_name
+    , note_call
     , Config(..), use_attributes, no_duration_attributes
     , GenerateNote
     , default_note, default_note_integrate
@@ -79,8 +81,15 @@ c_note = note_call "note" "" mempty $ default_note use_attributes
 transformed_note :: Doc.Doc -> Tags.Tags
     -> (Derive.NoteArgs -> Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Derive.Generator Derive.Note
-transformed_note prepend_doc tags transform =
-    note_call "note" prepend_doc tags $ \args ->
+transformed_note = transformed_note_name "note"
+
+-- | 'transformed_note' but set the name.  Since 'note_call' doesn't take any
+-- args, this is just for documentation in the stack.
+transformed_note_name :: Derive.CallName -> Doc.Doc -> Tags.Tags
+    -> (Derive.NoteArgs -> Derive.NoteDeriver -> Derive.NoteDeriver)
+    -> Derive.Generator Derive.Note
+transformed_note_name name prepend_doc tags transform =
+    note_call name prepend_doc tags $ \args ->
         transform args (default_note use_attributes args)
 
 -- | Create a note call, configuring it with the actual note generating

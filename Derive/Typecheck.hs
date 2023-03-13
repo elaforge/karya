@@ -893,15 +893,19 @@ val_to_signal = \case
 
 -- | This is the pitch version of 'coerce_to_scalar'.
 coerce_to_pitch :: Val -> Checked PSignal.Pitch
-coerce_to_pitch val = case val_to_pitch_signal val of
-    Nothing -> failure
-    Just (Left dsig) -> Eval $ \pos ->
-        fmap Just . require pos . (PSignal.at pos) =<< dsig
-    Just (Right sig) -> Eval $ \pos ->
-        Just <$> require pos (PSignal.at pos sig)
-    where
-    require pos = Derive.require $
-        "no pitch at " <> pretty pos <> " for " <> ShowVal.show_val val
+coerce_to_pitch = \case
+    VPitch a -> success a
+    VNum (ScoreT.Typed ScoreT.Nn nn) ->
+        success $ PSignal.nn_pitch (Pitch.nn nn)
+    val -> case val_to_pitch_signal val of
+        Nothing -> failure
+        Just (Left dsig) -> Eval $ \pos ->
+            fmap Just . require pos . (PSignal.at pos) =<< dsig
+        Just (Right sig) -> Eval $ \pos ->
+            Just <$> require pos (PSignal.at pos sig)
+        where
+        require pos = Derive.require $
+            "no pitch at " <> pretty pos <> " for " <> ShowVal.show_val val
 
 coerce_to_pitch_signal :: Val -> Checked PSignal.PSignal
 coerce_to_pitch_signal val = case val_to_pitch_signal val of

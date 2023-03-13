@@ -130,7 +130,7 @@ get_val key environ = case lookup key environ of
     Nothing -> Left NotFound
     Just val -> case Typecheck.from_val_simple val of
         Nothing -> Left (WrongType (ValType.type_of val))
-        Just v -> Right v
+        Just a -> Right a
 
 -- | Like 'get_val', except that type errors and not found both turn into
 -- Nothing.
@@ -144,8 +144,8 @@ checked_val key environ = case get_val key environ of
     Left NotFound -> return Nothing
     Left (WrongType typ) ->
         Left $ pretty key <> ": expected " <> pretty return_type
-            <> " but val type is " <> pretty typ
-    Right v -> return (Just v)
+            <> " but env val is " <> pretty typ
+    Right a -> return (Just a)
     where return_type = Typecheck.to_type (Proxy :: Proxy a)
 
 -- | Like 'checked_val', but juggle the return type around so NotFound is just

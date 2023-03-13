@@ -23,7 +23,8 @@ import qualified Perform.Pitch as Pitch
 import           Global
 
 
--- TODO if Sig.Parser supported Deriver eval, I could make these return String.
+-- | TODO if Sig.Parser supported Deriver eval, I could make these return
+-- String, and not need to call 'indexed_strings'.
 open_strings_env :: Sig.Parser [PSignal.Pitch]
 open_strings_env = Sig.check non_empty $
     Sig.environ_key EnvKey.open_strings ([] :: [PSignal.Pitch])
