@@ -3,12 +3,15 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.C.Prelude.ControlFunction_test where
+import qualified Data.Maybe as Maybe
+
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Controls as Controls
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Typecheck as Typecheck
@@ -23,16 +26,39 @@ import           Util.Test
 
 test_cf_rnd :: Test
 test_cf_rnd = do
-    let run sus notes = DeriveTest.extract extract $ DeriveTest.derive_tracks ""
-            [("> | sus = " <> sus, [(n, 1, "") | n <- Seq.range' 0 notes 1])]
+    let run title notes = DeriveTest.extract extract $
+            DeriveTest.derive_tracks ""
+                [(title, [(n, 1, "") | n <- Seq.range' 0 notes 1])]
         extract = Score.event_duration
-    equal (run ".5" 1) ([0.5], [])
-    let (durs, logs) = run "(cf-rnd .5 1.5)" 5
+    equal (run "> | sus = .5" 1) ([0.5], [])
+    let (durs, logs) = run "> | sus = (cf-rnd .5 1.5)" 5
     equal logs []
     check ("not the same: " <> pretty durs) $ not (all (== head durs) durs)
     check ("in range 0.5--1.5: " <> pretty durs) $
         all (Num.inRange 0.5 1.5) durs
     pprint durs
+    let (durs, logs) = run "> | sus = 1 | sus = (cf-rnd+ .5 1.5)" 5
+    equal logs []
+    check ("in range 1.5--2.5: " <> pretty durs) $
+        all (Num.inRange 1.5 2.5) durs
+    pprint durs
+
+test_cf_backed :: Test
+test_cf_backed = do
+    let run title = DeriveTest.extract extract $
+            DeriveTest.derive_tracks title
+                [ ("dyn", [(0, 0, ".5")])
+                , (">", [(0, 1, ""), (1, 1, "")])
+                ]
+        extract :: Score.Event -> Maybe Double
+        extract = DeriveTest.e_environ_val EnvKey.dynamic_val
+    let (dyns, logs) = first Maybe.catMaybes $ run "dyn = (cf-rnd01 -.25 .25)"
+    equal logs []
+    equal (length dyns) 2
+    check ("not the same: " <> pretty dyns) $ not (all (== head dyns) dyns)
+    check ("in range 0.25--.75: " <> pretty dyns) $
+        all (Num.inRange 0.25 0.75) dyns
+    pprint dyns
 
 test_cf_rnd_transformer :: Test
 test_cf_rnd_transformer = do

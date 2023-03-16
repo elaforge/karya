@@ -6672,6 +6672,7 @@ Derive:
     ? Also do I need redundant Block and block call?  All those Serial 0s?
       Should I merge Region into Call?
   - Env: would it be more efficient to remove WrongType and use Nothing?
+    . get rid of checked_val vs checked_val2?
   - remove separate NumValue and NumType
     . There's not much use for say Normalized ScoreTime, though I guess maybe
       Positive ScoreTime.
@@ -6687,17 +6688,64 @@ Derive:
       I think it should just print the actual val, no need to infer anything.
 
   unify-env: unified-env:
+    - env vals are winding up as Signal.constant
+      . How do they get there and maybe convert them back?
+      . Or unify VSignal and VNum.
+    - Note enivron doesn't need to have values that are also in controls.
+      . What's more they aren't trimmed.
     + What about backward compatibility for old scores?
       failed:
-        - save/complete/blue-hat
+        / save/complete/blue-hat
           velocity 100 -> 127
-        - save/complete/wayang/cerucuk-punyah.state
-        - save/complete/wayang/delima-manis
-        - save/complete/wayang/p1
-        - save/complete/wayang/p2
-        - save/complete/wayang/p4
-        - save/complete/wayang/p8
-          can't set "strength" to cf-clamp, expected Num but got ControlFunction
+          a2 loop3 chan 0, comb filter
+          . Must be from DUtil.redirect_pitch change, comb filter now has
+            velocity of 1 instead of none, which seems fine.
+        + save/complete/wayang/cerucuk-punyah.state
+          . save/complete/wayang/delima-manis
+          . save/complete/wayang/p1
+          . save/complete/wayang/p2
+          . save/complete/wayang/p4
+          . save/complete/wayang/p8
+          - fixed but why did random change?
+            . Can I have a test to pin this down in the future?  It could
+              record the stack in various places, and its seed, and then
+              will fire when that changes.
+            . save/complete/wayang/p1 difference at 3.08s
+              old: dyn-val: .351
+              new: dyn-val: .366
+            . seed is the same, what else goes into rand?
+              pos, serial + seed - should all be the same.
+            . It only affects dyn, which is suggestive.  cf-rnd01
+            . But maybe I don't care.
+          * can't set "strength" to cf-clamp, expected Num but got
+            ControlFunction
+          * can't be coerced to signal: cf-clamp
+            . called by (tid "wayang/top.t2")?  Title is "dyn set"
+            . From Typecheck.lookup_signal:
+              . ControlUtil.modify_with... only used by multiply_dyn wich is
+                used in a few rare places.
+              . Block.c_capture_null_control for the null control.  Should be
+                ok because a track is a signal.
+            . It's 'dyn = (cf-rnd01 -.25 .25)' and then 'dyn set'.
+              * The cf-clamp name is leaking through.
+            . I can get a throw from a ref to a CF, but not sure that's what's
+              happening.  I'd have to have a ref in the env, which normally
+              doesn't happen because it gets resolved by typecheck.
+            . Because Lib.with_merged_control is used by tracks and needs
+              a signal.  So ultimately, I need to modify the signal inside the
+              CF.  That's what assign does, but control tracks don't do
+              assign.
+            . I would need to push the merge down Env.  This was a nice thing
+              about the separate namespace, signal modification stuff didn't
+              need to know about it and worked unchanged.  Maybe this is the
+              flip side of the problem with it, which is that lookup type
+              stuff did need to know about it and apply it?  But what was so
+              bad about it?
+            . curve=(cf) wasn't working because I lost a syntax to say put
+              a CF into the cf namespace instead of env, used by pure CFs.
+              This would also be solved by a separate type for pure CFs and
+              then backed CFs always go to the namespace, but it's still a
+              weird situation where it must be a Val but can't go into Env.
         * save/complete/yangqin-zheng-kendang/house-2014
         * save/complete/yangqin-zheng-kendang/huiyin-concert
           "open-strings": expected list of Pitch but val type is list of Val

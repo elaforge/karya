@@ -43,7 +43,7 @@ test_equal_merge_env = do
     let run evt = DeriveTest.extract (fromMaybe "" . DeriveTest.e_environ "k")
             (DeriveTest.derive_tracks "" [(">", [(0, 1, evt)])])
     equal (run "k=1 | k=+1 |") (["2"], [])
-    strings_like (snd $ run "k=c | k=+1 |") ["can't be coerced to signal: c"]
+    strings_like (snd $ run "k=c | k=+1 |") ["k: can't modify Str as a signal"]
     strings_like (snd $ run "k=1 | k=+c |")
         [ "merge is only supported for numeric types, tried to merge Str\
           \ with add"

@@ -116,7 +116,7 @@ c_cf_rnd01 :: Derive.ValCall
 c_cf_rnd01 = Make.modify_vcall (c_cf_rnd (+)) Module.prelude "cf-rnd01"
     "This is an abbreviation for `(cf-clamp (cf-rnd+ ..) 0 1)`." $
     \val -> case Typecheck.from_val_simple val of
-        Just cf -> Typecheck.to_val $ cf_compose "cf-clamp" (Num.clamp 0 1) cf
+        Just cf -> Typecheck.to_val $ cf_compose "cf-rnd01" (Num.clamp 0 1) cf
         Nothing -> val
 
 cf_rnd :: Distribution -> Double -> Double -> [Double] -> Double
@@ -210,7 +210,8 @@ c_cf_clamp = val_call "cf-clamp" Tags.control_function
     <*> Sig.defaulted "low" (0 :: Double) "Low value."
     <*> Sig.defaulted "high" (1 :: Double) "High value."
     ) $ \(cf, low, high) _args ->
-        return $ cf_compose "cf-clamp" (Num.clamp low high) cf
+        return $ cf_compose ("cf-clamp(" <> DeriveT.cf_name cf <> ")")
+            (Num.clamp low high) cf
 
 cf_compose :: Text -> (Signal.Y -> Signal.Y) -> DeriveT.ControlFunction
     -> DeriveT.ControlFunction
@@ -219,7 +220,7 @@ cf_compose name f cf = DeriveT.ControlFunction
     , cf_function = case DeriveT.cf_function cf of
         DeriveT.CFPure typ cfp -> DeriveT.CFPure typ (f . cfp)
         DeriveT.CFBacked sig cfp -> DeriveT.CFBacked sig $
-            \dyn c -> (f . cfp dyn c)
+            \cf_dyn c -> (f . cfp cf_dyn c)
     }
 
 -- * curve interpolators
@@ -237,7 +238,7 @@ curves =
 -- * DeriveT.Dynamic
 
 dyn_seed :: DeriveT.Dynamic -> Double
-dyn_seed dyn = fromIntegral (DeriveT.dyn_event_serial dyn) + seed dyn
+dyn_seed cf_dyn = fromIntegral (DeriveT.dyn_event_serial cf_dyn) + seed cf_dyn
     where seed = fromMaybe 0 . Env.maybe_val EnvKey.seed . DeriveT.dyn_environ
 
 real :: DeriveT.Dynamic -> ScoreTime -> RealTime

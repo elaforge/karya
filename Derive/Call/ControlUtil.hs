@@ -419,9 +419,6 @@ split_samples_relative time_at = concatMap split . Seq.zip_next
 
 -- * control mod
 
-modify :: ScoreT.Control -> RealTime -> Signal.Control -> Derive.Deriver ()
-modify = modify_with Derive.DefaultMerge
-
 -- | Modify the signal only in the given range.
 modify_with :: Derive.Merge -> ScoreT.Control -> RealTime
     -- ^ Where the modification should end.  I don't need a start time since

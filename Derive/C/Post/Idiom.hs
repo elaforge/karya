@@ -188,8 +188,8 @@ c_apply_attributes = Derive.transformer Module.prelude "apply-attributes"
         <> " will, when non-zero, add the `+a+b` attributes to its events."
     ) $ Sig.call0t $ \_args deriver -> Post.emap1_ apply_attributes <$> deriver
 
--- | For all controls that start with @+@ and are positive during the event
--- start, add those attributes to the event.
+-- | For all controls that start with 'control_prefix' and are positive during
+-- the event start, add those attributes to the event.
 --
 -- TODO a possible variation would be to take 0<v<1 as a probability of
 -- applying the attribute.

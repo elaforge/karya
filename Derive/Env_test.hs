@@ -12,7 +12,6 @@ import qualified Derive.PSignal as PSignal
 import qualified Derive.ScoreT as ScoreT
 import           Derive.TestInstances ()
 import qualified Derive.Typecheck as Typecheck
-import qualified Derive.ValType as ValType
 
 import qualified Perform.Signal as Signal
 
@@ -81,7 +80,8 @@ test_put_val_cf = do
     -- Pure cf can be replaced by impure and vice versa.  TODO but they are
     -- kind of different types, if I make them so then this will fail.
     right_equal (put cf0 cfp) (Just ("cfp", Nothing))
-    left_like (put cfp (DeriveT.num 1)) "expected ControlFunction but got Num"
+    left_like (put cfp (DeriveT.num 1))
+        "can't merge 1 into pure ControlFunction"
     left_like (put cfp vsig)
         "can't merge (signal 0 4) into pure ControlFunction"
     right_equal (put cf0 vsig) (Just ("cf0", Just sig))

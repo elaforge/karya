@@ -248,8 +248,10 @@ find_controls note_track_ids events =
     where
     convert events (note, track_id) = find_event track_id note events
     extract Nothing = (Nothing, mempty)
-    extract (Just event) = (Score.initial_pitch event,
-        Score.event_controls_at (Score.event_start event) event)
+    extract (Just event) =
+        ( Score.initial_pitch event
+        , Score.event_controls_at (Score.event_start event) event
+        )
 
 find_event :: TrackId -> Note -> Vector.Vector Score.Event -> Maybe Score.Event
 find_event track_id note = Vector.find $ \event ->

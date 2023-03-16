@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE DeriveFunctor #-}
@@ -44,7 +45,6 @@ module Derive.Typecheck (
     , lookup_signal
     , val_to_signal
     , val_to_function, val_to_function_dyn
-    , resolve_signal
 
     -- * pitch signals
     , val_to_pitch_signal
@@ -53,6 +53,9 @@ module Derive.Typecheck (
 
     -- * compatibility
     , resolve_function
+#ifdef TESTING
+    , resolve_signal
+#endif
 ) where
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
@@ -847,6 +850,8 @@ lookup_function (DeriveT.Ref control deflt) = do
         Just (Right tf) -> return $ Just tf
         Just (Left dtf) -> Just <$> dtf
 
+-- *** signal
+
 -- | Resolve ref to a DeriveT.TypedSignal.  This does not take ControlFunctions
 -- into account, but is necessary when you need the actual signal.
 resolve_signal :: DeriveT.ControlRef
@@ -881,6 +886,9 @@ val_to_signal = \case
     DeriveT.VControlRef ref -> Just $ Left $
         Derive.require ("control not found: " <> ShowVal.show_val ref)
             =<< resolve_signal ref
+    DeriveT.VControlFunction cf -> case DeriveT.cf_function cf of
+        DeriveT.CFBacked sig _ -> Just $ Right sig
+        DeriveT.CFPure {} -> Nothing
     _ -> Nothing
 
 

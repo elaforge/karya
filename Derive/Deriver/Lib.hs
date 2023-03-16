@@ -657,19 +657,6 @@ controls_at = fmap (fmap ScoreT.typed_val) . typed_controls_at
 typed_controls_at :: RealTime -> Deriver ScoreT.TypedControlValMap
 typed_controls_at pos = fmap (fmap ($ pos)) <$> get_function_map
 
--- | Modify all VSignal and VPSignal types in environ.
-modify_signals :: (Signal.Control -> Signal.Control)
-    -> (PSignal.PSignal -> PSignal.PSignal) -> Deriver a -> Deriver a
-modify_signals modify_control modify_pitch = Internal.local $ \state -> state
-    { state_environ = Env.map update (state_environ state)
-    , state_pitch = modify_pitch (state_pitch state)
-    }
-    where
-    update = \case
-        DeriveT.VSignal sig -> DeriveT.VSignal (modify_control <$> sig)
-        DeriveT.VPSignal sig -> DeriveT.VPSignal (modify_pitch sig)
-        val -> val
-
 -- | Get all signals in the environ.  This is like 'get_control_map', but
 -- doesn't resolve ControlRefs.
 -- TODO remove it, only used by LPerf and Derive_test
@@ -741,14 +728,22 @@ remove_controls controls = Internal.local $ \state -> state
 -- If both signals are typed, the existing type wins over the relative
 -- signal's type.  If one is untyped, the typed one wins.
 --
--- As documetned in 'merge', this acts like a Set if there is no existing
+-- As documented in 'merge', this acts like a Set if there is no existing
 -- control.
 with_merged_control :: Merger -> ScoreT.Control -> ScoreT.Typed Signal.Control
     -> Deriver a -> Deriver a
-with_merged_control merger control signal deriver = do
-    mb_sig <- lookup_signal control
-    let new = merge merger mb_sig signal
-    with_control control new deriver
+with_merged_control merger control signal =
+    modify_signal control (\mb_sig -> merge merger mb_sig signal)
+
+-- | This is not just 'with_control', because I have to merge a control signal
+-- into a possible ControlFunction.
+modify_signal :: ScoreT.Control
+    -> (Maybe DeriveT.TypedSignal -> DeriveT.TypedSignal) -> Deriver a
+    -> Deriver a
+modify_signal (ScoreT.Control control) modify = Internal.localm $ \state -> do
+    val <- require_right ((control <> ": ")<>) $
+        Env.modify_signal modify control (state_environ state)
+    return $! insert_env control val state
 
 -- | Like 'with_controls', but merge them with their respective default
 -- 'Merger's.
@@ -806,6 +801,23 @@ modify_control :: Merger -> ScoreT.Control -> Signal.Control -> Deriver ()
 modify_control merger control signal = Internal.modify_collect $ \collect ->
     collect { collect_control_mods =
         ControlMod control signal merger : collect_control_mods collect }
+
+-- | Modify all VSignal and VPSignal types in environ.
+modify_signals :: (Signal.Control -> Signal.Control)
+    -> (PSignal.PSignal -> PSignal.PSignal) -> Deriver a -> Deriver a
+modify_signals modify_control modify_pitch = Internal.local $ \state -> state
+    { state_environ = Env.map update (state_environ state)
+    , state_pitch = modify_pitch (state_pitch state)
+    }
+    where
+    update = \case
+        DeriveT.VSignal sig -> DeriveT.VSignal (modify_control <$> sig)
+        DeriveT.VPSignal sig -> DeriveT.VPSignal (modify_pitch sig)
+        DeriveT.VControlFunction
+                (DeriveT.ControlFunction name (DeriveT.CFBacked sig f)) ->
+            DeriveT.VControlFunction $ DeriveT.ControlFunction name $
+                DeriveT.CFBacked (modify_control <$> sig) f
+        val -> val
 
 -- | Apply the collected control mods to the given deriver and clear them out.
 eval_control_mods :: RealTime -- ^ Trim controls to end at this time.

@@ -3,8 +3,19 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Env (
-    module Derive.Env
-    , Key, Environ, null, lookup, insert
+    Key, Environ, null, lookup, insert
+    , from_list, to_list
+    , to_map, from_map
+    , delete
+    , is_set
+    , map
+    , put_val
+    , modify_signal
+    , insert_val
+    , LookupError(..)
+    , get_val
+    , maybe_val
+    , checked_val, checked_val2
 ) where
 import           Prelude hiding (map, null, lookup)
 import qualified Data.Map as Map
@@ -16,6 +27,8 @@ import           Derive.EnvKey (Key)
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Typecheck as Typecheck
 import qualified Derive.ValType as ValType
+
+import qualified Perform.Signal as Signal
 
 import           Global
 
@@ -69,17 +82,14 @@ put_val key val environ = case lookup key environ of
         (_, DeriveT.VNotGiven) -> Right $ delete key environ
         (DeriveT.VControlFunction cf, rhs)
             | Just cf <- merge_cf cf rhs -> add <$> cf
-        -- As a special hack, while `lhs=(cf) | lhs=1` is fine because
-        -- the num coerces to a constant signal, let's disallow the other
-        -- way.  This is because numeric constants are common and turning
-        -- them into a function means plain Derive.get_val will stop working,
-        -- e.g. Call.get_srate.
         (lhs, DeriveT.VControlFunction cf)
             | Just cf <- merge_cf cf lhs -> add <$> cf
         (lhs, rhs) -> case ValType.val_types_match lhs rhs of
             Just expected -> Left $ type_error key rhs expected
             Nothing -> Right $ add rhs
     merge_cf cf = \case
+        DeriveT.VNum num -> Just $ DeriveT.VControlFunction <$>
+            cf_set_control (Signal.constant <$> num) cf
         DeriveT.VSignal sig -> Just $ DeriveT.VControlFunction <$>
             cf_set_control sig cf
         -- Anything else gets type checked and replaced.
@@ -94,6 +104,27 @@ cf_set_control sig cf = case DeriveT.cf_function cf of
     -- TODO If I make CFPure a separate type, this goes away.
     DeriveT.CFPure {} -> Left $ "can't merge "
         <> ShowVal.show_val sig <> " into pure ControlFunction"
+
+modify_signal :: (Maybe DeriveT.TypedSignal -> DeriveT.TypedSignal) -> Key
+    -> Environ -> Either Error DeriveT.Val
+modify_signal modify key environ = case lookup key environ of
+    Nothing -> Right $ Typecheck.to_val $ modify Nothing
+    Just val -> modify_signal_val (modify . Just) val
+
+modify_signal_val :: (DeriveT.TypedSignal -> DeriveT.TypedSignal) -> DeriveT.Val
+    -> Either Error DeriveT.Val
+modify_signal_val modify = \case
+    DeriveT.VNum num ->
+        Right $ DeriveT.VSignal $ modify $ Signal.constant <$> num
+    DeriveT.VSignal sig -> Right $ DeriveT.VSignal $ modify sig
+    DeriveT.VControlFunction cf -> case DeriveT.cf_function cf of
+        DeriveT.CFBacked sig f ->
+            Right $ DeriveT.VControlFunction $
+                cf { DeriveT.cf_function = DeriveT.CFBacked (modify sig) f }
+        DeriveT.CFPure {} ->
+            Left "can't modify pure ControlFunction as a signal"
+    val -> Left $ "can't modify " <> pretty (ValType.type_of val)
+        <> " as a signal"
 
 type_error :: Key -> DeriveT.Val -> ValType.Type -> Error
 type_error key val expected = mconcat
