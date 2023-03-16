@@ -17,6 +17,7 @@ import qualified Data.Text.IO as Text.IO
 import qualified Data.Vector as Vector
 
 import qualified System.Console.GetOpt as GetOpt
+import qualified System.Directory as Directory
 import qualified System.Environment
 import qualified System.FilePath as FilePath
 import           System.FilePath ((</>))
@@ -53,7 +54,8 @@ data Flag = Help | Mode Mode | Output !FilePath
     deriving (Eq, Show)
 
 data Mode =
-    Verify | Save | Perform | Profile | ProfileDerive | DumpMidi | CommitInfo
+    Verify | Save | Derive | Perform | Profile | ProfileDerive
+    | DumpMidi | CommitInfo
     deriving (Eq, Show, Bounded, Enum)
 
 data PerformTo = ToDerive | ToMidi
@@ -63,7 +65,7 @@ options :: [GetOpt.OptDescr Flag]
 options =
     [ GetOpt.Option [] ["help"] (GetOpt.NoArg Help) "display usage"
     , GetOpt.Option [] ["mode"]
-        (GetOpt.ReqArg read_mode (show [minBound :: Mode .. maxBound])) $
+        (GetOpt.ReqArg read_mode (show [minBound :: Mode ..])) $
         "Run in this mode, defaults to Verify.  Modes:\n\
         \  Verify - Check saved performances against current performances.\n\
         \    If you give a directory and it has a file inside called\n\
@@ -129,7 +131,11 @@ main = Git.initialize $ do
             run_error $ mapM_ (perform Nothing cmd_config) args >> return []
         ProfileDerive -> do
             when (null args) $ usage "no inputs"
-            run_error $ mapM_ (derive cmd_config) args >> return []
+            run_error $ mapM_ (derive Nothing cmd_config) args >> return []
+        Derive -> do
+            when (null args) $ usage "no inputs"
+            run_error $ mapM_ (derive (Just out_dir) cmd_config) args
+                >> return []
         Perform -> do
             when (null args) $ usage "no inputs"
             run_error $ mapM_ (perform (Just out_dir) cmd_config) args
@@ -188,17 +194,17 @@ save out_dir fname = do
         look = Map.lookup block_id
     midi <- case look (UiConfig.meta_midi_performances meta) of
         Nothing -> return False
-        Just perf -> do
-            let out = out_dir </> basename fname <> ".midi"
-            liftIO $ putStrLn $ "write " <> out
-            liftIO $ DiffPerformance.save_midi out (UiConfig.perf_events perf)
+        Just perf -> liftIO $ do
+            out <- get_output out_dir fname ".midi"
+            putStrLn $ "write " <> out
+            DiffPerformance.save_midi out (UiConfig.perf_events perf)
             return True
     ly <- case look (UiConfig.meta_lilypond_performances meta) of
         Nothing -> return False
-        Just perf -> do
-            let out = out_dir </> basename fname <> ".ly"
-            liftIO $ putStrLn $ "write " <> out
-            liftIO $ Text.IO.writeFile out (UiConfig.perf_events perf)
+        Just perf -> liftIO $ do
+            out <- get_output out_dir fname ".midi"
+            putStrLn $ "write " <> out
+            Text.IO.writeFile out (UiConfig.perf_events perf)
             return True
     return $ if midi || ly then []
         else [txt fname <> ": no midi or ly performance"]
@@ -209,15 +215,15 @@ perform maybe_out_dir cmd_config fname = do
     (state, library, aliases, block_id) <- load fname
     (msgs, _, _) <- perform_block fname
         (make_cmd_state library aliases cmd_config) state block_id
-    whenJust maybe_out_dir $ \out_dir -> do
-        let out = out_dir </> basename fname <> ".midi"
-        liftIO $ putStrLn $ "write " <> out
-        liftIO $ DiffPerformance.save_midi out (Vector.fromList msgs)
+    whenJust maybe_out_dir $ \out_dir -> liftIO $ do
+        out <- get_output out_dir fname ".midi"
+        putStrLn $ "write " <> out
+        DiffPerformance.save_midi out (Vector.fromList msgs)
 
 -- | Like 'perform', but don't perform to MIDI.
-derive :: Cmd.Config -> FilePath
+derive :: Maybe FilePath -> Cmd.Config -> FilePath
     -> ErrorM (Vector.Vector Score.Event, DeriveSaved.CPU)
-derive cmd_config fname = do
+derive maybe_out_dir cmd_config fname = do
     (state, library, aliases, block_id) <- load fname
     let cmd_state = make_cmd_state library aliases cmd_config
     ((!events, logs), derive_cpu) <- liftIO $
@@ -225,7 +231,19 @@ derive cmd_config fname = do
     liftIO $ mapM_ Log.write logs
     liftIO $ Text.IO.putStrLn $ "derived " <> showt (Vector.length events)
         <> " in " <> Num.showFloat 2 (toSecs derive_cpu)
+    whenJust maybe_out_dir $ \out_dir -> liftIO $ do
+        out <- get_output out_dir fname ".score"
+        putStrLn $ "write " <> out
+        Text.IO.writeFile out $ Text.unlines $
+            map Pretty.formatted (Vector.toList events)
     return (events, derive_cpu)
+
+get_output :: FilePath -> FilePath -> String -> IO FilePath
+get_output out_dir fname extension = do
+    Directory.createDirectoryIfMissing True (FilePath.takeDirectory out)
+    return out
+    where
+    out = out_dir </> basename fname <> extension
 
 dump_midi :: FilePath -> ErrorM ()
 dump_midi fname = do
