@@ -203,7 +203,7 @@ parse_equal Set lhs rhs
             Derive.with_instrument_alias (ScoreT.Instrument new)
                 (ScoreT.Instrument inst)
         _ -> Left $ "aliasing an instrument expected an instrument rhs, got "
-            <> pretty (ValType.type_of rhs)
+            <> pretty (ValType.specific_type_of rhs)
 -- TODO should I centralize the parsing of #?  Or is equal the only place that
 -- needs this notation where # is state_pitch?  I used to parse a VPControlRef
 parse_equal Set "#" rhs = case rhs of
@@ -218,7 +218,7 @@ parse_equal Set "#" rhs = case rhs of
         sig <- Typecheck.resolve_pitch_ref ref
         Derive.with_pitch sig deriver
     _ -> Left $ "binding a pitch signal expected a pitch, pitch"
-        <> " signal, or nn, but got " <> pretty (ValType.type_of rhs)
+        <> " signal, or nn, but got " <> pretty (ValType.specific_type_of rhs)
 parse_equal Set lhs rhs
     | not (Id.valid_symbol lhs) = Left $
         "tried to assign to invalid symbol name: " <> ShowVal.show_val lhs
@@ -228,7 +228,8 @@ parse_equal merge lhs rhs = case rhs of
     DeriveT.VNum num -> Right $ merge_signal (Signal.constant <$> num)
     DeriveT.VSignal sig -> Right $ merge_signal sig
     _ -> Left $ "merge is only supported for numeric types, tried to merge "
-        <> pretty (ValType.type_of rhs) <> " with " <> ShowVal.show_val merge
+        <> pretty (ValType.specific_type_of rhs) <> " with "
+        <> ShowVal.show_val merge
     where
     merge_signal sig deriver = do
         merger <- get_merger control merge

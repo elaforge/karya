@@ -267,14 +267,14 @@ instance Pretty TypeErrorT where
         ] ++ case mb_received of
             Just received -> case derive_error of
                 Nothing ->
-                    [ " but got ", pretty (ValType.type_of received)
+                    [ " but got ", pretty (ValType.specific_type_of received)
                     , ": " <> pretty received
                     ]
                 -- The srcpos and stack of the derive error is probably not
                 -- interesting, so I strip those out.
                 Just (Error _ _ msg) ->
                     [ " but couldn't convert "
-                    , pretty (ValType.type_of received)
+                    , pretty (ValType.specific_type_of received)
                     ,  " ", pretty received, ": ", pretty msg
                     ]
             Nothing -> case source of

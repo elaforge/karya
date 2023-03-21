@@ -24,6 +24,7 @@ import qualified Derive.DeriveT as DeriveT
 import           Derive.DeriveT (Environ(..), insert, lookup, null)
 import qualified Derive.EnvKey as EnvKey
 import           Derive.EnvKey (Key)
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Typecheck as Typecheck
 import qualified Derive.ValType as ValType
@@ -69,9 +70,8 @@ type Error = Text
 put_val :: Typecheck.ToVal a => Key -> a -> Environ -> Either Error Environ
 put_val key val environ = case lookup key environ of
     Nothing -> case Map.lookup key hardcoded_types of
-        Just expected | not $
-            ValType.types_match expected (ValType.type_of rhs) ->
-                Left $ type_error key rhs expected
+        Just expected | not $ DeriveT.types_equal expected rhs ->
+            Left $ type_error key rhs (ValType.general_type_of expected)
         _ -> Right $ case rhs of
             DeriveT.VNotGiven -> environ
             _ -> insert key rhs environ
@@ -84,9 +84,10 @@ put_val key val environ = case lookup key environ of
             | Just cf <- merge_cf cf rhs -> add <$> cf
         (lhs, DeriveT.VControlFunction cf)
             | Just cf <- merge_cf cf lhs -> add <$> cf
-        (lhs, rhs) -> case ValType.val_types_match lhs rhs of
-            Just expected -> Left $ type_error key rhs expected
-            Nothing -> Right $ add rhs
+        (lhs, rhs)
+            | DeriveT.types_equal lhs rhs -> Right $ add rhs
+            | otherwise ->
+                Left $ type_error key rhs (ValType.general_type_of lhs)
     merge_cf cf = \case
         DeriveT.VNum num -> Just $ DeriveT.VControlFunction <$>
             cf_set_control (Signal.constant <$> num) cf
@@ -123,13 +124,13 @@ modify_signal_val modify = \case
                 cf { DeriveT.cf_function = DeriveT.CFBacked (modify sig) f }
         DeriveT.CFPure {} ->
             Left "can't modify pure ControlFunction as a signal"
-    val -> Left $ "can't modify " <> pretty (ValType.type_of val)
+    val -> Left $ "can't modify " <> pretty (ValType.general_type_of val)
         <> " as a signal"
 
 type_error :: Key -> DeriveT.Val -> ValType.Type -> Error
 type_error key val expected = mconcat
     [ "can't set ", pretty key, " to ", ShowVal.show_val val, ", expected "
-    , pretty expected, " but got ", pretty (ValType.type_of val)
+    , pretty expected, " but got ", pretty (ValType.general_type_of val)
     ]
 
 -- | Insert a val without typechecking.
@@ -138,21 +139,25 @@ insert_val key = insert key . Typecheck.to_val
 
 -- | If a standard val gets set to the wrong type, it will cause confusing
 -- errors later on.
-hardcoded_types :: Map Key ValType.Type
+hardcoded_types :: Map Key DeriveT.Val
 hardcoded_types = Map.fromList
-    [ (EnvKey.attributes,  ValType.TAttributes)
-    , (EnvKey.block_end,   ValType.TNum ValType.TScoreTime ValType.TAny)
-    , (EnvKey.control,     ValType.TStr Nothing)
-    , (EnvKey.instrument,  ValType.TStr Nothing)
-    , (EnvKey.key,         ValType.TStr Nothing)
-    , (EnvKey.merge,       ValType.TStr Nothing)
-    , (EnvKey.scale,       ValType.TStr Nothing)
-    , (EnvKey.seed,        ValType.TNum ValType.TUntyped ValType.TAny)
-    , (EnvKey.srate,       ValType.TNum ValType.TUntyped ValType.TAny)
-    , (EnvKey.suppress_until, ValType.TNum ValType.TRealTime ValType.TAny)
-    , (EnvKey.tuning,      ValType.TStr Nothing)
-    , (EnvKey.voice,       ValType.TNum ValType.TUntyped ValType.TAny)
+    [ (EnvKey.attributes,  DeriveT.VAttributes mempty)
+    , (EnvKey.block_end,   tnum ScoreT.Score)
+    , (EnvKey.control,     str)
+    , (EnvKey.instrument,  str)
+    , (EnvKey.key,         str)
+    , (EnvKey.merge,       str)
+    , (EnvKey.scale,       str)
+    , (EnvKey.seed,        num)
+    , (EnvKey.srate,       num)
+    , (EnvKey.suppress_until, tnum ScoreT.Real)
+    , (EnvKey.tuning,      str)
+    , (EnvKey.voice,       num)
     ]
+    where
+    str = DeriveT.VStr ""
+    tnum typ = DeriveT.VNum (ScoreT.Typed typ 0)
+    num = DeriveT.VNum (ScoreT.untyped 0)
 
 data LookupError = NotFound | WrongType !ValType.Type deriving (Show)
 
@@ -160,7 +165,7 @@ get_val :: Typecheck.Typecheck a => Key -> Environ -> Either LookupError a
 get_val key environ = case lookup key environ of
     Nothing -> Left NotFound
     Just val -> case Typecheck.from_val_simple val of
-        Nothing -> Left (WrongType (ValType.type_of val))
+        Nothing -> Left (WrongType (ValType.general_type_of val))
         Just a -> Right a
 
 -- | Like 'get_val', except that type errors and not found both turn into

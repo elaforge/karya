@@ -169,7 +169,7 @@ typecheck_simple val =
 
 type_error_msg :: Typecheck a => Proxy a -> Val -> Text
 type_error_msg expected val = "expected " <> pretty (to_type expected)
-    <> " but got " <> pretty (ValType.type_of val)
+    <> " but got " <> pretty (ValType.specific_type_of val)
 
 -- * Typecheck class
 
@@ -945,7 +945,7 @@ lookup_pitch_signal pcontrol
     -- to avoid circular import.
     get val = case val_to_pitch_signal val of
         Nothing -> Derive.throw $
-            pretty pcontrol <> ": " <> pretty (ValType.type_of val)
+            pretty pcontrol <> ": " <> pretty (ValType.specific_type_of val)
                 <> " can't be coerced to pitch signal"
         Just (Left df) -> df
         Just (Right f) -> return f

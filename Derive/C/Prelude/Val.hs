@@ -148,12 +148,11 @@ c_env = val_call "env" mempty
         Just deflt -> check name deflt =<< Derive.lookup_val name
     where
     check _ deflt Nothing = return deflt
-    check name deflt (Just val) =
-        case ValType.val_types_match deflt val of
-            Nothing -> return val
-            Just expected -> Derive.throw $ "env " <> pretty name
-                <> " expected " <> pretty expected
-                <> " but got " <> pretty (ValType.infer_type_of False val)
+    check name deflt (Just val)
+        | DeriveT.types_equal deflt val = return val
+        | otherwise = Derive.throw $ "env " <> pretty name
+            <> " expected " <> pretty (ValType.general_type_of deflt)
+            <> " but got " <> pretty (ValType.general_type_of val)
 
 c_timestep :: Derive.ValCall
 c_timestep = val_call "timestep" mempty

@@ -174,7 +174,7 @@ from_control_ref = \case
     DeriveT.VControlRef ref -> pure $ Left ref
     DeriveT.VNum num -> pure $ Right num
     val -> Derive.throw $ "expected ControlRef or Num, but got "
-        <> pretty (ValType.type_of val)
+        <> pretty (ValType.specific_type_of val)
 
 -- | Defaulted control from a RealTime.
 make_ref :: ScoreT.Control -> RealTime -> DeriveT.ControlRef

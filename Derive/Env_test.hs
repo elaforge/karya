@@ -22,10 +22,14 @@ import           Util.Test
 
 test_put_val :: Test
 test_put_val = do
+    let numt typ = DeriveT.VNum . ScoreT.Typed typ
     right_equal (put1 (0 :: ScoreTime) (1 :: ScoreTime))
         (Typecheck.to_val (1 :: ScoreTime))
-    left_like (put1 (0 :: ScoreTime) (1 :: RealTime))
-        "expected Num (ScoreTime) but got Num (RealTime"
+    -- I used to disallow this but simplified checking.
+    -- left_like (put1 (0 :: ScoreTime) (1 :: RealTime))
+    --     "expected Num (ScoreTime) but got Num (RealTime"
+    right_equal (put1 (0 :: ScoreTime) (1 :: RealTime)) (numt ScoreT.Real 1)
+
     -- Don't infer that just because someone put in a positive value that
     -- the type must be positive.
     right_equal (put1 (1 :: Double) (-1 :: Double)) (DeriveT.num (-1))
@@ -34,10 +38,17 @@ test_put_val = do
     -- Num and Signal are compatible, as long as the types are compatible.
     right_equal (put1 (1 :: Double) sig) sig
     right_equal (put1 sig (1 :: Double)) (DeriveT.num 1)
-    left_like (put1
+
+    right_equal
+        (put1
             (DeriveT.VSignal (ScoreT.Typed ScoreT.Real (Signal.constant 1)))
             (2 :: ScoreTime))
-        "expected Signal (RealTime) but got Num (ScoreTime"
+        (numt ScoreT.Score 2)
+    -- left_like (put1
+    --         (DeriveT.VSignal (ScoreT.Typed ScoreT.Real (Signal.constant 1)))
+    --         (2 :: ScoreTime))
+    --     "expected Signal (RealTime) but got Num (ScoreTime"
+
     -- remove with VNotGiven
     right_equal (put_env "k" DeriveT.VNotGiven []) mempty
     right_equal (put_env "k" DeriveT.VNotGiven [("k", DeriveT.num 1)]) mempty

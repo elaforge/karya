@@ -10,10 +10,7 @@ module Derive.ValType (
     Type(..)
     , NumType(..)
     , NumValue(..)
-    , types_match
-    , val_types_match
-    , type_of
-    , infer_type_of
+    , general_type_of, specific_type_of
 ) where
 import qualified Data.List as List
 import qualified Data.Text as Text
@@ -64,11 +61,9 @@ instance Semigroup Type where
         | t1 == t2 = t1
         | otherwise = TVal
 
--- | These are kind of muddled.  This is because they were originally just
--- documentation, so the more specific the better, but are also used for
--- typechecking in 'Derive.Env.put_val', so the subtype relations need to be
--- respected.  But since some are just documentation (e.g. TDefaultReal), they
--- should never show up on the LHS of a put_val typecheck.
+-- | Some of these are subtypes of others (TTranspose includes
+-- TDefaultDiatonic), but since they're just documentation, it shouldn't
+-- matter.
 data NumType = TUntyped | TInt
     | TTranspose | TDefaultDiatonic | TDefaultChromatic | TNoteNumber
     | TTime | TDefaultReal | TDefaultScore | TRealTime | TScoreTime
@@ -77,7 +72,7 @@ data NumType = TUntyped | TInt
 instance Semigroup NumType where
     t1 <> t2
         | t1 == t2 = t1
-        | otherwise = TUntyped -- TODO TTranspose super and TTime super
+        | otherwise = TUntyped
 
 -- | Numeric subtypes.
 data NumValue =
@@ -95,57 +90,7 @@ data NumValue =
 instance Semigroup NumValue where
     t1 <> t2
         | t1 == t2 = t1
-        | otherwise = TAny -- TODO subtypes
-
--- | This typechecking already exists in the Typecheck instances, but all it
--- can do is go from a Val to a @Typecheck a => Maybe a@.  So I can't reuse it
--- to check a type against a type, so it has to be duplicated, similar to how
--- 'type_of' can't reuse 'to_type'.
---
--- The result is I have redundant functions like 'subtypes_of' and 'type_of'
--- and 'to_num_type', and a mistake or inconsistency with 'to_type' or 'to_val'
--- will cause typechecking to fail in some subtle case.  Fortunately there are
--- relatively few types and hopefully won't be many more, and it only affects
--- 'Derive.Env.put_val'.  It could all do with a cleanup.  I'm sure there's a
--- right way to do this sort of thing.
-types_match :: Type -> Type -> Bool
-types_match t1 t2 = case (t1, t2) of
-    (TNum t1 v1, TNum t2 v2) -> num_types_match t1 t2 && num_vals_match v1 v2
-    (TSignal t1, TSignal t2) -> num_types_match t1 t2
-    -- TSignal and TNum are inter-convertible where TNum becomes a constant
-    -- signal.  But TSignal doesn't have NumValue because it would be
-    -- inefficient to check it for a whole signal.
-    -- TODO I could merge the types
-    (TSignal t1, TNum t2 _) -> num_types_match t1 t2
-    (TNum t1 _, TSignal t2) -> num_types_match t1 t2
-    (TMaybe t1, TMaybe t2) -> types_match t1 t2
-    (TPair t1 t2, TPair u1 u2) -> types_match t1 u1 && types_match t2 u2
-    (TEither t1 u1, TEither t2 u2) -> types_match t1 t2 && types_match u1 u2
-    (TList t1, TList t2) -> types_match t1 t2
-    (TVal, _) -> True
-    (_, TVal) -> True
-    (t1, t2) -> t1 == t2
-    where
-    num_types_match t1 t2 = t2 `elem` subtypes_of t1
-    num_vals_match v1 v2 = v1 == TAny || v2 == TAny || v1 == v2
-
--- | Nothing if the type of the rhs matches the lhs, otherwise the expected
--- type.
-val_types_match :: Val -> Val -> Maybe Type
-val_types_match lhs rhs
-    | types_match expected (type_of rhs) = Nothing
-    | otherwise = Just expected
-    where expected = infer_type_of False lhs
-
--- TODO: overlapping with categorization in ScoreT.
-subtypes_of :: NumType -> [NumType]
-subtypes_of n
-    | n `elem` [TTime, TDefaultReal, TDefaultScore] =
-        [TTime, TDefaultReal, TDefaultScore, TRealTime, TScoreTime]
-    | n `elem` transpose = transpose
-    | otherwise = [n]
-    where
-    transpose = [TTranspose, TDefaultDiatonic, TDefaultChromatic, TNoteNumber]
+        | otherwise = TAny
 
 instance Pretty Type where
     pretty = \case
@@ -193,14 +138,18 @@ instance Pretty NumValue where
         TNormalized -> "0 <= x <= 1"
         TNormalizedBipolar -> "-1 <= x <= 1"
 
-type_of :: Val -> Type
-type_of = infer_type_of True
+-- | Infer the most specific type possible, looking at the value inside.  This
+-- is for documentation (e.g. type error messages) for values.
+specific_type_of :: Val -> Type
+specific_type_of = infer_type_of True
 
-infer_type_of :: Bool -- ^ If True, infer the most specific type possible.
-    -- Otherwise, infer a general type.  This is because if
-    -- 'Derive.Env.put_val' gets a 1 it doesn't mean it's intended to be a
-    -- TPositive.
-    -> Val -> Type
+-- | Infer a general type.  This is also for type errors, but for env type
+-- check errors, which use 'DeriveT.types_equal', which doesn't check the
+-- value.
+general_type_of :: Val -> Type
+general_type_of = infer_type_of False
+
+infer_type_of :: Bool -> Val -> Type
 infer_type_of specific = \case
     VNum (ScoreT.Typed typ val) -> TNum (to_num_type typ) $ if specific
         then (if val > 0 then TPositive

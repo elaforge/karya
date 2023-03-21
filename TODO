@@ -6673,7 +6673,7 @@ Derive:
       Should I merge Region into Call?
   - Env: would it be more efficient to remove WrongType and use Nothing?
     . get rid of checked_val vs checked_val2?
-  - remove separate NumValue and NumType
+  / remove separate NumValue and NumType
     . There's not much use for say Normalized ScoreTime, though I guess maybe
       Positive ScoreTime.
     . Also NumValue is dependent on the value, while NumType is from
@@ -6688,12 +6688,88 @@ Derive:
       I think it should just print the actual val, no need to infer anything.
 
   unify-env: unified-env:
+    situation:
+      . The VNum / VSignal distinction is annoying now that I'm coercing
+        num to signal, because added to Score.event_environ vs.
+        Score.event_controls means it's unpredictable which namespace will
+        get the control.
+      . The underlying issue is that VNums were used for some things like
+        block-end, while controls came from control tracks.  When they get
+        unified, the distinction gets muddy and then disappears.
+      . It still seems worth it to unify, but if I was relying on signal
+        meaning it came from a track, perhaps I need an explicit provenance
+        marker.
+      So
+        * Revert "strip from event_environ"
+        * Remove event_controls, update callers
+        / fix tests
+          . Or not, many are probably broken due to signal vs. num?
+        / Make sure constant signal is coercible to scalar
+          . And vice versa?
+        * Simplify ValType, because types have to move from VNum to VSignal
+        - Remove VNum
+        - Possibly change signal representation for constant:
+          Segment.Signal { _offset :: X, _constant :: !Y, _vector :: !v }
+          . What about pitch signal, where I still want it to be Nothing?
+          . I guess since Y is a parameter, I pass ()?
+          . No, the default comes from NumSignal, so constant goes in
+            Perform.Signal?
+          . But I do want constant pitches!
+          . Ok maybe just a separate constructor:
+            data Signal { _offset, _vector } | Constant y
+          . This is basically VNum/VSiganl but push the distinction down.
+    * merge Score.event_controls into event_environ
+      . Pros: consistency, Note just copies over the environ, can't
+        have a same-named VNum in score_environ.
+      . Cons: postproc has to change, e.g. Score.move_event.  I don't get
+        the UI benefit since it's internal.
+      . Also pro, don't have to decide where to look for numbers.
+      places event_controls are used:
+        . Im.Convert Sc.Convert, Midi.Convert
+        . Derive.Note, apply controls to psignal, for track signal
+        . Post.Map.map_control - just use env
+        ? Rearticulate slur merges controls from separate events
+        . Idiom turns attr-x into +x, use env
+        ? Integrate maps back to control tracks
+          In this case the num vs signal distinction is useful, for which
+          things do I want an integrated control track?  Not block-end etc!
+        . Swam: merge in controls
+    - Unify VNum and VSignal
+      . Have a special constant constructor for Segment?
+      . Actually it's not necessary, but would get rid of the sketchy
+        -RealTime.large nonsense.
+      . But at the cost of a bunch of case branches.
+      . Also a million tests that use Signal.to_pairs, though I could do
+        -large for compatibility.
+      . Can then remove Typecheck.DefaultReal etc.
+        . Or rather, use that name for RealTimeFunction
+      . Against: Seems like `lhs=1 | lhs=(cf)` should error, because
+        accidentally turning srate into a function will break stuff.  Or,
+        don't coerce num into a constant would be clearer.  This is against
+        the idea of unifying VSignal and VNum, logic is that VNum is
+        distinctive because you definitely don't need a time to get it.  But,
+        if I want to unify, maybe changing all those get_srate to be
+        get_srate_at is already a precondition.
+        . Maybe I say Derive.lookup_val without a pos is an runtime error for
+          a non-constant signal.
+      . Also, VNum has ValType.NumValue like Positive.  This is difficult for
+        a signal.  But I want to simplify the ValType stuff anyway.
     - env vals are winding up as Signal.constant
       . How do they get there and maybe convert them back?
       . Or unify VSignal and VNum.
-    - Note enivron doesn't need to have values that are also in controls.
+    - Note environ doesn't need to have values that are also in controls.
       . What's more they aren't trimmed.
-    + What about backward compatibility for old scores?
+      . This breaks postproc that is expecting it in environ.
+      . I think the better approach is merge num and signal, and then remove
+        Score.event_controls.
+    - what if I remove VControlRef and VPControlRef?  Instead it's syntactic
+      and always gets resolved to either the sigsal or a constant.
+      . I would have to make sure I don't need to delay eval anywhere, like
+        say in CFs.
+      . The benefit is that I don't have to worry about resolving refs in e.g.
+        NoteUtil.make_event.
+    - Signal.constant 0 and mempty are different, but they should be the same?
+    * What about backward compatibility for old scores?
       failed:
         / save/complete/blue-hat
           velocity 100 -> 127
@@ -6717,6 +6793,7 @@ Derive:
               pos, serial + seed - should all be the same.
             . It only affects dyn, which is suggestive.  cf-rnd01
             . But maybe I don't care.
+            . How can I make it easier to track down random changes?
           * can't set "strength" to cf-clamp, expected Num but got
             ControlFunction
           * can't be coerced to signal: cf-clamp
@@ -6754,8 +6831,8 @@ Derive:
           . I'll bet it's highlight, doesn't appear in the stack!
           . It's because highlight uses Derive.lookup_val, and Typecheck for
             scalar pitch requires Eval even for NN Num
-          - Fix Typecheck.coerce_to_pitch
-          - make lookup_val error better
+          * Fix Typecheck.coerce_to_pitch
+          * make lookup_val error better
             . "but val type is list of Val" is misleading, it really is list
               of Num (NN) but I can't convert it to a pitch because bug.
       . Write a converter, or put % back in to equal as a shim.
@@ -6799,24 +6876,6 @@ Derive:
           `c=(cf-rnd ..) | c=+1` is fine, assuming %c later exists.
         . I could get that error by throwing when trying to put a control
           into a pure cf.
-    - Unify VNum and VSignal
-      . Have a special constant constructor for Segment?
-      . Actually it's not necessary, but would get rid of the sketchy
-        -RealTime.large nonsense.
-      . But at the cost of a bunch of case branches.
-      . Also a million tests that use Signal.to_pairs.. though I could do
-        -large for compatibility.
-      . Can then remove Typecheck.DefaultReal etc.
-        . Or rather, use that name for RealTimeFunction
-      . Against: Seems like `lhs=1 | lhs=(cf)` should error, because
-        accidentally turning srate into a function will break stuff.  Or,
-        don't coerce num into a constant would be clearer.  This is against
-        the idea of unifying VSignal and VNum, logic is that VNum is
-        distinctive because you definitely don't need a time to get it.  But,
-        if I want to unify, maybe changing all those get_srate to be
-        get_srate_at is already a precondition.
-      . Also, VNum has ValType.NumValue like Positive.  This is difficult for
-        a signal.
     ControlFunction cleanup:
       * eliminate separate namespace
         * make Equal merge CFBacked and controls, or error
@@ -6869,7 +6928,7 @@ Derive:
       . pitch xcut args become required instead of #xcut1 #xcut2
       . Gangsa.c_noltol: "noltol" -> "noltol-time"
     cleanup:
-      - convert Ref default to a scalar?  In theory I could have
+      / convert Ref default to a scalar?  In theory I could have
         `%x,(signal 1 2 3 4)`, but in practice I don't see myself doing that.
         . Do it now and I don't need Serialize compatibility.
         . Why though?  Maybe I'll construct those in code?  Since
@@ -6893,11 +6952,6 @@ Derive:
           (cf-y %y ...), but if they're now living in the same namespace,
           then I can't do the late binding thing.  So maybe this is why
           ControlFunctions live in their own namespace.
-      - Should I also remove Score.event_controls?
-        . Pros: consistency, Note just copies over the environ, can't
-          have a same-named VNum in score_environ.
-        . Cons: postproc has to change, e.g. Score.move_event.  I don't get
-          the UI benefit since it's internal.
       / Midi.Event?  No there is no env.
       - Synth.Shared.Note?  It doesn't have environ, just controls, but it
         wants signals, at the least have to make sure scalars get coerced.

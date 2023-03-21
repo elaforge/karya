@@ -493,6 +493,26 @@ vals_equal x y = case (x, y) of
     (VList a, VList b) -> lists_equal vals_equal a b
     _ -> Nothing
 
+types_equal :: Val -> Val -> Bool
+types_equal x y = case (x, y) of
+    (VNum {}, VNum {}) -> True
+    (VSignal {}, VSignal {}) -> True
+    (VSignal {}, VNum {}) -> True
+    (VNum {}, VSignal {}) -> True
+    (VPitch {}, VPitch {}) -> True
+    (VPSignal {}, VPSignal {}) -> True
+    (VAttributes {}, VAttributes {}) -> True
+    (VControlRef {}, VControlRef {}) -> True
+    (VPControlRef {}, VPControlRef {}) -> True
+    (VNotePitch {}, VNotePitch {}) -> True
+    (VStr {}, VStr {}) -> True
+    (VQuoted {}, VQuoted {}) -> True
+    (VControlFunction {}, VControlFunction {}) -> True
+    (VNotGiven, VNotGiven) -> True
+    (VSeparator, VSeparator) -> True
+    (VList {}, VList {}) -> True
+    _ -> False
+
 lists_equal :: (a -> a -> Maybe Bool) -> [a] -> [a] -> Maybe Bool
 lists_equal eq = go
     where
