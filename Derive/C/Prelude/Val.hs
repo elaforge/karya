@@ -102,8 +102,7 @@ next_val event start ttype = case ttype of
     where
     eval_control start event = do
         signal <- eval event
-        return $ DeriveT.VNum $ ScoreT.untyped $
-            Signal.at start (signal :: Signal.Control)
+        return $ DeriveT.num $ Signal.at start (signal :: Signal.Control)
     eval event = mconcat . Stream.events_of <$>
         (either Derive.throw return =<< Eval.eval_event event)
 
@@ -171,8 +170,10 @@ c_timestep_reciprocal = Make.modify_vcall c_timestep Module.prelude
     \ useful for e.g. trills which take cycles per second rather than duration."
     ) reciprocal
     where
-    reciprocal (DeriveT.VNum num) = DeriveT.VNum $ recip <$> num
-    reciprocal val = val
+    reciprocal val
+        | Just num <- DeriveT.constant_val val =
+            DeriveT.VSignal $ Signal.constant . recip <$> num
+        | otherwise = val
 
 c_reciprocal :: Derive.ValCall
 c_reciprocal = val_call "reciprocal" mempty
@@ -406,15 +407,15 @@ breakpoints argnum curve vals args = do
 num_or_pitch :: ScoreTime -> Int -> NonEmpty DeriveT.Val
     -> Derive.Deriver (Either [Signal.Y] [PSignal.Pitch])
 num_or_pitch start argnum (val :| vals) = case val of
-    DeriveT.VNum num -> do
-        vals <- mapM (expect tnum) (zip [argnum + 1 ..] vals)
-        return $ Left (ScoreT.typed_val num : vals)
+    val | Just (ScoreT.Typed ScoreT.Untyped n) <- DeriveT.constant_val val -> do
+        vals <- mapM (expect tsig) (zip [argnum + 1 ..] vals)
+        return $ Left (n : vals)
     DeriveT.VPitch pitch -> do
         vals <- mapM (expect ValType.TPitch) (zip [argnum + 1 ..] vals)
         return $ Right (pitch : vals)
-    _ -> type_error argnum "bp" (ValType.TEither tnum ValType.TPitch) val
+    _ -> type_error argnum "bp" (ValType.TEither tsig ValType.TPitch) val
     where
-    tnum = ValType.TNum ValType.TUntyped ValType.TAny
+    tsig = ValType.TSignal ValType.TUntyped ValType.TAny
     expect typ (argnum, val) =
         maybe (type_error argnum "bp" typ val) return
             =<< Typecheck.from_val_eval start val

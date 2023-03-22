@@ -1430,7 +1430,7 @@ UNIFY:
   - default args and controls:
     . Instead of defaulting to a ControlRef with a different name, use
       a control with the same rules as argument defaulting.
-  - controls and env:
+  * controls and env:
     . something=4 should be the same as %something=4.  I can remove the
       % and # syntax.
     . Unless I want to remove the VNum, I'll need to ensure that VNums never
@@ -1445,7 +1445,7 @@ UNIFY:
       Call.to_function.
   - controls and ControlFunctions:
     . See NOTE [fix-control-functions]
-  - controls and pitch controls
+  * controls and pitch controls
     . If I can have controls of different types, then I can get rid of the
       unnamed pitch control for a normal control named pitch, and the
       (almost unused) named pitch controls become normal controls.  The
@@ -6701,23 +6701,13 @@ Derive:
         marker.
       So
         * Revert "strip from event_environ"
-        * Remove event_controls, update callers
         / fix tests
           . Or not, many are probably broken due to signal vs. num?
         / Make sure constant signal is coercible to scalar
           . And vice versa?
         * Simplify ValType, because types have to move from VNum to VSignal
-        - Remove VNum
-        - Possibly change signal representation for constant:
-          Segment.Signal { _offset :: X, _constant :: !Y, _vector :: !v }
-          . What about pitch signal, where I still want it to be Nothing?
-          . I guess since Y is a parameter, I pass ()?
-          . No, the default comes from NumSignal, so constant goes in
-            Perform.Signal?
-          . But I do want constant pitches!
-          . Ok maybe just a separate constructor:
-            data Signal { _offset, _vector } | Constant y
-          . This is basically VNum/VSiganl but push the distinction down.
+        * Remove VNum
+        + Remove event_controls, update callers
     * merge Score.event_controls into event_environ
       . Pros: consistency, Note just copies over the environ, can't
         have a same-named VNum in score_environ.
@@ -6734,26 +6724,55 @@ Derive:
           In this case the num vs signal distinction is useful, for which
           things do I want an integrated control track?  Not block-end etc!
         . Swam: merge in controls
-    - Unify VNum and VSignal
-      . Have a special constant constructor for Segment?
-      . Actually it's not necessary, but would get rid of the sketchy
-        -RealTime.large nonsense.
-      . But at the cost of a bunch of case branches.
-      . Also a million tests that use Signal.to_pairs, though I could do
-        -large for compatibility.
-      . Can then remove Typecheck.DefaultReal etc.
-        . Or rather, use that name for RealTimeFunction
-      . Against: Seems like `lhs=1 | lhs=(cf)` should error, because
-        accidentally turning srate into a function will break stuff.  Or,
-        don't coerce num into a constant would be clearer.  This is against
-        the idea of unifying VSignal and VNum, logic is that VNum is
-        distinctive because you definitely don't need a time to get it.  But,
-        if I want to unify, maybe changing all those get_srate to be
-        get_srate_at is already a precondition.
-        . Maybe I say Derive.lookup_val without a pos is an runtime error for
-          a non-constant signal.
-      . Also, VNum has ValType.NumValue like Positive.  This is difficult for
-        a signal.  But I want to simplify the ValType stuff anyway.
+    * Unify VNum and VSignal
+      notes:
+        . Have a special constant constructor for Segment?
+        . Actually it's not necessary, but would get rid of the sketchy
+          -RealTime.large nonsense.
+        . But at the cost of a bunch of case branches.
+        . Also a million tests that use Signal.to_pairs, though I could do
+          -large for compatibility.
+        . Can then remove Typecheck.DefaultReal etc.
+          . Or rather, use that name for RealTimeFunction
+        . Against: Seems like `lhs=1 | lhs=(cf)` should error, because
+          accidentally turning srate into a function will break stuff.  Or,
+          don't coerce num into a constant would be clearer.  This is against
+          the idea of unifying VSignal and VNum, logic is that VNum is
+          distinctive because you definitely don't need a time to get it.  But,
+          if I want to unify, maybe changing all those get_srate to be
+          get_srate_at is already a precondition.
+          . Maybe I say Derive.lookup_val without a pos is an runtime error for
+            a non-constant signal.
+        . Also, VNum has ValType.NumValue like Positive.  This is difficult for
+          a signal.  But I want to simplify the ValType stuff anyway.
+      . signal doesn't make sense with (signal ) args!
+      * compile
+      * tests pass
+    - also remove VPitch
+      . Hmm but why?  val_to_pitch expects a VPitch, because scales.
+        So it seems useful to have an explicit scalar pitch and not so
+        annoying as VNum.
+    change Signal.constant representation:
+      . Do I lose efficiency by using Signal.constant?
+      . Normally shouldn't matter but what about Internal.add_stack_frame?
+      . Instead of just a number, it's a signal, with 0 offset, and vector
+        with (-large, num).
+      - Also checking is_constant makes garbage because of uncons, I can
+        fix that at least.
+      - Signal.constant 0 and mempty are different, but they should be the same?
+      . Possibly change signal representation for constant:
+        Segment.Signal { _offset :: X, _constant :: !Y, _vector :: !v }
+        . What about pitch signal, where I still want it to be Nothing?
+        . I guess since Y is a parameter, I pass ()?
+        . No, the default comes from NumSignal, so constant goes in
+          Perform.Signal?
+        . But I do want constant pitches!
+        . Ok maybe just a separate constructor:
+          data Signal { _offset, _vector } | Constant y
+        . This is basically VNum/VSiganl but push the distinction down.
+        . Another thing is I want equality to work with constants.
+    ? remove ValType.specific_type_of entirely?  Under what situation would
+      I care if it's positive or not?  I can see from the val.
     - env vals are winding up as Signal.constant
       . How do they get there and maybe convert them back?
       . Or unify VSignal and VNum.
@@ -6768,7 +6787,6 @@ Derive:
         say in CFs.
       . The benefit is that I don't have to worry about resolving refs in e.g.
         NoteUtil.make_event.
-    - Signal.constant 0 and mempty are different, but they should be the same?
     * What about backward compatibility for old scores?
       failed:
         / save/complete/blue-hat

@@ -64,9 +64,12 @@ block_to_hex block_id = ModifyEvents.block block_id $
 
 to_hex :: Text -> Text
 to_hex text =
-    case Derive.Parse.parse_val (ControlTrack._val partial) of
-        Right (DeriveT.VNum (ScoreT.Typed ScoreT.Untyped n))
+    either (const text) to_num $
+        Derive.Parse.parse_val (ControlTrack._val partial)
+    where
+    to_num v = case DeriveT.constant_val v of
+        Just (ScoreT.Typed ScoreT.Untyped n)
             | 0 <= n && n <= 1 -> ControlTrack.unparse $
                 partial { ControlTrack._val = ShowVal.show_hex_val n }
         _ -> text
-    where partial = ControlTrack.parse text
+    partial = ControlTrack.parse text

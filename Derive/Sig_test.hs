@@ -43,8 +43,8 @@ test_type_error = do
             <$> Sig.required "int" ""
             <*> Sig.defaulted "sym" ("" :: Text) ""
     left_like (call ints [str])
-        "arg 1/ints: expected Num (integral) but got Str: hi"
-    left_like (call int_sym [str]) "arg 1/int: expected Num"
+        "arg 1/ints: expected Signal (integral) but got Str: hi"
+    left_like (call int_sym [str]) "arg 1/int: expected Signal"
     left_like (call int_sym [int, int]) "arg 2/sym: expected Str"
 
 test_eval_quoted :: Test
@@ -60,7 +60,7 @@ test_eval_quoted = do
     left_like (run (0 :: Int) int [quoted "not-found"])
         "arg 1/int from \"(not-found): *val call not found"
     left_like (run ("hi" :: Text) int [quoted "v"])
-        "arg 1/int from \"(v): expected Num"
+        "arg 1/int from \"(v): expected Signal"
     equal (run (0 :: Int) int [quoted "v"]) (Right 0)
 
     let quot :: Sig.Parser DeriveT.Quoted

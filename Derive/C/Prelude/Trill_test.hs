@@ -459,7 +459,7 @@ test_control_trill = do
     equal (run 0.5 "tr 1 1s") ([trill [0, 1, 2, 3, 4, 5]], [])
     equal (run 0.5 "tr 1 1t") ([trill [0, 2, 4]], [])
     strings_like (snd (run 1 "tr 1 1d"))
-        ["expected time signal (default real) but got Num* 1d"]
+        ["expected time signal (default real) but got Signal* 1d"]
 
 test_xcut_control :: Test
 test_xcut_control = do

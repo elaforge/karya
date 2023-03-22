@@ -42,7 +42,7 @@ test_alternate_weighted = do
     let run s = DeriveTest.extract (DeriveTest.e_control "c") $
             DeriveTest.derive_tracks ""
                 [(">", [(0, 1, "")]), ("c", [(0, 0, s)])]
-    strings_like (snd (run "alt-w a b")) ["expected Num"]
+    strings_like (snd (run "alt-w a b")) ["expected Signal"]
     equal (run "alt-w 1 '5'") ([[(0, 5)]], [])
     equal (run "alt-w 1 5") ([[(0, 5)]], [])
 

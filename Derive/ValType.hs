@@ -18,6 +18,7 @@ import qualified Data.Text as Text
 import qualified Util.Texts as Texts
 import           Derive.DeriveT (Val(..))
 import qualified Derive.ScoreT as ScoreT
+import qualified Perform.Signal as Signal
 import qualified Ui.Id as Id
 
 import           Global
@@ -26,8 +27,7 @@ import           Global
 data Type =
     -- | This is the \"any\" type.
     TVal
-    | TNum NumType NumValue
-    | TSignal NumType
+    | TSignal NumType NumValue
     | TPSignal
     | TAttributes | TControlRef | TPControlRef | TPitch | TNotePitch
     -- | Text string, with enum values if it's an enum.
@@ -51,8 +51,7 @@ data Type =
 -- | Get the intersection of the types.  If there's no intersection, it winds
 -- up at TVal.  This is for 'infer_type_of'
 instance Semigroup Type where
-    TNum nt1 vt1 <> TNum nt2 vt2 = TNum (nt1<>nt2) (vt1<>vt2)
-    TSignal t1 <> TSignal t2 = TSignal (t1<>t2)
+    TSignal t1 vt1 <> TSignal t2 vt2 = TSignal (t1<>t2) (vt1<>vt2)
     TMaybe t1 <> TMaybe t2 = TMaybe (t1 <> t2)
     TEither t1 u1 <> TEither t2 u2 = TEither (t1<>t2) (u1<>u2)
     TPair t1 u1 <> TPair t2 u2 = TPair (t1<>t2) (u1<>u2)
@@ -97,9 +96,8 @@ instance Pretty Type where
         TMaybe typ -> "Maybe " <> pretty typ
         TEither a b -> pretty a <> " or " <> pretty b
         TPair a b -> "(" <> pretty a <> ", " <> pretty b <> ")"
-        TNum typ val -> append_parens "Num" $
-            Texts.join2 ", " (pretty typ) (pretty val)
-        TSignal typ -> append_parens "Signal" (pretty typ)
+        TSignal typ vtype -> append_parens "Signal" $
+            Texts.join2 ", " (pretty typ) (pretty vtype)
         TStr enums -> append_parens "Str" $ maybe "" Text.unwords enums
         -- There is no corresponding Val type for these, so I might as well be
         -- clear about what they mean.
@@ -151,11 +149,14 @@ general_type_of = infer_type_of False
 
 infer_type_of :: Bool -> Val -> Type
 infer_type_of specific = \case
-    VNum (ScoreT.Typed typ val) -> TNum (to_num_type typ) $ if specific
-        then (if val > 0 then TPositive
-            else if val >= 0 then TNonNegative else TAny)
-        else TAny
-    VSignal sig -> TSignal (to_num_type (ScoreT.type_of sig))
+    VSignal (ScoreT.Typed typ sig) -> TSignal (to_num_type typ) $
+        if not specific then TAny
+        else case Signal.constant_val sig of
+            Nothing -> TAny
+            Just n
+                | n > 0 -> TPositive
+                | n >= 0 -> TNonNegative
+                | otherwise -> TAny
     VPSignal {} -> TPSignal
     VAttributes {} -> TAttributes
     VControlRef {} -> TControlRef

@@ -239,13 +239,10 @@ instance Monoid Type where
 data Typed a = Typed {
     type_of :: !Type
     , typed_val :: !a
-    } deriving (Eq, Ord, Show)
+    } deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 instance DeepSeq.NFData a => DeepSeq.NFData (Typed a) where
     rnf (Typed typ val) = typ `seq` DeepSeq.rnf val
-
-instance Functor Typed where
-    fmap f (Typed typ val) = Typed typ (f val)
 
 instance Semigroup a => Semigroup (Typed a) where
     Typed t1 v1 <> Typed t2 v2 = Typed (t1<>t2) (v1<>v2)

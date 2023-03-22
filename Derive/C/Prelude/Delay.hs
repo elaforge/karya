@@ -98,7 +98,7 @@ c_event_echo = Derive.transformer Module.prelude "e-echo" Tags.postproc
     ) $ Sig.callt ((,,)
     <$> Sig.defaulted "delay" (1 :: RealTime) "Delay time."
     <*> Sig.defaulted "feedback" (0.4 :: Double)
-        "The %dyn of each echo is multiplied by this amount."
+        "The dyn of each echo is multiplied by this amount."
     <*> Sig.defaulted "times" (1 :: Int)
         "Number of echoes, not counting the original."
     ) $ \(delay, feedback, times) _args deriver -> do

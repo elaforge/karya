@@ -84,8 +84,8 @@ data Val =
     deriving (Eq, Show)
 
 promote :: Val -> DeriveT.Val
-promote val = case val of
-    VNum v -> DeriveT.VNum v
+promote = \case
+    VNum v -> DeriveT.VSignal $ Signal.constant <$> v
     VAttributes v -> DeriveT.VAttributes v
     VControlRef v -> DeriveT.VControlRef v
     VConstantPitch (ConstantPitch scale_id note nn) ->

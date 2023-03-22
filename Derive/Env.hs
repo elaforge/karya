@@ -29,8 +29,6 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Typecheck as Typecheck
 import qualified Derive.ValType as ValType
 
-import qualified Perform.Signal as Signal
-
 import           Global
 
 
@@ -89,8 +87,6 @@ put_val key val environ = case lookup key environ of
             | otherwise ->
                 Left $ type_error key rhs (ValType.general_type_of lhs)
     merge_cf cf = \case
-        DeriveT.VNum num -> Just $ DeriveT.VControlFunction <$>
-            cf_set_control (Signal.constant <$> num) cf
         DeriveT.VSignal sig -> Just $ DeriveT.VControlFunction <$>
             cf_set_control sig cf
         -- Anything else gets type checked and replaced.
@@ -115,8 +111,6 @@ modify_signal modify key environ = case lookup key environ of
 modify_signal_val :: (DeriveT.TypedSignal -> DeriveT.TypedSignal) -> DeriveT.Val
     -> Either Error DeriveT.Val
 modify_signal_val modify = \case
-    DeriveT.VNum num ->
-        Right $ DeriveT.VSignal $ modify $ Signal.constant <$> num
     DeriveT.VSignal sig -> Right $ DeriveT.VSignal $ modify sig
     DeriveT.VControlFunction cf -> case DeriveT.cf_function cf of
         DeriveT.CFBacked sig f ->
@@ -142,7 +136,7 @@ insert_val key = insert key . Typecheck.to_val
 hardcoded_types :: Map Key DeriveT.Val
 hardcoded_types = Map.fromList
     [ (EnvKey.attributes,  DeriveT.VAttributes mempty)
-    , (EnvKey.block_end,   tnum ScoreT.Score)
+    , (EnvKey.block_end,   DeriveT.constant ScoreT.Score 0)
     , (EnvKey.control,     str)
     , (EnvKey.instrument,  str)
     , (EnvKey.key,         str)
@@ -150,14 +144,13 @@ hardcoded_types = Map.fromList
     , (EnvKey.scale,       str)
     , (EnvKey.seed,        num)
     , (EnvKey.srate,       num)
-    , (EnvKey.suppress_until, tnum ScoreT.Real)
+    , (EnvKey.suppress_until, DeriveT.constant ScoreT.Real 0)
     , (EnvKey.tuning,      str)
     , (EnvKey.voice,       num)
     ]
     where
     str = DeriveT.VStr ""
-    tnum typ = DeriveT.VNum (ScoreT.Typed typ 0)
-    num = DeriveT.VNum (ScoreT.untyped 0)
+    num = DeriveT.num 0
 
 data LookupError = NotFound | WrongType !ValType.Type deriving (Show)
 

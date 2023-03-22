@@ -371,20 +371,32 @@ initial_dynamic event = maybe 0 ScoreT.typed_val $
 -- (*).
 modify_dynamic :: (Signal.Y -> Signal.Y) -> Event -> Event
 modify_dynamic modify =
-    modify_environ_key EnvKey.dynamic_val
-            (DeriveT.VNum . ScoreT.untyped . modify . num_of)
-        . modify_control_vals Controls.dynamic modify
-    where
-    num_of (Just (DeriveT.VNum n)) = ScoreT.typed_val n
-    num_of _ = 0
+    modify_environ_key EnvKey.dynamic_val (DeriveT.num . modify . num_of)
+    . modify_control_vals Controls.dynamic modify
+    where num_of = maybe 0 (maybe 0 ScoreT.typed_val . DeriveT.constant_val)
 
 -- | Use this instead of 'set_control' because it also sets
 -- 'EnvKey.dynamic_val'.
 set_dynamic :: Signal.Y -> Event -> Event
 set_dynamic dyn =
-    modify_environ_key EnvKey.dynamic_val
-            (const $ DeriveT.VNum $ ScoreT.untyped dyn)
-        . set_control Controls.dynamic (ScoreT.untyped (Signal.constant dyn))
+    modify_environ_key EnvKey.dynamic_val (const $ DeriveT.num dyn)
+    . set_control Controls.dynamic (ScoreT.untyped (Signal.constant dyn))
+
+-- -- | Use this instead of 'modify_control_vals' because it also sets
+-- -- 'EnvKey.dynamic_val'.  This is only valid for linear functions like (+) or
+-- -- (*).
+-- modify_dynamic :: (Signal.Y -> Signal.Y) -> Event -> Event
+-- modify_dynamic modify =
+--     modify_control_vals (ScoreT.Control EnvKey.dynamic_val) modify
+--     . modify_control_vals Controls.dynamic modify
+--
+-- -- | Use this instead of 'set_control' because it also sets
+-- -- 'EnvKey.dynamic_val'.
+-- set_dynamic :: Signal.Y -> Event -> Event
+-- set_dynamic dyn =
+--     set_control (ScoreT.Control EnvKey.dynamic_val) val
+--     . set_control Controls.dynamic val
+--     where val = ScoreT.untyped (Signal.constant dyn)
 
 modify_control_vals :: ScoreT.Control -> (Signal.Y -> Signal.Y) -> Event
     -> Event

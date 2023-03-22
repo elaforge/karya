@@ -27,24 +27,24 @@ import           Util.Test
 test_parse_expr :: Test
 test_parse_expr = do
     let f = fmap NonEmpty.toList . Parse.parse_expr
-        vnum = VNum . ScoreT.untyped
+        vsig = DeriveT.num
     equal (f "a | b") $ Right [Call "a" [], Call "b" []]
     equal (f "a | b | c") $ Right $ [Call "a" [], Call "b" [], Call "c" []]
     -- Any word in call position is a symbol.
     equal (f "4") $ Right [Call "4" []]
     equal (f "()") $ Right [Call "()" []]
-    equal (f "4 4") $ Right [Call "4" [Literal (vnum 4)]]
+    equal (f "4 4") $ Right [Call "4" [Literal (vsig 4)]]
     equal (f "4 (4)") $ Right [Call "4" [Expr.val_call "4" []]]
     -- So the only way to have a null call is a null expression.
     equal (f "") $ Right [Call "" []]
 
     equal (f "a") $ Right [Call "a" []]
-    equal (f "a 42") $ Right [Call "a" [Literal (vnum 42)]]
+    equal (f "a 42") $ Right [Call "a" [Literal (vsig 42)]]
     equal (f "a | ") $ Right [Call "a" [], Call "" []]
 
     equal (f "a | b = 4 | . sym %sig") $ Right
         [ Call "a" []
-        , Call "=" (map Literal [VStr "b", vnum 4])
+        , Call "=" (map Literal [VStr "b", vsig 4])
         , Call "." (map Literal [VStr "sym", VControlRef (Ref "sig" Nothing)])
         ]
 
@@ -108,13 +108,13 @@ test_unparsed_call = do
 -- | Vals whose 'ShowVal.show_val' is the inverse of 'Parse.parse_val'.
 invertible_vals :: [(Text, Maybe Val)]
 invertible_vals =
-    [ ("0", Just (VNum (ScoreT.untyped 0)))
+    [ ("0", Just (DeriveT.num 0))
     , ("0.", Nothing)
-    , (".2", Just (VNum (ScoreT.untyped 0.2)))
-    , ("1c", Just (VNum (ScoreT.Typed ScoreT.Chromatic 1)))
-    , ("-1d", Just (VNum (ScoreT.Typed ScoreT.Diatonic (-1))))
-    , ("-.5d", Just (VNum (ScoreT.Typed ScoreT.Diatonic (-0.5))))
-    , ("42nn", Just (VNum (ScoreT.Typed ScoreT.Nn 42)))
+    , (".2", Just (DeriveT.num 0.2))
+    , ("1c", Just (DeriveT.constant ScoreT.Chromatic 1))
+    , ("-1d", Just (DeriveT.constant ScoreT.Diatonic (-1)))
+    , ("-.5d", Just (DeriveT.constant ScoreT.Diatonic (-0.5)))
+    , ("42nn", Just (DeriveT.constant ScoreT.Nn 42))
     , ("1q", Nothing)
 
     , ("+", attrs [])
@@ -161,14 +161,14 @@ invertible_vals =
 -- | Vals whose 'ShowVal.show_val' doesn't reproduce the parsed val.
 noninvertible_vals :: [(Text, Maybe Val)]
 noninvertible_vals =
-    [ ("3/2", num (ScoreT.untyped 1.5))
-    , ("-3/2", num (ScoreT.untyped (-1.5)))
-    , ("3/2d", num (ScoreT.Typed ScoreT.Diatonic 1.5))
-    , ("0x00", num (ScoreT.untyped 0))
-    , ("0xff", num (ScoreT.untyped 1))
-    , ("-0xff", num (ScoreT.untyped (-1)))
+    [ ("3/2", num ScoreT.Untyped 1.5)
+    , ("-3/2", num ScoreT.Untyped (-1.5))
+    , ("3/2d", num ScoreT.Diatonic 1.5)
+    , ("0x00", num ScoreT.Untyped 0)
+    , ("0xff", num ScoreT.Untyped 1)
+    , ("-0xff", num ScoreT.Untyped (-1))
     ]
-    where num = Just . VNum
+    where num typ = Just . DeriveT.constant typ
 
 test_parse_val :: Test
 test_parse_val = do
@@ -198,7 +198,7 @@ test_parse_num = do
 test_p_equal :: Test
 test_p_equal = do
     let eq a b = Right (Call "=" [Literal (VStr a), b])
-        num = Literal . VNum . ScoreT.untyped
+        num = Literal . DeriveT.num
     let f = ParseText.parse1 Parse.p_equal
     equal (f "a = b") (eq "a" (Literal (VStr "b")))
     equal (f "a=b") (eq "a" (Literal (VStr "b")))

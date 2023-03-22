@@ -132,7 +132,9 @@ parse_relative_interval named_intervals note =
         <|> parse_num)
     where
     parse_num = case Parse.parse_val (Pitch.note_text note) of
-        Right (DeriveT.VNum (ScoreT.Typed ScoreT.Untyped num)) -> Just num
+        Right val
+            | Just (ScoreT.Typed ScoreT.Untyped num)
+                <- DeriveT.constant_val val -> Just num
         _ -> Nothing
     unsign val = if val < 0 then recip (abs val) else val
 

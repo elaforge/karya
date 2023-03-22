@@ -172,7 +172,7 @@ type Ref = Either DeriveT.ControlRef (ScoreT.Typed Signal.Y)
 from_control_ref :: DeriveT.Val -> Derive.Deriver Ref
 from_control_ref = \case
     DeriveT.VControlRef ref -> pure $ Left ref
-    DeriveT.VNum num -> pure $ Right num
+    val | Just num <- DeriveT.constant_val val -> pure $ Right num
     val -> Derive.throw $ "expected ControlRef or Num, but got "
         <> pretty (ValType.specific_type_of val)
 
@@ -267,7 +267,6 @@ lookup_function cf_dyn (Left (DeriveT.Ref control deflt)) =
 val_to_function :: DeriveT.Dynamic -> DeriveT.Val
     -> Maybe DeriveT.TypedFunction
 val_to_function cf_dyn = \case
-    DeriveT.VNum num -> Just $ const <$> num
     DeriveT.VSignal sig -> Just $ flip Signal.at <$> sig
     DeriveT.VControlRef ref -> lookup_function cf_dyn (Left ref)
     DeriveT.VControlFunction cf -> Just $

@@ -59,7 +59,7 @@ test_kampita_c = do
 test_nkampita_c :: Test
 test_nkampita_c = do
     let run = run_diatonic DeriveTest.e_nns_old
-    strings_like (snd (run "nkam 1 0" 2)) ["cycles: expected Num (>0)"]
+    strings_like (snd (run "nkam 1 0" 2)) ["cycles: expected Signal (>0)"]
     equal (run "nkam 1 1" 3) ([[(0, 60), (1, 62), (2, 60)]], [])
     equal (run "nkam 1 1" 6) ([[(0, 60), (2, 62), (4, 60)]], [])
     equal (run "transition = 2 | nkam 1 1" 9)

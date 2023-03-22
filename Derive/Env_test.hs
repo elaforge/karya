@@ -22,7 +22,7 @@ import           Util.Test
 
 test_put_val :: Test
 test_put_val = do
-    let numt typ = DeriveT.VNum . ScoreT.Typed typ
+    let numt typ = DeriveT.constant typ
     right_equal (put1 (0 :: ScoreTime) (1 :: ScoreTime))
         (Typecheck.to_val (1 :: ScoreTime))
     -- I used to disallow this but simplified checking.
@@ -57,19 +57,19 @@ test_put_val = do
 test_checked_val :: Test
 test_checked_val = do
     let f v = Env.checked_val "k" $ Env.from_list [("k", v)]
-    let nn = DeriveT.VNum . ScoreT.Typed ScoreT.Nn
+    let nn = DeriveT.constant ScoreT.Nn
     left_like (fmap (pretty @(Maybe PSignal.Pitch)) (f (DeriveT.num 45)))
-        "expected Pitch but env val is Num"
+        "expected Pitch but env val is Signal"
     right_equal (fmap (pretty @(Maybe PSignal.Pitch)) (f (nn 45)))
         "45nn,45nn(no-scale)"
     left_like (fmap (pretty @(Maybe [PSignal.Pitch]))
         (f (DeriveT.VList [DeriveT.num 45])))
-        "expected list of Pitch but env val is list of Num"
+        "expected list of Pitch but env val is list of Signal"
     right_equal
         (fmap (pretty @(Maybe [PSignal.Pitch])) (f (DeriveT.VList [nn 45])))
         "[45nn,45nn(no-scale)]"
     left_like (fmap (pretty @(Maybe Int)) (f (DeriveT.VList [nn 45])))
-        "expected Num (integral) but env val is list of Num"
+        "expected Signal (integral) but env val is list of Signal"
     right_equal (fmap (pretty @(Maybe [Int])) (f (DeriveT.VList [nn 45])))
         "[45]"
 

@@ -14,11 +14,12 @@ import           Util.Test
 test_type_of :: Test
 test_type_of = do
     let f = ValType.specific_type_of
-    let nn = DeriveT.VNum . ScoreT.Typed ScoreT.Nn
+    let nn = DeriveT.constant ScoreT.Nn
     equal (f (DeriveT.VList [])) $ TList TVal
-    equal (f (DeriveT.VList [DeriveT.num 1])) $ TList (TNum TUntyped TPositive)
-    equal (f (DeriveT.VList [nn 45])) $ TList (TNum TNoteNumber TPositive)
+    equal (f (DeriveT.VList [DeriveT.num 1])) $
+        TList (TSignal TUntyped TPositive)
+    equal (f (DeriveT.VList [nn 45])) $ TList (TSignal TNoteNumber TPositive)
     equal (f (DeriveT.VList [DeriveT.num 1, DeriveT.VAttributes mempty])) $
         TList TVal
     equal (f (DeriveT.VList [DeriveT.num 1, DeriveT.num (-1)])) $
-        TList (TNum TUntyped TAny)
+        TList (TSignal TUntyped TAny)

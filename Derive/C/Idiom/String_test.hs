@@ -122,7 +122,7 @@ test_nth_harmonic = do
     let run call pitch = DeriveTest.extract DeriveTest.e_nn_rounded $
             DeriveTest.derive_tracks title $
             UiTest.note_track [(0, 1, call <> " -- " <> pitch)]
-    strings_like (snd $ run "on 0" "4c") ["expected Num (>0)"]
+    strings_like (snd $ run "on 0" "4c") ["expected Signal (>0)"]
     equal (run "string=(4c) | on 1" "4c") ([NN.c4], [])
     equal (run "string=(4c) | on 2" "4c") ([NN.c5], [])
     equal (run "string=(4c) | on 3" "4c") ([harmonic 3 NN.c4], [])

@@ -280,12 +280,10 @@ add_stack_frame frame st = st
     should_update_seed (Stack.Call {}) = False
     should_update_seed _ = True
     update_seed env =
-        DeriveT.insert EnvKey.seed
-            (DeriveT.VNum (ScoreT.untyped (update old))) env
+        DeriveT.insert EnvKey.seed (DeriveT.num (update old)) env
         where
-        old = case DeriveT.lookup EnvKey.seed env of
-            Just (DeriveT.VNum n) -> ScoreT.typed_val n
-            _ -> 0
+        old = maybe 0 ScoreT.typed_val $
+            DeriveT.constant_val =<< DeriveT.lookup EnvKey.seed env
     update :: Double -> Double
     update n = i2d (Seed.to_seed (floor n) frame)
     -- A Double should be able to hold up to 2^52, but that's still an

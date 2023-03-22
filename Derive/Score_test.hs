@@ -5,6 +5,10 @@
 module Derive.Score_test where
 import qualified Data.Map as Map
 
+import qualified Derive.Controls as Controls
+import qualified Derive.DeriveT as DeriveT
+import qualified Derive.Env as Env
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
@@ -34,3 +38,14 @@ test_move = do
         (Just $ signal [(0, 1)])
     equal (Score.nn_at 2 moved) Nothing
     equal (Score.nn_at 4 moved) (Just 42)
+
+test_modify_dynamic :: Test
+test_modify_dynamic = do
+    let event = Score.modify_dynamic (/2) $
+            Score.set_dynamic 0.5 Score.empty_event
+    equal (Map.toList (Score.event_controls event))
+        [(Controls.dynamic, ScoreT.untyped (Signal.constant 0.25))]
+    equal (map (fmap DeriveT.constant_val) $
+            Env.to_list $ Score.event_environ event)
+        [(EnvKey.dynamic_val, Just (ScoreT.untyped 0.25))]
+    equal (Score.initial_dynamic event) 0.25

@@ -153,19 +153,19 @@ diatonic = DefaultDiatonic . Pitch.Diatonic
 -- * typecheck utils
 
 -- | Typecheck a single Val, and throw if it's the wrong type.
-typecheck :: forall a. Typecheck a => Text -> ScoreTime -> DeriveT.Val
+typecheck :: forall a. Typecheck a => Text -> ScoreTime -> Val
     -> Derive.Deriver a
 typecheck msg pos val = from_val_eval pos val >>= \case
     Just a -> return a
     Nothing -> Derive.throw $
-        Texts.join2 ": " msg $ type_error_msg (Proxy :: Proxy a) val
+        Texts.join2 ": " msg $ type_error_msg (Proxy @a) val
     -- TODO throw a TypeError directly?
 
 -- | Typecheck a simple value, with no evaluation.  This means you can't
 -- get a deriver or coerce signal to a number.
-typecheck_simple :: forall a. Typecheck a => DeriveT.Val -> Either Text a
+typecheck_simple :: forall a. Typecheck a => Val -> Either Text a
 typecheck_simple val =
-    justErr (type_error_msg (Proxy :: Proxy a) val) (from_val_simple val)
+    justErr (type_error_msg (Proxy @a) val) (from_val_simple val)
 
 type_error_msg :: Typecheck a => Proxy a -> Val -> Text
 type_error_msg expected val = "expected " <> pretty (to_type expected)
@@ -219,7 +219,7 @@ class Typecheck a where
 
     to_type :: Proxy a -> ValType.Type
     default to_type :: TEnum a => Proxy a -> ValType.Type
-    to_type Proxy = to_type_symbol [minBound :: a .. maxBound]
+    to_type Proxy = to_type_symbol [minBound :: a ..]
 
     from_subtrack :: SubT.Track -> Maybe a
     from_subtrack = const Nothing
@@ -267,7 +267,7 @@ enum_map :: forall a. TEnum a => Map Text a
 enum_map = Map.fromList $ Seq.key_on ShowVal.show_val [minBound ..]
 
 num_to_type :: TypecheckNum a => Proxy a -> ValType.Type
-num_to_type proxy = ValType.TNum (num_type proxy) ValType.TAny
+num_to_type proxy = ValType.TSignal (num_type proxy) ValType.TAny
 
 class Typecheck a => TypecheckNum a where
     num_type :: Proxy a -> ValType.NumType
@@ -352,11 +352,11 @@ instance ToVal PSignal.PSignal where to_val = VPSignal
 
 instance Typecheck DeriveT.TypedSignal where
     from_val = coerce_to_signal
-    to_type _ = ValType.TSignal ValType.TUntyped
+    to_type _ = ValType.TSignal ValType.TUntyped ValType.TAny
 
 instance Typecheck Signal.Control where
     from_val = fmap ScoreT.typed_val . from_val
-    to_type _ = ValType.TSignal ValType.TUntyped
+    to_type _ = ValType.TSignal ValType.TUntyped ValType.TAny
 
 -- *** eval only
 
@@ -453,14 +453,15 @@ instance Typecheck NnTransposeFunctionT where
 instance Typecheck (ScoreT.Typed Signal.Y) where
     from_val = coerce_to_scalar Just
     to_type = num_to_type
-instance ToVal (ScoreT.Typed Signal.Y) where to_val = VNum
+instance ToVal (ScoreT.Typed Signal.Y) where
+    to_val = VSignal . fmap Signal.constant
 instance TypecheckNum (ScoreT.Typed Signal.Y) where
     num_type _ = ValType.TUntyped
 
 instance Typecheck Double where
     from_val = coerce_to_scalar (Just . ScoreT.typed_val)
     to_type = num_to_type
-instance ToVal Double where to_val = VNum . ScoreT.untyped
+instance ToVal Double where to_val = DeriveT.num
 instance TypecheckNum Double where num_type _ = ValType.TUntyped
 
 instance Typecheck (Ratio.Ratio Int) where
@@ -468,7 +469,7 @@ instance Typecheck (Ratio.Ratio Int) where
         Just . realToFrac . flip Ratio.approxRational 0.001 . ScoreT.typed_val
     to_type = num_to_type
 instance ToVal (Ratio.Ratio Int) where
-    to_val = VNum . ScoreT.untyped . realToFrac
+    to_val = DeriveT.num . realToFrac
 instance TypecheckNum (Ratio.Ratio Int) where num_type _ = ValType.TUntyped
 
 instance Typecheck Int where
@@ -485,13 +486,13 @@ from_integral_val = coerce_to_scalar (check . ScoreT.typed_val)
     check a = if frac == 0 then Just int else Nothing
         where (int, frac) = properFraction a
 
-instance ToVal Int where to_val = VNum . ScoreT.untyped . fromIntegral
-instance ToVal Integer where to_val = VNum . ScoreT.untyped . fromIntegral
+instance ToVal Int where to_val = DeriveT.num . fromIntegral
+instance ToVal Integer where to_val = DeriveT.num . fromIntegral
 instance TypecheckNum Int where num_type _ = ValType.TInt
 instance TypecheckNum Integer where num_type _ = ValType.TInt
 
--- | VNums can also be coerced into chromatic transposition, so you can write
--- a plain number if you don't care about diatonic.
+-- | VSignals can also be coerced into chromatic transposition, so you can
+-- write a plain number if you don't care about diatonic.
 --
 -- This is different from 'DeriveT.Duration', which does not default an
 -- untyped literal, so you have to supply the type explicitly.  The rationale
@@ -512,9 +513,10 @@ instance Typecheck Pitch.Transpose where
 instance TypecheckNum Pitch.Transpose where num_type _ = ValType.TTranspose
 
 instance ToVal Pitch.Transpose where
-    to_val (Pitch.Chromatic a) = VNum $ ScoreT.Typed ScoreT.Chromatic a
-    to_val (Pitch.Diatonic a) = VNum $ ScoreT.Typed ScoreT.Diatonic a
-    to_val (Pitch.Nn a) = VNum $ ScoreT.Typed ScoreT.Nn a
+    to_val = \case
+        Pitch.Chromatic a -> DeriveT.constant ScoreT.Chromatic a
+        Pitch.Diatonic a -> DeriveT.constant ScoreT.Diatonic a
+        Pitch.Nn a -> DeriveT.constant ScoreT.Nn a
 
 -- | But some calls want to default to diatonic, not chromatic.
 instance Typecheck DefaultDiatonic where
@@ -538,7 +540,7 @@ instance Typecheck Pitch.NoteNumber where
             _ -> Nothing
     to_type = num_to_type
 instance ToVal Pitch.NoteNumber where
-    to_val = VNum . ScoreT.Typed ScoreT.Nn . Pitch.nn_to_double
+    to_val = DeriveT.constant ScoreT.Nn . Pitch.nn_to_double
 instance TypecheckNum Pitch.NoteNumber where num_type _ = ValType.TNoteNumber
 
 instance Typecheck ScoreTime where
@@ -549,7 +551,7 @@ instance Typecheck ScoreTime where
             _ -> Nothing
     to_type = num_to_type
 instance ToVal ScoreTime where
-    to_val a = VNum $ ScoreT.Typed ScoreT.Score (ScoreTime.to_double a)
+    to_val = DeriveT.constant ScoreT.Score . ScoreTime.to_double
 instance TypecheckNum ScoreTime where num_type _ = ValType.TScoreTime
 
 instance Typecheck RealTime where
@@ -560,7 +562,7 @@ instance Typecheck RealTime where
             _ -> Nothing
     to_type = num_to_type
 instance ToVal RealTime where
-    to_val a = VNum $ ScoreT.Typed ScoreT.Real (RealTime.to_seconds a)
+    to_val = DeriveT.constant ScoreT.Real . RealTime.to_seconds
 instance TypecheckNum RealTime where num_type _ = ValType.TRealTime
 
 instance Typecheck DeriveT.Duration where
@@ -605,20 +607,20 @@ instance ToVal DefaultScore where to_val (DefaultScore a) = to_val a
 instance TypecheckNum DefaultScore where num_type _ = ValType.TDefaultScore
 
 instance TypecheckNum a => Typecheck (Positive a) where
-    from_val v@(VNum val)
-        | ScoreT.typed_val val > 0 = Positive <$> from_val v
+    from_val v@(VSignal (ScoreT.Typed _ sig))
+        | Just n <- Signal.constant_val sig, n > 0 = Positive <$> from_val v
         | otherwise = failure
     from_val _ = failure
-    to_type _ = ValType.TNum (num_type (Proxy :: Proxy a)) ValType.TPositive
+    to_type _ = ValType.TSignal (num_type (Proxy @a)) ValType.TPositive
 instance ToVal a => ToVal (Positive a) where
     to_val (Positive val) = to_val val
 
 instance TypecheckNum a => Typecheck (NonNegative a) where
-    from_val v@(VNum val)
-        | ScoreT.typed_val val >= 0 = NonNegative <$> from_val v
+    from_val v@(VSignal (ScoreT.Typed _ sig))
+        | Just n <- Signal.constant_val sig, n >= 0 = NonNegative <$> from_val v
         | otherwise = failure
     from_val _ = failure
-    to_type _ = ValType.TNum (num_type (Proxy :: Proxy a)) ValType.TNonNegative
+    to_type _ = ValType.TSignal (num_type (Proxy @a)) ValType.TNonNegative
 instance ToVal a => ToVal (NonNegative a) where
     to_val (NonNegative val) = to_val val
 
@@ -628,8 +630,8 @@ instance Typecheck Normalized where
         check a
             | 0 <= a && a <= 1 = Just (Normalized a)
             | otherwise = Nothing
-    to_type _ = ValType.TNum ValType.TUntyped ValType.TNormalized
-instance ToVal Normalized where to_val = VNum . ScoreT.untyped . normalized
+    to_type _ = ValType.TSignal ValType.TUntyped ValType.TNormalized
+instance ToVal Normalized where to_val = DeriveT.num . normalized
 
 instance Typecheck NormalizedBipolar where
     from_val = coerce_to_scalar (check . ScoreT.typed_val)
@@ -637,9 +639,9 @@ instance Typecheck NormalizedBipolar where
         check a
             | -1 <= a && a <= 1 = Just (NormalizedBipolar a)
             | otherwise = Nothing
-    to_type _ = ValType.TNum ValType.TUntyped ValType.TNormalizedBipolar
+    to_type _ = ValType.TSignal ValType.TUntyped ValType.TNormalizedBipolar
 instance ToVal NormalizedBipolar where
-    to_val = VNum . ScoreT.untyped . normalized_bipolar
+    to_val = DeriveT.num . normalized_bipolar
 
 -- ** text\/symbol
 
@@ -778,14 +780,15 @@ coerce_to_typed_function make check = coerce_to_function $
 -- | Coerce any numeric value to a ScoreT.Typed Signal.Y, and check it against
 -- the given function.
 coerce_to_scalar :: (ScoreT.Typed Signal.Y -> Maybe a) -> Val -> Checked a
-coerce_to_scalar check = \case
-    -- It's important that constant VNums remain Val, which means they don't
+coerce_to_scalar check val
+    -- It's important that constant VSignals remain Val, which means they don't
     -- need Eval, which means they don't need a time.  This is because
     -- non-signal constants in the environ like srate use from_val_simple,
     -- which ignores Eval.  TODO if I want all numeric values to be variable,
     -- then I should merge control_at with Derive.get_val, so it takes a time.
-    VNum num -> Val $ maybe Failure Success $ check num
-    val -> case val_to_function val of
+    | Just num <- DeriveT.constant_val val =
+        Val $ maybe Failure Success $ check num
+    | otherwise = case val_to_function val of
         Just (Right tf) -> Eval $ \t -> return $ check (($ t) <$> tf)
         Just (Left df) -> Eval $ \t -> check . (($ t) <$>) <$> df
         Nothing -> failure
@@ -804,7 +807,6 @@ val_to_function :: Val
     -> Maybe (Either (Derive.Deriver DeriveT.TypedFunction)
         DeriveT.TypedFunction)
 val_to_function = \case
-    VNum num -> Just $ Right $ const <$> num
     VSignal sig -> Just $ Right $ flip Signal.at <$> sig
     VControlRef ref -> Just $ Left $ resolve_function ref
     VControlFunction cf -> Just $ Left $ do
@@ -823,7 +825,6 @@ val_to_function_dyn :: DeriveT.Dynamic -> Val
     -> Maybe (Either (Derive.Deriver DeriveT.TypedFunction)
         DeriveT.TypedFunction)
 val_to_function_dyn cf_dyn = \case
-    VNum num -> Just $ Right $ const <$> num
     VSignal sig -> Just $ Right $ flip Signal.at <$> sig
     -- TODO propagate cf_dyn through
     VControlRef ref -> Just $ Left $ resolve_function ref
@@ -877,16 +878,14 @@ lookup_signal control =
         Just (Left df) -> df
         Just (Right f) -> return f
 
-val_to_signal :: DeriveT.Val
+val_to_signal :: Val
     -> Maybe (Either (Derive.Deriver DeriveT.TypedSignal) DeriveT.TypedSignal)
 val_to_signal = \case
-    DeriveT.VNum (ScoreT.Typed typ a) ->
-        Just $ Right $ ScoreT.Typed typ (Signal.constant a)
-    DeriveT.VSignal a -> Just $ Right a
-    DeriveT.VControlRef ref -> Just $ Left $
+    VSignal a -> Just $ Right a
+    VControlRef ref -> Just $ Left $
         Derive.require ("control not found: " <> ShowVal.show_val ref)
             =<< resolve_signal ref
-    DeriveT.VControlFunction cf -> case DeriveT.cf_function cf of
+    VControlFunction cf -> case DeriveT.cf_function cf of
         DeriveT.CFBacked sig _ -> Just $ Right sig
         DeriveT.CFPure {} -> Nothing
     _ -> Nothing
@@ -903,7 +902,7 @@ val_to_signal = \case
 coerce_to_pitch :: Val -> Checked PSignal.Pitch
 coerce_to_pitch = \case
     VPitch a -> success a
-    VNum (ScoreT.Typed ScoreT.Nn nn) ->
+    val | Just (ScoreT.Typed ScoreT.Nn nn) <- DeriveT.constant_val val ->
         success $ PSignal.nn_pitch (Pitch.nn nn)
     val -> case val_to_pitch_signal val of
         Nothing -> failure
@@ -950,15 +949,16 @@ lookup_pitch_signal pcontrol
         Just (Left df) -> df
         Just (Right f) -> return f
 
-val_to_pitch_signal :: DeriveT.Val
+val_to_pitch_signal :: Val
     -> Maybe (Either (Derive.Deriver PSignal.PSignal) PSignal.PSignal)
 val_to_pitch_signal = \case
     VPControlRef ref -> Just $ Left $ resolve_pitch_ref ref
     VPitch pitch -> Just $ Right $ PSignal.constant pitch
     VPSignal sig -> Just $ Right sig
-    VNum (ScoreT.Typed ScoreT.Nn nn) ->
-        Just $ Right $ PSignal.constant $ PSignal.nn_pitch (Pitch.nn nn)
-    _ -> Nothing
+    val -> case DeriveT.constant_val val of
+        Just (ScoreT.Typed ScoreT.Nn nn) ->
+            Just $ Right $ PSignal.constant $ PSignal.nn_pitch (Pitch.nn nn)
+        _ -> Nothing
 
 -- * sub tracks
 

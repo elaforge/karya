@@ -44,6 +44,7 @@ import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
+import qualified Perform.Signal as Signal
 import qualified Ui.Event as Event
 import qualified Ui.Id as Id
 import qualified Ui.Ui as Ui
@@ -93,7 +94,7 @@ eval_expr_val ctx expr = eval_toplevel ctx (convert_minival expr)
 -- TODO find a better place for this, or get rid of MiniVal
 convert_minival :: Expr.Expr Expr.MiniVal -> DeriveT.Expr
 convert_minival = fmap $ fmap $ \case
-    Expr.VNum v -> DeriveT.VNum v
+    Expr.VNum v -> DeriveT.VSignal $ Signal.constant <$> v
     Expr.VStr v -> DeriveT.VStr v
 
 -- ** generator

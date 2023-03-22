@@ -106,7 +106,8 @@ convert_event block_id event patch patch_name = run $ do
         , element =
             case Env.lookup EnvKey.element (Score.event_environ event) of
                 Just (DeriveT.VStr (Expr.Str a)) -> a
-                Just (DeriveT.VNum a) -> ShowVal.show_val a
+                Just val | Just num <- DeriveT.constant_val val ->
+                    ShowVal.show_val num
                 _ -> ""
         , start = Score.event_start event
         , duration = Score.event_duration event

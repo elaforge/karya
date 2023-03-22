@@ -405,9 +405,10 @@ data Val =
     -- literal, though the output is still a floating point value, not a true
     -- ratio.
     --
-    -- Literal: @42.23@, @-.4@, @1c@, @-2.4d@, @3/2@, @-3/2@, @0x7f@.
-    VNum !(ScoreT.Typed Signal.Y)
-    | VSignal !(ScoreT.Typed Signal.Control)
+    -- Constant literal: @42.23@, @-.4@, @1c@, @-2.4d@, @3/2@, @-3/2@, @0x7f@.
+    --
+    -- Signal literal: @(signal d 0 0 1 1)@.
+    VSignal !(ScoreT.Typed Signal.Control)
     -- | No literal, but is returned from val calls, notably scale calls.
     | VPitch !Pitch
     | VPSignal !PSignal
@@ -472,7 +473,6 @@ data Val =
 -- equal otherwise.
 vals_equal :: Val -> Val -> Maybe Bool
 vals_equal x y = case (x, y) of
-    (VNum a, VNum b) -> Just $ a == b
     (VSignal a, VSignal b) -> Just $ a == b
     (VPitch a, VPitch b) -> Just $ pitches_equal a b
     -- I'm not going to implement this right now.  vals_equal is only used in
@@ -495,10 +495,7 @@ vals_equal x y = case (x, y) of
 
 types_equal :: Val -> Val -> Bool
 types_equal x y = case (x, y) of
-    (VNum {}, VNum {}) -> True
     (VSignal {}, VSignal {}) -> True
-    (VSignal {}, VNum {}) -> True
-    (VNum {}, VSignal {}) -> True
     (VPitch {}, VPitch {}) -> True
     (VPSignal {}, VPSignal {}) -> True
     (VAttributes {}, VAttributes {}) -> True
@@ -523,7 +520,7 @@ lists_equal eq = go
 val_to_mini :: Val -> Maybe Expr.MiniVal
 val_to_mini = \case
     VStr a -> Just (Expr.VStr a)
-    VNum a -> Just (Expr.VNum a)
+    VSignal sig -> Expr.VNum <$> traverse Signal.constant_val sig
     _ -> Nothing
 
 -- | This instance is actually invalid due to showing VPitch, which has no
@@ -532,8 +529,7 @@ val_to_mini = \case
 -- invalid means that a VPitch or VPControlRef with a default will cause
 -- a parse failure, but I'll have to see if this becomes a problem in practice.
 instance ShowVal.ShowVal Val where
-    show_val val = case val of
-        VNum d -> ShowVal.show_val d
+    show_val = \case
         VSignal sig -> show_signal sig
         VPitch pitch -> ShowVal.show_val pitch
         VPSignal sig -> show_psignal sig
@@ -593,7 +589,6 @@ instance Pretty Val where
     pretty = ShowVal.show_val
 
 instance DeepSeq.NFData Val where
-    rnf (VNum d) = DeepSeq.rnf d
     rnf (VStr s) = DeepSeq.rnf s
     rnf _ = ()
 
@@ -614,24 +609,32 @@ show_call_val val = ShowVal.show_val val
 
 -- ** val utils
 
--- | Make an untyped VNum.
+-- | Make an untyped VSignal.
 num :: Double -> Val
-num = VNum . ScoreT.untyped
+num = constant ScoreT.Untyped
+
+constant_val :: Val -> Maybe (ScoreT.Typed Signal.Y)
+constant_val (VSignal (ScoreT.Typed typ sig)) =
+    ScoreT.Typed typ <$> Signal.constant_val sig
+constant_val _ = Nothing
+
+constant :: ScoreT.Type -> Signal.Y -> Val
+constant typ = VSignal . ScoreT.Typed typ . Signal.constant
+
+score_time :: ScoreTime -> Val
+score_time = constant ScoreT.Score . ScoreTime.to_double
+
+real_time :: RealTime -> Val
+real_time = constant ScoreT.Real . RealTime.to_seconds
+
+transposition :: Pitch.Transpose -> Val
+transposition t = case t of
+    Pitch.Diatonic d -> constant ScoreT.Diatonic d
+    Pitch.Chromatic d -> constant ScoreT.Chromatic d
+    Pitch.Nn d -> constant ScoreT.Nn d
 
 str :: Text -> Val
 str = VStr . Expr.Str
-
-score_time :: ScoreTime -> Val
-score_time = VNum . ScoreT.Typed ScoreT.Score . ScoreTime.to_double
-
-real_time :: RealTime -> Val
-real_time = VNum . ScoreT.Typed ScoreT.Real . RealTime.to_seconds
-
-transposition :: Pitch.Transpose -> Val
-transposition t = VNum $ case t of
-    Pitch.Diatonic d -> ScoreT.Typed ScoreT.Diatonic d
-    Pitch.Chromatic d -> ScoreT.Typed ScoreT.Chromatic d
-    Pitch.Nn d -> ScoreT.Typed ScoreT.Nn d
 
 to_scale_id :: Val -> Maybe Pitch.ScaleId
 to_scale_id (VStr (Expr.Str a)) = Just (Pitch.ScaleId a)

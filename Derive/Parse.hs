@@ -297,8 +297,8 @@ p_sub_call = ParseText.between (A.char '(') (A.char ')') (p_call False)
 p_val :: A.Parser DeriveT.Val
 p_val =
     DeriveT.VAttributes <$> p_attributes
-    <|> DeriveT.VNum . ScoreT.untyped <$> p_hex
-    <|> DeriveT.VNum <$> p_num
+    <|> DeriveT.num <$> p_hex
+    <|> DeriveT.VSignal . fmap Signal.constant <$> p_num
     <|> DeriveT.VStr <$> p_str
     <|> DeriveT.VControlRef <$> p_control_ref
     <|> DeriveT.VPControlRef <$> p_pcontrol_ref

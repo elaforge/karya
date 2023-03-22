@@ -110,7 +110,7 @@ test_nkampita :: Test
 test_nkampita = do
     let run = run_note_track "| nkam-transition=0"
     strings_like (snd (run [(0, 2, "@  ; nk 0 ; -- 4c")]))
-        ["cycles: expected Num (>0)"]
+        ["cycles: expected Signal (>0)"]
     equal (run [(0, 2, "@ ; nk 1 ; -- 4c")])
         ([[(0, 60), (1, 61), (2, 60)]], [])
     equal (run [(0, 2, "@ ; nk_ 1 ; -- 4c")])

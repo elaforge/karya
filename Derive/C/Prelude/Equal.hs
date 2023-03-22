@@ -209,8 +209,9 @@ parse_equal Set lhs rhs
 parse_equal Set "#" rhs = case rhs of
     DeriveT.VPitch p -> Right $ Derive.with_pitch (PSignal.constant p)
     DeriveT.VPSignal sig -> Right $ Derive.with_pitch sig
-    DeriveT.VNum (ScoreT.Typed typ nn)
-        | typ == ScoreT.Untyped || typ == ScoreT.Nn ->
+    -- I could also convert a signal, but not sure it's useful.
+    DeriveT.VSignal (ScoreT.Typed ScoreT.Nn sig)
+        | Just nn <- Signal.constant_val sig ->
             Right $ Derive.with_pitch
                 (PSignal.constant (PSignal.nn_pitch (Pitch.nn nn)))
     DeriveT.VNotGiven -> Right $ Derive.with_pitch mempty
@@ -225,7 +226,6 @@ parse_equal Set lhs rhs
     | otherwise = Right $ Derive.with_val lhs rhs
 -- if rhs is a signal or number, then merge is ok
 parse_equal merge lhs rhs = case rhs of
-    DeriveT.VNum num -> Right $ merge_signal (Signal.constant <$> num)
     DeriveT.VSignal sig -> Right $ merge_signal sig
     _ -> Left $ "merge is only supported for numeric types, tried to merge "
         <> pretty (ValType.specific_type_of rhs) <> " with "

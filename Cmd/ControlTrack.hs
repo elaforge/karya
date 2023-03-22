@@ -215,17 +215,17 @@ modify_event_at pos f = EditUtil.modify_event_at pos True False
 --
 -- If the val was hex, keep it hex.
 modify_val :: (Signal.Y -> Signal.Y) -> Text -> Maybe Text
-    -- ^ Nothing if I couldn't parse out a VNum.
+    -- ^ Nothing if I couldn't parse out a constant number.
 modify_val f text = case Parse.parse_val (_val partial) of
-    Right (DeriveT.VNum n) -> Just $ unparse $
-        partial { _val = show_val (f <$> n) }
+    Right val | Just num <- DeriveT.constant_val val ->
+        Just $ unparse $ partial { _val = show_val (f <$> num) }
     _ -> Nothing
     where
     partial = parse text
     show_val num
-        | ScoreT.Typed ScoreT.Untyped n <- num,
-            ShowVal.is_hex_val (_val partial) = ShowVal.show_hex_val n
-        | otherwise = ShowVal.show_val (DeriveT.VNum num)
+        | ScoreT.Typed ScoreT.Untyped n <- num
+        , ShowVal.is_hex_val (_val partial) = ShowVal.show_hex_val n
+        | otherwise = ShowVal.show_val num
 
 -- * Partial
 

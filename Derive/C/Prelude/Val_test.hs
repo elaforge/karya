@@ -32,7 +32,7 @@ test_env = do
     equal (run Nothing "env x 42") (Just (DeriveT.num 42), [])
     equal (run (Just "x = 42") "env x") (Just (DeriveT.num 42), [])
     equal (run (Just "x = 42") "env x str")
-        (Nothing, ["env \"x\" expected Str but got Num"])
+        (Nothing, ["env \"x\" expected Str but got Signal"])
 
 test_prev_next_val :: Test
 test_prev_next_val = do
@@ -91,9 +91,9 @@ test_linear_next = do
         ]
     strings_like
         (snd $ run DeriveTest.e_dyn ("dyn", [(0, 0, "xcut (i> 0 (4c))")]))
-        ["arg 2/bp: expected Num but got Pitch"]
+        ["arg 2/bp: expected Signal but got Pitch"]
     strings_like (snd $ run DeriveTest.e_dyn ("*", [(0, 0, "xcut (i> hi)")]))
-        ["arg 1/bp: expected Num or Pitch"]
+        ["arg 1/bp: expected Signal or Pitch"]
 
 test_down_from :: Test
 test_down_from = do

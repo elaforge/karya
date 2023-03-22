@@ -65,7 +65,7 @@ test_coerce_nn = do
     equal (run_type nn [] "42") (Just "42nn", [])
     equal (run_type nn [] "42nn") (Just "42nn", [])
     strings_like (snd $ run_type nn [] "42c")
-        ["expected Maybe Num (NN) but got Num (Transposition"]
+        ["expected Maybe Signal (NN) but got Signal (Transposition"]
 
     -- TODO need to evaluate a pitch in Typecheck for this.
     -- -- coerce VPitch to NoteNumber
