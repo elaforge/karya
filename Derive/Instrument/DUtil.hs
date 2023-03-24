@@ -367,7 +367,7 @@ add_symbolic_pitch_convert convert event = Log.run_id $
 set_environ :: Typecheck.ToVal key => EnvKey.Key -> key -> Score.Event
     -> Score.Event
 set_environ key val =
-    Score.modify_environ_key key (const (Typecheck.to_val val))
+    Score.modify_val key (const (Typecheck.to_val val))
 
 when_env :: (Eq val, Typecheck.Typecheck val) => EnvKey.Key -> Maybe val
     -> Cmd.InstrumentPostproc -> Cmd.InstrumentPostproc

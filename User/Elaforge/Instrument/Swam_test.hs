@@ -19,8 +19,10 @@ test_bow = do
             . DeriveTest.derive_tracks_setup setup
                 ("inst=i | dyn=.75" <> title)
             . UiTest.note_track1
-        extract e = (Score.event_start e,
-            DeriveTest.e_initial_control Controls.dynamic e)
+        extract e =
+            ( Score.event_start e
+            , DeriveTest.e_initial_control Controls.dynamic e
+            )
     equal (run "" ["4c"]) ([(0, Just 0.75)], [])
     equal (run "" ["bow down | -- 4c"]) ([(0, Just (-0.75))], [])
     equal (run "" ["bow up | -- 4c"]) ([(0, Just 0.75)], [])

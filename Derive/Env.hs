@@ -9,6 +9,8 @@ module Derive.Env (
     , delete
     , is_set
     , map
+    , from_controls
+    -- * put
     , put_val
     , modify_signal
     , insert_val
@@ -17,6 +19,7 @@ module Derive.Env (
     , maybe_val
     , checked_val, checked_val2
 ) where
+import qualified Prelude
 import           Prelude hiding (map, null, lookup)
 import qualified Data.Map as Map
 
@@ -54,6 +57,11 @@ is_set key (Environ env) = Map.member key env
 
 map :: (DeriveT.Val -> DeriveT.Val) -> Environ -> Environ
 map f (Environ env) = Environ $ f <$> env
+
+from_controls :: DeriveT.ControlMap -> Environ
+from_controls = from_map . Map.fromAscList . Prelude.map convert . Map.toAscList
+    where
+    convert (ScoreT.Control control, sig) = (control, DeriveT.VSignal sig)
 
 -- * typechecking
 

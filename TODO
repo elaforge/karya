@@ -6708,22 +6708,36 @@ Derive:
         * Simplify ValType, because types have to move from VNum to VSignal
         * Remove VNum
         + Remove event_controls, update callers
-    * merge Score.event_controls into event_environ
-      . Pros: consistency, Note just copies over the environ, can't
-        have a same-named VNum in score_environ.
-      . Cons: postproc has to change, e.g. Score.move_event.  I don't get
-        the UI benefit since it's internal.
-      . Also pro, don't have to decide where to look for numbers.
-      places event_controls are used:
-        . Im.Convert Sc.Convert, Midi.Convert
-        . Derive.Note, apply controls to psignal, for track signal
-        . Post.Map.map_control - just use env
-        ? Rearticulate slur merges controls from separate events
-        . Idiom turns attr-x into +x, use env
-        ? Integrate maps back to control tracks
-          In this case the num vs signal distinction is useful, for which
-          things do I want an integrated control track?  Not block-end etc!
-        . Swam: merge in controls
+    - some awkward overlap now that controls are in environ, with
+      EnvKey VNum types.
+      . Places where I have to ScoreT.Control or ScoreT.control_name
+    * merge Score.event_controls into event_environ:
+      . The reason to do it is getting VSignal in environ and also in
+        controls, and not clear where to look.
+      notes:
+        . Pros: consistency, Note just copies over the environ, can't
+          have a same-named VNum in score_environ.
+        . Cons: postproc has to change, e.g. Score.move_event.  I don't get
+          the UI benefit since it's internal.
+        . Also pro, don't have to decide where to look for numbers.
+        . env vals are winding up as Signal.constant
+          . How do they get there and maybe convert them back?
+          . Or unify VSignal and VNum.
+        . Note environ doesn't need to have values that are also in controls.
+          . What's more they aren't trimmed.
+          . This breaks postproc that is expecting it in environ.
+          . I think the better approach is merge num and signal, and then
+            remove Score.event_controls.
+        places event_controls are used:
+          . Im.Convert Sc.Convert, Midi.Convert
+          . Derive.Note, apply controls to psignal, for track signal
+          . Post.Map.map_control - just use env
+          ? Rearticulate slur merges controls from separate events
+          . Idiom turns attr-x into +x, use env
+          ? Integrate maps back to control tracks
+            In this case the num vs signal distinction is useful, for which
+            things do I want an integrated control track?  Not block-end etc!
+          . Swam: merge in controls
     * Unify VNum and VSignal
       notes:
         . Have a special constant constructor for Segment?
@@ -6773,14 +6787,6 @@ Derive:
         . Another thing is I want equality to work with constants.
     ? remove ValType.specific_type_of entirely?  Under what situation would
       I care if it's positive or not?  I can see from the val.
-    - env vals are winding up as Signal.constant
-      . How do they get there and maybe convert them back?
-      . Or unify VSignal and VNum.
-    - Note environ doesn't need to have values that are also in controls.
-      . What's more they aren't trimmed.
-      . This breaks postproc that is expecting it in environ.
-      . I think the better approach is merge num and signal, and then remove
-        Score.event_controls.
     - what if I remove VControlRef and VPControlRef?  Instead it's syntactic
       and always gets resolved to either the sigsal or a constant.
       . I would have to make sure I don't need to delay eval anywhere, like

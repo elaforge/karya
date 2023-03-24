@@ -38,6 +38,7 @@ import qualified Util.Seq as Seq
 import qualified Util.Trees as Trees
 
 import qualified Derive.DeriveT as DeriveT
+import qualified Derive.Env as Env
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Twelve as Twelve
@@ -139,7 +140,7 @@ derive_note_track state blocks (notes, samples) =
     event state start dur = Score.empty_event
         { Score.event_start = start
         , Score.event_duration = dur
-        , Score.event_controls = state_control_map state
+        , Score.event_environ = Env.from_controls $ state_control_map state
         , Score.event_pitch = state_psignal state
         }
 

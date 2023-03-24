@@ -229,8 +229,8 @@ annotate_nns :: Cmd.M m => Annotated (Maybe Pitch.NoteNumber) m
 annotate_nns modify = annotate_controls (modify . map (second (eval <=< fst)))
     where eval = either (const Nothing) Just . PSignal.pitch_nn
 
-annotate_controls :: Cmd.M m =>
-    Annotated (Maybe PSignal.Transposed, ScoreT.ControlValMap) m
+annotate_controls :: Cmd.M m
+    => Annotated (Maybe PSignal.Transposed, ScoreT.ControlValMap) m
     -> ModifyNotes m
 annotate_controls modify block_id note_track_ids = do
     events <- Cmd.perf_events <$> Cmd.get_performance block_id

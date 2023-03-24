@@ -14,6 +14,7 @@ module Cmd.Integrate.Convert (
 import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified Util.Log as Log
@@ -263,7 +264,7 @@ control_events events =
     -- so we don't need to have them again.
     -- TODO: technically they should be from pscale_transposers, but that's
     -- so much work to collect, let's just assume the standards.
-    wanted = (`notElem` Controls.transposers) . fst
+    wanted = (`Set.notMember` Controls.integrate_keep) . fst
     typed_control (control, sig) = ScoreT.Typed (ScoreT.type_of sig) control
 
 control_track :: [Score.Event] -> ScoreT.Typed ScoreT.Control -> Track
@@ -291,7 +292,8 @@ signal_events control event = case Score.event_control control event of
     -- dyn so we can invert it here.
     invert
         | control == Controls.dynamic = fromMaybe 1 $
-            Env.maybe_val EnvKey.dynamic_integrate $ Score.event_environ event
+            Env.maybe_val (ScoreT.control_name Controls.dynamic_integrate) $
+            Score.event_environ event
         | otherwise = 1
     start = Score.event_start event
     mk x y = ui_event (Score.event_stack event) (RealTime.to_score x) 0

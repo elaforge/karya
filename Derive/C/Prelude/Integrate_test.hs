@@ -6,6 +6,7 @@ module Derive.C.Prelude.Integrate_test where
 import qualified Data.Map as Map
 
 import qualified Util.Ranges as Ranges
+import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Stream as Stream
@@ -28,9 +29,15 @@ test_integrate_track = do
         extract i = (Derive.integrated_source i, Derive.integrated_events i)
     let [(source, integrated)] = map extract (Derive.r_integrated res)
     equal source (Right (UiTest.mk_tid 3))
-    let e_note e = (DeriveTest.e_note e, DeriveTest.e_controls e)
+    let e_note e =
+            ( DeriveTest.e_note e
+            , filter ((/= Controls.dynamic_integrate) . fst) $
+                DeriveTest.e_controls e
+            )
     equal (DeriveTest.extract_levents e_note (Stream.to_list integrated))
-        ([((0, 1, "4c"), [("c2", [(0, 0.75)])])], [])
+        ( [((0, 1, "4c"), [("c2", [(0, 0.75)])])]
+        , []
+        )
     equal (DeriveTest.extract
             (\e -> (DeriveTest.e_note e, DeriveTest.e_instrument e)) res)
         ([((0, 2, "?"), "i2")], [])

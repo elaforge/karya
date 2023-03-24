@@ -15,8 +15,9 @@ import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.Module as Module
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Deriver.Internal as Internal
-import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Env as Env
 import qualified Derive.Library as Library
 import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
@@ -66,9 +67,9 @@ block_integrate keep_controls events = do
             Derive.throw $ "block integrate seems to be in a track title: "
                 <> pretty track_id
         events <- Derive.eval_ui $ unwarp block_id events
-        let keep = keep_controls <> Set.fromList Controls.transposers
+        let keep = keep_controls <> Controls.integrate_keep
         let integrated = Derive.Integrated (Left block_id) $
-                fmap (strip_event keep) events
+                fmap (strip_controls keep) events
         Internal.merge_collect $ mempty
             { Derive.collect_integrated = [integrated] }
 
@@ -128,13 +129,13 @@ c_track_integrate = Derive.transformer Module.prelude "track-integrate" mempty
                 -- TODO: technically they should be from pscale_transposers,
                 -- but that's so much work to collect, let's just assume the
                 -- standards.
-                let keep = keep_controls <> Set.fromList Controls.transposers
+                let keep = keep_controls <> Controls.integrate_keep
                 -- I originally guarded this with a hack that would not emit
                 -- track integrates if only the destinations had received
                 -- damage.  But the track cache now serves this purpose, since
                 -- it intentionally doesn't retain 'Derive.collect_integrated'.
                 track_integrate block_id track_id $
-                    fmap (strip_event keep) events
+                    fmap (strip_controls keep) events
             Nothing -> return ()
         return Stream.empty
 
@@ -142,7 +143,7 @@ integrate_derive :: Derive.Deriver a -> Derive.Deriver a
 integrate_derive deriver = do
     -- See comment in "Cmd.Integrate.Convert" for why.
     dyn <- Call.dynamic 0
-    Derive.with_val EnvKey.dynamic_integrate dyn deriver
+    Derive.with_constant_control Controls.dynamic_integrate dyn deriver
 
 -- | Unwarp integrated events, otherwise the tempo would be applied twice, once
 -- during integration and again during derivation of the integrated output.
@@ -165,11 +166,14 @@ unwarp_event to_score event = Score.place start (end - start) event
     end = convert (Score.event_end event)
     convert = RealTime.from_score . to_score
 
-strip_event :: Set ScoreT.Control -> Score.Event -> Score.Event
-strip_event keep event = event
-    { Score.event_controls = flip Map.restrictKeys keep $
-        Score.event_controls event
+strip_controls :: Set ScoreT.Control -> Score.Event -> Score.Event
+strip_controls keep event = event
+    { Score.event_environ = Env.from_map $ Map.fromAscList $ filter wanted $
+        Map.toAscList $ Env.to_map $ Score.event_environ event
     }
+    where
+    wanted (key, (DeriveT.VSignal _)) = Set.member (ScoreT.Control key) keep
+    wanted _ = True
 
 track_integrate :: BlockId -> TrackId -> Stream.Stream Score.Event
     -> Derive.Deriver ()

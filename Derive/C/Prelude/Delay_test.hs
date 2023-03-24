@@ -55,7 +55,8 @@ test_echo = do
 
 test_event_echo :: Test
 test_event_echo = do
-    let (mmsgs, logs) = perform ("e-echo 2", [(0, 1, ""), (1, 1, "")])
+    let (mmsgs, logs) = perform
+            ("e-echo 2", [(0, 1, ""), (1, 1, "")])
             [("*", [(0, 0, "4c"), (1, 0, "4d")])]
     equal logs []
     equal (DeriveTest.note_on_vel mmsgs)

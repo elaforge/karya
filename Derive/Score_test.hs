@@ -20,10 +20,8 @@ import           Util.Test
 
 test_move :: Test
 test_move = do
-    let event = Score.empty_event
+    let event = Score.set_control "c" (signal [(2, 2)]) $ Score.empty_event
             { Score.event_start = 2
-            , Score.event_controls = Map.fromList
-                [("c", ScoreT.untyped $ Signal.from_pairs [(2, 2)])]
             , Score.event_pitch = PSignal.from_pairs [(2, PSignal.nn_pitch 42)]
             }
         signal = ScoreT.untyped . Signal.from_pairs
@@ -43,9 +41,9 @@ test_modify_dynamic :: Test
 test_modify_dynamic = do
     let event = Score.modify_dynamic (/2) $
             Score.set_dynamic 0.5 Score.empty_event
-    equal (Map.toList (Score.event_controls event))
-        [(Controls.dynamic, ScoreT.untyped (Signal.constant 0.25))]
     equal (map (fmap DeriveT.constant_val) $
             Env.to_list $ Score.event_environ event)
-        [(EnvKey.dynamic_val, Just (ScoreT.untyped 0.25))]
+        [ (ScoreT.control_name Controls.dynamic, Just (ScoreT.untyped 0.25))
+        , (EnvKey.dynamic_val, Just (ScoreT.untyped 0.25))
+        ]
     equal (Score.initial_dynamic event) 0.25

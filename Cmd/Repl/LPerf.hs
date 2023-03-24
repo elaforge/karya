@@ -309,15 +309,11 @@ control c e = Score.control_at (Score.event_start e) c e
 event_controls :: Score.Event -> ScoreT.ControlValMap
 event_controls e = Score.event_controls_at (Score.event_start e) e
 
-only_controls :: [ScoreT.Control] -> [LEvent.LEvent Score.Event]
-    -> [Score.Event]
-only_controls controls = map strip . LEvent.events_of
+only_keys :: [Env.Key] -> [LEvent.LEvent Score.Event] -> [Score.Event]
+only_keys keys = map strip . LEvent.events_of
     where
-    strip e = e
-        { Score.event_controls =
-            Map.filterWithKey (\c _ -> c `elem` controls)
-                (Score.event_controls e)
-        }
+    strip = Score.modify_environ $
+        Env.from_map . flip Map.restrictKeys (Set.fromList keys) . Env.to_map
 
 with_insts :: [Text] -> [Score.Event] -> [Score.Event]
 with_insts instruments = filter ((`elem` is) . Score.event_instrument)
@@ -328,9 +324,6 @@ strip_stack = map $ \event -> event { Score.event_stack = Stack.empty }
 
 strip_env :: [Score.Event] -> [Score.Event]
 strip_env = map $ \event -> event { Score.event_environ = mempty }
-
-strip_controls :: [Score.Event] -> [Score.Event]
-strip_controls = map $ \event -> event { Score.event_controls = mempty }
 
 -- | Pretty-print events, presumably from 'sel_events'.  Extract the given
 -- fields, and format them in columns.

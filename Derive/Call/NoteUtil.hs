@@ -37,16 +37,14 @@ make_event :: Derive.PassedArgs a -> Derive.Dynamic -> RealTime -> RealTime
     -> Text -> Flags.Flags -> Derive.Deriver Score.Event
 make_event args dyn start dur integrate flags = do
     cvmap <- Derive.controls_at start
-    cmap <- Derive.get_control_map
-    make_event_control_vals cvmap cmap args dyn start dur integrate flags
+    make_event_control_vals cvmap args dyn start dur integrate flags
 
 -- | Specialized version of 'make_event' just so I can avoid calling
 -- Derive.controls_at twice.
-make_event_control_vals :: ScoreT.ControlValMap -> DeriveT.ControlMap
-    -> Derive.PassedArgs a -> Derive.Dynamic -> RealTime -> RealTime -> Text
-    -> Flags.Flags
+make_event_control_vals :: ScoreT.ControlValMap -> Derive.PassedArgs a
+    -> Derive.Dynamic -> RealTime -> RealTime -> Text -> Flags.Flags
     -> Derive.Deriver Score.Event
-make_event_control_vals cvmap cmap args dyn start dur integrate flags = do
+make_event_control_vals cvmap args dyn start dur integrate flags = do
     offset <- get_start_offset start
     Internal.increment_event_serial
     return $! Score.Event
@@ -54,19 +52,31 @@ make_event_control_vals cvmap cmap args dyn start dur integrate flags = do
         , event_duration = dur
         , event_text = Event.text (Args.event args)
         , event_integrate = integrate
-        , event_controls = trim_controls start cmap
         , event_pitch = trim_pitch start (Derive.state_pitch dyn)
-        , event_pitches = mempty
         , event_stack = Derive.state_stack dyn
         , event_highlight = Color.NoHighlight
         , event_instrument = fromMaybe ScoreT.empty_instrument $
             Env.maybe_val EnvKey.instrument environ
-        , event_environ = stash_convert_values cvmap offset environ
+        -- Put trimmed controls back into the environ.
+        , event_environ = Env.map (trim_control_vals start) $
+            stash_convert_values cvmap offset environ
         , event_flags = flags
         , event_delayed_args = mempty
         , event_logs = []
         }
     where environ = Derive.state_environ dyn
+
+-- | Trim control signals.
+--
+-- Previously I would also trim to the end of the note, but now I leave it
+-- as-is and rely on the performer to trim the end according to the
+-- instrument's decay time.  This is so that a note whose decay persists
+-- outside of its block can still see control changes after its block ends.
+trim_control_vals :: RealTime -> DeriveT.Val -> DeriveT.Val
+trim_control_vals start = \case
+    DeriveT.VSignal sig -> DeriveT.VSignal $ Signal.drop_before start <$> sig
+    DeriveT.VPSignal sig -> DeriveT.VPSignal $ PSignal.drop_before start sig
+    val -> val
 
 -- | Stash the dynamic value from the ControlValMap in
 -- 'Controls.dynamic_function'.  Gory details in NOTE [EnvKey.dynamic_val].
@@ -92,15 +102,6 @@ get_start_offset start = do
         Derive.untyped_control_at Controls.start_t start
     start_t <- Call.real_duration start start_t
     return $ start_s + start_t
-
--- | Trim control signals.
---
--- Previously I would also trim to the end of the note, but now I leave it
--- as-is and rely on the performer to trim the end according to the
--- instrument's decay time.  This is so that a note whose decay persists
--- outside of its block can still see control changes after its block ends.
-trim_controls :: RealTime -> DeriveT.ControlMap -> DeriveT.ControlMap
-trim_controls start = Map.map (fmap (Signal.drop_before start))
 
 -- | For inverted tracks, this trimming should already be done by
 -- 'Derive.Control.trim_signal'.

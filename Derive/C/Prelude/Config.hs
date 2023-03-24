@@ -90,15 +90,15 @@ c_initialize = Derive.transformer Module.prelude "initialize" mempty
 dummy_note :: ScoreT.Instrument -> Note.Element -> Map ScoreT.Control Double
     -> Score.Event
 dummy_note inst element controls = Score.empty_event
-    { Score.event_controls = make_val <$>
-        Map.insert Controls.dynamic 0 (Map.delete pitch controls)
-    , Score.event_pitch = case Map.lookup pitch controls of
+    { Score.event_pitch = case Map.lookup pitch controls of
         Nothing -> mempty
         Just nn -> PSignal.constant $ PSignal.nn_pitch (Pitch.nn nn)
     , Score.event_text = "faust initialize"
     , Score.event_instrument = inst
     , Score.event_environ =
-        Env.from_list [(EnvKey.element, Typecheck.to_val element)]
+        (Env.from_list [(EnvKey.element, Typecheck.to_val element)] <>) $
+        Env.from_controls $ make_val <$>
+            Map.insert Controls.dynamic 0 (Map.delete pitch controls)
     }
     where
     pitch = "pitch"

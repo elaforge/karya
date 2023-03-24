@@ -668,9 +668,9 @@ e_instrument :: Score.Event -> Text
 e_instrument = ScoreT.instrument_name . Score.event_instrument
 
 e_control :: ScoreT.Control -> Score.Event -> [(RealTime, Signal.Y)]
-e_control control event = Seq.drop_dups id $
-    maybe [] (Signal.to_pairs . ScoreT.typed_val) $
-    Map.lookup control (Score.event_controls event)
+e_control control = Seq.drop_dups id
+    . maybe [] (Signal.to_pairs . ScoreT.typed_val)
+    . Score.event_control control
 
 e_controls :: Score.Event -> [(ScoreT.Control, [(Signal.X, Signal.Y)])]
 e_controls = map (second (Signal.to_pairs . ScoreT.typed_val)) . Map.toList
@@ -873,11 +873,9 @@ c_note s_start dur = do
         { Score.event_start = start
         , Score.event_duration = end - start
         , Score.event_text = "evt"
-        , Score.event_controls = cmap
         , Score.event_pitch = Derive.state_pitch st
-        , Score.event_pitches = mempty
         , Score.event_instrument = inst
-        , Score.event_environ = environ
+        , Score.event_environ = environ <> Env.from_controls cmap
         }
 
 -- * scale
@@ -911,7 +909,7 @@ mkevent_scale_key scale key (start, dur, pitch, controls, inst) =
         { Score.event_start = start
         , Score.event_duration = dur
         , Score.event_text = ""
-        , Score.event_controls = mkcontrols controls
+        , Score.event_environ = Env.from_controls $ mkcontrols controls
         , Score.event_pitch = PSignal.from_sample start (mkpitch scale pitch)
         , Score.event_stack = fake_stack
         , Score.event_instrument = inst

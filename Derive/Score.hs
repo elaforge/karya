@@ -22,7 +22,7 @@ module Derive.Score (
     -- ** logs
     , add_log, add_log_msg
     -- ** environ
-    , modify_environ, modify_environ_key
+    , modify_environ, modify_val
     -- ** attributes
     , event_attributes, has_attribute, intersecting_attributes
     , modify_attributes, add_attributes, remove_attributes
@@ -32,11 +32,13 @@ module Derive.Score (
     -- ** modify events
     , move, place, move_start, duration, set_duration, set_instrument
     -- *** control
+    , event_controls
     , control_at, event_control, initial_dynamic, modify_dynamic, set_dynamic
-    , modify_control
+    , modify_control_vals, modify_control, modify_signal
     , set_control, event_controls_at
     -- *** pitch
-    , set_pitch, set_named_pitch, event_named_pitch
+    , set_pitch
+    , set_named_pitch, event_named_pitch
     , transposed_at, pitch_at, apply_controls
     , initial_pitch, nn_at, initial_nn, note_at, initial_note
     , nn_signal
@@ -53,6 +55,7 @@ import qualified Data.Typeable as Typeable
 import qualified Util.CallStack as CallStack
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
+import qualified Util.Seq as Seq
 
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Controls as Controls
@@ -83,10 +86,7 @@ data Event = Event {
     -- so calls can explicitly set how they would like their events to be
     -- integrated.  Otherwise, Integrate.Convert will try to infer something.
     , event_integrate :: !Text
-    , event_controls :: !DeriveT.ControlMap
     , event_pitch :: !PSignal.PSignal
-    -- | Named pitch signals.
-    , event_pitches :: !DeriveT.PitchMap
     -- | Keep track of where this event originally came from.  That way, if an
     -- error or warning is emitted concerning this event, its position on the
     -- UI can be highlighted.
@@ -142,9 +142,7 @@ empty_event = Event
     , event_duration = 0
     , event_text = mempty
     , event_integrate = mempty
-    , event_controls = mempty
     , event_pitch = mempty
-    , event_pitches = mempty
     , event_stack = Stack.empty
     , event_highlight = Color.NoHighlight
     , event_instrument = ScoreT.empty_instrument
@@ -183,10 +181,7 @@ copy event = event { event_flags = mempty, event_logs = [] }
 -- Unlike "Perform.Midi.Convert", this doesn't trim the controls, so it applies
 -- out-of-range transpositions.
 normalize :: Event -> Event
-normalize event = event
-    { event_pitch = apply $ event_pitch event
-    , event_pitches = apply <$> event_pitches event
-    }
+normalize event = event { event_pitch = apply $ event_pitch event }
     where
     apply = PSignal.apply_controls controls
         . PSignal.apply_environ (event_environ event)
@@ -218,10 +213,15 @@ modify_environ :: (DeriveT.Environ -> DeriveT.Environ) -> Event -> Event
 modify_environ f event = event { event_environ = f (event_environ event) }
 
 -- | Modify the value at the given key.
-modify_environ_key :: EnvKey.Key
-    -> (Maybe DeriveT.Val -> DeriveT.Val) -> Event -> Event
-modify_environ_key key modify = modify_environ $ \(DeriveT.Environ env) ->
+modify_val :: EnvKey.Key -> (Maybe DeriveT.Val -> DeriveT.Val) -> Event -> Event
+modify_val key modify = modify_environ $ \(DeriveT.Environ env) ->
     DeriveT.Environ $ Map.alter (Just . modify) key env
+
+put_val :: EnvKey.Key -> DeriveT.Val -> Event -> Event
+put_val key = modify_val key . const
+
+lookup_val :: EnvKey.Key -> Event -> Maybe DeriveT.Val
+lookup_val key = DeriveT.lookup key . event_environ
 
 -- ** attributes
 
@@ -251,14 +251,14 @@ remove_attributes attrs event
     | otherwise = modify_attributes (Attrs.remove attrs) event
 
 instance DeepSeq.NFData Event where
-    rnf (Event start dur _text _integrate controls pitch pitches _ _ _ _
-            flags _delayed_args logs) =
+    rnf (Event start dur _text _integrate pitch _ _ _ _ flags
+            _delayed_args logs) =
         -- I can't force Dynamic, so leave off _delayed_args.
-        rnf (start, dur, controls, pitch, pitches, flags, logs)
+        rnf (start, dur, pitch, flags, logs)
 
 instance Pretty Event where
-    format e@(Event start dur text integrate controls pitch pitches
-            stack highlight inst env flags delayed_args logs) =
+    format e@(Event start dur text integrate pitch stack highlight inst env
+            flags delayed_args logs) =
         Pretty.record (foldr1 (Pretty.<+>) $ concat
             [ ["Event", Pretty.format (start, dur)]
             , [Pretty.text $ "\"" <> text <> "\"" | text /= ""]
@@ -270,8 +270,6 @@ instance Pretty Event where
             ]) $ concat
             [ [("instrument", Pretty.format inst)]
             , g "pitch" pitch PSignal.null
-            , g "pitches" pitches Map.null
-            , g "controls" controls Map.null
             , g "stack" stack (== Stack.empty)
             , g "highlight" highlight (== Color.NoHighlight)
             , g "environ" env DeriveT.null
@@ -315,13 +313,22 @@ move modify event
     | pos == event_start event = event
     | otherwise = event
         { event_start = pos
-        , event_controls = fmap (Signal.shift delta) <$> event_controls event
+        , event_environ = modify_env (map (second shift))
+            (event_environ event)
         , event_pitch = PSignal.shift delta $ event_pitch event
-        , event_pitches = PSignal.shift delta <$> event_pitches event
         }
     where
+    shift = \case
+        DeriveT.VSignal sig -> DeriveT.VSignal $ Signal.shift delta <$> sig
+        DeriveT.VPSignal sig -> DeriveT.VPSignal $ PSignal.shift delta sig
+        val -> val
     pos = modify (event_start event)
     delta = pos - event_start event
+
+modify_env :: ([(EnvKey.Key, DeriveT.Val)] -> [(EnvKey.Key, DeriveT.Val)])
+    -> DeriveT.Environ -> DeriveT.Environ
+modify_env modify (DeriveT.Environ env) = DeriveT.Environ $
+    Map.fromAscList $ modify $ Map.toAscList env
 
 place :: RealTime -> RealTime -> Event -> Event
 place start dur event = (move (const start) event) { event_duration = dur }
@@ -351,15 +358,22 @@ set_instrument score_inst inst_environ event = event
 
 -- *** control
 
+event_controls :: Event -> DeriveT.ControlMap
+event_controls = get . event_environ
+    where
+    get (DeriveT.Environ env) = Map.fromAscList $ map (first ScoreT.Control) $
+        Seq.map_maybe_snd is_signal $ Map.toAscList env
+    is_signal (DeriveT.VSignal sig) = Just sig
+    is_signal _ = Nothing
+
 -- | Get a control value from the event, or Nothing if that control isn't
 -- present.
 control_at :: RealTime -> ScoreT.Control -> Event
     -> Maybe (ScoreT.Typed Signal.Y)
-control_at pos control event =
-    fmap (Signal.at pos) <$> Map.lookup control (event_controls event)
+control_at pos control = fmap (fmap (Signal.at pos)) . event_control control
 
 event_control :: ScoreT.Control -> Event -> Maybe (ScoreT.Typed Signal.Control)
-event_control control = Map.lookup control . event_controls
+event_control (ScoreT.Control control) = as_signal <=< lookup_val control
 
 initial_dynamic :: Event -> Signal.Y
 initial_dynamic event = maybe 0 ScoreT.typed_val $
@@ -371,53 +385,46 @@ initial_dynamic event = maybe 0 ScoreT.typed_val $
 -- (*).
 modify_dynamic :: (Signal.Y -> Signal.Y) -> Event -> Event
 modify_dynamic modify =
-    modify_environ_key EnvKey.dynamic_val (DeriveT.num . modify . num_of)
+    modify_control_vals (ScoreT.Control EnvKey.dynamic_val) modify
     . modify_control_vals Controls.dynamic modify
-    where num_of = maybe 0 (maybe 0 ScoreT.typed_val . DeriveT.constant_val)
 
 -- | Use this instead of 'set_control' because it also sets
 -- 'EnvKey.dynamic_val'.
 set_dynamic :: Signal.Y -> Event -> Event
-set_dynamic dyn =
-    modify_environ_key EnvKey.dynamic_val (const $ DeriveT.num dyn)
-    . set_control Controls.dynamic (ScoreT.untyped (Signal.constant dyn))
-
--- -- | Use this instead of 'modify_control_vals' because it also sets
--- -- 'EnvKey.dynamic_val'.  This is only valid for linear functions like (+) or
--- -- (*).
--- modify_dynamic :: (Signal.Y -> Signal.Y) -> Event -> Event
--- modify_dynamic modify =
---     modify_control_vals (ScoreT.Control EnvKey.dynamic_val) modify
---     . modify_control_vals Controls.dynamic modify
---
--- -- | Use this instead of 'set_control' because it also sets
--- -- 'EnvKey.dynamic_val'.
--- set_dynamic :: Signal.Y -> Event -> Event
--- set_dynamic dyn =
---     set_control (ScoreT.Control EnvKey.dynamic_val) val
---     . set_control Controls.dynamic val
---     where val = ScoreT.untyped (Signal.constant dyn)
+set_dynamic dyn = put_val EnvKey.dynamic_val sig
+    . put_val (ScoreT.control_name Controls.dynamic) sig
+    where sig = DeriveT.num dyn
 
 modify_control_vals :: ScoreT.Control -> (Signal.Y -> Signal.Y) -> Event
     -> Event
-modify_control_vals control modify event = event
-    { event_controls = Map.adjust (fmap (Signal.map_y_linear modify)) control
-        (event_controls event)
-    }
+modify_control_vals control modify event = case event_control control event of
+    Nothing -> event
+    Just sig -> put_val (ScoreT.control_name control)
+        (DeriveT.VSignal (Signal.map_y_linear modify <$> sig)) event
 
--- | Modify a control.  If there is no existing control, the modify function
--- gets an empty signal.
-modify_control :: ScoreT.Control -> (Signal.Control -> Signal.Control) -> Event
-    -> Event
-modify_control control modify event = event
-    { event_controls =
-        Map.alter (Just . alter) control (event_controls event)
-    }
-    where alter old = modify <$> fromMaybe mempty old
+-- | Like 'modify_control', but default to an empty control and retain any
+-- type the original had.
+modify_signal :: ScoreT.Control -> (Signal.Control -> Signal.Control)
+    -> Event -> Event
+modify_signal control modify =
+    modify_control control (fmap modify . fromMaybe (ScoreT.untyped mempty))
+
+modify_control :: ScoreT.Control
+    -> (Maybe DeriveT.TypedSignal -> DeriveT.TypedSignal) -> Event -> Event
+modify_control (ScoreT.Control control) modify =
+    modify_val control (DeriveT.VSignal . modify . (as_signal =<<))
+
+put_control :: ScoreT.Control -> DeriveT.TypedSignal -> Event -> Event
+put_control control = modify_control control . const
+
+as_signal :: DeriveT.Val -> Maybe DeriveT.TypedSignal
+as_signal = \case
+    DeriveT.VSignal sig -> Just sig
+    _ -> Nothing
 
 set_control :: ScoreT.Control -> ScoreT.Typed Signal.Control -> Event -> Event
-set_control control signal event = event
-    { event_controls = Map.insert control signal (event_controls event) }
+set_control (ScoreT.Control control) =
+    modify_val control . const . DeriveT.VSignal
 
 event_controls_at :: RealTime -> Event -> ScoreT.ControlValMap
 event_controls_at t event =
@@ -426,18 +433,20 @@ event_controls_at t event =
 -- *** pitch
 
 set_pitch :: PSignal.PSignal -> Event -> Event
-set_pitch = set_named_pitch ScoreT.default_pitch
+set_pitch sig event = event { event_pitch = sig }
 
 set_named_pitch :: ScoreT.PControl -> PSignal.PSignal -> Event -> Event
 set_named_pitch pcontrol signal event
     | pcontrol == ScoreT.default_pitch = event { event_pitch = signal }
-    | otherwise = event
-        { event_pitches = Map.insert pcontrol signal (event_pitches event) }
+    | otherwise = modify_val (ScoreT.pcontrol_name pcontrol)
+        (const $ DeriveT.VPSignal signal) event
 
 event_named_pitch :: ScoreT.PControl -> Event -> Maybe PSignal.PSignal
-event_named_pitch pcontrol
-    | pcontrol == ScoreT.default_pitch = Just . event_pitch
-    | otherwise = Map.lookup pcontrol . event_pitches
+event_named_pitch pcontrol event
+    | pcontrol == ScoreT.default_pitch = Just (event_pitch event)
+    | otherwise = case lookup_val (ScoreT.pcontrol_name pcontrol) event of
+        Just (DeriveT.VPSignal sig) -> Just sig
+        _ -> Nothing
 
 -- | Unlike 'Derive.Derive.pitch_at', the transposition has already been
 -- applied.  This is because callers expect to get the actual pitch, not the

@@ -148,16 +148,19 @@ test_assign_controls = do
     let (events, logs) = run ">i | cont = %bonk" "gont" "1"
     equal events []
     strings_like logs ["control not found: %bonk"]
-    -- control assigned
-    equal (run ">i | cont = %gont" "gont" "1") ([("4c", [(0, 1)])], [])
+
+    -- TODO I could support this with Derive.get_control_map in
+    -- NoteUtil.make_event, but I don't think I use this feature.
+    -- -- control assigned
+    -- equal (run ">i | cont = %gont" "gont" "1") ([("4c", [(0, 1)])], [])
+    -- -- set constant signal with a default
+    -- equal (run ">i | cont = %gont,42" "bonk" "1")
+    --     ([("4c", [(-RealTime.larger, 42)])], [])
+    -- equal (run ">i | cont = %gont,42" "gont" "1") ([("4c", [(0, 1)])], [])
 
     -- set a constant signal
     equal (run ">i | cont = 42" "gont" "1")
         ([("4c", [(-RealTime.larger, 42)])], [])
-    -- set constant signal with a default
-    equal (run ">i | cont = %gont,42" "bonk" "1")
-        ([("4c", [(-RealTime.larger, 42)])], [])
-    equal (run ">i | cont = %gont,42" "gont" "1") ([("4c", [(0, 1)])], [])
 
     -- named pitch doesn't show up
     equal (run ">i" "*twelve #foo" "2c") ([("4c", [])], [])

@@ -25,7 +25,7 @@ note_terminate control decay = Derive.transformer Module.instrument
     Sig.defaulted "value" (0.1 :: Double) "Move to this value."
     ) $ \value _args -> fmap (Post.emap1_ (apply decay value))
     where
-    apply decay value event = Score.modify_control control
+    apply decay value event = Score.modify_signal control
         (modify decay value (Score.event_end event)) event
     modify decay value end = Signal.sig_multiply
         (Signal.from_pairs

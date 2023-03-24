@@ -12,6 +12,7 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveT as DeriveT
+import qualified Derive.Env as Env
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
@@ -57,7 +58,8 @@ slur event events = event
     { Score.event_duration = dur
     , Score.event_pitch = merge_pitch (Score.event_pitch event)
         [(Score.event_start e, Score.event_pitch e) | e <- events]
-    , Score.event_controls = merge_controls event events
+    , Score.event_environ = Env.from_controls (merge_controls event events)
+        <> Score.event_environ event
     }
     where
     dur = Score.event_end (fromMaybe event (Seq.last events))

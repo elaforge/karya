@@ -13,6 +13,7 @@
 -}
 module Derive.Call where
 import qualified Data.List as List
+import qualified Data.Set as Set
 import qualified System.Random.Mersenne.Pure64 as Pure64
 
 import qualified Util.Num as Num
@@ -95,7 +96,7 @@ with_transposed_pitch pitch =
     without_transpose . with_pitch (PSignal.coerce pitch)
 
 without_transpose :: Derive.Deriver a -> Derive.Deriver a
-without_transpose = Derive.remove_controls Controls.transposers
+without_transpose = Derive.remove_controls (Set.toList Controls.transposers)
 
 with_symbolic_pitch :: DeriveT.PitchCall -> ScoreTime -> Derive.Deriver a
     -> Derive.Deriver a

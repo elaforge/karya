@@ -185,8 +185,7 @@ postproc = bipolar_controls [bow_force, bow_pos] . bipolar_expression
 bipolar_controls :: [ScoreT.Control] -> Score.Event -> Score.Event
 bipolar_controls controls event
     | null sigs = event
-    | otherwise = event
-        { Score.event_controls = sigs <> Score.event_controls event }
+    | otherwise = Score.modify_environ (Env.from_controls sigs <>) event
     where
     sigs = Map.fromList $ map (second normalize) $ Seq.map_maybe_snd id $
         Seq.key_on_snd (\c -> Map.lookup c (Score.event_controls event))
@@ -241,7 +240,7 @@ alternate_bowing dir (prev, event)
     set Call.Up = id
 
 invert_dyn :: Score.Event -> Score.Event
-invert_dyn = Score.modify_control Controls.dynamic (Signal.scalar_multiply (-1))
+invert_dyn = Score.modify_control_vals Controls.dynamic negate
 
 data BowDirection = Down | Up | Alternate
     deriving (Eq, Show, Enum, Bounded)
@@ -255,8 +254,7 @@ control_call :: Expr.Symbol -> Doc.Doc -> ScoreT.Control
 control_call name doc control val = MidiInst.both name $
     Make.transform_notes Module.instrument (sym_to_name name) mempty doc
     (Sig.defaulted "val" val "How much.") $
-    \val -> fmap $ Post.emap1_ $ Score.modify_control control $
-        Signal.sig_add (Signal.constant val)
+    \val -> fmap $ Post.emap1_ $ Score.modify_control_vals control (+val)
     where
     sym_to_name (Expr.Symbol a) = Derive.CallName a
 
@@ -268,7 +266,7 @@ c_harsh = Make.transform_notes Module.instrument "harsh" mempty
     ) $ \(val, dur) -> fmap $ Post.emap1_ (attack val dur)
     where
     attack val dur event =
-        Score.modify_control bow_force (Signal.sig_add sig) event
+        Score.modify_signal bow_force (Signal.sig_add sig) event
         where
         start = Score.event_start event
         sig = Signal.from_pairs [(start, val), (start+dur, 0)]

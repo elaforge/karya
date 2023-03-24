@@ -9,9 +9,12 @@
 -- names.
 module Derive.Controls where
 import           Prelude hiding (null)
+import qualified Data.Set as Set
 
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.ScoreT as ScoreT
-import           Derive.ScoreT (Control)
+import           Derive.ScoreT (Control(..))
+
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Shared.Control as Shared.Control
 
@@ -38,7 +41,7 @@ tempo = "tempo"
 dynamic :: Control
 dynamic = "dyn"
 
--- ** generally understood by the note deriver
+-- * generally understood by the note deriver
 
 -- | Scale note duration.  This is multiplicative, so 1 is no change.
 --
@@ -63,7 +66,19 @@ start_s = "start-s"
 start_t :: Control
 start_t = "start-t"
 
--- ** specific to instruments
+-- * internal
+
+-- | Save ambient dyn before an integrate.  See usage in
+-- "Cmd.Integrate.Convert".
+dynamic_integrate :: Control
+dynamic_integrate = "dyn-integrate"
+
+integrate_keep :: Set Control
+integrate_keep =
+    Set.fromList [dynamic_integrate, Control EnvKey.voice]
+    <> transposers
+
+-- * specific to instruments
 
 -- | Variable mute control, where 1 is fully muted.
 mute :: Control
@@ -73,7 +88,7 @@ mute = "mute"
 finger :: Control
 finger = "finger"
 
--- ** understood by MIDI performer
+-- * understood by MIDI performer
 
 -- | Breath controller.  Generally you should use 'dynamic', which will emit
 -- velocity or breath depending on the instrument.
@@ -105,13 +120,13 @@ attack_velocity = "attack-vel"
 release_velocity :: Control
 release_velocity = "release-vel"
 
--- ** transposition
+-- * transposition
 
 -- | The common transpose controls.  A scale with special needs could still
 -- have its own unique transposers, but most all scales should respond to
 -- these.
-transposers :: [Control]
-transposers = [octave, diatonic, chromatic, nn, hz]
+transposers :: Set Control
+transposers = Set.fromList [octave, diatonic, chromatic, nn, hz]
 
 transpose_control :: Pitch.Transpose -> (Double, Control)
 transpose_control t = case t of
