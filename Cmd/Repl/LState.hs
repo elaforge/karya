@@ -20,7 +20,6 @@ import qualified Util.Lens as Lens
 import qualified Util.Log as Log
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
-import qualified Util.SourceControl as SourceControl
 
 import qualified App.Path as Path
 import qualified App.ReplProtocol as ReplProtocol
@@ -177,22 +176,9 @@ save_performance :: Lens UiConfig.Meta (Map BlockId (UiConfig.Performance a))
     -> (BlockId -> Cmd.CmdT IO a) -> Cmd.CmdT IO ()
 save_performance field perform = do
     block_id <- Ui.get_root_id
-    perf <- make_performance =<< perform block_id
+    events <- perform block_id
+    perf <- liftIO $ UiConfig.make_performance events
     Ui.modify_meta $ field %= Map.insert block_id perf
-
-make_performance :: a -> Cmd.CmdT IO (UiConfig.Performance a)
-make_performance events = do
-    time <- liftIO Time.getCurrentTime
-    commit <- Cmd.require_right txt =<< liftIO (SourceControl.current ".")
-    return $ UiConfig.Performance
-        { perf_events = events
-        , perf_creation = time
-        , perf_commit = Text.unlines $ map ($ commit)
-            [ SourceControl._hash
-            , SourceControl.showDate . SourceControl._date
-            , SourceControl._summary
-            ]
-        }
 
 --
 

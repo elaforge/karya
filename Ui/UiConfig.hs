@@ -34,6 +34,7 @@ module Ui.UiConfig (
     , im_performances
     , MidiPerformance, LilypondPerformance, ImPerformance
     , Performance(..)
+    , make_performance
     , Default(..)
     , tempo
     , SavedViews
@@ -50,6 +51,7 @@ import qualified GHC.Generics as Generics
 import qualified Util.Lens as Lens
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
+import qualified Util.SourceControl as SourceControl
 
 import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.Common as Common
@@ -426,6 +428,20 @@ data Performance a = Performance {
     -- | Free text, containing the git commit when this performance was taken.
     , perf_commit :: !Text
     } deriving (Eq, Show, Functor)
+
+make_performance :: a -> IO (Performance a)
+make_performance events = do
+    time <- Time.getCurrentTime
+    commit <- either (errorIO . txt) return =<< SourceControl.current "."
+    return $ Performance
+        { perf_events = events
+        , perf_creation = time
+        , perf_commit = Text.unlines $ map ($ commit)
+            [ SourceControl._hash
+            , SourceControl.showDate . SourceControl._date
+            , SourceControl._summary
+            ]
+        }
 
 -- | Initial values for derivation.
 --

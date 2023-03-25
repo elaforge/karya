@@ -35,6 +35,7 @@ import qualified Util.Thread as Thread
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.DiffPerformance as DiffPerformance
+import qualified Cmd.Save as Save
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveSaved as DeriveSaved
 import qualified Derive.LEvent as LEvent
@@ -56,6 +57,7 @@ data Flag = Help | Mode Mode | Output !FilePath
 data Mode =
     Verify | Save | Derive | Perform | Profile | ProfileDerive
     | DumpMidi | CommitInfo
+    | UpdateMidi
     deriving (Eq, Show, Bounded, Enum)
 
 data PerformTo = ToDerive | ToMidi
@@ -67,17 +69,18 @@ options =
     , GetOpt.Option [] ["mode"]
         (GetOpt.ReqArg read_mode (show [minBound :: Mode ..])) $
         "Run in this mode, defaults to Verify.  Modes:\n\
-        \  Verify - Check saved performances against current performances.\n\
-        \    If you give a directory and it has a file inside called\n\
-        \    " ++ verify_me_txt ++ ", use the contents of the file as further\n\
-        \   files to verify.\n\
-        \  Save - Write saved performances to disk as binary.\n\
-        \  Perform - Perform to MIDI and write to $input.midi.\n\
-        \  Profile - Like Perform, but don't write any output.\n\
-        \  ProfileDerive - Like Profile, but derive only, don't render midi.\n\
-        \  DumpMidi - Pretty print binary saved MIDI to stdout.\n\
-        \  CommitInfo - Dump info on the current commit in JSON. This doesn't\n\
-        \    belong here, but there's no other great place."
+        \Verify - Check saved performances against current performances.\n\
+        \   If you give a directory and it has a file inside called\n\
+        \   " ++ verify_me_txt ++ ", use the contents of the file as\n\
+        \   further files to verify.\n\
+        \Save - Write saved performances to disk as binary.\n\
+        \Perform - Perform to MIDI and write to $input.midi.\n\
+        \Profile - Like Perform, but don't write any output.\n\
+        \ProfileDerive - Like Profile, but derive only, don't render midi.\n\
+        \DumpMidi - Pretty print binary saved MIDI to stdout.\n\
+        \CommitInfo - Dump info on the current commit in JSON. This doesn't\n\
+        \  belong here, but there's no other great place.\n\
+        \UpdateMidi - Update the saved MIDI.\n"
     , GetOpt.Option [] ["out"] (GetOpt.ReqArg Output default_out_dir) $
         "Write output to this directory. This is diffs, and timing .json."
     ]
@@ -123,6 +126,9 @@ main = Git.initialize $ do
                 unless (null failed) $
                     putStr $ "    failed:\n" <> unlines (map fst failed)
             return $ Num.sum $ map snd results
+        UpdateMidi -> do
+            _ <- run_error0 $ mapM_ (update_midi cmd_config) args
+            return 0
         Save -> do
             when (null args) $ usage "no inputs"
             run_error $ concat <$> mapM (save out_dir) args
@@ -180,6 +186,13 @@ run_error m = do
     errors <- either (\err -> return [err]) return =<< Except.runExceptT m
     mapM_ Text.IO.putStrLn errors
     return (length errors)
+
+run_error0 :: ErrorM () -> IO Int
+run_error0 m = Except.runExceptT m >>= \case
+    Left err -> do
+        Text.IO.putStrLn err
+        return 1
+    Right () -> return 0
 
 require_right :: IO (Either Text a) -> Except.ExceptT Text IO a
 require_right io = tryRight =<< liftIO io
@@ -254,13 +267,13 @@ type Timings = [(Text, Thread.Seconds)]
 
 verify_performance :: FilePath -> Cmd.Config -> FilePath -> ErrorM [Text]
 verify_performance out_dir cmd_config fname = do
-    (state, library, aliases, block_id) <- load fname
-    let meta = Ui.config#UiConfig.meta #$ state
+    (ui_state, library, aliases, block_id) <- load fname
+    let meta = Ui.config#UiConfig.meta #$ ui_state
     let cmd_state = make_cmd_state library aliases cmd_config
     let verify1 verify field =
             maybe (return (Nothing, []))
-                (verify out_dir fname cmd_state state block_id) $
-            Map.lookup block_id (field meta)
+                (verify out_dir fname cmd_state ui_state block_id)
+                (Map.lookup block_id (field meta))
     (midi_err, midi_timings) <-
         verify1 verify_midi UiConfig.meta_midi_performances
     (im_err, im_timings) <- verify1 verify_im UiConfig.meta_im_performances
@@ -274,6 +287,16 @@ verify_performance out_dir cmd_config fname = do
                 timings
             return $ Maybe.catMaybes [midi_err, im_err, ly_err]
 
+update_midi :: Cmd.Config -> FilePath -> ErrorM ()
+update_midi cmd_config fname = do
+    (ui_state, library, aliases, block_id) <- load fname
+    let cmd_state = make_cmd_state library aliases cmd_config
+    (msgs, _, _) <- perform_block fname cmd_state ui_state block_id
+    perf <- liftIO $ UiConfig.make_performance (Vector.fromList msgs)
+    ui_state <- return $ (Ui.config#UiConfig.meta#UiConfig.midi_performances
+            %= Map.insert block_id perf)
+        ui_state
+    liftIO $ Save.write_state fname ui_state
 
 -- | Perform from the given state and compare it to the old MidiPerformance.
 verify_midi :: FilePath -> FilePath -> Cmd.State -> Ui.State -> BlockId
