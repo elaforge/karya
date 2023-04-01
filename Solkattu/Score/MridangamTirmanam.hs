@@ -30,7 +30,7 @@ tir_long_adi = tirmanam $ korvaiS adi
 
 -- sam to sam
 tir_sam_adi_kirkalam :: Korvai
-tir_sam_adi_kirkalam = tirmanam $ korvaiS adi
+tir_sam_adi_kirkalam = tirmanam $ date 2022 4 23 $ korvaiS adi
     [ tri_ "D__k" "kookokk_"
     ]
 
@@ -42,7 +42,7 @@ tir_long_rupaka = tirmanam $ korvaiS Tala.rupaka_fast
 
 -- https://www.youtube.com/watch?v=lSVqfzQBkMs
 tir_mysore_vidiraj22 :: Korvai
-tir_mysore_vidiraj22 = tirmanam $ korvaiS adi
+tir_mysore_vidiraj22 = tirmanam $ date 2023 1 6 $ korvaiS adi
     -- 15
     [ __D 4 . r3 (__ . tri_ "D_o" "NNk")
     , __D 4 . __ . tri_ (su "D_ktpk") "NNk"
@@ -67,13 +67,45 @@ tir_mysore_vidiraj22 = tirmanam $ korvaiS adi
     ]
 
 tir_itunes :: Korvai
-tir_itunes = tirmanam $ source "Mannargudi Easwaran" $ korvaiS adi
+tir_itunes = tirmanam $ date 2023 3 10 $ source "Mannargudi Easwaran" $
+    korvaiS adi
     [ __D 7 . r2 (tri_ "D__" (su "kook"))
         -- TODO more elegant way to put in the extra k?
         . su "kook" . "D__" . su "kook" . "D_k" . su "kook"
     ]
 
 tir_sivamani :: Korvai
-tir_sivamani = tirmanam $ korvaiS adi
+tir_sivamani = tirmanam $ date 2023 1 20 $ korvaiS adi
     [ __D 2 . tri_ (su "v_pkno") "DD_NN_" -- another 63636
+    ]
+
+tir_icarnatic_guhan_kamalakiran :: Korvai
+tir_icarnatic_guhan_kamalakiran =
+    tirmanam $ date 2023 3 10 $ korvaiS Tala.rupaka_fast
+    -- at 26:00
+    [ tri_ "D_o" (g $ su "ktpkpktp ktpkpk" . "DDk")
+    -- alternate fingering
+    , tri_ "D_o" (g $ su "ktpktpkp tpktpk" . "DDk")
+    ]
+
+tir_icarnatic_guhan_kamalakiran_adi :: Korvai
+tir_icarnatic_guhan_kamalakiran_adi = tirmanam $ date 2023 3 10 $ korvaiS adi
+    -- at 1:08:07
+    [ __D 4 . tri2g "D__NNk" "kt_kn_ko_ok_" (su (stride 3 "ktknkook"))
+    -- trikalam version at 1:10:30
+    ]
+
+tir_indian_raga :: Korvai
+tir_indian_raga = tirmanam $ date 2023 3 10 $ korvaiS adi
+    -- Mayamma - Ahiri's Bliss
+    [ __.__ . tri_ "ko_" "D/oD/oD__" -- 333(3)
+    , __D 4 . tri_ (od.__6) "okokkoD__Nok" -- 66(6)
+    ]
+
+tir_misc :: Korvai
+tir_misc = tirmanam $ date 2023 3 10 $ korvaiS adi
+    [ __D 4 . tri2 "Dk" (su "tkooktok") (su "pu_knook")
+    , __D 3 . let seq = su "pu_knook" in seq . "D__k".seq."D_kk".seq
+    -- from facebook Shiva Ramesh, lalgudi tillana
+    , __D 2 . tri123 "D__" (su "N_ktok")
     ]

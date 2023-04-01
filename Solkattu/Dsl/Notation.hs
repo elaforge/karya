@@ -255,6 +255,10 @@ trin sep a b c = a <> sep <> b <> trySetTag mid sep <> c
 tri2 :: SequenceT sollu -> SequenceT sollu -> SequenceT sollu -> SequenceT sollu
 tri2 sep ab c = ab <> sep <> ab <> trySetTag mid sep <> c
 
+tri2g :: SequenceT sollu -> SequenceT sollu -> SequenceT sollu
+    -> SequenceT sollu
+tri2g sep ab c = group ab <> sep <> group ab <> trySetTag mid sep <> group c
+
 -- | 'tri_' with variable separators.
 tsep :: SequenceT sollu -> SequenceT sollu -> SequenceT sollu -> SequenceT sollu
 tsep seq sep1 sep2 = seq <> sep1 <> seq <> sep2 <> seq

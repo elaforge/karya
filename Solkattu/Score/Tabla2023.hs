@@ -4,7 +4,6 @@
 module Solkattu.Score.Tabla2023 where
 import           Prelude hiding ((.))
 
-import           Global
 import           Solkattu.Dsl.Bol
 
 

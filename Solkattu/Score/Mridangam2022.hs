@@ -124,6 +124,3 @@ akash_sarva = date 2023 2 5 $ source "akash" $ korvaiS1 adi $
     -- gina dhinna dhinna gina
     -- tinna gina taka tinna
     -- gina dhinna dhinna gina
-
-elaforge :: Korvai -> Korvai
-elaforge = source "elaforge"

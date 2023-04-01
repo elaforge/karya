@@ -257,7 +257,7 @@ fromString = mapMaybeM parse
 notations :: Map Char Stroke
 notations = Map.fromList $ (extras++) $ Seq.map_maybe_fst isChar $
     Seq.key_on Solkattu.notationText $ concat
-        [ map Thoppi (lhs ++ [Thom Up])
+        [ map Thoppi (lhs ++ [Thom Up, Gum])
         , map Valantalai rhs
         -- Omit little strokes, they're probably inaudible on Both anyway.
         , [Both lh rh | lh <- lhs, rh <- rhs, rh `notElem` [Mi, Kin, Tan]]
@@ -273,7 +273,7 @@ notations = Map.fromList $ (extras++) $ Seq.map_maybe_fst isChar $
         [c] -> Just c
         _ -> Nothing
     lhs = [Tha Palm, Thom Low]
-    rhs = [minBound .. maxBound]
+    rhs = [minBound .. ]
 
 printNotations :: IO ()
 printNotations = mapM_ putStrLn
