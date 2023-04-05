@@ -47,7 +47,6 @@ module Util.Test.Testing (
     , tmp_dir, in_tmp_dir, tmp_base_dir
 
     -- * util
-    , colored_diff
     , force
 ) where
 import qualified Control.DeepSeq as DeepSeq
@@ -57,7 +56,6 @@ import           Control.Monad (unless)
 import qualified Data.Algorithm.Diff as Diff
 import qualified Data.IORef as IORef
 import qualified Data.IntMap as IntMap
-import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import           Data.Text (Text)
@@ -83,10 +81,9 @@ import qualified System.Posix.Terminal as Terminal
 
 import qualified Test.QuickCheck as QuickCheck
 
-import qualified Util.Maps as Maps
+import qualified Util.Diffs as Diffs
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
-import qualified Util.Ranges as Ranges
 import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
 import qualified Util.Test.ApproxEq as ApproxEq
@@ -195,7 +192,7 @@ equal_fmt fmt a b = do
         (highlight_lines color diff_b $ Text.lines pretty_b)
         where
         color = failure_color
-        (diff_a, diff_b) = diff_ranges pretty_a pretty_b
+        (diff_a, diff_b) = Diffs.ranges pretty_a pretty_b
 
 -- | Assert these things are equal after applying a function.  Print without
 -- the function if they're not equal.  This is for cases when the extract
@@ -225,7 +222,7 @@ pretty_compare equal inequal expect_equal a b is_equal
         (highlight_lines color diff_b $ Text.lines pretty_b)
     where
     color = if expect_equal then failure_color else success_color
-    (diff_a, diff_b) = diff_ranges pretty_a pretty_b
+    (diff_a, diff_b) = Diffs.ranges pretty_a pretty_b
     pretty_a = pshowt a
     pretty_b = pshowt b
     -- Expected results are usually not interesting, so abbreviate if they're
@@ -236,87 +233,10 @@ pretty_compare equal inequal expect_equal a b is_equal
         where len = Text.length s
     maxlen = 400
 
--- TODO move this or something like it to Texts?
-colored_diff :: Text -> Text -> Text
-colored_diff a b =
-    Text.unlines $ highlight_lines color diff_a $ Text.lines a
-    -- fmt_lines "->"
-    --     (highlight_lines color diff_a $ Text.lines a)
-    --     (highlight_lines color diff_b $ Text.lines b)
-    where
-    color = failure_color
-    (diff_a, diff_b) = diff_ranges a b
-
--- | Apply color ranges as produced by 'diff_ranges'.
-highlight_lines :: ColorCode -> IntMap.IntMap [CharRange] -> [Text] -> [Text]
-highlight_lines color nums = zipWith hi [0..]
-    where
-    hi i line = case IntMap.lookup i nums of
-        Just ranges -> highlight_ranges color ranges line
-        Nothing -> line
-
-highlight_ranges :: ColorCode -> [CharRange] -> Text -> Text
-highlight_ranges color ranges = mconcat . map hi . split_ranges ranges
-    where hi (outside, inside) = outside <> highlight color inside
-
-split_ranges :: [(Int, Int)] -> Text -> [(Text, Text)] -- ^ (out, in) pairs
-split_ranges = go 0
-    where
-    go _ [] text
-        | Text.null text = []
-        | otherwise = [(text, mempty)]
-    go prev ((s, e) : ranges) text = (pre, within) : go e ranges post
-        where
-        (pre, rest) = Text.splitAt (s-prev) text
-        (within, post) = Text.splitAt (e - s) rest
-
-type CharRange = (Int, Int)
-
-diff_ranges :: Text -> Text
-    -> (IntMap.IntMap [CharRange], IntMap.IntMap [CharRange])
-diff_ranges first second =
-    to_map $ Seq.partition_paired $ map diff_line $
-        Maps.pairs first_by_line second_by_line
-    where
-    to_map (as, bs) = (IntMap.fromList as, IntMap.fromList bs)
-    diff_line (num, d) = case d of
-        Seq.Both line1 line2 -> Seq.Both (num, d1) (num, d2)
-            where (d1, d2) = char_diff line1 line2
-        Seq.First line1 -> Seq.First (num, [(0, Text.length line1)])
-        Seq.Second line2 -> Seq.Second (num, [(0, Text.length line2)])
-    first_by_line = Map.fromList
-        [(n, text) | Diff.First (Numbered n text) <- diffs]
-    second_by_line = Map.fromList
-        [(n, text) | Diff.Second (Numbered n text) <- diffs]
-    diffs = numbered_diff (==) (Text.lines first) (Text.lines second)
-
-char_diff :: Text -> Text -> ([CharRange], [CharRange])
-char_diff first second
-    | too_different first_cs || too_different second_cs =
-        ([(0, Text.length first)], [(0, Text.length second)])
-    | otherwise = (first_cs, second_cs)
-    where
-    first_cs = to_ranges [n | Diff.First (Numbered n _) <- diffs]
-    second_cs = to_ranges [n | Diff.Second (Numbered n _) <- diffs]
-    diffs = numbered_diff (==) (Text.unpack first) (Text.unpack second)
-    -- If there are too many diff ranges let's just mark the whole thing
-    -- different.  Perhaps I should ignore spaces that are the same, but let's
-    -- see how this work first.
-    too_different ranges = length ranges > 2
-
-to_ranges :: [Int] -> [(Int, Int)]
-to_ranges xs = Ranges.merge_sorted [(n, n+1) | n <- xs]
-
-numbered_diff :: (a -> a -> Bool) -> [a] -> [a] -> [Diff.Diff (Numbered a)]
-numbered_diff equal a b =
-    Diff.getDiffBy (\a b -> numbered_val a `equal` numbered_val b)
-        (number a) (number b)
-    where number = zipWith Numbered [0..]
-
-data Numbered a = Numbered {
-    numbered :: !Int
-    , numbered_val :: !a
-    } deriving (Show)
+highlight_lines :: ColorCode -> IntMap.IntMap [Diffs.CharRange] -> [Text]
+    -> [Text]
+highlight_lines (ColorCode color) =
+    Diffs.highlightLines (Diffs.ColorCode color)
 
 -- * approximately equal
 
@@ -340,16 +260,18 @@ strings_like :: forall txt. (HasCallStack, TextLike txt) => [txt] -> [Pattern]
 strings_like gotten_ expected
     | all is_both diffs = success $ fmt_lines "=~" gotten expected
     | otherwise = failure $ fmt_lines "/~"
-        (map (fmt_line (Set.fromList [numbered a | Diff.Second a <- diffs]))
+        (map (fmt_line
+                (Set.fromList [Diffs.numbered a | Diff.Second a <- diffs]))
             (zip [0..] gotten))
-        (map (fmt_line (Set.fromList [numbered a | Diff.First a <- diffs]))
+        (map (fmt_line
+                (Set.fromList [Diffs.numbered a | Diff.First a <- diffs]))
             (zip [0..] expected))
     where
     fmt_line failures (n, line)
         | Set.member n failures = highlight failure_color line
         | otherwise = line
     gotten = map to_text gotten_
-    diffs = numbered_diff pattern_matches expected gotten
+    diffs = Diffs.numberedDiff pattern_matches expected gotten
     is_both (Diff.Both {}) = True
     is_both _ = False
 
