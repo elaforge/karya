@@ -99,7 +99,6 @@ def main():
 
                 # heap profiling
                 '-L42', # field length for cost center names in heap profile
-                '-xt', # show threads and stacks as TSO and STACK
                 heap_flag,
             ]
             if heap_flag == '-hb':

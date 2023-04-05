@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE StrictData #-}
 -- | Type descriptions of the 'Val'.
 --
 -- This is in its own module so "Derive.Deriver.Monad" can import it without
@@ -41,11 +42,11 @@ data Type =
     -- up as a call argument.
     | TQuoted
     | TControlFunction
-    | TList !Type
-    | TDeriver !Text
+    | TList Type
+    | TDeriver Text
     -- | Typecheck instances that don't correspond directly to a Val type
     -- get this, as a plain description.
-    | TOther !Text
+    | TOther Text
     deriving (Eq, Ord, Show)
 
 -- | Get the intersection of the types.  If there's no intersection, it winds

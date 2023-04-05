@@ -25,6 +25,7 @@ patch_name_column = True
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--host', default=socket.gethostname().split('.')[0])
+    parser.add_argument('--date')
     parser.add_argument('--run-date')
     parser.add_argument('--scores', action='store_true')
     parser.add_argument('score', nargs='?', default=None)
@@ -40,6 +41,8 @@ def main():
         timings = [t for t in timings if t['system'] == args.host]
     if args.run_date:
         timings = [t for t in timings if t['run_date'] >= args.run_date]
+    if args.date:
+        timings = [t for t in timings if t['patch']['date'] >= args.date]
     if args.score:
         timings = [t for t in timings if t['score'] == args.score]
     timings.sort(key=lambda json: json['patch']['date'])
