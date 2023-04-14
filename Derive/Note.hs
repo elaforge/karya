@@ -11,7 +11,7 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Text as Text
 import qualified Data.Tree as Tree
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Derive.Control as Control
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
@@ -106,5 +106,5 @@ track_info track subs = EvalTrack.TrackInfo
     { tinfo_track = track
     , tinfo_sub_tracks = subs
     , tinfo_type = ParseTitle.NoteTrack
-    , tinfo_get_last_val = Seq.last
+    , tinfo_get_last_val = Lists.last
     }

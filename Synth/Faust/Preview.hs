@@ -11,6 +11,7 @@ import qualified System.Directory as Directory
 import           System.FilePath ((</>))
 
 import qualified Util.Audio.File as Audio.File
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
@@ -47,7 +48,7 @@ render patch = do
     let out = cacheDir imDir (InstrumentC._name patch)
     unlessM (Directory.doesDirectoryExist out) $ do
         Directory.createDirectoryIfMissing True out
-        let element = fromMaybe "" $ Seq.head $ filter (/="") $ map fst $
+        let element = fromMaybe "" $ Lists.head $ filter (/="") $ map fst $
                 Map.keys $ InstrumentC._controls patch
         Thread.forCpu_ (standardNotes element) $ \(nn, note) -> do
             Log.with_stdio_lock $

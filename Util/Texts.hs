@@ -215,7 +215,7 @@ haddockUrl files haddockDir text
         || exists (FilePath.joinPath path ++ ".hsc")
     exists = (`Set.member` files)
 
-    moduleLink path = strip $ haddockDir </> Seq.join "-" path ++ ".html"
+    moduleLink path = strip $ haddockDir </> Lists.join "-" path ++ ".html"
     strip ('.' : '/' : path) = path
     strip path = path
     symbolLink = case Lists.unsnoc components of

@@ -14,6 +14,7 @@ import qualified Numeric
 import qualified System.Environment
 import qualified System.IO as IO
 
+import qualified Util.Lists as Lists
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.Test as Test
@@ -79,7 +80,7 @@ test_midi (Right interface) = do
             (write_msg, _) <- open True [] (Just out_dev)
             mmc write_msg msg
         ("monitor" : mdevs@(_:_)) -> do
-            putStrLn $ "monitoring: " ++ Seq.join ", " mdevs
+            putStrLn $ "monitoring: " ++ Lists.join ", " mdevs
             (_, read_msg) <-
                 open True (map (Midi.read_device . txt) mdevs) Nothing
             monitor read_msg
@@ -240,7 +241,7 @@ mmc write_msg msg = write_msg (0, Mmc.encode 127 mmc_msg)
 
 parse_smpte :: String -> Maybe Midi.Smpte
 parse_smpte txt = do
-    [h, m, s] <- Just $ Seq.split ":" txt
+    [h, m, s] <- Just $ Lists.split ":" txt
     Midi.Smpte <$> int h <*> int m <*> int s <*> return 0
     where
     int s = case Numeric.readDec s of

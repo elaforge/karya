@@ -31,6 +31,7 @@ import qualified Text.Megaparsec as P
 import qualified Text.Megaparsec.Char as P
 
 import qualified Util.EList as EList
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.ParseText as ParseText
@@ -463,7 +464,7 @@ tied_notes :: (Eq pitch, Pretty pitch)
     => T.Note call pitch dur -> [(T.Time, Token call pitch (T.Time, Bool))]
     -> Either T.Error T.Time
 tied_notes note tied = case others of
-    [] -> case Seq.last matches of
+    [] -> case Lists.last matches of
         Nothing -> Left $ T.Error (T.note_pos note) "final note has a tie"
         Just (s, n)
             | snd $ T.note_duration n ->
@@ -753,7 +754,7 @@ scale_twelve = Scale
         accs <- P.choice $ map (\(n, c) -> P.string c *> pure n) accidentals
         return $ Pitch.Degree pc accs
     unparse (Pitch.Degree pc accs) = (<>)
-        <$> Seq.at degrees pc <*> lookup accs accidentals
+        <$> Lists.at degrees pc <*> lookup accs accidentals
     accidentals =
         [ (0, ""), (0, "n")
         , (1, "#"), (2, "x")

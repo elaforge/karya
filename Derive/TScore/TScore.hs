@@ -268,7 +268,7 @@ lookup_call_duration transformers call = do
 root_block :: Ui.M m => m (BlockId, TrackId)
 root_block = do
     block_id <- Ui.get_root_id
-    track_id <- Ui.require "root block has no tracks" . Seq.head
+    track_id <- Ui.require "root block has no tracks" . Lists.head
         =<< Ui.track_ids_of block_id
     return (block_id, track_id)
 
@@ -447,7 +447,7 @@ resolve_blocks get_ext_dur source blocks =
     resolve block_id block_title mb_asserts
             (tracknum, ParsedTrack config key title tokens _pos) =
         (Just $ fromMaybe asserts mb_asserts,) $ first (T.show_error source)$ do
-            whenJust (Seq.head errs) Left
+            whenJust (Lists.head errs) Left
             let to_tracks = map (fmap ((\(_, notes, _, _) -> notes) . fst))
                     . _tracks
             mb_from_track <- case Check.config_from config of
@@ -557,7 +557,7 @@ resolve_from blocks current_block current_tracknum
             <> Parse.show_block block_id <> ":" <> pretty tracknum
     tryJust (mkerror $ Parse.show_block block_id
             <> " doesn't have track " <> pretty tracknum) $
-        Seq.at tracks (tracknum - 1)
+        Lists.at tracks (tracknum - 1)
     where
     mkerror = T.Error pos
 

@@ -4,9 +4,11 @@
 
 {-# LANGUAGE NoMonomorphismRestriction #-}
 module Util.Seq_test where
-import Util.Test
+import qualified Util.Lists as Lists
 import qualified Util.Seq as Seq
-import Util.Seq (Paired(..))
+import           Util.Seq (Paired(..))
+
+import           Util.Test
 
 
 test_range_end :: Test
@@ -61,16 +63,9 @@ test_drop_dups = do
     equal (f "abbbc") "abc"
     equal (f "abbbcccca") "abca"
 
-test_split_before :: Test
-test_split_before = do
-    let f = Seq.split_before (==1)
-    equal (f []) []
-    equal (f [1, 2, 3, 1, 2]) [[], [1, 2, 3], [1, 2]]
-    equal (f [2, 3, 1, 2]) [[2, 3], [1, 2]]
-
 test_drop_before :: Test
 test_drop_before = do
-    let f n = Seq.head $ Seq.drop_before id n [1..4]
+    let f n = Lists.head $ Seq.drop_before id n [1..4]
     equal (f 0) (Just 1)
     equal (f 1) (Just 1)
     equal (f 1.5) (Just 1)

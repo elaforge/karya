@@ -8,15 +8,15 @@
 module Ui.UiMsg where
 import qualified Data.Text as Text
 
+import qualified Util.Lists as Lists
 import qualified Util.Rect as Rect
-import qualified Util.Seq as Seq
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
 import qualified Ui.Key as Key
 import qualified Ui.Types as Types
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- | Technically not all UiMsgs have a Context, but it's easier to give
@@ -131,7 +131,7 @@ show_short = \case
     UiMsg _ctx (UpdateScreenSize {}) -> "UpdateScreenSize"
     where
     word :: Show a => a -> Text
-    word = fromMaybe "" . Seq.head . Text.words . showt
+    word = fromMaybe "" . Lists.head . Text.words . showt
 
 instance Pretty UiMsg where
     pretty ui_msg = case ui_msg of

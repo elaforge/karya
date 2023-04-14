@@ -8,8 +8,8 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import qualified Util.Lists as Lists
 import qualified Util.Maps as Maps
-import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
@@ -113,7 +113,7 @@ parse_pairs elements =
     parse (_, []) = return []
     parse (control, [val]) = do
         val <- resolve val
-        return [(fromMaybe "" (Seq.head elements), (control, val))]
+        return [(fromMaybe "" (Lists.head elements), (control, val))]
     parse (control, vals)
         | length vals /= length elements = Left $ showt (length vals)
             <> " values for " <> showt (length elements) <> " elements: "

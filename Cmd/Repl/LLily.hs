@@ -20,6 +20,7 @@ module Cmd.Repl.LLily where
 import qualified Data.Text.Lazy as Lazy
 import qualified System.FilePath as FilePath
 
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Processes as Processes
 import qualified Util.Seq as Seq
@@ -82,7 +83,7 @@ modify_staff :: Ui.M m => Util.Instrument
 modify_staff inst_ modify = do
     config <- get_config
     let staves = Lilypond.config_staves config
-    case Seq.find_modify ((==inst) . fst) (second modify) staves of
+    case Lists.findModify ((==inst) . fst) (second modify) staves of
         Nothing -> Ui.throw $ "no staff config for " <> pretty inst
         Just staves -> modify_config $ const $
             config { Lilypond.config_staves = staves }

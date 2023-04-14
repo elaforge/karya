@@ -43,6 +43,7 @@ import qualified System.Process as Process
 import qualified Util.File as File
 import qualified Util.Git as Git
 import           Util.GitT (Commit, Repo)
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
@@ -114,7 +115,7 @@ read_last_save repo maybe_commit = do
             (ref, commit) <- Map.toList refs
             Just save <- return $ ref_to_save ref
             return (commit, save)
-    return $ Seq.head [(save, commit) | (Just save, commit)
+    return $ Lists.head [(save, commit) | (Just save, commit)
         <- zip (map (`Map.lookup` commit_to_save) commits) commits]
 
 -- | Find the SavePoint that should be added after the given SavePoint.
@@ -136,11 +137,11 @@ ref_to_save ref
     | otherwise = Just $ SavePoint (reverse (map read versions))
     where
     (save, _) = Seq.drop_prefix "tags/" ref
-    versions = Seq.split "." save
+    versions = Lists.split "." save
 
 save_to_ref :: SavePoint -> Git.Ref
 save_to_ref (SavePoint versions) =
-    "tags" </> Seq.join "." (map show (reverse versions))
+    "tags" </> Lists.join "." (map show (reverse versions))
 
 
 -- * save
@@ -249,7 +250,7 @@ load_previous_history :: Git.Repo -> Ui.State -> Commit
     -> IO (Either Text (Maybe LoadHistory))
 load_previous_history repo state commit = try_e "load_previous_history" $ do
     commit_data <- Git.read_commit repo commit
-    case Seq.head (Git.commit_parents commit_data) of
+    case Lists.head (Git.commit_parents commit_data) of
         Nothing -> return $ Right Nothing
         Just parent -> load_history repo state commit parent
 

@@ -35,6 +35,7 @@ import           Vivid.OSC (OSCDatum(..))
 
 import qualified Util.Control as Control
 import qualified Util.Exceptions as Exceptions
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Network as Network
 import qualified Util.Num as Num
@@ -176,7 +177,7 @@ play_loop state = flip Control.loop1 $ \loop bundles -> do
     --     mapM_ print chunk
     mapM_ (send server_port . OSC.encodeOSCBundle) chunk
     let timeout = if null rest
-            then maybe now (OSC.timestampToUTC . time_of) (Seq.last chunk)
+            then maybe now (OSC.timestampToUTC . time_of) (Lists.last chunk)
                 `Time.diffUTCTime` now
             else write_ahead
     stop <- Transport.poll_stop_player timeout (_play_control state)

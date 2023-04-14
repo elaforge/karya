@@ -5,7 +5,7 @@
 module Derive.Typecheck_test where
 import qualified Control.Monad as Monad
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Derive.Call as Call
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Derive as Derive
@@ -144,7 +144,7 @@ capture show_val controls arg =
     where
     from_str (DeriveT.VStr (Expr.Str str)) = Just str
     from_str _ = Nothing
-    extract = first (from_str <=< Monad.join . Seq.head)
+    extract = first (from_str <=< Monad.join . Lists.head)
         . DeriveTest.extract (Env.lookup "capture" . Score.event_environ)
     c_capture :: Derive.Generator Derive.Note
     c_capture = Derive.generator CallTest.module_ "capture" mempty "" $

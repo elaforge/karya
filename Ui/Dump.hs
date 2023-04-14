@@ -17,9 +17,10 @@ import qualified Control.Applicative as Applicative
 import qualified Data.Attoparsec.Text as A
 import qualified Data.Text as Text
 
+import qualified Util.Lists as Lists
 import qualified Util.ParseText as ParseText
-import qualified Util.Seq as Seq
-import Global
+
+import           Global
 
 
 type Dump = [(String, String)]
@@ -35,7 +36,7 @@ flatten (Tree pairs) = concatMap (go []) pairs
     where
     go prefix (key, Val val) = [(flatten_key (key:prefix), val)]
     go prefix (key, Sub (Tree subs)) = concatMap (go (key:prefix)) subs
-    flatten_key = Seq.join "." . reverse
+    flatten_key = Lists.join "." . reverse
 
 p_tree :: A.Parser Tree
 p_tree = Tree <$> Applicative.many p_pair

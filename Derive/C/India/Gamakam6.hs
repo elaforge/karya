@@ -10,10 +10,10 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
+import qualified Util.Lists as Lists
 import qualified Util.Num as Num
 import qualified Util.ParseText as ParseText
 import qualified Util.Segment as Segment
-import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
@@ -193,7 +193,7 @@ pitch_sequence_doc = Doc.Doc $
 -- | Start of the next event.  'Args.next' gets the end of the block if there
 -- is no next event, but I don't want that.
 next_event :: Derive.PassedArgs a -> Maybe TrackTime
-next_event = fmap Event.start . Seq.head . Args.next_events
+next_event = fmap Event.start . Lists.head . Args.next_events
 
 -- | Infer the end time for the gamakam as the next pitch in the pitch signal,
 -- which should correspond to the next explicit swaram.

@@ -5,6 +5,7 @@
 module Synth.Sampler.Patch.CengCeng (patches) where
 import qualified Data.Set as Set
 
+import qualified Util.Lists as Lists
 import qualified Util.Seq as Seq
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.ImInst as ImInst
@@ -148,7 +149,7 @@ rincikGetFilename art dyn var = (fname, Just dynRange)
         , dynamicThreshold dynSym
         )
     (dynSym, _) = Util.findDynamic dynamicThreshold dyn
-    fname = Seq.join "-"
+    fname = Lists.join "-"
         [ showArt art
         , Util.showLower dynSym
         , 'v' : show (Util.pickVariation [1 .. variations] var)
@@ -256,7 +257,7 @@ kopyakGetFilename inst art dyn var = (fname, Just dynRange)
         , dynamicThreshold dynSym
         )
     (dynSym, _) = Util.findDynamic dynamicThreshold dyn
-    fname = Seq.join "-"
+    fname = Lists.join "-"
         [ Util.showLower art
         , Util.showLower dynSym
         , 'v' : show (Util.pickVariation [1 .. variations] var)

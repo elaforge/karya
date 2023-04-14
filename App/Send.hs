@@ -17,7 +17,7 @@ import qualified System.Exit
 
 import qualified Text.Printf as Printf
 
-import qualified Util.Seq as Seq
+import qualified Util.Strings as Strings
 import qualified App.ReplProtocol as ReplProtocol
 
 import           Global
@@ -54,7 +54,7 @@ main = ReplProtocol.initialize $ do
                 Text.IO.putStrLn response
     where
     usage msg = do
-        putStrLn $ "ERROR: " ++ Seq.strip msg
+        putStrLn $ "ERROR: " ++ Strings.strip msg
         putStrLn "usage: send [ flags ] cmd ..."
         let doc = "Cmds are split on ;.  If a cmd has a %s in it, then read\
                 \ from stdin, and replace the %s with stdin quoted as a string."

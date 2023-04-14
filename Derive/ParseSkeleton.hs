@@ -9,7 +9,7 @@ module Derive.ParseSkeleton (
 import qualified Data.Text as Text
 import qualified Data.Tree as Tree
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Trees as Trees
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Ui.Skeleton as Skeleton
@@ -73,7 +73,7 @@ parse_control_group tracks = case split_title ParseTitle.is_note_track tracks of
     non_note : ngroups -> descend non_note (concatMap parse_note_group ngroups)
 
 split_title :: (Title -> Bool) -> [Track] -> [[Track]]
-split_title f = Seq.split_before (f . _title)
+split_title f = Lists.splitBefore (f . _title)
 
 reverse_tempo_group :: [Track] -> Tree.Forest Track
 reverse_tempo_group [] = []

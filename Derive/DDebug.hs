@@ -6,7 +6,7 @@
 -- "Util.Debug".  They're not in a test because I wind up putting them in
 -- call definitions, and non-test code can't link test modules.
 module Derive.DDebug where
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Derive.Call.SubT as SubT
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
@@ -26,4 +26,4 @@ showr = maybe (return "-") showd
 showd :: Derive.NoteDeriver -> Derive.Deriver Text
 showd d = do
     es <- Stream.events_of <$> d
-    return $ maybe "?" Pitch.note_text $ Score.initial_note =<< Seq.head es
+    return $ maybe "?" Pitch.note_text $ Score.initial_note =<< Lists.head es

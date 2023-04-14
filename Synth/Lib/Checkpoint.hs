@@ -20,6 +20,7 @@ import           System.FilePath ((</>))
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
 import qualified Util.File as File
+import qualified Util.Lists as Lists
 import qualified Util.Seq as Seq
 
 import qualified Synth.Lib.AUtil as AUtil
@@ -205,7 +206,7 @@ outputPast start =
     map snd . filter ((>=start) . fst) . Seq.key_on_just Config.isOutputLink
 
 filenameToOutput :: FilePath -> FilePath
-filenameToOutput fname = case Seq.split "." fname of
+filenameToOutput fname = case Lists.split "." fname of
     [num, _hash, _state, "wav"] -> num <> ".wav"
     _ -> fname
 

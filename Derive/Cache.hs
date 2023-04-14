@@ -21,18 +21,14 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Ranges as Ranges
-import qualified Util.Seq as Seq
-
-import qualified Ui.Event as Event
-import qualified Ui.Events as Events
-import qualified Ui.Track as Track
-import qualified Ui.TrackTree as TrackTree
 
 import qualified Derive.Args as Args
 import qualified Derive.Derive as Derive
-import Derive.Derive (Cache(..), Cached(..), ScoreDamage(..), ControlDamage(..))
+import           Derive.Derive
+    (Cache(..), Cached(..), ControlDamage(..), ScoreDamage(..))
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
@@ -41,8 +37,13 @@ import qualified Derive.Stack as Stack
 import qualified Derive.Stream as Stream
 
 import qualified Perform.Signal as Signal
-import Global
-import Types
+import qualified Ui.Event as Event
+import qualified Ui.Events as Events
+import qualified Ui.Track as Track
+import qualified Ui.TrackTree as TrackTree
+
+import           Global
+import           Types
 
 
 class Cacheable d where
@@ -419,4 +420,4 @@ _extend_control_damage track_end events = Ranges.pair_map (extend1 events)
         (prev : _, _) -> Event.start prev
         _ -> p
     event_after p events = maybe track_end Event.start $
-        Seq.head (Events.after p events)
+        Lists.head (Events.after p events)

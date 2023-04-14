@@ -24,7 +24,7 @@ module Cmd.PitchTrack (
 ) where
 import qualified Data.Text as Text
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ControlTrack as ControlTrack
@@ -213,7 +213,7 @@ transpose transposition octaves steps = \scale env note ->
 cycle_enharmonics :: ModifyPitch
 cycle_enharmonics scale env note = first pretty $ do
     enharmonics <- Scale.scale_enharmonics scale env note
-    return $ fromMaybe note (Seq.head enharmonics)
+    return $ fromMaybe note (Lists.head enharmonics)
 
 pitches :: Cmd.M m => ModifyPitch -> m ()
 pitches = ModifyEvents.selection . pitch_tracks

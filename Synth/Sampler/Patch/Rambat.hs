@@ -18,6 +18,7 @@ import qualified Text.Read as Read
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as File
 import qualified Util.File
+import qualified Util.Lists as Lists
 import qualified Util.Maps as Maps
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
@@ -288,7 +289,7 @@ isMute = \case
 
 parseFilename :: FilePath
     -> Maybe (Pitch, Articulation, Dynamic, Util.Variation)
-parseFilename fname = case Seq.split "-" (FilePath.dropExtension fname) of
+parseFilename fname = case Lists.split "-" (FilePath.dropExtension fname) of
     [pitch, art, dyn, 'v':var] ->
         (,,,) <$> Lib.Bali.parsePitch pitch <*> pArt art <*> pDyn dyn
             <*> Read.readMaybe var
@@ -300,7 +301,7 @@ parseFilename fname = case Seq.split "-" (FilePath.dropExtension fname) of
 
 unparseFilename :: Pitch -> Articulation -> Dynamic -> Util.Variation
     -> FilePath
-unparseFilename pitch art dyn var = Seq.join "-"
+unparseFilename pitch art dyn var = Lists.join "-"
     [ prettys pitch, articulationFilename art, Util.showLower dyn
     , 'v' : show var
     ]

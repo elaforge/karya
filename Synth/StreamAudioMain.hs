@@ -15,7 +15,7 @@ import qualified System.IO as IO
 import qualified Text.Read as Read
 
 import qualified Util.Audio.PortAudio as PortAudio
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Thread as Thread
 
 import qualified Derive.ScoreT as ScoreT
@@ -34,7 +34,7 @@ main = PortAudio.initialize $ do
         forM_ (map fst devs) $ \dev ->
             putStrLn $ (if dev == defaultDev then "* " else "  ") <> show dev
         Exit.exitSuccess
-    mbDev <- traverse getDevice $ Seq.last [d | Device d <- flags]
+    mbDev <- traverse getDevice $ Lists.last [d | Device d <- flags]
     quit <- Thread.flag
     _keyboard <- Async.async $ do
         putStrLn "press return to quit"
@@ -74,7 +74,7 @@ parseArgs args = case GetOpt.getOpt GetOpt.Permute options args of
             _ -> Nothing
     (_, _, errors) -> usage errors
     where
-    parseMuted = Set.fromList . map (ScoreT.Instrument . txt) . Seq.split ","
+    parseMuted = Set.fromList . map (ScoreT.Instrument . txt) . Lists.split ","
     usage errors = do
         mapM_ putStrLn errors
         putStrLn "usage: stream_audio im/cache/score/path/block/id\

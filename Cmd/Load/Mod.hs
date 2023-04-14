@@ -10,8 +10,10 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
+import qualified Util.Lists as Lists
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+
 import qualified Cmd.Create as Create
 import qualified Cmd.Load.ModT as ModT
 import qualified Cmd.Ruler.RulerUtil as RulerUtil
@@ -74,7 +76,7 @@ convert ns mod = Ui.exec Ui.empty $ do
                 score_track block_map indices
             Create.unfitted_view score
             return score
-    whenJust (Seq.head scores) Ui.set_root_id
+    whenJust (Lists.head scores) Ui.set_root_id
     Ui.modify_config $ UiConfig.ky #= ky
     where
     blocks = map (convert_block state) (ModT._blocks mod)
@@ -117,7 +119,7 @@ convert_block state block =
         (ModT._tracks block)
     block_len = fromMaybe (ModT._block_length block) $
         Seq.minimum $ mapMaybe track_len (ModT._tracks block)
-    track_len = Seq.head . mapMaybe cut_block . IntMap.toAscList
+    track_len = Lists.head . mapMaybe cut_block . IntMap.toAscList
     cut_block (linenum, line)
         | ModT.CutBlock `elem` ModT._commands line = Just (linenum+1)
         | otherwise = Nothing
@@ -242,7 +244,7 @@ note_call frames cmds =
         Just $ "d " <> showt delay <> "/" <> showt (frames * lines_per_t) <> "t"
     r = Nothing -- TODO?
     (delay, _repeat) = fromMaybe (0, 0) $
-        Seq.head [(delay, repeat) | ModT.DelayRepeat delay repeat <- cmds]
+        Lists.head [(delay, repeat) | ModT.DelayRepeat delay repeat <- cmds]
 
 convert_commands :: ModT.Instrument -> TrackTime -> [ModT.Command]
     -> [(LineNum, ModT.Line)] -> [(Control, [Event.Event])]
@@ -269,7 +271,7 @@ group_controls controls =
         )
         where
         (_, _, call) = snd $ head vals
-        runs = Seq.split_between (\t1 t2 -> t2 > t1 + one_line) (map fst vals)
+        runs = Lists.splitBetween (\t1 t2 -> t2 > t1 + one_line) (map fst vals)
         one_line = 1 / fromIntegral lines_per_t
     -- All Singles are in one group so they each get a 0 dur event.
     key (Single, control, _) = Left control

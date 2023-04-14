@@ -46,6 +46,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Trace as Trace
@@ -414,7 +415,7 @@ update_block views_of track_signals set_style block_id update = case update of
         -- Not sure if this should be fatal?
         btrack <- Ui.require
             ("InsertTrack with tracknum not in the block: " <> pretty update)
-            =<< fmap (\b -> Seq.at (Block.block_tracks b) tracknum)
+            =<< fmap (\b -> Lists.at (Block.block_tracks b) tracknum)
                 (Ui.get_block block_id)
         return $ for view_ids $ \view_id ->
             insert_track state set_style block_id view_id tracknum dtrack
@@ -554,7 +555,7 @@ has_note_children block_id track_id = do
 
 merged_events_of :: Ui.State -> Block.Block -> TrackNum -> [Events.Events]
 merged_events_of state block tracknum =
-    case Seq.at (Block.block_tracks block) tracknum of
+    case Lists.at (Block.block_tracks block) tracknum of
         Just track -> events_of_track_ids state (Block.track_merged track)
         Nothing -> []
 
@@ -628,7 +629,7 @@ find_dtracks f blocks = do
     guard (not (null tracks))
     return (bid, tracks)
     where
-    all_tracks block = Seq.enumerate (Block.block_display_tracks block)
+    all_tracks block = Lists.enumerate (Block.block_display_tracks block)
     get_tracks block =
         [ (tracknum, Block.dtracklike_id track)
         | (tracknum, track) <- all_tracks block, f (Block.dtracklike_id track)

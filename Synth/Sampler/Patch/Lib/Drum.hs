@@ -28,6 +28,7 @@ import           System.FilePath ((</>))
 
 import qualified Text.Read as Read
 
+import qualified Util.Lists as Lists
 import qualified Util.Maps as Maps
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
@@ -351,7 +352,7 @@ filenameSortKey :: FilePath -> Int
 filenameSortKey fname =
     fromMaybe (error $ "can't parse " <> fname) (parse fname)
     where
-    parse = Seq.head . mapMaybe Read.readMaybe . reverse . Seq.split "-"
+    parse = Lists.head . mapMaybe Read.readMaybe . reverse . Lists.split "-"
         . FilePath.dropExtension
 
 -- | Emit haskell code for a function from an Enum to lists.

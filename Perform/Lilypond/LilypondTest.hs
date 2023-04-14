@@ -8,8 +8,8 @@ import qualified Data.Text as Text
 import qualified Data.Text.Lazy as Text.Lazy
 
 import qualified Util.CallStack as CallStack
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
 
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Lilypond
@@ -89,7 +89,7 @@ unwords_right = go
     where
     go [] = []
     go (Right x : xs) = Right (Text.unwords (x:pre)) : go post
-        where (pre, post) = Seq.span_while (either (const Nothing) Just) xs
+        where (pre, post) = Lists.spanWhile (either (const Nothing) Just) xs
     go (Left x : xs) = Left x : go xs
 
 -- * make data

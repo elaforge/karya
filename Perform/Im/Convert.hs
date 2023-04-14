@@ -9,8 +9,10 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
+
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Env as Env
@@ -125,7 +127,7 @@ convert_event block_id event patch patch_name = run $ do
 -- only displayed on the root block, so find its tracks.  The innermost track
 -- is most likely to be the one with the notes on it.
 event_track_id :: BlockId -> Score.Event -> Maybe TrackId
-event_track_id block_id = Seq.last <=< lookup block_id . Stack.block_tracks_of
+event_track_id block_id = Lists.last <=< lookup block_id . Stack.block_tracks_of
     . Score.event_stack
 
 run :: Log.LogId a -> [LEvent.LEvent a]

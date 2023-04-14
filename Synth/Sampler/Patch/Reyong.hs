@@ -8,8 +8,8 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import qualified Util.Lists as Lists
 import qualified Util.Maps as Maps
-import qualified Util.Seq as Seq
 import qualified Cmd.Instrument.Bali as Bali
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Attrs as Attrs
@@ -186,7 +186,7 @@ tweakDynamic _ _ _ = 1
 -}
 toFilename :: Articulation -> Pitch -> Util.Dynamic -> Util.Variation
     -> FilePath
-toFilename articulation pitch dyn variation = Seq.join "-"
+toFilename articulation pitch dyn variation = Lists.join "-"
     [ show (Midi.from_key (pitchToKey pitch) :: Int)
     , show lowVel
     , show highVel

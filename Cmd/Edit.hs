@@ -57,6 +57,7 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
+import qualified Util.Lists as Lists
 import qualified Util.Seq as Seq
 import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
@@ -214,10 +215,10 @@ move_events dir = do
     tracks <- zip track_ids <$> mapM Ui.get_events track_ids
     -- Use the first selected track as the reference for how much to move.
     -- This is predictable so let's try this for now.
-    event_range <- expand range . snd <$> Cmd.abort_unless (Seq.head tracks)
+    event_range <- expand range . snd <$> Cmd.abort_unless (Lists.head tracks)
     affected <- Cmd.abort_unless $
         NonEmpty.nonEmpty . Events.ascending . Events.in_range event_range . snd
-            =<< Seq.head tracks
+            =<< Lists.head tracks
     let pos = case dir of
             TimeStep.Rewind -> Events.range_start range
             TimeStep.Advance -> Events.range_end range
@@ -232,7 +233,7 @@ move_events dir = do
     where
     expand range events = case range of
         Events.Point pos _orient ->
-            maybe range Events.event_range $ Seq.head $ case dir of
+            maybe range Events.event_range $ Lists.head $ case dir of
                 TimeStep.Rewind -> Events.at_after pos events
                 TimeStep.Advance -> Events.at_before pos events
         Events.Range {} -> range
@@ -380,9 +381,9 @@ cmd_join_events = join_selected =<< Selection.events_around
         where nearest = Seq.minimum_on abs $ mapMaybe nearest_of tracks
     nearest_of (_, (prevs, [cur], nexts))
         | Event.is_positive cur =
-            subtract (Event.start cur) . Event.start <$> Seq.head nexts
+            subtract (Event.start cur) . Event.start <$> Lists.head nexts
         | otherwise =
-            subtract (Event.start cur) . Event.start <$> Seq.head prevs
+            subtract (Event.start cur) . Event.start <$> Lists.head prevs
     nearest_of _ = Nothing
 
     join_track distance (track_id, selected) = case selected of

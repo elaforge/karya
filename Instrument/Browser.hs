@@ -41,6 +41,7 @@ import qualified Util.Doc as Doc
 import qualified Util.Fltk as Fltk
 import qualified Util.FltkUtil as FltkUtil
 import qualified Util.Format as Format
+import qualified Util.Lists as Lists
 import qualified Util.Network as Network
 import qualified Util.Seq as Seq
 
@@ -89,14 +90,14 @@ main = ReplProtocol.initialize $ do
     args <- System.Environment.getArgs
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
         (flags, args, []) -> return (flags, args)
-        (_, _, errs) -> usage $ "flag errors:\n" ++ Seq.join ", " errs
+        (_, _, errs) -> usage $ "flag errors:\n" ++ Lists.join ", " errs
     unless (null args) $
         usage ("unparsed args: " ++ show args)
     when (Help `elem` flags) (usage "usage:")
 
     db <- LoadInstruments.load =<< Path.get_app_dir
     putStrLn $ "Loaded " ++ show (Inst.size db) ++ " instruments."
-    let geometry = Seq.head [g | Geometry g <- flags]
+    let geometry = Lists.head [g | Geometry g <- flags]
         (x, y, w, h) = default_geometry geometry
     win <- Fltk.run_action $ BrowserC.create x y w h
     let index_db = Db db (Search.make_index db)

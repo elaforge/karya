@@ -18,12 +18,12 @@ import qualified Data.Char as Char
 import qualified Data.Maybe as Maybe
 import qualified Language.Haskell.Parser as Parser
 import qualified Language.Haskell.Pretty as Pretty
-import "haskell-src" Language.Haskell.Syntax
-
 import qualified Text.PrettyPrint as PrettyPrint
 import qualified Text.Printf as Printf
 
-import qualified Util.Seq as Seq
+import qualified Util.Strings as Strings
+
+import           "haskell-src" Language.Haskell.Syntax
 
 
 -- * showable
@@ -64,10 +64,10 @@ format_str = parse format_nonstr
 -- would probably fix this.
 record :: [(String, String)] -> String
 record = concatMap $ \(k, v) ->
-    let s = Seq.strip v in Printf.printf "%s:%s\n" k
+    let s = Strings.strip v in Printf.printf "%s:%s\n" k
             (if '\n' `elem` s then '\n' : indent_lines s else ' ' : s)
 
-indent_lines = Seq.rstrip . unlines . map (indent++) . lines
+indent_lines = Strings.rstrip . unlines . map (indent++) . lines
 indent = "  "
 
 list :: [String] -> String

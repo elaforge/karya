@@ -7,8 +7,8 @@ module Solkattu.Format.Terminal_test where
 import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
+import qualified Util.Lists as Lists
 import qualified Util.Regex as Regex
-import qualified Util.Seq as Seq
 import qualified Util.Styled as Styled
 
 import qualified Solkattu.Dsl.Solkattu as G
@@ -386,7 +386,7 @@ capitalizeEmphasis = stripAnsi
         (\_ [t] -> Text.replace "-" "=" (Text.toUpper t))
 
 emphasis :: Regex.Regex
-emphasis = Regex.compileUnsafe $ Seq.replace "x" "(.*?)" $
+emphasis = Regex.compileUnsafe $ Lists.replace "x" "(.*?)" $
     Regex.escape $ untxt $ Styled.toText $ Terminal.emphasisStyle "x"
 
 kRealize :: Tala.Tala -> Korvai.Sequence

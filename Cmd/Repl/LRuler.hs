@@ -523,7 +523,7 @@ set_colors ranks ruler =
         ruler
     where
     (config, mlist) = Ruler.get_meter ruler
-    set mark = case Seq.at ranks (Mark.mark_rank mark) of
+    set mark = case Lists.at ranks (Mark.mark_rank mark) of
         Nothing -> error $ "no color for rank: " <> show (Mark.mark_rank mark)
         Just (color, width, _) -> mark
             { Mark.mark_color = color

@@ -66,6 +66,7 @@ import qualified Data.Text as Text
 
 import qualified GHC.Generics as Generics
 
+import qualified Util.Lists as Lists
 import qualified Util.Logger as Logger
 import qualified Util.Maps as Maps
 import qualified Util.Num as Num
@@ -476,7 +477,7 @@ verifySolluKey sollus_ = do
             Solkattu.Space {} -> Right $ Just (Nothing, Nothing)
             s -> throw $ "should only have plain sollus: " <> pretty s
     -- TODO warn if there are inconsistent tags?
-    return (Seq.head (Maybe.catMaybes tags), sollus)
+    return (Lists.head (Maybe.catMaybes tags), sollus)
 
 
 -- * realize
@@ -726,7 +727,7 @@ findSequence toStrokes notes =
             Right (matched, replaceSollus strokes notes)
     where
     -- Collect only sollus and rests.  This stops at a group boundary.
-    pre = fst $ Seq.span_while (noteOf . snd) notes
+    pre = fst $ Lists.spanWhile (noteOf . snd) notes
     sollus = map Solkattu._sollu $ mapMaybe snd pre
     noteOf (S.FNote tempo n) = (tempo,) <$> case n of
         Solkattu.Note n -> Just $ Just n
@@ -734,7 +735,7 @@ findSequence toStrokes notes =
         Solkattu.Alignment {} -> Just Nothing
         Solkattu.Pattern {} -> Nothing
     noteOf (S.FGroup {}) = Nothing
-    tag = Solkattu._tag =<< Seq.head (mapMaybe snd pre)
+    tag = Solkattu._tag =<< Lists.head (mapMaybe snd pre)
 
 -- | Match each stroke to a Sollu, copying over Rests without consuming
 -- a stroke.
@@ -802,7 +803,7 @@ bestMatch :: Maybe Solkattu.Tag -> [sollu] -> ToStrokes sollu stroke
     -- ^ Nothing means no match, [Nothing] is a rest
 bestMatch tag sollus toStrokes =
     -- Try with the specific tag, otherwise fall back to no tag.
-    Seq.head (find tag prefixes) <|> Seq.head (find Nothing prefixes)
+    Lists.head (find tag prefixes) <|> Lists.head (find Nothing prefixes)
     where
     find tag = mapMaybe (\s -> ((tag, s),) <$> _getStrokes toStrokes tag s)
     prefixes = reverse $ drop 1 $ List.inits $

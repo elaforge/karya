@@ -59,8 +59,10 @@ import qualified System.Exit as Exit
 import           System.FilePath ((</>))
 
 import           Util.GitT (Commit(..), Repo)
+import qualified Util.Lists as Lists
 import qualified Util.Processes as Processes
 import qualified Util.Seq as Seq
+import qualified Util.Strings as Strings
 
 import           Foreign
 import           Foreign.C
@@ -195,7 +197,7 @@ modifications_to_dir mods = go (strip mods)
     make (dir, entries) = dirs ++ files
         where
         dirs = if null dir_ents then [] else [(dir, ModifyDir (go dir_ents))]
-        files = case Seq.last file_ents of
+        files = case Lists.last file_ents of
             Nothing -> []
             Just (_, bytes) -> [(dir, ModifyFile bytes)]
         (file_ents, dir_ents) = List.partition (null . fst) entries
@@ -615,7 +617,7 @@ make_dir :: [(FilePath, ByteString)] -> Either String Dir
 make_dir = foldM merge Map.empty
     where
     -- System.FilePath is incorrect because git always uses /s.
-    merge dir (path, bytes) = insert dir (Seq.split "/" path) bytes
+    merge dir (path, bytes) = insert dir (Lists.split "/" path) bytes
     insert _ [] bytes = Left $ "can't insert into empty path: " ++ show bytes
     insert files [name] bytes = return $ Map.insert name (File bytes) files
     insert files (name : names) bytes = do
@@ -669,11 +671,11 @@ git_env repo env args stdin = do
     -- let sin = " <" ++ show (Char8.length stdin)
     -- let sin = if Char8.null stdin then "" else " <" ++ show stdin
     -- putStrLn $ unwords ("git" : args) ++ sin ++ " ==> "
-    --     ++ Seq.strip (Char8.unpack out)
+    --     ++ Strings.strip (Char8.unpack out)
     case ex of
         Exit.ExitFailure code -> throw $
             repo ++ " -- " ++ unwords ("git" : args) ++ ": " ++ show code
-            ++ " " ++ Seq.strip (Char8.unpack err)
+            ++ " " ++ Strings.strip (Char8.unpack err)
         _ -> return out
 
 -- * error

@@ -15,6 +15,7 @@ import qualified Util.Debug as Debug
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Rect as Rect
+import qualified Util.Lists as Lists
 import qualified Util.Seq as Seq
 import qualified Util.Test.Testing as Testing
 import qualified Util.Texts as Texts
@@ -442,7 +443,7 @@ regular_notes n = note_track $
 -- | Parse a TrackSpec back out to a NoteSpec.
 to_note_spec :: [TrackSpec] -> [NoteSpec]
 to_note_spec =
-    mapMaybe parse . Seq.split_before (ParseTitle.is_note_track . fst)
+    mapMaybe parse . Lists.splitBefore (ParseTitle.is_note_track . fst)
     where
     parse [] = Nothing
     parse ((inst, notes) : controls) =
@@ -485,7 +486,7 @@ extract_blocks state =
     ]
 
 extract_block_id :: BlockId -> Ui.State -> Maybe [TrackSpec]
-extract_block_id block_id state = Seq.head
+extract_block_id block_id state = Lists.head
     [block | (bid, _, block) <- extract_block_ids state, bid == block_id]
 
 extract_block_ids :: Ui.State -> [(BlockId, Text, [TrackSpec])]

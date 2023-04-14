@@ -17,6 +17,7 @@
 module Derive.C.Prelude.Articulation where
 import qualified Data.Text as Text
 
+import qualified Util.Lists as Lists
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
@@ -163,7 +164,7 @@ lily_harmonic_event force_diamond htype open_strings string event = do
         Artificial -> artificial_harmonic lowest nn
             where
             lowest = maybe 0 StringUtil.str_nn $
-                string <|> Seq.head open_strings
+                string <|> Lists.head open_strings
     -- When the lilypond backend sees Attrs.harm it knows it's inherently nv.
     let add_harm = Score.add_attributes Attrs.harm
     map add_harm <$> if harmonic <= 2 && not force_diamond
@@ -225,7 +226,7 @@ artificial_harmonic lowest_string nn =
     tryJust ("artificial harmonic for " <> pretty nn
         <> " must be above lowest string " <> pretty lowest_string) $
     fmap (first (Pitch.nn . round)) $
-        Seq.head $ filter ((>lowest_string) . fst) $
+        Lists.head $ filter ((>lowest_string) . fst) $
         -- I assume the octave is not convenient for an artificial harmonic,
         -- but that's not true in higher pitches.  Maybe I could allow it, but
         -- make it least preferred?

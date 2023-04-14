@@ -44,6 +44,7 @@ import qualified Text.Read as Read
 import qualified Util.Cpu as Cpu
 import qualified Util.Exceptions as Exceptions
 import qualified Util.File as File
+import qualified Util.Lists as Lists
 import qualified Util.Processes as Processes
 import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
@@ -158,7 +159,7 @@ runTests allTests flags regexes = do
             return True
         | Just outputDir <- mbOutputDir -> do
             jobs <- getJobs $
-                fromMaybe (NJobs 1) $ Seq.last [n | Jobs n <- flags]
+                fromMaybe (NJobs 1) $ Lists.last [n | Jobs n <- flags]
             -- Don't warn if it's CheckOutput, might just be checking.
             when (null matches && CheckOutput `notElem` flags) $
                 putStrLn "warning: no tests matched"
@@ -169,7 +170,7 @@ runTests allTests flags regexes = do
             mapM_ runTest matches
             return True
     where
-    mbOutputDir = Seq.last [d | Output d <- flags]
+    mbOutputDir = Lists.last [d | Output d <- flags]
     matches = if null regexes then allTests else matchingTests regexes allTests
 
 getJobs :: Jobs -> IO Int
@@ -369,7 +370,7 @@ readFileEmpty = fmap (fromMaybe "") . Exceptions.ignoreEnoent
 
 extractStats :: Text.Lazy.Text -> ([Text], Int, Int, Int)
     -- ^ (failureContext, failures, checks, tests)
-extractStats = collect . drop 1 . Seq.split_before isTest . Text.Lazy.lines
+extractStats = collect . drop 1 . Lists.splitBefore isTest . Text.Lazy.lines
     where
     collect tests = (failures, length failures, length extracted, length tests)
         where

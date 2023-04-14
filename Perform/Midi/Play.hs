@@ -8,20 +8,21 @@ module Perform.Midi.Play (State(..), play, cycle_messages) where
 import qualified Control.Exception as Exception
 import qualified Data.Maybe as Maybe
 
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
+import qualified Cmd.Cmd as Cmd
+import qualified Derive.LEvent as LEvent
 import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
 import qualified Midi.Mmc as Mmc
 
-import qualified Cmd.Cmd as Cmd
-import qualified Derive.LEvent as LEvent
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Transport as Transport
-import Global
-import Types
+
+import           Global
+import           Types
 
 
 -- | Access to info that's needed by a particular run of the player.
@@ -141,5 +142,5 @@ play_loop state msgs = do
         _ -> play_loop state rest
     where
     get_end now chunk = fromMaybe now $ max
-        (Midi.wmsg_ts <$> Seq.last (LEvent.events_of chunk))
+        (Midi.wmsg_ts <$> Lists.last (LEvent.events_of chunk))
         (_im_end state)

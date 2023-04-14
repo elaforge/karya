@@ -7,6 +7,7 @@ import qualified Criterion.Main as Criterion
 import qualified Data.Map as Map
 
 import qualified Util.Pretty as Pretty
+import qualified Util.Lists as Lists
 import qualified Util.Seq as Seq
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
@@ -44,10 +45,10 @@ main
     benches = Seq.keyed_group_stable (joined [bench_state, bench_code])
         benchmarks
     action (Bench action code state size) =
-        action (Seq.join "-" [code, state, size])
+        action (Lists.join "-" [code, state, size])
 
 joined :: [a -> String] -> a -> String
-joined fs x = Seq.join "-" $ map ($x) fs
+joined fs x = Lists.join "-" $ map ($x) fs
 
 data Bench = Bench {
     benchmark_action :: String -> Criterion.Benchmark
@@ -57,7 +58,7 @@ data Bench = Bench {
     }
 
 show_bench :: Bench -> String
-show_bench (Bench _ code state size) = Seq.join "-" [code, state, size]
+show_bench (Bench _ code state size) = Lists.join "-" [code, state, size]
 
 benchmarks :: [Bench]
 benchmarks = do

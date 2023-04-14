@@ -7,16 +7,17 @@ import qualified Data.Text as Text
 import qualified Data.Vector.Unboxed as Vector.Unboxed
 
 import qualified Util.CallStack as CallStack
+import qualified Util.Lists as Lists
 import qualified Util.Seq as Seq
-import Util.Test
 import qualified Util.Test.Testing as Testing
 
-import Perform.Lilypond.LilypondTest (parse_meter)
+import           Perform.Lilypond.LilypondTest (parse_meter)
 import qualified Perform.Lilypond.Meter as Meter
 import qualified Perform.Lilypond.Types as Types
-import Perform.Lilypond.Types (Duration(..))
+import           Perform.Lilypond.Types (Duration(..))
 
-import Global
+import           Global
+import           Util.Test
 
 
 
@@ -110,7 +111,7 @@ fmt_meter meter = Text.unlines $ map fmt_rank [0..3]
     where
     ranks = Vector.Unboxed.toList $ Meter.meter_ranks meter
     fmt_rank r = mconcatMap (fmt r) $
-        dropWhile null $ Seq.split_before (<=r) ranks
+        dropWhile null $ Lists.splitBefore (<=r) ranks
     fmt r g = Text.justifyLeft (to_spaces g) ' '  (showt r)
     to_spaces = (`div` fromIntegral (Types.dur_to_time min_duration)) . length
 

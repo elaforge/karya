@@ -14,6 +14,7 @@ import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Debug as Debug
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Ranges as Ranges
@@ -32,7 +33,8 @@ import qualified Cmd.Simple as Simple
 import qualified Derive.C.All as C.All
 import qualified Derive.C.Prelude.Block as Prelude.Block
 import qualified Derive.Controls as Controls
-import           Derive.DDebug () -- just make sure it compiles
+import           Derive.DDebug ()
+-- just make sure it compiles
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Deriver.Internal as Internal
@@ -794,7 +796,7 @@ show_stack_ with_call (Just stack)
     where
     ui = Stack.to_ui stack
     last_call
-        | with_call = fmap (\c -> if Text.null c then "''" else c) . Seq.head
+        | with_call = fmap (\c -> if Text.null c then "''" else c) . Lists.head
             . mapMaybe Stack.call_of . Stack.innermost
         | otherwise = const Nothing
 

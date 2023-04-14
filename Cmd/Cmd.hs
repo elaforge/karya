@@ -53,6 +53,7 @@ import qualified Vivid.OSC as OSC
 import qualified Util.CallStack as CallStack
 import qualified Util.Exceptions as Exceptions
 import qualified Util.GitT as GitT
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty
@@ -1369,7 +1370,7 @@ get_screen mb_point = do
     -- reasonable so windows don't all try to crunch themselves down to
     -- nothing.
     return $ fromMaybe (Rect.xywh 0 0 800 600) $ case mb_point of
-        Nothing -> Seq.head screens
+        Nothing -> Lists.head screens
         Just point -> Seq.minimum_on (Rect.distance point) screens
 
 lookup_performance :: M m => BlockId -> m (Maybe Performance)

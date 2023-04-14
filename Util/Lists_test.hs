@@ -19,3 +19,10 @@ test_splitWith = do
     equal (f "c") ("", [('c', "")])
     equal (f "abcd") ("ab", [('c', "d")])
     equal (f "abcdef") ("ab", [('c', "d"), ('e', "f")])
+
+test_splitBefore :: Test
+test_splitBefore = do
+    let f = Lists.splitBefore (==1)
+    equal (f []) []
+    equal (f [1, 2, 3, 1, 2]) [[], [1, 2, 3], [1, 2]]
+    equal (f [2, 3, 1, 2]) [[2, 3], [1, 2]]

@@ -20,11 +20,11 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
 import qualified Util.GitT as GitT
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Maps as Maps
 import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
-import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
 
 import qualified App.Config as Config
@@ -174,7 +174,7 @@ cmd_record_ui_updates (Msg.Ui (UiMsg.UiMsg _
     return Cmd.Done
     where
     set_screen screen screens rect = take screens
-        . Seq.update_at Rect.empty screen (const rect)
+        . Lists.updateAt Rect.empty screen (const rect)
 cmd_record_ui_updates msg = do
     (ctx, view_id, update) <- Cmd.abort_unless (update_of msg)
     ui_update (fst <$> UiMsg.ctx_track ctx) view_id update

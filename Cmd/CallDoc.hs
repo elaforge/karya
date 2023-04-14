@@ -14,6 +14,7 @@ import qualified Util.Format as Format
 import           Util.Format ((<+/>), (<+>), (<//>), (</>))
 import qualified Util.Html as Html
 import           Util.Html (html, tag)
+import qualified Util.Lists as Lists
 import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
 
@@ -172,7 +173,7 @@ html_header hstate = mconcat
     [ "<meta charset=utf-8>\n"
     , "<style type=text/css>\n" <> css <> "</style>\n"
     , "<script>\n" <> javascript <> "\n</script>\n"
-    , Seq.join "; "
+    , Lists.join "; "
         [ "<code>arg<sup>?</sup></code> &mdash; optional arg"
         , "<code>arg<sup>*</sup></code> &mdash; zero or more args"
         , "<code>arg<sup>+</sup></code> &mdash; one or more args"
@@ -200,7 +201,7 @@ html_header hstate = mconcat
     where default_search = "-m:internal -m:ly "
 
 css :: Html.Html
-css = Seq.join "\n"
+css = Lists.join "\n"
     [ ".main-dl dl { border-bottom: 1px solid #999 }"
     , "dl.compact {"
     , "    margin: 0px;"
@@ -219,7 +220,7 @@ css = Seq.join "\n"
     ]
 
 javascript :: Html.Html
-javascript = Seq.join "\n"
+javascript = Lists.join "\n"
     [ search_javascript
     , ""
     , hide_empty_javascript
@@ -235,7 +236,7 @@ javascript = Seq.join "\n"
     ]
 
 search_javascript :: Html.Html
-search_javascript = Seq.join "\n"
+search_javascript = Lists.join "\n"
     [ "var total_calls = 0;"
     , "var displayed_calls = 0;"
     , "var search = function(val) {"
@@ -272,7 +273,7 @@ search_javascript = Seq.join "\n"
     ]
 
 hide_empty_javascript :: Html.Html
-hide_empty_javascript = Seq.join "\n"
+hide_empty_javascript = Lists.join "\n"
     [ "var hide_all_empty = function() {"
     , "    hide_if_empty('call-module');"
     , "    hide_if_empty('call-source');"
@@ -570,7 +571,7 @@ merge_scope_docs = map (second (sort_calls . concat)) . Seq.group_fst
 
 sort_calls :: [CallBindings] -> [CallBindings]
 sort_calls = Seq.sort_on $ \(binds, _, _) ->
-    Text.toLower . fst <$> Seq.head binds
+    Text.toLower . fst <$> Lists.head binds
 
 -- | A 'Derive.Library' only has builtins, but ScopeDoc wants a source so
 -- it can work uniformly with 'track_sections', which does have separate

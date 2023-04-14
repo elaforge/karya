@@ -9,7 +9,7 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Derive.Call as Call
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.Module as Module
@@ -185,5 +185,5 @@ track_integrate block_id track_id events = do
 
 toplevel :: Stack.Stack -> Maybe (BlockId, Maybe TrackId)
 toplevel stack = case Stack.block_tracks_of stack of
-    [(block_id, track_ids)] -> Just (block_id, Seq.last track_ids)
+    [(block_id, track_ids)] -> Just (block_id, Lists.last track_ids)
     _ -> Nothing

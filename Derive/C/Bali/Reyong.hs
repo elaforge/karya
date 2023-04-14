@@ -289,7 +289,7 @@ c_byong = Derive.generator module_ "byong" Tags.inst
     $ Sig.call0 $ Sub.inverting $ \args -> do
         voice <- Derive.get_val EnvKey.voice
         position <- Derive.require ("unknown position: " <> showt voice) $
-            Seq.at reyong_positions (voice - 1 :: Int)
+            Lists.at reyong_positions (voice - 1 :: Int)
         (_, show_pitch, _) <- Call.get_pitch_functions
         let realize = Call.place args
                 . realize_note show_pitch voice (Args.start args)
@@ -453,7 +453,7 @@ kernel_to_pattern direction kernel = do
     -- I want the final note to end on the destination, whether it be polos or
     -- sangsih.  So shift everything to make that happen.  If it's Gap then I
     -- have no idea, leave it alone.
-    offset = negate $ fromMaybe 0 $ case Seq.last kernel of
+    offset = negate $ fromMaybe 0 $ case Lists.last kernel of
         Just Gangsa.Gap -> infer_sangsih Gangsa.Gap
         Just a -> to_steps a
         Nothing -> Nothing
@@ -602,7 +602,7 @@ parse_kotekan above below = KotekanPattern
     (abovep, belowp) = (parse_relative above, parse_relative below)
     Just above_last = msum (reverse abovep)
     Just below_last = msum (reverse belowp)
-    Just dest = msum $ mapMaybe Seq.last [belowp, abovep]
+    Just dest = msum $ mapMaybe Lists.last [belowp, abovep]
 
 parse_relative :: [Char] -> [Maybe Pitch.Step]
 parse_relative = map parse1 . filter (/=' ')
@@ -851,7 +851,7 @@ infer_damp dur_at =
                 Call.L -> (now, snd prev)
                 Call.R -> (fst prev, now)
             | otherwise = prev
-        next hand = Seq.head $ filter ((==hand) . fst) nexts
+        next hand = Lists.head $ filter ((==hand) . fst) nexts
         enough_time = maybe True
             ((>=dur) . subtract now . Score.event_start . snd)
         dur = dur_at (Score.event_start event)

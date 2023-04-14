@@ -20,11 +20,11 @@ import qualified System.Environment as Environment
 import qualified System.IO as IO
 
 import qualified Util.File as File
+import qualified Util.Lists as Lists
 import qualified Util.Logger as Logger
-import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
 
-import Global
+import           Global
 
 
 main :: IO ()
@@ -48,7 +48,7 @@ linkify haddock_dir input_file text = do
 
 get_files :: FilePath -> IO Texts.Files
 get_files dir = do
-    files <- File.listRecursive (maybe False Char.isUpper . Seq.head) dir
+    files <- File.listRecursive (maybe False Char.isUpper . Lists.head) dir
     return $ Set.fromList files
 
 link_quoted :: Texts.Files -> FilePath -> Text -> Logger.Logger Text Text

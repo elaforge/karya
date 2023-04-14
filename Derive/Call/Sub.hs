@@ -24,6 +24,7 @@ module Derive.Call.Sub (
 import qualified Data.Map as Map
 import qualified Data.Tree as Tree
 
+import qualified Util.Lists as Lists
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call.BlockUtil as BlockUtil
@@ -167,7 +168,7 @@ invert subs event next_start events_around = do
         }
 
 stack_track_id :: Derive.Deriver (Maybe TrackId)
-stack_track_id = Seq.head . mapMaybe Stack.track_of . Stack.innermost
+stack_track_id = Lists.head . mapMaybe Stack.track_of . Stack.innermost
     <$> Internal.get_stack
 
 -- | An inverting call above another note track will lead to an infinite loop
@@ -178,7 +179,7 @@ stack_track_id = Seq.head . mapMaybe Stack.track_of . Stack.innermost
 -- An exception is if the note track is empty, since I can be sure there are
 -- no inverting calls in that case.
 non_bottom_note_track :: TrackTree.EventsTree -> Maybe TrackTree.Track
-non_bottom_note_track tree = Seq.head (concatMap go tree)
+non_bottom_note_track tree = Lists.head (concatMap go tree)
     where
     go (Tree.Node track subs)
         | ParseTitle.is_note_track (TrackTree.track_title track)
@@ -297,7 +298,7 @@ derive_tracks = derive . Seq.merge_lists SubT._start
 derive_pitch :: SubT.Event -> Derive.Deriver (SubT.EventT (Maybe Pitch.Note))
 derive_pitch event = do
     stream <- SubT._note event
-    let note = Score.initial_note =<< Seq.head (Stream.events_of stream)
+    let note = Score.initial_note =<< Lists.head (Stream.events_of stream)
     return $ event { SubT._note = note }
 
 -- | Re-fit the events from one range to another.

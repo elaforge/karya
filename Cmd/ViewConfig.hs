@@ -10,6 +10,7 @@ import qualified Data.Tuple as Tuple
 
 import qualified Util.Control as Control
 import qualified Util.Lens as Lens
+import qualified Util.Lists as Lists
 import qualified Util.Num as Num
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
@@ -187,7 +188,7 @@ fit_rects :: Rect.Rect -> [(ViewId, Rect.Rect)] -> [(ViewId, Rect.Rect)]
 fit_rects screen =
     redo_outside . foldl' fit [] . Seq.sort_on (\(_, r) -> (Rect.x r, Rect.y r))
     where
-    fit windows (view_id, rect) = case Seq.head (sort rect corners) of
+    fit windows (view_id, rect) = case Lists.head (sort rect corners) of
         Just (x, y) -> (view_id, Rect.place x y rect) : windows
         -- Shouldn't happen since you can always place to the right or
         -- below the rightmost or bottom rectangle.
@@ -271,7 +272,7 @@ cycle_focus forward = do
     view_ids <- (if forward then id else reverse) <$> Ui.all_view_ids
     case drop 1 $ dropWhile (/=focused) view_ids of
         next : _ -> Cmd.focus next
-        [] -> whenJust (Seq.head view_ids) Cmd.focus
+        [] -> whenJust (Lists.head view_ids) Cmd.focus
 
 -- | Right and Left would clash with Either.
 data Direction = North | South | East | West deriving (Show)
@@ -284,10 +285,10 @@ move_focus dir = do
     let get_rects cmp f = Seq.sort_on snd $ filter ((`cmp` f focused) . snd) $
             map (second f) rects
     let next = case dir of
-            East -> Seq.head $ get_rects (>) Rect.x
-            West -> Seq.last $ get_rects (<) Rect.x
-            South -> Seq.head $ get_rects (>) Rect.y
-            North -> Seq.last $ get_rects (<) Rect.y
+            East -> Lists.head $ get_rects (>) Rect.x
+            West -> Lists.last $ get_rects (<) Rect.x
+            South -> Lists.head $ get_rects (>) Rect.y
+            North -> Lists.last $ get_rects (<) Rect.y
     whenJust next $ Cmd.focus . fst
 
 -- * create views

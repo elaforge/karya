@@ -251,7 +251,7 @@ neighbors_by :: Eq key => (a -> key) -> Stream a -> Stream (Maybe a, a, Maybe a)
 neighbors_by key = emap1_ extract . neighbors
     where
     extract (ps, e, ns) = (same ps, e, same ns)
-        where same = Seq.head . filter ((== key e) . key)
+        where same = Lists.head . filter ((== key e) . key)
 
 nexts_by :: Eq key => (a -> key) -> Stream a -> Stream (a, [a])
 nexts_by key = emap1_ extract . Stream.zip_on nexts
@@ -374,7 +374,7 @@ delayed_event args = Score.modify_environ $
 -- | Return the args if this is a delayed event created by the given call.
 delayed_args :: Expr.Symbol -> Score.Event -> Maybe [DeriveT.Val]
 delayed_args (Expr.Symbol call) event
-    | Seq.head (Stack.innermost (Score.event_stack event))
+    | Lists.head (Stack.innermost (Score.event_stack event))
             == Just (Stack.Call call) =
         Env.maybe_val EnvKey.args (Score.event_environ event)
     | otherwise = Nothing

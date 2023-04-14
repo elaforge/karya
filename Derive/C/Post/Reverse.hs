@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.C.Post.Reverse (library) where
+import qualified Util.Lists as Lists
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
@@ -14,8 +15,8 @@ import qualified Derive.Sig as Sig
 import qualified Derive.Stack as Stack
 import qualified Derive.Stream as Stream
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 library :: Library.Library
@@ -51,7 +52,7 @@ partition_tracks = strip . Seq.keyed_group_sort track_of
     where strip xs = [(track_id, events) | (Just track_id, events) <- xs]
 
 track_of :: Score.Event -> Maybe TrackId
-track_of = Seq.head . mapMaybe Stack.track_of . Stack.innermost
+track_of = Lists.head . mapMaybe Stack.track_of . Stack.innermost
     . Score.event_stack
 
 reverse_events :: RealTime -> [Score.Event] -> [Score.Event]

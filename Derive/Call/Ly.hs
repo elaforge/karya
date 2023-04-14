@@ -6,8 +6,10 @@
 module Derive.Call.Ly where
 import qualified Data.Map as Map
 
+import qualified Util.Lists as Lists
 import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
+
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.Post as Post
@@ -232,7 +234,7 @@ is_duration config t = case is_note_duration config t of
 note_pitch :: Derive.NoteDeriver -> Derive.Deriver Note
 note_pitch deriver = do
     events <- deriver
-    event <- require "had no event" $ Seq.head (Stream.events_of events)
+    event <- require "had no event" $ Lists.head (Stream.events_of events)
     env <- Derive.get_environ
     pitch_to_lily env
         =<< require "note had no pitch" (Score.initial_pitch event)

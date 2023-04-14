@@ -8,19 +8,15 @@ module Util.Diffs (
     , Numbered(..)
     , numberedDiff
 ) where
+import qualified Data.Algorithm.Diff as Diff
 import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
 import qualified Data.Text as Text
-import Data.Text (Text)
+import           Data.Text (Text)
 
 import qualified Util.Maps as Maps
 import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
-
-import qualified Data.Algorithm.Diff as Diff
-
-
--- used Util.Styled?
 
 
 newtype ColorCode = ColorCode Text

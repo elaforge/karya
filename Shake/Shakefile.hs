@@ -46,6 +46,7 @@ import qualified System.Process as Process
 import qualified Text.Read as Read
 
 import qualified Util.Exceptions as Exceptions
+import qualified Util.Lists as Lists
 import qualified Util.PPrint as PPrint
 import qualified Util.Seq as Seq
 import qualified Util.SourceControl as SourceControl
@@ -904,10 +905,10 @@ extraPackagesFor hs
 parseGhcVersion :: FilePath -> (Int, Int, Int)
 parseGhcVersion path =
     Maybe.fromMaybe (error $ "parseGhcVersion: can't parse " <> show path) $
-        parse =<< List.find (prefix `List.isPrefixOf`) (Seq.split "/" path)
+        parse =<< List.find (prefix `List.isPrefixOf`) (Lists.split "/" path)
     where
     prefix = "ghc-"
-    parse cs = case Seq.split "." (drop (length prefix) cs) of
+    parse cs = case Lists.split "." (drop (length prefix) cs) of
         -- take 3 to avoid getting confused by versions like 8.0.1.20161213.
         a : b : c : _ ->
             (,,) <$> Read.readMaybe a <*> Read.readMaybe b <*> Read.readMaybe c
@@ -1580,8 +1581,8 @@ faustAll dsps extraIncludes = unlines
     , "static const int all_patches_count = " <> show (length names) <> ";"
     , ""
     , "static const Patch *all_patches[] ="
-    , "    { " <> Seq.join "\n    , "
-        [ "new Patch(" <> Seq.join ",\n        "
+    , "    { " <> Lists.join "\n    , "
+        [ "new Patch(" <> Lists.join ",\n        "
             [ show name
             , "sizeof(" <> struct name <> ")"
             , "getNumInputs" <> struct name <> "(nullptr)"

@@ -11,7 +11,7 @@
 module Cmd.NoteTrackParse where
 import qualified Data.Map as Map
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
 import qualified Derive.Parse as Parse
@@ -73,4 +73,4 @@ to_block_id blocks ns caller =
         | otherwise = Nothing
 
 possible_block_calls :: Text -> [Text]
-possible_block_calls = fromMaybe [] . Seq.last . Parse.split_pipeline
+possible_block_calls = fromMaybe [] . Lists.last . Parse.split_pipeline

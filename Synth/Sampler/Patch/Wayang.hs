@@ -20,6 +20,7 @@ import qualified Data.Text.Read as Text.Read
 
 import           System.FilePath ((</>))
 
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Maps as Maps
 import qualified Util.Num as Num
@@ -275,7 +276,8 @@ toFilename instrument tuning articulation symPitch dyn variation = do
                 _ -> dyn
     return
         ( panggul
-            </> Seq.join "-" [show sampleKey, show lowVel, show highVel, group]
+            </> Lists.join "-"
+                [show sampleKey, show lowVel, show highVel, group]
             <> ".flac"
         , noteNn
         , sampleNn

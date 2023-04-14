@@ -25,17 +25,18 @@ import qualified System.IO as IO
 
 import qualified Util.Exceptions as Exceptions
 import qualified Util.Git as Git
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Processes as Processes
-import qualified Util.Seq as Seq
 import qualified Util.SourceControl as SourceControl
 import qualified Util.Thread as Thread
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.DiffPerformance as DiffPerformance
 import qualified Cmd.Save as Save
+
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveSaved as DeriveSaved
 import qualified Derive.LEvent as LEvent
@@ -104,11 +105,11 @@ main = Git.initialize $ do
         }
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
         (flags, args, []) -> return (flags, args)
-        (_, _, errs) -> usage $ "flag errors:\n" ++ Seq.join ", " errs
+        (_, _, errs) -> usage $ "flag errors:\n" ++ Lists.join ", " errs
     unless (null [Help | Help <- flags]) $ usage ""
-    let out_dir = fromMaybe default_out_dir $ Seq.last [d | Output d <- flags]
+    let out_dir = fromMaybe default_out_dir $ Lists.last [d | Output d <- flags]
     cmd_config <- DeriveSaved.load_cmd_config
-    failures <- case fromMaybe Verify $ Seq.last [m | Mode m <- flags] of
+    failures <- case fromMaybe Verify $ Lists.last [m | Mode m <- flags] of
         Verify -> do
             when (null args) $ usage "no inputs"
             fnames <- concatMapM expand_verify_me args

@@ -11,8 +11,8 @@ import qualified Data.Text.IO as Text.IO
 import qualified Data.Text.Lazy as Lazy
 
 import qualified Util.Html as Html
+import qualified Util.Lists as Lists
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 
 import qualified Cmd.BlockConfig as BlockConfig
 import qualified Cmd.BlockResize as BlockResize
@@ -48,7 +48,7 @@ list = do
     block_ids <- Ui.all_block_ids
     view_blocks <- Ui.gets $ map Block.view_block . Map.elems . Ui.state_views
     return
-        [ (block_id, Seq.count (==block_id) view_blocks)
+        [ (block_id, Lists.count (==block_id) view_blocks)
         | block_id <- block_ids
         ]
 
@@ -72,7 +72,7 @@ pretty block_id = do
         where
         track t = Pretty.pretty (Block.tracklike_id t)
             <> " (" <> showt (track_events t) <> " events)"
-        views = Seq.count (==block_id) view_blocks
+        views = Lists.count (==block_id) view_blocks
         get = flip Map.lookup tracks <=< Block.track_id
         track_events = maybe 0 (Events.length . Track.track_events) . get
 

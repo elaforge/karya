@@ -57,6 +57,7 @@ import qualified Outputable
 #endif
 
 import qualified Util.Exceptions as Exceptions
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
@@ -133,7 +134,7 @@ interpreter (Session chan) = do
         GHC.setTargets $ map (make_target False) toplevel_modules
         ((result, logs, warns), time_msg) <-
             Thread.timeActionText (reload toplevel_modules)
-        let expected = map ((++ ".hs, interpreted") . Seq.replace1 '.' "/")
+        let expected = map ((++ ".hs, interpreted") . Lists.replace1 '.' "/")
                 (toplevel_modules ++ expected_reloads)
         logs <- return $ filter
             (\log -> not $ (any (`List.isInfixOf` log) expected)) logs

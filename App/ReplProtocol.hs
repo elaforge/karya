@@ -33,10 +33,10 @@ import qualified System.IO as IO
 import qualified System.IO.Error as IO.Error
 import qualified System.Posix as Posix
 
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Network as Network
 import qualified Util.PPrint as PPrint
-import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 import           Util.Serialize (get, get_tag, put, put_tag)
 
@@ -246,7 +246,7 @@ abbreviate_package_loads logs = loaded ++ filter (not . package_log) logs
         | packages > 0
         ]
     packages =
-        Seq.count (("Loading package" `Text.isPrefixOf`) . Log.msg_text) logs
+        Lists.count (("Loading package" `Text.isPrefixOf`) . Log.msg_text) logs
     package_log log = any (`Text.isPrefixOf` Log.msg_text log)
         ["Loading package", "linking ...", "done."]
 

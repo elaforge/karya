@@ -41,17 +41,19 @@ import qualified Data.Monoid as Monoid
 import qualified Data.Text as Text
 import qualified Data.Tree as Tree
 
+import qualified Util.Lists as Lists
 import qualified Util.Seq as Seq
 import qualified Util.Then as Then
+
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
 
-import qualified Derive.ParseTitle as ParseTitle
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- | Ask 'slice' to synthesize a note track and insert it at the leaves of
@@ -320,7 +322,7 @@ checked_slice_notes include_end start end tree = case maybe_err of
     -- the events have been shifted back by the slice start, an event that
     -- extends over 0 means it overlaps the beginning of the slice.
     check_tracks = map (\(_, _, subs) -> subs) $
-        mapMaybe (Seq.head . _notes) tracks
+        mapMaybe (Lists.head . _notes) tracks
 
 check_greater_than :: ScoreTime -> [[TrackTree.EventsNode]] -> Maybe Text
 check_greater_than start tracks

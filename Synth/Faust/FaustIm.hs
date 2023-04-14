@@ -21,6 +21,7 @@ import qualified System.Exit as Exit
 import           System.FilePath ((</>))
 import qualified System.Posix.Signals as Signals
 
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
@@ -42,7 +43,7 @@ main = do
     args <- Environment.getArgs
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
         (flags, args, []) -> return (flags, args)
-        (_, _, errs) -> usage $ "flag errors:\n" ++ Seq.join ", " errs
+        (_, _, errs) -> usage $ "flag errors:\n" ++ Lists.join ", " errs
     logFname <- Config.getLogFilename "faust.log"
     logHdl <- Log.rotate logFname
     Log.configure $ const $ Log.State

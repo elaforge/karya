@@ -10,12 +10,11 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
+import qualified Util.Lists as Lists
 import qualified Util.Maps as Maps
 import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
 
-import qualified Midi.Key as Key
-import qualified Midi.Midi as Midi
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
@@ -38,15 +37,18 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 
-import qualified Perform.Midi.Patch as Patch
-import qualified Perform.Pitch as Pitch
 import qualified Instrument.Common as Common
 import qualified Instrument.InstT as InstT
 import qualified Instrument.Tag as Tag
 
+import qualified Midi.Key as Key
+import qualified Midi.Midi as Midi
+import qualified Perform.Midi.Patch as Patch
+import qualified Perform.Pitch as Pitch
 import qualified User.Elaforge.Instrument.VslInst as VslInst
-import Global
-import Types
+
+import           Global
+import           Types
 
 
 synth :: MidiInst.Synth
@@ -363,7 +365,7 @@ type OpenString = Attrs.Attributes
 find_harmonic :: HarmonicMap -> Bool -> Midi.Key -> Maybe OpenString
     -> Maybe Midi.Key
 find_harmonic hmap gliss pitch maybe_str =
-    maybe (fmap snd . Seq.head) lookup maybe_str =<< Map.lookup pitch m
+    maybe (fmap snd . Lists.head) lookup maybe_str =<< Map.lookup pitch m
     where
     m = (if gliss then hmap_key_to_gliss_destination else hmap_key_to_natural)
         hmap

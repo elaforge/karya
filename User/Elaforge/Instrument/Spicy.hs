@@ -7,7 +7,7 @@ module User.Elaforge.Instrument.Spicy where
 import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Attrs as Attrs
 import qualified Derive.C.Prelude.Note as Note
@@ -73,7 +73,7 @@ note_call = Note.transformed_note
     transform deriver = do
         attrs <- Call.get_attributes
         inst <- Call.lookup_instrument
-        let string = Seq.head
+        let string = Lists.head
                 [ string
                 | attr <- Attrs.to_list attrs, string <- strings
                 , attr == string

@@ -11,6 +11,7 @@ import qualified Data.Text.Lazy as Lazy
 import qualified Data.Text.Lazy.Builder as Builder
 
 import qualified Util.CallStack as CallStack
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -92,7 +93,7 @@ ly_file config title movements = run_output $ do
                         normal_staff config (Just "up") staff
                         mapM_ (normal_staff config Nothing) staves
                     [] -> return ()
-                whenJust (Seq.head staves) $ write_empty_staff config
+                whenJust (Lists.head staves) $ write_empty_staff config
         | otherwise = case staves of
             [staff] -> normal_staff config Nothing staff
             [up, down] -> write_staff_group "PianoStaff" config $ \config -> do
@@ -159,7 +160,7 @@ write_voice_ly (Left (Process.Voices voices)) = do
         -- Lilypond will also complain.
         output $ "% WARNING: voices have different numbers of bars: "
             <> showt bars
-    set_bar (fromMaybe start (Seq.head bars))
+    set_bar (fromMaybe start (Lists.head bars))
     where
     all_equal [] = True
     all_equal (x:xs) = all (==x) xs

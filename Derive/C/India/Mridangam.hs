@@ -245,7 +245,7 @@ tirmanam sequence karvai matra_dur event_dur = (add_final=<<) $ if
         return $ p ++ karvai_durs ++ p ++ karvai_durs ++ p
     where
     add_final sequence
-        | event_dur < 0 = case Seq.head karvai of
+        | event_dur < 0 = case Lists.head karvai of
             Just s | s /= Rest -> return $ sequence ++ [(0, s)]
             _ -> Left "karvai should start with non-rest for a negative event"
         | otherwise = return sequence

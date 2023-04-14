@@ -20,8 +20,8 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Time as Time
 
+import qualified Util.Lists as Lists
 import qualified Util.Rect as Rect
-import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 import           Util.Serialize
     (Serialize, bad_enum, bad_tag, bad_version, get, get_enum, get_tag,
@@ -761,7 +761,7 @@ instance Serialize Patch.Config where
         v -> bad_version "Patch.Config" v
         where
         nonempty x = if x == mempty then Nothing else Just x
-        upgrade_initialization = Seq.head . Set.toList
+        upgrade_initialization = Lists.head . Set.toList
 
 -- | This tags Settings which will have to be upgraded by merging with patch
 -- defaults.

@@ -8,8 +8,10 @@ import qualified Control.Monad as Monad
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
+
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
@@ -120,7 +122,7 @@ run_val transform call =
         [(">", [(0, 1, maybe "" (<> " | ") transform
             <> "capture (" <> call <> ")")])]
     where
-    extract = first (Monad.join . Seq.head) . DeriveTest.extract
+    extract = first (Monad.join . Lists.head) . DeriveTest.extract
         (Env.lookup "capture" . Score.event_environ)
     c_capture :: Derive.Generator Derive.Note
     c_capture = Derive.generator module_ "capture" mempty "Capture env." $

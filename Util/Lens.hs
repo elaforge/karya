@@ -19,14 +19,14 @@ module Util.Lens (
     -- * data
     , map, set, list
 ) where
-import Prelude hiding ((.), map)
-import Control.Category ((.))
-import Data.Label ((:->), get, modify, lens)
+import           Prelude hiding ((.), map)
+import           Control.Category ((.))
 import qualified Data.Label as Label
+import           Data.Label (get, lens, modify, (:->))
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 
 
 -- * lens operators
@@ -71,10 +71,10 @@ set k = lens (Set.member k) $ \modify s ->
 -- will be ignored.
 list :: Int -> Lens [a] (Maybe a)
 list i
-    | i < 0 = lens (\xs -> Seq.head (drop (length xs + i) xs))
+    | i < 0 = lens (\xs -> Lists.head (drop (length xs + i) xs))
         (\modify xs -> at (length xs + i) modify xs)
-    | otherwise = lens (Seq.head . drop i) (at i)
+    | otherwise = lens (Lists.head . drop i) (at i)
     where
-    at i modify xs = case modify (Seq.at xs i) of
-        Nothing -> Seq.remove_at i xs
-        Just x -> Seq.modify_at i (const x) xs
+    at i modify xs = case modify (Lists.at xs i) of
+        Nothing -> Lists.removeAt i xs
+        Just x -> Lists.modifyAt i (const x) xs

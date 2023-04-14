@@ -7,6 +7,7 @@ module Cmd.Repl.LEvent where
 import qualified Data.List as List
 import qualified Data.Text as Text
 
+import qualified Util.Lists as Lists
 import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
@@ -52,7 +53,7 @@ stretch_to dur = do
     selected <- Selection.events
     start <- Selection.start
     let maybe_end = Seq.maximum $
-            mapMaybe (fmap Event.end . Seq.last . snd) selected
+            mapMaybe (fmap Event.end . Lists.last . snd) selected
     whenJust maybe_end $ \end ->
         ModifyEvents.selection $ ModifyEvents.event $
             stretch_event start (dur / (end - start))
@@ -162,7 +163,7 @@ resolve_conflicts points (event : events) =
         (map (Event.start_ #= bump) group ++ rest)
     where
     (group, rest) = span ((== Event.start event) . Event.start) events
-    bump = fromMaybe (Event.start event + 1) (Seq.head points_after)
+    bump = fromMaybe (Event.start event + 1) (Lists.head points_after)
     points_after = dropWhile (<= Event.start event) points
 
 -- | Zero-duration events will remain zero duration, and not be affected by

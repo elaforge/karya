@@ -27,8 +27,8 @@ module Derive.Call.BlockUtil (
 ) where
 import qualified Data.Tree as Tree
 
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
 import qualified Util.Trees as Trees
 
 import qualified Derive.Cache as Cache
@@ -271,7 +271,7 @@ derive_pitch_map state pitch_track = case result of
             (Control.d_control_track config pitch_track capture)
         mapM_ Log.write logs
         Derive.require "get_pitch_map: no event" $
-            Score.event_pitch <$> Seq.head events
+            Score.event_pitch <$> Lists.head events
     config = Control.Config
         { config_toplevel_tempo = False
         , config_use_cache = False

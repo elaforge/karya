@@ -28,10 +28,11 @@ import qualified System.FilePath as FilePath
 
 import qualified Util.FFI as FFI
 import qualified Util.File as File
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
+import qualified Util.Strings as Strings
 
 import qualified Instrument.Common as Common
 import qualified Instrument.Tag as Tag
@@ -87,7 +88,7 @@ try_parsers :: [Parser a] -> ByteString -> Either String a
 try_parsers parsers bytes = case Either.rights results of
     patches : _ -> Right patches
     _ -> Left $ "didn't match any parsers: "
-        <> Seq.join "; " (map Seq.strip (Either.lefts results))
+        <> Lists.join "; " (map Strings.strip (Either.lefts results))
     where results = map ($bytes) parsers
 
 -- | Assume the sysex midi channel is 0.
@@ -172,7 +173,7 @@ show_flat = show_map []
             RStr s -> [path <> untxt s]
             RUnparsed {} -> []
         where
-        path = Seq.join "." (reverse (field : fields)) <> ": "
+        path = Lists.join "." (reverse (field : fields)) <> ": "
 
 class RecordVal a where
     from_val :: a -> Record
@@ -210,7 +211,7 @@ record_type r = case r of
     RUnparsed {} -> TUnparsed
 
 get_rmap :: forall a. (RecordVal a) => String -> RMap -> Either String a
-get_rmap path rmap = to_val_error $ lookup1 (Seq.split "." path) rmap
+get_rmap path rmap = to_val_error $ lookup1 (Lists.split "." path) rmap
     where
     lookup1 [] _ = Left ([], "can't lookup empty field")
     lookup1 (field : fields) rmap = case Map.lookup field rmap of
@@ -224,7 +225,7 @@ get_rmap path rmap = to_val_error $ lookup1 (Seq.split "." path) rmap
                 RUnion submap -> lookup1 (field:fields) submap
                 _ -> Left ([field], "can't lookup field in non-map")
     to_val_error (Left (fields, msg)) =
-        Left $ Seq.join "." fields <> ": " <> msg
+        Left $ Lists.join "." fields <> ": " <> msg
     to_val_error (Right v) = case to_val v of
         Nothing -> Left $ path <> ": expected a "
             <> show (val_type rtype) <> " but got " <> show v
@@ -236,7 +237,7 @@ get_rmap path rmap = to_val_error $ lookup1 (Seq.split "." path) rmap
 -- existing fields, it won't create new ones, and you can't change the type
 -- of a field.
 put_rmap :: (Show a, RecordVal a) => String -> a -> RMap -> Either String RMap
-put_rmap path val rmap = format_err $ put (Seq.split "." path) val rmap
+put_rmap path val rmap = format_err $ put (Lists.split "." path) val rmap
     where
     put [] _ _ = Left ([], "can't put empty field")
     put (field : fields) val rmap = case Map.lookup field rmap of
@@ -253,7 +254,8 @@ put_rmap path val rmap = format_err $ put (Seq.split "." path) val rmap
                 Left ([field], "old val " <> show record
                     <> " is a different type than " <> show val)
             | otherwise -> Right $ Map.insert field (from_val val) rmap
-    format_err (Left (fields, msg)) = Left $ Seq.join "." fields <> ": " <> msg
+    format_err (Left (fields, msg)) =
+        Left $ Lists.join "." fields <> ": " <> msg
     format_err (Right val) = Right val
 
 -- * util
@@ -437,7 +439,7 @@ rmap_lookup rmap name = case Map.lookup name rmap of
 decode :: Config -> Specs -> ByteString -> Either Error (RMap, ByteString)
 decode config = decode_from []
     where
-    decode_from path specs bytes = first Seq.strip $
+    decode_from path specs bytes = first Strings.strip $
         Get.runGetState (rmap path [] specs) bytes 0
     rmap _ collect [] = return (Map.fromList collect)
     rmap path collect (spec:specs) = do
@@ -497,7 +499,7 @@ decode_range num (Range low high)
     | otherwise = Left $ "out of range " <> show (low, high) <> ": "
         <> show num
 decode_range num (Enum enums)
-    | Just enum <- Seq.at enums num = Right (RStr enum)
+    | Just enum <- Lists.at enums num = Right (RStr enum)
     | otherwise = Left $ "out of range for enum: " <> show num
 
 decode_byte :: [Name] -> [(Name, BitField)] -> Word8
@@ -514,7 +516,7 @@ decode_byte path bits byte =
             | otherwise -> Left $
                 show_path (name:path) <> "out of range: " <> show val
         Enum enums
-            | Just enum <- Seq.at enums val -> return (name, RStr enum)
+            | Just enum <- Lists.at enums val -> return (name, RStr enum)
             | otherwise -> Left $
                 show_path (name:path) <> "bit of byte " <> show byte
                     <> ": not a valid enum index: " <> show val
@@ -524,7 +526,7 @@ decode_byte path bits byte =
         | otherwise = fromIntegral val
 
 show_path :: [Name] -> String
-show_path = (<>": ") . Seq.join "." . reverse
+show_path = (<>": ") . Lists.join "." . reverse
 
 -- ** bit fiddling
 

@@ -17,6 +17,7 @@ import qualified System.Environment as Environment
 import qualified System.IO as IO
 import qualified Text.Read as Read
 
+import qualified Util.Lists as Lists
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.Trees as Trees
@@ -145,7 +146,7 @@ draw = Tree.drawTree . fmap untxt
 
 fnameToModule :: String -> ImportQuery.Module
 fnameToModule =
-    txt . Seq.replace1 '/' "." . dropSuffixes [".hs", ".hsc", ".chs"]
+    txt . Lists.replace1 '/' "." . dropSuffixes [".hs", ".hsc", ".chs"]
 
 dropSuffixes :: [String] -> FilePath -> String
 dropSuffixes suffixes str =

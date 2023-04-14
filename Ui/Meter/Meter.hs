@@ -52,10 +52,10 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified GHC.Generics as Generics
 
+import qualified Util.Lists as Lists
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import           Util.Pretty ((<+>))
-import qualified Util.Seq as Seq
 
 import           Global
 import           Types
@@ -326,7 +326,7 @@ meter_split :: Int -> AbstractMeter
 meter_split n m
     | n <= 0 = (Nothing, Just m)
     | otherwise = case snd (go n [m]) of
-        (pre, post) -> (Seq.head pre, Seq.head post)
+        (pre, post) -> (Lists.head pre, Lists.head post)
     where
     go n = \case
         ts | n <= 0 -> (0, ([], ts))

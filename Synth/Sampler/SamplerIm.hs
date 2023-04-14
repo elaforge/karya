@@ -68,7 +68,7 @@ main = do
     args <- Environment.getArgs
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
         (flags, args, []) -> return (flags, args)
-        (_, _, errs) -> usage $ "flag errors:\n" ++ Seq.join ", " errs
+        (_, _, errs) -> usage $ "flag errors:\n" ++ Lists.join ", " errs
     logFname <- Config.getLogFilename "sampler.log"
     logHdl <- Log.rotate logFname
     Log.configure $ const $ Log.State
@@ -76,9 +76,9 @@ main = do
         , state_priority = if Debug `elem` flags then Log.Debug else Log.Notice
         }
     let quality = fromMaybe defaultQuality $
-            Seq.last [quality | Quality quality <- flags]
-        dumpRange = Seq.head [(start, end) | DumpRange start end <- flags]
-        dumpTracks = Seq.head [tracks | DumpTracks tracks <- flags]
+            Lists.last [quality | Quality quality <- flags]
+        dumpRange = Lists.head [(start, end) | DumpRange start end <- flags]
+        dumpTracks = Lists.head [tracks | DumpTracks tracks <- flags]
         emitProgress = Progress `elem` flags
     imDir <- Config.imDir <$> Config.getConfig
     let calibrateDir = imDir </> "calibrate"
@@ -183,7 +183,7 @@ options =
     ]
 
 readDumpRange :: String -> Flag
-readDumpRange s = case Seq.split "," s of
+readDumpRange s = case Lists.split "," s of
     [start, end]
         | Just start <- Read.readMaybe start, Just end <- Read.readMaybe end ->
             DumpRange start end

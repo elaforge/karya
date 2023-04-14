@@ -8,6 +8,7 @@ import qualified Data.List as List
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
+import qualified Util.Lists as Lists
 import qualified Util.Seq as Seq
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -109,7 +110,7 @@ events = fmap Events.ascending . Ui.get_events
 selected :: Cmd.M m => m [Event.Event]
 selected = do
     (_, _, track_ids, range) <- Selection.tracks
-    track_id <- Cmd.require "selected track" (Seq.head track_ids)
+    track_id <- Cmd.require "selected track" (Lists.head track_ids)
     Events.ascending . Events.in_range range <$> Ui.get_events track_id
 
 events_range :: TrackId -> ScoreTime -> ScoreTime -> Cmd.CmdL [Event.Event]

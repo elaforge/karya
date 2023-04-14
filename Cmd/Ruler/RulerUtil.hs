@@ -8,6 +8,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
+import qualified Util.Lists as Lists
 import qualified Util.Seq as Seq
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
@@ -228,7 +229,7 @@ modify_ruler block_id tracknums ruler_id modify
 section_ruler_id :: Ui.M m => BlockId -> TrackNum -> m RulerId
 section_ruler_id block_id tracknum =
     Ui.require ("no rulers in " <> pretty (block_id, tracknum))
-            . Seq.head . Block.ruler_ids_of . map snd
+            . Lists.head . Block.ruler_ids_of . map snd
         =<< get_section block_id tracknum
 
 -- | Get the tracks of the section of the given track.  A section extends
@@ -237,7 +238,7 @@ get_section :: Ui.M m => BlockId -> TrackNum
     -> m [(TrackNum, Block.TracklikeId)]
 get_section block_id tracknum = do
     tracks <- map snd <$> block_tracks block_id
-    let sections = Seq.split_before (Maybe.isJust . ruler_id_of . snd)
+    let sections = Lists.splitBefore (Maybe.isJust . ruler_id_of . snd)
             (zip [0..] tracks)
     return $ fromMaybe [] $ List.find ((tracknum `elem`) . map fst) sections
     where

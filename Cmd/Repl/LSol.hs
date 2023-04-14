@@ -18,8 +18,8 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
+import qualified Util.Lists as Lists
 import qualified Util.ParseText as ParseText
-import qualified Util.Seq as Seq
 import qualified App.ReplProtocol as ReplProtocol
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -83,7 +83,7 @@ insert :: (Cmd.M m, Solkattu.Notation stroke,
     -> SectionIndex -> m ()
 insert instrument realize_patterns akshara_dur score_i section_i = do
     (block_id, _, track_id, at) <- Selection.get_insert
-    note_track <- case Seq.at Db.scores score_i of
+    note_track <- case Lists.at Db.scores score_i of
         Just (_, Korvai.Single k) -> realize instrument realize_patterns k
             section_i akshara_dur at
         Just (_, Korvai.Tani {}) -> Cmd.throw "tani not supported"

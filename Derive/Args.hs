@@ -7,8 +7,8 @@
 module Derive.Args where
 import qualified Data.Map as Map
 
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
 import qualified Derive.Derive as Derive
 import           Derive.Derive (Context, PassedArgs)
 import qualified Derive.Deriver.Internal as Internal
@@ -208,7 +208,7 @@ eval ctx event prev = case Parse.parse_expr (Event.text event) of
 -- But 'Derive.Control.trim_signal' will clip that sample off to avoid
 -- a spurious pitch change at the end of the note.
 eval_next_pitch :: Derive.PitchArgs -> Derive.Deriver (Maybe PSignal.Pitch)
-eval_next_pitch = maybe (return Nothing) eval_pitch . Seq.head . next_events
+eval_next_pitch = maybe (return Nothing) eval_pitch . Lists.head . next_events
 
 eval_pitch :: Event.Event -> Derive.Deriver (Maybe PSignal.Pitch)
 eval_pitch event = justm (to_maybe <$> Eval.eval_event event) $ \stream -> do
@@ -246,22 +246,22 @@ next = Derive.ctx_event_end . context
 
 -- | End of the next event, or the end of the block if there is no next event.
 next_end :: PassedArgs a -> TrackTime
-next_end args = maybe (next args) Event.end (Seq.head (next_events args))
+next_end args = maybe (next args) Event.end (Lists.head (next_events args))
 
 -- | Get the start of the next event, if there is one.
 --
 -- This is similar to 'next', except that it will be Nothing at the end of
 -- the block.
 next_start :: PassedArgs a -> Maybe TrackTime
-next_start = fmap Event.start . Seq.head . next_events
+next_start = fmap Event.start . Lists.head . next_events
 
 -- | Start time of the previous event.
 prev_start :: PassedArgs a -> Maybe TrackTime
-prev_start = fmap Event.start . Seq.head . prev_events
+prev_start = fmap Event.start . Lists.head . prev_events
 
 -- | End time of the previous event.
 prev_end :: PassedArgs a -> Maybe TrackTime
-prev_end = fmap Event.end . Seq.head . prev_events
+prev_end = fmap Event.end . Lists.head . prev_events
 
 prev_events, next_events :: PassedArgs a -> [Event.Event]
 next_events = Derive.ctx_next_events . context

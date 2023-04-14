@@ -22,7 +22,7 @@ import qualified System.Exit as Exit
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as File
 import qualified Util.Audio.Resample as Resample
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 
 import           Global
 
@@ -33,8 +33,8 @@ main = do
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
         (flags, args, []) -> return (flags, args)
         (_, _, errs) -> usage (unlines errs)
-    let srate = fromMaybe defaultSRate $ Seq.last [sr | SRate sr <- flags]
-    depth <- traverse parseDepth $ Seq.last [s | Depth s <- flags]
+    let srate = fromMaybe defaultSRate $ Lists.last [sr | SRate sr <- flags]
+    depth <- traverse parseDepth $ Lists.last [s | Depth s <- flags]
     let write input output = process (Set `elem` flags) depth srate input output
     case args of
         _ | Info `elem` flags -> forM_ args $ \input -> do

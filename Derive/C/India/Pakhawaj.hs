@@ -10,6 +10,7 @@ import qualified Data.Text as Text
 import qualified Data.Traversable as Traversable
 
 import qualified Util.Doc as Doc
+import qualified Util.Lists as Lists
 import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
 
@@ -234,4 +235,4 @@ map_neighbors f xs =
     snd $ Traversable.mapAccumL go (Nothing, drop 1 (Foldable.toList xs)) xs
     where
     go (prev, nexts) x = ((Just y, drop 1 nexts), y)
-        where y = f prev x (Seq.head nexts)
+        where y = f prev x (Lists.head nexts)

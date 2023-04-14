@@ -86,7 +86,7 @@ cmd_tempo_val_edit msg = suppress "tempo track val edit" $ do
 infer_normalized :: Ui.M m => TrackId -> m Bool
 infer_normalized =
     -- Don't get fooled by the ' call, which is fairly common.
-    fmap (maybe True normal . Seq.head . dropWhile (=="'") . map Event.text
+    fmap (maybe True normal . Lists.head . dropWhile (=="'") . map Event.text
         . Events.ascending)
     . Ui.get_events
     where

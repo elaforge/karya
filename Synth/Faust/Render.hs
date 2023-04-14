@@ -22,6 +22,7 @@ import qualified System.IO.Error as IO.Error
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Control
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Segment as Segment
@@ -198,7 +199,7 @@ renderPatch emitMessage patch config mbState notifyState notes start_ =
         -- means notes have to be stateless.
         silence = Audio.synchronizeToSize 0 (_blockSize config) $
             Audio.takeS (RealTime.to_seconds silenceS) Audio.silence
-        firstNote = maybe 0 Note.start $ Seq.head $
+        firstNote = maybe 0 Note.start $ Lists.head $
             dropWhile ((==0) . Note.initial0 Control.dynamic) notes
         -- Emit silence from the start time until the first note, if there is
         -- any such time.
@@ -217,7 +218,7 @@ renderPatch emitMessage patch config mbState notifyState notes start_ =
     controls = renderControls config patch notes start
     vol = Audio.synchronizeToSize align (_blockSize config) <$>
         renderInput start (controlBreakpoints 1 False Control.volume notes)
-    final = maybe 0 Note.end (Seq.last notes)
+    final = maybe 0 Note.end (Lists.last notes)
 
 interleave :: AUtil.NAudio -> AUtil.Audio
 interleave naudio = case Audio.interleaved naudio of

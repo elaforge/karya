@@ -9,8 +9,8 @@ import qualified Data.Map as Map
 import qualified System.Random.Mersenne.Pure64 as Pure64
 
 import qualified Util.Doc as Doc
+import qualified Util.Lists as Lists
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
 
 import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
@@ -26,9 +26,9 @@ import qualified Derive.Expr as Expr
 import qualified Derive.Library as Library
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
-import qualified Derive.ValType as ValType
 import qualified Derive.Sig as Sig
 import qualified Derive.Typecheck as Typecheck
+import qualified Derive.ValType as ValType
 import qualified Derive.Warp as Warp
 
 import qualified Perform.RealTime as RealTime
@@ -193,7 +193,7 @@ marks_around :: Meter.Rank -> Mark.Marklist -> ScoreTime
     -> Maybe (ScoreTime, ScoreTime)
 marks_around rank marks pos =
     (,) <$> get (Mark.descending pos marks) <*> get (Mark.ascending pos marks)
-    where get = fmap fst . Seq.head . filter ((<=rank) . Mark.mark_rank . snd)
+    where get = fmap fst . Lists.head . filter ((<=rank) . Mark.mark_rank . snd)
 
 swing :: ScoreTime -- ^ time from this beat to the next, normalized 0 to 1
     -> RealTime -- ^ amount of swing offset, also normalized 0 to 1

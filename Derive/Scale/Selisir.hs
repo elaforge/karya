@@ -8,9 +8,8 @@ module Derive.Scale.Selisir where
 import qualified Data.Map as Map
 import qualified Data.Vector as Vector
 
+import qualified Util.Lists as Lists
 import qualified Util.Seq as Seq
-import qualified Midi.Key as Key
-import qualified Midi.Midi as Midi
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Bali as Bali
 import qualified Derive.Scale.BaliScales as BaliScales
@@ -18,9 +17,12 @@ import qualified Derive.Scale.Legong as Legong
 import qualified Derive.Scale.McPhee as McPhee
 import qualified Derive.Scale.Theory as Theory
 
+import qualified Midi.Key as Key
+import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
-import Global
+
+import           Global
 
 
 scales :: [Scale.Definition]
@@ -68,7 +70,7 @@ pitu_to_lima laras = laras
     }
     where
     strip = Vector.fromList
-        . concatMap (\nns -> mapMaybe (Seq.at nns) [0, 1, 2, 4, 5])
+        . concatMap (\nns -> mapMaybe (Lists.at nns) [0, 1, 2, 4, 5])
         . Seq.chunked 7 . Vector.toList
 
 data Pitch = I | O | E | U | A

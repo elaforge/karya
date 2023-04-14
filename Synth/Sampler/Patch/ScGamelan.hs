@@ -12,6 +12,7 @@ import qualified System.Directory as Directory
 import           System.FilePath ((</>))
 import qualified Text.Read as Read
 
+import qualified Util.Lists as Lists
 import qualified Util.Seq as Seq
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Derive.Attrs as Attrs
@@ -173,8 +174,8 @@ makeFileList inst = do
 -- Gongs: $instName-{A,B,C}$maxVel.flac
 parseFilename :: FilePath -> (String, Char, Int)
 parseFilename fname = fromMaybe (error $ "no parse: " <> show fname) $
-    case Seq.split "-" fname of
-        [inst, rest] -> case Seq.split "." rest of
+    case Lists.split "-" fname of
+        [inst, rest] -> case Lists.split "." rest of
             [var : maxVel, "flac"] -> (inst, var,) <$> Read.readMaybe maxVel
             _ -> Nothing
         _ -> Nothing

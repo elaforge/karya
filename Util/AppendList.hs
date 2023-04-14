@@ -6,13 +6,13 @@
 -- OrdList.
 module Util.AppendList (
     AppendList, empty, singleton, cons, snoc, append
-    , from_list, to_list
+    , fromList, toList
     , length, view, head, last
 ) where
-import Prelude hiding (length, head, last)
-import Control.Monad
+import           Prelude hiding (length, head, last)
 import qualified Data.List as List
-import qualified Data.Monoid as Monoid
+
+import           Control.Monad
 
 
 data AppendList a =
@@ -50,13 +50,13 @@ append Nil ys = ys
 append xs Nil = xs
 append xs ys = Pair xs ys
 
-from_list :: [a] -> AppendList a
-from_list [] = Nil
-from_list [a] = Single a
-from_list xs@(_:_) = Many xs
+fromList :: [a] -> AppendList a
+fromList [] = Nil
+fromList [a] = Single a
+fromList xs@(_:_) = Many xs
 
-to_list :: AppendList a -> [a]
-to_list alist = go alist []
+toList :: AppendList a -> [a]
+toList alist = go alist []
     where
     go Nil xs = xs
     go (Single x) xs = x : xs

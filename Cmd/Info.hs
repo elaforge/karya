@@ -15,6 +15,7 @@ import qualified Data.Tree as Tree
 
 import qualified Text.Printf as Printf
 
+import qualified Util.Lists as Lists
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Trees as Trees
@@ -192,7 +193,7 @@ semicolon_list [] = "[]"
 semicolon_list xs = Text.intercalate "; " xs
 
 show_runs :: (Show a, Num a, Ord a) => [a] -> [Text]
-show_runs = concatMap show_run . Seq.split_between (\a b -> a+1 < b)
+show_runs = concatMap show_run . Lists.splitBetween (\a b -> a+1 < b)
     where
     show_run xs@(_:_:_:_) = [showt (head xs) <> ".." <> showt (last xs)]
     show_run xs = map showt xs
@@ -231,7 +232,7 @@ get_track_status block_id tracknum = do
         let title = ParseTitle.instrument_to_title inst
         return $ txt $ Printf.printf "%s at %d: %s -- [%s]" (untxt title)
             note_tracknum (untxt (show_addrs addrs))
-            (Seq.join ", " track_descs)
+            (Lists.join ", " track_descs)
 
 -- | Given a tracknum, find the note track associated with it.  Since there
 -- may be multiple ones, pick the first one.  First try children, then
@@ -241,7 +242,7 @@ find_note_track :: TrackTree.TrackTree -> TrackNum
 find_note_track tree tracknum = case paths_of tree tracknum of
         Nothing -> Nothing
         Just (track, parents, children) ->
-            Seq.head $ mapMaybe inst_of (track : children ++ parents)
+            Lists.head $ mapMaybe inst_of (track : children ++ parents)
     where
     inst_of track =
         case ParseTitle.title_to_instrument (Ui.track_title track) of

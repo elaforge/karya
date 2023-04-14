@@ -4,8 +4,10 @@
 
 -- | Post-proc calls that impose a new kind of articulation.
 module Derive.C.Post.Rearticulate (library) where
+import qualified Util.Lists as Lists
 import qualified Util.Maps as Maps
 import qualified Util.Seq as Seq
+
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
@@ -62,7 +64,7 @@ slur event events = event
         <> Score.event_environ event
     }
     where
-    dur = Score.event_end (fromMaybe event (Seq.last events))
+    dur = Score.event_end (fromMaybe event (Lists.last events))
         - Score.event_start event
 
 merge_pitch :: PSignal.PSignal -> [(RealTime, PSignal.PSignal)]

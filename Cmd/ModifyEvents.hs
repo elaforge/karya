@@ -10,7 +10,7 @@ import qualified Data.List as List
 import qualified Data.String as String
 import qualified Data.Text as Text
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Selection as Selection
 import qualified Derive.Parse as Parse
@@ -249,7 +249,7 @@ type Match = [Token]
 
 parse_tokens :: Parser -> Text -> Maybe [Text]
 parse_tokens parser =
-    fmap (map Text.unwords) . Seq.head . parse parser . map Text.strip
+    fmap (map Text.unwords) . Lists.head . parse parser . map Text.strip
     . Parse.lex
 
 parse :: Parser -> [Token] -> [[Match]]

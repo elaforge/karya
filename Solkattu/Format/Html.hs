@@ -18,6 +18,7 @@ import qualified Data.Time.Calendar as Calendar
 
 import qualified Util.File as File
 import qualified Util.Html as Html
+import qualified Util.Lists as Lists
 import qualified Util.Seq as Seq
 import qualified Util.Styled as Styled
 import qualified Util.Texts as Texts
@@ -233,7 +234,7 @@ sectionHtmls inst config korvai =
     -- around each group.  This is because each ruler may have a different
     -- nadai and hence a different number of columns.
     concatMap (scoreTable (_font config) . concat . map snd) $
-    Seq.split_before fst $
+    Lists.splitBefore fst $
     concat $ snd $ List.mapAccumL show1 (Nothing, 0) $
     zip3 [1..] (Korvai.genericSections korvai) sectionNotes
     where
@@ -257,7 +258,7 @@ msgRow msg =
     (False, ["<tr><td colspan=100>" <> Html.html msg <> "</td></tr>"])
 
 scoreTable :: Font -> [Html.Html] -> [Html.Html]
-scoreTable _ [] = [] -- Seq.split_before produces []s
+scoreTable _ [] = [] -- Lists.splitBefore produces []s
 scoreTable font rows = concat
     [ ["\n<p><table style=\"" <> fontStyle
         <> "\" class=konnakol cellpadding=0 cellspacing=0>"]

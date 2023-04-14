@@ -33,12 +33,12 @@ import qualified Data.Vector as Vector
 
 import qualified Text.Read as Read
 
+import qualified Util.Lists as Lists
 import qualified Util.Num as Num
 import qualified Util.ParseText as ParseText
 import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
 import qualified Util.Seed as Seed
-import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 
 import qualified Ui.Id as Id
@@ -280,7 +280,7 @@ pretty_ui_ = Text.intercalate " / " . map unparse_ui_frame_ . to_ui
 
 -- | Loggable msg with the last position of the stack.
 pretty_ui_inner :: Stack -> Maybe Text
-pretty_ui_inner = fmap log_ui_frame . Seq.head . to_ui_innermost
+pretty_ui_inner = fmap log_ui_frame . Lists.head . to_ui_innermost
 
 -- | Format a UiFrame for logging.  This means it wraps it in @{s "..."}@,
 -- which causes logview to make it clickable, which will highlight the stack
@@ -297,7 +297,7 @@ track_regions :: Stack -> TrackId -> [Ranges.Ranges TrackTime]
 track_regions stack track_id =
     [Ranges.range s e | _ : rest <- groups, (s, e) <- get_region rest ]
     where
-    groups = Seq.split_before (== Track track_id) (outermost stack)
+    groups = Lists.splitBefore (== Track track_id) (outermost stack)
     get_region frames = case dropWhile is_call frames of
         Region s e : _ -> [(s, e)]
         _ -> []

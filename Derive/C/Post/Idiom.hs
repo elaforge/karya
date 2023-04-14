@@ -9,6 +9,7 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
+import qualified Util.Lists as Lists
 import qualified Util.Seq as Seq
 import qualified Derive.Attrs as Attrs
 import qualified Derive.C.Prelude.Note as Note
@@ -173,7 +174,7 @@ extend_duration attrs dur = Post.emap1_ extend . next_same_pitch
         | any (\a -> Score.has_attribute a event) attrs =
             Score.duration (max $ maybe dur (min dur) max_dur) event
         | otherwise = event
-        where max_dur = diff event <$> Seq.head nexts
+        where max_dur = diff event <$> Lists.head nexts
     diff e1 e2 = max 0 $ Score.event_start e2 - Score.event_start e1 - 0.05
 
 

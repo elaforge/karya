@@ -19,7 +19,7 @@ import qualified Data.Either as Either
 import qualified Data.Map as Map
 
 import qualified Util.Doc as Doc
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call as Call
@@ -68,7 +68,7 @@ c_with_attributes = Make.transform_notes Module.prelude "note" mempty
     (Sig.many "attr" "Set instrument or add attributes.") $
     \inst_attrs deriver -> do
         let (insts, attrs) = Either.partitionEithers inst_attrs
-            inst = Seq.last insts
+            inst = Lists.last insts
         maybe id Derive.with_instrument inst $
             Call.add_attributes (mconcat attrs) deriver
 
@@ -240,7 +240,8 @@ note_flags zero_dur stack environ
     block_end = start == Env.maybe_val EnvKey.block_end environ
     -- This is the start time on the track, which, due to slicing, is not
     -- necessarily the same as Args.start.
-    start = fst <$> Seq.head (mapMaybe Stack.region_of (Stack.innermost stack))
+    start = fst <$>
+        Lists.head (mapMaybe Stack.region_of (Stack.innermost stack))
 
 -- ** adjust start and duration
 

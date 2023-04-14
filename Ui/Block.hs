@@ -52,9 +52,9 @@ import qualified Data.Text as Text
 
 import qualified GHC.Generics as Generics
 
+import qualified Util.Lists as Lists
 import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
-import qualified Util.Seq as Seq
 
 import qualified App.Config as Config
 import qualified Ui.Color as Color
@@ -250,7 +250,7 @@ integrate_skeleton block = map integrate_edges (block_integrated_tracks block)
     where
     integrate_edges (source_id, ScoreDestinations dests) =
         (,) Config.score_integrate_skeleton $ maybe [] (:[]) $ do
-            (_, (dest_id, _)) <- Seq.head dests
+            (_, (dest_id, _)) <- Lists.head dests
             dest <- tracknum_of dest_id
             source <- tracknum_of source_id
             return (source, dest)
@@ -440,7 +440,7 @@ join_collapsed = id
 -- TODO I tried this and it looks nice but I'd need to also eliminate the
 -- tracks from a Block.display_skeleton and Block.display_integrate_skeleton
 -- and I'm not sure it's worth it.
--- join_collapsed = mapMaybe Seq.head
+-- join_collapsed = mapMaybe Lists.head
 --     . List.groupBy (\a b -> a == collapsed_track && b == collapsed_track)
 
 -- | This is not exported so callers are forced to go through

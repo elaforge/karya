@@ -19,8 +19,10 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import qualified Util.Lists as Lists
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+
 import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
@@ -190,7 +192,7 @@ to_point to_cur_pos = do
     set view_id (Just new)
 
 find_at_before :: Ord a => a -> [a] -> Maybe a
-find_at_before n = Seq.last . takeWhile (<=n)
+find_at_before n = Lists.last . takeWhile (<=n)
 
 -- | Advance the insert selection by the current step, which is a popular thing
 -- to do.
@@ -530,7 +532,7 @@ auto_track_scroll block view sel
     view_end = view_start + visible
     -- Visible does include the pesky ruler.
     visible = Block.visible_track view - maybe 0
-        Block.display_track_width (Seq.head (Block.block_tracks block))
+        Block.display_track_width (Lists.head (Block.block_tracks block))
     cur_tracknum = Sel.cur_track sel
 
 
@@ -564,7 +566,7 @@ step_from tracknum pos steps step = do
 -- closest ruler that has all the given marklist names.  This includes ruler
 -- tracks and the rulers of event tracks.
 relevant_ruler :: Block.Block -> TrackNum -> Maybe RulerId
-relevant_ruler block tracknum = Seq.at (Block.ruler_ids_of in_order) 0
+relevant_ruler block tracknum = Lists.at (Block.ruler_ids_of in_order) 0
     where
     in_order = map (Block.tracklike_id . snd) $ dropWhile ((/=tracknum) . fst) $
         reverse $ zip [0..] (Block.block_tracks block)
@@ -789,7 +791,7 @@ relative_realtime_point perf maybe_root_sel (block_id, _, track_id, pos) =
 point_to_real :: Transport.TempoFunction -> Maybe Point -> RealTime
 point_to_real _ Nothing = 0
 point_to_real tempo (Just (block_id, _, track_id, pos)) =
-    fromMaybe 0 $ Seq.head $ tempo block_id track_id pos
+    fromMaybe 0 $ Lists.head $ tempo block_id track_id pos
 
 -- ** select events
 
@@ -816,7 +818,7 @@ ctx_track_events :: Ui.M m => Context -> m (TrackId, [Event.Event])
 ctx_track_events ctx = do
     events <- around_to_events <$> ctx_events_around ctx
     Ui.require "ctx_events_around output should be 1:1 with TrackIds" $
-        Seq.head events
+        Lists.head events
 
 events_around :: Cmd.M m => m SelectedAround
 events_around = ctx_events_around =<< context

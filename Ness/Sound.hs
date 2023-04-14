@@ -15,6 +15,7 @@ import qualified System.Directory as Directory
 import System.FilePath ((</>))
 
 import qualified Util.Num as Num
+import qualified Util.Lists as Lists
 import qualified Util.Seq as Seq
 import qualified Midi.Key as Key
 import qualified Midi.Key2 as Key2
@@ -66,7 +67,7 @@ split dur names fname outDir = Resource.runResourceT $ do
             Audio.dropStart (Audio.Seconds t) audio
 
 velocityNames keys =
-    [ Seq.join "-"
+    [ Lists.join "-"
         ["str" <> show str, fmt (Midi.from_key key), fmt low, fmt high]
     | (str, key) <- zip [1..10] keys, (low, high) <- rangesFrom vels
     ]

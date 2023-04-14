@@ -34,6 +34,7 @@ import qualified Data.Text.Encoding as Text.Encoding
 import qualified Data.Word as Word
 
 import qualified Util.CallStack as CallStack
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
@@ -264,7 +265,7 @@ emit_stack stack = do
         with_plain $ " " <> call <> ":"
     where
     ui_stack = Stack.to_ui stack
-    last_call = Seq.head . mapMaybe Stack.call_of . Stack.innermost
+    last_call = Lists.head . mapMaybe Stack.call_of . Stack.innermost
 
 msg_text_regexes :: [(Regex.Regex, Style)]
 msg_text_regexes =
@@ -293,7 +294,7 @@ flatten_ranges deflt = filter ((>0) . fst) . snd . go 0 . Seq.sort_on fst
         : (min e next - s, style)
         : rest ++ if last_n < e then [(e - last_n, style)] else []
         where
-        next = maybe e (fst . fst) (Seq.head ranges)
+        next = maybe e (fst . fst) (Lists.head ranges)
         (last_n, rest) = go e ranges
 
 with_plain :: Text -> Formatter

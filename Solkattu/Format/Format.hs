@@ -31,6 +31,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import qualified Util.Lists as Lists
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -183,7 +184,7 @@ normalizeRest a = a
 
 -- | Split on sam.
 breakAvartanams :: [(S.State, a)] -> [[(S.State, a)]]
-breakAvartanams = dropWhile null . Seq.split_before (onSam . fst)
+breakAvartanams = dropWhile null . Lists.splitBefore (onSam . fst)
 
 -- | If the final non-rest is at sam, drop trailing rests, and don't wrap it
 -- onto the next line.
@@ -236,7 +237,7 @@ pairWithRuler rulerEach prevRuler tala strokeWidth =
         ( inferRuler akshara tala strokeWidth (map fst line)
         , line
         )
-        where akshara = maybe 0 (S.stateAkshara . fst) $ Seq.head line
+        where akshara = maybe 0 (S.stateAkshara . fst) $ Lists.head line
 
     inherit Nothing (ruler, line) = (Just ruler, (ruler, line))
     inherit (Just prev) (ruler, line) = (Just cur, (cur, line))
@@ -273,7 +274,7 @@ inferRuler startAkshara tala strokeWidth =
     . concatMap insertDots
     . zip (drop startAkshara (Talas.labels tala))
     . dropWhile null
-    . Seq.split_before onAkshara
+    . Lists.splitBefore onAkshara
     where
     -- Merge 0 dur marks with the next mark.  HTML output puts one mark per
     -- matra, so it can't have 0 dur marks.
@@ -283,7 +284,7 @@ inferRuler startAkshara tala strokeWidth =
     insertNadai :: S.Nadai -> (Text, [S.State])
         -> (S.Nadai, [(Text, [S.State])])
     insertNadai prevNadai (label, states) =
-        ( maybe prevNadai fst (Seq.last groups)
+        ( maybe prevNadai fst (Lists.last groups)
         , case groups of
             (nadai, states) : rest | nadai == prevNadai ->
                 (label, states) : map (first nadaiChange) rest

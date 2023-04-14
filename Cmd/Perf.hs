@@ -13,8 +13,8 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Tree as Tree
 
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
 import qualified Util.Trees as Trees
 
 import qualified App.Config as Config
@@ -152,7 +152,7 @@ global_environ = do
     mapM_ Log.write logs
     events <- Stream.write_logs =<< Cmd.require_right pretty result
     event <- Cmd.require "Perf.global_environ: expected a single Event" $
-        Seq.head events
+        Lists.head events
     return $ Score.event_environ event
 
 -- | Smuggle the environ out in an event.  It's annoying to require such
@@ -336,7 +336,7 @@ get_muted_instrument_tracks block_id = do
 -- even before there's a performance and might be faster.
 infer_instrument :: Cmd.M m => TrackId -> m (Maybe ScoreT.Instrument)
 infer_instrument track_id =
-    justm (fmap fst . Seq.head <$> Ui.blocks_with_track_id track_id) $
+    justm (fmap fst . Lists.head <$> Ui.blocks_with_track_id track_id) $
         \block_id -> lookup_instrument (block_id, Just track_id)
 
 -- * default
@@ -393,7 +393,7 @@ lookup_realtime perf block_id maybe_track_id pos = do
     track_ids <- maybe (Ui.track_ids_of block_id) (return . (:[]))
         maybe_track_id
     return $ msum (map tempo track_ids)
-    where tempo tid = Seq.head $ Cmd.perf_tempo perf block_id tid pos
+    where tempo tid = Lists.head $ Cmd.perf_tempo perf block_id tid pos
 
 -- | Like 'get_realtime', but do multiple at once.
 get_realtimes :: Cmd.Performance -> BlockId -> TrackId -> [ScoreTime]

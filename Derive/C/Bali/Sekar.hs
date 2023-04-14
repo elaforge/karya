@@ -127,7 +127,7 @@ div_realize dur notes = combine . zip (Seq.range_ 0 dur) . map resolve
     where
     resolve (i, element) = case element of
         Rest -> DivRest
-        Note -> fromMaybe DivRest $ Seq.at notes i
+        Note -> fromMaybe DivRest $ Lists.at notes i
     combine ((start, note) : notes) = case note of
         DivRest -> continue
         DivContinue -> continue
@@ -189,7 +189,7 @@ sekar_direct_arrive range patterns events_ =
     realized = realize_groups patterns events
     factor = sum_duration events / sum_duration realized
     -- Align notes to the end of the range.
-    align es = case Seq.last es of
+    align es = case Lists.last es of
         Nothing -> []
         Just e -> map (SubT.at (snd range - SubT._start e)) es
     add_flags = Seq.map_last $ fmap add_last_note_flags
@@ -255,7 +255,7 @@ make_pattern pattern = do
 realize :: ScoreTime -> [Sub.RestEvent] -> Pattern -> [Sub.RestEvent]
 realize start events = map place . add_starts . mapMaybe resolve
     where
-    resolve (i, element) = resolve1 element <$> Seq.at events i
+    resolve (i, element) = resolve1 element <$> Lists.at events i
     -- Rests have a duration, but no deriver.
     resolve1 element (SubT.EventT _ dur d) = case d of
         Nothing -> (dur, Nothing)

@@ -51,6 +51,7 @@ import qualified Control.Monad.State.Strict as State
 import qualified Data.List as List
 import qualified Data.Ratio as Ratio
 
+import qualified Util.Lists as Lists
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -196,7 +197,7 @@ simplify = merge . concatMap cancel
     -- Merge adjacent TempoChanges.
     merge (TempoChange c sub : ns) =
         TempoChange c (concat (sub : same)) : merge rest
-        where (same, rest) = Seq.span_while (sameChange c) ns
+        where (same, rest) = Lists.spanWhile (sameChange c) ns
     merge (Note a : ns) = Note a : merge ns
     merge (Group g a : ns) = Group g a : merge ns
     merge [] = []

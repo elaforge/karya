@@ -3,13 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.NoteTrack_test where
-import qualified Util.Seq as Seq
-import Util.Test
-import qualified Ui.Key as Key
-import qualified Ui.Ui as Ui
-import qualified Ui.UiMsg as UiMsg
-import qualified Ui.UiTest as UiTest
-
+import qualified Util.Lists as Lists
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Edit as Edit
@@ -20,8 +14,14 @@ import qualified Cmd.Selection as Selection
 
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Perform.NN as NN
-import Global
-import Types
+import qualified Ui.Key as Key
+import qualified Ui.Ui as Ui
+import qualified Ui.UiMsg as UiMsg
+import qualified Ui.UiTest as UiTest
+
+import           Global
+import           Types
+import           Util.Test
 
 
 test_cmd_val_edit_create :: Test
@@ -191,7 +191,7 @@ simplify = simplify_tracks . UiTest.extract_tracks . fst
 -- -> [(">", [(0, 1, "4c")])]
 simplify_tracks :: [UiTest.TrackSpec] -> [UiTest.TrackSpec]
 simplify_tracks tracks =
-    case Seq.split_before (ParseTitle.is_note_track . fst) tracks of
+    case Lists.splitBefore (ParseTitle.is_note_track . fst) tracks of
         [] -> []
         [] : groups -> map simplify groups
         hd : _ -> error $ "extra tracks in front: " ++ show hd

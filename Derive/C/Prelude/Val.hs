@@ -7,6 +7,7 @@ import qualified Data.Attoparsec.Text as A
 import qualified Data.Map as Map
 
 import qualified Util.Doc as Doc
+import qualified Util.Lists as Lists
 import qualified Util.ParseText as ParseText
 import qualified Util.Seq as Seq
 
@@ -82,7 +83,7 @@ c_next_val = val_call "next-val" Tags.next
     \ if the next event doesn't need its previous event."
     $ Sig.call0 $ \args -> do
         event <- Derive.require "no next event" $
-            Seq.head (Args.next_events args)
+            Lists.head (Args.next_events args)
         start <- Derive.real (Event.start event)
         next_val event start (Derive.ctx_track_type (Derive.passed_ctx args))
 
@@ -124,7 +125,7 @@ c_next_event = val_call "next-event" Tags.next
     "Start RealTime of the next event. Only used for tests."
     $ Sig.call0 $ \args -> do
         event <- Derive.require "no next event" $
-            Seq.head (Args.next_events args)
+            Lists.head (Args.next_events args)
         Derive.score_to_real $ Event.start event
 
 c_bpm :: Derive.ValCall

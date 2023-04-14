@@ -5,7 +5,7 @@
 module Cmd.Factor_test where
 import qualified Data.Map as Map
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Factor as Factor
 import qualified Ui.Ui as Ui
@@ -21,7 +21,8 @@ test_selection_alts = do
             CmdTest.set_sel 1 1 1 3
             Factor.selection_alts relative 3 (UiTest.mkid "sub")
         tracks = UiTest.regular_notes 4
-    let get_block = Seq.head <=< UiTest.extract_block_id UiTest.default_block_id
+    let get_block = Lists.head
+            <=< UiTest.extract_block_id UiTest.default_block_id
             . CmdTest.result_ui_state
     let result = run True
     equal (CmdTest.result_val result)

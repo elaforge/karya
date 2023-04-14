@@ -6,8 +6,10 @@ module Derive.EvalTrack_test where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
+
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
@@ -192,7 +194,7 @@ test_call_errors = do
         with_trans = CallTest.with_note_transformer "test-t" trans
         extract r = case DeriveTest.extract DeriveTest.e_event r of
             (val, []) -> Right val
-            (_, logs) -> Left $ Seq.join "\n" logs
+            (_, logs) -> Left $ Lists.join "\n" logs
 
     let run_title title = derive [(title, [(0, 1, "--1")])]
     left_like (run_title ">i | no-such-call")

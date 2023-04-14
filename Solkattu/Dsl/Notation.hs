@@ -13,21 +13,22 @@
     instrument-specific functions.
 -}
 module Solkattu.Dsl.Notation where
-import Prelude hiding ((^), repeat)
+import           Prelude hiding ((^), repeat)
 import qualified Data.List as List
 
 import qualified Util.CallStack as CallStack
+import qualified Util.Lists as Lists
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
-import Solkattu.S (Duration, FMatra)
+import           Solkattu.S (Duration, FMatra)
 import qualified Solkattu.Solkattu as Solkattu
-import Solkattu.Solkattu (throw)
+import           Solkattu.Solkattu (throw)
 import qualified Solkattu.Tala as Tala
 
-import Global
+import           Global
 
 
 -- | This is the same as 'Solkattu.Korvai.SequenceT'.
@@ -577,7 +578,7 @@ byGroup (n : ns) = case n of
     S.Group g ns -> (Left (g, ns) :) <$> byGroup ns
     S.TempoChange {} -> Nothing
     S.Note n -> (Right (n:notes) :) <$> byGroup rest
-        where (notes, rest) = Seq.span_while noteOf ns
+        where (notes, rest) = Lists.spanWhile noteOf ns
     where
     noteOf (S.Note n) = Just n
     noteOf _ = Nothing

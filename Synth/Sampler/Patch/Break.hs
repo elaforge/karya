@@ -19,6 +19,7 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
 import qualified Util.Doc as Doc
+import qualified Util.Lists as Lists
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
@@ -290,7 +291,7 @@ type Stroke = Text
 
 addMeasures :: [(Beat, Stroke, Frame)] -> [((Measure, Beat), Stroke, Frame)]
 addMeasures = concatMap add . zip [1..]
-    . Seq.split_between (\(a, _, _) (b, _, _) -> b < a)
+    . Lists.splitBetween (\(a, _, _) (b, _, _) -> b < a)
     where
     add (m, beats) =
         [((m, beat), stroke, frame) | (beat, stroke, frame) <- beats]

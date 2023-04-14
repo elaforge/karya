@@ -22,6 +22,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Tree as Tree
 
+import qualified Util.Lists as Lists
 import qualified Util.Ranges as Ranges
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
@@ -259,7 +260,7 @@ view_or_focus :: Cmd.M m => BlockId -> m (Maybe ViewId)
 view_or_focus block_id = do
     views <- Ui.views_of block_id
     maybe (Just <$> view block_id) (\vid -> Cmd.focus vid *> return Nothing)
-        (Seq.head (Map.keys views))
+        (Lists.head (Map.keys views))
 
 view_screen :: Cmd.M m => ViewId -> m Rect.Rect
 view_screen view_id =
@@ -321,8 +322,9 @@ splice_above_all = do
     (_, parents) <- Cmd.require
         ("splice_above: tracknum not in tree: " ++ show tracknum) $
         Trees.findWithParents ((==tracknum) . num) tree
-    let new_tracknum = maybe 1 ((+1) . num . Tree.rootLabel) (Seq.head parents)
-    let parent = bump . num . Tree.rootLabel <$> Seq.head parents
+    let new_tracknum = maybe 1 ((+1) . num . Tree.rootLabel)
+            (Lists.head parents)
+    let parent = bump . num . Tree.rootLabel <$> Lists.head parents
         bump n = if n >= new_tracknum then n + 1 else n
     track_id <- empty_track block_id new_tracknum
     -- Splice above means splice below the parent!
@@ -374,7 +376,7 @@ insert_branch_from block_id source = do
     merged <- Ui.track_merged block_id source
     append_below merged right track
     whenM (Ui.has_explicit_skeleton block_id) $
-        whenJust (Seq.head parents) $ \(Tree.Node parent _) ->
+        whenJust (Lists.head parents) $ \(Tree.Node parent _) ->
             Ui.add_edges block_id [(Ui.track_tracknum parent, right)]
     where
     -- Starting at tracknum, insert track and its children.

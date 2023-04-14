@@ -6,6 +6,7 @@ module Cmd.Integrate.Merge_test where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
+import qualified Util.Lists as Lists
 import qualified Util.Seq as Seq
 import qualified App.Config as Config
 import qualified Cmd.Create as Create
@@ -150,7 +151,7 @@ derive_integrate state integrated = UiTest.exec state $ do
             [dests | (_, Block.DeriveDestinations dests) <- itracks]
     dests <- Merge.merge_tracks Merge.KeepTitles block_id
         (make_convert_tracks integrated)
-        (fromMaybe [] $ Seq.head derive_itracks)
+        (fromMaybe [] $ Lists.head derive_itracks)
     Ui.modify_integrated_tracks block_id $
         const [(UiTest.mk_tid 1, Block.DeriveDestinations dests)]
     where block_id = UiTest.default_block_id
@@ -274,7 +275,7 @@ run_score_integrate tracknum state = UiTest.exec state $ do
     itracks <- Block.block_integrated_tracks <$> Ui.get_block block_id
     let score_itracks = [dests | (_, Block.ScoreDestinations dests) <- itracks]
     dests <- Merge.score_merge_tracks block_id (UiTest.mk_tid tracknum)
-        (fromMaybe [] $ Seq.head score_itracks)
+        (fromMaybe [] $ Lists.head score_itracks)
     Ui.modify_integrated_tracks block_id $
         const [(UiTest.mk_tid 1, Block.ScoreDestinations dests)]
     where block_id = UiTest.default_block_id

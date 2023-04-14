@@ -9,6 +9,7 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
+import qualified Util.Lists as Lists
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
@@ -365,7 +366,7 @@ instance Pretty Expr where
 -- > begin1; middle2; middle3; ...; end_n
 parse_sequence :: [DeriveT.Val] -> (Expr, [Expr], Maybe Expr)
 parse_sequence exprs = postproc $
-    case Seq.map_tail (drop 1) $ Seq.split_before is_separator exprs of
+    case Seq.map_tail (drop 1) $ Lists.splitBefore is_separator exprs of
         [] -> (Nothing, [], Nothing)
         begin : rest -> case reverse rest of
             [middle] -> (Just begin, [middle], Nothing)

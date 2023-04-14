@@ -45,9 +45,9 @@ import qualified System.Posix as Posix
 import qualified Util.Exceptions as Exceptions
 import qualified Util.Fltk as Fltk
 import qualified Util.FltkUtil as FltkUtil
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Processes as Processes
-import qualified Util.Seq as Seq
 
 import qualified App.Path as Path
 import qualified App.ReplProtocol as ReplProtocol
@@ -117,7 +117,7 @@ main = do
     args <- System.Environment.getArgs
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
         (flags, args, []) -> return (flags, args)
-        (_, _, errs) -> usage $ "flag errors:\n" ++ Seq.join ", " errs
+        (_, _, errs) -> usage $ "flag errors:\n" ++ Lists.join ", " errs
     unless (null args) $
         usage ("unparsed args: " ++ show args)
     when (Help `elem` flags) (usage "usage:")
@@ -134,9 +134,11 @@ main = do
 
 logview :: [Flag] -> IO ()
 logview flags = do
-    let seek = fromMaybe (Just 0) $ Seq.last [s | Seek s <- flags]
-        history = fromMaybe default_history $ Seq.last [n | History n <- flags]
-    filename <- maybe Tail.log_filename return $ Seq.last [n | File n <- flags]
+    let seek = fromMaybe (Just 0) $ Lists.last [s | Seek s <- flags]
+        history = fromMaybe default_history $
+            Lists.last [n | History n <- flags]
+    filename <- maybe Tail.log_filename return $
+        Lists.last [n | File n <- flags]
     hdl <- Tail.open filename seek
     log_chan <- STM.newTChanIO
     gui_chan <- if Print `elem` flags then return Nothing
@@ -149,7 +151,7 @@ logview flags = do
     case gui_chan of
         Nothing -> print_logs log_chan
         Just chan -> gui geometry chan log_chan filename history
-            where geometry = Seq.head [g | Geometry g <- flags]
+            where geometry = Lists.head [g | Geometry g <- flags]
     where
     tail_loop log_chan hdl = do
         (msg, hdl) <- Tail.tail hdl

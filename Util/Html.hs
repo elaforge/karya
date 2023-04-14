@@ -17,8 +17,8 @@ import           Data.Text (Text)
 
 import qualified Util.Doc as Doc
 import qualified Util.File as File
+import qualified Util.Lists as Lists
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
 
 import qualified App.Path as Path
@@ -61,7 +61,7 @@ tag_attrs name attrs mb_content = mconcat $
     where
     attrs_text
         | null attrs = ""
-        | otherwise = (" "<>) $ Seq.join " "
+        | otherwise = (" "<>) $ Lists.join " "
             [ html name
                 <> if Text.null val then "" else "=\"" <> html val <> "\""
             | (name, val) <- attrs
@@ -98,5 +98,5 @@ get_html_state haddock_dir app_dir = do
     return (haddock_dir, files)
     where
     get_files (Path.AppDir dir) = do
-        files <- File.listRecursive (maybe False Char.isUpper . Seq.head) dir
+        files <- File.listRecursive (maybe False Char.isUpper . Lists.head) dir
         return $ Set.fromList files

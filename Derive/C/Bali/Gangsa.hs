@@ -33,6 +33,7 @@ import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Doc as Doc
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
@@ -283,7 +284,7 @@ irregular_pattern (IrregularPattern {..}) = KotekanPattern
         | length ns == length ir_polos = ns
         | otherwise = errorStack $ "not same length as polos: " <> showt ns
     destination = fromMaybe (errorStack "no final pitch") $
-        Seq.last $ Maybe.catMaybes $ parse_pattern 0 ir_polos
+        Lists.last $ Maybe.catMaybes $ parse_pattern 0 ir_polos
 
 parse_pattern :: CallStack.Stack => Pitch.Step -> [Char] -> [Maybe Pitch.Step]
 parse_pattern destination = map (fmap (subtract destination) . parse1)
@@ -385,7 +386,7 @@ realize_norot under_threshold note_dur initial_start exact_end
         -- This is the initial note, which may be dropped.
         [ on_just sustain $ \(PitchedCycle pitch cycle) ->
             -- There should never be an empty cycle, but might as well be safe.
-            on_just (Seq.last (get_cycle cycle initial_start)) $ \notes ->
+            on_just (Lists.last (get_cycle cycle initial_start)) $ \notes ->
                 [(pitch, (initial_t, notes))]
         , on_just prepare_this $ \(PitchedCycle pitch cycle) ->
             one_cycle pitch cycle this_t
@@ -710,7 +711,7 @@ c_kotekan_regular inverted maybe_kernel default_style =
             dur pitch under_threshold Repeat cycle
     where
     infer_sangsih inverted kernel = (if inverted then Call.invert else id) $
-        case Seq.last kernel of
+        case Lists.last kernel of
             Just High -> Call.Down
             _ -> Call.Up
 
@@ -850,7 +851,7 @@ end_on_zero realization = Realization
     add steps = map $ map $ \note ->
         note { note_steps = steps + note_steps note }
     steps = fromMaybe 0 $ do
-        final : _ <- Seq.last (non_interlocking realization)
+        final : _ <- Lists.last (non_interlocking realization)
         return $ note_steps final
 
 kernel_to_pattern :: Kernel -> Call.UpDown -> KotekanStyle
@@ -1031,7 +1032,7 @@ realize_pattern repeat orientation (initial, final) start end dur get_cycle =
     -- Since cycles are end-weighted, I have to get the end of a cycle if an
     -- initial note is wanted.
     wrapped t
-        | t == start = maybe [] (:[]) (Seq.last ns)
+        | t == start = maybe [] (:[]) (Lists.last ns)
         | otherwise = ns
         where ns = get_cycle t
     realize (t, chord)

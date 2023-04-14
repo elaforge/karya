@@ -43,8 +43,8 @@ import           System.FilePath ((</>))
 
 import qualified Util.File as File
 import qualified Util.Git as Git
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 import qualified Util.Texts as Texts
 import qualified Util.Thread as Thread
@@ -447,9 +447,9 @@ set_loaded_state save_file state = do
         Transform.replace_namespace Clip.clip_namespace old state
     root <- case UiConfig.config_root (Ui.state_config state) of
         Nothing -> return Nothing
-        Just root -> Seq.head . Map.keys <$> Ui.views_of root
+        Just root -> Lists.head . Map.keys <$> Ui.views_of root
     -- Try to focus on the root block, for consistency.
-    let focused = msum [root, Seq.head $ Map.keys (Ui.state_views state)]
+    let focused = msum [root, Lists.head $ Map.keys (Ui.state_views state)]
     whenJust focused Cmd.focus
 
 -- | If I switch away from a repo (either to another repo or to a plain state),

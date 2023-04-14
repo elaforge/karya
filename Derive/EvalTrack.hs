@@ -94,6 +94,7 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -298,10 +299,10 @@ derive_note_track_stream derive_tracks tinfo (prev_state, prev_val)
             (mconcat derivers)
     derivers = Maybe.catMaybes $ case cur_events of
         event : next_events ->
-            [ derive_empty (Seq.head prev_events) (Just event)
+            [ derive_empty (Lists.head prev_events) (Just event)
             , Just $ derive_note event next_events
             ]
-        [] -> [derive_empty (Seq.head prev_events) Nothing]
+        [] -> [derive_empty (Lists.head prev_events) Nothing]
     derive_note event next_events = derive_event ctx event
         where ctx = context tinfo prev_val prev_events event next_events
     next_val = tinfo_prev_val tinfo prev_val stream

@@ -13,8 +13,10 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Tree as Tree
 
+import qualified Util.Lists as Lists
 import qualified Util.Maps as Maps
 import qualified Util.Seq as Seq
+
 import qualified Cmd.NoteTrackParse as NoteTrackParse
 import qualified Cmd.Ruler.Extract as Extract
 -- import qualified Cmd.Ruler.Modify as Modify
@@ -187,7 +189,7 @@ update_rulers block_id pos delta top_updates = do
 
 push_down_ruler :: Ui.M m => BlockId -> m ()
 push_down_ruler block_id = do
-    track_id <- Ui.require ("no note track: " <> pretty block_id) . Seq.head
+    track_id <- Ui.require ("no note track: " <> pretty block_id) . Lists.head
         =<< filterM is_note_track =<< Ui.track_ids_of block_id
     Extract.push_down_recursive False block_id track_id
 

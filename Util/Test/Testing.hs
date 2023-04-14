@@ -82,10 +82,12 @@ import qualified System.Posix.Terminal as Terminal
 import qualified Test.QuickCheck as QuickCheck
 
 import qualified Util.Diffs as Diffs
+import qualified Util.Lists as Lists
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
 import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
+import qualified Util.Strings as Strings
 import qualified Util.Test.ApproxEq as ApproxEq
 
 
@@ -453,7 +455,7 @@ print_test_line stack color prefix msg = do
 
 show_stack :: Text -> Stack.CallStack -> Text
 show_stack test_name =
-    maybe "<empty-stack>" show_frame . Seq.last . Stack.getCallStack
+    maybe "<empty-stack>" show_frame . Lists.last . Stack.getCallStack
     where
     show_frame (_, srcloc) =
         Text.pack (Stack.srcLocFile srcloc) <> ":"
@@ -517,7 +519,7 @@ pshowt = Text.strip . Text.pack . pshow
 -- | Strict pshow, so I don't get debug traces interleaved with printing.
 pshow :: Show a => a -> String
 pshow val = s `DeepSeq.deepseq` s
-    where s = Seq.rstrip $ PPrint.format_str (show val)
+    where s = Strings.rstrip $ PPrint.format_str (show val)
 
 -- * filesystem
 

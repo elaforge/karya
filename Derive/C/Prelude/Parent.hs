@@ -12,8 +12,10 @@ module Derive.C.Prelude.Parent (
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Maybe as Maybe
 
+import qualified Util.Lists as Lists
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.Ly as Ly
@@ -236,7 +238,7 @@ interpolate_tracks at = mapMaybe interpolate1
 
 interpolate_subs :: Double -> [SubT.EventT a] -> Maybe (SubT.EventT a)
 interpolate_subs at events = case drop i events of
-    [] -> Seq.last events
+    [] -> Lists.last events
     [event] -> Just event
     e1 : e2 : _ -> Just $ SubT.EventT
         { _start = interpolate (SubT._start e1) (SubT._start e2)

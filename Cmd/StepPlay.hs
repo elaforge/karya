@@ -24,11 +24,9 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Vector as Vector
 
+import qualified Util.Lists as Lists
 import qualified Util.Seq as Seq
-import qualified Midi.Midi as Midi
-import qualified Midi.State
-import qualified Ui.Sel as Sel
-import qualified Ui.Ui as Ui
+import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Selection as Selection
@@ -38,11 +36,15 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 
+import qualified Midi.Midi as Midi
+import qualified Midi.State
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Transport as Transport
-import qualified App.Config as Config
-import Global
-import Types
+import qualified Ui.Sel as Sel
+import qualified Ui.Ui as Ui
+
+import           Global
+import           Types
 
 
 selnum :: Sel.Num
@@ -130,7 +132,7 @@ initialize view_id block_id play_tracks = do
 real_to_score :: BlockId -> Transport.InverseTempoFunction -> [RealTime]
     -> [Maybe ScoreTime]
 real_to_score block_id inv = map $ \t ->
-    case Seq.head $ filter ((==block_id) . fst) (inv Transport.StopAtEnd t) of
+    case Lists.head $ filter ((==block_id) . fst) (inv Transport.StopAtEnd t) of
         -- If this block is being played multiple times then just pick the
         -- first one and the first track.  That's basically what the playback
         -- monitor does anyway.
@@ -218,12 +220,12 @@ zip_state step_state forward = do
             step_state { Cmd.step_before = before, Cmd.step_after = after }
     return $ if forward
         then do
-            (_, prev) <- Seq.head before
-            (p, next) <- Seq.head after
+            (_, prev) <- Lists.head before
+            (p, next) <- Lists.head after
             return (Cmd.step_view_id step_state, prev, p, next)
         else do
-            (p, next) <- Seq.head (fst zipper)
-            (_, prev) <- Seq.head (snd zipper)
+            (p, next) <- Lists.head (fst zipper)
+            (_, prev) <- Lists.head (snd zipper)
             return (Cmd.step_view_id step_state, prev, p, next)
 
 zip_forward :: ([a], [a]) -> ([a], [a])
@@ -241,7 +243,7 @@ zip_until f (before, after@(x:xs))
 zip_until _ (before, []) = (before, [])
 
 zip_head :: ([a], [a]) -> Maybe a
-zip_head = Seq.head . snd
+zip_head = Lists.head . snd
 
 set_selections :: Cmd.M m => [ViewId] -> ScoreTime -> [TrackNum] -> m ()
 set_selections view_ids pos tracks = sequence_

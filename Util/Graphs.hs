@@ -12,6 +12,7 @@ import Data.Graph
 import qualified Data.Tree as Tree
 
 import qualified Util.Array as Array
+import qualified Util.Lists as Lists
 import qualified Util.Seq as Seq
 
 
@@ -134,7 +135,7 @@ remove_vertex vertex graph
 -- to it.  It will be removed from the list of roots.
 unlink_vertex :: Int -> Graph -> Graph
 unlink_vertex vertex graph =
-    IArray.amap (Seq.replace1 v (graph!v)) graph // [(v, [])]
+    IArray.amap (Lists.replace1 v (graph!v)) graph // [(v, [])]
     where v = Array.assert_in_bounds "unlink_vertex" vertex graph
 
 

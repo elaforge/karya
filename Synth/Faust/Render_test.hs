@@ -16,7 +16,7 @@ import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as File
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Test.Testing as Testing
 
 import qualified Derive.ScoreT as ScoreT
@@ -89,7 +89,7 @@ test_write_incremental = do
             . Checkpoint.noteHashes chunkSize . map Render.toSpan
     -- Test skipCheckpoints directly.
     (_, remainingHashes, state) <- skipCheckpoints newNotes
-    equal_on (fmap fst . Seq.head) remainingHashes (Just 2)
+    equal_on (fmap fst . Lists.head) remainingHashes (Just 2)
     equal ((/= Checkpoint.State mempty) <$> state) (Just True)
 
     -- change only last note: only 3rd sample should rerender, but contents

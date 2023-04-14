@@ -22,10 +22,10 @@ import qualified System.Exit as Exit
 import qualified System.IO as IO
 
 import qualified Util.Audio.PortAudio as PortAudio
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Maps as Maps
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
 import qualified Util.Thread as Thread
 
@@ -87,7 +87,7 @@ main = do
         | Dump `elem` flags -> mapM_ dump_score args
         | List `elem` flags -> list_devices
         | otherwise -> case args of
-            [fname] -> play_score (Seq.last [d | Device d <- flags]) fname
+            [fname] -> play_score (Lists.last [d | Device d <- flags]) fname
             _ -> usage []
     where
     usage errors = die $ Text.stripEnd $ Text.unlines $ map txt errors ++

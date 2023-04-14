@@ -7,9 +7,9 @@ module User.Elaforge.Config (load_static_config) where
 import qualified Data.Map as Map
 import qualified System.FilePath as FilePath
 
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Network as Network
-import qualified Util.Seq as Seq
 
 import qualified App.Config as Config
 import qualified App.LoadInstruments as LoadInstruments
@@ -121,7 +121,7 @@ convert_mod fname mod = do
         transpose_maps
 
 fn_to_ns :: FilePath -> Id.Namespace
-fn_to_ns = Id.namespace . txt . head . Seq.split "." . FilePath.takeFileName
+fn_to_ns = Id.namespace . txt . head . Lists.split "." . FilePath.takeFileName
 
 inst_maps :: Map FilePath (Map Text Text)
 inst_maps = Map.fromList

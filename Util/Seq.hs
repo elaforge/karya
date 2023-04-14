@@ -4,7 +4,7 @@
 
 {-# LANGUAGE BangPatterns #-}
 module Util.Seq where
-import           Prelude hiding (head, last, tail)
+import           Prelude
 import qualified Data.Algorithm.Diff as Diff
 import           Data.Bifunctor (Bifunctor(bimap), first, second)
 import qualified Data.Char as Char
@@ -25,9 +25,6 @@ import qualified Data.Set as Set
 type NonNull a = [a]
 
 -- * enumeration
-
-enumerate :: [a] -> [(Int, a)]
-enumerate = zip [0..]
 
 -- | Enumerate an inclusive range.  Uses multiplication instead of successive
 -- addition to avoid loss of precision.
@@ -145,71 +142,6 @@ cartesian [xs] = [[x] | x <- xs]
 cartesian (xs:rest) = [x:ps | x <- xs, ps <- cartesian rest]
 
 -- * indexing lists
-
--- | Get @xs !! n@, but return Nothing if the index is out of range.
-at :: [a] -> Int -> Maybe a
-at xs n
-    | n < 0 = Nothing
-    | otherwise = go xs n
-    where
-    go [] _ = Nothing
-    go (x:_) 0 = Just x
-    go (_:xs) n = go xs (n-1)
-
--- | Insert @x@ into @xs@ at index @i@.  If @i@ is out of range, insert at the
--- beginning or end of the list.
-insert_at :: Int -> a -> [a] -> [a]
-insert_at i x xs = let (pre, post) = splitAt i xs in pre ++ (x : post)
-
--- | Remove the element at the given index.  Do nothing if the index is out
--- of range.
-remove_at :: Int -> [a] -> [a]
-remove_at i xs = let (pre, post) = splitAt i xs in pre ++ drop 1 post
-
--- | Like 'remove_at' but return the removed element as well.
-take_at :: Int -> [a] -> Maybe (a, [a])
-take_at i xs = case post of
-        v : vs -> Just (v, pre ++ vs)
-        [] -> Nothing
-    where (pre, post) = splitAt i xs
-
--- | Modify element at an index by applying a function to it.  If the index is
--- out of range, nothing happens.
-modify_at :: Int -> (a -> a) -> [a] -> [a]
-modify_at i f xs = case post of
-    [] -> pre
-    elt : rest -> pre ++ f elt : rest
-    where (pre, post) = splitAt i xs
-
--- | Find an element, then change it.  Return Nothing if the element wasn't
--- found.
-find_modify :: (a -> Bool) -> (a -> a) -> [a] -> Maybe [a]
-find_modify match modify = go
-    where
-    go (x:xs)
-        | match x = Just $ modify x : xs
-        | otherwise = (x:) <$> go xs
-    go [] = Nothing
-
--- | Similar to 'modify_at', but will insert an element for an out of range
--- positive index.  The list will be extended with @deflt@, and the modify
--- function passed a Nothing.
-update_at :: a -> Int -> (Maybe a -> a) -> [a] -> [a]
-update_at deflt i f xs
-    | i < 0 = error $ "Seq.update_at: negative index " ++ show i
-    | otherwise = go i xs
-    where
-    go 0 [] = [f Nothing]
-    go 0 (x:xs) = f (Just x) : xs
-    go i [] = deflt : go (i-1) []
-    go i (x:xs) = x : go (i-1) xs
-
--- | Move an element from one index to another, or Nothing if the @from@
--- index was out of range.
-move :: Int -> Int -> [a] -> Maybe [a]
-move from to xs = do
-    (x, dropped) <- take_at from xs
-    return $ insert_at to x dropped
 
 
 -- * min / max
@@ -363,7 +295,7 @@ zip_prev xs = zip (Nothing : map Just xs) xs
 -- | Like 'zip_next' but with both preceding and following elements.
 zip_neighbors :: [a] -> [(Maybe a, a, Maybe a)]
 zip_neighbors [] = []
-zip_neighbors (x:xs) = (Nothing, x, head xs) : go x xs
+zip_neighbors (x:xs) = (Nothing, x, shead xs) : go x xs
     where
     go _ [] = []
     go prev [x] = [(Just prev, x, Nothing)]
@@ -531,7 +463,7 @@ chunked n xs = case splitAt n xs of
 -- element came from.
 rotate :: [[a]] -> [[a]]
 rotate [] = []
-rotate xs = maybe [] (: rotate (map List.tail xs)) (mapM head xs)
+rotate xs = maybe [] (: rotate (map List.tail xs)) (mapM shead xs)
 
 -- | Similar to 'rotate', except that the result is the length of the longest
 -- row and missing columns are Nothing.  Analogous to 'zip_padded'.
@@ -539,17 +471,17 @@ rotate2 :: [[a]] -> [[Maybe a]]
 rotate2 xs
     | all Maybe.isNothing heads = []
     | otherwise = heads : rotate2 (map (drop 1) xs)
-    where heads = map head xs
+    where heads = map shead xs
 
 
 -- ** extracting sublists
 
 -- | Total variants of unsafe list operations.
-head, last :: [a] -> Maybe a
-head [] = Nothing
-head (x:_) = Just x
-last [] = Nothing
-last xs = Just (List.last xs)
+shead, slast :: [a] -> Maybe a
+shead [] = Nothing
+shead (x:_) = Just x
+slast [] = Nothing
+slast xs = Just (List.last xs)
 
 -- | Drop until the last element before or equal to the given element.
 drop_before :: Ord key => (a -> key) -> key -> [a] -> [a]
@@ -629,11 +561,6 @@ unique_on f xs = go Set.empty xs
 unique_sort :: Ord a => [a] -> [a]
 unique_sort = Set.toList . Set.fromList
 
-lstrip, rstrip, strip :: String -> String
-lstrip = dropWhile Char.isSpace
-rstrip = List.dropWhileEnd Char.isSpace
-strip = rstrip . lstrip
-
 -- | If the list doesn't have the given prefix, return the original list and
 -- False.  Otherwise, strip it off and return True.  'List.stripPrefix' is an
 -- alternate version.
@@ -651,100 +578,3 @@ drop_suffix suffix list
     | post == suffix = (pre, True)
     | otherwise = (list, False)
     where (pre, post) = splitAt (length list - length suffix) list
-
--- ** span and break
-
--- | Like 'break', but the called function has access to the entire tail.
-break_tails :: ([a] -> Bool) -> [a] -> ([a], [a])
-break_tails _ [] = ([], [])
-break_tails f lst@(x:xs)
-    | f lst = ([], lst)
-    | otherwise = let (pre, post) = break_tails f xs in (x:pre, post)
-
--- | Like 'span', but it can transform the spanned sublist.
-span_while :: (a -> Maybe b) -> [a] -> ([b], [a])
-span_while f = go
-    where
-    go [] = ([], [])
-    go (a:as) = case f a of
-        Just b -> first (b:) (go as)
-        Nothing -> ([], a : as)
-
--- ** split and join
-
--- | Split before places where the function matches.
---
--- > > split_before (==1) [1, 2, 1]
--- > [[], [1, 2], [1]]
-split_before :: (a -> Bool) -> [a] -> [[a]]
-split_before f = go
-    where
-    go [] = []
-    go xs0 = pre : case post of
-        x : xs -> cons1 x (go xs)
-        [] -> []
-        where (pre, post) = break f xs0
-    cons1 x [] = [[x]]
-    cons1 x (g:gs) = (x:g) : gs
-
--- | Split @xs@ on @sep@, dropping @sep@ from the result.
-split :: Eq a => NonNull a -> [a] -> NonNull [a]
-split [] = error "Util.Seq.split: empty separator"
-split sep = go
-    where
-    go xs
-        | null post = [pre]
-        | otherwise = pre : go (drop (length sep) post)
-        where (pre, post) = break_tails (sep `List.isPrefixOf`) xs
-
--- | Like 'split', but split on a single element.
-split1 :: Eq a => a -> [a] -> [[a]]
-split1 sep = go
-    where
-    go xs
-        | null post = [pre]
-        | otherwise = pre : go (drop 1 post)
-        where (pre, post) = break (==sep) xs
-
--- | Interspense a separator and concat.
-join :: Monoid a => a -> [a] -> a
-join sep = mconcat . List.intersperse sep
-
--- | Split the list on the points where the given function returns true.
---
--- This is similar to 'groupBy', except this is defined to compare adjacent
--- elements.  'groupBy' actually compares to the first element of each group.
--- E.g. you can't group numeric runs with @groupBy (\a b -> b > a+1)@.
-split_between :: (a -> a -> Bool) -> [a] -> [[a]]
-split_between _ [] = []
-split_between f xs = pre : split_between f post
-    where (pre, post) = break_between f xs
-
-break_between :: (a -> a -> Bool) -> [a] -> ([a], [a])
-break_between f (x1 : xs@(x2:_))
-    | f x1 x2 = ([x1], xs)
-    | otherwise = let (pre, post) = break_between f xs in (x1 : pre, post)
-break_between _ xs = (xs, [])
-
-
--- * replace
-
--- | Replace sublist @from@ with @to@ in the given list.
-replace :: Eq a => [a] -> [a] -> [a] -> [a]
-replace from to = go
-    where
-    len = length from
-    go [] = []
-    go lst@(x:xs)
-        | from `List.isPrefixOf` lst = to ++ go (drop len lst)
-        | otherwise = x : go xs
-
--- | Replace occurrances of an element with zero or more other elements.
-replace1 :: Eq a => a -> [a] -> [a] -> [a]
-replace1 from to = concatMap (\v -> if v == from then to else [v])
-
-
--- * search
-
-count :: Foldable t => (a -> Bool) -> t a -> Int
-count f = List.foldl' (\n c -> if f c then n + 1 else n) 0

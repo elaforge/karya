@@ -19,6 +19,7 @@ import qualified Data.Word as Word
 
 import qualified ZMidi.Core as Z
 
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Maps as Maps
 import qualified Util.Seq as Seq
@@ -93,7 +94,7 @@ extract_track :: RealTime -> Z.MidiTrack -> (Text, [Midi])
 extract_track per_sec (Z.MidiTrack msgs) =
     (name, concatMap extract_message (zip times (map snd msgs)))
     where
-    name = maybe "" txt $ Seq.head
+    name = maybe "" txt $ Lists.head
         [name | Z.MetaEvent (Z.TextEvent _ name) <- take 10 (map snd msgs)]
     times = drop 1 $ scanl (+) 0 $
         map ((/per_sec) . RealTime.seconds . fromIntegral . fst) msgs

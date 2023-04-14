@@ -27,6 +27,7 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Ratio as Ratio
 import qualified Data.Text as Text
 
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.NEs as NEs
 import qualified Util.Num as Num
@@ -99,7 +100,7 @@ convert_to_rests = hush . filter wanted . concatMap flatten
         map (LyRest . make_rest . HiddenRest) (concat durs) ++ case non_notes of
             ly : rest -> ly : hush rest
             [] -> []
-        where (durs, non_notes) = Seq.span_while has_duration lys
+        where (durs, non_notes) = Lists.spanWhile has_duration lys
 
 -- * process
 
@@ -133,11 +134,11 @@ process config start meters events_ = first to_log $ do
         insert_rests_chunks start end chunks
     let state = make_state config start meters default_key
     key <- maybe (return default_key)
-        (fmap fst . run_convert state . lookup_key) (Seq.head events)
+        (fmap fst . run_convert state . lookup_key) (Lists.head events)
     state <- return $ state { state_key = key }
     (lys, _) <- run_convert state $ convert chunks
     lys <- pure $ merge_free_code start free_codes lys
-    let meter = fromMaybe Meter.default_meter (Seq.head meters)
+    let meter = fromMaybe Meter.default_meter (Lists.head meters)
     return $ Right (LyCode $ "\\time " <> to_lily meter)
         : Right (LyCode $ to_lily key)
         : lys
@@ -162,18 +163,19 @@ collect_chunks = go
     nonempty _ = True
     with_voice events = do
         (voice, remain) <- collect_voices events
-        let tails = mapMaybe (Seq.last . snd) voice
-        whenJust (Seq.head remain) $ \e ->
+        let tails = mapMaybe (Lists.last . snd) voice
+        whenJust (Lists.head remain) $ \e ->
             whenJust (List.find (Types.event_overlaps e) tails) $ \over ->
                 Left $ "last voice " <> pretty over
                     <> " overlaps first non-voice " <> pretty e
         return (voice, remain)
     without_voice events = do
         let (without, remain) = span ((==Nothing) . event_voice) events
-        whenJust ((,) <$> Seq.last without <*> Seq.head remain) $ \(e1, e2) ->
-            when (Types.event_overlaps e1 e2) $
-                Left $ "last non-voice " <> pretty e1
-                    <> " overlaps first voice " <> pretty e2
+        whenJust ((,) <$>
+            Lists.last without <*> Lists.head remain) $ \(e1, e2) ->
+                when (Types.event_overlaps e1 e2) $
+                    Left $ "last non-voice " <> pretty e1
+                        <> " overlaps first voice " <> pretty e2
         return (without, remain)
 
 -- | Span events until they don't have a 'Constants.v_voice' val.
@@ -185,7 +187,7 @@ collect_chunks = go
 -- I simplify voices only at the measure level, in 'simplify_voices'.
 collect_voices :: [Event] -> Either Text (VoiceMap Event, [Event])
 collect_voices events = do
-    let (voice, remain) = Seq.span_while (\e -> (,e) <$> event_voice e) events
+    let (voice, remain) = Lists.spanWhile (\e -> (,e) <$> event_voice e) events
     voice <- forM voice $ \(err_or_voice, event) -> (,event) <$> err_or_voice
     return (Seq.group_fst voice, remain)
 
@@ -199,7 +201,7 @@ insert_rests_chunks start end = Then.mapAccumL insert start final
         Just end -> (end, ChunkVoices voices2)
             where
             voices2 = map (second (snd . insert_rests (Just end) t)) voices
-    get_end = Seq.maximum . map event_end . mapMaybe (Seq.last . snd)
+    get_end = Seq.maximum . map event_end . mapMaybe (Lists.last . snd)
     final t
         | t < end = [ChunkNotes [rest_event t (end-t)]]
         | otherwise = []
@@ -557,7 +559,7 @@ tremolo_notes prev_attrs = List.mapAccumL make prev_attrs . zip_first_last
         , note_duration = Types.NoteDuration Types.D32 False
         , note_prepend = []
         , note_append = attrs_codes
-        , note_stack = Seq.last $ Stack.to_ui (event_stack event)
+        , note_stack = Lists.last $ Stack.to_ui (event_stack event)
         }
         where
         slur
@@ -652,7 +654,7 @@ make_note config measure_start prev_attrs maybe_meter chord next =
             , note_duration = allowed_dur
             , note_prepend = prepend_chord
             , note_append = append_chord ++ attrs_codes
-            , note_stack = Seq.last $ Stack.to_ui $ event_stack $
+            , note_stack = Lists.last $ Stack.to_ui $ event_stack $
                 NonEmpty.head chord
             }
     note_pitches = do
@@ -896,10 +898,10 @@ advance_measure time = advance =<< State.get
             { state_meters = meters
             , state_measure_start = state_measure_end state
             , state_measure_end = state_measure_end state
-                + Meter.measure_time (fromMaybe prev_meter (Seq.head meters))
+                + Meter.measure_time (fromMaybe prev_meter (Lists.head meters))
             , state_time = time
             }
-        return $ case Seq.head meters of
+        return $ case Lists.head meters of
             Just meter -> Just $ LyBarline $
                 if to_lily prev_meter == to_lily meter
                     then Nothing else Just meter
@@ -920,7 +922,7 @@ advance_unmetered time = advance =<< State.get
 get_subdivision :: ConvertM Meter.Meter
 get_subdivision = do
     meters <- State.gets state_meters
-    meter <- maybe (throw "out of meters") return $ Seq.head meters
+    meter <- maybe (throw "out of meters") return $ Lists.head meters
     subdivision <- State.gets state_subdivision
     case subdivision of
         Just sub
@@ -995,7 +997,7 @@ make_state config start meters key = State
     { state_config = config
     , state_meters = meters
     , state_measure_start = start
-    , state_measure_end = start + maybe 0 Meter.measure_time (Seq.head meters)
+    , state_measure_end = start + maybe 0 Meter.measure_time (Lists.head meters)
     , state_time = start
     , state_prev_attrs = mempty
     , state_key = key
@@ -1052,7 +1054,7 @@ instance ToLily Ly where
         LyCode code -> code
 
 count_notes_rests :: [Ly] -> Int
-count_notes_rests = Seq.count $ \ly -> case ly of
+count_notes_rests = Lists.count $ \ly -> case ly of
     LyNote {} -> True
     LyRest {} -> True
     _ -> False

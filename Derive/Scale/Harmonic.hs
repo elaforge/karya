@@ -9,8 +9,8 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
+import qualified Util.Lists as Lists
 import qualified Util.ParseText as ParseText
-import qualified Util.Seq as Seq
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveT as DeriveT
@@ -80,7 +80,7 @@ show_pitch :: Pitch.Pitch -> Pitch.Note
 show_pitch (Pitch.Pitch oct (Pitch.Degree pc _)) =
     Pitch.Note $ oct_s <> showt pc
     where
-    oct_s = maybe (showt oct <> "-") Text.singleton (Seq.at octaves (oct-1))
+    oct_s = maybe (showt oct <> "-") Text.singleton (Lists.at octaves (oct-1))
 
 transpose :: Derive.Transpose
 transpose _transposition _env steps (Pitch.Pitch oct (Pitch.Degree pc _)) =

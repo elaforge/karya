@@ -16,6 +16,7 @@ import qualified Data.Vector as Vector
 import           Data.Vector ((!?))
 
 import qualified Util.Doc as Doc
+import qualified Util.Lists as Lists
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
@@ -90,7 +91,7 @@ scale_map (Config layout all_keys default_key laras default_laras)
     offset = laras_offset layout default_laras
     range = fromMaybe (0, top) maybe_range
     top = maybe 0 (subtract 1 . Vector.length . laras_umbang) $
-        Seq.head (Map.elems laras)
+        Lists.head (Map.elems laras)
 
 data Config = Config {
     config_layout :: !Theory.Layout
@@ -277,7 +278,7 @@ dotted_octaves center = TheoryFormat.set_octave show_octave parse_octave
         (pc, acc) <- p_degree
         octs <- A.many' $ A.satisfy $ \c -> c == '.' || c == '^'
         A.char '`'
-        let oct = Seq.count (=='^') octs - Seq.count (=='.') octs
+        let oct = Lists.count (=='^') octs - Lists.count (=='.') octs
         return $ TheoryFormat.RelativePitch (center + oct) pc acc
 
 -- * tuning

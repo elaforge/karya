@@ -14,6 +14,7 @@ import qualified Data.Text.IO as Text.IO
 import qualified Data.Vector as Vector
 
 import qualified Util.Doc as Doc
+import qualified Util.Lists as Lists
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
@@ -400,7 +401,7 @@ show_swarams ragam = lines Up aro ++ maybe [] (lines Down) avaro
     lines dir = map pad
         . ((if dir == Up then Seq.map_last else Seq.map_head) (<>["S"]))
         . map line
-        . Seq.split_between (if dir == Up then (>) else (<))
+        . Lists.splitBetween (if dir == Up then (>) else (<))
     line = map cell . Seq.pair_sorted_on id swaram_ratio all_ratios . List.sort
     cell = \case
         Seq.Both _ s -> showt (unswaram s)

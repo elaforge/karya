@@ -20,6 +20,7 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
+import qualified Util.Lists as Lists
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.Styled as Styled
@@ -238,7 +239,7 @@ format config prevRuler tala notes =
         ]
         where
         isFirst = maybe True ((==0) . S.stateMatraPosition . fst)
-            (Seq.head line)
+            (Lists.head line)
 
     avartanamLines :: [[Line]] -- [avartanam] [[line]] [[[sym]]]
     (avartanamLines, strokeWidth) = case _overrideStrokeWidth config of
@@ -414,14 +415,14 @@ breakLine maxWidth notes
     | otherwise = breakBefore maxWidth notes
     where
     width = Num.sum $ map (symLength . snd) notes
-    aksharas = Seq.count (Format.onAkshara . fst) notes
+    aksharas = Lists.count (Format.onAkshara . fst) notes
     breakAt akshara = pairToList . break ((==akshara) . S.stateAkshara . fst)
     pairToList (a, b) = [a, b]
 
 -- | Yet another word-breaking algorithm.  I must have 3 or 4 of these by now.
 breakBefore :: Int -> [(S.State, Symbol)] -> [[(S.State, Symbol)]]
 breakBefore maxWidth =
-    go . dropWhile null . Seq.split_before (Format.onAkshara . fst)
+    go . dropWhile null . Lists.splitBefore (Format.onAkshara . fst)
     where
     go aksharas =
         case breakFst (>maxWidth) (zip (runningWidth aksharas) aksharas) of

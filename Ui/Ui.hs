@@ -139,6 +139,7 @@ import qualified GHC.Stack
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Lens as Lens
+import qualified Util.Lists as Lists
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
@@ -892,7 +893,7 @@ _splice_skeleton above block_id new to = do
 
 edge_in_range :: Block.Block -> TrackNum -> Maybe Text
 edge_in_range block tracknum =
-    case Seq.at (Block.block_tracks block) tracknum of
+    case Lists.at (Block.block_tracks block) tracknum of
         Nothing -> Just $ "tracknum out of range: " <> showt tracknum
         Just t -> case Block.tracklike_id t of
             Block.TId {} -> Nothing
@@ -923,7 +924,7 @@ insert_track block_id tracknum track = do
     unless (tracknum > 0 || is_ruler track) $
         throw $ "non-ruler track can't go at tracknum " <> showt tracknum
             <> ": " <> pretty track
-    let tracks = Seq.insert_at tracknum track (Block.block_tracks block)
+    let tracks = Lists.insertAt tracknum track (Block.block_tracks block)
         -- Make sure the views are up to date.
         views' = Map.map (insert_into_view block tracknum) views
     skel <- case Block.config_skeleton (Block.block_config block) of
@@ -952,7 +953,7 @@ remove_track block_id tracknum = do
             <> " out of range 1--" <> showt (length tracks)
     views <- Map.map (remove_from_view block tracknum) <$> views_of block_id
     set_block block_id $ block
-        { Block.block_tracks = Seq.remove_at tracknum tracks
+        { Block.block_tracks = Lists.removeAt tracknum tracks
         , Block.block_skeleton =
             Skeleton.remove tracknum (Block.block_skeleton block)
         }
@@ -973,7 +974,7 @@ move_track block_id from to = do
         -- Things get generally messed up if you try to move an event track to
         -- the ruler spot.
         guard (from /= 0 && to /= 0)
-        Seq.move from to (Block.block_tracks block)
+        Lists.move from to (Block.block_tracks block)
     skel <- case Block.config_skeleton (Block.block_config block) of
         Block.Explicit -> return $
             Skeleton.move from to (Block.block_skeleton block)
@@ -1012,7 +1013,7 @@ block_track_at block_id tracknum
         throw $ "block_track_at: negative tracknum: " <> showt tracknum
     | otherwise = do
         block <- get_block block_id
-        return $ Seq.at (Block.block_tracks block) tracknum
+        return $ Lists.at (Block.block_tracks block) tracknum
 
 get_block_track_at :: M m => BlockId -> TrackNum -> m Block.Track
 get_block_track_at block_id tracknum =
@@ -1287,7 +1288,7 @@ skip_unselectable_tracks block tracknum shift
     selectable = selectable_tracks block
     find_track [] = tracknum
     find_track tracks@(first:_) =
-        fromMaybe tracknum $ Seq.head $ drop abs_shift tracks
+        fromMaybe tracknum $ Lists.head $ drop abs_shift tracks
         where
         abs_shift = if tracknum /= first then abs shift - 1 else abs shift
 
@@ -1590,7 +1591,7 @@ destroy_ruler ruler_id = do
                 then Block.set_ruler_id no_ruler else id
             deruler (i, track) = Block.modify_id (setr i) track
         modify_block block_id $ \block -> block { Block.block_tracks =
-            map deruler (Seq.enumerate (Block.block_tracks block)) }
+            map deruler (Lists.enumerate (Block.block_tracks block)) }
     unsafe_modify $ \st ->
         st { state_rulers = Map.delete ruler_id (state_rulers st) }
     damage_ruler ruler_id
@@ -1609,7 +1610,7 @@ modify_ruler ruler_id modify = do
 
 ruler_of :: M m => BlockId -> m RulerId
 ruler_of block_id = require ("no ruler in " <> showt block_id)
-    =<< Seq.head . Block.block_ruler_ids <$> get_block block_id
+    =<< Lists.head . Block.block_ruler_ids <$> get_block block_id
 
 rulers_of :: M m => BlockId -> m [RulerId]
 rulers_of block_id = Seq.unique . Block.block_ruler_ids <$> get_block block_id
@@ -1642,7 +1643,7 @@ find_tracks f blocks = do
     guard (not (null tracks))
     return (bid, tracks)
     where
-    all_tracks block = Seq.enumerate (Block.block_tracks block)
+    all_tracks block = Lists.enumerate (Block.block_tracks block)
     get_tracks block =
         [ (tracknum, Block.tracklike_id track)
         | (tracknum, track) <- all_tracks block, f (Block.tracklike_id track)

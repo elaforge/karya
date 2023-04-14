@@ -11,6 +11,7 @@ module Util.Ranges (
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
 
+import qualified Util.Lists as Lists
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
@@ -43,7 +44,7 @@ extract Everything = Nothing
 
 -- | Nothing means no ranges, Just Nothing means Everything.
 extract1 :: Ranges n -> Maybe (Maybe (n, n))
-extract1 (Ranges pairs) = case (Seq.head pairs, Seq.last pairs) of
+extract1 (Ranges pairs) = case (Lists.head pairs, Lists.last pairs) of
     (Just (s, _), Just (_, e)) -> Just $ Just (s, e)
     _ -> Nothing
 extract1 Everything = Just Nothing

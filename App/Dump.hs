@@ -15,10 +15,10 @@ import qualified System.Environment as Environment
 import qualified System.IO as IO
 
 import qualified Util.Git as Git
+import qualified Util.Lists as Lists
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
 import qualified Util.Processes as Processes
-import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 
 import qualified Cmd.DiffPerformance as DiffPerformance
@@ -65,7 +65,7 @@ main = Git.initialize $ do
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
         (flags, args, []) -> return (flags, args)
         (_, _, errs) -> usage $ "flag errors: " ++ unwords errs
-    let mode = fromMaybe DumpAll (Seq.last [m | Mode m <- flags])
+    let mode = fromMaybe DumpAll (Lists.last [m | Mode m <- flags])
         pprint = any (==PPrint) flags
     ok <- mapM (dump_file pprint mode) args
     Processes.exit $ length (filter not ok)
@@ -88,7 +88,7 @@ dump_file pprint mode fname = dump pprint mode fname >>= \case
 
 dump :: Bool -> Mode -> FilePath -> IO (Either Text [Text])
 dump pprint mode fname
-    | [repo, commit] <- Seq.split "," fname =
+    | [repo, commit] <- Lists.split "," fname =
         dump_git pprint mode repo (Just commit)
     | SaveGit.is_git fname = dump_git pprint mode fname Nothing
 dump pprint mode fname =

@@ -5,17 +5,20 @@
 {-# LANGUAGE RecordWildCards #-}
 -- | For interactive experimentation.
 module Ness.Guitar.Score where
-import Prelude hiding (String)
+import           Prelude hiding (String)
 import qualified Data.List as List
 
+import qualified Util.Lists as Lists
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-import qualified Perform.Pitch as Pitch
-import Global
-import Ness.Global
-import Ness.Guitar
+
 import qualified Ness.Guitar.Patch as Patch
 import qualified Ness.Util as Util
+import qualified Perform.Pitch as Pitch
+
+import           Global
+import           Ness.Global
+import           Ness.Guitar
 
 Util.Interactive {..} = Util.interactive "guitar" renderAll
     (get "g12-2", mkScore notes fingers)
@@ -48,7 +51,7 @@ variations = Util.submitVariations srate renderAll "guitar"
 testJawari = variations "jawari3" jawariVars
 jawariVars :: [(FilePath, [(Instrument, Score)])]
 jawariVars =
-    [ ( Seq.join "-" ["str" <> show strx, z hx, "ht",  fmt h]
+    [ ( Lists.join "-" ["str" <> show strx, z hx, "ht",  fmt h]
       , [makeScore str h loc amps]
       )
     | (strx, str) <- zip [0..] (take 1 strings)
@@ -75,7 +78,7 @@ jawariVars =
 testBackboard = variations "backboard2" backboardVars
 backboardVars :: [(FilePath, [(Instrument, Score)])]
 backboardVars =
-    [ (Seq.join "-" ["backboard", fmt distance], [makeScore distance])
+    [ (Lists.join "-" ["backboard", fmt distance], [makeScore distance])
     | distance <- distances
     ]
     where

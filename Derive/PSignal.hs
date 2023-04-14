@@ -53,15 +53,16 @@ import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
+import qualified Util.Lists as Lists
 import qualified Util.Segment as Segment
 import           Util.Segment (Sample(..))
 import qualified Util.Seq as Seq
 
 import qualified Derive.DeriveT as DeriveT
 import           Derive.DeriveT
-       (_signal, coerce, interpolate, pitch, pitch_nn, pitch_note, Pitch,
-        Transposed, PSignal(..), RawPitch(..), Scale(..), PitchConfig(..),
-        PitchError(..))
+    (PSignal(..), Pitch, PitchConfig(..), PitchError(..), RawPitch(..),
+     Scale(..), Transposed, _signal, coerce, interpolate, pitch, pitch_nn,
+     pitch_note)
 import qualified Derive.ScoreT as ScoreT
 
 import qualified Perform.Pitch as Pitch
@@ -89,7 +90,7 @@ sig_scale_id :: PSignal -> Pitch.ScaleId
 sig_scale_id = pscale_scale_id . sig_scale
 
 sig_scale :: PSignal -> Scale
-sig_scale = maybe no_scale (pitch_scale . sy) . Seq.head . Segment.to_samples
+sig_scale = maybe no_scale (pitch_scale . sy) . Lists.head . Segment.to_samples
     . _signal
 
 modify :: (Segment.Boxed Pitch -> Segment.Boxed Pitch) -> PSignal -> PSignal
@@ -186,7 +187,7 @@ type ControlMap = Map ScoreT.Control (ScoreT.Typed Signal.Control)
 -- complete ControlMap once at the end (i.e. "Perform.Midi.Convert").
 {-# SCC apply_controls #-}
 apply_controls :: ControlMap -> PSignal -> PSignal
-apply_controls cmap psig = case Seq.head (to_pairs psig) of
+apply_controls cmap psig = case Lists.head (to_pairs psig) of
     Nothing -> mempty
     Just (start, _) -> make1 start
     where

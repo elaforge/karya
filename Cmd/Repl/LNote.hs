@@ -7,8 +7,8 @@ module Cmd.Repl.LNote where
 import qualified Data.List as List
 import qualified Data.Map as Map
 
+import qualified Util.Lists as Lists
 import qualified Util.Maps as Maps
-import qualified Util.Seq as Seq
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ModifyNotes as ModifyNotes
 import qualified Cmd.Selection as Selection
@@ -122,7 +122,7 @@ insert_ordered place_before note state = case Map.lookup index state of
         Map.insert index [note] $ bump_index index state
     _ -> insert_cons index note state
     where
-    index = maybe 0 ((+1) . fst) $ Seq.last $
+    index = maybe 0 ((+1) . fst) $ Lists.last $
         takeWhile (place_before note . snd) overlapping
     overlapping = [(i, n) | (i, n : _) <- Map.toAscList state, overlap note n]
     overlap n1 n2 = ModifyNotes.notes_overlap (fst n1) (fst n2)

@@ -33,8 +33,8 @@ import           Data.Text (Text)
 import qualified Data.Text.Lazy as Lazy
 import qualified Data.Text.Lazy.Builder as Builder
 
+import qualified Util.Lists as Lists
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
 
 
 data Doc =
@@ -100,7 +100,7 @@ text t = case make t of
     ts -> foldr1 (:+) (merge ts)
     where
     merge [] = []
-    merge breaks = case Seq.span_while isHard breaks of
+    merge breaks = case Lists.spanWhile isHard breaks of
         ([], []) -> []
         ([], x : xs) -> x : merge xs
         (hs, rest) -> Break (Hard (Num.sum hs)) : merge rest

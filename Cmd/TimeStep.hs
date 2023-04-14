@@ -34,6 +34,7 @@ import qualified Data.List.Ordered as Ordered
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
+import qualified Util.Lists as Lists
 import qualified Util.P as P
 import qualified Util.Parse as Parse
 import qualified Util.Seq as Seq
@@ -188,10 +189,10 @@ snap tstep block_id tracknum prev_pos pos =
     where
     snap_from p
         | pos > p = -- Advance p until one before pos.
-            Seq.head . Seq.drop_before id pos <$>
+            Lists.head . Seq.drop_before id pos <$>
                 get_points_from Advance block_id tracknum p tstep
         | otherwise = -- Rewind p until before pos.
-            Seq.head . dropWhile (>pos) <$>
+            Lists.head . dropWhile (>pos) <$>
                 get_points_from Rewind block_id tracknum p tstep
     is_relative (Duration {}) = True
     is_relative (RelativeMark {}) = True
@@ -232,7 +233,7 @@ step_from steps tstep block_id tracknum start = extract <$>
     get_points_from (if steps >= 0 then Advance else Rewind) block_id tracknum
         start tstep
     where
-    extract = Seq.head
+    extract = Lists.head
         . if steps == 0 then id else drop (abs steps - 1) . dropWhile (==start)
 
 get_points_from :: Ui.M m => Direction -> BlockId -> TrackNum -> TrackTime
@@ -345,12 +346,12 @@ get_marks dir minus1 match rank start marklists =
         AllMarklists -> Map.elems marklists
         NamedMarklists names -> mapMaybe (flip Map.lookup marklists) names
     ascending1 mlist
-        | Just p <- Seq.head marks, p == start = marks
+        | Just p <- Lists.head marks, p == start = marks
         | otherwise = maybe marks (:marks) $
-            Seq.head (with_rank $ Mark.descending start mlist)
+            Lists.head (with_rank $ Mark.descending start mlist)
         where marks = with_rank $ Mark.ascending start mlist
     descending1 mlist = maybe marks (:marks) $
-        Seq.head (with_rank $ Mark.ascending start mlist)
+        Lists.head (with_rank $ Mark.ascending start mlist)
         where marks = with_rank $ Mark.descending start mlist
     with_rank = map fst . filter ((<=rank) . Mark.mark_rank . snd)
 

@@ -48,6 +48,7 @@ import qualified Data.Tree as Tree
 import qualified Data.Vector as Vector
 
 import qualified Util.Lens as Lens
+import qualified Util.Lists as Lists
 import qualified Util.Maps as Maps
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -375,7 +376,7 @@ write_tracks block_id track_ids tracks = do
             Ui.add_edges block_id $ take (length tracks - 1) $
                 zip [tracknum..] [tracknum+1..]
             parent <- maybe (return Nothing) (parent_of block_id)
-                (Seq.head track_ids)
+                (Lists.head track_ids)
             whenJust parent $ \p ->
                 Ui.add_edges block_id [(Ui.track_tracknum p, tracknum)]
             create (tracknum + length tracks) rest
@@ -432,7 +433,7 @@ bottom_track block_id track_id = do
 parent_of :: Ui.M m => BlockId -> TrackId -> m (Maybe Ui.TrackInfo)
 parent_of block_id track_id = do
     tree <- TrackTree.track_tree_of block_id
-    return $ Seq.head
+    return $ Lists.head
         [ track
         | (track, _, children) <- Trees.flatPaths tree
         , track_id `elem` map Ui.track_id children

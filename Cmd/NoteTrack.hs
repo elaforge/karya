@@ -21,7 +21,7 @@ module Cmd.NoteTrack (
 import qualified Data.List as List
 import qualified Data.Map as Map
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ControlTrack as ControlTrack
@@ -199,7 +199,7 @@ should_create_control block_id track is_control = case Info.track_type track of
 event_pos_at_or_before :: Cmd.M m => TrackId -> ScoreTime -> m ScoreTime
 event_pos_at_or_before track_id pos = do
     (_, events) <- Events.split_at_before pos <$> Ui.get_events track_id
-    return $ maybe pos Event.start (Seq.head events)
+    return $ maybe pos Event.start (Lists.head events)
 
 all_keys_up :: Cmd.M m => m Bool
 all_keys_up = do

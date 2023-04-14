@@ -13,7 +13,7 @@ module Solkattu.Dsl.Metadata (
 import qualified Text.Read as Read
 
 import qualified Util.CallStack as CallStack
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Solkattu.Korvai as Korvai
 import           Solkattu.Korvai (Korvai)
 import qualified Solkattu.Metadata as Metadata
@@ -63,7 +63,7 @@ parseRange str = case range of
     (start, end) = second (dropWhile (=='-')) $ break (=='-') str
 
 parseTime :: String -> Maybe (Int, Int, Int)
-parseTime str = case mapM Read.readMaybe $ Seq.split ":" str of
+parseTime str = case mapM Read.readMaybe $ Lists.split ":" str of
     Just [h, m, s] -> Just (h, m, s)
     Just [m, s] -> Just (0, m, s)
     Just [s] -> Just (0, 0, s)

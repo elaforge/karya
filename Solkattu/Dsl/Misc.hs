@@ -4,8 +4,8 @@
 
 -- | Miscellaneous general purpose functions.
 module Solkattu.Dsl.Misc where
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 
 
 replaceAt :: Int -> a -> [a] -> [a]
-replaceAt i x = Seq.modify_at i (const x)
+replaceAt i x = Lists.modifyAt i (const x)

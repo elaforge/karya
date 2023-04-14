@@ -26,33 +26,33 @@ module Cmd.Repl.Global (
 ) where
 import qualified Data.Map as Map
 
+import qualified Util.Lists as Lists
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 -- Just make sure these are compiled.
-import Midi.Synth ()
+-- These are used to write patterns for 'ModifyEvents.substitute'.
+import qualified App.ReplProtocol as ReplProtocol
+import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Create as Create
+import qualified Cmd.Info as Info
+import           Cmd.ModifyEvents (Replacement(F), w, ws, ws1)
+import           Cmd.Repl.LEvent ()
+import           Cmd.Repl.LInst ()
+import           Cmd.Repl.LPerf ()
+import           Cmd.Repl.LPitch ()
+import           Cmd.Repl.LRuler ()
+import           Cmd.Repl.LTrack ()
+import qualified Cmd.Save as Save
+import qualified Cmd.Selection as Selection
+
+import qualified Derive.Stack as Stack
+import           Midi.Synth ()
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
 import qualified Ui.Sel as Sel
 import qualified Ui.Ui as Ui
 
-import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Create as Create
-import qualified Cmd.Info as Info
--- These are used to write patterns for 'ModifyEvents.substitute'.
-import Cmd.ModifyEvents (Replacement(F), w, ws, ws1)
-import Cmd.Repl.LEvent ()
-import Cmd.Repl.LInst ()
-import Cmd.Repl.LPerf ()
-import Cmd.Repl.LPitch ()
-import Cmd.Repl.LRuler ()
-import Cmd.Repl.LTrack ()
-import qualified Cmd.Save as Save
-import qualified Cmd.Selection as Selection
-
-import qualified Derive.Stack as Stack
-import qualified App.ReplProtocol as ReplProtocol
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- | Take a string and automatically figure out what kind of ID is expected and
@@ -189,7 +189,7 @@ highlight_error (maybe_bid, maybe_tid, maybe_range) = do
             "can't highlight stack frame with neither block nor track: "
             <> showt (maybe_bid, maybe_tid, maybe_range)
         Just track_id -> maybe (Cmd.throw $ "no block with " <> showt track_id)
-            (return . fst) . Seq.head =<< Ui.blocks_with_track_id track_id
+            (return . fst) . Lists.head =<< Ui.blocks_with_track_id track_id
 
 -- * show / modify cmd state
 

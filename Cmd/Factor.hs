@@ -7,8 +7,10 @@
 module Cmd.Factor where
 import qualified Data.Text as Text
 
+import qualified Util.Lists as Lists
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Edit as Edit
@@ -144,7 +146,7 @@ selection_alts relative alts name
         let call = Text.unwords $
                 "alt" : map (Eval.block_id_to_call relative block_id) alts
         let (start, end) = Events.range_times range
-        whenJust (Seq.head track_ids) $ \track_id ->
+        whenJust (Lists.head track_ids) $ \track_id ->
             Ui.insert_event track_id $ Event.event start (end-start) call
         return alts
     where
@@ -200,7 +202,7 @@ replace_with_call :: Ui.M m => BlockId -> [TrackId] -> Events.Range -> BlockId
 replace_with_call block_id track_ids range to_block_id relative = do
     Edit.clear_range track_ids range
     let (start, end) = Events.range_times range
-    whenJust (Seq.head track_ids) $ \track_id ->
+    whenJust (Lists.head track_ids) $ \track_id ->
         Ui.insert_event track_id $ Event.event start (end-start)
             (Eval.block_id_to_call relative block_id to_block_id)
 

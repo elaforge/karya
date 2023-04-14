@@ -37,8 +37,10 @@ import qualified Data.Text as Text
 
 import qualified System.IO.Unsafe as Unsafe
 
+import qualified Util.Lists as Lists
 import qualified Util.ParseText as ParseText
 import qualified Util.Seq as Seq
+
 import qualified Derive.Attrs as Attrs
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Expr as Expr
@@ -139,7 +141,7 @@ lex text
 -- to infer edits in progress.
 split_pipeline :: Text -> [[Text]]
 split_pipeline =
-    Seq.map_tail (drop 1) . Seq.split_before ((=="|") . Text.strip) . lex
+    Seq.map_tail (drop 1) . Lists.splitBefore ((=="|") . Text.strip) . lex
 
 join_pipeline :: [[Text]] -> Text
 join_pipeline =

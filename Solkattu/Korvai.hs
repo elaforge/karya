@@ -425,7 +425,7 @@ matchedSollus toStrokes talaAksharas =
         Right $ replicate p (tempo, Realize.Space Solkattu.Rest)
 
 inferNadai :: [Flat stroke] -> S.Nadai
-inferNadai = S._nadai . maybe S.defaultTempo fst . Seq.head . S.tempoNotes
+inferNadai = S._nadai . maybe S.defaultTempo fst . Lists.head . S.tempoNotes
 
 flatten :: SequenceG g sollu -> [S.Flat g (Solkattu.Note sollu)]
 flatten = Solkattu.cancelKarvai . S.flatten . S.toList

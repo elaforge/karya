@@ -4,6 +4,7 @@
 
 -- | Post-process notes to add artifacts characteristic of wind instruments.
 module Derive.C.Idiom.Wind (library, find_harmonic) where
+import qualified Util.Lists as Lists
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
@@ -18,8 +19,9 @@ import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
 
 import qualified Perform.Pitch as Pitch
-import Global
-import Types
+
+import           Global
+import           Types
 
 
 library :: Library.Library
@@ -52,7 +54,7 @@ type Fundamentals = [Pitch.Hz]
 
 wind_idiom :: Fundamentals -> Stream.Stream Score.Event -> Derive.NoteDeriver
 wind_idiom fundamentals = return . Post.emap1_ (process fundamentals)
-    . Stream.zip_on (map Seq.head . Post.nexts)
+    . Stream.zip_on (map Lists.head . Post.nexts)
 
 fundamentals_env :: Sig.Parser [Either Pitch.NoteNumber PSignal.Pitch]
 fundamentals_env = Sig.check non_empty $

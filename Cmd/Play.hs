@@ -54,6 +54,7 @@ import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 
 import qualified Util.Audio.AudioT as AudioT
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
@@ -365,7 +366,7 @@ extract_cache_stats key logs = (rederived, cached)
 
 -- | Get block cache stats.
 get_block_id :: Log.Msg -> Maybe BlockId
-get_block_id = Stack.block_of <=< Seq.head . Stack.innermost <=< Log.msg_stack
+get_block_id = Stack.block_of <=< Lists.head . Stack.innermost <=< Log.msg_stack
 
 -- | Get track cache stats.
 get_track_id :: Log.Msg -> Maybe (BlockId, TrackId)
@@ -459,7 +460,7 @@ get_adjust0 start has_im midi_msgs events = negative_start - im_latency
     -- The first Score.Event should be after that, unless there's an im
     -- event at negative time.
     fst_msg = min first_score (PlayUtil.first_time midi_msgs)
-    first_score = maybe 0 Score.event_start $ Seq.head $ Vector.toList $
+    first_score = maybe 0 Score.event_start $ Lists.head $ Vector.toList $
         Vector.take 1 events
     im_latency = if has_im
         then toSeconds Shared.Config.startLatency else 0

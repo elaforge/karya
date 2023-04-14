@@ -17,6 +17,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -144,7 +145,7 @@ event_hand :: Score.Event -> Maybe Call.Hand
 event_hand = Env.maybe_val EnvKey.hand . Score.event_environ
 
 track_of :: Score.Event -> Maybe TrackId
-track_of = Seq.head . mapMaybe Stack.track_of . Stack.innermost
+track_of = Lists.head . mapMaybe Stack.track_of . Stack.innermost
     . Score.event_stack
 
 -- | This determines how tracks are split when integration recreates track
