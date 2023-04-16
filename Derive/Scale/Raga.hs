@@ -16,7 +16,6 @@ import qualified Data.Vector as Vector
 import qualified Util.Doc as Doc
 import qualified Util.Lists as Lists
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.JustScales as JustScales
@@ -383,7 +382,7 @@ show_ragams ragams = Text.unlines $
 
 show_ragam :: (Name, Ragam) -> [Text]
 show_ragam (name, ragam) =
-    map justify (Seq.map_head (++[name]) (show_swarams ragam))
+    map justify (Lists.mapHead (++[name]) (show_swarams ragam))
 
 header :: [[Text]]
 header =
@@ -399,12 +398,12 @@ show_swarams ragam = lines Up aro ++ maybe [] (lines Down) avaro
     where
     (aro, avaro) = ragam_swarams ragam
     lines dir = map pad
-        . ((if dir == Up then Seq.map_last else Seq.map_head) (<>["S"]))
+        . ((if dir == Up then Lists.mapLast else Lists.mapHead) (<>["S"]))
         . map line
         . Lists.splitBetween (if dir == Up then (>) else (<))
-    line = map cell . Seq.pair_sorted_on id swaram_ratio all_ratios . List.sort
+    line = map cell . Lists.pairSortedOn id swaram_ratio all_ratios . List.sort
     cell = \case
-        Seq.Both _ s -> showt (unswaram s)
+        Lists.Both _ s -> showt (unswaram s)
         _ -> ""
     pad = take (length all_swarams + 1) . (++ repeat "")
 

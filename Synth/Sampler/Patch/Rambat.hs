@@ -21,7 +21,6 @@ import qualified Util.File
 import qualified Util.Lists as Lists
 import qualified Util.Maps as Maps
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
 
 import qualified Cmd.Instrument.Bali as Bali
 import qualified Cmd.Instrument.ImInst as ImInst
@@ -296,7 +295,7 @@ parseFilename fname = case Lists.split "-" (FilePath.dropExtension fname) of
     _ -> Nothing
     where
     pArt = (`Map.lookup` filenameToArt)
-    filenameToArt = Map.fromList $ Seq.key_on articulationFilename Util.enumAll
+    filenameToArt = Map.fromList $ Lists.keyOn articulationFilename Util.enumAll
     pDyn = Read.readMaybe . map Char.toUpper
 
 unparseFilename :: Pitch -> Articulation -> Dynamic -> Util.Variation
@@ -346,7 +345,7 @@ getDurations = fmap group $ (++)
     <*> (mapMaybeM (get Isep) =<< Util.File.list (dir </> "isep"))
     where
     dir = Config.unsafeSamplerRoot </> "rambat"
-    group = map (second minimum) . Seq.group_fst
+    group = map (second minimum) . Lists.groupFst
     get tuning fname = case parseFilename (FilePath.takeFileName fname) of
         Just (pitch, OpenShort, dyn, _var) -> do
             frames <- Audio.Frames . Sndfile.frames <$>

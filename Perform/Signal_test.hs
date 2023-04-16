@@ -4,7 +4,7 @@
 
 module Perform.Signal_test where
 import qualified Util.Segment as Segment
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Perform.Signal as Signal
 import           Perform.Signal (X, Y, from_pairs, to_pairs)
 
@@ -14,8 +14,8 @@ import           Util.Test
 test_at :: Test
 test_at = do
     let f sig x = Signal.at x (from_pairs sig)
-    equal (map (f [(2, 2), (4, 0)]) (Seq.range 0 5 1)) [0, 0, 2, 1, 0, 0]
-    equal (map (f [(2, 0), (4, 2)]) (Seq.range 0 5 1)) [0, 0, 0, 1, 2, 2]
+    equal (map (f [(2, 2), (4, 0)]) (Lists.range 0 5 1)) [0, 0, 2, 1, 0, 0]
+    equal (map (f [(2, 0), (4, 2)]) (Lists.range 0 5 1)) [0, 0, 0, 1, 2, 2]
     equal (f [(0, 2), (2, 0)] (-1)) 0
     equal (f [(-1, 2), (2, 0)] (-2)) 0
 

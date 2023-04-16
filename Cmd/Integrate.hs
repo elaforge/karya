@@ -57,8 +57,9 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
+
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Integrate.Convert as Convert
@@ -83,7 +84,8 @@ cmd_integrate (Msg.DeriveStatus block_id (Msg.DeriveComplete perf _)) = do
     -- I don't know which ones to give to the destinations, and wind up
     -- creating a new track every time.
     let (dups, integrates) = Either.partitionEithers $ map is_dup $
-            Seq.group_stable Derive.integrated_source (Cmd.perf_integrated perf)
+            Lists.groupStable Derive.integrated_source
+                (Cmd.perf_integrated perf)
         is_dup (x :| xs) = if null xs then Right x else Left x
     unless (null dups) $
         Log.warn $ "these blocks or tracks want to integrate twice: "
@@ -233,7 +235,7 @@ needs_block_score_integrate updates state =
 -- | Tracks which are track score integrate sources and have damage.
 needs_track_score_integrate :: [Update.UiUpdate] -> Ui.State
     -> [(BlockId, TrackId)]
-needs_track_score_integrate updates state = Seq.unique $
+needs_track_score_integrate updates state = Lists.unique $
     concatMap (integrated_blocks . fst) $ mapMaybe Update.track_changed updates
     where
     integrated_blocks track_id =

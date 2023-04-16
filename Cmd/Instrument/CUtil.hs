@@ -11,7 +11,7 @@ import qualified Data.Either as Either
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
@@ -372,7 +372,7 @@ make_call_map :: [Drums.Stroke] -> Common.CallMap
 make_call_map = Map.fromList . map (\n -> (Drums._attributes n, Drums._name n))
 
 pitched_attribute_map :: PitchedStrokes -> Patch.AttributeMap
-pitched_attribute_map strokes = Common.attribute_map $ Seq.unique
+pitched_attribute_map strokes = Common.attribute_map $ Lists.unique
     -- It's ok to have Notes with the same (attr, keyswitch), for instance if
     -- there are loud and soft versions, but pitched_attribute_map will see them
     -- as overlapping attrs, so filter out duplicates.
@@ -502,5 +502,5 @@ resolve_strokes soft_dyn keymap =
         dup_msgs = map ((">1 call with same name: "<>) . extract) by_name
             ++ map ((">1 call mapped to same key: "<>) . extract) by_key
         extract = pretty . map fst . (\(x, xs) -> x : xs)
-        (strokes2, by_name) = Seq.partition_dups (Drums._name . fst) strokes
-        (strokes3, by_key) = Seq.partition_dups (Drums._char . fst) strokes2
+        (strokes2, by_name) = Lists.partitionDups (Drums._name . fst) strokes
+        (strokes3, by_key) = Lists.partitionDups (Drums._char . fst) strokes2

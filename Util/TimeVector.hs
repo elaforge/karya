@@ -29,7 +29,7 @@ import qualified Foreign
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import Util.TimeVectorStorable (X, Sample(..))
 
 import qualified Perform.RealTime as RealTime
@@ -215,13 +215,13 @@ before x vec
 ascending :: V.Vector v (Sample y) => X -> v (Sample y) -> [Sample y]
 ascending x vec =
     [ V.unsafeIndex vec i
-    | i <- Seq.range' (bsearch_below x vec) (V.length vec) 1
+    | i <- Lists.range' (bsearch_below x vec) (V.length vec) 1
     ]
 
 -- | Descending samples, starting below the time.
 descending :: V.Vector v (Sample y) => X -> v (Sample y) -> [Sample y]
 descending x vec =
-    [V.unsafeIndex vec i | i <- Seq.range (bsearch_below x vec - 1) 0 (-1)]
+    [V.unsafeIndex vec i | i <- Lists.range (bsearch_below x vec - 1) 0 (-1)]
 
 -- * transform
 

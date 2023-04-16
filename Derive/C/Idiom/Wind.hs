@@ -5,7 +5,6 @@
 -- | Post-process notes to add artifacts characteristic of wind instruments.
 module Derive.C.Idiom.Wind (library, find_harmonic) where
 import qualified Util.Lists as Lists
-import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
@@ -86,7 +85,7 @@ find_harmonic fundamentals hz = closest $ map find fundamentals
     -- I always pick the closest match, but I also want a lower harmonic.
     -- Hopefully this doesn't matter in practice, since fundamentals generally
     -- aren't multiples of each other.
-    closest = fmap snd . Seq.minimum_on (abs . fst)
+    closest = fmap snd . Lists.minimumOn (abs . fst)
     find f = go 1
         where
         go harm

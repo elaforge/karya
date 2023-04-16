@@ -25,7 +25,7 @@ import qualified Util.Log as Log
 import qualified Util.Network as Network
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Thread as Thread
 
 import qualified App.Config as Config
@@ -230,7 +230,7 @@ prompt connection_error maybe_save =
     mconcat [save,  color_bg,  stx,  "入",  plain_bg,  stx,  " "]
     where
     color_bg = if connection_error then red_bg else cyan_bg
-    save = maybe "" (fst . Seq.drop_suffix ".repl" . FilePath.takeFileName)
+    save = maybe "" (fst . Lists.dropSuffix ".repl" . FilePath.takeFileName)
         maybe_save
     -- The trailing \STX tells haskeline this is a control sequence, from
     -- http://trac.haskell.org/haskeline/wiki/ControlSequencesInPrompt

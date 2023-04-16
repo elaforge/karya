@@ -21,8 +21,6 @@ import qualified Data.Set as Set
 
 import qualified Util.Lists as Lists
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
-
 import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
@@ -988,7 +986,7 @@ ctx_tracks ctx = do
     let merged_track_ids = mconcatMap Block.track_merged tracks
     block <- Ui.get_block block_id
     let merged = tracknums_of block (Set.toList merged_track_ids)
-    let (all_tracknums, all_track_ids) = unzip $ Seq.unique_sort $
+    let (all_tracknums, all_track_ids) = unzip $ Lists.uniqueSort $
             merged ++ zip tracknums track_ids
     return (block_id, all_tracknums, all_track_ids, range)
 

@@ -6,9 +6,10 @@ module Ness.Multiplate where
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
-import qualified Util.Seq as Seq
-import Global
-import Ness.Global
+import qualified Util.Lists as Lists
+
+import           Global
+import           Ness.Global
 
 
 renderAll :: SamplingRate -> (Instrument, Score) -> (Text, Text)
@@ -21,7 +22,7 @@ verify instrument score =
         ++ mapMaybe strike (sStrikes score)
     where
     (objects, duplicates) = bimap Set.fromList (map fst) $
-        Seq.partition_dups id (iObjects instrument)
+        Lists.partitionDups id (iObjects instrument)
     strike s
         | sObject s `Set.notMember` objects =
             Just $ "strike at " <> pretty (sStart s) <> ": unknown object "
@@ -181,7 +182,7 @@ instance Render Score where
     render (Score decay strikes) = Text.unlines $
         "duration " <> render (end + decay) : map render strikes
         where
-        end = fromMaybe 0 $ Seq.maximum $ map sStart strikes
+        end = fromMaybe 0 $ Lists.maximum $ map sStart strikes
 
 -- | Probably Newtons?
 type Force = Double

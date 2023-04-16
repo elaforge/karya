@@ -12,7 +12,7 @@ import qualified Data.Map as Map
 import           Data.Word (Word8)
 
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Derive.ScoreT as ScoreT
 import qualified Perform.Pitch as Pitch
 
@@ -182,7 +182,7 @@ transpose_instruments transpose mod = flip modify_lines mod $ \line ->
         (Just nn, Just steps) -> line { _pitch = Just $ nn + steps }
         _ -> line
     where
-    by_num = Map.fromList $ Seq.map_maybe_fst (flip Map.lookup inst_to_num) $
+    by_num = Map.fromList $ Lists.mapMaybeFst (flip Map.lookup inst_to_num) $
         Map.toList transpose
     inst_to_num = Map.fromList
         [ (_instrument_name inst, n)

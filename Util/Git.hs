@@ -61,7 +61,6 @@ import           System.FilePath ((</>))
 import           Util.GitT (Commit(..), Repo)
 import qualified Util.Lists as Lists
 import qualified Util.Processes as Processes
-import qualified Util.Seq as Seq
 import qualified Util.Strings as Strings
 
 import           Foreign
@@ -202,7 +201,7 @@ modifications_to_dir mods = go (strip mods)
             Just (_, bytes) -> [(dir, ModifyFile bytes)]
         (file_ents, dir_ents) = List.partition (null . fst) entries
     by_dir entries = [(dir, map (first drop_dir) subs)
-        | (dir, subs) <- Seq.keyed_group_sort (takeWhile (/='/') . fst) entries]
+        | (dir, subs) <- Lists.keyedGroupSort (takeWhile (/='/') . fst) entries]
     drop_dir = dropWhile (=='/') . dropWhile (/='/')
     -- Strip out redundent modifications.
     strip = Map.toList . Map.fromList . map extract
@@ -295,7 +294,7 @@ read_tree repo tree = with_repo repo $ \repop ->
     with_tree repop tree $ \treep -> do
         count <- G.c'git_tree_entrycount treep
         entries <- mapM (G.c'git_tree_entry_byindex treep)
-            (Seq.range' 0 count 1)
+            (Lists.range' 0 count 1)
         mapM peek_entry entries
     where
     peek_entry entryp = do
@@ -496,7 +495,7 @@ with_ref_name ref io = withCString ("refs" </> ref) $ \namep -> io namep
 
 peek_ref_name :: String -> CString -> IO Ref
 peek_ref_name prefix str = do
-    (name, stripped) <- Seq.drop_prefix "refs/" <$> peekCString str
+    (name, stripped) <- Lists.dropPrefix "refs/" <$> peekCString str
     unless stripped $ throw $ prefix ++ "wasn't in refs/: " ++ show name
     return name
 

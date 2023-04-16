@@ -7,7 +7,7 @@ import qualified Data.List as List
 import qualified Data.Text as Text
 
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Derive.Attrs as Attrs
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Env as Env
@@ -189,7 +189,7 @@ test_attrs_to_code = do
 
     let run es = process_simple
             [ LilypondTest.attrs_event (t, 1, p, attrs)
-            | (t, p, attrs) <- zip3 (Seq.range_ 0 1) [c3, d3, e3] es
+            | (t, p, attrs) <- zip3 (Lists.range_ 0 1) [c3, d3, e3] es
             ]
     equal (run [Attrs.staccato, Attrs.accent]) (Right "c4 -. d4 -> r2")
     equal (run [Attrs.nv, Attrs.nv, mempty])
@@ -355,7 +355,7 @@ test_convert_tuplet = do
     -- Spell with a 6 because there are 6 notes:
     equal (run $ mk_tuplet 0 3 4 :
             [ e (s, 0.5, p)
-            | (s, p) <- zip (Seq.range_ 0 0.5) [a3, b3, c3, d3, e3, f3]
+            | (s, p) <- zip (Lists.range_ 0 0.5) [a3, b3, c3, d3, e3, f3]
             ])
         (Right "\\tuplet 6/4 { a4 b4 c4 d4 e4 f4 } | R4*4")
 
@@ -431,7 +431,7 @@ process_44 events = process
 
 event_measures :: [Types.Event] -> Int
 event_measures = ceiling . LilypondTest.time_to_wholes . fromMaybe 0
-    . Seq.maximum . map Types.event_end
+    . Lists.maximum . map Types.event_end
 
 process :: [Meter.Meter] -> [Types.Event]
     -> Either Text [Either Process.Voices Process.Ly]

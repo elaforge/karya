@@ -5,7 +5,7 @@
 module Cmd.StepPlay_test where
 import qualified Data.Map as Map
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import Util.Test
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
@@ -122,7 +122,7 @@ simple_tracks = note_track
 
 note_track :: [Text] -> [UiTest.TrackSpec]
 note_track notes = UiTest.note_spec
-    ("i1", [(t, 1, pitch) | (t, pitch) <- zip (Seq.range_ 0 1) notes], [])
+    ("i1", [(t, 1, pitch) | (t, pitch) <- zip (Lists.range_ 0 1) notes], [])
 
 prepare_blocks :: Text -> [UiTest.BlockSpec] -> IO (CmdTest.Result ())
 prepare_blocks focus blocks =

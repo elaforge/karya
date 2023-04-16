@@ -5,7 +5,7 @@
 module Derive.Scale.Wayang_test where
 import qualified Data.Vector as Vector
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Scale as Scale
@@ -53,7 +53,7 @@ scale_track scale_id pitches =
     [ (">", [(n, 1, "") | n <- map fst events])
     , ("*" <> scale_id, [(n, 0, p) | (n, p) <- events])
     ]
-    where events = zip (Seq.range_ 0 1) pitches
+    where events = zip (Lists.range_ 0 1) pitches
 
 test_input_to_note :: Test
 test_input_to_note = do

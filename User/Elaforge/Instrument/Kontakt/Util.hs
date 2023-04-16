@@ -10,15 +10,16 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Vector.Unboxed as Vector
 
+import qualified Util.Lists as Lists
 import qualified Util.Maps as Maps
-import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
 
-import qualified Midi.Midi as Midi
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
+import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Patch as Patch
-import Global
+
+import           Global
 
 
 write :: FilePath -> Either Text Text -> IO ()
@@ -106,7 +107,7 @@ drum_mute_values strokes =
         ]
     ks_of (Patch.Keyswitch ks : _) = ks
     ks_of _ = 0
-    groups = Seq.drop_dups id (List.sort (map (Drums._group . fst) strokes))
+    groups = Lists.dropDups id (List.sort (map (Drums._group . fst) strokes))
     group_to_id = Map.fromList $ zip groups [0..]
     group_id g = Map.findWithDefault none g group_to_id
 
@@ -130,7 +131,7 @@ make_stop_groups stop_groups groups = do
 midi_pitch_array :: Vector.Unbox a => a -> [((Int, Int), a)] -> Vector.Vector a
 midi_pitch_array deflt ranges =
     Vector.replicate 128 deflt Vector.// concatMap expand ranges
-    where expand ((s, e), v) = [(i, v) | i <- Seq.range' s e 1]
+    where expand ((s, e), v) = [(i, v) | i <- Lists.range' s e 1]
 
 drum_mute_template :: Text
 drum_mute_template =
@@ -230,5 +231,5 @@ interpolate values =
 ksp_array :: Int -> [Int] -> Text
 ksp_array chunk_size =
     ("( ...\n"<>) . (<>")") . Text.intercalate ", ...\n" . map ((indent<>)
-        . Text.intercalate ", ") . Seq.chunked chunk_size . map showt
+        . Text.intercalate ", ") . Lists.chunked chunk_size . map showt
     where indent = Text.replicate 8 " "

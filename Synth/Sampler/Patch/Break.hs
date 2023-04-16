@@ -21,7 +21,6 @@ import qualified Data.Text.IO as Text.IO
 import qualified Util.Doc as Doc
 import qualified Util.Lists as Lists
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.CUtil as CUtil
@@ -126,7 +125,7 @@ lookupStroke increment perMeasure strokeMap
     inRange = maybe (const False) (\(m, _) -> (<=m)) $ Map.lookupMax strokeMap
     allBeats = takeWhile inRange
         [ (measure, beat)
-        | measure <- [1..], beat <- Seq.range' 1 (perMeasure+1) increment
+        | measure <- [1..], beat <- Lists.range' 1 (perMeasure+1) increment
         ]
     baseOctave = Cmd.state_kbd_entry_octave Cmd.initial_edit_state
 
@@ -141,16 +140,16 @@ physicalKeys steps beats = concat
     | (keys, (measure, beats)) <- zip (keysByMeasure steps) byMeasure
     ]
     where
-    byMeasure = Seq.group_fst beats
+    byMeasure = Lists.groupFst beats
 
 -- | Get keys to map for each measure.  This fits an integral measure's worth
 -- into the bottom and top rows.
 keysByMeasure :: Int -> [[Char]]
 keysByMeasure steps = concatMap (equalDivisions steps) $
-    map (map fst) $ Seq.group_adjacent (Pitch.pitch_octave . snd) $
+    map (map fst) $ Lists.groupAdjacent (Pitch.pitch_octave . snd) $
     -- '1' is a special case with -1 accidental.
     filter ((>=0) . Pitch.pitch_accidentals . snd) $
-    Seq.sort_on snd $ Map.toList PhysicalKey.pitch_map
+    Lists.sortOn snd $ Map.toList PhysicalKey.pitch_map
 
 equalDivisions :: Int -> [a] -> [[a]]
 equalDivisions n xs

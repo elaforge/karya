@@ -6,7 +6,6 @@
 module Derive.C.Post.Rearticulate (library) where
 import qualified Util.Lists as Lists
 import qualified Util.Maps as Maps
-import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
@@ -111,7 +110,7 @@ slur_dur dur offset stream =
     (events, logs) = Stream.partition stream
 
 group_dur :: RealTime -> RealTime -> [Score.Event] -> [NonEmpty Score.Event]
-group_dur dur offset = Seq.group_stable group_of
+group_dur dur offset = Lists.groupStable group_of
     where
     group_of = floor . RealTime.to_seconds . (/dur) . subtract offset
         . Score.event_start

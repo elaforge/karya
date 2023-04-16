@@ -43,7 +43,6 @@ import qualified Util.FltkUtil as FltkUtil
 import qualified Util.Format as Format
 import qualified Util.Lists as Lists
 import qualified Util.Network as Network
-import qualified Util.Seq as Seq
 
 import qualified App.Config as Config
 import qualified App.LoadInstruments as LoadInstruments
@@ -261,10 +260,10 @@ field (title, raw_text)
 
 show_attribute_map :: Patch.AttributeMap -> Text
 show_attribute_map (Common.AttributeMap table) =
-    Text.unlines $ map fmt (Seq.sort_on (low_key . snd) table)
+    Text.unlines $ map fmt (Lists.sortOn (low_key . snd) table)
     where
     attrs = map (prettys . fst) table
-    longest = fromMaybe 0 $ Seq.maximum (map length attrs)
+    longest = fromMaybe 0 $ Lists.maximum (map length attrs)
     -- If this instrument uses a keymap, it's easier to read the attribute map
     -- if I put it in keymap order.
     low_key (_, Just (Patch.UnpitchedKeymap k)) = Just k
@@ -303,7 +302,7 @@ show_handler = \case
             Cmd.WithOctave m -> list $ concatMap Map.elems $ Map.elems m
         where
         list xs = "["
-            <> Text.unwords (Seq.unique (filter (not . Text.null) xs))
+            <> Text.unwords (Lists.unique (filter (not . Text.null) xs))
             <> "]"
     Cmd.Handler Nothing cmd -> Cmd.cmd_name cmd
     Cmd.Keymap keymap -> pretty $ map Cmd.cmd_name $ Map.elems keymap
@@ -317,7 +316,7 @@ show_call_bindings = Lazy.toStrict . Format.render "\t" 10000
 
 show_tags :: [(Text, Text)] -> Text
 show_tags tags =
-    Text.unwords [quote k <> "=" <> quote v | (k, v) <- Seq.sort_on fst tags]
+    Text.unwords [quote k <> "=" <> quote v | (k, v) <- Lists.sortOn fst tags]
 
 show_initialize :: Patch.InitializePatch -> Text
 show_initialize = \case
@@ -350,11 +349,11 @@ process_query :: Fltk.Channel -> BrowserC.Window -> Db -> [InstT.Qualified]
     -> Text -> IO [InstT.Qualified]
 process_query chan win db displayed query = do
     let matches = Search.search (db_index db) (Search.parse query)
-        diff = Seq.diff_index (==) displayed matches
+        diff = Lists.diffIndex (==) displayed matches
     forM_ diff $ \(i, paired) -> case paired of
-        Seq.Second inst -> Fltk.action chan $
+        Lists.Second inst -> Fltk.action chan $
             BrowserC.insert_line win (i+1) (InstT.show_qualified inst)
-        Seq.First _inst -> Fltk.action chan $
+        Lists.First _inst -> Fltk.action chan $
             BrowserC.remove_line win (i+1)
         _ -> return ()
     return matches

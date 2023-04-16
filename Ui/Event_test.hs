@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Ui.Event_test where
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import Util.Test
 import qualified Ui.Event as Event
 import Global
@@ -13,13 +13,13 @@ import Types
 test_set_start :: Test
 test_set_start = do
     let f p = extract $ Event.set_start p (Event.event 4 (-2) "a")
-    equal (map f (Seq.range 0 5 1))
+    equal (map f (Lists.range 0 5 1))
         [(0, 2), (1, 1), (2, -0), (3, -1), (4, -2), (5, -3)]
 
 test_set_end :: Test
 test_set_end = do
     let f p = extract $ Event.end_ #= p $ Event.event 4 (-2) "a"
-    equal (map f (Seq.range 0 5 1))
+    equal (map f (Lists.range 0 5 1))
         [(4, -4), (4, -3), (4, -2), (4, -1), (4, 0), (4, 1)]
 
 test_overlaps :: Test

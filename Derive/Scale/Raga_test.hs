@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Scale.Raga_test where
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Scale.Raga as Raga
 import qualified Derive.Score as Score
@@ -21,7 +21,7 @@ test_pitch = do
             , ("*raga", [(t, 0, p) | (t, p) <- times ps])
             ]
             where
-            times = zip (Seq.range_ 0 1)
+            times = zip (Lists.range_ 0 1)
             title = "> | just-base = " <> base <> " | key = " <> key
         extract = Score.initial_nn
     equalf 0.01 (run "hemavati" "(hz g3)" ["3s"]) ([Just NN.g3], [])

@@ -15,7 +15,7 @@ import qualified Util.Audio.Audio as Audio
 import qualified Util.Maps as Maps
 import qualified Util.Num as Num
 import qualified Util.Segment as Segment
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 
 import qualified Perform.RealTime as RealTime
 import           Perform.RealTime (RealTime)
@@ -86,7 +86,7 @@ controlBreakpoints :: Audio.Frames -> Control.Control
     -> [(RealTime, Map Control.Control Signal.Signal)]
     -> [(Double, Double)]
 controlBreakpoints controlSize control =
-    Segment.simplify . concat . mapMaybe get . Seq.zip_next
+    Segment.simplify . concat . mapMaybe get . Lists.zipNext
     where
     get ((start, controls), next) = do
         signal <- Map.lookup control controls

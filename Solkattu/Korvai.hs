@@ -21,7 +21,6 @@ import qualified Util.Lists as Lists
 import qualified Util.Maps as Maps
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 import qualified Util.Styled as Styled
 
 import qualified Derive.Expr as Expr
@@ -584,8 +583,8 @@ inferSectionTags tala section = Tags.Tags $ Map.fromList $
     where
     seq = mapSollu (const ()) (sectionSequence section)
     tempos = map fst $ S.tempoNotes $ flatten seq
-    nadais = Seq.unique_sort $ map S._nadai tempos
-    speeds = Seq.unique_sort $ map S._speed tempos
+    nadais = Lists.uniqueSort $ map S._nadai tempos
+    speeds = Lists.uniqueSort $ map S._speed tempos
 
 sectionAvartanams :: Talas.Tala -> Section (SequenceT sollu) -> Int
 sectionAvartanams tala section = floor $ dur / talaAksharas

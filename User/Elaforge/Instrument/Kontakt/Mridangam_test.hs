@@ -4,7 +4,7 @@
 
 module User.Elaforge.Instrument.Kontakt.Mridangam_test where
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Midi.Key as Key
@@ -21,7 +21,7 @@ test_mridangam :: Test
 test_mridangam = do
     let run pitch = KontaktTest.derive allocs ("# = (" <> pitch <> ")")
             . map (((,) ">m") . notes)
-        notes ns = [(t, 0, n) | (t, n) <- zip (Seq.range_ 0 1) ns]
+        notes ns = [(t, 0, n) | (t, n) <- zip (Lists.range_ 0 1) ns]
     let ((_events, midi), logs) =
             perform $ run "3g#" [["k", "t", "n", "d", "i"]]
     equal logs []
@@ -58,7 +58,7 @@ derive :: Text -> [[Text]] -> Derive.Result
 derive pitch =
     KontaktTest.derive allocs ("# = (" <> pitch <> ")")
         . map (((,) ">m") . notes)
-    where notes ns = [(t, 0, n) | (t, n) <- zip (Seq.range_ 0 1) ns]
+    where notes ns = [(t, 0, n) | (t, n) <- zip (Lists.range_ 0 1) ns]
 
 perform :: Derive.Result
     -> (([Midi.Types.Event], [Midi.WriteMessage]), [Log.Msg])

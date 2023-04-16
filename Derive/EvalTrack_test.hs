@@ -8,7 +8,6 @@ import qualified Data.Set as Set
 
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
 
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Args as Args
@@ -82,7 +81,7 @@ test_threaded_last_val = do
                 [ (">", [(t, 1, "") | (t, _) <- events])
                 , ("c", [(t, 0, s) | (t, s) <- events])
                 ]
-                where events = zip (Seq.range_ 0 1) notes
+                where events = zip (Lists.range_ 0 1) notes
         with_calls = CallTest.with_control_generator "prev" c_prev
     equal (run ["1", "prev"])
         ( [ [(0, 1), (0.75, 1), (0.75, 0.75), (1, 1)]

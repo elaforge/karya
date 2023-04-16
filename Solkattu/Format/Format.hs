@@ -34,7 +34,6 @@ import qualified Data.Set as Set
 import qualified Util.Lists as Lists
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Realize as Realize
@@ -87,7 +86,7 @@ data Highlight = StartHighlight | Highlight | EndHighlight
 
 scoreInstruments :: Korvai.Score -> [Korvai.GInstrument]
 scoreInstruments =
-    Seq.drop_dups name . Seq.sort_on (order . name)
+    Lists.dropDups name . Lists.sortOn (order . name)
         . concatMap Korvai.korvaiInstruments . Korvai.scoreKorvais
     where
     name = Korvai.ginstrumentName
@@ -126,7 +125,7 @@ makeGroupsAbstract abstraction = concatMap combine
     where
     combine (S.FGroup tempo group children)
         | isAbstract abstraction group =
-            Seq.map_head_tail (abstract S.Attack) (abstract S.Sustain)
+            Lists.mapHeadTail (abstract S.Attack) (abstract S.Sustain)
                 tempoNotes
         | otherwise = [S.FGroup tempo group (concatMap combine children)]
         where
@@ -194,7 +193,7 @@ formatFinalAvartanam :: (note -> Bool) -> (note -> Bool)
 formatFinalAvartanam isRest isOverlap avartanams = case reverse avartanams of
     [final] : penultimate : prevs
         | Just extra <- isTail final ->
-            reverse $ (Seq.map_last (++extra) penultimate) : prevs
+            reverse $ (Lists.mapLast (++extra) penultimate) : prevs
     _ -> avartanams
     where
     -- A tail is one non-rest, n overlapSymbols, n rests.
@@ -291,7 +290,7 @@ inferRuler startAkshara tala strokeWidth =
             _ -> (label, []) : map (first nadaiChange) groups
         )
         where
-        groups = Seq.keyed_group_adjacent nadaiOf states
+        groups = Lists.keyedGroupAdjacent nadaiOf states
         nadaiOf = S._nadai . S.stateTempo
     -- Marker for a nadai change.  It has a colon to separate it from the ruler
     -- mark, in case it coincides with one.

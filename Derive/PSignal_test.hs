@@ -6,8 +6,8 @@ module Derive.PSignal_test where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import qualified Util.Lists as Lists
 import qualified Util.Segment as Segment
-import qualified Util.Seq as Seq
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Env as Env
@@ -96,7 +96,7 @@ test_apply_controls_nontransposing :: Test
 test_apply_controls_nontransposing = do
     -- There are controls that influence the tuning but are not transposing.
     -- This just means they don't cause the pitch signal to resample.
-    let f controls sig = Seq.drop_dups id $
+    let f controls sig = Lists.dropDups id $
             map (second (controls_of . PSignal.pitch_config)) $
             PSignal.to_pairs $
             PSignal.apply_controls (mkcontrols controls) (mksignal sig)
@@ -165,7 +165,7 @@ to_pairs =
     -- Segment.add_zero_transition can cause zero-width segments.  PSignal
     -- can't get rid of them since pitches are not in Eq, but they should be
     -- harmless.
-    Seq.drop_dups id
+    Lists.dropDups id
     . map (second (unerror . PSignal.pitch_nn . PSignal.coerce))
         . PSignal.to_pairs
     where unerror = either (\(PSignal.PitchError s) -> Left (untxt s)) Right

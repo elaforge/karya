@@ -38,7 +38,7 @@ import qualified Util.Control as Control
 import qualified Util.Log as Log
 import qualified Util.Maps as Maps
 import qualified Util.Processes as Processes
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Thread as Thread
 import qualified Util.Vector
 
@@ -632,7 +632,7 @@ modify_play_state modify state =
 
 track_instruments :: Vector.Vector Score.Event -> [TrackId]
     -> Map TrackId (Set ScoreT.Instrument)
-track_instruments events = Map.Lazy.fromAscList . Seq.key_on_snd instruments_of
+track_instruments events = Map.Lazy.fromAscList . Lists.keyOnSnd instruments_of
     -- fromAscList should be safe since Map.keys returns in order.
     where
     -- Go by TrackId, so I can make each Map value lazy, since I will only

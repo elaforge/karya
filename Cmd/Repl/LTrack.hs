@@ -9,7 +9,6 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified Util.Lists as Lists
-import qualified Util.Seq as Seq
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.ModifyEvents as ModifyEvents
@@ -127,7 +126,7 @@ selected_notation step = do
 -- | Reduce event text to notation at a fixed time increment.  It only works
 -- out if each event only has a single letter.
 to_notation :: TrackTime -> TrackTime -> TrackTime -> [Event.Event] -> Text
-to_notation start step end = mconcat . go (Seq.range' start end step)
+to_notation start step end = mconcat . go (Lists.range' start end step)
     where
     go _ [] = []
     go [] ts = replicate (length ts) " "
@@ -138,14 +137,15 @@ to_notation start step end = mconcat . go (Seq.range' start end step)
 
 -- | 4 measures per line, 16 time steps per measure.
 format_measures :: String -> [String]
-format_measures = map (List.intercalate "|") . Seq.chunked 4 . Seq.chunked 16
+format_measures =
+    map (List.intercalate "|") . Lists.chunked 4 . Lists.chunked 16
 
 
 -- * strip controls
 
 drop_dups :: Cmd.CmdL ()
 drop_dups = ModifyEvents.selection $ ModifyEvents.events $
-    return . Seq.drop_dups Event.text
+    return . Lists.dropDups Event.text
 
 -- * waveform
 

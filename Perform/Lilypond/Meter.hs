@@ -26,7 +26,7 @@ import           Data.Vector.Unboxed ((!))
 import qualified Util.Num as Num
 import qualified Util.P as P
 import qualified Util.Parse as Parse
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 
 import qualified Perform.Lilypond.Types as Types
 import           Perform.Lilypond.Types (Duration(..), NoteDuration(..), Time)
@@ -184,7 +184,7 @@ allowed_duration use_dot meter start_ dur =
     best_duration end
         | Just ndur <- List.find ((== start+dur) . to_time) candidates = ndur
         | otherwise = fromMaybe (Types.NoteDuration Types.D128 False) $
-            Seq.minimum_on (rank_at meter . to_time) candidates
+            Lists.minimumOn (rank_at meter . to_time) candidates
         where
         candidates = takeWhile ((<=end) . to_time) $
             if use_dot then dotted_durs else durs

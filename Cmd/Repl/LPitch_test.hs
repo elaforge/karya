@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.Repl.LPitch_test where
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.CmdTest as CmdTest
@@ -38,4 +38,4 @@ e_pitch = CmdTest.extract_ui_state $
 
 pitch_track :: Text -> [Text] -> [UiTest.TrackSpec]
 pitch_track scale ps =
-    [("*" <> scale, [(n, 0 , p) | (n, p) <- zip (Seq.range_ 0 1) ps])]
+    [("*" <> scale, [(n, 0 , p) | (n, p) <- zip (Lists.range_ 0 1) ps])]

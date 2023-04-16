@@ -42,7 +42,7 @@ import qualified Util.Maps as Maps
 import qualified Util.Num as Num
 import qualified Util.P as P
 import qualified Util.Parse as Parse
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Texts as Texts
 
 import qualified Derive.ScoreT as ScoreT
@@ -103,7 +103,7 @@ from_ui inst alloc = do
     where
     ui_midi :: Midi.Patch.Config -> Either Error Backend
     ui_midi config =
-        case Seq.group_fst $ map fst $ Midi.Patch.config_allocation config of
+        case Lists.groupFst $ map fst $ Midi.Patch.config_allocation config of
             [(wdev, chans)] -> Right $ Midi wdev chans
             allocs -> Left $ "midi config too complicated for: " <> showt allocs
 
@@ -114,7 +114,7 @@ type LookupBackend = InstT.Qualified -> Maybe Inst.Backend
 update_ui :: LookupBackend -> [Allocation]
     -> UiConfig.Allocations -> Either Error UiConfig.Allocations
 update_ui lookup_backend allocs (UiConfig.Allocations olds) = do
-    allocs <- check $ Maps.unique2 $ Seq.key_on alloc_name allocs
+    allocs <- check $ Maps.unique2 $ Lists.keyOn alloc_name allocs
     inst_allocs <- mapMaybeM inherit $ Maps.pairs allocs olds
     add_allocations lookup_backend mempty inst_allocs
     where
@@ -124,11 +124,11 @@ update_ui lookup_backend allocs (UiConfig.Allocations olds) = do
     -- Since a parsed Allocation doesn't have all possible data, inherit
     -- the rest from an already existing allocation with this name.
     inherit = \case
-        (inst, Seq.Both alloc old) ->
+        (inst, Lists.Both alloc old) ->
             Just  . (inst,) <$> to_ui lookup_backend alloc (Just old)
-        (inst, Seq.First alloc) ->
+        (inst, Lists.First alloc) ->
             Just . (inst,) <$> to_ui lookup_backend alloc Nothing
-        (_, Seq.Second _) -> return Nothing
+        (_, Lists.Second _) -> return Nothing
 
 add_allocations :: LookupBackend
     -> UiConfig.Allocations -> [(ScoreT.Instrument, UiConfig.Allocation)]

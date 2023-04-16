@@ -22,7 +22,7 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Bali as Bali
 import qualified Derive.Scale.BaliScales as BaliScales
@@ -112,7 +112,7 @@ scale_id = "wayang"
 data Pitch = I | O | E | U | A deriving (Eq, Enum, Show)
 
 laras :: Map Text BaliScales.Laras
-laras = Map.fromList $ Seq.key_on BaliScales.laras_name $
+laras = Map.fromList $ Lists.keyOn BaliScales.laras_name $
     laras_sawan
     : laras_sawan_pemade
     : laras_sawan_kantilan

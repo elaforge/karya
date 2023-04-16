@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Scale.BohlenPierce_test where
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import Util.Test
 import qualified Ui.Ui as Ui
 import qualified Cmd.CmdTest as CmdTest
@@ -23,7 +23,7 @@ test_note_to_call = do
             [ ("*bp", [(t, 0, p) | (t, p) <- times ps])
             , (">", [(t, 1, "") | (t, _) <- times ps])
             ]
-            where times = zip (Seq.range_ 0 1)
+            where times = zip (Lists.range_ 0 1)
         extract = fmap Pitch.nn_to_hz . Score.initial_nn
         c = Pitch.middle_c_hz
     -- Ensure that the octave wraps at A.

@@ -25,7 +25,7 @@ import qualified System.IO as IO
 import qualified System.Process as Process
 
 import qualified Util.File as File
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Thread as Thread
 
 import           Ness.Global (SamplingRate)
@@ -125,8 +125,8 @@ submitAndCheck dir outputNameScores = do
     return [(url, output, ok) | (output, (Just ok, url)) <- zip outputs okUrls]
 
 findDups :: Ord k => (a -> k) -> [a] -> [(Int, a)]
-findDups key = map (second head) . filter ((>1) . fst) . Seq.key_on length
-    . Seq.group_sort key
+findDups key = map (second head) . filter ((>1) . fst) . Lists.keyOn length
+    . Lists.groupSort key
 
 submitOne :: String -> (Text, Text) -> IO ()
 submitOne model (instrument, score) = do
@@ -185,7 +185,7 @@ forDelay threads as f = mapDelay threads f as
 mapDelay :: Int -> (a -> IO b) -> [a] -> IO [b]
 mapDelay threads f =
     fmap concat . mapM (Async.mapConcurrently go) . map (zip [0..])
-        . Seq.chunked threads
+        . Lists.chunked threads
     where go (i, a) = Thread.delay (fromIntegral i * 2) >> f a
 
 mapConcurrent :: Int -> (a -> IO b) -> [a] -> IO [b]

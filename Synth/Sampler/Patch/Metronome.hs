@@ -7,7 +7,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Perform.Im.Patch as Im.Patch
 import qualified Perform.NN as NN
@@ -48,5 +48,5 @@ convert note = do
 
 nnToSample :: Map Pitch.NoteNumber FilePath
 nnToSample = Map.fromList $
-    zip (take 13 $ Seq.range_ NN.c3 3)
+    zip (take 13 $ Lists.range_ NN.c3 3)
         (map (\i -> "s-" <> untxt (Num.zeroPad 3 i) <> ".flac") [1..])

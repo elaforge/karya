@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.C.Idiom.Wind_test where
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.C.Idiom.Wind as Wind
@@ -26,7 +26,7 @@ test_wind = do
             ( Score.event_start e
             , map (second Pitch.nn_to_hz) $ DeriveTest.e_nns e
             )
-        mknotes ns = [(t, 1, n) | (t, n) <- zip (Seq.range_ 0 1) ns]
+        mknotes ns = [(t, 1, n) | (t, n) <- zip (Lists.range_ 0 1) ns]
     equalf 0.01 (run ["set (nn 100)"]) ([(0, [(0, 100)])], [])
 
     -- harmonics of f1: 70 140 210 280

@@ -8,7 +8,6 @@ import qualified Data.Map as Map
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Lists as Lists
-import qualified Util.Seq as Seq
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Performance as Performance
@@ -42,7 +41,7 @@ main
         | (group, bs) <- benches
         ]
     where
-    benches = Seq.keyed_group_stable (joined [bench_state, bench_code])
+    benches = Lists.keyedGroupStable (joined [bench_state, bench_code])
         benchmarks
     action (Bench action code state size) =
         action (Lists.join "-" [code, state, size])
@@ -96,7 +95,7 @@ make_score sub = snd $ UiTest.run_mkblocks
     [ ("top", [(">i1", score), (">i2", score)])
     , ("sub=ruler", sub)
     ]
-    where score = take 16 [(t, 4, "sub") | t <- Seq.range_ 0 4]
+    where score = take 16 [(t, 4, "sub") | t <- Lists.range_ 0 4]
 
 no_invert :: Int -> Ui.State
 no_invert events_per_sub = make_score
@@ -104,7 +103,7 @@ no_invert events_per_sub = make_score
     , ("dyn", [(t, 0, p) | (t, p) <- zip ts ["1", ".75", ".5", ".25"]])
     , (">", [(t, 1, "") | t <- ts])
     ]
-    where ts = Seq.range' 0 (realToFrac events_per_sub) 1
+    where ts = Lists.range' 0 (realToFrac events_per_sub) 1
 
 invert :: Int -> Ui.State
 invert events_per_sub = make_score
@@ -112,11 +111,11 @@ invert events_per_sub = make_score
     , ("*", [(t, 0, p) | (t, p) <- zip ts ["3c", "3d", "3e", "3f"]])
     , ("dyn", [(t, 0, p) | (t, p) <- zip ts ["1", ".75", ".5", ".25"]])
     ]
-    where ts = Seq.range' 0 (realToFrac events_per_sub) 1
+    where ts = Lists.range' 0 (realToFrac events_per_sub) 1
 
 simple :: Int -> Ui.State
 simple events = make_score
-    [(">", [(t, 1, "") | t <- Seq.range' 0 (realToFrac events) 1])]
+    [(">", [(t, 1, "") | t <- Lists.range' 0 (realToFrac events) 1])]
 
 cmd_derive :: Ui.State -> Cmd.Performance
 cmd_derive state =

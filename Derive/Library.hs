@@ -19,7 +19,7 @@ import qualified Data.Map.Strict as Map
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
 import qualified Util.Maps as Maps
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
@@ -164,7 +164,7 @@ compile (Derive.Scopes lgen ltrans ltrack lval) = Logger.runId $ Derive.Scopes
             <*> compile_entries "pitch" doc3 pitch
     compile_entries kind get_doc = fmap Map.fromAscList
         . traverse (compile1 kind)
-        . Seq.keyed_group_sort (Derive.cdoc_module . entry_doc)
+        . Lists.keyedGroupSort (Derive.cdoc_module . entry_doc)
         where
         entry_doc (Single _ call) = get_doc call
         entry_doc (Pattern pattern) = Derive.pat_call_doc pattern

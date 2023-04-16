@@ -19,7 +19,6 @@ import qualified Text.Read as Read
 
 import qualified Util.Lists as Lists
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
 import qualified Util.Trees as Trees
 
 import qualified Shake.ImportQuery as ImportQuery
@@ -111,7 +110,7 @@ cRm parent removed = do
         | null rms -> Text.IO.putStrLn $ parent <> " doesn't import " <> removed
         | otherwise -> do
             mapM_ (Text.IO.putStrLn . prettyRmDep) $
-                Seq.sort_on (Set.size . snd) rms
+                Lists.sortOn (Set.size . snd) rms
             putStrLn $ "total lost: "
                 <> show (Num.sum (map (Set.size . snd) rms))
 
@@ -150,7 +149,7 @@ fnameToModule =
 
 dropSuffixes :: [String] -> FilePath -> String
 dropSuffixes suffixes str =
-    maybe str (fst . flip Seq.drop_suffix str) $
+    maybe str (fst . flip Lists.dropSuffix str) $
         List.find (\suf -> suf `List.isSuffixOf` str) suffixes
 
 -- Call from ghci.
@@ -164,16 +163,16 @@ mergeWeaks :: Ord k => Map k Parsed -> Map k Parsed -> Map k Parsed
 mergeWeaks old new = merge m old new
     where
     m = \case
-        Seq.Both (Parsed sigil count1 comments) (Parsed _ count _) -> Parsed
+        Lists.Both (Parsed sigil count1 comments) (Parsed _ count _) -> Parsed
             { _sigil = sigil
             , _count = count
             , _comments = filter (/="") $ if count1 /= count
                 then "[" <> showt count1 <> "]" : comments
                 else comments
             }
-        Seq.Second a -> a
+        Lists.Second a -> a
         -- '_' means this dep disappeared.
-        Seq.First (Parsed _ count comments) -> Parsed '_' count comments
+        Lists.First (Parsed _ count comments) -> Parsed '_' count comments
 
 unparseWeaks :: Map (Text, Text) Parsed -> Text
 unparseWeaks =
@@ -198,7 +197,7 @@ unparseWeak (parent, child) (Parsed sigil count comments_) = Text.unlines $
 
 parseWeaks :: Text -> Map (Text, Text) Parsed
 parseWeaks =
-    Map.fromList . map convert . collectJust . Seq.key_on parseSigil
+    Map.fromList . map convert . collectJust . Lists.keyOn parseSigil
     . Text.lines
     where
     convert ((k, (sigil, count, comment1)), comments) =
@@ -225,6 +224,6 @@ collectJust [] = []
 
 -- | Data.Map has a merge which can probably do this, but it's so complicated
 -- I gave up on it.
-merge :: Ord k => (Seq.Paired a1 b -> a2) -> Map k a1 -> Map k b -> Map k a2
+merge :: Ord k => (Lists.Paired a1 b -> a2) -> Map k a1 -> Map k b -> Map k a2
 merge merger m1 m2 = Map.fromAscList $ map (second merger) $
-    Seq.pair_sorted (Map.toAscList m1) (Map.toAscList m2)
+    Lists.pairSorted (Map.toAscList m1) (Map.toAscList m2)

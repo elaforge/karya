@@ -7,7 +7,6 @@ module Derive.C.Europe.Chord (library) where
 import qualified Data.Map as Map
 
 import qualified Util.Lists as Lists
-import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
@@ -93,8 +92,8 @@ from_intervals dir base intervals time args = do
         Call.score_duration start time
     let ts = case dir of
             Unison -> repeat start
-            Up -> Seq.range_ start dur
-            Down -> Seq.range_
+            Up -> Lists.range_ start dur
+            Down -> Lists.range_
                 (start + dur * fromIntegral (length intervals)) (-dur)
     mconcat [Derive.place t (Args.end args - t) (Call.pitched_note pitch)
         | (t, pitch) <- zip ts (base : intervals)]

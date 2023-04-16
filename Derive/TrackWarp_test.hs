@@ -6,7 +6,7 @@ module Derive.TrackWarp_test where
 import qualified Data.Foldable as Foldable
 import qualified Data.Tree as Tree
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Derive as Derive
@@ -29,7 +29,7 @@ test_collect_track_warps = do
                 , Foldable.toList tracks
                 , Warp._stretch <$> Warp.is_linear warp
                 )
-            sort = Seq.sort_on (\(range, block, _, _) -> (block, range))
+            sort = Lists.sortOn (\(range, block, _, _) -> (block, range))
     let bid = UiTest.bid
         tids name = map (UiTest.mk_tid_name name)
         tempo n = ("tempo", [(0, 0, showt n)])

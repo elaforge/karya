@@ -12,7 +12,7 @@ import qualified Data.String as String
 import qualified Data.Text as Text
 
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Serialize as Serialize
 
 import qualified Derive.ShowVal as ShowVal
@@ -227,7 +227,7 @@ type_to_code = \case
 
 code_to_type :: Text -> Maybe Type
 code_to_type = (`Map.lookup` enum_map)
-    where enum_map = Map.fromList $ Seq.key_on ShowVal.show_val [minBound ..]
+    where enum_map = Map.fromList $ Lists.keyOn ShowVal.show_val [minBound ..]
 
 instance Semigroup Type where
     Untyped <> typed = typed

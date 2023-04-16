@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Tempo_test where
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Perform.RealTime as RealTime
@@ -100,7 +100,7 @@ test_with_absolute = do
                 [ ("top", [(">", [(start, dur, "sub")])])
                 , ("sub=ruler",
                     [ ("tempo abs", tempo)
-                    , (">", [(n, 1, "") | n <- Seq.range' 0 events 1])
+                    , (">", [(n, 1, "") | n <- Lists.range' 0 events 1])
                     ])
                 ]
     equal (run 0 4 [(0, 0, "1")] 4) ([0, 1, 2, 3], [])
@@ -116,7 +116,7 @@ _test_with_hybrid = do
             DeriveTest.derive_blocks
                 [ ("top", [(">", [(start, dur, "sub")])])
                 , ("sub=ruler", [("tempo hybrid", tempo),
-                    (">", [(n, 1, "") | n <- Seq.range' 0 events 1])])
+                    (">", [(n, 1, "") | n <- Lists.range' 0 events 1])])
                 ]
         extent e = (Score.event_start e, Score.event_end e)
     -- Tempo is cancelled out by stretch_to_1 as usual.

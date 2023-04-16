@@ -32,7 +32,6 @@ import qualified Util.Log as Log
 import qualified Util.NEs as NEs
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 import qualified Util.Then as Then
 
 import qualified Derive.Attrs as Attrs
@@ -124,7 +123,7 @@ instance Pretty Chunk where
 process :: Types.Config -> Time -> [Meter.Meter] -- ^ one for each measure
     -> [Event] -> Either Log.Msg [Either Voices Ly]
 process config start meters events_ = first to_log $ do
-    let (free_codes, events) = Seq.partition_on free_code events_
+    let (free_codes, events) = Lists.partitionOn free_code events_
     chunks <- either (Left . ConvertError Nothing) return $
         collect_chunks events
     let end = start + Num.sum (map Meter.measure_time meters)
@@ -189,7 +188,7 @@ collect_voices :: [Event] -> Either Text (VoiceMap Event, [Event])
 collect_voices events = do
     let (voice, remain) = Lists.spanWhile (\e -> (,e) <$> event_voice e) events
     voice <- forM voice $ \(err_or_voice, event) -> (,event) <$> err_or_voice
-    return (Seq.group_fst voice, remain)
+    return (Lists.groupFst voice, remain)
 
 insert_rests_chunks :: Time -> Time -> [Chunk] -> [Chunk]
 insert_rests_chunks start end = Then.mapAccumL insert start final
@@ -201,7 +200,7 @@ insert_rests_chunks start end = Then.mapAccumL insert start final
         Just end -> (end, ChunkVoices voices2)
             where
             voices2 = map (second (snd . insert_rests (Just end) t)) voices
-    get_end = Seq.maximum . map event_end . mapMaybe (Lists.last . snd)
+    get_end = Lists.maximum . map event_end . mapMaybe (Lists.last . snd)
     final t
         | t < end = [ChunkNotes [rest_event t (end-t)]]
         | otherwise = []
@@ -570,7 +569,7 @@ tremolo_notes prev_attrs = List.mapAccumL make prev_attrs . zip_first_last
             attrs_to_code prev_attrs (event_attributes event)
 
 zip_first_last :: [a] -> [(Bool, a, Bool)]
-zip_first_last = map to_bool . Seq.zip_neighbors
+zip_first_last = map to_bool . Lists.zipNeighbors
     where
     to_bool (prev, cur, next) =
         (Maybe.isNothing prev, cur, Maybe.isNothing next)
@@ -619,7 +618,7 @@ convert_chord metered events = do
 consume_subdivisions :: [Event] -> ConvertM [Event]
 consume_subdivisions events = mapM_ update subdivisions >> return normal
     where
-    (subdivisions, normal) = Seq.partition_on lookup_subdivision events
+    (subdivisions, normal) = Lists.partitionOn lookup_subdivision events
     update "" = State.modify' $ \state ->
         state { state_subdivision = Nothing }
     update m = do
@@ -661,7 +660,7 @@ make_note config measure_start prev_attrs maybe_meter chord next =
         -- Sorting by pitch puts the chord notes in a predictable order.  Some
         -- lilypond notation, such as glissandoMap, refers to chord notes by
         -- index.
-        event <- Seq.sort_on event_pitch $ NonEmpty.toList chord
+        event <- Lists.sortOn event_pitch $ NonEmpty.toList chord
         let pitch = pitch_code (is_first event) event
         guard $ not (Text.null pitch)
         let tie = note_tie event
@@ -679,7 +678,7 @@ make_note config measure_start prev_attrs maybe_meter chord next =
             mconcat $ map event_attributes $ NonEmpty.toList chord
 
     (prepend_chord, append_chord) =
-        bimap (Seq.unique . concat) (Seq.unique . concat) $ unzip
+        bimap (Lists.unique . concat) (Lists.unique . concat) $ unzip
             [ event_note_code Constants.Chord (is_first e) (is_last e) e
             | e <- NonEmpty.toList chord
             ]
@@ -725,7 +724,7 @@ make_note config measure_start prev_attrs maybe_meter chord next =
 events_note_code :: Constants.Attach -> Bool -> Bool -> [Event]
     -> ([Text], [Text])
 events_note_code attach is_first is_last =
-    bimap (Seq.unique . concat) (Seq.unique . concat)
+    bimap (Lists.unique . concat) (Lists.unique . concat)
     . unzip . map (event_note_code attach is_first is_last)
 
 event_note_code :: Constants.Attach -> Bool -> Bool -> Event -> ([Text], [Text])
@@ -812,7 +811,7 @@ simplify_voices :: VoiceMap Ly -> [Either Voices Ly]
 simplify_voices voices =
     concatMap (flatten . strip) $ split_voices_at rest_starts voices
     where
-    rest_starts = Seq.drop_dups id $ Seq.merge_lists id $
+    rest_starts = Lists.dropDups id $ Lists.mergeLists id $
         concatMap (rests_at . snd) voices
     rests_at lys =
         [ [start, start + ly_duration ly]
@@ -846,7 +845,7 @@ split_voices_at ts = rotate . map (second (split_at ts))
     -- split_at should produce a [Ly] group for every split Time, but if it
     -- doesn't the rotate will drop all the other voices.
     rotate :: VoiceMap [Ly] -> [VoiceMap Ly]
-    rotate voice_groups = map (zip voices) (Seq.rotate lys)
+    rotate voice_groups = map (zip voices) (Lists.rotate lys)
         where (voices, lys) = unzip voice_groups
     -- Ly times should always line up at measure boundaries, and the split
     -- times should all be at measure boundaries.  So this should return one

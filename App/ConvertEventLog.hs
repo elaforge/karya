@@ -21,7 +21,7 @@ import qualified System.Environment as Environment
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Lens as Lens
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 
 import           Global
 
@@ -35,7 +35,7 @@ main = do
     case args of
         ["--print", input] -> Events.printEventsIncremental False input
         ["--user", input] ->
-            dumpUser -- . Seq.sort_on Events.evTime
+            dumpUser -- . Lists.sortOn Events.evTime
                 =<< readEvents input
         [input] -> do
             events <- readEvents input
@@ -136,7 +136,7 @@ convertUser = \case
 
 -- | Add durations for respondCycle events.
 inferDurations :: [Event] -> [Event]
-inferDurations = map infer . Seq.zip_nexts . Seq.sort_on _timestamp
+inferDurations = map infer . Lists.zipNexts . Lists.sortOn _timestamp
     where
     infer (e, nexts)
         | inCycle e, Just end <- find nexts = ($e) $

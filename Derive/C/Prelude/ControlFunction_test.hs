@@ -6,7 +6,7 @@ module Derive.C.Prelude.ControlFunction_test where
 import qualified Data.Maybe as Maybe
 
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Controls as Controls
 import qualified Derive.DeriveT as DeriveT
@@ -28,7 +28,7 @@ test_cf_rnd :: Test
 test_cf_rnd = do
     let run title notes = DeriveTest.extract extract $
             DeriveTest.derive_tracks ""
-                [(title, [(n, 1, "") | n <- Seq.range' 0 notes 1])]
+                [(title, [(n, 1, "") | n <- Lists.range' 0 notes 1])]
         extract = Score.event_duration
     equal (run "> | sus = .5" 1) ([0.5], [])
     let (durs, logs) = run "> | sus = (cf-rnd .5 1.5)" 5
@@ -65,7 +65,7 @@ test_cf_rnd_transformer = do
     -- A transformer should create a function with random based on position.
     let run notes = DeriveTest.extract extract $
             DeriveTest.derive_tracks_setup trans "c = (cf-rnd 1 2) | t"
-                [(">", [(n, 1, "") | n <- Seq.range' 0 notes 1])]
+                [(">", [(n, 1, "") | n <- Lists.range' 0 notes 1])]
         trans = CallTest.with_note_transformer "t" $ CallTest.transformer $
             \_args deriver -> do
                 c_at <- fmap ScoreT.typed_val $
@@ -93,7 +93,7 @@ test_cf_swing = do
         with_ruler = DeriveTest.with_default_ruler . UiTest.mkruler_ranks
             . map (second fromEnum)
 
-    let marks = take 8 $ zip (Seq.range_ 0 2)
+    let marks = take 8 $ zip (Lists.range_ 0 2)
             [Meter.H, Meter.Q, Meter.Q, Meter.Q]
         events = [0, 1, 2, 3]
     equal (run marks ".5" [] events) ([0, 1.5, 2, 3.5], [])

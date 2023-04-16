@@ -7,7 +7,7 @@ module Ui.Meter.Make_test where
 import qualified Data.Text as Text
 
 import qualified Util.Control as Control
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Ui.Meter.Make as Make
 import qualified Ui.Meter.Mark as Mark
 import qualified Ui.Meter.Meter as Meter
@@ -99,7 +99,7 @@ test_rational_meter = do
     -- Meters with 1/3 divisions don't get inaccurate.
     let meter = make_meter [(4, 1, Meters.m34)]
     equal (UiTest.meter_marklist 20 meter)
-        (zip (Seq.range_ 0 1) ["1", "2", "3", "4", "5"])
+        (zip (Lists.range_ 0 1) ["1", "2", "3", "4", "5"])
 
 test_rational_meter2 :: Test
 test_rational_meter2 = do

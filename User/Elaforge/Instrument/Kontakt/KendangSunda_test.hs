@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module User.Elaforge.Instrument.Kontakt.KendangSunda_test where
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Derive as Derive
@@ -20,7 +20,7 @@ test_kendang = do
             ( DeriveTest.e_attributes e
             , DeriveTest.e_control_vals KendangSunda.pitch_control e
             )
-        mknotes ns = [(t, 0, n) | (t, n) <- zip (Seq.range_ 0 1) ns]
+        mknotes ns = [(t, 0, n) | (t, n) <- zip (Lists.range_ 0 1) ns]
     equal (run [] ["o", "e_", "e-", "e^"])
         ([("+dong", [0]), ("+det+low", [0.25]),
             ("+det+middle", [0.5]), ("+det+high", [0.75])], [])

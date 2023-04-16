@@ -144,7 +144,6 @@ import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
 import qualified Util.Rect as Rect
-import qualified Util.Seq as Seq
 
 import qualified App.Config as Config
 import qualified Derive.ParseSkeleton as ParseSkeleton
@@ -985,7 +984,7 @@ move_track block_id from to = do
 infer_skeleton :: M m => [Block.Track] -> m Skeleton.Skeleton
 infer_skeleton tracks = do
     titles <- traverse (traverse get_track_title) $
-        Seq.map_maybe_snd Block.track_id (zip [0..] tracks)
+        Lists.mapMaybeSnd Block.track_id (zip [0..] tracks)
     return $ ParseSkeleton.default_parser $
         map (uncurry ParseSkeleton.Track) titles
 
@@ -1063,7 +1062,7 @@ track_ids_of block_id = Block.block_track_ids <$> get_block block_id
 
 -- | Get all TrackIds of the given block, along with their tracknums.
 tracknums_of :: M m => BlockId -> m [(TrackId, TrackNum)]
-tracknums_of = fmap (Seq.map_maybe_fst Block.track_id) . block_tracknums
+tracknums_of = fmap (Lists.mapMaybeFst Block.track_id) . block_tracknums
 
 -- | Get tracks along with their TrackNums.
 block_tracknums :: M m => BlockId -> m [(Block.Track, TrackNum)]
@@ -1460,12 +1459,12 @@ modify_some_events track_id f = _modify_events track_id $ \events ->
 calculate_damage :: Events.Events -> Events.Events -> Ranges.Ranges TrackTime
 calculate_damage old new =
     Ranges.sorted_ranges $ foldr f [] $
-        Seq.pair_sorted_on1 Event.start
+        Lists.pairSortedOn1 Event.start
             (Events.ascending old) (Events.ascending new)
     where
-    f (Seq.Second new) ranges = Event.range new : ranges
-    f (Seq.First old) ranges = Event.range old : ranges
-    f (Seq.Both old new) ranges
+    f (Lists.Second new) ranges = Event.range new : ranges
+    f (Lists.First old) ranges = Event.range old : ranges
+    f (Lists.Both old new) ranges
         | old == new = ranges
         | otherwise =
             (Event.start old, max (Event.end old) (Event.end new)) : ranges
@@ -1497,8 +1496,8 @@ remove_events track_id events = do
         remove_event track_id last
     where
     -- Events is non-empty due to the pattern match above.
-    Just first = Seq.minimum_on Event.start events
-    Just last = Seq.maximum_on Event.start events
+    Just first = Lists.minimumOn Event.start events
+    Just last = Lists.maximumOn Event.start events
 
 remove_events_range :: M m => TrackId -> Events.Range -> m ()
 remove_events_range track_id range =
@@ -1613,7 +1612,7 @@ ruler_of block_id = require ("no ruler in " <> showt block_id)
     =<< Lists.head . Block.block_ruler_ids <$> get_block block_id
 
 rulers_of :: M m => BlockId -> m [RulerId]
-rulers_of block_id = Seq.unique . Block.block_ruler_ids <$> get_block block_id
+rulers_of block_id = Lists.unique . Block.block_ruler_ids <$> get_block block_id
 
 -- | Just like 'blocks_with_track_id' except for ruler_id.
 blocks_with_ruler_id :: M m =>
@@ -1799,7 +1798,7 @@ fix_ruler_ids _block_id _block = return [] -- TODO
 unique_track_ids :: M m => BlockId -> Block.Block -> m [Text]
 unique_track_ids block_id block = do
     let invalid = concatMap snd $ snd $
-            Seq.partition_dups snd (block_event_tracknums block)
+            Lists.partitionDups snd (block_event_tracknums block)
     mapM_ (remove_track block_id . fst) invalid
     return ["tracknum " <> showt tracknum <> ": dropped duplicate "
         <> showt track_id | (tracknum, track_id) <- invalid]

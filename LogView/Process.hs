@@ -37,7 +37,6 @@ import qualified Util.CallStack as CallStack
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Regex as Regex
-import qualified Util.Seq as Seq
 
 import qualified Derive.Stack as Stack
 
@@ -286,7 +285,7 @@ regex_style default_style regex_styles text =
         ]
 
 flatten_ranges :: a -> [((Int, Int), a)] -> [(Int, a)]
-flatten_ranges deflt = filter ((>0) . fst) . snd . go 0 . Seq.sort_on fst
+flatten_ranges deflt = filter ((>0) . fst) . snd . go 0 . Lists.sortOn fst
     where
     go n [] = (n, [])
     go n (((s, e), style) : ranges) = (,) (max last_n e) $

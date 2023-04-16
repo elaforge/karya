@@ -10,7 +10,7 @@ import qualified Data.Time as Time
 import qualified Vivid.OSC as OSC
 
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Derive.LEvent as LEvent
 import qualified Perform.Midi.MSignal as MSignal
 import qualified Perform.Sc.Note as Note
@@ -119,7 +119,7 @@ test_streaming = do
     let f = Play.to_bundles now . Play.notes_to_osc (nid 10)
             . map (LEvent.Event . (0,))
         now = Time.UTCTime (toEnum 0) 0
-    let endless = map (\t -> mknote t [(pitch, [(t, 400)])]) (Seq.range_ 0 1)
+    let endless = map (\t -> mknote t [(pitch, [(t, 400)])]) (Lists.range_ 0 1)
     -- If it's not streaming, this would hang.
     equal (length (take 10 (f endless))) 10
 

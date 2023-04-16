@@ -86,7 +86,6 @@ import qualified Util.Lists as Lists
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
 import qualified Util.Regex as Regex
-import qualified Util.Seq as Seq
 import qualified Util.Strings as Strings
 import qualified Util.Test.ApproxEq as ApproxEq
 
@@ -469,7 +468,7 @@ highlight (ColorCode code) text
 
 -- | Remove vt100 color codes.
 strip_colors :: Text -> Text
-strip_colors = mconcat . Seq.map_tail (Text.drop 1 . Text.dropWhile (/='m'))
+strip_colors = mconcat . Lists.mapTail (Text.drop 1 . Text.dropWhile (/='m'))
     . Text.splitOn vt100_prefix
 
 newtype ColorCode = ColorCode Text deriving (Show)

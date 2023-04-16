@@ -9,7 +9,6 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import qualified Util.Lists as Lists
-import qualified Util.Seq as Seq
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
 import qualified Ui.Meter.Mark as Mark
@@ -262,7 +261,7 @@ copy :: Ui.M m => Id.Id -> RulerId -> m RulerId
 copy ident ruler_id = Ui.create_ruler ident =<< Ui.get_ruler ruler_id
 
 rulers_of :: Ui.M m => BlockId -> [TrackNum] -> m [RulerId]
-rulers_of block_id tracknums = Seq.unique . Block.ruler_ids_of . map snd
+rulers_of block_id tracknums = Lists.unique . Block.ruler_ids_of . map snd
     . filter ((`elem` tracknums) . fst) <$> block_tracks block_id
 
 block_tracks :: Ui.M m => BlockId -> m [(TrackNum, Block.TracklikeId)]

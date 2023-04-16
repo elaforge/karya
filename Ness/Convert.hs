@@ -7,7 +7,7 @@ import qualified Data.Map as Map
 import qualified Data.Text.IO as Text.IO
 
 import qualified Util.PPrint as PPrint
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Derive.ScoreT as ScoreT
 import qualified Ness.Guitar as Guitar
 import qualified Ness.Guitar.GConvert as GConvert
@@ -84,11 +84,11 @@ convert notes = do
     -- Group by patches, and then instruments within the patches.
     patches <- forM notes $ \n -> tryJust ("no patch: " <> pretty n) $
         Map.lookup (Note.patch n) Patches.patches
-    concatMapM (uncurry convertPatch) $ Seq.group_fst (zip patches notes)
+    concatMapM (uncurry convertPatch) $ Lists.groupFst (zip patches notes)
 
 convertPatch :: Patch -> [Note.Note]
     -> Either Error [(ScoreT.Instrument, Performance)]
-convertPatch patch = mapM convert1 . Seq.keyed_group_sort Note.instrument
+convertPatch patch = mapM convert1 . Lists.keyedGroupSort Note.instrument
     where
     convert1 (inst, notes) = (inst,) <$> case patch of
         PGuitar i -> Guitar i <$> GConvert.convert i notes

@@ -10,7 +10,7 @@ import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.Doc as Doc
 import qualified Util.Maps as Maps
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Instrument.DUtil as DUtil
@@ -44,7 +44,7 @@ warnings :: [Text]
             | (name, Left err) <- Map.toList pmap
             ] ++
             [ "faust: patch code with no patch: " <> name
-            | (name, Seq.Second _) <- Maps.pairs pmap patchCode
+            | (name, Lists.Second _) <- Maps.pairs pmap patchCode
             ]
     return $ (errors,)
         [ (name, makePatch imDir patch)

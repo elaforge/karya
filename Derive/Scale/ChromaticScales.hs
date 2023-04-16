@@ -10,7 +10,7 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
@@ -226,7 +226,7 @@ format_keys keys
 -- | Assuming keys are formatted @tonic-mode@, group keys by mode and replace
 -- the tonics with a pattern.
 group_tonic_mode :: [(Pitch.Key, a)] -> [(Text, a)]
-group_tonic_mode = map extract . Seq.keyed_group_sort key . map (first split)
+group_tonic_mode = map extract . Lists.keyedGroupSort key . map (first split)
     where
     extract (mode, group) = (fmt mode (map (fst . fst) group), snd (head group))
     key ((_, mode), _) = mode

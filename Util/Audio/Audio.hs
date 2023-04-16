@@ -84,7 +84,7 @@ import           Util.Audio.AudioT (Frames(..))
 import qualified Util.CallStack as CallStack
 import qualified Util.Control as Control
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Test.ApproxEq as ApproxEq
 import qualified Util.VectorC as VectorC
 
@@ -515,7 +515,7 @@ interleaveV :: V.Storable a => [V.Vector a] -> V.Vector a
 interleaveV vs = V.create $ do
     out <- VM.new $ Num.sum (map V.length vs)
     forM_ (zip [0..] vs) $ \(vi, v) ->
-        forM_ (Seq.range' 0 (V.length v) 1) $ \i ->
+        forM_ (Lists.range' 0 (V.length v) 1) $ \i ->
             VM.write out (i*stride + vi) (V.unsafeIndex v i)
     return out
     where stride = length vs
@@ -555,7 +555,7 @@ synchronizeList = S.unfoldr unfold . map _stream
     where
     unfold audios = do
         pairs <- Maybe.catMaybes <$> mapM S.uncons audios
-        return $ case Seq.minimum $ map (blockCount . fst) pairs of
+        return $ case Lists.minimum $ map (blockCount . fst) pairs of
             Nothing -> Left ()
             Just shortest -> Right $ unzip $ map (recons shortest) pairs
     recons size (block, tail)

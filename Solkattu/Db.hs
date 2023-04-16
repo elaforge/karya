@@ -23,7 +23,6 @@ import qualified Util.File as File
 import qualified Util.Html
 import qualified Util.Lists as Lists
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
 import qualified Util.SourceControl as SourceControl
 
 import qualified Solkattu.All as All -- generated
@@ -50,7 +49,7 @@ scores = zip [0..] (List.sortOn key All.scores)
 -- | The number of date groups starting from the most recent.
 recentDates :: Int -> Select
 recentDates groups = concat . Lists.takeEnd groups
-    . Seq.group_sort (Korvai._date . Korvai.scoreMetadata . snd)
+    . Lists.groupSort (Korvai._date . Korvai.scoreMetadata . snd)
 
 aroundDate :: Calendar.Day -> Integer -> Korvai.Korvai -> Bool
 aroundDate date days =
@@ -103,7 +102,7 @@ format (i, score) = mconcat
     ]
     where
     tagsText = Text.unlines $ map ("    "<>) $ map (Text.intercalate "; ") $
-        Seq.chunked 3 $ map (\(k, v) -> k <> ": " <> Text.unwords v) $
+        Lists.chunked 3 $ map (\(k, v) -> k <> ": " <> Text.unwords v) $
         Map.toAscList tags
     Tags.Tags tags = Korvai._tags meta
     date = Korvai._date meta
@@ -176,7 +175,8 @@ writeText1 score =
 
 stripColors :: Text -> Text
 stripColors = Text.stripEnd . mconcat
-    . Seq.map_tail (Text.drop 1 . Text.dropWhile (/='m')) . Text.splitOn "\ESC["
+    . Lists.mapTail (Text.drop 1 . Text.dropWhile (/='m'))
+    . Text.splitOn "\ESC["
 
 writeWithStatus :: (Korvai.Score -> IO ()) -> [Korvai.Score] -> IO ()
 writeWithStatus write scores = do

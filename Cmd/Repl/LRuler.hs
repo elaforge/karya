@@ -68,7 +68,7 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Ruler.Extract as Extract
@@ -116,7 +116,8 @@ gc = do
 -- duplicates.
 unify :: Ui.M m => m [[RulerId]]
 unify = do
-    groups <- Seq.group_stable snd <$> Ui.gets (Map.toAscList . Ui.state_rulers)
+    groups <- Lists.groupStable snd <$>
+        Ui.gets (Map.toAscList . Ui.state_rulers)
     mapM_ merge groups
     gc
     return $ filter ((>1) . length) $ map (map fst . NonEmpty.toList) groups
@@ -255,8 +256,8 @@ upgrade_infer meter mlist =
 
 infer_measure_dur :: Mark.Marklist -> TrackTime
 infer_measure_dur mlist =
-    maybe 0 fst $ Seq.maximum_on snd $ map (second length) $
-        Seq.keyed_group_sort id $ zipWith subtract starts (drop 1 starts)
+    maybe 0 fst $ Lists.maximumOn snd $ map (second length) $
+        Lists.keyedGroupSort id $ zipWith subtract starts (drop 1 starts)
     where
     starts = map fst . filter ((<= Meter.W) . Mark.mark_rank . snd)
         . Mark.to_list $ mlist

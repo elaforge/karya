@@ -48,7 +48,6 @@ import qualified Text.Read as Read
 import qualified Util.Exceptions as Exceptions
 import qualified Util.Lists as Lists
 import qualified Util.PPrint as PPrint
-import qualified Util.Seq as Seq
 import qualified Util.SourceControl as SourceControl
 
 import           Local.ShakeConfig (localConfig)
@@ -285,7 +284,7 @@ cIncludeUnwrapped flags =
 
 parseNixIncludeFlags :: IO [Flag]
 parseNixIncludeFlags =
-    Seq.unique_sort . maybe [] (extract . words) <$>
+    Lists.uniqueSort . maybe [] (extract . words) <$>
         Environment.lookupEnv "NIX_CFLAGS_COMPILE"
     where
     extract ("-isystem" : path : ws) = path : extract ws
@@ -1282,8 +1281,8 @@ getHaddockInterfaces packageDbFlags = do
         Maybe.mapMaybe adjust packageDbFlags
     adjust flag
         | "-package-db=" `List.isPrefixOf` flag = Just $ Left $ "-" <> flag
-        | (pkg, True) <- Seq.drop_prefix "-package-id=" flag = Just $ Right pkg
-        | (pkg, True) <- Seq.drop_prefix "-package=" flag = Just $ Right pkg
+        | (pkg, True) <- Lists.dropPrefix "-package-id=" flag = Just $ Right pkg
+        | (pkg, True) <- Lists.dropPrefix "-package=" flag = Just $ Right pkg
         | flag `elem` ["-no-user-package-db", "-hide-all-packages"] = Nothing
         | otherwise = error $ "unrecognized packageDbFlags flag: " <> flag
     extract = drop 1 . dropWhile (/=' ') . takeWhile (/='\n')

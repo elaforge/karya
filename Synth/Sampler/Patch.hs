@@ -11,7 +11,7 @@ import qualified Data.Set as Set
 
 import qualified Util.Log as Log
 import qualified Util.Maps as Maps
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Perform.Im.Patch as Im.Patch
@@ -27,7 +27,7 @@ import           Global
 db :: FilePath -> [Patch] -> Db
 db rootDir patches = Db
     { _rootDir = rootDir
-    , _patches = Map.fromList $ Seq.key_on _name patches
+    , _patches = Map.fromList $ Lists.keyOn _name patches
     }
 
 data Db = Db {

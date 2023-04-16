@@ -14,7 +14,6 @@ import qualified Data.Maybe as Maybe
 
 import qualified Util.Lists as Lists
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
@@ -95,9 +94,9 @@ tuplet (start, end) tracks =
 -- are all zero dur, and notes are equidistant, assume the last one has the
 -- same dur.
 tuplet_note_end :: (Ord a, Num a) => [[(a, a)]] -> Maybe a
-tuplet_note_end = Seq.maximum . mapMaybe last_end
+tuplet_note_end = Lists.maximum . mapMaybe last_end
     where
-    last_end events = infer_duration events <|> Seq.maximum (map end_of events)
+    last_end events = infer_duration events <|> Lists.maximum (map end_of events)
     infer_duration events = case zipWith (-) (drop 1 starts) starts of
         d : ds | all ((==0) . dur_of) events && all (==d) ds ->
             Just $ start_of (last events) + d
@@ -172,7 +171,7 @@ c_real_arpeggio arp = Derive.generator Module.prelude "arp" Tags.subs
 arpeggio :: Arpeggio -> RealTime -> Double -> [[SubT.Event]]
     -> Derive.NoteDeriver
 arpeggio arp time random tracks = do
-    delay_tracks <- jitter . zip (Seq.range_ 0 time) =<< sort tracks
+    delay_tracks <- jitter . zip (Lists.range_ 0 time) =<< sort tracks
     events <- fmap concat $ forM delay_tracks $ \(delay, track) ->
         forM track $ \(SubT.EventT start dur d) -> do
             delay <- Call.score_duration start delay
@@ -203,10 +202,10 @@ arpeggio_by_note :: Arpeggio -> RealTime -> Derive.NoteDeriver
 arpeggio_by_note arp time deriver = do
     (events, logs) <- Stream.partition <$> deriver
     let sort = case arp of
-            ToRight -> return . Seq.reverse_sort_on Score.initial_nn
-            ToLeft -> return . Seq.sort_on Score.initial_nn
+            ToRight -> return . Lists.reverseSortOn Score.initial_nn
+            ToLeft -> return . Lists.sortOn Score.initial_nn
             Random -> Call.shuffle
-    arpeggiated <- zipWith (Score.move_start 0) (Seq.range_ 0 time)
+    arpeggiated <- zipWith (Score.move_start 0) (Lists.range_ 0 time)
         <$> sort events
     return $ Stream.merge_logs logs $ Stream.from_sorted_events arpeggiated
 
@@ -227,7 +226,7 @@ c_interpolate = Derive.generator Module.prelude "interpolate" Tags.subs
             Derive.throw $ "sub tracks should have the same number of events: "
                 <> pretty (map length tracks)
         to_real <- Derive.real_function
-        Sub.derive $ interpolate_tracks (at . to_real) (Seq.rotate tracks)
+        Sub.derive $ interpolate_tracks (at . to_real) (Lists.rotate tracks)
 
 interpolate_tracks :: (ScoreTime -> Signal.Y) -> [[SubT.Event]] -> [SubT.Event]
 interpolate_tracks at = mapMaybe interpolate1
@@ -274,7 +273,7 @@ c_event_interpolate = Derive.generator Module.prelude "e-interpolate" Tags.subs
 
 interpolate_events :: (RealTime -> Signal.Y) -> [(RealTime, RealTime)]
     -> [Score.Event] -> [Score.Event]
-interpolate_events at ms = map interpolate . Seq.zip_padded_fst ms
+interpolate_events at ms = map interpolate . Lists.zipPaddedFst ms
     where
     interpolate (Just (to_start, to_dur), event) =
         Score.place

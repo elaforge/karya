@@ -29,7 +29,7 @@ import qualified Data.Tree as Tree
 
 import qualified Util.Log as Log
 import qualified Util.Rect as Rect
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Trees as Trees
 
 import qualified Cmd.Cmd as Cmd
@@ -298,13 +298,13 @@ cmd_move_tracks msg = do
     clicked <- Cmd.abort_unless $ clicked_track msg
     dest <- move_tracks block_id tracknums clicked
     -- Shift selection so it's still covering the tracks that moved.
-    whenJust (Seq.minimum_on abs $ map (dest-) tracknums) $
+    whenJust (Lists.minimumOn abs $ map (dest-) tracknums) $
         Selection.shift False Selection.Move
 
 move_tracks :: Ui.M m => BlockId -> [TrackNum] -> TrackNum -> m TrackNum
 move_tracks block_id sources dest = do
     -- Avoid splitting a track from its merged neighbor.
-    dest <- if Just dest > Seq.maximum sources
+    dest <- if Just dest > Lists.maximum sources
         then ifM (is_merged_from_right block_id dest)
             (return (dest+1)) (return dest)
         else ifM (is_merged_from_right block_id (dest-1))

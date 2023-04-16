@@ -21,7 +21,7 @@ import qualified System.Environment
 
 import qualified Util.ExtractHs as ExtractHs
 import qualified Util.Regex as Regex
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 
 import           Global
 
@@ -100,7 +100,7 @@ patchTests fname tests = go tests . zip [1..]
 
 
 extractNakedTests :: Text -> [Test]
-extractNakedTests = go . zip [1..] . Seq.zip_prev . Text.lines
+extractNakedTests = go . zip [1..] . Lists.zipPrev . Text.lines
     where
     go ((i, (mb_prev, line)) : lines)
         | Just def <- hasTestFunction line, Just prev <- mb_prev

@@ -22,7 +22,8 @@ import qualified Data.Text as Text
 import qualified Data.Vector.Storable as V
 
 import qualified Util.Audio.Audio as Audio
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
+
 import qualified Synth.Faust.PatchC as PatchC
 import qualified Synth.Lib.Checkpoint as Checkpoint
 import qualified Synth.Shared.Control as Control
@@ -92,7 +93,7 @@ makePatch name meta uis inputs outputs ptr = first ((name <> ": ")<>) $ do
             <> pretty (map fst inputControls)
     unless (outputs `elem` [1, 2]) $
         Left $ "expected 1 or 2 outputs, got " <> showt outputs
-    let dups = Seq.find_dups id (map fst inputControls) in unless (null dups) $
+    let dups = Lists.findDups id (map fst inputControls) in unless (null dups) $
         Left $ "duplicate input names: " <> pretty (map fst dups)
     whenJust (verifyControls (map fst uis)) $ \err ->
         Left $ "controls " <> pretty (map fst uis) <> ": " <> err
@@ -130,20 +131,20 @@ imControls patch =
                     else "elements: [" <> Text.intercalate ", " elts <> "], ")
                 <> _description config
             }
-    by_control = Seq.keyed_group_sort (snd . fst) $
+    by_control = Lists.keyedGroupSort (snd . fst) $
         Map.toList $ _controls patch
     vol = ControlConfig False "Instrument volume, handled by faust-im."
 
 verifyControls :: [Control] -> Maybe Text
 verifyControls controls
     | not (null dups) = Just $ "duplicate (element, control): " <> pretty dups
-    | otherwise = case Seq.group_fst $ filter ((/="") . fst) controls of
+    | otherwise = case Lists.groupFst $ filter ((/="") . fst) controls of
         [] -> Nothing
         (_, cs1) : rest -> case List.find ((/=cs1) . snd) rest of
             Nothing -> Nothing
             Just (elt2, cs2) -> Just $ "every element should have "
                 <> pretty cs1 <> " but " <> elt2 <> " has " <> pretty cs2
-    where dups = Seq.find_dups id controls
+    where dups = Lists.findDups id controls
 
 parseMetadata :: Map Text Text
     -> Either Text (Text, [(Control.Control, ControlConfig)])
@@ -170,7 +171,7 @@ metadataControls = check <=< mapMaybeM parse . Map.toAscList
         | null dups = Right controls
         | otherwise = Left $ "duplicate controls: "
             <> Text.intercalate ", " (map (pretty . fst) dups)
-        where (_, dups) = Seq.partition_dups fst controls
+        where (_, dups) = Lists.partitionDups fst controls
     parse (c, desc)
         | Just rest <- Text.stripPrefix "control" c =
             let stripped = Text.drop 1 $ Text.dropWhile (/='_') rest

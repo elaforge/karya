@@ -15,8 +15,6 @@ import qualified Util.Debug as Debug
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Rect as Rect
-import qualified Util.Lists as Lists
-import qualified Util.Seq as Seq
 import qualified Util.Test.Testing as Testing
 import qualified Util.Texts as Texts
 import qualified Util.Then as Then
@@ -142,7 +140,7 @@ fmt_ruler :: Int -> Int -> Text
 fmt_ruler start end = Text.stripEnd $ mconcatMap (space . pretty) ts
     where
     space t = t <> Text.replicate (time_to_spaces step - Text.length t) " "
-    ts = Then.takeWhile1 (<end) (Seq.range_ start 1)
+    ts = Then.takeWhile1 (<end) (Lists.range_ start 1)
     step = 1
 
 fmt_start_duration :: [(ScoreTime, ScoreTime)] -> Text
@@ -169,10 +167,10 @@ time_to_spaces :: ScoreTime -> Int
 time_to_spaces = floor . (*4)
 
 events_end :: [(ScoreTime, ScoreTime, x)] -> Int
-events_end = maybe 0 ceiling . Seq.maximum .  map (\(s, d, _) -> max s (s+d))
+events_end = maybe 0 ceiling . Lists.maximum .  map (\(s, d, _) -> max s (s+d))
 
 events_start :: [(ScoreTime, ScoreTime, x)] -> Int
-events_start = maybe 0 floor . Seq.minimum . map (\(s, d, _) -> min s (s+d))
+events_start = maybe 0 floor . Lists.minimum . map (\(s, d, _) -> min s (s+d))
 
 -- | Extract and fmt the fst . right element.  Many DeriveTest extractors
 -- return Either Error (val, [log]).
@@ -421,21 +419,21 @@ note_track pitches = note_spec ("", pitches, [])
 
 -- | Like 'note_track', but all notes have a duration of 1.
 note_track1 :: [Text] -> [TrackSpec]
-note_track1 ps = note_track [(s, 1, p) | (s, p) <- zip (Seq.range_ 0 1) ps]
+note_track1 ps = note_track [(s, 1, p) | (s, p) <- zip (Lists.range_ 0 1) ps]
 
 inst_note_track :: Text -> [EventSpec] -> [TrackSpec]
 inst_note_track inst pitches = note_spec (inst, pitches, [])
 
 inst_note_track1 :: Text -> [Text] -> [TrackSpec]
 inst_note_track1 title pitches = note_spec (title, notes, [])
-    where notes = [(s, 1, p) | (s, p) <- zip (Seq.range_ 0 1) pitches]
+    where notes = [(s, 1, p) | (s, p) <- zip (Lists.range_ 0 1) pitches]
 
 control_track :: [(ScoreTime, Text)] -> [EventSpec]
 control_track ns = [(t, 0, s) | (t, s) <- ns]
 
 regular_notes :: Int -> [TrackSpec]
 regular_notes n = note_track $
-    take n [(t, 1, p) | (t, p) <- zip (Seq.range_ 0 1) (cycle pitches)]
+    take n [(t, 1, p) | (t, p) <- zip (Lists.range_ 0 1) (cycle pitches)]
     where
     pitches =
         [Text.singleton o <> Text.singleton p | o <- "34567", p <- "cdefgab"]

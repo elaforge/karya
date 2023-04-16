@@ -10,7 +10,7 @@ module Solkattu.Dsl.MridangamNotation (
     , makeNote1, makeNote
 ) where
 import qualified Util.CallStack as CallStack
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Solkattu.Dsl.Notation as Notation
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Realize as Realize
@@ -44,16 +44,16 @@ merge as bs = case (as, bs) of
         S.Group g subs -> S.Group g (single stroke subs)
 
     -- At this point TempoChanges and Groups should have been flattened away.
-    merge1 (Seq.First a) = a
-    merge1 (Seq.Second b) = b
-    merge1 (Seq.Both a b)
+    merge1 (Lists.First a) = a
+    merge1 (Lists.Second b) = b
+    merge1 (Lists.Both a b)
         | isRest a = b
         | isRest b = a
         | otherwise = makeNote1 $
             Mridangam.bothRStrokes (toStroke1 a) (toStroke1 b)
     isRest (S.Note (Solkattu.Space Solkattu.Rest)) = True
     isRest _ = False
-    pairs = Seq.zip_padded (flatten as) (flatten bs)
+    pairs = Lists.zipPadded (flatten as) (flatten bs)
     flatten :: CallStack.Stack => [NoteT Stroke] -> [NoteT Stroke]
     flatten = Solkattu.check
         . (traverse (traverse unstroke) <=< S.flattenSpeed maxSpeed)

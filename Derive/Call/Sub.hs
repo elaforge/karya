@@ -25,7 +25,6 @@ import qualified Data.Map as Map
 import qualified Data.Tree as Tree
 
 import qualified Util.Lists as Lists
-import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.SubT as SubT
@@ -292,7 +291,7 @@ derive :: [SubT.Event] -> Derive.NoteDeriver
 derive = mconcatMap (\(SubT.EventT s d n) -> Derive.place s d n)
 
 derive_tracks :: [[SubT.Event]] -> Derive.NoteDeriver
-derive_tracks = derive . Seq.merge_lists SubT._start
+derive_tracks = derive . Lists.mergeLists SubT._start
 
 -- | Get the pitch of an Event.  Useful for debugging.
 derive_pitch :: SubT.Event -> Derive.Deriver (SubT.EventT (Maybe Pitch.Note))

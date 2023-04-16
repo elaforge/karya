@@ -12,7 +12,7 @@ import qualified System.Environment as Environment
 import qualified Text.Printf as Printf
 
 import qualified Util.Html as Html
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Texts as Texts
 
 import qualified App.Path as Path
@@ -62,7 +62,7 @@ extract = sort . strip . group . Map.toList
 
 -- | Sort by the key's position in qwerty.
 sort :: Binds -> Binds
-sort = Seq.sort_on (map key . snd)
+sort = Lists.sortOn (map key . snd)
     where
     key (Cmd.KeySpec mods bindable) = (bindable_key bindable, mods)
     bindable_key k@(Cmd.Key _ (Key.Char c)) =
@@ -72,7 +72,7 @@ sort = Seq.sort_on (map key . snd)
         ++ zip KeyLayouts.qwerty_shifted [1,3..]
 
 group :: [(Cmd.KeySpec, Cmd.NamedCmd m)] -> [(Text, [Cmd.KeySpec])]
-group = map (second (map fst)) . Seq.keyed_group_sort (Cmd.cmd_name . snd)
+group = map (second (map fst)) . Lists.keyedGroupSort (Cmd.cmd_name . snd)
 
 strip :: Binds -> Binds
 strip = map (second strip_keyspecs)

@@ -41,7 +41,6 @@ import qualified Data.List.NonEmpty as NonEmpty
 
 import qualified Util.Doc as Doc
 import qualified Util.Lists as Lists
-import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
 import qualified Derive.C.Prelude.Trill as Trill
@@ -398,7 +397,7 @@ jaru :: RealTime -> RealTime -> RealTime -> RealTime -> [Signal.Y]
     -> Signal.Control
 jaru srate start time transition intervals =
     ControlUtil.smooth_absolute ControlUtil.Linear srate (-transition) $
-        zip (Seq.range_ start time) (intervals ++ [0])
+        zip (Lists.range_ start time) (intervals ++ [0])
 
 generator1 :: Derive.CallName -> Tags.Tags -> Doc.Doc
     -> Derive.WithArgDoc (Derive.PassedArgs d -> Derive.Deriver d)

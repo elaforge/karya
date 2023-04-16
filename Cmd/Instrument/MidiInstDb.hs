@@ -13,9 +13,9 @@ import qualified Data.Time as Time
 
 import           System.FilePath ((</>))
 
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
-import qualified Util.Seq as Seq
 
 import qualified App.Config as Config
 import qualified App.Path as Path
@@ -80,14 +80,14 @@ db_path app_dir name =
 generate_names :: [MidiInst.Patch] -> (Map InstT.Name MidiInst.Patch, [Text])
 generate_names = -- This only touches the 'MidiInst.patch_patch' field.
     run . (concatMapM split <=< mapM drop_dup_initialization)
-        . Seq.keyed_group_sort (clean_name . inst_name)
+        . Lists.keyedGroupSort (clean_name . inst_name)
     where
     run = first Map.fromList . Identity.runIdentity . Logger.run
     -- If the name and initialization is the same, they are likely duplicates.
     drop_dup_initialization :: (InstT.Name, [MidiInst.Patch])
         -> Logger (InstT.Name, [MidiInst.Patch])
     drop_dup_initialization (name, patches) = do
-        let (unique, dups) = Seq.partition_dups
+        let (unique, dups) = Lists.partitionDups
                 (Patch.patch_initialize . MidiInst.patch_patch) patches
         forM_ dups $ \(patch, dups) ->
             log ("dropped patches with the same initialization as "

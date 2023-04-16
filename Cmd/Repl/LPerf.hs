@@ -14,7 +14,7 @@ import qualified Data.Vector as Vector
 
 import qualified Util.Log as Log
 import qualified Util.Regex as Regex
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Texts as Texts
 
 import qualified App.Config as Config
@@ -160,7 +160,7 @@ inst_controls block_id =
             (Just a, Just b) -> Just (a, b)
             _ -> Nothing
     merge1 (start1, end1) (start2, end2) =
-        (Seq.min_on fst start1 start2, Seq.max_on fst end1 end2)
+        (Lists.minOn fst start1 start2, Lists.maxOn fst end1 end2)
     event_inst = Types.patch_name . Types.event_patch
 
 -- * derive
@@ -181,7 +181,7 @@ compare_cached_events block_id = do
     return $ diff (Stream.events_of (Derive.r_events cached))
         (Stream.events_of (Derive.r_events uncached))
     where
-    diff e1 e2 = Seq.diff_either (==)
+    diff e1 e2 = Lists.diffEither (==)
         (map Simple.score_event e1) (map Simple.score_event e2)
 
 derive :: Cmd.M m => BlockId -> m Derive.Result
@@ -653,12 +653,12 @@ chord_at block_id maybe_track_id pos = do
 -- corresponding track.
 sort_by_track :: Ui.M m => BlockId -> [Score.Event] -> m [Score.Event]
 sort_by_track block_id events = do
-    let by_track = Seq.key_on_just
+    let by_track = Lists.keyOnJust
             (fmap snd . Stack.block_track_of . Score.event_stack) events
     tracknums <- mapM (Ui.tracknum_of block_id . fst) by_track
     let by_tracknum = [(tracknum, event)
             | (Just tracknum, event) <- zip tracknums (map snd by_track)]
-    return $ map snd $ Seq.sort_on fst by_tracknum
+    return $ map snd $ Lists.sortOn fst by_tracknum
 
 nn_ratios :: Maybe Pitch.NoteNumber -> [Pitch.NoteNumber] -> [Ratio]
 nn_ratios unity nns = case (unity, nns) of

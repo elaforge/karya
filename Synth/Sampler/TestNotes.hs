@@ -6,7 +6,7 @@
 module Synth.Sampler.TestNotes where
 import qualified Data.Map as Map
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Stack as Stack
 import qualified Perform.NN as NN
@@ -23,9 +23,9 @@ write :: [Note.Note] -> IO Bool
 write = Note.serialize "sampler.notes"
 
 dynamicTest :: [Note.Note]
-dynamicTest = zipWith make1 starts (Seq.range 0 1 0.05)
+dynamicTest = zipWith make1 starts (Lists.range 0 1 0.05)
     where
-    starts = Seq.range_ 0 0.5
+    starts = Lists.range_ 0 0.5
     make1 start dyn = make (start, nn NN.c4, Signal.constant dyn, ["open"])
 
 notes :: [Note.Note]

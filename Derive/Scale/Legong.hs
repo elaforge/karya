@@ -27,7 +27,7 @@ import qualified Data.Map as Map
 import qualified Data.Vector as Vector
 
 import qualified Util.Doc as Doc
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Texts as Texts
 
 import qualified Derive.Scale as Scale
@@ -161,7 +161,7 @@ data Pitch = I | O | E | Es | U | A | As
     deriving (Eq, Ord, Enum, Show, Bounded)
 
 laras :: Map Text BaliScales.Laras
-laras = Map.fromList $ Seq.key_on BaliScales.laras_name $
+laras = Map.fromList $ Lists.keyOn BaliScales.laras_name $
     laras_rambat : mcphee
 
 laras_rambat :: BaliScales.Laras

@@ -7,7 +7,7 @@ module User.Elaforge.Instrument.Swam (synth) where
 import qualified Data.Map as Map
 
 import qualified Util.Doc as Doc
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
@@ -187,8 +187,8 @@ bipolar_controls controls event
     | null sigs = event
     | otherwise = Score.modify_environ (Env.from_controls sigs <>) event
     where
-    sigs = Map.fromList $ map (second normalize) $ Seq.map_maybe_snd id $
-        Seq.key_on_snd (\c -> Map.lookup c (Score.event_controls event))
+    sigs = Map.fromList $ map (second normalize) $ Lists.mapMaybeSnd id $
+        Lists.keyOnSnd (\c -> Map.lookup c (Score.event_controls event))
             controls
 
 -- | When gesture=bipolar, the expression control is 0--62 for downbow, 64-127

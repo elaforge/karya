@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Util.TimeVector_test where
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import Util.Test
 import qualified Util.TimeVector as V
 import Util.TimeVector (X)
@@ -25,9 +25,9 @@ unsample s = (V.sx s, V.sy s)
 test_at :: Test
 test_at = do
     let range low high sig = [V.at p (from_pairs sig)
-            | p <- Seq.range low (high-1) 1] :: [Maybe Y]
+            | p <- Lists.range low (high-1) 1] :: [Maybe Y]
     equal (range 0 4 []) (replicate 4 Nothing)
-    equal (range 0 5 (zip (Seq.range_ 0 1) [0, 0.25, 0.5, 0.75, 1]))
+    equal (range 0 5 (zip (Lists.range_ 0 1) [0, 0.25, 0.5, 0.75, 1]))
         (map Just [0, 0.25, 0.5, 0.75, 1])
 
     -- Values before the first sample are Nothing.

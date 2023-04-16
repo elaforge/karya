@@ -20,7 +20,7 @@ import qualified Data.Set as Set
 import qualified Data.Tree as Tree
 
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Derive.Stack as Stack
 import qualified Derive.Warp as Warp
 import qualified Perform.Transport as Transport
@@ -161,7 +161,7 @@ tempo_func track_warps block_id track_id pos = map (flip Warp.warp pos) warps
 closest_warp :: [TrackWarp] -> Transport.ClosestWarpFunction
 closest_warp track_warps block_id track_id pos =
     maybe Warp.identity (tw_warp . snd) $
-        Seq.minimum_on (abs . subtract pos . fst) annotated
+        Lists.minimumOn (abs . subtract pos . fst) annotated
     where
     annotated = zip (map tw_start warps) warps
     warps = [tw | tw <- track_warps, tw_block tw == block_id,

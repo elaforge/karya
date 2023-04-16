@@ -6,7 +6,7 @@
 module Derive.Call.PitchUtil where
 import qualified Util.Doc as Doc
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
@@ -115,7 +115,7 @@ segment srate curve x1 y1 x2 y2
     | otherwise = case curve of
         ControlUtil.Linear -> PSignal.from_pairs [(x1, y1), (x2, y2)]
         ControlUtil.Function curvef -> PSignal.from_pairs $ map (make curvef) $
-            Seq.range_end x1 x2 (1/srate)
+            Lists.rangeEnd x1 x2 (1/srate)
     where
     make curvef x
         -- Otherwise if x1==x2 then I get y1.

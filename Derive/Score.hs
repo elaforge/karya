@@ -55,7 +55,7 @@ import qualified Data.Typeable as Typeable
 import qualified Util.CallStack as CallStack
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Controls as Controls
@@ -362,7 +362,7 @@ event_controls :: Event -> DeriveT.ControlMap
 event_controls = get . event_environ
     where
     get (DeriveT.Environ env) = Map.fromAscList $ map (first ScoreT.Control) $
-        Seq.map_maybe_snd is_signal $ Map.toAscList env
+        Lists.mapMaybeSnd is_signal $ Map.toAscList env
     is_signal (DeriveT.VSignal sig) = Just sig
     is_signal _ = Nothing
 

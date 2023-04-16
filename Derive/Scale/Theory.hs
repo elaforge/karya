@@ -53,7 +53,7 @@ import qualified Data.Vector.Unboxed as Vector
 
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Vector as Vector
 
 import qualified Perform.Pitch as Pitch
@@ -166,7 +166,7 @@ semis_to_pitch key semis = mkpitch $ case key_signature key of
     -- That shouldn't happen because layout_enharmonics is initialized to
     -- [..  | i <- intervals, a <- [0..i-1]].
     pick_enharmonic use_sharps notes = fromMaybe (0, Pitch.Degree (-1) 0) $
-        Seq.minimum_on (key . Pitch.degree_accidentals . snd) notes
+        Lists.minimumOn (key . Pitch.degree_accidentals . snd) notes
         where key accs = (if use_sharps then accs < 0 else accs > 0, abs accs)
     in_scale sig (_, note) =
         sig Vector.!? step_of key note == Just (Pitch.degree_accidentals note)

@@ -5,7 +5,7 @@
 module User.Elaforge.Instrument.Kontakt.KendangBali_test where
 import qualified Data.List as List
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Cmd.Instrument.KendangBali as K
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
@@ -24,7 +24,7 @@ test_kendang = do
     let run extract inst notes = DeriveTest.extract extract $
             derive [(">" <> inst <> inst_title, mknotes notes)]
         e_instrument e = (DeriveTest.e_instrument e, DeriveTest.e_attributes e)
-        mknotes ns = [(t, 0, n) | (t, n) <- zip (Seq.range_ 0 1) ns]
+        mknotes ns = [(t, 0, n) | (t, n) <- zip (Lists.range_ 0 1) ns]
     equal (run e_instrument "kw" ["PL", "P", "o"])
         ([("kw", "+plak"), ("kw", "+pak"), ("kw", "+tut")], [])
     equal (run e_instrument "k"

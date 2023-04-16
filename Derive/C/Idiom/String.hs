@@ -9,7 +9,6 @@ import qualified Data.Map as Map
 
 import qualified Util.Lists as Lists
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
@@ -126,7 +125,7 @@ make_config attack_dur release_delay release_dur open_strings = do
     let linear = PitchUtil.segment srate ControlUtil.Linear
     return $ Config
         { _open_strings =
-            Map.fromList $ Seq.key_on StringUtil.str_nn open_strings
+            Map.fromList $ Lists.keyOn StringUtil.str_nn open_strings
         , _attack_curve = (linear, attack_dur)
         , _release_curve = (linear, release_dur)
         , _release_delay = release_delay
@@ -328,7 +327,7 @@ gliss_pitches open_strings dest_pitch gliss_start = do
     dest_nn <- Num.roundDigits 2 <$> Pitches.pitch_nn dest_pitch
     -- TODO shouldn't need to eval them all
     open_nns <- mapM (Pitches.pitch_nn . PSignal.coerce) open_strings
-    let strings = Seq.sort_on snd $ zip open_strings open_nns
+    let strings = Lists.sortOn snd $ zip open_strings open_nns
     -- 0 2 4 6 8 10
     return $ if gliss_start >= 0
         -- 5 -> 6 8 10 -> 10 8 6 5
@@ -343,7 +342,7 @@ gliss :: [PSignal.Pitch] -> RealTime -> Signal.Y -> Signal.Y -> RealTime
 gliss pitches time start_dyn end_dyn end = do
     let dur = time / fromIntegral (length pitches)
         start = end - time
-        ts = take (length pitches) (Seq.range_ start dur)
+        ts = take (length pitches) (Lists.range_ start dur)
         dyns = map (Num.scale start_dyn end_dyn . RealTime.to_seconds
             . Num.normalize start end) ts
     score_ts <- mapM Derive.score ts

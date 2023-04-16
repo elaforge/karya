@@ -27,7 +27,7 @@ import qualified Data.Text as Text
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Segment as Segment
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Serialize as Serialize
 
 import qualified Derive.Attrs as Attrs
@@ -554,7 +554,7 @@ instance ShowVal.ShowVal (ScoreT.Typed Signal.Control) where
 show_signal :: ScoreT.Typed Signal.Control -> Text
 show_signal (ScoreT.Typed typ sig)
     | Just c <- Signal.constant_val sig = ShowVal.show_val (ScoreT.Typed typ c)
-    | otherwise = Text.unwords $ Seq.map_last (<>")") $
+    | otherwise = Text.unwords $ Lists.mapLast (<>")") $
         "(signal" : filter (/="") [ShowVal.show_val typ] ++
             [ ShowVal.show_val v
             | (x, y) <- Signal.to_pairs sig, v <- [RealTime.to_seconds x, y]
@@ -572,7 +572,7 @@ instance ShowVal.ShowVal PSignal where show_val = show_psignal
 show_psignal :: PSignal -> Text
 show_psignal sig
     | Just c <- constant_val sig = ShowVal.show_val c
-    | otherwise = Text.unwords $ Seq.map_last (<>")") $
+    | otherwise = Text.unwords $ Lists.mapLast (<>")") $
         "(psignal" :
             [ s
             | (x, y) <- to_pairs sig

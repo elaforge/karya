@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.TimeStep_test where
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Cmd.TimeStep as TimeStep
 import           Cmd.TimeStep (MarklistMatch(..), Step(..), Tracks(..))
 import qualified Ui.Meter.Meter as Meter
@@ -58,15 +58,15 @@ test_snap = do
     let f step prev ps = UiTest.eval default_ui_state $
             mapM (TimeStep.snap (TimeStep.time_step step)
                 UiTest.default_block_id 1 (Just prev)) ps
-    equal (f (Duration 3) 3 (Seq.range 0 6 1)) [0, 0, 0, 3, 3, 3, 6]
-    equal (f (AbsoluteMark AllMarklists Meter.W) 3 (Seq.range 0 6 1))
+    equal (f (Duration 3) 3 (Lists.range 0 6 1)) [0, 0, 0, 3, 3, 3, 6]
+    equal (f (AbsoluteMark AllMarklists Meter.W) 3 (Lists.range 0 6 1))
         [0, 0, 0, 0, 4, 4, 4]
-    equal (f (RelativeMark AllMarklists Meter.W) 1 (Seq.range 0 6 1))
+    equal (f (RelativeMark AllMarklists Meter.W) 1 (Lists.range 0 6 1))
         [-3, 1, 1, 1, 1, 5, 5]
-    equal (f (RelativeMark AllMarklists Meter.W) 5 (Seq.range 0 6 1))
+    equal (f (RelativeMark AllMarklists Meter.W) 5 (Lists.range 0 6 1))
         [-2, -2, 2, 2, 2, 5, 5]
         -- before Meter change: [0, 1, 1, 1, 1, 5, 5]
-    equal (f (EventStart AllTracks) 3 (Seq.range 0 6 1))
+    equal (f (EventStart AllTracks) 3 (Lists.range 0 6 1))
         [0, 0, 2, 2, 2, 5, 5]
 
 test_ascending_descending_points :: Test
@@ -79,8 +79,8 @@ test_ascending_descending_points = do
 
     equal (f 0 (AbsoluteMark AllMarklists Meter.W)) ([0], [0, 4, 7])
     equal (f 1 (AbsoluteMark AllMarklists Meter.W)) ([0], [4, 7])
-    equal (f 0 (AbsoluteMark AllMarklists Meter.Q)) ([0], Seq.range 0 7 1)
-    equal (f 1 (AbsoluteMark AllMarklists Meter.Q)) ([1, 0], Seq.range 1 7 1)
+    equal (f 0 (AbsoluteMark AllMarklists Meter.Q)) ([0], Lists.range 0 7 1)
+    equal (f 1 (AbsoluteMark AllMarklists Meter.Q)) ([1, 0], Lists.range 1 7 1)
 
     equal (f 0 (RelativeMark AllMarklists Meter.W)) ([0], [0, 4, 7])
     equal (f 1 (RelativeMark AllMarklists Meter.W)) ([1, -3], [1, 5, 8])
@@ -116,8 +116,9 @@ test_get_points_from = do
             where
             (desc1, asc1) = ascend_descend state start step1
             (desc2, asc2) = ascend_descend state start step2
-        merge_asc xs ys = Seq.drop_dups id $ Seq.merge xs ys
-        merge_desc xs ys = Seq.drop_dups id $ Seq.merge_by (flip compare) xs ys
+        merge_asc xs ys = Lists.dropDups id $ Lists.merge xs ys
+        merge_desc xs ys =
+            Lists.dropDups id $ Lists.mergeBy (flip compare) xs ys
     let merged start step1 step2 = (f start (TimeStep.from_list [step1, step2]),
             asc_desc start step1 step2)
     uncurry equal $ merged 0 (EventEnd AllTracks) (EventStart AllTracks)

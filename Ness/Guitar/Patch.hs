@@ -7,7 +7,7 @@ module Ness.Guitar.Patch where
 import Prelude hiding (String)
 import qualified Data.Text as Text
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Shared.Control as Control
@@ -171,7 +171,7 @@ rolledStrings =
     where
     roll str t dur =
         [ (str, t, dyn)
-        | (t, dyn) <- zip (Seq.range' t (t+dur) 0.05) (0.65 : repeat 0.03)
+        | (t, dyn) <- zip (Lists.range' t (t+dur) 0.05) (0.65 : repeat 0.03)
         ]
 
 

@@ -10,7 +10,7 @@ module Derive.Scale.All (lookup_scale, docs, scales, shadowed) where
 import qualified Data.Map as Map
 
 import qualified Util.Maps as Maps
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.BohlenPierce as BohlenPierce
@@ -68,4 +68,4 @@ shadowed :: [Pitch.ScaleId]
     , WendyCarlos.scales
     ]
     where
-    mk = second (map fst) . Maps.unique . Seq.key_on Scale.scale_id_of
+    mk = second (map fst) . Maps.unique . Lists.keyOn Scale.scale_id_of

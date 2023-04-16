@@ -5,7 +5,7 @@
 module Cmd.Load.Midi_test where
 import qualified Data.Map as Map
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Cmd.Load.Midi as Midi
 import qualified Derive.Controls as Controls
 import qualified Midi.Key as Key
@@ -93,4 +93,4 @@ on key = M.NoteOn key 127
 off key = M.NoteOff key 127
 
 mkmidi :: [M.ChannelMessage] -> [Midi.Midi]
-mkmidi = zip (Seq.range_ 0 1) . map (M.ChannelMessage 0)
+mkmidi = zip (Lists.range_ 0 1) . map (M.ChannelMessage 0)

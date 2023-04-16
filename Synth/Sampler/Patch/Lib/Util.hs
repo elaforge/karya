@@ -14,7 +14,7 @@ import qualified GHC.Stack as Stack
 
 import qualified Util.Maps as Maps
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.ImInst as ImInst
@@ -105,7 +105,7 @@ findDynamic dynToRange dyn = find 0 dyn rangeDynamics
         | null rest || val < high = (dyn, Num.normalize low high val)
         | otherwise = find high val rest
     find _ _ [] = error "empty rangeDynamics"
-    rangeDynamics = Seq.key_on dynToRange enumAll
+    rangeDynamics = Lists.keyOn dynToRange enumAll
 
 type Variation = Int
 

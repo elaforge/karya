@@ -21,7 +21,6 @@ import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
 import qualified Util.File as File
 import qualified Util.Lists as Lists
-import qualified Util.Seq as Seq
 
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Shared.Config as Config
@@ -203,7 +202,7 @@ clearRemainingOutput outputDir start = do
 
 outputPast :: Config.ChunkNum -> [FilePath] -> [FilePath]
 outputPast start =
-    map snd . filter ((>=start) . fst) . Seq.key_on_just Config.isOutputLink
+    map snd . filter ((>=start) . fst) . Lists.keyOnJust Config.isOutputLink
 
 filenameToOutput :: FilePath -> FilePath
 filenameToOutput fname = case Lists.split "." fname of
@@ -269,12 +268,12 @@ instance Pretty Span where
 hashOverlapping :: RealTime -> RealTime -> [Span] -> [Note.Hash]
 hashOverlapping start size =
     map (mconcat . map fst) . groupOverlapping start size
-    . Seq.key_on _hash
+    . Lists.keyOn _hash
     -- Pair each Note with its Hash, then group Notes and combine the Hashes.
 
 overlappingHashes :: RealTime -> RealTime -> [Span] -> [[Note.Hash]]
 overlappingHashes start size =
-    map (map fst) . groupOverlapping start size . Seq.key_on _hash
+    map (map fst) . groupOverlapping start size . Lists.keyOn _hash
 
 
 {- | Group all Spans that overlap the given range.  So:
@@ -288,8 +287,8 @@ overlappingHashes start size =
     Should be: [[a], [a, b, c], [c, d]]
 -}
 groupOverlapping :: RealTime -> RealTime -> [(a, Span)] -> [[(a, Span)]]
-groupOverlapping start size = go (Seq.range_ start size)
-    -- Use Seq.range_ instead of successive addition to avoid accumulating
+groupOverlapping start size = go (Lists.range_ start size)
+    -- Use Lists.range_ instead of successive addition to avoid accumulating
     -- error.  Size should integral, but let's just be careful.
     where
     go (t1 : ts@(t2 : _)) spans

@@ -19,7 +19,6 @@ import qualified Data.Time.Calendar as Calendar
 import qualified Util.File as File
 import qualified Util.Html as Html
 import qualified Util.Lists as Lists
-import qualified Util.Seq as Seq
 import qualified Util.Styled as Styled
 import qualified Util.Texts as Texts
 
@@ -58,7 +57,7 @@ indexHtml scoreFname scores = Texts.join "\n" $
     , "</head> <body>"
     , "<table id=korvais>"
     , "<tr>" <> mconcat ["<th>" <> c <> "</th>" | (c, _) <- columns] <> "</tr>"
-    ] ++ map row (Seq.sort_on scoreDate scores) ++
+    ] ++ map row (Lists.sortOn scoreDate scores) ++
     [ "</table>"
     , "<script>"
     , javascriptIndex
@@ -90,7 +89,7 @@ scoreDate = \case
     Korvai.Single k -> date k
     Korvai.Tani meta parts -> case Korvai._date meta of
         Just day -> Just day
-        Nothing -> Seq.maximum $ mapMaybe date [k | Korvai.K k <- parts]
+        Nothing -> Lists.maximum $ mapMaybe date [k | Korvai.K k <- parts]
     where date = Korvai._date . Korvai.korvaiMetadata
 
 javascriptIndex :: Html.Html
@@ -359,7 +358,7 @@ _metadataCss =
 typeCss :: Text
 typeCss = Text.unlines $ concat
     [ styles gtype (cssColor start) (cssColor end)
-    | ((start, end), gtype) <- Seq.key_on typeColors Solkattu.groupTypes
+    | ((start, end), gtype) <- Lists.keyOn typeColors Solkattu.groupTypes
     ]
     where
     styles gtype start end =
@@ -413,14 +412,14 @@ _sectionMetadata section = Texts.join "; " $ map showTag (Map.toAscList tags)
         <> Texts.join ", " (map (htmlTag k) vs)
 
 scoreMetadata :: Korvai.Score -> [Html.Html]
-scoreMetadata score = Seq.map_init (<>"<br>") $ concat $
+scoreMetadata score = Lists.mapInit (<>"<br>") $ concat $
     [ ["Tala: " <> Html.html (Text.intercalate ", " (scoreTalas score))]
     , ["Date: " <> Html.html (showDate date) | Just date <- [scoreDate score]]
     , [showTag ("Eddupu", map pretty eddupus) | not (null eddupus)]
     , map showTag (Map.toAscList (Map.delete "tala" tags))
     ]
     where
-    eddupus = Seq.unique $ filter (/="0") $
+    eddupus = Lists.unique $ filter (/="0") $
         Map.findWithDefault [] Tags.eddupu sectionTags
     sectionTags = Tags.untags $ mconcat $
         Metadata.sectionTags score
@@ -434,7 +433,7 @@ showDate :: Calendar.Day -> Text
 showDate = txt . Calendar.showGregorian
 
 scoreTalas :: Korvai.Score -> [Text]
-scoreTalas = Seq.unique . map (Talas.name . Korvai.korvaiTala)
+scoreTalas = Lists.unique . map (Talas.name . Korvai.korvaiTala)
     . Korvai.scoreKorvais
 
 formatAvartanams :: Solkattu.Notation stroke => Config -> S.Speed
@@ -483,8 +482,8 @@ makeSymbols = go
                 S.FNote _ (_, S.Attack (Realize.Abstract {})) : _ -> id
                 _ -> setStyle Solkattu.GSarva
             gtype -> setStyle gtype
-    setStyle gtype = Seq.map_last (second (set End))
-        . Seq.map_head_tail (second (set Start)) (second (set In))
+    setStyle gtype = Lists.mapLast (second (set End))
+        . Lists.mapHeadTail (second (set Start)) (second (set In))
         where set pos sym = sym { _style = Just (groupStyle gtype pos) }
     noteHtml state = \case
         S.Sustain (Realize.Abstract meta) -> case Solkattu._type meta of
@@ -556,11 +555,11 @@ formatTable tala _sectionIndex section rows = map row $ zipFirstFinal rows
 zipFirstFinal :: [a] -> [(Bool, a, Bool)]
 zipFirstFinal =
     map (\(prev, x, next) -> (Maybe.isNothing prev, x, Maybe.isNothing next))
-    . Seq.zip_neighbors
+    . Lists.zipNeighbors
 
 formatRuler :: Format.Ruler -> Html.Html
 formatRuler =
-    mconcatMap mark . map (second Maybe.isNothing) . Seq.zip_next
+    mconcatMap mark . map (second Maybe.isNothing) . Lists.zipNext
     . concatMap akshara
     where
     -- If the final one is th, then it omits the underline, which looks a bit

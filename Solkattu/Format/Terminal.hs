@@ -22,7 +22,6 @@ import qualified Data.Text.IO as Text.IO
 
 import qualified Util.Lists as Lists
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
 import qualified Util.Styled as Styled
 
 import qualified Solkattu.Format.Format as Format
@@ -182,7 +181,7 @@ formatResults config tala results =
     -- notesOf _ = Nothing
     sectionFmt section tags =
         (if Text.null tagsText then id
-            else Seq.map_last (<> "   " <> tagsText))
+            else Lists.mapLast (<> "   " <> tagsText))
         . snd . List.mapAccumL (addHeader tags section) False
         . map (second (Text.strip . Styled.toText))
         where
@@ -275,7 +274,7 @@ formatRuler strokeWidth =
 spellRests :: Int -> [Symbol] -> [Symbol]
 spellRests strokeWidth
     | strokeWidth == 1 = map thin . zip [0..]
-    | otherwise = map set . zip [0..] . Seq.zip_neighbors
+    | otherwise = map set . zip [0..] . Lists.zipNeighbors
     where
     thin (col, sym)
         | isRest sym && odd col = sym { _text = " " }
@@ -372,8 +371,8 @@ makeSymbols strokeWidth tala angas = go
     gray n = Styled.rgb n n n
     setHighlights2 color = setHighlights color color
     setHighlights startColor color =
-        Seq.map_last (second (set Format.EndHighlight color))
-        . Seq.map_head_tail
+        Lists.mapLast (second (set Format.EndHighlight color))
+        . Lists.mapHeadTail
             (second (set Format.StartHighlight startColor))
             (second (set Format.Highlight color))
         where

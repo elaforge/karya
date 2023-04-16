@@ -24,7 +24,6 @@ import qualified System.Posix.Signals as Signals
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
 import qualified Derive.ScoreT as ScoreT
@@ -144,7 +143,7 @@ dump patches notes = do
         -- TODO implement Texts.wrappedColumns to make it readable?  Or just
         -- use a wide window.
         -- mapM_ Text.IO.putStrLn $ Texts.columns 2 $
-        --     map (map (fromMaybe "")) $ Seq.rotate2
+        --     map (map (fromMaybe "")) $ Lists.rotate2
         --         [ name : map showBp bps
         --         | (name, bps) <- cbps
         --         ]
@@ -223,8 +222,8 @@ lookupPatches :: Map Note.PatchName patch -> [Note.Note]
 lookupPatches patches notes =
     Either.partitionEithers $
         map (\(patch, instNotes) -> (, instNotes) <$> find patch) $
-        map (second (Seq.keyed_group_sort Note.instrument)) $
-        Seq.keyed_group_sort Note.patch notes
+        map (second (Lists.keyedGroupSort Note.instrument)) $
+        Lists.keyedGroupSort Note.patch notes
     where
     find patch = maybe (Left patch) Right $ Map.lookup patch patches
 

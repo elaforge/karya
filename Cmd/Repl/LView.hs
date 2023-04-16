@@ -8,7 +8,7 @@ import qualified Data.Map as Map
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -64,7 +64,7 @@ arrange_screen point = do
         . map (second Block.view_rect) . Map.toList . Ui.state_views
         <$> Ui.get
     mapM_ (uncurry Ui.set_view_rect) $
-        compact screen (Seq.sort_on snd view_rects)
+        compact screen (Lists.sortOn snd view_rects)
 
 compact :: Rect.Rect -> [(a, Rect.Rect)] -> [(a, Rect.Rect)]
 compact screen =

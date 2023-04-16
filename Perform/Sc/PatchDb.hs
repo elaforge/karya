@@ -15,7 +15,7 @@ import qualified Vivid.SC.SynthDef.Literally as Literally
 import qualified Util.Exceptions as Exceptions
 import qualified Util.File as File
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Texts as Texts
 
 import qualified App.Config as Config
@@ -123,5 +123,5 @@ normalize_patch out_dir fname = Except.runExceptT $ do
         put $ fname <> " written to " <> out_fname
         liftIO $ ByteString.writeFile out_fname
             (Literally.encodeLiteralSynthDef fixed)
-    name = fst $ Seq.drop_suffix ".scsyndef" $ FilePath.takeFileName fname
+    name = fst $ Lists.dropSuffix ".scsyndef" $ FilePath.takeFileName fname
     put = liftIO . putStrLn

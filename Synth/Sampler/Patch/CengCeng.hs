@@ -6,7 +6,6 @@ module Synth.Sampler.Patch.CengCeng (patches) where
 import qualified Data.Set as Set
 
 import qualified Util.Lists as Lists
-import qualified Util.Seq as Seq
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Attrs as Attrs
@@ -136,7 +135,7 @@ rincikAllFilenames = Util.assertLength 186 $ Set.fromList
     [ fst $ rincikGetFilename art dyn var
     | art <- rincikAll
     , dyn <- [0, 0.35, 0.7, 1]
-    , var <- Seq.range 0 1 (1/8)
+    , var <- Lists.range 0 1 (1/8)
     ]
 
 -- | $attr-{p,m,f}-v{1..n}.flac
@@ -239,7 +238,7 @@ kopyakAllFilenames inst = Util.assertLength len $ Set.fromList
     [ fst $ kopyakGetFilename inst art dyn var
     | art <- Util.enumAll
     , dyn <- [0, 0.25, 0.5, 0.75]
-    , var <- Seq.range 0 1 (1/8)
+    , var <- Lists.range 0 1 (1/8)
     ]
     where
     len = case inst of

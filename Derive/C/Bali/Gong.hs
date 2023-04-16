@@ -7,7 +7,7 @@ module Derive.C.Bali.Gong (library, make_cycle, nruk_generator) where
 import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Derive.Args as Args
 import qualified Derive.C.Prelude.Trill as Trill
 import qualified Derive.Call as Call
@@ -232,6 +232,6 @@ call_cycle ctx (start, end) orient calls dur =
     mconcat [Derive.at t $ Eval.eval_quoted ctx call | (t, call) <- ts]
     where
     ts = case orient of
-        Types.Positive -> zip (Seq.range' start end dur) (cycle calls)
-        Types.Negative ->
-            reverse $ zip (Seq.range' end start (-dur)) (cycle (reverse calls))
+        Types.Positive -> zip (Lists.range' start end dur) (cycle calls)
+        Types.Negative -> reverse $
+            zip (Lists.range' end start (-dur)) (cycle (reverse calls))

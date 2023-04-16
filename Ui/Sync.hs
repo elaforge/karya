@@ -48,7 +48,6 @@ import qualified Data.Text as Text
 
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
 import qualified Util.Trace as Trace
 
 import qualified App.Config as Config
@@ -144,8 +143,9 @@ set_play_position :: Fltk.Channel -> [(ViewId, [(TrackNum, ScoreTime)])]
     -> IO ()
 set_play_position chan view_sels = unless (null view_sels) $
     Fltk.send_action chan "set_play_position" $ sequence_ $ do
-        (view_id, tracknum_pos) <- Seq.group_fst view_sels
-        (tracknums, pos) <- Seq.group_fst $ Seq.group_snd (concat tracknum_pos)
+        (view_id, tracknum_pos) <- Lists.groupFst view_sels
+        (tracknums, pos) <- Lists.groupFst $
+            Lists.groupSnd (concat tracknum_pos)
         return $ set_selection_carefully view_id
             Config.play_position_selnum (Just tracknums) (map sel pos)
     where
@@ -219,12 +219,12 @@ set_selections selnum chan view_sels = unless (null view_sels) $
 -- wants.
 group_by_view :: [((ViewId, TrackNum), (Range, Color.Color))]
     -> [(ViewId, [(TrackNum, [(Range, Color.Color)])])]
-group_by_view view_sels = map (second Seq.group_fst) by_view
+group_by_view view_sels = map (second Lists.groupFst) by_view
     where
     (view_tracknums, range_colors) = unzip view_sels
     (view_ids, tracknums) = unzip view_tracknums
     by_view :: [(ViewId, [(TrackNum, (Range, Color.Color))])]
-    by_view = Seq.group_fst $ zip view_ids (zip tracknums range_colors)
+    by_view = Lists.groupFst $ zip view_ids (zip tracknums range_colors)
 
 clear_selections :: Sel.Num -> Fltk.Channel -> [ViewId] -> IO ()
 clear_selections selnum chan view_ids = unless (null view_ids) $

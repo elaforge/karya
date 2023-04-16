@@ -9,7 +9,6 @@ import qualified Data.Map as Map
 import qualified Util.Doc as Doc
 import qualified Util.Lists as Lists
 import qualified Util.ParseText as ParseText
-import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
@@ -234,7 +233,7 @@ c_lrange = val_call "range" mempty "Make a list range of numbers." $
     <*> Sig.required "step" "Step."
     <*> Sig.required "count" "Number of values."
     ) $ \(start, step, count) _ ->
-        return $ DeriveT.VList $ map DeriveT.num $ Seq.range start step count
+        return $ DeriveT.VList $ map DeriveT.num $ Lists.range start step count
 
 c_scoretime :: Derive.ValCall
 c_scoretime = val_call "scoretime" mempty

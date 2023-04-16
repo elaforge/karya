@@ -13,7 +13,7 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Texts as Texts
 
 import qualified Cmd.Cmd as Cmd
@@ -145,7 +145,7 @@ convert_midi_pitch srate inst patch config controls event =
     set_keyswitches [] = (perf_patch, [])
     set_keyswitches keyswitches =
         (perf_patch { Types.patch_keyswitches = ks }, ccs)
-        where (ccs, ks) = Seq.partition_on is_control_switch keyswitches
+        where (ccs, ks) = Lists.partitionOn is_control_switch keyswitches
     is_control_switch (Patch.ControlSwitch cc ccval) = Just (cc, ccval)
     is_control_switch _ = Nothing
 

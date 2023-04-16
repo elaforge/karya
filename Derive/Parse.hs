@@ -39,7 +39,6 @@ import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.Lists as Lists
 import qualified Util.ParseText as ParseText
-import qualified Util.Seq as Seq
 
 import qualified Derive.Attrs as Attrs
 import qualified Derive.DeriveT as DeriveT
@@ -141,11 +140,11 @@ lex text
 -- to infer edits in progress.
 split_pipeline :: Text -> [[Text]]
 split_pipeline =
-    Seq.map_tail (drop 1) . Lists.splitBefore ((=="|") . Text.strip) . lex
+    Lists.mapTail (drop 1) . Lists.splitBefore ((=="|") . Text.strip) . lex
 
 join_pipeline :: [[Text]] -> Text
 join_pipeline =
-    mconcat . List.intercalate [" | "] . map (Seq.map_last Text.stripEnd)
+    mconcat . List.intercalate [" | "] . map (Lists.mapLast Text.stripEnd)
 
 -- | This returns () on success and the caller will see how many chars were
 -- consumed.  Attoparsec doesn't keep track of byte position, and always

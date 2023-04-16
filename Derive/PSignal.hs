@@ -56,7 +56,6 @@ import qualified Data.Set as Set
 import qualified Util.Lists as Lists
 import qualified Util.Segment as Segment
 import           Util.Segment (Sample(..))
-import qualified Util.Seq as Seq
 
 import qualified Derive.DeriveT as DeriveT
 import           Derive.DeriveT
@@ -136,7 +135,7 @@ type ErrorText = Text
 to_nn :: PSignal -> (Signal.NoteNumber, [(RealTime, ErrorText)])
 to_nn = extract . Either.partitionEithers . map eval . to_pairs
     where
-    extract (errs, nns) = (Signal.from_pairs nns, Seq.unique_sort errs)
+    extract (errs, nns) = (Signal.from_pairs nns, Lists.uniqueSort errs)
     eval (x, pitch) = case pitch_nn (coerce pitch) of
         Left err -> Left (x, DeriveT.detailed_error pitch err)
         Right (Pitch.NoteNumber nn) -> Right (x, nn)
@@ -206,7 +205,7 @@ apply_controls cmap psig = case Lists.head (to_pairs psig) of
                 <> controls_at x non_transposers
         control_resamples
             | List.null control_samples = replicate (length xs) []
-            | otherwise = Seq.rotate $
+            | otherwise = Lists.rotate $
                 map (Segment.resample_num xs) control_samples
         pitch_resamples =
             Segment.resample_maybe interpolate xs $ to_samples psig

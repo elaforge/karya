@@ -9,7 +9,6 @@ import qualified Data.Text as Text
 
 import qualified Util.Lists as Lists
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -272,7 +271,7 @@ block_template block_id track_ids range = do
 clipped_skeleton :: Ui.M m => BlockId -> BlockId -> [TrackNum] -> m ()
 clipped_skeleton from_block to_block tracknums =
     whenM (Ui.has_explicit_skeleton to_block) $
-        case (Seq.minimum tracknums, Seq.maximum tracknums) of
+        case (Lists.minimum tracknums, Lists.maximum tracknums) of
             (Just low, Just high) -> do
                 edges <- Skeleton.flatten <$> Ui.get_skeleton from_block
                 Ui.set_skeleton to_block $ Skeleton.make

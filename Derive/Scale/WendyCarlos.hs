@@ -12,7 +12,7 @@ import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 
 import qualified Util.ParseText as ParseText
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveT as DeriveT
@@ -38,7 +38,7 @@ scales = map Scale.Simple
     where
     make scale_id per_octave cents =
         make_scale scale_id $ Vector.fromList $ take per_octave $
-            Seq.range_ 0 (cents/100)
+            Lists.range_ 0 (cents/100)
 
 type Degrees = Vector.Vector Pitch.NoteNumber
 

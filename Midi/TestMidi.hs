@@ -16,7 +16,6 @@ import qualified System.IO as IO
 
 import qualified Util.Lists as Lists
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
 import qualified Util.Test as Test
 
 import qualified Midi.Encode
@@ -225,7 +224,7 @@ melody interface write_msg = do
 notes :: RealTime.RealTime -> [(RealTime.RealTime, Midi.Message)]
 notes start_ts = concat
     [[(ts, note_on nn), (ts + RealTime.seconds 0.4, note_off nn)]
-        | (ts, nn) <- zip (Seq.range_ start_ts (RealTime.seconds 0.5)) score]
+        | (ts, nn) <- zip (Lists.range_ start_ts (RealTime.seconds 0.5)) score]
     where score = [53, 55 .. 61]
 
 -- * mmc

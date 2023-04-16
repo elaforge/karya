@@ -18,7 +18,6 @@ import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Ranges as Ranges
-import qualified Util.Seq as Seq
 import qualified Util.Test.Testing as Testing
 
 import qualified App.Config as Config
@@ -97,7 +96,7 @@ import           Types
 signal_interpolate :: RealTime -> Signal.Y -> RealTime -> Signal.Y
     -> [(RealTime, Signal.Y)]
 signal_interpolate x0 y0 x1 y1 =
-    drop 1 [(x, project x) | x <- Seq.range_end x0 x1 1]
+    drop 1 [(x, project x) | x <- Lists.rangeEnd x0 x1 1]
     where
     project = Num.scale y0 y1 . Num.normalize (to_y x0) (to_y x1) . to_y
     to_y = RealTime.to_seconds
@@ -346,7 +345,7 @@ with_linear_block block_id =
     where
     -- Start at 1 to exclude the ruler.
     skel state =
-        [(x, y) | (x, Just y) <- Seq.zip_next [1 .. ntracks state  - 1]]
+        [(x, y) | (x, Just y) <- Lists.zipNext [1 .. ntracks state  - 1]]
     ntracks state = length $ maybe [] Block.block_tracks $
         Map.lookup block_id (Ui.state_blocks state)
 
@@ -670,7 +669,7 @@ e_instrument :: Score.Event -> Text
 e_instrument = ScoreT.instrument_name . Score.event_instrument
 
 e_control :: ScoreT.Control -> Score.Event -> [(RealTime, Signal.Y)]
-e_control control = Seq.drop_dups id
+e_control control = Lists.dropDups id
     . maybe [] (Signal.to_pairs . ScoreT.typed_val)
     . Score.event_control control
 
@@ -687,7 +686,7 @@ lookup_control (ScoreT.Control c) =
         _ -> Nothing
 
 e_control_vals :: ScoreT.Control -> Score.Event -> [Signal.Y]
-e_control_vals control = map snd . Seq.drop_initial_dups fst . e_control control
+e_control_vals control = map snd . Lists.dropInitialDups fst . e_control control
 
 e_control_constant :: ScoreT.Control -> Score.Event -> Maybe Signal.Y
 e_control_constant control = Signal.constant_val . ScoreT.typed_val
@@ -698,10 +697,10 @@ e_initial_control control event = ScoreT.typed_val <$>
     Score.control_at (Score.event_start event) control event
 
 e_dyn :: Score.Event -> [(RealTime, Signal.Y)]
-e_dyn = Seq.drop_dups id . e_control Controls.dynamic
+e_dyn = Lists.dropDups id . e_control Controls.dynamic
 
 e_dyn_rounded :: Score.Event -> [(RealTime, Signal.Y)]
-e_dyn_rounded = Seq.drop_dups id . map (second (Num.roundDigits 2))
+e_dyn_rounded = Lists.dropDups id . map (second (Num.roundDigits 2))
     . e_control Controls.dynamic
 
 -- | Like 'e_nns', but drop discontinuities.
@@ -711,14 +710,14 @@ e_dyn_rounded = Seq.drop_dups id . map (second (Num.roundDigits 2))
 e_nns_old :: CallStack.Stack => Score.Event -> [(RealTime, Pitch.NoteNumber)]
 e_nns_old e
     | not (null errs) = error $ "errors flattening signal: " <> show errs
-    | otherwise = Seq.drop_dups snd $ Seq.drop_initial_dups fst sig
+    | otherwise = Lists.dropDups snd $ Lists.dropInitialDups fst sig
     where (sig, errs) = e_nns_errors e
 
 -- | Like 'e_nns_errors', but throw an exception if there are errors.
 e_nns :: CallStack.Stack => Score.Event -> [(RealTime, Pitch.NoteNumber)]
 e_nns e
     | not (null errs) = error $ "errors flattening signal: " <> show errs
-    | otherwise = Seq.drop_dups id sig
+    | otherwise = Lists.dropDups id sig
     where (sig, errs) = e_nns_errors e
 
 -- | Like 'e_nns', but round to cents to make comparison easier.
@@ -735,7 +734,7 @@ e_nns_errors =
     . PSignal.to_nn . Score.event_pitch . Score.normalize
 
 flat_segments :: [(x, y)] -> [(x, y)]
-flat_segments = concatMap make . Seq.zip_next
+flat_segments = concatMap make . Lists.zipNext
     where
     make ((x0, y), Just (x1, _)) = [(x0, y), (x1, y)]
     make (xy, Nothing) = [xy]

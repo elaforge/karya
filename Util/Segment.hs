@@ -68,11 +68,11 @@ import qualified Data.Vector.Storable as Vector.Storable
 
 import qualified Foreign
 
+import qualified Util.Lists as Lists
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 import qualified Util.TimeVector as TimeVector
-import           Util.TimeVector (X, Sample(..))
+import           Util.TimeVector (Sample(..), X)
 import qualified Util.Vector
 
 import qualified Perform.RealTime as RealTime
@@ -615,7 +615,7 @@ integrate srate_x =
         ( f (x2 - x1)
         , if y1 == y2
             then [to_sample x1 (f 0), to_sample x2 (f (x2 - x1))]
-            else [to_sample x (f (x - x1)) | x <- Seq.range' x1 x2 (1/srate)]
+            else [to_sample x (f (x - x1)) | x <- Lists.range' x1 x2 (1/srate)]
         )
         where
         f x = n * x^2 / 2 + y1*x + accum
@@ -674,8 +674,9 @@ sample_xs2 = go
 -- I worry that it's less efficient.
 _linear_operator2 :: ([Y] -> Y) -> NumSignal -> NumSignal -> NumSignal
 _linear_operator2 merge asig bsig =
-    -- Seq.rotate zips up the samples from each signal.
-    from_samples $ zipWith make xs $ Seq.rotate $ map (resample_num xs) samples
+    -- Lists.rotate zips up the samples from each signal.
+    from_samples $ zipWith make xs $ Lists.rotate $
+        map (resample_num xs) samples
     where
     make x ys = Sample x (merge ys)
     xs = sample_xs $ map (map sx) samples
@@ -723,7 +724,7 @@ sample_xs :: [[X]] -> [X]
 sample_xs = go
     where
     go [] = []
-    go xss_ = case Seq.minimum xs of
+    go xss_ = case Lists.minimum xs of
         Nothing -> go (map tail xss)
         Just x -> x : go (map (drop1 (==x)) xss)
         where
@@ -741,14 +742,14 @@ sample_xs = go
 -- instead of [X].
 resample_rate :: X -> NumSignal -> NumSignal
 resample_rate srate =
-    from_samples . concatMap resample . Seq.zip_next . to_samples
+    from_samples . concatMap resample . Lists.zipNext . to_samples
     where
     resample (Sample x1 y1, Nothing) = [Sample x1 y1]
     resample (Sample x1 y1, Just (Sample x2 y2))
         | y1 == y2 || x1 == x2 = [Sample x1 y1]
         | otherwise =
             [ Sample x (TimeVector.y_at x1 y1 x2 y2 x)
-            | x <- Seq.range' x1 x2 (1/srate)
+            | x <- Lists.range' x1 x2 (1/srate)
             ]
 
 -- TODO possible vector implementation that might fuse.  But this
@@ -763,7 +764,7 @@ resample_rate srate =
 
 to_piecewise_constant :: X -> NumSignal -> TimeVector.Unboxed
 to_piecewise_constant srate =
-    V.fromList . Seq.drop_dups sy . Seq.drop_initial_dups sx . List.concat
+    V.fromList . Lists.dropDups sy . Lists.dropInitialDups sx . List.concat
         . List.unfoldr make . to_samples
     where
     make [] = Nothing
@@ -774,5 +775,5 @@ to_piecewise_constant srate =
         | otherwise = Just (segment x1 y1 x2 y2, s2s)
     segment x1 y1 x2 y2 =
         [ Sample x (TimeVector.y_at x1 y1 x2 y2 x)
-        | x <- Seq.range' x1 x2 (1/srate)
+        | x <- Lists.range' x1 x2 (1/srate)
         ]

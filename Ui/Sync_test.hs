@@ -31,7 +31,7 @@ import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.PPrint as PPrint
 import qualified Util.Rect as Rect
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Test.Testing as Testing
 
 import qualified App.Config as Config
@@ -458,13 +458,13 @@ thread setup tests = do
     return ()
 
 match_dumps :: Text -> [Dump.Dump] -> [[(String, String)]] -> IO Bool
-match_dumps desc dumps attrs = allM matches (Seq.zip_padded dumps attrs)
+match_dumps desc dumps attrs = allM matches (Lists.zipPadded dumps attrs)
     where
-    matches (Seq.Second attrs) =
+    matches (Lists.Second attrs) =
         fail $ "view missing for attrs: " <> showt attrs
-    matches (Seq.First dump) =
+    matches (Lists.First dump) =
         fail $ "unexpected view: " <> showt dump
-    matches (Seq.Both dump attrs)
+    matches (Lists.Both dump attrs)
         | null missing = pass $ "found " <> showt attrs
         | otherwise =
             fail $ "attrs " <> showt missing <> " not in dump: "

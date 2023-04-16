@@ -9,7 +9,6 @@ import qualified Data.Text as Text
 
 import qualified Util.Lists as Lists
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 
 import qualified Derive.Attrs as Attrs
 import qualified Ness.Guitar as Guitar
@@ -118,12 +117,12 @@ _end :: Note -> RealTime.RealTime
 _end n = _start n + _duration n
 
 collectFingers :: [Note] -> Either Error ([Guitar.Note], [Guitar.Finger])
-collectFingers = collect . Seq.keyed_group_stable _string
+collectFingers = collect . Lists.keyedGroupStable _string
     where
     collect stringNotes = do
         (notes, fingers) <- unzip <$>
             mapM (oneString . second deoverlap) stringNotes
-        return (Seq.merge_lists Guitar.nStart notes, fingers)
+        return (Lists.mergeLists Guitar.nStart notes, fingers)
     -- All the notes on a single string get a single finger.
     oneString :: (Guitar.String, [Note])
         -> Either Error ([Guitar.Note], Guitar.Finger)
@@ -157,7 +156,7 @@ merge_segments :: [(RealTime.RealTime, Signal.Signal)] -> Signal.Signal
 merge_segments = mconcat . map (uncurry Signal.clip_before)
 
 deoverlap :: [Note] -> [Note]
-deoverlap = map trim . Seq.zip_next
+deoverlap = map trim . Lists.zipNext
     where
     trim (n, Nothing) = n
     trim (n, Just next)
@@ -168,7 +167,7 @@ fingerMovement :: Guitar.String -> [Note] -> Signal.Signal -> Signal.Signal
     -> [(Seconds, Location, Newtons)]
 fingerMovement string notes pitch fingerWeight =
     concat $ snd $ List.mapAccumL note (Signal.to_pairs pitch)
-        (Seq.zip_next notes)
+        (Lists.zipNext notes)
     where
     note pitches (note, nextNote) =
         (here, movement (_start note) nextAttack

@@ -22,7 +22,7 @@ import           System.FilePath ((</>))
 import qualified Util.Control as Control
 import qualified Util.Log as Log
 import qualified Util.Processes as Processes
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
@@ -256,7 +256,7 @@ tala_metronome (Talas.Hindustani _) _ _ = error "hindustani not implemented"
 tala_metronome (Talas.Carnatic tala) akshara_dur end =
         takeWhile (\(s, _, _, _) -> s < end)
     [ (s, 0, pitch, dyn)
-    | (s, Just (pitch, dyn)) <- zip (Seq.range_ 0 akshara_dur) (cycle pattern)
+    | (s, Just (pitch, dyn)) <- zip (Lists.range_ 0 akshara_dur) (cycle pattern)
     ]
     where
     pattern = concatMap make (Tala._angas tala)

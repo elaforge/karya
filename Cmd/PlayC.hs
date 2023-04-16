@@ -27,10 +27,10 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Vector as Vector
 
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
 import qualified App.Config as Config
@@ -356,7 +356,7 @@ event_highlights :: BlockId -> Map Color.Highlight Color.Color
     -> [((BlockId, TrackId), (Range, Color.Color))]
 event_highlights derived_block_id colors
     | Map.null colors = const []
-    | otherwise = Seq.unique_on key . Vector.foldr collect []
+    | otherwise = Lists.uniqueOn key . Vector.foldr collect []
     where
     key (track, (range, _)) = (track, range)
     collect event accum

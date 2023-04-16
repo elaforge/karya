@@ -11,7 +11,6 @@ import qualified Data.Vector as Vector
 
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
 
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.DeriveT as DeriveT
@@ -46,11 +45,11 @@ write :: RealTime -> RealTime -> BlockId
 write adjust0 play_multiplier block_id lookup_inst filename events = do
     notes <- LEvent.write_logs $ convert block_id lookup_inst $
         -- TODO fix sorted Derive.Stream: so I can remove this.
-        Seq.sort_on Score.event_start $
+        Lists.sortOn Score.event_start $
         Vector.toList events
     -- The play multiplier is a speed multiplier, so it's a note time divider.
     Note.serialize filename $ multiply_time adjust0 (1/play_multiplier) $
-        map (uncurry trim_controls) $ Seq.zip_nexts notes
+        map (uncurry trim_controls) $ Lists.zipNexts notes
     return ()
 
 multiply_time :: RealTime -> RealTime -> [Note.Note] -> [Note.Note]

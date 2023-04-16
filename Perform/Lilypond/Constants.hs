@@ -6,7 +6,7 @@ module Perform.Lilypond.Constants where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Derive.Env as Env
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
@@ -98,7 +98,7 @@ position_key (CodePosition attach pos distribution) =
 
 key_position :: Env.Key -> Maybe CodePosition
 key_position k = Map.lookup k m
-    where m = Map.fromList $ Seq.key_on position_key all_positions
+    where m = Map.fromList $ Lists.keyOn position_key all_positions
 
 environ_code :: Env.Environ -> [(CodePosition, Text)]
 environ_code env =

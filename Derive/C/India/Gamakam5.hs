@@ -209,7 +209,7 @@ get_prev_pitch = Args.prev_note_pitch
 --     -- pitch_signal <- PSignal.last . PSignal.drop_after start <$> Derive.get_pitch
 --     pitch_signal <- before start <$> Derive.get_pitch
 --     return $ case (prev_event_pitch, pitch_signal) of
---         (Just a, Just b) -> Just $ snd $ Seq.max_on fst a b
+--         (Just a, Just b) -> Just $ snd $ Lists.maxOn fst a b
 --         (a, b) -> snd <$> (a <|> b)
 --     -- Getting the previous pitch is kind of ridiculously complicated.
 --     -- First, Args.prev_pitch means there was a preceding pitch call, so

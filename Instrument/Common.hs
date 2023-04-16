@@ -12,7 +12,7 @@ import qualified Data.Set as Set
 import qualified Util.Doc as Doc
 import qualified Util.Lens as Lens
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Serialize as Serialize
 
 import qualified Derive.Attrs as Attrs
@@ -167,7 +167,7 @@ overlapping_attributes (AttributeMap table) =
 -- The sort is stable, so it shouldn't destroy the priority implicit in the
 -- order.
 sort_attributes :: [(Attrs.Attributes, a)] -> [(Attrs.Attributes, a)]
-sort_attributes = Seq.sort_on (\(a, _) -> - Set.size (Attrs.to_set a))
+sort_attributes = Lists.sortOn (\(a, _) -> - Set.size (Attrs.to_set a))
 
 
 -- * Config

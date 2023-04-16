@@ -39,7 +39,6 @@ import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Network as Network
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
 import qualified Util.Thread as Thread
 
@@ -198,7 +197,7 @@ write_ahead = 1
 
 to_bundles :: Time.UTCTime -> [LEvent.LEvent (RealTime, OSC.OSC)]
     -> [LEvent.LEvent OSC.OSCBundle]
-to_bundles start = concatMap make . Seq.keyed_group_adjacent time_of
+to_bundles start = concatMap make . Lists.keyedGroupAdjacent time_of
     where
     make (time, events) =
         map LEvent.Log logs ++ if null oscs then []
@@ -210,7 +209,7 @@ to_bundles start = concatMap make . Seq.keyed_group_adjacent time_of
 notes_to_osc :: NodeId -> [LEvent.LEvent (RealTime, Note.Note)]
     -> [LEvent.LEvent (RealTime, OSC.OSC)]
 notes_to_osc start_id =
-    Seq.merge_asc_lists time_of . map (apply (uncurry note_to_osc))
+    Lists.mergeAscLists time_of . map (apply (uncurry note_to_osc))
         . LEvent.zip node_ids
     where
     node_ids = node_ids_from start_id
@@ -232,8 +231,8 @@ note_to_osc node_id (offset, Note.Note patch start controls) =
 control_oscs :: NodeId -> Map Note.ControlId MSignal.Signal
     -> [(RealTime, OSC.OSC)]
 control_oscs node_id =
-    map (second (n_set node_id)) . Seq.group_adjacent_fst
-        . Seq.merge_lists fst . map extract . Map.toAscList
+    map (second (n_set node_id)) . Lists.groupAdjacentFst
+        . Lists.mergeLists fst . map extract . Map.toAscList
     where
     extract (control, sig) =
         [(x, (control, y)) | (x, y) <- MSignal.to_pairs sig]

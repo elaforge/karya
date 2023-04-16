@@ -17,7 +17,6 @@ import qualified Text.Printf as Printf
 
 import qualified Util.Lists as Lists
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 import qualified Util.Trees as Trees
 
 import qualified Cmd.Cmd as Cmd
@@ -80,7 +79,7 @@ lookup_track_type block_id tracknum = do
 
 -- | Get all the Tracks in a block, sorted by tracknum.
 block_tracks :: Ui.M m => BlockId -> m [Track]
-block_tracks block_id = Seq.sort_on (Ui.track_tracknum . track_info)
+block_tracks block_id = Lists.sortOn (Ui.track_tracknum . track_info)
     . map make_track . Trees.paths <$> TrackTree.track_tree_of block_id
 
 make_track :: (Tree.Tree Ui.TrackInfo, TrackTree.TrackTree) -> Track
@@ -185,7 +184,7 @@ show_addrs addrs = semicolon_list
     [ pretty wdev
         <> " [" <> Text.intercalate "," (show_runs (map ((+1) . snd) addrs))
         <> "]"
-    | (wdev, addrs) <- Seq.keyed_group_sort fst addrs
+    | (wdev, addrs) <- Lists.keyedGroupSort fst addrs
     ]
 
 semicolon_list :: [Text] -> Text

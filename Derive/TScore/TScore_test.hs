@@ -5,7 +5,7 @@
 module Derive.TScore.TScore_test where
 import qualified Data.Map as Map
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Cmd.CmdTest as CmdTest
 import qualified Derive.TScore.TScore as TScore
 import qualified Ui.Event as Event
@@ -186,7 +186,7 @@ test_ext_call_duration :: Test
 test_ext_call_duration = do
     let f blocks source = extract $
             CmdTest.run_blocks blocks (TScore.cmd_integrate source)
-        extract = fmap (Seq.sort_on fst) . CmdTest.trace_logs
+        extract = fmap (Lists.sortOn fst) . CmdTest.trace_logs
             . CmdTest.extract_ui_state UiTest.extract_blocks
     let blocks = [("top=ruler", UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")])]
         top = ("top", UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")])

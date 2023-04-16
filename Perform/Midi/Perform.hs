@@ -23,10 +23,10 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Maps as Maps
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 
 import qualified Derive.LEvent as LEvent
 import qualified Derive.ScoreT as ScoreT
@@ -218,7 +218,7 @@ shareable_chan overlapping event =
     )
     where
     unshareable_reasons = [(chan, reasons evts) | (evts, chan) <- by_chan]
-    by_chan = Seq.group_snd overlapping
+    by_chan = Lists.groupSnd overlapping
     reasons = mapMaybe (flip can_share_chan event)
 
 -- | Can the two events coexist in the same channel without interfering?
@@ -302,7 +302,7 @@ controls_equal start end cs1 cs2 = start >= end || all eq pairs
     -- of the controls require their own channel.
     relevant = Map.filterWithKey (\k _ -> Control.is_channel_control k)
     pairs = Maps.pairs (relevant cs1) (relevant cs2)
-    eq (_, Seq.Both sig1 sig2) =
+    eq (_, Lists.Both sig1 sig2) =
         MSignal.within start end sig1 == MSignal.within start end sig2
     eq _ = False
 
@@ -421,7 +421,7 @@ update_allot_state inst_chan end maybe_new_allot addr voices state = state
 steal_addr :: Configs -> ScoreT.Instrument -> AllotState
     -> Maybe (Patch.Addr, Patch.Voices, Maybe AllotKey)
 steal_addr configs inst state = case _addrs <$> Map.lookup inst configs of
-    Just addr_voices -> case Seq.minimum_on (fst . snd) avail of
+    Just addr_voices -> case Lists.minimumOn (fst . snd) avail of
         Just ((addr, voices), (_, maybe_inst_chan)) ->
             Just (addr, fromMaybe 10000 voices, maybe_inst_chan)
         Nothing -> Nothing
@@ -463,7 +463,7 @@ empty_perform_state = (Map.empty, Map.empty)
 perform_notes :: PerformState -> [LEvent.LEvent (T.Event, Patch.Addr)]
     -> (MidiEvents, PerformState)
 perform_notes state events =
-    (Seq.merge_asc_lists merge_key midi_msgs, final_state)
+    (Lists.mergeAscLists merge_key midi_msgs, final_state)
     where
     (final_state, midi_msgs) = List.mapAccumL go state
         (zip events (drop 1 (List.tails events)))
@@ -730,7 +730,7 @@ perform_signal prev_note_off start end sig = initial : pairs
     where
     -- The signal should already be trimmed to the event start, except that
     -- it may have a leading sample, due to 'MSignal.drop_before'.
-    pairs = Seq.drop_initial_dups fst $
+    pairs = Lists.dropInitialDups fst $
         dropWhile ((<=start) . fst) $ MSignal.to_pairs $
         MSignal.drop_before start $ maybe id MSignal.drop_at_after end sig
     -- Don't go before the previous note, but don't go after the start of this
@@ -857,7 +857,7 @@ analyze_msg (Just (pb_val, cmap)) msg = case msg of
 -- | Sort almost-sorted MidiEvents.  Events may be out of order by
 -- as much as control_lead_time.  This happens because 'perform_signal' adds
 -- events between 0--control_lead_time before the note, which can violate the
--- precondition of 'Seq.merge_asc_lists'.
+-- precondition of 'Lists.mergeAscLists'.
 --
 -- I tried to come up with a way for the events to come out sorted even with
 -- 'perform_signal', but creativity failed me, so I resorted to this hammer.
@@ -873,7 +873,7 @@ resort = go mempty
         -- time.  Presumably I could go find a priority queue on hackage, but
         -- lists are pretty fast...
         (pre, post) = break ((> Midi.wmsg_ts event - interval) . Midi.wmsg_ts)
-            (Seq.insert_on Midi.wmsg_ts event collect)
+            (Lists.insertOn Midi.wmsg_ts event collect)
     interval = control_lead_time
 
 
@@ -892,10 +892,10 @@ note_end event = T.event_end event
 
 -- | Merge an unsorted list of sorted lists of midi messages.
 merge_messages :: [[Midi.WriteMessage]] -> [Midi.WriteMessage]
-merge_messages = Seq.merge_lists Midi.wmsg_ts
+merge_messages = Lists.mergeLists Midi.wmsg_ts
 
 merge_events :: MidiEvents -> MidiEvents -> MidiEvents
-merge_events = Seq.merge_on merge_key
+merge_events = Lists.mergeOn merge_key
 
 merge_key :: LEvent.LEvent Midi.WriteMessage -> RealTime
 merge_key (LEvent.Log _) = 0

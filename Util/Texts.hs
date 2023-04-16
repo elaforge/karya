@@ -30,7 +30,6 @@ import           System.FilePath ((</>))
 
 import qualified Util.Lists as Lists
 import qualified Util.Regex as Regex
-import qualified Util.Seq as Seq
 
 
 -- * conversion
@@ -78,7 +77,7 @@ replaceMany replace = mconcat . go
     go text
         | Text.null text = []
         | otherwise = maybe [text] continue $
-            Seq.minimum_on (Text.length . fst . fst)
+            Lists.minimumOn (Text.length . fst . fst)
                 [(Text.breakOn (fst r) text, r) | r <- replace]
     continue ((pre, post), (from, to))
         | Text.null post = [pre]
@@ -136,7 +135,7 @@ columnsSome padding rows = map formatRow rows
     formatRow = either id (Text.stripEnd . mconcat . zipWith pad widths)
     pad w = Text.justifyLeft (w + padding) ' '
     byCol = map (map (Maybe.fromMaybe Text.empty))
-        (Seq.rotate2 (Either.rights rows))
+        (Lists.rotate2 (Either.rights rows))
     widths = map (List.maximum . (0:) . map Text.length) byCol
 
 -- | Apply a function to the contents delimited by the given Char.  You can

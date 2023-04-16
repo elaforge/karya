@@ -68,7 +68,7 @@ import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Styled as Styled
 
 import qualified Derive.Expr as Expr
@@ -311,7 +311,7 @@ parseSollus :: Text -> Either Error [Maybe Sollu]
 parseSollus = parseSyllables allSollus
 
 allSollus :: [(Text, Sollu)]
-allSollus = Seq.key_on notationText $ filter (/= NoSollu) [minBound ..]
+allSollus = Lists.keyOn notationText $ filter (/= NoSollu) [minBound ..]
 
 parseSyllables :: Show sollu => [(Text, sollu)] -> Text
     -> Either Error [Maybe sollu]
@@ -475,7 +475,7 @@ allVariations matras = concatMap vars [0 .. max 1 (matras - minDuration)]
 findTriads :: S.Sequence g (Note sollu) -> [(S.Matra, (Int, Int, Int))]
 findTriads notes =
     [ (matras, triad)
-    | (matras, indices) <- Seq.group_fst
+    | (matras, indices) <- Lists.groupFst
         [ (matras, i)
         | (i, S.Note (Pattern (PatternM matras))) <- zip [0..] (S.toList notes)
         ]

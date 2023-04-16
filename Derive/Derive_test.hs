@@ -11,7 +11,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Cmd.Simple as Simple
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Derive as Derive
@@ -267,12 +267,12 @@ test_subderive = do
     let b0 pos = (UiTest.bid "b0", [(UiTest.mk_tid_name "b0" 1, pos),
             (UiTest.mk_tid_name "b0" 2, pos)])
         sub pos = (UiTest.bid "sub", [(UiTest.mk_tid_name "sub" 1, pos)])
-    equal (map (inv_tempo res) (Seq.range 0 10 2))
+    equal (map (inv_tempo res) (Lists.range 0 10 2))
         [[b0 0], [b0 4], [b0 8, sub 0], [b0 12, sub 1], [b0 16, sub 2], []]
 
     -- For eyeball verification.
     -- pprint (r_events res)
-    -- pprint $ zip [0,2..] $ map (inv_tempo res) (Seq.range 0 10 2)
+    -- pprint $ zip [0,2..] $ map (inv_tempo res) (Lists.range 0 10 2)
     -- pprint $ Derive.state_track_warps state
 
 test_subderive_timing :: Test
@@ -339,7 +339,7 @@ test_multiple_subderive = do
     equal (fst (DeriveTest.extract Score.event_instrument res))
         (replicate 3 "i1")
 
-    let pos = map (inv_tempo res) (Seq.range 0 6 1)
+    let pos = map (inv_tempo res) (Lists.range 0 6 1)
     let b0 pos = (UiTest.bid "b0", [(UiTest.mk_tid_name "b0" 1, pos)])
         sub pos = (UiTest.bid "sub", [(UiTest.mk_tid_name "sub" 1, pos)])
     equal (map List.sort pos)
@@ -482,8 +482,8 @@ test_tempo_funcs1 = do
     equal (map (inv_tempo res) [0, 2, 4, 6]) [[b0 0], [b0 4], [b0 8], [b0 12]]
     equal (inv_tempo res (RealTime.from_score UiTest.default_block_end)) []
 
-    equal (map (r_tempo res bid t_tid) (Seq.range 0 10 2))
-        (map ((:[]) . RealTime.seconds) (Seq.range 0 5 1))
+    equal (map (r_tempo res bid t_tid) (Lists.range 0 10 2))
+        (map ((:[]) . RealTime.seconds) (Lists.range 0 5 1))
 
 test_tempo_funcs2 :: Test
 test_tempo_funcs2 = do
@@ -498,10 +498,10 @@ test_tempo_funcs2 = do
         bid = UiTest.default_block_id
     let res = DeriveTest.derive_block ui_state bid
     equal (DeriveTest.r_log_strings res) []
-    equal (map (r_tempo res bid t_tid1) (Seq.range 0 10 2))
-        (map ((:[]) . RealTime.seconds) (Seq.range 0 5 1))
-    equal (map (r_tempo res bid t_tid2) (Seq.range 0 10 2))
-        (map ((:[]) . RealTime.seconds) (Seq.range 0 10 2))
+    equal (map (r_tempo res bid t_tid1) (Lists.range 0 10 2))
+        (map ((:[]) . RealTime.seconds) (Lists.range 0 5 1))
+    equal (map (r_tempo res bid t_tid2) (Lists.range 0 10 2))
+        (map ((:[]) . RealTime.seconds) (Lists.range 0 10 2))
     let b0 pos = (bid, [(t_tid1, pos), (tid1, pos)])
         b1 pos = (bid, [(t_tid2, pos), (tid2, pos)])
     equal (map (inv_tempo res) [0, 2, 4, 6])
@@ -588,7 +588,7 @@ test_tempo_roundtrip = do
     let inv = TrackWarp.inverse_tempo_func track_warps Transport.StopAtEnd
         tempo = TrackWarp.tempo_func track_warps
     let rtimes = concatMap (tempo UiTest.default_block_id track_id)
-            (Seq.range 0 3 1)
+            (Lists.range 0 3 1)
         stimes = concatMap inv rtimes
     pprint rtimes
     pprint stimes

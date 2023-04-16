@@ -9,7 +9,7 @@ import qualified Data.Set as Set
 
 import qualified Util.Log as Log
 import qualified Util.Ranges as Ranges
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 
 import qualified Derive.Cache as Cache
 import qualified Derive.Controls as Controls
@@ -422,7 +422,7 @@ test_collect = do
         Just collect = maybe_collect
     equal root_key "top * *"
 
-    let e_warp_maps = Seq.sort_on fst . map (bimap Stack.pretty_ui_ e_track)
+    let e_warp_maps = Lists.sortOn fst . map (bimap Stack.pretty_ui_ e_track)
             . Map.toAscList . Derive.collect_warp_map
         e_track (TrackWarp.Track start end _warp block_id track_id) =
             (start, end, block_id, track_id)
@@ -720,7 +720,7 @@ test_tempo_damage = do
     let create = mkblocks
             [ ("top",
                 [ ("tempo", [(0, 0, "1"), (2, 0, "2")])
-                , (">", [(n, 1, "sub") | n <- Seq.range 0 4 1])
+                , (">", [(n, 1, "sub") | n <- Lists.range 0 4 1])
                 ])
             , ("sub=ruler", [(">", [(0, 1, "")])])
             ]
@@ -873,7 +873,7 @@ r_pretty_logs = map show_log . r_logs
 
 -- | The logs are sorted for tests, since log order isn't really defined.
 r_logs :: Derive.Result -> [Log.Msg]
-r_logs = Seq.sort_on show_log . Stream.logs_of . Derive.r_events
+r_logs = Lists.sortOn show_log . Stream.logs_of . Derive.r_events
 
 show_log :: Log.Msg -> Text
 show_log msg =
@@ -881,7 +881,7 @@ show_log msg =
 
 -- | Pull the collects out of the cache, pairing them up with the cache keys.
 r_cache_collect :: Derive.Result -> [(Text, Maybe Derive.Collect)]
-r_cache_collect result = Seq.sort_on fst
+r_cache_collect result = Lists.sortOn fst
     [ (DeriveTest.show_stack_ False (Just (Derive.key_stack key)),
         collect ctype)
     | (key, ctype) <- Map.toList cmap
@@ -976,7 +976,7 @@ diff_events r1 r2
     -- null" line on every test.  In practice, I don't expect any test to
     -- produce zero events.
     | null x1 && null x2 = expect_no_events
-    | otherwise = Seq.diff_either (==) x1 x2
+    | otherwise = Lists.diffEither (==) x1 x2
     where
     x1 = extract r1
     x2 = extract r2

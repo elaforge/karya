@@ -5,7 +5,7 @@
 module Cmd.Ruler.RulerUtil_test where
 import qualified Data.Map as Map
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Cmd.Create as Create
 import qualified Cmd.Ruler.RulerUtil as RulerUtil
 import qualified Ui.Block as Block
@@ -107,5 +107,5 @@ extract_rulers =
 mkruler :: [Mark.Label] -> Ruler.Ruler
 mkruler labels = UiTest.mkruler_marks
     [ (t, (0, label))
-    | (t, label) <- zip (Seq.range_ 0 1) labels
+    | (t, label) <- zip (Lists.range_ 0 1) labels
     ]

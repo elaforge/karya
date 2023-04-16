@@ -14,7 +14,7 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 
 import           Data.Function (on)
 
@@ -66,7 +66,7 @@ invert = Map.fromList . map (\(x, y) -> (y, x)) . Map.assocs
 -- | TODO Would it be more efficient to do 'fromListWith (++)'?
 multimap :: Ord k => [(k, a)] -> Map k [a]
 multimap = Map.fromAscList . map (\gs -> (fst (head gs), map snd gs))
-    . List.groupBy ((==) `on` fst) . Seq.sort_on fst
+    . List.groupBy ((==) `on` fst) . Lists.sortOn fst
 
 -- | Like Map.fromList, but only accept the first of duplicate keys, and also
 -- return the rejected duplicates.
@@ -74,7 +74,8 @@ unique :: Ord a => [(a, b)] -> (Map a b, [(a, b)])
 unique assocs = (Map.fromList pairs, concat rest)
     where
     -- List.sort is stable, so only the first keys will make it into the map.
-    separate = unzip . map pair . List.groupBy ((==) `on` fst) . Seq.sort_on fst
+    separate = unzip . map pair . List.groupBy ((==) `on` fst)
+        . Lists.sortOn fst
     pair (x:xs) = (x, xs)
     pair [] = error "[]: List.groupBy violated its postcondition"
     (pairs, rest) = separate assocs
@@ -83,7 +84,7 @@ unique assocs = (Map.fromList pairs, concat rest)
 -- with the multiple values.
 unique2 :: Ord k => [(k, v)] -> (Map k v, [(k, [v])])
 unique2 = first Map.fromAscList . Either.partitionEithers . map separate
-    . Seq.group_fst
+    . Lists.groupFst
     where
     separate (k, [v]) = Left (k, v)
     separate (k, vs) = Right (k, vs)
@@ -97,11 +98,11 @@ zipIntersection map1 map2 =
     -- I could implement with 'pairs', but it would be less efficient.
 
 -- | Pair up elements from each map with equal keys.
-pairs :: Ord k => Map k v1 -> Map k v2 -> [(k, Seq.Paired v1 v2)]
-pairs map1 map2 = Seq.pair_sorted (Map.toAscList map1) (Map.toAscList map2)
+pairs :: Ord k => Map k v1 -> Map k v2 -> [(k, Lists.Paired v1 v2)]
+pairs map1 map2 = Lists.pairSorted (Map.toAscList map1) (Map.toAscList map2)
 {-# INLINE pairs #-}
 
-paired :: Ord k => Map k v1 -> Map k v2 -> Map k (Seq.Paired v1 v2)
+paired :: Ord k => Map k v1 -> Map k v2 -> Map k (Lists.Paired v1 v2)
 paired map1 map2 = Map.fromAscList (pairs map1 map2)
 {-# INLINE paired #-}
 

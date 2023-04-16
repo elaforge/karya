@@ -13,7 +13,7 @@ import           System.FilePath ((</>))
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
 import qualified Util.Audio.Resample as Resample
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 
 import qualified Derive.Attrs as Attrs
 import qualified Perform.RealTime as RealTime
@@ -60,7 +60,7 @@ data By = Attr | Pitch | Dyn
 sequence :: By -> Note.PatchName -> RealTime -> [Attrs.Attributes]
     -> [Note.Element] -> Signal.Y -> Signal.Y -> [Note.Note]
 sequence by patch dur attrs pitches variations dynamics =
-    zipWith setStart (Seq.range_ 0 dur) $ case by of
+    zipWith setStart (Lists.range_ 0 dur) $ case by of
         Attr ->
             [ make pitch dyn var attr
             | pitch <- pitches
@@ -83,8 +83,8 @@ sequence by patch dur attrs pitches variations dynamics =
             , pitch <- pitches
             ]
     where
-    vars = Seq.range 0 1 (1 / (variations-1))
-    dyns = Seq.range 0 1 (1 / (dynamics-1))
+    vars = Lists.range 0 1 (1 / (variations-1))
+    dyns = Lists.range 0 1 (1 / (dynamics-1))
     setStart start note = note { Note.start = start }
     make element dyn var attr = (Note.note patch "inst" 0 dur)
         { Note.element = element
@@ -100,7 +100,7 @@ renderSequence :: FilePath -> RealTime -> [Sample.SamplePath] -> IO ()
 renderSequence outDir dur fnames = do
     renderDirect (outDir </> "out.wav") Nothing samples
     where
-    samples = zip (Seq.range_ 0 dur) (map makeSample fnames)
+    samples = zip (Lists.range_ 0 dur) (map makeSample fnames)
     makeSample fname = (Sample.make fname)
         { Sample.envelope =
             Signal.from_pairs [(0, 1), (dur - decay, 1), (dur, 0)]

@@ -24,7 +24,7 @@ import qualified System.Process as Process
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
 import qualified Util.Audio.PortAudio as PortAudio
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Thread as Thread
 
 import qualified Derive.ScoreT as ScoreT
@@ -72,7 +72,7 @@ data Device = Sox | PortAudio PortAudio.Device
 getDevices :: IO ([(String, Device)], String)
 getDevices = do
     deflt <- PortAudio.getDefaultOutput
-    (, PortAudio._name deflt) . Seq.key_on name_of . (++[Sox]) . map PortAudio
+    (, PortAudio._name deflt) . Lists.keyOn name_of . (++[Sox]) . map PortAudio
         <$> PortAudio.getOutputDevices
     where
     name_of Sox = "sox"

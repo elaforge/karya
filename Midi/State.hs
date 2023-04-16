@@ -18,7 +18,7 @@ import qualified Data.Maybe as Maybe
 
 import qualified Util.Maps as Maps
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 
 import qualified Midi.Midi as Midi
 import Global
@@ -120,17 +120,17 @@ diff_control control v1 v2
     | v1 == v2 = []
     | otherwise = [cc_msg control v2]
 
-diff_note :: Midi.Key -> Seq.Paired Midi.Velocity Midi.Velocity
+diff_note :: Midi.Key -> Lists.Paired Midi.Velocity Midi.Velocity
     -> [Midi.ChannelMessage]
-diff_note key (Seq.First _) = [Midi.NoteOff key 0]
-diff_note key (Seq.Second vel) = [Midi.NoteOn key vel]
-diff_note key (Seq.Both v1 v2)
+diff_note key (Lists.First _) = [Midi.NoteOff key 0]
+diff_note key (Lists.Second vel) = [Midi.NoteOn key vel]
+diff_note key (Lists.Both v1 v2)
     | v1 == v2 = []
     | otherwise = [Midi.NoteOff key 0, Midi.NoteOn key v2]
 
 diff_map :: Ord k => Map k a -> Map k a -> a -> (k -> a -> a -> [b]) -> [b]
 diff_map m1 m2 deflt f = concatMap go (Maps.pairs m1 m2)
     where
-    go (k, Seq.Both v1 v2) = f k v1 v2
-    go (k, Seq.First v1) = f k v1 deflt
-    go (k, Seq.Second v2) = f k deflt v2
+    go (k, Lists.Both v1 v2) = f k v1 v2
+    go (k, Lists.First v1) = f k v1 deflt
+    go (k, Lists.Second v2) = f k deflt v2

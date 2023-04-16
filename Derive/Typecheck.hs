@@ -62,7 +62,7 @@ import qualified Data.Map as Map
 import qualified Data.Ratio as Ratio
 import qualified Data.Set as Set
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Texts as Texts
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.SubT as SubT
@@ -264,7 +264,7 @@ from_val_symbol syms = \case
     -- for inlining.
 
 enum_map :: forall a. TEnum a => Map Text a
-enum_map = Map.fromList $ Seq.key_on ShowVal.show_val [minBound ..]
+enum_map = Map.fromList $ Lists.keyOn ShowVal.show_val [minBound ..]
 
 num_to_type :: TypecheckNum a => Proxy a -> ValType.Type
 num_to_type proxy = ValType.TSignal (num_type proxy) ValType.TAny

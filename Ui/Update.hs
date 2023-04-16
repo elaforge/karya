@@ -18,7 +18,7 @@ import qualified Util.Maps as Maps
 import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
 import qualified Util.Rect as Rect
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
@@ -353,7 +353,7 @@ track_changed _ = Nothing
 
 -- | Some Updates have to happen before others.
 sort :: [DisplayUpdate] -> [DisplayUpdate]
-sort = Seq.sort_on sort_key
+sort = Lists.sortOn sort_key
 
 sort_key :: DisplayUpdate -> Int
 sort_key = \case

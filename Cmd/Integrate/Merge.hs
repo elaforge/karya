@@ -49,7 +49,7 @@ import qualified Data.Traversable as Traversable
 import qualified Data.Tree as Tree
 
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Trees as Trees
 
 import qualified Cmd.Create as Create
@@ -165,7 +165,7 @@ score_merge block_id tree dests = do
 -- | Track pairs of the children of the given tree, sorted by tracknum.
 get_children :: Ui.M m => TrackTree.TrackTree -> m [(TrackId, Track.Track)]
 get_children =
-    fmap (map snd . Seq.sort_on fst) . mapM resolve . concatMap Tree.flatten
+    fmap (map snd . Lists.sortOn fst) . mapM resolve . concatMap Tree.flatten
     where
     resolve tinfo = do
         track <- Ui.get_track (Ui.track_id tinfo)
@@ -290,7 +290,7 @@ merge_track source_events (track_id, index) = do
 -- should all have stacks, so events without stacks are discarded.
 make_index :: [Event.Event] -> Block.EventIndex
 make_index events = Map.fromList
-    [(key, event) | (Just key, event) <- Seq.key_on index_key events]
+    [(key, event) | (Just key, event) <- Lists.keyOn index_key events]
 
 -- | Unlike derive integration, the events are copied directly from the
 -- source, and hence don't have stacks.
@@ -344,24 +344,24 @@ pair_tracks :: [Maybe TrackId] -- ^ Tracks in the block, in tracknum order.
     -- ^ Each [TrackPair] is (note : controls).
 pair_tracks track_ids tracks dests = map (filter is_valid) $
     snd $ List.mapAccumL resolve1 (length track_ids) $ map pairs_of $
-        Seq.zip_padded tracks dests
+        Lists.zipPadded tracks dests
     where
     -- Pair up the tracks.
-    pairs_of (Seq.First (note, controls)) = map Seq.First (note : controls)
-    pairs_of (Seq.Second (Block.NoteDestination key note controls)) =
-        map Seq.Second (note : Map.elems controls)
-    pairs_of (Seq.Both track dest) = pair_destination track dest
+    pairs_of (Lists.First (note, controls)) = map Lists.First (note : controls)
+    pairs_of (Lists.Second (Block.NoteDestination key note controls)) =
+        map Lists.Second (note : Map.elems controls)
+    pairs_of (Lists.Both track dest) = pair_destination track dest
 
     resolve1 next_tracknum pairs = List.mapAccumL resolve next_tracknum pairs
     -- Figure out tracknums.
-    resolve next_tracknum (Seq.First track) =
+    resolve next_tracknum (Lists.First track) =
         (next_tracknum + 1, (Just track, Left next_tracknum))
-    resolve next_tracknum (Seq.Second dest) = case tracknum_of (fst dest) of
+    resolve next_tracknum (Lists.Second dest) = case tracknum_of (fst dest) of
         -- Track deleted and the integrate no longer wants it.
         -- Ugly, but (Nothing, Left) can be code for "ignore me".
         Nothing -> (next_tracknum, (Nothing, Left 0))
         Just tracknum -> (tracknum + 1, (Nothing, Right dest))
-    resolve next_tracknum (Seq.Both track dest) = case tracknum_of (fst dest) of
+    resolve next_tracknum (Lists.Both track dest) = case tracknum_of (fst dest) of
         Nothing -> (next_tracknum + 1, (Just track, Left next_tracknum))
         Just tracknum -> (tracknum + 1, (Just track, Right dest))
     tracknum_of track_id = List.elemIndex (Just track_id) track_ids
@@ -371,14 +371,15 @@ pair_tracks track_ids tracks dests = map (filter is_valid) $
 -- | Pair up the controls based on the track title, which should be the control
 -- name.
 pair_destination :: (Convert.Track, [Convert.Track]) -> Block.NoteDestination
-    -> [Seq.Paired Convert.Track (TrackId, Block.EventIndex)]
+    -> [Lists.Paired Convert.Track (TrackId, Block.EventIndex)]
 pair_destination (note, controls)
         (Block.NoteDestination key note_dest control_dests) =
-    Seq.Both note note_dest : pair_controls controls control_dests
+    Lists.Both note note_dest : pair_controls controls control_dests
     where
     pair_controls tracks dests =
-        map snd $ Seq.pair_sorted (Seq.sort_on fst keyed) (Map.toAscList dests)
-        where keyed = Seq.key_on Convert.track_title tracks
+        map snd $ Lists.pairSorted (Lists.sortOn fst keyed) $
+        Map.toAscList dests
+        where keyed = Lists.keyOn Convert.track_title tracks
 
 -- | Pair up tracks in an analogous way to 'pair_tracks'.  The difference is
 -- that ScoreDestinations are matched up by TrackId, so I don't have to do any

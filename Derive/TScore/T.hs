@@ -10,7 +10,7 @@ import qualified Data.Ratio as Ratio
 import qualified Data.String as String
 import qualified Data.Text as Text
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Texts as Texts
 import qualified Ui.Id as Id
 
@@ -202,8 +202,8 @@ show_error source (Error pos msg) = Texts.unlines2 msg $ fromMaybe "" $ do
 -- | Find the line and position on that line.
 find_pos :: Text -> Pos -> Maybe (Int, Int, Text)
 find_pos source (Pos pos) =
-    case Seq.drop_before (fst . snd) pos (zip [1..] lines) of
+    case Lists.dropBefore (fst . snd) pos (zip [1..] lines) of
         (line_num, (start, line)) : _ -> Just (line_num, pos - start, line)
         _ -> Nothing
     where
-    lines = Seq.scanl_on (+) ((+1) . Text.length) 0 $ Text.lines source
+    lines = Lists.scanlOn (+) ((+1) . Text.length) 0 $ Text.lines source

@@ -19,7 +19,6 @@ import qualified Data.List as List
 import qualified Util.CallStack as CallStack
 import qualified Util.Lists as Lists
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
 
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
@@ -340,13 +339,13 @@ reduceTo to by = mconcat . reduceToL to by
 -- | Reduce by a duration until a final duration.
 reduceToL :: (CallStack.Stack, Pretty sollu) => FMatra -> FMatra
     -> SequenceT sollu -> [SequenceT sollu]
-reduceToL to by seq = [dropM m seq | m <- Seq.range 0 (matras - to) by]
+reduceToL to by seq = [dropM m seq | m <- Lists.range 0 (matras - to) by]
     where matras = matrasOf seq
 
 -- | Like 'reduceToL', but drop from the end instead of the front.
 reduceToR :: (CallStack.Stack, Pretty sollu) => FMatra -> FMatra
     -> SequenceT sollu -> [SequenceT sollu]
-reduceToR to by seq = [takeM m seq | m <- Seq.range matras to (-by)]
+reduceToR to by seq = [takeM m seq | m <- Lists.range matras to (-by)]
     where matras = matrasOf seq
 
 -- | Start fully reduced, and expand n times by the given duration.

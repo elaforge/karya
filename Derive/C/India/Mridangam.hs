@@ -11,7 +11,6 @@ import qualified Data.Text as Text
 import qualified Util.Doc as Doc
 import qualified Util.Lists as Lists
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
 import qualified Util.Test.ApproxEq as ApproxEq
 
 import qualified Derive.Args as Args
@@ -98,7 +97,7 @@ m_sequence notes dur (start, end) orientation = realize $ case orientation of
     Types.Negative -> reverse $ takeWhile ((>=start) . fst) $
         place end (-dur) $ cycle (reverse notes)
     where
-    place from step = Seq.map_maybe_snd id . snd . List.mapAccumL note from
+    place from step = Lists.mapMaybeSnd id . snd . List.mapAccumL note from
         where note t (d, n) = (t + realToFrac d * step, (t, n))
     realize notes =
         mconcat [Derive.place start 0 note | (start, note) <- notes]

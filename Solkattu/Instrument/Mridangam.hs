@@ -12,7 +12,6 @@ import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Lists as Lists
-import qualified Util.Seq as Seq
 
 import qualified Derive.Expr as Expr
 import qualified Derive.Symbols as Symbols
@@ -255,8 +254,8 @@ fromString = mapMaybeM parse
             Just s -> Right $ Just $ Just s
 
 notations :: Map Char Stroke
-notations = Map.fromList $ (extras++) $ Seq.map_maybe_fst isChar $
-    Seq.key_on Solkattu.notationText $ concat
+notations = Map.fromList $ (extras++) $ Lists.mapMaybeFst isChar $
+    Lists.keyOn Solkattu.notationText $ concat
         [ map Thoppi (lhs ++ [Thom Up, Gum])
         , map Valantalai rhs
         -- Omit little strokes, they're probably inaudible on Both anyway.

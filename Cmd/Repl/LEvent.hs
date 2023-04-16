@@ -9,7 +9,6 @@ import qualified Data.Text as Text
 
 import qualified Util.Lists as Lists
 import qualified Util.Regex as Regex
-import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
 
 import qualified Cmd.Cmd as Cmd
@@ -52,7 +51,7 @@ stretch_to :: TrackTime -> Cmd.CmdL ()
 stretch_to dur = do
     selected <- Selection.events
     start <- Selection.start
-    let maybe_end = Seq.maximum $
+    let maybe_end = Lists.maximum $
             mapMaybe (fmap Event.end . Lists.last . snd) selected
     whenJust maybe_end $ \end ->
         ModifyEvents.selection $ ModifyEvents.event $
@@ -103,7 +102,7 @@ replace_many_exact repl = ModifyEvents.text $ \t -> fromMaybe t (lookup t repl)
 -- have any more scores like that.
 upgrade_mridangam :: Cmd.M m => m ()
 upgrade_mridangam = ModifyEvents.note_tracks $ replace_many_exact $
-    Seq.key_on (txt . List.reverse . untxt) $
+    Lists.keyOn (txt . List.reverse . untxt) $
         map call_of $
         Mridangam.make_both Mridangam.left_notes Mridangam.right_notes [] []
     where
@@ -184,9 +183,9 @@ quantize_event mode points_ event = (start_points, quantize_event event)
     quantize_start = Event.start_ %= quantize start_points
     quantize_end event = Event.end_ %= quantize (end_points event) $ event
     zero = Event.duration event == 0
-    start_points = Seq.drop_before id (Event.start event) points_
+    start_points = Lists.dropBefore id (Event.start event) points_
     end_points e = dropWhile (<= Event.start e) $
-        Seq.drop_before id (Event.end e) start_points
+        Lists.dropBefore id (Event.end e) start_points
 
 quantize :: [TrackTime] -> TrackTime -> TrackTime
 quantize points t = case points of

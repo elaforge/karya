@@ -15,7 +15,7 @@ import qualified Data.Text as Text
 import qualified Data.Tuple as Tuple
 
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Midi.Midi as Midi
 import qualified Midi.State as MState
 import           Midi.State (Addr)
@@ -30,7 +30,7 @@ import           Types
 -- * analyze
 
 initial_pitches :: [Note] -> [(Int, Pitch.NoteNumber)]
-initial_pitches notes = Seq.sort_on fst $ map Tuple.swap $ Map.toList $
+initial_pitches notes = Lists.sortOn fst $ map Tuple.swap $ Map.toList $
     Map.fromListWith (+) [(initial_pitch note, 1) | note <- notes ]
 
 nonconstant_pitches :: [Note] -> [Note]
@@ -101,7 +101,7 @@ modify f = do
     State.put $! f st
 
 run :: State -> [Midi.WriteMessage] -> State
-run state msgs = postproc $ run_state (mapM_ msg1 (Seq.zip_prev msgs))
+run state msgs = postproc $ run_state (mapM_ msg1 (Lists.zipPrev msgs))
     where
     run_state = Identity.runIdentity . flip State.execStateT state
     msg1 (prev, wmsg) = flip Reader.runReaderT wmsg $ do

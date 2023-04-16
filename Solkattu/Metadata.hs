@@ -10,16 +10,16 @@ import qualified Data.Text as Text
 import qualified Data.Time.Calendar as Calendar
 
 import qualified Util.CallStack as CallStack
+import qualified Util.Lists as Lists
 import qualified Util.Num as Num
 import qualified Util.Parse as Parse
 import qualified Util.Regex as Regex
-import qualified Util.Seq as Seq
 
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tags as Tags
 
-import Global
+import           Global
 
 
 -- * query
@@ -106,7 +106,7 @@ showTime (h, m, s)
 
 -- | Get a section tag's values, concatenated and uniqued.
 sectionTag :: Text -> Korvai.Score -> [Text]
-sectionTag tag = Seq.unique
+sectionTag tag = Lists.unique
     . concatMap (Map.findWithDefault [] tag . Tags.untags) . sectionTags
 
 sectionTags :: Korvai.Score -> [Tags.Tags]

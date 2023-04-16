@@ -8,7 +8,7 @@ import           Prelude hiding (String)
 import qualified Data.List as List
 import qualified Data.Tuple as Tuple
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Env as Env
@@ -86,8 +86,8 @@ find_harmonic h1_ok highest_harmonic open_strings maybe_string nn =
             (string,) <$> harmonic_of h1_ok highest_harmonic (str_nn string) nn
         Nothing
             | null open_strings -> Nothing
-            | otherwise -> fmap Tuple.swap $ Seq.minimum_on fst $
-                Seq.key_on_just harm_of open_strings
+            | otherwise -> fmap Tuple.swap $ Lists.minimumOn fst $
+                Lists.keyOnJust harm_of open_strings
                 where
                 harm_of string =
                     harmonic_of h1_ok highest_harmonic (str_nn string) nn

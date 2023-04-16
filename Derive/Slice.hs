@@ -42,7 +42,6 @@ import qualified Data.Text as Text
 import qualified Data.Tree as Tree
 
 import qualified Util.Lists as Lists
-import qualified Util.Seq as Seq
 import qualified Util.Then as Then
 
 import qualified Derive.ParseTitle as ParseTitle
@@ -201,7 +200,7 @@ slice_notes include_end start end tracks
     slice_track :: Sliced -> (Maybe TrackId, [Note])
     slice_track (parents, note_track, slices, subs) =
         ( TrackTree.track_id note_track
-        , map (slice1 (make_tree parents)) (Seq.zip_prev slices)
+        , map (slice1 (make_tree parents)) (Lists.zipPrev slices)
         )
         where
         make_tree (p:ps) = [Tree.Node p (make_tree ps)]
@@ -254,9 +253,9 @@ event_ranges :: Bool -> TrackTime -> TrackTime -> TrackTree.EventsNode
     -- ^ [(start, end, next_start)]
 event_ranges include_end start end = nonoverlapping . to_ranges
     where
-    to_ranges = Seq.merge_lists (\(s, _, _) -> s) . map track_events
+    to_ranges = Lists.mergeLists (\(s, _, _) -> s) . map track_events
         . filter is_note . Tree.flatten
-    track_events = map range . Seq.zip_next . Events.ascending
+    track_events = map range . Lists.zipNext . Events.ascending
         . events_in_range include_end start end
         . TrackTree.track_events
     range (event, next) =

@@ -10,7 +10,7 @@ module Derive.C.Prelude.SignalTransform (
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
@@ -62,7 +62,7 @@ c_sh_pitch = Derive.transformer Module.prelude "sh" mempty
 -- TODO(polymorphic-signals): this is the same as 'sample_hold_control'
 sample_hold_pitch :: [RealTime] -> PSignal.PSignal -> PSignal.PSignal
 sample_hold_pitch points sig = PSignal.from_pairs $ do
-    (x1, n) <- Seq.zip_next points
+    (x1, n) <- Lists.zipNext points
     Just y <- return $ PSignal.at x1 sig
     x <- x1 : maybe [] (:[]) n
     return (x, y)
@@ -80,7 +80,7 @@ c_sh_control = Derive.transformer Module.prelude "sh" mempty
 
 sample_hold_control :: [RealTime] -> Signal.Control -> Signal.Control
 sample_hold_control points sig = Signal.from_pairs $ do
-    (x1, n) <- Seq.zip_next points
+    (x1, n) <- Lists.zipNext points
     let y = Signal.at x1 sig
     x <- x1 : maybe [] (:[]) n
     return (x, y)
@@ -142,7 +142,7 @@ c_smooth = Derive.transformer Module.prelude "smooth" mempty
         srate <- Call.get_srate
         time <- Call.real_duration (Args.start args) time
         Post.signal (ControlUtil.smooth_absolute curve srate time
-            . Seq.drop_initial_dups fst . Signal.to_pairs) deriver
+            . Lists.dropInitialDups fst . Signal.to_pairs) deriver
 
 c_redirect :: Derive.Merge -> Derive.Transformer Derive.Control
 c_redirect merger =

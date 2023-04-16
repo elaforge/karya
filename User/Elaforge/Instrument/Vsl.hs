@@ -12,7 +12,6 @@ import qualified Data.Text.IO as Text.IO
 
 import qualified Util.Lists as Lists
 import qualified Util.Maps as Maps
-import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
 
 import qualified Cmd.Instrument.MidiInst as MidiInst
@@ -94,7 +93,7 @@ show_matrix :: VslInst.Instrument -> Text
 show_matrix (name, _, attrs) =
     name <> ":\n" <> Text.unlines (map format matrices)
     where
-    matrices = Seq.chunked cols $ concatMap (Seq.chunked cols)
+    matrices = Lists.chunked cols $ concatMap (Lists.chunked cols)
         (map_shape strip attrs)
     format = Text.unlines . Texts.columns 1
         . zipWith (:) col_header . (header:) . map (map ShowVal.show_val)
@@ -243,11 +242,11 @@ make_instrument :: VslInst.Instrument -> Instrument
 make_instrument (name, keys, attrs) = (name, matrix keys attrs)
 
 keyswitch_map :: [Keyswitch] -> Patch.AttributeMap
-keyswitch_map = Patch.keyswitches . Seq.sort_on (priority . fst) . process
+keyswitch_map = Patch.keyswitches . Lists.sortOn (priority . fst) . process
     where
     process keyswitches = zip attrs ks
         where (attrs, ks) = unzip (drop_dups keyswitches)
-    drop_dups = Seq.unique_on fst
+    drop_dups = Lists.uniqueOn fst
     priority attrs = Map.findWithDefault 0 attrs attribute_priority
 
 -- | Order attributes by priority.  This should correspond to specificity, or
@@ -275,7 +274,7 @@ attribute_priority = Map.fromList ((`zip` [-1, -2 ..]) (reverse high)) <> low
 -- me disable and enable cells by row, and with custom patches I'll probably
 -- wind up with more than 144 anyway.
 matrix :: VslInst.Keys -> [[Attrs.Attributes]] -> [Keyswitch]
-matrix keys = add . Seq.chunked 12 . concatMap (Seq.chunked 12)
+matrix keys = add . Lists.chunked 12 . concatMap (Lists.chunked 12)
     where
     add matrices = do
         (matrix_ks, rows) <- zip select_matrix matrices
@@ -445,7 +444,7 @@ infer_seconds round inst_attrs event = case closest of
     Just (secs, _) -> Score.add_attributes (VslInst.sec secs) event
     where
     dur = Score.event_duration event
-    closest = Seq.minimum_on (abs . subtract dur . fst) $ case round of
+    closest = Lists.minimumOn (abs . subtract dur . fst) $ case round of
         Nothing -> relevant_attrs
         Just Call.Up -> filter ((>=dur) . fst) relevant_attrs
         Just Call.Down -> filter ((<=dur) . fst) relevant_attrs

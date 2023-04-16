@@ -16,7 +16,7 @@ import           Data.Text (Text)
 
 import qualified Util.Maps as Maps
 import qualified Util.Ranges as Ranges
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 
 
 newtype ColorCode = ColorCode Text
@@ -80,15 +80,15 @@ splitRanges = go 0
 ranges :: Text -> Text
     -> (IntMap.IntMap [CharRange], IntMap.IntMap [CharRange])
 ranges first second =
-    toMap $ Seq.partition_paired $ map diffLine $
+    toMap $ Lists.partitionPaired $ map diffLine $
         Maps.pairs firstByLine secondByLine
     where
     toMap (as, bs) = (IntMap.fromList as, IntMap.fromList bs)
     diffLine (num, d) = case d of
-        Seq.Both line1 line2 -> Seq.Both (num, d1) (num, d2)
+        Lists.Both line1 line2 -> Lists.Both (num, d1) (num, d2)
             where (d1, d2) = char line1 line2
-        Seq.First line1 -> Seq.First (num, [(0, Text.length line1)])
-        Seq.Second line2 -> Seq.Second (num, [(0, Text.length line2)])
+        Lists.First line1 -> Lists.First (num, [(0, Text.length line1)])
+        Lists.Second line2 -> Lists.Second (num, [(0, Text.length line2)])
     firstByLine = Map.fromList
         [(n, text) | Diff.First (Numbered n text) <- diffs]
     secondByLine = Map.fromList

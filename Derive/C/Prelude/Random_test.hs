@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.C.Prelude.Random_test where
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.C.Prelude.Random as Random
@@ -14,15 +14,16 @@ test_omit :: Test
 test_omit = do
     let extract = DeriveTest.extract DeriveTest.e_start_dur
     let run n = extract $ DeriveTest.derive_tracks ""
-            [(">", [(p, 1, n) | p <- Seq.range 0 5 1])]
-    equal (run "omit 0 |") ([(p, 1) | p <- Seq.range 0 5 1], [])
+            [(">", [(p, 1, n) | p <- Lists.range 0 5 1])]
+    equal (run "omit 0 |") ([(p, 1) | p <- Lists.range 0 5 1], [])
     equal (run "omit 1 |") ([], [])
     let present = [0, 3, 5]
     equal (run "omit .5 |") (map (, 1) present, [])
 
     -- Ensure different calls to the same block are differently random.
     let blocks ns = extract $ DeriveTest.derive_blocks
-            [ ("top", [(">", [(p, 1, n) | (p, n) <- zip (Seq.range_ 0 1) ns])])
+            [ ("top",
+                [(">", [(p, 1, n) | (p, n) <- zip (Lists.range_ 0 1) ns])])
             , ("sub=ruler", [(">", [(0, 1, "omit .5 |")])])
             ]
     let present = [1, 2, 4, 6, 8, 9]
@@ -31,7 +32,7 @@ test_omit = do
 test_alternate :: Test
 test_alternate = do
     let run s = DeriveTest.extract DeriveTest.e_pitch $ DeriveTest.derive_blocks
-            [ ("top", [(">", [(p, 1, s) | p <- Seq.range 0 5 1])])
+            [ ("top", [(">", [(p, 1, s) | p <- Lists.range 0 5 1])])
             , ("s1=ruler", [(">", [(0, 1, "")]), ("*", [(0, 0, "4c")])])
             , ("s2=ruler", [(">", [(0, 1, "")]), ("*", [(0, 0, "4d")])])
             ]

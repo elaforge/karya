@@ -23,7 +23,6 @@ import qualified System.FilePath as FilePath
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Processes as Processes
-import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
 import qualified Cmd.Cmd as Cmd
@@ -103,7 +102,7 @@ set_staves staves
         config { Lilypond.config_staves = map mk staves }
     where
     dups = map fst $ snd $
-        Seq.partition_dups id [Util.instrument inst | (inst, _, _) <- staves]
+        Lists.partitionDups id [Util.instrument inst | (inst, _, _) <- staves]
     mk (inst, long, short) = (,) (Util.instrument inst) $
         Lilypond.empty_staff_config
             { Lilypond.staff_long = long, Lilypond.staff_short = short }

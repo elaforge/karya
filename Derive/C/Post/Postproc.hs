@@ -8,7 +8,7 @@ import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Test.ApproxEq as ApproxEq
 import qualified Derive.C.Prelude.ControlFunction as ControlFunction
 import qualified Derive.C.Prelude.Equal as Equal
@@ -101,7 +101,7 @@ cancel_strong_weak merge events = case partition events of
     ([], weaks, normals@(_:_)) -> Right [merge normal weaks | normal <- normals]
     ([], weaks, []) -> Right weaks
     where
-    partition = Seq.partition2 (Score.has_flags Flags.strong)
+    partition = Lists.partition2 (Score.has_flags Flags.strong)
         (Score.has_flags Flags.weak)
 
 -- | Handle 'Flags.infer_duration' for notes merged together.  This is the case
@@ -111,7 +111,7 @@ cancel_strong_weak merge events = case partition events of
 -- unchanged so 'infer_duration_single' can handle it.
 infer_duration_merged :: Score.Event -> [Score.Event] -> Score.Event
 infer_duration_merged strong weaks =
-    case Seq.maximum (map Score.event_end weaks) of
+    case Lists.maximum (map Score.event_end weaks) of
         Just end | Score.has_flags Flags.infer_duration strong ->
             Score.add_log ("set duration to max of weak notes: "
                 <> Score.short_events weaks) $
@@ -167,7 +167,7 @@ group_coincident key = go . Stream.to_list
         ((during, logs), after) = first LEvent.partition $
             span (LEvent.log_or $ same_start e) es
         -- [e] is going to be a common case, since most notes don't group.
-        groups = map Right (Seq.group_sort key (e : during))
+        groups = map Right (Lists.groupSort key (e : during))
     same_start e1 e2 = Score.event_start e1 RealTime.== Score.event_start e2
 
 -- | Filter out events that fall at and before the 'EnvKey.suppress_until'
@@ -188,7 +188,7 @@ suppress_notes =
             _ -> [event]
         Just until -> (Map.insert key until suppressed, [event])
         where
-        suppress_until = Seq.maximum $ Maybe.catMaybes $
+        suppress_until = Lists.maximum $ Maybe.catMaybes $
             (Map.lookup key suppressed :) $ map suppress_of $
             takeWhile (coincident . event_of) $
             filter ((==key) . key_of) nexts

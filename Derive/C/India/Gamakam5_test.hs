@@ -128,7 +128,7 @@ test_sequence_above = do
     -- -- Final event goes only to block end.
     -- equal (first (map (map fst)) $
     --         run [(0, "4c"), (1, "4d")] [(1, "!0")] [(0, 2)])
-    --     ([Seq.range 0 32 1], [])
+    --     ([Lists.range 0 32 1], [])
 
     -- Zero after note.
     equal (first (drop 1) $

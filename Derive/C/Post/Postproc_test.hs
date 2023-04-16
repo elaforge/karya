@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.C.Post.Postproc_test where
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.C.Post.Postproc as Postproc
@@ -158,7 +158,7 @@ test_adjust_offset = do
             , s2 + Postproc.adjust_offset d (Just (o1, s1)) Nothing o2 s2
             )
         d = 0.25
-        range s e = Seq.range s e (if e >= s then 1 else -1)
+        range s e = Lists.range s e (if e >= s then 1 else -1)
     -- There are two variations: they can move in the same direction, or in
     -- opposite directions.  And then, the directions can be positive or
     -- negative.

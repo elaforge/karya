@@ -72,7 +72,7 @@ import qualified Data.Set as Set
 import qualified Vivid.OSC as OSC
 
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.InputNote as InputNote
@@ -345,7 +345,7 @@ alloc_addr note_addr addr_serial serial addrs input
     -- Always pick the channel with the oldest note, whether or not it's
     -- allocated.  Previously I would try to pick a free one, but reusing
     -- a free channel led to audible artifacts with long-ringing instruments.
-    oldest = Seq.minimum_on (flip Map.lookup addr_serial) addrs
+    oldest = Lists.minimumOn (flip Map.lookup addr_serial) addrs
 
 with_addr :: Addr -> Midi.ChannelMessage -> (Midi.WriteDevice, Midi.Message)
 with_addr (wdev, chan) msg = (wdev, Midi.ChannelMessage chan msg)

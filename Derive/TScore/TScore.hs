@@ -25,7 +25,6 @@ import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
 
 import qualified App.Config as Config
@@ -191,7 +190,7 @@ track_blocks namespace get_ext_dur source = do
 
 check_unique_keys :: Block ParsedTrack -> [T.Error]
 check_unique_keys block =
-    concatMap mkerror $ Seq.find_dups key_of (_tracks block)
+    concatMap mkerror $ Lists.findDups key_of (_tracks block)
     where
     mkerror (track, tracks) =
         T.Error (track_pos track)
@@ -381,7 +380,7 @@ check_recursion :: [Block [Token pitch]] -> Maybe Error
 check_recursion blocks =
     either Just (const Nothing) $ mapM_ (check_block []) blocks
     where
-    by_block_id = Map.fromList $ Seq.key_on _block_id blocks
+    by_block_id = Map.fromList $ Lists.keyOn _block_id blocks
     check_block stack_ block
         | _block_id block `elem` stack_ =
             Left $ "recursive loop: "
@@ -436,7 +435,7 @@ resolve_blocks get_ext_dur source blocks =
         }
         where
         pitches = map (pitch_event negative) $
-            Seq.map_maybe_snd T.note_pitch notes
+            Lists.mapMaybeSnd T.note_pitch notes
 
     resolve_block block = block
         { _tracks = resolve_tracks (_block_id block) (_block_title block)
@@ -718,7 +717,7 @@ unwrap_tracks (T.WrappedTracks pos (T.Tracks tracks1 : wrapped))
     | Just different <- List.find (/= titles1) titles =
         Left $ T.Error pos $ "wrapped track titles must match: "
             <> showt titles1 <> " /= " <> showt different
-    | otherwise = Right $ T.Tracks $ zipWith merge tracks1 $ Seq.rotate $
+    | otherwise = Right $ T.Tracks $ zipWith merge tracks1 $ Lists.rotate $
         map T.untracks wrapped
     where
     -- [Tracks, Tracks] -> map untracks
@@ -779,7 +778,7 @@ resolve_sub_tracks :: BlockId -> T.Tracks T.Call
 resolve_sub_tracks block_id (T.Tracks tracks) =
     -- Since tracks will be reversed, start from the end, so the tracknums
     -- in the generated block names match up.
-    T.Tracks <$> mapM resolve (zip (Seq.range_ (length tracks) (-1)) tracks)
+    T.Tracks <$> mapM resolve (zip (Lists.range_ (length tracks) (-1)) tracks)
     where
     resolve (tracknum, track) = do
         tokens <- resolve_sub_tokens block_id tracknum (T.track_tokens track)

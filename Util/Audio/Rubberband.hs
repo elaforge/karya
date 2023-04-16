@@ -34,7 +34,7 @@ import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.RubberbandC as RubberbandC
 import           Util.Audio.RubberbandC (percussiveOptions, Option(..))
 import qualified Util.Control as Control
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 
 import           Global
 
@@ -101,7 +101,7 @@ interleave = S.map (Audio.Block . Audio.interleaveV)
 -- rubberband_process as chunks, but since they all have to be kept in memory
 -- anyway, I don't think it would help, and it's more complicated to implement.
 deinterleave :: Audio.Channels -> [Audio.Block] -> [Samples]
-deinterleave chan = map (mconcat . map Audio.blockVector) . Seq.rotate
+deinterleave chan = map (mconcat . map Audio.blockVector) . Lists.rotate
     . map (Audio.deinterleaveB chan)
 
 offlineStream :: Audio.Rate -> Audio.Channels -> Config -> [Samples]

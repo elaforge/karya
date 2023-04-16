@@ -54,7 +54,6 @@ import qualified Data.Ratio as Ratio
 import qualified Util.Lists as Lists
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 
 import qualified Solkattu.Tala as Tala
 
@@ -208,8 +207,8 @@ simplify = merge . concatMap cancel
 map1 :: (a -> a) -> Note g a -> Note g a
 map1 f n = case n of
     Note a -> Note (f a)
-    TempoChange change ns -> TempoChange change (Seq.map_head (map1 f) ns)
-    Group g ns -> Group g (Seq.map_head (map1 f) ns)
+    TempoChange change ns -> TempoChange change (Lists.mapHead (map1 f) ns)
+    Group g ns -> Group g (Lists.mapHead (map1 f) ns)
 
 filterNotes :: (a -> Bool) -> Sequence g a -> Sequence g a
 filterNotes f = apply go

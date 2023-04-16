@@ -26,7 +26,6 @@ import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Segment as Segment
-import qualified Util.Seq as Seq
 
 import qualified Perform.RealTime as RealTime
 import qualified Synth.Faust.InstrumentC as InstrumentC
@@ -406,7 +405,7 @@ extractControls controlSize impulseGate controls allNotes =
         ( (element, control)
         , controlBreakpoints controlSize impulseGate control notes
         )
-    byElement = Seq.keyed_group_stable Note.element allNotes
+    byElement = Lists.keyedGroupStable Note.element allNotes
     getE (element, control) =
         flip (get element) control <$> lookup element byElement
 

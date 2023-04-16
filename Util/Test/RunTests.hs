@@ -47,7 +47,6 @@ import qualified Util.File as File
 import qualified Util.Lists as Lists
 import qualified Util.Processes as Processes
 import qualified Util.Regex as Regex
-import qualified Util.Seq as Seq
 import qualified Util.Test.Testing as Testing
 
 import           Global
@@ -73,7 +72,7 @@ testName :: Test -> Text
 testName test = Text.intercalate "," tags <> "-" <> testSymName test
     where
     tags = if null tags_ then ["normal"] else tags_
-    tags_ = Seq.unique_sort $ map (Text.toLower . showt) $
+    tags_ = Lists.uniqueSort $ map (Text.toLower . showt) $
         Testing.tags (testModuleMeta test)
 
 -- Prefix for lines with test metadata.
@@ -209,7 +208,7 @@ runInSubprocess test = do
 runParallel :: [FilePath] -> [Test] -> IO [String]
 runParallel _ [] = return []
 runParallel outputs tests = do
-    let byModule = Seq.keyed_group_adjacent testFilename tests
+    let byModule = Lists.keyedGroupAdjacent testFilename tests
     queue <- newQueue [(txt name, tests) | (name, tests) <- byModule]
     failures <- Async.forConcurrently (shortenBy outputs byModule) $
         \output -> jobThread output queue

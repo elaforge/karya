@@ -11,7 +11,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified Util.Rect as Rect
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
@@ -144,7 +144,7 @@ merge_note_entry shifted octave = Map.unions . map get
         Cmd.WithOctave m -> convert $ Map.findWithDefault mempty octave m
         Cmd.WithoutOctave m -> convert m
     convert = Map.fromList
-        . Seq.map_maybe_fst (fmap (to_logical . char_to_keycap) . unshift)
+        . Lists.mapMaybeFst (fmap (to_logical . char_to_keycap) . unshift)
         . Map.toList
     -- Like Cmd.Keymap, I used shifted characters as a shorthand for Shift +
     -- unshifted.  This is possible since I know the exact key layout.
@@ -244,7 +244,7 @@ note_track_bindings =
 
 bindings_cache :: Maybe Color.Color -> Cmd.Keymap m
     -> Map (Set Cmd.Modifier) KeycapsT.Bindings
-bindings_cache mb_color keymap = Map.fromList $ Seq.key_on_snd mod_bindings $
+bindings_cache mb_color keymap = Map.fromList $ Lists.keyOnSnd mod_bindings $
     map (Set.fromList . mapMaybe Keymap.simple_to_mod)
     [ []
     , [Keymap.Shift]
@@ -266,7 +266,7 @@ keymap_docs :: Set Cmd.Modifier -> Cmd.Keymap m
     -> [(KeycapsT.KeyDoc, KeycapsT.Doc)]
 keymap_docs mods =
     map (bimap to_logical (\(Cmd.NamedCmd name _) -> name))
-    . Seq.map_maybe_fst (key_spec_label mods)
+    . Lists.mapMaybeFst (key_spec_label mods)
     . Map.toList
 
 to_logical :: KeycapsT.Keycap -> KeycapsT.Keycap

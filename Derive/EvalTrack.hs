@@ -97,7 +97,6 @@ import qualified Data.Text as Text
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 
 import qualified App.Config as Config
 import qualified Derive.Derive as Derive
@@ -248,7 +247,7 @@ post_track track ((state, save_val), result) =
 -- | Get all event prefixes and suffixes.
 event_prev_nexts :: TrackInfo d -> [([Event.Event], [Event.Event])]
 event_prev_nexts =
-    Seq.zipper [] . Events.ascending . TrackTree.track_events . tinfo_track
+    Lists.zipper [] . Events.ascending . TrackTree.track_events . tinfo_track
 
 -- | Derive one event on a control track.  Carrying previous values forward
 -- on a control track is a bit more complicated, because there is a separate

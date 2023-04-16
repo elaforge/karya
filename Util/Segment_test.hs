@@ -13,7 +13,7 @@ import qualified Util.Num as Num
 import qualified Util.Segment as Segment
 import           Util.Segment (Segment(Segment))
 import           Util.Segment (X)
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.TimeVector as TimeVector
 
 import qualified Perform.RealTime as RealTime
@@ -314,7 +314,7 @@ gen_integral_x = RealTime.seconds . fromIntegral <$>
     Gen.int (Range.linear (-4) 4)
 
 gen_signal :: Hedgehog.Gen Segment.NumSignal
-gen_signal = from_pairs . Seq.sort_on fst <$> gen_samples
+gen_signal = from_pairs . Lists.sortOn fst <$> gen_samples
 
 -- * util
 

@@ -4,7 +4,7 @@
 
 module Ness.Patches where
 import qualified Data.Map as Map
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import Global
 import qualified Ness.Guitar as Guitar
 import qualified Ness.Guitar.Patch as Guitar.Patch
@@ -13,7 +13,7 @@ import qualified Ness.Multiplate.Patch as Multiplate.Patch
 
 
 patches :: Map Text Patch
-patches = Map.fromList $ Seq.key_on patchName $
+patches = Map.fromList $ Lists.keyOn patchName $
     map PGuitar Guitar.Patch.instruments
     ++ map PMultiplate Multiplate.Patch.instruments
 

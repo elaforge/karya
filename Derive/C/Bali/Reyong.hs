@@ -27,7 +27,6 @@ import qualified Util.Doc as Doc
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
@@ -791,12 +790,12 @@ infer_damp_voices damped_insts dur_at early_at events = do
     return damped
     where
     (skipped, damped) = bimap concat (Post.merge_asc . map Post.merge_asc)
-        . unzip . map infer_voice . Seq.keyed_group_sort Post.voice_key $
+        . unzip . map infer_voice . Lists.keyedGroupSort Post.voice_key $
         events
     infer_voice ((inst, _voice), events)
         | inst `Set.notMember` damped_insts = ([], [events])
         | otherwise =
-            (skipped, zipWith infer_event damps (Seq.zip_next events))
+            (skipped, zipWith infer_event damps (Lists.zipNext events))
         where (damps, skipped) = infer_damp dur_at events
     infer_event (hand, damped) (event, next) =
         map (Post.add_environ EnvKey.hand hand) $ if damped
@@ -824,7 +823,7 @@ infer_damp :: (RealTime -> RealTime) -> [Score.Event]
     -> ([(Call.Hand, Bool)], [Score.Event])
     -- ^ (True if corresponding input event should be damped, skipped)
 infer_damp dur_at =
-    first (snd . List.mapAccumL infer (0, 0) . Seq.zip_nexts) . assign_hands
+    first (snd . List.mapAccumL infer (0, 0) . Lists.zipNexts) . assign_hands
     where
     infer prev ((hand, event), nexts) = (hands_state, (hand, damp))
         where
@@ -874,7 +873,7 @@ undamped = Attrs.attr "undamped"
 assign_hands :: [Score.Event] -> ([(Call.Hand, Score.Event)], [Score.Event])
 assign_hands =
     first (snd . List.mapAccumL assign (Call.L, 999))
-        . Seq.partition_on (\e -> (,e) <$> Score.initial_nn e)
+        . Lists.partitionOn (\e -> (,e) <$> Score.initial_nn e)
     where
     assign (prev_hand, prev_pitch) (pitch, event) =
         ((hand, pitch), (hand, event))

@@ -12,8 +12,8 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
+import qualified Util.Lists as Lists
 import qualified Util.Maps as Maps
-import qualified Util.Seq as Seq
 import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
@@ -156,7 +156,7 @@ inst_tags = \case
 
 normalize_tags :: [Tag.Tag] -> [Tag.Tag]
 normalize_tags =
-    Seq.drop_dups id . List.sort . map (bimap Text.toLower Text.toLower)
+    Lists.dropDups id . List.sort . map (bimap Text.toLower Text.toLower)
 
 control_tags :: Control.ControlMap -> [Tag.Tag]
 control_tags = map ((,) Tag.control . ScoreT.control_name) . Map.keys

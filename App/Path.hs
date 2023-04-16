@@ -21,7 +21,7 @@ import qualified GHC.Stack as Stack
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 
 
 -- | All paths should be relative to this one.
@@ -70,4 +70,4 @@ to_path (Canonical path) = path
 
 drop_prefix :: Canonical -> Canonical -> FilePath
 drop_prefix (Canonical prefix) (Canonical path) =
-    dropWhile (=='/') $ fst $ Seq.drop_prefix prefix path
+    dropWhile (=='/') $ fst $ Lists.dropPrefix prefix path

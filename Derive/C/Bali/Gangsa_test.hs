@@ -6,7 +6,7 @@ module Derive.C.Bali.Gangsa_test where
 import qualified Data.List as List
 import qualified Data.Text as Text
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Derive.C.Bali.Gangsa as Gangsa
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
@@ -508,7 +508,7 @@ derive_tracks = DeriveTest.derive_tracks block_title
 
 e_by_inst :: (Score.Event -> a) -> Derive.Result
     -> ([(ScoreT.Instrument, [a])], [Text])
-e_by_inst extract = first Seq.group_fst
+e_by_inst extract = first Lists.groupFst
     . DeriveTest.extract (\e -> (Score.event_instrument e, extract e))
 
 e_pattern :: RealTime -- ^ expect the first note at this time
@@ -520,7 +520,7 @@ convert_to_pattern :: (Text -> Text) -> RealTime
     -> [(a, [(RealTime, Text)])] -> [(a, Text)]
 convert_to_pattern pitch_digit start inst_notes =
     map (second (as_pattern pitch_digit start end)) inst_notes
-    where end = fromMaybe 0 $ Seq.maximum $ map fst $ concatMap snd inst_notes
+    where end = fromMaybe 0 $ Lists.maximum $ map fst $ concatMap snd inst_notes
 
 as_pattern :: (Text -> Text) -> RealTime -> RealTime
     -> [(RealTime, Text)] -> Text

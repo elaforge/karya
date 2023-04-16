@@ -12,7 +12,6 @@ import qualified Data.Text as Text
 
 import qualified Util.Lists as Lists
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
 
 import qualified Cmd.Create as Create
 import qualified Cmd.Load.ModT as ModT
@@ -118,7 +117,7 @@ convert_block state block =
     ctracks = map (merge_notes . convert_track state block_len)
         (ModT._tracks block)
     block_len = fromMaybe (ModT._block_length block) $
-        Seq.minimum $ mapMaybe track_len (ModT._tracks block)
+        Lists.minimum $ mapMaybe track_len (ModT._tracks block)
     track_len = Lists.head . mapMaybe cut_block . IntMap.toAscList
     cut_block (linenum, line)
         | ModT.CutBlock `elem` ModT._commands line = Just (linenum+1)
@@ -130,7 +129,7 @@ make_skeleton track_groups =
     where
     tracknums = scanl (+) 1 (map length track_groups)
     make start end = zip ts (drop 1 ts)
-        where ts = Seq.range' start end 1
+        where ts = Lists.range' start end 1
 
 merge_notes :: [Note] -> [(Text, Events.Events)]
 merge_notes notes =
@@ -148,7 +147,7 @@ merge_notes notes =
         ]
     controls = Set.toList $ Set.delete "*" $ Set.unions $
         map (Map.keysSet . _controls) notes
-    instruments = Seq.unique $ map (ModT._instrument_name . _instrument) notes
+    instruments = Lists.unique $ map (ModT._instrument_name . _instrument) notes
 
 clean_track :: (Text, [Event.Event]) -> Maybe (Text, [Event.Event])
 clean_track (_, []) = Nothing
@@ -160,7 +159,7 @@ clean_track (title, events)
         Nothing
     | otherwise = Just (title, clean)
     where
-    clean = Seq.drop_with idempotent events
+    clean = Lists.dropWith idempotent events
     idempotent e1 e2 = "`0x`" `Text.isPrefixOf` a && a == b
         where (a, b) = (Event.text e1, Event.text e2)
 
@@ -228,7 +227,7 @@ convert_note block_len tempo instrument linenum pitch cmds future_lines = Note
     , _instrument = instrument
     , _call = note_call (ModT._frames tempo) cmds
     , _pitch = pitch
-    , _controls = Map.fromListWith (Seq.merge_on Event.start) $
+    , _controls = Map.fromListWith (Lists.mergeOn Event.start) $
         convert_commands instrument start cmds $
         takeWhile ((==Nothing) . cut_note) future_lines
     }
@@ -261,7 +260,7 @@ convert_commands instrument start cmds lines = group_controls controls
 group_controls :: [(TrackTime, (CommandType, Control, Text))]
     -> [(Control, [Event.Event])]
 group_controls controls =
-    map make_control $ Seq.keyed_group_sort (key . snd) controls
+    map make_control $ Lists.keyedGroupSort (key . snd) controls
     where
     make_control (Left control, vals) =
         (control, [Event.event start 0 call | (start, (_, _, call)) <- vals])

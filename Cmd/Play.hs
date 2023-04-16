@@ -57,7 +57,6 @@ import qualified Util.Audio.AudioT as AudioT
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
 import qualified Util.Vector
 
 import qualified Cmd.Cmd as Cmd
@@ -350,7 +349,7 @@ extract_cache_stats :: (Log.Msg -> Maybe k) -> [Log.Msg]
 extract_cache_stats key logs = (rederived, cached)
     where
     -- [("because xyz", [bid, bid, bid, ...])]
-    rederived = map (second (map fst)) $ Seq.keyed_group_sort snd
+    rederived = map (second (map fst)) $ Lists.keyedGroupSort snd
         [(block_id, because) | (block_id, Left because) <- stats]
     -- [(bid1, 42), (bid2, 32), ...]
     cached = [(block_id, vals) | (block_id, Right vals) <- stats]

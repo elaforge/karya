@@ -13,7 +13,6 @@ import           System.FilePath ((</>))
 import qualified Text.Read as Read
 
 import qualified Util.Lists as Lists
-import qualified Util.Seq as Seq
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Derive.Attrs as Attrs
 import qualified Perform.NN as NN
@@ -81,7 +80,7 @@ t1 = mapM_ Text.IO.putStrLn $ Texts.columns 2 $ map head $
 
 showDyns gong step minDyn maxDyn =
     map (\dyn -> map (normal dyn) $ gongVariations dyn gong) $
-        Seq.range_end 0 1 step
+        Lists.rangeEnd 0 1 step
     where
     normal dyn (fname, (low, high)) =
         [ pp dyn, pp $ dynToVel dyn, txt fname
@@ -90,7 +89,7 @@ showDyns gong step minDyn maxDyn =
 
 showDyns2 gong step minDyn maxDyn =
     map (\dyn -> map (normal dyn) $ gongVariations dyn gong) $
-        Seq.range_end 0 1 step
+        Lists.rangeEnd 0 1 step
     where
     normal dyn (fname, (low, high)) =
         [ pp dyn, pp $ dynToVel dyn, txt fname
@@ -141,15 +140,15 @@ gongNn = \case
 groupSamples :: [((String, Char, Int), FilePath)]
     -> [(Gong, [((Int, Int), FilePath)])]
 groupSamples =
-    map (fmap group) .  map (bimap parseGong Seq.group_fst)
-        . Seq.group_fst . map shuffle
+    map (fmap group) .  map (bimap parseGong Lists.groupFst)
+        . Lists.groupFst . map shuffle
     where
     shuffle ((inst, var, maxVel), fname) = (inst, (var, (maxVel, fname)))
     group :: [(Char, [(Int, FilePath)])] -> [((Int, Int), FilePath)]
-    group = Seq.sort_on (fst . fst) . concatMap (groupRanges . snd)
+    group = Lists.sortOn (fst . fst) . concatMap (groupRanges . snd)
 
 groupRanges :: [(Int, a)] -> [((Int, Int), a)]
-groupRanges = go 0 . Seq.sort_on fst
+groupRanges = go 0 . Lists.sortOn fst
     where
     go low ((high, a) : xs) = ((low, high), a) : go (high+1) xs
     go _ [] = []
@@ -169,7 +168,7 @@ makeFileList :: FilePath -> IO [(Gong, [((Int, Int), FilePath)])]
 makeFileList inst = do
     fnames <- Directory.listDirectory $
         Config.unsafeSamplerRoot </> baseDir </> inst
-    return $ groupSamples $ Seq.key_on parseFilename fnames
+    return $ groupSamples $ Lists.keyOn parseFilename fnames
 
 -- Gongs: $instName-{A,B,C}$maxVel.flac
 parseFilename :: FilePath -> (String, Char, Int)

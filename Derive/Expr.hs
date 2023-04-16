@@ -15,7 +15,7 @@ import qualified Data.String as String
 import qualified Data.Text as Text
 
 import qualified Util.NEs as NEs
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Serialize as Serialize
 
 import qualified Derive.ScoreT as ScoreT
@@ -157,7 +157,7 @@ map_literals = fmap . fmap
 map_generator :: (Symbol -> Symbol) -> Expr a -> Expr a
 map_generator f (call1 :| calls) = case calls of
     [] -> map_symbol f call1 :| []
-    _ : _ -> call1 :| Seq.map_last (map_symbol f) calls
+    _ : _ -> call1 :| Lists.mapLast (map_symbol f) calls
 
 -- * ToExpr
 

@@ -6,7 +6,7 @@ module Perform.Midi.Convert_test where
 import qualified Data.Map as Map
 
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Controls as Controls
 import qualified Derive.DeriveTest as DeriveTest
@@ -61,7 +61,9 @@ test_convert = do
 test_rnd_vel :: Test
 test_rnd_vel = do
     let run dyn notes = first extract $ DeriveTest.perform_block
-            [ (">i1 | dyn = " <> dyn, [(n, 1, "") | n <- Seq.range' 0 notes 1])
+            [ (">i1 | dyn = " <> dyn
+              , [(n, 1, "") | n <- Lists.range' 0 notes 1]
+              )
             , ("*", [(0, 0, "4c")])
             ]
         extract midi = [vel | (_, _, vel) <- DeriveTest.note_on_vel midi]
@@ -225,7 +227,7 @@ test_pitched_keymap = do
             [ (">i1", [(n, 1, "+bd") | (n, _) <- vals])
             , ("*", [(n, 0, p) | (n, p) <- vals])
             ]
-            where vals = zip (Seq.range_ 0 1) ps
+            where vals = zip (Lists.range_ 0 1) ps
     let ((events, _), logs) = perform patch [("i1", "s/1")]
             (mktracks ["3c", "4c", "5c", "6c"])
     equal logs []

@@ -100,7 +100,7 @@ import qualified Data.Set as Set
 import qualified Util.Doc as Doc
 import qualified Util.Log as Log
 import qualified Util.Maps as Maps
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
@@ -195,9 +195,9 @@ extract_track_dynamic collect =
         (collect_track_dynamic collect) (collect_track_dynamic_inverted collect)
     where
     extract = \case
-        Seq.First dyn -> dyn
-        Seq.Second dyn -> dyn
-        Seq.Both normal inverted -> merge normal inverted
+        Lists.First dyn -> dyn
+        Lists.Second dyn -> dyn
+        Lists.Both normal inverted -> merge normal inverted
     merge normal inverted = normal
         { state_environ = keep (state_environ inverted) <> state_environ normal
         }

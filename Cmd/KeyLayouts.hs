@@ -17,7 +17,7 @@ module Cmd.KeyLayouts (
 import qualified Data.Map as Map
 
 import qualified Util.Maps as Maps
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 
 import           Global
 
@@ -47,7 +47,7 @@ layout :: String -> [Char] -> [Char] -> Layout
 layout name unshifted shifted
     | length unshifted /= length shifted =
         errorStack $ prefix <> "(unshifted, shifted) not the same length: "
-            <> showt (Seq.zip_padded unshifted shifted)
+            <> showt (Lists.zipPadded unshifted shifted)
     | length unshifted /= length qwerty_unshifted =
         errorStack $ prefix <> "size should be "
             <> showt (length qwerty_unshifted) <> " but is "

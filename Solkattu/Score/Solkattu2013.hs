@@ -7,7 +7,7 @@
 module Solkattu.Score.Solkattu2013 where
 import Prelude hiding ((.), (^), repeat)
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Solkattu.Instrument.KendangTunggal as KendangTunggal
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Korvai as Korvai
@@ -460,7 +460,7 @@ koraippu_misra_no_karvai = koraippu $ ganesh $ korvaiS adi mridangam $ map su
     -- to mohra korvai sequence
     ]
     where
-    group2 seq = mconcatMap mconcat (Seq.chunked 2 seq)
+    group2 seq = mconcatMap mconcat (Lists.chunked 2 seq)
     -- 8 + 8*7 (3+2 + 3)
     long n = din.__8 . tri_ (gap n . fill n) tan7
         . gap n . tri_ (karvai n) (fill n)
@@ -508,7 +508,7 @@ koraippu_misra = koraippu $ ganesh $ korvaiS adi mridangam $ map su
     -- 4 + 4*7 (1 + 3)
     short n = __M 4 . tan7 . tri (fill n)
     half n = __M 2 . tan7 . fill n
-    group2 seq = mconcatMap mconcat (Seq.chunked 2 seq)
+    group2 seq = mconcatMap mconcat (Lists.chunked 2 seq)
     fill n = fills !! (n-1) . karvai din
     fills = zipWith (\n p -> __n (n+1) . p) [6, 5..]
         [ ta

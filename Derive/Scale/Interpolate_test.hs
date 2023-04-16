@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Scale.Interpolate_test where
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.DeriveTest as DeriveTest
@@ -20,7 +20,7 @@ test_interpolate = do
             ("scale-at", scale_at)
                 : UiTest.note_track [(n, 1, p) | (n, p) <- notes]
             where
-            notes = zip (Seq.range_ 0 1) ["4s", "4r", "4g", "4m"]
+            notes = zip (Lists.range_ 0 1) ["4s", "4r", "4g", "4m"]
         extract e = fromMaybe (error "no nn") $ Score.initial_nn e
     let major = [60, 62, 64, 65]
         hemavati = [Pitch.modify_hz (*n) 60 | n <- [1, 9/8, 6/5, 7/5]]

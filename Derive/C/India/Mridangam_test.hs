@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.C.India.Mridangam_test where
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.C.India.Mridangam as Mridangam
@@ -20,14 +20,14 @@ test_sequence = do
     let run = DeriveTest.extract extract . derive_tracks ""
         extract e = (Score.event_start e, DeriveTest.e_attributes e)
     equal (run [(2, 5, "seq ktkno")])
-        (zip (Seq.range_ 2 1) ktkno, [])
+        (zip (Lists.range_ 2 1) ktkno, [])
     -- D is two strokes together, and _ or space are rest.
     equal (run [(2, 5, "seq 'k_D t'")])
         ([(2, "+ki"), (4, "+thom"), (4, "+din"), (6, "+ta")], [])
 
     -- -- TODO align negative 0 dur to end as well
     -- equal (run [(7, -5, "seq ktkno")])
-    --     (zip (Seq.range_ 3 1) ktkno, [])
+    --     (zip (Lists.range_ 3 1) ktkno, [])
 
     -- Positive means clip the end.
     equal (run [(2, 3, "seq ktkno 1")])
@@ -37,10 +37,10 @@ test_sequence = do
         ([(2, "+ta"), (3, "+ki"), (4, "+nam"), (5, "+thom")], [])
     -- Cycle if longer than needed.
     equal (run [(2, 10, "seq ktkno 1")])
-        (zip (Seq.range_ 2 1) (ktkno ++ ktkno), [])
+        (zip (Lists.range_ 2 1) (ktkno ++ ktkno), [])
     -- Otherwise dur 0 means stretch.
     equal (run [(2, 10, "seq ktkno 0")])
-        (zip (Seq.range_ 2 2) ktkno, [])
+        (zip (Lists.range_ 2 2) ktkno, [])
 
     -- hardcoded pattern
     equal (run [(2, 2, "tk")]) ([(2, "+ki"), (3, "+tha")], [])
@@ -55,13 +55,13 @@ test_tirmanam = do
     strings_like (snd $ run [(0, 2, "dur=1 | tir t o")])
         ["would have to stretch karvai to -.5t"]
     equal (run [(0, 5, "dur=1 | tir t o")])
-        (zip (Seq.range_ 0 1) tathom, [])
+        (zip (Lists.range_ 0 1) tathom, [])
     strings_like (snd $run [(0, 10, "dur=1 | tir t o")])
         ["karvai would have to be 3.5t matras"]
     equal (run [(0, 9, "dur=1 | tir t o")])
         (zip [0, 1, 4, 5, 8] tathom, [])
     equal (run [(5, -5, "dur=1 | tir t o")])
-        (zip (Seq.range_ 0 1) (tathom ++ ["+thom"]), [])
+        (zip (Lists.range_ 0 1) (tathom ++ ["+thom"]), [])
 
     strings_like (snd $ run [(0, 10, "dur=1 | tir t o_p")]) ["expected 9\\*1t"]
     equal (run [(0, 9, "dur=1 | tir t o_+")])
@@ -77,7 +77,7 @@ test_tirmanam = do
 
     -- nam is cancelled by the final thom.
     equal (run [(5, -5, "dur=1 | tir t o"), (5, 0, "n"), (6, 0, "d")])
-        (zip (Seq.range_ 0 1) (tathom ++ ["+thom", "+din"]), [])
+        (zip (Lists.range_ 0 1) (tathom ++ ["+thom", "+din"]), [])
 
 test_stretch_karvai :: Test
 test_stretch_karvai = do
@@ -95,14 +95,14 @@ test_pattern :: Test
 test_pattern = do
     let run = DeriveTest.extract extract . derive_tracks ""
         extract e = (Score.event_start e, DeriveTest.e_attributes e)
-    equal (run [(2, 5, "p 5")]) (zip (Seq.range_ 2 1) ktkno, [])
+    equal (run [(2, 5, "p 5")]) (zip (Lists.range_ 2 1) ktkno, [])
     equal (run [(2, 5, "var=f567-1 | p 5")])
         ([(2, "+ki"), (3, "+ta"), (4, "+ki"), (5, "+ki"), (5.5, "+ta"),
             (6, "+thom")], [])
 
     -- infer
     strings_like (snd $ run [(0, 5, "p _")]) ["can't infer"]
-    equal (run [(0, 5, "dur=1 | p _")]) (zip (Seq.range_ 0 1) ktkno, [])
+    equal (run [(0, 5, "dur=1 | p _")]) (zip (Lists.range_ 0 1) ktkno, [])
     equal (run [(0, 6, "dur=1 | p _")]) (zip [0, 1, 3, 4, 5] ktkno, [])
 
 ktkno :: [Text]

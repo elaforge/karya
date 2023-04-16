@@ -59,7 +59,6 @@ import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
 import qualified Util.Rect as Rect
-import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
 
 import qualified App.Config as Config
@@ -1371,7 +1370,7 @@ get_screen mb_point = do
     -- nothing.
     return $ fromMaybe (Rect.xywh 0 0 800 600) $ case mb_point of
         Nothing -> Lists.head screens
-        Just point -> Seq.minimum_on (Rect.distance point) screens
+        Just point -> Lists.minimumOn (Rect.distance point) screens
 
 lookup_performance :: M m => BlockId -> m (Maybe Performance)
 lookup_performance block_id =

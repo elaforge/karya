@@ -49,7 +49,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -187,9 +187,9 @@ cmd_paste_stretch :: Cmd.M m => m ()
 cmd_paste_stretch = do
     (track_ids, clip_track_ids, start, end, _) <- get_paste_area
     events <- mapM Ui.get_events clip_track_ids
-    let m_clip_s = Seq.minimum $ map Events.time_begin $
+    let m_clip_s = Lists.minimum $ map Events.time_begin $
             filter (not . Events.null) events
-        m_clip_e = Seq.maximum $ map Events.time_end $
+        m_clip_e = Lists.maximum $ map Events.time_end $
             filter (not . Events.null) events
     case (m_clip_s, m_clip_e) of
         (Just clip_s, Just clip_e) -> do

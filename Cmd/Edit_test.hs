@@ -6,7 +6,7 @@ module Cmd.Edit_test where
 import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Test.Testing as Testing
 
 import qualified Cmd.Cmd as Cmd
@@ -76,7 +76,7 @@ test_set_duration = do
             . run_sel_events Edit.cmd_set_duration start end
     -- |--->   |---> => take pre
     let events = [(0, 2), (4, 2)]
-    equal [run p p events | p <- Seq.range 0 6 1] $ map (Right . (,[]))
+    equal [run p p events | p <- Lists.range 0 6 1] $ map (Right . (,[]))
         [ [(0, 2), (4, 2)]
         , [(0, 1), (4, 2)]
         , [(0, 2), (4, 2)]
@@ -92,7 +92,7 @@ test_set_duration = do
 
     -- <---|   <---| => take post
     let events = [(2, -2), (6, -2)]
-    equal [run p p events | p <- Seq.range 0 6 1] $ map (Right . (,[]))
+    equal [run p p events | p <- Lists.range 0 6 1] $ map (Right . (,[]))
         [ [(2, -2), (6, -2)]
         , [(2, -1), (6, -2)]
         , [(2, -2), (6, -4)]
@@ -112,7 +112,7 @@ test_set_duration = do
     -- |--->   <---| => take overlapping, or favor prev because selection is
     -- Positive
     let events = [(0, 2), (6, -2)]
-    equal [run p p events | p <- Seq.range 0 6 1] $ map (Right . (,[]))
+    equal [run p p events | p <- Lists.range 0 6 1] $ map (Right . (,[]))
         [ [(0, 2), (6, -2)]
         , [(0, 1), (6, -2)]
         , [(0, 2), (6, -2)]
@@ -125,7 +125,7 @@ test_set_duration = do
     -- 0 1 2 3 4 5 6
     -- <---|   |---> => in the middle, do nothing
     let events = [(2, -2), (4, 2)]
-    equal [run p p events | p <- Seq.range 0 6 1] $ map (Right . (,[]))
+    equal [run p p events | p <- Lists.range 0 6 1] $ map (Right . (,[]))
         [ [(2, -2), (4, 2)]
         , [(2, -1), (4, 2)]
         , [(2, -2), (4, 2)]
@@ -248,7 +248,8 @@ test_delete_time = do
     let run start end = e_start_dur1
             . run_sel_events Edit.cmd_delete_time start end
     -- positive
-    equal (map (\e -> run 0 e [(2, 2)]) (Seq.range 0 3 1)) $ map (Right . (,[]))
+    equal (map (\e -> run 0 e [(2, 2)]) (Lists.range 0 3 1)) $
+        map (Right . (,[]))
         [ [(1, 2)]
         , [(1, 2)]
         , [(0, 2)]
@@ -261,7 +262,7 @@ test_delete_time = do
     equal (run 4 5 [(2, 2)]) $ Right ([(2, 2)], [])
 
     -- negative
-    equal (map (\e -> run 0 e [(4, -2)]) (Seq.range 0 4 1)) $
+    equal (map (\e -> run 0 e [(4, -2)]) (Lists.range 0 4 1)) $
         map (Right . (,[]))
         [ [(3, -2)]
         , [(3, -2)]
@@ -270,7 +271,7 @@ test_delete_time = do
         , [] -- deleted rather than reduced to 0
         ]
     -- zero dur doesn't get deleted when it touches the point.
-    equal (map (\e -> run 0 e [(2, -0)]) (Seq.range 1 3 1)) $
+    equal (map (\e -> run 0 e [(2, -0)]) (Lists.range 1 3 1)) $
         map (Right . (,[]))
         [ [(1, -0)]
         , [(0, -0)]

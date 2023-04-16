@@ -6,7 +6,7 @@ module Derive.Scale.JustScales_test where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Cmd.CmdTest as CmdTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Scale as Scale
@@ -33,7 +33,7 @@ test_note_to_call = do
             , ("*just", [(t, 0, p) | (t, p) <- times ps])
             ]
             where
-            times = zip (Seq.range_ 0 1)
+            times = zip (Lists.range_ 0 1)
         extract = fmap Pitch.nn_to_hz . Score.initial_nn
     let run key base =
             run_title ("> | just-base = " <> base <> " | key = " <> key)
@@ -78,7 +78,7 @@ test_transpose_smooth = do
                 [(0, 0, "-1"), (1, 0, "-.7"), (2, 0, "-.4"), (3, 0, "0")])
             , (">", [(0, 8, "")])
             ]
-    let [nns] = map (Seq.drop_dups id . map snd) (fst run)
+    let [nns] = map (Lists.dropDups id . map snd) (fst run)
         diffs = zipWith (-) (drop 1 nns) nns
     -- Diatonic transpose changes pitch smoothly.  This tests the bug fixed
     -- by split_fraction.

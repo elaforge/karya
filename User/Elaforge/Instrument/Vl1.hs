@@ -23,7 +23,7 @@ import qualified Util.Doc as Doc
 import qualified Util.Exceptions as Exceptions
 import qualified Util.File as File
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 
 import qualified App.Config as Config
 import qualified App.Path as Path
@@ -234,7 +234,7 @@ vl1_patch name elt1 maybe_elt2 =
     is_pressure = CC.breath `elem` map fst cmap
 
     -- Optimistically take the widest range.
-    Just pb_range = Seq.maximum_on (\(low, high) -> max (abs low) (abs high))
+    Just pb_range = Lists.maximumOn (\(low, high) -> max (abs low) (abs high))
         pb_ranges
     cmap = Map.toList $ Map.mapMaybe highest_prio $
         Map.unionsWith (++) (map Map.fromList cc_groups)
@@ -268,7 +268,7 @@ extract_element n rmap = do
     process_controls :: [(Text, Midi.Control, [Word8])]
         -> [(Midi.Control, [ScoreT.Control])]
     process_controls controls =
-        [(cc, map snd grp) | (cc, grp) <- Seq.keyed_group_sort fst by_cc]
+        [(cc, map snd grp) | (cc, grp) <- Lists.keyedGroupSort fst by_cc]
         where
         by_cc =
             [ (cc, ScoreT.unchecked_control name)

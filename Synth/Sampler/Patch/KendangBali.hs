@@ -6,7 +6,7 @@ module Synth.Sampler.Patch.KendangBali (patches, allocations) where
 import qualified Data.Set as Set
 import           System.FilePath ((</>))
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Cmd.Instrument.KendangBali as K
@@ -67,7 +67,7 @@ strokeMap = Drum.strokeMap K.stops K.tunggal_strokes attributeMap
 
 attributeMap :: Common.AttributeMap Articulation
 attributeMap =
-    Common.attribute_map (Seq.key_on articulationToAttrs Util.enumAll)
+    Common.attribute_map (Lists.keyOn articulationToAttrs Util.enumAll)
 
 data Articulation =
     Plak -- both

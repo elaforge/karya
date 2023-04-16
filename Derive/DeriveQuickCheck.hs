@@ -34,7 +34,7 @@ import qualified Data.Map as Map
 import qualified Test.QuickCheck as Q
 
 import qualified Util.ParseText as ParseText
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Trees as Trees
 
 import qualified Derive.DeriveT as DeriveT
@@ -128,7 +128,7 @@ derive_block state blocks skel tracks =
 -- TODO why is blocks unused?
 derive_note_track :: State -> Blocks -> NoteTrack -> [Score.Event]
 derive_note_track state blocks (notes, samples) =
-    Seq.merge_lists Score.event_start $ snd $
+    Lists.mergeLists Score.event_start $ snd $
         List.mapAccumL go (state, samples) (map to_score notes)
     where
     to_score (start, dur, text) =
@@ -191,7 +191,7 @@ parse_pitch text =
 note_to_nn :: Map Pitch.Note Pitch.NoteNumber
 note_to_nn = Map.fromList
     [(note, nn) | (Just note, nn) <- zip (map Twelve.show_nn nns) nns]
-    where nns = Seq.range 1 127 1
+    where nns = Lists.range 1 127 1
 
 parse_control :: Text -> Signal.Y
 parse_control text = fromMaybe (error $ "unparseable control: " ++ show text)
@@ -223,7 +223,7 @@ extract_notes skel tracks
     is_control = (`notElem` [">", "*", "tempo"]) . fst
 
 make_samples :: [Track] -> [Sample]
-make_samples = Seq.merge_lists sample_pos . map make
+make_samples = Lists.mergeLists sample_pos . map make
     where
     make (title, events) = [Sample title (RealTime.from_score pos) val
         | (pos, _, val) <- events]

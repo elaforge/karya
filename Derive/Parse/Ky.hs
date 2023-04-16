@@ -31,7 +31,6 @@ import qualified Util.Lists as Lists
 import qualified Util.Maps as Maps
 import qualified Util.Parse
 import qualified Util.ParseText as ParseText
-import qualified Util.Seq as Seq
 
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Expr as Expr
@@ -271,13 +270,13 @@ merge_instruments allocs = replace_section Instruments.instrument_section merge
         removed = old_insts `Set.difference` new_insts
         new_insts = Set.fromList $ map Instruments.alloc_name allocs
         old_insts = Set.fromList (mapMaybe fst inst_lines)
-        inst_lines = Seq.key_on inst_of lines
+        inst_lines = Lists.keyOn inst_of lines
     update (Nothing, line) = Just (Nothing, line)
     update (Just inst, line) = case Map.lookup inst inst_alloc of
         Nothing -> Nothing
         Just alloc -> Just (Just alloc, comment)
             where comment = snd $ Text.breakOn "--" line
-    inst_alloc = Map.fromList (Seq.key_on Instruments.alloc_name allocs)
+    inst_alloc = Map.fromList (Lists.keyOn Instruments.alloc_name allocs)
     inst_of = either (const Nothing) (Just . Instruments.alloc_name)
         . Util.Parse.parse Instruments.p_allocation
 
@@ -321,7 +320,7 @@ unparse_section (section, lines) =
 replace_section :: Title -> ([Text] -> [Text]) -> Code -> Code
 replace_section title modify code =
     mconcatMap unparse_section $ concat
-        [ if add_separator then Seq.map_last (second (++empty)) pre else pre
+        [ if add_separator then Lists.mapLast (second (++empty)) pre else pre
         , [(title, map (0,) new) | not (null new)]
         , drop 1 post
         ]

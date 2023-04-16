@@ -7,7 +7,7 @@
 module Derive.Call.ControlUtil where
 import qualified Util.Doc as Doc
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Test.ApproxEq as ApproxEq
 
 import qualified Derive.Args as Args
@@ -231,7 +231,7 @@ segment srate curve x1 y1 x2 y2
     | otherwise = case curve of
         Linear -> Signal.from_pairs [(x1, y1), (x2, y2)]
         Function curvef -> Signal.from_pairs $ map (make curvef) $
-            Seq.range_end x1 x2 (1/srate)
+            Lists.rangeEnd x1 x2 (1/srate)
     where
     make curvef x
         -- Otherwise if x1==x2 then I get y1.
@@ -342,7 +342,7 @@ breakpoints srate curve =
 
 signal_breakpoints :: Monoid sig => (RealTime -> y -> sig)
     -> (RealTime -> y -> RealTime -> y -> sig) -> [(RealTime, y)] -> sig
-signal_breakpoints make_signal make_segment = mconcatMap line . Seq.zip_next
+signal_breakpoints make_signal make_segment = mconcatMap line . Lists.zipNext
     where
     line ((x1, y1), Just (x2, y2)) = make_segment x1 y1 x2 y2
     line ((x1, y2), Nothing) = make_signal x1 y2
@@ -353,7 +353,7 @@ distribute start end vals = case vals of
     [] -> []
     [x] -> [(start, x)]
     _ -> [(Num.scale start end (n / (len - 1)), x)
-        | (n, x) <- zip (Seq.range_ 0 1) vals]
+        | (n, x) <- zip (Lists.range_ 0 1) vals]
     where len = fromIntegral (length vals)
 
 -- * smooth
@@ -385,8 +385,8 @@ smooth_relative curve srate time_at =
 -- > 0-------0=1-----1=0    time = 1
 split_samples_absolute :: RealTime -> [(RealTime, y)] -> [(RealTime, y)]
 split_samples_absolute time
-    | time >= 0 = concatMap split_prev . Seq.zip_neighbors
-    | otherwise = concatMap split_next . Seq.zip_next
+    | time >= 0 = concatMap split_prev . Lists.zipNeighbors
+    | otherwise = concatMap split_next . Lists.zipNext
     where
     split_prev (Nothing, (x1, y1), _) = [(x1, y1)]
     split_prev (Just (_, y0), (x1, y1), next) =
@@ -408,7 +408,7 @@ split_samples_absolute time
 -- > 0-----0=1-----1=0 time_at = const 0.25
 split_samples_relative :: DeriveT.Function -> [(RealTime, y)]
     -> [(RealTime, y)]
-split_samples_relative time_at = concatMap split . Seq.zip_next
+split_samples_relative time_at = concatMap split . Lists.zipNext
     where
     split ((x1, y1), Nothing) = [(x1, y1)]
     split ((x1, y1), Just (x2, _)) =

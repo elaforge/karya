@@ -43,7 +43,7 @@ module Solkattu.Bol (
 ) where
 import qualified Data.Text as Text
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Solkattu.Instrument.Tabla as Tabla
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.Solkattu as Solkattu
@@ -72,7 +72,7 @@ parseBols = Solkattu.parseSyllables allBols
 
 allBols :: [(BolT, Bols)]
 allBols = sequences
-    ++ map (second S1) (Seq.key_on Solkattu.notationText [minBound ..])
+    ++ map (second S1) (Lists.keyOn Solkattu.notationText [minBound ..])
 
 -- | parseBols can return 2nd speed sequences.  This gets turned into a
 -- Sequence in Dsl.Bol.

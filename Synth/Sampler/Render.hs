@@ -24,7 +24,6 @@ import qualified Util.Control
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 import qualified Util.Thread as Thread
 
@@ -301,7 +300,7 @@ resumeSamples config now states notes = do
         <> " /= len notes " <> pretty (length notes) <> ": "
         <> pretty states <> " /= " <> pretty (map eNote notes)
     mapM (uncurry (startSample config now . Just))
-        (zip states (Seq.sort_on Sample.hash notes))
+        (zip states (Lists.sortOn Sample.hash notes))
 
 -- | Extract from Note for pretty-printing.
 eNote :: Sample.Note -> (Text, Text, Signal.Signal, FilePath)
@@ -438,7 +437,7 @@ unserializeState :: Checkpoint.State -> Either Error State
 unserializeState (Checkpoint.State bytes) = first txt $ Serialize.decode bytes
 
 getPlayStates :: [Playing] -> IO [PlayState]
-getPlayStates = mapM _getState . Seq.sort_on _noteHash
+getPlayStates = mapM _getState . Lists.sortOn _noteHash
 
 instance Pretty State where
     format (State play effect) = Pretty.record "State"

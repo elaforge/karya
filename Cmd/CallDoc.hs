@@ -15,7 +15,6 @@ import           Util.Format ((<+/>), (<+>), (<//>), (</>))
 import qualified Util.Html as Html
 import           Util.Html (html, tag)
 import qualified Util.Lists as Lists
-import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
 
 import qualified Cmd.Cmd as Cmd
@@ -131,7 +130,7 @@ bindings_text =
     width = 76
     flatten :: Document
         -> [((CallKind, CallType), [(ScopeSource, (Binding, Derive.CallDoc))])]
-    flatten sections = map (second (Seq.sort_on fst . concat)) $ Seq.group_fst
+    flatten sections = map (second (Lists.sortOn fst . concat)) $ Lists.groupFst
         [ ((call_kind, call_type),
             map (scope_source,) (map (, call_doc) bindings))
         | (call_kind, scope_docs) <- sections
@@ -157,7 +156,7 @@ doc_html hstate = (html_header hstate <>) . mconcatMap section
         where
         doc = "<dl class=main-dl>\n"
             <> mconcatMap (show_module_group call_kind)
-                (Seq.keyed_group_sort module_of call_bindings)
+                (Lists.keyedGroupSort module_of call_bindings)
             <> "</dl>\n"
     module_of (_, _, call_doc) = Derive.cdoc_module call_doc
     show_module_group call_kind (module_, call_bindings) =
@@ -351,7 +350,7 @@ call_bindings_html hstate call_kind bindings@(binds, ctype, call_doc) = mconcat
 -- the call kind.
 binding_tags :: CallBindings -> [Text]
 binding_tags (binds, ctype, call_doc) =
-    Seq.unique $ "type:" <> pretty ctype : extract call_doc
+    Lists.unique $ "type:" <> pretty ctype : extract call_doc
     where
     names = map snd binds
     extract call_doc = module_ (Derive.cdoc_module call_doc)
@@ -567,10 +566,10 @@ merged_scope_docs :: [(CallType, Derive.ScopePriority Derive.DocumentedCall)]
 merged_scope_docs = merge_scope_docs . concatMap (uncurry scope_type)
 
 merge_scope_docs :: [ScopeDoc] -> [ScopeDoc]
-merge_scope_docs = map (second (sort_calls . concat)) . Seq.group_fst
+merge_scope_docs = map (second (sort_calls . concat)) . Lists.groupFst
 
 sort_calls :: [CallBindings] -> [CallBindings]
-sort_calls = Seq.sort_on $ \(binds, _, _) ->
+sort_calls = Lists.sortOn $ \(binds, _, _) ->
     Text.toLower . fst <$> Lists.head binds
 
 -- | A 'Derive.Library' only has builtins, but ScopeDoc wants a source so
@@ -604,4 +603,4 @@ entries ctype = group . map (extract . go) . map flatten
     extract (sym, Derive.DocumentedCall name doc) = ((sym, name), doc)
     -- Group calls with the same CallDoc.
     group docs = [(map fst group, ctype, doc)
-        | (doc, group) <- Seq.keyed_group_sort snd docs]
+        | (doc, group) <- Lists.keyedGroupSort snd docs]

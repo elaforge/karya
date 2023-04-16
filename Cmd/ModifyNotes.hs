@@ -51,7 +51,6 @@ import qualified Util.Lens as Lens
 import qualified Util.Lists as Lists
 import qualified Util.Maps as Maps
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 import qualified Util.Trees as Trees
 
 import qualified Cmd.Cmd as Cmd
@@ -163,7 +162,7 @@ title_to_control title = ParseTitle.parse_control_type title >>= \case
 
 -- | Put the pitch tracks next to the note, the rest go in alphabetical order.
 sorted_controls :: Controls -> [(Control, Events.Events)]
-sorted_controls = Seq.sort_on (key . fst) . Map.toList
+sorted_controls = Lists.sortOn (key . fst) . Map.toList
     where
     key c@(Pitch {}) = (0, c)
     key c@(Control {}) = (1, c)
@@ -200,9 +199,9 @@ selection modify = do
     write_tracks block_id (map fst ranges) (merge_notes new_notes)
 
 remove_ranges :: [(Note, TrackId)] -> [(TrackId, Events.Range)]
-remove_ranges = concatMap range . Seq.group_snd
+remove_ranges = concatMap range . Lists.groupSnd
     where
-    range ([], _) = [] -- shouldn't happen, per Seq.group_snd's postcondition
+    range ([], _) = [] -- shouldn't happen, per Lists.groupSnd's postcondition
     range (notes@(note : _), track_id) =
         (track_id, Events.Range start end)
             : map (, Events.Range start end) (note_control_track_ids note)
@@ -339,7 +338,7 @@ instance Monoid NoteTrack where
     mappend = (<>)
 
 merge_notes :: [Note] -> [NoteTrack]
-merge_notes = map make_track . Seq.group_sort note_index
+merge_notes = map make_track . Lists.groupSort note_index
     where
     make_track :: [Note] -> NoteTrack
     make_track = foldl' (<>) mempty . map note_track
@@ -420,14 +419,14 @@ merge_controls block_id note_track_id tree controls = do
 tracknum_after :: Ui.M m => BlockId -> [TrackId] -> m TrackNum
 tracknum_after block_id track_ids = do
     tracknums <- mapM (Ui.get_tracknum_of block_id) track_ids
-    maybe (Ui.track_count block_id) (return . (+1)) (Seq.maximum tracknums)
+    maybe (Ui.track_count block_id) (return . (+1)) (Lists.maximum tracknums)
 
 -- | Get the bottom track below the given TrackId.  If there are more than one,
 -- pick the one with the highest TrackNum.
 bottom_track :: Ui.M m => BlockId -> TrackId -> m (Maybe Ui.TrackInfo)
 bottom_track block_id track_id = do
     tree <- TrackTree.track_tree_of block_id
-    return $ Seq.maximum_on Ui.track_tracknum . Trees.leaves
+    return $ Lists.maximumOn Ui.track_tracknum . Trees.leaves
         =<< Trees.find ((==track_id) . Ui.track_id) tree
 
 parent_of :: Ui.M m => BlockId -> TrackId -> m (Maybe Ui.TrackInfo)

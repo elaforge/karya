@@ -5,7 +5,7 @@
 module Derive.C.Prelude.Parent_test where
 import qualified Data.Text as Text
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Derive.C.Prelude.Parent as Parent
 import qualified Derive.Call.SubT as SubT
 import qualified Derive.DeriveTest as DeriveTest
@@ -152,18 +152,18 @@ test_tuplet_ly_complex = do
         (Right "\\tuplet 3/2 { a4 b4 c4 } r2", [])
     equal (run $ (">", [(2, 2, "t")]) : notes 0.5 [2, 2.5, 3])
         (Right "r2 \\tuplet 3/2 { a4 b4 c4 }", [])
-    equal (run $ (">", [(0, 2, "t")]) : notes 0.25 (Seq.range 0 1.25 0.25))
+    equal (run $ (">", [(0, 2, "t")]) : notes 0.25 (Lists.range 0 1.25 0.25))
         (Right "\\tuplet 6/4 { a8 b8 c8 d8 e8 f8 } r2", [])
 
-    equal (run $ (">", [(0, 4, "t")]) : notes 0.5 (Seq.range 0 2 0.5))
+    equal (run $ (">", [(0, 4, "t")]) : notes 0.5 (Lists.range 0 2 0.5))
         (Right "\\tuplet 5/4 { a4 b4 c4 d4 e4 }", [])
-    equal (run $ (">", [(0, 2, "t")]) : notes 0.25 (Seq.range 0 1 0.25))
+    equal (run $ (">", [(0, 2, "t")]) : notes 0.25 (Lists.range 0 1 0.25))
         (Right "\\tuplet 5/4 { a8 b8 c8 d8 e8 } r2", [])
 
     -- Ensure Lily.note_pitch preserves enharmonics.
     equal (run $
         (">", [(0, 2, "t")]) : UiTest.note_track
-            [(t, 0.5, p) | (t, p) <- zip (Seq.range 0 1 0.5)
+            [(t, 0.5, p) | (t, p) <- zip (Lists.range 0 1 0.5)
                 ["3c#", "3db", "3cx"]])
         (Right "\\tuplet 3/2 { cs4 df4 css4 } r2", [])
 
@@ -276,7 +276,7 @@ test_cycle = do
         extract e = (Score.event_start e, DeriveTest.e_attributes e)
     equal (run
             [ (">", [(1, 4, "cycle +a +b")])
-            , (">", [(t, 1, "") | t <- Seq.range 1 4 1])
+            , (">", [(t, 1, "") | t <- Lists.range 1 4 1])
             ])
         ([(1, "+a"), (2, "+b"), (3, "+a"), (4, "+b")], [])
 
@@ -286,6 +286,6 @@ test_cycle_t = do
         extract e = (Score.event_start e, DeriveTest.e_attributes e)
     equal (run
             [ (">", [(1, 6, "cycle-t +a 2 +b 1")])
-            , (">", [(t, 1, "") | t <- Seq.range 1 6 1])
+            , (">", [(t, 1, "") | t <- Lists.range 1 6 1])
             ])
         ([(1, "+a"), (2, "+a"), (3, "+b"), (4, "+a"), (5, "+a"), (6, "+b")], [])

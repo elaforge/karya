@@ -25,7 +25,6 @@ import qualified Data.Set as Set
 import qualified Data.Vector as Vector
 
 import qualified Util.Lists as Lists
-import qualified Util.Seq as Seq
 import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.PlayUtil as PlayUtil
@@ -148,7 +147,7 @@ filter_tracks track_ids
 group_edges :: RealTime -> Vector.Vector Score.Event -> [RealTime]
 group_edges eta = group . edges . Vector.toList
     where
-    edges events = Seq.merge (map Score.event_start events)
+    edges events = Lists.merge (map Score.event_start events)
         -- The starts should be in order, but the ends have no such guarantee.
         (List.sort (map Score.event_end events))
     group [] = []

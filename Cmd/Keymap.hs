@@ -28,7 +28,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.KeyLayouts as KeyLayouts
@@ -188,7 +188,7 @@ key_spec mods bindable = Cmd.KeySpec (Set.fromList mods) bindable
 
 overlaps :: [Binding m] -> [[Text]]
 overlaps bindings =
-    [map cmd_name grp | grp <- Seq.group_sort fst bindings, length grp > 1]
+    [map cmd_name grp | grp <- Lists.groupSort fst bindings, length grp > 1]
     where
     cmd_name (kspec, Cmd.NamedCmd name _) =
         pretty kspec <> ": " <> name

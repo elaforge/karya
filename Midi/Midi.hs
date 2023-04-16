@@ -65,7 +65,7 @@ import qualified Util.FFI as FFI
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import           Util.Pretty (format, (<+>))
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Serialize as Serialize
 
 import qualified Midi.CC as CC
@@ -508,13 +508,13 @@ mtc_sync rate (Smpte hours mins secs frames) =
 -- One MtcQuarterFrame is transmitted per quarter frame.  Since it takes 8
 -- to make a complete SMPTE frame, you wind up getting every other frame.
 generate_mtc :: FrameRate -> Frames -> [(Double, Message)]
-generate_mtc rate frame = zip times (concatMap msgs (Seq.range_ frame 2))
+generate_mtc rate frame = zip times (concatMap msgs (Lists.range_ frame 2))
     where
     -- Round up to the previous whole frame, then step forward frames and time
     -- together.  frame_to_smpte will take care of drop frame.
     msgs frame = map (RealtimeMessage . MtcQuarterFrame) $
         mtc_fragments rate (frame_to_smpte rate frame)
-    times = Seq.range_ start fragment
+    times = Lists.range_ start fragment
     start = fromIntegral frame / rate_fps rate
     fragment = 1 / rate_fps rate / 4
 

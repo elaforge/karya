@@ -71,7 +71,6 @@ import qualified Util.Logger as Logger
 import qualified Util.Maps as Maps
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 import qualified Util.Styled as Styled
 import qualified Util.Texts as Texts
 import qualified Util.UF as UF
@@ -753,7 +752,7 @@ replaceSollus (stroke : strokes) ((_, S.FNote tempo n) : ns) = case n of
         where rnote = maybe (Space Solkattu.Rest) Note stroke
     Solkattu.Space space -> first ((tempo, Space space) :) next
     Solkattu.Alignment a -> first ((tempo, Alignment a) :) next
-    -- This shouldn't happen because Seq.spanWhile noteOf should have
+    -- This shouldn't happen because Lists.spanWhile noteOf should have
     -- stopped when it saw this.
     Solkattu.Pattern {} -> next
     where
@@ -793,7 +792,7 @@ realizeSollu :: Ord sollu => SolluMap sollu stroke
     -> ToStrokes (Stroke sollu) stroke
 realizeSollu (SolluMap smap) = ToStrokes
     { _longestKey =
-        fromMaybe 0 $ Seq.maximum (map (length . snd) (Map.keys smap))
+        fromMaybe 0 $ Lists.maximum (map (length . snd) (Map.keys smap))
     , _getStrokes = \tag sollus -> Map.lookup (tag, map _stroke sollus) smap
     }
 

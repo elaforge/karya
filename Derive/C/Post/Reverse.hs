@@ -4,7 +4,6 @@
 
 module Derive.C.Post.Reverse (library) where
 import qualified Util.Lists as Lists
-import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
@@ -36,19 +35,19 @@ c_reverse = Derive.transformer Module.prelude "reverse" Tags.postproc
             Stream.from_sorted_events (reverse_tracks start events)
 
 reverse_tracks :: RealTime -> [Score.Event] -> [Score.Event]
-reverse_tracks start events = Seq.merge_lists Score.event_start
+reverse_tracks start events = Lists.mergeLists Score.event_start
     [ reverse_events (start + (end - Score.event_end last)) events
     | events@(last : _) <- by_track
     ]
     where
     by_track = map (reverse . snd) $ partition_tracks events
     -- This will be the new 0.
-    end = fromMaybe 0 $ Seq.maximum
+    end = fromMaybe 0 $ Lists.maximum
         [Score.event_end last | last : _ <- by_track]
 
 -- | Partition up events by the track they're in.
 partition_tracks :: [Score.Event] -> [(TrackId, [Score.Event])]
-partition_tracks = strip . Seq.keyed_group_sort track_of
+partition_tracks = strip . Lists.keyedGroupSort track_of
     where strip xs = [(track_id, events) | (Just track_id, events) <- xs]
 
 track_of :: Score.Event -> Maybe TrackId

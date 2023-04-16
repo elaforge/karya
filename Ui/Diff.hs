@@ -25,7 +25,7 @@ import qualified Util.Control as Control
 import qualified Util.Logger as Logger
 import qualified Util.Maps as Maps
 import qualified Util.Ranges as Ranges
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 
 import qualified App.Config as Config
 import qualified Derive.Deriver.Monad as Derive
@@ -174,11 +174,11 @@ diff_views st1 st2 damage =
         damaged Maps.pairs st1 st2 Ui.state_views (Update._views damage)
 
 diff_view_pair :: Ui.State -> Ui.State -> ViewId
-    -> Seq.Paired Block.View Block.View -> DiffM ()
+    -> Lists.Paired Block.View Block.View -> DiffM ()
 diff_view_pair st1 st2 view_id = \case
-    Seq.Second _ -> change $ Update.View view_id Update.CreateView
-    Seq.First _ -> change $ Update.View view_id Update.DestroyView
-    Seq.Both view1 view2
+    Lists.Second _ -> change $ Update.View view_id Update.CreateView
+    Lists.First _ -> change $ Update.View view_id Update.DestroyView
+    Lists.Both view1 view2
         | Block.view_block view1 /= Block.view_block view2 -> do
             change $ Update.View view_id Update.DestroyView
             change $ Update.View view_id Update.CreateView
@@ -212,13 +212,13 @@ status_color state view =
     where block_id = Block.view_block view
 
 diff_selection :: (Update.View -> DiffM ())
-    -> Sel.Num -> Seq.Paired Sel.Selection Sel.Selection -> DiffM ()
-diff_selection _ _ (Seq.Both sel1 sel2) | sel1 == sel2 = return ()
+    -> Sel.Num -> Lists.Paired Sel.Selection Sel.Selection -> DiffM ()
+diff_selection _ _ (Lists.Both sel1 sel2) | sel1 == sel2 = return ()
 diff_selection emit selnum paired = case paired of
-    Seq.Both sel1 sel2
+    Lists.Both sel1 sel2
         | sel1 /= sel2 -> emit $ Update.Selection selnum (Just sel2)
-    Seq.Second sel2 -> emit $ Update.Selection selnum (Just sel2)
-    Seq.First _ -> emit $ Update.Selection selnum Nothing
+    Lists.Second sel2 -> emit $ Update.Selection selnum (Just sel2)
+    Lists.First _ -> emit $ Update.Selection selnum Nothing
     _ -> return ()
 
 -- ** block / track / ruler
@@ -244,23 +244,23 @@ diff_block block_id block1 block2 = do
 
     let btracks1 = Block.block_tracks block1
         btracks2 = Block.block_tracks block2
-    let bpairs = Seq.diff_index_on Block.tracklike_id btracks1 btracks2
+    let bpairs = Lists.diffIndexOn Block.tracklike_id btracks1 btracks2
     forM_ bpairs $ \(i2, paired) -> case paired of
-        Seq.First _ -> emit $ Update.RemoveTrack i2
-        Seq.Second track -> emit $ Update.InsertTrack i2 track
-        Seq.Both track1 track2 | track1 /= track2 ->
+        Lists.First _ -> emit $ Update.RemoveTrack i2
+        Lists.Second track -> emit $ Update.InsertTrack i2 track
+        Lists.Both track1 track2 | track1 /= track2 ->
             emit $ Update.BlockTrack i2 track2
         _ -> return ()
 
-    let dpairs = Seq.diff_index_on Block.dtracklike_id dtracks1 dtracks2
+    let dpairs = Lists.diffIndexOn Block.dtracklike_id dtracks1 dtracks2
     forM_ dpairs $ \(i2, paired) -> case paired of
         -- Insert and remove are emitted for UiDamage above, but
         -- the Update.to_display conversion filters them out.
-        Seq.First _ -> change_display $
+        Lists.First _ -> change_display $
             Update.Block block_id (Update.RemoveTrack i2)
-        Seq.Second dtrack -> change_display $
+        Lists.Second dtrack -> change_display $
             Update.Block block_id (Update.InsertTrack i2 dtrack)
-        Seq.Both dtrack1 dtrack2 | dtrack1 /= dtrack2 -> change_display $
+        Lists.Both dtrack1 dtrack2 | dtrack1 /= dtrack2 -> change_display $
             Update.Block block_id (Update.BlockTrack i2 dtrack2)
         _ -> return ()
 
@@ -299,18 +299,18 @@ diff_state damage st1 st2 = do
         emit $ Update.Config (Ui.state_config st2)
     forM_ (pairs Ui.state_blocks Update._blocks) $ \(block_id, paired) ->
         case paired of
-            Seq.Second block -> emit $ Update.CreateBlock block_id block
-            Seq.First _ -> emit $ Update.DestroyBlock block_id
+            Lists.Second block -> emit $ Update.CreateBlock block_id block
+            Lists.First _ -> emit $ Update.DestroyBlock block_id
             _ -> return ()
     forM_ (pairs Ui.state_tracks (Map.keysSet . Update._tracks)) $
         \(track_id, paired) -> case paired of
-            Seq.Second track -> emit $ Update.CreateTrack track_id track
-            Seq.First _ -> emit $ Update.DestroyTrack track_id
+            Lists.Second track -> emit $ Update.CreateTrack track_id track
+            Lists.First _ -> emit $ Update.DestroyTrack track_id
             _ -> return ()
     forM_ (pairs Ui.state_rulers Update._rulers) $ \(ruler_id, paired) ->
         case paired of
-            Seq.Second ruler -> emit $ Update.CreateRuler ruler_id ruler
-            Seq.First _ -> emit $ Update.DestroyRuler ruler_id
+            Lists.Second ruler -> emit $ Update.CreateRuler ruler_id ruler
+            Lists.First _ -> emit $ Update.DestroyRuler ruler_id
             _ -> return ()
 
 -- * derive diff
@@ -385,10 +385,10 @@ updates_damage block_rulers updates = mempty
         , block_id <- Map.findWithDefault [] ruler_id block_rulers
         ]
 
-derive_diff_block :: BlockId -> Seq.Paired Block.Block Block.Block
+derive_diff_block :: BlockId -> Lists.Paired Block.Block Block.Block
     -> DeriveDiffM ()
 derive_diff_block block_id = \case
-    Seq.Both block1 block2 -> do
+    Lists.Both block1 block2 -> do
         let unequal f = unequal_on f block1 block2
         when (unequal (Text.strip . Block.block_title)
                 || unequal Block.block_skeleton)
@@ -397,9 +397,9 @@ derive_diff_block block_id = \case
                 -- on derivation.
             block_damage
         let (ts1, ts2) = (Block.block_tracks block1, Block.block_tracks block2)
-        let tpairs = Seq.diff_index_on Block.tracklike_id ts1 ts2
+        let tpairs = Lists.diffIndexOn Block.tracklike_id ts1 ts2
         forM_ tpairs $ \(_, pair) -> case pair of
-            Seq.Both track1 track2
+            Lists.Both track1 track2
                 | flags_differ track1 track2 -> block_damage
                 | otherwise -> return ()
             _ -> block_damage
@@ -407,8 +407,8 @@ derive_diff_block block_id = \case
     -- is correct, since the cache will still have recorded dependencies on
     -- that block, which will cause its dependents to be rederived, as
     -- expected.
-    Seq.First _ -> block_damage
-    Seq.Second _ -> block_damage
+    Lists.First _ -> block_damage
+    Lists.Second _ -> block_damage
     where
     block_damage =
         Writer.tell $ mempty { Derive.sdamage_blocks = Set.singleton block_id }
@@ -472,12 +472,12 @@ track_diff st1 st2 tid = case (Map.lookup tid t1, Map.lookup tid t2) of
 diff_track_events :: Events.Events -> Events.Events -> Ranges.Ranges TrackTime
 diff_track_events e1 e2 =
     Ranges.sorted_ranges $ mapMaybe diff $
-        Seq.pair_sorted_on1 Event.start
+        Lists.pairSortedOn1 Event.start
             (Events.ascending e1) (Events.ascending e2)
     where
-    diff (Seq.First e) = Just (Event.range e)
-    diff (Seq.Second e) = Just (Event.range e)
-    diff (Seq.Both e1 e2)
+    diff (Lists.First e) = Just (Event.range e)
+    diff (Lists.Second e) = Just (Event.range e)
+    diff (Lists.Both e1 e2)
         | e1 == e2 = Nothing
         | otherwise = Just (Event.start e1, max (Event.end e1) (Event.end e2))
 

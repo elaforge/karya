@@ -51,9 +51,9 @@ import           Prelude hiding (head, last, length, null)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
 
+import qualified Util.Lists as Lists
 import qualified Util.Maps as Maps
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 
 import qualified Ui.Event as Event
@@ -192,7 +192,7 @@ insert [] events = events
 insert unsorted_events (Events events) =
     Events $ Map.unions [pre, get overlapping, post]
     where
-    new_events = Seq.sort_on fst $ Seq.key_on event_key $
+    new_events = Lists.sortOn fst $ Lists.keyOn event_key $
         map Event.round unsorted_events
     start = Event.min $ snd $ Prelude.head new_events
     end = Event.max $ snd $ Prelude.last new_events
@@ -340,7 +340,7 @@ event_key event = Key (Event.start event) (Event.orientation event)
 
 -- | This assumes the input is already sorted!
 from_asc_list :: [Event.Event] -> Events
-from_asc_list = Events . Map.fromAscList . Seq.key_on event_key
+from_asc_list = Events . Map.fromAscList . Lists.keyOn event_key
 
 to_asc_list :: Events -> [Event.Event]
 to_asc_list = map snd . Map.toAscList . get
@@ -400,8 +400,8 @@ merge (Events evts1) (Events evts2)
 
 merge_and_clip :: [(Key, Event.Event)] -> [(Key, Event.Event)] -> Events
 merge_and_clip old new = from_asc_list $ clip_events $ map snd $
-    Seq.merge_on fst (map (first (,False)) old) (map (first (,True)) new)
-    -- Seq.merge_on should put elements from the first argument first, but
+    Lists.mergeOn fst (map (first (,False)) old) (map (first (,True)) new)
+    -- Lists.mergeOn should put elements from the first argument first, but
     -- it doesn't guarantee it, so let's be explicit.
 
 {- | Clip overlapping event durations.  An event with duration overlapping
@@ -422,8 +422,8 @@ merge_and_clip old new = from_asc_list $ clip_events $ map snd $
 -}
 clip_events :: [Event.Event] -> [Event.Event]
 clip_events =
-    map clip . Seq.zip_neighbors
-        . Seq.drop_initial_dups (\e -> (Event.start e, Event.orientation e))
+    map clip . Lists.zipNeighbors
+        . Lists.dropInitialDups (\e -> (Event.start e, Event.orientation e))
     where
     clip (maybe_prev, cur, maybe_next)
         | Event.is_negative cur = case maybe_prev of

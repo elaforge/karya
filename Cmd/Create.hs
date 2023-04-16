@@ -25,7 +25,6 @@ import qualified Data.Tree as Tree
 import qualified Util.Lists as Lists
 import qualified Util.Ranges as Ranges
 import qualified Util.Rect as Rect
-import qualified Util.Seq as Seq
 import qualified Util.Trees as Trees
 
 import qualified App.Config as Config
@@ -346,8 +345,8 @@ splice_above_ancestors :: Cmd.M m => m TrackId
 splice_above_ancestors = do
     (block_id, tracknums, _, _) <- Selection.tracks
     tree <- TrackTree.track_tree_of block_id
-    let ancestors = Seq.unique $ mapMaybe (ancestor tree) tracknums
-    insert_at <- Cmd.require "no selected tracks" $ Seq.minimum ancestors
+    let ancestors = Lists.unique $ mapMaybe (ancestor tree) tracknums
+    insert_at <- Cmd.require "no selected tracks" $ Lists.minimum ancestors
     track_id <- focused_track insert_at
     whenM (Ui.has_explicit_skeleton block_id) $
         Ui.add_edges block_id (map ((,) insert_at . (+1)) ancestors)
@@ -576,7 +575,7 @@ set_block_ruler ruler_id block_id =
 -- | Find a place to fit the given rect.  This is like a tiny window manager.
 find_rect :: Maybe Rect.Rect -> (Int, Int) -> [Rect.Rect] -> (Int, Int)
 find_rect maybe_screen (w, _h) rects =
-    maybe (0, 0) Rect.upper_left $ Seq.minimum_on delta holes
+    maybe (0, 0) Rect.upper_left $ Lists.minimumOn delta holes
     where
     -- First pick holes that fit, by increasing size, then pick the ones
     -- that don't fit, by decreasing size.

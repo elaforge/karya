@@ -13,13 +13,12 @@ import qualified Data.Tree as Tree
 
 import qualified Util.Array as Array
 import qualified Util.Lists as Lists
-import qualified Util.Seq as Seq
 
 
 build :: [Edge] -> Graph
 build edges = buildG (0, upper) unique
     where
-    unique = Seq.unique edges
+    unique = Lists.unique edges
     upper = maximum (-1 : map (\(x, y) -> max x y) unique)
 
 -- | Roots are all vertices with no parents.
@@ -115,7 +114,7 @@ remove_edges edges graph
             | (from, groups) <- grouped]
     where
     in_bounds = filter ((\p -> Array.in_bounds p graph) . fst) edges
-    grouped = Seq.keyed_group_sort fst in_bounds
+    grouped = Lists.keyedGroupSort fst in_bounds
 
 -- | Increment all vertices at and above, insert new empty vertex.
 insert_vertex :: Int -> Graph -> Graph
@@ -144,7 +143,7 @@ unlink_vertex vertex graph =
 -- vertex wins.
 map_vertices :: (Vertex -> Vertex) -> Graph -> Graph
 map_vertices f graph = Array.from_list $
-    strip_indices [] $ Seq.drop_initial_dups fst $
+    strip_indices [] $ Lists.dropInitialDups fst $
         map (\(p, cs) -> (f p, map f cs)) (IArray.assocs graph)
 
 strip_indices :: a -> [(Int, a)] -> [a]

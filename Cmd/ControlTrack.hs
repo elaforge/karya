@@ -22,7 +22,6 @@ module Cmd.ControlTrack (
 import qualified Data.Text as Text
 
 import qualified Util.Lists as Lists
-import qualified Util.Seq as Seq
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.InputNote as InputNote
@@ -283,7 +282,8 @@ parse_general split_expr = make . Lists.unsnoc . Parse.split_pipeline
 
 unparse_general :: (Text -> Text -> [Text] -> [Text]) -> Partial -> Text
 unparse_general join_expr (Partial transform method val args comment) =
-    Parse.join_pipeline $ transform ++ [Seq.map_init (<>" ") (expr ++ comments)]
+    Parse.join_pipeline $
+        transform ++ [Lists.mapInit (<>" ") (expr ++ comments)]
     where
     comments = if Text.null comment then [] else [comment]
     expr = join_expr method val args

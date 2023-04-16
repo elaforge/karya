@@ -8,7 +8,7 @@
 module Ui.TrackC (with_track) where
 import ForeignC
 import qualified Util.FFI as FFI
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Then as Then
 
 import qualified Ui.Event as Event
@@ -123,7 +123,7 @@ cb_find_events :: EventStyle -> [Events.Events] -> FindEvents
 cb_find_events event_style event_lists startp endp ret_events ret_ranks = do
     start <- peek startp
     end <- peek endp
-    let (events, ranks) = unzip $ Seq.merge_lists key $
+    let (events, ranks) = unzip $ Lists.mergeLists key $
             zipWith (\rank -> map (, rank)) [0..] $
             map (map set_style . in_range start end) event_lists
         key (event, rank) = (Event.start event, rank)

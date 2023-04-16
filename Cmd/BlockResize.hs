@@ -15,7 +15,6 @@ import qualified Data.Tree as Tree
 
 import qualified Util.Lists as Lists
 import qualified Util.Maps as Maps
-import qualified Util.Seq as Seq
 
 import qualified Cmd.NoteTrackParse as NoteTrackParse
 import qualified Cmd.Ruler.Extract as Extract
@@ -53,7 +52,7 @@ update_callers block_id pos delta = do
 
 push_down_rulers :: Ui.M m => [Tree.Tree Update] -> m ()
 push_down_rulers updates =
-    mapM_ push_down_ruler $ Seq.unique $ map fst $ concatMap bottoms updates
+    mapM_ push_down_ruler $ Lists.unique $ map fst $ concatMap bottoms updates
 
 modify_time :: Ui.M m => BlockId -> TrackTime -> TrackTime -> m ()
 modify_time block_id pos delta = do
@@ -111,7 +110,7 @@ merge_updates :: TrackTime -> [Update]
 merge_updates delta =
     fmap (fmap merge . Maps.multimap) . Maps.multimap
     where
-    merge offset_events = Seq.sort_on (Event.start . fst)
+    merge offset_events = Lists.sortOn (Event.start . fst)
         [ (event, delta * fromIntegral (length offsets))
         | (offsets, events) <- offset_events, event <- events
         ]

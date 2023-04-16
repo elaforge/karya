@@ -11,7 +11,6 @@ import qualified Data.Traversable as Traversable
 
 import qualified Util.Doc as Doc
 import qualified Util.Lists as Lists
-import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
 
 import qualified Derive.Args as Args
@@ -70,12 +69,12 @@ realize_bols :: ScoreTime -- ^ End time, which is used for the duration of the
     -> [(ScoreTime, Text)] -> Either Text [(ScoreTime, Bol)]
 realize_bols end = fmap realize_notes . match_syllables
     where
-    realize_notes = concatMap realize_note . Seq.zip_next
+    realize_notes = concatMap realize_note . Lists.zipNext
     realize_note ((t, note), next) = case note of
         Rest -> []
         Note bol -> [(t, bol)]
         Notes notes -> realize_notes $ zip ts notes
-            where ts = Seq.range_ t (dur / fromIntegral (length notes))
+            where ts = Lists.range_ t (dur / fromIntegral (length notes))
         where dur = maybe end fst next - t
 
 bol_to_attribute :: ScoreTime -> ScoreTime -> Bol
@@ -186,7 +185,7 @@ sequences =
 
 -- | Parse scores from "Derive.Call.India.PakhawajScore".
 parse :: ScoreTime -> Text -> Either Text [(ScoreTime, Bol)]
-parse dur = fmap infer . realize_bols dur . zip (Seq.range_ 0 dur)
+parse dur = fmap infer . realize_bols dur . zip (Lists.range_ 0 dur)
     . Text.words . Text.replace "|" " " . Text.toLower
     where
     infer notes = zip ts (infer_tette bols)
@@ -201,7 +200,7 @@ match_syllables = go
         | Just (rest, bols) <- best_match syllables = (bols++) <$> go rest
         | otherwise = Left $ "unknown bol: " <> showt w
     best_match syllables = fmap snd $
-        Seq.maximum_on fst $ mapMaybe (match_bols syllables) all_bols
+        Lists.maximumOn fst $ mapMaybe (match_bols syllables) all_bols
     match_bols :: [(a, Syllable)] -> ([Syllable], [Note Bol])
         -> Maybe (Int, ([(a, Syllable)], [(a, Note Bol)]))
     match_bols syllables (bol_syllables, bols)
@@ -227,7 +226,7 @@ infer_tette = map_neighbors infer
     replace stroke Tette = stroke
     replace _ stroke = stroke
 
--- | This is different from @map f . Seq.zip_neighbors@ in that you can see
+-- | This is different from @map f . Lists.zipNeighbors@ in that you can see
 -- whatever change @f@ made to the previous value.
 map_neighbors :: Traversable t => (Maybe b -> a -> Maybe a -> b)
     -> t a -> t b

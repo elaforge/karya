@@ -14,7 +14,7 @@ import qualified Data.Time as Time
 import qualified GHC.Generics as Generics
 import qualified System.Random as Random
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Texts as Texts
 import qualified Solkattu.Db as Db
 import qualified Solkattu.Format.Format as Format
@@ -104,7 +104,7 @@ instance Aeson.FromJSON Practiced
 
 savePracticed :: [Practiced] -> IO ()
 savePracticed = Text.IO.appendFile practicedDb . Text.unlines
-    . map (Texts.toText . Aeson.encode) . Seq.sort_on date
+    . map (Texts.toText . Aeson.encode) . Lists.sortOn date
 
 loadPracticed :: IO [Practiced]
 loadPracticed = do
@@ -117,7 +117,7 @@ loadPracticed = do
 display :: IO ()
 display = do
     tz <- Time.getCurrentTimeZone
-    by_date <- Seq.keyed_group_sort (localDay tz . date) <$> loadPracticed
+    by_date <- Lists.keyedGroupSort (localDay tz . date) <$> loadPracticed
     mapM_ (Text.IO.putStr . pretty) by_date
     where
     pretty (day, ps) = Text.unlines $ (prettyDay day <> ":")

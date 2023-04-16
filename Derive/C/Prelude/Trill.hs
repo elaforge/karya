@@ -59,7 +59,7 @@ import qualified Data.Maybe as Maybe
 
 import qualified Util.Doc as Doc
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
@@ -170,7 +170,7 @@ note_trill use_attributes neighbor config args
     trill_notes = do
         (neighbor, control) <- neighbor_to_function (Args.start args) neighbor
         transpose <- get_trill_control config (Args.range_or_next args) neighbor
-        Sub.derive =<< mapM (note control) (Seq.zip_next transpose)
+        Sub.derive =<< mapM (note control) (Lists.zipNext transpose)
     note control ((x, transpose), next) = do
         start <- Derive.score x
         let end = snd $ Args.range args
@@ -185,7 +185,7 @@ note_trill use_attributes neighbor config args
     --     xs <- mapM (Derive.score . fst) transpose
     --     let end = snd $ Args.range args
     --     let notes = do
-    --             (x, maybe_next) <- Seq.zip_next xs
+    --             (x, maybe_next) <- Lists.zipNext xs
     --             let next = fromMaybe end maybe_next
     --             return $ SubT.EventT x (next-x) Call.note
     --     Call.add_control control (ScoreT.untyped transpose)
@@ -209,7 +209,7 @@ note_trill use_attributes neighbor config args
         -- transitions <- mapM Derive.score transitions
         -- Sub.derive $ do
         --     (pitch, (x, maybe_next)) <-
-        --         zip pitches (Seq.zip_next transitions)
+        --         zip pitches (Lists.zipNext transitions)
         --     let next = fromMaybe (snd (Args.range args)) maybe_next
         --     return $ SubT.EventT x (next-x) (Call.pitched_note pitch)
 
@@ -428,12 +428,12 @@ chord_tremolo starts note_tracks =
             Just $ SubT.EventT pos (next_pos-pos) (SubT._note note))
         where
         chosen =
-            Seq.minimum_on fst (filter ((>last_tracknum) . fst) overlapping)
-                <|> Seq.minimum_on fst overlapping
+            Lists.minimumOn fst (filter ((>last_tracknum) . fst) overlapping)
+                <|> Lists.minimumOn fst overlapping
         overlapping = filter (SubT.overlaps pos . snd) notes
         notes = dropWhile ((<=pos) . SubT.end . snd) notes_
     by_track :: [(TrackNum, SubT.EventT a)]
-    by_track = Seq.sort_on (SubT.end . snd)
+    by_track = Lists.sortOn (SubT.end . snd)
         [ (tracknum, event)
         | (tracknum, track) <- zip [0..] note_tracks, event <- track
         ]
@@ -866,7 +866,7 @@ adjust_transitions end Stretch ts@(_:_:_) = zipWith (+) offsets ts
     where
     -- (_:_:_) above means both the last and division are safe.
     stretch = max 0 (end - last ts) / fromIntegral (length ts - 1)
-    offsets = Seq.range_ 0 stretch
+    offsets = Lists.range_ 0 stretch
 adjust_transitions _ Stretch ts = ts
 
 add_bias :: Double -> [RealTime] -> [RealTime]

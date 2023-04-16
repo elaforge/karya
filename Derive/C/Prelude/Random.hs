@@ -8,8 +8,8 @@ import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 
 import qualified Util.Doc as Doc
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
@@ -100,15 +100,15 @@ c_alternate_tracks = Derive.generator Module.prelude "alternate-tracks"
         subs <- Sub.sub_events args
         let err =  "more weights than tracks: " <> showt (length weights)
                 <> " > " <> showt (length subs) <> " tracks"
-        sub_weights <- mapM (pair err) $ Seq.zip_padded weights subs
+        sub_weights <- mapM (pair err) $ Lists.zipPadded weights subs
         case NonEmpty.nonEmpty sub_weights of
             Nothing -> return mempty
             Just sub_weights ->
                 Sub.derive . Call.pick_weighted sub_weights =<< Call.random
     where
-    pair _ (Seq.Both weight sub) = return (weight, sub)
-    pair err (Seq.First _) = Derive.throw err
-    pair _ (Seq.Second sub) = return (1, sub)
+    pair _ (Lists.Both weight sub) = return (weight, sub)
+    pair err (Lists.First _) = Derive.throw err
+    pair _ (Lists.Second sub) = return (1, sub)
 
 -- TODO This doesn't really belong in here since it's not random.  Also not in
 -- NoteTransformer since it's not a transformer.  Maybe all this stuff should
@@ -168,12 +168,12 @@ tempo_alternate_continuous :: DeriveT.Quoted -> [(RealTime, DeriveT.Quoted)]
     -> Meter.Rank -> Meter.Rank -> Derive.NoteArgs -> Derive.NoteDeriver
 tempo_alternate_continuous bottom pairs timestep interval args = do
     interval <- Call.meter_duration (Args.start args) interval 1
-    let starts = Seq.range (Args.start args) (Args.end args) interval
+    let starts = Lists.range (Args.start args) (Args.end args) interval
     indices <- alternate_indices starts timestep (map fst pairs)
     let (alts, alt_indices) = select_indices (bottom : map snd pairs) indices
     alts <- mapM (Eval.eval_quoted (Args.context args)) alts
     real_starts <- mapM Derive.real starts
-    let breakpoints = Seq.drop_dups snd (zip real_starts alt_indices)
+    let breakpoints = Lists.dropDups snd (zip real_starts alt_indices)
     -- Debug.tracepM "breakpoints" (starts, zip real_starts alt_indices)
     return $ case breakpoints of
         -- Optimize a single breakpoint at the start.
@@ -185,7 +185,7 @@ tempo_alternate_continuous bottom pairs timestep interval args = do
 switch :: [Stream.Stream Score.Event] -> [(RealTime, Int)]
     -> Stream.Stream Score.Event
 switch [] _ = mempty
-switch streams bps = mconcatMap select (Seq.zip_next bps)
+switch streams bps = mconcatMap select (Lists.zipNext bps)
     where
     -- This is a little bit inefficient because it scans from the beginning of
     -- each stream, but the number of events and streams is likely small.
@@ -221,7 +221,7 @@ timestep_dur_at timestep p = do
 select_indices :: [a] -> [Int] -> ([a], [Int])
 select_indices xs is = (map (xs!!) unique, map pack is)
     where
-    unique = Seq.unique_sort is
+    unique = Lists.uniqueSort is
     pack i = fromMaybe 0 $ List.elemIndex i unique
 
 index_under_threshold :: Ord a => [a] -> a -> Int

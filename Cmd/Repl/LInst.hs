@@ -9,10 +9,10 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Util.Lens as Lens
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Maps as Maps
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
 
 import qualified Cmd.Cmd as Cmd
@@ -133,9 +133,9 @@ pretty_alloc inst inst_environ alloc =
             Maps.pairs (REnv.to_map inst_environ) (REnv.to_map environ)
         where
         fmt (k, v) = case v of
-            Seq.First v -> ("-" <> k, v)
-            Seq.Second v -> ("+" <> k, v)
-            Seq.Both _ v -> ("*" <> k, v)
+            Lists.First v -> ("-" <> k, v)
+            Lists.Second v -> ("+" <> k, v)
+            Lists.Both _ v -> ("*" <> k, v)
     show_flags config
         | null flags = ""
         | otherwise = "{" <> Text.intercalate ", " flags <> "}"
@@ -624,14 +624,15 @@ initialize_realtime_tuning inst = do
     keys <- get_tuning_map inst
     (_, _, config) <- get_midi_config inst
     let msg = Midi.realtime_tuning keys
-    mapM_ (flip Cmd.midi msg) (Seq.unique (map fst (Patch.config_addrs config)))
+    mapM_ (flip Cmd.midi msg)
+        (Lists.unique (map fst (Patch.config_addrs config)))
 
 -- | Like 'initialize_realtime_tuning', except use 'Midi.nrpn_tuning'.
 initialize_nrpn_tuning :: Cmd.M m => ScoreT.Instrument -> m ()
 initialize_nrpn_tuning inst = do
     keys <- get_tuning_map inst
     (_, _, config) <- get_midi_config inst
-    forM_ (Seq.unique (Patch.config_addrs config)) $ \(dev, chan) ->
+    forM_ (Lists.unique (Patch.config_addrs config)) $ \(dev, chan) ->
         mapM_ (Cmd.midi dev . Midi.ChannelMessage chan) (Midi.nrpn_tuning keys)
 
 get_tuning_map :: Cmd.M m => ScoreT.Instrument

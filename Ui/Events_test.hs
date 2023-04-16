@@ -7,7 +7,7 @@ import qualified Data.Maybe as Maybe
 import qualified Test.QuickCheck as Q
 
 import qualified Util.CallStack as CallStack
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Test.Testing as Testing
 
 import qualified Ui.Event as Event
@@ -86,7 +86,7 @@ test_clip = do
     let f include_end end = map extract_event
             . Events.clip_list include_end end . pos_events
     let positive = [(0, 2, "a"), (2, 2, "b")]
-    equal [f False end positive | end <- Seq.range 0 5 1]
+    equal [f False end positive | end <- Lists.range 0 5 1]
         [ []
         , [(0, 1, "a")]
         , [(0, 2, "a")]
@@ -94,7 +94,7 @@ test_clip = do
         , [(0, 2, "a"), (2, 2, "b")]
         , [(0, 2, "a"), (2, 2, "b")]
         ]
-    equal [f True end positive | end <- Seq.range 0 5 1]
+    equal [f True end positive | end <- Lists.range 0 5 1]
         [ [(0, 0, "a")]
         , [(0, 1, "a")]
         , [(0, 2, "a"), (2, 0, "b")]
@@ -102,7 +102,7 @@ test_clip = do
         , [(0, 2, "a"), (2, 2, "b")]
         , [(0, 2, "a"), (2, 2, "b")]
         ]
-    equal [f False end [(2, -2, "a"), (4, -2, "b")] | end <- Seq.range 0 3 1]
+    equal [f False end [(2, -2, "a"), (4, -2, "b")] | end <- Lists.range 0 3 1]
         [ []
         , []
         , [(2, -2, "a")]
@@ -148,7 +148,7 @@ test_from_list_qc :: Test
 test_from_list_qc = quickcheck $ Q.forAll gen_events $ \es -> do
     let events = map mkevent es
     q_equal (Events.ascending (Events.from_list events))
-        (Events.clip_events (Seq.sort_on Events.event_key events))
+        (Events.clip_events (Lists.sortOn Events.event_key events))
 
 test_insert_qc :: Test
 test_insert_qc = quickcheck $ Q.forAll ((,) <$> gen_events <*> gen_events) $
@@ -159,7 +159,7 @@ test_insert_qc = quickcheck $ Q.forAll ((,) <$> gen_events <*> gen_events) $
 
 test_clip_events_qc :: Test
 test_clip_events_qc = quickcheck $ Q.forAll gen_events $ \es -> do
-    let clipped = Events.clip_events (Seq.sort_on Event.start (map mkevent es))
+    let clipped = Events.clip_events (Lists.sortOn Event.start (map mkevent es))
     q_equal (find_overlaps clipped) []
 
 test_clip_events :: Test
@@ -245,7 +245,7 @@ gen_events :: Q.Gen [(Int, Int)]
 gen_events = Q.listOf ((,) <$> Q.choose (-4, 4) <*> Q.choose (-4, 4))
 
 find_overlaps :: [Event.Event] -> [(Event.Event, Event.Event)]
-find_overlaps = mapMaybe check . Seq.zip_next
+find_overlaps = mapMaybe check . Lists.zipNext
     where
     check (cur, Just next)
         | Event.end cur > Event.start next = Just (cur, next)

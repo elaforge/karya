@@ -30,7 +30,7 @@ import qualified Data.List as List
 import qualified Data.Tree as Tree
 
 import qualified Util.Graphs as Graphs
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Serialize as Serialize
 
 import Global
@@ -92,7 +92,7 @@ to_forest :: TrackNum -- ^ Total number of tracks.  This is needed because the
 to_forest ntracks (Skeleton graph) = sort_tree $ Graphs.to_forest graph ++ rest
     where -- from 1 past array end to last track index (ntracks-1)
     rest = [Graph.Node n [] | n <- [snd (IArray.bounds graph) + 1 .. ntracks-1]]
-    sort_tree = Seq.sort_on Tree.rootLabel
+    sort_tree = Lists.sortOn Tree.rootLabel
         . map (\(Tree.Node val subs) -> Tree.Node val (sort_tree subs))
 
 -- | Get the parents of a TrackNum.

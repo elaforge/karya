@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.C.Bali.Gender_test where
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.DeriveTest as DeriveTest
@@ -158,7 +158,7 @@ test_weak :: Test
 test_weak = do
     let run = DeriveTest.extract (DeriveTest.e_control_vals "mute")
             . DeriveTest.derive_tracks transform
-        strength = zip (Seq.range_ 0 1) ["0", "0.25", "0.5", "0.75", "1"]
+        strength = zip (Lists.range_ 0 1) ["0", "0.25", "0.5", "0.75", "1"]
     equal (run
             [ ("strength", [(n, 0, s) | (n, s) <- strength])
             , (">", [(n, 1, "weak") | (n, _) <- strength])

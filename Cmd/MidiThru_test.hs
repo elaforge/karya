@@ -4,7 +4,7 @@
 
 module Cmd.MidiThru_test where
 import qualified Util.CallStack as CallStack
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import Cmd.CmdTest (note_off, control)
@@ -172,7 +172,7 @@ test_input_to_midi = do
         ([], Cmd.empty_wdev_state)
 
     -- Too many notes get addrs in round-robin.
-    equal (f (map note_on (Seq.range 1 6 1))) $ concat
+    equal (f (map note_on (Lists.range 1 6 1))) $ concat
         [[(chan, pb 0), (chan, on n)] | (chan, n) <- zip (cycle [0..2]) [1..6]]
 
     -- It's round-robin even after a note-off.

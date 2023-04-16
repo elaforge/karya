@@ -9,7 +9,7 @@
 -- good.  I suppose if I need these functions elsewhere I can more them to more
 -- generic places.
 module Cmd.Repl.LPitch where
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Perf as Perf
@@ -123,5 +123,5 @@ sharps_to_flats = PitchTrack.pitch_tracks $ \scale env note -> first pretty $ do
             e_sharps_to_flats (zip pitches notes)
 
 e_sharps_to_flats :: [(Pitch.Pitch, a)] -> Maybe a
-e_sharps_to_flats = fmap snd . Seq.maximum_on accs . filter ((<0) . accs)
+e_sharps_to_flats = fmap snd . Lists.maximumOn accs . filter ((<0) . accs)
     where accs = Pitch.pitch_accidentals . fst

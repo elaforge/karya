@@ -18,7 +18,6 @@ import           Data.Vector ((!?))
 import qualified Util.Doc as Doc
 import qualified Util.Lists as Lists
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
 
 import qualified Derive.DeriveT as DeriveT
@@ -142,7 +141,7 @@ data Laras = Laras {
     } deriving (Eq, Show)
 
 laras_map :: [Laras] -> Map Text Laras
-laras_map = Map.fromList . Seq.key_on laras_name
+laras_map = Map.fromList . Lists.keyOn laras_name
 
 laras :: Text -> Pitch.Pitch -> ([Pitch.NoteNumber] -> [Pitch.NoteNumber])
     -> Doc.Doc -> [(Pitch.NoteNumber, Pitch.NoteNumber)] -> Laras

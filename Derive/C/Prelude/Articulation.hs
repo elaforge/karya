@@ -18,7 +18,6 @@ module Derive.C.Prelude.Articulation where
 import qualified Data.Text as Text
 
 import qualified Util.Lists as Lists
-import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call as Call
@@ -230,7 +229,7 @@ artificial_harmonic lowest_string nn =
         -- I assume the octave is not convenient for an artificial harmonic,
         -- but that's not true in higher pitches.  Maybe I could allow it, but
         -- make it least preferred?
-        Seq.key_on base_of [3..highest_harmonic]
+        Lists.keyOn base_of [3..highest_harmonic]
     where base_of h = Pitch.modify_hz (/ fromIntegral h) nn
 
 -- * slur
@@ -266,7 +265,7 @@ note_slur :: RealTime -> Maybe RealTime -> Signal.Y -> [[SubT.Event]]
     -> Derive.NoteDeriver
 note_slur overlap maybe_detach dyn = Sub.derive . concatMap apply
     where
-    apply = Seq.map_init (fmap (set_sustain overlap))
+    apply = Lists.mapInit (fmap (set_sustain overlap))
         . apply_dyn dyn . maybe id apply_detach maybe_detach
 
 lily_slur :: Maybe Call.UpDown -> Derive.PassedArgs d -> Derive.NoteDeriver
@@ -310,15 +309,15 @@ c_attr_slur first_attr rest_attr = Derive.generator Module.instrument "legato"
         \ this amount. Otherwise, transition samples can be too loud."
     ) $ \(detach, dyn) args -> Ly.when_lilypond (lily_slur Nothing args) $
         note_slur 0.02 detach dyn
-            . map (Seq.map_head (fmap (Call.add_attributes first_attr)))
-            . map (Seq.map_tail (fmap (Call.add_attributes rest_attr)))
+            . map (Lists.mapHead (fmap (Call.add_attributes first_attr)))
+            . map (Lists.mapTail (fmap (Call.add_attributes rest_attr)))
                 =<< Sub.sub_events args
 
 apply_detach :: RealTime -> [SubT.Event] -> [SubT.Event]
-apply_detach detach = Seq.map_last (fmap (set_sustain (-detach)))
+apply_detach detach = Lists.mapLast (fmap (set_sustain (-detach)))
 
 apply_dyn :: Signal.Y -> [SubT.Event] -> [SubT.Event]
-apply_dyn dyn = Seq.map_tail (fmap (Call.multiply_dynamic dyn))
+apply_dyn dyn = Lists.mapTail (fmap (Call.multiply_dynamic dyn))
 
 set_sustain :: RealTime -> Derive.Deriver a -> Derive.Deriver a
 set_sustain = Call.with_constant Controls.sustain_abs . RealTime.to_seconds

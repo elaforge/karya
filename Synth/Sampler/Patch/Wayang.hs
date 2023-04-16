@@ -24,7 +24,6 @@ import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Maps as Maps
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
 
 import qualified Cmd.Instrument.Bali as Bali
@@ -345,7 +344,7 @@ keyMap instrument tuning articulation =
         [ ((instrument, tuning, octave), makeKeyMap instrument tuning octave)
         | instrument <- Util.enumAll
         , tuning <- Util.enumAll
-        , octave <- Seq.unique $ map octaveOf Util.enumAll
+        , octave <- Lists.unique $ map octaveOf Util.enumAll
         ]
     octaveOf = \case
         Mute -> -2
@@ -406,7 +405,7 @@ wayangKeys baseOct = take 10 $ drop 1
 
 showPitchTable :: IO ()
 showPitchTable = Text.IO.putStr $ Text.unlines $ Texts.columns 3 $
-    Seq.rotate
+    Lists.rotate
     [ pemadeUmbang ++ repeat ""
     , replicate 5 "" ++ kantilanUmbang
     , pemadeIsep ++ repeat ""

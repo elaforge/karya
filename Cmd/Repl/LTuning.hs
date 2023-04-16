@@ -29,7 +29,7 @@ import qualified Data.Text.IO as Text.IO
 import qualified Data.Vector.Unboxed as Unboxed
 
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Texts as Texts
 
 import qualified Cmd.Cmd as Cmd
@@ -68,7 +68,7 @@ table scale =
         : [oct : map (Num.showFloat 2) nns | (oct, nns) <- zip octaves groups]
     where
     octaves = map (("c"<>) . showt) [-1..]
-    groups = Seq.chunked 12 $ Unboxed.toList $ Patch.scale_key_to_nn scale
+    groups = Lists.chunked 12 $ Unboxed.toList $ Patch.scale_key_to_nn scale
 
 -- | Get a patch scale for the scale at the selection.
 selection :: Cmd.M m => Bool
@@ -165,7 +165,7 @@ get_tuning inst scale = do
     return $ Text.unlines $ concat
         [ map pretty amap
         , [""]
-        , map (Text.unwords . map pretty) (Seq.chunked 6 tuning)
+        , map (Text.unwords . map pretty) (Lists.chunked 6 tuning)
         ]
 
 -- | Set the instrument's Scale to the given scale and send a MIDI tuning

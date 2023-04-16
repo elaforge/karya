@@ -10,7 +10,7 @@ module Derive.C.Bali.Gender (
     , weak, weak_call
 ) where
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
@@ -158,19 +158,19 @@ c_realize_ngoret = Derive.transformer module_ "realize-ngoret"
 
 realize_ngoret :: Stream.Stream Score.Event -> Derive.NoteDeriver
 realize_ngoret =
-    Post.apply_m $ fmap merge . mapM realize . Seq.group_sort Post.hand_key
+    Post.apply_m $ fmap merge . mapM realize . Lists.groupSort Post.hand_key
     where
     -- TODO do I want to ignore streams with irrelevant instruments?
-    realize = fmap (map (uncurry realize_damped) . Seq.zip_next)
+    realize = fmap (map (uncurry realize_damped) . Lists.zipNext)
         . apply realize_infer_pitch
-    apply f = mapMaybeM (apply1 f) . Seq.zip_neighbors
+    apply f = mapMaybeM (apply1 f) . Lists.zipNeighbors
         where
         apply1 f (prev, event, next) = case f prev event next of
             Right event -> return $ Just event
             Left err -> do
                 Derive.with_event_stack event $ Log.warn err
                 return Nothing
-    merge = Seq.merge_lists Score.event_start
+    merge = Lists.mergeLists Score.event_start
 
 realize_infer_pitch :: Maybe Score.Event -> Score.Event
     -> Maybe Score.Event -> Either Text Score.Event

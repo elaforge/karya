@@ -58,7 +58,6 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Util.Lists as Lists
-import qualified Util.Seq as Seq
 import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
@@ -282,7 +281,7 @@ modify_neighbor modify ctx
 -- start, find a neighbor instead of matching that event.
 avoid_exact_match :: Ui.M m => Selection.Context -> m [(TrackId, Event.Event)]
 avoid_exact_match ctx =
-    Seq.map_maybe_snd select <$> Selection.ctx_events_around ctx
+    Lists.mapMaybeSnd select <$> Selection.ctx_events_around ctx
     where
     point = Selection.sel_point (Selection.ctx_selection ctx)
     select triple = case triple of
@@ -378,7 +377,7 @@ cmd_join_events :: Cmd.M m => m ()
 cmd_join_events = join_selected =<< Selection.events_around
     where
     join_selected tracks = mapM_ (join_track nearest) tracks
-        where nearest = Seq.minimum_on abs $ mapMaybe nearest_of tracks
+        where nearest = Lists.minimumOn abs $ mapMaybe nearest_of tracks
     nearest_of (_, (prevs, [cur], nexts))
         | Event.is_positive cur =
             subtract (Event.start cur) . Event.start <$> Lists.head nexts

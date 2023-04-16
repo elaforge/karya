@@ -4,7 +4,7 @@
 module Derive.C.Bali.Reyong_test where
 import qualified Data.Text as Text
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Derive.Attrs as Attrs
 import qualified Derive.C.Bali.Gangsa_test as Gangsa_test
 import qualified Derive.C.Bali.Reyong as Reyong
@@ -156,7 +156,8 @@ pitch_digit = Text.drop 1
 e_by_voice :: (Score.Event -> a) -> Derive.Result
     -> ([(Reyong.Voice, [a])], [Text])
 e_by_voice extract =
-    first Seq.group_fst . DeriveTest.extract (\e -> (event_voice e, extract e))
+    first Lists.groupFst
+    . DeriveTest.extract (\e -> (event_voice e, extract e))
 
 event_voice :: Score.Event -> Reyong.Voice
 event_voice = fromMaybe 0 . Env.maybe_val EnvKey.voice . Score.event_environ
@@ -165,7 +166,7 @@ e_voice :: Int -> (Score.Event -> a) -> Derive.Result -> (Maybe [a], [Text])
 e_voice voice extract = group_voices . DeriveTest.extract ex
     where
     ex e = (DeriveTest.e_environ_val EnvKey.voice e :: Maybe Int, extract e)
-    group_voices = first (lookup (Just voice) . Seq.group_fst)
+    group_voices = first (lookup (Just voice) . Lists.groupFst)
 
 -- Force all the positions because of partial functions in there.
 test_positions :: Test

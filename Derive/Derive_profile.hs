@@ -9,7 +9,7 @@ import qualified System.Mem as Mem
 import qualified Text.Printf as Printf
 
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Test.Testing as Testing
 import qualified Util.Texts as Texts
 import qualified Util.Thread as Thread
@@ -320,11 +320,11 @@ vel_track = ctrack0 1 "vel" ["1", ".2", ".4", ".6"]
 
 ctrack0 :: ScoreTime -> Title -> [Text] -> UiTest.TrackSpec
 ctrack0 step title ts =
-    (title, [(p, 0, t) | (p, t) <- zip (Seq.range_ 0 step) (cycle ts)])
+    (title, [(p, 0, t) | (p, t) <- zip (Lists.range_ 0 step) (cycle ts)])
 
 ctrack :: ScoreTime -> Title -> [Text] -> UiTest.TrackSpec
 ctrack step title ts =
-    (title, [(p, step, t) | (p, t) <- zip (Seq.range_ 0 step) (cycle ts)])
+    (title, [(p, step, t) | (p, t) <- zip (Lists.range_ 0 step) (cycle ts)])
 
 track_until :: ScoreTime -> UiTest.TrackSpec -> UiTest.TrackSpec
 track_until until = second (takeWhile (\(p, _, _) -> p < until))

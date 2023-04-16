@@ -58,9 +58,9 @@ import qualified Data.Vector.Unboxed as Unboxed
 import qualified GHC.Generics as Generics
 
 import qualified Util.Lens as Lens
+import qualified Util.Lists as Lists
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 import qualified Util.Vector
 
 import qualified Derive.Attrs as Attrs
@@ -299,7 +299,7 @@ interpolate_gaps :: [(Midi.Key, Pitch.NoteNumber)]
     -> [(Midi.Key, Pitch.NoteNumber)]
 interpolate_gaps ((k1, nn1) : rest@((k2, nn2) : _))
     | k1 + 1 == k2 = (k1, nn1) : interpolate_gaps rest
-    | otherwise = (k1, nn1) : map mk (Seq.range' (k1+1) k2 1)
+    | otherwise = (k1, nn1) : map mk (Lists.range' (k1+1) k2 1)
         ++ interpolate_gaps rest
     where
     mk k = (k, nn)
@@ -495,7 +495,7 @@ cc_keyswitches ks = keyswitches
 cc_keyswitches_permute
     :: [(Midi.Control, [(Attrs.Attributes, Midi.ControlValue)])] -> AttributeMap
 cc_keyswitches_permute ks =
-    keyswitches $ map (first mconcat . unzip) $ Seq.cartesian
+    keyswitches $ map (first mconcat . unzip) $ Lists.cartesian
         [ [(attrs, ControlSwitch cc val) | (attrs, val) <- attr_controls]
         | (cc, attr_controls) <- ks
         ]
@@ -545,7 +545,7 @@ make_mode_map
     :: [(EnvKey.Key, [(Expr.MiniVal, (ScoreT.Control, Midi.ControlValue))])]
     -> ModeMap
 make_mode_map =
-    ModeMap . Map.fromList . Seq.map_maybe_snd
+    ModeMap . Map.fromList . Lists.mapMaybeSnd
         (env_val . map (second (second Control.cval_to_val)))
     where
     env_val [] = Nothing

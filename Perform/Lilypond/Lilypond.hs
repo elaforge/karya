@@ -14,7 +14,6 @@ import qualified Util.CallStack as CallStack
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
@@ -194,7 +193,7 @@ write_voice (voice, lys) = do
 
 sort_staves :: [(ScoreT.Instrument, Types.StaffConfig)] -> [StaffGroup]
     -> [(StaffGroup, Types.StaffConfig)]
-sort_staves inst_configs = map lookup_name . Seq.sort_on inst_key
+sort_staves inst_configs = map lookup_name . Lists.sortOn inst_key
     where
     lookup_name staff = case lookup (inst_of staff) inst_configs of
         Nothing -> (staff, Types.default_staff_config (inst_of staff))
@@ -268,7 +267,7 @@ convert_staff_groups :: Types.Config -> Types.Time -> [Types.Event]
     -> [Types.Event] -> Either Log.Msg [StaffGroup]
 convert_staff_groups config start global events = do
     let staff_groups = split_events events
-    let staff_end = fromMaybe 0 $ Seq.maximum (map Types.event_end events)
+    let staff_end = fromMaybe 0 $ Lists.maximum (map Types.event_end events)
     (meters, global) <- either warn return $ parse_meters start staff_end global
     -- It would be nicer to partition_on Process.free_code so I don't have to
     -- re-parse it in each Process.process, but then process would have to
@@ -286,11 +285,11 @@ convert_staff_groups config start global events = do
 -- into right and left hand.
 split_events :: [Types.Event] -> [(ScoreT.Instrument, [[Types.Event]])]
 split_events events =
-    [ (inst, Seq.group_sort (lookup_hand . Types.event_environ) events)
+    [ (inst, Lists.groupSort (lookup_hand . Types.event_environ) events)
     | (inst, events) <- by_inst
     ]
     where
-    by_inst = Seq.keyed_group_sort Types.event_instrument events
+    by_inst = Lists.keyedGroupSort Types.event_instrument events
     lookup_hand environ = case Env.get_val EnvKey.hand environ of
         Right (val :: Text)
             | val == "r" || val == "right" -> 0
@@ -314,7 +313,7 @@ staff_group config start meters inst staves = do
 distribute_global :: [Types.Event] -> ScoreT.Instrument -> [Types.Event]
     -> [Types.Event]
 distribute_global codes inst =
-    Seq.merge_on Types.event_start
+    Lists.mergeOn Types.event_start
         (map (\e -> e { Types.event_instrument = inst }) codes)
 
 -- ** movements
@@ -326,7 +325,8 @@ distribute_global codes inst =
 split_movements :: [(Types.Time, Title)] -> [Types.Event]
     -> [(Types.Time, Title, [Types.Event])]
 split_movements movements =
-    filter (not . null . events_of) . split (Seq.zip_next ((0, "") : movements))
+    filter (not . null . events_of)
+    . split (Lists.zipNext ((0, "") : movements))
     where
     split (((start, title), Just (next, _)) : movements) events =
         (start, title, pre) : split movements post

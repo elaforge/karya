@@ -5,7 +5,7 @@
 module Cmd.Ruler.Extract (pull_up, push_down, push_down_recursive) where
 import qualified Data.List.NonEmpty as NonEmpty
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Cmd.NoteTrackParse as NoteTrackParse
 import qualified Cmd.Ruler.RulerUtil as RulerUtil
 import qualified Derive.ParseTitle as ParseTitle
@@ -56,7 +56,7 @@ push_down not_1to1_ok block_id track_id = do
     (subs, not_1to1) <- sub_meters block_id track_id
     unless (not_1to1_ok || null not_1to1) $
         Ui.throw $ "block calls not 1:1: " <> pretty not_1to1
-    let sub_blocks = Seq.drop_dups fst subs
+    let sub_blocks = Lists.dropDups fst subs
     forM_ sub_blocks $ \(block_id, meter) ->
         RulerUtil.local_meter RulerUtil.Block block_id (const meter)
     return $ map fst sub_blocks

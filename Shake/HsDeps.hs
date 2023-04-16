@@ -27,8 +27,8 @@ import qualified System.FilePath as FilePath
 import qualified System.IO as IO
 import qualified System.Process as Process
 
+import qualified Util.Lists as Lists
 import qualified Util.Maps as Maps
-import qualified Util.Seq as Seq
 import qualified Shake.Util as Util
 
 import           Control.Monad
@@ -60,7 +60,7 @@ importsOfIO :: Generated
     -> FilePath -> IO [FilePath]
 importsOfIO generated cppFlags fn = do
     -- TODO get CcDeps.includesOf so I can need them too.
-    mods <- Seq.unique_sort . parseImports <$> preprocess cppFlags fn
+    mods <- Lists.uniqueSort . parseImports <$> preprocess cppFlags fn
     Maybe.catMaybes <$> mapM (fileOf generated) mods
 
 -- * PackageDb

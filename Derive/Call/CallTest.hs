@@ -10,8 +10,6 @@ import qualified Data.Text as Text
 
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
-
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
@@ -58,7 +56,7 @@ run_control_dur :: [UiTest.EventSpec] -> [(Signal.X, Signal.Y)]
 run_control_dur events = extract $
     DeriveTest.derive_tracks "" [(">", [(0, 10, "")]), ("cont", events)]
     where
-    extract = Seq.drop_dups id . head . DeriveTest.extract_events
+    extract = Lists.dropDups id . head . DeriveTest.extract_events
         (Signal.to_pairs . ScoreT.typed_val . get . Score.event_controls)
     get fm = case Map.lookup "cont" fm of
         Nothing -> error "expected a 'cont' control"

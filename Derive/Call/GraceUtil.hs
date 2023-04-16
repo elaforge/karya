@@ -10,7 +10,7 @@ import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
@@ -149,7 +149,7 @@ lily_grace args start pitches = do
     pitches <- mapM (Ly.pitch_to_lily env)
         =<< mapM (Derive.resolve_pitch start) pitches
     let ly_notes = map (<> Lilypond.to_lily Lilypond.D8) pitches
-        beamed = Seq.first_last (<>"[") (<>"]") ly_notes
+        beamed = Lists.firstLast (<>"[") (<>"]") ly_notes
         -- I use \acciaccatura instead of \grace because it adds a slur
         -- automatically.
         code = "\\acciaccatura { " <> Text.unwords beamed <> " } "
@@ -242,7 +242,7 @@ basic_grace args pitches =
 fit_grace_durs :: (Fractional a, Ord a) => Typecheck.Normalized -> Maybe a
     -> a -> a -> Int -> a -> [(a, a)]
 fit_grace_durs place prev start end notes dur =
-    map add_dur $ Seq.zip_next $ fit_grace place prev start end notes dur
+    map add_dur $ Lists.zipNext $ fit_grace place prev start end notes dur
     where
     add_dur (x, Nothing) = (x, end - x)
     add_dur (x, Just next) = (x, next - x)
@@ -261,7 +261,7 @@ fit_grace (Typecheck.Normalized place) maybe_prev start end notes dur
 
 fit_before :: (Fractional a, Ord a) => Maybe a -> a -> Int -> a -> [a]
 fit_before maybe_prev start notes dur =
-    take notes $ drop 1 $ Seq.range_ (start - notes_t * step) step
+    take notes $ drop 1 $ Lists.range_ (start - notes_t * step) step
     where
     notes_t = fromIntegral notes
     step
@@ -270,7 +270,7 @@ fit_before maybe_prev start notes dur =
         | otherwise = dur
 
 fit_after :: (Fractional a, Ord a) => a -> a -> Int -> a -> [a]
-fit_after start end notes dur = take notes $ Seq.range_ start step
+fit_after start end notes dur = take notes $ Lists.range_ start step
     where
     notes_t = fromIntegral notes
     step

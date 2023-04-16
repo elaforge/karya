@@ -45,7 +45,6 @@ import qualified Util.Git as Git
 import           Util.GitT (Commit, Repo)
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 
 import qualified Cmd.SaveGitT as SaveGitT
@@ -136,7 +135,7 @@ ref_to_save ref
     | not (all (all Char.isDigit) versions) = Nothing
     | otherwise = Just $ SavePoint (reverse (map read versions))
     where
-    (save, _) = Seq.drop_prefix "tags/" ref
+    (save, _) = Lists.dropPrefix "tags/" ref
     versions = Lists.split "." save
 
 save_to_ref :: SavePoint -> Git.Ref

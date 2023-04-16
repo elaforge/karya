@@ -31,7 +31,7 @@ import qualified Data.List as List
 
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
@@ -86,17 +86,17 @@ emap f = from_sorted_list . f . to_list
 
 instance Semigroup (Stream Score.Event) where
     s1 <> s2 =
-        from_sorted_list $ Seq.merge_on levent_key (to_list s1) (to_list s2)
+        from_sorted_list $ Lists.mergeOn levent_key (to_list s1) (to_list s2)
     -- Stream s1 e1 <> Stream s2 e2 = case (s1, s2) of
-    --     (Sorted, Sorted) -> from_sorted_list $ Seq.merge_on levent_key e1 e2
+    --     (Sorted, Sorted) -> from_sorted_list $ Lists.mergeOn levent_key e1 e2
     --     _ -> from_list (e1 <> e2)
 instance Monoid (Stream Score.Event) where
     mempty = from_sorted_list mempty
     mappend = (<>)
-    mconcat = from_sorted_list . Seq.merge_lists levent_key . map to_list
+    mconcat = from_sorted_list . Lists.mergeLists levent_key . map to_list
     -- mconcat streams = from_sorted_list groups
     --     where
-    --     groups = Seq.merge_lists levent_key
+    --     groups = Lists.mergeLists levent_key
     --         [events | Stream _ events <- map sort streams]
 
 -- To my surprise, GHC will accept an overlapping instance Monoid (Stream a).
@@ -194,8 +194,8 @@ cat_maybes = emap go
 sort :: Stream Score.Event -> Stream Score.Event
 -- sort s@(Stream Sorted _) = s
 -- sort (Stream Unsorted events) =
---     from_sorted_list $ Seq.sort_on levent_key events
-sort (Stream events) = from_sorted_list $ Seq.sort_on levent_key events
+--     from_sorted_list $ Lists.sortOn levent_key events
+sort (Stream events) = from_sorted_list $ Lists.sortOn levent_key events
 
 -- | Merge sorted lists of events.  If the lists themselves are also sorted,
 -- I can produce output without scanning the entire input list, so this should
@@ -206,7 +206,7 @@ sort (Stream events) = from_sorted_list $ Seq.sort_on levent_key events
 -- will complain about it.
 merge_asc_lists :: [Stream Score.Event] -> Stream Score.Event
 merge_asc_lists streams = from_sorted_list $
-    Seq.merge_asc_lists levent_key (map to_list streams)
+    Lists.mergeAscLists levent_key (map to_list streams)
 
 -- | This will make logs always merge ahead of score events, but that should
 -- be ok.

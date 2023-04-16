@@ -12,7 +12,7 @@ import qualified Data.Vector as Vector
 import qualified Util.Doc as Doc
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Texts as Texts
 
 import qualified Derive.Call.ScaleDegree as ScaleDegree
@@ -130,7 +130,7 @@ default_call_doc = Scales.scale_degree_doc $ \scale ->
 -- | Group keys and format them into fields suitable to pass to 'make_scale'.
 -- The 'Key's are expected to be relative, so their 'key_tonic's are ignored.
 group_relative_keys :: [(Pitch.Key, Key)] -> [(Doc.Doc, Doc.Doc)]
-group_relative_keys = mapMaybe fmt . Seq.group_stable snd
+group_relative_keys = mapMaybe fmt . Lists.groupStable snd
     where
     fmt ((name, key) :| rest) =
         Just (fmt_names (name : map fst rest),

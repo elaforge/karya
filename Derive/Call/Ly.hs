@@ -7,7 +7,6 @@ module Derive.Call.Ly where
 import qualified Data.Map as Map
 
 import qualified Util.Lists as Lists
-import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
 
 import qualified Derive.Args as Args
@@ -151,7 +150,7 @@ instance Typecheck.Typecheck (Position Constants.CodePosition) where
 
 code_position_names :: Map Text (Position Constants.CodePosition)
 code_position_names =
-    Map.fromList $ Seq.key_on ShowVal.show_val $
+    Map.fromList $ Lists.keyOn ShowVal.show_val $
         map Position Constants.all_positions
 
 instance Typecheck.ToVal (Position Constants.CodePosition) where

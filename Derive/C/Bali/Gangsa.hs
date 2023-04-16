@@ -37,7 +37,6 @@ import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
@@ -368,7 +367,7 @@ norot start_prepare sustain_cycle prepare_cycle under_threshold
 apply_initial_final :: ScoreTime -> ScoreTime -> (Bool, Bool) -> [[Note a]]
     -> [[Note a]]
 apply_initial_final start end (initial, final) =
-    Seq.map_last modify_final
+    Lists.mapLast modify_final
     . (if initial then id else dropWhile (any ((<=start) . note_start)))
     where
     modify_final notes
@@ -392,7 +391,7 @@ realize_norot under_threshold note_dur initial_start exact_end
             one_cycle pitch cycle this_t
         , on_just sustain $ \(PitchedCycle pitch cycle) ->
             map (pitch,) $ cycles (get_cycle cycle) $
-                Seq.range' sustain_t next_t note_dur
+                Lists.range' sustain_t next_t note_dur
         , on_just prepare_next $ \(PitchedCycle pitch cycle) ->
             one_cycle pitch cycle next_t
         ]
@@ -437,8 +436,8 @@ realize_norot under_threshold note_dur initial_start exact_end
 
     trim = takeWhile ((<=exact_end) . fst . snd)
         . dropWhile ((<initial_start) . fst . snd)
-    one_cycle pitch cycle start = map (pitch,) $ zip (Seq.range_ start note_dur)
-        (get_cycle cycle start)
+    one_cycle pitch cycle start = map (pitch,) $
+        zip (Lists.range_ start note_dur) (get_cycle cycle start)
     get_cycle cycle t
         | under_threshold t = interlocking cycle
         | otherwise = non_interlocking cycle
@@ -749,7 +748,7 @@ realize_explicit :: (ScoreTime, ScoreTime) -> ScoreTime -> PSignal.Pitch
     -> [Maybe Pitch.Step] -> ScoreT.Instrument -> Derive.NoteDeriver
 realize_explicit (start, end) dur pitch notes inst = mconcat
     [ Derive.place t dur (note t transpose)
-    | (t, Just transpose) <- zip (tail (Seq.range_ start dur)) notes
+    | (t, Just transpose) <- zip (tail (Lists.range_ start dur)) notes
     ]
     where
     note t transpose =
@@ -944,7 +943,7 @@ find_kernel kernel = lookup kernel variants
     Right kernel_2_21_21 = make_kernel "-2-21-21"
 
     variations :: Kernel -> [(Kernel, (Bool, Int))]
-    variations kernel_ = Seq.unique_on fst
+    variations kernel_ = Lists.uniqueOn fst
         [ (variant, (inverted, rotate))
         | (inverted, kernel) <- [(False, kernel_), (True, invert kernel_)]
         , (rotate, variant) <- zip [0..] (rotations kernel)
@@ -1022,13 +1021,13 @@ realize_pattern repeat orientation (initial, final) start end dur get_cycle =
     case repeat of
         Once -> concatMap realize $
             (if orientation == Types.Positive then zip else zip_end)
-                (Seq.range start end dur) (get_cycle start)
+                (Lists.range start end dur) (get_cycle start)
         Repeat -> concatMap realize pairs
     where
     pairs = case orientation of
         Types.Positive -> cycles wrapped ts
         Types.Negative -> cycles_end get_cycle ts
-        where ts = Seq.range start end dur
+        where ts = Lists.range start end dur
     -- Since cycles are end-weighted, I have to get the end of a cycle if an
     -- initial note is wanted.
     wrapped t
@@ -1051,7 +1050,7 @@ cycles get_cycle = go
     go (t:ts) = case rest of
         Left ts -> pairs ++ go ts
         Right _ -> pairs
-        where (pairs, rest) = Seq.zip_remainder (t:ts) (get_cycle t)
+        where (pairs, rest) = Lists.zipRemainder (t:ts) (get_cycle t)
 
 -- | This is like 'cycles', but the last cycle is aligned to the end of the
 -- @t@s, chopping off the front of the cycle if necessary.
@@ -1064,7 +1063,7 @@ cycles_end get_cycle = shift . go
     go (t:ts) = case rest of
         Left ts -> first (pairs++) (go ts)
         Right ns -> (pairs, ns)
-        where (pairs, rest) = Seq.zip_remainder (t:ts) (get_cycle t)
+        where (pairs, rest) = Lists.zipRemainder (t:ts) (get_cycle t)
 
 -- | Like 'zip', but two sequences are aligned at at their ends, instead of
 -- their starts.
@@ -1284,7 +1283,7 @@ cancel_strong_final events
     | not (null normals) = merge normals weaks
     | otherwise = Right weaks
     where
-    (strongs, finals, rest) = Seq.partition2
+    (strongs, finals, rest) = Lists.partition2
         (Score.has_flags Flags.strong) (Score.has_flags final_flag) events
     (weaks, normals) = List.partition (Score.has_flags Flags.weak) events
     merge strongs weaks =

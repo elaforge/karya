@@ -7,7 +7,7 @@ import qualified Data.Text as Text
 import qualified Data.Tree as Tree
 import Data.Tree (Tree(Node))
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import Util.Test
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -469,7 +469,7 @@ make_notes_inst :: Text -> ScoreTime -> [Char] -> (Text, [Event])
 make_notes_inst inst offset notes =
     ( ">" <> inst
     , zipWith (\start note -> (start, 1, Text.singleton note))
-        (Seq.range_ offset 1) notes
+        (Lists.range_ offset 1) notes
     )
 
 make_notes_dur :: [(ScoreTime, ScoreTime, Char)] -> (Text, [Event])

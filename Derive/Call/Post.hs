@@ -35,7 +35,6 @@ import qualified Data.Set as Set
 
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
 
 import qualified Derive.Call as Call
 import qualified Derive.Call.NoteUtil as NoteUtil
@@ -204,7 +203,7 @@ emap_s_ event_of f = concatMapM go . Stream.to_list
         Derive.with_event (event_of a) (f a)
 
 merge_asc :: [[Score.Event]] -> [Score.Event]
-merge_asc = Seq.merge_asc_lists Score.event_start
+merge_asc = Lists.mergeAscLists Score.event_start
 
 -- * only
 

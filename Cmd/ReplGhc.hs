@@ -59,7 +59,6 @@ import qualified Outputable
 import qualified Util.Exceptions as Exceptions
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
 import qualified Cmd.Cmd as Cmd
@@ -178,7 +177,7 @@ respond _ (QCompletion prefix) = RCompletion <$>
         rdrs <- GHC.getRdrNamesInScope
         dflags <- GHC.getSessionDynFlags
         return $ filter (prefix `Text.isPrefixOf`) $
-            Seq.unique_sort $ map (txt . showPpr dflags) rdrs
+            Lists.uniqueSort $ map (txt . showPpr dflags) rdrs
 
 showPpr :: Outputable.Outputable a => GHC.DynFlags -> a -> String
 #if GHC_VERSION >= 90201

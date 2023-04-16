@@ -13,7 +13,7 @@ import qualified Data.Text as Text
 
 import qualified Util.Num as Num
 import qualified Util.ParseText as ParseText
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
@@ -1768,7 +1768,7 @@ sec n = attr $ "sec"
     <> Text.replace "." "-" (Num.showFloat0 Nothing (RealTime.to_seconds n))
 
 parse_sec :: Attributes -> Maybe (RealTime, Attributes)
-parse_sec attrs = case Seq.partition_on has_sec (Attrs.to_list attrs) of
+parse_sec attrs = case Lists.partitionOn has_sec (Attrs.to_list attrs) of
     ([secs], rest) -> Just (secs, Attrs.attrs rest)
     _ -> Nothing
     where

@@ -20,7 +20,6 @@ import qualified Data.Text as Text
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 import qualified Util.Texts as Texts
 
 import qualified Cmd.Cmd as Cmd
@@ -107,7 +106,7 @@ integrate config tracknums =
 -- | Allocate the events to separate tracks.
 allocate_tracks :: Map TrackId TrackNum -> [Score.Event]
     -> [(TrackKey, [Score.Event])]
-allocate_tracks tracknums = concatMap overlap . Seq.keyed_group_sort group_key
+allocate_tracks tracknums = concatMap overlap . Lists.keyedGroupSort group_key
     where
     overlap (key, events) = map ((,) key) (split_overlapping events)
     -- Sort by tracknum so an integrated block's tracks come out in the same
@@ -257,7 +256,7 @@ control_events :: [Score.Event] -> [Track]
 control_events events =
     filter (not . empty_track) $ map (control_track events) controls
     where
-    controls = List.sort $ Seq.unique $ concatMap
+    controls = List.sort $ Lists.unique $ concatMap
         (map typed_control . filter wanted . Map.toList . Score.event_controls)
         events
     -- The integrate calls always include these because they affect the
@@ -310,13 +309,13 @@ ui_event stack pos dur text =
 -- durations are not modified, so they still might overlap in duration, but the
 -- start times will be increasing.
 clip_concat :: [[Event.Event]] -> [Event.Event]
-clip_concat = Seq.drop_with out_of_order . concat
+clip_concat = Lists.dropWith out_of_order . concat
     where out_of_order e1 e2 = Event.start e2 <= Event.start e1
 
 -- | Drop subsequent events with the same text, since those are redundant for
 -- controls.
 drop_dups :: [Event.Event] -> [Event.Event]
-drop_dups = Seq.drop_dups Event.text
+drop_dups = Lists.dropDups Event.text
 
 -- | Drop events before 0, keeping at least one at 0.  Controls can wind up
 -- with samples before 0 (e.g. after using 'Derive.Score.move'), but events
@@ -329,7 +328,7 @@ clip_to_zero [e] = [Event.start_ %= max 0 $ e]
 clip_to_zero [] = []
 
 make_track :: Title -> [Event.Event] -> Track
-make_track title events = Track title (Seq.sort_on Event.start events)
+make_track title events = Track title (Lists.sortOn Event.start events)
 
 empty_track :: Track -> Bool
 empty_track (Track _ []) = True

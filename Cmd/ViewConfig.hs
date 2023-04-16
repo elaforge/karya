@@ -13,7 +13,6 @@ import qualified Util.Lens as Lens
 import qualified Util.Lists as Lists
 import qualified Util.Num as Num
 import qualified Util.Rect as Rect
-import qualified Util.Seq as Seq
 
 import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
@@ -186,7 +185,8 @@ set_suggested_track_widths view_id = do
 -- again with any rectangles that wind up totally outside the screen.
 fit_rects :: Rect.Rect -> [(ViewId, Rect.Rect)] -> [(ViewId, Rect.Rect)]
 fit_rects screen =
-    redo_outside . foldl' fit [] . Seq.sort_on (\(_, r) -> (Rect.x r, Rect.y r))
+    redo_outside . foldl' fit []
+        . Lists.sortOn (\(_, r) -> (Rect.x r, Rect.y r))
     where
     fit windows (view_id, rect) = case Lists.head (sort rect corners) of
         Just (x, y) -> (view_id, Rect.place x y rect) : windows
@@ -199,7 +199,7 @@ fit_rects screen =
         corners =
             filter (not . would_overlap rects rect) (corners_of screen rects)
 
-    sort rect = Seq.sort_on $ Rect.point_distance (Rect.upper_left rect)
+    sort rect = Lists.sortOn $ Rect.point_distance (Rect.upper_left rect)
     -- If there are rects outside the screen, fit them again into an empty
     -- screen.  I should run out eventually.
     redo_outside rects = rects
@@ -234,7 +234,7 @@ horizontal_tile = mapM_ (uncurry tile_screen) =<< windows_by_screen
     tile_screen screen view_rects =
         zipWithM_ Ui.set_view_rect view_ids $
             horizontal_tile_rects screen rects
-        where (view_ids, rects) = unzip (Seq.sort_on (Rect.x . snd) view_rects)
+        where (view_ids, rects) = unzip (Lists.sortOn (Rect.x . snd) view_rects)
 
 windows_by_screen :: Cmd.M m => m [(Rect.Rect, [(ViewId, Rect.Rect)])]
 windows_by_screen = do
@@ -282,7 +282,7 @@ move_focus dir = do
     rects <- Ui.gets $
         map (second Block.view_rect) . Map.toList . Ui.state_views
     focused <- Block.view_rect <$> (Ui.get_view =<< Cmd.get_focused_view)
-    let get_rects cmp f = Seq.sort_on snd $ filter ((`cmp` f focused) . snd) $
+    let get_rects cmp f = Lists.sortOn snd $ filter ((`cmp` f focused) . snd) $
             map (second f) rects
     let next = case dir of
             East -> Lists.head $ get_rects (>) Rect.x
@@ -310,7 +310,7 @@ views_covering view_id = do
 views_covering_starts :: TrackTime -> Block.View -> [TrackTime]
 views_covering_starts block_dur view =
     -- drop 1 to exclude the given view.
-    drop 1 $ take needed $ Seq.range_ offset (block_dur / fromIntegral needed)
+    drop 1 $ take needed $ Lists.range_ offset (block_dur / fromIntegral needed)
     where
     offset = Zoom.offset (Block.view_zoom view)
     visible = Block.visible_time view - offset

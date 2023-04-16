@@ -22,7 +22,6 @@ import qualified ZMidi.Core as Z
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Maps as Maps
-import qualified Util.Seq as Seq
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -251,7 +250,7 @@ note_to_track (start, end, key, vel, controls) =
 convert_controls :: [MidiControl] -> Map ScoreT.Control Track
 convert_controls cs =
     Map.fromList [(cc_to_control cc, convert msgs)
-        | (cc, msgs) <- Seq.keyed_group_sort (fst . snd) cs]
+        | (cc, msgs) <- Lists.keyedGroupSort (fst . snd) cs]
     where
     convert midi_controls =
         Map.fromList [(RealTime.to_score start, (0, show_val val))

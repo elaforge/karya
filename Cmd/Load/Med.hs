@@ -11,7 +11,7 @@ import qualified Sound.MED.Generic.Block as Block
 import qualified Sound.MED.Generic.Instrument as Instrument
 import qualified Sound.MED.Generic.PlaySeq as PlaySeq
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Cmd.Load.ModT as ModT
 import qualified Derive.ScoreT as ScoreT
 
@@ -43,7 +43,7 @@ instrument inst = ModT.Instrument
 
 block :: Block.MEDBlock -> ModT.Block
 block b = ModT.Block
-    { _tracks = map track $ Seq.rotate2 $ map snd $ Block.seqdata b
+    { _tracks = map track $ Lists.rotate2 $ map snd $ Block.seqdata b
     , _block_length = Block.lines b
     }
 

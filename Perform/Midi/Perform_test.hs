@@ -10,8 +10,8 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
+import qualified Util.Lists as Lists
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 import qualified Util.TimeVector as TimeVector
 
@@ -56,7 +56,7 @@ test_perform :: Test
 test_perform = do
     let f events = do
             let (msgs, warns) = perform config2 $
-                    Seq.sort_on Types.event_start (map mkevent events)
+                    Lists.sortOn Types.event_start (map mkevent events)
             equal warns []
             return $ extract msgs
         extract = PerformTest.extract PerformTest.e_chan_msg
@@ -152,7 +152,7 @@ test_perform_voices = do
 test_aftertouch :: Test
 test_aftertouch = do
     let f = e_ts_chan_msg . fst . perform config1
-                . Seq.sort_on Types.event_start . map event
+                . Lists.sortOn Types.event_start . map event
         event (pitch, start, dur, aftertouch) = mkevent
             (patch1, pitch, start, dur,
                 [(Controls.aftertouch, MSignal.from_pairs aftertouch)])
@@ -372,7 +372,7 @@ test_perform_lazy :: Test
 test_perform_lazy = do
     let perform evts = perform_notes [(evt, (dev1, 0)) | evt <- evts]
     let endless = map mkevent [(patch1, Text.singleton n, ts, 4, [])
-            | (n, ts) <- zip (cycle ['a'..'g']) (Seq.range_ 0 4)]
+            | (n, ts) <- zip (cycle ['a'..'g']) (Lists.range_ 0 4)]
     let (msgs, _warns) = perform endless
     res <- run_timeout 1 $ return (take 20 msgs)
     equal (fmap length res) (Just 20)
@@ -400,7 +400,7 @@ test_min_duration = do
 test_pitch_curve :: Test
 test_pitch_curve = do
     let event pitch = mkpevent (1, 0.5, pitch, [])
-    let f evt = Seq.drop_dups id (map Midi.wmsg_msg msgs)
+    let f evt = Lists.dropDups id (map Midi.wmsg_msg msgs)
             where
             msgs = LEvent.events_of $ fst $
                 Perform.perform_note 0 Nothing evt (dev1, 1)
@@ -601,15 +601,15 @@ test_post_process_drop_dup_controls = do
     let mkcc chan cc val = Midi.ChannelMessage chan (Midi.ControlChange cc val)
         mkpb chan val = Midi.ChannelMessage chan (Midi.PitchBend val)
         mkwmsgs msgs = [Midi.WriteMessage dev1 ts msg
-                | (ts, msg) <- zip (Seq.range_ 0 1) msgs]
+                | (ts, msg) <- zip (Lists.range_ 0 1) msgs]
         extract wmsg = (Midi.wmsg_ts wmsg, Midi.wmsg_msg wmsg)
     let f = map extract . LEvent.events_of . fst
             . Perform.drop_dup_controls Map.empty . map LEvent.Event
     let msgs = [mkcc 0 1 10, mkcc 1 1 10, mkcc 0 1 11, mkcc 0 2 10]
     -- no drops
-    equal (f (mkwmsgs msgs)) (zip (Seq.range_ 0 1) msgs)
+    equal (f (mkwmsgs msgs)) (zip (Lists.range_ 0 1) msgs)
     let with_dev dmsgs = [Midi.WriteMessage dev ts msg
-                | (ts, (dev, msg)) <- zip (Seq.range_ 0 1) dmsgs]
+                | (ts, (dev, msg)) <- zip (Lists.range_ 0 1) dmsgs]
     equal (f (with_dev [(dev1, mkcc 0 1 10), (dev2, mkcc 0 1 10)]))
         [(0, mkcc 0 1 10), (1, mkcc 0 1 10)]
     -- dup is dropped
@@ -845,7 +845,7 @@ test_allot = do
     let mk inst chan start = (mkevent (inst, "a", start, 1, []), chan)
         mk1 = mk patch1
         f = map (snd . snd) . LEvent.events_of . allot config1 . in_time
-        in_time mks = zipWith ($) mks (Seq.range_ 0 1)
+        in_time mks = zipWith ($) mks (Lists.range_ 0 1)
 
     -- They should alternate channels, according to LRU.
     equal (f [mk1 0, mk1 1, mk1 2, mk1 3]) [0, 1, 0, 1]
@@ -858,7 +858,7 @@ test_allot = do
 
 test_allot_steal :: Test
 test_allot_steal = do
-    let f = extract . allot config1 . map mk . zip (Seq.range_ 0 1)
+    let f = extract . allot config1 . map mk . zip (Lists.range_ 0 1)
         extract = first (map (snd . snd)) . LEvent.partition
         mk (start, chan) = (mkevent (patch1, "a", start, 1, []), chan)
     -- 0->0, 1->1, 2->steal 0, 0 -> should go to 1, becasue 0 was stolen
@@ -940,7 +940,7 @@ linear_interp = MSignal.from_pairs . interpolate
     interpolate ((x0, y0) : rest@((x1, y1) : _))
         | x0 >= x1 = interpolate rest
         | otherwise = [(x, TimeVector.y_at x0 y0 x1 y1 x)
-            | x <- Seq.range_end x0 (x1-1) 1] ++ interpolate rest
+            | x <- Lists.rangeEnd x0 (x1-1) 1] ++ interpolate rest
     interpolate val = val
 
 dev1, dev2 :: Midi.WriteDevice

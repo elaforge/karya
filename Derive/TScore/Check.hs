@@ -35,7 +35,6 @@ import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.ParseText as ParseText
-import qualified Util.Seq as Seq
 import qualified Util.Then as Then
 
 import qualified Cmd.Ruler.Gong as Gong
@@ -144,7 +143,7 @@ parse_instruments val = do
     let empty = Text.null . Text.strip . Parse.strip_comment
     allocs <- mapM parse $ filter (not . empty . snd) $
         map (second Text.strip) $ zip [1..] $ Text.lines val
-    let dups = map head $ filter ((>1) . length) $ Seq.group_sort id $
+    let dups = map head $ filter ((>1) . length) $ Lists.groupSort id $
             map Instruments.alloc_name allocs
     unless (null dups) $
         Left $ "duplicate instrument definitions: "
@@ -433,7 +432,7 @@ resolve_time tokens = go (EList.zipPaddedSnd starts tokens)
     go (EList.Elt (start, Just t) : ts) = case t of
         T.TNote _ note
             | is_tied t ->
-                case tied_notes note (Seq.map_maybe_snd id (EList.elts pre)) of
+                case tied_notes note (Lists.mapMaybeSnd id (EList.elts pre)) of
                     Left err -> (EList.Meta (Left err) :) <$> go post
                     Right end ->
                         (EList.Elt (start, set_dur (end-start) note) :) <$>
@@ -476,7 +475,7 @@ tied_notes note tied = case others of
             <> pretty (T.note_pitch n)
         _ -> "note tied to " <> T.token_name bad
     where
-    (matches, others) = first concat $ Seq.partition_on match tied
+    (matches, others) = first concat $ Lists.partitionOn match tied
     dur_of = fst . T.note_duration
     match (s, T.TNote _ n) | T.note_pitch note == T.note_pitch n = Just [(s, n)]
     match (_, T.TBarline {}) = Just []
@@ -523,7 +522,7 @@ check_barlines meter =
     check _ _ _ T.AssertCoincident = Nothing
     cycle_dur = meter_duration meter
     beat_rank = Map.fromList $ filter ((>0) . snd) $
-        zip (Seq.range_ 0 (meter_step meter))
+        zip (Lists.range_ 0 (meter_step meter))
             -- Two bars, to ensure 'check_beat' can always find the next beat.
             (meter_pattern meter ++ meter_pattern meter)
     warn i msg = "barline check: token " <> showt i <> ": " <> msg
@@ -688,13 +687,13 @@ infer_octave per_octave (prev_oct, prev_degree) (oct, degree) =
                 | otherwise -> pick (<0) + (n+1)
                 where
                 -- by_distance should never be [] due to the filters given.
-                -- I could probably get rid of this with Seq.min_on but it's
+                -- I could probably get rid of this with Lists.minOn but it's
                 -- hard to think about.
                 pick predicate = maybe (error "unreachable") snd $
-                    Seq.minimum_on (abs . fst) $
+                    Lists.minimumOn (abs . fst) $
                     filter (predicate . fst) by_distance
                 by_distance =
-                    Seq.key_on (distance prev_oct prev_degree degree)
+                    Lists.keyOn (distance prev_oct prev_degree degree)
                         [prev_oct-1, prev_oct, prev_oct+1]
         T.Absolute oct -> oct
     distance prev_oct prev_degree degree oct =
@@ -713,7 +712,7 @@ pitch_to_symbolic pos scale pitch = case unparse pitch of
 -- ** scale
 
 scale_map :: Map Text Scale
-scale_map = Map.fromList $ Seq.key_on scale_name
+scale_map = Map.fromList $ Lists.keyOn scale_name
     [ scale_sargam
     , scale_bali
     , scale_twelve

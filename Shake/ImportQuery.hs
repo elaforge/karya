@@ -17,7 +17,6 @@ import qualified System.Process as Process
 
 import qualified Util.Lists as Lists
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
 
 import qualified Shake.HsDeps as HsDeps
 
@@ -68,7 +67,7 @@ addDep graph parent new
 -- | If I remove Perform.Signal from Derive.ScoreT, who now has fewer deps?
 rmDep :: CachedGraph -> Module -> Module -> [(Module, Set Module)]
 rmDep graph parent removed =
-    filter ((/= mempty) . snd) . Seq.key_on_snd gone $ Map.keys (_graph graph)
+    filter ((/= mempty) . snd) . Lists.keyOnSnd gone $ Map.keys (_graph graph)
     -- TODO this builds the complete closure of every module twice, only
     -- to filter out the ones that wind up empty.  Is there a way to
     -- find out there is no difference to short-circuit?

@@ -10,7 +10,6 @@ import qualified Data.List as List
 
 import qualified Util.Lists as Lists
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
 
 import qualified Ness.Guitar.Patch as Patch
 import qualified Ness.Util as Util
@@ -105,7 +104,7 @@ backboardVars =
 sampleSet strings = (eachAmpEachString strings standardAmps decay, [])
     where decay = 6 -- time for each string to go to 0
 
-standardAmps = drop 1 $ Seq.range 0 maxAmp (maxAmp/16)
+standardAmps = drop 1 $ Lists.range 0 maxAmp (maxAmp/16)
 
 maxAmp = 0.65
 

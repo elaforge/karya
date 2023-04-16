@@ -4,7 +4,7 @@
 
 module Derive.Warp_test where
 import qualified Util.CallStack as CallStack
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import Util.Test
 
 import qualified Derive.Warp as Warp
@@ -83,7 +83,7 @@ test_compose = do
         equal (map (Warp.warp w) t03) expected
         uncurry equal (trip w)
     let ident = Warp.identity
-    let slow = make [(RealTime.seconds n, n*2) | n <- Seq.range 0 100 1]
+    let slow = make [(RealTime.seconds n, n*2) | n <- Lists.range 0 100 1]
     let curve = make $
             [(0, 0), (1, 0.5), (2, 1), (3, 3), (4, 5), (5, 7), (6, 9)]
 

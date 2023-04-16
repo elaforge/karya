@@ -13,7 +13,6 @@ import qualified Data.List as List
 
 import qualified Util.Lists as Lists
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 
 
 data Ranges n = Ranges [(n, n)] | Everything
@@ -124,7 +123,7 @@ intersection (Ranges r1) (Ranges r2) = Ranges (go r1 r2)
         where rest = if e1 < e2 then go rest1 r2 else go r1 rest2
 
 merge :: Ord n => [(n, n)] -> [(n, n)] -> [(n, n)]
-merge r1 r2 = merge_sorted (Seq.merge_on fst r1 r2)
+merge r1 r2 = merge_sorted (Lists.mergeOn fst r1 r2)
 
 -- | Given a complete range, invert the ranges.
 invert :: Ord n => (n, n) -> Ranges n -> Ranges n

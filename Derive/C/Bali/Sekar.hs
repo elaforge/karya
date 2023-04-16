@@ -13,7 +13,6 @@ import qualified Data.Text as Text
 import qualified Util.Doc as Doc
 import qualified Util.Lists as Lists
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
@@ -117,13 +116,13 @@ sekar_even arrive (start, end) pattern events =
         div_realize dur notes pattern
     where
     notes = div_extract events samples
-    samples = (if arrive then drop 1 else id) $ Seq.range start end ndur
+    samples = (if arrive then drop 1 else id) $ Lists.range start end ndur
     ndur = (end - start) / fromIntegral (pattern_length pattern)
     dur = (end - start) / fromIntegral (length pattern)
-    nudge = Seq.map_last (fmap add_last_note_flags) . map (SubT.at dur)
+    nudge = Lists.mapLast (fmap add_last_note_flags) . map (SubT.at dur)
 
 div_realize :: ScoreTime -> [DivNote a] -> Pattern -> [SubT.EventT a]
-div_realize dur notes = combine . zip (Seq.range_ 0 dur) . map resolve
+div_realize dur notes = combine . zip (Lists.range_ 0 dur) . map resolve
     where
     resolve (i, element) = case element of
         Rest -> DivRest
@@ -192,7 +191,7 @@ sekar_direct_arrive range patterns events_ =
     align es = case Lists.last es of
         Nothing -> []
         Just e -> map (SubT.at (snd range - SubT._start e)) es
-    add_flags = Seq.map_last $ fmap add_last_note_flags
+    add_flags = Lists.mapLast $ fmap add_last_note_flags
 
 add_last_note_flags :: Derive.NoteDeriver -> Derive.NoteDeriver
 add_last_note_flags = fmap $ Post.emap1_ $ Score.add_flags $

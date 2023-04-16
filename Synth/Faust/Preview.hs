@@ -13,7 +13,6 @@ import           System.FilePath ((</>))
 import qualified Util.Audio.File as Audio.File
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
 import qualified Perform.NN as NN
@@ -79,7 +78,7 @@ pitchToSample imDir patchName =
 -- | Render previews of these notes.
 standardNotes :: Note.Element -> [(Pitch.NoteNumber, Note.Note)]
 standardNotes element = zip nns (map (makeNote element) nns)
-    where nns = Seq.range NN.c1 NN.c8 2
+    where nns = Lists.range NN.c1 NN.c8 2
 
 makeNote :: Note.Element -> Pitch.NoteNumber -> Note.Note
 makeNote element nn =

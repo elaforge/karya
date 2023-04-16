@@ -3,14 +3,15 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Ness.Guitar where
-import Prelude hiding (String)
+import           Prelude hiding (String)
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Perform.Pitch as Pitch
-import Global
-import Ness.Global
+
+import           Global
+import           Ness.Global
 
 
 steel   = Material 7860   200e9 -- 8050 kg/m^3, 200 GPa
@@ -27,7 +28,7 @@ renderAll sr (instrument, score) =
 
 verify :: Instrument -> [Text]
 verify instrument = map ("duplicate string names: "<>) $ map fst $ snd $
-    Seq.partition_dups id $ map sName $ iStrings instrument
+    Lists.partitionDups id $ map sName $ iStrings instrument
 
 -- * Instrument
 
@@ -226,7 +227,7 @@ renderScore strings (Score decay highpass notes fingers) = Text.unlines
     , renderFingers indexOf fingers
     ]
     where
-    duration = fromMaybe 0 (Seq.maximum (map nStart notes)) + decay
+    duration = fromMaybe 0 (Lists.maximum (map nStart notes)) + decay
     indexOf str = fromMaybe (error $ "no string: " <> show str) $
         Map.lookup str toNum
         where toNum = Map.fromList $ zip (map sName strings) [1..]

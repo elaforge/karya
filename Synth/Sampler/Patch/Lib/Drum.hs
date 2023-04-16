@@ -31,7 +31,6 @@ import qualified Text.Read as Read
 import qualified Util.Lists as Lists
 import qualified Util.Maps as Maps
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
 
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
@@ -338,7 +337,7 @@ makeFileList dir articulations variableName = do
     putStrLn $ variableName <> " :: Articulation -> [FilePath]"
     putStrLn $ variableName <> " = \\case"
     forM_ articulations $ \art -> do
-        fns <- Seq.sort_on filenameSortKey <$>
+        fns <- Lists.sortOn filenameSortKey <$>
             Directory.listDirectory (Config.unsafeSamplerRoot </> dir </> art)
         putStrLn $ indent <> art <> " ->"
         putStrLn $ indent2 <> "[ " <> show (head fns)
@@ -366,6 +365,6 @@ enumFunction name abs@((a0, b0) : _) =
     ] ++ concatMap (indent . makeCase) abs
     where
     makeCase (a, bs) = show a <> " ->"
-        : indent (Seq.map_head_tail ("[ "<>) (", "<>) (map prettys bs) ++ ["]"])
+        : indent (Lists.mapHeadTail ("[ "<>) (", "<>) (map prettys bs) ++ ["]"])
     indent = map (replicate 4 ' ' <>)
 enumFunction name _ = error $ "function has no values: " <> name

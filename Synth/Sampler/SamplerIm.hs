@@ -29,7 +29,7 @@ import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Texts as Texts
 import qualified Util.Thread as Thread
 
@@ -106,7 +106,7 @@ main = do
             fnames <- map fst <$> calibrateFnames
             let dur = 1
             putStr $ unlines $ map (\(t, fn) -> prettys t <> " - " <> fn) $
-                zip (Seq.range_ 0 dur) (map sampleName fnames)
+                zip (Lists.range_ 0 dur) (map sampleName fnames)
             Calibrate.renderSequence calibrateDir dur fnames
         ["dump", notesFilename] ->
             dumpNotes False dumpRange dumpTracks notesFilename
@@ -162,7 +162,7 @@ readEnum str =
     fromMaybe (error (show str <> " not in: " <> show (Map.keys toVal))) $
         Map.lookup str toVal
     where
-    toVal = Map.fromList $ Seq.key_on show [minBound .. maxBound]
+    toVal = Map.fromList $ Lists.keyOn show [minBound .. maxBound]
 
 defaultQuality :: Resample.Quality
 defaultQuality = Resample.SincMediumQuality
@@ -216,8 +216,8 @@ dump useShow range tracks db notes = do
     putNote (note, sample)
         | useShow = PPrint.pprint sample
         | otherwise = Text.IO.putStrLn $ Text.unlines $
-            Seq.map_tail (Text.drop 4) $ -- dedent
-            Seq.map_head (annotate note sample) $ Text.lines $
+            Lists.mapTail (Text.drop 4) $ -- dedent
+            Lists.mapHead (annotate note sample) $ Text.lines $
             Pretty.formatted sample
     annotate note sample line = Text.unwords
         [ line, pretty s, "+", pretty dur, "=>", pretty (s+dur)
@@ -286,10 +286,11 @@ inTracks tracks = filter $ \(n, _) ->
     maybe False (`Set.member` tracks) (Note.trackId n)
 
 dumpHashes :: [Sample.Note] -> [(RealTime, RealTime, (Note.Hash, [Note.Hash]))]
-dumpHashes notes = zip3 (Seq.range_ 0 size) (drop 1 (Seq.range_ 0 size)) hashes
+dumpHashes notes =
+    zip3 (Lists.range_ 0 size) (drop 1 (Lists.range_ 0 size)) hashes
     where
     size = AUtil.toSeconds Config.chunkSize
-    hashes = Seq.key_on mconcat $
+    hashes = Lists.keyOn mconcat $
         Checkpoint.overlappingHashes 0 size $
         map Render.toSpan notes
 
@@ -363,13 +364,13 @@ getPatch db name = case Map.lookup name (Patch._patches db) of
 
 byPatchInst :: [Note.Note]
     -> [(Note.PatchName, [(ScoreT.Instrument, [Note.Note])])]
-byPatchInst = map (second (Seq.keyed_group_sort Note.instrument))
-    . Seq.keyed_group_sort Note.patch
+byPatchInst = map (second (Lists.keyedGroupSort Note.instrument))
+    . Lists.keyedGroupSort Note.patch
 
 convert :: Patch.Db -> Patch.Patch -> [Note.Note]
     -> [(Either Error Sample.Sample, [Log.Msg], Note.Note)]
 convert db patch =
-    map update . Seq.key_on (Patch.convert patch) . Patch._preprocess patch
+    map update . Lists.keyOn (Patch.convert patch) . Patch._preprocess patch
     where
     update (Right (sample, logs), note) =
         ( Right $ Sample.modifyFilename (patchDir</>) sample

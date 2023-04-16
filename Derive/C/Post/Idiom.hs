@@ -10,7 +10,6 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
 import qualified Util.Lists as Lists
-import qualified Util.Seq as Seq
 import qualified Derive.Attrs as Attrs
 import qualified Derive.C.Prelude.Note as Note
 import qualified Derive.Call.Ly as Ly
@@ -58,7 +57,7 @@ pizz_arp :: RealTime -> Stream.Stream Score.Event -> Derive.NoteDeriver
 pizz_arp time = map_simultaneous 0.025 (Score.has_attribute Attrs.pizz) $
     \(event :| chord) -> return
         [ Score.move (+t) event
-        | (t, event) <- zip (Seq.range_ 0 time) (event : chord)
+        | (t, event) <- zip (Lists.range_ 0 time) (event : chord)
         ]
 
 map_simultaneous :: RealTime
@@ -198,7 +197,7 @@ apply_attributes :: Score.Event -> Score.Event
 apply_attributes event = Score.add_attributes (mconcat attrs_to_apply) event
     where
     controls :: [(Attrs.Attributes, ScoreT.Control)]
-    controls = Seq.key_on_just control_attributes $ Map.keys $
+    controls = Lists.keyOnJust control_attributes $ Map.keys $
         Score.event_controls event
     attrs_to_apply = map fst $ filter ((>0) . get . snd) controls
     get c = maybe 0 ScoreT.typed_val $

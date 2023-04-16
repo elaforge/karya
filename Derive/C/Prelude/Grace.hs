@@ -6,7 +6,6 @@
 -- whose duration is generally independent of the tempo.
 module Derive.C.Prelude.Grace (library) where
 import qualified Util.Lists as Lists
-import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.GraceUtil as GraceUtil
@@ -65,7 +64,7 @@ c_grace_hold = GraceUtil.make_grace Module.prelude
     id $ \_args -> Sub.derive . hold
     where
     hold events = maybe events (\e -> map (set_end e) events) end
-        where end = Seq.maximum $ map SubT.end events
+        where end = Lists.maximum $ map SubT.end events
     set_end end event = event { SubT._duration = end - SubT._start event }
 
 c_grace_pitch :: Derive.Generator Derive.Note
@@ -201,7 +200,7 @@ grace_p grace_dur pitches (start, end) = do
     return $ PSignal.from_pairs $ flat_segments $ zip starts pitches
 
 flat_segments :: [(RealTime, y)] -> [(RealTime, y)]
-flat_segments = concatMap to_pairs . Seq.zip_next
+flat_segments = concatMap to_pairs . Lists.zipNext
     where
     to_pairs ((x, y), next) = case next of
         Nothing -> [(x, y)]

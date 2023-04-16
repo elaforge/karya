@@ -14,7 +14,7 @@ import qualified Util.Log as Log
 import qualified Util.Maps as Maps
 import qualified Util.Num as Num
 import qualified Util.PPrint as PPrint
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Attrs as Attrs
@@ -230,9 +230,9 @@ makeSampleMap =
     . fmap (fmap (groupOn _maxVelocity))
     . fmap (groupOn _key)
     . groupOn _articulation
-    . Seq.key_on_just parseFilename
+    . Lists.keyOnJust parseFilename
     where
-    groupOn key = Map.fromList . Seq.keyed_group_sort (key . fst)
+    groupOn key = Map.fromList . Lists.keyedGroupSort (key . fst)
 
 makeSamples :: [FilePath] -> String
 makeSamples = PPrint.pshow . Map.mapKeys fromEnum . makeSampleMap

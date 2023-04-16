@@ -62,11 +62,11 @@ import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Vector.Storable as Vector
 import qualified Foreign
 
+import qualified Util.Lists as Lists
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Segment as Segment
 import           Util.Segment (Sample(..), X)
-import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 import qualified Util.TimeVector as TimeVector
 
@@ -168,12 +168,12 @@ to_samples :: Signal kind -> [Sample Y]
 to_samples = Segment.to_samples . _signal
 
 to_pairs :: Signal kind -> [(X, Y)]
-to_pairs = Seq.drop_dups id . Segment.to_pairs . _signal
+to_pairs = Lists.dropDups id . Segment.to_pairs . _signal
     -- Since Segment functions don't have Eq y, they can emit duplicate
     -- samples.  They should be harmless but they clutter tests.
 
 to_pairs_desc :: Signal kind -> [(X, Y)]
-to_pairs_desc = Seq.drop_dups id . Segment.to_pairs_desc . _signal
+to_pairs_desc = Lists.dropDups id . Segment.to_pairs_desc . _signal
 
 to_segments :: Signal kind -> [Segment.Segment Y]
 to_segments = Segment.to_segments . _signal

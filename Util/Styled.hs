@@ -51,7 +51,7 @@ import qualified System.Console.ANSI as ANSI
 
 import qualified Util.Html as Html
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 import qualified Util.Then as Then
 
 
@@ -265,4 +265,4 @@ ansiHtml (AnsiColor intensity color) = case (intensity, color) of
 
 -- | Group adjacent by fst.
 groupFst :: Eq a => [(a, b)] -> [(a, [b])]
-groupFst =  map (second (map snd)) . Seq.keyed_group_adjacent fst
+groupFst =  map (second (map snd)) . Lists.keyedGroupAdjacent fst

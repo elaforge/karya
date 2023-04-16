@@ -7,7 +7,6 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Util.Lists as Lists
-import qualified Util.Seq as Seq
 import qualified App.Config as Config
 import qualified Cmd.Create as Create
 import qualified Cmd.Integrate.Convert as Convert
@@ -98,7 +97,7 @@ test_derive_integrate :: Test
 test_derive_integrate = do
     let f state integrated = return $ derive_integrate state integrated
     let events cs =
-            [(n, 1, Text.singleton c) | (n, c) <- zip (Seq.range_ 0 2) cs]
+            [(n, 1, Text.singleton c) | (n, c) <- zip (Lists.range_ 0 2) cs]
         extract = UiTest.extract_tracks
 
     -- New tracks are appended.
@@ -172,7 +171,7 @@ test_score_integrate_delete :: Test
 test_score_integrate_delete = do
     let run state m = return $ run_score_integrate 1 (modify m state)
     let events cs =
-            [(n, 1, Text.singleton c) | (n, c) <- zip (Seq.range_ 0 2) cs]
+            [(n, 1, Text.singleton c) | (n, c) <- zip (Lists.range_ 0 2) cs]
     state <- run Ui.empty $ UiTest.mkblock
         [(">", events "ab"), ("c1", events "12")]
     equal (UiTest.extract_tracks state)
@@ -205,7 +204,7 @@ test_score_integrate = do
     -- make a block with the source, then modify
     let run state m = return $ run_score_integrate 1 (modify m state)
     let events cs =
-            [(n, 1, Text.singleton c) | (n, c) <- zip (Seq.range_ 0 2) cs]
+            [(n, 1, Text.singleton c) | (n, c) <- zip (Lists.range_ 0 2) cs]
         extract = UiTest.extract_tracks
 
     state <- run Ui.empty $ UiTest.mkblock

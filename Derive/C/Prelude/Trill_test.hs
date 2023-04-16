@@ -4,7 +4,8 @@
 
 module Derive.C.Prelude.Trill_test where
 import qualified Util.CallStack as CallStack
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
+
 import qualified Derive.C.Prelude.Trill as Trill
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.SubT as SubT
@@ -208,7 +209,7 @@ test_chord_tremolo = do
 
 test_chord_tremolo_function :: Test
 test_chord_tremolo_function = do
-    let f dur = map ex_event . Trill.chord_tremolo (Seq.range 0 dur 1)
+    let f dur = map ex_event . Trill.chord_tremolo (Lists.range 0 dur 1)
             . map (map mkevent)
         mkevent (s, d, n) = SubT.EventT s d (n :: Char)
         ex_event (SubT.EventT s d n) = (s, d, n)
@@ -277,7 +278,7 @@ test_pitch_trill2 = do
 
 test_pitch_trill_smooth :: Test
 test_pitch_trill_smooth = do
-    let run c = Seq.drop_dups fst $
+    let run c = Lists.dropDups fst $
             CallTest.run_pitch "" [(0, c), (4, "--|")]
     equalf 0.01 (run "trs (4c) 1 1")
         [(0, 60), (1, 62), (2, 60), (3, 62), (4, 60)]
@@ -304,7 +305,7 @@ test_trill_start_end :: Test
 test_trill_start_end = do
     let run ex text = DeriveTest.extract ex $ derive_tracks
             [(">", [(0, 3, "")]), ("*", [(0, 0, text), (3, 0, "--|")])]
-        nns = Seq.drop_dups id . map snd . DeriveTest.e_nns
+        nns = Lists.dropDups id . map snd . DeriveTest.e_nns
     equal (run nns "tr (4c) 1 1") ([[60, 62, 60]], [])
     equal (run nns "tr-start = high | tr (4c) 1 1") ([[62, 60, 62]], [])
     -- Default is ignored for high and low variants.

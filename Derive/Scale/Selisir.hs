@@ -9,7 +9,6 @@ import qualified Data.Map as Map
 import qualified Data.Vector as Vector
 
 import qualified Util.Lists as Lists
-import qualified Util.Seq as Seq
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Bali as Bali
 import qualified Derive.Scale.BaliScales as BaliScales
@@ -71,7 +70,7 @@ pitu_to_lima laras = laras
     where
     strip = Vector.fromList
         . concatMap (\nns -> mapMaybe (Lists.at nns) [0, 1, 2, 4, 5])
-        . Seq.chunked 7 . Vector.toList
+        . Lists.chunked 7 . Vector.toList
 
 data Pitch = I | O | E | U | A
     deriving (Eq, Ord, Enum, Show, Bounded)

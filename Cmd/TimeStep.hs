@@ -37,7 +37,6 @@ import qualified Data.Text as Text
 import qualified Util.Lists as Lists
 import qualified Util.P as P
 import qualified Util.Parse as Parse
-import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -189,7 +188,7 @@ snap tstep block_id tracknum prev_pos pos =
     where
     snap_from p
         | pos > p = -- Advance p until one before pos.
-            Lists.head . Seq.drop_before id pos <$>
+            Lists.head . Lists.dropBefore id pos <$>
                 get_points_from Advance block_id tracknum p tstep
         | otherwise = -- Rewind p until before pos.
             Lists.head . dropWhile (>pos) <$>
@@ -253,7 +252,7 @@ ascending_points block_id tracknum start step =
     dropWhile (<start) <$> case step of
         Duration t -> do
             end <- Ui.block_ruler_end block_id
-            return $ Seq.range start end t
+            return $ Lists.range start end t
         AbsoluteMark match rank ->
             get_marks Advance False match rank start <$>
                 get_ruler block_id tracknum
@@ -279,7 +278,7 @@ descending_points :: Ui.M m => BlockId -> TrackNum -> TrackTime -> Step
     -> m [TrackTime]
 descending_points block_id tracknum start step =
     dropWhile (>start) <$> case step of
-        Duration t -> return $ Seq.range start 0 (-t)
+        Duration t -> return $ Lists.range start 0 (-t)
         AbsoluteMark match rank ->
             get_marks Rewind True match rank start <$>
                 get_ruler block_id tracknum
@@ -322,8 +321,8 @@ track_events dir event_start block_id tracknum start = \case
         where (pre, post) = Events.split_lists p events
 
 merge_points :: Direction -> [[TrackTime]] -> [TrackTime]
-merge_points Advance = Seq.drop_dups id . Seq.merge_lists id
-merge_points Rewind = Seq.drop_dups id . merge_desc
+merge_points Advance = Lists.dropDups id . Lists.mergeLists id
+merge_points Rewind = Lists.dropDups id . merge_desc
 
 merge_desc :: [[TrackTime]] -> [TrackTime]
 merge_desc = foldr (Ordered.mergeBy (flip compare)) []

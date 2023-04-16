@@ -69,7 +69,6 @@ import           Util.Format
      wrapWords, (<+/>), (<+>), (<//>), (</>))
 import qualified Util.Lists as Lists
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
 
 
 defaultWidth :: Int
@@ -338,10 +337,10 @@ instance (Storable.Storable a, Pretty a) => Pretty (Storable.Vector a) where
 
 -- * local types
 
-instance (Pretty a, Pretty b) => Pretty (Seq.Paired a b) where
-    format (Seq.First a) = "First" <+> format a
-    format (Seq.Second b) = "Second" <+> format b
-    format (Seq.Both a b) = "Both" <+> format a <+> format b
+instance (Pretty a, Pretty b) => Pretty (Lists.Paired a b) where
+    format (Lists.First a) = "First" <+> format a
+    format (Lists.Second b) = "Second" <+> format b
+    format (Lists.Both a b) = "Both" <+> format a <+> format b
 
 
 -- * formatters

@@ -8,7 +8,7 @@ import qualified Data.List.NonEmpty as NonEmpty
 
 import qualified Util.Log as Log
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
+import qualified Util.Lists as Lists
 
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
@@ -133,7 +133,7 @@ c_parallel = Derive.with_score_duration score_duration $ Derive.generator
     score_duration args = do
         calls <- Sig.parse_or_throw calls_arg args
         durs <- mapM get_score_duration (calls_to_derivers args calls)
-        return $ Derive.CallDuration $ fromMaybe 0 (Seq.maximum durs)
+        return $ Derive.CallDuration $ fromMaybe 0 (Lists.maximum durs)
 
 parallel_derivers :: ScoreTime -> ScoreTime -> [Derive.NoteDeriver]
     -> [ScoreTime] -> Derive.NoteDeriver
@@ -144,7 +144,7 @@ parallel_derivers start event_dur derivers durs =
         ]
     where
     stretch = if call_dur == 0 then 1 else event_dur / call_dur
-    call_dur = fromMaybe 0 (Seq.maximum durs)
+    call_dur = fromMaybe 0 (Lists.maximum durs)
 
 calls_to_derivers :: Derive.CallableExpr d => Derive.PassedArgs d
     -> NonEmpty DeriveT.Quoted
@@ -226,7 +226,7 @@ c_loop = Derive.transformer Module.prelude "loop" mempty
     $ Sig.call0t $ \args -> unstretch_args args $ \dur deriver -> do
         let (start, end) = Args.range args
         let repeats = ceiling $ (end - start) / dur
-            starts = take repeats $ Seq.range_ start dur
+            starts = take repeats $ Lists.range_ start dur
         real_end <- Derive.real end
         trim_events Nothing (Just real_end) $ repeat_at starts 1 deriver
 
@@ -241,7 +241,7 @@ c_tile = Derive.transformer Module.prelude "tile" mempty
         let (start, end) = Args.range args
         let sub_start = fromIntegral (floor (start / dur)) * dur
         let repeats = ceiling $ (end - sub_start) / dur
-            starts = take repeats $ Seq.range_ sub_start dur
+            starts = take repeats $ Lists.range_ sub_start dur
         (real_start, real_end) <- Args.real_range args
         trim_events (Just real_start) (Just real_end) $
             repeat_at starts 1 deriver
@@ -253,7 +253,7 @@ c_repeat = Derive.transformer Module.prelude "repeat" mempty
     $ \(Typecheck.Positive times) args deriver -> do
         let dur = Args.duration args / fromIntegral times
         let deriver0 = Derive.at (- Args.start args) deriver
-        let starts = take times (Seq.range_ (Args.start args) dur)
+        let starts = take times (Lists.range_ (Args.start args) dur)
         repeat_at starts (1 / fromIntegral times) deriver0
 
 -- | Repeat the deriver at the given start times.

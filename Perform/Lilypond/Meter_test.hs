@@ -8,7 +8,6 @@ import qualified Data.Vector.Unboxed as Vector.Unboxed
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Lists as Lists
-import qualified Util.Seq as Seq
 import qualified Util.Test.Testing as Testing
 
 import           Perform.Lilypond.LilypondTest (parse_meter)
@@ -134,4 +133,4 @@ d :: Duration -> Types.Time
 d = Types.dur_to_time
 
 steps :: Duration -> Duration -> Int -> [Types.Time]
-steps start dur count = take count $ Seq.range_ (d start) (d dur)
+steps start dur count = take count $ Lists.range_ (d start) (d dur)
