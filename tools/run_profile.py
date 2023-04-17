@@ -88,7 +88,11 @@ def main():
             out_dir = f'{base_dir}/{num:03d}.{name}/{subdir}'
             os.makedirs(out_dir, exist_ok=True)
             open(f'{out_dir}/date', 'w').write(
-                datetime.datetime.now().isoformat() + '\n')
+                datetime.datetime.now().isoformat() + '\n'
+            )
+            open(f'{out_dir}/commit', 'wb').write(
+                subprocess.check_output(['git', 'log', '-n1', '--format=%H'])
+            )
             stem = os.path.join(out_dir, heap_flag.lstrip('-'))
             basename = os.path.basename(cmdline[0])
 
