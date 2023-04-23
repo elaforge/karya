@@ -29,7 +29,6 @@ import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
-import qualified Util.Lists as Lists
 import qualified Util.Texts as Texts
 import qualified Util.Thread as Thread
 

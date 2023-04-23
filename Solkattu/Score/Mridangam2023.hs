@@ -76,7 +76,7 @@ e_sai_shiv_7 = date 2023 4 4 $
     , let p1 s = s.__4 . r3 "oktk" in mconcatMap p1 tadithomnam
     , let p1 s = s.__4 . r3 "okTk" in mconcatMap p1 tadithomnam
     , r2 $ r3 "o_kt"."ktpk"
-    , r2 $ "nddn" & su "o/o/o/o/" . "nddn"
+    , r2 $ sd $ "nddn" & su "o/o/o/o/" . "nddn"
     ]
 
 e_sai_shiv_11 :: Korvai
