@@ -11,15 +11,15 @@ jobs:
         os: [ubuntu-20.04, macos-10.15]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
-      - uses: cachix/install-nix-action@v12
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v20
         with:
           # Consistent with my-poison in nix/nixpkgs.nix, I have a pinned
           # nixpkgs but maybe it'll download a bit less this way.
           nix_path: nixpkgs=channel:nixos-21.11
           # extra_nix_config: append to /etc/nix/nix.conf
           extra_nix_config: extra-experimental-features = nix-command
-      - uses: cachix/cachix-action@v8
+      - uses: cachix/cachix-action@v12
         with:
           name: elaforge
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
@@ -32,7 +32,7 @@ jobs:
       - name: Get Date
         id: get-date
         run: |
-          echo "::set-output name=date::$(/bin/date -u "+%Y%m%d")"
+          echo "date=$(/bin/date -u +%Y%m%d)" >> $GITHUB_OUTPUT
         shell: bash
       - uses: actions/cache@v2
         with:
