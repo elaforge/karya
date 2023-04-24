@@ -15,8 +15,76 @@
     > signal    Signal.Control            PSignal.PSignal
     > ref       DeriveT.ControlRef        DeriveT.PControlRef     Ref
 -}
-module Derive.DeriveT where
-import           Prelude hiding (lookup)
+module Derive.DeriveT (
+    -- * Derive.PSignal
+    PSignal(..)
+    , _signal
+    , interpolate
+    , Pitch
+    , Transposed
+    , RawPitch(..)
+    , pitch
+    , coerce
+    , pitch_nn, pitch_note
+    , PitchConfig(..)
+    , Scale(..)
+    , detailed_error
+    , PitchError(..)
+    , OutOfRange(..)
+    , out_of_range, out_of_range_error
+    , pitches_equal
+
+    -- * Duration
+    , Duration(..)
+    , TimeType(..)
+    , multiply_duration
+
+    -- * Environ
+    , Environ(..)
+    , null
+    , insert
+    , lookup
+    , environ_attributes
+
+    -- * Val
+    , Val(..)
+    , vals_equal
+    , types_equal
+    , val_to_mini
+    , Quoted(..)
+    , show_call_val
+    -- ** val utils
+    , num
+    , constant_val
+    , constant
+    , score_time, real_time
+    , transposition
+    , str
+    , to_scale_id
+    , quoted, quoted0
+    -- * Ref
+    , ControlRef, PControlRef, Ref(..)
+
+    -- * Expr
+    , Expr, Call, Term
+    , PitchCall
+    -- ** call utils
+    , map_str
+
+    -- * Derive.Score
+    -- ** ControlMap
+    , ControlMap, PitchMap
+    , FunctionMap, Function, PitchFunction
+    , TypedFunction, TypedSignal
+
+    -- * ControlFunction
+    , ControlFunction(..)
+    , CFunction(..)
+    , call_cfunction
+    , Dynamic(..)
+    , empty_dynamic
+) where
+import           Prelude hiding (lookup, null)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Coerce as Coerce
 import qualified Data.List.NonEmpty as NonEmpty
@@ -646,7 +714,7 @@ quoted sym args = Quoted $ Expr.generator (Expr.call sym args)
 quoted0 :: Expr.Symbol -> Quoted
 quoted0 sym = quoted sym []
 
--- ** Ref
+-- * Ref
 
 type ControlRef = Ref ScoreT.Control TypedSignal
 type PControlRef = Ref ScoreT.PControl PSignal
@@ -726,7 +794,7 @@ terms_equal _ _ = Just False
 -- | This is just a 'Call', but it's expected to return a VPitch.
 type PitchCall = Call
 
--- *** call utils
+-- ** call utils
 
 -- | Transform the Symbols in a Call.
 map_str :: (Expr.Str -> Expr.Str) -> Call -> Call
