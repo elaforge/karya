@@ -86,29 +86,20 @@ put_val key val environ = case lookup key environ of
     rhs = Typecheck.to_val val
     assign = \case
         (_, DeriveT.VNotGiven) -> Right $ delete key environ
-        (DeriveT.VControlFunction cf, rhs)
-            | Just cf <- merge_cf cf rhs -> add <$> cf
-        (lhs, DeriveT.VControlFunction cf)
-            | Just cf <- merge_cf cf lhs -> add <$> cf
+        (DeriveT.VCFunction cf, rhs)
+            | Just cf <- merge_cf cf rhs -> Right $ add cf
+        (lhs, DeriveT.VCFunction cf)
+            | Just cf <- merge_cf cf lhs -> Right $ add cf
         (lhs, rhs)
             | DeriveT.types_equal lhs rhs -> Right $ add rhs
             | otherwise ->
                 Left $ type_error key rhs (ValType.general_type_of lhs)
     merge_cf cf = \case
-        DeriveT.VSignal sig -> Just $ DeriveT.VControlFunction <$>
-            cf_set_control sig cf
+        DeriveT.VSignal sig ->
+            Just $ DeriveT.VCFunction $ cf { DeriveT.cf_signal = sig }
         -- Anything else gets type checked and replaced.
         _ -> Nothing
     add rhs = insert key rhs environ
-
-cf_set_control :: DeriveT.TypedSignal -> DeriveT.ControlFunction
-    -> Either Error DeriveT.ControlFunction
-cf_set_control sig cf = case DeriveT.cf_function cf of
-    DeriveT.CFBacked _ f -> Right $
-        cf { DeriveT.cf_function = DeriveT.CFBacked sig f }
-    -- TODO If I make CFPure a separate type, this goes away.
-    DeriveT.CFPure {} -> Left $ "can't merge "
-        <> ShowVal.show_val sig <> " into pure ControlFunction"
 
 modify_signal :: (Maybe DeriveT.TypedSignal -> DeriveT.TypedSignal) -> Key
     -> Environ -> Either Error DeriveT.Val
@@ -120,12 +111,8 @@ modify_signal_val :: (DeriveT.TypedSignal -> DeriveT.TypedSignal) -> DeriveT.Val
     -> Either Error DeriveT.Val
 modify_signal_val modify = \case
     DeriveT.VSignal sig -> Right $ DeriveT.VSignal $ modify sig
-    DeriveT.VControlFunction cf -> case DeriveT.cf_function cf of
-        DeriveT.CFBacked sig f ->
-            Right $ DeriveT.VControlFunction $
-                cf { DeriveT.cf_function = DeriveT.CFBacked (modify sig) f }
-        DeriveT.CFPure {} ->
-            Left "can't modify pure ControlFunction as a signal"
+    DeriveT.VCFunction cf -> Right $ DeriveT.VCFunction $
+        cf { DeriveT.cf_signal = modify (DeriveT.cf_signal cf) }
     val -> Left $ "can't modify " <> pretty (ValType.general_type_of val)
         <> " as a signal"
 

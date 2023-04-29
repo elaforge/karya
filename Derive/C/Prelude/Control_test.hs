@@ -38,7 +38,8 @@ test_porta :: Test
 test_porta = do
     equal (run [(0, "0"), (1, "porta-place=1 | p 1 2s")])
         [(0, 0), (1, 0), (3, 1)]
-    equal (run [(0, "0"), (1, "porta-place=1 | curve=(cf-expon 2) | p 1 2s")])
+    equal
+        (run [(0, "0"), (1, "porta-place=1 | curve=(curve-expon 2) | p 1 2s")])
         [(0, 0), (1, 0), (2, 0.25), (3, 1)]
 
 test_abs :: Test

@@ -711,11 +711,17 @@ instance Typecheck ScoreT.Instrument where
 instance ToVal ScoreT.Instrument where
     to_val (ScoreT.Instrument a) = VStr (Expr.Str a)
 
-instance Typecheck DeriveT.ControlFunction where
-    from_val (VControlFunction a) = success a
+instance Typecheck DeriveT.CFunction where
+    from_val (VCFunction a) = success a
     from_val _ = failure
-    to_type _ = ValType.TControlFunction
-instance ToVal DeriveT.ControlFunction where to_val = VControlFunction
+    to_type _ = ValType.TCFunction
+instance ToVal DeriveT.CFunction where to_val = VCFunction
+
+instance Typecheck DeriveT.PFunction where
+    from_val (VPFunction a) = success a
+    from_val _ = failure
+    to_type _ = ValType.TPFunction
+instance ToVal DeriveT.PFunction where to_val = VPFunction
 
 -- | Anything except a pitch can be coerced to a quoted, using ShowVal.  This
 -- means you can write a lot of things without quotes.
@@ -809,9 +815,10 @@ val_to_function :: Val
 val_to_function = \case
     VSignal sig -> Just $ Right $ flip Signal.at <$> sig
     VControlRef ref -> Just $ Left $ resolve_function ref
-    VControlFunction cf -> Just $ Left $ do
+    VCFunction cf -> Just $ Left $ do
         cf_dyn <- Internal.get_control_function_dynamic
-        return $ DeriveT.call_cfunction cf_dyn (DeriveT.cf_function cf)
+        return $ DeriveT.call_cfunction cf_dyn cf
+    VPFunction f -> Just $ Right $ DeriveT.pf_function f
     _ -> Nothing
 
 -- | Unfortunately Internal.get_control_function_dynamic is non-trivial,
@@ -828,8 +835,7 @@ val_to_function_dyn cf_dyn = \case
     VSignal sig -> Just $ Right $ flip Signal.at <$> sig
     -- TODO propagate cf_dyn through
     VControlRef ref -> Just $ Left $ resolve_function ref
-    VControlFunction cf -> Just $ Right $
-        DeriveT.call_cfunction cf_dyn (DeriveT.cf_function cf)
+    VCFunction cf -> Just $ Right $ DeriveT.call_cfunction cf_dyn cf
     _ -> Nothing
 
 resolve_function :: DeriveT.ControlRef -> Derive.Deriver DeriveT.TypedFunction
@@ -837,7 +843,7 @@ resolve_function ref =
     Derive.require ("control not found: " <> ShowVal.show_val ref)
         =<< lookup_function ref
 
--- | Resolve a ref to a function, applying a ControlFunction if there is one.
+-- | Resolve a ref to a function, applying a CFunction if there is one.
 lookup_function :: DeriveT.ControlRef
     -> Derive.Deriver (Maybe DeriveT.TypedFunction)
 lookup_function (DeriveT.Ref control deflt) = do
@@ -885,16 +891,14 @@ val_to_signal = \case
     VControlRef ref -> Just $ Left $
         Derive.require ("control not found: " <> ShowVal.show_val ref)
             =<< resolve_signal ref
-    VControlFunction cf -> case DeriveT.cf_function cf of
-        DeriveT.CFBacked sig _ -> Just $ Right sig
-        DeriveT.CFPure {} -> Nothing
+    VCFunction cf -> Just $ Right $ DeriveT.cf_signal cf
     _ -> Nothing
 
 
 -- ** pitch signals
 
 -- Unlike controls, this works with signals instead of functions.  Ultimately
--- this is because there is no equaivalent of ControlFunction.  Signals are
+-- this is because there is no equaivalent of CFunction.  Signals are
 -- less flexible than functions, but more useful since I can splice a signal
 -- back into the environment, while functions are opaque.
 
@@ -921,7 +925,7 @@ coerce_to_pitch_signal val = case val_to_pitch_signal val of
     Just (Right sig) -> success sig
 
 -- | This is the pitch version of 'resolve_control_ref', except simpler
--- because there's no pitch equivalent of ControlFunction.
+-- because there's no pitch equivalent of CFunction.
 resolve_pitch_ref :: DeriveT.PControlRef -> Derive.Deriver PSignal.PSignal
 resolve_pitch_ref (DeriveT.Ref control deflt) =
     Derive.require

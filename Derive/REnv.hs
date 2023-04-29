@@ -70,7 +70,7 @@ null (Environ env) = Map.null env
 -- serialized, or require Deriver and hence couldn't go in a module below
 -- Deriver without incurring a circular dependency.
 --
--- Namely: 'DeriveT.VPitch', 'DeriveT.VControlFunction'.
+-- Namely: 'DeriveT.VPitch', 'DeriveT.VCFunction'.
 -- NOTE [val-and-minival].
 data Val =
     VNum !(ScoreT.Typed Signal.Y)

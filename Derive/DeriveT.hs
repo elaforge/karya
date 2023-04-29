@@ -78,9 +78,9 @@ module Derive.DeriveT (
     , TypedFunction, TypedSignal
 
     -- * ControlFunction
-    , ControlFunction(..)
     , CFunction(..)
     , call_cfunction
+    , PFunction(..)
     , Dynamic(..)
     , empty_dynamic
 ) where
@@ -519,7 +519,8 @@ data Val =
     --
     -- Literal: @\"(a b c)@
     | VQuoted !Quoted
-    | VControlFunction !ControlFunction
+    | VCFunction !CFunction
+    | VPFunction !PFunction
     -- | An explicit not-given arg for functions so you can use positional
     -- args with defaults.
     --
@@ -555,7 +556,7 @@ vals_equal x y = case (x, y) of
     (VStr a, VStr b) -> Just $ a == b
     (VQuoted (Quoted a), VQuoted (Quoted b)) ->
         lists_equal calls_equal (NonEmpty.toList a) (NonEmpty.toList b)
-    (VControlFunction _, VControlFunction _) -> Nothing
+    (VCFunction _, VCFunction _) -> Nothing
     (VNotGiven, VNotGiven) -> Just True
     (VSeparator, VSeparator) -> Just True
     (VList a, VList b) -> lists_equal vals_equal a b
@@ -572,7 +573,8 @@ types_equal x y = case (x, y) of
     (VNotePitch {}, VNotePitch {}) -> True
     (VStr {}, VStr {}) -> True
     (VQuoted {}, VQuoted {}) -> True
-    (VControlFunction {}, VControlFunction {}) -> True
+    (VCFunction {}, VCFunction {}) -> True
+    (VPFunction {}, VPFunction {}) -> True
     (VNotGiven, VNotGiven) -> True
     (VSeparator, VSeparator) -> True
     (VList {}, VList {}) -> True
@@ -607,7 +609,8 @@ instance ShowVal.ShowVal Val where
         VNotePitch pitch -> ShowVal.show_val pitch
         VStr str -> ShowVal.show_val str
         VQuoted quoted -> ShowVal.show_val quoted
-        VControlFunction f -> ShowVal.show_val f
+        VCFunction f -> ShowVal.show_val f
+        VPFunction f -> ShowVal.show_val f
         VNotGiven -> "_"
         VSeparator -> ";"
         VList vals -> ShowVal.show_val vals
@@ -841,7 +844,7 @@ type TypedSignal = ScoreT.Typed Signal.Control
     UI.  So the convention is that control functions are generally just
     modifications of an underlying signal, rather than synthesizing a signal.
 
-    Another awkward thing about ControlFunction is that it really wants to
+    Another awkward thing about CFunction is that it really wants to
     be in Deriver, but can't, due to circular imports.  The alternative is
     a giant hs-boot file, or lumping thousands of lines into
     "Derive.Deriver.Monad".  Currently it's a plain function but if I want
@@ -851,47 +854,51 @@ type TypedSignal = ScoreT.Typed Signal.Control
 
     See NOTE [control-function].
 -}
-data ControlFunction = ControlFunction {
+data CFunction = CFunction {
     -- | Human readable name.
     --
     -- TODO I thought of making it the expression that created this, for
     -- serialization, but not implemented yet.
     cf_name :: !Text
-    , cf_function :: !CFunction
-    }
-
-data CFunction =
+    , cf_signal :: !TypedSignal
     {- | This is modifying an underlying signal.
 
         The function may be created before the signal it modifies, e.g.
         @dyn=(cf-rnd .2)@ will apply to whatever values the @dyn@ signal later
         takes. There is special hackery in Env.put_val to merge a signal into a
-        CFBacked ControlFunction if present.  The signal should start at const
-        0 by convention, since many functions make sense against 0 too, and
-        it would be annoying to plumb out an error from 'call_cfunction'.
+        CFunction if present.  The signal should start at const 0 by
+        convention, since many functions make sense against 0 too, and it would
+        be annoying to plumb out an error from 'call_cfunction'.
     -}
-    CFBacked TypedSignal (Dynamic -> Signal.Control -> RealTime -> Signal.Y)
-    -- | A simple opaque function.  TODO kind of a different type from
-    -- CFBacked, split them?  Doesn't need Dynamic.
-    | CFPure ScoreT.Type (RealTime -> Signal.Y)
+    , cf_function :: !(Dynamic -> Signal.Control -> RealTime -> Signal.Y)
+    }
 
-instance DeepSeq.NFData ControlFunction where
+-- | A simple pure function.
+data PFunction = PFunction {
+    pf_name :: !Text
+    , pf_function :: !TypedFunction
+    }
+
+instance Show PFunction where show = prettys
+instance Pretty PFunction where pretty = ShowVal.show_val
+instance ShowVal.ShowVal PFunction where show_val = pf_name
+
+instance DeepSeq.NFData CFunction where
     rnf _ = () -- bogus instance so Derive.Dynamic can have one
-instance Show ControlFunction where show = untxt . pretty
-instance Pretty ControlFunction where
-    pretty cf = "((ControlFunction " <> cf_name cf <> "))"
+instance Show CFunction where show = untxt . pretty
+instance Pretty CFunction where
+    pretty cf = "((CFunction " <> cf_name cf <> "))"
 
 -- | TODO this isn't a real ShowVal, I'd have to record the whole expression.
-instance ShowVal.ShowVal ControlFunction where
+instance ShowVal.ShowVal CFunction where
     show_val = cf_name
 
 call_cfunction :: Dynamic -> CFunction -> TypedFunction
-call_cfunction cf_dyn = \case
-    CFBacked (ScoreT.Typed typ signal) f -> ScoreT.Typed typ (f cf_dyn signal)
-    CFPure typ f -> ScoreT.Typed typ f
+call_cfunction cf_dyn cf = ScoreT.Typed typ (cf_function cf cf_dyn signal)
+    where ScoreT.Typed typ signal = cf_signal cf
 
 -- | A stripped down "Derive.Deriver.Monad.Dynamic" for ControlFunctions
--- to use.  The duplication is unfortunate, see 'ControlFunction'.
+-- to use.  The duplication is unfortunate, see 'CFunction'.
 data Dynamic = Dynamic {
     dyn_pitch :: !PSignal
     , dyn_environ :: !Environ
@@ -975,7 +982,7 @@ empty_dynamic = Dynamic
     . I could also use plain haskell functions, but it would be yet another
       namespace, and I'd still need a way to typecheck and pass args from
       tracklang.  Val calls already do all that, I should reuse it.
-    . A better way might be to add a VControlFunction, which is just
+    . A better way might be to add a VCFunction, which is just
       RealTime -> Signal.Y, this would also eliminate typechecking the return
       value.  That means I also don't have to quote, e.g. '%x = "(f)'
 -}

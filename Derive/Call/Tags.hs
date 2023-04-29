@@ -36,7 +36,7 @@ attr = tag "attr"
 cmod :: Tags
 cmod = tag "cmod"
 
--- | This call returns a 'TrackLang.VControlFunction'.
+-- | This call returns a 'TrackLang.VCFunction'.
 control_function :: Tags
 control_function = tag "control-function"
 

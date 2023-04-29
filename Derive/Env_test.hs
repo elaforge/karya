@@ -75,12 +75,10 @@ test_checked_val = do
 
 test_put_val_cf :: Test
 test_put_val_cf = do
-    let e_cf (DeriveT.VControlFunction cf) = case DeriveT.cf_function cf of
-            DeriveT.CFBacked sig _ -> Just
-                ( DeriveT.cf_name cf
-                , Just $ ScoreT.typed_val sig
-                )
-            DeriveT.CFPure {} -> Just (DeriveT.cf_name cf, Nothing)
+    let e_cf (DeriveT.VCFunction cf) = Just
+            ( DeriveT.cf_name cf
+            , Just $ ScoreT.typed_val (DeriveT.cf_signal cf)
+            )
         e_cf _ = Nothing
     let put old new = e_cf <$> put1 old new
     let cfp = make_cfp "cfp"
@@ -88,13 +86,8 @@ test_put_val_cf = do
         cf1 = make_cf "cf1" (ScoreT.untyped (Signal.constant 1))
     let sig = Signal.from_pairs [(0, 4)]
         vsig = DeriveT.VSignal $ ScoreT.untyped sig
-    -- Pure cf can be replaced by impure and vice versa.  TODO but they are
-    -- kind of different types, if I make them so then this will fail.
-    right_equal (put cf0 cfp) (Just ("cfp", Nothing))
-    left_like (put cfp (DeriveT.num 1))
-        "can't merge 1 into pure ControlFunction"
-    left_like (put cfp vsig)
-        "can't merge (signal 0 4) into pure ControlFunction"
+    left_like (put cf0 cfp) "expected CFunction but got PFunction"
+    left_like (put cfp (DeriveT.num 1)) "expected PFunction but got Signal"
     right_equal (put cf0 vsig) (Just ("cf0", Just sig))
     right_equal (put vsig cf0) (Just ("cf0", Just sig))
     right_equal (put cf1 vsig) (Just ("cf1", Just sig))
@@ -110,11 +103,13 @@ put_env :: Typecheck.ToVal val => EnvKey.Key -> val
     -> Either Text (Map EnvKey.Key DeriveT.Val)
 put_env key val = fmap Env.to_map . Env.put_val key val . Env.from_list
 
-
 make_cf :: Text -> DeriveT.TypedSignal -> DeriveT.Val
-make_cf name sig = DeriveT.VControlFunction $
-    DeriveT.ControlFunction name (DeriveT.CFBacked sig (\_ _ _ -> 0))
+make_cf name sig = DeriveT.VCFunction $ DeriveT.CFunction
+    { cf_name = name
+    , cf_signal = sig
+    , cf_function = \_ _ _ -> 0
+    }
 
 make_cfp :: Text -> DeriveT.Val
-make_cfp name = DeriveT.VControlFunction $
-    DeriveT.ControlFunction name (DeriveT.CFPure ScoreT.Untyped (const 0))
+make_cfp name = DeriveT.VPFunction $
+    DeriveT.PFunction name (ScoreT.untyped (const 0))

@@ -414,9 +414,6 @@ modify_control :: ScoreT.Control
 modify_control (ScoreT.Control control) modify =
     modify_val control (DeriveT.VSignal . modify . (as_signal =<<))
 
-put_control :: ScoreT.Control -> DeriveT.TypedSignal -> Event -> Event
-put_control control = modify_control control . const
-
 as_signal :: DeriveT.Val -> Maybe DeriveT.TypedSignal
 as_signal = \case
     DeriveT.VSignal sig -> Just sig

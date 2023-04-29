@@ -147,21 +147,21 @@ interpolator_variations = concat
 
 -- | For calls whose curve can be configured.
 curve_env :: Sig.Parser Curve
-curve_env = cf_to_curve <$>
-    Sig.environ "curve" Sig.Both cf_linear "Curve function."
+curve_env = pf_to_curve <$>
+    Sig.environ "curve" Sig.Both pf_linear "Curve function."
 
 curve_arg :: Sig.Parser Curve
-curve_arg = cf_to_curve <$>
-    Sig.defaulted "curve" cf_linear "Curve function."
+curve_arg = pf_to_curve <$>
+    Sig.defaulted "curve" pf_linear "Curve function."
 
-cf_linear :: DeriveT.ControlFunction
-cf_linear = curve_to_cf "" Linear
+pf_linear :: DeriveT.PFunction
+pf_linear = curve_to_pf "" Linear
 
--- | A ControlFunction is a generic function, so it can't retain the
+-- | A PFunction is a generic function, so it can't retain the
 -- distinction between Function and Linear.  So I use a grody hack and keep
 -- the distinction in a special name.
-cf_linear_name :: Text
-cf_linear_name = "cf-linear"
+pf_linear_name :: Text
+pf_linear_name = "curve-linear"
 
 curve_time_env :: Sig.Parser (Curve, RealTime)
 curve_time_env = (,) <$> curve_env <*> time
@@ -170,31 +170,29 @@ curve_time_env = (,) <$> curve_env <*> time
 
 make_curve_call :: Maybe Doc.Doc -> CurveD -> Derive.ValCall
 make_curve_call doc (CurveD name get_arg curve) =
-    Derive.val_call Module.prelude (Derive.CallName ("cf-" <> name)) Tags.curve
+    Derive.val_call Module.prelude (Derive.CallName ("curve-" <> name))
+        Tags.curve
     (fromMaybe ("Interpolation function: " <> Doc.Doc name) doc)
     $ Sig.call get_arg $ \arg _args ->
-        return $ curve_to_cf name (curve arg)
+        return $ curve_to_pf name (curve arg)
 
--- | Stuff a curve function into a ControlFunction.
-curve_to_cf :: Text -> Curve -> DeriveT.ControlFunction
-curve_to_cf name = \case
-    Function curvef -> DeriveT.ControlFunction
-        { cf_name = name
-        , cf_function = DeriveT.CFPure ScoreT.Untyped
-            (curvef . RealTime.to_seconds)
+-- | Stuff a curve function into a PFunction.
+curve_to_pf :: Text -> Curve -> DeriveT.PFunction
+curve_to_pf name = \case
+    Function curvef -> DeriveT.PFunction
+        { pf_name = name
+        , pf_function = ScoreT.untyped (curvef . RealTime.to_seconds)
         }
-    Linear -> DeriveT.ControlFunction
-        { cf_name = cf_linear_name
-        , cf_function = DeriveT.CFPure ScoreT.Untyped RealTime.to_seconds
+    Linear -> DeriveT.PFunction
+        { pf_name = pf_linear_name
+        , pf_function = ScoreT.untyped RealTime.to_seconds
         }
 
--- | Convert a ControlFunction back into a curve function.
-cf_to_curve :: DeriveT.ControlFunction -> Curve
-cf_to_curve (DeriveT.ControlFunction name cf)
-    | name == cf_linear_name = Linear
-    | otherwise = Function $
-        ScoreT.typed_val (DeriveT.call_cfunction DeriveT.empty_dynamic cf)
-        . RealTime.seconds
+-- | Convert a PFunction back into a curve function.
+pf_to_curve :: DeriveT.PFunction -> Curve
+pf_to_curve (DeriveT.PFunction name pf)
+    | name == pf_linear_name = Linear
+    | otherwise = Function (ScoreT.typed_val pf . RealTime.seconds)
 
 -- * interpolate
 

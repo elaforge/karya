@@ -643,8 +643,8 @@ get_function_map = do
     cf_dyn <- Internal.get_control_function_dynamic
     let to_function val = case Typecheck.val_to_function_dyn cf_dyn val of
             Nothing -> return Nothing
-            Just (Right tf) -> return $ Just tf
             Just (Left dtf) -> Just <$> dtf
+            Just (Right tf) -> return $ Just tf
     let resolve (key, val) = fmap (ScoreT.Control key,) <$> to_function val
     Map.fromAscList <$>
         (mapMaybeM resolve . Env.to_list =<< Internal.get_environ)
@@ -813,10 +813,8 @@ modify_signals modify_control modify_pitch = Internal.local $ \state -> state
     update = \case
         DeriveT.VSignal sig -> DeriveT.VSignal (modify_control <$> sig)
         DeriveT.VPSignal sig -> DeriveT.VPSignal (modify_pitch sig)
-        DeriveT.VControlFunction
-                (DeriveT.ControlFunction name (DeriveT.CFBacked sig f)) ->
-            DeriveT.VControlFunction $ DeriveT.ControlFunction name $
-                DeriveT.CFBacked (modify_control <$> sig) f
+        DeriveT.VCFunction cf -> DeriveT.VCFunction $
+            cf { DeriveT.cf_signal = modify_control <$> DeriveT.cf_signal cf }
         val -> val
 
 -- | Apply the collected control mods to the given deriver and clear them out.

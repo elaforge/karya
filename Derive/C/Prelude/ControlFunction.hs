@@ -2,8 +2,11 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Calls and functions for 'DeriveT.ControlFunction's.
-module Derive.C.Prelude.ControlFunction where
+-- | Calls and functions for 'DeriveT.CFunction's.
+module Derive.C.Prelude.ControlFunction (
+    library
+    , c_cf_rnd_around
+) where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified System.Random.Mersenne.Pure64 as Pure64
@@ -53,13 +56,13 @@ library = Library.vals $
     , ("cf-rnd01", c_cf_rnd01)
     , ("cf-swing", c_cf_swing)
     , ("cf-clamp", c_cf_clamp)
-    ] ++ map (make_call Nothing . snd) ControlUtil.standard_curves
-    ++ map (uncurry make_call . first Just) curves
+    ] ++ map (make_curve_call Nothing . snd) ControlUtil.standard_curves
+    ++ map (uncurry make_curve_call . first Just) curves
 
-make_call :: Maybe Doc.Doc -> ControlUtil.CurveD
+make_curve_call :: Maybe Doc.Doc -> ControlUtil.CurveD
     -> (Expr.Symbol, Derive.ValCall)
-make_call doc curve =
-    ( "cf-" <> Expr.Symbol (ControlUtil.curve_name curve)
+make_curve_call doc curve =
+    ( "curve-" <> Expr.Symbol (ControlUtil.curve_name curve)
     , ControlUtil.make_curve_call doc curve
     )
 
@@ -89,11 +92,11 @@ c_cf_rnd combine = val_call "cf-rnd" (Tags.control_function <> Tags.random)
             (Signal.at pos control)
 
 make_cf :: Text -> (DeriveT.Dynamic -> Signal.Control -> RealTime -> Signal.Y)
-    -> DeriveT.ControlFunction
-make_cf name f = DeriveT.ControlFunction
+    -> DeriveT.CFunction
+make_cf name f = DeriveT.CFunction
     { cf_name = name
-    , cf_function =
-        DeriveT.CFBacked (ScoreT.untyped (Signal.constant 0)) f
+    , cf_signal = ScoreT.untyped (Signal.constant 0)
+    , cf_function = f
     }
 
 c_cf_rnd_around :: (Signal.Y -> Signal.Y -> Signal.Y) -> Derive.ValCall
@@ -153,11 +156,11 @@ c_cf_swing = val_call "cf-swing" Tags.control_function
     where
     swing rank amount cf_dyn control pos
         | Just marks <- maybe_marks =
-            Signal.at pos control
-                + RealTime.to_seconds (cf_swing (real cf_dyn) rank
-                        (to_function cf_dyn 0 amount) marks (score cf_dyn pos))
+            Signal.at pos control + RealTime.to_seconds (swing marks)
         | otherwise = 0
         where
+        swing marks = cf_swing (real cf_dyn) rank
+            (to_function cf_dyn 0 amount) marks (score cf_dyn pos)
         maybe_marks = snd <$>
             Map.lookup Ruler.meter_name (DeriveT.dyn_ruler cf_dyn)
 
@@ -213,14 +216,12 @@ c_cf_clamp = val_call "cf-clamp" Tags.control_function
         return $ cf_compose ("cf-clamp(" <> DeriveT.cf_name cf <> ")")
             (Num.clamp low high) cf
 
-cf_compose :: Text -> (Signal.Y -> Signal.Y) -> DeriveT.ControlFunction
-    -> DeriveT.ControlFunction
-cf_compose name f cf = DeriveT.ControlFunction
+cf_compose :: Text -> (Signal.Y -> Signal.Y) -> DeriveT.CFunction
+    -> DeriveT.CFunction
+cf_compose name f cf = DeriveT.CFunction
     { cf_name = name
-    , cf_function = case DeriveT.cf_function cf of
-        DeriveT.CFPure typ cfp -> DeriveT.CFPure typ (f . cfp)
-        DeriveT.CFBacked sig cfp -> DeriveT.CFBacked sig $
-            \cf_dyn c -> (f . cfp cf_dyn c)
+    , cf_signal = DeriveT.cf_signal cf
+    , cf_function = \cf_dyn c -> f . DeriveT.cf_function cf cf_dyn c
     }
 
 -- * curve interpolators
@@ -269,8 +270,7 @@ val_to_function :: DeriveT.Dynamic -> DeriveT.Val
 val_to_function cf_dyn = \case
     DeriveT.VSignal sig -> Just $ flip Signal.at <$> sig
     DeriveT.VControlRef ref -> lookup_function cf_dyn (Left ref)
-    DeriveT.VControlFunction cf -> Just $
-        DeriveT.call_cfunction cf_dyn (DeriveT.cf_function cf)
+    DeriveT.VCFunction cf -> Just $ DeriveT.call_cfunction cf_dyn cf
     _ -> Nothing
 
 

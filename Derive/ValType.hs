@@ -41,7 +41,8 @@ data Type =
     -- | A 'VQuoted'.  This has no Typecheck instance so it should never show
     -- up as a call argument.
     | TQuoted
-    | TControlFunction
+    | TCFunction
+    | TPFunction
     | TList Type
     | TDeriver Text
     -- | Typecheck instances that don't correspond directly to a Val type
@@ -166,7 +167,8 @@ infer_type_of specific = \case
     VNotePitch {} -> TNotePitch
     VStr {} -> TStr Nothing
     VQuoted {} -> TQuoted
-    VControlFunction {} -> TControlFunction
+    VCFunction {} -> TCFunction
+    VPFunction {} -> TPFunction
     VNotGiven -> TNotGiven
     VSeparator -> TSeparator
     VList [] -> TList TVal

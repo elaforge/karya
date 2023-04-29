@@ -92,7 +92,6 @@ test_cf_swing = do
                 ]
         with_ruler = DeriveTest.with_default_ruler . UiTest.mkruler_ranks
             . map (second fromEnum)
-
     let marks = take 8 $ zip (Lists.range_ 0 2)
             [Meter.H, Meter.Q, Meter.Q, Meter.Q]
         events = [0, 1, 2, 3]
@@ -100,3 +99,14 @@ test_cf_swing = do
     equal (run marks "-.5" [] events) ([0, 0.5, 2, 2.5], [])
     equal (run marks "%swing" [("swing", [(0, 0, "0"), (2, 0, ".5")])] events)
         ([0, 1, 2, 3.5], [])
+
+test_curve_call :: Test
+test_curve_call = do
+    let run = CallTest.run_control
+    equal (run [(0, "0"), (1, "p 1 4s")]) [(0, 0), (1, 0), (5, 1)]
+    equal (run [(0, "0"), (1, "curve=(curve-linear) | p 1 4s")])
+        [(0, 0), (1, 0), (5, 1)]
+    equal (run [(0, "0"), (1, "curve=(curve-const) | p 1 4s")])
+        [(0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (5, 1)]
+    equal (run [(0, "0"), (1, "curve=(curve-jump) | p 1 4s")])
+        [(0, 0), (1, 0), (2, 0), (3, 1), (4, 1), (5, 1)]

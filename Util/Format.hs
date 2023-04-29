@@ -252,10 +252,10 @@ data Section = Section {
     } deriving (Show)
 
 {- [NOTE end-indent]
-    If there are multiple 'withIndent's during a section, a Section will will
-    start with one indent but end with another.  This is important because
-    while the physical indent is 'sectionStartIndent', when it wraps it should
-    be counted as the sectionEndIndent.  For example, given
+    If there are multiple 'withIndent's during a section, a Section will start
+    with one indent but end with another.  This is important because while the
+    physical indent is 'sectionStartIndent', when it wraps it should be counted
+    as the sectionEndIndent.  For example, given
 
     "{ " Indent "[ " Indent "k1" Break ": v1" Dedent Break
         ", " Indent "k2" Break ": v2" Dedent Dedent

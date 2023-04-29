@@ -121,7 +121,7 @@ test_porta = do
     equal (run [(0, "4c"), (2, "porta-place=0 | p (4d) 1s")])
         [(0, NN.c4), (1, NN.c4), (2, NN.d4)]
     equal (run [(0, "4c"),
-            (2, "porta-place=1 | curve=(cf-expon 2) | p (4d) 2s")])
+            (2, "porta-place=1 | curve=(curve-expon 2) | p (4d) 2s")])
         [(0, NN.c4), (2, NN.c4), (3, 60.5), (4, 62)]
 
 test_linear_next :: Test

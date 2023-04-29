@@ -6671,8 +6671,9 @@ Derive:
     . This seems to be normal, Derive_test.test_basic shows it, why though?
     ? Also do I need redundant Block and block call?  All those Serial 0s?
       Should I merge Region into Call?
-  - Env: would it be more efficient to remove WrongType and use Nothing?
+  / Env: would it be more efficient to remove WrongType and use Nothing?
     . get rid of checked_val vs checked_val2?
+    . No I use both, and probably it gets inlined and eliminated anyway.
   / remove separate NumValue and NumType
     . There's not much use for say Normalized ScoreTime, though I guess maybe
       Positive ScoreTime.
@@ -6707,7 +6708,7 @@ Derive:
           . And vice versa?
         * Simplify ValType, because types have to move from VNum to VSignal
         * Remove VNum
-        + Remove event_controls, update callers
+        * Remove event_controls, update callers
     - some awkward overlap now that controls are in environ, with
       EnvKey VNum types.
       . Places where I have to ScoreT.Control or ScoreT.control_name
@@ -6887,9 +6888,56 @@ Derive:
     - Either propagate cf_dyn in Typecheck.val_to_function_dyn, or
       verify that laziness works.  If the latter, then it's good for
       CFPure, which doesn't use cf_dyn.
-      . If it doesn't, maybe I should have a separate Val type for it,
-        this way the type checking in Env.put_val would just work.
-    - split CFPure into a separate Val type
+      . Laziness does not work, probably because DeriveT can throw, so I have
+        to actually run it.
+      . But it should work if I pass the result of deriving as a lazy
+        Either Error DeriveT.Dynamic.
+      . That means I have to check Left and throw in the CFunction, which is
+        maybe what I want anyway?
+      . Or how about making get_control_function_dynamic cheap by caching it?
+      . I could do that by having a 'Map (BlockId, TrackNum) Ruler.Marklist'
+        but still finding TrackNum is expensive.  Better (BlockId, TrackId),
+        then I can pull from the stack, it should be either not allocating
+        much.
+      . But, the question is if this is a significant enough cost to worry
+        about.  Lib.controls_at is expensive, but I should find out exactly
+        why.
+      . Lib.controls_at: %time 11.3 %alloc 7.6
+      . Remove get_ruler and profile to see if a cache would help.
+      . It does take Lib.controls_at off the list, and reduce time, but
+        max alloc goes +13mb total alloc +800mb!
+      . Oh but I added get_control_function_dynamic, which is 4.6 5.7
+      . So actually 8.9  8.8 -> 4.6  3.7, ok but not big fish.
+      . Alloc is +13 +1100 even with "no" changes, something else happened.
+      . Another approach is to ask why I need get_control_function_dynamic
+        so many times.  It's for each controls_at, which I need every note.
+        But within a track, I think only dyn_event_serial changes.
+        . I could cache it per-track in eval.  Even take out serial and
+          avoid any allocation, but copying the record should be cheap.
+        . Fastest cache would be make a lazy thunk on each track eval which
+          is just passed along.
+        . Maybe generalize to something like Derive.Threaded except it's
+          read-only and lazy.  Assuming I can find other things to cache
+          per track?
+        . Then get_control_function_dynamic would pull from TrackCached.
+        . It would be unsafe in that it would assume that the stuff in it
+          really is invariant per-track.  I suppose if it's created on
+          track entry, it only has access to track level values?
+          Well, no it has state_dynamic.
+        . Also I think this is wrong anyway, state_pitch can be assigned
+          explicitly.
+        . Maybe only the ruler is truly cacheable.  Then the question would be
+          between a global Map TrackId Ruler, and a per-track cache.
+        . get_ruler looks stupid anyway, why not just TrackId -> RulerId?
+    profiling in general:
+      - with_stack_region is big: 11.3 7.6
+    * split CFPure into a separate Val type
+      . VFunction, VCFunction?  No, Function is already RealTime -> Signal.Y
+      . PFunction, CFunction?
+      . Or maybe just VCurve?  Since these are functions from 0-1 -> 0-1.
+        Or will I want a generic function someday?
+        Yes, sine
+      . CFunctions can turn into a plain function when applied to control=0.
       . Some hackery in Env would go away.
       . Some cfs don't take a control, should I have separate types so I
         can throw an error?  Or they just ignore the control arg?

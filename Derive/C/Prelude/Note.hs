@@ -125,7 +125,6 @@ note_call name prepend_doc tags generate =
     -- wanting to scope transformations per-instrument.  But maybe some day
     -- I'll bring back >inst syntax as a lookup call.
 
-
 -- | Apply the 'Instrument.Common.config_controls' field.  It happens in the
 -- note call to make sure it happens only once per note.
 apply_instrument_controls :: Derive.Deriver a -> Derive.Deriver a

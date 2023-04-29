@@ -29,7 +29,9 @@ instance Eq (PSignal.RawPitch a) where
     p1 == p2 = PSignal.pitch_nn (PSignal.coerce p1)
         == PSignal.pitch_nn (PSignal.coerce p2)
 
-instance Eq DeriveT.ControlFunction where
-    _ == _ = False
+instance Eq DeriveT.CFunction where
+    a == b = DeriveT.cf_name a == DeriveT.cf_name b
+instance Eq DeriveT.PFunction where
+    a == b = DeriveT.pf_name a == DeriveT.pf_name b
 
 #endif
