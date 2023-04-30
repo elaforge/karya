@@ -282,7 +282,7 @@ add_stack_frame frame st = st
     update_seed env =
         DeriveT.insert EnvKey.seed (DeriveT.num (update old)) env
         where
-        old = maybe 0 ScoreT.typed_val $
+        old = maybe 0 ScoreT.val_of $
             DeriveT.constant_val =<< DeriveT.lookup EnvKey.seed env
     update :: Double -> Double
     update n = i2d (Seed.to_seed (floor n) frame)

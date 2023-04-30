@@ -238,7 +238,7 @@ instance Monoid Type where
 
 data Typed a = Typed {
     type_of :: !Type
-    , typed_val :: !a
+    , val_of :: !a
     } deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 instance DeepSeq.NFData a => DeepSeq.NFData (Typed a) where

@@ -459,7 +459,7 @@ test_shift_controls = do
             extract (conts, pitch) =
                 (unsignal conts, first Signal.to_pairs (PSignal.to_nn pitch))
             unsignal =
-                Signal.to_pairs . ScoreT.typed_val . snd . head . Map.toList
+                Signal.to_pairs . ScoreT.val_of . snd . head . Map.toList
     equal (run id) $ Right ([(0, 1), (2, 2), (4, 0)], ([(0, 60)], []))
     equal (run $ Derive.shift_controls 2) $
         Right ([(2, 1), (4, 2), (6, 0)], ([(2, 60)], []))

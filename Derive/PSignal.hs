@@ -234,7 +234,7 @@ apply_controls cmap psig = case Lists.head (to_pairs psig) of
 unzip_controls :: PSignal -> ControlMap
     -> (([ScoreT.Control], [Signal.Control]), ControlMap)
 unzip_controls psig cmap =
-    ( second (map ScoreT.typed_val) (unzip transposers)
+    ( second (map ScoreT.val_of) (unzip transposers)
     , Map.fromAscList non_transposers
     )
     where
@@ -244,7 +244,7 @@ unzip_controls psig cmap =
 
 -- | Not exported, use the one in Derive.Score instead.
 controls_at :: RealTime -> ControlMap -> Map ScoreT.Control Signal.Y
-controls_at t = Map.map (Signal.at t . ScoreT.typed_val)
+controls_at t = Map.map (Signal.at t . ScoreT.val_of)
 
 -- | 'apply_controls' specialized for a single control.
 apply_control :: ScoreT.Control -> ScoreT.Typed Signal.Control

@@ -278,13 +278,13 @@ control_track events control =
             where t = ShowVal.show_hex_val val
         _ -> events
     tidy_controls = clip_to_zero . drop_dups . clip_concat
-    c = ScoreT.typed_val control
+    c = ScoreT.val_of control
 
 signal_events :: ScoreT.Control -> Score.Event -> [Event.Event]
 signal_events control event = case Score.event_control control event of
     Nothing -> []
     Just sig -> map (uncurry mk) $ Signal.to_pairs $
-        Signal.clip_before start (ScoreT.typed_val sig)
+        Signal.clip_before start (ScoreT.val_of sig)
     where
     -- Suppose ambient dyn is .75, but then post integrate it is set to .6.
     -- Since the dyn track multiplies by default, this would wind up doubly

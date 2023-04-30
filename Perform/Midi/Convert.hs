@@ -243,7 +243,7 @@ convert_controls :: RealTime
     -> Map ScoreT.Control MSignal.Signal
 convert_controls srate inst_cmap =
     Map.fromAscList
-        . map (second (Signal.to_piecewise_constant srate . ScoreT.typed_val))
+        . map (second (Signal.to_piecewise_constant srate . ScoreT.val_of))
         . filter (Control.is_midi_control inst_cmap . fst)
         . Map.toAscList
 

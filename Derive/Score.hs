@@ -376,7 +376,7 @@ event_control :: ScoreT.Control -> Event -> Maybe (ScoreT.Typed Signal.Control)
 event_control (ScoreT.Control control) = as_signal <=< lookup_val control
 
 initial_dynamic :: Event -> Signal.Y
-initial_dynamic event = maybe 0 ScoreT.typed_val $
+initial_dynamic event = maybe 0 ScoreT.val_of $
      -- Derive.initial_controls should mean this is never Nothing.
     control_at (event_start event) Controls.dynamic event
 
@@ -425,7 +425,7 @@ set_control (ScoreT.Control control) =
 
 event_controls_at :: RealTime -> Event -> ScoreT.ControlValMap
 event_controls_at t event =
-    ScoreT.typed_val . fmap (Signal.at t) <$> event_controls event
+    ScoreT.val_of . fmap (Signal.at t) <$> event_controls event
 
 -- *** pitch
 

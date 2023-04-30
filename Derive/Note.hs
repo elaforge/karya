@@ -70,7 +70,7 @@ extract_track_signal source events = mconcat $ case source of
     -- Since these signals will be concatenated into one signal, I don't
     -- want one event's control at 0 to wipe out the previous events.
     extract_control control event =
-        Signal.clip_before (Score.event_min event) . ScoreT.typed_val <$>
+        Signal.clip_before (Score.event_min event) . ScoreT.val_of <$>
             Score.event_control control event
     extract_pitch pcontrol event =
         convert event <$> Score.event_named_pitch pcontrol event

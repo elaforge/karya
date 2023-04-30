@@ -148,7 +148,7 @@ test_control_scope = do
             [ (">", [(0, 2, ""), (2, 0, "")])
             , ("local", [(0, 0, "2"), (2, 0, "3")])
             ]
-        extract = map (second (Signal.to_pairs . ScoreT.typed_val))
+        extract = map (second (Signal.to_pairs . ScoreT.val_of))
                 . filter ((`elem` wanted) . fst) . Map.toList
                 . Score.event_controls
             where wanted = ["pedal", "dia", "local"]

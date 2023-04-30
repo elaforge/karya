@@ -171,6 +171,6 @@ c_cf_sample = Derive.transformer Module.prelude "cf-sample"
         start <- Args.real_start args
         vals <- mapM (flip Derive.control_at start) (NonEmpty.toList controls)
         foldr (uncurry Call.with_constant) deriver
-            [ (c, ScoreT.typed_val v)
+            [ (c, ScoreT.val_of v)
             | (c, Just v) <- zip (NonEmpty.toList controls) vals
             ]

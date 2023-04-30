@@ -618,7 +618,7 @@ control_at :: ScoreT.Control -> RealTime
 control_at control pos = fmap (fmap ($ pos)) <$> lookup_function control
 
 untyped_control_at :: ScoreT.Control -> RealTime -> Deriver (Maybe Signal.Y)
-untyped_control_at control = fmap (fmap ScoreT.typed_val) . control_at control
+untyped_control_at control = fmap (fmap ScoreT.val_of) . control_at control
 
 is_control_set :: ScoreT.Control -> Deriver Bool
 is_control_set = is_val_set . ScoreT.control_name
@@ -652,7 +652,7 @@ get_function_map = do
 -- | Get a ControlValMap at the given time.
 {-# SCC controls_at #-}
 controls_at :: RealTime -> Deriver ScoreT.ControlValMap
-controls_at = fmap (fmap ScoreT.typed_val) . typed_controls_at
+controls_at = fmap (fmap ScoreT.val_of) . typed_controls_at
 
 typed_controls_at :: RealTime -> Deriver ScoreT.TypedControlValMap
 typed_controls_at pos = fmap (fmap ($ pos)) <$> get_function_map
@@ -789,7 +789,7 @@ merge Unset (Just old) _ = old
 merge Unset Nothing new = new
 merge (Merger _ merger ident) maybe_old new =
     ScoreT.Typed (ScoreT.type_of old <> ScoreT.type_of new)
-        (merger (ScoreT.typed_val old) (ScoreT.typed_val new))
+        (merger (ScoreT.val_of old) (ScoreT.val_of new))
     where old = fromMaybe (ScoreT.untyped (Signal.constant ident)) maybe_old
     -- Using ident is *not* the same as just emitting the 'new' signal for
     -- subtraction!

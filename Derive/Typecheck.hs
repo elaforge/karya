@@ -355,7 +355,7 @@ instance Typecheck DeriveT.TypedSignal where
     to_type _ = ValType.TSignal ValType.TUntyped ValType.TAny
 
 instance Typecheck Signal.Control where
-    from_val = fmap ScoreT.typed_val . from_val
+    from_val = fmap ScoreT.val_of . from_val
     to_type _ = ValType.TSignal ValType.TUntyped ValType.TAny
 
 -- *** eval only
@@ -369,7 +369,7 @@ instance Typecheck DeriveT.TypedFunction where
     to_type _ = ValType.TOther "typed signal"
 
 instance Typecheck DeriveT.Function where
-    from_val = fmap ScoreT.typed_val . from_val
+    from_val = fmap ScoreT.val_of . from_val
     to_type _ = ValType.TOther "untyped signal"
 
 instance Typecheck (RealTime -> RealTime) where
@@ -459,14 +459,14 @@ instance TypecheckNum (ScoreT.Typed Signal.Y) where
     num_type _ = ValType.TUntyped
 
 instance Typecheck Double where
-    from_val = coerce_to_scalar (Just . ScoreT.typed_val)
+    from_val = coerce_to_scalar (Just . ScoreT.val_of)
     to_type = num_to_type
 instance ToVal Double where to_val = DeriveT.num
 instance TypecheckNum Double where num_type _ = ValType.TUntyped
 
 instance Typecheck (Ratio.Ratio Int) where
     from_val = coerce_to_scalar $
-        Just . realToFrac . flip Ratio.approxRational 0.001 . ScoreT.typed_val
+        Just . realToFrac . flip Ratio.approxRational 0.001 . ScoreT.val_of
     to_type = num_to_type
 instance ToVal (Ratio.Ratio Int) where
     to_val = DeriveT.num . realToFrac
@@ -481,7 +481,7 @@ instance Typecheck Integer where
     to_type = num_to_type
 
 from_integral_val :: Integral a => Val -> Checked a
-from_integral_val = coerce_to_scalar (check . ScoreT.typed_val)
+from_integral_val = coerce_to_scalar (check . ScoreT.val_of)
     where
     check a = if frac == 0 then Just int else Nothing
         where (int, frac) = properFraction a
@@ -625,7 +625,7 @@ instance ToVal a => ToVal (NonNegative a) where
     to_val (NonNegative val) = to_val val
 
 instance Typecheck Normalized where
-    from_val = coerce_to_scalar (check . ScoreT.typed_val)
+    from_val = coerce_to_scalar (check . ScoreT.val_of)
         where
         check a
             | 0 <= a && a <= 1 = Just (Normalized a)
@@ -634,7 +634,7 @@ instance Typecheck Normalized where
 instance ToVal Normalized where to_val = DeriveT.num . normalized
 
 instance Typecheck NormalizedBipolar where
-    from_val = coerce_to_scalar (check . ScoreT.typed_val)
+    from_val = coerce_to_scalar (check . ScoreT.val_of)
         where
         check a
             | -1 <= a && a <= 1 = Just (NormalizedBipolar a)

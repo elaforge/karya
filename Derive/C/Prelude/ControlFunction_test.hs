@@ -68,7 +68,7 @@ test_cf_rnd_transformer = do
                 [(">", [(n, 1, "") | n <- Lists.range' 0 notes 1])]
         trans = CallTest.with_note_transformer "t" $ CallTest.transformer $
             \_args deriver -> do
-                c_at <- fmap ScoreT.typed_val $
+                c_at <- fmap ScoreT.val_of $
                     Typecheck.resolve_function $ DeriveT.Ref "c" Nothing
                 fmap (set_dyn c_at) <$> deriver
         set_dyn c_at event = Score.set_control Controls.dynamic

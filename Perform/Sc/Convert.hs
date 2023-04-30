@@ -92,7 +92,7 @@ convert_controls srate patch_controls start end =
             ( cid
             , Signal.to_piecewise_constant srate $
                 Signal.clip_after end $ Signal.clip_before start $
-                ScoreT.typed_val signal
+                ScoreT.val_of signal
             )
     -- TODO it might be more efficient to skip the MSignal and go directly to
     -- OSC.  Especially because I want just in dur range...  or I guess longer,

@@ -306,7 +306,7 @@ test_track_dynamic = do
             , ("dyn", [(0, 0, ".25"), (1, 0, ".5"), (2, 0, ".75")])
             , ("dyn", [(0, 0, ".25"), (1, 0, ".5"), (2, 0, ".75")])
             ]
-    let e_dyn = fmap (Signal.to_pairs . ScoreT.typed_val)
+    let e_dyn = fmap (Signal.to_pairs . ScoreT.val_of)
             . DeriveTest.lookup_control Controls.dynamic
             -- Map.lookup Controls.dynamic (Derive.state_signals dyn)
         e_scale = env_lookup EnvKey.scale . Derive.state_environ
@@ -335,7 +335,7 @@ test_track_dynamic_consistent = do
             , ("sub=ruler", [(">", [(0, 1, "")])])
             ]
         e_env = env_lookup "env" . Derive.state_environ
-        e_control = fmap (Signal.to_pairs . ScoreT.typed_val)
+        e_control = fmap (Signal.to_pairs . ScoreT.val_of)
             . DeriveTest.lookup_control "c"
     -- %c is only set in the env=b branch, so it shouldn't be set when env=a.
     equal (run e_env) (Just "a")

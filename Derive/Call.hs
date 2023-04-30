@@ -84,7 +84,7 @@ get_symbolic_pitch :: RealTime -> Derive.Deriver Pitch.Note
 get_symbolic_pitch = Pitches.pitch_note <=< get_transposed
 
 dynamic :: RealTime -> Derive.Deriver Signal.Y
-dynamic pos = maybe Derive.default_dynamic ScoreT.typed_val <$>
+dynamic pos = maybe Derive.default_dynamic ScoreT.val_of <$>
     Derive.control_at Controls.dynamic pos
 
 with_pitch :: PSignal.Pitch -> Derive.Deriver a -> Derive.Deriver a

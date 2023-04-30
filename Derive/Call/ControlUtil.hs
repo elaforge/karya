@@ -192,7 +192,7 @@ curve_to_pf name = \case
 pf_to_curve :: DeriveT.PFunction -> Curve
 pf_to_curve (DeriveT.PFunction name pf)
     | name == pf_linear_name = Linear
-    | otherwise = Function (ScoreT.typed_val pf . RealTime.seconds)
+    | otherwise = Function (ScoreT.val_of pf . RealTime.seconds)
 
 -- * interpolate
 
@@ -436,7 +436,7 @@ modify_with merge control end sig = do
             -- There's no identity for Set, so I have to slice the signal
             -- myself.
             maybe_old <- Derive.lookup_signal control
-            return $ case ScoreT.typed_val <$> maybe_old of
+            return $ case ScoreT.val_of <$> maybe_old of
                 Nothing -> sig
                 Just old -> old <> sig <> Signal.clip_before end old
         Derive.Unset -> return sig

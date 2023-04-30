@@ -77,7 +77,7 @@ test_put_val_cf :: Test
 test_put_val_cf = do
     let e_cf (DeriveT.VCFunction cf) = Just
             ( DeriveT.cf_name cf
-            , Just $ ScoreT.typed_val (DeriveT.cf_signal cf)
+            , Just $ ScoreT.val_of (DeriveT.cf_signal cf)
             )
         e_cf _ = Nothing
     let put old new = e_cf <$> put1 old new

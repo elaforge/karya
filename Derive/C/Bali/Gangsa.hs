@@ -198,7 +198,7 @@ mute_postproc mute_attr event = (,[]) $
             -- partial mutes are from .75--1.
             | otherwise -> set_mod (1 - mute**2) $ Score.set_duration 0 event
             where
-            mute = ScoreT.typed_val tval
+            mute = ScoreT.val_of tval
     where
     set_mod = Score.set_control Controls.mod . ScoreT.untyped . Signal.constant
     -- Use the mute_attr above this threshold.

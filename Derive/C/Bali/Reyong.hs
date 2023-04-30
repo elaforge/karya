@@ -816,7 +816,7 @@ make_damp early event =
         , Score.event_duration = 0
         }
     where
-    damp = maybe 0.35 ScoreT.typed_val
+    damp = maybe 0.35 ScoreT.val_of
         (Score.control_at (Score.event_end event) damp_control event)
 
 infer_damp :: (RealTime -> RealTime) -> [Score.Event]

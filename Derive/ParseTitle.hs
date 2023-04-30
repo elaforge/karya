@@ -187,7 +187,7 @@ p_scale_id = do
 -- | Convert a track title to its control.
 title_to_control :: Text -> Maybe ScoreT.Control
 title_to_control title = case parse_control_type title of
-    Right (Control (Right control) _) -> Just (ScoreT.typed_val control)
+    Right (Control (Right control) _) -> Just (ScoreT.val_of control)
     _ -> Nothing
 
 -- | A pitch track is also considered a control track.

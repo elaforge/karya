@@ -163,7 +163,7 @@ eval_thru_notes expr = do
         { _pitch = fromMaybe 0 (Score.initial_nn event)
         , _velocity = Score.initial_dynamic event
         , _attributes = Score.event_attributes event
-        , _startOffset = maybe 0 (floor . ScoreT.typed_val) $
+        , _startOffset = maybe 0 (floor . ScoreT.val_of) $
             Score.control_at (Score.event_start event)
                 (Controls.from_shared Control.sampleStartOffset) event
         }

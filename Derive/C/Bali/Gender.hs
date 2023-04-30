@@ -257,7 +257,7 @@ weak_call args = do
     -- implicitly as arguments.  But DUtil.zero_duration doesn't really plug
     -- into Sig.call.  Maybe it should reapply `weak` instead of calling it
     -- directly?  In any case, I think the result should be the same.
-    strength <- fmap (maybe 0.5 ScoreT.typed_val) $
+    strength <- fmap (maybe 0.5 ScoreT.val_of) $
         Derive.control_at "strength" =<< Args.real_start args
     weak strength (Args.set_duration dur args)
     where dur = Args.next args - Args.start args

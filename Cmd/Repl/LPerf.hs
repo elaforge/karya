@@ -102,7 +102,7 @@ control_vals source = do
     -- likely be different.
     let serial = 0
     let fs = Derive.state_functions dyn mlists serial
-    return $ ($ pos) . ScoreT.typed_val <$> fs
+    return $ ($ pos) . ScoreT.val_of <$> fs
 
 -- | Like 'control_vals', but without control functions.
 raw_control_vals :: Cmd.M m => Source -> m ScoreT.TypedControlValMap

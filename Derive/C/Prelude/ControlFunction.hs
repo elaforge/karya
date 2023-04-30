@@ -252,7 +252,7 @@ score = Warp.unwarp . DeriveT.dyn_warp
 
 to_function :: DeriveT.Dynamic -> Signal.Y -> Ref -> DeriveT.Function
 to_function cf_dyn deflt =
-    maybe (const deflt) ScoreT.typed_val . lookup_function cf_dyn
+    maybe (const deflt) ScoreT.val_of . lookup_function cf_dyn
 
 -- | TODO duplicated with Typecheck.lookup_function except it
 -- can't be in Deriver.

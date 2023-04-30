@@ -132,7 +132,7 @@ derive_control_tree block_range tree = do
             Just signal -> return $ Stream.from_sorted_list $
                 -- The calling control itself will be providing the type since
                 -- types are at the level of the signal as a whole.
-                LEvent.Event (ScoreT.typed_val signal) : map LEvent.Log logs
+                LEvent.Event (ScoreT.val_of signal) : map LEvent.Log logs
         (events, logs) -> do
             msg <- complain events
             return $ Stream.from_logs $ msg : logs

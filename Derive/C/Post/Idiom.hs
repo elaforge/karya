@@ -200,7 +200,7 @@ apply_attributes event = Score.add_attributes (mconcat attrs_to_apply) event
     controls = Lists.keyOnJust control_attributes $ Map.keys $
         Score.event_controls event
     attrs_to_apply = map fst $ filter ((>0) . get . snd) controls
-    get c = maybe 0 ScoreT.typed_val $
+    get c = maybe 0 ScoreT.val_of $
         Score.control_at (Score.event_start event) c event
 
 control_attributes :: ScoreT.Control -> Maybe Attrs.Attributes

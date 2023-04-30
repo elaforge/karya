@@ -95,14 +95,14 @@ eval_track config track expr ctype deriver = case ctype of
                     (in_normal_mode $ derive_control True track transform)
         tempo_call config maybe_sym track sig_deriver deriver
     ParseTitle.Control (Right typed_control) maybe_merge -> do
-        let control = ScoreT.typed_val typed_control
+        let control = ScoreT.val_of typed_control
         merger <- get_merger control maybe_merge
         (signal, logs) <- with_control_env control merger
             (derive_control False track transform)
         control_call track typed_control merger (signal, logs) deriver
     ParseTitle.Control (Left tcall) maybe_merge -> do
         (typed_control, sig) <- track_call tcall track
-        merger <- get_merger (ScoreT.typed_val typed_control) maybe_merge
+        merger <- get_merger (ScoreT.val_of typed_control) maybe_merge
         control_call track typed_control merger (sig, []) deriver
     ParseTitle.Pitch scale_id pcontrol_tcall -> case pcontrol_tcall of
         Right pcontrol -> pitch_call config track pcontrol scale_id

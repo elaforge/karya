@@ -299,7 +299,7 @@ check_pitches base pitches = do
             t = deflt ScoreT.Diatonic t_
             ts = map (deflt t) ts_
         [] -> Right Pitch.Diatonic
-    return $ map (either id (resolve make . ScoreT.typed_val)) pitches
+    return $ map (either id (resolve make . ScoreT.val_of)) pitches
     where
     resolve make n = Pitches.transpose (make n) base
     deflt typ ScoreT.Untyped = typ

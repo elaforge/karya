@@ -670,11 +670,11 @@ e_instrument = ScoreT.instrument_name . Score.event_instrument
 
 e_control :: ScoreT.Control -> Score.Event -> [(RealTime, Signal.Y)]
 e_control control = Lists.dropDups id
-    . maybe [] (Signal.to_pairs . ScoreT.typed_val)
+    . maybe [] (Signal.to_pairs . ScoreT.val_of)
     . Score.event_control control
 
 e_controls :: Score.Event -> [(ScoreT.Control, [(Signal.X, Signal.Y)])]
-e_controls = map (second (Signal.to_pairs . ScoreT.typed_val)) . Map.toList
+e_controls = map (second (Signal.to_pairs . ScoreT.val_of)) . Map.toList
     . Score.event_controls
 
 lookup_control :: ScoreT.Control -> Derive.Dynamic -> Maybe DeriveT.TypedSignal
@@ -689,11 +689,11 @@ e_control_vals :: ScoreT.Control -> Score.Event -> [Signal.Y]
 e_control_vals control = map snd . Lists.dropInitialDups fst . e_control control
 
 e_control_constant :: ScoreT.Control -> Score.Event -> Maybe Signal.Y
-e_control_constant control = Signal.constant_val . ScoreT.typed_val
+e_control_constant control = Signal.constant_val . ScoreT.val_of
     <=< Map.lookup control . Score.event_controls
 
 e_initial_control :: ScoreT.Control -> Score.Event -> Maybe Signal.Y
-e_initial_control control event = ScoreT.typed_val <$>
+e_initial_control control event = ScoreT.val_of <$>
     Score.control_at (Score.event_start event) control event
 
 e_dyn :: Score.Event -> [(RealTime, Signal.Y)]
