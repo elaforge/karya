@@ -125,7 +125,7 @@ c_porta = generator1 "porta" mempty
     <$> Sig.required "to" "Destination value."
     <*> (Typecheck._real <$> Sig.defaulted "time"
         ControlUtil.default_interpolation_time "Time to reach destination.")
-    <*> Sig.defaulted_env "place" Sig.Both (Typecheck.Normalized 0.5)
+    <*> Sig.defaulted_env "place" Sig.Both (Typecheck.Normalized 1)
         "Placement, from before to after the call."
     <*> ControlUtil.from_env <*> ControlUtil.curve_env
     ) $ \(to, time, place, from, curve) args -> do
