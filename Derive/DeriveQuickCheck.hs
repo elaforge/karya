@@ -33,11 +33,10 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Test.QuickCheck as Q
 
-import qualified Util.ParseText as ParseText
 import qualified Util.Lists as Lists
+import qualified Util.ParseText as ParseText
 import qualified Util.Trees as Trees
 
-import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Env as Env
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
@@ -161,7 +160,7 @@ data State = State {
 initial_state :: State
 initial_state = State 0 mempty
 
-state_control_map :: State -> DeriveT.ControlMap
+state_control_map :: State -> ScoreT.ControlMap
 state_control_map = Map.map (ScoreT.untyped . Signal.constant) . state_controls
 
 state_psignal :: State -> PSignal.PSignal

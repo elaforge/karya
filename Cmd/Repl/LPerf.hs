@@ -12,9 +12,9 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Regex as Regex
-import qualified Util.Lists as Lists
 import qualified Util.Texts as Texts
 
 import qualified App.Config as Config
@@ -29,7 +29,6 @@ import qualified Cmd.Simple as Simple
 
 import qualified Derive.Cache as Cache
 import qualified Derive.Derive as Derive
-import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Env as Env
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
@@ -85,7 +84,7 @@ environ :: Cmd.M m => m (Maybe Env.Environ)
 environ = Perf.lookup_environ =<< Selection.track
 
 -- | Controls in scope at the insert point.
-controls :: Cmd.M m => Source -> m DeriveT.ControlMap
+controls :: Cmd.M m => Source -> m ScoreT.ControlMap
 controls source = Derive.state_signals <$> dynamic source
 
 -- | The control vals at the insertion point, taking the control functions into

@@ -6,17 +6,17 @@
 -- | Utilities that emit 'Signal.Control's and 'Derive.ControlMod's.
 module Derive.Call.ControlUtil where
 import qualified Util.Doc as Doc
-import qualified Util.Num as Num
 import qualified Util.Lists as Lists
+import qualified Util.Num as Num
 import qualified Util.Test.ApproxEq as ApproxEq
 
 import qualified Derive.Args as Args
-import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Expr as Expr
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Sig as Sig
@@ -367,7 +367,7 @@ smooth_absolute curve srate time =
     breakpoints srate curve . split_samples_absolute time
 
 -- | Smooth with 'split_samples_relative'.
-smooth_relative :: Curve -> RealTime -> DeriveT.Function
+smooth_relative :: Curve -> RealTime -> ScoreT.Function
     -> [(RealTime, Signal.Y)] -> Signal.Control
 smooth_relative curve srate time_at =
     breakpoints srate curve . split_samples_relative time_at
@@ -404,7 +404,7 @@ split_samples_absolute time
 -- > 0 1 2 3 4 5 6 7 8
 -- > 0-------1-------0
 -- > 0-----0=1-----1=0 time_at = const 0.25
-split_samples_relative :: DeriveT.Function -> [(RealTime, y)]
+split_samples_relative :: ScoreT.Function -> [(RealTime, y)]
     -> [(RealTime, y)]
 split_samples_relative time_at = concatMap split . Lists.zipNext
     where

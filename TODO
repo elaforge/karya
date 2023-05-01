@@ -7008,7 +7008,10 @@ Derive:
           a constant.
       * remove DeriveT.Ref ControlSignal
       - remove Lib state_signals, state_functions
-      - ControlValMap in ScoreT but ControlMap in DeriveT
+      * ControlValMap in ScoreT but ControlMap in DeriveT
+        . Except PitchFunction and PitchMap need Pitch, which is in DeriveT.
+        . So move ControlMap to DeriveT?
+        . Except I want to move in the fewer deps direction...
       remove deprecated stuff:
         - Typecheck deprecated
         - Lib.lookup_pitch_signal

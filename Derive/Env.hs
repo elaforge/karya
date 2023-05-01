@@ -58,7 +58,7 @@ is_set key (Environ env) = Map.member key env
 map :: (DeriveT.Val -> DeriveT.Val) -> Environ -> Environ
 map f (Environ env) = Environ $ f <$> env
 
-from_controls :: DeriveT.ControlMap -> Environ
+from_controls :: ScoreT.ControlMap -> Environ
 from_controls = from_map . Map.fromAscList . Prelude.map convert . Map.toAscList
     where
     convert (ScoreT.Control control, sig) = (control, DeriveT.VSignal sig)
@@ -101,13 +101,13 @@ put_val key val environ = case lookup key environ of
         _ -> Nothing
     add rhs = insert key rhs environ
 
-modify_signal :: (Maybe DeriveT.TypedSignal -> DeriveT.TypedSignal) -> Key
+modify_signal :: (Maybe ScoreT.TypedSignal -> ScoreT.TypedSignal) -> Key
     -> Environ -> Either Error DeriveT.Val
 modify_signal modify key environ = case lookup key environ of
     Nothing -> Right $ Typecheck.to_val $ modify Nothing
     Just val -> modify_signal_val (modify . Just) val
 
-modify_signal_val :: (DeriveT.TypedSignal -> DeriveT.TypedSignal) -> DeriveT.Val
+modify_signal_val :: (ScoreT.TypedSignal -> ScoreT.TypedSignal) -> DeriveT.Val
     -> Either Error DeriveT.Val
 modify_signal_val modify = \case
     DeriveT.VSignal sig -> Right $ DeriveT.VSignal $ modify sig

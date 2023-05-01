@@ -15,7 +15,6 @@ import qualified Data.Text as Text
 
 import qualified Util.Log as Log
 import qualified Cmd.Cmd as Cmd
-import qualified Derive.DeriveT as DeriveT
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
@@ -79,7 +78,7 @@ run action = LEvent.Event note : map LEvent.Log logs
 convert_controls :: RealTime
     -> Map ScoreT.Control Note.ControlId -- ^ Patch control map.
     -> RealTime -> RealTime
-    -> DeriveT.ControlMap -- ^ Controls to convert.
+    -> ScoreT.ControlMap -- ^ Controls to convert.
     -> Map Note.ControlId MSignal.Signal
 convert_controls srate patch_controls start end =
     Map.fromAscList . mapMaybe convert . Map.toAscList

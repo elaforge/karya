@@ -6,18 +6,17 @@
 module Derive.C.Post.Rearticulate (library) where
 import qualified Util.Lists as Lists
 import qualified Util.Maps as Maps
-
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
-import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Env as Env
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
@@ -71,7 +70,7 @@ merge_pitch :: PSignal.PSignal -> [(RealTime, PSignal.PSignal)]
 merge_pitch sig sigs =
     mconcat $ sig : [PSignal.clip_before start sig | (start, sig) <- sigs]
 
-merge_controls :: Score.Event -> [Score.Event] -> DeriveT.ControlMap
+merge_controls :: Score.Event -> [Score.Event] -> ScoreT.ControlMap
 merge_controls event events = Maps.mconcat $ clip event : map clip events
     where
     clip event = fmap (Signal.clip_before (Score.event_start event)) <$>

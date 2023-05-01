@@ -184,7 +184,7 @@ make_ref :: ScoreT.Control -> RealTime -> DeriveT.ControlRef
 make_ref c deflt = DeriveT.Ref c $
     Just $ ScoreT.untyped $ Signal.constant (RealTime.to_seconds deflt)
 
-cf_swing :: (ScoreTime -> RealTime) -> Meter.Rank -> DeriveT.Function
+cf_swing :: (ScoreTime -> RealTime) -> Meter.Rank -> ScoreT.Function
     -> Mark.Marklist -> ScoreTime -> RealTime
 cf_swing to_real rank amount marks pos = case marks_around rank marks pos of
     Nothing -> 0
@@ -250,13 +250,13 @@ score = Warp.unwarp . DeriveT.dyn_warp
 
 -- ** ControlRef
 
-to_function :: DeriveT.Dynamic -> Signal.Y -> Ref -> DeriveT.Function
+to_function :: DeriveT.Dynamic -> Signal.Y -> Ref -> ScoreT.Function
 to_function cf_dyn deflt =
     maybe (const deflt) ScoreT.val_of . lookup_function cf_dyn
 
 -- | TODO duplicated with Typecheck.lookup_function except it
 -- can't be in Deriver.
-lookup_function :: DeriveT.Dynamic -> Ref -> Maybe DeriveT.TypedFunction
+lookup_function :: DeriveT.Dynamic -> Ref -> Maybe ScoreT.TypedFunction
 lookup_function _ (Right ty) = Just $ const <$> ty
 lookup_function cf_dyn (Left (DeriveT.Ref control deflt)) =
     maybe deflt_f get $ DeriveT.lookup (ScoreT.control_name control) $
@@ -265,8 +265,7 @@ lookup_function cf_dyn (Left (DeriveT.Ref control deflt)) =
     deflt_f = fmap (flip Signal.at) <$> deflt
     get = val_to_function cf_dyn
 
-val_to_function :: DeriveT.Dynamic -> DeriveT.Val
-    -> Maybe DeriveT.TypedFunction
+val_to_function :: DeriveT.Dynamic -> DeriveT.Val -> Maybe ScoreT.TypedFunction
 val_to_function cf_dyn = \case
     DeriveT.VSignal sig -> Just $ flip Signal.at <$> sig
     DeriveT.VControlRef ref -> lookup_function cf_dyn (Left ref)

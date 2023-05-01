@@ -476,7 +476,7 @@ typed_real_duration default_type from (ScoreT.Typed typ val)
     | otherwise = Derive.throw $
         "expected time type for " <> ShowVal.show_val (ScoreT.Typed typ val)
 
-real_duration_at :: DeriveT.TypedFunction -> RealTime
+real_duration_at :: ScoreT.TypedFunction -> RealTime
     -> Derive.Deriver RealTime
 real_duration_at f t = typed_real_duration ScoreT.TReal t (($ t) <$> f)
 

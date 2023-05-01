@@ -89,7 +89,7 @@ speed_to_duration (Real t) = DeriveT.RealDuration (1/t)
 -- is taken as hertz in real time, and must be >0.
 --
 -- This returns samples up to and including the end.
-real_starts :: DeriveT.Function -> RealTime -> RealTime
+real_starts :: ScoreT.Function -> RealTime -> RealTime
     -> Derive.Deriver [RealTime]
 real_starts speed_sig start end = Derive.require_right id $
     duration_starts (RealTime.seconds . (1/) . speed_sig) start end
@@ -102,7 +102,7 @@ real_starts speed_sig start end = Derive.require_right id $
 -- tempo in effect.
 --
 -- This returns samples up to and including the end.
-score_starts :: DeriveT.Function -> ScoreTime -> ScoreTime
+score_starts :: ScoreT.Function -> ScoreTime -> ScoreTime
     -> Derive.Deriver [ScoreTime]
 score_starts speed_sig start end = do
     dur_sig <- convert_score_signal speed_sig
@@ -111,7 +111,7 @@ score_starts speed_sig start end = do
 
 -- | Convert a function from RealTime to a ScoreTime duration to a function
 -- from ScoreTime to ScoreTime duration.
-convert_score_signal :: DeriveT.Function
+convert_score_signal :: ScoreT.Function
     -> Derive.Deriver (ScoreTime -> ScoreTime)
 convert_score_signal f = do
     warp <- Internal.get_warp

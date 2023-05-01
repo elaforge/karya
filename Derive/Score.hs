@@ -53,9 +53,9 @@ import qualified Data.Text as Text
 import qualified Data.Typeable as Typeable
 
 import qualified Util.CallStack as CallStack
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
-import qualified Util.Lists as Lists
 
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Controls as Controls
@@ -358,7 +358,7 @@ set_instrument score_inst inst_environ event = event
 
 -- *** control
 
-event_controls :: Event -> DeriveT.ControlMap
+event_controls :: Event -> ScoreT.ControlMap
 event_controls = get . event_environ
     where
     get (DeriveT.Environ env) = Map.fromAscList $ map (first ScoreT.Control) $
@@ -410,11 +410,11 @@ modify_signal control modify =
     modify_control control (fmap modify . fromMaybe (ScoreT.untyped mempty))
 
 modify_control :: ScoreT.Control
-    -> (Maybe DeriveT.TypedSignal -> DeriveT.TypedSignal) -> Event -> Event
+    -> (Maybe ScoreT.TypedSignal -> ScoreT.TypedSignal) -> Event -> Event
 modify_control (ScoreT.Control control) modify =
     modify_val control (DeriveT.VSignal . modify . (as_signal =<<))
 
-as_signal :: DeriveT.Val -> Maybe DeriveT.TypedSignal
+as_signal :: DeriveT.Val -> Maybe ScoreT.TypedSignal
 as_signal = \case
     DeriveT.VSignal sig -> Just sig
     _ -> Nothing

@@ -110,7 +110,7 @@ jaru_time_default = 0.15
 speed_arg :: Sig.Parser Typecheck.RealTimeFunctionT
 speed_arg = defaulted "speed" (6 :: Int) "Alternate pitches at this speed."
 
-neighbor_arg :: Sig.Parser DeriveT.Function
+neighbor_arg :: Sig.Parser ScoreT.Function
 neighbor_arg = defaulted "neighbor" (1 :: Double)
     "Alternate between 0 and this value."
 
@@ -168,7 +168,7 @@ trill_transitions even adjust bias hold speed start_end =
         }
 
 -- | Make a trill signal from a list of transition times.
-trill_from_transitions :: DeriveT.Function -> DeriveT.Function
+trill_from_transitions :: ScoreT.Function -> ScoreT.Function
     -> [RealTime] -> [(RealTime, Signal.Y)]
 trill_from_transitions val1 val2 transitions =
     [(x, sig x) | (x, sig) <- zip transitions (cycle [val1, val2])]
@@ -262,7 +262,7 @@ c_kampita_c start_dir end_dir = generator1 "kam" mempty
 
 -- | You don't think there are too many arguments, do you?
 kampita :: Maybe Trill.Direction -> Maybe Trill.Direction -> Trill.Adjust
-    -> DeriveT.Function -> Typecheck.RealTimeFunctionT -> RealTime
+    -> ScoreT.Function -> Typecheck.RealTimeFunctionT -> RealTime
     -> DeriveT.Duration -> Double -> Derive.PassedArgs a
     -> Derive.Deriver Signal.Control
 kampita start_dir end_dir adjust neighbor speed transition hold lilt args = do
@@ -274,16 +274,15 @@ kampita start_dir end_dir adjust neighbor speed transition hold lilt args = do
         =<< trill_transitions even_transitions adjust lilt hold speed
             (Args.range_or_next args)
 
-smooth_trill :: RealTime -> DeriveT.Function -> DeriveT.Function
+smooth_trill :: RealTime -> ScoreT.Function -> ScoreT.Function
     -> [RealTime] -> Derive.Deriver Signal.Control
 smooth_trill time val1 val2 transitions = do
     srate <- Call.get_srate
     return $ ControlUtil.smooth_absolute ControlUtil.Linear srate time $
         trill_from_transitions val1 val2 transitions
 
-convert_directions :: RealTime -> DeriveT.Function -> Maybe Trill.Direction
-    -> Maybe Trill.Direction
-    -> ((DeriveT.Function, DeriveT.Function), Maybe Bool)
+convert_directions :: RealTime -> ScoreT.Function -> Maybe Trill.Direction
+    -> Maybe Trill.Direction -> ((ScoreT.Function, ScoreT.Function), Maybe Bool)
 convert_directions start_t neighbor start end = (vals, even_transitions)
     where
     first = case start of

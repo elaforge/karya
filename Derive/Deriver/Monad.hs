@@ -623,7 +623,7 @@ initial_environ = DeriveT.Environ $ Map.fromAscList
     ]
 
 -- | Initial control environment.
-initial_controls :: DeriveT.ControlMap
+initial_controls :: ScoreT.ControlMap
 initial_controls = ScoreT.untyped . Signal.constant <$> initial_control_vals
 
 initial_control_vals :: Map ScoreT.Control Signal.Y

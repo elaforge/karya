@@ -35,7 +35,6 @@ import qualified Data.Set as Set
 
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
-
 import qualified Derive.Call as Call
 import qualified Derive.Call.NoteUtil as NoteUtil
 import qualified Derive.Derive as Derive
@@ -217,14 +216,14 @@ has_instrument wanted = (`Set.member` set) . Score.event_instrument
 
 -- ** unthreaded state
 
-control :: DeriveT.Function -> Stream Score.Event -> [Signal.Y]
+control :: ScoreT.Function -> Stream Score.Event -> [Signal.Y]
 control f = map (f . Score.event_start) . Stream.events_of
 
-real_time_control :: DeriveT.Function -> Stream Score.Event -> [RealTime]
+real_time_control :: ScoreT.Function -> Stream Score.Event -> [RealTime]
 real_time_control f = map RealTime.seconds . control f
 
 -- | Take a typed signal to RealTime durations.
-duration_control :: ScoreT.TimeT -> DeriveT.Function
+duration_control :: ScoreT.TimeT -> ScoreT.Function
     -> Stream Score.Event -> Derive.Deriver [RealTime]
 duration_control time_t f events = do
     let starts = map Score.event_start (Stream.events_of events)

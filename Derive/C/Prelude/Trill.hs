@@ -58,8 +58,8 @@ import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 
 import qualified Util.Doc as Doc
-import qualified Util.Num as Num
 import qualified Util.Lists as Lists
+import qualified Util.Num as Num
 
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
@@ -214,7 +214,7 @@ note_trill use_attributes neighbor config args
         --     return $ SubT.EventT x (next-x) (Call.pitched_note pitch)
 
 neighbor_to_function :: ScoreTime -> Neighbor
-    -> Derive.Deriver (DeriveT.Function, ScoreT.Control)
+    -> Derive.Deriver (ScoreT.Function, ScoreT.Control)
 neighbor_to_function _ (Left (Typecheck.DiatonicTransposeFunctionT typ f)) =
     return (f, Typecheck.transpose_control typ)
 neighbor_to_function start (Right neighbor) = do
@@ -608,7 +608,7 @@ c_sine mode = Derive.generator1 Module.prelude "sine" mempty
         return $ Signal.map_y_linear ((+(offset+sign)) . (*amp)) $
             sine srate start end speed
 
-sine :: RealTime -> RealTime -> RealTime -> DeriveT.Function -> Signal.Control
+sine :: RealTime -> RealTime -> RealTime -> ScoreT.Function -> Signal.Control
 sine srate start end freq_sig = Signal.unfoldr go (start, 0)
     where
     go (pos, phase)
@@ -668,7 +668,7 @@ instance Typecheck.ToVal Direction
 -- pitches, instead of high and low.
 data AbsoluteMode = Unison | Neighbor deriving (Bounded, Eq, Enum, Show)
 
-transition_env :: Sig.Parser DeriveT.Function
+transition_env :: Sig.Parser ScoreT.Function
 transition_env =
     Sig.environ "tr-transition" Sig.Unprefixed (0 :: Int)
     "Take this long to reach the neighbor, as a proportion of time available."
@@ -761,7 +761,7 @@ adjust_env = Sig.environ "adjust" Sig.Both Shorten
 
 -- | A signal that alternates between the base and neighbor values.
 get_trill_control :: Config -> (ScoreTime, ScoreTime)
-    -> DeriveT.Function -> Derive.Deriver [(RealTime, Signal.Y)]
+    -> ScoreT.Function -> Derive.Deriver [(RealTime, Signal.Y)]
 get_trill_control config (start, end) neighbor = do
     real_start <- Derive.real start
     let neighbor_low = neighbor real_start < 0
@@ -774,7 +774,7 @@ get_trill_control config (start, end) neighbor = do
 
 -- | Like 'get_trill_control', but for a curved trill.
 get_trill_control_smooth :: Config
-    -> ControlUtil.Curve -> (ScoreTime, ScoreTime) -> DeriveT.Function
+    -> ControlUtil.Curve -> (ScoreTime, ScoreTime) -> ScoreT.Function
     -> Derive.Deriver Signal.Control
 get_trill_control_smooth config curve range neighbor = do
     transpose <- get_trill_control
@@ -822,7 +822,7 @@ convert_direction neighbor_low start end = (first, even_transitions)
         Just High -> Just first_low
 
 -- | Turn transition times into a trill control.
-smooth_trill :: DeriveT.Function -- ^ time to take make the transition,
+smooth_trill :: ScoreT.Function -- ^ time to take make the transition,
     -- where 0 is instant and 1 is all available time
     -> ControlUtil.Curve
     -> [(RealTime, Signal.Y)]
@@ -883,7 +883,7 @@ add_bias bias (t:ts)
 
 -- | Make a trill signal from a list of transition times.  It will alternate
 -- between values from the given Functions.
-trill_from_transitions :: DeriveT.Function -> DeriveT.Function
+trill_from_transitions :: ScoreT.Function -> ScoreT.Function
     -> RealTime -> [RealTime] -> [(RealTime, Signal.Y)]
 trill_from_transitions val1 val2 start transitions =
     initial ++ [(x, sig x) | (x, sig) <- zip transitions (cycle [val1, val2])]
@@ -902,7 +902,7 @@ trill_transitions range include_end (Typecheck.RealTimeFunctionT ttype speed) =
         ScoreT.TReal -> real_transitions range include_end speed
         ScoreT.TScore -> score_transitions range include_end speed
 
-real_transitions :: (ScoreTime, ScoreTime) -> Bool -> DeriveT.Function
+real_transitions :: (ScoreTime, ScoreTime) -> Bool -> ScoreT.Function
     -> Derive.Deriver [RealTime]
 real_transitions (start, end) include_end speed = do
     start <- Derive.real start
@@ -910,7 +910,7 @@ real_transitions (start, end) include_end speed = do
     full_cycles RealTime.eta end include_end <$>
         Speed.real_starts speed start end
 
-score_transitions :: (ScoreTime, ScoreTime) -> Bool -> DeriveT.Function
+score_transitions :: (ScoreTime, ScoreTime) -> Bool -> ScoreT.Function
     -> Derive.Deriver [RealTime]
 score_transitions (start, end) include_end speed = do
     all_transitions <- Speed.score_starts speed start end

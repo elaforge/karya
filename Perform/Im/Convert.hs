@@ -11,7 +11,6 @@ import qualified Data.Vector as Vector
 
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
-
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Env as Env
@@ -137,7 +136,7 @@ convert_signal :: Perform.Signal.Signal a -> Signal.Signal
 convert_signal = Perform.Signal.coerce
 
 -- TODO trim controls?
-convert_controls :: Map Control.Control a -> DeriveT.ControlMap
+convert_controls :: Map Control.Control a -> ScoreT.ControlMap
     -> Map Control.Control Signal.Signal
 convert_controls supported controls = Map.fromList
     [ (to_control c, convert_signal sig)

@@ -9,7 +9,6 @@ import qualified Data.Map as Map
 
 import qualified Util.Lists as Lists
 import qualified Util.Num as Num
-
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call as Call
@@ -24,7 +23,6 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
-import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Library as Library
@@ -113,13 +111,13 @@ c_stopped_string = Derive.transformer module_ "stopped-string"
 data Config = Config {
     _open_strings :: Map Pitch.NoteNumber StringUtil.String
     -- | (curve, time)
-    , _attack_curve :: (PitchUtil.Interpolate, DeriveT.TypedFunction)
-    , _release_curve :: (PitchUtil.Interpolate, DeriveT.TypedFunction)
-    , _release_delay :: DeriveT.TypedFunction
+    , _attack_curve :: (PitchUtil.Interpolate, ScoreT.TypedFunction)
+    , _release_curve :: (PitchUtil.Interpolate, ScoreT.TypedFunction)
+    , _release_delay :: ScoreT.TypedFunction
     }
 
-make_config :: DeriveT.TypedFunction -> DeriveT.TypedFunction
-    -> DeriveT.TypedFunction -> [StringUtil.String] -> Derive.Deriver Config
+make_config :: ScoreT.TypedFunction -> ScoreT.TypedFunction
+    -> ScoreT.TypedFunction -> [StringUtil.String] -> Derive.Deriver Config
 make_config attack_dur release_delay release_dur open_strings = do
     srate <- Call.get_srate
     let linear = PitchUtil.segment srate ControlUtil.Linear
@@ -249,7 +247,7 @@ c_mute_end = Derive.transformer module_ "mute-end"
     string_of :: Score.Event -> Maybe Text
     string_of = Env.maybe_val EnvKey.string . Score.event_environ
 
-mute_end :: (RealTime -> RealTime) -> DeriveT.Function -> RealTime
+mute_end :: (RealTime -> RealTime) -> ScoreT.Function -> RealTime
     -> (Score.Event, [Score.Event]) -> [Score.Event]
 mute_end dur_at dyn_at threshold (event, nexts)
     | should_mute = event

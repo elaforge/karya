@@ -605,7 +605,7 @@ c_nkampita doc kam_args end_dir = generator1 "nkam" mempty
 
 resolve_pitches :: KampitaArgs
     -> (Typecheck.NnTransposeFunctionT, Typecheck.NnTransposeFunctionT)
-    -> Derive.Deriver ((DeriveT.Function, DeriveT.Function), ScoreT.Control)
+    -> Derive.Deriver ((ScoreT.Function, ScoreT.Function), ScoreT.Control)
 resolve_pitches kam_args
         ( Typecheck.NnTransposeFunctionT ttype1 pitch1
         , Typecheck.NnTransposeFunctionT ttype2 pitch2) = do
@@ -660,7 +660,7 @@ kampita start args control transpose = do
 
 -- | You don't think there are too many arguments, do you?
 kampita_transpose :: ControlUtil.Curve -> Maybe Bool -> Trill.Adjust
-    -> (DeriveT.Function, DeriveT.Function) -> Typecheck.RealTimeFunctionT
+    -> (ScoreT.Function, ScoreT.Function) -> Typecheck.RealTimeFunctionT
     -> RealTime -> DeriveT.Duration -> Double -> (ScoreTime, ScoreTime)
     -> Derive.Deriver Signal.Control
 kampita_transpose curve even adjust (pitch1, pitch2) speed transition hold lilt
@@ -669,15 +669,15 @@ kampita_transpose curve even adjust (pitch1, pitch2) speed transition hold lilt
     smooth_trill curve (-transition) pitch1 pitch2
         =<< trill_transitions even adjust lilt hold speed (start, end)
 
-smooth_trill :: ControlUtil.Curve -> RealTime -> DeriveT.Function
-    -> DeriveT.Function -> [RealTime] -> Derive.Deriver Signal.Control
+smooth_trill :: ControlUtil.Curve -> RealTime -> ScoreT.Function
+    -> ScoreT.Function -> [RealTime] -> Derive.Deriver Signal.Control
 smooth_trill curve time val1 val2 transitions = do
     srate <- Call.get_srate
     return $ ControlUtil.smooth_absolute curve srate time $
         trill_from_transitions val1 val2 transitions
 
 -- | Make a trill signal from a list of transition times.
-trill_from_transitions :: DeriveT.Function -> DeriveT.Function
+trill_from_transitions :: ScoreT.Function -> ScoreT.Function
     -> [RealTime] -> [(RealTime, Signal.Y)]
 trill_from_transitions val1 val2 transitions =
     [(x, sig x) | (x, sig) <- zip transitions (cycle [val1, val2])]
@@ -702,7 +702,7 @@ trill_transitions even adjust bias hold speed start_end =
         , _include_end = True
         }
 
-end_wants_even_transitions :: RealTime -> (DeriveT.Function, DeriveT.Function)
+end_wants_even_transitions :: RealTime -> (ScoreT.Function, ScoreT.Function)
     -> Maybe Trill.Direction -> Maybe Bool
 end_wants_even_transitions start (pitch1, pitch2) dir = case dir of
     Nothing -> Nothing

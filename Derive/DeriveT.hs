@@ -71,11 +71,9 @@ module Derive.DeriveT (
     -- ** call utils
     , map_str
 
-    -- * Derive.Score
-    -- ** ControlMap
-    , ControlMap, PitchMap
-    , FunctionMap, Function, PitchFunction
-    , TypedFunction, TypedSignal
+    -- * type aliases
+    , PitchMap
+    , PitchFunction
 
     -- * ControlFunction
     , CFunction(..)
@@ -719,7 +717,7 @@ quoted0 sym = quoted sym []
 
 -- * Ref
 
-type ControlRef = Ref ScoreT.Control TypedSignal
+type ControlRef = Ref ScoreT.Control ScoreT.TypedSignal
 type PControlRef = Ref ScoreT.PControl PSignal
 
 data Ref control val = Ref control (Maybe val)
@@ -808,19 +806,10 @@ map_str f = call
     term (Expr.Literal (VStr str)) = Expr.Literal (VStr (f str))
     term (Expr.Literal lit) = Expr.Literal lit
 
--- * Derive.Score
+-- * type aliases
 
--- ** ControlMap
-
-type ControlMap = Map ScoreT.Control TypedSignal
 type PitchMap = Map ScoreT.PControl PSignal
-
-type FunctionMap = Map ScoreT.Control TypedFunction
-type Function = RealTime -> Signal.Y
 type PitchFunction = RealTime -> Maybe Pitch
-
-type TypedFunction = ScoreT.Typed (RealTime -> Signal.Y)
-type TypedSignal = ScoreT.Typed Signal.Control
 
 -- * ControlFunction
 
@@ -860,7 +849,7 @@ data CFunction = CFunction {
     -- TODO I thought of making it the expression that created this, for
     -- serialization, but not implemented yet.
     cf_name :: !Text
-    , cf_signal :: !TypedSignal
+    , cf_signal :: !ScoreT.TypedSignal
     {- | This is modifying an underlying signal.
 
         The function may be created before the signal it modifies, e.g.
@@ -876,7 +865,7 @@ data CFunction = CFunction {
 -- | A simple pure function.
 data PFunction = PFunction {
     pf_name :: !Text
-    , pf_function :: !TypedFunction
+    , pf_function :: !ScoreT.TypedFunction
     }
 
 instance Show PFunction where show = prettys
@@ -893,7 +882,7 @@ instance Pretty CFunction where
 instance ShowVal.ShowVal CFunction where
     show_val = cf_name
 
-call_cfunction :: Dynamic -> CFunction -> TypedFunction
+call_cfunction :: Dynamic -> CFunction -> ScoreT.TypedFunction
 call_cfunction cf_dyn cf = ScoreT.Typed typ (cf_function cf cf_dyn signal)
     where ScoreT.Typed typ signal = cf_signal cf
 
@@ -937,7 +926,7 @@ empty_dynamic = Dynamic
     Problems to solve:
     - Unify signal and env namespaces.
     - Unify Val and RVal.  Make Val serializable.
-    - Make so calls can coerce to TypedFunction.
+    - Make so calls can coerce to ScoreT.TypedFunction.
     - Unify ControlFunction with ValCall.
       . Why though?  Can't it be its own thing?
 

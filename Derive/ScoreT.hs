@@ -4,15 +4,52 @@
 
 {-# OPTIONS_HADDOCK not-home #-}
 -- | Low-dependency basic types for derivation.
-module Derive.ScoreT where
+module Derive.ScoreT (
+    -- * Instrument
+    Instrument(..)
+    , instrument_name
+    , empty_instrument
+
+    -- * Control
+    , Control(..)
+    , control_name
+    , control, unchecked_control
+
+    -- * PControl
+    , PControl(..)
+    , pcontrol_name
+    , default_pitch
+    , pcontrol, unchecked_pcontrol
+    , parse_generic_control
+
+    -- * Type
+    , Type(..)
+    , all_types
+    , type_to_code, code_to_type
+    , TimeT(..), TransposeT(..), Duration(..)
+    , time_t, transpose_t, duration
+    , Typed(..)
+    , merge_typed
+    , untyped
+    , type_to_transpose
+
+    -- * type aliases
+    , ControlValMap
+    , TypedControlValMap
+    , ControlMap
+    , FunctionMap
+    , Function
+    , TypedFunction
+    , TypedSignal
+) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Hashable as Hashable
 import qualified Data.Map as Map
 import qualified Data.String as String
 import qualified Data.Text as Text
 
-import qualified Util.Pretty as Pretty
 import qualified Util.Lists as Lists
+import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
 
 import qualified Derive.ShowVal as ShowVal
@@ -24,6 +61,7 @@ import qualified Ui.Id as Id
 import qualified Ui.ScoreTime as ScoreTime
 
 import           Global
+import           Types
 
 
 -- | An Instrument is identified by a plain string.  This will be looked up in
@@ -47,7 +85,7 @@ instance Pretty Instrument where pretty = ShowVal.show_val
 instance ShowVal.ShowVal Instrument where
     show_val (Instrument inst) = ShowVal.show_val inst
 
--- ** Control
+-- * Control
 
 -- | A control is an abstract parameter that influences derivation.  Some of
 -- them affect performance and will be rendered as MIDI controls or note
@@ -75,7 +113,7 @@ control name
 unchecked_control :: Text -> Control
 unchecked_control = Control
 
--- ** PControl
+-- * PControl
 
 -- | The pitch control version of 'Control'.  Unlike Control, this is allowed
 -- to be null, which is the name of the default pitch signal.
@@ -124,7 +162,7 @@ parse_generic_control name = case Text.uncons name of
     _ -> Left <$> control name
 
 
--- ** Type
+-- * Type
 
 -- | Tag for the type of the values in a control signal.
 -- Untyped goes last because the parser tries them in order.
@@ -134,6 +172,26 @@ data Type = Chromatic | Diatonic | Nn | Score | Real | Untyped
 all_types :: [Type]
 all_types = [minBound ..]
 
+type_to_code :: Type -> Text
+type_to_code = \case
+    Untyped -> ""
+    Chromatic -> "c"
+    Diatonic -> "d"
+    Nn -> "nn"
+    Score -> Text.singleton ScoreTime.suffix -- t for time
+    Real -> Text.singleton RealTime.suffix -- s for seconds
+
+code_to_type :: Text -> Maybe Type
+code_to_type = (`Map.lookup` enum_map)
+    where enum_map = Map.fromList $ Lists.keyOn ShowVal.show_val [minBound ..]
+
+instance Semigroup Type where
+    Untyped <> typed = typed
+    typed <> _ = typed
+instance Monoid Type where
+    mempty = Untyped
+    mappend = (<>)
+
 instance Pretty Type where pretty = showt
 
 instance Serialize.Serialize Type where
@@ -142,8 +200,6 @@ instance Serialize.Serialize Type where
 
 instance ShowVal.ShowVal Type where
     show_val = type_to_code
-
--- **
 
 -- This feels clumsy.
 -- What I want to express is subtyping.
@@ -214,28 +270,6 @@ category = \case
     Untyped -> TUntyped
 -}
 
--- **
-
-type_to_code :: Type -> Text
-type_to_code = \case
-    Untyped -> ""
-    Chromatic -> "c"
-    Diatonic -> "d"
-    Nn -> "nn"
-    Score -> Text.singleton ScoreTime.suffix -- t for time
-    Real -> Text.singleton RealTime.suffix -- s for seconds
-
-code_to_type :: Text -> Maybe Type
-code_to_type = (`Map.lookup` enum_map)
-    where enum_map = Map.fromList $ Lists.keyOn ShowVal.show_val [minBound ..]
-
-instance Semigroup Type where
-    Untyped <> typed = typed
-    typed <> _ = typed
-instance Monoid Type where
-    mempty = Untyped
-    mappend = (<>)
-
 data Typed a = Typed {
     type_of :: !Type
     , val_of :: !a
@@ -275,7 +309,8 @@ type_to_transpose (Typed typ val) = case typ of
     Nn -> Just $ Pitch.Nn val
     _ -> Nothing
 
--- * ControlMap
+
+-- * type aliases
 
 instance ShowVal.ShowVal (Typed Signal.Y) where
     show_val (Typed typ val) = ShowVal.show_val val <> type_to_code typ
@@ -285,3 +320,10 @@ instance ShowVal.ShowVal (Typed Signal.Y) where
 -- be transpositions, and hence untyped.
 type ControlValMap = Map Control Signal.Y
 type TypedControlValMap = Map Control (Typed Signal.Y)
+
+type ControlMap = Map Control TypedSignal
+type FunctionMap = Map Control TypedFunction
+type Function = RealTime -> Signal.Y
+
+type TypedFunction = Typed (RealTime -> Signal.Y)
+type TypedSignal = Typed Signal.Control

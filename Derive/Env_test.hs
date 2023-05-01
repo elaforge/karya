@@ -103,7 +103,7 @@ put_env :: Typecheck.ToVal val => EnvKey.Key -> val
     -> Either Text (Map EnvKey.Key DeriveT.Val)
 put_env key val = fmap Env.to_map . Env.put_val key val . Env.from_list
 
-make_cf :: Text -> DeriveT.TypedSignal -> DeriveT.Val
+make_cf :: Text -> ScoreT.TypedSignal -> DeriveT.Val
 make_cf name sig = DeriveT.VCFunction $ DeriveT.CFunction
     { cf_name = name
     , cf_signal = sig

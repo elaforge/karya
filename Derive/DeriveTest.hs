@@ -677,7 +677,7 @@ e_controls :: Score.Event -> [(ScoreT.Control, [(Signal.X, Signal.Y)])]
 e_controls = map (second (Signal.to_pairs . ScoreT.val_of)) . Map.toList
     . Score.event_controls
 
-lookup_control :: ScoreT.Control -> Derive.Dynamic -> Maybe DeriveT.TypedSignal
+lookup_control :: ScoreT.Control -> Derive.Dynamic -> Maybe ScoreT.TypedSignal
 lookup_control (ScoreT.Control c) =
     to_signal <=< Env.lookup c . Derive.state_environ
     where
@@ -919,11 +919,11 @@ mkevent_scale_key scale key (start, dur, pitch, controls, inst) =
 psignal :: [(RealTime, Text)] -> PSignal.PSignal
 psignal = PSignal.from_pairs . map (second mkpitch12)
 
-mkcontrols :: Controls -> DeriveT.ControlMap
+mkcontrols :: Controls -> ScoreT.ControlMap
 mkcontrols cs = Map.fromList
     [(c, ScoreT.untyped (Signal.from_pairs sig)) | (c, sig) <- cs]
 
-mkcontrols_const :: ControlVals -> DeriveT.ControlMap
+mkcontrols_const :: ControlVals -> ScoreT.ControlMap
 mkcontrols_const cs = mkcontrols [(c, [(0, val)]) | (c, val) <- cs]
 
 mkpitch12 :: Text -> PSignal.Pitch

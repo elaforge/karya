@@ -98,9 +98,9 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 import qualified Util.Doc as Doc
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Maps as Maps
-import qualified Util.Lists as Lists
 
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
@@ -606,10 +606,10 @@ lookup_instrument inst = do
 lookup_signal :: ScoreT.Control -> Deriver (Maybe (ScoreT.Typed Signal.Control))
 lookup_signal = Typecheck.lookup_signal
 
-lookup_function :: ScoreT.Control -> Deriver (Maybe DeriveT.TypedFunction)
+lookup_function :: ScoreT.Control -> Deriver (Maybe ScoreT.TypedFunction)
 lookup_function = Typecheck.lookup_function . flip DeriveT.Ref Nothing
 
-get_function :: ScoreT.Control -> Deriver DeriveT.TypedFunction
+get_function :: ScoreT.Control -> Deriver ScoreT.TypedFunction
 get_function = Typecheck.resolve_function . flip DeriveT.Ref Nothing
 
 -- | Get the control value at the given time.
@@ -627,7 +627,7 @@ is_control_set = is_val_set . ScoreT.control_name
 
 -- TODO for notes, to get just signals, no cfs.  Keeping with function / signal
 -- naming, should be get_signals and SignalMap?
-get_control_map :: Deriver DeriveT.ControlMap
+get_control_map :: Deriver ScoreT.ControlMap
 get_control_map =
     fmap Map.fromList $ mapMaybeM convert . Env.to_list =<< Internal.get_environ
     where
@@ -638,7 +638,7 @@ get_control_map =
         Just (Left dsig) -> Just <$> dsig
 
 -- | Like 'get_function', but get them all.
-get_function_map :: Deriver DeriveT.FunctionMap
+get_function_map :: Deriver ScoreT.FunctionMap
 get_function_map = do
     cf_dyn <- Internal.get_control_function_dynamic
     let to_function val = case Typecheck.val_to_function_dyn cf_dyn val of
@@ -660,7 +660,7 @@ typed_controls_at pos = fmap (fmap ($ pos)) <$> get_function_map
 -- | Get all signals in the environ.  This is like 'get_control_map', but
 -- doesn't resolve ControlRefs.
 -- TODO remove it, only used by LPerf and Derive_test
-state_signals :: Dynamic -> DeriveT.ControlMap
+state_signals :: Dynamic -> ScoreT.ControlMap
 state_signals =
     Map.mapKeys ScoreT.Control . Map.mapMaybe is_signal
         . Env.to_map . state_environ
@@ -672,7 +672,7 @@ state_signals =
 -- TODO remove it, only used by LPerf
 -- maybe generalize 'get_function_map' to take cf_dyn and environ
 state_functions :: Dynamic -> Ruler.Marklists -> Stack.Serial
-    -> DeriveT.FunctionMap
+    -> ScoreT.FunctionMap
 state_functions dyn mlists serial = Map.fromList
     [ (ScoreT.Control name, f)
     | (name, val) <- Env.to_list env
@@ -682,7 +682,7 @@ state_functions dyn mlists serial = Map.fromList
     cf_dyn = Internal.convert_dynamic mlists dyn serial
     env = state_environ dyn
     val_to_function_dyn :: DeriveT.Dynamic -> DeriveT.Val
-        -> Maybe DeriveT.TypedFunction
+        -> Maybe ScoreT.TypedFunction
     val_to_function_dyn dyn val =
         case Typecheck.val_to_function_dyn dyn val of
             Just (Right f) -> Just f
@@ -738,7 +738,7 @@ with_merged_control merger control signal =
 -- | This is not just 'with_control', because I have to merge a control signal
 -- into a possible ControlFunction.
 modify_signal :: ScoreT.Control
-    -> (Maybe DeriveT.TypedSignal -> DeriveT.TypedSignal) -> Deriver a
+    -> (Maybe ScoreT.TypedSignal -> ScoreT.TypedSignal) -> Deriver a
     -> Deriver a
 modify_signal (ScoreT.Control control) modify = Internal.localm $ \state -> do
     val <- require_right ((control <> ": ")<>) $
