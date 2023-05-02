@@ -7030,7 +7030,7 @@ Derive:
       / Midi.Event?  No there is no env.
       - Synth.Shared.Note?  It doesn't have environ, just controls, but it
         wants signals, at the least have to make sure scalars get coerced.
-      - remove checked ScoreT.control stuff?
+      * remove checked ScoreT.control stuff?
         . I think the purpose was to check control titles, but I can just do
           that in ParseTitle.
       * rename ScoreT.Typed typed_val to type_of: { type_of, val_of }

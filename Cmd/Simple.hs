@@ -270,4 +270,4 @@ load_exact_perf_event lookup_patch (inst, start, dur, controls, pitch,
 control_map :: [(Text, [(RealTime, Signal.Y)])]
     -> Map ScoreT.Control MSignal.Signal
 control_map kvs = Map.fromList
-    [(ScoreT.unchecked_control k, MSignal.from_pairs vs) | (k, vs) <- kvs]
+    [(ScoreT.Control k, MSignal.from_pairs vs) | (k, vs) <- kvs]

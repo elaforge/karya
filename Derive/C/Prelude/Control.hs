@@ -162,7 +162,7 @@ set_absolute val pos = do
         Derive.throw $ "merge not set for " <> pretty control
     set (Just control) (Just merge) =
         maybe (return val) (Derive.require_right id . invert_merge merge val)
-            =<< Derive.untyped_control_at (ScoreT.unchecked_control control) pos
+            =<< Derive.untyped_control_at (ScoreT.Control control) pos
 
 -- | Figure out what value to emit which, once merged with the signal in scope,
 -- will become the given absolute value.  TODO this is kind of a crazy hack and

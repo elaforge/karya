@@ -239,7 +239,7 @@ vl1_patch name elt1 maybe_elt2 =
     cmap = Map.toList $ Map.mapMaybe highest_prio $
         Map.unionsWith (++) (map Map.fromList cc_groups)
     highest_prio cs = List.find (`elem` cs)
-        (map (ScoreT.unchecked_control . fst) vl1_control_map)
+        (map (ScoreT.Control . fst) vl1_control_map)
 
 extract_element :: Int -> Sysex.RMap -> Either String ElementInfo
 extract_element n rmap = do
@@ -271,7 +271,7 @@ extract_element n rmap = do
         [(cc, map snd grp) | (cc, grp) <- Lists.keyedGroupSort fst by_cc]
         where
         by_cc =
-            [ (cc, ScoreT.unchecked_control name)
+            [ (cc, ScoreT.Control name)
             | (name, cc, depths) <- controls, valid_control cc
             , maximum (map abs depths) >= 32
             ]

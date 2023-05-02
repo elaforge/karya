@@ -89,7 +89,7 @@ convert fname def = do
         }
     where
     controls = Map.fromList
-        [ (ScoreT.unchecked_control (Texts.toText name), Note.ControlId ix)
+        [ (ScoreT.Control (Texts.toText name), Note.ControlId ix)
         | Literally.ParamName name ix <- Literally._synthDefParamNames def
         ]
 

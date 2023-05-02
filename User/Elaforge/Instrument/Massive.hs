@@ -15,7 +15,7 @@ synth = MidiInst.synth "massive" "Native Instrument Massive" $
     MidiInst.synth_controls controls patches
     where
     controls = (1, "macro1") :
-        [ (18 + n, ScoreT.unchecked_control $ "macro" <> showt n)
+        [ (18 + n, ScoreT.Control $ "macro" <> showt n)
         | n <- [2..8]
         ]
 

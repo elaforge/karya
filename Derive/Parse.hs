@@ -370,7 +370,7 @@ p_attributes = A.char '+'
 p_control_ref :: A.Parser DeriveT.ControlRef
 p_control_ref = do
     A.char '%'
-    control <- ScoreT.unchecked_control <$> A.option "" (p_identifier False ",")
+    control <- ScoreT.Control <$> A.option "" (p_identifier False ",")
     deflt <- ParseText.optional (A.char ',' >> p_num)
     return $ DeriveT.Ref control (fmap Signal.constant <$> deflt)
     <?> "control"
@@ -382,7 +382,7 @@ p_pcontrol_ref = DeriveT.Ref <$> p_pcontrol <*> pure Nothing
     where
     p_pcontrol = do
         A.char '#'
-        ScoreT.unchecked_pcontrol <$> p_identifier True ""
+        ScoreT.PControl <$> p_identifier True ""
         <?> "pitch control"
 
 p_quoted :: A.Parser DeriveT.Quoted
@@ -418,6 +418,8 @@ p_identifier null_ok until = do
     -- TODO attoparsec docs say it's faster to do the check manually, profile
     -- and see if it makes a difference.
     ident <- (if null_ok then A.takeWhile else A.takeWhile1)
+        -- A.notInClass was buggy in old versions of attoparsec, and got
+        -- turned into just an IntSet.
         -- (A.notInClass (until ++ " \n\t|=)")) -- buggy?
         (\c -> not $ c `elem` until || c == ' ' || c == '\n' || c == '\t'
             || c == '|' || c == '=' || c == ')')

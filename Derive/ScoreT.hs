@@ -13,13 +13,13 @@ module Derive.ScoreT (
     -- * Control
     , Control(..)
     , control_name
-    , control, unchecked_control
+    , checked_control
 
     -- * PControl
     , PControl(..)
     , pcontrol_name
     , default_pitch
-    , pcontrol, unchecked_pcontrol
+    , checked_pcontrol
     , parse_generic_control
 
     -- * Type
@@ -104,14 +104,11 @@ control_name (Control name) = name
 
 -- | Use this constructor when making a Control from user input.  Literals
 -- can use the IsString instance.
-control :: Text -> Either Text Control
-control name
+checked_control :: Text -> Either Text Control
+checked_control name
     | Text.null name = Left "empty control name"
     | Id.valid_symbol name = Right $ Control name
     | otherwise = Left $ "invalid characters in control: " <> showt name
-
-unchecked_control :: Text -> Control
-unchecked_control = Control
 
 -- * PControl
 
@@ -146,20 +143,17 @@ instance ShowVal.ShowVal PControl where
 
 -- | Use this constructor when making a PControl from user input.  Literals
 -- can use the IsString instance.
-pcontrol :: Text -> Either Text PControl
-pcontrol name
+checked_pcontrol :: Text -> Either Text PControl
+checked_pcontrol name
     | Text.null name || Id.valid_symbol name = Right $ PControl name
     | otherwise = Left $ "invalid characters in pitch control: " <> showt name
-
-unchecked_pcontrol :: Text -> PControl
-unchecked_pcontrol = PControl
 
 -- | Parse either a Control or PControl.
 parse_generic_control :: Text
     -> Either Text (Either Control PControl)
 parse_generic_control name = case Text.uncons name of
-    Just ('#', rest) -> Right <$> pcontrol rest
-    _ -> Left <$> control name
+    Just ('#', rest) -> Right <$> checked_pcontrol rest
+    _ -> Left <$> checked_control name
 
 
 -- * Type

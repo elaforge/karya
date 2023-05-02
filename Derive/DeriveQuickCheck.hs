@@ -178,7 +178,7 @@ update_state samples pos state = (foldl' go state pre, post)
     go state (Sample name _ val)
         | name == "*" = state { state_pitch = parse_pitch val }
         | otherwise = state
-            { state_controls = Map.insert (ScoreT.unchecked_control name)
+            { state_controls = Map.insert (ScoreT.Control name)
                 (parse_control val) (state_controls state)
             }
 

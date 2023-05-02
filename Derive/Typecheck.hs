@@ -665,7 +665,7 @@ instance ToVal Text where to_val = VStr . Expr.Str
 
 instance Typecheck ScoreT.Control where
     from_val (VStr (Expr.Str s)) =
-        Val $ either (const Failure) Success (ScoreT.control s)
+        Val $ either (const Failure) Success (ScoreT.checked_control s)
     from_val _ = failure
     to_type _ = ValType.TControl
 instance ToVal ScoreT.Control where
@@ -673,7 +673,7 @@ instance ToVal ScoreT.Control where
 
 instance Typecheck ScoreT.PControl where
     from_val (VStr (Expr.Str s)) =
-        Val $ either (const Failure) Success (ScoreT.pcontrol s)
+        Val $ either (const Failure) Success (ScoreT.checked_pcontrol s)
     from_val _ = failure
     to_type _ = ValType.TPControl
 instance ToVal ScoreT.PControl where

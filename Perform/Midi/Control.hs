@@ -94,7 +94,7 @@ pb_from_nn pb_range key (Pitch.NoteNumber nn)
 -- these names if it wishes.
 universal_control_map :: ControlMap
 universal_control_map = control_map $
-    [(n, ScoreT.unchecked_control $ "cc" <> showt n) | n <- [0..127]] ++
+    [(n, ScoreT.Control $ "cc" <> showt n) | n <- [0..127]] ++
     [ (1, "mod")
     , (2, "breath")
     , (4, "foot")

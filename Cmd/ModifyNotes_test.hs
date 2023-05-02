@@ -203,7 +203,7 @@ mkcontrols = Map.fromList . map mk
         where
         control = case Text.uncons name of
             Just ('*', s) -> ModifyNotes.Pitch (Pitch.ScaleId s)
-            _ -> ModifyNotes.Control (ScoreT.unchecked_control name)
+            _ -> ModifyNotes.Control (ScoreT.Control name)
 
 mkstate :: [UiTest.TrackSpec] -> [Skeleton.Edge] -> Ui.State
 mkstate tracks skel = UiTest.exec Ui.empty $ do

@@ -119,15 +119,15 @@ p_control :: A.Parser ControlType
 p_control = Control
     <$> (lexeme $ A.choice
         [ Left <$> p_track_call
-        , A.char '%'
-            *> pure (Right $ ScoreT.untyped $ ScoreT.unchecked_control "")
-        , Right <$> p_typed_control
+        , Right <$> (A.char '%' *> pure empty <|> p_typed_control)
         ])
     <*> ParseText.optional (lexeme p_merge)
+    where
+    empty = ScoreT.untyped $ ScoreT.Control ""
 
 p_typed_control :: A.Parser (ScoreT.Typed ScoreT.Control)
-p_typed_control = (flip ScoreT.Typed)
-    <$> (ScoreT.unchecked_control <$> Parse.p_identifier False ":")
+p_typed_control = flip ScoreT.Typed
+    <$> (ScoreT.Control <$> Parse.p_identifier False ":")
     <*> A.option ScoreT.Untyped p_type_annotation
 
 p_type_annotation :: A.Parser ScoreT.Type

@@ -263,8 +263,7 @@ key_to_pitch = maybe "?" Pitch.note_text . Twelve.show_nn . Midi.from_key
 -- dependency.
 cc_to_control :: Midi.Control -> ScoreT.Control
 cc_to_control cc =
-    fromMaybe (ScoreT.unchecked_control ("cc" <> showt cc))
-        (Map.lookup cc cc_control)
+    fromMaybe (ScoreT.Control ("cc" <> showt cc)) (Map.lookup cc cc_control)
     where
     cc_control = Maps.invert Control.universal_control_map
 
