@@ -28,7 +28,7 @@ module Derive.ScoreT (
     , type_to_code, code_to_type
     , TimeT(..), TransposeT(..), Duration(..)
     , time_t, transpose_t, duration
-    , Typed(..)
+    , Typed(..), type_of, val_of
     , merge_typed
     , untyped
     , type_to_transpose
@@ -264,10 +264,15 @@ category = \case
     Untyped -> TUntyped
 -}
 
-data Typed a = Typed {
-    type_of :: !Type
-    , val_of :: !a
-    } deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+data Typed a = Typed !Type !a
+    deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+    -- Not record syntax so Show is more concise.
+
+type_of :: Typed a -> Type
+type_of (Typed typ _) = typ
+
+val_of :: Typed a -> a
+val_of (Typed _ a) = a
 
 instance DeepSeq.NFData a => DeepSeq.NFData (Typed a) where
     rnf (Typed typ val) = typ `seq` DeepSeq.rnf val
