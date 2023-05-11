@@ -96,7 +96,7 @@ distinguish between the two.
 So there are two complementary extensions:
 
 - Slicing: this slices the block horizontally along the boundaries of the
-notes in the note track.  Since I don't want to slice everytihng, only
+notes in the note track.  Since I don't want to slice everything, only
 the tracks *below* the note track are sliced.  Of course, up until now there
 isn't any meaning assigned to the children of a note track, so another
 extension is needed:

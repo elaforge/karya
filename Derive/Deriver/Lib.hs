@@ -42,7 +42,6 @@ module Derive.Deriver.Lib (
     , is_control_set
     , get_control_map
     , get_function_map
-    , state_signals, state_functions -- TODO remove junk
     , control_at, untyped_control_at, controls_at
     , modify_signals
 
@@ -125,7 +124,6 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
 import qualified Ui.Event as Event
-import qualified Ui.Ruler as Ruler
 import qualified Ui.Track as Track
 import qualified Ui.Ui as Ui
 
@@ -657,37 +655,6 @@ controls_at = fmap (fmap ScoreT.val_of) . typed_controls_at
 typed_controls_at :: RealTime -> Deriver ScoreT.TypedControlValMap
 typed_controls_at pos = fmap (fmap ($ pos)) <$> get_function_map
 
--- | Get all signals in the environ.  This is like 'get_control_map', but
--- doesn't resolve ControlRefs.
--- TODO remove it, only used by LPerf and Derive_test
-state_signals :: Dynamic -> ScoreT.ControlMap
-state_signals =
-    Map.mapKeys ScoreT.Control . Map.mapMaybe is_signal
-        . Env.to_map . state_environ
-    where
-    is_signal val = case Typecheck.val_to_signal val of
-        Just (Right sig) -> Just sig
-        _ -> Nothing
-
--- TODO remove it, only used by LPerf
--- maybe generalize 'get_function_map' to take cf_dyn and environ
-state_functions :: Dynamic -> Ruler.Marklists -> Stack.Serial
-    -> ScoreT.FunctionMap
-state_functions dyn mlists serial = Map.fromList
-    [ (ScoreT.Control name, f)
-    | (name, val) <- Env.to_list env
-    , Just f <- [val_to_function_dyn cf_dyn val]
-    ]
-    where
-    cf_dyn = Internal.convert_dynamic mlists dyn serial
-    env = state_environ dyn
-    val_to_function_dyn :: DeriveT.Dynamic -> DeriveT.Val
-        -> Maybe ScoreT.TypedFunction
-    val_to_function_dyn dyn val =
-        case Typecheck.val_to_function_dyn dyn val of
-            Just (Right f) -> Just f
-            _ -> Nothing
-
 -- *** control signal
 
 with_control :: ScoreT.Control -> ScoreT.Typed Signal.Control -> Deriver a
@@ -702,19 +669,6 @@ with_controls :: [(ScoreT.Control, ScoreT.Typed Signal.Control)] -> Deriver a
     -> Deriver a
 with_controls controls =
     with_vals_raw (map (first ScoreT.control_name) controls)
-
--- TODO replace doesn't make so much sense with unify-env
--- | Like 'with_controls', but delete all other signals at the same time.
--- A signal is anything that can be coerced into one via
--- 'Typecheck.val_to_signal'.  Does not do anything with ControlFunctions!
--- replace_controls :: [(ScoreT.Control, ScoreT.Typed Signal.Control)]
---     -> Deriver a -> Deriver a
--- replace_controls controls = Internal.local $ \state ->
---     state { state_environ = replace (state_environ state) }
---     where
---     replace = Env.from_map . (Map.fromList converted <>)
---         . Map.filter (Either.isRight . Typecheck.val_to_signal) . Env.to_map
---     converted = map (bimap ScoreT.control_name Typecheck.to_val) controls
 
 -- | Remove both controls and control functions.  Use this when a control has
 -- already been applied, and you don't want it to affect further derivation.

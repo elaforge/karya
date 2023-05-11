@@ -91,10 +91,10 @@ derive_at_exc :: Cmd.M m => BlockId -> TrackId
     -> Derive.Deriver a -> m (Either Derive.Error a, [Log.Msg])
 derive_at_exc block_id track_id deriver = do
     ui_state <- Ui.get
-    (_constant, aliases) <- PlayUtil.get_constant ui_state mempty mempty
+    (constant, aliases) <- PlayUtil.get_constant ui_state mempty mempty
     dynamic <- fromMaybe (PlayUtil.initial_dynamic aliases) <$>
         find_dynamic (block_id, Just track_id)
-    (val, _, logs) <- PlayUtil.run_with_dynamic dynamic deriver
+    let (val, _, logs) = PlayUtil.run_with_constant constant dynamic deriver
     return (val, logs)
 
 -- | This is like 'derive_at_exc', except with the minimal dependencies
@@ -106,7 +106,8 @@ mini_derive :: Ui.State -- ^ for instrument allocations and because derivers
     -> Derive.Deriver a -> (Either Derive.Error a, [Log.Msg])
 mini_derive ui_state cmd_config builtins aliases deriver = (val, logs)
     where
-    (val, _, logs) = PlayUtil.run_with_constant aliases constant deriver
+    (val, _, logs) = PlayUtil.run_with_constant constant
+        (PlayUtil.initial_dynamic aliases) deriver
     constant = PlayUtil.initial_constant ui_state cmd_config builtins
         mempty mempty
 

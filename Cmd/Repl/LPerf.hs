@@ -55,7 +55,6 @@ import qualified Perform.Transport as Transport
 import qualified Synth.Shared.Config as Shared.Config
 import qualified Synth.Shared.Note as Shared.Note
 import qualified Ui.Id as Id
-import qualified Ui.Ruler as Ruler
 import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
 
@@ -85,30 +84,27 @@ environ = Perf.lookup_environ =<< Selection.track
 
 -- | Controls in scope at the insert point.
 controls :: Cmd.M m => Source -> m ScoreT.ControlMap
-controls source = Derive.state_signals <$> dynamic source
+controls source = do
+    dyn <- dynamic source
+    PlayUtil.eval_with_dynamic dyn Derive.get_control_map
 
 -- | The control vals at the insertion point, taking the control functions into
 -- account.
 control_vals :: Cmd.M m => Source -> m ScoreT.ControlValMap
 control_vals source = do
-    (block_id, tracknum, _, _) <- Selection.get_insert
-    ruler_id <- fromMaybe Ui.no_ruler <$>
-        Ui.ruler_track_at block_id tracknum
-    mlists <- Ruler.ruler_marklists <$> Ui.get_ruler ruler_id
     dyn <- dynamic source
     pos <- get_realtime source
-    -- I can't get 'Derive.state_event_serial' back, so the randomization will
-    -- likely be different.
-    let serial = 0
-    let fs = Derive.state_functions dyn mlists serial
-    return $ ($ pos) . ScoreT.val_of <$> fs
+    -- Dynamic doesn't record 'Derive.state_event_serial', so the randomization
+    -- will likely be different.
+    PlayUtil.eval_with_dynamic dyn (Derive.controls_at pos)
 
 -- | Like 'control_vals', but without control functions.
 raw_control_vals :: Cmd.M m => Source -> m ScoreT.TypedControlValMap
 raw_control_vals source = do
     dyn <- dynamic source
     pos <- get_realtime source
-    return $ fmap (fmap (Signal.at pos)) (Derive.state_signals dyn)
+    cmap <- PlayUtil.eval_with_dynamic dyn Derive.get_control_map
+    return $ fmap (fmap (Signal.at pos)) cmap
 
 aliases :: Cmd.M m => m (Map ScoreT.Instrument ScoreT.Instrument)
 aliases = Derive.state_instrument_aliases <$> dynamic Root

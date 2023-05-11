@@ -453,7 +453,7 @@ test_shift_controls = do
             DeriveTest.run Ui.empty (set_controls >> op get)
             where
             get = do
-                conts <- Internal.get_dynamic Derive.state_signals
+                conts <- Derive.get_control_map
                 psig <- Internal.get_dynamic Derive.state_pitch
                 return (conts, psig)
             extract (conts, pitch) =

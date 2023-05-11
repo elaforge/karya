@@ -5688,6 +5688,10 @@ fltk:
         . No support for fonts?
       https://github.com/ocornut/imgui
         . Has backends for to vulkan, metal, opengl.
+    use opengl / vulkan / metal directly:
+      . https://learnopengl.com/
+      . https://vkguide.dev/
+      . https://github.com/SaschaWillems/Vulkan-Samples
   ? Will using GPU rendering be harder on battery life?
   no callbacks:
     . I'll probably want complete data in c++ regardless, so I could do that
@@ -7007,14 +7011,18 @@ Derive:
           resolve_signal returns a TypedSignal anyway, I'd have to make
           a constant.
       * remove DeriveT.Ref ControlSignal
-      - remove Lib state_signals, state_functions
+      - rename ScoreT.ControlMap to SignalMap?  Consistency with FunctionMap.
+      * remove Lib state_signals, state_functions
+        They are from Dynamic because LPerf does that.
+        Ultimately the standard ones are in Deriver because lookup ControlRef.
+        Maybe LPerf can do a Derive.eval instead?
       * ControlValMap in ScoreT but ControlMap in DeriveT
         . Except PitchFunction and PitchMap need Pitch, which is in DeriveT.
         . So move ControlMap to DeriveT?
         . Except I want to move in the fewer deps direction...
       remove deprecated stuff:
         - Typecheck deprecated
-        - Lib.lookup_pitch_signal
+        / Lib.lookup_pitch_signal
         - I think Val.c_control and c_pcontrol are not necessary, because I'm
           still using ControlRef.
       - PSignal.at and Signal.at should go (vector, index) to match Map Vector

@@ -7,7 +7,8 @@
 module Cmd.PlayUtil (
     initial_environ
     , cached_derive, uncached_derive
-    , derive_block, run, run_with_dynamic, run_with_constant
+    , derive_block, run
+    , eval_with_dynamic, run_with_constant
     , is_score_damage_log
     , get_constant, initial_constant, initial_dynamic
     -- * perform
@@ -104,6 +105,13 @@ run cache damage deriver = do
     (constant, aliases) <- get_constant ui_state cache damage
     return $ Derive.derive constant (initial_dynamic aliases) deriver
 
+-- | 'run_with_dynamic' but extract just the value.
+eval_with_dynamic :: Cmd.M m => Derive.Dynamic -> Derive.Deriver a -> m a
+eval_with_dynamic dynamic deriver = do
+    (err_a, _, logs) <- run_with_dynamic dynamic deriver
+    mapM_ Log.write logs
+    Cmd.require_right pretty err_a
+
 -- | Run a derivation when you already know the Dynamic.  This is the case when
 -- deriving at a certain point in the score via the TrackDynamic.
 run_with_dynamic :: Cmd.M m => Derive.Dynamic -> Derive.Deriver a
@@ -112,21 +120,15 @@ run_with_dynamic dynamic deriver = do
     ui_state <- Ui.get
     -- Trust they already put the ky aliases in.
     (constant, _aliases) <- get_constant ui_state mempty mempty
-    let state = Derive.State
-            { state_threaded = Derive.initial_threaded
-            , state_dynamic = dynamic
-            , state_collect = mempty
-            , state_constant = constant
-            }
-    return $ Derive.run state deriver
+    return $ run_with_constant constant dynamic deriver
 
-run_with_constant :: Derive.InstrumentAliases -> Derive.Constant
+run_with_constant :: Derive.Constant -> Derive.Dynamic
     -> Derive.Deriver a -> Derive.RunResult a
-run_with_constant aliases constant = Derive.run state
+run_with_constant constant dynamic = Derive.run state
     where
     state = Derive.State
         { state_threaded = Derive.initial_threaded
-        , state_dynamic = initial_dynamic aliases
+        , state_dynamic = dynamic
         , state_collect = mempty
         , state_constant = constant
         }
@@ -140,16 +142,19 @@ get_constant ui_state cache damage = do
     (builtins, aliases) <- case Cmd.state_ky_cache cmd_state of
         Nothing -> return (mempty, mempty)
         Just ky_cache -> Cmd.require_right id $ ky_builtins ky_cache
-    return (initial_constant ui_state (Cmd.state_config cmd_state)
-        builtins cache damage, aliases)
+    return
+        ( initial_constant ui_state (Cmd.state_config cmd_state)
+            builtins cache damage
+        , aliases
+        )
 
 initial_constant :: Ui.State -> Cmd.Config -> Derive.Builtins -> Derive.Cache
     -> Derive.ScoreDamage -> Derive.Constant
-initial_constant ui_state cmd_config builtins cache damage = constant
-    where
-    constant = Derive.initial_constant ui_state
+initial_constant ui_state cmd_config builtins cache damage =
+    Derive.initial_constant ui_state
         (builtins <> config_builtins) Cmd.lookup_scale
         (fmap Cmd.make_derive_instrument . lookup_inst) cache damage
+    where
     lookup_inst = Cmd.memoized_instrument
         (UiConfig.config_allocations (Ui.state_config ui_state))
         (Cmd.config_instrument_db cmd_config)
