@@ -227,14 +227,14 @@ with_ptr sig = Segment.with_ptr (_signal sig)
 null :: Signal kind -> Bool
 null = Segment.null . _signal
 
-at :: X -> Signal kind -> Y
-at x = fromMaybe 0 . at_maybe x
+at :: Signal kind -> X -> Y
+at sig = fromMaybe 0 . at_maybe sig
 
-at_maybe :: X -> Signal kind -> Maybe Y
-at_maybe x = Segment.at Segment.num_interpolate x . _signal
+at_maybe :: Signal kind -> X -> Maybe Y
+at_maybe = Segment.at Segment.num_interpolate . _signal
 
-segment_at :: X -> Signal kind -> Maybe (Segment.Segment Y)
-segment_at x = Segment.segment_at x . _signal
+segment_at :: Signal kind -> X -> Maybe (Segment.Segment Y)
+segment_at = Segment.segment_at . _signal
 
 head, last :: Signal kind -> Maybe (X, Y)
 head = Segment.head . _signal

@@ -805,11 +805,11 @@ with_control_mods mods end deriver = foldr ($) deriver (map apply mods)
 -- the transposition signals so they don't get applied again at performance
 -- conversion.
 pitch_at :: RealTime -> Deriver (Maybe PSignal.Pitch)
-pitch_at pos = PSignal.at pos <$> get_pitch
+pitch_at pos = (`PSignal.at` pos) <$> get_pitch
 
 -- | Like 'pitch_at', this is a raw pitch.
 named_pitch_at :: ScoreT.PControl -> RealTime -> Deriver (Maybe PSignal.Pitch)
-named_pitch_at name pos = PSignal.at pos <$> get_pitch_signal name
+named_pitch_at name pos = (`PSignal.at` pos) <$> get_pitch_signal name
 
 -- | Resolve the raw pitch returned from 'pitch_at' to the final transposed
 -- pitch.

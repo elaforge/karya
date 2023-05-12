@@ -97,7 +97,7 @@ resampleBy config ratios audio = Audio.Audio $ do
         SampleRateC.delete
     -- Debug.tracepM "RESAMPLE: now, ratios" (_now config, ratios)
     liftIO $ case (_state config) of
-        Nothing -> SampleRateC.setRatio state $ Signal.at 0 ratios
+        Nothing -> SampleRateC.setRatio state $ Signal.at ratios 0
         Just saved -> do
             ok <- SampleRateC.putState (_quality config) state saved
             unless ok $
@@ -111,10 +111,10 @@ resampleBy config ratios audio = Audio.Audio $ do
     -- I also keep track of the previous segment to detect discontinuities.
     -- Use frame -1 for the initial prevSegment.  If I happen to be starting on
     -- a discontinuity, I need to do a setRatio.
-    let initialState = (0, segmentAt rate (toSeconds (-1)) ratios)
+    let initialState = (0, segmentAt rate ratios (toSeconds (-1)))
     Control.loop2 initialState (0, Audio._stream audio, [], align) $
         \loop (framesRead, prevSegment) (now, audio, collect, blockLeft) -> do
-            let segment = segmentAt rate (toSeconds now) ratios
+            let segment = segmentAt rate ratios (toSeconds now)
             result <- resampleBlock chan rate state now blockLeft prevSegment
                 segment audio
             case result of
@@ -168,13 +168,13 @@ resampleBy config ratios audio = Audio.Audio $ do
 
 type Segment = Segment.Segment Signal.Y
 
-segmentAt :: Audio.Rate -> RealTime -> Signal.Control -> Segment
-segmentAt rate x0 ratios = case Signal.segment_at x0 ratios of
+segmentAt :: Audio.Rate -> Signal.Control -> RealTime -> Segment
+segmentAt rate ratios x0 = case Signal.segment_at ratios x0 of
     Just segment
         -- If the difference is less than a sample, I don't want it, because
         -- resampleBlock will then give 0 input samples, which will loop
         -- forever.
-        | Segment._x2 segment - eta < x0 -> segmentAt rate (x0+eta) ratios
+        | Segment._x2 segment - eta < x0 -> segmentAt rate ratios (x0+eta)
         | otherwise -> segment
     Nothing
         | Just (x, y) <- Signal.last ratios, x0 >= x ->

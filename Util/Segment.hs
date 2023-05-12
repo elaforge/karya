@@ -296,8 +296,8 @@ null = V.null . _vector
 
 -- | The arguments may seem backwards, but I've always done it this way, and it
 -- seems to be more convenient in practice.
-at :: V.Vector v (Sample y) => Interpolate y -> X -> SignalS v y -> Maybe y
-at interpolate x_ (Signal offset vec)
+at :: V.Vector v (Sample y) => Interpolate y -> SignalS v y -> X -> Maybe y
+at interpolate (Signal offset vec) x_
     | i < 0 = Nothing
     | i + 1 == V.length vec = Just (sy (V.unsafeIndex vec i))
     | otherwise =
@@ -308,18 +308,18 @@ at interpolate x_ (Signal offset vec)
 
 -- | Like 'at', but if the x matches a discontinuity, take the value before
 -- instead of after.
-at_negative :: V.Vector v (Sample y) => Interpolate y -> X -> SignalS v y
+at_negative :: V.Vector v (Sample y) => Interpolate y -> SignalS v y -> X
     -> Maybe y
-at_negative interpolate x signal = do
-    Segment x1 y1 x2 y2 <- segment_at_orientation Types.Negative x signal
+at_negative interpolate signal x = do
+    Segment x1 y1 x2 y2 <- segment_at_orientation Types.Negative signal x
     return $ interpolate (Sample x1 y1) (Sample x2 y2) x
 
-segment_at :: V.Vector v (Sample y) => X -> SignalS v y -> Maybe (Segment y)
-segment_at  = segment_at_orientation Types.Positive
+segment_at :: V.Vector v (Sample y) => SignalS v y -> X -> Maybe (Segment y)
+segment_at = segment_at_orientation Types.Positive
 
-segment_at_orientation :: V.Vector v (Sample y) => Types.Orientation -> X
-    -> SignalS v y -> Maybe (Segment y)
-segment_at_orientation orient x (Signal offset vec) =
+segment_at_orientation :: V.Vector v (Sample y) => Types.Orientation
+    -> SignalS v y -> X -> Maybe (Segment y)
+segment_at_orientation orient (Signal offset vec) x =
     bump . snd <$> segment_at_v orient (x - offset) vec
     where bump (Segment x1 y1 x2 y2) = Segment (x1+offset) y1 (x2+offset) y2
 
@@ -452,7 +452,7 @@ clip_after_v interpolate x vec
     | otherwise = case TimeVector.last clipped of
         Nothing -> V.empty
         Just (Sample x2 _)
-            | x < x2, Just y <- at interpolate x (from_vector vec) ->
+            | x < x2, Just y <- at interpolate (from_vector vec) x ->
                 V.snoc (V.take (V.length clipped - 1) clipped) (Sample x y)
             | otherwise -> clipped
     where clipped = drop_after_v x vec
@@ -491,7 +491,7 @@ clip_before :: V.Vector v (Sample y) => Interpolate y -> X -> SignalS v y
 clip_before interpolate x sig = case head clipped of
     Nothing -> empty
     Just (x1, _)
-        | x1 < x, Just y <- at interpolate x sig ->
+        | x1 < x, Just y <- at interpolate sig x ->
             from_vector $ V.cons (Sample x y) (V.drop 1 (to_vector clipped))
         | otherwise -> clipped
     where clipped = drop_before x sig
@@ -502,7 +502,7 @@ clip_before_samples :: V.Vector v (Sample y) => Interpolate y -> X
 clip_before_samples interpolate x sig = case head clipped of
     Nothing -> []
     Just (x1, _)
-        | x1 < x, Just y <- at interpolate x sig ->
+        | x1 < x, Just y <- at interpolate sig x ->
             Sample x y : to_samples (modify_vector (V.drop 1) clipped)
         | otherwise -> to_samples clipped
 

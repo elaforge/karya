@@ -93,7 +93,7 @@ next_val event start ttype = case ttype of
     Just ParseTitle.TempoTrack -> eval_control start event
     Just ParseTitle.PitchTrack -> do
         signal <- eval event
-        case PSignal.at start signal of
+        case PSignal.at signal start of
             Nothing -> Derive.throw "next pitch event didn't emit a pitch"
             Just pitch -> return $ DeriveT.VPitch pitch
     Just ParseTitle.NoteTrack ->
@@ -102,7 +102,7 @@ next_val event start ttype = case ttype of
     where
     eval_control start event = do
         signal <- eval event
-        return $ DeriveT.num $ Signal.at start (signal :: Signal.Control)
+        return $ DeriveT.num $ Signal.at (signal :: Signal.Control) start
     eval event = mconcat . Stream.events_of <$>
         (either Derive.throw return =<< Eval.eval_event event)
 
@@ -113,10 +113,10 @@ c_prev_val = val_call "prev-val" Tags.prev
         start <- Args.real_start args
         case Args.prev_val args of
             Just (Derive.TagControl sig) ->
-                return $ DeriveT.num $ Signal.at start sig
+                return $ DeriveT.num $ Signal.at sig start
             Just (Derive.TagPitch sig) ->
                 maybe (Derive.throw "no previous pitch")
-                    (return . DeriveT.VPitch) (PSignal.at start sig)
+                    (return . DeriveT.VPitch) (PSignal.at sig start)
             _ -> Derive.throw "no previous value"
 
 c_next_event :: Derive.ValCall

@@ -62,7 +62,7 @@ convertNote :: Guitar.Instrument -> Note.Note -> Either Error Note
 convertNote inst note = first ((pretty note <> ": ")<>) $ do
     let get c = tryJust ("no " <> pretty c) $ Map.lookup c (Note.controls note)
     let getStart c = tryJust ("no value: " <> pretty c)
-            . Signal.at_maybe (Note.start note) =<< get c
+            . flip Signal.at_maybe (Note.start note) =<< get c
     pitch <- get Control.pitch
     finger <- get Patch.c_finger
     dyn <- getStart Control.dynamic
@@ -88,7 +88,7 @@ muteNote :: RealTime.RealTime -> Note -> Note
 muteNote start note = note
     { _start = start
     , _pitch = Signal.constant $
-        Signal.at (_start note) (_pitch note) + Pitch.nn_to_double muteOffset
+        Signal.at (_pitch note) (_start note) + Pitch.nn_to_double muteOffset
     , _finger = Signal.constant 0.01
     , _dynamic = 0
     , _location = 0
@@ -197,8 +197,8 @@ fingerMovement string notes pitch fingerWeight =
             then 0 else weightAt t * maxAmp
         )
         where stringNn = Guitar.sNn string
-    weightAt t = Signal.at t fingerWeight
-    pitchAt t = Signal.at t pitch
+    weightAt = Signal.at fingerWeight
+    pitchAt = Signal.at pitch
     -- Time before the note to move the finger.
     prepare = 0.05
 

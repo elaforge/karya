@@ -185,14 +185,14 @@ get_neighbor_pitches_above :: RealTime -> Derive.Deriver
     (Maybe PSignal.Pitch, Maybe PSignal.Pitch, Maybe PSignal.Pitch)
 get_neighbor_pitches_above start = do
     pitch <- Derive.get_pitch
-    let prev = PSignal.at_negative start pitch
+    let prev = PSignal.at_negative pitch start
     let next = snd <$> next_sample start pitch
     return (prev, next, prev)
 
 next_sample :: RealTime -> PSignal.PSignal -> Maybe (RealTime, PSignal.Pitch)
 next_sample x pitch = do
-    Segment.Segment _ _ x2 _ <- PSignal.segment_at x pitch
-    (x2,) <$> PSignal.at x2 pitch
+    Segment.Segment _ _ x2 _ <- PSignal.segment_at pitch x
+    (x2,) <$> PSignal.at pitch x2
 
 get_prev_pitch :: RealTime -> Derive.Deriver (Maybe PSignal.Pitch)
 get_prev_pitch = Args.prev_note_pitch
@@ -220,7 +220,7 @@ get_prev_pitch = Args.prev_note_pitch
 --     -- corresponding gamakam on this one.
 
 before :: RealTime -> PSignal.PSignal -> Maybe (RealTime, PSignal.Pitch)
-before x sig = case PSignal.segment_at x sig of
+before x sig = case PSignal.segment_at sig x of
     Just (Segment.Segment x y _ _) -> Just (x, y)
     Nothing -> Nothing
 

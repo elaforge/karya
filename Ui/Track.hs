@@ -162,7 +162,7 @@ instance DeepSeq.NFData TrackSignal where
     rnf (TrackSignal sig _ _) = DeepSeq.rnf sig
 
 signal_at :: ScoreTime -> TrackSignal -> Signal.Y
-signal_at x (TrackSignal sig shift stretch) = Signal.at warped sig
+signal_at x (TrackSignal sig shift stretch) = Signal.at sig warped
     where warped = RealTime.from_score $ x * stretch + shift
 
 -- * waveform

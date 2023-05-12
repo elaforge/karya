@@ -156,7 +156,7 @@ velToDyn = (/127) . fromIntegral
 
 dynEnvelope :: Signal.Y -> RealTime.RealTime -> Note.Note -> Signal.Signal
 dynEnvelope minDyn releaseTime note =
-    env <> Signal.from_pairs [(end, Signal.at end env), (end + releaseTime, 0)]
+    env <> Signal.from_pairs [(end, Signal.at env end), (end + releaseTime, 0)]
     where
     end = Note.end note
     env = Signal.scalar_scale minDyn $

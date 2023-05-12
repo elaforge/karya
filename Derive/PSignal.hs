@@ -148,14 +148,14 @@ unfoldr gen state = PSignal $ Segment.unfoldr gen state
 null :: PSignal -> Bool
 null = Segment.null . _signal
 
-at :: RealTime -> PSignal -> Maybe Pitch
-at x = Segment.at interpolate x . _signal
+at :: PSignal -> RealTime -> Maybe Pitch
+at = Segment.at interpolate . _signal
 
-at_negative :: RealTime -> PSignal -> Maybe Pitch
-at_negative x = Segment.at_negative interpolate x . _signal
+at_negative :: PSignal -> RealTime -> Maybe Pitch
+at_negative = Segment.at_negative interpolate . _signal
 
-segment_at :: RealTime -> PSignal -> Maybe (Segment.Segment Pitch)
-segment_at x = Segment.segment_at x . _signal
+segment_at :: PSignal -> RealTime -> Maybe (Segment.Segment Pitch)
+segment_at = Segment.segment_at . _signal
 
 head, last :: PSignal -> Maybe (RealTime, Pitch)
 head = Segment.head . _signal
@@ -244,7 +244,7 @@ unzip_controls psig cmap =
 
 -- | Not exported, use the one in Derive.Score instead.
 controls_at :: RealTime -> ControlMap -> Map ScoreT.Control Signal.Y
-controls_at t = Map.map (Signal.at t . ScoreT.val_of)
+controls_at t = Map.map ((`Signal.at` t) . ScoreT.val_of)
 
 -- | 'apply_controls' specialized for a single control.
 apply_control :: ScoreT.Control -> ScoreT.Typed Signal.Control

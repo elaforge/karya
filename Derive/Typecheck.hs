@@ -384,7 +384,7 @@ instance Typecheck PSignal.PSignal where
     to_type _ = ValType.TPSignal
 
 instance Typecheck DeriveT.PitchFunction where
-    from_val = fmap (flip PSignal.at) . coerce_to_pitch_signal
+    from_val = fmap PSignal.at . coerce_to_pitch_signal
     to_type _ = ValType.TPSignal
 
 -- Returning Duration is convenient for Derive.real or Derive.score, e.g.
@@ -812,7 +812,7 @@ coerce_to_function check val = case val_to_function val of
 val_to_function :: Val
     -> Maybe (Either (Derive.Deriver ScoreT.TypedFunction) ScoreT.TypedFunction)
 val_to_function = \case
-    VSignal sig -> Just $ Right $ flip Signal.at <$> sig
+    VSignal sig -> Just $ Right $ Signal.at <$> sig
     VControlRef ref -> Just $ Left $ resolve_function ref
     VCFunction cf -> Just $ Left $ do
         cf_dyn <- Internal.get_control_function_dynamic
@@ -830,7 +830,7 @@ val_to_function = \case
 val_to_function_dyn :: DeriveT.Dynamic -> Val
     -> Maybe (Either (Derive.Deriver ScoreT.TypedFunction) ScoreT.TypedFunction)
 val_to_function_dyn cf_dyn = \case
-    VSignal sig -> Just $ Right $ flip Signal.at <$> sig
+    VSignal sig -> Just $ Right $ Signal.at <$> sig
     -- TODO propagate cf_dyn through
     VControlRef ref -> Just $ Left $ resolve_function ref
     VCFunction cf -> Just $ Right $ DeriveT.call_cfunction cf_dyn cf
@@ -848,7 +848,7 @@ lookup_function (DeriveT.Ref control deflt) = do
     maybe (return deflt_f) get . DeriveT.lookup (ScoreT.control_name control)
         =<< Internal.get_environ
     where
-    deflt_f = fmap (flip Signal.at) <$> deflt
+    deflt_f = fmap Signal.at <$> deflt
     get :: Val -> Derive.Deriver (Maybe ScoreT.TypedFunction)
     get val = case val_to_function val of
         Nothing -> return Nothing
@@ -909,9 +909,9 @@ coerce_to_pitch = \case
     val -> case val_to_pitch_signal val of
         Nothing -> failure
         Just (Left dsig) -> Eval $ \pos ->
-            fmap Just . require pos . (PSignal.at pos) =<< dsig
+            fmap Just . require pos . (`PSignal.at` pos) =<< dsig
         Just (Right sig) -> Eval $ \pos ->
-            Just <$> require pos (PSignal.at pos sig)
+            Just <$> require pos (PSignal.at sig pos)
         where
         require pos = Derive.require $
             "no pitch at " <> pretty pos <> " for " <> ShowVal.show_val val

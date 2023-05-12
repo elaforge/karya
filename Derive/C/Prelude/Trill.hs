@@ -526,7 +526,7 @@ xcut_pitch :: Bool -> PSignal.PSignal -> PSignal.PSignal -> [RealTime]
 xcut_pitch hold val1 val2 = mconcat . map slice . zip (cycle [val1, val2])
     where
     slice (val, t)
-        | hold = maybe mempty (PSignal.from_sample t) (PSignal.at t val)
+        | hold = maybe mempty (PSignal.from_sample t) (PSignal.at val t)
         | otherwise = PSignal.clip_before t val
 
 
@@ -638,7 +638,7 @@ xcut_control :: Bool -> Signal.Control -> Signal.Control -> [RealTime]
 xcut_control hold val1 val2 = mconcat . map slice . zip (cycle [val1, val2])
     where
     slice (val, t)
-        | hold = Signal.from_sample t (Signal.at t val)
+        | hold = Signal.from_sample t (Signal.at val t)
         | otherwise = Signal.clip_before t val
 
 -- * util

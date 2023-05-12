@@ -150,7 +150,7 @@ relative_scale_degree scale named_intervals initial_interval =
         start <- Args.real_start args
         Derive.require "relative interval requires a previous pitch" $ do
             Derive.TagPitch prev <- Args.prev_val args
-            Pitches.modify_hz scale (*interval) <$> PSignal.at start prev
+            Pitches.modify_hz scale (*interval) <$> PSignal.at prev start
 
 resolve_intervals :: NamedIntervals -> [Either Pitch.Hz Text]
     -> Derive.Deriver Pitch.Hz

@@ -119,14 +119,14 @@ get_neighbor_pitches :: RealTime -> Derive.Deriver
     (Maybe PSignal.Pitch, Maybe PSignal.Pitch, Maybe PSignal.Pitch)
 get_neighbor_pitches start = do
     pitch <- Derive.get_pitch
-    let prev = PSignal.at_negative start pitch
+    let prev = PSignal.at_negative pitch start
     let next = snd <$> next_sample start pitch
     return (prev, next, prev)
 
 next_sample :: RealTime -> PSignal.PSignal -> Maybe (RealTime, PSignal.Pitch)
 next_sample x pitch = do
-    Segment.Segment _ _ x2 _ <- PSignal.segment_at x pitch
-    (x2,) <$> PSignal.at x2 pitch
+    Segment.Segment _ _ x2 _ <- PSignal.segment_at pitch x
+    (x2,) <$> PSignal.at pitch x2
 
 -- * pitch sequence
 

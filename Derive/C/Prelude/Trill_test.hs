@@ -373,7 +373,7 @@ test_moving_trill = do
 test_real_trill :: Test
 test_real_trill = do
     let f neighbor speed = Trill.get_trill_control (config speed) (0, 1)
-            (`Signal.at` neighbor)
+            (Signal.at neighbor)
         config speed = Trill.Config
             { _start_dir = Nothing
             , _end_dir = Nothing
@@ -401,7 +401,7 @@ test_real_trill = do
 test_score_trill :: Test
 test_score_trill = do
     let f dur neighbor speed = Trill.get_trill_control (config speed) (0, dur)
-                (`Signal.at` neighbor)
+                (Signal.at neighbor)
         config speed = Trill.Config
             { _start_dir = Nothing
             , _end_dir = Nothing
@@ -423,7 +423,7 @@ test_score_trill = do
         Right [(0, 0), (1, 1)]
 
 mkfun :: ScoreT.TimeT -> Signal.Control -> Typecheck.RealTimeFunctionT
-mkfun typ sig = Typecheck.RealTimeFunctionT typ (`Signal.at` sig)
+mkfun typ sig = Typecheck.RealTimeFunctionT typ (Signal.at sig)
 
 test_xcut_pitch :: Test
 test_xcut_pitch = do

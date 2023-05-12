@@ -30,7 +30,7 @@ import           Util.Test
 
 test_at :: Test
 test_at = do
-    let f x = fmap show_pitch . PSignal.at x
+    let f x = fmap show_pitch . (`PSignal.at` x)
     equal (f 0 (PSignal.constant (twelve "4c"))) (Just ("60nn", "4c"))
     equal (show_pitch $ Pitches.transpose_c 7 (twelve "4c"))
         ("67nn", "4g")

@@ -240,9 +240,9 @@ dumpSamples db notes = do
             ["time", "sample", "env"] : map (fmt . snd) sampleNotes
     where
     fmt note =
-        [ RealTime.show_units (AUtil.toSeconds (Sample.start note))
-        , txt (sampleName (Sample.filename sample))
-        , pretty (Signal.at start (Sample.envelope sample))
+        [ RealTime.show_units $ AUtil.toSeconds (Sample.start note)
+        , txt $ sampleName (Sample.filename sample)
+        , pretty $ Signal.at (Sample.envelope sample) start
         ]
         where
         start = AUtil.toSeconds (Sample.start note)

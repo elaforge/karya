@@ -107,7 +107,7 @@ prev_val = Derive.ctx_prev_val . context
 
 prev_note_pitch :: RealTime -> Derive.Deriver (Maybe PSignal.Pitch)
 prev_note_pitch start = justm prev_note $
-    return . PSignal.at_negative start . Score.event_pitch
+    return . (`PSignal.at_negative` start) . Score.event_pitch
 
 -- | Get the previous note.  Unlike 'prev_val', this always gets the previous
 -- Score.Event, even if you're evaluating a control track under the note track.
@@ -166,7 +166,7 @@ lookup_pitch_at pos = justm (Internal.get_dynamic Derive.state_pitch_map) $
         mapM_ (Log.write . Log.add_prefix ("lookup_pitch_at " <> pretty pos)) $
             filter ((>=Log.Warn) . Log.msg_priority) logs
         -- PSignal is actually in TrackTime, see 'Derive.state_pitch_map'.
-        return $ PSignal.at (RealTime.from_score pos) =<< maybe_sig
+        return $ flip PSignal.at (RealTime.from_score pos) =<< maybe_sig
 
 -- | Like 'lookup_pitch_at', except for parsed pitches.  Normally you'd pass
 -- 'Derive.Call.get_pitch_functions' to make a 'Pitch.Pitch'.
@@ -213,7 +213,7 @@ eval_next_pitch = maybe (return Nothing) eval_pitch . Lists.head . next_events
 eval_pitch :: Event.Event -> Derive.Deriver (Maybe PSignal.Pitch)
 eval_pitch event = justm (to_maybe <$> Eval.eval_event event) $ \stream -> do
     start <- Derive.real (Event.start event)
-    return $ PSignal.at start $ mconcat $ Stream.events_of stream
+    return $ PSignal.at (mconcat $ Stream.events_of stream) start
     where to_maybe = either (const Nothing) Just
 
 -- * event timing

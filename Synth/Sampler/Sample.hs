@@ -192,7 +192,7 @@ toThru :: FilePath -> Sample -> Thru.Play
 toThru sampleDir sample = Thru.Play
     { _sample = Config.unsafeSamplerRoot </> sampleDir </> filename sample
     , _offset = fromIntegral $ offset sample
-    , _ratio = Signal.at start $ ratios sample
-    , _volume = Signal.at start $ envelope sample
+    , _ratio = Signal.at (ratios sample) start
+    , _volume = Signal.at (envelope sample) start
     }
     where start = 0

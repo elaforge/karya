@@ -104,7 +104,7 @@ raw_control_vals source = do
     dyn <- dynamic source
     pos <- get_realtime source
     cmap <- PlayUtil.eval_with_dynamic dyn Derive.get_control_map
-    return $ fmap (fmap (Signal.at pos)) cmap
+    return $ fmap (fmap (`Signal.at` pos)) cmap
 
 aliases :: Cmd.M m => m (Map ScoreT.Instrument ScoreT.Instrument)
 aliases = Derive.state_instrument_aliases <$> dynamic Root

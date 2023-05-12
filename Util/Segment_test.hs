@@ -103,35 +103,35 @@ test_prepend = do
 
 test_segment_at :: Test
 test_segment_at = do
-    let f x = Segment.segment_at_orientation Types.Positive x . from_pairs
-    equal (f 0 []) Nothing
-    equal (f 0 [(1, 1)]) Nothing
-    equal (f 1 [(1, 1)]) $ Just (Segment 1 1 large 1)
-    equal (f 2 [(1, 1)]) $ Just (Segment 1 1 large 1)
-    equal (f 2 [(1, 1), (2, 2), (3, 3)]) $ Just (Segment 2 2 3 3)
-    equal (f 2 [(1, 1), (3, 3)]) $ Just (Segment 1 1 3 3)
+    let f sig = Segment.segment_at_orientation Types.Positive (from_pairs sig)
+    equal (f [] 0) Nothing
+    equal (f [(1, 1)] 0) Nothing
+    equal (f [(1, 1)] 1) $ Just (Segment 1 1 large 1)
+    equal (f [(1, 1)] 2) $ Just (Segment 1 1 large 1)
+    equal (f [(1, 1), (2, 2), (3, 3)] 2) $ Just (Segment 2 2 3 3)
+    equal (f [(1, 1), (3, 3)] 2) $ Just (Segment 1 1 3 3)
     -- Positive bias.
-    equal (f 2 [(0, 0), (2, 0), (2, 2)]) $ Just (Segment 2 2 large 2)
+    equal (f [(0, 0), (2, 0), (2, 2)] 2) $ Just (Segment 2 2 large 2)
     -- Shift.
-    equal (Segment.segment_at 4 $
-            Segment.shift 3 (from_pairs [(0, 0), (2, 2)])) $
+    equal (Segment.segment_at
+            (Segment.shift 3 (from_pairs [(0, 0), (2, 2)])) 4) $
         Just (Segment 3 0 5 2)
 
 test_segment_at_negative :: Test
 test_segment_at_negative = do
-    let f x = Segment.segment_at_orientation Types.Negative x . from_pairs
-    equal (f 0 []) Nothing
-    equal (f 0 [(1, 1)]) Nothing
-    equal (f 1 [(1, 1)]) $ Just (Segment 1 1 large 1)
-    equal (f 2 [(1, 1)]) $ Just (Segment 1 1 large 1)
-    equal (f 2 [(1, 1), (2, 2), (3, 3)]) $ Just (Segment 1 1 2 2)
-    equal (f 2 [(1, 1), (3, 3)]) $ Just (Segment 1 1 3 3)
+    let f sig = Segment.segment_at_orientation Types.Negative (from_pairs sig)
+    equal (f [] 0) Nothing
+    equal (f [(1, 1)] 0) Nothing
+    equal (f [(1, 1)] 1) $ Just (Segment 1 1 large 1)
+    equal (f [(1, 1)] 2) $ Just (Segment 1 1 large 1)
+    equal (f [(1, 1), (2, 2), (3, 3)] 2) $ Just (Segment 1 1 2 2)
+    equal (f [(1, 1), (3, 3)] 2) $ Just (Segment 1 1 3 3)
     -- Negative bias.
-    equal (f 2 [(0, 0), (2, 0), (2, 2)]) $ Just (Segment 0 0 2 0)
+    equal (f [(0, 0), (2, 0), (2, 2)] 2) $ Just (Segment 0 0 2 0)
 
 test_at :: Test
 test_at = do
-    let f x = Segment.at Segment.num_interpolate x
+    let f = Segment.at Segment.num_interpolate
             (from_pairs [(1, 1), (2, 2), (2, 3)])
     equal (map f [0, 1, 1.5, 2, 3, 4])
         [Nothing, Just 1, Just 1.5, Just 3, Just 3, Just 3]
@@ -139,12 +139,12 @@ test_at = do
 test_shift :: Test
 test_shift = do
     let shift = Segment.shift
-    let at x = Segment.at Segment.num_interpolate x
-    equal (at 2 (from_pairs [(2, 2)])) (Just 2)
-    equal (at 2 (shift 2 (from_pairs [(2, 2)]))) Nothing
-    equal (at 0 (shift (-2) (from_pairs [(2, 2)]))) (Just 2)
-    equal (at 0 (shift (-1) (from_pairs [(1, 1), (2, 0.5)]))) (Just 1)
-    equal (at 0.5 (shift (-1) (from_pairs [(1, 1), (2, 0.5)]))) (Just 0.75)
+    let at = Segment.at Segment.num_interpolate
+    equal (at (from_pairs [(2, 2)]) 2) (Just 2)
+    equal (at (shift 2 (from_pairs [(2, 2)])) 2) Nothing
+    equal (at (shift (-2) (from_pairs [(2, 2)])) 0) (Just 2)
+    equal (at (shift (-1) (from_pairs [(1, 1), (2, 0.5)])) 0) (Just 1)
+    equal (at (shift (-1) (from_pairs [(1, 1), (2, 0.5)])) 0.5) (Just 0.75)
 
     let shifted = shift 2 (from_pairs [(2, 2)])
     equal (to_pairs shifted) [(4, 2)]

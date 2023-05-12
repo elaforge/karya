@@ -370,7 +370,7 @@ event_controls = get . event_environ
 -- present.
 control_at :: RealTime -> ScoreT.Control -> Event
     -> Maybe (ScoreT.Typed Signal.Y)
-control_at pos control = fmap (fmap (Signal.at pos)) . event_control control
+control_at pos control = fmap (fmap (`Signal.at` pos)) . event_control control
 
 event_control :: ScoreT.Control -> Event -> Maybe (ScoreT.Typed Signal.Control)
 event_control (ScoreT.Control control) = as_signal <=< lookup_val control
@@ -425,7 +425,7 @@ set_control (ScoreT.Control control) =
 
 event_controls_at :: RealTime -> Event -> ScoreT.ControlValMap
 event_controls_at t event =
-    ScoreT.val_of . fmap (Signal.at t) <$> event_controls event
+    ScoreT.val_of . fmap (`Signal.at` t) <$> event_controls event
 
 -- *** pitch
 
@@ -458,7 +458,7 @@ transposed_at pos event = PSignal.apply_config config <$> pitch_at pos event
         (event_controls_at pos event)
 
 pitch_at :: RealTime -> Event -> Maybe PSignal.Pitch
-pitch_at pos event = PSignal.at pos $ event_pitch event
+pitch_at pos event = PSignal.at (event_pitch event) pos
 
 apply_controls :: Event -> RealTime -> PSignal.Pitch -> PSignal.Transposed
 apply_controls event pos = PSignal.apply (event_controls_at pos event)

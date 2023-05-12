@@ -63,7 +63,7 @@ c_sh_pitch = Derive.transformer Module.prelude "sh" mempty
 sample_hold_pitch :: [RealTime] -> PSignal.PSignal -> PSignal.PSignal
 sample_hold_pitch points sig = PSignal.from_pairs $ do
     (x1, n) <- Lists.zipNext points
-    Just y <- return $ PSignal.at x1 sig
+    Just y <- return $ PSignal.at sig x1
     x <- x1 : maybe [] (:[]) n
     return (x, y)
 
@@ -81,7 +81,7 @@ c_sh_control = Derive.transformer Module.prelude "sh" mempty
 sample_hold_control :: [RealTime] -> Signal.Control -> Signal.Control
 sample_hold_control points sig = Signal.from_pairs $ do
     (x1, n) <- Lists.zipNext points
-    let y = Signal.at x1 sig
+    let y = Signal.at sig x1
     x <- x1 : maybe [] (:[]) n
     return (x, y)
 

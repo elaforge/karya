@@ -107,7 +107,7 @@ initialPitch note = if nn == Just 0 then Nothing else nn
     -- so convert that back into Nothing.
 
 controlAt :: RealTime -> Control.Control -> Note -> Maybe Signal.Y
-controlAt t control = fmap (Signal.at t) . Map.lookup control . controls
+controlAt t control = fmap (`Signal.at` t) . Map.lookup control . controls
 
 initial :: Control.Control -> Note -> Maybe Signal.Y
 initial control note = controlAt (start note) control note

@@ -89,7 +89,7 @@ c_cf_rnd combine = val_call "cf-rnd" (Tags.control_function <> Tags.random)
     ) $ \(low, high, distribution) _args -> return $!
         make_cf "cf-rnd" $ \cf_dyn control pos -> combine
             (cf_rnd distribution low high (random_stream pos (dyn_seed cf_dyn)))
-            (Signal.at pos control)
+            (Signal.at control pos)
 
 make_cf :: Text -> (DeriveT.Dynamic -> Signal.Control -> RealTime -> Signal.Y)
     -> DeriveT.CFunction
@@ -113,7 +113,7 @@ c_cf_rnd_around combine = val_call "cf-rnd-a"
         make_cf "cf-rnd-a" $ \cf_dyn control pos -> combine
             (cf_rnd distribution (center-range) (center+range)
                 (random_stream pos (dyn_seed cf_dyn)))
-            (Signal.at pos control)
+            (Signal.at control pos)
 
 c_cf_rnd01 :: Derive.ValCall
 c_cf_rnd01 = Make.modify_vcall (c_cf_rnd (+)) Module.prelude "cf-rnd01"
@@ -156,7 +156,7 @@ c_cf_swing = val_call "cf-swing" Tags.control_function
     where
     swing rank amount cf_dyn control pos
         | Just marks <- maybe_marks =
-            Signal.at pos control + RealTime.to_seconds (swing marks)
+            Signal.at control pos + RealTime.to_seconds (swing marks)
         | otherwise = 0
         where
         swing marks = cf_swing (real cf_dyn) rank
@@ -262,12 +262,12 @@ lookup_function cf_dyn (Left (DeriveT.Ref control deflt)) =
     maybe deflt_f get $ DeriveT.lookup (ScoreT.control_name control) $
         DeriveT.dyn_environ cf_dyn
     where
-    deflt_f = fmap (flip Signal.at) <$> deflt
+    deflt_f = fmap Signal.at <$> deflt
     get = val_to_function cf_dyn
 
 val_to_function :: DeriveT.Dynamic -> DeriveT.Val -> Maybe ScoreT.TypedFunction
 val_to_function cf_dyn = \case
-    DeriveT.VSignal sig -> Just $ flip Signal.at <$> sig
+    DeriveT.VSignal sig -> Just $ Signal.at <$> sig
     DeriveT.VControlRef ref -> lookup_function cf_dyn (Left ref)
     DeriveT.VCFunction cf -> Just $ DeriveT.call_cfunction cf_dyn cf
     _ -> Nothing

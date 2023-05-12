@@ -106,7 +106,7 @@ pitch_distance prev cur = fromMaybe (0, 0) $
     x2 = Score.event_start cur
     distance (x1, y1) y2 = (x2 - x1, y2 - y1)
     get_last x event = do
-        segment <- PSignal.segment_at x (Score.event_pitch event)
+        segment <- PSignal.segment_at (Score.event_pitch event) x
         nn <- either (const Nothing) Just $ PSignal.pitch_nn $
             Score.apply_controls event x $ Segment._y1 segment
         Just (Segment._x1 segment, nn)

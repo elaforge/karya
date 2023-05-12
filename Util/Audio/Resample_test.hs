@@ -25,9 +25,9 @@ test_segmentAt :: Test
 test_segmentAt = do
     let f = Resample.segmentAt 2
     let sig = Signal.from_pairs [(0, 0), (1.25, 1), (4, 0)]
-    equal (f 0 sig) $ Segment.Segment 0 0 1.25 1
-    equal (f 1 sig) $ Segment.Segment 1.25 1 4 0
-    equal (f 3.75 sig) $ Segment.Segment 4 0 RealTime.large 0
+    equal (f sig 0) $ Segment.Segment 0 0 1.25 1
+    equal (f sig 1) $ Segment.Segment 1.25 1 4 0
+    equal (f sig 3.75) $ Segment.Segment 4 0 RealTime.large 0
 
 {- It's hard to test these automatically, so I tested by ear.
     Test for each of:
