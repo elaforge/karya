@@ -69,7 +69,6 @@ unnamed gtype = Abstraction $ Set.singleton (gtype, Unnamed)
 defaultAbstraction :: Abstraction
 defaultAbstraction = mconcat
     [ abstract Solkattu.GPattern
-    , abstract Solkattu.GSarva
     , named Solkattu.GGroup
     ]
 
