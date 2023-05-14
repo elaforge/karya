@@ -44,6 +44,7 @@ module Solkattu.Bol (
 import qualified Data.Text as Text
 
 import qualified Util.Lists as Lists
+import qualified Derive.Expr as Expr
 import qualified Solkattu.Instrument.Tabla as Tabla
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.Solkattu as Solkattu
@@ -66,6 +67,11 @@ data Bol =
 instance Solkattu.Notation Bol where
     notation = Solkattu.textNotation . Text.toLower . showt
 instance Pretty Bol where pretty = Solkattu.notationText
+
+instance Expr.ToExpr Bol where
+    to_expr = Expr.generator0 . Expr.Symbol . pretty
+instance Expr.ToExpr (Realize.Stroke Bol) where
+    to_expr = Realize.toExpr
 
 parseBols :: BolT -> Either Error [Maybe Bols]
 parseBols = Solkattu.parseSyllables allBols

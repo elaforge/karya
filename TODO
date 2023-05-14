@@ -6178,8 +6178,11 @@ solkattu:
       . branch solkattu-tabla:
       . gave sollu arg to Instrument but doesn't seem to be enough to infer
         sollu ~ Bol.
-    - section types for palta, tihai
-    - Terminal.renderAll and Html.writeAll don't understand bols
+    * Terminal.renderAll and Html.writeAll don't understand bols
+      . Terminal.renderAll abstraction score
+      . Format.scoreInstruments :: Korvai.Score -> [Korvai.GInstrument]
+      . IBol is not in Korvai.instruments
+      . No instance for (Expr.ToExpr (Realize.Stroke Bol.Bol))
     ? print taa as tA or Ta?  On the other hand it's nice that it's the same
       length as dha, since it alternates with it.
     notes:

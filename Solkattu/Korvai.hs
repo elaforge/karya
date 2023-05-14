@@ -205,6 +205,7 @@ data GInstrument = forall stroke.
 instruments :: [GInstrument]
 instruments =
     [ GInstrument IKonnakol
+    , GInstrument IBol
     , GInstrument IMridangam
     , GInstrument IKendangTunggal
     , GInstrument IReyong
