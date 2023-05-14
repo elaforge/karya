@@ -8,7 +8,7 @@ jobs:
     strategy:
       matrix:
         # https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idruns-on
-        os: [ubuntu-20.04, macos-10.15]
+        os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
@@ -34,7 +34,7 @@ jobs:
         run: |
           echo "date=$(/bin/date -u +%Y%m%d)" >> $GITHUB_OUTPUT
         shell: bash
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         with:
           path: build
           key: ${{ runner.os }}-v1-${{ steps.get-date.outputs.date }}
