@@ -1,11 +1,9 @@
-{ mkDerivation, base, bifunctors, lib, tagged }:
+{ mkDerivation, base, lib, tagged }:
 mkDerivation {
   pname = "assoc";
-  version = "1.0.2";
-  sha256 = "d8988dc6e8718c7a3456515b769c9336aeeec730cf86fc5175247969ff8f144f";
-  revision = "2";
-  editedCabalFile = "17jd3668y4j3kwsqgzqjrxymbglhgzgjbkda48djlbhppkzd3ng0";
-  libraryHaskellDepends = [ base bifunctors tagged ];
+  version = "1.1";
+  sha256 = "7aa2e6548b3d9d49a286ac20639479aaf6c47a1446113ed784d98737c5f60df4";
+  libraryHaskellDepends = [ base tagged ];
   doCheck = false;
   description = "swap and assoc: Symmetric and Semigroupy Bifunctors";
   license = lib.licenses.bsd3;

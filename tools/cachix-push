@@ -7,5 +7,6 @@ set -eux
 args=(
     --arg withDocs true
     --arg withIm true
+    --arg withDevelopment true
 )
 nix-build $args -A buildEnv | cachix push elaforge

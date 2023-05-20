@@ -48,7 +48,7 @@ let
   disableAutoProf = drv: nixpkgs.haskell.lib.overrideCabal drv
     (drv: { inherit profilingDetail; });
 
-  jailbreaks = [];
+  jailbreaks = ["fclabels"];
 
   overrideCabal = name: with nixpkgs.haskell.lib; compose [
     (if profiling then (x: x) else disableLibraryProfiling)

@@ -1,14 +1,15 @@
 { mkDerivation, ansi-terminal, async, base, directory, exceptions
-, process, lib, stm, terminal-size, text, transformers, unix
+, lib, process, stm, terminal-size, text, transformers, unix
 }:
 mkDerivation {
   pname = "concurrent-output";
-  version = "1.10.12";
-  sha256 = "87f8a1cf54e6eaf146750fa6bf11aa2620da496073cb6c3dc8f697169eba3c20";
+  version = "1.10.18";
+  sha256 = "b7a8338926d8bd29dd4d2a55f38b0146690c887f29f9df15fa5ec333283facdb";
   libraryHaskellDepends = [
     ansi-terminal async base directory exceptions process stm
     terminal-size text transformers unix
   ];
+  doCheck = false;
   description = "Ungarble output from several threads or commands";
   license = lib.licenses.bsd2;
 }

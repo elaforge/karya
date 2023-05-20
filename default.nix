@@ -17,7 +17,7 @@
 
 , useSystemCc ? false # if false use the nixpkgs c++ compiler
 , useSystemSupercollider ? true # if false use one declared here
-, useGhcVersion ? 9
+, useGhcVersion ? "9.2"
 
 # Enable profiling in hackage libraries.  Generally we want this to be able to
 # profile, but it's much faster to build without it.
@@ -41,7 +41,11 @@ let
   # omit the deps entirely?
   nixpkgs-sys = if isCi then nixpkgs else import <nixpkgs> {};
   hackage = import nix/hackage.nix {
-    inherit ghcVersion profiling profilingDetail;
+    inherit ghcVersion profilingDetail;
+    inherit profiling;
+    # I could do this to reduce builds in CI, but then it makes it miss the
+    # cache I use for development.
+    # profiling = if isCi then false else profiling;
   };
   faust = import nix/faust.nix {};
   inherit (nixpkgs) lib;
@@ -51,18 +55,20 @@ let
   # I don't think all these old nixpkgs versions still work, due to
   # hackage deps not in nix/hackage.
   nixGhcVersions = {
-    "19.09" = { "8" = "8.8.2"; };
-    "20.09" = { "8" = "8.10.3"; };
+    "20.09" = { "8.10" = "8.10.3"; };
     "21.11" = {
-      "8" = "8.10.7";
-      "9" = "9.2.1";
+      "8.10" = "8.10.7";
+      "9.2" = "9.2.1";
+    };
+    "22.11" = {
+      "9.2" = "9.2.4";
+      "9.4" = "9.4.3"; # TODO untested, probably doesn't work
     };
   };
   ghcVersionDots =
-    let v = nixGhcVersions.${nixpkgsVersion}.${toString useGhcVersion} or null;
+    let v = nixGhcVersions.${nixpkgsVersion}.${useGhcVersion} or null;
     in if v != null then v
-      else abort
-        "ghc ${toString useGhcVersion} not in nixpkgs ${nixpkgsVersion}";
+      else abort "ghc ${useGhcVersion} not in nixpkgs ${nixpkgsVersion}";
 
   ghcVersion = "ghc" + builtins.replaceStrings ["."] [""] ghcVersionDots;
   ghc = nixpkgs.haskell.packages.${ghcVersion};
@@ -227,6 +233,7 @@ in rec {
   ];
 
   developmentDeps = [
+    # (sharedHaskellBinary "cabal-install") # needed for nix/c2n
     # These haskell binaries will pull in a whole new ghc compiler because of
     # the nixpkgs bug with dynamic linking.
     (haskellBinary "fast-tags")

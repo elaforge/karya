@@ -1,18 +1,22 @@
-{ mkDerivation, base, base-orphans, deepseq, ghc-prim, HUnit, lib
-, primitive, QuickCheck, random, tasty, tasty-hunit
-, tasty-quickcheck, template-haskell, transformers
+{ mkDerivation, base, base-orphans, deepseq, HUnit, lib, primitive
+, QuickCheck, random, tasty, tasty-bench, tasty-hunit
+, tasty-inspection-testing, tasty-quickcheck, template-haskell
+, transformers, vector-stream
 }:
 mkDerivation {
   pname = "vector";
-  version = "0.12.3.1";
-  sha256 = "fb4a53c02bd4d7fdf155c0604da9a5bb0f3b3bfce5d9960aea11c2ae235b9f35";
-  revision = "1";
-  editedCabalFile = "02284cr5f5ghbz18shn8g6jvsgfs0dwgf81kxvf59r2wks8i00h4";
-  libraryHaskellDepends = [ base deepseq ghc-prim primitive ];
+  version = "0.13.0.0";
+  sha256 = "c5d3167d15e12f52e00879ddf304a591672a74e369cc47bc5c7fa1d5a8d15b4f";
+  revision = "3";
+  editedCabalFile = "0k14l1r84gxjv385crq8f1kvdcr4kjwyi4k7f64g6nksl60sqp7s";
+  libraryHaskellDepends = [ base deepseq primitive vector-stream ];
   testHaskellDepends = [
     base base-orphans HUnit primitive QuickCheck random tasty
-    tasty-hunit tasty-quickcheck template-haskell transformers
+    tasty-hunit tasty-inspection-testing tasty-quickcheck
+    template-haskell transformers
   ];
+  benchmarkHaskellDepends = [ base random tasty tasty-bench ];
+  doCheck = false;
   homepage = "https://github.com/haskell/vector";
   description = "Efficient Arrays";
   license = lib.licenses.bsd3;

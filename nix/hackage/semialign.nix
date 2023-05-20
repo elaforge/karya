@@ -4,10 +4,8 @@
 }:
 mkDerivation {
   pname = "semialign";
-  version = "1.2.0.1";
-  sha256 = "d900697041ae4b0cca3243273a2b3e80bcf74d937405d6a5ff34dc33ee952132";
-  revision = "1";
-  editedCabalFile = "00cmkdmgqlk8v2jg084nddlj2qkwj68nqk9p3l07kzwf796rn5qf";
+  version = "1.3";
+  sha256 = "628e43319f584a8dd46c124ee0685cac586e0f6f877c5ceff37c3dbb2e3cc56c";
   libraryHaskellDepends = [
     base containers hashable indexed-traversable
     indexed-traversable-instances semigroupoids tagged these

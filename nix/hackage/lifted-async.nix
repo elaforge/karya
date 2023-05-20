@@ -4,8 +4,8 @@
 }:
 mkDerivation {
   pname = "lifted-async";
-  version = "0.10.2.2";
-  sha256 = "50e8a699c8c74f8b39cd0e1c8559d083062e9dac3d20afcacba36f30b3dba7de";
+  version = "0.10.2.4";
+  sha256 = "9bed4dee15f40c35a4d92a2d8ca29e4a9fe7904a5b773486dfef58040a3ebe5d";
   libraryHaskellDepends = [
     async base constraints lifted-base monad-control transformers-base
   ];

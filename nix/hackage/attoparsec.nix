@@ -8,6 +8,8 @@ mkDerivation {
   pname = "attoparsec";
   version = "0.14.4";
   sha256 = "3f337fe58624565de12426f607c23e60c7b09c86b4e3adfc827ca188c9979e6c";
+  revision = "3";
+  editedCabalFile = "1ciz49yg6zcaf5dvh5wp3kv92jxa23pblggfldbmy5q54dr5nish";
   libraryHaskellDepends = [
     array base bytestring containers deepseq ghc-prim scientific text
     transformers
@@ -23,7 +25,7 @@ mkDerivation {
   ];
   doHaddock = false;
   doCheck = false;
-  homepage = "https://github.com/bgamari/attoparsec";
+  homepage = "https://github.com/haskell/attoparsec";
   description = "Fast combinator parsing for bytestrings and text";
   license = lib.licenses.bsd3;
 }

@@ -1,7 +1,10 @@
 let
   my-poison = v21-11; # pick your poison
 
-  # https://releases.nixos.org/nixos/20.09/nixos-20.09.3124.2118cf551b9/git-revision
+  # https://channels.nixos.org/
+  # Navigate to a subdir, get git-revision
+  # Enter a bogus sha256, nix-instantiate --attr buildEnv, fix sha
+
   v20-09 = {
     version = "20.09";
     commit = "2118cf551b9944cfdb929b8ea03556f097dd0381";
@@ -11,6 +14,11 @@ let
     version = "21.11";
     commit = "e6377ff35544226392b49fa2cf05590f9f0c4b43";
     sha256 = "1fra9wwy5gvj5ibayqkzqpwdf715bggc0qbmrfch4fghwvl5m70l";
+  };
+  v22-11 = {
+    version = "22.11";
+    commit = "628d4bb6e9f4f0c30cfd9b23d3c1cdcec9d3cb5c";
+    sha256 = "1vazd3ingc6vffhynhk8q9misrnvlgmh682kmm09x2bmdzd3l4ad";
   };
   unstable = {
     version = "unstable";

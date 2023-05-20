@@ -7,8 +7,8 @@ mkDerivation {
   pname = "witherable";
   version = "0.4.2";
   sha256 = "790d2bb274283419173bd89104439860675a9410f70f21912973ecd9098b4104";
-  revision = "2";
-  editedCabalFile = "1ljnv5xf6w7x58akj0a0yw16j63jkka0dvfvmjqwbn76aqg3pzc1";
+  revision = "4";
+  editedCabalFile = "1f6kb8cslgqq4x3mbg1gcxfbd9qb5a8hmrv802mm7zzhbnridiff";
   libraryHaskellDepends = [
     base base-orphans containers hashable indexed-traversable
     indexed-traversable-instances transformers unordered-containers

@@ -1,17 +1,18 @@
 { mkDerivation, base, bytestring, lib, QuickCheck, tasty
-, tasty-hunit, tasty-quickcheck, zlib
+, tasty-quickcheck, zlib
 }:
 mkDerivation {
   pname = "zlib";
-  version = "0.6.2.3";
-  sha256 = "807f6bddf9cb3c517ce5757d991dde3c7e319953a22c86ee03d74534bd5abc88";
+  version = "0.6.3.0";
+  sha256 = "9eaa989ad4534438b5beb51c1d3a4c8f6a088fdff0b259a5394fbf39aaee04da";
   revision = "1";
-  editedCabalFile = "1r6sc6p648jgq4vslzbr171w52rk3fjv3wspxvs5kgkhygdr6ai6";
+  editedCabalFile = "1z2dyphqmjb9akzqrqh8k82mfv416hqj82nz8mysidx09jgf7p4s";
   libraryHaskellDepends = [ base bytestring ];
   librarySystemDepends = [ zlib ];
   testHaskellDepends = [
-    base bytestring QuickCheck tasty tasty-hunit tasty-quickcheck
+    base bytestring QuickCheck tasty tasty-quickcheck
   ];
+  doCheck = false;
   description = "Compression and decompression in the gzip and zlib formats";
   license = lib.licenses.bsd3;
 }
