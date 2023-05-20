@@ -4,6 +4,7 @@
 args=(
     --attr buildEnv
     --arg withDocs true
+    # --arg withDevelopment true
 )
 
 # nix-shell is really slow, because eval is really slow.

@@ -13,6 +13,8 @@
 { withLilypond ? false
 , withEkg ? false # ekg is really heavy
 , withDocs ? false # deps to build documentation
+, withDevelopment ? false # include some binaries that I use during development
+
 , useSystemCc ? false # if false use the nixpkgs c++ compiler
 , useSystemSupercollider ? true # if false use one declared here
 , useGhcVersion ? 9
@@ -222,17 +224,17 @@ in rec {
   # Dependencies to actually use karya.  CI can omit them.
   interactiveDeps = fontDeps ++ [
     nixpkgs.git
+  ];
 
-    # development deps
-    # nixpkgs-orig.haskell.packages.ghc8104.fast-tags
+  developmentDeps = [
+    # These haskell binaries will pull in a whole new ghc compiler because of
+    # the nixpkgs bug with dynamic linking.
     (haskellBinary "fast-tags")
     # (haskellBinary "weeder")
     (haskellBinary "profiterole")
     (haskellBinary "ghc-prof-flamegraph")
     (haskellBinary "hp2html")
     nixpkgs.ripgrep
-    # TODO nixpkgs.cachix is too old, instead:
-    # nix-env -iA cachix -f https://cachix.org/api/v1/install
   ];
 
   docDeps = [
@@ -276,6 +278,7 @@ in rec {
     basicDeps
     imDeps
     (guard (!isCi) interactiveDeps)
+    (guard withDevelopment developmentDeps)
     (guard withDocs docDeps)
     (guard withLilypond [nixpkgs.lilypond])
   ];
