@@ -27,6 +27,7 @@ fi
 if [[ ! -e data/save/default ]]; then
     cp doc/default.save data/save/default
 fi
+ln -s data/save # seq looks for save/default in cwd
 
 # Make a re-export module for each config hs.
 for hs in $local_hs; do
