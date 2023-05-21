@@ -79,10 +79,25 @@ e_sai_shiv_7 = date 2023 4 4 $
     , r2 $ sd $ "nddn" & su "o/o/o/o/" . "nddn"
     ]
 
+e_sai_shiv_9 :: Korvai
+e_sai_shiv_9 = date 2023 4 16 $
+    exercise $ source "https://www.youtube.com/watch?v=yKv1GveMB94" $
+    comment "double strokes" $ korvaiS1 adi $
+    tdtn (__8 . r4 takadinnataka)
+    . tdtn (__6 . r3 takadinnataka)
+    . tdtn (__4 . r2 takadinnataka)
+    . tdtn (__ . takadinnataka)
+    . tdtn (__ . "kook")
+    . tdtn (__ . "ko")
+    . sd (g "ppkkoonn") . sd (g "pkon")
+    where
+    tdtn = g • prefixes tadithomnam
+    takadinnataka = "kooknk"
+
 e_sai_shiv_11 :: Korvai
 e_sai_shiv_11 = date 2023 3 20 $
     exercise $ source "https://www.youtube.com/watch?v=9l_RlC54pNU" $
-    korvaiS adi
+    comment "meetu clarity" $ korvaiS adi
     [ seqs 4 . seqs 2 . seqs 1 . tri123 (od.__4) ending
     ]
     where

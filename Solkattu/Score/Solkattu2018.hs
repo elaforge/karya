@@ -740,7 +740,7 @@ adi_tani = tani
     , K e_sarva1_tisra
     , K e_adi_tisra
     , K c_18_08_03
-    , K adi_tani2
+    , K adi_tani_farans
     , Comment "mohra"
     , K SolkattuMohra.c_mohra
     , K adi_muktayi
@@ -928,7 +928,7 @@ e_adi_tisra = exercise $ date 2018 7 30 $ sudhindra $
     dinnakttk = group $ din.na.kttk
     trktkt3 = tri trktkt
     trktkt = named "4npkt" $ trkt.kttk
-    takadinnakttk = group $ taka.dinnakttk
+    takadinnakttk = group $ taka.din.na.kttk
     -- TODO this uses trkt.kttk instead of trktkt above because being a group
     -- will prevent the full din_trktkt match.
     din_trktkt = din.__.trkt.kttk.tarikitadiku
@@ -938,7 +938,9 @@ e_adi_tisra = exercise $ date 2018 7 30 $ sudhindra $
         , (tarikitadiku, n.p.k.t.p.k.t.p.k.t.p.k)
         , (tang.__.gu, od.__.o)
         , (dinnakttk, o.n.k.t.o.k)
-        , (taka, o.k)
+        -- , (taka, o.k)
+        -- TODO why doesn't match taka+dinnakttk?
+        , (taka.dinnakttk, o.k.o.n.k.t.o.k)
         -- High speed variant of trktkt drops the tha.
         -- Say din.__.tari.kita.kita.taka,
         -- play din.__.nang.__.kita.kita.taka
@@ -981,8 +983,8 @@ c_18_08_03_misra = date 2019 2 26 $ ganesh $
         , (din.gu, od.lt o)
         ]
 
-adi_tani2 :: Korvai
-adi_tani2 = date 2018 8 3 $ sudhindra $ korvaiS adi mridangam
+adi_tani_farans :: Korvai
+adi_tani_farans = date 2018 8 3 $ sudhindra $ korvaiS adi mridangam
     [ restD 4 . su (tri_ (tam.__4) nakatiku)
     , r2 $ r2 (din.__.gu.trkt.tk) . dim.__.tat.__
     , r2 $ din.__.gu . tri_ (dim.__) (trkt.tk)

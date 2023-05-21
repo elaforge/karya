@@ -8,23 +8,23 @@ import           Solkattu.Dsl.Bol
 
 
 qaida1 :: Korvai
-qaida1 = qaida $ akash $ korvaiS kehrwa $ map sd
-    [ "dha dha trkt dha dha tu na taa taa trkt dha dha tu na"
+qaida1 = qaida $ akash $ korvaiS tintal $ map sd
+    [ r2 "dha dha trkt dha dha tu na taa taa trkt dha dha tu na"
     -- palta 1
     , "dha dha trkt dha dha trkt dha dha trkt dha dha tu na"
-    , "taa taa trkt taa taa trkt dha dha trkt dha dha tu na"
+    . "taa taa trkt taa taa trkt dha dha trkt dha dha tu na"
     -- palta 2
     , "dha dha dha trkt dha trkt dha dha trkt dha dha tu na"
-    , "taa taa taa trkt taa trkt dha dha trkt dha dha tu na"
+    . "taa taa taa trkt taa trkt dha dha trkt dha dha tu na"
     -- palta 3
     , "dha dha trkt dha trkt dha dha dha trkt dha dha tu na"
-    , "taa taa trkt taa trkt taa dha dha trkt dha dha tu na"
+    . "taa taa trkt taa trkt taa dha dha trkt dha dha tu na"
     -- palta 4
     , "dha dha trkt trkt trkt dha dha trkt dha dha tu na"
-    , "taa taa trkt trkt trkt dha dha trkt dha dha tu na"
+    . "taa taa trkt trkt trkt dha dha trkt dha dha tu na"
     -- palta 5
     , "trkt trkt dha dha trkt dha dha trkt dha dha tu na"
-    , "trkt trkt taa taa trkt dha dha trkt dha dha tu na"
+    . "trkt trkt taa taa trkt dha dha trkt dha dha tu na"
     , tri_ (dha.__8) (g "dha dha trkt dha dha tu na taa taa trkt dha dha tu na")
         -- , "dha dha trkt dha dha tu na taa taa trkt dha dha tu na"
         -- . "dha _ _ _ _ _ _ _ dha dha trkt dha dha tu na"
@@ -37,20 +37,20 @@ qaida1 = qaida $ akash $ korvaiS kehrwa $ map sd
     ]
 
 qaida2 :: Korvai
-qaida2 = qaida $ akash $ korvaiS kehrwa $ map sd
-    [ "dha trkt tk dha trkt tk taa trkt tk dha trkt tk"
+qaida2 = qaida $ akash $ korvaiS tintal $ map sd
+    [ r2 "dha trkt tk dha trkt tk taa trkt tk dha trkt tk"
     , "dha trkt tk dha trkt tk dha trkt tk tu na kt tk"
-    , "taa trkt tk taa trkt tk dha trkt tk tu na kt tk"
+    . "taa trkt tk taa trkt tk dha trkt tk tu na kt tk"
 
     -- palta
     , "dha dha trkt dha trkt tk dha trkt tk tu na kt tk"
-    , "taa taa trkt taa trkt tk dha trkt tk tu na kt tk"
+    . "taa taa trkt taa trkt tk dha trkt tk tu na kt tk"
     , "dha trkt trkt dha trkt dha trkt tk tu na kt tk"
-    , "taa trkt trkt taa trkt dha trkt tk tu na kt tk"
+    . "taa trkt trkt taa trkt dha trkt tk tu na kt tk"
     , "trkt trkt dha trkt tk dha trkt tk tu na kt tk"
-    , "trkt trkt taa trkt tk dha trkt tk tu na kt tk"
+    . "trkt trkt taa trkt tk dha trkt tk tu na kt tk"
     , "dha trkt tk _ trkt tk dha trkt tk tu na kt tk"
-    , "taa trkt tk _ trkt tk dha trkt tk tu na kt tk"
+    . "taa trkt tk _ trkt tk dha trkt tk tu na kt tk"
 
     , tri_ (dha.__)
         (g $ "dha trkt tk tu na kt tk taa trkt tk tu na kt tk"
@@ -102,6 +102,8 @@ tukra5 = tukra $ akash $ korvaiS1 tintal $
     . "dha ge tette katta gadigene"
     . "dha _ tuna kat _"
     . r3 "dhati dha _"
+    -- this doesn't line up...
+    . __M (15 * 4)
 
 tukra6 :: Korvai
 tukra6 = tukra $ akash $ korvaiS1 tintal $ nadai 3 $
