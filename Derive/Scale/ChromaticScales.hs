@@ -3,7 +3,25 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Utilities for equal-tempered chromatic scales with keys and modes.
-module Derive.Scale.ChromaticScales where
+module Derive.Scale.ChromaticScales (
+    ScaleMap(..)
+    , SemisToNoteNumber
+    , twelve_doc
+    , scale_map
+    , Keys
+    , make_keys
+    , make_scale
+    , transpose
+    , pitch_note
+    , pitch_nn
+    , input_to_note
+    , group_tonic_mode
+    , relative_fmt
+
+    -- * util
+    , show_pitch, read_pitch
+    , read_key
+) where
 import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -247,7 +265,7 @@ relative_fmt default_key all_keys  = TheoryFormat.RelativeFormat
     , rel_to_absolute = TheoryFormat.chromatic_to_absolute
     }
 
--- * implementation
+-- * util
 
 key_tonic :: Theory.Key -> Pitch.PitchClass
 key_tonic = Pitch.degree_pc . Theory.key_tonic

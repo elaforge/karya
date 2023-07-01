@@ -98,11 +98,11 @@ pemade, kantilan :: BaliScales.Instrument
 pemade = instrument 5 (Pitch.pitch 4 O) (Pitch.pitch 6 I)
 kantilan = instrument 6 (Pitch.pitch 5 O) (Pitch.pitch 7 I)
 
--- * config
-
 instrument :: Pitch.Octave -> Pitch.Pitch -> Pitch.Pitch
     -> BaliScales.Instrument
 instrument = BaliScales.Instrument BaliScales.ioeua BaliScales.arrow_octaves
+
+-- * config
 
 balinese_notation :: BaliScales.Instrument -> BaliScales.Instrument
 balinese_notation inst = inst

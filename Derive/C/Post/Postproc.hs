@@ -3,7 +3,15 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Postprocs that change note start and duration.
-module Derive.C.Post.Postproc where
+module Derive.C.Post.Postproc (
+    library
+    , Key
+    , make_cancel
+    , adjust_offset
+    , cancel_strong_weak
+    , group_and_cancel
+    , infer_duration_merged
+) where
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
@@ -39,6 +47,7 @@ library :: Library.Library
 library = Library.transformers
     [ ("apply-start-offset", c_apply_start_offset)
     , ("cancel", c_cancel)
+    , ("infer-negative", c_infer_negative)
     , ("randomize-start", c_randomize_start)
     , ("strong", Make.add_flag module_ "strong"
         "Add the 'Derive.Flags.strong' flag, which will cancel coincident\
@@ -52,6 +61,23 @@ library = Library.transformers
 
 module_ :: Module.Module
 module_ = Module.prelude
+
+-- * infer-negative
+
+c_infer_negative :: Derive.Transformer Derive.Note
+c_infer_negative = Derive.transformer module_ "infer-negative" Tags.postproc
+    "Infer durations for negative events, by instrument."
+    $ Sig.callt final_duration_arg
+    $ \final_dur _args ->
+        fmap $ Post.emap1_ (infer final_dur) . Post.nexts_by Post.hand_key
+    where
+    infer _ (event, _) | Score.event_duration event >= 0 = event
+    infer final_dur (event, []) = Score.set_duration final_dur event
+    infer _ (event, next : _) = Score.set_duration dur event
+        where
+        dur = min (Score.event_start next - Score.event_start event)
+            (- Score.event_duration event)
+
 
 -- * cancel
 
@@ -120,7 +146,7 @@ infer_duration_merged strong weaks =
         _ -> strong
 
 -- | Handle 'Flags.infer_duration' for a note by itself.  When there is no
--- coincedent note to replace, the duration extends to the start of the next
+-- coincident note to replace, the duration extends to the start of the next
 -- matching event, according to the 'Key'.
 --
 -- This actually finds the next matching event which starts later than this
