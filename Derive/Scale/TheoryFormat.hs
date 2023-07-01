@@ -427,6 +427,13 @@ parse_octave parse = do
     (pc, acc) <- parse
     return $ RelativePitch oct pc acc
 
+-- | Require a single digit octave.
+parse_octave1 :: ParseOctave
+parse_octave1 parse = do
+    oct <- maybe mzero pure . Num.readDigit =<< A.satisfy ParseText.is_digit
+    (pc, acc) <- parse
+    return $ RelativePitch oct pc acc
+
 -- ** accidentals
 
 -- | natural, sharp1, sharp2, flat1, flat2

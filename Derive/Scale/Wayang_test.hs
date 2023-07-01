@@ -24,8 +24,7 @@ import           Util.Test
 
 test_read :: Test
 test_read = do
-    let f scale_id pitch = read_scale
-            (ScaleTest.get_scale Wayang.scales scale_id) pitch
+    let f scale_id pitch = read_scale (get_scale scale_id) pitch
     -- The same pitch also winds up with the same Pitch and same frequency.
     equal (f "wayang" "5i") (Right "5-0")
     equal (f "wayang-pemade" "i^") (Right "5-0")
@@ -44,22 +43,11 @@ test_note_to_call = do
     let to_hz = first $ map $ fmap (round . Pitch.nn_to_hz)
     equal (to_hz $ run "gender-kuta" ["3o", "3e"]) ([Just 183, Just 206], [])
 
-read_scale :: Scale.Scale -> Pitch.Note -> Either String String
-read_scale scale note = bimap prettys prettys $
-    Scale.scale_read scale mempty note
-
-scale_track :: Text -> [Text] -> [UiTest.TrackSpec]
-scale_track scale_id pitches =
-    [ (">", [(n, 1, "") | n <- map fst events])
-    , ("*" <> scale_id, [(n, 0, p) | (n, p) <- events])
-    ]
-    where events = zip (Lists.range_ 0 1) pitches
-
 test_input_to_note :: Test
 test_input_to_note = do
     let f scale = ScaleTest.input_to_note scale mempty
-        wayang = ScaleTest.get_scale Wayang.scales "wayang"
-        wayang_pemade = ScaleTest.get_scale Wayang.scales "wayang-pemade"
+        wayang = get_scale "wayang"
+        wayang_pemade = get_scale "wayang-pemade"
         invalid = "invalid input"
     equal (f wayang (1, 0, 0)) "1i"
     equal (f wayang_pemade (3, 1, 0)) "o_"
@@ -74,11 +62,27 @@ test_input_to_note = do
 
 test_input_to_nn :: Test
 test_input_to_nn = do
-    let pemade = ScaleTest.get_scale Wayang.scales "wayang-pemade"
-        kantilan = ScaleTest.get_scale Wayang.scales "wayang-kantilan"
+    let pemade = get_scale "wayang-pemade"
+        kantilan = get_scale "wayang-kantilan"
     let run scale = DeriveTest.eval Ui.empty . Scale.scale_input_to_nn scale 0
             . ScaleTest.ascii_kbd
     equal (run pemade (4, 0, 0)) (Right (Right 62.5))
     equal (run kantilan (4, 0, 0)) (Right (Left DeriveT.InvalidInput))
     equal (run pemade (5, 0, 0)) (Right (Right 74.66))
     equal (run kantilan (5, 0, 0)) (Right (Right 74.57))
+
+get_scale :: Text -> Scale.Scale
+get_scale = ScaleTest.get_scale Wayang.scales
+
+-- * util
+
+read_scale :: Scale.Scale -> Pitch.Note -> Either Text Text
+read_scale scale note = bimap pretty pretty $
+    Scale.scale_read scale mempty note
+
+scale_track :: Text -> [Text] -> [UiTest.TrackSpec]
+scale_track scale_id pitches =
+    [ (">", [(n, 1, "") | n <- map fst events])
+    , ("*" <> scale_id, [(n, 0, p) | (n, p) <- events])
+    ]
+    where events = zip (Lists.range_ 0 1) pitches
