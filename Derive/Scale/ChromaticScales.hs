@@ -27,8 +27,10 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
+import qualified Util.Debug as Debug
 import qualified Util.Doc as Doc
 import qualified Util.Lists as Lists
+
 import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
@@ -185,10 +187,13 @@ pitch_nn smap relative config@(PSignal.PitchConfig env controls) = do
 
 input_to_note :: ScaleMap -> Scales.InputToNote
 input_to_note smap env (Pitch.Input kbd_type pitch frac) = do
+    Debug.traceM "input_to_note pre" pitch
     pitch <- Scales.kbd_to_scale kbd_type pc_per_octave (key_tonic key) pitch
+    Debug.traceM "input_to_note post" pitch
     let intervals = if is_relative
             then Theory.key_intervals key
             else Theory.layout_intervals (smap_layout smap)
+    Debug.traceM "intervals" (is_relative, intervals)
     unless (Theory.contains_degree intervals (Pitch.pitch_degree pitch)
             && in_range smap pitch) $
         Left DeriveT.InvalidInput

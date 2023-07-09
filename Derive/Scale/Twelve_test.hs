@@ -5,10 +5,10 @@
 module Derive.Scale.Twelve_test where
 import qualified Data.Text as Text
 
-import Util.Test
 import qualified Cmd.CmdTest as CmdTest
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Scale as Scale
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.ScaleTest as ScaleTest
 import qualified Derive.Scale.Twelve as Twelve
@@ -16,7 +16,9 @@ import qualified Derive.Score as Score
 
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
-import Global
+
+import           Global
+import           Util.Test
 
 
 test_note_to_nn :: Test
@@ -31,6 +33,16 @@ test_note_to_nn = do
     equal (f "9f#") ([Just NN.fs9], [])
     equal (f "9g") ([Just NN.g9], [])
     equal (f "9g#") ([Nothing], [])
+
+test_read_relative :: Test
+test_read_relative = do
+    let f = read_scale (ScaleTest.get_scale Twelve.scales "twelve-r")
+    print (f "d-maj" "5s")
+    pprint (map (f "d-maj") ["5s", "5r", "5g", "5m", "5p", "5d", "5n", "6s"])
+
+read_scale :: Scale.Scale -> Text -> Pitch.Note -> Either Text Text
+read_scale scale key note = bimap pretty pretty $
+    Scale.scale_read scale (ScaleTest.key_environ key) note
 
 test_note_to_call_relative :: Test
 test_note_to_call_relative = do

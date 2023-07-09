@@ -25,6 +25,8 @@ module Derive.Scale.Theory (
     piano_intervals, piano_layout, diatonic_layout
     -- * NoteNumber diatonic transposition
     , diatonic_to_chromatic
+    , simple_diatonic_to_chromatic
+    , simple_chromatic_steps
     -- * symbolic transposition
     , transpose_diatonic, transpose_chromatic
     -- * input
@@ -102,6 +104,21 @@ chromatic_steps key degree steps =
         else octaves * layout_semis_per_octave (key_layout key)
     middle = Vector.length table `div` 2
     table = key_transpose_table key
+
+simple_diatonic_to_chromatic :: Intervals -> Pitch.PitchClass -> Double
+    -> Pitch.FSemi
+simple_diatonic_to_chromatic intervals pc steps
+    | steps == 0 = 0
+    | steps > 0 = Num.scale (transpose isteps) (transpose (isteps+1)) frac
+    | otherwise =
+        Num.scale (transpose (isteps-1)) (transpose isteps) (1 - abs frac)
+    where
+    (isteps, frac) = properFraction steps
+    transpose = fromIntegral . simple_chromatic_steps intervals pc
+
+simple_chromatic_steps :: Intervals -> Pitch.PitchClass -> Int -> Pitch.Semi
+simple_chromatic_steps intervals pc steps =
+    Num.sum $ take steps $ drop pc $ cycle $ Vector.toList intervals
 
 -- * symbolic transposition
 

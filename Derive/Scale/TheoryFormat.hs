@@ -25,8 +25,10 @@ import qualified Data.Vector as Vector
 import           Data.Vector ((!))
 import qualified Data.Vector.Unboxed as Unboxed
 
+import qualified Util.Debug as Debug
 import qualified Util.Num as Num
 import qualified Util.ParseText as ParseText
+
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Scale.Theory as Theory
 import qualified Perform.Pitch as Pitch
@@ -255,6 +257,7 @@ read_pitch fmt key = fmt_to_absolute fmt key <=< read_relative_pitch fmt
 read_relative_pitch :: Format -> Pitch.Note
     -> Either DeriveT.PitchError RelativePitch
 read_relative_pitch fmt note = justErr (DeriveT.UnparseableNote note) $
+    Debug.trace_ret "read_rel" note $
     ParseText.maybe_parse (fmt_read fmt) $
     Pitch.note_text note
 
@@ -339,7 +342,7 @@ show_degree_chromatic :: ShowDegree Theory.Key
 show_degree_chromatic key show_octave degrees acc_fmt degree_pitch =
     Pitch.Note $ case degree_pitch of
         Left _ -> pc_text <> acc_text
-        Right (Pitch.Pitch oct _) ->
+        Right (Pitch.Pitch oct _) -> Debug.trace "show_degree_chromatic" $
             show_octave (oct + pc_oct) (pc_text <> acc_text)
     where
     Pitch.Degree pc acc = either id Pitch.pitch_degree degree_pitch
@@ -349,10 +352,39 @@ show_degree_chromatic key show_octave degrees acc_fmt degree_pitch =
 
 -- | Convert a relative pitch using the key signature key system defined by
 -- 'Theory.Key'.
+-- chromatic_to_absolute :: ToAbsolute Theory.Key
+-- chromatic_to_absolute key degrees (RelativePitch octave pc maybe_acc) =
+--     Debug.trace_ret "ch to abs" (tonic, (pc, maybe_acc)) $ Pitch.Pitch (octave + oct) (Pitch.Degree pc2 acc2)
+--     where
+--     (oct, pc2) = (pc + Pitch.degree_pc tonic) `divMod` Vector.length degrees
+--     acc2 = fromMaybe 0 maybe_acc + case Theory.key_signature key of
+--         -- If it's chromatic then I can't adjust for the mode, but I still
+--         -- want to map degree 1 to C# if I'm in C#.
+--         Nothing -> Pitch.degree_accidentals tonic
+--         Just sig -> fromMaybe 0 (sig Unboxed.!? pc) -- Should never get Nothing.
+--     tonic = Theory.key_tonic key
+
+{-
+    5-3 -> 5-2# because layout [1, 1, 2, 1, 2]
+
+-}
 chromatic_to_absolute :: ToAbsolute Theory.Key
 chromatic_to_absolute key degrees (RelativePitch octave pc maybe_acc) =
-    Pitch.Pitch (octave + oct) (Pitch.Degree pc2 acc2)
+    Debug.trace_ret "ch to abs" (tonic, (pc, maybe_acc)) $
+        Pitch.Pitch (octave + oct) (Pitch.Degree pc2 acc2)
     where
+    -- sa in D is D, so add 1 PC for the tonic.
+    -- If it's ri in c#-maj then it's considered d# or Relative 1 0 -> Pitch 1 1
+    -- So, add the key signature.
+    --
+    -- But for pelog, Relative 3 -> Pitch 2 1.  So I take Relative as
+    -- white notes and subtract layout to make Pitch into something relative to
+    -- pathet (2+1) but which winds up being absolute "4" if acc + pc.
+    -- Isn't it overcomplicated?  Why not Relative 3 -> Pitch 3, then show
+    -- Pitch 3 in pelog is "4".  The place to care about pathet is diatonic
+    -- transposition and kbd to call.
+    --
+    -- Theory.degree_to_semis
     (oct, pc2) = (pc + Pitch.degree_pc tonic) `divMod` Vector.length degrees
     acc2 = fromMaybe 0 maybe_acc + case Theory.key_signature key of
         -- If it's chromatic then I can't adjust for the mode, but I still

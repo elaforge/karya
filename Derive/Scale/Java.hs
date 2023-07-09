@@ -23,13 +23,18 @@
                                                  bonang panerus--------------->
     @
 -}
-module Derive.Scale.Java (scales) where
+module Derive.Scale.Java (
+    scales
+    -- TESTING
+    , pelog_relative
+) where
 import qualified Data.Map as Map
 
 import qualified Util.Lists as Lists
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
+import qualified Derive.Scale.JavaScales as JavaScales
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
 
@@ -44,17 +49,102 @@ import           Global
 -}
 scales :: [Scale.Definition]
 scales = map Scale.Simple
+    [ JavaScales.make_scale "pelog-lima" lima "doc"
+    , JavaScales.make_scale "pelog-nem" lima "doc"
+    , JavaScales.make_scale "pelog-barang" barang "doc"
+    ]
+    where
+    lima = JavaScales.ScaleMap
+        { smap_layout = JavaScales.make_layout [1, 1, 2, 1, 2] -- 12356
+        , smap_start = 0
+        , smap_default_laras = laras_sequoia_pelog
+        , smap_laras_map = laras
+        }
+    barang = JavaScales.ScaleMap
+        { smap_layout = JavaScales.make_layout [1, 2, 1, 1, 2] -- 23567
+        , smap_start = 1
+        , smap_default_laras = laras_sequoia_pelog
+        , smap_laras_map = laras
+        }
+
+scales_old :: [Scale.Definition]
+scales_old = map Scale.Simple
     [ BaliScales.make_scale "pelog" $
-        BaliScales.scale_map config pelog_absolute Nothing
+        BaliScales.scale_map config pelog_relative Nothing
     , BaliScales.make_scale "pelog-gender-panerus" $
         BaliScales.scale_map config (cipher_relative 5) Nothing
-    , BaliScales.make_scale "pelog-gender-barung" $
+    , BaliScales.make_scale "pelog-gender-barang" $
         BaliScales.scale_map config (cipher_relative 4) Nothing
     ]
     where
     cipher_relative octave = cipher_relative_dotted octave
         (BaliScales.config_default_key config)
         (BaliScales.config_keys config)
+
+-- make_relative_format :: Text -> Degrees -> RelativeFormat key -> Format
+pelog_relative :: TheoryFormat.Format
+pelog_relative =
+    TheoryFormat.make_relative_format "[0-9][1-7]" cipher7 fmt
+    where
+    fmt = BaliScales.modify_config set_octaves $
+        ChromaticScales.relative_fmt
+            (BaliScales.config_default_key config)
+            (BaliScales.config_keys config)
+    set_octaves config = config
+        { TheoryFormat.config_parse_octave = TheoryFormat.parse_octave1 }
+    -- set_octaves = TheoryFormat.set_octave show_octave parse_octave
+
+{-
+pelog_relative2 all_keys default_key = TheoryFormat.RelativeFormat
+    { rel_config = TheoryFormat.Config
+        { config_show_octave = TheoryFormat.show_octave
+        , config_parse_octave = TheoryFormat.parse_octave1
+        , config_accidental = TheoryFormat.ascii_accidentals -- TODO Nothing
+        }
+    -- DEFAULT?
+    , rel_key_config = TheoryFormat.KeyConfig
+        { key_parse = Scales.get_key default_key all_keys
+        , key_default = default_key
+        }
+    , rel_show_degree = TheoryFormat.show_degree_chromatic
+    , rel_to_absolute = TheoryFormat.chromatic_to_absolute
+    }
+
+type ShowDegree key = key -> ShowOctave -> Degrees -> AccidentalFormat
+    -> Either Pitch.Degree Pitch.Pitch -> Pitch.Note
+
+show_degree :: TheoryFormat.ShowDegree Theory.Key
+show_degree key show_octave degrees acc_fmt degree_pitch = undefined
+
+show_degree_chromatic :: ShowDegree Theory.Key
+show_degree_chromatic key show_octave degrees acc_fmt degree_pitch =
+    Pitch.Note $ case degree_pitch of
+        Left _ -> pc_text <> acc_text
+        Right (Pitch.Pitch oct _) ->
+            show_octave (oct + pc_oct) (pc_text <> acc_text)
+    where
+    Pitch.Degree pc acc = either id Pitch.pitch_degree degree_pitch
+    acc_text = show_accidentals acc_fmt $ acc - Theory.accidentals_at_pc key pc
+    (pc_oct, pc_text) =
+        show_pc degrees (Pitch.degree_pc (Theory.key_tonic key)) pc
+
+pelog_relative2 degrees = TheoryFormat.Format
+    { fmt_show
+    , fmt_read = p_pitch config degrees
+    , fmt_to_absolute
+    , fmt_pattern = octave_pattern <> pattern <> acc_pattern
+    , fmt_pc_per_octave = Vector.length degrees
+    , fmt_relative = True
+    }
+    where
+    RelativeFormat config key_config show_degree to_abs = rel_fmt
+    fmt_show key = show_degree
+        (either (const (key_default key_config)) id (key_parse key_config key))
+        (config_show_octave config) degrees (config_accidental config)
+    fmt_to_absolute maybe_key pitch = do
+        key <- key_parse key_config maybe_key
+        return $ to_abs key degrees pitch
+-}
 
 pelog_absolute :: TheoryFormat.Format
 pelog_absolute =
@@ -68,7 +158,7 @@ cipher_relative_dotted :: Pitch.Octave -> Theory.Key -> ChromaticScales.Keys
 cipher_relative_dotted center default_key keys =
     TheoryFormat.make_relative_format "[1-7]|`[1-7][.^]*`" cipher7 fmt
     where
-    fmt = BaliScales.with_config (BaliScales.dotted_octaves center) $
+    fmt = BaliScales.modify_config (BaliScales.dotted_octaves center) $
         ChromaticScales.relative_fmt default_key keys
 
 cipher7 :: TheoryFormat.Degrees
@@ -79,15 +169,17 @@ cipher7 = TheoryFormat.make_degrees (map showt [1..7])
 config :: BaliScales.Config
 config = BaliScales.Config
     { config_layout = layout
-    , config_keys = mempty -- pelog_keys
+    , config_keys = pelog_keys
     , config_default_key = default_key
     , config_laras = laras
     , config_default_laras = laras_sequoia_pelog
     }
     where
-    layout = Theory.diatonic_layout 7
-    -- Just default_key = Map.lookup (Pitch.Key "lima") pelog_keys
-    default_key = Theory.key (Pitch.Degree 0 0) "default" (replicate 5 1) layout
+    -- layout = Theory.diatonic_layout 7
+    -- TODO layout changes based on key
+    layout = Theory.layout [1, 1, 2, 1, 2]
+    Just default_key = Map.lookup (Pitch.Key "lima") pelog_keys
+    -- default_key = Theory.key (Pitch.Degree 0 0) "default" (replicate 5 1) layout
 
 pelog_keys :: ChromaticScales.Keys
 pelog_keys = Map.fromList $ map make
