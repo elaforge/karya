@@ -167,9 +167,9 @@ enharmonics layout fmt env note = do
         Theory.enharmonics_of layout pitch
 
 input_to_note :: ScaleMap -> Scales.InputToNote
-input_to_note smap env (Pitch.Input kbd pitch _frac) = do
+input_to_note smap env (Pitch.Input kbd_type pitch _frac) = do
     key <- read_key smap (Scales.environ_key env)
-    pitch <- Scales.kbd_to_scale kbd pc_per_octave (key_tonic key) pitch
+    pitch <- Scales.kbd_to_scale kbd_type pc_per_octave (key_tonic key) pitch
     return $ TheoryFormat.show_pitch (smap_fmt smap) Nothing pitch
     where pc_per_octave = TheoryFormat.fmt_pc_per_octave (smap_fmt smap)
 

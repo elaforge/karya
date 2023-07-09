@@ -48,7 +48,7 @@ import           Global
 
 
 -- | This contains all that is needed to define a modal key system.  It fills
--- a similar role to 'Scales.ScaleMap' for non-keyed scales.
+-- a similar role to 'Scales.DegreeMap' for non-keyed scales.
 data ScaleMap = ScaleMap {
     smap_fmt :: !TheoryFormat.Format
     , smap_keys :: !Keys

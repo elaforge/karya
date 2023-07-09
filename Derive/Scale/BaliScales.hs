@@ -213,7 +213,7 @@ relative_arrow degrees relative_octaves center chromatic default_key keys =
         (degrees_doc degrees <> (if chromatic then "#?" else "") <> "[_^-]")
         degrees fmt
     where
-    fmt = with_config (set_relative_octaves relative_octaves center) $
+    fmt = modify_config (set_relative_octaves relative_octaves center) $
         ChromaticScales.relative_fmt default_key keys
 
 ioeua_relative_arrow :: Pitch.Octave -> Bool -> Theory.Key
@@ -223,10 +223,10 @@ ioeua_relative_arrow = relative_arrow ioeua arrow_octaves
 ioeua_absolute :: TheoryFormat.Format
 ioeua_absolute = TheoryFormat.make_absolute_format "[1-9][ioeua]" ioeua
 
-with_config :: (TheoryFormat.Config -> TheoryFormat.Config)
+modify_config :: (TheoryFormat.Config -> TheoryFormat.Config)
     -> TheoryFormat.RelativeFormat key -> TheoryFormat.RelativeFormat key
-with_config f config = config
-    { TheoryFormat.rel_config = f (TheoryFormat.rel_config config) }
+modify_config f fmt = fmt
+    { TheoryFormat.rel_config = f (TheoryFormat.rel_config fmt) }
 
 set_relative_octaves :: RelativeOctaves -> Pitch.Octave
     -> TheoryFormat.Config -> TheoryFormat.Config
@@ -254,7 +254,7 @@ cipher_relative_dotted :: Pitch.Octave -> Theory.Key -> ChromaticScales.Keys
 cipher_relative_dotted center default_key keys =
     TheoryFormat.make_relative_format "[12356]|`[12356][.^]*`" cipher5 fmt
     where
-    fmt = with_config (dotted_octaves center) $
+    fmt = modify_config (dotted_octaves center) $
         ChromaticScales.relative_fmt default_key keys
 
 cipher5 :: TheoryFormat.Degrees
@@ -297,9 +297,9 @@ c_ombak = "ombak"
 -- | Convert 'Pitch.FSemi' to 'Pitch.NoteNumber'.
 semis_to_nn :: Theory.Layout -> LarasMap -> Laras
     -> ChromaticScales.SemisToNoteNumber
-semis_to_nn layout laras default_laras =
+semis_to_nn layout laras_map default_laras =
     \(PSignal.PitchConfig env controls) fsemis_ -> do
-        laras <- Scales.read_environ (\v -> Map.lookup v laras)
+        laras <- Scales.read_environ (\v -> Map.lookup v laras_map)
             (Just default_laras) laras_key env
         let fsemis = fsemis_ - fromIntegral offset
             offset = laras_offset layout laras

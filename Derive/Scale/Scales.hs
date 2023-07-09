@@ -80,6 +80,8 @@ empty_scale scale_id pattern doc = Scale.Scale
 
 -- * types
 
+-- TODO this is no longer used.  But still an example of a simple scale.
+-- Move it some place like SimpleScales?
 data DegreeMap = DegreeMap {
     dm_to_semis :: Map Pitch.Note Pitch.Semi
     , dm_to_note :: Vector.Vector Pitch.Note

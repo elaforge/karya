@@ -172,7 +172,7 @@ make_nakadit_talang_ga t1_ = date 2019 5 20 $ ganesh $ korvaiS adi
     t1 = group $ t1_ . od
     t1' = group t1_
     t1x3 = t1'.t1.k.t1'
-    talang times = group $ su $ o.k . repeat times (n.p.k.__.k.u.__.k)
+    talang times = group $ su $ o.k . repeat times (n.p.k.__.p.u.__.k)
     sarva = sarvaD sarvaStrokes
     sarvaStrokes = let lh = d.__.n.d.l.d.n.l . d.l.n.d.l.d.n.l
         in lh & strM "o_oo_oo_o_oo_oo_" . lh & o

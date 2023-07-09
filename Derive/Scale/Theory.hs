@@ -77,7 +77,7 @@ diatonic_layout per_oct = layout $ replicate per_oct 1
 -- * NoteNumber diatonic transposition
 
 -- | Convert a fractional number of diatonic steps to chromatic steps.
-diatonic_to_chromatic :: Key -> Pitch.Degree -> Double -> Double
+diatonic_to_chromatic :: Key -> Pitch.Degree -> Double -> Pitch.FSemi
 diatonic_to_chromatic key degree steps
     | steps == 0 = 0
     | steps > 0 = Num.scale (transpose isteps) (transpose (isteps+1)) frac
@@ -132,8 +132,8 @@ transpose_chromatic key steps pitch
     where layout = key_layout key
 
 pitch_to_semis :: Layout -> Pitch.Pitch -> Pitch.Semi
-pitch_to_semis layout (Pitch.Pitch oct note) =
-    oct * layout_semis_per_octave layout + degree_to_semis layout note
+pitch_to_semis layout (Pitch.Pitch oct degree) =
+    oct * layout_semis_per_octave layout + degree_to_semis layout degree
 
 degree_to_semis :: Layout -> Pitch.Degree -> Pitch.Semi
 degree_to_semis layout (Pitch.Degree pc_ accs) =
@@ -154,10 +154,10 @@ semis_to_pitch :: Key -> Pitch.Semi -> Pitch.Pitch
 semis_to_pitch key semis = mkpitch $ case key_signature key of
     Just sig -> case List.find (in_scale sig) enharmonics of
         Nothing -> pick_enharmonic (sharp_signature sig) enharmonics
-        Just note -> note
+        Just pitch -> pitch
     Nothing -> pick_enharmonic (sharp_tonic key) enharmonics
     where
-    mkpitch (oct, note) = Pitch.Pitch (octave + oct) note
+    mkpitch (oct, degree) = Pitch.Pitch (octave + oct) degree
     -- The (Pitch.Degree (-1) 0) error value is icky, but here's why it should
     -- never happen: It happens when enharmonics is empty.  Since the values of
     -- layout_enharmonics are never [] as per the definition of 'layout', it
@@ -168,8 +168,9 @@ semis_to_pitch key semis = mkpitch $ case key_signature key of
     pick_enharmonic use_sharps notes = fromMaybe (0, Pitch.Degree (-1) 0) $
         Lists.minimumOn (key . Pitch.degree_accidentals . snd) notes
         where key accs = (if use_sharps then accs < 0 else accs > 0, abs accs)
-    in_scale sig (_, note) =
-        sig Vector.!? step_of key note == Just (Pitch.degree_accidentals note)
+    in_scale sig (_, degree) =
+        sig Vector.!? step_of key degree
+            == Just (Pitch.degree_accidentals degree)
     enharmonics = fromMaybe [] $ layout_enharmonics layout Boxed.!? steps
     (octave, steps) = semis `divMod` layout_semis_per_octave layout
     layout = key_layout key
@@ -267,6 +268,7 @@ data Key = Key {
     , key_signature :: Maybe Signature
     -- | Table to speed up diatonic transposition, see 'make_table'.
     , key_transpose_table :: Intervals
+    -- | White and black keys, this is constant for keys
     , key_layout :: Layout
     } deriving (Eq, Show)
 
@@ -341,12 +343,12 @@ accidentals_at_pc key pc = fromMaybe 0 $ do
 key_steps_per_octave :: Key -> Step
 key_steps_per_octave = Vector.length . key_intervals
 
--- | Figure out the relative scale step of a note in the given key.
+-- | Figure out the relative scale step of a degree in the given key.
 step_of :: Key -> Pitch.Degree -> Step
-step_of key note
-    | key_is_diatonic key = diatonic_step_of key (Pitch.degree_pc note)
+step_of key degree
+    | key_is_diatonic key = diatonic_step_of key (Pitch.degree_pc degree)
     | otherwise = Vector.find_before semis (key_intervals key)
-    where semis = degree_to_semis (key_layout key) note
+    where semis = degree_to_semis (key_layout key) degree
 
 -- | Figure out the (relative) scale step of an absolute PitchClass in
 -- a diatonic key.  In a diatonic key, the step and pitch class are relative

@@ -65,16 +65,15 @@ type ParseOctave = A.Parser (Pitch.PitchClass, Maybe Pitch.Accidentals)
 -- | Key config is only necessary for formatting that depends on the key, e.g.
 -- 'RelativeFormat'.
 data KeyConfig key = KeyConfig {
-    key_parse :: ParseKey key
+    key_parse :: Maybe Pitch.Key -> Either DeriveT.PitchError key
     -- | Default key if there is none, or it's not parseable.  Otherwise, a bad
     -- or missing key would mean you couldn't even display notes.
     , key_default :: key
     }
-type ParseKey key = Maybe Pitch.Key -> Either DeriveT.PitchError key
 
 -- | This is a just-parsed pitch.  It hasn't yet been adjusted according to the
 -- key, so it's not yet an absolute 'Pitch.Pitch'.  It also represents
--- a natural explicitly.
+-- a natural explicitly, via Just 0.
 --
 -- 'fmt_to_absolute' is responsible for converting this to a 'Pitch.Pitch',
 -- likely via 'rel_to_absolute'.
@@ -124,7 +123,7 @@ data RelativeFormat key = RelativeFormat {
     , rel_to_absolute :: ToAbsolute key
     }
 
--- | Given a relative pitch relative to the default key, adjust it to
+-- | Given a RelativePitch relative to the default key, adjust it to
 -- be absolute.  This is so I can figure out if a relative pitch is valid
 -- without knowing the key, as described in 'fmt_to_absolute'.
 type ToAbsolute key = key -> Degrees -> RelativePitch -> Pitch.Pitch
@@ -175,11 +174,13 @@ data Format = Format {
     -- I don't need the env to recognize if it's a valid call or not.
     , fmt_to_absolute :: Maybe Pitch.Key -> RelativePitch
         -> Either DeriveT.PitchError Pitch.Pitch
+    -- | Goes in 'Scale.scale_pattern'.
     , fmt_pattern :: !Text
     -- TODO why do I need this?  can I have keys with different octaves?
     -- It's used only by JustScales
     , fmt_pc_per_octave :: Pitch.PitchClass
-    -- | True if this scale is relative to the key.
+    -- | True if this scale is relative to the key.  Only used by
+    -- ChromaticScales.  TODO split it out?
     , fmt_relative :: !Bool
     }
 
@@ -294,22 +295,24 @@ make_absolute_format_config config pattern degrees = Format
 -- | Make a Format from a 'RelativeFormat'.
 make_relative_format :: Text -> Degrees -> RelativeFormat key -> Format
 make_relative_format pattern degrees rel_fmt = Format
-    { fmt_show = p_show
-    , fmt_read = p_read
-    , fmt_to_absolute = p_absolute
+    { fmt_show
+    , fmt_read = p_pitch rel_config degrees
+    , fmt_to_absolute
     , fmt_pattern = octave_pattern <> pattern <> acc_pattern
     , fmt_pc_per_octave = Vector.length degrees
     , fmt_relative = True
     }
     where
-    RelativeFormat config key_config show_degree to_abs = rel_fmt
-    p_show key = show_degree
-        (either (const (key_default key_config)) id (key_parse key_config key))
-        (config_show_octave config) degrees (config_accidental config)
-    p_read = p_pitch config degrees
-    p_absolute maybe_key pitch = do
-        key <- key_parse key_config maybe_key
-        return $ to_abs key degrees pitch
+    RelativeFormat
+        { rel_config, rel_key_config, rel_show_degree, rel_to_absolute
+        } = rel_fmt
+    fmt_show key = rel_show_degree
+        (either (const (key_default rel_key_config)) id
+            (key_parse rel_key_config key))
+        (config_show_octave rel_config) degrees (config_accidental rel_config)
+    fmt_to_absolute maybe_key pitch = do
+        key <- key_parse rel_key_config maybe_key
+        return $ rel_to_absolute key degrees pitch
 
 acc_pattern :: Text
 acc_pattern = "(bb|b|n|#|x)?"
@@ -323,12 +326,12 @@ show_pitch_absolute :: Config -> Degrees -> ShowPitch
 show_pitch_absolute config degrees _key pitch =
     Pitch.Note $ case pitch of
         Left (Pitch.Degree pc acc) ->
-            degrees ! (pc `mod` Vector.length degrees)
-                <> show_accidentals (config_accidental config) acc
-        Right (Pitch.Pitch oct (Pitch.Degree pc_ acc)) ->
+            degree <> show_accidentals (config_accidental config) acc
+            where (_, degree) = degree_at degrees pc
+        Right (Pitch.Pitch oct (Pitch.Degree pc acc)) ->
             config_show_octave config (oct + pc_oct) $
-                degrees ! pc <> show_accidentals (config_accidental config) acc
-            where (pc_oct, pc) = pc_ `divMod` Vector.length degrees
+                degree <> show_accidentals (config_accidental config) acc
+            where (pc_oct, degree) = degree_at degrees pc
 
 -- *** relative
 
@@ -372,8 +375,11 @@ show_degree_diatonic tonic show_octave degrees acc_fmt degree_pitch =
     (pc_oct, pc_text) = show_pc degrees tonic pc
 
 show_pc :: Degrees -> Tonic -> Pitch.PitchClass -> (Pitch.Octave, Text)
-show_pc degrees tonic pc = (oct, degrees ! degree)
-    where (oct, degree) = (pc - tonic) `divMod` Vector.length degrees
+show_pc degrees tonic pc = (oct, degrees ! i)
+    where (oct, i) = (pc - tonic) `divMod` Vector.length degrees
+
+degree_at :: Degrees -> Pitch.PitchClass -> (Pitch.Octave, Text)
+degree_at degrees pc = show_pc degrees 0 pc
 
 -- | Convert a relative pitch using a simple diatonic key system, where the
 -- key is just a note in the scale.
