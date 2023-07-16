@@ -31,7 +31,7 @@ module Derive.Scale.Twelve (
 #endif
 ) where
 import qualified Data.Map as Map
-import qualified Data.Vector.Unboxed as Unboxed
+import qualified Data.Vector as Vector
 
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
@@ -41,7 +41,8 @@ import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
 
 import qualified Perform.Pitch as Pitch
-import Global
+
+import           Global
 
 
 scales :: [Scale.Definition]
@@ -137,7 +138,7 @@ church_keys = concat (zipWith make_keys modes intervals)
     modes = ["maj", "dorian", "phrygian", "lydian", "mixolydian", "min",
         "locrian"]
     intervals = [take 7 (drop n major) | n <- [0..6]]
-    major = cycle $ Unboxed.toList (Theory.layout_intervals layout)
+    major = cycle $ Vector.toList (Theory.layout_intervals layout)
 
 octatonic_keys :: [Theory.Key]
 octatonic_keys = make_keys "octa21" (take 8 (cycle [2, 1]))

@@ -4,7 +4,7 @@
 
 module Derive.Scale.Octa where
 import qualified Data.Map as Map
-import qualified Data.Vector.Unboxed as Vector
+import qualified Data.Vector as Vector
 
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.ChromaticScales as ChromaticScales

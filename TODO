@@ -1305,83 +1305,14 @@ IN PROGRESS / branch: branches:
     . Order is easy to check with quickcheck.  I could come up with some ways to
       do quickchecks on certain score fragments.  Or alternately, apply
       a standard set of checks: start =0, >0, in callee block, etc.
-  - Make BaliScales which are not saih pitu be fundamentally diatonic, not
-    just degenerate chromatic.  Or figure out how to simplify the whole scales
-    mess.
-    - Disallow 4e# in selisir.  And generally accidentals.
-      . Validating the absolute pitch is broken for *legong, because I want to
-        make sure the relative pitch is in the key's intervals.
-      . I could make validation more complicated, but I think not using
-        ChromaticScales would also fix this.
-      . I don't get an error because the pitch is created, but will evaluate to
-        UnparseableNote, which makes an error only on conversion.
-      . It's because ChromaticScales reads a relative pitch, and only checks
-        for validity once it's absolute, at which point it already created
-        a ScaleDegree.  I could either also validate relative, or get rid of
-        the fancy ChromaticScales use for scales without modes.
-      . Or maybe UnparseableNote should have a msg arg to show what it was?
-      . The thing is, I don't want the whole accidental parsing mechanism,
-        I just want 7 symbols, and a relative pitch system.
-      . So I could have a simplified ChromaticScales which dispenses with letter
-        + accidental, and instead just has a unique name for each scale degree.
-      . Then I could use 1234567 for javanese-style notation.
-      . I'd basically replace the show/read pitch stuff with a hardcoded map to
-        RelativePitches.
-      - I can't have different pc_per_octave based on key, without parsing
-        the key in input_to_note.
-    - It would be nice to have a no-keys version of BaliScales so I don't have
-      to mess with a fake key in *selisir and *wayang.
-      . I guess it's not a big deal, but at least it means it ignores key.
-      . Actually it seems like it might be a pain, because then I can't use
-        the same Config.
-    Why are scales so complicated?
-      - Can I make it simpler?  If I were to rewrite it knowing all this stuff,
-        what would it look like?
-      . twelve: Keys have mode and tonic, so each key has a signature that
-        influences enharmonic spelling.  Has accidentals with enharmonic
-        spelling, and a layout which says which pitches are skipped, also based
-        on the key.  Both the pitches and accidentals are absolute and so
-        independent of the key.
-      . twelve-k: Like 'twelve', but while pitches are still absolute,
-        accidentals are relative to the scale.
-      . twelve-r: like 'twelve', but both pitches and accidentals are relative
-        from the key's tonic.
-      . just: Keys have mode and tonic as with 'twelve', but they affect the
-        tuning.  The layout is diatonic in that there are no skipped pitches,
-        and hence no enharmonics and accidentals.  Accidentals are supported
-        just as a constant ratio offset, so respelling enharmonics will change
-        the frequency.  Since there's no per-key spelling, the key is much
-        simpler, just a tonic pitch.
-      . just-r: Like 'just', except that pitches and accidentals are relative to
-        the tonic.
-      . raga: Like 'just-r', except with a much larger selection of modes.
-        Also, instead of accidentals, there are multiple candidates for
-        certain pitches (e.g. ri1 ri2 ri3), where one will be default based on
-        the key.  TODO the last bit is not implemented yet.
-      . legong, pelog: These have keys, but like 'just-r', they are simply a
-        starting note (tonic) and a layout to indicate skipped notes.  However,
-        there are no accidentals, and instead each note has a unique name.
-        'legong' (but not 'pelog') has a 'tuning' which indicates pengumbang or
-        pengisep, and they also have a 'laras' value, which indicates the tuning
-        variant.
-      . legong-pemade, legong-kantilan, etc.: Like 'legong', but with octaves
-        relative to the tessitura of a particular instrument.
-      . selisir, wayang:
-      . selisir, wayang -pemade etc.: Relative octave variants.
-      . belaganjur, angklung:
-      misc notes:
-        . Simplest is an absolute scale with no key and no octave structure,
-          just a mapping from symbol to pitch.
-        . Then we have a relative diatonic scale.  This has a key which
-          influences the note names, since they are relative to a certain
-          pitch, but no other structure.
   - rewrite shakefile so I can disable features like 'im' and not require
     their dependencies for tests, haddock, etc.
     . I'd like to generalize this to a shake haskell build system, so I can
       use it with other projects.
-  - Complete Util.PrettyGeneric so I don't have to hand-write Pretty
+  * Complete Util.PrettyGeneric so I don't have to hand-write Pretty
     instances.
     . Maybe I should fix the formatting bugs first.
+    . Implemented as Pretty.formatG.
 
 TASKS:
   Performance
@@ -8522,6 +8453,275 @@ pitch: scales: scale:
       show_pitch has to have twelve-k support.
     . I don't care enough about twelve-k to fix this now, but maybe some day.
   scales / Derive.Scale:
+    NOTES:
+      - Java_test.test_note_call evaluates pitch 3 times!  Why so many?
+      - If lots of time is taken in evaluating pitches, can I cache them?
+        see performance:
+      - Why does setting t-chrom in pitch track or on the pitch itself not
+        work?
+    better types for scale degrees:
+      . It's confusing keeping track of PitchClass, Semis, FSemis, etc.
+      . I should have:
+        Degree PitchClass Accidentals - numeric representation of parsed Note
+        Semi - chromatic absolute pitch, mod semi_per_octave
+        SemiSteps - chromatic relative
+        Diatonic - diatonic absolute pitch, mod pc_per_octave
+        DiatonicSteps - diatonic relative
+        FSemi, FSemiSteps - fractional versions
+        FDiatonic, FDiatonicSteps
+      . The complexity here is that with twelve, PitchClass = Diatonic or
+        DiatonicSteps, but in JavaScales no longer.
+      . Semi and Diatonic are mod types, but I don't want to put that in the
+        type, but rather in functions that convert from them.  They need
+        a place to put the octave.  Also I don't want a separate set of types
+        for every scale.
+      . I could put the per-octave in the data Semi Int Int, but where do
+        I put the octave?  If I put it inside then there's really no benefit
+        over non-mod and do mod on conversion from.
+      . Semi + SemiSteps, Diatonic + DiatonicSteps is an affine space,
+        needs a special add operator.  vector-space uses
+        class AffineSpace p where
+          type Diff p
+          (.-.) :: p -> p -> Diff p
+          (.+^) :: p -> Diff p -> p
+          (.-^) :: p -> Diff p -> p
+        instance AffineSpace Semi where
+          type Diff = SemiSteps
+          (.+^) :: Semi -> SemiSteps -> Semi
+        instance AffineSpace RealTime where
+          type Diff = RealDuration
+      . Wait but I can't put these in Num, or I can add with (+) which defeats
+        the point.  The vector types can be, but not the point ones.
+        . Only Num (Diff p), not Num p.
+
+      . My use of PitchClass is not correct, because the official definition
+        includes accidentals, while I mean diatonic degrees.
+      . I think I'll keep it around as the parsed representation of Note,
+        which may or may not be diatonic.
+
+    - I don't like laras for tuning, it should be tuning for tuning, and some
+      other word of umbang/isep.
+      . I was pondering things like kelamin but ugh.  Pair?  Too generic.
+    performance:
+      . Lots of time goes into evaluating pitches.  Is it parsing out keys and
+        all that every time?  If so, could I cache that somehow?
+      . Make a Map Pitch.Note Pitch.Pitch for degrees as a cache whenever
+        (key, marked env vals) or anything in transposers changes.  This
+        becomes the cache.
+      . Except all the key parsing etc. work happens in Pitch, I think call ->
+        Pitch is not the expensive thing to cache.  The expensive thing is
+        Pitch -> NN.
+      . For pelog I may be forced to make separate scales instead of keys.
+        But that has a caching effect because the key is resolved when the
+        scale is set, rather than on every pitch (is it really?).
+    reimplement with my own ScaleMap
+      - Layout with Theory.Intervals, and cached degree_to_pc and back.
+      - Plug back in relative octave stuff, maybe TheoryFormat?
+        . Will need ranges.
+      - pelog-barang
+        . The tonic offset could be in input only, but how should Step map to
+          Degree?
+        . If "1" -> 01, then ?  Maybe Degree is internal and doesn't matter?
+          Except we can parse it out.  Matters for range.
+        . Maybe it should start from tonic, in which case 00 is 7.
+      - laras aka tuning
+      - slendro
+      Make it work with BaliScales:
+        - move over Laras
+        - key?
+    simplify:
+      - rename TheoryFormat.make_relative_format to from_relative_format
+      . Octave config etc is tiresome.  Can I have
+        fmt_read :: Text -> Maybe RelativePitch
+        fmt_show :: Pitch.Pitch -> Maybe Text
+        I already do!  Config is for RelativeFormat.  Still the separate
+        octave formatting stuff seems convoluted.
+        . Could I get rid of the levels of abstraction and have a Format
+          with various functions, and then each scale support directly fills
+          them in?
+      . fmt_pattern to Doc.
+      . Maybe the Scale format is complicating it?  I have scale_show and
+        scale_read, but then the same stuff again in note_to_call's
+        pitch_note.  And I have scale_transpose but also transpose again in
+        note_to_call.  Maybe because I started with a simple Scale but then
+        had to export things.  Maybe I should have Scale expose all the bits?
+        I would have to make a single Scale structure that encompasses
+        everything though.  If I could do that, I could make a single ScaleMap
+        to generate the Scales.
+    JavaScales:
+      adaptions from existing RelativeFormat:
+        - Don't parse accidentals.  Make config_accidental=Nothing?
+        . Existing code uses PC to index into degrees, since accidentals are
+          orthogonal.  But now degrees are both PC and accidentals.
+      . Separate JavaScales to better support Javanese and Balinese scales.
+      . Turns out bali scales with the modes are much like chromatic scales.
+        It's just that I don't always want to have keys etc.  Need to be able
+        to switch them off.
+      . For pelog, I need accidentals except that they draw from degrees,
+        rather than being seperate symbols.
+      . The definition of PitchClass is that it's diatonic transposition, so
+        I must have
+        .      1   2   3   4   5   6   7   1^
+        lima   00  10  20  21  30  40  41  00
+        barang 41  00  10  11  20  30  40  41
+      . But I don't nede to do relative->absolute for read and show pitch.
+        Instead, I want to adjust input_to_note and diatonic transpose.
+        But, I do need to parse "4" as Pitch 2 1 for diatonic transposition.
+      . Except, that doesn't work because I can't exactly transpose to
+        Pitch 3 1 and have something meaningful.  There is no definition for
+        diatonic transpose from a non-diatonic note.  So maybe it would be
+        Pitch 3 1 which ignore accidentals and be "5", which would be fine.
+        Really what I'd expect is to have a flat 0..4 space which maps to
+        12356.
+      - Adjust TheoryFormat.show_degree_chromatic
+      . Wait, not even that.  If I use Pitch [0..6] then it's just
+        input_to_call and transpose.
+      . But then what is scale_layout?  It gets used to do diatonic
+        transpositions on Pitch.Pitch, specifically Call.pitch_difference.
+        So it's clearly meant that PitchClass represents diatonic
+        transposition.
+        . Also layout depends on key here.
+      . If I make "4" into 2+1, then I would go:
+        "4" -> RelativePitch 3 0 -> to_absolute -> Pitch 2 1
+        scale_read "4" -> Pitch 2 1
+        scale_show (Pitch 2 1) -> "4"
+        input_to_note (3, 0) -> "5"
+      . Layout depends on key is new, since scale_layout is constant.
+      . Ok then how about pelog-lima is its own scale?  Are things easier?
+      . In that case, it becomes absolute scale, I think?  No need for key.
+        I still need tuning though, and for BaliScales, ombak.
+        Why would this be easier than key though?
+      features:
+        . Absolute scale degrees, either cipher, or vowel, or balinese vowels
+        . Octave relative per-instrument.
+        . Key (pathet, tekepan) defines diatonic transposition, and also white
+          notes and black notes.
+        . Laras defines tuning.
+        . Bali: umbang / isep and %ombak.
+        . Javanese scales use absolute numbers and the key determines what
+          numbers are white notes, but Balinese vowels are relative to key,
+          where the skipped notes have accidentals.
+      make a framework for javanese and balinese scales?
+        . No accidentals, pc maps to degrees.
+        . But, there is layout and diatonic transposition goes by "white
+          notes".
+        . No pitch for key.
+        . Absolute degrees, but octaves may be relative.
+        . It seems like a lot of work if it's all for 2 pelog modes.  Maybe
+          3 slendro modes?  Maybe not necessary though since slendro doesn't
+          change keys.
+        . Also have balinese modes, but I don't really use them.
+        . On the other hand, it is quite annoying to straddle the octave for
+          pelog barang.
+        . What if I do a diatonic scale but then tweak input -> note?
+          I still want diatonic transposition though.
+      . Make BaliScales which are not saih pitu be fundamentally diatonic, not
+        just degenerate chromatic.  Or figure out how to simplify the whole
+        scales mess.
+        - Disallow 4e# in selisir.  And generally accidentals.
+          . Validating the absolute pitch is broken for *legong, because
+            I want to make sure the relative pitch is in the key's intervals.
+          . I could make validation more complicated, but I think not using
+            ChromaticScales would also fix this.
+          . I don't get an error because the pitch is created, but will
+            evaluate to UnparseableNote, which makes an error only on
+            conversion.
+          . It's because ChromaticScales reads a relative pitch, and only checks
+            for validity once it's absolute, at which point it already created
+            a ScaleDegree.  I could either also validate relative, or get rid of
+            the fancy ChromaticScales use for scales without modes.
+          . Or maybe UnparseableNote should have a msg arg to show what it was?
+          . The thing is, I don't want the whole accidental parsing mechanism,
+            I just want 7 symbols, and a relative pitch system.
+          . So I could have a simplified ChromaticScales which dispenses with
+            letter + accidental, and instead just has a unique name for each
+            scale degree.
+          . Then I could use 1234567 for javanese-style notation.
+          . I'd basically replace the show/read pitch stuff with a hardcoded
+            map to RelativePitches.
+          - I can't have different pc_per_octave based on key, without parsing
+            the key in input_to_note.
+        - It would be nice to have a no-keys version of BaliScales so I don't
+          have to mess with a fake key in *selisir and *wayang.
+          . I guess it's not a big deal, but at least it means it ignores key.
+          . Actually it seems like it might be a pain, because then I can't use
+            the same Config.
+    Why are scales so complicated?
+      . Can I make it simpler?  If I were to rewrite it knowing all this
+        stuff, what would it look like?
+      . twelve: Keys have mode and tonic, so each key has a signature that
+        influences enharmonic spelling.  Has accidentals with enharmonic
+        spelling, and a layout which says which pitches are skipped, also based
+        on the key.  Both the pitches and accidentals are absolute and so
+        independent of the key.
+      . twelve-k: Like 'twelve', but while pitches are still absolute,
+        accidentals are relative to the scale.
+      . twelve-r: like 'twelve', but both pitches and accidentals are relative
+        from the key's tonic.
+      . just: Keys have mode and tonic as with 'twelve', but they affect the
+        tuning.  The layout is diatonic in that there are no skipped pitches,
+        and hence no enharmonics and accidentals.  Accidentals are supported
+        just as a constant ratio offset, so respelling enharmonics will change
+        the frequency.  Since there's no per-key spelling, the key is much
+        simpler, just a tonic pitch.
+      . just-r: Like 'just', except that pitches and accidentals are relative to
+        the tonic.
+      . raga: Like 'just-r', except with a much larger selection of modes.
+        Also, instead of accidentals, there are multiple candidates for
+        certain pitches (e.g. ri1 ri2 ri3), where one will be default based on
+        the key.  TODO the last bit is not implemented yet.
+      . legong, pelog: These have keys, but like 'just-r', they are simply a
+        starting note (tonic) and a layout to indicate skipped notes.  However,
+        there are no accidentals, and instead each note has a unique name.
+        'legong' (but not 'pelog') has a 'tuning' which indicates pengumbang or
+        pengisep, and they also have a 'laras' value, which indicates the tuning
+        variant.
+      . legong-pemade, legong-kantilan, etc.: Like 'legong', but with octaves
+        relative to the tessitura of a particular instrument.
+      . selisir, wayang:
+      . selisir, wayang -pemade etc.: Relative octave variants.
+      . belaganjur, angklung:
+      misc notes:
+        . Simplest is an absolute scale with no key and no octave structure,
+          just a mapping from symbol to pitch.
+        . Then we have a relative diatonic scale.  This has a key which
+          influences the note names, since they are relative to a certain
+          pitch, but no other structure.
+
+    java:
+      problems with notation:
+        - event body too dark when negative, can't read text.
+          . What if negative is actually lighter?
+          . negative_duration_brightness is in EventTrack.cc, not Config.hsc
+        - for negative, does the duration really matter?
+          . Yes for patterns.  But for individual notes there is nothing
+            unless I can get final duration out of it.
+          . I can use the negative duration but maybe it only works because
+            all notes are the same duration.  What if I wanted to set the
+            duration?  Negative duration would be confusing but could not
+            have enough space.
+          . So it seems like it should be -0 but then have optional
+            explicit damp marks.
+          . This will be inconvenient for parts like gender, but maybe I need
+            damp inferring anyway.
+        - Vertical not very compact.  Screens are wider than tall.
+          . Can fit 6*8 notes at once.  Paper can fit 4*8 but in less space
+            and is then taller.
+          . Window and block title overhead is repeated.
+          . Track titles squished.
+          . Hard to read when it's not grouped in 4s.  Can get a better ruler.
+            Gatra = 1w, line = section
+          . It's already right, but I could number sections.
+          . Scores have a notion of wrapping.  I could do that vertically.
+            However, this is in the direction of one big block, while the
+            hierarchical block idea is that they don't get too big.
+      * can't parse absolute notation 11 12 13 etc.
+      + get ranges of javanese instruments
+      + tuning for sekar sequoia
+        . 4 is guesses, also need complete range
+      - I need "accidentals" as proper notes, not 3#.
+      - pengumbang/pengisep not suitable
+      - pathet as an alias for key?
     - I think the symbolic pitch_note functions should use RelativePitch,
       otherwise the symbolic pitch they produce can't be parsed back in to
       produce the same pitch.

@@ -3,8 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Scale.Twelve_test where
-import qualified Data.Text as Text
-
 import qualified Cmd.CmdTest as CmdTest
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
@@ -98,5 +96,5 @@ test_keyed_input_to_note = do
 
 derive_pitch :: Text -> Text -> Text -> Derive.Result
 derive_pitch scale key pitch =
-    DeriveTest.derive_tracks (if Text.null key then "" else "key = " <> key)
+    DeriveTest.derive_tracks (if key == "" then "" else "key = " <> key)
         [(">", [(0, 1, "")]), ("*" <> scale, [(0, 0, pitch)])]

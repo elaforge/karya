@@ -8,7 +8,7 @@
 -- The difference between this and "Derive.Scale.Scales" is that this is
 -- intended for using scales, while Scales is intended for implementing them.
 module Derive.Scale (module Derive.Derive, module Derive.Scale) where
-import qualified Data.Vector.Unboxed as Vector
+import qualified Data.Vector as Vector
 
 import qualified Derive.Derive as Derive
 import           Derive.Derive

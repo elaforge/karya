@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Scale.Theory_test where
-import qualified Data.Vector.Unboxed as Vector
+import qualified Data.Vector as Vector
 
 import Util.Test
 import qualified Derive.Scale.ChromaticScales as ChromaticScales

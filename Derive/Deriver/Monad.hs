@@ -141,7 +141,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.String as String
 import qualified Data.Text as Text
-import qualified Data.Vector.Unboxed as Vector.Unboxed
+import qualified Data.Vector as Vector
 
 import qualified GHC.Stack
 
@@ -1900,7 +1900,7 @@ type Enharmonics = DeriveT.Environ -> Pitch.Note
 --
 -- Combined with 'scale_read' and 'scale_show', I can use this to do math on
 -- scale degrees.
-type Layout = Vector.Unboxed.Vector Pitch.Semi
+type Layout = Vector.Vector Pitch.Semi
 
 -- * merge
 

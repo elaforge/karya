@@ -55,14 +55,12 @@ scales = map Scale.Simple
     ]
     where
     lima = JavaScales.ScaleMap
-        { smap_layout = JavaScales.make_layout [1, 1, 2, 1, 2] -- 12356
-        , smap_start = 0
+        { smap_layout = JavaScales.make_layout 0 [1, 1, 2, 1, 2] -- 12356
         , smap_default_laras = laras_sequoia_pelog
         , smap_laras_map = laras
         }
     barang = JavaScales.ScaleMap
-        { smap_layout = JavaScales.make_layout [1, 2, 1, 1, 2] -- 23567
-        , smap_start = 1
+        { smap_layout = JavaScales.make_layout 1 [1, 2, 1, 1, 2] -- 23567
         , smap_default_laras = laras_sequoia_pelog
         , smap_laras_map = laras
         }

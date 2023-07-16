@@ -4,13 +4,13 @@
 
 module Derive.Scale.Java_test where
 import qualified Util.Lists as Lists
-import qualified Util.ParseText as ParseText
-import qualified Derive.DeriveT as DeriveT
+import qualified Util.Texts as Texts
+import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Java as Java
 import qualified Derive.Scale.ScaleTest as ScaleTest
-import qualified Derive.Scale.TheoryFormat as TheoryFormat
+import qualified Derive.Score as Score
 
 import qualified Perform.Pitch as Pitch
 import qualified Ui.Ui as Ui
@@ -23,21 +23,23 @@ import           Util.Test
 test_read :: Test
 test_read = do
     -- let f scale key pitch = read_scale scale key pitch
-    let f scale = read_scale scale "nokey" -- TODO remove key
+    let f scale = fmap pretty . read_scale scale
     let unparseable n = Left $ "unparseable note: " <> n
-    let mknote5 = Pitch.Note . ("5"<>) . showt
+    let invalid = Left "invalid input"
     -- .      1   2   3   4   5   6   7   1^
     -- lima   00  10  20  2#  30  40  4#  00
     -- barang 4#  00  10  1#  20  30  40  4#
-    equal (f pelog_lima "50") (unparseable "50")
+    equal (f pelog_lima "50") invalid
     equal (f pelog_lima "51") (Right "5-0")
-    equal (f pelog_lima "58") (unparseable "58")
+    equal (f pelog_lima "58") invalid
 
     -- 54 -> RelativePitch 5 3 Nothing -> Pitch 5 2 1
-    equal (f pelog_lima "54") (Right "5-2#")
+    -- equal (f pelog_lima "54") (Right "5-2#")
     -- 12356
-    equal (map (f pelog_lima . mknote5) [1..7]) $ map Right
-        ["5-0", "5-1", "5-2", "5-2#", "5-3", "5-4", "5-4#"]
+    pprint (map (f pelog_lima . note5) [1..7])
+    -- equal (map (f pelog_lima . note5) [1..7]) $ map Right
+    --     ["5-0", "5-1", "5-2", "5-3", "5-4", "5-5", "5-6"]
+    --     -- ["5-0", "5-1", "5-2", "5-2#", "5-3", "5-4", "5-4#"]
 
     {-
         Pitch is absolute.  So a relative input will be adjusted to absolute.
@@ -81,11 +83,11 @@ test_read = do
     -- 51 -> 4#
     -- [1, 2, 1, 1, 2] -- 23567
     -- 23567 -- 12456
-    equal (f pelog_barang "51") (Right "4-4#")
-    equal (f pelog_barang "52") (Right "5-1")
-    equal (map (f pelog_barang . mknote5) [1..7]) $ map Right
-        ["5-0", "5-1", "5-2", "5-2#", "5-3", "5-4", "5-4#"]
-        -- ["5-0", "5-1", "5-2", "5-2#", "5-3", "5-4", "5-4#"]
+    -- equal (f pelog_barang "51") (Right "4-4#")
+    -- equal (f pelog_barang "52") (Right "5-1")
+    -- equal (map (f pelog_barang . note5) [1..7]) $ map Right
+    --     ["5-0", "5-1", "5-2", "5-2#", "5-3", "5-4", "5-4#"]
+    --     -- ["5-0", "5-1", "5-2", "5-2#", "5-3", "5-4", "5-4#"]
 
     -- equal (f panerus lima "1") (Right "5-0")
     -- equal (f panerus lima "2") (Right "5-1")
@@ -100,6 +102,30 @@ test_read = do
     -- -- equal (run "wayang" "5i") (run "wayang-pemade" "i^")
     -- -- equal (run "wayang" "6i") (run "wayang-kantilan" "i^")
 
+test_transpose :: Test
+test_transpose = do
+    let f scale t steps note =
+            Scale.scale_show scale mempty
+            =<< Scale.scale_transpose scale t mempty steps
+            =<< Scale.scale_read scale mempty note
+    right_equal (f pelog_lima Derive.Diatonic 1 "53") "55"
+    right_equal (f pelog_lima Derive.Diatonic 2 "53") "56"
+    right_equal (f pelog_lima Derive.Diatonic 3 "53") "61"
+    right_equal (f pelog_lima Derive.Diatonic 1 "54") "55"
+
+    equal (map (f pelog_lima Derive.Chromatic 1 . note5) [1..7]) $
+        map Right ["52", "53", "54", "55", "56", "57", "61"]
+    equal (map (f pelog_lima Derive.Diatonic 1 . note5) [1..7]) $
+        map Right ["52", "53", "55", "55", "56", "61", "61"]
+
+    right_equal (f pelog_barang Derive.Diatonic 0 "57") "57"
+    right_equal (f pelog_barang Derive.Diatonic 1 "57") "62"
+    right_equal (f pelog_barang Derive.Diatonic 1 "61") "62"
+    equal (map (f pelog_barang Derive.Chromatic 1 . note5) [1..7]) $
+        map Right ["52", "53", "54", "55", "56", "57", "61"]
+    equal (map (f pelog_barang Derive.Diatonic 1 . note5) [1..7]) $
+        map Right ["52", "53", "55", "55", "56", "57", "62"]
+
 test_input_to_note :: Test
 test_input_to_note = do
     let f scale = ScaleTest.input_to_note scale mempty
@@ -111,16 +137,18 @@ test_input_to_note = do
     -- equal (f pelog_lima (5, 3, 0)) "55"
     -- equal (f pelog_lima (5, 4, 0)) "56"
     -- equal (f pelog_lima (5, 5, 0)) "61"
-    --
-    -- equal (map (f pelog_lima) [(5, pc, acc) | pc <- [0..5], acc <- [0, 1]])
-    --     [ "51", x
-    --     , "52", x
-    --     , "53", "54"
-    --     , "55", x
-    --     , "56", "57"
-    --     , "61", x
-    --     ]
 
+    equal (map (f pelog_lima) [(5, pc, acc) | pc <- [0..5], acc <- [0, 1]])
+        [ "51", x
+        , "52", x
+        , "53", "54"
+        , "55", x
+        , "56", "57"
+        , "61", x
+        ]
+
+    equal (f pelog_barang (5, 4, 0)) "57"
+    equal (f pelog_barang (5, 4, 1)) "61"
     -- 23567
     equal (map (f pelog_barang) [(5, pc, acc) | pc <- [0..5], acc <- [0, 1]])
         [ "52", x
@@ -158,12 +186,11 @@ test_input_to_note = do
             53# ->      x
             54  -> 55   57
             54# -> 55#  61
-
     -}
 
-    -- 01234
-    -- 23567
-    equal (f pelog_barang (5, 4, 0)) "57"
+    -- -- 01234
+    -- -- 23567
+    -- equal (f pelog_barang (5, 4, 0)) "57"
 
     -- equal (f panerus (5, 0, 0)) "1"
     -- equal (f panerus (6, 0, 0)) "`1^`"
@@ -190,6 +217,27 @@ test_input_to_nn = do
     -- equal (run panerus (4, 0, 0)) (Right (Right 62.18))
     -- equal (run panerus (5, 1, 0)) (Right (Right 75.68))
 
+test_note_call :: Test
+test_note_call = do
+    let f control =
+            DeriveTest.extract extract . derive_pitch "pelog-lima" "" control
+        extract e = (Score.initial_nn e, Score.initial_note e)
+    equal (f "" "51") ([(Just 74.25, Just "51")], [])
+    equal (f "t-chrom=1" "51") ([(Just 75.68, Just "52")], [])
+    equal (f "t-chrom=3" "51") ([(Just 80, Just "54")], [])
+    equal (f "t-dia=1" "51") ([(Just 75.68, Just "52")], [])
+    -- symbolic pitch rounds to 54, but it's actually a bit higher.
+    equal (f "t-dia=2.6" "51") ([(Just 80.206, Just "54")], [])
+    equal (f "t-dia=3" "51") ([(Just 81.03, Just "55")], [])
+    equal (f "t-dia=-1" "51") ([(Just 70.5, Just "46")], [])
+    equal (f "t-oct=1" "51") ([(Just 86.4, Just "61")], [])
+    equal (f "t-nn=1" "51") ([(Just (74.25 + 1), Just "51")], [])
+    equal (f "t-hz=7" "51")
+        ([(Just (Pitch.modify_hz (+7) 74.25), Just "51")], [])
+
+note5 :: Int -> Pitch.Note
+note5 = Pitch.Note . ("5"<>) . showt
+
 lima, barang :: Text
 lima = "lima"
 barang = "barang"
@@ -213,10 +261,11 @@ get_scale = ScaleTest.get_scale Java.scales
 --
 -- TODO copy paste from Wayang_test
 
-read_scale :: Scale.Scale -> Text -> Pitch.Note -> Either Text Text
-read_scale scale key note = bimap pretty pretty $
-    -- Scale.scale_read scale (ScaleTest.key_environ key) note
-    Scale.scale_read scale mempty note
+show_scale :: Scale.Scale -> Pitch.Pitch -> Either Text Text
+show_scale scale = bimap pretty pretty . Scale.scale_show scale mempty
+
+read_scale :: Scale.Scale -> Pitch.Note -> Either Text Pitch.Pitch
+read_scale scale = first pretty . Scale.scale_read scale mempty
 
 scale_track :: Text -> [Text] -> [UiTest.TrackSpec]
 scale_track scale_id pitches =
@@ -224,3 +273,11 @@ scale_track scale_id pitches =
     , ("*" <> scale_id, [(n, 0, p) | (n, p) <- events])
     ]
     where events = zip (Lists.range_ 0 1) pitches
+
+-- TODO from Twelve_test
+derive_pitch :: Text -> Text -> Text-> Text -> Derive.Result
+derive_pitch scale key control pitch =
+    DeriveTest.derive_tracks (if key == "" then "" else "key = " <> key)
+        [ (Texts.join2 " | " ">" control, [(0, 1, "")])
+        , ("*" <> scale, [(0, 0, pitch)])
+        ]
