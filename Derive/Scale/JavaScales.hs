@@ -2,6 +2,8 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE NoFieldSelectors #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 module Derive.Scale.JavaScales where
 import qualified Data.Attoparsec.Text as A
 import qualified Data.Map as Map
@@ -31,32 +33,24 @@ import           Global
 import           Util.Affine
 
 
-data Key = Key {
-    key_name :: Text
-    , key_start :: Pitch.PitchClass
-    , key_intervals :: Intervals
-    } deriving (Eq, Show)
-
-type Intervals = Vector.Vector Pitch.Semi
-
 data ScaleMap = ScaleMap {
-    smap_layout :: Layout
-    , smap_laras_map :: Map Text BaliScales.Laras
-    , smap_default_laras :: BaliScales.Laras
-    , smap_format :: Format
+    layout :: Layout
+    , laras_map :: Map Text BaliScales.Laras
+    , default_laras :: BaliScales.Laras
+    , format :: Format
     }
 
 make_scale :: Pitch.ScaleId -> ScaleMap -> Doc.Doc -> Scale.Scale
 make_scale scale_id smap doc = Scale.Scale
     { scale_id = scale_id
-    , scale_pattern = fmt_pattern fmt
+    , scale_pattern = smap.format.pattern
     , scale_symbols = []
     , scale_transposers = Scales.standard_transposers
-    , scale_read = \_env -> fmt_read fmt
-    , scale_show = \_env -> fmt_show fmt
+    , scale_read = \_env -> smap.format.read
+    , scale_show = \_env -> smap.format.show
     -- TODO technically it can change per laras, but can I forbid that?
-    , scale_bottom = BaliScales.laras_base (smap_default_laras smap)
-    , scale_layout = layout_intervals (smap_layout smap)
+    , scale_bottom = BaliScales.laras_base smap.default_laras
+    , scale_layout = smap.layout.intervals
     , scale_transpose = transpose smap
     , scale_enharmonics = Scales.no_enharmonics
     , scale_note_to_call = note_to_call scale smap
@@ -68,30 +62,31 @@ make_scale scale_id smap doc = Scale.Scale
     }
     where
     scale = PSignal.Scale scale_id Scales.standard_transposers
-    fmt = smap_format smap
 
 data Layout = Layout {
-    layout_start :: Int -- Chromatic, but usually added to PitchClass etc.
-    , layout_intervals :: Intervals
-    , layout_theory :: Theory.Layout -- TODO remove, only BaliScales.semis_to_nn
+    start :: Int -- Chromatic, but usually added to PitchClass etc.
+    , intervals :: Intervals
+    , theory :: Theory.Layout -- TODO remove, only BaliScales.semis_to_nn
     -- | Cache diatonic to chromatic mappings.
-    , layout_d_to_c :: Vector.Vector Chromatic
-    , layout_c_to_d :: Vector.Vector (Diatonic, ChromaticSteps)
+    , d_to_c :: Vector.Vector Chromatic
+    , c_to_d :: Vector.Vector (Diatonic, ChromaticSteps)
     -- | This is like d_to_c, except it includes chromatic steps as
     -- accidentals.  The ascii kbd input uses Pitch with diatonic steps
     -- (modulo d_per_oct), but internally (via 'fmt_show' and 'fmt_read'),
     -- Pitch.pitch_pc is chromatic modulo c_per_oct.
-    , layout_degree_to_pc :: Map Pitch.Degree Pitch.PitchClass
+    , degree_to_pc :: Map Pitch.Degree Pitch.PitchClass
     } deriving (Show)
+
+type Intervals = Vector.Vector Pitch.Semi
 
 make_layout :: Int -> [Pitch.Semi] -> Layout
 make_layout start intervals = Layout
-    { layout_start = start
-    , layout_intervals = intervals_v
-    , layout_theory = Theory.layout intervals
-    , layout_d_to_c = make_d_to_c intervals_v
-    , layout_c_to_d = make_c_to_d intervals_v
-    , layout_degree_to_pc = Map.fromList $ zip to_degree [0..]
+    { start = start
+    , intervals = intervals_v
+    , theory = Theory.layout intervals
+    , d_to_c = make_d_to_c intervals_v
+    , c_to_d = make_c_to_d intervals_v
+    , degree_to_pc = Map.fromList $ zip to_degree [0..]
     }
     where
     to_degree = make_step_to_degree intervals
@@ -106,7 +101,7 @@ lima_intervals = Vector.fromList [1, 1, 2, 1, 2]
 barang_intervals = Vector.fromList [1, 2, 1, 1, 2] -- 23567
 
 note_to_call :: DeriveT.Scale -> ScaleMap -> Pitch.Note -> Maybe Derive.ValCall
-note_to_call scale smap note = case fmt_read (smap_format smap) note of
+note_to_call scale smap note = case smap.format.read note of
     Left _ -> Nothing
     Right pitch -> Just $ ScaleDegree.scale_degree scale
         (pitch_nn pitch) (pitch_note pitch)
@@ -118,24 +113,22 @@ note_to_call scale smap note = case fmt_read (smap_format smap) note of
         pitch_to_transposed layout pitch controls
     pitch_note :: Pitch.Pitch -> Scale.PitchNote
     pitch_note pitch (PSignal.PitchConfig _env controls) =
-        fmt_show (smap_format smap) $ chromatic_to_pitch layout $
+        smap.format.show $ chromatic_to_pitch layout $
         round_chromatic $ pitch_to_transposed layout pitch controls
-    layout = smap_layout smap
+    layout = smap.layout
 
 -- Adapt to ChromaticScales.SemisToNoteNumber
 -- TODO which should use typed FChromatic instead of untyped Pitch.FSemi
 chromatic_to_nn :: ScaleMap -> PSignal.PitchConfig -> FChromatic
     -> Either DeriveT.PitchError Pitch.NoteNumber
 chromatic_to_nn smap config fc =
-    BaliScales.semis_to_nn (layout_theory (smap_layout smap))
-        (smap_laras_map smap) (smap_default_laras smap)
+    BaliScales.semis_to_nn smap.layout.theory smap.laras_map smap.default_laras
         config (to_semis fc)
     where
     -- Adapt to Pitch.FSemi taken by SemisToNoteNumber.  pitch_to_chromatic
     -- subtracts layout_start, so I have to add it back Because FSemis are
     -- absolute, while Chromatic is scale-relative.
-    to_semis (FChromatic fc) =
-        fc + fromIntegral (layout_start (smap_layout smap))
+    to_semis (FChromatic fc) = fc + fromIntegral smap.layout.start
 
 -- | Pitch plus transposition to absolute chromatic.
 pitch_to_transposed :: Layout -> Pitch.Pitch -> ScoreT.ControlValMap
@@ -144,14 +137,13 @@ pitch_to_transposed layout pitch controls =
     fc .+^ (octave * per_oct + dsteps + csteps)
     where
     fc = fchromatic $ pitch_to_chromatic layout pitch
-    per_oct = fromIntegral $ c_per_oct intervals
+    per_oct = fromIntegral $ c_per_oct layout.intervals
     dsteps = diatonic_to_chromatic_frac
         layout (pitch_to_chromatic layout pitch) diatonic
     octave = FChromaticSteps $ get Controls.octave
     csteps = FChromaticSteps $ get Controls.chromatic
     diatonic = FDiatonicSteps $ get Controls.diatonic
     get m = Map.findWithDefault 0 m controls
-    intervals = layout_intervals layout
 
 input_to_note :: ScaleMap -> Scales.InputToNote
 input_to_note smap _env (Pitch.Input kbd_type pitch _frac) = do
@@ -161,9 +153,9 @@ input_to_note smap _env (Pitch.Input kbd_type pitch _frac) = do
     let tonic = 0
     pitch <- Scales.kbd_to_scale kbd_type per_octave tonic pitch
     -- Debug.trace_ret "to_note" pitch $
-    fmt_show (smap_format smap) =<< expand_pitch (smap_layout smap) pitch
+    smap.format.show =<< expand_pitch smap.layout pitch
     where
-    per_octave = d_per_oct (layout_intervals (smap_layout smap))
+    per_octave = d_per_oct smap.layout.intervals
 
 -- | Input Pitches come in with a layout, to match the notion of diatonic
 -- steps, but internally Pitch is absolute with only PitchClass.
@@ -173,13 +165,12 @@ input_to_note smap _env (Pitch.Input kbd_type pitch _frac) = do
 expand_pitch :: Layout -> Pitch.Pitch
     -> Either PSignal.PitchError Pitch.Pitch
 expand_pitch layout (Pitch.Pitch oct degree) =
-    case Map.lookup degree (layout_degree_to_pc layout) of
+    case Map.lookup degree layout.degree_to_pc of
         Nothing -> Left DeriveT.InvalidInput
-        Just pc -> Right $
-            Pitch.add_pc per_oct (layout_start layout) $
+        Just pc -> Right $ Pitch.add_pc per_oct layout.start $
             Pitch.Pitch oct (Pitch.Degree pc 0)
     where
-    per_oct = c_per_oct (layout_intervals layout)
+    per_oct = c_per_oct layout.intervals
 
 
 -- ** transpose
@@ -187,17 +178,15 @@ expand_pitch layout (Pitch.Pitch oct degree) =
 transpose :: ScaleMap -> Derive.Transpose
 transpose smap transposition _env steps pitch = Right $ case transposition of
     Scale.Diatonic -> transpose_diatonic layout pitch (DiatonicSteps steps)
-    Scale.Chromatic -> add_pitch intervals (ChromaticSteps steps) pitch
+    Scale.Chromatic -> add_pitch layout.intervals (ChromaticSteps steps) pitch
     where
-    intervals = layout_intervals $ smap_layout smap
-    layout = smap_layout smap
+    layout = smap.layout
 
 transpose_diatonic :: Layout -> Pitch.Pitch -> DiatonicSteps -> Pitch.Pitch
-transpose_diatonic layout pitch steps = add_pitch intervals csteps pitch
+transpose_diatonic layout pitch steps = add_pitch layout.intervals csteps pitch
     where
     csteps = add_diatonic layout c steps .-. c
     c = pitch_to_chromatic layout pitch
-    intervals = layout_intervals layout
 
 add_pitch :: Intervals -> ChromaticSteps -> Pitch.Pitch -> Pitch.Pitch
 add_pitch intervals (ChromaticSteps steps) = Pitch.add_pc per_oct steps
@@ -205,8 +194,8 @@ add_pitch intervals (ChromaticSteps steps) = Pitch.add_pc per_oct steps
 
 pitch_to_chromatic :: Layout -> Pitch.Pitch -> Chromatic
 pitch_to_chromatic layout (Pitch.Pitch oct (Pitch.Degree pc _)) =
-    Chromatic $ oct * per_oct + pc - layout_start layout
-    where per_oct = c_per_oct (layout_intervals layout)
+    Chromatic $ oct * per_oct + pc - layout.start
+    where per_oct = c_per_oct layout.intervals
     -- Chromatic and Diatonic would like to be absolute, but can't be.  The
     -- layout is relative to Diatonic 0, because it has to be, because in pelog
     -- barang absolute 0 (aka "1") is not a diatonic pitch.  So Diatonic has to
@@ -218,8 +207,8 @@ pitch_to_chromatic layout (Pitch.Pitch oct (Pitch.Degree pc _)) =
 chromatic_to_pitch :: Layout -> Chromatic -> Pitch.Pitch
 chromatic_to_pitch layout (Chromatic c) = Pitch.Pitch oct (Pitch.Degree pc 0)
     where
-    (oct, pc) = (c + layout_start layout) `divMod` per_oct
-    per_oct = c_per_oct (layout_intervals layout)
+    (oct, pc) = (c + layout.start) `divMod` per_oct
+    per_oct = c_per_oct layout.intervals
 
 
 -- | Convert a fractional number of diatonic steps to chromatic steps, starting
@@ -262,22 +251,20 @@ add_diatonic layout start steps
 -- in a scale.  So I need a leftover.
 to_diatonic :: Layout -> Chromatic -> (Diatonic, ChromaticSteps)
 to_diatonic layout (Chromatic c) =
-    (d .+^ DiatonicSteps (oct * d_per_oct intervals), cs)
+    (d .+^ DiatonicSteps (oct * d_per_oct layout.intervals), cs)
     where
-    (d, cs) = layout_c_to_d layout Vector.! c2
-    (oct, c2) = c `divMod` c_per_oct intervals
-    intervals = layout_intervals layout
+    (d, cs) = layout.c_to_d Vector.! c2
+    (oct, c2) = c `divMod` c_per_oct layout.intervals
 
 -- 23567
 -- d0 -> c1, because barang starts on 1
 -- or, I could do the adjustment from Pitch: d0 -> c0 -> pc 1
 to_chromatic :: Layout -> Diatonic -> Chromatic
 to_chromatic layout (Diatonic d) =
-    layout_d_to_c layout Vector.! d2
-        .+^ ChromaticSteps (oct * c_per_oct intervals)
+    layout.d_to_c Vector.! d2 .+^ ChromaticSteps (oct * c_per_oct intervals)
     where
     (oct, d2) = d `divMod` d_per_oct intervals
-    intervals = layout_intervals layout
+    intervals = layout.intervals
 
 -- | This should return DiatonicSteps, but only one caller wants that.
 d_per_oct :: Intervals -> Int
@@ -321,23 +308,23 @@ split_diatonic (FDiatonicSteps d) = first DiatonicSteps (properFraction d)
 -- * Format
 
 data Format = Format {
-    fmt_show :: Pitch.Pitch -> Either DeriveT.PitchError Pitch.Note
-    , fmt_read :: Pitch.Note -> Either DeriveT.PitchError Pitch.Pitch
-    , fmt_pattern :: Text
+    show :: Pitch.Pitch -> Either DeriveT.PitchError Pitch.Note
+    , read :: Pitch.Note -> Either DeriveT.PitchError Pitch.Pitch
+    , pattern :: Text
     }
 
 cipher_absolute :: Pitch.PitchClass -> Format
 cipher_absolute pc_per_octave = Format
-    { fmt_show = show_pitch_absolute pc_per_octave
-    , fmt_read = read_pitch_absolute pc_per_octave
-    , fmt_pattern = "[0-9][1-" <> showt pc_per_octave <> "]"
+    { show = show_pitch_absolute pc_per_octave
+    , read = read_pitch_absolute pc_per_octave
+    , pattern = "[0-9][1-" <> showt pc_per_octave <> "]"
     }
 
 cipher_octave_relative :: Pitch.PitchClass -> Pitch.Octave -> Format
 cipher_octave_relative pc_per_octave center = Format
-    { fmt_show = show_dotted_cipher pc_per_octave center
-    , fmt_read = read_dotted_cipher pc_per_octave center
-    , fmt_pattern = degree <> "|`" <> degree <> "[.^]+`"
+    { show = show_dotted_cipher pc_per_octave center
+    , read = read_dotted_cipher pc_per_octave center
+    , pattern = degree <> "|`" <> degree <> "[.^]+`"
     }
     where degree = "[1-" <> showt pc_per_octave <> "]"
 
@@ -407,6 +394,12 @@ p_digit = maybe mzero pure . Num.readDigit =<< A.satisfy ParseText.is_digit
 -- ***
 
 {-
+data Key = Key {
+    key_name :: Text
+    , key_start :: Pitch.PitchClass
+    , key_intervals :: Intervals
+    } deriving (Eq, Show)
+
 pelog_format_abs :: TheoryFormat.Format
 pelog_format_abs = TheoryFormat.Format
     -- For java, ignore key, no accidentals, just show
