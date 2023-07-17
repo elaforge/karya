@@ -113,8 +113,8 @@ absolute_c_degrees = ["c", "d", "e", "f", "g", "a", "b"]
 
 -- | Args for a relative scale format.
 --
--- The 'Pitch.Pitch'es handled by a relative scale are still absolute, exactly
--- the same as the Pitches of an absolute scale.  The difference is that the
+-- The 'Pitch.Pitch'es handled by a relative scale are still absolute, the same
+-- as the Pitches of an absolute scale.  The difference is that the
 -- 'read_pitch' and 'show_pitch' functions adjust based on the key to display
 -- the absolute Pitch relative to the tonic of the key.
 data RelativeFormat key = RelativeFormat {
@@ -256,7 +256,7 @@ read_pitch fmt key = fmt_to_absolute fmt key <=< read_relative_pitch fmt
 read_relative_pitch :: Format -> Pitch.Note
     -> Either DeriveT.PitchError RelativePitch
 read_relative_pitch fmt note = justErr (DeriveT.UnparseableNote note) $
-    Debug.trace_ret "read_rel" note $
+    -- Debug.trace_ret "read_rel" note $
     ParseText.maybe_parse (fmt_read fmt) $
     Pitch.note_text note
 
@@ -341,7 +341,7 @@ show_degree_chromatic :: ShowDegree Theory.Key
 show_degree_chromatic key show_octave degrees acc_fmt degree_pitch =
     Pitch.Note $ case degree_pitch of
         Left _ -> pc_text <> acc_text
-        Right (Pitch.Pitch oct _) -> Debug.trace "show_degree_chromatic" $
+        Right (Pitch.Pitch oct _) -> -- Debug.trace "show_degree_chromatic" $
             show_octave (oct + pc_oct) (pc_text <> acc_text)
     where
     Pitch.Degree pc acc = either id Pitch.pitch_degree degree_pitch
@@ -351,7 +351,7 @@ show_degree_chromatic key show_octave degrees acc_fmt degree_pitch =
 
 chromatic_to_absolute :: ToAbsolute Theory.Key
 chromatic_to_absolute key degrees (RelativePitch octave pc maybe_acc) =
-    Debug.trace_ret "ch to abs" (tonic, (pc, maybe_acc)) $
+    -- Debug.trace_ret "ch to abs" (tonic, (pc, maybe_acc)) $
         Pitch.Pitch (octave + oct) (Pitch.Degree pc2 acc2)
     where
     -- sa in D is D, so add 1 PC for the tonic.

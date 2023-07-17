@@ -26,7 +26,6 @@
 module Derive.Scale.Java (
     scales
     -- TESTING
-    , pelog_relative
 ) where
 import qualified Data.Map as Map
 
@@ -49,29 +48,42 @@ import           Global
 -}
 scales :: [Scale.Definition]
 scales = map Scale.Simple
-    [ JavaScales.make_scale "pelog-lima" lima "doc"
-    , JavaScales.make_scale "pelog-nem" lima "doc"
-    , JavaScales.make_scale "pelog-barang" barang "doc"
+    -- TODO This permutation game is no good, let's go back to key=pathet
+    -- and maybe even scale-range=gender-panerus
+    [ JavaScales.make_scale "pelog-lima" (lima Nothing) "doc"
+    , JavaScales.make_scale "pelog-lima-gender-panerus"
+        (lima (Just 4)) "doc"
+    , JavaScales.make_scale "pelog-nem" (lima Nothing) "doc"
+    , JavaScales.make_scale "pelog-barang" (barang Nothing) "doc"
+    , JavaScales.make_scale "pelog-barang-gender-panerus"
+        (barang (Just 4)) "doc"
+    , JavaScales.make_scale "pelog-barang-gender-barung"
+        (barang (Just 3)) "doc"
     ]
     where
-    lima = JavaScales.ScaleMap
+    lima center = JavaScales.ScaleMap
         { smap_layout = JavaScales.make_layout 0 [1, 1, 2, 1, 2] -- 12356
         , smap_default_laras = laras_sequoia_pelog
         , smap_laras_map = laras
+        , smap_format = format center
         }
-    barang = JavaScales.ScaleMap
+    barang center = JavaScales.ScaleMap
         { smap_layout = JavaScales.make_layout 1 [1, 2, 1, 1, 2] -- 23567
         , smap_default_laras = laras_sequoia_pelog
         , smap_laras_map = laras
+        , smap_format = format center
         }
+    format Nothing = JavaScales.cipher_absolute 7
+    format (Just center) = JavaScales.cipher_octave_relative 7 center
+
 
 scales_old :: [Scale.Definition]
 scales_old = map Scale.Simple
     [ BaliScales.make_scale "pelog" $
-        BaliScales.scale_map config pelog_relative Nothing
+        BaliScales.scale_map config pelog_relative_keyed Nothing
     , BaliScales.make_scale "pelog-gender-panerus" $
         BaliScales.scale_map config (cipher_relative 5) Nothing
-    , BaliScales.make_scale "pelog-gender-barang" $
+    , BaliScales.make_scale "pelog-gender-barung" $
         BaliScales.scale_map config (cipher_relative 4) Nothing
     ]
     where
@@ -80,8 +92,8 @@ scales_old = map Scale.Simple
         (BaliScales.config_keys config)
 
 -- make_relative_format :: Text -> Degrees -> RelativeFormat key -> Format
-pelog_relative :: TheoryFormat.Format
-pelog_relative =
+pelog_relative_keyed :: TheoryFormat.Format
+pelog_relative_keyed =
     TheoryFormat.make_relative_format "[0-9][1-7]" cipher7 fmt
     where
     fmt = BaliScales.modify_config set_octaves $
@@ -204,25 +216,25 @@ laras = Map.fromList $ Lists.keyOn BaliScales.laras_name
 
 -- laras name base_pitch extend doc nns = Laras
 laras_sequoia_pelog :: BaliScales.Laras
-laras_sequoia_pelog = BaliScales.laras "sequoia-pelog" (Pitch.pitch 3 5) id
+laras_sequoia_pelog = BaliScales.laras "sequoia-pelog" (Pitch.pitch 2 5) id
     "Tuning of Sekar Sequoia." $ map (\nn -> (nn, nn))
-    [ 58.68 -- 6.. (as3 + 0.5)
-    , 60.13 -- 7.. (c4)
-    , 62.18 -- 1. approx, no resonator
-    , 63.65 -- 2.
-    , 65    -- 3.
-    , 68    -- 4. guess, no key
-    , 69.05 -- 5.
-    , 70.5  -- 6.
-    , 72.14 -- 7.
-    , 74.25 -- 1 approx
-    , 75.68 -- 2
-    , 77    -- 3
-    , 80    -- 4 guess
-    , 81.03 -- 5
-    , 82.48 -- 6
-    , 84.14 -- 7
-    , 86.4  -- 1^ approx
-    , 87.7  -- 2^
-    , 88.98 -- 3^
+    [ 58.68 -- 26 6.. (as3 + 0.5)
+    , 60.13 -- 27 7.. (c4)
+    , 62.18 -- 31 1. approx, no resonator
+    , 63.65 -- 32 2.
+    , 65    -- 33 3.
+    , 68    -- 34 4. guess, no key
+    , 69.05 -- 35 5.
+    , 70.5  -- 36 6.
+    , 72.14 -- 37 7.
+    , 74.25 -- 41 1 approx
+    , 75.68 -- 42 2
+    , 77    -- 43 3
+    , 80    -- 44 4 guess
+    , 81.03 -- 45 5
+    , 82.48 -- 46 6
+    , 84.14 -- 47 7
+    , 86.4  -- 51 51 1^ approx
+    , 87.7  -- 52 2^
+    , 88.98 -- 53 3^
     ]

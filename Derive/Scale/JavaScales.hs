@@ -5,8 +5,10 @@
 module Derive.Scale.JavaScales where
 import qualified Data.Attoparsec.Text as A
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 
+import qualified Util.Debug as Debug
 import qualified Util.Doc as Doc
 import qualified Util.Lists as Lists
 import qualified Util.Num as Num
@@ -41,17 +43,17 @@ data ScaleMap = ScaleMap {
     smap_layout :: Layout
     , smap_laras_map :: Map Text BaliScales.Laras
     , smap_default_laras :: BaliScales.Laras
-    -- TODO fmt
+    , smap_format :: Format
     }
 
 make_scale :: Pitch.ScaleId -> ScaleMap -> Doc.Doc -> Scale.Scale
 make_scale scale_id smap doc = Scale.Scale
     { scale_id = scale_id
-    , scale_pattern = "pattern" -- TODO use fmt
+    , scale_pattern = fmt_pattern fmt
     , scale_symbols = []
     , scale_transposers = Scales.standard_transposers
-    , scale_read = \_env -> read_pitch smap
-    , scale_show = \_env -> show_pitch smap
+    , scale_read = \_env -> fmt_read fmt
+    , scale_show = \_env -> fmt_show fmt
     -- TODO technically it can change per laras, but can I forbid that?
     , scale_bottom = BaliScales.laras_base (smap_default_laras smap)
     , scale_layout = layout_intervals (smap_layout smap)
@@ -64,7 +66,9 @@ make_scale scale_id smap doc = Scale.Scale
     -- TODO
     , scale_call_doc = Scales.scale_degree_doc ScaleDegree.scale_degree
     }
-    where scale = PSignal.Scale scale_id Scales.standard_transposers
+    where
+    scale = PSignal.Scale scale_id Scales.standard_transposers
+    fmt = smap_format smap
 
 data Layout = Layout {
     layout_start :: Int -- Chromatic, but usually added to PitchClass etc.
@@ -75,7 +79,7 @@ data Layout = Layout {
     , layout_c_to_d :: Vector.Vector (Diatonic, ChromaticSteps)
     -- | This is like d_to_c, except it includes chromatic steps as
     -- accidentals.  The ascii kbd input uses Pitch with diatonic steps
-    -- (modulo d_per_oct), but internally (via 'show_pitch' and 'read_pitch'),
+    -- (modulo d_per_oct), but internally (via 'fmt_show' and 'fmt_read'),
     -- Pitch.pitch_pc is chromatic modulo c_per_oct.
     , layout_degree_to_pc :: Map Pitch.Degree Pitch.PitchClass
     } deriving (Show)
@@ -101,43 +105,8 @@ lima_intervals, barang_intervals :: Intervals
 lima_intervals = Vector.fromList [1, 1, 2, 1, 2]
 barang_intervals = Vector.fromList [1, 2, 1, 1, 2] -- 23567
 
-
--- .      1   2   3   4   5   6   7   1^
--- lima   00  10  20  21  30  40  41  00
--- barang 41  00  10  11  20  30  40  41
--- barang 01  10  20  21  30  40  00  01
--- Step   0   1   2   3   4   5   6   0
---        00  10  11  20  30  40  41  00
-
-show_pitch :: ScaleMap -> Pitch.Pitch
-    -> Either DeriveT.PitchError Pitch.Note
-show_pitch smap (Pitch.Pitch oct (Pitch.Degree pc _))
-    | 0 <= oct && oct <= 9 && 0 <= pc && pc < pc_per_octave intervals =
-        Right $ Pitch.Note $ showt oct <> showt (pc + 1)
-    | otherwise = Left DeriveT.InvalidInput
-    where intervals = layout_intervals $ smap_layout smap
-
-read_pitch :: ScaleMap -> Pitch.Note
-    -> Either DeriveT.PitchError Pitch.Pitch
-read_pitch smap note = do
-    (oct, pc) <- fmap (subtract 1) <$> parse p_absolute_pitch note
-    if 0 <= oct && oct <= 9 && 0 <= pc && pc < pc_per_octave intervals
-        then Right $ Pitch.Pitch oct (Pitch.Degree pc 0)
-        else Left $ DeriveT.InvalidInput
-    where intervals = layout_intervals $ smap_layout smap
-
-parse :: A.Parser a -> Pitch.Note -> Either DeriveT.PitchError a
-parse p note = maybe (Left $ DeriveT.UnparseableNote note) Right $
-    ParseText.maybe_parse p (Pitch.note_text note)
-
-p_absolute_pitch :: A.Parser (Pitch.Octave, Pitch.PitchClass)
-p_absolute_pitch = (,) <$> p_digit <*> p_digit
-
-p_digit :: A.Parser Int
-p_digit = maybe mzero pure . Num.readDigit =<< A.satisfy ParseText.is_digit
-
 note_to_call :: DeriveT.Scale -> ScaleMap -> Pitch.Note -> Maybe Derive.ValCall
-note_to_call scale smap note = case read_pitch smap note of
+note_to_call scale smap note = case fmt_read (smap_format smap) note of
     Left _ -> Nothing
     Right pitch -> Just $ ScaleDegree.scale_degree scale
         (pitch_nn pitch) (pitch_note pitch)
@@ -149,7 +118,7 @@ note_to_call scale smap note = case read_pitch smap note of
         pitch_to_transposed layout pitch controls
     pitch_note :: Pitch.Pitch -> Scale.PitchNote
     pitch_note pitch (PSignal.PitchConfig _env controls) =
-        show_pitch smap $ chromatic_to_pitch layout $
+        fmt_show (smap_format smap) $ chromatic_to_pitch layout $
         round_chromatic $ pitch_to_transposed layout pitch controls
     layout = smap_layout smap
 
@@ -191,7 +160,8 @@ input_to_note smap _env (Pitch.Input kbd_type pitch _frac) = do
     -- flattened into the non-layout format.
     let tonic = 0
     pitch <- Scales.kbd_to_scale kbd_type per_octave tonic pitch
-    show_pitch smap =<< expand_pitch (smap_layout smap) pitch
+    -- Debug.trace_ret "to_note" pitch $
+    fmt_show (smap_format smap) =<< expand_pitch (smap_layout smap) pitch
     where
     per_octave = d_per_oct (layout_intervals (smap_layout smap))
 
@@ -309,14 +279,16 @@ to_chromatic layout (Diatonic d) =
     (oct, d2) = d `divMod` d_per_oct intervals
     intervals = layout_intervals layout
 
+-- | This should return DiatonicSteps, but only one caller wants that.
+d_per_oct :: Intervals -> Int
+d_per_oct = Vector.length
+
+-- | This should return ChromaticSteps, but only one caller wants that.
 c_per_oct :: Intervals -> Int
 c_per_oct = Vector.sum
 
 pc_per_octave :: Intervals -> Pitch.PitchClass
 pc_per_octave = Vector.sum
-
-d_per_oct :: Intervals -> Int
-d_per_oct = Vector.length
 
 make_d_to_c :: Intervals -> Vector.Vector Chromatic
 make_d_to_c = Vector.map Chromatic . Vector.scanl (+) 0
@@ -344,6 +316,92 @@ fdiatonic (DiatonicSteps a) = FDiatonicSteps (fromIntegral a)
 
 split_diatonic :: FDiatonicSteps -> (DiatonicSteps, Double)
 split_diatonic (FDiatonicSteps d) = first DiatonicSteps (properFraction d)
+
+
+-- * Format
+
+data Format = Format {
+    fmt_show :: Pitch.Pitch -> Either DeriveT.PitchError Pitch.Note
+    , fmt_read :: Pitch.Note -> Either DeriveT.PitchError Pitch.Pitch
+    , fmt_pattern :: Text
+    }
+
+cipher_absolute :: Pitch.PitchClass -> Format
+cipher_absolute pc_per_octave = Format
+    { fmt_show = show_pitch_absolute pc_per_octave
+    , fmt_read = read_pitch_absolute pc_per_octave
+    , fmt_pattern = "[0-9][1-" <> showt pc_per_octave <> "]"
+    }
+
+cipher_octave_relative :: Pitch.PitchClass -> Pitch.Octave -> Format
+cipher_octave_relative pc_per_octave center = Format
+    { fmt_show = show_dotted_cipher pc_per_octave center
+    , fmt_read = read_dotted_cipher pc_per_octave center
+    , fmt_pattern = degree <> "|`" <> degree <> "[.^]+`"
+    }
+    where degree = "[1-" <> showt pc_per_octave <> "]"
+
+show_dotted_cipher :: Pitch.PitchClass -> Pitch.Octave -> Pitch.Pitch
+    -> Either PSignal.PitchError Pitch.Note
+show_dotted_cipher pc_per_octave center (Pitch.Pitch oct (Pitch.Degree pc _))
+    | not (Num.inRange (-2) 3 delta && Num.inRange 0 pc_per_octave pc) =
+        Left DeriveT.InvalidInput
+        -- The actual instrument range is likely narrower than this.
+        -- TODO the note call will probably throw a more confusing error.
+        -- Where should range be enforced?  Wherever I can give the best error.
+    | delta == 0 = Right $ Pitch.Note degree
+    | otherwise = Right $ Pitch.Note $ "`" <> degree
+        <> Text.replicate (abs delta) (if delta > 0 then "^" else ".")
+        <> "`"
+    where
+    delta = oct - center
+    degree = showt (pc + 1)
+
+read_dotted_cipher :: Pitch.PitchClass -> Pitch.Octave -> Pitch.Note
+    -> Either PSignal.PitchError Pitch.Pitch
+read_dotted_cipher pc_per_octave center =
+    parse $ (mkpitch 0 =<< p_pc) <|> p_with_octave
+    where
+    p_with_octave = do
+        A.char '`'
+        pc <- p_pc
+        octs <- A.many' $ A.satisfy $ \c -> c == '.' || c == '^'
+        A.char '`'
+        let oct = Lists.count (=='^') octs - Lists.count (=='.') octs
+        mkpitch oct pc
+    mkpitch oct pc
+        | Num.inRange 0 pc_per_octave pc =
+            return $ Pitch.Pitch (center+oct) (Pitch.Degree pc 0)
+        -- any error msg would be discarded be 'parse' anyway
+        | otherwise = mzero
+
+show_pitch_absolute :: Pitch.PitchClass -> Pitch.Pitch
+    -> Either PSignal.PitchError Pitch.Note
+show_pitch_absolute pc_per_octave (Pitch.Pitch oct (Pitch.Degree pc _))
+    | not (Num.inRange 0 10 oct) && Num.inRange 1 pc_per_octave pc =
+        Left DeriveT.InvalidInput
+    | otherwise = Right $ Pitch.Note $ showt oct <> showt (pc + 1)
+
+read_pitch_absolute :: Pitch.PitchClass -> Pitch.Note
+    -> Either PSignal.PitchError Pitch.Pitch
+read_pitch_absolute pc_per_octave note = do
+    (oct, pc) <- parse ((,) <$> p_octave <*> p_pc) note
+    if Num.inRange 0 pc_per_octave pc
+        then Right $ Pitch.Pitch oct (Pitch.Degree pc 0)
+        else Left $ DeriveT.UnparseableNote note
+
+parse :: A.Parser a -> Pitch.Note -> Either DeriveT.PitchError a
+parse p note = maybe (Left $ DeriveT.UnparseableNote note) Right $
+    ParseText.maybe_parse p (Pitch.note_text note)
+
+p_pc :: A.Parser Pitch.PitchClass
+p_pc = subtract 1 <$> p_digit
+
+p_octave :: A.Parser Pitch.Octave
+p_octave = p_digit
+
+p_digit :: A.Parser Int
+p_digit = maybe mzero pure . Num.readDigit =<< A.satisfy ParseText.is_digit
 
 
 -- ***
