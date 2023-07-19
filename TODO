@@ -8459,6 +8459,9 @@ pitch: scales: scale:
         see performance:
       - Why does setting t-chrom in pitch track or on the pitch itself not
         work?
+      - I don't like "laras" name for tuning, it should be tuning for tuning,
+        and some other word of umbang/isep.
+        . I was pondering things like kelamin but ugh.  Pair?  Too generic.
     better types for scale degrees:
       . It's confusing keeping track of PitchClass, Semis, FSemis, etc.
       . I should have:
@@ -8498,10 +8501,6 @@ pitch: scales: scale:
         includes accidentals, while I mean diatonic degrees.
       . I think I'll keep it around as the parsed representation of Note,
         which may or may not be diatonic.
-
-    - I don't like laras for tuning, it should be tuning for tuning, and some
-      other word of umbang/isep.
-      . I was pondering things like kelamin but ugh.  Pair?  Too generic.
     performance:
       . Lots of time goes into evaluating pitches.  Is it parsing out keys and
         all that every time?  If so, could I cache that somehow?
@@ -8515,10 +8514,64 @@ pitch: scales: scale:
         But that has a caching effect because the key is resolved when the
         scale is set, rather than on every pitch (is it really?).
     reimplement with my own ScaleMap
-      - Layout with Theory.Intervals, and cached degree_to_pc and back.
+      * Layout with Theory.Intervals, and cached degree_to_pc and back.
       - Plug back in relative octave stuff, maybe TheoryFormat?
         . Will need ranges.
-      - pelog-barang
+        . The separate scale approach will get clunky with per-instrument
+          ranges.  Can I move pathet back to key?
+        . Alternately, why not set instrument range with an env var?
+          scale=pelog-lima | scale-range=gender-panerus
+          . It it would modify input_to_note, and scale_read / scale_show.
+        . The reason to put pathet in the scale was scale_layout being
+          constant.  Who is using that?
+          . Call.diatonic_difference etc., which are unused!
+          . They are probably buggy anyway, if Pitch is supposed to be merely
+            the display note.  If so, I shouldn't expose it outside scale at
+            all!  Instead, expose Chromatic and Diatonic, and have ways to
+            convert to and from Pitch.Note.
+          . But isn't it all overlapping scale_transpose anyway?
+            Well, it works with Pitch.Pitch, but why?
+          . Wait, there's Scale.diatonic_difference, which uses scale_layout.
+            Only used by LPitch.to_relative.  But clearly I did intend for
+            Pitch to allow such things.
+          . Now that I use Diatonic and Chromatic, I no longer use Pitch
+            internally.  Can I go back to making it layout-dependent?
+          . I think the only thing that cares about Pitch is scale_transpose.
+            Why is that even necessary if Pitch was supposed to allow it?
+          . Pitch allows octave without knowing d_per_oct.  Previously it
+            allowed easy diatonic diff since it's pitch_pc, but pelog breaks
+            this, if Pitch is not diatonic.  Chromatic math required the
+            layout.  But doesn't support layout per key, simply because
+            scale_layout is a constant.  It could be Key -> Layout.
+          . I can convert Pitch to Chromatic or Diatonic with a Layout, or
+            back again.
+          . Ok so go back to diatonic Pitch.  How do I make it absolute
+            though?  Pitch 1-0 in barang has to be "2".  What is 1-0 in
+            c#-maj then?
+          . 4n -> 4-6#, n4# -> 4-6##.
+          . So "51" in barang should be 4-4#
+                lima    barang      c-maj   c#-maj  d-maj
+            51  5-0     4-4#    5s  5-0     5-0#    5-1
+            52  5-1     5-0     5r  5-1     5-1#    5-2
+            53  5-2     5-1     5g  5-2     5-2#    5-3
+            54  5-2#    5-1#    5m
+            55  5-3     5-2
+            56  5-4     5-3
+            57  5-4#    5-4
+            61  6-0     5-4#
+          . For twelve, 5s = c = 0 no matter the key.  That is because c is
+            in every key, only the accidentals may vary.
+          . But pelog doesn't use accidentals, "1" is not in every key, so
+            0 also need not be?
+          . But if the purpose of Pitch is diatonic transposition, I need to
+            make adjacent numbers, no skipped 0.
+          . Therefore, start offset.
+          . This is different from twelve tonic offset, because that one
+            doesn't have an effect on Pitch, due to the above.  So I can make
+            '5s' parse as 5-0 or 5-1, while "51" parses as 5-0 or 4-4#.
+          . It still seems so much like ChromaticScales!  I still don't have
+            a grasp on where it doesn't work.
+      * pelog-barang
         . The tonic offset could be in input only, but how should Step map to
           Degree?
         . If "1" -> 01, then ?  Maybe Degree is internal and doesn't matter?

@@ -2,9 +2,23 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE NoFieldSelectors #-}
 {-# LANGUAGE OverloadedRecordDot #-}
-module Derive.Scale.JavaScales where
+module Derive.Scale.JavaScales (
+    ScaleMap(..)
+    , make_scale
+    , Layout(..)
+    , make_layout
+    -- * Format
+    , Format(..)
+    , cipher_absolute
+    , cipher_octave_relative
+#ifdef TESTING
+    , add_diatonic
+    , module Derive.Scale.JavaScales
+#endif
+) where
 import qualified Data.Attoparsec.Text as A
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -96,9 +110,8 @@ make_step_to_degree :: [Pitch.Semi] -> [Pitch.Degree]
 make_step_to_degree = concat . zipWith make [0..]
     where make pc acc = map (Pitch.Degree pc) [0 .. acc-1]
 
-lima_intervals, barang_intervals :: Intervals
-lima_intervals = Vector.fromList [1, 1, 2, 1, 2]
-barang_intervals = Vector.fromList [1, 2, 1, 1, 2] -- 23567
+lima = make_layout 0 [1, 1, 2, 1, 2]
+barang = make_layout 1 [1, 2, 1, 1, 2] -- 23567
 
 note_to_call :: DeriveT.Scale -> ScaleMap -> Pitch.Note -> Maybe Derive.ValCall
 note_to_call scale smap note = case smap.format.read note of
@@ -125,8 +138,8 @@ chromatic_to_nn smap config fc =
     BaliScales.semis_to_nn smap.layout.theory smap.laras_map smap.default_laras
         config (to_semis fc)
     where
-    -- Adapt to Pitch.FSemi taken by SemisToNoteNumber.  pitch_to_chromatic
-    -- subtracts layout_start, so I have to add it back Because FSemis are
+    -- Adapt to Pitch.FSemi taken by SemisToNoteNumber.  Pitch.Pitch is
+    -- relative to layout.start, so I have to add it back Because FSemis are
     -- absolute, while Chromatic is scale-relative.
     to_semis (FChromatic fc) = fc + fromIntegral smap.layout.start
 
@@ -147,69 +160,43 @@ pitch_to_transposed layout pitch controls =
 
 input_to_note :: ScaleMap -> Scales.InputToNote
 input_to_note smap _env (Pitch.Input kbd_type pitch _frac) = do
-    -- Tonic is only to reverse to_absolute, but JavaScales doesn't use that
-    -- notion of relative, instead expand_pitch adds steps after being
-    -- flattened into the non-layout format.
+    -- Tonic is to reverse to_absolute, but JavaScales are the opposite way,
+    -- displayed absolute, see 'Absolute'.
     let tonic = 0
     pitch <- Scales.kbd_to_scale kbd_type per_octave tonic pitch
-    -- Debug.trace_ret "to_note" pitch $
-    smap.format.show =<< expand_pitch smap.layout pitch
-    where
-    per_octave = d_per_oct smap.layout.intervals
-
--- | Input Pitches come in with a layout, to match the notion of diatonic
--- steps, but internally Pitch is absolute with only PitchClass.
---
--- Convert Pitches where pitch_pc is Diatonic and pitch_accidentals is
--- Chromatic, to Pitch where pitch_pc is Chromatic.
-expand_pitch :: Layout -> Pitch.Pitch
-    -> Either PSignal.PitchError Pitch.Pitch
-expand_pitch layout (Pitch.Pitch oct degree) =
-    case Map.lookup degree layout.degree_to_pc of
-        Nothing -> Left DeriveT.InvalidInput
-        Just pc -> Right $ Pitch.add_pc per_oct layout.start $
-            Pitch.Pitch oct (Pitch.Degree pc 0)
-    where
-    per_oct = c_per_oct layout.intervals
+    smap.format.show pitch
+    where per_octave = d_per_oct smap.layout.intervals
 
 
 -- ** transpose
 
 transpose :: ScaleMap -> Derive.Transpose
-transpose smap transposition _env steps pitch = Right $ case transposition of
-    Scale.Diatonic -> transpose_diatonic layout pitch (DiatonicSteps steps)
-    Scale.Chromatic -> add_pitch layout.intervals (ChromaticSteps steps) pitch
-    where
-    layout = smap.layout
+transpose smap transposition _env steps pitch = case transposition of
+    Scale.Diatonic ->
+        Right $ transpose_diatonic smap.layout pitch (DiatonicSteps steps)
+    Scale.Chromatic ->
+        Right $ transpose_chromatic smap.layout pitch (ChromaticSteps steps)
 
 transpose_diatonic :: Layout -> Pitch.Pitch -> DiatonicSteps -> Pitch.Pitch
-transpose_diatonic layout pitch steps = add_pitch layout.intervals csteps pitch
-    where
-    csteps = add_diatonic layout c steps .-. c
-    c = pitch_to_chromatic layout pitch
+transpose_diatonic layout pitch steps =
+    chromatic_to_pitch layout $
+        add_diatonic layout (pitch_to_chromatic layout pitch) steps
 
-add_pitch :: Intervals -> ChromaticSteps -> Pitch.Pitch -> Pitch.Pitch
-add_pitch intervals (ChromaticSteps steps) = Pitch.add_pc per_oct steps
-    where per_oct = c_per_oct intervals
+transpose_chromatic :: Layout -> Pitch.Pitch -> ChromaticSteps -> Pitch.Pitch
+transpose_chromatic layout pitch steps =
+    chromatic_to_pitch layout (pitch_to_chromatic layout pitch .+^ steps)
 
 pitch_to_chromatic :: Layout -> Pitch.Pitch -> Chromatic
-pitch_to_chromatic layout (Pitch.Pitch oct (Pitch.Degree pc _)) =
-    Chromatic $ oct * per_oct + pc - layout.start
-    where per_oct = c_per_oct layout.intervals
-    -- Chromatic and Diatonic would like to be absolute, but can't be.  The
-    -- layout is relative to Diatonic 0, because it has to be, because in pelog
-    -- barang absolute 0 (aka "1") is not a diatonic pitch.  So Diatonic has to
-    -- be relative to layout_start, which means Chromatic also should be,
-    -- because otherwise I'd have to push layout_start down to to_chromatic and
-    -- it's easier to do it up here.  Also nicer if both Chromatic and Diatonic
-    -- are relative to the same thing.
+pitch_to_chromatic layout (Pitch.Pitch oct (Pitch.Degree pc acc)) =
+    layout.d_to_c Vector.! d
+        .+^ ChromaticSteps (acc + (oct+oct2) * c_per_oct layout.intervals)
+    where (oct2, d) = pc `divMod` d_per_oct layout.intervals
 
 chromatic_to_pitch :: Layout -> Chromatic -> Pitch.Pitch
-chromatic_to_pitch layout (Chromatic c) = Pitch.Pitch oct (Pitch.Degree pc 0)
+chromatic_to_pitch layout c = Pitch.Pitch oct (Pitch.Degree pc acc)
     where
-    (oct, pc) = (c + layout.start) `divMod` per_oct
-    per_oct = c_per_oct layout.intervals
-
+    (Diatonic d, ChromaticSteps acc) = to_diatonic layout c
+    (oct, pc) = d `divMod` d_per_oct layout.intervals
 
 -- | Convert a fractional number of diatonic steps to chromatic steps, starting
 -- from the given chromatic pitch.
@@ -227,7 +214,6 @@ diatonic_to_chromatic_frac layout start steps
     where
     (isteps, frac) = split_diatonic steps
     transpose steps = fcsteps $ add_diatonic layout start steps .-. start
-
 
 -- | Convert diatonic steps to chromatic steps, starting from the given
 -- chromatic pitch.
@@ -256,9 +242,6 @@ to_diatonic layout (Chromatic c) =
     (d, cs) = layout.c_to_d Vector.! c2
     (oct, c2) = c `divMod` c_per_oct layout.intervals
 
--- 23567
--- d0 -> c1, because barang starts on 1
--- or, I could do the adjustment from Pitch: d0 -> c0 -> pc 1
 to_chromatic :: Layout -> Diatonic -> Chromatic
 to_chromatic layout (Diatonic d) =
     layout.d_to_c Vector.! d2 .+^ ChromaticSteps (oct * c_per_oct intervals)
@@ -273,9 +256,6 @@ d_per_oct = Vector.length
 -- | This should return ChromaticSteps, but only one caller wants that.
 c_per_oct :: Intervals -> Int
 c_per_oct = Vector.sum
-
-pc_per_octave :: Intervals -> Pitch.PitchClass
-pc_per_octave = Vector.sum
 
 make_d_to_c :: Intervals -> Vector.Vector Chromatic
 make_d_to_c = Vector.map Chromatic . Vector.scanl (+) 0
@@ -313,82 +293,111 @@ data Format = Format {
     , pattern :: Text
     }
 
-cipher_absolute :: Pitch.PitchClass -> Format
-cipher_absolute pc_per_octave = Format
-    { show = show_pitch_absolute pc_per_octave
-    , read = read_pitch_absolute pc_per_octave
-    , pattern = "[0-9][1-" <> showt pc_per_octave <> "]"
+cipher_absolute :: Layout -> Format
+cipher_absolute layout = Format
+    { show = show_pitch_absolute layout
+    , read = read_pitch_absolute layout
+    , pattern = "[0-9][1-" <> showt (c_per_oct layout.intervals) <> "]"
     }
 
-cipher_octave_relative :: Pitch.PitchClass -> Pitch.Octave -> Format
-cipher_octave_relative pc_per_octave center = Format
-    { show = show_dotted_cipher pc_per_octave center
-    , read = read_dotted_cipher pc_per_octave center
+cipher_octave_relative :: Layout -> Pitch.Octave -> Format
+cipher_octave_relative layout center = Format
+    { show = show_dotted_cipher layout center
+    , read = read_dotted_cipher layout center
     , pattern = degree <> "|`" <> degree <> "[.^]+`"
     }
-    where degree = "[1-" <> showt pc_per_octave <> "]"
-
-show_dotted_cipher :: Pitch.PitchClass -> Pitch.Octave -> Pitch.Pitch
-    -> Either PSignal.PitchError Pitch.Note
-show_dotted_cipher pc_per_octave center (Pitch.Pitch oct (Pitch.Degree pc _))
-    | not (Num.inRange (-2) 3 delta && Num.inRange 0 pc_per_octave pc) =
-        Left DeriveT.InvalidInput
-        -- The actual instrument range is likely narrower than this.
-        -- TODO the note call will probably throw a more confusing error.
-        -- Where should range be enforced?  Wherever I can give the best error.
-    | delta == 0 = Right $ Pitch.Note degree
-    | otherwise = Right $ Pitch.Note $ "`" <> degree
-        <> Text.replicate (abs delta) (if delta > 0 then "^" else ".")
-        <> "`"
     where
-    delta = oct - center
-    degree = showt (pc + 1)
+    degree = "[1-" <> showt pc_per_octave <> "]"
+    pc_per_octave = c_per_oct layout.intervals
 
-read_dotted_cipher :: Pitch.PitchClass -> Pitch.Octave -> Pitch.Note
+show_dotted_cipher :: Layout -> Pitch.Octave -> Pitch.Pitch
+    -> Either PSignal.PitchError Pitch.Note
+show_dotted_cipher layout center pitch = do
+    Absolute oct pc <- maybe (Left DeriveT.InvalidInput) Right $
+        to_absolute layout pitch
+    -- TODO check instrument range
+    let delta = oct - center
+    let degree = showt (pc+1)
+    return $ Pitch.Note $ if delta == 0 then degree else mconcat
+        [ "`", degree
+        , Text.replicate (abs delta) (if delta > 0 then "^" else ".")
+        , "`"
+        ]
+
+read_dotted_cipher :: Layout -> Pitch.Octave -> Pitch.Note
     -> Either PSignal.PitchError Pitch.Pitch
-read_dotted_cipher pc_per_octave center =
-    parse $ (mkpitch 0 =<< p_pc) <|> p_with_octave
+read_dotted_cipher layout center =
+    parse $ (mkpitch 0 =<< parse_pc) <|> p_with_octave
     where
     p_with_octave = do
         A.char '`'
-        pc <- p_pc
+        pc <- parse_pc
         octs <- A.many' $ A.satisfy $ \c -> c == '.' || c == '^'
         A.char '`'
         let oct = Lists.count (=='^') octs - Lists.count (=='.') octs
         mkpitch oct pc
-    mkpitch oct pc
-        | Num.inRange 0 pc_per_octave pc =
-            return $ Pitch.Pitch (center+oct) (Pitch.Degree pc 0)
-        -- any error msg would be discarded be 'parse' anyway
-        | otherwise = mzero
+    mkpitch oct pc = return $ from_absolute layout (Absolute (oct+center) pc)
+    parse_pc = p_pc (c_per_oct layout.intervals)
 
-show_pitch_absolute :: Pitch.PitchClass -> Pitch.Pitch
+show_pitch_absolute :: Layout -> Pitch.Pitch
     -> Either PSignal.PitchError Pitch.Note
-show_pitch_absolute pc_per_octave (Pitch.Pitch oct (Pitch.Degree pc _))
-    | not (Num.inRange 0 10 oct) && Num.inRange 1 pc_per_octave pc =
-        Left DeriveT.InvalidInput
-    | otherwise = Right $ Pitch.Note $ showt oct <> showt (pc + 1)
+show_pitch_absolute layout pitch = do
+    -- show_pitch is used by input_to_note, InvalidInput is correct for that at
+    -- least.
+    Absolute oct pc <- maybe (Left DeriveT.InvalidInput) Right $
+        to_absolute layout pitch
+    -- TODO check instrument range?
+    return $ Pitch.Note $ showt oct <> showt (pc+1)
 
-read_pitch_absolute :: Pitch.PitchClass -> Pitch.Note
+read_pitch_absolute :: Layout -> Pitch.Note
     -> Either PSignal.PitchError Pitch.Pitch
-read_pitch_absolute pc_per_octave note = do
-    (oct, pc) <- parse ((,) <$> p_octave <*> p_pc) note
-    if Num.inRange 0 pc_per_octave pc
-        then Right $ Pitch.Pitch oct (Pitch.Degree pc 0)
-        else Left $ DeriveT.UnparseableNote note
+read_pitch_absolute layout note = do
+    absolute <- parse
+        (Absolute <$> p_octave <*> p_pc (c_per_oct layout.intervals)) note
+    -- TODO check instrument range?
+    return $ from_absolute layout absolute
+
+-- | An absolute pitch as parsed from Pitch.Note, so e.g. 0-6 (for 1-7).  This
+-- is the "chromatic" representation, while Pitch is the diatonic one, taking
+-- pathet into account.
+--
+-- TheoryFormat has a similar notion of relative to absolute, but it's
+-- the other way around, in that Pitch.Pitch is the absolute one, while
+-- Pitch.Note is relative.
+data Absolute = Absolute !Pitch.Octave !Pitch.PitchClass
+    deriving (Show)
+
+from_absolute :: Layout -> Absolute -> Pitch.Pitch
+from_absolute layout (Absolute oct pc) =
+    Pitch.Pitch (oct+oct2) (Pitch.Degree d cs)
+    where
+    (oct2, pc2) = (pc - layout.start) `divMod` c_per_oct layout.intervals
+    (Diatonic d, ChromaticSteps cs) = layout.c_to_d Vector.! pc2
+
+to_absolute :: Layout -> Pitch.Pitch -> Maybe Absolute
+to_absolute layout (Pitch.Pitch oct degree) =
+    case Map.lookup degree layout.degree_to_pc of
+        Nothing -> Nothing
+        Just pc -> Just $ Absolute (oct+oct2) pc2
+            where
+            (oct2, pc2) = (pc + layout.start)
+                `divMod` c_per_oct layout.intervals
 
 parse :: A.Parser a -> Pitch.Note -> Either DeriveT.PitchError a
 parse p note = maybe (Left $ DeriveT.UnparseableNote note) Right $
     ParseText.maybe_parse p (Pitch.note_text note)
 
-p_pc :: A.Parser Pitch.PitchClass
-p_pc = subtract 1 <$> p_digit
+p_pc :: Pitch.PitchClass -> A.Parser Pitch.PitchClass
+p_pc pc_per_oct = subtract 1 <$> p_digit 1 (pc_per_oct+1)
 
 p_octave :: A.Parser Pitch.Octave
-p_octave = p_digit
+p_octave = p_digit 0 10
 
-p_digit :: A.Parser Int
-p_digit = maybe mzero pure . Num.readDigit =<< A.satisfy ParseText.is_digit
+p_digit :: Int -> Int -> A.Parser Int
+p_digit low high = do
+    n <- maybe mzero pure . Num.readDigit =<< A.satisfy ParseText.is_digit
+    guard $ Num.inRange low high n
+    return n
 
 
 -- ***

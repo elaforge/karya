@@ -62,19 +62,22 @@ scales = map Scale.Simple
     ]
     where
     lima center = JavaScales.ScaleMap
-        { smap_layout = JavaScales.make_layout 0 [1, 1, 2, 1, 2] -- 12356
-        , smap_default_laras = laras_sequoia_pelog
-        , smap_laras_map = laras
-        , smap_format = format center
+        { layout
+        , default_laras = laras_sequoia_pelog
+        , laras_map = laras
+        , format = format layout center
         }
+        where layout = JavaScales.make_layout 0 [1, 1, 2, 1, 2] -- 12356
     barang center = JavaScales.ScaleMap
-        { smap_layout = JavaScales.make_layout 1 [1, 2, 1, 1, 2] -- 23567
-        , smap_default_laras = laras_sequoia_pelog
-        , smap_laras_map = laras
-        , smap_format = format center
+        { layout
+        , default_laras = laras_sequoia_pelog
+        , laras_map = laras
+        , format = format layout center
         }
-    format Nothing = JavaScales.cipher_absolute 7
-    format (Just center) = JavaScales.cipher_octave_relative 7 center
+        where layout = JavaScales.make_layout 1 [1, 2, 1, 1, 2] -- 23567
+    format layout = \case
+        Nothing -> JavaScales.cipher_absolute layout
+        Just center -> JavaScales.cipher_octave_relative layout center
 
 
 scales_old :: [Scale.Definition]
