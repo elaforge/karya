@@ -33,7 +33,7 @@ block_end = "block-end"
 control :: Key
 control = "control"
 
--- | VInstrument: Default instrument.
+-- | VStr: Instrument in scope.
 instrument :: Key
 instrument = "inst"
 

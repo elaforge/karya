@@ -6,11 +6,9 @@ module Derive.Scale.Java_test where
 import qualified Util.Lists as Lists
 import qualified Util.Texts as Texts
 import qualified Derive.Derive as Derive
-import qualified Derive.DeriveT as DeriveT
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Java as Java
-import qualified Derive.Scale.JavaScales as JavaScales
 import qualified Derive.Scale.ScaleTest as ScaleTest
 import qualified Derive.Score as Score
 
@@ -87,7 +85,6 @@ test_input_to_note = do
     equal (f pelog_lima (4, 3, 0)) "45"
     equal (f pelog_lima (4, 4, 0)) "46"
     equal (f pelog_lima (4, 5, 0)) "51"
-
     equal (map (f pelog_lima) [(4, pc, acc) | pc <- [0..5], acc <- [0, 1]])
         [ "41", x
         , "42", x
@@ -108,27 +105,27 @@ test_input_to_note = do
         , "47", "51"
         , "52", x
         ]
-
     equal (f panerus_lima (4, 0, 0)) "1"
     equal (f panerus_lima (4, 1, 0)) "2"
-
     equal (f panerus_lima (5, 0, 0)) "`1^`"
     equal (f panerus_lima (5, 2, 0)) "`3^`"
-    equal (f panerus_lima (5, 3, 0)) x
+    match (f panerus_lima (5, 3, 0)) "out of instrument range"
     equal (f panerus_lima (3, 4, 0)) "`6.`"
     equal (f panerus_lima (2, 4, 0)) "`6..`"
-    equal (f panerus_lima (2, 3, 0)) x
+    match (f panerus_lima (2, 3, 0)) "out of instrument range"
 
 test_input_to_nn :: Test
 test_input_to_nn = do
-    let run scale = DeriveTest.eval Ui.empty . Scale.scale_input_to_nn scale 0
-            . ScaleTest.ascii_kbd
-    equal (run pelog_lima (4, 0, 0)) (Right (Right 74.25))
-    equal (run pelog_lima (4, 1, 0)) (Right (Right 75.68))
-    equal (run panerus_lima (2, 3, 0)) (Right (Left DeriveT.InvalidInput))
-    equal (run panerus_lima (2, 4, 0)) (Right (Right 58.68))
-    equal (run panerus_lima (3, 0, 0)) (Right (Right 62.18))
-    equal (run panerus_lima (4, 1, 0)) (Right (Right 75.68))
+    let run scale = either (Left . pretty) (either (Left . pretty) Right)
+            . DeriveTest.eval Ui.empty
+            . Scale.scale_input_to_nn scale 0 . ScaleTest.ascii_kbd
+    pprint (run pelog_lima (4, 0, 0))
+    right_equal (run pelog_lima (4, 0, 0)) nn41
+    right_equal (run pelog_lima (4, 1, 0)) nn42
+    left_like (run panerus_lima (2, 3, 0)) "out of instrument range"
+    right_equal (run panerus_lima (2, 4, 0)) 58.68
+    right_equal (run panerus_lima (3, 0, 0)) 62.18
+    right_equal (run panerus_lima (4, 1, 0)) 75.68
 
 test_note_call :: Test
 test_note_call = do

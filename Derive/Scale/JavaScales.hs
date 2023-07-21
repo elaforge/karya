@@ -7,6 +7,8 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 module Derive.Scale.JavaScales (
     ScaleMap(..)
+    , Instrument(..)
+    , Absolute(..)
     , make_scale
     , Layout(..)
     , make_layout
@@ -24,7 +26,6 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 
-import qualified Util.Debug as Debug
 import qualified Util.Doc as Doc
 import qualified Util.Lists as Lists
 import qualified Util.Num as Num
@@ -54,6 +55,35 @@ data ScaleMap = ScaleMap {
     , format :: Format
     }
 
+data Instrument = Instrument {
+    center :: Pitch.Octave
+    , bottom :: Absolute
+    -- | Unlike most ranges, this is inclusive, so top is a valid pitch.
+    -- This seems more intuitive for instruments, and besides there's no
+    -- need for an empty range.
+    , top :: Absolute
+    } deriving (Show)
+
+check_range :: Instrument -> Absolute -> Either DeriveT.PitchError Absolute
+check_range inst pitch
+    | inst.bottom <= pitch && pitch <= inst.top = Right pitch
+    | otherwise = Left $ DeriveT.PitchError $
+        "out of instrument range " <> pretty inst.bottom <> " to "
+        <> pretty inst.top <> ": " <> pretty pitch
+
+-- | An absolute pitch as parsed from Pitch.Note, so e.g. 1-7 (for 1-7).  This
+-- is the "chromatic" representation, while Pitch is the diatonic one, taking
+-- pathet into account.
+--
+-- TheoryFormat has a similar notion of relative to absolute, but it's
+-- the other way around, in that Pitch.Pitch is the absolute one, while
+-- Pitch.Note is relative.
+data Absolute = Absolute !Pitch.Octave !Pitch.PitchClass
+    deriving (Show, Eq, Ord)
+
+instance Pretty Absolute where
+    pretty (Absolute oct pc) = showt oct <> showt pc
+
 make_scale :: Pitch.ScaleId -> ScaleMap -> Doc.Doc -> Scale.Scale
 make_scale scale_id smap doc = Scale.Scale
     { scale_id = scale_id
@@ -78,16 +108,17 @@ make_scale scale_id smap doc = Scale.Scale
     scale = PSignal.Scale scale_id Scales.standard_transposers
 
 data Layout = Layout {
-    start :: Int -- Chromatic, but usually added to PitchClass etc.
+    -- | 'Absolute' (chromatic) step on which 'intervals' starts, to
+    -- map from Absolute to Pitch and back.
+    start :: Pitch.PitchClass
     , intervals :: Intervals
     , theory :: Theory.Layout -- TODO remove, only BaliScales.semis_to_nn
     -- | Cache diatonic to chromatic mappings.
     , d_to_c :: Vector.Vector Chromatic
     , c_to_d :: Vector.Vector (Diatonic, ChromaticSteps)
     -- | This is like d_to_c, except it includes chromatic steps as
-    -- accidentals.  The ascii kbd input uses Pitch with diatonic steps
-    -- (modulo d_per_oct), but internally (via 'fmt_show' and 'fmt_read'),
-    -- Pitch.pitch_pc is chromatic modulo c_per_oct.
+    -- accidentals, so it can map from the ascii kbd.
+    -- TODO merge with d_to_c.
     , degree_to_pc :: Map Pitch.Degree Pitch.PitchClass
     } deriving (Show)
 
@@ -119,7 +150,6 @@ note_to_call scale smap note = case smap.format.read note of
     Right pitch -> Just $ ScaleDegree.scale_degree scale
         (pitch_nn pitch) (pitch_note pitch)
     where
-    -- | Create a PitchNn for 'ScaleDegree.scale_degree'.
     pitch_nn :: Pitch.Pitch -> Scale.PitchNn
     pitch_nn pitch config@(PSignal.PitchConfig _env controls) =
         chromatic_to_nn smap config $
@@ -295,29 +325,28 @@ data Format = Format {
 
 cipher_absolute :: Layout -> Format
 cipher_absolute layout = Format
-    { show = show_pitch_absolute layout
-    , read = read_pitch_absolute layout
+    { show = show_absolute layout
+    , read = read_absolute layout
     , pattern = "[0-9][1-" <> showt (c_per_oct layout.intervals) <> "]"
     }
 
-cipher_octave_relative :: Layout -> Pitch.Octave -> Format
-cipher_octave_relative layout center = Format
-    { show = show_dotted_cipher layout center
-    , read = read_dotted_cipher layout center
+cipher_octave_relative :: Layout -> Instrument -> Format
+cipher_octave_relative layout inst = Format
+    { show = show_dotted_cipher layout inst
+    , read = read_dotted_cipher layout inst.center
     , pattern = degree <> "|`" <> degree <> "[.^]+`"
     }
     where
     degree = "[1-" <> showt pc_per_octave <> "]"
     pc_per_octave = c_per_oct layout.intervals
 
-show_dotted_cipher :: Layout -> Pitch.Octave -> Pitch.Pitch
+show_dotted_cipher :: Layout -> Instrument -> Pitch.Pitch
     -> Either PSignal.PitchError Pitch.Note
-show_dotted_cipher layout center pitch = do
-    Absolute oct pc <- maybe (Left DeriveT.InvalidInput) Right $
-        to_absolute layout pitch
-    -- TODO check instrument range
-    let delta = oct - center
-    let degree = showt (pc+1)
+show_dotted_cipher layout inst pitch = do
+    Absolute oct pc <- check_range inst
+        =<< maybe (Left DeriveT.InvalidInput) Right (to_absolute layout pitch)
+    let delta = oct - inst.center
+    let degree = showt pc
     return $ Pitch.Note $ if delta == 0 then degree else mconcat
         [ "`", degree
         , Text.replicate (abs delta) (if delta > 0 then "^" else ".")
@@ -339,46 +368,32 @@ read_dotted_cipher layout center =
     mkpitch oct pc = return $ from_absolute layout (Absolute (oct+center) pc)
     parse_pc = p_pc (c_per_oct layout.intervals)
 
-show_pitch_absolute :: Layout -> Pitch.Pitch
-    -> Either PSignal.PitchError Pitch.Note
-show_pitch_absolute layout pitch = do
+show_absolute :: Layout -> Pitch.Pitch -> Either PSignal.PitchError Pitch.Note
+show_absolute layout pitch = do
     -- show_pitch is used by input_to_note, InvalidInput is correct for that at
     -- least.
     Absolute oct pc <- maybe (Left DeriveT.InvalidInput) Right $
         to_absolute layout pitch
-    -- TODO check instrument range?
-    return $ Pitch.Note $ showt oct <> showt (pc+1)
+    return $ Pitch.Note $ showt oct <> showt pc
 
-read_pitch_absolute :: Layout -> Pitch.Note
-    -> Either PSignal.PitchError Pitch.Pitch
-read_pitch_absolute layout note = do
+read_absolute :: Layout -> Pitch.Note -> Either PSignal.PitchError Pitch.Pitch
+read_absolute layout note = do
     absolute <- parse
         (Absolute <$> p_octave <*> p_pc (c_per_oct layout.intervals)) note
-    -- TODO check instrument range?
     return $ from_absolute layout absolute
-
--- | An absolute pitch as parsed from Pitch.Note, so e.g. 0-6 (for 1-7).  This
--- is the "chromatic" representation, while Pitch is the diatonic one, taking
--- pathet into account.
---
--- TheoryFormat has a similar notion of relative to absolute, but it's
--- the other way around, in that Pitch.Pitch is the absolute one, while
--- Pitch.Note is relative.
-data Absolute = Absolute !Pitch.Octave !Pitch.PitchClass
-    deriving (Show)
 
 from_absolute :: Layout -> Absolute -> Pitch.Pitch
 from_absolute layout (Absolute oct pc) =
     Pitch.Pitch (oct+oct2) (Pitch.Degree d cs)
     where
-    (oct2, pc2) = (pc - layout.start) `divMod` c_per_oct layout.intervals
+    (oct2, pc2) = (pc - 1 - layout.start) `divMod` c_per_oct layout.intervals
     (Diatonic d, ChromaticSteps cs) = layout.c_to_d Vector.! pc2
 
 to_absolute :: Layout -> Pitch.Pitch -> Maybe Absolute
 to_absolute layout (Pitch.Pitch oct degree) =
     case Map.lookup degree layout.degree_to_pc of
         Nothing -> Nothing
-        Just pc -> Just $ Absolute (oct+oct2) pc2
+        Just pc -> Just $ Absolute (oct+oct2) (pc2+1)
             where
             (oct2, pc2) = (pc + layout.start)
                 `divMod` c_per_oct layout.intervals
@@ -388,7 +403,7 @@ parse p note = maybe (Left $ DeriveT.UnparseableNote note) Right $
     ParseText.maybe_parse p (Pitch.note_text note)
 
 p_pc :: Pitch.PitchClass -> A.Parser Pitch.PitchClass
-p_pc pc_per_oct = subtract 1 <$> p_digit 1 (pc_per_oct+1)
+p_pc pc_per_oct = p_digit 1 (pc_per_oct+1)
 
 p_octave :: A.Parser Pitch.Octave
 p_octave = p_digit 0 10
@@ -398,7 +413,6 @@ p_digit low high = do
     n <- maybe mzero pure . Num.readDigit =<< A.satisfy ParseText.is_digit
     guard $ Num.inRange low high n
     return n
-
 
 -- ***
 
@@ -412,7 +426,7 @@ data Key = Key {
 pelog_format_abs :: TheoryFormat.Format
 pelog_format_abs = TheoryFormat.Format
     -- For java, ignore key, no accidentals, just show
-    -- { fmt_show = undefined -- show_pitch_absolute config degrees
+    -- { fmt_show = undefined -- show_absolute config degrees
     { fmt_show = undefined -- TheoryFormat.show_pitch_cipher config degrees
     , fmt_read = undefined -- p_pitch config degrees
     , fmt_to_absolute = undefined -- \_ -> Right . relative_to_absolute

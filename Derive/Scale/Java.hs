@@ -10,7 +10,7 @@
                 suwukan->
     11 12 13 15 16 21 22 23 25 26 31 32 33 35 36 41 42 43 45 46 51 52 53 55 56
                                kethuk                        pyang
-                   slethem------->saron demung-->saron barung-->peking-------->
+                   slenthem------>saron demung-->saron barung-->peking-------->
                 gender barung---------------------------->
                 6..1. 2. 3. 5. 6. 1  2  3  5  6  1^ 2^ 3^
                                gender panerus--------------------------->
@@ -23,201 +23,72 @@
                                                  bonang panerus--------------->
     @
 -}
-module Derive.Scale.Java (
-    scales
-    -- TESTING
-) where
+module Derive.Scale.Java (scales) where
 import qualified Data.Map as Map
 
 import qualified Util.Lists as Lists
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.BaliScales as BaliScales
-import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.JavaScales as JavaScales
-import qualified Derive.Scale.Theory as Theory
-import qualified Derive.Scale.TheoryFormat as TheoryFormat
 
 import qualified Perform.Pitch as Pitch
 
 import           Global
 
 
-{-
-    key=pathet, puts layout such that rare notes are black notes
-    This reflects which keys are removed, and so t-dia works as expected.
--}
 scales :: [Scale.Definition]
-scales = map Scale.Simple
+scales = map Scale.Simple $
     -- TODO This permutation game is no good, let's go back to key=pathet
     -- and maybe even scale-range=gender-panerus
-    [ JavaScales.make_scale "pelog-lima" (lima Nothing) "doc"
-    , JavaScales.make_scale "pelog-lima-gender-panerus"
-        (lima (Just 4)) "doc"
-    , JavaScales.make_scale "pelog-nem" (lima Nothing) "doc"
-    , JavaScales.make_scale "pelog-barang" (barang Nothing) "doc"
-    , JavaScales.make_scale "pelog-barang-gender-panerus"
-        (barang (Just 4)) "doc"
-    , JavaScales.make_scale "pelog-barang-gender-barung"
-        (barang (Just 3)) "doc"
+    [ make_scale "pelog-lima" lima Nothing
+    , make_scale "pelog-nem" lima Nothing
+    , make_scale "pelog-barang" barang Nothing
+    ] ++ concatMap (uncurry inst_scale) (Map.toList instruments)
+    where
+    lima = JavaScales.make_layout 0 [1, 1, 2, 1, 2] -- 12356
+    barang = JavaScales.make_layout 1 [1, 2, 1, 1, 2] -- 23567
+    inst_scale name inst =
+        [ make_scale ("pelog-lima-" <> name) lima (Just inst)
+        , make_scale ("pelog-barang-" <> name) barang (Just inst)
+        ]
+    make_scale name layout mb_inst =
+        JavaScales.make_scale (Pitch.ScaleId name) smap "doc"
+        where
+        smap = JavaScales.ScaleMap
+            { layout
+            , default_laras
+            , laras_map
+            , format = case mb_inst of
+                Nothing -> JavaScales.cipher_absolute layout
+                Just inst -> JavaScales.cipher_octave_relative layout inst
+            }
+
+instruments :: Map Text JavaScales.Instrument
+instruments = Map.fromList
+    [ ( "gender-barung"
+      , JavaScales.Instrument
+        { center = 3
+        , bottom = JavaScales.Absolute 1 6
+        , top = JavaScales.Absolute 4 3
+        }
+      )
+    , ("gender-panerus"
+      , JavaScales.Instrument
+        { center = 4
+        , bottom = JavaScales.Absolute 2 6
+        , top = JavaScales.Absolute 5 3
+        }
+      )
     ]
-    where
-    lima center = JavaScales.ScaleMap
-        { layout
-        , default_laras = laras_sequoia_pelog
-        , laras_map = laras
-        , format = format layout center
-        }
-        where layout = JavaScales.make_layout 0 [1, 1, 2, 1, 2] -- 12356
-    barang center = JavaScales.ScaleMap
-        { layout
-        , default_laras = laras_sequoia_pelog
-        , laras_map = laras
-        , format = format layout center
-        }
-        where layout = JavaScales.make_layout 1 [1, 2, 1, 1, 2] -- 23567
-    format layout = \case
-        Nothing -> JavaScales.cipher_absolute layout
-        Just center -> JavaScales.cipher_octave_relative layout center
 
-
-scales_old :: [Scale.Definition]
-scales_old = map Scale.Simple
-    [ BaliScales.make_scale "pelog" $
-        BaliScales.scale_map config pelog_relative_keyed Nothing
-    , BaliScales.make_scale "pelog-gender-panerus" $
-        BaliScales.scale_map config (cipher_relative 5) Nothing
-    , BaliScales.make_scale "pelog-gender-barung" $
-        BaliScales.scale_map config (cipher_relative 4) Nothing
-    ]
-    where
-    cipher_relative octave = cipher_relative_dotted octave
-        (BaliScales.config_default_key config)
-        (BaliScales.config_keys config)
-
--- make_relative_format :: Text -> Degrees -> RelativeFormat key -> Format
-pelog_relative_keyed :: TheoryFormat.Format
-pelog_relative_keyed =
-    TheoryFormat.make_relative_format "[0-9][1-7]" cipher7 fmt
-    where
-    fmt = BaliScales.modify_config set_octaves $
-        ChromaticScales.relative_fmt
-            (BaliScales.config_default_key config)
-            (BaliScales.config_keys config)
-    set_octaves config = config
-        { TheoryFormat.config_parse_octave = TheoryFormat.parse_octave1 }
-    -- set_octaves = TheoryFormat.set_octave show_octave parse_octave
-
-{-
-pelog_relative2 all_keys default_key = TheoryFormat.RelativeFormat
-    { rel_config = TheoryFormat.Config
-        { config_show_octave = TheoryFormat.show_octave
-        , config_parse_octave = TheoryFormat.parse_octave1
-        , config_accidental = TheoryFormat.ascii_accidentals -- TODO Nothing
-        }
-    -- DEFAULT?
-    , rel_key_config = TheoryFormat.KeyConfig
-        { key_parse = Scales.get_key default_key all_keys
-        , key_default = default_key
-        }
-    , rel_show_degree = TheoryFormat.show_degree_chromatic
-    , rel_to_absolute = TheoryFormat.chromatic_to_absolute
-    }
-
-type ShowDegree key = key -> ShowOctave -> Degrees -> AccidentalFormat
-    -> Either Pitch.Degree Pitch.Pitch -> Pitch.Note
-
-show_degree :: TheoryFormat.ShowDegree Theory.Key
-show_degree key show_octave degrees acc_fmt degree_pitch = undefined
-
-show_degree_chromatic :: ShowDegree Theory.Key
-show_degree_chromatic key show_octave degrees acc_fmt degree_pitch =
-    Pitch.Note $ case degree_pitch of
-        Left _ -> pc_text <> acc_text
-        Right (Pitch.Pitch oct _) ->
-            show_octave (oct + pc_oct) (pc_text <> acc_text)
-    where
-    Pitch.Degree pc acc = either id Pitch.pitch_degree degree_pitch
-    acc_text = show_accidentals acc_fmt $ acc - Theory.accidentals_at_pc key pc
-    (pc_oct, pc_text) =
-        show_pc degrees (Pitch.degree_pc (Theory.key_tonic key)) pc
-
-pelog_relative2 degrees = TheoryFormat.Format
-    { fmt_show
-    , fmt_read = p_pitch config degrees
-    , fmt_to_absolute
-    , fmt_pattern = octave_pattern <> pattern <> acc_pattern
-    , fmt_pc_per_octave = Vector.length degrees
-    , fmt_relative = True
-    }
-    where
-    RelativeFormat config key_config show_degree to_abs = rel_fmt
-    fmt_show key = show_degree
-        (either (const (key_default key_config)) id (key_parse key_config key))
-        (config_show_octave config) degrees (config_accidental config)
-    fmt_to_absolute maybe_key pitch = do
-        key <- key_parse key_config maybe_key
-        return $ to_abs key degrees pitch
--}
-
-pelog_absolute :: TheoryFormat.Format
-pelog_absolute =
-    TheoryFormat.make_absolute_format_config config "[0-9][1-7]" cipher7
-    where
-    config = TheoryFormat.default_config
-        { TheoryFormat.config_parse_octave = TheoryFormat.parse_octave1 }
-
-cipher_relative_dotted :: Pitch.Octave -> Theory.Key -> ChromaticScales.Keys
-    -> TheoryFormat.Format
-cipher_relative_dotted center default_key keys =
-    TheoryFormat.make_relative_format "[1-7]|`[1-7][.^]*`" cipher7 fmt
-    where
-    fmt = BaliScales.modify_config (BaliScales.dotted_octaves center) $
-        ChromaticScales.relative_fmt default_key keys
-
-cipher7 :: TheoryFormat.Degrees
-cipher7 = TheoryFormat.make_degrees (map showt [1..7])
-
--- * config
-
-config :: BaliScales.Config
-config = BaliScales.Config
-    { config_layout = layout
-    , config_keys = pelog_keys
-    , config_default_key = default_key
-    , config_laras = laras
-    , config_default_laras = laras_sequoia_pelog
-    }
-    where
-    -- layout = Theory.diatonic_layout 7
-    -- TODO layout changes based on key
-    layout = Theory.layout [1, 1, 2, 1, 2]
-    Just default_key = Map.lookup (Pitch.Key "lima") pelog_keys
-    -- default_key = Theory.key (Pitch.Degree 0 0) "default" (replicate 5 1) layout
-
-pelog_keys :: ChromaticScales.Keys
-pelog_keys = Map.fromList $ map make
-    --      4   7
-    -- 1 2 3 5 6
-    [ ("lima", 0, [1, 1, 2, 1, 2]) -- 12356
-    , ("nem", 0, [1, 1, 2, 1, 2]) -- same as lima
-    -- So it's relative keyboard, but absolute notation?
-    --    4     1
-    -- 2 3 5 6 7
-    , ("barang", 1, [1, 2, 1, 1, 2]) -- 23567
-    ]
-    where
-    make (name, tonic, intervals) =
-        ( Pitch.Key name
-        , Theory.key (Pitch.Degree tonic 0) name intervals
-            (Theory.layout intervals)
-        )
-
-laras :: Map Text BaliScales.Laras
-laras = Map.fromList $ Lists.keyOn BaliScales.laras_name
+laras_map :: Map Text BaliScales.Laras
+laras_map = Map.fromList $ Lists.keyOn BaliScales.laras_name
     [ laras_sequoia_pelog
     ]
 
--- laras name base_pitch extend doc nns = Laras
+default_laras :: BaliScales.Laras
+default_laras = laras_sequoia_pelog
+
 laras_sequoia_pelog :: BaliScales.Laras
 laras_sequoia_pelog = BaliScales.laras "sequoia-pelog" (Pitch.pitch 2 5) id
     "Tuning of Sekar Sequoia." $ map (\nn -> (nn, nn))

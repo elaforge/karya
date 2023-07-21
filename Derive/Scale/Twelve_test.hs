@@ -38,9 +38,7 @@ test_read_relative = do
     right_equal (f "c-maj" "5s") "5-0"
     right_equal (f "d-maj" "5s") "5-1"
     right_equal (f "c#-maj" "5s") "5-0#"
-    right_equal (f "c#-maj" "4n") "5-0#"
-    -- pprint (map (f "d-maj") ["5s", "5r", "5g", "5m", "5p", "5d", "5n", "6s"])
-    -- TODO?
+    right_equal (f "c#-maj" "4n") "4-6#"
 
 read_scale :: Scale.Scale -> Text -> Pitch.Note -> Either Text Text
 read_scale scale key note = bimap pretty pretty $
