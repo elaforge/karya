@@ -131,6 +131,29 @@ sketch:
   2 6 1 6 5 56 61 12 23 5 5 353 2 2 121
 
 UNSORTED
+  play preview doesn't work for wayang:
+    . Because play_cache switched to wav-only, but samples are in flac
+    . ed504dc2a84447eeb1de87b3dbeb8b83e309af8d
+    . So, I'll have to revert that and go back to sndfile, or bind to libflac
+      directly.
+    . Bind to libflac means fewer layers, but more build complexity because
+      I already have to have libsndfile.
+    . Or a much simpler way is to just uncompress all the flacs :/
+    . But there are tons of them, and hardcoded in places like ZhengSamples,
+      do I really want to rollback the whole thing just so preview works?
+      Maybe short term, but not long term.
+    . But I already can't do preview for wav, because it requires float32 wav!
+    * Implement Flac reader
+    - both Wav and Flac should live behind a SampleFile facade.
+      . read() should be able to be non
+      . read() can avoid a copy if I take float **samples and return the
+        buffer.  Wav doesn't do this because it can directly read into the
+        buffer from the file, but I need another buffer in here because flac
+        frames are not buffer sized.
+      . Also need a way to return error from read, Wav just uses fread -1 and
+        errno.
+      . Also why do I need expand_channels, as opposed to detecting from the
+        file?
   - upgrade to ghc 9.4:
     . Enable -fworker-wrapper-cbv, usually good but not on by default.
     . Will this affect GhcRepl?

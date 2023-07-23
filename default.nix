@@ -38,7 +38,10 @@ let
   # nixpkgs the github action uses, and I don't want to be broken by that.
   #
   # TODO: use actual system stuff for non nixos linux.  I think I would just
-  # omit the deps entirely?
+  # omit the deps entirely?  Not quite, because nixpkgs gcc doesn't look for
+  # system libs.  Darwin uses a hack to do so.  But even if I can make it
+  # happen, libc version may be incompatible.  The root of the problem is that
+  # JACK does not keep protocol compatibility across versions.
   nixpkgs-sys = if isCi then nixpkgs else import <nixpkgs> {};
   hackage = import nix/hackage.nix {
     inherit ghcVersion profilingDetail;
@@ -266,6 +269,7 @@ in rec {
     faust.faust
     libsamplerate
     nixpkgs.libsndfile
+    nixpkgs.flac.dev nixpkgs.flac # libflac 1.3.3
     rubberband
     # This is a build dep, not a library dep.
     ghc.c2hs

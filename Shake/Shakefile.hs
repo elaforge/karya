@@ -544,6 +544,7 @@ makePlayCacheBinary :: String -> FilePath -> [C.ExternalLibrary] -> [FilePath]
 makePlayCacheBinary name main libs objs = (C.binary name [])
     { C.binObjs = (objs++) $ map (("Synth/play_cache"</>) . (++".o")) $
         [ main
+        , "Flac.cc"
         , "Thru.cc", "Resample.cc", "Sample.cc", "Streamer.cc", "Tracks.cc"
         , "Wav.cc"
         , "ringbuffer.cc"
@@ -557,6 +558,7 @@ makePlayCacheBinary name main libs objs = (C.binary name [])
             Util.Linux -> C.library "samplerate"
             -- Meanwhile OS X doesn't seem to care, so just use the same one.
             Util.Mac -> libsamplerate
+        , C.library "FLAC", C.library "FLAC++"
         ] ++ [C.library "pthread" | Util.platform == Util.Linux]
         ++ libs
     }
