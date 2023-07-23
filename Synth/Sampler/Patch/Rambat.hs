@@ -57,6 +57,9 @@ import           Synth.Types
 
 -- Like Wayang, but support short notes.
 
+sampleFormat :: Util.SampleFormat
+sampleFormat = Util.Flac
+
 patches :: [Patch.Patch]
 patches = pasang : map make [Umbang, Isep]
     where
@@ -304,7 +307,7 @@ unparseFilename pitch art dyn var = Lists.join "-"
     [ prettys pitch, articulationFilename art, Util.showLower dyn
     , 'v' : show var
     ]
-    ++ ".flac"
+    ++ Util.extension sampleFormat
 
 articulationFilename :: Articulation -> String
 articulationFilename = \case

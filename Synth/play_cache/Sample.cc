@@ -210,50 +210,44 @@ SampleDirectory::open(int channels, Frames offset)
 // SampleFile
 
 SampleFile::SampleFile(
-        std::ostream &log, int channels, int sample_rate,
-        const string &fname, Frames offset) :
-    log(log), fname(fname), wav(nullptr),
-    file_channels(0)
+    std::ostream &log, int _channels, int sample_rate,
+    const string &fname, Frames offset
+) : log(log), fname(fname)
 {
+    // TODO channels is always 2, it's hardcoded in PlayCache.  In theory I
+    // should use it to possibly merge or expand file channels, but the chance
+    // of it ever being used is not high.
     if (!fname.empty()) {
+        if (!ends_with(fname, ".flac")) {
+            LOG("only flac supported yet: " << fname);
+            return;
+        }
         LOG(fname << " + " << offset);
-        wav = open_wav(
-            log, channels, true, sample_rate, fname, offset,
-            &this->file_channels);
+        file = Flac::open(fname.c_str(), offset);
+        if (file->error()) {
+            LOG("opening " << fname << ": " << file->error());
+        } else if (file->srate() != sample_rate) {
+            LOG(fname << ": expected srate " << sample_rate << ", got "
+                << file->srate());
+            file.reset();
+        }
     }
-}
-
-
-SampleFile::~SampleFile()
-{
-    if (wav)
-        delete wav;
 }
 
 
 bool
 SampleFile::read(int channels, Frames frames, float **out)
 {
-    if (wav == nullptr) {
+    if (!file) {
         return true;
     }
     buffer.resize(frames * channels);
-    Frames read;
-    if (file_channels == 1 && channels != 1) {
-        expand_buffer.resize(frames);
-        read = wav->read(expand_buffer.data(), frames);
-        for (Frames f = 0; f < read; f++) {
-            for (int c = 0; c < channels; c++) {
-                buffer[f*channels + c] = expand_buffer[f];
-            }
-        }
-    } else {
-        read = wav->read(buffer.data(), frames);
-    }
-    // Wav::read only reads less than asked if the file ended.
+    Frames read = file->read(buffer.data(), frames);
+    // read only reads less than asked on error or if the file ended.
     if (read < frames) {
-        delete wav;
-        wav = nullptr;
+        if (file->error())
+            LOG(fname << ": error reading: " << file->error());
+        file.reset();
     }
     std::fill(buffer.begin() + read * channels, buffer.end(), 0);
     *out = buffer.data();

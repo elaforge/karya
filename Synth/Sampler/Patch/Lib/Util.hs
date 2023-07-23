@@ -32,6 +32,13 @@ import qualified Synth.Shared.Signal as Signal
 import           Global
 
 
+data SampleFormat = Wav | Flac deriving (Eq, Show)
+
+extension :: SampleFormat -> String
+extension = \case
+    Wav -> ".wav"
+    Flac -> ".flac"
+
 -- * preprocess
 
 nextsBy :: Eq key => (a -> key) -> [a] -> [(a, [a])]

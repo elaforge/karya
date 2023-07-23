@@ -3,6 +3,7 @@
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 
+#include <memory>
 #include <stdio.h>
 #include <sys/errno.h>
 
@@ -55,44 +56,52 @@ void Flac::metadata_callback(const FLAC__StreamMetadata *metadata)
 void
 Flac::error_callback(FLAC__StreamDecoderErrorStatus status)
 {
-    this->error = FLAC__StreamDecoderErrorStatusString[status];
+    this->_error = FLAC__StreamDecoderErrorStatusString[status];
 }
 
-Flac::Error
-Flac::open(const char *fname, Flac **flacp, Frames offset)
+std::unique_ptr<Flac>
+Flac::open(const char *fname, Frames offset)
 {
-    *flacp = nullptr;
-
-    // TODO unique_ptr to ensure deletion
-    // why not hand it to the caller as unique_ptr?
-    Flac *flac = new Flac();
+    std::unique_ptr<Flac> flac(new Flac());
     if (!flac->is_valid()) {
-        DEBUG("invalid");
-        return FLAC__StreamDecoderStateString[flac->get_state()];
+        flac->_error = FLAC__StreamDecoderStateString[flac->get_state()];
+        return flac;
     }
     flac->set_md5_checking(false); // don't care if it got corrupted.
     FLAC__StreamDecoderInitStatus init_status = flac->init(fname);
     if (init_status != FLAC__STREAM_DECODER_INIT_STATUS_OK) {
-        return FLAC__StreamDecoderInitStatusString[init_status];
+        flac->_error = FLAC__StreamDecoderInitStatusString[init_status];
+        return flac;
     }
     flac->process_until_end_of_metadata();
+    if (flac->error())
+        return flac;
     if (flac->_bits != 16) {
-        return "not 16 bit";
+        flac->_error = "not 16 bit";
+        return flac;
     }
     if (!(flac->_channels == 1 || flac->_channels == 2)) {
-        return "not 1 or 2 channels";
+        flac->_error = "not 1 or 2 channels";
+        return flac;
     }
 
     if (offset >= flac->_total_samples) {
         flac->close();
     } else if (!flac->seek_absolute(offset)) {
-        return FLAC__StreamDecoderStateString[flac->get_state()];
+        flac->_error = FLAC__StreamDecoderStateString[flac->get_state()];
+        return flac;
     }
-    *flacp = flac;
-    return nullptr;
+    return flac;
 }
 
-// if it returns < frames, then the file ended
+// If it returns < frames, then the file ended.
+//
+// If I want to directly return the buffer I'd have to return less.
+// But the caller requires a buffer of the right size, so it would have
+// to patch it together anyway, so may as well do that here.  As long as
+// I'm going to do it some of the time, may as well do it all the time,
+// and copying is cheap.  Even though both frame sizes are likely to be
+// powers of 2, and hence exactly divisible.
 Flac::Frames
 Flac::read(float *samples, Flac::Frames frames)
 {
@@ -111,7 +120,8 @@ Flac::read(float *samples, Flac::Frames frames)
     if (get_state() != FLAC__STREAM_DECODER_END_OF_STREAM
         && get_state() != FLAC__STREAM_DECODER_SEARCH_FOR_FRAME_SYNC)
     {
-        DEBUG("ERROR: " << FLAC__StreamDecoderStateString[get_state()]);
+        _error = FLAC__StreamDecoderStateString[get_state()];
+        return 0;
     }
     // copy frames to *samples
     // delete frames from front of buffer
@@ -119,10 +129,4 @@ Flac::read(float *samples, Flac::Frames frames)
     memcpy(samples, buffer.data(), sizeof(float) * read * 2);
     buffer.erase(buffer.begin(), buffer.begin() + read * 2);
     return read;
-}
-
-Flac::Error
-Flac::close()
-{
-    this->finish();
 }

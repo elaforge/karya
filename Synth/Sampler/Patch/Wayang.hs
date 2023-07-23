@@ -57,6 +57,9 @@ import           Global
 import           Synth.Types
 
 
+sampleFormat :: Util.SampleFormat
+sampleFormat = Util.Flac
+
 patches :: [Patch.Patch]
 patches = pasang Pemade : pasang Kantilan
     : map make
@@ -141,8 +144,7 @@ attributeMap = Common.attribute_map
 -- * checks
 
 allFilenames :: Instrument -> Tuning -> Set FilePath
-allFilenames inst tuning = Set.fromList $ map fst3 $
-    Either.rights
+allFilenames inst tuning = Set.fromList $ map fst3 $ Either.rights
     [ toFilename inst tuning articulation (Right nn) dyn variation
     | articulation <- Util.enumAll
     , nn <- map fst $ instrumentKeys inst tuning articulation
@@ -277,7 +279,7 @@ toFilename instrument tuning articulation symPitch dyn variation = do
         ( panggul
             </> Lists.join "-"
                 [show sampleKey, show lowVel, show highVel, group]
-            <> ".flac"
+            <> Util.extension sampleFormat
         , noteNn
         , sampleNn
         )

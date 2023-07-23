@@ -20,8 +20,9 @@ public:
     typedef const char *Error;
     typedef size_t Frames;
 
-    ~Wav();
+    // TODO Signature is inconsistent with Flac::open, make them consistent?
     static Error open(const char *fname, Wav **wav, Frames offset);
+    ~Wav();
     Frames read(float *samples, Frames frames);
     Error close();
 

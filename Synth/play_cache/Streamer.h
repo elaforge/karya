@@ -24,7 +24,7 @@
 //
 // A subclass is expected to provide a start() method and override
 // initialize().  The reason for the two step initialization is that start()
-// is called in a realtime context, and just copy its arguments to
+// is called in a realtime context, and just copies its arguments to
 // pre-allocated storage, while initialize() is called from the non-realtime
 // thread.
 class Streamer : public Audio {

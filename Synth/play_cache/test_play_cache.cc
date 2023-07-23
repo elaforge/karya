@@ -111,20 +111,31 @@ thru()
 }
 
 
+class File {
+public:
+    virtual size_t read(float *samples, size_t frames) = 0;
+};
+class FlacFile : public File {
+public:
+    Flac *file;
+    FlacFile(Flac *file) : file(file) {}
+    size_t read(float *samples, size_t frames) {
+        return file->read(samples, frames);
+    };
+};
+class WavFile : public File {
+public:
+    Wav *file;
+    WavFile(Wav *file) : file(file) {}
+    size_t read(float *samples, size_t frames) {
+        return file->read(samples, frames);
+    };
+};
+
+
 static int
-test_wav(const char *fname, int offset)
+compare_samples(const char *fname, int offset, File *file)
 {
-    std::cout << "test_wav('" << fname << "', " << offset << ")\n";
-
-    Wav *wav;
-    Wav::Error err = Wav::open(fname, &wav, offset);
-    if (err) {
-        std::cout << fname << ": " << err << "\n";
-        return 1;
-    }
-    std::cout << "channels:" << wav->channels() << " srate:" << wav->srate()
-        << "\n";
-
     SF_INFO info = {0};
     SNDFILE *sndfile = sf_open(fname, SFM_READ, &info);
     if (sf_seek(sndfile, offset, SEEK_SET) == -1) {
@@ -135,65 +146,10 @@ test_wav(const char *fname, int offset)
     float samples1[frames*2], samples2[frames*2];
     int unequal = 0, equal = 0;
     for (;;) {
-        Frames read1 = wav->read(samples1, frames);
+        Frames read1 = file->read(samples1, frames);
         Frames read2 = sf_readf_float(sndfile, samples2, frames);
         if (read1 != read2) {
-            std::cout << "wav read:" << read1 << " != " << "sf read:" << read2
-                << "\n";
-            unequal += frames;
-            break;
-        }
-        if (read1 == 0)
-            break;
-
-        for (int i = 0; i < read1; i++) {
-            if (samples1[i] != samples2[i]) {
-                if (unequal < 64)
-                    std::cout << i << ": " << samples1[i] << " != "
-                        << samples2[i] << "\n";
-                else if (unequal == 64)
-                    std::cout << "...\n";
-                unequal++;
-            } else {
-                equal++;
-                // std::cout << i << ": == " << samples1[i] << "\n";
-            }
-        }
-    }
-    std::cout << "equal: " << equal << " unequal: " << unequal << "\n";
-    wav->close();
-    sf_close(sndfile);
-    return unequal ? 1 : 0;
-}
-
-
-static int
-test_flac(const char *fname, int offset)
-{
-    std::cout << "test_flac('" << fname << "', " << offset << ")\n";
-    Flac *flac;
-    Flac::Error err = Flac::open(fname, &flac, offset);
-    if (err) {
-        std::cout << fname << ": " << err << "\n";
-        return 1;
-    }
-    std::cout << "channels:" << flac->channels() << " srate:" << flac->srate()
-        << "\n";
-
-    SF_INFO info = {0};
-    SNDFILE *sndfile = sf_open(fname, SFM_READ, &info);
-    if (sf_seek(sndfile, offset, SEEK_SET) == -1) {
-        DEBUG(fname << ": seek to " << offset << ": " << sf_strerror(sndfile));
-    }
-
-    const int frames = 64;
-    float samples1[frames*2], samples2[frames*2];
-    int unequal = 0, equal = 0;
-    for (;;) {
-        Frames read1 = flac->read(samples1, frames);
-        Frames read2 = sf_readf_float(sndfile, samples2, frames);
-        if (read1 != read2) {
-            std::cout << "flac read:" << read1 << " != " << "sf read:" << read2
+            std::cout << "read:" << read1 << " != " << "sf read:" << read2
                 << "\n";
             unequal += frames;
             break;
@@ -217,9 +173,42 @@ test_flac(const char *fname, int offset)
         }
     }
     std::cout << "equal: " << equal << " unequal: " << unequal << "\n";
-    flac->close();
     sf_close(sndfile);
     return unequal ? 1 : 0;
+}
+
+
+static int
+test_wav(const char *fname, int offset)
+{
+    std::cout << "test_wav('" << fname << "', " << offset << ")\n";
+
+    Wav *wav;
+    Wav::Error err = Wav::open(fname, &wav, offset);
+    if (err) {
+        std::cout << fname << ": " << err << "\n";
+        return 1;
+    }
+    std::cout << "channels:" << wav->channels() << " srate:" << wav->srate()
+        << "\n";
+    WavFile file(wav);
+    return compare_samples(fname, offset, &file);
+}
+
+
+static int
+test_flac(const char *fname, int offset)
+{
+    std::cout << "test_flac('" << fname << "', " << offset << ")\n";
+    std::unique_ptr<Flac> flac = Flac::open(fname, offset);
+    if (flac->error()) {
+        std::cout << fname << ": " << flac->error() << "\n";
+        return 1;
+    }
+    std::cout << "channels:" << flac->channels() << " srate:" << flac->srate()
+        << "\n";
+    FlacFile file(&*flac);
+    return compare_samples(fname, offset, &file);
 }
 
 

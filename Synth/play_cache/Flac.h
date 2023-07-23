@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <memory>
 #include <vector>
 #include <FLAC++/decoder.h>
 
@@ -17,29 +18,25 @@ public:
     typedef const char *Error;
     typedef size_t Frames;
 
-    // ~Flac();
-    static Error open(const char *fname, Flac **flac, Frames offset);
+    static std::unique_ptr<Flac> open(const char *fname, Frames offset);
+    ~Flac() { close(); } // probably ~File() already does this.
     Frames read(float *samples, Frames frames);
-    Error close();
-
+    void close() { finish(); }
     int channels() const { return _channels; };
     int srate() const { return _srate; };
+    const char *error() const { return _error; };
 
 private:
-    Flac() : error(nullptr), _srate(0), _channels(0), _bits(0),
+    Flac() : _error(nullptr), _srate(0), _channels(0), _bits(0),
         _total_samples(0)
     {}
-    ~Flac() {}
     FLAC__StreamDecoderWriteStatus write_callback(
         const FLAC__Frame *frame, const FLAC__int32 *const buffer[]
     ) override;
 
     void metadata_callback(const FLAC__StreamMetadata *metadata) override;
     void error_callback(FLAC__StreamDecoderErrorStatus status) override;
-    // void error_callback(FLAC__StreamDecoderErrorStatus status) override {
-    //     this->error = FLAC__StreamDecoderErrorStatusString[status];
-    // }
-    const char *error;
+    const char *_error;
     int32_t _srate;
     int32_t _channels;
     int32_t _bits;
