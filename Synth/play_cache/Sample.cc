@@ -86,7 +86,7 @@ find_next_sample(std::ostream &log, const string &dir, const string &fname)
 // Open the file at the given offset.  Return nullptr if there was an error,
 // or the offset is past the end of the file.
 static Wav *
-open_sample(
+open_wav(
     std::ostream &log, int channels, bool one_channel_ok, int sample_rate,
     const string &fname, Frames offset, int *file_channels)
 {
@@ -198,7 +198,7 @@ SampleDirectory::open(int channels, Frames offset)
     if (wav)
         delete wav;
     if (!fname.empty()) {
-        wav = open_sample(
+        wav = open_wav(
             log, channels, false, sample_rate, dir + '/' + fname, offset,
             nullptr);
         // offset should never be > chunk frames.
@@ -210,15 +210,15 @@ SampleDirectory::open(int channels, Frames offset)
 // SampleFile
 
 SampleFile::SampleFile(
-        std::ostream &log, int channels, bool expand_channels, int sample_rate,
+        std::ostream &log, int channels, int sample_rate,
         const string &fname, Frames offset) :
-    log(log), expand_channels(expand_channels), fname(fname), wav(nullptr),
+    log(log), fname(fname), wav(nullptr),
     file_channels(0)
 {
     if (!fname.empty()) {
         LOG(fname << " + " << offset);
-        wav = open_sample(
-            log, channels, expand_channels, sample_rate, fname, offset,
+        wav = open_wav(
+            log, channels, true, sample_rate, fname, offset,
             &this->file_channels);
     }
 }
@@ -239,7 +239,7 @@ SampleFile::read(int channels, Frames frames, float **out)
     }
     buffer.resize(frames * channels);
     Frames read;
-    if (expand_channels && file_channels == 1 && channels != 1) {
+    if (file_channels == 1 && channels != 1) {
         expand_buffer.resize(frames);
         read = wav->read(expand_buffer.data(), frames);
         for (Frames f = 0; f < read; f++) {

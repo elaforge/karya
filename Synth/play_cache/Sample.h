@@ -39,20 +39,17 @@ private:
 };
 
 
-// Just stream a single sample file.
+// Just stream a single sample file.  This is used by ResampleStreamer for
+// playing preview.
 class SampleFile : public Audio {
 public:
-    // If expand_channels is true, then also accept mono input files, and
-    // expand them as required.
-    SampleFile(std::ostream &log,
-        int channels, bool expand_channels, int sample_rate,
+    SampleFile(std::ostream &log, int channels, int sample_rate,
         const std::string &fname, Frames offset);
     ~SampleFile();
     bool read(int channels, Frames frames, float **out) override;
 
 private:
     std::ostream &log;
-    const bool expand_channels;
     const std::string fname;
     Wav *wav;
     int file_channels;
