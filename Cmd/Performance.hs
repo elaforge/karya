@@ -184,7 +184,12 @@ kill_threads = do
             [ block_id | (block_id, perf) <- Map.toList perfs
             , Cmd.perf_damage perf /= mempty
             ]
-        kill = filter ((`elem` with_damage) . fst) $ Map.toList threads
+        -- Kill threads for damaged blocks, but also ones with no performance
+        -- at all.  This is so Cmd.invalidate_performances can force a
+        -- re-generate by clearing out state_current_performance, and doesn't
+        -- need to be in IO to immediately kill the threads.
+        obsolete bid = Map.notMember bid perfs || bid `elem` with_damage
+        kill = filter (obsolete . fst) $ Map.toList threads
     liftIO $ mapM_ (Cmd.kill_thread . snd) kill
     Monad.State.modify $ modify_play_state $ const $ play_state
         { Cmd.state_performance_threads = Maps.deleteKeys (map fst kill)

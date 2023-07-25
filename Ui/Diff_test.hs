@@ -138,9 +138,11 @@ bid = UiTest.default_block_id
 
 mkdamage :: [(TrackId, Ranges.Ranges ScoreTime)] -> [BlockId] -> [BlockId]
     -> Derive.ScoreDamage
-mkdamage tracks track_blocks blocks =
-    Derive.ScoreDamage (Map.fromList tracks)
-        (Set.fromList track_blocks) (Set.fromList blocks)
+mkdamage tracks track_blocks blocks = Derive.ScoreDamage
+    { sdamage_tracks = Map.fromList tracks
+    , sdamage_track_blocks = Set.fromList track_blocks
+    , sdamage_blocks = Set.fromList blocks
+    }
 
 derive_diff :: Ui.State -> Ui.StateId a -> Derive.ScoreDamage
 derive_diff state1 modify = Diff.derive_diff state1 state2 update []

@@ -96,7 +96,11 @@ modify_play_multiplier :: Cmd.M m => (RealTime -> RealTime) -> m ()
 modify_play_multiplier f = do
     Cmd.modify_play_state $ \st -> st
         { Cmd.state_play_multiplier = to_1 $ f (Cmd.state_play_multiplier st) }
-    whenM has_im $ Ui.update_all -- TODO: why?  For waveform?
+    -- A change in state_play_multiplier is not damage for MIDI because it only
+    -- affects playback, but it is damage for im, which needs to rerender
+    -- audio.  Since there is no change to Ui.State, I have to force a rederive
+    -- here.
+    whenM has_im Cmd.invalidate_performances
     where
     -- Set to 1 if I'm this close.  Otherwise repeated multiplies don't
     -- necessarily come back exactly.

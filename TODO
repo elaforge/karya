@@ -131,7 +131,14 @@ sketch:
   2 6 1 6 5 56 61 12 23 5 5 353 2 2 121
 
 UNSORTED
-  - Play.modify_play_multiplier no longer rerenders im
+  * Play.modify_play_multiplier no longer rerenders im
+    . It does a Ui.update_all, but then Diff.derive_diff correctly notices
+      no diffs on the blocks.
+    . So I need derive_diff specifically for im to consider
+      Cmd.state_play_multiplier a global damage.
+    . That's a cmd diff, not a Ui one.  Do I diff cmd?
+    . No.  This is what Ui.update_all in Play.modify_play_multiplier was
+      supposed to do, but didn't.
   * play preview doesn't work for wayang:
     . Because play_cache switched to wav-only, but samples are in flac
     . ed504dc2a84447eeb1de87b3dbeb8b83e309af8d

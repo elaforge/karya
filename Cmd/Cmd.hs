@@ -1380,17 +1380,14 @@ get_performance :: M m => BlockId -> m Performance
 get_performance block_id = abort_unless =<< lookup_performance block_id
 
 -- | Clear all performances, which will cause them to be rederived.
--- It's in IO because it wants to kill any threads still deriving.
---
--- TODO I'm not actually sure if this is safe.  A stale DeriveComplete
--- coming in should be ignored, right?  Why not Ui.update_all?
-invalidate_performances :: CmdT IO ()
-invalidate_performances = do
-    liftIO . kill_performance_threads =<< get
-    modify_play_state $ \state -> state
-        { state_performance = mempty
-        , state_performance_threads = mempty
-        }
+-- This is stronger than 'Ui.update_all', because Ui.update_all will simply
+-- cause diff to look at the blocks for diffs, while this will force a
+-- re-derivation even if there are no apparent diffs.
+invalidate_performances :: M m => m ()
+invalidate_performances = modify_play_state $ \state -> state
+    { state_performance = mempty
+    , state_current_performance = mempty
+    }
 
 clear_im_cache :: BlockId -> CmdT IO ()
 clear_im_cache block_id = do
