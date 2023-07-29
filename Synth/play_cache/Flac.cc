@@ -13,11 +13,9 @@
 
 
 static inline float
-to_float(FLAC__int16 i)
+to_float(FLAC__int32 i, float max)
 {
-    // This is chosen to match libsndfile.  This lets us reach -1, but not
-    // quite +1.
-    return static_cast<float>(i) / 32768;
+    return static_cast<float>(i) / max;
 }
 
 FLAC__StreamDecoderWriteStatus
@@ -27,17 +25,19 @@ Flac::write_callback(
     size_t samples = frame->header.blocksize;
     size_t end = buffer.size();
     buffer.resize(end + samples * 2);
+    // There's no standard way to convert to float, but using 2^(bits-1)
+    // matches libsndfile.  It lets us reach -1 but not quite +1.
+    float max = 1 << (bits() - 1);
     // interleave samples, convert to float
-    // TODO flac gives me int32 but its example assumes int16 samples?
-    if (_channels == 1) {
+    if (channels() == 1) {
         for (size_t i = 0; i < samples; i++) {
-            buffer[end + i*2] = to_float(channel[0][i]);
-            buffer[end + i*2 + 1] = to_float(channel[0][i]);
+            buffer[end + i*2] = to_float(channel[0][i], max);
+            buffer[end + i*2 + 1] = to_float(channel[0][i], max);
         }
-    } else if (_channels == 2) {
+    } else if (channels() == 2) {
         for (size_t i = 0; i < samples; i++) {
-            buffer[end + i*2] = to_float(channel[0][i]);
-            buffer[end + i*2 + 1] = to_float(channel[1][i]);
+            buffer[end + i*2] = to_float(channel[0][i], max);
+            buffer[end + i*2 + 1] = to_float(channel[1][i], max);
         }
     }
     return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
@@ -76,14 +76,6 @@ Flac::open(const char *fname, Frames offset)
     flac->process_until_end_of_metadata();
     if (flac->error())
         return flac;
-    if (flac->_bits != 16) {
-        flac->_error = "not 16 bit";
-        return flac;
-    }
-    if (!(flac->_channels == 1 || flac->_channels == 2)) {
-        flac->_error = "not 1 or 2 channels";
-        return flac;
-    }
 
     if (offset >= flac->_total_samples) {
         flac->close();

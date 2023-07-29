@@ -131,6 +131,9 @@ sketch:
   2 6 1 6 5 56 61 12 23 5 5 353 2 2 121
 
 UNSORTED
+  + play preview for gong mangled
+    . data/sampler/sc-gamelan/gongs/Gong Wadon-B096.flac: not 16 bit
+  - click above ruler track should not highlight the ruler track
   * Play.modify_play_multiplier no longer rerenders im
     . It does a Ui.update_all, but then Diff.derive_diff correctly notices
       no diffs on the blocks.

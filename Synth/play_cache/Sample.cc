@@ -224,13 +224,19 @@ SampleFile::SampleFile(
         }
         LOG(fname << " + " << offset);
         file = Flac::open(fname.c_str(), offset);
-        if (file->error()) {
-            LOG("opening " << fname << ": " << file->error());
-        } else if (file->srate() != sample_rate) {
+        // TODO I could support non 41.1k srate, would have to add it to the
+        // resample ratio.
+        if (file->error())
+            LOG(fname << ": error opening: " << file->error());
+        else if (file->srate() != sample_rate)
             LOG(fname << ": expected srate " << sample_rate << ", got "
                 << file->srate());
-            file.reset();
-        }
+        else if (file->channels() != 1 && file->channels() != 2)
+            LOG(fname << ": expected 1 or 2 channels, got "
+                << file->channels());
+        else
+            return; // file is ok
+        file.reset();
     }
 }
 

@@ -24,6 +24,7 @@ public:
     void close() { finish(); }
     int channels() const { return _channels; };
     int srate() const { return _srate; };
+    int bits() const { return _bits; };
     const char *error() const { return _error; };
 
 private:

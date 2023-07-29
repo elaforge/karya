@@ -205,8 +205,8 @@ test_flac(const char *fname, int offset)
         std::cout << fname << ": " << flac->error() << "\n";
         return 1;
     }
-    std::cout << "channels:" << flac->channels() << " srate:" << flac->srate()
-        << "\n";
+    std::cout << "bits: " << flac->bits() << " channels:" << flac->channels()
+        << " srate:" << flac->srate() << "\n";
     FlacFile file(&*flac);
     return compare_samples(fname, offset, &file);
 }
