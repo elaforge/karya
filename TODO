@@ -131,7 +131,17 @@ sketch:
   2 6 1 6 5 56 61 12 23 5 5 353 2 2 121
 
 UNSORTED
-  + play preview for gong mangled
+  - refuses to perform @umpak
+    . It's in state_current_performance, but not state_performance
+    - Perf.muted_im_instruments uses old perf, not current
+    . DeriveComplete should have copied to state_performance
+    . It never came, derive seems to be stuck.  Where?
+    - play clears out the derive still going button, which obscures when it's
+      stuck
+    . thread died: (Left data/im/notes/java/wilujeng/untitled/umpak/sampler:
+      createLink: already exists (File exists))
+  - I still have the out of sync problem with ky inst allocs vs UiConfig
+  * play preview for gong mangled
     . data/sampler/sc-gamelan/gongs/Gong Wadon-B096.flac: not 16 bit
   - click above ruler track should not highlight the ruler track
   * Play.modify_play_multiplier no longer rerenders im

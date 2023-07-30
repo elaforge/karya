@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Util.Thread (
-    start, startLogged
+    start, startLogged, asyncLogged
     , Seconds, delay
     , timeout
     -- * Flag
@@ -40,21 +40,34 @@ import qualified Text.Printf as Printf
 import qualified Util.Log as Log
 
 
+start :: IO () -> IO Concurrent.ThreadId
+start = Concurrent.forkIO
+
 -- | Start a noisy thread that will log when it starts and stops, and warn if
 -- it dies from an exception.
 startLogged :: String -> IO () -> IO Concurrent.ThreadId
-startLogged name thread = do
+startLogged name = Concurrent.forkIO . logged name
+
+asyncLogged :: String -> IO a -> IO (Async.Async a)
+asyncLogged name = Async.async . logged name
+
+logged :: String -> IO a -> IO a
+logged name thread = do
     threadId <- Concurrent.myThreadId
     Conc.labelThread threadId name
     let threadName = Text.pack $ show threadId ++ " " ++ name ++ ": "
     Log.debug $ threadName <> "started"
-    Concurrent.forkFinally thread $ \result -> case result of
-        Right () -> Log.debug $ threadName <> "completed"
-        Left err -> Log.warn $ threadName <> "died: "
-            <> Text.pack (show (err :: Exception.SomeException))
-
-start :: IO () -> IO Concurrent.ThreadId
-start = Concurrent.forkIO
+    Exception.try thread >>= \case
+        Left exc
+            | Just Async.AsyncCancelled <- Exception.fromException exc ->
+                Exception.throwIO exc
+            | otherwise -> do
+                Log.warn $ threadName <> "died: "
+                    <> Text.pack (show (exc :: Exception.SomeException))
+                Exception.throwIO exc
+        Right a -> do
+            Log.debug $ threadName <> "completed"
+            return a
 
 -- | This is just NominalDiffTime, but with a name I might remember.
 type Seconds = Time.NominalDiffTime

@@ -858,7 +858,8 @@ instance Show PlayCmd where
 -- | Wrap Async to make it showable.  I use Async instead of ThreadId because
 -- I want to make sure they can run their finalizers when the app quits, and
 -- I can wait on an Async, but not on a ThreadId.  At the moment, the
--- finalizers are killing im subprocesses.
+-- finalizers are killing im subprocesses.  'kill_thread' uses Async.cancel,
+-- which synchronously waits for the thread to complete.
 newtype Thread = Thread (Async.Async ())
 
 instance Show Thread where

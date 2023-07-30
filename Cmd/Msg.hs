@@ -121,8 +121,8 @@ instance Pretty ImStatus where
     pretty = \case
         ImRenderingRange inst start end ->
             pretty inst <> "(" <> pretty start <> "--" <> pretty end <> ")"
-        ImWaveformsCompleted waves ->
-            Text.intercalate "," (map (txt . Track._filename) waves)
+        ImWaveformsCompleted waves -> "ImWaveformsCompleted:"
+            <> Text.intercalate "," (map (txt . Track._filename) waves)
         ImComplete failed _ -> "ImComplete" <> if failed then "(failed)" else ""
 
 -- Performance should be in "Cmd.Cmd", but that would be a circular import.

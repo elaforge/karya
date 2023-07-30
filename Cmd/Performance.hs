@@ -14,10 +14,8 @@ module Cmd.Performance (
     , Process, evaluate_im
     , wait_for_subprocesses
 ) where
-import qualified Control.Concurrent.Async as Async
 import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Monad.State.Strict as Monad.State
-
 import qualified Data.HashSet as HashSet
 import qualified Data.List as List
 import qualified Data.Map.Lazy as Map.Lazy
@@ -35,10 +33,10 @@ import           System.FilePath ((</>))
 import qualified System.IO as IO
 
 import qualified Util.Control as Control
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Maps as Maps
 import qualified Util.Processes as Processes
-import qualified Util.Lists as Lists
 import qualified Util.Thread as Thread
 import qualified Util.Vector
 
@@ -223,7 +221,7 @@ generate_performance ui_state wait send_status block_id = do
     cmd_state <- Monad.State.get
     let (perf, logs) = derive ui_state cmd_state block_id
     mapM_ Log.write logs
-    thread_id <- liftIO $ Async.async $ do
+    thread_id <- liftIO $ Thread.asyncLogged ("perf:" <> prettys block_id) $ do
         let allocs = Ui.config#UiConfig.allocations #$ ui_state
             im_config = Cmd.config_im (Cmd.state_config cmd_state)
         let lookup_inst = either (const Nothing) Just

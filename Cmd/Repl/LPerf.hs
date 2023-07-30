@@ -4,6 +4,8 @@
 
 -- | Cmds to deal with Cmd.Performance, derivation, and performance.
 module Cmd.Repl.LPerf where
+import qualified Control.Concurrent.Async as Async
+import qualified Control.Exception as Exception
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Ratio as Ratio
@@ -76,6 +78,12 @@ get_current :: Cmd.M m => BlockId -> m Cmd.Performance
 get_current block_id = Cmd.require ("no performance for " <> pretty block_id)
     =<< Map.lookup block_id <$>
         Cmd.gets (Cmd.state_current_performance . Cmd.state_play)
+
+poll_threads :: Cmd.CmdT IO
+    (Map BlockId (Maybe (Either Exception.SomeException ())))
+poll_threads = do
+    threads <- Cmd.gets (Cmd.state_performance_threads  . Cmd.state_play)
+    liftIO $ traverse Async.poll $ fmap (\(Cmd.Thread t) -> t) threads
 
 -- * info
 
