@@ -294,8 +294,7 @@ get_realtime perf_block play_block maybe_track_id pos = do
 
 get_performance :: Cmd.M m => BlockId -> m Cmd.Performance
 get_performance block_id = do
-    perf <- Cmd.require ("no performance for block " <> showt block_id)
-        =<< lookup_current_performance block_id
+    perf <- Perf.get_current block_id
     write_logs block_id perf
     return perf
 
@@ -384,8 +383,7 @@ from_realtime block_id repeat_at start_ = do
     -- play to seem to wedge for a moment.  'PlayUtil.perform_from' has
     -- a special hack to notice and include notes < 0.
     let start = max 0 start_
-    perf <- Cmd.require ("no performance for block " <> showt block_id)
-        =<< lookup_current_performance block_id
+    perf <- Perf.get_current block_id
     multiplier <- gets (recip . Cmd.state_play_multiplier)
 
     maybe_sync <- gets Cmd.state_sync

@@ -56,6 +56,12 @@ get :: Cmd.M m => BlockId -> m Cmd.Performance
 get block_id = Cmd.require ("no performance for " <> pretty block_id)
     =<< Cmd.lookup_performance block_id
 
+get_current :: Cmd.M m => BlockId -> m Cmd.Performance
+get_current block_id =
+    Cmd.require ("no current performance for " <> pretty block_id)
+        =<< Map.lookup block_id <$>
+            Cmd.gets (Cmd.state_current_performance . Cmd.state_play)
+
 lookup_root :: Cmd.M m => m (Maybe Cmd.Performance)
 lookup_root = justm Ui.lookup_root_id Cmd.lookup_performance
 
@@ -328,7 +334,7 @@ muted_im_instruments block_id = do
 get_muted_instrument_tracks :: Cmd.M m => BlockId -> m (Set ScoreT.Instrument)
 get_muted_instrument_tracks block_id = do
     muted <- Set.toList <$> PlayUtil.get_muted_tracks
-    track_instruments <- Cmd.perf_track_instruments <$> get block_id
+    track_instruments <- Cmd.perf_track_instruments <$> get_current block_id
     return $ Set.unions $
         map (fromMaybe mempty . (`Map.lookup` track_instruments)) muted
 

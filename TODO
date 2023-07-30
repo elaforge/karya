@@ -133,7 +133,7 @@ sketch:
 UNSORTED
   * refuses to perform @umpak
     . It's in state_current_performance, but not state_performance
-    - Perf.muted_im_instruments uses old perf, not current
+    * Perf.muted_im_instruments uses old perf, not current
     . DeriveComplete should have copied to state_performance
     . It never came, derive seems to be stuck.  Where?
     - play clears out the derive still going button, which obscures when it's
