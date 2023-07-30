@@ -155,13 +155,20 @@ writeGz rotations fn bytes = do
     ifM (sameContents fn tmp)
         (Directory.removeFile tmp >> return False) $
         do
+            -- out.2 -> out.3, out.1 -> out.2, out.0 -> out.1
             forM_ [rotations-1, rotations-2 .. 1] $ \n ->
                 Exceptions.ignoreEnoent_ $
                     Directory.renameFile (rotation (n-1)) (rotation n)
-            -- Go to some hassle to ensure files are replaced atomically.
+            -- Ensure there is never a moment where out doesn't exist:
+            -- > rm -f out.0.tmp
+            -- > ln out out.0.tmp
+            -- > mv out.0.tmp out.0
+            -- > mv out.write.tmp out
             when (rotations > 0) $ Exceptions.ignoreEnoent_ $ do
-                Posix.Files.createLink fn (rotation 0 <> ".tmp")
-                Directory.renameFile (rotation 0 <> ".tmp") (rotation 0)
+                let tmp0 = rotation 0 <> ".tmp"
+                Exceptions.ignoreEnoent_ $ Directory.removeFile tmp0
+                Posix.Files.createLink fn tmp0
+                Directory.renameFile tmp0 (rotation 0)
             Directory.renameFile tmp fn
             return True
     where

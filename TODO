@@ -131,7 +131,7 @@ sketch:
   2 6 1 6 5 56 61 12 23 5 5 353 2 2 121
 
 UNSORTED
-  - refuses to perform @umpak
+  * refuses to perform @umpak
     . It's in state_current_performance, but not state_performance
     - Perf.muted_im_instruments uses old perf, not current
     . DeriveComplete should have copied to state_performance
