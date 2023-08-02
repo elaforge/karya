@@ -131,6 +131,11 @@ sketch:
   2 6 1 6 5 56 61 12 23 5 5 353 2 2 121
 
 UNSORTED
+  - divide up App.Config
+    . Move stuff that shouldn't be changed, like pixels from c++, to its own
+      module.
+    . Move EventTrack.cc rank_brightness negative_duration_brightness
+      to color config.
   * refuses to perform @umpak
     . It's in state_current_performance, but not state_performance
     * Perf.muted_im_instruments uses old perf, not current
@@ -6648,6 +6653,36 @@ Cmd:
       a bit of a hassle.
 
 Derive:
+  java: javanese notation:
+    - event body too dark when negative, can't read text.
+      . What if negative is actually lighter?
+      . negative_duration_brightness is in EventTrack.cc, not Config.hsc
+    - for negative, does the duration really matter?
+      . Yes for patterns.  But for individual notes there is nothing
+        unless I can get final duration out of it.
+      . I can use the negative duration but maybe it only works because
+        all notes are the same duration.  What if I wanted to set the
+        duration?  Negative duration would be confusing but could not
+        have enough space.
+      . So it seems like it should be -0 but then have optional
+        explicit damp marks.
+      . This will be inconvenient for parts like gender, but maybe I need
+        damp inferring anyway.
+    harder to read than traditional:
+      . Vertical not very compact.  Screens are wider than tall.
+      . Can fit 6*8 notes at once.  Paper can fit 4*8 but in less space
+        and is then taller.
+      . Window and block title overhead is repeated.
+      . Track titles squished.
+      . Hard to read when it's not grouped in 4s.  Can get a better ruler.
+        Gatra = 1w, line = section
+      . It's already right, but I could number sections.
+      . Scores have a notion of wrapping.  I could do that vertically.
+        However, this is in the direction of one big block, while the
+        hierarchical block idea is that they don't get too big.
+      . But, fiddling with hierarchical blocks is still too much work.
+      . What about writing tscore?
+
   - make note call show up on the stack
     . It's transformed_note which uses "note" name, but if I put in
       a name I get it in the stack but last thing is still note-track.
@@ -6918,6 +6953,7 @@ Derive:
         . get_ruler looks stupid anyway, why not just TrackId -> RulerId?
     profiling in general:
       - with_stack_region is big: 11.3 7.6
+        . Or maybe it's something underneath without a SCC.
     * split CFPure into a separate Val type
       . VFunction, VCFunction?  No, Function is already RealTime -> Signal.Y
       . PFunction, CFunction?
@@ -8511,6 +8547,116 @@ pitch: scales: scale:
       - I don't like "laras" name for tuning, it should be tuning for tuning,
         and some other word of umbang/isep.
         . I was pondering things like kelamin but ugh.  Pair?  Too generic.
+    parameterized scales:
+      * implement scale call
+      * convert Java to scale
+        . I can't have instrument set just scale-inst when overall scale is
+          already set.  Have to re-set the scale.  Maybe I could have `scale`
+          by itself re-calls the scale in scope with the current env?
+      - scale docs
+      port existing scales:
+        - twelve
+        - just
+        - interpolate
+        - edo
+        - legong, wayang, raga
+      notes:
+        . Currently scales look for 'key', 'tuning', 'laras' env.  There are
+          complications:
+          . layout can't be parameterized.
+          . note_to_call can be, but only inside the call, the parsing can't be.
+            So I need a separate RelativeNote which doesn't depend on key.
+            This makes it hard to add 'scale-inst'
+          . Have to look for key every time, possibly hurts performance.
+            Though prof says Derive.Score.transposed_at, but it a confusing way,
+            it's above eval_toplevel so who knows what it really means.
+            But if I do want to cache pitch calls, would it be easier if
+            it's just scale+transposers, rather than scale+key+???
+          . Maybe yes, because the cache would be invalidated by key changes.
+        . Parameterized scale via
+          Scale.Make !Pitch.ScaleId !(Text, Derive.DocumentedCall)
+              !(Env.Environ -> LookupScale -> Either DeriveT.PitchError Scale)
+          . Edo - Scale.Make "edo" (pattern, call_doc) (make_edo "edo")
+            To get edo-divisions and edo-intervals out of Environ, which affect
+            layout, format, etc.
+          . Interpolate - get scale-from, scale-to, key-from, key-to from env,
+            lookup scales in LookupScale.
+          . Just - make-just7, get list of ratios and intervals from env
+        . Consolidating key into scale would be better for Interpolate, because
+          key-from etc. doesn't have laras-from etc.
+        . The way I wanted to do parameterized scales was first class VScale,
+          then scales become ValCalls that produce the given VScale:
+          . scale=(twelve c-maj)
+          . scale=(interpolate (just ratios1 ints1) (just ratios2 ints1))
+          . scale=(edo divisions:6 intervals:(list 1 1 1 2 1))
+        . I could still take a symbol a shorthand for (sym), so e.g.
+          scale=twelve -> scale=(twelve).  But if I'm abandoning setting key
+          separately, it's going to be incompatible.  I could pick up key from
+          the env, but it would have be set first, and most aren't.
+        . But the problem with this is Scale can't go into DeriveT without
+          dragging in ValCall.
+        . Also it's convenient how Scale can statically export
+          scale_symbols, though I guess it's not critical.  For docs they would
+          get a special tag, to differentiate from other ValCalls.
+        . ValCall seems to be the only Deriver.Monad type needed.  Is there a
+          way around that?  Like I could return something that looks up
+          a ValCall?
+        . So a scale would be a ValCall, that returns a Val that itself brings
+          other ValCalls into scope, via
+            scale_to_call :: Scale -> (ValCall -> call) -> PatternCall call
+            , pat_function = \sym ->
+                return $ convert <$> scale_note_to_call scale (to_note sym)
+        . In a roundabout way, assigned to a variable which in turn brings into
+          scope.  It would be more direct for there to be a
+          `scale (twelve) | ...` which is like an import.  This directly
+          translates to Lib.with_scale.
+        . But, what if I wrote `scale twelve arg arg`, this way it would look up
+          twelve in the separate ScaleMap, which is still a sepraate namespace
+          and hence doesn't have to be a Val.  I don't get to unify docs, but
+          also can keep scale_note_to_call :: !(Pitch.Note -> Maybe ValCall)
+        . Can I eliminate ScaleId?  I guess it's just a type for the keys of
+          the ScaleMap namespace.
+        . Can I reuse Sig inside Scale?  Why not?
+        . But, this doesn't allow scales as arguments to scales, how to do
+          interpolate?
+          . scale interpolate (just ratios1 ints1) (just ratios2 ints1)
+          . But (just ...) is not a val call.  Would have to be:
+            scale interpolate (list just ratios1 ints1) (list just ratios2
+            ints1)
+          . And then interpolate has to call scale again with those args.
+          . Alternately
+            scale interpolate "(just ratios1 ints1) "(just ratios2 ints1)
+            for lispy feel.
+        . How much of ValCall should I duplicate then?  I can have ScaleCall,
+          but it doesn't go into the normal Scopes.  I guess it's remains
+          hardcoded in Monad.Constant like before.  The scale doc generating
+          stuff would become a little bit more like CallDoc, but remains
+          distinct.
+        . This is going to be annoynig without keyword args though, because
+          scales have many, e.g.
+            scale=pelog | key = {pathet: lima, laras: sequoia,
+              inst: gender-panerus, tuning: umbang}
+          scale pelog pathet:lima laras:sequoia inst:gender-panerus
+            tuning:umbang
+        . A reason for scale-inst as env var is that instruments could bring it
+          into scope automatically.  Otherwise, how would I have an instrument
+          that wants range gender-panerus no matter the scale?
+        . I could do it by support env defaulting, so:
+          pathet=lima | laras=sequoia | scale pelog
+        . It has the annoyance of polluting the namespace, but all defaulting
+          keyword args do that.  If I really hate it I can delete them somehow,
+          but actually I don't, downstream stuff may be interested in tuning,
+          pathet, key.
+        . I think this works, but it completely changes scales, they must all be
+          rewritten.
+        . Can I have both systems coexist?  I think so, just need
+        . But rewriting scores will be a pain:
+          `scale=x | key=y` -> `scale x y` or `key=y | scale x`
+          But more complicated because key and scale may be arbitrarily
+          separated.
+        . Also `*x arg arg` should become `scale x arg arg |`  Should I bother
+          though?  I don't really use this notation.  I still need something to
+          mark a pitch track, but what about `* | scale x arg`?
     better types for scale degrees:
       . It's confusing keeping track of PitchClass, Semis, FSemis, etc.
       . I should have:
@@ -8562,6 +8708,36 @@ pitch: scales: scale:
       . For pelog I may be forced to make separate scales instead of keys.
         But that has a caching effect because the key is resolved when the
         scale is set, rather than on every pitch (is it really?).
+    JavaScales:
+      - use scale-inst to set instrument ranges
+        . Can't do this for note_to_call, because it doesn't get env.
+        . And it can't, because the env is in the note call, while
+          note_to_call goes to PatternCall, which just gives the call name,
+          not environ.
+        . In any case, I would like to move toward embedding more into the
+          scale selection, so it gets evaluated once and cached.
+        . So do separate scales for now, but create a general mechanism to
+          parameterize scales, and then use that for key, scale-inst, laras,
+          tuning.
+        . I actually already have that mechanism for *interpolate, but it's
+          gross.
+        . Also lots of existing code that does scale=x | key=y separately,
+          so maybe I can say all those parameters are like scale=.
+        . But there's some unbounded list of them, could I squeeze them
+          all into key?  Maybe it wants tracklang records?
+          scale=pelog | key = {pathet: lima, laras: sequoia,
+            inst: gender-panerus, tuning: umbang}
+          scale=twelve | key = c-maj
+        . If I did this, all key parsing could be taken out of scale_whatever
+          operations, but I would need a Scale parameterized by all those
+          things.
+        . This is like a weirder version of scale with arguments.
+        . Actually I have the same problem with key, note_to_call doesn't
+          have the key.  TheoryFormat does this by separately parsing to
+          Relative, and then doing to_absolute.  So I wind up recreating
+          TheoryFormat.
+        . So one path is to do that, but try to generalize the names
+          to Parsed -> Pitch vs Relative|Absolute -> Pitch
     reimplement with my own ScaleMap
       * Layout with Theory.Intervals, and cached degree_to_pc and back.
       - Plug back in relative octave stuff, maybe TheoryFormat?
@@ -8569,7 +8745,7 @@ pitch: scales: scale:
         . The separate scale approach will get clunky with per-instrument
           ranges.  Can I move pathet back to key?
         . Alternately, why not set instrument range with an env var?
-          scale=pelog-lima | scale-range=gender-panerus
+          scale=pelog-lima | scale-inst=gender-panerus
           . It it would modify input_to_note, and scale_read / scale_show.
         . The reason to put pathet in the scale was scale_layout being
           constant.  Who is using that?
@@ -8791,39 +8967,9 @@ pitch: scales: scale:
           pitch, but no other structure.
 
     java:
-      problems with notation:
-        - event body too dark when negative, can't read text.
-          . What if negative is actually lighter?
-          . negative_duration_brightness is in EventTrack.cc, not Config.hsc
-        - for negative, does the duration really matter?
-          . Yes for patterns.  But for individual notes there is nothing
-            unless I can get final duration out of it.
-          . I can use the negative duration but maybe it only works because
-            all notes are the same duration.  What if I wanted to set the
-            duration?  Negative duration would be confusing but could not
-            have enough space.
-          . So it seems like it should be -0 but then have optional
-            explicit damp marks.
-          . This will be inconvenient for parts like gender, but maybe I need
-            damp inferring anyway.
-        - Vertical not very compact.  Screens are wider than tall.
-          . Can fit 6*8 notes at once.  Paper can fit 4*8 but in less space
-            and is then taller.
-          . Window and block title overhead is repeated.
-          . Track titles squished.
-          . Hard to read when it's not grouped in 4s.  Can get a better ruler.
-            Gatra = 1w, line = section
-          . It's already right, but I could number sections.
-          . Scores have a notion of wrapping.  I could do that vertically.
-            However, this is in the direction of one big block, while the
-            hierarchical block idea is that they don't get too big.
-      * can't parse absolute notation 11 12 13 etc.
-      + get ranges of javanese instruments
       + tuning for sekar sequoia
         . 4 is guesses, also need complete range
-      - I need "accidentals" as proper notes, not 3#.
-      - pengumbang/pengisep not suitable
-      - pathet as an alias for key?
+      * I need "accidentals" as proper notes, not 3#.
     - I think the symbolic pitch_note functions should use RelativePitch,
       otherwise the symbolic pitch they produce can't be parsed back in to
       produce the same pitch.

@@ -130,9 +130,9 @@ test_input_to_nn = do
 test_note_call :: Test
 test_note_call = do
     let derive scale control =
-            DeriveTest.extract extract . derive_pitch scale "" control
+            DeriveTest.extract extract . derive_pitch scale control
         extract e = (Score.initial_nn e, Score.initial_note e)
-    let f = derive "pelog-lima"
+    let f = derive "pelog lima"
     equal (f "" "41") ([(Just nn41, Just "41")], [])
     equal (f "t-chrom=1" "41") ([(Just nn42, Just "42")], [])
     equal (f "t-chrom=3" "41") ([(Just 80, Just "44")], [])
@@ -146,8 +146,8 @@ test_note_call = do
     equal (f "t-hz=7" "41")
         ([(Just (Pitch.modify_hz (+7) nn41), Just "41")], [])
 
-    let gender = derive "pelog-barang-gender-panerus" ""
-    let absolute = derive "pelog-barang" ""
+    let gender = derive "pelog barang gender-panerus" ""
+    let absolute = derive "pelog barang" ""
     equal (absolute "41") ([(Just nn41, Just "41")], [])
     equal (gender "1") ([(Just nn41, Just "1")], [])
     equal (f "" "42") ([(Just nn42, Just "42")], [])
@@ -162,27 +162,17 @@ nn42 = 75.68
 note4 :: Int -> Pitch.Note
 note4 = Pitch.Note . ("4"<>) . showt
 
-lima, barang :: Text
-lima = "lima"
-barang = "barang"
-
-pelog :: Scale.Scale
-pelog = get_scale "pelog"
-
 pelog_lima :: Scale.Scale
-pelog_lima = get_scale "pelog-lima"
+pelog_lima = ScaleTest.get "pelog lima"
 
 pelog_barang :: Scale.Scale
-pelog_barang = get_scale "pelog-barang"
+pelog_barang = ScaleTest.get "pelog barang"
 
 panerus_lima :: Scale.Scale
-panerus_lima = get_scale "pelog-lima-gender-panerus"
+panerus_lima = ScaleTest.get "pelog lima gender-panerus"
 
 panerus_barang :: Scale.Scale
-panerus_barang = get_scale "pelog-barang-gender-panerus"
-
-get_scale :: Text -> Scale.Scale
-get_scale = ScaleTest.get_scale Java.scales
+panerus_barang = ScaleTest.get "pelog barang gender-panerus"
 
 -- * util
 --
@@ -201,10 +191,9 @@ scale_track scale_id pitches =
     ]
     where events = zip (Lists.range_ 0 1) pitches
 
--- TODO from Twelve_test
-derive_pitch :: Text -> Text -> Text-> Text -> Derive.Result
-derive_pitch scale key control pitch =
-    DeriveTest.derive_tracks (if key == "" then "" else "key = " <> key)
+derive_pitch :: Text -> Text-> Text -> Derive.Result
+derive_pitch scale control pitch =
+    DeriveTest.derive_tracks ("scale " <> scale)
         [ (Texts.join2 " | " ">" control, [(0, 1, "")])
-        , ("*" <> scale, [(0, 0, pitch)])
+        , ("*", [(0, 0, pitch)])
         ]

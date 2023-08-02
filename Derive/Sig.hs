@@ -81,7 +81,7 @@
     a constant.
 -}
 module Derive.Sig (
-    Parser, Generator, Transformer
+    Parser(parser_docs), Generator, Transformer
     , Arg(..)
     , check, parse_or_throw, require_right, parse, parse_vals
     , Dummy
@@ -643,11 +643,15 @@ lookup_default env_default state name =
     where lookup key = Env.lookup key (state_environ state)
 
 environ_keys :: CallName -> ArgName -> Derive.EnvironDefault -> [Env.Key]
-environ_keys call_name arg_name env_default = case env_default of
-    Derive.None -> []
-    Derive.Prefixed -> [prefixed]
-    Derive.Unprefixed -> [unprefixed]
-    Derive.Both -> [unprefixed, prefixed]
+environ_keys call_name arg_name = \case
+    None -> []
+    Prefixed
+        | call_name == "" -> [unprefixed]
+        | otherwise -> [prefixed]
+    Unprefixed -> [unprefixed]
+    Both
+        | call_name == "" -> [unprefixed]
+        | otherwise -> [unprefixed, prefixed]
     where
     prefixed = prefixed_environ call_name arg_name
     unprefixed = (\(Derive.ArgName n) -> n) arg_name

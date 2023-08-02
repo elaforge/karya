@@ -13,7 +13,6 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.PSignal as PSignal
-import qualified Derive.Scale as Scale
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
@@ -21,9 +20,9 @@ import qualified Perform.RealTime as RealTime
 import           Global
 
 
-scale :: Scale.Scale -> PSignal.Scale
+scale :: Derive.Scale -> PSignal.Scale
 scale scale =
-    PSignal.Scale (Scale.scale_id scale) (Scale.scale_transposers scale)
+    PSignal.Scale (Derive.scale_id scale) (Derive.scale_transposers scale)
 
 -- | A pitch interpolated a certain distance between two other pitches.
 interpolated :: PSignal.Pitch -> PSignal.Pitch -> Double -> PSignal.Pitch

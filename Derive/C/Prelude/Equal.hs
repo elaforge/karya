@@ -101,11 +101,12 @@ c_equal_generator = Derive.generator Module.prelude "equal" Tags.subs
 
 equal_args :: Sig.Parser (Text, DeriveT.Val, Merge)
 equal_args = (,,)
-    <$> Sig.required "lhs" "Assign to this. This looks like a Str, but\
+    <$> Sig.required_env "lhs" Sig.None
+        "Assign to this. This looks like a Str, but\
         \ can actualy contain any characters except `=`, due to the special\
         \ infix parsing for `=`. Symbolic prefixes determine what is\
         \ assigned, and the valid types for the rhs."
-    <*> Sig.required "rhs" "Source of the assignment."
+    <*> Sig.required_env "rhs" Sig.None "Source of the assignment."
     <*> (parse_merge <$> Sig.defaulted "merge" ("set" :: Text) merge_doc)
 
 merge_doc :: Doc.Doc

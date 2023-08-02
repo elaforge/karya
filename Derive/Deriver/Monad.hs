@@ -125,6 +125,9 @@ module Derive.Deriver.Monad (
 
     -- * scale
     -- $scale_doc
+    , ScaleCall(..)
+    , ScaleF
+    , scale_call
     , Scale(..)
     , LookupScale(..)
     , Transpose, Transposition(..), Enharmonics, Layout
@@ -998,6 +1001,7 @@ data Constant = Constant {
     -- But using this means that if it ever becomes dynamic I hopefully don't
     -- have to change so much code.  Also I think it avoids a circular import.
     , state_lookup_scale :: !LookupScale
+    , state_scale_calls :: !(Map CallName ScaleCall)
     -- | Get the calls and environ that should be in scope with a certain
     -- instrument.  The environ is merged with the environ in effect.
     , state_lookup_instrument :: !(ScoreT.Instrument -> Either Text Instrument)
@@ -1007,14 +1011,16 @@ data Constant = Constant {
     }
 
 initial_constant :: Ui.State -> Builtins -> LookupScale
-    -> (ScoreT.Instrument -> Either Text Instrument) -> Cache -> ScoreDamage
-    -> Constant
-initial_constant ui_state builtins lookup_scale lookup_inst cache score_damage =
-    Constant
+    -> Map CallName ScaleCall -> (ScoreT.Instrument -> Either Text Instrument)
+    -> Cache -> ScoreDamage -> Constant
+initial_constant ui_state builtins lookup_scale scale_calls lookup_inst cache
+        score_damage
+    = Constant
         { state_ui = ui_state
         , state_builtins = builtins
         , state_mergers = mergers
         , state_lookup_scale = lookup_scale
+        , state_scale_calls = scale_calls
         , state_lookup_instrument = lookup_inst
         , state_cache = invalidate_damaged score_damage cache
         , state_score_damage = score_damage
@@ -1526,6 +1532,8 @@ data EnvironDefault =
     | Both
     deriving (Eq, Ord, Show)
 
+instance Pretty EnvironDefault where pretty = showt
+
 -- | A value annotated with argument docs.  This is returned by the functions
 -- in "Derive.Sig", and accepted by the Call constructors here.
 type WithArgDoc f = (f, [ArgDoc])
@@ -1803,6 +1811,30 @@ real_to_score pos = do
 -- Like the cache types, this is supposed to be defined in "Derive.Scale", but
 -- must be here due to circular dependencies.
 
+-- | Like ValCall, but specialized to return Scale, which is not a first class
+-- Val.
+data ScaleCall = ScaleCall {
+    scall_name :: CallName
+    , scall_doc :: !CallDoc
+    -- ValCall takes PassedArgs, but scales don't need Context.
+    , scall_call :: ScaleF
+    }
+
+type ScaleF = [DeriveT.Val] -> Deriver Scale
+
+scale_call :: CallName -> Doc.Doc -> (ScaleF, [ArgDoc])
+    -> ScaleCall
+scale_call name doc (call, arg_docs) = ScaleCall
+    { scall_name = name
+    , scall_doc = CallDoc
+        { cdoc_module = Module.prelude
+        , cdoc_tags = mempty
+        , cdoc_doc = doc
+        , cdoc_args = arg_docs
+        }
+    , scall_call = call
+    }
+
 data Scale = Scale {
     scale_id :: !Pitch.ScaleId
     -- | A pattern describing what the scale notes look like.  Used only for
@@ -1865,8 +1897,9 @@ instance Pretty Scale where
 
 -- | A scale can configure itself by looking in the environment and by looking
 -- up other scales.
-newtype LookupScale = LookupScale (DeriveT.Environ
-    -> Pitch.ScaleId -> Maybe (Either DeriveT.PitchError Scale))
+newtype LookupScale = LookupScale
+    (DeriveT.Environ -> Pitch.ScaleId
+        -> Maybe (Either DeriveT.PitchError Scale))
 instance Show LookupScale where show _ = "((LookupScale))"
 
 -- | Scales may ignore Transposition if they don't support it.

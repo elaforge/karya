@@ -107,6 +107,7 @@ make_scale scale_id smap doc = Scale.Scale
     where
     scale = PSignal.Scale scale_id Scales.standard_transposers
 
+-- TODO rename to Key or Pathet?
 data Layout = Layout {
     -- | 'Absolute' (chromatic) step on which 'intervals' starts, to
     -- map from Absolute to Pitch and back.
@@ -413,86 +414,3 @@ p_digit low high = do
     n <- maybe mzero pure . Num.readDigit =<< A.satisfy ParseText.is_digit
     guard $ Num.inRange low high n
     return n
-
--- ***
-
-{-
-data Key = Key {
-    key_name :: Text
-    , key_start :: Pitch.PitchClass
-    , key_intervals :: Intervals
-    } deriving (Eq, Show)
-
-pelog_format_abs :: TheoryFormat.Format
-pelog_format_abs = TheoryFormat.Format
-    -- For java, ignore key, no accidentals, just show
-    -- { fmt_show = undefined -- show_absolute config degrees
-    { fmt_show = undefined -- TheoryFormat.show_pitch_cipher config degrees
-    , fmt_read = undefined -- p_pitch config degrees
-    , fmt_to_absolute = undefined -- \_ -> Right . relative_to_absolute
-    , fmt_pattern = undefined -- octave_pattern <> pattern <> acc_pattern
-    , fmt_pc_per_octave = undefined -- Vector.length degrees
-    , fmt_relative = False
-    }
-    where
-    degrees = cipher7
-    config = undefined
-
--- Format doesn't do transposition!
-pelog_format :: Map Pitch.Key Key -> Key -> TheoryFormat.Format
-pelog_format keys default_key =
-    TheoryFormat.make_relative_format "pattern" cipher7 fmt
-    where
-    fmt = TheoryFormat.RelativeFormat
-        { rel_config = TheoryFormat.Config
-            { config_show_octave = TheoryFormat.show_octave
-            , config_parse_octave = TheoryFormat.parse_octave1
-            , config_accidental = TheoryFormat.ascii_accidentals -- TODO Nothing
-            }
-        , rel_key_config = TheoryFormat.KeyConfig
-            { key_parse = Scales.get_key default_key keys
-            , key_default = default_key
-            }
-        , rel_show_degree = show_degree
-        , rel_to_absolute = \_ _ -> TheoryFormat.relative_to_absolute
-        }
-
--- type ShowDegree key = key -> ShowOctave -> Degrees -> AccidentalFormat
---     -> Either Pitch.Degree Pitch.Pitch -> Pitch.Note
-show_degree :: TheoryFormat.ShowDegree Key
-show_degree = undefined
--- show_degree key show_octave degrees acc_fmt degree_pitch =
---     Pitch.Note $ case degree_pitch of
---         Right (Pitch.Pitch oct degree) -> undefined
-cipher7 :: TheoryFormat.Degrees
-cipher7 = TheoryFormat.make_degrees (map showt [1..7])
-
-pelog_absolute :: TheoryFormat.Format
-pelog_absolute =
-    TheoryFormat.make_absolute_format_config config "[0-9][1-7]" cipher7
-    where
-    config = TheoryFormat.default_config
-        { TheoryFormat.config_parse_octave = TheoryFormat.parse_octave1 }
-
-pelog_keys :: Map Pitch.Key Key
-pelog_keys = Map.fromList $ map make
-    --      4   7
-    -- 1 2 3 5 6
-    [ ("lima", 0, [1, 1, 2, 1, 2]) -- 12356
-    , ("nem", 0, [1, 1, 2, 1, 2]) -- same as lima
-    -- So it's relative keyboard, but absolute notation?
-    --    4     1
-    -- 2 3 5 6 7
-    , ("barang", 1, [1, 2, 1, 1, 2]) -- 23567
-    ]
-    where
-    make (name, start, intervals) =
-        (Pitch.Key name, Key name start (Vector.fromList intervals))
-
-slendro_keys :: Map Pitch.Key Key
-slendro_keys = Map.fromList $ map (first Pitch.Key)
-    [ ("nem", undefined) -- no 1?
-    , ("sanga", undefined) -- no 3
-    , ("manyura", undefined) -- no 5
-    ]
--}

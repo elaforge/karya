@@ -7,16 +7,19 @@
 --
 -- The difference between this and "Derive.Scale.Scales" is that this is
 -- intended for using scales, while Scales is intended for implementing them.
-module Derive.Scale (module Derive.Derive, module Derive.Scale) where
+module Derive.Scale (module Derive.Deriver.Monad, module Derive.Scale) where
+import qualified Data.Map as Map
 import qualified Data.Vector as Vector
 
-import qualified Derive.Derive as Derive
-import           Derive.Derive
-       (lookup_scale, Layout, Scale(..), LookupScale(..), Transposition(..))
+import qualified Derive.Deriver.Monad as Derive
+-- TODO remove re-exports
+import           Derive.Deriver.Monad
+    (LookupScale(..), Scale(..), Transposition(..))
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Env as Env
 import qualified Derive.Eval as Eval
 import qualified Derive.PSignal as PSignal
+import qualified Derive.Sig as Sig
 
 import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Patch as Patch
@@ -24,6 +27,38 @@ import qualified Perform.Pitch as Pitch
 
 import           Global
 
+
+-- | Lookup a scale or throw.
+get :: Derive.CallName -> [DeriveT.Val] -> Derive.Deriver Derive.Scale
+get name args = Derive.require ("Scale.get: unknown scale: " <> pretty name)
+    =<< lookup_scale name args
+
+lookup_scale :: Derive.CallName -> [DeriveT.Val]
+    -> Derive.Deriver (Maybe Derive.Scale)
+lookup_scale name args = do
+    scale_calls <- Derive.gets $
+        Derive.state_scale_calls . Derive.state_constant
+    case Map.lookup name scale_calls of
+        Nothing -> return Nothing
+        Just scall -> Just <$> Derive.scall_call scall args
+
+-- | Scale calls always use Sig.Unprefixed.  This makes them inconsistent with
+-- other kinds of calls, but I think is the better default, since I try to make
+-- them respond to some standard env vals, such as key or scale-inst.
+-- Especially scale-inst relies on it.
+call :: Sig.Parser a -> (a -> Derive.Deriver Derive.Scale)
+    -> Derive.WithArgDoc Derive.ScaleF
+call parser f = (go, Sig.parser_docs parser)
+    where
+    go args =
+        f =<< Sig.require_right =<< Sig.parse_vals parser ctx call_name args
+    -- This will make Sig.Prefixed act like Sig.Unprefixed.
+    call_name = ""
+    -- TODO Sig.parse insists on having a ctx, can I remove it?
+    -- used for Typecheck.Derive -> Sig.quoted_to_deriver -> Eval.eval_quoted
+    ctx = Derive.dummy_context 0 1 "scale-call"
+
+-- * old Definition
 
 data Definition =
     -- | Fancy scales can configure themselves.  Since you can't just look at
@@ -36,6 +71,8 @@ scale_id_of :: Definition -> Pitch.ScaleId
 scale_id_of (Make scale_id _ _) = scale_id
 scale_id_of (Simple scale) = scale_id scale
 
+-- * util
+
 -- | I would much rather pass a more specific value than Environ.
 -- Unfortunately, ChromaticScales.SemisToNoteNumber needs a per-scale value
 -- (e.g. Environ.key or Environ.tuning).  So pitch_nn needs to be parameterized
@@ -45,21 +82,21 @@ scale_id_of (Simple scale) = scale_id scale
 type PitchNn = PSignal.PitchConfig -> Either PSignal.PitchError Pitch.NoteNumber
 type PitchNote = PSignal.PitchConfig -> Either PSignal.PitchError Pitch.Note
 
-layout :: [Pitch.Semi] -> Layout
+layout :: [Pitch.Semi] -> Derive.Layout
 layout = Vector.fromList
 
-no_octaves :: Layout
+no_octaves :: Derive.Layout
 no_octaves = Vector.empty
 
-diatonic_layout :: Pitch.PitchClass -> Layout
+diatonic_layout :: Pitch.PitchClass -> Derive.Layout
 diatonic_layout per_oct = layout $ replicate per_oct 1
 
 -- | Number of chromatic steps in an octave.  Nothing if this scale doesn't
 -- have octaves.
-semis_per_octave :: Layout -> Pitch.Semi
+semis_per_octave :: Derive.Layout -> Pitch.Semi
 semis_per_octave = Vector.sum
 
-semis_at_pc :: Layout -> Pitch.PitchClass -> Pitch.Semi
+semis_at_pc :: Derive.Layout -> Pitch.PitchClass -> Pitch.Semi
 semis_at_pc layout pc = case pc_per_octave layout of
     Nothing -> pc
     Just per_oct -> oct * Vector.sum layout + Vector.sum (Vector.take i layout)
@@ -68,19 +105,20 @@ semis_at_pc layout pc = case pc_per_octave layout of
 -- | Number of diatonic steps in an octave.  Nothing if this scale doesn't have
 -- octaves.  This is the same as 'semis_per_octave' for scales without
 -- a diatonic\/chromatic distinction.
-pc_per_octave :: Layout -> Maybe Pitch.PitchClass
+pc_per_octave :: Derive.Layout -> Maybe Pitch.PitchClass
 pc_per_octave layout
     | Vector.null layout = Nothing
     | otherwise = Just $ Vector.length layout
 
-diatonic_difference :: Layout -> Pitch.Pitch -> Pitch.Pitch
+diatonic_difference :: Derive.Layout -> Pitch.Pitch -> Pitch.Pitch
     -> Pitch.PitchClass
 diatonic_difference layout (Pitch.Pitch oct1 (Pitch.Degree pc1 _))
         (Pitch.Pitch oct2 (Pitch.Degree pc2 _)) =
     oct_diff + (pc1 - pc2)
     where oct_diff = maybe 0 (* (oct1-oct2)) (pc_per_octave layout)
 
-chromatic_difference :: Layout -> Pitch.Pitch -> Pitch.Pitch -> Pitch.Semi
+chromatic_difference :: Derive.Layout -> Pitch.Pitch -> Pitch.Pitch
+    -> Pitch.Semi
 chromatic_difference layout (Pitch.Pitch oct1 (Pitch.Degree pc1 acc1))
         (Pitch.Pitch oct2 (Pitch.Degree pc2 acc2)) =
     oct_diff + (semis_at_pc layout pc1 - semis_at_pc layout pc2) + (acc1 - acc2)

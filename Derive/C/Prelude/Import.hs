@@ -10,6 +10,7 @@ import qualified Data.Set as Set
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.Library as Library
+import qualified Derive.Scale as Scale
 import qualified Derive.Sig as Sig
 
 
@@ -17,6 +18,7 @@ library :: Library.Library
 library = Library.poly_transformers
     [ ("import", c_import)
     , ("imports", c_import_symbol)
+    , ("scale", c_scale)
     ]
 
 c_import :: Derive.CallableExpr d => Derive.Transformer d
@@ -39,3 +41,13 @@ c_import_symbol = Derive.transformer Module.prelude "import-symbol" mempty
     ) $ \(module_, syms) _args ->
         Derive.with_imported_symbols (Module.Module module_)
             (Set.fromList (NonEmpty.toList syms))
+
+c_scale :: Derive.CallableExpr d => Derive.Transformer d
+c_scale = Derive.transformer Module.prelude "scale" mempty
+    "Bring a scale into scope."
+    $ Sig.callt ((,)
+    <$> Sig.required_env "scale" Sig.Unprefixed "Look up scale by name."
+    <*> Sig.many "args" "Scale arguments."
+    ) $ \(name, scale_args) _args deriver -> do
+        scale <- Scale.get (Derive.CallName name) scale_args
+        Derive.with_scale scale deriver

@@ -193,7 +193,7 @@ diatonic_difference :: PSignal.Transposed -> PSignal.Transposed
     -> Derive.Deriver Pitch.PitchClass
 diatonic_difference = pitch_difference Scale.diatonic_difference
 
-pitch_difference :: (Scale.Layout -> Pitch.Pitch -> Pitch.Pitch -> a)
+pitch_difference :: (Derive.Layout -> Pitch.Pitch -> Pitch.Pitch -> a)
     -> PSignal.Transposed -> PSignal.Transposed -> Derive.Deriver a
 pitch_difference difference p1 p2 = do
     scale <- get_scale

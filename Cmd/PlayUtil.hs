@@ -39,6 +39,7 @@ import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.LEvent as LEvent
+import qualified Derive.Scale.All2 as Scale.All2
 import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stack as Stack
@@ -152,7 +153,7 @@ initial_constant :: Ui.State -> Cmd.Config -> Derive.Builtins -> Derive.Cache
     -> Derive.ScoreDamage -> Derive.Constant
 initial_constant ui_state cmd_config builtins cache damage =
     Derive.initial_constant ui_state
-        (builtins <> config_builtins) Cmd.lookup_scale
+        (builtins <> config_builtins) Cmd.lookup_scale Scale.All2.scales
         (fmap Cmd.make_derive_instrument . lookup_inst) cache damage
     where
     lookup_inst = Cmd.memoized_instrument

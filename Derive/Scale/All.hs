@@ -58,7 +58,7 @@ shadowed :: [Pitch.ScaleId]
     , Edo.scales
     , Hex.scales
     , Interpolate.scales
-    , Java.scales
+    , Java.old_scales
     , Just.scales
     , Harmonic.scales
     , Legong.scales

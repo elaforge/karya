@@ -4,20 +4,27 @@
 
 -- | Utilities for scale tests.
 module Derive.Scale.ScaleTest where
+import Prelude hiding (lookup)
 import qualified Data.List as List
+import qualified Data.List.NonEmpty as NonEmpty
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Texts as Texts
-import qualified Ui.UiTest as UiTest
 import qualified Cmd.CmdTest as CmdTest
+import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Expr as Expr
+import qualified Derive.Parse as Parse
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 
 import qualified Perform.Pitch as Pitch
-import Global
+import qualified Ui.Ui as Ui
+import qualified Ui.UiTest as UiTest
+
+import           Global
 
 
 key_environ :: Text -> Env.Environ
@@ -28,6 +35,16 @@ get_scale scales scale_id =
     fromMaybe (error $ "no scale: " <> show scale_id) $
         List.find ((== Pitch.ScaleId scale_id) . Scale.scale_id)
             [scale | Scale.Simple scale <- scales]
+
+get :: CallStack.Stack => Text -> Scale.Scale
+get = either (error . untxt) id . lookup
+
+lookup :: Text -> Either Text Scale.Scale
+lookup expr = do
+    Expr.Call (Expr.Symbol sym) terms <- NonEmpty.head <$>
+        Parse.parse_expr_raw expr
+    let vals = [val | Expr.Literal val <- terms]
+    DeriveTest.eval Ui.empty $ Scale.get (Derive.CallName sym) vals
 
 input_to_note :: Scale.Scale -> Env.Environ
     -> (Pitch.Octave, Pitch.PitchClass, Pitch.Accidentals) -> Text

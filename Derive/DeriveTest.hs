@@ -44,6 +44,7 @@ import qualified Derive.Expr as Expr
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
+import qualified Derive.Scale.All2 as Scale.All2
 import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
@@ -532,7 +533,7 @@ default_builtins = C.All.builtins
 default_constant :: Ui.State -> Derive.Cache -> Derive.ScoreDamage
     -> Derive.Constant
 default_constant ui_state cache damage = Derive.initial_constant ui_state
-    default_builtins default_lookup_scale
+    default_builtins default_lookup_scale Scale.All2.scales
         (const (Left "DeriveTest.default_constant has no inst db")) cache
         damage
 
