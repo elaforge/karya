@@ -34,6 +34,7 @@ module Derive.Parse.Instruments (
     -- * parse
     , p_allocation
     , unparse_allocations
+    , spaces
 ) where
 import qualified Data.Char as Char
 import qualified Data.Text as Text

@@ -56,7 +56,7 @@ data Ky a = Ky {
     ky_definitions :: Definitions
     , ky_imports :: [a]
     -- | Nothing if there is no instrument section.
-    , ky_allocations :: Maybe [Instruments.Allocation]
+    , ky_instruments :: Maybe [Instruments.Allocation]
     } deriving (Show)
 
 instance Semigroup (Ky a) where
@@ -189,7 +189,9 @@ parse_ky fname text = do
             , get (kind <> " " <> transformer)
             )
     aliases <- first (ParseText.Error Nothing) $ mapM parse_alias (get alias)
-    allocs <- traverse (traverse parse_instrument) instrument_section
+    allocs <- case instrument_section of
+        Nothing -> return Nothing
+        Just lines -> Just <$> mapMaybeM parse_instrument lines
     let add_fname = map (fname,)
         add_fname2 = bimap add_fname add_fname
     return $ Ky
@@ -201,7 +203,7 @@ parse_ky fname text = do
             , def_aliases = aliases
             }
         , ky_imports = map (Import fname) imports
-        , ky_allocations = allocs
+        , ky_instruments = allocs
         }
     where
     val = "val"
@@ -220,10 +222,17 @@ parse_ky fname text = do
         first (ParseText.offset (lineno, 0)) $ ParseText.parse p_section $
             Text.unlines (line0 : map snd lines)
 
-parse_instrument :: (Int, Text) -> Either ParseText.Error Instruments.Allocation
-parse_instrument (lineno, line) =
-    first fmt $ Util.Parse.parse Instruments.p_allocation line
+parse_instrument :: (Int, Text)
+    -> Either ParseText.Error (Maybe Instruments.Allocation)
+parse_instrument (lineno, line) = first fmt $ Util.Parse.parse p line
     where
+    -- Instruments awkwardly use megaparsec, which the rest of the code here
+    -- uses attoparsec.  The reason is attoparsec is for performance parsing
+    -- tracklang, but I'd rather have better errors for parsing ky.  But I need
+    -- to parse DeriveT.Vals, which I'd rather use the same parser as with
+    -- tracklang.  Also, instruments are line-based rather than token based.
+    p = Just <$> Instruments.p_allocation
+        <|> Instruments.spaces *> pure Nothing
     fmt msg = ParseText.Error
         -- TODO I could extract the column from the megaparsec error
         { _position = Just (line, (lineno, 1))

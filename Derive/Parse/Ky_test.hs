@@ -78,6 +78,9 @@ test_parse_ky = do
         note = f e_note . ("note generator:\n"<>)
         e_note = map (second (head . e_expr) . snd) . fst . Ky.def_note
             . Ky.ky_definitions
+    right_equal (f e_note "") mempty
+    right_equal (f e_note "-- hi") mempty
+    right_equal (f e_note "instrument:\n-- hi") mempty
     left_like (f id "x:\na = b\n") "unknown sections: x"
     equal (note " --c\na = b\n\n") $
         Right [("a", ("b", []))]

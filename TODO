@@ -3,6 +3,35 @@ LEGEND
   ? open question; . note; bug: marks bugs.
   Use indent folding with indent=2.
 
+current:
+  priorities for javanese:
+    record samples:
+      - gender panerus
+      - gender barung
+      - slenthem
+      - saron
+      - kenong
+      - gong
+      - gambang?
+      - bonang?
+    infer duration:
+      . next-note still not right for gender barung.  Some notes are clearly
+        intended to merge, while others are counterpoint.  Also gender barung
+        will switch to the pipilan.
+      . What if I go to the Score.event_min of the next note on the same hand?
+        It's weird because this note's duration is the whitespace.
+    - different infer-duration gender barung vs. panerus.
+      . It's two hands so can't put it on a single track title, usual problem
+        with transformers.  In any case, it won't reach across track
+        boundaries.  And in any case I will want to switch heuristics.
+      . So maybe use env var to select heuristic, and an all-purpose infer
+        that looks at that.
+  vocabulary:
+    . pipilan - one melody using two hands
+    . irama: 1/2    1        2    3     4
+             lancar tanggung dadi wilet rangkep
+             1      2        4    8     16
+
 ghc:
   . make core easier to read:
     https://www.youtube.com/watch?v=yRVjR9XcuPU&ab_channel=Tweag
@@ -131,6 +160,17 @@ sketch:
   2 6 1 6 5 56 61 12 23 5 5 353 2 2 121
 
 UNSORTED
+  - bug: error in ky spams errors in logview
+    . It should suppress after too many of them?  Or subsystems themselves
+      should suppress?
+  * bug: ky blank line at end gives a parse error
+  - bug: rotate log msg is mixed in with sampler-im structured output
+    . couldn't parse: rotate logs /Users/elaforge/src/seq/main/log/sampler.log
+      -> /Users/elaforge/src/seq/main/log/sampler.log.1
+  - fltk: not wrapping by char is quite annoying
+    I think I did this on purpose though?
+  - bug: shift arrow can extend selection below track 0, then I get
+    getting track cmds: block_track_at: negative tracknum: -3
   - divide up App.Config
     . Move stuff that shouldn't be changed, like pixels from c++, to its own
       module.
@@ -4172,6 +4212,11 @@ lilypond:
       http://www.medeli.com.cn/soft/gb/soft.asp
 
 negative duration / arrival beats:
+  infer-negative:
+    . Each negative note extends to the next start.  Happens as global
+      postproc to work across block boundaries.
+    . <--|<--| <-|<--|  <|<--|
+         |-->
   new arrival notes scheme infer-duration:
     . I don't want to trim because I might need the controls if I extend the
       duration.  I do want to trim because I don't want e.g. t-dia at start
@@ -8547,19 +8592,56 @@ pitch: scales: scale:
       - I don't like "laras" name for tuning, it should be tuning for tuning,
         and some other word of umbang/isep.
         . I was pondering things like kelamin but ugh.  Pair?  Too generic.
+          Side?  Warna?  Sruti?  Kesuir?
     parameterized scales:
       * implement scale call
       * convert Java to scale
         . I can't have instrument set just scale-inst when overall scale is
           already set.  Have to re-set the scale.  Maybe I could have `scale`
           by itself re-calls the scale in scope with the current env?
+        . If I do things this way, I don't need environ in PitchConfig at all.
+          But, it means I have to re-scale every time I change a scale env,
+          such as tuning.  This is what I was considering doing automatically
+          but having to know all the magic scale env vars.  And the reason why
+          I wind up with env vals is for kw-args, though for tuning I rely on
+          being in the env anyway.
+        . Magic env vars is still a nice UI.  But actually reading everything
+          from the env makes scales awkward parameterized.
+          I could get both by keeping magic env vars, but backing them with
+          the scale call?
+        . Another nice thing about the env for scales is that I can change
+          after the fact, e.g. change a bunch of umbang to isep.  I probably
+          rely on this in C/Bali.  Or not, I guess I just set instrument, and
+          instrument sets tuning.
+        . But anything I want to change after derivation must be in the env,
+          because there's no way I want to do a scale call in postproc.
+          So tuning stays in environ.
+      - Perf.get_scale doesn't work with new style scales
+        . Will it be harder to figure out scales if it's a call?  I would have
+          to either find and evaluate the call, or pick the scale out of
+          exising evaluation.
+        . The second has the problem where there's no Derive.Dynamic in a new
+          or empty block.
+        . But, can't I get a Dynamic from GLOBAL?
+        . Perf.find_scale_id goes to crazy lengths to look for a ScaleId.
+          Instead, I could look in Dynamic, and if that doesn't exist, then
+          in a global Dynamic.
+        . Also I can only have find_scale, no more ScaleId.
+          Perf.find_scale_id is used only by SyncKeycaps, which is only used
+          for change detection to update the keycaps.  So I think it can get
+          Scale, and then scale_name.
+        . Except there's no scale in Dynamic, I guess I'll have to put it in?
       - scale docs
       port existing scales:
+        - legong, wayang
         - twelve
         - just
         - interpolate
         - edo
-        - legong, wayang, raga
+        - raga
+      . After all this hassle, I'm not even sure I like pelog-barang relative
+        layout, rather than absolute 1234567.  Still, diatonic transposition
+        should work.  But I could have done that with chromatic?
       notes:
         . Currently scales look for 'key', 'tuning', 'laras' env.  There are
           complications:
@@ -8980,7 +9062,6 @@ pitch: scales: scale:
     - It's confusing how the default_key is built-in to parse_key but also
       passed separately... maybe it should take a flag to say whether an error
       should become the default?
-    - Strip type prefixes from Pitch.Pitch and Pitch.Degree?  Add lenses?
     - add ratio transpose signal, that multiplies hz
     support scales that are different ascending vs. descending
       . Scales have two versions of each degree.
@@ -9430,6 +9511,9 @@ linux:
       API at the lowest level, so it's really complicated.
     . https://www.alsa-project.org/alsa-doc/alsa-lib/seq.html
       Incomplete, but e.g. aconnect.c is an example.
+  pipewire:
+    . Solves the JACK incompatible protocol problem.
+    . Overkill for just MIDI?
 
 misc ideas:
   . What would a generalized staged evaluation system look like?
@@ -9786,6 +9870,9 @@ FFI:
 
 research:
   . algorithm for violin fingerings: https://github.com/jmorag/open-strings
+  physical modelling:
+    numerics:
+      https://www.tweag.io/blog/2023-06-08-announcing-halide-haskell/
   rust-gui: gui: ui:
     what could I do with fancy gui:
       . See better drawing:
