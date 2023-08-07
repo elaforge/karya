@@ -301,6 +301,9 @@ unstretch start event_dur process deriver = do
     flatten dur = Derive.stretch (1 / (event_dur/dur)) . Derive.at (-start)
 
 -- | Consistent with half-open ranges, block calls try to include events lining
--- up with the start, and exclude ones lining up with the end.
+-- up with the start, and exclude ones lining up with the end.  Except negative
+-- notes, which is usual, the same thing but backwards.
 event_before :: RealTime -> Score.Event -> Bool
-event_before t = (< t - RealTime.eta) . Score.event_start
+event_before t e
+    | Score.event_duration e >= 0 = Score.event_start e < t - RealTime.eta
+    | otherwise = Score.event_start e <= t + RealTime.eta

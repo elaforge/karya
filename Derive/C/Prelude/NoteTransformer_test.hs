@@ -136,15 +136,25 @@ test_clip = do
     -- clip works even when it's not directly a block call.
     equal (run [(1, 1.5, "^b=sub | clip | b")]) ([(1, 1), (2, 0.5)], [])
 
+    let run2 = run_sub DeriveTest.e_note [(">", [(0, 2, "clip | sub")])]
+    equal (run2 (UiTest.regular_notes 4)) ([(0, 1, "3c"), (1, 1, "3d")], [])
+    equal (run2 (UiTest.negative_regular_notes 4))
+        ([(1, -1, "3c"), (2, -1, "3d")], [])
+
 test_clip_start :: Test
 test_clip_start = do
-    let run = run_sub DeriveTest.e_note
+    let run top = run_sub DeriveTest.e_note [(">", top)]
     -- Aligned to the end.
-    equal (run [(">", [(0, 2, "Clip | sub")])] (UiTest.regular_notes 1))
+    equal (run [(0, 2, "Clip | sub")] (UiTest.regular_notes 1))
         ([(1, 1, "3c")], [])
     -- Get the last two notes.
-    equal (run [(">", [(0, 2, "Clip | sub")])] (UiTest.regular_notes 3))
+    equal (run [(0, 2, "Clip | sub")] (UiTest.regular_notes 3))
         ([(0, 1, "3d"), (1, 1, "3e")], [])
+    -- If events are negative, omit ones at the start.
+    --     Clip--->
+    -- <-3c<-3d<-3e
+    equal (run [(0, 2, "Clip | sub")] (UiTest.negative_regular_notes 3))
+        ([(1, -1, "3d"), (2, -1, "3e")], [])
 
 test_loop :: Test
 test_loop = do

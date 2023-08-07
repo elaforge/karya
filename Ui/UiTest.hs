@@ -438,6 +438,13 @@ regular_notes n = note_track $
     pitches =
         [Text.singleton o <> Text.singleton p | o <- "34567", p <- "cdefgab"]
 
+negative_regular_notes :: Int -> [TrackSpec]
+negative_regular_notes n = note_track $
+    take n [(t, -1, p) | (t, p) <- zip (Lists.range_ 1 1) (cycle pitches)]
+    where
+    pitches =
+        [Text.singleton o <> Text.singleton p | o <- "34567", p <- "cdefgab"]
+
 -- | Parse a TrackSpec back out to a NoteSpec.
 to_note_spec :: [TrackSpec] -> [NoteSpec]
 to_note_spec =
