@@ -56,55 +56,54 @@ find_chunk(uint32_t id, FILE *fp)
     }
 }
 
-Wav::Error
-Wav::open(const char *fname, Wav **wav, Frames offset)
+Wav::Wav(const char *fname, Frames offset) : _error(nullptr)
 {
-    *wav = nullptr;
-    FILE *fp = fopen(fname, "rb");
+    fp = fopen(fname, "rb");
     if (fp == nullptr) {
-        return strerror(errno);
+        _error = strerror(errno);
+        return;
     }
     RiffHeader riff;
-    if (fread(&riff, sizeof(RiffHeader), 1, fp) != 1)
-        goto on_c_error;
+    if (fread(&riff, sizeof(RiffHeader), 1, fp) != 1) {
+        _error = strerror(errno);
+        return;
+    }
     if (riff.id != htonl('RIFF') || riff.format != htonl('WAVE')) {
-        fclose(fp);
-        return "Not a wav file";
+        _error = "Not a wav file";
+        return;
     }
 
-    if (!find_chunk('fmt ', fp))
-        goto on_c_error;
+    if (!find_chunk('fmt ', fp)) {
+        _error = "didn't find fmt chunk";
+        return;
+    }
     Fmt fmt;
     static_assert(sizeof(Fmt) == 16, "sizeof(Fmt) == 16");
-    if (fread(&fmt, sizeof(Fmt), 1, fp) != 1)
-        goto on_c_error;
+    if (fread(&fmt, sizeof(Fmt), 1, fp) != 1) {
+        _error = strerror(errno);
+        return;
+    }
     // DEBUG("format: " << fmt.format << " chan:" << fmt.channels
     //     << " srate:" << fmt.srate << " brate:" << fmt.byte_rate
     //     << " block_align:" << fmt.block_align << " bits:" << fmt.bits);
     if (fmt.format != FLOAT32) {
-        fclose(fp);
-        return "Not a float32 wav";
+        _error = "Not a float32 wav";
+        return;
     }
-    if (!find_chunk('data', fp))
-        goto on_c_error;
+    if (!find_chunk('data', fp)) {
+        _error = "can't find data chunk";
+        return;
+    }
     if (offset > 0) {
         // TODO I used to check if it's an unexpected large seek, should I?
         // There is a special case where 0 frames is like a full chunk of 0s.
-        if (fseek(fp, sizeof(float) * fmt.channels * offset, SEEK_CUR) != 0)
-            goto on_c_error;
+        if (fseek(fp, sizeof(float) * fmt.channels * offset, SEEK_CUR) != 0) {
+            _error = strerror(errno);
+            return;
+        }
     }
-
-    *wav = new Wav(fp, fmt.channels, fmt.srate);
-    return nullptr;
-
-on_c_error:
-    fclose(fp);
-    return strerror(errno);
-}
-
-Wav::~Wav()
-{
-    fclose(fp);
+    _channels = fmt.channels;
+    _srate = fmt.srate;
 }
 
 Wav::Error

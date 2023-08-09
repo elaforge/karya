@@ -162,12 +162,11 @@ static std::vector<float> *
 read_file(const std::string &filename, const std::vector<double> &ratios)
 {
     std::vector<float> *peaks = new std::vector<float>();
-    Wav *wav;
-    Wav::Error err = Wav::open(filename.c_str(), &wav, 0);
+    std::unique_ptr<Wav> wav(new Wav(filename.c_str(), 0));
 
-    if (err) {
+    if (wav->error()) {
         // TODO should be LOG
-        DEBUG("opening " << filename << ": " << err);
+        DEBUG("opening " << filename << ": " << wav->error());
         return peaks;
     } else if (wav->srate() != sampling_rate) {
         DEBUG(filename << ": expected srate of " << sampling_rate << ", got "
@@ -209,7 +208,6 @@ read_file(const std::string &filename, const std::vector<double> &ratios)
         }
     }
     // DEBUG("load frames: " << frame << ", peaks: " << peaks->size());
-    delete wav;
     return peaks;
 }
 

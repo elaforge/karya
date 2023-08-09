@@ -70,15 +70,14 @@ find_next_sample(std::ostream &log, const string &dir, const string &fname)
 
 // Open the file at the given offset.  Return nullptr if there was an error,
 // or the offset is past the end of the file.
-static Wav *
+static std::unique_ptr<Wav>
 open_wav(
     std::ostream &log, int channels, bool one_channel_ok, int sample_rate,
     const string &fname, Frames offset, int *file_channels)
 {
-    Wav *wav;
-    Wav::Error err = Wav::open(fname.c_str(), &wav, offset);
-    if (err) {
-        LOG(fname << ": " << err);
+    std::unique_ptr<Wav> wav(new Wav(fname.c_str(), offset));
+    if (wav->error()) {
+        LOG(fname << ": " << wav->error());
         return nullptr;
     }
     if (!(wav->channels() == channels
@@ -99,7 +98,6 @@ open_wav(
         // when it runs out.
         return wav;
     }
-    delete wav;
     return nullptr;
 }
 
@@ -120,11 +118,6 @@ SampleDirectory::SampleDirectory(
 }
 
 
-SampleDirectory::~SampleDirectory()
-{
-    if (wav)
-        delete wav;
-}
 
 
 bool
@@ -159,8 +152,7 @@ SampleDirectory::read(int channels, Frames frames, float **out)
             frames_left -= std::min(frames_left, delta);
             if (delta < frames - total_read) {
                 // Short read, this file is done.
-                delete wav;
-                wav = nullptr;
+                wav.reset();
             }
         }
         if (frames_left == 0) {
@@ -180,7 +172,7 @@ void
 SampleDirectory::open(int channels, Frames offset)
 {
     if (wav)
-        delete wav;
+        wav.reset();
     if (!fname.empty()) {
         wav = open_wav(
             log, channels, false, sample_rate, dir + '/' + fname, offset,

@@ -30,6 +30,6 @@ public:
 private:
     std::ostream &log;
     const std::string fname;
-    std::unique_ptr<Flac> file;
+    std::unique_ptr<Flac> flac;
     std::vector<float> buffer;
 };

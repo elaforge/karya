@@ -20,9 +20,10 @@ public:
     typedef const char *Error;
     typedef size_t Frames;
 
-    // TODO Signature is inconsistent with Flac::open, make them consistent?
-    static Error open(const char *fname, Wav **wav, Frames offset);
-    ~Wav();
+    Wav(const char *fname, Frames offset);
+    ~Wav() { close(); }
+
+    const char *error() const { return _error; };
     Frames read(float *samples, Frames frames);
     Error close();
 
@@ -30,9 +31,8 @@ public:
     int srate() const { return _srate; };
 
 private:
-    Wav(FILE *fp, int channels, int srate)
-        : fp(fp), _channels(channels), _srate(srate) {}
     FILE *fp;
     int _channels;
     int _srate;
+    const char *_error;
 };

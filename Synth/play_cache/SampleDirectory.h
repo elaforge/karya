@@ -26,7 +26,7 @@ class SampleDirectory : public Audio {
 public:
     SampleDirectory(std::ostream &log, int channels, int sample_rate,
         const std::string &dir, Frames offset);
-    ~SampleDirectory();
+    ~SampleDirectory() {}
     bool read(int channels, Frames frames, float **out) override;
 
 private:
@@ -36,7 +36,7 @@ private:
 
     // Current file to stream.  This goes to "" when I run out.
     std::string fname;
-    Wav *wav;
+    std::unique_ptr<Wav> wav;
     // How many frames are left in the current chunk, which is the one in
     // 'fname' and 'wav'.
     Frames frames_left;

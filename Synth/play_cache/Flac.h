@@ -18,7 +18,7 @@ public:
     typedef const char *Error;
     typedef size_t Frames;
 
-    static std::unique_ptr<Flac> open(const char *fname, Frames offset);
+    Flac(const char *fname, Frames offset);
     ~Flac() { close(); } // probably ~File() already does this.
     Frames read(float *samples, Frames frames);
     void close() { finish(); }
@@ -28,9 +28,6 @@ public:
     const char *error() const { return _error; };
 
 private:
-    Flac() : _error(nullptr), _srate(0), _channels(0), _bits(0),
-        _total_samples(0)
-    {}
     FLAC__StreamDecoderWriteStatus write_callback(
         const FLAC__Frame *frame, const FLAC__int32 *const buffer[]
     ) override;

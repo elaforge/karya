@@ -183,15 +183,14 @@ test_wav(const char *fname, int offset)
 {
     std::cout << "test_wav('" << fname << "', " << offset << ")\n";
 
-    Wav *wav;
-    Wav::Error err = Wav::open(fname, &wav, offset);
-    if (err) {
-        std::cout << fname << ": " << err << "\n";
+    std::unique_ptr<Wav> wav(new Wav(fname, offset));
+    if (wav->error()) {
+        std::cout << fname << ": " << wav->error() << "\n";
         return 1;
     }
     std::cout << "channels:" << wav->channels() << " srate:" << wav->srate()
         << "\n";
-    WavFile file(wav);
+    WavFile file(&*wav);
     return compare_samples(fname, offset, &file);
 }
 
@@ -200,7 +199,7 @@ static int
 test_flac(const char *fname, int offset)
 {
     std::cout << "test_flac('" << fname << "', " << offset << ")\n";
-    std::unique_ptr<Flac> flac = Flac::open(fname, offset);
+    std::unique_ptr<Flac> flac(new Flac(fname, offset));
     if (flac->error()) {
         std::cout << fname << ": " << flac->error() << "\n";
         return 1;

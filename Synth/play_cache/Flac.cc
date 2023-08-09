@@ -59,31 +59,23 @@ Flac::error_callback(FLAC__StreamDecoderErrorStatus status)
     this->_error = FLAC__StreamDecoderErrorStatusString[status];
 }
 
-std::unique_ptr<Flac>
-Flac::open(const char *fname, Frames offset)
+Flac::Flac(const char *fname, Frames offset)
+    : _error(nullptr), _srate(0), _channels(0), _bits(0), _total_samples(0)
 {
-    std::unique_ptr<Flac> flac(new Flac());
-    if (!flac->is_valid()) {
-        flac->_error = FLAC__StreamDecoderStateString[flac->get_state()];
-        return flac;
-    }
-    flac->set_md5_checking(false); // don't care if it got corrupted.
-    FLAC__StreamDecoderInitStatus init_status = flac->init(fname);
+    set_md5_checking(false); // don't care if it got corrupted.
+    FLAC__StreamDecoderInitStatus init_status = init(fname);
     if (init_status != FLAC__STREAM_DECODER_INIT_STATUS_OK) {
-        flac->_error = FLAC__StreamDecoderInitStatusString[init_status];
-        return flac;
+        _error = FLAC__StreamDecoderInitStatusString[init_status];
+        return;
     }
-    flac->process_until_end_of_metadata();
-    if (flac->error())
-        return flac;
-
-    if (offset >= flac->_total_samples) {
-        flac->close();
-    } else if (!flac->seek_absolute(offset)) {
-        flac->_error = FLAC__StreamDecoderStateString[flac->get_state()];
-        return flac;
+    process_until_end_of_metadata();
+    if (error())
+        return;
+    if (offset >= _total_samples) {
+        close();
+    } else if (!seek_absolute(offset)) {
+        _error = FLAC__StreamDecoderStateString[get_state()];
     }
-    return flac;
 }
 
 // If it returns < frames, then the file ended.
