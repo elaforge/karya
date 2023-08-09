@@ -12,20 +12,21 @@
 #include <vector>
 #include <FLAC++/decoder.h>
 
+#include "AudioFile.h"
 
-class Flac : private FLAC::Decoder::File {
+
+class Flac : private FLAC::Decoder::File, public AudioFile {
 public:
-    typedef const char *Error;
     typedef size_t Frames;
 
     Flac(const char *fname, Frames offset);
     ~Flac() { close(); } // probably ~File() already does this.
-    Frames read(float *samples, Frames frames);
-    void close() { finish(); }
-    int channels() const { return _channels; };
-    int srate() const { return _srate; };
-    int bits() const { return _bits; };
-    const char *error() const { return _error; };
+    Frames read(float *samples, Frames frames) override;
+    void close() override { finish(); }
+    int channels() const override { return _channels; };
+    int srate() const override { return _srate; };
+    int bits() const override { return _bits; };
+    const char *error() const override { return _error; };
 
 private:
     FLAC__StreamDecoderWriteStatus write_callback(

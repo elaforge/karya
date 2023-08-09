@@ -8,9 +8,8 @@
 #include <string>
 #include <vector>
 
+#include "AudioFile.h"
 #include "Audio.h"
-#include "Flac.h"
-
 
 
 // Just stream a single sample file.  This is used by ResampleStreamer for
@@ -30,6 +29,6 @@ public:
 private:
     std::ostream &log;
     const std::string fname;
-    std::unique_ptr<Flac> flac;
+    std::unique_ptr<AudioFile> file;
     std::vector<float> buffer;
 };

@@ -11,6 +11,7 @@
 
 #include <sndfile.h>
 
+#include "AudioFile.h"
 #include "Flac.h"
 #include "Semaphore.h"
 #include "Streamer.h"
@@ -134,8 +135,15 @@ public:
 
 
 static int
-compare_samples(const char *fname, int offset, File *file)
+compare_samples(const char *fname, int offset, std::unique_ptr<AudioFile> file)
 {
+    if (file->error()) {
+        std::cout << fname << ": " << file->error() << "\n";
+        return 1;
+    }
+    std::cout << "channels:" << file->channels() << " srate:" << file->srate()
+        << "\n";
+
     SF_INFO info = {0};
     SNDFILE *sndfile = sf_open(fname, SFM_READ, &info);
     if (sf_seek(sndfile, offset, SEEK_SET) == -1) {
@@ -183,15 +191,8 @@ test_wav(const char *fname, int offset)
 {
     std::cout << "test_wav('" << fname << "', " << offset << ")\n";
 
-    std::unique_ptr<Wav> wav(new Wav(fname, offset));
-    if (wav->error()) {
-        std::cout << fname << ": " << wav->error() << "\n";
-        return 1;
-    }
-    std::cout << "channels:" << wav->channels() << " srate:" << wav->srate()
-        << "\n";
-    WavFile file(&*wav);
-    return compare_samples(fname, offset, &file);
+    std::unique_ptr<AudioFile> file(new Wav(fname, offset));
+    return compare_samples(fname, offset, std::move(file));
 }
 
 
@@ -199,15 +200,8 @@ static int
 test_flac(const char *fname, int offset)
 {
     std::cout << "test_flac('" << fname << "', " << offset << ")\n";
-    std::unique_ptr<Flac> flac(new Flac(fname, offset));
-    if (flac->error()) {
-        std::cout << fname << ": " << flac->error() << "\n";
-        return 1;
-    }
-    std::cout << "bits: " << flac->bits() << " channels:" << flac->channels()
-        << " srate:" << flac->srate() << "\n";
-    FlacFile file(&*flac);
-    return compare_samples(fname, offset, &file);
+    std::unique_ptr<AudioFile> file(new Flac(fname, offset));
+    return compare_samples(fname, offset, std::move(file));
 }
 
 

@@ -13,22 +13,20 @@
 #pragma once
 
 #include <stddef.h>
+#include "AudioFile.h"
 
 
-class Wav {
+class Wav : public AudioFile {
 public:
-    typedef const char *Error;
-    typedef size_t Frames;
-
     Wav(const char *fname, Frames offset);
     ~Wav() { close(); }
 
-    const char *error() const { return _error; };
-    Frames read(float *samples, Frames frames);
-    Error close();
-
-    int channels() const { return _channels; };
-    int srate() const { return _srate; };
+    Frames read(float *samples, Frames frames) override;
+    void close() override;
+    int channels() const override { return _channels; }
+    int srate() const override { return _srate; }
+    int bits() const override { return 16; }
+    const char *error() const override { return _error; }
 
 private:
     FILE *fp;

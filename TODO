@@ -160,6 +160,15 @@ sketch:
   2 6 1 6 5 56 61 12 23 5 5 353 2 2 121
 
 UNSORTED
+  * preview for faust is wav, not flac!  Put back wav support!
+  - bug: im: if I change the alloc of the instrument, I get stuck with its old
+    sounds.  Because Config.clearUnusedInstruments goes by instrument name
+    only, not by $inst_$patch, which is how the directories are named.
+    . For faust only, sampler doesn't use _$extra, it says "so I can clear
+      obsolete checkpoints when the patch changes" but how does that follow?
+    . It's so tools/clear_faust can clear everything of a certain patch when
+      it gets recompiled.
+  - bug: waveform is frequently too early, audio correct
   - bug: error in ky spams errors in logview
     . It should suppress after too many of them?  Or subsystems themselves
       should suppress?

@@ -106,14 +106,13 @@ Wav::Wav(const char *fname, Frames offset) : _error(nullptr)
     _srate = fmt.srate;
 }
 
-Wav::Error
+void
 Wav::close()
 {
     if (fclose(this->fp) != 0) {
-        return strerror(errno);
+        // Well?
     }
     this->fp = nullptr;
-    return nullptr;
 }
 
 Wav::Frames
