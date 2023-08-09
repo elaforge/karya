@@ -8,7 +8,7 @@
 
 #include "Resample.h"
 #include "Streamer.h"
-#include "Sample.h"
+#include "SampleFile.h"
 #include "Tracks.h"
 #include "log.h"
 #include "ringbuffer.h"

@@ -545,7 +545,8 @@ makePlayCacheBinary name main libs objs = (C.binary name [])
     { C.binObjs = (objs++) $ map (("Synth/play_cache"</>) . (++".o")) $
         [ main
         , "Flac.cc"
-        , "Thru.cc", "Resample.cc", "Sample.cc", "Streamer.cc", "Tracks.cc"
+        , "Thru.cc", "Resample.cc", "SampleDirectory.cc", "SampleFile.cc"
+        , "Streamer.cc", "Tracks.cc"
         , "Wav.cc"
         , "ringbuffer.cc"
         ]

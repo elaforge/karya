@@ -8,7 +8,7 @@
 #include <sys/stat.h>
 
 #include "Audio.h"
-#include "Sample.h"
+#include "SampleDirectory.h"
 #include "Tracks.h"
 #include "log.h"
 
