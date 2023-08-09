@@ -173,7 +173,7 @@ UNSORTED
     . It should suppress after too many of them?  Or subsystems themselves
       should suppress?
   * bug: ky blank line at end gives a parse error
-  - bug: rotate log msg is mixed in with sampler-im structured output
+  * bug: rotate log msg is mixed in with sampler-im structured output
     . couldn't parse: rotate logs /Users/elaforge/src/seq/main/log/sampler.log
       -> /Users/elaforge/src/seq/main/log/sampler.log.1
   - fltk: not wrapping by char is quite annoying

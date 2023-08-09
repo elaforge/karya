@@ -224,7 +224,7 @@ rotate_config keep max_size log_fn = do
         forM_ (reverse (zip [1..keep] (drop 1 [1..keep]))) $ \(from, to) ->
             ignore $ Directory.renameFile (rotated_fn from) (rotated_fn to)
         let fn = FilePath.dropExtension (rotated_fn 1)
-        putStrLn $ "rotate logs " ++ log_fn ++ " -> " ++ fn
+        IO.hPutStrLn IO.stderr $ "rotate logs " ++ log_fn ++ " -> " ++ fn
         ignore $ Directory.renameFile log_fn fn
         Process.waitForProcess =<< Process.runProcess "gzip" [fn]
             Nothing Nothing Nothing Nothing Nothing
