@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <dirent.h>
 #include <ostream>
+#include <stdio.h>
+#include <string.h>
 #include <vector>
 
 #include "SampleDirectory.h"
