@@ -12,7 +12,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
-      - uses: cachix/install-nix-action@v20
+      - uses: cachix/install-nix-action@v22
         with:
           # Consistent with my-poison in nix/nixpkgs.nix, I have a pinned
           # nixpkgs but maybe it'll download a bit less this way.
