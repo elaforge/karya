@@ -1444,7 +1444,10 @@ get_insert_tracknum :: M m => m (Maybe TrackNum)
 get_insert_tracknum = do
     view_id <- get_focused_view
     sel <- Ui.get_selection view_id Config.insert_selnum
-    return (fmap Sel.start_track sel)
+    -- Selection.shift can put the selection on or before the ruler track, so
+    -- it doesn't get squished by going off the edge, but I don't want to ever
+    -- act like <=0 is selected.
+    return $ max 1 . Sel.start_track <$> sel
 
 -- *** status
 

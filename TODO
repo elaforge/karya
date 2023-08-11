@@ -178,7 +178,7 @@ UNSORTED
       -> /Users/elaforge/src/seq/main/log/sampler.log.1
   - fltk: not wrapping by char is quite annoying
     I think I did this on purpose though?
-  - bug: shift arrow can extend selection below track 0, then I get
+  * bug: shift arrow can extend selection below track 0, then I get
     getting track cmds: block_track_at: negative tracknum: -3
     . It's still useful to have selection out of bounds though, because
       then when I move back into bounds it doesn't get trimmed.
@@ -205,7 +205,6 @@ UNSORTED
   - I still have the out of sync problem with ky inst allocs vs UiConfig
   * play preview for gong mangled
     . data/sampler/sc-gamelan/gongs/Gong Wadon-B096.flac: not 16 bit
-  - click above ruler track should not highlight the ruler track
   * Play.modify_play_multiplier no longer rerenders im
     . It does a Ui.update_all, but then Diff.derive_diff correctly notices
       no diffs on the blocks.
