@@ -168,7 +168,7 @@ UNSORTED
       obsolete checkpoints when the patch changes" but how does that follow?
     . It's so tools/clear_faust can clear everything of a certain patch when
       it gets recompiled.
-  - bug: waveform is frequently too early, audio correct
+  - bug: waveform display is frequently too early, but audio is correct
   - bug: error in ky spams errors in logview
     . It should suppress after too many of them?  Or subsystems themselves
       should suppress?
@@ -180,6 +180,14 @@ UNSORTED
     I think I did this on purpose though?
   - bug: shift arrow can extend selection below track 0, then I get
     getting track cmds: block_track_at: negative tracknum: -3
+    . It's still useful to have selection out of bounds though, because
+      then when I move back into bounds it doesn't get trimmed.
+  * click above ruler track should not highlight the ruler track
+    . Is there ever a reason to highlight the ruler at all?
+      Could be if I put a note track there, but I've never done that.
+      In theory it could be useful for balungan.  Even so, maybe not allow
+      editing?
+    . Ui.selectable_tracks already makes it omitted for normal movements.
   - divide up App.Config
     . Move stuff that shouldn't be changed, like pixels from c++, to its own
       module.

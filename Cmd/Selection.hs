@@ -71,7 +71,6 @@ set_view view_id = Ui.set_selection view_id Config.insert_selnum
 -}
 set :: Cmd.M m => ViewId -> Maybe Sel.Selection -> m ()
 set view_id maybe_sel = do
-    record_history
     set_selnum view_id Config.insert_selnum maybe_sel
     record_history
 
@@ -81,27 +80,28 @@ set_without_history view_id = set_selnum view_id Config.insert_selnum
 set_selnum :: Cmd.M m => ViewId -> Sel.Num -> Maybe Sel.Selection -> m ()
 set_selnum view_id selnum maybe_sel
     | selnum == Config.insert_selnum = do
-        -- If the new selection has an opinion about orientation, update
-        -- Cmd.state_note_orientation.
-        maybe_sel <- flip traverse maybe_sel $ \sel ->
-            case Sel.orientation sel of
-                Sel.None -> do
-                    o <- get_orientation
-                    return $ sel { Sel.orientation = o }
-                Sel.Positive -> do
-                    Cmd.modify_edit_state $ \state ->
-                        state { Cmd.state_note_orientation = Types.Positive }
-                    return sel
-                Sel.Negative -> do
-                    Cmd.modify_edit_state $ \state ->
-                        state { Cmd.state_note_orientation = Types.Negative }
-                    return sel
+        maybe_sel <- traverse infer_orientation maybe_sel
         Ui.set_selection view_id selnum maybe_sel
         whenJust maybe_sel $ \sel -> when (Sel.is_point sel) $ do
             set_subs view_id sel
             whenJustM (Cmd.gets (Cmd.state_sync . Cmd.state_play)) $
                 mmc_goto_sel view_id sel
     | otherwise = Ui.set_selection view_id selnum maybe_sel
+    where
+    -- If the new selection has an opinion about orientation, update
+    -- Cmd.state_note_orientation.
+    infer_orientation sel = case Sel.orientation sel of
+        Sel.None -> do
+            o <- get_orientation
+            return $ sel { Sel.orientation = o }
+        Sel.Positive -> do
+            Cmd.modify_edit_state $ \state ->
+                state { Cmd.state_note_orientation = Types.Positive }
+            return sel
+        Sel.Negative -> do
+            Cmd.modify_edit_state $ \state ->
+                state { Cmd.state_note_orientation = Types.Negative }
+            return sel
 
 get_orientation :: Cmd.M m => m Sel.Orientation
 get_orientation =
@@ -451,6 +451,7 @@ mouse_drag :: Cmd.M m => Types.MouseButton -> Msg.Msg
     -- ^ (mouse down at, mouse currently at)
 mouse_drag btn msg = do
     (is_down, mod, mouse_at) <- Cmd.abort_unless (mouse_mod msg)
+    when (is_down && fst mouse_at == 0) Cmd.abort
     msg_btn <- Cmd.abort_unless (Cmd.mouse_mod_btn mod)
     -- The button down should be the same one as expected.
     when (msg_btn /= btn) Cmd.abort
@@ -467,7 +468,7 @@ mouse_drag btn msg = do
     -- tracks <- Ui.track_count =<< Cmd.get_focused_block
     -- let clamp (tnum, track) = (min (tracks-1) tnum, track)
     -- return (clamp down_at, clamp mouse_at)
-    return (down_at, mouse_at)
+    return (first (max 1) down_at, first (max 1) mouse_at)
 
 -- * implementation
 
