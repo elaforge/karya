@@ -5,8 +5,19 @@ LEGEND
 
 current:
   priorities for javanese:
+    better ruler
+      . line = 4 gatra, gatra = 4 notes (q)
+      . I want cmd-; to add a gatra.  Then sections is, gongs? or lines?
+        Maybe I don't care about sections so much, because at score level
+        I can use w and b.  So call it lines, but it shouldn't have its own
+        numbers?
+      . Or, what if I did it for gatra?  In that case q is 1/2t which seems
+        awkward.
+      . But if I say w = 1t = gatra, then I have to get up to t32 for ir2
+        panerus, which would make ir4 below even t64.
+      . More convenient if 1 is gatra
     record samples:
-      - gender panerus
+      + gender panerus
       - gender barung
       - slenthem
       - saron
@@ -28,9 +39,11 @@ current:
         that looks at that.
   vocabulary:
     . pipilan - one melody using two hands
-    . irama: 1/2    1        2    3     4
-             lancar tanggung dadi wilet rangkep
-             1      2        4    8     16
+    . irama:        1/2    1        2    3     4
+                    lancar tanggung dadi wilet rangkep
+             peking 1      2        4    8     16
+    . cengkok: aj aja ngono, ak ayu kuning, dl dualolo
+    . O gong ( ) gong suwukan, ^ kenong, ˇ (caron) kempul
 
 ghc:
   . make core easier to read:
@@ -9885,6 +9898,9 @@ FFI:
   C++ has to use explicit C-style deallocation.
 
 research:
+  fast parser?
+    https://hackage.haskell.org/package/flatparse
+    ByteString only, no Text.
   . algorithm for violin fingerings: https://github.com/jmorag/open-strings
   physical modelling:
     numerics:

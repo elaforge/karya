@@ -359,6 +359,9 @@ measures meter sections measures = modify_sections $ const $
 gongs :: Cmd.M m => Gong.Gongs -> Gong.Jegogans -> m Modify
 gongs sections jegog = ruler $ Gong.regular sections jegog
 
+java :: Cmd.M m => Int -> m Modify
+java lines = ruler $ Gong.java lines
+
 -- | Replace the meter with the concatenation of the rulers of the given
 -- blocks.  This is like 'extract' except it doesn't infer the blocks from the
 -- calls and doesn't scale the extracted rulers.
