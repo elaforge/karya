@@ -40,7 +40,7 @@ import           System.FilePath ((</>))
 import qualified System.IO.Error as IO.Error
 import qualified System.Process as Process
 
-import qualified Util.File as File
+import qualified Util.Files as Files
 import qualified Util.Git as Git
 import           Util.GitT (Commit, Repo)
 import qualified Util.Lists as Lists
@@ -159,7 +159,7 @@ checkpoint user repo (SaveHistory state (Just commit) updates names) =
             <> Text.intercalate ", " not_found
             <> "; this probably means 'Ui.Diff.cancel_updates didn't do its job"
     if null mods then return commit else do
-        unlessM (File.writable repo) $
+        unlessM (Files.writable repo) $
             Git.throw $ "git repo is not writable: " <> show repo
         last_tree <- Git.commit_tree <$> Git.read_commit repo commit
         tree <- Git.modify_tree repo last_tree mods

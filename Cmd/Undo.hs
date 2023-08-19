@@ -8,7 +8,7 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
-import qualified Util.File as File
+import qualified Util.Files as Files
 import qualified Util.Log as Log
 import qualified App.Path as Path
 import qualified Cmd.Clip as Clip
@@ -241,7 +241,7 @@ save_history cmd_state hist collect uncommitted = do
 -- diffs.
 check_save_history :: Cmd.State -> IO (Maybe Text)
 check_save_history cmd_state = case Internal.can_checkpoint cmd_state of
-    Just (repo, _) -> ifM (File.writable (Path.to_path repo)) (return Nothing)
+    Just (repo, _) -> ifM (Files.writable (Path.to_path repo)) (return Nothing)
         (return $ Just $ "repo not writable: " <> showt repo)
     Nothing -> return Nothing
 

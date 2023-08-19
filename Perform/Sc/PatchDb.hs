@@ -13,7 +13,7 @@ import           System.FilePath ((</>))
 import qualified Vivid.SC.SynthDef.Literally as Literally
 
 import qualified Util.Exceptions as Exceptions
-import qualified Util.File as File
+import qualified Util.Files as Files
 import qualified Util.Log as Log
 import qualified Util.Lists as Lists
 import qualified Util.Texts as Texts
@@ -53,7 +53,7 @@ load :: Path.AppDir -> IO (Maybe PatchDb)
 load app_dir = load_dir (Path.to_absolute app_dir Config.sc_dir)
 
 load_dir :: FilePath -> IO (Maybe PatchDb)
-load_dir dir = Exceptions.ignoreEnoent (File.list dir) >>= \case
+load_dir dir = Exceptions.ignoreEnoent (Files.list dir) >>= \case
     Nothing -> do
         Log.notice $ "no supercollider patch dir: " <> showt dir
         return Nothing
@@ -100,7 +100,7 @@ convert fname def = do
 -- consistent with filenames.  Call from ghci.
 normalize_patches :: FilePath -> FilePath -> IO ()
 normalize_patches in_dir out_dir = do
-    fnames <- File.list in_dir
+    fnames <- Files.list in_dir
     forM_ fnames $ \fname -> normalize_patch out_dir fname >>= \case
         Left err -> putStrLn $ fname <> ": " <> err
         Right () -> return ()

@@ -24,7 +24,7 @@ import           System.FilePath ((</>))
 import qualified System.IO as IO
 import qualified System.Process as Process
 
-import qualified Util.File as File
+import qualified Util.Files as Files
 import qualified Util.Lists as Lists
 import qualified Util.Thread as Thread
 
@@ -101,7 +101,7 @@ download url scratch output = do
 previousRender :: Map Text FilePath -> FilePath
     -> IO [(Submit.Url, FilePath, FilePath)]
 previousRender nameOutput dir = do
-    subdirs <- File.list dir
+    subdirs <- Files.list dir
     putStrLn $ "found previous submit: " <> show subdirs
     return $ mapMaybe get subdirs
     where

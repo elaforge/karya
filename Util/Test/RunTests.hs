@@ -43,7 +43,7 @@ import qualified Text.Read as Read
 
 import qualified Util.Cpu as Cpu
 import qualified Util.Exceptions as Exceptions
-import qualified Util.File as File
+import qualified Util.Files as Files
 import qualified Util.Lists as Lists
 import qualified Util.Processes as Processes
 import qualified Util.Regex as Regex
@@ -346,7 +346,7 @@ takeQueue (Queue mvar) = MVar.modifyMVar mvar $ \as -> return $ case as of
 -- something.
 clearDirectory :: FilePath -> IO ()
 clearDirectory dir =
-    mapM_ rm . fromMaybe [] =<< Exceptions.ignoreEnoent (File.list dir)
+    mapM_ rm . fromMaybe [] =<< Exceptions.ignoreEnoent (Files.list dir)
     where
     -- Let's not go all the way to Directory.removePathForcibly.
     rm fn = Directory.doesDirectoryExist fn >>= \isDir -> if isDir

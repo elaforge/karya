@@ -25,7 +25,7 @@ import           System.FilePath ((</>))
 import qualified System.IO.Error as IO.Error
 import qualified System.Process as Process
 
-import qualified Util.File as File
+import qualified Util.Files as Files
 import qualified Util.Lists as Lists
 import qualified Util.Serialize as Serialize
 
@@ -94,8 +94,8 @@ diff_lines :: String -> FilePath -> [Text] -> [Text]
     -- ^ (abbreviated_diff, wrote_files)
 diff_lines name dir expected got = do
     Directory.createDirectoryIfMissing True dir
-    File.writeLines expected_fn expected
-    File.writeLines got_fn got
+    Files.writeLines expected_fn expected
+    Files.writeLines got_fn got
     (_code, diff, stderr) <- Process.readProcessWithExitCode
         "diff" [expected_fn, got_fn] ""
     unless (null stderr) $

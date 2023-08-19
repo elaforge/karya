@@ -29,7 +29,7 @@ import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import           System.FilePath ((</>))
 
-import qualified Util.File as File
+import qualified Util.Files as Files
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 
@@ -69,7 +69,7 @@ minimumAge = 10 * min
 gc :: FilePath -> IO Stats
 gc root = do
     now <- Time.getCurrentTime
-    foldMapM (check now) $ File.walk (const True) root
+    foldMapM (check now) $ Files.walk (const True) root
     where
     check now (dir, fnames)
         | FilePath.takeFileName dir /= "checkpoint" = return mempty
@@ -91,7 +91,7 @@ gc root = do
 find :: FilePath -> S.Stream (S.Of (Set FilePath)) IO ()
 find root = do
     now <- liftIO Time.getCurrentTime
-    S.filter (/=mempty) $ S.mapM (check now) $ File.walk (const True) root
+    S.filter (/=mempty) $ S.mapM (check now) $ Files.walk (const True) root
     where
     check now (dir, fnames)
         | FilePath.takeFileName dir /= "checkpoint" = return mempty
@@ -103,7 +103,7 @@ find root = do
 findGarbage :: Time.UTCTime -> FilePath -> [FilePath] -> IO [FilePath]
 findGarbage now checkpoint fnames = do
     chunks <- filterM Directory.pathIsSymbolicLink
-        =<< File.list (FilePath.takeDirectory checkpoint)
+        =<< Files.list (FilePath.takeDirectory checkpoint)
     alive <- mapM Directory.getSymbolicLinkTarget chunks
     (young, fnames) <- partitionM (isYoung now . (checkpoint</>)) fnames
     -- ["000.FOBBmx5XVFmFDBvy6FaGtw.Pygpsv_oQ01n-YoqmJaGUg", ...]

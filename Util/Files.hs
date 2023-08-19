@@ -4,7 +4,7 @@
 
 {-# LANGUAGE ScopedTypeVariables #-}
 -- | Do things with files.
-module Util.File (
+module Util.Files (
     -- * read/write
     writeLines
     , writeAtomic
@@ -26,6 +26,7 @@ import           Control.Monad.Trans (liftIO)
 
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Lazy as Lazy
+import qualified Data.List as List
 import           Data.Text (Text)
 import qualified Data.Text.IO as Text.IO
 
@@ -89,11 +90,13 @@ writable fn = orM
 
 -- * directory
 
--- | Like 'Directory.listDirectory' except prepend the directory.
+-- | Like 'Directory.listDirectory' except prepend the directory and omit
+-- all dot files.
 list :: FilePath -> IO [FilePath]
 list dir = do
     fns <- Directory.listDirectory dir
-    return $ map (strip . (dir </>)) $ filter ((/=".") . take 1) fns
+    return $ map (strip . (dir </>)) $
+        filter (not . ("." `List.isPrefixOf`)) fns
     where
     strip ('.' : '/' : path) = path
     strip path = path

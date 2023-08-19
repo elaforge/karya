@@ -27,7 +27,7 @@ import qualified Numeric
 import qualified System.FilePath as FilePath
 
 import qualified Util.FFI as FFI
-import qualified Util.File as File
+import qualified Util.Files as Files
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Num as Num
@@ -53,7 +53,7 @@ type Patch = (Patch.Patch, Common.Common ())
 parse_dir :: [Parser [Patch]] -> FilePath -> IO [Patch]
 parse_dir parsers dir = do
     fns <- filter ((==".syx") . FilePath.takeExtension) <$>
-        File.listRecursive (const True) dir
+        Files.listRecursive (const True) dir
     results <- mapM (\fn -> parse_file parsers fn <$> B.readFile fn) fns
     sequence_ [Log.warn $ "parsing " <> txt fn <> ": " <> txt err
         | (fn, Left err) <- zip fns results]

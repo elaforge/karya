@@ -16,7 +16,7 @@ import qualified Data.Text as Text
 import           Data.Text (Text)
 
 import qualified Util.Doc as Doc
-import qualified Util.File as File
+import qualified Util.Files as Files
 import qualified Util.Lists as Lists
 import qualified Util.Pretty as Pretty
 import qualified Util.Texts as Texts
@@ -98,5 +98,5 @@ get_html_state haddock_dir app_dir = do
     return (haddock_dir, files)
     where
     get_files (Path.AppDir dir) = do
-        files <- File.listRecursive (maybe False Char.isUpper . Lists.head) dir
+        files <- Files.listRecursive (maybe False Char.isUpper . Lists.head) dir
         return $ Set.fromList files

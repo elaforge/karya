@@ -41,7 +41,7 @@ import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import           System.FilePath ((</>))
 
-import qualified Util.File as File
+import qualified Util.Files as Files
 import qualified Util.Git as Git
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
@@ -236,7 +236,7 @@ load_state fname = do
 read_state :: FilePath -> Cmd.CmdT IO (Ui.State, StateSaveFile)
 read_state fname = do
     let mkmsg err = "load " <> txt fname <> ": " <> pretty err
-    writable <- liftIO $ File.writable fname
+    writable <- liftIO $ Files.writable fname
     (state, metric) <- Thread.timeAction $
         Cmd.require_right mkmsg =<< liftIO (read_state_ fname)
     Log.notice $ "read state from " <> showt fname
@@ -323,7 +323,7 @@ read_git repo maybe_commit = do
     (state, commit, names) <- Cmd.require_right
         (("load git " <> txt repo <> ": ") <>)
         =<< liftIO (read_git_ repo maybe_commit)
-    writable <- liftIO $ File.writable repo
+    writable <- liftIO $ Files.writable repo
     Log.notice $ "read from " <> showt repo <> ", at " <> pretty commit
         <> " names: " <> showt names
         <> if writable then "" else " (read-only, not setting save file)"

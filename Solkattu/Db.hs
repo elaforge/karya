@@ -19,7 +19,7 @@ import qualified System.Directory as Directory
 import           System.FilePath ((</>))
 
 import qualified Util.CallStack as CallStack
-import qualified Util.File as File
+import qualified Util.Files as Files
 import qualified Util.Html
 import qualified Util.Lists as Lists
 import qualified Util.Num as Num
@@ -161,14 +161,15 @@ writeTextTo dir colorDir abstraction = do
     writeCommit colorDir
     where
     write1 score = do
-        File.writeLines (colorDir </> scoreFname score <> ".txt") lines
-        File.writeLines (dir </> scoreFname score <> ".txt")
+        Files.writeLines (colorDir </> scoreFname score <> ".txt") lines
+        Files.writeLines (dir </> scoreFname score <> ".txt")
             (map stripColors lines)
         where lines = Terminal.renderAll abstraction score
 
 writeText1 :: Korvai.Score -> IO ()
 writeText1 score =
-    File.writeLines (dir </> scoreFname score <> ".txt") (map stripColors lines)
+    Files.writeLines (dir </> scoreFname score <> ".txt")
+        (map stripColors lines)
     where
     lines = Terminal.renderAll Format.defaultAbstraction score
     dir = "data/solkattu-text"
@@ -195,4 +196,4 @@ writeCommit dir = do
     Text.IO.writeFile (dir </> "commit") (SourceControl._hash patch <> "\n")
 
 clearDir :: FilePath -> IO ()
-clearDir = mapM_ Directory.removeFile <=< File.list
+clearDir = mapM_ Directory.removeFile <=< Files.list

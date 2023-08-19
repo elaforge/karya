@@ -101,7 +101,7 @@ basicPackages = concat
     , w "pretty haskell-src" -- Util.PPrint
     , w "streaming"
     , w "wcwidth" -- Util.Format
-    , w "zlib" -- Util.File
+    , w "zlib" -- Util.Files
     -- karya
     , w "attoparsec" -- Derive: tracklang parsing
     , w "old-locale"

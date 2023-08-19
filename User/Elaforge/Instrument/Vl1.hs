@@ -21,7 +21,7 @@ import qualified Text.Printf as Printf
 
 import qualified Util.Doc as Doc
 import qualified Util.Exceptions as Exceptions
-import qualified Util.File as File
+import qualified Util.Files as Files
 import qualified Util.Log as Log
 import qualified Util.Lists as Lists
 
@@ -116,7 +116,7 @@ parse_builtins fn = do
 
 parse_dir :: FilePath -> IO [MidiInst.Patch]
 parse_dir dir = do
-    fns <- File.listRecursive (const True) dir
+    fns <- Files.listRecursive (const True) dir
     (warns, patches) <- Either.partitionEithers . concat <$> mapM parse_file fns
     mapM_ (Log.warn . txt) warns
     return patches

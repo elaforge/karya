@@ -16,7 +16,7 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 import qualified Data.Time.Calendar as Calendar
 
-import qualified Util.File as File
+import qualified Util.Files as Files
 import qualified Util.Html as Html
 import qualified Util.Lists as Lists
 import qualified Util.Styled as Styled
@@ -150,7 +150,7 @@ javascriptIndex =
 
 -- | Write HTML with all the instrument realizations at all abstraction levels.
 writeAll :: FilePath -> Korvai.Score -> IO ()
-writeAll fname score = File.writeLines fname $ map Html.un_html $
+writeAll fname score = Files.writeLines fname $ map Html.un_html $
     render defaultAbstractions score
 
 

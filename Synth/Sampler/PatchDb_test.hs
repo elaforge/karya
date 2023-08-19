@@ -11,7 +11,7 @@ import qualified Data.Set as Set
 import qualified System.Directory as Directory
 import           System.FilePath ((</>))
 
-import qualified Util.File as File
+import qualified Util.Files as Files
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.PatchDb as PatchDb
@@ -49,7 +49,7 @@ test_samples_exist = do
 diffDirContents :: Text -> FilePath -> [FilePath] -> IO ()
 diffDirContents name dir fnames = do
     exist <- filter isSample . map (drop (length root + 1)) <$>
-        File.listRecursive (const True) (root </> dir)
+        Files.listRecursive (const True) (root </> dir)
     let (extra, notFound) = diff (List.sort exist) fnames
     unless (null notFound) $
         failure $ name <> " references samples that don't exist:\n"

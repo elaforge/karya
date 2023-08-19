@@ -57,7 +57,7 @@ import qualified System.FilePath as FilePath
 import qualified System.IO.Error as IO.Error
 
 import qualified Util.CallStack as CallStack
-import qualified Util.File as File
+import qualified Util.Files as Files
 
 import           Global
 
@@ -89,13 +89,13 @@ magicLength :: Int
 magicLength = 4
 
 serialize :: Serialize a => Magic a -> FilePath -> a -> IO Bool
-    -- ^ result of 'File.writeGz'.
+    -- ^ result of 'Files.writeGz'.
 serialize = serialize_rotate 1
 
 serialize_rotate :: Serialize a => Int -> Magic a -> FilePath -> a -> IO Bool
 serialize_rotate rotations magic fname state = do
     Directory.createDirectoryIfMissing True $ FilePath.takeDirectory fname
-    File.writeGz rotations fname $ magicBytes magic <> encode state
+    Files.writeGz rotations fname $ magicBytes magic <> encode state
 
 data UnserializeError = BadMagic ByteString ByteString
     | IOError IO.Error.IOError | UnserializeError String
@@ -105,7 +105,7 @@ unserialize :: Serialize a => Magic a -> FilePath
     -> IO (Either UnserializeError a)
 unserialize magic fname = catch $ do
     bytes <- either (Exception.throw . IO.Error.userError) return
-        =<< File.readGz fname
+        =<< Files.readGz fname
     let (file_magic, rest) = ByteString.splitAt magicLength bytes
     if file_magic /= magicBytes magic
         then return $ Left $ BadMagic (magicBytes magic) file_magic

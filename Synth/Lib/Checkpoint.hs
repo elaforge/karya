@@ -19,7 +19,7 @@ import           System.FilePath ((</>))
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
-import qualified Util.File as File
+import qualified Util.Files as Files
 import qualified Util.Lists as Lists
 
 import qualified Synth.Lib.AUtil as AUtil
@@ -171,7 +171,7 @@ getFilename outputDir getState (chunknum, hash)
 writeState :: IO State -> FilePath -> IO ()
 writeState getState fname = do
     state@(State stateBs) <- getState
-    File.writeAtomic
+    Files.writeAtomic
         (FilePath.replaceExtension fname (".state." <> encodeState state))
         stateBs
 
@@ -182,7 +182,7 @@ writeState getState fname = do
 linkOutput :: Bool -> FilePath -> FilePath -> IO Config.ChunkNum
 linkOutput updateMtime outputDir fname = do
     let current = outputDir </> filenameToOutput fname
-    File.symlink (checkpointDir </> fname) current
+    Files.symlink (checkpointDir </> fname) current
     -- Bump mtime to protect it from ImGc for a while after it becomes dead.
     when updateMtime $
         Directory.setModificationTime (outputDir </> checkpointDir </> fname)

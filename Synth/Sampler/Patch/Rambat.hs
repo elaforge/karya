@@ -16,8 +16,8 @@ import           System.FilePath ((</>))
 import qualified Text.Read as Read
 
 import qualified Util.Audio.Audio as Audio
-import qualified Util.Audio.File as File
-import qualified Util.File
+import qualified Util.Audio.File as Audio.File
+import qualified Util.Files as Files
 import qualified Util.Lists as Lists
 import qualified Util.Maps as Maps
 import qualified Util.Num as Num
@@ -324,8 +324,8 @@ articulationFilename = \case
 getVariations :: IO [(FilePath, Map Calibrate.Axis Text)]
 getVariations = do
     samples <- (++)
-        <$> (mapMaybe (get Umbang) <$> Util.File.list (dir </> "umbang"))
-        <*> (mapMaybe (get Isep) <$> Util.File.list (dir </> "isep"))
+        <$> (mapMaybe (get Umbang) <$> Files.list (dir </> "umbang"))
+        <*> (mapMaybe (get Isep) <$> Files.list (dir </> "isep"))
     return
         [ ( dir </> tuningDir tuning </> unparseFilename pitch art dyn var
           , Map.fromList
@@ -344,15 +344,15 @@ getVariations = do
 
 getDurations :: IO [((Tuning, Pitch, Dynamic), Audio.Frames)]
 getDurations = fmap group $ (++)
-    <$> (mapMaybeM (get Umbang) =<< Util.File.list (dir </> "umbang"))
-    <*> (mapMaybeM (get Isep) =<< Util.File.list (dir </> "isep"))
+    <$> (mapMaybeM (get Umbang) =<< Files.list (dir </> "umbang"))
+    <*> (mapMaybeM (get Isep) =<< Files.list (dir </> "isep"))
     where
     dir = Config.unsafeSamplerRoot </> "rambat"
     group = map (second minimum) . Lists.groupFst
     get tuning fname = case parseFilename (FilePath.takeFileName fname) of
         Just (pitch, OpenShort, dyn, _var) -> do
             frames <- Audio.Frames . Sndfile.frames <$>
-                (File.throwEnoent fname =<< File.getInfo fname)
+                (Audio.File.throwEnoent fname =<< Audio.File.getInfo fname)
             return $ Just ((tuning, pitch, dyn), frames)
         _ -> pure Nothing
 
