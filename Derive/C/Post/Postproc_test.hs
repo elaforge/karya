@@ -14,6 +14,20 @@ import qualified Derive.Score as Score
 import Global
 
 
+-- * infer-negative
+
+test_infer_negative :: Test
+test_infer_negative = do
+    let run lh rh = DeriveTest.extract DeriveTest.e_note $
+            DeriveTest.derive_tracks "infer-negative hand 2" $
+            concatMap UiTest.note_spec
+            [(" | hand=l", lh, []), (" | hand=r", rh, [])]
+    equal (run [(1, -1, "4c")] []) ([(1, 2, "4c")], [])
+    equal (run [(1, -1, "4c"), (2, -1, "4d")] [])
+        ([(1, 1, "4c"), (2, 2, "4d")], [])
+    equal (run [(1, -1, "4c"), (2, -0.5, "4d")] [])
+        ([(1, 0.5, "4c"), (2, 2, "4d")], [])
+
 -- * cancel
 
 test_cancel :: Test

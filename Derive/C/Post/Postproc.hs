@@ -39,8 +39,9 @@ import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
 
 import qualified Perform.RealTime as RealTime
-import Global
-import Types
+
+import           Global
+import           Types
 
 
 library :: Library.Library
@@ -67,17 +68,56 @@ module_ = Module.prelude
 c_infer_negative :: Derive.Transformer Derive.Note
 c_infer_negative = Derive.transformer module_ "infer-negative" Tags.postproc
     "Infer durations for negative events, by instrument."
-    $ Sig.callt final_duration_arg
-    $ \final_dur _args ->
-        fmap $ Post.emap1_ (infer final_dur) . Post.nexts_by Post.hand_key
+    $ Sig.callt ((,)
+    <$> Sig.defaulted "heuristic" ("note" :: Text) "doc"
+    <*> final_duration_arg
+    ) $ \(heuristic, final_dur) _args deriver -> do
+        process <- Derive.require ("invalid heuristic: " <> heuristic) $
+            Map.lookup (heuristic :: Text) infer_heuristics
+        process final_dur <$> deriver
     where
-    infer _ (event, _) | Score.event_duration event >= 0 = event
-    infer final_dur (event, []) = Score.set_duration final_dur event
-    infer _ (event, next : _) = Score.set_duration dur event
-        where
-        dur = min (Score.event_start next - Score.event_start event)
-            (- Score.event_duration event)
+    infer_heuristics = Map.fromList
+        [ ("hand", next_hand)
+        , ("note", next_note)
+        ]
 
+-- | Until the next note with the same hand.  Suitable for gender barung.
+-- If the next event doesn't touch this one, stop at its (negative) start time.
+-- This is a bit weird conceptually but in practice seems to be useful for
+-- controlling duration.
+next_hand :: RealTime -> Stream.Stream Score.Event -> Stream.Stream Score.Event
+next_hand = infer_duration Post.hand_key $ \here nexts ->
+    subtract here . until here <$> Lists.head nexts
+    where
+    until here next
+        | Score.event_min next >= here + threshold = Score.event_min next
+        | otherwise = Score.event_max next
+    threshold = 0.05
+
+-- | Until the next note with the same instrument.  Suitable for gender
+-- panerus.
+next_note :: RealTime -> Stream.Stream Score.Event -> Stream.Stream Score.Event
+next_note = infer_duration Score.event_instrument $ \here nexts ->
+    subtract here . start <$>
+        Lists.head (dropWhile (\n -> start n - here < threshold) nexts)
+    where
+    threshold = 0.15
+    start = Score.event_start
+
+infer_duration :: Eq key => Key key
+    -> (RealTime -> [Score.Event] -> Maybe RealTime)
+    -> RealTime
+    -> Stream.Stream Score.Event
+    -> Stream.Stream Score.Event
+infer_duration next_key infer final_dur =
+    Post.emap1_ infer1 . Post.nexts_by next_key
+    where
+    infer1 (event, nexts)
+        | null nexts = Score.set_duration final_dur event
+        | Score.event_duration event >= 0 = event
+        | otherwise = case infer (Score.event_start event) nexts of
+            Nothing -> Score.set_duration final_dur event
+            Just dur -> Score.set_duration dur event
 
 -- * cancel
 

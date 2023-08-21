@@ -173,6 +173,9 @@ sketch:
   2 6 1 6 5 56 61 12 23 5 5 353 2 2 121
 
 UNSORTED
+  - infer-negative heuristic should be changeable dynamically
+    . Because even gender barung goes to pipilan sometimes.
+    . Or maybe go to positive durations, but only infer the last one?
   * preview for faust is wav, not flac!  Put back wav support!
   - bug: im: if I change the alloc of the instrument, I get stuck with its old
     sounds.  Because Config.clearUnusedInstruments goes by instrument name
