@@ -298,19 +298,19 @@ parseFilename fname = case Lists.split "-" (FilePath.dropExtension fname) of
     _ -> Nothing
     where
     pArt = (`Map.lookup` filenameToArt)
-    filenameToArt = Map.fromList $ Lists.keyOn articulationFilename Util.enumAll
+    filenameToArt = Map.fromList $ Lists.keyOn articulationFile Util.enumAll
     pDyn = Read.readMaybe . map Char.toUpper
 
 unparseFilename :: Pitch -> Articulation -> Dynamic -> Util.Variation
     -> FilePath
 unparseFilename pitch art dyn var = Lists.join "-"
-    [ prettys pitch, articulationFilename art, Util.showLower dyn
+    [ prettys pitch, articulationFile art, Util.showLower dyn
     , 'v' : show var
     ]
     ++ Util.extension sampleFormat
 
-articulationFilename :: Articulation -> String
-articulationFilename = \case
+articulationFile :: Articulation -> String
+articulationFile = \case
     Open -> "open"
     OpenShort -> "open+short"
     MuteGenderLoose -> "mute+gender+loose"

@@ -4691,8 +4691,9 @@ performance:
     . possible use this to get newer ghcs:
       https://gitlab.haskell.org/bgamari/ghcs-nix/
     ghc-debug
-      . https://github.com/well-typed/memory-usage-zurihac-2021
       . requires 9.2
+      . https://github.com/well-typed/memory-usage-zurihac-2021
+      . https://well-typed.com/blog/2023/08/reducing-haddock-memory-usage/
     eventlog2html:
       notes:
         . use linechart to look for leaks, since it normalizes each one

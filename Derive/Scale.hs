@@ -143,7 +143,7 @@ transpose_pitch transposition scale environ octaves steps =
 data Range = Range {
     range_bottom :: !Pitch.Pitch
     , range_top :: !Pitch.Pitch
-    } deriving (Show)
+    } deriving (Show, Eq)
 
 in_range :: Range -> Pitch.Pitch -> Bool
 in_range (Range bottom top) pitch = bottom <= pitch && pitch <= top

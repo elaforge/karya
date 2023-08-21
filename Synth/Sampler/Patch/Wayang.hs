@@ -323,7 +323,7 @@ data Articulation = Mute | LooseMute | Open | CalungMute | Calung
 findPitch :: Instrument -> Tuning -> Articulation
     -> Either Pitch.Note Pitch.NoteNumber
     -> Either Text (Pitch.NoteNumber, Pitch.NoteNumber, Midi.Key)
-findPitch instrument tuning articulation symPitch = case symPitch of
+findPitch instrument tuning articulation = \case
     Left sym -> do
         (sampleNn, (key, _)) <- tryJust ("invalid pitch: " <> pretty sym) $
             List.find ((==sym) . snd . snd) $ Map.toList keys
