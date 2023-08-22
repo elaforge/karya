@@ -2,8 +2,8 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Ghci functions for dealing with sample sets.
-module Synth.Sampler.Make.Make where
+-- | Ghci functions for creating sample sets.
+module Synth.Sampler.Patch.Lib.Prepare where
 import qualified Data.List as List
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
@@ -32,6 +32,7 @@ import           Global
     - Select all, then render project regions to $baseDir/$inst/raw
     - Inspect renames, 'relink' renames, inspect output dirs.
 -}
+
 
 baseDir :: FilePath
 baseDir = "/Users/elaforge/Music/mix/sample"
@@ -80,6 +81,17 @@ vars n = map (('v':) . show) [1..n]
 
 join :: [String] -> String
 join = (<> ".wav") . Lists.join "-"
+
+-- * check
+
+printNumbers :: Int -> [FilePath] -> IO ()
+printNumbers level fnames = do
+    mapM_ (putStrLn . fmt . head) . Lists.groupAdjacent (key . snd)
+        . zip [1..] $ fnames
+    print (length fnames)
+    where
+    fmt (n :: Int, fname) = show n <> " - " <> fname
+    key = take level . Lists.splitBefore (\c -> c == '/' || c == '-')
 
 -- * filesystem
 

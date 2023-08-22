@@ -109,7 +109,7 @@ default_laras = laras_sequoia_pelog
 
 laras_sequoia_pelog :: BaliScales.Laras
 laras_sequoia_pelog = BaliScales.laras "sequoia-pelog" (Pitch.pitch 1 5) id
-    "Tuning of Sekar Sequoia." $ map (\nn -> (nn, nn))
+    "Tuning of Sekar Sequoia." $ map (\nn -> (nn, nn)) $
     [ 46.68 -- 16
     , 48.13 -- 17
     , 50.18 -- 21
@@ -117,7 +117,7 @@ laras_sequoia_pelog = BaliScales.laras "sequoia-pelog" (Pitch.pitch 1 5) id
     , 53    -- 23
     , 56    -- 24
     , 57.05 -- 25
-    -- ^^ guess
+    -- ^^ TODO guess
 
     , 58.68 -- 26 6.. (as3 + 0.5)
     , 60.13 -- 27 7.. (c4)
@@ -138,6 +138,16 @@ laras_sequoia_pelog = BaliScales.laras "sequoia-pelog" (Pitch.pitch 1 5) id
     , 86.4  -- 51 51 1^ approx
     , 87.7  -- 52 2^
     , 88.98 -- 53 3^
+    ]
+    -- vv TODO guess
+    ++ map (+12)
+    [ 80
+    , 81.03
+    , 82.48
+    , 84.14
+    , 86.4
+    , 87.7
+    , 88.98
     ]
 
 
