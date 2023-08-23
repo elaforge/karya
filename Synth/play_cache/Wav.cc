@@ -86,10 +86,6 @@ Wav::Wav(const char *fname, Frames offset) : _error(nullptr)
     // DEBUG("format: " << fmt.format << " chan:" << fmt.channels
     //     << " srate:" << fmt.srate << " brate:" << fmt.byte_rate
     //     << " block_align:" << fmt.block_align << " bits:" << fmt.bits);
-    if (fmt.format != FLOAT32) {
-        _error = "Not a float32 wav";
-        return;
-    }
     if (!find_chunk('data', fp)) {
         _error = "can't find data chunk";
         return;
@@ -97,13 +93,15 @@ Wav::Wav(const char *fname, Frames offset) : _error(nullptr)
     if (offset > 0) {
         // TODO I used to check if it's an unexpected large seek, should I?
         // There is a special case where 0 frames is like a full chunk of 0s.
-        if (fseek(fp, sizeof(float) * fmt.channels * offset, SEEK_CUR) != 0) {
+        if (fseek(fp, (fmt.bits / 8) * fmt.channels * offset, SEEK_CUR) != 0) {
             _error = strerror(errno);
             return;
         }
     }
+    _format = fmt.format;
     _channels = fmt.channels;
     _srate = fmt.srate;
+    _bits = fmt.bits;
 }
 
 void
@@ -118,5 +116,26 @@ Wav::close()
 Wav::Frames
 Wav::read(float *samples, Wav::Frames frames)
 {
-    return fread(samples, sizeof(float) * this->channels(), frames, this->fp);
+    if (_format == FLOAT32) {
+        return fread(samples, sizeof(float) * channels(), frames, fp);
+    } else if (bits() == 16) {
+        buffer.resize(frames * channels());
+        int read = fread(buffer.data(), (bits() / 8) * channels(), frames, fp);
+        const float max = 1 << (bits() - 1);
+        for (size_t i = 0; i < read * channels(); i++) {
+            samples[i] = static_cast<float>(buffer[i]) / max;
+        }
+        return read;
+    } else if (bits() == 8) {
+        buffer8.resize(frames * channels());
+        int read = fread(buffer8.data(), (bits() / 8) * channels(), frames, fp);
+        const float max = 1 << (bits() - 1);
+        for (size_t i = 0; i < read * channels(); i++) {
+            samples[i] = static_cast<float>(buffer[i]) / max;
+        }
+        return read;
+    } else {
+        DEBUG("unknown bits: " << bits());
+        return 0;
+    }
 }

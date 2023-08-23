@@ -112,28 +112,6 @@ thru()
 }
 
 
-class File {
-public:
-    virtual size_t read(float *samples, size_t frames) = 0;
-};
-class FlacFile : public File {
-public:
-    Flac *file;
-    FlacFile(Flac *file) : file(file) {}
-    size_t read(float *samples, size_t frames) {
-        return file->read(samples, frames);
-    };
-};
-class WavFile : public File {
-public:
-    Wav *file;
-    WavFile(Wav *file) : file(file) {}
-    size_t read(float *samples, size_t frames) {
-        return file->read(samples, frames);
-    };
-};
-
-
 static int
 compare_samples(const char *fname, int offset, std::unique_ptr<AudioFile> file)
 {
@@ -142,7 +120,7 @@ compare_samples(const char *fname, int offset, std::unique_ptr<AudioFile> file)
         return 1;
     }
     std::cout << "channels:" << file->channels() << " srate:" << file->srate()
-        << "\n";
+        << " bits:" << file->bits() << "\n";
 
     SF_INFO info = {0};
     SNDFILE *sndfile = sf_open(fname, SFM_READ, &info);

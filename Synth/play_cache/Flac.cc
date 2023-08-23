@@ -27,7 +27,7 @@ Flac::write_callback(
     buffer.resize(end + samples * 2);
     // There's no standard way to convert to float, but using 2^(bits-1)
     // matches libsndfile.  It lets us reach -1 but not quite +1.
-    float max = 1 << (bits() - 1);
+    const float max = 1 << (bits() - 1);
     // interleave samples, convert to float
     if (channels() == 1) {
         for (size_t i = 0; i < samples; i++) {
