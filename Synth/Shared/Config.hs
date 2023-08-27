@@ -209,11 +209,11 @@ outputDirectory imDir scorePath blockId =
     imDir </> cacheDir </> scorePath </> idFilename blockId
 
 -- | Get the filename for a particular checkpoint.
-chunkPath :: FilePath -> FilePath -> Id.BlockId -> InstrumentDir -> ChunkNum
-    -> FilePath
-chunkPath imDir scorePath blockId (InstrumentDir instrument) chunknum =
+chunkPath :: FilePath -> FilePath -> Id.BlockId -> ScoreT.Instrument
+    -> ChunkNum -> FilePath
+chunkPath imDir scorePath blockId inst chunknum =
     outputDirectory imDir scorePath blockId
-        </> instrument </> chunkName chunknum
+        </> instrumentToDir inst </> chunkName chunknum
 
 chunkName :: ChunkNum -> FilePath
 chunkName chunknum = untxt (Num.zeroPad 3 chunknum <> ".wav")
@@ -240,32 +240,22 @@ clearUnusedInstruments :: FilePath -> HashSet ScoreT.Instrument -> IO ()
 clearUnusedInstruments outputDir instruments = do
     dirs <- filterM (Directory.doesDirectoryExist . (outputDir</>))
         =<< listDir outputDir
-    let unused = filter
-            (not . (`HashSet.member` instruments) . dirInstrument
-                . instrumentDir)
-            dirs
+    let unused = filter (not . dirInInstruments) dirs
     forM_ unused $ \dir -> do
         links <- filter (Maybe.isJust . isOutputLink) <$>
             listDir (outputDir </> dir)
         mapM_ (Directory.removeFile . ((outputDir </> dir) </>)) links
+    where
+    dirInInstruments = (`HashSet.member` instruments) . dirToInstrument
 
--- | There is a subdirectory for each instrument, but it has extra info, so it
--- can't directly be a ScoreT.Instrument.  Instruments never have '_', so I can
--- use that to put extra info on the end.  For faust, I put the patch name, so
--- I can clear obsolete checkpoints when the patch changes.
-newtype InstrumentDir = InstrumentDir FilePath
-    deriving (Eq, Show, Pretty, Aeson.ToJSON, Aeson.FromJSON)
+-- | There is a subdirectory for each instrument.  There has to be a direct
+-- correspondance with ScoreT.Instrument, because clearUnusedInstruments
+-- uses it.
+instrumentToDir :: ScoreT.Instrument -> FilePath
+instrumentToDir = untxt . ScoreT.instrument_name
 
-instrumentDir :: FilePath -> InstrumentDir
-instrumentDir = InstrumentDir . FilePath.takeFileName
-
-instrumentDir2 :: ScoreT.Instrument -> Maybe String -> FilePath
-instrumentDir2 inst extra =
-    untxt (ScoreT.instrument_name inst) <> maybe "" ("_"<>) extra
-
-dirInstrument :: InstrumentDir -> ScoreT.Instrument
-dirInstrument (InstrumentDir dir) =
-    ScoreT.Instrument $ txt $ takeWhile (/='_') dir
+dirToInstrument :: FilePath -> ScoreT.Instrument
+dirToInstrument = ScoreT.Instrument . txt . FilePath.takeFileName
 
 listDir :: FilePath -> IO [FilePath]
 listDir = fmap (fromMaybe []) . Exceptions.ignoreEnoent
@@ -276,7 +266,7 @@ listDir = fmap (fromMaybe []) . Exceptions.ignoreEnoent
 data Message = Message {
     _blockId :: !Id.BlockId
     , _trackIds :: !(Set Id.TrackId)
-    , _instrument :: !InstrumentDir
+    , _instrument :: !ScoreT.Instrument
     , _payload :: !Payload
     }
     deriving (Show, Generics.Generic)

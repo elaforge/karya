@@ -85,7 +85,7 @@ write config outputDir trackIds patch notes = catch $ do
         | _emitProgress config = Config.emitMessage $ Config.Message
             { _blockId = Config.pathToBlockId outputDir
             , _trackIds = trackIds
-            , _instrument = Config.instrumentDir outputDir
+            , _instrument = Config.dirToInstrument outputDir
             , _payload = payload
             }
         | otherwise = return ()

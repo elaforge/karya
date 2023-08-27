@@ -43,6 +43,7 @@ module Derive.ScoreT (
     , TypedSignal
 ) where
 import qualified Control.DeepSeq as DeepSeq
+import qualified Data.Aeson as Aeson
 import qualified Data.Hashable as Hashable
 import qualified Data.Map as Map
 import qualified Data.String as String
@@ -72,8 +73,11 @@ import           Types
 -- This should be a valid symbol as defined by 'Ui.Id.valid_symbol'.  This
 -- way it can be parsed without quotes.
 newtype Instrument = Instrument Text
-    deriving (Eq, Ord, Show, Read, Hashable.Hashable, DeepSeq.NFData,
-        Serialize.Serialize, String.IsString)
+    deriving
+        ( Eq, Ord, Show, Read, Hashable.Hashable, DeepSeq.NFData
+        , Serialize.Serialize, String.IsString
+        , Aeson.ToJSON, Aeson.FromJSON
+        )
 
 instrument_name :: Instrument -> Text
 instrument_name (Instrument s) = s

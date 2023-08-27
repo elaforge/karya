@@ -19,6 +19,7 @@ import qualified System.Directory as Directory
 import qualified System.Environment as Environment
 import qualified System.Exit as Exit
 import           System.FilePath ((</>))
+import qualified System.IO as IO
 import qualified System.Posix.Signals as Signals
 
 import qualified Util.Lists as Lists
@@ -189,15 +190,19 @@ process emitProgress patches notes outputDir = do
         async exc = Log.error $ "exception: " <> showt exc
     Exception.handle async $ Async.forConcurrently_ (flatten patchInstNotes) $
         \(patch, inst, notes) -> do
-            -- Put the patch name after _.  Instruments never have '_', so this
-            -- is safe.  tools/clear_faust will use this to clear obsolete
-            -- checkpoints.
-            let output = outputDir
-                    </> Config.instrumentDir2 inst
-                        (Just (untxt (InstrumentC._name patch)))
+            let output = outputDir </> Config.instrumentToDir inst
             Log.notice $ pretty inst <> " notes: " <> showt (length notes)
                 <> " -> " <> txt output
             Directory.createDirectoryIfMissing True output
+            -- Record the patch associated with this instrument.
+            -- tools/clear_faust will use this to clear checkpoints whose patch
+            -- has changed.  If the patch has changed but the instrument is the
+            -- same, there will be multiple such files, but it's ok because
+            -- clear_faust will just clear if any of them change.  Previously I
+            -- encoded it into the directory name, but that prevents
+            -- Config.clearUnusedInstruments from working when the instrument
+            -- name remains the same but the patch name changed.
+            touch $ output </> untxt (InstrumentC._name patch)
             (result, elapsed) <- Thread.timeActionText $
                 Render.write config output
                     (Set.fromList $ mapMaybe Note.trackId notes) patch notes
@@ -216,6 +221,9 @@ process emitProgress patches notes outputDir = do
         | (patch, instNotes) <- patchInstNotes
         , (inst, notes) <- instNotes
         ]
+
+touch :: FilePath -> IO ()
+touch fname = IO.withFile fname IO.WriteMode (const (return ()))
 
 lookupPatches :: Map Note.PatchName patch -> [Note.Note]
     -> ([Note.PatchName], [(patch, [(ScoreT.Instrument, [Note.Note])])])

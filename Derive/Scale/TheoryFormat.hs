@@ -24,10 +24,8 @@ import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 import           Data.Vector ((!))
 
-import qualified Util.Debug as Debug
 import qualified Util.Num as Num
 import qualified Util.ParseText as ParseText
-
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Scale.Theory as Theory
 import qualified Perform.Pitch as Pitch

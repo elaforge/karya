@@ -89,7 +89,7 @@ write config outputDir trackIds mbEffect notes = catch $ do
         Config.emitMessage $ Config.Message
             { _blockId = Config.pathToBlockId outputDir
             , _trackIds = trackIds
-            , _instrument = Config.instrumentDir outputDir
+            , _instrument = Config.dirToInstrument outputDir
             , _payload = Config.WaveformsCompleted [0 .. length skipped - 1]
             }
 
@@ -250,7 +250,7 @@ renderNotes config outputDir initialStates notifyState trackIds start
         when (_emitProgress config) $ Config.emitMessage $ Config.Message
             { _blockId = Config.pathToBlockId outputDir
             , _trackIds = trackIds
-            , _instrument = Config.instrumentDir outputDir
+            , _instrument = Config.dirToInstrument outputDir
             , _payload = Config.RenderingRange
                 (AUtil.toSeconds now) (AUtil.toSeconds (now + blockSize))
             }

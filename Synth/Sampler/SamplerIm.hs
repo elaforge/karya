@@ -319,8 +319,7 @@ process emitProgress db quality allNotes outputDir
         | emitProgress = Config.emitMessage $ Config.Message
             { _blockId = Config.pathToBlockId (outputDir </> "dummy")
             , _trackIds = trackIds
-            , _instrument = Config.instrumentDir $
-                Config.instrumentDir2 inst Nothing
+            , _instrument = inst
             , _payload = payload
             }
         | otherwise = return ()
@@ -455,7 +454,7 @@ realize :: (Config.Payload -> IO ()) -> Set Id.TrackId -> Render.Config
     -> FilePath -> ScoreT.Instrument -> Maybe Render.InstrumentEffect
     -> [Sample.Note] -> IO ()
 realize emitMessage trackIds config outputDir instrument mbEffect notes = do
-    let instDir = outputDir </> Config.instrumentDir2 instrument Nothing
+    let instDir = outputDir </> Config.instrumentToDir instrument
     Directory.createDirectoryIfMissing True instDir
     (result, elapsed) <- Thread.timeActionText $
         Render.write config instDir trackIds mbEffect notes

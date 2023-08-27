@@ -177,13 +177,30 @@ UNSORTED
     . Because even gender barung goes to pipilan sometimes.
     . Or maybe go to positive durations, but only infer the last one?
   * preview for faust is wav, not flac!  Put back wav support!
-  - bug: im: if I change the alloc of the instrument, I get stuck with its old
+  * bug: im: if I change the alloc of the instrument, I get stuck with its old
     sounds.  Because Config.clearUnusedInstruments goes by instrument name
     only, not by $inst_$patch, which is how the directories are named.
     . For faust only, sampler doesn't use _$extra, it says "so I can clear
       obsolete checkpoints when the patch changes" but how does that follow?
     . It's so tools/clear_faust can clear everything of a certain patch when
       it gets recompiled.
+    . Anyway, I have inst_patch1 and inst_patch2, and inst is still around so
+      it keeps both.  So I need to know the patch name too.
+    . I could pass (name, inst) from Performance, but (Nothing, inst) must
+      also match.
+    . Or I could clear both if there are two, but then it will happen every
+      time, unless I delete the whole directory, not just the checkpoints.
+    . But, why not do that?  The downside is I can't undo and cheaply get
+      the render back.  And actually I may want to do this, since this also
+      happens when disabling a track, which is the only way to track-mute for
+      im.
+    . Or, what if I undo the inst_extra thing.  Then when the name changes it
+      uses the same directory and overwrites the checkpoint.  I can support
+      tools/clear_faust by putting a file inside.
+    . Don't I have exactly the same problem?  I wind up with two files inside.
+      The key thing is to detect the change of patch name.
+    . Actually maybe this is ok?  This just means clear_faust will get it for
+      either patch, which is ok.
   - bug: waveform display is frequently too early, but audio is correct
   - bug: error in ky spams errors in logview
     . It should suppress after too many of them?  Or subsystems themselves

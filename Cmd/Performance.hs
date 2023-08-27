@@ -376,9 +376,7 @@ wait_for_subprocesses ready expected_instruments procs =
             | 0 `elem` chunks -> do
                 -- TODO compute chunk for a specific time, not always 0
                 let started2 = Set.insert proc started
-                    insts2 = Set.insert
-                        (Config.dirInstrument (Config._instrument msg))
-                        insts
+                    insts2 = Set.insert (Config._instrument msg) insts
                 Log.debug $ "started: " <> pretty started2
                     <> ", insts: " <> pretty insts2
                 when (started2 == procs && insts2 == expected_instruments) ready
@@ -438,8 +436,7 @@ make_status inv_tempo wants_waveform im_dir score_path adjust0 play_multiplier
         (Config.Message block_id track_ids instrument payload) =
     case payload of
         Config.RenderingRange start end ->
-            status $ Msg.ImRenderingRange (Config.dirInstrument instrument)
-                start end
+            status $ Msg.ImRenderingRange instrument start end
         Config.WaveformsCompleted chunknums
             | Set.null wanted_track_ids -> ImNothing
             | otherwise -> case mapM make_waveform chunknums of

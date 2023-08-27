@@ -124,10 +124,7 @@ sampleDirs dir muted = do
     when (null subdirs) $
         putStrLn $ "no sample dirs in " <> show dir
     return $ map (dir</>) $
-        filter (not . instrumentMuted muted . Config.instrumentDir) subdirs
-
-instrumentMuted :: Muted -> Config.InstrumentDir -> Bool
-instrumentMuted muted dir = Set.member (Config.dirInstrument dir) muted
+        filter ((`Set.notMember` muted) . Config.dirToInstrument) subdirs
 
 -- | Use sox to stream audio to the hardware.  This is easy and portable but
 -- high latency.
