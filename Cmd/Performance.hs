@@ -453,20 +453,17 @@ make_status inv_tempo wants_waveform im_dir score_path adjust0 play_multiplier
 
     wanted_track_ids = Set.filter wants_waveform track_ids
     make_waveform chunknum = do
-        start <- to_score $ time_at chunknum
-        end <- to_score $ time_at (chunknum+1)
+        (start, ratios) <- chunk_ratios to_score
+            (time_at chunknum) (time_at (chunknum+1)) ratios_per_chunk
         adjust0 <- to_score adjust0
-        -- ratio=2 means half as long.  So 2s -> 1t is 2/1
-        let ratio = fromIntegral Config.chunkSeconds
-                / ScoreTime.to_double (end - start)
         -- Debug.tracepM "start, ratio"
-        --     ((time_at chunknum, time_at (chunknum+1)), (start, end), ratio)
+        --     ((time_at chunknum, time_at (chunknum+1)), start, ratios)
         return $ Track.WaveformChunk
             { _filename = Config.chunkPath im_dir score_path block_id
                 instrument chunknum
             , _chunknum = chunknum
             , _start = start * RealTime.to_score play_multiplier - adjust0
-            , _ratios = [ratio / RealTime.to_seconds play_multiplier]
+            , _ratios = map (/ RealTime.to_seconds play_multiplier) ratios
             }
     time_at chunknum = RealTime.seconds $
         fromIntegral $ chunknum * Config.chunkSeconds
@@ -476,6 +473,35 @@ make_status inv_tempo wants_waveform im_dir score_path adjust0 play_multiplier
     -- So this shouldn't happen.
     to_score t = tryJust ("no ScoreTime for " <> pretty t) $
         real_to_score inv_tempo block_id track_ids t
+
+-- | How many ratios to put into 'Track._ratios'.  This will make waveform
+-- display more accurate when tempos change, since it's the resolution used
+-- to warp the waveform to show in ScoreTime.  'chunk_ratios' calculates the
+-- actual ratios.  The cost is that it's more expensive to sample more
+-- ratios, and ship them to C++, and is a waste in the common case of a
+-- constant tempo.
+--
+-- TODO It would be better to give exact tempo breakpoints, but since I work
+-- with Warp rather than a tempo signal, I'd have to get the derivative to
+-- get tempo back, and it will have to be sampled anyway if it's changing.
+-- Also, it would be more efficient for the whole block or tracks to get
+-- a single tempo signal so it can warp waveform accordingly, rather than
+-- every chunk getting its own independent ratios.  At the moment, it dosen't
+-- seem like a big priority if waveform display is a bit inaccurate, because
+-- I'm not using it to line anything up.
+ratios_per_chunk :: Int
+ratios_per_chunk = 2
+
+chunk_ratios :: (RealTime -> Either Text ScoreTime) -> RealTime -> RealTime
+    -> Int -> Either Text (ScoreTime, [Double])
+chunk_ratios to_score start end n = do
+    score_bps <- mapM to_score bps
+    return (head score_bps, zipWith ratio_at score_bps (drop 1 score_bps))
+    where
+    ratio_at start end =
+        (fromIntegral Config.chunkSeconds / fromIntegral n)
+            / ScoreTime.to_double (end - start)
+    bps = Lists.rangeEnd start end ((end - start) / fromIntegral n)
 
 -- | Resolve symlinks in 'Track._filename's.  The PeakCache uses the filename
 -- as a key, so I can get false hits if I use the symlinks, which all look like
@@ -546,15 +572,16 @@ evaluate_im config lookup_inst score_path adjust0 play_multiplier block_id
     instruments = Vector.foldl' add mempty events
         where add = flip $ HashSet.insert . Score.event_instrument
     by_synth = Util.Vector.partition_on im_synth events
-    im_synth event = case lookup_inst (Score.event_instrument event) of
-        Just inst -> case Cmd.inst_instrument inst of
-            Inst.Inst (Inst.Im {}) _ -> Just (Cmd.inst_synth inst)
-            _ -> Nothing
-        Nothing -> Nothing
+    lookup_im inst = case lookup_inst inst of
+        Just inst
+            | Inst.Inst (Inst.Im {}) _  <- Cmd.inst_instrument inst ->
+                Just inst
+        _ -> Nothing
+    im_synth = fmap Cmd.inst_synth . lookup_im . Score.event_instrument
 
     output_dir = Config.outputDirectory (Config.imDir config) score_path
         block_id
-    write_notes (Just synth_name, events) = do
+    write_notes (Just synth_name, events) =
         case Map.lookup synth_name (Config.synths config) of
             Just synth -> do
                 let notes_file = Config.notesFilename (Config.imDir config)

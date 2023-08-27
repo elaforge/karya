@@ -167,10 +167,13 @@ signal_at x (TrackSignal sig shift stretch) = Signal.at sig warped
 
 -- * waveform
 
+-- | Draw one chunk of waveform on the track.  Corresponds to
+-- PeakCache::Params.
 data WaveformChunk = WaveformChunk {
     _filename :: !FilePath
     , _chunknum :: Types.ChunkNum
     , _start :: !TrackTime
+    -- | See PeakCache::Params.
     , _ratios :: ![Double]
     } deriving (Show)
 

@@ -22,8 +22,8 @@
 // All of this downsampling happens synchronously, but so far it seems to be
 // fast enough to not introduce a noticeable hiccup.
 //
-// You get load Entry from a file (which is cached), mix multiple Entries into
-// a MixedEntry, then ask MixedEntry for peaks at your zoom.
+// You load an Entry from a file (which is cached), mix multiple Entries into a
+// MixedEntry, then ask MixedEntry for peaks at your zoom.
 //
 // MixedEntry *mixed = new MixedEntry(start);
 // mixed->add(PeakCache::get()->load(params));
@@ -44,6 +44,10 @@ public:
         {}
         const std::string filename;
         const ScoreTime start;
+        // Ratios to warp the waveform such that it displays in ScoreTime.
+        // This is the derivative of the Warp, aka the tempo at each point.
+        // They are assumed to evenly divide the duration of the chunk, so
+        // the more you put in the more resolution you get.
         const std::vector<double> ratios;
 
         // All this just to use unordered_map.  C++ sure is a pain.

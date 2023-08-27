@@ -201,7 +201,32 @@ UNSORTED
       The key thing is to detect the change of patch name.
     . Actually maybe this is ok?  This just means clear_faust will get it for
       either patch, which is ok.
-  - bug: waveform display is frequently too early, but audio is correct
+  * bug: waveform display is frequently too early, but audio is correct
+    . Gong in save/java/pangkur consistently this way.
+    . { "_blockId":"untitled/score", "_trackIds":["untitled/score.t2"]
+      , "_instrument":"gong", "_payload":{"tag":"WaveformsCompleted"
+        , "contents":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14]}
+      }
+    . It's due to the tempo change.  It has to be unwarped when sent to fltk.
+    . So must be in draw code.
+      Sync.set_waveforms -> BlockC.set_waveform
+      But it's the ratios.
+      . From Track.WaveformChunk
+      . Tempo change unimplemented:
+        , _ratios = [ratio / RealTime.to_seconds play_multiplier]
+    . I never implemented multiple ratios.  I could try to implement.
+      frames_per_ratio seems incorrect, ideally ratios would represent exact
+      tempo breakpoints.  But tempos can vary smoothly so it'll always have to
+      be sampled.  And if it's sampled, it would be better to be at constant
+      ScoreTime intervals, not RealTime (which is what frames are).
+    . Since chunks are RealTime 3s, if tempo is slow then many chunks go into
+      less ScoreTime, and each chunk needs fewer ratios.
+    . Wouldn't it be easier to control if ratios are evenly dividing the
+      chunk?  Then divide by chunk length and no need for frames_per_ratio.
+      Then Cmd.Performance could put ratios based on ScoreTime duration.
+    . For this, c++ has to know duration of the chunk, which is easy because
+      it's constant CHUNK_SECONDS, but to avoid hardcoding that I could have
+      int Wav::frames()
   - bug: error in ky spams errors in logview
     . It should suppress after too many of them?  Or subsystems themselves
       should suppress?
@@ -275,15 +300,15 @@ UNSORTED
         support float32.  So I might as well support flac-only for preview.
         If I do want uncompressed wav samples, I'd have to extend Wav anyway.
   - upgrade to ghc 9.4:
+    - I may have to do GHC.loadWithCache in ReplGhc
+      . Cache provided by newIfaceCache
+      . https://downloads.haskell.org/~ghc/9.4.6/docs/users_guide/9.4.1-notes.html#ghc-library
     . Enable -fworker-wrapper-cbv, usually good but not on by default.
     . Will this affect GhcRepl?
       The load function no longer automatically caches interface files in
       memory between calls. If you want to use a cache then you can supply one
       explicitly using the loadWithCache function, with your own
       implementation or a simple cache created by newIfaceCache.
-
-  - use Vector.Primitive or Vector.Storable, not Unboxed:
-    . https://github.com/haskell/vector/issues/250
   ? suddenly new instruments don't get midi, wtf?
     . It was reaper "record monitoring".
     . Since I forget this a lot, can I have some way to remind myself?

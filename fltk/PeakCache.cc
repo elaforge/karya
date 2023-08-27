@@ -30,8 +30,6 @@ enum {
     read_buffer_frames = 256,
 
     sampling_rate = SAMPLING_RATE,
-    // Each Params::ratios breakpoint is this many frames apart.
-    frames_per_ratio = sampling_rate / 2,
 };
 
 // If true, print some stats about resampling times.
@@ -138,20 +136,15 @@ PeakCache::MixedEntry::at_zoom(double zoom_factor)
 
 
 static double
-period_at(const std::vector<double> &ratios, Wav::Frames frame)
+period_at(const std::vector<double> &ratios, Wav::Frames frame,
+    Wav::Frames frames_count)
 {
-    // Use frames_per_ratio to get an index into ratios, then interpolate.
     if (ratios.empty()) {
         return 1;
     }
-    size_t i = floor(frame / double(frames_per_ratio));
-    double frac = fmod(frame / double(frames_per_ratio), 1);
-    if (i < ratios.size()-1) {
-        double r1 = ratios[i], r2 = ratios[i+1];
-        return (frac * (r2-r1) + r1);
-    } else {
-        return ratios[ratios.size()-1];
-    }
+    ASSERT(frame < frames_count);
+    size_t i = floor((double(frame) / double(frames_count)) * ratios.size());
+    return ratios[i];
 }
 
 
@@ -179,11 +172,13 @@ read_file(const std::string &filename, const std::vector<double> &ratios)
     Wav::Frames frames_left = 0;
     // How many frames to consume in this period
     double srate = sampling_rate / reduced_sampling_rate;
-    double period = srate * period_at(ratios, frame);
+    // TODO get it from wav->frames()?
+    const Wav::Frames frames_count = CHUNK_SECONDS * sampling_rate;
+    double period = srate * period_at(ratios, frame, frames_count);
     // This could happen if someone put a 0 in ratios.
     ASSERT(period > 0);
     // DEBUG("period " << srate << " * "
-    //     << period_at(ratios, frame) << " = " << period);
+    //     << period_at(ratios, frame, frames_count) << " = " << period);
     unsigned int index = 0;
     float accum = 0;
     for (;;) {
@@ -204,7 +199,7 @@ read_file(const std::string &filename, const std::vector<double> &ratios)
         if (period < 1) {
             peaks->push_back(accum);
             accum = 0;
-            period += srate * period_at(ratios, frame);
+            period += srate * period_at(ratios, frame, frames_count);
         }
     }
     // DEBUG("load frames: " << frame << ", peaks: " << peaks->size());
