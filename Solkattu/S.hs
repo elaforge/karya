@@ -10,7 +10,7 @@
 -- type is polymorphic, so this is purely rhythmic.
 module Solkattu.S (
     Note(..), TempoChange(..)
-    , Sequence, singleton, null, fromList, toList, mapS, apply
+    , Sequence, singleton, null, fromList, toList, mapS, apply, replace
     , Duration, FMatra, Matra, Speed, Nadai, Stride, speedFactor
     , changeSpeed
     , HasMatras(..)
@@ -86,6 +86,11 @@ mapS f (Sequence ns) = Sequence (map f ns)
 
 apply :: ([Note g1 a1] -> [Note g2 a2]) -> Sequence g1 a1 -> Sequence g2 a2
 apply f (Sequence ns) = Sequence (f ns)
+
+replace :: (Eq g, Eq a) => Sequence g a -> Sequence g a -> Sequence g a
+    -> Sequence g a
+replace (Sequence from) (Sequence to) (Sequence ns) =
+    Sequence $ Lists.replace from to ns
 
 instance (Pretty a, Pretty g) => Pretty (Note g a) where
     format n = case n of

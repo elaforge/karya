@@ -156,3 +156,14 @@ mohra_bs = date 2023 3 30 $ korvaiS adi
     a2 = "npk_u_pk"."npupkto_"
     a3 = "K___u_pk"."npupktok"
     b1 = "o_k_D__ko_k_D___"
+
+-- Tabla exercise from Swapan Chaudhuri.
+e_swapan :: Korvai
+e_swapan = exercise $ date 2023 8 28 $ korvaiS adi
+    [ su $ r2 pattern
+    , su $ su $ r4 pattern
+    , su $ r2 (replace n d pattern)
+    , su $ su $ r4 (replace n d pattern)
+    ]
+    where
+    pattern = "n_pknp tpktpkn___" . "pknptpktpkn_ktpk"

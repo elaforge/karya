@@ -75,6 +75,9 @@ p_, pp :: Sequence
 p_ = lt p
 pp = hv p
 
+replace :: Sequence -> Sequence -> Sequence -> Sequence
+replace from to = S.replace from to
+
 -- | Thom -> tha.  This converts even Both strokes.
 closedAll :: Sequence -> Sequence
 closedAll = mapMStroke $ \case
