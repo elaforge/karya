@@ -931,7 +931,6 @@ replace1 :: Eq a => a -> [a] -> [a] -> [a]
 replace1 from to = concatMap (\v -> if v == from then to else [v])
 
 
-
 -- * search
 
 count :: Foldable t => (a -> Bool) -> t a -> Int

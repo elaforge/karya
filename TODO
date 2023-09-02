@@ -300,15 +300,26 @@ UNSORTED
         support float32.  So I might as well support flac-only for preview.
         If I do want uncompressed wav samples, I'd have to extend Wav anyway.
   - upgrade to ghc 9.4:
+    + fclabels doesn't like base 4.17
+      . Probably due to TH as usual, which I don't even use.
+      . easily fixable: https://github.com/sebastiaanvisser/fclabels/issues/44
+      . But still it's a liability compared to say microlens.
+      . Or optics-core, for better errors?
+      . Or inline my own?
+      . Can just bump the version bounds.
+      . But why did I stop Util.MicroLens?  Maybe because the constructor is
+        different?
+      . Even optics-core looks crazy.  What if I migrate to DotRecordSyntax
+        and remove lenses entirely?
+    + compiling clock:
+      error: ld: unknown option: -no_fixup_chains
+      . https://github.com/haskell/zlib/issues/53
+      . Edit hcs2hs. This is because my OSX is too old.
+    - GhcRepl: GHC.Target has changed
     - I may have to do GHC.loadWithCache in ReplGhc
       . Cache provided by newIfaceCache
       . https://downloads.haskell.org/~ghc/9.4.6/docs/users_guide/9.4.1-notes.html#ghc-library
     . Enable -fworker-wrapper-cbv, usually good but not on by default.
-    . Will this affect GhcRepl?
-      The load function no longer automatically caches interface files in
-      memory between calls. If you want to use a cache then you can supply one
-      explicitly using the loadWithCache function, with your own
-      implementation or a simple cache created by newIfaceCache.
   ? suddenly new instruments don't get midi, wtf?
     . It was reaper "record monitoring".
     . Since I forget this a lot, can I have some way to remind myself?
@@ -363,10 +374,14 @@ UNSORTED
       . On expand, notice if it's merged, and if so, expand the merged-into.
   - I still want a way to impose a track template across existing blocks, e.g.
     add an instrument.
-  - wayang pemade calung 3u sample has a clunk
-    . is there the same in im-sampler?
+    . It would need to be a bit clever to get the diffs and not destroy
+      existing tracks.  I guess it should be add-only.
+    . Given a template block, for each other block, pair inst tracks by
+      title.  If there is missing, insert there.
+    . Respect collapse and minimize.
+  + wayang pemade calung 3u sample has a clunk
+    ? is there the same in im-sampler?
     . 71-65-108-calung2.ncw
-  - why does the first measure of the blocks twice as long?
   - I keep looking for LBlock.doc in LDoc, should I move it there?
   - ^z on vi from a repl messes up tty state
     . Probably have to stty restore or something?
