@@ -126,13 +126,14 @@ external:
     Is fix-imports not getting the cabal v2 environ?
     . Also no System.Random.Mersenne.Pure64
   - c-\ is wrong for local refs, e.g. follow 'parse' in Check_test.hs
-  tool to make export lists?
+  * tool to make export lists?
     . Show what is exported but not used outside.
     . weeder can't because it includes used inside.
     . I could look at tags, look for non-local refs.
       Cmd.Selection.*... but that defs, not refs.
       For each Cmd.Selection.*, grep for Selection.that in non
       Cmd/Selection.hs
+    . Use module_calls.py.
   - find some way to integrate Shake.ImportQuery into my workflow
     . At least I'd like a warning about what adding or removing an import
       means.  Maybe that means integrate with fix-imports?
