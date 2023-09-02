@@ -3,15 +3,32 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | The selection type.
-module Ui.Sel where
+module Ui.Sel (
+    Ui.Sel.Num
+    , Selection(..)
+    , Orientation(..)
+    , point, is_point
+    , modify_tracks
+    , expand_tracks
+    , track_range
+    , tracknums
+    , min, max
+    , range
+    , event_orientation
+    , duration
+    , merge
+    , union
+    , move
+) where
 import qualified Prelude
-import Prelude hiding (min, max)
+import           Prelude hiding (min, max)
 import qualified Data.Tuple as Tuple
 
 import qualified Util.Num as Num
 import qualified Ui.Types as Types
-import Global
-import Types
+
+import           Global
+import           Types
 
 
 -- | Index into the the selection list.
@@ -106,14 +123,6 @@ event_orientation sel = case orientation sel of
 
 duration :: Selection -> TrackTime
 duration sel = abs (start_pos sel - cur_pos sel)
-
-set_duration :: TrackTime -> Selection -> Selection
-set_duration dur sel
-    | cur > start = sel { cur_pos = start + Prelude.max 0 dur }
-    | otherwise = sel { start_pos = cur + Prelude.max 0 dur }
-    where
-    start = start_pos sel
-    cur = cur_pos sel
 
 -- | Extend the current track and pos, but keep the start track and pos the
 -- same.
