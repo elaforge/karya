@@ -31,6 +31,7 @@ import qualified Data.Text.IO as Text.IO
 import qualified Data.Time as Time
 
 import qualified GHC.Conc as Conc
+import           GHC.Stack (HasCallStack)
 import qualified System.CPUTime as CPUTime
 import qualified System.IO as IO
 import qualified System.Timeout as Timeout
@@ -45,13 +46,13 @@ start = Concurrent.forkIO
 
 -- | Start a noisy thread that will log when it starts and stops, and warn if
 -- it dies from an exception.
-startLogged :: String -> IO () -> IO Concurrent.ThreadId
+startLogged :: HasCallStack => String -> IO () -> IO Concurrent.ThreadId
 startLogged name = Concurrent.forkIO . logged name
 
-asyncLogged :: String -> IO a -> IO (Async.Async a)
+asyncLogged :: HasCallStack => String -> IO a -> IO (Async.Async a)
 asyncLogged name = Async.async . logged name
 
-logged :: String -> IO a -> IO a
+logged :: HasCallStack => String -> IO a -> IO a
 logged name thread = do
     threadId <- Concurrent.myThreadId
     Conc.labelThread threadId name
