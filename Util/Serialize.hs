@@ -40,7 +40,7 @@ import qualified Data.Int as Int
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Serialize as Serialize
-import           Data.Serialize (getWord8, putWord8, Get, Put)
+import           Data.Serialize (Get, Put, getWord8, putWord8)
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text.Encoding
@@ -52,6 +52,7 @@ import qualified Data.Word as Word
 
 import qualified Foreign
 import qualified GHC.Float as Float
+import           GHC.Stack (HasCallStack)
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import qualified System.IO.Error as IO.Error
@@ -317,6 +318,6 @@ get_version = getWord8
 put_version :: Word.Word8 -> Put
 put_version = putWord8
 
-bad_version :: CallStack.Stack => String -> Word.Word8 -> a
+bad_version :: HasCallStack => String -> Word.Word8 -> a
 bad_version typ ver = errorStack $
     "unknown version " <> showt ver <> " for " <> showt typ

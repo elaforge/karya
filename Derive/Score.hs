@@ -52,7 +52,8 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Typeable as Typeable
 
-import qualified Util.CallStack as CallStack
+import           GHC.Stack (HasCallStack)
+
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
@@ -201,7 +202,7 @@ remove_flags flags event =
 
 -- ** logs
 
-add_log :: CallStack.Stack => Text -> Event -> Event
+add_log :: HasCallStack => Text -> Event -> Event
 add_log msg = add_log_msg (Log.msg Log.Debug Nothing msg)
 
 add_log_msg :: Log.Msg -> Event -> Event

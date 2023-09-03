@@ -5,11 +5,10 @@
 module Perform.Lilypond.Meter_test where
 import qualified Data.Text as Text
 import qualified Data.Vector.Unboxed as Vector.Unboxed
+import           GHC.Stack (HasCallStack)
 
-import qualified Util.CallStack as CallStack
 import qualified Util.Lists as Lists
 import qualified Util.Test.Testing as Testing
-
 import           Perform.Lilypond.LilypondTest (parse_meter)
 import qualified Perform.Lilypond.Meter as Meter
 import qualified Perform.Lilypond.Types as Types
@@ -97,7 +96,7 @@ convert_duration meter use_dot_ = go
     use_dot = use_dot_ || not (Meter.is_binary meter)
 
 -- This is probably overkill.  "8~8" seems ok for single comparisons.
-equal_durs :: CallStack.Stack => Text -> Types.Time -> [Types.Time]
+equal_durs :: HasCallStack => Text -> Types.Time -> [Types.Time]
     -> [[Types.NoteDuration]] -> Test
 equal_durs meter_ start durs =
     Testing.equal_fmt

@@ -16,7 +16,8 @@ import qualified Data.String as String
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
-import qualified Util.CallStack as CallStack
+import           GHC.Stack (HasCallStack)
+
 import qualified Solkattu.Dsl.Interactive as Interactive
 import           Solkattu.Dsl.Interactive (diff, diffw)
 import qualified Solkattu.Dsl.MridangamNotation as MridangamNotation
@@ -44,14 +45,14 @@ type Section = Korvai.Section Sequence
 
 instance String.IsString Sequence where
     -- Even with InstanceSigs, this doesn't actually work to add a call stack.
-    -- fromString :: CallStack.Stack => String -> Sequence
+    -- fromString :: HasCallStack => String -> Sequence
     fromString s = strS (txt s)
 
 instance String.IsString SequenceM where
     fromString = strM
 
 -- | Parse a string to sollus.  Look for syllables inside words.
-strS :: CallStack.Stack => Text -> Sequence
+strS :: HasCallStack => Text -> Sequence
 strS str = mconcat $ map (maybe __ _sollu) $ check $ Solkattu.parseSollus str
 
 -- * sollus
@@ -174,14 +175,14 @@ Mridangam.Strokes {..} = Mridangam.notes
 
 -- | Merge a sequence of left hand strokes with one of right hand strokes.
 -- Both sequences must have the same length and structure.
-(&) :: CallStack.Stack => SequenceM -> SequenceM -> SequenceM
+(&) :: HasCallStack => SequenceM -> SequenceM -> SequenceM
 a & b = S.fromList $ MridangamNotation.merge (S.toList a) (S.toList b)
 
 on :: SequenceM
 on = o&n
 
 -- | Parse a string to mridangam strokes.
-strM :: CallStack.Stack => String -> SequenceM
+strM :: HasCallStack => String -> SequenceM
 strM str = mconcatMap toSeq $ Solkattu.check $ Mridangam.fromString str
     where
     toSeq Nothing = __

@@ -3,16 +3,17 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Warp_test where
-import qualified Util.CallStack as CallStack
-import qualified Util.Lists as Lists
-import Util.Test
+import           GHC.Stack (HasCallStack)
 
+import qualified Util.Lists as Lists
 import qualified Derive.Warp as Warp
-import Derive.Warp (shift, stretch)
+import           Derive.Warp (shift, stretch)
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
-import Global
-import Types
+
+import           Global
+import           Types
+import           Util.Test
 
 
 signal_identity :: Warp.Warp
@@ -32,7 +33,7 @@ test_negative_time = do
 
 test_shift_stretch_linear :: Test
 test_shift_stretch_linear = do
-    let with :: CallStack.Stack => (Warp.Warp -> Warp.Warp) -> [RealTime]
+    let with :: HasCallStack => (Warp.Warp -> Warp.Warp) -> [RealTime]
             -> Test
         with transform expected = do
             equal (map (Warp.warp (transform Warp.identity)) t03) expected
@@ -51,7 +52,7 @@ test_shift_stretch_compose_equivalence :: Test
 test_shift_stretch_compose_equivalence = do
     let shift_c x w = Warp.compose w (shift x Warp.identity)
         stretch_c factor w = Warp.compose w (stretch factor Warp.identity)
-    let with :: CallStack.Stack => Warp.Warp -> Warp.Warp -> Test
+    let with :: HasCallStack => Warp.Warp -> Warp.Warp -> Test
         with w1 w2 = equal (map (Warp.warp w1) t03) (map (Warp.warp w2) t03)
     with (shift 1 Warp.identity) (shift_c 1 Warp.identity)
     with (stretch 2 Warp.identity) (stretch_c 2 Warp.identity)
@@ -62,7 +63,7 @@ test_shift_stretch_compose_equivalence = do
 
 test_shift_stretch_signal :: Test
 test_shift_stretch_signal = do
-    let with :: CallStack.Stack => (Warp.Warp -> Warp.Warp) -> [RealTime]
+    let with :: HasCallStack => (Warp.Warp -> Warp.Warp) -> [RealTime]
             -> Test
         with transform expected = do
             let w = transform curve
@@ -77,11 +78,11 @@ test_shift_stretch_signal = do
 
 test_compose :: Test
 test_compose = do
-    let with :: CallStack.Stack => Warp.Warp -> Warp.Warp -> [RealTime] -> Test
+    let with :: HasCallStack => Warp.Warp -> Warp.Warp -> [RealTime] -> Test
         with w1 w2 expected = do
-        let w = Warp.compose w1 w2
-        equal (map (Warp.warp w) t03) expected
-        uncurry equal (trip w)
+            let w = Warp.compose w1 w2
+            equal (map (Warp.warp w) t03) expected
+            uncurry equal (trip w)
     let ident = Warp.identity
     let slow = make [(RealTime.seconds n, n*2) | n <- Lists.range 0 100 1]
     let curve = make $

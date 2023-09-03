@@ -11,10 +11,9 @@ module Solkattu.Dsl.Bol (
 ) where
 import           Prelude hiding ((.), (^))
 import qualified Data.String as String
+import           GHC.Stack (HasCallStack)
 
-import qualified Util.CallStack as CallStack
 import qualified Solkattu.Bol as Bol
-import           Solkattu.Talas (tintal, kehrwa, jhaptal, rupak)
 import           Solkattu.Dsl.Interactive (diff, diffw)
 import qualified Solkattu.Format.Terminal as Terminal
 import qualified Solkattu.Korvai as Korvai
@@ -22,6 +21,7 @@ import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Talas as Talas
+import           Solkattu.Talas (jhaptal, kehrwa, rupak, tintal)
 
 import           Global
 import           Solkattu.Dsl.Generic
@@ -33,11 +33,11 @@ type Section = Korvai.Section Sequence
 
 instance String.IsString Sequence where
     -- Even with InstanceSigs, this doesn't actually work to add a call stack.
-    -- fromString :: CallStack.Stack => String -> Sequence
+    -- fromString :: HasCallStack => String -> Sequence
     fromString s = strS (txt s)
 
 -- | Parse a string to bols.  Look for syllables inside words.
-strS :: CallStack.Stack => Text -> Sequence
+strS :: HasCallStack => Text -> Sequence
 strS str = mconcatMap (maybe __ make) $ check $ Bol.parseBols str
     where
     make = \case

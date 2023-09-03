@@ -10,9 +10,9 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
-import qualified Util.CallStack as CallStack
-import qualified Util.Lists as Lists
+import           GHC.Stack (HasCallStack)
 
+import qualified Util.Lists as Lists
 import qualified Derive.Expr as Expr
 import qualified Derive.Symbols as Symbols
 import qualified Solkattu.Realize as Realize
@@ -205,12 +205,12 @@ type SequenceR = S.Sequence () (Realize.Note Stroke)
 rnotes :: Strokes SequenceR
 rnotes = S.singleton . S.Note . Realize.Note . Realize.stroke <$> strokes
 
-bothRStrokes :: CallStack.Stack => Realize.Stroke Stroke
+bothRStrokes :: HasCallStack => Realize.Stroke Stroke
     -> Realize.Stroke Stroke -> Realize.Stroke Stroke
 bothRStrokes (Realize.Stroke em1 s1) (Realize.Stroke em2 s2) =
     Realize.Stroke (em1 <> em2) (bothStrokes s1 s2)
 
-bothStrokes :: CallStack.Stack => Stroke -> Stroke -> Stroke
+bothStrokes :: HasCallStack => Stroke -> Stroke -> Stroke
 bothStrokes (Thoppi a) (Valantalai b) = Both a b
 bothStrokes (Valantalai b) (Thoppi a) = Both a b
 bothStrokes a b =

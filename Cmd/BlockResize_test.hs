@@ -3,7 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.BlockResize_test where
-import qualified Util.CallStack as CallStack
+import           GHC.Stack (HasCallStack)
+
 import qualified Cmd.BlockResize as BlockResize
 import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
@@ -119,5 +120,5 @@ test_update_rulers = do
 
 -- * util
 
-equal_b :: CallStack.Stack => [UiTest.BlockSpec] -> [UiTest.BlockSpec] -> Test
+equal_b :: HasCallStack => [UiTest.BlockSpec] -> [UiTest.BlockSpec] -> Test
 equal_b = equal_fmt UiTest.fmt_blocks

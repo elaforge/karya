@@ -6,8 +6,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 -- | Utilities for GHC's implicit call stacks feature.
 module Util.CallStack (
-    Stack
-    , Caller(..), caller, showCaller
+    Caller(..), caller, showCaller
 
     , errorStack
     , errorIO
@@ -21,14 +20,8 @@ import qualified Data.Text as Text
 import           Data.Text (Text)
 
 import qualified GHC.Stack as Stack
+import           GHC.Stack (HasCallStack)
 
-
--- | Add this to the context of a function to give stack-aware functions access
--- to its caller.
---
--- TODO use Stack.HasCallStack instead?  Or not, I already have Derive.Stack
--- and GHC.Stack.HasCallStack is pretty verbose.
-type Stack = Stack.HasCallStack
 
 -- | Simplified stack with just the immediate caller.
 data Caller = Caller !FilePath !Int | NoCaller deriving (Eq, Show, Read)
@@ -64,12 +57,12 @@ showCaller (Caller fname line) = Text.pack fname <> ":" <> Text.pack (show line)
 showCaller NoCaller = "<no-caller>"
 
 -- | This is like 'Stack.prettyCallStack', except more compact.
-getStack :: Stack => Text
+getStack :: HasCallStack => Text
 getStack = Text.intercalate "; " $ map (Text.pack . showFrame) $ reverse $
     Stack.getCallStack Stack.callStack
 
 -- | Get only the top of the stack.  More compact than 'getStack'.
-getStack1 :: Stack => Text
+getStack1 :: HasCallStack => Text
 getStack1 = showCaller $ caller $ Stack.callStack
 
 -- | This is for internal errors, which are unexpected and should "never
@@ -87,12 +80,12 @@ instance Exception.Exception Error where
     displayException (Error msg) = Text.unpack msg
 
 -- | Like 'error', use when forced.
-errorStack :: Stack => Text -> a
+errorStack :: HasCallStack => Text -> a
 errorStack = Exception.throw . Error . ((getStack <> ": ") <>)
 
 -- | Throw an error in IO, with a stack.
-errorIO :: Stack => Trans.MonadIO m => Text -> m a
+errorIO :: HasCallStack => Trans.MonadIO m => Text -> m a
 errorIO = Trans.liftIO . Exception.throwIO . Error . ((getStack <> ": ") <>)
 
-throw :: (Stack, Exception.Exception e) => (Text -> e) -> Text -> a
+throw :: (HasCallStack, Exception.Exception e) => (Text -> e) -> Text -> a
 throw toExc msg = Exception.throw (toExc (getStack <> ": " <> msg))

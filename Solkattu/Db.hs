@@ -15,10 +15,10 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Time.Calendar as Calendar
 
+import           GHC.Stack (HasCallStack)
 import qualified System.Directory as Directory
 import           System.FilePath ((</>))
 
-import qualified Util.CallStack as CallStack
 import qualified Util.Files as Files
 import qualified Util.Html
 import qualified Util.Lists as Lists
@@ -72,7 +72,7 @@ tagHas tag val score =
     any (val `Text.isInfixOf`) $
         Metadata.scoreTag tag score ++ Metadata.sectionTag tag score
 
-date :: CallStack.Stack => Int -> Int -> Int -> Calendar.Day
+date :: HasCallStack => Int -> Int -> Int -> Calendar.Day
 date = Metadata.makeDate
 
 -- * search

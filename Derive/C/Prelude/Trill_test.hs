@@ -3,9 +3,9 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.C.Prelude.Trill_test where
-import qualified Util.CallStack as CallStack
-import qualified Util.Lists as Lists
+import           GHC.Stack (HasCallStack)
 
+import qualified Util.Lists as Lists
 import qualified Derive.C.Prelude.Trill as Trill
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.SubT as SubT
@@ -295,7 +295,7 @@ test_trill_transition = do
     equal (run "tr-transition=.5 | tr (4c) 1 .25")
         ([[(0, NN.c4), (2, NN.c4), (4, NN.d4), (6, NN.d4), (8, NN.c4)]], [])
 
-e_nns_exact :: CallStack.Stack => Score.Event -> [(RealTime, Pitch.NoteNumber)]
+e_nns_exact :: HasCallStack => Score.Event -> [(RealTime, Pitch.NoteNumber)]
 e_nns_exact e
     | not (null errs) = error $ "errors flattening signal: " <> show errs
     | otherwise = sig

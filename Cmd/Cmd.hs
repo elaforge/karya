@@ -46,11 +46,11 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
+import           GHC.Stack (HasCallStack)
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import qualified Vivid.OSC as OSC
 
-import qualified Util.CallStack as CallStack
 import qualified Util.Exceptions as Exceptions
 import qualified Util.GitT as GitT
 import qualified Util.Lists as Lists
@@ -504,7 +504,7 @@ instance Monad m => Ui.M (CmdT m) where
 
 -- | This is the same as Ui.throw, but it feels like things in Cmd may not
 -- always want to reuse State's exceptions, so they should call this one.
-throw :: (CallStack.Stack, M m) => Text -> m a
+throw :: (HasCallStack, M m) => Text -> m a
 throw = Ui.throw
 
 -- | Run a subcomputation that is allowed to abort.
@@ -525,10 +525,10 @@ abort_unless :: M m => Maybe a -> m a
 abort_unless = maybe abort return
 
 -- | Throw an exception with the given msg on Nothing.
-require :: (CallStack.Stack, M m) => Text -> Maybe a -> m a
+require :: (HasCallStack, M m) => Text -> Maybe a -> m a
 require msg = maybe (throw msg) return
 
-require_right :: (CallStack.Stack, M m) => (err -> Text) -> Either err a -> m a
+require_right :: (HasCallStack, M m) => (err -> Text) -> Either err a -> m a
 require_right fmt_err = either (throw . fmt_err) return
 
 -- * State
@@ -1524,7 +1524,7 @@ sc_patch inst = case inst_backend inst of
     Sc patch -> Just patch
     _ -> Nothing
 
-get_midi_instrument :: (CallStack.Stack, M m) => ScoreT.Instrument
+get_midi_instrument :: (HasCallStack, M m) => ScoreT.Instrument
     -> m (Patch.Patch, Patch.Config)
 get_midi_instrument inst =
     require ("not a midi instrument: " <> pretty inst) . midi_patch
@@ -1552,7 +1552,7 @@ lookup_instrument inst = do
                 return Nothing
             Right val -> return (Just val)
 
-get_instrument :: (CallStack.Stack, M m) => ScoreT.Instrument
+get_instrument :: (HasCallStack, M m) => ScoreT.Instrument
     -> m ResolvedInstrument
 get_instrument inst = require ("instrument not found: " <> pretty inst)
     =<< lookup_instrument inst

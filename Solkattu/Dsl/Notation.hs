@@ -15,11 +15,10 @@
 module Solkattu.Dsl.Notation where
 import           Prelude hiding ((^), repeat)
 import qualified Data.List as List
+import           GHC.Stack (HasCallStack)
 
-import qualified Util.CallStack as CallStack
 import qualified Util.Lists as Lists
 import qualified Util.Num as Num
-
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import           Solkattu.S (Duration, FMatra)
@@ -60,35 +59,35 @@ __9 = __n 9
 __n :: S.Matra -> SequenceT sollu
 __n n = repeat (n-1) __
 
-__D :: CallStack.Stack => Duration -> SequenceT sollu
+__D :: HasCallStack => Duration -> SequenceT sollu
 __D dur = __M (dToM2 (S._nadai S.defaultTempo) dur)
 
 __M :: S.Matra -> SequenceT sollu
 __M matras = repeat matras __
 
-sarvaM :: CallStack.Stack => SequenceT sollu -> S.Matra -> SequenceT sollu
+sarvaM :: HasCallStack => SequenceT sollu -> S.Matra -> SequenceT sollu
 sarvaM sollus matras =
     S.singleton $ S.Group (Solkattu.GMeta meta) (S.toList sollus)
     where
     meta = (Solkattu.meta Solkattu.GSarva) { Solkattu._matras = Just matras }
 
-sarvaD :: CallStack.Stack => SequenceT sollu -> Duration -> SequenceT sollu
+sarvaD :: HasCallStack => SequenceT sollu -> Duration -> SequenceT sollu
 sarvaD sollus dur = sarvaM sollus (dToM2 (S._nadai S.defaultTempo) dur)
 
-sarvaM_ :: CallStack.Stack => S.Matra -> SequenceT sollu
+sarvaM_ :: HasCallStack => S.Matra -> SequenceT sollu
 sarvaM_ = sarvaM mempty
 
-sarvaD_ :: CallStack.Stack => Duration -> SequenceT sollu
+sarvaD_ :: HasCallStack => Duration -> SequenceT sollu
 sarvaD_ = sarvaD mempty
 
 -- * by FMatra
 
-dropM, dropM_ :: (CallStack.Stack, Pretty sollu) =>
+dropM, dropM_ :: (HasCallStack, Pretty sollu) =>
     FMatra -> SequenceT sollu -> SequenceT sollu
 dropM matras = snd . splitM matras
 dropM_ matras = snd . splitM_ matras
 
-takeM :: (CallStack.Stack, Pretty sollu) => FMatra -> SequenceT sollu
+takeM :: (HasCallStack, Pretty sollu) => FMatra -> SequenceT sollu
     -> SequenceT sollu
 takeM matras = fst . splitM matras
 
@@ -98,7 +97,7 @@ takeM matras = fst . splitM matras
 --
 -- TODO the class constraints are unnecessary, but if I want to verify eagerly
 -- I'll need them back.
-splitM :: (CallStack.Stack, Pretty sollu) => FMatra -> SequenceT sollu
+splitM :: (HasCallStack, Pretty sollu) => FMatra -> SequenceT sollu
     -> (SequenceT sollu, SequenceT sollu)
 splitM matras seq =
     ( reduction matras Solkattu.After seq
@@ -107,7 +106,7 @@ splitM matras seq =
 
 -- | Split the sequence at the given FMatra.  Unlike 'splitM', this directly
 -- splits the sequence, it doesn't create a group.
-splitM_ :: (CallStack.Stack, Pretty sollu) => FMatra -> SequenceT sollu
+splitM_ :: (HasCallStack, Pretty sollu) => FMatra -> SequenceT sollu
     -> (SequenceT sollu, SequenceT sollu)
 splitM_ matras = Solkattu.check . splitM_either matras
 
@@ -179,25 +178,25 @@ splitM_either matras =
         make s = speed (s - S._speed tempo) $
             S.singleton $ S.Note (Solkattu.Space space)
 
-rdropM, rdropM_ :: (CallStack.Stack, Pretty sollu) =>
+rdropM, rdropM_ :: (HasCallStack, Pretty sollu) =>
     FMatra -> SequenceT sollu -> SequenceT sollu
 rdropM matras seq = takeM (matrasOf seq - matras) seq
 rdropM_ matras seq = fst $ splitM_ (matrasOf seq - matras) seq
 
-rtakeM :: (CallStack.Stack, Pretty sollu) => FMatra -> SequenceT sollu
+rtakeM :: (HasCallStack, Pretty sollu) => FMatra -> SequenceT sollu
     -> SequenceT sollu
 rtakeM dur seq = dropM (matrasOf seq - dur) seq
 
-spaceM :: CallStack.Stack => Solkattu.Space -> FMatra -> SequenceT sollu
+spaceM :: HasCallStack => Solkattu.Space -> FMatra -> SequenceT sollu
 spaceM space matras = mconcatMap make $ Solkattu.check $ S.decomposeM matras
     where make s = speed s $ S.singleton $ S.Note (Solkattu.Space space)
 
 -- * by Duration
 
-restD :: CallStack.Stack => Duration -> SequenceT sollu
+restD :: HasCallStack => Duration -> SequenceT sollu
 restD = spaceD Solkattu.Rest S.defaultTempo
 
-spaceD :: CallStack.Stack => Solkattu.Space -> S.Tempo -> Duration
+spaceD :: HasCallStack => Solkattu.Space -> S.Tempo -> Duration
     -> SequenceT sollu
 spaceD space tempo dur =
     mconcatMap make $ Solkattu.check $ S.decompose s0_matras
@@ -209,7 +208,7 @@ spaceD space tempo dur =
 
 -- | Duration-using variants of the matra functions.  These are only valid
 -- at the top level, in 'S.defaultTempo'.  TODO require Tempo arg?
-dropD, rdropD, takeD, rtakeD :: (CallStack.Stack, Pretty sollu) =>
+dropD, rdropD, takeD, rtakeD :: (HasCallStack, Pretty sollu) =>
     Duration -> SequenceT sollu -> SequenceT sollu
 dropD = dropM . dToM
 rdropD = rdropM . dToM
@@ -224,7 +223,7 @@ rtakeD = rtakeM . dToM
 -- I considered an annotation that automatically drops stuff from before which
 -- matches stuff afterwards, but it seemed more complicated and less reliable
 -- than just dropping explicitly.
-sandi :: (CallStack.Stack, Pretty sollu) => SequenceT sollu -> SequenceT sollu
+sandi :: (HasCallStack, Pretty sollu) => SequenceT sollu -> SequenceT sollu
     -> SequenceT sollu
 sandi dropped = dropM_ (matrasOf dropped)
     -- dropM_ means don't create a group.  At the moment, making a group means
@@ -332,24 +331,24 @@ reduceBy :: Pretty sollu => [FMatra] -> SequenceT sollu -> SequenceT sollu
 reduceBy durs sep seq = join sep [dropM d seq | d <- durs]
 
 -- | 'reduceToL', except mconcat the result.
-reduceTo :: (CallStack.Stack, Pretty sollu) => FMatra -> FMatra
+reduceTo :: (HasCallStack, Pretty sollu) => FMatra -> FMatra
     -> SequenceT sollu -> SequenceT sollu
 reduceTo to by = mconcat . reduceToL to by
 
 -- | Reduce by a duration until a final duration.
-reduceToL :: (CallStack.Stack, Pretty sollu) => FMatra -> FMatra
+reduceToL :: (HasCallStack, Pretty sollu) => FMatra -> FMatra
     -> SequenceT sollu -> [SequenceT sollu]
 reduceToL to by seq = [dropM m seq | m <- Lists.range 0 (matras - to) by]
     where matras = matrasOf seq
 
 -- | Like 'reduceToL', but drop from the end instead of the front.
-reduceToR :: (CallStack.Stack, Pretty sollu) => FMatra -> FMatra
+reduceToR :: (HasCallStack, Pretty sollu) => FMatra -> FMatra
     -> SequenceT sollu -> [SequenceT sollu]
 reduceToR to by seq = [takeM m seq | m <- Lists.range matras to (-by)]
     where matras = matrasOf seq
 
 -- | Start fully reduced, and expand n times by the given duration.
-expand :: (CallStack.Stack, Pretty sollu) => Int -> FMatra
+expand :: (HasCallStack, Pretty sollu) => Int -> FMatra
     -> SequenceT sollu -> [SequenceT sollu]
 expand times dur = reverse . take times . reduceToL dur dur
 
@@ -359,7 +358,7 @@ expand times dur = reverse . take times . reduceToL dur dur
 --
 -- As with (<==) and (==>), this is higher precedence than (.), so paretheses
 -- are needed: @(a.b) `replaceStart` xyz@.
-replaceStart, replaceEnd :: (CallStack.Stack, Pretty sollu) => SequenceT sollu
+replaceStart, replaceEnd :: (HasCallStack, Pretty sollu) => SequenceT sollu
     -> SequenceT sollu -> SequenceT sollu
 replaceStart prefix seq = prefix <> dropM_ (matrasOf prefix) seq
 replaceEnd seq suffix = rdropM_ (matrasOf suffix) seq <> suffix
@@ -384,7 +383,7 @@ matrasOf :: SequenceT sollu -> FMatra
 matrasOf = Solkattu.matrasOf S.defaultTempo
 
 -- | Like 'matrasOf', but throw an error if it's not integral.
-matrasOfI :: CallStack.Stack => SequenceT sollu -> S.Matra
+matrasOfI :: HasCallStack => SequenceT sollu -> S.Matra
 matrasOfI seq
     | frac == 0 = matras
     | otherwise = throw $ "non-integral matras: " <> pretty fmatras
@@ -399,7 +398,7 @@ matraDuration = S.matraDuration S.defaultTempo
 dToM :: Duration -> FMatra
 dToM d = realToFrac $ d / S.matraDuration S.defaultTempo
 
-dToM2 :: CallStack.Stack => S.Nadai -> Duration -> S.Matra
+dToM2 :: HasCallStack => S.Nadai -> Duration -> S.Matra
 dToM2 nadai dur
     | frac == 0 = matra
     | otherwise = throw $ "duration not divisible by nadai: " <> pretty dur
@@ -508,7 +507,7 @@ trySetTag tag = fmap $ Solkattu.modifyNote $
 --
 -- This should only be used at the top level, since it gets the timing wrong
 -- under a tempo change.
-__sam :: (CallStack.Stack, Pretty sollu) =>
+__sam :: (HasCallStack, Pretty sollu) =>
     Tala.Tala -> SequenceT sollu -> SequenceT sollu
 __sam tala seq = __a (nextSam tala seq) seq
 
@@ -519,19 +518,19 @@ nextSam tala seq = fromIntegral $ Num.roundUp aksharas dur
     aksharas = Tala.tala_aksharas tala
 
 -- | Align to the end of the given number of aksharams.
-__a :: (CallStack.Stack, Pretty sollu) =>
+__a :: (HasCallStack, Pretty sollu) =>
     S.Duration -> SequenceT sollu -> SequenceT sollu
 __a dur seq = replaceEnd (restD dur) seq
 
-sarvaSam :: (CallStack.Stack, Pretty sollu) =>
+sarvaSam :: (HasCallStack, Pretty sollu) =>
     Tala.Tala -> SequenceT sollu -> SequenceT sollu
 sarvaSam tala seq = sarvaA_ (nextSam tala seq) seq
 
-sarvaA :: (CallStack.Stack, Pretty sollu) =>
+sarvaA :: (HasCallStack, Pretty sollu) =>
     SequenceT sollu -> S.Duration -> SequenceT sollu -> SequenceT sollu
 sarvaA sarva dur seq = replaceEnd (sarvaD sarva dur) seq
 
-sarvaA_ :: (CallStack.Stack, Pretty sollu) =>
+sarvaA_ :: (HasCallStack, Pretty sollu) =>
     S.Duration -> SequenceT sollu -> SequenceT sollu
 sarvaA_ = sarvaA mempty
 

@@ -9,7 +9,8 @@ module Solkattu.Dsl.MridangamNotation (
     merge
     , makeNote1, makeNote
 ) where
-import qualified Util.CallStack as CallStack
+import           GHC.Stack (HasCallStack)
+
 import qualified Util.Lists as Lists
 import qualified Solkattu.Dsl.Notation as Notation
 import qualified Solkattu.Instrument.Mridangam as Mridangam
@@ -17,14 +18,14 @@ import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 
-import Global
+import           Global
 
 
 type NoteT sollu = S.Note Solkattu.Group (Solkattu.Note sollu)
 type Stroke = Realize.Stroke Mridangam.Stroke
 
 -- | This is the implementation for the (&) operator.
-merge :: CallStack.Stack => [NoteT Stroke] -> [NoteT Stroke] -> [NoteT Stroke]
+merge :: HasCallStack => [NoteT Stroke] -> [NoteT Stroke] -> [NoteT Stroke]
 merge as bs = case (as, bs) of
     ([S.Note (Solkattu.Note a)], bs) -> single (Solkattu._sollu a) bs
     (as, [S.Note (Solkattu.Note b)]) -> single (Solkattu._sollu b) as
@@ -54,7 +55,7 @@ merge as bs = case (as, bs) of
     isRest (S.Note (Solkattu.Space Solkattu.Rest)) = True
     isRest _ = False
     pairs = Lists.zipPadded (flatten as) (flatten bs)
-    flatten :: CallStack.Stack => [NoteT Stroke] -> [NoteT Stroke]
+    flatten :: HasCallStack => [NoteT Stroke] -> [NoteT Stroke]
     flatten = Solkattu.check
         . (traverse (traverse unstroke) <=< S.flattenSpeed maxSpeed)
         . stripGroups
@@ -71,7 +72,7 @@ unstroke = \case
     S.Sustain space@(Solkattu.Space _) -> Right space
     S.Sustain a -> Left $ "can't merge with pattern: " <> pretty a
 
-toStroke1 :: (CallStack.Stack, Pretty a, Pretty g) =>
+toStroke1 :: (HasCallStack, Pretty a, Pretty g) =>
     S.Note g (Solkattu.Note a) -> a
 toStroke1 (S.Note (Solkattu.Note note)) = Solkattu._sollu note
 toStroke1 note = Solkattu.throw $ "expected sollu, but got " <> pretty note

@@ -9,6 +9,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
+import           GHC.Stack (HasCallStack)
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Debug as Debug
@@ -221,18 +222,18 @@ default_ruler_id = rid "r0"
 
 -- | Return the val and state, throwing an IO error on an exception.  Intended
 -- for tests that don't expect to fail here.
-run :: CallStack.Stack => Ui.State -> Ui.StateId a -> (a, Ui.State)
+run :: HasCallStack => Ui.State -> Ui.StateId a -> (a, Ui.State)
 run state m = case result of
     Left err -> error $ "state error: " <> show err
     Right (val, state', _) -> (val, state')
     where result = Ui.run_id state m
 
-exec :: CallStack.Stack => Ui.State -> Ui.StateId a -> Ui.State
+exec :: HasCallStack => Ui.State -> Ui.StateId a -> Ui.State
 exec state m = case Ui.exec state m of
     Left err -> error $ "state error: " <> prettys err
     Right state' -> state'
 
-eval :: CallStack.Stack => Ui.State -> Ui.StateId a -> a
+eval :: HasCallStack => Ui.State -> Ui.StateId a -> a
 eval state m = case Ui.eval state m of
     Left err -> error $ "state error: " <> show err
     Right val -> val
@@ -347,7 +348,7 @@ mk_vid_name = mk_vid . bid
 mk_tid :: TrackNum -> TrackId
 mk_tid = mk_tid_block default_block_id
 
-mk_tid_block :: CallStack.Stack => BlockId -> TrackNum -> TrackId
+mk_tid_block :: HasCallStack => BlockId -> TrackNum -> TrackId
 mk_tid_block block_id i
     | i < 1 = error $ "mk_tid_block: event tracknums start at 1: " <> show i
     | otherwise = Id.TrackId $ GenId.ids_for ns block_name "t" !! (i-1)
@@ -706,7 +707,7 @@ default_allocations = midi_allocations
     , ("i3", "s/3", [4])
     ]
 
-modify_midi_config :: CallStack.Stack => ScoreT.Instrument
+modify_midi_config :: HasCallStack => ScoreT.Instrument
     -> (Patch.Config -> Patch.Config)
     -> UiConfig.Allocations -> UiConfig.Allocations
 modify_midi_config inst modify =

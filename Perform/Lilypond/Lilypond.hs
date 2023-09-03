@@ -10,7 +10,8 @@ import qualified Data.Text as Text
 import qualified Data.Text.Lazy as Lazy
 import qualified Data.Text.Lazy.Builder as Builder
 
-import qualified Util.CallStack as CallStack
+import           GHC.Stack (HasCallStack)
+
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
@@ -360,7 +361,7 @@ parse_meters start staff_end events = do
 
 -- * util
 
-warn :: CallStack.Stack => Text -> Either Log.Msg a
+warn :: HasCallStack => Text -> Either Log.Msg a
 warn = Left . Log.msg Log.Warn Nothing
 
 partition_key :: EnvKey.Key -> [Types.Event]

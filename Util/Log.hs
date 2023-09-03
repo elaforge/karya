@@ -62,6 +62,8 @@ import qualified Data.Vector as Vector
 
 import qualified GHC.Generics as Generics
 import qualified GHC.Stack
+import           GHC.Stack (HasCallStack)
+
 import qualified Numeric
 import qualified System.Directory as Directory
 import qualified System.Environment as Environment
@@ -284,7 +286,7 @@ data Priority =
 
 -- | Create a msg without initializing it, so it doesn't have to be in
 -- LogMonad.
-msg :: CallStack.Stack => Priority -> Maybe Stack.Stack -> Text -> Msg
+msg :: HasCallStack => Priority -> Maybe Stack.Stack -> Text -> Msg
 msg = msg_call_stack GHC.Stack.callStack
 
 -- | Like 'msg' but when you already have a CallStack.
@@ -293,15 +295,14 @@ msg_call_stack :: GHC.Stack.CallStack -> Priority -> Maybe Stack.Stack -> Text
 msg_call_stack call_stack prio stack text =
     Msg no_date_yet (CallStack.caller call_stack) prio stack text mempty
 
-log :: (CallStack.Stack, LogMonad m) => Priority -> Text -> m ()
+log :: (HasCallStack, LogMonad m) => Priority -> Text -> m ()
 log prio text = write $ msg prio Nothing text
 
-log_stack :: (CallStack.Stack, LogMonad m) => Priority -> Stack.Stack -> Text
+log_stack :: (HasCallStack, LogMonad m) => Priority -> Stack.Stack -> Text
     -> m ()
 log_stack prio stack text = write $ msg prio (Just stack) text
 
-timer, debug, notice, warn, error
-    :: (CallStack.Stack, LogMonad m) => Text -> m ()
+timer, debug, notice, warn, error :: (HasCallStack, LogMonad m) => Text -> m ()
 timer = log Timer
 debug = log Debug
 notice = log Notice
@@ -311,7 +312,7 @@ error = log Error
 -- Yay permutation game.  I could probably do a typeclass trick to make 'stack'
 -- an optional arg, but I think I'd wind up with all the same boilerplate here.
 debug_stack, notice_stack, warn_stack, error_stack
-    :: (CallStack.Stack, LogMonad m) => Stack.Stack -> Text -> m ()
+    :: (HasCallStack, LogMonad m) => Stack.Stack -> Text -> m ()
 debug_stack = log_stack Debug
 notice_stack = log_stack Notice
 warn_stack = log_stack Warn

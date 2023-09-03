@@ -50,15 +50,15 @@ module Solkattu.Dsl.Generic (
 ) where
 import qualified Prelude
 import           Prelude hiding ((.), (^), repeat)
+import           GHC.Stack (HasCallStack)
 
-import qualified Util.CallStack as CallStack
 import           Util.Pretty (pprint)
 import qualified Solkattu.Format.Format as Format
 import           Solkattu.Format.Format (Abstraction)
 import qualified Solkattu.Format.Html as Html
 import qualified Solkattu.Format.Terminal as Terminal
 import qualified Solkattu.Korvai as Korvai
-import           Solkattu.Korvai (Korvai, Score, tani, Part(..), index, slice)
+import           Solkattu.Korvai (Korvai, Part(..), Score, index, slice, tani)
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import           Solkattu.S (Duration, Matra, Nadai)
@@ -109,7 +109,7 @@ writeHtml fname = Html.writeAll fname • Korvai.Single
 -- * notation
 
 -- | Make a single sollu 'Solkattu.Karvai'.
-karvai :: (CallStack.Stack, Pretty sollu) => SequenceT sollu -> SequenceT sollu
+karvai :: (HasCallStack, Pretty sollu) => SequenceT sollu -> SequenceT sollu
 karvai = modifySingleNote $ Solkattu.modifyNote $
     \note -> note { Solkattu._karvai = True }
 
@@ -130,7 +130,7 @@ infix 9 §
 
 -- * modify sollus
 
-modifySingleNote :: (CallStack.Stack, Pretty sollu) =>
+modifySingleNote :: (HasCallStack, Pretty sollu) =>
     (Solkattu.Note sollu -> Solkattu.Note sollu)
     -> SequenceT sollu -> SequenceT sollu
 modifySingleNote modify = S.apply go

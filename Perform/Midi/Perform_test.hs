@@ -9,7 +9,8 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
-import qualified Util.CallStack as CallStack
+import           GHC.Stack (HasCallStack)
+
 import qualified Util.Lists as Lists
 import qualified Util.Num as Num
 import qualified Util.Thread as Thread
@@ -589,7 +590,7 @@ perform_notes :: [(Types.Event, Patch.Addr)] -> ([Midi.WriteMessage], [Text])
 perform_notes = DeriveTest.extract_levents id . fst
     . Perform.perform_notes Perform.empty_perform_state . map LEvent.Event
 
-expect_no_logs :: CallStack.Stack => (a, [Text]) -> a
+expect_no_logs :: HasCallStack => (a, [Text]) -> a
 expect_no_logs (val, []) = val
 expect_no_logs (_, logs) =
     error $ untxt $ "expected no logs: " <> Text.unlines logs

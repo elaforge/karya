@@ -5,8 +5,8 @@
 {-# LANGUAGE RecordWildCards #-}
 module Solkattu.Format.Terminal_test where
 import qualified Data.Text as Text
+import           GHC.Stack (HasCallStack)
 
-import qualified Util.CallStack as CallStack
 import qualified Util.Lists as Lists
 import qualified Util.Regex as Regex
 import qualified Util.Styled as Styled
@@ -208,10 +208,10 @@ test_format_ruler_rulerEach = do
         , []
         )
 
-equalT :: CallStack.Stack => Either Text Text -> Either Text Text -> Test
+equalT :: HasCallStack => Either Text Text -> Either Text Text -> Test
 equalT = equal_fmt (either id id)
 
-equalT1 :: (CallStack.Stack, Eq a, Show a) => Either Text (Text, a)
+equalT1 :: (HasCallStack, Eq a, Show a) => Either Text (Text, a)
     -> Either Text (Text, a) -> Test
 equalT1 = equal_fmt (either id fst)
 

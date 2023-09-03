@@ -7,10 +7,10 @@ import qualified Data.List as List
 import qualified Data.Text as Text
 import qualified Data.Text.Lazy as Text.Lazy
 
-import qualified Util.CallStack as CallStack
+import           GHC.Stack (HasCallStack)
+
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
-
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Lilypond
 import qualified Derive.Attrs as Attrs
@@ -45,7 +45,7 @@ import           Util.Test
 default_config :: Types.Config
 default_config = Types.default_config
 
-extract_rights :: (CallStack.Stack, Show a) => [Either a Text] -> Text
+extract_rights :: (HasCallStack, Show a) => [Either a Text] -> Text
 extract_rights = Text.unwords . map expect_right
 
 -- * extract
@@ -260,7 +260,7 @@ derive_blocks_setup setup blocks =
     state = DeriveTest.setup_ui setup state_
     (bid:_, state_) = UiTest.run_mkblocks blocks
 
-derive_lilypond :: CallStack.Stack => Ui.State -> Derive.NoteDeriver
+derive_lilypond :: HasCallStack => Ui.State -> Derive.NoteDeriver
     -> Derive.Result
 derive_lilypond state deriver =
     extract $ CmdTest.result_val $

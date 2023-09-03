@@ -9,10 +9,10 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
+import           GHC.Stack (HasCallStack)
 import           System.FilePath ((</>))
 import qualified System.IO.Unsafe as Unsafe
 
-import qualified Util.CallStack as CallStack
 import qualified Util.Debug as Debug
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
@@ -295,7 +295,7 @@ derive ui_state deriver = Derive.extract_result $
 
 -- | CmdTest also has this, but I can't import it because it imports
 -- DeriveTest.
-run_cmd :: CallStack.Stack => Ui.State -> Cmd.State -> Cmd.CmdId a -> a
+run_cmd :: HasCallStack => Ui.State -> Cmd.State -> Cmd.CmdId a -> a
 run_cmd ui_state cmd_state cmd = case result of
     Right (Just result, _, _) -> result
     Right (Nothing, _, _) -> error "DeriveTest.run_cmd: Cmd aborted"
@@ -708,14 +708,14 @@ e_dyn_rounded = Lists.dropDups id . map (second (Num.roundDigits 2))
 --
 -- TODO don't use this for new tests, this is just left over from pre-linear
 -- segments so I don't have to update a million tests.
-e_nns_old :: CallStack.Stack => Score.Event -> [(RealTime, Pitch.NoteNumber)]
+e_nns_old :: HasCallStack => Score.Event -> [(RealTime, Pitch.NoteNumber)]
 e_nns_old e
     | not (null errs) = error $ "errors flattening signal: " <> show errs
     | otherwise = Lists.dropDups snd $ Lists.dropInitialDups fst sig
     where (sig, errs) = e_nns_errors e
 
 -- | Like 'e_nns_errors', but throw an exception if there are errors.
-e_nns :: CallStack.Stack => Score.Event -> [(RealTime, Pitch.NoteNumber)]
+e_nns :: HasCallStack => Score.Event -> [(RealTime, Pitch.NoteNumber)]
 e_nns e
     | not (null errs) = error $ "errors flattening signal: " <> show errs
     | otherwise = Lists.dropDups id sig
@@ -896,14 +896,14 @@ type EventSpec = (RealTime, RealTime, Text, Controls, ScoreT.Instrument)
 type Controls = [(ScoreT.Control, [(RealTime, Signal.Y)])]
 type ControlVals = [(ScoreT.Control, Signal.Y)]
 
-mkevent :: CallStack.Stack => EventSpec -> Score.Event
+mkevent :: HasCallStack => EventSpec -> Score.Event
 mkevent = mkevent_scale Twelve.scale
 
 -- | Make an event with a non-twelve scale.
-mkevent_scale :: CallStack.Stack => Scale.Scale -> EventSpec -> Score.Event
+mkevent_scale :: HasCallStack => Scale.Scale -> EventSpec -> Score.Event
 mkevent_scale scale = mkevent_scale_key scale Nothing
 
-mkevent_scale_key :: CallStack.Stack => Scale.Scale -> Maybe Text
+mkevent_scale_key :: HasCallStack => Scale.Scale -> Maybe Text
     -> EventSpec -> Score.Event
 mkevent_scale_key scale key (start, dur, pitch, controls, inst) =
     maybe id (\k -> Score.modify_environ (Env.insert_val EnvKey.key k)) key $
@@ -930,7 +930,7 @@ mkcontrols_const cs = mkcontrols [(c, [(0, val)]) | (c, val) <- cs]
 mkpitch12 :: Text -> PSignal.Pitch
 mkpitch12 = mkpitch Twelve.scale
 
-mkpitch :: CallStack.Stack => Scale.Scale -> Text -> PSignal.Pitch
+mkpitch :: HasCallStack => Scale.Scale -> Text -> PSignal.Pitch
 mkpitch scale p = case eval Ui.empty deriver of
     Left err -> error $ "mkpitch " <> show p <> ": " <> untxt err
     Right pitch -> pitch

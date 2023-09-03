@@ -15,8 +15,8 @@ module Solkattu.Dsl.Mridangam (
     , module Solkattu.Dsl.Interactive
 ) where
 import           Prelude hiding ((.))
+import           GHC.Stack (HasCallStack)
 
-import qualified Util.CallStack as CallStack
 import           Solkattu.Dsl.Interactive (diff, diffw)
 import qualified Solkattu.Dsl.MridangamNotation as MridangamNotation
 import qualified Solkattu.Dsl.Solkattu as Dsl.Solkattu
@@ -39,7 +39,7 @@ type Section = Korvai.Section Sequence
 
 -- | Merge a sequence of left hand strokes with one of right hand strokes.
 -- Both sequences must have the same length and structure.
-(&) :: CallStack.Stack => Sequence -> Sequence -> Sequence
+(&) :: HasCallStack => Sequence -> Sequence -> Sequence
 a & b = S.fromList $ MridangamNotation.merge (S.toList a) (S.toList b)
 
 korvai :: Tala.Tala -> [Section] -> Korvai.Korvai
@@ -129,7 +129,7 @@ mapNote :: (Solkattu.Note Stroke -> Solkattu.Note Stroke)
 mapNote = fmap
 
 -- | Parse a string to mridangam strokes.
-strM :: CallStack.Stack => String -> Sequence
+strM :: HasCallStack => String -> Sequence
 strM str = mconcatMap toSeq $ Solkattu.check $ Mridangam.fromString str
     where
     toSeq Nothing = __

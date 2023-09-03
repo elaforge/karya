@@ -4,11 +4,11 @@
 
 -- | Utilities for scale tests.
 module Derive.Scale.ScaleTest where
-import Prelude hiding (lookup)
+import           Prelude hiding (lookup)
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
+import           GHC.Stack (HasCallStack)
 
-import qualified Util.CallStack as CallStack
 import qualified Util.Texts as Texts
 import qualified Cmd.CmdTest as CmdTest
 import qualified Derive.Derive as Derive
@@ -30,13 +30,13 @@ import           Global
 key_environ :: Text -> Env.Environ
 key_environ key = Env.insert_val EnvKey.key key mempty
 
-get_scale :: CallStack.Stack => [Scale.Definition] -> Text -> Scale.Scale
+get_scale :: HasCallStack => [Scale.Definition] -> Text -> Scale.Scale
 get_scale scales scale_id =
     fromMaybe (error $ "no scale: " <> show scale_id) $
         List.find ((== Pitch.ScaleId scale_id) . Scale.scale_id)
             [scale | Scale.Simple scale <- scales]
 
-get :: CallStack.Stack => Text -> Scale.Scale
+get :: HasCallStack => Text -> Scale.Scale
 get = either (error . untxt) id . lookup
 
 lookup :: Text -> Either Text Scale.Scale

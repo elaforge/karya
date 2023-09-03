@@ -9,7 +9,8 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Time.Calendar as Calendar
 
-import qualified Util.CallStack as CallStack
+import           GHC.Stack (HasCallStack)
+
 import qualified Util.Lists as Lists
 import qualified Util.Num as Num
 import qualified Util.Parse as Parse
@@ -48,7 +49,7 @@ moduleVariable score = last (Text.splitOn "." module_) <> "." <> name
 
 -- * date
 
-makeDate :: CallStack.Stack => Int -> Int -> Int -> Calendar.Day
+makeDate :: HasCallStack => Int -> Int -> Int -> Calendar.Day
 makeDate y m d = either Solkattu.throw id $ checkDate y m d
 
 checkDate :: Int -> Int -> Int -> Either Text Calendar.Day
@@ -62,7 +63,7 @@ checkDate y m d
 -- | (hour, minute, second)
 type Time = (Int, Int, Int)
 
-showRecording :: CallStack.Stack => Text -> Maybe (Time, Maybe Time) -> Text
+showRecording :: HasCallStack => Text -> Maybe (Time, Maybe Time) -> Text
 showRecording url maybeRange = Text.unwords $ url : case maybeRange of
     Nothing -> []
     Just (start, end) -> showTime start : maybe [] ((:[]) . showTime) end
@@ -91,7 +92,7 @@ parseTime s = case Regex.groups time s of
     parse :: Text -> Int
     parse = fromMaybe 0 . Parse.parse_maybe Parse.p_nat . Text.dropEnd 1
 
-showTime :: CallStack.Stack => Time -> Text
+showTime :: HasCallStack => Time -> Text
 showTime (h, m, s)
     | any (<0) [h, m, s] || any (>=60) [m, s] =
         Solkattu.throw $ "invalid time: " <> showt (h, m, s)

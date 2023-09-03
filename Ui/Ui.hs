@@ -136,6 +136,7 @@ import qualified Data.Text as Text
 import qualified Data.Time as Time
 
 import qualified GHC.Stack
+import           GHC.Stack (HasCallStack)
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Lens as Lens
@@ -334,7 +335,7 @@ instance M m => M (Except.ExceptT exc m) where
     get_damage = lift get_damage
     throw_error = lift . throw_error
 
-throw :: (CallStack.Stack, M m) => Text -> m a
+throw :: (HasCallStack, M m) => Text -> m a
 throw msg = throw_error $ Error GHC.Stack.callStack msg
 
 gets :: M m => (State -> a) -> m a
@@ -440,10 +441,10 @@ instance Pretty Error where
         CallStack.showCaller (CallStack.caller stack) <> " " <> msg
     pretty Abort = "(abort)"
 
-require :: (CallStack.Stack, M m) => Text -> Maybe a -> m a
+require :: (HasCallStack, M m) => Text -> Maybe a -> m a
 require err = maybe (throw err) return
 
-require_right :: (CallStack.Stack, M m) => (err -> Text) -> Either err a -> m a
+require_right :: (HasCallStack, M m) => (err -> Text) -> Either err a -> m a
 require_right fmt_err = either (throw . fmt_err) return
 
 -- * config
@@ -1649,7 +1650,7 @@ find_tracks f blocks = do
         ]
 
 -- | Lookup @map!key@, throwing if it doesn't exist.
-lookup_id :: (CallStack.Stack, Ord k, Show k, M m) => k -> Map k a -> m a
+lookup_id :: (HasCallStack, Ord k, Show k, M m) => k -> Map k a -> m a
 lookup_id key map = case Map.lookup key map of
     Nothing -> throw $ "State.lookup: unknown " <> showt key
     Just val -> return val
@@ -1912,7 +1913,7 @@ block_event_tracknums block =
 
 -- | Read an ID of the form \"namespace/name\", or just \"name\", filling in
 -- the current namespace if it's not present.
-read_id :: (CallStack.Stack, Id.Ident a, M m) => Text -> m a
+read_id :: (HasCallStack, Id.Ident a, M m) => Text -> m a
 read_id name = do
     ns <- get_namespace
     require ("invalid characters in id name: " <> showt name) $

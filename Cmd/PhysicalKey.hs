@@ -6,8 +6,7 @@
 -- | Handle 'physical_key' layout.
 module Cmd.PhysicalKey where
 import qualified Data.Map as Map
-
-import qualified Util.CallStack as CallStack
+import           GHC.Stack (HasCallStack)
 
 import qualified Cmd.KeyLayouts as KeyLayouts
 #ifndef TESTING
@@ -41,9 +40,8 @@ import           Global
     parameter.  But that would require a bunch of extra work, e.g. keymaps
     would then need a separate PhysicalKey type wrapper and a resolution step.
 -}
-physical_key :: CallStack.Stack => Char -> Char
-physical_key c =
-    fromMaybe (errorStack $ showt c <> " not found") $
+physical_key :: HasCallStack => Char -> Char
+physical_key c = fromMaybe (errorStack $ showt c <> " not found") $
 #ifdef TESTING
     KeyLayouts.from_qwerty KeyLayouts.dvorak c
 #else

@@ -3,11 +3,12 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.MidiThru_test where
-import qualified Util.CallStack as CallStack
+import           GHC.Stack (HasCallStack)
+
 import qualified Util.Lists as Lists
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
-import Cmd.CmdTest (note_off, control)
+import           Cmd.CmdTest (control, note_off)
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.MidiThru as MidiThru
 import qualified Cmd.Perf as Perf
@@ -26,8 +27,8 @@ import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
 import qualified Ui.UiTest as UiTest
 
-import Global
-import Util.Test
+import           Global
+import           Util.Test
 
 
 test_midi_thru_instrument :: Test
@@ -196,7 +197,7 @@ test_input_to_midi = do
         , (3, pb 0), (3, on 64)
         ]
 
-extract_msg :: CallStack.Stack => Midi.Message
+extract_msg :: HasCallStack => Midi.Message
     -> (Midi.Channel, Midi.ChannelMessage)
 extract_msg (Midi.ChannelMessage chan msg) = (chan, msg)
 extract_msg msg = error $ "bad msg: " <> show msg

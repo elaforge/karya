@@ -31,7 +31,8 @@ import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
-import qualified Util.CallStack as CallStack
+import           GHC.Stack (HasCallStack)
+
 import qualified Util.Doc as Doc
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
@@ -266,7 +267,7 @@ data IrregularPattern = IrregularPattern
     , ir_sangsih_ngotek4 :: [Char]
     } deriving (Show)
 
-irregular_pattern :: CallStack.Stack => IrregularPattern -> KotekanPattern
+irregular_pattern :: HasCallStack => IrregularPattern -> KotekanPattern
 irregular_pattern (IrregularPattern {..}) = KotekanPattern
     { kotekan_telu = parse1 ir_polos
     , kotekan_pat = parse1 ir_sangsih4
@@ -276,7 +277,7 @@ irregular_pattern (IrregularPattern {..}) = KotekanPattern
         { polos = parse1 ir_polos_ngotek, sangsih = parse1 ir_sangsih_ngotek4 }
     }
     where
-    -- TODO the CallStack.Stack doesn't actually work because all these
+    -- TODO the HasCallStack doesn't actually work because all these
     -- functions would have to have it too.
     parse1 = parse_pattern destination . check
     check ns
@@ -285,7 +286,7 @@ irregular_pattern (IrregularPattern {..}) = KotekanPattern
     destination = fromMaybe (errorStack "no final pitch") $
         Lists.last $ Maybe.catMaybes $ parse_pattern 0 ir_polos
 
-parse_pattern :: CallStack.Stack => Pitch.Step -> [Char] -> [Maybe Pitch.Step]
+parse_pattern :: HasCallStack => Pitch.Step -> [Char] -> [Maybe Pitch.Step]
 parse_pattern destination = map (fmap (subtract destination) . parse1)
     where
     parse1 '-' = Nothing

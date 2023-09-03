@@ -10,9 +10,9 @@ module Solkattu.Dsl.Metadata (
     , sequenceT, faran, exercise, trikalam
     , withType
 ) where
+import           GHC.Stack (HasCallStack)
 import qualified Text.Read as Read
 
-import qualified Util.CallStack as CallStack
 import qualified Util.Lists as Lists
 import qualified Solkattu.Korvai as Korvai
 import           Solkattu.Korvai (Korvai)
@@ -26,7 +26,7 @@ import           Global
 comment :: Text -> Korvai -> Korvai
 comment = withTag Tags.comment
 
-date :: CallStack.Stack => Int -> Int -> Int -> Korvai -> Korvai
+date :: HasCallStack => Int -> Int -> Int -> Korvai -> Korvai
 date y m d = Korvai.withKorvaiMetadata $ mempty { Korvai._date = Just date }
     where !date = Metadata.makeDate y m d
 
@@ -42,7 +42,7 @@ similarTo module_ variableName =
     withTag Tags.similarTo (module_ <> "." <> variableName)
 
 -- | A recording where the clip is played.
-recording :: CallStack.Stack => Text -- ^ URL to the recording or video
+recording :: HasCallStack => Text -- ^ URL to the recording or video
     -> String -- ^ start and end time of the clip within the recording
     -> Korvai -> Korvai
 recording url range = withTag Tags.recording $

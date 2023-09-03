@@ -19,7 +19,7 @@ prio-package-low: haskell98 ghc ghc-prim comonad basement
 qualify-as:
     Data.HashMap.Strict as HashMap;
     Data.Vector.Storable as V
-unqualified: System.FilePath ((</>))
+unqualified: System.FilePath ((</>)); GHC.Stack (HasCallStack)
 
 language: BangPatterns DisambiguateRecordFields FlexibleContexts
     GeneralizedNewtypeDeriving LambdaCase MultiWayIf OverloadedStrings

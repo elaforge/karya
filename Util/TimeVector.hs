@@ -17,24 +17,24 @@ module Util.TimeVector (
     , module Util.TimeVectorStorable
     , module Data.Vector.Generic
 ) where
-import Prelude hiding (head, last, take)
+import           Prelude hiding (head, last, take)
 import qualified Control.Monad.State.Strict as State
 import qualified Data.Vector as Vector
 import qualified Data.Vector.Generic as V
-import Data.Vector.Generic
-       (all, drop, foldl', length, null, take, toList, unsafeIndex)
+import           Data.Vector.Generic
+    (all, drop, foldl', length, null, take, toList, unsafeIndex)
 import qualified Data.Vector.Storable as Storable
 
 import qualified Foreign
+import           GHC.Stack (HasCallStack)
 
-import qualified Util.CallStack as CallStack
-import qualified Util.Pretty as Pretty
 import qualified Util.Lists as Lists
-import Util.TimeVectorStorable (X, Sample(..))
+import qualified Util.Pretty as Pretty
+import           Util.TimeVectorStorable (Sample(..), X)
 
 import qualified Perform.RealTime as RealTime
 
-import Global
+import           Global
 
 
 x_to_double :: X -> Double
@@ -365,7 +365,7 @@ unfoldr f = V.unfoldr $ \st -> case f st of
 -- | Given a line defined by the two points, find the y at the given x.
 -- Crashes if called on a vertical line (y0==y1).  Yeah, it's inconsistent
 -- with 'x_at'.
-y_at :: CallStack.Stack => X -> Double -> X -> Double -> X -> Double
+y_at :: HasCallStack => X -> Double -> X -> Double -> X -> Double
 y_at x0 y0 x1 y1 x
     | x0 == x1 = errorStack $ "y_at on vertical line: "
         <> showt ((x0, y0), (x1, y1), x)

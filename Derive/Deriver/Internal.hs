@@ -9,11 +9,10 @@
 module Derive.Deriver.Internal where
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+import           GHC.Stack (HasCallStack)
 
-import qualified Util.CallStack as CallStack
 import qualified Util.Log as Log
 import qualified Util.Seed as Seed
-
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.ScoreT as ScoreT
@@ -181,7 +180,7 @@ get_block :: BlockId -> Deriver Block.Block
 get_block block_id = lookup_id block_id =<< get_ui_state Ui.state_blocks
 
 -- | Evaluate a Ui.M computation, rethrowing any errors.
-eval_ui :: CallStack.Stack => Ui.StateId a -> Deriver a
+eval_ui :: HasCallStack => Ui.StateId a -> Deriver a
 eval_ui action = do
     ui_state <- get_ui_state id
     let rethrow exc = throw $ pretty exc

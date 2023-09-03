@@ -8,8 +8,8 @@ module Perform.Lilypond.Convert (convert, pitch_to_lily, quantize) where
 import qualified Control.Monad.Except as Except
 import qualified Control.Monad.Identity as Identity
 import qualified Data.Set as Set
+import           GHC.Stack (HasCallStack)
 
-import qualified Util.CallStack as CallStack
 import qualified Util.Log as Log
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.Derive as Derive
@@ -20,17 +20,17 @@ import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Score as Score
 
+import qualified Instrument.Common as Common
+import qualified Instrument.Inst as Inst
+import qualified Instrument.InstT as InstT
+
 import qualified Perform.ConvertUtil as ConvertUtil
 import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.Lilypond.Types as Types
 import qualified Perform.Midi.Patch as Midi.Patch
 
-import qualified Instrument.Common as Common
-import qualified Instrument.Inst as Inst
-import qualified Instrument.InstT as InstT
-
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- * convert
@@ -98,7 +98,7 @@ convert_event quarter event = run $ do
     run = (:[]) . either LEvent.Log LEvent.Event . Identity.runIdentity
         . Except.runExceptT
 
-throw :: (CallStack.Stack, Except.MonadError Log.Msg m) => Text -> m a
+throw :: (HasCallStack, Except.MonadError Log.Msg m) => Text -> m a
 throw = Except.throwError . Log.msg Log.Warn Nothing
 
 convert_pitch :: Except.MonadError Log.Msg m =>

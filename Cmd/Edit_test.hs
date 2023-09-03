@@ -4,11 +4,10 @@
 
 module Cmd.Edit_test where
 import qualified Data.Text as Text
+import           GHC.Stack (HasCallStack)
 
-import qualified Util.CallStack as CallStack
 import qualified Util.Lists as Lists
 import qualified Util.Test.Testing as Testing
-
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Edit as Edit
@@ -390,14 +389,12 @@ test_cmd_invert_orientation = do
 
 -- * util
 
-equal_e :: CallStack.Stack =>
-    Either Text ([UiTest.EventSpec], [Text])
+equal_e :: HasCallStack => Either Text ([UiTest.EventSpec], [Text])
     -> Either Text ([UiTest.EventSpec], [Text])
     -> Test
 equal_e = Testing.equal_fmt (UiTest.right_fst UiTest.fmt_events)
 
-equal_sd :: CallStack.Stack =>
-    Either Text ([(ScoreTime, ScoreTime)], [Text])
+equal_sd :: HasCallStack => Either Text ([(ScoreTime, ScoreTime)], [Text])
     -> Either Text ([(ScoreTime, ScoreTime)], [Text])
     -> Test
 equal_sd = Testing.equal_fmt (UiTest.right_fst UiTest.fmt_start_duration)

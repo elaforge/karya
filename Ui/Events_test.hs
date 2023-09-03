@@ -4,12 +4,11 @@
 
 module Ui.Events_test where
 import qualified Data.Maybe as Maybe
+import           GHC.Stack (HasCallStack)
 import qualified Test.QuickCheck as Q
 
-import qualified Util.CallStack as CallStack
 import qualified Util.Lists as Lists
 import qualified Util.Test.Testing as Testing
-
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import           Ui.Events (Range(..))
@@ -211,7 +210,7 @@ test_round_events = do
 
 -- * util
 
-equal_e :: CallStack.Stack => [Event] -> [Event] -> Test
+equal_e :: HasCallStack => [Event] -> [Event] -> Test
 equal_e = Testing.equal_fmt UiTest.fmt_events
 
 type Event = (ScoreTime, ScoreTime, Text)

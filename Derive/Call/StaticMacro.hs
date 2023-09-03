@@ -17,10 +17,10 @@ import qualified Data.List as List
 import qualified Data.Text as Text
 import qualified Data.Tuple as Tuple
 
-import qualified Util.CallStack as CallStack
+import           GHC.Stack (HasCallStack)
+
 import qualified Util.Doc as Doc
 import qualified Util.Texts as Texts
-
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
@@ -53,7 +53,7 @@ literal = Given . Literal . Typecheck.to_val
 -- | Check the output of 'generator', 'transformer', or 'val' and crash if
 -- it had a statically-detectable error.  Of course I'd much rather this
 -- were a type error, but it's not worth breaking out TH for it.
-check :: CallStack.Stack => Text -> Either Text a -> a
+check :: HasCallStack => Text -> Either Text a -> a
 check call_name (Left err) = errorStack $ call_name <> ": " <> err
 check _ (Right val) = val
 

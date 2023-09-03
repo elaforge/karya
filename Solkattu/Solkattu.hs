@@ -65,10 +65,11 @@ import qualified Control.Exception as Exception
 import qualified Control.Monad.State.Strict as State
 import qualified Data.List as List
 import qualified Data.Text as Text
+import           GHC.Stack (HasCallStack)
 
 import qualified Util.CallStack as CallStack
-import qualified Util.Num as Num
 import qualified Util.Lists as Lists
+import qualified Util.Num as Num
 import qualified Util.Styled as Styled
 
 import qualified Derive.Expr as Expr
@@ -498,7 +499,7 @@ instance Exception.Exception Exception
 instance Show Exception where
     show (Exception msg) = Text.unpack msg
 
-throw :: CallStack.Stack => Text -> a
+throw :: HasCallStack => Text -> a
 throw = CallStack.throw Exception
 
 -- * util
@@ -523,10 +524,10 @@ permuteFst permutations ((k, x) : xs)
         [(p, x) : rest | p <- permutations k, rest <- go xs]
     where go = permuteFst permutations
 
-check :: CallStack.Stack => Either Error a -> a
+check :: HasCallStack => Either Error a -> a
 check = either throw id
 
-checkMsg :: CallStack.Stack => Text -> Either Error a -> a
+checkMsg :: HasCallStack => Text -> Either Error a -> a
 checkMsg msg = either (throw . ((msg <> ": ") <>)) id
 
 {- NOTE [nested-groups]

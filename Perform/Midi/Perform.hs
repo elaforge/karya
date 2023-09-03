@@ -22,7 +22,8 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
-import qualified Util.CallStack as CallStack
+import           GHC.Stack (HasCallStack)
+
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Maps as Maps
@@ -924,5 +925,5 @@ overlap_map initial = go initial
         log_events = if logging then map LEvent.Log logs else []
         (vals, final_state) = go ((e, val) : overlapping) f events
 
-event_warning :: CallStack.Stack => T.Event -> Text -> Log.Msg
+event_warning :: HasCallStack => T.Event -> Text -> Log.Msg
 event_warning event = Log.msg Log.Warn (Just (T.event_stack event))

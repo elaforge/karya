@@ -7,8 +7,8 @@ module Solkattu.Realize_test where
 import           Prelude hiding ((^))
 import qualified Data.Map as Map
 import qualified Data.Text as Text
+import           GHC.Stack (HasCallStack)
 
-import qualified Util.CallStack as CallStack
 import qualified Solkattu.Dsl.Mridangam as R
 import qualified Solkattu.Dsl.Solkattu as G
 import           Solkattu.Dsl.Solkattu
@@ -356,7 +356,7 @@ realizeM tala =
     Korvai.realizeSection (Talas.Carnatic tala) Realize.realizeStroke mempty id
     . Korvai.section
 
-checkSolluMap :: CallStack.Stack =>
+checkSolluMap :: HasCallStack =>
     [ ( S.Sequence g (Note Sollu)
       , S.Sequence g (Note (Realize.Stroke M.Stroke))
       )

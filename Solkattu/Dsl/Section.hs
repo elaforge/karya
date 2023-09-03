@@ -13,16 +13,17 @@ module Solkattu.Dsl.Section (
     , variations
     , withTypeS
 ) where
-import qualified Util.CallStack as CallStack
+import           GHC.Stack (HasCallStack)
+
 import qualified Util.Num as Num
 import qualified Solkattu.Korvai as Korvai
-import Solkattu.Korvai (Section, section)
+import           Solkattu.Korvai (Section, section)
 import qualified Solkattu.Metadata as Metadata
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tags as Tags
 
-import Global
+import           Global
 
 
 -- | Set expected starting and ending time.  Useful for eddupu, or sections
@@ -39,7 +40,7 @@ eddupu dur = withTag Tags.eddupu (pretty dur) . endOn dur
 
 -- | Separate date for a section, mostly just so I can find its recording.
 -- Unlike the korvai date it's just text.
-dateS :: CallStack.Stack => Int -> Int -> Int -> Section sollu -> Section sollu
+dateS :: HasCallStack => Int -> Int -> Int -> Section sollu -> Section sollu
 dateS y m d = either Solkattu.throw (const $ withTag Tags.date date) $
     Metadata.checkDate y m d
     where date = showt y <> "-" <> Num.zeroPad 2 m <> "-" <> Num.zeroPad 2 d
