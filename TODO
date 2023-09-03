@@ -174,6 +174,11 @@ sketch:
   2 6 1 6 5 56 61 12 23 5 5 353 2 2 121
 
 UNSORTED
+  * bug: thread died writing im notes
+    . Util/Thread.hs:65 ThreadId 6268 perf:(bid "untitled/score"): died:
+      data/im/notes/java/pangkur/untitled/score/sampler.write.tmp:
+      withBinaryFile: resource busy (file is locked)
+  - replace Util.Stack.Stack with HasCallStack
   - infer-negative heuristic should be changeable dynamically
     . Because even gender barung goes to pipilan sometimes.
     . Or maybe go to positive durations, but only infer the last one?

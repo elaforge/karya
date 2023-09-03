@@ -154,6 +154,9 @@ writeGz rotations fn bytes = do
     requireWritable fn
     forM_ [0 .. rotations-1] $ requireWritable . rotation
     let tmp = fn ++ ".write.tmp"
+    -- writeFile should overwrite it, but once I got a persistent crash:
+    -- withBinaryFile: resource busy (file is locked)
+    rm tmp
     Lazy.writeFile tmp $ GZip.compress $ Lazy.fromStrict bytes
     ifM (sameContents fn tmp)
         (Directory.removeFile tmp >> return False) $
@@ -169,10 +172,11 @@ writeGz rotations fn bytes = do
             -- > mv out.write.tmp out
             when (rotations > 0) $ Exceptions.ignoreEnoent_ $ do
                 let tmp0 = rotation 0 <> ".tmp"
-                Exceptions.ignoreEnoent_ $ Directory.removeFile tmp0
+                rm tmp0
                 Posix.Files.createLink fn tmp0
                 Directory.renameFile tmp0 (rotation 0)
             Directory.renameFile tmp fn
             return True
     where
     rotation n = fn <> "." <> show n
+    rm = Exceptions.ignoreEnoent_ . Directory.removeFile
