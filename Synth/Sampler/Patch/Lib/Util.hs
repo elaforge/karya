@@ -104,9 +104,9 @@ articulationDefault deflt attributeMap  =
 type DynVal = Signal.Y
 
 -- | Relative dB change.
-type DB = Double
+type Db = Double
 
-dbToDyn :: DB -> DynVal
+dbToDyn :: Db -> DynVal
 dbToDyn db = db / (-Control.minimumDb)
 
 -- | Standard dynamic ranges.
@@ -114,10 +114,10 @@ data Dynamic = PP | MP | MF | FF
     deriving (Eq, Ord, Show, Read, Bounded, Enum)
 instance Pretty Dynamic where pretty = showt
 
--- | Get patch-specific dyn category, and note dynamic.  The DB range
+-- | Get patch-specific dyn category, and note dynamic.  The Db range
 -- is scaled linearly from things at the bottom of the dyn to the top.
 dynamic :: (Bounded dyn, Enum dyn)
-    => (dyn -> (DynVal, (DB, DB))) -- ^ (upperBound, (lowDb, highDb))
+    => (dyn -> (DynVal, (Db, Db))) -- ^ (upperBound, (lowDb, highDb))
     -> Note.Note -> (dyn, DynVal)
 dynamic dynVal note = (dyn, 1 + dbToDyn (Num.scale low high delta))
     where

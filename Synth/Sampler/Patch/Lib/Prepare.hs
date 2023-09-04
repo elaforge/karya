@@ -60,50 +60,11 @@ import           Global
 baseDir :: FilePath
 baseDir = "/Users/elaforge/Music/mix/sample"
 
-slenthemRelink = relink (baseDir </> "java/slenthem") "raw" "samples"
-    =<< renames (baseDir </> "java/slenthem/raw") slenthem
-
-slenthem :: [FilePath]
-slenthem = opens ++ mutes
-    where
-    opens =
-        [ "open" </> join [p, dyn, var]
-        | p <- pitches
-        , dyn <- dynamics
-        , var <- varsAt (p, dyn)
-        ]
-        where
-        varsAt = vars . \case
-            ("26", "pp") -> 3
-            ("26", "mf") -> 5
-            ("27", "ff") -> 3
-            _ -> 4
-    mutes =
-        [ "mute" </> join [p, dyn, var]
-        | p <- pitches
-        , dyn <- dynamics
-        , var <- varsAt (p, dyn)
-        ]
-        where
-        varsAt = vars . \case
-            ("25", "pp") -> 5
-            _ -> 6
-    pitches = ["2" <> show p | p <- [1..7]]
-
 -- genderPanerus =
 --     pitches = map (\(o, p) -> show o <> show p) $
 --         takeWhile (<= (5, 3)) $ dropWhile (< (2, 6))
 --             [(o, p) | o <- [2..5], p <- ps]
 --         where ps = [1, 2, 3, 5, 6, 7]
-
-dynamics :: [String]
-dynamics = ["pp", "mp", "mf", "ff"]
-
-vars :: Int -> [String]
-vars n = map (('v':) . show) [1..n]
-
-join :: [String] -> String
-join = (<> ".wav") . Lists.join "-"
 
 -- * check
 

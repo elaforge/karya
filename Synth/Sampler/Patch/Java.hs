@@ -48,11 +48,13 @@ data Instrument = Instrument {
     name :: Text
     , variations :: Variations
     , tuning :: Tuning
-    , dynamic :: Dynamic -> (Util.DynVal, (Util.DB, Util.DB))
+    , dynamic :: Dynamic -> (Util.DynVal, (Util.Db, Util.Db))
+    , dynamicTweaks :: Map Sample.SamplePath Util.Db
+    , articulations :: Set Articulation
     }
 
-type Tuning = Map Pitch Pitch.NoteNumber
 type Variations = Articulation -> (Pitch, Util.Dynamic) -> Util.Variation
+type Tuning = Map Pitch Pitch.NoteNumber
 
 slenthem :: Instrument
 slenthem = Instrument
@@ -68,7 +70,34 @@ slenthem = Instrument
         , 58.68 -- 26
         , 60.13 -- 27
         ]
-    , dynamic = dynamicRange
+    , dynamic = standardDyns $ \case
+        PP -> (-9, 1)
+        MP -> (-6, 1)
+        MF -> (-7, 1)
+        FF -> (-7, 0)
+    , dynamicTweaks = Map.fromList
+        [ ("open/21-pp-v3.wav", -3)
+        , ("open/21-mf-v4.wav", -2)
+        , ("open/21-ff-v4.wav", 4)
+        , ("open/22-pp-v3.wav", 1)
+        , ("open/22-mp-v1.wav", -3)
+        , ("open/22-mp-v2.wav", -3)
+        , ("open/24-pp-v2.wav", -5)
+        , ("open/24-mp-v1.wav", -3)
+        , ("open/24-mf-v1.wav", 2)
+        , ("open/24-mf-v2.wav", 2)
+        , ("open/24-mf-v3.wav", -3)
+        , ("open/24-mf-v4.wav", -3)
+        , ("open/24-ff-v3.wav", -2)
+        , ("open/24-ff-v4.wav", -3)
+        , ("open/25-pp-v1.wav", 2)
+        , ("open/25-mf-v1.wav", -3)
+        , ("open/25-ff-v1.wav", 2)
+        , ("open/26-mp-v2.wav", 2)
+        , ("open/26-ff-v4.wav", -2)
+        , ("open/27-pp-v4.wav", 2)
+        ]
+    , articulations = Set.fromList [Open, Mute]
     }
     where
     variations Open = \case
@@ -95,7 +124,15 @@ peking = Instrument
         , 82.48 + 12 -- 46
         , 84.14 + 12 -- 47
         ]
-    , dynamic = dynamicRange
+    -- TODO
+    , dynamic = standardDyns $ \case
+        _ -> (0, 0)
+        -- PP -> (0.25, (-8, 4))
+        -- MP -> (0.5, (-4, 4))
+        -- MF -> (0.75, (-4, 6))
+        -- FF -> (1, (-4, 2))
+    , dynamicTweaks = mempty
+    , articulations = Set.fromList [Open, Mute, Character]
     }
     where
     variations Open = const 4
@@ -116,16 +153,15 @@ peking = Instrument
             , [(MP, 4), (MF, 4)]
             ]
 
--- TODO also need per-sample tweaks
-dynamicRange :: Dynamic -> (Util.DynVal, (Util.DB, Util.DB))
-dynamicRange = \case
-    PP -> (0.25, (-8, 4))
-    MP -> (0.5, (-4, 4))
-    MF -> (0.75, (-4, 6))
-    FF -> (1, (-5, 4))
+standardDyns :: (Dynamic -> range) -> Dynamic -> (Util.DynVal, range)
+standardDyns f = \case
+    PP -> (0.25, f PP)
+    MP -> (0.5, f MP)
+    MF -> (0.75, f MF)
+    FF -> (1, f FF)
 
 makePatch :: Instrument -> Patch.Patch
-makePatch inst@(Instrument { name, tuning }) = (Patch.patch name)
+makePatch inst@(Instrument { name, tuning, articulations }) = (Patch.patch name)
     { Patch._dir = dir
     , Patch._convert = convert inst attributeMap
     , Patch._karyaPatch =
@@ -147,13 +183,12 @@ makePatch inst@(Instrument { name, tuning }) = (Patch.patch name)
         (\args -> transform $
             Prelude.Note.default_note Prelude.Note.use_attributes args)
         where transform = Code.withVariation
-
-    -- TODO filter out the ones I don't have
-    attributeMap = Common.attribute_map
-        [ (Attrs.mute, Mute)
-        , (Attrs.attr "character", Character)
-        , (mempty, Open)
-        ]
+    attributeMap = Common.attribute_map $
+        filter ((`Set.member` articulations) . snd)
+            [ (Attrs.mute, Mute)
+            , (Attrs.attr "character", Character)
+            , (mempty, Open)
+            ]
 
 -- * implementation
 
@@ -177,18 +212,23 @@ data Articulation = Open | Mute | Character -- ^ peking have character
 
 convert :: Instrument -> Common.AttributeMap Articulation -> Note.Note
     -> Patch.ConvertM Sample.Sample
-convert (Instrument { tuning, variations, dynamic }) attrMap note = do
+convert inst attrMap note = do
     let art = Util.articulationDefault Open attrMap $ Note.attributes note
     let (dyn, dynVal) = Util.dynamic dynamic note
     symPitch <- Util.symbolicPitch note
     (pitch, (noteNn, sampleNn)) <- tryRight $ findPitch tuning symPitch
-    let filenames = findFilenames variations art pitch dyn
-    return $ (Sample.make (Util.chooseVariation filenames note))
+    let fname = Util.chooseVariation (findFilenames variations art pitch dyn)
+            note
+    dynVal <- return $ dynVal
+        + Util.dbToDyn (Map.findWithDefault 0 fname dynamicTweaks)
+    return $ (Sample.make fname)
         { Sample.envelope = if
             | art == Mute -> Signal.constant dynVal
             | otherwise -> Lib.Bali.variableMuteEnv dynVal note
         , Sample.ratios = Signal.constant $ Sample.pitchToRatio sampleNn noteNn
         }
+    where
+    Instrument { tuning, variations, dynamic, dynamicTweaks } = inst
 
 -- TODO similar to Rambat.findPitch, except no umbang/isep
 findPitch :: Tuning -> Either Pitch.Note Pitch.NoteNumber
@@ -229,7 +269,7 @@ toFilenames variations art pitch dyn =
     map (unparseFilename pitch art dyn) [1 .. variations art (pitch, dyn)]
 
 unparseFilename :: Pitch -> Articulation -> Util.Dynamic -> Util.Variation
-    -> FilePath
+    -> Sample.SamplePath
 unparseFilename pitch art dyn var =
     articulationDir art
         </> Lists.join "-" [showPitch pitch, Util.showLower dyn, 'v' : show var]
