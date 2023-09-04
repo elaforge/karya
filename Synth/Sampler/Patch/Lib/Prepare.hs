@@ -21,6 +21,7 @@ import           Global
     Procedure:
     - Rename samples and takes to short names.
     - Record room tone, apply ReaFir in subtract mode to get a denoise profile.
+      TODO: are there better ways to subtract noise?  Audacity has one.
     - Reaper: dynamic split items (d), turn gate threshold down
       shift-up for vertical zoom on waveforms
     - Edit each sample to trim.  Move back attacks a bit since split tends to
@@ -31,6 +32,28 @@ import           Global
       mismatches.
     - Select all, then render project regions to $baseDir/$inst/raw
     - Inspect renames, 'relink' renames, inspect output dirs.
+
+    - Normalize?  % normalize --amplitude=-24dbFS *.wav
+      pros:
+        - Don't need to individually adjust curves for each dyn range.
+      cons:
+        - Natural level difference between keys is lost, becomes increased
+        noise.
+
+    Level adjustment:
+    - First adjust variations:
+      % run build/opt/sampler-im calibrate-by Var patch +attr sym-pitches+
+      Use this to tweak per-sample dB.
+    - Then adjust increasing dyn for a smooth curve:
+      % run build/opt/sampler-im calibrate-by Dyn patch +attr sym-pitches+
+      Use this to adjust (low, high) dB for dynamic ranges.
+
+    slenthem 21 v4 mf same as ff?
+    To fix this, I should calibrate v3 to v4.
+
+    It would be easier to do this with a GUI where I can get immediate
+    feedback.  But Reaper UI is clunky because I don't know how to reorder
+    the samples.
 -}
 
 

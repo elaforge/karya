@@ -196,7 +196,7 @@ convert :: Instrument -> Tuning -> Note.Note -> Patch.ConvertM Sample.Sample
 convert instrument tuning note = do
     let articulation = Util.articulationDefault Open attributeMap $
             Note.attributes note
-    let (dyn, dynVal) = Util.dynamic dynamicRange minDyn note
+    let (dyn, dynVal) = Util.dynamicMidi dynamicRange minDyn note
     symPitch <- Util.symbolicPitch note
     dyn <- pure $ workaround instrument tuning articulation dyn
     let var = Util.variation (variationsOf articulation) note

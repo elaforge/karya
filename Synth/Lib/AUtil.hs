@@ -6,7 +6,19 @@
 {-# LANGUAGE TypeApplications #-}
 -- | Audio utilities.  This is named AUtil instead of the more obvious
 -- Audio to avoid clashing with Util.Audio.Audio.
-module Synth.Lib.AUtil where
+module Synth.Lib.AUtil (
+    Audio, Audio1, NAudio
+    , Channels
+    , toFrames
+    , toSeconds
+    , blockFrames2
+    , framesCount2
+    , outputFormat
+    , catchSndfile
+    -- * dB
+    , dbToLinear
+    , volume
+) where
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Trans.Resource as Resource
 import qualified Sound.File.Sndfile as Sndfile
@@ -59,7 +71,7 @@ dbToLinear = Audio.dbToLinear . Num.scale (Num.d2f Control.minimumDb) 0
 volume :: Audio1 -> Audio -> Audio
 volume = Audio.multiply . Audio.expandChannels . Audio.mapSamples dbToLinear
 
--- * debug utils
+-- * debug
 
 debugAudio :: Audio.Audio (Resource.ResourceT IO) rate chan -> [Audio.Block]
 debugAudio = Unsafe.unsafePerformIO . Resource.runResourceT . Audio.toBlocks

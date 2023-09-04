@@ -31,7 +31,6 @@ import           Synth.Types
 
 type Axis = Text
 
-
 select :: Eq b => [(Axis, b)] -> [(a, Map Axis b)] -> [(a, Map Axis b)]
 select tags = filter (hasTags . snd)
     where
@@ -54,13 +53,16 @@ var = "var"
 
 -- create notes with an even dyn spread
 
-data By = Attr | Pitch | Dyn
+data By = Attr | Pitch | Dyn | Var
     deriving (Show, Read)
 
 sequence :: By -> Note.PatchName -> RealTime -> [Attrs.Attributes]
     -> [Note.Element] -> Signal.Y -> Signal.Y -> [Note.Note]
 sequence by patch dur attrs pitches variations dynamics =
     zipWith setStart (Lists.range_ 0 dur) $ case by of
+        -- Basic order is [attr, pitch, dyn, var] but the comparison axis
+        -- goes to the end.  The order is in perceptual "size" but is somewhat
+        -- arbitrary.
         Attr ->
             [ make pitch dyn var attr
             | pitch <- pitches
@@ -78,9 +80,16 @@ sequence by patch dur attrs pitches variations dynamics =
         Pitch ->
             [ make pitch dyn var attr
             | attr <- attrs
-            , var <- vars
             , dyn <- dyns
+            , var <- vars
             , pitch <- pitches
+            ]
+        Var ->
+            [ make pitch dyn var attr
+            | attr <- attrs
+            , pitch <- pitches
+            , dyn <- dyns
+            , var <- vars
             ]
     where
     vars = Lists.range 0 1 (1 / (variations-1))
@@ -107,20 +116,18 @@ renderSequence outDir dur fnames = do
         }
     decay = 0.15
 
-renderStarts :: FilePath -> [Sample.Sample] -> IO ()
-renderStarts outDir samples = do
+renderStarts :: FilePath -> FilePath -> [Sample.Sample] -> IO ()
+renderStarts sampleDir outDir samples = do
     putStrLn $ "==> " <> filename
-    exist <- mapM (Directory.doesFileExist . (patchDir</>) . Sample.filename)
+    exist <- mapM (Directory.doesFileExist . (sampleDir</>) . Sample.filename)
         samples
     if all id exist
         then renderDirect filename (Just 1) $
-            map ((0,) . Sample.modifyFilename (patchDir</>)) samples
+            map ((0,) . Sample.modifyFilename (sampleDir</>)) samples
         else putStrLn "*** missing"
     where
     filename = outDir </> replace '/' '-'
-            (FilePath.dropExtension (Sample.filename (head samples)))
-            ++ ".wav"
-    patchDir = "../data/sampler/wayang"
+        (FilePath.dropExtension (Sample.filename (head samples))) ++ ".wav"
     replace a b = map (\c -> if c == a then b else c)
 
 renderDirect :: FilePath -> Maybe Audio.Seconds -> [(RealTime, Sample.Sample)]

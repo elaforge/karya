@@ -82,24 +82,30 @@ main = do
     imDir <- Config.imDir <$> Config.getConfig
     let calibrateDir = imDir </> "calibrate"
     case args of
-        -- Listen for samples that have silence at the beginning.
+        -- Listen for samples that have silence at the beginning by rendering
+        -- them all to start at the same time.  A delayed attack should stick
+        -- out.
         ["calibrate-starts"] -> do
+            -- TODO hardcoded to wayang, extend if needed
             let (reference, samples) = Wayang.checkStarts
-            mapM_ (Calibrate.renderStarts calibrateDir . (++[reference]))
+            mapM_
+                (Calibrate.renderStarts "data/sampler/wayang" calibrateDir
+                    . (++[reference]))
                 samples
         -- Play notes in a dynamic range to calibrate relative dynamics.
         "calibrate-by" : by : patch : attrs : pitches -> do
             let dur = 1
+            -- TODO adjust vars per patch.
             let vars = 4
             let dyns = 16
             let notes = Calibrate.sequence (parseBy by) (txt patch) dur
                     (parseAttrs (txt attrs)) (map txt pitches) vars dyns
             dumpSamples PatchDb.db notes
             process emitProgress PatchDb.db quality notes calibrateDir
+            let outWav = calibrateDir </> "calibrate.wav"
+            putStrLn $ "write to " <> outWav
             Process.callCommand $ unwords
-                [ "sox", "-V1", calibrateDir </> "inst/*.wav"
-                , calibrateDir </> "out.wav"
-                ]
+                ["sox", "-V1", calibrateDir </> "inst/*.wav", outWav]
         ["calibrate-dyn-raw"] -> do
             -- Directly play the underlying samples.
             fnames <- map fst <$> calibrateFnames
@@ -236,8 +242,9 @@ dumpSamples :: Patch.Db -> [Note.Note] -> IO ()
 dumpSamples db notes = do
     samples <- convertNotes db notes
     forM_ samples $ \(_, (_, sampleNotes)) ->
-        Text.IO.putStr $ Text.unlines $ Texts.columns 2 $
-            ["time", "sample", "env"] : map (fmt . snd) sampleNotes
+        Text.IO.putStr $ if null sampleNotes then "NO SAMPLES\n"
+            else Text.unlines $ Texts.columns 2 $
+                ["time", "sample", "env"] : map (fmt . snd) sampleNotes
     where
     fmt note =
         [ RealTime.show_units $ AUtil.toSeconds (Sample.start note)

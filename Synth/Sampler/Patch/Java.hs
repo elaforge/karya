@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE StrictData #-}
+-- | Javanese gamelan instruments.
 module Synth.Sampler.Patch.Java (patches) where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -51,6 +52,7 @@ data Instrument = Instrument {
     name :: Text
     , variations :: Variations
     , tuning :: Tuning
+    , dynamic :: Dynamic -> (Util.DynVal, (Util.DB, Util.DB))
     }
 
 type Tuning = Map Pitch Pitch.NoteNumber
@@ -61,6 +63,7 @@ slenthem = Instrument
     { name = "slenthem"
     , variations
     , tuning = Map.fromList $ zip (map (Pitch 2) [P1 ..])
+        -- TODO copy pasted from Scale.Java
         [ 50.18 -- 21
         , 51.65 -- 22
         , 53    -- 23
@@ -69,7 +72,7 @@ slenthem = Instrument
         , 58.68 -- 26
         , 60.13 -- 27
         ]
-        -- TODO copy pasted from Scale.Java
+    , dynamic = dynamicRange
     }
     where
     variations Open = \case
@@ -87,6 +90,7 @@ peking = Instrument
     { name = "peking"
     , variations
     , tuning = Map.fromList $ zip (map (Pitch 5) [P1 ..])
+        -- TODO copy pasted from Scale.Java
         [ 86.4  -- 51
         , 87.7  -- 52
         , 88.98 -- 53
@@ -95,6 +99,7 @@ peking = Instrument
         , 82.48 + 12 -- 46
         , 84.14 + 12 -- 47
         ]
+    , dynamic = dynamicRange
     }
     where
     variations Open = const 4
@@ -114,6 +119,14 @@ peking = Instrument
             , [(MF, 5)]
             , [(MP, 4), (MF, 4)]
             ]
+
+-- TODO also need per-sample tweaks
+dynamicRange :: Dynamic -> (Util.DynVal, (Util.DB, Util.DB))
+dynamicRange = \case
+    PP -> (0.25, (-8, 4))
+    MP -> (0.5, (-4, 4))
+    MF -> (0.75, (-4, 6))
+    FF -> (1, (-5, 4))
 
 makePatch :: Instrument -> Patch.Patch
 makePatch inst@(Instrument { name, tuning }) = (Patch.patch name)
@@ -153,6 +166,8 @@ makePatch inst@(Instrument { name, tuning }) = (Patch.patch name)
         , (mempty, Open)
         ]
 
+-- * implementation
+
 allFilenames :: Instrument -> [Sample.SamplePath]
 allFilenames (Instrument { tuning, variations }) =
     [ fname
@@ -173,16 +188,16 @@ data Articulation = Open | Mute | Character -- ^ peking have character
 
 convert :: Instrument -> Common.AttributeMap Articulation -> Note.Note
     -> Patch.ConvertM Sample.Sample
-convert (Instrument { tuning, variations }) attrMap note = do
+convert (Instrument { tuning, variations, dynamic }) attrMap note = do
     let art = Util.articulationDefault Open attrMap $
             Note.attributes note
-    let (dyn, dynVal) = Util.dynamic dynamicRange 0 note
+    let (dyn, dynVal) = Util.dynamic dynamic note
     symPitch <- Util.symbolicPitch note
     let variableMute = RealTime.seconds $ Note.initial0 Control.mute note
     (pitch, (noteNn, sampleNn)) <- tryRight $ findPitch tuning symPitch
     let filenames = findFilenames variations art pitch dyn
     return $ (Sample.make (Util.chooseVariation filenames note))
-        -- TODO duplicate from Rambat
+        -- TODO duplicate from Rambat, part of variable mute
         { Sample.envelope = if
             | art == Mute -> Signal.constant dynVal
             | variableMute > 0 -> Signal.from_pairs
@@ -248,13 +263,6 @@ unparseFilename pitch art dyn var =
     articulationDir art
         </> Lists.join "-" [showPitch pitch, Util.showLower dyn, 'v' : show var]
         ++ Util.extension sampleFormat
-
-dynamicRange :: Util.Dynamic -> (Int, Int)
-dynamicRange = \case
-    Util.PP -> (1, 31)
-    Util.MP -> (32, 64)
-    Util.MF -> (65, 108)
-    Util.FF -> (109, 127)
 
 articulationDir :: Articulation -> String
 articulationDir = \case

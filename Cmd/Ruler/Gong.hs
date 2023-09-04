@@ -206,12 +206,36 @@ labeled_ranks = Set.fromList [Meter.Section, Meter.H, Meter.S, Meter.T128]
         7   t32 2      1/64             ir4
         8   t64 2      1/128
 
-    . irama:            1/2    1        2    3     4
-                        lancar tanggung dadi wilet rangkep
-      peking / note     1       2        4    8     16
-      panerus / note    2       4        8   16     32
-      peking / gatra    4       8       16   32     64
-      panerus / gatra   8      16       32   64    128
+    What I have now, /2 rather than the irregular /4:
+
+        cmd ts  div  T    per   function    peking  panerus
+    +   1   S        8          kenong/pul
+    +   2   w   2    4      1   gatra
+        3   h   2    2      2
+    +   4   q   2    1      4   note
+        5   e   2    1/2    8               ir1
+    +   6   s   2    1/4   16               ir2     ir1
+        7   t32 2    1/8   32               ir3     ir2
+        8   t64 2    1/16  64               ir4     ir3
+
+        bodhet inggah has 8*4=32 per note, which is 128/gatra, wiled
+        That means gp is 1/128.  or 1/32.  Neither of these fit!
+        But 4 * 8 is wiled, 2 * 8 is dadi.
+
+        That means dadi is 16/note 64/g, tanggung 8/n, 32/g
+        So these are really gatra!
+
+    . irama:             1/2    1        2    3     4
+                         lancar tanggung dadi wiled rangkep
+      peking / note      1       2        4    8     16
+      g. panerus / note  2       4        8   16     32
+      peking / gatra     4       8       16   32     64
+      g. panerus / gatra 8      16       32   64    128
+
+    . irama:             1/2    1        2    3     4
+      per gatra          lancar tanggung dadi wiled rangkep
+      peking, g barung   4       8       16   32     64
+      g panerus, siter   8      16       32   64    128
 
       But, this is just ScoreTime, which is fungible.  The main thing is the
       range of timesteps, which is 1-8 aka S to 1/64.  If they are mostly
@@ -233,12 +257,13 @@ labeled_ranks = Set.fromList [Meter.Section, Meter.H, Meter.S, Meter.T128]
 -}
 
 -- | (number, name, peking/gatra)
+-- TODO: use this to create tables for each instrument with TrackTime etc.?
 irama :: [(Double, Text, Int)]
 irama =
     [ (1/2, "lancar",   4)
     , (1,   "tanggung", 8)
     , (2,   "dadi",     16)
-    , (3,   "wilet",    32)
+    , (3,   "wiled",    32)
     , (4,   "rangkep",  64)
     ]
 
@@ -263,7 +288,7 @@ java lines = Meter.meter java_config (replicate lines section)
         , section_measure_duration = 4
         , section_measure = meter
         }
-    meter = Meter.regular_subdivision [2, 2, 2, 2, 2, 2]
+    meter = Meter.regular_subdivision [2, 2, 2, 2, 2, 2, 2]
 
 java_config :: Meter.Config
 java_config = Meter.Config

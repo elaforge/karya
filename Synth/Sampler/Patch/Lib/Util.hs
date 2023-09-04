@@ -12,9 +12,9 @@ import qualified Data.Text as Text
 
 import qualified GHC.Stack as Stack
 
+import qualified Util.Lists as Lists
 import qualified Util.Maps as Maps
 import qualified Util.Num as Num
-import qualified Util.Lists as Lists
 
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.ImInst as ImInst
@@ -26,8 +26,8 @@ import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
-import qualified Synth.Shared.Thru as Thru
 import qualified Synth.Shared.Signal as Signal
+import qualified Synth.Shared.Thru as Thru
 
 import           Global
 
@@ -85,19 +85,40 @@ articulationDefault deflt attributeMap  =
 
 -- ** dynamic
 
+-- | This is Sample.envelope units, where 0 = -96dB, 1 = 0dB.
+type DynVal = Signal.Y
+
+-- | Relative dB change.
+type DB = Double
+
+dbToDyn :: DB -> DynVal
+dbToDyn db = db / (-Control.minimumDb)
+
 -- | Standard dynamic ranges.
 data Dynamic = PP | MP | MF | FF
     deriving (Eq, Ord, Show, Read, Bounded, Enum)
 instance Pretty Dynamic where pretty = showt
 
--- | Get patch-specific dyn category, and note dynamic.
-dynamic :: (Bounded dyn, Enum dyn) => (dyn -> (Int, Int))
-    -- ^ Returns velocity instead of dyn, and the lower bound is unnecessary,
-    -- for compatibility.
+-- | Get patch-specific dyn category, and note dynamic.  The DB range
+-- is scaled linearly from things at the bottom of the dyn to the top.
+dynamic :: (Bounded dyn, Enum dyn)
+    => (dyn -> (DynVal, (DB, DB))) -- ^ (upperBound, (lowDb, highDb))
+    -> Note.Note -> (dyn, DynVal)
+dynamic dynVal note = (dyn, 1 + dbToDyn (Num.scale low high delta))
+    where
+    -- delta=0 means dyn at bottom of range
+    (dyn, delta) = findDynamic (fst . dynVal) noteDyn
+    (low, high) = snd $ dynVal dyn
+    noteDyn = Note.initial0 Control.dynamic note
+
+-- | Get patch-specific dyn category, and note dynamic.  This is for normalized
+-- samples, and assuming a MIDI-esque 1-127 velocity.
+dynamicMidi :: (Bounded dyn, Enum dyn) => (dyn -> (x, Int))
+    -- ^ Velocity range at this dyn.  Unused lower bound is for compatibility.
     -> Signal.Y
     -- ^ Min dyn.  This is for normalized samples, where 0 gets this dyn.
     -> Note.Note -> (dyn, Signal.Y)
-dynamic dynToRange minDyn note =
+dynamicMidi dynToRange minDyn note =
     ( fst $ findDynamic (velToDyn . snd . dynToRange) dyn
     , Num.scale minDyn 1 dyn
     )

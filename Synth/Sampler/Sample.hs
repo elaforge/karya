@@ -72,7 +72,7 @@ data Sample = Sample {
     -- | Sample start offset.
     , offset :: !Audio.Frames
     -- | The sample ends when it runs out of samples, or when envelope ends
-    -- on 0.
+    -- on 0.  The units are defined by 'AUtil.dbToLinear': 0 = -96dB, 1 = 0dB.
     , envelope :: !Signal.Signal
     , pan :: !Signal.Signal
     -- | Sample rate conversion ratio.  This controls the pitch.

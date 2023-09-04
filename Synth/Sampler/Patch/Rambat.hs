@@ -119,7 +119,7 @@ attributeMap = Common.attribute_map
 convert :: Tuning -> Note.Note -> Patch.ConvertM Sample.Sample
 convert tuning note = do
     let art = Util.articulationDefault Open attributeMap $ Note.attributes note
-    let (dyn, dynVal) = Util.dynamic dynamicRange minDyn note
+    let (dyn, dynVal) = Util.dynamicMidi dynamicRange minDyn note
     symPitch <- Util.symbolicPitch note
     let variableMute = RealTime.seconds $ Note.initial0 Control.mute note
     (pitch, (noteNn, sampleNn)) <- tryRight $ findPitch tuning symPitch

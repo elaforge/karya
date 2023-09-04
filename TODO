@@ -40,10 +40,13 @@ current:
   vocabulary:
     . pipilan - one melody using two hands
     . irama:        1/2    1        2    3     4
-                    lancar tanggung dadi wilet rangkep
+                    lancar tanggung dadi wiled rangkep
              peking 1      2        4    8     16
     . cengkok: aj aja ngono, ak ayu kuning, dl dualolo
     . O gong ( ) gong suwukan, ^ kenong, ˇ (caron) kempul
+  ruler:
+    4t = 1 gatra = w
+    1t = 1 note = q
 
 ghc:
   . make core easier to read:

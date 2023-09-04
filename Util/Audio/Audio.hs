@@ -748,8 +748,12 @@ silentBlock = V.replicate (framesCount (Proxy @1) blockSize) 0
 
 -- * conversions
 
-linearToDb, dbToLinear :: Float -> Float
+-- | Convert signal multiplier to dB.
+linearToDb :: Float -> Float
 linearToDb x = logBase 10 x * 20
+
+-- | Convert dB to a signal multiplier.
+dbToLinear :: Float -> Float
 dbToLinear x = 10**(x / 20)
     -- Here's another way.  Is it faster?  Does it matter?
     -- dbToLinear db = 2**(db * 0.16609640474)
