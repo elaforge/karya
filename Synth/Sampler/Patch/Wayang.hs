@@ -23,7 +23,6 @@ import           System.FilePath ((</>))
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Maps as Maps
-import qualified Util.Num as Num
 import qualified Util.Texts as Texts
 
 import qualified Cmd.Instrument.Bali as Bali
@@ -41,20 +40,16 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Instrument.Common as Common
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
-import qualified Perform.Im.Patch as Im.Patch
 import qualified Perform.Pitch as Pitch
-import qualified Perform.RealTime as RealTime
-
 import qualified Synth.Sampler.Patch as Patch
+import qualified Synth.Sampler.Patch.Lib.Bali as Lib.Bali
 import qualified Synth.Sampler.Patch.Lib.Util as Util
 import qualified Synth.Sampler.Patch.WayangCode as WayangCode
 import qualified Synth.Sampler.Sample as Sample
-import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
 
 import           Global
-import           Synth.Types
 
 
 sampleFormat :: Util.SampleFormat
@@ -77,16 +72,9 @@ patches = pasang Pemade : pasang Kantilan
         , Patch._allFilenames = allFilenames inst tuning
         , Patch._karyaPatch = ImInst.code #= code inst tuning $
             setRange inst $ setTuning tuning $
-            ImInst.make_patch $ Im.Patch.patch
-                { Im.Patch.patch_controls = mconcat
-                    [ Control.supportPitch
-                    , Control.supportDyn
-                    , Control.supportVariation
-                    , Map.singleton Control.mute
-                        "Amount of mute. This becomes a shortened envelope."
-                    ]
-                , Im.Patch.patch_attribute_map = const () <$> attributeMap
-                }
+            ImInst.make_patch $
+            Lib.Bali.supportVariableMute $
+            Util.patchPitchDynVar attributeMap
         }
         where
         code inst tuning = WayangCode.code
@@ -177,6 +165,7 @@ checkStarts = (makeSample reference,)
         , Sample.ratios = Signal.constant 1
         }
     dur = 1
+    muteTime = 0.35
 
 -- * convert
 
@@ -206,19 +195,10 @@ convert instrument tuning note = do
     Log.debug $ "note at " <> pretty (Note.start note) <> ": "
         <> pretty ((dyn, dynVal), (symPitch, sampleNn), var)
         <> ": " <> txt filename
-    let variableMute = RealTime.seconds $ Note.initial0 Control.mute note
     return $ (Sample.make filename)
         { Sample.envelope = if
             | isMute articulation -> Signal.constant dynVal
-            | variableMute > 0 -> Signal.from_pairs
-                [ (Note.start note, dynVal)
-                , (Note.start note
-                    + uncurry Num.scale variableMuteRange (1-variableMute), 0)
-                ]
-            | otherwise -> Signal.from_pairs
-                [ (Note.start note, dynVal), (Note.end note, dynVal)
-                , (Note.end note + muteTime, 0)
-                ]
+            | otherwise -> Lib.Bali.variableMuteEnv dynVal note
         , Sample.ratios = Signal.constant $ Sample.pitchToRatio sampleNn noteNn
         }
 
@@ -234,13 +214,6 @@ workaround :: Instrument -> Tuning -> Articulation -> Util.Dynamic
     -> Util.Dynamic
 workaround Kantilan Umbang CalungMute Util.FF = Util.MF
 workaround _ _ _ dyn = dyn
-
-variableMuteRange :: (RealTime, RealTime)
-variableMuteRange = (0.85, 4)
-
--- | Time to mute at the end of a note.
-muteTime :: RealTime
-muteTime = 0.35
 
 -- | Wayang samples are normalized, so it just scales by Control.dynamic, where
 -- 0 gets this value.

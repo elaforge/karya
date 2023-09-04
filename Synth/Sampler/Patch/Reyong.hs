@@ -150,12 +150,9 @@ convert note = do
     --     <> pretty ((dyn, scale), (symPitch, sampleNn), var)
     --     <> ": " <> txt filename
     return $ (Sample.make filename)
-        { Sample.envelope = if isMute articulation
-            then Signal.constant dynVal
-            else Signal.from_pairs
-                [ (Note.start note, dynVal), (Note.end note, dynVal)
-                , (Note.end note + muteTime, 0)
-                ]
+        { Sample.envelope = if
+            | isMute articulation -> Signal.constant dynVal
+            | otherwise -> Util.sustainRelease dynVal muteTime note
         , Sample.ratios = Signal.constant $ Sample.pitchToRatio sampleNn noteNn
         }
 

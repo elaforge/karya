@@ -20,8 +20,10 @@ import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Attrs as Attrs
 import qualified Instrument.Common as Common
+import qualified Perform.Im.Patch as Im.Patch
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
+
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Control as Control
@@ -38,6 +40,19 @@ extension :: SampleFormat -> String
 extension = \case
     Wav -> ".wav"
     Flac -> ".flac"
+
+-- * im patch
+
+-- | Patch with standard controls.
+patchPitchDynVar :: Common.AttributeMap a -> Im.Patch.Patch
+patchPitchDynVar attributeMap = Im.Patch.patch
+    { Im.Patch.patch_controls = mconcat
+        [ Control.supportPitch
+        , Control.supportDyn
+        , Control.supportVariation
+        ]
+    , Im.Patch.patch_attribute_map = const () <$> attributeMap
+    }
 
 -- * preprocess
 
@@ -194,10 +209,17 @@ dynEnvelope minDyn releaseTime note =
         Note.controls note
 
 -- | Simple sustain-release envelope.
-sustainRelease :: Signal.Y -> RealTime.RealTime -> Note.Note -> Signal.Signal
-sustainRelease sustain releaseTime note = Signal.from_pairs
-    [ (Note.start note, sustain), (Note.end note, sustain)
+sustainRelease :: DynVal -> RealTime.RealTime -> Note.Note -> Signal.Signal
+sustainRelease dyn releaseTime note = Signal.from_pairs
+    [ (Note.start note, dyn), (Note.end note, dyn)
     , (Note.end note + releaseTime, 0)
+    ]
+
+-- | Simple release envelope.
+triggerRelease :: DynVal -> RealTime.RealTime -> Note.Note -> Signal.Signal
+triggerRelease dyn releaseTime note = Signal.from_pairs
+    [ (Note.start note, dyn)
+    , (Note.start note + releaseTime, 0)
     ]
 
 -- * thru

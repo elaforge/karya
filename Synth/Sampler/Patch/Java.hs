@@ -24,22 +24,18 @@ import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Scale as Scale
 
 import qualified Instrument.Common as Common
-import qualified Perform.Im.Patch as Im.Patch
 import qualified Perform.Pitch as Pitch
-import qualified Perform.RealTime as RealTime
-
 import qualified Synth.Sampler.Patch as Patch
+import qualified Synth.Sampler.Patch.Lib.Bali as Lib.Bali
 import qualified Synth.Sampler.Patch.Lib.Code as Code
 import qualified Synth.Sampler.Patch.Lib.Prepare as Prepare
 import qualified Synth.Sampler.Patch.Lib.Util as Util
 import           Synth.Sampler.Patch.Lib.Util (Dynamic(..))
 import qualified Synth.Sampler.Sample as Sample
-import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
 
 import           Global
-import           Synth.Types
 
 
 sampleFormat :: Util.SampleFormat
@@ -135,16 +131,9 @@ makePatch inst@(Instrument { name, tuning }) = (Patch.patch name)
     , Patch._karyaPatch =
         ImInst.code #= code $
         ImInst.range (makeRange tuning) $
-        ImInst.make_patch $ Im.Patch.patch
-            { Im.Patch.patch_controls = mconcat
-                [ Control.supportPitch
-                , Control.supportDyn
-                , Control.supportVariation
-                , Map.singleton Control.mute
-                    "Amount of mute. This becomes a shortened envelope."
-                ]
-            , Im.Patch.patch_attribute_map = const () <$> attributeMap
-            }
+        ImInst.make_patch $
+        Lib.Bali.supportVariableMute $
+        Util.patchPitchDynVar attributeMap
     , Patch._allFilenames = Set.fromList $ allFilenames inst
     }
     where
@@ -189,35 +178,17 @@ data Articulation = Open | Mute | Character -- ^ peking have character
 convert :: Instrument -> Common.AttributeMap Articulation -> Note.Note
     -> Patch.ConvertM Sample.Sample
 convert (Instrument { tuning, variations, dynamic }) attrMap note = do
-    let art = Util.articulationDefault Open attrMap $
-            Note.attributes note
+    let art = Util.articulationDefault Open attrMap $ Note.attributes note
     let (dyn, dynVal) = Util.dynamic dynamic note
     symPitch <- Util.symbolicPitch note
-    let variableMute = RealTime.seconds $ Note.initial0 Control.mute note
     (pitch, (noteNn, sampleNn)) <- tryRight $ findPitch tuning symPitch
     let filenames = findFilenames variations art pitch dyn
     return $ (Sample.make (Util.chooseVariation filenames note))
-        -- TODO duplicate from Rambat, part of variable mute
         { Sample.envelope = if
             | art == Mute -> Signal.constant dynVal
-            | variableMute > 0 -> Signal.from_pairs
-                [ (Note.start note, dynVal)
-                , (Note.start note
-                    + uncurry Num.scale variableMuteRange (1-variableMute), 0)
-                ]
-            | otherwise -> Signal.from_pairs
-                [ (Note.start note, dynVal), (Note.end note, dynVal)
-                , (Note.end note + muteTime, 0)
-                ]
+            | otherwise -> Lib.Bali.variableMuteEnv dynVal note
         , Sample.ratios = Signal.constant $ Sample.pitchToRatio sampleNn noteNn
         }
-
-variableMuteRange :: (RealTime, RealTime)
-variableMuteRange = (0.85, 4)
-
--- | Time to mute at the end of a note.
-muteTime :: RealTime
-muteTime = 0.35
 
 -- TODO similar to Rambat.findPitch, except no umbang/isep
 findPitch :: Tuning -> Either Pitch.Note Pitch.NoteNumber

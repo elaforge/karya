@@ -95,7 +95,9 @@ main = do
         -- Play notes in a dynamic range to calibrate relative dynamics.
         "calibrate-by" : by : patch : attrs : pitches -> do
             let dur = 1
-            -- TODO adjust vars per patch.
+            -- TODO adjust vars per patch.  But, they can vary per dyn, attr.
+            -- So maybe use allFilenames or something to enumerate them?
+            -- That's what calibrate-dyn-raw does.
             let vars = 4
             let dyns = 16
             let notes = Calibrate.sequence (parseBy by) (txt patch) dur
