@@ -24,8 +24,6 @@ import qualified Util.Maps as Maps
 import qualified Cmd.Instrument.Bali as Bali
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Attrs as Attrs
-import qualified Derive.C.Prelude.Note as Prelude.Note
-import qualified Derive.Call as Call
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Instrument.DUtil as DUtil
 import           Derive.Scale.BaliScales (Tuning(..))
@@ -38,7 +36,6 @@ import qualified Synth.Sampler.Calibrate as Calibrate
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Patch.Lib.Bali as Lib.Bali
 import           Synth.Sampler.Patch.Lib.Bali (Pitch(..), PitchClass(..))
-import qualified Synth.Sampler.Patch.Lib.Code as Code
 import qualified Synth.Sampler.Patch.Lib.Util as Util
 import           Synth.Sampler.Patch.Lib.Util (Dynamic(..))
 import qualified Synth.Sampler.Sample as Sample
@@ -73,19 +70,13 @@ patches = pasang : map make [Umbang, Isep]
         }
         where
         dir = "rambat" </> Util.showLower tuning
-        code tuning = note
+        code tuning = Lib.Bali.zeroDurMute 0.65
             <> Util.thru dir (convert tuning)
             <> ImInst.postproc DUtil.with_symbolic_pitch
     setRange = ImInst.range Legong.rambat_range
     setTuning tuning = ImInst.environ EnvKey.tuning (tuningVal tuning :: Text)
-
     tuningVal Umbang = "umbang"
     tuningVal Isep = "isep"
-    note = Bali.zero_dur_mute_with ""
-        (\_args -> transform . Call.multiply_dynamic 0.65)
-        (\args -> transform $
-            Prelude.Note.default_note Prelude.Note.use_attributes args)
-        where transform = Code.withVariation
 
 attributeMap :: Common.AttributeMap Articulation
 attributeMap = Common.attribute_map

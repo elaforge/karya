@@ -44,7 +44,6 @@ import qualified Perform.Pitch as Pitch
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Patch.Lib.Bali as Lib.Bali
 import qualified Synth.Sampler.Patch.Lib.Util as Util
-import qualified Synth.Sampler.Patch.WayangCode as WayangCode
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
@@ -77,7 +76,7 @@ patches = pasang Pemade : pasang Kantilan
             Util.patchPitchDynVar attributeMap
         }
         where
-        code inst tuning = WayangCode.code
+        code inst tuning = Lib.Bali.wayangCode
             <> Util.thru dir (convert inst tuning)
             <> ImInst.postproc with_symbolic_pitch
         dir = "wayang" </> Util.showLower inst </> Util.showLower tuning

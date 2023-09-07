@@ -15,11 +15,8 @@ import qualified Util.Lists as Lists
 import qualified Util.Maps as Maps
 import qualified Util.Num as Num
 
-import qualified Cmd.Instrument.Bali as Bali
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Attrs as Attrs
-import qualified Derive.C.Prelude.Note as Prelude.Note
-import qualified Derive.Call as Call
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Scale as Scale
 
@@ -27,7 +24,6 @@ import qualified Instrument.Common as Common
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Patch.Lib.Bali as Lib.Bali
-import qualified Synth.Sampler.Patch.Lib.Code as Code
 import qualified Synth.Sampler.Patch.Lib.Prepare as Prepare
 import qualified Synth.Sampler.Patch.Lib.Util as Util
 import           Synth.Sampler.Patch.Lib.Util (Dynamic(..))
@@ -161,7 +157,7 @@ standardDyns f = \case
     FF -> (1, f FF)
 
 makePatch :: Instrument -> Patch.Patch
-makePatch inst@(Instrument { name, tuning, articulations }) = (Patch.patch name)
+makePatch inst = (Patch.patch name)
     { Patch._dir = dir
     , Patch._convert = convert inst attributeMap
     , Patch._karyaPatch =
@@ -175,20 +171,17 @@ makePatch inst@(Instrument { name, tuning, articulations }) = (Patch.patch name)
     where
     dir = "java" </> untxt name
     -- TODO copy paste with Rambat
-    code = note
+    code = Lib.Bali.zeroDurMute 0.65
         <> Util.thru dir (convert inst attributeMap)
         <> ImInst.postproc DUtil.with_symbolic_pitch
-    note = Bali.zero_dur_mute_with ""
-        (\_args -> transform . Call.multiply_dynamic 0.65)
-        (\args -> transform $
-            Prelude.Note.default_note Prelude.Note.use_attributes args)
-        where transform = Code.withVariation
+    -- %character at 0 never adds +character, at 1 always adds it
     attributeMap = Common.attribute_map $
         filter ((`Set.member` articulations) . snd)
             [ (Attrs.mute, Mute)
             , (Attrs.attr "character", Character)
             , (mempty, Open)
             ]
+    Instrument { name, tuning, articulations } = inst
 
 -- * implementation
 

@@ -10,11 +10,8 @@ import qualified Data.Set as Set
 
 import qualified Util.Lists as Lists
 import qualified Util.Maps as Maps
-import qualified Cmd.Instrument.Bali as Bali
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Attrs as Attrs
-import qualified Derive.C.Prelude.Note as Prelude.Note
-import qualified Derive.Call as Call
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Scale as Scale
@@ -30,7 +27,6 @@ import qualified Perform.Pitch as Pitch
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Patch.Lib.Bali as Lib.Bali
 import           Synth.Sampler.Patch.Lib.Bali (Pitch(..), PitchClass(..))
-import qualified Synth.Sampler.Patch.Lib.Code as Code
 import qualified Synth.Sampler.Patch.Lib.Util as Util
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Control as Control
@@ -69,14 +65,9 @@ makePatch name tuning range = (Patch.patch name)
             }
     }
     where
-    code = note
+    code = Lib.Bali.zeroDurMute 0.8
         <> Util.thru dir convert
         <> ImInst.postproc DUtil.with_symbolic_pitch
-    note = Bali.zero_dur_mute_with ""
-        (const $ transform . Call.multiply_dynamic 0.8)
-        (\args -> transform $
-            Prelude.Note.default_note Prelude.Note.use_attributes args)
-        where transform = Code.withVariation
     dir = "reyong"
 
 attributeMap :: Common.AttributeMap Articulation
