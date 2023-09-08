@@ -167,3 +167,97 @@ e_swapan = exercise $ date 2023 8 28 $ korvaiS adi
     ]
     where
     pattern = "n_pknp tpktpkn___" . "pknptpktpkn_ktpk"
+
+-- *
+
+{-
+thom        . / o   ge
+tha         - / +   kat
+ki          l / k   tet
+ta          t       te
+nam         n       na
+din         d       tin
+chapu       u       tA
+dheem       i       tun
+din + thom  D       dha
+
+intro
+   .   1   .   2    .   3   .   4    .   5   .   6    .   7   .   8
+                |   o           .|   o           .| o       n k o +
+                |           o    |         o   o  | l   o o   n k o
+
+   .   1   .   2    .   3   .   4    .   5   .   6    .   7   .   8
+ k n k   n k n k|   . o   u   k n| o     . o   . o| k   o l o l . o
+ n k n k   n k n| i   n   i   i i|     o   n     n|   k   o l o l -
+
+[[ repeat 2x
+   .   1   .   2    .   3   .   4    .   5   .   6    .   7   .   8
+       -   -   o|   k n k n k o +| n k o l o l . o|   k n k n k o -
+       o   o   n|     k n k n k o| + n k o l o l n|     k n k n k o
+
+   .   1   .   2    .   3   .   4    .   5   .   6    .   7   .   8
+ k + n k n k o -| n k o l o   k .| D   D   +   +  | . D   - k   o -
+ - k   n k n k o| - n k o l o o  | n   n   D   D  |     i i   k   o
+
+   .   1   .   2    .   3   .   4    .   5   .   6    .   7   .   8
+ k + n k   n   k|   k   n   k   -| k - n - k - n -| k - k t o - o -
+ +   k d   k   n|   n   k   n    | - k - n - k - k|t+ii i i   o - o
+
+   .   1   .   2    .   3   .   4    .   5   .   6    .   7   .   8
+ . D     k n o -| n k o - o - - .| D   D   +   +  | . o   - k   o
+ - n       k n o|   n   o   o o  | n   n   D   D  |   n i i   k   o
+
+   .   1   .   2    .   3   .   4    .   5   .   6    .   7   .   8
+ + k n k   n   k|   k   n   k   -| k - n - k - n -| n - k - n - k -
+ +   k d   k   d|   d   k   d    | - k - n - k - n| - n - k - n - k
+
+   .   1   .   2    .   3   .   4    .   5   .   6    .   7   .   8
+ k     u k . D  | - - o - o - . D|   k - k n k n k| o l . D       -
+   i i i k      | o o n o n o   n|   - k - k n k n| k o   n       o
+
+   .   1   .   2    .   3   .   4    .   5   .   6    .   7   .   8
+   - o   -   o -|   - o   -   o  | n k o - o   . D|   - . D       -
+ o o n   o o n o| o o n   o o n o| k n   o   o   n|   o   n       o
+                                    ==> skip to ]] on 2nd repeat
+
+   .   1   .   2    .   3   .   4    .   5   .   6    .   7   .   8
+ k - o - o   . D|   . D   u   u  | o   - . o      | - - o - o - . o
+ - k - o   o   -| i       i   i i|     o - n      | o o n o n o   n
+]]
+
+   .   1   .   2    .   3   .   4    .   5   .   6    .   7   .   8
+   k   . o      | +   o   +   o  | o   k o   k o  | . o   + k n o
+ k   i   n      | i   k   i   k i| i   o     o   o|       +   k n o
+
+   .   1   .   2    .   3   .   4    .   5   .   6    .   7   .   8
+   o     o   o  | . o   k   k o  |   o     o   o  | . o   o     o
+ o   o     o   o|   n     k   k o| o   o     o   o|   i   i   i   o
+
+   .   1   .   2    .   3   .   4    .   5   .   6    .   7   .   8
+ k   n   n   o  |     o   o     .| o   o          | . o     k   o
+   k   n   n   o|       o   o o  | n   n   o   o  |     i i   k   o
+
+   .   1   .   2    .   3   .   4    .   5   .   6    .   7   .   8
+ + k n k   n   k|   k   n   k   +| k n o   o   . o|   + n k + n k +
+     k n   k   n|   n   k   n   k| + k n o   o   n|     + n k + n k
+
+   .   1   .   2    .   3   .   4    .   5   .   6    .   7   .   8
+ n k o + n k n k| o     . o     k| n k o   k   o  | . o
+ + n k o + n k n| k   o   n      | k n k o   k   o|   n           o
+
+   .   1   .   2    .   3   .   4    .   5   .   6    .   7   .   8
+ o   . o        | o   . o       +| k n o   o   . o|               +
+   o   n       o|   o   n        | + k n o   o   n|     i   i   i i
+
+   .   1   .   2    .   3   .   4    .   5   .   6    .   7   .   8
+ n k o   k n k  | o     . o   n k| n k     +      |     o   o   . o
+ k n   o   k n k|     o   u     n| k i i i   +    | o o   o   o
+
+   .   1   .   2    .   3   .   4    .   5   .   6    .   7   .   8
+     . o        |   o            | o   o         .| o       n k o
+   o           o|       o     o  |         o   o  |     o o   n k o
+
+   .   1   .   2    .   3   .   4    .   5   .   6    .   7   .   8
+ k n k   n k n k| u . o          | o     . o   . o|     o   o   . o
+   k n k   n k n| i     kt+ii i i|     o   u     u| o o   o   o   n
+-}

@@ -59,8 +59,8 @@ type Error = Text
 
 data Bol =
     Dha | Dhet |Dhom | Di | Din | Dhi | Dhin | Dhit | Ga | Gi | Ge | Ghen
-    | Ka | Kat | Kre | Ki | Na | Ne | Ra | Ri | Ran
-    | Ta | Tak | Taa | Te | Tet | Ti | Tu
+    | Ka | Kat | Ke | Kre | Ki | Na | Ne | Ra | Ri | Ran
+    | Ta | Tak | Taa | Te | Tet | Ti | Tu | Tun
     | Kran -- TODO 2 beats?
     deriving (Eq, Ord, Enum, Bounded, Show)
 

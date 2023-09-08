@@ -120,3 +120,26 @@ awantika = akash $ comment "Akash did for kathak dance with Awantika." $
     where
     tkttktdhom = tkt.tkt.dhom
     tkt = su "takita"
+
+-- * Coalby
+
+
+coalby :: Korvai -> Korvai
+coalby = source "coalby"
+
+c_23_09_07a :: Korvai
+c_23_09_07a = coalby $ date 2023 9 7 $ korvaiS1 tintal $
+    "kat _ tette gege tette gege tun _"
+    . "nana  tette kat tette ge tette"
+    . tri_ (dha.__6) (tri_ "dha_" "kita")
+
+c_23_09_07b :: Korvai
+c_23_09_07b = coalby $ date 2023 9 7 $ korvaiS tintal $
+    [ pre . "tirikita" . pre . "nakanana"
+        . preK . "tirikita" . pre . "nagenana"
+    , "dhage tette gege tette" . r3 "kataagege tirikita"
+        . "taka tette keke tette" . "katakeke tirikita" . r2 "katagege tirikita"
+    ]
+    where
+    pre = "dhage tette gege tette kataagege"
+    preK = "taka tette keke tette kataakeke"
