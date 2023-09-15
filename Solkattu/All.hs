@@ -146,17 +146,17 @@ scores = map Korvai.inferMetadataS
     , setLocation ("Solkattu.Score.Mridangam2022",101,"e_22_10_16") $ Single Solkattu.Score.Mridangam2022.e_22_10_16
     , setLocation ("Solkattu.Score.Mridangam2022",108,"t_endaro_ending") $ Single Solkattu.Score.Mridangam2022.t_endaro_ending
     , setLocation ("Solkattu.Score.Mridangam2022",120,"akash_sarva") $ Single Solkattu.Score.Mridangam2022.akash_sarva
-    , setLocation ("Solkattu.Score.Mridangam2023",15,"e_sai_shiv_1_2") $ Single Solkattu.Score.Mridangam2023.e_sai_shiv_1_2
-    , setLocation ("Solkattu.Score.Mridangam2023",34,"e_sai_shiv_3") $ Single Solkattu.Score.Mridangam2023.e_sai_shiv_3
-    , setLocation ("Solkattu.Score.Mridangam2023",43,"e_sai_shiv_4") $ Single Solkattu.Score.Mridangam2023.e_sai_shiv_4
-    , setLocation ("Solkattu.Score.Mridangam2023",60,"e_sai_shiv_5") $ Single Solkattu.Score.Mridangam2023.e_sai_shiv_5
-    , setLocation ("Solkattu.Score.Mridangam2023",71,"e_sai_shiv_7") $ Single Solkattu.Score.Mridangam2023.e_sai_shiv_7
-    , setLocation ("Solkattu.Score.Mridangam2023",82,"e_sai_shiv_9") $ Single Solkattu.Score.Mridangam2023.e_sai_shiv_9
-    , setLocation ("Solkattu.Score.Mridangam2023",97,"e_sai_shiv_11") $ Single Solkattu.Score.Mridangam2023.e_sai_shiv_11
-    , setLocation ("Solkattu.Score.Mridangam2023",108,"e_sai_shiv_12") $ Single Solkattu.Score.Mridangam2023.e_sai_shiv_12
-    , setLocation ("Solkattu.Score.Mridangam2023",123,"e_shankar_prasad_1") $ Single Solkattu.Score.Mridangam2023.e_shankar_prasad_1
-    , setLocation ("Solkattu.Score.Mridangam2023",144,"mohra_bs") $ Single Solkattu.Score.Mridangam2023.mohra_bs
-    , setLocation ("Solkattu.Score.Mridangam2023",161,"e_swapan") $ Single Solkattu.Score.Mridangam2023.e_swapan
+    , setLocation ("Solkattu.Score.Mridangam2023",16,"e_sai_shiv_1_2") $ Single Solkattu.Score.Mridangam2023.e_sai_shiv_1_2
+    , setLocation ("Solkattu.Score.Mridangam2023",35,"e_sai_shiv_3") $ Single Solkattu.Score.Mridangam2023.e_sai_shiv_3
+    , setLocation ("Solkattu.Score.Mridangam2023",44,"e_sai_shiv_4") $ Single Solkattu.Score.Mridangam2023.e_sai_shiv_4
+    , setLocation ("Solkattu.Score.Mridangam2023",61,"e_sai_shiv_5") $ Single Solkattu.Score.Mridangam2023.e_sai_shiv_5
+    , setLocation ("Solkattu.Score.Mridangam2023",72,"e_sai_shiv_7") $ Single Solkattu.Score.Mridangam2023.e_sai_shiv_7
+    , setLocation ("Solkattu.Score.Mridangam2023",83,"e_sai_shiv_9") $ Single Solkattu.Score.Mridangam2023.e_sai_shiv_9
+    , setLocation ("Solkattu.Score.Mridangam2023",98,"e_sai_shiv_11") $ Single Solkattu.Score.Mridangam2023.e_sai_shiv_11
+    , setLocation ("Solkattu.Score.Mridangam2023",109,"e_sai_shiv_12") $ Single Solkattu.Score.Mridangam2023.e_sai_shiv_12
+    , setLocation ("Solkattu.Score.Mridangam2023",124,"e_shankar_prasad_1") $ Single Solkattu.Score.Mridangam2023.e_shankar_prasad_1
+    , setLocation ("Solkattu.Score.Mridangam2023",145,"mohra_bs") $ Single Solkattu.Score.Mridangam2023.mohra_bs
+    , setLocation ("Solkattu.Score.Mridangam2023",162,"e_swapan") $ Single Solkattu.Score.Mridangam2023.e_swapan
     , setLocation ("Solkattu.Score.MridangamSarva",19,"kir1") $ Single Solkattu.Score.MridangamSarva.kir1
     , setLocation ("Solkattu.Score.MridangamSarva",24,"kir2") $ Single Solkattu.Score.MridangamSarva.kir2
     , setLocation ("Solkattu.Score.MridangamSarva",44,"kir3") $ Single Solkattu.Score.MridangamSarva.kir3
@@ -311,14 +311,16 @@ scores = map Korvai.inferMetadataS
     , setLocation ("Solkattu.Score.SolkattuMohra",95,"c_mohra2") $ Single Solkattu.Score.SolkattuMohra.c_mohra2
     , setLocation ("Solkattu.Score.SolkattuMohra",113,"c_mohra_youtube") $ Single Solkattu.Score.SolkattuMohra.c_mohra_youtube
     , setLocation ("Solkattu.Score.SolkattuMohra",139,"misra1") $ Single Solkattu.Score.SolkattuMohra.misra1
-    , setLocation ("Solkattu.Score.Tabla2023",10,"qaida1") $ Single Solkattu.Score.Tabla2023.qaida1
-    , setLocation ("Solkattu.Score.Tabla2023",39,"qaida2") $ Single Solkattu.Score.Tabla2023.qaida2
-    , setLocation ("Solkattu.Score.Tabla2023",65,"farmaisi") $ Single Solkattu.Score.Tabla2023.farmaisi
-    , setLocation ("Solkattu.Score.Tabla2023",73,"tukra1") $ Single Solkattu.Score.Tabla2023.tukra1
-    , setLocation ("Solkattu.Score.Tabla2023",78,"tukra2_chakradar") $ Single Solkattu.Score.Tabla2023.tukra2_chakradar
-    , setLocation ("Solkattu.Score.Tabla2023",85,"tukra3_otaan") $ Single Solkattu.Score.Tabla2023.tukra3_otaan
-    , setLocation ("Solkattu.Score.Tabla2023",91,"tukra4") $ Single Solkattu.Score.Tabla2023.tukra4
-    , setLocation ("Solkattu.Score.Tabla2023",97,"tukra5") $ Single Solkattu.Score.Tabla2023.tukra5
-    , setLocation ("Solkattu.Score.Tabla2023",108,"tukra6") $ Single Solkattu.Score.Tabla2023.tukra6
-    , setLocation ("Solkattu.Score.Tabla2023",114,"awantika") $ Single Solkattu.Score.Tabla2023.awantika
+    , setLocation ("Solkattu.Score.Tabla2023",14,"bats") $ Single Solkattu.Score.Tabla2023.bats
+    , setLocation ("Solkattu.Score.Tabla2023",52,"qaida1") $ Single Solkattu.Score.Tabla2023.qaida1
+    , setLocation ("Solkattu.Score.Tabla2023",75,"qaida2") $ Single Solkattu.Score.Tabla2023.qaida2
+    , setLocation ("Solkattu.Score.Tabla2023",95,"farmaisi") $ Single Solkattu.Score.Tabla2023.farmaisi
+    , setLocation ("Solkattu.Score.Tabla2023",102,"tukra1") $ Single Solkattu.Score.Tabla2023.tukra1
+    , setLocation ("Solkattu.Score.Tabla2023",107,"tukra2_chakradar") $ Single Solkattu.Score.Tabla2023.tukra2_chakradar
+    , setLocation ("Solkattu.Score.Tabla2023",114,"tukra3_otaan") $ Single Solkattu.Score.Tabla2023.tukra3_otaan
+    , setLocation ("Solkattu.Score.Tabla2023",120,"tukra4") $ Single Solkattu.Score.Tabla2023.tukra4
+    , setLocation ("Solkattu.Score.Tabla2023",126,"tukra5") $ Single Solkattu.Score.Tabla2023.tukra5
+    , setLocation ("Solkattu.Score.Tabla2023",137,"tukra6") $ Single Solkattu.Score.Tabla2023.tukra6
+    , setLocation ("Solkattu.Score.Tabla2023",149,"c_23_09_07a") $ Single Solkattu.Score.Tabla2023.c_23_09_07a
+    , setLocation ("Solkattu.Score.Tabla2023",155,"c_23_09_07b") $ Single Solkattu.Score.Tabla2023.c_23_09_07b
     ]

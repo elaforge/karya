@@ -58,9 +58,10 @@ type BolT = Text
 type Error = Text
 
 data Bol =
-    Dha | Dhet |Dhom | Di | Din | Dhi | Dhin | Dhit | Ga | Gi | Ge | Ghen
-    | Ka | Kat | Ke | Kre | Ki | Na | Ne | Ra | Ri | Ran
-    | Ta | Tak | Taa | Te | Tet | Ti | Tu | Tun
+    Dha | Dhet | Dhom | Di | Din | Dhi | Dhin | Dhit | Dhu
+    | Ga | Gi | Ge | Ghen | Gre
+    | Ka | Kat | Ke | Kre | Ki | Ma | Na | Ne | Ra | Re | Ri | Ran
+    | Ta | Tak | Taa | Te | Tet | Ti | Tin | Tu | Tun
     | Kran -- TODO 2 beats?
     deriving (Eq, Ord, Enum, Bounded, Show)
 
@@ -74,7 +75,8 @@ instance Expr.ToExpr (Realize.Stroke Bol) where
     to_expr = Realize.toExpr
 
 parseBols :: BolT -> Either Error [Maybe Bols]
-parseBols = Solkattu.parseSyllables allBols
+parseBols = Solkattu.parseSyllables False allBols
+    . Text.replace "|" "" -- TODO this should be an akshara assertion
 
 allBols :: [(BolT, Bols)]
 allBols = sequences
@@ -90,6 +92,7 @@ sequences =
     [ ("tr", S2 Ti Ra)
     , ("kt", S2 Ki Ta)
     , ("tk", S2 Ta Ka)
+    , ("Ta", S1 Taa)
     ]
 
 -- TODO

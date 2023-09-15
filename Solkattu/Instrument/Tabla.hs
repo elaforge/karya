@@ -25,19 +25,21 @@ data Stroke = Baya Baya | Daya Daya | Both Baya Daya
 data Baya = Ka | Ge
     deriving (Eq, Ord, Show)
 data Daya =
-    Ta -- nam
+    Na -- nam
+    | Taa -- pakhawaj chapu, tabla like Tin
     | Tin -- din
-    | Tu -- dheem
-    | Na -- pakhawaj na
-    | Tet -- ki
-    | Te -- ta, actually ṭe
+    | Tu -- dheem, 1 finger
+    | Tet
+    | Te -- actually ṭe
+    | Thi -- te with middle finger, like mi
     deriving (Eq, Ord, Show)
 
 instance Pretty Stroke where pretty = showt
 
 data Strokes a = Strokes {
     ka :: a, ge :: a
-    , ta :: a
+    , na :: a
+    , taa :: a
     , tin :: a
     , tu :: a
     , tet :: a
@@ -48,7 +50,8 @@ strokes :: Strokes Stroke
 strokes = Strokes
     { ka = Baya Ka
     , ge = Baya Ge
-    , ta = Daya Ta
+    , na = Daya Na
+    , taa = Daya Taa
     , tin = Daya Tin
     , tu = Daya Tu
     , tet = Daya Tet
@@ -58,7 +61,10 @@ strokes = Strokes
 notes :: Strokes (S.Sequence g (Solkattu.Note (Realize.Stroke Stroke)))
 notes = Realize.strokeToSequence <$> strokes
 
--- dha = Both Ge Ta
--- dhin = Both Ge Tin
--- tirikita = [tet, te, ka, tet]
---     where Strokes {..} = strokes
+{-
+dha = Both Ge Ta
+dhin = Both Ge Tin
+dhet = Both Ka Te
+tirikita = [tet, te, ka, tet]
+    where Strokes {..} = strokes
+-}

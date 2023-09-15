@@ -309,22 +309,22 @@ instance Pretty Sollu where pretty = notationText
 -- ** parseSollus
 
 parseSollus :: Text -> Either Error [Maybe Sollu]
-parseSollus = parseSyllables allSollus
+parseSollus = parseSyllables True allSollus
 
 allSollus :: [(Text, Sollu)]
 allSollus = Lists.keyOn notationText $ filter (/= NoSollu) [minBound ..]
 
-parseSyllables :: Show sollu => [(Text, sollu)] -> Text
+parseSyllables :: Show sollu => Bool -> [(Text, sollu)] -> Text
     -> Either Error [Maybe sollu]
-parseSyllables solluMap = fmap concat . mapM parse . Text.words
+parseSyllables elideN solluMap = fmap concat . mapM parse . Text.words
     where
-    parse w = case parseSyllablesWord solluMap w of
+    parse w = case parseSyllablesWord elideN solluMap w of
         [] -> Left $ "no parse for " <> showt w
         [sollus] -> Right sollus
         xs -> Left $ "multiple parses for " <> showt w <> ": " <> showt xs
 
-parseSyllablesWord :: [(Text, sollu)] -> Text -> [[Maybe sollu]]
-parseSyllablesWord solluMap = go
+parseSyllablesWord :: Bool -> [(Text, sollu)] -> Text -> [[Maybe sollu]]
+parseSyllablesWord elideN solluMap = go
     where
     go prefix
         | Text.null prefix = [[]]
@@ -333,7 +333,7 @@ parseSyllablesWord solluMap = go
             (str, sollu) <- filter (has . fst) solluMap
             let suffix = Text.drop (Text.length str) prefix
             -- Allow an elided n, e.g. tadinginathom vs. tadinginnathom.
-            suffix <- suffix : if "n" `Text.isSuffixOf` str
+            suffix <- suffix : if elideN && "n" `Text.isSuffixOf` str
                 then ["n" <> suffix] else []
             (Just sollu :) <$> go suffix
         where has = (`Text.isPrefixOf` prefix)

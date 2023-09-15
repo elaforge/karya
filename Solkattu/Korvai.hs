@@ -276,14 +276,14 @@ inferSections seqs = case Lists.unsnoc (map section seqs) of
 
 -- | Each instrument is matched up with a stroke type.
 data Instrument stroke where
-    IKonnakol :: Instrument Solkattu.Sollu
-    IMridangam :: Instrument Mridangam.Stroke
+    IKonnakol       :: Instrument Solkattu.Sollu
+    IMridangam      :: Instrument Mridangam.Stroke
     IKendangTunggal :: Instrument KendangTunggal.Stroke
-    IKendangPasang :: Instrument KendangPasang.Stroke
-    IReyong :: Instrument Reyong.Stroke
-    ISargam :: Instrument Sargam.Stroke
-    IBol :: Instrument Bol.Bol
-    ITabla :: Instrument Tabla.Stroke
+    IKendangPasang  :: Instrument KendangPasang.Stroke
+    IReyong         :: Instrument Reyong.Stroke
+    ISargam         :: Instrument Sargam.Stroke
+    IBol            :: Instrument Bol.Bol
+    ITabla          :: Instrument Tabla.Stroke
 
 instrumentName :: Instrument stroke -> Text
 instrumentName = \case
@@ -627,5 +627,4 @@ instance Monoid StrokeMaps where
         (Right mempty)
     mappend = (<>)
 
-instance Pretty StrokeMaps where
-    format = Pretty.formatGCamel
+instance Pretty StrokeMaps where format = Pretty.formatGCamel

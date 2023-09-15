@@ -7,6 +7,48 @@ import           Prelude hiding ((.))
 import           Solkattu.Dsl.Bol
 
 
+-- * pakhawaj
+
+-- TODO I should be able to take sd off the 16 beat ones, but then the terminal
+-- spacing changes, because it doesn't want to split into 4 beats
+bats :: Korvai
+bats = bat $ source "mary" $ korvaiS tintal $ map sd
+    [ r2 "gadi gene nage tette" . "kata kata gadi gadi" . "gadi gene nage tette"
+
+    , "taki tetTa _ tetTa _" . "taki tetdhet tette dhage"
+    . "tere kita takaTa _" . tetekata
+
+    , su $ "dhage tette Tage tette kredhet tette dhage tette"
+    . "tette kredhet tette dhage tette kaTa gadi gene"
+    . "taki teTa _teTa _ ga _ di _ gere nage"
+    . "tere kita takaTa _" . tetekata
+
+    , r2 "dhage   tette  | Ta ge   tette |"
+    . r2 "kredhet tette  | dhage   tette |"
+    . "kredhet tette  | kredhet tette | dhage tette | kredhet tette"
+    . "kredhet tette  | dhage   tette | gadi gene   | nage tette"
+    . "kattet tekat   | tette   katTa | kat tr kttk | Tage tette"
+    . "kredhet _ dhet | tette   dhage | tette kaTa  | gadi gene"
+    . "dha_ kita      | taka    dhuma | kita taka   | dhet_ Ta_"
+    . "tere kita      | taka Ta _     |" . tetekata
+
+    , "gege tette  | gadi gene  | nage tere  | kita taka"
+    . "Tage tette  | gege tette | gadi gene  | nage tette"
+    . "gredhin _Ta | _ ne Ta _  | gege tette | gadi gene"
+    . "Tage tette  | gege tette | gadi gene  | nage tette"
+
+    , "dhette dhette | dhage tette | kredhet tette | dhage tette"
+    . r3 "kredhet tette |" . "dhage tette"
+    . "kredhet _ Ta  | gene dha _    |" . tetekata
+    . "nage tette  | kaTa kaTa  | ka tr kt dhet | tette kata"
+    . "ge _ teran  | _ ne dha _ | di_ ge_   | __ Ta _"
+    . "dha _ _ ne  | kata kata  | ge_ teran | _ne dha _"
+    . "di _ ge _   | _ _ Ta _   | dha_ _ne  | kata kata"
+    . "ge _ teran  | _ ne dha _ | di_ ge_   | __ Ta_ | dha"
+    ]
+
+-- * akash
+
 qaida1 :: Korvai
 qaida1 = qaida $ akash $ korvaiS tintal $ map sd
     [ r2 "dha dha trkt dha dha tu na taa taa trkt dha dha tu na"
@@ -26,14 +68,8 @@ qaida1 = qaida $ akash $ korvaiS tintal $ map sd
     , "trkt trkt dha dha trkt dha dha trkt dha dha tu na"
     . "trkt trkt taa taa trkt dha dha trkt dha dha tu na"
     , tri_ (dha.__8) (g "dha dha trkt dha dha tu na taa taa trkt dha dha tu na")
-        -- , "dha dha trkt dha dha tu na taa taa trkt dha dha tu na"
-        -- . "dha _ _ _ _ _ _ _ dha dha trkt dha dha tu na"
-        -- . "taa taa trkt dha dha tu na dha _ _ _ _ _ _ _"
-        -- . "dha dha trkt dha dha tu na taa taa trkt dha dha tu na"
-    -- first speed
+    -- first speed tihai
     , tri_ "dha___" (g "dha dha trkt dha dha tuna")
-        -- , "dha dha trkt dha dha tu na dha _ _ _ dha dha trkt"
-        -- . "dha dha tu na dha _ _ _ dha dha trkt dha dha tu na"
     ]
 
 qaida2 :: Korvai
@@ -52,21 +88,14 @@ qaida2 = qaida $ akash $ korvaiS tintal $ map sd
     , "dha trkt tk _ trkt tk dha trkt tk tu na kt tk"
     . "taa trkt tk _ trkt tk dha trkt tk tu na kt tk"
 
-    , tri_ (dha.__)
-        (g $ "dha trkt tk tu na kt tk taa trkt tk tu na kt tk"
-            . "dha _ kt tk")
-        -- , "dha trkt tk tu na kt tk taa trkt tk tu na kt tk"
-        -- . "dha _ kt tk dha _ dha trkt tk tu na kt tk taa tr"
-        -- . "kt tk tu na kt tk dha _ kt tk dha _ dha trkt tk"
-        -- . "tu na kt tk taa trkt tk tu na kt tk dha _ kt tk"
+    , tri_ (dha.__) (g "dha tr kttk tuna kttk Ta tr kttk tuna kttk dha _ kttk")
     ]
 
 -- farmaisi chakradar paran
 farmaisi :: Korvai
 farmaisi = akash $ korvaiS1 tintal $ nadai 3 $
-    r3 $ g $ r2 "dha dha gena tette"
-        . "takita dha trkt" . "dha dha gena tette"
-    . "kran__ kran__" . (nadai 2 "tk tr kt tk")
+    r3 $ g $ r2 "dhadha gena tette" . "takita dha trkt" . "dhadha gena tette"
+    . "kran__ kran__" . (nadai 2 "tktr kttk")
     . r3 (r3 "dha trkt" . "tak kran_ dha__")
     -- first finish on 11
 
@@ -111,18 +140,8 @@ tukra6 = tukra $ akash $ korvaiS1 tintal $ nadai 3 $
     . "ka tette tukita dhi gene nagene"
     . "takita taa_na taa__" . tri_ "dha__" "kredhadha"
 
-awantika :: Korvai
-awantika = akash $ comment "Akash did for kathak dance with Awantika." $
-    korvaiS1 tintal $ sd $ -- TODO should not be sd but wraps better that way
-    r3 (g ("dha dha ".tkttktdhom))
-        . __ . r3 (g ("dha ti dha ".tkttktdhom))
-        . __ . r3 (g ("dha dha ti dha ".tkttktdhom))
-    where
-    tkttktdhom = tkt.tkt.dhom
-    tkt = su "takita"
 
 -- * Coalby
-
 
 coalby :: Korvai -> Korvai
 coalby = source "coalby"
@@ -135,11 +154,46 @@ c_23_09_07a = coalby $ date 2023 9 7 $ korvaiS1 tintal $
 
 c_23_09_07b :: Korvai
 c_23_09_07b = coalby $ date 2023 9 7 $ korvaiS tintal $
-    [ pre . "tirikita" . pre . "nakanana"
-        . preK . "tirikita" . pre . "nagenana"
-    , "dhage tette gege tette" . r3 "kataagege tirikita"
-        . "taka tette keke tette" . "katakeke tirikita" . r2 "katagege tirikita"
+    [          theme . tirikita . theme . kali nanagena
+        . kali theme . tirikita . theme . nanagena
+
+    ,          r3 (theme . tirikita) . theme . kali nanagena
+        . r2 (kali theme . tirikita) . theme.tirikita . theme.nanagena
+
+    , dhage_tette.gege_tette . r3 (kataagege.tirikita)
+        . kali (dhage_tette.gege_tette . kataagege.tirikita)
+        . r2 (kataagege.tirikita)
+
+    , dhage_tette.gege_tette . r3 (kataagege.tirikita)
+        . theme . tirikita . theme . kali nanagena
+        . kali (dhage_tette.gege_tette) . r3 (kali kataagege.tirikita)
+        . theme . tirikita . theme . nanagena
+    , dhage_tette.tirikita . gege_tette.tirikita . kataagege.nanagena
+        . tirikita.kali nanagena
+        . kali (dhage_tette.tirikita . gege_tette.tirikita) . kataagege.nanagena
+        . tirikita.nanagena
+
+    -- , "dhage".tirikita."gege".tirikita
+    , dhage_tette.__.gege_tette.__.kataagege.__.tirikita.__
+        . "dhagatet gegetet kataage nanaka"
+        . kali (dhage_tette.__.gege_tette.__.kataagege.__.tirikita.__)
+            . "dhagatet gegetet katage nanaga"
+    ,  "dhage_tet_te" . "gege_tet_te" . "kataa_ge_ge" . "tiri_ki_ta"
+        . "dhaga gege kataa nana"
+        .  kali ("dhage_tet_te" . "gege_tet_te") . "kataa_ge_ge" . "tiri_ki_ta"
+        . "dhaga gege kataa nana"
+
+    -- . "dha__ge__tet__te__ ge_ge_tet_te_"
+    --     . (kataagege.tirikita.nanagena)
+    , "dha__ge__tet__te__ ge__" . "ge_tet_te_ ka_taa_" . "gege nakatenaka"
+        . kali "dha__ge__tet__te__" .ge.__3."ge_tet_te_ ka_taa_"
+        . "gege nagatenaga"
+
     ]
     where
-    pre = "dhage tette gege tette kataagege"
-    preK = "taka tette keke tette kataakeke"
+    dhage_tette = "dhage tette"
+    gege_tette = "gege tette"
+    kataagege = "kataa gege"
+    theme = dhage_tette.gege_tette.kataagege
+    nanagena = "nanagena"
+    tirikita = "tirikita"

@@ -7,6 +7,7 @@ import           Prelude hiding ((.), repeat)
 
 import qualified Solkattu.Tala as Tala
 
+import           Global
 import           Solkattu.Dsl.Mridangam
 
 
@@ -171,6 +172,7 @@ e_swapan = exercise $ date 2023 8 28 $ korvaiS adi
 -- *
 
 {-
+sollu       symbol  bol
 thom        . / o   ge
 tha         - / +   kat
 ki          l / k   tet

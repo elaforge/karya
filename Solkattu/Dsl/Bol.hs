@@ -14,6 +14,7 @@ import qualified Data.String as String
 import           GHC.Stack (HasCallStack)
 
 import qualified Solkattu.Bol as Bol
+import qualified Solkattu.Dsl.Interactive as Interactive
 import           Solkattu.Dsl.Interactive (diff, diffw)
 import qualified Solkattu.Format.Terminal as Terminal
 import qualified Solkattu.Korvai as Korvai
@@ -52,6 +53,7 @@ _bol s = S.singleton $ S.Note (Solkattu.Note (Solkattu.note (Realize.stroke s)))
 dha = _bol Bol.Dha
 dhom= _bol Bol.Dhom
 ti  = _bol Bol.Ti
+tin = _bol Bol.Tin
 ra  = _bol Bol.Ra
 ki  = _bol Bol.Ki
 ta  = _bol Bol.Ta
@@ -77,6 +79,20 @@ kttk = "kttk"
 tetekata :: Sequence
 tetekata = namedT Solkattu.GPattern "8n" $
     Solkattu.Standard ^ "tette kata gadi gene"
+
+kali :: Sequence -> Sequence
+kali = mapB $ \case
+    Bol.Ge -> Just Bol.Ke
+    Bol.Ga -> Just Bol.Ka
+    Bol.Dha -> Just Bol.Taa
+    bol -> Just bol
+
+mapB :: (Bol.Bol -> Maybe Bol.Bol) -> Sequence -> Sequence
+mapB f = fmap $ \case
+    Solkattu.Note n -> case traverse f (Solkattu._sollu n) of
+        Nothing -> Solkattu.Space Solkattu.Rest
+        Just s -> Solkattu.Note $ n { Solkattu._sollu = s }
+    note -> note
 
 -- * realize
 
@@ -124,6 +140,9 @@ korvaiS1 tala seq = korvaiS tala [seq]
 
 akash :: Korvai -> Korvai
 akash = source "akash"
+
+bat :: Korvai -> Korvai
+bat = withType "bat"
 
 qaida :: Korvai -> Korvai
 qaida = withType "qaida"
