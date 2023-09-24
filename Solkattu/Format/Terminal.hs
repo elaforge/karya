@@ -267,6 +267,23 @@ formatRuler strokeWidth =
         where
         append = spaces * strokeWidth - Text.length mark - debt
 
+-- | Break into [avartanam], where avartanam = [line].
+formatLines :: Solkattu.Notation stroke => Format.Abstraction -> Int
+    -> Int -> Talas.Tala -> [Format.Flat stroke] -> [[[(S.State, Symbol)]]]
+formatLines abstraction strokeWidth width tala notes =
+    map (map (Format.mapSnd (spellRests strokeWidth)))
+        . Format.formatFinalAvartanam isRest _isOverlappingSymbol
+        . map (breakLine width)
+        . Format.breakAvartanams
+        . overlapSymbols strokeWidth
+        . concatMap (makeSymbols strokeWidth tala angas)
+        . Format.makeGroupsAbstract abstraction
+        . Format.normalizeSpeed toSpeed (Talas.aksharas tala)
+        $ notes
+    where
+    angas = Talas.angaSet tala
+    toSpeed = S.maxSpeed notes
+
 -- | Replace two rests starting on an even note, with a Realize.doubleRest.
 -- This is an elementary form of rhythmic spelling.
 --
@@ -293,23 +310,6 @@ spellRests strokeWidth
 isRest :: Symbol -> Bool
 isRest = (=="_") . Text.strip . _text
 
--- | Break into [avartanam], where avartanam = [line].
-formatLines :: Solkattu.Notation stroke => Format.Abstraction -> Int
-    -> Int -> Talas.Tala -> [Format.Flat stroke] -> [[[(S.State, Symbol)]]]
-formatLines abstraction strokeWidth width tala notes =
-    map (map (Format.mapSnd (spellRests strokeWidth)))
-        . Format.formatFinalAvartanam isRest _isOverlappingSymbol
-        . map (breakLine width)
-        . Format.breakAvartanams
-        . overlapSymbols strokeWidth
-        . concatMap (makeSymbols strokeWidth tala angas)
-        . Format.makeGroupsAbstract abstraction
-        . Format.normalizeSpeed toSpeed (Talas.aksharas tala)
-        $ notes
-    where
-    angas = Talas.angaSet tala
-    toSpeed = S.maxSpeed notes
-
 -- | Long names will overlap following _isSustain ones.
 overlapSymbols :: Int -> [(a, Symbol)] -> [(a, Symbol)]
 overlapSymbols strokeWidth = snd . mapAccumLSnd combine ("", Nothing)
@@ -317,10 +317,10 @@ overlapSymbols strokeWidth = snd . mapAccumLSnd combine ("", Nothing)
     combine (overlap, overlapSym) sym
         | _isSustain sym = if Text.null overlap
             then (("", Nothing), sym)
-            else let (pre, post) = textSplitAt strokeWidth overlap
+            else let (pre, post) = Realize.textSplitAt strokeWidth overlap
                 in ((post, overlapSym), replace pre overlapSym sym)
         | otherwise =
-            let (pre, post) = textSplitAt strokeWidth (_text sym)
+            let (pre, post) = Realize.textSplitAt strokeWidth (_text sym)
             in ((post, Just sym), sym { _text = pre })
     replace prefix mbOverlapSym sym = case mbOverlapSym of
         Nothing -> sym { _text = newText }
@@ -332,7 +332,7 @@ overlapSymbols strokeWidth = snd . mapAccumLSnd combine ("", Nothing)
             }
         where
         newText = prefix
-            <> snd (textSplitAt (Realize.textLength prefix) (_text sym))
+            <> snd (Realize.textSplitAt (Realize.textLength prefix) (_text sym))
 
 makeSymbols :: Solkattu.Notation stroke => Int -> Talas.Tala -> Set Tala.Akshara
     -> Format.NormalizedFlat stroke -> [(S.State, Symbol)]
@@ -467,12 +467,14 @@ formatSymbol (Symbol text style _isSustain emph highlight _) =
     ) $
     Styled.styled style $ (if emph then emphasize else Styled.plain) text
     where
-    emphasize word
-        -- A bold _ looks similar to a non-bold one, so put a bar to make it
-        -- more obvious.
-        | "_ " `Text.isPrefixOf` word = emphasize "_|"
-        | "‗ " `Text.isPrefixOf` word = emphasize "‗|"
-        | otherwise = emphasisStyle word
+    emphasize = emphasisStyle
+    -- emphasize word
+    --     -- A bold _ looks similar to a non-bold one, so put a bar to make it
+    --     -- more obvious.
+    --     -- TODO or not, do I really need it?  Also, buggy when >2 length
+    --     | "_ " `Text.isPrefixOf` word = emphasize "_|"
+    --     | "‗ " `Text.isPrefixOf` word = emphasize "‗|"
+    --     | otherwise = emphasisStyle word
 
 emphasisStyle :: Text -> Styled.Styled
 emphasisStyle = Styled.fg red . Styled.bold
@@ -481,15 +483,6 @@ emphasisStyle = Styled.fg red . Styled.bold
 
 symLength :: Symbol -> Int
 symLength = Realize.textLength . _text
-
-textSplitAt :: Int -> Text -> (Text, Text)
-textSplitAt at text =
-    find $ map (flip Text.splitAt text) [0 .. Realize.textLength text]
-    where
-    find (cur : next@((pre, _) : _))
-        | Realize.textLength pre > at = cur
-        | otherwise = find next
-    find _ = (text, "")
 
 -- * util
 

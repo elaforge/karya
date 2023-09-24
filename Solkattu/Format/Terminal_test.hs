@@ -71,8 +71,8 @@ test_format_patterns = do
 test_format_space :: Test
 test_format_space = do
     let run = fmap (eFormat . format 80 adiTala . fst) . kRealize Tala.adi_tala
-    equal (run (G.__M 4)) $ Right "‗|  ‗"
-    equal (run (G.restD 1)) $ Right "‗|  ‗"
+    equal (run (G.__M 4)) $ Right "‗   ‗"
+    equal (run (G.restD 1)) $ Right "‗   ‗"
 
 test_format_sarva :: Test
 test_format_sarva = do
@@ -177,7 +177,7 @@ test_spellRests :: Test
 test_spellRests = do
     let run width = fmap (eFormat . format width tala4c . fst)
             . kRealize tala4
-    equalT (run 80 (G.sd (G.__ <> G.ta))) $ Right "‗|  k _"
+    equalT (run 80 (G.sd (G.__ <> G.ta))) $ Right "‗   k _"
     equalT (run 80 (G.sd (G.ta <> G.__ <> G.ta))) $ Right "k _ ‗   k _"
     equalT (run 10 (G.sd (G.ta <> G.__ <> G.ta))) $ Right "k _ k"
     equalT (run 80 (G.ta <> G.__4 <> G.ta)) $ Right "k _ ‗   k"

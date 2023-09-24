@@ -49,6 +49,7 @@ module Solkattu.Realize (
     -- * text util
     , justifyLeft
     , textLength
+    , textSplitAt
 
     -- * DEBUG
     , SolluMap(..)
@@ -817,6 +818,10 @@ justifyLeft n c text
     | otherwise = text <> Text.replicate (n - len) (Text.singleton c)
     where len = textLength text
 
+-- | Text.length that doesn't count combining characters.
+--
+-- TODO there is surely a canonical way to count graphemes, say using text-icu,
+-- but it seems like a heavy dependency.
 textLength :: Text -> Int
 textLength = Num.sum . map len . untxt
     where
@@ -825,3 +830,13 @@ textLength = Num.sum . map len . untxt
     len c
         | Char.isMark c = 0
         | otherwise = 1
+
+-- | Text.splitAt that isn't confused by combining characters.
+textSplitAt :: Int -> Text -> (Text, Text)
+textSplitAt at text =
+    find $ map (flip Text.splitAt text) [0 .. textLength text]
+    where
+    find (cur : next@((pre, _) : _))
+        | textLength pre > at = cur
+        | otherwise = find next
+    find _ = (text, "")
