@@ -92,6 +92,12 @@ c_20_10_25 = date 2020 10 25 $ ganesh $ korvai adi (mridangam<>k1<>k2) $
     , ending $ nadai 6 korv
     ]
     where
+    -- structure:
+    -- 7*7 + 7*6 + 7*5 + 7*4 = 22*7 = 154
+    -- 34342 + 24242 + 23232 = 16 + 14 + 12 (8 + 7 + 6) = 42
+    -- 10 (5) 10 (5 5) 10 = 45
+    -- 555 (1) 555 (1) 555 = 45+2 = 47
+    -- = 154 + 42 + 45 + 47 = 288 / 4 =  72 / 8 = 9 avartanams
     korv = mconcat
         [ g $ ending7.__7
         , g $ ending6.__6

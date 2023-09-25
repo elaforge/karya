@@ -141,26 +141,26 @@ tukra6 = tukra $ akash $ korvaiS1 tintal $ nadai 3 $
     . "takita taa_na taa__" . tri_ "dha__" "kredhadha"
 
 
--- * Coalby
+-- * colby
 
-coalby :: Korvai -> Korvai
-coalby = source "coalby"
+colby :: Korvai -> Korvai
+colby = source "colby"
 
 c_23_09_07a :: Korvai
-c_23_09_07a = coalby $ date 2023 9 7 $ korvaiS1 tintal $
+c_23_09_07a = colby $ date 2023 9 7 $ korvaiS1 tintal $
     "kat _ tette gege tette gege tun _"
     . "nana  tette kat tette ge tette"
     . tri_ (dha.__6) (tri_ "dha_" "kita")
 
 c_23_09_07b :: Korvai
-c_23_09_07b = coalby $ date 2023 9 7 $ korvaiS tintal $
-    [          theme . tirikita . theme . kali nanagena
+c_23_09_07b = colby $ date 2023 9 7 $ korvaiS tintal $ map su
+    [ sd $     theme . tirikita . theme . kali nanagena
         . kali theme . tirikita . theme . nanagena
 
     ,          r3 (theme . tirikita) . theme . kali nanagena
         . r2 (kali theme . tirikita) . theme.tirikita . theme.nanagena
 
-    , dhage_tette.gege_tette . r3 (kataagege.tirikita)
+    , sd $ dhage_tette.gege_tette . r3 (kataagege.tirikita)
         . kali (dhage_tette.gege_tette . kataagege.tirikita)
         . r2 (kataagege.tirikita)
 
@@ -168,27 +168,26 @@ c_23_09_07b = coalby $ date 2023 9 7 $ korvaiS tintal $
         . theme . tirikita . theme . kali nanagena
         . kali (dhage_tette.gege_tette) . r3 (kali kataagege.tirikita)
         . theme . tirikita . theme . nanagena
-    , dhage_tette.tirikita . gege_tette.tirikita . kataagege.nanagena
-        . tirikita.kali nanagena
-        . kali (dhage_tette.tirikita . gege_tette.tirikita) . kataagege.nanagena
-        . tirikita.nanagena
 
-    -- , "dhage".tirikita."gege".tirikita
-    , dhage_tette.__.gege_tette.__.kataagege.__.tirikita.__
-        . "dhagatet gegetet kataage nanaka"
-        . kali (dhage_tette.__.gege_tette.__.kataagege.__.tirikita.__)
-            . "dhagatet gegetet katage nanaga"
-    ,  "dhage_tet_te" . "gege_tet_te" . "kataa_ge_ge" . "tiri_ki_ta"
-        . "dhaga gege kataa nana"
-        .  kali ("dhage_tet_te" . "gege_tet_te") . "kataa_ge_ge" . "tiri_ki_ta"
-        . "dhaga gege kataa nana"
+    -- , dhage_tette.tirikita . gege_tette.tirikita . kataagege.nanagena
+    --     . tirikita.kali nanagena
+    --     . kali (dhage_tette.tirikita . gege_tette.tirikita)
+    --     . kataagege.nanagena
+    --     . tirikita.nanagena
+    --
+    -- , dhage_tette.__.gege_tette.__.kataagege.__.tirikita.__
+    --     . "dhagatet gegetet kataage nanaka"
+    --     . kali (dhage_tette.__.gege_tette.__.kataagege.__.tirikita.__)
+    --         . "dhagatet gegetet katage nanaga"
 
-    -- . "dha__ge__tet__te__ ge_ge_tet_te_"
-    --     . (kataagege.tirikita.nanagena)
-    , "dha__ge__tet__te__ ge__" . "ge_tet_te_ ka_taa_" . "gege nakatenaka"
-        . kali "dha__ge__tet__te__" .ge.__3."ge_tet_te_ ka_taa_"
-        . "gege nagatenaga"
+    , theme.tette . r2 (ka.taa)."gege tette" . r3 (ka.taa)."gege tette"
+        . theme.tirikita.theme.kali nanagena
+     . kali (theme.tette . r2 (ka.taa)."gege tette" . r3 (ka.taa)."gege tette")
+        . theme.tirikita.theme.nanagena
 
+    , tri_ (dha.__8) $ g $
+        tri_ (dha.__6) (dhage_tette.gege_tette.kataagege.nanagena)
+        . dha.__ . kataagege.nanagena.dha.__ . kataagege.nanagena
     ]
     where
     dhage_tette = "dhage tette"
@@ -197,3 +196,76 @@ c_23_09_07b = coalby $ date 2023 9 7 $ korvaiS tintal $
     theme = dhage_tette.gege_tette.kataagege
     nanagena = "nanagena"
     tirikita = "tirikita"
+
+c_23_09_21a :: Korvai
+c_23_09_21a = colby $ date 2023 9 21 $ korvaiS tintal
+    [ nadai 3 $ "dha dha dha di di di na na na" . "kat tette dha _"
+        . "dha dha di di na na" . "kat tette dha_"
+        . "dha _ di _ na _" . tri_ (dha.__4) "kat tette"
+    , r3 $ g $ "dha dha dha di di di na na na" . "kat tette dha"
+        . "dha dha di di na na" . "kat tette dha"
+        . "dha _ di _ na _" . tri_ dha "kat tette" . dha.__4
+    ]
+
+legong1 :: Korvai
+legong1 = korvaiS kehrwa
+    [ "na___ ge_ge_ | na___na_na_ | ge _na _ ge_ge_ | na___na_na_"
+    . "ge_tet_ na_na_ | ge_na_ge_gege | _na_na_dha_dha_ | __tuntun_tet_"
+    , "ge_tet_na_tet_ | na_na_tet_na_ | __tet_na_tet_"
+        . su "tiriki tu" . "tun tun tun _ge _"
+    , "ge_na___na_ | ge_na_ge_gege | _na_na_dha_dha | __natuntun_tet_"
+    . "ge_tet_na_tet_ | na_na_tet_na_ | __tet_na_tet_ | na_na_tet_na_"
+    . "tet_tuntuntuntet_na | _gege_ge_ge_ | na___tet_na_na_ge_na___"
+    , "gegegena_gegena | gegegena_gegena | ge_na_ge_ge_ | na_ge_na___"
+    . "ge_tet_ge_ge_ | _tun_na_tun_tun | tun__ge_na___ | gege_ge_ge_ | na"
+    ]
+
+{-
+    L   P   T   U Y     O
+    W k   t   u     . a
+
+    |   .   1   .   2   .   3   .   4   .   5   .   6   .   7   .   8
+    a       O   O   a     t T t T a O t T a O a O . a     t T t T a O
+      k P t T t T a O t T a O a O O . a   a   O   O   . a Y Y k P a O
+      k P t T   t   T   T   t   T     k P t T k P t P  YY Y Y a O a O
+      . a     t T a O t T a O a O O . a   a   O   O   . a Y Y k P a O
+    |   .   1   .   2   .   3   .   4   .   5   .   6   .   7   .   8
+      k P t T   t   T   T   t   T     k P t T k P t T t T k P t T k P
+        Y Y Y P . a   O O a O a O . a     k P t T t T a U . a       O
+      O O a   O O a O O O a   O O a O t T a O a O . a   O   a       O
+      k P a U a U . a Y . a   Y   Y Y a   U . a       U U a U a U . a
+    |   .   1   .   2   .   3   .   4   .   5   .   6   .   7   .   8
+-}
+{-
+      .   1   .   2    .   3   .   4    .   5   .   6    .   7   .   8
+          -   -   o|   k n k n k o +| n k o l o l . o|   k n k n k o -
+          o   o   n|     k n k n k o| + n k o l o l n|     k n k n k o
+
+      .   1   .   2    .   3   .   4    .   5   .   6    .   7   .   8
+    k + n k n k o -| n k o l o   k .| D   D   +   +  | . D   - k   o -
+    - k   n k n k o| - n k o l o o  | n   n   D   D  |     i i   k   o
+
+      .   1   .   2    .   3   .   4    .   5   .   6    .   7   .   8
+    k + n k   n   k|   k   n   k   -| k - n - k - n -| k - k t o - o -
+    +   k d   k   n|   n   k   n    | - k - n - k - k|t+ii i i   o - o
+
+      .   1   .   2    .   3   .   4    .   5   .   6    .   7   .   8
+    . D     n   o -| n   o - o - - .| D   D   +   +  | . o   - k   o
+    - n       n   o|   n   o   o o  | n   n   D   D  |   n i i   k   o
+
+      .   1   .   2    .   3   .   4    .   5   .   6    .   7   .   8
+    + k n k   n   k|   k   n   k   -| k - n - k - n -| n - k - n - k -
+    +   k d   k   d|   d   k   d    | - k - n - k - n| - n - k - n - k
+
+      .   1   .   2    .   3   .   4    .   5   .   6    .   7   .   8
+    k     u k . D  | - - o - o - . D|   k - k n k n k| o l . D       -
+      i i i k      | o o n o n o   n|   - k - k n k n| k o   n       o
+
+      .   1   .   2    .   3   .   4    .   5   .   6    .   7   .   8
+      - o   -   o -|   - o   -   o  | n k o - o   . D|   - . D       -
+    o o n   o o n o| o o n   o o n o| k n   o   o   n|   o   n       o
+
+      .   1   .   2    .   3   .   4    .   5   .   6    .   7   .   8
+    k - o - o   . D|   . D   u   u  | o   - . o      | - - o - o - . o
+    - k - o   o   -| i   n   i   i i|     o - n      | o o n o n o   n
+-}

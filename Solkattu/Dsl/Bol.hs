@@ -70,6 +70,9 @@ ne  = _bol Bol.Ne
 
 -- * fragments
 
+tette :: Sequence
+tette = tet.te
+
 tr, trkt, kt, kttk :: Sequence
 tr = "tr"
 trkt = "trkt"

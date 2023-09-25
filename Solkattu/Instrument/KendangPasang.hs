@@ -104,6 +104,8 @@ strokes = Strokes
     , a = De
     , o = Tut
     }
+--   P   T   U Y   O
+-- k   t   u     a
 
 notes :: Strokes (S.Sequence g (Solkattu.Note (Realize.Stroke Stroke)))
 notes = Realize.strokeToSequence <$> strokes
