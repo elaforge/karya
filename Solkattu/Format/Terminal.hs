@@ -408,15 +408,21 @@ shouldEmphasize tala angas state
 -- | If the text goes over the width, break at the middle akshara, or the
 -- last one before the width if there isn't a middle.
 breakLine :: Int -> [(S.State, Symbol)] -> [[(S.State, Symbol)]]
-breakLine maxWidth notes
-    | width <= maxWidth = [notes]
-    | even aksharas = breakAt (aksharas `div` 2) notes
-    | otherwise = breakBefore maxWidth notes
+breakLine maxWidth = go 0
     where
-    width = Num.sum $ map (symLength . snd) notes
-    aksharas = Lists.count (Format.onAkshara . fst) notes
-    breakAt akshara = pairToList . break ((==akshara) . S.stateAkshara . fst)
-    pairToList (a, b) = [a, b]
+    go startAkshara notes
+        | width <= maxWidth || aksharas <= 1 = [notes]
+        -- As long as it stays even, break recursively.
+        | even aksharas =
+            go startAkshara pre ++ go (startAkshara + mid) post
+        | otherwise = breakBefore maxWidth notes
+        where
+        width = Num.sum $ map (symLength . snd) notes
+        aksharas = Lists.count (Format.onAkshara . fst) notes
+        mid = aksharas `div` 2
+        (pre, post) = break
+            ((== mid) . subtract startAkshara . S.stateAkshara .  fst)
+            notes
 
 -- | Yet another word-breaking algorithm.  I must have 3 or 4 of these by now.
 breakBefore :: Int -> [(S.State, Symbol)] -> [[(S.State, Symbol)]]

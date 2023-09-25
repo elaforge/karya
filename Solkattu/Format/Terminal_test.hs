@@ -231,14 +231,15 @@ test_formatLines = do
 
     -- Break multiple avartanams and lines.
     let ta2 = "k _ ‗   k _ ‗"
-    equal (f 2 8 tala4 (G.sd (G.sd (tas 8)))) $ Right
+    equal (f 2 16 tala4 (G.sd (G.sd (tas 8)))) $ Right
         [ [ta2, ta2]
         , [ta2, ta2]
         ]
     -- If there's a final stroke on sam, append it to the previous line.
+    let ta1 = "k _ ‗"
     equal (f 2 8 tala4 (G.sd (G.sd (tas 9)))) $ Right
-        [ [ta2, ta2]
-        , [ta2, ta2 <> "   k"]
+        [ replicate 4 ta1
+        , replicate 3 ta1 ++ [ta1 <> "   k"]
         ]
 
     -- Uneven ones break before the width.
