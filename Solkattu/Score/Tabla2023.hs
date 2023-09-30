@@ -202,10 +202,29 @@ c_23_09_21a = colby $ date 2023 9 21 $ korvaiS tintal
     [ nadai 3 $ "dha dha dha di di di na na na" . "kat tette dha _"
         . "dha dha di di na na" . "kat tette dha_"
         . "dha _ di _ na _" . tri_ (dha.__4) "kat tette"
-    , r3 $ g $ "dha dha dha di di di na na na" . "kat tette dha"
+    , r3 $ g t2
+    , g $ "dhadhadha _ _ dididi _ _ nanana _ _ kat tette dha _"
+        . t2
+    -- ? shouldn't it be 3x?
+    , "dhadhadha _ _ dididi _ _ nanana _ _ kat tette dha _ _"
+        . "dhadha _ _ didi _ _ nana _ _ kat tette dha _ _"
+        . "dha _ di _ na _"
+        . tri "kattette dhadhadha _"
+    ]
+    where
+    t2 = "dha dha dha di di di na na na" . "kat tette dha"
         . "dha dha di di na na" . "kat tette dha"
         . "dha _ di _ na _" . tri_ dha "kat tette" . dha.__4
+
+c_23_09_29a :: Korvai
+c_23_09_29a = colby $ rela $ date 2023 9 29 $ korvaiS tintal
+    [ r2 dhage_tette_din_ . "dhage tette"
+        . dhage_tette_din_ . "dhage tette" . "dhage nage tenne"
+        . kali (r2 dhage_tette_din_ . "dhage tette")
+        . dhage_tette_din_ . "dhage tette" . "dhage nage tenne"
     ]
+    where
+    dhage_tette_din_ = "dhage tette dhin _"
 
 legong1 :: Korvai
 legong1 = korvaiS kehrwa

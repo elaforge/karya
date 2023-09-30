@@ -61,7 +61,7 @@ data Bol =
     Dha | Dhet | Dhom | Di | Din | Dhi | Dhin | Dhit | Dhu
     | Ga | Gi | Ge | Ghen | Gre
     | Ka | Kat | Ke | Kre | Ki | Ma | Na | Ne | Ra | Re | Ri | Ran
-    | Ta | Tak | Taa | Te | Tet | Ti | Tin | Tu | Tun
+    | Ta | Tak | Taa | Te | Tet | Ti | Tin | Ten | Tu | Tun
     | Kran -- TODO 2 beats?
     deriving (Eq, Ord, Enum, Bounded, Show)
 

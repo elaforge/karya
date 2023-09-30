@@ -146,9 +146,15 @@ c_17_10_23b = sarvalaghu $ date 2017 10 23 $ ganesh $ korvaiS1 adi $
 -- * kandam
 
 c_kandam1 :: Korvai
-c_kandam1 = elaforge $ date 2023 3 10 $ sarvalaghu $ korvaiS1 adi $ nadai 5 $
-    r3 "dlNN," . su "d_pkD_N_,_"
+c_kandam1 = elaforge $ date 2023 3 10 $ sarvalaghu $ korvaiS adi $ map (nadai 5)
+    [ r3 "d,dn," . su "d_pkd_n_,_" . su (r2 "d_pkd_n_pk" . "d_pkd_n,^,"
+        . "dpkd_pn_pk")
+    , su $ r2 $ r3 "dpkd_pn_pk" . "d_".nakatiku
+    , su $ r2 "d_pkd_n,p," . "d_pk" . nakatiku.nakatiku
+        . r2 "d_pkd_n_,_" . "dpkd_" . r3 p5
+    , r3 "dlNN," . su "d_pkD_N_,_"
     . r2 "dlNN," .su "d_pkD_N_,_" . su "d,p,D_N,n,"
+    ]
 
 c_kandam_tisram :: Korvai
 c_kandam_tisram = elaforge $ date 2023 3 10 $ sarvalaghu $ korvaiS1 adi $

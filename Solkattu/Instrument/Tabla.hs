@@ -26,7 +26,7 @@ data Baya = Ka | Ge
     deriving (Eq, Ord, Show)
 data Daya =
     Na -- nam
-    | Taa -- pakhawaj chapu, tabla like Tin
+    | Ne -- like tet, but closer to edge
     | Tin -- din
     | Tu -- dheem, 1 finger
     | Tet
@@ -39,7 +39,6 @@ instance Pretty Stroke where pretty = showt
 data Strokes a = Strokes {
     ka :: a, ge :: a
     , na :: a
-    , taa :: a
     , tin :: a
     , tu :: a
     , tet :: a
@@ -51,7 +50,6 @@ strokes = Strokes
     { ka = Baya Ka
     , ge = Baya Ge
     , na = Daya Na
-    , taa = Daya Taa
     , tin = Daya Tin
     , tu = Daya Tu
     , tet = Daya Tet

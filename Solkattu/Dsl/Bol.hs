@@ -88,6 +88,7 @@ kali = mapB $ \case
     Bol.Ge -> Just Bol.Ke
     Bol.Ga -> Just Bol.Ka
     Bol.Dha -> Just Bol.Taa
+    Bol.Dhin -> Just Bol.Tin
     bol -> Just bol
 
 mapB :: (Bol.Bol -> Maybe Bol.Bol) -> Sequence -> Sequence
@@ -152,3 +153,6 @@ qaida = withType "qaida"
 
 tukra :: Korvai -> Korvai
 tukra = withType "tukra"
+
+rela :: Korvai -> Korvai
+rela = withType "rela"
