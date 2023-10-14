@@ -35,7 +35,8 @@ using std::vector;
 // too low-contrast to read.
 static const double rank_brightness = 1.35;
 // The color of events with a negative duration is scaled by this.
-static const double negative_duration_brightness = .85;
+// static const double negative_duration_brightness = .85;
+static const double negative_duration_brightness = 1.4;
 
 // Height of the ears on either side of the trigger line.
 static const double trigger_height = 7;

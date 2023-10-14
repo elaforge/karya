@@ -177,6 +177,20 @@ sketch:
   2 6 1 6 5 56 61 12 23 5 5 353 2 2 121
 
 UNSORTED
+  - bug: LPerf.sel_sampler_events uses the local track even when using
+    LPerf.Root
+    . Also it should default to Root, and have a _local option?
+  - sampler slenthem distorted sample:
+    /Users/elaforge/src/seq/main/data/sampler/java/slenthem/open/22-ff-v1.wav
+    . The sample isn't distorted.
+    . The chunk is distorted.  Must be happening in sampler-im.
+    . Happens even when volume is lower, where is the clipping happening?
+    . Actually looks like the sample is distorted, just hard to hear at
+      full volume (?)
+  - sampler-im: try mixing variations between dyn splits, since there is much
+    timbral variation
+  - selections, both insert and subblock position, can be very hard to see
+  - subblock position only shows where there are notes
   * bug: thread died writing im notes
     . Util/Thread.hs:65 ThreadId 6268 perf:(bid "untitled/score"): died:
       data/im/notes/java/pangkur/untitled/score/sampler.write.tmp:
@@ -2324,6 +2338,27 @@ vector: performance:
     that fusion happens.  Surely there are more sophisticated ways though.
 
 instruments:
+  sampler-im: java:
+    - wayang +calung: fix clunk
+    - symbolic pitch should be 1-7, not 21-27.  Come when I can get
+      per-instrument scale.
+      . Alternate way would be octave wrapping.  That way I could reuse or
+        write a "real" melody and then have the instrument wrap or not.
+    slenthem:
+      * fix levels +open
+      - fix levels for +mute
+      - tuning
+    peking:
+      - fix levels +open
+      - fix levels +mute
+      - fix levels +character
+      - add character
+      - tuning
+    gender panerus:
+      - create samples
+      - fix levels
+      - tuning (but just for 1s)
+    - siter: record
   new free vsts:
     - monique: https://github.com/surge-synthesizer/monique-monosynth
     - samples: https://librewave.com/about/
@@ -4691,8 +4726,8 @@ performance:
         . Cmd.M is so I can use cmds with both IO and Identity (is it true?),
           if so shouldn't I be able to use non-IO cmds in Identity with zero
           overhead?  And if so, how?
-        . I haven't cared about this because I don't think relevant time is being
-          spent in Cmd, it's all in Derive.
+        . I haven't cared about this because I don't think relevant time is
+          being spent in Cmd, it's all in Derive.
     Derive:
       . Is continuation based except still allocating on each bind?
       . Try INLINEABLE on DeriveM?
@@ -6293,6 +6328,7 @@ solkattu:
   bol:
     * support hindustani tal
       . Kind of awkward though.
+    - html doesn't wrap, so 16 beat tintal doesn't fit
     - support Talas.Hindustani in Play.tala_metronome
     - realize to strokes
       . I could use the same approach as StrokeMaps, but it would need to be
@@ -6798,7 +6834,7 @@ Cmd:
 
 Derive:
   java: javanese notation:
-    - event body too dark when negative, can't read text.
+    * event body too dark when negative, can't read text.
       . What if negative is actually lighter?
       . negative_duration_brightness is in EventTrack.cc, not Config.hsc
     - for negative, does the duration really matter?
