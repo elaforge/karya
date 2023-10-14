@@ -59,6 +59,13 @@ kir5 = sarvalaghu $ sudhindra $ korvaiS1 adi $
     where
     nknd = n.k.n.d.__.n.d.__
 
+yt_1 :: Korvai
+yt_1 = sarvalaghu $ source "https://www.youtube.com/watch?v=OxESPQM08MA" $
+    korvaiS1 adi $ r2 $
+        rh & "o__o" . rh & "_oo_" . rh & "o__p" . rh & "_pp_"
+    where
+    rh = n.k.k.d
+
 -- * melkalam
 
 mel1 :: Korvai

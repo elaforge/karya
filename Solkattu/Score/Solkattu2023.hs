@@ -20,3 +20,20 @@ haripriya = date 2023 3 10 $ comment "from facebook" $ korvaiS1 adi mridangam $
         , (taka, k.p)
         , (tarikita, "pktp")
         ]
+
+yt_1 :: Korvai
+yt_1 = date 2023 10 12 $ source "https://www.youtube.com/watch?v=Y5rZ1FchPiw" $
+        korvaiS1 adi mridangam $
+    seq mempty "tat_dit_tatakadinnathom_ta_thom_" . seq (tam.__) (su p6)
+    . seq mempty "tat_dit_takitathom_ta_thom_" . seq (tam.__) p5
+    . seq mempty "tat_dit_tathom_ta_thom_" . seq (tam.__) p7
+    where
+    -- He plays takatiku as kptp rather than kpnp
+    seq sep theme = trin sep (g theme) (su kp.theme) (su kpnp.theme)
+    mridangam = makeMridangam
+        [ (tat.dit, k.t)
+        , ("tatakadinna", "kkoNk")
+        , (ta.thom, k.od)
+        , (ta.ki.ta, k.p.k)
+        , (tam, u)
+        ]

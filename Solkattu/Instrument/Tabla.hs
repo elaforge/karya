@@ -20,7 +20,7 @@ import           Global
     Also I could translate to and from mridangam scores.
 -}
 
-data Stroke = Baya Baya | Daya Daya | Both Baya Daya
+data Stroke = Baya Baya | Daya Daya | Both Baya Daya | Flam Baya Daya
     deriving (Eq, Ord, Show)
 data Baya = Ka | Ge
     deriving (Eq, Ord, Show)

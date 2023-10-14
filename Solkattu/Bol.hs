@@ -45,7 +45,7 @@ import qualified Data.Text as Text
 
 import qualified Util.Lists as Lists
 import qualified Derive.Expr as Expr
-import qualified Solkattu.Instrument.Tabla as Tabla
+import qualified Solkattu.Instrument.Tabla as T
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.Solkattu as Solkattu
 
@@ -58,7 +58,7 @@ type BolT = Text
 type Error = Text
 
 data Bol =
-    Dha | Dhet | Dhom | Di | Din | Dhi | Dhin | Dhit | Dhu
+    Dha | Dhen | Dhet | Dhom | Di | Din | Dhi | Dhin | Dhit | Dhu
     | Ga | Gi | Ge | Ghen | Gre
     | Ka | Kat | Ke | Kre | Ki | Ma | Na | Ne | Ra | Re | Ri | Ran
     | Ta | Tak | Taa | Te | Tet | Ti | Tin | Ten | Tu | Tun
@@ -96,10 +96,31 @@ sequences =
     ]
 
 -- TODO
-bolMap :: Realize.SolluMap Bol Tabla.Stroke
-Right (bolMap, extras) = Realize.solluMap []
+-- bolMap :: Realize.SolluMap Bol Tabla.Stroke
+-- Right (bolMap, extras) = Realize.solluMap [(Dha, tin)]
+--     where
+--     Tabla.Strokes { .. } = Tabla.notes
+
+tablaBols =
+    [ (Dha, T.Both T.Ge T.Na)
+    , (Dha, T.Both T.Ge T.Tin)
+    , (Dhen, T.Both T.Ge T.Tu)
+    , (Dhin,T.Both T.Ge T.Tin)
+    , (Kre, T.Flam T.Ka T.Tet)
+    , (Gre, T.Flam T.Ge T.Tet)
+    , (Ten, T.Both T.Ka T.Tu)
+    , (Ne,  T.Daya T.Ne)
+    , (Re,  T.Daya T.Ne)
+    ]
+
+    -- -- [ (Dha, [Both Ge Na, Both Ge Tin])
+    -- [ (Dha, [Tabla.Both ge na, Tabla.Both ge tin])
+    -- ]
+    -- where
+    -- Tabla.Strokes { .. } = Tabla.strokes
 
 {-
+
 -- Single strokes.
 single_bols :: [([Syllable], Bol)]
 single_bols =
@@ -118,10 +139,14 @@ single_bols =
     , (["dhet"], Together Ge Tette)
     ]
 
--- kre: p+k
--- dhet: ok
--- dhi: dha
--- dhom: dha
+    dhen = ge tu
+    dhi = ge tu
+
+    pakhawaj:
+    kre: p+k
+    dhet: ok
+    dhi: dha
+    dhom: dha
 
 -- TODO the length of the syllables should be the same as the length of the
 -- bols or the extras will be silently dropped.

@@ -12,14 +12,15 @@ import           Solkattu.Dsl.Bol
 -- TODO I should be able to take sd off the 16 beat ones, but then the terminal
 -- spacing changes, because it doesn't want to split into 4 beats
 bats :: Korvai
-bats = bat $ source "mary" $ korvaiS tintal $ map sd
-    [ r2 "gadi gene nage tette" . "kata kata gadi gadi" . "gadi gene nage tette"
+bats = bat $ source "mary" $ korvaiS tintal $
+    [ sd $ r2 "gadi gene nage tette" . "kata kata gadi gadi"
+        . "gadi gene nage tette"
 
-    , "taki tetTa _ tetTa _" . "taki tetdhet tette dhage"
+    , sd $ "taki tetTa _ tetTa _" . "taki tetdhet tette dhage"
     . "tere kita takaTa _" . tetekata
 
-    , su $ "dhage tette Tage tette kredhet tette dhage tette"
-    . "tette kredhet tette dhage tette kaTa gadi gene"
+    , "dhage tette Tage tette kredhet tette dhage tette"
+    . "tette kredhet tette dhage" . tetekata
     . "taki teTa _teTa _ ga _ di _ gere nage"
     . "tere kita takaTa _" . tetekata
 
@@ -217,14 +218,19 @@ c_23_09_21a = colby $ date 2023 9 21 $ korvaiS tintal
         . "dha _ di _ na _" . tri_ dha "kat tette" . dha.__4
 
 c_23_09_29a :: Korvai
-c_23_09_29a = colby $ rela $ date 2023 9 29 $ korvaiS tintal
-    [ r2 dhage_tette_din_ . "dhage tette"
+c_23_09_29a = date 2023 9 29 $ colby $ rela $ korvaiS1 tintal $
+    r2 dhage_tette_din_ . "dhage tette"
         . dhage_tette_din_ . "dhage tette" . "dhage nage tenne"
         . kali (r2 dhage_tette_din_ . "dhage tette")
-        . dhage_tette_din_ . "dhage tette" . "dhage nage tenne"
-    ]
+        . "tage tette dhin_" . "dhage tette" . "dhage nage dhenne"
     where
     dhage_tette_din_ = "dhage tette dhin _"
+
+c_23_10_12 :: Korvai
+c_23_10_12 = date 2023 10 12 $ colby $ korvaiS1 tintal $
+    sd $ t1 . "dhage tuna kena" . kali t1 . "dhage dhina gena"
+    where
+    t1 = "dha tette dha tette dha dha tette"
 
 legong1 :: Korvai
 legong1 = korvaiS kehrwa
