@@ -51,7 +51,7 @@ parsePitch _ = Nothing
 
 -- * code
 
-zeroDurMute :: Util.DynVal -> ImInst.Code
+zeroDurMute :: Util.Dyn -> ImInst.Code
 zeroDurMute dyn = Bali.zero_dur_mute_with ""
     (\_args -> transform . Call.multiply_dynamic dyn)
     (\args -> transform $
@@ -84,7 +84,7 @@ supportVariableMute patch = patch
             "Variable amount of mute. Simulated with a shortened envelope."
     }
 
-variableMuteEnv :: Util.DynVal -> Note.Note -> Signal.Signal
+variableMuteEnv :: Util.Dyn -> Note.Note -> Signal.Signal
 variableMuteEnv dynVal note
     | mute > 0 = Util.triggerRelease dynVal release note
     | otherwise = Util.sustainRelease dynVal dampTime note

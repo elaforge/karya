@@ -101,12 +101,12 @@ articulationDefault deflt attributeMap  =
 -- ** dynamic
 
 -- | This is Sample.envelope units, where 0 = -96dB, 1 = 0dB.
-type DynVal = Signal.Y
+type Dyn = Signal.Y
 
 -- | Relative dB change.
 type Db = Double
 
-dbToDyn :: Db -> DynVal
+dbToDyn :: Db -> Dyn
 dbToDyn db = db / (-Control.minimumDb)
 
 -- | Standard dynamic ranges.
@@ -117,8 +117,8 @@ instance Pretty Dynamic where pretty = showt
 -- | Get patch-specific dyn category, and note dynamic.  The Db range
 -- is scaled linearly from things at the bottom of the dyn to the top.
 dynamic :: (Bounded dyn, Enum dyn)
-    => (dyn -> (DynVal, (Db, Db))) -- ^ (upperBound, (lowDb, highDb))
-    -> Note.Note -> (dyn, DynVal)
+    => (dyn -> (Dyn, (Db, Db))) -- ^ (upperBound, (lowDb, highDb))
+    -> Note.Note -> (dyn, Dyn)
 dynamic dynVal note = (dyn, 1 + dbToDyn (Num.scale low high delta))
     where
     -- delta=0 means dyn at bottom of range
@@ -156,9 +156,11 @@ variation :: Variation -> Note.Note -> Variation
 variation variations = pick . Note.initial0 Control.variation
     where pick var = round (var * fromIntegral (variations - 1))
 
+-- | Pick from static variations assuming normalized 'Control.variation'.
 chooseVariation :: [a] -> Note.Note -> a
 chooseVariation as = pickVariation as . Note.initial0 Control.variation
 
+-- | Pick from a list based on a normalized 0-1.
 pickVariation :: [a] -> Double -> a
 pickVariation as var =
     as !! round (Num.clamp 0 1 var * fromIntegral (length as - 1))
@@ -209,14 +211,14 @@ dynEnvelope minDyn releaseTime note =
         Note.controls note
 
 -- | Simple sustain-release envelope.
-sustainRelease :: DynVal -> RealTime.RealTime -> Note.Note -> Signal.Signal
+sustainRelease :: Dyn -> RealTime.RealTime -> Note.Note -> Signal.Signal
 sustainRelease dyn releaseTime note = Signal.from_pairs
     [ (Note.start note, dyn), (Note.end note, dyn)
     , (Note.end note + releaseTime, 0)
     ]
 
 -- | Simple release envelope.
-triggerRelease :: DynVal -> RealTime.RealTime -> Note.Note -> Signal.Signal
+triggerRelease :: Dyn -> RealTime.RealTime -> Note.Note -> Signal.Signal
 triggerRelease dyn releaseTime note = Signal.from_pairs
     [ (Note.start note, dyn)
     , (Note.start note + releaseTime, 0)

@@ -44,7 +44,7 @@ data Instrument = Instrument {
     name :: Text
     , variations :: Variations
     , tuning :: Tuning
-    , dynamic :: Dynamic -> (Util.DynVal, (Util.Db, Util.Db))
+    , dynamic :: Dynamic -> (Util.Dyn, (Util.Db, Util.Db))
     , dynamicTweaks :: Map Sample.SamplePath Util.Db
     , articulations :: Set Articulation
     }
@@ -111,7 +111,7 @@ peking = Instrument
     { name = "peking"
     , variations
     , tuning = Map.fromList $ zip (map (Pitch 5) [P1 ..])
-        -- TODO copy pasted from Scale.Java
+        -- TODO copy pasted from Scale.Java, retune from samples
         [ 86.4  -- 51
         , 87.7  -- 52
         , 88.98 -- 53
@@ -149,7 +149,7 @@ peking = Instrument
             , [(MP, 4), (MF, 4)]
             ]
 
-standardDyns :: (Dynamic -> range) -> Dynamic -> (Util.DynVal, range)
+standardDyns :: (Dynamic -> range) -> Dynamic -> (Util.Dyn, range)
 standardDyns f = \case
     PP -> (0.25, f PP)
     MP -> (0.5, f MP)

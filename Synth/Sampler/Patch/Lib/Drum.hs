@@ -122,17 +122,18 @@ data ConvertMap art = ConvertMap {
     -- | articulation -> dynamic -> variation -> (FilePath, (lowDyn, highDyn)).
     -- Returning the sample's dyn range was an attempt to tune dyn globally,
     -- but I think it doesn't work, see TODO above.
-    , _getFilename :: art -> Signal.Y -> Signal.Y
+    , _getFilename :: art -> Util.Dyn -> Signal.Y
         -> (FilePath, Maybe (Signal.Y, Signal.Y))
     , _allFilenames :: Set FilePath
     }
 
 -- | Create a '_getFilename' with the strategy where each articulation has
 -- a @[FilePath]@, sorted evenly over the dynamic range.
-variableDynamic :: Show art =>
-    -- | A note may pick a sample of this much dyn difference on either side.
-    Signal.Y -> (art -> [FilePath])
-    -> (art -> Signal.Y -> Signal.Y -> (FilePath, Maybe a))
+variableDynamic :: Show art => Signal.Y
+    -- ^ A note may pick a sample of this much dyn difference on either side.
+    -> (art -> [FilePath])
+    -> (art -> Util.Dyn -> Signal.Y -> (FilePath, Maybe a))
+    -- ^ Maybe is unused, it's for compatibility with '_getFilename'
 variableDynamic variationRange articulationSamples = \art dyn var ->
     (, Nothing) $
     show art </> Util.pickDynamicVariation variationRange
@@ -151,27 +152,28 @@ allFilenames len articulationSamples = Util.assertLength len $ Set.fromList
 -- | Make a generic convert, suitable for drum type patches.
 convert :: Common.AttributeMap art -> ConvertMap art -> Note.Note
     -> Patch.ConvertM Sample.Sample
-convert attributeMap (ConvertMap (minDyn, maxDyn) naturalNn muteTime getFilename
-        _allFilenames) =
-    \note -> do
-        articulation <- Util.articulation attributeMap (Note.attributes note)
-        let dyn = Note.initial0 Control.dynamic note
-        let var = fromMaybe 0 $ Note.initial Control.variation note
-        let (filename, mbDynRange) = getFilename articulation dyn var
-        let noteDyn = case mbDynRange of
-                Nothing -> Num.scale minDyn maxDyn dyn
-                Just dynRange ->
-                    Util.dynamicAutoScale (minDyn, maxDyn) dynRange dyn
-        ratio <- case naturalNn of
-            Nothing -> return 1
-            Just artNn -> Sample.pitchToRatio (artNn articulation) <$>
-                Util.initialPitch note
-        return $ (Sample.make filename)
-            { Sample.envelope = case muteTime of
-                Nothing -> Signal.constant noteDyn
-                Just time -> Util.sustainRelease noteDyn time note
-            , Sample.ratios = Signal.constant ratio
-            }
+convert attributeMap cmap = \note -> do
+    articulation <- Util.articulation attributeMap (Note.attributes note)
+    let dyn = Note.initial0 Control.dynamic note
+    let var = fromMaybe 0 $ Note.initial Control.variation note
+    let (filename, mbDynRange) = getFilename articulation dyn var
+    let noteDyn = case mbDynRange of
+            Nothing -> Num.scale minDyn maxDyn dyn
+            Just dynRange ->
+                Util.dynamicAutoScale (minDyn, maxDyn) dynRange dyn
+    ratio <- case naturalNn of
+        Nothing -> return 1
+        Just artNn -> Sample.pitchToRatio (artNn articulation) <$>
+            Util.initialPitch note
+    return $ (Sample.make filename)
+        { Sample.envelope = case muteTime of
+            Nothing -> Signal.constant noteDyn
+            Just time -> Util.sustainRelease noteDyn time note
+        , Sample.ratios = Signal.constant ratio
+        }
+    where
+    ConvertMap (minDyn, maxDyn) naturalNn muteTime getFilename _allFilenames =
+        cmap
 
 -- * StrokeMap
 
