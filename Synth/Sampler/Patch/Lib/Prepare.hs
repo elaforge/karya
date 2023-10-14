@@ -5,6 +5,9 @@
 -- | Ghci functions for creating sample sets.
 module Synth.Sampler.Patch.Lib.Prepare where
 import qualified Data.List as List
+import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
+
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import           System.FilePath ((</>))
@@ -37,8 +40,12 @@ import           Global
       pros:
         - Don't need to individually adjust curves for each dyn range.
       cons:
+        - Normalize doesn't address perceptual loudness, so may be totally
+          wrong (e.g. misled by sharp attack).
         - Natural level difference between keys is lost, becomes increased
-        noise.
+          noise.
+
+    ### static dynamics way
 
     Level adjustment:
     - First adjust variations:
@@ -54,28 +61,52 @@ import           Global
     It would be easier to do this with a GUI where I can get immediate
     feedback.  But Reaper UI is clunky because I don't know how to reorder
     the samples.
+
+    ### variable dynamics way
+
+    Having distinct dynamic levels like PP MP MF FF leads to timbre
+    discontinuity.  Practically most usage will be MF.  Also unless there are
+    variable attack artifacts, variations at the same dynamic are not as useful
+    as extra dynamics.
+
+    1. Record many samples of gradually increasing volume.
+    2. Intentionally record more at typical levels in the MP MF range.
+    3. Tag each with dynamic center.
+    4. The chance of selecting each sample is a bounded normal distribution
+       from its dynamic.  So for a certain dyn, I get [(fname, weight)] and use
+       variation to pick.
+
+    The problem is 3.  How can I consistently select dynamic?
+    It should be easier when they are in dyn order.
+
+    I can't use 'relink' for this, I have to export the samples with names
+    and generate a declaration for them.  Drum.makeFileList does this.
+
+    Drum.variableDynamic assumes an even spread of dynamics.
 -}
 
 
 baseDir :: FilePath
 baseDir = "/Users/elaforge/Music/mix/sample"
 
--- genderPanerus =
---     pitches = map (\(o, p) -> show o <> show p) $
---         takeWhile (<= (5, 3)) $ dropWhile (< (2, 6))
---             [(o, p) | o <- [2..5], p <- ps]
---         where ps = [1, 2, 3, 5, 6, 7]
-
 -- * check
 
-printNumbers :: Int -> [FilePath] -> IO ()
-printNumbers level fnames = do
-    mapM_ (putStrLn . fmt . head) . Lists.groupAdjacent (key . snd)
-        . zip [1..] $ fnames
+-- | Show the index numbers for samples.  I use this to check for inaccuracies
+-- in the final sample count.  Show two levels of hierarchy, compromise between
+-- clutter and detail.
+printIndices :: Int -> [FilePath] -> IO ()
+printIndices level fnames = do
+    mapM_ Text.IO.putStrLn . concatMap fmt1 . group level
+        . zip [1 :: Int ..] $ fnames
     print (length fnames)
     where
-    fmt (n :: Int, fname) = show n <> " - " <> fname
-    key = take level . Lists.splitBefore (\c -> c == '/' || c == '-')
+    fmt1 [] = [] -- unreached
+    fmt1 fnames@((n, fname) : _) = fmt n fname
+        : map (("    "<>) . uncurry fmt . head)
+            (drop 1 (group (level+1) fnames))
+    fmt n fname = Text.justifyRight 3 ' ' (showt n) <> " " <> txt fname
+    group level = Lists.groupAdjacent (key level . snd)
+    key n = take n . Lists.splitBefore (\c -> c == '/' || c == '-')
 
 -- * filesystem
 
