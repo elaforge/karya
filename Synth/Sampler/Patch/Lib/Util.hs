@@ -158,9 +158,9 @@ variation variations = pick . Note.initial0 Control.variation
     where pick var = round (var * fromIntegral (variations - 1))
 
 -- | Pick from static variations assuming normalized 'Control.variation'.
-chooseVariation :: [a] -> Note.Note -> Maybe a
-chooseVariation [] = const Nothing
-chooseVariation as = pickVariation as . Note.initial0 Control.variation
+noteVariation :: [a] -> Note.Note -> Maybe a
+noteVariation [] = const Nothing
+noteVariation as = pickVariation as . Note.initial0 Control.variation
 
 -- | Pick from a list based on a normalized 0-1.  Nothing for empty list.
 -- TODO It would be better to pass a NonEmpty, but these lists tend to come

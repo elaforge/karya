@@ -212,7 +212,7 @@ convert inst attrMap note = do
     symPitch <- Util.symbolicPitch note
     (pitch, (noteNn, sampleNn)) <- tryRight $ findPitch tuning symPitch
     fname <- tryJust "no samples" $
-        Util.chooseVariation (findFilenames variations art pitch dyn) note
+        Util.noteVariation (findFilenames variations art pitch dyn) note
     dynVal <- return $ dynVal
         + Util.dbToDyn (Map.findWithDefault 0 fname dynamicTweaks)
     return $ (Sample.make fname)
