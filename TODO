@@ -2355,8 +2355,11 @@ instruments:
       - add character
       - tuning
     gender panerus:
-      - create samples
-      - fix levels
+      * +open samples
+      - +mute samples
+      * +open levels
+      - +mute levels
+      - +open dyn
       - tuning (but just for 1s)
     - siter: record
   new free vsts:

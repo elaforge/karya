@@ -39,7 +39,7 @@ sampleFormat :: Util.SampleFormat
 sampleFormat = Util.Wav
 
 patches :: [Patch.Patch]
-patches = map makePatch [slenthem, peking]
+patches = map makePatch [genderPanerus, slenthem, peking]
 
 data Instrument = Instrument {
     name :: Text
@@ -52,6 +52,95 @@ data Instrument = Instrument {
 
 type Variations = Articulation -> (Pitch, Util.Dynamic) -> Util.Variation
 type Tuning = Map Pitch Pitch.NoteNumber
+
+genderPanerus :: Instrument
+genderPanerus = Instrument
+    { name = "gender-panerus"
+    , variations
+    , tuning = Map.fromList $ zip (filter (not . is4) [Pitch 2 P6 ..])
+        [ 58.68 -- 26
+        , 60.13 -- 27
+        , 62.18 -- 31 TODO approx, no resonator
+        , 63.65 -- 32
+        , 65    -- 33
+        -- , 68    -- 34 guess, no key
+        , 69.05 -- 35
+        , 70.5  -- 36
+        , 72.14 -- 37
+        , 74.25 -- 41 TODO approx
+        , 75.68 -- 42
+        , 77    -- 43
+        -- , 80    -- 44 guess
+        , 81.03 -- 45
+        , 82.48 -- 46
+        , 84.14 -- 47
+        , 86.4  -- 51 TODO approx
+        , 87.7  -- 52
+        , 88.98 -- 53
+        ]
+    , dynamic = standardDyns $ \case -- TODO
+        _ -> (0, 0)
+    , dynamicTweaks = Map.fromList
+        [ ("open/26-mf-v4.wav", -2)
+        , ("open/27-mf-v2.wav", 2)
+        , ("open/27-mp-v2.wav", 3)
+        , ("open/27-pp-v1.wav", 5)
+        , ("open/27-pp-v2.wav", 7)
+        , ("open/33-mf-v3.wav", -1)
+        , ("open/33-pp-v3.wav", -3)
+        , ("open/35-ff-v4.wav", -3)
+        , ("open/35-mp-v3.wav", 2)
+        , ("open/35-mp-v4.wav", 4)
+        , ("open/35-pp-v3.wav", -2)
+        , ("open/37-ff-v3.wav", -2)
+        , ("open/37-ff-v4.wav", -4)
+        , ("open/37-mp-v1.wav", 5)
+        , ("open/41-mf-v1.wav", 2)
+        , ("open/42-mp-v4.wav", -3)
+        , ("open/42-mp-v5.wav", -4)
+        , ("open/42-pp-v3.wav", 3)
+        , ("open/45-mf-v1.wav", 3)
+        , ("open/45-mf-v2.wav", 3)
+        , ("open/45-mf-v3.wav", 3)
+        , ("open/47-ff-v4.wav", -3)
+        , ("open/51-pp-v1.wav", -4)
+        , ("open/52-ff-v2.wav", 4)
+        , ("open/52-mf-v6.wav", -4)
+        ]
+    , articulations = Set.fromList [Open, Mute]
+    }
+    where
+    variations Open = \case
+        (Pitch 2 P6, MP) -> 3
+        (Pitch 3 P2, MF) -> 3
+        (Pitch 3 P2, FF) -> 3
+        (Pitch 3 P3, MP) -> 3
+        (Pitch 3 P3, MF) -> 3
+        (Pitch 3 P3, FF) -> 2
+        (Pitch 3 P5, MF) -> 5
+        (Pitch 3 P7, MP) -> 5
+        (Pitch 3 P7, MF) -> 5
+        (Pitch 4 P1, MP) -> 5
+        (Pitch 4 P1, MF) -> 5
+        (Pitch 4 P2, PP) -> 5
+        (Pitch 4 P2, MP) -> 5
+        (Pitch 4 P2, MF) -> 5
+        (Pitch 4 P3, MF) -> 3
+        (Pitch 4 P5, MF) -> 5
+        (Pitch 4 P6, MF) -> 5
+        (Pitch 4 P7, PP) -> 3
+        (Pitch 4 P7, MF) -> 5
+        (Pitch 5 P1, MP) -> 5
+        (Pitch 5 P1, MF) -> 5
+        (Pitch 5 P2, MF) -> 6
+        (Pitch 5 P3, MF) -> 5
+        (Pitch 5 P3, FF) -> 5
+        _ -> 4
+    variations Mute = \case
+        -- TODO
+        _ -> 0
+        -- _ -> 6
+    variations Character = const 0
 
 slenthem :: Instrument
 slenthem = Instrument
@@ -154,7 +243,9 @@ standardDyns :: (Dynamic -> range) -> Dynamic -> (Util.Dyn, range)
 standardDyns f = \case
     PP -> (0.25, f PP)
     MP -> (0.5, f MP)
-    MF -> (0.75, f MF)
+    -- 0.85 instead of 0.75 because FF samples are more extreme, and should be
+    -- uncommon.
+    MF -> (0.85, f MF)
     FF -> (1, f FF)
 
 makePatch :: Instrument -> Patch.Patch
@@ -286,14 +377,29 @@ _relink inst filenames =
 _pekingRelink :: IO ()
 _pekingRelink = _relink "peking" (allFilenames peking)
 
+_printIndices :: IO ()
+_printIndices = Prepare.printIndices 2 $ allFilenames genderPanerus
+
+t0 = Drum.makeFileListDyn "/Users/elaforge/Music/mix/sample/java/kenong/raw"
+    ["Open", "MuteTight", "MuteLoose"]
+    "kenongSamples"
 
 -- * pitch
 
 data Pitch = Pitch Pitch.Octave PitchClass
     deriving (Show, Eq, Ord)
 
+instance Enum Pitch where
+    toEnum i = Pitch oct (toEnum pc)
+        where (oct, pc) = i `divMod` 7
+    fromEnum (Pitch oct pc) = oct * 7 + fromEnum pc
+
 data PitchClass = P1 | P2 | P3 | P4 | P5 | P6 | P7
     deriving (Show, Eq, Ord, Enum)
+
+is4 :: Pitch -> Bool
+is4 (Pitch _ P4) = True
+is4 _ = False
 
 toPitch :: Pitch -> Pitch.Pitch
 toPitch (Pitch oct pc) = Pitch.pitch oct (fromEnum pc)
