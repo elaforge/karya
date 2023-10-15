@@ -112,9 +112,10 @@ allFilenames = Util.assertLength 861 $ Set.fromList
     , fname <- get art
     ]
 
-getFilename :: Tuning -> Articulation -> Signal.Y -> Signal.Y -> FilePath
+getFilename :: Tuning -> Articulation -> Signal.Y -> Signal.Y -> Maybe FilePath
 getFilename tuning = \art dyn var ->
-    Util.showLower tuning </> fst (Drum.variableDynamic 0.15 get art dyn var)
+    (Util.showLower tuning </>) <$>
+        fst (Drum.variableDynamic 0.15 get art dyn var)
     where
     get = case tuning of
         Wadon -> legongWadonSamples

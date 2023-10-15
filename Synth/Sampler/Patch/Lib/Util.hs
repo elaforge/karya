@@ -7,6 +7,7 @@ module Synth.Sampler.Patch.Lib.Util where
 import qualified Control.Monad.Except as Except
 import qualified Data.Char as Char
 import qualified Data.List as List
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
@@ -157,18 +158,21 @@ variation variations = pick . Note.initial0 Control.variation
     where pick var = round (var * fromIntegral (variations - 1))
 
 -- | Pick from static variations assuming normalized 'Control.variation'.
-chooseVariation :: [a] -> Note.Note -> a
+chooseVariation :: [a] -> Note.Note -> Maybe a
+chooseVariation [] = const Nothing
 chooseVariation as = pickVariation as . Note.initial0 Control.variation
 
--- | Pick from a list based on a normalized 0-1.
-pickVariation :: [a] -> Double -> a
+-- | Pick from a list based on a normalized 0-1.  Nothing for empty list.
+-- TODO It would be better to pass a NonEmpty, but these lists tend to come
+-- from sample lists, which are generated, and a bit annoying to change to
+-- (:|).
+pickVariation :: [a] -> Double -> Maybe a
 pickVariation as var =
-    as !! round (Num.clamp 0 1 var * fromIntegral (length as - 1))
+    Lists.at as (round (Num.clamp 0 1 var * fromIntegral (length as - 1)))
 
--- | Pick from a list of dynamic variations.
-pickDynamicVariation :: Double -> [a] -> Double -> Double -> a
-pickDynamicVariation variationRange samples dyn var =
-    pickVariation samples (Num.clamp 0 1 (dyn + var * variationRange))
+pickVariationNE :: NonEmpty a -> Double -> a
+pickVariationNE as var = NonEmpty.toList as
+    !! round (Num.clamp 0 1 var * fromIntegral (length as - 1))
 
 -- | Scale dynamic for non-normalized samples, recorded with few dynamic
 -- levels.  Since each sample already has its own dynamic level, if I do no

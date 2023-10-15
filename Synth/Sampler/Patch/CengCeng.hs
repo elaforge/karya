@@ -126,7 +126,7 @@ rincikConvertMap = Drum.ConvertMap
     { _dynRange = (0.5, 1)
     , _naturalNn = Nothing
     , _muteTime = Just 0.05
-    , _getFilename = rincikGetFilename
+    , _getFilename = \art dyn -> first Just . rincikGetFilename art dyn
     , _allFilenames = rincikAllFilenames
     }
 
@@ -151,7 +151,7 @@ rincikGetFilename art dyn var = (fname, Just dynRange)
     fname = Lists.join "-"
         [ showArt art
         , Util.showLower dynSym
-        , 'v' : show (Util.pickVariation [1 .. variations] var)
+        , maybe "?" showVar (Util.pickVariation [1 .. variations] var)
         ] <> ".flac"
     showArt = \case
         ROpen h -> "open+" <> showHand h
@@ -229,7 +229,7 @@ kopyakConvertMap inst = Drum.ConvertMap
     { _dynRange = (0.5, 1)
     , _naturalNn = Nothing
     , _muteTime = Just 0.05
-    , _getFilename = kopyakGetFilename inst
+    , _getFilename = \art dyn -> first Just . kopyakGetFilename inst art dyn
     , _allFilenames = kopyakAllFilenames inst
     }
 
@@ -259,7 +259,7 @@ kopyakGetFilename inst art dyn var = (fname, Just dynRange)
     fname = Lists.join "-"
         [ Util.showLower art
         , Util.showLower dynSym
-        , 'v' : show (Util.pickVariation [1 .. variations] var)
+        , maybe "?" showVar (Util.pickVariation [1 .. variations] var)
         ] <> ".flac"
     variations = case (inst, art) of
         (_, Closed) -> 8
@@ -279,3 +279,6 @@ kopyakGetFilename inst art dyn var = (fname, Just dynRange)
         Util.MP -> 0.5
         Util.MF -> 0.75
         Util.FF -> 1
+
+showVar :: Int -> String
+showVar n = 'v' : show n

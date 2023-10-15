@@ -103,7 +103,8 @@ convert tuning note = do
     (pitch, (noteNn, sampleNn)) <- tryRight $ findPitch tuning symPitch
     let filenames = toFilenames tuning art pitch dyn (Note.duration note)
     dynVal <- return $ dynVal * tweakDynamic tuning art pitch dyn
-    return $ (Sample.make (Util.chooseVariation filenames note))
+    fname <- tryJust "no samples" $ Util.chooseVariation filenames note
+    return $ (Sample.make fname)
         -- TODO duplicate from Wayang
         { Sample.envelope = if
             | isMute art -> Signal.constant dynVal

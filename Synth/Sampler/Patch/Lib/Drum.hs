@@ -123,7 +123,7 @@ data ConvertMap art = ConvertMap {
     -- Returning the sample's dyn range was an attempt to tune dyn globally,
     -- but I think it doesn't work, see TODO above.
     , _getFilename :: art -> Util.Dyn -> Signal.Y
-        -> (FilePath, Maybe (Signal.Y, Signal.Y))
+        -> (Maybe FilePath, Maybe (Signal.Y, Signal.Y))
     , _allFilenames :: Set FilePath
     }
 
@@ -132,12 +132,13 @@ data ConvertMap art = ConvertMap {
 variableDynamic :: Show art => Signal.Y
     -- ^ A note may pick a sample of this much dyn difference on either side.
     -> (art -> [FilePath])
-    -> (art -> Util.Dyn -> Signal.Y -> (FilePath, Maybe a))
+    -> (art -> Util.Dyn -> Signal.Y -> (Maybe FilePath, Maybe a))
     -- ^ Maybe is unused, it's for compatibility with '_getFilename'
 variableDynamic variationRange articulationSamples = \art dyn var ->
-    (, Nothing) $
-    show art </> Util.pickDynamicVariation variationRange
-        (articulationSamples art) dyn (var*2 - 1)
+    ( (show art </>) <$>
+        pickDynamicVariation variationRange (articulationSamples art) dyn var
+    , Nothing
+    )
 
 -- | '_allFilenames' for ConvertMaps that use 'variableDynamic' and
 -- 'makeFileList'.
@@ -156,7 +157,8 @@ convert attributeMap cmap = \note -> do
     articulation <- Util.articulation attributeMap (Note.attributes note)
     let dyn = Note.initial0 Control.dynamic note
     let var = fromMaybe 0 $ Note.initial Control.variation note
-    let (filename, mbDynRange) = getFilename articulation dyn var
+    let (mbFilename, mbDynRange) = getFilename articulation dyn var
+    filename <- tryJust "no sample" mbFilename
     let noteDyn = case mbDynRange of
             Nothing -> Num.scale minDyn maxDyn dyn
             Just dynRange ->
@@ -325,6 +327,8 @@ inferEnd strokeMap note nexts =
     attributeMap = _attributeMap strokeMap
 
 -- * file list
+
+type Articulation = FilePath
 
 -- | Generate haskell code for an Articulation -> [FilePath] function.
 --

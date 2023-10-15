@@ -7,6 +7,7 @@ module Synth.Sampler.Patch.ZhengSamples (samples) where
 import Data.Map (Map, fromList)
 import Midi.Midi (Key(Key))
 
+
 samples :: Map Int (Map Key (Map Int [FilePath]))
 samples = fromList
   [(0,

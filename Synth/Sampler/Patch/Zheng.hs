@@ -105,8 +105,9 @@ convert note = do
     let dynVal = Note.initial0 Control.dynamic note
     let var = Note.initial0 Control.variation note
     noteNn <- Util.initialPitch note
-    (key, sampleDyn, filename) <- tryJust "no sample" $
+    (key, sampleDyn, mbFilename) <- tryJust "no sample" $
         toFilename noteNn art dynVal var
+    filename <- tryJust "no samples" mbFilename
     -- The bottom of the scale should be enough to smooth out the volume
     -- differences between each velocity group.  It's surely highly variable,
     -- but this seems to sound ok in practice.
@@ -125,7 +126,7 @@ defaultDampTime :: RealTime
 defaultDampTime = 0.75
 
 toFilename :: Pitch.NoteNumber -> Articulation -> Signal.Y -> Signal.Y
-    -> Maybe (Midi.Key, Signal.Y, FilePath)
+    -> Maybe (Midi.Key, Signal.Y, Maybe FilePath)
 toFilename nn art dyn var = do
     (key, velToFiles) <- Maps.lookupClosest (Midi.to_key (round nn))
         (samples art)

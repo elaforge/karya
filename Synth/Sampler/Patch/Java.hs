@@ -24,6 +24,7 @@ import qualified Instrument.Common as Common
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Patch.Lib.Bali as Lib.Bali
+import qualified Synth.Sampler.Patch.Lib.Drum as Drum
 import qualified Synth.Sampler.Patch.Lib.Prepare as Prepare
 import qualified Synth.Sampler.Patch.Lib.Util as Util
 import           Synth.Sampler.Patch.Lib.Util (Dynamic(..))
@@ -210,8 +211,8 @@ convert inst attrMap note = do
     let (dyn, dynVal) = Util.dynamic dynamic note
     symPitch <- Util.symbolicPitch note
     (pitch, (noteNn, sampleNn)) <- tryRight $ findPitch tuning symPitch
-    let fname = Util.chooseVariation (findFilenames variations art pitch dyn)
-            note
+    fname <- tryJust "no samples" $
+        Util.chooseVariation (findFilenames variations art pitch dyn) note
     dynVal <- return $ dynVal
         + Util.dbToDyn (Map.findWithDefault 0 fname dynamicTweaks)
     return $ (Sample.make fname)

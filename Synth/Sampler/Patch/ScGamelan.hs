@@ -101,9 +101,11 @@ pp = pretty
 -}
 
 gongFilename :: Gong -> Signal.Y -> Signal.Y
-    -> (FilePath, Maybe (Signal.Y, Signal.Y))
+    -> (Maybe FilePath, Maybe (Signal.Y, Signal.Y))
 gongFilename gong dyn var =
-    second Just $ Util.pickVariation (gongVariations dyn gong) var
+    case Util.pickVariation (gongVariations dyn gong) var of
+        Nothing -> (Nothing, Nothing)
+        Just (fname, range) -> (Just fname, Just range)
 
 baseDir :: FilePath
 baseDir = "sc-gamelan"
