@@ -49,10 +49,10 @@ import           Global
 
     Level adjustment:
     - First adjust variations:
-      % run build/opt/sampler-im calibrate-by Var patch +attr sym-pitches+
-      Use this to tweak per-sample dB.
+      % run build/opt/sampler-im calibrate-var patch 0 16
+      Use this to fill in dynamicTweaks to make variations have consistent dB.
     - Then adjust increasing dyn for a smooth curve:
-      % run build/opt/sampler-im calibrate-by Dyn patch +attr sym-pitches+
+      % run build/opt/sampler-im calibrate-by patch Dyn +attr sym-pitches+
       Use this to adjust (low, high) dB for dynamic ranges.
 
     slenthem 21 v4 mf same as ff?

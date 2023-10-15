@@ -42,7 +42,7 @@ import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Lib.Checkpoint as Checkpoint
 import qualified Synth.Sampler.Calibrate as Calibrate
 import qualified Synth.Sampler.Patch as Patch
-import qualified Synth.Sampler.Patch.Rambat as Rambat
+import qualified Synth.Sampler.Patch.Lib.Util as Util
 import qualified Synth.Sampler.Patch.Wayang as Wayang
 import qualified Synth.Sampler.PatchDb as PatchDb
 import qualified Synth.Sampler.Render as Render
@@ -81,6 +81,7 @@ main = do
         emitProgress = Progress `elem` flags
     imDir <- Config.imDir <$> Config.getConfig
     let calibrateDir = imDir </> "calibrate"
+    let calibrateWav = calibrateDir </> "calibrate.wav"
     case args of
         -- Listen for samples that have silence at the beginning by rendering
         -- them all to start at the same time.  A delayed attack should stick
@@ -93,7 +94,7 @@ main = do
                     . (++[reference]))
                 samples
         -- Play notes in a dynamic range to calibrate relative dynamics.
-        "calibrate-by" : by : patch : attrs : pitches -> do
+        "calibrate-by" : patch : by : attrs : pitches -> do
             let dur = 1
             -- TODO adjust vars per patch.  But, they can vary per dyn, attr.
             -- So maybe use allFilenames or something to enumerate them?
@@ -104,17 +105,13 @@ main = do
                     (parseAttrs (txt attrs)) (map txt pitches) vars dyns
             dumpSamples PatchDb.db notes
             process emitProgress PatchDb.db quality notes calibrateDir
-            let outWav = calibrateDir </> "calibrate.wav"
-            putStrLn $ "write to " <> outWav
+            putStrLn $ "write to " <> calibrateWav
             Process.callCommand $ unwords
-                ["sox", "-V1", calibrateDir </> "inst/*.wav", outWav]
-        ["calibrate-dyn-raw"] -> do
-            -- Directly play the underlying samples.
-            fnames <- map fst <$> calibrateFnames
-            let dur = 1
-            putStr $ unlines $ map (\(t, fn) -> prettys t <> " - " <> fn) $
-                zip (Lists.range_ 0 dur) (map sampleName fnames)
-            Calibrate.renderSequence calibrateDir dur fnames
+                ["sox", "-V1", calibrateDir </> "inst/*.wav", calibrateWav]
+        ["calibrate-var", patchName, start, len] -> do
+            start <- parse start
+            len <- parse len
+            calibrateVar calibrateWav (txt patchName) start len
         ["dump", notesFilename] ->
             dumpNotes False dumpRange dumpTracks notesFilename
         ["dumps", notesFilename] ->
@@ -142,6 +139,41 @@ main = do
                 ])
             options
         Exit.exitFailure
+    parse n = maybe (errorIO $ "expected int: " <> txt n) pure
+        (Read.readMaybe n)
+
+-- Edit this along with calibrateVar, then paste into the patch definition.
+-- I'd rather use the one in the patch, but then I'd have to go through
+-- Note.Note and convert, which means I'd need to knows its internal
+-- details to reverse it to cause it to select the sample I want.
+dynamicTweaks :: Map Sample.SamplePath Util.Db
+dynamicTweaks = Map.fromList
+    [
+    ]
+
+calibrateVar :: FilePath -> Note.PatchName -> Int -> Int -> IO ()
+calibrateVar calibrateWav patchName start len = do
+    -- Directly play the underlying samples.  Use to calibrate
+    -- variations.
+    let dur = 1
+    patch <- maybe (errorIO $ "unknown patch: " <> patchName)
+        (pure . fst) =<< getPatch PatchDb.db patchName
+    -- TODO this winds up being in alphabetical order rather than
+    -- dyn.  However, so far I order samples names by general to
+    -- specific so it works out.
+    let fnames = take len $ drop start $ Set.toList $ Patch._allFilenames patch
+    let fnameDyns = Lists.keyOnSnd
+            (\n -> maybe 1 ((1+) . Util.dbToDyn) (Map.lookup n dynamicTweaks))
+            fnames
+    mapM_ Text.IO.putStrLn $ Texts.columns 2 $ ["time", "sample", "dyn"] :
+        [ [RealTime.show_units t, txt fn, pretty dyn]
+        | (t, (fn, dyn)) <- zip (Lists.range_ 0 dur) fnameDyns
+        ]
+    Calibrate.renderSequence calibrateWav dur
+        (map (first (sampleToPath PatchDb.db patch)) fnameDyns)
+
+sampleToPath :: Patch.Db -> Patch.Patch -> Sample.SamplePath -> FilePath
+sampleToPath db patch fn = Patch._rootDir db </> Patch._dir patch </> fn
 
 parseAttrs :: Text -> [Attrs.Attributes]
 parseAttrs =
@@ -149,12 +181,6 @@ parseAttrs =
 
 parseBy :: String -> Calibrate.By
 parseBy str = fromMaybe (error ("not a By: " <> str)) (Read.readMaybe str)
-
-calibrateFnames :: IO [(FilePath, Map Calibrate.Axis Text)]
-calibrateFnames =
-    -- Calibrate.select [("pitch", "3a"), ("art", "Calung"), ("dyn", "PP")] <$>
-    Calibrate.select [("pitch", "3a"), ("art", "Calung")] <$>
-    Rambat.getVariations
 
 data Flag =
     Quality Resample.Quality
@@ -246,7 +272,7 @@ dumpSamples db notes = do
     forM_ samples $ \(_, (_, sampleNotes)) ->
         Text.IO.putStr $ if null sampleNotes then "NO SAMPLES\n"
             else Text.unlines $ Texts.columns 2 $
-                ["time", "sample", "env"] : map (fmt . snd) sampleNotes
+                ["time", "sample", "dyn"] : map (fmt . snd) sampleNotes
     where
     fmt note =
         [ RealTime.show_units $ AUtil.toSeconds (Sample.start note)
@@ -380,12 +406,11 @@ convert db patch =
     map update . Lists.keyOn (Patch.convert patch) . Patch._preprocess patch
     where
     update (Right (sample, logs), note) =
-        ( Right $ Sample.modifyFilename (patchDir</>) sample
+        ( Right $ Sample.modifyFilename (sampleToPath db patch) sample
         , logs
         , note
         )
     update (Left err, note) = (Left err, [], note)
-    patchDir = Patch._rootDir db </> Patch._dir patch
 
 makeSampleNotes :: (Config.Payload -> IO ())
     -> Maybe Render.InstrumentEffect

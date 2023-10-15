@@ -4,7 +4,6 @@
 
 module Synth.Sampler.Calibrate where
 import qualified Control.Monad.Trans.Resource as Resource
-import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
@@ -18,6 +17,7 @@ import qualified Util.Lists as Lists
 import qualified Derive.Attrs as Attrs
 import qualified Perform.RealTime as RealTime
 import qualified Synth.Lib.AUtil as AUtil
+import qualified Synth.Sampler.Patch.Lib.Util as Util
 import qualified Synth.Sampler.RenderSample as RenderSample
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Config as Config
@@ -30,17 +30,6 @@ import           Synth.Types
 
 
 type Axis = Text
-
-select :: Eq b => [(Axis, b)] -> [(a, Map Axis b)] -> [(a, Map Axis b)]
-select tags = filter (hasTags . snd)
-    where
-    hasTags m = all (\(k, v) -> Map.lookup k m == Just v) tags
-
-orderBy :: Ord b => [Axis] -> [(a, Map Axis b)] -> [a]
-orderBy axes samples = map snd $ List.sortOn fst
-    [ (map (`Map.lookup` tags) axes, val)
-    | (val, tags) <- samples
-    ]
 
 pitch, art, dyn, tuning, var :: Axis
 pitch = "pitch"
@@ -105,14 +94,14 @@ sequence by patch dur attrs pitches variations dynamics =
             ]
         }
 
-renderSequence :: FilePath -> RealTime -> [Sample.SamplePath] -> IO ()
-renderSequence outDir dur fnames = do
-    renderDirect (outDir </> "out.wav") Nothing samples
+renderSequence :: FilePath -> RealTime -> [(Sample.SamplePath, Util.Dyn)]
+    -> IO ()
+renderSequence outWav dur fnameDyns = renderDirect outWav Nothing samples
     where
-    samples = zip (Lists.range_ 0 dur) (map makeSample fnames)
-    makeSample fname = (Sample.make fname)
+    samples = zip (Lists.range_ 0 dur) (map makeSample fnameDyns)
+    makeSample (fname, dyn) = (Sample.make fname)
         { Sample.envelope =
-            Signal.from_pairs [(0, 1), (dur - decay, 1), (dur, 0)]
+            Signal.from_pairs [(0, dyn), (dur - decay, dyn), (dur, 0)]
         }
     decay = 0.15
 
