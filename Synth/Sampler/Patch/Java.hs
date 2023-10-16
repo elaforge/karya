@@ -378,7 +378,7 @@ _pekingRelink = _relink "peking" (allFilenames peking)
 _printIndices :: IO ()
 _printIndices = Prepare.printIndices 2 $ allFilenames genderPanerus
 
-t0 = Drum.makeFileListDyn "/Users/elaforge/Music/mix/sample/java/kenong/raw"
+t0 = Drum.makeFileListWeighted (Prepare.baseDir </> "java/kenong/raw")
     ["Open", "MuteTight", "MuteLoose"]
     "kenongSamples"
 

@@ -141,6 +141,79 @@ variableDynamic variationRange articulationSamples = \art dyn var ->
     , Nothing
     )
 
+-- | See 'pickDynWeighted'.
+variableDynamicWeighted :: Show art => Signal.Y
+    -> (art -> [(FilePath, Util.Dyn)])
+    -> (art -> Util.Dyn -> Signal.Y -> (Maybe FilePath, Maybe a))
+    -- ^ Maybe is unused, it's for compatibility with '_getFilename'
+variableDynamicWeighted varRange articulationSamples = \art dyn var ->
+    ( (show art </>) <$>
+        pickDynWeighted varRange (articulationSamples art) dyn var
+    , Nothing
+    )
+
+{-
+    Rationale: I want to record many dyn variations, but don't want to have to
+    randomize dyn to get different samples.  So each sample has a natural dyn.
+    The closer to the sample dyn, the greater chance to pick it.
+
+    . Select samples in range.
+    . Annotate each with distance from requested dyn, normalized so 1 is at
+      range.
+    . 1- so it goes 0 to 1.
+    . Scale by maxProb so even exact match has only 0.75 to pick.
+    . Now I have [(Weight, a)].  Sum weights, scale random to that.
+
+    TODO this uses linear scaling, so the likelihood of picking the sample
+    decreases linearly with its distance.  I could bias towards closeness
+    by squaring the distance, or by warping var though a curve that favors 0.5.
+
+    @
+    curve n
+        | 0 <= n && n <= 0.5 = f n
+        | otherwise = 0.5 + f (n - 0.5)
+        where
+        f x = (x*2)**pinch / 2
+        pinch = 1.5
+    @
+
+    Precondition: samples must be sorted by Util.Dyn.
+-}
+pickDynWeighted :: Double -> [(a, Util.Dyn)] -> Util.Dyn -> Double -> Maybe a
+pickDynWeighted varRange samples dyn var = pickWeighted (var * sum) weighted
+    where
+    sum = Num.sum (map snd weighted)
+    weighted = annotateDyn maxProb varRange samples dyn
+    maxProb = 0.75
+
+pickWeighted :: Double -> [(a, Double)] -> Maybe a
+pickWeighted val = go 0
+    where
+    go _ [] = Nothing
+    go _ [(a, _)] = Just a
+    go sum ((a, n) : as)
+        | val < sum + n = Just a
+        | otherwise = go (sum + n) as
+
+-- | Precondition: samples must be sorted by Util.Dyn.
+annotateDyn :: Double -> Double -> [(a, Util.Dyn)] -> Util.Dyn
+    -> [(a, Util.Dyn)]
+annotateDyn maxProb varRange samples dyn = map (fmap annotate) inRange
+    where
+    annotate sdyn =
+        maxProb * (1 - Num.normalize 0 varRange (abs (dyn - sdyn)))
+    inRange = takeWhile ((< (dyn + varRange)) . snd) $
+        dropWhile ((<= (dyn - varRange)) . snd) samples
+
+
+-- | Pick from a list of dynamic variations.  This assumes the samples
+-- are evenly distributed by dynamic, and the variation then scales that up
+-- and down by the variation range.  There is no weighting, so all samples in
+-- the range are equally likely.
+pickDynamicVariation :: Double -> [a] -> Util.Dyn -> Double -> Maybe a
+pickDynamicVariation variationRange samples dyn var =
+    Util.pickVariation samples (dyn + (var*2 - 1) * variationRange)
+
 -- | '_allFilenames' for ConvertMaps that use 'variableDynamic' and
 -- 'makeFileList'.
 allFilenames :: (Stack.HasCallStack, Enum a, Bounded a, Show a)
@@ -338,18 +411,46 @@ type Articulation = FilePath
 -- into the source.
 makeFileList :: FilePath -> [FilePath] -> String -> IO ()
 makeFileList dir articulations variableName = do
-    putStrLn $ variableName <> " :: Articulation -> [FilePath]"
-    putStrLn $ variableName <> " = \\case"
-    forM_ articulations $ \art -> do
-        fns <- Lists.sortOn filenameSortKey <$>
-            Directory.listDirectory (Config.unsafeSamplerRoot </> dir </> art)
-        putStrLn $ indent <> art <> " ->"
-        putStrLn $ indent2 <> "[ " <> show (head fns)
-        mapM_ (\fn -> putStrLn $ indent2 <> ", " <> show fn) (tail fns)
-        putStrLn $ indent2 <> "]"
+    artSamples <- listSamples dir articulations
+    putStr $ unlines $
+        [ variableName <> " :: Articulation -> [FilePath]"
+        , variableName <> " = \\case"
+        ] ++ concatMap make artSamples
     where
+    make (art, fns) =
+        [ indent <> art <> " ->"
+        , indent2 <> "[ " <> show (head fns)
+        ] ++ map (\fn -> indent2 <> ", " <> show fn) (tail fns)
+        ++ [indent2 <> "]"]
     indent = replicate 4 ' '
     indent2 = indent <> indent
+
+-- | Like 'makeFileList', but pair with 'Util.Dyn's which can be hand edited.
+makeFileListWeighted :: FilePath -> [Articulation] -> String -> IO ()
+makeFileListWeighted dir articulations variableName = do
+    artSamples <- listSamples dir articulations
+    putStr $ unlines $
+        [ variableName <> " :: Articulation -> [(FilePath, Util.Dyn)]"
+        , variableName <> " = \\case"
+        ] ++ concatMap make artSamples
+    where
+    make (art, fns) =
+        [ indent <> art <> " ->"
+        , indent2 <> "[ " <> pair (head fnDyns)
+        ] ++ map (\fnDyn -> indent2 <> ", " <> pair fnDyn) (tail fnDyns)
+        ++ [indent2 <> "]"]
+        where
+        fnDyns = zip fns (map (*step) [1..])
+        step = 1 / fromIntegral (length fns)
+        pair (fn, dyn) = "(" <> show fn <> ", "
+            <> untxt (Num.showFloat0 (Just 2) dyn) <> ")"
+    indent = replicate 4 ' '
+    indent2 = indent <> indent
+
+listSamples :: FilePath -> [Articulation] -> IO [(Articulation, [FilePath])]
+listSamples dir = mapM $ \art ->
+    (art,) . Lists.sortOn filenameSortKey <$>
+        Directory.listDirectory (Config.unsafeSamplerRoot </> dir </> art)
 
 filenameSortKey :: FilePath -> Int
 filenameSortKey fname =
