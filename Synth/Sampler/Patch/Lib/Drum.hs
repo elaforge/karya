@@ -2,6 +2,8 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE NoFieldSelectors #-}
 {- | Utilities shared between drum patches.
 
     The base structure is that a drum has an enumeration of articulations,
@@ -62,14 +64,14 @@ import           Global
 -- | Make a complete sampler patch with all the drum bits.
 patch :: Ord art => FilePath -> Note.PatchName -> StrokeMap art
     -> ConvertMap art -> (Maybe art -> CUtil.CallConfig) -> Patch.Patch
-patch dir name strokeMap convertMap configOf = (Patch.patch name)
+patch dir name smap cmap configOf = (Patch.patch name)
     { Patch._dir = dir
     , Patch._preprocess =
-        if Map.null (_stops strokeMap) then id else inferDuration strokeMap
-    , Patch._convert = convert (_attributeMap strokeMap) convertMap
-    , Patch._karyaPatch = karyaPatch dir strokeMap convertMap configOf
-        (_extraCalls strokeMap)
-    , Patch._allFilenames = _allFilenames convertMap
+        if Map.null smap.stops then id else inferDuration smap
+    , Patch._convert = convert smap.attributeMap cmap
+    , Patch._karyaPatch = karyaPatch dir smap cmap configOf
+        smap.extraCalls
+    , Patch._allFilenames = cmap.allFilenames
     }
 
 -- | Make a patch with the drum-oriented code in there already.
@@ -77,20 +79,19 @@ karyaPatch :: FilePath -> StrokeMap art -> ConvertMap art
     -> (Maybe art -> CUtil.CallConfig)
     -> [(Maybe Char, Expr.Symbol, Derive.Generator Derive.Note)]
     -> ImInst.Patch
-karyaPatch dir strokeMap convertMap configOf extraCalls =
-    CUtil.im_drum_patch (map fst (_strokes strokeMap)) $
+karyaPatch dir smap cmap configOf extraCalls =
+    CUtil.im_drum_patch (map fst smap.strokes) $
     ImInst.code #= code $
-    makePatch (_attributeMap strokeMap) (Maybe.isJust (_naturalNn convertMap))
+    makePatch smap.attributeMap (Maybe.isJust cmap.naturalNn)
     where
     extraCmds = [(char, sym) | (Just char, sym, _) <- extraCalls]
     code = CUtil.drum_code_cmd extraCmds thru
         [ (stroke, set (configOf mbArt))
-        | (stroke, mbArt) <- _strokes strokeMap
+        | (stroke, mbArt) <- smap.strokes
         ]
         <> ImInst.note_generators [(sym, call) | (_, sym, call) <- extraCalls]
     set config = config { CUtil._transform = Code.withVariation }
-    thru = Util.imThruFunction dir
-        (convert (_attributeMap strokeMap) convertMap)
+    thru = Util.imThruFunction dir (convert smap.attributeMap cmap)
 
 -- | Make an unconfigured patch, without code, in case it's too custom for
 -- 'karyaPatch'.
@@ -114,17 +115,17 @@ data ConvertMap art = ConvertMap {
     --
     -- TODO: if the samples are not normalized, I need a separate range for
     -- each sample, to smooth out the differences.
-    _dynRange :: (Signal.Y, Signal.Y)
+    dynRange :: (Signal.Y, Signal.Y)
     -- | If Just, use the note's pitch, assuming ratio=1 will be this pitch.
-    ,  _naturalNn :: Maybe (art -> Pitch.NoteNumber)
+    ,  naturalNn :: Maybe (art -> Pitch.NoteNumber)
     -- | Time to mute at the end of a note.
-    , _muteTime :: Maybe RealTime.RealTime
+    , muteTime :: Maybe RealTime.RealTime
     -- | articulation -> dynamic -> variation -> (FilePath, (lowDyn, highDyn)).
     -- Returning the sample's dyn range was an attempt to tune dyn globally,
     -- but I think it doesn't work, see TODO above.
-    , _getFilename :: art -> Util.Dyn -> Signal.Y
+    , getFilename :: art -> Util.Dyn -> Signal.Y
         -> (Maybe FilePath, Maybe (Signal.Y, Signal.Y))
-    , _allFilenames :: Set FilePath
+    , allFilenames :: Set FilePath
     }
 
 -- | Create a '_getFilename' with the strategy where each articulation has
@@ -183,12 +184,12 @@ convert attributeMap cmap = \note -> do
 -- functions to construct the patch.
 data StrokeMap art = StrokeMap {
     -- | Map each articulation to the articulations that stop it.
-    _stops :: Map art (Set art)
+    stops :: Map art (Set art)
     -- | Retain the Stroke to 'art' assocation so I can have it when generating
     -- the call for each stroke.
-    , _strokes :: [(Drums.Stroke, Maybe art)]
-    , _attributeMap :: Common.AttributeMap art
-    , _extraCalls :: [(Maybe Char, Expr.Symbol, Derive.Generator Derive.Note)]
+    , strokes :: [(Drums.Stroke, Maybe art)]
+    , attributeMap :: Common.AttributeMap art
+    , extraCalls :: [(Maybe Char, Expr.Symbol, Derive.Generator Derive.Note)]
     } deriving (Show)
 
 -- | Like 'strokeMapTable', but for patches with only 'Stroke's.
@@ -218,15 +219,15 @@ strokeMapTable :: Ord art => Drums.Stops
     -- the patch respond to the given Attributes.
     -> StrokeMap art
 strokeMapTable stops table = StrokeMap
-    { _stops =
+    { stops =
         stopMap [(art, group) | (_, _, Stroke _ art group) <- table] stops
-    , _strokes = strokes
-    , _attributeMap = Common.attribute_map $
+    , strokes = strokes
+    , attributeMap = Common.attribute_map $
         [ (attrs, art)
         | (_, _, call) <- table
         , Just attrs <- [attrsOf call], Just art <- [artOf call]
         ]
-    , _extraCalls =
+    , extraCalls =
         [ (if char == ' ' then Nothing else Just char, sym, call)
         | (char, sym, Call call) <- table
         ]
@@ -254,13 +255,11 @@ strokeMapTable stops table = StrokeMap
         }
 
 addAttributeMap :: Common.AttributeMap art -> StrokeMap art -> StrokeMap art
-addAttributeMap attrs strokeMap =
-    strokeMap { _attributeMap = attrs <> _attributeMap strokeMap }
+addAttributeMap attrs smap = smap { attributeMap = attrs <> smap.attributeMap }
 
 -- | Set dynamic for Attrs.soft and remove it.
 replaceSoft :: Signal.Y -> StrokeMap art -> StrokeMap art
-replaceSoft dyn strokeMap =
-    strokeMap { _strokes = map (first replace) (_strokes strokeMap) }
+replaceSoft dyn smap = smap { strokes = map (first replace) smap.strokes }
     where
     replace stroke = stroke
         { Drums._attributes = Attrs.remove Attrs.soft attrs
@@ -274,10 +273,10 @@ replaceSoft dyn strokeMap =
 strokeMap :: Ord art => Drums.Stops -> [Drums.Stroke]
     -> Common.AttributeMap art -> StrokeMap art
 strokeMap stops strokes attributeMap = StrokeMap
-    { _stops = stopMap artToGroup stops
-    , _strokes = zip strokes (map strokeToArt strokes)
-    , _attributeMap = attributeMap
-    , _extraCalls = []
+    { stops = stopMap artToGroup stops
+    , strokes = zip strokes (map strokeToArt strokes)
+    , attributeMap = attributeMap
+    , extraCalls = []
     }
     where
     -- This is awkward because I want to preserve the art, but unlike
@@ -309,22 +308,21 @@ stopMap artToGroup closedOpens =
 
 -- | Notes ring until stopped by their stop note.
 inferDuration :: Ord art => StrokeMap art -> [Note.Note] -> [Note.Note]
-inferDuration strokeMap = map infer . Util.nexts
+inferDuration smap = map infer . Util.nexts
     where
     infer (note, nexts) = note
-        { Note.duration = inferEnd strokeMap note nexts - Note.start note }
+        { Note.duration = inferEnd smap note nexts - Note.start note }
 
 inferEnd :: Ord art => StrokeMap art -> Note.Note -> [Note.Note]
     -> RealTime.RealTime
-inferEnd strokeMap note nexts =
+inferEnd smap note nexts =
     case List.find (maybe False (`Set.member` stops) . noteArt) nexts of
         Nothing -> Sample.forever
         Just stop -> Note.start stop
     where
-    stops = maybe mempty (Maps.getM (_stops strokeMap)) (noteArt note)
-    noteArt = fmap snd . (`Common.lookup_attributes` attributeMap)
+    stops = maybe mempty (Maps.getM smap.stops) (noteArt note)
+    noteArt = fmap snd . (`Common.lookup_attributes` smap.attributeMap)
         . Note.attributes
-    attributeMap = _attributeMap strokeMap
 
 -- * file list
 

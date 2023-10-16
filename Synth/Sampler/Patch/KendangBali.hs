@@ -96,11 +96,11 @@ articulationToAttrs = \case
 
 convertMap :: Tuning -> Drum.ConvertMap Articulation
 convertMap tuning = Drum.ConvertMap
-    { _dynRange = (0.4, 1.15)
-    , _naturalNn = Nothing
-    , _muteTime = Just 0.05
-    , _getFilename = \art dyn var -> (getFilename tuning art dyn var, Nothing)
-    , _allFilenames = allFilenames
+    { dynRange = (0.4, 1.15)
+    , naturalNn = Nothing
+    , muteTime = Just 0.05
+    , getFilename = \art dyn var -> (getFilename tuning art dyn var, Nothing)
+    , allFilenames = allFilenames
     }
 
 allFilenames :: Set FilePath

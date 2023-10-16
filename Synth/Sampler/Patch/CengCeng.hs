@@ -123,11 +123,11 @@ c_inferHands = Derive.transformer Module.instrument "infer-hands" mempty
 
 rincikConvertMap :: Drum.ConvertMap Rincik
 rincikConvertMap = Drum.ConvertMap
-    { _dynRange = (0.5, 1)
-    , _naturalNn = Nothing
-    , _muteTime = Just 0.05
-    , _getFilename = \art dyn -> first Just . rincikGetFilename art dyn
-    , _allFilenames = rincikAllFilenames
+    { dynRange = (0.5, 1)
+    , naturalNn = Nothing
+    , muteTime = Just 0.05
+    , getFilename = \art dyn -> first Just . rincikGetFilename art dyn
+    , allFilenames = rincikAllFilenames
     }
 
 rincikAllFilenames :: Set FilePath
@@ -226,11 +226,11 @@ kopyakStrokeMap = Drum.replaceSoft 0.75 $ Drum.strokeMapSimple stops
 
 kopyakConvertMap :: Inst -> Drum.ConvertMap Kopyak
 kopyakConvertMap inst = Drum.ConvertMap
-    { _dynRange = (0.5, 1)
-    , _naturalNn = Nothing
-    , _muteTime = Just 0.05
-    , _getFilename = \art dyn -> first Just . kopyakGetFilename inst art dyn
-    , _allFilenames = kopyakAllFilenames inst
+    { dynRange = (0.5, 1)
+    , naturalNn = Nothing
+    , muteTime = Just 0.05
+    , getFilename = \art dyn -> first Just . kopyakGetFilename inst art dyn
+    , allFilenames = kopyakAllFilenames inst
     }
 
 kopyakAllFilenames :: Inst -> Set FilePath

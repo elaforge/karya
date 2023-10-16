@@ -65,11 +65,11 @@ gongStrokeMap = Drum.strokeMapSimple []
 
 gongConvertMap :: Drum.ConvertMap Gong
 gongConvertMap = Drum.ConvertMap
-    { _dynRange = (0.9, 1.1)
-    , _naturalNn = Just gongNn
-    , _muteTime = Nothing
-    , _getFilename = gongFilename
-    , _allFilenames = gongAllFilenames
+    { dynRange = (0.9, 1.1)
+    , naturalNn = Just gongNn
+    , muteTime = Nothing
+    , getFilename = gongFilename
+    , allFilenames = gongAllFilenames
     }
 
 {-

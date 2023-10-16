@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE OverloadedRecordDot #-}
 module Synth.Sampler.Patch.Mridangam (patches) where
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.ImInst as ImInst
@@ -24,9 +25,9 @@ patches = (:[]) $ (Patch.patch patchName)
     , Patch._convert = convert
     , Patch._preprocess = Drum.inferDuration strokeMap
     , Patch._karyaPatch =
-        CUtil.im_drum_patch (map fst(Drum._strokes strokeMap)) $
+        CUtil.im_drum_patch (map fst strokeMap.strokes) $
         ImInst.code #= code $ Drum.makePatch attributeMap True
-    , Patch._allFilenames = Drum._allFilenames convertMap
+    , Patch._allFilenames = convertMap.allFilenames
     }
     where
     convert = Drum.convert attributeMap convertMap
@@ -58,11 +59,11 @@ attributeMap = Common.attribute_map
 
 convertMap :: Drum.ConvertMap Articulation
 convertMap = Drum.ConvertMap
-    { _dynRange = (0.4, 1.15)
-    , _naturalNn = Just (const naturalNn)
-    , _muteTime = Just 0.05
-    , _getFilename = Drum.variableDynamic 0.15 articulationSamples
-    , _allFilenames = Drum.allFilenames 356 articulationSamples
+    { dynRange = (0.4, 1.15)
+    , naturalNn = Just (const naturalNn)
+    , muteTime = Just 0.05
+    , getFilename = Drum.variableDynamic 0.15 articulationSamples
+    , allFilenames = Drum.allFilenames 356 articulationSamples
     }
 
 naturalNn :: Pitch.NoteNumber

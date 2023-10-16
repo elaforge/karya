@@ -66,11 +66,11 @@ strokeMap = Drum.replaceSoft 0.75 $ Drum.strokeMapTable stops
 
 convertMap :: Drum.ConvertMap Articulation
 convertMap = Drum.ConvertMap
-    { _dynRange = (0.5, 1)
-    , _naturalNn = Nothing
-    , _muteTime = Just 0.05
-    , _getFilename = Drum.variableDynamic 0.15 articulationSamples
-    , _allFilenames = Drum.allFilenames 171 articulationSamples
+    { dynRange = (0.5, 1)
+    , naturalNn = Nothing
+    , muteTime = Just 0.05
+    , getFilename = Drum.variableDynamic 0.15 articulationSamples
+    , allFilenames = Drum.allFilenames 171 articulationSamples
     }
 
 -- * calls

@@ -25,11 +25,11 @@ data Articulation = OpenCenter | MuteCenter | OpenEdge | MuteEdge
 
 convertMap :: Drum.ConvertMap Articulation
 convertMap = Drum.ConvertMap
-    { _dynRange = (0.8, 1.15)
-    , _naturalNn = Just (const 79.92) -- 5g#
-    , _muteTime = Just 0.15
-    , _getFilename = Drum.variableDynamic 0.15 articulationSamples
-    , _allFilenames = Drum.allFilenames 62 articulationSamples
+    { dynRange = (0.8, 1.15)
+    , naturalNn = Just (const 79.92) -- 5g#
+    , muteTime = Just 0.15
+    , getFilename = Drum.variableDynamic 0.15 articulationSamples
+    , allFilenames = Drum.allFilenames 62 articulationSamples
     }
 
 strokeMap :: Drum.StrokeMap Articulation

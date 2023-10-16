@@ -63,14 +63,12 @@ genderPanerus = Instrument
         , 62.18 -- 31 TODO approx, no resonator
         , 63.65 -- 32
         , 65    -- 33
-        -- , 68    -- 34 guess, no key
         , 69.05 -- 35
         , 70.5  -- 36
         , 72.14 -- 37
         , 74.25 -- 41 TODO approx
         , 75.68 -- 42
         , 77    -- 43
-        -- , 80    -- 44 guess
         , 81.03 -- 45
         , 82.48 -- 46
         , 84.14 -- 47
