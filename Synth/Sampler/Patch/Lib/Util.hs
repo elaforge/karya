@@ -153,6 +153,9 @@ findDynamic dynToRange dyn = find 0 dyn rangeDynamics
 
 type Variation = Int
 
+showVariation :: Variation -> String
+showVariation v = 'v' : show v
+
 variation :: Variation -> Note.Note -> Variation
 variation variations = pick . Note.initial0 Control.variation
     where pick var = round (var * fromIntegral (variations - 1))

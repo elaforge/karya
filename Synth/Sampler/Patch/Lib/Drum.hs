@@ -147,7 +147,7 @@ variableDynamicWeighted :: Show art => Signal.Y
     -> (art -> Util.Dyn -> Signal.Y -> (Maybe FilePath, Maybe a))
     -- ^ Maybe is unused, it's for compatibility with '_getFilename'
 variableDynamicWeighted varRange articulationSamples = \art dyn var ->
-    ( (show art </>) <$>
+    ( (show art </>) . fst <$>
         pickDynWeighted varRange (articulationSamples art) dyn var
     , Nothing
     )
@@ -179,9 +179,12 @@ variableDynamicWeighted varRange articulationSamples = \art dyn var ->
 
     Precondition: samples must be sorted by Util.Dyn.
 -}
-pickDynWeighted :: Double -> [(a, Util.Dyn)] -> Util.Dyn -> Double -> Maybe a
-pickDynWeighted varRange samples dyn var = pickWeighted (var * sum) weighted
+pickDynWeighted :: Double -> [(a, Util.Dyn)] -> Util.Dyn -> Double
+    -> Maybe (a, Util.Dyn) -- ^ selected a and Dyn to get it to requested Dyn
+pickDynWeighted varRange samples dyn var =
+    second adjust <$> pickWeighted (var * sum) weighted
     where
+    adjust sdyn = 1 + (dyn - sdyn)
     sum = Num.sum (map snd weighted)
     weighted = annotateDyn maxProb varRange samples dyn
     maxProb = 0.75
@@ -197,11 +200,13 @@ pickWeighted val = go 0
 
 -- | Precondition: samples must be sorted by Util.Dyn.
 annotateDyn :: Double -> Double -> [(a, Util.Dyn)] -> Util.Dyn
-    -> [(a, Util.Dyn)]
-annotateDyn maxProb varRange samples dyn = map (fmap annotate) inRange
+    -> [((a, Util.Dyn), Double)]
+annotateDyn maxProb varRange samples dyn = map annotate inRange
     where
-    annotate sdyn =
-        maxProb * (1 - Num.normalize 0 varRange (abs (dyn - sdyn)))
+    annotate (a, sdyn) =
+        ( (a, sdyn)
+        , maxProb * (1 - Num.normalize 0 varRange (abs (dyn - sdyn)))
+        )
     inRange = takeWhile ((< (dyn + varRange)) . snd) $
         dropWhile ((<= (dyn - varRange)) . snd) samples
 

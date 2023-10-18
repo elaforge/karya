@@ -269,7 +269,7 @@ unparseFilename :: Pitch -> Articulation -> Dynamic -> Util.Variation
     -> FilePath
 unparseFilename pitch art dyn var = Lists.join "-"
     [ prettys pitch, articulationFile art, Util.showLower dyn
-    , 'v' : show var
+    , Util.showVariation var
     ]
     ++ Util.extension sampleFormat
 

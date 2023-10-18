@@ -5,6 +5,7 @@
 {-# LANGUAGE StrictData #-}
 -- | Javanese gamelan instruments.
 module Synth.Sampler.Patch.Java (patches) where
+import qualified Data.Vector.Unboxed as Unboxed
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
@@ -29,6 +30,7 @@ import qualified Synth.Sampler.Patch.Lib.Prepare as Prepare
 import qualified Synth.Sampler.Patch.Lib.Util as Util
 import           Synth.Sampler.Patch.Lib.Util (Dynamic(..))
 import qualified Synth.Sampler.Sample as Sample
+import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
 
@@ -39,24 +41,28 @@ sampleFormat :: Util.SampleFormat
 sampleFormat = Util.Wav
 
 patches :: [Patch.Patch]
-patches = map makePatch [genderPanerus, slenthem, peking]
+patches = map makePatch [genderPanerus, slenthem, peking, kenong]
 
 data Instrument = Instrument {
     name :: Text
     , variations :: Variations
     , tuning :: Tuning
-    , dynamic :: Dynamic -> (Util.Dyn, (Util.Db, Util.Db))
     , dynamicTweaks :: Map Sample.SamplePath Util.Db
     , articulations :: Set Articulation
     }
 
-type Variations = Articulation -> (Pitch, Util.Dynamic) -> Util.Variation
+data Variations =
+    FixedDyns FixedDyns (Dynamic -> (Util.Dyn, (Util.Db, Util.Db)))
+    | VarDyns VarDyns
+type FixedDyns = Articulation -> (Pitch, Util.Dynamic) -> Util.Variation
+type VarDyns = Articulation -> Pitch -> Unboxed.Vector Util.Dyn
+
 type Tuning = Map Pitch Pitch.NoteNumber
 
 genderPanerus :: Instrument
 genderPanerus = Instrument
     { name = "gender-panerus"
-    , variations
+    , variations = FixedDyns fixedDyns dynamic
     , tuning = Map.fromList $ zip (filter (not . is4) [Pitch 2 P6 ..])
         [ 58.68 -- 26
         , 60.13 -- 27
@@ -76,8 +82,6 @@ genderPanerus = Instrument
         , 87.7  -- 52
         , 88.98 -- 53
         ]
-    , dynamic = standardDyns $ \case -- TODO
-        _ -> (0, 0)
     , dynamicTweaks = Map.fromList
         [ ("open/26-mf-v4.wav", -2)
         , ("open/27-mf-v2.wav", 2)
@@ -108,7 +112,7 @@ genderPanerus = Instrument
     , articulations = Set.fromList [Open, Mute]
     }
     where
-    variations Open = \case
+    fixedDyns Open = \case
         (Pitch 2 P6, MP) -> 3
         (Pitch 3 P2, MF) -> 3
         (Pitch 3 P2, FF) -> 3
@@ -134,16 +138,19 @@ genderPanerus = Instrument
         (Pitch 5 P3, MF) -> 5
         (Pitch 5 P3, FF) -> 5
         _ -> 4
-    variations Mute = \case
+    fixedDyns Mute = \case
         -- TODO
         _ -> 0
         -- _ -> 6
-    variations Character = const 0
+    fixedDyns Character = const 0
+    fixedDyns MuteLoose = const 0
+    dynamic = standardDyns $ \case -- TODO
+        _ -> (0, 0)
 
 slenthem :: Instrument
 slenthem = Instrument
     { name = "slenthem"
-    , variations
+    , variations = FixedDyns fixedDyns dynamic
     , tuning = Map.fromList $ zip (map (Pitch 2) [P1 ..])
         -- TODO copy pasted from Scale.Java
         [ 50.18 -- 21
@@ -154,11 +161,7 @@ slenthem = Instrument
         , 58.68 -- 26
         , 60.13 -- 27
         ]
-    , dynamic = standardDyns $ \case
-        PP -> (-9, 1)
-        MP -> (-6, 1)
-        MF -> (-7, 1)
-        FF -> (-7, 0)
+    -- TODO: 22-ff-v[1-4].wav are distorted
     , dynamicTweaks = Map.fromList
         [ ("open/21-pp-v3.wav", -3)
         , ("open/21-mf-v4.wav", -2)
@@ -184,20 +187,26 @@ slenthem = Instrument
     , articulations = Set.fromList [Open, Mute]
     }
     where
-    variations Open = \case
+    fixedDyns Open = \case
         (Pitch 2 P6, PP) -> 3
         (Pitch 2 P6, MF) -> 5
         (Pitch 2 P7, FF) -> 3
         _ -> 4
-    variations Mute = \case
+    fixedDyns Mute = \case
         (Pitch 2 P5, PP) -> 5
         _ -> 6
-    variations Character = const 0
+    fixedDyns Character = const 0
+    fixedDyns MuteLoose = const 0
+    dynamic = standardDyns $ \case
+        PP -> (-9, 1)
+        MP -> (-6, 1)
+        MF -> (-7, 1)
+        FF -> (-7, 0)
 
 peking :: Instrument
 peking = Instrument
     { name = "peking"
-    , variations
+    , variations = FixedDyns fixedDyns dynamic
     , tuning = Map.fromList $ zip (map (Pitch 5) [P1 ..])
         -- TODO copy pasted from Scale.Java, retune from samples
         [ 86.4  -- 51
@@ -208,22 +217,15 @@ peking = Instrument
         , 82.48 + 12 -- 46
         , 84.14 + 12 -- 47
         ]
-    -- TODO
-    , dynamic = standardDyns $ \case
-        _ -> (0, 0)
-        -- PP -> (0.25, (-8, 4))
-        -- MP -> (0.5, (-4, 4))
-        -- MF -> (0.75, (-4, 6))
-        -- FF -> (1, (-4, 2))
     , dynamicTweaks = mempty
     , articulations = Set.fromList [Open, Mute, Character]
     }
     where
-    variations Open = const 4
-    variations Mute = \case
+    fixedDyns Open = const 4
+    fixedDyns Mute = \case
         (Pitch 5 P3, MF) -> 5
         _ -> 6
-    variations Character = \(Pitch _ p, dyn) ->
+    fixedDyns Character = \(Pitch _ p, dyn) ->
         fromMaybe 0 $ Map.lookup dyn =<< Map.lookup p byPitch
         where
         -- Character works with +character, calls have to add it or not.
@@ -236,6 +238,55 @@ peking = Instrument
             , [(MF, 5)]
             , [(MP, 4), (MF, 4)]
             ]
+    fixedDyns MuteLoose = const 0
+    -- TODO
+    dynamic = standardDyns $ \case
+        _ -> (0, 0)
+        -- PP -> (0.25, (-8, 4))
+        -- MP -> (0.5, (-4, 4))
+        -- MF -> (0.75, (-4, 6))
+        -- FF -> (1, (-4, 2))
+
+t0 = Drum.makeFileListWeighted (Prepare.baseDir </> "java/kenong/raw")
+    ["Open", "MuteTight", "MuteLoose"]
+    "kenongSamples"
+
+kenong :: Instrument
+kenong = Instrument
+    { name = "kenong"
+    , variations = VarDyns varDyns
+    , tuning = Map.fromList $ zip (map (Pitch 3) [P1, P2, P3, P5, P6, P7])
+        -- TODO copy pasted from Scale.Java, retune from samples
+        [ 62.18 -- 31
+        , 63.65 -- 32
+        , 65    -- 33
+        , 69.05 -- 35
+        , 70.5  -- 36
+        , 72.14 -- 37
+        ]
+    , dynamicTweaks = mempty
+    , articulations = Set.fromList [Open, Mute, MuteLoose]
+    }
+    where
+    varDyns = oneOctave $ \case
+        Open -> \case
+            P7 -> evenDyns 19
+            _ -> mempty
+        MuteLoose -> \case
+            P7 -> evenDyns 17
+            _ -> mempty
+        Mute -> \case
+            P7 -> evenDyns 22
+            _ -> mempty
+        Character -> const mempty
+
+oneOctave :: (Articulation -> PitchClass -> Unboxed.Vector Util.Dyn)
+    -> VarDyns
+oneOctave f art (Pitch _ pc) = f art pc
+
+evenDyns :: Int -> Unboxed.Vector Util.Dyn
+evenDyns n = Unboxed.fromList $ take n (Lists.range_ step step)
+    where step = 1 / fromIntegral n
 
 standardDyns :: (Dynamic -> range) -> Dynamic -> (Util.Dyn, range)
 standardDyns f = \case
@@ -281,7 +332,9 @@ allFilenames (Instrument { tuning, variations }) =
     | art <- Util.enumAll
     , pitch <- Map.keys tuning
     , dyn <- Util.enumAll
-    , fname <- toFilenames variations art pitch dyn
+    , fname <- case variations of
+        FixedDyns fixedDyns _ -> toFilenames fixedDyns art pitch dyn
+        VarDyns varDyns -> toFilenamesVarDyn varDyns art pitch
     ]
 
 makeRange :: Map Pitch a -> Scale.Range
@@ -290,18 +343,21 @@ makeRange tuning = Scale.Range (toPitch bottom) (toPitch top)
     Just bottom = fst . fst <$> Map.minViewWithKey tuning
     Just top = fst . fst <$> Map.maxViewWithKey tuning
 
-data Articulation = Open | Mute | Character -- ^ peking have character
+data Articulation = Open
+    | Mute -- ^ If there is MuteLoose, this is MuteTight
+    | MuteLoose
+    | Character -- ^ peking have character
     deriving (Show, Eq, Ord, Enum, Bounded)
 
 convert :: Instrument -> Common.AttributeMap Articulation -> Note.Note
     -> Patch.ConvertM Sample.Sample
 convert inst attrMap note = do
-    let art = Util.articulationDefault Open attrMap $ Note.attributes note
-    let (dyn, dynVal) = Util.dynamic dynamic note
     symPitch <- Util.symbolicPitch note
     (pitch, (noteNn, sampleNn)) <- tryRight $ findPitch tuning symPitch
-    fname <- tryJust "no samples" $
-        Util.noteVariation (findFilenames variations art pitch dyn) note
+    (fname, dynVal) <- tryJust "no samples" $ case variations of
+        FixedDyns fixedDyns dynamic ->
+            convertFixedDyn fixedDyns dynamic pitch art note
+        VarDyns varDyns -> convertVarDyn varDyns pitch art note
     dynVal <- return $ dynVal
         + Util.dbToDyn (Map.findWithDefault 0 fname dynamicTweaks)
     return $ (Sample.make fname)
@@ -311,7 +367,32 @@ convert inst attrMap note = do
         , Sample.ratios = Signal.constant $ Sample.pitchToRatio sampleNn noteNn
         }
     where
-    Instrument { tuning, variations, dynamic, dynamicTweaks } = inst
+    Instrument { tuning, variations, dynamicTweaks } = inst
+    art = Util.articulationDefault Open attrMap $ Note.attributes note
+
+convertFixedDyn :: FixedDyns -> (Dynamic -> (Util.Dyn, (Util.Db, Util.Db)))
+    -> Pitch -> Articulation -> Note.Note
+    -> Maybe (Sample.SamplePath, Util.Dyn)
+convertFixedDyn fixedDyns dynamic pitch art note =
+    (, dynVal) <$>
+        Util.noteVariation (findFilenames fixedDyns art pitch dyn) note
+    where
+    (dyn, dynVal) = Util.dynamic dynamic note
+
+convertVarDyn :: VarDyns -> Pitch -> Articulation -> Note.Note
+    -> Maybe (Sample.SamplePath, Util.Dyn)
+convertVarDyn varDyns pitch art note =
+    -- fmap (const 1) <$> Drum.pickDynWeighted varRange fnames
+    Drum.pickDynWeighted varRange fnames
+        (Note.initial0 Control.dynamic note)
+        (Note.initial0 Control.variation note)
+    where
+    -- TODO hardcoded varRange is ok?
+    varRange = 0.25
+    dyns = varDyns art pitch
+    fnames = zip
+        (map (unparseFilenameVarDyn pitch art) [1 .. Unboxed.length dyns])
+        (Unboxed.toList dyns)
 
 -- TODO similar to Rambat.findPitch, except no umbang/isep
 findPitch :: Tuning -> Either Pitch.Note Pitch.NoteNumber
@@ -333,7 +414,7 @@ findPitch tuning = either findSymPitch findNnPitch
     nnToPitch = Maps.invert tuning
 
 -- If 0 variations, choose from next dyn up
-findFilenames :: Variations -> Articulation -> Pitch -> Util.Dynamic
+findFilenames :: FixedDyns -> Articulation -> Pitch -> Util.Dynamic
     -> [Sample.SamplePath]
 findFilenames variation art pitch dyn = nonNull
     [ toFilenames variation art pitch dyn
@@ -346,21 +427,35 @@ findFilenames variation art pitch dyn = nonNull
     nonNull [] = []
 
 -- | Find variation samples: {open,mute}/2{1..7}-{pp,mp,mf,ff}-v{1..n}
-toFilenames :: Variations -> Articulation -> Pitch -> Util.Dynamic
+toFilenames :: FixedDyns -> Articulation -> Pitch -> Util.Dynamic
     -> [Sample.SamplePath]
-toFilenames variations art pitch dyn =
-    map (unparseFilename pitch art dyn) [1 .. variations art (pitch, dyn)]
+toFilenames fixedDyns art pitch dyn =
+    map (unparseFilename pitch art dyn) [1 .. fixedDyns art (pitch, dyn)]
 
 unparseFilename :: Pitch -> Articulation -> Util.Dynamic -> Util.Variation
     -> Sample.SamplePath
 unparseFilename pitch art dyn var =
     articulationDir art
-        </> Lists.join "-" [showPitch pitch, Util.showLower dyn, 'v' : show var]
+        </> Lists.join "-"
+            [showPitch pitch, Util.showLower dyn, Util.showVariation var]
+        ++ Util.extension sampleFormat
+
+toFilenamesVarDyn :: VarDyns -> Articulation -> Pitch -> [Sample.SamplePath]
+toFilenamesVarDyn varDyns art pitch =
+    map (unparseFilenameVarDyn pitch art) [1 .. vars]
+    where vars = Unboxed.length $ varDyns art pitch
+
+unparseFilenameVarDyn :: Pitch -> Articulation -> Util.Variation
+    -> Sample.SamplePath
+unparseFilenameVarDyn pitch art var =
+    articulationDir art
+        </> Lists.join "-" [showPitch pitch, untxt $ Num.zeroPad 3 var]
         ++ Util.extension sampleFormat
 
 articulationDir :: Articulation -> String
 articulationDir = \case
     Mute -> "mute"
+    MuteLoose -> "mute-loose"
     Open -> "open"
     Character -> "character"
 
@@ -377,10 +472,6 @@ _pekingRelink = _relink "peking" (allFilenames peking)
 
 _printIndices :: IO ()
 _printIndices = Prepare.printIndices 2 $ allFilenames genderPanerus
-
-t0 = Drum.makeFileListWeighted (Prepare.baseDir </> "java/kenong/raw")
-    ["Open", "MuteTight", "MuteLoose"]
-    "kenongSamples"
 
 -- * pitch
 

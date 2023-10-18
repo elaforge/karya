@@ -96,9 +96,6 @@ main = do
         -- Play notes in a dynamic range to calibrate relative dynamics.
         "calibrate-by" : patch : by : attrs : pitches -> do
             let dur = 1
-            -- TODO adjust vars per patch.  But, they can vary per dyn, attr.
-            -- So maybe use allFilenames or something to enumerate them?
-            -- That's what calibrate-dyn-raw does.
             let vars = 4
             let dyns = 16
             let notes = Calibrate.sequence (parseBy by) (txt patch) dur
@@ -109,8 +106,8 @@ main = do
             Process.callCommand $ unwords
                 ["sox", "-V1", calibrateDir </> "inst/*.wav", calibrateWav]
         ["calibrate-var", patchName, start, len] -> do
-            start <- parse start
-            len <- parse len
+            start <- parseInt start
+            len <- parseInt len
             calibrateVar calibrateWav (txt patchName) start len
         ["dump", notesFilename] ->
             dumpNotes False dumpRange dumpTracks notesFilename
@@ -139,7 +136,7 @@ main = do
                 ])
             options
         Exit.exitFailure
-    parse n = maybe (errorIO $ "expected int: " <> txt n) pure
+    parseInt n = maybe (errorIO $ "expected int: " <> txt n) pure
         (Read.readMaybe n)
 
 -- Edit this along with calibrateVar, then paste into the patch definition.
@@ -272,16 +269,18 @@ dumpSamples db notes = do
     forM_ samples $ \(_, (_, sampleNotes)) ->
         Text.IO.putStr $ if null sampleNotes then "NO SAMPLES\n"
             else Text.unlines $ Texts.columns 2 $
-                ["time", "sample", "dyn"] : map (fmt . snd) sampleNotes
+                ["time", "sample", "var", "dyn", "env"] : map fmt sampleNotes
     where
-    fmt note =
-        [ RealTime.show_units $ AUtil.toSeconds (Sample.start note)
+    fmt (note, snote) =
+        [ RealTime.show_units start
         , txt $ sampleName (Sample.filename sample)
+        , pretty $ Note.initial0 Control.variation note
+        , pretty $ Note.initial0 Control.dynamic note
         , pretty $ Signal.at (Sample.envelope sample) start
         ]
         where
-        start = AUtil.toSeconds (Sample.start note)
-        sample = Sample.sample note
+        start = AUtil.toSeconds (Sample.start snote)
+        sample = Sample.sample snote
 
 sampleName :: FilePath -> FilePath
 sampleName = FilePath.joinPath . Lists.takeEnd 2 . FilePath.splitPath
