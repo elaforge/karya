@@ -12,8 +12,14 @@ out=im/mix/$name
 
 mkdir -p im/mix
 
+if [[ -d $base_dir/checkpoint ]]; then
+    dirs=($base_dir)
+else
+    dirs=($base_dir/*)
+fi
+
 set -x
 
-run build/opt/mixdown $out.wav $base_dir/*
+run build/opt/mixdown $out.wav $dirs
 lame -h -b160 $out.wav
 rm $out.wav
