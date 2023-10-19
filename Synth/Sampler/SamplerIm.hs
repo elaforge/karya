@@ -18,7 +18,6 @@ import qualified System.Environment as Environment
 import qualified System.Exit as Exit
 import qualified System.FilePath as FilePath
 import           System.FilePath ((</>))
-import qualified System.Process as Process
 
 import qualified Text.Read as Read
 
@@ -40,6 +39,7 @@ import qualified Synth.Faust.Effect as Effect
 import qualified Synth.Faust.EffectC as EffectC
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Lib.Checkpoint as Checkpoint
+import qualified Synth.Lib.Mix as Mix
 import qualified Synth.Sampler.Calibrate as Calibrate
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Patch.Lib.Util as Util
@@ -103,8 +103,7 @@ main = do
             dumpSamples PatchDb.db notes
             process emitProgress PatchDb.db quality notes calibrateDir
             putStrLn $ "write to " <> calibrateWav
-            Process.callCommand $ unwords
-                ["sox", "-V1", calibrateDir </> "inst/*.wav", calibrateWav]
+            Mix.mix calibrateWav [calibrateDir </> "inst"]
         ["calibrate-var", patchName, start, len] -> do
             start <- parseInt start
             len <- parseInt len
@@ -266,10 +265,11 @@ dump useShow range tracks db notes = do
 dumpSamples :: Patch.Db -> [Note.Note] -> IO ()
 dumpSamples db notes = do
     samples <- convertNotes db notes
-    forM_ samples $ \(_, (_, sampleNotes)) ->
-        Text.IO.putStr $ if null sampleNotes then "NO SAMPLES\n"
-            else Text.unlines $ Texts.columns 2 $
-                ["time", "sample", "var", "dyn", "env"] : map fmt sampleNotes
+    forM_ samples $ \(_, (_, sampleNotes)) -> Text.IO.putStr $
+        if null sampleNotes then "NO SAMPLES\n"
+        else Text.unlines $ Texts.columns 2 $
+            ["time", "sample", "var", "dyn", "env"]
+            : map fmt sampleNotes
     where
     fmt (note, snote) =
         [ RealTime.show_units start
@@ -285,6 +285,8 @@ dumpSamples db notes = do
 sampleName :: FilePath -> FilePath
 sampleName = FilePath.joinPath . Lists.takeEnd 2 . FilePath.splitPath
 
+-- | Convert notes to samples.  This is duplicated with the one done in
+-- 'process'
 convertNotes :: Patch.Db -> [Note.Note]
     -> IO [(Patch.Patch, (ScoreT.Instrument, [(Note.Note, Sample.Note)]))]
 convertNotes db notes =
