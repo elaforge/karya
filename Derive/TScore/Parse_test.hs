@@ -87,7 +87,7 @@ test_score = do
             \]\n\
             \block2 = [c]\n"
     right_equal (f score) $
-        "%meter=adi\n\
+        "%meter = adi\n\
         \block1 = %block1=directive \"block1 title\"\
         \ [>inst1 a >inst2 b] [>inst1 c >inst2 d]\n\
         \block2 = [c]\n"

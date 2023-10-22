@@ -100,27 +100,31 @@ directives_of (T.ToplevelDirective d) = [d]
 directives_of _ = []
 
 instance Element T.Toplevel where
-    parse config = T.ToplevelDirective <$> parse config
+    parse config =
+        T.ToplevelDirective . un <$> parse config
         <|> T.BlockDefinition <$> parse config
+        where un (ToplevelDirective d) = d
     unparse config = \case
-        T.ToplevelDirective a -> unparse config a
+        T.ToplevelDirective a -> unparse config (ToplevelDirective a)
         T.BlockDefinition a -> unparse config a
 
 -- > ns/block = %directive "block title" [ ... ]
 instance Element (T.Block T.WrappedTracks) where
     parse config = do
-        bid <- lexeme (parse config)
+        block_id <- lexeme (parse config)
         keyword "="
-        directives <- P.many (lexeme (parse config))
-        title <- P.option "" (lexeme p_string)
-        tracks <- parse (update_config directives config)
-        return $ T.Block bid directives title tracks
-    unparse config (T.Block bid directives title tracks) =
+        block_directives <- P.many (lexeme (parse config))
+        block_title <- P.option "" (lexeme p_string)
+        block_tracks <- parse (update_config block_directives config)
+        return $ T.Block
+            { block_id, block_directives, block_title, block_tracks }
+    unparse config (T.Block
+            { block_id, block_directives, block_title, block_tracks }) =
         Text.unwords $ filter (not . Text.null) $ concat
-            [ [unparse config bid, "="]
-            , map (unparse config) directives
-            , [if Text.null title then "" else un_string title]
-            , [unparse (update_config directives config) tracks]
+            [ [unparse config block_id, "="]
+            , map (unparse config) block_directives
+            , [if Text.null block_title then "" else un_string block_title]
+            , [unparse (update_config block_directives config) block_tracks]
             ]
 
 instance Element Id.BlockId where
@@ -143,43 +147,46 @@ show_block_track block_id tracknum =
 default_namespace :: Id.Namespace
 default_namespace = Id.namespace "tscore"
 
+-- | Tracks are bounded with [ ], and multiple Tracks can be simply written
+-- in sequence, like [ a b ] [ c d ], which then get unwrapped as [ a+c c+d ].
 instance Element T.WrappedTracks where
     parse config = T.WrappedTracks <$> get_pos
         <*> P.some (lexeme (parse config))
     unparse config (T.WrappedTracks _ wrapped) =
         Text.unwords $ map (unparse config) wrapped
 
+-- | Tracks are surrounded by [ ].  Each track is delimited by a word starting
+-- with >.
 instance Element (T.Tracks T.Call) where
     parse config = fmap T.Tracks $ lexeme "[" *> tracks <* lexeme "]"
         where
-        tracks = P.sepBy1 (lexeme (parse config))
-            (P.lookAhead (lexeme (P.char '>' *> pure () <|> "\">" *> pure ())))
+        tracks = P.sepBy1 (lexeme (parse config)) $
+            P.lookAhead $ lexeme (P.char '>' *> pure () <|> "\">" *> pure ())
     unparse config (T.Tracks tracks) =
         "[" <> Text.unwords (map (unparse config) tracks) <> "]"
 
 instance Element (T.Track T.Call) where
     parse config = do
-        pos <- get_pos
-        (key, title) <- P.option ("", "") $ lexeme $ (,)
+        track_pos <- get_pos
+        (track_key, track_title) <- P.option ("", "") $ lexeme $ (,)
             <$> (P.char '>' *> P.takeWhile is_key_char)
             <*> fmap (">"<>) (p_string <|> P.takeWhile Id.is_id_char)
-        directives <- P.many $ lexeme $ parse config
-        tokens <- P.many $ lexeme $ parse config
+        track_directives <- P.many $ lexeme $ parse config
+        track_tokens <- P.many $ lexeme $ parse config
         return $ T.Track
-            { track_key = key
-            , track_title = title
-            , track_directives = directives
-            , track_tokens = tokens
-            , track_pos = pos
+            { track_key, track_title, track_directives, track_tokens
+            , track_pos
             }
-    unparse config (T.Track key title directives tokens _pos) =
+    unparse config (T.Track
+            { track_key, track_title, track_directives, track_tokens }) =
         Text.unwords $ filter (not . Text.null) $ concat
             -- See 'T.track_title' for why this is so complicated.
-            [ (:[]) $ if key == "" && title == "" then ""
-                else ">" <> key <> if " " `Text.isInfixOf` title
-                    then un_string (Text.drop 1 title) else (Text.drop 1 title)
-            , map (unparse config) directives
-            , map (unparse config) tokens
+            [ (:[]) $ if track_key == "" && track_title == "" then ""
+                else ">" <> track_key <> if " " `Text.isInfixOf` track_title
+                    then un_string (Text.drop 1 track_title)
+                    else Text.drop 1 track_title
+            , map (unparse config) track_directives
+            , map (unparse config) track_tokens
             ]
 
 is_key_char :: Char -> Bool
@@ -187,18 +194,40 @@ is_key_char c = c `elem` ("!@#$%^&*" :: [Char])
     -- Technically this could be `c /='"' && not (Id.is_id_char c)`, but I'll be
     -- more restrictive for now.
 
-instance Element T.Directive where
-    parse _ = do
-        pos <- get_pos
-        P.char '%'
-        T.Directive pos
-            <$> P.takeWhile1 (not_in "=")
-            <*> P.optional (P.char '=' *> p_directive_value)
-    unparse _ (T.Directive _ lhs rhs) = "%" <> lhs
-        <> maybe "" (("="<>) . unparse_directive_value) rhs
+-- | Apply different parsing rules to a 'T.ToplevelDirective'.
+newtype ToplevelDirective = ToplevelDirective T.Directive
+    deriving (Eq, Show)
 
-p_directive_value :: Parser Text
-p_directive_value = p_multi_string <|> p_word
+-- | At the toplevel, I need a % to disambiguate from 'T.BlockDefinition'.
+-- But, I can have spaces around =.
+instance Element ToplevelDirective where
+    parse _ = ToplevelDirective <$> p_directive True
+    unparse _ (ToplevelDirective d) = unparse_directive True d
+
+-- | Block level directives don't allow spaces around = even though I don't
+-- think they would cause a problem.  Previously I thought I could omit %s,
+-- but it turns out to make it ambiguous with notes, especially for
+-- track_directives.
+instance Element T.Directive where
+    parse _ = p_directive False
+    unparse _ = unparse_directive False
+
+p_directive :: Bool -> Parser T.Directive
+p_directive spaces = do
+    pos <- get_pos
+    P.char '%'
+    key <- P.takeWhile1 Id.is_id_char
+    when spaces p_whitespace
+    val <- P.optional $ do
+        P.char '='
+        when spaces p_whitespace
+        p_multi_string <|> p_word
+    return $ T.Directive pos key val
+
+unparse_directive :: Bool -> T.Directive -> Text
+unparse_directive spaces (T.Directive _ lhs rhs) =
+    mconcat ["%", lhs, maybe "" ((equal<>) . unparse_directive_value) rhs]
+    where equal = if spaces then " = " else "="
 
 unparse_directive_value :: Text -> Text
 unparse_directive_value val
@@ -300,7 +329,7 @@ instance Element (T.Note T.Call (T.NPitch T.Pitch) T.NDuration) where
             make_note pos call pitch zero_dur dur
         where
         p_zero_dur = P.option False (P.char '*' *> pure True)
-        make_note pos call pitch zero_dur dur = do
+        make_note note_pos call pitch note_zero_duration note_duration = do
             -- If I allow "" as a note, I can't get P.many of them.
             guard (note { T.note_pos = T.Pos 0 } /= empty_note)
             return note
@@ -308,24 +337,27 @@ instance Element (T.Note T.Call (T.NPitch T.Pitch) T.NDuration) where
             note = T.Note
                 { note_call = fromMaybe (T.Call "") call
                 , note_pitch = pitch
-                , note_zero_duration = zero_dur
-                , note_duration = dur
-                , note_pos = pos
+                , note_zero_duration
+                , note_duration
+                , note_pos
                 }
-    unparse config (T.Note call pitch zero_dur dur _pos)
+    unparse config (T.Note
+            { note_call, note_pitch, note_zero_duration, note_duration })
         | _default_call config =
-            unparse config call
-            <> if (pitch, zero_dur, dur) == empty then "" else mconcat
+            unparse config note_call
+            <> if (note_pitch, note_zero_duration, note_duration) == empty
+                then "" else mconcat
                 [ "/"
-                , unparse config pitch
-                , if zero_dur then "*" else ""
-                , unparse config dur
+                , unparse config note_pitch
+                , if note_zero_duration then "*" else ""
+                , unparse config note_duration
                 ]
         | otherwise = mconcat
-            [ if call == T.Call "" then "" else unparse config call <> "/"
-            , unparse config pitch
-            , if zero_dur then "*" else ""
-            , unparse config dur
+            [ if note_call == T.Call "" then ""
+                else unparse config note_call <> "/"
+            , unparse config note_pitch
+            , if note_zero_duration then "*" else ""
+            , unparse config note_duration
             ]
         where
         empty = (empty_npitch, False, empty_nduration)

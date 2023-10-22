@@ -26,7 +26,8 @@ instance Show Time where
 
 -- * Score
 
-newtype Score = Score [(Pos, Toplevel)] deriving (Eq, Show)
+newtype Score = Score [(Pos, Toplevel)]
+    deriving (Eq, Show)
 
 data Toplevel =
     ToplevelDirective !Directive
