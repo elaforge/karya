@@ -82,6 +82,17 @@ concatMapEM f = go
     go (Elt a : as) = (++) <$> f a <*> go as
     go [] = pure []
 
+catMaybes :: [Elt e (Maybe a)] -> [Elt e a]
+catMaybes = \case
+    [] -> []
+    Meta m : xs -> Meta m : catMaybes xs
+    Elt (Just x) : xs -> Elt x : catMaybes xs
+    Elt Nothing : xs -> catMaybes xs
+
+mapAccumL :: (state -> a -> (state, b)) -> state -> [Elt e a]
+    -> (state, [Elt e b])
+mapAccumL f state = mapAccumLE (\s -> fmap Elt . f s) state
+
 mapAccumLE :: (state -> a -> (state, Elt e b)) -> state -> [Elt e a]
     -> (state, [Elt e b])
 mapAccumLE f = go
