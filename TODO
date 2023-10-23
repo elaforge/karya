@@ -125,6 +125,11 @@ STATUS
     . refactor thru:
 
 external:
+  vim:
+    - mark ] is set on the last yanked character. So when you move stuff
+      arround, after you pressed p, to indent you just need to press >'] (or <'])
+      and repeat (.)
+    - https://github.com/jeetsukumaran/vim-indentwise
   - fix-imports on Derive/C/Prelude/Val.hs can't find Data.Attoparsec.Text.
     Is fix-imports not getting the cabal v2 environ?
     . Also no System.Random.Mersenne.Pure64
@@ -2339,7 +2344,10 @@ vector: performance:
 
 instruments:
   sampler-im: java:
+    - wayang: noise reduction
     - wayang +calung: fix clunk
+    - rambat: noise reduction
+    - kendang: noise reduction
     - symbolic pitch should be 1-7, not 21-27.  Come when I can get
       per-instrument scale.
       . Alternate way would be octave wrapping.  That way I could reuse or
@@ -2357,11 +2365,37 @@ instruments:
     gender panerus:
       * +open samples
       - +mute samples
+        . 1. has lots of 6. ringing, rerecord?
       * +open levels
       - +mute levels
       - +open dyn
       - tuning (but just for 1s)
-    - siter: record
+    kenong:
+      * setup for variable dynamic
+      - dynamics wrong
+        . 009.wav .792 then 002.wav 1.228, 002 winds up much louder than 009.
+        . Either the dyn adjustment is wrong, or evenDyns incorrect.
+        . 002 is .105, 009 is .473
+        . Could it by dB vs. linear thing?  Remember env is in dB.
+        . How to calibrate non-even dyns?
+        . Even with env=const 1 things are weird:
+          001 much louder than 008?
+          008 now distorted?  env must be wrong.  It sure seems to be
+          1 though.
+        . Can I isolate this one sample?  There must be something different
+          about it.  The one at 15s with supposedly identical env is much
+          qieter.
+        . Now it winds up with ones on 3, 10, 13, 16 !?
+          Maybe a bug in mixdown not understanding emply blocks?
+        . Indeed it was.
+      - I can verify if the auto dyn difference is ok by making samples
+        that are known to be evenly increasing, say generated sine wave.
+
+    siter:
+      - record +open
+        . If I record strings individually could I adjust tuning that way?
+          Just hard to play naturally that way.
+      - record +mute
   new free vsts:
     - monique: https://github.com/surge-synthesizer/monique-monosynth
     - samples: https://librewave.com/about/
@@ -6329,6 +6363,9 @@ REPL: repl:
 
 solkattu:
   bol:
+    - for rela tuna tends to be i.n, but in kaida tends to be pi.n
+      e.g. dhage naga tuna, tu could have kat or not
+    - dhi na is oi.n, but isn't dhin also od?
     * support hindustani tal
       . Kind of awkward though.
     - html doesn't wrap, so 16 beat tintal doesn't fit
@@ -6346,6 +6383,12 @@ solkattu:
       . branch solkattu-tabla:
       . gave sollu arg to Instrument but doesn't seem to be enough to infer
         sollu ~ Bol.
+      . OR I could just embed bols in Sollu, then nothing changes.
+        Downside is a bunch of extra Sollu, but, it's not exactly for type
+        safety, except I could mix sollu and bols... but is that so bad?
+        I guess it wouldn't accurately represent bols, but do I care?
+      . parseBols could get ambiguous, but if it's a problem I could start
+        with Dha and then select >=Dha.
     * Terminal.renderAll and Html.writeAll don't understand bols
       . Terminal.renderAll abstraction score
       . Format.scoreInstruments :: Korvai.Score -> [Korvai.GInstrument]
@@ -8199,6 +8242,33 @@ Derive:
 
 text score: tscore:
   . doc/dev_notes/text-score.md
+  java:
+    ideas:
+      . Dots are nice to read as off-beat markers.  I could use space as
+        a rest, and print rest as a space if it's on a beat.
+        This conflicts with spaces for alignment if there's a ',/
+      . , and . look pretty similar.
+      . If I go line-based then I have to use indentation, but less clutter.
+        Otherwise, I need []s for tracks.
+      . Alternately, I could go the solkattu route and make this a haskell
+        DSL.  Benefits are haskell tools and ghci, downsides are no dedicated
+        syntax.  Notes would have to be in a FromString, at which point I'm
+        back to having to parse again.  But the declarations would be in a big
+        list or Map, given the All.hs generation thing like solkattu.
+    check:
+      - directives understood
+      - within instrument range
+      - left hand below right hand
+    db:
+      - collect names and tags into a db
+      . Then I can write down by names and balungan, and it matches in the
+        same piece.  Later if not found, I could try to snag from other
+        pieces, adapt from other pathet, adjust seleh 2 to seleh 1, etc.
+      . Use name abbrevations
+    transform:
+      - convert laras and pathet, e.g. slendro manyura to pelog barang.
+    format:
+    - integrate
   . observations about tscore:
     . I really have to be able to read and hear the notation in my head, which
       means I really have to internalize the the solfege, whether it be sa ri

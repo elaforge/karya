@@ -57,7 +57,7 @@ test_resolve_pitch = do
     equal (f "4n s") [Right "4n", Right "5s"]
     equal (f "4s n") [Right "4s", Right "3n"]
 
-    -- mid-point goes down, but can be overridden.
+    -- below mid-point goes down, but can be overridden.
     equal (f "4m s") [Right "4m", Right "4s"]
     equal (f "4m ,s") [Right "4m", Right "4s"]
     equal (f "4m ,,s") [Right "4m", Right "3s"]

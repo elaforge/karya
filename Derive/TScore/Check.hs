@@ -671,34 +671,24 @@ parse_pitch pos parse (T.Pitch oct call)
 
 infer_octave :: Pitch.PitchClass -> (Pitch.Octave, Maybe Pitch.Degree)
     -> (T.Octave, Pitch.Degree) -> Pitch.Pitch
-infer_octave per_octave (prev_oct, prev_degree) (oct, degree) =
-    Pitch.Pitch inferred_oct degree
+infer_octave _ _ (T.Absolute oct, degree) =
+    Pitch.Pitch oct degree
+infer_octave _ (prev_oct, Nothing) (T.Relative rel_oct, degree) =
+    Pitch.Pitch (prev_oct + rel_oct) degree
+infer_octave per_oct (prev_oct, Just prev_degree) (T.Relative rel_oct, degree) =
+    case compare rel_oct 0 of
+        -- If distances are equal, favor downward motion.  But in a 7 note
+        -- scale, they won't be equal.
+        EQ -> Lists.minOn (abs . Pitch.diff_pc per_oct prev) below above
+        GT -> Pitch.add_octave (rel_oct-1) above
+        LT -> Pitch.add_octave (rel_oct+1) below
     where
-    inferred_oct = case oct of
-        T.Relative n -> case prev_degree of
-            Nothing -> prev_oct + n
-            Just prev_degree
-                -- Pick closest pitch in any direction.
-                | n == 0 -> pick (const True)
-                -- Always go up, but that may not imply up an octave!  So pick
-                -- the closest pitch above.  Additional up octaves just get
-                -- added.
-                | n > 0 -> pick (>0) + (n-1)
-                | otherwise -> pick (<0) + (n+1)
-                where
-                -- by_distance should never be [] due to the filters given.
-                -- I could probably get rid of this with Lists.minOn but it's
-                -- hard to think about.
-                pick predicate = maybe (error "unreachable") snd $
-                    Lists.minimumOn (abs . fst) $
-                    filter (predicate . fst) by_distance
-                by_distance =
-                    Lists.keyOn (distance prev_oct prev_degree degree)
-                        [prev_oct-1, prev_oct, prev_oct+1]
-        T.Absolute oct -> oct
-    distance prev_oct prev_degree degree oct =
-        Pitch.diff_pc per_octave (Pitch.Pitch oct degree)
-            (Pitch.Pitch prev_oct prev_degree)
+    prev = Pitch.Pitch prev_oct prev_degree
+    -- If I'm moving up, then I don't need to increment the octave to be above.
+    above = Pitch.Pitch (if degree > prev_degree then prev_oct else prev_oct+1)
+        degree
+    below = Pitch.Pitch (if degree < prev_degree then prev_oct else prev_oct-1)
+        degree
 
 -- | Convert 'Pitch'es back to symbolic form.
 pitch_to_symbolic :: T.Pos -> Scale -> Pitch.Pitch -> EList.Elt Meta T.PitchText
