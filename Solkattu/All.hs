@@ -325,8 +325,10 @@ scores = map Korvai.inferMetadataS
     , setLocation ("Solkattu.Score.Tabla2023",138,"tukra6") $ Single Solkattu.Score.Tabla2023.tukra6
     , setLocation ("Solkattu.Score.Tabla2023",150,"c_23_09_07a") $ Single Solkattu.Score.Tabla2023.c_23_09_07a
     , setLocation ("Solkattu.Score.Tabla2023",156,"c_23_09_07b") $ Single Solkattu.Score.Tabla2023.c_23_09_07b
-    , setLocation ("Solkattu.Score.Tabla2023",201,"c_23_09_21a") $ Single Solkattu.Score.Tabla2023.c_23_09_21a
-    , setLocation ("Solkattu.Score.Tabla2023",220,"c_23_09_29a") $ Single Solkattu.Score.Tabla2023.c_23_09_29a
-    , setLocation ("Solkattu.Score.Tabla2023",229,"c_23_10_12") $ Single Solkattu.Score.Tabla2023.c_23_10_12
-    , setLocation ("Solkattu.Score.Tabla2023",235,"legong1") $ Single Solkattu.Score.Tabla2023.legong1
+    , setLocation ("Solkattu.Score.Tabla2023",185,"c_23_09_21a") $ Single Solkattu.Score.Tabla2023.c_23_09_21a
+    , setLocation ("Solkattu.Score.Tabla2023",204,"c_23_09_29a") $ Single Solkattu.Score.Tabla2023.c_23_09_29a
+    , setLocation ("Solkattu.Score.Tabla2023",213,"c_23_10_12") $ Single Solkattu.Score.Tabla2023.c_23_10_12
+    , setLocation ("Solkattu.Score.Tabla2023",218,"c_23_10_19") $ Single Solkattu.Score.Tabla2023.c_23_10_19
+    , setLocation ("Solkattu.Score.Tabla2023",223,"c_23_10_19_chak") $ Single Solkattu.Score.Tabla2023.c_23_10_19_chak
+    , setLocation ("Solkattu.Score.Tabla2023",229,"legong1") $ Single Solkattu.Score.Tabla2023.legong1
     ]

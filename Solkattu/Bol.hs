@@ -105,7 +105,8 @@ tablaBols =
     [ (Dha, T.Both T.Ge T.Na)
     , (Dha, T.Both T.Ge T.Tin)
     , (Dhen, T.Both T.Ge T.Tu)
-    , (Dhin,T.Both T.Ge T.Tin)
+    , (Dhet, T.Both T.Ge T.Te)
+    , (Dhin,T.Both T.Ge T.Tin) -- or Ge Tun, depending on context
     , (Kre, T.Flam T.Ka T.Tet)
     , (Gre, T.Flam T.Ge T.Tet)
     , (Ten, T.Both T.Ka T.Tu)
@@ -143,8 +144,8 @@ single_bols =
     dhi = ge tu
 
     pakhawaj:
-    kre: p+k
-    dhet: ok
+    kre: p/k
+    dhet: ok or ot
     dhi: dha
     dhom: dha
 

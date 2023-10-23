@@ -157,35 +157,19 @@ c_23_09_07b :: Korvai
 c_23_09_07b = colby $ date 2023 9 7 $ korvaiS tintal $ map su
     [ sd $     theme . tirikita . theme . kali nanagena
         . kali theme . tirikita . theme . nanagena
-
     ,          r3 (theme . tirikita) . theme . kali nanagena
         . r2 (kali theme . tirikita) . theme.tirikita . theme.nanagena
-
     , sd $ dhage_tette.gege_tette . r3 (kataagege.tirikita)
         . kali (dhage_tette.gege_tette . kataagege.tirikita)
         . r2 (kataagege.tirikita)
-
     , dhage_tette.gege_tette . r3 (kataagege.tirikita)
         . theme . tirikita . theme . kali nanagena
         . kali (dhage_tette.gege_tette) . r3 (kali kataagege.tirikita)
         . theme . tirikita . theme . nanagena
-
-    -- , dhage_tette.tirikita . gege_tette.tirikita . kataagege.nanagena
-    --     . tirikita.kali nanagena
-    --     . kali (dhage_tette.tirikita . gege_tette.tirikita)
-    --     . kataagege.nanagena
-    --     . tirikita.nanagena
-    --
-    -- , dhage_tette.__.gege_tette.__.kataagege.__.tirikita.__
-    --     . "dhagatet gegetet kataage nanaka"
-    --     . kali (dhage_tette.__.gege_tette.__.kataagege.__.tirikita.__)
-    --         . "dhagatet gegetet katage nanaga"
-
     , theme.tette . r2 (ka.taa)."gege tette" . r3 (ka.taa)."gege tette"
         . theme.tirikita.theme.kali nanagena
      . kali (theme.tette . r2 (ka.taa)."gege tette" . r3 (ka.taa)."gege tette")
         . theme.tirikita.theme.nanagena
-
     , tri_ (dha.__8) $ g $
         tri_ (dha.__6) (dhage_tette.gege_tette.kataagege.nanagena)
         . dha.__ . kataagege.nanagena.dha.__ . kataagege.nanagena
@@ -229,8 +213,18 @@ c_23_09_29a = date 2023 9 29 $ colby $ rela $ korvaiS1 tintal $
 c_23_10_12 :: Korvai
 c_23_10_12 = date 2023 10 12 $ colby $ korvaiS1 tintal $
     sd $ t1 . "dhage tuna kena" . kali t1 . "dhage dhina gena"
-    where
-    t1 = "dha tette dha tette dha dha tette"
+    where t1 = "dha tette dha tette dha dha tette"
+
+c_23_10_19 :: Korvai
+c_23_10_19 = date 2023 10 19 $ colby $ korvaiS1 tintal $
+      sd $ "nagegena gegenana gegenage tuna kena"
+    . kali "nagegena gegenana" . "gegenage dhinna gena"
+
+c_23_10_19_chak :: Korvai
+c_23_10_19_chak = date 2023 10 19 $ colby $ chakradar $ korvaiS1 tintal $
+    tri_ (dha.__8) $
+        tetekata . nadai 3 (dha.tetekata) . sd ("dhatet_teka_taga_dige_nedha")
+        . tri_ (dha.__4) tetekata
 
 legong1 :: Korvai
 legong1 = korvaiS kehrwa

@@ -156,3 +156,6 @@ tukra = withType "tukra"
 
 rela :: Korvai -> Korvai
 rela = withType "rela"
+
+chakradar :: Korvai -> Korvai
+chakradar = withType "chakradar"
