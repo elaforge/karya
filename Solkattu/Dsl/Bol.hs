@@ -151,6 +151,9 @@ bat = withType "bat"
 qaida :: Korvai -> Korvai
 qaida = withType "qaida"
 
+mukra :: Korvai -> Korvai
+mukra = withType "mukra"
+
 tukra :: Korvai -> Korvai
 tukra = withType "tukra"
 

@@ -211,9 +211,23 @@ c_23_09_29a = date 2023 9 29 $ colby $ rela $ korvaiS1 tintal $
     dhage_tette_din_ = "dhage tette dhin _"
 
 c_23_10_12 :: Korvai
-c_23_10_12 = date 2023 10 12 $ colby $ korvaiS1 tintal $
-    sd $ t1 . "dhage tuna kena" . kali t1 . "dhage dhina gena"
-    where t1 = "dha tette dha tette dha dha tette"
+c_23_10_12 = date 2023 10 12 $ colby $ korvaiS tintal
+    [ sd $ dtt.dtt.ddtt.endk . kali (dtt.dtt.ddtt) . end
+    , palta $ r2 (dtt.dtt.dha.dha)
+    , palta $ r4 dtt . ddtt
+    , palta $ dtt.ddtt.r3 dtt
+    , palta $ r2 (dtt.ddtt).dha.__
+    , palta $ dtt.ddtt.dha.__.dtt.ddtt
+    , palta $ ddtt.dtt.dha.__.ddtt.dtt
+    , palta $ dtt.ddtt.dha.ddtt.ddtt
+    , tri_ (dha.__) (dtt.ddtt . tri_ (dha.__) dtt)
+    ]
+    where
+    palta seq = seq.dtt.dtt.ddtt.endk . kali seq.dtt.dtt.ddtt.end
+    endk = "dhage tuna kena"
+    end = "dhage dhina gena"
+    dtt = "dha tette"
+    ddtt = dha.dtt
 
 c_23_10_19 :: Korvai
 c_23_10_19 = date 2023 10 19 $ colby $ korvaiS1 tintal $
@@ -225,6 +239,12 @@ c_23_10_19_chak = date 2023 10 19 $ colby $ chakradar $ korvaiS1 tintal $
     tri_ (dha.__8) $
         tetekata . nadai 3 (dha.tetekata) . sd ("dhatet_teka_taga_dige_nedha")
         . tri_ (dha.__4) tetekata
+
+c_23_10_16 :: Korvai
+c_23_10_16 = date 2023 10 26 $ colby $ mukra $ korvaiS1 tintal $
+    "dha_dha__ tet_te__ tet_te__ dha_dha__"
+    . spread 3 (r2 "dhatette" . dha) . dha.__
+    . g (r2 "dhatettedha_dha_" . "ta_dhatettedha_dha")
 
 legong1 :: Korvai
 legong1 = korvaiS kehrwa

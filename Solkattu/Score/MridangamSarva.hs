@@ -168,6 +168,16 @@ c_kandam_tisram = elaforge $ date 2023 3 10 $ sarvalaghu $ korvaiS1 adi $
     r3 "dlNN," . su "d_pkD_N_,_"  . su "d,^,d,n,^,"
     . su (g "k_p_n_ktpkptok")
 
+c_kandam_5654 :: Korvai
+c_kandam_5654 = sarvalaghu $ korvaiS adi $ map (nadai 5)
+    [ r2 $ "D,NN," . "d,N,N," . "d,NN," . "nook"
+    , r2 $ k5 . k6 . su "N_ktpkpu_k" . k4
+    ]
+    where
+    k5 = "d,NN,"
+    k6 = "d,N,N,"
+    k4 = "nook"
+
 -- * misra
 
 c_18_05_25 :: Korvai

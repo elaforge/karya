@@ -172,6 +172,31 @@ e_swapan = exercise $ date 2023 8 28 $ korvaiS adi
 -- *
 
 {-
+-- gender
+-- batel for drums:
+  . fast pieces: kokar piece, 2-2-2-32-23-32-23-3-2-35--2-35--
+
+  0 . 1 . 2 . 3 . 4 . 5 . 6 . 7 . 8 . 1 . 2 . 3 . 4
+   6 6 65 656 5 656 5 56 65--6 65 6 56 56 56 56 56
+   2-2-2-32-23-32-23-3-2-35--2-35-235 35 35 35 35
+  2 3 2 3   2 3   2 3 2 3   2 3   2   3   5   6 5 3
+
+  0 . 1 . 2 . 3 . 4 . 5 . 6 . 7 . 8 . 1 . 2 . 3 . 4 . 5 . 6 . 7 . 8 .
+   1 1 16 161 6 161 6 61 16  1 16   61 61 61 61 16 6 56 65  6 3 6
+   3 3 3 53 35 53 35 5 3 56--3 56 356 56 56 56 5 65 35 3 53 2 3 2
+  3 5 3 5   3 5   3 5 3 5   3 5   3   5   6   1 6 5   6 5 3 2 3 2   |
+
+legongM = korvaiS adi
+    [   "D___p_p_o" . "_knknkop nkololoo" . "_knknkop"
+      . "kpnknkopnkololk. D_D_p_p_.D_pkpop"
+    ]
+    -- -   -   o|   k n k n k o +| n k o l o l . o|   k n k n k o -
+    -- o   o   n|     k n k n k o| + n k o l o l n|     k n k n k o
+    -- k + n k n k o -| n k o l o   k .| D   D   +   +  | . D   - k   o -
+    -- - k   n k n k o| - n k o l o o  | n   n   D   D  |     i i   k   o
+-}
+
+{-
 sollu       symbol  bol
 thom        . / o   ge
 tha         - / +   kat
