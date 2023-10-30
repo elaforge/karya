@@ -2,9 +2,27 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 -- | Functions to do incremental render.  It hashes 'Note.Note's to skip
 -- rerendering when possible.
-module Synth.Lib.Checkpoint where
+module Synth.Lib.Checkpoint (
+    checkpointDir
+    , State(..)
+    , skipCheckpoints
+    , findLastState
+    , write
+    , linkOutput
+    , clearRemainingOutput
+    -- * hash
+    , noteHashes
+    , Span(..)
+    , hashOverlapping
+    , groupOverlapping
+    , overlappingHashes
+#ifdef TESTING
+    , module Synth.Lib.Checkpoint
+#endif
+) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.ByteString as ByteString
@@ -12,7 +30,9 @@ import qualified Data.ByteString.Char8 as ByteString.Char8
 import qualified Data.List as List
 import qualified Data.Set as Set
 import qualified Data.Time as Time
+import qualified Data.Vector.Storable as Vector.Storable
 
+import qualified GHC.TypeLits as TypeLits
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import           System.FilePath ((</>))
@@ -21,7 +41,9 @@ import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
 import qualified Util.Files as Files
 import qualified Util.Lists as Lists
+import qualified Util.Streams as Streams
 
+import qualified Derive.Stack as Stack
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Note as Note
@@ -47,10 +69,10 @@ newtype State = State ByteString.ByteString
     deriving (Eq, Show)
 
 instance Pretty State where
-    pretty = txt . encodeState
+    pretty = txt . stateFingerprint
 
-encodeState :: State -> String
-encodeState (State bytes) = Note.fingerprintBytes bytes
+stateFingerprint :: State -> String
+stateFingerprint (State bytes) = Note.fingerprintBytes bytes
 
 -- * checkpoints
 
@@ -79,7 +101,7 @@ skipCheckpoints outputDir initialState hashes = do
 findLastState :: Set FilePath -> State -> [(Config.ChunkNum, Note.Hash)]
     -> ([FilePath], ([(Config.ChunkNum, Note.Hash)], FilePath))
     -- ^ ([skipped], (remainingHashes, resumeState))
-findLastState files = go "" . encodeState
+findLastState files = go "" . stateFingerprint
     where
     go prevStateFname state ((chunknum, hash) : hashes)
         | fname `Set.member` files = case Set.lookupGT prefix files of
@@ -114,8 +136,9 @@ findLastState files = go "" . encodeState
 
 -- | Write the audio with checkpoints.
 write :: Bool -> FilePath -> Set Id.TrackId -> Config.ChunkNum -> Audio.Frames
-    -> [(Config.ChunkNum, Note.Hash)] -> IO State
-    -> AUtil.Audio -- ^ get current audio state, see NOTE [audio-state]
+    -> [(Config.ChunkNum, Note.Hash)]
+    -> IO State -- ^ get current audio state, see NOTE [audio-state]
+    -> AUtil.Audio
     -> IO (Either Text (Config.ChunkNum, Config.ChunkNum))
     -- ^ Either Error (writtenChunks, total)
 write emitProgress outputDir trackIds skippedCount chunkSize hashes getState
@@ -125,7 +148,9 @@ write emitProgress outputDir trackIds skippedCount chunkSize hashes getState
         result <- AUtil.catchSndfile $ Resource.runResourceT $
             Audio.File.writeCheckpoints
                 chunkSize (getFilename outputDir getState) chunkComplete
-                AUtil.outputFormat (extendHashes hashes) audio
+                AUtil.outputFormat (extendHashes hashes) $
+                checkLevel emitWarning (fromIntegral skippedCount * chunkSize)
+                    maxLevel audio
         return $ case result of
             Left err -> Left err
             Right written -> Right (written, written + skippedCount)
@@ -133,12 +158,37 @@ write emitProgress outputDir trackIds skippedCount chunkSize hashes getState
     chunkComplete fname = do
         writeState getState fname
         chunknum <- linkOutput False outputDir (FilePath.takeFileName fname)
-        when emitProgress $ Config.emitMessage $ Config.Message
-            { _blockId = Config.pathToBlockId outputDir
-            , _trackIds = trackIds
-            , _instrument = Config.dirToInstrument outputDir
-            , _payload = Config.WaveformsCompleted [chunknum]
-            }
+        when emitProgress $ emit $ Config.WaveformsCompleted [chunknum]
+    emitWarning frame val = liftIO $ emit $ Config.Warn Stack.empty $
+        pretty (AUtil.toSeconds frame) <> ": sample " <> pretty val <> " > "
+        <> pretty maxLevel <> ", this may causae a DAW to automute"
+        -- At least Reaper does this.
+    maxLevel = 1
+    emit payload = Config.emitMessage $ Config.Message
+        { _blockId = Config.pathToBlockId outputDir
+        , _trackIds = trackIds
+        , _instrument = Config.dirToInstrument outputDir
+        , _payload = payload
+        }
+
+-- | Pass audio stream unchanged, but emit warnings if a abs val of a sample
+-- goes over the limit.
+checkLevel :: forall m rate chan. (TypeLits.KnownNat chan, Monad m)
+    => (Audio.Frames -> Audio.Sample -> m ()) -> Audio.Frames -> Audio.Sample
+    -> Audio.Audio m rate chan -> Audio.Audio m rate chan
+checkLevel emitWarning startFrame maxLevel =
+    Audio.apply (Streams.mapAccumL check startFrame)
+    where
+    check frame block = do
+        let peak = blockMax block
+        -- TODO find the actual frame, not just start of block.
+        when (abs peak > maxLevel) $ emitWarning frame peak
+        return (frame + Audio.blockFrames (Proxy @chan) block, block)
+    blockMax = \case
+        Audio.Constant _ val -> val
+        Audio.Block v
+            | Vector.Storable.null v -> 0
+            | otherwise -> Vector.Storable.maximum v
 
 getFilename :: FilePath -> IO State -> (Config.ChunkNum, Note.Hash)
     -> IO FilePath
@@ -172,7 +222,7 @@ writeState :: IO State -> FilePath -> IO ()
 writeState getState fname = do
     state@(State stateBs) <- getState
     Files.writeAtomic
-        (FilePath.replaceExtension fname (".state." <> encodeState state))
+        (FilePath.replaceExtension fname (".state." <> stateFingerprint state))
         stateBs
 
 -- | Link the audio chunk output (presumably already written) from the
@@ -211,7 +261,8 @@ filenameToOutput fname = case Lists.split "." fname of
 
 -- | 000.$hash.$state.wav
 filenameOf :: Config.ChunkNum -> Note.Hash -> State -> FilePath
-filenameOf chunknum hash state = filenameOf2 chunknum hash (encodeState state)
+filenameOf chunknum hash state =
+    filenameOf2 chunknum hash (stateFingerprint state)
 
 -- | 'filenameOf' but with 'State' already encoded.
 filenameOf2 :: Config.ChunkNum -> Note.Hash -> String -> FilePath

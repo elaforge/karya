@@ -236,7 +236,8 @@ writeCheckpoints :: forall rate chan state.
     => Audio.Frames
     -> (state -> IO FilePath) -- ^ get filename for this state
     -> (FilePath -> IO ()) -- ^ write state after the computation
-    -> Sndfile.Format -> [state]
+    -> Sndfile.Format
+    -> [state]
     -- ^ Some render-specific state for each checkpoint.  Shouldn't run out
     -- before the audio runs out.
     -> Audio.AudioIO rate chan -> Resource.ResourceT IO Int

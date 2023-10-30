@@ -63,7 +63,7 @@ test_findLastState = do
             Checkpoint.findLastState (Set.fromList files)
                 (Checkpoint.State mempty)
             . map (second (Note.Hash))
-    let mkstate = Checkpoint.encodeState . Checkpoint.State
+    let mkstate = Checkpoint.stateFingerprint . Checkpoint.State
     let fn chunk hash state =
             Checkpoint.filenameOf2 chunk (Note.Hash hash) state
     let wav0 = fn 0 "a" (mkstate "")

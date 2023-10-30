@@ -182,6 +182,78 @@ sketch:
   2 6 1 6 5 56 61 12 23 5 5 353 2 2 121
 
 UNSORTED
+  - bug: Insert mode gets stuck with:
+    . fltk/TrackTile.cc:165 TrackTile::floating_insert called but no open
+      input: (5e#)
+    . Haskell thinks I have a floating input open and sends chars to it,
+      but it's wrong.
+    . Probably because MIDI input does the text insert thing.
+    . How to get into this state?
+  - If I do cmd-space (play from root?) and there's no link from root
+    block to current one, does it play root instead?  Should play current.
+  * bug: play_cache causes automute.
+    Probably some crash causes it to outputs high levels.
+    How to get more info when this happens?
+    . It does it even after a complete restart, WTF?
+    . It was reyong 000.wav, starts off with very high levels.
+    . Bug in sampler-im, then.
+    . It reproduces it, given save/bug/high-level.notes
+    . Seems to be caused by simultaneous...
+    . No wait comes up from any sample, maybe it corrupted the underlying
+      samples?  Are they read-only?
+      no :(  Now they are.
+    . It seems to be certain reyong samples, have to track down which.
+    . save/bug/level/sampler
+    . Sample seems fine.
+    . This reproduces:
+      build/opt/sampler-im save/bug/level/sampler save/bug/level/cache
+    . envelope = Signal 0s <0s:3.5, 1000s:3.5, 1000.08s:0>
+    . Holy cow it was just dyn=6.  I need some guard against that.
+    . sampler-im could emit warnings about levels >1.
+    . I want to do it high enough level that I can say where.  Can't say which
+      instrument because it might be combination of several.
+    . Config.Payload = Warn !Stack.Stack !Text
+      But no location.  There is RenderingRange, how does seq display it?
+      Just Log.warn, but has Stack.
+  - fltk: The dyn=6 problem is showing that track titles are pretty bad.
+    . Especially on the right side.
+    . How about they make a text field that covers the whole block, like the
+      block title?
+    . It still means you can't see anything in them, but I don't see a way
+      around that.
+  - im thru for samples is missing transpose and attr
+  live play:
+    . What would it take for karya to be able to do live performance?
+    . I'd want to be able to script such that it loops until forward or
+      backward, then can transition out, and go to the next section.
+    . Requires either MIDI or a streaming variant of im.
+    . I'd need a way to annotate flow control in the score.
+      I want this anyway, for alternate endings.
+    . Then script like: loop AB, transition AC, loop D.
+      Going back like loop D, transition E, loop AB
+      . Javanese scores also want this.
+    . Unlike loop play, I'd want to actually generate score and stream it,
+      so randomness works.  It would be like an infinite score stream.
+    . Even if derive is streaming (and it should be), it can't actually be
+      a lazy list, not without unsafePerformIO, due to user input.  But,
+      I can generate chunks, right?  I would need to be able to resume
+      derive, which should be possible if I keep the state.
+    . UI would have to change to stream too, if I want to show the score as it
+      plays.  Probably also want to scroll in realtime?  This is just nice to
+      have, but at minimum I'd want to show the script and where I am in it.
+    . But, there won't be a single strict Warp out of it.  I think what I do
+      is derive it without loops, so I get Warp and track signals.  Then
+      splice together the warps for playback, even as I'm streaming new
+      Ui.Events.  This is accurate, because if the UI display position it's
+      a fake up based on the logical score position.
+    . So this is like loop play, only instead of looping the MIDI or audio,
+      I loop the UI events.
+    what about tap for tempo?
+      . Or maybe easier to use a knob or a button to step tempo.
+      . This would dynamically stretch the streamed UI events.
+      . Of course tempo tracks are in there too, but they would get stretched
+        too.
+
   - bug: LPerf.sel_sampler_events uses the local track even when using
     LPerf.Root
     . Also it should default to Root, and have a _local option?
