@@ -461,8 +461,8 @@ filenameSortKey :: FilePath -> Int
 filenameSortKey fname =
     fromMaybe (error $ "can't parse " <> fname) (parse fname)
     where
-    parse = Lists.head . mapMaybe Read.readMaybe . reverse . Lists.split "-"
-        . FilePath.dropExtension
+    parse = Lists.head . mapMaybe Read.readMaybe . reverse
+        . Lists.split (=='-') . FilePath.dropExtension
 
 -- | Emit haskell code for a function from an Enum to lists.
 enumFunction

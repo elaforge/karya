@@ -907,10 +907,11 @@ extraPackagesFor hs
 parseGhcVersion :: FilePath -> (Int, Int, Int)
 parseGhcVersion path =
     Maybe.fromMaybe (error $ "parseGhcVersion: can't parse " <> show path) $
-        parse =<< List.find (prefix `List.isPrefixOf`) (Lists.split "/" path)
+        parse =<< List.find (prefix `List.isPrefixOf`)
+            (Lists.split (=='/') path)
     where
     prefix = "ghc-"
-    parse cs = case Lists.split "." (drop (length prefix) cs) of
+    parse cs = case Lists.split (=='.') (drop (length prefix) cs) of
         -- take 3 to avoid getting confused by versions like 8.0.1.20161213.
         a : b : c : _ ->
             (,,) <$> Read.readMaybe a <*> Read.readMaybe b <*> Read.readMaybe c

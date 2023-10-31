@@ -121,7 +121,8 @@ convert_mod fname mod = do
         transpose_maps
 
 fn_to_ns :: FilePath -> Id.Namespace
-fn_to_ns = Id.namespace . txt . head . Lists.split "." . FilePath.takeFileName
+fn_to_ns = Id.namespace . txt . head . Lists.split (=='.')
+    . FilePath.takeFileName
 
 inst_maps :: Map FilePath (Map Text Text)
 inst_maps = Map.fromList

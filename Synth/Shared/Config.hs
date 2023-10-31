@@ -268,8 +268,7 @@ data Message = Message {
     , _trackIds :: !(Set Id.TrackId)
     , _instrument :: !ScoreT.Instrument
     , _payload :: !Payload
-    }
-    deriving (Show, Generics.Generic)
+    } deriving (Show, Generics.Generic)
 
 instance Aeson.ToJSON Message where
     toEncoding = Aeson.genericToEncoding Aeson.defaultOptions

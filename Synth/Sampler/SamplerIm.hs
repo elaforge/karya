@@ -212,7 +212,7 @@ options =
     ]
 
 readDumpRange :: String -> Flag
-readDumpRange s = case Lists.split "," s of
+readDumpRange s = case Lists.split (==',') s of
     [start, end]
         | Just start <- Read.readMaybe start, Just end <- Read.readMaybe end ->
             DumpRange start end

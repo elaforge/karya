@@ -136,7 +136,7 @@ ref_to_save ref
     | otherwise = Just $ SavePoint (reverse (map read versions))
     where
     (save, _) = Lists.dropPrefix "tags/" ref
-    versions = Lists.split "." save
+    versions = Lists.split (=='.') save
 
 save_to_ref :: SavePoint -> Git.Ref
 save_to_ref (SavePoint versions) =

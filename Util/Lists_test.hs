@@ -25,8 +25,18 @@ test_splitBefore :: Test
 test_splitBefore = do
     let f = Lists.splitBefore (==1)
     equal (f []) []
+    equal (f [1, 1]) [[], [1], [1]]
     equal (f [1, 2, 3, 1, 2]) [[], [1, 2, 3], [1, 2]]
     equal (f [2, 3, 1, 2]) [[2, 3], [1, 2]]
+
+test_splitAfter :: Test
+test_splitAfter = do
+    let f = Lists.splitAfter (==1)
+    equal (f []) []
+    equal (f [1, 1]) [[1], [1]]
+    equal (f [1, 2, 1]) [[1], [2, 1]]
+    equal (f [1, 2, 3, 1, 2]) [[1], [ 2, 3, 1], [ 2]]
+    equal (f [2, 3, 1, 2]) [[2, 3, 1], [2]]
 
 test_rangeEnd :: Test
 test_rangeEnd = do

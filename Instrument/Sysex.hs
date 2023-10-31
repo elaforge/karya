@@ -211,7 +211,7 @@ record_type r = case r of
     RUnparsed {} -> TUnparsed
 
 get_rmap :: forall a. (RecordVal a) => String -> RMap -> Either String a
-get_rmap path rmap = to_val_error $ lookup1 (Lists.split "." path) rmap
+get_rmap path rmap = to_val_error $ lookup1 (Lists.split (=='.') path) rmap
     where
     lookup1 [] _ = Left ([], "can't lookup empty field")
     lookup1 (field : fields) rmap = case Map.lookup field rmap of
@@ -237,7 +237,7 @@ get_rmap path rmap = to_val_error $ lookup1 (Lists.split "." path) rmap
 -- existing fields, it won't create new ones, and you can't change the type
 -- of a field.
 put_rmap :: (Show a, RecordVal a) => String -> a -> RMap -> Either String RMap
-put_rmap path val rmap = format_err $ put (Lists.split "." path) val rmap
+put_rmap path val rmap = format_err $ put (Lists.split (=='.') path) val rmap
     where
     put [] _ _ = Left ([], "can't put empty field")
     put (field : fields) val rmap = case Map.lookup field rmap of

@@ -255,7 +255,7 @@ outputPast start =
     map snd . filter ((>=start) . fst) . Lists.keyOnJust Config.isOutputLink
 
 filenameToOutput :: FilePath -> FilePath
-filenameToOutput fname = case Lists.split "." fname of
+filenameToOutput fname = case Lists.split (=='.') fname of
     [num, _hash, _state, "wav"] -> num <> ".wav"
     _ -> fname
 

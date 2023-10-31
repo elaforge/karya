@@ -240,7 +240,7 @@ mmc write_msg msg = write_msg (0, Mmc.encode 127 mmc_msg)
 
 parse_smpte :: String -> Maybe Midi.Smpte
 parse_smpte txt = do
-    [h, m, s] <- Just $ Lists.split ":" txt
+    [h, m, s] <- Just $ Lists.split (==':') txt
     Midi.Smpte <$> int h <*> int m <*> int s <*> return 0
     where
     int s = case Numeric.readDec s of

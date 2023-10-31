@@ -29,6 +29,7 @@ module Util.Lists (
     , mapHead, mapTail, mapHeadTail
     , mapInit, mapLast
     , scanlOn
+    , mapAccumLM
     -- * min / max
     , minOn, maxOn
     , minimumOn, maximumOn
@@ -97,12 +98,9 @@ module Util.Lists (
     -- * split / join
     , splitWith
     , breakWith
-    -- * transform
-    , mapAccumLM
-    -- ** split and join
     , split
     , join
-    , splitBefore, splitBetween
+    , splitBefore, splitAfter, splitBetween
     -- * span and break
     , spanWhile
     -- * duplicates
@@ -335,6 +333,17 @@ mapLast f (x:xs) = x : mapLast f xs
 scanlOn :: (accum -> key -> accum) -> (a -> key) -> accum -> [a]
     -> [(accum, a)]
 scanlOn f key z xs = zip (scanl (\t -> f t . key) z xs) xs
+
+-- | Like 'List.mapAccumL', but monadic.  Strict in the accumulator.
+mapAccumLM :: Monad m => (state -> x -> m (state, y)) -> state -> [x]
+    -> m (state, [y])
+mapAccumLM f = go
+    where
+    go !state [] = return (state, [])
+    go !state (x:xs) = do
+        (state, y) <- f state x
+        (state, ys) <- go state xs
+        return (state, y : ys)
 
 -- * min / max
 
@@ -758,21 +767,17 @@ breakWith f = go
         Nothing -> first (a:) (go as)
     go [] = ([], Nothing)
 
-
--- * transform
-
--- | Like 'List.mapAccumL', but monadic.  Strict in the accumulator.
-mapAccumLM :: Monad m => (state -> x -> m (state, y)) -> state -> [x]
-    -> m (state, [y])
-mapAccumLM f = go
+-- | Split on matching element, dropping it from the result.
+split :: (a -> Bool) -> [a] -> [[a]]
+split f = go
     where
-    go !state [] = return (state, [])
-    go !state (x:xs) = do
-        (state, y) <- f state x
-        (state, ys) <- go state xs
-        return (state, y : ys)
+    go xs = case break f xs of
+        (pre, []) -> [pre]
+        (pre, post) -> pre : go (drop 1 post)
 
--- ** split and join
+-- | Interspense a separator and concat.
+join :: Monoid a => a -> [a] -> a
+join sep = mconcat . List.intersperse sep
 
 -- | Split before places where the function matches.
 --
@@ -780,6 +785,8 @@ mapAccumLM f = go
 -- > [[], [1, 2], [1]]
 splitBefore :: (a -> Bool) -> [a] -> [[a]]
 splitBefore f = go
+    -- Could almost be splitBefore f = splitBetween (\_ b -> f b)
+    -- Except that is missing the leading [] when the first element matches.
     where
     go [] = []
     go xs0 = pre : case post of
@@ -789,28 +796,12 @@ splitBefore f = go
     cons1 x [] = [[x]]
     cons1 x (g:gs) = (x:g) : gs
 
--- | Split @xs@ on @sep@, dropping @sep@ from the result.
-split :: Eq a => NonNull a -> [a] -> NonNull [a]
-split [] = error "Util.Lists.split: empty separator"
-split sep = go
-    where
-    go xs
-        | null post = [pre]
-        | otherwise = pre : go (drop (length sep) post)
-        where (pre, post) = breakTails (sep `List.isPrefixOf`) xs
-
--- | Like 'split', but split on a single element.
-split1 :: Eq a => a -> [a] -> [[a]]
-split1 sep = go
-    where
-    go xs
-        | null post = [pre]
-        | otherwise = pre : go (drop 1 post)
-        where (pre, post) = break (==sep) xs
-
--- | Interspense a separator and concat.
-join :: Monoid a => a -> [a] -> a
-join sep = mconcat . List.intersperse sep
+-- | Split after where the function matches.
+--
+-- > > splitAfter (==1) [1, 2, 1]
+-- > [[1], [2, 1]]
+splitAfter :: (a -> Bool) -> [a] -> [[a]]
+splitAfter f = splitBetween (\a _ -> f a)
 
 -- | Split the list on the points where the given function returns true.
 --
@@ -830,13 +821,6 @@ breakBetween _ xs = (xs, [])
 
 -- * span and break
 
--- | Like 'break', but the called function has access to the entire tail.
-breakTails :: ([a] -> Bool) -> [a] -> ([a], [a])
-breakTails _ [] = ([], [])
-breakTails f lst@(x:xs)
-    | f lst = ([], lst)
-    | otherwise = let (pre, post) = breakTails f xs in (x:pre, post)
-
 -- | Like 'span', but it can transform the spanned sublist.
 spanWhile :: (a -> Maybe b) -> [a] -> ([b], [a])
 spanWhile f = go
@@ -845,6 +829,7 @@ spanWhile f = go
     go (a:as) = case f a of
         Just b -> first (b:) (go as)
         Nothing -> ([], a : as)
+
 
 -- * duplicates
 

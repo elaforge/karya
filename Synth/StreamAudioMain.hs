@@ -74,7 +74,8 @@ parseArgs args = case GetOpt.getOpt GetOpt.Permute options args of
             _ -> Nothing
     (_, _, errors) -> usage errors
     where
-    parseMuted = Set.fromList . map (ScoreT.Instrument . txt) . Lists.split ","
+    parseMuted = Set.fromList . map (ScoreT.Instrument . txt)
+        . Lists.split (==',')
     usage errors = do
         mapM_ putStrLn errors
         putStrLn "usage: stream_audio im/cache/score/path/block/id\

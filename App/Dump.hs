@@ -88,7 +88,7 @@ dump_file pprint mode fname = dump pprint mode fname >>= \case
 
 dump :: Bool -> Mode -> FilePath -> IO (Either Text [Text])
 dump pprint mode fname
-    | [repo, commit] <- Lists.split "," fname =
+    | [repo, commit] <- Lists.split (==',') fname =
         dump_git pprint mode repo (Just commit)
     | SaveGit.is_git fname = dump_git pprint mode fname Nothing
 dump pprint mode fname =

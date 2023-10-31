@@ -255,11 +255,12 @@ isMute = \case
 
 parseFilename :: FilePath
     -> Maybe (Pitch, Articulation, Dynamic, Util.Variation)
-parseFilename fname = case Lists.split "-" (FilePath.dropExtension fname) of
-    [pitch, art, dyn, 'v':var] ->
-        (,,,) <$> Lib.Bali.parsePitch pitch <*> pArt art <*> pDyn dyn
-            <*> Read.readMaybe var
-    _ -> Nothing
+parseFilename fname =
+    case Lists.split (=='-') (FilePath.dropExtension fname) of
+        [pitch, art, dyn, 'v':var] ->
+            (,,,) <$> Lib.Bali.parsePitch pitch <*> pArt art <*> pDyn dyn
+                <*> Read.readMaybe var
+        _ -> Nothing
     where
     pArt = (`Map.lookup` filenameToArt)
     filenameToArt = Map.fromList $ Lists.keyOn articulationFile Util.enumAll

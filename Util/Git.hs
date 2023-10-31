@@ -616,7 +616,7 @@ make_dir :: [(FilePath, ByteString)] -> Either String Dir
 make_dir = foldM merge Map.empty
     where
     -- System.FilePath is incorrect because git always uses /s.
-    merge dir (path, bytes) = insert dir (Lists.split "/" path) bytes
+    merge dir (path, bytes) = insert dir (Lists.split (=='/') path) bytes
     insert _ [] bytes = Left $ "can't insert into empty path: " ++ show bytes
     insert files [name] bytes = return $ Map.insert name (File bytes) files
     insert files (name : names) bytes = do

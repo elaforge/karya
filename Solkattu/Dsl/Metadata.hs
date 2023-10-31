@@ -63,7 +63,7 @@ parseRange str = case range of
     (start, end) = second (dropWhile (=='-')) $ break (=='-') str
 
 parseTime :: String -> Maybe (Int, Int, Int)
-parseTime str = case mapM Read.readMaybe $ Lists.split ":" str of
+parseTime str = case mapM Read.readMaybe $ Lists.split (==':') str of
     Just [h, m, s] -> Just (h, m, s)
     Just [m, s] -> Just (0, m, s)
     Just [s] -> Just (0, 0, s)
