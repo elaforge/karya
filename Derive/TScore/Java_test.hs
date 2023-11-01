@@ -127,9 +127,11 @@ test_format_score = do
     let f = format_score
     let pr = either (Text.IO.putStrLn . ("error: "<>)) (mapM_ Text.IO.putStrLn)
     right_equal (f "") []
-    pr $ format_score "a = [ > 1235 | 65321 ]"
+    -- pr $ format_score "a = [ > 1235 | 65321 ]"
     -- pr $ format_score "a = [ > 1235 | 6.5.3..2 ]"
     -- pr $ format_score "a = [ > 1 2 321 ]"
+    pr $ format_score "a = [ > 1234 > 1 123 .4 ]"
+    pr $ format_score "a = [ > 1234 > 1 123 .4 | 1 ]"
 
 format_score :: Text -> Either Text [Text]
 format_score source = case Java.parse_score source of

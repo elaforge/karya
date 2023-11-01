@@ -384,18 +384,6 @@ resolve_durations =
         is_sustain (_, Left (T.Rest (Rest { rest_sustain }))) = rest_sustain
         is_sustain _ = False
 
--- | The T.Tokens given to the function will not contain T.TBarline.
-map_bars :: Monad m => ([T.Token a1 b1 c1 d1] -> m [T.Token a2 b2 c2 d2])
-    -> [T.Token a1 b1 c1 d1] -> m [T.Token a2 b2 c2 d2]
-map_bars f tokens = concat . add <$> mapM f (pre : map snd posts)
-    where
-    add [] = []
-    add (t:ts) = t : zipWith (:) bars ts
-    bars = map (uncurry T.TBarline . fst) posts
-    (pre, posts) = Lists.splitWith is_barline tokens
-    is_barline (T.TBarline pos bar) = Just (pos, bar)
-    is_barline _ = Nothing
-
 -- | Verify bar durations, infer rests if necessary.  After this, all bars
 -- should be a power of 2.
 normalize_barlines :: [T.Token call pitch HasSpace Rest]
@@ -414,10 +402,22 @@ normalize_barlines = map_bars $ \case
         inferred = infer_rests bar
         strip = Identity.runIdentity . T.map_note_duration (\_ -> pure ())
 
+-- | The T.Tokens given to the function will not contain T.TBarline.
+-- I could put it in the type, but it seems too much bother.
+map_bars :: Monad m => ([T.Token a1 b1 c1 d1] -> m [T.Token a2 b2 c2 d2])
+    -> [T.Token a1 b1 c1 d1] -> m [T.Token a2 b2 c2 d2]
+map_bars f tokens = concat . add <$> mapM f (pre : map snd posts)
+    where
+    add [] = []
+    add (t:ts) = t : zipWith (:) bars ts
+    bars = map (uncurry T.TBarline . fst) posts
+    (pre, posts) = Lists.splitWith is_barline tokens
+    is_barline (T.TBarline pos bar) = Just (pos, bar)
+    is_barline _ = Nothing
+
 power_of_2 :: Int -> Bool
 power_of_2 n = snd (properFraction (logBase 2 (fromIntegral n))) == 0
 
--- TODO should be no TBarline, put in the type?
 infer_rests :: [T.Token call pitch HasSpace Rest]
     -> [T.Token call pitch HasSpace Rest]
 infer_rests = concatMap infer . Lists.splitAfter has_space
@@ -431,34 +431,37 @@ infer_rests = concatMap infer . Lists.splitAfter has_space
         T.TNote _ note -> T.note_duration note == HasSpace
         T.TRest _ (T.Rest rest) -> rest_space rest == HasSpace
 
-{-
--- Split on barlines, zipPadded, map across them.
+-- | Split on barlines, zipPadded, map across them.
 normalize_hands :: [T.Token call pitch dur Rest]
     -> [T.Token call pitch dur Rest]
-    -> (Stream (T.Token call pitch dur Rest),
-        Stream (T.Token call pitch dur Rest))
+    -> CheckM ([T.Token call pitch dur Rest], [T.Token call pitch dur Rest])
 normalize_hands lefts rights =
-    bimap add_barlines add_barlines $
-    unzip $ map normalize $
+    fmap (bimap join_bars join_bars . unzip) $ mapM normalize $
     Lists.zipPadded (split_bars lefts) (split_bars rights)
     where
     normalize = \case
-        Lists.First (pos, lefts) ->
-            (map EList.Elt lefts, [merror pos "left hand with no right hand"])
-        Lists.Second (pos, rights) ->
-            ([merror pos "right hand with no left hand"], map EList.Elt rights)
-        -- Lists.Both (pos0, lefts) (pos1, rights) ->
-        --     case (-) <$> log2 (length lefts) <*> log2 (length rights) of
-        --         -- shouldn't happen if normalize_barlines was called
-        --         Nothing -> (lefts, rights)
-        --         Just delta
-        --             | delta >= 0 -> (lefts, expand delta rights)
-        --             | otherwise -> (expand delta lefts, rights)
-    expand delta = concatMap (: replicate (delta^2) rest)
-    rest = T.TRest T.fake_pos (T.Rest (Rest True NoSpace))
-
-    add_barlines = concat . Lists.mapTail (EList.Elt barline :)
-    barline = T.TBarline T.fake_pos (T.Barline 1)
+        Lists.First (pos, lefts) -> do
+            warn pos "left hand with no right hand"
+            pure ((pos, lefts), (pos, []))
+        Lists.Second (pos, rights) -> do
+            warn pos "right hand with no left hand"
+            pure ((pos, []), (pos, rights))
+        Lists.Both (pos0, lefts) (pos1, rights) ->
+            case (log2 (length lefts), log2 (length rights)) of
+                (Nothing, _) -> do
+                    warn pos0 "not power of 2"
+                    pure ((pos0, lefts), (pos1, rights))
+                (_, Nothing) -> do
+                    warn pos1 "not power of 2"
+                    pure ((pos0, lefts), (pos1, rights))
+                (Just d1, Just d2)
+                    | delta >= 0 ->
+                        pure ((pos0, lefts), (pos1, expand pos1 delta rights))
+                    | otherwise ->
+                        pure ((pos0, expand pos0 delta lefts), (pos1, rights))
+                    where delta = d1 - d2
+    expand pos delta = concatMap (: replicate (delta^2) (rest pos))
+    rest pos = T.TRest pos (T.Rest (Rest True NoSpace))
 
 log2 :: Int -> Maybe Int
 log2 n
@@ -481,7 +484,6 @@ join_bars [] = []
 join_bars ((_, g0) : gs) = concat $ g0 : map join gs
     where
     join (pos, tokens) = T.TBarline pos (T.Barline 1) : tokens
--}
 
 
 -- * format
@@ -500,15 +502,18 @@ format_block :: Block -> CheckM [Text]
 format_block block = format_tracks (block_tracks block)
 
 format_tracks :: Tracks -> CheckM [Text]
-format_tracks (Tracks tracks) =
-    map (mconcatMap format_token) <$>
-        mapM (process_for_format . track_tokens) tracks
+format_tracks (Tracks tracks) = case map track_tokens tracks of
+    [lefts, rights] -> do
+        lefts <- process_for_format lefts
+        rights <- process_for_format rights
+        (lefts, rights) <- normalize_hands lefts rights
+        pure [mconcatMap format_token lefts, mconcatMap format_token rights]
+    tracks -> map (mconcatMap format_token) <$> mapM process_for_format tracks
 
 process_for_format :: [Token]
     -> CheckM [T.Token () (Pitch Octave) () Rest]
 process_for_format = normalize_barlines . resolve_pitch
     -- This doesn't do 'resolve_durations', because I want the original rests.
-    -- TODO normalize between hands so each group is the same length
 
 format_token :: T.Token call (Pitch Octave) dur rdur -> Text
 format_token = \case

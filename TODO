@@ -8318,8 +8318,23 @@ text score: tscore:
     ideas:
       . Dots are nice to read as off-beat markers.  I could use space as
         a rest, and print rest as a space if it's on a beat.
-        This conflicts with spaces for alignment if there's a ',/
-      . , and . look pretty similar.
+        . This conflicts with spaces for alignment if there's a ',/
+          So I can definitely do for format, but what about parse?
+        . I think I have to remember spaces and use them as separators, that
+          way multiple spaces is the same as one.
+        . If the count is < power of 2, this is a way to expand it?
+          6 .56 1 | 5 6 1 6 | 1 2 .3 .2 | 3 2 1 6
+          . 216 3 | . 1 216 | . 1 6  1  | 2 3 532
+        . [6, .56, 1]: 5 < 8, but can be 8 by appending rest to each group.
+        . [6, .56., 1]: 6 < 8 but group 1 already 4.
+        . So if a group is odd, add a rest to the end?
+        . Ideally I'd want to reverse the print heuristic:
+          '.' for rest on a beat, ' ' for rest off beats.
+        . First have to know about groups.  I can do it by having lexeme
+          show if there was space or not.
+
+      . , and . look pretty similar.  Guess I could use v or something, but
+        it's nice to be the same as tscore.  Something else for rest? -? _?
       . If I go line-based then I have to use indentation, but less clutter.
         Otherwise, I need []s for tracks.
       . Alternately, I could go the solkattu route and make this a haskell
@@ -8358,7 +8373,7 @@ text score: tscore:
     transform:
       - convert laras and pathet, e.g. slendro manyura to pelog barang.
     format:
-      + If one hand has 4 notes and the other has 8, they don't line up.
+      * If one hand has 4 notes and the other has 8, they don't line up.
         . I would zip by hand and normalize rhythm.
         . I'll need that anyway to check lh<rh, and that they are the same
           length.
