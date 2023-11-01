@@ -248,6 +248,43 @@ resolve_tokens :: [Token]
 resolve_tokens = map EList.toEither . resolve_durations . normalize_barlines
     . resolve_pitch
 
+-- ** check directives
+
+check_score_directive :: T.Directive -> Either T.Error ToplevelTag
+check_score_directive (T.Directive pos key Nothing) =
+    Left $ T.Error pos $ "directive with no val: " <> key
+check_score_directive (T.Directive pos key (Just val)) =
+    first (T.Error pos) $ case key of
+        "source" -> Right $ Source val
+        "piece" -> Right $ Piece val
+        "section" -> Right $ Section val
+        "laras" -> Laras <$> case val of
+           "pelog-nem" -> Right PelogNem
+           "pelog-lima" -> Right PelogLima
+           "pelog-barang" -> Right PelogBarang
+           "slendro" -> Right Slendro -- TODO different slendro pathet
+           _ -> Left $ "unknown laras: " <> val
+        "irama" -> Irama <$> case val of
+           "lancar" -> Right Lancar
+           "tanggung" -> Right Tanggung
+           "dadi" -> Right Dadi
+           "wiled" -> Right Wiled
+           "rangkep" -> Right Rangkep
+           _ -> Left $ "unknown irama: " <> val
+        _ -> Left $ "unknown directive: " <> key <> " = " <> val
+
+data ToplevelTag = Source Text | Piece Text | Section Text | Laras Laras
+    | Irama Irama
+    deriving (Eq, Show)
+
+data Laras = Slendro | PelogNem | PelogLima | PelogBarang
+    deriving (Eq, Show)
+-- | Along with Instrument, affects expected number of notes per barline.
+data Irama = Lancar | Tanggung | Dadi | Wiled | Rangkep
+    deriving (Eq, Ord, Enum, Bounded, Show)
+data Instrument = GenderBarung | GenderPanerus | Siter
+    deriving (Eq, Show)
+
 -- ** resolve_pitch
 
 resolve_pitch
@@ -344,8 +381,48 @@ normalize_barlines =
     -- TODO warn about unsupported Barlines
     group (g0, gs) = g0 : map snd gs
 
+{-
+-- Split on barlines, zipPadded, map across them.
+normalize_hands :: [T.Token call pitch dur Rest]
+    -> [T.Token call pitch dur Rest]
+    -> (Stream (T.Token call pitch dur Rest),
+        Stream (T.Token call pitch dur Rest))
+normalize_hands lefts rights =
+    bimap add_barlines add_barlines $
+    unzip $ map normalize $
+    Lists.zipPadded (split_bars lefts) (split_bars rights)
+    where
+    normalize = \case
+        Lists.First (pos, lefts) ->
+            (map EList.Elt lefts, [merror pos "left hand with no right hand"])
+        Lists.Second (pos, rights) ->
+            ([merror pos "right hand with no left hand"], map EList.Elt rights)
+        -- Lists.Both (pos0, lefts) (pos1, rights) ->
+        --     case (-) <$> log2 (length lefts) <*> log2 (length rights) of
+        --         -- shouldn't happen if normalize_barlines was called
+        --         Nothing -> (lefts, rights)
+        --         Just delta
+        --             | delta >= 0 -> (lefts, expand delta rights)
+        --             | otherwise -> (expand delta lefts, rights)
+    expand delta = concatMap (: replicate (delta^2) rest)
+    rest = T.TRest T.fake_pos (T.Rest (Rest True NoSpace))
+
+    add_barlines = concat . Lists.mapTail (EList.Elt barline :)
+    barline = T.TBarline T.fake_pos (T.Barline 1)
+
+log2 :: Int -> Maybe Int
+log2 n
+    | frac == 0 = Just i
+    | otherwise = Nothing
+    where (i, frac) = properFraction $ logBase 2 (fromIntegral n)
+-}
+
 merror :: T.Pos -> Text -> EList.Elt T.Error a
 merror pos msg = EList.Meta $ T.Error pos msg
+
+-- split_bars :: Stream (T.Token call pitch ndur rdur)
+--     -> [(T.Pos, Stream (T.Token call pitch ndur rdur))]
+-- split_bars = undefined
 
 split_bars :: [T.Token call pitch ndur rdur]
     -> [(T.Pos, [T.Token call pitch ndur rdur])]
@@ -355,6 +432,10 @@ split_bars tokens@(t0 : _) = (T.token_pos t0, group0) : groups
     (group0, groups) = Lists.splitWith is_barline tokens
     is_barline (T.TBarline pos _) = Just pos
     is_barline _ = Nothing
+
+-- join_bars :: [(T.Pos, Stream (T.Token call pitch ndur rdur))]
+--     -> Stream (T.Token call pitch ndur rdur)
+-- join_bars = undefined
 
 join_bars :: [(T.Pos, [T.Token call pitch ndur rdur])]
     -> [T.Token call pitch ndur rdur]
