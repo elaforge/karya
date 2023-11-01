@@ -6966,20 +6966,50 @@ Derive:
         explicit damp marks.
       . This will be inconvenient for parts like gender, but maybe I need
         damp inferring anyway.
+    negative durations:
+      . Factored out blocks don't really need to be negative, they only need
+        to have a note at the end.
+      . In turn, notes don't need to be negative either, I just need a final
+        one, and to be able to infer a duration for it.
     harder to read than traditional:
       . Vertical not very compact.  Screens are wider than tall.
       . Can fit 6*8 notes at once.  Paper can fit 4*8 but in less space
         and is then taller.
       . Window and block title overhead is repeated.
       . Track titles squished.
-      . Hard to read when it's not grouped in 4s.  Can get a better ruler.
+      * Hard to read when it's not grouped in 4s.  Can get a better ruler.
         Gatra = 1w, line = section
       . It's already right, but I could number sections.
       . Scores have a notion of wrapping.  I could do that vertically.
         However, this is in the direction of one big block, while the
         hierarchical block idea is that they don't get too big.
       . But, fiddling with hierarchical blocks is still too much work.
-      . What about writing tscore?
+      . What about writing tscore?  It's an extra layer of indirection, I'd
+        rather do tracklang directly.
+    wrapped block:
+      . I can imitate this with ViewConfig.views_covering.  But, any scrolling
+        or zooming will mess it up.  But, maybe that's reasonable, if this is
+        purely for reading.  It's like page view vs. scrolling view in staff
+        editors.
+      . I could make it try to split on section ruler markings.
+      . Also have another command to close the extra views.
+      . Block and track titles are repeated, but track titles are useful to
+        keep track.  It's just annoying how they get so squished.
+      . The logical end of this is a render to pdf type thing, e.g. like with
+        lilypond but for tracklang.  Not worth it unless it's going to be
+        easy to do, or I actually want to print a score.
+    render score:
+      . Choose sequence of blocks.  Go top to bottom, left to right?
+        Alternately, I could rotate to horizontal, but it would make it
+        harder to transfer the skill.
+      . Segment to a page height based on ruler (as with a fancier
+        ViewConfig.views_covering).
+      . How about rhythm?  Easiest is proportional, if I want to do binary
+        like overbar now I need rhythm spelling as lilypond does it, and ties.
+      . How about duration?  Direct way would be shaded just like tracklang.
+        Alternately, have explicit note-offs, suitable if most notes are
+        legato.  Or just omit it, for implicit duration.
+      . Notate rests explicitly as dots?  I need a basic pulse then.
 
   - make note call show up on the stack
     . It's transformed_note which uses "note" name, but if I put in
@@ -8316,7 +8346,7 @@ text score: tscore:
   . doc/dev_notes/text-score.md
   java:
     ideas:
-      . Dots are nice to read as off-beat markers.  I could use space as
+      * Dots are nice to read as off-beat markers.  I could use space as
         a rest, and print rest as a space if it's on a beat.
         . This conflicts with spaces for alignment if there's a ',/
           So I can definitely do for format, but what about parse?
@@ -8332,8 +8362,7 @@ text score: tscore:
           '.' for rest on a beat, ' ' for rest off beats.
         . First have to know about groups.  I can do it by having lexeme
           show if there was space or not.
-
-      . , and . look pretty similar.  Guess I could use v or something, but
+      / , and . look pretty similar.  Guess I could use v or something, but
         it's nice to be the same as tscore.  Something else for rest? -? _?
       . If I go line-based then I have to use indentation, but less clutter.
         Otherwise, I need []s for tracks.
@@ -8342,7 +8371,7 @@ text score: tscore:
         syntax.  Notes would have to be in a FromString, at which point I'm
         back to having to parse again.  But the declarations would be in a big
         list or Map, given the All.hs generation thing like solkattu.
-      . I should notate balungan, and then attech instrument parts with
+      . I should notate balungan, and then attach instrument parts with
         optional names, instead of making the name primary.  Reason is that
         not all instruments have named parts.  Also I want to represent
         octave in balungan.  Also want to be able to write balungan
@@ -8383,9 +8412,15 @@ text score: tscore:
         and zipping.
         . Since I'm not really streaming but doing a check first, and don't
           have that big of data, why not go to LogMonad?
-      - display on-beat rests as '.', off-beat as ' '.  Is this ok to read
+      * display on-beat rests as '.', off-beat as ' '.  Is this ok to read
         missing the overbar?  Otherwise I'd have to infer overbar.
+      - It seems like in tanggung and dadi, beats are even while in wiled
+        they're odd?
+        . Maybe dadi should be notated as .1.2 too... or rather 1 2 should be
+          interpreted that way.
+        . This has to do with overbar and whether it biases left or right.
       - instead of vertical bars, I could do the horizontal bar for lh/rh
+        . Should I render to HTML?
     - integrate
   . observations about tscore:
     . I really have to be able to read and hear the notation in my head, which

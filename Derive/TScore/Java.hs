@@ -499,7 +499,14 @@ format_toplevel = \case
     BlockDefinition block -> format_block block
 
 format_block :: Block -> CheckM [Text]
-format_block block = format_tracks (block_tracks block)
+format_block block = (title :) . map ("    "<>) <$>
+    format_tracks (block_tracks block)
+    where
+    title = Text.unwords $ block_name block
+        : map format_directive (block_directives block)
+
+format_directive :: T.Directive -> Text
+format_directive (T.Directive _ key mb_val) = key <> maybe "" ("="<>) mb_val
 
 format_tracks :: Tracks -> CheckM [Text]
 format_tracks (Tracks tracks) = case map track_tokens tracks of
@@ -507,19 +514,33 @@ format_tracks (Tracks tracks) = case map track_tokens tracks of
         lefts <- process_for_format lefts
         rights <- process_for_format rights
         (lefts, rights) <- normalize_hands lefts rights
-        pure [mconcatMap format_token lefts, mconcatMap format_token rights]
-    tracks -> map (mconcatMap format_token) <$> mapM process_for_format tracks
+        pure [format_tokens lefts, format_tokens rights]
+    tracks -> map format_tokens <$> mapM process_for_format tracks
 
 process_for_format :: [Token]
     -> CheckM [T.Token () (Pitch Octave) () Rest]
 process_for_format = normalize_barlines . resolve_pitch
     -- This doesn't do 'resolve_durations', because I want the original rests.
 
-format_token :: T.Token call (Pitch Octave) dur rdur -> Text
-format_token = \case
+format_tokens :: [T.Token call (Pitch Octave) dur Rest] -> Text
+format_tokens = mconcat . go
+    where
+    go ts = zipWith format_token beats pre ++ case post of
+        [] -> []
+        bar : post -> format_token True bar : go post
+        where
+        beats = if length pre >= 8 then cycle [False, True] else repeat True
+        (pre, post) = break is_barline ts
+    is_barline (T.TBarline {}) = True
+    is_barline _ = False
+
+format_token :: Bool -> T.Token call (Pitch Octave) dur Rest -> Text
+format_token on_beat = \case
     T.TBarline {} -> " | "
     -- T.TBarline {} -> " " <> vertical_line <> " "
-    T.TRest {} -> "."
+    T.TRest _ (T.Rest (Rest { rest_sustain }))
+        | on_beat -> if rest_sustain then "." else "_"
+        | otherwise -> " "
     T.TNote _ n -> format_pitch (T.note_pitch n)
         <> if T.note_zero_duration n then slash else ""
     where
