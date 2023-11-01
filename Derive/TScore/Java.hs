@@ -33,12 +33,12 @@
 -}
 module Derive.TScore.Java where
 import qualified Control.Monad.Identity as Identity
-import qualified Data.Either as Either
 import qualified Data.List as List
+import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
-import qualified Util.EList as EList
 import qualified Util.Lists as Lists
+import qualified Util.Logger as Logger
 import qualified Util.Num as Num
 import qualified Util.P as P
 
@@ -217,10 +217,13 @@ instance Parse.Element (Pitch RelativeOctave) where
             LT -> Text.replicate (- oct) ","
             GT -> Text.replicate oct "'"
 
+
 -- * check
 
-type Stream a = [EList.Elt Meta a]
-type Meta = T.Error
+type CheckM a = Logger.Logger T.Error a
+
+warn :: T.Pos -> Text -> CheckM ()
+warn pos msg = Logger.log (T.Error pos msg)
 
 {-
     Checks:
@@ -229,12 +232,13 @@ type Meta = T.Error
     - within instrument range
     - left hand below right hand
 -}
-check :: Text -> Score -> [Text]
-check source (Score toplevels) =
-    map (T.show_error source) $ concatMap (top . snd) toplevels
+{-
+check2 :: Text -> Score -> [T.Error]
+check2 source (Score toplevels) =
+    snd $ Logger.runId $ mapM_ (top . snd) toplevels
     where
     top = \case
-        ToplevelDirective {} -> []
+        ToplevelDirective {} -> pure ()
         BlockDefinition block ->
             concatMap (check_tokens . track_tokens) tracks
             where Tracks tracks = block_tracks block
@@ -242,11 +246,11 @@ check source (Score toplevels) =
 check_tokens :: [Token] -> [T.Error]
 check_tokens tokens = errs
     where (errs, _) = Either.partitionEithers $ resolve_tokens tokens
+-}
 
 resolve_tokens :: [Token]
-    -> [Either Meta (T.Time, T.Note () (Pitch Octave) T.Time)]
-resolve_tokens = map EList.toEither . resolve_durations . normalize_barlines
-    . resolve_pitch
+    -> CheckM [(T.Time, T.Note () (Pitch Octave) T.Time)]
+resolve_tokens = fmap resolve_durations . normalize_barlines . resolve_pitch
 
 -- ** check directives
 
@@ -284,6 +288,24 @@ data Irama = Lancar | Tanggung | Dadi | Wiled | Rangkep
     deriving (Eq, Ord, Enum, Bounded, Show)
 data Instrument = GenderBarung | GenderPanerus | Siter
     deriving (Eq, Show)
+
+-- variations: append 123567 for e.g. gantung 2, cilik, kecil, gede, besar,
+-- kempyung / gembyang
+standardNames :: [(Text, Text)]
+standardNames =
+    [ ("ayu kuning", "ak")
+    , ("debyang debyung", "dd")
+    , ("dualolo", "dll")
+    , ("duduk", "dd")
+    , ("gantung", "gant")
+    , ("gelut", "g")
+    , ("jarik kawung", "jk")
+    , ("kacaryan", "kc")
+    , ("kutuk kuning", "kk")
+    , ("puthut semedi", "ps")
+    , ("puthut", "p") -- 2 part pattern puthut gelut
+    , ("tumurun", "tm")
+    ]
 
 -- ** resolve_pitch
 
@@ -337,14 +359,14 @@ pitch_diff (Pitch oct1 pc1) (Pitch oct2 pc2) =
 
 -- ** resolve_durations
 
-resolve_durations :: Stream (T.Token call pitch dur Rest)
-    -> Stream (T.Time, T.Note call pitch T.Time)
+resolve_durations :: [T.Token call pitch dur Rest]
+    -> [(T.Time, T.Note call pitch T.Time)]
 resolve_durations =
-    EList.catMaybes . snd . EList.mapAccumL resolve_rests 0 . EList.zipNexts
-    . concatMap resolve . EList.split is_barline
+    Maybe.catMaybes . snd . List.mapAccumL resolve_rests 0 . Lists.zipNexts
+        . concatMap resolve . Lists.split is_barline
     where
-    resolve bar = EList.mapMaybe (add_dur len) bar
-        where len = length (EList.elts bar)
+    resolve bar = mapMaybe (add_dur len) bar
+        where len = length bar
     add_dur len = \case
         T.TBarline {} -> Nothing
         T.TRest _ rest -> Just (dur, Left rest)
@@ -362,24 +384,52 @@ resolve_durations =
         is_sustain (_, Left (T.Rest (Rest { rest_sustain }))) = rest_sustain
         is_sustain _ = False
 
+-- | The T.Tokens given to the function will not contain T.TBarline.
+map_bars :: Monad m => ([T.Token a1 b1 c1 d1] -> m [T.Token a2 b2 c2 d2])
+    -> [T.Token a1 b1 c1 d1] -> m [T.Token a2 b2 c2 d2]
+map_bars f tokens = concat . add <$> mapM f (pre : map snd posts)
+    where
+    add [] = []
+    add (t:ts) = t : zipWith (:) bars ts
+    bars = map (uncurry T.TBarline . fst) posts
+    (pre, posts) = Lists.splitWith is_barline tokens
+    is_barline (T.TBarline pos bar) = Just (pos, bar)
+    is_barline _ = Nothing
+
 -- | Verify bar durations, infer rests if necessary.  After this, all bars
 -- should be a power of 2.
 normalize_barlines :: [T.Token call pitch HasSpace Rest]
-    -> Stream (T.Token call pitch () Rest)
-normalize_barlines =
-    concat
-    . Lists.mapTail (EList.Elt barline :) . map resolve_bar . group
-    . Lists.splitWith is_barline
+    -> CheckM [T.Token call pitch () Rest]
+normalize_barlines = map_bars $ \case
+    [] -> pure []
+    bar@(t : _)
+        | power_of_2 (length bar) -> pure $ map strip bar
+        | power_of_2 (length inferred) -> pure $ map strip inferred
+        | otherwise -> do
+            warn (T.token_pos t) $
+                "bar not a power of 2: " <> showt (length bar)
+                <> ", with inferred rests: " <> showt (length inferred)
+            pure $ map strip bar
+        where
+        inferred = infer_rests bar
+        strip = Identity.runIdentity . T.map_note_duration (\_ -> pure ())
 
-    -- join_bars
-    -- . map (second resolve_bar)
-    -- . split_bars
+power_of_2 :: Int -> Bool
+power_of_2 n = snd (properFraction (logBase 2 (fromIntegral n))) == 0
+
+-- TODO should be no TBarline, put in the type?
+infer_rests :: [T.Token call pitch HasSpace Rest]
+    -> [T.Token call pitch HasSpace Rest]
+infer_rests = concatMap infer . Lists.splitAfter has_space
     where
-    barline = T.TBarline T.fake_pos (T.Barline 1)
-    is_barline (T.TBarline _ bar) = Just bar
-    is_barline _ = Nothing
-    -- TODO warn about unsupported Barlines
-    group (g0, gs) = g0 : map snd gs
+    infer tokens
+        | even (length tokens) = tokens
+        | otherwise = tokens ++ [extra_rest]
+    extra_rest = T.TRest T.fake_pos $ T.Rest $ Rest True HasSpace
+    has_space = \case
+        T.TBarline {} -> True
+        T.TNote _ note -> T.note_duration note == HasSpace
+        T.TRest _ (T.Rest rest) -> rest_space rest == HasSpace
 
 {-
 -- Split on barlines, zipPadded, map across them.
@@ -415,14 +465,6 @@ log2 n
     | frac == 0 = Just i
     | otherwise = Nothing
     where (i, frac) = properFraction $ logBase 2 (fromIntegral n)
--}
-
-merror :: T.Pos -> Text -> EList.Elt T.Error a
-merror pos msg = EList.Meta $ T.Error pos msg
-
--- split_bars :: Stream (T.Token call pitch ndur rdur)
---     -> [(T.Pos, Stream (T.Token call pitch ndur rdur))]
--- split_bars = undefined
 
 split_bars :: [T.Token call pitch ndur rdur]
     -> [(T.Pos, [T.Token call pitch ndur rdur])]
@@ -433,96 +475,37 @@ split_bars tokens@(t0 : _) = (T.token_pos t0, group0) : groups
     is_barline (T.TBarline pos _) = Just pos
     is_barline _ = Nothing
 
--- join_bars :: [(T.Pos, Stream (T.Token call pitch ndur rdur))]
---     -> Stream (T.Token call pitch ndur rdur)
--- join_bars = undefined
-
 join_bars :: [(T.Pos, [T.Token call pitch ndur rdur])]
     -> [T.Token call pitch ndur rdur]
 join_bars [] = []
 join_bars ((_, g0) : gs) = concat $ g0 : map join gs
     where
     join (pos, tokens) = T.TBarline pos (T.Barline 1) : tokens
-
--- TODO for format, I want to leave in TBarline
--- But, should be no barline in input.  Don't need dur.
-resolve_bar :: [T.Token call pitch HasSpace Rest]
-    -> Stream (T.Token call pitch () Rest)
-resolve_bar [] = []
-resolve_bar group@(t : _)
-    | power_of_2 (length group) = map EList.Elt $ map strip group
-    | power_of_2 (length inferred) = map EList.Elt $ map strip inferred
-    | otherwise = (:[]) $ merror (T.token_pos t) $
-        "group not a power of 2: " <> showt (length group)
-        <> ", with inferred rests: " <> showt (length inferred)
-    where
-    inferred = infer_rests group
-    strip = Identity.runIdentity . T.map_note_duration (\_ -> pure ())
-
-power_of_2 :: Int -> Bool
-power_of_2 n = snd (properFraction (logBase 2 (fromIntegral n))) == 0
-
--- TODO should be no TBarline, put in the type?
-infer_rests :: [T.Token call pitch HasSpace Rest]
-    -> [T.Token call pitch HasSpace Rest]
-infer_rests = concatMap infer . Lists.splitAfter has_space
-    where
-    infer tokens
-        | even (length tokens) = tokens
-        | otherwise = tokens ++ [extra_rest]
-    extra_rest = T.TRest T.fake_pos $ T.Rest $ Rest True HasSpace
-    has_space = \case
-        T.TBarline {} -> True
-        T.TNote _ note -> T.note_duration note == HasSpace
-        T.TRest _ (T.Rest rest) -> rest_space rest == HasSpace
-
--- ** check directives
-
--- variations: append 123567 for e.g. gantung 2, cilik, kecil, gede, besar,
--- kempyung / gembyang
-standardNames :: [(Text, Text)]
-standardNames =
-    [ ("ayu kuning", "ak")
-    , ("debyang debyung", "dd")
-    , ("dualolo", "dll")
-    , ("duduk", "dd")
-    , ("gantung", "gant")
-    , ("gelut", "g")
-    , ("jarik kawung", "jk")
-    , ("kacaryan", "kc")
-    , ("kutuk kuning", "kk")
-    , ("puthut semedi", "ps")
-    , ("puthut", "p") -- 2 part pattern puthut gelut
-    , ("tumurun", "tm")
-    ]
+-}
 
 
 -- * format
 
-format_score :: Score -> [Text]
-format_score (Score toplevels) = concatMap (format_toplevel . snd) toplevels
+format_score :: Score -> ([Text], [T.Error])
+format_score (Score toplevels) =
+    Logger.runId $ concatMapM (format_toplevel . snd) toplevels
 
-format_toplevel :: Toplevel -> [Text]
+format_toplevel :: Toplevel -> CheckM [Text]
 format_toplevel = \case
     ToplevelDirective (T.Directive _ key val) ->
-        ["", mconcat $ key : maybe [] (\v -> [" = ", v]) val]
+        pure ["", mconcat $ key : maybe [] (\v -> [" = ", v]) val]
     BlockDefinition block -> format_block block
 
-format_block :: Block -> [Text]
-format_block block =
-    block_name block
-        : map ("    " <>) (format_tracks source (block_tracks block))
-    where source = "<<saurcy>>"
-    -- If I did a 'check' first, these should not happen.
+format_block :: Block -> CheckM [Text]
+format_block block = format_tracks (block_tracks block)
 
-format_tracks :: Text -> Tracks -> [Text]
-format_tracks source (Tracks tracks) = map (fmt . track_tokens) tracks
-    where
-    fmt = mconcat . map (EList.either (T.show_error source) format_token)
-        . process_for_format
+format_tracks :: Tracks -> CheckM [Text]
+format_tracks (Tracks tracks) =
+    map (mconcatMap format_token) <$>
+        mapM (process_for_format . track_tokens) tracks
 
 process_for_format :: [Token]
-    -> Stream (T.Token () (Pitch Octave) () Rest)
+    -> CheckM [T.Token () (Pitch Octave) () Rest]
 process_for_format = normalize_barlines . resolve_pitch
     -- This doesn't do 'resolve_durations', because I want the original rests.
     -- TODO normalize between hands so each group is the same length
