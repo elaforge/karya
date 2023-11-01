@@ -192,6 +192,9 @@ data Error = Error !Pos !Text
 instance Pretty Error where
     pretty (Error (Pos pos) msg) = pretty pos <> ": " <> msg
 
+fake_pos :: Pos
+fake_pos = Pos (-1)
+
 show_error :: Text -> Error -> Text
 show_error source (Error pos msg) = Texts.unlines2 msg $ fromMaybe "" $ do
     (line_num, char_num, line) <- find_pos source pos

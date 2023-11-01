@@ -2,6 +2,8 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 module Derive.TScore.Java_test where
+import qualified Data.Either as Either
+import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
 import qualified Util.Test.Testing as Testing
@@ -33,7 +35,7 @@ test_roundtrip :: Test
 test_roundtrip = do
     let trip = fmap unparse . Java.parse_score
     right_equal (trip "%a = b") "%a = b\n"
-    right_equal (trip "x = [ > 56/._ ]") "x = [ > 5 6/ . _ ]\n"
+    right_equal (trip "x = [ > 5 6/. _ ]") "x = [ > 5 6/. _ ]\n"
     let normalized = trip everything_score
     right_equal (const () <$> normalized) ()
     equal normalized (trip =<< normalized)
@@ -72,10 +74,28 @@ test_resolve_duration = do
         extract (t, n) = (t, T.note_duration n)
     equal (f "1") $ map Right [(0, 1)]
     equal (f "1 | 23") $ map Right [(0, 1), (1, 1/2), (1+1/2, 1/2)]
-    equal (f "123") [err 2 "group not a power of 2: 3"]
     equal (f "12..") $ map Right [(0, 1/4), (1/4, 3/4)]
     equal (f "12_.") $ map Right [(0, 1/4), (1/4, 1/4)]
     equal (f "1_.2") $ map Right [(0, 1/4), (3/4, 1/4)]
+    -- infer_rests
+    equal (f "123") $ map Right [(0, 1/4), (1/4, 1/4), (1/2, 1/2)]
+    equal (f "12345")
+        [err 2 "group not a power of 2: 5, with inferred rests: 6"]
+    equal (f "1 .2 321") $ map Right
+        [ (0, 3/8)
+        , (3/8, 1/8)
+        , (4/8, 1/8), (5/8, 1/8), (6/8, 2/8)
+        ]
+    equal (f "1 | 235") $ map Right
+        [ (0, 1)
+        , (1, 1/4), (1+1/4, 1/4), (1+2/4, 1/2)
+        ]
+
+    -- This is .235, even though it looks misleading.
+    -- The problem is rests are only inferred when it's not already a power of
+    -- 2.
+    equal (filter Either.isLeft $ f ". 235") []
+    equal (filter Either.isLeft $ f "12345 6") []
 
 test_resolve_pitch :: Test
 test_resolve_pitch = do
@@ -96,11 +116,29 @@ parse_tokens = Testing.expect_right . fmap Java.track_tokens . parse . ("> "<>)
 
 -- * format
 
+test_format_score :: Test
+test_format_score = do
+    let f = format_score
+    let pr = either (Text.IO.putStrLn . ("error: "<>)) (mapM_ Text.IO.putStrLn)
+    right_equal (f "") []
+    pr $ format_score "a = [ > 1235 | 65321 ]"
+    -- pr $ format_score "a = [ > 1235 | 6.5.3..2 ]"
+    -- pr $ format_score "a = [ > 1 2 321 ]"
+
+format_score :: Text -> Either Text [Text]
+format_score source = case Java.parse_score source of
+    Left err -> Left (txt err)
+    Right score
+        -- | not (null errs) -> Left $ Text.unlines errs
+        | otherwise -> Right $ Java.format_score score
+        where errs = Java.check source score
+
 print_file :: FilePath -> IO ()
-print_file fname = do
-    source <- Text.IO.readFile fname
-    case Java.parse_score source of
-        Left err -> putStrLn err
-        Right score -> do
-            mapM_ Text.IO.putStrLn $ Java.format_score score
-            mapM_ Text.IO.putStrLn $ Java.check source score
+print_file fname = print_score =<< Text.IO.readFile fname
+
+print_score :: Text -> IO ()
+print_score source = case Java.parse_score source of
+    Left err -> putStrLn err
+    Right score -> do
+        mapM_ Text.IO.putStrLn $ Java.format_score score
+        mapM_ Text.IO.putStrLn $ Java.check source score

@@ -14,6 +14,7 @@ module Derive.TScore.Parse (
     , dot_note, tie_note
     -- * util
     , strip_comment
+    , p_whitespace_
 #ifdef TESTING
     , module Derive.TScore.Parse
 #endif
@@ -542,7 +543,15 @@ p_word :: Parser Text
 p_word = P.takeWhile1 (not_in "")
 
 p_whitespace :: Parser ()
-p_whitespace = void $ P.skipMany $ P.space1 <|> p_comment
+p_whitespace = P.skipMany p_space
+
+-- | 'p_whitespace', but True if there was any space to skip.
+p_whitespace_ :: Parser Bool
+p_whitespace_ =
+    (maybe False (\() -> True) <$> P.optional p_space) <* (P.skipMany p_space)
+
+p_space :: Parser ()
+p_space = P.space1 <|> p_comment
     where
     p_comment = do
         P.string "--"

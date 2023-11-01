@@ -7,10 +7,11 @@
 -- some kind of metadata, and functions to process values and ignore the
 -- metadata.
 module Util.EList where
-import           Prelude hiding (concatMap, either, map, zip, zip3)
+import           Prelude hiding (concatMap, either, map, span, zip, zip3)
 import qualified Control.Monad.Identity as Identity
 import qualified Data.Bifunctor as Bifunctor
 import           Data.Bifunctor (first, second)
+import qualified Data.List as List
 
 
 -- TODO I don't like the Elt and Meta names.
@@ -71,6 +72,12 @@ mapEM f = go
     go (Meta e : as) = (Meta e :) <$> go as
     go (Elt a : as) = (:) <$> f a <*> go as
     go [] = pure []
+
+mapMaybe :: (a -> Maybe b) -> [Elt e a] -> [Elt e b]
+mapMaybe f = concatMap (maybe [] (:[]) . f)
+
+concatMap :: (a -> [b]) -> [Elt e a] -> [Elt e b]
+concatMap f = concatMapE (List.map Elt . f)
 
 concatMapE :: (a -> [Elt e b]) -> [Elt e a] -> [Elt e b]
 concatMapE f = Identity.runIdentity . concatMapEM (pure . f)

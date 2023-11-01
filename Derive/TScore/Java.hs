@@ -32,6 +32,7 @@
     of Check, and all of TScore.
 -}
 module Derive.TScore.Java where
+import qualified Control.Monad.Identity as Identity
 import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Text as Text
@@ -113,7 +114,9 @@ instance Parse.Element Tracks where
     parse config = fmap Tracks $ Parse.lexeme "[" *> tracks <* Parse.lexeme "]"
         where tracks = P.some (Parse.parse config)
     unparse config (Tracks tracks) =
-        "[ " <> Text.unwords (map (Parse.unparse config) tracks) <> " ]"
+        "[ " <> Text.unwords (map (Parse.unparse config) tracks) <> "]"
+        -- Intentionally no space on "]", because the last note's HasSpace
+        -- should put one on.
 
 data Track = Track {
     track_tokens :: [Token]
@@ -124,49 +127,69 @@ instance Parse.Element Track where
     parse config = do
         track_pos <- Parse.get_pos
         Parse.keyword ">"
-        track_tokens <- P.many $ Parse.lexeme $ Parse.parse config
+        track_tokens <- P.many $ Parse.parse config
         return $ Track { track_tokens, track_pos }
     unparse config (Track { track_tokens }) =
-        Text.unwords $ ">" : map (Parse.unparse config) track_tokens
-        -- If I do this, barlines also get no spaces.
-        -- mconcat $ "> " : map (Parse.unparse config) track_tokens
+        -- Text.unwords $ ">" : map (Parse.unparse config) track_tokens
+        -- Rely on HasSpace to preserving spacing between notes.
+        mconcat $ "> " : map (Parse.unparse config) track_tokens
 
-type Token = T.Token () (Pitch RelativeOctave) () Rest
+type Token = T.Token () (Pitch RelativeOctave) HasSpace Rest
+
+-- | Keep track if there was whitespace after notes and rests.
+-- I can use this to infer durations.
+data HasSpace = HasSpace | NoSpace deriving (Eq, Show)
+
+p_has_space :: Parse.Parser HasSpace
+p_has_space = Parse.p_whitespace_ >>= pure . \case
+    True -> HasSpace
+    False -> NoSpace
 
 instance Parse.Element Token where
     parse config =
-        T.TBarline <$> Parse.get_pos <*> Parse.parse config
+        Parse.lexeme (T.TBarline <$> Parse.get_pos <*> Parse.parse config)
         <|> T.TRest <$> Parse.get_pos <*> Parse.parse config
         <|> T.TNote <$> Parse.get_pos <*> Parse.parse config
-    unparse config (T.TBarline _ bar) = Parse.unparse config bar
+    unparse config (T.TBarline _ bar) = Parse.unparse config bar <> " "
     unparse config (T.TNote _ note) = Parse.unparse config note
     unparse config (T.TRest _ rest) = Parse.unparse config rest
 
-data Rest = RestSustain | RestStop
-    deriving (Eq, Show)
+data Rest = Rest {
+    rest_sustain :: Bool
+    , rest_space :: HasSpace
+    } deriving (Eq, Show)
 
 instance Parse.Element (T.Rest Rest) where
-    parse _ = fmap T.Rest $
-        P.char '.' *> pure RestSustain <|> P.char '_' *> pure RestStop
-    unparse _ (T.Rest r) = case r of
-        RestSustain -> "."
-        RestStop -> "_"
+    parse _ = do
+        rest_sustain <- P.char '.' *> pure True <|> P.char '_' *> pure False
+        -- Parse.lexeme is omitted from the calling parser to support this.
+        rest_space <- p_has_space
+        pure $ T.Rest $ Rest { rest_sustain, rest_space }
+    unparse _ (T.Rest (Rest { rest_sustain, rest_space })) =
+        (if rest_sustain then "." else "_") <> case rest_space of
+            NoSpace -> ""
+            HasSpace -> " "
 
-instance Parse.Element (T.Note () (Pitch RelativeOctave) ()) where
+instance Parse.Element (T.Note () (Pitch RelativeOctave) HasSpace) where
     parse config = do
-        pos <- Parse.get_pos
-        pitch <- Parse.parse config
+        note_pos <- Parse.get_pos
+        note_pitch <- Parse.parse config
         note_zero_duration <- P.option False (P.char '/' *> pure True)
+        -- Parse.lexeme is omitted from the calling parser to support this.
+        note_duration <- p_has_space
         return $ T.Note
             { note_call = ()
-            , note_pitch = pitch
+            , note_pitch
             , note_zero_duration
-            , note_duration = ()
-            , note_pos = pos
+            , note_duration
+            , note_pos
             }
-    unparse config (T.Note { note_pitch, note_zero_duration }) =
+    unparse config (T.Note { note_pitch, note_zero_duration, note_duration }) =
         Parse.unparse config note_pitch
         <> if note_zero_duration then "/" else ""
+        <> case note_duration of
+            HasSpace -> " "
+            NoSpace -> ""
 
 instance Parse.Element PitchClass where
     parse _ = P.satisfy (\c -> '1' <= c && c <= '9') >>= \case
@@ -222,7 +245,8 @@ check_tokens tokens = errs
 
 resolve_tokens :: [Token]
     -> [Either Meta (T.Time, T.Note () (Pitch Octave) T.Time)]
-resolve_tokens = map EList.toEither . resolve_duration . resolve_pitch
+resolve_tokens = map EList.toEither . resolve_durations . normalize_barlines
+    . resolve_pitch
 
 -- ** resolve_pitch
 
@@ -274,34 +298,23 @@ pitch_diff (Pitch oct1 pc1) (Pitch oct2 pc2) =
     where
     per_oct = fromEnum (maxBound :: PitchClass) + 1
 
--- ** resolve_duration
+-- ** resolve_durations
 
--- | Split on barlines.
--- Error if notes not a power of 2.
--- Add duration based on power of 2.
--- Resolve note start and end times.
-resolve_duration :: [T.Token call pitch dur Rest]
+resolve_durations :: Stream (T.Token call pitch dur Rest)
     -> Stream (T.Time, T.Note call pitch T.Time)
-resolve_duration =
+resolve_durations =
     EList.catMaybes . snd . EList.mapAccumL resolve_rests 0 . EList.zipNexts
-    . concatMap resolve_barlines . group
-    . Lists.splitWith is_barline
+    . concatMap resolve . EList.split is_barline
     where
-    is_barline (T.TBarline _ bar) = Just bar
-    is_barline _ = Nothing
-    -- TODO warn about unsupported Barlines
-    group (g0, gs) = g0 : map snd gs
-    resolve_barlines [] = []
-    resolve_barlines group@(t : _)
-        | power_of_2 len = map EList.Elt $
-            mapMaybe (add_dur (T.Time (1 / fromIntegral len))) group
-        | otherwise = (:[]) $ EList.Meta $ T.Error (T.token_pos t) $
-            "group not a power of 2: " <> showt len
-        where len = length group
-    add_dur dur = \case
+    resolve bar = EList.mapMaybe (add_dur len) bar
+        where len = length (EList.elts bar)
+    add_dur len = \case
         T.TBarline {} -> Nothing
         T.TRest _ rest -> Just (dur, Left rest)
         T.TNote _ note -> Just (dur, Right note)
+        where dur = T.Time (1 / fromIntegral len)
+    is_barline (T.TBarline {}) = True
+    is_barline _ = False
     resolve_rests time ((dur, Left _), _) = (time + dur, Nothing)
     resolve_rests time ((dur, Right n), nexts) =
         ( time + dur
@@ -309,11 +322,78 @@ resolve_duration =
         )
         where
         sustain = Num.sum $ map fst $ takeWhile is_sustain nexts
-        is_sustain (_, Left (T.Rest RestSustain)) = True
+        is_sustain (_, Left (T.Rest (Rest { rest_sustain }))) = rest_sustain
         is_sustain _ = False
+
+-- | Verify bar durations, infer rests if necessary.  After this, all bars
+-- should be a power of 2.
+normalize_barlines :: [T.Token call pitch HasSpace Rest]
+    -> Stream (T.Token call pitch () Rest)
+normalize_barlines =
+    concat
+    . Lists.mapTail (EList.Elt barline :) . map resolve_bar . group
+    . Lists.splitWith is_barline
+
+    -- join_bars
+    -- . map (second resolve_bar)
+    -- . split_bars
+    where
+    barline = T.TBarline T.fake_pos (T.Barline 1)
+    is_barline (T.TBarline _ bar) = Just bar
+    is_barline _ = Nothing
+    -- TODO warn about unsupported Barlines
+    group (g0, gs) = g0 : map snd gs
+
+merror :: T.Pos -> Text -> EList.Elt T.Error a
+merror pos msg = EList.Meta $ T.Error pos msg
+
+split_bars :: [T.Token call pitch ndur rdur]
+    -> [(T.Pos, [T.Token call pitch ndur rdur])]
+split_bars [] = []
+split_bars tokens@(t0 : _) = (T.token_pos t0, group0) : groups
+    where
+    (group0, groups) = Lists.splitWith is_barline tokens
+    is_barline (T.TBarline pos _) = Just pos
+    is_barline _ = Nothing
+
+join_bars :: [(T.Pos, [T.Token call pitch ndur rdur])]
+    -> [T.Token call pitch ndur rdur]
+join_bars [] = []
+join_bars ((_, g0) : gs) = concat $ g0 : map join gs
+    where
+    join (pos, tokens) = T.TBarline pos (T.Barline 1) : tokens
+
+-- TODO for format, I want to leave in TBarline
+-- But, should be no barline in input.  Don't need dur.
+resolve_bar :: [T.Token call pitch HasSpace Rest]
+    -> Stream (T.Token call pitch () Rest)
+resolve_bar [] = []
+resolve_bar group@(t : _)
+    | power_of_2 (length group) = map EList.Elt $ map strip group
+    | power_of_2 (length inferred) = map EList.Elt $ map strip inferred
+    | otherwise = (:[]) $ merror (T.token_pos t) $
+        "group not a power of 2: " <> showt (length group)
+        <> ", with inferred rests: " <> showt (length inferred)
+    where
+    inferred = infer_rests group
+    strip = Identity.runIdentity . T.map_note_duration (\_ -> pure ())
 
 power_of_2 :: Int -> Bool
 power_of_2 n = snd (properFraction (logBase 2 (fromIntegral n))) == 0
+
+-- TODO should be no TBarline, put in the type?
+infer_rests :: [T.Token call pitch HasSpace Rest]
+    -> [T.Token call pitch HasSpace Rest]
+infer_rests = concatMap infer . Lists.splitAfter has_space
+    where
+    infer tokens
+        | even (length tokens) = tokens
+        | otherwise = tokens ++ [extra_rest]
+    extra_rest = T.TRest T.fake_pos $ T.Rest $ Rest True HasSpace
+    has_space = \case
+        T.TBarline {} -> True
+        T.TNote _ note -> T.note_duration note == HasSpace
+        T.TRest _ (T.Rest rest) -> rest_space rest == HasSpace
 
 -- ** check directives
 
@@ -322,31 +402,18 @@ power_of_2 n = snd (properFraction (logBase 2 (fromIntegral n))) == 0
 standardNames :: [(Text, Text)]
 standardNames =
     [ ("ayu kuning", "ak")
-    , ("debyang debyung", "dby")
+    , ("debyang debyung", "dd")
     , ("dualolo", "dll")
-    , ("duduk", "ddk")
+    , ("duduk", "dd")
     , ("gantung", "gant")
     , ("gelut", "g")
     , ("jarik kawung", "jk")
-    , ("kacaryan", "kcy")
+    , ("kacaryan", "kc")
     , ("kutuk kuning", "kk")
     , ("puthut semedi", "ps")
     , ("puthut", "p") -- 2 part pattern puthut gelut
     , ("tumurun", "tm")
     ]
-
--- | Valid directives at the score level.
-score_tags :: [Text]
-score_tags = ["source", "piece", "pathet", "inst", "section", "irama"]
-
--- | Valid directives at the block level.
-block_tags :: [Text]
-block_tags = ["gatra"]
-
--- | Valid values for %irama tag.  Along with %inst, affects expected
--- number of notes per barline.
-irama :: [Text]
-irama = ["lancar", "tanggung", "dadi", "wiled", "rangkep"]
 
 
 -- * format
@@ -362,21 +429,31 @@ format_toplevel = \case
 
 format_block :: Block -> [Text]
 format_block block =
-    block_name block : map ("    " <>) (format_tracks (block_tracks block))
+    block_name block
+        : map ("    " <>) (format_tracks source (block_tracks block))
+    where source = "<<saurcy>>"
+    -- If I did a 'check' first, these should not happen.
 
-format_tracks :: Tracks -> [Text]
-format_tracks (Tracks tracks) = map (fmt . track_tokens) tracks
-    where fmt = format_tokens . resolve_pitch
-
-format_tokens :: [T.Token call (Pitch Octave) dur rdur] -> Text
-format_tokens = mconcat . map format
+format_tracks :: Text -> Tracks -> [Text]
+format_tracks source (Tracks tracks) = map (fmt . track_tokens) tracks
     where
-    format = \case
-        T.TBarline {} -> " | "
-        -- T.TBarline {} -> " " <> vertical_line <> " "
-        T.TRest {} -> "."
-        T.TNote _ n -> format_pitch (T.note_pitch n)
-            <> if T.note_zero_duration n then slash else ""
+    fmt = mconcat . map (EList.either (T.show_error source) format_token)
+        . process_for_format
+
+process_for_format :: [Token]
+    -> Stream (T.Token () (Pitch Octave) () Rest)
+process_for_format = normalize_barlines . resolve_pitch
+    -- This doesn't do 'resolve_durations', because I want the original rests.
+    -- TODO normalize between hands so each group is the same length
+
+format_token :: T.Token call (Pitch Octave) dur rdur -> Text
+format_token = \case
+    T.TBarline {} -> " | "
+    -- T.TBarline {} -> " " <> vertical_line <> " "
+    T.TRest {} -> "."
+    T.TNote _ n -> format_pitch (T.note_pitch n)
+        <> if T.note_zero_duration n then slash else ""
+    where
     -- vertical_line = "\x007c" -- VERTICAL LINE
     slash = if use_slash
         then "\x0338" -- COMBINING LONG SOLIDUS OVERLAY
