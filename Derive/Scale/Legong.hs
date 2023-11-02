@@ -169,39 +169,44 @@ laras_rambat = BaliScales.laras "rambat" low_pitch (extend 3 E)
     "From my gender rambat, made in Blabatuh, Gianyar, tuned in\
     \ Munduk, Buleleng."
     [ (51.03,   51.85)  -- 3e, rambat begin
-    , (54.00-4, 54.00)  -- TODO
+    , (p4 - 12, i $ p4 - 12)
     , (55.05,   55.67)  -- 3u
     , (56.10,   56.50)  -- 3a, trompong begin
-    , (58.00-4, 58.00)  -- TODO
+    , (p7 - 12, i $ p7 - 12)
 
     , (59.91,   60.40)  -- 4i
     , (61.80,   62.41)  -- 4o, pemade begin
     , (62.90,   63.27)  -- 4e, reyong begin
-    , (65.00-4, 65.00)  -- TODO
+    , (p4,      i p4)
     , (67.15,   67.48)  -- 4u
     , (68.06,   68.33)  -- 4a
-    , (70.00-4, 70.00)  -- TODO
+    , (p7,      i p7)
 
     , (71.88,   72.15)  -- 5i
     , (73.60,   73.80)  -- 5o, kantilan begin
     , (75.15,   75.38)  -- 5e
-    , (78.00-4, 78.00)  -- TODO
+    , (p4 + 12, i $ p4 + 12)
     , (79.12,   79.28)  -- 5u, trompong end
     , (80.27,   80.26)  -- 5a
-    , (83.00-4, 83.00)  -- TODO
+    , (p7 + 12, i $ p7 + 12)
 
     , (84.09,   84.24)  -- 6i, rambat end, pemade end
-    , (86.08-4, 86.08)  -- 6o <- starts from reyong, which is more like isep
-    , (87.82-4, 87.82)  -- 6e
-    , (90.00-4, 90.00)  -- TODO
-    , (91.82-4, 91.82)  -- 6u, reyong end
-    , (92.50-4, 92.50)  -- 6a
-    , (95.00-4, 95.00)  -- TODO
+    , (u 86.08, 86.08)  -- 6o <- starts from reyong, which is more like i
+    , (u 87.82, 87.82)  -- 6e
+    , (p4 + 24, i $ p4 + 24)
+    , (u 91.82, 91.82)  -- 6u, reyong end
+    , (u 92.50, 92.50)  -- 6a
+    , (p7 + 24, i $ p7 + 24)
 
-    , (96.46-4, 96.46)  -- 7i, kantilan end
+    , (u 96.46, 96.46)  -- 7i, kantilan end
     ]
     where
-    nn - hz = Pitch.add_hz (-hz) nn
+    -- These are arbitrary since I don't have those notes, but let's pick what
+    -- they could have been.
+    p4 = 65.9
+    p7 = 70
+    i = Pitch.add_hz 4
+    u = Pitch.add_hz (-4)
 
 allTunings :: [[Pitch.NoteNumber]]
 allTunings =
