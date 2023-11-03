@@ -3,7 +3,15 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | See 'render'.
-module Synth.Faust.Preview where
+module Synth.Faust.Preview (
+    renderPreview
+    , pitchSequence
+    , pitchToSample
+    , dynSequence
+    -- * render
+    , renderSamples
+    , renderSequence
+) where
 import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.Map as Map
 import qualified Data.Text.IO as Text.IO
@@ -13,10 +21,14 @@ import           System.FilePath ((</>))
 import qualified Util.Audio.File as Audio.File
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
+import qualified Util.Num as Num
+import qualified Util.Texts as Texts
 import qualified Util.Thread as Thread
 
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
+import qualified Perform.RealTime as RealTime
+
 import qualified Synth.Faust.InstrumentC as InstrumentC
 import qualified Synth.Faust.Render as Render
 import qualified Synth.Lib.AUtil as AUtil
@@ -26,11 +38,12 @@ import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
 
 import           Global
+import           Synth.Types
 
 
 -- | The patch preview cache is in imDir </> cacheDir </> patchName </> nn.wav
-cacheDir :: FilePath -> Text -> FilePath
-cacheDir imDir patchName = imDir </> "preview" </> untxt patchName
+previewDir :: FilePath -> Text -> FilePath
+previewDir imDir patchName = imDir </> "preview" </> untxt patchName
 
 {- | Render representative samples for this instrument so they can be played in
     realtime by the thru mechanism.  This will stop if the output directory
@@ -40,47 +53,91 @@ cacheDir imDir patchName = imDir </> "preview" </> untxt patchName
     In theory this should divide the patch up along its important axes
     (pitch, dynamic, attributes) and render the whole matrix, but for now I
     only have pitch.
+
+    This skips if the directory exists, so I can call it on every rebuild.
+    @tools/clear_faust@ is hooked into the build to clear preview directories
+    when a patch changes.
 -}
-render :: InstrumentC.Patch -> IO ()
-render patch = do
+renderPreview :: InstrumentC.Patch -> IO ()
+renderPreview patch = do
     imDir <- Config.imDir <$> Config.getConfig
-    let out = cacheDir imDir (InstrumentC._name patch)
-    unlessM (Directory.doesDirectoryExist out) $ do
-        Directory.createDirectoryIfMissing True out
-        let element = fromMaybe "" $ Lists.head $ filter (/="") $ map fst $
-                Map.keys $ InstrumentC._controls patch
-        Thread.forCpu_ (standardNotes element) $ \(nn, note) -> do
-            Log.with_stdio_lock $
-                Text.IO.putStrLn $ InstrumentC._name patch <> ": " <> pretty nn
-            renderNote (out </> noteFilename nn) patch note
+    let outDir = previewDir imDir (InstrumentC._name patch)
+    unlessM (Directory.doesDirectoryExist outDir) $
+        renderSamples outDir patch (map (first nnFilename) notes)
+    where
+    notes = pitchSequence 1 element
+    element = fromMaybe "" $ Lists.head $ filter (/="") $ map fst $
+        Map.keys $ InstrumentC._controls patch
 
-noteFilename :: Pitch.NoteNumber -> FilePath
-noteFilename nn = prettys nn <> ".wav"
+-- | Render previews of these notes.
+pitchSequence :: RealTime -> Note.Element -> [(Pitch.NoteNumber, Note.Note)]
+pitchSequence dur element =
+    zip nns (map (makeNote 0 dur element 0.75) nns)
+    where nns = Lists.range NN.c1 NN.c8 2
 
-renderNote :: FilePath -> InstrumentC.Patch -> Note.Note -> IO ()
-renderNote fname patch note = Resource.runResourceT $
-    Audio.File.write AUtil.outputFormat fname $
-    Render.renderPatch emitMessage patch Render.defaultConfig Nothing
-        notifyState [note] 0
+-- | Used by the thru mechanism to find the preview samples.
+pitchToSample :: FilePath -> Text -> Map Pitch.NoteNumber FilePath
+pitchToSample imDir patchName =
+    Map.fromList [(nn, dir </> nnFilename nn) | nn <- nns]
+    where
+    dir = previewDir imDir patchName
+    nns = map fst $ pitchSequence 1 ""
+
+nnFilename :: Pitch.NoteNumber -> FilePath
+nnFilename nn = prettys nn <> ".wav"
+
+dynSequence :: RealTime -> Pitch.NoteNumber -> Int -> [(FilePath, Note.Note)]
+dynSequence dur nn dynamics =
+    [ ( prettys nn <> "-" <> showDyn dyn <> ".wav"
+      , makeNote start dur "" dyn nn
+      )
+    | (start, dyn) <- zip (Lists.range_ 0 dur) dyns
+    ]
+    where
+    dyns = Lists.range 0 1 (1 / (fromIntegral dynamics - 1))
+    showDyn = untxt . Num.zeroPad 3 . round . (*100)
+
+-- * render
+
+renderSamples :: FilePath -> InstrumentC.Patch -> [(FilePath, Note.Note)]
+    -> IO ()
+renderSamples outDir patch fnameNotes = do
+    Directory.createDirectoryIfMissing True outDir
+    Thread.forCpu_ fnameNotes $ \(fname, note) ->
+        renderNotes (outDir </> fname) patch [note]
+
+renderSequence :: FilePath -> InstrumentC.Patch -> [Note.Note] -> IO ()
+renderSequence outDir patch notes = do
+    mapM_ Text.IO.putStrLn $ showNotes notes
+    Directory.createDirectoryIfMissing True outDir
+    renderNotes
+        (outDir </> "calibrate-" <> untxt (InstrumentC._name patch) <> ".wav")
+        patch notes
+
+showNotes :: [Note.Note] -> [Text]
+showNotes notes = Texts.columns 2 $ ["time", "dyn"] : map fmt notes
+    where
+    fmt n =
+        [ RealTime.show_units (Note.start n)
+        , pretty $ Note.initial Control.dynamic n
+        ]
+
+renderNotes :: FilePath -> InstrumentC.Patch -> [Note.Note] -> IO ()
+renderNotes fname patch notes = do
+    Log.with_stdio_lock $
+        Text.IO.putStrLn $ InstrumentC._name patch <> ": " <> txt fname
+    Resource.runResourceT $
+        Audio.File.write AUtil.outputFormat fname $
+        Render.renderPatch emitMessage patch Render.defaultConfig Nothing
+            notifyState notes 0
     where
     emitMessage (Config.Warn _ msg) = Text.IO.putStrLn msg
     emitMessage (Config.Failure msg) = Text.IO.putStrLn msg
     emitMessage _ = return ()
     notifyState = const $ return ()
 
-pitchToSample :: FilePath -> Text -> Map Pitch.NoteNumber FilePath
-pitchToSample imDir patchName =
-    Map.fromList [(nn, dir </> noteFilename nn) | nn <- nns]
-    where
-    dir = cacheDir imDir patchName
-    nns = map fst $ standardNotes ""
-
--- | Render previews of these notes.
-standardNotes :: Note.Element -> [(Pitch.NoteNumber, Note.Note)]
-standardNotes element = zip nns (map (makeNote element) nns)
-    where nns = Lists.range NN.c1 NN.c8 2
-
-makeNote :: Note.Element -> Pitch.NoteNumber -> Note.Note
-makeNote element nn =
-    Note.withControl Control.dynamic (Signal.constant 0.75) $
-    (Note.withPitch nn $ Note.testNote 0 1) { Note.element = element }
+makeNote :: RealTime -> RealTime -> Note.Element -> Double -> Pitch.NoteNumber
+    -> Note.Note
+makeNote start dur element dyn nn =
+    Note.withControl Control.dynamic (Signal.constant dyn) $
+    (Note.withPitch nn $ Note.testNote start dur) { Note.element = element }

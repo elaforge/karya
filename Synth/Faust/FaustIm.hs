@@ -13,6 +13,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
+import qualified Data.Typeable as Typeable
 
 import qualified System.Console.GetOpt as GetOpt
 import qualified System.Directory as Directory
@@ -22,12 +23,15 @@ import           System.FilePath ((</>))
 import qualified System.IO as IO
 import qualified System.Posix.Signals as Signals
 
+import qualified Text.Read as Read
+
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Thread as Thread
 
 import qualified Derive.ScoreT as ScoreT
+import qualified Perform.Pitch as Pitch
 import qualified Synth.Faust.EffectC as EffectC
 import qualified Synth.Faust.InstrumentC as InstrumentC
 import qualified Synth.Faust.Preview as Preview
@@ -55,6 +59,8 @@ main = do
     -- Make sure I get some output if the process is killed.
     Signals.installHandler Signals.sigTERM
         (Signals.CatchOnce (Concurrent.killThread thread)) Nothing
+    imDir <- Config.imDir <$> Config.getConfig
+    let calibrateDir = imDir </> "calibrate"
     case args of
         ["print-effects"] ->
             forM_ (Map.toList EffectC.patches) $ \(name, epatch) -> do
@@ -69,17 +75,30 @@ main = do
                 Left err -> Text.IO.putStrLn $ "ERROR: " <> err
                 Right patch -> printPatch patch
             putStrLn ""
-        ["print-patches", patch] -> case Map.lookup (txt patch) patches of
-            Nothing -> Text.IO.putStrLn $ "no patch: " <> txt patch
-            Just (Left err) -> Text.IO.putStrLn $ "ERROR: " <> err
-            Just (Right patch) -> printPatch patch
-        ["render-preview", patch] -> case Map.lookup (txt patch) patches of
-            Nothing -> errorIO $ "no such patch: " <> txt patch
-            Just (Left err) -> errorIO $ "loading patch " <> txt patch <> ": "
-                <> err
-            Just (Right patch) -> Preview.render patch
-        ["render-preview"] -> mapM_ Preview.render $
-            Either.rights (Map.elems patches)
+        ["print-patches", patch] -> printPatch =<< getPatch patch patches
+        -- Similar to sampler-im calibrate, play a pitch at increasing dyn, to
+        -- see if it's even.
+        ["calibrate", patch, nn, dyns] -> do
+            patch <- getPatch patch patches
+            nn <- parse @Double nn
+            dyns <- parse dyns
+            Preview.renderSequence calibrateDir patch $ map snd $
+                Preview.dynSequence dur (Pitch.nn nn) dyns
+            where dur = 1
+        -- Like calibrate, but create individual samples.  I used this to
+        -- create samples with a known dyn for sampler-im.
+        ["calibrate-samples", patch, nn, dyns] -> do
+            patch <- getPatch patch patches
+            nn <- parse @Double nn
+            dyns <- parse dyns
+            Preview.renderSamples
+                (calibrateDir </> untxt (InstrumentC._name patch)) patch $
+                Preview.dynSequence dur (Pitch.nn nn) dyns
+            where dur = 1
+        ["render-preview", patch] ->
+            Preview.renderPreview =<< getPatch patch patches
+        ["render-preview"] ->
+            mapM_ Preview.renderPreview $ Either.rights (Map.elems patches)
         ["dump", notesFilename] -> do
             notes <- either (errorIO . pretty) return
                 =<< Note.unserialize notesFilename
@@ -107,6 +126,19 @@ main = do
         forM_ (Map.toList (EffectC._controls patch)) $ \(c, (_, doc)) ->
             put $ "control: " <> pretty c <> ": " <> doc
     put = Text.IO.putStrLn
+
+parse :: forall a. (Typeable.Typeable a, Read a) => String -> IO a
+parse n = maybe (errorIO $ "expected " <> typ <> ": " <> txt n) pure
+    (Read.readMaybe n)
+    where
+    typ = showt $ Typeable.typeRep (Proxy @a)
+
+getPatch :: String -> Map Text (Either Text InstrumentC.Patch)
+    -> IO InstrumentC.Patch
+getPatch name patches = case Map.lookup (txt name) patches of
+    Nothing -> errorIO $ "no such patch: " <> txt name
+    Just (Left err) -> errorIO $ "patch: " <> txt name <> ": " <> err
+    Just (Right patch) -> return patch
 
 usage :: String -> IO a
 usage msg = do
