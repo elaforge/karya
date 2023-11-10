@@ -323,8 +323,11 @@ defaultPatterns = Solkattu.check $ patterns
 misc :: [(S.Matra, SequenceR)]
 misc =
     [ (7, su $ mconcat [k, __, __, t, __, __, k, __, __, n, __, __, o, __])
+    , (5, su $ o.k.t.p.u.p.k.t.p.k)
     ]
-    where Strokes {..} = rnotes
+    where
+    Strokes {..} = rnotes
+    (.) = (<>)
 
 kt_kn_o :: Realize.PatternMap Stroke
 kt_kn_o = Solkattu.check $ patterns

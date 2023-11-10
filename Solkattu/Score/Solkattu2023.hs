@@ -37,3 +37,15 @@ yt_1 = date 2023 10 12 $ source "https://www.youtube.com/watch?v=Y5rZ1FchPiw" $
         , (ta.ki.ta, k.p.k)
         , (tam, u)
         ]
+
+-- From Randy?
+colby1 :: Korvai
+colby1 = date 2023 11 2 $ source "colby" $ korvaiS adi mridangam
+    [ r3 theme . spread 4 tdgnt . spread 3 tdgnt . spread 2 tdgnt
+        . r3 tdgnt
+    , nadai 3 $ r3 theme . spread 4 tdgnt . spread 3 tdgnt . spread 2 tdgnt
+        . r3 tdgnt
+    ]
+    where
+    theme = g "dinna_thom_dinna_thom_ta_"
+    mridangam = makeMridangam [(theme, "Dn_D_kN_D_u_")]

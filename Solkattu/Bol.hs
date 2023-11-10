@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE RecordWildCards #-}
 {- | Support for Hindustani style bols for pakhawaj and tabla.
 
     It uses the same konnakol / solkattu framework, but of course the
@@ -58,10 +59,10 @@ type BolT = Text
 type Error = Text
 
 data Bol =
-    Dha | Dhen | Dhet | Dhom | Di | Din | Dhi | Dhin | Dhit | Dhu
+    Dha | Dhe | Dhen | Dhet | Dhom | Di | Din | Dhi | Dhin | Dhit | Dhu
     | Ga | Gi | Ge | Ghen | Gre
     | Ka | Kat | Ke | Kre | Ki | Ma | Na | Ne | Ra | Re | Ri | Ran
-    | Ta | Tak | Taa | Te | Tet | Ti | Tin | Ten | Tu | Tun
+    | Ta | Tak | Taa | Te | Tet | The | Ti | Tin | Ten | Tu | Tun
     | Kran -- TODO 2 beats?
     deriving (Eq, Ord, Enum, Bounded, Show)
 
@@ -104,21 +105,30 @@ sequences =
 tablaBols =
     [ (Dha, T.Both T.Ge T.Na)
     , (Dha, T.Both T.Ge T.Tin)
-    , (Dhen, T.Both T.Ge T.Tu)
+    , (Dhen, T.Both T.Ge T.Tun)
     , (Dhet, T.Both T.Ge T.Te)
     , (Dhin,T.Both T.Ge T.Tin) -- or Ge Tun, depending on context
     , (Kre, T.Flam T.Ka T.Tet)
     , (Gre, T.Flam T.Ge T.Tet)
-    , (Ten, T.Both T.Ka T.Tu)
+    , (Ten, T.Both T.Ka T.Tun)
     , (Ne,  T.Daya T.Ne)
-    , (Re,  T.Daya T.Ne)
+    , (Re,  T.Daya T.Re)
     ]
 
-    -- -- [ (Dha, [Both Ge Na, Both Ge Tin])
-    -- [ (Dha, [Tabla.Both ge na, Tabla.Both ge tin])
-    -- ]
-    -- where
-    -- Tabla.Strokes { .. } = Tabla.strokes
+-- TODO parse strings to bols, put in stroke map
+tablaBols2 :: [(Text, [T.Stroke])]
+tablaBols2 =
+    [ ("dheredhere", [ge & dhe, rhe, dhe, rhe])
+    , ("terekita", [tet, te, ka, tet])
+    , ("kitataka", [ka, tet, te, ka])
+    , ("takaterekitataka", [te, ka, tet, te, ka, tet, te, ka])
+    , ("dha", [ge & na])
+    , ("dha", [ge & tin])
+    , ("dhen", [ge & tun])
+    ]
+    where
+    T.Strokes { .. } = T.strokes
+    (&) = T.bothStrokes
 
 {-
 

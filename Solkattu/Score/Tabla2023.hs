@@ -232,7 +232,7 @@ c_23_10_12 = date 2023 10 12 $ colby $ korvaiS tintal
 c_23_10_19 :: Korvai
 c_23_10_19 = date 2023 10 19 $ colby $ korvaiS1 tintal $
       sd $ "nagegena gegenana gegenage tuna kena"
-    . kali "nagegena gegenana" . "gegenage dhinna gena"
+    . kali "nagegena gegenana" . "gegenage dhina gena"
 
 c_23_10_19_chak :: Korvai
 c_23_10_19_chak = date 2023 10 19 $ colby $ chakradar $ korvaiS1 tintal $
@@ -245,6 +245,66 @@ c_23_10_16 = date 2023 10 26 $ colby $ mukra $ korvaiS1 tintal $
     "dha_dha__ tet_te__ tet_te__ dha_dha__"
     . spread 3 (r2 "dhatette" . dha) . dha.__
     . g (r2 "dhatettedha_dha_" . "ta_dhatettedha_dha")
+
+
+-- TODO some kind of more automatic, repeat with 1/2 kali?
+-- But also need to do kali slightly before the middle.
+-- So: kaliAt (-1) 0
+-- This means kali from 2/4 - 1, to 3/4+0
+c_23_11_09 :: Korvai
+c_23_11_09 = date 2023 11 9 $ colby $ rela $ qaida $ korvaiS tintal
+    [   "dha_tette gerenaga" . "gerenaga terekite"
+      . "dha_tette gerenaga" . "dhi_na_gerenage"
+      . "gerenaga terekitataka" . "dhette tette kite"
+      . "dha_tette gerenaga" . "tun_na_kerenake"
+      . kali ("dha_tette gerenaga" . "gerenaga terekite"
+      . "dha_tette gerenaga" . "dhi_na_gerenage")
+      . "gerenaga terekitataka" . "dhette tette kite"
+      . "dha_tette gerenaga" . "dhi_na_gerenage"
+    ]
+    where
+    _tabla = [("tun", "ka&tun")]
+
+c_23_11_09_dhere :: Korvai
+c_23_11_09_dhere = date 2023 11 9 $ colby $ korvaiS tintal
+    [   "dha_terekitataka" . r2 "dhere dhere kitataka" . "takaterekitataka"
+      . "terekitataka" . "gere dhere dhere" . "kitataka"
+      . "dha_tette gerenaga" . kali "dhi_na_gerenage"
+      . kali
+        ( "dha_terekitataka" . r2 "dhere dhere kitataka" . "takaterekitataka")
+      . "terekitataka" . "gere dhere dhere" . "kitataka"
+      . "dha_tette gerenaga" . "dhi_na_gerenage"
+    ]
+    where
+    _tabla =
+        [ ("dha", "ge&na")
+        , ("gere dhere dhere", "gerhe dherhe dherhe")
+        ]
+
+e_dhere :: Korvai
+e_dhere = exercise $ colby $ korvaiS tintal
+    [ sd $ r2 "dhere dhere kitataka" . r3 "dhere dhere" . "kitataka"
+    , sd $ r2 $ "dhere dhere kitataka" . "taka terekitataka"
+    ]
+
+c_23_11_09_chak :: Korvai
+c_23_11_09_chak = date 2023 11 9 $ colby $ chakradar $ korvaiS1 tintal $
+    tri_ "dha___" $ "dhatette dha_tette dha_tedha_"
+    . su (r2 "terekitataka" . "taka terekitataka") . taa
+    . tri_ "dha_kat_" "ghen_te"
+
+c_23_11_09_tukra :: Korvai
+c_23_11_09_tukra = date 2023 11 9 $ colby $ tukra $ korvaiS1 tintal $
+    "tu_na_ kttk tu_na_" . "tu_natu_na_ kttk" . "tu_na_ kttk"
+    . su "tari kita taka taa_" . su tetekata . sd "dha dha dha"
+    . r3 "tu_na kttk tu_na_"
+
+c_23_11_09_b :: Korvai
+c_23_11_09_b = date 2023 11 9 $ colby $ tukra $ korvaiS1 tintal $
+    dha.ge.tetekata.dha.__4 . sd tetekata.dha.__4
+    . tri_ "__" (r3 (dha.ge.tetekata))
+
+-- *
 
 legong1 :: Korvai
 legong1 = korvaiS kehrwa

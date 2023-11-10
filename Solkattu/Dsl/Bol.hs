@@ -51,22 +51,23 @@ _bol :: Bol.Bol -> Sequence
 _bol s = S.singleton $ S.Note (Solkattu.Note (Solkattu.note (Realize.stroke s)))
 
 dha = _bol Bol.Dha
+dhe = _bol Bol.Dhe
 dhom= _bol Bol.Dhom
+di  = _bol Bol.Di
+ga  = _bol Bol.Ga
+ge  = _bol Bol.Ge
+ka  = _bol Bol.Ka
+ki  = _bol Bol.Ki
+na  = _bol Bol.Na
+ne  = _bol Bol.Ne
+ra  = _bol Bol.Ra
+ta  = _bol Bol.Ta
+taa = _bol Bol.Taa
+te  = _bol Bol.Te
+tet = _bol Bol.Tet
 ti  = _bol Bol.Ti
 tin = _bol Bol.Tin
-ra  = _bol Bol.Ra
-ki  = _bol Bol.Ki
-ta  = _bol Bol.Ta
-ka  = _bol Bol.Ka
-taa = _bol Bol.Taa
 tu  = _bol Bol.Tu
-na  = _bol Bol.Na
-tet = _bol Bol.Tet
-te  = _bol Bol.Te
-ga  = _bol Bol.Ga
-di  = _bol Bol.Di
-ge  = _bol Bol.Ge
-ne  = _bol Bol.Ne
 
 -- * fragments
 
@@ -88,6 +89,8 @@ kali = mapB $ \case
     Bol.Ge -> Just Bol.Ke
     Bol.Ga -> Just Bol.Ka
     Bol.Dha -> Just Bol.Taa
+    Bol.Dhe -> Just Bol.The
+    Bol.Dhi -> Just Bol.Tun
     Bol.Dhin -> Just Bol.Tin
     bol -> Just bol
 

@@ -6,6 +6,8 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE StrictData #-}
 module Solkattu.Instrument.Tabla where
+import           GHC.Stack (HasCallStack)
+
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
@@ -25,10 +27,13 @@ data Stroke = Baya Baya | Daya Daya | Both Baya Daya | Flam Baya Daya
 data Baya = Ka | Ge
     deriving (Eq, Ord, Show)
 data Daya =
-    Na -- nam
+    Dhe -- dhere, thumb side
+    | Rhe -- dhere, right side
+    | Na -- nam
     | Ne -- like tet, but closer to edge
+    | Re -- halfway between Tet and Ne
     | Tin -- din
-    | Tu -- dheem, 1 finger
+    | Tun -- dheem, 1 finger
     | Tet
     | Te -- actually ṭe
     | Thi -- te with middle finger, like mi
@@ -38,9 +43,11 @@ instance Pretty Stroke where pretty = showt
 
 data Strokes a = Strokes {
     ka :: a, ge :: a
+    , dhe :: a
+    , rhe :: a
     , na :: a
     , tin :: a
-    , tu :: a
+    , tun :: a
     , tet :: a
     , te :: a
     } deriving (Functor, Show)
@@ -49,15 +56,24 @@ strokes :: Strokes Stroke
 strokes = Strokes
     { ka = Baya Ka
     , ge = Baya Ge
+    -- daya
+    , dhe = Daya Dhe
+    , rhe = Daya Rhe
     , na = Daya Na
     , tin = Daya Tin
-    , tu = Daya Tu
+    , tun = Daya Tun
     , tet = Daya Tet
     , te = Daya Te
     }
 
 notes :: Strokes (S.Sequence g (Solkattu.Note (Realize.Stroke Stroke)))
 notes = Realize.strokeToSequence <$> strokes
+
+bothStrokes :: HasCallStack => Stroke -> Stroke -> Stroke
+bothStrokes (Baya a) (Daya b) = Both a b
+bothStrokes (Daya b) (Baya a) = Both a b
+bothStrokes a b =
+    Solkattu.throw $ "requires baya & daya: " <> showt (a, b)
 
 {-
 dha = Both Ge Ta
