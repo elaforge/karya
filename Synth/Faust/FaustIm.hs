@@ -83,7 +83,7 @@ main = do
             nn <- parse @Double nn
             dyns <- parse dyns
             Preview.renderSequence calibrateDir patch $ map snd $
-                Preview.dynSequence dur (Pitch.nn nn) dyns
+                Preview.dynSequence True dur (Pitch.nn nn) dyns
             where dur = 1
         -- Like calibrate, but create individual samples.  I used this to
         -- create samples with a known dyn for sampler-im.
@@ -93,7 +93,7 @@ main = do
             dyns <- parse dyns
             Preview.renderSamples
                 (calibrateDir </> untxt (InstrumentC._name patch)) patch $
-                Preview.dynSequence dur (Pitch.nn nn) dyns
+                Preview.dynSequence False dur (Pitch.nn nn) dyns
             where dur = 1
         ["render-preview", patch] ->
             Preview.renderPreview =<< getPatch patch patches

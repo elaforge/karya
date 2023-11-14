@@ -86,10 +86,11 @@ pitchToSample imDir patchName =
 nnFilename :: Pitch.NoteNumber -> FilePath
 nnFilename nn = prettys nn <> ".wav"
 
-dynSequence :: RealTime -> Pitch.NoteNumber -> Int -> [(FilePath, Note.Note)]
-dynSequence dur nn dynamics =
+dynSequence :: Bool -> RealTime -> Pitch.NoteNumber -> Int
+    -> [(FilePath, Note.Note)]
+dynSequence sequence dur nn dynamics =
     [ ( prettys nn <> "-" <> showDyn dyn <> ".wav"
-      , makeNote start dur "" dyn nn
+      , makeNote (if sequence then start else 0) dur "" dyn nn
       )
     | (start, dyn) <- zip (Lists.range_ 0 dur) dyns
     ]

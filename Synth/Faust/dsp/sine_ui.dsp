@@ -8,7 +8,7 @@ dyn = hslider("dyn[unit: dB]", 0.75, 0, 1, 0.01);
 gate = button("gate");
 pitch = hslider("pitch[unit: nn]", 440, 1, 1000, 0.01);
 
-smooth = si.smooth(ba.tau2pole(0.03));
+smooth = si.smooth(ba.tau2pole(0.005));
 
 process =
     ((dyn * (gate > 0)) : smooth) * os.osc(ba.midikey2hz(pitch) : smooth);
