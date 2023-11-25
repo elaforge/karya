@@ -749,14 +749,18 @@ silentBlock = V.replicate (framesCount (Proxy @1) blockSize) 0
 -- * conversions
 
 -- | Convert signal multiplier to dB.
-linearToDb :: Float -> Float
+linearToDb :: Floating a => a -> a
 linearToDb x = logBase 10 x * 20
+{-# SPECIALIZE linearToDb :: Float -> Float #-}
+{-# INLINEABLE linearToDb #-}
 
 -- | Convert dB to a signal multiplier.
-dbToLinear :: Float -> Float
+dbToLinear :: Floating a => a -> a
 dbToLinear x = 10**(x / 20)
     -- Here's another way.  Is it faster?  Does it matter?
     -- dbToLinear db = 2**(db * 0.16609640474)
+{-# SPECIALIZE dbToLinear :: Float -> Float #-}
+{-# INLINEABLE dbToLinear #-}
 
 -- * audio util
 

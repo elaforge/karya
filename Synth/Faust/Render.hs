@@ -199,7 +199,7 @@ renderPatch emitMessage patch config mbState notifyState notes start_ =
         silence = Audio.synchronizeToSize 0 (_blockSize config) $
             Audio.takeS (RealTime.to_seconds silenceS) Audio.silence
         firstNote = maybe 0 Note.start $ Lists.head $
-            dropWhile ((==0) . Note.initial0 Control.dynamic) notes
+            dropWhile ((==0) . initialDynamic) notes
         -- Emit silence from the start time until the first note, if there is
         -- any such time.
         silenceF = max 0 $
@@ -419,6 +419,10 @@ tweakNotes controlSize notes = map (\n -> n { Note.start = dt }) at0 ++ rest
     dt = AUtil.toSeconds controlSize
     (at0, rest) = span ((<=0) . Note.start) notes
 
+-- TODO: control breakpoints go through a list, which seems inefficient.  If
+-- deforestation works, they would stream directly to RenderUtil.renderControl,
+-- but it surely doesn't with the intermediate Map.  Would it be worth trying
+-- to pass directly to renderControl?
 controlBreakpoints :: Audio.Frames -> Bool -> Control.Control -> [Note.Note]
     -> [(Double, Double)]
 controlBreakpoints controlSize impulseGate control
@@ -445,7 +449,7 @@ gateBreakpoints controlSize impulseGate =
     impulse = concatMap $ \n ->
         let s = RenderUtil.roundTo controlSizeS (Note.start n)
             e = s + controlSizeS
-            dyn = fromMaybe 0 $ Note.initial Control.dynamic n
+            dyn = initialDynamic n
         in if dyn <= 0 then [] else [(s, 0), (s, dyn), (e, dyn), (e, 0)]
         -- Omit dyn==0 to avoid cancelling a coincident note.  dyn==0 notes are
         -- used to initialized elements.
@@ -458,9 +462,14 @@ gateBreakpoints controlSize impulseGate =
             : (Note.end end, dyn) : (Note.end end, 0)
             : hold rest
         where
-        dyn = fromMaybe 0 $ Note.initial Control.dynamic n
+        dyn = initialDynamic n
         (end : rest) = dropUntil (\n1 n2 -> Note.end n1 < Note.start n2)
             (n:ns)
+
+-- | I used to do Audio.dbToLinear here, but now I handle dB conversion in
+-- faust.
+initialDynamic :: Note.Note -> Double
+initialDynamic = Note.initial0 Control.dynamic
 
 -- | Drop until this element and the next one matches.
 dropUntil :: (a -> a -> Bool) -> [a] -> [a]

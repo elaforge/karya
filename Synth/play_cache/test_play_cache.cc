@@ -130,6 +130,7 @@ compare_samples(const char *fname, int offset, std::unique_ptr<AudioFile> file)
 
     const int frames = 64;
     float samples1[frames*2], samples2[frames*2];
+    float max = 0;
     int unequal = 0, equal = 0;
     for (;;) {
         Frames read1 = file->read(samples1, frames);
@@ -144,6 +145,7 @@ compare_samples(const char *fname, int offset, std::unique_ptr<AudioFile> file)
             break;
 
         for (int i = 0; i < read1; i++) {
+            max = std::max(max, fabs(samples1[i]));
             if (samples1[i] != samples2[i]) {
                 if (unequal < 64)
                     std::cout << i << ": " << samples1[i] << " != "
@@ -158,6 +160,7 @@ compare_samples(const char *fname, int offset, std::unique_ptr<AudioFile> file)
             }
         }
     }
+    std::cout << "max: " << max << '\n';
     std::cout << "equal: " << equal << " unequal: " << unequal << "\n";
     sf_close(sndfile);
     return unequal ? 1 : 0;

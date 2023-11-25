@@ -16,6 +16,7 @@ import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.Map as Map
 import qualified Data.Text.IO as Text.IO
 import qualified System.Directory as Directory
+import qualified System.FilePath as FilePath
 import           System.FilePath ((</>))
 
 import qualified Util.Audio.File as Audio.File
@@ -95,31 +96,40 @@ dynSequence sequence dur nn dynamics =
     | (start, dyn) <- zip (Lists.range_ 0 dur) dyns
     ]
     where
-    dyns = Lists.range 0 1 (1 / (fromIntegral dynamics - 1))
+    dyns = evenDyns dynamics
     showDyn = untxt . Num.zeroPad 3 . round . (*100)
+
+evenDyns :: Int -> [Double]
+evenDyns n = take n (Lists.range_ step step)
+    where step = 1 / fromIntegral n
 
 -- * render
 
 renderSamples :: FilePath -> InstrumentC.Patch -> [(FilePath, Note.Note)]
     -> IO ()
 renderSamples outDir patch fnameNotes = do
+    let fnames = map (txt . FilePath.takeFileName . fst) fnameNotes
+    mapM_ Text.IO.putStrLn $ Texts.columns 2 $
+        zipWith (:) ("fname" : fnames) $
+        showNotes $ map snd fnameNotes
     Directory.createDirectoryIfMissing True outDir
     Thread.forCpu_ fnameNotes $ \(fname, note) ->
         renderNotes (outDir </> fname) patch [note]
 
 renderSequence :: FilePath -> InstrumentC.Patch -> [Note.Note] -> IO ()
 renderSequence outDir patch notes = do
-    mapM_ Text.IO.putStrLn $ showNotes notes
+    mapM_ Text.IO.putStrLn $ Texts.columns 2 $ showNotes notes
     Directory.createDirectoryIfMissing True outDir
     renderNotes
         (outDir </> "calibrate-" <> untxt (InstrumentC._name patch) <> ".wav")
         patch notes
 
-showNotes :: [Note.Note] -> [Text]
-showNotes notes = Texts.columns 2 $ ["time", "dyn"] : map fmt notes
+showNotes :: [Note.Note] -> [[Text]]
+showNotes notes = ["n", "time", "dyn"] : zipWith fmt [0..] notes
     where
-    fmt n =
-        [ RealTime.show_units (Note.start n)
+    fmt (i :: Int) n =
+        [ Num.zeroPad 2 i
+        , RealTime.show_units (Note.start n)
         , pretty $ Note.initial Control.dynamic n
         ]
 

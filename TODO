@@ -19,9 +19,9 @@ current:
     record samples:
       + gender panerus
       - gender barung
-      - slenthem
+      * slenthem
       - saron
-      - kenong
+      + kenong
       - gong
       - gambang?
       - bonang?
@@ -182,6 +182,8 @@ sketch:
   2 6 1 6 5 56 61 12 23 5 5 353 2 2 121
 
 UNSORTED
+  - faust-im: I think I translate sine_ui to sine-ui, why not make them the
+    same?
   - bug: Insert mode gets stuck with:
     . fltk/TrackTile.cc:165 TrackTile::floating_insert called but no open
       input: (5e#)
@@ -2456,13 +2458,69 @@ instruments:
           1 though.
         . Can I isolate this one sample?  There must be something different
           about it.  The one at 15s with supposedly identical env is much
-          qieter.
-        . Now it winds up with ones on 3, 10, 13, 16 !?
-          Maybe a bug in mixdown not understanding emply blocks?
-        . Indeed it was.
+          quieter.
       - I can verify if the auto dyn difference is ok by making samples
         that are known to be evenly increasing, say generated sine wave.
+        . Maybe I can also line it up with samples to find their dyn.
+        . Definitely wrong.
+        ? Do linear increasing dyn sines sound linear?
+          Yes, except seems to not go to low dyn.
+        ? Can I adjust them to the same dyn with the dyn difference?
+          Adding the 1+ difference totally overkill.
+          So I have -96 dB - 0 dB.  So 0.60 is -38.4 dB, 0.01202
+          1 is 1.0.  Diff is 0.40.
+          Adding dB same as multiplying?
+        . What to multiply signal at -38.4 dB so it gets to 0 dB?
+        . What does VU meter say in reaper?
+          5s is -12dB.  This is 006 which is dyn 0.24, which is -72.96 dB?
+        . -27.8, -21.84, -18.33, ... 0
+        . So I ask faust for dB and get?
+          .48 according to reaper is -6.33 dB
+          scale (-96) 0 0.48 = -49.92 dB
+          expected peak is: dbToLinear 0.48 = 0.0031915375
+          actual peak: 0.48.  0.48 in dB is -6.375
+        . Looks like faust is linear.  Indeed no dbToLinear in there.
+          Should I do it in faust?
+          I would have to code in the -96 - 0.
+        . Looks like faust instruments expect dyn and gate in linear.  So
+          should convert in haskell.
+        . Ok this is finally right, but it only really gets usable at 0.6.
+          On the other hand, it is good to be able to go to 0.
+        . But using linear means 0.05 is -25dB which is still quite loud, and
+          the upper half from about 0.5 up is all very close.
+        . What do other synthesizers do?
+          kontakt:
+            . Has a velocity sensitivity from 0 to 100:
+              diffs xs = zipWith (flip (-)) xs (tail xs)
+              0:   [  -6  ,  -6  ,  -6  ,  -6,   -6 ] -> 0
+              25:  [ -13.4, -11.4,  -9.4,  -7.7, -6 ] -> 2, 2, 1.7, 1.7
+              50:  [ -24  , -18.3, -13.5,  -9.5, -6 ] -> 5.7, 4.8, 4, 3.5
+              75:  [ -41.5, -27.4, -18  , -11.4, -6 ] -> 14.1, 9.4, 6.6, 5.4
+              90:  [ -64.6, -35.2, -21.4, -12.7, -6 ] -> 29.4, 13.8, 8.7, 6.7
+              100: [-131  , -41  , -23.7, -13.5, -6 ] -> 90, 17, 10, 7.5
+            . So there's also a curve with how it responds to velocity.
+              But you can also draw your own velocity curve.
 
+        . Is there material on perceptual loudness?
+          https://www.dr-lex.be/info-stuff/volumecontrols.html
+        . For the ratio A between two amplitudes, the formula is 20·log10(A)
+        . If we go 30dB to 90dB, that's -60..0
+        . linear rolloff so I can get to 0: if(x < .1) ampl = x*10*a*exp(0.1*b);
+        * faust-im should apply db to the whole signal, not just breakpoints.
+          More efficient to do it in faust?
+          . Maybe it's better anyway, it feels arbitrary how I transform
+            dynamic and volume, where only the patch itself really knows
+            what dynamic is intended for.  I suppose volume should be
+            implemented universally, and use dB, while dynamic should be
+            handled by the patch.  If it's a physical model, it wouldn't use
+            directly amplitude at all.
+          . But this means I have to hardcode Control.minimumDb in all the
+            faust patches.  It's not bad when I have none, but I should
+            run CPP universally on them and inject such constants.
+        - Measure sampler-im against sine wave 1.
+          . Make sure it has the same response as faust-im.
+        - Measure dB changes in sampler-im.
+          . I should be able to change a sample with dB n to m by adding dB.
     siter:
       - record +open
         . If I record strings individually could I adjust tuning that way?
