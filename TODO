@@ -182,6 +182,9 @@ sketch:
   2 6 1 6 5 56 61 12 23 5 5 353 2 2 121
 
 UNSORTED
+  - sampler-im, faust-im: make separate newtypes for musical Dynamic,
+    AbsoluteDynamic (maps -96 - 0), dB, Linear?
+    . Hopefully can elide some of those.
   - faust-im: I think I translate sine_ui to sine-ui, why not make them the
     same?
   - bug: Insert mode gets stuck with:
@@ -266,7 +269,7 @@ UNSORTED
     . Happens even when volume is lower, where is the clipping happening?
     . Actually looks like the sample is distorted, just hard to hear at
       full volume (?)
-  - sampler-im: try mixing variations between dyn splits, since there is much
+  * sampler-im: try mixing variations between dyn splits, since there is much
     timbral variation
   - selections, both insert and subblock position, can be very hard to see
   - subblock position only shows where there are notes
@@ -2500,7 +2503,6 @@ instruments:
               100: [-131  , -41  , -23.7, -13.5, -6 ] -> 90, 17, 10, 7.5
             . So there's also a curve with how it responds to velocity.
               But you can also draw your own velocity curve.
-
         . Is there material on perceptual loudness?
           https://www.dr-lex.be/info-stuff/volumecontrols.html
         . For the ratio A between two amplitudes, the formula is 20·log10(A)
@@ -2517,10 +2519,38 @@ instruments:
           . But this means I have to hardcode Control.minimumDb in all the
             faust patches.  It's not bad when I have none, but I should
             run CPP universally on them and inject such constants.
-        - Measure sampler-im against sine wave 1.
+        * Measure sampler-im against sine wave 1.
           . Make sure it has the same response as faust-im.
-        - Measure dB changes in sampler-im.
+          . 19 is -23 dB, 60nn-076.wav, 0.76 dyn, -23dB.  So correct.
+          . Calibrate them to 1.
+        * Measure dB changes in sampler-im.
           . I should be able to change a sample with dB n to m by adding dB.
+          . Works!
+        * Substitution should work.
+          . 48s -19.11.  Asked for 0.8 dyn, -19.2 dB.
+          . 52s -12.7, 0.866 dyn = -12.86
+          . Does seem to work, but most of the lower end is too quiet.
+          . This means the actual range of usable dyns is
+            32s - 1:00, 0.5 - 1 dyn
+          . So I will want to map musical dyn to that range.
+            But calibration I think should be in full-range dB.
+            In that case, why not use dB directly?  The point of mapping dyn
+            is for musical range, so it should always be logical.  When
+            we calibrate, we use absolute dB.
+          . The reason is I want to be able to adjust the dB range per
+            instrument, and don't want all my calibration to get messed up
+            by changing the base.
+          . But that's not really what notes are, they don't have constant dB
+            like a sine wave.
+          . Ok so I want to map reyong strokes to dB.  evenDyns is totally
+            wrong because we really start at 0.6 or something.
+          . What if I did just measure dB via normalize?
+          . Seems to work, but I get no samples at low dyn.  Pick the lowest
+            and scale?
+          . Also range seems too great and weights wrong, at dyn=1 I get
+            11-19, and skip 18, which is an exact match.
+        - I need an extra step to map dyn to useful range.  This is also
+          per-patch, but should have a preset.
     siter:
       - record +open
         . If I record strings individually could I adjust tuning that way?

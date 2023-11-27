@@ -15,6 +15,7 @@ import qualified Util.Audio.Resample as Resample
 import qualified Util.Lists as Lists
 
 import qualified Derive.Attrs as Attrs
+import qualified Derive.ScoreT as ScoreT
 import qualified Perform.RealTime as RealTime
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Sampler.Patch.Lib.Util as Util
@@ -45,9 +46,10 @@ var = "var"
 data By = Attr | Pitch | Dyn | Var
     deriving (Show, Read)
 
-sequence :: By -> Note.PatchName -> RealTime -> [Attrs.Attributes]
-    -> [Note.Element] -> Signal.Y -> Signal.Y -> [Note.Note]
-sequence by patch dur attrs pitches variations dynamics =
+sequence :: ScoreT.Instrument -> By -> Note.PatchName -> RealTime
+    -> [Attrs.Attributes] -> [Note.Element] -> Signal.Y -> Signal.Y
+    -> [Note.Note]
+sequence inst by patch dur attrs pitches variations dynamics =
     zipWith setStart (Lists.range_ 0 dur) $ case by of
         -- Basic order is [attr, pitch, dyn, var] but the comparison axis
         -- goes to the end.  The order is in perceptual "size" but is somewhat
@@ -84,7 +86,7 @@ sequence by patch dur attrs pitches variations dynamics =
     vars = Lists.range 0 1 (1 / (variations-1))
     dyns = Lists.range 0 1 (1 / (dynamics-1))
     setStart start note = note { Note.start = start }
-    make element dyn var attr = (Note.note patch "inst" 0 dur)
+    make element dyn var attr = (Note.note patch inst 0 dur)
         { Note.element = element
         , Note.attributes = attr
         , Note.duration = dur
@@ -123,6 +125,7 @@ renderDirect :: FilePath -> Maybe Audio.Seconds -> [(RealTime, Sample.Sample)]
     -> IO ()
 renderDirect filename dur samples = do
     audios <- mapM render samples
+    putStrLn $ "renderDirect to " <> filename
     Resource.runResourceT $
         Audio.File.write AUtil.outputFormat filename $
         maybe id Audio.takeS dur $ Audio.mix audios

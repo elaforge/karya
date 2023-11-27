@@ -103,7 +103,7 @@ applyEnvelope :: IO () -> RealTime -> Signal.Signal -> AUtil.Audio
 applyEnvelope close start sig
     | Just val <- Signal.constant_val_from start sig =
         if ApproxEq.eq 0.01 val 1 then id
-            else Audio.gain (AUtil.dbToLinear (Num.d2f val))
+            else Audio.gain (AUtil.dynToLinear (Num.d2f val))
     | otherwise = AUtil.volume $ clipEnd $ realizeSignal start sig
     where
     clipEnd = maybe id

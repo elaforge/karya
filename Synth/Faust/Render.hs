@@ -466,7 +466,7 @@ gateBreakpoints controlSize impulseGate =
         (end : rest) = dropUntil (\n1 n2 -> Note.end n1 < Note.start n2)
             (n:ns)
 
--- | I used to do Audio.dbToLinear here, but now I handle dB conversion in
+-- | I used to do AUtil.dynToLinear here, but now I handle dB conversion in
 -- faust.
 initialDynamic :: Note.Note -> Double
 initialDynamic = Note.initial0 Control.dynamic

@@ -16,7 +16,8 @@ module Synth.Lib.AUtil (
     , outputFormat
     , catchSndfile
     -- * dB
-    , dbToLinear
+    , dynToLinear, dynToLinearD
+    , dbToDyn
     , volume
 ) where
 import qualified Control.Exception as Exception
@@ -64,12 +65,19 @@ catchSndfile :: IO a -> IO (Either Text a)
 catchSndfile = fmap try . Exception.try
     where try = either (Left . txt . Sndfile.errorString) Right
 
--- | Convert a volume in dB to linear.
-dbToLinear :: Float -> Float
-dbToLinear = Audio.dbToLinear . Num.scale (Num.d2f Control.minimumDb) 0
+-- | Convert a volume in dyn units to linear.  Dyn units go from 0 to 1,
+-- where 0 is Control.minimumDb and 1 is 0.
+dynToLinear :: Float -> Float
+dynToLinear = Audio.dbToLinear . Num.scale (Num.d2f Control.minimumDb) 0
+
+dynToLinearD :: Double -> Double
+dynToLinearD = Audio.dbToLinear . Num.scale Control.minimumDb 0
+
+dbToDyn :: Double -> Double
+dbToDyn = Num.normalize Control.minimumDb 0
 
 volume :: Audio1 -> Audio -> Audio
-volume = Audio.multiply . Audio.expandChannels . Audio.mapSamples dbToLinear
+volume = Audio.multiply . Audio.expandChannels . Audio.mapSamples dynToLinear
 
 -- * debug
 

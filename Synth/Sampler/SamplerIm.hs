@@ -98,12 +98,17 @@ main = do
             let dur = 1
             let vars = 4
             let dyns = 16
-            let notes = Calibrate.sequence (parseBy by) (txt patch) dur
+            let notes = Calibrate.sequence "inst" (parseBy by) (txt patch) dur
                     (parseAttrs (txt attrs)) (map txt pitches) vars dyns
             dumpSamples PatchDb.db notes
+            -- 'process' will cache in this directory.  However, it won't
+            -- notice changes to the code, which I may be testing.  So remove
+            -- it each time to avoid confusion.
+            let cacheDir = calibrateDir </> "inst"
+            Directory.removeDirectoryRecursive cacheDir
             process emitProgress PatchDb.db quality notes calibrateDir
-            putStrLn $ "write to " <> calibrateWav
-            Mix.mix calibrateWav [calibrateDir </> "inst"]
+            putStrLn $ "mix to " <> calibrateWav
+            Mix.mix calibrateWav [cacheDir]
         ["calibrate-var", patchName, start, len] -> do
             start <- parseInt start
             len <- parseInt len
@@ -148,7 +153,7 @@ dynamicTweaks = Map.fromList
     ]
 
 calibrateVar :: FilePath -> Note.PatchName -> Int -> Int -> IO ()
-calibrateVar calibrateWav patchName start len = do
+calibrateVar outWav patchName start len = do
     -- Directly play the underlying samples.  Use to calibrate
     -- variations.
     let dur = 1
@@ -165,8 +170,8 @@ calibrateVar calibrateWav patchName start len = do
         [ [RealTime.show_units t, txt fn, pretty dyn]
         | (t, (fn, dyn)) <- zip (Lists.range_ 0 dur) fnameDyns
         ]
-    Calibrate.renderSequence calibrateWav dur
-        (map (first (sampleToPath PatchDb.db patch)) fnameDyns)
+    Calibrate.renderSequence outWav dur $
+        map (first (sampleToPath PatchDb.db patch)) fnameDyns
 
 sampleToPath :: Patch.Db -> Patch.Patch -> Sample.SamplePath -> FilePath
 sampleToPath db patch fn = Patch._rootDir db </> Patch._dir patch </> fn

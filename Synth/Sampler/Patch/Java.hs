@@ -5,10 +5,10 @@
 {-# LANGUAGE StrictData #-}
 -- | Javanese gamelan instruments.
 module Synth.Sampler.Patch.Java (patches) where
-import qualified Data.Vector.Unboxed as Unboxed
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
+import qualified Data.Vector.Unboxed as Unboxed
 
 import           System.FilePath ((</>))
 
@@ -23,6 +23,7 @@ import qualified Derive.Scale as Scale
 
 import qualified Instrument.Common as Common
 import qualified Perform.Pitch as Pitch
+import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Patch.Lib.Bali as Lib.Bali
 import qualified Synth.Sampler.Patch.Lib.Drum as Drum
@@ -255,14 +256,14 @@ kenong :: Instrument
 kenong = Instrument
     { name = "kenong"
     , variations = VarDyns varDyns
-    , tuning = Map.fromList $ zip (map (Pitch 3) [P1, P2, P3, P5, P6, P7])
+    , tuning = Map.fromList $ zip (filter (not . is4) [Pitch 3 P2 ..])
         -- TODO copy pasted from Scale.Java, retune from samples
-        [ 62.18 -- 31
-        , 63.65 -- 32
+        [ 63.65 -- 32
         , 65    -- 33
         , 69.05 -- 35
         , 70.5  -- 36
         , 72.14 -- 37
+        , 74.25 -- 41 1 approx
         ]
     , dynamicTweaks = mempty
     , articulations = Set.fromList [Open, Mute, MuteLoose]
@@ -270,19 +271,85 @@ kenong = Instrument
     where
     varDyns = oneOctave $ \case
         Open -> \case
-            P7 -> evenDyns 19
+            P7 -> fromDbs
+                [ -36.6839
+                , -31.3895
+                , -30.0015
+                , -24.4858
+                , -18.1833
+                , -19.8991
+                , -18.0129
+                , -15.8150
+                , -10.2637
+                , -10.2784
+                , -11.2703
+                , -7.5212
+                , -5.3331
+                , -5.0327
+                , -1.3736
+                , -2.4583
+                , -0.9238
+                , 0
+                , 0
+                ]
             _ -> mempty
         MuteLoose -> \case
-            P7 -> evenDyns 17
+            P7 -> fromDbs
+                [ -49.4809
+                , -44.9185
+                , -41.0908
+                , -39.0391
+                , -34.4190
+                , -30.7726
+                , -27.6380
+                , -30.5912
+                , -18.4120
+                , -12.0102
+                , -10.1257
+                , -6.5167
+                , -5.5805
+                , -2.4116
+                , -0.7634
+                , -0.0027
+                , 0.0000
+                ]
             _ -> mempty
         Mute -> \case
-            P7 -> evenDyns 22
+            P7 -> fromDbs
+                [ -50.3090
+                , -48.3705
+                , -38.4874
+                , -39.3042
+                , -28.8344
+                , -28.4965
+                , -27.9170
+                , -23.5516
+                , -18.3966
+                , -16.8538
+                , -17.1638
+                , -17.3493
+                , -8.7410
+                , -4.7008
+                , -7.9078
+                , -6.9082
+                , -2.2821
+                , -0.0029
+                , -0.0003
+                , 0.0000
+                , 0.0000
+                , 0.0000
+                ]
             _ -> mempty
         Character -> const mempty
 
 oneOctave :: (Articulation -> PitchClass -> Unboxed.Vector Util.Dyn)
     -> VarDyns
 oneOctave f art (Pitch _ pc) = f art pc
+
+-- | From dBFS numbers, which should be negative, where 0 is full volume.
+-- via 'normalize --no-adjust *', pick 'peak' numbers.
+fromDbs :: [Double] -> Unboxed.Vector Util.Dyn
+fromDbs = Unboxed.fromList . map AUtil.dbToDyn
 
 evenDyns :: Int -> Unboxed.Vector Util.Dyn
 evenDyns n = Unboxed.fromList $ take n (Lists.range_ step step)
@@ -318,7 +385,8 @@ makePatch inst = (Patch.patch name)
     -- %character at 0 never adds +character, at 1 always adds it
     attributeMap = Common.attribute_map $
         filter ((`Set.member` articulations) . snd)
-            [ (Attrs.mute, Mute)
+            [ (Attrs.mute <> Attrs.loose, MuteLoose)
+            , (Attrs.mute, Mute)
             , (Attrs.attr "character", Character)
             , (mempty, Open)
             ]
@@ -349,6 +417,12 @@ data Articulation = Open
     | Character -- ^ peking have character
     deriving (Show, Eq, Ord, Enum, Bounded)
 
+isMute :: Articulation -> Bool
+isMute = \case
+    Mute -> True
+    MuteLoose -> True
+    _ -> False
+
 convert :: Instrument -> Common.AttributeMap Articulation -> Note.Note
     -> Patch.ConvertM Sample.Sample
 convert inst attrMap note = do
@@ -362,7 +436,7 @@ convert inst attrMap note = do
         + Util.dbToDyn (Map.findWithDefault 0 fname dynamicTweaks)
     return $ (Sample.make fname)
         { Sample.envelope = if
-            | art == Mute -> Signal.constant dynVal
+            | isMute art -> Signal.constant dynVal
             | otherwise -> Lib.Bali.variableMuteEnv dynVal note
         , Sample.ratios = Signal.constant $ Sample.pitchToRatio sampleNn noteNn
         }
@@ -382,17 +456,17 @@ convertFixedDyn fixedDyns dynamic pitch art note =
 convertVarDyn :: VarDyns -> Pitch -> Articulation -> Note.Note
     -> Maybe (Sample.SamplePath, Util.Dyn)
 convertVarDyn varDyns pitch art note =
-    -- fmap (const 1) <$> Drum.pickDynWeighted varRange fnames
     Drum.pickDynWeighted varRange fnames
         (Note.initial0 Control.dynamic note)
         (Note.initial0 Control.variation note)
     where
-    -- TODO hardcoded varRange is ok?
-    varRange = 0.25
+    -- It depends on the timbre variation over dynamics.  That actually
+    -- changes, so I'd need a variable one of these, but too complicated.
+    varRange = 0.1
     dyns = varDyns art pitch
-    fnames = zip
+    -- TODO is it worth it to put the Map in a CAF?
+    fnames = Maps.multimap $ zip (Unboxed.toList dyns)
         (map (unparseFilenameVarDyn pitch art) [1 .. Unboxed.length dyns])
-        (Unboxed.toList dyns)
 
 -- TODO similar to Rambat.findPitch, except no umbang/isep
 findPitch :: Tuning -> Either Pitch.Note Pitch.NoteNumber

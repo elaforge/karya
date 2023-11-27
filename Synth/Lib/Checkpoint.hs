@@ -163,7 +163,7 @@ write emitProgress outputDir trackIds skippedCount chunkSize hashes getState
         pretty (AUtil.toSeconds frame) <> ": sample " <> pretty val <> " > "
         <> pretty maxLevel <> ", this may causae a DAW to automute"
         -- At least Reaper does this.
-    maxLevel = 1
+    maxLevel = 1.15
     emit payload = Config.emitMessage $ Config.Message
         { _blockId = Config.pathToBlockId outputDir
         , _trackIds = trackIds

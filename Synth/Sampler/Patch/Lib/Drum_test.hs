@@ -1,4 +1,11 @@
+-- Copyright 2023 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 module Synth.Sampler.Patch.Lib.Drum_test where
+import qualified Data.Map as Map
+
+import qualified Util.Maps as Maps
 import qualified Synth.Sampler.Patch.Lib.Drum as Drum
 
 import           Global
@@ -14,10 +21,10 @@ test_pickWeighted = do
 
 test_pickDynWeighted :: Test
 test_pickDynWeighted = do
-    let samples = zip ['a'..'z'] [0, 0.125 .. 1]
+    let samples = Maps.multimap $ zip [0, 0.125 .. 1] ['a'..'z']
     let f dyn var = fromMaybe (' ', 0) $
             Drum.pickDynWeighted 0.25 samples dyn var
-    putStrLn $ unwords [c : ' ' : show n | (c, n) <- samples]
+    putStrLn $ unwords [c <> " " <> show n | (n, c) <- Map.toList samples]
     equal (map (f 0.5) [0, 0.125 .. 1]) $ concat
         [ replicate 2 ('d', 1.125)
         , replicate 4 ('e', 1)
@@ -26,3 +33,12 @@ test_pickDynWeighted = do
     equal (map (fst . f 0.24) [0, 0.125 .. 1]) "abbccccdd"
     equal (map (fst . f 0.0) [0, 0.125 .. 1]) "aaaaaabbb"
     equal (map (fst . f 1.0) [0, 0.125 .. 1]) "hhhiiiiii"
+
+test_pickDynWeighted_out_of_range :: Test
+test_pickDynWeighted_out_of_range = do
+    let samples = Maps.multimap $ zip [0.5, 1, 1, 1] ['a'..'z']
+    let f dyn var = fromMaybe (' ', 0) $
+            Drum.pickDynWeighted 0.25 samples dyn var
+    putStrLn $ unwords [c <> " " <> show n | (n, c) <- Map.toList samples]
+    equal [[fst (f dyn var) | var <- [0, 0.25 .. 1]] | dyn <- [0, 0.25 .. 1]]
+        ["aaaaa", "aaaaa", "aaaaa", "aaaaa", "bbcdd"]

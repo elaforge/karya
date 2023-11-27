@@ -143,7 +143,7 @@ variableDynamic variationRange articulationSamples = \art dyn var ->
 
 -- | See 'pickDynWeighted'.
 variableDynamicWeighted :: Show art => Signal.Y
-    -> (art -> [(FilePath, Util.Dyn)])
+    -> (art -> Map Util.Dyn [FilePath])
     -> (art -> Util.Dyn -> Signal.Y -> (Maybe FilePath, Maybe a))
     -- ^ Maybe is unused, it's for compatibility with '_getFilename'
 variableDynamicWeighted varRange articulationSamples = \art dyn var ->
@@ -179,12 +179,12 @@ variableDynamicWeighted varRange articulationSamples = \art dyn var ->
 
     Precondition: samples must be sorted by Util.Dyn.
 -}
-pickDynWeighted :: Double -> [(a, Util.Dyn)] -> Util.Dyn -> Double
+pickDynWeighted :: Double -> Map Util.Dyn [a] -> Util.Dyn -> Double
     -> Maybe (a, Util.Dyn) -- ^ selected a and Dyn to get it to requested Dyn
 pickDynWeighted varRange samples dyn var =
-    second adjust <$> pickWeighted (var * sum) weighted
+    adjust <$> pickWeighted (var * sum) weighted
     where
-    adjust sdyn = 1 + (dyn - sdyn)
+    adjust (a, sdyn) = (a, 1 + (dyn - sdyn))
     sum = Num.sum (map snd weighted)
     weighted = annotateDyn maxProb varRange samples dyn
     maxProb = 0.75
@@ -198,17 +198,21 @@ pickWeighted val = go 0
         | val < sum + n = Just a
         | otherwise = go (sum + n) as
 
--- | Precondition: samples must be sorted by Util.Dyn.
-annotateDyn :: Double -> Double -> [(a, Util.Dyn)] -> Util.Dyn
+annotateDyn :: Double -> Double -> Map Util.Dyn [a] -> Util.Dyn
     -> [((a, Util.Dyn), Double)]
-annotateDyn maxProb varRange samples dyn = map annotate inRange
+annotateDyn maxProb varRange samples dyn = map annotate candidates
     where
-    annotate (a, sdyn) =
+    annotate (sdyn, a) =
         ( (a, sdyn)
         , maxProb * (1 - Num.normalize 0 varRange (abs (dyn - sdyn)))
         )
-    inRange = takeWhile ((< (dyn + varRange)) . snd) $
-        dropWhile ((<= (dyn - varRange)) . snd) samples
+    candidates
+        | null inRange = maybe [] (fix . (:[])) $ Maps.lookupClosest dyn samples
+        | otherwise = fix inRange
+        where
+        inRange = Map.toAscList $
+            Maps.within (dyn - varRange) (dyn + varRange) samples
+        fix = concatMap (\(k, vs) -> map (k,) vs)
 
 
 -- | Pick from a list of dynamic variations.  This assumes the samples

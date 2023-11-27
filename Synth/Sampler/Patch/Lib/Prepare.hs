@@ -11,6 +11,7 @@ import qualified Data.Text.IO as Text.IO
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import           System.FilePath ((</>))
+import qualified System.Posix.Files as Posix.Files
 
 import qualified Text.Read as Read
 
@@ -110,13 +111,18 @@ printIndices level fnames = do
 
 -- * filesystem
 
--- | Do the given renames with symlinks links into a different directory, so
--- it's non-destructive.
+-- | Do the given renames with hard links into a different directory, so it's
+-- non-destructive.
 relink :: FilePath -> FilePath -> FilePath -> [(FilePath, FilePath)] -> IO ()
 relink baseDir fromDir toDir = mapM_ link
     where
-    link (old, new) = Directory.createFileLink (baseDir </> fromDir </> old)
+    link (old, new) = Posix.Files.createLink (baseDir </> fromDir </> old)
         (baseDir </> toDir </> new)
+
+renameInPlace :: FilePath -> [(FilePath, FilePath)] -> IO ()
+renameInPlace dir = mapM_ move
+    where
+    move (old, new) = Directory.renameFile (dir </> old) (dir </> new)
 
 -- | Generate renames list, matching names against dir contents.
 renames :: FilePath -> [FilePath] -> IO [(FilePath, FilePath)]
