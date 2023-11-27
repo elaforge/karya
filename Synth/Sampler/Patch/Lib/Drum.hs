@@ -181,12 +181,12 @@ variableDynamicWeighted varRange articulationSamples = \art dyn var ->
 -}
 pickDynWeighted :: Double -> Map Util.Dyn [a] -> Util.Dyn -> Double
     -> Maybe (a, Util.Dyn) -- ^ selected a and Dyn to get it to requested Dyn
-pickDynWeighted varRange samples dyn var =
+pickDynWeighted varRange dynSamples dyn var =
     adjust <$> pickWeighted (var * sum) weighted
     where
     adjust (a, sdyn) = (a, 1 + (dyn - sdyn))
     sum = Num.sum (map snd weighted)
-    weighted = annotateDyn maxProb varRange samples dyn
+    weighted = annotateDyn maxProb varRange dynSamples dyn
     maxProb = 0.75
 
 pickWeighted :: Double -> [(a, Double)] -> Maybe a
@@ -200,18 +200,19 @@ pickWeighted val = go 0
 
 annotateDyn :: Double -> Double -> Map Util.Dyn [a] -> Util.Dyn
     -> [((a, Util.Dyn), Double)]
-annotateDyn maxProb varRange samples dyn = map annotate candidates
+annotateDyn maxProb varRange dynSamples dyn = map annotate candidates
     where
     annotate (sdyn, a) =
         ( (a, sdyn)
         , maxProb * (1 - Num.normalize 0 varRange (abs (dyn - sdyn)))
         )
     candidates
-        | null inRange = maybe [] (fix . (:[])) $ Maps.lookupClosest dyn samples
+        | null inRange =
+            maybe [] (fix . (:[])) $ Maps.lookupClosest dyn dynSamples
         | otherwise = fix inRange
         where
         inRange = Map.toAscList $
-            Maps.within (dyn - varRange) (dyn + varRange) samples
+            Maps.within (dyn - varRange) (dyn + varRange) dynSamples
         fix = concatMap (\(k, vs) -> map (k,) vs)
 
 
@@ -378,8 +379,8 @@ stopMap artToGroup closedOpens =
     Map.fromList $ filter (not . Set.null . snd) $
         map (fmap groupToStops) artToGroup
     where
-    groupToStops =
-        Set.fromList . concatMap (Maps.getM toArts) . Maps.getM toStops
+    groupToStops = Set.fromList
+        . concatMap (flip Maps.getM toArts) . flip Maps.getM toStops
     toArts = Maps.multimap (map Tuple.swap artToGroup)
     toStops = Maps.multimap
         [ (open, closed)
@@ -402,7 +403,7 @@ inferEnd smap note nexts =
         Nothing -> Sample.forever
         Just stop -> Note.start stop
     where
-    stops = maybe mempty (Maps.getM smap.stops) (noteArt note)
+    stops = maybe mempty (flip Maps.getM smap.stops) (noteArt note)
     noteArt = fmap snd . (`Common.lookup_attributes` smap.attributeMap)
         . Note.attributes
 

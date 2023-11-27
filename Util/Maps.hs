@@ -19,8 +19,8 @@ import qualified Util.Lists as Lists
 import           Data.Function (on)
 
 
-getM :: (Ord k, Monoid a) => Map k a -> k -> a
-getM m k = Map.findWithDefault mempty k m
+getM :: (Ord k, Monoid a) => k -> Map k a -> a
+getM k m = Map.findWithDefault mempty k m
 
 filterKey :: (k -> Bool) -> Map k a -> Map k a
 filterKey f = Map.filterWithKey (\k _ -> f k)

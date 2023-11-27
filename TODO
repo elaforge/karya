@@ -182,11 +182,6 @@ sketch:
   2 6 1 6 5 56 61 12 23 5 5 353 2 2 121
 
 UNSORTED
-  - sampler-im, faust-im: make separate newtypes for musical Dynamic,
-    AbsoluteDynamic (maps -96 - 0), dB, Linear?
-    . Hopefully can elide some of those.
-  - faust-im: I think I translate sine_ui to sine-ui, why not make them the
-    same?
   - bug: Insert mode gets stuck with:
     . fltk/TrackTile.cc:165 TrackTile::floating_insert called but no open
       input: (5e#)
@@ -2421,6 +2416,43 @@ vector: performance:
 
 instruments:
   sampler-im: java:
+    dynamics:
+      * Put Map [Util.Dyn] [a] into VarDyn, so it gets cached.
+        . For this I think VarDyn should become
+          Map Articulation (Map Pitch [Util.Db])
+          So I can transform to
+          Map Articulation (Map Pitch (Map Util.Db [SamplePath]))
+        . Why did I use the function?  I think so it's easier to do pattern
+          matches for duplicate values?
+          No, because it has nice syntax for sparse things, and completion
+          checking... though that mostly doesn't work because I don't have
+          patch-specific Articulation.
+          So, it's all about the syntax then.  But it has the annoyance that
+          I have to do _ -> const mempty for unused Articulation.
+        . Then need (pitch, art) for
+          fnames = Maps.multimap $ zip (Unboxed.toList dyns)
+            (map (unparseFilenameVarDyn pitch art) [1 .. Unboxed.length dyns])
+        . Do I want to use Db all the way through?
+          . It seems good because I can get rid of the AbsoluteDyn as much as
+            possible.
+          . That means varRange is in dB instead of Dyn.
+          . But I use Dyn for: adjust (a, sdyn) = (a, 1 + (dyn - sdyn))
+          . I want n such that: n + dyn = sdyn
+          . Is it not: sdyn - dyn?
+          . No, because I need to add (dyn-sdyn) to unity, since sdyn is the
+            dyn you get at unity with that sample.
+          . With dB I want to get a dB out, then convert MusicDyn to dB,
+            then add the dBs, then dbToLinear.
+          . So I think I need to take dB all the way down to env, and
+            then do dbToLinear without the AbsoluteDyn at all.  The -96 range
+            would be encoded in the initial Dyn -> dB mapping.
+          . This sounds good because AbsoluteDyn is gone, but it belongs in
+            the separate Dyn mapping, and may change all patches.
+      - I need an extra step to map dyn to useful range.  This is also
+        per-patch, but should have a preset.
+      - sampler-im, faust-im: make separate newtypes for musical Dynamic,
+        AbsoluteDynamic (maps -96 - 0), dB, Linear?
+        . Hopefully can elide some of those.
     - wayang: noise reduction
     - wayang +calung: fix clunk
     - rambat: noise reduction
@@ -2448,8 +2480,12 @@ instruments:
       - +open dyn
       - tuning (but just for 1s)
     kenong:
+      - 32 33 35 37
+      * 37
+      - 41
+      - kethuk, kempyang
       * setup for variable dynamic
-      - dynamics wrong
+      * dynamics wrong
         . 009.wav .792 then 002.wav 1.228, 002 winds up much louder than 009.
         . Either the dyn adjustment is wrong, or evenDyns incorrect.
         . 002 is .105, 009 is .473
@@ -2462,7 +2498,7 @@ instruments:
         . Can I isolate this one sample?  There must be something different
           about it.  The one at 15s with supposedly identical env is much
           quieter.
-      - I can verify if the auto dyn difference is ok by making samples
+      * I can verify if the auto dyn difference is ok by making samples
         that are known to be evenly increasing, say generated sine wave.
         . Maybe I can also line it up with samples to find their dyn.
         . Definitely wrong.
@@ -2549,8 +2585,6 @@ instruments:
             and scale?
           . Also range seems too great and weights wrong, at dyn=1 I get
             11-19, and skip 18, which is an exact match.
-        - I need an extra step to map dyn to useful range.  This is also
-          per-patch, but should have a preset.
     siter:
       - record +open
         . If I record strings individually could I adjust tuning that way?

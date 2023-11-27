@@ -8,7 +8,6 @@ module Synth.Sampler.Patch.Java (patches) where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
-import qualified Data.Vector.Unboxed as Unboxed
 
 import           System.FilePath ((</>))
 
@@ -56,7 +55,20 @@ data Variations =
     FixedDyns FixedDyns (Dynamic -> (Util.Dyn, (Util.Db, Util.Db)))
     | VarDyns VarDyns
 type FixedDyns = Articulation -> (Pitch, Util.Dynamic) -> Util.Variation
-type VarDyns = Articulation -> Pitch -> Unboxed.Vector Util.Dyn
+
+-- TODO convert from Dyn to Db
+type VarDyns = Map Pitch (Map Articulation (Map Util.Dyn [Sample.SamplePath]))
+
+-- | dB from dBFS numbers, which should be negative, where 0 is full volume.
+-- via 'normalize --no-adjust *', pick 'peak' numbers.
+makeVarDyns :: [(Pitch, [(Articulation, [Util.Db])])] -> VarDyns
+makeVarDyns pitchArtDbs = Map.fromList
+    [ (pitch, Map.fromList [(art, make pitch art dbs) | (art, dbs) <- arts])
+    | (pitch, arts) <- pitchArtDbs
+    ]
+    where
+    make pitch art dbs = Maps.multimap $ zip (map AUtil.dbToDyn dbs)
+        (map (unparseFilenameVarDyn pitch art) [1 .. length dbs])
 
 type Tuning = Map Pitch Pitch.NoteNumber
 
@@ -248,9 +260,37 @@ peking = Instrument
         -- MF -> (0.75, (-4, 6))
         -- FF -> (1, (-4, 2))
 
+{-
+calibrateSine :: Instrument
+calibrateSine = Instrument
+    { name = "sine"
+    , variations = VarDyns varDyns
+    , tuning = Map.fromList [(Pitch 3 P1, 60)]
+    , dynamicTweaks = mempty
+    , articulations = Set.fromList [Open]
+    }
+    where
+    varDyns Open _ = evenDyns 25
+    varDyns _ _ = mempty
+
 t0 = Drum.makeFileListWeighted (Prepare.baseDir </> "java/kenong/raw")
     ["Open", "MuteTight", "MuteLoose"]
     "kenongSamples"
+
+renames :: IO ()
+renames =
+    -- Prepare.relink "data/sampler" "sine" "java/sine" $
+    Prepare.relink "data" "im/calibrate/sine" "sampler/java/sine" $
+        zip olds (allFilenames calibrateSine)
+    where
+    olds = map untxt ["60nn-" <> Num.zeroPad 3 dyn <> ".wav" | dyn <- dyns]
+    -- pitch = Pitch 3 P1
+    -- unparse = unparseFilenameVarDyn pitch Open
+    dyns = [4, 8 .. 100]
+
+    -- fnames = Maps.multimap $ zip (Unboxed.toList dyns)
+    --     (map (unparseFilenameVarDyn pitch art) [1 .. Unboxed.length dyns])
+-}
 
 kenong :: Instrument
 kenong = Instrument
@@ -269,9 +309,9 @@ kenong = Instrument
     , articulations = Set.fromList [Open, Mute, MuteLoose]
     }
     where
-    varDyns = oneOctave $ \case
-        Open -> \case
-            P7 -> fromDbs
+    varDyns = makeVarDyns
+        [ (Pitch 3 P7,
+            [ (Open,
                 [ -36.6839
                 , -31.3895
                 , -30.0015
@@ -291,10 +331,8 @@ kenong = Instrument
                 , -0.9238
                 , 0
                 , 0
-                ]
-            _ -> mempty
-        MuteLoose -> \case
-            P7 -> fromDbs
+                ])
+            , (MuteLoose,
                 [ -49.4809
                 , -44.9185
                 , -41.0908
@@ -312,10 +350,8 @@ kenong = Instrument
                 , -0.7634
                 , -0.0027
                 , 0.0000
-                ]
-            _ -> mempty
-        Mute -> \case
-            P7 -> fromDbs
+                ])
+            , (Mute,
                 [ -50.3090
                 , -48.3705
                 , -38.4874
@@ -338,22 +374,11 @@ kenong = Instrument
                 , 0.0000
                 , 0.0000
                 , 0.0000
-                ]
-            _ -> mempty
-        Character -> const mempty
-
-oneOctave :: (Articulation -> PitchClass -> Unboxed.Vector Util.Dyn)
-    -> VarDyns
-oneOctave f art (Pitch _ pc) = f art pc
-
--- | From dBFS numbers, which should be negative, where 0 is full volume.
--- via 'normalize --no-adjust *', pick 'peak' numbers.
-fromDbs :: [Double] -> Unboxed.Vector Util.Dyn
-fromDbs = Unboxed.fromList . map AUtil.dbToDyn
-
-evenDyns :: Int -> Unboxed.Vector Util.Dyn
-evenDyns n = Unboxed.fromList $ take n (Lists.range_ step step)
-    where step = 1 / fromIntegral n
+                ])
+            ])
+        , (Pitch 4 P1,
+            [])
+        ]
 
 standardDyns :: (Dynamic -> range) -> Dynamic -> (Util.Dyn, range)
 standardDyns f = \case
@@ -456,17 +481,14 @@ convertFixedDyn fixedDyns dynamic pitch art note =
 convertVarDyn :: VarDyns -> Pitch -> Articulation -> Note.Note
     -> Maybe (Sample.SamplePath, Util.Dyn)
 convertVarDyn varDyns pitch art note =
-    Drum.pickDynWeighted varRange fnames
+    Drum.pickDynWeighted varRange dynToSamples
         (Note.initial0 Control.dynamic note)
         (Note.initial0 Control.variation note)
     where
     -- It depends on the timbre variation over dynamics.  That actually
     -- changes, so I'd need a variable one of these, but too complicated.
     varRange = 0.1
-    dyns = varDyns art pitch
-    -- TODO is it worth it to put the Map in a CAF?
-    fnames = Maps.multimap $ zip (Unboxed.toList dyns)
-        (map (unparseFilenameVarDyn pitch art) [1 .. Unboxed.length dyns])
+    dynToSamples = Maps.getM art $ Maps.getM pitch varDyns
 
 -- TODO similar to Rambat.findPitch, except no umbang/isep
 findPitch :: Tuning -> Either Pitch.Note Pitch.NoteNumber
@@ -516,8 +538,7 @@ unparseFilename pitch art dyn var =
 
 toFilenamesVarDyn :: VarDyns -> Articulation -> Pitch -> [Sample.SamplePath]
 toFilenamesVarDyn varDyns art pitch =
-    map (unparseFilenameVarDyn pitch art) [1 .. vars]
-    where vars = Unboxed.length $ varDyns art pitch
+    concat $ Map.elems $ Maps.getM art $ Maps.getM pitch varDyns
 
 unparseFilenameVarDyn :: Pitch -> Articulation -> Util.Variation
     -> Sample.SamplePath
