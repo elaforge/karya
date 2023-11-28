@@ -125,6 +125,7 @@ tablaBols2 =
     , ("dha", [ge & na])
     , ("dha", [ge & tin])
     , ("dhen", [ge & tun])
+    , ("dhet", [ge & tette])
     ]
     where
     T.Strokes { .. } = T.strokes

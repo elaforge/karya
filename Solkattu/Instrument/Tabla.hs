@@ -36,6 +36,7 @@ data Daya =
     | Tun -- dheem, 1 finger
     | Tet
     | Te -- actually ṭe
+    | Tette -- infer tet or te based on next stroke
     | Thi -- te with middle finger, like mi
     deriving (Eq, Ord, Show)
 
@@ -50,6 +51,7 @@ data Strokes a = Strokes {
     , tun :: a
     , tet :: a
     , te :: a
+    , tette :: a
     } deriving (Functor, Show)
 
 strokes :: Strokes Stroke
@@ -64,6 +66,7 @@ strokes = Strokes
     , tun = Daya Tun
     , tet = Daya Tet
     , te = Daya Te
+    , tette = Daya Tette
     }
 
 notes :: Strokes (S.Sequence g (Solkattu.Note (Realize.Stroke Stroke)))

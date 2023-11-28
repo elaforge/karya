@@ -263,7 +263,7 @@ c_23_11_09 = date 2023 11 9 $ colby $ rela $ qaida $ korvaiS tintal
       . "dha_tette gerenaga" . "dhi_na_gerenage"
     ]
     where
-    _tabla = [("tun", "ka&tun")]
+    _tabla = [("tun", "ka&tun"), ("dha", "ge+din")]
 
 c_23_11_09_dhere :: Korvai
 c_23_11_09_dhere = date 2023 11 9 $ colby $ korvaiS tintal
@@ -303,6 +303,30 @@ c_23_11_09_b :: Korvai
 c_23_11_09_b = date 2023 11 9 $ colby $ tukra $ korvaiS1 tintal $
     dha.ge.tetekata.dha.__4 . sd tetekata.dha.__4
     . tri_ "__" (r3 (dha.ge.tetekata))
+
+c_23_11_16 :: Korvai
+c_23_11_16 = date 2023 11 16 $ colby $ qaida $ korvaiS tintal $ map (nadai 3)
+    [   dhatette.dhagena.dhettette.dhagena.dhatette.dhagena.dhagetunakena
+      . kali (dhatette.dhagena.dhettette.dhagena)
+        . dhatette.dhagena.dhagedhinagena
+    , dhatette.dhagena . r3 (dhettette.dhagena.dha.__)
+        . dhettette.dhagena.dhatette.dhagena.dhagetunakena -- kali
+    , dhatette.dhagena . r3 (dhettette.dhagena) . theme1 -- kali
+    , dhatette.dhagena.dhettette.dhagena . r3 dhettette.dhagena . theme1
+    , dhatette.dhagena.dhettette.dhagena . r3 "_dhette".dhagena . theme1
+    , dhatette.dhagena.dhettette.dhagena . "___" . r3 dhette.dhagena . theme1
+    , dhatette.dhagena.dhettette.dhagena . r2 dhette.dhagena . dhette.dhagena
+        . theme1
+    ]
+    where
+    theme1 = dhatette.dhagena.dhettette.dhagena.dhatette.dhagena.dhagetunakena
+    dhatette = "dhatette"
+    dhagena = "dhagena"
+    dhettette = "dhettette"
+    dhagedhinagena = "dhage dhina gena"
+    dhagetunakena = "dhage tuna kena"
+    dhette = "dhette"
+    _tabla = [("dha", "ge&na")] -- because qaida
 
 -- *
 

@@ -341,5 +341,6 @@ scores = map Korvai.inferMetadataS
     , setLocation ("Solkattu.Score.Tabla2023",290,"c_23_11_09_chak") $ Single Solkattu.Score.Tabla2023.c_23_11_09_chak
     , setLocation ("Solkattu.Score.Tabla2023",296,"c_23_11_09_tukra") $ Single Solkattu.Score.Tabla2023.c_23_11_09_tukra
     , setLocation ("Solkattu.Score.Tabla2023",302,"c_23_11_09_b") $ Single Solkattu.Score.Tabla2023.c_23_11_09_b
-    , setLocation ("Solkattu.Score.Tabla2023",309,"legong1") $ Single Solkattu.Score.Tabla2023.legong1
+    , setLocation ("Solkattu.Score.Tabla2023",307,"c_23_11_16") $ Single Solkattu.Score.Tabla2023.c_23_11_16
+    , setLocation ("Solkattu.Score.Tabla2023",333,"legong1") $ Single Solkattu.Score.Tabla2023.legong1
     ]

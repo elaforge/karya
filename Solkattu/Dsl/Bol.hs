@@ -90,6 +90,7 @@ kali = mapB $ \case
     Bol.Ga -> Just Bol.Ka
     Bol.Dha -> Just Bol.Taa
     Bol.Dhe -> Just Bol.The
+    Bol.Dhet -> Just Bol.Tet
     Bol.Dhi -> Just Bol.Tun
     Bol.Dhin -> Just Bol.Tin
     bol -> Just bol
