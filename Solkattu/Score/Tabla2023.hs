@@ -306,19 +306,41 @@ c_23_11_09_b = date 2023 11 9 $ colby $ tukra $ korvaiS1 tintal $
 
 c_23_11_16 :: Korvai
 c_23_11_16 = date 2023 11 16 $ colby $ qaida $ korvaiS tintal $ map (nadai 3)
-    [   dhatette.dhagena.dhettette.dhagena.dhatette.dhagena.dhagetunakena
+    [   theme1
       . kali (dhatette.dhagena.dhettette.dhagena)
         . dhatette.dhagena.dhagedhinagena
+    -- TODO kali is predictable, I could either leave it out or have an
+    -- automatic inference
     , dhatette.dhagena . r3 (dhettette.dhagena.dha.__)
         . dhettette.dhagena.dhatette.dhagena.dhagetunakena -- kali
     , dhatette.dhagena . r3 (dhettette.dhagena) . theme1 -- kali
     , dhatette.dhagena.dhettette.dhagena . r3 dhettette.dhagena . theme1
     , dhatette.dhagena.dhettette.dhagena . r3 "_dhette".dhagena . theme1
     , dhatette.dhagena.dhettette.dhagena . "___" . r3 dhette.dhagena . theme1
-    , dhatette.dhagena.dhettette.dhagena . r2 dhette.dhagena . dhette.dhagena
+    , dhatette.dhagena.dhettette.dhagena . dhet7.dhet5 . theme1
+
+    -- 2023-11-30
+    , dhatette.dhagena.dhettette.dhagena . r3 (dhet7.dhet5)
+        . dhatette.dhagena.dhettette.dhagena . dhet7.dhet5 . theme1
+    , dhatette.dhagena.dhettette.dhagena . r3 dhet7 . r3 dhet5
+        . dhatette.dhagena.dhettette.dhagena . dhet7.dhet5 . theme1
+    , dhatette.dhagena.dhettette.dhagena . dha.__. r2 dhet5 . theme1
+    , dhatette.dhagena.dhettette.dhagena . r2 (__.dhet5) . theme1
+    , dhatette.dhagena.dhettette.dhagena . nadai 4 (__.r3 dhet5)
         . theme1
+    , dhatette.dhagena.dhettette.dhagena . nadai 4 (r2 dhet5.__.dhet5) . theme1
+    , dhatette.dhagena.dhettette.dhagena
+        . nadai 4 (dha.__.r2 dhet5) . nadai 5 dhet5
+        . theme1
+    , dhatette.dhagena.dhettette.dhagena
+        . tri_ (nadai 4 (dha.__)) (nadai 5 dhet5) . theme1
+    , dhet5.dha.__.dhet5.dha.__.dhette.r2 dhagena.dha.__ . theme1
+    , tri_ "dha__" $ dhatette.dhagena.dhagedhinagena. tri_ "dha_ne" "dha_dha_"
+        -- dha is ge&tin
     ]
     where
+    dhet5 = g $ dhette.dhagena
+    dhet7 = g $ r2 dhette.dhagena
     theme1 = dhatette.dhagena.dhettette.dhagena.dhatette.dhagena.dhagetunakena
     dhatette = "dhatette"
     dhagena = "dhagena"
@@ -327,6 +349,20 @@ c_23_11_16 = date 2023 11 16 $ colby $ qaida $ korvaiS tintal $ map (nadai 3)
     dhagetunakena = "dhage tuna kena"
     dhette = "dhette"
     _tabla = [("dha", "ge&na")] -- because qaida
+
+c_23_11_30 :: Korvai
+c_23_11_30 = date 2023 11 30 $ colby $ korvaiS1 tintal $
+    r3 "dhatuna".dha.__.r2 "dhatuna".dha.__
+        . tri_ (dha.__3) (tri_ (dha.__) "dhatuna")
+    -- karvai dha on tin
+    -- replace dhatuna with any 3 or 6
+
+c_23_11_30_tuk :: Korvai
+c_23_11_30_tuk = date 2023 11 30 $ colby $ tukra $ korvaiS1 tintal $
+    "takadi_" . "kitataka" . "takaterekitataka" . "takaterekitadin_"
+    . "dha__redha___" . "terekitatakataa_".tetekata
+    . dha.__4.taa.__4."gadigenedha___"
+    . tri_ (dha.__4."kitataka") ("terekitatakataa_".tetekata)
 
 -- *
 
