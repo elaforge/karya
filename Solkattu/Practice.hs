@@ -17,6 +17,7 @@ import qualified System.Random as Random
 import qualified Util.Lists as Lists
 import qualified Util.Texts as Texts
 import qualified Solkattu.Db as Db
+import           Solkattu.Db (realizeM, realizeKon)
 import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Format.Terminal as Terminal
 import qualified Solkattu.Korvai as Korvai
@@ -43,24 +44,6 @@ randomTypes types = do
         score <- pick $ filter (Db.ofType typ . snd) Db.scores
         Text.IO.putStrLn $ typ <> ":"
         Text.IO.putStrLn $ maybe "Nothing" Db.format score
-
-realize, realizep :: Int -> IO ()
-realize i = do
-    let score = get i
-    Text.IO.putStr $ Db.format (i, score)
-    realizeM mempty score
-realizep i = do
-    let score = get i
-    Text.IO.putStr $ Db.format (i, score)
-    realizeM Format.defaultAbstraction score
-
-realizeM :: Format.Abstraction -> Korvai.Score -> IO ()
-realizeM abstraction = Korvai.realizeScore $
-    Terminal.printInstrument Korvai.IMridangam abstraction
-
-realizeKon :: Int -> IO ()
-realizeKon i =
-    Korvai.realizeScore (Terminal.printKonnakol Terminal.konnakolConfig) (get i)
 
 -- | Mark these korvais as practiced.  Using the index is awkward because it's
 -- the same type as BPM.

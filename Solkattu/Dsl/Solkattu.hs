@@ -53,7 +53,8 @@ instance String.IsString SequenceM where
 
 -- | Parse a string to sollus.  Look for syllables inside words.
 strS :: HasCallStack => Text -> Sequence
-strS str = mconcat $ map (maybe __ _sollu) $ check $ Solkattu.parseSollus str
+strS str = mconcat $ map (maybe __ _sollu) $ Solkattu.check $
+    Solkattu.parseSollus str
 
 -- * sollus
 

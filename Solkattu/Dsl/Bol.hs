@@ -14,7 +14,6 @@ import qualified Data.String as String
 import           GHC.Stack (HasCallStack)
 
 import qualified Solkattu.Bol as Bol
-import qualified Solkattu.Dsl.Interactive as Interactive
 import           Solkattu.Dsl.Interactive (diff, diffw)
 import qualified Solkattu.Format.Terminal as Terminal
 import qualified Solkattu.Korvai as Korvai
@@ -39,7 +38,7 @@ instance String.IsString Sequence where
 
 -- | Parse a string to bols.  Look for syllables inside words.
 strS :: HasCallStack => Text -> Sequence
-strS str = mconcatMap (maybe __ make) $ check $ Bol.parseBols str
+strS str = mconcatMap (maybe __ make) $ Solkattu.check $ Bol.parseBols str
     where
     make = \case
         Bol.S1 b1 -> _bol b1

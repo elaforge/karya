@@ -37,7 +37,7 @@ module Solkattu.Dsl.Generic (
     , module Solkattu.Dsl.Notation
     , module Solkattu.Dsl.Section
     , Duration, Matra, Nadai
-    , check, durationOf, throw
+    , durationOf, throw
     , Akshara
     -- * misc
     , pprint
@@ -63,7 +63,7 @@ import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import           Solkattu.S (Duration, Matra, Nadai)
 import qualified Solkattu.Solkattu as Solkattu
-import           Solkattu.Solkattu (check, durationOf, throw)
+import           Solkattu.Solkattu (durationOf, throw)
 import qualified Solkattu.Tala as Tala
 import           Solkattu.Tala (Akshara)
 

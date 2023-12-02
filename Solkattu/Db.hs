@@ -4,12 +4,10 @@
 
 {-# LANGUAGE RankNTypes #-}
 -- | Collect korvais into a searchable form.
-module Solkattu.Db (
-    module Solkattu.Db
-    , module Solkattu.Dsl.Solkattu
-) where
+module Solkattu.Db where
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
@@ -26,13 +24,15 @@ import qualified Util.Num as Num
 import qualified Util.SourceControl as SourceControl
 
 import qualified Solkattu.All as All -- generated
-import           Solkattu.Dsl.Solkattu
-    (realize, realizeM, realizeR, realizek, realizekp, realizep)
 import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Format.Html as Html
 import qualified Solkattu.Format.Terminal as Terminal
+import qualified Solkattu.Instrument.Mridangam as Instrument.Mridangam
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Metadata as Metadata
+import qualified Solkattu.Realize as Realize
+import qualified Solkattu.S as S
+import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tags as Tags
 
 import           Global
@@ -43,6 +43,22 @@ scores = zip [0..] (List.sortOn key All.scores)
     where
     key score = (Korvai._date m, Korvai._location m)
         where m = Korvai.scoreMetadata score
+
+realizeKon :: Int -> IO ()
+realizeKon i = do
+    let score = get i
+    Text.IO.putStr $ format (i, score)
+    Korvai.realizeScore (Terminal.printKonnakol Terminal.konnakolConfig) score
+
+realizeM :: Int -> IO ()
+realizeM i = do
+    let score = get i
+    Text.IO.putStr $ format (i, score)
+    Korvai.realizeScore (Terminal.printInstrument Korvai.IMridangam mempty)
+        score
+
+get :: Int -> Korvai.Score
+get = snd . (scores !!)
 
 -- * predicates
 
@@ -58,6 +74,10 @@ aroundDate date days =
     inRange = Num.inRange (Calendar.addDays (-days) date)
         (Calendar.addDays days date)
 
+-- | Make a date for 'aroundDate'.
+date :: HasCallStack => Int -> Int -> Int -> Calendar.Day
+date = Metadata.makeDate
+
 ofType :: Text -> Korvai.Score -> Bool
 ofType type_ = (type_ `elem`) . Metadata.scoreTag "type"
 
@@ -72,11 +92,38 @@ tagHas tag val score =
     any (val `Text.isInfixOf`) $
         Metadata.scoreTag tag score ++ Metadata.sectionTag tag score
 
-date :: HasCallStack => Int -> Int -> Int -> Calendar.Day
-date = Metadata.makeDate
+-- | "na na nadin" - like grep, but skips whitespace.  But, it doesn't
+-- highlight the matches like grep can.
+sollus :: Text -> Korvai.Score -> Bool
+sollus str = scoreHas Korvai.IKonnakol strokes
+    where strokes = Maybe.catMaybes $ Solkattu.check $ Solkattu.parseSollus str
+
+-- | Search for mridangam strokes, e.g. "n n nd".  Like 'sollus.
+strokesM :: String -> Korvai.Score -> Bool
+strokesM str = scoreHas Korvai.IMridangam strokes
+    where
+    strokes = Maybe.catMaybes $ Solkattu.check $
+        Instrument.Mridangam.fromString str
+
+scoreHas :: Eq a => Korvai.Instrument a -> [a] -> Korvai.Score -> Bool
+scoreHas instrument strokes =
+    any (korvaiHas instrument strokes) . Korvai.scoreKorvais
+
+korvaiHas :: Eq a => Korvai.Instrument a -> [a] -> Korvai.Korvai -> Bool
+korvaiHas instrument strokes =
+    any (strokes `List.isInfixOf`) . korvaiStrokes instrument
+
+korvaiStrokes :: Korvai.Instrument a -> Korvai.Korvai -> [[a]]
+korvaiStrokes instrument =
+    maybe [] (map section) . Korvai.getSections instrument
+        . Korvai.korvaiSections
+    where
+    section = mapMaybe (fmap Realize._stroke . Solkattu.solluOf) . S.notes
+        . S.toList . Korvai.sectionSequence
 
 -- * search
 
+-- | Search for and print korvais.
 searchp :: [Korvai.Score -> Bool] -> IO ()
 searchp = Text.IO.putStrLn . formats . search
 
