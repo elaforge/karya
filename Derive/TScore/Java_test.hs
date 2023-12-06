@@ -68,37 +68,77 @@ unparse = Parse.unparse Parse.default_config
 
 -- * check
 
-test_resolve_duration :: Test
-test_resolve_duration = do
-    let f = fmap (map extract) . resolve_tokens
+test_resolve_duration_bias_start :: Test
+test_resolve_duration_bias_start = do
+    let f = fmap (map extract) . resolve_tokens Java.BiasStart
         extract (t, n) = (t, T.note_duration n)
+    right_equal (f "1234") [(0, 1/4), (1/4, 1/4), (2/4, 1/4), (3/4, 1/4)]
+    right_equal (f ".1.2.3.4")
+        [(1/8, 1/4), (3/8, 1/4), (5/8, 1/4), (7/8, 1/8)]
+    right_equal (f "1.2.3.4.")
+        [(0, 1/4), (1/4, 1/4), (2/4, 1/4), (3/4, 1/4)]
     right_equal (f "1") [(0, 1)]
     right_equal (f "1 | 23") [(0, 1), (1, 1/2), (1+1/2, 1/2)]
-    right_equal (f "12..") [(0, 1/4), (1/4, 3/4)]
-    right_equal (f "12_.") [(0, 1/4), (1/4, 1/4)]
-    right_equal (f "1_.2") [(0, 1/4), (3/4, 1/4)]
-    -- infer_rests
-    right_equal (f "123") [(0, 1/4), (1/4, 1/4), (1/2, 1/2)]
-    equal (f "12345") $ Left
-        [err 2 "bar not a power of 2: 5, with inferred rests: 6"]
-    right_equal (f "1 .2 321")
-        [ (0, 3/8)
-        , (3/8, 1/8)
-        , (4/8, 1/8), (5/8, 1/8), (6/8, 2/8)
-        ]
-    right_equal (f "1 | 235")
-        [ (0, 1)
-        , (1, 1/4), (1+1/4, 1/4), (1+2/4, 1/2)
-        ]
+    right_equal (f "12..") [(0/4, 1/4), (1/4, 3/4)]
+    right_equal (f "12_.") [(0/4, 1/4), (1/4, 1/4)]
+    right_equal (f "1_.2") [(0/4, 1/4), (3/4, 1/4)]
+
+test_resolve_duration_bias_end :: Test
+test_resolve_duration_bias_end = do
+    let f = fmap (map extract) . resolve_tokens Java.BiasEnd
+        extract (t, n) = (t, T.note_duration n)
+    right_equal (f "1234") [(1/4, 1/4), (2/4, 1/4), (3/4, 1/4), (4/4, 0)]
+    right_equal (f ".1.2.3.4") [(1/4, 1/4), (2/4, 1/4), (3/4, 1/4), (4/4, 0)]
+    right_equal (f "1.2.3.4.")
+        [(1/8, 1/4), (3/8, 1/4), (5/8, 1/4), (7/8, 1/8)]
+    right_equal (f "1") [(1, 0)]
+    right_equal (f "1 | 23") [(1, 1/2), (1+1/2, 1/2), (2, 0)]
+    right_equal (f "12..") [(1/4, 1/4), (2/4, 2/4)]
+    right_equal (f "12_.") [(1/4, 1/4), (2/4, 1/4)]
+    right_equal (f "1_.2") [(1/4, 1/4), (4/4, 0)]
+
+test_infer_rests :: Test
+test_infer_rests = do
+    let f bias = fmap (map extract) . resolve_tokens bias
+        extract (t, n) = (t * 8, T.note_duration n * 8)
+    -- Last 6 is actually after the 4/4, it belongs to the next measure.
+    -- 1st 2 should be at 1/4 though.
+    -- This means the beats still have to be aligned at the ends?
+    let expected end =
+            [ (2, 2), (4, 1), (5, 1), (6, 2), (8, 1), (9, 1)
+            , (10, 2), (12, 2), (14, 2), (16, end)
+            ]
+    let expectedS = map (first (subtract 2)) (expected 2)
+        expectedE = expected 0
+    {-
+        should be 4 beats:
+        1 2 3 4
+        2 126 56
+
+        Can't have notes before 2 because it has to be from previous measure.
+
+        0  1  2  3  4
+           2. 12 6. 56 | 1
+           2  12 6  56 | 1
+
+        0  1  2  3  4    1
+          .2 .1 26 .5 | 61
+    -}
+    right_equal (f Java.BiasStart "2 126 56 | 3 5 3 5") expectedS
+    right_equal (f Java.BiasStart "2. 12 6. 56 | 3 5 3 5") expectedS
+
+    right_equal (f Java.BiasEnd ".2 .1 26 .5 | 63 5 3 5") expectedE
+    right_equal (f Java.BiasEnd "2 126 5 | 63 5 3 5") expectedE
+
     -- This is .235, even though it looks misleading.
     -- The problem is rests are only inferred when it's not already a power of
     -- 2.
-    right_equal (const () <$> f ". 235") ()
-    right_equal (const () <$> f "12345 6") ()
+    right_equal (const () <$> f Java.BiasStart ". 235") ()
+    right_equal (const () <$> f Java.BiasStart "12345 6") ()
 
 test_resolve_pitch :: Test
 test_resolve_pitch = do
-    let f = fmap (map extract) . resolve_tokens
+    let f = fmap (map extract) . resolve_tokens Java.BiasStart
         extract = T.note_pitch . snd
     right_equal (f "1471")
         [Pitch 0 P1, Pitch 0 P4, Pitch 0 P7, Pitch 1 P1]
@@ -111,27 +151,43 @@ err pos = T.Error (T.Pos pos)
 parse_tokens :: Text -> [Java.Token]
 parse_tokens = Testing.expect_right . fmap Java.track_tokens . parse . ("> "<>)
 
-resolve_tokens :: Text
+resolve_tokens :: Java.Bias -> Text
     -> Either [T.Error] [(T.Time, T.Note () (Pitch Int) T.Time)]
-resolve_tokens source
+resolve_tokens bias source
     | null errs = Right lines
     | otherwise = Left errs
     where
-    (lines, errs) = Logger.runId $ Java.resolve_tokens $ parse_tokens source
+    (lines, errs) = Logger.runId $ Java.resolve_tokens bias $
+        parse_tokens source
 
 
 -- * format
 
 test_format_score :: Test
 test_format_score = do
-    let f = format_score
     let pr = either (Text.IO.putStrLn . ("error: "<>)) (mapM_ Text.IO.putStrLn)
-    right_equal (f "") []
+    right_equal (format_score "") []
     -- pr $ format_score "a = [ > 1235 | 65321 ]"
     -- pr $ format_score "a = [ > 1235 | 6.5.3..2 ]"
     -- pr $ format_score "a = [ > 1 2 321 ]"
     pr $ format_score "a = [ > 1234 > 1 123 .4 ]"
     pr $ format_score "a = [ > 1234 > 1 123 .4 | 1 ]"
+
+test_format_score2 :: Test
+test_format_score2 = do
+    let pr = either (Text.IO.putStrLn . ("error: "<>)) (mapM_ Text.IO.putStrLn)
+    pr $ format_score "a = [ > 2 126  56 | 3 5 3 5 ]"
+    pr $ format_score "a = [ > .5.6.5.3 | 3 5 3 5 ]"
+    pr $ format_score
+        "a = [\n\
+        \    > .5. 6..1.\n\
+        \    > ...,5.3.5\n\
+        \]\n"
+    pr $ format_score
+        "a = [\n\
+        \    > .5 .6 .1.\n\
+        \    >  . ,5 3 5\n\
+        \]\n"
 
 format_score :: Text -> Either Text [Text]
 format_score source = case Java.parse_score source of

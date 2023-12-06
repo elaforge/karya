@@ -248,9 +248,13 @@ check_tokens tokens = errs
     where (errs, _) = Either.partitionEithers $ resolve_tokens tokens
 -}
 
-resolve_tokens :: [Token]
+data Bias = BiasStart | BiasEnd
+    deriving (Show, Eq)
+
+resolve_tokens :: Bias -> [Token]
     -> CheckM [(T.Time, T.Note () (Pitch Octave) T.Time)]
-resolve_tokens = fmap resolve_durations . normalize_barlines . resolve_pitch
+resolve_tokens bias =
+    fmap (resolve_durations bias) . normalize_barlines bias . resolve_pitch
 
 -- ** check directives
 
@@ -359,9 +363,9 @@ pitch_diff (Pitch oct1 pc1) (Pitch oct2 pc2) =
 
 -- ** resolve_durations
 
-resolve_durations :: [T.Token call pitch dur Rest]
+resolve_durations :: Bias -> [T.Token call pitch dur Rest]
     -> [(T.Time, T.Note call pitch T.Time)]
-resolve_durations =
+resolve_durations bias =
     Maybe.catMaybes . snd . List.mapAccumL resolve_rests 0 . Lists.zipNexts
         . concatMap resolve . Lists.split is_barline
     where
@@ -374,21 +378,38 @@ resolve_durations =
         where dur = T.Time (1 / fromIntegral len)
     is_barline (T.TBarline {}) = True
     is_barline _ = False
+    -- If BiasEnd, each note goes from the *end* of its duration until the
+    -- start of the next note, or non-sustaining rest.  This gives them the
+    -- end-bias.
     resolve_rests time ((dur, Left _), _) = (time + dur, Nothing)
     resolve_rests time ((dur, Right n), nexts) =
         ( time + dur
-        , Just (time, n { T.note_duration = dur + sustain })
+        , Just $ case bias of
+            BiasEnd -> (time + dur, n { T.note_duration = sustain })
+            BiasStart -> (time, n { T.note_duration = dur + sustain })
         )
         where
-        sustain = Num.sum $ map fst $ takeWhile is_sustain nexts
-        is_sustain (_, Left (T.Rest (Rest { rest_sustain }))) = rest_sustain
-        is_sustain _ = False
+        -- The final note will have 0 dur, which I can look for and set.
+        -- If the final note is a sustain rest, then use its duration, not 0.
+        -- TODO Not sure if this is useful, maybe it should be sustain duration
+        -- plus the default end dur?  Maybe I should take a default end-note
+        -- duration?
+        sustain = Num.sum $ case bias of
+            BiasEnd -> until_note nexts
+            BiasStart -> map fst $ takeWhile is_sustain nexts
+    is_sustain (_, Left (T.Rest (Rest { rest_sustain }))) = rest_sustain
+    is_sustain _ = False
+    until_note [] = []
+    until_note ((dur, n) : ns) = case n of
+        Left (T.Rest (Rest { rest_sustain })) ->
+            dur : if rest_sustain then until_note ns else []
+        Right (T.Note {}) -> [dur]
 
 -- | Verify bar durations, infer rests if necessary.  After this, all bars
 -- should be a power of 2.
-normalize_barlines :: [T.Token call pitch HasSpace Rest]
+normalize_barlines :: Bias -> [T.Token call pitch HasSpace Rest]
     -> CheckM [T.Token call pitch () Rest]
-normalize_barlines = map_bars $ \case
+normalize_barlines bias = map_bars $ \case
     [] -> pure []
     bar@(t : _)
         | power_of_2 (length bar) -> pure $ map strip bar
@@ -399,7 +420,7 @@ normalize_barlines = map_bars $ \case
                 <> ", with inferred rests: " <> showt (length inferred)
             pure $ map strip bar
         where
-        inferred = infer_rests bar
+        inferred = infer_rests bias bar
         strip = Identity.runIdentity . T.map_note_duration (\_ -> pure ())
 
 -- | The T.Tokens given to the function will not contain T.TBarline.
@@ -418,12 +439,15 @@ map_bars f tokens = concat . add <$> mapM f (pre : map snd posts)
 power_of_2 :: Int -> Bool
 power_of_2 n = snd (properFraction (logBase 2 (fromIntegral n))) == 0
 
-infer_rests :: [T.Token call pitch HasSpace Rest]
+-- | If there aren't enough notes in the bar, try inferring a rest before
+-- every odd group of notes followed by space.
+infer_rests :: Bias -> [T.Token call pitch HasSpace Rest]
     -> [T.Token call pitch HasSpace Rest]
-infer_rests = concatMap infer . Lists.splitAfter has_space
+infer_rests bias = concatMap infer . Lists.splitAfter has_space
     where
     infer tokens
         | even (length tokens) = tokens
+        | bias == BiasEnd = extra_rest : tokens
         | otherwise = tokens ++ [extra_rest]
     extra_rest = T.TRest T.fake_pos $ T.Rest $ Rest True HasSpace
     has_space = \case
@@ -432,10 +456,10 @@ infer_rests = concatMap infer . Lists.splitAfter has_space
         T.TRest _ (T.Rest rest) -> rest_space rest == HasSpace
 
 -- | Split on barlines, zipPadded, map across them.
-normalize_hands :: [T.Token call pitch dur Rest]
+normalize_hands :: Bias -> [T.Token call pitch dur Rest]
     -> [T.Token call pitch dur Rest]
     -> CheckM ([T.Token call pitch dur Rest], [T.Token call pitch dur Rest])
-normalize_hands lefts rights =
+normalize_hands bias lefts rights =
     fmap (bimap join_bars join_bars . unzip) $ mapM normalize $
     Lists.zipPadded (split_bars lefts) (split_bars rights)
     where
@@ -460,7 +484,9 @@ normalize_hands lefts rights =
                     | otherwise ->
                         pure ((pos0, expand pos0 delta lefts), (pos1, rights))
                     where delta = d1 - d2
-    expand pos delta = concatMap (: replicate (delta^2) (rest pos))
+    expand pos delta = case bias of
+        BiasEnd -> concatMap (\n -> replicate (delta^2) (rest pos) ++ [n])
+        BiasStart -> concatMap (: replicate (delta^2) (rest pos))
     rest pos = T.TRest pos (T.Rest (Rest True NoSpace))
 
 log2 :: Int -> Maybe Int
@@ -508,18 +534,26 @@ format_block block = (title :) . map ("    "<>) <$>
 format_directive :: T.Directive -> Text
 format_directive (T.Directive _ key mb_val) = key <> maybe "" ("="<>) mb_val
 
+-- | Score-to-score, this takes the parsed score to a somewhat more normalized
+-- version.  So not the same as converting to tracklang, because I don't need
+-- actual times and durations.  Also I have to 'normalize_hands' to make
+-- sure they are at the same "zoom", but it's only since I don't want to
+-- convert from times back to notes.
 format_tracks :: Tracks -> CheckM [Text]
 format_tracks (Tracks tracks) = case map track_tokens tracks of
     [lefts, rights] -> do
-        lefts <- process_for_format lefts
-        rights <- process_for_format rights
-        (lefts, rights) <- normalize_hands lefts rights
+        lefts <- process_for_format bias lefts
+        rights <- process_for_format bias rights
+        (lefts, rights) <- normalize_hands bias lefts rights
         pure [format_tokens lefts, format_tokens rights]
-    tracks -> map format_tokens <$> mapM process_for_format tracks
+    tracks -> map format_tokens <$> mapM (process_for_format bias) tracks
+    where
+    bias = BiasStart
 
-process_for_format :: [Token]
+process_for_format :: Bias -> [Token]
     -> CheckM [T.Token () (Pitch Octave) () Rest]
-process_for_format = normalize_barlines . resolve_pitch
+process_for_format bias = -- fmap lima_to_barang .
+    normalize_barlines bias . resolve_pitch
     -- This doesn't do 'resolve_durations', because I want the original rests.
 
 format_tokens :: [T.Token call (Pitch Octave) dur Rest] -> Text

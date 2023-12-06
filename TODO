@@ -8506,6 +8506,28 @@ text score: tscore:
         and assert equal.
       . Don't have to worry about keeping toplevel block=[tracks] syntax,
         I have different parsers for Score down to Block anyway.
+    rhythm, end bias or not?
+      . Indeed end is more consistent, but no one seems to do it that way.
+      . But taking time from the end of the note seems better, for when I
+        convert to tracklang.
+      . That means I still need 0 dur end.
+      . With end bias these are equivalent, and have correct timings:
+        .2 .1 26 .5 | 63 5 3 5
+         2  126   5 | 63 5 3 5
+      . But with start bias
+        2  126  56 | 3 5 3 5
+        2. 126. 56 | 3 5 3 5
+      . The problem is if I do end bias duration, then 2 should be at 1/4 time
+        but will be 1/8 instead.  If I do start-bias duration then it's
+        correct, but it starts at 0..4.
+      . So I need both either start or end bias.
+      . If I do start, then don't I wind up with wrong block boundaries?
+      . If I want to mix end durs and start rests, then it's a question of
+        the measure boundary, it's actually not on downbeats.
+      . Alternately, all the measures have 4 or 8 beats.  Just hardcode that.
+        If notes == 8, then do literally.  If <8, then each one marks a beat
+        on its even indices.
+
     check:
       + directives understood
       - within instrument range
@@ -8541,6 +8563,28 @@ text score: tscore:
         . Maybe dadi should be notated as .1.2 too... or rather 1 2 should be
           interpreted that way.
         . This has to do with overbar and whether it biases left or right.
+        . I think I need to start at 1 not 0!  So e.g. 1234 starts at 1/4, not
+          0/4.  So it expands to .1.2.3.4 rather than 1.2.3.4..
+        . Also the notes are either zero dur or have negative duration,
+          because otherwise I have to come up with a duration for the last
+          note, which depends on when is the next note!
+        . Or figure out duration from looking at the next note, I already
+          have to do that... the difference is I have to process the whole
+          score to know the final note of each gatra.
+        . I think at end is more consistent?
+          beginning:
+          6 5 6 .5 | 6 1 6 5 | 6 1 .2.1 | 2 1 6 5
+          . . .32  | 1 2 615 | . 6 5 6  | 1 2 321
+          end:
+          6 5 6 . | 56 1 6 5 | 6 1 .2. | 12 1 6 5
+          . . .32 |  1 2 615 | . 6 5 6 |  1 2 321
+          beginning:
+          5 6 5 3  | 6 5 6 1 | .6.6.61. | 6 5 6 1.
+          .21612.6 | ..53.3. | 565356.. | .621621.
+          end:
+          5 6 5 3 |  6 5 6 1 |  .6.6.61 |  6 5 6 1
+          .21612. | 6. 53.3. | .565356. |  .621621
+
       - instead of vertical bars, I could do the horizontal bar for lh/rh
         . Should I render to HTML?
     - integrate
