@@ -72,6 +72,8 @@ tu  = _bol Bol.Tu
 
 tette :: Sequence
 tette = tet.te
+taka :: Sequence
+taka = ta.ka
 
 tr, trkt, kt, kttk :: Sequence
 tr = "tr"
@@ -91,7 +93,7 @@ kali = mapB $ \case
     Bol.Dhe -> Just Bol.The
     Bol.Dhet -> Just Bol.Tet
     Bol.Dhi -> Just Bol.Tun
-    Bol.Dhin -> Just Bol.Tin
+    Bol.Dhin -> Just Bol.Tin -- behause dha dhin dhin -> ta tin tin
     bol -> Just bol
 
 mapB :: (Bol.Bol -> Maybe Bol.Bol) -> Sequence -> Sequence

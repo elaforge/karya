@@ -176,10 +176,16 @@ fives = exercise $ date 2023 11 03 $ korvaiS (beats 1) $ map (nadai 5)
     , su "u_i_k_kto_"
     ]
 
-tabla_kandam :: Korvai
-tabla_kandam = source "colby" $ date 2023 11 2 $ korvaiS1 adi $ nadai 5 $
-      "D_non Nlnon_ Nlnon inpk" -- 5 6 5 4
-    . "d_npn nlnpn_ Nlnon inok"
+-- | Based on tabla tihais.
+tihais :: Korvai
+tihais = korvaiS adi
+    [ su $ tihai (tihai "U_U_" "U___") "U_"
+    , su $ tihai (tihai "ktpk" "D___") "D_"
+    , su $ tihai (tihai (su nakatiku) "D___") "D_"
+    ]
+
+tihai :: Sequence -> Sequence -> Sequence
+tihai seq sep = tri_ (hv sep) seq
 
 -- *
 

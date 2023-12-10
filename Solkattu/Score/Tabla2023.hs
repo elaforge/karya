@@ -253,17 +253,76 @@ c_23_10_16 = date 2023 10 26 $ colby $ mukra $ korvaiS1 tintal $
 -- This means kali from 2/4 - 1, to 3/4+0
 c_23_11_09 :: Korvai
 c_23_11_09 = date 2023 11 9 $ colby $ rela $ qaida $ korvaiS tintal
-    [   "dha_tette gerenaga" . "gerenaga terekite"
-      . "dha_tette gerenaga" . "dhi_na_gerenage"
-      . "gerenaga terekitataka" . "dhette tette kite"
-      . "dha_tette gerenaga" . "tun_na_kerenake"
-      . kali ("dha_tette gerenaga" . "gerenaga terekite"
-      . "dha_tette gerenaga" . "dhi_na_gerenage")
-      . "gerenaga terekitataka" . "dhette tette kite"
-      . "dha_tette gerenaga" . "dhi_na_gerenage"
+    [ theme . kali (theme1.theme2) . theme3.dha_tette.grng."dhin_na_gerenage"
+    , r2 (theme1.theme2) . theme
+    -- accent on Terekita
+    , r2 theme1 . theme1.theme2 . theme
+    , dha_tette.grng . tri_ (dha.__4) (grng.trkttk)
+        . dha.__4.grng.trkt.trkttk
+        . theme
+    , dha_tette . r2 (grng.grng.trkttk.dha.__4) . grng.trkttk.dha.__4
+        . grng.trkttk . theme
+    -- accent beginning of each phrase
+    , dha_tette . r2 (grng.grng.trkttk.dha.__4) . grng.trkttk.dha.__4
+        . trkttk.dha.__4 . theme
+    , dha_tette . r2 (g (grng.grng.trkttk)) . theme3 . theme4
+    , dha_tette . grng.grng.trkttk.dha.__4
+        . grng.trkttk.dha.__4 . trkttk.dha.__4 . "kitetaka".dha.__4
+        . ki.te.dha.__4 . dha.__4
+        . theme
+    , dha_tette . grng.grng.trkttk.dha.__4
+        . grng.trkttk.dha.__4 . trkttk.dha.__4 . "kitetaka".dha.__4
+        . tri_ (dha.__) (ki.te)
+        . theme
+    , dha_tette.grng . r3 (grng.trkt) . theme3 . theme4
+    , dha_tette.grng . r3 (trkt.grng) . theme3 . theme4
+    , r2 (dha_tette.grng.trkt) . dha_tette.grng . theme3 . theme4
+    , dha_tette.r3 grng.trkt.r2 grng.trkt . theme3 . theme4
+    -- Prepare for transition to rela.
+    -- actually 3 4 1 2, but with appropriate kali
+    , theme3 . theme2 . theme1 . theme4
+    , r3 (theme3 . theme2) . theme1 . theme4 -- aaab transformation
+    , r3 theme3 . theme2 -- also aaab
+    , grng.trkt . r3 (taka.dhette_tette_kite) . theme3 . theme4
+    -- with kali, dha comes back early on dhet
+    , theme3 . theme4 . kali (grng.trkttk).dhette_tette_kite.theme2
+    -- tihai
+    -- Which is easier to write and read?
+    -- , r3 $ g $
+    --     theme3 . "dha_dha_dha".__6 . "dha_dha".__6 . dha.__3.dha.__3.dha.__4
+    , tihai (g (theme3 . "dha_dha_dha".__6 . "dha_dha".__6 . dha.__3.dha.__3))
+        (dha.__4)
+    -- , tri_ (hv dha.__8) $
+    --     g (theme3 . tri_ (hv dha.__) (tri_ (hv dha.__4) "dha_dha_"))
+    , tihai (theme3 . tihai (tihai "dha_dha_" (dha.__4)) (dha.__)) (dha.__8)
+
+    -- already sam to sam, can substitute any 4 beat phrase for dha_dha_
+    -- , tri_ (dha.__) (tri_ (dha.__4) "dha_dha_")
+    , tihai (tihai "dha_dha_" (dha.__4)) (dha.__)
     ]
     where
+    theme = g (theme1 . theme2 . theme3 . theme4)
+    theme1 = "dha_tette gerenaga" . "gerenaga terekite"
+    theme2 = "dha_tette gerenaga" . "dhi_na_gerenage"
+    theme3 = "gerenaga terekitataka" . "dhette tette kite"
+    theme4 = "dha_tette gerenaga" . "tun_na_kerenake"
+    dha_tette = "dha_tette"
+    dhette_tette_kite = "dhette tette kite"
+    trkt = "terekite"
+    trkttk = "terekite taka"
+    grng = "gerenaga"
     _tabla = [("tun", "ka&tun"), ("dha", "ge+din")]
+
+-- 11 + 11 + 11 = 33
+-- 10 + 1 + 10 + 1 + 10 = 32
+--
+
+-- mid is 11 if count every one
+-- 6 if not
+-- if start at 0 it's 10 and 5, *5 = 15 + 1/2 gaps = 16
+
+tihai :: Sequence -> Sequence -> Sequence
+tihai seq sep = tri_ (hv sep) seq
 
 c_23_11_09_dhere :: Korvai
 c_23_11_09_dhere = date 2023 11 9 $ colby $ korvaiS tintal

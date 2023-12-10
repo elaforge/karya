@@ -150,7 +150,13 @@ c_17_10_23b :: Korvai
 c_17_10_23b = sarvalaghu $ date 2017 10 23 $ ganesh $ korvaiS1 adi $
     su $ repeat 2 $ p.n.p.k.d.__.p.k . repeat 3 (n.__.p.k.d.__.p.k)
 
--- * kandam
+-- * mine
+
+c_chatusram1 :: Korvai
+c_chatusram1 = elaforge $ sarvalaghu $ korvaiS adi
+    [ "D,nd,nN," . "D,nd,nN".su "ok" . "D,nd,nN," . su "D_n_n_pn_ld_pn_l"
+    , "D,nd,d".su "n,n,"."Dnnonn".su "nook"."D,nd,nN,".su "N_N_N_pn_ld_pn_l"
+    ]
 
 c_kandam1 :: Korvai
 c_kandam1 = elaforge $ date 2023 3 10 $ sarvalaghu $ korvaiS adi $ map (nadai 5)
@@ -167,16 +173,6 @@ c_kandam_tisram :: Korvai
 c_kandam_tisram = elaforge $ date 2023 3 10 $ sarvalaghu $ korvaiS1 adi $
     r3 "dlNN," . su "d_pkD_N_,_"  . su "d,^,d,n,^,"
     . su (g "k_p_n_ktpkptok")
-
-c_kandam_5654 :: Korvai
-c_kandam_5654 = sarvalaghu $ korvaiS adi $ map (nadai 5)
-    [ r2 $ "D,NN," . "d,N,N," . "d,NN," . "nook"
-    , r2 $ k5 . k6 . su "N_ktpkpu_k" . k4
-    ]
-    where
-    k5 = "d,NN,"
-    k6 = "d,N,N,"
-    k4 = "nook"
 
 -- * misra
 

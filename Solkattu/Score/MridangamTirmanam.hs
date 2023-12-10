@@ -28,6 +28,26 @@ tir_long_adi = tirmanam $ korvaiS adi
         . od
     ]
 
+tir_patterns :: Korvai
+tir_patterns = tirmanam $ korvaiS adi
+    [ __D 6 . su (__ . r3 p5)
+    , __D 5 . su (__.__6 . r3 p6)
+    , __D 5 . su (__.__3 . r3 p7)
+    , __D 5 . su (r3 p8)
+    , __D 4 . su (__.__5 . r3 p9)
+
+    , __D 5 . su (__.__7 . tri_ __ p5)
+    , __D 5 . su (__.__4 . tri_ __ p6)
+    , __D 5 . su (__ . tri_ __ p7)
+
+    , __D 5 . su (__.__5 . tri_ (od.__) p5)
+    , __D 5 . su (__.__2 . tri_ (od.__) p6)
+    , __D 4 . su (__.__7 . tri_ (od.__) p7)
+    , __D 5 . su (__.__3 . tri_ (od.__3) p5)
+    , __D 5 . su (tri_ (od.__3) p6)
+    , __D 4 . su (__.__5 . tri_ (od.__3) p7)
+    ]
+
 -- sam to sam
 tir_sam_adi_kirkalam :: Korvai
 tir_sam_adi_kirkalam = tirmanam $ date 2022 4 23 $ korvaiS adi
