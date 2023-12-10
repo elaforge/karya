@@ -319,8 +319,8 @@ scores = map Korvai.inferMetadataS
     , setLocation ("Solkattu.Score.SolkattuMohra",113,"c_mohra_youtube") $ Single Solkattu.Score.SolkattuMohra.c_mohra_youtube
     , setLocation ("Solkattu.Score.SolkattuMohra",139,"misra1") $ Single Solkattu.Score.SolkattuMohra.misra1
     , setLocation ("Solkattu.Score.Tabla2023",14,"bats") $ Single Solkattu.Score.Tabla2023.bats
-    , setLocation ("Solkattu.Score.Tabla2023",53,"qaida1") $ Single Solkattu.Score.Tabla2023.qaida1
-    , setLocation ("Solkattu.Score.Tabla2023",76,"qaida2") $ Single Solkattu.Score.Tabla2023.qaida2
+    , setLocation ("Solkattu.Score.Tabla2023",53,"akash_kaida1") $ Single Solkattu.Score.Tabla2023.akash_kaida1
+    , setLocation ("Solkattu.Score.Tabla2023",76,"akash_kaida2") $ Single Solkattu.Score.Tabla2023.akash_kaida2
     , setLocation ("Solkattu.Score.Tabla2023",96,"farmaisi") $ Single Solkattu.Score.Tabla2023.farmaisi
     , setLocation ("Solkattu.Score.Tabla2023",103,"tukra1") $ Single Solkattu.Score.Tabla2023.tukra1
     , setLocation ("Solkattu.Score.Tabla2023",108,"tukra2_chakradar") $ Single Solkattu.Score.Tabla2023.tukra2_chakradar

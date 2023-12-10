@@ -50,8 +50,8 @@ bats = bat $ source "mary" $ korvaiS tintal $
 
 -- * akash
 
-qaida1 :: Korvai
-qaida1 = qaida $ akash $ korvaiS tintal $ map sd
+akash_kaida1 :: Korvai
+akash_kaida1 = kaida $ akash $ korvaiS tintal $ map sd
     [ r2 "dha dha trkt dha dha tu na taa taa trkt dha dha tu na"
     -- palta 1
     , "dha dha trkt dha dha trkt dha dha trkt dha dha tu na"
@@ -73,8 +73,8 @@ qaida1 = qaida $ akash $ korvaiS tintal $ map sd
     , tri_ "dha___" (g "dha dha trkt dha dha tuna")
     ]
 
-qaida2 :: Korvai
-qaida2 = qaida $ akash $ korvaiS tintal $ map sd
+akash_kaida2 :: Korvai
+akash_kaida2 = kaida $ akash $ korvaiS tintal $ map sd
     [ r2 "dha trkt tk dha trkt tk taa trkt tk dha trkt tk"
     , "dha trkt tk dha trkt tk dha trkt tk tu na kt tk"
     . "taa trkt tk taa trkt tk dha trkt tk tu na kt tk"
@@ -252,7 +252,7 @@ c_23_10_16 = date 2023 10 26 $ colby $ mukra $ korvaiS1 tintal $
 -- So: kaliAt (-1) 0
 -- This means kali from 2/4 - 1, to 3/4+0
 c_23_11_09 :: Korvai
-c_23_11_09 = date 2023 11 9 $ colby $ rela $ qaida $ korvaiS tintal
+c_23_11_09 = date 2023 11 9 $ colby $ rela $ kaida $ korvaiS tintal
     [ theme . kali (theme1.theme2) . theme3.dha_tette.grng."dhin_na_gerenage"
     , r2 (theme1.theme2) . theme
     -- accent on Terekita
@@ -364,7 +364,7 @@ c_23_11_09_b = date 2023 11 9 $ colby $ tukra $ korvaiS1 tintal $
     . tri_ "__" (r3 (dha.ge.tetekata))
 
 c_23_11_16 :: Korvai
-c_23_11_16 = date 2023 11 16 $ colby $ qaida $ korvaiS tintal $ map (nadai 3)
+c_23_11_16 = date 2023 11 16 $ colby $ kaida $ korvaiS tintal $ map (nadai 3)
     [   theme1
       . kali (dhatette.dhagena.dhettette.dhagena)
         . dhatette.dhagena.dhagedhinagena
@@ -407,7 +407,7 @@ c_23_11_16 = date 2023 11 16 $ colby $ qaida $ korvaiS tintal $ map (nadai 3)
     dhagedhinagena = "dhage dhina gena"
     dhagetunakena = "dhage tuna kena"
     dhette = "dhette"
-    _tabla = [("dha", "ge&na")] -- because qaida
+    _tabla = [("dha", "ge&na")] -- because kaida
 
 c_23_11_30 :: Korvai
 c_23_11_30 = date 2023 11 30 $ colby $ korvaiS1 tintal $

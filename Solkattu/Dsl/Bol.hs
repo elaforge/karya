@@ -153,8 +153,8 @@ akash = source "akash"
 bat :: Korvai -> Korvai
 bat = withType "bat"
 
-qaida :: Korvai -> Korvai
-qaida = withType "qaida"
+kaida :: Korvai -> Korvai
+kaida = withType "kaida"
 
 mukra :: Korvai -> Korvai
 mukra = withType "mukra"
