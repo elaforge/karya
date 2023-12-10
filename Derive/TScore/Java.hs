@@ -355,6 +355,10 @@ infer_octave (prev_oct, Just prev_pc) (Pitch (RelativeOctave rel_oct) pc) =
 add_oct :: Octave -> Pitch Octave -> Pitch Octave
 add_oct oct (Pitch o pc) = Pitch (oct+o) pc
 
+add_pc :: Int -> Pitch Octave -> Pitch Octave
+add_pc steps (Pitch octave pc) = Pitch (octave + oct) pc2
+    where (oct, pc2) = toEnumBounded $ fromEnum pc + steps
+
 pitch_diff :: Pitch Octave -> Pitch Octave -> Int
 pitch_diff (Pitch oct1 pc1) (Pitch oct2 pc2) =
     per_oct * (oct1 - oct2) + (fromEnum pc1 - fromEnum pc2)
@@ -512,6 +516,16 @@ join_bars ((_, g0) : gs) = concat $ g0 : map join gs
     join (pos, tokens) = T.TBarline pos (T.Barline 1) : tokens
 
 
+-- * transform
+
+-- | Simple pelog lima to pelog barang by changing 1s to 7s.
+lima_to_barang :: [T.Token call (Pitch Octave) ndur rdur]
+    -> [T.Token call (Pitch Octave) ndur rdur]
+lima_to_barang = map (Identity.runIdentity . T.map_pitch (pure . replace))
+    where
+    replace p@(Pitch _ P1) = add_pc (-1) p
+    replace p = p
+
 -- * format
 
 format_score :: Score -> ([Text], [T.Error])
@@ -599,3 +613,9 @@ format_pitch (Pitch oct pc) = Text.cons (pc_char pc) dots
         -3 -> "\x2083" -- subscript
         -4 -> "\x2084" -- subscript
         _ -> "?"
+
+-- * util
+
+toEnumBounded :: forall a. (Bounded a, Enum a) => Int -> (Int, a)
+toEnumBounded n = (i, toEnum r)
+    where (i, r) = n `divMod` (fromEnum (maxBound :: a) + 1)
