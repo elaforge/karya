@@ -187,6 +187,17 @@ tihais = korvaiS adi
 tihai :: Sequence -> Sequence -> Sequence
 tihai seq sep = tri_ (hv sep) seq
 
+n_dd_dd :: Korvai
+n_dd_dd = korvaiS adi
+    [ rh . end . rh . end
+    , r4 end
+    , r2 end . "N.dDn_" . r2 "D.Dn_"
+    , tri_ "D_kpk" (g ("N.dDn_" . r2 "D.Dn_" . "D_"))
+    ]
+    where
+    rh  = "N.dD.dD_"
+    end = g "N.dDn_D_"
+
 -- *
 
 {-

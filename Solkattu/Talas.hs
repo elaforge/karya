@@ -87,3 +87,7 @@ jhaptal = Tal "jhaptal" [(Tali, 2), (Tali, 3), (Kali, 2), (Tali, 3)]
 
 rupak :: Tal
 rupak = Tal "rupak" [(Kali, 3), (Tali, 2), (Tali, 2)]
+
+-- | Hindustani adi tal, for pakhawaj.
+adi :: Tal
+adi = Tal "adi" [(Tali, 2), (Tali, 2), (Kali, 2), (Tali, 2)]

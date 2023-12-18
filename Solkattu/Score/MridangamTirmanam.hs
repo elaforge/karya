@@ -28,6 +28,11 @@ tir_long_adi = tirmanam $ korvaiS adi
         . od
     ]
 
+tir_15 :: Korvai
+tir_15 = tirmanam $ korvaiS adi
+    [ __D 4 .__ . tri_ "D__" "D_k" -- 3 (3) 3 (3) 3
+    ]
+
 tir_patterns :: Korvai
 tir_patterns = tirmanam $ korvaiS adi
     [ __D 6 . su (__ . r3 p5)

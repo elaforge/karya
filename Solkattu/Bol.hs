@@ -61,8 +61,9 @@ type Error = Text
 data Bol =
     Dha | Dhe | Dhen | Dhet | Dhom | Di | Din | Dhi | Dhin | Dhit | Dhu
     | Ga | Gi | Ge | Ghen | Gre
-    | Ka | Kat | Ke | Kre | Ki | Ma | Na | Ne | Ra | Re | Ri | Ran
-    | Ta | Tak | Taa | Te | Tet | The | Ti | Tin | Ten | Tu | Tun
+    | Ka | Kat | Ke | Kra | Kre | Ki | Ma | Na | Ne | Ra | Re | Ri | Ran
+    | Ṭa -- ^ technically correct form of Te, for transcriptions from devanagari
+    | Ta | Tak | Taa | Te | Ten | Tet | The | Ti | Tin | Tra | Tu | Tun
     | Kran -- TODO 2 beats?
     deriving (Eq, Ord, Enum, Bounded, Show)
 

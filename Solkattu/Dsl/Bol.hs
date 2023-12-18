@@ -167,3 +167,6 @@ rela = withType "rela"
 
 chakradar :: Korvai -> Korvai
 chakradar = withType "chakradar"
+
+theka :: Korvai -> Korvai
+theka = withType "theka"

@@ -4,6 +4,8 @@
 module Solkattu.Score.Tabla2023 where
 import           Prelude hiding ((.))
 
+import qualified Solkattu.Talas as Talas
+
 import           Solkattu.Dsl.Bol
 
 
@@ -258,14 +260,12 @@ c_23_11_09 = date 2023 11 9 $ colby $ rela $ kaida $ korvaiS tintal
     -- accent on Terekita
     , r2 theme1 . theme1.theme2 . theme
     , dha_tette.grng . tri_ (dha.__4) (grng.trkttk)
-        . dha.__4.grng.trkt.trkttk
-        . theme
+        . dha.__4.grng.trkt.trkttk . theme
     , dha_tette . r2 (grng.grng.trkttk.dha.__4) . grng.trkttk.dha.__4
         . grng.trkttk . theme
     -- accent beginning of each phrase
     , dha_tette . r2 (grng.grng.trkttk.dha.__4) . grng.trkttk.dha.__4
         . trkttk.dha.__4 . theme
-    , dha_tette . r2 (g (grng.grng.trkttk)) . theme3 . theme4
     , dha_tette . grng.grng.trkttk.dha.__4
         . grng.trkttk.dha.__4 . trkttk.dha.__4 . "kitetaka".dha.__4
         . ki.te.dha.__4 . dha.__4
@@ -274,6 +274,7 @@ c_23_11_09 = date 2023 11 9 $ colby $ rela $ kaida $ korvaiS tintal
         . grng.trkttk.dha.__4 . trkttk.dha.__4 . "kitetaka".dha.__4
         . tri_ (dha.__) (ki.te)
         . theme
+    , dha_tette . r2 (g (grng.grng.trkttk)) . theme3 . theme4
     , dha_tette.grng . r3 (grng.trkt) . theme3 . theme4
     , dha_tette.grng . r3 (trkt.grng) . theme3 . theme4
     , r2 (dha_tette.grng.trkt) . dha_tette.grng . theme3 . theme4
@@ -282,8 +283,8 @@ c_23_11_09 = date 2023 11 9 $ colby $ rela $ kaida $ korvaiS tintal
     -- actually 3 4 1 2, but with appropriate kali
     , theme3 . theme2 . theme1 . theme4
     , r3 (theme3 . theme2) . theme1 . theme4 -- aaab transformation
-    , r3 theme3 . theme2 -- also aaab
-    , grng.trkt . r3 (taka.dhette_tette_kite) . theme3 . theme4
+    , r3 theme3 . theme4 -- also aaab
+    , grng.trkt . r3 (g (taka.dhette_tette_kite)) . theme3 . theme4
     -- with kali, dha comes back early on dhet
     , theme3 . theme4 . kali (grng.trkttk).dhette_tette_kite.theme2
     -- tihai
@@ -416,12 +417,27 @@ c_23_11_30 = date 2023 11 30 $ colby $ korvaiS1 tintal $
     -- karvai dha on tin
     -- replace dhatuna with any 3 or 6
 
-c_23_11_30_tuk :: Korvai
-c_23_11_30_tuk = date 2023 11 30 $ colby $ tukra $ korvaiS1 tintal $
+c_23_11_30_tukra :: Korvai
+c_23_11_30_tukra = date 2023 11 30 $ colby $ tukra $ korvaiS1 tintal $
     "takadi_" . "kitataka" . "takaterekitataka" . "takaterekitadin_"
     . "dha__redha___" . "terekitatakataa_".tetekata
     . dha.__4.taa.__4."gadigenedha___"
     . tri_ (dha.__4."kitataka") ("terekitatakataa_".tetekata)
+
+-- * candiramani tape
+
+candiramani_pakhawaj_kehrwa :: Korvai
+candiramani_pakhawaj_kehrwa = theka $ korvaiS Talas.kehrwa
+    [ sd $ "dhin_dhadhin_dhindhage" . "dhin_dhatin_tintaage"
+    , sd $ "dhin_dhin_dha_tin_" . "trakra dhin_dha_ trakra"
+    , sd $ "dhet ti ṭa taa" . "_dhiṭati" . "kataṭataa" . "_dhiṭati"
+    ]
+
+candiramani_pakhawaj_adi :: Korvai
+candiramani_pakhawaj_adi = theka $ korvaiS Talas.adi
+    [ "dha_ki_ṭa_dha_kiṭadha_" . "ki_ṭa_ka_ti_" . "ṭa_taa_tiṭakata gadigene"
+    , "dha_ki_ṭa_dha_" . "dhet_dhi_ṭa_taa_" . "ka_ti_ṭa_dha_dhet_dhi_ṭa_dha_"
+    ]
 
 -- *
 

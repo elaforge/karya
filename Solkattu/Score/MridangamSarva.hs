@@ -4,12 +4,12 @@
 
 -- | Sarvalaghu.
 module Solkattu.Score.MridangamSarva where
-import Prelude hiding ((.), repeat)
+import           Prelude hiding ((.), repeat)
 
 import qualified Solkattu.Tala as Tala
 
-import Global
-import Solkattu.Dsl.Mridangam
+import           Global
+import           Solkattu.Dsl.Mridangam
 
 
 -- * kirkalam
@@ -183,3 +183,57 @@ c_18_05_25 = sarvalaghu $ date 2018 5 25 $ ganesh $ korvaiS1 Tala.misra_chapu $
     . on.k.on.on.od.__.on.k.od.k.on.on.od.__
     . on.k. n. n. d.__. n.k. d.k. n. n. d.__
     .  n.k. n. n. d.__. n.k.od.k.on.on.od.k
+
+-- * candiramani
+
+candiramani_pakhawaj_kehrwa :: Korvai
+candiramani_pakhawaj_kehrwa = korvaiS (Tala.beats 4)
+    -- "dhin_dhadhin_dhindhage" . "dhin_dhatin_tintaage"
+    [ "D_nD_dNo" . "D_nd_dno"
+    -- "dhin_dhin_dha_tin_" . "trakra dhin_dha_ trakra"
+    , "U_U_N_".p&i.__ . "ktU_nokt" . "U_U_N_".p&i.__ . "ktU_nnkt"
+    -- "dhet ti ta taa" . "_dhitati" . "katatitaa" . "_dhitati"
+    , su $ "o_k_t_u__oK_t_u_" . "p_k_t_u__oK_t_u_"
+         . "o_k_t_u__oo___i_" . "p_k_t_u__".su "pk"."o_k_t_"
+    ]
+
+candiramani_pakhawaj_adi :: Korvai
+candiramani_pakhawaj_adi = korvaiS adi
+    -- "dha_ki_ṭa_dha_kiṭadha_" . "ki_ṭa_ka_ti_" . "ṭa_taa_tiṭakata gadigene"
+    [   "U_k_toU_ktU_" . "k_t_p_" . "k_t_u_" . "ktpuoiok"
+      . "U_k_toU_ktU_" . "k_t_p_" . "k_t_U_" . "ktpuoiok"
+    -- "dha_ki_ṭa_dha_" . "dhet_dhi_ṭa_taa_" . "ka_ti_ṭa_dha_dhet_dhi_ṭa_dha_"
+    ,   "U_k_t_u_o_K_t_u_" . "p_k_t_u_" . "o_K_t_u_"
+      . "U_k_T_u_o_K_t_u_" . "p_k_t_u_" . "o_K_t_uo"
+    ]
+
+
+-- * transcription
+
+{-
+    These are easier to transcribe and read as plain text.  Maybe there
+    should be yet another entry mechanism, or maybe I just leave them as
+    comments:
+
+    0   .   1   .   2   .   3   .   x   .   o   .   x   .   o   .   |
+                                    u   .   .   k t p k n o o k o k u
+    0   .   1   .   2   .   3   .   x   .   o   .   x   .   o   ,   ;   ,   |
+    u okD D N D D D N  D DN N D D N u dkd n nnd d n u pktpktk ktktkonookou k
+                                                            k ktkooknpk ou k
+    0   .   1   .   2   .   3   ,   ;   ,   x   .   o   .   x   .   o   .   |
+    n D n d n D N D u pktpktpu kt k u pknookD okD D NND D D u  D Du U okD D
+    N  D dN N D D N N pkd d n pkd pkd pknookD okD N NND D D N  D DD N D D D
+    0   .   1   .   2   .   3   .   x   .   o   .   x   .   o   .   |
+      uu ou   uu ou   uu ou   uu ou U okD N NND D n u kdd n nnd d n
+    0   .   1   .   2   .   3   .   x   .   o   .   x   .   o   ,   ;   ,   |
+      uu ou   uu ou   uu ou N okD D N  D DN N D D N u pktpkpu o o k D oknook
+    0   .   1   .   2   .   3   ,   ;   ,   x   .   o   .   x   .   o   .   |
+    D okD D NND D N u kdd nkoknooknooknookn D okD N NND D N u kdd n ktktkook
+
+    0   .   1   .   2   .   3   .   x   .   o   .   x   .   o   .   |
+    D   o k D   D   D   D   D   D   D   D   D     D     D     D     D
+
+    ending
+    0   .   1   .   2   .   3   .   x   .   o   .   x   .   o   .   |
+    pktpu pknpupktpkpu kD pktpu pknpupktpkpu kD K   pu ko pu ko pu kD
+-}
