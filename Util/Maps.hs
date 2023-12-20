@@ -3,8 +3,23 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Extra utils for "Data.Map".
-module Util.Maps where
-import           Prelude hiding (min, max)
+module Util.Maps (
+    getM
+    , filterKey
+    , deleteKeys
+    , insertList
+    , split2, split3
+    , within
+    , lookupClosest
+    , invert
+    , multimap
+    , unique, unique2
+    , zipIntersection
+    , pairs, paired
+    , uniqueUnion, uniqueUnions
+    , mappend, mconcat
+) where
+import           Prelude hiding (min, max, mappend, mconcat)
 import           Control.Arrow (first)
 import qualified Data.Either as Either
 import qualified Data.List as List
