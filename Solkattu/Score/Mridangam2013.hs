@@ -13,6 +13,31 @@ import qualified Solkattu.Dsl.Misc as Misc
 import           Solkattu.Dsl.Mridangam
 
 
+-- 2013-06-05 - ta di thom nam, nadindin sarvalaghu
+
+e_ktkt :: Korvai
+e_ktkt = date 2013 6 5 $ exercise $ ganesh $ korvaiS adi
+    [ r2 (n.p.ktkt.pk) . n.p.kt.kp.kt.kp.ktkt.pk
+    , n.p . r6 (kt.kp) . ktkt.pk
+    , n.p . r3 (kt.kp . cmap hv [k, t, k].p) . ktkt.pk
+    , n.p . r6 (cmap hv [k, t, k].p) . ktkt.pk
+    , n.o . r3 (o&k.t.kp . kt.kp) . ktkt.pk
+    , n.o . r6 (o&k.t.kp) . ktkt.pk
+    , n . r3 (o.k.o&t.k.p .kt.k) . p.ktkt.pk
+    , n . r6 (o.k.o&t.k) . p.ktkt.pk
+    ]
+
+e_3s_5s :: Korvai
+e_3s_5s = date 2013 6 12 $ exercise $ ganesh $ korvaiS1 adi $
+    r8 takita . r8 tdgnt . r4 takita . r4 tdgnt . r2 (r2 takita . r2 tdgnt)
+    . r4 (takita.tdgnt)
+    where
+    takita = "kD_"
+    tdgnt = "ktkno"
+
+-- 2013-06-19 - sarvalaghu, nakatarikitataka, start of farans, p5 variants
+-- 2013-07-17 - farans, 555, 666, 777
+
 -- TODO use this as a template to fill in various themes
 dinnagina_sequence_old :: Korvai
 dinnagina_sequence_old = date 2013 9 11 $ ganesh $ sequenceT $ korvaiS1 adi $
@@ -167,60 +192,6 @@ make_dinna theme_ repl sep theme'_ ptheme'_ = map (su • (sam.))
     split m a b seq = a pre . b post
         where (pre, post) = splitM_ m seq
 
--- * sarvalaghu
-
-din_nadin :: Korvai
-din_nadin = sarvalaghu $ ganesh $ korvaiS (beats 4)
-    [ od.__.on.od.l.od.on.l.od.l.on.od.l.od.on.l
-    , su $ r2 $ d.__.p.k.n.l.d.__.p.l.d.__.n.__.l.__
-    , su $ r2 $ d.__.p.k.n.l.d.l.p.l.d.l.n.l.p.l
-    ]
-
-nadin_ka :: Korvai
-nadin_ka = sarvalaghu $ ganesh $ date 2017 5 15 $ korvaiS1 (beats 4) $
-    on.od.__.k.(n.d.__.k).(n.d.__.k).o.od.__.k
-    -- 4 nd to switch to kandam
-
-nadindin :: Korvai
-nadindin = sarvalaghu $ korvaiS adi $ map sd
-    [ template $ lh & rh
-    , template $ su (on.on) . od.od.on
-    , template $ su (su (k.t.o.k) . o.k) . o . k
-    -- TODO if I have a notation for alternatives I could put it in here
-    -- melkalam
-    , su $ inter l $ r4 rh & (r8 o . o.__4 . __ . r3 o)
-    -- TODO For the others, I should have a way to intersperse at a certain
-    -- speed, or maybe mix together two sequences.  Or maybe I can infer 'l'
-    -- for melkalam?
-    ]
-    where
-    template var = (lh & rh) . var . (rh . rh) & (o.__4 . __ . r3 o)
-    rh = n.d.d.n
-    lh = o.o.o.o
-
--- | Some patterns are more naturally expressed with negative orientation.
--- I don't have support for that, and I don't even know how I would, but here's
--- a simple motivating example.
-nadindin_negative :: Korvai
-nadindin_negative = sarvalaghu $ korvaiS adi $ map sd
-    [ __ . lh & rh . lh  & rh  . rh . lh & rh
-    , __ . lh & rh . lh1 & rh1 . rh . lh & rh
-    ]
-    where
-    -- For this to work right, I need the the duration of each note to be
-    -- negative.
-    rh1 = su (n.d) . d.n -- should be: su n . d.d.n
-    lh1 = su (o.o) . o.o -- should be: su o . o.o.o
-    rh = d.d.n.n
-    lh = o.o.o.o
-
-namita_dimita :: Korvai
-namita_dimita = sarvalaghu $ korvaiS1 adi $
-    __ . (lh & rh) . (lh & rh) . rh . (lh & rh)
-    where
-    rh = l.d.d.l.d.d.l.n
-    lh = __3.o.__3.o.__.o
-
 namita_dimita_seq :: Korvai
 namita_dimita_seq = korvaiS adi $
     [ sequence t1 t1_end
@@ -275,6 +246,7 @@ farans = exercise $ faran $ korvaiS adi $ map su $ concat
         , p.u.__.n.p.k.t.k
         , o.u.__.n.p.k.t.k
         ]
+    , [make "pkoo" "oupktk" "pkoonook"]
     , map (make (o.u.__.k) (o.u.__.k . t.k))
         [ o.u.__.k.k.o.o.k -- 11
         , o.u.p.k.k.o.o.k
@@ -304,18 +276,6 @@ farans = exercise $ faran $ korvaiS adi $ map su $ concat
         where
         long = group pattern . nakatiku
         short = takeM 6 pattern
-
-e_ktkt :: Korvai
-e_ktkt = exercise $ korvaiS adi
-    [ r2 (n.p.ktkt.pk) . n.p.kt.kp.kt.kp.ktkt.pk
-    , n.p . r6 (kt.kp) . ktkt.pk
-    , n.p . r3 (kt.kp . cmap hv [k, t, k].p) . ktkt.pk
-    , n.p . r6 (cmap hv [k, t, k].p) . ktkt.pk
-    , n.o . r3 (o&k.t.kp . kt.kp) . ktkt.pk
-    , n.o . r6 (o&k.t.kp) . ktkt.pk
-    , n . r3 (o.k.o&t.k.p .kt.k) . p.ktkt.pk
-    , n . r6 (o.k.o&t.k) . p.ktkt.pk
-    ]
 
 -- * fragments
 

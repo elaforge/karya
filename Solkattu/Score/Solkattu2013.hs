@@ -26,11 +26,15 @@ c_13_07_23 = date 2013 7 23 $ ganesh $ korvaiS1 adi mridangam $
 
 c_13_08_14 :: Korvai
 c_13_08_14 = ganesh $ date 2013 8 14 $ korvaiS adi (mridangam <> kendang)
-    [     group (theme 2 1) . p5
+    -- introduce theme 2 1, theme 2 2, theme 2 3
+    [ sarvaD_ 4 . theme 2 1
+    , sarvaD_ 3 . __M 3 . dropM 2 (theme 2 2)
+    , sarvaD_ 3 . __M 2 . dropM 4 (theme 2 3)
+    ,     group (theme 2 1) . p5
       . dropM 2 (theme 2 2) . p6 . p6
       . dropM 4 (theme 2 3) . tri p7 . tri p6 . tri p5
 
-    , let ta_din__ = ta.__.din.__.__ in
+    , let ta_din__ = ta.__.din.__.__ in -- from 2013-10-24
           group (theme 3 1) . p5 . ta_din__
       . dropM 3 (theme 3 2) . p6 . p6 . ta_din__
       . dropM 6 (theme 3 3) . trin ta_din__ (tri p7) (tri p6) (tri p5)
@@ -101,8 +105,7 @@ c_13_11_05 = date 2013 11 5 $ ganesh $ korvaiS1 adi mridangam $
 
 c_13_11_12 :: Korvai
 c_13_11_12 = date 2013 11 12 $ ganesh $ korvaiS adi mridangam
-    [ sequence, nadai 6 sequence
-    ]
+    [ sequence, nadai 6 sequence ]
     where
     sequence =
         theme . dropM 2 theme . taka.dheem.__4 . dropM 4 theme
@@ -252,8 +255,7 @@ k3s = korvaiS adi mridangam $ map (nadai 5)
 -- * tisra nadai
 
 t_sarva1 :: Korvai
-t_sarva1 = sarvalaghu $ ganesh $ korvaiS1 adi mridangam $
-    nadai 6 sarva
+t_sarva1 = sarvalaghu $ ganesh $ korvaiS1 adi mridangam $ nadai 6 sarva
     where
     sarva = sd $
         dhom.ka.na.na.di.mi . na.mi.na.na.di.mi

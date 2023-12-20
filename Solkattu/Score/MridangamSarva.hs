@@ -107,6 +107,45 @@ farans = sudhindra $ faran $ korvaiS adi $
 
 -- * ganesh
 
+din_nadin :: Korvai
+din_nadin = sarvalaghu $ ganesh $ korvaiS adi
+    [ r2 "D.ND.DN." . o & r2 "d.nd.dn."
+    , r2 $ su $ r2 $ d.__.p.k.n.l.d.__.p.l.d.__.n.__.l.__
+    , r2 $ su $ r2 $ d.__.p.k.n.l.d.l.p.l.d.l.n.l.p.l
+    ]
+
+nadin_ka :: Korvai
+nadin_ka = sarvalaghu $ ganesh $ date 2017 5 15 $ korvaiS adi
+    [ r2 $ on.od.__.k.(n.d.__.k).(n.d.__.k).o.od.__.k
+    , nadai 5 $ r2 $ "ND_k" . r3 "nd_k" . "oD_k"
+    , nadai 6 $ r2 $ "ND_k" . r4 "nd_k" . "oD_k"
+    ]
+    -- 4 nd to switch to kandam
+
+nadindin :: Korvai
+nadindin = sarvalaghu $ korvaiS adi $ map sd
+    [ template $ lh & rh
+    , template $ su (on.on) . od.od.on
+    , template $ su (su (k.t.o.k) . o.k) . o . k
+    -- TODO if I have a notation for alternatives I could put it in here
+    -- melkalam
+    , su $ inter l $ r4 rh & (r8 o . o.__4 . __ . r3 o)
+    -- TODO For the others, I should have a way to intersperse at a certain
+    -- speed, or maybe mix together two sequences.  Or maybe I can infer 'l'
+    -- for melkalam?
+    ]
+    where
+    template var = (lh & rh) . var . (rh . rh) & (o.__4 . __ . r3 o)
+    rh = n.d.d.n
+    lh = o.o.o.o
+
+namita_dimita :: Korvai
+namita_dimita = sarvalaghu $ korvaiS1 adi $
+    __ . (lh & rh) . (lh & rh) . rh . (lh & rh)
+    where
+    rh = l.d.d.l.d.d.l.n
+    lh = __3.o.__3.o.__.o
+
 kir6 :: Korvai
 kir6 = sarvalaghu $ date 2017 8 29 $ ganesh $ korvaiS adi $
     [ both . o1 rh
