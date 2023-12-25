@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE StrictData #-}
 -- deriving (Real) for Time emits this warning.
 {-# OPTIONS_GHC -fno-warn-identities #-}
 -- | Shared types for TScore.
@@ -30,20 +31,20 @@ newtype Score = Score [(Pos, Toplevel)]
     deriving (Eq, Show)
 
 data Toplevel =
-    ToplevelDirective !Directive
-    | BlockDefinition !(Block WrappedTracks)
+    ToplevelDirective Directive
+    | BlockDefinition (Block WrappedTracks)
     deriving (Eq, Show)
 
 -- | call is a parameter, because 'SubBlock' will later be resolved to
 -- 'CallText'.
 data Block tracks = Block {
-    block_id :: !Id.BlockId
-    , block_directives :: ![Directive]
-    , block_title :: !Text
-    , block_tracks :: !tracks
+    block_id :: Id.BlockId
+    , block_directives :: [Directive]
+    , block_title :: Text
+    , block_tracks :: tracks
     } deriving (Eq, Show)
 
-data WrappedTracks = WrappedTracks !Pos ![Tracks Call]
+data WrappedTracks = WrappedTracks Pos [Tracks Call]
     deriving (Eq, Show)
 
 newtype Tracks call = Tracks [Track call]
@@ -56,25 +57,25 @@ data Track call = Track {
     -- | Some arbitrary symbols.  This has no meaning except to make the track
     -- with its title unique on this block.  This is so that tracks have an
     -- identity, and I can detect track moves, adds, and deletes.
-    track_key :: !Text
+    track_key :: Text
     -- | The track title will include a > if the original syntax did, or be ""
     -- if the track has no title at all, which is only possible for the first
     -- one, e.g. [a] or [a > b].  This way unparse can emit the same
     -- abbreviated syntax.
-    , track_title :: !Text
-    , track_directives :: ![Directive]
-    , track_tokens :: ![Token call (NPitch Pitch) NDuration Duration]
-    , track_pos :: !Pos
+    , track_title :: Text
+    , track_directives :: [Directive]
+    , track_tokens :: [Token call (NPitch Pitch) NDuration Duration]
+    , track_pos :: Pos
     } deriving (Eq, Show)
 
-data Directive = Directive !Pos !Text !(Maybe Text)
+data Directive = Directive Pos Text (Maybe Text)
     deriving (Eq, Show)
 
 data Token call pitch ndur rdur =
     -- | Higher count for larger divisions, e.g. anga vs. avartanam.
-    TBarline !Pos !Barline
-    | TNote !Pos !(Note call pitch ndur)
-    | TRest !Pos !(Rest rdur)
+    TBarline Pos Barline
+    | TNote Pos (Note call pitch ndur)
+    | TRest Pos (Rest rdur)
     deriving (Eq, Show)
 
 token_pos :: Token call pitch ndur rdur -> Pos
@@ -127,20 +128,20 @@ data Barline = Barline Rank | AssertCoincident
     deriving (Eq, Show)
 
 data Note call pitch dur = Note {
-    note_call :: !call
-    , note_pitch :: !pitch
+    note_call :: call
+    , note_pitch :: pitch
     -- | The generated event should have 0 duration.
-    , note_zero_duration :: !Bool
-    , note_duration :: !dur
+    , note_zero_duration :: Bool
+    , note_duration :: dur
     -- | This is redundant with 'TNote's Pos, but convenient, since Check will
     -- later strip away 'Token's.
-    , note_pos :: !Pos
+    , note_pos :: Pos
     } deriving (Eq, Show)
 
-data Call = Call !CallText
+data Call = Call CallText
     -- | A call can take multiple 'Tracks' arguments, each one of which is a
     -- sub-block.
-    | SubBlock !CallText ![Tracks Call]
+    | SubBlock CallText [Tracks Call]
     deriving (Eq, Show)
 
 instance String.IsString Call where
@@ -152,7 +153,7 @@ type CallText = Text
 newtype Rest dur = Rest dur
     deriving (Eq, Show)
 
-data NPitch pitch = CopyFrom | NPitch !pitch
+data NPitch pitch = CopyFrom | NPitch pitch
     deriving (Eq, Show)
 
 instance Pretty pitch => Pretty (NPitch pitch) where
@@ -160,25 +161,25 @@ instance Pretty pitch => Pretty (NPitch pitch) where
     pretty CopyFrom = "CopyFrom"
 
 data Pitch = Pitch {
-    pitch_octave :: !Octave
-    , pitch_call :: !Text
+    pitch_octave :: Octave
+    , pitch_call :: Text
     } deriving (Eq, Show)
 
 type PitchText = Text
 
-data Octave = Absolute !Int | Relative !Int
+data Octave = Absolute Int | Relative Int
     deriving (Eq, Show)
 
-data NDuration = NDuration !Duration | CallDuration
+data NDuration = NDuration Duration | CallDuration
     deriving (Eq, Show)
 
 data Duration = Duration {
     -- | Durations are specified as two optional integers: int1, or int1:int2.
     -- The interpretation is up to the dur Directive.
-    dur_int1 :: !(Maybe Int)
-    , dur_int2 :: !(Maybe Int)
-    , dur_dots :: !Int
-    , dur_tie :: !Bool
+    dur_int1 :: Maybe Int
+    , dur_int2 :: Maybe Int
+    , dur_dots :: Int
+    , dur_tie :: Bool
     } deriving (Eq, Show)
 
 -- * error
@@ -186,7 +187,7 @@ data Duration = Duration {
 -- | Character position in the input.
 newtype Pos = Pos Int deriving (Eq, Show, Pretty)
 
-data Error = Error !Pos !Text
+data Error = Error Pos Text
     deriving (Eq, Show)
 
 instance Pretty Error where
