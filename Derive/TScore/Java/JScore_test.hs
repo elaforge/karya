@@ -1,16 +1,16 @@
 -- Copyright 2023 Evan Laforge
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
-module Derive.TScore.Java_test where
+module Derive.TScore.Java.JScore_test where
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
 import qualified Util.Logger as Logger
 import qualified Util.Test.Testing as Testing
-import qualified Derive.TScore.Java as Java
-import           Derive.TScore.Java (Pitch(..), PitchClass(..))
+import qualified Derive.TScore.Java.JScore as JScore
+import           Derive.TScore.Java.T (Pitch(..), PitchClass(..))
 import qualified Derive.TScore.Parse as Parse
-import qualified Derive.TScore.T as T
+import qualified Derive.TScore.Java.T as T
 
 import           Global
 import           Util.Test.Global
@@ -30,7 +30,7 @@ everything_score =
 
 test_roundtrip :: Test
 test_roundtrip = do
-    let trip = fmap unparse . Java.parse_score
+    let trip = fmap unparse . JScore.parse_score
     right_equal (trip "%a = b") "%a = b\n"
     right_equal (trip "1235 [ > 5 6/. _ ]") "1235 [ > 5 6/. _ ]\n"
     let normalized = trip everything_score
@@ -40,13 +40,13 @@ test_roundtrip = do
 
 test_parse :: Test
 test_parse = do
-    let f = Java.parse_score
+    let f = JScore.parse_score
     pprint (f "1235 tumurun\n1235 am")
 
 test_infer_octave :: Test
 test_infer_octave = do
-    let f = Java.infer_octave
-    let o = Java.RelativeOctave
+    let f = JScore.infer_octave
+    let o = T.RelativeOctave
     equal (f (1, Just P1) (Pitch (o 0) P2)) (Pitch 1 P2)
     equal (f (1, Just P1) (Pitch (o 0) P7)) (Pitch 0 P7)
     -- First ' forces upward motion.
@@ -72,7 +72,7 @@ unparse = Parse.unparse Parse.default_config
 
 test_resolve_duration_bias_start :: Test
 test_resolve_duration_bias_start = do
-    let f = fmap (map extract) . resolve_tokens Java.BiasStart
+    let f = fmap (map extract) . resolve_tokens JScore.BiasStart
         extract (t, n) = (t, T.note_duration n)
     right_equal (f "1234") [(0, 1/4), (1/4, 1/4), (2/4, 1/4), (3/4, 1/4)]
     right_equal (f ".1.2.3.4")
@@ -87,7 +87,7 @@ test_resolve_duration_bias_start = do
 
 test_resolve_duration_bias_end :: Test
 test_resolve_duration_bias_end = do
-    let f = fmap (map extract) . resolve_tokens Java.BiasEnd
+    let f = fmap (map extract) . resolve_tokens JScore.BiasEnd
         extract (t, n) = (t, T.note_duration n)
     right_equal (f "1234") [(1/4, 1/4), (2/4, 1/4), (3/4, 1/4), (4/4, 0)]
     right_equal (f ".1.2.3.4") [(1/4, 1/4), (2/4, 1/4), (3/4, 1/4), (4/4, 0)]
@@ -126,21 +126,21 @@ test_infer_rests = do
         0  1  2  3  4    1
           .2 .1 26 .5 | 61
     -}
-    right_equal (f Java.BiasStart "2 126 56 | 3 5 3 5") expectedS
-    right_equal (f Java.BiasStart "2. 12 6. 56 | 3 5 3 5") expectedS
+    right_equal (f JScore.BiasStart "2 126 56 | 3 5 3 5") expectedS
+    right_equal (f JScore.BiasStart "2. 12 6. 56 | 3 5 3 5") expectedS
 
-    right_equal (f Java.BiasEnd ".2 .1 26 .5 | 63 5 3 5") expectedE
-    right_equal (f Java.BiasEnd "2 126 5 | 63 5 3 5") expectedE
+    right_equal (f JScore.BiasEnd ".2 .1 26 .5 | 63 5 3 5") expectedE
+    right_equal (f JScore.BiasEnd "2 126 5 | 63 5 3 5") expectedE
 
     -- This is .235, even though it looks misleading.
     -- The problem is rests are only inferred when it's not already a power of
     -- 2.
-    right_equal (const () <$> f Java.BiasStart ". 235") ()
-    right_equal (const () <$> f Java.BiasStart "12345 6") ()
+    right_equal (const () <$> f JScore.BiasStart ". 235") ()
+    right_equal (const () <$> f JScore.BiasStart "12345 6") ()
 
 test_resolve_pitch :: Test
 test_resolve_pitch = do
-    let f = fmap (map extract) . resolve_tokens Java.BiasStart
+    let f = fmap (map extract) . resolve_tokens JScore.BiasStart
         extract = T.note_pitch . snd
     right_equal (f "1471")
         [Pitch 0 P1, Pitch 0 P4, Pitch 0 P7, Pitch 1 P1]
@@ -150,16 +150,16 @@ test_resolve_pitch = do
 err :: Int -> Text -> T.Error
 err pos = T.Error (T.Pos pos)
 
-parse_tokens :: Text -> [Java.Token]
-parse_tokens = Testing.expect_right . fmap Java.track_tokens . parse . ("> "<>)
+parse_tokens :: Text -> [T.ParsedToken]
+parse_tokens = Testing.expect_right . fmap T.track_tokens . parse . ("> "<>)
 
-resolve_tokens :: Java.Bias -> Text
-    -> Either [T.Error] [(T.Time, T.Note () (Pitch Int) T.Time)]
+resolve_tokens :: JScore.Bias -> Text
+    -> Either [T.Error] [(T.Time, T.Note (Pitch Int) T.Time)]
 resolve_tokens bias source
     | null errs = Right lines
     | otherwise = Left errs
     where
-    (lines, errs) = Logger.runId $ Java.resolve_tokens bias $
+    (lines, errs) = Logger.runId $ JScore.resolve_tokens bias $
         parse_tokens source
 
 
@@ -189,26 +189,26 @@ test_format_score2 = do
         \]\n"
 
 format_score :: Text -> Either Text [Text]
-format_score source = case Java.parse_score source of
+format_score source = case JScore.parse_score source of
     Left err -> Left (txt err)
     Right score
         | not (null errs) ->
             Left $ Text.unlines $ map (T.show_error source) errs
         | otherwise -> Right lines
-        where (lines, errs) = Java.format_score score
+        where (lines, errs) = JScore.format_score score
 
 format_file :: FilePath -> IO ()
 format_file fname = print_score =<< Text.IO.readFile fname
 
 print_score :: Text -> IO ()
-print_score source = case Java.parse_score source of
+print_score source = case JScore.parse_score source of
     Left err -> putStrLn err
     Right score -> do
-        let (lines, errs) = Java.format_score score
+        let (lines, errs) = JScore.format_score score
         mapM_ Text.IO.putStrLn lines
         mapM_ (Text.IO.putStrLn . T.show_error source) errs
 
 _parse_file :: FilePath -> IO ()
-_parse_file fname = (Java.parse_score <$> Text.IO.readFile fname) >>= \case
+_parse_file fname = (JScore.parse_score <$> Text.IO.readFile fname) >>= \case
     Left err -> putStrLn err
     Right score -> Text.IO.putStrLn $ unparse score

@@ -31,7 +31,7 @@
     Not sure if possible.  At the least it should reuse as much as possible
     of Check, and all of TScore.
 -}
-module Derive.TScore.Java where
+module Derive.TScore.Java.JScore where
 import qualified Control.Monad.Identity as Identity
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
@@ -44,66 +44,33 @@ import qualified Util.P as P
 import qualified Util.Texts as Texts
 
 import qualified Derive.TScore.Parse as Parse
-import qualified Derive.TScore.T as T
+import qualified Derive.TScore.Java.T as T
+import           Derive.TScore.Java.T (Pitch(..), Octave)
 
 import           Global
 
 
-data Pitch oct = Pitch oct PitchClass
-    deriving (Eq, Show)
-type Octave = Int
-newtype RelativeOctave = RelativeOctave Int
-    deriving (Eq, Show)
-
-data PitchClass = P1 | P2 | P3 | P4 | P5 | P6 | P7
-    deriving (Eq, Ord, Show, Bounded, Enum)
-
-pc_char :: PitchClass -> Char
-pc_char = \case
-    P1 -> '1'; P2 -> '2'; P3 -> '3'; P4 -> '4'; P5 -> '5'; P6 -> '6'; P7 -> '7'
-
-data Gatra = Gatra Balungan Balungan Balungan Balungan
-    deriving (Eq, Show)
-
-data Balungan =
-    Balungan (Maybe (Pitch RelativeOctave)) (Maybe BalunganAnnotation)
-    deriving (Eq, Show)
-
-data BalunganAnnotation = Gong | Kenong
-    deriving (Eq, Show)
-
-parse_score :: Text -> Either String Score
+parse_score :: Text -> Either String T.Score
 parse_score = Parse.parse_text (Parse.parse Parse.default_config)
 
-newtype Score = Score [(T.Pos, Toplevel)]
-    deriving (Eq, Show)
-
-instance Parse.Element Score where
+instance Parse.Element T.Score where
     parse config = Parse.p_whitespace
-        *> (Score <$> P.many (Parse.parse config))
-    unparse config (Score toplevels) =
+        *> (T.Score <$> P.many (Parse.parse config))
+    unparse config (T.Score toplevels) =
         Text.unlines $ map (Parse.unparse config) toplevels
 
-data Toplevel = ToplevelDirective T.Directive | BlockDefinition Block
-    deriving (Eq, Show)
-
-instance Parse.Element Toplevel where
+instance Parse.Element T.Toplevel where
     parse config = Parse.lexeme $
-        ToplevelDirective . un <$> Parse.parse config
-        <|> BlockDefinition <$> Parse.parse config
+        T.ToplevelDirective . un <$> Parse.parse config
+        <|> T.BlockDefinition <$> Parse.parse config
         where un (Parse.ToplevelDirective d) = d
     unparse config = \case
-        ToplevelDirective a -> Parse.unparse config (Parse.ToplevelDirective a)
-        BlockDefinition a -> Parse.unparse config a
-
-data Block = Block {
-    block_gatra :: Gatra
-    , block_names :: [Text]
-    , block_tracks :: Maybe Tracks
-    } deriving (Eq, Show)
+        T.ToplevelDirective a ->
+            Parse.unparse config (Parse.ToplevelDirective a)
+        T.BlockDefinition a -> Parse.unparse config a
 
 -- | 1234 name [ tracks ]
-instance Parse.Element Block where
+instance Parse.Element T.Block where
     parse config = do
         block_gatra <- Parse.lexeme $ Parse.parse config
         -- It's important this doesn't take digits, or it could grab the next
@@ -111,75 +78,57 @@ instance Parse.Element Block where
         block_names <- P.many $ Parse.lexeme $ P.takeWhile1 $ \c ->
             'a' <= c && c <= 'z' || c == '-'
         block_tracks <- P.optional $ Parse.parse config
-        pure $ Block { block_gatra, block_names, block_tracks }
-    unparse config (Block { block_gatra, block_names, block_tracks }) =
+        pure $ T.Block { block_gatra, block_names, block_tracks }
+    unparse config (T.Block { block_gatra, block_names, block_tracks }) =
         Text.unwords $ Parse.unparse config block_gatra : block_names
             ++ maybe [] ((:[]) . Parse.unparse config) block_tracks
 
-newtype Tracks = Tracks [Track]
-    deriving (Eq, Show)
-
-instance Parse.Element Tracks where
-    parse config = fmap Tracks $ Parse.lexeme "[" *> tracks <* Parse.lexeme "]"
+instance Parse.Element T.Tracks where
+    parse config =
+        fmap T.Tracks $ Parse.lexeme "[" *> tracks <* Parse.lexeme "]"
         where tracks = P.some (Parse.parse config)
-    unparse config (Tracks tracks) =
+    unparse config (T.Tracks tracks) =
         "[ " <> Text.unwords (map (Parse.unparse config) tracks) <> "]"
         -- Intentionally no space on "]", because the last note's HasSpace
         -- should put one on.
 
-data Track = Track {
-    track_tokens :: [Token]
-    , track_pos :: T.Pos
-    } deriving (Eq, Show)
-
-instance Parse.Element Track where
+instance Parse.Element T.Track where
     parse config = do
         track_pos <- Parse.get_pos
         Parse.keyword ">"
         track_tokens <- P.many $ Parse.parse config
-        return $ Track { track_tokens, track_pos }
-    unparse config (Track { track_tokens }) =
+        return $ T.Track { track_tokens, track_pos }
+    unparse config (T.Track { track_tokens }) =
         -- Text.unwords $ ">" : map (Parse.unparse config) track_tokens
         -- Rely on HasSpace to preserving spacing between notes.
         mconcat $ "> " : map (Parse.unparse config) track_tokens
 
-type Token = T.Token () (Pitch RelativeOctave) HasSpace Rest
-
--- | Keep track if there was whitespace after notes and rests.
--- I can use this to infer durations.
-data HasSpace = HasSpace | NoSpace deriving (Eq, Show)
-
-p_has_space :: Parse.Parser HasSpace
+p_has_space :: Parse.Parser T.HasSpace
 p_has_space = Parse.p_whitespace_ >>= pure . \case
-    True -> HasSpace
-    False -> NoSpace
+    True -> T.HasSpace
+    False -> T.NoSpace
 
-instance Parse.Element Token where
+instance Parse.Element T.ParsedToken where
     parse config =
-        Parse.lexeme (T.TBarline <$> Parse.get_pos <*> Parse.parse config)
+        Parse.lexeme (P.char '|' *> (T.TBarline <$> Parse.get_pos))
         <|> T.TRest <$> Parse.get_pos <*> Parse.parse config
         <|> T.TNote <$> Parse.get_pos <*> Parse.parse config
-    unparse config (T.TBarline _ bar) = Parse.unparse config bar <> " "
+    unparse _ (T.TBarline _) = "| "
     unparse config (T.TNote _ note) = Parse.unparse config note
     unparse config (T.TRest _ rest) = Parse.unparse config rest
 
-data Rest = Rest {
-    rest_sustain :: Bool
-    , rest_space :: HasSpace
-    } deriving (Eq, Show)
-
-instance Parse.Element (T.Rest Rest) where
+instance Parse.Element T.Rest where
     parse _ = do
         rest_sustain <- P.char '.' *> pure True <|> P.char '_' *> pure False
         -- Parse.lexeme is omitted from the calling parser to support this.
         rest_space <- p_has_space
-        pure $ T.Rest $ Rest { rest_sustain, rest_space }
-    unparse _ (T.Rest (Rest { rest_sustain, rest_space })) =
+        pure $ T.Rest { rest_sustain, rest_space }
+    unparse _ (T.Rest { rest_sustain, rest_space }) =
         (if rest_sustain then "." else "_") <> case rest_space of
-            NoSpace -> ""
-            HasSpace -> " "
+            T.NoSpace -> ""
+            T.HasSpace -> " "
 
-instance Parse.Element (T.Note () (Pitch RelativeOctave) HasSpace) where
+instance Parse.Element (T.Note (Pitch T.RelativeOctave) T.HasSpace) where
     parse config = do
         note_pos <- Parse.get_pos
         note_pitch <- Parse.parse config
@@ -187,8 +136,7 @@ instance Parse.Element (T.Note () (Pitch RelativeOctave) HasSpace) where
         -- Parse.lexeme is omitted from the calling parser to support this.
         note_duration <- p_has_space
         return $ T.Note
-            { note_call = ()
-            , note_pitch
+            { note_pitch
             , note_zero_duration
             , note_duration
             , note_pos
@@ -197,28 +145,21 @@ instance Parse.Element (T.Note () (Pitch RelativeOctave) HasSpace) where
         Parse.unparse config note_pitch
         <> if note_zero_duration then "/" else ""
         <> case note_duration of
-            HasSpace -> " "
-            NoSpace -> ""
+            T.NoSpace -> ""
+            T.HasSpace -> " "
 
-instance Parse.Element PitchClass where
-    parse _ = P.satisfy (\c -> '1' <= c && c <= '9') >>= \case
-        '1' -> pure P1
-        '2' -> pure P2
-        '3' -> pure P3
-        '4' -> pure P4
-        '5' -> pure P5
-        '6' -> pure P6
-        '7' -> pure P7
-        _ -> mzero
-    unparse _ p = Text.singleton (pc_char p)
+instance Parse.Element T.PitchClass where
+    parse _ = maybe mzero pure . T.char_pc
+        =<< P.satisfy (\c -> '1' <= c && c <= '9')
+    unparse _ p = Text.singleton (T.pc_char p)
 
-instance Parse.Element (Pitch RelativeOctave) where
+instance Parse.Element (Pitch T.RelativeOctave) where
     parse config = do
         oct <- Text.foldl' (\n c -> n + if c == ',' then -1 else 1) 0 <$>
             P.takeWhile (`elem` (",'" :: String))
         p <- Parse.parse config
-        pure $ Pitch (RelativeOctave oct) p
-    unparse config (Pitch (RelativeOctave oct) pc) =
+        pure $ Pitch (T.RelativeOctave oct) p
+    unparse config (Pitch (T.RelativeOctave oct) pc) =
         octs <> Parse.unparse config pc
         where
         octs = case compare oct 0 of
@@ -226,25 +167,25 @@ instance Parse.Element (Pitch RelativeOctave) where
             LT -> Text.replicate (- oct) ","
             GT -> Text.replicate oct "'"
 
-instance Parse.Element Gatra where
-    parse config = Gatra <$> p <*> p <*> p <*> p
+instance Parse.Element T.Gatra where
+    parse config = T.Gatra <$> p <*> p <*> p <*> p
         where p = Parse.parse config
-    unparse config (Gatra n1 n2 n3 n4) =
+    unparse config (T.Gatra n1 n2 n3 n4) =
         mconcatMap (Parse.unparse config) [n1, n2, n3, n4]
 
-instance Parse.Element Balungan where
-    parse config = Balungan
+instance Parse.Element T.Balungan where
+    parse config = T.Balungan
         <$> (P.char '.' *> pure Nothing <|> Just <$> Parse.parse config)
         <*> P.optional (Parse.parse config)
-    unparse config (Balungan mb_pitch annot) =
+    unparse config (T.Balungan mb_pitch annot) =
         maybe "." (Parse.unparse config) mb_pitch
         <> maybe "" (Parse.unparse config) annot
 
-instance Parse.Element BalunganAnnotation where
-    parse _ = P.char ')' *> pure Gong <|> P.char '^' *> pure Kenong
+instance Parse.Element T.BalunganAnnotation where
+    parse _ = P.char ')' *> pure T.Gong <|> P.char '^' *> pure T.Kenong
     unparse _ = \case
-        Gong -> ")"
-        Kenong -> "^"
+        T.Gong -> ")"
+        T.Kenong -> "^"
 
 
 -- * check
@@ -280,8 +221,8 @@ check_tokens tokens = errs
 data Bias = BiasStart | BiasEnd
     deriving (Show, Eq)
 
-resolve_tokens :: Bias -> [Token]
-    -> CheckM [(T.Time, T.Note () (Pitch Octave) T.Time)]
+resolve_tokens :: Bias -> [T.ParsedToken]
+    -> CheckM [(T.Time, T.Note (Pitch Octave) T.Time)]
 resolve_tokens bias =
     fmap (resolve_durations bias) . normalize_barlines bias . resolve_pitch
 
@@ -326,16 +267,16 @@ data Instrument = GenderBarung | GenderPanerus | Siter
 -- kempyung / gembyang
 standardNames :: [(Text, Text)]
 standardNames =
-    [ ("ayu kuning", "ak")
-    , ("debyang debyung", "dd")
+    [ ("ayu-kuning", "ak")
+    , ("debyang-debyung", "dd")
     , ("dualolo", "dll")
     , ("duduk", "dd")
     , ("gantung", "gant")
     , ("gelut", "g")
-    , ("jarik kawung", "jk")
+    , ("jarik-kawung", "jk")
     , ("kacaryan", "kc")
-    , ("kutuk kuning", "kk")
-    , ("puthut semedi", "ps")
+    , ("kutuk-kuning", "kk")
+    , ("puthut-semedi", "ps")
     , ("puthut", "p") -- 2 part pattern puthut gelut
     , ("tumurun", "tm")
     ]
@@ -343,12 +284,12 @@ standardNames =
 -- ** resolve_pitch
 
 resolve_pitch
-    :: [T.Token call (Pitch RelativeOctave) dur rdur]
-    -> [T.Token call (Pitch Octave) dur rdur]
+    :: [T.Token (T.Note (Pitch T.RelativeOctave) dur) rest]
+    -> [T.Token (T.Note (Pitch Octave) dur) rest]
 resolve_pitch = snd . List.mapAccumL resolve (0, Nothing)
     where
     resolve prev = \case
-        T.TBarline pos bar -> (prev, T.TBarline pos bar)
+        T.TBarline pos -> (prev, T.TBarline pos)
         T.TRest pos rest -> (prev, T.TRest pos rest)
         T.TNote pos note ->
             ( (oct, Just pc)
@@ -360,12 +301,11 @@ resolve_pitch = snd . List.mapAccumL resolve (0, Nothing)
 -- Initial prev_oct is based on the instrument.
 -- Similar to Check.infer_octave, but uses simpler 'Pitch' instead of
 -- 'Perform.Pitch.Pitch'.
-infer_octave :: (Octave, Maybe PitchClass)
-    -- -> (RelativeOctave, PitchClass) -> Pitch Octave
-    -> Pitch RelativeOctave -> Pitch Octave
-infer_octave (prev_oct, Nothing) (Pitch (RelativeOctave rel_oct) pc) =
+infer_octave :: (Octave, Maybe T.PitchClass)
+    -> Pitch T.RelativeOctave -> Pitch Octave
+infer_octave (prev_oct, Nothing) (Pitch (T.RelativeOctave rel_oct) pc) =
     Pitch (prev_oct + rel_oct) pc
-infer_octave (prev_oct, Just prev_pc) (Pitch (RelativeOctave rel_oct) pc) =
+infer_octave (prev_oct, Just prev_pc) (Pitch (T.RelativeOctave rel_oct) pc) =
     case compare rel_oct 0 of
         -- If distances are equal, favor downward motion.  But since PitchClass
         -- has an odd number, this never happens.  If I omit P4, it could
@@ -392,12 +332,12 @@ pitch_diff :: Pitch Octave -> Pitch Octave -> Int
 pitch_diff (Pitch oct1 pc1) (Pitch oct2 pc2) =
     per_oct * (oct1 - oct2) + (fromEnum pc1 - fromEnum pc2)
     where
-    per_oct = fromEnum (maxBound :: PitchClass) + 1
+    per_oct = fromEnum (maxBound :: T.PitchClass) + 1
 
 -- ** resolve_durations
 
-resolve_durations :: Bias -> [T.Token call pitch dur Rest]
-    -> [(T.Time, T.Note call pitch T.Time)]
+resolve_durations :: Bias -> [T.Token (T.Note pitch dur) T.Rest]
+    -> [(T.Time, T.Note pitch T.Time)]
 resolve_durations bias =
     Maybe.catMaybes . snd . List.mapAccumL resolve_rests 0 . Lists.zipNexts
         . concatMap resolve . Lists.split is_barline
@@ -430,18 +370,18 @@ resolve_durations bias =
         sustain = Num.sum $ case bias of
             BiasEnd -> until_note nexts
             BiasStart -> map fst $ takeWhile is_sustain nexts
-    is_sustain (_, Left (T.Rest (Rest { rest_sustain }))) = rest_sustain
+    is_sustain (_, Left (T.Rest { rest_sustain })) = rest_sustain
     is_sustain _ = False
     until_note [] = []
     until_note ((dur, n) : ns) = case n of
-        Left (T.Rest (Rest { rest_sustain })) ->
+        Left (T.Rest { rest_sustain }) ->
             dur : if rest_sustain then until_note ns else []
         Right (T.Note {}) -> [dur]
 
 -- | Verify bar durations, infer rests if necessary.  After this, all bars
 -- should be a power of 2.
-normalize_barlines :: Bias -> [T.Token call pitch HasSpace Rest]
-    -> CheckM [T.Token call pitch () Rest]
+normalize_barlines :: Bias -> [T.Token (T.Note pitch T.HasSpace) T.Rest]
+    -> CheckM [T.Token (T.Note pitch ()) T.Rest]
 normalize_barlines bias = map_bars $ \case
     [] -> pure []
     bar@(t : _)
@@ -454,19 +394,19 @@ normalize_barlines bias = map_bars $ \case
             pure $ map strip bar
         where
         inferred = infer_rests bias bar
-        strip = Identity.runIdentity . T.map_note_duration (\_ -> pure ())
+        strip = T.map_note (T.map_duration (const ()))
 
 -- | The T.Tokens given to the function will not contain T.TBarline.
 -- I could put it in the type, but it seems too much bother.
-map_bars :: Monad m => ([T.Token a1 b1 c1 d1] -> m [T.Token a2 b2 c2 d2])
-    -> [T.Token a1 b1 c1 d1] -> m [T.Token a2 b2 c2 d2]
+map_bars :: Monad m => ([T.Token n1 r1] -> m [T.Token n2 r2])
+    -> [T.Token n1 r1] -> m [T.Token n2 r2]
 map_bars f tokens = concat . add <$> mapM f (pre : map snd posts)
     where
     add [] = []
     add (t:ts) = t : zipWith (:) bars ts
-    bars = map (uncurry T.TBarline . fst) posts
+    bars = map (T.TBarline . fst) posts
     (pre, posts) = Lists.splitWith is_barline tokens
-    is_barline (T.TBarline pos bar) = Just (pos, bar)
+    is_barline (T.TBarline pos) = Just pos
     is_barline _ = Nothing
 
 power_of_2 :: Int -> Bool
@@ -474,24 +414,23 @@ power_of_2 n = snd (properFraction (logBase 2 (fromIntegral n))) == 0
 
 -- | If there aren't enough notes in the bar, try inferring a rest before
 -- every odd group of notes followed by space.
-infer_rests :: Bias -> [T.Token call pitch HasSpace Rest]
-    -> [T.Token call pitch HasSpace Rest]
+infer_rests :: Bias -> [T.Token (T.Note pitch T.HasSpace) T.Rest]
+    -> [T.Token (T.Note pitch T.HasSpace) T.Rest]
 infer_rests bias = concatMap infer . Lists.splitAfter has_space
     where
     infer tokens
         | even (length tokens) = tokens
         | bias == BiasEnd = extra_rest : tokens
         | otherwise = tokens ++ [extra_rest]
-    extra_rest = T.TRest T.fake_pos $ T.Rest $ Rest True HasSpace
+    extra_rest = T.TRest T.fake_pos $ T.Rest True T.HasSpace
     has_space = \case
         T.TBarline {} -> True
-        T.TNote _ note -> T.note_duration note == HasSpace
-        T.TRest _ (T.Rest rest) -> rest_space rest == HasSpace
+        T.TNote _ note -> T.note_duration note == T.HasSpace
+        T.TRest _ rest -> T.rest_space rest == T.HasSpace
 
 -- | Split on barlines, zipPadded, map across them.
-normalize_hands :: Bias -> [T.Token call pitch dur Rest]
-    -> [T.Token call pitch dur Rest]
-    -> CheckM ([T.Token call pitch dur Rest], [T.Token call pitch dur Rest])
+normalize_hands :: Bias -> [T.Token note T.Rest] -> [T.Token note T.Rest]
+    -> CheckM ([T.Token note T.Rest], [T.Token note T.Rest])
 normalize_hands bias lefts rights =
     fmap (bimap join_bars join_bars . unzip) $ mapM normalize $
     Lists.zipPadded (split_bars lefts) (split_bars rights)
@@ -520,7 +459,7 @@ normalize_hands bias lefts rights =
     expand pos delta = case bias of
         BiasEnd -> concatMap (\n -> replicate (delta^2) (rest pos) ++ [n])
         BiasStart -> concatMap (: replicate (delta^2) (rest pos))
-    rest pos = T.TRest pos (T.Rest (Rest True NoSpace))
+    rest pos = T.TRest pos (T.Rest True T.NoSpace)
 
 log2 :: Int -> Maybe Int
 log2 n
@@ -528,47 +467,44 @@ log2 n
     | otherwise = Nothing
     where (i, frac) = properFraction $ logBase 2 (fromIntegral n)
 
-split_bars :: [T.Token call pitch ndur rdur]
-    -> [(T.Pos, [T.Token call pitch ndur rdur])]
+split_bars :: [T.Token note rest] -> [(T.Pos, [T.Token note rest])]
 split_bars [] = []
 split_bars tokens@(t0 : _) = (T.token_pos t0, group0) : groups
     where
     (group0, groups) = Lists.splitWith is_barline tokens
-    is_barline (T.TBarline pos _) = Just pos
+    is_barline (T.TBarline pos) = Just pos
     is_barline _ = Nothing
 
-join_bars :: [(T.Pos, [T.Token call pitch ndur rdur])]
-    -> [T.Token call pitch ndur rdur]
+join_bars :: [(T.Pos, [T.Token note rest])] -> [T.Token note rest]
 join_bars [] = []
 join_bars ((_, g0) : gs) = concat $ g0 : map join gs
-    where
-    join (pos, tokens) = T.TBarline pos (T.Barline 1) : tokens
+    where join (pos, tokens) = T.TBarline pos : tokens
 
 
 -- * transform
 
 -- | Simple pelog lima to pelog barang by changing 1s to 7s.
-lima_to_barang :: [T.Token call (Pitch Octave) ndur rdur]
-    -> [T.Token call (Pitch Octave) ndur rdur]
-lima_to_barang = map (Identity.runIdentity . T.map_pitch (pure . replace))
+lima_to_barang :: [T.Token (T.Note (Pitch Octave) dur) rest]
+    -> [T.Token (T.Note (Pitch Octave) dur) rest]
+lima_to_barang = map (T.map_note (T.map_pitch replace))
     where
-    replace p@(Pitch _ P1) = add_pc (-1) p
+    replace p@(Pitch _ T.P1) = add_pc (-1) p
     replace p = p
 
 -- * format
 
-format_score :: Score -> ([Text], [T.Error])
-format_score (Score toplevels) =
+format_score :: T.Score -> ([Text], [T.Error])
+format_score (T.Score toplevels) =
     Logger.runId $ concatMapM (format_toplevel . snd) toplevels
 
-format_toplevel :: Toplevel -> CheckM [Text]
+format_toplevel :: T.Toplevel -> CheckM [Text]
 format_toplevel = \case
-    ToplevelDirective (T.Directive _ key val) ->
+    T.ToplevelDirective (T.Directive _ key val) ->
         pure ["", mconcat $ key : maybe [] (\v -> [" = ", v]) val]
-    BlockDefinition block -> format_block block
+    T.BlockDefinition block -> format_block block
 
-format_block :: Block -> CheckM [Text]
-format_block (Block { block_gatra, block_names, block_tracks }) = do
+format_block :: T.Block -> CheckM [Text]
+format_block (T.Block { block_gatra, block_names, block_tracks }) = do
     tracks <- maybe (pure []) format_tracks block_tracks
     pure $ title : map ("    "<>) tracks
     where
@@ -584,8 +520,8 @@ format_directive (T.Directive _ key mb_val) = key <> maybe "" ("="<>) mb_val
 -- actual times and durations.  Also I have to 'normalize_hands' to make
 -- sure they are at the same "zoom", but it's only since I don't want to
 -- convert from times back to notes.
-format_tracks :: Tracks -> CheckM [Text]
-format_tracks (Tracks tracks) = case map track_tokens tracks of
+format_tracks :: T.Tracks -> CheckM [Text]
+format_tracks (T.Tracks tracks) = case map T.track_tokens tracks of
     [lefts, rights] -> do
         lefts <- process_for_format bias lefts
         rights <- process_for_format bias rights
@@ -595,13 +531,13 @@ format_tracks (Tracks tracks) = case map track_tokens tracks of
     where
     bias = BiasStart
 
-process_for_format :: Bias -> [Token]
-    -> CheckM [T.Token () (Pitch Octave) () Rest]
+process_for_format :: Bias -> [T.ParsedToken]
+    -> CheckM [T.Token (T.Note (Pitch Octave) ()) T.Rest]
 process_for_format bias = -- fmap lima_to_barang .
     normalize_barlines bias . resolve_pitch
     -- This doesn't do 'resolve_durations', because I want the original rests.
 
-format_tokens :: [T.Token call (Pitch Octave) dur Rest] -> Text
+format_tokens :: [T.Token (T.Note (Pitch Octave) dur) T.Rest] -> Text
 format_tokens = mconcat . go
     where
     go ts = zipWith format_token beats pre ++ case post of
@@ -613,11 +549,11 @@ format_tokens = mconcat . go
     is_barline (T.TBarline {}) = True
     is_barline _ = False
 
-format_token :: Bool -> T.Token call (Pitch Octave) dur Rest -> Text
+format_token :: Bool -> T.Token (T.Note (Pitch Octave) dur) T.Rest -> Text
 format_token on_beat = \case
     T.TBarline {} -> " | "
     -- T.TBarline {} -> " " <> vertical_line <> " "
-    T.TRest _ (T.Rest (Rest { rest_sustain }))
+    T.TRest _ (T.Rest { rest_sustain })
         | on_beat -> if rest_sustain then "." else "_"
         | otherwise -> " "
     T.TNote _ n -> format_pitch (T.note_pitch n)
@@ -630,7 +566,7 @@ format_token on_beat = \case
     use_slash = True
 
 format_pitch :: Pitch Octave -> Text
-format_pitch (Pitch oct pc) = Text.cons (pc_char pc) dots
+format_pitch (Pitch oct pc) = Text.cons (T.pc_char pc) dots
     where
     dots = case oct of
         0 -> ""
