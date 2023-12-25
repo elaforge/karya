@@ -41,10 +41,10 @@ import qualified Util.Lists as Lists
 import qualified Util.Logger as Logger
 import qualified Util.Num as Num
 import qualified Util.P as P
+import qualified Util.Texts as Texts
 
 import qualified Derive.TScore.Parse as Parse
 import qualified Derive.TScore.T as T
-import qualified Ui.Id as Id
 
 import           Global
 
@@ -61,6 +61,16 @@ data PitchClass = P1 | P2 | P3 | P4 | P5 | P6 | P7
 pc_char :: PitchClass -> Char
 pc_char = \case
     P1 -> '1'; P2 -> '2'; P3 -> '3'; P4 -> '4'; P5 -> '5'; P6 -> '6'; P7 -> '7'
+
+data Gatra = Gatra Balungan Balungan Balungan Balungan
+    deriving (Eq, Show)
+
+data Balungan =
+    Balungan (Maybe (Pitch RelativeOctave)) (Maybe BalunganAnnotation)
+    deriving (Eq, Show)
+
+data BalunganAnnotation = Gong | Kenong
+    deriving (Eq, Show)
 
 parse_score :: Text -> Either String Score
 parse_score = Parse.parse_text (Parse.parse Parse.default_config)
@@ -87,25 +97,24 @@ instance Parse.Element Toplevel where
         BlockDefinition a -> Parse.unparse config a
 
 data Block = Block {
-    block_name :: Text
-    , block_directives :: [T.Directive]
-    , block_tracks :: Tracks
+    block_gatra :: Gatra
+    , block_names :: [Text]
+    , block_tracks :: Maybe Tracks
     } deriving (Eq, Show)
 
--- | > name = directive [ tracks ]
+-- | 1234 name [ tracks ]
 instance Parse.Element Block where
     parse config = do
-        block_name <- Parse.lexeme $ P.takeWhile1 Id.is_id_char
-        Parse.keyword "="
-        block_directives <- P.many (Parse.lexeme (Parse.parse config))
-        block_tracks <- Parse.parse config
-        return $ Block { block_name, block_directives, block_tracks }
-    unparse config (Block { block_name, block_directives, block_tracks }) =
-        Text.unwords $ filter (not . Text.null) $ concat
-            [ [block_name, "="]
-            , map (Parse.unparse config) block_directives
-            , [Parse.unparse config block_tracks]
-            ]
+        block_gatra <- Parse.lexeme $ Parse.parse config
+        -- It's important this doesn't take digits, or it could grab the next
+        -- Gatra.
+        block_names <- P.many $ Parse.lexeme $ P.takeWhile1 $ \c ->
+            'a' <= c && c <= 'z' || c == '-'
+        block_tracks <- P.optional $ Parse.parse config
+        pure $ Block { block_gatra, block_names, block_tracks }
+    unparse config (Block { block_gatra, block_names, block_tracks }) =
+        Text.unwords $ Parse.unparse config block_gatra : block_names
+            ++ maybe [] ((:[]) . Parse.unparse config) block_tracks
 
 newtype Tracks = Tracks [Track]
     deriving (Eq, Show)
@@ -216,6 +225,26 @@ instance Parse.Element (Pitch RelativeOctave) where
             EQ -> ""
             LT -> Text.replicate (- oct) ","
             GT -> Text.replicate oct "'"
+
+instance Parse.Element Gatra where
+    parse config = Gatra <$> p <*> p <*> p <*> p
+        where p = Parse.parse config
+    unparse config (Gatra n1 n2 n3 n4) =
+        mconcatMap (Parse.unparse config) [n1, n2, n3, n4]
+
+instance Parse.Element Balungan where
+    parse config = Balungan
+        <$> (P.char '.' *> pure Nothing <|> Just <$> Parse.parse config)
+        <*> P.optional (Parse.parse config)
+    unparse config (Balungan mb_pitch annot) =
+        maybe "." (Parse.unparse config) mb_pitch
+        <> maybe "" (Parse.unparse config) annot
+
+instance Parse.Element BalunganAnnotation where
+    parse _ = P.char ')' *> pure Gong <|> P.char '^' *> pure Kenong
+    unparse _ = \case
+        Gong -> ")"
+        Kenong -> "^"
 
 
 -- * check
@@ -539,11 +568,13 @@ format_toplevel = \case
     BlockDefinition block -> format_block block
 
 format_block :: Block -> CheckM [Text]
-format_block block = (title :) . map ("    "<>) <$>
-    format_tracks (block_tracks block)
+format_block (Block { block_gatra, block_names, block_tracks }) = do
+    tracks <- maybe (pure []) format_tracks block_tracks
+    pure $ title : map ("    "<>) tracks
     where
-    title = Text.unwords $ block_name block
-        : map format_directive (block_directives block)
+    title = Texts.join2 " "
+        (Parse.unparse Parse.default_config block_gatra)
+        (Text.unwords block_names)
 
 format_directive :: T.Directive -> Text
 format_directive (T.Directive _ key mb_val) = key <> maybe "" ("="<>) mb_val

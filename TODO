@@ -8493,28 +8493,45 @@ text score: tscore:
         syntax.  Notes would have to be in a FromString, at which point I'm
         back to having to parse again.  But the declarations would be in a big
         list or Map, given the All.hs generation thing like solkattu.
-      . I should notate balungan, and then attach instrument parts with
-        optional names, instead of making the name primary.  Reason is that
-        not all instruments have named parts.  Also I want to represent
-        octave in balungan.  Also want to be able to write balungan
-        plus gender part by just name.
-      . Also want gong) and kenong^ for balungan.
-      . But if I expand to wanting to notate whole pieces, then I wind up
-        needing branching paths and alternate parts, e.g. alternate path
-        if going to ngelik.
-      . Also if I divide by instrument, I'd have to duplicate balungan
-        and assert equal.
-      . Don't have to worry about keeping toplevel block=[tracks] syntax,
-        I have different parsers for Score down to Block anyway.
+    notate by balungan:
+      * parsing
+      - normalize names kk -> kutuk-kuning
+      - infer seleh on names
+      - find matching name and optionally expand into score
+      The use:
+        . Generate a whole tracklang score to practice to.
+        . Find similarities between parts.
+      notes:
+        . I should notate balungan, and then attach instrument parts with
+          optional names, instead of making the name primary.  Reason is that
+          not all instruments have named parts.  Also I want to represent
+          octave in balungan.  Also want to be able to write balungan
+          plus gender part by just name.
+        . Also want gong) and kenong^ for balungan.
+        . But if I expand to wanting to notate whole pieces, then I wind up
+          needing branching paths and alternate parts, e.g. alternate path
+          if going to ngelik.
+        . Also if I divide by instrument, I'd have to duplicate balungan
+          and assert equal.
+        . Don't have to worry about keeping toplevel block=[tracks] syntax,
+          I have different parsers for Score down to Block anyway.
+      syntax:
+        <balungan>{4} name? [
+          (<gatra> |)+
+        ]
+        balungan = <pitch>[)^]?
+
     rhythm, end bias or not?
       . Indeed end is more consistent, but no one seems to do it that way.
       . But taking time from the end of the note seems better, for when I
         convert to tracklang.
       . That means I still need 0 dur end.
       . With end bias these are equivalent, and have correct timings:
-        .2 .1 26 .5 | 63 5 3 5
+         1  2  3  4    1 2 3 4
          2  126   5 | 63 5 3 5
+        .2 .1 26 .5 | 63 5 3 5
       . But with start bias
+        1  2 3  4    1 2 3 4
         2  126  56 | 3 5 3 5
         2. 126. 56 | 3 5 3 5
       . The problem is if I do end bias duration, then 2 should be at 1/4 time
@@ -8527,7 +8544,16 @@ text score: tscore:
       . Alternately, all the measures have 4 or 8 beats.  Just hardcode that.
         If notes == 8, then do literally.  If <8, then each one marks a beat
         on its even indices.
-
+        2  126  56 | 3 5 3 5
+        1 2 3 4
+        2.126.56 | 3.5.3.5.
+      . What if I just do bias=start and then +1/4?
+      . BUT STILL the original problem remains, tanggung should omit odd dots,
+        wiled should omit even ones.  Maybe I just need to hardcode that.
+      . I still want to convert to tracklang, so eventually I do need to get
+        the rhythms right.  But, that's not what I'm doing, I'm just
+        normalizing and printing.  So let's keep doing that, until I have
+        a reason to specifically care.
     check:
       + directives understood
       - within instrument range
