@@ -7,10 +7,11 @@ import qualified Data.Text.IO as Text.IO
 
 import qualified Util.Logger as Logger
 import qualified Util.Test.Testing as Testing
+import qualified Derive.TScore.Java.Check as Check
 import qualified Derive.TScore.Java.JScore as JScore
+import qualified Derive.TScore.Java.T as T
 import           Derive.TScore.Java.T (Pitch(..), PitchClass(..))
 import qualified Derive.TScore.Parse as Parse
-import qualified Derive.TScore.Java.T as T
 
 import           Global
 import           Util.Test.Global
@@ -45,7 +46,7 @@ test_parse = do
 
 test_infer_octave :: Test
 test_infer_octave = do
-    let f = JScore.infer_octave
+    let f = Check.infer_octave
     let o = T.RelativeOctave
     equal (f (1, Just P1) (Pitch (o 0) P2)) (Pitch 1 P2)
     equal (f (1, Just P1) (Pitch (o 0) P7)) (Pitch 0 P7)
@@ -72,7 +73,7 @@ unparse = Parse.unparse Parse.default_config
 
 test_resolve_duration_bias_start :: Test
 test_resolve_duration_bias_start = do
-    let f = fmap (map extract) . resolve_tokens JScore.BiasStart
+    let f = fmap (map extract) . resolve_tokens Check.BiasStart
         extract (t, n) = (t, T.note_duration n)
     right_equal (f "1234") [(0, 1/4), (1/4, 1/4), (2/4, 1/4), (3/4, 1/4)]
     right_equal (f ".1.2.3.4")
@@ -87,7 +88,7 @@ test_resolve_duration_bias_start = do
 
 test_resolve_duration_bias_end :: Test
 test_resolve_duration_bias_end = do
-    let f = fmap (map extract) . resolve_tokens JScore.BiasEnd
+    let f = fmap (map extract) . resolve_tokens Check.BiasEnd
         extract (t, n) = (t, T.note_duration n)
     right_equal (f "1234") [(1/4, 1/4), (2/4, 1/4), (3/4, 1/4), (4/4, 0)]
     right_equal (f ".1.2.3.4") [(1/4, 1/4), (2/4, 1/4), (3/4, 1/4), (4/4, 0)]
@@ -126,21 +127,21 @@ test_infer_rests = do
         0  1  2  3  4    1
           .2 .1 26 .5 | 61
     -}
-    right_equal (f JScore.BiasStart "2 126 56 | 3 5 3 5") expectedS
-    right_equal (f JScore.BiasStart "2. 12 6. 56 | 3 5 3 5") expectedS
+    right_equal (f Check.BiasStart "2 126 56 | 3 5 3 5") expectedS
+    right_equal (f Check.BiasStart "2. 12 6. 56 | 3 5 3 5") expectedS
 
-    right_equal (f JScore.BiasEnd ".2 .1 26 .5 | 63 5 3 5") expectedE
-    right_equal (f JScore.BiasEnd "2 126 5 | 63 5 3 5") expectedE
+    right_equal (f Check.BiasEnd ".2 .1 26 .5 | 63 5 3 5") expectedE
+    right_equal (f Check.BiasEnd "2 126 5 | 63 5 3 5") expectedE
 
     -- This is .235, even though it looks misleading.
     -- The problem is rests are only inferred when it's not already a power of
     -- 2.
-    right_equal (const () <$> f JScore.BiasStart ". 235") ()
-    right_equal (const () <$> f JScore.BiasStart "12345 6") ()
+    right_equal (const () <$> f Check.BiasStart ". 235") ()
+    right_equal (const () <$> f Check.BiasStart "12345 6") ()
 
 test_resolve_pitch :: Test
 test_resolve_pitch = do
-    let f = fmap (map extract) . resolve_tokens JScore.BiasStart
+    let f = fmap (map extract) . resolve_tokens Check.BiasStart
         extract = T.note_pitch . snd
     right_equal (f "1471")
         [Pitch 0 P1, Pitch 0 P4, Pitch 0 P7, Pitch 1 P1]
@@ -153,13 +154,13 @@ err pos = T.Error (T.Pos pos)
 parse_tokens :: Text -> [T.ParsedToken]
 parse_tokens = Testing.expect_right . fmap T.track_tokens . parse . ("> "<>)
 
-resolve_tokens :: JScore.Bias -> Text
+resolve_tokens :: Check.Bias -> Text
     -> Either [T.Error] [(T.Time, T.Note (Pitch Int) T.Time)]
 resolve_tokens bias source
     | null errs = Right lines
     | otherwise = Left errs
     where
-    (lines, errs) = Logger.runId $ JScore.resolve_tokens bias $
+    (lines, errs) = Logger.runId $ Check.resolve_tokens bias $
         parse_tokens source
 
 

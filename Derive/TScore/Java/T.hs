@@ -11,11 +11,7 @@ import           Derive.TScore.T
 import           Global
 
 
-newtype Score = Score [(Pos, Toplevel)]
-    deriving (Eq, Show)
-
-data Toplevel = ToplevelDirective Directive | BlockDefinition Block
-    deriving (Eq, Show)
+-- * pitch
 
 data Pitch oct = Pitch oct PitchClass
     deriving (Eq, Show)
@@ -41,6 +37,19 @@ char_pc = \case
     '7' -> Just P7
     _ -> Nothing
 
+add_oct :: Octave -> Pitch Octave -> Pitch Octave
+add_oct oct (Pitch o pc) = Pitch (oct+o) pc
+
+add_pc :: Int -> Pitch Octave -> Pitch Octave
+add_pc steps (Pitch octave pc) = Pitch (octave + oct) pc2
+    where (oct, pc2) = toEnumBounded $ fromEnum pc + steps
+
+pitch_diff :: Pitch Octave -> Pitch Octave -> Int
+pitch_diff (Pitch oct1 pc1) (Pitch oct2 pc2) =
+    per_oct * (oct1 - oct2) + (fromEnum pc1 - fromEnum pc2)
+    where
+    per_oct = fromEnum (maxBound :: PitchClass) + 1
+
 data Gatra = Gatra Balungan Balungan Balungan Balungan
     deriving (Eq, Show)
 
@@ -49,6 +58,14 @@ data Balungan =
     deriving (Eq, Show)
 
 data BalunganAnnotation = Gong | Kenong
+    deriving (Eq, Show)
+
+-- * score
+
+newtype Score = Score [(Pos, Toplevel)]
+    deriving (Eq, Show)
+
+data Toplevel = ToplevelDirective Directive | BlockDefinition Block
     deriving (Eq, Show)
 
 data Block = Block {
@@ -100,3 +117,9 @@ data Rest = Rest {
     rest_sustain :: Bool
     , rest_space :: HasSpace
     } deriving (Eq, Show)
+
+-- * util
+
+toEnumBounded :: forall a. (Bounded a, Enum a) => Int -> (Int, a)
+toEnumBounded n = (i, toEnum r)
+    where (i, r) = n `divMod` (fromEnum (maxBound :: a) + 1)
