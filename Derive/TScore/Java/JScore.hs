@@ -197,9 +197,12 @@ lima_to_barang =
 
 -- * format
 
+-- | Format a T.Score to print.  This is does some Checks but doesn't
+-- normalize down to Time, because it's more like normalization than lowering.
 format_score :: T.Score -> ([Text], [T.Error])
-format_score (T.Score toplevels) =
-    Logger.runId $ concatMapM (format_toplevel . snd) toplevels
+format_score score = Logger.runId $ do
+    T.Score toplevels <- Check.normalize_names score
+    concatMapM (format_toplevel . snd) toplevels
 
 format_toplevel :: T.Toplevel -> Check.CheckM [Text]
 format_toplevel = \case

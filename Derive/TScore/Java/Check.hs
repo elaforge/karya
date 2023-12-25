@@ -4,7 +4,10 @@
 module Derive.TScore.Java.Check where
 
 import qualified Data.List as List
+import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Text as Text
+import qualified Data.Tuple as Tuple
 
 import qualified Util.Lists as Lists
 import qualified Util.Logger as Logger
@@ -89,10 +92,33 @@ data Irama = Lancar | Tanggung | Dadi | Wiled | Rangkep
 data Instrument = GenderBarung | GenderPanerus | Siter
     deriving (Eq, Show)
 
+-- ** normalize names
+
+-- | Un-abbreviate standard cengkok names.
+normalize_names :: T.Score -> CheckM T.Score
+normalize_names (T.Score score) = T.Score <$> mapM normalize score
+    where
+    normalize (pos, T.BlockDefinition block) =
+        (pos,) . T.BlockDefinition <$> normalize_name pos block
+    normalize t = pure t
+
+normalize_name :: T.Pos -> T.Block -> CheckM T.Block
+normalize_name pos block = case T.block_names block of
+    [] -> pure block
+    name : names -> case Map.lookup name from_abbr of
+        Just name -> pure $ block { T.block_names = name : names }
+        Nothing -> do
+            unless (name `elem` map fst standard_names) $
+                warn pos $ "unknown name: " <> name
+            pure block
+    where
+    from_abbr = Map.fromList $ map Tuple.swap $
+        filter (not . Text.null . snd) standard_names
+
 -- variations: append 123567 for e.g. gantung 2, cilik, kecil, gede, besar,
 -- kempyung / gembyang
-standardNames :: [(Text, Text)]
-standardNames =
+standard_names :: [(Text, Text)]
+standard_names =
     [ ("ayu-kuning", "ak")
     , ("debyang-debyung", "dd")
     , ("dualolo", "dll")
@@ -102,8 +128,9 @@ standardNames =
     , ("jarik-kawung", "jk")
     , ("kacaryan", "kc")
     , ("kutuk-kuning", "kk")
-    , ("puthut-semedi", "ps")
     , ("puthut", "p") -- 2 part pattern puthut gelut
+    , ("puthut-semedi", "ps")
+    , ("rambatan", "")
     , ("tumurun", "tm")
     ]
 
