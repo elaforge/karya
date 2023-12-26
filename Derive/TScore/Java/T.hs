@@ -13,7 +13,7 @@ import           Global
 
 -- * pitch
 
-data Pitch oct = Pitch oct PitchClass
+data Pitch oct = Pitch { pitch_octave :: oct, pitch_pc :: PitchClass }
     deriving (Eq, Show)
 type Octave = Int
 newtype RelativeOctave = RelativeOctave Int
@@ -62,28 +62,38 @@ data BalunganAnnotation = Gong | Kenong
 
 -- * score
 
-newtype Score = Score [(Pos, Toplevel)]
+newtype Score block = Score [(Pos, Toplevel block)]
     deriving (Eq, Show)
 
-data Toplevel = ToplevelDirective Directive | BlockDefinition Block
+type ParsedScore = Score ParsedBlock
+type ParsedBlock = Block (Maybe Tracks)
+
+data Toplevel block = ToplevelDirective Directive | BlockDefinition block
     deriving (Eq, Show)
 
-data Block = Block {
+data Block tracks = Block {
     block_gatra :: Gatra
+    -- | Usually zero or one name, possibly with a modifier such as gede or
+    -- cilik.
     , block_names :: [Text]
-    , block_tracks :: Maybe Tracks
+    , block_tracks :: tracks
     } deriving (Eq, Show)
 
-newtype Tracks = Tracks [Track]
+newtype Tracks = Tracks [Track ParsedToken]
     deriving (Eq, Show)
 
-data Track = Track {
-    track_tokens :: [ParsedToken]
+data Track token = Track {
+    track_tokens :: [token]
     , track_pos :: Pos
     } deriving (Eq, Show)
 
 data Token note rest = TBarline Pos | TNote Pos note | TRest Pos rest
     deriving (Eq, Show)
+
+token_note :: Token note rest -> Maybe note
+token_note = \case
+    TNote _ note -> Just note
+    _ -> Nothing
 
 token_pos :: Token note rest -> Pos
 token_pos = \case

@@ -46,16 +46,16 @@ import qualified Derive.TScore.Parse as Parse
 import           Global
 
 
-parse_score :: Text -> Either String T.Score
+parse_score :: Text -> Either String T.ParsedScore
 parse_score = Parse.parse_text (Parse.parse Parse.default_config)
 
-instance Parse.Element T.Score where
+instance Parse.Element T.ParsedScore where
     parse config = Parse.p_whitespace
         *> (T.Score <$> P.many (Parse.parse config))
     unparse config (T.Score toplevels) =
         Text.unlines $ map (Parse.unparse config) toplevels
 
-instance Parse.Element T.Toplevel where
+instance Parse.Element (T.Toplevel T.ParsedBlock) where
     parse config = Parse.lexeme $
         T.ToplevelDirective . un <$> Parse.parse config
         <|> T.BlockDefinition <$> Parse.parse config
@@ -66,7 +66,7 @@ instance Parse.Element T.Toplevel where
         T.BlockDefinition a -> Parse.unparse config a
 
 -- | 1234 name [ tracks ]
-instance Parse.Element T.Block where
+instance Parse.Element T.ParsedBlock where
     parse config = do
         block_gatra <- Parse.lexeme $ Parse.parse config
         -- It's important this doesn't take digits, or it could grab the next
@@ -88,7 +88,7 @@ instance Parse.Element T.Tracks where
         -- Intentionally no space on "]", because the last note's HasSpace
         -- should put one on.
 
-instance Parse.Element T.Track where
+instance Parse.Element (T.Track T.ParsedToken) where
     parse config = do
         track_pos <- Parse.get_pos
         Parse.keyword ">"
@@ -199,52 +199,27 @@ lima_to_barang =
 
 -- | Format a T.Score to print.  This is does some Checks but doesn't
 -- normalize down to Time, because it's more like normalization than lowering.
-format_score :: T.Score -> ([Text], [T.Error])
-format_score score = Logger.runId $ do
-    T.Score toplevels <- Check.normalize_names score
-    concatMapM (format_toplevel . snd) toplevels
+format_score :: T.ParsedScore -> ([Text], [T.Error])
+format_score score = (concatMap (format_toplevel . snd) toplevels, errs)
+    where (T.Score toplevels, errs) = Logger.runId $ Check.format_score score
 
-format_toplevel :: T.Toplevel -> Check.CheckM [Text]
+format_toplevel :: T.Toplevel (T.Block [[Check.FormatToken]]) -> [Text]
 format_toplevel = \case
-    T.ToplevelDirective (T.Directive _ key val) ->
-        pure ["", mconcat $ key : maybe [] (\v -> [" = ", v]) val]
+    T.ToplevelDirective d -> ["", format_directive d]
     T.BlockDefinition block -> format_block block
 
-format_block :: T.Block -> Check.CheckM [Text]
-format_block (T.Block { block_gatra, block_names, block_tracks }) = do
-    tracks <- maybe (pure []) format_tracks block_tracks
-    pure $ title : map ("    "<>) tracks
+format_block :: T.Block [[Check.FormatToken]] -> [Text]
+format_block (T.Block { block_gatra, block_names, block_tracks }) =
+    title : map (("    "<>) . format_tokens) block_tracks
     where
     title = Texts.join2 " "
         (Parse.unparse Parse.default_config block_gatra)
         (Text.unwords block_names)
 
 format_directive :: T.Directive -> Text
-format_directive (T.Directive _ key mb_val) = key <> maybe "" ("="<>) mb_val
+format_directive (T.Directive _ key mb_val) = key <> maybe "" (" = "<>) mb_val
 
--- | Score-to-score, this takes the parsed score to a somewhat more normalized
--- version.  So not the same as converting to tracklang, because I don't need
--- actual times and durations.  Also I have to 'normalize_hands' to make
--- sure they are at the same "zoom", but it's only since I don't want to
--- convert from times back to notes.
-format_tracks :: T.Tracks -> Check.CheckM [Text]
-format_tracks (T.Tracks tracks) = case map T.track_tokens tracks of
-    [lefts, rights] -> do
-        lefts <- process_for_format bias lefts
-        rights <- process_for_format bias rights
-        (lefts, rights) <- Check.normalize_hands bias lefts rights
-        pure [format_tokens lefts, format_tokens rights]
-    tracks -> map format_tokens <$> mapM (process_for_format bias) tracks
-    where
-    bias = Check.BiasStart
-
-process_for_format :: Check.Bias -> [T.ParsedToken]
-    -> Check.CheckM [T.Token (T.Note (Pitch Octave) ()) T.Rest]
-process_for_format bias = -- fmap lima_to_barang .
-    Check.normalize_barlines bias . Check.resolve_pitch
-    -- This doesn't do 'resolve_durations', because I want the original rests.
-
-format_tokens :: [T.Token (T.Note (Pitch Octave) dur) T.Rest] -> Text
+format_tokens :: [Check.FormatToken] -> Text
 format_tokens = mconcat . go
     where
     go ts = zipWith format_token beats pre ++ case post of
@@ -256,7 +231,7 @@ format_tokens = mconcat . go
     is_barline (T.TBarline {}) = True
     is_barline _ = False
 
-format_token :: Bool -> T.Token (T.Note (Pitch Octave) dur) T.Rest -> Text
+format_token :: Bool -> Check.FormatToken -> Text
 format_token on_beat = \case
     T.TBarline {} -> " | "
     -- T.TBarline {} -> " " <> vertical_line <> " "

@@ -55,7 +55,48 @@ resolve_tokens :: Bias -> [T.ParsedToken]
 resolve_tokens bias =
     fmap (resolve_durations bias) . normalize_barlines bias . resolve_pitch
 
--- ** check directives
+type FormatToken = T.Token (T.Note (Pitch Octave) ()) T.Rest
+
+-- | Score-to-score, this takes the parsed score to a somewhat more normalized
+-- version.  So not the same as converting to tracklang, because I don't need
+-- actual times and durations.  Also I have to 'normalize_hands' to make
+-- sure they are at the same "zoom", but it's only since I don't want to
+-- convert from times back to notes.
+format_score :: T.ParsedScore -> CheckM (T.Score (T.Block [[FormatToken]]))
+format_score (T.Score toplevels) = T.Score <$> mapM format toplevels
+    where
+    format (pos, T.ToplevelDirective d) = pure (pos, T.ToplevelDirective d)
+    format (pos, T.BlockDefinition b) = do
+        b <- normalize_name pos b
+        (pos,) . T.BlockDefinition <$> format_block b
+
+format_block :: T.ParsedBlock -> CheckM (T.Block [[FormatToken]])
+format_block block = do
+    tracks <- case T.block_tracks block of
+        -- TODO or I could do resolve_names first?  Still may fail to resolve.
+        Nothing -> pure []
+        Just tracks -> format_tracks tracks
+    pure $ block { T.block_tracks = tracks }
+
+format_tracks :: T.Tracks -> CheckM [[FormatToken]]
+format_tracks (T.Tracks tracks) = case map T.track_tokens tracks of
+    [lefts, rights] -> do
+        lefts <- format_tokens bias lefts
+        rights <- format_tokens bias rights
+        (lefts, rights) <- normalize_hands bias lefts rights
+        pure [lefts, rights]
+    -- TODO error for two handed instruments?
+    tracks -> mapM (format_tokens bias) tracks
+    where
+    bias = BiasStart
+
+format_tokens :: Bias -> [T.ParsedToken]
+    -> CheckM [T.Token (T.Note (Pitch Octave) ()) T.Rest]
+format_tokens bias = -- fmap lima_to_barang .
+    normalize_barlines bias . resolve_pitch
+    -- This doesn't do 'resolve_durations', because I want the original rests.
+
+-- * directives
 
 check_score_directive :: T.Directive -> Either T.Error ToplevelTag
 check_score_directive (T.Directive pos key Nothing) =
@@ -86,23 +127,17 @@ data ToplevelTag = Source Text | Piece Text | Section Text | Laras Laras
 
 data Laras = Slendro | PelogNem | PelogLima | PelogBarang
     deriving (Eq, Show)
+
 -- | Along with Instrument, affects expected number of notes per barline.
 data Irama = Lancar | Tanggung | Dadi | Wiled | Rangkep
     deriving (Eq, Ord, Enum, Bounded, Show)
 data Instrument = GenderBarung | GenderPanerus | Siter
     deriving (Eq, Show)
 
--- ** normalize names
+-- * normalize names
 
 -- | Un-abbreviate standard cengkok names.
-normalize_names :: T.Score -> CheckM T.Score
-normalize_names (T.Score score) = T.Score <$> mapM normalize score
-    where
-    normalize (pos, T.BlockDefinition block) =
-        (pos,) . T.BlockDefinition <$> normalize_name pos block
-    normalize t = pure t
-
-normalize_name :: T.Pos -> T.Block -> CheckM T.Block
+normalize_name :: T.Pos -> T.Block tracks -> CheckM (T.Block tracks)
 normalize_name pos block = case T.block_names block of
     [] -> pure block
     name : names -> case Map.lookup name from_abbr of
@@ -122,8 +157,8 @@ standard_names =
     [ ("ayu-kuning", "ak")
     , ("debyang-debyung", "dd")
     , ("dualolo", "dll")
-    , ("duduk", "dd")
-    , ("gantung", "gant")
+    , ("duduk", "")
+    , ("gantung", "")
     , ("gelut", "g")
     , ("jarik-kawung", "jk")
     , ("kacaryan", "kc")
