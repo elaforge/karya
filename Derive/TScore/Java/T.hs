@@ -6,7 +6,7 @@ module Derive.TScore.Java.T (
     , module Derive.TScore.T
 ) where
 import           Derive.TScore.T
-    (Directive(..), Error(..), show_error, Pos(..), Time(..), fake_pos)
+    (Directive(..), Error(..), Pos(..), Time(..), fake_pos, show_error)
 
 import           Global
 
@@ -37,11 +37,33 @@ char_pc = \case
     '7' -> Just P7
     _ -> Nothing
 
+-- | Actually laras + pathet.
+data Laras = Slendro | PelogNem | PelogLima | PelogBarang
+    deriving (Eq, Show)
+
 add_oct :: Octave -> Pitch Octave -> Pitch Octave
 add_oct oct (Pitch o pc) = Pitch (oct+o) pc
 
-add_pc :: Int -> Pitch Octave -> Pitch Octave
-add_pc steps (Pitch octave pc) = Pitch (octave + oct) pc2
+add_pc :: Laras -> Int -> Pitch Octave -> Pitch Octave
+add_pc laras steps = (!! abs steps) . iterate step
+    where
+    up = steps >= 0
+    step pitch = add_pc_abs (step_at pitch) pitch
+    step_at pitch =
+        head $ drop (fromEnum (pitch_pc pitch)) (cycle transpositions)
+    -- Yet another awkward diatonic transposition function.  This time I do it
+    -- manual and hard coded, since there are so few pathet.  Why is this so
+    -- hard?
+    transpositions = case (laras, up) of
+        --                       1  2  3  4  5  6  7
+        (PelogBarang, True)  -> [1, 1, 2, 1, 1, 1, 2]
+        (PelogBarang, False) -> [-1, -2, -1, -1, -2, -1, -1]
+        --                       1  2  3  4  5  6  7
+        (_, True)            -> [1, 1, 2, 1, 1, 2, 1]
+        (_, False)           -> [-2, -1, -1, -1, -2, -1, -1]
+
+add_pc_abs :: Int -> Pitch Octave -> Pitch Octave
+add_pc_abs steps (Pitch octave pc) = Pitch (octave + oct) pc2
     where (oct, pc2) = toEnumBounded $ fromEnum pc + steps
 
 pitch_diff :: Pitch Octave -> Pitch Octave -> Int
@@ -59,6 +81,12 @@ data Balungan =
 
 data BalunganAnnotation = Gong | Kenong
     deriving (Eq, Show)
+
+seleh :: Gatra -> Maybe PitchClass
+seleh (Gatra n1 n2 n3 n4) = msum $ map pc_of [n4, n3, n2, n1]
+    where
+    pc_of (Balungan (Just (Pitch _ pc)) _) = Just pc
+    pc_of _ = Nothing
 
 -- * score
 

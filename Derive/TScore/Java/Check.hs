@@ -67,8 +67,10 @@ format_score (T.Score toplevels) = T.Score <$> mapM format toplevels
     where
     format (pos, T.ToplevelDirective d) = pure (pos, T.ToplevelDirective d)
     format (pos, T.BlockDefinition b) = do
+        -- Must 'resolve_pitch' before 'infer_chord'.
+        b <- format_block b
         b <- normalize_name pos b
-        (pos,) . T.BlockDefinition <$> format_block b
+        pure (pos, T.BlockDefinition b)
 
 format_block :: T.ParsedBlock -> CheckM (T.Block [[FormatToken]])
 format_block block = do
@@ -137,18 +139,51 @@ data Instrument = GenderBarung | GenderPanerus | Siter
 -- * normalize names
 
 -- | Un-abbreviate standard cengkok names.
-normalize_name :: T.Pos -> T.Block tracks -> CheckM (T.Block tracks)
-normalize_name pos block = case T.block_names block of
-    [] -> pure block
-    name : names -> case Map.lookup name from_abbr of
-        Just name -> pure $ block { T.block_names = name : names }
-        Nothing -> do
-            unless (name `elem` map fst standard_names) $
-                warn pos $ "unknown name: " <> name
-            pure block
+normalize_name :: T.Pos -> T.Block [[FormatToken]]
+    -> CheckM (T.Block [[FormatToken]])
+normalize_name pos block = do
+    names <- case T.block_names block of
+        [] -> pure ["unknown"]
+        name : names -> case Map.lookup name from_abbr of
+            Just name -> pure $ name : names
+            Nothing -> do
+                unless (name `elem` map fst standard_names) $
+                    warn pos $ "unknown name: " <> name
+                pure $ name : names
+    -- TODO is this always accurate, or should I get it from the tracks?
+    let seleh = Text.singleton . T.pc_char <$> T.seleh (T.block_gatra block)
+    -- TODO I should mark these as being inferred, not explicit
+    let inferred = Maybe.catMaybes [chord, seleh]
+    pure $ block { T.block_names = names ++ inferred }
     where
+    chord = fmap (Text.toLower . showt) $
+        infer_chord laras (T.block_tracks block)
     from_abbr = Map.fromList $ map Tuple.swap $
         filter (not . Text.null . snd) standard_names
+    laras = T.PelogLima
+
+data Chord = Kempyung | Gembyang
+    deriving (Eq, Show)
+
+infer_chord :: T.Laras -> [[T.Token (T.Note (Pitch Octave) dur) rest]]
+    -> Maybe Chord
+infer_chord laras tracks = case map final_pitch tracks of
+    [Just high, Just low]
+        | pitch_pc high == pitch_pc low
+        && pitch_octave high == pitch_octave low + 1 -> Just Gembyang
+        | T.add_pc laras 3 low == high -> Just Kempyung
+    _ -> Nothing
+
+final_pitch :: [T.Token (T.Note pitch dur) rest] -> Maybe pitch
+final_pitch =
+    msum . map pitch_of . take 3 . filter (not . is_barline) . reverse
+    -- Only consider a few final notes, sometimes a final chord is offset,
+    -- but not by much.
+    where
+    is_barline (T.TBarline {}) = True
+    is_barline _ = False
+    pitch_of (T.TNote _ note) = Just $ T.note_pitch note
+    pitch_of _ = Nothing
 
 -- variations: append 123567 for e.g. gantung 2, cilik, kecil, gede, besar,
 -- kempyung / gembyang

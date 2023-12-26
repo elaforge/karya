@@ -192,7 +192,7 @@ lima_to_barang :: [T.Token (T.Note (Pitch Octave) dur) rest]
 lima_to_barang =
     map (T.map_note (\n -> n { T.note_pitch = replace (T.note_pitch n) }))
     where
-    replace p@(Pitch _ T.P1) = T.add_pc (-1) p
+    replace p@(Pitch _ T.P1) = T.add_pc_abs (-1) p
     replace p = p
 
 -- * format
