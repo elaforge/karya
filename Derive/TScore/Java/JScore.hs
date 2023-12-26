@@ -74,7 +74,10 @@ instance Parse.Element T.ParsedBlock where
         block_names <- P.many $ Parse.lexeme $ P.takeWhile1 $ \c ->
             'a' <= c && c <= 'z' || c == '-'
         block_tracks <- P.optional $ Parse.parse config
-        pure $ T.Block { block_gatra, block_names, block_tracks }
+        pure $ T.Block
+            { block_gatra, block_names, block_tracks
+            , block_inferred = []
+            }
     unparse config (T.Block { block_gatra, block_names, block_tracks }) =
         Text.unwords $ Parse.unparse config block_gatra : block_names
             ++ maybe [] ((:[]) . Parse.unparse config) block_tracks
@@ -209,12 +212,14 @@ format_toplevel = \case
     T.BlockDefinition block -> format_block block
 
 format_block :: T.Block [[Check.FormatToken]] -> [Text]
-format_block (T.Block { block_gatra, block_names, block_tracks }) =
-    title : map (("    "<>) . format_tokens) block_tracks
+format_block block = title : map (("    "<>) . format_tokens) block_tracks
     where
     title = Texts.join2 " "
         (Parse.unparse Parse.default_config block_gatra)
         (Text.unwords block_names)
+        <> if null block_inferred then ""
+            else " [" <> Text.unwords block_inferred <> "]"
+    T.Block { block_gatra, block_names, block_tracks, block_inferred } = block
 
 format_directive :: T.Directive -> Text
 format_directive (T.Directive _ key mb_val) = key <> maybe "" (" = "<>) mb_val

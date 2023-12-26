@@ -104,6 +104,8 @@ data Block tracks = Block {
     -- | Usually zero or one name, possibly with a modifier such as gede or
     -- cilik.
     , block_names :: [Text]
+    -- | Like block_names, but inferred automatically.
+    , block_inferred :: [Text]
     , block_tracks :: tracks
     } deriving (Eq, Show)
 

@@ -31,21 +31,6 @@ warn pos msg = Logger.log (T.Error pos msg)
     - within instrument range
     - left hand below right hand
 -}
-{-
-check2 :: Text -> Score -> [T.Error]
-check2 source (Score toplevels) =
-    snd $ Logger.runId $ mapM_ (top . snd) toplevels
-    where
-    top = \case
-        ToplevelDirective {} -> pure ()
-        BlockDefinition block ->
-            concatMap (check_tokens . track_tokens) tracks
-            where Tracks tracks = block_tracks block
-
-check_tokens :: [Token] -> [T.Error]
-check_tokens tokens = errs
-    where (errs, _) = Either.partitionEithers $ resolve_tokens tokens
--}
 
 data Bias = BiasStart | BiasEnd
     deriving (Show, Eq)
@@ -152,9 +137,8 @@ normalize_name pos block = do
                 pure $ name : names
     -- TODO is this always accurate, or should I get it from the tracks?
     let seleh = Text.singleton . T.pc_char <$> T.seleh (T.block_gatra block)
-    -- TODO I should mark these as being inferred, not explicit
     let inferred = Maybe.catMaybes [chord, seleh]
-    pure $ block { T.block_names = names ++ inferred }
+    pure $ block { T.block_names = names, T.block_inferred = inferred }
     where
     chord = fmap (Text.toLower . showt) $
         infer_chord laras (T.block_tracks block)
