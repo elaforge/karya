@@ -1,8 +1,7 @@
 -- :mode: java
 %piece = Pangkur
 %source = ''Pak Joko Purwanto''
-%laras = pelog
-%pathet = barang
+%laras = pelog-barang
 %inst = gender-barung
 
 .... buko [
@@ -54,7 +53,7 @@
     > . 216 '3 | . 1 216
 ]
 
-6532 kutuk-kuning-kempyung
+6532 kutuk-kuning kempyung
 5321 dualolo
 3216 tumurun
 
@@ -103,7 +102,7 @@
     > . 216 '3 | . 1 216 | . 1 6  1  | 2 3 532
 ]
 
-6532 kutuk-kuning-kempyung
+6532 kutuk-kuning kempyung
 5321 dualolo
 3216 tumurun
 

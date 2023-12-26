@@ -48,14 +48,21 @@ type FormatToken = T.Token (T.Note (Pitch Octave) ()) T.Rest
 -- sure they are at the same "zoom", but it's only since I don't want to
 -- convert from times back to notes.
 format_score :: T.ParsedScore -> CheckM (T.Score (T.Block [[FormatToken]]))
-format_score (T.Score toplevels) = T.Score <$> mapM format toplevels
+format_score (T.Score toplevels) =
+    T.Score . snd <$> Lists.mapAccumLM format [] toplevels
     where
-    format (pos, T.ToplevelDirective d) = pure (pos, T.ToplevelDirective d)
-    format (pos, T.BlockDefinition b) = do
+    format metas (pos, T.ToplevelMeta a) =
+        pure (a : metas, (pos, T.ToplevelMeta a))
+    format metas (pos, T.BlockDefinition b) = do
         -- Must 'resolve_pitch' before 'infer_chord'.
         b <- format_block b
-        b <- normalize_name pos b
-        pure (pos, T.BlockDefinition b)
+        laras <- case Lists.head [laras | T.Laras laras <- metas] of
+            Nothing -> do
+                warn pos "no laras, defaulting to pelog-lima"
+                pure T.PelogLima
+            Just laras -> pure laras
+        b <- normalize_name laras pos b
+        pure (metas, (pos, T.BlockDefinition b))
 
 format_block :: T.ParsedBlock -> CheckM (T.Block [[FormatToken]])
 format_block block = do
@@ -83,52 +90,14 @@ format_tokens bias = -- fmap lima_to_barang .
     normalize_barlines bias . resolve_pitch
     -- This doesn't do 'resolve_durations', because I want the original rests.
 
--- * directives
-
-check_score_directive :: T.Directive -> Either T.Error ToplevelTag
-check_score_directive (T.Directive pos key Nothing) =
-    Left $ T.Error pos $ "directive with no val: " <> key
-check_score_directive (T.Directive pos key (Just val)) =
-    first (T.Error pos) $ case key of
-        "source" -> Right $ Source val
-        "piece" -> Right $ Piece val
-        "section" -> Right $ Section val
-        "laras" -> Laras <$> case val of
-           "pelog-nem" -> Right PelogNem
-           "pelog-lima" -> Right PelogLima
-           "pelog-barang" -> Right PelogBarang
-           "slendro" -> Right Slendro -- TODO different slendro pathet
-           _ -> Left $ "unknown laras: " <> val
-        "irama" -> Irama <$> case val of
-           "lancar" -> Right Lancar
-           "tanggung" -> Right Tanggung
-           "dadi" -> Right Dadi
-           "wiled" -> Right Wiled
-           "rangkep" -> Right Rangkep
-           _ -> Left $ "unknown irama: " <> val
-        _ -> Left $ "unknown directive: " <> key <> " = " <> val
-
-data ToplevelTag = Source Text | Piece Text | Section Text | Laras Laras
-    | Irama Irama
-    deriving (Eq, Show)
-
-data Laras = Slendro | PelogNem | PelogLima | PelogBarang
-    deriving (Eq, Show)
-
--- | Along with Instrument, affects expected number of notes per barline.
-data Irama = Lancar | Tanggung | Dadi | Wiled | Rangkep
-    deriving (Eq, Ord, Enum, Bounded, Show)
-data Instrument = GenderBarung | GenderPanerus | Siter
-    deriving (Eq, Show)
-
 -- * normalize names
 
 -- | Un-abbreviate standard cengkok names.
-normalize_name :: T.Pos -> T.Block [[FormatToken]]
+normalize_name :: T.Laras -> T.Pos -> T.Block [[FormatToken]]
     -> CheckM (T.Block [[FormatToken]])
-normalize_name pos block = do
+normalize_name laras pos block = do
     names <- case T.block_names block of
-        [] -> pure ["unknown"]
+        [] -> pure ["none"]
         name : names -> case Map.lookup name from_abbr of
             Just name -> pure $ name : names
             Nothing -> do
@@ -144,7 +113,6 @@ normalize_name pos block = do
         infer_chord laras (T.block_tracks block)
     from_abbr = Map.fromList $ map Tuple.swap $
         filter (not . Text.null . snd) standard_names
-    laras = T.PelogLima
 
 data Chord = Kempyung | Gembyang
     deriving (Eq, Show)
@@ -169,11 +137,10 @@ final_pitch =
     pitch_of (T.TNote _ note) = Just $ T.note_pitch note
     pitch_of _ = Nothing
 
--- variations: append 123567 for e.g. gantung 2, cilik, kecil, gede, besar,
--- kempyung / gembyang
 standard_names :: [(Text, Text)]
 standard_names =
     [ ("ayu-kuning", "ak")
+    , ("buko", "")
     , ("debyang-debyung", "dd")
     , ("dualolo", "dll")
     , ("duduk", "")

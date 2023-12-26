@@ -21,7 +21,7 @@ import           Util.Test.Global
 everything_score :: Text
 everything_score =
     "%irama = tanggung\n\
-    \%inst = gende-barung -- comment\n\
+    \%inst = gender-barung -- comment\n\
     \3231^ dualolo cilik [\n\
     \    > '5653 | .6.56.1.\n\
     \    >  .12_ | 6.2.321.\n\
@@ -32,7 +32,7 @@ everything_score =
 test_roundtrip :: Test
 test_roundtrip = do
     let trip = fmap unparse . JScore.parse_score
-    right_equal (trip "%a = b") "%a = b\n"
+    right_equal (trip "%piece = b") "%piece = b\n"
     right_equal (trip "1235 [ > 5 6/. _ ]") "1235 [ > 5 6/. _ ]\n"
     let normalized = trip everything_score
     right_equal (const () <$> normalized) ()

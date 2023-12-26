@@ -1,8 +1,6 @@
 -- :mode: java
 %piece = ''Pangkur Ngrenas''
-%laras = pelog
-%pathet = lima
-
+%laras = pelog-lima
 %inst = gender-barung
 
 %section = ompak

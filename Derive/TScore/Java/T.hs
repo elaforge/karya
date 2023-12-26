@@ -6,7 +6,7 @@ module Derive.TScore.Java.T (
     , module Derive.TScore.T
 ) where
 import           Derive.TScore.T
-    (Directive(..), Error(..), Pos(..), Time(..), fake_pos, show_error)
+    (Error(..), Pos(..), Time(..), fake_pos, show_error)
 
 import           Global
 
@@ -36,10 +36,6 @@ char_pc = \case
     '6' -> Just P6
     '7' -> Just P7
     _ -> Nothing
-
--- | Actually laras + pathet.
-data Laras = Slendro | PelogNem | PelogLima | PelogBarang
-    deriving (Eq, Show)
 
 add_oct :: Octave -> Pitch Octave -> Pitch Octave
 add_oct oct (Pitch o pc) = Pitch (oct+o) pc
@@ -96,8 +92,24 @@ newtype Score block = Score [(Pos, Toplevel block)]
 type ParsedScore = Score ParsedBlock
 type ParsedBlock = Block (Maybe Tracks)
 
-data Toplevel block = ToplevelDirective Directive | BlockDefinition block
+data Toplevel block = ToplevelMeta Meta | BlockDefinition block
     deriving (Eq, Show)
+
+data Meta = Source Text | Piece Text | Section Text | Laras Laras
+    | Irama Irama | Instrument Instrument
+    deriving (Eq, Show)
+
+-- | Actually laras + pathet.
+data Laras =
+    SlendroNem | SlendroSanga | SlendroManyura
+    | PelogNem | PelogLima | PelogBarang
+    deriving (Eq, Show, Bounded, Enum)
+
+-- | Along with Instrument, affects expected number of notes per barline.
+data Irama = Lancar | Tanggung | Dadi | Wiled | Rangkep
+    deriving (Eq, Ord, Enum, Bounded, Show)
+data Instrument = GenderBarung | GenderPanerus | Siter
+    deriving (Eq, Show, Bounded, Enum)
 
 data Block tracks = Block {
     block_gatra :: Gatra

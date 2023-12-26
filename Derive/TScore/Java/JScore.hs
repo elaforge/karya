@@ -32,8 +32,10 @@
     of Check, and all of TScore.
 -}
 module Derive.TScore.Java.JScore where
+import qualified Data.Map as Map
 import qualified Data.Text as Text
 
+import qualified Util.Lists as Lists
 import qualified Util.Logger as Logger
 import qualified Util.P as P
 import qualified Util.Texts as Texts
@@ -42,6 +44,7 @@ import qualified Derive.TScore.Java.Check as Check
 import qualified Derive.TScore.Java.T as T
 import           Derive.TScore.Java.T (Octave, Pitch(..))
 import qualified Derive.TScore.Parse as Parse
+import qualified Derive.TScore.T as TScore.T
 
 import           Global
 
@@ -57,13 +60,64 @@ instance Parse.Element T.ParsedScore where
 
 instance Parse.Element (T.Toplevel T.ParsedBlock) where
     parse config = Parse.lexeme $
-        T.ToplevelDirective . un <$> Parse.parse config
+        T.ToplevelMeta <$> Parse.parse config
         <|> T.BlockDefinition <$> Parse.parse config
-        where un (Parse.ToplevelDirective d) = d
     unparse config = \case
-        T.ToplevelDirective a ->
-            Parse.unparse config (Parse.ToplevelDirective a)
+        T.ToplevelMeta a -> Parse.unparse config a
         T.BlockDefinition a -> Parse.unparse config a
+
+instance Parse.Element T.Meta where
+    parse _ = do
+        TScore.T.Directive _pos key mb_val <- Parse.p_directive True
+        val <- maybe (fail $ "directive with no val: " <> untxt key) return
+            mb_val
+        let unknown = fail $ "unknown " <> untxt key <> ": " <> untxt val
+        case key of
+            "source" -> pure $ T.Source val
+            "piece" -> pure $ T.Piece val
+            "section" -> pure $ T.Section val
+            "laras" -> maybe unknown (return . T.Laras) $
+                parse_enum laras_enum val
+            "inst" -> maybe unknown (return . T.Instrument) $
+                parse_enum instrument_enum val
+            "irama" -> maybe unknown (return . T.Irama) $
+                parse_enum irama_enum val
+            _ -> fail $ "unknown meta: " <> untxt key <> " = " <> untxt val
+    unparse _ = \case
+        T.Source a -> un "source" a
+        T.Piece a -> un "piece" a
+        T.Section a -> un "section" a
+        T.Laras a -> un "laras" (laras_enum a)
+        T.Irama a -> un "irama" (irama_enum a)
+        T.Instrument a -> un "inst" (instrument_enum a)
+        where un key val = mconcat ["%", key, " = ", val]
+
+parse_enum :: (Bounded a, Enum a) => (a -> Text) -> Text -> Maybe a
+parse_enum unparse t = Map.lookup t m
+    where m = Map.fromList $ Lists.keyOn unparse [minBound ..]
+
+laras_enum :: T.Laras -> Text
+laras_enum = \case
+   T.PelogNem -> "pelog-nem"
+   T.PelogLima -> "pelog-lima"
+   T.PelogBarang -> "pelog-barang"
+   T.SlendroNem -> "slendro-nem"
+   T.SlendroSanga -> "slendro-sanga"
+   T.SlendroManyura -> "slendro-manyura"
+
+instrument_enum :: T.Instrument -> Text
+instrument_enum = \case
+    T.GenderBarung -> "gender-barung"
+    T.GenderPanerus -> "gender-panerus"
+    T.Siter -> "siter"
+
+irama_enum :: T.Irama -> Text
+irama_enum = \case
+    T.Lancar -> "lancar"
+    T.Tanggung -> "tanggung"
+    T.Dadi -> "dadi"
+    T.Wiled -> "wiled"
+    T.Rangkep -> "rangkep"
 
 -- | 1234 name [ tracks ]
 instance Parse.Element T.ParsedBlock where
@@ -208,7 +262,7 @@ format_score score = (concatMap (format_toplevel . snd) toplevels, errs)
 
 format_toplevel :: T.Toplevel (T.Block [[Check.FormatToken]]) -> [Text]
 format_toplevel = \case
-    T.ToplevelDirective d -> ["", format_directive d]
+    T.ToplevelMeta d -> ["", format_meta d]
     T.BlockDefinition block -> format_block block
 
 format_block :: T.Block [[Check.FormatToken]] -> [Text]
@@ -221,8 +275,8 @@ format_block block = title : map (("    "<>) . format_tokens) block_tracks
             else " [" <> Text.unwords block_inferred <> "]"
     T.Block { block_gatra, block_names, block_tracks, block_inferred } = block
 
-format_directive :: T.Directive -> Text
-format_directive (T.Directive _ key mb_val) = key <> maybe "" (" = "<>) mb_val
+format_meta :: T.Meta -> Text
+format_meta = Parse.unparse Parse.default_config
 
 format_tokens :: [Check.FormatToken] -> Text
 format_tokens = mconcat . go
