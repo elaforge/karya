@@ -222,13 +222,13 @@ instance Parse.Element (Pitch T.RelativeOctave) where
             LT -> Text.replicate (- oct) ","
             GT -> Text.replicate oct "'"
 
-instance Parse.Element T.Gatra where
+instance Parse.Element (T.Gatra T.ParsedPitch) where
     parse config = T.Gatra <$> p <*> p <*> p <*> p
         where p = Parse.parse config
     unparse config (T.Gatra n1 n2 n3 n4) =
         mconcatMap (Parse.unparse config) [n1, n2, n3, n4]
 
-instance Parse.Element T.Balungan where
+instance Parse.Element (T.Balungan T.ParsedPitch) where
     parse config = T.Balungan
         <$> (P.char '.' *> pure Nothing <|> Just <$> Parse.parse config)
         <*> P.optional (Parse.parse config)
@@ -245,7 +245,7 @@ instance Parse.Element T.BalunganAnnotation where
 
 -- * transform
 
-type Transform = [Check.FormatToken] -> [Check.FormatToken]
+type Transform = [Check.Token] -> [Check.Token]
 
 -- | Simple pelog lima to pelog barang by changing 1s to 7s.
 lima_to_barang :: Transform
@@ -285,7 +285,7 @@ format_score transform score =
     state = FormatState [] False transform
     (T.Score toplevels, errs) = Logger.runId $ Check.format_score score
 
-format_toplevel :: FormatState -> T.Toplevel (T.Block [[Check.FormatToken]])
+format_toplevel :: FormatState -> T.Toplevel Check.Block
     -> (FormatState, [Text])
 format_toplevel state = \case
     T.ToplevelMeta m ->
@@ -298,7 +298,7 @@ format_toplevel state = \case
         , format_block (state_meta state) block
         )
 
-format_block :: [T.Meta] -> T.Block [[Check.FormatToken]] -> [Text]
+format_block :: [T.Meta] -> Check.Block -> [Text]
 format_block metas block =
     title : map (("    "<>) . format_tokens bias)
         (map lima_to_barang block_tracks)
@@ -323,29 +323,26 @@ format_meta :: T.Meta -> Text
 format_meta = Text.drop 1 . Parse.unparse Parse.default_config
     -- Input syntax uses a leading %.
 
-format_gatra :: T.Gatra -> Text
+format_gatra :: T.Gatra (Pitch Octave) -> Text
 format_gatra (T.Gatra n1 n2 n3 n4) =
     mconcatMap format_balungan [n1, n2, n3, n4]
 
 -- TODO I need to infer octaves for balungan
-format_balungan :: T.Balungan -> Text
+format_balungan :: T.Balungan (Pitch Octave) -> Text
 format_balungan (T.Balungan (Just (T.Pitch oct pc)) (Just T.Gong))
     -- The hardcoded circled digit looks better than the combining enclosing
     -- circle.
-    | oct == T.RelativeOctave 0 =
-        Text.singleton $ toEnum (circled_digit_one + fromEnum pc)
+    | oct == 0 = Text.singleton $ toEnum (circled_digit_one + fromEnum pc)
     where circled_digit_one = 0x2460
 format_balungan (T.Balungan pitch annot) = mconcat
-    [ case pitch of
-        Nothing -> "."
-        Just (T.Pitch (T.RelativeOctave oct) pc) -> format_pitch (Pitch oct pc)
+    [ maybe "." format_pitch pitch
     , case annot of
         Nothing -> ""
         Just T.Gong -> Text.singleton '\x20dd' -- COMBINING ENCLOSING CIRCLE
         Just T.Kenong -> Text.singleton '\x0302' -- COMBINING CIRCUMFLEX ACCENT
     ]
 
-format_tokens :: Check.Bias -> [Check.FormatToken] -> Text
+format_tokens :: Check.Bias -> [Check.Token] -> Text
 format_tokens bias = mconcat . go
     where
     go ts = zipWith format_token beats pre ++ case post of
@@ -361,7 +358,7 @@ format_tokens bias = mconcat . go
     is_barline (T.TBarline {}) = True
     is_barline _ = False
 
-format_token :: Bool -> Check.FormatToken -> Text
+format_token :: Bool -> Check.Token -> Text
 format_token on_beat = \case
     T.TBarline {} -> " | "
     -- T.TBarline {} -> " " <> vertical_line <> " "

@@ -32,14 +32,15 @@ resolve_tokens :: Bias -> [T.ParsedToken]
 resolve_tokens bias =
     fmap (resolve_durations bias) . normalize_barlines bias . resolve_pitch
 
-type FormatToken = T.Token (T.Note (Pitch Octave) ()) T.Rest
+type Block = T.Block (Pitch Octave) [[Token]]
+type Token = T.Token (T.Note (Pitch Octave) ()) T.Rest
 
 -- | Score-to-score, this takes the parsed score to a somewhat more normalized
 -- version.  So not the same as converting to tracklang, because I don't need
 -- actual times and durations.  Also I have to 'normalize_hands' to make
 -- sure they are at the same "zoom", but it's only since I don't want to
 -- convert from times back to notes.
-format_score :: T.ParsedScore -> CheckM (T.Score (T.Block [[FormatToken]]))
+format_score :: T.ParsedScore -> CheckM (T.Score Block)
 format_score (T.Score toplevels) =
     T.Score . snd <$> Lists.mapAccumLM format [] toplevels
     where
@@ -51,15 +52,16 @@ format_score (T.Score toplevels) =
         b <- normalize_name metas pos b
         pure (metas, (pos, T.BlockDefinition b))
 
-format_block :: T.ParsedBlock -> CheckM (T.Block [[FormatToken]])
+format_block :: T.ParsedBlock -> CheckM Block
 format_block block = do
-    tracks <- case T.block_tracks block of
+    block_tracks <- case T.block_tracks block of
         -- TODO or I could do resolve_names first?  Still may fail to resolve.
         Nothing -> pure []
         Just tracks -> format_tracks tracks
-    pure $ block { T.block_tracks = tracks }
+    let block_gatra = resolve_gatra_pitch (T.block_gatra block)
+    pure $ block { T.block_gatra, T.block_tracks }
 
-format_tracks :: T.Tracks -> CheckM [[FormatToken]]
+format_tracks :: T.Tracks -> CheckM [[Token]]
 format_tracks (T.Tracks tracks) = case map T.track_tokens tracks of
     [lefts, rights] -> do
         lefts <- format_tokens bias lefts
@@ -79,8 +81,8 @@ format_tokens bias = normalize_barlines bias . resolve_pitch
 -- * normalize names
 
 -- | Un-abbreviate standard cengkok names.
-normalize_name :: [T.Meta] -> T.Pos -> T.Block [[FormatToken]]
-    -> CheckM (T.Block [[FormatToken]])
+normalize_name :: [T.Meta] -> T.Pos -> T.Block pitch [[Token]]
+    -> CheckM (T.Block pitch [[Token]])
 normalize_name metas pos block = do
     names <- case T.block_names block of
         [] -> pure ["none"]
@@ -164,6 +166,17 @@ resolve_pitch = snd . List.mapAccumL resolve (0, Nothing)
             )
             where
             pitch@(Pitch oct pc) = infer_octave prev (T.note_pitch note)
+
+resolve_gatra_pitch :: T.Gatra T.ParsedPitch -> T.Gatra (Pitch Octave)
+resolve_gatra_pitch (T.Gatra p1 p2 p3 p4) =
+    case snd $ List.mapAccumL resolve (0, Nothing) [p1, p2, p3, p4] of
+        [p1, p2, p3, p4] -> T.Gatra p1 p2 p3 p4
+        _ -> error "expected exactly 4"
+    where
+    resolve prev (T.Balungan Nothing annot) = (prev, T.Balungan Nothing annot)
+    resolve prev (T.Balungan (Just p) annot) =
+        ((oct, Just pc), T.Balungan (Just pitch) annot)
+        where pitch@(Pitch oct pc) = infer_octave prev p
 
 -- Initial prev_oct is based on the instrument.
 -- Similar to Check.infer_octave, but uses simpler 'Pitch' instead of

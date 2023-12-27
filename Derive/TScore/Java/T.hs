@@ -70,16 +70,17 @@ pitch_diff (Pitch oct1 pc1) (Pitch oct2 pc2) =
     where
     per_oct = fromEnum (maxBound :: PitchClass) + 1
 
-data Gatra = Gatra Balungan Balungan Balungan Balungan
+data Gatra pitch =
+    Gatra (Balungan pitch) (Balungan pitch) (Balungan pitch) (Balungan pitch)
     deriving (Eq, Show)
 
-data Balungan = Balungan (Maybe ParsedPitch) (Maybe BalunganAnnotation)
+data Balungan pitch = Balungan (Maybe pitch) (Maybe BalunganAnnotation)
     deriving (Eq, Show)
 
 data BalunganAnnotation = Gong | Kenong
     deriving (Eq, Show)
 
-seleh :: Gatra -> Maybe PitchClass
+seleh :: Gatra (Pitch oct) -> Maybe PitchClass
 seleh (Gatra n1 n2 n3 n4) = msum $ map pc_of [n4, n3, n2, n1]
     where
     pc_of (Balungan (Just (Pitch _ pc)) _) = Just pc
@@ -91,7 +92,6 @@ newtype Score block = Score [(Pos, Toplevel block)]
     deriving (Eq, Show)
 
 type ParsedScore = Score ParsedBlock
-type ParsedBlock = Block (Maybe Tracks)
 
 data Toplevel block = ToplevelMeta Meta | BlockDefinition block
     deriving (Eq, Show)
@@ -112,8 +112,10 @@ data Irama = Lancar | Tanggung | Dadi | Wiled | Rangkep
 data Instrument = GenderBarung | GenderPanerus | Siter
     deriving (Eq, Show, Bounded, Enum)
 
-data Block tracks = Block {
-    block_gatra :: Gatra
+type ParsedBlock = Block ParsedPitch (Maybe Tracks)
+
+data Block pitch tracks = Block {
+    block_gatra :: Gatra pitch
     -- | Usually zero or one name, possibly with a modifier such as gede or
     -- cilik.
     , block_names :: [Text]
