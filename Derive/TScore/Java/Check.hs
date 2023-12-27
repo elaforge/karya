@@ -56,12 +56,7 @@ format_score (T.Score toplevels) =
     format metas (pos, T.BlockDefinition b) = do
         -- Must 'resolve_pitch' before 'infer_chord'.
         b <- format_block b
-        laras <- case Lists.head [laras | T.Laras laras <- metas] of
-            Nothing -> do
-                warn pos "no laras, defaulting to pelog-lima"
-                pure T.PelogLima
-            Just laras -> pure laras
-        b <- normalize_name laras pos b
+        b <- normalize_name metas pos b
         pure (metas, (pos, T.BlockDefinition b))
 
 format_block :: T.ParsedBlock -> CheckM (T.Block [[FormatToken]])
@@ -86,16 +81,15 @@ format_tracks (T.Tracks tracks) = case map T.track_tokens tracks of
 
 format_tokens :: Bias -> [T.ParsedToken]
     -> CheckM [T.Token (T.Note (Pitch Octave) ()) T.Rest]
-format_tokens bias = -- fmap lima_to_barang .
-    normalize_barlines bias . resolve_pitch
+format_tokens bias = normalize_barlines bias . resolve_pitch
     -- This doesn't do 'resolve_durations', because I want the original rests.
 
 -- * normalize names
 
 -- | Un-abbreviate standard cengkok names.
-normalize_name :: T.Laras -> T.Pos -> T.Block [[FormatToken]]
+normalize_name :: [T.Meta] -> T.Pos -> T.Block [[FormatToken]]
     -> CheckM (T.Block [[FormatToken]])
-normalize_name laras pos block = do
+normalize_name metas pos block = do
     names <- case T.block_names block of
         [] -> pure ["none"]
         name : names -> case Map.lookup name from_abbr of
@@ -106,9 +100,13 @@ normalize_name laras pos block = do
                 pure $ name : names
     -- TODO is this always accurate, or should I get it from the tracks?
     let seleh = Text.singleton . T.pc_char <$> T.seleh (T.block_gatra block)
-    let inferred = Maybe.catMaybes [chord, seleh]
+    let inferred
+            | inst == Just T.GenderBarung = Maybe.catMaybes [chord, seleh]
+            | otherwise = []
     pure $ block { T.block_names = names, T.block_inferred = inferred }
     where
+    laras = fromMaybe T.PelogLima $ Lists.head [laras | T.Laras laras <- metas]
+    inst = Lists.head [inst | T.Instrument inst <- metas]
     chord = fmap (Text.toLower . showt) $
         infer_chord laras (T.block_tracks block)
     from_abbr = Map.fromList $ map Tuple.swap $

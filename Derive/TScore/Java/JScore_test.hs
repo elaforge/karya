@@ -75,18 +75,7 @@ format_score source = case JScore.parse_score source of
         | not (null errs) ->
             Left $ Text.unlines $ map (T.show_error source) errs
         | otherwise -> Right lines
-        where (lines, errs) = JScore.format_score score
-
-format_file :: FilePath -> IO ()
-format_file fname = print_score =<< Text.IO.readFile fname
-
-print_score :: Text -> IO ()
-print_score source = case JScore.parse_score source of
-    Left err -> putStrLn err
-    Right score -> do
-        let (lines, errs) = JScore.format_score score
-        mapM_ Text.IO.putStrLn lines
-        mapM_ (Text.IO.putStrLn . T.show_error source) errs
+        where (lines, errs) = JScore.format_score id score
 
 _parse_file :: FilePath -> IO ()
 _parse_file fname = (JScore.parse_score <$> Text.IO.readFile fname) >>= \case

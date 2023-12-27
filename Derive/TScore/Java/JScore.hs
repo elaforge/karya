@@ -35,6 +35,7 @@ module Derive.TScore.Java.JScore where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
 
 import qualified Util.Lists as Lists
 import qualified Util.Logger as Logger
@@ -244,9 +245,10 @@ instance Parse.Element T.BalunganAnnotation where
 
 -- * transform
 
+type Transform = [Check.FormatToken] -> [Check.FormatToken]
+
 -- | Simple pelog lima to pelog barang by changing 1s to 7s.
-lima_to_barang :: [T.Token (T.Note (Pitch Octave) dur) rest]
-    -> [T.Token (T.Note (Pitch Octave) dur) rest]
+lima_to_barang :: Transform
 lima_to_barang =
     map (T.map_note (\n -> n { T.note_pitch = replace (T.note_pitch n) }))
     where
@@ -255,20 +257,32 @@ lima_to_barang =
 
 -- * format
 
+format_file :: Transform -> FilePath -> IO ()
+format_file transform fname = print_score transform =<< Text.IO.readFile fname
+
+print_score :: Transform -> Text -> IO ()
+print_score transform source = case parse_score source of
+    Left err -> putStrLn err
+    Right score
+        | null errs -> mapM_ Text.IO.putStrLn lines
+        | otherwise -> mapM_ (Text.IO.putStrLn . T.show_error source) errs
+        where (lines, errs) = format_score transform score
+
 data FormatState = FormatState {
     state_meta :: [T.Meta]
     , state_prev_is_block :: Bool
-    } deriving (Show, Eq)
+    , state_transform :: Transform
+    }
 
 -- | Format a T.Score to print.  This is does some Checks but doesn't
 -- normalize down to Time, because it's more like normalization than lowering.
-format_score :: T.ParsedScore -> ([Text], [T.Error])
-format_score score =
+format_score :: Transform -> T.ParsedScore -> ([Text], [T.Error])
+format_score transform score =
     ( concat $ snd $ List.mapAccumL format_toplevel state (map snd toplevels)
     , errs
     )
     where
-    state = FormatState [] False
+    state = FormatState [] False transform
     (T.Score toplevels, errs) = Logger.runId $ Check.format_score score
 
 format_toplevel :: FormatState -> T.Toplevel (T.Block [[Check.FormatToken]])
@@ -286,7 +300,8 @@ format_toplevel state = \case
 
 format_block :: [T.Meta] -> T.Block [[Check.FormatToken]] -> [Text]
 format_block metas block =
-    title : map (("    "<>) . format_tokens bias) block_tracks
+    title : map (("    "<>) . format_tokens bias)
+        (map lima_to_barang block_tracks)
     where
     title = Texts.join2 " "
         (Parse.unparse Parse.default_config block_gatra)
