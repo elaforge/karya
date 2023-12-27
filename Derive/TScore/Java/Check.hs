@@ -171,6 +171,7 @@ resolve_gatra_pitch :: T.Gatra T.ParsedPitch -> T.Gatra (Pitch Octave)
 resolve_gatra_pitch (T.Gatra p1 p2 p3 p4) =
     case snd $ List.mapAccumL resolve (0, Nothing) [p1, p2, p3, p4] of
         [p1, p2, p3, p4] -> T.Gatra p1 p2 p3 p4
+        -- TODO use Traversable StateT instead of mapAccumL?
         _ -> error "expected exactly 4"
     where
     resolve prev (T.Balungan Nothing annot) = (prev, T.Balungan Nothing annot)

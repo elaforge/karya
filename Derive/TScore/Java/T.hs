@@ -72,10 +72,10 @@ pitch_diff (Pitch oct1 pc1) (Pitch oct2 pc2) =
 
 data Gatra pitch =
     Gatra (Balungan pitch) (Balungan pitch) (Balungan pitch) (Balungan pitch)
-    deriving (Eq, Show)
+    deriving (Eq, Show, Functor, Foldable, Traversable)
 
 data Balungan pitch = Balungan (Maybe pitch) (Maybe BalunganAnnotation)
-    deriving (Eq, Show)
+    deriving (Eq, Show, Functor, Foldable, Traversable)
 
 data BalunganAnnotation = Gong | Kenong
     deriving (Eq, Show)

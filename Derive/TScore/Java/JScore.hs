@@ -245,15 +245,12 @@ instance Parse.Element T.BalunganAnnotation where
 
 -- * transform
 
-type Transform = [Check.Token] -> [Check.Token]
+type Transform = Pitch Octave -> Pitch Octave
 
 -- | Simple pelog lima to pelog barang by changing 1s to 7s.
 lima_to_barang :: Transform
-lima_to_barang =
-    map (T.map_note (\n -> n { T.note_pitch = replace (T.note_pitch n) }))
-    where
-    replace p@(Pitch _ T.P1) = T.add_pc_abs (-1) p
-    replace p = p
+lima_to_barang p@(Pitch _ T.P1) = T.add_pc_abs (-1) p
+lima_to_barang p = p
 
 -- * format
 
@@ -269,7 +266,7 @@ print_score transform source = case parse_score source of
         where (lines, errs) = format_score transform score
 
 data FormatState = FormatState {
-    state_meta :: [T.Meta]
+    state_metas :: [T.Meta]
     , state_prev_is_block :: Bool
     , state_transform :: Transform
     }
@@ -290,22 +287,27 @@ format_toplevel :: FormatState -> T.Toplevel Check.Block
 format_toplevel state = \case
     T.ToplevelMeta m ->
         ( state
-            { state_meta = m : state_meta state, state_prev_is_block = False }
+            { state_metas = m : state_metas state, state_prev_is_block = False }
         , (if state_prev_is_block state then [""] else []) ++ [format_meta m]
         )
     T.BlockDefinition block ->
         ( state { state_prev_is_block = True }
-        , format_block (state_meta state) block
+        , format_block state block
         )
 
-format_block :: [T.Meta] -> Check.Block -> [Text]
-format_block metas block =
+map_pitch :: (a -> b) -> [T.Token (T.Note a dur) rest]
+    -> [T.Token (T.Note b dur) rest]
+map_pitch f = map $ T.map_note (\n -> n { T.note_pitch = f (T.note_pitch n) })
+
+format_block :: FormatState -> Check.Block -> [Text]
+format_block state block =
     title : map (("    "<>) . format_tokens bias)
-        (map lima_to_barang block_tracks)
+        (map (map_pitch transform) block_tracks)
     where
-    title = Texts.join2 " "
-        (format_gatra block_gatra)
-        (Text.unwords block_names)
+    metas = state_metas state
+    transform = state_transform state
+    gatra = fmap transform block_gatra
+    title = Texts.join2 " " (format_gatra gatra) (Text.unwords block_names)
         <> if null block_inferred then ""
             else " [" <> Text.unwords block_inferred <> "]"
     T.Block { block_gatra, block_names, block_tracks, block_inferred } = block
@@ -327,7 +329,6 @@ format_gatra :: T.Gatra (Pitch Octave) -> Text
 format_gatra (T.Gatra n1 n2 n3 n4) =
     mconcatMap format_balungan [n1, n2, n3, n4]
 
--- TODO I need to infer octaves for balungan
 format_balungan :: T.Balungan (Pitch Octave) -> Text
 format_balungan (T.Balungan (Just (T.Pitch oct pc)) (Just T.Gong))
     -- The hardcoded circled digit looks better than the combining enclosing
