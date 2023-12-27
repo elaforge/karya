@@ -90,17 +90,19 @@ normalize_name metas pos block = do
                 unless (name `elem` map fst standard_names) $
                     warn pos $ "unknown name: " <> name
                 pure $ name : names
-    -- TODO is this always accurate, or should I get it from the tracks?
-    let seleh = Text.singleton . T.pc_char <$> T.seleh (T.block_gatra block)
-    let inferred
-            | inst == Just T.GenderBarung = Maybe.catMaybes [chord, seleh]
-            | otherwise = []
     pure $ block { T.block_names = names, T.block_inferred = inferred }
     where
+    inferred
+        | inst == Just T.GenderBarung =
+            case infer_chord laras (T.block_tracks block) of
+                Nothing -> []
+                Just (chord, pc) ->
+                    [ Text.toLower $ showt chord
+                    , Text.singleton (T.pc_char pc)
+                    ]
+        | otherwise = []
     laras = fromMaybe T.PelogLima $ Lists.head [laras | T.Laras laras <- metas]
     inst = Lists.head [inst | T.Instrument inst <- metas]
-    chord = fmap (Text.toLower . showt) $
-        infer_chord laras (T.block_tracks block)
     from_abbr = Map.fromList $ map Tuple.swap $
         filter (not . Text.null . snd) standard_names
 
@@ -108,12 +110,13 @@ data Chord = Kempyung | Gembyang
     deriving (Eq, Show)
 
 infer_chord :: T.Laras -> [[T.Token (T.Note (Pitch Octave) dur) rest]]
-    -> Maybe Chord
+    -> Maybe (Chord, T.PitchClass)
 infer_chord laras tracks = case map final_pitch tracks of
     [Just high, Just low]
         | pitch_pc high == pitch_pc low
-        && pitch_octave high == pitch_octave low + 1 -> Just Gembyang
-        | T.add_pc laras 3 low == high -> Just Kempyung
+        && pitch_octave high == pitch_octave low + 1 ->
+            Just (Gembyang, T.pitch_pc low)
+        | T.add_pc laras 3 low == high -> Just (Kempyung, T.pitch_pc low)
     _ -> Nothing
 
 final_pitch :: [T.Token (T.Note pitch dur) rest] -> Maybe pitch
