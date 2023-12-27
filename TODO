@@ -8493,11 +8493,15 @@ text score: tscore:
         syntax.  Notes would have to be in a FromString, at which point I'm
         back to having to parse again.  But the declarations would be in a big
         list or Map, given the All.hs generation thing like solkattu.
+    - for pitch, maybe it would be easier if ' and , were absolute upper
+      and lower octave, not movement direction.
+      . That doesn't work though, if I have 71, how do I tell it to move down?
     notate by balungan:
       * parsing
-      - normalize names kk -> kutuk-kuning
-      - infer seleh on names
+      * normalize names kk -> kutuk-kuning
+      * infer seleh on names
       - find matching name and optionally expand into score
+      - diff matching names
       The use:
         . Generate a whole tracklang score to practice to.
         . Find similarities between parts.
