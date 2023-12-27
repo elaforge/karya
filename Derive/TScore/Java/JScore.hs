@@ -32,6 +32,7 @@
     of Check, and all of TScore.
 -}
 module Derive.TScore.Java.JScore where
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
@@ -254,19 +255,38 @@ lima_to_barang =
 
 -- * format
 
+data FormatState = FormatState {
+    state_meta :: [T.Meta]
+    , state_prev_is_block :: Bool
+    } deriving (Show, Eq)
+
 -- | Format a T.Score to print.  This is does some Checks but doesn't
 -- normalize down to Time, because it's more like normalization than lowering.
 format_score :: T.ParsedScore -> ([Text], [T.Error])
-format_score score = (concatMap (format_toplevel . snd) toplevels, errs)
-    where (T.Score toplevels, errs) = Logger.runId $ Check.format_score score
+format_score score =
+    ( concat $ snd $ List.mapAccumL format_toplevel state (map snd toplevels)
+    , errs
+    )
+    where
+    state = FormatState [] False
+    (T.Score toplevels, errs) = Logger.runId $ Check.format_score score
 
-format_toplevel :: T.Toplevel (T.Block [[Check.FormatToken]]) -> [Text]
-format_toplevel = \case
-    T.ToplevelMeta d -> ["", format_meta d]
-    T.BlockDefinition block -> format_block block
+format_toplevel :: FormatState -> T.Toplevel (T.Block [[Check.FormatToken]])
+    -> (FormatState, [Text])
+format_toplevel state = \case
+    T.ToplevelMeta m ->
+        ( state
+            { state_meta = m : state_meta state, state_prev_is_block = False }
+        , (if state_prev_is_block state then [""] else []) ++ [format_meta m]
+        )
+    T.BlockDefinition block ->
+        ( state { state_prev_is_block = True }
+        , format_block (state_meta state) block
+        )
 
-format_block :: T.Block [[Check.FormatToken]] -> [Text]
-format_block block = title : map (("    "<>) . format_tokens) block_tracks
+format_block :: [T.Meta] -> T.Block [[Check.FormatToken]] -> [Text]
+format_block metas block =
+    title : map (("    "<>) . format_tokens bias) block_tracks
     where
     title = Texts.join2 " "
         (Parse.unparse Parse.default_config block_gatra)
@@ -274,18 +294,32 @@ format_block block = title : map (("    "<>) . format_tokens) block_tracks
         <> if null block_inferred then ""
             else " [" <> Text.unwords block_inferred <> "]"
     T.Block { block_gatra, block_names, block_tracks, block_inferred } = block
+    irama = Lists.head [i | T.Irama i <- metas]
+    inst = Lists.head [i | T.Instrument i <- metas]
+    -- This actually corresponds to parts which are written with every beat
+    -- and which ones use overbars.  Or could say that the basic speed for
+    -- GenderBarung < Wiled is 4 per bar, while the rest are 8.
+    -- TODO maybe there's a more direct way?
+    bias
+        | inst == Just T.GenderBarung && irama >= Just T.Wiled = Check.BiasEnd
+        | otherwise = Check.BiasStart
 
 format_meta :: T.Meta -> Text
-format_meta = Parse.unparse Parse.default_config
+format_meta = Text.drop 1 . Parse.unparse Parse.default_config
+    -- Input syntax uses a leading %.
 
-format_tokens :: [Check.FormatToken] -> Text
-format_tokens = mconcat . go
+format_tokens :: Check.Bias -> [Check.FormatToken] -> Text
+format_tokens bias = mconcat . go
     where
     go ts = zipWith format_token beats pre ++ case post of
         [] -> []
         bar : post -> format_token True bar : go post
         where
-        beats = if length pre >= 8 then cycle [False, True] else repeat True
+        beats
+            | length pre >= 8 = cycle $ case bias of
+                Check.BiasStart -> [True, False]
+                Check.BiasEnd -> [False, True]
+            | otherwise = repeat True
         (pre, post) = break is_barline ts
     is_barline (T.TBarline {}) = True
     is_barline _ = False

@@ -8500,8 +8500,6 @@ text score: tscore:
       * parsing
       * normalize names kk -> kutuk-kuning
       * infer seleh on names
-      - find matching name and optionally expand into score
-      - diff matching names
       The use:
         . Generate a whole tracklang score to practice to.
         . Find similarities between parts.
@@ -8524,6 +8522,10 @@ text score: tscore:
           (<gatra> |)+
         ]
         balungan = <pitch>[)^]?
+    - Chord and seleh infer is probably only relevant to gender barung
+    - find matching name and optionally expand into score
+      . Can also match based on gatra.
+    - diff matching names
 
     rhythm, end bias or not?
       . Indeed end is more consistent, but no one seems to do it that way.
@@ -8563,6 +8565,7 @@ text score: tscore:
       - within instrument range
       - left hand below right hand
       - pitches in pathet (no 4 for gender, no 1 or 7)
+        . Only 4 is actually forbidden on instruments without it.
       - Gatra to notes ratio ok for irama.  Complicated by faster gender
         notes.
     db:

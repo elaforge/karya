@@ -13,6 +13,8 @@ import           Global
 
 -- * pitch
 
+type ParsedPitch = Pitch RelativeOctave
+
 data Pitch oct = Pitch { pitch_octave :: oct, pitch_pc :: PitchClass }
     deriving (Eq, Show)
 type Octave = Int
@@ -71,8 +73,7 @@ pitch_diff (Pitch oct1 pc1) (Pitch oct2 pc2) =
 data Gatra = Gatra Balungan Balungan Balungan Balungan
     deriving (Eq, Show)
 
-data Balungan =
-    Balungan (Maybe (Pitch RelativeOctave)) (Maybe BalunganAnnotation)
+data Balungan = Balungan (Maybe ParsedPitch) (Maybe BalunganAnnotation)
     deriving (Eq, Show)
 
 data BalunganAnnotation = Gong | Kenong
@@ -143,7 +144,7 @@ token_pos = \case
     TNote pos _ -> pos
     TRest pos _ -> pos
 
-type ParsedToken = Token (Note (Pitch RelativeOctave) HasSpace) Rest
+type ParsedToken = Token (Note ParsedPitch HasSpace) Rest
 
 map_note :: (n1 -> n2) -> Token n1 rest -> Token n2 rest
 map_note f = \case
