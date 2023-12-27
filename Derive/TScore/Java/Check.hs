@@ -24,14 +24,6 @@ type CheckM a = Logger.Logger T.Error a
 warn :: T.Pos -> Text -> CheckM ()
 warn pos msg = Logger.log (T.Error pos msg)
 
-{-
-    Checks:
-    - barlines correct
-    - directives understood
-    - within instrument range
-    - left hand below right hand
--}
-
 data Bias = BiasStart | BiasEnd
     deriving (Show, Eq)
 

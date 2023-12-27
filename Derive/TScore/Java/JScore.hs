@@ -304,7 +304,7 @@ format_block metas block =
         (map lima_to_barang block_tracks)
     where
     title = Texts.join2 " "
-        (Parse.unparse Parse.default_config block_gatra)
+        (format_gatra block_gatra)
         (Text.unwords block_names)
         <> if null block_inferred then ""
             else " [" <> Text.unwords block_inferred <> "]"
@@ -322,6 +322,28 @@ format_block metas block =
 format_meta :: T.Meta -> Text
 format_meta = Text.drop 1 . Parse.unparse Parse.default_config
     -- Input syntax uses a leading %.
+
+format_gatra :: T.Gatra -> Text
+format_gatra (T.Gatra n1 n2 n3 n4) =
+    mconcatMap format_balungan [n1, n2, n3, n4]
+
+-- TODO I need to infer octaves for balungan
+format_balungan :: T.Balungan -> Text
+format_balungan (T.Balungan (Just (T.Pitch oct pc)) (Just T.Gong))
+    -- The hardcoded circled digit looks better than the combining enclosing
+    -- circle.
+    | oct == T.RelativeOctave 0 =
+        Text.singleton $ toEnum (circled_digit_one + fromEnum pc)
+    where circled_digit_one = 0x2460
+format_balungan (T.Balungan pitch annot) = mconcat
+    [ case pitch of
+        Nothing -> "."
+        Just (T.Pitch (T.RelativeOctave oct) pc) -> format_pitch (Pitch oct pc)
+    , case annot of
+        Nothing -> ""
+        Just T.Gong -> Text.singleton '\x20dd' -- COMBINING ENCLOSING CIRCLE
+        Just T.Kenong -> Text.singleton '\x0302' -- COMBINING CIRCUMFLEX ACCENT
+    ]
 
 format_tokens :: Check.Bias -> [Check.FormatToken] -> Text
 format_tokens bias = mconcat . go
