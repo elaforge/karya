@@ -8,7 +8,7 @@ module Solkattu.Dsl.Metadata (
     , recording
     , korvaiT, koraippu, mohra, mohraKorvai, sarvalaghu, tirmanam, sollu
     , sequenceT, faran, exercise, trikalam
-    , withType
+    , withType, withGharana
 ) where
 import           GHC.Stack (HasCallStack)
 import qualified Text.Read as Read
@@ -112,6 +112,9 @@ trikalam = withType "trikalam"
 
 withType :: Text -> Korvai -> Korvai
 withType = withTag Tags.type_
+
+withGharana :: Text -> Korvai -> Korvai
+withGharana = withTag Tags.gharana
 
 -- * util
 

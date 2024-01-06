@@ -275,4 +275,18 @@ candiramani_pakhawaj_adi = korvaiS adi
     ending
     0   .   1   .   2   .   3   .   x   .   o   .   x   .   o   .   |
     pktpu pknpupktpkpu kD pktpu pknpupktpkpu kD K   pu ko pu ko pu kD
+
+    ---
+
+    0   .   1   .   2   .   3   .   x   .   o   .   x   .   o:6   .     |
+                    pkookookook ok kD k D       N k N k D pknpupktpko ok
+                                                          pktpupktpu ktok ?
+    0   .   1   .   2   .   3   .   x   .   o   .   x   .   o   .   |
+    D k D       N k N k D pknpupktpkN D , N , N D , N , N D , N ktok
+
+    0   .   1   .   2   .   3   .   x   .   o   .   x   .   o   .   |
+    N N , N n , D     , ^ , ^ , ^ , N N , N n , D     , ^ , ^ , ^ ,
+
+    0:6   .     1     .     2     .     3     .     4     .     x
+    N N , N n , D   , ^ , ^ , ^ , ^ ,
 -}

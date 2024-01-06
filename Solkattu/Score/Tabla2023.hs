@@ -146,9 +146,6 @@ tukra6 = tukra $ akash $ korvaiS1 tintal $ nadai 3 $
 
 -- * colby
 
-colby :: Korvai -> Korvai
-colby = source "colby"
-
 c_23_09_07a :: Korvai
 c_23_09_07a = colby $ date 2023 9 7 $ korvaiS1 tintal $
     "kat _ tette gege tette gege tun _"
@@ -301,6 +298,25 @@ c_23_11_09 = date 2023 11 9 $ colby $ rela $ kaida $ korvaiS tintal
     -- , tri_ (dha.__) (tri_ (dha.__4) "dha_dha_")
     , tihai (tihai "dha_dha_" (dha.__4)) (dha.__)
     ]
+    --  0 theme
+    --  1 abababcd -- aab
+    --  2 abababcd -- a' a' b
+    --  3 " gtd gtd gtt
+    --  4 " ggtd gtd gt
+    --  5 " ggtd gtd td
+    --  6 " gtd td ktd kd d
+    --  7 " gtd td ktd ktd ktd kt
+    --  8 d tt (gtkkt)2
+    --  9 d tt ggt gt gt
+    -- 10 d tt gt gt gt g
+    -- 11 d ttgtd ttgtd ttg
+    -- 12 d tt gggt ggt g
+    -- 13 theme cdab
+    -- 14 cdcdcd ab
+    -- 15 cccd (finally drop ab)
+    -- 16 gt (dhkttk)3
+    -- 17 cd x2
+    -- 18 tihai
     where
     theme = g (theme1 . theme2 . theme3 . theme4)
     theme1 = "dha_tette gerenaga" . "gerenaga terekite"
@@ -423,6 +439,51 @@ c_23_11_30_tukra = date 2023 11 30 $ colby $ tukra $ korvaiS1 tintal $
     . "dha__redha___" . "terekitatakataa_".tetekata
     . dha.__4.taa.__4."gadigenedha___"
     . tri_ (dha.__4."kitataka") ("terekitatakataa_".tetekata)
+
+c_23_12_29_rela :: Korvai
+c_23_12_29_rela = date 2023 12 29 $ colby $ rela $ korvaiS tintal
+    [ theme1 . theme2 . theme1
+        -- TODO usual kali transformation
+        . dhenne_gene.takga_dhenne.nanagene.kali dhenne_gene
+        . kali (theme1 . theme2) . theme1 . theme1
+    -- reduced version
+    , sd $ "dhenne takdhen naga dhenne" . r2 "takdhen naga"
+        . "dhenne takdhen naga dhenne"
+        . "dhenne takdhen naga ".kali "dhenne"
+        . kali ("dhenne takdhen naga dhenne" . r2 "takdhen naga")
+        . r2 "dhenne takdhen naga dhenne"
+    ]
+    where
+    theme1 = dhenne_gene.takga_dhenne.nanagene.dhenne_gene
+    theme2 = takga_dhenne.nanagene.takga_dhenne.nanagene
+    dhenne_gene = "dhenne gene"
+    takga_dhenne = "takga dhenne"
+    nanagene = "nanagene"
+
+c_23_12_29_tukra :: Korvai
+c_23_12_29_tukra = date 2023 12 29 $ colby $ tukra $ korvaiS tintal
+    [ "ta_tun_na_ kitatakatun_ terekitatun_na_ kitataka" . r4 "taaka"
+        . "takaterekite"
+        -- Awkward to express that the last one is different.
+        . tihai2 ("ghen_taran_ne" . tihai "dha_ti_" (dha.__4)) (dha.__6)
+        . "ghen_taran_ne" . "dha_ti_" . sd (nadai 3 (r2 (dha.dha.ti)))
+    ]
+    -- na on sur
+
+c_24_01_04_rela :: Korvai
+c_24_01_04_rela = date 2024 1 4 $ colby $ rela $ korvaiS tintal
+    [ dha_tette . takga_gadi . dha_tette . kali takga_dhenne
+        . kali (dha_tette . takga_gadi) . dha_tette . takga_dhenne
+    ]
+    where
+    dha_tette = "dha_tette tettegene"
+    takga_gadi = "takga gadi terekite"
+    takga_dhenne = "takga dhenne nana gene"
+    -- na on kinar
+    _strokes = [("gadi", "ge tun")]
+
+tihai2 :: Sequence -> Sequence -> Sequence
+tihai2 seq sep = seq.sep.seq.sep
 
 -- * candiramani tape
 

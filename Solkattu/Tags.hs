@@ -38,6 +38,9 @@ source = "source"
 type_ :: Text
 type_ = "type"
 
+gharana :: Text
+gharana = "gharana"
+
 withType :: Text -> Tags
 withType = tag type_
 

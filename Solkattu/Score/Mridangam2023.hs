@@ -200,7 +200,27 @@ n_dd_dd = korvaiS adi
 
 -- *
 
+koraippus :: Korvai
+koraippus = koraippu $ korvaiS adi
+    [ __D 2 . r3 "k_D_kD_ koD_kD_" . "k_D_kD_" . p7
+    , __D 2 . r4 "kookD_p" . r4 p7b
+    , __D 1 . "k_D_kD_ koD_kD_ k_D_kD_" . p7
+    , __D 1 . "kookD_p" . r3 p7b
+    ]
+    where
+    p7b = k.__.od.__.su ktkt.o
+    {- ideas:
+        . r3 "kookD k" . "D kkook"
+        . "D kD kkookkook"
+        . Just 7s: k__7.  Since there are 8, can do koDk koDk
+        . Divide 7s in 3.5 + 3.5: takita tk takita
+    -}
+
 {-
+
+koraippu:
+    https://www.youtube.com/watch?v=OQziOlgYpig&ab_channel=KMRSIKSHA
+
 -- gender
 -- batel for drums:
   . fast pieces: kokar piece, 2-2-2-32-23-32-23-3-2-35--2-35--

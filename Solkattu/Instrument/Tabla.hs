@@ -31,13 +31,17 @@ data Daya =
     | Rhe -- dhere, right side
     | Na -- nam
     | Ne -- like tet, but closer to edge
+    | Nhe -- tun but 3 fingers, swipe to left, from dhenne ghenne
+    | Ran -- tun one finger on edge, like Nhe but 1
     | Re -- halfway between Tet and Ne
+    | Tak -- tin but closed, middle finger near middle of syahi
     | Tin -- din
     | Tun -- dheem, 1 finger
+    | Tu3 -- dheem, 3 fingers
     | Tet
     | Te -- actually ṭe
     | Tette -- infer tet or te based on next stroke
-    | Thi -- te with middle finger, like mi
+    | Ti -- te with middle finger, like mi
     deriving (Eq, Ord, Show)
 
 instance Pretty Stroke where pretty = showt
@@ -47,6 +51,7 @@ data Strokes a = Strokes {
     , dhe :: a
     , rhe :: a
     , na :: a
+    , ne :: a
     , tin :: a
     , tun :: a
     , tet :: a
@@ -62,6 +67,7 @@ strokes = Strokes
     , dhe = Daya Dhe
     , rhe = Daya Rhe
     , na = Daya Na
+    , ne = Daya Ne
     , tin = Daya Tin
     , tun = Daya Tun
     , tet = Daya Tet
@@ -78,10 +84,26 @@ bothStrokes (Daya b) (Baya a) = Both a b
 bothStrokes a b =
     Solkattu.throw $ "requires baya & daya: " <> showt (a, b)
 
-{-
-dha = Both Ge Ta
-dhin = Both Ge Tin
-dhet = Both Ka Te
-tirikita = [tet, te, ka, tet]
-    where Strokes {..} = strokes
--}
+-- TODO parse strings to bols, put in stroke map
+sequences :: [(Text, [Stroke])]
+sequences =
+    [ ("dheredhere", [ge & dhe, rhe, dhe, rhe])
+    , ("terekita", [tet, te, ka, tet])
+    , ("kitataka", [ka, tet, te, ka])
+    , ("takaterekitataka", [te, ka, tet, te, ka, tet, te, ka])
+    , ("dha", [ge & na]) -- which one depends on context
+    , ("dha", [ge & tin])
+    , ("dhen", [ge & tun])
+    , ("dhenne", [ge & tun, ne])
+    , ("dhennegene", [ge & tun, nhe, ge, ne])
+    , ("tennekene", [tun, nhe, ka, ne])
+    , ("taran ne", [tun, Daya Ran, ne]) -- play on rim when followed by ne
+    , ("taran", [Daya Tu3, tun]) -- otherwise play in middle
+    , ("dhet", [ge & tette])
+    , ("dhin", [ge & tin]) -- dhin depends on context
+    , ("dhin", [ge & tun])
+    ]
+    where
+    Strokes { .. } = strokes
+    (&) = bothStrokes
+    nhe = Daya Nhe

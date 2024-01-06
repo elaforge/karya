@@ -67,6 +67,7 @@ tet = _bol Bol.Tet
 ti  = _bol Bol.Ti
 tin = _bol Bol.Tin
 tu  = _bol Bol.Tu
+tun  = _bol Bol.Tun
 
 -- * fragments
 
@@ -75,10 +76,14 @@ tette = tet.te
 taka :: Sequence
 taka = ta.ka
 
-tr, trkt, kt, kttk :: Sequence
+tr, kt, trkt, tktrkt :: Sequence
 tr = "tr"
-trkt = "trkt"
 kt = "tk"
+trkt = "trkt"
+tktrkt = su $ ta.ka.ti.ra.ki.te
+trkttk = su $ ti.ra.ki.te.ta.ka
+
+kttk :: Sequence
 kttk = "kttk"
 
 tetekata :: Sequence
@@ -87,13 +92,14 @@ tetekata = namedT Solkattu.GPattern "8n" $
 
 kali :: Sequence -> Sequence
 kali = mapB $ \case
-    Bol.Ge -> Just Bol.Ke
-    Bol.Ga -> Just Bol.Ka
     Bol.Dha -> Just Bol.Taa
     Bol.Dhe -> Just Bol.The
+    Bol.Dhen -> Just Bol.Ten
     Bol.Dhet -> Just Bol.Tet
     Bol.Dhi -> Just Bol.Tun
     Bol.Dhin -> Just Bol.Tin -- behause dha dhin dhin -> ta tin tin
+    Bol.Ga -> Just Bol.Ka
+    Bol.Ge -> Just Bol.Ke
     bol -> Just bol
 
 mapB :: (Bol.Bol -> Maybe Bol.Bol) -> Sequence -> Sequence
@@ -150,6 +156,9 @@ korvaiS1 tala seq = korvaiS tala [seq]
 akash :: Korvai -> Korvai
 akash = source "akash"
 
+colby :: Korvai -> Korvai
+colby = source "colby"
+
 bat :: Korvai -> Korvai
 bat = withType "bat"
 
@@ -162,6 +171,8 @@ mukra = withType "mukra"
 tukra :: Korvai -> Korvai
 tukra = withType "tukra"
 
+-- | Generally faster than kaida, dayan played closer to the edge. Generally
+-- even rhythm without nadai change or gaps.
 rela :: Korvai -> Korvai
 rela = withType "rela"
 
@@ -170,3 +181,9 @@ chakradar = withType "chakradar"
 
 theka :: Korvai -> Korvai
 theka = withType "theka"
+
+lucknow :: Korvai -> Korvai
+lucknow = withGharana "lucknow"
+
+benares :: Korvai -> Korvai
+benares = withGharana "benares"
