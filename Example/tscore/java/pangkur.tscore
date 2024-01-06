@@ -1,7 +1,7 @@
 -- :mode: java
 %piece = Pangkur
 %source = ''Pak Joko Purwanto''
-%laras = pelog-barang
+%laras = slendro-manyura
 %inst = gender-barung
 
 .... buko [
@@ -58,6 +58,7 @@
 3216 tumurun
 
 %inst = siter
+%laras = pelog-barang -- TODO fix inconsistent score
 
 -- TODO switch 7s to 1s, or 7s to 1s in the rest
 3237 [
@@ -65,8 +66,8 @@
     > 2.276.2. | 3....32.
 ]
 3276 [
-    > .'3.7.3.6 | .3.2.7.6
-    > 2 .272.2. | 2.276.6.
+    > .'3.7.3.,6 | .'3.2.7.6
+    > 2 .272.2 . | 2 .276.6.
 ]
 7632 [
     > .'2.2/22.2/ | .2.2/22.6
@@ -75,6 +76,7 @@
 
 %irama = dadi
 %inst = gender-barung
+%laras = slendro-manyura -- TODO fix inconsistent score
 
 3231 dualolo [
     > 5 6  .5. | 5 6 5 3  | 6 .56 1 | .6.56.1

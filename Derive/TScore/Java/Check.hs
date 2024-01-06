@@ -50,6 +50,11 @@ format_score (T.Score toplevels) =
         -- Must 'resolve_pitch' before 'infer_chord'.
         b <- format_block b
         b <- normalize_name metas pos b
+        let mb_inst = Lists.head [a | T.Instrument a <- metas]
+        let mb_laras = Lists.head [a | T.Laras a <- metas]
+        whenJust mb_inst $ \inst -> check_range inst b
+        whenJust ((,) <$> mb_inst <*> mb_laras) $ \(inst, laras) ->
+            check_pitch inst laras b
         pure (metas, (pos, T.BlockDefinition b))
 
 format_block :: T.ParsedBlock -> CheckM Block
@@ -63,11 +68,12 @@ format_block block = do
 
 format_tracks :: T.Tracks -> CheckM [[Token]]
 format_tracks (T.Tracks tracks) = case map T.track_tokens tracks of
-    [lefts, rights] -> do
+    [rights, lefts] -> do
         lefts <- format_tokens bias lefts
         rights <- format_tokens bias rights
         (lefts, rights) <- normalize_hands bias lefts rights
-        pure [lefts, rights]
+        check_hands lefts rights
+        pure [rights, lefts]
     -- TODO error for two handed instruments?
     tracks -> mapM (format_tokens bias) tracks
     where
@@ -150,10 +156,15 @@ standard_names =
     , ("tumurun", "tm")
     ]
 
--- ** resolve_pitch
+-- * resolve cengkok
+
+-- | Look for same name + same balungan, then same balungan.
+-- resolve_cengkok
+
+-- * resolve_pitch
 
 resolve_pitch
-    :: [T.Token (T.Note (Pitch T.RelativeOctave) dur) rest]
+    :: [T.Token (T.Note (Pitch T.OctaveHint) dur) rest]
     -> [T.Token (T.Note (Pitch Octave) dur) rest]
 resolve_pitch = snd . List.mapAccumL resolve (0, Nothing)
     where
@@ -182,11 +193,11 @@ resolve_gatra_pitch (T.Gatra p1 p2 p3 p4) =
 -- Initial prev_oct is based on the instrument.
 -- Similar to Check.infer_octave, but uses simpler 'Pitch' instead of
 -- 'Perform.Pitch.Pitch'.
-infer_octave :: (Octave, Maybe T.PitchClass)
-    -> Pitch T.RelativeOctave -> Pitch Octave
-infer_octave (prev_oct, Nothing) (Pitch (T.RelativeOctave rel_oct) pc) =
+infer_octave :: (Octave, Maybe T.PitchClass) -> Pitch T.OctaveHint
+    -> Pitch Octave
+infer_octave (prev_oct, Nothing) (Pitch (T.OctaveHint rel_oct) pc) =
     Pitch (prev_oct + rel_oct) pc
-infer_octave (prev_oct, Just prev_pc) (Pitch (T.RelativeOctave rel_oct) pc) =
+infer_octave (prev_oct, Just prev_pc) (Pitch (T.OctaveHint rel_oct) pc) =
     case compare rel_oct 0 of
         -- If distances are equal, favor downward motion.  But since PitchClass
         -- has an odd number, this never happens.  If I omit P4, it could
@@ -202,7 +213,7 @@ infer_octave (prev_oct, Just prev_pc) (Pitch (T.RelativeOctave rel_oct) pc) =
     above = Pitch (if pc > prev_pc then prev_oct else prev_oct+1) pc
     below = Pitch (if pc < prev_pc then prev_oct else prev_oct-1) pc
 
--- ** resolve_durations
+-- * resolve_durations
 
 resolve_durations :: Bias -> [T.Token (T.Note pitch dur) T.Rest]
     -> [(T.Time, T.Note pitch T.Time)]
@@ -347,3 +358,61 @@ join_bars :: [(T.Pos, [T.Token note rest])] -> [T.Token note rest]
 join_bars [] = []
 join_bars ((_, g0) : gs) = concat $ g0 : map join gs
     where join (pos, tokens) = T.TBarline pos : tokens
+
+-- * check pitches
+
+instrument_range :: T.Instrument -> (Pitch Octave, Pitch Octave)
+instrument_range = \case
+    T.GenderBarung -> (Pitch (-2) T.P6, Pitch 1 T.P3)
+    T.GenderPanerus -> (Pitch (-2) T.P6, Pitch 1 T.P3)
+    T.Siter -> (Pitch (-2) T.P2, Pitch 1 T.P3)
+
+has_1 :: T.Laras -> Bool
+has_1 = (/= T.PelogBarang)
+
+has_4 :: T.Instrument -> Bool
+has_4 = \case
+    _ -> False -- if I have slenthem or saron or something I'll have True
+
+has_7 :: T.Laras -> Bool
+has_7 = (== T.PelogBarang)
+
+check_range :: T.Instrument -> T.Block pitch [[Token]] -> CheckM ()
+check_range inst = mapM_ (mapM_ check) . T.block_tracks
+    where
+    check = \case
+        T.TNote pos note ->
+            unless (low <= p && p <= high) $
+                warn pos $ "out of range for " <> showt inst
+                    <> ": " <> pretty p
+            where p = T.note_pitch note
+        _ -> pure ()
+    (low, high) = instrument_range inst
+
+check_pitch :: T.Instrument -> T.Laras -> T.Block pitch [[Token]] -> CheckM ()
+check_pitch inst laras = mapM_ (mapM_ check) . T.block_tracks
+    where
+    check = \case
+        T.TNote pos note -> do
+            when (not (has_4 inst) && pc == T.P4) $
+                warn pos $ showt inst <> " doesn't have 4"
+            when (not (has_1 laras) && pc == T.P1) $
+                warn pos $ showt laras <> " doesn't have 1"
+            when (not (has_7 laras) && pc == T.P7) $
+                warn pos $ showt laras <> " doesn't have 7"
+            where pc = T.pitch_pc $ T.note_pitch note
+        _ -> pure ()
+
+check_hands :: [Token] -> [Token] -> CheckM ()
+check_hands lefts rights = mapM_ check $ Lists.zipPadded lefts rights
+    where
+    check = \case
+        Lists.Both (T.TNote pos left) (T.TNote _ right)
+            | pl >= pr ->
+                warn pos $ "left hand >= right: " <> pretty pl <> " >= "
+                    <> pretty pr
+            | otherwise -> pure ()
+            where
+            pl = T.note_pitch left
+            pr = T.note_pitch right
+        _ -> pure ()

@@ -183,7 +183,7 @@ instance Parse.Element T.Rest where
             T.NoSpace -> ""
             T.HasSpace -> " "
 
-instance Parse.Element (T.Note (Pitch T.RelativeOctave) T.HasSpace) where
+instance Parse.Element (T.Note (Pitch T.OctaveHint) T.HasSpace) where
     parse config = do
         note_pos <- Parse.get_pos
         note_pitch <- Parse.parse config
@@ -208,13 +208,13 @@ instance Parse.Element T.PitchClass where
         =<< P.satisfy (\c -> '1' <= c && c <= '9')
     unparse _ p = Text.singleton (T.pc_char p)
 
-instance Parse.Element (Pitch T.RelativeOctave) where
+instance Parse.Element (Pitch T.OctaveHint) where
     parse config = do
         oct <- Text.foldl' (\n c -> n + if c == ',' then -1 else 1) 0 <$>
             P.takeWhile (`elem` (",'" :: String))
         p <- Parse.parse config
-        pure $ Pitch (T.RelativeOctave oct) p
-    unparse config (Pitch (T.RelativeOctave oct) pc) =
+        pure $ Pitch (T.OctaveHint oct) p
+    unparse config (Pitch (T.OctaveHint oct) pc) =
         octs <> Parse.unparse config pc
         where
         octs = case compare oct 0 of
@@ -242,7 +242,6 @@ instance Parse.Element T.BalunganAnnotation where
         T.Gong -> ")"
         T.Kenong -> "^"
 
-
 -- * transform
 
 type Transform = Pitch Octave -> Pitch Octave
@@ -255,7 +254,7 @@ lima_to_barang p = p
 -- * format
 
 format_file :: Transform -> FilePath -> IO ()
-format_file transform fname = print_score transform =<< Text.IO.readFile fname
+format_file transform = print_score transform <=< Text.IO.readFile
 
 print_score :: Transform -> Text -> IO ()
 print_score transform source = case parse_score source of
@@ -295,10 +294,6 @@ format_toplevel state = \case
         , format_block state block
         )
 
-map_pitch :: (a -> b) -> [T.Token (T.Note a dur) rest]
-    -> [T.Token (T.Note b dur) rest]
-map_pitch f = map $ T.map_note (\n -> n { T.note_pitch = f (T.note_pitch n) })
-
 format_block :: FormatState -> Check.Block -> [Text]
 format_block state block =
     title : map (("    "<>) . format_tokens bias)
@@ -320,6 +315,10 @@ format_block state block =
     bias
         | inst == Just T.GenderBarung && irama >= Just T.Wiled = Check.BiasEnd
         | otherwise = Check.BiasStart
+
+map_pitch :: (a -> b) -> [T.Token (T.Note a dur) rest]
+    -> [T.Token (T.Note b dur) rest]
+map_pitch f = map $ T.map_note (\n -> n { T.note_pitch = f (T.note_pitch n) })
 
 format_meta :: T.Meta -> Text
 format_meta = Text.drop 1 . Parse.unparse Parse.default_config

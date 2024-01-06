@@ -13,13 +13,19 @@ import           Global
 
 -- * pitch
 
-type ParsedPitch = Pitch RelativeOctave
+type ParsedPitch = Pitch OctaveHint
 
 data Pitch oct = Pitch { pitch_octave :: oct, pitch_pc :: PitchClass }
-    deriving (Eq, Show)
+    deriving (Eq, Ord, Show)
+
+-- | This is the instrument relative octave.  Add the instrument's base octave
+-- to the an absolute octave.
 type Octave = Int
-newtype RelativeOctave = RelativeOctave Int
-    deriving (Eq, Show)
+
+-- | A hint for which direction pitches go, positive means they go up (plus
+-- octaves), negative is down.
+newtype OctaveHint = OctaveHint Int
+    deriving (Eq, Ord, Show)
 
 data PitchClass = P1 | P2 | P3 | P4 | P5 | P6 | P7
     deriving (Eq, Ord, Show, Bounded, Enum)
@@ -38,6 +44,11 @@ char_pc = \case
     '6' -> Just P6
     '7' -> Just P7
     _ -> Nothing
+
+-- TODO use the better one from JScore
+instance Pretty (Pitch Octave) where
+    pretty (Pitch oct pc) = showt oct <> pretty pc
+instance Pretty PitchClass where pretty = txt . drop 1 . show
 
 add_oct :: Octave -> Pitch Octave -> Pitch Octave
 add_oct oct (Pitch o pc) = Pitch (oct+o) pc
@@ -135,6 +146,12 @@ data Track token = Track {
 data Token note rest = TBarline Pos | TNote Pos note | TRest Pos rest
     deriving (Eq, Show)
 
+instance (Pretty note, Pretty rest) => Pretty (Token note rest) where
+    pretty = \case
+        TBarline {} -> "|"
+        TNote _ note -> pretty note
+        TRest _ rest -> pretty rest
+
 token_note :: Token note rest -> Maybe note
 token_note = \case
     TNote _ note -> Just note
@@ -164,6 +181,9 @@ data Note pitch dur = Note {
     , note_pos :: Pos
     } deriving (Eq, Show)
 
+instance Pretty pitch => Pretty (Note pitch dur) where
+    pretty = pretty . note_pitch
+
 -- | Keep track if there was whitespace after notes and rests.
 -- I can use this to infer durations.
 data HasSpace = HasSpace | NoSpace deriving (Eq, Show)
@@ -172,6 +192,9 @@ data Rest = Rest {
     rest_sustain :: Bool
     , rest_space :: HasSpace
     } deriving (Eq, Show)
+
+instance Pretty Rest where
+    pretty r = if rest_sustain r then "." else "_"
 
 -- * util
 
