@@ -18,36 +18,36 @@ bats = bat $ source "mary" $ korvaiS tintal $
     [ sd $ r2 "gadi gene nage tette" . "kata kata gadi gadi"
         . "gadi gene nage tette"
 
-    , sd $ "taki tetTa _ tetTa _" . "taki tetdhet tette dhage"
-    . "tere kita takaTa _" . tetekata
+    , sd $ "taki tettA _ tettA _" . "taki tetdhet tette dhage"
+    . "tere kita takatA _" . tetekata
 
-    , "dhage tette Tage tette kredhet tette dhage tette"
+    , "dhage tette tAge tette kredhet tette dhage tette"
     . "tette kredhet tette dhage" . tetekata
-    . "taki teTa _teTa _ ga _ di _ gere nage"
-    . "tere kita takaTa _" . tetekata
+    . "taki tetA _tetA _ ga _ di _ gere nage"
+    . "tere kita takatA _" . tetekata
 
-    , r2 "dhage   tette  | Ta ge   tette |"
+    , r2 "dhage   tette  | tA ge   tette |"
     . r2 "kredhet tette  | dhage   tette |"
     . "kredhet tette  | kredhet tette | dhage tette | kredhet tette"
     . "kredhet tette  | dhage   tette | gadi gene   | nage tette"
-    . "kattet tekat   | tette   katTa | kat tr kttk | Tage tette"
-    . "kredhet _ dhet | tette   dhage | tette kaTa  | gadi gene"
-    . "dha_ kita      | taka    dhuma | kita taka   | dhet_ Ta_"
-    . "tere kita      | taka Ta _     |" . tetekata
+    . "kattet tekat   | tette   kattA | kat tr kttk | tAge tette"
+    . "kredhet _ dhet | tette   dhage | tette katA  | gadi gene"
+    . "dha_ kita      | taka    dhuma | kita taka   | dhet_ tA_"
+    . "tere kita      | taka tA _     |" . tetekata
 
     , "gege tette  | gadi gene  | nage tere  | kita taka"
-    . "Tage tette  | gege tette | gadi gene  | nage tette"
-    . "gredhin _Ta | _ ne Ta _  | gege tette | gadi gene"
-    . "Tage tette  | gege tette | gadi gene  | nage tette"
+    . "tAge tette  | gege tette | gadi gene  | nage tette"
+    . "gredhin _tA | _ ne tA _  | gege tette | gadi gene"
+    . "tAge tette  | gege tette | gadi gene  | nage tette"
 
     , "dhette dhette | dhage tette | kredhet tette | dhage tette"
     . r3 "kredhet tette |" . "dhage tette"
-    . "kredhet _ Ta  | gene dha _    |" . tetekata
-    . "nage tette  | kaTa kaTa  | ka tr kt dhet | tette kata"
-    . "ge _ teran  | _ ne dha _ | di_ ge_   | __ Ta _"
+    . "kredhet _ tA  | gene dha _    |" . tetekata
+    . "nage tette  | katA katA  | ka tr kt dhet | tette kata"
+    . "ge _ teran  | _ ne dha _ | di_ ge_   | __ tA _"
     . "dha _ _ ne  | kata kata  | ge_ teran | _ne dha _"
-    . "di _ ge _   | _ _ Ta _   | dha_ _ne  | kata kata"
-    . "ge _ teran  | _ ne dha _ | di_ ge_   | __ Ta_ | dha"
+    . "di _ ge _   | _ _ tA _   | dha_ _ne  | kata kata"
+    . "ge _ teran  | _ ne dha _ | di_ ge_   | __ tA_ | dha"
     ]
 
 -- * akash
@@ -91,7 +91,7 @@ akash_kaida2 = kaida $ akash $ korvaiS tintal $ map sd
     , "dha trkt tk _ trkt tk dha trkt tk tu na kt tk"
     . "taa trkt tk _ trkt tk dha trkt tk tu na kt tk"
 
-    , tri_ (dha.__) (g "dha tr kttk tuna kttk Ta tr kttk tuna kttk dha _ kttk")
+    , tri_ (dha.__) (g "dha tr kttk tuna kttk tA tr kttk tuna kttk dha _ kttk")
     ]
 
 -- farmaisi chakradar paran
@@ -462,25 +462,13 @@ c_23_12_29_rela = date 2023 12 29 $ colby $ rela $ korvaiS tintal
 
 c_23_12_29_tukra :: Korvai
 c_23_12_29_tukra = date 2023 12 29 $ colby $ tukra $ korvaiS tintal
-    [ "ta_tun_na_ kitatakatun_ terekitatun_na_ kitataka" . r4 "taaka"
+    [ "ta_tun_na_ kitatakatun_ terekitatun_na_ kitataka" . r4 "tAka"
         . "takaterekite"
         -- Awkward to express that the last one is different.
         . tihai2 ("ghen_taran_ne" . tihai "dha_ti_" (dha.__4)) (dha.__6)
         . "ghen_taran_ne" . "dha_ti_" . sd (nadai 3 (r2 (dha.dha.ti)))
     ]
     -- na on sur
-
-c_24_01_04_rela :: Korvai
-c_24_01_04_rela = date 2024 1 4 $ colby $ rela $ korvaiS tintal
-    [ dha_tette . takga_gadi . dha_tette . kali takga_dhenne
-        . kali (dha_tette . takga_gadi) . dha_tette . takga_dhenne
-    ]
-    where
-    dha_tette = "dha_tette tettegene"
-    takga_gadi = "takga gadi terekite"
-    takga_dhenne = "takga dhenne nana gene"
-    -- na on kinar
-    _strokes = [("gadi", "ge tun")]
 
 tihai2 :: Sequence -> Sequence -> Sequence
 tihai2 seq sep = seq.sep.seq.sep

@@ -742,8 +742,8 @@ adi_tani = tani
     , K c_18_08_03
     , K adi_tani_farans
     , Comment "mohra"
-    , K SolkattuMohra.c_mohra
-    , K adi_muktayi
+    , K $ index 0 SolkattuMohra.c_mohra
+    , K $ index 0 adi_muktayi
     ]
 
 print_adi_tani_misra :: IO ()
@@ -1060,9 +1060,9 @@ adi_muktayi = date 2018 8 3 $ sudhindra $ korvai adi mridangam
     where
     -- A general pattern: instead of tri, do 1, then 3 in tisram.
     tisram13 x = x . tri (nadai 6 x)
-    t0 = dit.__4.tang.__.taka.dikutarikitataka.din.__4.tat.__4.din.__4
+    t0 = dit.__4.tang.__.kita.dikutarikitataka.din.__4.tat.__4.din.__4
     mridangam = makeMridangam
-        [ (dit.tang.taka, k.u.p.k)
+        [ (dit.tang.kita, k.u.p.k)
         , (din, od)
         , (tat, k)
         , (tat.di, k.t)

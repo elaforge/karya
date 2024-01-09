@@ -159,11 +159,12 @@ kpnp = namedT Solkattu.GFiller "4t" (Solkattu.Standard ^ (taka.tiku))
 oknp, ktktoknp :: Sequence
 oknp = namedT Solkattu.GFiller "4t" $ Solkattu.Standard ^ tarikita
 ktktoknp = namedT Solkattu.GFiller "8t" $
-    Solkattu.Standard ^ (tarikita.taka.taka)
+    Solkattu.Standard ^ (taka.tiku.tarikita)
 
 nakatiku :: Sequence
 nakatiku = namedT Solkattu.GPattern "8n" $
-    Solkattu.Standard ^ (naka.tiku.tari.kita)
+    Solkattu.Standard ^ (taka.tari.kita.taka)
+    -- original was (naka.tiku.tari.kita)
     -- also diku.tari.kita.taka
 
 takadugutarikita :: Sequence
@@ -409,6 +410,16 @@ realizeScoreM configure = Korvai.realizeScore realize
 -- | Like 'realize' but for Scores.
 realizeScore :: Score -> IO ()
 realizeScore = realizeScoreM concrete
+
+realizeScoreKon :: Score -> IO ()
+realizeScoreKon = Korvai.realizeScore realize
+    where
+    realize = Interactive.printInstrument False False inst
+        (_defaultStrokes inst)
+        (concrete Terminal.konnakolConfig
+            { Terminal._overrideStrokeWidth = Just 2 })
+        Just
+    inst = Korvai.IKonnakol
 
 _printInstrument
     :: (Solkattu.Notation stroke1, Solkattu.Notation stroke2, Ord stroke1)

@@ -5,7 +5,7 @@
 {-# LANGUAGE CPP #-}
 -- | Format korvais as HTML.
 module Solkattu.Format.Html (
-    indexHtml, writeAll
+    indexHtml, writeAll, write
 #ifdef TESTING
     , module Solkattu.Format.Html
 #endif
@@ -150,8 +150,12 @@ javascriptIndex =
 
 -- | Write HTML with all the instrument realizations at all abstraction levels.
 writeAll :: FilePath -> Korvai.Score -> IO ()
-writeAll fname score = Files.writeLines fname $ map Html.un_html $
-    render defaultAbstractions score
+writeAll = write Nothing
+
+write :: Maybe [Korvai.GInstrument] -> FilePath -> Korvai.Score -> IO ()
+write instruments fname score =
+    Files.writeLines fname $ map Html.un_html $
+        render instruments defaultAbstractions score
 
 
 -- * high level
@@ -184,12 +188,15 @@ defaultAbstraction :: Text
 defaultAbstraction = "patterns"
 
 -- | Render all 'Abstraction's, with javascript to switch between them.
-render :: [(Text, Format.Abstraction)] -> Korvai.Score -> [Html.Html]
-render abstractions score = htmlPage title (scoreMetadata score) body
+render :: Maybe [Korvai.GInstrument] -> [(Text, Format.Abstraction)]
+    -> Korvai.Score -> [Html.Html]
+render instruments abstractions score =
+    htmlPage title (scoreMetadata score) body
     where
     (_, _, title) = Korvai._location (Korvai.scoreMetadata score)
     body :: [Html.Html]
-    body = concatMap htmlInstrument $ Format.scoreInstruments score
+    body = concatMap htmlInstrument $
+        fromMaybe (Format.scoreInstruments score) instruments
     htmlInstrument (Korvai.GInstrument inst) =
         "<h3>" <> Html.html instName <> "</h3>"
         : chooseAbstraction abstractions instName

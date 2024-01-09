@@ -69,7 +69,7 @@ data Bol =
 instance Solkattu.Notation Bol where
     -- notation = Solkattu.textNotation . Text.toLower . showt
     notation = \case
-        Taa -> Solkattu.textNotation "Ta" -- "tā"
+        Taa -> Solkattu.textNotation "tA" -- "tā"
         b -> Solkattu.textNotation . Text.toLower . showt $ b
 instance Pretty Bol where pretty = Solkattu.notationText
 

@@ -338,8 +338,8 @@ e_20_07_17 = date 2020 7 17 $ exercise $ ganesh $ korvaiS adi
     theme2 = d.__.n.d.__.n.__.d.__.n.y.d.__
         . n.d.__.n.__.d.__.n.__.y.d.__.n.y.d.__.n.d.__
 
-thani_exercise :: Korvai
-thani_exercise = date 2020 7 3 $ exercise $ korvai adi
+tani_exercise :: Korvai
+tani_exercise = date 2020 7 3 $ exercise $ korvai adi
     [ s $ r2 (od.__.o.su (ktkt.pk)) . od.__.k.__
         . r2 (d.__.p.su (ktkt.pk)) . d.__.k.__
         . r2 (od.__.o.su (ktkt.pk)) . od.__.k.__
