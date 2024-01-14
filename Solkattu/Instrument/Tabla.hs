@@ -39,6 +39,7 @@ data Daya =
     | Tun -- dheem, 1 finger
     | Tu3 -- dheem, 3 fingers
     | Tet
+    | Tre -- tette flam
     | Te -- actually ṭe
     | Tette -- infer tet or te based on next stroke
     | Ti -- te with middle finger, like mi
@@ -102,6 +103,7 @@ sequences =
     , ("dhet", [ge & tette])
     , ("dhin", [ge & tin]) -- dhin depends on context
     , ("dhin", [ge & tun])
+    , ("kre", [Flam Ka Tet])
     ]
     where
     Strokes { .. } = strokes

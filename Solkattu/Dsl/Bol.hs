@@ -102,6 +102,21 @@ kali = mapB $ \case
     Bol.Ge -> Just Bol.Ke
     bol -> Just bol
 
+-- | Change to kali within the given time range.
+kaliM :: S.FMatra -> S.FMatra -> Sequence -> Sequence
+kaliM start end seq = pre <> kali within <> post
+    where
+    (pre, seq2) = splitM_ start seq
+    (within, post) = splitM_ (end - start) seq2
+
+-- | Like kaliM but for tintal, start and end are offsets from tintal
+-- kali.  TODO this should be generalized for any tal, but I'd have to either
+-- put this in the sequence to interpret later, or have an ambient State.
+-- It's also wrong in different nadai, which is also what makes Duration
+-- incorrect.  So State with talam and nadai would be useful.
+kaliMt :: S.FMatra -> S.FMatra -> Sequence -> Sequence
+kaliMt start end = kaliM (32+start) (48+end)
+
 mapB :: (Bol.Bol -> Maybe Bol.Bol) -> Sequence -> Sequence
 mapB f = fmap $ \case
     Solkattu.Note n -> case traverse f (Solkattu._sollu n) of

@@ -147,13 +147,13 @@ tukra6 = tukra $ akash $ korvaiS1 tintal $ nadai 3 $
 -- * colby
 
 c_23_09_07a :: Korvai
-c_23_09_07a = colby $ date 2023 9 7 $ korvaiS1 tintal $
+c_23_09_07a = date 2023 9 7 $ colby $ tukra $ korvaiS1 tintal $
     "kat _ tette gege tette gege tun _"
     . "nana  tette kat tette ge tette"
     . tri_ (dha.__6) (tri_ "dha_" "kita")
 
-c_23_09_07b :: Korvai
-c_23_09_07b = colby $ date 2023 9 7 $ korvaiS tintal $ map su
+c_23_09_07_kaida :: Korvai
+c_23_09_07_kaida = date 2023 9 7 $ kaida $ colby $ korvaiS tintal $ map su
     [ sd $     theme . tirikita . theme . kali nanagena
         . kali theme . tirikita . theme . nanagena
     ,          r3 (theme . tirikita) . theme . kali nanagena
@@ -182,7 +182,7 @@ c_23_09_07b = colby $ date 2023 9 7 $ korvaiS tintal $ map su
     tirikita = "tirikita"
 
 c_23_09_21a :: Korvai
-c_23_09_21a = colby $ date 2023 9 21 $ korvaiS tintal
+c_23_09_21a = date 2023 9 21 $ colby $ tukra $ korvaiS tintal
     [ nadai 3 $ "dha dha dha di di di na na na" . "kat tette dha _"
         . "dha dha di di na na" . "kat tette dha_"
         . "dha _ di _ na _" . tri_ (dha.__4) "kat tette"
@@ -200,18 +200,15 @@ c_23_09_21a = colby $ date 2023 9 21 $ korvaiS tintal
         . "dha dha di di na na" . "kat tette dha"
         . "dha _ di _ na _" . tri_ dha "kat tette" . dha.__4
 
-c_23_09_29a :: Korvai
-c_23_09_29a = date 2023 9 29 $ colby $ rela $ korvaiS1 tintal $
-    r2 dhage_tette_din_ . "dhage tette"
-        . dhage_tette_din_ . "dhage tette" . "dhage nage tenne"
-        . kali (r2 dhage_tette_din_ . "dhage tette")
-        . "tage tette dhin_" . "dhage tette" . "dhage nage dhenne"
-    where
-    dhage_tette_din_ = "dhage tette dhin _"
+c_23_09_29_rela :: Korvai
+c_23_09_29_rela = date 2023 9 29 $ colby $ rela $ korvaiS1 tintal $
+    kaliMt (-2) 4 $ r2 $ r2 dhage_tette_din_ . "dhage tette"
+        . dhage_tette_din_ . "dhage tette" . "dhage nage dhenne"
+    where dhage_tette_din_ = "dhage tette dhin _"
 
 c_23_10_12 :: Korvai
 c_23_10_12 = date 2023 10 12 $ colby $ korvaiS tintal
-    [ sd $ dtt.dtt.ddtt.endk . kali (dtt.dtt.ddtt) . end
+    [ kaliMt (-8) 0 $ sd $ r2 $ dtt.dtt.ddtt.end
     , palta $ r2 (dtt.dtt.dha.dha)
     , palta $ r4 dtt . ddtt
     , palta $ dtt.ddtt.r3 dtt
@@ -222,16 +219,14 @@ c_23_10_12 = date 2023 10 12 $ colby $ korvaiS tintal
     , tri_ (dha.__) (dtt.ddtt . tri_ (dha.__) dtt)
     ]
     where
-    palta seq = seq.dtt.dtt.ddtt.endk . kali seq.dtt.dtt.ddtt.end
-    endk = "dhage tuna kena"
+    palta seq = seq.dtt.dtt.ddtt.kali end . kali seq.dtt.dtt.ddtt.end
     end = "dhage dhina gena"
     dtt = "dha tette"
     ddtt = dha.dtt
 
 c_23_10_19 :: Korvai
 c_23_10_19 = date 2023 10 19 $ colby $ korvaiS1 tintal $
-      sd $ "nagegena gegenana gegenage tuna kena"
-    . kali "nagegena gegenana" . "gegenage dhina gena"
+    kaliMt (-8) 0 $ r2 $ sd $ "nagegena gegenana gegenage dhina gena"
 
 c_23_10_19_chak :: Korvai
 c_23_10_19_chak = date 2023 10 19 $ colby $ chakradar $ korvaiS1 tintal $
@@ -252,7 +247,7 @@ c_23_10_16 = date 2023 10 26 $ colby $ mukra $ korvaiS1 tintal $
 -- This means kali from 2/4 - 1, to 3/4+0
 c_23_11_09 :: Korvai
 c_23_11_09 = date 2023 11 9 $ colby $ rela $ kaida $ korvaiS tintal
-    [ theme . kali (theme1.theme2) . theme3.dha_tette.grng."dhin_na_gerenage"
+    [ kaliM (64-8) (64+32) $ r2 $ theme1.theme2.theme3.theme2
     , r2 (theme1.theme2) . theme
     -- accent on Terekita
     , r2 theme1 . theme1.theme2 . theme
@@ -343,11 +338,8 @@ tihai seq sep = tri_ (hv sep) seq
 
 c_23_11_09_dhere :: Korvai
 c_23_11_09_dhere = date 2023 11 9 $ colby $ korvaiS tintal
-    [   "dha_terekitataka" . r2 "dhere dhere kitataka" . "takaterekitataka"
-      . "terekitataka" . "gere dhere dhere" . "kitataka"
-      . "dha_tette gerenaga" . kali "dhi_na_gerenage"
-      . kali
-        ( "dha_terekitataka" . r2 "dhere dhere kitataka" . "takaterekitataka")
+    [ kaliMt (-4) 0 $ su $ r2 $
+        "dha_terekitataka" . r2 "dhere dhere kitataka" . "takaterekitataka"
       . "terekitataka" . "gere dhere dhere" . "kitataka"
       . "dha_tette gerenaga" . "dhi_na_gerenage"
     ]
@@ -385,11 +377,11 @@ c_23_11_16 = date 2023 11 16 $ colby $ kaida $ korvaiS tintal $ map (nadai 3)
     [   theme1
       . kali (dhatette.dhagena.dhettette.dhagena)
         . dhatette.dhagena.dhagedhinagena
-    -- TODO kali is predictable, I could either leave it out or have an
-    -- automatic inference
+    -- TODO kali is predictable so I leave it out.  kaliMt is too fiddly with
+    -- no knowledge of tal and nadai.
     , dhatette.dhagena . r3 (dhettette.dhagena.dha.__)
-        . dhettette.dhagena.dhatette.dhagena.dhagetunakena -- kali
-    , dhatette.dhagena . r3 (dhettette.dhagena) . theme1 -- kali
+        . dhettette.dhagena.dhatette.dhagena.dhagetunakena
+    , dhatette.dhagena . r3 (dhettette.dhagena) . theme1
     , dhatette.dhagena.dhettette.dhagena . r3 dhettette.dhagena . theme1
     , dhatette.dhagena.dhettette.dhagena . r3 "_dhette".dhagena . theme1
     , dhatette.dhagena.dhettette.dhagena . "___" . r3 dhette.dhagena . theme1
@@ -442,15 +434,10 @@ c_23_11_30_tukra = date 2023 11 30 $ colby $ tukra $ korvaiS1 tintal $
 
 c_23_12_29_rela :: Korvai
 c_23_12_29_rela = date 2023 12 29 $ colby $ rela $ korvaiS tintal
-    [ theme1 . theme2 . theme1
-        -- TODO usual kali transformation
-        . dhenne_gene.takga_dhenne.nanagene.kali dhenne_gene
-        . kali (theme1 . theme2) . theme1 . theme1
+    [ kaliMt (-2) 0 $ su $ r2 $ theme1 . theme2 . theme1 . theme1
     -- reduced version
-    , sd $ "dhenne takdhen naga dhenne" . r2 "takdhen naga"
-        . "dhenne takdhen naga dhenne"
-        . "dhenne takdhen naga ".kali "dhenne"
-        . kali ("dhenne takdhen naga dhenne" . r2 "takdhen naga")
+    , kaliMt (-2) 0 $ r2 $
+        "dhenne takdhen naga dhenne" . r2 "takdhen naga"
         . r2 "dhenne takdhen naga dhenne"
     ]
     where

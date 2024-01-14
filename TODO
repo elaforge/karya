@@ -6557,9 +6557,6 @@ REPL: repl:
 
 solkattu:
   bol:
-    - for rela tuna tends to be i.n, but in kaida tends to be pi.n
-      e.g. dhage naga tuna, tu could have kat or not
-    - dhi na is oi.n, but isn't dhin also od?
     * support hindustani tal
       . Kind of awkward though.
     - html doesn't wrap, so 16 beat tintal doesn't fit
@@ -6583,13 +6580,20 @@ solkattu:
         I guess it wouldn't accurately represent bols, but do I care?
       . parseBols could get ambiguous, but if it's a problem I could start
         with Dha and then select >=Dha.
+      - for rela tuna tends to be i.n, but in kaida tends to be pi.n
+        e.g. dhage naga tuna, tu could have kat or not
+      - annotation for whether dha and na are kinar or sur
     * Terminal.renderAll and Html.writeAll don't understand bols
       . Terminal.renderAll abstraction score
       . Format.scoreInstruments :: Korvai.Score -> [Korvai.GInstrument]
       . IBol is not in Korvai.instruments
       . No instance for (Expr.ToExpr (Realize.Stroke Bol.Bol))
-    ? print taa as tA or Ta?  On the other hand it's nice that it's the same
+    * print taa as tA or Ta?  On the other hand it's nice that it's the same
       length as dha, since it alternates with it.
+      . Did Ta even though it's kind of wrong, it should actually be for
+        retroflex ta.
+      . Why not tA?
+      . It looks ugly but maybe I'll get used to it.
     notes:
       . Support for pakhawaj and tabla bols.
       . Tabla is different in that bols directly correspond to strokes.

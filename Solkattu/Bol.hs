@@ -62,7 +62,8 @@ data Bol =
     | Ga | Gi | Ge | Ghen | Ghin | Gre
     | Ka | Kat | Ke | Kra | Kre | Ki | Ma | Na | Ne | Ra | Re | Ri | Ran
     | Ṭa -- ^ technically correct form of Te, for transcriptions from devanagari
-    | Ta | Tak | Taa | Te | Ten | Tet | The | Ti | Tin | Tra | Tu | Tun
+    | Ta | Tak | Taa | Te | Ten | Tet | The -- ^ fake bol, kali version of dhere
+    | Tre | Ti | Tin | Tra | Tu | Tun
     | Kran -- TODO 2 beats?
     deriving (Eq, Ord, Enum, Bounded, Show)
 

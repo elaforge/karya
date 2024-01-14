@@ -9,8 +9,7 @@ import           Solkattu.Dsl.Bol
 
 c_24_01_04_rela :: Korvai
 c_24_01_04_rela = date 2024 1 4 $ colby $ rela $ korvaiS tintal
-    [ dha_tette . takga_gadi . dha_tette . kali takga_dhenne
-        . kali (dha_tette . takga_gadi) . dha_tette . takga_dhenne
+    [ kaliMt (-4) 0 $ r2 $ dha_tette . takga_gadi . dha_tette . takga_dhenne
     ]
     where
     dha_tette = "dha_tette tettegene"
@@ -21,11 +20,8 @@ c_24_01_04_rela = date 2024 1 4 $ colby $ rela $ korvaiS tintal
 
 c_24_01_04_rela_jhaptal :: Korvai
 c_24_01_04_rela_jhaptal = date 2024 1 4 $ colby $ rela $ korvaiS jhaptal
-    [ su $ dha_tette.tette_gene.takga_dhenne.nana_gene
-        . r2 takga_dhenne.nana_gene . takga_dhenne.kali (takga_dhenne.nana_gene)
-        -- TODO simplify with kali-around
-        -- . r2 (r2 takga_dhenne.nana_gene)
-        . kali (dha_tette.tette_gene.takga_dhenne.nana_gene)
+    [ kaliM (4*4) (7*4) $ su $ r2 $
+        dha_tette.tette_gene.takga_dhenne.nana_gene
         . r2 (r2 takga_dhenne.nana_gene)
     ]
     where
@@ -37,9 +33,8 @@ c_24_01_04_rela_jhaptal = date 2024 1 4 $ colby $ rela $ korvaiS jhaptal
 
 c_24_01_04_rela_tintal :: Korvai
 c_24_01_04_rela_tintal = date 2024 1 4 $ colby $ rela $ korvaiS tintal
-    [ r2 (dhenne_gene.naganaga.terekite) . naganaga.terekite
-        . dhenne_gene.r2 (naganaga.terekite).dhenne_gene.naganaga.terekite
-        . kali (r2 (dhenne_gene.naganaga.terekite) . naganaga.terekite)
+    [ kaliMt 0 0 $ su $ r2 $
+        r2 (dhenne_gene.naganaga.terekite) . naganaga.terekite
         . dhenne_gene.r2 (naganaga.terekite).dhenne_gene.naganaga.terekite
     ]
     where
@@ -63,6 +58,19 @@ c_24_01_04_rela2 = date 2024 1 4 $ colby $ benares $ rela $ korvaiS tintal
     dhenne_gene = "dhenne gene"
     takga = "takga"
     -- na on kinar
+
+c_24_01_11 :: Korvai
+c_24_01_11 = date 2024 1 12 $ colby $ korvaiS jhaptal
+    [ kaliM (9*4) (15*4) $ r2 $
+        takga_dhinne . dhinna_gena . r2 takga_dhinne . dhinna_gena
+        . "dha trekre dhet tette gene" . "dhinna gena dhati dhage"
+        . dhinna_gena
+    ]
+    where
+    takga_dhinne = "takga dhinne"
+    dhinna_gena = "dhinna gena"
+    -- trekre can also be played trkt
+    -- tak is like re, cupped closed stroke
 
 terekite :: Sequence
 terekite = "terekita"

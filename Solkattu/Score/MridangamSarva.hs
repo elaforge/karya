@@ -289,4 +289,7 @@ candiramani_pakhawaj_adi = korvaiS adi
 
     0:6   .     1     .     2     .     3     .     4     .     x
     N N , N n , D   , ^ , ^ , ^ , ^ ,
+
+    0   .   1   .   2   .   3   .   x   .   o   .   x   .   o   .   |
+                k k k o D  kD k D k D
 -}
