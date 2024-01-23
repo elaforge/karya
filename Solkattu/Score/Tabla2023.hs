@@ -15,7 +15,7 @@ import           Solkattu.Dsl.Bol
 -- spacing changes, because it doesn't want to split into 4 beats
 bats :: Korvai
 bats = bat $ source "mary" $ korvaiS tintal $
-    [ sd $ r2 "gadi gene nage tette" . "kata kata gadi gadi"
+    [ sd $ r2 "gadi gene nage tette" . "katA katA gadi gadi"
         . "gadi gene nage tette"
 
     , sd $ "taki tettA _ tettA _" . "taki tetdhet tette dhage"
@@ -333,9 +333,6 @@ c_23_11_09 = date 2023 11 9 $ colby $ rela $ kaida $ korvaiS tintal
 -- 6 if not
 -- if start at 0 it's 10 and 5, *5 = 15 + 1/2 gaps = 16
 
-tihai :: Sequence -> Sequence -> Sequence
-tihai seq sep = tri_ (hv sep) seq
-
 c_23_11_09_dhere :: Korvai
 c_23_11_09_dhere = date 2023 11 9 $ colby $ korvaiS tintal
     [ kaliMt (-4) 0 $ su $ r2 $
@@ -449,13 +446,16 @@ c_23_12_29_rela = date 2023 12 29 $ colby $ rela $ korvaiS tintal
 
 c_23_12_29_tukra :: Korvai
 c_23_12_29_tukra = date 2023 12 29 $ colby $ tukra $ korvaiS tintal
-    [ "ta_tun_na_ kitatakatun_ terekitatun_na_ kitataka" . r4 "tAka"
+    [ "tA_tun_na_ kitatakatun_ terekitatun_na_ kitataka" . r4 "tAka"
         . "takaterekite"
         -- Awkward to express that the last one is different.
         . tihai2 ("ghen_taran_ne" . tihai "dha_ti_" (dha.__4)) (dha.__6)
         . "ghen_taran_ne" . "dha_ti_" . sd (nadai 3 (r2 (dha.dha.ti)))
     ]
     -- na on sur
+
+tihai :: Sequence -> Sequence -> Sequence
+tihai seq sep = tri_ (hv sep) seq
 
 tihai2 :: Sequence -> Sequence -> Sequence
 tihai2 seq sep = seq.sep.seq.sep

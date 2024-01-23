@@ -88,7 +88,7 @@ kttk = "kttk"
 
 tetekata :: Sequence
 tetekata = namedT Solkattu.GPattern "8n" $
-    Solkattu.Standard ^ "tette kata gadi gene"
+    Solkattu.Standard ^ "tette katA gadi gene"
 
 kali :: Sequence -> Sequence
 kali = mapB $ \case

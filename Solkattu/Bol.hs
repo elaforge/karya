@@ -68,9 +68,8 @@ data Bol =
     deriving (Eq, Ord, Enum, Bounded, Show)
 
 instance Solkattu.Notation Bol where
-    -- notation = Solkattu.textNotation . Text.toLower . showt
     notation = \case
-        Taa -> Solkattu.textNotation "tA" -- "tā"
+        Taa -> Solkattu.textNotation "tā"
         b -> Solkattu.textNotation . Text.toLower . showt $ b
 instance Pretty Bol where pretty = Solkattu.notationText
 
@@ -86,7 +85,8 @@ parseBols = Solkattu.parseSyllables False allBols
 allBols :: [(BolT, Bols)]
 allBols = sequences
     ++ map (second S1) (Lists.keyOn Solkattu.notationText [minBound ..])
-    ++ [("taa", S1 Taa)] -- normally it uses Notation, but I set it to Ta
+    -- Taa renders to tā, but these are easier to type
+    ++ [("tA", S1 Taa), ("taa", S1 Taa)]
 
 -- | parseBols can return 2nd speed sequences.  This gets turned into a
 -- Sequence in Dsl.Bol.
