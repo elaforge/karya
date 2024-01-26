@@ -363,6 +363,7 @@ scores = map Korvai.inferMetadataS
     , setLocation ("Solkattu.Score.Tabla2024",21,"c_24_01_04_rela_jhaptal") $ Single Solkattu.Score.Tabla2024.c_24_01_04_rela_jhaptal
     , setLocation ("Solkattu.Score.Tabla2024",34,"c_24_01_04_rela_tintal") $ Single Solkattu.Score.Tabla2024.c_24_01_04_rela_tintal
     , setLocation ("Solkattu.Score.Tabla2024",45,"c_24_01_04_chakradar") $ Single Solkattu.Score.Tabla2024.c_24_01_04_chakradar
-    , setLocation ("Solkattu.Score.Tabla2024",52,"c_24_01_04_rela2") $ Single Solkattu.Score.Tabla2024.c_24_01_04_rela2
-    , setLocation ("Solkattu.Score.Tabla2024",62,"c_24_01_11") $ Single Solkattu.Score.Tabla2024.c_24_01_11
+    , setLocation ("Solkattu.Score.Tabla2024",52,"c_24_01_11") $ Single Solkattu.Score.Tabla2024.c_24_01_11
+    , setLocation ("Solkattu.Score.Tabla2024",95,"c_24_01_26_chalan1") $ Single Solkattu.Score.Tabla2024.c_24_01_26_chalan1
+    , setLocation ("Solkattu.Score.Tabla2024",111,"c_24_01_26_chalan2") $ Single Solkattu.Score.Tabla2024.c_24_01_26_chalan2
     ]

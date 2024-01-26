@@ -177,6 +177,9 @@ colby = source "colby"
 bat :: Korvai -> Korvai
 bat = withType "bat"
 
+chalan :: Korvai -> Korvai
+chalan = withType "chalan"
+
 kaida :: Korvai -> Korvai
 kaida = withType "kaida"
 

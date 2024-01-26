@@ -49,16 +49,6 @@ c_24_01_04_chakradar = date 2024 1 4 $ colby $ chakradar $ korvaiS1 tintal $
     . su (r3 (dha.ge.tetekata)) . "dhadhintaa_kat_"."dha__ghen_te"
     . r3 ("dha_ne". su (dha.ge.tetekata) . "dhatet") . dha.__3
 
-c_24_01_04_rela2 :: Korvai
-c_24_01_04_rela2 = date 2024 1 4 $ colby $ benares $ rela $ korvaiS tintal
-    [ dhenne_gene.takga.dhenne_gene."dhenne dhati gene"
-        . __D 12 -- TODO incomplete
-    ]
-    where
-    dhenne_gene = "dhenne gene"
-    takga = "takga"
-    -- na on kinar
-
 c_24_01_11 :: Korvai
 c_24_01_11 = date 2024 1 12 $ colby $ kaida $ korvaiS jhaptal
     [ kaliM (9*4) (15*4) $ r2 $ theme1 . theme2
@@ -101,6 +91,34 @@ c_24_01_11 = date 2024 1 12 $ colby $ kaida $ korvaiS jhaptal
     takga_dhinne = "takga dhinne"
     dhinna_gena = "dhinna gena"
     -- tak is like re, cupped closed stroke
+
+c_24_01_26_chalan1 :: Korvai
+c_24_01_26_chalan1 = date 2024 1 26 $ colby $ chalan $ lucknow $ korvaiS tintal
+    [ kaliMt (-3) 0 $ su $ r2 $
+        "dha_dha_dha_ gege" . nage_dhinne.dhinna_gena
+        . "tette gege".nage_dhinne . nage_dhinne.dhinna_gena
+        . "kitataka terekita" . nage_dhinne.dhinna_gena
+        . "dhara gege".nage_dhinne . nage_dhinne.dhinna_gena
+    ]
+    where
+    nage_dhinne = "nage dhinne"
+    dhinna_gena = "dhinna gena"
+    -- ra = na
+    -- dhin = ge+tun
+    -- kitataka = kat na na kat
+    -- na on kinar
+
+c_24_01_26_chalan2 :: Korvai
+c_24_01_26_chalan2 = date 2024 1 26 $ colby $ chalan $ lucknow $ korvaiS tintal
+    [ kaliMt (-2) 0 $ su $ r2 $
+        "dhin__dha_redha_" . "tet__dha_redha_" . "dhinna_dhatidha_"
+        . "gena dhagena dhina gena" . "trkt dhinna gena" . "dhatidha gena"
+        . "dha__dha__gena" . "dhati dhagena dhati dhage dhina gena"
+    ]
+    where
+    -- dhin = ge+tin
+    -- tin = tun
+    -- na on kinar
 
 tihai :: Sequence -> Sequence -> Sequence
 tihai seq sep = tri_ (hv sep) seq
