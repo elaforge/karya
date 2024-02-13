@@ -115,7 +115,7 @@ korvaiHas instrument strokes =
 
 korvaiStrokes :: Korvai.Instrument a -> Korvai.Korvai -> [[a]]
 korvaiStrokes instrument =
-    maybe [] (map section) . Korvai.getSections instrument
+    maybe [] (map section) . Korvai.instrumentSection instrument
         . Korvai.korvaiSections
     where
     section = mapMaybe (fmap Realize._stroke . Solkattu.solluOf) . S.notes

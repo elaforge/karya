@@ -115,7 +115,7 @@ korvaiInstruments :: Korvai -> [GInstrument]
 korvaiInstruments korvai = filter hasInstrument instruments
     where
     hasInstrument (GInstrument inst) =
-        case getSections inst (korvaiSections korvai) of
+        case instrumentSection inst (korvaiSections korvai) of
             Just _ -> True
             Nothing -> case korvaiSections korvai of
                 KorvaiSections IKonnakol _ -> not (isEmpty inst)
@@ -123,7 +123,7 @@ korvaiInstruments korvai = filter hasInstrument instruments
     -- Even if the stroke map is broken, at least there is one.
     isEmpty :: Instrument stroke -> Bool
     isEmpty inst = either (const False) Realize.isInstrumentEmpty $
-        getStrokeMap inst (korvaiStrokeMaps korvai)
+        getSolluMap inst (korvaiStrokeMaps korvai)
 
 mridangamKorvai :: Tala.Tala -> Realize.PatternMap Mridangam.Stroke
     -> [Section (SequenceT (Realize.Stroke Mridangam.Stroke))] -> Korvai
@@ -174,6 +174,15 @@ slice start end korvai = case korvaiSections korvai of
 
 -- ** Instrument
 
+-- | Pair up Sections containing a certain stroke type with its corresponding
+-- Instrument.  Instrument here is the one the korvai is written in, which
+-- will be IKonnakol for generic korvais, or some instrument for instrument
+-- specific ones.
+--
+-- The Instrument stroke sollu pairing is closed and fixed, e.g.
+-- [(IKonnakol, Sollu), (IMridangam, Mridangam.Stroke), ...]
+-- Instrument is a GADT that does the mapping.
+--
 -- This seems like a dependent pair, Instrument lets me know what stroke is.
 data KorvaiSections = forall stroke.
     KorvaiSections (Instrument stroke) (Sections stroke)
@@ -185,9 +194,11 @@ instance Pretty KorvaiSections where
 
 type Sections stroke = [Section (SequenceT (Realize.Stroke stroke))]
 
+-- | Just if stroke ~ sollu.
 -- TODO: can I use Data.Type.Equality :~: ?
-getSections :: Instrument stroke -> KorvaiSections -> Maybe (Sections stroke)
-getSections inst ktype = case (inst, ktype) of
+instrumentSection :: Instrument stroke -> KorvaiSections
+    -> Maybe (Sections stroke)
+instrumentSection inst sections = case (inst, sections) of
     (IKonnakol, KorvaiSections IKonnakol sections) -> Just sections
     (IMridangam, KorvaiSections IMridangam sections) -> Just sections
     (IKendangTunggal, KorvaiSections IKendangTunggal sections) -> Just sections
@@ -274,7 +285,7 @@ inferSections seqs = case Lists.unsnoc (map section seqs) of
 
 -- * Instrument
 
--- | Each instrument is matched up with a stroke type.
+-- | Each instrument is matched up with a stroke type.  See 'KorvaiSections'.
 data Instrument stroke where
     IKonnakol       :: Instrument Solkattu.Sollu
     IMridangam      :: Instrument Mridangam.Stroke
@@ -295,31 +306,6 @@ instrumentName = \case
     ISargam -> "sargam"
     IBol -> "bol"
     ITabla -> "tabla"
-
-getStrokeMap :: Instrument stroke -> StrokeMaps
-    -> StrokeMap Solkattu.Sollu stroke
-getStrokeMap inst smap = case inst of
-    IKonnakol -> Right $ mempty
-        { Realize.smapPatternMap = Konnakol.defaultPatterns }
-    IMridangam -> smapMridangam smap
-    IKendangTunggal -> smapKendangTunggal smap
-    IKendangPasang -> smapKendangPasang smap
-    IReyong -> smapReyong smap
-    ISargam -> smapSargam smap
-    IBol -> Right mempty -- like IKonnakol except no patterns
-    ITabla -> Left "tabla should have had a hardcoded stroke map"
-
-setStrokeMap :: Instrument stroke -> StrokeMap Solkattu.Sollu stroke
-    -> StrokeMaps
-setStrokeMap inst smap = case inst of
-    IKonnakol -> mempty
-    IMridangam -> mempty { smapMridangam = smap }
-    IKendangTunggal -> mempty { smapKendangTunggal = smap }
-    IKendangPasang -> mempty { smapKendangPasang = smap }
-    IReyong -> mempty { smapReyong = smap }
-    ISargam -> mempty { smapSargam = smap }
-    IBol -> mempty
-    ITabla -> mempty
 
 instPostprocess :: Instrument stroke -> [Flat stroke] -> [Flat stroke]
 instPostprocess = \case
@@ -345,8 +331,8 @@ type Realized stroke = ([Flat stroke], [Realize.Warning])
 realize :: forall stroke. (Solkattu.Notation stroke, Ord stroke)
     => Instrument stroke -> Korvai -> [Either Error (Realized stroke)]
 realize inst korvai = case getStrokeMap inst (korvaiStrokeMaps korvai) of
-    Left err -> [Left err]
-    Right smap -> case getSections inst (korvaiSections korvai) of
+    Left err -> [Left err] -- propagate erorrs right away
+    Right (smap, bmap) -> case instrumentSection inst (korvaiSections korvai) of
         -- An instrument Korvai can be realized to the same instrument.
         Just sections ->
             map (realizeSection tala Realize.realizeStroke smap postproc)
@@ -357,14 +343,13 @@ realize inst korvai = case getStrokeMap inst (korvaiStrokeMaps korvai) of
                 map (realizeSection tala toStrokes smap postproc) sections
                 where
                 toStrokes = Realize.realizeSollu (Realize.smapSolluMap smap)
-            -- IBol can be realized to ITabla.
-            -- TODO doesn't work yet, how to restrict to stroke ~ Tabla.Stroke?
-            -- KorvaiSections IBol sections ->
-            --     map (realizeSection tala toStrokes smap postproc) sections
-            --     where
-            --     toStrokes = Realize.realizeSollu Bol.bolMap
-            KorvaiSections kinst _ -> (:[]) $ Left $ "can't realize "
-                <> instrumentName kinst <> " as " <> instrumentName inst
+            -- Same with IBol, but it uses the bol map.
+            KorvaiSections IBol sections ->
+                map (realizeSection tala toStrokes smap postproc) sections
+                where
+                toStrokes = Realize.realizeSollu (Realize.smapSolluMap bmap)
+            KorvaiSections solluInst _ -> (:[]) $ Left $ "can't realize "
+                <> instrumentName solluInst <> " as " <> instrumentName inst
     where
     tala = korvaiTala korvai
     postproc = instPostprocess inst
@@ -409,7 +394,7 @@ allMatchedSollus instrument korvai = case korvaiSections korvai of
     strip (tag, sollus) = (tag, map Realize._stroke sollus)
     toStrokes = Realize.realizeSollu solluMap
     solluMap = either mempty Realize.smapSolluMap smap
-    smap = getStrokeMap instrument (korvaiStrokeMaps korvai)
+    smap = getSolluMap instrument (korvaiStrokeMaps korvai)
 
 matchedSollus :: (Pretty sollu, Ord sollu) => Realize.ToStrokes sollu stroke
     -> Tala.Akshara -> Section (SequenceT sollu)
@@ -466,7 +451,7 @@ mapStrokeRest f = map convert
 lint :: Pretty stroke => Instrument stroke -> [Sequence] -> Korvai -> Text
 lint inst defaultStrokes korvai =
     either (("stroke map: "<>) . (<>"\n")) lintSmap $
-    getStrokeMap inst $ korvaiStrokeMaps korvai
+    getSolluMap inst $ korvaiStrokeMaps korvai
     where
     lintSmap smap = Text.unlines $ filter (not . Text.null)
         [ if null shadowed then ""
@@ -597,25 +582,27 @@ sectionAvartanams tala section = floor $ dur / talaAksharas
     dur = Solkattu.durationOf S.defaultTempo seq
 
 
--- * types
+-- * StrokeMaps
 
 -- | This can be a Left because it comes from one of the instrument-specific
 -- 'StrokeMaps' fields, which can be Left if 'Realize.strokeMap' verification
 -- failed.
-type StrokeMap sollu stroke = Either Error (Realize.StrokeMap sollu stroke)
+type EitherStrokeMap sollu stroke =
+    Either Error (Realize.StrokeMap sollu stroke)
 
 data StrokeMaps = StrokeMaps {
-    smapMridangam        :: StrokeMap Solkattu.Sollu Mridangam.Stroke
-    , smapKendangTunggal :: StrokeMap Solkattu.Sollu KendangTunggal.Stroke
-    , smapKendangPasang  :: StrokeMap Solkattu.Sollu KendangPasang.Stroke
-    , smapReyong         :: StrokeMap Solkattu.Sollu Reyong.Stroke
-    , smapSargam         :: StrokeMap Solkattu.Sollu Sargam.Stroke
+    smapMridangam        :: EitherStrokeMap Solkattu.Sollu Mridangam.Stroke
+    , smapKendangTunggal :: EitherStrokeMap Solkattu.Sollu KendangTunggal.Stroke
+    , smapKendangPasang  :: EitherStrokeMap Solkattu.Sollu KendangPasang.Stroke
+    , smapReyong         :: EitherStrokeMap Solkattu.Sollu Reyong.Stroke
+    , smapSargam         :: EitherStrokeMap Solkattu.Sollu Sargam.Stroke
+    , smapTabla          :: EitherStrokeMap Bol.Bol Tabla.Stroke
     } deriving (Eq, Show, Generics.Generic)
 
 instance Semigroup StrokeMaps where
-    StrokeMaps a1 a2 a3 a4 a5 <> StrokeMaps b1 b2 b3 b4 b5 =
+    StrokeMaps a1 a2 a3 a4 a5 a6 <> StrokeMaps b1 b2 b3 b4 b5 b6 =
         StrokeMaps (merge a1 b1) (merge a2 b2) (merge a3 b3) (merge a4 b4)
-            (merge a5 b5)
+            (merge a5 b5) (merge a6 b6)
         where
         merge (Left err) _ = Left err
         merge _ (Left err) = Left err
@@ -624,7 +611,46 @@ instance Semigroup StrokeMaps where
 instance Monoid StrokeMaps where
     mempty = StrokeMaps
         (Right mempty) (Right mempty) (Right mempty) (Right mempty)
-        (Right mempty)
-    mappend = (<>)
+        (Right mempty) (Right mempty)
 
 instance Pretty StrokeMaps where format = Pretty.formatGCamel
+
+getStrokeMap :: Instrument stroke -> StrokeMaps
+    -> Either Error
+        ( Realize.StrokeMap Solkattu.Sollu stroke
+        , Realize.StrokeMap Bol.Bol stroke
+        )
+getStrokeMap inst smaps = do
+    (,) <$> getSolluMap inst smaps <*> getBolMap inst smaps
+
+getSolluMap :: Instrument stroke -> StrokeMaps
+    -> EitherStrokeMap Solkattu.Sollu stroke
+getSolluMap inst smap = case inst of
+    IKonnakol -> Right $ mempty
+        { Realize.smapPatternMap = Konnakol.defaultPatterns }
+    IMridangam -> smapMridangam smap
+    IKendangTunggal -> smapKendangTunggal smap
+    IKendangPasang -> smapKendangPasang smap
+    IReyong -> smapReyong smap
+    ISargam -> smapSargam smap
+    IBol -> Right mempty -- like IKonnakol except no patterns
+    ITabla -> Right mempty
+
+getBolMap :: Instrument stroke -> StrokeMaps
+    -> EitherStrokeMap Bol.Bol stroke
+getBolMap inst smap = case inst of
+    IBol -> Right mempty
+    ITabla -> smapTabla smap
+    _ -> Right mempty
+
+setStrokeMap :: Instrument stroke -> EitherStrokeMap Solkattu.Sollu stroke
+    -> StrokeMaps
+setStrokeMap inst smap = case inst of
+    IKonnakol -> mempty
+    IMridangam -> mempty { smapMridangam = smap }
+    IKendangTunggal -> mempty { smapKendangTunggal = smap }
+    IKendangPasang -> mempty { smapKendangPasang = smap }
+    IReyong -> mempty { smapReyong = smap }
+    ISargam -> mempty { smapSargam = smap }
+    IBol -> mempty
+    ITabla -> mempty
