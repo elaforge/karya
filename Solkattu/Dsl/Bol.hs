@@ -68,6 +68,7 @@ ki  = _bol Bol.Ki
 na  = _bol Bol.Na
 ne  = _bol Bol.Ne
 ra  = _bol Bol.Ra
+re  = _bol Bol.Re
 ta  = _bol Bol.Ta
 tA  = _bol Bol.TA
 taa = _bol Bol.Taa
@@ -86,11 +87,11 @@ taka :: Sequence
 taka = ta.ka
 
 tr, kt, trkt, tktrkt :: Sequence
-tr = "tr"
+tr = "tr" -- these are defined in Solkattu.Bol.sequences
 kt = "tk"
 trkt = "trkt"
-tktrkt = su $ ta.ka.ti.ra.ki.te
-trkttk = su $ ti.ra.ki.te.ta.ka
+tktrkt = su $ ta.ka.te.re.ki.ta
+trkttk = su $ te.re.ki.ta.ta.ka
 
 kttk :: Sequence
 kttk = "kttk"
@@ -204,6 +205,9 @@ makeTabla0 strokes = mempty
 data Na = Kinar | Sur
     deriving (Show, Eq)
 
+-- TODO
+-- for rela tuna tends to be tu.na, but in kaida tends to be kat&tu . na
+-- e.g. dhage naga tuna, tu could have kat or not
 _tablaStrokes :: Na -> [(Sequence, SequenceM)]
 _tablaStrokes naKinar = map (second (mconcatMap Realize.strokeToSequence)) $
     [ ("dheredhere", [ge & the, rhe, the, rhe]) -- implicit ge on first stroke

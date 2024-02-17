@@ -96,8 +96,7 @@ data Bols = S1 Bol | S2 Bol Bol
 
 sequences :: [(BolT, Bols)]
 sequences =
-    [ ("tr", S2 Ti Ra)
+    [ ("tr", S2 Te Re)
     , ("kt", S2 Ki Ta)
     , ("tk", S2 Ta Ka)
-    -- , ("Ta", S1 Taa)
     ]

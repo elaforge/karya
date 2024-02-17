@@ -355,9 +355,9 @@ scores = map Korvai.inferMetadataS
     , setLocation ("Solkattu.Score.Tabla2023",409,"c_23_11_30_tukra") $ Single Solkattu.Score.Tabla2023.c_23_11_30_tukra
     , setLocation ("Solkattu.Score.Tabla2023",417,"c_23_12_29_rela") $ Single Solkattu.Score.Tabla2023.c_23_12_29_rela
     , setLocation ("Solkattu.Score.Tabla2023",432,"c_23_12_29_tukra") $ Single Solkattu.Score.Tabla2023.c_23_12_29_tukra
-    , setLocation ("Solkattu.Score.Tabla2023",453,"candiramani_pakhawaj_kehrwa") $ Single Solkattu.Score.Tabla2023.candiramani_pakhawaj_kehrwa
-    , setLocation ("Solkattu.Score.Tabla2023",460,"candiramani_pakhawaj_adi") $ Single Solkattu.Score.Tabla2023.candiramani_pakhawaj_adi
-    , setLocation ("Solkattu.Score.Tabla2023",468,"legong1") $ Single Solkattu.Score.Tabla2023.legong1
+    , setLocation ("Solkattu.Score.Tabla2023",447,"candiramani_pakhawaj_kehrwa") $ Single Solkattu.Score.Tabla2023.candiramani_pakhawaj_kehrwa
+    , setLocation ("Solkattu.Score.Tabla2023",454,"candiramani_pakhawaj_adi") $ Single Solkattu.Score.Tabla2023.candiramani_pakhawaj_adi
+    , setLocation ("Solkattu.Score.Tabla2023",462,"legong1") $ Single Solkattu.Score.Tabla2023.legong1
     , setLocation ("Solkattu.Score.Tabla2024",13,"c_24_01_04_rela") $ Single Solkattu.Score.Tabla2024.c_24_01_04_rela
     , setLocation ("Solkattu.Score.Tabla2024",22,"c_24_01_04_rela_jhaptal") $ Single Solkattu.Score.Tabla2024.c_24_01_04_rela_jhaptal
     , setLocation ("Solkattu.Score.Tabla2024",35,"c_24_01_04_rela_tintal") $ Single Solkattu.Score.Tabla2024.c_24_01_04_rela_tintal

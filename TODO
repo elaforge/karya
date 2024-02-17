@@ -6561,7 +6561,22 @@ solkattu:
       . Kind of awkward though.
     - html doesn't wrap, so 16 beat tintal doesn't fit
     - support Talas.Hindustani in Play.tala_metronome
-    - realize to strokes
+    - normalize terekita: [tari, tira, tere] [kita, kite]
+      . ti is already a different stroke, e.g. dha ti dha, let's avoid it.
+      . One way is to support writing only one.  This is good because trkt
+        has to pick one and it's less confusing if there's just one to pick.
+        I just have to remember to always use the same one.
+        But there's a risk that there's a relevant difference between say
+        terekite and kitataka.  Also, I don't say normalize all ki ka kat to
+        ka, because the difference is important for speaking.  So it's a
+        question of word vs accent, which is not a clear line.
+      . Another way is to have many, but they all map to the same Bols.
+        This means I can write it as I heard it, but it comes out normalized.
+        But could be confusing because what you write is not what you get.
+      . Another way is to support them all, but map them the same way to
+        strokes.  Good because the original notation is preserved.
+        Currently I do this, maybe it's good enough.
+    * realize to strokes
       . I could use the same approach as StrokeMaps, but it would need to be
         parameterized by both sollu and stroke.
       . This seems overcomplicated because I can probably use a hardcoded
@@ -6580,9 +6595,7 @@ solkattu:
         I guess it wouldn't accurately represent bols, but do I care?
       . parseBols could get ambiguous, but if it's a problem I could start
         with Dha and then select >=Dha.
-      - for rela tuna tends to be i.n, but in kaida tends to be pi.n
-        e.g. dhage naga tuna, tu could have kat or not
-      - annotation for whether dha and na are kinar or sur
+      * annotation for whether dha and na are kinar or sur
     * Terminal.renderAll and Html.writeAll don't understand bols
       . Terminal.renderAll abstraction score
       . Format.scoreInstruments :: Korvai.Score -> [Korvai.GInstrument]
@@ -6637,7 +6650,7 @@ solkattu:
   transcribe:
     - lots of korvais in Solkattu2013 are not really from that time, just
       undated
-    - after 2014-06-17
+    + after 2014-06-17
     - complete Mridangam2013.dinnagina_sequence, maybe move to solkattu.
   practice: Solkattu.Practice:
     I can't say I practiced a tani:
@@ -8565,7 +8578,7 @@ text score: tscore:
         normalizing and printing.  So let's keep doing that, until I have
         a reason to specifically care.
     check:
-      + directives understood
+      * directives understood
       - within instrument range
       - left hand below right hand
       - pitches in pathet (no 4 for gender, no 1 or 7)
