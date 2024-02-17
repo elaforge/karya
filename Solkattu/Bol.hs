@@ -42,6 +42,7 @@ module Solkattu.Bol (
     , parseBols
     , Bols(..)
 ) where
+import qualified Data.Char as Char
 import qualified Data.Text as Text
 
 import qualified Util.Lists as Lists
@@ -61,16 +62,18 @@ data Bol =
     Dha | Dhe | Dhen | Dhet | Dhom | Di | Din | Dhi | Dhin | Dhit | Dhu
     | Ga | Gi | Ge | Ghen | Ghin | Gre
     | Ka | Kat | Ke | Kra | Kre | Ki | Ma | Na | Ne | Ra | Re | Ri | Ran
-    | Ṭa -- ^ technically correct form of Te, for transcriptions from devanagari
-    | Ta | Tak | Taa | Te | Ten | Tet | The -- ^ fake bol, kali version of dhere
+    | Ṭa -- ^ for transcription from devanagari
+    | Ta | Tak | TA -- ^ long A is always tin, or chapu on pakhawaj
+    | Taa -- ^ kali version of dha, so follows kinar / sur
+    | Te | Ten | Tet | The -- ^ fake bol, kali version of dhere
     | Tre | Ti | Tin | Tra | Tu | Tun
     | Kran -- TODO 2 beats?
     deriving (Eq, Ord, Enum, Bounded, Show)
 
 instance Solkattu.Notation Bol where
-    notation = \case
-        Taa -> Solkattu.textNotation "tā"
-        b -> Solkattu.textNotation . Text.toLower . showt $ b
+    notation b = Solkattu.textNotation $ case Text.uncons (showt b) of
+        Just (c, cs) -> Text.cons (Char.toLower c) cs
+        Nothing -> Text.empty
 instance Pretty Bol where pretty = Solkattu.notationText
 
 instance Expr.ToExpr Bol where
@@ -85,8 +88,6 @@ parseBols = Solkattu.parseSyllables False allBols
 allBols :: [(BolT, Bols)]
 allBols = sequences
     ++ map (second S1) (Lists.keyOn Solkattu.notationText [minBound ..])
-    -- Taa renders to tā, but these are easier to type
-    ++ [("tA", S1 Taa), ("taa", S1 Taa)]
 
 -- | parseBols can return 2nd speed sequences.  This gets turned into a
 -- Sequence in Dsl.Bol.

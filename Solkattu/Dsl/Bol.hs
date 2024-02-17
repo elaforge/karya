@@ -68,13 +68,14 @@ na  = _bol Bol.Na
 ne  = _bol Bol.Ne
 ra  = _bol Bol.Ra
 ta  = _bol Bol.Ta
-tA = _bol Bol.Taa
+tA  = _bol Bol.TA
+taa = _bol Bol.Taa
 te  = _bol Bol.Te
 tet = _bol Bol.Tet
 ti  = _bol Bol.Ti
 tin = _bol Bol.Tin
 tu  = _bol Bol.Tu
-tun  = _bol Bol.Tun
+tun = _bol Bol.Tun
 
 -- * fragments
 
@@ -251,9 +252,7 @@ _tablaStrokes naKinar = map (second (mconcatMap Realize.strokeToSequence)) $
     where
     onKinarSur =
         [ ("dha", ge & na, ge & tin)
-        -- TODO but dha -> ta should be (na, tin)
-        -- but standalone tA should always be din
-        -- so map kali dha to some other ta?
+        , ("taa", na, tin) -- kali of dha
         ]
     -- Even though I do define (&) for Sequence, I use single strokes here,
     -- it should wind up the same but is simpler types.

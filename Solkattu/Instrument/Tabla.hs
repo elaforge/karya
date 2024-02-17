@@ -104,8 +104,8 @@ instance Solkattu.Notation Daya where
         Ti -> "."
         Tin -> "d"
         Tre -> "tr" -- TODO?
-        Tu3 -> "u"
-        Tun -> "v"
+        Tu3 -> "v"
+        Tun -> "u"
 
 data Strokes a = Strokes {
     ka :: a, ge :: a

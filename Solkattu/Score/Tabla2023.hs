@@ -470,7 +470,7 @@ legong1 = korvaiS kehrwa tablaKinar
     [ "na___ ge_ge_ | na___na_na_ | ge _na _ ge_ge_ | na___na_na_"
     . "ge_tet_ na_na_ | ge_na_ge_gege | _na_na_dha_dha_ | __tuntun_tet_"
     , "ge_tet_na_tet_ | na_na_tet_na_ | __tet_na_tet_"
-        . su "tiriki tu" . "tun tun tun _ge _"
+        . su "tereki tu" . "tun tun tun _ge _"
     , "ge_na___na_ | ge_na_ge_gege | _na_na_dha_dha | __natuntun_tet_"
     . "ge_tet_na_tet_ | na_na_tet_na_ | __tet_na_tet_ | na_na_tet_na_"
     . "tet_tuntuntuntet_na | _gege_ge_ge_ | na___tet_na_na_ge_na___"
