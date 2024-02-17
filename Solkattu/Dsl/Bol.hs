@@ -225,32 +225,31 @@ _tablaStrokes naKinar = map (second (mconcatMap Realize.strokeToSequence)) $
     , ("kitetaka", [ka, tet, te, ka])
     -- , ("takaterekita", [te, ka, tet, te, ka, tet, te, ka])
     , ("taka", [te, ka]) -- TODO works for taka terekita and terekita taka
-    , ("dhen", [ge & tun])
-    , ("ghen", [ge])
-    , ("ten", [tun])
     , ("dhennegene", [ge & tun, nhe, ge, ne])
     , ("tennekene", [tun, nhe, ka, ne])
     , ("dhenne", [ge & tun, ne])
     , ("taran ne", [tun, daya Tabla.Ran, ne]) -- play on rim when followed by ne
     , ("taran", [daya Tabla.Tu3, tun]) -- otherwise play in middle
     , (dhaS, [ge & tin])
-    , ("dhet", [ge & tette])
-    , ("dhin", [ge & tin])
-    , ("dhi", [ge & tun])
-    , ("kre", [ka &+ tet])
-    , ("kran", [ka &+ na])
     ] ++ case naKinar of
         Kinar -> [(bol, [stroke]) | (bol, stroke, _) <- onKinarSur]
         Sur -> [(bol, [stroke]) | (bol, _, stroke) <- onKinarSur]
     ++ map (second (:[])) -- direct bol -> stroke correspondence
     [ ("di", tun)
+    , ("dhen", ge & tun)
+    , ("dhet", ge & tette)
+    , ("dhi", ge & tun)
+    , ("dhin", ge & tin)
     , ("din", tin)
     , ("ga", ge)
     , ("ge", ge)
+    , ("ghen", ge)
     , ("ka", ka)
     , ("kat", ka)
     , ("ke", ka)
     , ("ki", ka)
+    , ("kran", ka &+ na)
+    , ("kre", ka &+ tet)
     , ("na", na)
     , ("ne", ne)
     , ("ran", daya Tabla.Ran)
@@ -259,6 +258,7 @@ _tablaStrokes naKinar = map (second (mconcatMap Realize.strokeToSequence)) $
     , ("ta", tet)
     , ("tak", daya Tabla.Tak)
     , ("te", te)
+    , ("ten", tun)
     , ("tet", tet)
     , ("the", the)
     , ("ti", daya Tabla.Ti)
@@ -270,8 +270,8 @@ _tablaStrokes naKinar = map (second (mconcatMap Realize.strokeToSequence)) $
     ]
     where
     onKinarSur =
-        [ ("dha", ge & na, ge & tin)
-        , ("taa", na, tin) -- kali of dha
+        [ ("dha", ge & na,  ge & tin)
+        , ("taa", na,       tin) -- kali of dha
         ]
     -- Even though I do define (&) for Sequence, I use single strokes here,
     -- it should wind up the same but is simpler types.

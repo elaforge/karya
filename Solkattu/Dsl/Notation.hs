@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 -- TODO otherwise ghc >=8.4.1 complains about extra Semigroup
 -- Remove when I can drop 8.0.2 compatibility.
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
@@ -12,7 +13,69 @@
     This is meant to have just Sequence manipulation, without
     instrument-specific functions.
 -}
-module Solkattu.Dsl.Notation where
+module Solkattu.Dsl.Notation (
+    SequenceT
+    , __, __2, __3, __4, __5, __6, __7, __8, __9
+    , __n, __D, __M
+    , sarvaM, sarvaD, sarvaM_, sarvaD_
+    , dropM, dropM_
+    , takeM
+    , splitM, splitM_
+    , rdropM, rdropM_
+    , rtakeM
+    , spaceM
+    -- * by Duration
+    , restD, spaceD
+    , dropD, rdropD, takeD, rtakeD
+    -- * structures
+    , sandi
+    , tri, tri_, tri_nomid, tri123
+    , trin, tri2, tri2g
+    , tsep
+    -- * sequences
+    , repeat, r2, r3, r4, r5, r6, r7, r8
+    , join
+    , inter
+    , spread
+    , cmap
+    , for
+    , prefixes, suffixes
+    , circum, suffix, prefix
+    , accumulate
+    -- * reduction, expansion
+    , reduce3, reduceBy
+    , reduceTo, reduceToL, reduceToR
+    , expand
+    , replaceStart, replaceEnd
+    , (<==), (==>)
+    -- * measurement
+    , matrasOf
+    , matrasOfI
+    -- * generic notation
+    , speed, su, sd, su2, sd2
+    , nadai
+    , stride
+    -- * groups
+    , group, g
+    , pattern
+    , reduction
+    , named, namedT
+    , checkD
+    -- * tags
+    , (^), mid
+    -- * align
+    , __sam
+    , __a
+    , sarvaSam, sarvaA, sarvaA_
+    -- * complex transformation
+    , in3
+    , appendEach
+    -- * merge
+    , merge
+#ifdef TESTING
+    , splitM_either
+#endif
+) where
 import           Prelude hiding ((^), repeat)
 import qualified Data.List as List
 import           GHC.Stack (HasCallStack)
@@ -296,9 +359,6 @@ cmap = mconcatMap
 for :: [a] -> (a -> b) -> [b]
 for = flip map
 
-cfor :: Monoid b => [a] -> (a -> b) -> b
-cfor xs f = mconcatMap f xs
-
 -- | Multiple prefixes on a single suffix.
 prefixes :: (Semigroup a, Monoid a) => [a] -> a -> a
 prefixes prefs suffix = mconcatMap (<>suffix) prefs
@@ -390,10 +450,6 @@ matrasOfI seq
     where
     (matras, frac) = properFraction fmatras
     fmatras = matrasOf seq
-
--- | I think defaultTempo is ok because these functions are used on fragments.
-matraDuration :: S.Duration
-matraDuration = S.matraDuration S.defaultTempo
 
 dToM :: Duration -> FMatra
 dToM d = realToFrac $ d / S.matraDuration S.defaultTempo
