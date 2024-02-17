@@ -145,7 +145,7 @@ compare_samples(const char *fname, int offset, std::unique_ptr<AudioFile> file)
             break;
 
         for (int i = 0; i < read1; i++) {
-            max = std::max(max, fabs(samples1[i]));
+            max = std::max(max, (float) fabs(samples1[i]));
             if (samples1[i] != samples2[i]) {
                 if (unequal < 64)
                     std::cout << i << ": " << samples1[i] << " != "
