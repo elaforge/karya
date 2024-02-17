@@ -120,8 +120,5 @@ c_24_01_26_chalan2 = date 2024 1 26 $ colby $ chalan $ lucknow $
         . "dha__dha__gena" . "dhati dhagena dhati dhage dhina gena"
     ]
 
-tihai :: Sequence -> Sequence -> Sequence
-tihai seq sep = tri_ (hv sep) seq
-
 terekite :: Sequence
 terekite = "terekita"

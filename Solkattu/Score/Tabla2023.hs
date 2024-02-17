@@ -441,12 +441,6 @@ c_23_12_29_tukra = date 2023 12 29 $ colby $ tukra $ korvaiS tintal tabla
     tabla = makeTabla Sur [("na", tin)]
         where Tabla.Strokes { .. } = Tabla.notes
 
-tihai :: Sequence -> Sequence -> Sequence
-tihai seq sep = tri_ (hv sep) seq
-
-tihai2 :: Sequence -> Sequence -> Sequence
-tihai2 seq sep = seq.sep.seq.sep
-
 -- * candiramani tape
 
 -- TODO for pakhawaj, should have pakhawaj strokes

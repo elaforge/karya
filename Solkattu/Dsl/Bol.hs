@@ -32,6 +32,7 @@ import           Solkattu.Dsl.Generic
 
 
 type Sequence = SequenceT (Realize.Stroke Bol.Bol)
+
 -- | Realized sequence of strokes.
 type SequenceM = SequenceT (Realize.Stroke Tabla.Stroke)
 
@@ -94,21 +95,23 @@ trkttk = su $ ti.ra.ki.te.ta.ka
 kttk :: Sequence
 kttk = "kttk"
 
+-- | Standard pakhawaj tette kata gadi gene pattern.
 tetekata :: Sequence
 tetekata = namedT Solkattu.GPattern "8n" $
     Solkattu.Standard ^ "tette katA gadi gene"
 
-kali :: Sequence -> Sequence
-kali = mapB $ \case
-    Bol.Dha -> Just Bol.Taa
-    Bol.Dhe -> Just Bol.The
-    Bol.Dhen -> Just Bol.Ten
-    Bol.Dhet -> Just Bol.Tet
-    Bol.Dhi -> Just Bol.Tun
-    Bol.Dhin -> Just Bol.Tin -- behause dha dhin dhin -> ta tin tin
-    Bol.Ga -> Just Bol.Ka
-    Bol.Ge -> Just Bol.Ke
-    bol -> Just bol
+-- * notation
+
+-- | Just tri_ flipped, is this easier to read for hindustani, which often
+-- has nested tihais?
+tihai :: Sequence -> Sequence -> Sequence
+tihai seq sep = tri_ (hv sep) seq
+
+-- | Experiment for tihais where the 3rd is a variant.
+tihai2 :: Sequence -> Sequence -> Sequence
+tihai2 seq sep = seq.sep.seq.sep
+
+-- * transform
 
 -- | Change to kali within the given time range.
 kaliM :: S.FMatra -> S.FMatra -> Sequence -> Sequence
@@ -124,6 +127,18 @@ kaliM start end seq = pre <> kali within <> post
 -- incorrect.  So State with talam and nadai would be useful.
 kaliMt :: S.FMatra -> S.FMatra -> Sequence -> Sequence
 kaliMt start end = kaliM (32+start) (48+end)
+
+kali :: Sequence -> Sequence
+kali = mapB $ \case
+    Bol.Dha -> Just Bol.Taa
+    Bol.Dhe -> Just Bol.The -- for dhere dhere
+    Bol.Dhen -> Just Bol.Ten
+    Bol.Dhet -> Just Bol.Tet
+    Bol.Dhi -> Just Bol.Tun
+    Bol.Dhin -> Just Bol.Tin -- behause dha dhin dhin -> taa tin tin
+    Bol.Ga -> Just Bol.Ka
+    Bol.Ge -> Just Bol.Ke
+    bol -> Just bol
 
 mapB :: (Bol.Bol -> Maybe Bol.Bol) -> Sequence -> Sequence
 mapB f = fmap $ \case
@@ -184,7 +199,7 @@ makeTabla0 strokes = mempty
     -- I can do emphasis.  Bols are different that Sollu in that I decided to
     -- put emphasis on bols, since I treat them like a realization in their own
     -- right.  TODO: I should probably lookup with Bols, but propagate emphasis
-    -- through separately.
+    -- through separately, see Realize.realizeSollu.
 
 data Na = Kinar | Sur
     deriving (Show, Eq)
