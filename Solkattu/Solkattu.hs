@@ -214,12 +214,16 @@ data Tag = Tag !Int
     -- | Marks a standard pattern.  This isolates the "standard pattern" use
     -- of common sollus like taka.
     | Standard
+    -- | For tabla, mark a dha as always being on sur.
+    | Sur
     deriving (Eq, Ord, Show)
 
 instance Pretty Tag where
-    pretty (Tag i) = pretty i
-    pretty Middle = "mid"
-    pretty Standard = "standard"
+    pretty = \case
+        Tag i -> pretty i
+        Middle -> "mid"
+        Standard -> "standard"
+        Sur -> "sur"
 
 instance Num Tag where
     fromInteger = Tag . fromInteger

@@ -580,3 +580,73 @@ byGroup (n : ns) = case n of
     where
     noteOf (S.Note n) = Just n
     noteOf _ = Nothing
+
+-- * merge
+
+type SNote sollu = S.Note Solkattu.Group (Solkattu.Note sollu)
+
+-- | This is the implementation for the (&) operator.
+merge :: forall stroke. (HasCallStack, Pretty stroke)
+    => (stroke -> stroke -> stroke) -> [SNote stroke] -> [SNote stroke]
+    -> [SNote stroke]
+merge _ [] [] = []
+merge both as bs = case (as, bs) of
+    ([S.Note (Solkattu.Note a)], bs) -> single (Solkattu._sollu a) bs
+    (as, [S.Note (Solkattu.Note b)]) -> single (Solkattu._sollu b) as
+    _ -> S.toList $ speed maxSpeed $ S.fromList $ map merge1 pairs
+    where
+    -- As a special case, if I'm merging a single stroke with a sequence,
+    -- retain the structure of the sequence.  This way it won't destroy a
+    -- group to modify the first stroke.
+    single :: stroke -> [SNote stroke] -> [SNote stroke]
+    single stroke [] = [makeNote1 stroke]
+    single stroke (a:as) = (:as) $ case a of
+        S.Note (Solkattu.Note n) -> makeNote1 $ both stroke (Solkattu._sollu n)
+        S.Note (Solkattu.Space _) -> makeNote1 stroke
+        S.Note n -> throw $ "can't merge with " <> pretty n
+        S.TempoChange change subs -> S.TempoChange change (single stroke subs)
+        S.Group g subs -> S.Group g (single stroke subs)
+
+    -- At this point TempoChanges and Groups should have been flattened away.
+    merge1 (Lists.First a) = a
+    merge1 (Lists.Second b) = b
+    merge1 (Lists.Both a b)
+        | isRest a = b
+        | isRest b = a
+        | otherwise = makeNote1 $ both (toStroke1 a) (toStroke1 b)
+    isRest (S.Note (Solkattu.Space Solkattu.Rest)) = True
+    isRest _ = False
+    pairs = Lists.zipPadded (flatten as) (flatten bs)
+    flatten :: HasCallStack => [SNote stroke] -> [SNote stroke]
+    flatten = Solkattu.check
+        . (traverse (traverse unstroke) <=< S.flattenSpeed maxSpeed)
+        . stripGroups
+    maxSpeed = max (S.maxSpeed (S.flatten as)) (S.maxSpeed (S.flatten bs))
+
+toStroke1 :: (HasCallStack, Pretty a, Pretty g) => S.Note g (Solkattu.Note a)
+    -> a
+toStroke1 (S.Note (Solkattu.Note note)) = Solkattu._sollu note
+toStroke1 note = throw $ "expected sollu, but got " <> pretty note
+
+-- | 'S.flattenSpeed' gives me 'S.Stroke's, so turn them back into notes and
+-- rests.  It's an error to see 'S.Sustain', because that means I'm trying to
+-- merge sustained notation, e.g. patterns.
+unstroke :: Pretty a => S.Stroke (Solkattu.Note a)
+    -> Either Text (Solkattu.Note a)
+unstroke = \case
+    S.Attack a -> Right a
+    S.Rest -> Right $ Solkattu.Space Solkattu.Rest
+    S.Sustain space@(Solkattu.Space _) -> Right space
+    S.Sustain a -> Left $ "can't merge with pattern: " <> pretty a
+
+stripGroups :: [S.Note g a] -> [S.Note x a]
+stripGroups = concatMap strip
+    where
+    strip = \case
+        S.Note a -> [S.Note a]
+        S.TempoChange change subs ->
+            [S.TempoChange change (concatMap strip subs)]
+        S.Group _ subs -> concatMap strip subs
+
+makeNote1 :: stroke -> S.Note g (Solkattu.Note stroke)
+makeNote1 stroke = S.Note $ Solkattu.Note $ Solkattu.note stroke

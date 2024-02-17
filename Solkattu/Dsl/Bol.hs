@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 -- Copyright 2023 Evan Laforge
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
@@ -14,8 +15,11 @@ import qualified Data.String as String
 import           GHC.Stack (HasCallStack)
 
 import qualified Solkattu.Bol as Bol
+import qualified Solkattu.Dsl.Interactive as Interactive
 import           Solkattu.Dsl.Interactive (diff, diffw)
+import qualified Solkattu.Dsl.Notation as Notation
 import qualified Solkattu.Format.Terminal as Terminal
+import qualified Solkattu.Instrument.Tabla as Tabla
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
@@ -28,6 +32,8 @@ import           Solkattu.Dsl.Generic
 
 
 type Sequence = SequenceT (Realize.Stroke Bol.Bol)
+-- | Realized sequence of strokes.
+type SequenceM = SequenceT (Realize.Stroke Tabla.Stroke)
 
 type Section = Korvai.Section Sequence
 
@@ -50,6 +56,7 @@ _bol :: Bol.Bol -> Sequence
 _bol s = S.singleton $ S.Note (Solkattu.Note (Solkattu.note (Realize.stroke s)))
 
 dha = _bol Bol.Dha
+dhaS = Solkattu.Sur ^ dha -- dha but explicitly on sur
 dhe = _bol Bol.Dhe
 dhom= _bol Bol.Dhom
 di  = _bol Bol.Di
@@ -61,7 +68,7 @@ na  = _bol Bol.Na
 ne  = _bol Bol.Ne
 ra  = _bol Bol.Ra
 ta  = _bol Bol.Ta
-taa = _bol Bol.Taa
+tA = _bol Bol.Taa
 te  = _bol Bol.Te
 tet = _bol Bol.Tet
 ti  = _bol Bol.Ti
@@ -137,7 +144,6 @@ realize_ :: Int -> Korvai -> IO ()
 realize_ width = Terminal.printBol
     (concrete $ Terminal.bolConfig { Terminal._terminalWidth = width })
 
-{-
 realizet :: Korvai.Korvai -> IO ()
 realizet = _printInstrument Just Korvai.ITabla concrete
 
@@ -148,23 +154,136 @@ _printInstrument
     -> (Terminal.Config -> Terminal.Config)
     -> Korvai -> IO ()
 _printInstrument postproc inst setConfig =
-    Interactive.printInstrument True True inst (_defaultStrokes inst)
+    Interactive.printInstrument True True inst []
         (setConfig Terminal.defaultConfig) postproc
--}
+
+-- * bol map
+
+type StrokeMap stroke =
+    [ ( Sequence
+      , S.Sequence Solkattu.Group (Solkattu.Note (Realize.Stroke stroke))
+      )
+    ]
+
+tablaKinar :: Korvai.StrokeMaps
+tablaKinar = makeTabla Kinar []
+
+tablaSur :: Korvai.StrokeMaps
+tablaSur = makeTabla Sur []
+
+makeTabla :: Na -> StrokeMap Tabla.Stroke -> Korvai.StrokeMaps
+makeTabla naKinar strokes = makeTabla0 (_tablaStrokes naKinar ++ strokes)
+
+-- | Make a tabla StrokeMap, but without the default '_tablaStrokes'.
+makeTabla0 :: StrokeMap Tabla.Stroke -> Korvai.StrokeMaps
+makeTabla0 strokes = mempty
+    { Korvai.smapTabla = Realize.strokeMap mempty (map (first strip) strokes) }
+    where strip = fmap (fmap Realize._stroke)
+    -- smapTabla expects plain Bols, while Sequence uses Realize.Stroke Bol, so
+    -- I can do emphasis.  Bols are different that Sollu in that I decided to
+    -- put emphasis on bols, since I treat them like a realization in their own
+    -- right.  TODO: I should probably lookup with Bols, but propagate emphasis
+    -- through separately.
+
+data Na = Kinar | Sur
+    deriving (Show, Eq)
+
+_tablaStrokes :: Na -> [(Sequence, SequenceM)]
+_tablaStrokes naKinar = map (second (mconcatMap Realize.strokeToSequence)) $
+    [ ("dheredhere", [ge & the, rhe, the, rhe]) -- implicit ge on first stroke
+    , ("dhere", [the, rhe]) -- TODO not sure if a standalone dhere has ge?
+    -- TODO I can do normalization to reduce permutations:
+    -- tira = tiri = tari = tere
+    -- kite = kita
+    , ("tarikita", [tet, te, ka, tet])
+    , ("terekita", [tet, te, ka, tet])
+    , ("terekite", [tet, te, ka, tet])
+    , ("tirakita", [tet, te, ka, tet])
+    , ("tirakite", [tet, te, ka, tet])
+    , ("tirikita", [tet, te, ka, tet])
+    , ("kitataka", [ka, tet, te, ka])
+    , ("kitetaka", [ka, tet, te, ka])
+    -- , ("takaterekita", [te, ka, tet, te, ka, tet, te, ka])
+    , ("taka", [te, ka]) -- TODO works for taka terekita and terekita taka
+    , ("dhen", [ge & tun])
+    , ("ghen", [ge])
+    , ("ten", [tun])
+    , ("dhennegene", [ge & tun, nhe, ge, ne])
+    , ("tennekene", [tun, nhe, ka, ne])
+    , ("dhenne", [ge & tun, ne])
+    , ("taran ne", [tun, daya Tabla.Ran, ne]) -- play on rim when followed by ne
+    , ("taran", [daya Tabla.Tu3, tun]) -- otherwise play in middle
+    , (dhaS, [ge & tin])
+    , ("dhet", [ge & tette])
+    , ("dhin", [ge & tin])
+    , ("dhi", [ge & tun])
+    , ("kre", [ka &+ tet])
+    , ("kran", [ka &+ na])
+    ] ++ case naKinar of
+        Kinar -> [(bol, [stroke]) | (bol, stroke, _) <- onKinarSur]
+        Sur -> [(bol, [stroke]) | (bol, _, stroke) <- onKinarSur]
+    ++ map (second (:[])) -- direct bol -> stroke correspondence
+    [ ("di", tun)
+    , ("din", tin)
+    , ("ga", ge)
+    , ("ge", ge)
+    , ("ka", ka)
+    , ("kat", ka)
+    , ("ke", ka)
+    , ("ki", ka)
+    , ("na", na)
+    , ("ne", ne)
+    , ("ran", daya Tabla.Ran)
+    , ("re", daya Tabla.Re)
+    , ("tA", tin)
+    , ("ta", tet)
+    , ("tak", daya Tabla.Tak)
+    , ("te", te)
+    , ("tet", tet)
+    , ("the", the)
+    , ("ti", daya Tabla.Ti)
+    , ("tin", tin)
+    , ("tre", daya Tabla.Tre)
+    , ("tu", tun)
+    , ("tun", tun)
+    , ("ṭa", te)
+    ]
+    where
+    onKinarSur =
+        [ ("dha", ge & na, ge & tin)
+        -- TODO but dha -> ta should be (na, tin)
+        -- but standalone tA should always be din
+        -- so map kali dha to some other ta?
+        ]
+    -- Even though I do define (&) for Sequence, I use single strokes here,
+    -- it should wind up the same but is simpler types.
+    Tabla.Strokes { .. } = Tabla.strokes
+    (&) = Tabla.both
+    (&+) = Tabla.flam
+    nhe = daya Tabla.Nhe
+    daya = Tabla.Daya
+
+-- | Merge a sequence of left hand strokes with one of right hand strokes.
+-- Both sequences must have the same length and structure.
+(&) :: HasCallStack => SequenceM -> SequenceM -> SequenceM
+a & b = S.fromList $ Notation.merge Tabla.bothR (S.toList a) (S.toList b)
+
+(&+) :: HasCallStack => SequenceM -> SequenceM -> SequenceM
+a &+ b = S.fromList $ Notation.merge Tabla.flamR (S.toList a) (S.toList b)
 
 -- * korvai
 
-korvai :: Talas.Tal -> [Section] -> Korvai
-korvai = Korvai.tablaKorvai
+korvai :: Talas.Tal -> Korvai.StrokeMaps -> [Section] -> Korvai
+korvai = Korvai.bolKorvai
 
-korvai1 :: Talas.Tal -> Section -> Korvai
-korvai1 tala section = korvai tala [section]
+korvai1 :: Talas.Tal -> Korvai.StrokeMaps -> Section -> Korvai
+korvai1 tala smaps section = korvai tala smaps [section]
 
-korvaiS :: Talas.Tal -> [Sequence] -> Korvai
-korvaiS tala = korvai tala • Korvai.inferSections
+korvaiS :: Talas.Tal -> Korvai.StrokeMaps -> [Sequence] -> Korvai
+korvaiS tala smaps = korvai tala smaps • Korvai.inferSections
 
-korvaiS1 :: Talas.Tal -> Sequence -> Korvai
-korvaiS1 tala seq = korvaiS tala [seq]
+korvaiS1 :: Talas.Tal -> Korvai.StrokeMaps -> Sequence -> Korvai
+korvaiS1 tala smaps seq = korvaiS tala smaps [seq]
 
 -- * metadata
 

@@ -5,9 +5,18 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE StrictData #-}
-module Solkattu.Instrument.Tabla where
+module Solkattu.Instrument.Tabla (
+    Stroke(..)
+    , Baya(..), Daya(..)
+    , Strokes(..)
+    , strokes, notes
+    , both, flam
+    , bothR, flamR
+) where
+import qualified Data.Text as Text
 import           GHC.Stack (HasCallStack)
 
+import qualified Derive.Expr as Expr
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
@@ -27,7 +36,7 @@ data Stroke = Baya Baya | Daya Daya | Both Baya Daya | Flam Baya Daya
 data Baya = Ka | Ge
     deriving (Eq, Ord, Show)
 data Daya =
-    Dhe -- dhere, thumb side
+    The -- dhere, thumb side.  Usually dhe but the because without ge.
     | Rhe -- dhere, right side
     | Na -- nam
     | Ne -- like tet, but closer to edge
@@ -35,21 +44,72 @@ data Daya =
     | Ran -- tun one finger on edge, like Nhe but 1
     | Re -- halfway between Tet and Ne
     | Tak -- tin but closed, middle finger near middle of syahi
-    | Tin -- din
-    | Tun -- dheem, 1 finger
-    | Tu3 -- dheem, 3 fingers
-    | Tet
-    | Tre -- tette flam
     | Te -- actually ṭe
+    | Tet
     | Tette -- infer tet or te based on next stroke
     | Ti -- te with middle finger, like mi
+    | Tin -- din
+    | Tre -- tette flam
+    | Tu3 -- dheem, 3 fingers
+    | Tun -- dheem, 1 finger
     deriving (Eq, Ord, Show)
 
 instance Pretty Stroke where pretty = showt
+instance Pretty Baya where pretty = showt
+instance Pretty Daya where pretty = showt
+
+instance Solkattu.Notation Stroke where
+    notation = \case
+        Baya a -> Solkattu.notation a
+        Daya a -> Solkattu.notation a
+        Both Ge b -> t $ Text.toUpper $ Solkattu.notationText b
+        Both Ka b -> t $ Solkattu.notationText b <> overline
+        Flam Ka Tet -> t "kr" -- kre
+        Flam Ka Na -> t "kn" -- kran
+        Flam _ _ -> t "?" -- unknown
+        where
+        t = Solkattu.textNotation
+
+instance Expr.ToExpr Stroke where
+    -- TODO I have no tabla instrument, so this is just theoretical
+    -- Korvai.GInstrument wants it
+    to_expr s = Expr.generator0 $ Expr.Symbol $ Solkattu.notationText s
+
+instance Expr.ToExpr (Realize.Stroke Stroke) where
+    to_expr (Realize.Stroke _emphasis stroke) = Expr.to_expr stroke
+    -- TODO
+
+-- COMBINING OVERLINE
+overline :: Text
+overline = "\x0305"
+
+instance Solkattu.Notation Baya where
+    notation = Solkattu.textNotation . \case
+        Ka -> "k"
+        Ge -> "e"
+
+instance Solkattu.Notation Daya where
+    notation = Solkattu.textNotation . \case
+        The -> "\\"
+        Rhe -> "/"
+        Na -> "n"
+        Ne -> "l"
+        Nhe -> "u"
+        Ran -> "u"
+        Re -> "r"
+        Tak -> "t"
+        Te -> "ṭ"
+        Tet -> "t"
+        Tette -> "t"
+        Ti -> "."
+        Tin -> "d"
+        Tre -> "tr" -- TODO?
+        Tu3 -> "u"
+        Tun -> "v"
 
 data Strokes a = Strokes {
     ka :: a, ge :: a
-    , dhe :: a
+    , the :: a
     , rhe :: a
     , na :: a
     , ne :: a
@@ -65,7 +125,7 @@ strokes = Strokes
     { ka = Baya Ka
     , ge = Baya Ge
     -- daya
-    , dhe = Daya Dhe
+    , the = Daya The
     , rhe = Daya Rhe
     , na = Daya Na
     , ne = Daya Ne
@@ -79,33 +139,22 @@ strokes = Strokes
 notes :: Strokes (S.Sequence g (Solkattu.Note (Realize.Stroke Stroke)))
 notes = Realize.strokeToSequence <$> strokes
 
-bothStrokes :: HasCallStack => Stroke -> Stroke -> Stroke
-bothStrokes (Baya a) (Daya b) = Both a b
-bothStrokes (Daya b) (Baya a) = Both a b
-bothStrokes a b =
-    Solkattu.throw $ "requires baya & daya: " <> showt (a, b)
+both :: HasCallStack => Stroke -> Stroke -> Stroke
+both (Baya a) (Daya b) = Both a b
+both (Daya b) (Baya a) = Both a b
+both a b = Solkattu.throw $ "requires baya & daya: " <> showt (a, b)
 
--- TODO parse strings to bols, put in stroke map
-sequences :: [(Text, [Stroke])]
-sequences =
-    [ ("dheredhere", [ge & dhe, rhe, dhe, rhe])
-    , ("terekita", [tet, te, ka, tet])
-    , ("kitataka", [ka, tet, te, ka])
-    , ("takaterekitataka", [te, ka, tet, te, ka, tet, te, ka])
-    , ("dha", [ge & na]) -- which one depends on context
-    , ("dha", [ge & tin])
-    , ("dhen", [ge & tun])
-    , ("dhenne", [ge & tun, ne])
-    , ("dhennegene", [ge & tun, nhe, ge, ne])
-    , ("tennekene", [tun, nhe, ka, ne])
-    , ("taran ne", [tun, Daya Ran, ne]) -- play on rim when followed by ne
-    , ("taran", [Daya Tu3, tun]) -- otherwise play in middle
-    , ("dhet", [ge & tette])
-    , ("dhin", [ge & tin]) -- dhin depends on context
-    , ("dhin", [ge & tun])
-    , ("kre", [Flam Ka Tet])
-    ]
-    where
-    Strokes { .. } = strokes
-    (&) = bothStrokes
-    nhe = Daya Nhe
+bothR :: HasCallStack => Realize.Stroke Stroke -> Realize.Stroke Stroke
+    -> Realize.Stroke Stroke
+bothR (Realize.Stroke em1 s1) (Realize.Stroke em2 s2) =
+    Realize.Stroke (em1 <> em2) (both s1 s2)
+
+flam :: HasCallStack => Stroke -> Stroke -> Stroke
+flam (Baya a) (Daya b) = Flam a b
+flam (Daya b) (Baya a) = Flam a b
+flam a b = Solkattu.throw $ "requires baya & daya: " <> showt (a, b)
+
+flamR :: HasCallStack => Realize.Stroke Stroke -> Realize.Stroke Stroke
+    -> Realize.Stroke Stroke
+flamR (Realize.Stroke em1 s1) (Realize.Stroke em2 s2) =
+    Realize.Stroke (em1 <> em2) (flam s1 s2)

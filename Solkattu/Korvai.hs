@@ -118,12 +118,13 @@ korvaiInstruments korvai = filter hasInstrument instruments
         case instrumentSection inst (korvaiSections korvai) of
             Just _ -> True
             Nothing -> case korvaiSections korvai of
-                KorvaiSections IKonnakol _ -> not (isEmpty inst)
+                KorvaiSections IKonnakol _ ->
+                    not $ isEmpty $ getSolluMap inst (korvaiStrokeMaps korvai)
+                KorvaiSections IBol _ ->
+                    not $ isEmpty $ getBolMap inst (korvaiStrokeMaps korvai)
                 _ -> False
     -- Even if the stroke map is broken, at least there is one.
-    isEmpty :: Instrument stroke -> Bool
-    isEmpty inst = either (const False) Realize.isInstrumentEmpty $
-        getSolluMap inst (korvaiStrokeMaps korvai)
+    isEmpty = either (const False) Realize.isInstrumentEmpty
 
 mridangamKorvai :: Tala.Tala -> Realize.PatternMap Mridangam.Stroke
     -> [Section (SequenceT (Realize.Stroke Mridangam.Stroke))] -> Korvai
@@ -145,11 +146,11 @@ instrumentKorvai inst tala pmap sections = Korvai
     , korvaiMetadata = mempty
     }
 
-tablaKorvai :: Talas.Tal
+bolKorvai :: Talas.Tal -> StrokeMaps
     -> [Section (SequenceT (Realize.Stroke Bol.Bol))] -> Korvai
-tablaKorvai tala sections = Korvai
+bolKorvai tala strokeMaps sections = Korvai
     { korvaiSections = KorvaiSections IBol sections
-    , korvaiStrokeMaps = mempty
+    , korvaiStrokeMaps = strokeMaps
     , korvaiTala = Talas.Hindustani tala
     , korvaiMetadata = mempty
     }
@@ -184,20 +185,21 @@ slice start end korvai = case korvaiSections korvai of
 -- Instrument is a GADT that does the mapping.
 --
 -- This seems like a dependent pair, Instrument lets me know what stroke is.
-data KorvaiSections = forall stroke.
-    KorvaiSections (Instrument stroke) (Sections stroke)
+data KorvaiSections = forall sollu.
+    KorvaiSections (Instrument sollu)
+        [Section (SequenceT (Realize.Stroke sollu))]
 
 instance Show KorvaiSections where
     show (KorvaiSections inst _) = untxt $ instrumentName inst
 instance Pretty KorvaiSections where
     pretty (KorvaiSections inst _) = instrumentName inst
 
-type Sections stroke = [Section (SequenceT (Realize.Stroke stroke))]
+type Sections sollu = [Section (SequenceT (Realize.Stroke sollu))]
 
 -- | Just if stroke ~ sollu.
 -- TODO: can I use Data.Type.Equality :~: ?
 instrumentSection :: Instrument stroke -> KorvaiSections
-    -> Maybe (Sections stroke)
+    -> Maybe [Section (SequenceT (Realize.Stroke stroke))]
 instrumentSection inst sections = case (inst, sections) of
     (IKonnakol, KorvaiSections IKonnakol sections) -> Just sections
     (IMridangam, KorvaiSections IMridangam sections) -> Just sections
@@ -221,10 +223,14 @@ instruments =
     , GInstrument IKendangTunggal
     , GInstrument IReyong
     , GInstrument ISargam
+    , GInstrument ITabla
     ]
 
 ginstrumentName :: GInstrument -> Text
 ginstrumentName (GInstrument inst) = instrumentName inst
+
+instance Show GInstrument where
+    show inst = "GInstrument " <> untxt (ginstrumentName inst)
 
 -- * Section
 
@@ -620,7 +626,7 @@ getStrokeMap :: Instrument stroke -> StrokeMaps
         ( Realize.StrokeMap Solkattu.Sollu stroke
         , Realize.StrokeMap Bol.Bol stroke
         )
-getStrokeMap inst smaps = do
+getStrokeMap inst smaps =
     (,) <$> getSolluMap inst smaps <*> getBolMap inst smaps
 
 getSolluMap :: Instrument stroke -> StrokeMaps

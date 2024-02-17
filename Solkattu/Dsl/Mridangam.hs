@@ -18,9 +18,8 @@ import           Prelude hiding ((.))
 import           GHC.Stack (HasCallStack)
 
 import           Solkattu.Dsl.Interactive (diff, diffw)
-import qualified Solkattu.Dsl.MridangamNotation as MridangamNotation
 import qualified Solkattu.Dsl.Solkattu as Dsl.Solkattu
-import           Solkattu.Dsl.Solkattu (realizeScore, realizeScoreM)
+import           Solkattu.Dsl.Solkattu (realizeScore, realizeScoreM, (&))
 import qualified Solkattu.Format.Terminal as Terminal
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Korvai as Korvai
@@ -36,11 +35,6 @@ import           Solkattu.Dsl.Generic
 type Sequence = SequenceT Stroke
 type Stroke = Realize.Stroke Mridangam.Stroke
 type Section = Korvai.Section Sequence
-
--- | Merge a sequence of left hand strokes with one of right hand strokes.
--- Both sequences must have the same length and structure.
-(&) :: HasCallStack => Sequence -> Sequence -> Sequence
-a & b = S.fromList $ MridangamNotation.merge (S.toList a) (S.toList b)
 
 korvai :: Tala.Tala -> [Section] -> Korvai.Korvai
 korvai tala = Korvai.mridangamKorvai tala Mridangam.defaultPatterns

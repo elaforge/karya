@@ -20,7 +20,7 @@ import           GHC.Stack (HasCallStack)
 
 import qualified Solkattu.Dsl.Interactive as Interactive
 import           Solkattu.Dsl.Interactive (diff, diffw)
-import qualified Solkattu.Dsl.MridangamNotation as MridangamNotation
+import qualified Solkattu.Dsl.Notation as Notation
 import qualified Solkattu.Format.Terminal as Terminal
 import qualified Solkattu.Instrument.KendangPasang as KendangPasang
 import qualified Solkattu.Instrument.KendangTunggal as KendangTunggal
@@ -178,7 +178,8 @@ Mridangam.Strokes {..} = Mridangam.notes
 -- | Merge a sequence of left hand strokes with one of right hand strokes.
 -- Both sequences must have the same length and structure.
 (&) :: HasCallStack => SequenceM -> SequenceM -> SequenceM
-a & b = S.fromList $ MridangamNotation.merge (S.toList a) (S.toList b)
+a & b = S.fromList $
+    Notation.merge Mridangam.bothRStrokes (S.toList a) (S.toList b)
 
 on :: SequenceM
 on = o&n

@@ -1,9 +1,11 @@
+{-# LANGUAGE RecordWildCards #-}
 -- Copyright 2023 Evan Laforge
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 module Solkattu.Score.Tabla2023 where
-import           Prelude hiding ((.))
+import           Prelude hiding ((.), (^))
 
+import qualified Solkattu.Instrument.Tabla as Tabla
 import qualified Solkattu.Talas as Talas
 
 import           Solkattu.Dsl.Bol
@@ -14,7 +16,7 @@ import           Solkattu.Dsl.Bol
 -- TODO I should be able to take sd off the 16 beat ones, but then the terminal
 -- spacing changes, because it doesn't want to split into 4 beats
 bats :: Korvai
-bats = bat $ source "mary" $ korvaiS tintal $
+bats = bat $ source "mary" $ korvaiS tintal mempty $
     [ sd $ r2 "gadi gene nage tette" . "katA katA gadi gadi"
         . "gadi gene nage tette"
 
@@ -53,7 +55,7 @@ bats = bat $ source "mary" $ korvaiS tintal $
 -- * akash
 
 akash_kaida1 :: Korvai
-akash_kaida1 = kaida $ akash $ korvaiS tintal $ map sd
+akash_kaida1 = kaida $ akash $ korvaiS tintal tablaKinar $ map sd
     [ r2 "dha dha trkt dha dha tu na taa taa trkt dha dha tu na"
     -- palta 1
     , "dha dha trkt dha dha trkt dha dha trkt dha dha tu na"
@@ -76,11 +78,10 @@ akash_kaida1 = kaida $ akash $ korvaiS tintal $ map sd
     ]
 
 akash_kaida2 :: Korvai
-akash_kaida2 = kaida $ akash $ korvaiS tintal $ map sd
+akash_kaida2 = kaida $ akash $ korvaiS tintal tablaKinar $ map sd
     [ r2 "dha trkt tk dha trkt tk taa trkt tk dha trkt tk"
     , "dha trkt tk dha trkt tk dha trkt tk tu na kt tk"
     . "taa trkt tk taa trkt tk dha trkt tk tu na kt tk"
-
     -- palta
     , "dha dha trkt dha trkt tk dha trkt tk tu na kt tk"
     . "taa taa trkt taa trkt tk dha trkt tk tu na kt tk"
@@ -96,64 +97,54 @@ akash_kaida2 = kaida $ akash $ korvaiS tintal $ map sd
 
 -- farmaisi chakradar paran
 farmaisi :: Korvai
-farmaisi = akash $ korvaiS1 tintal $ nadai 3 $
+farmaisi = akash $ korvaiS1 tintal tablaKinar $ nadai 3 $
     r3 $ g $ r2 "dhadha gena tette" . "takita dha trkt" . "dhadha gena tette"
     . "kran__ kran__" . (nadai 2 "tktr kttk")
     . r3 (r3 "dha trkt" . "tak kran_ dha__")
     -- first finish on 11
 
 tukra1 :: Korvai
-tukra1 = tukra $ akash $ korvaiS1 tintal $
+tukra1 = tukra $ akash $ korvaiS1 tintal tablaKinar $
     sd "dha dha din din na na" . "tette tette katita katita"
       . tri_ (sd "dha__") (tri_ "dha_" "kita")
 
 tukra2_chakradar :: Korvai
-tukra2_chakradar = tukra $ akash $ korvaiS1 tintal $
-    r2 "dha ga tette taa ge tette"
+tukra2_chakradar = tukra $ akash $ korvaiS1 tintal tablaKinar $
+    r2 "dha ga tette tA ge tette"
     . "kre dhet tette dha ge tette" . "gadi gene na ge tette"
     . "dhet _ dhet _"
-      . tri_ "dha_dha_" (tri_ "dha_" (g "trkt dhet _ taage _ na"))
+      . tri_ "dha_dha_" (tri_ "dha_" (g "trkt dhet _ tAge _ na"))
 
 tukra3_otaan :: Korvai
-tukra3_otaan = tukra $ akash $ korvaiS1 tintal $
-    "dhet_dhet_ taa__ka taa__ka ta_kat_"
-    . "dhagetette taa getette" . "kre dhi _ na" . "kredha tette"
+tukra3_otaan = tukra $ akash $ korvaiS1 tintal (makeTabla Sur []) $
+    "dhet_dhet_ tA__ka tA__ka ta_kat_"
+    . "dhagetette tA getette" . "kre dhi _ na" . "kredha tette"
     . tri_ "dha___" (g "kredha tette dha ge tette")
 
 tukra4 :: Korvai
-tukra4 = tukra $ akash $ korvaiS1 tintal $
+tukra4 = tukra $ akash $ korvaiS1 tintal tablaKinar $
     "gadi gene naga tette" . "gadi gene dha _"
     . "kata gadi gene kati gadi gene dha _"
     . r3 "ka tette ghen _ neran _ na dha tuna"
 
-tukra5 :: Korvai
-tukra5 = tukra $ akash $ korvaiS1 tintal $
-    "takita dhikita taka tirikita dhirikita"
-    . "nagadhit_ kran__na dha_dha_"
-    . "dhinnaginadha _ dhinnagina dha _"
-    . "dha ge tette katta gadigene"
-    . "dha _ tuna kat _"
-    . r3 "dhati dha _"
-    -- this doesn't line up...
-    . __M (15 * 4)
-
 tukra6 :: Korvai
-tukra6 = tukra $ akash $ korvaiS1 tintal $ nadai 3 $
+tukra6 = tukra $ akash $ korvaiS1 tintal tablaKinar $ nadai 3 $
     "dha _ na dhikita dha trkt dhi kita"
     . "ka tette tukita dhi gene nagene"
-    . "takita taa_na taa__" . tri_ "dha__" "kredhadha"
+    . "takita tA_na tA__" . tri_ "dha__" "kredhadha"
 
 
 -- * colby
 
 c_23_09_07a :: Korvai
-c_23_09_07a = date 2023 9 7 $ colby $ tukra $ korvaiS1 tintal $
+c_23_09_07a = date 2023 9 7 $ colby $ tukra $ korvaiS1 tintal tablaKinar $
     "kat _ tette gege tette gege tun _"
     . "nana  tette kat tette ge tette"
     . tri_ (dha.__6) (tri_ "dha_" "kita")
 
 c_23_09_07_kaida :: Korvai
-c_23_09_07_kaida = date 2023 9 7 $ kaida $ colby $ korvaiS tintal $ map su
+c_23_09_07_kaida = date 2023 9 7 $ kaida $ colby $ korvaiS tintal tablaKinar $
+    map su
     [ sd $     theme . tirikita . theme . kali nanagena
         . kali theme . tirikita . theme . nanagena
     ,          r3 (theme . tirikita) . theme . kali nanagena
@@ -165,9 +156,9 @@ c_23_09_07_kaida = date 2023 9 7 $ kaida $ colby $ korvaiS tintal $ map su
         . theme . tirikita . theme . kali nanagena
         . kali (dhage_tette.gege_tette) . r3 (kali kataagege.tirikita)
         . theme . tirikita . theme . nanagena
-    , theme.tette . r2 (ka.taa)."gege tette" . r3 (ka.taa)."gege tette"
+    , theme.tette . r2 (ka.tA)."gege tette" . r3 (ka.tA)."gege tette"
         . theme.tirikita.theme.kali nanagena
-     . kali (theme.tette . r2 (ka.taa)."gege tette" . r3 (ka.taa)."gege tette")
+     . kali (theme.tette . r2 (ka.tA)."gege tette" . r3 (ka.tA)."gege tette")
         . theme.tirikita.theme.nanagena
     , tri_ (dha.__8) $ g $
         tri_ (dha.__6) (dhage_tette.gege_tette.kataagege.nanagena)
@@ -182,7 +173,7 @@ c_23_09_07_kaida = date 2023 9 7 $ kaida $ colby $ korvaiS tintal $ map su
     tirikita = "tirikita"
 
 c_23_09_21a :: Korvai
-c_23_09_21a = date 2023 9 21 $ colby $ tukra $ korvaiS tintal
+c_23_09_21a = date 2023 9 21 $ colby $ tukra $ korvaiS tintal tablaKinar
     [ nadai 3 $ "dha dha dha di di di na na na" . "kat tette dha _"
         . "dha dha di di na na" . "kat tette dha_"
         . "dha _ di _ na _" . tri_ (dha.__4) "kat tette"
@@ -201,13 +192,13 @@ c_23_09_21a = date 2023 9 21 $ colby $ tukra $ korvaiS tintal
         . "dha _ di _ na _" . tri_ dha "kat tette" . dha.__4
 
 c_23_09_29_rela :: Korvai
-c_23_09_29_rela = date 2023 9 29 $ colby $ rela $ korvaiS1 tintal $
+c_23_09_29_rela = date 2023 9 29 $ colby $ rela $ korvaiS1 tintal tablaKinar $
     kaliMt (-2) 4 $ r2 $ r2 dhage_tette_din_ . "dhage tette"
         . dhage_tette_din_ . "dhage tette" . "dhage nage dhenne"
     where dhage_tette_din_ = "dhage tette dhin _"
 
 c_23_10_12 :: Korvai
-c_23_10_12 = date 2023 10 12 $ colby $ korvaiS tintal
+c_23_10_12 = date 2023 10 12 $ colby $ korvaiS tintal tablaKinar
     [ kaliMt (-8) 0 $ sd $ r2 $ dtt.dtt.ddtt.end
     , palta $ r2 (dtt.dtt.dha.dha)
     , palta $ r4 dtt . ddtt
@@ -225,28 +216,24 @@ c_23_10_12 = date 2023 10 12 $ colby $ korvaiS tintal
     ddtt = dha.dtt
 
 c_23_10_19 :: Korvai
-c_23_10_19 = date 2023 10 19 $ colby $ korvaiS1 tintal $
+c_23_10_19 = date 2023 10 19 $ colby $ korvaiS1 tintal tablaKinar $
     kaliMt (-8) 0 $ r2 $ sd $ "nagegena gegenana gegenage dhina gena"
 
 c_23_10_19_chak :: Korvai
-c_23_10_19_chak = date 2023 10 19 $ colby $ chakradar $ korvaiS1 tintal $
+c_23_10_19_chak = date 2023 10 19 $ colby $ chakradar $
+    korvaiS1 tintal tablaKinar $
     tri_ (dha.__8) $
-        tetekata . nadai 3 (dha.tetekata) . sd ("dhatet_teka_taga_dige_nedha")
+        tetekata . nadai 3 (dha.tetekata) . sd ("dhatet_teka_tAga_dige_nedha")
         . tri_ (dha.__4) tetekata
 
 c_23_10_16 :: Korvai
-c_23_10_16 = date 2023 10 26 $ colby $ mukra $ korvaiS1 tintal $
+c_23_10_16 = date 2023 10 26 $ colby $ mukra $ korvaiS1 tintal tablaKinar $
     "dha_dha__ tet_te__ tet_te__ dha_dha__"
     . spread 3 (r2 "dhatette" . dha) . dha.__
     . g (r2 "dhatettedha_dha_" . "ta_dhatettedha_dha")
 
-
--- TODO some kind of more automatic, repeat with 1/2 kali?
--- But also need to do kali slightly before the middle.
--- So: kaliAt (-1) 0
--- This means kali from 2/4 - 1, to 3/4+0
 c_23_11_09 :: Korvai
-c_23_11_09 = date 2023 11 9 $ colby $ rela $ kaida $ korvaiS tintal
+c_23_11_09 = date 2023 11 9 $ colby $ rela $ kaida $ korvaiS tintal tablaKinar
     [ kaliM (64-8) (64+32) $ r2 $ theme1.theme2.theme3.theme2
     , r2 (theme1.theme2) . theme
     -- accent on Terekita
@@ -323,7 +310,6 @@ c_23_11_09 = date 2023 11 9 $ colby $ rela $ kaida $ korvaiS tintal
     trkt = "terekite"
     trkttk = "terekite taka"
     grng = "gerenaga"
-    _tabla = [("tun", "ka&tun"), ("dha", "ge+din")]
 
 -- 11 + 11 + 11 = 33
 -- 10 + 1 + 10 + 1 + 10 = 32
@@ -334,43 +320,43 @@ c_23_11_09 = date 2023 11 9 $ colby $ rela $ kaida $ korvaiS tintal
 -- if start at 0 it's 10 and 5, *5 = 15 + 1/2 gaps = 16
 
 c_23_11_09_dhere :: Korvai
-c_23_11_09_dhere = date 2023 11 9 $ colby $ korvaiS tintal
+c_23_11_09_dhere = date 2023 11 9 $ colby $ korvaiS tintal tabla
     [ kaliMt (-4) 0 $ su $ r2 $
         "dha_terekitataka" . r2 "dhere dhere kitataka" . "takaterekitataka"
       . "terekitataka" . "gere dhere dhere" . "kitataka"
       . "dha_tette gerenaga" . "dhi_na_gerenage"
     ]
     where
-    _tabla =
-        [ ("dha", "ge&na")
-        , ("gere dhere dhere", "gerhe dherhe dherhe")
-        ]
+    tabla = makeTabla Kinar [("gere dhere", ge.rhe.the.rhe)]
+        where Tabla.Strokes { .. } = Tabla.notes
 
 e_dhere :: Korvai
-e_dhere = exercise $ colby $ korvaiS tintal
+e_dhere = exercise $ colby $ korvaiS tintal tablaKinar
     [ sd $ r2 "dhere dhere kitataka" . r3 "dhere dhere" . "kitataka"
     , sd $ r2 $ "dhere dhere kitataka" . "taka terekitataka"
     ]
 
 c_23_11_09_chak :: Korvai
-c_23_11_09_chak = date 2023 11 9 $ colby $ chakradar $ korvaiS1 tintal $
+c_23_11_09_chak = date 2023 11 9 $ colby $ chakradar $
+    korvaiS1 tintal tablaKinar $
     tri_ "dha___" $ "dhatette dha_tette dha_tedha_"
-    . su (r2 "terekitataka" . "taka terekitataka") . taa
+    . su (r2 "terekitataka" . "taka terekitataka") . tA
     . tri_ "dha_kat_" "ghen_te"
 
 c_23_11_09_tukra :: Korvai
-c_23_11_09_tukra = date 2023 11 9 $ colby $ tukra $ korvaiS1 tintal $
+c_23_11_09_tukra = date 2023 11 9 $ colby $ tukra $ korvaiS1 tintal tablaKinar $
     "tu_na_ kttk tu_na_" . "tu_natu_na_ kttk" . "tu_na_ kttk"
-    . su "tari kita taka taa_" . su tetekata . sd "dha dha dha"
+    . su "terekitataka tA_" . su tetekata . sd "dha dha dha"
     . r3 "tu_na kttk tu_na_"
 
 c_23_11_09_b :: Korvai
-c_23_11_09_b = date 2023 11 9 $ colby $ tukra $ korvaiS1 tintal $
+c_23_11_09_b = date 2023 11 9 $ colby $ tukra $ korvaiS1 tintal tablaKinar $
     dha.ge.tetekata.dha.__4 . sd tetekata.dha.__4
     . tri_ "__" (r3 (dha.ge.tetekata))
 
 c_23_11_16 :: Korvai
-c_23_11_16 = date 2023 11 16 $ colby $ kaida $ korvaiS tintal $ map (nadai 3)
+c_23_11_16 = date 2023 11 16 $ colby $ kaida $ korvaiS tintal tablaKinar $
+    map (nadai 3)
     [   theme1
       . kali (dhatette.dhagena.dhettette.dhagena)
         . dhatette.dhagena.dhagedhinagena
@@ -400,8 +386,8 @@ c_23_11_16 = date 2023 11 16 $ colby $ kaida $ korvaiS tintal $ map (nadai 3)
     , dhatette.dhagena.dhettette.dhagena
         . tri_ (nadai 4 (dha.__)) (nadai 5 dhet5) . theme1
     , dhet5.dha.__.dhet5.dha.__.dhette.r2 dhagena.dha.__ . theme1
-    , tri_ "dha__" $ dhatette.dhagena.dhagedhinagena. tri_ "dha_ne" "dha_dha_"
-        -- dha is ge&tin
+    , tri_ (dhaS.__3) $
+        dhatette.dhagena.dhagedhinagena . tri_ (dhaS.__.ne) "dha_dha_"
     ]
     where
     dhet5 = g $ dhette.dhagena
@@ -413,24 +399,23 @@ c_23_11_16 = date 2023 11 16 $ colby $ kaida $ korvaiS tintal $ map (nadai 3)
     dhagedhinagena = "dhage dhina gena"
     dhagetunakena = "dhage tuna kena"
     dhette = "dhette"
-    _tabla = [("dha", "ge&na")] -- because kaida
 
 c_23_11_30 :: Korvai
-c_23_11_30 = date 2023 11 30 $ colby $ korvaiS1 tintal $
-    r3 "dhatuna".dha.__.r2 "dhatuna".dha.__
-        . tri_ (dha.__3) (tri_ (dha.__) "dhatuna")
-    -- karvai dha on tin
+c_23_11_30 = date 2023 11 30 $ colby $ korvaiS1 tintal tablaKinar $
+    r3 "dhatuna".dhaS.__.r2 "dhatuna".dhaS.__
+        . tri_ (dhaS.__3) (tri_ (dhaS.__) "dhatuna")
     -- replace dhatuna with any 3 or 6
 
 c_23_11_30_tukra :: Korvai
-c_23_11_30_tukra = date 2023 11 30 $ colby $ tukra $ korvaiS1 tintal $
+c_23_11_30_tukra = date 2023 11 30 $ colby $ tukra $
+    korvaiS1 tintal tablaKinar $
     "takadi_" . "kitataka" . "takaterekitataka" . "takaterekitadin_"
     . "dha__redha___" . "terekitatakataa_".tetekata
-    . dha.__4.taa.__4."gadigenedha___"
+    . dha.__4.tA.__4."gadigenedha___"
     . tri_ (dha.__4."kitataka") ("terekitatakataa_".tetekata)
 
 c_23_12_29_rela :: Korvai
-c_23_12_29_rela = date 2023 12 29 $ colby $ rela $ korvaiS tintal
+c_23_12_29_rela = date 2023 12 29 $ colby $ rela $ korvaiS tintal tablaKinar
     [ kaliMt (-2) 0 $ su $ r2 $ theme1 . theme2 . theme1 . theme1
     -- reduced version
     , kaliMt (-2) 0 $ r2 $
@@ -445,14 +430,16 @@ c_23_12_29_rela = date 2023 12 29 $ colby $ rela $ korvaiS tintal
     nanagene = "nanagene"
 
 c_23_12_29_tukra :: Korvai
-c_23_12_29_tukra = date 2023 12 29 $ colby $ tukra $ korvaiS tintal
+c_23_12_29_tukra = date 2023 12 29 $ colby $ tukra $ korvaiS tintal tabla
     [ "tA_tun_na_ kitatakatun_ terekitatun_na_ kitataka" . r4 "tAka"
         . "takaterekite"
         -- Awkward to express that the last one is different.
         . tihai2 ("ghen_taran_ne" . tihai "dha_ti_" (dha.__4)) (dha.__6)
         . "ghen_taran_ne" . "dha_ti_" . sd (nadai 3 (r2 (dha.dha.ti)))
     ]
-    -- na on sur
+    where
+    tabla = makeTabla Sur [("na", tin)]
+        where Tabla.Strokes { .. } = Tabla.notes
 
 tihai :: Sequence -> Sequence -> Sequence
 tihai seq sep = tri_ (hv sep) seq
@@ -462,23 +449,24 @@ tihai2 seq sep = seq.sep.seq.sep
 
 -- * candiramani tape
 
+-- TODO for pakhawaj, should have pakhawaj strokes
 candiramani_pakhawaj_kehrwa :: Korvai
-candiramani_pakhawaj_kehrwa = theka $ korvaiS Talas.kehrwa
-    [ sd $ "dhin_dhadhin_dhindhage" . "dhin_dhatin_tintaage"
-    , sd $ "dhin_dhin_dha_tin_" . "trakra dhin_dha_ trakra"
-    , sd $ "dhet ti ṭa taa" . "_dhiṭati" . "kataṭataa" . "_dhiṭati"
+candiramani_pakhawaj_kehrwa = theka $ korvaiS Talas.kehrwa tablaKinar
+    [ sd $ "dhin_dhadhin_dhindhage" . "dhin_dhatin_tintAge"
+    , sd $ "dhin_dhin_dha_tin_" . "trekre dhin_dha_ trekre"
+    , sd $ "dhet ti ṭa tA" . "_dhiṭati" . "kataṭatA" . "_dhiṭati"
     ]
 
 candiramani_pakhawaj_adi :: Korvai
-candiramani_pakhawaj_adi = theka $ korvaiS Talas.adi
-    [ "dha_ki_ṭa_dha_kiṭadha_" . "ki_ṭa_ka_ti_" . "ṭa_taa_tiṭakata gadigene"
-    , "dha_ki_ṭa_dha_" . "dhet_dhi_ṭa_taa_" . "ka_ti_ṭa_dha_dhet_dhi_ṭa_dha_"
+candiramani_pakhawaj_adi = theka $ korvaiS Talas.adi tablaSur
+    [ "dha_ki_ṭa_dha_kiṭadha_" . "ki_ṭa_ka_ti_" . "ṭa_tA_tiṭakata gadigene"
+    , "dha_ki_ṭa_dha_" . "dhet_dhi_ṭa_tA_" . "ka_ti_ṭa_dha_dhet_dhi_ṭa_dha_"
     ]
 
 -- *
 
 legong1 :: Korvai
-legong1 = korvaiS kehrwa
+legong1 = korvaiS kehrwa tablaKinar
     [ "na___ ge_ge_ | na___na_na_ | ge _na _ ge_ge_ | na___na_na_"
     . "ge_tet_ na_na_ | ge_na_ge_gege | _na_na_dha_dha_ | __tuntun_tet_"
     , "ge_tet_na_tet_ | na_na_tet_na_ | __tet_na_tet_"

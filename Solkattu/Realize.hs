@@ -789,6 +789,8 @@ realizeStroke = ToStrokes
 -- The Stroke is extraneous and is ignored, it's just for uniformity with
 -- 'realizeStroke', since 'Korvai.KorvaiSections' no longer has a separate
 -- case for Sollu which allowed it to omit the Realize.Stroke.
+--
+-- TODO but I should propagate the 'Stroke' through to the returned stroke.
 realizeSollu :: Ord sollu => SolluMap sollu stroke
     -> ToStrokes (Stroke sollu) stroke
 realizeSollu (SolluMap smap) = ToStrokes
