@@ -229,7 +229,7 @@ renderAbstraction instName inst score (aname, abstraction) =
         then [("", "")] else [("hidden", "")]
     config abstraction = Config
         { _abstraction = abstraction
-        , _font = if instName == "konnakol"
+        , _font = if instName `elem` ["konnakol", "bol"]
             then konnakolFont else instrumentFont
         , _rulerEach = defaultRulerEach
         }
@@ -464,9 +464,11 @@ formatAvartanams config toSpeed prevRuler tala =
     . Format.makeGroupsAbstract (_abstraction config)
     . Format.normalizeSpeed toSpeed (Talas.aksharas tala)
     where
-    -- On my browser at a "most of the screen" maxWidth, 32 bols fit
-    -- comfortably.
-    maxWidth = 32
+    -- On my browser at a "most of the screen" maxWidth, 8*16 = 128 is too
+    -- crowded.  4*16 = 64 is a bit loose usually but is good spacing
+    -- when it's very busy.  Also it's convenient to break tintal into 4 parts,
+    -- for each anga.
+    maxWidth = 16 * 4
     -- Since html uses a grid, I consider every Symbol the same width.
     symWidth = const 1
 

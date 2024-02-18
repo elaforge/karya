@@ -6561,7 +6561,7 @@ solkattu:
       . Kind of awkward though.
     * html doesn't wrap, so 16 beat tintal doesn't fit
     - for html, I could abbreviate fast terekita as trkt, kitataka as kttk
-    - html: reduce font size for bols
+    * html: reduce font size for bols
     - support Talas.Hindustani in Play.tala_metronome
     - normalize terekita: [tari, tira, tere] [kita, kite]
       . ti is already a different stroke, e.g. dha ti dha, let's avoid it.
@@ -6759,6 +6759,9 @@ solkattu:
       . This may require SequenceT to be a newtype instead of type synonym.
   format: output:
     html:
+      - rendering has gotten very slow, why?
+        . Having entirely separate renders for each abstraction level can't be
+          efficient.
       - link to source
       - Offset rests make empty cells like <td><b> </b></td><td colspan=7> </td>
         . It looks fine but seems messy.
@@ -6773,7 +6776,7 @@ solkattu:
         . But just doubling them leads to an ugly gap in between.  How can I
           emit a long underscore or double underscore?
       - Decrease font size for higher speed.
-      - For high speed split avartanam.
+      * For high speed split avartanam.
       - I shoud be able to display nested groups.
       / use JS to switch between konnakol and mridangam
       db ideas:
