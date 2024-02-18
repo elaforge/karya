@@ -62,6 +62,7 @@ instance Solkattu.Notation Stroke where
     notation = \case
         Baya a -> Solkattu.notation a
         Daya a -> Solkattu.notation a
+        Both Ge The -> t $ "\\" <> ringAbove -- \̊
         Both Ge b -> t $ Text.toUpper $ Solkattu.notationText b
         Both Ka b -> t $ Solkattu.notationText b <> overline
         Flam Ka Tet -> t "kr" -- kre
@@ -83,10 +84,20 @@ instance Expr.ToExpr (Realize.Stroke Stroke) where
 overline :: Text
 overline = "\x0305"
 
+-- COMBINING CIRCUMFLEX ACCENT
+circumflex :: Text
+circumflex = "\x0302"
+
+-- COMBINING RING ABOVE
+ringAbove :: Text
+ringAbove = "\x030A"
+
 instance Solkattu.Notation Baya where
     notation = Solkattu.textNotation . \case
         Ka -> "k"
-        Ge -> "e"
+        -- I used e before for ge, but o is reminiscent of thom and o on
+        -- kendang, and there's ringAbove.
+        Ge -> "o"
 
 instance Solkattu.Notation Daya where
     notation = Solkattu.textNotation . \case
@@ -94,17 +105,19 @@ instance Solkattu.Notation Daya where
         Rhe -> "/"
         Na -> "n"
         Ne -> "l"
-        Nhe -> "u"
-        Ran -> "u"
+        Nhe -> "ù" -- swipe left
+        Ran -> "ú" -- swipe right
         Re -> "r"
-        Tak -> "t"
+        Tak -> "t" <> circumflex
         Te -> "ṭ"
         Tet -> "t"
         Tette -> "t"
         Ti -> "."
         Tin -> "d"
-        Tre -> "tr" -- TODO?
-        Tu3 -> "v"
+        -- Is double-width ok?  It'll get squished in terminal if it's the
+        -- fastest, but maybe that's ok?
+        Tre -> "tr"
+        Tu3 -> "ü"
         Tun -> "u"
 
 data Strokes a = Strokes {
@@ -113,6 +126,7 @@ data Strokes a = Strokes {
     , rhe :: a
     , na :: a
     , ne :: a
+    , re :: a
     , tin :: a
     , tun :: a
     , tet :: a
@@ -129,6 +143,7 @@ strokes = Strokes
     , rhe = Daya Rhe
     , na = Daya Na
     , ne = Daya Ne
+    , re = Daya Re
     , tin = Daya Tin
     , tun = Daya Tun
     , tet = Daya Tet

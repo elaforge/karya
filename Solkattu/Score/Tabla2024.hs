@@ -51,7 +51,7 @@ c_24_01_04_chakradar = date 2024 1 4 $ colby $ chakradar $
     . r3 ("dha_ne". su (dha.ge.tetekata) . "dhatet") . dha.__3
 
 c_24_01_11 :: Korvai
-c_24_01_11 = date 2024 1 12 $ colby $ kaida $ korvaiS jhaptal tablaKinar
+c_24_01_11 = date 2024 1 12 $ colby $ kaida $ korvaiS jhaptal tabla
     [ kaliM (9*4) (15*4) $ r2 $ theme1 . theme2
     , r3 theme1 . theme2 -- aaab
     , pat2 . takga_dhinne . tri_ (dha.__) pat2 . theme1.theme2
@@ -67,7 +67,7 @@ c_24_01_11 = date 2024 1 12 $ colby $ kaida $ korvaiS jhaptal tablaKinar
     , pat2.r3 pat3 . r2 (dha.__6) . dha.__4 . theme2
     , pat2.pat3.pat3.r2 dhinne_dhinna_gena . r2 (dha.__6) . dha.__4 . theme2
     , pat2.pat3 . r6 dhinne_dhinna_gena.dha.__4 . theme2
-    , pat2.pat3 . r3 dhinne_dhinna_gena . r2 pat2 . "takga".dha.__4 . theme2
+    , pat2.pat3 . r3 dhinne_dhinna_gena . r2 pat2 . tak.ga.dha.__4 . theme2
     , pat2.pat3 . r2 dhinne_dhinna_gena
         . r3 (g "dhinne dhinna gege takga").dha.__4 . theme2
     , theme2.theme2b
@@ -81,16 +81,23 @@ c_24_01_11 = date 2024 1 12 $ colby $ kaida $ korvaiS jhaptal tablaKinar
     where
     pat2 = g $ takga_dhinne.dhinna_gena
     pat3 = g $ r2 takga_dhinne.dhinna_gena
-    dhinne_dhinna_gena = g $ "dhinne".dhinna_gena
+    dhinne_dhinna_gena = g $ dhin.ne.dhinna_gena
     theme1 = pat2 . pat3
     theme2 = "dha trekre dhet tette gene" . dhinna_gena . "dhati dhage"
         . dhinna_gena
     theme2b = dha.__8.takga_dhinne . kali pat2
-    -- Kaida not rela, dhinne tak is hard to play quickly, also dhati dhage
-    -- tuna kena is typical of kaida.
+    -- This identifies this as kaida rather than rela: dhinne tak is hard to
+    -- play quickly, also dhati dhage tuna kena is typical of kaida.
     takga_dhinne = "takga dhinne"
     dhinna_gena = "dhinna gena"
-    -- tak is like re, cupped closed stroke
+    tabla = makeTabla Kinar
+        [ ("tak", re)
+        -- dhin tin are on tun, I think this is a regular pattern like with
+        -- Kinar.  TODO Is there a way to infer it?
+        , ("dhin", ge & tun)
+        , ("tin", ka & tun)
+        ]
+        where Tabla.Strokes { .. } = Tabla.notes
 
 c_24_01_26_chalan1 :: Korvai
 c_24_01_26_chalan1 = date 2024 1 26 $ colby $ chalan $ lucknow $
