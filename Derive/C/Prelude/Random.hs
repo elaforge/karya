@@ -208,7 +208,7 @@ alternate_indices starts timestep thresholds = do
     -- Debug.tracepM "reals" (zip starts reals)
     -- Get tempo at each start, in the duration of the timestep at each start.
     durs <- mapM (timestep_dur_at timestep) starts
-    return $ -- Debug.trace_retp "alt_indices" (thresholds, zip starts durs) $
+    return $ -- Debug.traceRetp "alt_indices" (thresholds, zip starts durs) $
         map (index_under_threshold thresholds) durs
 
 timestep_dur_at :: Meter.Rank -> ScoreTime -> Derive.Deriver RealTime

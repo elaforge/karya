@@ -7,8 +7,8 @@ module Util.Debug (
     full, fullM
     -- * forced by evaluation
     , trace, tracep, traces, tracesp
-    , tracef, tracefp, trace_ret, trace_retp
-    , trace_str
+    , tracef, tracefp, traceRet, traceRetp
+    , traceStr
     -- * forced by monad
     , traceM, tracepM, tracesM
     -- in IO
@@ -55,26 +55,26 @@ trace msg val = traces msg val val
 
 -- | Pretty print a value en passant.
 tracep :: (HasCallStack, Pretty a) => Text -> a -> a
-tracep msg val = write (with_msg msg (Pretty.formatted val)) val
+tracep msg val = write (withMsg msg (Pretty.formatted val)) val
 
 -- | Print a showable value.
 traces :: (HasCallStack, Show b) => Text -> b -> a -> a
-traces msg val = write (with_msg msg (pshow val))
+traces msg val = write (withMsg msg (pshow val))
 
 -- | Pretty print a value.
 tracesp :: (HasCallStack, Pretty b) => Text -> b -> a -> a
-tracesp msg traced = write (with_msg msg (Pretty.formatted traced))
+tracesp msg traced = write (withMsg msg (Pretty.formatted traced))
 
 -- | Print a value after applying a function to it.
 tracef :: (HasCallStack, Show b) => Text -> (a -> b) -> a -> a
-tracef msg f val = write (with_msg msg (pshow (f val))) val
+tracef msg f val = write (withMsg msg (pshow (f val))) val
 
 tracefp :: (HasCallStack, Pretty b) => Text -> (a -> b) -> a -> a
-tracefp msg f val = write (with_msg msg (Pretty.formatted (f val))) val
+tracefp msg f val = write (withMsg msg (Pretty.formatted (f val))) val
 
 -- | Trace input and output of a function.
-trace_ret :: (HasCallStack, Show a, Show b) => Text -> a -> b -> b
-trace_ret function a ret = trace_str text ret
+traceRet :: (HasCallStack, Show a, Show b) => Text -> a -> b -> b
+traceRet function a ret = traceStr text ret
     where
     text = mconcat
         [ function
@@ -87,9 +87,9 @@ trace_ret function a ret = trace_str text ret
     pa = pshow a
     pret = pshow ret
 
-trace_retp :: (HasCallStack, Pretty a, Pretty b) =>
+traceRetp :: (HasCallStack, Pretty a, Pretty b) =>
     Text -> a -> b -> b
-trace_retp function a ret = trace_str text ret
+traceRetp function a ret = traceStr text ret
     where
     text = mconcat
         [ function
@@ -103,17 +103,17 @@ trace_retp function a ret = trace_str text ret
     pret = Text.strip $ Pretty.formatted ret
 
 -- | Show a raw string, equivalent to 'Debug.Trace.trace'.
-trace_str :: HasCallStack => Text -> a -> a
-trace_str = write . (prefix<>)
+traceStr :: HasCallStack => Text -> a -> a
+traceStr = write . (prefix<>)
 
 -- * forced by monad
 
 -- | Print a value in a monad.  The monad will force it to be printed.
 traceM :: (HasCallStack, Show a, Monad m) => Text -> a -> m ()
-traceM msg val = write (with_msg msg (pshow val)) (return ())
+traceM msg val = write (withMsg msg (pshow val)) (return ())
 
 tracepM :: (HasCallStack, Pretty a, Monad m) => Text -> a -> m ()
-tracepM msg val = write (with_msg msg (Pretty.formatted val)) (return ())
+tracepM msg val = write (withMsg msg (Pretty.formatted val)) (return ())
 
 tracesM :: (HasCallStack, Monad m) => Text -> m ()
 tracesM msg = write msg (return ())
@@ -125,10 +125,10 @@ puts :: (HasCallStack, Trans.MonadIO m) => Text -> m ()
 puts = writeIO . (prefix<>)
 
 put :: (HasCallStack, Trans.MonadIO m, Show a) => Text -> a -> m ()
-put msg = writeIO . with_msg msg . pshow
+put msg = writeIO . withMsg msg . pshow
 
 putp :: (HasCallStack, Trans.MonadIO m, Pretty a) => Text -> a -> m ()
-putp msg = writeIO . with_msg msg . Pretty.formatted
+putp msg = writeIO . withMsg msg . Pretty.formatted
 
 
 -- * implementation
@@ -150,11 +150,11 @@ writeIO msg = Trans.liftIO $ do
         Just msg -> Text.IO.hPutStrLn IO.stdout msg
 
 timeout :: Double -> IO a -> IO (Maybe a)
-timeout = Timeout.timeout . to_usec
-    where to_usec = round . (*1000000)
+timeout = Timeout.timeout . toUsec
+    where toUsec = round . (*1000000)
 
-with_msg :: HasCallStack => Text -> Text -> Text
-with_msg msg text_ =
+withMsg :: HasCallStack => Text -> Text -> Text
+withMsg msg text_ =
     prefix <> msg <> (if multiline then ":\n" else ": ") <> text
     where
     text = Text.strip text_

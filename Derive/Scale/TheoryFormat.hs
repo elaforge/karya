@@ -254,7 +254,7 @@ read_pitch fmt key = fmt_to_absolute fmt key <=< read_relative_pitch fmt
 read_relative_pitch :: Format -> Pitch.Note
     -> Either DeriveT.PitchError RelativePitch
 read_relative_pitch fmt note = justErr (DeriveT.UnparseableNote note) $
-    -- Debug.trace_ret "read_rel" note $
+    -- Debug.traceRet "read_rel" note $
     ParseText.maybe_parse (fmt_read fmt) $
     Pitch.note_text note
 
@@ -349,7 +349,7 @@ show_degree_chromatic key show_octave degrees acc_fmt degree_pitch =
 
 chromatic_to_absolute :: ToAbsolute Theory.Key
 chromatic_to_absolute key degrees (RelativePitch octave pc maybe_acc) =
-    -- Debug.trace_ret "ch to abs" (tonic, (pc, maybe_acc)) $
+    -- Debug.traceRet "ch to abs" (tonic, (pc, maybe_acc)) $
         Pitch.Pitch (octave + oct) (Pitch.Degree pc2 acc2)
     where
     -- sa in D is D, so add 1 PC for the tonic.

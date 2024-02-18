@@ -319,7 +319,7 @@ trace_logs res = case res of
     Right (b, logs) -> (if null logs then id else trace logs) (Right b)
     Left a -> Left a
     where
-    trace = Debug.trace_str . Text.strip . Text.unlines . ("\tlogged:":)
+    trace = Debug.traceStr . Text.strip . Text.unlines . ("\tlogged:":)
 
 e_logs :: Result a -> [Text]
 e_logs = map DeriveTest.show_log . DeriveTest.trace_low_prio . result_logs

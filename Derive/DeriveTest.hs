@@ -594,11 +594,11 @@ make_convert_lookup allocs db =
 trace_logs :: [Log.Msg] -> a -> a
 trace_logs = trace_all_logs . filter interesting_log
 
--- | Write log msgs with 'Debug.trace_str', for debugging.
+-- | Write log msgs with 'Debug.traceStr', for debugging.
 trace_all_logs :: [Log.Msg] -> a -> a
 trace_all_logs logs val
     | null logs = val
-    | otherwise = Debug.trace_str
+    | otherwise = Debug.traceStr
         (Text.stripEnd $ Text.unlines $ "\tlogged:" : map Log.format_msg logs)
         val
 

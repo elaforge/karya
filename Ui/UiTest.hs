@@ -11,7 +11,6 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 import           GHC.Stack (HasCallStack)
 
-import qualified Util.CallStack as CallStack
 import qualified Util.Debug as Debug
 import qualified Util.Lists as Lists
 import qualified Util.Log as Log
@@ -477,7 +476,7 @@ add_pitches = go ""
 trace_logs :: [Log.Msg] -> a -> a
 trace_logs logs val
     | null logs = val
-    | otherwise = Debug.trace_str
+    | otherwise = Debug.traceStr
         (Text.stripEnd $ Text.unlines $ "\tlogged:" : map Log.format_msg logs)
         val
 

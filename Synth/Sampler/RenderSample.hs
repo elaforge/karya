@@ -203,14 +203,14 @@ predictDuration ratios sampleDur = case Signal.constant_val_from 0 ratios of
         -- The min of where the curve crosess y (runs out of samples), or
         -- just the integral at (x2-x1).
         consumed =
-            -- Debug.trace_ret "consumed" (input, lineIntegral n k delta) $
+            -- Debug.traceRet "consumed" (input, lineIntegral n k delta) $
             min input (lineIntegral n k delta)
         generated
             | isNaN cross =
-                -- Debug.trace_ret "generated" ((n, k, input), (delta, cross)) $
+                -- Debug.traceRet "generated" ((n, k, input), (delta, cross)) $
                     delta
             | otherwise =
-                -- Debug.trace_ret "generated" ((n, k, input), (delta, cross)) $
+                -- Debug.traceRet "generated" ((n, k, input), (delta, cross)) $
                 min delta cross
             where cross = integralCrossesAt n k input
         -- The ratio multiplies the length of the output.  So it winds up being
