@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE StrictData #-}
 {- | This module defines basic tracklang types.
 
     The Derive.PSignal section is re-exported from "Derive.PSignal".  I'd rather
@@ -190,10 +191,10 @@ data Untransposed_
 -- | A pitch is an abstract value that can generate a 'Pitch.NoteNumber' or
 -- symbolic 'Pitch.Note'.
 data RawPitch a = Pitch {
-    pitch_eval_nn :: !(PitchConfig -> Either PitchError Pitch.NoteNumber)
-    , pitch_eval_note :: !(PitchConfig -> Either PitchError Pitch.Note)
-    , pitch_scale :: !Scale
-    , pitch_config :: !PitchConfig
+    pitch_eval_nn :: PitchConfig -> Either PitchError Pitch.NoteNumber
+    , pitch_eval_note :: PitchConfig -> Either PitchError Pitch.Note
+    , pitch_scale :: Scale
+    , pitch_config :: PitchConfig
     }
 
 -- | Make an abstract Pitch.
@@ -257,7 +258,7 @@ annotate_out_of_range pitch maybe_nn = modify_out_of_range $ \err -> err
     is created.  Otherwise, you can't evaluate a pitch with a different key by
     setting the environ.
 -}
-data PitchConfig = PitchConfig !Environ !ScoreT.ControlValMap
+data PitchConfig = PitchConfig Environ ScoreT.ControlValMap
     deriving (Show)
 
 instance Semigroup PitchConfig where
@@ -275,7 +276,7 @@ instance Monoid PitchConfig where
 data Scale = Scale {
     -- | It can be useful to see the scale of a pitch, e.g. to create more
     -- pitches in the same scale as an existing pitch.
-    pscale_scale_id :: !Pitch.ScaleId
+    pscale_scale_id :: Pitch.ScaleId
     -- | The set of transposer signals for this scale, as documented in
     -- 'Derive.Scale.scale_transposers'.
     --
@@ -284,7 +285,7 @@ data Scale = Scale {
     -- event_pitch, but the scale at event creation time is not guaranteed to
     -- be the same as the one when the pitch was created, so the safest thing
     -- to do is keep it with the pitch itself.
-    , pscale_transposers :: !(Set ScoreT.Control)
+    , pscale_transposers :: Set ScoreT.Control
     } deriving (Show)
 
 instance Pretty Scale where
@@ -331,19 +332,19 @@ detailed_error pitch err = mconcat
 
 -- | Things that can go wrong evaluating a pitch.
 data PitchError =
-    UnparseableNote !Pitch.Note
-    | OutOfRangeError !OutOfRange
+    UnparseableNote Pitch.Note
+    | OutOfRangeError OutOfRange
     -- | Input note doesn't map to a scale note.
     | InvalidInput
     -- | A required environ value was missing or had the wrong type or value.
     -- Nothing if the value is missing, otherwise a Text description.
-    | EnvironError !EnvKey.Key !(Maybe Text)
+    | EnvironError EnvKey.Key (Maybe Text)
     -- | Same as EnvironError, but for control vals.
-    | ControlError !ScoreT.Control !Text
+    | ControlError ScoreT.Control Text
     -- | The scale doesn't implement that operation.
     | NotImplemented
     -- | Other kind of error.
-    | PitchError !Text
+    | PitchError Text
     deriving (Eq, Ord, Show)
 
 {- | Note out of the scale's range.  The values are transpositions from
@@ -356,10 +357,10 @@ data PitchError =
     which happens to be MIDI's limitation.
 -}
 data OutOfRange = OutOfRange {
-    oor_nn :: !(Maybe Pitch.NoteNumber)
-    , oor_degree :: !(Maybe Pitch.FSemi)
-    , oor_valid :: !(Maybe (Int, Int))
-    , oor_transposers :: !ScoreT.ControlValMap
+    oor_nn :: Maybe Pitch.NoteNumber
+    , oor_degree :: Maybe Pitch.FSemi
+    , oor_valid :: Maybe (Int, Int)
+    , oor_transposers :: ScoreT.ControlValMap
     } deriving (Eq, Ord, Show)
 
 out_of_range :: OutOfRange
@@ -414,8 +415,7 @@ pitches_equal p1 p2 = either (const False) id $
 -- * Duration
 
 -- | Some calls can operate in either RealTime or ScoreTime.
-data Duration = RealDuration RealTime
-    | ScoreDuration ScoreTime
+data Duration = RealDuration RealTime | ScoreDuration ScoreTime
     deriving (Eq, Show)
 
 data TimeType = Real | Score deriving (Eq, Show)
@@ -474,40 +474,40 @@ data Val =
     -- Constant literal: @42.23@, @-.4@, @1c@, @-2.4d@, @3/2@, @-3/2@, @0x7f@.
     --
     -- Signal literal: @(signal d 0 0 1 1)@.
-    VSignal !(ScoreT.Typed Signal.Control)
+    VSignal (ScoreT.Typed Signal.Control)
     -- | No literal, but is returned from val calls, notably scale calls.
-    | VPitch !Pitch
-    | VPSignal !PSignal
+    | VPitch Pitch
+    | VPSignal PSignal
     -- | A set of Attributes for an instrument.
     --
     -- Literal: @+attr@, @+attr1+attr2@.
-    | VAttributes !Attrs.Attributes
+    | VAttributes Attrs.Attributes
 
     -- | A control name.  An optional value gives a default if the control
     -- isn't present.
     --
     -- Literal: @%control@, @%control,.4@
-    | VControlRef !ControlRef
+    | VControlRef ControlRef
     -- | A pitch control name.  The scale is taken from the environ.  Unlike
     -- a control signal, the empty string is a valid signal name and means the
     -- default pitch signal.  The @#@ val call is needed to make a pitch signal
     -- with a default.
     --
     -- Literal: @\#@, @\#pitch@, @(# pitch (4c))@
-    | VPControlRef !PControlRef
+    | VPControlRef PControlRef
 
     -- | A parsed 'Pitch.Note'.  This is useful for things for which a textual
     -- 'Pitch.Note' is too high level and a numerical 'Pitch.NoteNumber' is too
     -- low level, like instrument ranges.
     --
     -- Literal: @(pitch 4 0 1)@ -> 4c#.
-    | VNotePitch !Pitch.Pitch
+    | VNotePitch Pitch.Pitch
 
     -- | A string.  There is an unquoted and a quoted form, parsed at
     -- 'Derive.Parse.p_unquoted_str' and 'Derive.Parse.p_str'.
     --
     -- Literal: @func@, @\'hello\'@, @\'quinn\'\'s hat\'@
-    | VStr !Expr.Str
+    | VStr Expr.Str
 
     -- | A quoted expression.  Quoted calls are resolved by "Derive.Sig" when
     -- it typechecks arguments.  This way you can set an argument default to
@@ -516,9 +516,9 @@ data Val =
     -- no pipes.
     --
     -- Literal: @\"(a b c)@
-    | VQuoted !Quoted
-    | VCFunction !CFunction
-    | VPFunction !PFunction
+    | VQuoted Quoted
+    | VCFunction CFunction
+    | VPFunction PFunction
     -- | An explicit not-given arg for functions so you can use positional
     -- args with defaults.
     --
@@ -533,7 +533,7 @@ data Val =
     -- | List of values.
     --
     -- Literal: @(list)@, @(list 1 2)@, @(list (x) (y))@
-    | VList ![Val]
+    | VList [Val]
     deriving (Show)
 
 -- | Return Nothing if the Vals can't be compared, and whether or not they're
@@ -848,8 +848,8 @@ data CFunction = CFunction {
     --
     -- TODO I thought of making it the expression that created this, for
     -- serialization, but not implemented yet.
-    cf_name :: !Text
-    , cf_signal :: !ScoreT.TypedSignal
+    cf_name :: Text
+    , cf_signal :: ScoreT.TypedSignal
     {- | This is modifying an underlying signal.
 
         The function may be created before the signal it modifies, e.g.
@@ -859,13 +859,13 @@ data CFunction = CFunction {
         convention, since many functions make sense against 0 too, and it would
         be annoying to plumb out an error from 'call_cfunction'.
     -}
-    , cf_function :: !(Dynamic -> Signal.Control -> RealTime -> Signal.Y)
+    , cf_function :: Dynamic -> Signal.Control -> RealTime -> Signal.Y
     }
 
 -- | A simple pure function.
 data PFunction = PFunction {
-    pf_name :: !Text
-    , pf_function :: !ScoreT.TypedFunction
+    pf_name :: Text
+    , pf_function :: ScoreT.TypedFunction
     }
 
 instance Show PFunction where show = prettys
@@ -889,12 +889,12 @@ call_cfunction cf_dyn cf = ScoreT.Typed typ (cf_function cf cf_dyn signal)
 -- | A stripped down "Derive.Deriver.Monad.Dynamic" for ControlFunctions
 -- to use.  The duplication is unfortunate, see 'CFunction'.
 data Dynamic = Dynamic {
-    dyn_pitch :: !PSignal
-    , dyn_environ :: !Environ
+    dyn_pitch :: PSignal
+    , dyn_environ :: Environ
     -- | This is from 'Derive.Deriver.Monad.state_event_serial'.
-    , dyn_event_serial :: !Int
-    , dyn_warp :: !Warp.Warp
-    , dyn_ruler :: Ruler.Marklists -- intentionally lazy
+    , dyn_event_serial :: Int
+    , dyn_warp :: Warp.Warp
+    , dyn_ruler :: ~Ruler.Marklists -- intentionally lazy
     } deriving (Show)
 
 empty_dynamic :: Dynamic
