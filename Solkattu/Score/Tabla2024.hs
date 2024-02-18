@@ -45,10 +45,15 @@ c_24_01_04_rela_tintal = date 2024 1 4 $ colby $ rela $
 
 c_24_01_04_chakradar :: Korvai
 c_24_01_04_chakradar = date 2024 1 4 $ colby $ chakradar $
-    korvaiS1 tintal tablaKinar $ nadai 3 $ r3 $
+    korvaiS1 tintal tabla $ nadai 3 $ r3 $ g $
     "kat_tettetette"."katette getette".su "dha_gerenage".trkttk.tA.trkt
     . su (r3 (dha.ge.tetekata)) . "dhadhintA_kat_"."dha__ghen_te"
     . r3 ("dha_ne". su (dha.ge.tetekata) . "dhatet") . dha.__3
+    where
+    tabla = makeTabla Sur
+        [ ("dhin", ge & tun)
+        , ("tin", ka & tun)
+        ] where Tabla.Strokes { .. } = Tabla.notes
 
 c_24_01_11 :: Korvai
 c_24_01_11 = date 2024 1 12 $ colby $ kaida $ korvaiS jhaptal tabla
@@ -94,10 +99,8 @@ c_24_01_11 = date 2024 1 12 $ colby $ kaida $ korvaiS jhaptal tabla
         [ ("tak", re)
         -- dhin tin are on tun, I think this is a regular pattern like with
         -- Kinar.  TODO Is there a way to infer it?
-        , ("dhin", ge & tun)
-        , ("tin", ka & tun)
-        ]
-        where Tabla.Strokes { .. } = Tabla.notes
+        , ("dhin", tun)
+        ] where Tabla.Strokes { .. } = Tabla.notes
 
 c_24_01_26_chalan1 :: Korvai
 c_24_01_26_chalan1 = date 2024 1 26 $ colby $ chalan $ lucknow $

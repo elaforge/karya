@@ -360,8 +360,13 @@ c_23_11_16 = date 2023 11 16 $ colby $ kaida $ korvaiS tintal tablaKinar $
     [   theme1
       . kali (dhatette.dhagena.dhettette.dhagena)
         . dhatette.dhagena.dhagedhinagena
-    -- TODO kali is predictable so I leave it out.  kaliMt is too fiddly with
-    -- no knowledge of tal and nadai.
+    -- Kali is predictable so I leave it out.  kaliMt is too fiddly with no
+    -- knowledge of tal and nadai.  But the score doesn't need them, they're
+    -- clutter for the reader too.
+    --
+    -- TODO But this means I wind up with only 8 beats, so I have to make this
+    -- slow, which makes the ruler crowded.  Maybe use section end / eddupu to
+    -- make it accept 8?
     , dhatette.dhagena . r3 (dhettette.dhagena.dha.__)
         . dhettette.dhagena.dhatette.dhagena.dhagetunakena
     , dhatette.dhagena . r3 (dhettette.dhagena) . theme1
