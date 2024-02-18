@@ -22,6 +22,8 @@ module Solkattu.Format.Format (
     -- * ruler
     , Ruler, PrevRuler, pairWithRuler
     , inferRuler
+    -- * breakLine
+    , breakLine
     -- * metadata
     , showTags
     -- * util
@@ -311,9 +313,49 @@ showTags tags = case Map.lookup Tags.times (Tags.untags tags) of
     Just [n] -> "x" <> n
     _ -> ""
 
+-- * breakLine
+
+-- | If the text goes over the width, break at the middle akshara, or the
+-- last one before the width if there isn't a middle.
+breakLine :: (symbol -> Int) -> Int -> [(S.State, symbol)]
+    -> [[(S.State, symbol)]]
+breakLine symWidth maxWidth = go 0
+    where
+    go startAkshara notes
+        | width <= maxWidth || aksharas <= 1 = [notes]
+        -- As long as it stays even, break recursively.
+        | even aksharas =
+            go startAkshara pre ++ go (startAkshara + mid) post
+        | otherwise = breakBefore symWidth maxWidth notes
+        where
+        width = Num.sum $ map (symWidth . snd) notes
+        aksharas = Lists.count (onAkshara . fst) notes
+        mid = aksharas `div` 2
+        (pre, post) = break
+            ((== mid) . subtract startAkshara . S.stateAkshara .  fst)
+            notes
+
+-- | Yet another word-breaking algorithm.  I must have 3 or 4 of these by now.
+breakBefore :: (symbol -> Int) -> Int -> [(S.State, symbol)]
+    -> [[(S.State, symbol)]]
+breakBefore symWidth maxWidth =
+    go . dropWhile null . Lists.splitBefore (onAkshara . fst)
+    where
+    go aksharas =
+        case breakFst (>maxWidth) (zip (runningWidth aksharas) aksharas) of
+            ([], []) -> []
+            (pre, []) -> [concat pre]
+            ([], post:posts) -> post : go posts
+            (pre, post) -> concat pre : go post
+    -- drop 1 so it's the width at the end of each section.
+    runningWidth = drop 1 . scanl (+) 0 . map (Num.sum . map (symWidth . snd))
+
 -- * util
 
 -- | This assumes the function doesn't change the length of the list!
 mapSnd :: ([a] -> [b]) -> [(x, a)] -> [(x, b)]
 mapSnd f xas = zip xs (f as)
     where (xs, as) = unzip xas
+
+breakFst :: (key -> Bool) -> [(key, a)] -> ([a], [a])
+breakFst f = bimap (map snd) (map snd) . break (f . fst)

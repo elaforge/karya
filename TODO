@@ -6559,7 +6559,9 @@ solkattu:
   bol:
     * support hindustani tal
       . Kind of awkward though.
-    - html doesn't wrap, so 16 beat tintal doesn't fit
+    * html doesn't wrap, so 16 beat tintal doesn't fit
+    - for html, I could abbreviate fast terekita as trkt, kitataka as kttk
+    - html: reduce font size for bols
     - support Talas.Hindustani in Play.tala_metronome
     - normalize terekita: [tari, tira, tere] [kita, kite]
       . ti is already a different stroke, e.g. dha ti dha, let's avoid it.

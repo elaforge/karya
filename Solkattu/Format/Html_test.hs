@@ -19,6 +19,7 @@ import           Global
 import           Util.Test
 
 
+manual_test :: IO ()
 manual_test = do
     let p = Text.IO.putStrLn
     -- p $ render Format.defaultAbstraction $ korvai $ G.sarvaM_ 4
@@ -57,4 +58,4 @@ render abstraction =
 defaultStrokeMap :: Korvai.StrokeMaps
 defaultStrokeMap = mempty
     { Korvai.smapMridangam = Realize.strokeMap Mridangam.defaultPatterns [] }
-    where Mridangam.Strokes {..} = Mridangam.notes
+    -- where Mridangam.Strokes {..} = Mridangam.notes

@@ -253,7 +253,7 @@ format config prevRuler tala notes =
     width = _terminalWidth config
 
 lineWidth :: Line -> Int
-lineWidth = Num.sum . map (symLength . snd)
+lineWidth = Num.sum . map (symWidth . snd)
 
 formatRuler :: Int -> Format.Ruler -> Styled.Styled
 formatRuler strokeWidth =
@@ -273,7 +273,7 @@ formatLines :: Solkattu.Notation stroke => Format.Abstraction -> Int
 formatLines abstraction strokeWidth width tala notes =
     map (map (Format.mapSnd (spellRests strokeWidth)))
         . Format.formatFinalAvartanam isRest _isOverlappingSymbol
-        . map (breakLine width)
+        . map (Format.breakLine symWidth width)
         . Format.breakAvartanams
         . overlapSymbols strokeWidth
         . concatMap (makeSymbols strokeWidth tala angas)
@@ -299,9 +299,9 @@ spellRests strokeWidth
     set (col, (prev, sym, next))
         | not (isRest sym) = sym
         | even col && maybe False isRest next = sym
-            { _text = Realize.justifyLeft (symLength sym) ' ' double }
+            { _text = Realize.justifyLeft (symWidth sym) ' ' double }
         | odd col && maybe False isRest prev = sym
-            { _text = Text.replicate (symLength sym) " " }
+            { _text = Text.replicate (symWidth sym) " " }
         | otherwise = sym
     double = Text.singleton Realize.doubleRest
 
@@ -405,39 +405,6 @@ shouldEmphasize tala angas state
             _ -> False
         Talas.Hindustani _ -> False -- TODO there are fast tals also
 
--- | If the text goes over the width, break at the middle akshara, or the
--- last one before the width if there isn't a middle.
-breakLine :: Int -> [(S.State, Symbol)] -> [[(S.State, Symbol)]]
-breakLine maxWidth = go 0
-    where
-    go startAkshara notes
-        | width <= maxWidth || aksharas <= 1 = [notes]
-        -- As long as it stays even, break recursively.
-        | even aksharas =
-            go startAkshara pre ++ go (startAkshara + mid) post
-        | otherwise = breakBefore maxWidth notes
-        where
-        width = Num.sum $ map (symLength . snd) notes
-        aksharas = Lists.count (Format.onAkshara . fst) notes
-        mid = aksharas `div` 2
-        (pre, post) = break
-            ((== mid) . subtract startAkshara . S.stateAkshara .  fst)
-            notes
-
--- | Yet another word-breaking algorithm.  I must have 3 or 4 of these by now.
-breakBefore :: Int -> [(S.State, Symbol)] -> [[(S.State, Symbol)]]
-breakBefore maxWidth =
-    go . dropWhile null . Lists.splitBefore (Format.onAkshara . fst)
-    where
-    go aksharas =
-        case breakFst (>maxWidth) (zip (runningWidth aksharas) aksharas) of
-            ([], []) -> []
-            (pre, []) -> [concat pre]
-            ([], post:posts) -> post : go posts
-            (pre, post) -> concat pre : go post
-    -- drop 1 so it's the width at the end of each section.
-    runningWidth = drop 1 . scanl (+) 0 . map (Num.sum . map (symLength . snd))
-
 -- ** formatting
 
 data Symbol = Symbol {
@@ -487,13 +454,10 @@ emphasisStyle = Styled.fg red . Styled.bold
     where red = Styled.rgb (0xa1 / 0xff) (0x13 / 0xff) 0
     -- I'm used to this dark red since it's what iterm used for bold.
 
-symLength :: Symbol -> Int
-symLength = Realize.textLength . _text
+symWidth :: Symbol -> Int
+symWidth = Realize.textLength . _text
 
 -- * util
-
-breakFst :: (key -> Bool) -> [(key, a)] -> ([a], [a])
-breakFst f = bimap (map snd) (map snd) . break (f . fst)
 
 -- | I think lenses are the way to lift mapAccumL into second.
 mapAccumLSnd :: (state -> a -> (state, b)) -> state -> [(x, a)]

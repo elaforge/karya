@@ -451,10 +451,17 @@ formatAvartanams config toSpeed prevRuler tala =
     second concat
     . Format.pairWithRuler (_rulerEach config) prevRuler tala 1
     . Format.formatFinalAvartanam (isRest . _html) (const False) . map (:[])
+    . concatMap (Format.breakLine symWidth maxWidth)
     . Format.breakAvartanams
     . concatMap makeSymbols
     . Format.makeGroupsAbstract (_abstraction config)
     . Format.normalizeSpeed toSpeed (Talas.aksharas tala)
+    where
+    -- On my browser at a "most of the screen" maxWidth, 32 bols fit
+    -- comfortably.
+    maxWidth = 32
+    -- Since html uses a grid, I consider every Symbol the same width.
+    symWidth = const 1
 
 type Line = [(S.State, Symbol)]
 
