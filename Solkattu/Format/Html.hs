@@ -19,6 +19,7 @@ import qualified Data.Time.Calendar as Calendar
 import qualified Util.Files as Files
 import qualified Util.Html as Html
 import qualified Util.Lists as Lists
+import qualified Util.Maps as Maps
 import qualified Util.Styled as Styled
 import qualified Util.Texts as Texts
 
@@ -420,18 +421,24 @@ _sectionMetadata section = Texts.join "; " $ map showTag (Map.toAscList tags)
 
 scoreMetadata :: Korvai.Score -> [Html.Html]
 scoreMetadata score = Lists.mapInit (<>"<br>") $ concat $
-    [ ["Tala: " <> Html.html (Text.intercalate ", " (scoreTalas score))]
+    [ ["<b>" <> title <> "</b>"]
     , ["Date: " <> Html.html (showDate date) | Just date <- [scoreDate score]]
     , [showTag ("Eddupu", map pretty eddupus) | not (null eddupus)]
-    , map showTag (Map.toAscList (Map.delete "tala" tags))
+    , map showTag (Map.toAscList (Maps.deleteKeys [Tags.type_, "tala"] tags))
     ]
     where
+    title = Html.html $ Text.intercalate " - "
+        [ module_ <> "." <> variable
+        , maybe "?" commas $ Map.lookup Tags.type_ tags
+        , commas (scoreTalas score)
+        ]
+        where (module_, _, variable) = Korvai._location meta
     eddupus = Lists.unique $ filter (/="0") $
         Map.findWithDefault [] Tags.eddupu sectionTags
-    sectionTags = Tags.untags $ mconcat $
-        Metadata.sectionTags score
+    sectionTags = Tags.untags $ mconcat $ Metadata.sectionTags score
     tags = Tags.untags $ Korvai._tags meta
     meta = Korvai.scoreMetadata score
+    commas = Text.intercalate ", "
     showTag (k, []) = Html.html k
     showTag (k, vs) = Html.html k <> ": "
         <> Texts.join ", " (map (htmlTag k) vs)
