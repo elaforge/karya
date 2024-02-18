@@ -33,7 +33,7 @@ angas = \case
 
 name :: Tala -> Text
 name = \case
-    Carnatic tala -> Tala._name tala
+    Carnatic tala -> Tala.tala_name tala
     Hindustani tala -> talName tala
 
 angaSet :: Tala -> Set Tala.Akshara
