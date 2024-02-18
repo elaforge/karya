@@ -52,6 +52,7 @@ import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+import qualified Data.Vector as Vector
 
 import qualified Util.Lists as Lists
 import qualified Util.Segment as Segment
@@ -92,7 +93,9 @@ sig_scale :: PSignal -> Scale
 sig_scale = maybe no_scale (pitch_scale . sy) . Lists.head . Segment.to_samples
     . _signal
 
-modify :: (Segment.Boxed Pitch -> Segment.Boxed Pitch) -> PSignal -> PSignal
+type PVector = Segment.Signal (Vector.Vector (Segment.Sample Pitch))
+
+modify :: (PVector -> PVector) -> PSignal -> PSignal
 modify f = PSignal . f . _signal
 
 no_scale :: Scale

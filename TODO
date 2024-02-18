@@ -7280,6 +7280,47 @@ Derive:
           data Signal { _offset, _vector } | Constant y
         . This is basically VNum/VSiganl but push the distinction down.
         . Another thing is I want equality to work with constants.
+        . Space efficiency:
+          VNum (Typed Type Double) -- tag, enum, double (unpacked?)
+            1 + 1 + 1 + 2 = 5 words
+          vs.
+          Signal { _offset :: Double, _vector :: TimeVector.Unboxed }
+            1 + 1 + 2 + 1 = 5
+          Unboxed = Storable.Vector (Sample Double)
+            tag, double, (ptr, offset, len, (Double, Double))
+            1 + 2 + 1 + 1 + 1 + 4 = 10 = 15
+          Sample = Sample Double Double
+        . Segment.Signal v has the vector as the argument, not the value.
+          DeriveT: newtype PSignal = PSignal (Segment.Boxed Pitch)
+          Segment: type Boxed y = Signal (TimeVector.Boxed y)
+          TimeVec: type Boxed y = Vector.Vector (Sample y)
+          . Segment.Signal (Vector (Sample Pitch))
+          Signal:  newtype Signal kind = Signal Segment.NumSignal
+          Segment: type NumSignal = Signal TimeVector.Unboxed
+          TimeVec: type Unboxed = Storable.Vector (Sample Double)
+          . Segment.Signal (Storable.Vector (Sample Double))
+        . That's a lot of layers of indirection!  Can I simplify?
+        . Maybe not as bad as it looks, TimeVector is merely functions
+          on vector.  Mabye delete some type aliases?
+        . If I put Constant in Segment.Signal, then I get it for both
+          NumSignal and PSignal.
+        . Maybe just another type variable for the value.
+          Maybe I have to pass the vector and value separately.
+        . Type becomes data Signal v y = Signal X (v (Sample y)) | Constant y
+          which is obnoxiously complicated.  Can't even declare an instance:
+            "constraint ... is no smaller than the instance head"
+        . The reason for the complexity is to share some basic functions for
+          . Segment.Signal (Vector (Sample Pitch))
+          . Segment.Signal (Storable.Vector (Sample Double))
+        . So it really is (v (Sample y)).
+        . This means all Segment functions have to branch on
+          Signal | Constant, which is the original tradeoff I was worried
+          about.
+          Still, it's probably better?  Mostly probably irrelevant.
+        . But maybe that's the biggest argument against Constant too, if
+          I don't have that many numbers around, it's ok if they take up 15
+          instead of 5.
+
     ? remove ValType.specific_type_of entirely?  Under what situation would
       I care if it's positive or not?  I can see from the val.
     - what if I remove VControlRef and VPControlRef?  Instead it's syntactic

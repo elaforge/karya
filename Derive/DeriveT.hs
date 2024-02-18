@@ -90,11 +90,12 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
+import qualified Data.Vector as Vector
 
+import qualified Util.Lists as Lists
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Segment as Segment
-import qualified Util.Lists as Lists
 import qualified Util.Serialize as Serialize
 
 import qualified Derive.Attrs as Attrs
@@ -132,10 +133,11 @@ import           Types
 
 -- | A pitch signal is similar to a 'Signal.Control', except that its values
 -- are 'Pitch'es instead of plain floating point values.
-newtype PSignal = PSignal (Segment.Boxed Pitch)
+newtype PSignal =
+    PSignal (Segment.Signal (Vector.Vector (Segment.Sample Pitch)))
     deriving (Show, Pretty)
 
-_signal :: PSignal -> Segment.Boxed Pitch
+_signal :: PSignal -> Segment.Signal (Vector.Vector (Segment.Sample Pitch))
 _signal (PSignal sig) = sig
 
 instance Semigroup PSignal where

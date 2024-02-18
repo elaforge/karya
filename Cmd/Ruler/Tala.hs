@@ -24,7 +24,6 @@ module Cmd.Ruler.Tala (
 ) where
 import qualified Data.Set as Set
 
-import qualified Util.Num as Num
 import qualified Cmd.Ruler.RulerUtil as RulerUtil
 import qualified Solkattu.Tala as Tala
 import           Solkattu.Tala
@@ -106,10 +105,6 @@ tala_to_meter tala nadai =
         [ D (replicate (Tala.anga_aksharas (Tala._jati tala) anga) T)
         | anga <- Tala._angas tala
         ]
-
-anga_claps :: Tala -> Int
-anga_claps tala =
-    Num.sum (map (Tala.anga_aksharas (Tala._jati tala)) (Tala._angas tala))
 
 tala_labels :: Tala -> [Meter.Label]
 tala_labels tala = map Make.big_label $ concatMap mk (Tala._angas tala)

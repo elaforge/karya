@@ -3,9 +3,10 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE StrictData #-}
 -- | The 'Signal' type and functions.
 module Util.Segment (
-    Signal, SignalS, Interpolate
+    Signal, Interpolate
     , Segment(..)
     , X, Sample(..)
     -- * construct / destruct
@@ -14,7 +15,7 @@ module Util.Segment (
     , all_y
     , beginning
     , from_vector, to_vector
-    , from_samples, to_samples, to_samples_desc
+    , from_samples, to_samples
     , from_pairs, to_pairs, to_pairs_desc
     , from_segments, to_segments, samples_to_segments
     , simplify
@@ -36,14 +37,11 @@ module Util.Segment (
     -- * transform
     , shift
     , map_y, map_y_linear, map_x
-    -- , map_segments
     , transform_samples, map_err
 
     -- ** hacks
     , drop_discontinuity_at
 
-    -- * Boxed
-    , Boxed
     -- * NumSignal
     , NumSignal
     , num_interpolate, num_interpolate_s
@@ -64,7 +62,7 @@ import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 import qualified Data.Vector.Generic as V
-import qualified Data.Vector.Storable as Vector.Storable
+import qualified Data.Vector.Storable as Storable
 
 import qualified Foreign
 
@@ -111,8 +109,8 @@ import           Global
     seems worth it.
 -}
 data Signal v = Signal {
-    _offset :: !X
-    , _vector :: !v
+    _offset :: X
+    , _vector :: v
     } deriving (Eq, Show)
 
 type SignalS v y = Signal (v (Sample y))
@@ -138,8 +136,8 @@ modify_vector :: (a -> b) -> Signal a -> Signal b
 modify_vector modify sig = sig { _vector = modify (_vector sig) }
 
 data Segment y = Segment {
-    _x1 :: !X, _y1 :: !y
-    , _x2 :: !X, _y2 :: !y
+    _x1 :: X, _y1 :: y
+    , _x2 :: X, _y2 :: y
     } deriving (Eq, Show)
 
 instance Pretty y => Pretty (Segment y) where
@@ -283,9 +281,9 @@ unfoldr :: V.Vector v (Sample y) => (state -> Maybe ((X, y), state)) -> state
     -> SignalS v y
 unfoldr gen state = from_vector $ TimeVector.unfoldr gen state
 
--- | Get a Ptr to the vector.  This is 'Vector.Storable.unsafeWith'.
+-- | Get a Ptr to the vector.  This is 'Storable.unsafeWith'.
 with_ptr :: Foreign.Storable a =>
-    Signal (Vector.Storable.Vector a) -> (X -> Foreign.Ptr a -> Int-> IO b)
+    Signal (Storable.Vector a) -> (X -> Foreign.Ptr a -> Int-> IO b)
     -> IO b
 with_ptr (Signal offset vec) action = TimeVector.with_ptr vec (action offset)
 
@@ -573,14 +571,12 @@ drop_discontinuity_at x sig = case V.toList clipped of
         Sample x1 _ : Sample x2 _ : _ | x1 == x2 -> V.drop 1 v
         _ -> v
 
--- * Boxed
-
-type Boxed y = Signal (TimeVector.Boxed y)
-
 -- * NumSignal
 
-type NumSignal = Signal TimeVector.Unboxed
-type Y = TimeVector.UnboxedY
+-- | Specialize to Double.  The other kind is PSignal, which is Pitch,
+-- which is defined elsewhere so we can't have it in here.
+type NumSignal = Signal (Storable.Vector (Sample Y)) -- TimeVector.Unboxed
+type Y = Double -- TimeVector.UnboxedY
 
 num_interpolate :: Interpolate Y
 num_interpolate (Sample x1 y1) (Sample x2 y2) = TimeVector.y_at x1 y1 x2 y2
