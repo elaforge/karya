@@ -61,68 +61,7 @@ test_within = do
     equal (f 3 3 [(0, 0)]) [(0, 0)]
     equal (f 3 3 [(0, 0), (3, 3), (4, 4)]) [(3, 3)]
 
-test_bsearch :: Test
-test_bsearch = do
-    let run f = map (flip f sig) [0, 1, 2, 3, 4]
-        sig = from_pairs [(1, 1), (2, 2), (2, 3), (3, 3)]
-    equal (run V.bsearch_above) [ 0, 1, 3, 4, 4]
-    equal (run V.highest_index) [-1, 0, 2, 3, 3]
-    equal (run V.bsearch_below)    [ 0, 0, 1, 3, 4]
-    equal (run V.bsearch_below_1)  [ 0, 1, 2, 4, 4]
-    equal (run V.index_below)  [-1, 0, 0, 2, 3]
-
 -- * transformation
-
-test_merge_right :: Test
-test_merge_right = do
-    let f = to_pairs . V.merge_right . map from_pairs
-    equal (f []) []
-    equal (f [[(0, 0), (1, 1)]]) [(0, 0), (1, 1)]
-    equal (f [[(1, 1)], [(2, 2)], [(3, 3)]])
-        [(1, 1), (2, 2), (3, 3)]
-    equal (f [[(0, 0), (1, 1), (2, 2)], [(1, 3), (2, 4), (3, 5)]])
-        [(0, 0), (1, 3), (2, 4), (3, 5)]
-    equal (f [[(0, 0), (1, 1)], [(1, 1), (2, 2)]])
-        [(0, 0), (1, 1), (2, 2)]
-    equal (f [[(0, 0), (1, 0)], [], [(1, 3)]])
-        [(0, 0), (1, 3)]
-    equal (f [[(0, 0), (1, 1)], [(1, 2)], [(1, 3), (2, 4)]])
-        [(0, 0), (1, 3), (2, 4)]
-    -- |--->        => |-|
-    --   |--->           |-|
-    --     |--->           |--->
-    equal (f [[(0, 1), (4, 1)], [(2, 2), (6, 2)], [(4, 3), (8, 3)]])
-        [(0, 1), (2, 2), (4, 3), (8, 3)]
-    -- |--->           |
-    --   |--->         |
-    -- |--->           |--->
-    equal (f [[(0, 1), (4, 1)], [(2, 2), (6, 2)], [(0, 3), (4, 3)]])
-        [(0, 3), (4, 3)]
-
-test_merge_left :: Test
-test_merge_left = do
-    let f = to_pairs . V.merge_left . map from_pairs
-    equal (f []) []
-    equal (f [[(0, 0), (1, 1)]]) [(0, 0), (1, 1)]
-    equal (f [[(1, 1)], [(2, 2)], [(3, 3)]])
-        [(1, 1), (2, 2), (3, 3)]
-    -- |--->        => |--->
-    --   |--->             |->
-    --     |--->             |->
-    equal (f [[(0, 1), (4, 1)], [(2, 2), (6, 2)], [(4, 3), (8, 3)]])
-        [(0, 1), (4, 1), (6, 2), (8, 3)]
-    -- |--->           |--->
-    --   |--->             |->
-    -- |--->               |
-    equal (f [[(0, 1), (4, 1)], [(2, 2), (6, 2)], [(0, 3), (4, 3)]])
-        [(0, 1), (4, 1), (6, 2)]
-
-test_prepend :: Test
-test_prepend = do
-    let f v1 v2 = to_pairs $ V.prepend (from_pairs v1) (from_pairs v2)
-    equal (f [] []) []
-    equal (f [(0, 0), (1, 1)] [(0, 2), (1, 3), (2, 4)])
-        [(0, 0), (1, 1), (2, 4)]
 
 test_shift :: Test
 test_shift = do
@@ -159,14 +98,3 @@ test_drop_before_strict = do
     equal (f 2) [(2, 0), (4, 1)]
     equal (f 3) [(4, 1)]
     equal (f 5) []
-
-test_sig_op :: Test
-test_sig_op = do
-    let f vec0 vec1 = to_pairs $
-            V.sig_op 0 (+) (from_pairs vec0) (from_pairs vec1)
-    equal (f [(1, 1)] []) [(1, 1)]
-    equal (f [] [(1, 1)]) [(1, 1)]
-    equal (f [(0, 0), (2, 2), (4, 0)] [(0, 1)])
-        [(0, 1), (2, 3), (4, 1)]
-    equal (f [(0, 0), (2, 2), (4, 0)] [(1, 1), (3, 0)])
-        [(0, 0), (1, 1), (2, 3), (3, 2), (4, 0)]

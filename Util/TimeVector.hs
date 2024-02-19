@@ -13,8 +13,31 @@
     built on top of this.
 -}
 module Util.TimeVector (
-    module Util.TimeVector
-    , module Util.TimeVectorStorable
+    Boxed
+    , Unboxed, UnboxedY
+    , Sample(..), X
+    , with_ptr
+    , index
+    , head, last, uncons
+    , from_pairs, to_pairs, to_pair
+    , at
+    , constant
+    , check
+    , ascending, descending
+    -- * transform
+    , shift
+    , drop_at_after
+    , drop_before, drop_before_at, drop_before_strict
+    , within
+    , map_x, map_y
+    , map_err
+    , resample1
+    -- * util
+    , unfoldr
+    , highest_index
+    , index_below
+    , x_at, y_at
+
     , module Data.Vector.Generic
 ) where
 import           Prelude hiding (head, last, take)
@@ -58,10 +81,6 @@ type Boxed y = Vector.Vector (Sample y)
 type Unboxed = Storable.Vector (Sample UnboxedY)
 type UnboxedY = Double
 
-to_foreign_ptr :: Storable.Storable a =>
-    Storable.Vector a -> (Foreign.ForeignPtr a, Int)
-to_foreign_ptr = Storable.unsafeToForeignPtr0
-
 with_ptr :: Storable.Storable a =>
     Storable.Vector a -> (Foreign.Ptr a -> Int -> IO b) -> IO b
 with_ptr v action = Storable.unsafeWith v $ \ptr -> action ptr (V.length v)
@@ -95,25 +114,10 @@ from_pairs = V.fromList . map (uncurry Sample)
 to_pairs :: V.Vector v (Sample y) => v (Sample y) -> [(X, y)]
 to_pairs = map to_pair . V.toList
 
--- | Set the signal value, with a discontinuity.  See
--- NOTE [signal-discontinuity].
-set :: V.Vector v (Sample y) => Maybe y -> X -> y -> v (Sample y)
-set prev_y x y = from_pairs $ maybe id ((:) . (x,)) prev_y [(x, y)]
-
 {-# SPECIALIZE constant :: UnboxedY -> Unboxed #-}
 {-# INLINEABLE constant #-}
 constant :: V.Vector v (Sample y) => y -> v (Sample y)
 constant y = V.singleton (Sample (-RealTime.larger) y)
-
-constant_val :: Unboxed -> Maybe UnboxedY
-constant_val vec = case uncons vec of
-    Nothing -> Just 0
-    Just (Sample x0 y0, rest)
-        -- I compare multiple samples because a track might have redundant
-        -- values, but I still want to detect if it's constant.
-        | x0 <= -RealTime.large && V.all ((==y0) . sy) rest -> Just y0
-        | V.all ((==0) . sy) vec -> Just 0
-        | otherwise -> Nothing
 
 to_pair :: Sample y -> (X, y)
 to_pair (Sample x y) = (x, y)
@@ -136,56 +140,6 @@ check = reverse . fst . V.foldl' check ([], (0, 0))
             <> show prev_x
         next = (warns, (i + 1, x))
 
--- | This is a merge where the vectors to the right will win in the case of
--- overlap.
-{-# SPECIALIZE merge_right :: [Unboxed] -> Unboxed #-}
-{-# INLINEABLE merge_right #-}
-merge_right :: V.Vector v (Sample y) => [v (Sample y)] -> v (Sample y)
-merge_right [v] = v
-merge_right vs = case next_start (reverse vs) of
-    Nothing -> V.empty
-    Just (v, vs, x) -> V.concat $ reverse $ v : trim x vs
-    where
-    -- I don't really like the double reverse, but it's easiest this way.
-    trim prev_start (v : vs) =
-        clipped : trim (maybe prev_start sx (head clipped)) vs
-        where clipped = V.take (bsearch_below prev_start v) v
-    trim _ [] = []
-    next_start [] = Nothing
-    next_start (v:vs) = maybe (next_start vs) (\s -> (Just (v, vs, sx s)))
-        (head v)
-
--- | This is a merge where the vectors to the left will win in the case of
--- overlap.
-{-# SPECIALIZE merge_left :: [Unboxed] -> Unboxed #-}
-{-# INLINEABLE merge_left #-}
-merge_left :: V.Vector v (Sample y) => [v (Sample y)] -> v (Sample y)
-merge_left [v] = v
-merge_left vs = case next_end vs of
-    Nothing -> V.empty
-    Just (v, vs, x) -> V.concat $ v : trim x vs
-    where
-    trim prev_end (v : vs) =
-        clipped : trim (maybe prev_end sx (last clipped)) vs
-        where clipped = V.dropWhile ((<=prev_end) . sx) v
-    trim _ [] = []
-    next_end [] = Nothing
-    next_end (v:vs) = maybe (next_end vs) (\s -> (Just (v, vs, sx s))) (last v)
-    -- |--->        => |--->
-    --   |--->             |->
-    --     |--->             |->
-
--- | When signals are 'merge_left'd, the later one overrides the first one.
--- This is the other way: the first one will override the second.
-{-# SPECIALIZE prepend :: Unboxed -> Unboxed -> Unboxed #-}
-{-# INLINEABLE prepend #-}
-prepend :: V.Vector v (Sample y) => v (Sample y) -> v (Sample y)
-    -> v (Sample y)
-prepend vec1 vec2 = case last vec1 of
-    Nothing -> vec2
-    Just (Sample x _) ->
-        vec1 V.++ V.dropWhile ((<=x) . sx) (drop_before_strict x vec2)
-
 -- | Same as 'sample_at', except don't return the X.
 {-# SPECIALIZE at :: X -> Unboxed -> Maybe UnboxedY #-}
 {-# INLINEABLE at #-}
@@ -201,15 +155,6 @@ sample_at x vec
     | i >= 0 = Just $ to_pair $ V.unsafeIndex vec i
     | otherwise = Nothing
     where i = highest_index x vec
-
--- | Find the sample before the given X.
-{-# SPECIALIZE before :: X -> Unboxed -> Maybe (Sample UnboxedY) #-}
-{-# INLINEABLE before #-}
-before :: V.Vector v (Sample y) => X -> v (Sample y) -> Maybe (Sample y)
-before x vec
-    | i > 0 = Just $ V.unsafeIndex vec (i-1)
-    | otherwise = Nothing
-    where i = bsearch_below x vec
 
 -- | Samples at and above the given time.
 ascending :: V.Vector v (Sample y) => X -> v (Sample y) -> [Sample y]
@@ -287,43 +232,6 @@ map_err f vec = second reverse $ State.runState (V.mapM go vec) []
     go sample =
         either (\err -> State.modify (err:) >> return sample) return (f sample)
 
-{-# SPECIALIZE sig_op :: UnboxedY -> (UnboxedY -> UnboxedY -> UnboxedY)
-    -> Unboxed -> Unboxed -> Unboxed #-}
-{-# INLINEABLE sig_op #-}
--- | Combine two vectors with the given function.  They will be resampled so
--- they have samples at the same time.
-sig_op :: V.Vector v (Sample y) =>
-    y -- ^ The implicit y value of a vector before its first sample.  It should
-    -- probably be the identity for the operator.
-    -> (y -> y -> y) -> v (Sample y) -> v (Sample y) -> v (Sample y)
-sig_op initial combine vec1 vec2 = V.unfoldr go (initial, initial, 0, 0)
-    where
-    go (prev_ay, prev_by, i1, i2) =
-        case resample1 prev_ay prev_by len1 len2 i1 i2 vec1 vec2 of
-            Nothing -> Nothing
-            Just (x, ay, by, i1, i2) ->
-                Just (Sample x (combine ay by), (ay, by, i1, i2))
-    len1 = V.length vec1
-    len2 = V.length vec2
-
--- | Polymorphic variant of 'sig_op'.
---
--- The signature is specialized to Boxed since you might as well use 'sig_op'
--- for Unboxed vectors.
-sig_op_poly :: y1 -> y2 -> (y1 -> y2 -> y3) -> Boxed y1 -> Boxed y2 -> Boxed y3
-sig_op_poly initial1 initial2 combine vec1 vec2 =
-    V.unfoldr go (initial1, initial2, 0, 0)
-    where
-    -- Yeah I could probably make 'sig_op' a specialization of this, but can't
-    -- be bothered at the moment.
-    go (prev_ay, prev_by, i1, i2) =
-        case resample1 prev_ay prev_by len1 len2 i1 i2 vec1 vec2 of
-            Nothing -> Nothing
-            Just (x, ay, by, i1, i2) ->
-                Just (Sample x (combine ay by), (ay, by, i1, i2))
-    len1 = V.length vec1
-    len2 = V.length vec2
-
 {-# INLINE resample1 #-}
 resample1 :: (V.Vector v1 (Sample y1), V.Vector v2 (Sample y2)) => y1 -> y2
     -> Int -> Int -> Int -> Int
@@ -340,18 +248,6 @@ resample1 prev_ay prev_by len1 len2 i1 i2 vec1 vec2
     Sample bx by = V.unsafeIndex vec2 i2
 
 -- * util
-
-{-# SPECIALIZE find_nonascending :: Unboxed -> [(X, UnboxedY)] #-}
-{-# INLINEABLE find_nonascending #-}
--- | Find samples whose 'sx' is <= the previous X.
-find_nonascending :: V.Vector v (Sample y) => v (Sample y) -> [(X, y)]
-find_nonascending vec = case uncons vec of
-    Nothing -> []
-    Just (x, xs) -> map to_pair $ reverse $ snd $ V.foldl' go (sx x, []) xs
-    where
-    go (prev, acc) s
-        | sx s <= prev = (sx s, s : acc)
-        | otherwise = (sx s, acc)
 
 {-# SPECIALIZE unfoldr :: (state -> Maybe ((X, UnboxedY), state)) -> state
     -> Unboxed #-}
@@ -390,16 +286,6 @@ highest_index x vec
     | V.null vec = -1
     | otherwise = i - 1
     where i = bsearch_above (x + RealTime.eta) vec
-
--- | 'bsearch_below', but if you use it with take, it includes the first
--- element ==x.  TODO not sure how to explain it.
-{-# SPECIALIZE bsearch_below_1 :: X -> Unboxed -> Int #-}
-{-# INLINEABLE bsearch_below_1 #-}
-bsearch_below_1 :: V.Vector v (Sample y) => X -> v (Sample y) -> Int
-bsearch_below_1 x vec = case vec V.!? i of
-    Just vi | sx vi == x -> i + 1
-    _ -> i
-    where i = bsearch_below x vec
 
 -- | Search for the last index <x, or -1 if the first sample is already >x.
 {-# SPECIALIZE index_below :: X -> Unboxed -> Int #-}
