@@ -40,20 +40,9 @@ test_from_pairs = do
     equal (f [(0, 0), (1, 0), (1, 0), (1, 1)])
         [((0, 0), (1, 0)), ((1, 1), (large, 1))]
 
-test_constant_val :: Test
-test_constant_val = do
-    let f = Segment.constant_val
-    equal (f $ constant 1) (Just 1)
-    equal (f $ Segment.shift 100 $ constant 1) (Just 1)
-    -- Not thrown off by shifts, as long as they're not too large.
-    equal (f $ Segment._flatten_shift $ Segment.shift 100 $ constant 1) (Just 1)
-    equal (f $ from_pairs []) Nothing
-    equal (f $ from_pairs [(0, 0)]) Nothing
-    equal (f $ from_pairs [(3, 2)]) Nothing
-
-test_constant_val_num :: Test
-test_constant_val_num = do
-    let f = Segment.constant_val_num
+test_constant_val_from :: Test
+test_constant_val_from = do
+    let f = Segment.constant_val_from
     equal (f 0 $ from_pairs [(2, 1)]) Nothing
     equal (f 0 $ Segment.shift (-2) (from_pairs [(2, 1)])) (Just 1)
     equal (f 0 $ Segment.shift (-2) (from_pairs [(2, 1), (4, 1)])) (Just 1)
@@ -244,6 +233,14 @@ test_linear_operator = do
     -- Linear interpolation between the segments.
     equal (f [(0, 0), (4, 4)] [(2, 1)])
         [((0, 0), (2, 2)), ((2, 3), (4, 5)), ((4, 5), (large, 5))]
+
+test_linear_operator_constant :: Test
+test_linear_operator_constant = do
+    let f s1 s2 = Segment.linear_operator (+) s1 s2
+    equal (f (Segment.constant 1) (Segment.constant 2))
+        (Segment.Constant 3)
+    equal (f (Segment.constant 1) (from_pairs [(1, 3)]))
+        (from_pairs [(Segment.beginning, 1), (1, 1), (1, 4)])
 
 test_linear_operator2 :: Test
 test_linear_operator2 = do

@@ -133,11 +133,10 @@ import           Types
 
 -- | A pitch signal is similar to a 'Signal.Control', except that its values
 -- are 'Pitch'es instead of plain floating point values.
-newtype PSignal =
-    PSignal (Segment.Signal (Vector.Vector (Segment.Sample Pitch)))
+newtype PSignal = PSignal (Segment.Signal Vector.Vector Pitch)
     deriving (Show, Pretty)
 
-_signal :: PSignal -> Segment.Signal (Vector.Vector (Segment.Sample Pitch))
+_signal :: PSignal -> Segment.Signal Vector.Vector Pitch
 _signal (PSignal sig) = sig
 
 instance Semigroup PSignal where
@@ -469,7 +468,11 @@ environ_attributes environ =
 -- purpose is the type for arguments to tracklang calls, and val calls' return
 -- type.
 data Val =
-    -- | A number with an optional type suffix.  It also has a ratio style
+    -- | Numbers are merged with signals, a constant number is just a constant
+    -- signal.  The signal type internally recognizes a constant and can
+    -- apply various optimizations.
+    --
+    -- A number with an optional type suffix.  It also has a ratio style
     -- literal, though the output is still a floating point value, not a true
     -- ratio.
     --

@@ -186,10 +186,10 @@ constant = Signal . Segment.constant
 
 -- | Just if the signal is constant.
 constant_val :: Signal kind -> Maybe Y
-constant_val = Segment.constant_val_num (-RealTime.large) . _signal
+constant_val = Segment.constant_val . _signal
 
 constant_val_from :: X -> Signal kind -> Maybe Y
-constant_val_from x = Segment.constant_val_num x . _signal
+constant_val_from x = Segment.constant_val_from x . _signal
 
 -- | True if the signal becomes <=0 at any point.  This assumes the signal
 -- starts at X==0, which is true of signals from control tracks only.

@@ -7269,7 +7269,7 @@ Derive:
       - Also checking is_constant makes garbage because of uncons, I can
         fix that at least.
       - Signal.constant 0 and mempty are different, but they should be the same?
-      . Possibly change signal representation for constant:
+      * Possibly change signal representation for constant:
         Segment.Signal { _offset :: X, _constant :: !Y, _vector :: !v }
         . What about pitch signal, where I still want it to be Nothing?
         . I guess since Y is a parameter, I pass ()?
@@ -7320,7 +7320,18 @@ Derive:
         . But maybe that's the biggest argument against Constant too, if
           I don't have that many numbers around, it's ok if they take up 15
           instead of 5.
-
+        . If I do Segment.Constant, first do VPitch -> VPSignal, why have
+          both?
+          . Reason in 'unify VControl and VNum:'
+            But passing a simple number would wind up in Eval, because it
+            wants the start pos, which is ignored.  Seems inefficient?
+          . But, I can check if it's constant, it's just like checking VPitch
+            vs VPSignal.  Or maybe I couldn't do that without Eq Pitch before,
+            but can do it with a separate Constant constructor.
+        . Ensure Constant is used for x=4 constants.  Yes.
+        . Ensure Constant is used for constant tracks and sliced pitches.
+          No, but it shouldn't be.
+      - Remove VPitch, Typecheck for VPSignal can check constant_val.
     ? remove ValType.specific_type_of entirely?  Under what situation would
       I care if it's positive or not?  I can see from the val.
     - what if I remove VControlRef and VPControlRef?  Instead it's syntactic
@@ -7589,7 +7600,7 @@ Derive:
         . Maybe not worth it.
       - XyzTransposeFunctionT should have a Control versions? Many callers
         just pass to Typecheck.transpose_control
-    unify VControl and VNum
+    unify VControl and VNum:
       . Would it make it easier to have a separate value for constant signal?
         No more -RealTime.large nonsense.
       . Alternately, I can define the value before the first segment:

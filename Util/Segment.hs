@@ -4,18 +4,21 @@
 
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE StrictData #-}
+{-# LANGUAGE UndecidableInstances #-}
 -- | The 'Signal' type and functions.
 module Util.Segment (
     Signal, Interpolate
+    , NumSignal
     , Segment(..)
     , X, Sample(..)
     -- * construct / destruct
     , empty
-    , constant, constant_val, constant_val_num
+    , constant
+    , constant_val, constant_val_from
     , all_y
     , beginning
     , from_vector, to_vector
-    , from_samples, to_samples
+    , to_samples
     , from_pairs, to_pairs, to_pairs_desc
     , from_segments, to_segments, samples_to_segments
     , simplify
@@ -43,7 +46,6 @@ module Util.Segment (
     , drop_discontinuity_at
 
     -- * NumSignal
-    , NumSignal
     , num_interpolate, num_interpolate_s
     , invert
     , integrate
@@ -108,32 +110,55 @@ import           Global
     specialized to 'NumSignal' may make some effort to do that, but only if it
     seems worth it.
 -}
-data Signal v = Signal {
-    _offset :: X
-    , _vector :: v
-    } deriving (Eq, Show)
+data Signal v y = Signal X (v (Sample y))
+    -- | Explicitly represent a constant signal.  Previously I used
+    -- [(beginning, y)], but a single Constant constructor should take quite a
+    -- bit less memory, which is good because every numeric literal is
+    -- represented as a constant signal.
+    | Constant y
 
-type SignalS v y = Signal (v (Sample y))
+deriving instance (Show (v (Sample y)), Show y) => Show (Signal v y)
+deriving instance (Eq (v (Sample y)), Eq y) => Eq (Signal v y)
 
+type NumSignal = Signal Storable.Vector Y -- Same as TimeVector.Unboxed
+type Y = Double -- same as TimeVector.UnboxedY
 type Interpolate y = Sample y -> Sample y -> X -> y
 
-instance Pretty v => Pretty (Signal v) where
+signal_offset :: Signal v y -> X
+signal_offset = \case
+    Signal offset _ -> offset
+    Constant _ -> 0
+
+modify_vector :: (v (Sample y) -> v (Sample y)) -> Signal v y -> Signal v y
+modify_vector modify = \case
+    Signal o v -> Signal o (modify v)
+    Constant y -> Constant y
+
+instance (Pretty (v (Sample y)), Pretty y) => Pretty (Signal v y) where
     format (Signal offset vector) = "Signal" Pretty.<+> Pretty.text offset_s
         Pretty.<+> Pretty.format vector
         where
         offset_s
             | offset > 0 = "+" <> pretty offset
             | otherwise = pretty offset
+    format (Constant y) = "Constant" Pretty.<+> Pretty.format y
 
-instance Serialize.Serialize v => Serialize.Serialize (Signal v) where
-    put (Signal offset vec) = Serialize.put offset >> Serialize.put vec
-    get = Signal <$> Serialize.get <*> Serialize.get
+instance Serialize.Serialize NumSignal where
+    put = \case
+        Signal offset vec -> Serialize.put offset >> Serialize.put vec
+        Constant y ->
+            Serialize.put (0 :: X) >> Serialize.put (constant_vector y)
+    get = do
+        offset <- Serialize.get
+        vec <- Serialize.get
+        pure $ case TimeVector.uncons vec of
+            Just (Sample x y, rest)
+                | V.null rest && x <= beginning -> Constant y
+            _ -> Signal offset vec
 
-instance DeepSeq.NFData v => DeepSeq.NFData (Signal v) where
+instance DeepSeq.NFData (v (Sample y)) => DeepSeq.NFData (Signal v y) where
     rnf (Signal offset vec) = DeepSeq.rnf offset `seq` DeepSeq.rnf vec `seq` ()
-
-modify_vector :: (a -> b) -> Signal a -> Signal b
-modify_vector modify sig = sig { _vector = modify (_vector sig) }
+    rnf (Constant _) = ()
 
 data Segment y = Segment {
     _x1 :: X, _y1 :: y
@@ -146,47 +171,57 @@ instance Pretty y => Pretty (Segment y) where
 
 -- * construct / destruct
 
-empty :: V.Vector v a => Signal (v a)
+empty :: V.Vector v (Sample y) => Signal v y
 empty = Signal 0 V.empty
 
-constant :: V.Vector v (Sample y) => y -> SignalS v y
-constant a = from_vector $ V.fromList [Sample beginning a]
+constant :: y -> Signal v y
+constant = Constant
 
-constant_val :: V.Vector v (Sample a) => SignalS v a -> Maybe a
-constant_val sig = case TimeVector.uncons (_vector sig) of
-    -- This will naturally disregard 'shift's, which is as it should be for
-    -- so-called constant signals.
-    Just (Sample x1 y1, rest) | x1 <= -RealTime.large && V.null rest ->
-        Just y1
-    _ -> Nothing
+constant_val :: Signal v y -> Maybe y
+constant_val = \case
+    Constant y -> Just y
+    Signal {} -> Nothing
 
--- | 'constant_val' for 'NumSignal's can be more clever, because it can compare
--- Ys.  Also NumSignals are implicitly 0 before the first sample.
-constant_val_num :: X -> NumSignal -> Maybe Y
-constant_val_num from sig = case TimeVector.uncons (_vector sig) of
-    -- I compare multiple samples because a track might have redundant
-    -- values, but I still want to detect if it's constant.
-    Just (Sample x y, rest)
-        | x <= (from - _offset sig) && V.all ((==y) . sy) rest -> Just y
-        | V.all ((==0) . sy) (_vector sig) -> Just 0
-        | otherwise -> Nothing
-    Nothing -> Just 0
+-- | Like 'constant_val', but also can notice if it's constant after a given X.
+-- Also NumSignals are implicitly 0 before the first sample.
+constant_val_from :: X -> NumSignal -> Maybe Y
+constant_val_from from = \case
+    Constant y -> Just y
+    Signal offset v -> case TimeVector.uncons v of
+        Nothing -> Just 0
+        -- I compare multiple samples because a track might have redundant
+        -- values, but I still want to detect if it's constant.
+        Just (Sample x y, rest)
+            | x <= from - offset && V.all ((==y) . sy) rest -> Just y
+            | V.all ((==0) . sy) v -> Just 0
+            | otherwise -> Nothing
 
 all_y :: (Y -> Bool) -> NumSignal -> Bool
-all_y f = V.all (f . sy) . _vector
+all_y f = \case
+    Constant y -> f y
+    Signal _ v -> V.all (f . sy) v
 
 -- | Use this as the stand-in for "since the beginning of time."
 beginning :: RealTime.RealTime
 beginning = -RealTime.larger
 
-from_vector :: v -> Signal v
+from_vector :: v (Sample y) -> Signal v y
 from_vector = Signal 0
 
-to_vector :: V.Vector v (Sample y) => SignalS v y -> v (Sample y)
-to_vector sig
-    | offset == 0 = _vector sig
-    | otherwise = TimeVector.map_x (+offset) (_vector sig)
-    where offset = _offset sig
+singleton :: V.Vector v (Sample y) => X -> y -> Signal v y
+singleton x y = Signal 0 (V.singleton (Sample x y))
+
+signal :: V.Vector v (Sample y) => X -> v (Sample y) -> Signal v y
+signal offset v
+    | V.null v = empty
+    | otherwise = Signal offset v
+
+to_vector :: V.Vector v (Sample y) => Signal v y -> v (Sample y)
+to_vector = \case
+    Constant y -> V.singleton $ Sample beginning y
+    Signal offset v
+        | offset == 0 -> v
+        | otherwise -> TimeVector.map_x (+offset) v
 
 -- | The final sample extends for "all time".  However, there's no value before
 -- the first sample.  The reason is that I'd have to have a zero value for y,
@@ -194,10 +229,9 @@ to_vector sig
 --
 -- TODO I could simplify straight lines, but then I'd need Eq on y.  Maybe do
 -- that separately for NumSignal.
-from_samples :: V.Vector v (Sample y) => [Sample y] -> SignalS v y
+from_samples :: V.Vector v (Sample y) => [Sample y] -> Signal v y
 from_samples =
-    from_vector . V.fromList . drop_coincident
-        . drop_initial_dup
+    Signal 0 . V.fromList . drop_coincident . drop_initial_dup
         . Maybe.catMaybes . snd . List.mapAccumL in_order Nothing
     where
     -- Since the first sample comes from 0, I can drop leading dups.
@@ -214,40 +248,40 @@ from_samples =
     drop_coincident (s1:sn) = s1 : drop_coincident sn
     drop_coincident [] = []
 
-to_samples :: V.Vector v (Sample y) => SignalS v y -> [Sample y]
-to_samples sig =
-    (if _offset sig == 0 then id else map (plus (_offset sig))) $
-        V.toList (_vector sig)
-    where
-    plus n (Sample x y) = Sample (n+x) y
--- to_samples = V.toList . to_vector
+to_samples :: V.Vector v (Sample y) => Signal v y -> [Sample y]
+to_samples = \case
+    Constant y -> [Sample beginning y]
+    Signal 0 v -> V.toList v
+    Signal offset v -> map (plus offset) $ V.toList v
+    where plus n (Sample x y) = Sample (n+x) y
 -- TODO verify that TimeVector.map_x fuses with V.toList so there is no extra
--- vector.
+-- vector, and I can use the simpler version
+-- to_samples = V.toList . to_vector
 
-to_samples_desc :: V.Vector v (Sample y) => SignalS v y -> [Sample y]
-to_samples_desc (Signal offset vec) =
-    (if offset == 0 then id else map (plus offset)) $
-        Util.Vector.to_reverse_list vec
-    where
-    plus n (Sample x y) = Sample (n+x) y
+to_samples_desc :: V.Vector v (Sample y) => Signal v y -> [Sample y]
+to_samples_desc = \case
+    Constant y -> [Sample beginning y]
+    Signal 0 v -> Util.Vector.to_reverse_list v
+    Signal offset v -> map (plus offset) $ Util.Vector.to_reverse_list v
+    where plus n (Sample x y) = Sample (n+x) y
 
-from_pairs :: V.Vector v (Sample y) => [(X, y)] -> SignalS v y
+from_pairs :: V.Vector v (Sample y) => [(X, y)] -> Signal v y
 from_pairs = from_samples . map (uncurry Sample)
 
-to_pairs :: V.Vector v (Sample y) => SignalS v y -> [(X, y)]
+to_pairs :: V.Vector v (Sample y) => Signal v y -> [(X, y)]
 to_pairs = map TimeVector.to_pair . to_samples
 
-to_pairs_desc :: V.Vector v (Sample y) => SignalS v y -> [(X, y)]
+to_pairs_desc :: V.Vector v (Sample y) => Signal v y -> [(X, y)]
 to_pairs_desc = map TimeVector.to_pair . to_samples_desc
 
-from_segments :: V.Vector v (Sample y) => [Segment y] -> SignalS v y
+from_segments :: V.Vector v (Sample y) => [Segment y] -> Signal v y
 from_segments = from_samples . to_list
     where
     to_list (Segment x1 y1 x2 y2 : segments) =
         Sample x1 y1 : Sample x2 y2 : to_list segments
     to_list [] = []
 
-to_segments :: V.Vector v (Sample y) => SignalS v y -> [Segment y]
+to_segments :: V.Vector v (Sample y) => Signal v y -> [Segment y]
 to_segments = samples_to_segments . to_samples
 
 samples_to_segments :: [Sample y] -> [Segment y]
@@ -278,23 +312,28 @@ simplify xys = go xys
 {-# SPECIALIZE simplify :: [(X, Y)] -> [(X, Y)] #-}
 
 unfoldr :: V.Vector v (Sample y) => (state -> Maybe ((X, y), state)) -> state
-    -> SignalS v y
-unfoldr gen state = from_vector $ TimeVector.unfoldr gen state
+    -> Signal v y
+unfoldr gen state = Signal 0 $ TimeVector.unfoldr gen state
 
--- | Get a Ptr to the vector.  This is 'Storable.unsafeWith'.
-with_ptr :: Foreign.Storable a =>
-    Signal (Storable.Vector a) -> (X -> Foreign.Ptr a -> Int-> IO b)
-    -> IO b
-with_ptr (Signal offset vec) action = TimeVector.with_ptr vec (action offset)
+-- | Get a Ptr to the vector.  This is 'Vector.Storable.unsafeWith'.
+with_ptr :: NumSignal -> (X -> Foreign.Ptr (Sample Y) -> Int-> IO b) -> IO b
+with_ptr sig action = case sig of
+    Signal offset v -> TimeVector.with_ptr v (action offset)
+    Constant y -> TimeVector.with_ptr (constant_vector y) (action 0)
+
+constant_vector :: Y -> Storable.Vector (Sample Y)
+constant_vector y = Storable.singleton (Sample beginning y)
 
 -- * query
 
-null :: V.Vector v (Sample y) => SignalS v y -> Bool
-null = V.null . _vector
+null :: V.Vector v (Sample y) => Signal v y -> Bool
+null = \case
+    Signal _ v -> V.null v
+    Constant {} -> False
 
 -- | The arguments may seem backwards, but I've always done it this way, and it
 -- seems to be more convenient in practice.
-at :: V.Vector v (Sample y) => Interpolate y -> SignalS v y -> X -> Maybe y
+at :: V.Vector v (Sample y) => Interpolate y -> Signal v y -> X -> Maybe y
 at interpolate (Signal offset vec) x_
     | i < 0 = Nothing
     | i + 1 == V.length vec = Just (sy (V.unsafeIndex vec i))
@@ -303,23 +342,26 @@ at interpolate (Signal offset vec) x_
     where
     i = TimeVector.highest_index x vec
     x = x_ - offset
+at _ (Constant y) _ = Just y
 
 -- | Like 'at', but if the x matches a discontinuity, take the value before
 -- instead of after.
-at_negative :: V.Vector v (Sample y) => Interpolate y -> SignalS v y -> X
+at_negative :: V.Vector v (Sample y) => Interpolate y -> Signal v y -> X
     -> Maybe y
 at_negative interpolate signal x = do
     Segment x1 y1 x2 y2 <- segment_at_orientation Types.Negative signal x
     return $ interpolate (Sample x1 y1) (Sample x2 y2) x
 
-segment_at :: V.Vector v (Sample y) => SignalS v y -> X -> Maybe (Segment y)
+segment_at :: V.Vector v (Sample y) => Signal v y -> X -> Maybe (Segment y)
 segment_at = segment_at_orientation Types.Positive
 
 segment_at_orientation :: V.Vector v (Sample y) => Types.Orientation
-    -> SignalS v y -> X -> Maybe (Segment y)
+    -> Signal v y -> X -> Maybe (Segment y)
 segment_at_orientation orient (Signal offset vec) x =
     bump . snd <$> segment_at_v orient (x - offset) vec
     where bump (Segment x1 y1 x2 y2) = Segment (x1+offset) y1 (x2+offset) y2
+segment_at_orientation _ (Constant y) _ =
+    Just $ Segment beginning y RealTime.larger y
 
 segment_at_v :: V.Vector v (Sample y) => Types.Orientation -> X -> v (Sample y)
     -> Maybe (Int, Segment y)
@@ -337,30 +379,40 @@ segment_at_v orient x vec
         Types.Negative -> TimeVector.index_below
         Types.Positive -> TimeVector.highest_index
 
-head :: V.Vector v (Sample y) => SignalS v y -> Maybe (X, y)
-head sig = case TimeVector.head (_vector sig) of
-    Nothing -> Nothing
-    Just (Sample x y) -> Just (_offset sig + x, y)
+head :: V.Vector v (Sample y) => Signal v y -> Maybe (X, y)
+head = \case
+    Constant y -> Just (beginning, y)
+    Signal offset v -> case TimeVector.head v of
+        Nothing -> Nothing
+        Just (Sample x y) -> Just (offset + x, y)
 
-last :: V.Vector v (Sample y) => SignalS v y -> Maybe (X, y)
-last sig = case TimeVector.last (_vector sig) of
-    Nothing -> Nothing
-    Just (Sample x y) -> Just (_offset sig + x, y)
+last :: V.Vector v (Sample y) => Signal v y -> Maybe (X, y)
+last = \case
+    Constant y -> Just (beginning, y)
+    Signal offset v -> case TimeVector.last v of
+        Nothing -> Nothing
+        Just (Sample x y) -> Just (offset + x, y)
 
-minimum, maximum :: (V.Vector v (Sample a), Ord a) => SignalS v a -> Maybe a
-minimum sig
-    | null sig = Nothing
-    | otherwise = Just $ sy $ V.minimumBy (\a b -> compare (sy a) (sy b)) $
-        _vector sig
-maximum sig
-    | null sig = Nothing
-    | otherwise = Just $ sy $ V.maximumBy (\a b -> compare (sy a) (sy b)) $
-        _vector sig
+minimum, maximum :: (V.Vector v (Sample a), Ord a) => Signal v a -> Maybe a
+minimum = \case
+    Constant y -> Just y
+    Signal _ v
+        | V.null v -> Nothing
+        | otherwise ->
+            Just $ sy $ V.minimumBy (\a b -> compare (sy a) (sy b)) v
+maximum = \case
+    Constant y -> Just y
+    Signal _ v
+        | V.null v -> Nothing
+        | otherwise ->
+            Just $ sy $ V.maximumBy (\a b -> compare (sy a) (sy b)) v
 
-find :: V.Vector v (Sample y) => (X -> y -> Bool) -> Signal (v (Sample y))
-    -> Maybe (X, y)
-find f sig = first (+ _offset sig) . TimeVector.to_pair <$>
-    V.find (\(Sample x y) -> f (x + _offset sig) y) (_vector sig)
+find :: V.Vector v (Sample y) => (X -> y -> Bool) -> Signal v y -> Maybe (X, y)
+find f (Signal offset v) = first (+ offset) . TimeVector.to_pair <$>
+    V.find (\(Sample x y) -> f (x + offset) y) v
+find f (Constant y)
+    | f beginning y = Just (beginning, y)
+    | otherwise = Nothing
 
 -- * concat
 
@@ -368,11 +420,11 @@ find f sig = first (+ _offset sig) . TimeVector.to_pair <$>
 -- left where they overlap.
 concat :: V.Vector v (Sample y) => Maybe (y -> y -> Bool)
     -- ^ signals with Eq y can drop some redundant samples
-    -> Interpolate y -> [SignalS v y] -> SignalS v y
+    -> Interpolate y -> [Signal v y] -> Signal v y
 concat _ _ [] = empty
 concat _ _ [sig] = sig
 concat maybe_eq interpolate sigs =
-    from_vector . V.concat . try_strip_duplicates . reverse . chunks . reverse
+    Signal 0 . V.concat . try_strip_duplicates . reverse . chunks . reverse
         . map to_vector $ sigs
     where
     chunks [] = []
@@ -407,7 +459,7 @@ concat maybe_eq interpolate sigs =
 -- the other way around, the final sample in the first signal is taken as its
 -- end, and it replaces the start of the second signal.
 prepend :: V.Vector v (Sample y) => Maybe (y -> y -> Bool) -> Interpolate y
-    -> SignalS v y -> SignalS v y -> SignalS v y
+    -> Signal v y -> Signal v y -> Signal v y
 prepend eq interpolate sig1 sig2 = case last sig1 of
     Nothing -> sig2
     Just (x, _) -> concat eq interpolate [sig1, clip_before interpolate x sig2]
@@ -415,11 +467,10 @@ prepend eq interpolate sig1 sig2 = case last sig1 of
 -- * slice
 
 -- | Drop the segments after the given time.  The last segment may overlap it.
-drop_after :: V.Vector v (Sample y) => X -> SignalS v y -> SignalS v y
-drop_after x sig
-    | V.null v = empty
-    | otherwise = Signal { _offset = _offset sig, _vector = v }
-    where v = drop_after_v (x - _offset sig) (_vector sig)
+drop_after :: V.Vector v (Sample y) => X -> Signal v y -> Signal v y
+drop_after x = \case
+    Signal offset v -> signal offset $ drop_after_v (x - offset) v
+    sig@(Constant _) -> sig
 
 drop_after_v :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
 drop_after_v x vec = case vec V.!? i of
@@ -436,12 +487,11 @@ drop_after_v x vec = case vec V.!? i of
 -- If the signal has only a point exactly at x, then return the empty signal.
 -- This is because the first sample is effectively a transition from Nothing,
 -- or 0.
-clip_after :: V.Vector v (Sample y) => Interpolate y -> X -> SignalS v y
-    -> SignalS v y
-clip_after interpolate x sig
-    | V.null v = empty
-    | otherwise = Signal { _offset = _offset sig, _vector = v }
-    where v = clip_after_v interpolate (x - _offset sig) (_vector sig)
+clip_after :: V.Vector v (Sample y) => Interpolate y -> X -> Signal v y
+    -> Signal v y
+clip_after interpolate x = \case
+    Signal offset v -> signal offset $ clip_after_v interpolate (x - offset) v
+    Constant y -> singleton x y
 
 clip_after_v :: V.Vector v (Sample y) => Interpolate y -> X
     -> v (Sample y) -> v (Sample y)
@@ -450,17 +500,19 @@ clip_after_v interpolate x vec
     | otherwise = case TimeVector.last clipped of
         Nothing -> V.empty
         Just (Sample x2 _)
-            | x < x2, Just y <- at interpolate (from_vector vec) x ->
+            | x < x2, Just y <- at interpolate (Signal 0 vec) x ->
                 V.snoc (V.take (V.length clipped - 1) clipped) (Sample x y)
             | otherwise -> clipped
     where clipped = drop_after_v x vec
 
 num_clip_after :: Bool -> X -> NumSignal -> NumSignal
-num_clip_after keep_last x sig
-    | V.null clipped = empty
-    | [Sample x0 _] <- V.toList clipped, x0 == x = empty
-    | otherwise = Signal { _offset = _offset sig, _vector = clipped }
-    where clipped = num_clip_after_v keep_last (x - _offset sig) (_vector sig)
+num_clip_after keep_last x = \case
+    Signal offset v
+        | V.null clipped -> empty
+        | [Sample x0 _] <- V.toList clipped, x0 == x -> empty
+        | otherwise -> Signal offset clipped
+        where clipped = num_clip_after_v keep_last (x - offset) v
+    Constant y -> singleton x y
 
 -- | 'clip_after' specialized for 'Y'.  Since it has Eq, it can do an
 -- additional optimization.
@@ -476,44 +528,47 @@ num_clip_after_v keep_last x vec = case segment_at_v Types.Negative x vec of
 
 -- | Drop the segments before the given time.  The first segment will start at
 -- or before the given time.
-drop_before :: V.Vector v (Sample y) => X -> SignalS v y -> SignalS v y
-drop_before x sig
-    | V.null clipped = empty
-    | otherwise = Signal { _offset = _offset sig, _vector = clipped }
-    where clipped = TimeVector.drop_before (x - _offset sig) (_vector sig)
+drop_before :: V.Vector v (Sample y) => X -> Signal v y -> Signal v y
+drop_before x = \case
+    Signal offset v
+        | V.null clipped -> empty
+        | otherwise -> Signal offset clipped
+        where clipped = TimeVector.drop_before (x - offset) v
+    sig@(Constant _) -> sig
 
 -- | Like 'drop_before', but ensure that the signal starts exactly at the given
 -- time by splitting a segment that crosses it.
-clip_before :: V.Vector v (Sample y) => Interpolate y -> X -> SignalS v y
-    -> SignalS v y
+clip_before :: V.Vector v (Sample y) => Interpolate y -> X -> Signal v y
+    -> Signal v y
 clip_before interpolate x sig = case head clipped of
     Nothing -> empty
     Just (x1, _)
         | x1 < x, Just y <- at interpolate sig x ->
-            from_vector $ V.cons (Sample x y) (V.drop 1 (to_vector clipped))
+            Signal 0 $ V.cons (Sample x y) (V.drop 1 (to_vector clipped))
         | otherwise -> clipped
     where clipped = drop_before x sig
 
 -- TODO is this the same as 'to_samples . clip_before'?
 clip_before_samples :: V.Vector v (Sample y) => Interpolate y -> X
-    -> SignalS v y -> [Sample y]
+    -> Signal v y -> [Sample y]
 clip_before_samples interpolate x sig = case head clipped of
     Nothing -> []
     Just (x1, _)
         | x1 < x, Just y <- at interpolate sig x ->
             Sample x y : to_samples (modify_vector (V.drop 1) clipped)
         | otherwise -> to_samples clipped
-
     where clipped = drop_before x sig
 
 -- * transform
 
 -- | Shift the signal in time.
-shift :: X -> Signal v -> Signal v
-shift offset sig = sig { _offset = _offset sig + offset }
+shift :: X -> Signal v y -> Signal v y
+shift offset = \case
+    Signal o v -> Signal (o + offset) v
+    sig@(Constant _) -> sig
 
 -- | Apply the _offset, and set it to 0.  Just for tests.
-_flatten_shift :: V.Vector v (Sample y) => SignalS v y -> SignalS v y
+_flatten_shift :: V.Vector v (Sample y) => Signal v y -> Signal v y
 _flatten_shift = from_vector . to_vector
 
 -- | Map Ys.  This resamples the signal, so it's valid for a nonlinear
@@ -523,22 +578,24 @@ map_y srate f =
     from_vector . TimeVector.map_y f . to_vector . resample_rate srate
 
 -- | Map Ys.  Only valid if the function is linear.
-map_y_linear :: V.Vector v (Sample y) => (y -> y) -> SignalS v y -> SignalS v y
-map_y_linear f = modify_vector $ TimeVector.map_y f
+map_y_linear :: V.Vector v (Sample y) => (y -> y) -> Signal v y -> Signal v y
+map_y_linear f = \case
+    Constant y -> Constant (f y)
+    Signal offset v -> Signal offset (TimeVector.map_y f v)
 
 -- | Map Xs.  The slopes will definitely change unless the function is adding
 -- a constant, but presumably that's what you want.
 --
 -- TODO this can break 'Signal' invariants.
-map_x :: V.Vector v (Sample y) => (X -> X) -> SignalS v y -> SignalS v y
+map_x :: V.Vector v (Sample y) => (X -> X) -> Signal v y -> Signal v y
 map_x f = modify_vector $ TimeVector.map_x f
 
 transform_samples :: V.Vector v (Sample y) => ([Sample y] -> [Sample y])
-    -> SignalS v y -> SignalS v y
+    -> Signal v y -> Signal v y
 transform_samples f = from_samples . f . to_samples
 
 map_err :: V.Vector v (Sample y) => (Sample y -> Either err (Sample y))
-    -> SignalS v y -> (SignalS v y, [err])
+    -> Signal v y -> (Signal v y, [err])
 map_err f = first from_vector . TimeVector.map_err f . to_vector
 
 -- ** hacks
@@ -546,8 +603,8 @@ map_err f = first from_vector . TimeVector.map_err f . to_vector
 -- | Drop a x1==x2 discontinuity at the given time, if there is one.
 -- Used for Block.trim_controls, which is a terrible hack that I'm trying to
 -- get rid of.
-drop_discontinuity_at :: V.Vector v (Sample y) => X -> SignalS v y
-    -> SignalS v y
+drop_discontinuity_at :: V.Vector v (Sample y) => X -> Signal v y
+    -> Signal v y
 drop_discontinuity_at x sig = case V.toList clipped of
     Sample x1 _ : Sample x2 _ : _ | x == x1 && x1 == x2 ->
         from_vector $ V.concat
@@ -565,18 +622,14 @@ drop_discontinuity_at x sig = case V.toList clipped of
     _ -> sig
     where
     vector = to_vector sig
-    clipped = TimeVector.drop_before_strict (x - _offset sig) (_vector sig)
+    clipped = TimeVector.drop_before_strict (x - signal_offset sig) vector
     -- Drop an extra x to avoid >2 samples in the same spot.
     drop1 v = case V.toList v of
         Sample x1 _ : Sample x2 _ : _ | x1 == x2 -> V.drop 1 v
         _ -> v
 
--- * NumSignal
 
--- | Specialize to Double.  The other kind is PSignal, which is Pitch,
--- which is defined elsewhere so we can't have it in here.
-type NumSignal = Signal (Storable.Vector (Sample Y)) -- TimeVector.Unboxed
-type Y = Double -- TimeVector.UnboxedY
+-- * NumSignal
 
 num_interpolate :: Interpolate Y
 num_interpolate (Sample x1 y1) (Sample x2 y2) = TimeVector.y_at x1 y1 x2 y2
@@ -587,10 +640,19 @@ num_interpolate_s (Segment x1 y1 x2 y2) = TimeVector.y_at x1 y1 x2 y2
 -- | Swap X and Y.  Y must be non-decreasing or this will break 'Signal'
 -- invariants.
 invert :: NumSignal -> NumSignal
-invert sig = Signal 0 (V.map swap (_vector sig))
+invert = \case
+    Signal offset v -> Signal 0 (V.map (swap (to_y offset)) v)
+    -- A vertical line is not very useful, but I might as well be consistent.
+    Constant y -> from_segments
+        [ Segment (to_x y) (to_y (-RealTime.larger))
+            (to_x y) (to_y RealTime.larger)
+        ]
     where
-    swap (Sample x y) =
-        Sample (RealTime.seconds y) (RealTime.to_seconds (x + _offset sig))
+    swap offset (Sample x y) = Sample (to_x y) (offset + to_y x)
+    to_x = RealTime.seconds
+    to_y = RealTime.to_seconds
+    -- TODO simpler version, if map_x for offset will fuse
+    -- invert sig = Signal 0 (V.map swap (to_vector sig))
 
 -- | Integrate the signal.
 --
@@ -625,6 +687,7 @@ integrate srate_x =
 -- for linear functions, so the result can also be represented with linear
 -- segments.
 linear_operator :: (Y -> Y -> Y) -> NumSignal -> NumSignal -> NumSignal
+linear_operator merge (Constant a) (Constant b) = Constant (merge a b)
 linear_operator merge asig bsig =
     from_samples $ zipWith3 make (get_xs ()) as2 bs2
     where
@@ -638,12 +701,9 @@ linear_operator merge asig bsig =
     -- TODO profile
     get_xs () = sample_xs2 (map sx as) (map sx bs)
 
-resample_num :: [X] -> [Sample Y] -> [Y]
-resample_num = resample 0 num_interpolate
-
 -- | Like 'to_samples', except the signal that starts later gets an extra
 -- sample to transition from zero.
-to_samples2 :: V.Vector v (Sample y) => y -> SignalS v y -> SignalS v y
+to_samples2 :: V.Vector v (Sample y) => y -> Signal v y -> Signal v y
     -> ([Sample y], [Sample y])
 to_samples2 zero asig bsig = case (to_samples asig, to_samples bsig) of
     (as@(Sample ax _ : _), bs@(Sample bx _ : _))
@@ -680,6 +740,9 @@ _linear_operator2 merge asig bsig =
 
 resample :: y -> Interpolate y -> [X] -> [Sample y] -> [y]
 resample = resample_ id
+
+resample_num :: [X] -> [Sample Y] -> [Y]
+resample_num = resample 0 num_interpolate
 
 -- | This is the same as 'resample', only for ys without a zero.
 resample_maybe :: Interpolate y -> [X] -> [Sample y] -> [Maybe y]

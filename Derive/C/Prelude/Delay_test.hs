@@ -61,7 +61,9 @@ test_event_echo = do
     equal logs []
     equal (DeriveTest.note_on_vel mmsgs)
         [ (0, Key.c4, 127)
-        , (1000, Key.d4, 127), (2000, 60, 51), (3000, Key.d4, 51)
+        , (1000, Key.d4, 127)
+        , (2000, Key.c4, 51)
+        , (3000, Key.d4, 51)
         ]
 
     let (mmsgs, logs) = perform

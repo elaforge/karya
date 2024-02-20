@@ -93,9 +93,9 @@ sig_scale :: PSignal -> Scale
 sig_scale = maybe no_scale (pitch_scale . sy) . Lists.head . Segment.to_samples
     . _signal
 
-type PVector = Segment.Signal (Vector.Vector (Segment.Sample Pitch))
-
-modify :: (PVector -> PVector) -> PSignal -> PSignal
+modify ::
+    (Segment.Signal Vector.Vector Pitch -> Segment.Signal Vector.Vector Pitch)
+    -> PSignal -> PSignal
 modify f = PSignal . f . _signal
 
 no_scale :: Scale

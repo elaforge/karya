@@ -3,11 +3,12 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.C.Prelude.Equal_test where
-import Util.Test
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
-import Global
-import Types
+
+import           Global
+import           Types
+import           Util.Test
 
 
 test_equal :: Test
