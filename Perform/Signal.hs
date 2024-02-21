@@ -186,7 +186,14 @@ constant = Signal . Segment.constant
 
 -- | Just if the signal is constant.
 constant_val :: Signal kind -> Maybe Y
-constant_val = Segment.constant_val . _signal
+constant_val (Signal sig) = case Segment.constant_val sig of
+    Just y -> Just y
+    Nothing
+        -- Segment.NumSignal is 0 where not given, so mempty should be the same
+        -- as constant 0.  They're not equal, but that's generally true since
+        -- I don't normalize away redundant samples.
+        | Segment.null sig -> Just 0
+        | otherwise -> Nothing
 
 constant_val_from :: X -> Signal kind -> Maybe Y
 constant_val_from x = Segment.constant_val_from x . _signal

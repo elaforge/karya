@@ -22,9 +22,6 @@ module Derive.PSignal (
     , at, at_negative, segment_at
     , interpolate
     , head, last
-    -- , before
-    -- , drop_at_after
-    -- , drop_before_strict, drop_before_at, within
 
     -- * transform
     , drop_after, clip_after

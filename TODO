@@ -7268,7 +7268,7 @@ Derive:
         with (-large, num).
       * Also checking is_constant makes garbage because of uncons, I can
         fix that at least.
-      - Signal.constant 0 and mempty are different, but they should be the same?
+      * Signal.constant 0 and mempty are different, but they should be the same?
       * Possibly change signal representation for constant:
         Segment.Signal { _offset :: X, _constant :: !Y, _vector :: !v }
         . What about pitch signal, where I still want it to be Nothing?
