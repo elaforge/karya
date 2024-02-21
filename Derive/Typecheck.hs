@@ -696,7 +696,7 @@ instance ToVal DeriveT.PControlRef where to_val = VPControlRef
 instance Typecheck PSignal.Pitch where
     from_val = coerce_to_pitch
     to_type _ = ValType.TPitch
-instance ToVal PSignal.Pitch where to_val = VPitch
+instance ToVal PSignal.Pitch where to_val = VPSignal . PSignal.constant
 
 instance Typecheck Pitch.Pitch where
     from_val (VNotePitch a) = success a
@@ -730,7 +730,7 @@ instance ToVal DeriveT.PFunction where to_val = VPFunction
 instance Typecheck DeriveT.Quoted where
     from_val val = case val of
         VQuoted a -> success a
-        VPitch {} -> failure
+        VPSignal {} -> failure
         VStr (Expr.Str sym) -> to_quoted sym
         _ -> to_quoted $ ShowVal.show_val val
         where
@@ -903,7 +903,7 @@ val_to_signal = \case
 -- | This is the pitch version of 'coerce_to_scalar'.
 coerce_to_pitch :: Val -> Checked PSignal.Pitch
 coerce_to_pitch = \case
-    VPitch a -> success a
+    VPSignal sig | Just p <- PSignal.constant_val sig -> success p
     val | Just (ScoreT.Typed ScoreT.Nn nn) <- DeriveT.constant_val val ->
         success $ PSignal.nn_pitch (Pitch.nn nn)
     val -> case val_to_pitch_signal val of
@@ -955,7 +955,6 @@ val_to_pitch_signal :: Val
     -> Maybe (Either (Derive.Deriver PSignal.PSignal) PSignal.PSignal)
 val_to_pitch_signal = \case
     VPControlRef ref -> Just $ Left $ resolve_pitch_ref ref
-    VPitch pitch -> Just $ Right $ PSignal.constant pitch
     VPSignal sig -> Just $ Right sig
     val -> case DeriveT.constant_val val of
         Just (ScoreT.Typed ScoreT.Nn nn) ->

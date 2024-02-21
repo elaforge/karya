@@ -7266,7 +7266,7 @@ Derive:
       . Normally shouldn't matter but what about Internal.add_stack_frame?
       . Instead of just a number, it's a signal, with 0 offset, and vector
         with (-large, num).
-      - Also checking is_constant makes garbage because of uncons, I can
+      * Also checking is_constant makes garbage because of uncons, I can
         fix that at least.
       - Signal.constant 0 and mempty are different, but they should be the same?
       * Possibly change signal representation for constant:
@@ -7331,7 +7331,7 @@ Derive:
         . Ensure Constant is used for x=4 constants.  Yes.
         . Ensure Constant is used for constant tracks and sliced pitches.
           No, but it shouldn't be.
-      - Remove VPitch, Typecheck for VPSignal can check constant_val.
+      * Remove VPitch, Typecheck for VPSignal can check constant_val.
     ? remove ValType.specific_type_of entirely?  Under what situation would
       I care if it's positive or not?  I can see from the val.
     - what if I remove VControlRef and VPControlRef?  Instead it's syntactic

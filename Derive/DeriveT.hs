@@ -52,6 +52,7 @@ module Derive.DeriveT (
     , vals_equal
     , types_equal
     , val_to_mini
+    , constant_pitch
     , Quoted(..)
     , show_call_val
     -- ** val utils
@@ -480,8 +481,8 @@ data Val =
     --
     -- Signal literal: @(signal d 0 0 1 1)@.
     VSignal (ScoreT.Typed Signal.Control)
-    -- | No literal, but is returned from val calls, notably scale calls.
-    | VPitch Pitch
+    -- | No literal, but constants are returned from val calls, notably scale
+    -- calls.
     | VPSignal PSignal
     -- | A set of Attributes for an instrument.
     --
@@ -546,10 +547,13 @@ data Val =
 vals_equal :: Val -> Val -> Maybe Bool
 vals_equal x y = case (x, y) of
     (VSignal a, VSignal b) -> Just $ a == b
-    (VPitch a, VPitch b) -> Just $ pitches_equal a b
-    -- I'm not going to implement this right now.  vals_equal is only used in
-    -- Conditional anyway, and who is going to be comparing pitch signals?
-    (VPSignal _, VPSignal _) -> Nothing
+    (VPSignal sig1, VPSignal sig2)
+        | Just p1 <- constant_pitch sig1, Just p2 <- constant_pitch sig2 ->
+            Just $ pitches_equal p1 p2
+        -- I'm not going to implement this right now.  vals_equal is only used
+        -- in Conditional anyway, and who is going to be comparing pitch
+        -- signals?
+        | otherwise -> Nothing
     (VAttributes a, VAttributes b) -> Just $ a == b
     (VControlRef a, VControlRef b) -> Just $ a == b
     -- This could use pitches_equal, but don't bother until I have a need for
@@ -568,7 +572,6 @@ vals_equal x y = case (x, y) of
 types_equal :: Val -> Val -> Bool
 types_equal x y = case (x, y) of
     (VSignal {}, VSignal {}) -> True
-    (VPitch {}, VPitch {}) -> True
     (VPSignal {}, VPSignal {}) -> True
     (VAttributes {}, VAttributes {}) -> True
     (VControlRef {}, VControlRef {}) -> True
@@ -596,15 +599,14 @@ val_to_mini = \case
     VSignal sig -> Expr.VNum <$> traverse Signal.constant_val sig
     _ -> Nothing
 
--- | This instance is actually invalid due to showing VPitch, which has no
+-- | This instance is actually invalid due to showing VPSignal, which has no
 -- literal, and for 'Val', showing 'PControlRef', which amounts to the same
 -- thing.  I use this to treat any Val as a Str to re-evaluate it.  Being
--- invalid means that a VPitch or VPControlRef with a default will cause
+-- invalid means that a VPSignal or VPControlRef with a default will cause
 -- a parse failure, but I'll have to see if this becomes a problem in practice.
 instance ShowVal.ShowVal Val where
     show_val = \case
         VSignal sig -> show_signal sig
-        VPitch pitch -> ShowVal.show_val pitch
         VPSignal sig -> show_psignal sig
         VAttributes attrs -> ShowVal.show_val attrs
         VControlRef ref -> ShowVal.show_val ref
@@ -645,7 +647,7 @@ instance ShowVal.ShowVal PSignal where show_val = show_psignal
 -- pitch is not practically a problem.
 show_psignal :: PSignal -> Text
 show_psignal sig
-    | Just c <- constant_val sig = ShowVal.show_val c
+    | Just c <- constant_pitch sig = ShowVal.show_val c
     | otherwise = Text.unwords $ Lists.mapLast (<>")") $
         "(psignal" :
             [ s
@@ -653,11 +655,12 @@ show_psignal sig
             , s <- [ShowVal.show_val x, ShowVal.show_val y]
             ]
     where
-    -- These are in PSignal, but have to be here too to avoid a circular
-    -- import.
-    constant_val :: PSignal -> Maybe Pitch
-    constant_val = Segment.constant_val . _signal
     to_pairs = Segment.to_pairs . _signal
+
+-- These are in PSignal, but have to be here too to avoid a circular
+-- import.
+constant_pitch :: PSignal -> Maybe Pitch
+constant_pitch = Segment.constant_val . _signal
 
 instance Pretty Val where
     pretty = ShowVal.show_val
@@ -797,7 +800,7 @@ terms_equal (Expr.ValCall call1) (Expr.ValCall call2) = calls_equal call1 call2
 terms_equal (Expr.Literal val1) (Expr.Literal val2) = vals_equal val1 val2
 terms_equal _ _ = Just False
 
--- | This is just a 'Call', but it's expected to return a VPitch.
+-- | This is just a 'Call', but it's expected to return a constant VPSignal.
 type PitchCall = Call
 
 -- ** call utils

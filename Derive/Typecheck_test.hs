@@ -68,7 +68,7 @@ test_coerce_nn = do
         ["expected Maybe Signal (NN) but got Signal (Transposition"]
 
     -- TODO need to evaluate a pitch in Typecheck for this.
-    -- -- coerce VPitch to NoteNumber
+    -- -- coerce constant VPSignal to NoteNumber
     -- equal (run_type nn [] "(4c)") (Just "60nn", [])
     -- -- pitch controls can be coerced to pitch
     -- equal (run_type nn [("*", [(0, 0, "4c")])] "#") (Just "60nn", [])

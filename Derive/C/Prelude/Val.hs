@@ -95,7 +95,7 @@ next_val event start ttype = case ttype of
         signal <- eval event
         case PSignal.at signal start of
             Nothing -> Derive.throw "next pitch event didn't emit a pitch"
-            Just pitch -> return $ DeriveT.VPitch pitch
+            Just pitch -> return $ DeriveT.VPSignal $ PSignal.constant pitch
     Just ParseTitle.NoteTrack ->
         Derive.throw "can't get next value for note tracks"
     Nothing -> Derive.throw "no track type"
@@ -116,7 +116,8 @@ c_prev_val = val_call "prev-val" Tags.prev
                 return $ DeriveT.num $ Signal.at sig start
             Just (Derive.TagPitch sig) ->
                 maybe (Derive.throw "no previous pitch")
-                    (return . DeriveT.VPitch) (PSignal.at sig start)
+                    (return . DeriveT.VPSignal . PSignal.constant)
+                    (PSignal.at sig start)
             _ -> Derive.throw "no previous value"
 
 c_next_event :: Derive.ValCall
@@ -406,14 +407,15 @@ breakpoints argnum curve vals args = do
 -- a parser and get both shorter code and documentation.
 num_or_pitch :: ScoreTime -> Int -> NonEmpty DeriveT.Val
     -> Derive.Deriver (Either [Signal.Y] [PSignal.Pitch])
-num_or_pitch start argnum (val :| vals) = case val of
-    val | Just (ScoreT.Typed ScoreT.Untyped n) <- DeriveT.constant_val val -> do
+num_or_pitch start argnum (val :| vals)
+    | Just (ScoreT.Typed ScoreT.Untyped n) <- DeriveT.constant_val val = do
         vals <- mapM (expect tsig) (zip [argnum + 1 ..] vals)
         return $ Left (n : vals)
-    DeriveT.VPitch pitch -> do
+    | Just pitch <- PSignal.pitch_val val = do
         vals <- mapM (expect ValType.TPitch) (zip [argnum + 1 ..] vals)
         return $ Right (pitch : vals)
-    _ -> type_error argnum "bp" (ValType.TEither tsig ValType.TPitch) val
+    | otherwise = type_error argnum "bp"
+        (ValType.TEither tsig ValType.TPitch) val
     where
     tsig = ValType.TSignal ValType.TUntyped ValType.TAny
     expect typ (argnum, val) =

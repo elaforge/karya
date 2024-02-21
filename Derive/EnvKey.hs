@@ -151,17 +151,17 @@ instrument_top = "inst-top"
 instrument_bottom :: Key
 instrument_bottom = "inst-bottom"
 
--- | List VPitch: tuning of open strings for this instrument.  The pitches
--- should be probably absolute NNs, not in any scale, so they work regardless
--- of which scale you happen to be in.
+-- | List of constant VPSignal: tuning of open strings for this instrument.
+-- The pitches should be probably absolute NNs, not in any scale, so they work
+-- regardless of which scale you happen to be in.
 --
 -- TODO maybe it should be VNotePitch as with 'instrument_top'?
 open_strings :: Key
 open_strings = "open-strings"
 
--- | VPitch: Select a string to play on.  Presumably it should be from one of
--- the 'open_strings'.  TODO currently I address strings by pitch.  It's
--- convenient because general purpose string calls work with pitches, but
+-- | constant VPSignal: Select a string to play on.  Presumably it should be
+-- from one of the 'open_strings'.  TODO currently I address strings by pitch.
+-- It's convenient because general purpose string calls work with pitches, but
 -- will be ambiguous for instruments where multiple strings have the same
 -- pitch.
 string :: Key

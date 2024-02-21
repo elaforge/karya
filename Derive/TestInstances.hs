@@ -16,7 +16,7 @@ import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Expr as Expr -- needed for standalone deriving
 import qualified Derive.PSignal as PSignal
 
--- Normally Vals aren't comparable for equality because of the pesky VPitch,
+-- Normally Vals aren't comparable for equality because of the pesky VPSignal,
 -- but it's too convenient for testing to lose.
 deriving instance {-# OVERLAPPING #-} Eq DeriveT.Val
 deriving instance {-# OVERLAPPING #-} Eq DeriveT.Call

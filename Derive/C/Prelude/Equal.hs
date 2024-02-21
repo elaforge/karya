@@ -208,7 +208,6 @@ parse_equal Set lhs rhs
 -- TODO should I centralize the parsing of #?  Or is equal the only place that
 -- needs this notation where # is state_pitch?  I used to parse a VPControlRef
 parse_equal Set "#" rhs = case rhs of
-    DeriveT.VPitch p -> Right $ Derive.with_pitch (PSignal.constant p)
     DeriveT.VPSignal sig -> Right $ Derive.with_pitch sig
     -- I could also convert a signal, but not sure it's useful.
     DeriveT.VSignal (ScoreT.Typed ScoreT.Nn sig)

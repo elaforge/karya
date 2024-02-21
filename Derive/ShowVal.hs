@@ -22,7 +22,7 @@ import           Global hiding (pretty)
 
 -- | Instances of ShowVal can be turned back into tracklang syntax.  Everything
 -- produced by show_val should be parseable by "Derive.Parse", except values
--- that have no literal syntax, such as VPitch.
+-- that have no literal syntax, such as VPSignal.
 --
 -- At least one place that relies on this is 'Derive.Call.Note.inverting'.
 class ShowVal a where

@@ -153,8 +153,7 @@ e_string :: Score.Event -> Text
 e_string = maybe "" show_val . DeriveTest.e_environ_val EnvKey.string
 
 show_val :: DeriveT.Val -> Text
-show_val (DeriveT.VPitch pitch) = show_pitch pitch
-show_val val = ShowVal.show_val val
+show_val val = maybe (ShowVal.show_val val) show_pitch $ PSignal.pitch_val val
 
 show_pitch :: PSignal.Pitch -> Text
 show_pitch = either pretty Pitch.note_text . PSignal.pitch_note . PSignal.coerce

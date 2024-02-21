@@ -17,8 +17,10 @@ import qualified Data.List as List
 import qualified Data.Text as Text
 
 import qualified Util.Texts as Texts
+import qualified Derive.DeriveT as DeriveT
 import           Derive.DeriveT (Val(..))
 import qualified Derive.ScoreT as ScoreT
+
 import qualified Perform.Signal as Signal
 import qualified Ui.Id as Id
 
@@ -159,11 +161,12 @@ infer_type_of specific = \case
                 | n > 0 -> TPositive
                 | n >= 0 -> TNonNegative
                 | otherwise -> TAny
-    VPSignal {} -> TPSignal
+    VPSignal sig
+        | Just _ <- DeriveT.constant_pitch sig -> TPitch
+        | otherwise -> TPSignal
     VAttributes {} -> TAttributes
     VControlRef {} -> TControlRef
     VPControlRef {} -> TPControlRef
-    VPitch {} -> TPitch
     VNotePitch {} -> TNotePitch
     VStr {} -> TStr Nothing
     VQuoted {} -> TQuoted

@@ -506,16 +506,18 @@ val_to_pitch (ValCall name doc vcall) = Call
     }
     where
     convert_args args = args { passed_ctx = tag_context (passed_ctx args) }
-    pitch_call args = vcall (convert_args args) >>= \val -> case val of
-        DeriveT.VPitch pitch -> lookup_call Symbols.default_pitch >>= \case
-            Nothing -> default_pitch_call args pitch
-            Just pcall -> gfunc_f (call_func pcall) $ PassedArgs
-                { passed_vals = [DeriveT.VPitch pitch]
-                , passed_call_name = call_name pcall
-                , passed_ctx = passed_ctx args
-                }
-        _ -> throw $ "scale call " <> pretty name
-            <> " returned non-pitch: " <> ShowVal.show_val val
+    pitch_call args = do
+        val <- vcall (convert_args args)
+        case PSignal.pitch_val val of
+            Just pitch -> lookup_call Symbols.default_pitch >>= \case
+                Nothing -> default_pitch_call args pitch
+                Just pcall -> gfunc_f (call_func pcall) $ PassedArgs
+                    { passed_vals = [DeriveT.VPSignal (PSignal.constant pitch)]
+                    , passed_call_name = call_name pcall
+                    , passed_ctx = passed_ctx args
+                    }
+            Nothing -> throw $ "scale call " <> pretty name
+                <> " returned non-pitch: " <> ShowVal.show_val val
 
 -- | This is the default pitch call for bare scale degrees if
 -- 'Symbols.default_pitch' isn't set.

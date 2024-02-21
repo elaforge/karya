@@ -11,6 +11,7 @@ module Derive.PSignal (
     , to_pairs, to_segments
     , constant
     , constant_val
+    , pitch_val
     , prepend
     , ErrorText
     , to_nn
@@ -126,6 +127,11 @@ constant = PSignal . Segment.constant
 
 constant_val :: PSignal -> Maybe Pitch
 constant_val = Segment.constant_val . _signal
+
+pitch_val :: DeriveT.Val -> Maybe Pitch
+pitch_val = \case
+    DeriveT.VPSignal sig -> constant_val sig
+    _ -> Nothing
 
 prepend :: PSignal -> PSignal -> PSignal
 prepend sig1 sig2 = PSignal $

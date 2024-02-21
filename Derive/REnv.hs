@@ -70,7 +70,7 @@ null (Environ env) = Map.null env
 -- serialized, or require Deriver and hence couldn't go in a module below
 -- Deriver without incurring a circular dependency.
 --
--- Namely: 'DeriveT.VPitch', 'DeriveT.VCFunction'.
+-- Namely: 'DeriveT.VPSignal', 'DeriveT.VCFunction'.
 -- NOTE [val-and-minival].
 data Val =
     VNum !(ScoreT.Typed Signal.Y)
@@ -89,7 +89,8 @@ promote = \case
     VAttributes v -> DeriveT.VAttributes v
     VControlRef v -> DeriveT.VControlRef v
     VConstantPitch (ConstantPitch scale_id note nn) ->
-        DeriveT.VPitch $ PSignal.constant_pitch scale_id note nn
+        DeriveT.VPSignal $ PSignal.constant $
+            PSignal.constant_pitch scale_id note nn
     VNotePitch v -> DeriveT.VNotePitch v
     VStr v -> DeriveT.VStr v
     VQuoted v -> DeriveT.VQuoted $ DeriveT.Quoted $ Expr.map_literals promote v
