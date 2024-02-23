@@ -36,12 +36,6 @@ let
   # Some things must use system versions, not my pinned versions.
   # However in CI, there is no system, or rather it's whatever version of
   # nixpkgs the github action uses, and I don't want to be broken by that.
-  #
-  # TODO: use actual system stuff for non nixos linux.  I think I would just
-  # omit the deps entirely?  Not quite, because nixpkgs gcc doesn't look for
-  # system libs.  Darwin uses a hack to do so.  But even if I can make it
-  # happen, libc version may be incompatible.  The root of the problem is that
-  # JACK does not keep protocol compatibility across versions.
   nixpkgs-sys = if isCi then nixpkgs else import <nixpkgs> {};
   hackage = import nix/hackage.nix {
     inherit ghcVersion profilingDetail;
@@ -139,14 +133,42 @@ in rec {
   inherit nixpkgs-sys;
   inherit (hackage) nixFiles;
 
+  jacks = {
+    # Make sure to compile against the system version of jack, not my pinned
+    # nixpkgs one.  Jack apparently has no version control in the protocol, so
+    # version mismatches show up as random "Unknown request" junk.  So I need
+    # the same one as the system.  For nixos I can get it from <nixpkgs>, but
+    # for other distros I'll probably need to have a list of versions and
+    # manually pick the one that's the same as the system.
+    nixos = nixpkgs-sys.libjack2;
+    # Untested.
+    v1_9_22 = nixpkgs.libjack2.overrideAttrs (old: {
+      src = nixpkgs.fetchFromGitHub {
+        owner = "jackaudio";
+        repo = "jack2";
+        rev = "v1.9.22";
+        sha256 = "sha256-Cslfys5fcZDy0oee9/nM5Bd1+Cg4s/ayXjJJOSQCL4E=";
+      };
+      prePatch = "";
+      # svnversion_regenerate.sh doesn't seem to exist.
+      # postPatch = ''
+      #   patchShebangs --build svnversion_regenerate.sh
+      # '';
+    });
+  };
+
+  # TODO: for non-nixos, have a way to choose 1.9.22, assuming the system uses
+  # that version?  I don't have any non-nixos linux, or reasons to test on
+  # them, so I'll leave it here until such a system comes along.
+  libjack2 = jacks.nixos;
+
   # This may be desirable to get a consistent supercollider, especially
   # one with a consistent jack version.  But the default is to assume
   # there is already a system supercollider which works.
   supercollider = nixpkgs.libsForQt512.callPackage nix/supercollider.nix {
     fftw = nixpkgs.fftwSinglePrec;
     useIDE = false;
-    # jack can't torelate any version skew, see libjack2 usage below.
-    inherit (nixpkgs-sys) libjack2;
+    inherit libjack2;
   };
 
   # nixpkgs.rubberband only works on linux.
@@ -197,7 +219,7 @@ in rec {
     # Make sure to compile against the system version of jack, not my pinned
     # nixpkgs one.  Jack apparently has no version control in the protocol,
     # so version mismatches show up as random "Unknown request" junk.
-    nixpkgs-sys.libjack2
+    libjack2
   ] else if isDarwin then (with nixpkgs.darwin.apple_sdk.frameworks; [
     Cocoa
     CoreAudio

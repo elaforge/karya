@@ -10268,6 +10268,9 @@ linux:
         };
     . changelog:
       1.9.19: Bump internal protocol version to 9 (due to struct alignment)
+    + then I think you'd have to manually pick a libjack version that's
+      compatible with system jack?
+      . It's in there, but no system to test on.
     bugs
       - something is still wrong, I get "no space in output port" and then
         corrupted output
