@@ -215,6 +215,7 @@ UNSORTED
     . Config.Payload = Warn !Stack.Stack !Text
       But no location.  There is RenderingRange, how does seq display it?
       Just Log.warn, but has Stack.
+    - What if I highlighted >1 in the waveform display?
   - fltk: The dyn=6 problem is showing that track titles are pretty bad.
     . Especially on the right side.
     . How about they make a text field that covers the whole block, like the
@@ -448,6 +449,7 @@ UNSORTED
     * instruments doesn't like empty lines!
   - LPerf.sel_midi gets muted tracks, but more importantly, non selected
     tracks!
+    . Can't reproduce the latter.
   * automatically collapse empty tracks?
     . Can't be totally automatic because new tracks!
     . Could it be like block title, where a selection keeps it open?
@@ -2432,6 +2434,7 @@ instruments:
         . Then need (pitch, art) for
           fnames = Maps.multimap $ zip (Unboxed.toList dyns)
             (map (unparseFilenameVarDyn pitch art) [1 .. Unboxed.length dyns])
+      - eliminate Util.Dyn, or rather make it only musical Dyn
         . Do I want to use Db all the way through?
           . It seems good because I can get rid of the AbsoluteDyn as much as
             possible.
@@ -2450,9 +2453,28 @@ instruments:
             the separate Dyn mapping, and may change all patches.
       - I need an extra step to map dyn to useful range.  This is also
         per-patch, but should have a preset.
+        . Firstly, -96 range is useless, in practice I think -60.
+        . Other patches have minDyn = 0.5, which I guess has been
+          accomplishing the same effect.
+        . I should have a single universal way to do this though.  But, some
+          patches copied from kontakt mappings already use velocity ranges.
+        kontakt:
+          . Has a velocity sensitivity from 0 to 100:
+            diffs xs = zipWith (flip (-)) xs (tail xs)
+            0:   [  -6  ,  -6  ,  -6  ,  -6,   -6 ] -> 0
+            25:  [ -13.4, -11.4,  -9.4,  -7.7, -6 ] -> 2, 2, 1.7, 1.7
+            50:  [ -24  , -18.3, -13.5,  -9.5, -6 ] -> 5.7, 4.8, 4, 3.5
+            75:  [ -41.5, -27.4, -18  , -11.4, -6 ] -> 14.1, 9.4, 6.6, 5.4
+            90:  [ -64.6, -35.2, -21.4, -12.7, -6 ] -> 29.4, 13.8, 8.7, 6.7
+            100: [-131  , -41  , -23.7, -13.5, -6 ] -> 90, 17, 10, 7.5
+          . So there's also a curve with how it responds to velocity.
+            But you can also draw your own velocity curve.
+        linuxsampler:
+          . GetVelocityAttenuation - only implementation is gig.cpp, which has
+            a bunch of hardcoded curves.
       - sampler-im, faust-im: make separate newtypes for musical Dynamic,
         AbsoluteDynamic (maps -96 - 0), dB, Linear?
-        . Hopefully can elide some of those.
+        . If I go from Dynamic to Db, then I can omit AbsoluteDynamic.
     - wayang: noise reduction
     - wayang +calung: fix clunk
     - rambat: noise reduction
@@ -2478,11 +2500,20 @@ instruments:
       * +open levels
       - +mute levels
       - +open dyn
-      - tuning (but just for 1s)
+      - tuning (but just for 1s, rest are correct)
     kenong:
+      recorded: 6 7 3 2
+      recording:
+        - 32
+        - 33
+        - 35
+        - 36
+        * 37
+        - 41
       - 32 33 35 37
       * 37
       - 41
+      - tuning
       - kethuk, kempyang
       * setup for variable dynamic
       * dynamics wrong
@@ -4984,7 +5015,45 @@ performance:
     . I guess this leads back to a computational notion of ruler instead of
       just the dumb [PosMark] data structure.
     . See Ruler:
-  prof results:
+  prof results, cerucuk-punyah.state:
+    . Derive.Score.transposed_at                19.4   25.3
+      Derive.Eval.eval                          13.0    9.4
+      Derive.Deriver.Internal.with_stack_region  9.9    6.4
+      Derive.PSignal.apply_controls              8.8    9.1
+      Derive.Eval.apply                          8.5    9.1
+      Derive.Control.derive_pitch                7.5    4.3
+      Derive.Parse.parse_expr_raw                6.2    8.8
+      Derive.Control.stash_if_wanted             5.7    5.7
+      Derive.Deriver.Lib.controls_at             4.3    3.7
+                                             %time  %alloc %time %alloc
+    - Derive.Score.transposed_at
+      . Derive.Eval.eval                1_583   3.9   2.8   28.3  32.6
+         Derive.Eval.apply                  3   4.5   4.3   24.5  29.8
+          Derive.Score.initial_nn     149_355   0.5   0.2   19.9  25.5
+           Derive.Score.transposed_at 149_355  19.4  25.3   19.4  25.3
+      . What is 149355?  Count of notes?
+        It's about 94.35 initial_nn calls per transposed_at -> eval, what's up
+        with that?
+      . Score.Events: 13_863, Midi events: 28_200
+      . About 5.3 initial_nn calls per event, why?
+      . Fewer eval calls though, which is weird.
+      . Make a score with just 1 note.
+      - prof/run_profile/024.23-05-21/verify.bug/
+
+    - with_stack_region
+      . Derive.Deriver.Internal.with_stack_track         0  0.0  0.0  62.8  55.2
+         Derive.Control.d_control_track              13676  0.6  1.2  62.7  55.1
+          Derive.Control.derive_track                13678  0.1  0.0  62.1  53.9
+           Derive.Control.control_call                 434  0.3  0.3  58.4  50.3
+            Derive.Note.d_note_track                 13697  0.2  0.2  58.1  50.0
+             Derive.EvalTrack.derive_note_track      14043  1.0  0.9  55.6  46.9
+              Derive.EvalTrack.derive_note_track_str 14612  0.8  0.6  54.6  46.0
+               Derive.EvalTrack.derive_event         40876  1.1  0.4  53.8  45.3
+                Derive.Deriver.Internal.with_stack_t 40876  9.9  6.4  48.7  39.0
+                 Derive.Control.derive_pitch         13042  7.4  4.2  26.2  20.8
+                  Derive.EvalTrack.derive_control_tr 13294  2.7  2.3   9.7   7.2
+                   Derive.Eval.eval                    160  7.0  4.9   7.0   4.9
+
     - Eval.eval
       . This is for val calls.  I don't use many of those, except pitches.
       . Most are from Control.derive_pitch
@@ -7022,7 +7091,28 @@ Cmd:
       maybe step should fail.
 
   ruler: Ruler: Ui.Meter:
-      - LRuler.reset_colors
+    - save/2022/zach-violin-wayang:
+      why does the first measure of the blocks twice as long?
+      . How to print meter?  LRuler.get_meter
+      . Because it's a bunch of MSections, first one is inconsistent.
+      . What does append do?  It adds a new section.
+      . Maybe instead it should modify to a measure by a pattern, e.g.
+        4 measures per section.
+      . Or make it easier to inspect and modify sections?
+      . What I'd like is to be able to have a named meter, and then how long.
+        So even higher level.
+      . But isn't that what MSections are supposed to be, except the name part?
+      . So maybe the problem is that trim and expand are modifying at the
+        MSection level.  I want that ability for special cases but that's not
+        the common thing.
+      . Didn't I originally want to do that?  I forget.
+    higher level meters:
+      . MSection should be a pattern, and then we have a "how long" value.
+      . Then I have [(MSection, TrackTime)]
+      . The section would repeat for the duration.
+      . I think the old problem was that TrackTime is not guaranteed to line
+        up to anything.
+    - LRuler.reset_colors
     + Once this is done, what about all the old scores?
       . They will load as hardcoded marklists, but Ruler.get_meter will return
         an empty meter, which probably means they get overwritten.
@@ -7183,6 +7273,20 @@ Derive:
       I think it should just print the actual val, no need to infer anything.
 
   unify-env: unified-env:
+    - performance has decreased:
+      . max mb 41.87 -> 60.19 -> 76.48
+      . derive: 1.25 -> 1.37 -> 1.48
+      . It's only derive, as expected.
+      . Do profiling to find it.
+      . Don't I have a profile way?  tools/run_profile_all?
+      . It only seems to happen for wayang scores, what's different?
+        Removed Derive.Deriver.Lib.state_controls_at.
+        But it's hard to tell since the profile is percentages.
+      . Derive.Deriver.Lib.controls_at went up.
+      . Derive.Score.transposed_at also maybe went up?
+      - Can I write a prof diff that diffs the 'entries' counts?
+        . Have to match by the stack, so have to parse that out of
+          indentation.
     situation:
       . The VNum / VSignal distinction is annoying now that I'm coercing
         num to signal, because added to Score.event_environ vs.
@@ -8651,7 +8755,7 @@ text score: tscore:
       . Seems I should eventually be able to do use it to generate lots of
         material, and also create my own fragments.
     transform:
-      - convert laras and pathet, e.g. slendro manyura to pelog barang.
+      * convert laras and pathet, e.g. slendro manyura to pelog barang.
     format:
       * If one hand has 4 notes and the other has 8, they don't line up.
         . I would zip by hand and normalize rhythm.
@@ -8665,7 +8769,7 @@ text score: tscore:
           have that big of data, why not go to LogMonad?
       * display on-beat rests as '.', off-beat as ' '.  Is this ok to read
         missing the overbar?  Otherwise I'd have to infer overbar.
-      - It seems like in tanggung and dadi, beats are even while in wiled
+      * It seems like in tanggung and dadi, beats are even while in wiled
         they're odd?
         . Maybe dadi should be notated as .1.2 too... or rather 1 2 should be
           interpreted that way.
@@ -8691,7 +8795,6 @@ text score: tscore:
           end:
           5 6 5 3 |  6 5 6 1 |  .6.6.61 |  6 5 6 1
           .21612. | 6. 53.3. | .565356. |  .621621
-
       - instead of vertical bars, I could do the horizontal bar for lh/rh
         . Should I render to HTML?
     - integrate
@@ -9145,8 +9248,33 @@ text score: tscore:
         I could do this with by sending highlighting info in real time to vim?
 
 pitch: scales: scale:
+  modify scales:
+    - transpose a scale by a certain amount, e.g. to set ding to D.
+      . At the moment can do it with t-nn I think?
+    - I'd like to make a local scale derived from another one but some notes
+      missing, and have input and transposition skip those.
+      . Ideally it could be a modifier to any scale, so it would modify input
+        and transpose accordingly.  Symbols remain the same.
+      . I'm still unhappy with the Scale.Make Make|Simple thing.  Returning
+        Scale from a val call would be better, but I think that runs into the
+        big Derive / Val circular dependency problem.
+      . Do as a Make for now.
+    - Also want to retune individual degrees.
   - non octave equal temperaments, e.g. 12ed5
   . Try octatonic with 21 ascending, and 12 descending.
+  - support scala files?
+    . https://www.huygens-fokker.org/scala/scl_format.html
+    . They have only tuning, no notion of diatonic or chromatic, so would
+      need to assume all diatonic, or have a way to annotate that.
+    . All seem to assume octave at 2/1.
+    . They start at 1/1 or 0 cents.  So they need an "a" frequency.
+    . To be chromatic, also need a layout annotation.
+    . Derive doesn't have IO, can't load and parse a file.  Would have to
+      statically declare it in source, but need that anyway due to declaring
+      layout.
+    . But there are 5k of them!  Is there an easier way to explore them?
+    . Also seems generally useful to have a generic chromatic scale template,
+      to plug in frequencies.
   just:
     - should just chromatic scales differentiate A4 and d5?
       . In general they should probably deal with enharmonics, but I don't know
@@ -9203,14 +9331,6 @@ pitch: scales: scale:
       . Scale.All.lookup_scale -> Derive.state_lookup_scale -> Derive.get_scale
       . So it actually makes the scale on every lookup.  I guess it has to be
         this way, since it's not in Val, there's no way to store it.
-  - I'd like to make a local scale derived from another one but some notes
-    missing, and have input and transposition skip those.
-    . Ideally it could be a modifier to any scale, so it would modify input
-      and transpose accordingly.  Symbols remain the same.
-    . I'm still unhappy with the Scale.Make Make|Simple thing.  Returning
-      Scale from a val call would be better, but I think that runs into the
-      big Derive / Val circular dependency problem.
-    . Do as a Make for now.
   - twelve-k doesn't work entirely correctly.
     . The problem is that ChromaticScales.pitch_note doesn't preserve an
       explicit natural, so it gets lost after a pitch->note.  I think
@@ -10126,6 +10246,28 @@ linux:
     . It looks better with FLTK_SCALING_FACTOR=1, but then everything is tiny.
     . Maybe related to how OS X has antialiasing, but X doesn't.
   jack: JACK:
+    . JACK is difficult because there is no protocol cross version
+      compatibility.  So I must use the same client and server library, but
+      client will have to match the OS.  But, if the OS uses a different libc
+      then no worky.
+    . So, to properly support JACK, it must be either non-nix build, or write
+      nix expressions for all versions of libjack in use.
+    . But there probably aren't that many versions of JACK?
+      20.09: 1.9.14
+      22.11: 1.9.19
+      23.05: 1.9.19
+      Current JACK: 1.9.22
+      arch: 1.9.22?
+      ubuntu: can't tell?
+      Maybe I can just override the fetchFromGitHub:
+        src = fetchFromGitHub {
+          owner = "jackaudio";
+          repo = "jack2";
+          rev = "v${version}";
+          sha256 = "1prxg1l8wrxfp2mh7l4mvjvmml6816fciq1la88ylhwm1qnfvnax";
+        };
+    . changelog:
+      1.9.19: Bump internal protocol version to 9 (due to struct alignment)
     bugs
       - something is still wrong, I get "no space in output port" and then
         corrupted output
