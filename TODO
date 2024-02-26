@@ -182,13 +182,53 @@ sketch:
   2 6 1 6 5 56 61 12 23 5 5 353 2 2 121
 
 UNSORTED
-  - bug: Insert mode gets stuck with:
+  - remove midi modifiers?  I never used them.
+  * bug: Insert mode gets stuck with:
     . fltk/TrackTile.cc:165 TrackTile::floating_insert called but no open
       input: (5e#)
     . Haskell thinks I have a floating input open and sends chars to it,
       but it's wrong.
     . Probably because MIDI input does the text insert thing.
     . How to get into this state?
+      . Haskell gets the ctx_floating_input msg but the state update gets an
+        exception?  The only way is if Internal.record_focus threw.  All it
+        does is Cmd.gets and modify, I don't think it can.
+      . But what if something after threw, like Edit.handle_floating_input,
+        would it abort all state updates?
+      . Yes it does!
+      . That's probably the bug.  I guess Internal.record_focus and
+        update_ui_state should apply their changes unconditionally.
+      . Did I not already have some way to do that?
+      . I do, it's Responder.record_ui_updates ->
+        Internal.cmd_record_ui_updates
+      . But it was intentionally split into two, why is state_floating_input
+        in the 2nd one?  Because of UI visible updates.
+      . I think record_focus should also go in record_ui_updates, maybe that
+        the source of the focus desync bug!
+      . Actually there is yet another, Internal.record_keys, that actually
+        commits to Cmd.  If it's for things that are never undone, why not
+        ui updates there?
+        . Can return Done to stop, but it's just UpdateScreenSize.
+    . due to:
+      TrackTile::floating_insert -> BlockC.floating_insert
+      -> Sync.floating_input -> Cmd.FloatingInsert
+      -> NoteEntry.floating_input_insert
+    . Happens when
+      floating_input <- Cmd.gets $ Cmd.state_floating_input . Cmd.state_edit
+      and Msg.InputNote
+    . So state_floating_input is wrong.
+    . Set True in Responder when Cmd.FloatingInput
+      Set False in Internal when UiMsg.ctx_floating_input
+      When there's a (UiMsg.UiMsg ctx (UiMsg.UiUpdate view_id update))
+      ctx_floating_input
+    . fltk should send it on UpdateInput.  But there's nothing that forces
+      that to be the case.  Why do I need a separate bool, could UpdateInput
+      always imply the input closed?
+    . Or since it's always hard to get state updates right, what if every
+      UiMsg had ctx_floating_input?
+    . ctx_floating_input is from TrackType track_floating_input for msg
+      from floating input.  track_type actually winds up incorrect as
+      SkeletonDisplay.
   - If I do cmd-space (play from root?) and there's no link from root
     block to current one, does it play root instead?  Should play current.
   * bug: play_cache causes automute.

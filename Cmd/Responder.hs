@@ -386,12 +386,10 @@ handle_special_status ui_chan ui_state cmd_state transport_info = \case
 
 respond :: State -> Msg.Msg -> IO (Bool, State)
 respond state msg = run_responder state $ do
-    record_keys msg
-    Trace.trace "keys"
     -- Normal cmds abort as son as one returns a non-Continue.
     result <- fmap unerror $ Except.runExceptT $ do
-        record_ui_updates msg
-        Trace.trace "ui_updates"
+        handle_unsynced msg
+        Trace.trace "handle_unsynced"
         run_core_cmds msg
         Trace.trace "core_cmds"
         return $ Right Cmd.Done
@@ -424,30 +422,23 @@ sync_keycaps ui_chan cmd_to = case Cmd.state_keycaps_update cmd_to of
 
 -- ** special cmds
 
--- | The record keys cmd commits its changes to cmd_from, so if a later cmd
--- throws the key record won't be rolled back.
-record_keys :: Msg.Msg -> ResponderM ()
-record_keys msg = do
-    result <- run_continue False "record_keys" $ Left $
-        Internal.cmd_record_keys msg
-    whenJust result $ \(_, _, cmd_state) -> Monad.State.modify $ \st ->
-        st { rstate_cmd_from = cmd_state, rstate_cmd_to = cmd_state }
-
 -- | Record 'UiMsg.UiUpdate's from the UI.  Like normal cmds it can abort
 -- processing by returning not-Continue, but it commits its changes to ui_from
--- instead of ui_to.  This means these changes don't participate in the diff
--- and sync.  This is because UiUpdates are reporting changes that already
--- happened, so they can't be rolled back and sending them back to the UI
--- would be silly.
-record_ui_updates :: Msg.Msg -> ErrorResponderM ()
-record_ui_updates msg = do
+-- and cmd_from in addition to ui_to.  This means these changes won't be rolled
+-- back on exception and don't participate in the diff and sync.  This is
+-- because UiUpdates are reporting changes that already happened, so they can't
+-- be rolled back and sending them back to the UI would be silly.
+handle_unsynced :: Msg.Msg -> ErrorResponderM ()
+handle_unsynced msg = do
     (result, cmd_state) <- lift $ run_cmd $ Left $
-        Internal.cmd_record_ui_updates msg
+        Internal.handle_unsynced msg
     case result of
         Left err -> Except.throwError $ Done (Left err)
         Right (status, ui_state) -> do
             Monad.State.modify $ \st -> st
-                { rstate_ui_from = ui_state, rstate_ui_to = ui_state
+                { rstate_ui_from = ui_state
+                , rstate_ui_to = ui_state
+                , rstate_cmd_from = cmd_state
                 , rstate_cmd_to = cmd_state
                 }
             when (not_continue status) $
@@ -477,7 +468,6 @@ run_core_cmds msg = do
         (StaticConfig.global_cmds (state_static_config state))
     -- Focus commands and the rest of the pure commands come first so text
     -- entry can override io bound commands.
-    let pure_cmds = hardcoded_cmds ++ [Cmd.call GlobalKeymap.pure_keymap]
     mapM_ (run_throw . Left . ($msg)) pure_cmds
     -- Certain commands require IO.  Rather than make everything IO,
     -- I hardcode them in a special list that gets run in IO.
@@ -485,13 +475,12 @@ run_core_cmds msg = do
             (state_session state)
     mapM_ (run_throw . Right . ($msg)) io_cmds
 
--- | These cmds always get the first shot at the Msg.
-hardcoded_cmds :: [Msg.Msg -> Cmd.CmdId Cmd.Status]
-hardcoded_cmds =
-    [ Internal.record_focus
-    , Internal.update_ui_state
+pure_cmds :: [Msg.Msg -> Cmd.CmdId Cmd.Status]
+pure_cmds =
+    [ Internal.update_ui_state
     , Track.track_cmd
     , Integrate.cmd_integrate
+    , Cmd.call GlobalKeymap.pure_keymap
     ]
 
 -- | These are the only commands that run in IO.

@@ -96,8 +96,9 @@ struct UiMsg {
         // given to the UiUpdates, but it's more of a hassle to nest types in
         // c++, so make it an optional field here.
         BlockWindow *view;
-        // Mouse was over this track.
-        // Should be a TrackType.
+        // Source of the event.
+        // This is a TrackType, but I want to explicitly control the size, for
+        // haskell FFI.
         char track_type;
         int tracknum;
         // If it was over a ruler or event track, has_pos=true and it was at
@@ -109,9 +110,10 @@ struct UiMsg {
     // events can apply to a divider, this can be interpreted as a boolean for
     // non-click events and only differentiate dividers for clicks.
     enum TrackType {
-        track_none = 0, track_normal,
-        // Like track_normal, but indicates that this msg comes from the
-        // floating_input.
+        track_none = 0,
+        track_normal,
+        // Combined with msg_input, this indicates that the input text
+        // was from the floating_input, not the track title.
         track_floating_input,
         track_divider
     };

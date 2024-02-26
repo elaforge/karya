@@ -96,8 +96,7 @@ test_cmds_with_input = do
 
 with_key :: Msg.Msg -> Cmd.State
 with_key key = CmdTest.result_cmd_state $
-    CmdTest.run Ui.empty CmdTest.default_cmd_state
-        (Internal.cmd_record_keys key)
+    CmdTest.run Ui.empty CmdTest.default_cmd_state (Internal.record_keys key)
 
 kbd_note_on :: Int -> Pitch.Octave -> Pitch.PitchClass -> Pitch.Accidentals
     -> InputNote.Input

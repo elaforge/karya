@@ -2,18 +2,20 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 -- | Internal Cmds, that keep bits of Cmd.State up to date that everyone else
 -- relies on.
 module Cmd.Internal (
-    cmd_record_keys
-    , record_focus
-    , cmd_record_ui_updates
+    handle_unsynced
     , update_ui_state
     , set_style
     , sync_status
     , default_selection_hooks
     , sync_zoom_status
     , can_checkpoint
+#ifdef TESTING
+    , record_keys
+#endif
 ) where
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -65,11 +67,34 @@ import           Global
 import           Types
 
 
--- * record keys
+-- * handle_unsynced
+
+{- | Catch 'UiMsg.UiUpdate's from the UI, and update Ui.State or Cmd.State
+    accordingly to reflect its changes.
+
+    Unlike other Cmds, the state changes this makes are not synced.  This means
+    they can't change anything visible on the GUI!  UiUpdates report changes
+    that have already occurred directly on the UI, so syncing them would be
+    redundant.  But if there are visible changes that happen as a result, such
+    as color changing for focus change, the state update should happen here,
+    and the color change should happen in 'update_ui_state'.
+
+    The other important difference is that this Cmd is run independently of the
+    rest, and is expected to never throw.  This means a downstream Cmd that
+    throws can't revert any state changes it made, which is important if they
+    are tracking UI state which already changed.  Otherwise, haskell's idea of
+    the fltk state will diverge from its real status.
+-}
+handle_unsynced :: Msg.Msg -> Cmd.CmdId Cmd.Status
+handle_unsynced msg = do
+    record_keys msg
+    unsynced_ui_updates msg
 
 -- | Record keydowns into the 'State' modifier map.
-cmd_record_keys :: Cmd.M m => Msg.Msg -> m Cmd.Status
-cmd_record_keys msg = cont $ whenJust (msg_to_mod msg) $ \(down, mb_mod) -> do
+-- TODO if it weren't for Cmd.MidiMod, this could work with just
+-- (ctx_track, UiMsg.MsgEvent)
+record_keys :: Msg.Msg -> Cmd.CmdId ()
+record_keys msg = whenJust (msg_to_mod msg) $ \(down, mb_mod) -> do
     mods <- Cmd.keys_down
     -- The kbd model is that absolute sets of modifiers are sent over, but the
     -- other modifiers take downs and ups and incrementally modify the state.
@@ -85,7 +110,6 @@ cmd_record_keys msg = cont $ whenJust (msg_to_mod msg) $ \(down, mb_mod) -> do
     --         ++ show (Cmd.strip_modifier m) ++ " in " ++ show (Map.keys mods)
     Cmd.modify $ \st -> st { Cmd.state_keys_down = mods3 }
     where
-    cont = (>> return Cmd.Continue)
     insert mod mods = do
         let key = Cmd.strip_modifier mod
         when (key `Map.member` mods) $
@@ -107,7 +131,7 @@ cmd_record_keys msg = cont $ whenJust (msg_to_mod msg) $ \(down, mb_mod) -> do
 
 -- | Get the set of Key.Modifiers from the msg.
 msg_to_key_mods :: Msg.Msg -> Maybe [Key.Modifier]
-msg_to_key_mods msg = case msg of
+msg_to_key_mods = \case
     Msg.Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent evt)) -> case evt of
         UiMsg.Kbd _ mods _ _ -> Just mods
         UiMsg.Mouse (UiMsg.MouseEvent { UiMsg.mouse_modifiers = mods }) ->
@@ -117,7 +141,7 @@ msg_to_key_mods msg = case msg of
 
 -- | Convert a Msg to (is_key_down, Modifier).
 msg_to_mod :: Msg.Msg -> Maybe (Bool, Maybe Cmd.Modifier)
-msg_to_mod msg = case msg of
+msg_to_mod = \case
     Msg.Ui (UiMsg.UiMsg context (UiMsg.MsgEvent evt)) -> case evt of
         UiMsg.Kbd state _ _ _ -> case state of
             UiMsg.KeyDown -> Just (True, Nothing)
@@ -130,6 +154,7 @@ msg_to_mod msg = case msg of
                 { UiMsg.mouse_state = UiMsg.MouseUp btn }) ->
             Just (False, Just $ Cmd.MouseMod btn (UiMsg.ctx_track context))
         _ -> Nothing
+    -- TODO I never used this, remove it?
     Msg.Midi (Midi.ReadMessage { Midi.rmsg_msg = msg }) -> case msg of
         Midi.ChannelMessage chan (Midi.NoteOn key _vel) ->
             Just (True, Just $ Cmd.MidiMod chan key)
@@ -138,51 +163,57 @@ msg_to_mod msg = case msg of
         _ -> Nothing
     _ -> Nothing
 
--- * focus
-
--- | Keep 'Cmd.state_focused_view' up to date.
-record_focus :: Cmd.M m => Msg.Msg -> m Cmd.Status
-record_focus (Msg.Ui m) = case m of
-    UiMsg.UiMsg _ (UiMsg.UiUpdate view_id UiMsg.UpdateClose) -> do
-        whenM ((== Just view_id) <$> Cmd.gets Cmd.state_focused_view) $
-            Cmd.modify $ \st -> st { Cmd.state_focused_view = Nothing }
-        return Cmd.Continue
-    UiMsg.UiMsg (UiMsg.Context { UiMsg.ctx_focus = Just view_id }) msg -> do
+-- Returning Done here is a kind of micro-optimization, I could probably
+-- also just let them through.
+unsynced_ui_updates :: Msg.Msg -> Cmd.CmdId Cmd.Status
+unsynced_ui_updates (Msg.Ui (UiMsg.UiMsg ctx msg)) = do
+    -- Focus is always set in Context, not just UiMsg.Focus.  I think I was
+    -- trying to work around the bug where the UI's focus didn't agree with the
+    -- haskell state.
+    whenJust (UiMsg.ctx_focus ctx) $ \view_id ->
         unlessM ((== Just view_id) <$> Cmd.gets Cmd.state_focused_view) $
             Cmd.modify $ \st -> st { Cmd.state_focused_view = Just view_id }
-        return $ case msg of
-           UiMsg.MsgEvent (UiMsg.AuxMsg UiMsg.Focus) -> Cmd.Done
-           _ -> Cmd.Continue
-    _ -> return Cmd.Continue
-record_focus _ = return Cmd.Continue
+    case msg of
+        -- Already set focus above, nothing to do.
+        UiMsg.MsgEvent (UiMsg.AuxMsg UiMsg.Focus) -> return Cmd.Done
+        UiMsg.UiUpdate view_id UiMsg.UpdateClose -> do
+            whenM ((== Just view_id) <$> Cmd.gets Cmd.state_focused_view) $
+                Cmd.modify $ \st -> st { Cmd.state_focused_view = Nothing }
+            return Cmd.Continue
+        UiMsg.UpdateScreenSize screen screens rect -> do
+            Cmd.modify $ \st -> st
+                { Cmd.state_screens =
+                    set_screen screen screens rect (Cmd.state_screens st)
+                }
+            return Cmd.Done
+            where
+            set_screen screen screens rect = take screens
+                . Lists.updateAt Rect.empty screen (const rect)
+        UiMsg.UiUpdate _ (UiMsg.UpdateInput {}) -> do
+            -- The floating input sends its UpdateInput when it closes, so this
+            -- implicitly means turn off state_floating_input.  TODO It's a bit
+            -- unpleasant that it's implicit, maybe there should be a dedicated
+            -- floating input open marker, like there is with focus.
+            when (UiMsg.ctx_floating_input ctx) $
+                Cmd.modify_edit_state $ \st -> st
+                    { Cmd.state_floating_input = False }
+            return Cmd.Continue
+        UiMsg.UiUpdate view_id update -> do
+            ui_update ctx view_id update
+            -- return Continue to give 'update_ui_state' a crack at it
+            return Cmd.Continue
+        -- The rest of the UiUpdates are UiMsg.Mouse etc, handled by
+        -- 'record_keys'.
+        _ -> return Cmd.Continue
+unsynced_ui_updates _ = return Cmd.Continue
 
--- * record ui updates
-
--- | Catch 'UiMsg.UiUpdate's from the UI, and modify the state accordingly to
--- reflect the UI state.
+-- | Subset of unsynced_ui_updates that operates on Ui.State.
 --
--- Unlike all the other Cmds, the state changes this makes are not synced.
--- UiUpdates report changes that have already occurred directly on the UI, so
--- syncing them would be redundant.
-cmd_record_ui_updates :: Cmd.M m => Msg.Msg -> m Cmd.Status
-cmd_record_ui_updates (Msg.Ui (UiMsg.UiMsg _
-        (UiMsg.UpdateScreenSize screen screens rect))) = do
-    Cmd.modify $ \st -> st
-        { Cmd.state_screens =
-            set_screen screen screens rect (Cmd.state_screens st)
-        }
-    return Cmd.Done
-    where
-    set_screen screen screens rect = take screens
-        . Lists.updateAt Rect.empty screen (const rect)
-cmd_record_ui_updates msg = do
-    (ctx, view_id, update) <- Cmd.abort_unless (update_of msg)
-    ui_update (fst <$> UiMsg.ctx_track ctx) view_id update
-    -- return Continue to give 'update_ui_state' a crack at it
-    return Cmd.Continue
-
-ui_update :: Cmd.M m => Maybe TrackNum -> ViewId -> UiMsg.UiUpdate -> m ()
-ui_update maybe_tracknum view_id update = case update of
+-- TODO Ui.M proves it doesn't do Cmd.M things, but it makes it polymorphic.
+-- But, it's in the same module as its caller so should get monomorphized, so
+-- not a problem?
+ui_update :: Ui.M m => UiMsg.Context -> ViewId -> UiMsg.UiUpdate -> m ()
+ui_update ctx view_id update = case update of
     UiMsg.UpdateTrackScroll hpos -> Ui.set_track_scroll view_id hpos
     UiMsg.UpdateTimeScroll offset -> Ui.modify_zoom view_id $ \zoom ->
         zoom { Zoom.offset = offset }
@@ -206,40 +237,47 @@ ui_update maybe_tracknum view_id update = case update of
         Nothing -> Ui.throw $ "update with no track: " <> showt update
     -- Handled by 'ui_update_state'.
     UiMsg.UpdateClose -> return ()
+    -- Handled in caller, modifies Cmd.State.
     UiMsg.UpdateInput {} -> return ()
+    where
+    maybe_tracknum = fst <$> UiMsg.ctx_track ctx
 
--- | This is the other half of 'cmd_record_ui_updates', whose output is synced
--- like normal Cmds.  When its a block update I have to update the other
--- views.
+
+-- * record ui updates
+
+-- | This is the other half of 'ui_update', whose output is synced like normal
+-- Cmds.  When its a block update I have to update the other views.
+--
+-- TODO these can be rolled back on exception, but should they?  They are also
+-- UI updates!  Just they need to diff.
 update_ui_state :: Cmd.M m => Msg.Msg -> m Cmd.Status
 update_ui_state msg = do
     (ctx, view_id, update) <- Cmd.abort_unless (update_of msg)
-    if UiMsg.ctx_floating_input ctx
-        then do
-            Cmd.modify_edit_state $ \st -> st
-                { Cmd.state_floating_input = False }
-            return Cmd.Continue
-        else do
-            ui_update_state (fst <$> UiMsg.ctx_track ctx) view_id update
-            return Cmd.Done
+    ui_update_state ctx view_id update
 
-ui_update_state :: Cmd.M m => Maybe TrackNum -> ViewId -> UiMsg.UiUpdate -> m ()
-ui_update_state maybe_tracknum view_id update = case update of
-    UiMsg.UpdateInput (Just text) -> do
-        view <- Ui.get_view view_id
-        update_input (Block.view_block view) text
+ui_update_state :: Cmd.M m => UiMsg.Context -> ViewId -> UiMsg.UiUpdate
+    -> m Cmd.Status
+ui_update_state ctx view_id = \case
+    UiMsg.UpdateInput (Just text)
+        -- Let Edit.handle_floating_input get it.
+        | UiMsg.ctx_floating_input ctx -> pure Cmd.Continue
+        | otherwise -> do
+            view <- Ui.get_view view_id
+            update_input (Block.view_block view) text
+            pure Cmd.Done
     -- UiMsg.UpdateTimeScroll {} -> sync_zoom_status view_id
-    UiMsg.UpdateClose -> Ui.destroy_view view_id
-    _ -> return ()
+    UiMsg.UpdateClose -> do
+        Ui.destroy_view view_id
+        pure Cmd.Done
+    _ -> pure Cmd.Done
     where
     update_input block_id text = case maybe_tracknum of
-        Just tracknum -> do
-            track_id <- Ui.event_track_at block_id tracknum
-            case track_id of
-                Just track_id -> Ui.set_track_title track_id text
-                Nothing -> Ui.throw $ showt (UiMsg.UpdateInput (Just text))
-                    <> " on non-event track " <> showt tracknum
+        Just tracknum -> Ui.event_track_at block_id tracknum >>= \case
+            Just track_id -> Ui.set_track_title track_id text
+            Nothing -> Ui.throw $ showt (UiMsg.UpdateInput (Just text))
+                <> " on non-event track " <> showt tracknum
         Nothing -> Ui.set_block_title block_id text
+    maybe_tracknum = fst <$> UiMsg.ctx_track ctx
 
 update_of :: Msg.Msg -> Maybe (UiMsg.Context, ViewId, UiMsg.UiUpdate)
 update_of (Msg.Ui (UiMsg.UiMsg ctx (UiMsg.UiUpdate view_id update))) =
