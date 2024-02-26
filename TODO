@@ -229,8 +229,9 @@ UNSORTED
     . ctx_floating_input is from TrackType track_floating_input for msg
       from floating input.  track_type actually winds up incorrect as
       SkeletonDisplay.
-  - If I do cmd-space (play from root?) and there's no link from root
+  / If I do cmd-' (play from root?) and there's no link from root
     block to current one, does it play root instead?  Should play current.
+    . Actually no it's correct, that's play root from beginning.
   * bug: play_cache causes automute.
     Probably some crash causes it to outputs high levels.
     How to get more info when this happens?

@@ -7,7 +7,7 @@ packages:
     -- In file included from libgit2/src/hash.h:22:0: error:
     -- libgit2/src/hash/hash_openssl.h:13:10: error:
     --      fatal error: 'openssl/sha.h' file not found
-    /usr/local/src/hs/gitlib/hlibgit2/*.cabal
+    -- /usr/local/src/hs/gitlib/hlibgit2/*.cabal
 
 -- Write a .ghc.environment.* file.  The shakefile will look for it.
 write-ghc-environment-files: always

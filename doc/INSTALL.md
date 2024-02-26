@@ -117,12 +117,8 @@ not iphone-ly.  Or don't do that.  This is just reminder to myself.
     - fltk - I use >=1.3.4, but any >=1.3 should work.
     - libpcre
 
-    Install -dev variants to get headers.  If your package manager puts headers
-    in a non-standard place, e.g. `~/homebrew`, then `cabal install
-    --only-dependencies` won't find it.  You'll need to add flags, e.g.:
-
-        cabal v1-install --extra-include-dirs=$HOME/homebrew/include \
-            --extra-lib-dirs=$HOME/homebrew/lib --only-dependencies
+    Depending on the package manager, you may have to install -dev variants to
+    get headers.
 
 - lilypond for the lilypond backend.  This is optional.  If you never try to
 compile a score via lilypond it will never notice you're missing this
@@ -154,9 +150,10 @@ You can do this either the cabal v1 way or the v2 way.
 
 Cabal v2 is supposed to replace v1 some day.  It has some problems I'm
 hopefully able to work around.  Firstly, it can't build `hlibgit2` from
-hackage, but can from head.  So clone that to some local directory, and update
-`cabal.project` to point to that path if it's not /usr/local/src.  Then build
-dependencies with:
+hackage, but can from head.  Or at least it couldn't when I wrote this,
+see https://github.com/jwiegley/gitlib/issues/92
+So clone that to some local directory, and update `cabal.project` to point to
+that path if it's not /usr/local/src.  Then build dependencies with:
 
     cabal v2-configure
     cabal v2-build --only-dep
@@ -167,30 +164,7 @@ this is enough to make it work!
 
 ### cabal v1 way
 
-Old cabal won't install binary dependencies automatically.  You probably
-don't have a cabal this old, but in case you do:
-
-    # These must be separate command lines!  Cabal is not smart about binaries.
-    cabal install alex happy
-    cabal install c2hs cpphs
-
-To install the needed haskell dependencies, type:
-
-    cabal v1-install --only-dependencies
-
-This uses the global package db, and it must since new cabal has removed the
-sandbox option.  In addition, v1 commands are probably on life-support and
-will eventually be removed.
-
-The actual build is with shake, I only use cabal to install hackage
-dependencies.
-
-If you want to build the documentation:
-
-    my-package-manager install pandoc
-
-You can also install pandoc with cabal but it has a ridiculous number of
-dependencies.
+I'm going to call this obsolete and delete it.
 
 ### stack way
 
