@@ -134,14 +134,6 @@ external:
     Is fix-imports not getting the cabal v2 environ?
     . Also no System.Random.Mersenne.Pure64
   - c-\ is wrong for local refs, e.g. follow 'parse' in Check_test.hs
-  * tool to make export lists?
-    . Show what is exported but not used outside.
-    . weeder can't because it includes used inside.
-    . I could look at tags, look for non-local refs.
-      Cmd.Selection.*... but that defs, not refs.
-      For each Cmd.Selection.*, grep for Selection.that in non
-      Cmd/Selection.hs
-    . Use module_calls.py.
   - find some way to integrate Shake.ImportQuery into my workflow
     . At least I'd like a warning about what adding or removing an import
       means.  Maybe that means integrate with fix-imports?
@@ -183,80 +175,7 @@ sketch:
 
 UNSORTED
   - remove midi modifiers?  I never used them.
-  * bug: Insert mode gets stuck with:
-    . fltk/TrackTile.cc:165 TrackTile::floating_insert called but no open
-      input: (5e#)
-    . Haskell thinks I have a floating input open and sends chars to it,
-      but it's wrong.
-    . Probably because MIDI input does the text insert thing.
-    . How to get into this state?
-      . Haskell gets the ctx_floating_input msg but the state update gets an
-        exception?  The only way is if Internal.record_focus threw.  All it
-        does is Cmd.gets and modify, I don't think it can.
-      . But what if something after threw, like Edit.handle_floating_input,
-        would it abort all state updates?
-      . Yes it does!
-      . That's probably the bug.  I guess Internal.record_focus and
-        update_ui_state should apply their changes unconditionally.
-      . Did I not already have some way to do that?
-      . I do, it's Responder.record_ui_updates ->
-        Internal.cmd_record_ui_updates
-      . But it was intentionally split into two, why is state_floating_input
-        in the 2nd one?  Because of UI visible updates.
-      . I think record_focus should also go in record_ui_updates, maybe that
-        the source of the focus desync bug!
-      . Actually there is yet another, Internal.record_keys, that actually
-        commits to Cmd.  If it's for things that are never undone, why not
-        ui updates there?
-        . Can return Done to stop, but it's just UpdateScreenSize.
-    . due to:
-      TrackTile::floating_insert -> BlockC.floating_insert
-      -> Sync.floating_input -> Cmd.FloatingInsert
-      -> NoteEntry.floating_input_insert
-    . Happens when
-      floating_input <- Cmd.gets $ Cmd.state_floating_input . Cmd.state_edit
-      and Msg.InputNote
-    . So state_floating_input is wrong.
-    . Set True in Responder when Cmd.FloatingInput
-      Set False in Internal when UiMsg.ctx_floating_input
-      When there's a (UiMsg.UiMsg ctx (UiMsg.UiUpdate view_id update))
-      ctx_floating_input
-    . fltk should send it on UpdateInput.  But there's nothing that forces
-      that to be the case.  Why do I need a separate bool, could UpdateInput
-      always imply the input closed?
-    . Or since it's always hard to get state updates right, what if every
-      UiMsg had ctx_floating_input?
-    . ctx_floating_input is from TrackType track_floating_input for msg
-      from floating input.  track_type actually winds up incorrect as
-      SkeletonDisplay.
-  / If I do cmd-' (play from root?) and there's no link from root
-    block to current one, does it play root instead?  Should play current.
-    . Actually no it's correct, that's play root from beginning.
-  * bug: play_cache causes automute.
-    Probably some crash causes it to outputs high levels.
-    How to get more info when this happens?
-    . It does it even after a complete restart, WTF?
-    . It was reyong 000.wav, starts off with very high levels.
-    . Bug in sampler-im, then.
-    . It reproduces it, given save/bug/high-level.notes
-    . Seems to be caused by simultaneous...
-    . No wait comes up from any sample, maybe it corrupted the underlying
-      samples?  Are they read-only?
-      no :(  Now they are.
-    . It seems to be certain reyong samples, have to track down which.
-    . save/bug/level/sampler
-    . Sample seems fine.
-    . This reproduces:
-      build/opt/sampler-im save/bug/level/sampler save/bug/level/cache
-    . envelope = Signal 0s <0s:3.5, 1000s:3.5, 1000.08s:0>
-    . Holy cow it was just dyn=6.  I need some guard against that.
-    . sampler-im could emit warnings about levels >1.
-    . I want to do it high enough level that I can say where.  Can't say which
-      instrument because it might be combination of several.
-    . Config.Payload = Warn !Stack.Stack !Text
-      But no location.  There is RenderingRange, how does seq display it?
-      Just Log.warn, but has Stack.
-    - What if I highlighted >1 in the waveform display?
+  - What if I highlighted >1 in the waveform display?
   - fltk: The dyn=6 problem is showing that track titles are pretty bad.
     . Especially on the right side.
     . How about they make a text field that covers the whole block, like the
@@ -306,141 +225,26 @@ UNSORTED
     . Happens even when volume is lower, where is the clipping happening?
     . Actually looks like the sample is distorted, just hard to hear at
       full volume (?)
-  * sampler-im: try mixing variations between dyn splits, since there is much
-    timbral variation
   - selections, both insert and subblock position, can be very hard to see
   - subblock position only shows where there are notes
-  * bug: thread died writing im notes
-    . Util/Thread.hs:65 ThreadId 6268 perf:(bid "untitled/score"): died:
-      data/im/notes/java/pangkur/untitled/score/sampler.write.tmp:
-      withBinaryFile: resource busy (file is locked)
-  * replace Util.Stack.Stack with HasCallStack
   - infer-negative heuristic should be changeable dynamically
     . Because even gender barung goes to pipilan sometimes.
     . Or maybe go to positive durations, but only infer the last one?
-  * preview for faust is wav, not flac!  Put back wav support!
-  * bug: im: if I change the alloc of the instrument, I get stuck with its old
-    sounds.  Because Config.clearUnusedInstruments goes by instrument name
-    only, not by $inst_$patch, which is how the directories are named.
-    . For faust only, sampler doesn't use _$extra, it says "so I can clear
-      obsolete checkpoints when the patch changes" but how does that follow?
-    . It's so tools/clear_faust can clear everything of a certain patch when
-      it gets recompiled.
-    . Anyway, I have inst_patch1 and inst_patch2, and inst is still around so
-      it keeps both.  So I need to know the patch name too.
-    . I could pass (name, inst) from Performance, but (Nothing, inst) must
-      also match.
-    . Or I could clear both if there are two, but then it will happen every
-      time, unless I delete the whole directory, not just the checkpoints.
-    . But, why not do that?  The downside is I can't undo and cheaply get
-      the render back.  And actually I may want to do this, since this also
-      happens when disabling a track, which is the only way to track-mute for
-      im.
-    . Or, what if I undo the inst_extra thing.  Then when the name changes it
-      uses the same directory and overwrites the checkpoint.  I can support
-      tools/clear_faust by putting a file inside.
-    . Don't I have exactly the same problem?  I wind up with two files inside.
-      The key thing is to detect the change of patch name.
-    . Actually maybe this is ok?  This just means clear_faust will get it for
-      either patch, which is ok.
-  * bug: waveform display is frequently too early, but audio is correct
-    . Gong in save/java/pangkur consistently this way.
-    . { "_blockId":"untitled/score", "_trackIds":["untitled/score.t2"]
-      , "_instrument":"gong", "_payload":{"tag":"WaveformsCompleted"
-        , "contents":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14]}
-      }
-    . It's due to the tempo change.  It has to be unwarped when sent to fltk.
-    . So must be in draw code.
-      Sync.set_waveforms -> BlockC.set_waveform
-      But it's the ratios.
-      . From Track.WaveformChunk
-      . Tempo change unimplemented:
-        , _ratios = [ratio / RealTime.to_seconds play_multiplier]
-    . I never implemented multiple ratios.  I could try to implement.
-      frames_per_ratio seems incorrect, ideally ratios would represent exact
-      tempo breakpoints.  But tempos can vary smoothly so it'll always have to
-      be sampled.  And if it's sampled, it would be better to be at constant
-      ScoreTime intervals, not RealTime (which is what frames are).
-    . Since chunks are RealTime 3s, if tempo is slow then many chunks go into
-      less ScoreTime, and each chunk needs fewer ratios.
-    . Wouldn't it be easier to control if ratios are evenly dividing the
-      chunk?  Then divide by chunk length and no need for frames_per_ratio.
-      Then Cmd.Performance could put ratios based on ScoreTime duration.
-    . For this, c++ has to know duration of the chunk, which is easy because
-      it's constant CHUNK_SECONDS, but to avoid hardcoding that I could have
-      int Wav::frames()
+    . Also have a default per instrument, e.g. panerus->
+  - why is zero-mute not working for java samples?
+    . Probably because it needs a special postproc, can I build that in?
+    . Is working for gender wayang.
   - bug: error in ky spams errors in logview
     . It should suppress after too many of them?  Or subsystems themselves
       should suppress?
-  * bug: ky blank line at end gives a parse error
-  * bug: rotate log msg is mixed in with sampler-im structured output
-    . couldn't parse: rotate logs /Users/elaforge/src/seq/main/log/sampler.log
-      -> /Users/elaforge/src/seq/main/log/sampler.log.1
   - fltk: not wrapping by char is quite annoying
     I think I did this on purpose though?
-  * bug: shift arrow can extend selection below track 0, then I get
-    getting track cmds: block_track_at: negative tracknum: -3
-    . It's still useful to have selection out of bounds though, because
-      then when I move back into bounds it doesn't get trimmed.
-  * click above ruler track should not highlight the ruler track
-    . Is there ever a reason to highlight the ruler at all?
-      Could be if I put a note track there, but I've never done that.
-      In theory it could be useful for balungan.  Even so, maybe not allow
-      editing?
-    . Ui.selectable_tracks already makes it omitted for normal movements.
   - divide up App.Config
     . Move stuff that shouldn't be changed, like pixels from c++, to its own
       module.
     . Move EventTrack.cc rank_brightness negative_duration_brightness
       to color config.
-  * refuses to perform @umpak
-    . It's in state_current_performance, but not state_performance
-    * Perf.muted_im_instruments uses old perf, not current
-    . DeriveComplete should have copied to state_performance
-    . It never came, derive seems to be stuck.  Where?
-    - play clears out the derive still going button, which obscures when it's
-      stuck
-    . thread died: (Left data/im/notes/java/wilujeng/untitled/umpak/sampler:
-      createLink: already exists (File exists))
   - I still have the out of sync problem with ky inst allocs vs UiConfig
-  * play preview for gong mangled
-    . data/sampler/sc-gamelan/gongs/Gong Wadon-B096.flac: not 16 bit
-  * Play.modify_play_multiplier no longer rerenders im
-    . It does a Ui.update_all, but then Diff.derive_diff correctly notices
-      no diffs on the blocks.
-    . So I need derive_diff specifically for im to consider
-      Cmd.state_play_multiplier a global damage.
-    . That's a cmd diff, not a Ui one.  Do I diff cmd?
-    . No.  This is what Ui.update_all in Play.modify_play_multiplier was
-      supposed to do, but didn't.
-  * play preview doesn't work for wayang:
-    . Because play_cache switched to wav-only, but samples are in flac
-    . ed504dc2a84447eeb1de87b3dbeb8b83e309af8d
-    . So, I'll have to revert that and go back to sndfile, or bind to libflac
-      directly.
-    . Bind to libflac means fewer layers, but more build complexity because
-      I already have to have libsndfile.
-    . Or a much simpler way is to just uncompress all the flacs :/
-    . But there are tons of them, and hardcoded in places like ZhengSamples,
-      do I really want to rollback the whole thing just so preview works?
-      Maybe short term, but not long term.
-    . But I already can't do preview for wav, because it requires float32 wav!
-    * Implement Flac reader
-    * both Wav and Flac should live behind a SampleFile facade.
-      . read() should be able to be non
-      . read() can avoid a copy if I take float **samples and return the
-        buffer.  Wav doesn't do this because it can directly read into the
-        buffer from the file, but I need another buffer in here because flac
-        frames are not buffer sized.
-      . Also need a way to return error from read, Wav just uses fread -1 and
-        errno.
-      ? Also why do I need expand_channels, as opposed to detecting from the
-        file?
-        . I suppose because when streaming chunks I want to error rather than
-          silently allocate a buffer.
-      . Actually I can't play wavs at all with SampleFile, because I only
-        support float32.  So I might as well support flac-only for preview.
-        If I do want uncompressed wav samples, I'd have to extend Wav anyway.
   - upgrade to ghc 9.4:
     + fclabels doesn't like base 4.17
       . Probably due to TH as usual, which I don't even use.
@@ -491,30 +295,6 @@ UNSORTED
   - LPerf.sel_midi gets muted tracks, but more importantly, non selected
     tracks!
     . Can't reproduce the latter.
-  * automatically collapse empty tracks?
-    . Can't be totally automatic because new tracks!
-    . Could it be like block title, where a selection keeps it open?
-    . Or overload cmd-M to collapse empties?
-  . I don't think I want auto-expand on selection because selection skipping
-    is part of the point of collapse.
-  * different color for collapsed and merge-collapsed
-    . For different colors, Collapse would have to take an argument.
-    . Or I need a separate MergeCollapse, but then it's awkward, you can
-      have both.
-    . But if it has an arg, it's no longer Enum, do I use that?
-    . Still I think an extra enum value would be most convenient, for
-      serialize too.
-    . A separate Merged would make it easier to ignore them.
-  * bug: cmd-C to collapse a merged note track, expands it, but with
-    right-text, and it doesn't think it's expanded
-    . Also shift-click expands collapsed, which is probably confusing.
-      Collapse and merge should be distinct.
-    . How about use different colors?
-    . Merge is implemented as a collapse, but I think I'll need separate
-      types.
-    . cmd-C expands merged because it sees the merged track as collapsed.
-      Instead, notice if it's merged and collapse just the parent.
-      . On expand, notice if it's merged, and if so, expand the merged-into.
   - I still want a way to impose a track template across existing blocks, e.g.
     add an instrument.
     . It would need to be a bit clever to get the diffs and not destroy
@@ -537,13 +317,6 @@ UNSORTED
     . In fact I could put all UiConfig.Config stuff in there, such as
       namespace, root, lilypond, default_tempo, etc.
     . Why not merge ky and tscore too?
-  * clear score track doesn't change the event text style
-    . Because events still have stacks.
-    . Can I make Ui.modify_integrated_tracks do it?
-    How do events get styles?
-      . presence of Event.stack causes Internal.set_style to set
-        Config.integrated_style
-      . ResponderSync calls Internal.set_style -> Sync set_style -> BlockC
   - why do a get a short note when a track of the same instrument is muted?
     . LPerf.sel_midi_events has dur .25, but midi has:
       [ loop1 1.75s: chan:1 NoteOn e6(88) 64
@@ -1635,10 +1408,6 @@ IN PROGRESS / branch: branches:
     their dependencies for tests, haddock, etc.
     . I'd like to generalize this to a shake haskell build system, so I can
       use it with other projects.
-  * Complete Util.PrettyGeneric so I don't have to hand-write Pretty
-    instances.
-    . Maybe I should fix the formatting bugs first.
-    . Implemented as Pretty.formatG.
 
 TASKS:
   Performance
@@ -1684,29 +1453,8 @@ TASKS:
       X config?
 
 UNIFY:
-  - default args and controls:
-    . Instead of defaulting to a ControlRef with a different name, use
-      a control with the same rules as argument defaulting.
-  * controls and env:
-    . something=4 should be the same as %something=4.  I can remove the
-      % and # syntax.
-    . Unless I want to remove the VNum, I'll need to ensure that VNums never
-      go into Environ.
-    . That seems like it could be awkward.  What about putting Val into
-      a signal, so I can get rid of Environ entirely?
-    . I would need to expose TimeVector a, since Segment and interpolation
-      doesn't apply to arbitrary Vals.  If I still have VNum though, I'll
-      still have the ambiguity.
-  + signal arguments:
-    . They should all coerce to SignalFunction, with no need for
-      Call.to_function.
   - controls and ControlFunctions:
     . See NOTE [fix-control-functions]
-  * controls and pitch controls
-    . If I can have controls of different types, then I can get rid of the
-      unnamed pitch control for a normal control named pitch, and the
-      (almost unused) named pitch controls become normal controls.  The
-      Control / PControl divide goes away.
   + deriver arguments, transformers, and parent calls:
     . unify deriver parents:
     . I should be able to take {Note,Control,Pitch}Deriver args, which
@@ -1731,50 +1479,6 @@ UNIFY:
       putting it in Derive, at which point it's only used in a restricted
       context.
     plan:
-      * Implement the typecheck rule for deriver arg.
-        . I can't, because it works by converting from a Val.
-        . But I could take it from Quoted.
-        . But I need a Derive.Context.  Make Typecheck.Eval take Context?
-        . Context is polymorphic, but it's just for cxt_prev_val, so I can
-          just set that to Nothing.
-        . Why not typecheck to a ctx -> deriver function?  Is that equivalent
-          Eval?  I think not, Eval is when I need an extra arg to typecheck,
-          this is when I can typecheck, but need an extra arg to get the
-          value.
-        . But making instance Typecheck (Context -> Deriver) is nice because
-          then I can keep the right type on Context.  I think I just have to
-          have Derive.Sig try this specially, which is ok because it already
-          does that for Quoted, and besides it needs special support anyway
-          to keep track of the child track.
-      * Derive.Sig support for Quoted or Str.
-        . If I ask for type 'a':
-          . See if I can typecheck an 'a' directly (Val (Just a))
-          . If it can coerce to Quoted (Quoted or Str), then try to typecheck
-            as (Context d -> a) or as 'Deriver a'
-        . The Typecheck (Context -> Deriver) thing doesn't work, because if
-          I'm to use it for type inferring, I really need it to be the
-          expected type, which is e.g. NoteDeriver.  If I do it as special
-          Quoted evaluation in Sig, then it will be documented as Quoted... or
-          actually, it won't work at all because I need to expect some type
-          to trigger the evaluation as deriver.
-        . So what I need is Typecheck NoteDeriver, which means from_val has to
-          return a Deriver.  But can I just return a singleton?  E.g.:
-          . call expects NoteDeriver
-          . so Typecheck returns Checked Deriver.  Because it loses the type
-            variable, it becomes dynamically typed.
-          . Now Sig has to create a NoteDeriver, which it does by evaluating
-            the quoted.
-        . This doesn't work because Eval.eval_quoted doesn't return any old
-          'a', but a specific one.  I need to prove that a Typecheck.Derive
-          is only produced for the things eval_quoted can return.  Normally
-          I do that by just calling eval_quoted, but of course I don't have
-          the args yet.  Existential?
-        . No, but I can just return a function that takes the Context, which
-          was actually the original plan.
-        . It seems to work, but to set a default arg I need ShowVal
-          NoteGenerator.  I guess that's not a big deal, though it's an
-          invalid instance.  If I can coerce for default values then I could
-          fix this by coercing from some "manual doc" newtype.
       * Derive.Sig support for child tracks.
         . Use this to clean up Parent.c_event_interpolate.
         . Child tracks go as implicit arguments on the end of Sig.state_vals,
@@ -2460,21 +2164,6 @@ vector: performance:
 instruments:
   sampler-im: java:
     dynamics:
-      * Put Map [Util.Dyn] [a] into VarDyn, so it gets cached.
-        . For this I think VarDyn should become
-          Map Articulation (Map Pitch [Util.Db])
-          So I can transform to
-          Map Articulation (Map Pitch (Map Util.Db [SamplePath]))
-        . Why did I use the function?  I think so it's easier to do pattern
-          matches for duplicate values?
-          No, because it has nice syntax for sparse things, and completion
-          checking... though that mostly doesn't work because I don't have
-          patch-specific Articulation.
-          So, it's all about the syntax then.  But it has the annoyance that
-          I have to do _ -> const mempty for unused Articulation.
-        . Then need (pitch, art) for
-          fnames = Maps.multimap $ zip (Unboxed.toList dyns)
-            (map (unparseFilenameVarDyn pitch art) [1 .. Unboxed.length dyns])
       - eliminate Util.Dyn, or rather make it only musical Dyn
         . Do I want to use Db all the way through?
           . It seems good because I can get rid of the AbsoluteDyn as much as
@@ -2616,47 +2305,6 @@ instruments:
         . For the ratio A between two amplitudes, the formula is 20·log10(A)
         . If we go 30dB to 90dB, that's -60..0
         . linear rolloff so I can get to 0: if(x < .1) ampl = x*10*a*exp(0.1*b);
-        * faust-im should apply db to the whole signal, not just breakpoints.
-          More efficient to do it in faust?
-          . Maybe it's better anyway, it feels arbitrary how I transform
-            dynamic and volume, where only the patch itself really knows
-            what dynamic is intended for.  I suppose volume should be
-            implemented universally, and use dB, while dynamic should be
-            handled by the patch.  If it's a physical model, it wouldn't use
-            directly amplitude at all.
-          . But this means I have to hardcode Control.minimumDb in all the
-            faust patches.  It's not bad when I have none, but I should
-            run CPP universally on them and inject such constants.
-        * Measure sampler-im against sine wave 1.
-          . Make sure it has the same response as faust-im.
-          . 19 is -23 dB, 60nn-076.wav, 0.76 dyn, -23dB.  So correct.
-          . Calibrate them to 1.
-        * Measure dB changes in sampler-im.
-          . I should be able to change a sample with dB n to m by adding dB.
-          . Works!
-        * Substitution should work.
-          . 48s -19.11.  Asked for 0.8 dyn, -19.2 dB.
-          . 52s -12.7, 0.866 dyn = -12.86
-          . Does seem to work, but most of the lower end is too quiet.
-          . This means the actual range of usable dyns is
-            32s - 1:00, 0.5 - 1 dyn
-          . So I will want to map musical dyn to that range.
-            But calibration I think should be in full-range dB.
-            In that case, why not use dB directly?  The point of mapping dyn
-            is for musical range, so it should always be logical.  When
-            we calibrate, we use absolute dB.
-          . The reason is I want to be able to adjust the dB range per
-            instrument, and don't want all my calibration to get messed up
-            by changing the base.
-          . But that's not really what notes are, they don't have constant dB
-            like a sine wave.
-          . Ok so I want to map reyong strokes to dB.  evenDyns is totally
-            wrong because we really start at 0.6 or something.
-          . What if I did just measure dB via normalize?
-          . Seems to work, but I get no samples at low dyn.  Pick the lowest
-            and scale?
-          . Also range seems too great and weights wrong, at dyn=1 I get
-            11-19, and skip 18, which is an exact match.
     siter:
       - record +open
         . If I record strings individually could I adjust tuning that way?
@@ -4822,32 +4470,6 @@ cleanup: bugs:
       https://hackage.haskell.org/package/winery
         . A generic structure thing like cbor, but stores structure just once.
         . Storing the schema looks awkward.
-  - support cabal new-build
-    . The advantage is that people can install dependencies without messing up
-      their global package db.
-    . Also I might be able to skip the install build tools step.
-    . cabal sandbox already does this, but with new-build they can reuse
-      installed packages.
-    . I think to support this I install deps via new-build --only-dependencies
-      and then compile with: -no-user-package-db
-      -package-db $HOME/.cabal/store/ghc-8.4.1/package.db
-    . Also I could consider using a freeze file if there are problems with
-      deps.
-    . The advantage of doing this for travis is that I can resue the cache but
-      still use latest library versions as they come out.
-      . I think?  Or does it prefer what's installed?
-      . It's hard to test this with 8.4.1 because every single package was
-        just update, so only has one valid version.
-      . It will use global packages, but it won't use old versions in user db.
-      . Yes, it will use the newest packages available.  This is probably good
-        for CI, since it means I find out about new breakage.
-      . If I can set up performance CI, then I can find out about performance
-        regressions due to dependency changes.
-      . But locally maybe I want to freeze, to avoid churn whenever I install
-        anything new.
-    . All in all, this is not really a big deal.
-    . I think I'd really want to do nix, then I can get all dependencies in
-      one go.
   - see TODOs: lentil ^build
   / replace fromIntegral with http://hackage.haskell.org/package/int-cast?
   - visualize module dependencies: https://github.com/yav/graphmod
@@ -5139,6 +4761,7 @@ performance:
       . requires 9.2
       . https://github.com/well-typed/memory-usage-zurihac-2021
       . https://well-typed.com/blog/2023/08/reducing-haddock-memory-usage/
+      . https://www.well-typed.com/blog/2024/01/ghc-eras-profiling/
     eventlog2html:
       notes:
         . use linechart to look for leaks, since it normalizes each one
@@ -5146,7 +4769,7 @@ performance:
           . live bytes: almost exactly what hs heap view shows
           . block size: total size of allocated blocks to the OS, so 2x for
             a copying collector
-          . heap size: megablog (1mb) requested from OS
+          . heap size: megablock (1mb) requested from OS
           . heap -> blocks difference is nursery size
       . set profiling interval, for heap sample interval.  Too often means too
         much time spent in profiling.
@@ -5598,9 +5221,7 @@ performance:
     improvements:
       - use HashMap for Environ?
       - if parser is slow, then try separate lexing
-      * Write a tool for diffs on .prof and .gc so I can feel good.
-        . tools/profile_verify.py parses .gc
-        . Then just diff the top CC list from .prof, sort by name.
+      . tools/prof_diff.py to see prof changes
 
     + Bring back profiling, and do it regularly.
       . Look into that graphing stuff, I have the links around here somewhere.
@@ -6667,11 +6288,7 @@ REPL: repl:
 
 solkattu:
   bol:
-    * support hindustani tal
-      . Kind of awkward though.
-    * html doesn't wrap, so 16 beat tintal doesn't fit
     - for html, I could abbreviate fast terekita as trkt, kitataka as kttk
-    * html: reduce font size for bols
     - support Talas.Hindustani in Play.tala_metronome
     - normalize terekita: [tari, tira, tere] [kita, kite]
       . ti is already a different stroke, e.g. dha ti dha, let's avoid it.
@@ -6688,37 +6305,6 @@ solkattu:
       . Another way is to support them all, but map them the same way to
         strokes.  Good because the original notation is preserved.
         Currently I do this, maybe it's good enough.
-    * realize to strokes
-      . I could use the same approach as StrokeMaps, but it would need to be
-        parameterized by both sollu and stroke.
-      . This seems overcomplicated because I can probably use a hardcoded
-        StrokeMap.
-      . On the other hand, would it make it easier if I want to realize bols
-        on tabla vs. pakhawaj vs. mridangam?
-      . In theory depending on both should be easy, just case on two things,
-        but maybe it would require another GADT to reflect up to the type
-        level?
-      . branch solkattu-tabla:
-      . gave sollu arg to Instrument but doesn't seem to be enough to infer
-        sollu ~ Bol.
-      . OR I could just embed bols in Sollu, then nothing changes.
-        Downside is a bunch of extra Sollu, but, it's not exactly for type
-        safety, except I could mix sollu and bols... but is that so bad?
-        I guess it wouldn't accurately represent bols, but do I care?
-      . parseBols could get ambiguous, but if it's a problem I could start
-        with Dha and then select >=Dha.
-      * annotation for whether dha and na are kinar or sur
-    * Terminal.renderAll and Html.writeAll don't understand bols
-      . Terminal.renderAll abstraction score
-      . Format.scoreInstruments :: Korvai.Score -> [Korvai.GInstrument]
-      . IBol is not in Korvai.instruments
-      . No instance for (Expr.ToExpr (Realize.Stroke Bol.Bol))
-    * print taa as tA or Ta?  On the other hand it's nice that it's the same
-      length as dha, since it alternates with it.
-      . Did Ta even though it's kind of wrong, it should actually be for
-        retroflex ta.
-      . Why not tA?
-      . It looks ugly but maybe I'll get used to it.
     notes:
       . Support for pakhawaj and tabla bols.
       . Tabla is different in that bols directly correspond to strokes.
@@ -6804,10 +6390,6 @@ solkattu:
         enough to pick random but twice as likely to pick with score one
         lower.
   technique:
-    * doesn't work on a group, e.g. dropM 1 (g "ktk")
-      . Because postprocess doesn't look inside the group.
-      . dropM could replace a "no-op" group
-      . Similarly dropM 1 . dropM 2 could replace with a dropM 3.
     - o with space can become od.
       . I guess I would want to tag a stroke, and technique postproc can then
         apply it if appropriate.
@@ -6886,7 +6468,6 @@ solkattu:
         . But just doubling them leads to an ugly gap in between.  How can I
           emit a long underscore or double underscore?
       - Decrease font size for higher speed.
-      * For high speed split avartanam.
       - I shoud be able to display nested groups.
       / use JS to switch between konnakol and mridangam
       db ideas:
@@ -7227,9 +6808,6 @@ Cmd:
 
 Derive:
   java: javanese notation:
-    * event body too dark when negative, can't read text.
-      . What if negative is actually lighter?
-      . negative_duration_brightness is in EventTrack.cc, not Config.hsc
     - for negative, does the duration really matter?
       . Yes for patterns.  But for individual notes there is nothing
         unless I can get final duration out of it.
@@ -7252,8 +6830,6 @@ Derive:
         and is then taller.
       . Window and block title overhead is repeated.
       . Track titles squished.
-      * Hard to read when it's not grouped in 4s.  Can get a better ruler.
-        Gatra = 1w, line = section
       . It's already right, but I could number sections.
       . Scores have a notion of wrapping.  I could do that vertically.
         However, this is in the direction of one big block, while the
@@ -7328,155 +6904,9 @@ Derive:
       - Can I write a prof diff that diffs the 'entries' counts?
         . Have to match by the stack, so have to parse that out of
           indentation.
-    situation:
-      . The VNum / VSignal distinction is annoying now that I'm coercing
-        num to signal, because added to Score.event_environ vs.
-        Score.event_controls means it's unpredictable which namespace will
-        get the control.
-      . The underlying issue is that VNums were used for some things like
-        block-end, while controls came from control tracks.  When they get
-        unified, the distinction gets muddy and then disappears.
-      . It still seems worth it to unify, but if I was relying on signal
-        meaning it came from a track, perhaps I need an explicit provenance
-        marker.
-      So
-        * Revert "strip from event_environ"
-        / fix tests
-          . Or not, many are probably broken due to signal vs. num?
-        / Make sure constant signal is coercible to scalar
-          . And vice versa?
-        * Simplify ValType, because types have to move from VNum to VSignal
-        * Remove VNum
-        * Remove event_controls, update callers
     - some awkward overlap now that controls are in environ, with
       EnvKey VNum types.
       . Places where I have to ScoreT.Control or ScoreT.control_name
-    * merge Score.event_controls into event_environ:
-      . The reason to do it is getting VSignal in environ and also in
-        controls, and not clear where to look.
-      notes:
-        . Pros: consistency, Note just copies over the environ, can't
-          have a same-named VNum in score_environ.
-        . Cons: postproc has to change, e.g. Score.move_event.  I don't get
-          the UI benefit since it's internal.
-        . Also pro, don't have to decide where to look for numbers.
-        . env vals are winding up as Signal.constant
-          . How do they get there and maybe convert them back?
-          . Or unify VSignal and VNum.
-        . Note environ doesn't need to have values that are also in controls.
-          . What's more they aren't trimmed.
-          . This breaks postproc that is expecting it in environ.
-          . I think the better approach is merge num and signal, and then
-            remove Score.event_controls.
-        places event_controls are used:
-          . Im.Convert Sc.Convert, Midi.Convert
-          . Derive.Note, apply controls to psignal, for track signal
-          . Post.Map.map_control - just use env
-          ? Rearticulate slur merges controls from separate events
-          . Idiom turns attr-x into +x, use env
-          ? Integrate maps back to control tracks
-            In this case the num vs signal distinction is useful, for which
-            things do I want an integrated control track?  Not block-end etc!
-          . Swam: merge in controls
-    * Unify VNum and VSignal
-      notes:
-        . Have a special constant constructor for Segment?
-        . Actually it's not necessary, but would get rid of the sketchy
-          -RealTime.large nonsense.
-        . But at the cost of a bunch of case branches.
-        . Also a million tests that use Signal.to_pairs, though I could do
-          -large for compatibility.
-        . Can then remove Typecheck.DefaultReal etc.
-          . Or rather, use that name for RealTimeFunction
-        . Against: Seems like `lhs=1 | lhs=(cf)` should error, because
-          accidentally turning srate into a function will break stuff.  Or,
-          don't coerce num into a constant would be clearer.  This is against
-          the idea of unifying VSignal and VNum, logic is that VNum is
-          distinctive because you definitely don't need a time to get it.  But,
-          if I want to unify, maybe changing all those get_srate to be
-          get_srate_at is already a precondition.
-          . Maybe I say Derive.lookup_val without a pos is an runtime error for
-            a non-constant signal.
-        . Also, VNum has ValType.NumValue like Positive.  This is difficult for
-          a signal.  But I want to simplify the ValType stuff anyway.
-      . signal doesn't make sense with (signal ) args!
-      * compile
-      * tests pass
-    - also remove VPitch
-      . Hmm but why?  val_to_pitch expects a VPitch, because scales.
-        So it seems useful to have an explicit scalar pitch and not so
-        annoying as VNum.
-    change Signal.constant representation:
-      . Do I lose efficiency by using Signal.constant?
-      . Normally shouldn't matter but what about Internal.add_stack_frame?
-      . Instead of just a number, it's a signal, with 0 offset, and vector
-        with (-large, num).
-      * Also checking is_constant makes garbage because of uncons, I can
-        fix that at least.
-      * Signal.constant 0 and mempty are different, but they should be the same?
-      * Possibly change signal representation for constant:
-        Segment.Signal { _offset :: X, _constant :: !Y, _vector :: !v }
-        . What about pitch signal, where I still want it to be Nothing?
-        . I guess since Y is a parameter, I pass ()?
-        . No, the default comes from NumSignal, so constant goes in
-          Perform.Signal?
-        . But I do want constant pitches!
-        . Ok maybe just a separate constructor:
-          data Signal { _offset, _vector } | Constant y
-        . This is basically VNum/VSiganl but push the distinction down.
-        . Another thing is I want equality to work with constants.
-        . Space efficiency:
-          VNum (Typed Type Double) -- tag, enum, double (unpacked?)
-            1 + 1 + 1 + 2 = 5 words
-          vs.
-          Signal { _offset :: Double, _vector :: TimeVector.Unboxed }
-            1 + 1 + 2 + 1 = 5
-          Unboxed = Storable.Vector (Sample Double)
-            tag, double, (ptr, offset, len, (Double, Double))
-            1 + 2 + 1 + 1 + 1 + 4 = 10 = 15
-          Sample = Sample Double Double
-        . Segment.Signal v has the vector as the argument, not the value.
-          DeriveT: newtype PSignal = PSignal (Segment.Boxed Pitch)
-          Segment: type Boxed y = Signal (TimeVector.Boxed y)
-          TimeVec: type Boxed y = Vector.Vector (Sample y)
-          . Segment.Signal (Vector (Sample Pitch))
-          Signal:  newtype Signal kind = Signal Segment.NumSignal
-          Segment: type NumSignal = Signal TimeVector.Unboxed
-          TimeVec: type Unboxed = Storable.Vector (Sample Double)
-          . Segment.Signal (Storable.Vector (Sample Double))
-        . That's a lot of layers of indirection!  Can I simplify?
-        . Maybe not as bad as it looks, TimeVector is merely functions
-          on vector.  Mabye delete some type aliases?
-        . If I put Constant in Segment.Signal, then I get it for both
-          NumSignal and PSignal.
-        . Maybe just another type variable for the value.
-          Maybe I have to pass the vector and value separately.
-        . Type becomes data Signal v y = Signal X (v (Sample y)) | Constant y
-          which is obnoxiously complicated.  Can't even declare an instance:
-            "constraint ... is no smaller than the instance head"
-        . The reason for the complexity is to share some basic functions for
-          . Segment.Signal (Vector (Sample Pitch))
-          . Segment.Signal (Storable.Vector (Sample Double))
-        . So it really is (v (Sample y)).
-        . This means all Segment functions have to branch on
-          Signal | Constant, which is the original tradeoff I was worried
-          about.
-          Still, it's probably better?  Mostly probably irrelevant.
-        . But maybe that's the biggest argument against Constant too, if
-          I don't have that many numbers around, it's ok if they take up 15
-          instead of 5.
-        . If I do Segment.Constant, first do VPitch -> VPSignal, why have
-          both?
-          . Reason in 'unify VControl and VNum:'
-            But passing a simple number would wind up in Eval, because it
-            wants the start pos, which is ignored.  Seems inefficient?
-          . But, I can check if it's constant, it's just like checking VPitch
-            vs VPSignal.  Or maybe I couldn't do that without Eq Pitch before,
-            but can do it with a separate Constant constructor.
-        . Ensure Constant is used for x=4 constants.  Yes.
-        . Ensure Constant is used for constant tracks and sliced pitches.
-          No, but it shouldn't be.
-      * Remove VPitch, Typecheck for VPSignal can check constant_val.
     ? remove ValType.specific_type_of entirely?  Under what situation would
       I care if it's positive or not?  I can see from the val.
     - what if I remove VControlRef and VPControlRef?  Instead it's syntactic
@@ -7485,97 +6915,6 @@ Derive:
         say in CFs.
       . The benefit is that I don't have to worry about resolving refs in e.g.
         NoteUtil.make_event.
-    * What about backward compatibility for old scores?
-      failed:
-        / save/complete/blue-hat
-          velocity 100 -> 127
-          a2 loop3 chan 0, comb filter
-          . Must be from DUtil.redirect_pitch change, comb filter now has
-            velocity of 1 instead of none, which seems fine.
-        + save/complete/wayang/cerucuk-punyah.state
-          . save/complete/wayang/delima-manis
-          . save/complete/wayang/p1
-          . save/complete/wayang/p2
-          . save/complete/wayang/p4
-          . save/complete/wayang/p8
-          - fixed but why did random change?
-            . Can I have a test to pin this down in the future?  It could
-              record the stack in various places, and its seed, and then
-              will fire when that changes.
-            . save/complete/wayang/p1 difference at 3.08s
-              old: dyn-val: .351
-              new: dyn-val: .366
-            . seed is the same, what else goes into rand?
-              pos, serial + seed - should all be the same.
-            . It only affects dyn, which is suggestive.  cf-rnd01
-            . But maybe I don't care.
-            . How can I make it easier to track down random changes?
-          * can't set "strength" to cf-clamp, expected Num but got
-            ControlFunction
-          * can't be coerced to signal: cf-clamp
-            . called by (tid "wayang/top.t2")?  Title is "dyn set"
-            . From Typecheck.lookup_signal:
-              . ControlUtil.modify_with... only used by multiply_dyn wich is
-                used in a few rare places.
-              . Block.c_capture_null_control for the null control.  Should be
-                ok because a track is a signal.
-            . It's 'dyn = (cf-rnd01 -.25 .25)' and then 'dyn set'.
-              * The cf-clamp name is leaking through.
-            . I can get a throw from a ref to a CF, but not sure that's what's
-              happening.  I'd have to have a ref in the env, which normally
-              doesn't happen because it gets resolved by typecheck.
-            . Because Lib.with_merged_control is used by tracks and needs
-              a signal.  So ultimately, I need to modify the signal inside the
-              CF.  That's what assign does, but control tracks don't do
-              assign.
-            . I would need to push the merge down Env.  This was a nice thing
-              about the separate namespace, signal modification stuff didn't
-              need to know about it and worked unchanged.  Maybe this is the
-              flip side of the problem with it, which is that lookup type
-              stuff did need to know about it and apply it?  But what was so
-              bad about it?
-            . curve=(cf) wasn't working because I lost a syntax to say put
-              a CF into the cf namespace instead of env, used by pure CFs.
-              This would also be solved by a separate type for pure CFs and
-              then backed CFs always go to the namespace, but it's still a
-              weird situation where it must be a Val but can't go into Env.
-        * save/complete/yangqin-zheng-kendang/house-2014
-        * save/complete/yangqin-zheng-kendang/huiyin-concert
-          "open-strings": expected list of Pitch but val type is list of Val
-          open-strings is set from Kontakt standard-strings
-          read via...
-          . I'll bet it's highlight, doesn't appear in the stack!
-          . It's because highlight uses Derive.lookup_val, and Typecheck for
-            scalar pitch requires Eval even for NN Num
-          * Fix Typecheck.coerce_to_pitch
-          * make lookup_val error better
-            . "but val type is list of Val" is misleading, it really is list
-              of Num (NN) but I can't convert it to a pitch because bug.
-      . Write a converter, or put % back in to equal as a shim.
-      . Converter is better, shim lifespan is indefinite.
-      . Also can delete all the states I can't load.
-      . Do a profile run once they're fixed.
-      . Apparently I haven't written this yet.  Add features to
-        App.Update?
-      . search: track title, event text, config_ky, config_tscore
-        I could parse but maybe regex is enough?
-        '%([0-9a-z._-] *=)' -> '\1'
-        . tscore already uses leading %ky=''...'', and 'score = %default',
-          don't match those.  I want track titles and event text and inside
-          ky.
-        . Show suggested changes, make changes, save backup.
-        * replace on *.ky
-      tools/update_all.py changes:
-        * modify in place, assume direcotry is backed up or in source control
-    * (signal) val call: Sig.optional doesn't seem to work for type arg
-    * implement (psignal ...)
-    * Pitch_test test_porta, doesn't pick up curve=(cf-expn) arg.
-      . It's because equal used to assign %c=(cf) to
-        state_control_functions, but c=(cf) to just a val, but now I
-        lack the distinction.
-      . Eliminate the separate namespace and this goes away, becomes
-        c=(cf) looks up existing c signal, and puts it in the cf.
-      . But for now, maybe I just break those tests?
     - Either propagate cf_dyn in Typecheck.val_to_function_dyn, or
       verify that laziness works.  If the latter, then it's good for
       CFPure, which doesn't use cf_dyn.
@@ -7623,113 +6962,8 @@ Derive:
     profiling in general:
       - with_stack_region is big: 11.3 7.6
         . Or maybe it's something underneath without a SCC.
-    * split CFPure into a separate Val type
-      . VFunction, VCFunction?  No, Function is already RealTime -> Signal.Y
-      . PFunction, CFunction?
-      . Or maybe just VCurve?  Since these are functions from 0-1 -> 0-1.
-        Or will I want a generic function someday?
-        Yes, sine
-      . CFunctions can turn into a plain function when applied to control=0.
-      . Some hackery in Env would go away.
-      . Some cfs don't take a control, should I have separate types so I
-        can throw an error?  Or they just ignore the control arg?
-        . E.g. dyn=(cf-curve 1 2 3) is probably a mistake.
-        . On the other hand, what about c=(cf-sine ...)?
-        . Would it be confusing when a pure cf doesn't act like a signal?
-          E.g. `c=(cf-sine ..) | c=+1` should be an error, but
-          `c=(cf-rnd ..) | c=+1` is fine, assuming %c later exists.
-        . I could get that error by throwing when trying to put a control
-          into a pure cf.
-    ControlFunction cleanup:
-      * eliminate separate namespace
-        * make Equal merge CFBacked and controls, or error
-        * call_cfunction on CFBacked should fail if there's no signal
-          . CFPure can't fail, another reason to separate them
-          . Or I can just default to const 0.  Turns out things like cf-rnd
-            already makes sense that way.
-          . Remove the Maybe then?
-        * EvalTrack_test failure:
-          cont = %gont,42 should look for `gont`, but doesn't find it?
-          . If it gets resolved by equal then it's too early.  It should be
-            resolved by the note.
-        * broke tests: can't set "dyn" to .5, expected Signal but got Num
-        * ControlFunction should look up controls in make_cf
-          . But how can it, it doesn't know the name it's bound to.
-          . So Equal has to do this!
-          . Or push it down to Derive.with_val
-          . with_val never did typechecking!  In fact, VNotGiven was
-            already handled in Env.put_val, but with_val didn't use it!
-        * How to support CFs that modify other CFs?
-          . A bit more complicated now that there is CFPure.
-        * ControlFunction lookups also simplified like Typecheck
-        . Why the separate state_control_functions namespace when I have
-          VControlFunction?
-        . It was so I can have a cf with the same name as an underlying
-          control, which doesn't replace it, and the underlying control can
-          change.  So e.g. dyn + cf-rnd.
-        . What if ControlFunction had a signal inside, and assigning to it
-          would update the signal inside?  Advantage is harder to forget.
-        . Let's do this later, this commit already has too much.
-        . Or I would have to be explicit like c=(cf %c), except I can't
-          because `c` is replaced.
-          . Backed cf should get its type from the backing signal.
-            Pure cf has its own type.
-      * put typed on the function, not in the return
-        . Eliminate Typecheck.retype_cf
-      . Remember CFs are also used for curves, e.g. ControlUtil.curve_arg
-    changes:
-      name changes:
-        . Gangsa: %noltol -> noltol-time
-        . Reyong: %damp-dur -> infer-damp-dur, %early -> infer-damp-early
-        . Conditional: %var -> when-c-control
-        . Delay: %echo-delay -> e-echo-delay,
-          %echo-feedback -> e-echo_feedback, %echo-times -> e-echo-times
-        . Random: %omit -> omit-chance
-        . Trill: %xcut[12] -> xcut-fst xcut-snd
-        . Users of Speed.arg: %speed -> $name-speed
-      . omit-chance should look for omit and omit-chance signals
-        but will look for chance, omit-chance
-      . pitch xcut args become required instead of #xcut1 #xcut2
-      . Gangsa.c_noltol: "noltol" -> "noltol-time"
     cleanup:
-      / convert Ref default to a scalar?  In theory I could have
-        `%x,(signal 1 2 3 4)`, but in practice I don't see myself doing that.
-        . Do it now and I don't need Serialize compatibility.
-        . Why though?  Maybe I'll construct those in code?  Since
-          resolve_signal returns a TypedSignal anyway, I'd have to make
-          a constant.
-      * remove DeriveT.Ref ControlSignal
       - rename ScoreT.ControlMap to SignalMap?  Consistency with FunctionMap.
-      * remove Lib state_signals, state_functions
-        They are from Dynamic because LPerf does that.
-        Ultimately the standard ones are in Deriver because lookup ControlRef.
-        Maybe LPerf can do a Derive.eval instead?
-      * ControlValMap in ScoreT but ControlMap in DeriveT
-        . Except PitchFunction and PitchMap need Pitch, which is in DeriveT.
-        . So move ControlMap to DeriveT?
-        . Except I want to move in the fewer deps direction...
-      remove deprecated stuff:
-        * Typecheck deprecated
-        / Lib.lookup_pitch_signal
-        - I think Val.c_control and c_pcontrol are not necessary, because I'm
-          still using ControlRef.
-      * PSignal.at and Signal.at should go (vector, index) to match Map Vector
-        etc.
-      * ControlFunction takes a ScoreT.Control so I can write `x=(cf-y ..)`
-        and it applies on top of an existing x signal.
-        . If I look up the control in cf-y, then it's too early binding,
-          I want to delay lookup, same rationale as control ref.
-        . It would be clearer to put the base signal in the cf call like
-          (cf-y %y ...), but if they're now living in the same namespace,
-          then I can't do the late binding thing.  So maybe this is why
-          ControlFunctions live in their own namespace.
-      / Midi.Event?  No there is no env.
-      - Synth.Shared.Note?  It doesn't have environ, just controls, but it
-        wants signals, at the least have to make sure scalars get coerced.
-      * remove checked ScoreT.control stuff?
-        . I think the purpose was to check control titles, but I can just do
-          that in ParseTitle.
-      * rename ScoreT.Typed typed_val to type_of: { type_of, val_of }
       - put env arg 1st for Sig.defaulted_env etc.?
     ideas:
       - should I have a (TimeT, Function) pair so RealTimeFunctionT etc. just
@@ -7745,85 +6979,9 @@ Derive:
         . Maybe not worth it.
       - XyzTransposeFunctionT should have a Control versions? Many callers
         just pass to Typecheck.transpose_control
-    unify VControl and VNum:
-      . Would it make it easier to have a separate value for constant signal?
-        No more -RealTime.large nonsense.
-      . Alternately, I can define the value before the first segment:
-        Segment.Signal { _offset :: X, _constant :: Y, _vector :: v }
-        This makes all signals explicitly defined everywhere.
-        . Not applicable to PSignal though, because I do want to have
-          an unset region, since there's no good default pitch.
-      / What if I generalized VNum to VSignal and VPitch to
-        VPSignal?  I'd want to display and treat it separately, but I do have
-        a special form for constant signals.
-        . It would simplify typecheck instances, since the scalars would
-          disappear.
-        . But passing a simple number would wind up in Eval, because it wants
-          the start pos, which is ignored.  Seems inefficient?
-    status:
-      * fix tests: 153 failed, 119, 94, 86, 60, 38, 16, 402, 10, 5, 2
-        * ParseTitle.test_parse_unparse_control:
-          . have to decide if I want to use #
-        * Args_test.test_lookup_next_pitch
-          . Nothing -> NotGiven -> unset.  Promoted to with_val.  Why did this
-            work before?
-        * DUtil_test.test_composite
-        * WTF now 402 failures after typecheck scalar position fix?
-          . With this fix, even a num or signal typecheck now is in Eval,
-            because it needs the time.
-          . Relevant because Env usse Typecheck.from_val_simple, which doesn't
-            eval.
-          . Num is constant so can avoid, but what about signal?
-          . Key thing is that for type checking we don't need the time.
-          . Well, except for Normalized etc.  So how to check if a signal
-            is normalized without a time?
-          . This is a new ability, previously e.g. srate could only be
-            a constant, but if I want to allow it to vary, then e.g.
-            Call.get_srate must get a start time!
-          . I can get this "for free" in typecheck, but not when fetching env
-            vals by hand.
-          . So should Derive.get_val take a time?  Non numeric values are
-            still constant, though I did consider changing that with the
-            polymorphic signals idea.
-          . For the moment though, I can just require VNum.
-        * ControlFunction_test - cfs not working
-      * post test fix, check diffs for Sig.control and Sig.typed_control
-        which remove useful shortcuts like "at".  Remmeber Sig.defaulted
-        defaults to Sig.Prefixed!
-      * If I want 'x=%y' to work, then state_signals must also resolve
-        ControlRefs.  But I think this is good, because otherwise I can't delay
-        a signal lookup, which is exactly what % is for.
-        . This is also a reason for % over "(..), unless I want to make any
-          env lookup also evaluated a Quoted.
-      . Moved TimeT and Duration to ScoreT.
-      . I wound up with both Typecheck.RealTimeFunction and RealTimeFunctionT,
-        because different places want different things.
-      * updated Equal
-      * ControlFunction
-      * Removed Sig.control, convert rest of calls away.
-        I have to do it because of namespace collision.
     . If I desugar control and pitch refs to "(control ...) then I don't have
       to do the Typecheck.resolve_control_ref stuff, and there's no chance to
       forget to do it and not support % syntax.
-    * remove state_pitches
-    * ControlFunction DeriveT.dyn_controls should use dyn_environ
-    * remove state_controls
-    * tests
-      . Now if I set a control, it goes in environ.  Then it shows up as
-        a default arg of signal type.  Previously it would be empty, so we
-        get the ref default, which then looks it up.
-      . That's fine if I take a signal or function, but if I take a ref
-        I think I'll never see it due to this?
-      . Only if I explicitly pass %ref, otherwise it will hit the environ
-        defaulting first.
-      . What if I eliminate ref entirely?  I couldn't pass a different control
-        as an arg, which I guess is useful.
-      . I think this is actually good but meanwhile I want a compatibility
-        hack so I can change refs to functions gradually.
-      . How?  I could have a shim to ignore VPSignal defaults.  No good
-        because I still have to convert everything and remove it.
-      . Can't think of a way.  How much work to convert refs now?
-      . Lots of work...
     - Make DeriveT.Function into a newtype so I can have Show?
     - Typecheck.RealTimeFunction etc is inflexible because I want just
       (TimeType, Function), this could be a problem passing into functions.
@@ -7831,291 +6989,6 @@ Derive:
       . Actually it's ok because I can put in any TimeType I want, but it's
         ugly because functions have to pick an arbitrary type.
       . Maybe I can factor defaults into `newtype Def a = Def a`
-    / Put signal category in ValType.TSignal
-    / Consolidate type->category mapping in ScoreT?
-      Currently in Typecheck, ValType, ScoreT
-    * why not TypedFunction = ScoreT.Typed Function?
-    * delete ControlSignal, replaced with VSignal and VPSignal
-    * remove %c=... equal syntax
-    implement undefined:
-      * Typecheck
-      * ControlFunction.to_function
-    * compile:
-      * put Typecheck instances back
-      * implement Typecheck.to_typed_function, pitch_at
-      / make pitches from PitchFunction back to PSignal?
-        . There's no ControlFunction so I don't need it.
-        . DUtil needs a signal to put back into the env.  In general,
-          functions are one-way so less flexible.
-        . But now I'm asymmetric with controls, isn't that weird?
-        . This is so I can copy the pitch from one place to another.  I'll
-          want to do the same for controls.  And it's possible, just copy the
-          original value over, no need to convert to signal or function.
-        . So this is just a val copy, but do a typecheck to make sure it looks
-          like a pitch?  Or why bother, if it's wrong, the copied-to place
-          will crash.
-        . But using get_val + with_val is no good because of
-          ScoreT.default_pitch.
-        . I was considering pushing pitch down into Env, since it's really
-          just an optimization, this would be a place where it helps.
-        . Hmm but if state_pitch is PSignal only, then I really can't just
-          copy the Val over.
-    . Consider how I want to treat ControlRef and PControlRef.
-      . Currently it usually gets automatically dereferenced even in a loop
-        which seems good, but I should be consistent about it.
-      . Maybe I can remove the inconsistencies once I get rid of the old
-        non-function using things.
-      . But the problem remains that Function is not a Val, so I will still
-        need signals.
-    * test DUtil.composite_call, since I changed its behaviour
-    * Typecheck should have a sequence:
-      . to_type_function -> to_typed_function -> to_scalar etc.
-    * Internal.get_named_pitch control
-    * stash or complete ToVal default thing
-      . Let's complete, I think I'm going to want it anyway.
-      . But only have to fix ambiguity, don't need to convert Call.control_at
-        calls.  They will get updated when I update Derive.get_control stuff
-    * allow Signal and PSignal in Environ, need VSignal and VPSignal
-      . It's already in Ref ControlSignal, so this becomes move it into its own
-        type.
-    * implement (control c 1) and (pcontrol c (4c)) val calls
-    * Update Derive.Lib primitives to look in env, not state_controls
-      . Functions that operate on all controls get more annoying, but can
-        filter env for VSignal.
-      . Instead of doing at Typecheck, I could push TypedFunction down to
-        Derive.Lib.
-      . I'm going to want to unify ControlFunction too, in fact there's
-        already VControlFunction.
-      . Let's just not support ControlFunctions for now, at the end I'll get
-        rid of the separate state_control_functions and the notion of
-        a control backing.
-      . Typed ScoreT.Control becomes untyped EnvKey = Text.  OK I guess?
-      . Nah, let's keep using ScoreT.Control.
-    * Note has to look in env, not state_controls.
-      . controls_at, state_controls_at - I still need a distinction between
-        signal and function.  But ControlMap could be a specialized Environ:
-          Map ScoreT.Control (Either Function Signal)
-      . Or separate maps, since I may have dyn+rnd, but still want the
-        underlying dyn signal.
-      . How do I express this if ControlFunction is unified into Environ?
-      . Maybe if it has a backing signal, it has that signal inside and Note
-        can pull it out.
-      . Can I remove NoteUtil.stash_convert_values and NOTE
-        [EnvKey.dynamic_val]?
-        This is due to the function vs. signal issue, I think if I convert
-        Score.Event too then I don't need the special case stash.
-    / %c,1 syntax sugar for "(control c 1).  Quoted evaluation in args should
-      handle it.
-      . Or leave ControlRef as a separate constructor with the same effect, so
-        I can easily have ShowVal take it back to %-syntax.  In this case,
-        Sig has to be extended to recognize those like Quoted.
-    / rename Derive.EnvKey to shorter Derive.Key?
-      . Not so relevant since I'm still using ScoreT.Control.
-    / move Derive.Controls into Derive.EnvKey
-    * allow Signal and PSignal in Environ, need VSignal and VPSignal
-      . It's already in Ref ControlSignal, so this becomes move it into its own
-        type.
-    * implement (control c 1) and (pcontrol c (4c)) val calls
-    + Update Derive.Lib primitives to look in env, not state_controls
-      . Functions that operate on all controls get more annoying, but can
-        filter env for VSignal.
-      . Instead of doing at Typecheck, I could push TypedFunction down to
-        Derive.Lib.
-      . I'm going to want to unify ControlFunction too, in fact there's
-        already VControlFunction.
-      . Let's just not support ControlFunctions for now, at the end I'll get
-        rid of the separate state_control_functions and the notion of
-        a control backing.
-      . Typed ScoreT.Control becomes untyped EnvKey = Text.  OK I guess?
-      . Nah, let's keep using ScoreT.Control.
-      / Convert pitch calls, they go in Controls.pitch
-        . Actually let's keep it separate, it should be faster to do direct
-          access with no typecheck.  But I can make it look like it's in
-          environ by hooking with_val and lookup_val.
-        . Actually why even do that?  I can leave # as the name for the
-          default pitch, there doesn't seem to be a need for lookup_val
-          "pitch" to also return it.
-      . If I make VNum coerce to VSignal, then replace controls should also
-        replace VNums, but there are probably various nums I don't want to
-        convert to controls?  Or maybe I shouldn't worry about extra controls.
-        In that case, don't replace controls at all?
-    * ControlFunction Dynamic also has separate dyn_controls etc.
-      . It should have just dyn_environ, dyn_pitch
-    * Note has to look in env, not state_controls.
-      . controls_at, state_controls_at - I still need a distinction between
-        signal and function.  But ControlMap could be a specialized Environ:
-          Map ScoreT.Control (Either Function Signal)
-      . Or separate maps, since I may have dyn+rnd, but still want the
-        underlying dyn signal.
-      . How do I express this if ControlFunction is unified into Environ?
-      . Maybe if it has a backing signal, it has that signal inside and Note
-        can pull it out.
-      . Can I remove NoteUtil.stash_convert_values and NOTE
-        [EnvKey.dynamic_val]?
-        This is due to the function vs. signal issue, I think if I convert
-        Score.Event too then I don't need the special case stash.
-    * Derive.with_control etc. look in environ
-    * remove Typecheck ControlRef instances, calls should be using Function
-    notes:
-      design:
-        . c=1 in the environ means that args called c default to 1.
-        . All numeric args can be signals, if the call wants a signal it
-          gets Function, if scalar it coerces to Int or similar.
-        . A control track is like c=(....).  You can also write it inline with
-          a val call like c=(signal .1 .5 1) or whatever.
-        . If you want to set or default to a signal which is looked up at call
-          time, you can use the delayed lookup, like arg=%c, sugar for
-          "(control c)
-      . Merge Derive.state_controls and Derive.state_pitches and
-        Derive.state_pitch into Derive.state_environ.
-        state_pitch becomes EnvKey.pitch.
-      . I would need Val for signals:
-        VControlRef -> VSignal Signal
-        VPControlRef -> VPSignal PSignal
-      . But the %c,1 syntax is still useful because it's concise.  Maybe it
-        becomes sugar for (control c 1), which looks up in env and asserts
-        VSignal.
-      . Similarly, #p or (# p (4c)), though rename to (pcontrol p (4c)) for
-        consistency.
-      . But these can't be in ShowVal.  But the more seriously, the binding
-        is too early.  E.g. if %speed is an arg default, getting the signal
-        must be delayed until it's actually used.
-      . So I continue with VControlRef and VPControlRef.
-      . Putting into Environ is to eliminate '%c=5' vs c=5.
-      . But if I'm carrying around refs, then where are the actual signals
-        stored?
-      . So maybe it's just the syntax, I can eliminate %c=5, then c=5 is the
-        same, but get a control val becomes look in environ.  If it finds
-        a number, it's a constant, if it's a ref, then look up the control.
-    So the change requires:
-      . Call.typed_control_at etc. must also handle VNum.
-      . It's too late since it already expects ControlRef.
-      . So I need Typecheck Function.
-      . Actually I already have it.  But I need to use it always, because
-        anyone still using Call.control_at will just silently not work with
-        VNum.
-      . Convert some calls to see if there's any complication.
-      . Yes, I have default ControlRef but can't convert to a different
-        type.
-    Unify Environ and ControlMap:
-      . I can get most of the benefit by unifying the syntax: x=y becomes set
-        a control or env depending on the type of the rhs.
-      . However, they're still separate which means I can make an "invisible"
-        numeric env in haskell.
-      . Also, I would need Derive.Sig to default from numeric controls.
-      . I guess it would then be better to have a single
-        Map Key (NumSignal | ValSignal | PitchSignal)
-      . This means I can also get rid of the separate pitch and named pitches,
-        and just have a signal named "pitch".
-    misc:
-      . change control lookups in Derive to look in environ
-      . I have programmatic things doing 'with_control "c" ...' and derivers
-        look directly in Derive.state_controls.
-      . In fact, if I did this, do I even need the Typecheck instances?
-        Call.control_at etc. would need to look in environ instead?
-      . Restate the goal:
-        . Eliminate '%c=1' -> 'c=1', '#=(4c)' -> pitch=(4c)
-        . I still need ControlMap since the signals have to go somewhere,
-          and I want to actually pass around references to them, because
-          argument defaults happen before signals exist.
-        . So ControlMap becomes kind of a heap which is addressed via
-          ControlRefs.
-        . What if I represented control ref specifically as a delayed
-          control fetch, e.g. "(control c)?
-        . This is pretty much the idea above except delayed via ".  I don't
-          need to unify with Quoted, it might be more convenient to keep as
-          ControlRef, but it's logically a Quoted.
-        . Is that not what it already is?
-      . What would the types be though?
-        get_controls :: Deriver DeriveT.ControlMap
-  Typecheck TypedFunction: Typecheck Function:
-    * add TimeFunction{Real,Score}, TransposeFunction{Diatonic,Chromatic,Nn}
-      . Incomplete, but the pattern is easy.
-      . Is there a way to parameterize such as 'TimeFunction Real'?  Perhaps
-        that is what that 'Originally I used DataKinds' comment is about.
-    * use Function family in calls
-      . Function, TypedFunction, TimeFunction{Real,Score},
-        TransposeFunction{Diatonic,Chromatic,Nn}
-      . I have existing ones in DefaultRealTimeFunction but they return
-        the Function and type separately, rather than a typed function.
-        Why did I do it this way?  Are there places where this is more
-        convenient?
-      . Inside Typecheck I want to return the type separately so I can
-        typecheck without calling the function.
-      * Is there a way to force Function use, for consistency?  I suppose
-        . I could remove Typecheck instances for ControlRef, but wait for
-          unify-env first.
-        . Or just remove Call.control_at family, only access is through
-          Typecheck.
-    notes:
-      . Couldn't match expected type:
-        RealTime -> Perform.Signal.Y
-                    with actual type:
-        DeriveT.Ref ScoreT.Control (ScoreT.Typed Perform.Signal.Control)
-      . It turns out this is not so useful because a default TypedFunction
-        doesn't have a default control name like a Sig.typed_control does.
-        The documentation is also worse.  The way to fix this would be to
-        let the default be any coercible type.  But to do that and be type safe
-        I'd want a separate class for pairs of types that can definitely be
-        converted.
-        . Possibly a way around is to include ControlFunction in ControlRef...
-          but why do I want so much to pass control functions?  Especially since
-          I can already pass a concrete signal as a ControlSignal.
-      . Wait wouldn't Convert a b work after all?  The default fixes 'a' and
-        the Typecheck value fixes b.
-      . Convert ControlRef TypedFunction
-      . Can't do this, that's already Typecheck.
-      . Problem is that default value must be the same type as the Typecheck
-        value.  But I need it to be something which is typecheck-able into
-        the value.  So I could make it Val, but then I could put in something
-        that never typechecks.
-      . I could just live with that, the problem would be obvious on the first
-        test.
-      . To have haskell check, I need something like Val but only with
-        instances that typecheck.
-      . I want 'Sig.defaulted "arg" (typed_control "c" 0.1 ScoreT.Real) ""'
-        to typecheck, but 'Sig.defaulted "arg" "sym" ""' should not,
-        because "sym" -/-> TypedFunction.
-      . I think the default has to be stored as Val
-      . So mabye it's just ToVal.
-      . Seems to work, just have to put types on overloaded literals.
-      . Replace
-        time <- Derive.real =<< Call.time_control_at Typecheck.Real time start
-        with Typecheck.DefaultRealTimeFunction
-    coerce:
-      . Then I want to be able to treat those as signals, or coerce them both
-        to the same thing.  Really that's a SignalFunction, or maybe just
-        RealTime -> Deriver Y.  So this turns into the problem of how to
-        coerce various types into SignalFunction, but not have to have an
-        opaque SignalFunction for all the defaults.
-      . I could have a Convert typeclass.  In fact maybe it would be cleaner
-        to split Typecheck and Convert?
-        Typecheck: Val -> Maybe a, Convert: a -> b
-        Convert would be: Int -> SignalFunction.
-      . I think this won't work because the intermediate 'a' will be
-        ambiguous.
-      . I can always have a Default class that is used only for Sig defaults,
-        and provides both ShowVal and the coercion.  It would mean I have to
-        duplicate everything in Typecheck, unless I use an overlapping
-        typeclass.  Or I could default to... what exactly?
-      . The problem with `Convert a b` is that 'a' needs a type annotation,
-        which would make signatures annoying to write.  Normally I don't need
-        them because they are the Typecheck val, which already needs to be
-        fixed.
-      . Or I could have defaults be either a Typecheck val, or
-        (Doc, Typecheck val), and then have an explicit constructor for
-        Function which promotes various types to (Doc, Function).
-      . I think this decouples the default type and the arg type... no it
-        doesn't, it's only if I want to take a Function.  So maybe I have a
-        constructor 'Typecheck.function :: Y -> DocFunction'
-      . Or, maybe I can have Sig functions take a 'WithDoc a', and there's a
-        'instance ShowVal a => ToWithDoc a', and an overlapping instance for
-        something already WithDoc, for non ShowVal instances.  Actually
-        I probably don't need this, put a method in Typecheck and leave it
-        default if ShowVal?
-  . It would be nice to be able to have an arg default to ControlRef and
-    have typecheck coerce to scalar via Call.control_at.  But once again the
-    problem is that I can't coerce to a type different from the default.
   random:
     . https://alexey.kuleshevi.ch/blog/2019/12/21/random-benchmarks/
     . randomR goes through Integer, so it's slow
@@ -8716,9 +7589,6 @@ text score: tscore:
       and lower octave, not movement direction.
       . That doesn't work though, if I have 71, how do I tell it to move down?
     notate by balungan:
-      * parsing
-      * normalize names kk -> kutuk-kuning
-      * infer seleh on names
       The use:
         . Generate a whole tracklang score to practice to.
         . Find similarities between parts.
@@ -8736,11 +7606,6 @@ text score: tscore:
           and assert equal.
         . Don't have to worry about keeping toplevel block=[tracks] syntax,
           I have different parsers for Score down to Block anyway.
-      syntax:
-        <balungan>{4} name? [
-          (<gatra> |)+
-        ]
-        balungan = <pitch>[)^]?
     - Chord and seleh infer is probably only relevant to gender barung
     - find matching name and optionally expand into score
       . Can also match based on gatra.
@@ -8780,7 +7645,6 @@ text score: tscore:
         normalizing and printing.  So let's keep doing that, until I have
         a reason to specifically care.
     check:
-      * directives understood
       - within instrument range
       - left hand below right hand
       - pitches in pathet (no 4 for gender, no 1 or 7)
@@ -8795,47 +7659,7 @@ text score: tscore:
       . Use name abbrevations
       . Seems I should eventually be able to do use it to generate lots of
         material, and also create my own fragments.
-    transform:
-      * convert laras and pathet, e.g. slendro manyura to pelog barang.
     format:
-      * If one hand has 4 notes and the other has 8, they don't line up.
-        . I would zip by hand and normalize rhythm.
-        . I'll need that anyway to check lh<rh, and that they are the same
-          length.
-        . Figure out the implicit rests thing above.
-      * EList is getting pretty annoying, keeping all the Elt vs. Meta
-        separated makes these functions annoying to write, especially grouping
-        and zipping.
-        . Since I'm not really streaming but doing a check first, and don't
-          have that big of data, why not go to LogMonad?
-      * display on-beat rests as '.', off-beat as ' '.  Is this ok to read
-        missing the overbar?  Otherwise I'd have to infer overbar.
-      * It seems like in tanggung and dadi, beats are even while in wiled
-        they're odd?
-        . Maybe dadi should be notated as .1.2 too... or rather 1 2 should be
-          interpreted that way.
-        . This has to do with overbar and whether it biases left or right.
-        . I think I need to start at 1 not 0!  So e.g. 1234 starts at 1/4, not
-          0/4.  So it expands to .1.2.3.4 rather than 1.2.3.4..
-        . Also the notes are either zero dur or have negative duration,
-          because otherwise I have to come up with a duration for the last
-          note, which depends on when is the next note!
-        . Or figure out duration from looking at the next note, I already
-          have to do that... the difference is I have to process the whole
-          score to know the final note of each gatra.
-        . I think at end is more consistent?
-          beginning:
-          6 5 6 .5 | 6 1 6 5 | 6 1 .2.1 | 2 1 6 5
-          . . .32  | 1 2 615 | . 6 5 6  | 1 2 321
-          end:
-          6 5 6 . | 56 1 6 5 | 6 1 .2. | 12 1 6 5
-          . . .32 |  1 2 615 | . 6 5 6 |  1 2 321
-          beginning:
-          5 6 5 3  | 6 5 6 1 | .6.6.61. | 6 5 6 1.
-          .21612.6 | ..53.3. | 565356.. | .621621.
-          end:
-          5 6 5 3 |  6 5 6 1 |  .6.6.61 |  6 5 6 1
-          .21612. | 6. 53.3. | .565356. |  .621621
       - instead of vertical bars, I could do the horizontal bar for lh/rh
         . Should I render to HTML?
     - integrate
@@ -9846,7 +8670,6 @@ pitch: scales: scale:
     java:
       + tuning for sekar sequoia
         . 4 is guesses, also need complete range
-      * I need "accidentals" as proper notes, not 3#.
     - I think the symbolic pitch_note functions should use RelativePitch,
       otherwise the symbolic pitch they produce can't be parsed back in to
       produce the same pitch.
@@ -10148,135 +8971,6 @@ linux:
     . How does fltk X implement decorated_h()?
     . Via XGetWindowAttributes, but it also doesn't include the decorations.
     + sent to fltk mailing list
-  nonfloating input:
-    . What happens if I just create the widgets without separate windows?
-    . 3 kinds, block, track, floating:
-      . block is always the same width, and tracks its parent.  On enter it
-        just emits a msg with the new text.
-      . track is short when unfocused, but can expand when focused.  On enter
-        it emits a msg, and resets to the minimum size.
-      . floating starts with suggested width, and expands.  On enter it
-        emits a msg and is deleted.
-      . If I use just WrappedInput, then it needs a flag to enable resizing.
-    . If I can't use FL_UNFOCUS anymore, since I also get it on window focus
-      change, I have to make sure click outside the text entry also causes it
-      to emit a msg.
-    . Maybe this is because of fltk conflating two different kinds of focus:
-      OS focus on the window, and window kbd focus on a widget.  Fltk must
-      keep track of kbd focus separately, because it remembers what widget has
-      focus when window focus comes back.  I want to ignore the OS mouse
-      focus, and only trigger on a loss of kbd focus.
-    . Maybe I'm being misled by the example where I start a window without
-      focus and a floating input, that is unlikely.  So maybe I can go with
-      FL_UNFOCUS.  But still it would be nicer to not emit the msg or delete
-      a floating input when another window gets focus!
-    . Maybe I can detect if the whole window lost focus?
-    * Why does the block title get focus when the block does?
-      . I wonder if this has to do with fltk's implicit kbd focus, maybe it's
-        tab navigation?  Can I disable that?
-      . I could with Fl::event_key()==0, but it's not that, because it gets it
-        when the window gets focus.  Why?
-      . Fl_Group::savedfocus_ gets take_focus() on FL_FOCUS, how is that set?
-        global fl_oldfocus, set by Fl::focus()
-      . Previously I worked around that by not calling the Fl_Window::handle
-        but then it doesn't return focus to something already focused.
-      . If the problem is that savedfocus_ gets set to random inputs (why?)
-        then maybe I can keep my own savedfocus.
-      . fl_oldfocus is not the widget, it's null or the window!
-        Could it be savedfocus_?  Nothing else sets it!
-        I don't think it's navkey, but the way it picks first child is
-        suggestive.
-      . Oh the case falls through, I guess because Block doesn't take focus?
-      . I can prevent this by allowing Block to take focus.  But, savedfocus_
-        is not in fact saving focus.  fl_oldfocus is the toplevel FL_UNFOCUS,
-        so maybe it never did save focus.
-
-    * track title
-      . Track::title_widget -> EventTrack::floating_input
-      . I need to have it still be owned by TrackTile so it can draw outside
-        its bounds.
-      . What if I just make FloatingInput not a window?
-        I would remove it entirely, use WrappedInput directly.
-      / Can I make Track::title_widget permanently owned by TrackTile?  If
-        I don't have to replace an input then focus should work better.
-      . It already is!  The difference is that I can get rid of the separate
-        AbbreviatedInput and wrapped FloatingInput.
-      . However, I used the callback for unfocus, now I can't use it for
-        focus detection.
-      . Maybe I use callback for both but pass an arg.
-      . Can I though?  Callback actually gets a widget arg passed by the
-        caller.  I think it's (source_widget, arg)
-      * Ok, here's the original problem I think: Clicks on an expanded input
-        go to the other input underneath.  I need to make it on top somehow,
-        so it gets priority.
-        . Fl_Group goes over the children in *reverse* order, so the last one
-          should get the click.  But, Tile also uses the child order for
-          display, so I can't do that.
-        . Write my own FL_PUSH handler?
-      * Focus from one title to another, the 2nd doesn't expand.
-        . Maybe priority widgets also need to draw last!
-      * It wants to wrap it when displaying.  I need AbbreviatedInput.
-        . No not really though the bar would be nice, I really need to unwrap!
-        . No, it's already unwrapped.  I just need to not rewrap it.
-      * But now it only increases vertical size one char after the wrap.
-        . Don't I need to redraw after a size change?
-        . Yes that fixes it, but now it's messed up when it shrinks.  I need
-          to get the TrackTile to redraw.
-    * block title
-      . Drawing when it wraps is messed up, probably because of lacking the
-        priority nonsense.  But since it doesn't reduce, I'd rather it
-        actually resize itself.
-    * floating input
-      . In TrackTile::floating_open etc.
-      . It displays if I fix (x, y) to window relative, and do a redraw.
-      . But, it loses focus when I focus the window.  Shouldn't the kbd
-        focus remain on the input until explicitly taken off?
-      . For a simple example, when the window gets FL_FOCUS, the last
-        focused input also gets it.  What is different about Block that
-        interrupts that?
-      . Necessary to propagate FL_FOCUS to the Fl_Window
-      . But focus changes puts the cursor back to the beginning!?
-    * return the abbr line
-    * title height is a bit higher than the widgets, even though it does
-      provide a nice spot for the abbr line.
-    * abbr line happens when there is still space
-      . tempo fits in 37, but suggested_width() is 44
-    * auto set track title focus from haskell not working
-    * track title doesn't expand on the first click, from karya
-      . What are the events?
-      . Correct:
-        fltk/WrappedInput.cc:150 input: <12WrappedInput
-          0x7fb369813110:(24,33,40,20) input="tempo">: FL_PUSH (43, 48)
-        fltk/WrappedInput.cc:150 input: <12WrappedInput
-          0x7fb369813110:(24,33,40,20) input="tempo" focused>: FL_FOCUS
-        fltk/EventTrack.cc:278 cb event FL_PUSH
-        fltk/EventTrack.cc:281 focus title
-        fltk/TrackTile.cc:364 redraw
-        fltk/WrappedInput.cc:150 input: <12WrappedInput
-          0x7fb369813110:(24,33,44,17) input="tempo" focused>: FL_RELEASE (43,
-          48)
-      . Incorrect:
-        fltk/WrappedInput.cc:150 input: <12WrappedInput
-          0x7fb1db440880:(24,33,40,20) input="tempo aoeu tnhaoeu aeotuh">:
-          FL_PUSH (46, 47)
-        fltk/WrappedInput.cc:150 input: <12WrappedInput
-          0x7fb1db440880:(24,33,40,20) input="tempo aoeu tnhaoeu aeotuh"
-          focused>: FL_FOCUS
-        fltk/EventTrack.cc:278 cb event FL_PUSH
-        fltk/EventTrack.cc:281 focus title
-        fltk/TrackTile.cc:364 redraw
-        fltk/WrappedInput.cc:150 input: <12WrappedInput
-          0x7fb1db440880:(24,33,83,17) input="tempo aoeu
-          tnhaoeu
-          aeotuh" focused>: FL_RELEASE (46, 47)
-    * when I delete a character, it inserts a space
-    * new track wraps when resizing
-      . Maybe because it never called set_maximum_width?
-      . Setting to a large number seems to fix, but why should it?
-      . It's because WrappedInput::resize does do text wrapping, and has to,
-        for block title.
-      . For unwrap I can set max_width to 0, which is unlimited.
-
   - ruler lines look fat
     . I feel like they are 2 pixels on OS X but 3 or 4 on linux.
     . Or maybe it's that the transparency isn't as transparent?
