@@ -8112,7 +8112,216 @@ text score: tscore:
       . He does it with a custom gui widget and language, but I wonder if
         I could do this with by sending highlighting info in real time to vim?
 
-pitch: scales: scale:
+pitch: scales: scale: Derive.Scale:
+  parameterized scales:
+    overview:
+      . The idea is to set the scale with a `scale` call, instead of assigning
+        to a magic env var.  The benifit is that scales can now take
+        arguments, and can reuse the Derive.Sig framework to look like calls.
+        It can take defaulted arguments like scale-inst.
+      . They are still not ValCalls because I can't have Val VScale so I still
+        can't do `scale = (twelve-k x y z)` or similar, but I would do
+        `scale twelve-k arg arg` and it would set Derive.derive_scale just
+        like the magic env var does.
+      . The big problem is this is incompatible syntax, what about all the old
+        scores?
+      . Why can't I make scale=xyz continue to work?
+    * implement scale call
+    * convert Java to scale
+      . I can't have instrument set just scale-inst when overall scale is
+        already set.  Have to re-set the scale.  Maybe I could have `scale`
+        by itself re-calls the scale in scope with the current env?
+      . If I do things this way, I don't need environ in PitchConfig at all.
+        But, it means I have to re-scale every time I change a scale env,
+        such as tuning.  This is what I was considering doing automatically
+        but having to know all the magic scale env vars.  And the reason why
+        I wind up with env vals is for kw-args, though for tuning I rely on
+        being in the env anyway.
+      . Magic env vars is still a nice UI.  But actually reading everything
+        from the env makes scales awkward parameterized.
+        I could get both by keeping magic env vars, but backing them with
+        the scale call?
+      . Another nice thing about the env for scales is that I can change
+        after the fact, e.g. change a bunch of umbang to isep.  I probably
+        rely on this in C/Bali.  Or not, I guess I just set instrument, and
+        instrument sets tuning.
+      . But anything I want to change after derivation must be in the env,
+        because there's no way I want to do a scale call in postproc.
+        So tuning stays in environ.
+    - Perf.get_scale doesn't work with new style scales
+      . Will it be harder to figure out scales if it's a call?  I would have
+        to either find and evaluate the call, or pick the scale out of
+        exising evaluation.
+      . The second has the problem where there's no Derive.Dynamic in a new
+        or empty block.
+      . But, can't I get a Dynamic from GLOBAL?
+      . Perf.find_scale_id goes to crazy lengths to look for a ScaleId.
+        Instead, I could look in Dynamic, and if that doesn't exist, then
+        in a global Dynamic.
+      . Also I can only have find_scale, no more ScaleId.
+        Perf.find_scale_id is used only by SyncKeycaps, which is only used
+        for change detection to update the keycaps.  So I think it can get
+        Scale, and then scale_name.
+      . Except there's no scale in Dynamic, I guess I'll have to put it in?
+    - scale docs
+    port existing scales:
+      - legong, wayang
+      - twelve
+      - just
+      - interpolate
+      - edo
+      - raga
+    . After all this hassle, I'm not even sure I like pelog-barang relative
+      layout, rather than absolute 1234567.  Still, diatonic transposition
+      should work.  But I could have done that with chromatic?
+    notes:
+      . Currently scales look for 'key', 'tuning', 'laras' env.  There are
+        complications:
+        . layout can't be parameterized.
+        . note_to_call can be, but only inside the call, the parsing can't be.
+          So I need a separate RelativeNote which doesn't depend on key.
+          This makes it hard to add 'scale-inst'
+        . Have to look for key every time, possibly hurts performance.
+          Though prof says Derive.Score.transposed_at, but it a confusing way,
+          it's above eval_toplevel so who knows what it really means.
+          But if I do want to cache pitch calls, would it be easier if
+          it's just scale+transposers, rather than scale+key+???
+        . Maybe yes, because the cache would be invalidated by key changes.
+      . Parameterized scale via
+        Scale.Make !Pitch.ScaleId !(Text, Derive.DocumentedCall)
+            !(Env.Environ -> LookupScale -> Either DeriveT.PitchError Scale)
+        . Edo - Scale.Make "edo" (pattern, call_doc) (make_edo "edo")
+          To get edo-divisions and edo-intervals out of Environ, which affect
+          layout, format, etc.
+        . Interpolate - get scale-from, scale-to, key-from, key-to from env,
+          lookup scales in LookupScale.
+        . Just - make-just7, get list of ratios and intervals from env
+      . Consolidating key into scale would be better for Interpolate, because
+        key-from etc. doesn't have laras-from etc.
+      . The way I wanted to do parameterized scales was first class VScale,
+        then scales become ValCalls that produce the given VScale:
+        . scale=(twelve c-maj)
+        . scale=(interpolate (just ratios1 ints1) (just ratios2 ints1))
+        . scale=(edo divisions:6 intervals:(list 1 1 1 2 1))
+      . I could still take a symbol a shorthand for (sym), so e.g.
+        scale=twelve -> scale=(twelve).  But if I'm abandoning setting key
+        separately, it's going to be incompatible.  I could pick up key from
+        the env, but it would have be set first, and most aren't.
+      . But the problem with this is Scale can't go into DeriveT without
+        dragging in ValCall.
+      . Also it's convenient how Scale can statically export
+        scale_symbols, though I guess it's not critical.  For docs they would
+        get a special tag, to differentiate from other ValCalls.
+      . ValCall seems to be the only Deriver.Monad type needed.  Is there a
+        way around that?  Like I could return something that looks up
+        a ValCall?
+      . So a scale would be a ValCall, that returns a Val that itself brings
+        other ValCalls into scope, via
+          scale_to_call :: Scale -> (ValCall -> call) -> PatternCall call
+          , pat_function = \sym ->
+              return $ convert <$> scale_note_to_call scale (to_note sym)
+      . In a roundabout way, assigned to a variable which in turn brings into
+        scope.  It would be more direct for there to be a
+        `scale (twelve) | ...` which is like an import.  This directly
+        translates to Lib.with_scale.
+      . But, what if I wrote `scale twelve arg arg`, this way it would look up
+        twelve in the separate ScaleMap, which is still a sepraate namespace
+        and hence doesn't have to be a Val.  I don't get to unify docs, but
+        also can keep scale_note_to_call :: !(Pitch.Note -> Maybe ValCall)
+      . Can I eliminate ScaleId?  I guess it's just a type for the keys of
+        the ScaleMap namespace.
+      . Can I reuse Sig inside Scale?  Why not?
+      . But, this doesn't allow scales as arguments to scales, how to do
+        interpolate?
+        . scale interpolate (just ratios1 ints1) (just ratios2 ints1)
+        . But (just ...) is not a val call.  Would have to be:
+          scale interpolate (list just ratios1 ints1) (list just ratios2
+          ints1)
+        . And then interpolate has to call scale again with those args.
+        . Alternately
+          scale interpolate "(just ratios1 ints1) "(just ratios2 ints1)
+          for lispy feel.
+      . How much of ValCall should I duplicate then?  I can have ScaleCall,
+        but it doesn't go into the normal Scopes.  I guess it's remains
+        hardcoded in Monad.Constant like before.  The scale doc generating
+        stuff would become a little bit more like CallDoc, but remains
+        distinct.
+      . This is going to be annoynig without keyword args though, because
+        scales have many, e.g.
+          scale=pelog | key = {pathet: lima, laras: sequoia,
+            inst: gender-panerus, tuning: umbang}
+        scale pelog pathet:lima laras:sequoia inst:gender-panerus
+          tuning:umbang
+      . A reason for scale-inst as env var is that instruments could bring it
+        into scope automatically.  Otherwise, how would I have an instrument
+        that wants range gender-panerus no matter the scale?
+      . I could do it by support env defaulting, so:
+        pathet=lima | laras=sequoia | scale pelog
+      . It has the annoyance of polluting the namespace, but all defaulting
+        keyword args do that.  If I really hate it I can delete them somehow,
+        but actually I don't, downstream stuff may be interested in tuning,
+        pathet, key.
+      . I think this works, but it completely changes scales, they must all be
+        rewritten.
+      . Can I have both systems coexist?  I think so, just need
+      . But rewriting scores will be a pain:
+        `scale=x | key=y` -> `scale x y` or `key=y | scale x`
+        But more complicated because key and scale may be arbitrarily
+        separated.
+      . Also `*x arg arg` should become `scale x arg arg |`  Should I bother
+        though?  I don't really use this notation.  I still need something to
+        mark a pitch track, but what about `* | scale x arg`?
+  - Think of a way to return scales from val calls
+    . Detailed notes in Derive.Scale.Interpolate NOTE [make-scale]
+    . It's hard because of the Val and Derive circular dependency.
+    . Can I put something in Val that will make a Scale without referring to
+      Scale directly?
+    . Or can I move Scale out of Deriver.Monad?  I guess if I could I would
+      have.
+    . I guess no because it has ValCall and Deriver.  Fundamentally it's
+      because scales are implemented as val calls, so Derive must be higher
+      than Val, so Val can't contain a Derive, unless they live in the same
+      module.
+    . At one point is it worth trying hs-boot again?  I remember I really
+      hated it when I had it, because ghci tended to reload tons of stuff.
+      . Could be better in 9.2:
+        https://gitlab.haskell.org/ghc/ghc/-/merge_requests/5661
+    . Ok, can I do it without vals, but get the same kind of syntax?  Like
+      maybe LookupPattern for ValCall that evaluates to the scale symbol plus
+      whatever it is that makes the scale?
+    . Speaking of which, what exactly is that?
+      . Scale.All.lookup_scale -> Derive.state_lookup_scale -> Derive.get_scale
+      . So it actually makes the scale on every lookup.  I guess it has to be
+        this way, since it's not in Val, there's no way to store it.
+  - use scale-inst to set instrument ranges
+    . Can't do this for note_to_call, because it doesn't get env.
+    . And it can't, because the env is in the note call, while
+      note_to_call goes to PatternCall, which just gives the call name,
+      not environ.
+    . In any case, I would like to move toward embedding more into the
+      scale selection, so it gets evaluated once and cached.
+    . So do separate scales for now, but create a general mechanism to
+      parameterize scales, and then use that for key, scale-inst, laras,
+      tuning.
+    . I actually already have that mechanism for *interpolate, but it's
+      gross.
+    . Also lots of existing code that does scale=x | key=y separately,
+      so maybe I can say all those parameters are like scale=.
+    . But there's some unbounded list of them, could I squeeze them
+      all into key?  Maybe it wants tracklang records?
+      scale=pelog | key = {pathet: lima, laras: sequoia,
+        inst: gender-panerus, tuning: umbang}
+      scale=twelve | key = c-maj
+    . If I did this, all key parsing could be taken out of scale_whatever
+      operations, but I would need a Scale parameterized by all those
+      things.
+    . This is like a weirder version of scale with arguments.
+    . Actually I have the same problem with key, note_to_call doesn't
+      have the key.  TheoryFormat does this by separately parsing to
+      Relative, and then doing to_absolute.  So I wind up recreating
+      TheoryFormat.
+    . So one path is to do that, but try to generalize the names
+      to Parsed -> Pitch vs Relative|Absolute -> Pitch
   modify scales:
     - transpose a scale by a certain amount, e.g. to set ding to D.
       . At the moment can do it with t-nn I think?
@@ -8125,6 +8334,10 @@ pitch: scales: scale:
         big Derive / Val circular dependency problem.
       . Do as a Make for now.
     - Also want to retune individual degrees.
+  - I don't like "laras" name for tuning, it should be tuning for tuning,
+    and some other word of umbang/isep.
+    . I was pondering things like kelamin but ugh.  Pair?  Too generic.
+      Side?  Warna?  Sruti?  Kesuir?
   - non octave equal temperaments, e.g. 12ed5
   . Try octatonic with 21 ascending, and 12 descending.
   - support scala files?
@@ -8174,271 +8387,66 @@ pitch: scales: scale:
         oct-degree type notation, like *hex.
       . I.e.: (TheoryFormat.letters pc_per_octave)
           (TheoryFormat.cipher pc_per_octave relative_fmt)
-  - Think of a way to return scales from val calls
-    . Detailed notes in Derive.Scale.Interpolate NOTE [make-scale]
-    . It's hard because of the Val and Derive circular dependency.
-    . Can I put something in Val that will make a Scale without referring to
-      Scale directly?
-    . Or can I move Scale out of Deriver.Monad?  I guess if I could I would
-      have.
-    . I guess no because it has ValCall and Deriver.  Fundamentally it's
-      because scales are implemented as val calls, so Derive must be higher
-      than Val, so Val can't contain a Derive, unless they live in the same
-      module.
-    . At one point is it worth trying hs-boot again?  I remember I really
-      hated it when I had it, because ghci tended to reload tons of stuff.
-      . Could be better in 9.2:
-        https://gitlab.haskell.org/ghc/ghc/-/merge_requests/5661
-    . Ok, can I do it without vals, but get the same kind of syntax?  Like
-      maybe LookupPattern for ValCall that evaluates to the scale symbol plus
-      whatever it is that makes the scale?
-    . Speaking of which, what exactly is that?
-      . Scale.All.lookup_scale -> Derive.state_lookup_scale -> Derive.get_scale
-      . So it actually makes the scale on every lookup.  I guess it has to be
-        this way, since it's not in Val, there's no way to store it.
   - twelve-k doesn't work entirely correctly.
     . The problem is that ChromaticScales.pitch_note doesn't preserve an
       explicit natural, so it gets lost after a pitch->note.  I think
       show_pitch has to have twelve-k support.
     . I don't care enough about twelve-k to fix this now, but maybe some day.
-  scales / Derive.Scale:
-    NOTES:
-      - Java_test.test_note_call evaluates pitch 3 times!  Why so many?
-      - If lots of time is taken in evaluating pitches, can I cache them?
-        see performance:
-      - Why does setting t-chrom in pitch track or on the pitch itself not
-        work?
-      - I don't like "laras" name for tuning, it should be tuning for tuning,
-        and some other word of umbang/isep.
-        . I was pondering things like kelamin but ugh.  Pair?  Too generic.
-          Side?  Warna?  Sruti?  Kesuir?
-    parameterized scales:
-      * implement scale call
-      * convert Java to scale
-        . I can't have instrument set just scale-inst when overall scale is
-          already set.  Have to re-set the scale.  Maybe I could have `scale`
-          by itself re-calls the scale in scope with the current env?
-        . If I do things this way, I don't need environ in PitchConfig at all.
-          But, it means I have to re-scale every time I change a scale env,
-          such as tuning.  This is what I was considering doing automatically
-          but having to know all the magic scale env vars.  And the reason why
-          I wind up with env vals is for kw-args, though for tuning I rely on
-          being in the env anyway.
-        . Magic env vars is still a nice UI.  But actually reading everything
-          from the env makes scales awkward parameterized.
-          I could get both by keeping magic env vars, but backing them with
-          the scale call?
-        . Another nice thing about the env for scales is that I can change
-          after the fact, e.g. change a bunch of umbang to isep.  I probably
-          rely on this in C/Bali.  Or not, I guess I just set instrument, and
-          instrument sets tuning.
-        . But anything I want to change after derivation must be in the env,
-          because there's no way I want to do a scale call in postproc.
-          So tuning stays in environ.
-      - Perf.get_scale doesn't work with new style scales
-        . Will it be harder to figure out scales if it's a call?  I would have
-          to either find and evaluate the call, or pick the scale out of
-          exising evaluation.
-        . The second has the problem where there's no Derive.Dynamic in a new
-          or empty block.
-        . But, can't I get a Dynamic from GLOBAL?
-        . Perf.find_scale_id goes to crazy lengths to look for a ScaleId.
-          Instead, I could look in Dynamic, and if that doesn't exist, then
-          in a global Dynamic.
-        . Also I can only have find_scale, no more ScaleId.
-          Perf.find_scale_id is used only by SyncKeycaps, which is only used
-          for change detection to update the keycaps.  So I think it can get
-          Scale, and then scale_name.
-        . Except there's no scale in Dynamic, I guess I'll have to put it in?
-      - scale docs
-      port existing scales:
-        - legong, wayang
-        - twelve
-        - just
-        - interpolate
-        - edo
-        - raga
-      . After all this hassle, I'm not even sure I like pelog-barang relative
-        layout, rather than absolute 1234567.  Still, diatonic transposition
-        should work.  But I could have done that with chromatic?
-      notes:
-        . Currently scales look for 'key', 'tuning', 'laras' env.  There are
-          complications:
-          . layout can't be parameterized.
-          . note_to_call can be, but only inside the call, the parsing can't be.
-            So I need a separate RelativeNote which doesn't depend on key.
-            This makes it hard to add 'scale-inst'
-          . Have to look for key every time, possibly hurts performance.
-            Though prof says Derive.Score.transposed_at, but it a confusing way,
-            it's above eval_toplevel so who knows what it really means.
-            But if I do want to cache pitch calls, would it be easier if
-            it's just scale+transposers, rather than scale+key+???
-          . Maybe yes, because the cache would be invalidated by key changes.
-        . Parameterized scale via
-          Scale.Make !Pitch.ScaleId !(Text, Derive.DocumentedCall)
-              !(Env.Environ -> LookupScale -> Either DeriveT.PitchError Scale)
-          . Edo - Scale.Make "edo" (pattern, call_doc) (make_edo "edo")
-            To get edo-divisions and edo-intervals out of Environ, which affect
-            layout, format, etc.
-          . Interpolate - get scale-from, scale-to, key-from, key-to from env,
-            lookup scales in LookupScale.
-          . Just - make-just7, get list of ratios and intervals from env
-        . Consolidating key into scale would be better for Interpolate, because
-          key-from etc. doesn't have laras-from etc.
-        . The way I wanted to do parameterized scales was first class VScale,
-          then scales become ValCalls that produce the given VScale:
-          . scale=(twelve c-maj)
-          . scale=(interpolate (just ratios1 ints1) (just ratios2 ints1))
-          . scale=(edo divisions:6 intervals:(list 1 1 1 2 1))
-        . I could still take a symbol a shorthand for (sym), so e.g.
-          scale=twelve -> scale=(twelve).  But if I'm abandoning setting key
-          separately, it's going to be incompatible.  I could pick up key from
-          the env, but it would have be set first, and most aren't.
-        . But the problem with this is Scale can't go into DeriveT without
-          dragging in ValCall.
-        . Also it's convenient how Scale can statically export
-          scale_symbols, though I guess it's not critical.  For docs they would
-          get a special tag, to differentiate from other ValCalls.
-        . ValCall seems to be the only Deriver.Monad type needed.  Is there a
-          way around that?  Like I could return something that looks up
-          a ValCall?
-        . So a scale would be a ValCall, that returns a Val that itself brings
-          other ValCalls into scope, via
-            scale_to_call :: Scale -> (ValCall -> call) -> PatternCall call
-            , pat_function = \sym ->
-                return $ convert <$> scale_note_to_call scale (to_note sym)
-        . In a roundabout way, assigned to a variable which in turn brings into
-          scope.  It would be more direct for there to be a
-          `scale (twelve) | ...` which is like an import.  This directly
-          translates to Lib.with_scale.
-        . But, what if I wrote `scale twelve arg arg`, this way it would look up
-          twelve in the separate ScaleMap, which is still a sepraate namespace
-          and hence doesn't have to be a Val.  I don't get to unify docs, but
-          also can keep scale_note_to_call :: !(Pitch.Note -> Maybe ValCall)
-        . Can I eliminate ScaleId?  I guess it's just a type for the keys of
-          the ScaleMap namespace.
-        . Can I reuse Sig inside Scale?  Why not?
-        . But, this doesn't allow scales as arguments to scales, how to do
-          interpolate?
-          . scale interpolate (just ratios1 ints1) (just ratios2 ints1)
-          . But (just ...) is not a val call.  Would have to be:
-            scale interpolate (list just ratios1 ints1) (list just ratios2
-            ints1)
-          . And then interpolate has to call scale again with those args.
-          . Alternately
-            scale interpolate "(just ratios1 ints1) "(just ratios2 ints1)
-            for lispy feel.
-        . How much of ValCall should I duplicate then?  I can have ScaleCall,
-          but it doesn't go into the normal Scopes.  I guess it's remains
-          hardcoded in Monad.Constant like before.  The scale doc generating
-          stuff would become a little bit more like CallDoc, but remains
-          distinct.
-        . This is going to be annoynig without keyword args though, because
-          scales have many, e.g.
-            scale=pelog | key = {pathet: lima, laras: sequoia,
-              inst: gender-panerus, tuning: umbang}
-          scale pelog pathet:lima laras:sequoia inst:gender-panerus
-            tuning:umbang
-        . A reason for scale-inst as env var is that instruments could bring it
-          into scope automatically.  Otherwise, how would I have an instrument
-          that wants range gender-panerus no matter the scale?
-        . I could do it by support env defaulting, so:
-          pathet=lima | laras=sequoia | scale pelog
-        . It has the annoyance of polluting the namespace, but all defaulting
-          keyword args do that.  If I really hate it I can delete them somehow,
-          but actually I don't, downstream stuff may be interested in tuning,
-          pathet, key.
-        . I think this works, but it completely changes scales, they must all be
-          rewritten.
-        . Can I have both systems coexist?  I think so, just need
-        . But rewriting scores will be a pain:
-          `scale=x | key=y` -> `scale x y` or `key=y | scale x`
-          But more complicated because key and scale may be arbitrarily
-          separated.
-        . Also `*x arg arg` should become `scale x arg arg |`  Should I bother
-          though?  I don't really use this notation.  I still need something to
-          mark a pitch track, but what about `* | scale x arg`?
-    better types for scale degrees:
-      . It's confusing keeping track of PitchClass, Semis, FSemis, etc.
-      . I should have:
-        Degree PitchClass Accidentals - numeric representation of parsed Note
-        Semi - chromatic absolute pitch, mod semi_per_octave
-        SemiSteps - chromatic relative
-        Diatonic - diatonic absolute pitch, mod pc_per_octave
-        DiatonicSteps - diatonic relative
-        FSemi, FSemiSteps - fractional versions
-        FDiatonic, FDiatonicSteps
-      . The complexity here is that with twelve, PitchClass = Diatonic or
-        DiatonicSteps, but in JavaScales no longer.
-      . Semi and Diatonic are mod types, but I don't want to put that in the
-        type, but rather in functions that convert from them.  They need
-        a place to put the octave.  Also I don't want a separate set of types
-        for every scale.
-      . I could put the per-octave in the data Semi Int Int, but where do
-        I put the octave?  If I put it inside then there's really no benefit
-        over non-mod and do mod on conversion from.
-      . Semi + SemiSteps, Diatonic + DiatonicSteps is an affine space,
-        needs a special add operator.  vector-space uses
-        class AffineSpace p where
-          type Diff p
-          (.-.) :: p -> p -> Diff p
-          (.+^) :: p -> Diff p -> p
-          (.-^) :: p -> Diff p -> p
-        instance AffineSpace Semi where
-          type Diff = SemiSteps
-          (.+^) :: Semi -> SemiSteps -> Semi
-        instance AffineSpace RealTime where
-          type Diff = RealDuration
-      . Wait but I can't put these in Num, or I can add with (+) which defeats
-        the point.  The vector types can be, but not the point ones.
-        . Only Num (Diff p), not Num p.
+  - Why does setting t-chrom in pitch track or on the pitch itself not work?
+  better types for scale degrees:
+    . It's confusing keeping track of PitchClass, Semis, FSemis, etc.
+    . I should have:
+      Degree PitchClass Accidentals - numeric representation of parsed Note
+      Semi - chromatic absolute pitch, mod semi_per_octave
+      SemiSteps - chromatic relative
+      Diatonic - diatonic absolute pitch, mod pc_per_octave
+      DiatonicSteps - diatonic relative
+      FSemi, FSemiSteps - fractional versions
+      FDiatonic, FDiatonicSteps
+    . The complexity here is that with twelve, PitchClass = Diatonic or
+      DiatonicSteps, but in JavaScales no longer.
+    . Semi and Diatonic are mod types, but I don't want to put that in the
+      type, but rather in functions that convert from them.  They need
+      a place to put the octave.  Also I don't want a separate set of types
+      for every scale.
+    . I could put the per-octave in the data Semi Int Int, but where do
+      I put the octave?  If I put it inside then there's really no benefit
+      over non-mod and do mod on conversion from.
+    . Semi + SemiSteps, Diatonic + DiatonicSteps is an affine space,
+      needs a special add operator.  vector-space uses
+      class AffineSpace p where
+        type Diff p
+        (.-.) :: p -> p -> Diff p
+        (.+^) :: p -> Diff p -> p
+        (.-^) :: p -> Diff p -> p
+      instance AffineSpace Semi where
+        type Diff = SemiSteps
+        (.+^) :: Semi -> SemiSteps -> Semi
+      instance AffineSpace RealTime where
+        type Diff = RealDuration
+    . Wait but I can't put these in Num, or I can add with (+) which defeats
+      the point.  The vector types can be, but not the point ones.
+      . Only Num (Diff p), not Num p.
 
-      . My use of PitchClass is not correct, because the official definition
-        includes accidentals, while I mean diatonic degrees.
-      . I think I'll keep it around as the parsed representation of Note,
-        which may or may not be diatonic.
-    performance:
-      . Lots of time goes into evaluating pitches.  Is it parsing out keys and
-        all that every time?  If so, could I cache that somehow?
-      . Make a Map Pitch.Note Pitch.Pitch for degrees as a cache whenever
-        (key, marked env vals) or anything in transposers changes.  This
-        becomes the cache.
-      . Except all the key parsing etc. work happens in Pitch, I think call ->
-        Pitch is not the expensive thing to cache.  The expensive thing is
-        Pitch -> NN.
-      . For pelog I may be forced to make separate scales instead of keys.
-        But that has a caching effect because the key is resolved when the
-        scale is set, rather than on every pitch (is it really?).
-    JavaScales:
-      - use scale-inst to set instrument ranges
-        . Can't do this for note_to_call, because it doesn't get env.
-        . And it can't, because the env is in the note call, while
-          note_to_call goes to PatternCall, which just gives the call name,
-          not environ.
-        . In any case, I would like to move toward embedding more into the
-          scale selection, so it gets evaluated once and cached.
-        . So do separate scales for now, but create a general mechanism to
-          parameterize scales, and then use that for key, scale-inst, laras,
-          tuning.
-        . I actually already have that mechanism for *interpolate, but it's
-          gross.
-        . Also lots of existing code that does scale=x | key=y separately,
-          so maybe I can say all those parameters are like scale=.
-        . But there's some unbounded list of them, could I squeeze them
-          all into key?  Maybe it wants tracklang records?
-          scale=pelog | key = {pathet: lima, laras: sequoia,
-            inst: gender-panerus, tuning: umbang}
-          scale=twelve | key = c-maj
-        . If I did this, all key parsing could be taken out of scale_whatever
-          operations, but I would need a Scale parameterized by all those
-          things.
-        . This is like a weirder version of scale with arguments.
-        . Actually I have the same problem with key, note_to_call doesn't
-          have the key.  TheoryFormat does this by separately parsing to
-          Relative, and then doing to_absolute.  So I wind up recreating
-          TheoryFormat.
-        . So one path is to do that, but try to generalize the names
-          to Parsed -> Pitch vs Relative|Absolute -> Pitch
+    . My use of PitchClass is not correct, because the official definition
+      includes accidentals, while I mean diatonic degrees.
+    . I think I'll keep it around as the parsed representation of Note,
+      which may or may not be diatonic.
+  performance:
+    - Java_test.test_note_call evaluates pitch 3 times!  Why so many?
+    - If lots of time is taken in evaluating pitches, can I cache them?
+    . Lots of time goes into evaluating pitches.  Is it parsing out keys and
+      all that every time?  If so, could I cache that somehow?
+    . Make a Map Pitch.Note Pitch.Pitch for degrees as a cache whenever
+      (key, marked env vals) or anything in transposers changes.  This
+      becomes the cache.
+    . Except all the key parsing etc. work happens in Pitch, I think call ->
+      Pitch is not the expensive thing to cache.  The expensive thing is
+      Pitch -> NN.
+    . For pelog I may be forced to make separate scales instead of keys.
+      But that has a caching effect because the key is resolved when the
+      scale is set, rather than on every pitch (is it really?).
+  JavaScales:
     reimplement with my own ScaleMap
       * Layout with Theory.Intervals, and cached degree_to_pc and back.
       - Plug back in relative octave stuff, maybe TheoryFormat?
@@ -8508,168 +8516,103 @@ pitch: scales: scale:
       Make it work with BaliScales:
         - move over Laras
         - key?
-    simplify:
-      - rename TheoryFormat.make_relative_format to from_relative_format
-      . Octave config etc is tiresome.  Can I have
-        fmt_read :: Text -> Maybe RelativePitch
-        fmt_show :: Pitch.Pitch -> Maybe Text
-        I already do!  Config is for RelativeFormat.  Still the separate
-        octave formatting stuff seems convoluted.
-        . Could I get rid of the levels of abstraction and have a Format
-          with various functions, and then each scale support directly fills
-          them in?
-      . fmt_pattern to Doc.
-      . Maybe the Scale format is complicating it?  I have scale_show and
-        scale_read, but then the same stuff again in note_to_call's
-        pitch_note.  And I have scale_transpose but also transpose again in
-        note_to_call.  Maybe because I started with a simple Scale but then
-        had to export things.  Maybe I should have Scale expose all the bits?
-        I would have to make a single Scale structure that encompasses
-        everything though.  If I could do that, I could make a single ScaleMap
-        to generate the Scales.
-    JavaScales:
-      adaptions from existing RelativeFormat:
-        - Don't parse accidentals.  Make config_accidental=Nothing?
-        . Existing code uses PC to index into degrees, since accidentals are
-          orthogonal.  But now degrees are both PC and accidentals.
-      . Separate JavaScales to better support Javanese and Balinese scales.
-      . Turns out bali scales with the modes are much like chromatic scales.
-        It's just that I don't always want to have keys etc.  Need to be able
-        to switch them off.
-      . For pelog, I need accidentals except that they draw from degrees,
-        rather than being seperate symbols.
-      . The definition of PitchClass is that it's diatonic transposition, so
-        I must have
-        .      1   2   3   4   5   6   7   1^
-        lima   00  10  20  21  30  40  41  00
-        barang 41  00  10  11  20  30  40  41
-      . But I don't nede to do relative->absolute for read and show pitch.
-        Instead, I want to adjust input_to_note and diatonic transpose.
-        But, I do need to parse "4" as Pitch 2 1 for diatonic transposition.
-      . Except, that doesn't work because I can't exactly transpose to
-        Pitch 3 1 and have something meaningful.  There is no definition for
-        diatonic transpose from a non-diatonic note.  So maybe it would be
-        Pitch 3 1 which ignore accidentals and be "5", which would be fine.
-        Really what I'd expect is to have a flat 0..4 space which maps to
-        12356.
-      - Adjust TheoryFormat.show_degree_chromatic
-      . Wait, not even that.  If I use Pitch [0..6] then it's just
-        input_to_call and transpose.
-      . But then what is scale_layout?  It gets used to do diatonic
-        transpositions on Pitch.Pitch, specifically Call.pitch_difference.
-        So it's clearly meant that PitchClass represents diatonic
-        transposition.
-        . Also layout depends on key here.
-      . If I make "4" into 2+1, then I would go:
-        "4" -> RelativePitch 3 0 -> to_absolute -> Pitch 2 1
-        scale_read "4" -> Pitch 2 1
-        scale_show (Pitch 2 1) -> "4"
-        input_to_note (3, 0) -> "5"
-      . Layout depends on key is new, since scale_layout is constant.
-      . Ok then how about pelog-lima is its own scale?  Are things easier?
-      . In that case, it becomes absolute scale, I think?  No need for key.
-        I still need tuning though, and for BaliScales, ombak.
-        Why would this be easier than key though?
-      features:
-        . Absolute scale degrees, either cipher, or vowel, or balinese vowels
-        . Octave relative per-instrument.
-        . Key (pathet, tekepan) defines diatonic transposition, and also white
-          notes and black notes.
-        . Laras defines tuning.
-        . Bali: umbang / isep and %ombak.
-        . Javanese scales use absolute numbers and the key determines what
-          numbers are white notes, but Balinese vowels are relative to key,
-          where the skipped notes have accidentals.
-      make a framework for javanese and balinese scales?
-        . No accidentals, pc maps to degrees.
-        . But, there is layout and diatonic transposition goes by "white
-          notes".
-        . No pitch for key.
-        . Absolute degrees, but octaves may be relative.
-        . It seems like a lot of work if it's all for 2 pelog modes.  Maybe
-          3 slendro modes?  Maybe not necessary though since slendro doesn't
-          change keys.
-        . Also have balinese modes, but I don't really use them.
-        . On the other hand, it is quite annoying to straddle the octave for
-          pelog barang.
-        . What if I do a diatonic scale but then tweak input -> note?
-          I still want diatonic transposition though.
-      . Make BaliScales which are not saih pitu be fundamentally diatonic, not
-        just degenerate chromatic.  Or figure out how to simplify the whole
-        scales mess.
-        - Disallow 4e# in selisir.  And generally accidentals.
-          . Validating the absolute pitch is broken for *legong, because
-            I want to make sure the relative pitch is in the key's intervals.
-          . I could make validation more complicated, but I think not using
-            ChromaticScales would also fix this.
-          . I don't get an error because the pitch is created, but will
-            evaluate to UnparseableNote, which makes an error only on
-            conversion.
-          . It's because ChromaticScales reads a relative pitch, and only checks
-            for validity once it's absolute, at which point it already created
-            a ScaleDegree.  I could either also validate relative, or get rid of
-            the fancy ChromaticScales use for scales without modes.
-          . Or maybe UnparseableNote should have a msg arg to show what it was?
-          . The thing is, I don't want the whole accidental parsing mechanism,
-            I just want 7 symbols, and a relative pitch system.
-          . So I could have a simplified ChromaticScales which dispenses with
-            letter + accidental, and instead just has a unique name for each
-            scale degree.
-          . Then I could use 1234567 for javanese-style notation.
-          . I'd basically replace the show/read pitch stuff with a hardcoded
-            map to RelativePitches.
-          - I can't have different pc_per_octave based on key, without parsing
-            the key in input_to_note.
-        - It would be nice to have a no-keys version of BaliScales so I don't
-          have to mess with a fake key in *selisir and *wayang.
-          . I guess it's not a big deal, but at least it means it ignores key.
-          . Actually it seems like it might be a pain, because then I can't use
-            the same Config.
-    Why are scales so complicated?
-      . Can I make it simpler?  If I were to rewrite it knowing all this
-        stuff, what would it look like?
-      . twelve: Keys have mode and tonic, so each key has a signature that
-        influences enharmonic spelling.  Has accidentals with enharmonic
-        spelling, and a layout which says which pitches are skipped, also based
-        on the key.  Both the pitches and accidentals are absolute and so
-        independent of the key.
-      . twelve-k: Like 'twelve', but while pitches are still absolute,
-        accidentals are relative to the scale.
-      . twelve-r: like 'twelve', but both pitches and accidentals are relative
-        from the key's tonic.
-      . just: Keys have mode and tonic as with 'twelve', but they affect the
-        tuning.  The layout is diatonic in that there are no skipped pitches,
-        and hence no enharmonics and accidentals.  Accidentals are supported
-        just as a constant ratio offset, so respelling enharmonics will change
-        the frequency.  Since there's no per-key spelling, the key is much
-        simpler, just a tonic pitch.
-      . just-r: Like 'just', except that pitches and accidentals are relative to
-        the tonic.
-      . raga: Like 'just-r', except with a much larger selection of modes.
-        Also, instead of accidentals, there are multiple candidates for
-        certain pitches (e.g. ri1 ri2 ri3), where one will be default based on
-        the key.  TODO the last bit is not implemented yet.
-      . legong, pelog: These have keys, but like 'just-r', they are simply a
-        starting note (tonic) and a layout to indicate skipped notes.  However,
-        there are no accidentals, and instead each note has a unique name.
-        'legong' (but not 'pelog') has a 'tuning' which indicates pengumbang or
-        pengisep, and they also have a 'laras' value, which indicates the tuning
-        variant.
-      . legong-pemade, legong-kantilan, etc.: Like 'legong', but with octaves
-        relative to the tessitura of a particular instrument.
-      . selisir, wayang:
-      . selisir, wayang -pemade etc.: Relative octave variants.
-      . belaganjur, angklung:
-      misc notes:
-        . Simplest is an absolute scale with no key and no octave structure,
-          just a mapping from symbol to pitch.
-        . Then we have a relative diatonic scale.  This has a key which
-          influences the note names, since they are relative to a certain
-          pitch, but no other structure.
-
-    java:
-      + tuning for sekar sequoia
-        . 4 is guesses, also need complete range
+    adaptions from existing RelativeFormat:
+      - Don't parse accidentals.  Make config_accidental=Nothing?
+      . Existing code uses PC to index into degrees, since accidentals are
+        orthogonal.  But now degrees are both PC and accidentals.
+    . Separate JavaScales to better support Javanese and Balinese scales.
+    . Turns out bali scales with the modes are much like chromatic scales.
+      It's just that I don't always want to have keys etc.  Need to be able
+      to switch them off.
+    . For pelog, I need accidentals except that they draw from degrees,
+      rather than being seperate symbols.
+    . The definition of PitchClass is that it's diatonic transposition, so
+      I must have
+      .      1   2   3   4   5   6   7   1^
+      lima   00  10  20  21  30  40  41  00
+      barang 41  00  10  11  20  30  40  41
+    . But I don't nede to do relative->absolute for read and show pitch.
+      Instead, I want to adjust input_to_note and diatonic transpose.
+      But, I do need to parse "4" as Pitch 2 1 for diatonic transposition.
+    . Except, that doesn't work because I can't exactly transpose to
+      Pitch 3 1 and have something meaningful.  There is no definition for
+      diatonic transpose from a non-diatonic note.  So maybe it would be
+      Pitch 3 1 which ignore accidentals and be "5", which would be fine.
+      Really what I'd expect is to have a flat 0..4 space which maps to
+      12356.
+    - Adjust TheoryFormat.show_degree_chromatic
+    . Wait, not even that.  If I use Pitch [0..6] then it's just
+      input_to_call and transpose.
+    . But then what is scale_layout?  It gets used to do diatonic
+      transpositions on Pitch.Pitch, specifically Call.pitch_difference.
+      So it's clearly meant that PitchClass represents diatonic
+      transposition.
+      . Also layout depends on key here.
+    . If I make "4" into 2+1, then I would go:
+      "4" -> RelativePitch 3 0 -> to_absolute -> Pitch 2 1
+      scale_read "4" -> Pitch 2 1
+      scale_show (Pitch 2 1) -> "4"
+      input_to_note (3, 0) -> "5"
+    . Layout depends on key is new, since scale_layout is constant.
+    . Ok then how about pelog-lima is its own scale?  Are things easier?
+    . In that case, it becomes absolute scale, I think?  No need for key.
+      I still need tuning though, and for BaliScales, ombak.
+      Why would this be easier than key though?
+    features:
+      . Absolute scale degrees, either cipher, or vowel, or balinese vowels
+      . Octave relative per-instrument.
+      . Key (pathet, tekepan) defines diatonic transposition, and also white
+        notes and black notes.
+      . Laras defines tuning.
+      . Bali: umbang / isep and %ombak.
+      . Javanese scales use absolute numbers and the key determines what
+        numbers are white notes, but Balinese vowels are relative to key,
+        where the skipped notes have accidentals.
+    make a framework for javanese and balinese scales?
+      . No accidentals, pc maps to degrees.
+      . But, there is layout and diatonic transposition goes by "white
+        notes".
+      . No pitch for key.
+      . Absolute degrees, but octaves may be relative.
+      . It seems like a lot of work if it's all for 2 pelog modes.  Maybe
+        3 slendro modes?  Maybe not necessary though since slendro doesn't
+        change keys.
+      . Also have balinese modes, but I don't really use them.
+      . On the other hand, it is quite annoying to straddle the octave for
+        pelog barang.
+      . What if I do a diatonic scale but then tweak input -> note?
+        I still want diatonic transposition though.
+    . Make BaliScales which are not saih pitu be fundamentally diatonic, not
+      just degenerate chromatic.  Or figure out how to simplify the whole
+      scales mess.
+      - Disallow 4e# in selisir.  And generally accidentals.
+        . Validating the absolute pitch is broken for *legong, because
+          I want to make sure the relative pitch is in the key's intervals.
+        . I could make validation more complicated, but I think not using
+          ChromaticScales would also fix this.
+        . I don't get an error because the pitch is created, but will
+          evaluate to UnparseableNote, which makes an error only on
+          conversion.
+        . It's because ChromaticScales reads a relative pitch, and only checks
+          for validity once it's absolute, at which point it already created
+          a ScaleDegree.  I could either also validate relative, or get rid of
+          the fancy ChromaticScales use for scales without modes.
+        . Or maybe UnparseableNote should have a msg arg to show what it was?
+        . The thing is, I don't want the whole accidental parsing mechanism,
+          I just want 7 symbols, and a relative pitch system.
+        . So I could have a simplified ChromaticScales which dispenses with
+          letter + accidental, and instead just has a unique name for each
+          scale degree.
+        . Then I could use 1234567 for javanese-style notation.
+        . I'd basically replace the show/read pitch stuff with a hardcoded
+          map to RelativePitches.
+        - I can't have different pc_per_octave based on key, without parsing
+          the key in input_to_note.
+      - It would be nice to have a no-keys version of BaliScales so I don't
+        have to mess with a fake key in *selisir and *wayang.
+        . I guess it's not a big deal, but at least it means it ignores key.
+        . Actually it seems like it might be a pain, because then I can't use
+          the same Config.
     - I think the symbolic pitch_note functions should use RelativePitch,
       otherwise the symbolic pitch they produce can't be parsed back in to
       produce the same pitch.
@@ -8680,58 +8623,116 @@ pitch: scales: scale:
     - It's confusing how the default_key is built-in to parse_key but also
       passed separately... maybe it should take a flag to say whether an error
       should become the default?
-    - add ratio transpose signal, that multiplies hz
-    support scales that are different ascending vs. descending
-      . Scales have two versions of each degree.
-      . scale_input_to_note takes a previous Note arg, which it can use to
-        guess the appropriate variant.
-      . Variants have to have unambiguous names though, maybe 4n^ and 4n_
-      . Use scale_alternate to switch a note between alternates, bind to the
-        same key as enharmonic.  If there are no enharmonics, then fall back
-        on alternate.
-    raga: ragam:
-      - Omit missing swarams.
-        . It seems most natural to treat it like a scale of fewer notes, so
-          e.g. mohanam like *wayang.
-        . But maybe it's less confusing to have a consistent keyboard.
-          Maybe the original approach is best, where janya ragams still have
-          all the same notes as their parent.
-        . What then should janya ragams do?
-        . Gamakams (and transposition) should skip missing swarams.
-      - arohana / avarohana:
-        . Select which depending on an env var, and have a postproc to go
-          through and assign those.
-        - I also want a cmd to cycle unspecified and explicitly arohana or
-          avarohana.  I can bind it to the flip-enharmonic key unless I want
-          to have scales with both concepts.
-        . I could have both srgm notation, and s, r1, r2 etc.  Then use
-          enharmonic to cycle r, r1, ... depending on what is available in the
-          ragam.
-        . But until I have ragams with alternate pitches, there's no use.
-        old notes:
-          . I could keep it at the Cmd level by remembering the last entered
-            pitch and defaulting this one based on it, or I could try to put it
-            at the Derive level too by having the pitch itself be based on the
-            previous one.
-          . Putting it at the derive level seems really hard and unreliable, so
-            I should have separate symbols, e.g. 4r^ and 4r_ for up and down
-            variants.  For western modes this isn't necessary since the notation
-            is already absolute.
-          . Or I can model r1 r2 r3 as accidentals.  The raga gives the default,
-            and then I can change the cycle enharmonics binding to instead cycle
-            number of "accidentals" to force a particular one.
-          . So I would model as a chromatic scale but with a custom number of
-            accidentals per degree:
-              s, r1 r2 r3, g1 g2 g3, m1 m2, p, d1 d2 d3, n1 n2 n3
-          . How should ragams look anyway?
-            . Absolute chromatic scale with all pitches, and g[123] notation to
-              explicitly choose one.  Arohana and avarohana show how to infer
-              given plain g.  If >1 exist, then try to infer based on the
-              previous pitch.  Also g^ and g_ chooses between 2, if applicable.
-            . I need inference for gamakam, but I'll need an override, maybe
-              ^_ postfix for numbers?
-
-    - letter and jianpu but with implicit accidentals based on the key
+  - add ratio transpose signal, that multiplies hz
+  simplify:
+    - rename TheoryFormat.make_relative_format to from_relative_format
+    . Octave config etc is tiresome.  Can I have
+      fmt_read :: Text -> Maybe RelativePitch
+      fmt_show :: Pitch.Pitch -> Maybe Text
+      I already do!  Config is for RelativeFormat.  Still the separate
+      octave formatting stuff seems convoluted.
+      . Could I get rid of the levels of abstraction and have a Format
+        with various functions, and then each scale support directly fills
+        them in?
+    . fmt_pattern to Doc.
+    . Maybe the Scale format is complicating it?  I have scale_show and
+      scale_read, but then the same stuff again in note_to_call's
+      pitch_note.  And I have scale_transpose but also transpose again in
+      note_to_call.  Maybe because I started with a simple Scale but then
+      had to export things.  Maybe I should have Scale expose all the bits?
+      I would have to make a single Scale structure that encompasses
+      everything though.  If I could do that, I could make a single ScaleMap
+      to generate the Scales.
+  Why are scales so complicated?
+    . Can I make it simpler?  If I were to rewrite it knowing all this
+      stuff, what would it look like?
+    . twelve: Keys have mode and tonic, so each key has a signature that
+      influences enharmonic spelling.  Has accidentals with enharmonic
+      spelling, and a layout which says which pitches are skipped, also based
+      on the key.  Both the pitches and accidentals are absolute and so
+      independent of the key.
+    . twelve-k: Like 'twelve', but while pitches are still absolute,
+      accidentals are relative to the scale.
+    . twelve-r: like 'twelve', but both pitches and accidentals are relative
+      from the key's tonic.
+    . just: Keys have mode and tonic as with 'twelve', but they affect the
+      tuning.  The layout is diatonic in that there are no skipped pitches,
+      and hence no enharmonics and accidentals.  Accidentals are supported
+      just as a constant ratio offset, so respelling enharmonics will change
+      the frequency.  Since there's no per-key spelling, the key is much
+      simpler, just a tonic pitch.
+    . just-r: Like 'just', except that pitches and accidentals are relative to
+      the tonic.
+    . raga: Like 'just-r', except with a much larger selection of modes.
+      Also, instead of accidentals, there are multiple candidates for
+      certain pitches (e.g. ri1 ri2 ri3), where one will be default based on
+      the key.  TODO the last bit is not implemented yet.
+    . legong, pelog: These have keys, but like 'just-r', they are simply a
+      starting note (tonic) and a layout to indicate skipped notes.  However,
+      there are no accidentals, and instead each note has a unique name.
+      'legong' (but not 'pelog') has a 'tuning' which indicates pengumbang or
+      pengisep, and they also have a 'laras' value, which indicates the tuning
+      variant.
+    . legong-pemade, legong-kantilan, etc.: Like 'legong', but with octaves
+      relative to the tessitura of a particular instrument.
+    . selisir, wayang:
+    . selisir, wayang -pemade etc.: Relative octave variants.
+    . belaganjur, angklung:
+    misc notes:
+      . Simplest is an absolute scale with no key and no octave structure,
+        just a mapping from symbol to pitch.
+      . Then we have a relative diatonic scale.  This has a key which
+        influences the note names, since they are relative to a certain
+        pitch, but no other structure.
+  support scales that are different ascending vs. descending
+    . Scales have two versions of each degree.
+    . scale_input_to_note takes a previous Note arg, which it can use to
+      guess the appropriate variant.
+    . Variants have to have unambiguous names though, maybe 4n^ and 4n_
+    . Use scale_alternate to switch a note between alternates, bind to the
+      same key as enharmonic.  If there are no enharmonics, then fall back
+      on alternate.
+  raga: ragam:
+    - Omit missing swarams.
+      . It seems most natural to treat it like a scale of fewer notes, so
+        e.g. mohanam like *wayang.
+      . But maybe it's less confusing to have a consistent keyboard.
+        Maybe the original approach is best, where janya ragams still have
+        all the same notes as their parent.
+      . What then should janya ragams do?
+      . Gamakams (and transposition) should skip missing swarams.
+    - arohana / avarohana:
+      . Select which depending on an env var, and have a postproc to go
+        through and assign those.
+      - I also want a cmd to cycle unspecified and explicitly arohana or
+        avarohana.  I can bind it to the flip-enharmonic key unless I want
+        to have scales with both concepts.
+      . I could have both srgm notation, and s, r1, r2 etc.  Then use
+        enharmonic to cycle r, r1, ... depending on what is available in the
+        ragam.
+      . But until I have ragams with alternate pitches, there's no use.
+      old notes:
+        . I could keep it at the Cmd level by remembering the last entered
+          pitch and defaulting this one based on it, or I could try to put it
+          at the Derive level too by having the pitch itself be based on the
+          previous one.
+        . Putting it at the derive level seems really hard and unreliable, so
+          I should have separate symbols, e.g. 4r^ and 4r_ for up and down
+          variants.  For western modes this isn't necessary since the notation
+          is already absolute.
+        . Or I can model r1 r2 r3 as accidentals.  The raga gives the default,
+          and then I can change the cycle enharmonics binding to instead cycle
+          number of "accidentals" to force a particular one.
+        . So I would model as a chromatic scale but with a custom number of
+          accidentals per degree:
+            s, r1 r2 r3, g1 g2 g3, m1 m2, p, d1 d2 d3, n1 n2 n3
+        . How should ragams look anyway?
+          . Absolute chromatic scale with all pitches, and g[123] notation to
+            explicitly choose one.  Arohana and avarohana show how to infer
+            given plain g.  If >1 exist, then try to infer based on the
+            previous pitch.  Also g^ and g_ chooses between 2, if applicable.
+          . I need inference for gamakam, but I'll need an override, maybe
+            ^_ postfix for numbers?
   intonation: think about how to do e.g. meantone melody, with just harmony
     . Do a postproc to analyze simultaneous notes.  If I use an attr to
       tag the melody, I can tune everyone else to it.  But how do I retune
@@ -8742,6 +8743,7 @@ pitch: scales: scale:
       is.  Then pitch calls use that to tune.  Doing the analysis might be
       tricky since I have to extract a "principle pitch" from each event,
       but it might be useful in general to have an analysis framework.
+  - letter and jianpu but with implicit accidentals based on the key
 
 Perform:
   - move patch initialization to Cmd.Initialize, and do it automatically on load
