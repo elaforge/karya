@@ -251,6 +251,10 @@ lima_to_barang :: Transform
 lima_to_barang p@(Pitch _ T.P1) = T.add_pc_abs (-1) p
 lima_to_barang p = p
 
+-- | I think you can go pelog nem to lima by going down a step.
+nem_to_lima :: Transform
+nem_to_lima = T.add_pc T.PelogLima (-1)
+
 -- * format
 
 format_file :: Transform -> FilePath -> IO ()

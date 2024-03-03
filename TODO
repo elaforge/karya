@@ -2612,10 +2612,6 @@ synth: im:
           . Not sure how to debug this then.
         . rename is not atomic, there's an invalid symlink for a moment
           . It totally should be.
-    - kendang wadon loud de makes reaper mute
-      . What's the limit?
-      . It's Prefs->Audio "Automatically mute any track"
-      . But maybe I'm playing it too loud, why would it be at +18db?
     - also kendang dynamics are wonky:
       . ^ is too quiet
       . OSC thru plays normalized, lots of hiss
@@ -8116,7 +8112,7 @@ pitch: scales: scale: Derive.Scale:
   parameterized scales:
     overview:
       . The idea is to set the scale with a `scale` call, instead of assigning
-        to a magic env var.  The benifit is that scales can now take
+        to a magic env var.  The benefit is that scales can now take
         arguments, and can reuse the Derive.Sig framework to look like calls.
         It can take defaulted arguments like scale-inst.
       . They are still not ValCalls because I can't have Val VScale so I still
@@ -8124,8 +8120,7 @@ pitch: scales: scale: Derive.Scale:
         `scale twelve-k arg arg` and it would set Derive.derive_scale just
         like the magic env var does.
       . The big problem is this is incompatible syntax, what about all the old
-        scores?
-      . Why can't I make scale=xyz continue to work?
+        scores?  Why can't I make scale=xyz continue to work?
     * implement scale call
     * convert Java to scale
       . I can't have instrument set just scale-inst when overall scale is
