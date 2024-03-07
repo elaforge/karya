@@ -240,11 +240,9 @@ pitch_call config track pcontrol scale_id transform deriver =
         (TrackTree.track_range track)
 
 with_scale :: Pitch.ScaleId -> Derive.Deriver a -> Derive.Deriver a
-with_scale scale_id deriver
+with_scale scale_id@(Pitch.ScaleId name) deriver
     | scale_id == Pitch.empty_scale = deriver
-    | otherwise = do
-        scale <- Derive.get_scale scale_id
-        Derive.with_scale scale deriver
+    | otherwise = Derive.with_val EnvKey.scale name deriver
 
 with_control_damage :: Maybe (BlockId, TrackId) -> (TrackTime, TrackTime)
     -> Derive.Deriver d -> Derive.Deriver d

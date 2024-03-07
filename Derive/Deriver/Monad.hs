@@ -1812,18 +1812,18 @@ real_to_score pos = do
 -- must be here due to circular dependencies.
 
 -- | Like ValCall, but specialized to return Scale, which is not a first class
--- Val.
+-- Val.  Ultimately that's because there would be a circular dependency as
+-- documented in "Derive.DeriveT".
 data ScaleCall = ScaleCall {
-    scall_name :: CallName
+    scall_name :: !CallName
     , scall_doc :: !CallDoc
     -- ValCall takes PassedArgs, but scales don't need Context.
-    , scall_call :: ScaleF
+    , scall_call :: !ScaleF
     }
 
 type ScaleF = [DeriveT.Val] -> Deriver Scale
 
-scale_call :: CallName -> Doc.Doc -> (ScaleF, [ArgDoc])
-    -> ScaleCall
+scale_call :: CallName -> Doc.Doc -> (ScaleF, [ArgDoc]) -> ScaleCall
 scale_call name doc (call, arg_docs) = ScaleCall
     { scall_name = name
     , scall_doc = CallDoc

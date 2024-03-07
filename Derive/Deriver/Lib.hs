@@ -400,7 +400,7 @@ with_val :: Typecheck.ToVal val => Env.Key -> val -> Deriver a -> Deriver a
 with_val key val deriver
     | key == EnvKey.scale, Just scale_id <- DeriveT.to_scale_id v = do
         scale <- get_scale scale_id
-        with_scale scale deriver
+        with_val_raw EnvKey.scale val $ with_scale scale deriver
     | key == EnvKey.instrument, Just inst <- Typecheck.from_val_simple v =
         with_instrument inst deriver
     | otherwise = do
@@ -476,9 +476,7 @@ insert_env key val state = state
 -- actually a useful feature?  In any case, I don't need it at the moment, so
 -- it seems more likely to be confusing than useful.
 with_scale :: Scale -> Deriver d -> Deriver d
-with_scale scale deriver =
-    with_val_raw EnvKey.scale (Expr.scale_id_to_str (scale_id scale)) $
-        with_scopes (val . pitch) deriver
+with_scale scale = with_scopes (val . pitch)
     where
     pitch = s_generator#s_pitch %= replace (scale_to_call scale val_to_pitch)
     val = s_val %= replace (scale_to_call scale id)

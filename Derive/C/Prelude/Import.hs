@@ -9,6 +9,7 @@ import qualified Data.Set as Set
 
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Library as Library
 import qualified Derive.Scale as Scale
 import qualified Derive.Sig as Sig
@@ -50,4 +51,6 @@ c_scale = Derive.transformer Module.prelude "scale" mempty
     <*> Sig.many "args" "Scale arguments."
     ) $ \(name, scale_args) _args deriver -> do
         scale <- Scale.get (Derive.CallName name) scale_args
-        Derive.with_scale scale deriver
+        -- Set env var so subsequent calls default it.
+        Derive.with_val_raw EnvKey.scale name $
+            Derive.with_scale scale deriver
