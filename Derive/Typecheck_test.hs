@@ -11,6 +11,7 @@ import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Env as Env
 import qualified Derive.Expr as Expr
 import qualified Derive.PSignal as PSignal
@@ -130,6 +131,34 @@ test_resolve_signal = do
     --     (f (Derive.with_val "a" (ref "b") . Derive.with_val "b" (ref "a"))
     --         (ref "a")) $
     --     Just (mksig 2)
+
+test_val_to_function :: Test
+test_val_to_function = do
+    let result = DeriveTest.eval Ui.empty $ do
+            fs <- mapM (to_function . make_cf) [42, 43]
+            return $ map (fmap (fmap ($ 0))) fs
+    right_equal result [Just (ScoreT.untyped 42), Just (ScoreT.untyped 43)]
+    where
+    to_function cf = case Typecheck.val_to_function cf of
+        Nothing -> return Nothing
+        Just (Left dtf) -> Just <$> dtf
+        Just (Right tf) -> return $ Just tf
+
+test_val_to_function_dyn :: Test
+test_val_to_function_dyn = do
+    let result = DeriveTest.eval Ui.empty $ do
+            cf_dyn <- Internal.get_control_function_dynamic
+            fs <- mapM (to_function cf_dyn . make_cf) [42, 43]
+            return $ map (fmap (fmap ($ 0))) fs
+    right_equal result [Just (ScoreT.untyped 42), Just (ScoreT.untyped 43)]
+    where
+    to_function cf_dyn val = case Typecheck.val_to_function_dyn cf_dyn val of
+        Nothing -> return Nothing
+        Just (Left dtf) -> Just <$> dtf
+        Just (Right tf) -> return $ Just tf
+
+make_cf :: Double -> DeriveT.Val
+make_cf = DeriveT.VSignal . ScoreT.untyped . Signal.constant
 
 run_type :: forall arg. (ShowVal.ShowVal arg, Typecheck.Typecheck arg)
     => Proxy arg -> [UiTest.TrackSpec] -> Text -> (Maybe Text, [Text])
