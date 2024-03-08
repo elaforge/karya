@@ -91,7 +91,7 @@ normalize_name :: [T.Meta] -> T.Pos -> T.Block pitch [[Token]]
     -> CheckM (T.Block pitch [[Token]])
 normalize_name metas pos block = do
     names <- case T.block_names block of
-        [] -> pure ["none"]
+        [] -> pure ["seleh"]
         name : names -> case Map.lookup name from_abbr of
             Just name -> pure $ name : names
             Nothing -> do
@@ -141,19 +141,30 @@ final_pitch =
 standard_names :: [(Text, Text)]
 standard_names =
     [ ("ayu-kuning", "ak")
-    , ("buko", "")
+
     , ("debyang-debyung", "dd")
     , ("dualolo", "dll")
-    , ("duduk", "")
-    , ("gantung", "")
     , ("gelut", "g")
     , ("jarik-kawung", "jk")
     , ("kacaryan", "kc")
     , ("kutuk-kuning", "kk")
-    , ("puthut", "p") -- 2 part pattern puthut gelut
+    , ("puthut", "p") -- 2 gatra pattern puthut gelut
     , ("puthut-semedi", "ps")
-    , ("rambatan", "")
     , ("tumurun", "tm")
+    ] ++ map (, "")
+    [ "buko"
+    , "duduk"
+    , "gantung"
+    , "rambatan"
+
+    -- The Balungan article on gender panerus thinks these are 2 gatra
+    -- patterns.
+    , "ayu", "kuning"
+    , "debyang", "debyung"
+    , "duduk-a", "duduk-b"
+    , "kacaryan-a", "kacaryan-b"
+    , "rujak", "rujakan"
+    , "ora", "butuh"
     ]
 
 -- * resolve cengkok
@@ -177,6 +188,16 @@ resolve_pitch = snd . List.mapAccumL resolve (0, Nothing)
             )
             where
             pitch@(Pitch oct pc) = infer_octave prev (T.note_pitch note)
+
+-- | No octave inferring, the octave is exactly as notated.  Maybe this is more
+-- useful for balungan, which more often stays within the central register?  Or
+-- not?
+resolve_gatra_pitch_simple :: T.Gatra T.ParsedPitch -> T.Gatra (Pitch Octave)
+resolve_gatra_pitch_simple (T.Gatra p1 p2 p3 p4) =
+    T.Gatra (r p1) (r p2) (r p3) (r p4)
+    where
+    r (T.Balungan p annot) = T.Balungan (convert <$> p) annot
+    convert (Pitch (T.OctaveHint oct) pc) = Pitch oct pc
 
 resolve_gatra_pitch :: T.Gatra T.ParsedPitch -> T.Gatra (Pitch Octave)
 resolve_gatra_pitch (T.Gatra p1 p2 p3 p4) =

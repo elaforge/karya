@@ -263,10 +263,11 @@ format_file transform = print_score transform <=< Text.IO.readFile
 print_score :: Transform -> Text -> IO ()
 print_score transform source = case parse_score source of
     Left err -> putStrLn err
-    Right score
-        | null errs -> mapM_ Text.IO.putStrLn lines
-        | otherwise -> mapM_ (Text.IO.putStrLn . T.show_error source) errs
+    Right score -> do
+        mapM_ Text.IO.putStrLn lines
+        mapM_ (Text.IO.putStrLn . T.show_error source) errs
         where (lines, errs) = format_score transform score
+        -- TODO interleave the errs with the lines
 
 data FormatState = FormatState {
     state_metas :: [T.Meta]
@@ -318,6 +319,7 @@ format_block state block =
     -- TODO maybe there's a more direct way?
     bias
         | inst == Just T.GenderBarung && irama >= Just T.Wiled = Check.BiasEnd
+        | inst == Just T.GenderPanerus && irama >= Just T.Dadi = Check.BiasEnd
         | otherwise = Check.BiasStart
 
 map_pitch :: (a -> b) -> [T.Token (T.Note a dur) rest]
