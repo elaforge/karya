@@ -2,8 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE NoFieldSelectors #-}
-{-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE StrictData #-}
 module Derive.TScore.Java.Db where
 import qualified Data.Either as Either
@@ -26,9 +24,9 @@ import           Global
 type Error = Text
 
 data Entry = Entry {
-    tags :: Tags
-    , metas :: [T.Meta]
-    , block :: Check.Block
+    e_tags :: Tags
+    , e_metas :: [T.Meta]
+    , e_block :: Check.Block
     } deriving (Show, Eq)
 
 type Tags = Map Tag Text
@@ -44,13 +42,14 @@ meta_to_tag = \case
     T.Instrument a -> ("instrument", JScore.instrument_enum a)
 
 format_entry :: Entry -> Text
-format_entry (Entry { tags, metas, block }) =
-    Text.unlines $ format_tags tags : JScore.format_block_ irama inst block
+format_entry (Entry { e_tags, e_metas, e_block }) =
+    Text.unlines $ format_tags e_tags : JScore.format_block_ irama inst e_block
     where
-    irama = Lists.head [i | T.Irama i <- metas]
-    inst = Lists.head [i | T.Instrument i <- metas]
+    irama = Lists.head [i | T.Irama i <- e_metas]
+    inst = Lists.head [i | T.Instrument i <- e_metas]
 
-t2 = either (error . untxt) id <$> load "Example/tscore/java/balungan32.tscore"
+t2 = map e_tags <$>
+    either (error . untxt) id <$> load "Example/tscore/java/balungan32.tscore"
 
 parse_tags :: Text -> Tags
 parse_tags = Map.fromList . map split . Text.words
@@ -70,7 +69,7 @@ search tags = do
     mapM_ (Text.IO.putStrLn . format_entry) $ find (parse_tags tags) entries
 
 find :: Tags -> [Entry] -> [Entry]
-find tags = filter (\entry -> Map.isSubmapOf tags entry.tags)
+find tags = filter (\entry -> Map.isSubmapOf tags (e_tags entry))
 
 load_db :: IO [Entry]
 load_db = do
@@ -106,9 +105,9 @@ score_entries (T.Score toplevels) = go [] (map snd toplevels)
         | null (T.block_tracks block) = go metas toplevels
         | otherwise = entry metas block : go metas toplevels
     go _ [] = []
-    entry metas block = Entry
-        { tags = make_tags metas block
-        , metas, block
+    entry e_metas e_block = Entry
+        { e_tags = make_tags fname e_metas e_block
+        , e_metas, e_block
         }
 
 make_tags :: [T.Meta] -> Check.Block -> Tags
