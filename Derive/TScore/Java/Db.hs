@@ -7,10 +7,8 @@
 {-# LANGUAGE StrictData #-}
 module Derive.TScore.Java.Db where
 import qualified Data.Either as Either
-import qualified Data.Foldable as Foldable
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
@@ -28,60 +26,13 @@ import           Global
 type Error = Text
 
 data Entry = Entry {
-    -- meta :: Meta
     tags :: Tags
     , metas :: [T.Meta]
-    -- , tracks :: [[Check.Token]]
     , block :: Check.Block
     } deriving (Show, Eq)
 
 type Tags = Map Tag Text
 type Tag = Text
-
-{-
--- Or just convert everything to [Text]?
--- I want to be able to search and show by these fields.
-data Meta = Meta {
-    source :: Maybe Text
-    , piece :: Maybe Text
-    , section :: Maybe Text
-    , laras :: Maybe T.Laras
-    , irama :: Maybe T.Irama
-    , instrument :: Maybe T.Instrument
-    , names :: [Text]
-    , gatra :: Maybe (T.Gatra (T.Pitch T.Octave))
-    } deriving (Show, Eq)
-
-instance Semigroup Meta where
-    Meta a1 a2 a3 a4 a5 a6 a7 a8 <> Meta b1 b2 b3 b4 b5 b6 b7 b8 =
-        Meta (a1 <|> b1) (a2 <|> b2) (a3 <|> b3) (a4 <|> b4) (a5 <|> b5)
-            (a6 <|> b6) (a7 ++ b7) (a8 <|> b8)
-instance Monoid Meta where
-    mempty = Meta Nothing Nothing Nothing Nothing Nothing Nothing [] Nothing
-
-show_meta :: Meta -> Text
-show_meta
-    (Meta
-        { source, piece, section, laras, irama, instrument, names, gatra }) =
-    Text.unwords $ Maybe.catMaybes
-        [ source, piece, section, showt <$> laras
-        , showt <$> irama, showt <$> instrument
-        , Just $ Text.intercalate "," names
-        , JScore.format_gatra <$> gatra
-        ]
-
-to_meta :: T.Meta -> Meta
-to_meta = \case
-    T.Source a -> mempty { source = Just a }
-    T.Piece a -> mempty { piece = Just a }
-    T.Section a -> mempty { section = Just a }
-    T.Laras a -> mempty { laras = Just a }
-    T.Irama a -> mempty { irama = Just a }
-    T.Instrument a -> mempty { instrument = Just a }
-
-convert_metas :: [T.Meta] -> Meta
-convert_metas = Foldable.foldMap to_meta
--}
 
 meta_to_tag :: T.Meta -> (Tag, Text)
 meta_to_tag = \case
@@ -159,12 +110,6 @@ score_entries (T.Score toplevels) = go [] (map snd toplevels)
         { tags = make_tags metas block
         , metas, block
         }
-    -- entry metas block = Entry
-    --     { meta = (convert_metas metas)
-    --         { names = T.block_names block ++ T.block_inferred block
-    --         , gatra = Just $ T.block_gatra block
-    --         }
-    --     }
 
 make_tags :: [T.Meta] -> Check.Block -> Tags
 make_tags metas block =
