@@ -10,6 +10,8 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
+import qualified System.FilePath as FilePath
+
 import qualified Util.Files as Files
 import qualified Util.Lists as Lists
 import qualified Util.Logger as Logger
@@ -81,7 +83,7 @@ load_db = do
 type Score = T.Score Check.Block
 
 load :: FilePath -> IO (Either Error [Entry])
-load fname = parse <$> Text.IO.readFile fname
+load fname = parse fname <$> Text.IO.readFile fname
 
 load_dir :: FilePath -> IO ([Error], [Entry])
 load_dir dir = do
@@ -89,16 +91,16 @@ load_dir dir = do
     entries <- mapM load fnames
     pure $ second concat $ Either.partitionEithers entries
 
-parse :: Text -> Either Error [Entry]
-parse source = do
+parse :: FilePath -> Text -> Either Error [Entry]
+parse fname source = do
     score <- JScore.parse_score source
     let (checked, errs) = Logger.runId $ Check.format_score score
     unless (null errs) $
         Left $ Text.unlines $ map (T.show_error source) errs
-    pure $ score_entries checked
+    pure $ score_entries fname checked
 
-score_entries :: Score -> [Entry]
-score_entries (T.Score toplevels) = go [] (map snd toplevels)
+score_entries :: FilePath -> Score -> [Entry]
+score_entries fname (T.Score toplevels) = go [] (map snd toplevels)
     where
     go metas (T.ToplevelMeta meta : toplevels) = go (meta:metas) toplevels
     go metas (T.BlockDefinition block : toplevels)
@@ -110,8 +112,8 @@ score_entries (T.Score toplevels) = go [] (map snd toplevels)
         , e_metas, e_block
         }
 
-make_tags :: [T.Meta] -> Check.Block -> Tags
-make_tags metas block =
+make_tags :: FilePath -> [T.Meta] -> Check.Block -> Tags
+make_tags fname metas block =
     Map.fromListWith (\_ a -> a) $ concat
         [ [ ("seleh", Text.singleton (T.pc_char pc))
           | Just pc <- [T.seleh (T.block_gatra block)]
@@ -119,5 +121,6 @@ make_tags metas block =
         , [ ("name", Text.unwords (T.block_names block))
           | not (null (T.block_names block))
           ]
+        , [("file", txt (FilePath.takeFileName fname)) | not (null fname)]
         , map meta_to_tag metas
         ]
