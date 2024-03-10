@@ -51,8 +51,11 @@ import qualified Derive.TScore.T as TScore.T
 import           Global
 
 
-parse_score :: Text -> Either String T.ParsedScore
-parse_score = Parse.parse_text (Parse.parse Parse.default_config)
+parse_score :: Text -> Either Text T.ParsedScore
+parse_score = first txt . Parse.parse_text (Parse.parse Parse.default_config)
+
+unparse :: Parse.Element a => a -> Text
+unparse = Parse.unparse Parse.default_config
 
 instance Parse.Element T.ParsedScore where
     parse config = Parse.p_whitespace
@@ -262,7 +265,7 @@ format_file transform = print_score transform <=< Text.IO.readFile
 
 print_score :: Transform -> Text -> IO ()
 print_score transform source = case parse_score source of
-    Left err -> putStrLn err
+    Left err -> Text.IO.putStrLn err
     Right score -> do
         mapM_ Text.IO.putStrLn lines
         mapM_ (Text.IO.putStrLn . T.show_error source) errs
@@ -301,18 +304,27 @@ format_toplevel state = \case
 
 format_block :: FormatState -> Check.Block -> [Text]
 format_block state block =
-    title : map (("    "<>) . format_tokens bias)
-        (map (map_pitch transform) block_tracks)
+    format_block_ irama inst (transform (state_transform state) block)
     where
+    irama = Lists.head [i | T.Irama i <- metas]
+    inst = Lists.head [i | T.Instrument i <- metas]
     metas = state_metas state
-    transform = state_transform state
-    gatra = fmap transform block_gatra
-    title = Texts.join2 " " (format_gatra gatra) (Text.unwords block_names)
+
+transform :: Transform -> Check.Block -> Check.Block
+transform trans block = block
+    { T.block_gatra = trans <$> T.block_gatra block
+    , T.block_tracks = map (map_pitch trans) (T.block_tracks block)
+    }
+
+format_block_ :: Maybe T.Irama -> Maybe T.Instrument -> Check.Block -> [Text]
+format_block_ irama inst block =
+    title : map (("    "<>) . format_tokens bias) block_tracks
+    where
+    title =
+        Texts.join2 " " (format_gatra block_gatra) (Text.unwords block_names)
         <> if null block_inferred then ""
             else " [" <> Text.unwords block_inferred <> "]"
     T.Block { block_gatra, block_names, block_tracks, block_inferred } = block
-    irama = Lists.head [i | T.Irama i <- metas]
-    inst = Lists.head [i | T.Instrument i <- metas]
     -- This actually corresponds to parts which are written with every beat
     -- and which ones use overbars.  Or could say that the basic speed for
     -- GenderBarung < Wiled is 4 per bar, while the rest are 8.
@@ -327,7 +339,7 @@ map_pitch :: (a -> b) -> [T.Token (T.Note a dur) rest]
 map_pitch f = map $ T.map_note (\n -> n { T.note_pitch = f (T.note_pitch n) })
 
 format_meta :: T.Meta -> Text
-format_meta = Text.drop 1 . Parse.unparse Parse.default_config
+format_meta = Text.drop 1 . unparse
     -- Input syntax uses a leading %.
 
 format_gatra :: T.Gatra (Pitch Octave) -> Text

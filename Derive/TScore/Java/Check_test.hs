@@ -55,7 +55,7 @@ e_block f = mapMaybe $ \case
 
 format_score :: Text -> Either Text [T.Toplevel Check.Block]
 format_score source = case JScore.parse_score source of
-    Left err -> Left $ txt err
+    Left err -> Left err
     Right score
         | null errs -> Right $ map snd toplevels
         | otherwise -> Left $ Text.unwords $ map (T.show_error source) errs

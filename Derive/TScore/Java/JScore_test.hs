@@ -33,7 +33,7 @@ test_roundtrip = do
     let normalized = trip everything_score
     right_equal (const () <$> normalized) ()
     equal normalized (trip =<< normalized)
-    Text.IO.putStrLn $ either txt id normalized
+    Text.IO.putStrLn $ either id id normalized
 
 test_parse :: Test
 test_parse = do
@@ -70,7 +70,7 @@ test_format_score2 = do
 
 format_score :: Text -> Either Text [Text]
 format_score source = case JScore.parse_score source of
-    Left err -> Left (txt err)
+    Left err -> Left err
     Right score
         | not (null errs) ->
             Left $ Text.unlines $ map (T.show_error source) errs
@@ -79,5 +79,5 @@ format_score source = case JScore.parse_score source of
 
 _parse_file :: FilePath -> IO ()
 _parse_file fname = (JScore.parse_score <$> Text.IO.readFile fname) >>= \case
-    Left err -> putStrLn err
+    Left err -> Text.IO.putStrLn err
     Right score -> Text.IO.putStrLn $ unparse score
