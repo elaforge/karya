@@ -7,7 +7,6 @@ import qualified Data.Text.IO as Text.IO
 
 import qualified Derive.TScore.Java.JScore as JScore
 import qualified Derive.TScore.Java.T as T
-import qualified Derive.TScore.Parse as Parse
 
 import           Global
 import           Util.Test.Global
@@ -27,7 +26,7 @@ everything_score =
 
 test_roundtrip :: Test
 test_roundtrip = do
-    let trip = fmap unparse . JScore.parse_score
+    let trip = fmap JScore.unparse . JScore.parse_score
     right_equal (trip "%piece = b") "%piece = b\n"
     right_equal (trip "1235 [ > 5 6/. _ ]") "1235 [ > 5 6/. _ ]\n"
     let normalized = trip everything_score
@@ -35,13 +34,19 @@ test_roundtrip = do
     equal normalized (trip =<< normalized)
     Text.IO.putStrLn $ either id id normalized
 
-test_parse :: Test
-test_parse = do
-    let f = JScore.parse_score
-    pprint (f "1235 tumurun\n1235 am")
-
-unparse :: Parse.Element a => a -> Text
-unparse = Parse.unparse Parse.default_config
+test_unwrap :: Test
+test_unwrap = do
+    let trip = fmap JScore.unparse . JScore.parse_score
+    let score =
+            "1235 [\n\
+            \    > 1235\n\
+            \    > 2356\n\
+            \    > 1235\n\
+            \    > 2356\n\
+            \]\n"
+    right_equal (trip score) "1235 [ > 1235 | 1235 > 2356 | 2356 ]\n"
+    right_equal (trip "1235 [ > 1235 > 2356 > 3567 ]")
+        "1235 [ > 1235 > 2356 > 3567 ]\n"
 
 -- * format
 
@@ -80,4 +85,4 @@ format_score source = case JScore.parse_score source of
 _parse_file :: FilePath -> IO ()
 _parse_file fname = (JScore.parse_score <$> Text.IO.readFile fname) >>= \case
     Left err -> Text.IO.putStrLn err
-    Right score -> Text.IO.putStrLn $ unparse score
+    Right score -> Text.IO.putStrLn $ JScore.unparse score

@@ -52,7 +52,33 @@ import           Global
 
 
 parse_score :: Text -> Either Text T.ParsedScore
-parse_score = first txt . Parse.parse_text (Parse.parse Parse.default_config)
+parse_score =
+    bimap txt unwrap_score
+    . Parse.parse_text (Parse.parse Parse.default_config)
+
+unwrap_score :: T.ParsedScore -> T.ParsedScore
+unwrap_score = fmap block
+    where block b = b { T.block_tracks = unwrap_tracks <$> T.block_tracks b }
+
+-- | We only have max 2 hands, so unwrap >2 into a single line.
+unwrap_tracks :: T.Tracks -> T.Tracks
+unwrap_tracks (T.Tracks tracks)
+    | length tracks > 2 && even (length tracks) =
+        T.Tracks [merge t1, merge t2]
+    | otherwise = T.Tracks tracks
+    where
+    (t1, t2) = unzip (pairs tracks)
+    pairs (x:y:zs) = (x, y) : pairs zs
+    pairs _ = []
+    merge (t:ts) = T.Track
+        { track_pos = T.track_pos t
+        -- Add a barline to unwrapped sections, because I don't end tracks
+        -- with a final barline.  Or, I could add one only if there isn't
+        -- already one.
+        , track_tokens = List.intercalate [T.TBarline T.fake_pos] $
+            map T.track_tokens (t:ts)
+        }
+    merge [] = error "broken invariant length tracks > 2"
 
 unparse :: Parse.Element a => a -> Text
 unparse = Parse.unparse Parse.default_config
@@ -146,9 +172,9 @@ instance Parse.Element T.Tracks where
         fmap T.Tracks $ Parse.lexeme "[" *> tracks <* Parse.lexeme "]"
         where tracks = P.some (Parse.parse config)
     unparse config (T.Tracks tracks) =
-        "[ " <> Text.unwords (map (Parse.unparse config) tracks) <> "]"
-        -- Intentionally no space on "]", because the last note's HasSpace
-        -- should put one on.
+        -- mconcat instead of unwords, and no space on "]", because the last
+        -- note's HasSpace should put one on.
+        "[ " <> mconcat (map (Parse.unparse config) tracks) <> "]"
 
 instance Parse.Element (T.Track T.ParsedToken) where
     parse config = do
@@ -248,6 +274,27 @@ instance Parse.Element T.BalunganAnnotation where
 -- * transform
 
 type Transform = Pitch Octave -> Pitch Octave
+
+change_pathet :: T.Laras -> T.Laras -> Maybe Transform
+change_pathet a b = case (a, b) of
+    _ | a == b -> Just id
+    (T.PelogLima, T.PelogBarang) -> Just one_to_seven
+    (T.PelogBarang, T.PelogLima) -> Just seven_to_one
+    -- TODO I think?
+    (T.SlendroManyura, T.PelogBarang) -> Just one_to_seven
+    (T.PelogBarang, T.SlendroManyura) -> Just seven_to_one
+
+    -- TODO pelog-nem to lima by transposing down one, not sure.
+    (T.PelogNem, T.PelogLima) -> Just $ T.add_pc T.PelogLima (-1)
+    -- TODO maybe?
+    (T.SlendroManyura, T.SlendroSanga) -> Just $ T.add_pc T.SlendroSanga (-1)
+    (T.SlendroSanga, T.PelogNem) -> Just id -- TODO maybe?
+    _ -> Nothing
+    where
+    one_to_seven p@(Pitch _ T.P1) = T.add_pc_abs (-1) p
+    one_to_seven p = p
+    seven_to_one p@(Pitch _ T.P7) = T.add_pc_abs 1 p
+    seven_to_one p = p
 
 -- | Simple pelog lima to pelog barang by changing 1s to 7s.
 lima_to_barang :: Transform

@@ -100,12 +100,12 @@ seleh (Gatra n1 n2 n3 n4) = msum $ map pc_of [n4, n3, n2, n1]
 -- * score
 
 newtype Score block = Score [(Pos, Toplevel block)]
-    deriving (Eq, Show)
+    deriving (Eq, Show, Functor)
 
 type ParsedScore = Score ParsedBlock
 
 data Toplevel block = ToplevelMeta Meta | BlockDefinition block
-    deriving (Eq, Show)
+    deriving (Eq, Show, Functor)
 
 data Meta = Source Text | Piece Text | Section Text | Laras Laras
     | Irama Irama | Instrument Instrument
