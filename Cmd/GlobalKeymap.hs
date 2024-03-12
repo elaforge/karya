@@ -112,8 +112,8 @@ io_bindings = concat
     , bind_key_status [] (Key.Char ' ') "stop or play" stop_or_play
     ]
 
--- Previously a second space would contract the selection, but it didn't seem
--- that useful.
+-- Previously a second space would contract the selection, but since then I
+-- took over space for stop_or_play.
 -- context_stop :: Cmd.CmdT IO ()
 -- context_stop = unlessM Play.cmd_context_stop (Selection.to_point True)
 
@@ -298,7 +298,7 @@ selection_bindings = concat
         Selection.cmd_toggle_extend_tracks
 
     , bind_key [Shift] (Key.Char ' ') "selection start to point"
-        (Selection.to_point False)
+        (Selection.to_point True)
     ]
     where
     move = Selection.default_move
