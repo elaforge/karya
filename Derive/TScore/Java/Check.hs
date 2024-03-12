@@ -148,6 +148,8 @@ standard_names =
     , ("jarik-kawung", "jk")
     , ("kacaryan", "kc")
     , ("kutuk-kuning", "kk")
+    -- For gender barung I can infer kempyung, but not other instruments.
+    , ("kutuk-kuning-kempyung", "kkp")
     , ("puthut", "p") -- 2 gatra pattern puthut gelut
     , ("puthut-semedi", "ps")
     , ("tumurun", "tm")
@@ -166,11 +168,6 @@ standard_names =
     , "rujak", "rujakan"
     , "ora", "butuh"
     ]
-
--- * resolve cengkok
-
--- | Look for same name + same balungan, then same balungan.
--- resolve_cengkok
 
 -- * resolve_pitch
 

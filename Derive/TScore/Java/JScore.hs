@@ -129,12 +129,12 @@ parse_enum unparse t = Map.lookup t m
 
 laras_enum :: T.Laras -> Text
 laras_enum = \case
-   T.PelogNem -> "pelog-nem"
-   T.PelogLima -> "pelog-lima"
-   T.PelogBarang -> "pelog-barang"
-   T.SlendroNem -> "slendro-nem"
-   T.SlendroSanga -> "slendro-sanga"
-   T.SlendroManyura -> "slendro-manyura"
+    T.PelogNem -> "pelog-nem"
+    T.PelogLima -> "pelog-lima"
+    T.PelogBarang -> "pelog-barang"
+    T.SlendroNem -> "slendro-nem"
+    T.SlendroSanga -> "slendro-sanga"
+    T.SlendroManyura -> "slendro-manyura"
 
 instrument_enum :: T.Instrument -> Text
 instrument_enum = \case
@@ -154,10 +154,10 @@ irama_enum = \case
 instance Parse.Element T.ParsedBlock where
     parse config = do
         block_gatra <- Parse.lexeme $ Parse.parse config
-        -- It's important this doesn't take digits, or it could grab the next
-        -- Gatra.
-        block_names <- P.many $ Parse.lexeme $ P.takeWhile1 $ \c ->
-            'a' <= c && c <= 'z' || c == '-'
+        -- lexeme_s doesn't do comments or newlines.  Otherwise, "1234\n1234\n"
+        -- is ambiguous either a name or another Gatra.
+        block_names <- P.many $ lexeme_s $ P.takeWhile1 $ \c ->
+            'a' <= c && c <= 'z' || '0' <= c && c <= '9' || c == '-'
         block_tracks <- P.optional $ Parse.parse config
         pure $ T.Block
             { block_gatra, block_names, block_tracks
@@ -270,6 +270,13 @@ instance Parse.Element T.BalunganAnnotation where
     unparse _ = \case
         T.Gong -> ")"
         T.Kenong -> "^"
+
+-- | Lexeme but no comments or newlines.
+lexeme_s :: Parse.Parser a -> Parse.Parser a
+lexeme_s = (<* p_simple_space)
+
+p_simple_space :: Parse.Parser ()
+p_simple_space = P.skipWhile (\c -> c == ' ' || c == '\t')
 
 -- * transform
 
