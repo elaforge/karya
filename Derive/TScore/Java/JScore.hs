@@ -31,7 +31,19 @@
     Not sure if possible.  At the least it should reuse as much as possible
     of Check, and all of TScore.
 -}
-module Derive.TScore.Java.JScore where
+module Derive.TScore.Java.JScore (
+    parse_score
+    , unparse
+    -- * format
+    , format_file
+    , format_score
+    , format_block_
+    , instrument_enum, irama_enum, laras_enum
+    -- * Transform
+    , Transform
+    , convert_laras
+    , transform_block
+) where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -282,16 +294,16 @@ p_simple_space = P.skipWhile (\c -> c == ' ' || c == '\t')
 
 type Transform = Pitch Octave -> Pitch Octave
 
-change_pathet :: T.Laras -> T.Laras -> Maybe Transform
-change_pathet a b = case (a, b) of
+convert_laras :: T.Laras -> T.Laras -> Maybe Transform
+convert_laras a b = case (a, b) of
     _ | a == b -> Just id
     (T.PelogLima, T.PelogBarang) -> Just one_to_seven
     (T.PelogBarang, T.PelogLima) -> Just seven_to_one
-    -- TODO I think?
     (T.SlendroManyura, T.PelogBarang) -> Just one_to_seven
     (T.PelogBarang, T.SlendroManyura) -> Just seven_to_one
 
     -- TODO pelog-nem to lima by transposing down one, not sure.
+    -- can I go lima to num by going back up one?
     (T.PelogNem, T.PelogLima) -> Just $ T.add_pc T.PelogLima (-1)
     -- TODO maybe?
     (T.SlendroManyura, T.SlendroSanga) -> Just $ T.add_pc T.SlendroSanga (-1)
@@ -302,15 +314,6 @@ change_pathet a b = case (a, b) of
     one_to_seven p = p
     seven_to_one p@(Pitch _ T.P7) = T.add_pc_abs 1 p
     seven_to_one p = p
-
--- | Simple pelog lima to pelog barang by changing 1s to 7s.
-lima_to_barang :: Transform
-lima_to_barang p@(Pitch _ T.P1) = T.add_pc_abs (-1) p
-lima_to_barang p = p
-
--- | I think you can go pelog nem to lima by going down a step.
-nem_to_lima :: Transform
-nem_to_lima = T.add_pc T.PelogLima (-1)
 
 -- * format
 
@@ -358,14 +361,14 @@ format_toplevel state = \case
 
 format_block :: FormatState -> Check.Block -> [Text]
 format_block state block =
-    format_block_ irama inst (transform (state_transform state) block)
+    format_block_ irama inst (transform_block (state_transform state) block)
     where
     irama = Lists.head [i | T.Irama i <- metas]
     inst = Lists.head [i | T.Instrument i <- metas]
     metas = state_metas state
 
-transform :: Transform -> Check.Block -> Check.Block
-transform trans block = block
+transform_block :: Transform -> Check.Block -> Check.Block
+transform_block trans block = block
     { T.block_gatra = trans <$> T.block_gatra block
     , T.block_tracks = map (map_pitch trans) (T.block_tracks block)
     }

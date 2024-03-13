@@ -166,13 +166,6 @@ external:
       . gamakam
     . using tscore, especially standalone
 
-sketch:
-  x   .   x   .   x   .   x   .   x   .   x   .   x   .   x   .
-  3 3 2353 321 1  2 3 23 2 32 323 3 3 2353 321 1  61 16 56 656 56
-  3 3 2353 321 61 23 32 12 21 23 32 61 16 2 21 3 32 553 3 35 53
-  3 3 2353 321 1  2 3 23 2 32 323 2     3   6 1 2 3   2 3 6 1 2 3
-  2 6 1 6 5 56 61 12 23 5 5 353 2 2 121
-
 UNSORTED
   - remove midi modifiers?  I never used them.
   - What if I highlighted >1 in the waveform display?
@@ -5814,7 +5807,6 @@ fltk:
       . https://learnopengl.com/
       . https://vkguide.dev/
       . https://github.com/SaschaWillems/Vulkan-Samples
-  ? Will using GPU rendering be harder on battery life?
   no callbacks:
     . I'll probably want complete data in c++ regardless, so I could do that
       with the current drawing setup.  I think this is actually totally
@@ -6386,7 +6378,7 @@ solkattu:
         enough to pick random but twice as likely to pick with score one
         lower.
   technique:
-    - o with space can become od.
+    - Sometimes use od if there's time, and just o otherwise.
       . I guess I would want to tag a stroke, and technique postproc can then
         apply it if appropriate.
     - I should be able to configure per-korvai technique
@@ -6417,9 +6409,10 @@ solkattu:
         make it no longer fatal, and also render everything that can be.
       . However, I'd want inline strokes without a match to be nonfatal for
         tests, while a normal non-match is still fatal for tests.
-  - Duration is supposedly absolute, but it only works at the top level.
-    So it's awkward when everything is in tisram, I do 'map (nadai 6)' and now
-    sarvaD is wrong.
+  context for evaluation:
+    . Duration is supposedly absolute, but it only works at the top level.  So
+      it's awkward when everything is in tisram, I do 'map (nadai 6)' and now
+      sarvaD is wrong.
     . One way is to store as Duration, and then do a Duration normalization
       step.  This would work for sarvaM which stores its duration directly.
     . I guess restD could do that too.
@@ -6437,6 +6430,13 @@ solkattu:
       (Metadata, SequenceT sollu) and put Monoid on that.
     . newtype SequenceT sollu =
         ExceptT Error (ReaderT Tempo Identity) [S.Note Group sollu]
+    . Also useful for kaliMt, which needs to know duration and tala.
+    . Is it even possible?  How to write it?
+      __D will need access to the state, it must be
+        __D :: Duration -> M (SequenceT sollu)
+      Which means all Sequences would become SequneceM sollu, then (<>)
+      combines those.  E.g. thom becomes pure thom, all transformers become
+      fmaps, or monadic if they need the state.
   sections:
     - if I have 'section' get CallStack and put section on each element,
       then I can tag sections with line numbers.
@@ -7581,7 +7581,17 @@ text score: tscore:
         syntax.  Notes would have to be in a FromString, at which point I'm
         back to having to parse again.  But the declarations would be in a big
         list or Map, given the All.hs generation thing like solkattu.
-    - for pitch, maybe it would be easier if ' and , were absolute upper
+    db:
+      - function to diff tracks
+      - diff all with the same seleh
+        . To find interchangeable patterns.
+        . Also with the same name.
+      * normalize by pathet if possible
+        . E.g. slendro-manyura <-> pelog-barang, so if searching for
+          pelog-barang, also find slendro-manyura.
+      - make pattern histogram and which bar has them for gender-panerus
+    * names should take numbers so I can say gantung 3 seleh 5
+    / for pitch, maybe it would be easier if ' and , were absolute upper
       and lower octave, not movement direction.
       . That doesn't work though, if I have 71, how do I tell it to move down?
     notate by balungan:
@@ -7602,7 +7612,7 @@ text score: tscore:
           and assert equal.
         . Don't have to worry about keeping toplevel block=[tracks] syntax,
           I have different parsers for Score down to Block anyway.
-    - Chord and seleh infer is probably only relevant to gender barung
+    * Chord and seleh infer is probably only relevant to gender barung
     - find matching name and optionally expand into score
       . Can also match based on gatra.
     - diff matching names
@@ -7641,9 +7651,9 @@ text score: tscore:
         normalizing and printing.  So let's keep doing that, until I have
         a reason to specifically care.
     check:
-      - within instrument range
-      - left hand below right hand
-      - pitches in pathet (no 4 for gender, no 1 or 7)
+      * within instrument range
+      * left hand below right hand
+      * pitches in pathet (no 4 for gender, no 1 or 7)
         . Only 4 is actually forbidden on instruments without it.
       - Gatra to notes ratio ok for irama.  Complicated by faster gender
         notes.
@@ -8059,7 +8069,7 @@ text score: tscore:
     - Also adjust block view size.
       . I should use standard Create functions to do this all automatically.
     + Manual integrate is error-prone, where can I document it better?
-    - fltk: the final pitch event is misaligned
+    - fltk: bug: the final pitch event is misaligned
       . It only happens when no ruler, and it's a visual drawing artifact.
   repl:
     - communicate parse errors back to vim to highlight
@@ -8158,6 +8168,10 @@ pitch: scales: scale: Derive.Scale:
         for change detection to update the keycaps.  So I think it can get
         Scale, and then scale_name.
       . Except there's no scale in Dynamic, I guess I'll have to put it in?
+        It's because scale directly brings things into scope, the scale itself
+        doesn't have to be recorded.  Except I do put the name in environ, but
+        it's just the name, which can only approximate the scale due to
+        parameters.
     - scale docs
     port existing scales:
       - legong, wayang
@@ -8166,9 +8180,6 @@ pitch: scales: scale: Derive.Scale:
       - interpolate
       - edo
       - raga
-    . After all this hassle, I'm not even sure I like pelog-barang relative
-      layout, rather than absolute 1234567.  Still, diatonic transposition
-      should work.  But I could have done that with chromatic?
     notes:
       . Currently scales look for 'key', 'tuning', 'laras' env.  There are
         complications:
@@ -8442,6 +8453,9 @@ pitch: scales: scale: Derive.Scale:
       But that has a caching effect because the key is resolved when the
       scale is set, rather than on every pitch (is it really?).
   JavaScales:
+    . After all this hassle, I'm not even sure I like pelog-barang relative
+      layout, rather than absolute 1234567.  Still, diatonic transposition
+      should work.  But I could have done that with chromatic?
     reimplement with my own ScaleMap
       * Layout with Theory.Intervals, and cached degree_to_pc and back.
       - Plug back in relative octave stuff, maybe TheoryFormat?

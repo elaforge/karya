@@ -27,31 +27,32 @@ type Error = Text
 
 data Entry = Entry {
     e_tags :: Tags
-    , e_metas :: [T.Meta]
+    , e_meta :: Maybe Meta
     , e_block :: Check.Block
     } deriving (Show, Eq)
 
 type Tags = Map Tag Text
 type Tag = Text
 
-meta_to_tag :: T.Meta -> (Tag, Text)
-meta_to_tag = \case
-    T.Source a -> ("source", a)
-    T.Piece a -> ("piece", a)
-    T.Section a -> ("section", a)
-    T.Laras a -> ("laras", JScore.laras_enum a)
-    T.Irama a -> ("irama", JScore.irama_enum a)
-    T.Instrument a -> ("instrument", JScore.instrument_enum a)
+data Meta = Meta {
+    m_laras :: T.Laras
+    , m_irama :: T.Irama
+    , m_instrument :: T.Instrument
+    } deriving (Show, Eq)
+
+make_meta :: [T.Meta] -> Maybe Meta
+make_meta metas = Meta
+    <$> Lists.head [a | T.Laras a <- metas]
+    <*> Lists.head [a | T.Irama a <- metas]
+    <*> Lists.head [a | T.Instrument a <- metas]
 
 format_entry :: Entry -> Text
-format_entry (Entry { e_tags, e_metas, e_block }) =
-    Text.unlines $ format_tags e_tags : JScore.format_block_ irama inst e_block
-    where
-    irama = Lists.head [i | T.Irama i <- e_metas]
-    inst = Lists.head [i | T.Instrument i <- e_metas]
+format_entry (Entry { e_tags, e_meta, e_block }) =
+    Text.unlines $ format_tags e_tags
+        : JScore.format_block_ (m_irama <$> e_meta) (m_instrument <$> e_meta)
+            e_block
 
-t2 = map e_tags <$>
-    either (error . untxt) id <$> load "Example/tscore/java/balungan32.tscore"
+t2 = either (error . untxt) id <$> load "Example/tscore/java/balungan32.tscore"
 
 parse_tags :: Text -> Tags
 parse_tags = Map.fromList . map split . Text.words
@@ -64,14 +65,19 @@ format_tags :: Tags -> Text
 format_tags = Text.unwords . map format . Map.toList
     where format (k, v) = k <> "=" <> v
 
-search :: Text -> IO ()
-search tags = do
+search :: T.Laras -> Text -> IO ()
+search laras tags = do
     -- entries <- t2
     entries <- load_db
-    mapM_ (Text.IO.putStrLn . format_entry) $ find (parse_tags tags) entries
+    mapM_ (Text.IO.putStrLn . format_entry) $
+        mapMaybe (entry_matches laras (parse_tags tags)) entries
 
-find :: Tags -> [Entry] -> [Entry]
-find tags = filter (\entry -> Map.isSubmapOf tags (e_tags entry))
+entry_matches :: T.Laras -> Tags -> Entry -> Maybe Entry
+entry_matches laras tags entry
+    | Just entry <- convert_laras laras entry, match (e_tags entry) =
+        Just entry
+    | otherwise = Nothing
+    where match = (tags `Map.isSubmapOf`)
 
 load_db :: IO [Entry]
 load_db = do
@@ -82,17 +88,17 @@ load_db = do
 
 type Score = T.Score Check.Block
 
-load :: FilePath -> IO (Either Error [Entry])
-load fname = parse fname <$> Text.IO.readFile fname
-
 load_dir :: FilePath -> IO ([Error], [Entry])
 load_dir dir = do
     fnames <- filter (".tscore" `List.isSuffixOf`) <$> Files.list dir
     entries <- mapM load fnames
     pure $ second concat $ Either.partitionEithers entries
 
+load :: FilePath -> IO (Either Error [Entry])
+load fname = parse fname <$> Text.IO.readFile fname
+
 parse :: FilePath -> Text -> Either Error [Entry]
-parse fname source = do
+parse fname source = first ((txt fname <> ": ") <>) $ do
     score <- JScore.parse_score source
     let (checked, errs) = Logger.runId $ Check.format_score score
     unless (null errs) $
@@ -109,18 +115,62 @@ score_entries fname (T.Score toplevels) = go [] (map snd toplevels)
     go _ [] = []
     entry e_metas e_block = Entry
         { e_tags = make_tags fname e_metas e_block
-        , e_metas, e_block
+        , e_meta
+        , e_block
         }
+        where e_meta = make_meta e_metas
 
 make_tags :: FilePath -> [T.Meta] -> Check.Block -> Tags
-make_tags fname metas block =
-    Map.fromListWith (\_ a -> a) $ concat
-        [ [ ("seleh", Text.singleton (T.pc_char pc))
-          | Just pc <- [T.seleh (T.block_gatra block)]
-          ]
-        , [ ("name", Text.unwords (T.block_names block))
-          | not (null (T.block_names block))
-          ]
-        , [("file", txt (FilePath.takeFileName fname)) | not (null fname)]
-        , map meta_to_tag metas
-        ]
+make_tags fname metas block = Map.unions
+    [ block_tags block
+    , Map.fromListWith (\_ a -> a) (map meta_to_tag metas)
+    , Map.fromList [("file", txt (FilePath.takeFileName fname))]
+    ]
+
+meta_tags :: Meta -> Tags
+meta_tags (Meta { m_laras, m_irama, m_instrument }) = Map.fromList
+    [ ("laras", JScore.laras_enum m_laras)
+    , ("irama", JScore.irama_enum m_irama)
+    , ("instrument", JScore.instrument_enum m_instrument)
+    ]
+
+meta_to_tag :: T.Meta -> (Tag, Text)
+meta_to_tag = \case
+    T.Source a -> ("source", a)
+    T.Piece a -> ("piece", a)
+    T.Section a -> ("section", a)
+    T.Laras a -> ("laras-orig", JScore.laras_enum a)
+    T.Irama a -> ("irama", JScore.irama_enum a)
+    T.Instrument a -> ("instrument", JScore.instrument_enum a)
+
+block_tags :: Check.Block -> Tags
+block_tags block = Map.fromList $ concat
+    [ [ ("seleh", Text.singleton (T.pc_char pc))
+      | Just pc <- [T.seleh (T.block_gatra block)]
+      ]
+    -- TODO it should be multiple name= tags?
+    , [ ("name", Text.unwords (T.block_names block))
+      | not (null (T.block_names block))
+      ]
+    ]
+
+-- | Try to convert an Entry to a different T.Laras.
+convert_laras :: T.Laras -> Entry -> Maybe Entry
+convert_laras laras entry = do
+    meta <- e_meta entry
+    if laras == m_laras meta
+        then pure entry
+        else do
+            trans <- JScore.convert_laras (m_laras meta) laras
+            pure $ update_tags $ entry
+                { e_block = JScore.transform_block trans (e_block entry)
+                , e_meta = Just $ meta { m_laras = laras }
+
+                }
+
+update_tags :: Entry -> Entry
+update_tags entry = entry
+    { e_tags = maybe mempty meta_tags (e_meta entry)
+        <> block_tags (e_block entry)
+        <> e_tags entry
+    }
