@@ -166,10 +166,13 @@ irama_enum = \case
 instance Parse.Element T.ParsedBlock where
     parse config = do
         block_gatra <- Parse.lexeme $ Parse.parse config
-        -- lexeme_s doesn't do comments or newlines.  Otherwise, "1234\n1234\n"
-        -- is ambiguous either a name or another Gatra.
-        block_names <- P.many $ lexeme_s $ P.takeWhile1 $ \c ->
-            'a' <= c && c <= 'z' || '0' <= c && c <= '9' || c == '-'
+        -- I want to be able to parse gantung-5 seleh-3, but I can't parse
+        -- numbers and use normal whitespace because then "1234\n1234\n"
+        -- is ambiguous either a name or another Gatra.  So don't allow
+        -- a newline.  It's a bit unsatisfying because it makes newlines
+        -- matter.  Alternately, I could do an alternate "inferred tracks"
+        -- notation, like say "1234 names *"
+        block_names <- P.many $ lexeme_s p_name
         block_tracks <- P.optional $ Parse.parse config
         pure $ T.Block
             { block_gatra, block_names, block_tracks
@@ -178,6 +181,12 @@ instance Parse.Element T.ParsedBlock where
     unparse config (T.Block { block_gatra, block_names, block_tracks }) =
         Text.unwords $ Parse.unparse config block_gatra : block_names
             ++ maybe [] ((:[]) . Parse.unparse config) block_tracks
+
+p_name :: Parse.Parser Text
+p_name = Text.cons
+    <$> P.satisfy (\c -> 'a' <= c && c <= 'z')
+    <*> P.takeWhile1
+        (\c -> 'a' <= c && c <= 'z' || '0' <= c && c <= '9' || c == '-')
 
 instance Parse.Element T.Tracks where
     parse config =

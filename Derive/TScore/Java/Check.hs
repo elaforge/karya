@@ -3,9 +3,11 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 module Derive.TScore.Java.Check where
 
+import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Tuple as Tuple
 
@@ -95,7 +97,7 @@ normalize_name metas pos block = do
         name : names -> case Map.lookup name from_abbr of
             Just name -> pure $ name : names
             Nothing -> do
-                unless (name `elem` map fst standard_names) $
+                unless (is_valid_name name) $
                     warn pos $ "unknown name: " <> name
                 pure $ name : names
     pure $ block { T.block_names = names, T.block_inferred = inferred }
@@ -137,6 +139,15 @@ final_pitch =
     is_barline _ = False
     pitch_of (T.TNote _ note) = Just $ T.note_pitch note
     pitch_of _ = Nothing
+
+-- | Names like gantung-3 are also valid.
+is_valid_name :: Text -> Bool
+is_valid_name name =
+    Set.member name names
+        || Text.all Char.isDigit post && Set.member (Text.dropEnd 1 pre) names
+    where
+    names = Set.fromList (map fst standard_names)
+    (pre, post) = Text.breakOnEnd "-" name
 
 standard_names :: [(Text, Text)]
 standard_names =

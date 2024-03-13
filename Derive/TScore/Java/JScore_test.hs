@@ -27,9 +27,10 @@ everything_score =
 test_roundtrip :: Test
 test_roundtrip = do
     let trip = fmap JScore.unparse . JScore.parse_score
+    right_equal (trip "5321 -- seleh 1\n3216 -- seleh 6\n") "5321\n3216\n"
     right_equal (trip "%piece = b") "%piece = b\n"
     right_equal (trip "1235 [ > 5 6/. _ ]") "1235 [ > 5 6/. _ ]\n"
-    right_equal (trip "1235 gantung 2 seleh 5") "1235 gantung 2 seleh 5\n"
+    right_equal (trip "1235 gantung-2 seleh-5") "1235 gantung-2 seleh-5\n"
     let normalized = trip everything_score
     right_equal (const () <$> normalized) ()
     equal normalized (trip =<< normalized)
