@@ -35,7 +35,7 @@ resolve_tokens bias =
     fmap (resolve_durations bias) . normalize_barlines bias . resolve_pitch
 
 type Block = T.Block (Pitch Octave) [[Token]]
-type Token = T.Token (T.Note (Pitch Octave) ()) T.Rest
+type Token = T.Token T.Pos (T.Note (Pitch Octave) ()) T.Rest
 
 -- | Score-to-score, this takes the parsed score to a somewhat more normalized
 -- version.  So not the same as converting to tracklang, because I don't need
@@ -82,15 +82,16 @@ format_tracks (T.Tracks tracks) = case map T.track_tokens tracks of
     bias = BiasStart
 
 format_tokens :: Bias -> [T.ParsedToken]
-    -> CheckM [T.Token (T.Note (Pitch Octave) ()) T.Rest]
+    -> CheckM [T.Token T.Pos (T.Note (Pitch Octave) ()) T.Rest]
 format_tokens bias = normalize_barlines bias . resolve_pitch
     -- This doesn't do 'resolve_durations', because I want the original rests.
 
 -- * normalize names
 
 -- | Un-abbreviate standard cengkok names.
-normalize_name :: [T.Meta] -> T.Pos -> T.Block pitch [[Token]]
-    -> CheckM (T.Block pitch [[Token]])
+normalize_name :: [T.Meta] -> T.Pos
+    -> T.Block pitch [[T.Token pos (T.Note (Pitch Octave) dur) rest]]
+    -> CheckM (T.Block pitch [[T.Token pos (T.Note (Pitch Octave) dur) rest]])
 normalize_name metas pos block = do
     names <- case T.block_names block of
         [] -> pure ["seleh"]
@@ -119,7 +120,7 @@ normalize_name metas pos block = do
 data Chord = Kempyung | Gembyang
     deriving (Eq, Show)
 
-infer_chord :: T.Laras -> [[T.Token (T.Note (Pitch Octave) dur) rest]]
+infer_chord :: T.Laras -> [[T.Token pos (T.Note (Pitch Octave) dur) rest]]
     -> Maybe (Chord, T.PitchClass)
 infer_chord laras tracks = case map final_pitch tracks of
     [Just high, Just low]
@@ -129,7 +130,7 @@ infer_chord laras tracks = case map final_pitch tracks of
         | T.add_pc laras 3 low == high -> Just (Kempyung, T.pitch_pc low)
     _ -> Nothing
 
-final_pitch :: [T.Token (T.Note pitch dur) rest] -> Maybe pitch
+final_pitch :: [T.Token pos (T.Note pitch dur) rest] -> Maybe pitch
 final_pitch =
     msum . map pitch_of . take 3 . filter (not . is_barline) . reverse
     -- Only consider a few final notes, sometimes a final chord is offset,
@@ -183,8 +184,8 @@ standard_names =
 -- * resolve_pitch
 
 resolve_pitch
-    :: [T.Token (T.Note (Pitch T.OctaveHint) dur) rest]
-    -> [T.Token (T.Note (Pitch Octave) dur) rest]
+    :: [T.Token pos (T.Note (Pitch T.OctaveHint) dur) rest]
+    -> [T.Token pos (T.Note (Pitch Octave) dur) rest]
 resolve_pitch = snd . List.mapAccumL resolve (0, Nothing)
     where
     resolve prev = \case
@@ -244,7 +245,7 @@ infer_octave (prev_oct, Just prev_pc) (Pitch (T.OctaveHint rel_oct) pc) =
 
 -- * resolve_durations
 
-resolve_durations :: Bias -> [T.Token (T.Note pitch dur) T.Rest]
+resolve_durations :: Bias -> [T.Token pos (T.Note pitch dur) T.Rest]
     -> [(T.Time, T.Note pitch T.Time)]
 resolve_durations bias =
     Maybe.catMaybes . snd . List.mapAccumL resolve_rests 0 . Lists.zipNexts
@@ -288,8 +289,8 @@ resolve_durations bias =
 
 -- | Verify bar durations, infer rests if necessary.  After this, all bars
 -- should be a power of 2.
-normalize_barlines :: Bias -> [T.Token (T.Note pitch T.HasSpace) T.Rest]
-    -> CheckM [T.Token (T.Note pitch ()) T.Rest]
+normalize_barlines :: Bias -> [T.Token T.Pos (T.Note pitch T.HasSpace) T.Rest]
+    -> CheckM [T.Token T.Pos (T.Note pitch ()) T.Rest]
 normalize_barlines bias = map_bars $ \case
     [] -> pure []
     bar@(t : _)
@@ -306,8 +307,8 @@ normalize_barlines bias = map_bars $ \case
 
 -- | The T.Tokens given to the function will not contain T.TBarline.
 -- I could put it in the type, but it seems too much bother.
-map_bars :: Monad m => ([T.Token n1 r1] -> m [T.Token n2 r2])
-    -> [T.Token n1 r1] -> m [T.Token n2 r2]
+map_bars :: Monad m => ([T.Token pos n1 r1] -> m [T.Token pos n2 r2])
+    -> [T.Token pos n1 r1] -> m [T.Token pos n2 r2]
 map_bars f tokens = concat . add <$> mapM f (pre : map snd posts)
     where
     add [] = []
@@ -322,8 +323,9 @@ power_of_2 n = snd (properFraction (logBase 2 (fromIntegral n))) == 0
 
 -- | If there aren't enough notes in the bar, try inferring a rest before
 -- every odd group of notes followed by space.
-infer_rests :: Bias -> [T.Token (T.Note pitch T.HasSpace) T.Rest]
-    -> [T.Token (T.Note pitch T.HasSpace) T.Rest]
+infer_rests :: Bias
+    -> [T.Token T.Pos (T.Note pitch T.HasSpace) T.Rest]
+    -> [T.Token T.Pos (T.Note pitch T.HasSpace) T.Rest]
 infer_rests bias = concatMap infer . Lists.splitAfter has_space
     where
     infer tokens
@@ -337,8 +339,9 @@ infer_rests bias = concatMap infer . Lists.splitAfter has_space
         T.TRest _ rest -> T.rest_space rest == T.HasSpace
 
 -- | Split on barlines, zipPadded, map across them.
-normalize_hands :: Bias -> [T.Token note T.Rest] -> [T.Token note T.Rest]
-    -> CheckM ([T.Token note T.Rest], [T.Token note T.Rest])
+normalize_hands :: Bias
+    -> [T.Token T.Pos note T.Rest] -> [T.Token T.Pos note T.Rest]
+    -> CheckM ([T.Token T.Pos note T.Rest], [T.Token T.Pos note T.Rest])
 normalize_hands bias lefts rights =
     fmap (bimap join_bars join_bars . unzip) $ mapM normalize $
     Lists.zipPadded (split_bars lefts) (split_bars rights)
@@ -375,7 +378,7 @@ log2 n
     | otherwise = Nothing
     where (i, frac) = properFraction $ logBase 2 (fromIntegral n)
 
-split_bars :: [T.Token note rest] -> [(T.Pos, [T.Token note rest])]
+split_bars :: [T.Token pos note rest] -> [(pos, [T.Token pos note rest])]
 split_bars [] = []
 split_bars tokens@(t0 : _) = (T.token_pos t0, group0) : groups
     where
@@ -383,7 +386,7 @@ split_bars tokens@(t0 : _) = (T.token_pos t0, group0) : groups
     is_barline (T.TBarline pos) = Just pos
     is_barline _ = Nothing
 
-join_bars :: [(T.Pos, [T.Token note rest])] -> [T.Token note rest]
+join_bars :: [(pos, [T.Token pos note rest])] -> [T.Token pos note rest]
 join_bars [] = []
 join_bars ((_, g0) : gs) = concat $ g0 : map join gs
     where join (pos, tokens) = T.TBarline pos : tokens

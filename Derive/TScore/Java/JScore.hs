@@ -165,6 +165,7 @@ irama_enum = \case
 -- | 1234 name [ tracks ]
 instance Parse.Element T.ParsedBlock where
     parse config = do
+        block_pos <- Parse.get_pos
         block_gatra <- Parse.lexeme $ Parse.parse config
         -- I want to be able to parse gantung-5 seleh-3, but I can't parse
         -- numbers and use normal whitespace because then "1234\n1234\n"
@@ -175,7 +176,7 @@ instance Parse.Element T.ParsedBlock where
         block_names <- P.many $ lexeme_s p_name
         block_tracks <- P.optional $ Parse.parse config
         pure $ T.Block
-            { block_gatra, block_names, block_tracks
+            { block_gatra, block_names, block_tracks, block_pos
             , block_inferred = []
             }
     unparse config (T.Block { block_gatra, block_names, block_tracks }) =
@@ -235,7 +236,6 @@ instance Parse.Element T.Rest where
 
 instance Parse.Element (T.Note (Pitch T.OctaveHint) T.HasSpace) where
     parse config = do
-        note_pos <- Parse.get_pos
         note_pitch <- Parse.parse config
         note_zero_duration <- P.option False (P.char '/' *> pure True)
         -- Parse.lexeme is omitted from the calling parser to support this.
@@ -244,7 +244,6 @@ instance Parse.Element (T.Note (Pitch T.OctaveHint) T.HasSpace) where
             { note_pitch
             , note_zero_duration
             , note_duration
-            , note_pos
             }
     unparse config (T.Note { note_pitch, note_zero_duration, note_duration }) =
         Parse.unparse config note_pitch
@@ -370,7 +369,8 @@ format_toplevel state = \case
 
 format_block :: FormatState -> Check.Block -> [Text]
 format_block state block =
-    format_block_ irama inst (transform_block (state_transform state) block)
+    format_block_ (const id) irama inst
+        (transform_block (state_transform state) block)
     where
     irama = Lists.head [i | T.Irama i <- metas]
     inst = Lists.head [i | T.Instrument i <- metas]
@@ -379,12 +379,14 @@ format_block state block =
 transform_block :: Transform -> Check.Block -> Check.Block
 transform_block trans block = block
     { T.block_gatra = trans <$> T.block_gatra block
-    , T.block_tracks = map (map_pitch trans) (T.block_tracks block)
+    , T.block_tracks = map (T.map_pitch trans) (T.block_tracks block)
     }
 
-format_block_ :: Maybe T.Irama -> Maybe T.Instrument -> Check.Block -> [Text]
-format_block_ irama inst block =
-    title : map (("    "<>) . format_tokens bias) block_tracks
+format_block_ :: (pos -> Text -> Text) -> Maybe T.Irama -> Maybe T.Instrument
+    -> T.Block (Pitch Octave) [[T.Token pos (T.Note (Pitch Octave) dur) T.Rest]]
+    -> [Text]
+format_block_ fmt_pos irama inst block =
+    title : map (("    "<>) . format_tokens fmt_pos bias) block_tracks
     where
     title =
         Texts.join2 " " (format_gatra block_gatra) (Text.unwords block_names)
@@ -399,10 +401,6 @@ format_block_ irama inst block =
         | inst == Just T.GenderBarung && irama >= Just T.Wiled = Check.BiasEnd
         | inst == Just T.GenderPanerus && irama >= Just T.Dadi = Check.BiasEnd
         | otherwise = Check.BiasStart
-
-map_pitch :: (a -> b) -> [T.Token (T.Note a dur) rest]
-    -> [T.Token (T.Note b dur) rest]
-map_pitch f = map $ T.map_note (\n -> n { T.note_pitch = f (T.note_pitch n) })
 
 format_meta :: T.Meta -> Text
 format_meta = Text.drop 1 . unparse
@@ -426,12 +424,14 @@ format_balungan (T.Balungan pitch annot) = mconcat
         Just T.Kenong -> Text.singleton '\x0302' -- COMBINING CIRCUMFLEX ACCENT
     ]
 
-format_tokens :: Check.Bias -> [Check.Token] -> Text
-format_tokens bias = mconcat . go
+format_tokens :: (pos -> Text -> Text) -> Check.Bias
+    -> [T.Token pos (T.Note (Pitch Octave) dur) T.Rest]
+    -> Text
+format_tokens fmt_pos bias = mconcat . go
     where
-    go ts = zipWith format_token beats pre ++ case post of
+    go ts = zipWith (format_token fmt_pos) beats pre ++ case post of
         [] -> []
-        bar : post -> format_token True bar : go post
+        bar : post -> format_token fmt_pos True bar : go post
         where
         beats
             | length pre >= 8 = cycle $ case bias of
@@ -442,14 +442,16 @@ format_tokens bias = mconcat . go
     is_barline (T.TBarline {}) = True
     is_barline _ = False
 
-format_token :: Bool -> Check.Token -> Text
-format_token on_beat = \case
+format_token :: (pos -> Text -> Text) -> Bool
+    -> T.Token pos (T.Note (Pitch Octave) dur) T.Rest
+    -> Text
+format_token fmt_pos on_beat = \case
     T.TBarline {} -> " | "
     -- T.TBarline {} -> " " <> vertical_line <> " "
-    T.TRest _ (T.Rest { rest_sustain })
-        | on_beat -> if rest_sustain then "." else "_"
+    T.TRest pos (T.Rest { rest_sustain })
+        | on_beat -> fmt_pos pos $ if rest_sustain then "." else "_"
         | otherwise -> " "
-    T.TNote _ n -> format_pitch (T.note_pitch n)
+    T.TNote pos n -> fmt_pos pos $ format_pitch (T.note_pitch n)
         <> if T.note_zero_duration n then slash else ""
     where
     -- vertical_line = "\x007c" -- VERTICAL LINE

@@ -5529,6 +5529,10 @@ performance:
           and necessary.
 
 fltk:
+  - bug: skeleton display gets off from tracks
+    . What could cause this?
+  - simplify skeleton display by omitting linear sequences?
+    Or I could omit it entirely for implicit skeleton.
   - WrappedInput expansion incorrect when entering in already-wrapped
   - when editing a floating input or resizing a track afterwards, the whole
     window went black.  How to reproduce?
@@ -7582,7 +7586,30 @@ text score: tscore:
         back to having to parse again.  But the declarations would be in a big
         list or Map, given the All.hs generation thing like solkattu.
     db:
-      - function to diff tracks
+      * function to diff tracks
+        . Also get diff distance.
+        . Diffs is not right, I want pairwise equal or not.
+        . Doing on the rendered output means I count dotted notes as 2,
+          unless I slice out the text and count printable characters.
+        . If I make note_pos a parameter of Note, I can strip it out
+          after verification, then (==) works, and could also repurpose it
+          for highlight, and do the diff on Notes.
+        . At the note level could also do fancier diffs like pitch distance,
+          or rest<->note is less different, or treat a whole barline different
+          as 1.  It doesn't seem that useful though.
+        . Wait I have to, because character level diff is also messed up by
+          dots.
+        Plan:
+          * Note pos becomes a highlight Bool
+          * Check strips pos to ()
+          * Diff zips tracks, sets True when different, unzips
+          * format highlights when note_pos = True.
+          . note_pos is now a bad name, maybe note_meta?
+          . Turns out I'd have to put a pos param on Token too and maybe
+            Track.  Too much bother.  Maybe just use a magic pos?
+          * Or just remove note_pos, it's rendundant and maybe the original
+            rationale no longer applies?
+          * Ok now format_token has to know to format special pos.
       - diff all with the same seleh
         . To find interchangeable patterns.
         . Also with the same name.

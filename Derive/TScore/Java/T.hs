@@ -6,7 +6,7 @@ module Derive.TScore.Java.T (
     , module Derive.TScore.T
 ) where
 import           Derive.TScore.T
-    (Error(..), Pos(..), Time(..), fake_pos, show_error)
+    (Error(..), Pos(..), Time(..), fake_pos, find_pos, show_error)
 
 import           Global
 
@@ -133,6 +133,7 @@ data Block pitch tracks = Block {
     -- | Like block_names, but inferred automatically.
     , block_inferred :: [Text]
     , block_tracks :: tracks
+    , block_pos :: Pos
     } deriving (Eq, Show)
 
 newtype Tracks = Tracks [Track ParsedToken]
@@ -143,42 +144,49 @@ data Track token = Track {
     , track_pos :: Pos
     } deriving (Eq, Show)
 
-data Token note rest = TBarline Pos | TNote Pos note | TRest Pos rest
+data Token pos note rest = TBarline pos | TNote pos note | TRest pos rest
     deriving (Eq, Show)
 
-instance (Pretty note, Pretty rest) => Pretty (Token note rest) where
+instance (Pretty note, Pretty rest) => Pretty (Token pos note rest) where
     pretty = \case
         TBarline {} -> "|"
         TNote _ note -> pretty note
         TRest _ rest -> pretty rest
 
-token_note :: Token note rest -> Maybe note
+token_note :: Token pos note rest -> Maybe note
 token_note = \case
     TNote _ note -> Just note
     _ -> Nothing
 
-token_pos :: Token note rest -> Pos
+token_pos :: Token pos note rest -> pos
 token_pos = \case
     TBarline pos -> pos
     TNote pos _ -> pos
     TRest pos _ -> pos
 
-type ParsedToken = Token (Note ParsedPitch HasSpace) Rest
+set_token_pos :: a -> Token pos note rest -> Token a note rest
+set_token_pos a = \case
+    TBarline _ -> TBarline a
+    TNote _ n -> TNote a n
+    TRest _ r -> TRest a r
 
-map_note :: (n1 -> n2) -> Token n1 rest -> Token n2 rest
+type ParsedToken = Token Pos (Note ParsedPitch HasSpace) Rest
+
+map_note :: (n1 -> n2) -> Token pos n1 rest -> Token pos n2 rest
 map_note f = \case
     TBarline pos -> TBarline pos
     TNote pos note -> TNote pos (f note)
     TRest pos rest -> TRest pos rest
+
+map_pitch :: (a -> b) -> [Token pos (Note a dur) rest]
+    -> [Token pos (Note b dur) rest]
+map_pitch f = map $ map_note (\n -> n { note_pitch = f (note_pitch n) })
 
 data Note pitch dur = Note {
     note_pitch :: pitch
     -- | The generated event should have 0 duration.
     , note_zero_duration :: Bool
     , note_duration :: dur
-    -- | This is redundant with 'TNote's Pos, but convenient, since Check will
-    -- later strip away 'Token's.
-    , note_pos :: Pos
     } deriving (Eq, Show)
 
 instance Pretty pitch => Pretty (Note pitch dur) where
