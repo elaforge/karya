@@ -121,7 +121,7 @@ instance Parse.Element T.Meta where
             "section" -> pure $ T.Section val
             "laras" -> maybe unknown (return . T.Laras) $
                 parse_enum laras_enum val
-            "inst" -> maybe unknown (return . T.Instrument) $
+            "instrument" -> maybe unknown (return . T.Instrument) $
                 parse_enum instrument_enum val
             "irama" -> maybe unknown (return . T.Irama) $
                 parse_enum irama_enum val
@@ -132,7 +132,7 @@ instance Parse.Element T.Meta where
         T.Section a -> un "section" a
         T.Laras a -> un "laras" (laras_enum a)
         T.Irama a -> un "irama" (irama_enum a)
-        T.Instrument a -> un "inst" (instrument_enum a)
+        T.Instrument a -> un "instrument" (instrument_enum a)
         where un key val = mconcat ["%", key, " = ", val]
 
 parse_enum :: (Bounded a, Enum a) => (a -> Text) -> Text -> Maybe a

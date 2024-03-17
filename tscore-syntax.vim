@@ -5,6 +5,8 @@
 syn match tsDirective "%default-call\>"
 syn match tsDirective "%\(dur\|meter\|negative\|scale\|f\)\>"
 syn match tsDirective "%\(ky\|instruments\)\>"
+" java tscore
+syn match tsDirective "%\(source\|piece\|section\|laras\|irama\|instrument\)\>"
 hi tsDirective cterm=underline
 
 syn match tsTrackTitle ">[!@#$%^&*]*[a-z0-9.-]*"

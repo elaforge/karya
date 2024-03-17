@@ -3,7 +3,7 @@
 %source = joko-purwanto
 %laras = pelog-lima
 %irama = dadi
-%inst = gender-barung
+%instrument = gender-barung
 
 %section = ompak
 
@@ -104,7 +104,7 @@
 2121) tumurun gede -- or 1/2 tm 1/2 kkp?
 
 
-%inst = gender-panerus
+%instrument = gender-panerus
 %section = ompak
 %irama = tanggung
 

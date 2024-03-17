@@ -43,7 +43,7 @@ char_pc = \case
     '7' -> Just P7
     _ -> Nothing
 
--- TODO use the better one from JScore
+-- TODO use the format_pitch one with dots?
 instance Pretty Pitch where
     pretty (Pitch oct pc) = showt oct <> pretty pc
 instance Pretty PitchClass where pretty = txt . drop 1 . show

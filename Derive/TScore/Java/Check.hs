@@ -1,8 +1,19 @@
 -- Copyright 2023 Evan Laforge
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
-module Derive.TScore.Java.Check where
-
+{-# LANGUAGE CPP #-}
+module Derive.TScore.Java.Check (
+    CheckM
+    , Bias(..)
+    -- * resolve
+    , resolve_tokens
+    -- * format
+    , Block
+    , format_score
+#ifdef TESTING
+    , infer_octave
+#endif
+) where
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -36,11 +47,11 @@ resolve_tokens bias =
 type Block = T.Block T.Pitch [[Token]]
 type Token = T.Token T.Pos (T.Note T.Pitch ()) T.Rest
 
--- | Score-to-score, this takes the parsed score to a somewhat more normalized
--- version.  So not the same as converting to tracklang, because I don't need
--- actual times and durations.  Also I have to 'normalize_hands' to make
--- sure they are at the same "zoom", but it's only since I don't want to
--- convert from times back to notes.
+-- | This takes the parsed score to a somewhat more normalized version.  So not
+-- the same as converting to tracklang, because I don't need actual times and
+-- durations.  Also I have to 'normalize_hands' to make sure they are at the
+-- same "zoom", but it's only since I don't want to convert from times back to
+-- notes.
 format_score :: T.ParsedScore -> CheckM (T.Score Block)
 format_score (T.Score toplevels) =
     T.Score . snd <$> Lists.mapAccumLM format [] toplevels

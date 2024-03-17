@@ -16,7 +16,7 @@ import           Util.Test.Global
 everything_score :: Text
 everything_score =
     "%irama = tanggung\n\
-    \%inst = gender-barung -- comment\n\
+    \%instrument = gender-barung -- comment\n\
     \3231^ dualolo cilik [\n\
     \    > '5653 | .6.56.1.\n\
     \    >  .12_ | 6.2.321.\n\
