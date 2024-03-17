@@ -13,19 +13,17 @@ import           Global
 
 -- * pitch
 
-type ParsedPitch = Pitch OctaveHint
+-- | Pitch with octave hint, before inferring the octave.  Positive means
+-- pitches go up, negative is down.
+data ParsedPitch = ParsedPitch Int PitchClass
+    deriving (Eq, Ord, Show)
 
-data Pitch oct = Pitch { pitch_octave :: oct, pitch_pc :: PitchClass }
+data Pitch = Pitch { pitch_octave :: Octave, pitch_pc :: PitchClass }
     deriving (Eq, Ord, Show)
 
 -- | This is the instrument relative octave.  Add the instrument's base octave
--- to the an absolute octave.
+-- for absolute octave.
 type Octave = Int
-
--- | A hint for which direction pitches go, positive means they go up (plus
--- octaves), negative is down.
-newtype OctaveHint = OctaveHint Int
-    deriving (Eq, Ord, Show)
 
 data PitchClass = P1 | P2 | P3 | P4 | P5 | P6 | P7
     deriving (Eq, Ord, Show, Bounded, Enum)
@@ -46,14 +44,14 @@ char_pc = \case
     _ -> Nothing
 
 -- TODO use the better one from JScore
-instance Pretty (Pitch Octave) where
+instance Pretty Pitch where
     pretty (Pitch oct pc) = showt oct <> pretty pc
 instance Pretty PitchClass where pretty = txt . drop 1 . show
 
-add_oct :: Octave -> Pitch Octave -> Pitch Octave
+add_oct :: Octave -> Pitch -> Pitch
 add_oct oct (Pitch o pc) = Pitch (oct+o) pc
 
-add_pc :: Laras -> Int -> Pitch Octave -> Pitch Octave
+add_pc :: Laras -> Int -> Pitch -> Pitch
 add_pc laras steps = (!! abs steps) . iterate step
     where
     up = steps >= 0
@@ -71,11 +69,11 @@ add_pc laras steps = (!! abs steps) . iterate step
         (_, True)            -> [1, 1, 2, 1, 1, 2, 1]
         (_, False)           -> [-2, -1, -1, -1, -2, -1, -1]
 
-add_pc_abs :: Int -> Pitch Octave -> Pitch Octave
+add_pc_abs :: Int -> Pitch -> Pitch
 add_pc_abs steps (Pitch octave pc) = Pitch (octave + oct) pc2
     where (oct, pc2) = toEnumBounded $ fromEnum pc + steps
 
-pitch_diff :: Pitch Octave -> Pitch Octave -> Int
+pitch_diff :: Pitch -> Pitch -> Int
 pitch_diff (Pitch oct1 pc1) (Pitch oct2 pc2) =
     per_oct * (oct1 - oct2) + (fromEnum pc1 - fromEnum pc2)
     where
@@ -91,7 +89,7 @@ data Balungan pitch = Balungan (Maybe pitch) (Maybe BalunganAnnotation)
 data BalunganAnnotation = Gong | Kenong
     deriving (Eq, Show)
 
-seleh :: Gatra (Pitch oct) -> Maybe PitchClass
+seleh :: Gatra Pitch -> Maybe PitchClass
 seleh (Gatra n1 n2 n3 n4) = msum $ map pc_of [n4, n3, n2, n1]
     where
     pc_of (Balungan (Just (Pitch _ pc)) _) = Just pc

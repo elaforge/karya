@@ -57,7 +57,6 @@ import qualified Util.Texts as Texts
 
 import qualified Derive.TScore.Java.Check as Check
 import qualified Derive.TScore.Java.T as T
-import           Derive.TScore.Java.T (Octave, Pitch(..))
 import qualified Derive.TScore.Parse as Parse
 import qualified Derive.TScore.T as TScore.T
 
@@ -235,7 +234,7 @@ instance Parse.Element T.Rest where
             T.NoSpace -> ""
             T.HasSpace -> " "
 
-instance Parse.Element (T.Note (Pitch T.OctaveHint) T.HasSpace) where
+instance Parse.Element (T.Note T.ParsedPitch T.HasSpace) where
     parse config = do
         note_pitch <- Parse.parse config
         note_zero_duration <- P.option False (P.char '/' *> pure True)
@@ -258,19 +257,19 @@ instance Parse.Element T.PitchClass where
         =<< P.satisfy (\c -> '1' <= c && c <= '9')
     unparse _ p = Text.singleton (T.pc_char p)
 
-instance Parse.Element (Pitch T.OctaveHint) where
+instance Parse.Element T.ParsedPitch where
     parse config = do
-        oct <- Text.foldl' (\n c -> n + if c == ',' then -1 else 1) 0 <$>
+        oct_hint <- Text.foldl' (\n c -> n + if c == ',' then -1 else 1) 0 <$>
             P.takeWhile (`elem` (",'" :: String))
         p <- Parse.parse config
-        pure $ Pitch (T.OctaveHint oct) p
-    unparse config (Pitch (T.OctaveHint oct) pc) =
+        pure $ T.ParsedPitch oct_hint p
+    unparse config (T.ParsedPitch oct_hint pc) =
         octs <> Parse.unparse config pc
         where
-        octs = case compare oct 0 of
+        octs = case compare oct_hint 0 of
             EQ -> ""
-            LT -> Text.replicate (- oct) ","
-            GT -> Text.replicate oct "'"
+            LT -> Text.replicate (- oct_hint) ","
+            GT -> Text.replicate oct_hint "'"
 
 instance Parse.Element (T.Gatra T.ParsedPitch) where
     parse config = T.Gatra <$> p <*> p <*> p <*> p
@@ -301,7 +300,7 @@ p_simple_space = P.skipWhile (\c -> c == ' ' || c == '\t')
 
 -- * transform
 
-type Transform = Pitch Octave -> Pitch Octave
+type Transform = T.Pitch -> T.Pitch
 
 convert_laras :: T.Laras -> T.Laras -> Maybe Transform
 convert_laras a b = case (a, b) of
@@ -323,9 +322,9 @@ convert_laras a b = case (a, b) of
     (T.SlendroSanga, T.PelogNem) -> Just id -- TODO maybe?
     _ -> Nothing
     where
-    one_to_seven p@(Pitch _ T.P1) = T.add_pc_abs (-1) p
+    one_to_seven p@(T.Pitch _ T.P1) = T.add_pc_abs (-1) p
     one_to_seven p = p
-    seven_to_one p@(Pitch _ T.P7) = T.add_pc_abs 1 p
+    seven_to_one p@(T.Pitch _ T.P7) = T.add_pc_abs 1 p
     seven_to_one p = p
 
 -- * format
@@ -381,8 +380,8 @@ format_title_block state block =
     inst = Lists.head [i | T.Instrument i <- metas]
     metas = state_metas state
 
-type Block tracks = T.Block (Pitch Octave) tracks
-type Token pos dur rest = T.Token pos (T.Note (Pitch Octave) dur) rest
+type Block tracks = T.Block T.Pitch tracks
+type Token pos dur rest = T.Token pos (T.Note T.Pitch dur) rest
 
 transform_block :: Transform
     -> Block [[Token pos dur rest]] -> Block [[Token pos dur rest]]
@@ -392,7 +391,7 @@ transform_block trans block = block
     }
 
 format_block :: (pos -> Text -> Text) -> Maybe T.Irama -> Maybe T.Instrument
-    -> T.Block (Pitch Octave) [[T.Token pos (T.Note (Pitch Octave) dur) T.Rest]]
+    -> T.Block T.Pitch [[T.Token pos (T.Note T.Pitch dur) T.Rest]]
     -> [Text]
 format_block fmt_pos irama inst block =
     map (("    "<>) . format_tokens fmt_pos bias) (T.block_tracks block)
@@ -406,7 +405,7 @@ format_block fmt_pos irama inst block =
         | inst == Just T.GenderPanerus && irama >= Just T.Dadi = Check.BiasEnd
         | otherwise = Check.BiasStart
 
-format_title :: T.Block (Pitch Octave) tracks -> Text
+format_title :: T.Block T.Pitch tracks -> Text
 format_title block =
     Texts.join2 " " (format_gatra block_gatra) (Text.unwords block_names)
     <> if null block_inferred then ""
@@ -418,11 +417,11 @@ format_meta :: T.Meta -> Text
 format_meta = Text.drop 1 . unparse
     -- Input syntax uses a leading %.
 
-format_gatra :: T.Gatra (Pitch Octave) -> Text
+format_gatra :: T.Gatra T.Pitch -> Text
 format_gatra (T.Gatra n1 n2 n3 n4) =
     mconcatMap format_balungan [n1, n2, n3, n4]
 
-format_balungan :: T.Balungan (Pitch Octave) -> Text
+format_balungan :: T.Balungan T.Pitch -> Text
 format_balungan (T.Balungan (Just (T.Pitch oct pc)) (Just T.Gong))
     -- The hardcoded circled digit looks better than the combining enclosing
     -- circle.
@@ -437,7 +436,7 @@ format_balungan (T.Balungan pitch annot) = mconcat
     ]
 
 format_tokens :: (pos -> Text -> Text) -> Check.Bias
-    -> [T.Token pos (T.Note (Pitch Octave) dur) T.Rest]
+    -> [T.Token pos (T.Note T.Pitch dur) T.Rest]
     -> Text
 format_tokens fmt_pos bias = mconcat . go
     where
@@ -455,7 +454,7 @@ format_tokens fmt_pos bias = mconcat . go
     is_barline _ = False
 
 format_token :: (pos -> Text -> Text) -> Bool
-    -> T.Token pos (T.Note (Pitch Octave) dur) T.Rest
+    -> T.Token pos (T.Note T.Pitch dur) T.Rest
     -> Text
 format_token fmt_pos on_beat = \case
     T.TBarline {} -> " | "
@@ -472,8 +471,8 @@ format_token fmt_pos on_beat = \case
         else "\x0336" -- COMBINING LONG STROKE OVERLAY
     use_slash = True
 
-format_pitch :: Pitch Octave -> Text
-format_pitch (Pitch oct pc) = Text.cons (T.pc_char pc) dots
+format_pitch :: T.Pitch -> Text
+format_pitch (T.Pitch oct pc) = Text.cons (T.pc_char pc) dots
     where
     dots = case oct of
         0 -> ""

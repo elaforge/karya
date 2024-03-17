@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE StrictData #-}
+-- | Treat Java tscores as a DB of patterns.
 module Derive.TScore.Java.Db where
 import qualified Data.Either as Either
 import qualified Data.List as List
@@ -94,7 +95,7 @@ format_tags = Text.unwords . map format . Map.toList
     where format (k, v) = k <> "=" <> v
 
 _seleh1 = search T.PelogLima
-    "instrument=gender-panerus irama=dadi name=seleh seleh=1"
+    "instrument=gender-panerus irama=dadi seleh=1"
 
 search :: T.Laras -> Text -> IO ()
 search laras tags = do

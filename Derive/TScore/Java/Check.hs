@@ -16,7 +16,6 @@ import qualified Util.Logger as Logger
 import qualified Util.Num as Num
 
 import qualified Derive.TScore.Java.T as T
-import           Derive.TScore.Java.T (Octave, Pitch(..))
 
 import           Global
 
@@ -30,12 +29,12 @@ data Bias = BiasStart | BiasEnd
     deriving (Show, Eq)
 
 resolve_tokens :: Bias -> [T.ParsedToken]
-    -> CheckM [(T.Time, T.Note (Pitch Octave) T.Time)]
+    -> CheckM [(T.Time, T.Note T.Pitch T.Time)]
 resolve_tokens bias =
     fmap (resolve_durations bias) . normalize_barlines bias . resolve_pitch
 
-type Block = T.Block (Pitch Octave) [[Token]]
-type Token = T.Token T.Pos (T.Note (Pitch Octave) ()) T.Rest
+type Block = T.Block T.Pitch [[Token]]
+type Token = T.Token T.Pos (T.Note T.Pitch ()) T.Rest
 
 -- | Score-to-score, this takes the parsed score to a somewhat more normalized
 -- version.  So not the same as converting to tracklang, because I don't need
@@ -82,7 +81,7 @@ format_tracks (T.Tracks tracks) = case map T.track_tokens tracks of
     bias = BiasStart
 
 format_tokens :: Bias -> [T.ParsedToken]
-    -> CheckM [T.Token T.Pos (T.Note (Pitch Octave) ()) T.Rest]
+    -> CheckM [T.Token T.Pos (T.Note T.Pitch ()) T.Rest]
 format_tokens bias = normalize_barlines bias . resolve_pitch
     -- This doesn't do 'resolve_durations', because I want the original rests.
 
@@ -90,8 +89,8 @@ format_tokens bias = normalize_barlines bias . resolve_pitch
 
 -- | Un-abbreviate standard cengkok names.
 normalize_name :: [T.Meta] -> T.Pos
-    -> T.Block pitch [[T.Token pos (T.Note (Pitch Octave) dur) rest]]
-    -> CheckM (T.Block pitch [[T.Token pos (T.Note (Pitch Octave) dur) rest]])
+    -> T.Block pitch [[T.Token pos (T.Note T.Pitch dur) rest]]
+    -> CheckM (T.Block pitch [[T.Token pos (T.Note T.Pitch dur) rest]])
 normalize_name metas pos block = do
     names <- case T.block_names block of
         [] -> pure ["seleh"]
@@ -120,12 +119,12 @@ normalize_name metas pos block = do
 data Chord = Kempyung | Gembyang
     deriving (Eq, Show)
 
-infer_chord :: T.Laras -> [[T.Token pos (T.Note (Pitch Octave) dur) rest]]
+infer_chord :: T.Laras -> [[T.Token pos (T.Note T.Pitch dur) rest]]
     -> Maybe (Chord, T.PitchClass)
 infer_chord laras tracks = case map final_pitch tracks of
     [Just high, Just low]
-        | pitch_pc high == pitch_pc low
-        && pitch_octave high == pitch_octave low + 1 ->
+        | T.pitch_pc high == T.pitch_pc low
+        && T.pitch_octave high == T.pitch_octave low + 1 ->
             Just (Gembyang, T.pitch_pc low)
         | T.add_pc laras 3 low == high -> Just (Kempyung, T.pitch_pc low)
     _ -> Nothing
@@ -184,8 +183,8 @@ standard_names =
 -- * resolve_pitch
 
 resolve_pitch
-    :: [T.Token pos (T.Note (Pitch T.OctaveHint) dur) rest]
-    -> [T.Token pos (T.Note (Pitch Octave) dur) rest]
+    :: [T.Token pos (T.Note T.ParsedPitch dur) rest]
+    -> [T.Token pos (T.Note T.Pitch dur) rest]
 resolve_pitch = snd . List.mapAccumL resolve (0, Nothing)
     where
     resolve prev = \case
@@ -196,19 +195,19 @@ resolve_pitch = snd . List.mapAccumL resolve (0, Nothing)
             , T.TNote pos $ note { T.note_pitch = pitch }
             )
             where
-            pitch@(Pitch oct pc) = infer_octave prev (T.note_pitch note)
+            pitch@(T.Pitch oct pc) = infer_octave prev (T.note_pitch note)
 
 -- | No octave inferring, the octave is exactly as notated.  Maybe this is more
 -- useful for balungan, which more often stays within the central register?  Or
 -- not?
-resolve_gatra_pitch_simple :: T.Gatra T.ParsedPitch -> T.Gatra (Pitch Octave)
+resolve_gatra_pitch_simple :: T.Gatra T.ParsedPitch -> T.Gatra T.Pitch
 resolve_gatra_pitch_simple (T.Gatra p1 p2 p3 p4) =
     T.Gatra (r p1) (r p2) (r p3) (r p4)
     where
     r (T.Balungan p annot) = T.Balungan (convert <$> p) annot
-    convert (Pitch (T.OctaveHint oct) pc) = Pitch oct pc
+    convert (T.ParsedPitch oct pc) = T.Pitch oct pc
 
-resolve_gatra_pitch :: T.Gatra T.ParsedPitch -> T.Gatra (Pitch Octave)
+resolve_gatra_pitch :: T.Gatra T.ParsedPitch -> T.Gatra T.Pitch
 resolve_gatra_pitch (T.Gatra p1 p2 p3 p4) =
     case snd $ List.mapAccumL resolve (0, Nothing) [p1, p2, p3, p4] of
         [p1, p2, p3, p4] -> T.Gatra p1 p2 p3 p4
@@ -218,30 +217,29 @@ resolve_gatra_pitch (T.Gatra p1 p2 p3 p4) =
     resolve prev (T.Balungan Nothing annot) = (prev, T.Balungan Nothing annot)
     resolve prev (T.Balungan (Just p) annot) =
         ((oct, Just pc), T.Balungan (Just pitch) annot)
-        where pitch@(Pitch oct pc) = infer_octave prev p
+        where pitch@(T.Pitch oct pc) = infer_octave prev p
 
 -- Initial prev_oct is based on the instrument.
 -- Similar to Check.infer_octave, but uses simpler 'Pitch' instead of
 -- 'Perform.Pitch.Pitch'.
-infer_octave :: (Octave, Maybe T.PitchClass) -> Pitch T.OctaveHint
-    -> Pitch Octave
-infer_octave (prev_oct, Nothing) (Pitch (T.OctaveHint rel_oct) pc) =
-    Pitch (prev_oct + rel_oct) pc
-infer_octave (prev_oct, Just prev_pc) (Pitch (T.OctaveHint rel_oct) pc) =
+infer_octave :: (T.Octave, Maybe T.PitchClass) -> T.ParsedPitch -> T.Pitch
+infer_octave (prev_oct, Nothing) (T.ParsedPitch rel_oct pc) =
+    T.Pitch (prev_oct + rel_oct) pc
+infer_octave (prev_oct, Just prev_pc) (T.ParsedPitch rel_oct pc) =
     case compare rel_oct 0 of
         -- If distances are equal, favor downward motion.  But since PitchClass
         -- has an odd number, this never happens.  If I omit P4, it could
         -- though, but then I should also omit P1 or P7.
         EQ
-            | prev_pc == pc -> Pitch prev_oct pc
+            | prev_pc == pc -> T.Pitch prev_oct pc
             | otherwise -> Lists.minOn (abs . T.pitch_diff prev) above below
         GT -> T.add_oct (rel_oct-1) above
         LT -> T.add_oct (rel_oct+1) below
     where
-    prev = Pitch prev_oct prev_pc
+    prev = T.Pitch prev_oct prev_pc
     -- If I'm moving up, then I don't need to increment the octave to be above.
-    above = Pitch (if pc > prev_pc then prev_oct else prev_oct+1) pc
-    below = Pitch (if pc < prev_pc then prev_oct else prev_oct-1) pc
+    above = T.Pitch (if pc > prev_pc then prev_oct else prev_oct+1) pc
+    below = T.Pitch (if pc < prev_pc then prev_oct else prev_oct-1) pc
 
 -- * resolve_durations
 
@@ -393,11 +391,11 @@ join_bars ((_, g0) : gs) = concat $ g0 : map join gs
 
 -- * check pitches
 
-instrument_range :: T.Instrument -> (Pitch Octave, Pitch Octave)
+instrument_range :: T.Instrument -> (T.Pitch, T.Pitch)
 instrument_range = \case
-    T.GenderBarung -> (Pitch (-2) T.P6, Pitch 1 T.P3)
-    T.GenderPanerus -> (Pitch (-2) T.P6, Pitch 1 T.P3)
-    T.Siter -> (Pitch (-2) T.P2, Pitch 1 T.P3)
+    T.GenderBarung -> (T.Pitch (-2) T.P6, T.Pitch 1 T.P3)
+    T.GenderPanerus -> (T.Pitch (-2) T.P6, T.Pitch 1 T.P3)
+    T.Siter -> (T.Pitch (-2) T.P2, T.Pitch 1 T.P3)
 
 has_1 :: T.Laras -> Bool
 has_1 = (/= T.PelogBarang)
