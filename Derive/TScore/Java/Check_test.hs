@@ -65,18 +65,18 @@ format_score source = case JScore.parse_score source of
 test_infer_octave :: Test
 test_infer_octave = do
     let f = Check.infer_octave
-    let o = T.OctaveHint
-    equal (f (1, Just P1) (Pitch (o 0) P2)) (Pitch 1 P2)
-    equal (f (1, Just P1) (Pitch (o 0) P7)) (Pitch 0 P7)
+    let p = T.ParsedPitch
+    equal (f (1, Just P1) (p 0 P2)) (Pitch 1 P2)
+    equal (f (1, Just P1) (p 0 P7)) (Pitch 0 P7)
     -- First ' forces upward motion.
-    equal (f (1, Just P1) (Pitch (o 1) P2)) (Pitch 1 P2)
-    equal (f (1, Just P1) (Pitch (o 1) P7)) (Pitch 1 P7)
+    equal (f (1, Just P1) (p 1 P2)) (Pitch 1 P2)
+    equal (f (1, Just P1) (p 1 P7)) (Pitch 1 P7)
     -- Additional 's add octaves.
-    equal (f (1, Just P1) (Pitch (o 2) P2)) (Pitch 2 P2)
+    equal (f (1, Just P1) (p 2 P2)) (Pitch 2 P2)
     -- Same for ,
-    equal (f (1, Just P1) (Pitch (o (-1)) P2)) (Pitch 0 P2)
-    equal (f (1, Just P1) (Pitch (o (-1)) P7)) (Pitch 0 P7)
-    equal (f (1, Just P1) (Pitch (o (-2)) P2)) (Pitch (-1) P2)
+    equal (f (1, Just P1) (p (-1) P2)) (Pitch 0 P2)
+    equal (f (1, Just P1) (p (-1) P7)) (Pitch 0 P7)
+    equal (f (1, Just P1) (p (-2) P2)) (Pitch (-1) P2)
 
 test_resolve_pitch :: Test
 test_resolve_pitch = do
@@ -162,7 +162,7 @@ parse_tokens :: Text -> [T.ParsedToken]
 parse_tokens = Testing.expect_right . fmap T.track_tokens . parse . ("> "<>)
 
 resolve_tokens :: Check.Bias -> Text
-    -> Either [T.Error] [(T.Time, T.Note (Pitch Int) T.Time)]
+    -> Either [T.Error] [(T.Time, T.Note Pitch T.Time)]
 resolve_tokens bias source
     | null errs = Right lines
     | otherwise = Left errs
