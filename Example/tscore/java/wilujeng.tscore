@@ -1,7 +1,7 @@
 -- :mode: java
 %piece = wilujeng
 %laras = slendro-manyura
-%inst = gender-barung
+%instrument = gender-barung
 
 .... buko [
     > .516 | .561 | 5516 | 2 1 2 6
@@ -94,7 +94,7 @@
     > . . .21  | 6 165 3 | . 5 3 5  | 6 1 216
 ]
 
-%inst = gender-panerus
+%instrument = gender-panerus
 
 .... buko [
     > .516 | .516 | 5516 | .'3.2.1.6

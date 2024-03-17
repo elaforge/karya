@@ -31,15 +31,17 @@ test_format_score = do
         "left hand with no right hand"
     left_like (f id "1235 [ > 1235 > 12345 ]") "not a power of 2: 5"
     -- check_range
-    left_like (f id "%inst = gender-panerus\n1235 [ > ,1656 ]")
+    left_like (f id "%instrument = gender-panerus\n1235 [ > ,1656 ]")
         "out of range for GenderPanerus: -25"
-    left_like (f id "%inst = gender-panerus\n1235 [ > '1353 ]")
+    left_like (f id "%instrument = gender-panerus\n1235 [ > '1353 ]")
         "out of range for GenderPanerus: 15"
     left_like
-        (f id "%inst = gender-panerus\n%laras = pelog-lima\n1235 [ > 1234 ]")
+        (f id "%instrument = gender-panerus\n%laras = pelog-lima\n\
+            \1235 [ > 1234 ]")
         "GenderPanerus doesn't have 4"
     left_like
-        (f id "%inst = gender-panerus\n%laras = pelog-lima\n1235 [ > 1271 ]")
+        (f id "%instrument = gender-panerus\n%laras = pelog-lima\n\
+            \1235 [ > 1271 ]")
         "PelogLima doesn't have 7"
     -- check_hands
     right_equal (f (const ()) "1235 [ > 2222 > .1.1.1.1 ]") ([()])

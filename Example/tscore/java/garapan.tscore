@@ -1,5 +1,5 @@
 -- Generic garapan.
-%inst = gender-panerus
+%instrument = gender-panerus
 %laras = pelog-nem
 %source = midiyanto
 %irama = tanggung
@@ -22,7 +22,7 @@
      > 2.21 2.2. | 2 .216.6.
 ]
 
-%inst = siter
+%instrument = siter
 
 -- same as gender-panerus except no 126
 ...1 [
@@ -45,7 +45,7 @@
 
 
 %source = patrick
-%inst = gender-panerus
+%instrument = gender-panerus
 %laras = slendro-manyura
 
 ...1 [

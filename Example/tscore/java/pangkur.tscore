@@ -2,7 +2,7 @@
 %piece = pangkur
 %source = joko-purwanto
 %laras = slendro-manyura
-%inst = gender-barung
+%instrument = gender-barung
 
 .... buko [
     -- > ...6 | .1.6 | 2.126 | 21.2.6.
@@ -197,7 +197,7 @@
 
 
 ----------------------------------------
-%inst = gender-panerus
+%instrument = gender-panerus
 %laras = pelog-barang -- gender-barung part is slendro-manyura
 %section = ompak
 %irama = tanggung
@@ -495,7 +495,7 @@
 
 
 ----------------------------------------
-%inst = siter
+%instrument = siter
 %laras = pelog-barang
 %section = ompak
 %irama = tanggung
