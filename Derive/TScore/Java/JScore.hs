@@ -37,7 +37,8 @@ module Derive.TScore.Java.JScore (
     -- * format
     , format_file
     , format_score
-    , format_block_
+    , format_block
+    , format_title
     , instrument_enum, irama_enum, laras_enum
     -- * Transform
     , Transform
@@ -310,6 +311,10 @@ convert_laras a b = case (a, b) of
     (T.SlendroManyura, T.PelogBarang) -> Just one_to_seven
     (T.PelogBarang, T.SlendroManyura) -> Just seven_to_one
 
+    -- slendro-manyura -> pelog-barang -> pelog-lima
+    (T.SlendroManyura, T.PelogLima) -> Just id
+    (T.PelogLima, T.SlendroManyura) -> Just id
+
     -- TODO pelog-nem to lima by transposing down one, not sure.
     -- can I go lima to num by going back up one?
     (T.PelogNem, T.PelogLima) -> Just $ T.add_pc T.PelogLima (-1)
@@ -364,35 +369,34 @@ format_toplevel state = \case
         )
     T.BlockDefinition block ->
         ( state { state_prev_is_block = True }
-        , format_block state block
+        , format_title_block state block
         )
 
-format_block :: FormatState -> Check.Block -> [Text]
-format_block state block =
-    format_block_ (const id) irama inst
+format_title_block :: FormatState -> Check.Block -> [Text]
+format_title_block state block =
+    format_title block : format_block (const id) irama inst
         (transform_block (state_transform state) block)
     where
     irama = Lists.head [i | T.Irama i <- metas]
     inst = Lists.head [i | T.Instrument i <- metas]
     metas = state_metas state
 
-transform_block :: Transform -> Check.Block -> Check.Block
+type Block tracks = T.Block (Pitch Octave) tracks
+type Token pos dur rest = T.Token pos (T.Note (Pitch Octave) dur) rest
+
+transform_block :: Transform
+    -> Block [[Token pos dur rest]] -> Block [[Token pos dur rest]]
 transform_block trans block = block
     { T.block_gatra = trans <$> T.block_gatra block
     , T.block_tracks = map (T.map_pitch trans) (T.block_tracks block)
     }
 
-format_block_ :: (pos -> Text -> Text) -> Maybe T.Irama -> Maybe T.Instrument
+format_block :: (pos -> Text -> Text) -> Maybe T.Irama -> Maybe T.Instrument
     -> T.Block (Pitch Octave) [[T.Token pos (T.Note (Pitch Octave) dur) T.Rest]]
     -> [Text]
-format_block_ fmt_pos irama inst block =
-    title : map (("    "<>) . format_tokens fmt_pos bias) block_tracks
+format_block fmt_pos irama inst block =
+    map (("    "<>) . format_tokens fmt_pos bias) (T.block_tracks block)
     where
-    title =
-        Texts.join2 " " (format_gatra block_gatra) (Text.unwords block_names)
-        <> if null block_inferred then ""
-            else " [" <> Text.unwords block_inferred <> "]"
-    T.Block { block_gatra, block_names, block_tracks, block_inferred } = block
     -- This actually corresponds to parts which are written with every beat
     -- and which ones use overbars.  Or could say that the basic speed for
     -- GenderBarung < Wiled is 4 per bar, while the rest are 8.
@@ -401,6 +405,14 @@ format_block_ fmt_pos irama inst block =
         | inst == Just T.GenderBarung && irama >= Just T.Wiled = Check.BiasEnd
         | inst == Just T.GenderPanerus && irama >= Just T.Dadi = Check.BiasEnd
         | otherwise = Check.BiasStart
+
+format_title :: T.Block (Pitch Octave) tracks -> Text
+format_title block =
+    Texts.join2 " " (format_gatra block_gatra) (Text.unwords block_names)
+    <> if null block_inferred then ""
+        else " [" <> Text.unwords block_inferred <> "]"
+    where
+    T.Block { block_gatra, block_names, block_inferred } = block
 
 format_meta :: T.Meta -> Text
 format_meta = Text.drop 1 . unparse

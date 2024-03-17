@@ -134,7 +134,7 @@ data Block pitch tracks = Block {
     , block_inferred :: [Text]
     , block_tracks :: tracks
     , block_pos :: Pos
-    } deriving (Eq, Show)
+    } deriving (Eq, Show, Functor)
 
 newtype Tracks = Tracks [Track ParsedToken]
     deriving (Eq, Show)
@@ -145,7 +145,7 @@ data Track token = Track {
     } deriving (Eq, Show)
 
 data Token pos note rest = TBarline pos | TNote pos note | TRest pos rest
-    deriving (Eq, Show)
+    deriving (Eq, Ord, Show)
 
 instance (Pretty note, Pretty rest) => Pretty (Token pos note rest) where
     pretty = \case
@@ -187,19 +187,19 @@ data Note pitch dur = Note {
     -- | The generated event should have 0 duration.
     , note_zero_duration :: Bool
     , note_duration :: dur
-    } deriving (Eq, Show)
+    } deriving (Eq, Ord, Show)
 
 instance Pretty pitch => Pretty (Note pitch dur) where
     pretty = pretty . note_pitch
 
 -- | Keep track if there was whitespace after notes and rests.
 -- I can use this to infer durations.
-data HasSpace = HasSpace | NoSpace deriving (Eq, Show)
+data HasSpace = HasSpace | NoSpace deriving (Eq, Ord, Show)
 
 data Rest = Rest {
     rest_sustain :: Bool
     , rest_space :: HasSpace
-    } deriving (Eq, Show)
+    } deriving (Eq, Ord, Show)
 
 instance Pretty Rest where
     pretty r = if rest_sustain r then "." else "_"

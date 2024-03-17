@@ -7,6 +7,7 @@ module Derive.TScore.Java.Db where
 import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
@@ -30,9 +31,8 @@ type Error = Text
 data Entry = Entry {
     e_tags :: Tags
     , e_meta :: Maybe Meta
-    , e_block :: Block (Token T.Pos)
+    , e_block :: Block (Token ())
     } deriving (Show, Eq)
-
 
 type Block token = T.Block (T.Pitch T.Octave) [[token]]
 type Token pos = T.Token pos (T.Note (T.Pitch T.Octave) ()) T.Rest
@@ -54,20 +54,33 @@ make_meta metas = Meta
 
 print_entries :: [Entry] -> IO ()
 print_entries = mapM_ (Text.IO.putStrLn . fmt) . zip [0 :: Int ..]
-    where
-    fmt (i, e) = showt i <> ": " <> format_entry e
+    where fmt (i, e) = showt i <> ": " <> format_entry e
 
 format_entry :: Entry -> Text
 format_entry (Entry { e_tags, e_meta, e_block }) =
-    Text.unlines $ format_tags e_tags : format_block fmt_pos e_meta e_block
-    where
-    fmt_pos = const id
+    Text.unlines $ format_tags e_tags
+        : JScore.format_title e_block
+        : format_block fmt_pos e_meta e_block
+    where fmt_pos = const id
 
 format_block :: (pos -> Text -> Text) -> Maybe Meta -> Block (Token pos)
     -> [Text]
 format_block fmt_pos meta block =
-    JScore.format_block_ fmt_pos (m_irama <$> meta) (m_instrument <$> meta)
+    JScore.format_block fmt_pos (m_irama <$> meta) (m_instrument <$> meta)
         block
+
+format_groups :: [Entry] -> [Text]
+format_groups = map format_group . Lists.groupSort (T.block_tracks . e_block)
+
+format_group :: [Entry] -> Text
+format_group entries@(entry0 : _) = Text.unlines $
+    format_tags common
+    : Text.intercalate " ; " (map (JScore.format_title . e_block) entries)
+    : format_block (const id) (e_meta entry0) (e_block entry0)
+    where
+    -- TODO I could show the unique ones, but it takes space
+    (common, _tags) = extract_common $ map e_tags entries
+format_group [] = "<empty>\n"
 
 parse_tags :: Text -> Tags
 parse_tags = Map.fromList . map split . Text.words
@@ -80,12 +93,15 @@ format_tags :: Tags -> Text
 format_tags = Text.unwords . map format . Map.toList
     where format (k, v) = k <> "=" <> v
 
+_seleh1 = search T.PelogLima
+    "instrument=gender-panerus irama=dadi name=seleh seleh=1"
+
 search :: T.Laras -> Text -> IO ()
 search laras tags = do
     -- entries <- _load1
     (entries, taken) <- Thread.timeAction load_db
     Text.IO.putStrLn $ "load took " <> Thread.showMetric taken
-    mapM_ (Text.IO.putStrLn . format_entry) $
+    mapM_ Text.IO.putStrLn $ format_groups $
         mapMaybe (entry_matches laras (parse_tags tags)) entries
 
 _load1 = either (error . untxt) id <$>
@@ -134,7 +150,10 @@ score_entries fname source (T.Score toplevels) = go [] (map snd toplevels)
     go _ [] = []
     entry e_metas e_block = Entry
         { e_tags = make_tags (fname <> ":" <> show line) e_metas e_block
-        , e_meta, e_block
+        , e_meta
+        -- Strip out T.Pos, I no longer need the original position and it'll
+        -- complicate comparing tracks.
+        , e_block = map (map (T.set_token_pos ())) <$> e_block
         }
         where
         e_meta = make_meta e_metas
@@ -163,7 +182,7 @@ meta_to_tag = \case
     T.Irama a -> ("irama", JScore.irama_enum a)
     T.Instrument a -> ("instrument", JScore.instrument_enum a)
 
-block_tags :: Check.Block -> Tags
+block_tags :: Block pos -> Tags
 block_tags block = Map.fromList $ concat
     [ [ ("seleh", Text.singleton (T.pc_char pc))
       | Just pc <- [T.seleh (T.block_gatra block)]
@@ -185,7 +204,6 @@ convert_laras laras entry = do
             pure $ update_tags $ entry
                 { e_block = JScore.transform_block trans (e_block entry)
                 , e_meta = Just $ meta { m_laras = laras }
-
                 }
 
 update_tags :: Entry -> Entry
@@ -245,7 +263,7 @@ redColor = "\ESC[31m" -- red
 vt100Normal :: Text
 vt100Normal = "\ESC[m\ESC[m"
 
-diff_tracks :: [[Token pos]] -> [[Token pos]]
+diff_tracks :: [[Token ()]] -> [[Token ()]]
     -> Maybe ([[Token Bool]], [[Token Bool]])
 diff_tracks tracks1 tracks2
     | length tracks1 /= length tracks2 = Nothing
@@ -255,8 +273,25 @@ diff_tracks tracks1 tracks2
         | length track1 /= length track2 = Nothing
         | otherwise = Just $ unzip $ zipWith diff_tokens track1 track2
 
-diff_tokens :: Token pos -> Token pos -> (Token Bool, Token Bool)
+diff_tokens :: Token () -> Token () -> (Token Bool, Token Bool)
 diff_tokens t1 t2 = (set t1, set t2)
+    where set = T.set_token_pos (t1 == t2)
+
+-- * util
+
+-- | Extract the identical (k, a) pairs from the maps.
+extract_common :: (Ord k, Ord a) => [Map k a] -> (Map k a, [Map k a])
+extract_common ms = (common, map (`Map.withoutKeys` keys) ms)
     where
-    set = T.set_token_pos (clear t1 == clear t2)
-    clear = T.set_token_pos ()
+    keys = Set.fromAscList $ map fst $ Set.toAscList pairs
+    pairs = case map (Set.fromList . Map.toList) ms of
+        m : ms -> foldl' Set.intersection m ms
+        [] -> mempty
+    common = Map.fromAscList $ Set.toAscList pairs
+
+-- -- intersection where key and values are equal.
+-- -- could do Set (Key, Val), then intersect
+-- t0 = extract_common
+--     [ Map.fromList [('a', 1), ('b', 2)]
+--     , Map.fromList [('a', 1), ('b', 3), ('c', 3)]
+--     ]

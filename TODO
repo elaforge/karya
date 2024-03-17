@@ -7586,6 +7586,7 @@ text score: tscore:
         back to having to parse again.  But the declarations would be in a big
         list or Map, given the All.hs generation thing like solkattu.
     db:
+      * suppress duplicates, or at least group them
       * function to diff tracks
         . Also get diff distance.
         . Diffs is not right, I want pairwise equal or not.
@@ -7617,6 +7618,9 @@ text score: tscore:
         . E.g. slendro-manyura <-> pelog-barang, so if searching for
           pelog-barang, also find slendro-manyura.
       - make pattern histogram and which bar has them for gender-panerus
+    * try multiple steps for convert_laras
+      . Nah just hardcode them, not that many combinations.
+    - get a more complete set of rules for convert_laras
     * names should take numbers so I can say gantung 3 seleh 5
     / for pitch, maybe it would be easier if ' and , were absolute upper
       and lower octave, not movement direction.
@@ -7685,7 +7689,7 @@ text score: tscore:
       - Gatra to notes ratio ok for irama.  Complicated by faster gender
         notes.
     db:
-      - collect names and tags into a db
+      * collect names and tags into a db
       . Then I can write down by names and balungan, and it matches in the
         same piece.  Later if not found, I could try to snag from other
         pieces, adapt from other pathet, adjust seleh 2 to seleh 1, etc.
