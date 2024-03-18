@@ -9,6 +9,7 @@ module Util.Diffs (
     , numberedDiff
 ) where
 import qualified Data.Algorithm.Diff as Diff
+import           Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -54,8 +55,7 @@ vt100Normal :: Text
 vt100Normal = "\ESC[m\ESC[m"
 
 -- | Apply color ranges as produced by 'ranges'.
-highlightLines :: ColorCode -> IntMap.IntMap [CharRange] -> [Text]
-    -> [Text]
+highlightLines :: ColorCode -> IntMap [CharRange] -> [Text] -> [Text]
 highlightLines color nums = zipWith hi [0..]
     where
     hi i line = case IntMap.lookup i nums of
@@ -77,8 +77,7 @@ splitRanges = go 0
         (pre, rest) = Text.splitAt (s-prev) text
         (within, post) = Text.splitAt (e - s) rest
 
-ranges :: Text -> Text
-    -> (IntMap.IntMap [CharRange], IntMap.IntMap [CharRange])
+ranges :: Text -> Text -> (IntMap [CharRange], IntMap [CharRange])
 ranges first second =
     toMap $ Lists.partitionPaired $ map diffLine $
         Maps.pairs firstByLine secondByLine

@@ -19,6 +19,7 @@ import qualified Solkattu.Dsl.Interactive as Interactive
 import           Solkattu.Dsl.Interactive (diff, diffw)
 import qualified Solkattu.Dsl.Notation as Notation
 import qualified Solkattu.Format.Terminal as Terminal
+import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Instrument.Tabla as Tabla
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Realize as Realize
@@ -166,6 +167,9 @@ realize_ width = Terminal.printBol
 realizet :: Korvai.Korvai -> IO ()
 realizet = _printInstrument Just Korvai.ITabla concrete
 
+realizem :: Korvai.Korvai -> IO ()
+realizem = _printInstrument Just Korvai.IMridangam concrete
+
 _printInstrument
     :: (Solkattu.Notation stroke1, Solkattu.Notation stroke2, Ord stroke1)
     => (Realize.Stroke stroke1 -> Maybe (Realize.Stroke stroke2))
@@ -191,27 +195,49 @@ tablaSur :: Korvai.StrokeMaps
 tablaSur = makeTabla Sur []
 
 makeTabla :: Na -> StrokeMap Tabla.Stroke -> Korvai.StrokeMaps
-makeTabla naKinar strokes = makeTabla0 (_tablaStrokes naKinar ++ strokes)
+makeTabla naKinar strokes =
+    makeTabla0 $ map toSequence (_tablaStrokesNa naKinar)
+        ++ defaultStrokes ++ strokes
+    where
+    defaultStrokes = map toSequence _tablaStrokes
+    toSequence = second (mconcatMap Realize.strokeToSequence)
+
+makeMridangam :: Na -> StrokeMap Mridangam.Stroke -> Korvai.StrokeMaps
+makeMridangam naKinar strokes =
+    makeMridangam0 $ map toSequence (_mridangamStrokesNa naKinar)
+        ++ defaultStrokes ++ strokes
+    where
+    defaultStrokes = map toSequence _mridangamStrokes
+    toSequence = second (mconcatMap Realize.strokeToSequence)
 
 -- | Make a tabla StrokeMap, but without the default '_tablaStrokes'.
+-- This also makes a default map for mridangam, but it can be overridden with
+-- an explicit 'makeMridangam'.
 makeTabla0 :: StrokeMap Tabla.Stroke -> Korvai.StrokeMaps
 makeTabla0 strokes = mempty
-    { Korvai.smapTabla = Realize.strokeMap mempty (map (first strip) strokes) }
+    { Korvai.smapTabla = Realize.strokeMap mempty $ map (first strip) strokes
+    , Korvai.smapBolMridangam = Realize.strokeMap mempty $ map (first strip) $
+        map (second (fmap (fmap (fmap _toMridangam)))) strokes
+    }
     where strip = fmap (fmap Realize._stroke)
-    -- smapTabla expects plain Bols, while Sequence uses Realize.Stroke Bol, so
-    -- I can do emphasis.  Bols are different that Sollu in that I decided to
-    -- put emphasis on bols, since I treat them like a realization in their own
-    -- right.  TODO: I should probably lookup with Bols, but propagate emphasis
-    -- through separately, see Realize.realizeSollu.
+
+makeMridangam0 :: StrokeMap Mridangam.Stroke -> Korvai.StrokeMaps
+makeMridangam0 strokes = mempty
+    { Korvai.smapBolMridangam =
+        Realize.strokeMap Mridangam.defaultPatterns (map (first strip) strokes)
+    }
+    where strip = fmap (fmap Realize._stroke) -- TODO as in makeTabla0
 
 data Na = Kinar | Sur
     deriving (Show, Eq)
 
+-- TODO all this underscore stuff is ugly, these should go in a separate module
+
 -- TODO
 -- for rela tuna tends to be tu.na, but in kaida tends to be kat&tu . na
 -- e.g. dhage naga tuna, tu could have kat or not
-_tablaStrokes :: Na -> [(Sequence, SequenceM)]
-_tablaStrokes naKinar = map (second (mconcatMap Realize.strokeToSequence)) $
+_tablaStrokes :: [(Sequence, [Tabla.Stroke])]
+_tablaStrokes =
     [ ("dheredhere", [ge & the, rhe, the, rhe]) -- implicit ge on first stroke
     , ("dhere", [the, rhe]) -- TODO not sure if a standalone dhere has ge?
     -- TODO I can do normalization to reduce permutations:
@@ -233,10 +259,7 @@ _tablaStrokes naKinar = map (second (mconcatMap Realize.strokeToSequence)) $
     , ("taran ne", [tun, daya Tabla.Ran, ne]) -- play on rim when followed by ne
     , ("taran", [daya Tabla.Tu3, tun]) -- otherwise play in middle
     , (dhaS, [ge & tin])
-    ] ++ case naKinar of
-        Kinar -> [(bol, [stroke]) | (bol, stroke, _) <- onKinarSur]
-        Sur -> [(bol, [stroke]) | (bol, _, stroke) <- onKinarSur]
-    ++ map (second (:[])) -- direct bol -> stroke correspondence
+    ] ++ map (second (:[])) -- direct bol -> stroke correspondence
     [ ("di", tun)
     , ("dhen", ge & tun)
     , ("dhet", ge & tette)
@@ -258,7 +281,7 @@ _tablaStrokes naKinar = map (second (mconcatMap Realize.strokeToSequence)) $
     , ("re", daya Tabla.Re)
     , ("tA", tin)
     , ("ta", tet)
-    , ("tak", daya Tabla.Tak)
+    , ("tak", daya Tabla.Tak) -- but sometimes Re
     , ("te", te)
     , ("ten", tun)
     , ("tet", tet)
@@ -271,10 +294,6 @@ _tablaStrokes naKinar = map (second (mconcatMap Realize.strokeToSequence)) $
     , ("ṭa", te)
     ]
     where
-    onKinarSur =
-        [ ("dha", ge & na,  ge & tin)
-        , ("taa", na,       tin) -- kali of dha
-        ]
     -- Even though I do define (&) for Sequence, I use single strokes here,
     -- it should wind up the same but is simpler types.
     Tabla.Strokes { .. } = Tabla.strokes
@@ -282,6 +301,60 @@ _tablaStrokes naKinar = map (second (mconcatMap Realize.strokeToSequence)) $
     (&+) = Tabla.flam
     nhe = daya Tabla.Nhe
     daya = Tabla.Daya
+
+-- | Bols that differ based on Na.
+_tablaStrokesNa :: Na -> [(Sequence, [Tabla.Stroke])]
+_tablaStrokesNa = \case
+    Kinar -> [(bol, [stroke]) | (bol, stroke, _) <- onKinarSur]
+    Sur -> [(bol, [stroke]) | (bol, _, stroke) <- onKinarSur]
+    where
+    onKinarSur =
+        [ ("dha", ge & na,  ge & tin)
+        , ("taa", na,       tin) -- kali of dha
+        ]
+    Tabla.Strokes { .. } = Tabla.strokes
+    (&) = Tabla.both
+
+_mridangamStrokesNa :: Na -> [(Sequence, [Mridangam.Stroke])]
+_mridangamStrokesNa naKinar =
+    map (second (map _toMridangam)) $ _tablaStrokesNa naKinar
+
+_mridangamStrokes :: [(Sequence, [Mridangam.Stroke])]
+_mridangamStrokes = map (second (map _toMridangam)) _tablaStrokes
+
+-- Even though there is a direct translation from tabla to mridangam, I don't
+-- want to encode it at some lower level, but leave it in StrokeMaps.  This is
+-- so I can still put in exceptions.  Also there is literal translation where
+-- dhi and perhaps tun is dheem, and idiomatic where it should maybe be din.
+_toMridangam :: Tabla.Stroke -> Mridangam.Stroke
+_toMridangam = \case
+    Tabla.Both baya daya -> Mridangam.Both (thoppi baya) (valantalai daya)
+    -- TODO Mridangam can also do flam, just not idiomatic
+    Tabla.Flam baya daya -> Mridangam.Both (thoppi baya) (valantalai daya)
+    Tabla.Baya baya -> Mridangam.Thoppi $ thoppi baya
+    Tabla.Daya daya -> Mridangam.Valantalai $ valantalai daya
+    where
+    thoppi = \case
+        Tabla.Ka -> Mridangam.Tha Mridangam.Palm
+        Tabla.Ge -> Mridangam.Thom Mridangam.Low
+    valantalai = \case
+        Tabla.The -> Mridangam.Ki -- could play dhere on mridangam, right?
+        Tabla.Na ->  Mridangam.Nam
+        Tabla.Ne ->  Mridangam.Ki
+        Tabla.Nhe -> Mridangam.Dheem
+        Tabla.Ran -> Mridangam.Dheem -- or Tan?
+        Tabla.Re ->  Mridangam.Ki
+        Tabla.Rhe -> Mridangam.Ta
+        Tabla.Tak -> Mridangam.Ki
+        Tabla.Te ->  Mridangam.Ta
+        Tabla.Tet -> Mridangam.Ki
+        Tabla.Tette -> Mridangam.Ki -- TODO need to infer which one
+        Tabla.Ti ->  Mridangam.Mi
+        Tabla.Tin -> Mridangam.Din
+        Tabla.Tre -> Mridangam.Ki -- TODO add a mridangam tre
+        -- kre turns into Both above, I guess I need flam there too.
+        Tabla.Tu3 -> Mridangam.Dheem
+        Tabla.Tun -> Mridangam.Dheem
 
 -- | Merge a sequence of left hand strokes with one of right hand strokes.
 -- Both sequences must have the same length and structure.

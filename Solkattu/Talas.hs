@@ -84,9 +84,11 @@ kehrwa = Tal "kehrwa" [(Tali, 4), (Kali, 4)]
 
 jhaptal :: Tal
 jhaptal = Tal "jhaptal" [(Tali, 2), (Tali, 3), (Kali, 2), (Tali, 3)]
+    -- dhin na dhin dhin na tin na dhin dhin na
 
 rupak :: Tal
 rupak = Tal "rupak" [(Kali, 3), (Tali, 2), (Tali, 2)]
+    -- tin tin na dhin na dhin na
 
 -- | Hindustani adi tal, for pakhawaj.
 adi :: Tal

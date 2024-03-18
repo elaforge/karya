@@ -67,7 +67,8 @@ data Note g a = Note !a
     deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 newtype Sequence g a = Sequence [Note g a]
-    deriving (Eq, Show, Pretty, Functor, Semigroup, Monoid)
+    deriving (Eq, Show, Pretty, Functor, Semigroup, Monoid, Foldable,
+        Traversable)
 
 singleton :: Note g a -> Sequence g a
 singleton = Sequence . (:[])

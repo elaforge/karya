@@ -603,12 +603,13 @@ data StrokeMaps = StrokeMaps {
     , smapReyong         :: EitherStrokeMap Solkattu.Sollu Reyong.Stroke
     , smapSargam         :: EitherStrokeMap Solkattu.Sollu Sargam.Stroke
     , smapTabla          :: EitherStrokeMap Bol.Bol Tabla.Stroke
+    , smapBolMridangam   :: EitherStrokeMap Bol.Bol Mridangam.Stroke
     } deriving (Eq, Show, Generics.Generic)
 
 instance Semigroup StrokeMaps where
-    StrokeMaps a1 a2 a3 a4 a5 a6 <> StrokeMaps b1 b2 b3 b4 b5 b6 =
+    StrokeMaps a1 a2 a3 a4 a5 a6 a7 <> StrokeMaps b1 b2 b3 b4 b5 b6 b7 =
         StrokeMaps (merge a1 b1) (merge a2 b2) (merge a3 b3) (merge a4 b4)
-            (merge a5 b5) (merge a6 b6)
+            (merge a5 b5) (merge a6 b6) (merge a7 b7)
         where
         merge (Left err) _ = Left err
         merge _ (Left err) = Left err
@@ -617,7 +618,7 @@ instance Semigroup StrokeMaps where
 instance Monoid StrokeMaps where
     mempty = StrokeMaps
         (Right mempty) (Right mempty) (Right mempty) (Right mempty)
-        (Right mempty) (Right mempty)
+        (Right mempty) (Right mempty) (Right mempty)
 
 instance Pretty StrokeMaps where format = Pretty.formatGCamel
 
@@ -647,6 +648,7 @@ getBolMap :: Instrument stroke -> StrokeMaps
 getBolMap inst smap = case inst of
     IBol -> Right mempty
     ITabla -> smapTabla smap
+    IMridangam -> smapBolMridangam smap
     _ -> Right mempty
 
 setStrokeMap :: Instrument stroke -> EitherStrokeMap Solkattu.Sollu stroke

@@ -203,7 +203,8 @@ makeMridangam strokes = makeMridangam0 (_mridangamStrokes ++ strokes)
 -- | Make a mridangam StrokeMap, but without the default '_mridangamStrokes'.
 makeMridangam0 :: StrokeMap Mridangam.Stroke -> Korvai.StrokeMaps
 makeMridangam0 strokes = mempty
-    { Korvai.smapMridangam = Realize.strokeMap Mridangam.defaultPatterns strokes
+    { Korvai.smapMridangam =
+        Realize.strokeMap Mridangam.defaultPatterns strokes
     }
 
 -- | Show shadowed strokes in the stroke map.
