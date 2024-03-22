@@ -64,7 +64,7 @@ c_24_01_11 = date 2024 1 12 $ colby $ kaida $ korvaiS jhaptal tabla
     , theme1 . r4 (dha.__5) . theme1.theme2
     , theme1 . r2 (dha.__4) . r4 (dha.__3) . theme1.theme2
     , theme1 . __.dha.__4 . r5 (dha.__3) . theme1.theme2
-    . pat2.pat3 . pat3.pat2 . theme1.theme2
+    , pat2.pat3 . pat3.pat2 . theme1.theme2
     , pat3.pat2.pat2 . pat3.pat2.pat2.takga_dhinne . theme2
     , pat3.pat3.pat3.dha.__4 . theme2 -- irregular, 15 beats instead of 20
         . kali (pat3.pat3.pat3.dha.__4) . theme2
