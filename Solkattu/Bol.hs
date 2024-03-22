@@ -61,7 +61,7 @@ type Error = Text
 data Bol =
     Dha | Dhe | Dhen | Dhet | Dhom | Di | Din | Dhi | Dhin | Dhit | Dhu
     | Ga | Gi | Ge | Ghen | Ghin | Gre
-    | Ka | Kat | Ke | Kra | Kre | Ki | Ma | Na | Ne | Ra | Re | Ri | Ran
+    | Ka | Kat | Ke | Kra | Kre | Ki | Kin | Ma | Na | Ne | Ra | Re | Ri | Ran
     | Ṭa -- ^ for transcription from devanagari
     | Ta | Tak | TA -- ^ long A is always tin, or chapu on pakhawaj
     | Taa -- ^ kali version of dha, so follows kinar / sur

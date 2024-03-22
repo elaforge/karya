@@ -134,7 +134,7 @@ kaliMt start end = kaliM (32+start) (48+end)
 
 kali :: Sequence -> Sequence
 kali = mapB $ \case
-    Bol.Dha -> Just Bol.Taa
+    Bol.Dha -> Just Bol.Taa -- taa spelling for ta to remember it came from dha
     Bol.Dhe -> Just Bol.The -- for dhere dhere
     Bol.Dhen -> Just Bol.Ten
     Bol.Dhet -> Just Bol.Tet
@@ -142,6 +142,8 @@ kali = mapB $ \case
     Bol.Dhin -> Just Bol.Tin -- behause dha dhin dhin -> taa tin tin
     Bol.Ga -> Just Bol.Ka
     Bol.Ge -> Just Bol.Ke
+    Bol.Gi -> Just Bol.Ki
+    Bol.Ghin -> Just Bol.Kin
     bol -> Just bol
 
 mapB :: (Bol.Bol -> Maybe Bol.Bol) -> Sequence -> Sequence
