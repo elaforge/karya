@@ -34,6 +34,8 @@
 module Derive.TScore.Java.JScore (
     parse_score
     , unparse
+    -- * integrate
+    , convert_file
     -- * format
     , format_file
     , format_score
@@ -326,6 +328,110 @@ convert_laras a b = case (a, b) of
     one_to_seven p = p
     seven_to_one p@(T.Pitch _ T.P7) = T.add_pc_abs 1 p
     seven_to_one p = p
+
+-- * integrate
+
+type Event = (T.Time, T.Note T.Pitch T.Time)
+type Error = Text
+
+-- t0 = convert_file "Example/tscore/java/pangkur.tscore"
+
+convert_file :: FilePath -> IO ()
+convert_file fname = do
+    source <- Text.IO.readFile fname
+    case convert_source source of
+        Left errs -> error $ show errs
+        Right lines -> mapM_ Text.IO.putStrLn lines
+
+convert_source :: Text -> Either [T.Error] [Text]
+convert_source source = do
+    score <- first ((:[]) . T.Error T.fake_pos) $ parse_score source
+    blocks <- convert_score score
+    pure $ map format_block blocks
+    where
+    format_block b = Text.unlines $ block_name meta b
+        : map (Text.unwords . map (pretty . convert_event)) tracks
+        where
+        (meta, tracks) = T.block_tracks b
+    block_name meta b =
+        Text.intercalate "-" (unparse (T.block_gatra b) : T.block_names b)
+        <> " " <> showt (m_instrument meta)
+
+convert_event :: Event -> (T.Time, T.Time, Text)
+convert_event (start, T.Note pitch zero dur) =
+    ( start
+    , dur
+    , pretty pitch <> if zero then "/" else ""
+    )
+
+convert_score :: T.ParsedScore
+    -> Either [T.Error] [T.Block T.ParsedPitch (Meta, [[Event]])]
+convert_score score = do
+    T.Score score <- first ((:[]) . T.Error T.fake_pos) $ resolve_blocks score
+    let blocks =
+            [ b { T.block_tracks = (meta, tracks) }
+            | b@(T.Block { T.block_tracks = (Just meta, tracks) })
+                <- collect_metas (map snd score)
+            ]
+    mapM convert_block blocks
+
+resolve_blocks :: T.ParsedScore
+    -> Either Error (T.Score (T.Block T.ParsedPitch T.Tracks))
+resolve_blocks = traverse resolve
+    where
+    resolve block = case T.block_tracks block of
+        Just tracks -> Right $ block { T.block_tracks = tracks }
+        -- TODO actually resolve it
+        Nothing -> Right $ block { T.block_tracks = T.Tracks [] }
+
+convert_block :: T.Block pitch (Meta, T.Tracks)
+    -> Either [T.Error] (T.Block pitch (Meta, [[Event]]))
+convert_block block
+    | null warnings = Right $ block
+        { T.block_tracks =
+            (meta, map (map (second add_oct . stretch_event stretch)) events)
+        }
+    | otherwise = Left warnings
+    where
+    (meta, T.Tracks tracks) = T.block_tracks block
+    (events, warnings) = fmap concat $ unzip $ map resolve tracks
+    add_oct n = n { T.note_pitch = T.add_oct oct (T.note_pitch n) }
+    -- *4 so gatra=4t
+    stretch = (4*) $ recip $ fromIntegral $
+        Check.irama_divisor (m_irama meta)
+        * Check.instrument_multiplier (m_instrument meta)
+    oct = Check.instrument_octave (m_instrument meta)
+    resolve = Logger.runId . Check.resolve_tokens Check.BiasEnd
+        . T.track_tokens
+
+stretch_event :: T.Time -> Event -> Event
+stretch_event stretch (start, note) =
+    ( stretch * start
+    , note { T.note_duration = stretch * (T.note_duration note) }
+    )
+
+collect_metas :: [T.Toplevel (T.Block pitch tracks)]
+    -> [T.Block pitch (Maybe Meta, tracks)]
+collect_metas = go []
+    where
+    go metas = \case
+        [] -> []
+        T.ToplevelMeta meta : toplevels -> go (meta : metas) toplevels
+        T.BlockDefinition block : toplevels ->
+            block { T.block_tracks = (make_meta metas, T.block_tracks block) }
+            : go metas toplevels
+
+data Meta = Meta {
+    m_laras :: T.Laras
+    , m_irama :: T.Irama
+    , m_instrument :: T.Instrument
+    } deriving (Show, Eq)
+
+make_meta :: [T.Meta] -> Maybe Meta
+make_meta metas = Meta
+    <$> Lists.head [a | T.Laras a <- metas]
+    <*> Lists.head [a | T.Irama a <- metas]
+    <*> Lists.head [a | T.Instrument a <- metas]
 
 -- * format
 

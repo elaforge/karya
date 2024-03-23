@@ -7,6 +7,7 @@ module Derive.TScore.Java.Check (
     , Bias(..)
     -- * resolve
     , resolve_tokens
+    , irama_divisor, instrument_multiplier, instrument_octave
     -- * format
     , Block
     , format_score
@@ -43,6 +44,31 @@ resolve_tokens :: Bias -> [T.ParsedToken]
     -> CheckM [(T.Time, T.Note T.Pitch T.Time)]
 resolve_tokens bias =
     fmap (resolve_durations bias) . normalize_barlines bias . resolve_pitch
+
+irama_divisor :: T.Irama -> Int
+irama_divisor = \case
+    T.Lancar -> 4
+    T.Tanggung -> 8
+    T.Dadi -> 16
+    T.Wiled -> 32
+    T.Rangkep -> 64
+
+-- .3.2 puthut-semedi, barung has 4*8 = 32, but basic rhythm may be 4*4 = 16
+-- panerus has 4*8 = 32 which is half.
+
+instrument_multiplier :: T.Instrument -> Int
+instrument_multiplier = \case
+    T.GenderBarung -> 1
+    T.GenderPanerus -> 2
+    T.Siter -> 2
+
+instrument_octave :: T.Instrument -> T.Octave
+instrument_octave = \case
+    T.GenderBarung -> 1
+    T.GenderPanerus -> 2
+    T.Siter -> 2
+
+-- * format
 
 type Block = T.Block T.Pitch [[Token]]
 type Token = T.Token T.Pos (T.Note T.Pitch ()) T.Rest
