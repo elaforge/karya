@@ -6,49 +6,12 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
 import qualified Derive.TScore.Java.JScore as JScore
+import qualified Derive.TScore.Java.Parse as Parse
 import qualified Derive.TScore.Java.T as T
 
 import           Global
 import           Util.Test.Global
 
--- * parse
-
-everything_score :: Text
-everything_score =
-    "%irama = tanggung\n\
-    \%instrument = gender-barung -- comment\n\
-    \3231^ dualolo cilik [\n\
-    \    > '5653 | .6.56.1.\n\
-    \    >  .12_ | 6.2.321.\n\
-    \]\n\
-    \'1235 ranbatan -- comment\n\
-    \1235) tumurun gede -- comment\n"
-
-test_roundtrip :: Test
-test_roundtrip = do
-    let trip = fmap JScore.unparse . JScore.parse_score
-    right_equal (trip "5321 -- seleh 1\n3216 -- seleh 6\n") "5321\n3216\n"
-    right_equal (trip "%piece = b") "%piece = b\n"
-    right_equal (trip "1235 [ > 5 6/. _ ]") "1235 [ > 5 6/. _ ]\n"
-    right_equal (trip "1235 gantung-2 seleh-5") "1235 gantung-2 seleh-5\n"
-    let normalized = trip everything_score
-    right_equal (const () <$> normalized) ()
-    equal normalized (trip =<< normalized)
-    Text.IO.putStrLn $ either id id normalized
-
-test_unwrap :: Test
-test_unwrap = do
-    let trip = fmap JScore.unparse . JScore.parse_score
-    let score =
-            "1235 [\n\
-            \    > 1235\n\
-            \    > 2356\n\
-            \    > 1235\n\
-            \    > 2356\n\
-            \]\n"
-    right_equal (trip score) "1235 [ > 1235 | 1235 > 2356 | 2356 ]\n"
-    right_equal (trip "1235 [ > 1235 > 2356 > 3567 ]")
-        "1235 [ > 1235 > 2356 > 3567 ]\n"
 
 -- * format
 
@@ -76,7 +39,7 @@ test_format_score2 = do
         \]\n"
 
 format_score :: Text -> Either Text [Text]
-format_score source = case JScore.parse_score source of
+format_score source = case Parse.parse_score source of
     Left err -> Left err
     Right score
         | not (null errs) ->
@@ -85,6 +48,6 @@ format_score source = case JScore.parse_score source of
         where (lines, errs) = JScore.format_score id score
 
 _parse_file :: FilePath -> IO ()
-_parse_file fname = (JScore.parse_score <$> Text.IO.readFile fname) >>= \case
+_parse_file fname = (Parse.parse_score <$> Text.IO.readFile fname) >>= \case
     Left err -> Text.IO.putStrLn err
-    Right score -> Text.IO.putStrLn $ JScore.unparse score
+    Right score -> Text.IO.putStrLn $ Parse.unparse score

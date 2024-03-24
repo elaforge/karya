@@ -22,6 +22,7 @@ import qualified Util.Thread as Thread
 
 import qualified Derive.TScore.Java.Check as Check
 import qualified Derive.TScore.Java.JScore as JScore
+import qualified Derive.TScore.Java.Parse as Parse
 import qualified Derive.TScore.Java.T as T
 
 import           Global
@@ -135,7 +136,7 @@ load fname = parse fname <$> Text.IO.readFile fname
 
 parse :: FilePath -> Text -> Either Error [Entry]
 parse fname source = first ((txt fname <> ": ") <>) $ do
-    score <- JScore.parse_score source
+    score <- Parse.parse_score source
     let (checked, errs) = Logger.runId $ Check.format_score score
     unless (null errs) $
         Left $ Text.unlines $ map (T.show_error source) errs
@@ -169,9 +170,9 @@ make_tags fname metas block = Map.unions
 
 meta_tags :: Meta -> Tags
 meta_tags (Meta { m_laras, m_irama, m_instrument }) = Map.fromList
-    [ ("laras", JScore.laras_enum m_laras)
-    , ("irama", JScore.irama_enum m_irama)
-    , ("instrument", JScore.instrument_enum m_instrument)
+    [ ("laras", Parse.laras_enum m_laras)
+    , ("irama", Parse.irama_enum m_irama)
+    , ("instrument", Parse.instrument_enum m_instrument)
     ]
 
 meta_to_tag :: T.Meta -> (Tag, Text)
@@ -179,9 +180,9 @@ meta_to_tag = \case
     T.Source a -> ("source", a)
     T.Piece a -> ("piece", a)
     T.Section a -> ("section", a)
-    T.Laras a -> ("laras-orig", JScore.laras_enum a)
-    T.Irama a -> ("irama", JScore.irama_enum a)
-    T.Instrument a -> ("instrument", JScore.instrument_enum a)
+    T.Laras a -> ("laras-orig", Parse.laras_enum a)
+    T.Irama a -> ("irama", Parse.irama_enum a)
+    T.Instrument a -> ("instrument", Parse.instrument_enum a)
 
 block_tags :: Block pos -> Tags
 block_tags block = Map.fromList $ concat
