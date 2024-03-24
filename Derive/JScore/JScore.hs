@@ -34,6 +34,8 @@
 module Derive.JScore.JScore (
     -- * integrate
     convert_file
+    , Meta(..)
+    , make_meta
     -- * format
     , format_file
     , format_score
