@@ -32,7 +32,7 @@ type Error = Text
 
 data Entry = Entry {
     e_tags :: Tags
-    , e_meta :: Maybe Meta
+    , e_meta :: Maybe JScore.Meta
     , e_block :: Block (Token ())
     } deriving (Show, Eq)
 
@@ -41,18 +41,6 @@ type Token pos = T.Token pos (T.Note T.Pitch ()) T.Rest
 
 type Tags = Map Tag Text
 type Tag = Text
-
-data Meta = Meta {
-    m_laras :: T.Laras
-    , m_irama :: T.Irama
-    , m_instrument :: T.Instrument
-    } deriving (Show, Eq)
-
-make_meta :: [T.Meta] -> Maybe Meta
-make_meta metas = Meta
-    <$> Lists.head [a | T.Laras a <- metas]
-    <*> Lists.head [a | T.Irama a <- metas]
-    <*> Lists.head [a | T.Instrument a <- metas]
 
 print_entries :: [Entry] -> IO ()
 print_entries = mapM_ (Text.IO.putStrLn . fmt) . zip [0 :: Int ..]
@@ -65,10 +53,11 @@ format_entry (Entry { e_tags, e_meta, e_block }) =
         : format_block fmt_pos e_meta e_block
     where fmt_pos = const id
 
-format_block :: (pos -> Text -> Text) -> Maybe Meta -> Block (Token pos)
+format_block :: (pos -> Text -> Text) -> Maybe JScore.Meta -> Block (Token pos)
     -> [Text]
 format_block fmt_pos meta block =
-    JScore.format_block fmt_pos (m_irama <$> meta) (m_instrument <$> meta)
+    JScore.format_block fmt_pos
+        (JScore.m_irama <$> meta) (JScore.m_instrument <$> meta)
         block
 
 format_groups :: [Entry] -> [Text]
@@ -158,7 +147,7 @@ score_entries fname source (T.Score toplevels) = go [] (map snd toplevels)
         , e_block = map (map (T.set_token_pos ())) <$> e_block
         }
         where
-        e_meta = make_meta e_metas
+        e_meta = JScore.make_meta e_metas
         Just (line, _, _) = T.find_pos source  (T.block_pos e_block)
 
 make_tags :: FilePath -> [T.Meta] -> Check.Block -> Tags
@@ -168,8 +157,8 @@ make_tags fname metas block = Map.unions
     , Map.fromList [("file", txt (FilePath.takeFileName fname))]
     ]
 
-meta_tags :: Meta -> Tags
-meta_tags (Meta { m_laras, m_irama, m_instrument }) = Map.fromList
+meta_tags :: JScore.Meta -> Tags
+meta_tags (JScore.Meta { m_laras, m_irama, m_instrument }) = Map.fromList
     [ ("laras", Parse.laras_enum m_laras)
     , ("irama", Parse.irama_enum m_irama)
     , ("instrument", Parse.instrument_enum m_instrument)
@@ -199,13 +188,13 @@ block_tags block = Map.fromList $ concat
 convert_laras :: T.Laras -> Entry -> Maybe Entry
 convert_laras laras entry = do
     meta <- e_meta entry
-    if laras == m_laras meta
+    if laras == JScore.m_laras meta
         then pure entry
         else do
-            trans <- JScore.convert_laras (m_laras meta) laras
+            trans <- JScore.convert_laras (JScore.m_laras meta) laras
             pure $ update_tags $ entry
                 { e_block = JScore.transform_block trans (e_block entry)
-                , e_meta = Just $ meta { m_laras = laras }
+                , e_meta = Just $ meta { JScore.m_laras = laras }
                 }
 
 update_tags :: Entry -> Entry
