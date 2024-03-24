@@ -1,10 +1,10 @@
 -- Copyright 2024 Evan Laforge
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
-module Derive.TScore.Java.Parse_test where
+module Derive.JScore.Parse_test where
 import qualified Data.Text.IO as Text.IO
 
-import qualified Derive.TScore.Java.Parse as Parse
+import qualified Derive.JScore.Parse as Parse
 
 import           Global
 import           Util.Test.Global

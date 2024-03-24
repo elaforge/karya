@@ -31,7 +31,7 @@
     Not sure if possible.  At the least it should reuse as much as possible
     of Check, and all of TScore.
 -}
-module Derive.TScore.Java.JScore (
+module Derive.JScore.JScore (
     -- * integrate
     convert_file
     -- * format
@@ -52,9 +52,9 @@ import qualified Util.Lists as Lists
 import qualified Util.Logger as Logger
 import qualified Util.Texts as Texts
 
-import qualified Derive.TScore.Java.Check as Check
-import qualified Derive.TScore.Java.Parse as Parse
-import qualified Derive.TScore.Java.T as T
+import qualified Derive.JScore.Check as Check
+import qualified Derive.JScore.Parse as Parse
+import qualified Derive.JScore.T as T
 
 import           Global
 

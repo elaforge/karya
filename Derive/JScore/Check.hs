@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 {-# LANGUAGE CPP #-}
-module Derive.TScore.Java.Check (
+module Derive.JScore.Check (
     CheckM
     , Bias(..)
     -- * resolve
@@ -27,7 +27,7 @@ import qualified Util.Lists as Lists
 import qualified Util.Logger as Logger
 import qualified Util.Num as Num
 
-import qualified Derive.TScore.Java.T as T
+import qualified Derive.JScore.T as T
 
 import           Global
 

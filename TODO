@@ -6279,7 +6279,7 @@ REPL: repl:
     . https://gitlab.haskell.org/haskell/ghc-api-compat
 
 solkattu:
-  bol:
+  bol: tabla:
     - for html, I could abbreviate fast terekita as trkt, kitataka as kttk
     - support Talas.Hindustani in Play.tala_metronome
     - normalize terekita: [tari, tira, tere] [kita, kite]
@@ -7556,7 +7556,7 @@ Derive:
     - continuous tempo warping for signals
       tempo: "2" -> "1", "2", cont: "2" -> "i, 1", should emit a bent line
 
-text score: tscore:
+tscore:
   . doc/dev_notes/text-score.md
   java:
     ideas:
@@ -7585,7 +7585,22 @@ text score: tscore:
         syntax.  Notes would have to be in a FromString, at which point I'm
         back to having to parse again.  But the declarations would be in a big
         list or Map, given the All.hs generation thing like solkattu.
+    - compare different irama versions of the same
+    - integrate
+      . I'll want absolute pitch?  Or wait, why would I?  If I put octave into
+        the scale.
+      . Well if I want to realize to other instruments.
+      . Would it be simpler to have only absolute octave, and subtract
+        instrument base off again for display?
+      * basic reduction to events
+      - integrate
+      - resolve tracks
+        . Instead of pasting in notes, maybe I should just use the same block
+          name?
+    - integrate: find matching name and optionally expand into score
+      . Can also match based on gatra.
     db:
+      - query for without tag value, e.g. omit a source or laras-orig
       * suppress duplicates, or at least group them
       * function to diff tracks
         . Also get diff distance.
@@ -7644,8 +7659,6 @@ text score: tscore:
         . Don't have to worry about keeping toplevel block=[tracks] syntax,
           I have different parsers for Score down to Block anyway.
     * Chord and seleh infer is probably only relevant to gender barung
-    - find matching name and optionally expand into score
-      . Can also match based on gatra.
     - diff matching names
 
     rhythm, end bias or not?
@@ -7688,6 +7701,7 @@ text score: tscore:
         . Only 4 is actually forbidden on instruments without it.
       - Gatra to notes ratio ok for irama.  Complicated by faster gender
         notes.
+        For non-gender-barung, can even infer irama.
     db:
       * collect names and tags into a db
       . Then I can write down by names and balungan, and it matches in the
@@ -7699,7 +7713,6 @@ text score: tscore:
     format:
       - instead of vertical bars, I could do the horizontal bar for lh/rh
         . Should I render to HTML?
-    - integrate
   . observations about tscore:
     . I really have to be able to read and hear the notation in my head, which
       means I really have to internalize the the solfege, whether it be sa ri
