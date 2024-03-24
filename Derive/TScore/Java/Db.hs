@@ -35,8 +35,8 @@ data Entry = Entry {
     , e_block :: Block (Token ())
     } deriving (Show, Eq)
 
-type Block token = T.Block (T.Pitch T.Octave) [[token]]
-type Token pos = T.Token pos (T.Note (T.Pitch T.Octave) ()) T.Rest
+type Block token = T.Block T.Pitch [[token]]
+type Token pos = T.Token pos (T.Note T.Pitch ()) T.Rest
 
 type Tags = Map Tag Text
 type Tag = Text
