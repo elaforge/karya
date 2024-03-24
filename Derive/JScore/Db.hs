@@ -4,7 +4,7 @@
 
 {-# LANGUAGE StrictData #-}
 -- | Treat Java tscores as a DB of patterns.
-module Derive.TScore.Java.Db where
+module Derive.JScore.Db where
 import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -20,10 +20,10 @@ import qualified Util.Logger as Logger
 import qualified Util.Num as Num
 import qualified Util.Thread as Thread
 
-import qualified Derive.TScore.Java.Check as Check
-import qualified Derive.TScore.Java.JScore as JScore
-import qualified Derive.TScore.Java.Parse as Parse
-import qualified Derive.TScore.Java.T as T
+import qualified Derive.JScore.Check as Check
+import qualified Derive.JScore.JScore as JScore
+import qualified Derive.JScore.Parse as Parse
+import qualified Derive.JScore.T as T
 
 import           Global
 

@@ -1,7 +1,7 @@
 -- Copyright 2024 Evan Laforge
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
-module Derive.TScore.Java.Parse (
+module Derive.JScore.Parse (
     Element
     , parse_score
     , parse_text
@@ -16,7 +16,7 @@ import qualified Data.Text as Text
 
 import qualified Util.Lists as Lists
 import qualified Util.P as P
-import qualified Derive.TScore.Java.T as T
+import qualified Derive.JScore.T as T
 import qualified Derive.TScore.Parse as Parse
 import           Derive.TScore.Parse (Element, Parser)
 import qualified Derive.TScore.T as TScore.T

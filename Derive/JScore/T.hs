@@ -1,8 +1,8 @@
 -- Copyright 2023 Evan Laforge
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
-module Derive.TScore.Java.T (
-    module Derive.TScore.Java.T
+module Derive.JScore.T (
+    module Derive.JScore.T
     , module Derive.TScore.T
 ) where
 import           Derive.TScore.T

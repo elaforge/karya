@@ -1,15 +1,15 @@
 -- Copyright 2023 Evan Laforge
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
-module Derive.TScore.Java.Check_test where
+module Derive.JScore.Check_test where
 import qualified Data.Text as Text
 
 import qualified Util.Logger as Logger
 import qualified Util.Test.Testing as Testing
-import qualified Derive.TScore.Java.Check as Check
-import qualified Derive.TScore.Java.Parse as Parse
-import qualified Derive.TScore.Java.T as T
-import           Derive.TScore.Java.T (Pitch(..), PitchClass(..))
+import qualified Derive.JScore.Check as Check
+import qualified Derive.JScore.Parse as Parse
+import qualified Derive.JScore.T as T
+import           Derive.JScore.T (Pitch(..), PitchClass(..))
 
 import           Global
 import           Util.Test.Global

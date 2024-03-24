@@ -1,13 +1,13 @@
 -- Copyright 2023 Evan Laforge
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
-module Derive.TScore.Java.JScore_test where
+module Derive.JScore.JScore_test where
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
-import qualified Derive.TScore.Java.JScore as JScore
-import qualified Derive.TScore.Java.Parse as Parse
-import qualified Derive.TScore.Java.T as T
+import qualified Derive.JScore.JScore as JScore
+import qualified Derive.JScore.Parse as Parse
+import qualified Derive.JScore.T as T
 
 import           Global
 import           Util.Test.Global
