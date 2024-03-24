@@ -7,10 +7,9 @@ import qualified Data.Text as Text
 import qualified Util.Logger as Logger
 import qualified Util.Test.Testing as Testing
 import qualified Derive.TScore.Java.Check as Check
-import qualified Derive.TScore.Java.JScore as JScore
+import qualified Derive.TScore.Java.Parse as Parse
 import qualified Derive.TScore.Java.T as T
 import           Derive.TScore.Java.T (Pitch(..), PitchClass(..))
-import qualified Derive.TScore.Parse as Parse
 
 import           Global
 import           Util.Test.Global
@@ -47,16 +46,13 @@ test_format_score = do
     right_equal (f (const ()) "1235 [ > 2222 > .1.1.1.1 ]") ([()])
     left_like (f (const ()) "1235 [ > 2212 > 1.1.1.1. ]") "left hand >= right"
 
-unparse :: Parse.Element a => a -> Text
-unparse = Parse.unparse Parse.default_config
-
 e_block :: (block -> a) -> [T.Toplevel block] -> [a]
 e_block f = mapMaybe $ \case
     T.BlockDefinition b -> Just $ f b
     _ -> Nothing
 
 format_score :: Text -> Either Text [T.Toplevel Check.Block]
-format_score source = case JScore.parse_score source of
+format_score source = case Parse.parse_score source of
     Left err -> Left err
     Right score
         | null errs -> Right $ map snd toplevels
@@ -161,7 +157,8 @@ err :: Int -> Text -> T.Error
 err pos = T.Error (T.Pos pos)
 
 parse_tokens :: Text -> [T.ParsedToken]
-parse_tokens = Testing.expect_right . fmap T.track_tokens . parse . ("> "<>)
+parse_tokens = Testing.expect_right . fmap T.track_tokens
+    . Parse.parse_text . ("> "<>)
 
 resolve_tokens :: Check.Bias -> Text
     -> Either [T.Error] [(T.Time, T.Note Pitch T.Time)]
@@ -171,6 +168,3 @@ resolve_tokens bias source
     where
     (lines, errs) = Logger.runId $ Check.resolve_tokens bias $
         parse_tokens source
-
-parse :: Parse.Element a => Text -> Either String a
-parse = Parse.parse_text (Parse.parse Parse.default_config)
