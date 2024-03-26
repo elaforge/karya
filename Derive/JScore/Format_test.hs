@@ -1,11 +1,11 @@
 -- Copyright 2023 Evan Laforge
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
-module Derive.JScore.JScore_test where
+module Derive.JScore.Format_test where
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
-import qualified Derive.JScore.JScore as JScore
+import qualified Derive.JScore.Format as Format
 import qualified Derive.JScore.Parse as Parse
 import qualified Derive.JScore.T as T
 
@@ -45,7 +45,7 @@ format_score source = case Parse.parse_score source of
         | not (null errs) ->
             Left $ Text.unlines $ map (T.show_error source) errs
         | otherwise -> Right lines
-        where (lines, errs) = JScore.format_score id score
+        where (lines, errs) = Format.format_score id score
 
 _parse_file :: FilePath -> IO ()
 _parse_file fname = (Parse.parse_score <$> Text.IO.readFile fname) >>= \case
