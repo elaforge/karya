@@ -7558,7 +7558,17 @@ Derive:
 
 tscore:
   . doc/dev_notes/text-score.md
-  java:
+  java: jscore:
+    scores:
+      - bondhet gender-panerus kebar
+      + bondhet gender-panerus rangkep
+      - bondhet siter
+      - pangkur-ngrenas siter
+      + pangkur siter
+      - youtube gender barung wilujeng:
+        https://www.youtube.com/watch?v=U9aI6hY88Q0
+    missing scores:
+      . pangkur rangkep gender barung
     ideas:
       * Dots are nice to read as off-beat markers.  I could use space as
         a rest, and print rest as a space if it's on a beat.
@@ -7586,19 +7596,36 @@ tscore:
         back to having to parse again.  But the declarations would be in a big
         list or Map, given the All.hs generation thing like solkattu.
     - compare different irama versions of the same
-    - integrate
-      . I'll want absolute pitch?  Or wait, why would I?  If I put octave into
-        the scale.
-      . Well if I want to realize to other instruments.
-      . Would it be simpler to have only absolute octave, and subtract
-        instrument base off again for display?
+    integrate
+      - disambiguate block names if not identical
+        . Use seleh, then complete gatra.
+        Naming blocks:
+        . irama prefix: l, t, d, w, r, or maybe i0 i1 i2 i3 i4?
+        . group by name, merge same score, then disambiguate by gatra if
+          necessary.
+        . use inferred names for seleh and gantung
+      - create balungan block to sequence
+      - handle buko specially
       * basic reduction to events
-      - integrate
-      - resolve tracks
-        . Instead of pasting in notes, maybe I should just use the same block
-          name?
-    - integrate: find matching name and optionally expand into score
-      . Can also match based on gatra.
+      * create BlockId, based on name and inferred_names
+      * use standard ruler
+      * Split into note and pitch tracks: Convert.Track title events
+      * Then call Manual.block on it
+      end bias:
+        . As with negative durations, I wind up with final notes.
+        . I have to rely on damp inferring for that, but I also need to
+          know if it's damped or not.  I get around that by using / for
+          damping, not duration=0.
+        . Trailing notes after seleh are awkward, they don't fit into end
+          bias, but actually do represent a transition between gatras.
+        . Alternately, use -0 as a marker to infer, and positive durations
+          to explicitly set.
+      notes:
+        . I'll want absolute pitch?  Or wait, why would I?  If I put octave
+          into the scale.
+        . Well if I want to realize to other instruments.
+        . Would it be simpler to have only absolute octave, and subtract
+          instrument base off again for display?
     db:
       - query for without tag value, e.g. omit a source or laras-orig
       * suppress duplicates, or at least group them
@@ -8175,6 +8202,39 @@ pitch: scales: scale: Derive.Scale:
         like the magic env var does.
       . The big problem is this is incompatible syntax, what about all the old
         scores?  Why can't I make scale=xyz continue to work?
+      . One thing is scale is only set when I call it, so if I want an
+        instrument to automatically set scale-inst and affect the scale, I'd
+        need the instrument to re-call `scale`.  Is it safe to do this
+        globally?
+      . Before I go to all the bother, why do this?
+        . Why scale-inst?  For a score, it makes sense to use absolute
+          octaves, analogous to concert score being in concert pitch.  But, it
+          uses different clefs...
+        . What if I want per-instrument tuning?  The UI would be a random
+          seed for each instrument and settings like how much detune.  Ideally
+          this would be scale independent, could apply to any scale.  So maybe
+          it would be a postproc that looks at symbolic pitch and adds t-nn
+          accordingly?  So done this way, it's not even in the scale,
+          scale-inst not relevant.
+        . It would mean putting all key stuff in the scale call, calls don't
+          need to look in env for key.  But there are still things which are
+          per note.  But, would that be a good place to cache?  Or if I did
+          a cache would it be better at a lower level?  Also putting key in
+          there means I can't change key without resetting scale, which seems
+          like a UI downgrade.
+        . It does seem cleaner than the Scale.Make hack, since it looks more
+          like a normal call, even if it still isn't quite.
+    status:
+      . Incomplete, new ScaleCalls are in All2, but most scales are still
+        done the old way.
+    complete:
+      backward compatibility:
+        - scale=name becomes `scale name`.  That's all, right?
+        - To make it work now, I'd want to also make `scale` fallback on
+          looking up the old unparameterized scale.
+          . Should be in Scale.get
+      - Un-export Perf.find_scale_id, get_scale_id.
+      - Put Scale into Dynamic, so Perf.get_scale can get from Dynamic.
     * implement scale call
     * convert Java to scale
       . I can't have instrument set just scale-inst when overall scale is

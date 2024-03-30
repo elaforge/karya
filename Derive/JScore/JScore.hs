@@ -36,20 +36,31 @@ module Derive.JScore.JScore (
     Transform
     , convert_laras
     -- * integrate
-    , convert_file
-    , Meta(..)
-    , make_meta
+    , integrate_file
+    , integrate
 ) where
+import qualified Data.List as List
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
-import qualified Util.Lists as Lists
 import qualified Util.Logger as Logger
+import qualified Cmd.Integrate.Convert as Convert
+import qualified Cmd.Integrate.Manual as Manual
+import qualified Cmd.Ruler.Gong as Gong
+
 import qualified Derive.JScore.Check as Check
 import qualified Derive.JScore.Parse as Parse
 import qualified Derive.JScore.T as T
 
+import qualified Ui.Block as Block
+import qualified Ui.Event as Event
+import qualified Ui.Id as Id
+import qualified Ui.Meter.Meter as Meter
+import qualified Ui.Ruler as Ruler
+import qualified Ui.Ui as Ui
+
 import           Global
+import           Types
 
 
 -- * transform
@@ -83,104 +94,120 @@ convert_laras a b = case (a, b) of
 
 -- * integrate
 
-type Event = (T.Time, T.Note T.Pitch T.Time)
-type Error = Text
-
--- t0 = convert_file "Example/tscore/java/pangkur.tscore"
-
-convert_file :: FilePath -> IO ()
-convert_file fname = do
-    source <- Text.IO.readFile fname
-    case convert_source source of
-        Left errs -> error $ show errs
-        Right lines -> mapM_ Text.IO.putStrLn lines
-
-convert_source :: Text -> Either [T.Error] [Text]
-convert_source source = do
-    score <- first ((:[]) . T.Error T.fake_pos) $ Parse.parse_score source
-    blocks <- convert_score score
-    pure $ map format_block blocks
-    where
-    format_block b = Text.unlines $ block_name meta b
-        : map (Text.unwords . map (pretty . convert_event)) tracks
-        where
-        (meta, tracks) = T.block_tracks b
-    block_name meta b =
-        Text.intercalate "-" (Parse.unparse (T.block_gatra b) : T.block_names b)
-        <> " " <> showt (m_instrument meta)
-
-convert_event :: Event -> (T.Time, T.Time, Text)
-convert_event (start, T.Note pitch zero dur) =
-    ( start
-    , dur
-    , pretty pitch <> if zero then "/" else ""
-    )
-
-convert_score :: T.ParsedScore
-    -> Either [T.Error] [T.Block T.ParsedPitch (Meta, [[Event]])]
-convert_score score = do
-    T.Score score <- first ((:[]) . T.Error T.fake_pos) $ resolve_blocks score
-    let blocks =
-            [ b { T.block_tracks = (meta, tracks) }
-            | b@(T.Block { T.block_tracks = (Just meta, tracks) })
-                <- collect_metas (map snd score)
-            ]
-    mapM convert_block blocks
-
-resolve_blocks :: T.ParsedScore
-    -> Either Error (T.Score (T.Block T.ParsedPitch T.Tracks))
-resolve_blocks = traverse resolve
-    where
-    resolve block = case T.block_tracks block of
-        Just tracks -> Right $ block { T.block_tracks = tracks }
-        -- TODO actually resolve it
-        Nothing -> Right $ block { T.block_tracks = T.Tracks [] }
-
-convert_block :: T.Block pitch (Meta, T.Tracks)
-    -> Either [T.Error] (T.Block pitch (Meta, [[Event]]))
-convert_block block
-    | null warnings = Right $ block
-        { T.block_tracks =
-            (meta, map (map (second add_oct . stretch_event stretch)) events)
-        }
-    | otherwise = Left warnings
-    where
-    (meta, T.Tracks tracks) = T.block_tracks block
-    (events, warnings) = fmap concat $ unzip $ map resolve tracks
-    add_oct n = n { T.note_pitch = T.add_oct oct (T.note_pitch n) }
-    -- *4 so gatra=4t
-    stretch = (4*) $ recip $ fromIntegral $
-        Check.irama_divisor (m_irama meta)
-        * Check.instrument_multiplier (m_instrument meta)
-    oct = Check.instrument_octave (m_instrument meta)
-    resolve = Logger.runId . Check.resolve_tokens Check.BiasEnd
-        . T.track_tokens
-
-stretch_event :: T.Time -> Event -> Event
-stretch_event stretch (start, note) =
-    ( stretch * start
-    , note { T.note_duration = stretch * (T.note_duration note) }
-    )
-
-collect_metas :: [T.Toplevel (T.Block pitch tracks)]
-    -> [T.Block pitch (Maybe Meta, tracks)]
-collect_metas = go []
-    where
-    go metas = \case
-        [] -> []
-        T.ToplevelMeta meta : toplevels -> go (meta : metas) toplevels
-        T.BlockDefinition block : toplevels ->
-            block { T.block_tracks = (make_meta metas, T.block_tracks block) }
-            : go metas toplevels
-
-data Meta = Meta {
-    m_laras :: T.Laras
-    , m_irama :: T.Irama
-    , m_instrument :: T.Instrument
+data Block = Block {
+    block_name :: Text
+    , block_tracks :: Convert.Tracks
     } deriving (Show, Eq)
 
-make_meta :: [T.Meta] -> Maybe Meta
-make_meta metas = Meta
-    <$> Lists.head [a | T.Laras a <- metas]
-    <*> Lists.head [a | T.Irama a <- metas]
-    <*> Lists.head [a | T.Instrument a <- metas]
+type Error = Text
+
+source_key :: Block.SourceKey
+source_key = "jscore"
+
+integrate_file :: (MonadIO m, Ui.M m) => FilePath -> m ([BlockId], [Text])
+integrate_file = integrate <=< liftIO . Text.IO.readFile
+
+integrate :: Ui.M m => Text -> m ([BlockId], [Text])
+integrate source = do
+    ns <- Ui.get_namespace
+    let (blocks, errors) = convert_source source
+    -- These blocks should all be 1 gatra.
+    gatra_ruler <- get_ruler (Id.id ns "gatra") Gong.gatra
+    (, errors) <$> mapMaybeM (integrate_block gatra_ruler) blocks
+
+get_ruler :: Ui.M m => Id.Id -> Meter.Meter -> m RulerId
+get_ruler ruler_id meter = Ui.lookup_ruler (Id.RulerId ruler_id) >>= \case
+    Just _ -> pure (Id.RulerId ruler_id)
+    Nothing -> Ui.create_ruler ruler_id (Ruler.meter_ruler meter)
+
+integrate_block :: Ui.M m => RulerId -> Block -> m (Maybe BlockId)
+integrate_block ruler_id (Block { block_name, block_tracks }) = do
+    ns <- Ui.get_namespace
+    let block_id = Id.make_unchecked $ Id.id ns block_name
+    Manual.block source_key block_id ruler_id block_title block_tracks
+    where
+    block_title = ""
+
+t0 = _print_integrate "short.jscore"
+
+-- | Show results of integration from ghci.
+_print_integrate :: FilePath -> IO ()
+_print_integrate fname = do
+    source <- Text.IO.readFile fname
+    let (blocks, errors) = convert_source source
+    mapM_ Text.IO.putStrLn errors
+    mapM_ Text.IO.putStrLn $ List.intercalate [""] $ map pp_block blocks
+    where
+    pp_block (Block name tracks) = name <> ":" : concatMap pp_tracks tracks
+    pp_tracks (note, controls) = pp_track note : map pp_track controls
+    pp_track (Convert.Track title events) = title <> ": "
+        <> Text.unwords (map pp_event events)
+    pp_event e = pretty (Event.start e)
+        <> (if Event.duration e == 0 then "" else "~" <> pretty (Event.end e))
+        <> (if Event.text e == "" then "" else "(" <> Event.text e <> ")")
+
+convert_source :: Text -> ([Block], [Error])
+convert_source source = case Parse.parse_score source of
+    Left err -> ([], [err])
+    Right score -> second (map (T.show_error source)) $ convert_score score
+
+convert_score :: T.ParsedScore -> ([Block], [T.Error])
+convert_score score = (map (uncurry convert_block) meta_blocks, warnings)
+    where
+    (meta_blocks, warnings) = Logger.runId $
+        Check.for_integrate Check.BiasEnd score
+
+convert_block :: Check.Meta -> T.Block T.Pitch [[Check.Event]] -> Block
+convert_block (Check.Meta { m_irama, m_instrument }) block = Block
+    { block_name = Text.intercalate "-" $
+        irama_prefix m_irama : instrument_prefix m_instrument
+        : T.block_names block
+    , block_tracks = map (convert_track m_instrument) $
+        zip hands (reverse (T.block_tracks block))
+    }
+    where
+    hands
+        | length (T.block_tracks block) == 2 = [Just "l", Just "r"]
+        | otherwise = repeat Nothing
+
+convert_track :: T.Instrument -> (Maybe Text, [Check.Event])
+    -> (Convert.Track, [Convert.Track])
+convert_track inst (mb_hand, events) =
+    ( Convert.Track
+        { track_title = ">" <> instrument_prefix inst
+            <> maybe "" (" | hand="<>)  mb_hand
+        , track_events = notes
+        }
+    , (:[]) $ Convert.Track
+        { track_title = "*" -- pitch
+        , track_events = pitches
+        }
+    )
+    where (notes, pitches) = unzip $ map to_events events
+
+to_events :: (T.Time, T.Note T.Pitch T.Time) -> (Event.Event, Event.Event)
+to_events (start, note) =
+    ( Event.event (track_time start) (track_time (T.note_duration note))
+        (if T.note_zero_duration note then "/" else "")
+    , Event.event (track_time start) 0 (convert_pitch (T.note_pitch note))
+    )
+
+convert_pitch :: T.Pitch -> Text
+convert_pitch (T.Pitch oct pc) = showt oct <> Text.singleton (T.pc_char pc)
+
+track_time :: T.Time -> TrackTime
+track_time = realToFrac
+
+irama_prefix :: T.Irama -> Text
+irama_prefix = \case
+    T.Lancar -> "l"
+    T.Tanggung -> "t"
+    T.Dadi -> "d"
+    T.Wiled -> "w"
+    T.Rangkep -> "r"
+
+instrument_prefix :: T.Instrument -> Text
+instrument_prefix = \case
+    T.GenderBarung -> "gb"
+    T.GenderPanerus -> "gp"
+    T.Siter -> "si"

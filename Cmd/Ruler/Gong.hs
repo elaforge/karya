@@ -11,6 +11,7 @@ module Cmd.Ruler.Gong (
     , config
     -- * java
     , java
+    , gatra
 ) where
 import           Prelude hiding (until)
 import qualified Data.Set as Set
@@ -285,6 +286,17 @@ java lines = Meter.meter java_config (replicate lines section)
     where
     section = Meter.MSection
         { section_measures = 4
+        , section_measure_duration = 4
+        , section_measure = meter
+        }
+    meter = Meter.regular_subdivision [2, 2, 2, 2, 2, 2, 2]
+
+-- | 1 gatra of ruler.
+gatra :: Meter.Meter
+gatra = Meter.meter java_config [section]
+    where
+    section = Meter.MSection
+        { section_measures = 1
         , section_measure_duration = 4
         , section_measure = meter
         }

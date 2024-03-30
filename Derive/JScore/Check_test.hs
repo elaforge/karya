@@ -18,6 +18,8 @@ import           Util.Test.Global
 test_format_score :: Test
 test_format_score = do
     let f extract = fmap (e_block extract) . format_score
+            . ("%irama=lancar\n%laras=slendro-manyura\n"<>)
+            -- Make sure there is a valid Meta.
     -- normalize_name
     right_equal (f T.block_names "1235 kk [ > 1235 ]") [["kutuk-kuning"]]
     left_like (f T.block_names "1235 zz [ > 1235 ]") "unknown name"
@@ -81,9 +83,9 @@ test_resolve_pitch = do
     let f = fmap (map extract) . resolve_tokens Check.BiasStart
         extract = T.note_pitch . snd
     right_equal (f "1471")
-        [Pitch 0 P1, Pitch 0 P4, Pitch 0 P7, Pitch 1 P1]
-    right_equal (f "11") [Pitch 0 P1, Pitch 0 P1]
-    right_equal (f "147,1") [Pitch 0 P1, Pitch 0 P4, Pitch 0 P7, Pitch 0 P1]
+        [Pitch 3 P1, Pitch 3 P4, Pitch 3 P7, Pitch 4 P1]
+    right_equal (f "11") [Pitch 3 P1, Pitch 3 P1]
+    right_equal (f "147,1") [Pitch 3 P1, Pitch 3 P4, Pitch 3 P7, Pitch 3 P1]
 
 test_resolve_duration_bias_start :: Test
 test_resolve_duration_bias_start = do
@@ -166,5 +168,11 @@ resolve_tokens bias source
     | null errs = Right lines
     | otherwise = Left errs
     where
-    (lines, errs) = Logger.runId $ Check.resolve_tokens bias $
+    (lines, errs) = Logger.runId $ Check.resolve_tokens meta bias $
         parse_tokens source
+    meta = Check.Meta
+        { m_laras = T.SlendroManyura
+        -- Dadi is written 4 bars / gatra, so this gets back to 1 gatra = 1t
+        , m_irama = T.Dadi
+        , m_instrument = T.GenderBarung
+        }

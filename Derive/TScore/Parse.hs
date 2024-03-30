@@ -15,6 +15,17 @@ module Derive.TScore.Parse (
     -- * util
     , strip_comment
     , p_whitespace_
+    -- * parser implementation
+    , Element(..)
+    , Parser
+    , parse_text
+    , default_config
+    , get_pos
+    , keyword
+    , lexeme
+    , p_directive
+    , p_whitespace
+
 #ifdef TESTING
     , module Derive.TScore.Parse
 #endif

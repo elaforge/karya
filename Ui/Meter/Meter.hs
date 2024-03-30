@@ -5,6 +5,9 @@
 {-# LANGUAGE CPP #-}
 {- | Types to describe meters.
 
+    A 'Meter' gets turned into a lower level Marklist, and goes in the
+    'Ruler.meter_name' section of a Ruler.  'Ruler.meter_ruler' creates one.
+
     A meter ruler divides up a block analogous to a staff notation meter.  It's
     actually more general, since the meter just says how to divide up a single
     measure, and only at one level, while the ruler has arbitrary divisions.

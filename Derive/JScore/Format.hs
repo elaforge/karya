@@ -86,8 +86,7 @@ transform_block trans block = block
     }
 
 format_block :: (pos -> Text -> Text) -> Maybe T.Irama -> Maybe T.Instrument
-    -> T.Block T.Pitch [[T.Token pos (T.Note T.Pitch dur) T.Rest]]
-    -> [Text]
+    -> Block [[Token pos dur T.Rest]] -> [Text]
 format_block fmt_pos irama inst block =
     map (("    "<>) . format_tokens fmt_pos bias) (T.block_tracks block)
     where
@@ -100,7 +99,7 @@ format_block fmt_pos irama inst block =
         | inst == Just T.GenderPanerus && irama >= Just T.Dadi = Check.BiasEnd
         | otherwise = Check.BiasStart
 
-format_title :: T.Block T.Pitch tracks -> Text
+format_title :: Block tracks -> Text
 format_title block =
     Texts.join2 " " (format_gatra block_gatra) (Text.unwords block_names)
     <> if null block_inferred then ""
@@ -130,8 +129,7 @@ format_balungan (T.Balungan pitch annot) = mconcat
         Just T.Kenong -> Text.singleton '\x0302' -- COMBINING CIRCUMFLEX ACCENT
     ]
 
-format_tokens :: (pos -> Text -> Text) -> Check.Bias
-    -> [T.Token pos (T.Note T.Pitch dur) T.Rest]
+format_tokens :: (pos -> Text -> Text) -> Check.Bias -> [Token pos dur T.Rest]
     -> Text
 format_tokens fmt_pos bias = mconcat . go
     where
@@ -148,9 +146,7 @@ format_tokens fmt_pos bias = mconcat . go
     is_barline (T.TBarline {}) = True
     is_barline _ = False
 
-format_token :: (pos -> Text -> Text) -> Bool
-    -> T.Token pos (T.Note T.Pitch dur) T.Rest
-    -> Text
+format_token :: (pos -> Text -> Text) -> Bool -> Token pos dur T.Rest -> Text
 format_token fmt_pos on_beat = \case
     T.TBarline {} -> " | "
     -- T.TBarline {} -> " " <> vertical_line <> " "

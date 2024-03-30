@@ -5,14 +5,22 @@
 module Derive.JScore.Check (
     CheckM
     , Bias(..)
-    -- * resolve
-    , resolve_tokens
-    , irama_divisor, instrument_multiplier, instrument_octave
+    -- * integrate
+    , Event
+    , for_integrate
+    , irama_divisor
+    , instrument_multiplier
+    , instrument_octave
+    -- * Meta
+    , Meta(..)
+    , collect_metas
     -- * format
     , Block
     , format_score
 #ifdef TESTING
     , infer_octave
+    , resolve_tokens
+    , stretch_event
 #endif
 ) where
 import qualified Data.Char as Char
@@ -40,11 +48,52 @@ warn pos msg = Logger.log (T.Error pos msg)
 data Bias = BiasStart | BiasEnd
     deriving (Show, Eq)
 
-resolve_tokens :: Bias -> [T.ParsedToken]
-    -> CheckM [(T.Time, T.Note T.Pitch T.Time)]
-resolve_tokens bias =
-    fmap (resolve_durations bias) . normalize_barlines bias . resolve_pitch
+type Event = (T.Time, T.Note T.Pitch T.Time)
 
+for_integrate :: Bias -> T.ParsedScore
+    -> CheckM [(Meta, T.Block T.Pitch [[Event]])]
+for_integrate bias score = mapMaybeM block (collect_metas score)
+    where
+    block (pos, (Nothing, _)) = do
+        warn pos "skipping, incomplete meta"
+        pure Nothing
+    block (pos, (Just meta, block)) = case T.block_tracks block of
+        Nothing -> do
+            warn pos "skipping, no tracks"
+            pure Nothing
+        Just (T.Tracks tracks) -> do
+            tracks <- mapM (resolve_tokens meta bias . T.track_tokens) tracks
+            let block_gatra = resolve_gatra_pitch (T.block_gatra block)
+            pure $ Just (meta, block { T.block_gatra, T.block_tracks = tracks })
+
+resolve_tokens :: Meta -> Bias -> [T.ParsedToken] -> CheckM [Event]
+resolve_tokens (Meta { m_irama, m_instrument }) bias =
+    fmap (adjust . resolve_durations bias) . normalize_barlines bias
+        . resolve_pitch
+    where
+    adjust = map (second add_oct . stretch_event stretch)
+    add_oct n = n { T.note_pitch = T.add_oct oct (T.note_pitch n) }
+    -- 1 bar is normalized to 1t.  irama_bars is how many of them per gatra.
+    -- Then *4 so 1 gatra is 4t.
+    stretch = 4 * recip (fromIntegral (irama_bars m_irama))
+    oct = instrument_octave m_instrument
+
+stretch_event :: T.Time -> Event -> Event
+stretch_event stretch (start, note) =
+    ( stretch * start
+    , note { T.note_duration = stretch * T.note_duration note }
+    )
+
+-- | How many bars are conventionally written for 1 gatra in the given irama.
+irama_bars :: T.Irama -> Int
+irama_bars = \case
+    T.Lancar -> 2
+    T.Tanggung -> 2
+    T.Dadi -> 4
+    T.Wiled -> 4
+    T.Rangkep -> 8
+
+-- | How many notes per gatra for peking in the given irama.
 irama_divisor :: T.Irama -> Int
 irama_divisor = \case
     T.Lancar -> 4
@@ -53,25 +102,55 @@ irama_divisor = \case
     T.Wiled -> 32
     T.Rangkep -> 64
 
+-- TODO
 -- .3.2 puthut-semedi, barung has 4*8 = 32, but basic rhythm may be 4*4 = 16
 -- panerus has 4*8 = 32 which is half.
 
+-- | How many notes for the instrument relative to peking.
 instrument_multiplier :: T.Instrument -> Int
 instrument_multiplier = \case
     T.GenderBarung -> 1
     T.GenderPanerus -> 2
     T.Siter -> 2
 
+-- | Absolute octave of the center where T.Octave = 0.
 instrument_octave :: T.Instrument -> T.Octave
 instrument_octave = \case
-    T.GenderBarung -> 1
-    T.GenderPanerus -> 2
-    T.Siter -> 2
+    T.GenderBarung -> 3
+    T.GenderPanerus -> 4
+    T.Siter -> 4
+
+-- * Meta
+
+data Meta = Meta {
+    m_laras :: T.Laras
+    , m_irama :: T.Irama
+    , m_instrument :: T.Instrument
+    } deriving (Show, Eq)
+
+collect_metas :: T.Score (T.Block pitch tracks)
+    -> [(T.Pos, (Maybe Meta, T.Block pitch tracks))]
+collect_metas (T.Score tops) = go [] tops
+    where
+    go metas = \case
+        [] -> []
+        (_, T.ToplevelMeta meta) : toplevels -> go (meta : metas) toplevels
+        (pos, T.BlockDefinition block) : toplevels ->
+            (pos, (make_meta metas, block)) : go metas toplevels
+
+make_meta :: [T.Meta] -> Maybe Meta
+make_meta metas = Meta
+    <$> Lists.head [a | T.Laras a <- metas]
+    <*> Lists.head [a | T.Irama a <- metas]
+    <*> Lists.head [a | T.Instrument a <- metas]
 
 -- * format
 
 type Block = T.Block T.Pitch [[Token]]
 type Token = T.Token T.Pos (T.Note T.Pitch ()) T.Rest
+
+-- TODO: format_xyz is "check for formatting", not actually format.  Find
+-- less confusing name.
 
 -- | This takes the parsed score to a somewhat more normalized version.  So not
 -- the same as converting to tracklang, because I don't need actual times and
@@ -79,21 +158,19 @@ type Token = T.Token T.Pos (T.Note T.Pitch ()) T.Rest
 -- same "zoom", but it's only since I don't want to convert from times back to
 -- notes.
 format_score :: T.ParsedScore -> CheckM (T.Score Block)
-format_score (T.Score toplevels) =
-    T.Score . snd <$> Lists.mapAccumLM format [] toplevels
+format_score score =
+    T.Score <$> mapM format (collect_metas score)
     where
-    format metas (pos, T.ToplevelMeta a) =
-        pure (a : metas, (pos, T.ToplevelMeta a))
-    format metas (pos, T.BlockDefinition b) = do
+    format (pos, (mb_meta, block)) = do
         -- Must 'resolve_pitch' before 'infer_chord'.
-        b <- format_block b
-        b <- normalize_name metas pos b
-        let mb_inst = Lists.head [a | T.Instrument a <- metas]
-        let mb_laras = Lists.head [a | T.Laras a <- metas]
-        whenJust mb_inst $ \inst -> check_range inst b
+        block <- format_block block
+        block <- normalize_name mb_meta pos block
+        let mb_inst = m_instrument <$> mb_meta
+        let mb_laras = m_laras <$> mb_meta
+        whenJust mb_inst $ \inst -> check_range inst block
         whenJust ((,) <$> mb_inst <*> mb_laras) $ \(inst, laras) ->
-            check_pitch inst laras b
-        pure (metas, (pos, T.BlockDefinition b))
+            check_pitch inst laras block
+        pure (pos, T.BlockDefinition block)
 
 format_block :: T.ParsedBlock -> CheckM Block
 format_block block = do
@@ -125,10 +202,10 @@ format_tokens bias = normalize_barlines bias . resolve_pitch
 -- * normalize names
 
 -- | Un-abbreviate standard cengkok names.
-normalize_name :: [T.Meta] -> T.Pos
+normalize_name :: Maybe Meta -> T.Pos
     -> T.Block pitch [[T.Token pos (T.Note T.Pitch dur) rest]]
     -> CheckM (T.Block pitch [[T.Token pos (T.Note T.Pitch dur) rest]])
-normalize_name metas pos block = do
+normalize_name mb_meta pos block = do
     names <- case T.block_names block of
         [] -> pure ["seleh"]
         name : names -> case Map.lookup name from_abbr of
@@ -148,8 +225,8 @@ normalize_name metas pos block = do
                     , Text.singleton (T.pc_char pc)
                     ]
         | otherwise = []
-    laras = fromMaybe T.PelogLima $ Lists.head [laras | T.Laras laras <- metas]
-    inst = Lists.head [inst | T.Instrument inst <- metas]
+    laras = maybe T.PelogLima m_laras mb_meta
+    inst = m_instrument <$> mb_meta
     from_abbr = Map.fromList $ map Tuple.swap $
         filter (not . Text.null . snd) standard_names
 
@@ -280,6 +357,8 @@ infer_octave (prev_oct, Just prev_pc) (T.ParsedPitch rel_oct pc) =
 
 -- * resolve_durations
 
+-- | Put absolute T.Time on starts and durations.  Normalized such that
+-- one bar is 1.
 resolve_durations :: Bias -> [T.Token pos (T.Note pitch dur) T.Rest]
     -> [(T.Time, T.Note pitch T.Time)]
 resolve_durations bias =
