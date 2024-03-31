@@ -7597,11 +7597,10 @@ tscore:
         list or Map, given the All.hs generation thing like solkattu.
     - compare different irama versions of the same
     integrate
-      - disambiguate block names if not identical
-        . Use seleh, then complete gatra.
+      * disambiguate block names if tracks differ
         Naming blocks:
         . irama prefix: l, t, d, w, r, or maybe i0 i1 i2 i3 i4?
-        . group by name, merge same score, then disambiguate by gatra if
+        . group by name, merge same tracks, then disambiguate by gatra if
           necessary.
         . use inferred names for seleh and gantung
       - create balungan block to sequence

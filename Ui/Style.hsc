@@ -26,17 +26,17 @@ data Style = Style {
     , style_size :: Int
     , style_text_color :: Color.Color
     , style_event_color :: Color.Color
-    } deriving (Eq, Show, Read)
+    } deriving (Eq, Show)
 
 data Font = Helvetica | Times | Courier
-    deriving (Eq, Show, Read)
+    deriving (Eq, Show)
 data FontFace = Bold | Italic
-    deriving (Eq, Show, Read)
+    deriving (Eq, Show)
 
 -- | To save space, event styles are explicitly shared by storing them in
 -- a table.
 newtype StyleId = StyleId Word.Word8
-    deriving (Serialize.Serialize, Eq, Show, Read)
+    deriving (Serialize.Serialize, Eq, Ord, Show)
 
 
 -- * storable

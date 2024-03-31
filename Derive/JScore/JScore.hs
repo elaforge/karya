@@ -40,9 +40,11 @@ module Derive.JScore.JScore (
     , integrate
 ) where
 import qualified Data.List as List
+import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
+import qualified Util.Lists as Lists
 import qualified Util.Logger as Logger
 import qualified Cmd.Integrate.Convert as Convert
 import qualified Cmd.Integrate.Manual as Manual
@@ -96,6 +98,7 @@ convert_laras a b = case (a, b) of
 
 data Block = Block {
     block_name :: Text
+    , block_gatra :: T.Gatra T.Pitch
     , block_tracks :: Convert.Tracks
     } deriving (Show, Eq)
 
@@ -129,6 +132,7 @@ integrate_block ruler_id (Block { block_name, block_tracks }) = do
     block_title = ""
 
 t0 = _print_integrate "short.jscore"
+t1 = _print_integrate "Example/jscore/pangkur.jscore"
 
 -- | Show results of integration from ghci.
 _print_integrate :: FilePath -> IO ()
@@ -138,7 +142,8 @@ _print_integrate fname = do
     mapM_ Text.IO.putStrLn errors
     mapM_ Text.IO.putStrLn $ List.intercalate [""] $ map pp_block blocks
     where
-    pp_block (Block name tracks) = name <> ":" : concatMap pp_tracks tracks
+    pp_block (Block name gatra tracks) =
+        name <> " " <> simple_gatra gatra <> ":" : concatMap pp_tracks tracks
     pp_tracks (note, controls) = pp_track note : map pp_track controls
     pp_track (Convert.Track title events) = title <> ": "
         <> Text.unwords (map pp_event events)
@@ -152,16 +157,40 @@ convert_source source = case Parse.parse_score source of
     Right score -> second (map (T.show_error source)) $ convert_score score
 
 convert_score :: T.ParsedScore -> ([Block], [T.Error])
-convert_score score = (map (uncurry convert_block) meta_blocks, warnings)
+convert_score score = (blocks, warnings)
     where
+    blocks = disambiguate_names $ map (uncurry convert_block) meta_blocks
     (meta_blocks, warnings) = Logger.runId $
         Check.for_integrate Check.BiasEnd score
+
+-- | Group by name, merge same tracks, then disambiguate by gatra if necessary.
+disambiguate_names :: [Block] -> [Block]
+disambiguate_names blocks =
+    concatMap (disambiguate . second (Lists.uniqueOn block_tracks)) $
+        Lists.keyedGroupSort block_name blocks
+    where
+    disambiguate (_, blocks)
+        | length blocks <= 1 = blocks
+        | otherwise = Lists.uniqueOn block_name $ map add blocks
+    add block = block
+        { block_name =
+            block_name block <> "-" <> simple_gatra (block_gatra block)
+        }
+
+simple_gatra :: T.Gatra T.Pitch -> Text
+simple_gatra (T.Gatra n1 n2 n3 n4) = mconcatMap fmt [n1, n2, n3, n4]
+    where
+    fmt (T.Balungan p _) = case p of
+        Just (T.Pitch _ pc) -> Text.singleton (T.pc_char pc)
+        Nothing -> "x" -- "." is already the block separator
 
 convert_block :: Check.Meta -> T.Block T.Pitch [[Check.Event]] -> Block
 convert_block (Check.Meta { m_irama, m_instrument }) block = Block
     { block_name = Text.intercalate "-" $
-        irama_prefix m_irama : instrument_prefix m_instrument
-        : T.block_names block
+        instrument_prefix m_instrument
+        : irama_prefix m_irama
+        : infer_names block
+    , block_gatra = T.block_gatra block
     , block_tracks = map (convert_track m_instrument) $
         zip hands (reverse (T.block_tracks block))
     }
@@ -169,6 +198,16 @@ convert_block (Check.Meta { m_irama, m_instrument }) block = Block
     hands
         | length (T.block_tracks block) == 2 = [Just "l", Just "r"]
         | otherwise = repeat Nothing
+
+infer_names :: T.Block T.Pitch tracks -> [Text]
+infer_names block = case T.block_names block of
+    [] | Just c <- seleh -> ["seleh", c]
+    ["gantung"] | Just c <- seleh -> ["gantung", c]
+    names -> map abbr names
+    where
+    abbr n = fromMaybe n $ fromMaybe Nothing $
+        Map.lookup n Check.standard_names
+    seleh = Text.singleton . T.pc_char <$> T.seleh (T.block_gatra block)
 
 convert_track :: T.Instrument -> (Maybe Text, [Check.Event])
     -> (Convert.Track, [Convert.Track])

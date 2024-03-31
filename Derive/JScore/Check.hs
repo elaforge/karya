@@ -11,6 +11,7 @@ module Derive.JScore.Check (
     , irama_divisor
     , instrument_multiplier
     , instrument_octave
+    , standard_names
     -- * Meta
     , Meta(..)
     , collect_metas
@@ -29,7 +30,6 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
-import qualified Data.Tuple as Tuple
 
 import qualified Util.Lists as Lists
 import qualified Util.Logger as Logger
@@ -227,8 +227,10 @@ normalize_name mb_meta pos block = do
         | otherwise = []
     laras = maybe T.PelogLima m_laras mb_meta
     inst = m_instrument <$> mb_meta
-    from_abbr = Map.fromList $ map Tuple.swap $
-        filter (not . Text.null . snd) standard_names
+    from_abbr = Map.fromList
+        [ (abbr, name)
+        | (name, Just abbr) <- Map.toList standard_names
+        ]
 
 data Chord = Kempyung | Gembyang
     deriving (Eq, Show)
@@ -260,11 +262,11 @@ is_valid_name name =
     Set.member name names
         || Text.all Char.isDigit post && Set.member (Text.dropEnd 1 pre) names
     where
-    names = Set.fromList (map fst standard_names)
+    names = Map.keysSet standard_names
     (pre, post) = Text.breakOnEnd "-" name
 
-standard_names :: [(Text, Text)]
-standard_names =
+standard_names :: Map Text (Maybe Text)
+standard_names = Map.fromList $ map (second Just)
     [ ("ayu-kuning", "ak")
 
     , ("debyang-debyung", "dd")
@@ -278,7 +280,7 @@ standard_names =
     , ("puthut", "p") -- 2 gatra pattern puthut gelut
     , ("puthut-semedi", "ps")
     , ("tumurun", "tm")
-    ] ++ map (, "")
+    ] ++ map (, Nothing)
     [ "buko"
     , "duduk"
     , "gantung"

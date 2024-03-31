@@ -86,7 +86,7 @@ data Event = Event {
     -- | If this event was integrated from another event as by
     -- "Derive.Call.Integrate", this will have the stack of the source event.
     , _stack :: !(Maybe Stack)
-    } deriving (Eq, Show)
+    } deriving (Eq, Ord, Show)
 
 data Stack = Stack {
     -- | The stack is used so the event retains a reference to its generating

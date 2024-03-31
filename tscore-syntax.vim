@@ -1,11 +1,11 @@
-" Syntax highlighting for .tscore files.
+" Syntax highlighting for .tscore and .jscore files.
 
 " I have to use the awkward regexes because :syn match keyword doesn't
 " work because I don't want to modify iskeyword to put in %.
 syn match tsDirective "%default-call\>"
 syn match tsDirective "%\(dur\|meter\|negative\|scale\|f\)\>"
 syn match tsDirective "%\(ky\|instruments\)\>"
-" java tscore
+" jscore only
 syn match tsDirective "%\(source\|piece\|section\|laras\|irama\|instrument\)\>"
 hi tsDirective cterm=underline
 

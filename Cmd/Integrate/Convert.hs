@@ -63,7 +63,7 @@ type Title = Text
 data Track = Track {
     track_title :: !Title
     , track_events :: ![Event.Event]
-    } deriving (Eq, Show)
+    } deriving (Eq, Ord, Show)
 
 instance Pretty Track where
     format (Track title events) = Pretty.record "Track"
