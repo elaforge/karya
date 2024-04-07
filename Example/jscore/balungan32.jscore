@@ -2,7 +2,7 @@
 
 %instrument = gender-panerus
 
-%irama = dadi
+%irama = dadi -- called lampah 8, e.g. 8*4 = 32/gatra
 %laras = slendro-manyura
 -- To go to slendro-sanga, transpose down 1
 -- except ora butuh, doesn't not exist in slendro-sanga

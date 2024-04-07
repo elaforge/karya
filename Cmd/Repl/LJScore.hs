@@ -7,15 +7,15 @@ module Cmd.Repl.LJScore where
 import qualified Data.Text as Text
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Create as Create
 import qualified Derive.JScore.JScore as JScore
 
 import           Global
 
 
 integrate_file :: FilePath -> Cmd.CmdL Text
-integrate_file fname = do
-    (new_blocks, errors) <- JScore.integrate_file fname
-    -- Too many blocks to make views for them, should only make a view for
-    -- the score block.
-    -- mapM_ Create.view new_blocks
-    pure $ Text.unlines $ Text.unwords (map pretty new_blocks) : errors
+integrate_file fname = JScore.integrate_file fname >>= \case
+    Left errors -> pure $ Text.unlines errors
+    Right (mb_toplevel, new_blocks) -> do
+        whenJust mb_toplevel (void . Create.view)
+        pure $ Text.unwords (map pretty (maybe id (:) mb_toplevel new_blocks))

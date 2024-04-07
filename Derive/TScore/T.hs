@@ -197,9 +197,13 @@ fake_pos :: Pos
 fake_pos = Pos (-1)
 
 show_error :: Text -> Error -> Text
-show_error source (Error pos msg) = Texts.unlines2 msg $ fromMaybe "" $ do
-    (line_num, char_num, line) <- find_pos source pos
-    return $ Text.unlines
+show_error source (Error pos msg) =
+    Texts.unlines2 msg $ fromMaybe "" $ show_pos source pos
+
+show_pos :: Text -> Pos -> Maybe Text
+show_pos source pos = fmt <$> find_pos source pos
+    where
+    fmt (line_num, char_num, line) = Text.unlines
         [ Text.justifyRight 3 ' ' (showt line_num) <> " | " <> line
         , Text.replicate (3 + 3 + char_num) " " <> "^"
         ]

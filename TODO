@@ -7597,13 +7597,26 @@ tscore:
         list or Map, given the All.hs generation thing like solkattu.
     - compare different irama versions of the same
     integrate
+      ? This is becoming a lot of work for something which I'm not sure is
+        actually useful.  Especially, I'm not convinced the name structure
+        actually applies to instruments other than gender-barung.  What
+        motivation is there to further develop this?
       * disambiguate block names if tracks differ
         Naming blocks:
         . irama prefix: l, t, d, w, r, or maybe i0 i1 i2 i3 i4?
         . group by name, merge same tracks, then disambiguate by gatra if
           necessary.
         . use inferred names for seleh and gantung
-      - create balungan block to sequence
+      + create toplevel block to sequence
+        - instrument allocation, set scale
+        - balungan track gets "instrument not found: ''"
+        - mbalung blocks have no score
+          . I suppose ideally I'd generate the score from gatra.
+        - generate toplevel doesn't enforce consistent irama
+        - pangkur-ngrenas is inconsistent:
+          gb starts ompak, dadi ..15
+          gp starts ompak, tanggung ..15 6121 2353 2121)
+          So gb is missing dadi part of ompak.
       - handle buko specially
       * basic reduction to events
       * create BlockId, based on name and inferred_names

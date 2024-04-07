@@ -19,6 +19,7 @@ module Util.Lists (
     , updateAt
     , move
     -- * enumeration
+    , enumerate
     , range, range', rangeEnd, range_
     -- * transformation
     , keyOn
@@ -89,8 +90,6 @@ module Util.Lists (
 
     -- * permutations
     , cartesian
-    -- * enumeration
-    , enumerate
     -- * sublists
     , takeEnd
     , dropEnd
@@ -227,6 +226,9 @@ move from to xs = do
     return $ insertAt to x dropped
 
 -- * enumeration
+
+enumerate :: [a] -> [(Int, a)]
+enumerate = zip [0..]
 
 -- | Enumerate an inclusive range.  Uses multiplication instead of successive
 -- addition to avoid loss of precision.
@@ -715,11 +717,6 @@ cartesian :: [[a]] -> [[a]]
 cartesian [] = []
 cartesian [xs] = [[x] | x <- xs]
 cartesian (xs:rest) = [x:ps | x <- xs, ps <- cartesian rest]
-
--- * enumeration
-
-enumerate :: [a] -> [(Int, a)]
-enumerate = zip [0..]
 
 -- * sublists
 

@@ -7,6 +7,8 @@ module Derive.JScore.Format (
     , format_score
     , format_block
     , format_title
+    , format_gatra
+    , format_balungan
 ) where
 import qualified Data.List as List
 import qualified Data.Text as Text
@@ -17,7 +19,6 @@ import qualified Util.Logger as Logger
 import qualified Util.Texts as Texts
 
 import qualified Derive.JScore.Check as Check
-import qualified Derive.JScore.JScore as JScore
 import qualified Derive.JScore.Parse as Parse
 import qualified Derive.JScore.T as T
 
@@ -27,10 +28,10 @@ import           Global
 type Block tracks = T.Block T.Pitch tracks
 type Token pos dur rest = T.Token pos (T.Note T.Pitch dur) rest
 
-format_file :: JScore.Transform -> FilePath -> IO ()
+format_file :: Check.Transform -> FilePath -> IO ()
 format_file transform = print_score transform <=< Text.IO.readFile
 
-print_score :: JScore.Transform -> Text -> IO ()
+print_score :: Check.Transform -> Text -> IO ()
 print_score transform source = case Parse.parse_score source of
     Left err -> Text.IO.putStrLn err
     Right score -> do
@@ -42,12 +43,12 @@ print_score transform source = case Parse.parse_score source of
 data FormatState = FormatState {
     state_metas :: [T.Meta]
     , state_prev_is_block :: Bool
-    , state_transform :: JScore.Transform
+    , state_transform :: Check.Transform
     }
 
 -- | Format a T.Score to print.  This is does some Checks but doesn't
 -- normalize down to Time, because it's more like normalization than lowering.
-format_score :: JScore.Transform -> T.ParsedScore -> ([Text], [T.Error])
+format_score :: Check.Transform -> T.ParsedScore -> ([Text], [T.Error])
 format_score transform score =
     ( concat $ snd $ List.mapAccumL format_toplevel state (map snd toplevels)
     , errs
@@ -78,8 +79,8 @@ format_title_block state block =
     inst = Lists.head [i | T.Instrument i <- metas]
     metas = state_metas state
 
-transform_block :: JScore.Transform
-    -> Block [[Token pos dur rest]] -> Block [[Token pos dur rest]]
+transform_block :: Check.Transform -> Block [[Token pos dur rest]]
+    -> Block [[Token pos dur rest]]
 transform_block trans block = block
     { T.block_gatra = trans <$> T.block_gatra block
     , T.block_tracks = map (T.map_pitch trans) (T.block_tracks block)
@@ -112,8 +113,7 @@ format_meta = Text.drop 1 . Parse.unparse
     -- Input syntax uses a leading %.
 
 format_gatra :: T.Gatra T.Pitch -> Text
-format_gatra (T.Gatra n1 n2 n3 n4) =
-    mconcatMap format_balungan [n1, n2, n3, n4]
+format_gatra = mconcatMap format_balungan . T.gatra_notes
 
 format_balungan :: T.Balungan T.Pitch -> Text
 format_balungan (T.Balungan (Just (T.Pitch oct pc)) (Just T.Gong))

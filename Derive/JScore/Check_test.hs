@@ -20,13 +20,12 @@ test_format_score = do
     let f extract = fmap (e_block extract) . format_score
             . ("%irama=lancar\n%laras=slendro-manyura\n"<>)
             -- Make sure there is a valid Meta.
+    let e_notes = mconcatMap (pretty . T.map_note T.note_pitch)
     -- normalize_name
     right_equal (f T.block_names "1235 kk [ > 1235 ]") [["kutuk-kuning"]]
     left_like (f T.block_names "1235 zz [ > 1235 ]") "unknown name"
     -- normalize_hands
-    right_equal
-        (f (map (mconcatMap pretty) . T.block_tracks)
-            "1235 [ > 1235 > .5.3.2.1 ]")
+    right_equal (f (map e_notes . T.block_tracks) "1235 [ > 1235 > .5.3.2.1 ]")
         [["01.02.03.05.", ".05.03.02.01"]]
     left_like (f id "1235 [ > 3333 > 1111 | 2222 ]")
         "left hand with no right hand"

@@ -3,7 +3,11 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 {-# LANGUAGE CPP #-}
 module Derive.JScore.Check (
-    CheckM
+    -- * transform
+    Transform
+    , convert_laras
+    -- * check
+    , CheckM
     , Bias(..)
     -- * integrate
     , Event
@@ -40,6 +44,37 @@ import qualified Derive.JScore.T as T
 import           Global
 
 
+-- * transform
+
+type Transform = T.Pitch -> T.Pitch
+
+convert_laras :: T.Laras -> T.Laras -> Maybe Transform
+convert_laras a b = case (a, b) of
+    _ | a == b -> Just id
+    (T.PelogLima, T.PelogBarang) -> Just one_to_seven
+    (T.PelogBarang, T.PelogLima) -> Just seven_to_one
+    (T.SlendroManyura, T.PelogBarang) -> Just one_to_seven
+    (T.PelogBarang, T.SlendroManyura) -> Just seven_to_one
+
+    -- slendro-manyura -> pelog-barang -> pelog-lima
+    (T.SlendroManyura, T.PelogLima) -> Just id
+    (T.PelogLima, T.SlendroManyura) -> Just id
+
+    -- TODO pelog-nem to lima by transposing down one, not sure.
+    -- can I go lima to num by going back up one?
+    (T.PelogNem, T.PelogLima) -> Just $ T.add_pc T.PelogLima (-1)
+    -- TODO maybe?
+    (T.SlendroManyura, T.SlendroSanga) -> Just $ T.add_pc T.SlendroSanga (-1)
+    (T.SlendroSanga, T.PelogNem) -> Just id -- TODO maybe?
+    _ -> Nothing
+    where
+    one_to_seven p@(T.Pitch _ T.P1) = T.add_pc_abs (-1) p
+    one_to_seven p = p
+    seven_to_one p@(T.Pitch _ T.P7) = T.add_pc_abs 1 p
+    seven_to_one p = p
+
+-- * check
+
 type CheckM a = Logger.Logger T.Error a
 
 warn :: T.Pos -> Text -> CheckM ()
@@ -47,6 +82,8 @@ warn pos msg = Logger.log (T.Error pos msg)
 
 data Bias = BiasStart | BiasEnd
     deriving (Show, Eq)
+
+-- * integrate
 
 type Event = (T.Time, T.Note T.Pitch T.Time)
 
@@ -57,14 +94,13 @@ for_integrate bias score = mapMaybeM block (collect_metas score)
     block (pos, (Nothing, _)) = do
         warn pos "skipping, incomplete meta"
         pure Nothing
-    block (pos, (Just meta, block)) = case T.block_tracks block of
-        Nothing -> do
-            warn pos "skipping, no tracks"
-            pure Nothing
-        Just (T.Tracks tracks) -> do
-            tracks <- mapM (resolve_tokens meta bias . T.track_tokens) tracks
-            let block_gatra = resolve_gatra_pitch (T.block_gatra block)
-            pure $ Just (meta, block { T.block_gatra, T.block_tracks = tracks })
+    block (_, (Just meta, block)) = do
+        tracks <- mapM (resolve_tokens meta bias . T.track_tokens) $
+            case T.block_tracks block of
+                Nothing -> []
+                Just (T.Tracks tracks) -> tracks
+        let block_gatra = resolve_gatra_pitch (T.block_gatra block)
+        pure $ Just (meta, block { T.block_gatra, T.block_tracks = tracks })
 
 resolve_tokens :: Meta -> Bias -> [T.ParsedToken] -> CheckM [Event]
 resolve_tokens (Meta { m_irama, m_instrument }) bias =
@@ -128,6 +164,11 @@ data Meta = Meta {
     , m_instrument :: T.Instrument
     } deriving (Show, Eq)
 
+instance Pretty Meta where
+    pretty (Meta laras irama instrument) =
+        "Meta:" <> Text.intercalate ","
+            [showt laras, showt irama, showt instrument]
+
 collect_metas :: T.Score (T.Block pitch tracks)
     -> [(T.Pos, (Maybe Meta, T.Block pitch tracks))]
 collect_metas (T.Score tops) = go [] tops
@@ -158,8 +199,7 @@ type Token = T.Token T.Pos (T.Note T.Pitch ()) T.Rest
 -- same "zoom", but it's only since I don't want to convert from times back to
 -- notes.
 format_score :: T.ParsedScore -> CheckM (T.Score Block)
-format_score score =
-    T.Score <$> mapM format (collect_metas score)
+format_score score = T.Score <$> mapM format (collect_metas score)
     where
     format (pos, (mb_meta, block)) = do
         -- Must 'resolve_pitch' before 'infer_chord'.

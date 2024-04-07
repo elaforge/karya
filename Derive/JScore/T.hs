@@ -5,8 +5,10 @@ module Derive.JScore.T (
     module Derive.JScore.T
     , module Derive.TScore.T
 ) where
+import qualified Data.Text as Text
+
 import           Derive.TScore.T
-    (Error(..), Pos(..), Time(..), fake_pos, find_pos, show_error)
+    (Error(..), Pos(..), Time(..), fake_pos, find_pos, show_pos, show_error)
 
 import           Global
 
@@ -83,6 +85,14 @@ data Gatra pitch =
     Gatra (Balungan pitch) (Balungan pitch) (Balungan pitch) (Balungan pitch)
     deriving (Eq, Show, Functor, Foldable, Traversable)
 
+instance Pretty pitch => Pretty (Gatra pitch) where
+    pretty = Text.intercalate "," . map pretty . gatra_notes
+instance Pretty pitch => Pretty (Balungan pitch) where
+    pretty (Balungan mp _) = maybe "." pretty mp
+
+gatra_notes :: Gatra pitch -> [Balungan pitch]
+gatra_notes (Gatra n1 n2 n3 n4) = [n1, n2, n3, n4]
+
 data Balungan pitch = Balungan (Maybe pitch) (Maybe BalunganAnnotation)
     deriving (Eq, Show, Functor, Foldable, Traversable)
 
@@ -119,7 +129,10 @@ data Laras =
 data Irama = Lancar | Tanggung | Dadi | Wiled | Rangkep
     deriving (Eq, Ord, Enum, Bounded, Show)
 data Instrument = GenderBarung | GenderPanerus | Siter
-    deriving (Eq, Show, Bounded, Enum)
+    deriving (Eq, Ord, Show, Bounded, Enum)
+
+instance Pretty Irama where pretty = showt
+instance Pretty Instrument where pretty = showt
 
 type ParsedBlock = Block ParsedPitch (Maybe Tracks)
 
@@ -133,6 +146,11 @@ data Block pitch tracks = Block {
     , block_tracks :: tracks
     , block_pos :: Pos
     } deriving (Eq, Show, Functor)
+
+instance Pretty tracks => Pretty (Block Pitch tracks) where
+    pretty b = "Block " <> Text.intercalate "-" (block_names b)
+        <> " " <> pretty (block_gatra b)
+        <> " " <> pretty (block_tracks b)
 
 newtype Tracks = Tracks [Track ParsedToken]
     deriving (Eq, Show)
@@ -187,8 +205,11 @@ data Note pitch dur = Note {
     , note_duration :: dur
     } deriving (Eq, Ord, Show)
 
-instance Pretty pitch => Pretty (Note pitch dur) where
-    pretty = pretty . note_pitch
+instance (Pretty pitch, Pretty dur) => Pretty (Note pitch dur) where
+    pretty (Note pitch zero_dur dur) = mconcat
+        [ "Note ", pretty pitch, if zero_dur then "/" else ""
+        , " " <> pretty dur
+        ]
 
 -- | Keep track if there was whitespace after notes and rests.
 -- I can use this to infer durations.

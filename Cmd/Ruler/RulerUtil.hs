@@ -25,8 +25,9 @@ import           Types
 -- | Make a ruler of a single meter until the given end time.
 meter_until :: Meter.AbstractMeter -> TrackTime -> Int -> TrackTime
     -> Meter.Meter
-meter_until meter measure_dur per_section end = meter_take end $
-    Meter.meter Meter.default_config $
+meter_until meter measure_dur per_section end =
+    -- TODO why meter_take if I'm already setting the right number of sections?
+    meter_take end $ Meter.meter Meter.default_config $
     replicate sections (Meter.MSection per_section measure_dur meter)
         ++ [Meter.MSection left measure_dur meter]
     where
