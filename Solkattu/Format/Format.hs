@@ -92,7 +92,7 @@ scoreInstruments =
     where
     name = Korvai.ginstrumentName
     order name = (fromMaybe 999 $ List.elemIndex name prio, name)
-        where prio = ["konnakol", "mridangam"]
+        where prio = ["konnakol", "bol", "tabla", "mridangam"]
 
 -- * group
 
