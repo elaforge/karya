@@ -109,8 +109,8 @@ toplevel_ruler :: Ui.M m => BlockId -> Int -> m RulerId
 toplevel_ruler block_id gatras = RulerUtil.replace block_id $ const $ Right $
     Ruler.meter_ruler $ Gong.java lines
     where
-    lines = ceiling (fromIntegral gatras / 4)
-    -- TODO hardcoded 4 gatras / kenong, but it depends on form
+    lines = ceiling (fromIntegral gatras / 2)
+    -- TODO hardcoded 2 gatras / kenong, but it depends on form
     -- I guess there should be %form=ketawang
 
 integrate_block :: Ui.M m => RulerId -> ConvertedBlock -> m (Maybe BlockId)
@@ -182,6 +182,7 @@ generate_toplevel blocks = do
         , track_events =
             [ Event.event t 4 (to_name (T.block_names block))
             | (t, block) <- zip (Lists.range_ 0 4) blocks
+            , T.block_names block `Set.notMember` special_names
             ]
         }
 
@@ -192,8 +193,8 @@ balungan_track :: [T.Gatra T.Pitch] -> Convert.Track
 balungan_track gatras = Convert.Track
     { track_title = ">"
     , track_events =
-        [ Event.event t 0 ("-- " <> Format.format_balungan n)
-        | (t, n) <- zip (Lists.range_ 0 1)
+        [ Event.event t (-0) ("-- " <> Format.format_balungan n)
+        | (t, n) <- zip (drop 1 (Lists.range_ 0 1))
             [n | g <- gatras, n <- T.gatra_notes g]
         , has_pitch n
         ]
@@ -253,8 +254,8 @@ check_empty_no_match blocks = mapMaybe check blocks
                 <> " has no matches"
             , [T.block_pos block]
             )
-    names = Set.fromList $ ["gp", "t", "mbalung"]
-        : (map T.block_names $ filter (not . null . T.block_tracks) blocks)
+    names = special_names <> Set.fromList
+        (map T.block_names $ filter (not . null . T.block_tracks) blocks)
 
 normalize_names :: [(Check.Meta, Block)] -> [(Check.Meta, Block)]
 normalize_names = map set
@@ -265,16 +266,22 @@ normalize_names = map set
         }
 
 normalize_name :: Check.Meta -> T.Gatra T.Pitch -> [Text] -> [Text]
-normalize_name (Check.Meta { m_irama, m_instrument }) gatra =
-    (prefix++) . \case
+normalize_name (Check.Meta { m_irama, m_instrument }) gatra names
+    | names `Set.member` special_names = names
+    | otherwise = prefix ++ case names of
         [] | Just c <- seleh -> ["seleh", c]
         ["gantung"] | Just c <- seleh -> ["gantung", c]
-        names -> map abbr names
+        _ -> map abbr names
     where
     prefix = [instrument_name m_instrument, irama_prefix m_irama]
     abbr n = fromMaybe n $ fromMaybe Nothing $
         Map.lookup n Check.standard_names
     seleh = Text.singleton . T.pc_char <$> T.seleh gatra
+
+-- | Let these remain undefined.
+-- TODO mbalung could copy from balungan, missing could omit the event.
+special_names :: Set [Text]
+special_names = Set.fromList $ map (:[]) ["mbalung", "missing"]
 
 -- | If two blocks have the same name, it's ok if they have the same notes.
 -- If they have different notes, then disambiguate with the gatra and then

@@ -134,6 +134,9 @@ data Instrument = GenderBarung | GenderPanerus | Siter
 instance Pretty Irama where pretty = showt
 instance Pretty Instrument where pretty = showt
 
+data Bentuk = Gendhing | Ketawang | Ladrang | Lancaran
+    deriving (Show, Eq)
+
 type ParsedBlock = Block ParsedPitch (Maybe Tracks)
 
 data Block pitch tracks = Block {
@@ -214,6 +217,10 @@ instance (Pretty pitch, Pretty dur) => Pretty (Note pitch dur) where
 -- | Keep track if there was whitespace after notes and rests.
 -- I can use this to infer durations.
 data HasSpace = HasSpace | NoSpace deriving (Eq, Ord, Show)
+
+instance Pretty HasSpace where
+    pretty HasSpace = "_"
+    pretty NoSpace = "X"
 
 data Rest = Rest {
     rest_sustain :: Bool

@@ -23,8 +23,8 @@ test_convert_source = do
             \%irama = tanggung\n"
     let f = fmap fst . convert_source . (header <>)
     let events es =
-            [ (t, 0, "-- " <> Text.singleton e)
-            | (t, e) <- zip (Lists.range_ 0 1) es
+            [ (t, -0, "-- " <> Text.singleton e)
+            | (t, e) <- zip (Lists.range_ 1 1) es
             ]
     right_equal (f
         "3231 dualolo [\n\
