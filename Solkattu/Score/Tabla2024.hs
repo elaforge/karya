@@ -55,32 +55,56 @@ c_24_01_04_chakradar = date 2024 1 4 $ colby $ chakradar $
         , ("tin", ka & tun)
         ] where Tabla.Strokes { .. } = Tabla.notes
 
+{-
+     0 theme
+     1 aaab
+     2 23 dha 2 dha 2       = (.5) 2 (.5) 2
+     3 23 2 dha 2 dha       = 2 (.5) 2 (.5)
+     4 23 5*4               = 5*4
+     5 23 4 4 4*3           = 4 4 3333 = 5*4
+     6 23 _1 4 5*3          = 5 + 15
+     7 23 32
+     8 322 322 1 ->b        = 7 7 1 = 15
+     9 333 dha4 ->b         = 9 + 1 = 10 irregular
+    10 23 d6 3 d6 3 d4      = 1.5 + 3 + 1.5 + 3 + 1 = 3 + 6 + 1
+    11 23 33   d3 d3 d4     = 6 + 3 + 1
+    12 23 3 (66) d3 d3 d4   = 33 -> (66)
+    13 23 (66) 66 66 d4     = d3 d3 -> 66 66
+    14 23 (666) 22 0.5 d4   = 4.5 + 4 + 0.5 + 1 = 9 + 1
+    15 23 (66) (888) d4  = 3 + 6 + 1
+    16 b a'
+    17 bbb a'
+    18 b10 b10 b(16)    = 5 * 2
+    19 genedhina _ (genedhina)2 _
+    20 tihai
+    21 tihai2
+-}
 c_24_01_11 :: Korvai
 c_24_01_11 = date 2024 1 12 $ colby $ kaida $ korvaiS jhaptal tabla
-    [ kaliM (9*4) (15*4) $ r2 $ theme1 . theme2
+    [ kaliM (9*4) (15*4) $ r2 $ theme1 . theme2                 -- 0
     , r3 theme1 . theme2 -- aaab
-    , pat2 . takga_dhinne . tri_ (dha.__) pat2 . theme1.theme2
+    , pat2 . takga_dhinne . tihai pat2 (dha.__) . theme1.theme2
     , theme1 . r2 (pat2.dha.__) . theme1.theme2
-    , theme1 . r4 (dha.__5) . theme1.theme2
+    , theme1 . r4 (dha.__5) . theme1.theme2                     -- 4
     , theme1 . r2 (dha.__4) . r4 (dha.__3) . theme1.theme2
     , theme1 . __.dha.__4 . r5 (dha.__3) . theme1.theme2
     , pat2.pat3 . pat3.pat2 . theme1.theme2
-    , pat3.pat2.pat2 . pat3.pat2.pat2.takga_dhinne . theme2
+    , pat3.pat2.pat2 . pat3.pat2.pat2.takga_dhinne . theme2     -- 8
     , pat3.pat3.pat3.dha.__4 . theme2 -- irregular, 15 beats instead of 20
         . kali (pat3.pat3.pat3.dha.__4) . theme2
-    , pat2 . tri_ (dha.__6) pat3 . dha.__4 . theme2
+    , pat2 . tihai pat3 (dha.__6) . dha.__4 . theme2
     , pat2.r3 pat3 . r2 (dha.__6) . dha.__4 . theme2
-    , pat2.pat3.pat3.r2 dhinne_dhinna_gena . r2 (dha.__6) . dha.__4 . theme2
+    , pat2.pat3.pat3.r2 dhinne_dhinna_gena . r2 (dha.__6).dha.__4 . theme2 -- 12
     , pat2.pat3 . r6 dhinne_dhinna_gena.dha.__4 . theme2
     , pat2.pat3 . r3 dhinne_dhinna_gena . r2 pat2 . tak.ga.dha.__4 . theme2
     , pat2.pat3 . r2 dhinne_dhinna_gena
         . r3 (g "dhinne dhinna gege takga").dha.__4 . theme2
-    , theme2.theme2b
-    , r3 theme2.theme2b
-    , r2 (takeM 10 theme2).theme2 . theme2.theme2b
-    , takeM 10 theme2.__ . r2 "gene dhinna".__ . theme2.theme2b . __M 20
+    , theme2.theme1b                                            -- 16
+    , r3 theme2.theme1b
+    , r2 (takeM 10 theme2).theme2 . theme2.theme1b
+    , takeM 10 theme2.__ . r2 "gene dhinna".__ . theme2.theme1b . __M 20
         -- It's a 1.5, which comes to 3 with kali.
-    , tihai (takeM 10 theme2 . __ . tri_ (na.__) "gene dhin") (na.__4)
+    , tihai (takeM 10 theme2 . __ . tihai "gene dhin" "na_") (na.__4)   -- 20
     , tihai (takeM 6 theme2 . r3 (g "gene dhinna gene")) (dha.__4)
     ]
     where
@@ -90,7 +114,7 @@ c_24_01_11 = date 2024 1 12 $ colby $ kaida $ korvaiS jhaptal tabla
     theme1 = pat2 . pat3
     theme2 = "dha trekre dhet tette gene" . dhinna_gena . "dhati dhage"
         . dhinna_gena
-    theme2b = dha.__8.takga_dhinne . kali pat2
+    theme1b = dha.__8.takga_dhinne . kali pat2
     -- This identifies this as kaida rather than rela: dhinne tak is hard to
     -- play quickly, also dhati dhage tuna kena is typical of kaida.
     takga_dhinne = "takga dhinne"

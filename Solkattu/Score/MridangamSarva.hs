@@ -18,7 +18,7 @@ import           Solkattu.Dsl.Mridangam
 
 kir1 :: Korvai
 kir1 = sarvalaghu $ sudhindra $ korvaiS adi $
-    [ repeat 4 $ repeat 2 (n.l.d.d) & (o.__.o.o.__.o.o.__) -- takadimi takajonu
+    [ r2 $ r4 (n.l.d.d) & "o_oo_oo_o_p" -- takadimi takajonu
     ]
 
 kir2 :: Korvai
@@ -61,10 +61,20 @@ kir5 = sarvalaghu $ sudhindra $ korvaiS1 adi $
 
 yt_1 :: Korvai
 yt_1 = sarvalaghu $ source "https://www.youtube.com/watch?v=OxESPQM08MA" $
-    korvaiS1 adi $ r2 $
-        rh & "o__o" . rh & "_oo_" . rh & "o__p" . rh & "_pp_"
-    where
-    rh = n.k.k.d
+    korvaiS1 adi $ r2 $ r4 "nkkd" & "o__o_oo_o__p_pp_"
+
+yt_2 :: Korvai
+yt_2 = sarvalaghu $ source "https://www.youtube.com/watch?v=93ywZgU9FQk" $
+    korvaiS adi
+    [ r2 $ rh & "o_o_oo_" . rh & "__o_ooo_"
+    , "_knknnd_" & "o_o_oo_" . rh & "__o_ooo_"
+        . "_knknnd_" & (su "oo" . "_o_oo_") . rh & ("_".su "_o" . "o_ooo_")
+    , let rh = "ndndnndd" in r2 $ rh & "o_o_oo_" . rh & "__o_ooo_"
+    , "D_ND_NND_NND_NNk" . "d_nd_nnd_nnd_NNk"
+    , "D_ND_NND_NND_".su "kokook" . "d_".su "ko"."D_nnd_nnd_".su "nokook"
+    , "ND_kND_knd_kno".su "ktok" . "ND_knd_knd_kno".su "ktok"
+    ]
+    where rh = "nknknnd_"
 
 -- * melkalam
 
@@ -248,6 +258,16 @@ candiramani_pakhawaj_adi = korvaiS adi
 
 
 -- * transcription
+
+-- 09-Thani Avarthanam, Aruna Sairam, Cleveland Aradhana 2004
+-- mridangam: Mannargudi Easwaran
+thani_24_03_26 :: Korvai
+thani_24_03_26 = date 2024 3 26 $ sarvalaghu $ korvaiS Tala.rupaka_fast $ map su
+    [ __M 4 . "k_k_t_k_u_" . "pkn,dNokon"
+    , "D_ND_dn_" . r3 "d_nd_,n," . "d_nd_ktk" . su "n_ktok" . "okook"
+    , r2 "D_ND_,N," . r2 ("tknd,dnk" & "o__o__o_") . r2 "tknd,dnk"
+        . r5 "tknd,dnk" . su (r2 "N_ktok") . "ok"
+    ]
 
 {-
     These are easier to transcribe and read as plain text.  Maybe there

@@ -232,6 +232,27 @@ c_23_10_16 = date 2023 10 26 $ colby $ mukra $ korvaiS1 tintal tablaKinar $
     . spread 3 (r2 "dhatette" . dha) . dha.__
     . g (r2 "dhatettedha_dha_" . "ta_dhatettedha_dha")
 
+{-
+     0 theme
+     1 abababcd -- aab
+     2 abababcd -- a' a' b
+     3 " gtd gtd gtt
+     4 " ggtd gtd gt
+     5 " ggtd gtd td
+     6 " gtd td ktd kd d
+     7 " gtd td ktd ktd ktd kt
+     8 d tt (gtkkt)2
+     9 d tt ggt gt gt
+    10 d tt gt gt gt g
+    11 d ttgtd ttgtd ttg
+    12 d tt gggt ggt g
+    13 theme cdab
+    14 cdcdcd ab
+    15 cccd (finally drop ab)
+    16 gt (dhkttk)3
+    17 cd x2
+    18 tihai
+-}
 c_23_11_09 :: Korvai
 c_23_11_09 = date 2023 11 9 $ colby $ rela $ kaida $ korvaiS tintal tablaKinar
     [ kaliM (64-8) (64+32) $ r2 $ theme1.theme2.theme3.theme2
@@ -280,25 +301,6 @@ c_23_11_09 = date 2023 11 9 $ colby $ rela $ kaida $ korvaiS tintal tablaKinar
     -- , tri_ (dha.__) (tri_ (dha.__4) "dha_dha_")
     , tihai (tihai "dha_dha_" (dha.__4)) (dha.__)
     ]
-    --  0 theme
-    --  1 abababcd -- aab
-    --  2 abababcd -- a' a' b
-    --  3 " gtd gtd gtt
-    --  4 " ggtd gtd gt
-    --  5 " ggtd gtd td
-    --  6 " gtd td ktd kd d
-    --  7 " gtd td ktd ktd ktd kt
-    --  8 d tt (gtkkt)2
-    --  9 d tt ggt gt gt
-    -- 10 d tt gt gt gt g
-    -- 11 d ttgtd ttgtd ttg
-    -- 12 d tt gggt ggt g
-    -- 13 theme cdab
-    -- 14 cdcdcd ab
-    -- 15 cccd (finally drop ab)
-    -- 16 gt (dhkttk)3
-    -- 17 cd x2
-    -- 18 tihai
     where
     theme = g (theme1 . theme2 . theme3 . theme4)
     theme1 = "dha_tette gerenaga" . "gerenaga terekite"

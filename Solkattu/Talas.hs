@@ -46,8 +46,7 @@ labels = \case
 
 -- * Tal
 
--- TODO I wound up using Carnatic Tala because I wound up using Korvai, but
--- I'll need some way to reconcile.
+-- | Hindustani taal.
 data Tal = Tal {
     talName :: Text
     , talVibhags :: [(Tali, Tala.Akshara)]
@@ -81,6 +80,7 @@ tintal = Tal "tintal" [(Tali, 4), (Tali, 4), (Kali, 4), (Tali, 4)]
 
 kehrwa :: Tal
 kehrwa = Tal "kehrwa" [(Tali, 4), (Kali, 4)]
+    -- dha ge na ti | na ka dhi na
 
 jhaptal :: Tal
 jhaptal = Tal "jhaptal" [(Tali, 2), (Tali, 3), (Kali, 2), (Tali, 3)]

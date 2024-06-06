@@ -216,6 +216,11 @@ koraippus = koraippu $ korvaiS adi
         . Divide 7s in 3.5 + 3.5: takita tk takita
     -}
 
+t_24_05_30_yt1 :: Korvai
+t_24_05_30_yt1 = date 2024 5 30 $
+    source "https://www.youtube.com/watch?v=SKPr09ZE3nA" $ korvaiS1 (beats 4) $
+    "N _ kt" . su ("iln,p,nk t" . "pktn_" . "pkn_n_ktpk").od
+
 {-
 
 koraippu:
