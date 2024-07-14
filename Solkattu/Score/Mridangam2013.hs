@@ -38,133 +38,68 @@ e_3s_5s = date 2013 6 12 $ exercise $ ganesh $ korvaiS1 adi $
 -- 2013-06-19 - sarvalaghu, nakatarikitataka, start of farans, p5 variants
 -- 2013-07-17 - farans, 555, 666, 777
 
--- TODO use this as a template to fill in various themes
-dinnagina_sequence_old :: Korvai
-dinnagina_sequence_old = date 2013 9 11 $ ganesh $ sequenceT $ korvaiS1 adi $
-    su $ mconcat $ map (sam.)
-    [ sarvaA_ 16 ptheme
-    , sarvaA_ 8 ptheme . sarvaA_ 8 ptheme
-
-    -- start sarvalaghu with o k D D ...
-    -- o k oktkoktkpktkt k oktkoktkoktk     x2
-    , theme . ptheme . theme . ptheme
-    , trin (od.__8) theme ptheme ptheme
-    , theme . od.__8 . ptheme . od.__4 . eme . od.__4 . eme
-    , theme . od.__8 . ptheme . od.__4 . eme . od.__2 . me . od.__2 . me
-    -- the pattern is theme on sam and arudi, ptheme otherwise.
-    , trin (od.__) (theme.me) (ptheme.me) (ptheme.me)
-    , trin (od.__) theme (ptheme.me) (ptheme.me.me)
-    , r2 (theme.od.__4 . eme.od.__4 . eme . od.__4)
-        . theme.od.__4 . eme.od.__ . me.od.__.me
-
-    -- 1st variation
-    -- 0   1   2   3   o3  . p   . o   . p   .
-    -- o k oktkoktkoktkoktkokpktkpkoktkokpktkpk|o
-    -- t k oktkokokou_kou_kkopu_kkoou_kkopu_kko|o
-    -- t k oktkokokou_kkopu kkoou kkopu kkoou k|o
-    -- 0   1   2   3   o3  . p   . o   . p   .
-    -- , tri_ (o.__4) (ptheme . me . pme . ome . pme . k.o)
-    , tri_ (o.__4) (theme . eme3b . pme3b . eme3b . pme3b)
-    -- 2nd variation
-    -- 0   1   2   3   p3  . o   . p   . o   .
-    -- t k oktkokokou_kkopu kkoou kkopu kkoou k|o
-    --   k oktkokokkk____pkk____okk____pkk__okk_
-    , tri_ (o.__4) (theme . pme3b' . eme3b' . pme3b' . eme3b')
-    ]
-    where
-    -- dhom ka dinnagina takataka talang ga
-    theme = o.__.k.__.o.k.t.k.o.k.o.k.o.u.__.k
-    -- TODO not quite right, this has to be ptheme when not on an sam or arudi
-    ptheme = t `replaceStart` theme
-    eme = rtakeM 8 theme
-    me = rtakeM 4 theme
-
-    -- eme3a = o.k.t.k.o.k
-    -- pme3a = p.k.t.k.p.k
-
-    eme3b = o.u.__.k.k.o
-    pme3b = p.u.__.k.k.o
-
-    eme3b' = k.o.o.u.__.k
-    pme3b' = k.o.p.u.__.k
-
-    -- themes:
-    -- dhom ka dinnagina dinnagina dinnagina (tanagina)
-    -- o_k_ oktk oktk oktk (pktk)
-    -- dhom ka dinnagina dinnagina takataka
-    -- o_k_ oktk oktk okok (pkpk)
-    -- dhom ka dinnagina dhomkadhomka talang ga -- 2013 9 18
-    -- o_k_ oktk okok ou_k
-    -- dhom ka dinnagina dinnadinna dinnatat_ (drop next dhom) -- 2013 10 9
-    -- o_k_ oktk okok okk__ (pkk__)
-    -- dhom ka dinnagina dinnadinna dinnataka -- 2013 10 24
-    -- o_k_ oktk okok okko
-    --
-    -- o_k_ookn ookn ookn (ppkn) -- 2013 10 29
-    -- o_knookn o_kn ookn
-    -- mix and match oktk, okok, ookn
-    --
-    -- ktnoktknokt kno -- 2013 11 5, progression different
-    -- su: o t k n ktok
-
--- TODO non-sam: o -> p or 't' if preceded by k
--- or __ for takataka dinnatat
 dinnagina_sequences :: Korvai
-dinnagina_sequences = date 2013 9 11 $ korvai adi
+dinnagina_sequences = date 2013 9 11 $
+    comment "apply pattern to any combination of 3x oktk okok ou_k ookn etc." $
+    korvai adi
     [ s $ mconcat $ make_dinna
-        (o.__.k.__.o.k.t.k.o.k.t.k.o.k.t.k) t o
-        (o.k.t.k.o.k)
-        (p.k.t.k.p.k)
+        "o_k_oktk oktk oktk" t o
+        ("oktkok", "pktkpk") ("okoktk", "pkpktk")
     , s $ mconcat $ make_dinna
-        (o.__.k.__.o.k.t.k.o.k.t.k.o.k.o.k) t o
-        (t.k.o.k.o.k) -- maybe? TODO verify
-        (t.k.p.k.p.k)
+        "o_k_oktk oktk okok" t o
+        ("tkokok", "tkpkpk") -- maybe? TODO verify
+        ("", "")
+        -- ("okokok", "pkpkpk") -- TODO made up, not as interesting
     , dateS 2013 9 18 $ s $ mconcat $ make_dinna
-        (o.__.k.__.o.k.t.k.o.k.o.k.o.u.__.k) t o
-        (k.o.o.u.__.k)
-        (k.o.p.u.__.k)
+        "o_k_oktkokokou_k" t o
+        ("ou_kko", "pu_kko") ("koou_k", "kopu_k")
     -- TODO drop following dhom, but only if it was preceded by a theme,
     -- not sarva.
     , dateS 2013 10 9 $ s $ mconcat $ make_dinna
-        (o.__.k.__.o.k.t.k.o.k.t.k.o.k.k.__) t __
-        (o.k.k.__.__.__)
-        (p.k.k.__.__.__)
+        "o_k_oktkoktkokk_" t __
+        ("okk___", "pkk___") ("", "")
     , dateS 2013 10 24 $ s $ mconcat $ make_dinna
-        (o.__.k.__.o.k.t.k.o.k.o.k.o.k.k.o) t o
-        (o.k.o.k.k.o)
-        (p.k.p.k.k.o)
+        "o_k_oktkokokokko" t o
+        ("okokko", "pkpkko") ("", "")
     , dateS 2013 10 29 $ s $ mconcat $ make_dinna
-        (o.__.k.__.o.o.k.n.o.o.k.n.o.o.k.n) p o
-        (o.o.k.n.o.k)
-        (p.p.k.n.p.k)
+        "o_k_ooknooknookn" p o
+        ("ooknok", "ppknpk") ("", "")
     , dateS 2013 10 29 $ s $ mconcat $ make_dinna
-        (o.__.k.n.o.o.k.n.o.__.k.n.o.o.k.n) p o
-        (o.o.k.n.o.k)
-        (p.p.k.n.p.k)
-    , dateS 2019 4 8 $ s $ mconcat $ make_dinna
-        (r2 (o.k.o.n.su (kt.o.k)) . o.n.su (kt.o.k)) o o
-        (o.k.o.n.su (kt.p.k))
-        (p.k.p.n.su (kt.o.k))
+        "o_knookno_knookn" p o
+        ("ooknok", "ppknpk") ("", "")
+    , dateS 2019 4 8 $ s $ mconcat $
+        let ktok = su "ktok"
+            ktpk = su "ktpk"
+        in make_dinna
+            (r2 (o.k.o.n.ktok) . o.n.ktok) o o
+            ("okon".ktpk, "pkpn".ktok) ("", "")
     , dateS 2019 4 29 $ s $ mconcat $
+        -- The end of theme is "knpk", but when repeated it becomes "knpkknpk".
+        -- It's more graceful to replace with "onpk".
         -- TODO this is an awkward way to do exceptions, but I can't think of
-        -- anything more clever.  Ideally I'd want to have 'make_dinna's where
-        -- clause in scope, but that would require a macro.
-        let theme_ = (o.t.k.n.p.k. r2 (o&t.k.n.p.k))
-            theme = group theme_
-            ptheme = group $ p `replaceStart` theme_
-            me = o.n.p.k
+        -- anything more clever.  I'd want to override 'make_dinna's 'me'
+        -- assignment, but I'd want some kind of generic override by name.
+        let theme = "otknpk" . r2 "Tknpk"
+            me = g "onpk"
         in
-        Misc.replaceAt 2 (su $ theme . ptheme . theme . ptheme) $
         Misc.replaceAt 6 (su $ tri_ (od.__) (theme.me)) $
         Misc.replaceAt 7 (su $ trin (od.__) theme (theme.me) (theme.me.me)) $
         make_dinna theme o od
-            (__.o&t.k.n.p.k)
-            (__.p&t.k.n.p.k)
+            ("_Tknpk", "_Xknpk") ("", "")
+    , dateS 2024 7 14 $ commentS "replace npk with n_ktpk" $ s $ mconcat $
+        let theme = "otknpk" . "Tknpk" . "Tk" . n_ktpk
+            me = g $ o.n_ktpk
+            n_ktpk = su "n_ktpk"
+        in
+        Misc.replaceAt 6 (su $ tri_ (od.__) (theme.me)) $
+        Misc.replaceAt 7 (su $ trin (od.__) theme (theme.me) (theme.me.me)) $
+        make_dinna theme o od ("_Tk".n_ktpk, "_Xk".n_ktpk) ("", "")
     ]
 
-make_dinna :: Sequence -> Sequence -> Sequence -> Sequence -> Sequence
-    -> [Sequence]
-make_dinna theme_ repl sep theme'_ ptheme'_ = map (su • (sam.))
+make_dinna :: Sequence -> Sequence -> Sequence -> (Sequence, Sequence)
+    -> (Sequence, Sequence) -> [Sequence]
+make_dinna theme_ repl sep (theme1, ptheme1) (theme2, ptheme2) =
+    map (su • (sam.)) $
     [ sarvaA_ 16 ptheme
     , sarvaA_ 8 ptheme . sarvaA_ 8 ptheme
     -- 1   2   3   4   X   O   X   O   |
@@ -179,18 +114,23 @@ make_dinna theme_ repl sep theme'_ ptheme'_ = map (su • (sam.))
     ,      theme.sep.__4 . eme.sep.__4 . eme.sep.__4
         . ptheme.sep.__4 . eme.sep.__4 . eme.sep.__4
         . ptheme.sep.__4 . eme.sep.__ . me.sep.__.me
-    , trip (sep.__4) $ \theme -> theme . theme' . ptheme' . theme' . ptheme'
+    -- variation 1
+    , trip (sep.__4) $ \th -> th . r2 (g theme1 . g ptheme1)
+    -- variation 2
+    ] ++ guard (not (null theme2))
+    [ trip (sep.__4) $ \th -> th . r2 (g theme2 . g ptheme2)
     ]
     where
     trip sep make = trin sep (make theme) (make ptheme) (make ptheme)
     theme = group theme_
     ptheme = group (repl `replaceStart` theme_)
-    theme' = group theme'_
-    ptheme' = group ptheme'_
     eme = rtakeM 8 theme -- dropM 8 theme
     me = rtakeM 4 theme -- dropM 12 theme
     split m a b seq = a pre . b post
         where (pre, post) = splitM_ m seq
+
+guard :: Bool -> [a] -> [a]
+guard b xs = if b then xs else []
 
 namita_dimita_seq :: Korvai
 namita_dimita_seq = korvaiS adi $
