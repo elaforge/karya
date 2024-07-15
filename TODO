@@ -4588,7 +4588,7 @@ cleanup: bugs:
     . generic-lens combined with generic-lens-labels, OverloadedLabels, and
       DuplicateRecordFields
     . Or, https://hackage.haskell.org/package/optics-core Optics.Label
-    . At this point, wait for RecordDotSyntax.
+    . At this point, wait for OverloadedRecordDot.
       status: https://gitlab.haskell.org/ghc/ghc/-/issues/18598
   - Expr is NonEmpty since there is always at least a "" call, but this is a
     special feature of events.  Would it make more sense to parse "" as [],
@@ -8214,14 +8214,16 @@ pitch: scales: scale: Derive.Scale:
         like the magic env var does.
       . The big problem is this is incompatible syntax, what about all the old
         scores?  Why can't I make scale=xyz continue to work?
-      . One thing is scale is only set when I call it, so if I want an
+      . A con is that scale is only set when I call it, so if I want an
         instrument to automatically set scale-inst and affect the scale, I'd
         need the instrument to re-call `scale`.  Is it safe to do this
         globally?
       . Before I go to all the bother, why do this?
         . Why scale-inst?  For a score, it makes sense to use absolute
           octaves, analogous to concert score being in concert pitch.  But, it
-          uses different clefs...
+          uses different clefs.
+        . This was originally provoked by javanese instruments, which could
+          all use local octave offsets, rather than absolute octave notation.
         . What if I want per-instrument tuning?  The UI would be a random
           seed for each instrument and settings like how much detune.  Ideally
           this would be scale independent, could apply to any scale.  So maybe

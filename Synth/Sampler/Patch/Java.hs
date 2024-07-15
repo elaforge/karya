@@ -309,6 +309,7 @@ kenong = Instrument
     , articulations = Set.fromList [Open, Mute, MuteLoose]
     }
     where
+    -- From 'normalize --no-adjust *', pick 'peak' numbers.
     varDyns = makeVarDyns
         [ (Pitch 3 P7,
             [ (Open,

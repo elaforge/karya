@@ -93,11 +93,11 @@ p_unsigned_float = do
     i <- P.takeWhileP Nothing is_digit
     f <- P.option "" (P.char '.' >> P.takeWhile1P Nothing is_digit)
     if Text.null i && Text.null f then mzero else do
-    case (dec i, dec f) of
-        (Just i', Just f') -> return $ fromIntegral i'
-            + fromIntegral f' / fromIntegral (10 ^ Text.length f)
-        _ -> mzero
-    <?> "unsigned float"
+        case (dec i, dec f) of
+            (Just i', Just f') -> return $ fromIntegral i'
+                + fromIntegral f' / fromIntegral (10 ^ Text.length f)
+            _ -> mzero
+        <?> "unsigned float"
     where
     dec :: Text -> Maybe Int
     dec s

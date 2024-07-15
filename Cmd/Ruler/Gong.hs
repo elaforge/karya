@@ -285,7 +285,7 @@ java :: Int -> Meter.Meter
 java lines = Meter.meter java_config (replicate lines section)
     where
     section = Meter.MSection
-        { section_measures = 4
+        { section_measures = 2 -- how many kenong / gong, TODO depends on form
         , section_measure_duration = 4
         , section_measure = meter
         }
