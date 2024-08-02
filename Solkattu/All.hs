@@ -161,6 +161,8 @@ scores = map Korvai.inferMetadataS
     , setLocation ("Solkattu.Score.Mridangam2023",203,"koraippus") $ Single Solkattu.Score.Mridangam2023.koraippus
     , setLocation ("Solkattu.Score.Mridangam2023",219,"t_24_05_30_yt1") $ Single Solkattu.Score.Mridangam2023.t_24_05_30_yt1
     , setLocation ("Solkattu.Score.Mridangam2024",14,"misc_sarva") $ Single Solkattu.Score.Mridangam2024.misc_sarva
+    , setLocation ("Solkattu.Score.Mridangam2024",27,"e_24_06_30") $ Single Solkattu.Score.Mridangam2024.e_24_06_30
+    , setLocation ("Solkattu.Score.Mridangam2024",37,"e_24_06_30_koraippu") $ Single Solkattu.Score.Mridangam2024.e_24_06_30_koraippu
     , setLocation ("Solkattu.Score.MridangamSarva",19,"kir1") $ Single Solkattu.Score.MridangamSarva.kir1
     , setLocation ("Solkattu.Score.MridangamSarva",24,"kir2") $ Single Solkattu.Score.MridangamSarva.kir2
     , setLocation ("Solkattu.Score.MridangamSarva",44,"kir3") $ Single Solkattu.Score.MridangamSarva.kir3
