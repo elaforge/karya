@@ -19,7 +19,8 @@ import           GHC.Stack (HasCallStack)
 
 import           Solkattu.Dsl.Interactive (diff, diffw)
 import qualified Solkattu.Dsl.Solkattu as Dsl.Solkattu
-import           Solkattu.Dsl.Solkattu (realizeScore, realizeScoreM, (&))
+import           Solkattu.Dsl.Solkattu
+    (merge_, realizeScore, realizeScoreM, (&))
 import qualified Solkattu.Format.Terminal as Terminal
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Korvai as Korvai

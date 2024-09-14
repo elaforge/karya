@@ -647,21 +647,25 @@ merge :: forall stroke. (HasCallStack, Pretty stroke)
     -> [SNote stroke]
 merge _ [] [] = []
 merge both as bs = case (as, bs) of
-    ([S.Note (Solkattu.Note a)], bs) -> single (Solkattu._sollu a) bs
-    (as, [S.Note (Solkattu.Note b)]) -> single (Solkattu._sollu b) as
+    ([S.Note (Solkattu.Note a)], bs) -> single True (Solkattu._sollu a) bs
+    (as, [S.Note (Solkattu.Note b)]) -> single False (Solkattu._sollu b) as
     _ -> S.toList $ speed maxSpeed $ S.fromList $ map merge1 pairs
     where
     -- As a special case, if I'm merging a single stroke with a sequence,
     -- retain the structure of the sequence.  This way it won't destroy a
     -- group to modify the first stroke.
-    single :: stroke -> [SNote stroke] -> [SNote stroke]
-    single stroke [] = [makeNote1 stroke]
-    single stroke (a:as) = (:as) $ case a of
-        S.Note (Solkattu.Note n) -> makeNote1 $ both stroke (Solkattu._sollu n)
+    single :: Bool -> stroke -> [SNote stroke] -> [SNote stroke]
+    single _ stroke [] = [makeNote1 stroke]
+    single onLeft stroke (a:as) = (:as) $ case a of
+        S.Note (Solkattu.Note n) -> makeNote1 $
+            -- Make sure 'both' gets args in the same order as as and bs.
+            if onLeft then both stroke (Solkattu._sollu n)
+                else both (Solkattu._sollu n) stroke
         S.Note (Solkattu.Space _) -> makeNote1 stroke
         S.Note n -> throw $ "can't merge with " <> pretty n
-        S.TempoChange change subs -> S.TempoChange change (single stroke subs)
-        S.Group g subs -> S.Group g (single stroke subs)
+        S.TempoChange change subs ->
+            S.TempoChange change (single onLeft stroke subs)
+        S.Group g subs -> S.Group g (single onLeft stroke subs)
 
     -- At this point TempoChanges and Groups should have been flattened away.
     merge1 (Lists.First a) = a

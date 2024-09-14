@@ -184,6 +184,10 @@ a & b = S.fromList $
 on :: SequenceM
 on = o&n
 
+-- | Merge, but only merge rests, otherwise b wins.
+merge_ :: HasCallStack => SequenceM -> SequenceM -> SequenceM
+merge_ a b = S.fromList $ Notation.merge (\_ n -> n) (S.toList a) (S.toList b)
+
 -- | Parse a string to mridangam strokes.
 strM :: HasCallStack => String -> SequenceM
 strM str = mconcatMap toSeq $ Solkattu.check $ Mridangam.fromString str
