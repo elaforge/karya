@@ -45,7 +45,7 @@ module Solkattu.Dsl.Generic (
     , beats
     , adi
     -- * conveniences
-    , ganesh, janahan, sudhindra, elaforge
+    , ganesh, janahan, sudhindra, elaforge, rohan
     , Pretty -- signatures wind up being Pretty sollu => ...
 ) where
 import qualified Prelude
@@ -208,10 +208,11 @@ adi = Tala.adi_tala
 
 -- * conveniences
 
-ganesh, janahan, sudhindra :: Korvai -> Korvai
+ganesh, janahan, sudhindra, rohan :: Korvai -> Korvai
 ganesh = source "ganesh"
 janahan = source "janahan"
 sudhindra = source "sudhindra"
+rohan = source "rohan"
 
 elaforge :: Korvai -> Korvai
 elaforge = source "elaforge"

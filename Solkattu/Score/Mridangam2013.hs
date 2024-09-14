@@ -52,11 +52,11 @@ dinnagina_sequences = date 2013 9 11 $
         -- ("okokok", "pkpkpk") -- TODO made up, not as interesting
     , dateS 2013 9 18 $ s $ mconcat $ make_dinna
         "o_k_oktkokokou_k" t o
-        ("ou_kko", "pu_kko") ("koou_k", "kopu_k")
-    -- TODO drop following dhom, but only if it was preceded by a theme,
-    -- not sarva.
+        -- ("ou_kko", "pu_kko") ("koou_k", "kopu_k")
+        ("ou_kko", "pu_kko") ("okou_k", "pkpu_k")
+    -- okk makes the following beat into a rest
     , dateS 2013 10 9 $ s $ mconcat $ make_dinna
-        "o_k_oktkoktkokk_" t __
+        "__k_oktkoktkokk_" t __
         ("okk___", "pkk___") ("", "")
     , dateS 2013 10 24 $ s $ mconcat $ make_dinna
         "o_k_oktkokokokko" t o
@@ -94,12 +94,30 @@ dinnagina_sequences = date 2013 9 11 $
         Misc.replaceAt 6 (su $ tri_ (od.__) (theme.me)) $
         Misc.replaceAt 7 (su $ trin (od.__) theme (theme.me) (theme.me.me)) $
         make_dinna theme o od ("_Tk".n_ktpk, "_Xk".n_ktpk) ("", "")
+    , dateS 2024 9 8 $ s $ mconcat $ make_dinna
+        "okookn okookn ookn" o o ("okookn", "ppkpkn") ("", "")
+    , dateS 2024 9 8 $ s $ mconcat $ make_dinna -- like oktkoktkokk_
+        "__k_oktkokokouk_" __ od ("__puk_", "__ouk_") ("", "")
     ]
+
+more_dinnaginna :: Korvai
+more_dinnaginna = date 2024 9 2 $ elaforge $ korvai adi
+    [ s $ mconcat $ make_dinna
+        "o_k_Nnpk noIn onpk" t od -- alternate: onpk -> o n ktok
+        ("In onpk", p&i."npnpk") ("", "")
+    , s $ mconcat $ make_dinna
+        (dha_ge_terekita.dhatidhage.dhinnagene) n od
+        ("no".dhinnagene, "np".p&i.",pk") ("", "")
+    ]
+    where
+    dha_ge_terekita = "N_o_ktpk"
+    dhatidhage = "NlNo"
+    dhinnagene = o&i.y.o.k
+
 
 make_dinna :: Sequence -> Sequence -> Sequence -> (Sequence, Sequence)
     -> (Sequence, Sequence) -> [Sequence]
-make_dinna theme_ repl sep (theme1, ptheme1) (theme2, ptheme2) =
-    map (su • (sam.)) $
+make_dinna theme_ repl sep (theme1, ptheme1) (theme2, ptheme2) = map su $
     [ sarvaA_ 16 ptheme
     , sarvaA_ 8 ptheme . sarvaA_ 8 ptheme
     -- 1   2   3   4   X   O   X   O   |

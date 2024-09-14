@@ -12,17 +12,17 @@ import           Global
 import           Solkattu.Dsl.Mridangam
 
 
--- * kirkalam
+-- * adi kizhkalam
 
 -- TODO these don't need to be a full avartanam, only a binary factor of it
 
-kir1 :: Korvai
-kir1 = sarvalaghu $ sudhindra $ korvaiS adi $
+kizh1 :: Korvai
+kizh1 = sarvalaghu $ sudhindra $ korvaiS adi $
     [ r2 $ r4 (n.l.d.d) & "o_oo_oo_o_p" -- takadimi takajonu
     ]
 
-kir2 :: Korvai
-kir2 = sarvalaghu $ sudhindra $ korvaiS adi $
+kizh2 :: Korvai
+kizh2 = sarvalaghu $ sudhindra $ korvaiS adi $
     repeat 2 sarva : map pattern prefixes
     where
     pattern (prefix, end) =
@@ -41,19 +41,19 @@ kir2 = sarvalaghu $ sudhindra $ korvaiS adi $
         ]
     dinna_kitataka = o.n . su (k.t.o.k)
 
-kir3 :: Korvai
-kir3 = sarvalaghu $ sudhindra $ korvaiS1 adi $ repeat 2 $
+kizh3 :: Korvai
+kizh3 = sarvalaghu $ sudhindra $ korvaiS1 adi $ repeat 2 $
     repeat 2 (n.d.__.n) & (o.o.__.o.__.o.__.o)
     . repeat 2 (n.d.__.n) & (o.__n 8)
     -- can end with faran: oonnpktk naka
 
-kir4 :: Korvai
-kir4 = sarvalaghu $ sudhindra $ korvaiS1 adi $
+kizh4 :: Korvai
+kizh4 = sarvalaghu $ sudhindra $ korvaiS1 adi $
       on.__.on.__.on.od.__5.on.__.on.od.__2.o
     . on.k.on.k.on.od.__5.on.k.on.od.__2.o
 
-kir5 :: Korvai
-kir5 = sarvalaghu $ sudhindra $ korvaiS1 adi $
+kizh5 :: Korvai
+kizh5 = sarvalaghu $ sudhindra $ korvaiS1 adi $
       nknd & (o.__.o.o.__.o.o.__) . nknd & (__.__.o.o.__.o.o.__)
     . nknd & (o.__n 8)            . nknd
     where
@@ -76,7 +76,26 @@ yt_2 = sarvalaghu $ source "https://www.youtube.com/watch?v=93ywZgU9FQk" $
     ]
     where rh = "nknknnd_"
 
--- * melkalam
+c_24_09_08_sarva :: Korvai
+c_24_09_08_sarva = date 2024 9 8 $ ganesh $ korvaiS adi
+    -- work on right left independence, vary left hand
+    [ r2 $ r2 "nddd" & "o/o/o/" . r2 "nddd" & "___/o/_o"
+    , let rh = su (su "n,^,n_d_")
+        in r2 $ r4 rh & "/_o/_o/" . r4 rh & "___/_o/"
+    ]
+
+c_24_09_11_sarva :: Korvai
+c_24_09_11_sarva = date 2024 9 11 $ rohan $ sarvalaghu $ korvaiS adi
+    [ r2 $ r4 "n_dd" & (__D 2 . "_oo")
+    , r2 $ r4 "nddd" & (__D 2 . "__oo_oo")
+    , r4 $ r2 "ndnd" & (__D 1 . su "_oo_o")
+    , r2 "D_ND_kNktkND_kNk"
+    , r2 $ r4 "n,nd" & (__D 2 . "___o_oo")
+    , r2 "NkNknnd___NkNND_"
+    , r2 $ r3 "nd_k" & "oo" . su "n_o_ktok"
+    ]
+
+-- * adi melkalam
 
 mel1 :: Korvai
 mel1 = sarvalaghu $ sudhindra $ korvaiS1 adi $
@@ -313,3 +332,13 @@ thani_24_03_26 = date 2024 3 26 $ sarvalaghu $ korvaiS Tala.rupaka_fast $ map su
     0   .   1   .   2   .   3   .   x   .   o   .   x   .   o   .   |
                 k k k o D  kD k D k D
 -}
+
+-- * sollus
+
+sollus :: Korvai
+sollus = sollu $ korvaiS adi
+    [ sarvaD_ 5.5 . "koD".su "_k"."DkDkD_"
+    -- just pk.nakatiku.nakatiku
+    , sarvaD_ 4.5 . "kktku".su ("pk".r2 "tpupktpk")
+    , sarvaD_ 5 . su "u_pktpktpu_kt_k_u_pknook"
+    ]

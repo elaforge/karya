@@ -236,25 +236,26 @@ c_23_10_16 = date 2023 10 26 $ colby $ mukra $ korvaiS1 tintal tablaKinar $
      0 theme
      1 abababcd -- aab
      2 abababcd -- a' a' b
-     3 " gtd gtd gtt
-     4 " ggtd gtd gt
-     5 " ggtd gtd td
-     6 " gtd td ktd kd d
-     7 " gtd td ktd ktd ktd kt
-     8 d tt (gtkkt)2
-     9 d tt ggt gt gt
-    10 d tt gt gt gt g
-    11 d ttgtd ttgtd ttg
-    12 d tt gggt ggt g
-    13 theme cdab
+     3 d tt ggtd gtd gtd gtt
+     4 d tt ggtd ggtd gtd gt
+     5 d tt ggtd ggtd gtd td
+     6 d tt ggtd gtd td (kttk)d (kt)d d
+     7 d tt ggtd gtd td (kttk)d (kt)d (kt)d (kt)
+     8 d tt ggt ggt         (short)
+     9 d tt ggt gt gt       "
+    10 d tt gt gt gt g      "
+    11 d ttgtd ttgtd ttg    (short)
+    12 d tt gggt ggt        "
+    13 reverse: cdab
     14 cdcdcd ab
-    15 cccd (finally drop ab)
+    15 cccd (drop ab)
     16 gt (dhkttk)3
     17 cd x2
     18 tihai
 -}
-c_23_11_09 :: Korvai
-c_23_11_09 = date 2023 11 9 $ colby $ rela $ kaida $ korvaiS tintal tablaKinar
+c_23_11_09_kaida :: Korvai
+c_23_11_09_kaida = date 2023 11 9 $ colby $ rela $ kaida $
+    korvaiS tintal tablaKinar
     [ kaliM (64-8) (64+32) $ r2 $ theme1.theme2.theme3.theme2
     , r2 (theme1.theme2) . theme
     -- accent on Terekita
@@ -356,9 +357,9 @@ c_23_11_09_b = date 2023 11 9 $ colby $ tukra $ korvaiS1 tintal tablaKinar $
     dha.ge.tetekata.dha.__4 . sd tetekata.dha.__4
     . tri_ "__" (r3 (dha.ge.tetekata))
 
-c_23_11_16 :: Korvai
-c_23_11_16 = date 2023 11 16 $ colby $ kaida $ korvaiS tintal tablaKinar $
-    map (nadai 3)
+c_23_11_16_kaida3 :: Korvai
+c_23_11_16_kaida3 = date 2023 11 16 $ colby $ kaida $
+    korvaiS tintal tablaKinar $ map (nadai 3)
     [   theme1
       . kali (dhatette.dhagena.dhettette.dhagena)
         . dhatette.dhagena.dhagedhinagena

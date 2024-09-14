@@ -87,9 +87,14 @@ nameLike name = (name `Text.isInfixOf`) . qualifiedName
 hasInstrument :: Text -> Korvai.Score -> Bool
 hasInstrument inst = (inst `elem`) . Metadata.scoreTag "instrument"
 
-tagHas :: Text -> Text -> Korvai.Score -> Bool
-tagHas tag val score =
+hasTag :: Text -> Text -> Korvai.Score -> Bool
+hasTag tag val score =
     any (val `Text.isInfixOf`) $
+        Metadata.scoreTag tag score ++ Metadata.sectionTag tag score
+
+notHasTag :: Text -> Text -> Korvai.Score -> Bool
+notHasTag tag val score =
+    any (not . (val `Text.isInfixOf`)) $
         Metadata.scoreTag tag score ++ Metadata.sectionTag tag score
 
 -- | "na na nadin" - like grep, but skips whitespace.  But, it doesn't
@@ -126,6 +131,10 @@ korvaiStrokes instrument =
 -- | Search for and print korvais.
 searchp :: [Korvai.Score -> Bool] -> IO ()
 searchp = Text.IO.putStrLn . formats . search
+
+-- | Search for and print mridangam.
+searchM :: [Korvai.Score -> Bool] -> IO ()
+searchM = mapM_ (realizeM . fst) . search
 
 -- | Select scores to search.  Filter can only look at one score at a time,
 -- this can select a group of them.

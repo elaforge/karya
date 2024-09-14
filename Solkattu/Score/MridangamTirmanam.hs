@@ -132,5 +132,6 @@ tir_misc = tirmanam $ date 2023 3 10 $ korvaiS adi
     [ __D 4 . tri2 "Dk" (su "tkooktok") (su "pu_knook")
     , __D 3 . let seq = su "pu_knook" in seq . "D__k".seq."D_kk".seq
     -- from facebook Shiva Ramesh, lalgudi tillana
-    , __D 2 . tri123 "D__" (su "N_ktok")
+    , __D 2 . tri123 "D__" (su "N_ktok") -- 3(3)33(3)333
+    , __D 2 . tri_ (su "D_pkno") "DDkDDk" -- 33(3)33(3)33 = 8*3 = 4*6 = 6*4
     ]
