@@ -47,6 +47,10 @@ korvai1 tala section = korvai tala [section]
 korvaiS :: Tala.Tala -> [Sequence] -> Korvai.Korvai
 korvaiS tala = korvai tala • Korvai.inferSections
 
+-- | Sections don't have types, for simple collections.
+korvaiV :: Tala.Tala -> [Sequence] -> Korvai.Korvai
+korvaiV tala = korvai tala • map section
+
 korvaiS1 :: Tala.Tala -> Sequence -> Korvai.Korvai
 korvaiS1 tala sequence = korvaiS tala [sequence]
 

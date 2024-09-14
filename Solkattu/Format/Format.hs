@@ -26,12 +26,14 @@ module Solkattu.Format.Format (
     , breakLine
     -- * metadata
     , showTags
+    , showAllTags
     -- * util
     , mapSnd
 ) where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 
 import qualified Util.Lists as Lists
 import qualified Util.Num as Num
@@ -312,6 +314,12 @@ showTags :: Tags.Tags -> Text
 showTags tags = case Map.lookup Tags.times (Tags.untags tags) of
     Just [n] -> "x" <> n
     _ -> ""
+
+showAllTags :: Tags.Tags -> Text
+showAllTags = Text.unwords . map fmt . Map.toList . Tags.untags
+    where
+    fmt (tag, []) = tag
+    fmt (tag, vals) = tag <> "=" <> Text.intercalate "," vals
 
 -- * breakLine
 

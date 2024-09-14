@@ -75,8 +75,13 @@ withTypeS = withTag Tags.type_
 withTag :: Text -> Text -> Section sollu -> Section sollu
 withTag k v = Korvai.addSectionTags (Tags.tag k v)
 
+-- withoutTag :: Text -> Section sollu -> Section sollu
+-- withoutTag k =
+--     Korvai.modifySectionTags (Tags.Tags . Map.delete k . Tags.untags)
+
 -- * util
 
+-- | All sections are variations, not development -> ending.
 variations :: [sollu] -> [Section sollu]
 variations = map (var . Korvai.section)
 

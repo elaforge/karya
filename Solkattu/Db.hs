@@ -54,8 +54,11 @@ realizeM :: Int -> IO ()
 realizeM i = do
     let score = get i
     Text.IO.putStr $ format (i, score)
-    Korvai.realizeScore (Terminal.printInstrument Korvai.IMridangam mempty)
+    Korvai.realizeScore (Terminal.printInstrument Korvai.IMridangam config)
         score
+    where
+    config = Terminal.defaultConfig
+        -- { Terminal._showSectionTags = True }
 
 get :: Int -> Korvai.Score
 get = snd . (scores !!)

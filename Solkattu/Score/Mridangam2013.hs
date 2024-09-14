@@ -111,7 +111,7 @@ more_dinnaginna = date 2024 9 2 $ elaforge $ korvai adi
     ]
     where
     dha_ge_terekita = "N_o_ktpk"
-    dhatidhage = "NlNo"
+    dhatidhage = "Nlno"
     dhinnagene = o&i.y.o.k
 
 

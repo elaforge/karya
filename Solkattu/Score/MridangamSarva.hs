@@ -17,12 +17,12 @@ import           Solkattu.Dsl.Mridangam
 -- TODO these don't need to be a full avartanam, only a binary factor of it
 
 kizh1 :: Korvai
-kizh1 = sarvalaghu $ sudhindra $ korvaiS adi $
+kizh1 = sarvalaghu $ sudhindra $ korvaiV adi $
     [ r2 $ r4 (n.l.d.d) & "o_oo_oo_o_p" -- takadimi takajonu
     ]
 
 kizh2 :: Korvai
-kizh2 = sarvalaghu $ sudhindra $ korvaiS adi $
+kizh2 = sarvalaghu $ sudhindra $ korvaiV adi $
     repeat 2 sarva : map pattern prefixes
     where
     pattern (prefix, end) =
@@ -65,7 +65,7 @@ yt_1 = sarvalaghu $ source "https://www.youtube.com/watch?v=OxESPQM08MA" $
 
 yt_2 :: Korvai
 yt_2 = sarvalaghu $ source "https://www.youtube.com/watch?v=93ywZgU9FQk" $
-    korvaiS adi
+    korvaiV adi
     [ r2 $ rh & "o_o_oo_" . rh & "__o_ooo_"
     , "_knknnd_" & "o_o_oo_" . rh & "__o_ooo_"
         . "_knknnd_" & (su "oo" . "_o_oo_") . rh & ("_".su "_o" . "o_ooo_")
@@ -77,7 +77,7 @@ yt_2 = sarvalaghu $ source "https://www.youtube.com/watch?v=93ywZgU9FQk" $
     where rh = "nknknnd_"
 
 c_24_09_08_sarva :: Korvai
-c_24_09_08_sarva = date 2024 9 8 $ ganesh $ korvaiS adi
+c_24_09_08_sarva = date 2024 9 8 $ ganesh $ korvaiV adi
     -- work on right left independence, vary left hand
     [ r2 $ r2 "nddd" & "o/o/o/" . r2 "nddd" & "___/o/_o"
     , let rh = su (su "n,^,n_d_")
@@ -85,7 +85,7 @@ c_24_09_08_sarva = date 2024 9 8 $ ganesh $ korvaiS adi
     ]
 
 c_24_09_11_sarva :: Korvai
-c_24_09_11_sarva = date 2024 9 11 $ rohan $ sarvalaghu $ korvaiS adi
+c_24_09_11_sarva = date 2024 9 11 $ rohan $ sarvalaghu $ korvaiV adi
     [ r2 $ r4 "n_dd" & (__D 2 . "_oo")
     , r2 $ r4 "nddd" & (__D 2 . "__oo_oo")
     , r4 $ r2 "ndnd" & (__D 1 . su "_oo_o")
@@ -110,7 +110,7 @@ mel2 = sarvalaghu $ sudhindra $ korvaiS1 adi $ su $
 -- reduce with kir2 and kir5
 
 dinna_kitataka :: Korvai
-dinna_kitataka = exercise $ sudhindra $ korvaiS adi $
+dinna_kitataka = exercise $ sudhindra $ korvaiV adi $
     map (sarvaSam adi) patterns
     where
     patterns = map su
@@ -124,7 +124,7 @@ dinna_kitataka = exercise $ sudhindra $ korvaiS adi $
     dinna = o.n.kttk
 
 farans :: Korvai
-farans = sudhindra $ faran $ korvaiS adi $
+farans = sudhindra $ faran $ korvaiV adi $
     [ long . long
         . repeat 4 (o.o.k.t) . long
         . repeat 2 (o.o.k.t.p.k) . o.o.k.t . long
@@ -137,14 +137,14 @@ farans = sudhindra $ faran $ korvaiS adi $
 -- * ganesh
 
 din_nadin :: Korvai
-din_nadin = sarvalaghu $ ganesh $ korvaiS adi
+din_nadin = sarvalaghu $ ganesh $ korvaiV adi
     [ r2 "D.ND.DN." . o & r2 "d.nd.dn."
     , r2 $ su $ r2 $ d.__.p.k.n.l.d.__.p.l.d.__.n.__.l.__
     , r2 $ su $ r2 $ d.__.p.k.n.l.d.l.p.l.d.l.n.l.p.l
     ]
 
 nadin_ka :: Korvai
-nadin_ka = sarvalaghu $ ganesh $ date 2017 5 15 $ korvaiS adi
+nadin_ka = sarvalaghu $ ganesh $ date 2017 5 15 $ korvaiV adi
     [ r2 $ on.od.__.k.(n.d.__.k).(n.d.__.k).o.od.__.k
     , nadai 5 $ r2 $ "ND_k" . r3 "nd_k" . "oD_k"
     , nadai 6 $ r2 $ "ND_k" . r4 "nd_k" . "oD_k"
@@ -152,7 +152,7 @@ nadin_ka = sarvalaghu $ ganesh $ date 2017 5 15 $ korvaiS adi
     -- 4 nd to switch to kandam
 
 nadindin :: Korvai
-nadindin = sarvalaghu $ korvaiS adi $ map sd
+nadindin = sarvalaghu $ korvaiV adi $ map sd
     [ template $ lh & rh
     , template $ su (on.on) . od.od.on
     , template $ su (su (k.t.o.k) . o.k) . o . k
@@ -169,14 +169,13 @@ nadindin = sarvalaghu $ korvaiS adi $ map sd
     lh = o.o.o.o
 
 namita_dimita :: Korvai
-namita_dimita = sarvalaghu $ korvaiS1 adi $
-    __ . (lh & rh) . (lh & rh) . rh . (lh & rh)
-    where
-    rh = l.d.d.l.d.d.l.n
-    lh = __3.o.__3.o.__.o
+namita_dimita = sarvalaghu $ korvaiV adi
+    [ r2 (rh & "o__o__o_") . rh & o . rh & "__o__o_"
+    ]
+    where rh = "n.dd.dd."
 
 kir6 :: Korvai
-kir6 = sarvalaghu $ date 2017 8 29 $ ganesh $ korvaiS adi $
+kir6 = sarvalaghu $ date 2017 8 29 $ ganesh $ korvaiV adi $
     [ both . o1 rh
         -- TODO second half has D after prefix
         -- I could maybe do that by having transparent strokes, so I could
@@ -209,25 +208,25 @@ kir_misra_2 = sarvalaghu $ date 2017 9 26 $ ganesh $ korvaiS1 Tala.misra_chapu $
     where rh = n.d.n . su (n.n) . d.d.n
 
 c_17_10_23a :: Korvai
-c_17_10_23a = sarvalaghu $ date 2017 10 23 $ ganesh $ korvaiS1 adi $
-    repeat 2 $ repeat 3 cell . n.d . su (p.k.t.k)
+c_17_10_23a = sarvalaghu $ date 2017 10 23 $ ganesh $ korvaiV adi
+    [ repeat 2 $ repeat 3 cell . n.d . su (p.k.t.k) ]
     where
     cell = n.d . su (p.k) . d
 
 c_17_10_23b :: Korvai
-c_17_10_23b = sarvalaghu $ date 2017 10 23 $ ganesh $ korvaiS1 adi $
-    su $ repeat 2 $ p.n.p.k.d.__.p.k . repeat 3 (n.__.p.k.d.__.p.k)
+c_17_10_23b = sarvalaghu $ date 2017 10 23 $ ganesh $ korvaiV adi
+    [ su $ repeat 2 $ p.n.p.k.d.__.p.k . repeat 3 (n.__.p.k.d.__.p.k) ]
 
 -- * mine
 
 c_chatusram1 :: Korvai
-c_chatusram1 = elaforge $ sarvalaghu $ korvaiS adi
+c_chatusram1 = elaforge $ sarvalaghu $ korvaiV adi
     [ "D,nd,nN," . "D,nd,nN".su "ok" . "D,nd,nN," . su "D_n_n_pn_ld_pn_l"
     , "D,nd,d".su "n,n,"."Dnnonn".su "nook"."D,nd,nN,".su "N_N_N_pn_ld_pn_l"
     ]
 
 c_kandam1 :: Korvai
-c_kandam1 = elaforge $ date 2023 3 10 $ sarvalaghu $ korvaiS adi $ map (nadai 5)
+c_kandam1 = elaforge $ date 2023 3 10 $ sarvalaghu $ korvaiV adi $ map (nadai 5)
     [ r3 "d,dn," . su "d_pkd_n_,_" . su (r2 "d_pkd_n_pk" . "d_pkd_n,^,"
         . "dpkd_pn_pk")
     , su $ r2 $ r3 "dpkd_pn_pk" . "d_".nakatiku
@@ -255,7 +254,7 @@ c_18_05_25 = sarvalaghu $ date 2018 5 25 $ ganesh $ korvaiS1 Tala.misra_chapu $
 -- * candiramani
 
 candiramani_pakhawaj_kehrwa :: Korvai
-candiramani_pakhawaj_kehrwa = korvaiS (Tala.beats 4)
+candiramani_pakhawaj_kehrwa = korvaiV (Tala.beats 4)
     -- "dhin_dhadhin_dhindhage" . "dhin_dhatin_tintaage"
     [ "D_nD_dNo" . "D_nd_dno"
     -- "dhin_dhin_dha_tin_" . "trakra dhin_dha_ trakra"
@@ -266,7 +265,7 @@ candiramani_pakhawaj_kehrwa = korvaiS (Tala.beats 4)
     ]
 
 candiramani_pakhawaj_adi :: Korvai
-candiramani_pakhawaj_adi = korvaiS adi
+candiramani_pakhawaj_adi = korvaiV adi
     -- "dha_ki_ṭa_dha_kiṭadha_" . "ki_ṭa_ka_ti_" . "ṭa_taa_tiṭakata gadigene"
     [   "U_k_toU_ktU_" . "k_t_p_" . "k_t_u_" . "ktpuoiok"
       . "U_k_toU_ktU_" . "k_t_p_" . "k_t_U_" . "ktpuoiok"
@@ -281,7 +280,7 @@ candiramani_pakhawaj_adi = korvaiS adi
 -- 09-Thani Avarthanam, Aruna Sairam, Cleveland Aradhana 2004
 -- mridangam: Mannargudi Easwaran
 thani_24_03_26 :: Korvai
-thani_24_03_26 = date 2024 3 26 $ sarvalaghu $ korvaiS Tala.rupaka_fast $ map su
+thani_24_03_26 = date 2024 3 26 $ sarvalaghu $ korvaiV Tala.rupaka_fast $ map su
     [ __M 4 . "k_k_t_k_u_" . "pkn,dNokon"
     , "D_ND_dn_" . r3 "d_nd_,n," . "d_nd_ktk" . su "n_ktok" . "okook"
     , r2 "D_ND_,N," . r2 ("tknd,dnk" & "o__o__o_") . r2 "tknd,dnk"
@@ -336,7 +335,7 @@ thani_24_03_26 = date 2024 3 26 $ sarvalaghu $ korvaiS Tala.rupaka_fast $ map su
 -- * sollus
 
 sollus :: Korvai
-sollus = sollu $ korvaiS adi
+sollus = sollu $ korvaiV adi
     [ sarvaD_ 5.5 . "koD".su "_k"."DkDkD_"
     -- just pk.nakatiku.nakatiku
     , sarvaD_ 4.5 . "kktku".su ("pk".r2 "tpupktpk")

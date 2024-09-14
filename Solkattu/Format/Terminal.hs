@@ -50,6 +50,8 @@ data Config = Config {
     -- konnakol, where a sollu like `thom` can be 4 characters wide.
     , _overrideStrokeWidth :: !(Maybe Int)
     , _abstraction :: !Format.Abstraction
+    -- | Show complete tags for every section, otherwise abbreviate.
+    , _showSectionTags :: !Bool
     } deriving (Eq, Show)
 
 defaultConfig :: Config
@@ -58,6 +60,7 @@ defaultConfig = Config
     , _terminalWidth = 78
     , _overrideStrokeWidth = Nothing
     , _abstraction = Format.defaultAbstraction
+    , _showSectionTags = False
     }
 
 konnakolConfig :: Config
@@ -93,12 +96,10 @@ renderAll abstraction score = concatMap write1 $ Format.scoreInstruments score
 -- * format
 
 printInstrument :: (Solkattu.Notation stroke, Ord stroke)
-    => Korvai.Instrument stroke -> Format.Abstraction -> Korvai.Korvai
+    => Korvai.Instrument stroke -> Config -> Korvai.Korvai
     -> IO ()
-printInstrument instrument abstraction =
-    mapM_ Text.IO.putStrLn . fst
-    . formatInstrument (defaultConfig { _abstraction = abstraction })
-        instrument Just
+printInstrument instrument config =
+    mapM_ Text.IO.putStrLn . fst . formatInstrument config instrument Just
 
 printKonnakol :: Config -> Korvai.Korvai -> IO ()
 printKonnakol config =
@@ -134,13 +135,13 @@ formatInstrument
     -> Korvai.Korvai
     -> ([Text], Bool) -- ^ (lines, hadError)
 formatInstrument config instrument postproc korvai =
-    formatResults config (Korvai.korvaiTala korvai) $ zip (korvaiTags korvai) $
+    formatResults config (Korvai.korvaiTala korvai) $ zip (sectionTags korvai) $
         map (fmap (first (Korvai.mapStrokeRest postproc))) $
         Format.convertGroups $
         Korvai.realize instrument korvai
 
-korvaiTags :: Korvai.Korvai -> [Tags.Tags]
-korvaiTags = map Korvai.sectionTags . Korvai.genericSections
+sectionTags :: Korvai.Korvai -> [Tags.Tags]
+sectionTags = map Korvai.sectionTags . Korvai.genericSections
 
 formatResults :: Solkattu.Notation stroke => Config -> Talas.Tala
     -> [ ( Tags.Tags
@@ -185,7 +186,9 @@ formatResults config tala results =
         . snd . List.mapAccumL (addHeader tags section) False
         . map (second (Text.strip . Styled.toText))
         where
-        tagsText = Format.showTags tags
+        tagsText
+            | _showSectionTags config = Format.showAllTags tags
+            | otherwise = Format.showTags tags
     addHeader tags section showedNumber (AvartanamStart, line) =
         ( True
         , (if not showedNumber then sectionNumber (isEnding tags) section

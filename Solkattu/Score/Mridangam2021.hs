@@ -113,8 +113,8 @@ e_tisram = date 2021 2 21 $ ganesh $ exercise $ korvaiS adi $ map (nadai 6)
     p3 = g (k.__.t.__.k.n.o)
 
 s_tisram_sarva :: Korvai
-s_tisram_sarva = sarvalaghu $ ganesh $ korvaiS1 adi $ nadai 6 $
-    r3 (v.__.p.kt.k . d.__.p. su (kt.p.kt.p)) . su (r3 (g (v.p.kt.p.kt.p)))
+s_tisram_sarva = sarvalaghu $ ganesh $ korvaiV adi $ map (nadai 6)
+    [r3 (v.__.p.kt.k . d.__.p. su (kt.p.kt.p)) . su (r3 (g (v.p.kt.p.kt.p)))]
 
 e_tisram_tdgno :: Korvai
 e_tisram_tdgno = date 2021 4 18 $ ganesh $ exercise $ korvaiS adi $

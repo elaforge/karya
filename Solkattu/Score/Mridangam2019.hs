@@ -12,7 +12,7 @@ e_naka = sarvalaghu $ ganesh $ date 2019 3 14 $ korvaiS1 adi $
     n.k.o.od.__.k.on.k . o & r3 (n.k.p.d.__.k.n.k)
 
 e_19_03_20 :: Korvai
-e_19_03_20 = ganesh $ date 2019 3 20 $ sarvalaghu $ korvaiS adi $
+e_19_03_20 = ganesh $ date 2019 3 20 $ sarvalaghu $ korvaiV adi $
     [ t1 . tri t2
     , t1 . tri t2_tis
     -- 4 on 5, frequently done by Raghu Sir.

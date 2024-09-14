@@ -448,6 +448,9 @@ korvai1 tala smaps section = korvai tala smaps [section]
 korvaiS :: Tala.Tala -> Korvai.StrokeMaps -> [Sequence] -> Korvai
 korvaiS tala smaps = korvai tala smaps • Korvai.inferSections
 
+korvaiV :: Tala.Tala -> Korvai.StrokeMaps -> [Sequence] -> Korvai
+korvaiV tala smaps = korvai tala smaps • map section
+
 korvaiS1 :: Tala.Tala -> Korvai.StrokeMaps -> Sequence -> Korvai
 korvaiS1 tala smaps seq = korvaiS tala smaps [seq]
 

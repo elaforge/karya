@@ -9,7 +9,7 @@ import Solkattu.Dsl.Mridangam
 
 
 t_17_02_13 :: Korvai
-t_17_02_13 = date 2017 2 13 $ ganesh $ sarvalaghu $ korvaiS adi $ map (nadai 6)
+t_17_02_13 = date 2017 2 13 $ ganesh $ sarvalaghu $ korvaiV adi $ map (nadai 6)
     [ takitadin.kadin . takitadin.kadin . takitatin.katin
         . takitatin.k.takitatin.k
     , takitadin.kadin . __ . dropM 1 takitadin . kadin . takitatin.katin

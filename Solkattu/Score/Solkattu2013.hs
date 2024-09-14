@@ -255,7 +255,7 @@ k3s = korvaiS adi mridangam $ map (nadai 5)
 -- * tisra nadai
 
 t_sarva1 :: Korvai
-t_sarva1 = sarvalaghu $ ganesh $ korvaiS1 adi mridangam $ nadai 6 sarva
+t_sarva1 = sarvalaghu $ ganesh $ korvaiV adi mridangam [nadai 6 sarva]
     where
     sarva = sd $
         dhom.ka.na.na.di.mi . na.mi.na.na.di.mi
