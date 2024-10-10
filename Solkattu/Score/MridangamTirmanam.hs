@@ -19,6 +19,11 @@ tir_short_adi = tirmanam $ korvaiS adi
     , __D 7 . tri_ (od.__.k) (su (ktkt.p.kt.p.hv k.t.kt.p.k).od.od.k) . od
     ]
 
+tirmanams :: Korvai
+tirmanams = tirmanam $ korvaiV adi
+    [ sarvaD_ 4.25 . su (tri_ "D_pkno" "N_N_k_")
+    ]
+
 tir_long_adi :: Korvai
 tir_long_adi = tirmanam $ korvaiS adi
     -- 1:08:07

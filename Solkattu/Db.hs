@@ -65,6 +65,12 @@ get = snd . (scores !!)
 
 -- * predicates
 
+s_sarvalaghu :: IO ()
+s_sarvalaghu = searchM
+    [ ofType "sarvalaghu", hasTag "tala" "adi", notHasTag "nadai" "4"
+    , notHasTag "source" "elaforge"
+    ]
+
 -- | The number of date groups starting from the most recent.
 recentDates :: Int -> Select
 recentDates groups = concat . Lists.takeEnd groups

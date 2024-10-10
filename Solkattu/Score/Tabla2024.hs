@@ -154,5 +154,13 @@ c_24_01_26_chalan2 = date 2024 1 26 $ colby $ chalan $ lucknow $
         . "dha__dha__gena" . "dhati dhagena dhati dhage dhina gena"
     ]
 
+yt_tihais :: Korvai
+yt_tihais = korvaiV tintal tablaKinar
+    -- Abhishiek Borkar, Bhimpalas at 34:42
+    -- tak is left hand finger flick
+    -- actually starts at 11.25 because 2x speed (16 - 9.5/2)
+    [ __D 6.5 . r2 "ge__ge__tun_tA_tak_ga_" . "ge__ge__tun_na_dha"
+    ]
+
 terekite :: Sequence
 terekite = "terekita"

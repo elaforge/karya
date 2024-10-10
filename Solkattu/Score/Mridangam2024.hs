@@ -57,15 +57,30 @@ e_24_06_30_koraippu = date 2024 6 30 $ ganesh $ koraippu $ korvaiS adi
 
 c_24_08_18 :: Korvai
 c_24_08_18 = date 2024 8 18 $ ganesh $
-    similarTo "Solkattu2016" "c_16_12_06_sriram1" $ korvaiS1 adi $ su $
+    similarTo "Solkattu2016" "c_16_12_06_sriram1" $ korvai adi $ variations $
+    -- development:
+    -- === dropD 1, dropD 1, dropD 0
+    -- 1/2 avartanam: dropD 2, dropD 1, dropD 2, dropD 0
+    map su
     -- TODO suppress technique tk -> kk, I really want t_k_
-    tri_ (o.__6) theme . o.__6 . dropD 5 theme.o.__6 . dropD 5 theme.o.__6
-        . dropD 7 theme.o.__6 . dropD 7 theme.p
-    -- 18 3 18 3 18 = 60
-    --              3 8 3 8 = 22
-    --                      3 4 3 4 = 14
+    [ sequence ("P_X_ktknokTk".nakatiku."t_k_oktkokokou_k") (o.__6)
+        [0, 0, 0, 5, 5, 7, 7]
+    , sequence theme5 (o.__6) [0, 1, 2, 6, 6, 8, 8]
+    , sequence theme52 (od.__8) [0, 1, 2, 6, 6, 8, 8, 10, 10]
+    , sequence ("P___X___ktknokTk".nakatiku."D_kpkD_kookpkD_k") (od.__6)
+        [0, 1, 2, 6, 6, 8, 8]
+    ]
     where
-    theme = "P_X_ktknokTk".nakatiku."t_k_oktkokokou_k"
+    sequence theme karvai drops = mconcat
+        [ dropD d theme . if last then p else karvai
+        | (d, last) <- zipLast drops
+        ]
+    theme5 = "P___X___ktknokTk".nakatiku."t_k_oktkokokou_k"
+    theme52 = theme5."o_k_"
+
+zipLast [] = []
+zipLast [x] = [(x, True)]
+zipLast (x:xs) = (x, False) : zipLast xs
 
 {-
 2024-08-18

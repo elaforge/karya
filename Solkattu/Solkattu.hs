@@ -301,10 +301,10 @@ data Karvai = Karvai | NotKarvai deriving (Eq, Ord, Show)
 
 data Sollu =
     NoSollu -- ^ a dummy sollu for rests in Konnakol
-    | Cham | Dheem | Dhom | Di | Dim | Din | Dit | Du
+    | Cha | Cham | Dheem | Dom | Dhom | Di | Dim | Din | Dit | Du
     | Ga | Gin | Gu | Jo | Ka | Ki | Ku | Kum | Lang
     | Mi | Na | Nam | Nang | Nu | Ri
-    | Ta | Tam | Tang | Tong | Tat | Tha | Thom | Ti
+    | Ta | Ṭa | Tam | Tang | Tong | Tat | Tha | Thom | Ti
     deriving (Eq, Ord, Enum, Bounded, Show)
 
 instance Notation Sollu where notation = textNotation . Text.toLower . showt
@@ -316,7 +316,8 @@ parseSollus :: Text -> Either Error [Maybe Sollu]
 parseSollus = parseSyllables True allSollus
 
 allSollus :: [(Text, Sollu)]
-allSollus = Lists.keyOn notationText $ filter (/= NoSollu) [minBound ..]
+allSollus =
+    ("Ta", Ṭa) : Lists.keyOn notationText (filter (/= NoSollu) [minBound ..])
 
 parseSyllables :: Show sollu => Bool -> [(Text, sollu)] -> Text
     -> Either Error [Maybe sollu]

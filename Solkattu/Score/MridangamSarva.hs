@@ -93,7 +93,76 @@ c_24_09_11_sarva = date 2024 9 11 $ rohan $ sarvalaghu $ korvaiV adi
     , r2 $ r4 "n,nd" & (__D 2 . "___o_oo")
     , r2 "NkNknnd___NkNND_"
     , r2 $ r3 "nd_k" & "oo" . su "n_o_ktok"
+    -- pallavi
+    , r3 "n__d__d_" . "nn_d__d_" -- thoms?
+    , r4 "nkdd_kd_" -- thoms?
+    , r2 "nkkd_kkd_kkd_kkd"
+    -- anupallavi
+    , r3 "n_kd_kd_" . "tkookook"
+    -- , r2 "d__knkdkdkdknknk"
+    , r2 "d__,n,d,d,d,n,n,"
+    , r4 "n,n,d,n,"
+    -- dom ki Ta ta ka dom ki Ta ; ta ka dom cha ta ki Ta ta ; ka ta ki Ta ta
+    -- ka ta cha (16)
+    , r2 $ o.kttk.o.kttk.o.v.p.kttk.p.kttk.p.v
+    , let nk = su "n,"; nknk = r2 nk
+        in r2 $ n.d.nk.d.nknk.d.nknk.d.nk.d.nknk.d.nk
+    -- charanam
+    , r2 $ "Nd_knd_knd_no".v&o."_k"
+    , r2 $ o.su "_k" . "ooko_kt". su "_k" . "ooko_k" -- no nam din?
     ]
+    where
+    kttk = su "ktpk"
+
+kdn_sarva :: Korvai
+kdn_sarva = elaforge $ sarvalaghu $ korvaiV adi
+    [ r2 $ r4 "_ndn" & "o__o__o_ ___p__o_"
+    , "koN_" . r3 kdn_ . "koN_" . r2 kdn_ . su "pkpkd_n_"
+        . r2 kdn_ . "kdn" . su "pkpko_pn_n" . "poN_" . r3 kdn_
+        . r2 kdn_ . "k_" . su "d_n_pkd_n_pk" . "ndn_" . r2 kdn_ . su "k_pkpko_"
+        . r3 kdn_ . su "pnpk"."dk"."koN_" . r2 kdn_ . su "onpknoD_"
+    ]
+    where
+    kdn_ = "kdn_"
+
+rohan_sollus :: Korvai
+rohan_sollus = rohan $ sollu $ korvaiV Tala.any_beats
+    [ "_upknook"
+    , "otkn".kttk.od
+    , "ktkn".kttk.od
+    , "oo_o_oo_" . r2 "___o_oo_" . "o_oo_o_o"
+    , "nkktkktk"
+    , "___np nndD_ onn"
+    , r3 "npkD"
+    , "__ktkt" . "ktkn".kttk."Tk" . "tkoo".kttk."Tk"
+    , "__ktkp" . "ktkn".kttk."Tk" . su "n_ktpkT_k_n_ktpk" . "otkn".kttk.od
+    , "okookoo"
+    , "otootoo"
+    -- dom - ki Ta ki Ta | ta ka Ta ta ki Ta ki Ta | ta ka Ta ta ki Ta ki Ta |
+    -- ta ka Ta ta ki Ta ki Ta
+    , su $ "o___ktkt pktpktkt pktpktkt"
+    -- ta lam - ka dom - di -| ta lam - ka dom - di - | nam - ta lam - ka dom -|
+    , "ku_ko_k_ ku_ko_k_ n_ku_ko_"
+    -- tam - di dom dim| tam ka di ta di dom| dim tam ka di dom |
+    -- dim tam ka di ta|
+    , su $ "N___koD_" . "N_k_kpko" . "D_N_k_ko" . "D_N_k_kp"
+    -- dom ka dom nam ka nam dom ka tam dim ka |
+    -- dom nam ka nam ta ka dom nam ka nam ta ka tam ka
+    , su $ "o_k_onknok N_D_k_" . "onknpk onknpk N_k_"
+    -- dom Ta di tam - ki Ta ta ka dom ka Ta di |
+    -- nam dom dom ka tam dim ka tam ki Ta ta ka
+    , su $ "o_t_k_N_ktpkoktk" . "nookN_D_k_N_ktpk"
+    -- ta cha ka dom cha/dom ka dom cha/dom | ka dom cha/dom ka dom
+    , su $ "pukoUkoU" . "koUko"
+    , su $ "kt_kk_kt_kt_oN_k"
+    , su $ "N_kNNkNk" . "NNkNkNNk"
+    , su $ "ookTkonn" . "ppkTkonn"
+    , su $ "o_k_oktko_N_ktpk" . "n_k_oktko_N_ktpk"
+    , su $ "otkNkdpn" . "ptkNkdpn" . "Nkdtnoto"
+    ]
+    where
+    kttk = su "ktpk"
+
 
 -- * adi melkalam
 
