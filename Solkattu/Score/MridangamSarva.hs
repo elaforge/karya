@@ -125,43 +125,63 @@ kdn_sarva = elaforge $ sarvalaghu $ korvaiV adi
     where
     kdn_ = "kdn_"
 
-rohan_sollus :: Korvai
-rohan_sollus = rohan $ sollu $ korvaiV Tala.any_beats
-    [ "_upknook"
-    , "otkn".kttk.od
-    , "ktkn".kttk.od
-    , "oo_o_oo_" . r2 "___o_oo_" . "o_oo_o_o"
-    , "nkktkktk"
-    , "___np nndD_ onn"
-    , r3 "npkD"
-    , "__ktkt" . "ktkn".kttk."Tk" . "tkoo".kttk."Tk"
-    , "__ktkp" . "ktkn".kttk."Tk" . su "n_ktpkT_k_n_ktpk" . "otkn".kttk.od
-    , "okookoo"
-    , "otootoo"
-    -- dom - ki Ta ki Ta | ta ka Ta ta ki Ta ki Ta | ta ka Ta ta ki Ta ki Ta |
-    -- ta ka Ta ta ki Ta ki Ta
-    , su $ "o___ktkt pktpktkt pktpktkt"
-    -- ta lam - ka dom - di -| ta lam - ka dom - di - | nam - ta lam - ka dom -|
-    , "ku_ko_k_ ku_ko_k_ n_ku_ko_"
-    -- tam - di dom dim| tam ka di ta di dom| dim tam ka di dom |
-    -- dim tam ka di ta|
-    , su $ "N___koD_" . "N_k_kpko" . "D_N_k_ko" . "D_N_k_kp"
-    -- dom ka dom nam ka nam dom ka tam dim ka |
-    -- dom nam ka nam ta ka dom nam ka nam ta ka tam ka
-    , su $ "o_k_onknok N_D_k_" . "onknpk onknpk N_k_"
-    -- dom Ta di tam - ki Ta ta ka dom ka Ta di |
-    -- nam dom dom ka tam dim ka tam ki Ta ta ka
-    , su $ "o_t_k_N_ktpkoktk" . "nookN_D_k_N_ktpk"
-    -- ta cha ka dom cha/dom ka dom cha/dom | ka dom cha/dom ka dom
-    , su $ "pukoUkoU" . "koUko"
-    , su $ "kt_kk_kt_kt_oN_k"
-    , su $ "N_kNNkNk" . "NNkNkNNk"
-    , su $ "ookTkonn" . "ppkTkonn"
-    , su $ "o_k_oktko_N_ktpk" . "n_k_oktko_N_ktpk"
-    , su $ "otkNkdpn" . "ptkNkdpn" . "Nkdtnoto"
+ndn_sarva :: Korvai
+ndn_sarva = elaforge $ sarvalaghu $ korvaiV adi
+    [ r3 "_ndn" & "o__o__o" . su "__v_ktok"
+        . r3 "_ndn" & "o__o__o" . su "_upknook"
+    , r2 $ r3 ".ndn" & "o__o" . ".o".su "ktok"
+    , r2 $ r2 ".ndn" . r2 ".ndn" & "___o_oo"
+    , r4 ".ndn" & o . r4 ".ndn" & "__oo_o_oo_o_oo_o" -- kendang sunda pattern
+    ]
+
+rohan_sollus_end :: Korvai
+rohan_sollus_end = rohan $ sollu $ korvaiV adi
+    [ __D 3.25 . su "okooko".o . __D 3 . su "otootoo"       -- 75
+    , __D 2.5 . "otkn".kttk.od . __D 2.25 . "ktkn".kttk.od  -- 75
+    , __D 7 . su "_upknook"                                 -- 75
+    , __D 7 . su "nkktkktk"                                 -- 60
+    , __D (6 + 6/8) . su "_np nnoD_ onn"                    -- 60
+    , __D 2.5 . su (__ . tri_ od "npk") . od.__n 10 . su (r3 "npkD") -- 75
+    , __D 4 . su ("oo_o_oo_" . r2 "___o_oo_" . "o_oo_o_o").od -- 75
+    , __D 5 . su ("o___" . r2 (g "ktktpktp") . "ktkt")      -- 85
+    , __D 5 . su "pu_ko_k_ pu_ko_k_ n_pu_ko_"               -- 75
+    , __D 3 . "ktkt" . "ktkn".kttk."Tk" . "tkoo".kttk."Tk"  -- 60
+    , __D 3 . "ktkp" . "ktkn".kttk."Tk" . su "n_ktpkT_k_n_ktpk" -- 60
+        . "otkn".kttk.od .__ . __D 6
+    , let kttk = "kt" in __D 5.5                            -- 60
+        . su ("ktkp ktk" . r2 (n.kttk."Tk") . n.kttk
+        . "oktn".kttk).od.__5 . __D 6
+    , __D 4 . su ("N___koD_" . "N_k_kpko" . "D_N_k_ko" . "D_N_k_kp") -- 70
+    , __D 2 . su "o_k_on,nok N_D_k_" . __D 2 . su "on,npk on,npk N_k_" -- 70
+    , __D 4 . su ("o_t_k_N_ktpkoktk" . "nookN_D_k_N_ktpk")  -- 85
+    , __D 6 . su ("puko" . r4 "Uko")                        -- 75
+    , __D 6 . su "kt_kk_ktkk_oN_k_".od
+        -- do with 3x: Nk_, N_k_, N__k_
+    , __D 6 . su ("N_kNkNNk" . "NNkNkNNk")                  -- 60
+    , __D 6 . su ("ookTkpnn" . "ppkTkonn")
+    -- play T forward
+    , __D 4 . su ("o_k_okTko_N_ktpk" . "n_k_okTko_N_ktpk")
+            -- dhere for kTk
+    , __D 4 . "otkNkdpn" . "ptkNkdpn"
+    , __D 6 . "Nkdpnoto"
     ]
     where
     kttk = su "ktpk"
+    -- for kt, keep thumb tucked in
+
+sollu_variations :: Korvai
+sollu_variations = sollu $ korvaiV adi
+    [ su $ r4 theme
+        . r2 (g "Nkdpn ptkNkdpn") . r2 (g "Nkdpn") . tri_ "d__" "Nk"
+        . od.__8.nakatiku
+    , su $ theme . r2 (g "Nkdpn ptkNkdpn") . r2 (g "Nkdpn") . tri_ "d__" "Nk"
+        . od
+    ]
+    where
+    theme = g "otkNkdpn ptkNkdpn"
+    -- o    tk   N  k d   p  nptk   Nkdpn
+    -- dom taka Ta ka din na nakadinna Ta ka din ta na
+    -- 3        4            4         5
 
 
 -- * adi melkalam
@@ -210,7 +230,9 @@ din_nadin = sarvalaghu $ ganesh $ korvaiV adi
     [ r2 "D.ND.DN." . o & r2 "d.nd.dn."
     , r2 $ su $ r2 $ d.__.p.k.n.l.d.__.p.l.d.__.n.__.l.__
     , r2 $ su $ r2 $ d.__.p.k.n.l.d.l.p.l.d.l.n.l.p.l
+    , r2 $ rh & "o_o/o/__ ___/o/"
     ]
+    where rh = "d_nd.dn.d.nd.dn."
 
 nadin_ka :: Korvai
 nadin_ka = sarvalaghu $ ganesh $ date 2017 5 15 $ korvaiV adi
@@ -225,6 +247,7 @@ nadindin = sarvalaghu $ korvaiV adi $ map sd
     [ template $ lh & rh
     , template $ su (on.on) . od.od.on
     , template $ su (su (k.t.o.k) . o.k) . o . k
+    , "NDD" . su "Knon" . "DDN". "Ndd" . su (su "__pn_ktpk_o_") . "DN"
     -- TODO if I have a notation for alternatives I could put it in here
     -- melkalam
     , su $ inter l $ r4 rh & (r8 o . o.__4 . __ . r3 o)
@@ -265,6 +288,14 @@ kir6 = sarvalaghu $ date 2017 8 29 $ ganesh $ korvaiV adi $
     both = rh & lh
     prefix = su $ od.__.od.n.p.k -- din dinataka
 
+c_17_10_23a :: Korvai
+c_17_10_23a = sarvalaghu $ date 2017 10 23 $ ganesh $ korvaiV adi
+    [ repeat 2 $ repeat 3 cell . n.d . su (p.k.t.k) ]
+    where
+    cell = n.d . su (p.k) . d
+
+-- * misra chapu
+
 kir_misra_1 :: Korvai
 kir_misra_1 = sarvalaghu $ date 2017 8 29 $ ganesh $ korvaiS1 Tala.misra_chapu $
     sd $ rh & thomLH rh . o1 rh
@@ -276,15 +307,19 @@ kir_misra_2 = sarvalaghu $ date 2017 9 26 $ ganesh $ korvaiS1 Tala.misra_chapu $
     sd $ sd $ rh & thomLH rh . o1 rh
     where rh = n.d.n . su (n.n) . d.d.n
 
-c_17_10_23a :: Korvai
-c_17_10_23a = sarvalaghu $ date 2017 10 23 $ ganesh $ korvaiV adi
-    [ repeat 2 $ repeat 3 cell . n.d . su (p.k.t.k) ]
-    where
-    cell = n.d . su (p.k) . d
-
 c_17_10_23b :: Korvai
 c_17_10_23b = sarvalaghu $ date 2017 10 23 $ ganesh $ korvaiV adi
     [ su $ repeat 2 $ p.n.p.k.d.__.p.k . repeat 3 (n.__.p.k.d.__.p.k) ]
+
+-- from Vijayadashami concert
+c_24_10_23 :: Korvai
+c_24_10_23 = sarvalaghu $ korvaiV Tala.misra_chapu
+    [ r2 "N_pkD_". "N_pkn_" . "pkd_pkd_pk"
+    , r2 "N_pkD_". "N_pknookD_pkd_pk"
+    , r2 "N_pkD_". "N_pknookD_pknook"
+    , r2 "N_pkd_". r2 "D_N_pkd_"
+    , r2 "N_pknookD_" . "N_pkD_pk"
+    ]
 
 -- * mine
 
@@ -410,3 +445,19 @@ sollus = sollu $ korvaiV adi
     , sarvaD_ 4.5 . "kktku".su ("pk".r2 "tpupktpk")
     , sarvaD_ 5 . su "u_pktpktpu_kt_k_u_pknook"
     ]
+
+embellishments :: Korvai
+embellishments = sollu $ korvaiV adi
+    -- [ su "onpkno" `replaceStart` sarva `replaceEnd` su "onpkno"
+    [ startEnd (su "onpkno") sarva
+    , startEnd (su "pnpknp") s_nd_k
+    , startEnd (su (r2 "onpkno")) sarva
+    , startEnd (su "oktkno") sarva
+    , startEnd (su "pu_kno") sarva
+    , startEnd (su "pu_knpu_kno_") sarva
+    ]
+    where
+    startEnd sol sarva = sol `replaceStart` sarva `replaceEnd` sol
+    sarva = r2 "N.dD.dD." . "N.dd.dd.n.dD.dD."
+    -- sarva = r2 "n_ddn_ddnoDdn_dd"
+    s_nd_k = r2 $ r3 "nd_k" . su "n_o_ktok"

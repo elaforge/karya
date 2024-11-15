@@ -61,8 +61,12 @@ c_24_08_18 = date 2024 8 18 $ ganesh $
     -- development:
     -- === dropD 1, dropD 1, dropD 0
     -- 1/2 avartanam: dropD 2, dropD 1, dropD 2, dropD 0
-    map su
     -- TODO suppress technique tk -> kk, I really want t_k_
+    [ sarvaD_ 5.5 . "P_" . su (ktkn.nakatiku)
+    . sarvaD_ 5 . "P_X_" . su (ktkn.nakatiku)
+    . sarvaD_ 2 . su (ktkn.nakatiku) . sarvaD_ 1.5 . "P_" . su (ktkn.nakatiku)
+    . sarvaD_ 2 . su (ktkn.nakatiku) . sarvaD_ 1 . "P_X_" . su (ktkn.nakatiku)
+    ] ++ map su
     [ sequence ("P_X_ktknokTk".nakatiku."t_k_oktkokokou_k") (o.__6)
         [0, 0, 0, 5, 5, 7, 7]
     , sequence theme5 (o.__6) [0, 1, 2, 6, 6, 8, 8]
@@ -75,38 +79,24 @@ c_24_08_18 = date 2024 8 18 $ ganesh $
         [ dropD d theme . if last then p else karvai
         | (d, last) <- zipLast drops
         ]
-    theme5 = "P___X___ktknokTk".nakatiku."t_k_oktkokokou_k"
+    ktkn = "ktknokTk"
+    theme5 = "P___X___".ktkn.nakatiku."t_k_oktkokokou_k"
     theme52 = theme5."o_k_"
+
+c_24_09_28 :: Korvai
+c_24_09_28 = date 2024 9 28 $ ganesh $
+    comment "tisram pattern works with any 21212" $ korvai adi
+    [ s $ r2 (sarvaD_ 6 . theme)
+    . r3 (sarvaD_ 2 . theme) . sarvaD_ 2 .  su "/ktkoktk/ktkoktk"
+    , s $ __D 1 . r4 (theme . d.__4) . nadai 3 (__.theme)
+    , eddupu 1 $ s $ theme.d.__4 . theme.d.__4 . nadai 3 (__.theme).od
+    ]
+    where
+    theme = su "/_kt/_kt/_ktktok"
 
 zipLast [] = []
 zipLast [x] = [(x, True)]
 zipLast (x:xs) = (x, False) : zipLast xs
-
-{-
-2024-08-18
-    nnnd or dnnn - shoulder strength, move elbow / torso to release tension
-    nami dimi dimi nami nama dimi dimi nami - with middle finger, for strength
-    naka dimi dimi naka - with kin strength
-    also "n d n,d" for sarva exercise
-
-    t k ktknokTkn8------t k otktokoku k(o__)
-    t k ktknokTkn8------t k otktokoku k(o__)
-
-    , end with p
-        - practice rendekalai, have to start in arudi
-        - use nami dimi for sarva
-
-    tkooktokn8------ sequence, go for even strokes and strong k for ktok
-        especially double oo must be even
-
-2024-09-08 Ganesh
-
-2024-09-11 Rohan
-    - Practice 10 sarvalaghus, 2-3m each, focus on musicality, do soft, medium,
-    loud dynamics.
-    - Ask about alternate ravai substitutes.
-    - High thom play with just one finger.
--}
 
 
 {-
