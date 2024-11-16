@@ -5,8 +5,6 @@
 module Solkattu.Score.Mridangam2024 where
 import           Prelude hiding ((.), repeat)
 
-import qualified Solkattu.Tala as Tala
-
 import           Global
 import           Solkattu.Dsl.Mridangam
 
