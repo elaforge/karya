@@ -11,12 +11,8 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
 import qualified Util.Lists as Lists
-import qualified Util.Num as Num
-import qualified Solkattu.Dsl.Mridangam as Mridangam
 import           Solkattu.Dsl.Mridangam (Sequence, __, __4, realize, (&))
-import qualified Solkattu.Instrument.Mridangam as Instrument.Mridangam
 import qualified Solkattu.S as S
-import qualified Solkattu.Tala as Tala
 
 import           Global
 
@@ -27,7 +23,11 @@ sollusText = Map.fromList
     , ("cha/ta", 'A') -- pu or pv, also have E Y
     , ("cha/dom", 'U')
     , ("di/ta", 'P')
+    , ("ka/ta", 'P')
+    , ("ki/ta", 'P')
     , ("di/Ta", 'X')
+    , ("ka/Ta", 'X')
+    , ("ki/Ta", 'X')
     , ("ta", 'p')
     , ("Ta", 't')
     , ("tam", 'N')
@@ -69,13 +69,11 @@ process =
     collectGroups . filter (/= ("", []))
     . snd . Lists.splitWith isTitle
     . Lists.dropWith (\a b -> all Text.null a && all Text.null b)
-    -- . map (map preproc)
     where
     collectGroups = map (\((name, as) : bs) -> (name, as : map snd bs))
         . drop 1 . Lists.splitBefore (not . Text.null . fst)
-    -- preproc = Text.replace " / " "/"
     isTitle (name : row)
-        | name == "" || Char.isUpper (Text.head name) && all (=="") row =
+        | (name == "" || Char.isUpper (Text.head name)) && all (=="") row =
             Just name
         | otherwise = Nothing
     isTitle [] = Nothing
@@ -399,11 +397,11 @@ kandaRowsRaw =
     , ["di ki Ta", "dom tam", "- dom ka", "Ta ta cha ta", "ki Ta dom -"]
     , ["dom ka Ta ta", "cha ta ki Ta", "dom - dom ka", "Ta ta cha ta", "ki Ta dom -"]
     ]
--}
 
 misraRowsRaw :: [[Text]]
 misraRowsRaw =
-    [ ["di", "dim", "", "tam", "tam", "din", "nam ka"]
+    [ ["Chatusram", "", "", "", "", "", ""]
+    , ["di", "dim", "", "tam", "tam", "din", "nam ka"]
     , ["di dom", "dim", "", "tam", "tam", "cha", ""]
     , ["", "dim", "", "tam", "tam", "dim", "nam ka"]
     , ["di dom", "dim", "", "tam", "tam", "cha", ""]
@@ -571,6 +569,7 @@ misraRowsRaw =
     , ["dim - -", "nam ta cha", "dom dom ka", "nam ta cha", "dom dom ka", "dom dom ka", "dom dom ka"]
     , ["dim - -", "", "", "", "", "", ""]
     ]
+-}
 
 rupakaRowsRaw :: [[Text]]
 rupakaRowsRaw =
