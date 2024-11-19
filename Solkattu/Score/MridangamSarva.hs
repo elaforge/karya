@@ -12,6 +12,15 @@ import           Global
 import           Solkattu.Dsl.Mridangam
 
 
+e_kita :: Korvai
+e_kita = exercise $
+    comment "start slow, gradually increase speed, focus on clarity" $
+    korvaiV adi $ map seq pkon
+    where
+    seq x = x.__.r3 ktpk.x.x.r3 ktpk . x.ktpk.x.r2 ktpk.x.x.r3 ktpk
+    pkon = [p, k, o, n]
+    ktpk = su "ktpk"
+
 -- * adi kizhkalam
 
 -- TODO these don't need to be a full avartanam, only a binary factor of it
