@@ -31,95 +31,62 @@ kanda_tani = tani
 
 kanda1 :: Korvai
 kanda1 = korvaiS Tala.kanda_chapu $
-    [ "A___ ____ k_o_ D___ k_o_" --
-    . "D___ D___ k_o_ D___ ktpk"
-    . "o_k_ o_o_ k_o_ D___ k_o_"
+    [ "A___ ____ k_o_ D___ k_o_" . "D___ D___ k_o_ D___ ktpk"
+    . "o_k_ o_o_ k_o_ D___ k_o_" . "D___ __N_ __N_ __u_ ____"
+    , "D___ D___ k_o_ D___ ktpk" . "o_k_ o_o_ k_o_ D___ k_o_"
     . "D___ __N_ __N_ __u_ ____"
-    , "D___ D___ k_o_ D___ ktpk" --
-    . "o_k_ o_o_ k_o_ D___ k_o_"
-    . "D___ __N_ __N_ __u_ ____"
-    , "__n_ p_k_ k_o_ D___ k_o_" --
-    . "D___ D___ k_o_ D___ ktpk"
-    . "okk_ o_o_ k_o_ D___ k_o_"
-    . "D___ __N_ __N_ __D_ ____"
-    , "__n_ p_k_ k_o_ D___ k_o_" --
-    . "D___ D___ k_o_ D___ ktpk"
-    . "okk_ o_o_ k_o_ D___ k_o_"
-    . "D___ __N_ __N_ __u_ ____"
-    , "A___ n_k_ k_o_ D___ k_o_" --
-    . "D___ D___ k_o_ D___ ktpk"
-    . "o_k_ o_o_ k_o_ D___ n___"
-    . "A___ ktkn oktk" . nakatiku
-    , "D___ __k_ k_o_ D___ n___" --
-    . "D___ D___ k_o_ D___ ktpk"
-    . "okk_ o_o_ k_o_ D___ n___"
-    . "A___ ktkn oktk" . nakatiku
-    , "o_k_ o_o_ k_o_ D___ n___" --
-    . "A___ ktkn oktk" . nakatiku
-    , "o_k_ o_o_ k_o_ D___ ktkn" --
-    . "oktk" . nakatiku . "N___ ____"
-    . "ktkn oktk" . nakatiku . "N_pk"
-    . nakatiku . "N_pk npk_ ____"
-    , "N___ o___ n_o_ D___ n_o_" --
-    . "D___ o_d_ D___ D___ n___"
-    , "A___ ktkn oktk" . nakatiku --
-    . "k_kt _kno k___ ____ D___"
-    , "ktpk k_kt _kno k_kt _kno" --
-    . "k___ ____ D___ ____ A___"
-    . "ktkn oktk" . nakatiku . "k__k"
-    . "_kno k__k _kno k__k _kno"
-    , "N___ ____ n_o_ D___ n_o_" --
-    . "N___ ____ kt_k noN_ __k_"
+    , "__n_ p_k_ k_o_ D___ k_o_" . "D___ D___ k_o_ D___ ktpk"
+    . "okk_ o_o_ k_o_ D___ k_o_" . "D___ __N_ __N_ __D_ ____"
+    , "__n_ p_k_ k_o_ D___ k_o_" . "D___ D___ k_o_ D___ ktpk"
+    . "okk_ o_o_ k_o_ D___ k_o_" . "D___ __N_ __N_ __u_ ____"
+    , "A___ n_k_ k_o_ D___ k_o_" . "D___ D___ k_o_ D___ ktpk"
+    . "o_k_ o_o_ k_o_ D___ n___" . "A___ ktkn oktk" . nakatiku
+    , "D___ __k_ k_o_ D___ n___" . "D___ D___ k_o_ D___ ktpk"
+    . "okk_ o_o_ k_o_ D___ n___" . "A___ ktkn oktk" . nakatiku
+    , "o_k_ o_o_ k_o_ D___ n___" . "A___ ktkn oktk" . nakatiku
+    , "o_k_ o_o_ k_o_ D___ ktkn" . "oktk".nakatiku."N___ ____"
+    . "ktkn oktk".nakatiku."N_pk" . nakatiku . "N_pk npk_ ____"
+    , "N___ o___ n_o_ D___ n_o_" . "D___ o_d_ D___ D___ n___"
+    , "A___ ktkn oktk".nakatiku  . "k_kt _kno k___ ____ D___"
+    , "ktpk k_kt _kno k_kt _kno" . "k___ ____ D___ ____ A___"
+    . "ktkn oktk".nakatiku."k__k" . "_kno k__k _kno k__k _kno"
+    , "N___ ____ n_o_ D___ n_o_" . "N___ ____ kt_k noN_ __k_"
     . "kt_k noN_ __k_ t_kt _kno"
-    , "k___ d_d_ n_k_ n_n_ d_d_" --
-    . "n_k_ t_k_ n_k_ n_n_ d_d_"
-    . "n___ d_d_ n_k_ d_n_ d___"
-    . "n_kt kpkt kpkt kpkt kpk_"
-    , "k___ d_d_ n_k_ d_n_ d___" --
-    . "nkt_ kpkt kpkt kpkt kpk_"
-    . "k___ d_d_ n_kt kpk_ k___"
-    . "____ __k_ k___ ____ __k_"
-    , "k___ d_d_ n_k_ n_n_ d_d_" --
-    . "k___ d_k_ n_kp pk_n d_k_"
-    . "n_k_ d_k_ n_k_ n_n_ d_k_"
-    . "n_k_ d_k_ U_U_ __U_ ____"
-    , "D___ N___ k_d_ __n_ __k_" --
-    . "d___ n___ k_d_ __n_ __k_"
-    . "D___ N___ k_d_ __n_ __k_"
-    . p&d.__4.p&d.__4 . "k_d_ __n_ __k_"
-    . "D___ N___ k_d_ __n_ __k_"
-    . "D_N_ kd_n _kd_ n_kd _n_k"
-    , "D___ N___ k_d_ __n_ __k_" --
-    . "D_N_ kd_n _kd_ n_kd _n_k"
-    , "D___ N___ k_d_ __n_ __k_" --
-    . "D_N_ kd_n _kd_ n_kd _n_k"
-    , "D_N_ kD_N _kd_ __n_ __k_" --
-    . "D_N_ kD_N _kd_ __n_ __k_"
-    . "D_N_ kD_N _kd_ __n_ __k_"
-    . "D_N_ kD_N _kd_ __n_ __k_"
-    , "D_N_ kD_N _kD_ N_kD _N_k" --
-    . "d_n_ kd_n _kd_ n_kd _n_k"
+    , "k___ d_d_ n_k_ n_n_ d_d_" . "n_k_ t_k_ n_k_ n_n_ d_d_"
+    . "n___ d_d_ n_k_ d_n_ d___" . "n_kt kpkt kpkt kpkt kpk_"
+    , "k___ d_d_ n_k_ d_n_ d___" . "nkt_ kpkt kpkt kpkt kpk_"
+    . "k___ d_d_ n_kt kpk_ k___" . "____ __k_ k___ ____ __k_"
+    , "k___ d_d_ n_k_ n_n_ d_d_" . "k___ d_k_ n_kp pk_n d_k_"
+    . "n_k_ d_k_ n_k_ n_n_ d_k_" . "n_k_ d_k_ U_U_ __U_ ____"
+    , "D___ N___ k_d_ __n_ __k_" . "d___ n___ k_d_ __n_ __k_"
+    . "D___ N___ k_d_ __n_ __k_" . p&d.__4.p&d.__4 . "k_d_ __n_ __k_"
+    . "D___ N___ k_d_ __n_ __k_" . "D_N_ kd_n _kd_ n_kd _n_k"
+    , "D___ N___ k_d_ __n_ __k_" . "D_N_ kd_n _kd_ n_kd _n_k"
+    , "D___ N___ k_d_ __n_ __k_" . "D_N_ kd_n _kd_ n_kd _n_k"
+    , "D_N_ kD_N _kd_ __n_ __k_" . "D_N_ kD_N _kd_ __n_ __k_"
+    . "D_N_ kD_N _kd_ __n_ __k_" . "D_N_ kD_N _kd_ __n_ __k_"
+    , "D_N_ kD_N _kD_ N_kD _N_k" . "d_n_ kd_n _kd_ n_kd _n_k"
     ]
 
 kanda2_tisram :: Korvai
 kanda2_tisram = korvaiS Tala.kanda_chapu $ map (nadai 3) $
-    [ "D_n _kd _n_ kd_ n_k" . "D_n _kd _n_ kd_ n_k" . r3 p5
-    , "u__ D_kN_k D_kNok" . "d__ n_kd_k n_kNok"
-    . "D__ D_kN_k D_kook" . "d__ n_kd_k n_kNok"
-    . "d__ n_kd_k n_kNok" . "N__ k__ktk npuook"
-    , "D__ D_kN_k D_kNok" . "N__ k__ktk npuook"
-    , "d__ d_kn_k d_kNok" . "N__ k__ktk npuook"
+    [ r2 ("D_" . tri_ "d_" "n_k") . r3 p5
+    , "u__ D_kN_k D_kNok" . "d__n_k d_kn_kNok"
+    . "D__ D_kN_k D_kook" . "d__n_k d_kn_kNok"
+    . "d__ n_kd_k n_kNok" . "N__k__ ktknpuook"
+    , "D__ D_kN_k D_kNok" . "N__k__ ktknpuook"
+    , "d__ d_kn_k d_kNok" . "N__k__ ktknpuook"
     ]
 
 kanda_korvai3 :: Korvai
 kanda_korvai3 = korvaiS Tala.kanda_chapu $ map (nadai 3)
     [ tri (g "k__ ktk npu ook ook N__") . r3 (p5.p7)
     , tri122
-        (g "k__ ktk npu ook oo_ oo_")
-        (g "on_ ktk npu ook oo_ oo_") . r3 (p5.p7)
+        (g "k__ktk npu ookoo_oo_")
+        (g "on_ktk npu ookoo_oo_") . r3 (p5.p7)
     , tri122
-        (g "k__ ktk npu ook ook ook")
-        (g "on_ ktk npu ook ook ook") . r3 (p5.p7)
+        (g "k__ktk npu ookookook")
+        (g "on_ktk npu ookookook") . r3 (p5.p7)
     ]
 
 kanda3_farans :: Korvai
@@ -135,7 +102,7 @@ kanda3_farans = korvaiS Tala.kanda_chapu $
     ]
 
 kanda4_mohra :: Korvai
-kanda4_mohra = mohra $ korvaiS1 Tala.kanda_chapu $ Mohra.make id
+kanda4_mohra = mohra $ korvaiS1 Tala.kanda_chapu $ Mohra.make id Mohra.A1
     ( sd "ktknok_N_" . "ktktpk"
     , "t_o_ktpk".nakatiku
     , sd "oktknokN_" . "ktktpk"
@@ -144,8 +111,6 @@ kanda4_mohra = mohra $ korvaiS1 Tala.kanda_chapu $ Mohra.make id
     , sd "oko_"
     , tri_ "N___" "pu_ko_k_"
     )
-    -- a123.b1 . a123.b1 . a123.b2 . a1.b2 . a3.b3
-    -- But he ends:                  a1.b2 . a1.b3
 
 kanda4_mohra_raw :: Korvai
 kanda4_mohra_raw = korvaiS Tala.kanda_chapu $
@@ -262,37 +227,35 @@ misra_korvai3 = korvaiS Tala.misra_chapu $ map (nadai 3) $
 
 misra_farans :: Korvai
 misra_farans = korvaiS Tala.misra_chapu $
-    [ "u___ __k_ p_k_ t_k_ N_pk" . nakatiku
+    [ "u___ __k_ p_k_ t_k_ N_pk".nakatiku
     . "N_kd _kN_ kd_k N_kd _ktk tkoo".ktok."Tk"
     . "N_kd _kn_ kd_k n_kd _ktk tkoo".ktok."Tk"
     . "onkd _kN_ kd_k N_kd _ktk tkoo".ktok."Tk"
-    . "tkoo" . ktok."Tk tkoo" . ktok."Tk tkoo" . ktok."Tk tkoo"
-    . ktok ."Tk N___ tkoo" . ktok."Tk N___ tkoo" . ktok."Tk"
+    . "tkoo" . ktok."Tk tkoo" . ktok."Tk tkoo".ktok."Tk tkoo"
+    . ktok."Tk N___ tkoo".ktok."Tk N___ tkoo".ktok."Tk"
     , "N___ __kt ktpk d___ __kt ktpk d___" --
     . "__kt ktpk d___ __kt ktpk N___ k___"
     , "N___ __kt ktpk d___ __kt ktpk d___" --
     . "__kt ktpk d___ __kt ktpk" . nakatiku
     -- Farans
-    , "t_o_ktpk" . nakatiku . "N_pk" . nakatiku
-    . "pu_oktpk" . nakatiku . "N_pk" . nakatiku
+    , "t_o_ktpk".nakatiku . "N_pk".nakatiku
+    . "pu_oktpk".nakatiku . "N_pk".nakatiku
     . "N_pkt_o_ ktpkN_pkt_o_" . nakatiku
-    . "pu_ko_pu _ko_pu_ko_ok" . nakatiku
+    . r3 "pu_ko_" . o.k.nakatiku
     ]
     where ktok = su "ktok"
 
 misra_mohra :: Korvai
-misra_mohra = mohra $ korvaiS1 Tala.misra_chapu $ Mohra.make id
+misra_mohra = mohra $ korvaiS1 Tala.misra_chapu $ Mohra.make id Mohra.A2
     ( "upkto_k_ __N_ __npktpk".nakatiku
     , "tpupkt_o k_N_ __npktpk".nakatiku
     , "upkto_k_ __N_ __npktpk".nakatiku
     )
-    ( "pu_ko_k_ N_____pu _ko_ k_N_ ____"
+    ( r2 "pu_ko_k_ N_ ____"
     , "pu_ko_k_ N_____"
     , "pu_ko_k_ pu_ko_k_N_k_ pu_ko_k_"
     . "pu_ko_k_ N_pkpu_ko_k_ pu_ko_k_"
     )
-    -- a123.b1 . a123.b1 . a123.b2 . a1.b2 . a3.b3
-    -- But he has:                   a1.b2 . a2.b3
 
 misra_mohra_korvai :: Korvai
 misra_mohra_korvai = korvai Tala.misra_chapu $
@@ -387,10 +350,9 @@ rupaka_farans = korvaiS Tala.rupaka_tala $ map su
     ]
 
 rupaka_mohra :: Korvai
-rupaka_mohra = mohra $ korvaiS1 Tala.rupaka_tala $ Mohra.make su
+rupaka_mohra = mohra $ korvaiS1 Tala.rupaka_tala $ Mohra.make su Mohra.A3
     ("N_pk".nakatiku, "oktpu___", "N_pk".nakatiku)
     ( "o_k_N__ko_k_N___", "pu_ko___", r3 "pu_ko_k_")
-    -- a123.b1 . a123.b1 . a123.b2 . a1.b2 . a3.b3
 
 rupaka_mohra_korvai :: Korvai
 rupaka_mohra_korvai = korvai Tala.rupaka_tala $

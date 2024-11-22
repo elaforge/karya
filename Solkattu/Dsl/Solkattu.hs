@@ -173,6 +173,7 @@ takadugutarikita = namedT Solkattu.GPattern "8t" $
 
 -- * instruments
 
+-- Bring into scope k t n p o etc.
 Mridangam.Strokes {..} = Mridangam.notes
 
 -- | Merge a sequence of left hand strokes with one of right hand strokes.

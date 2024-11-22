@@ -34,7 +34,7 @@ mohraKorvai :: Tala.Tala -> Korvai.StrokeMaps -> (Sequence -> Sequence)
     -> Korvai
 mohraKorvai tala smaps transform as bs korvai_ =
     mohra $ korvai tala smaps
-        [ withTypeS "mohra" $ s $ Mohra.make transform as bs
+        [ withTypeS "mohra" $ s $ Mohra.make transform Mohra.A3 as bs
         , withTypeS "korvai" $ s korvai_
         ]
 

@@ -17,16 +17,21 @@ korvai makeKorvai transform as bs = korvais makeKorvai transform [(as, bs)]
 korvais :: ([Korvai.Section (SequenceT sollu)] -> Korvai)
     -> (a -> SequenceT sollu) -> [((a, a, a), (a, a, a))] -> Korvai
 korvais makeKorvai transform =
-    mohra • makeKorvai • map (section • uncurry (make transform))
+    mohra • makeKorvai • map (section • uncurry (make transform A3))
+
+data Mohra = A1 | A2 | A3 deriving (Show, Eq)
 
 -- | Make a mohra in the standard structure.
-make :: (a -> SequenceT sollu) -> (a, a, a) -> (a, a, a) -> SequenceT sollu
-make transform (a1_, a2_, a3_) (b1_, b2_, b3_) =
-      a123.b1 . a123.b1
-    . a123.b2
-    . a1.b2 . a3.b3
+make :: (a -> SequenceT sollu) -> Mohra -> (a, a, a) -> (a, a, a)
+    -> SequenceT sollu
+make transform mohra (a1_, a2_, a3_) (b1_, b2_, b3_) =
+    a123.b1 . a123.b1 . a123.b2 . a1.b2 . an.b3
     where
     a123 = a1.a2.a3
+    an = case mohra of
+        A1 -> a1
+        A2 -> a2
+        A3 -> a3
     (a1, a2, a3) = (t a1_, t a2_, t a3_)
     (b1, b2, b3) = (t b1_, t b2_, t b3_)
     t = group • transform

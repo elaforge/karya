@@ -65,6 +65,8 @@ instance Solkattu.Notation Stroke where
         Tha _ -> case v of
             Ki -> "P"
             Ta -> "X"
+            AraiChapu -> "A"
+            -- MuruChapu -> "A"
             -- Hopefully this is big enough to not look like screen gunk, but
             -- small enough to not be too distracting or make the original
             -- character unreadable.
