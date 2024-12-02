@@ -188,9 +188,6 @@ sollu_variations = sollu $ korvaiV adi
     ]
     where
     theme = g "otkNkdpn ptkNkdpn"
-    -- o    tk   N  k d   p  nptk   Nkdpn
-    -- dom taka Ta ka din na nakadinna Ta ka din ta na
-    -- 3        4            4         5
 
 
 -- * adi melkalam
@@ -450,10 +447,18 @@ thani_24_03_26 = date 2024 3 26 $ sarvalaghu $ korvaiV Tala.rupaka_fast $ map su
 sollus :: Korvai
 sollus = sollu $ korvaiV adi
     [ sarvaD_ 5.5 . "koD".su "_k"."DkDkD_"
-    -- just pk.nakatiku.nakatiku
-    , sarvaD_ 4.5 . "kktku".su ("pk".r2 "tpupktpk")
+    , sarvaD_ 4.5 . "kktku".su (pk.r2 (g takatiku))
+    , sarvaD_ 4.5 . "kktku".su (pk.g takatiku.nakatiku)
+    , sarvaD_ 5.5 . "kktku".su (pk.nakatiku)
     , sarvaD_ 5 . su "u_pktpktpu_kt_k_u_pknook"
+    , sarvaD_ 6.5 . "rknu".su "ktpk"
+    -- from tabla, dha trakra dhet tette dhinna gena
+    , sarvaD_ 6 . "NrfTktpk"
+    , sarvaD_ 5 . "NrfTktpk Inon"
+    , sarvaD_ 6 . "NkNoInon"
     ]
+    where
+    takatiku = "tpupktpk"
 
 embellishments :: Korvai
 embellishments = sollu $ korvaiV adi

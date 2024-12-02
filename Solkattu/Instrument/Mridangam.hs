@@ -4,6 +4,7 @@
 
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE StrictData #-}
 -- | Realize an abstract solkattu Notes to concrete mridangam 'Note's.
 module Solkattu.Instrument.Mridangam where
 import qualified Data.List as List
@@ -23,15 +24,20 @@ import qualified Solkattu.Technique as Technique
 import           Global
 
 
-data Stroke = Thoppi !Thoppi | Valantalai !Valantalai | Both !Thoppi !Valantalai
+data Stroke =
+    Thoppi Thoppi | Valantalai Valantalai
+    | Both Thoppi Valantalai | Flam Thoppi Valantalai
     deriving (Eq, Ord, Show)
 data Thoppi =
-    Tha !Tha | Thom !Thom
+    Tha Tha | Thom Thom
     -- | Just the gumiki movement, no strike.  Or possibly a light strike to
     -- make it speak if it doesn't sustain.
     | Gum
     deriving (Eq, Ord, Show)
-data Valantalai = Ki | Ta
+data Valantalai =
+    Ki
+    | Ta
+    | Tra -- ^ tabla-style tra, quick kita
     | Mi -- ^ light Ki, played with middle finger
     | Nam
     | Din
@@ -79,6 +85,9 @@ instance Solkattu.Notation Stroke where
             _ -> Text.toUpper (Solkattu.notationText v)
         Thom Up -> Solkattu.notationText (Thom Up)
         Gum -> "/"
+    notation (Flam t v) = Solkattu.textNotation $ case (t, v) of
+        (Tha _, Ki) -> "f"
+        _ -> Solkattu.notationText t <> Solkattu.notationText v
 
 instance Pretty Stroke where pretty = Solkattu.notationText
 
@@ -105,6 +114,7 @@ instance Solkattu.Notation Valantalai where
     notation = Solkattu.textNotation . \case
         Ki -> "k"
         Ta -> "t"
+        Tra -> "r"
         Mi -> "."
         Nam -> "n"
         Din -> "d"
@@ -113,26 +123,6 @@ instance Solkattu.Notation Valantalai where
         Dheem -> "i"
         Kin -> ","
         Tan -> "^"
-
-ganeshNotationThoppi :: Thoppi -> Text
-ganeshNotationThoppi = \case
-    Thom Low -> "d"
-    Thom Up -> "d"
-    Tha _ -> "h"
-    Gum -> "?"
-
-ganeshNotationValantalai :: Valantalai -> Text
-ganeshNotationValantalai = \case
-    Ki -> "k"
-    Ta -> "t"
-    Mi -> "?"
-    Nam -> "n"
-    Din -> "i"
-    AraiChapu -> "l"
-    MuruChapu -> "l"
-    Dheem -> "?"
-    Kin -> ","
-    Tan -> "^"
 
 instance Pretty Thoppi where pretty = Solkattu.notationText
 instance Pretty Valantalai where pretty = Solkattu.notationText
@@ -146,6 +136,8 @@ instance Expr.ToExpr Stroke where
         Thoppi t -> thoppi t
         Valantalai v -> Solkattu.notationText v
         Both t v -> thoppi t <> Solkattu.notationText v
+        -- TODO not supported yet, probably should be (f a b) or something.
+        Flam t v -> thoppi t <> Solkattu.notationText v
         where
         thoppi t = case t of
             Thom Low -> "o"
@@ -163,7 +155,9 @@ instance Expr.ToExpr (Realize.Stroke Stroke) where
         (Realize.Heavy, _) -> Expr.with Symbols.accent stroke
 
 data Strokes a = Strokes {
-    k :: a, t :: a
+    k :: a
+    , t :: a
+    , r :: a
     , l :: a
     , n :: a, d :: a, u :: a, v :: a, i :: a
     -- | Mnemonic: y = kin = , uses 3 fingers, j = tan = ^ uses 1.
@@ -183,6 +177,7 @@ strokes :: Strokes Stroke
 strokes = Strokes
     { k = Valantalai Ki
     , t = Valantalai Ta
+    , r = Valantalai Tra
     , l = Valantalai Mi
     , n = Valantalai Nam
     , d = Valantalai Din
@@ -221,26 +216,31 @@ bothStrokes a b =
 val :: Stroke -> Maybe Valantalai
 val (Valantalai s) = Just s
 val (Both _ s) = Just s
+val (Flam _ s) = Just s
 val (Thoppi _) = Nothing
 
 setVal :: Valantalai -> Stroke -> Stroke
 setVal v (Valantalai _) = Valantalai v
 setVal v (Both t _) = Both t v
+setVal v (Flam t _) = Flam t v
 setVal _ (Thoppi t) = Thoppi t
 
 thoppi :: Stroke -> Maybe Thoppi
 thoppi (Thoppi s) = Just s
 thoppi (Both s _) = Just s
+thoppi (Flam s _) = Just s
 thoppi (Valantalai _) = Nothing
 
 setThoppi :: Thoppi -> Stroke -> Stroke
 setThoppi _ (Valantalai v) = Valantalai v
 setThoppi t (Both _ v) = Both t v
+setThoppi t (Flam _ v) = Flam t v
 setThoppi t (Thoppi _) = Thoppi t
 
 addThoppi :: Thoppi -> Stroke -> Stroke
 addThoppi t (Valantalai v) = Both t v
 addThoppi t (Both _ v) = Both t v
+addThoppi t (Flam _ v) = Flam t v
 addThoppi t (Thoppi _) = Thoppi t
 
 -- * fromString
@@ -262,9 +262,10 @@ notations = Map.fromList $ (extras++) $ Lists.mapMaybeFst isChar $
         , map Valantalai rhs
         -- Omit little strokes, they're probably inaudible on Both anyway.
         , [Both lh rh | lh <- lhs, rh <- rhs, rh `notElem` [Mi, Kin, Tan]]
+        , [Flam (Tha Palm) Ki]
         ]
     where
-    -- Two ways to write these.
+    -- Two ways to write these, yjl are valid haskell ids, ,^. are not.
     extras =
         [ ('y', y strokes)
         , ('j', j strokes)

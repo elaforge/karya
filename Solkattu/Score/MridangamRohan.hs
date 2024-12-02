@@ -48,10 +48,9 @@ kanda1 = korvaiS Tala.kanda_chapu $
     . "ktkn oktk".nakatiku."N_pk" . nakatiku . "N_pk npk_ ____"
     , "N___ o___ n_o_ D___ n_o_" . "D___ o_d_ D___ D___ n___"
     , "A___ ktkn oktk".nakatiku  . "k_kt _kno k___ ____ D___"
-    , "ktpk k_kt _kno k_kt _kno" . "k___ ____ D___ ____ A___"
-    . "ktkn oktk".nakatiku."k__k" . "_kno k__k _kno k__k _kno"
-    , "N___ ____ n_o_ D___ n_o_" . "N___ ____ kt_k noN_ __k_"
-    . "kt_k noN_ __k_ t_kt _kno"
+    , "ktpk".r2 (g "k_kt _kno") . "k___ ____ D___ ____ A___"
+    . "ktkn oktk".nakatiku. r3 (g "k__k_kno")
+    , "N___ ____ n_o_ D___ n_o_" . "N___ ____" . expand3 (on.__4) 2 "k_t_kt_kno"
     , "k___ d_d_ n_k_ n_n_ d_d_" . "n_k_ t_k_ n_k_ n_n_ d_d_"
     . "n___ d_d_ n_k_ d_n_ d___" . "n_kt kpkt kpkt kpkt kpk_"
     , "k___ d_d_ n_k_ d_n_ d___" . "nkt_ kpkt kpkt kpkt kpk_"
@@ -67,6 +66,9 @@ kanda1 = korvaiS Tala.kanda_chapu $
     . "D_N_ kD_N _kd_ __n_ __k_" . "D_N_ kD_N _kd_ __n_ __k_"
     , "D_N_ kD_N _kD_ N_kD _N_k" . "d_n_ kd_n _kd_ n_kd _n_k"
     ]
+
+expand3 :: Sequence -> S.FMatra -> Sequence -> Sequence
+expand3 sep dur pat = join sep (expand 3 dur pat)
 
 kanda2_tisram :: Korvai
 kanda2_tisram = korvaiS Tala.kanda_chapu $ map (nadai 3) $
