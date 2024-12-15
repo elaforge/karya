@@ -235,17 +235,17 @@ misra_farans = korvaiS Tala.misra_chapu $
     . "onkd _kN_ kd_k N_kd _ktk tkoo".ktok."Tk"
     . "tkoo" . ktok."Tk tkoo" . ktok."Tk tkoo".ktok."Tk tkoo"
     . ktok."Tk N___ tkoo".ktok."Tk N___ tkoo".ktok."Tk"
-    , "N___ __kt ktpk d___ __kt ktpk d___" --
-    . "__kt ktpk d___ __kt ktpk N___ k___"
-    , "N___ __kt ktpk d___ __kt ktpk d___" --
-    . "__kt ktpk d___ __kt ktpk" . nakatiku
+    , on.__6 . r3 (ktktpk.d.__6) . ktktpk.on.__4.k.__4
+    , on.__6 . r3 (ktktpk.d.__6) . ktktpk.nakatiku
     -- Farans
     , "t_o_ktpk".nakatiku . "N_pk".nakatiku
     . "pu_oktpk".nakatiku . "N_pk".nakatiku
     . "N_pkt_o_ ktpkN_pkt_o_" . nakatiku
     . r3 "pu_ko_" . o.k.nakatiku
     ]
-    where ktok = su "ktok"
+    where
+    ktok = su "ktok"
+    ktktpk = "ktktpk"
 
 misra_mohra :: Korvai
 misra_mohra = mohra $ korvaiS1 Tala.misra_chapu $ Mohra.make id Mohra.A2

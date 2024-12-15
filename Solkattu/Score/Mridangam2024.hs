@@ -92,6 +92,30 @@ c_24_09_28 = date 2024 9 28 $ ganesh $
     where
     theme = su "/_kt/_kt/_ktktok"
 
+e_thadithomnam_sarva :: Korvai
+e_thadithomnam_sarva = date 2024 12 31 $ ganesh $ korvaiS adi
+    [ sequence $ \s -> s.__.ktktpk.nakatiku.sarvaD_ 4
+    , sequence $ \s -> s.__.ktktpk.su (s.__.ktktpk.nakatiku).sarvaD_ 4
+    , sequence $ \s -> su (s.__.ktktpk.nakatiku."tkooktpk".nakatiku).sarvaD_ 4
+    , sequence $ \s -> su (s.__.ktktpk.nakatiku."tkooktpk".nakatiku)
+    ]
+    where
+    sequence rest = mconcatMap rest pkon
+    pkon = [p, k, o, n]
+    ktktpk = "ktktpk"
+
+c_tabla_chalan :: Korvai
+c_tabla_chalan = korvaiS adi
+    [ "D__N_kN_ k__N_kN_ In_NkN_" . "onDonInon" . su ktpk . "Inon NkNon"
+        . on.__3.on.__3."onNkNon NkNo".p&i."npn"
+    . "d__n_kn_ k__n_kn_ in_nkn_" . "pndpninpn" . su ktpk . "Inon NkNon"
+        . on.__3.on.__3."onNkNon NkNo".o&i."non"
+    -- TODO variations?
+    ]
+    -- "dhin__dha_redha_" . "tet__dha_redha_" . "dhina_dhatidha_"
+    -- . "gena dhagena dhina gena" . "trkt dhina gena" . "dhatidha gena"
+    -- . "dha__dha__gena" . "dhati dhagena dhati dhage dhina gena"
+
 zipLast [] = []
 zipLast [x] = [(x, True)]
 zipLast (x:xs) = (x, False) : zipLast xs

@@ -60,6 +60,7 @@ _bol s = S.singleton $ S.Note (Solkattu.Note (Solkattu.note (Realize.stroke s)))
 dha = _bol Bol.Dha
 dhaS = Solkattu.Sur ^ dha -- dha but explicitly on sur
 dhe = _bol Bol.Dhe
+dhi = _bol Bol.Dhi
 dhin= _bol Bol.Dhin
 dhom= _bol Bol.Dhom
 di  = _bol Bol.Di
@@ -89,12 +90,25 @@ tette = tet.te
 taka :: Sequence
 taka = ta.ka
 
+terekita :: Sequence
+terekita = te.re.ki.ta
+
+gerenaga :: Sequence
+gerenaga = ge.re.na.ga
+
+dhere :: Sequence
+dhere = dhe.re
+
+kitataka :: Sequence
+kitataka = "kitataka"
+
+-- Double speed fragments.
 tr, kt, trkt, tktrkt :: Sequence
 tr = "tr" -- these are defined in Solkattu.Bol.sequences
 kt = "tk"
 trkt = "trkt"
-tktrkt = su $ ta.ka.te.re.ki.ta
-trkttk = su $ te.re.ki.ta.ta.ka
+tktrkt = su $ taka.terekita
+trkttk = su $ terekita.taka
 
 kttk :: Sequence
 kttk = "kttk"

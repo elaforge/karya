@@ -475,3 +475,23 @@ embellishments = sollu $ korvaiV adi
     sarva = r2 "N.dD.dD." . "N.dd.dd.n.dD.dD."
     -- sarva = r2 "n_ddn_ddnoDdn_dd"
     s_nd_k = r2 $ r3 "nd_k" . su "n_o_ktok"
+
+ganesh_sollus :: Korvai
+ganesh_sollus = date 2024 12 1 $ sollu $ korvaiV adi
+    [ sarvaD_ 6 . su (r2 ("otkn".su ktok) . o.n.su ktok)
+    , sarvaD_ 6 . su "_tpknooknpk_pu_k"
+    , sarvaD_ 6 . su "kookkookk_oD_N_k"
+    , sarvaD_ 6 . su ("oo_".tri_ "D_" "N_k")
+    , sarvaD_ 6 . su ("oo_".tri_ "D_" "kpk")
+    , sarvaD_ 6 . su "okoTknpktkoTknpk" -- or start with t
+    , sarvaD_ 6 . su ("okoTkn".su ktpk."tkoTkn".su ktpk)
+    , sarvaD_ 6 . su (__.tri_ "D__" "ook") -- 5*3
+    , sarvaD_ 4.25 . tri_ (su "u__kno") "NN_" . od
+    , sarvaD_ 6.25 . k.u.su (p.k.nakatiku)
+    , sarvaD_ 6 . su ("kook".nakatiku."nook")
+    , sarvaD_ 6 . su ("kookN_pk".nakatiku)
+    , sarvaD_ 6 . su "kooknpkD_kD_N_k_" -- 4 + 6
+    , sarvaD_ 6 . su "tkpknook npk_pu_k"
+    , sarvaD_ 6 . su "npk_pu_kpu_kpu_k"
+    ]
+-- dynamics: kookD ookD okD kD, emphasis on each group

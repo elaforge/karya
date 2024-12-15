@@ -16,7 +16,7 @@ c_24_01_04_rela = date 2024 1 4 $ colby $ rela $ korvaiS tintal tablaKinar
     ]
     where
     dha_tette = "dha_tette tettegene"
-    takga_gadi = "takga gadi terekite"
+    takga_gadi = "takga gadi terekita"
     takga_dhenne = "takga dhenne nana gene"
 
 c_24_01_04_rela_jhaptal :: Korvai
@@ -36,8 +36,8 @@ c_24_01_04_rela_tintal :: Korvai
 c_24_01_04_rela_tintal = date 2024 1 4 $ colby $ rela $
     korvaiS tintal tablaKinar
     [ kaliMt 0 0 $ su $ r2 $
-        r2 (dhenne_gene.naganaga.terekite) . naganaga.terekite
-        . dhenne_gene.r2 (naganaga.terekite).dhenne_gene.naganaga.terekite
+        r2 (dhenne_gene.naganaga.terekita) . naganaga.terekita
+        . dhenne_gene.r2 (naganaga.terekita).dhenne_gene.naganaga.terekita
     ]
     where
     dhenne_gene = "dhenne gene"
@@ -162,5 +162,23 @@ yt_tihais = korvaiV tintal tablaKinar
     [ __D 6.5 . r2 "ge__ge__tun_tA_tak_ga_" . "ge__ge__tun_na_dha"
     ]
 
-terekite :: Sequence
-terekite = "terekita"
+c_24_12_02 :: Korvai
+c_24_12_02 = date 2024 12 2 $ source "skanda" $ korvaiS tintal tablaKinar
+    -- rotate accent around, or accent on 2nd dha
+    [ kaliMt (-8) 0 $ sd $ r2 $
+        "dhati dhagena dha".trkt."dhati dhage dhina gena"
+    , kaliMt (-8) 0 $ r2 $
+        dha.__.terekita.taka.dhere.dhere.kitataka
+      . dha.__.terekita.taka.dhi.__.na.__.kitataka
+    , kaliMt (-8) (-8) $ r2 $
+        dha.__.gerenaga.terekita.dha.__.gerenaga
+      . dha.__.dha.__.gerenaga.dhi.__.na.__.gerenaga
+    ]
+    where
+    -- I do dhi -> tun, but actually it's dhin -> tin, with tun instead of din.
+    -- Dhi seems ok since it sounds almost the same, but tun /= tin
+    -- tabla = makeTabla Kinar
+    --     [ ("tin", tun )
+    --     , ("dhin", ge & tun)
+    --     ]
+    --     where Tabla.Strokes { .. } = Tabla.notes
