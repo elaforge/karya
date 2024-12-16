@@ -71,8 +71,10 @@ instance Solkattu.Notation Stroke where
         Tha _ -> case v of
             Ki -> "P"
             Ta -> "X"
+            -- These are logically the same, maybe they should use the same
+            -- stroke?
             AraiChapu -> "A"
-            -- MuruChapu -> "A"
+            MuruChapu -> "Y"
             -- Hopefully this is big enough to not look like screen gunk, but
             -- small enough to not be too distracting or make the original
             -- character unreadable.
