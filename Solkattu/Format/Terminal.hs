@@ -235,7 +235,7 @@ format config prevRuler tala notes =
     formatRulerLine (mbRuler, line) = concat
         [ case mbRuler of
             Nothing -> []
-            Just ruler -> [(Ruler, formatRuler strokeWidth ruler)]
+            Just ruler -> [(Ruler, formatRuler ruler)]
         , [(if isFirst then AvartanamStart else AvartanamContinue,
             formatLine (map snd line))]
         ]
@@ -246,6 +246,9 @@ format config prevRuler tala notes =
     avartanamLines :: [[Line]] -- [avartanam] [[line]] [[[sym]]]
     (avartanamLines, strokeWidth) = case _overrideStrokeWidth config of
         Just n -> (fmt n width tala notes, n)
+        -- Try with strokeWidth 1.  If it takes <= half the width, then
+        -- we have room to expand to strokeWidth 2.  Without this, notation
+        -- can be unnecessarily cramped.
         Nothing -> case fmt 1 width tala notes of
             [line] : _ | lineWidth line <= width `div` 2 ->
                 (fmt 2 width tala notes, 2)
@@ -258,8 +261,8 @@ format config prevRuler tala notes =
 lineWidth :: Line -> Int
 lineWidth = Num.sum . map (symWidth . snd)
 
-formatRuler :: Int -> Format.Ruler -> Styled.Styled
-formatRuler strokeWidth =
+formatRuler :: Format.Ruler -> Styled.Styled
+formatRuler =
     Styled.bg (Styled.bright Styled.white)
         . mconcat . snd . List.mapAccumL render 0
     where
@@ -268,7 +271,7 @@ formatRuler strokeWidth =
         , mark <> Text.replicate append " "
         )
         where
-        append = spaces * strokeWidth - Text.length mark - debt
+        append = spaces - Text.length mark - debt
 
 -- | Break into [avartanam], where avartanam = [line].
 formatLines :: Solkattu.Notation stroke => Format.Abstraction -> Int

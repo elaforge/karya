@@ -20,7 +20,7 @@ module Solkattu.Format.Format (
     , breakAvartanams, formatFinalAvartanam
     , onSam, onAnga, onAkshara, angaSet
     -- * ruler
-    , Ruler, PrevRuler, pairWithRuler
+    , Ruler, Line, PrevRuler, pairWithRuler
     , inferRuler
     -- * breakLine
     , breakLine
@@ -221,7 +221,8 @@ angaSet = Set.fromList . scanl (+) 0 . Tala.tala_angas
 
 -- * ruler
 
--- | (mark, width)
+-- | (mark, width).  The width has had strokeWidth multiplied in, so it's
+-- in absolute spaces.
 type Ruler = [(Text, Int)]
 
 -- | (prevRuler, linesSinceLastRuler)
@@ -231,7 +232,7 @@ type Line sym = [(S.State, sym)]
 pairWithRuler :: Int -> PrevRuler -> Talas.Tala -> Int
     -> [[Line sym]] -> (PrevRuler, [[(Maybe Ruler, Line sym)]])
 pairWithRuler rulerEach prevRuler tala strokeWidth =
-    List.mapAccumL (List.mapAccumL strip) prevRuler
+    List.mapAccumL (List.mapAccumL suppress) prevRuler
     . snd . List.mapAccumL (List.mapAccumL inherit) (fst prevRuler)
     . map (map addRuler)
     where
@@ -240,19 +241,19 @@ pairWithRuler rulerEach prevRuler tala strokeWidth =
         , line
         )
         where akshara = maybe 0 (S.stateAkshara . fst) $ Lists.head line
-
     inherit Nothing (ruler, line) = (Just ruler, (ruler, line))
     inherit (Just prev) (ruler, line) = (Just cur, (cur, line))
         where !cur = inheritRuler prev ruler
     -- Strip rulers when they are unchanged.  "Changed" is by structure, not
     -- mark text, so a wrapped ruler with the same structure will also be
-    -- suppressed.
-    strip (prev, lineNumber) (ruler, line) =
+    -- suppressed.  Otherwise wrapping defeats ruler suppression because the
+    -- 2nd half of the ruler probably has different labels.
+    suppress (prev, lineNumber) (ruler, line) =
         ( (Just ruler, 1 + if wanted then 0 else lineNumber)
         , (if wanted then Just (ruler ++ [("|", 0)]) else Nothing, line)
         )
         where
-        wanted =  lineNumber `mod` rulerEach == 0
+        wanted = lineNumber `mod` rulerEach == 0
             || Just (structure ruler) /= (structure <$> prev)
     structure = map (\(mark, width) -> (mark == ".", width))
 
@@ -271,7 +272,7 @@ inheritRuler prev cur
 inferRuler :: Tala.Akshara -> Talas.Tala -> Int -> [S.State] -> Ruler
 inferRuler startAkshara tala strokeWidth =
     merge
-    . map (second length)
+    . map (second ((*strokeWidth) . length))
     . concat . snd . List.mapAccumL insertNadai 0
     . concatMap insertDots
     . zip (drop startAkshara (Talas.labels tala))
