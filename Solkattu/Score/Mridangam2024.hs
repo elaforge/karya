@@ -116,6 +116,24 @@ c_tabla_chalan = korvaiS adi
     -- . "gena dhagena dhina gena" . "trkt dhina gena" . "dhatidha gena"
     -- . "dha__dha__gena" . "dhati dhagena dhati dhage dhina gena"
 
+c_24_12_21 :: Korvai
+c_24_12_21 = date 2024 12 21 $ ganesh $ korvaiS adi
+    [ sarvaD_ 7 . __.p3 . sarvaD_ 7 . p4 . sarvaD_ 6.75 . p5
+    , sarvaD_ 5 . p3.p4.p5
+    , sarvaD_ 5 . p4.p4.p4
+    , sarvaD_ 5 . p5.p4.p3.od.__4 . p4.p4.p4.od.__4 . p3.p4.p5
+    -- 444333 = 21, - final o = 20.  20 2 20 2 20 = 64
+    , p3.p4.p5.r3 p3.__ . p4.p4.p4.r3 p3.__ . p5.p4.p3.r3 p3
+    , p3.p4.p5.r3 p2.__ . p3.p4.p5.r3 p3.__ . p3.p4.p5.r3 p4
+    -- TODO invent some more
+    -- 3 5 7 222 because 333 -> 222 is 3 fewer, 357 is 3 more
+    ]
+    where
+    p2 = g $ su "kto_"
+    p3 = g $ su "upkto_"    -- tarikatathom
+    p4 = g $ su kp.p3       -- taka tarikatithom
+    p5 = g $ su kpnp.p3     -- takanaka tarikatithom
+
 zipLast [] = []
 zipLast [x] = [(x, True)]
 zipLast (x:xs) = (x, False) : zipLast xs

@@ -493,5 +493,5 @@ ganesh_sollus = date 2024 12 1 $ sollu $ korvaiV adi
     , sarvaD_ 6 . su "kooknpkD_kD_N_k_" -- 4 + 6
     , sarvaD_ 6 . su "tkpknook npk_pu_k"
     , sarvaD_ 6 . su "npk_pu_kpu_kpu_k"
+    , sarvaD_ 6 . su (reduceTo 3 1 "kookD_") -- emphasis on each group
     ]
--- dynamics: kookD ookD okD kD, emphasis on each group
