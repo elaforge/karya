@@ -154,6 +154,39 @@ c_24_01_26_chalan2 = date 2024 1 26 $ colby $ chalan $ lucknow $
         . "dha__dha__gena" . "dhati dhagena dhati dhage dhina gena"
     ]
 
+to_chalan :: Korvai
+to_chalan = date 2024 12 29 $ colby $ chalan $ lucknow $
+    korvaiS tintal tablaKinar
+    [ kal $ r2 (dhin_dha_redha.tet_dha_redha)
+    , kal $ dhin_dha_redha.tet_dha_redha . dhateka_dha_redha.tet_dha_redha
+    , kal $ dhin_dha_redha."tet__dha_re dhati".dhateka_dha_redha.tet_dha_redha
+    , kal $ dhin_dha_redha."tet__dha_re dhatetka dhati dha_redha_".tet_dha_redha
+    , kal $ "dhin__dha_redhatetka" . r2 "dhati dhatetka"
+        . "dha_redha_".tet_dha_redha
+    -- emphasis on tktrkt
+    , kal $ dhin_dha_redha.tet_dha_redha.dhin_dha_redha.__.__."trkttk tktrkt"
+    , kal $ dhin_dha_redha.__.__."trkttk tktrkt".dhateka_dha_redha.tet_dha_redha
+    , kal $
+        dhin_dha_redha . r3 (__.__."trkttk tktrkt")
+        . dhin_dha_redha.tet_dha_redha . dhateka_dha_redha.tet_dha_redha
+    , kal $ dhin_dha_redha.tet_dha_redha . "__ trkt dhinagena"
+        . dhateka_dha_redha
+    , kali2 (-4) 16 $ dhin_dha_redha.tet_dha_redha . "trkt dhinagena"
+        . "dhati dhati dhage dhinagena"
+    , kali2 (-4) 16 $ dhin_dha_redha.tet_dha_redha
+        . "dhina_dhatidha_ gena dhagena dhinagena"
+    , kali2 (-4) 48 $ dhin_dha_redha.tet_dha_redha
+        . r3 "dhina_dhatidha_ gena dhagena dhinagena"
+    , kali2 (-4) 48 $ dhin_dha_redha.tet_dha_redha
+        . r2 "dhina_" . r2 "dhatidha_" . r2 "gena dhagena dhina gena"
+        . "__trkt dhinagena dhatidhage dhinagena"
+    ]
+    where
+    kal = kali2 0 16
+    dhin_dha_redha = "dhin__dha_redha_"
+    tet_dha_redha = "tet__dha_redha_"
+    dhateka_dha_redha = "dhatetka dha_redha_"
+
 yt_tihais :: Korvai
 yt_tihais = korvaiV tintal tablaKinar
     -- Abhishiek Borkar, Bhimpalas at 34:42
@@ -165,12 +198,11 @@ yt_tihais = korvaiV tintal tablaKinar
 c_24_12_02 :: Korvai
 c_24_12_02 = date 2024 12 2 $ source "skanda" $ korvaiS tintal tablaKinar
     -- rotate accent around, or accent on 2nd dha
-    [ kaliMt (-8) 0 $ sd $ r2 $
-        "dhati dhagena dha".trkt."dhati dhage dhina gena"
-    , kaliMt (-8) 0 $ r2 $
+    [ kali2 (-8) 16 $ sd $ "dhati dhagena dha".trkt."dhati dhage dhina gena"
+    , kali2 (-8) 16 $
         dha.__.terekita.taka.dhere.dhere.kitataka
       . dha.__.terekita.taka.dhi.__.na.__.kitataka
-    , kaliMt (-8) (-8) $ r2 $
+    , kali2 (-8) 8 $
         dha.__.gerenaga.terekita.dha.__.gerenaga
       . dha.__.dha.__.gerenaga.dhi.__.na.__.gerenaga
     ]

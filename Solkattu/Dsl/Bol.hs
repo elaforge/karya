@@ -146,6 +146,18 @@ kaliM start end seq = pre <> kali within <> post
 kaliMt :: S.FMatra -> S.FMatra -> Sequence -> Sequence
 kaliMt start end = kaliM (32+start) (48+end)
 
+-- | Like kalitMt, but expects half the seq and repeats it for you.
+-- TODO: an abstraction could omit the kali half
+-- TODO: I could +16 to end, which would make it be the normal tintal kali,
+-- like kaliMt.  I could then have kali0 be 'kali2 0 0', which is common.
+kali2 :: S.FMatra -> S.FMatra -> Sequence -> Sequence
+kali2 start end seq = pre1 . kali post1 . kali pre2 . post2
+    where
+    (pre1, post1)
+        | start >= 0 = (seq, mempty)
+        | otherwise = splitM_ (matrasOf seq + start) seq
+    (pre2, post2) = splitM_ end seq
+
 kali :: Sequence -> Sequence
 kali = mapB $ \case
     Bol.Dha -> Just Bol.Taa -- taa spelling for ta to remember it came from dha
