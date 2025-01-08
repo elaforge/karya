@@ -55,6 +55,7 @@ import           Global
 newtype Abstraction = Abstraction (Set (Solkattu.GroupType, Named))
     deriving (Eq, Show, Semigroup, Monoid)
 
+-- | We can abstract named groups separately from unnamed ones.
 data Named = Unnamed | Named deriving (Eq, Ord, Show)
 
 isAbstract :: Abstraction -> Solkattu.Meta -> Bool

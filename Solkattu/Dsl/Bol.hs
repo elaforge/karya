@@ -184,6 +184,13 @@ mapB f = fmap $ \case
 realize :: Korvai -> IO ()
 realize = Terminal.printBol (concrete Terminal.bolConfig)
 
+-- | Strip off half, assuming it to be a kali repetition.
+-- TODO: it would be nicer to know this, e.g. I could put hasKali in
+-- metadata.
+realizek :: Korvai -> IO ()
+realizek = Terminal.printBol $ concrete $
+    Terminal.bolConfig { Terminal._omitKaliHalf = True }
+
 realize3 :: Korvai -> IO ()
 realize3 = Terminal.printBol $ concrete $
     Terminal.bolConfig { Terminal._overrideStrokeWidth = Just 3 }

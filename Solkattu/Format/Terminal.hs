@@ -23,6 +23,7 @@ import qualified Data.Text.IO as Text.IO
 import qualified Util.Lists as Lists
 import qualified Util.Num as Num
 import qualified Util.Styled as Styled
+import qualified Util.Texts as Texts
 
 import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Korvai as Korvai
@@ -52,6 +53,9 @@ data Config = Config {
     , _abstraction :: !Format.Abstraction
     -- | Show complete tags for every section, otherwise abbreviate.
     , _showSectionTags :: !Bool
+    -- | Omit half of each section.  The assumption is it's the kali half,
+    -- and identical to the first half except partially kali.
+    , _omitKaliHalf :: !Bool
     } deriving (Eq, Show)
 
 defaultConfig :: Config
@@ -61,6 +65,7 @@ defaultConfig = Config
     , _overrideStrokeWidth = Nothing
     , _abstraction = Format.defaultAbstraction
     , _showSectionTags = False
+    , _omitKaliHalf = False
     }
 
 konnakolConfig :: Config
@@ -143,7 +148,8 @@ formatInstrument config instrument postproc korvai =
 sectionTags :: Korvai.Korvai -> [Tags.Tags]
 sectionTags = map Korvai.sectionTags . Korvai.genericSections
 
-formatResults :: Solkattu.Notation stroke => Config -> Talas.Tala
+formatResults :: Solkattu.Notation stroke
+    => Config -> Talas.Tala
     -> [ ( Tags.Tags
          , Either Error ([Format.Flat stroke], [Realize.Warning])
          )
@@ -167,7 +173,8 @@ formatResults config tala results =
                 ++ map (showWarning strokeWidth) warnings
         )
         where
-        (strokeWidth, (nextRuler, lines)) = format config prevRuler tala notes
+        (strokeWidth, (nextRuler, lines)) =
+            format config prevRuler tala notes
     showWarning _ (Realize.Warning Nothing msg) = msg
     showWarning strokeWidth (Realize.Warning (Just i) msg) =
         Text.replicate (leader + strokeWidth * i) " " <> "^ " <> msg
@@ -181,11 +188,13 @@ formatResults config tala results =
     -- notesOf (_, Right (notes, _)) = Just notes
     -- notesOf _ = Nothing
     sectionFmt section tags =
-        (if Text.null tagsText then id
-            else Lists.mapLast (<> "   " <> tagsText))
+        (if Text.null rightColumn then id
+            else Lists.mapLast (<> "   " <> rightColumn))
         . snd . List.mapAccumL (addHeader tags section) False
         . map (second (Text.strip . Styled.toText))
         where
+        rightColumn = Texts.join2 " " tagsText $
+            if _omitKaliHalf config then "->k" else ""
         tagsText
             | _showSectionTags config = Format.showAllTags tags
             | otherwise = Format.showTags tags
@@ -223,13 +232,16 @@ data LineType = Ruler | AvartanamStart | AvartanamContinue
 -- I only emit the first part of the ruler.  Otherwise I'd have to have
 -- a multiple line ruler too, which might be too much clutter.  I'll have to
 -- see how it works out in practice.
-format :: Solkattu.Notation stroke => Config -> PrevRuler -> Talas.Tala
-    -> [Format.Flat stroke] -> (Int, (PrevRuler, [(LineType, Styled.Styled)]))
+format :: Solkattu.Notation stroke => Config -> PrevRuler
+    -> Talas.Tala -> [Format.Flat stroke]
+    -> (Int, (PrevRuler, [(LineType, Styled.Styled)]))
 format config prevRuler tala notes =
     (strokeWidth,) $
     second (concatMap formatAvartanam) $
-    Format.pairWithRuler (_rulerEach config) prevRuler tala strokeWidth
-        avartanamLines
+    Format.pairWithRuler (_rulerEach config) prevRuler tala strokeWidth $
+    if _omitKaliHalf config
+        then takeHalf avartanamLines
+        else avartanamLines
     where
     formatAvartanam = concatMap formatRulerLine
     formatRulerLine (mbRuler, line) = concat
@@ -257,6 +269,10 @@ format config prevRuler tala notes =
     formatLine :: [Symbol] -> Styled.Styled
     formatLine = mconcat . map formatSymbol
     width = _terminalWidth config
+
+takeHalf :: [[a]] -> [[a]]
+takeHalf [lines] = [take (length lines `div` 2) lines]
+takeHalf avartanams = take (length avartanams `div` 2) avartanams
 
 lineWidth :: Line -> Int
 lineWidth = Num.sum . map (symWidth . snd)

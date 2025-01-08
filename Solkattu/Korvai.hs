@@ -235,7 +235,7 @@ instance Show GInstrument where
 -- * Section
 
 data Section a = Section {
-    sectionSequence :: a
+    sectionSequence :: !a
     -- | Where the section should start.  0 means start on sam.
     , sectionStart :: !S.Duration
     -- | Expect the section to end at this time.  It can be negative, in which
