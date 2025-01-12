@@ -166,9 +166,14 @@ to_chalan = date 2024 12 29 $ colby $ chalan $ lucknow $
     -- emphasis on tktrkt
     , kal $ dhin_dha_redha.tet_dha_redha.dhin_dha_redha.__.__."trkttk tktrkt"
     , kal $ dhin_dha_redha.__.__."trkttk tktrkt".dhateka_dha_redha.tet_dha_redha
+    -- This one is 2x long, but feels awkward to go back to 1x, only to expand
+    -- to 2x again later.  Omit it?
     , kal $
         dhin_dha_redha . r3 (__.__."trkttk tktrkt")
         . dhin_dha_redha.tet_dha_redha . dhateka_dha_redha.tet_dha_redha
+    -- TODO nadai3 makes kali2 0 16 incorrect, would evaluation state fix this?
+    , kal $ dhin_dha_redha . nadai 3 "trkttk tktrkt".dhateka_dha_redha
+        . tet_dha_redha
     , kal $ dhin_dha_redha.tet_dha_redha . "__ trkt dhinagena"
         . dhateka_dha_redha
     , kali2 (-4) 16 $ dhin_dha_redha.tet_dha_redha . "trkt dhinagena"

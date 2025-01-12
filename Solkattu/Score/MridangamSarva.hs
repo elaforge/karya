@@ -164,14 +164,13 @@ rohan_sollus_end = rohan $ sollu $ korvaiV adi
     , __D 2 . su "o_k_on,nok N_D_k_" . __D 2 . su "on,npk on,npk N_k_" -- 70
     , __D 4 . su ("o_t_k_N_ktpkoktk" . "nookN_D_k_N_ktpk")  -- 85
     , __D 6 . su ("puko" . r4 "Uko")                        -- 75
-    , __D 6 . su "kt_kk_ktkk_oN_k_".od
+    , __D 6 . su "kt_kk_ktkk_oN_k_".od                      -- 75
         -- do with 3x: Nk_, N_k_, N__k_
     , __D 6 . su ("N_kNkNNk" . "NNkNkNNk")                  -- 60
-    , __D 6 . su ("ookTkpnn" . "ppkTkonn")
-    -- play T forward
-    , __D 4 . su ("o_k_okTko_N_ktpk" . "n_k_okTko_N_ktpk")
-            -- dhere for kTk
-    , __D 4 . "otkNkdpn" . "ptkNkdpn"
+    , __D 6 . su ("ookTkpnn" . "ppkTkonn")                  -- 60
+        -- dhere for kTk
+    , __D 4 . su ("o_k_okTko_N_ktpk" . "n_k_okTko_N_ktpk")  -- 75
+    , __D 4 . "otkNkdpn" . "ptkNkdpn"                       -- 120
     , __D 6 . "Nkdpnoto"
     ]
     where
@@ -185,6 +184,7 @@ sollu_variations = sollu $ korvaiV adi
         . od.__8.nakatiku
     , su $ theme . r2 (g "Nkdpn ptkNkdpn") . r2 (g "Nkdpn") . tri_ "d__" "Nk"
         . od
+    -- , __D 6 . su "kt_kk_ktkk_oN_k_".od
     ]
     where
     theme = g "otkNkdpn ptkNkdpn"
