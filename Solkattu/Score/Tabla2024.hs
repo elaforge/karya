@@ -12,7 +12,7 @@ import           Solkattu.Dsl.Bol
 
 c_24_01_04_rela :: Korvai
 c_24_01_04_rela = date 2024 1 4 $ colby $ rela $ korvaiS tintal tablaKinar
-    [ kaliMt (-4) 0 $ r2 $ dha_tette . takga_gadi . dha_tette . takga_dhenne
+    [ kali2 (-4) 16 $ dha_tette . takga_gadi . dha_tette . takga_dhenne
     ]
     where
     dha_tette = "dha_tette tettegene"
@@ -22,7 +22,7 @@ c_24_01_04_rela = date 2024 1 4 $ colby $ rela $ korvaiS tintal tablaKinar
 c_24_01_04_rela_jhaptal :: Korvai
 c_24_01_04_rela_jhaptal = date 2024 1 4 $ colby $ rela $
     korvaiS jhaptal tablaKinar
-    [ kaliM (4*4) (7*4) $ su $ r2 $
+    [ kali2 (-4) (2*4) $ su $
         dha_tette.tette_gene.takga_dhenne.nana_gene
         . r2 (r2 takga_dhenne.nana_gene)
     ]
@@ -35,7 +35,7 @@ c_24_01_04_rela_jhaptal = date 2024 1 4 $ colby $ rela $
 c_24_01_04_rela_tintal :: Korvai
 c_24_01_04_rela_tintal = date 2024 1 4 $ colby $ rela $
     korvaiS tintal tablaKinar
-    [ kaliMt 0 0 $ su $ r2 $
+    [ kali2 0 16 $ su $
         r2 (dhenne_gene.naganaga.terekita) . naganaga.terekita
         . dhenne_gene.r2 (naganaga.terekita).dhenne_gene.naganaga.terekita
     ]
@@ -81,7 +81,7 @@ c_24_01_04_chakradar = date 2024 1 4 $ colby $ chakradar $
 -}
 c_24_01_11 :: Korvai
 c_24_01_11 = date 2024 1 12 $ colby $ kaida $ korvaiS jhaptal tabla
-    [ kaliM (9*4) (15*4) $ r2 $ theme1 . theme2                 -- 0
+    [ kali2 (-4) (5*4) $ theme1 . theme2                 -- 0
     , r3 theme1 . theme2 -- aaab
     , pat2 . takga_dhinne . tihai pat2 (dha.__) . theme1.theme2
     , theme1 . r2 (pat2.dha.__) . theme1.theme2
@@ -129,7 +129,7 @@ c_24_01_11 = date 2024 1 12 $ colby $ kaida $ korvaiS jhaptal tabla
 c_24_01_26_chalan1 :: Korvai
 c_24_01_26_chalan1 = date 2024 1 26 $ colby $ chalan $ lucknow $
     korvaiS tintal tabla
-    [ kaliMt (-3) 0 $ su $ r2 $
+    [ kali2 (-3) 16 $ su $
         "dha_dha_dha_ gege" . nage_dhine.dhina_gena
         . "tette gege".nage_dhine . nage_dhine.dhina_gena
         . "kitataka terekita" . nage_dhine.dhina_gena
@@ -148,7 +148,7 @@ c_24_01_26_chalan1 = date 2024 1 26 $ colby $ chalan $ lucknow $
 c_24_01_26_chalan2 :: Korvai
 c_24_01_26_chalan2 = date 2024 1 26 $ colby $ chalan $ lucknow $
     korvaiS tintal tablaKinar
-    [ kaliMt (-2) 0 $ su $ r2 $
+    [ kali2 (-2) 16 $ su $
         "dhin__dha_redha_" . "tet__dha_redha_" . "dhina_dhatidha_"
         . "gena dhagena dhina gena" . "trkt dhina gena" . "dhatidha gena"
         . "dha__dha__gena" . "dhati dhagena dhati dhage dhina gena"

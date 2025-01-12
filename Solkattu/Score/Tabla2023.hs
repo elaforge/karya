@@ -143,34 +143,25 @@ c_23_09_07a = date 2023 9 7 $ colby $ tukra $ korvaiS1 tintal tablaKinar $
     . tri_ (dha.__6) (tri_ "dha_" "kita")
 
 c_23_09_07_kaida :: Korvai
-c_23_09_07_kaida = date 2023 9 7 $ kaida $ colby $ korvaiS tintal tablaKinar $
-    map su
-    [ sd $     theme . tirikita . theme . kali nanagena
-        . kali theme . tirikita . theme . nanagena
-    ,          r3 (theme . tirikita) . theme . kali nanagena
-        . r2 (kali theme . tirikita) . theme.tirikita . theme.nanagena
-    , sd $ dhage_tette.gege_tette . r3 (kataagege.tirikita)
-        . kali (dhage_tette.gege_tette . kataagege.tirikita)
-        . r2 (kataagege.tirikita)
-    , dhage_tette.gege_tette . r3 (kataagege.tirikita)
-        . theme . tirikita . theme . kali nanagena
-        . kali (dhage_tette.gege_tette) . r3 (kali kataagege.tirikita)
-        . theme . tirikita . theme . nanagena
-    , theme.tette . r2 (ka.tA)."gege tette" . r3 (ka.tA)."gege tette"
-        . theme.tirikita.theme.kali nanagena
-     . kali (theme.tette . r2 (ka.tA)."gege tette" . r3 (ka.tA)."gege tette")
-        . theme.tirikita.theme.nanagena
-    , tri_ (dha.__8) $ g $
-        tri_ (dha.__6) (dhage_tette.gege_tette.kataagege.nanagena)
+c_23_09_07_kaida = date 2023 9 7 $ kaida $ colby $ korvaiS tintal tablaKinar
+    [ kali2 (-4) 16 theme
+    , kali2 (-4) 32 $ r3 theme1 . theme2
+    , kali2 0 16 $ dhage_tette.gege_tette . r3 (kataagege.terekita) -- 2
+    , kali2 0 32 $ dhage_tette.gege_tette . r3 (kataagege.terekita) . theme
+    , kali2 (-4) 32 $ dhage_tette.gege_tette.kataagege.tette
+        . r2 "kataa"."gege tette" . r3 "kataa"."gege tette"
+        . theme
+    , tri_ (dha.__8) $ g $ tri_ (dha.__6) theme2
         . dha.__ . kataagege.nanagena.dha.__ . kataagege.nanagena
     ]
     where
+    theme = theme1.theme2
+    theme1 = dhage_tette.gege_tette.kataagege.terekita
+    theme2 = dhage_tette.gege_tette.kataagege.nanagena
     dhage_tette = "dhage tette"
     gege_tette = "gege tette"
     kataagege = "kataa gege"
-    theme = dhage_tette.gege_tette.kataagege
     nanagena = "nanagena"
-    tirikita = "tirikita"
 
 c_23_09_21a :: Korvai
 c_23_09_21a = date 2023 9 21 $ colby $ tukra $ korvaiS tintal tablaKinar
@@ -193,13 +184,13 @@ c_23_09_21a = date 2023 9 21 $ colby $ tukra $ korvaiS tintal tablaKinar
 
 c_23_09_29_rela :: Korvai
 c_23_09_29_rela = date 2023 9 29 $ colby $ rela $ korvaiS1 tintal tablaKinar $
-    kaliMt (-2) 4 $ r2 $ r2 dhage_tette_din_ . "dhage tette"
+    kali2 (-2) 20 $ r2 dhage_tette_din_ . "dhage tette"
         . dhage_tette_din_ . "dhage tette" . "dhage nage dhenne"
     where dhage_tette_din_ = "dhage tette dhin _"
 
 c_23_10_12 :: Korvai
 c_23_10_12 = date 2023 10 12 $ colby $ korvaiS tintal tablaKinar
-    [ kaliMt (-8) 0 $ sd $ r2 $ dtt.dtt.ddtt.end
+    [ kali2 (-8) 16 $ sd $ dtt.dtt.ddtt.end
     , palta $ r2 (dtt.dtt.dha.dha)
     , palta $ r4 dtt . ddtt
     , palta $ dtt.ddtt.r3 dtt
@@ -207,7 +198,7 @@ c_23_10_12 = date 2023 10 12 $ colby $ korvaiS tintal tablaKinar
     , palta $ dtt.ddtt.dha.__.dtt.ddtt
     , palta $ ddtt.dtt.dha.__.ddtt.dtt
     , palta $ dtt.ddtt.dha.ddtt.ddtt
-    , tri_ (dha.__) (dtt.ddtt . tri_ (dha.__) dtt)
+    , tri_ (dha.__) $ g (dtt.ddtt . tri_ (dha.__) dtt)
     ]
     where
     palta seq = seq.dtt.dtt.ddtt.kali end . kali seq.dtt.dtt.ddtt.end
@@ -217,7 +208,7 @@ c_23_10_12 = date 2023 10 12 $ colby $ korvaiS tintal tablaKinar
 
 c_23_10_19 :: Korvai
 c_23_10_19 = date 2023 10 19 $ colby $ korvaiS1 tintal tablaKinar $
-    kaliMt (-8) 0 $ r2 $ sd $ "nagegena gegenana gegenage dhina gena"
+    kali2 (-8) 16 $ sd "nagegena gegenana gegenage dhina gena"
 
 c_23_10_19_chak :: Korvai
 c_23_10_19_chak = date 2023 10 19 $ colby $ chakradar $
@@ -324,7 +315,7 @@ c_23_11_09_kaida = date 2023 11 9 $ colby $ rela $ kaida $
 
 c_23_11_09_dhere :: Korvai
 c_23_11_09_dhere = date 2023 11 9 $ colby $ korvaiS tintal tabla
-    [ kaliMt (-4) 0 $ su $ r2 $
+    [ kali2 (-4) 16 $ su $
         "dha_terekitataka" . r2 "dhere dhere kitataka" . "takaterekitataka"
       . "terekitataka" . "gere dhere dhere" . "kitataka"
       . "dha_tette gerenaga" . "dhi_na_gerenage"
@@ -424,9 +415,9 @@ c_23_11_30_tukra = date 2023 11 30 $ colby $ tukra $
 
 c_23_12_29_rela :: Korvai
 c_23_12_29_rela = date 2023 12 29 $ colby $ rela $ korvaiS tintal tablaKinar
-    [ kaliMt (-2) 0 $ su $ r2 $ theme1 . theme2 . theme1 . theme1
+    [ kali2 (-2) 16 $ su $ theme1 . theme2 . theme1 . theme1
     -- reduced version
-    , kaliMt (-2) 0 $ r2 $
+    , kali2 (-2) 16 $
         "dhenne takdhen naga dhenne" . r2 "takdhen naga"
         . r2 "dhenne takdhen naga dhenne"
     ]
