@@ -86,7 +86,7 @@ instance Solkattu.Notation Stroke where
             Tan -> "ô"
             _ -> Text.toUpper (Solkattu.notationText v)
         Thom Up -> Solkattu.notationText (Thom Up)
-        Gum -> "/"
+        Gum -> "o/"
     notation (Flam t v) = Solkattu.textNotation $ case (t, v) of
         (Tha _, Ki) -> "f"
         _ -> Solkattu.notationText t <> Solkattu.notationText v
