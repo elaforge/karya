@@ -49,13 +49,16 @@ current:
     1t = 1 note = q
 
 ghc:
+  https://www.well-typed.com/blog/2024/04/ghc-debug-improvements/
+  https://www.well-typed.com/blog/2024/01/ghc-eras-profiling/
+  https://www.well-typed.com/blog/2024/04/choreographing-specialization-pt1/
+  https://www.well-typed.com/blog/2024/06/choreographing-specialization-pt2/
   . make core easier to read:
     https://www.youtube.com/watch?v=yRVjR9XcuPU&ab_channel=Tweag
     -dsuppress-module-prefixes -dsuppress-coercions
     -dsuppress-type-applications
     -ddump-to-file -ddump-simpl
   . Open a feature request ticket with GHC API info.
-  . Open a ticket with info about bake's ghc build papercuts.
   . ghc api memory use should get much better in 9.4
     Rather than insert all ModDetails, forget them and just deserialize the
     interface file.
@@ -6279,8 +6282,37 @@ REPL: repl:
     . https://gitlab.haskell.org/haskell/ghc-api-compat
 
 solkattu:
+  mridangam sync with cmd instrument:
+    . Use Stroke -> Mridnagam.notations for symbols
+    . But I need a keybinding, use Stroke -> key
+    . + becomes p, and I lose - and * for emphasis.  They seem useful though.
+    . Also . as light o becomes mi.  Mridnagam.notations doesn't have separate
+      symbols for light.
+    . I could use separate ^ and ., but it just looks visually not as nice.
+    . Then do the same for tabla, assuming I get a sample set.
   bol: tabla:
-    - for html, I could abbreviate fast terekita as trkt, kitataka as kttk
+    format:
+      - abbreviate fast terekita as trkt, kitataka as kttk
+        . This would let it use non-expanded format, but it's a new thing
+          because it would have to know which are ok to compress to 1 and
+          which are not.
+      * abstraction level to drop the kali half
+        . I could make it a "kali half" group.
+        . But, abstraction can only blank out, it can't delete entirely.
+          So maybe I need a more extreme kind which just removes it?
+        . Or a fundamentally different kind of abstraction, how to mark it
+          then?
+        . I could put the kali matras in section meta, but then 'kali2' has to
+          be at the section level.
+        . I could clean this up and section metadata by including it in
+          Sequence, and pulling it out.  This would also work for nadai
+          inference, though I guess it's not actually better than just
+          inferring directly from nadai.
+        . Actually don't need to mark position at all, if it's always half.
+      - don't drop kali for tihai sections
+        . If it uses korvaiS, then it should infer tihai for the end.
+        . But some of them have two tihais.
+        . I guess I want better section annotations.
     - support Talas.Hindustani in Play.tala_metronome
     - normalize terekita: [tari, tira, tere] [kita, kite]
       . ti is already a different stroke, e.g. dha ti dha, let's avoid it.
@@ -6297,16 +6329,6 @@ solkattu:
       . Another way is to support them all, but map them the same way to
         strokes.  Good because the original notation is preserved.
         Currently I do this, maybe it's good enough.
-    notes:
-      . Support for pakhawaj and tabla bols.
-      . Tabla is different in that bols directly correspond to strokes.
-      . Just we have extra sequences, which have set meanings.
-      . So no StrokeMap is needed, or rather I can have a global hardcoded one.
-      . Korvai is hardcoded to Sollu, I could generalize or I could just make
-        a new type.
-      . But if I'm not using Korvai, I can't use Solkattu.Db or All.  Stuff
-        like LSol all gets duplicated, when it need not be, we only care that
-        there's a thing with metadata and can produce notation.
   notation conveniences:
     / mark karvai groups automatically?  I don't have to highlight it.
       . If I'm not going to highlight, why bother?
@@ -6413,34 +6435,69 @@ solkattu:
         make it no longer fatal, and also render everything that can be.
       . However, I'd want inline strokes without a match to be nonfatal for
         tests, while a normal non-match is still fatal for tests.
-  context for evaluation:
-    . Duration is supposedly absolute, but it only works at the top level.  So
-      it's awkward when everything is in tisram, I do 'map (nadai 6)' and now
-      sarvaD is wrong.
-    . One way is to store as Duration, and then do a Duration normalization
-      step.  This would work for sarvaM which stores its duration directly.
-    . I guess restD could do that too.
-    . (==>) wouldn't work though, because I need to drop a certain amount of
-      the space, and if I have to normalize Duration I'd have to wait until
-      after that to do it.
-    . As opposed to a postprocess step, I could have the current tempo in the
-      environment, which means SequenceT would become a ReaderT, where the
-      monoid instance runs and combines results.  As long as it's a monad,
-      I could also replace the IO exceptions.  The downside is that all that
-      stuff becomes monadic... but how bad is that really?
-    . I could probably write a Show instance that runs with the default tempo.
-    . I could do the section metadata anywhere thing by putting WriterT, or
-      if I don't want children to see it, maybe make it a
-      (Metadata, SequenceT sollu) and put Monoid on that.
-    . newtype SequenceT sollu =
-        ExceptT Error (ReaderT Tempo Identity) [S.Note Group sollu]
-    . Also useful for kaliMt, which needs to know duration and tala.
-    . Is it even possible?  How to write it?
-      __D will need access to the state, it must be
-        __D :: Duration -> M (SequenceT sollu)
-      Which means all Sequences would become SequneceM sollu, then (<>)
-      combines those.  E.g. thom becomes pure thom, all transformers become
-      fmaps, or monadic if they need the state.
+  evaluation state:
+    ? kali2 0 16 is wrong if there is a nadai change, why?
+    . SequenceM is ExceptT Error (ReaderT State)
+      . Why do I need this, rather than this being the interpretation of the
+        Sequence?
+      . Because when I see a __D I need to know what to emit.
+      . I could just emit a special D rest?
+      . But then I get a dropM, and how many M per D?  It would also have to
+        be unevaluated.
+      . So I wind up with everything as a constructor and then an interpreter,
+        I may as well directly write the interpreter.
+      . So __D will Reader.ask for Speed, then emit the relevant number of
+        rests at that speed.
+      . dropM will just drop that many rests, dropD will Reader.ask and
+        multiply a dropM.
+      . What about kali?  We just Reader.ask for Tala.
+      . Could I get rid of the awkward `s` section thing too?  Maybe if I use
+        State instead of Reader, I could have a function that attaches it as
+        a side-effect.
+      . Or State in addition to Reader, if it's just for attaching section
+        metadata.
+      . Alternately, make section metadata part of Note, and just fish it out
+        at the end?
+    . Actually is this so great after all?  I guess it's annoying that
+      __D has to be at the top level to actually be Duration, but it also
+      sort of makes sense that it's 2x under 'su'.
+    . But, the not working under different nadai kind of makes it useless.
+    . Auto kali based on theka would be cool, but in practice I only have
+      tintal stuff.  I can also have a per-tala kaliM, though awkward.
+    - rewrite S in terms of SequenceM
+    - if it works, set Solkattu to use it, with State:
+      . { Tala, S.State }
+      . I could even put speed, nadai, stride in there rather than having them
+        be nested.  Is there any benefit?
+      . Would it make it easier or harder to do transformations?
+    notes:
+      . Duration is supposedly absolute, but it only works at the top level.  So
+        it's awkward when everything is in tisram, I do 'map (nadai 6)' and now
+        sarvaD is wrong.
+      . One way is to store as Duration, and then do a Duration normalization
+        step.  This would work for sarvaM which stores its duration directly.
+      . I guess restD could do that too.
+      . (==>) wouldn't work though, because I need to drop a certain amount of
+        the space, and if I have to normalize Duration I'd have to wait until
+        after that to do it.
+      . As opposed to a postprocess step, I could have the current tempo in the
+        environment, which means SequenceT would become a ReaderT, where the
+        monoid instance runs and combines results.  As long as it's a monad,
+        I could also replace the IO exceptions.  The downside is that all that
+        stuff becomes monadic... but how bad is that really?
+      . I could probably write a Show instance that runs with the default tempo.
+      . I could do the section metadata anywhere thing by putting WriterT, or
+        if I don't want children to see it, maybe make it a
+        (Metadata, SequenceT sollu) and put Monoid on that.
+      . newtype SequenceT sollu =
+          ExceptT Error (ReaderT Tempo Identity) [S.Note Group sollu]
+      . Also useful for kaliMt, which needs to know duration and tala.
+      . Is it even possible?  How to write it?
+        __D will need access to the state, it must be
+          __D :: Duration -> M (SequenceT sollu)
+        Which means all Sequences would become SequneceM sollu, then (<>)
+        combines those.  E.g. thom becomes pure thom, all transformers become
+        fmaps, or monadic if they need the state.
   sections:
     - if I have 'section' get CallStack and put section on each element,
       then I can tag sections with line numbers.

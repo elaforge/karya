@@ -128,7 +128,7 @@ c_24_01_11 = date 2024 1 12 $ colby $ kaida $ korvaiS jhaptal tabla
 
 c_24_01_26_chalan1 :: Korvai
 c_24_01_26_chalan1 = date 2024 1 26 $ colby $ chalan $ lucknow $
-    korvaiS tintal tabla
+    korvaiV tintal tabla
     [ kali2 (-3) 16 $ su $
         "dha_dha_dha_ gege" . nage_dhine.dhina_gena
         . "tette gege".nage_dhine . nage_dhine.dhina_gena
@@ -147,7 +147,7 @@ c_24_01_26_chalan1 = date 2024 1 26 $ colby $ chalan $ lucknow $
 -- try at 60bpm
 c_24_01_26_chalan2 :: Korvai
 c_24_01_26_chalan2 = date 2024 1 26 $ colby $ chalan $ lucknow $
-    korvaiS tintal tablaKinar
+    korvaiV tintal tablaKinar
     [ kali2 (-2) 16 $ su $
         "dhin__dha_redha_" . "tet__dha_redha_" . "dhina_dhatidha_"
         . "gena dhagena dhina gena" . "trkt dhina gena" . "dhatidha gena"
@@ -156,7 +156,7 @@ c_24_01_26_chalan2 = date 2024 1 26 $ colby $ chalan $ lucknow $
 
 to_chalan :: Korvai
 to_chalan = date 2024 12 29 $ colby $ chalan $ lucknow $
-    korvaiS tintal tablaKinar
+    korvaiV tintal tablaKinar
     [ kal $ r2 (dhin_dha_redha.tet_dha_redha)
     , kal $ dhin_dha_redha.tet_dha_redha . dhateka_dha_redha.tet_dha_redha
     , kal $ dhin_dha_redha."tet__dha_re dhati".dhateka_dha_redha.tet_dha_redha
@@ -201,7 +201,7 @@ yt_tihais = korvaiV tintal tablaKinar
     ]
 
 c_24_12_02 :: Korvai
-c_24_12_02 = date 2024 12 2 $ source "skanda" $ korvaiS tintal tablaKinar
+c_24_12_02 = date 2024 12 2 $ source "skanda" $ korvaiV tintal tablaKinar
     -- rotate accent around, or accent on 2nd dha
     [ kali2 (-8) 16 $ sd $ "dhati dhagena dha".trkt."dhati dhage dhina gena"
     , kali2 (-8) 16 $

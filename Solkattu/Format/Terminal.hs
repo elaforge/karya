@@ -4,6 +4,7 @@
 
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE StrictData #-}
 -- | Convert realized 'S.Flat' output to text for the terminal.
 module Solkattu.Format.Terminal (
     renderAll, printInstrument, printKonnakol, printBol
@@ -43,19 +44,19 @@ data Config = Config {
     -- | Show the ruler on multiples of this line as a reminder.  The ruler is
     -- always shown if it changes.  It should be a multiple of 2 to avoid
     -- getting the second half of a talam in case it's split in half.
-    _rulerEach :: !Int
-    , _terminalWidth :: !Int
+    _rulerEach :: Int
+    , _terminalWidth :: Int
     -- | Normally 'format' tries to figure out a with for each stroke according
     -- to what will fit on the screen.  But it assumes notation is always at
     -- most one character per time unit.  This hardcodes the width for e.g.
     -- konnakol, where a sollu like `thom` can be 4 characters wide.
-    , _overrideStrokeWidth :: !(Maybe Int)
-    , _abstraction :: !Format.Abstraction
+    , _overrideStrokeWidth :: Maybe Int
+    , _abstraction :: Format.Abstraction
     -- | Show complete tags for every section, otherwise abbreviate.
-    , _showSectionTags :: !Bool
+    , _showSectionTags :: Bool
     -- | Omit half of each section.  The assumption is it's the kali half,
     -- and identical to the first half except partially kali.
-    , _omitKaliHalf :: !Bool
+    , _omitKaliHalf :: Bool
     } deriving (Eq, Show)
 
 defaultConfig :: Config
@@ -173,8 +174,13 @@ formatResults config tala results =
                 ++ map (showWarning strokeWidth) warnings
         )
         where
-        (strokeWidth, (nextRuler, lines)) =
-            format config prevRuler tala notes
+        (strokeWidth, (nextRuler, lines)) = format
+            (if hasKali tags then config else config { _omitKaliHalf = False })
+            prevRuler tala notes
+    -- Tags.ending means a tihai, there's no kali half for that!
+    -- It would be smarter for kali2 to record its presence and only drop the
+    -- kali half in that case, but I'd need something like metadata anywhere.
+    hasKali tags = not (Tags.hasType Tags.ending tags)
     showWarning _ (Realize.Warning Nothing msg) = msg
     showWarning strokeWidth (Realize.Warning (Just i) msg) =
         Text.replicate (leader + strokeWidth * i) " " <> "^ " <> msg
@@ -194,7 +200,7 @@ formatResults config tala results =
         . map (second (Text.strip . Styled.toText))
         where
         rightColumn = Texts.join2 " " tagsText $
-            if _omitKaliHalf config then "->k" else ""
+            if _omitKaliHalf config && hasKali tags then "->k" else ""
         tagsText
             | _showSectionTags config = Format.showAllTags tags
             | otherwise = Format.showTags tags
@@ -430,18 +436,18 @@ shouldEmphasize tala angas state
 -- ** formatting
 
 data Symbol = Symbol {
-    _text :: !Text
-    , _style :: !Styled.Style
+    _text :: Text
+    , _style :: Styled.Style
     -- | If this was from a S.Sustain, which comes from S.hasSustain.  This
     -- differentiates a stroke followed by rests from a sequence that continues
     -- over a time range.
-    , _isSustain :: !Bool
-    , _emphasize :: !Bool
-    , _highlight :: !(Maybe (Format.Highlight, Styled.Color))
+    , _isSustain :: Bool
+    , _emphasize :: Bool
+    , _highlight :: Maybe (Format.Highlight, Styled.Color)
     -- | True if this is the non-first part of a Symbol split via
     -- overlapSymbols.  This is so that Format.formatFinalAvartanam can
     -- consider it a single symbol.
-    , _isOverlappingSymbol :: !Bool
+    , _isOverlappingSymbol :: Bool
     } deriving (Eq, Show)
 
 instance Pretty Symbol where

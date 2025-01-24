@@ -16,7 +16,7 @@ import           Solkattu.Dsl.Bol
 -- TODO I should be able to take sd off the 16 beat ones, but then the terminal
 -- spacing changes, because it doesn't want to split into 4 beats
 bats :: Korvai
-bats = bat $ source "mary" $ korvaiS tintal mempty $
+bats = bat $ source "mary" $ korvaiV tintal mempty $
     [ sd $ r2 "gadi gene nage tette" . "katA katA gadi gadi"
         . "gadi gene nage tette"
 
@@ -164,7 +164,7 @@ c_23_09_07_kaida = date 2023 9 7 $ kaida $ colby $ korvaiS tintal tablaKinar
     nanagena = "nanagena"
 
 c_23_09_21a :: Korvai
-c_23_09_21a = date 2023 9 21 $ colby $ tukra $ korvaiS tintal tablaKinar
+c_23_09_21a = date 2023 9 21 $ colby $ tukra $ korvaiV tintal tablaKinar
     [ nadai 3 $ "dha dha dha di di di na na na" . "kat tette dha _"
         . "dha dha di di na na" . "kat tette dha_"
         . "dha _ di _ na _" . tri_ (dha.__4) "kat tette"
@@ -429,7 +429,7 @@ c_23_12_29_rela = date 2023 12 29 $ colby $ rela $ korvaiS tintal tablaKinar
     nanagene = "nanagene"
 
 c_23_12_29_tukra :: Korvai
-c_23_12_29_tukra = date 2023 12 29 $ colby $ tukra $ korvaiS tintal tabla
+c_23_12_29_tukra = date 2023 12 29 $ colby $ tukra $ korvaiV tintal tabla
     [ "tA_tun_na_ kitatakatun_ terekitatun_na_ kitataka" . r4 "tAka"
         . "takaterekite"
         -- Awkward to express that the last one is different.
@@ -444,14 +444,14 @@ c_23_12_29_tukra = date 2023 12 29 $ colby $ tukra $ korvaiS tintal tabla
 
 -- TODO for pakhawaj, should have pakhawaj strokes
 candiramani_pakhawaj_kehrwa :: Korvai
-candiramani_pakhawaj_kehrwa = theka $ korvaiS Talas.kehrwa tablaKinar
+candiramani_pakhawaj_kehrwa = theka $ korvaiV Talas.kehrwa tablaKinar
     [ sd $ "dhin_dhadhin_dhindhage" . "dhin_dhatin_tintAge"
     , sd $ "dhin_dhin_dha_tin_" . "trekre dhin_dha_ trekre"
     , sd $ "dhet ti ṭa tA" . "_dhiṭati" . "kataṭatA" . "_dhiṭati"
     ]
 
 candiramani_pakhawaj_adi :: Korvai
-candiramani_pakhawaj_adi = theka $ korvaiS Talas.adi tablaSur
+candiramani_pakhawaj_adi = theka $ korvaiV Talas.adi tablaSur
     [ "dha_ki_ṭa_dha_kiṭadha_" . "ki_ṭa_ka_ti_" . "ṭa_tA_tiṭakata gadigene"
     , "dha_ki_ṭa_dha_" . "dhet_dhi_ṭa_tA_" . "ka_ti_ṭa_dha_dhet_dhi_ṭa_dha_"
     ]
@@ -459,7 +459,7 @@ candiramani_pakhawaj_adi = theka $ korvaiS Talas.adi tablaSur
 -- *
 
 legong1 :: Korvai
-legong1 = korvaiS kehrwa tablaKinar
+legong1 = korvaiV kehrwa tablaKinar
     [ "na___ ge_ge_ | na___na_na_ | ge _na _ ge_ge_ | na___na_na_"
     . "ge_tet_ na_na_ | ge_na_ge_gege | _na_na_dha_dha_ | __tuntun_tet_"
     , "ge_tet_na_tet_ | na_na_tet_na_ | __tet_na_tet_"

@@ -27,6 +27,12 @@ untags (Tags tags) = tags
 replace :: Text -> Text -> Tags -> Tags
 replace k v (Tags tags) = Tags $ Map.insert k [v] tags
 
+has :: Text -> Tags -> Bool
+has tag (Tags tags) = Map.member tag tags
+
+hasType :: Text -> Tags -> Bool
+hasType typ (Tags tags) = maybe False (typ `elem`) $ Map.lookup type_ tags
+
 -- * tags
 
 comment :: Text

@@ -189,6 +189,15 @@ sollu_variations = sollu $ korvaiV adi
     where
     theme = g "otkNkdpn ptkNkdpn"
 
+rohan_dholak :: Korvai
+rohan_dholak = rohan $ comment "dholak style" $ korvaiV adi
+    [ su $ r2 (rh1 & "o_o_o_" . rh1 & "__p_o")
+        . r2 (r2 rh1 & ("o_p_o_".p'."___o_o"))
+    , r2 (r2 rh2 & "o_/_o__o") . r2 (r2 rh2 & "o/o/o__o")
+    ]
+    where
+    rh1 = "n__kt_k_"
+    rh2 = "kdnk"
 
 -- * adi melkalam
 
