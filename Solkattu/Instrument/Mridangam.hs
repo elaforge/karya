@@ -31,7 +31,9 @@ data Stroke =
 data Thoppi =
     Tha Tha | Thom Thom
     -- | Just the gumiki movement, no strike.  Or possibly a light strike to
-    -- make it speak if it doesn't sustain.
+    -- make it speak if it doesn't sustain.  This is for explicitly delayed
+    -- gum, so while Thom Up is up on strike, this can express up on beat after
+    -- thom.
     | Gum
     deriving (Eq, Ord, Show)
 data Valantalai =
@@ -79,19 +81,32 @@ instance Solkattu.Notation Stroke where
             -- small enough to not be too distracting or make the original
             -- character unreadable.
             _ -> Solkattu.notationText v <> overline
-        Thom Low -> case v of
-            -- These are symbols, so they have no uppercase.
-            Kin -> "o" <> cedillaBelow
-            Mi -> "o" <> dotBelow
-            Tan -> "ô"
-            _ -> Text.toUpper (Solkattu.notationText v)
-        Thom Up -> Solkattu.notationText (Thom Up)
-        Gum -> "o/"
+        -- Append a / for gum up.  I thought of toUpper + acute accent for a
+        -- single character, but it's not very obvious and doesn't work with
+        -- Kin, Mi, Tan.  A two character notation might be trimmed into one,
+        -- but that seems sort of ok since the gum part is secondary to the
+        -- thom part.
+        Thom dir -> mconcat
+            [ case v of
+                -- These are symbols, so they have no uppercase.
+                Kin -> "o" <> cedillaBelow
+                Mi -> "o" <> dotBelow
+                Tan -> "ô"
+                _ -> Text.toUpper (Solkattu.notationText v)
+            , case dir of
+                Low -> ""
+                Up -> "/"
+            ]
+        Gum -> Solkattu.notationText v <> acute
     notation (Flam t v) = Solkattu.textNotation $ case (t, v) of
         (Tha _, Ki) -> "f"
         _ -> Solkattu.notationText t <> Solkattu.notationText v
 
 instance Pretty Stroke where pretty = Solkattu.notationText
+
+-- COMBINING ACUTE ACCENT
+acute :: Text
+acute = "\x0301"
 
 -- COMBINING CEDILLA
 cedillaBelow :: Text
@@ -108,9 +123,9 @@ overline = "\x0305"
 instance Solkattu.Notation Thoppi where
     notation = Solkattu.textNotation . \case
         Thom Low -> "o"
-        Thom Up -> "ó"
+        Thom Up -> "o/"
         Tha _ -> "p"
-        Gum -> "/"
+        Gum -> "´"
 
 instance Solkattu.Notation Valantalai where
     notation = Solkattu.textNotation . \case
@@ -145,7 +160,7 @@ instance Expr.ToExpr Stroke where
             Thom Low -> "o"
             Thom Up -> "o/"
             Tha _ -> "+"
-            Gum -> "/"
+            Gum -> "´"
 
 instance Expr.ToExpr (Realize.Stroke Stroke) where
     to_expr (Realize.Stroke emphasis stroke) = case (emphasis, stroke) of
@@ -165,7 +180,7 @@ data Strokes a = Strokes {
     -- | Mnemonic: y = kin = , uses 3 fingers, j = tan = ^ uses 1.
     , y :: a, j :: a
     , p :: a, p' :: a
-    , o :: a, o' :: a -- ^ gumiki up
+    , o :: a, o' :: a -- ^ gumiki up, should be o/ but invalid syntax
     , _' :: a -- Gum
     -- | @do@ would match score notation, but @do@ is a keyword.  Ultimately
     -- that's because score uses + for tha, and +o is an attr, while o+ is
@@ -260,7 +275,7 @@ fromString = mapMaybeM parse
 notations :: Map Char Stroke
 notations = Map.fromList $ (extras++) $ Lists.mapMaybeFst isChar $
     Lists.keyOn Solkattu.notationText $ concat
-        [ map Thoppi (lhs ++ [Thom Up, Gum])
+        [ map Thoppi (lhs ++ [Gum])
         , map Valantalai rhs
         -- Omit little strokes, they're probably inaudible on Both anyway.
         , [Both lh rh | lh <- lhs, rh <- rhs, rh `notElem` [Mi, Kin, Tan]]
@@ -272,6 +287,9 @@ notations = Map.fromList $ (extras++) $ Lists.mapMaybeFst isChar $
         [ ('y', y strokes)
         , ('j', j strokes)
         , ('l', l strokes)
+        -- The notation is o/, but that's two characters and I need a single
+        -- character for toString.
+        , ('/', Thoppi (Thom Up))
         ]
     isChar t = case untxt t of
         [c] -> Just c

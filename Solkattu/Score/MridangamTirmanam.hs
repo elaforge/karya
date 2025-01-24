@@ -128,7 +128,7 @@ tir_icarnatic_guhan_kamalakiran_adi = tirmanam $ date 2023 3 10 $ korvaiS adi
 tir_indian_raga :: Korvai
 tir_indian_raga = tirmanam $ date 2023 3 10 $ korvaiS adi
     -- Mayamma - Ahiri's Bliss
-    [ __.__ . tri_ "ko_" "D/oD/oD__" -- 333(3)
+    [ __.__ . tri_ "ko_" "D´oD´oD__" -- 333(3)
     , __D 4 . tri_ (od.__6) "okokkoD__Nok" -- 66(6)
     ]
 

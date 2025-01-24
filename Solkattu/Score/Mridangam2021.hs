@@ -131,10 +131,10 @@ e_5s = date 2021 5 11 $ ganesh $ exercise $ korvai1 adi $
 e_gumiki :: Korvai
 e_gumiki = date 2021 6 6 $ ganesh $ exercise $ korvaiS adi
     [ sd $ r4 nddn & "_ooooooooo"
-    , sd $ r4 nddn & "óoooóoooóo"
-    , sd $ r4 nddn & r5 "óo"
-    , sd $ r4 nddn & r5 "oó"
-    , rh & sd "óooooooo" . rh & o'
+    , sd $ r4 nddn & "/ooo/ooo/o"
+    , sd $ r4 nddn & r5 "/o"
+    , sd $ r4 nddn & r5 "o/"
+    , rh & sd "/ooooooo" . rh & o'
     , o.d._'&y.n.o.k.od.y . "^,n,^,d," & sd "oooo" . rh & o'
     ,   o.d._'&y.n.o.k.od.y . "^,n,nnd," & "o_o_ooo_"
       . o.d._'&y.n.p.k.d .y . "^,n,nnd,"

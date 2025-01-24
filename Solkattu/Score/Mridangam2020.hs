@@ -28,10 +28,10 @@ e_20_03_27 = date 2020 2 27 $ source "anand" $ exercise $ korvaiS adi $
 
 e_20_05_01 :: Korvai
 e_20_05_01 = date 2020 5 1 $ source "anand" $ exercise $ korvaiS adi
-    [ r2 $ rh & "ó_oó_oó"
-    , r2 $ rh & "ó_oó_oó____p__p"
-    , r2 $ rh & "oóoo_oo_oóoo"
-    , r2 $ rh & "oóoo_oo_oóoo_pp"
+    [ r2 $ rh & "/_o/_o/"
+    , r2 $ rh & "/_o/_o/____p__p"
+    , r2 $ rh & "o/oo_oo_o/oo"
+    , r2 $ rh & "o/oo_oo_o/oo_pp"
     ]
     where
     rh = r4 $ n.k.t.k
