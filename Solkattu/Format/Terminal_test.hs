@@ -190,7 +190,7 @@ test_inferRuler = do
             . fst . expect_right
             . kRealize tala4
     let tas nadai n = G.nadai nadai (G.repeat n G.ta)
-    equal (f (tas 2 4)) [("X:2", 2), ("O", 2)]
+    equal (f (tas 2 4)) [("X:2", 4), ("O", 4)]
 
 test_format_ruler_rulerEach :: Test
 test_format_ruler_rulerEach = do

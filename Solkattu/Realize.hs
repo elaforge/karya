@@ -53,7 +53,6 @@ module Solkattu.Realize (
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Monad.Trans.Writer.CPS as Writer
-import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
