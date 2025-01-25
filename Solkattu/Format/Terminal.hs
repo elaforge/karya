@@ -327,7 +327,7 @@ spellRests strokeWidth
     set (col, (prev, sym, next))
         | not (isRest sym) = sym
         | even col && maybe False isRest next = sym
-            { _text = Realize.justifyLeft (symWidth sym) ' ' double }
+            { _text = Texts.justifyLeft (symWidth sym) ' ' double }
         | odd col && maybe False isRest prev = sym
             { _text = Text.replicate (symWidth sym) " " }
         | otherwise = sym
@@ -345,10 +345,10 @@ overlapSymbols strokeWidth = snd . mapAccumLSnd combine ("", Nothing)
     combine (overlap, overlapSym) sym
         | _isSustain sym = if Text.null overlap
             then (("", Nothing), sym)
-            else let (pre, post) = Realize.textSplitAt strokeWidth overlap
+            else let (pre, post) = Texts.splitAt strokeWidth overlap
                 in ((post, overlapSym), replace pre overlapSym sym)
         | otherwise =
-            let (pre, post) = Realize.textSplitAt strokeWidth (_text sym)
+            let (pre, post) = Texts.splitAt strokeWidth (_text sym)
             in ((post, Just sym), sym { _text = pre })
     replace prefix mbOverlapSym sym = case mbOverlapSym of
         Nothing -> sym { _text = newText }
@@ -360,7 +360,7 @@ overlapSymbols strokeWidth = snd . mapAccumLSnd combine ("", Nothing)
             }
         where
         newText = prefix
-            <> snd (Realize.textSplitAt (Realize.textLength prefix) (_text sym))
+            <> snd (Texts.splitAt (Texts.length prefix) (_text sym))
 
 makeSymbols :: Solkattu.Notation stroke => Int -> Talas.Tala -> Set Tala.Akshara
     -> Format.NormalizedFlat stroke -> [(S.State, Symbol)]
@@ -371,8 +371,7 @@ makeSymbols strokeWidth tala angas = go
             S.Attack a ->
                 ( False
                 , style
-                , Realize.justifyLeft strokeWidth (Solkattu.extension a)
-                    notation
+                , Texts.justifyLeft strokeWidth (Solkattu.extension a) notation
                 )
                 where (style, notation) = Solkattu.notation a
             S.Sustain a ->
@@ -381,7 +380,7 @@ makeSymbols strokeWidth tala angas = go
                 , Text.replicate strokeWidth
                     (Text.singleton (Solkattu.extension a))
                 )
-            S.Rest -> (True, mempty, Realize.justifyLeft strokeWidth ' ' "_")
+            S.Rest -> (True, mempty, Texts.justifyLeft strokeWidth ' ' "_")
     go (S.FGroup _ group children) = modify (concatMap go children)
         where
         modify = case Solkattu._type group of
@@ -483,7 +482,7 @@ emphasisStyle = Styled.fg red . Styled.bold
     -- I'm used to this dark red since it's what iterm used for bold.
 
 symWidth :: Symbol -> Int
-symWidth = Realize.textLength . _text
+symWidth = Texts.length . _text
 
 -- * util
 

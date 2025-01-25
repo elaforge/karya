@@ -6329,6 +6329,23 @@ solkattu:
       . Another way is to support them all, but map them the same way to
         strokes.  Good because the original notation is preserved.
         Currently I do this, maybe it's good enough.
+  mridangam gumiki notation:
+    . Firstly, Gum is confusing because it's a "dry" stroke.  But I think
+      it is useful for timed gum, just the name is confusing.  Maybe it
+      should be Up, but that's Thoppi Up.
+    . Previously, gum is /, and Thom Up is acute accent.
+      Gum as / can't be combined with other things.
+      Acute accent can't be combined well with symbols like , ^.
+    . Making Up into a trailing / solves those, at the cost of 2 chars.
+      But it seems ok and I think not bad to read.  Better than acute.
+    . But gum as bare ´ is pretty annoying to type.  Bare / makes a kind of
+      sense because it's just up, no o.
+    . I could make / -> gum, and have to type ó for o/ in strings, that makes
+      some sense, but it's a confusing mismatch between fromString and output
+      notation.  Of course I have those for many things, but
+    . Maybe it comes down to how common is Up vs Gum.
+      If ´ is really so annoying, then I could use `, or even ', is that
+      otherwise used?
   notation conveniences:
     / mark karvai groups automatically?  I don't have to highlight it.
       . If I'm not going to highlight, why bother?

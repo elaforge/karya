@@ -10,10 +10,12 @@ module Solkattu.Instrument.Mridangam where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
 
 import           GHC.Stack (HasCallStack)
 
 import qualified Util.Lists as Lists
+import qualified Util.Texts as Texts
 import qualified Derive.Expr as Expr
 import qualified Derive.Symbols as Symbols
 import qualified Solkattu.Realize as Realize
@@ -143,6 +145,17 @@ instance Solkattu.Notation Valantalai where
 
 instance Pretty Thoppi where pretty = Solkattu.notationText
 instance Pretty Valantalai where pretty = Solkattu.notationText
+
+_printStrokes :: IO ()
+_printStrokes = mapM_ Text.IO.putStrLn $ Texts.columns 2 $
+    [ "" : map (t . Valantalai) rhs ] ++
+    [ (map t $ Thoppi lh : [Both lh rh | rh <- rhs])
+    | lh <- lhs
+    ]
+    where
+    t = Solkattu.notationText
+    rhs = [Ki ..]
+    lhs = [Tha Palm, Tha Fingertips, Thom Low, Thom Up, Gum]
 
 -- | Pretty reproduces the "Derive.Solkattu.Dsl" syntax, which has to be
 -- haskell syntax, so it can't use +, and I have to put thoppi first to avoid

@@ -46,11 +46,6 @@ module Solkattu.Realize (
     -- ** ToStroke
     , ToStrokes
     , realizeStroke, realizeSollu
-    -- * text util
-    , justifyLeft
-    , textLength
-    , textSplitAt
-
     -- * DEBUG
     , SolluMap(..)
     , solluMap
@@ -624,7 +619,7 @@ formatError = format . UF.toList
     format (pre, Just err) = Left $
         Texts.unlines2 (errorNotation (S.flattenedNotes pre)) err
     errorNotation = Text.unwords
-        . map (justifyLeft 2 ' ' . Solkattu.notationText)
+        . map (Texts.justifyLeft 2 ' ' . Solkattu.notationText)
 
 {- | Given a group like
 
@@ -810,35 +805,3 @@ bestMatch tag sollus toStrokes =
     find tag = mapMaybe (\s -> ((tag, s),) <$> _getStrokes toStrokes tag s)
     prefixes = reverse $ drop 1 $ List.inits $
         take (_longestKey toStrokes) sollus
-
-
--- * text util
-
-justifyLeft :: Int -> Char -> Text -> Text
-justifyLeft n c text
-    | len >= n = text
-    | otherwise = text <> Text.replicate (n - len) (Text.singleton c)
-    where len = textLength text
-
--- | Text.length that doesn't count combining characters.
---
--- TODO there is surely a canonical way to count graphemes, say using text-icu,
--- but it seems like a heavy dependency.
-textLength :: Text -> Int
-textLength = Num.sum . map len . untxt
-    where
-    -- Combining characters don't contribute to the width.  I'm sure it's way
-    -- more complicated than this, but for the moment this seems to work.
-    len c
-        | Char.isMark c = 0
-        | otherwise = 1
-
--- | Text.splitAt that isn't confused by combining characters.
-textSplitAt :: Int -> Text -> (Text, Text)
-textSplitAt at text =
-    find $ map (flip Text.splitAt text) [0 .. textLength text]
-    where
-    find (cur : next@((pre, _) : _))
-        | textLength pre > at = cur
-        | otherwise = find next
-    find _ = (text, "")

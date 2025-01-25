@@ -3,8 +3,27 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances, OverloadedStrings #-}
-module Util.Texts where
-import           Prelude hiding (lines)
+module Util.Texts (
+    Textlike(..)
+    , replaceMany
+    , unwords2, unlines2, join2, join
+    , split1
+    , ellipsis, ellipsisList
+    , dropPrefix, dropSuffix
+    , enumeration
+    , columns, columnsSome
+    , justifyLeft
+    , length
+    , splitAt
+    , mapDelimited, mapDelimitedM, extractDelimited
+    -- * interpolate
+    , interpolate
+    -- * haddockUrl
+    , Files, Url
+    , haddockUrl
+) where
+import           Prelude hiding (length, lines, splitAt)
+import qualified Prelude
 import           Control.Arrow (first)
 import           Control.Monad (liftM)
 import qualified Control.Monad.Identity as Identity
@@ -29,6 +48,7 @@ import qualified System.FilePath as FilePath
 import           System.FilePath ((</>))
 
 import qualified Util.Lists as Lists
+import qualified Util.Num as Num
 import qualified Util.Regex as Regex
 
 
@@ -97,9 +117,6 @@ join2 sep a b = join sep $ filter (not . Text.null . toText) [a, b]
 join :: Textlike a => a -> [a] -> a
 join sep = fromText . Text.intercalate (toText sep) . map toText
 
-unlines :: Textlike a => [a] -> a
-unlines = fromText . Text.unlines . map toText
-
 split1 :: Text -> Text -> (Text, Text)
 split1 sep text = (pre, Text.drop (Text.length sep) post)
     where (pre, post) = Text.breakOn sep text
@@ -113,7 +130,7 @@ ellipsisList :: Int -> [Text] -> [Text]
 ellipsisList max xs
     | null post = xs
     | otherwise = pre ++ ["..."]
-    where (pre, post) = splitAt max xs
+    where (pre, post) = Prelude.splitAt max xs
 
 dropPrefix :: Text -> Text -> Text
 dropPrefix prefix text = Maybe.fromMaybe text (Text.stripPrefix prefix text)
@@ -133,10 +150,39 @@ columnsSome :: Int -> [Either Text [Text]] -> [Text]
 columnsSome padding rows = map formatRow rows
     where
     formatRow = either id (Text.stripEnd . mconcat . zipWith pad widths)
-    pad w = Text.justifyLeft (w + padding) ' '
+    pad w = justifyLeft (w + padding) ' '
     byCol = map (map (Maybe.fromMaybe Text.empty))
         (Lists.rotate2 (Either.rights rows))
-    widths = map (List.maximum . (0:) . map Text.length) byCol
+    widths = map (List.maximum . (0:) . map length) byCol
+
+justifyLeft :: Int -> Char -> Text -> Text
+justifyLeft count c text
+    | len >= count = text
+    | otherwise = text <> Text.replicate (count - len) (Text.singleton c)
+    where len = length text
+
+-- | Text.length that doesn't count combining characters.
+--
+-- TODO there is surely a canonical way to count graphemes, say using text-icu,
+-- but it seems like a heavy dependency.
+length :: Text -> Int
+length = Num.sum . map len . Text.unpack
+    where
+    -- Combining characters don't contribute to the width.  I'm sure it's way
+    -- more complicated than this, but for the moment this seems to work.
+    len c
+        | Char.isMark c = 0
+        | otherwise = 1
+
+-- | Text.splitAt that isn't confused by combining characters.
+splitAt :: Int -> Text -> (Text, Text)
+splitAt at text =
+    find $ map (flip Text.splitAt text) [0 .. length text]
+    where
+    find (cur : next@((pre, _) : _))
+        | length pre > at = cur
+        | otherwise = find next
+    find _ = (text, "")
 
 -- | Apply a function to the contents delimited by the given Char.  You can
 -- quote a delimiter with a backslash.
