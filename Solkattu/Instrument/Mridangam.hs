@@ -52,9 +52,9 @@ data Valantalai =
     | Tan -- ^ ta on meetu
     deriving (Eq, Ord, Show, Enum, Bounded)
 
-data Tha = Palm -- ^ standard tha
-    | Fingertips -- ^ touch with fingertips
+data Tha = Palm -- ^ full hand tha
     | Fingers -- ^ flat of the fingers
+    | Fingertips -- ^ touch with fingertips
     deriving (Eq, Ord, Show)
 
 data Thom =
@@ -72,17 +72,20 @@ instance Solkattu.Notation Stroke where
         -- tha & x.  I can't think of any systematic ascii transformation for x
         -- so I use a unicode overline thing.  However, p&k and p&t are pretty
         -- common, so I have irregular ad-hoc P and X for them.
-        Tha _ -> case v of
-            Ki -> "P"
-            Ta -> "X"
+        Tha tha -> case v of
+            Ki -> "P" <> c
+            Ta -> "X" <> c
             -- These are logically the same, maybe they should use the same
             -- stroke?
-            AraiChapu -> "A"
-            MuruChapu -> "Y"
-            -- Hopefully this is big enough to not look like screen gunk, but
-            -- small enough to not be too distracting or make the original
-            -- character unreadable.
-            _ -> Solkattu.notationText v <> overline
+            AraiChapu -> "A" <> c
+            MuruChapu -> "Y" <> c
+            _ -> Solkattu.notationText v <> case tha of
+                Fingertips -> diaeresis
+                -- Hopefully this is big enough to not look like screen gunk,
+                -- but small enough to not be too distracting or make the
+                -- original character unreadable.
+                _ -> overline
+            where c = if tha == Fingertips then diaeresis else ""
         -- Append a / for gum up.  I thought of toUpper + acute accent for a
         -- single character, but it's not very obvious and doesn't work with
         -- Kin, Mi, Tan.  A two character notation might be trimmed into one,
@@ -92,7 +95,7 @@ instance Solkattu.Notation Stroke where
             [ case v of
                 -- These are symbols, so they have no uppercase.
                 Kin -> "o" <> cedillaBelow
-                Mi -> "o" <> dotBelow
+                Mi -> "o" <> dotAbove
                 Tan -> "ô"
                 _ -> Text.toUpper (Solkattu.notationText v)
             , case dir of
@@ -110,6 +113,10 @@ instance Pretty Stroke where pretty = Solkattu.notationText
 acute :: Text
 acute = "\x0301"
 
+-- COMBINING DIAERESIS
+diaeresis :: Text
+diaeresis = "\x0308"
+
 -- COMBINING CEDILLA
 cedillaBelow :: Text
 cedillaBelow = "\x0327"
@@ -117,6 +124,10 @@ cedillaBelow = "\x0327"
 -- COMBINING DOT BELOW
 dotBelow :: Text
 dotBelow = "\x0323"
+
+-- COMBINING DOT ABOVE
+dotAbove :: Text
+dotAbove = "\x0307"
 
 -- COMBINING OVERLINE
 overline :: Text
@@ -126,6 +137,7 @@ instance Solkattu.Notation Thoppi where
     notation = Solkattu.textNotation . \case
         Thom Low -> "o"
         Thom Up -> "o/"
+        Tha Fingertips -> ":"
         Tha _ -> "p"
         Gum -> "´"
 
