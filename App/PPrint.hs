@@ -4,7 +4,11 @@
 
 -- | Standalone pretty printer for debugging.
 module App.PPrint where
+import qualified GHC.IO.Encoding as Encoding
+
 import qualified Util.PPrint as PPrint
 
 main :: IO ()
-main = putStr . PPrint.format =<< getContents
+main = do
+    Encoding.setLocaleEncoding Encoding.utf8
+    putStr . PPrint.format =<< getContents

@@ -17,17 +17,19 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
+import qualified GHC.IO.Encoding as Encoding
 import qualified System.Environment
 
 import qualified Util.ExtractHs as ExtractHs
-import qualified Util.Regex as Regex
 import qualified Util.Lists as Lists
+import qualified Util.Regex as Regex
 
 import           Global
 
 
 main :: IO ()
 main = do
+    Encoding.setLocaleEncoding Encoding.utf8
     args <- System.Environment.getArgs
     ExtractHs.process args (extract . ExtractHs.stripComments)
         (\_ -> Right . generate)

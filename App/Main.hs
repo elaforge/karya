@@ -17,6 +17,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Tuple as Tuple
+import qualified GHC.IO.Encoding as Encoding
 import qualified Network.Socket as Socket
 import qualified System.Environment
 import qualified System.IO as IO
@@ -78,6 +79,7 @@ initialize_audio = id
 
 initialize :: (Interface.Interface -> Socket.Socket -> IO ()) -> IO ()
 initialize app = do
+    Encoding.setLocaleEncoding Encoding.utf8
     log_fn <- Tail.log_filename
     log_hdl <- Log.rotate log_fn
     Log.configure $ const $ Log.State

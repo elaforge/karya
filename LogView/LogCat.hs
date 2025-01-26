@@ -6,18 +6,21 @@
 --
 -- TODO: formatting options
 module LogView.LogCat where
-import Control.Monad
 import qualified Data.ByteString as ByteString
 import qualified Data.Text.IO as Text.IO
+import qualified GHC.IO.Encoding as Encoding
 import qualified System.Environment as Environment
 import qualified System.IO as IO
 
 import qualified Util.Log as Log
 import qualified LogView.Tail as Tail
 
+import           Control.Monad
+
 
 main :: IO ()
 main = do
+    Encoding.setLocaleEncoding Encoding.utf8
     args <- Environment.getArgs
     hdl <- case args of
         [] -> return IO.stdin

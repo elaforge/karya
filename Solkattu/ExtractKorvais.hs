@@ -4,17 +4,21 @@
 
 -- | Extract Korvai definitions into a list in a generated module.
 module Solkattu.ExtractKorvais where
+import qualified GHC.IO.Encoding as Encoding
 import qualified Data.Map as Map
 import qualified Data.Text as Text
+
 import qualified System.Environment
 
 import qualified Util.ExtractHs as ExtractHs
 import qualified Util.Texts as Texts
-import Global
+
+import           Global
 
 
 main :: IO ()
 main = do
+    Encoding.setLocaleEncoding Encoding.utf8
     args <- System.Environment.getArgs
     ExtractHs.process args
         (extract . ExtractHs.typeDeclarations . ExtractHs.stripComments)

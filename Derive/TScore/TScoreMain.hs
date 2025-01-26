@@ -16,6 +16,7 @@ import qualified Data.Text.IO as Text.IO
 import qualified Data.Tuple as Tuple
 import qualified Data.Vector as Vector
 
+import qualified GHC.IO.Encoding as Encoding
 import qualified System.Console.GetOpt as GetOpt
 import qualified System.Environment as Environment
 import qualified System.Exit as Exit
@@ -79,6 +80,7 @@ import           Types
 
 main :: IO ()
 main = do
+    Encoding.setLocaleEncoding Encoding.utf8
     Log.configure $ \state -> state { Log.state_priority = Log.Notice }
     (flags, args, errors) <- GetOpt.getOpt GetOpt.Permute options <$>
         Environment.getArgs

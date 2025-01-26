@@ -16,6 +16,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
+import qualified GHC.IO.Encoding as Encoding
 import qualified System.Environment as Environment
 import qualified System.IO as IO
 
@@ -29,6 +30,7 @@ import           Global
 
 main :: IO ()
 main = do
+    Encoding.setLocaleEncoding Encoding.utf8
     args <- Environment.getArgs
     case args of
         [haddock_dir, input] ->

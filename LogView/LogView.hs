@@ -36,6 +36,7 @@ import qualified Data.List as List
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
+import qualified GHC.IO.Encoding as Encoding
 import qualified System.Console.GetOpt as GetOpt
 import qualified System.Directory as Directory
 import qualified System.Environment
@@ -114,6 +115,7 @@ type LogChan = TChan.TChan Log.Msg
 
 main :: IO ()
 main = do
+    Encoding.setLocaleEncoding Encoding.utf8
     args <- System.Environment.getArgs
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
         (flags, args, []) -> return (flags, args)

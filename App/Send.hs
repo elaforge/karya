@@ -11,6 +11,7 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Time as Time
 
+import qualified GHC.IO.Encoding as Encoding
 import qualified System.Console.GetOpt as GetOpt
 import qualified System.Environment as Environment
 import qualified System.Exit
@@ -35,6 +36,7 @@ options =
 
 main :: IO ()
 main = ReplProtocol.initialize $ do
+    Encoding.setLocaleEncoding Encoding.utf8
     args <- Environment.getArgs
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
         (flags, args, []) -> return (flags, args)
