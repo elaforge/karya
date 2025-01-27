@@ -885,8 +885,12 @@ platformDefines = ["-D__APPLE__", "-D__linux__"]
 
 packageFlags :: Flags -> Maybe FilePath -> [Flag]
 packageFlags flags mbHs
-    | null (packageIds flags) =
-        map ("-package="<>) (extra ++ enabledPackages)
+    | null (packageIds flags) = map ("-package="<>) $
+        -- For some reason, if you pass -package=attoparsec, ghc says
+        --      Could not load module ‘Data.Attoparsec.Text’
+        --      It is a member of the hidden package ‘attoparsec-0.14.4’.
+        -- whereas if you omit it, it works.  Isn't this backwards?
+        filter (/= "attoparsec") (extra ++ enabledPackages)
     | otherwise = "-no-user-package-db" : "-hide-all-packages"
         : map ("-package-db="<>) (packageDbs flags)
         ++ map (\(Util.PackageId pkg) -> "-package-id=" <> pkg)
