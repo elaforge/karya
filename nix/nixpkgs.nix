@@ -1,15 +1,10 @@
 let
-  my-poison = v21-11; # pick your poison
+  my-poison = v22-11; # pick your poison
 
   # https://channels.nixos.org/
   # Navigate to a subdir, get git-revision
   # Enter a bogus sha256, nix-instantiate --attr buildEnv, fix sha
 
-  v20-09 = {
-    version = "20.09";
-    commit = "2118cf551b9944cfdb929b8ea03556f097dd0381";
-    sha256 = "0ajsxh1clbf3q643gi8v6b0i0nn358hak0f265j7c1lrsbxyw457";
-  };
   v21-11 = {
     version = "21.11";
     commit = "e6377ff35544226392b49fa2cf05590f9f0c4b43";
@@ -17,13 +12,13 @@ let
   };
   v22-11 = {
     version = "22.11";
-    commit = "628d4bb6e9f4f0c30cfd9b23d3c1cdcec9d3cb5c";
-    sha256 = "1vazd3ingc6vffhynhk8q9misrnvlgmh682kmm09x2bmdzd3l4ad";
+    commit = "4d2b37a84fad1091b9de401eb450aae66f1a741e";
+    sha256 = "sha256:11w3wn2yjhaa5pv20gbfbirvjq6i3m7pqrq2msf0g7cv44vijwgw";
   };
-  unstable = {
-    version = "unstable";
-    commit = "e83b3f3394834c41c0d25017f6808d65c3d6f880";
-    sha256 = "0wbkyz460547x58mrzvq52qpni38c6fcsjc8mb7v0311p8kyx8dd";
+  v23-11 = {
+    version = "23.11";
+    commit = "057f9aecfb71c4437d2b27d3323df7f93c010b7e";
+    sha256 = "sha256:1ndiv385w1qyb3b18vw13991fzb9wg4cl21wglk89grsfsnra41k";
   };
 
   fetch = ver: builtins.fetchTarball {

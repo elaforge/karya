@@ -58,8 +58,12 @@ let
       "9.2" = "9.2.1";
     };
     "22.11" = {
-      "9.2" = "9.2.4";
+      "9.2" = "9.2.5";
       "9.4" = "9.4.3"; # TODO untested, probably doesn't work
+    };
+    "23.11" = {
+      "9.2" = "9.2.8";
+      "9.4" = "9.4.8"; # TODO untested, probably doesn't work
     };
   };
   ghcVersionDots =
@@ -86,7 +90,7 @@ let
     packageOverrides = pkgs: {
       haskell = pkgs.haskell // {
         packages = pkgs.haskell.packages // {
-          "${ghcVersion}" = pkgs.haskell.packages."${ghcVersion}".override {
+          "${ghcVersion}" = pkgs.haskell.packages.${ghcVersion}.override {
             overrides = new: old: hackage.overrides old;
           };
         };
