@@ -6,6 +6,7 @@ jobs:
   build:
     # https://docs.github.com/en/actions/using-jobs/using-a-build-matrix-for-your-jobs
     strategy:
+      fail-fast: false # it's common for one to fail and not the other
       matrix:
         # https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idruns-on
         os: [ubuntu-latest, macos-latest]
@@ -41,10 +42,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-v1-
       - run: ls -l build || true
-
-      # 19.09.2522.75f4ba05c63
-      # but mine is 19.09pre-git
-      # - run: nix-instantiate --eval -E "(import <nixpkgs> {}).lib.version"
 
       # Build in advance and make sure the result is cached immediately, since
       # I think it won't upload if later steps fail.
