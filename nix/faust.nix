@@ -2,7 +2,7 @@
 { nixpkgs ? import ./nixpkgs.nix {} }:
 let
   stdenv = nixpkgs.stdenv;
-  llvm = nixpkgs.llvm_5;
+  llvm = nixpkgs.llvm_14;
 
   faustSrc = nixpkgs.fetchFromGitHub {
     owner = "grame-cncm";
