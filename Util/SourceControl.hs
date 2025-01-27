@@ -12,8 +12,7 @@ import qualified Data.Time.Clock.POSIX as Clock.POSIX
 
 import qualified System.Exit as Exit
 import qualified System.Process as Process
-
-import qualified Util.ParseText as ParseText
+import qualified Text.Read as Read
 
 
 type Error = String
@@ -58,7 +57,7 @@ parseGit = parse . Text.lines
     parse [hash, author, timestamp, summary] = do
         timestamp <- maybe
             (Left $ "can't parse timestamp: " <> Text.unpack timestamp) Right $
-            ParseText.int timestamp
+            (Read.readMaybe . Text.unpack) timestamp
         let date = Clock.POSIX.posixSecondsToUTCTime (fromIntegral timestamp)
         return $ Entry
             { _author = author

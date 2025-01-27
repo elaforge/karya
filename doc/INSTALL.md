@@ -46,7 +46,7 @@ Now do the rest of the build steps, same as "the traditional way" below:
 - Install the "bravura" font:
 
     ```sh
-    nix build -f default.nix fontDeps
+    nix-build default.nix -A fontDeps
     osx> cp $(find -L result* -name '*.otf') ~/Library/Fonts # or use FontBook
     linux> cp $(find -L result* -name '*.otf') ~/.fonts
     # I don't actually know how to install fonts on linux.  The above doesn't
