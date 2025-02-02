@@ -130,8 +130,8 @@ STATUS
 external:
   vim:
     - mark ] is set on the last yanked character. So when you move stuff
-      arround, after you pressed p, to indent you just need to press >'] (or <'])
-      and repeat (.)
+      arround, after you pressed p, to indent you just need to press >']
+      (or <']) and repeat (.)
     - https://github.com/jeetsukumaran/vim-indentwise
   - fix-imports on Derive/C/Prelude/Val.hs can't find Data.Attoparsec.Text.
     Is fix-imports not getting the cabal v2 environ?
@@ -170,6 +170,20 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
+  * CI on osx fails:
+    . generate_run_tests: Derive/C/Prelude/Equal_test.hs: hGetContents: invalid
+      argument (invalid byte sequence)
+    . default encoding?
+    . extract_korvais: Solkattu/Score/Mohra.hs: hGetContents: invalid argument
+      (invalid byte sequence)
+    . But I set to utf8!
+    . It looks like all utf is messed up in general on ghc 9.2 on M4 sequoia.
+    . Paste into ghci gets replacement characters.
+    . It's ghc 9.2, 8.10 doesn't seem to do it.  Also not sure if M4, depends
+      on if CI is M4.  But it's nix ghc 9.2 in both places.
+    * Can I try ghc 9.4?  Or maybe 9.2.5 at least?  Will have to upgrade
+      nixpkgs snapshot.
+    . 9.2.5 fixes it, that particular nixpkgs ghc is broken somehow.
   - remove midi modifiers?  I never used them.
   - What if I highlighted >1 in the waveform display?
   - fltk: The dyn=6 problem is showing that track titles are pretty bad.

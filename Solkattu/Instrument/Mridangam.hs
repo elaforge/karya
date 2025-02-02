@@ -50,6 +50,8 @@ data Valantalai =
     | Dheem
     | Kin -- ^ ki on meetu
     | Tan -- ^ ta on meetu
+    | Dhe -- ^ like tabla dhere
+    | Re
     deriving (Eq, Ord, Show, Enum, Bounded)
 
 data Tha = Palm -- ^ full hand tha
@@ -58,8 +60,9 @@ data Tha = Palm -- ^ full hand tha
     deriving (Eq, Ord, Show)
 
 data Thom =
-    Low -- ^ This could be either normal open stroke, or gumiki low stroke.
-    | Up -- ^ gumiki up
+    Open -- ^ standard stroke
+    | Low -- ^ gumiki low stroke with fingertips
+    | Up -- ^ gumiki strike then immediately up
     deriving (Eq, Ord, Show)
 
 -- * strokes
@@ -99,12 +102,13 @@ instance Solkattu.Notation Stroke where
                 Tan -> "ô"
                 _ -> Text.toUpper (Solkattu.notationText v)
             , case dir of
+                Open -> ""
                 Low -> ""
                 Up -> "/"
             ]
         Gum -> Solkattu.notationText v <> acute
     notation (Flam t v) = Solkattu.textNotation $ case (t, v) of
-        (Tha _, Ki) -> "f"
+        (Tha _, Ki) -> "z"
         _ -> Solkattu.notationText t <> Solkattu.notationText v
 
 instance Pretty Stroke where pretty = Solkattu.notationText
@@ -135,7 +139,8 @@ overline = "\x0305"
 
 instance Solkattu.Notation Thoppi where
     notation = Solkattu.textNotation . \case
-        Thom Low -> "o"
+        Thom Open -> "o"
+        Thom Low -> "o."
         Thom Up -> "o/"
         Tha Fingertips -> ":"
         Tha _ -> "p"
@@ -145,7 +150,8 @@ instance Solkattu.Notation Valantalai where
     notation = Solkattu.textNotation . \case
         Ki -> "k"
         Ta -> "t"
-        Tra -> "r"
+        Tra -> "x"
+        -- Tra -> "kt"
         Mi -> "."
         Nam -> "n"
         Din -> "d"
@@ -154,20 +160,34 @@ instance Solkattu.Notation Valantalai where
         Dheem -> "i"
         Kin -> ","
         Tan -> "^"
+        Dhe -> "h"
+        Re -> "r"
 
 instance Pretty Thoppi where pretty = Solkattu.notationText
 instance Pretty Valantalai where pretty = Solkattu.notationText
 
 _printStrokes :: IO ()
-_printStrokes = mapM_ Text.IO.putStrLn $ Texts.columns 2 $
-    [ "" : map (t . Valantalai) rhs ] ++
-    [ (map t $ Thoppi lh : [Both lh rh | rh <- rhs])
-    | lh <- lhs
+_printStrokes = mapM_ Text.IO.putStrLn $ Texts.columns 2 $ concat
+    [ [ "" : map (t . v) rhs ]
+    , [["both"]]
+    , [ (map t $ Thoppi lh : [Both lh rh | rh <- rhs])
+      | lh <- lhs
+      ]
+    , [["flam"]]
+    , [ (map t $ Thoppi lh : [Flam lh rh | rh <- rhs])
+      | lh <- lhs
+      ]
+    -- Common sequences.
+    , [ map t [od, v Tra, Flam (Tha Palm) Ki]
+      , map t [Both (Thom Open) Dhe, v Re, v Dhe, v Re]
+      ]
     ]
     where
+    v = Valantalai
     t = Solkattu.notationText
     rhs = [Ki ..]
-    lhs = [Tha Palm, Tha Fingertips, Thom Low, Thom Up, Gum]
+    lhs = [Tha Palm, Tha Fingertips, Thom Open, Thom Up, Gum]
+    Strokes { od } = strokes
 
 -- | Pretty reproduces the "Derive.Solkattu.Dsl" syntax, which has to be
 -- haskell syntax, so it can't use +, and I have to put thoppi first to avoid
@@ -182,7 +202,8 @@ instance Expr.ToExpr Stroke where
         Flam t v -> thoppi t <> Solkattu.notationText v
         where
         thoppi t = case t of
-            Thom Low -> "o"
+            Thom Open-> "o"
+            Thom Low -> "o."
             Thom Up -> "o/"
             Tha _ -> "+"
             Gum -> "´"
@@ -230,10 +251,10 @@ strokes = Strokes
     , j = Valantalai Tan
     , p = Thoppi (Tha Palm)
     , p' = Thoppi (Tha Fingertips)
-    , o = Thoppi (Thom Low)
+    , o = Thoppi (Thom Open)
     , o' = Thoppi (Thom Up)
     , _' = Thoppi Gum
-    , od = Both (Thom Low) Din
+    , od = Both (Thom Open) Din
     }
 
 notes :: Strokes (S.Sequence g (Solkattu.Note (Realize.Stroke Stroke)))
@@ -294,7 +315,8 @@ fromString = mapMaybeM parse
         ' ' -> Right Nothing
         '_' -> Right $ Just Nothing
         _ -> case Map.lookup c notations of
-            Nothing -> Left $ "unknown mridangam stroke: " <> showt c
+            Nothing -> Left $ "unknown mridangam stroke: '"
+                <> Text.singleton c <> "'"
             Just s -> Right $ Just $ Just s
 
 notations :: Map Char Stroke
@@ -319,7 +341,7 @@ notations = Map.fromList $ (extras++) $ Lists.mapMaybeFst isChar $
     isChar t = case untxt t of
         [c] -> Just c
         _ -> Nothing
-    lhs = [Tha Palm, Thom Low]
+    lhs = [Tha Palm, Thom Open]
     rhs = [minBound .. ]
 
 printNotations :: IO ()
