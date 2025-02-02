@@ -11,7 +11,8 @@ import           Solkattu.Dsl.Mridangam
 
 
 rohan_mohra1 :: Korvai
-rohan_mohra1 = rohan $ similarTo "SolkattuMohra" "c_mohra_youtube" $
+rohan_mohra1 = rohan $ date 2025 1 25 $
+    similarTo "SolkattuMohra" "c_mohra_youtube" $
     korvaiS1 adi $ Mohra.make su Mohra.A1 (a1, a2, a3) (b1, b2, b3)
     where
     a1 = "oUkpk_u___ktktpk"

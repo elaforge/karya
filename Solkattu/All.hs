@@ -22,6 +22,7 @@ import qualified Solkattu.Score.Mridangam2021
 import qualified Solkattu.Score.Mridangam2022
 import qualified Solkattu.Score.Mridangam2023
 import qualified Solkattu.Score.Mridangam2024
+import qualified Solkattu.Score.Mridangam2025
 import qualified Solkattu.Score.MridangamMohra
 import qualified Solkattu.Score.MridangamRohan
 import qualified Solkattu.Score.MridangamSarva
@@ -171,6 +172,7 @@ scores = map Korvai.inferMetadataS
     , setLocation ("Solkattu.Score.Mridangam2024",95,"e_thadithomnam_sarva") $ Single Solkattu.Score.Mridangam2024.e_thadithomnam_sarva
     , setLocation ("Solkattu.Score.Mridangam2024",107,"c_tabla_chalan") $ Single Solkattu.Score.Mridangam2024.c_tabla_chalan
     , setLocation ("Solkattu.Score.Mridangam2024",119,"c_24_12_21") $ Single Solkattu.Score.Mridangam2024.c_24_12_21
+    , setLocation ("Solkattu.Score.Mridangam2025",12,"s_25_01_26") $ Single Solkattu.Score.Mridangam2025.s_25_01_26
     , setLocation ("Solkattu.Score.MridangamMohra",13,"rohan_mohra1") $ Single Solkattu.Score.MridangamMohra.rohan_mohra1
     , setLocation ("Solkattu.Score.MridangamRohan",19,"kanda_tani") $ Solkattu.Score.MridangamRohan.kanda_tani
     , setLocation ("Solkattu.Score.MridangamRohan",32,"kanda1") $ Single Solkattu.Score.MridangamRohan.kanda1

@@ -327,7 +327,7 @@ c_17_10_23b = sarvalaghu $ date 2017 10 23 $ ganesh $ korvaiV adi
 
 -- from Vijayadashami concert
 c_24_10_23 :: Korvai
-c_24_10_23 = sarvalaghu $ korvaiV Tala.misra_chapu
+c_24_10_23 = sarvalaghu $ date 2024 10 23 $ korvaiV Tala.misra_chapu
     [ r2 "N_pkD_". "N_pkn_" . "pkd_pkd_pk"
     , r2 "N_pkD_". "N_pknookD_pkd_pk"
     , r2 "N_pkD_". "N_pknookD_pknook"
