@@ -4,7 +4,17 @@
 
 -- | Instrument definitions for mridangam.  These are shared between multiple
 -- mridangam definitions.
-module Cmd.Instrument.Mridangam where
+module Cmd.Instrument.Mridangam (
+    code
+    , stops
+    , all_strokes
+    , ki, ta, nam, din, dheem, chapu, muru, arai
+    , kin, tan
+    , tha, thom
+    , gumki -- TODO remove?
+    -- * used by pakhawaj
+    , make_both, make_code
+) where
 import           Prelude hiding (min, tan)
 import qualified Data.Char as Char
 import qualified Data.Text as Text
@@ -22,21 +32,23 @@ import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.PSignal as PSignal
 
 import qualified Perform.Pitch as Pitch
+import qualified Solkattu.Instrument.Mridangam as Mridangam
+import           Solkattu.Instrument.Mridangam (Valantalai(..), Thoppi(..))
 
 import           Global
 
-
--- * mridangam
 
 code :: CUtil.Thru -> Pitch.NoteNumber
     -> Maybe (Derive.TransformerF Derive.Note) -> ImInst.Code
 code thru natural_nn transform =
     make_code thru pitched_strokes natural_nn transform all_strokes both_calls
 
+type BothStroke = (Expr.Symbol, [Expr.Symbol], Maybe Char)
+
 -- | Single symbols for two strokes together.  thom+x becomes a capital X,
 -- and there are a few ad-hoc capital letters for more common tha+x
 -- combinations.
-both_calls :: [(Expr.Symbol, [Expr.Symbol], Maybe Char)]
+both_calls :: [BothStroke]
 both_calls = make_both left_notes right_notes special_names
     [ ("N", 'g'), ("D", 'b')
     , ("K", 'h'), ("T", 'n')

@@ -1339,7 +1339,6 @@ mouse_mod_btn :: Modifier -> Maybe Types.MouseButton
 mouse_mod_btn (MouseMod btn _) = Just btn
 mouse_mod_btn _ = Nothing
 
-
 -- | Take a modifier to its key in the modifier map which has extra info like
 -- mouse down position stripped.
 strip_modifier :: Modifier -> Modifier
