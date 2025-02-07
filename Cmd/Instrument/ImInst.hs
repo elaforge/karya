@@ -16,12 +16,13 @@ import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import           Cmd.Instrument.MidiInst
-    (Code, allocations, both, cmd, generator, inst_range, make_code, note_calls,
-     note_generators, note_transformers, null_call, postproc, transformer,
-     val_calls)
+    (Code, allocations, both, cmd, extract_warns, generator, inst_range,
+     make_code, note_calls, note_generators, note_transformers, null_call,
+     postproc, transformer, val_calls)
 import qualified Cmd.MidiThru as MidiThru
 
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Library as Library
 import qualified Derive.REnv as REnv
 import qualified Derive.Scale as Scale
 import qualified Derive.ScoreT as ScoreT
@@ -41,8 +42,15 @@ import           Global
 type Synth = Inst.SynthDecl Cmd.InstrumentCode
 
 synth :: InstT.SynthName -> Text -> [(InstT.Name, Patch)] -> Synth
-synth name doc patches =
-    Inst.SynthDecl name doc (map (second make_inst) patches)
+synth name doc patch_map = Inst.SynthDecl
+    { synthd_name = name
+    , synthd_doc = doc
+    , synthd_patches
+    , synthd_warns
+    }
+    where
+    (synthd_patches, synthd_warns) = extract_warns $
+        map (second make_inst) patch_map
 
 data Patch = Patch {
     patch_patch :: Patch.Patch
@@ -73,13 +81,17 @@ code = common # Common.code
 doc :: Lens Patch Doc.Doc
 doc = common # Common.doc
 
-make_inst :: Patch -> Inst.Inst Cmd.InstrumentCode
-make_inst (Patch patch dummy common) = Inst.Inst
-    { inst_backend = case dummy of
-        Nothing -> Inst.Im patch
-        Just msg -> Inst.Dummy msg
-    , inst_common = MidiInst.make_code <$> common
-    }
+make_inst :: Patch -> (Inst.Inst Cmd.InstrumentCode, [Library.Shadowed])
+make_inst (Patch patch dummy common) =
+    ( Inst.Inst
+        { inst_backend = case dummy of
+            Nothing -> Inst.Im patch
+            Just msg -> Inst.Dummy msg
+        , inst_common = common { Common.common_code = code }
+        }
+    , shadowed
+    )
+    where (code, shadowed) = make_code (Common.common_code common)
 
 -- TODO: these are copy paste from MidiInst, only 'common' is different.
 -- I should be able to share the code.

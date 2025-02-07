@@ -5,6 +5,7 @@
 -- | Utilities for the instrument definitions in "Local.Instrument".
 module Cmd.Instrument.MidiInst (
     Synth, synth
+    , extract_warns
     , make_inst
     -- * code
     , make_code
@@ -70,31 +71,50 @@ import           Types
 type Synth = Inst.SynthDecl Cmd.InstrumentCode
 
 synth :: InstT.SynthName -> Text -> [Patch] -> Synth
-synth name doc patches =
-    Inst.SynthDecl name doc (zip (map name_of patches) (map make_inst patches))
-    where name_of = (patch#Patch.name #$)
+synth name doc patches = Inst.SynthDecl
+    { synthd_name = name
+    , synthd_doc = doc
+    , synthd_patches
+    , synthd_warns
+    }
+    where
+    name_of = (patch#Patch.name #$)
+    (synthd_patches, synthd_warns) = extract_warns $
+        zip (map name_of patches) $ map make_inst patches
 
-make_inst :: Patch -> Inst.Inst Cmd.InstrumentCode
-make_inst (Patch patch dummy common) = Inst.Inst
+extract_warns :: [(Text, (code, [Library.Shadowed]))]
+    -> ([(Text, code)], [Text])
+extract_warns insts =
+    ( zip names codes
+    , concat
+        [ map (((name <> ": ") <>) . Library.show_shadowed) shadowed
+        | (name, shadowed) <- zip names shadoweds
+        ]
+    )
+    where
+    (names, (codes, shadoweds)) = unzip <$> unzip insts
+
+make_inst :: Patch -> (Inst.Inst Cmd.InstrumentCode, [Library.Shadowed])
+make_inst (Patch patch dummy common) = (, shadowed) $ Inst.Inst
     { inst_backend = case dummy of
         Nothing -> Inst.Midi patch
         Just msg -> Inst.Dummy msg
-    , inst_common = common
-        { Common.common_code = make_code (Common.common_code common) }
+    , inst_common = common { Common.common_code = code }
     }
+    where (code, shadowed) = make_code (Common.common_code common)
 
-make_code :: Code -> Cmd.InstrumentCode
-make_code (Code library postproc cmds thru) = Cmd.InstrumentCode
-    { inst_calls = compile_library library
-    , inst_postproc = postproc
-    , inst_cmds = cmds
-    , inst_thru = thru
-    }
+make_code :: Code -> (Cmd.InstrumentCode, [Library.Shadowed])
+make_code (Code library inst_postproc inst_cmds inst_thru) =
+    ( Cmd.InstrumentCode { inst_calls, inst_postproc, inst_cmds, inst_thru }
+    , shadowed
+    )
+    where (inst_calls, shadowed) = compile_library library
 
 -- | InstrumentCalls doesn't have modules, so just pull everything out of every
 -- module.
-compile_library :: Library.Library -> Derive.InstrumentCalls
-compile_library = convert . fst . Library.compile
+compile_library :: Library.Library
+    -> (Derive.InstrumentCalls, [Library.Shadowed])
+compile_library = first convert . Library.compile
     where
     convert (Derive.Scopes gen trans track val) = Derive.Scopes
         { scopes_generator = extract $ Derive.scope_note gen

@@ -147,41 +147,47 @@ lookup :: InstT.Qualified -> Db code -> Maybe (Inst code)
 lookup (InstT.Qualified synth name) (Db db) =
     Map.lookup name . synth_insts =<< Map.lookup synth db
 
+type Warn = Text
+
 -- | Unchecked synth declaration.  'db' will check it for duplicates and other
--- problems.  (name, doc, patches)
-data SynthDecl code =
-    SynthDecl !InstT.SynthName !Text ![(InstT.Name, Inst code)]
-    deriving (Show)
+-- problems.
+data SynthDecl code = SynthDecl {
+    synthd_name :: !InstT.SynthName
+    , synthd_doc :: !Text
+    , synthd_patches :: ![(InstT.Name, Inst code)]
+    , synthd_warns :: ![Warn]
+    } deriving (Show)
 
 instance Pretty code => Pretty (SynthDecl code) where
-    format (SynthDecl name doc insts) = Pretty.record "SynthDecl"
+    format (SynthDecl name doc insts warns) = Pretty.record "SynthDecl"
         [ ("name", Pretty.format name)
         , ("doc", Pretty.format doc)
         , ("instruments", Pretty.format insts)
+        , ("warns", Pretty.format warns)
         ]
 
 -- | Construct and validate a Db, returning any errors that occurred.
-db :: [SynthDecl code] -> (Db code, [Text])
+db :: [SynthDecl code] -> (Db code, [Warn])
 db synth_decls = (Db db, synth_errors ++ inst_errors ++ validate_errors)
     where
     (inst_maps, inst_errors) = second concat $ unzip $ do
-        SynthDecl synth synth_doc insts <- synth_decls
+        SynthDecl synth synth_doc insts warns <- synth_decls
         let (inst_map, dups) = Maps.unique insts
         let errors =
                 [ "duplicate inst: " <> pretty (InstT.Qualified synth name)
                 | name <- map fst dups
                 ]
-        return ((synth, Synth synth_doc inst_map), errors)
+        return ((synth, Synth synth_doc inst_map), warns ++ errors)
     (db, dups) = Maps.unique inst_maps
     synth_errors = ["duplicate synth: " <> showt synth | synth <- map fst dups]
     validate_errors = concat
         [ map ((pretty (InstT.Qualified synth name) <> ": ") <>)
             (validate inst)
-        | SynthDecl synth _ insts <- synth_decls, (name, inst) <- insts
+        | SynthDecl synth _ insts _ <- synth_decls, (name, inst) <- insts
         ]
 
 -- | Return any errors found in the Inst.
-validate :: Inst code -> [Text]
+validate :: Inst code -> [Warn]
 validate inst = case inst_backend inst of
     Dummy {} -> []
     Midi patch -> Common.overlapping_attributes $

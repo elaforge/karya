@@ -41,8 +41,12 @@ load_synth :: Path.AppDir -> IO (Maybe (Inst.SynthDecl Cmd.InstrumentCode))
 load_synth app_dir = fmap synth <$> load app_dir
 
 synth :: PatchDb -> Inst.SynthDecl Cmd.InstrumentCode
-synth patches = Inst.SynthDecl "sc" "supercollider" $
-    map (bimap Texts.toText make) (Map.toList patches)
+synth patches = Inst.SynthDecl
+    { synthd_name = "sc"
+    , synthd_doc = "supercollider"
+    , synthd_patches = map (bimap Texts.toText make) (Map.toList patches)
+    , synthd_warns = []
+    }
     where
     make patch = Inst.Inst
         { inst_backend = Inst.Sc patch

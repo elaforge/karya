@@ -44,9 +44,9 @@ import qualified Cmd.Responder as Responder
 import qualified Cmd.SaveGit as SaveGit
 
 import qualified Derive.C.All as C.All
-import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Symbols as Call.Symbols
 import qualified Derive.Instrument.Symbols as Instrument.Symbols
+import qualified Derive.Library as Library
 import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Scale.Symbols as Scale.Symbols
 
@@ -187,10 +187,7 @@ startup_initialization = do
     LoadConfig.styles Config.styles
     -- Report keymap and call overlaps.
     mapM_ Log.warn GlobalKeymap.all_keymap_errors
-    forM_ C.All.shadowed $
-        \((name, Module.Module module_), calls) ->
-            Log.warn $ "shadowed " <> name <> " calls in module "
-                <> module_ <> ": " <> pretty calls
+    mapM_ (Log.warn . Library.show_shadowed) C.All.shadowed
     unless (null Scale.All.shadowed) $
         Log.warn $ "scales shadowed: " <> pretty Scale.All.shadowed
 

@@ -193,6 +193,21 @@ in rec {
         rev = commit;
         ref = "master";
       };
+
+      # TODO: new release but won't build with nixpkgs version, rejected
+      # Fl_cocoa.mm patch.
+      # without patch:
+      # > source/src/Fl_Native_File_Chooser_MAC.mm: 32:11: fatal error:
+      # 'UniformTypeIdentifiers/UniformTypeIdentifiers.h' file not found
+
+      # src = nixpkgs.fetchFromGitHub {
+      #   owner = "fltk";
+      #   repo = "fltk";
+      #   rev = "release-1.4.1";
+      #   sha256 = "sha256-cm2jskrVrbYEJkGAb/s4Mh+et56//2+ypVEWNdqmhhE=";
+      # };
+      # name = "fltk-1.4.1";
+
     # It's 21.11 but winds up being 21.11pre-git which is considered < 21.11
     in if builtins.compareVersions lib.version "21.10" >= 0 then
       (nixpkgs.fltk14-minimal.override {

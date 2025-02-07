@@ -11,21 +11,22 @@ module Derive.Library (
     , Calls(..), both
     , poly_generators, poly_transformers
     -- * compile
-    , Shadowed, compile, compile_log
+    , Shadowed, show_shadowed, compile, compile_log
 ) where
 import qualified Data.Either as Either
 import qualified Data.Map.Strict as Map
+import qualified Data.Text as Text
 
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
 import qualified Util.Maps as Maps
-import qualified Util.Lists as Lists
 
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.Expr as Expr
 
-import Global
+import           Global
 
 
 -- | The holds the libary of statically-declared calls.  It gets compiled to
@@ -147,6 +148,10 @@ instance ToLibrary Derive.ValCall where
 
 -- | Warnings for shadowed symbols.  ((call_type, module), symbols)
 type Shadowed = ((Text, Module.Module), [Expr.Symbol])
+
+show_shadowed :: Shadowed -> Text
+show_shadowed ((name, Module.Module module_), calls) = Text.unwords
+    ["shadowed", name, "calls in module", module_ <> ":", pretty calls]
 
 -- | Convert Library to Builtins.  This indexes by module and also gives me
 -- a place to emit warnings about duplicate symbol names.

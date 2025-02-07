@@ -170,6 +170,31 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
+  new osx:
+    - doesn't detect MIDI ports
+      . MIDIGetNumberOfSources() returns 0
+    - windows for seq and logview don't come to front when run
+      . try upgrading fltk
+    - no icons for running processes
+      . try upgrading fltk
+    - warnings on stdout:
+      . try upgrading fltk
+      . 2025-02-03 08:38:59.782 seq[4288:10403147] +[IMKClient subclass]:
+        chose IMKClient_Modern
+      . 2025-02-03 08:38:59.782 seq[4288:10403147] +[IMKInputSession
+        subclass]: chose IMKInputSession_Modern
+      . 2025-02-03 08:37:33.462 seq[3111:10397365] error messaging the mach
+        port for IMKCFRunLoopWakeUpReliable
+    - concurrent-output Shake/Progress.hs doesn't work
+      . in iterm, what about apple terminal?  Same, must be concurrent-output
+    - hold down key repeat doesn't work
+      . turns out I need
+        defaults write -g ApplePressAndHoldEnabled -bool false
+      . There must be some way for the app to signal that it wants this.
+    - shake compile restarts between windows
+      . Even with Shake.ChangeDigest it's still doing it!
+      . Fixed after exiting and re nix-enter in both, maybe different
+        version of... something?
   * CI on osx fails:
     . generate_run_tests: Derive/C/Prelude/Equal_test.hs: hGetContents: invalid
       argument (invalid byte sequence)
@@ -184,14 +209,15 @@ UNSORTED
     * Can I try ghc 9.4?  Or maybe 9.2.5 at least?  Will have to upgrade
       nixpkgs snapshot.
     . 9.2.5 fixes it, that particular nixpkgs ghc is broken somehow.
-  - remove midi modifiers?  I never used them.
+  / remove midi modifiers?  I never used them.
+    . But it doesn't really add any complexity to have.
   - What if I highlighted >1 in the waveform display?
   - fltk: The dyn=6 problem is showing that track titles are pretty bad.
     . Especially on the right side.
     . How about they make a text field that covers the whole block, like the
       block title?
-    . It still means you can't see anything in them, but I don't see a way
-      around that.
+    . It still means you can't see when contracted, but I don't see a way
+      around that.  Unless I do some kind of mouseover highlight?
   - im thru for samples is missing transpose and attr
   live play:
     . What would it take for karya to be able to do live performance?
@@ -3484,7 +3510,6 @@ synth: im:
           means it's all hand-adjusted.
         . I need a framework, see dynamic calibration:
     mridangam:
-      - make kin and tan use y j like in mridangam?
       - o is too high pitched, I need to re-record
         . It would be nice to get a really low pitch long thom like pakhawaj.
       - sampler levels too sensitive, only the a0-ff range is really usable.

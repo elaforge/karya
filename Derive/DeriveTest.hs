@@ -512,7 +512,12 @@ default_im_synth :: Inst.SynthDecl Cmd.InstrumentCode
 default_im_synth = im_synth "im-synth"
 
 im_synth :: InstT.SynthName -> Inst.SynthDecl Cmd.InstrumentCode
-im_synth name = Inst.SynthDecl name name [(Patch.default_name, inst)]
+im_synth name = Inst.SynthDecl
+    { synthd_name = name
+    , synthd_doc = name
+    , synthd_patches = [(Patch.default_name, inst)]
+    , synthd_warns = []
+    }
     where
     inst = Inst.Inst
         { inst_backend = Inst.Im $ Im.Patch.patch

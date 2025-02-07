@@ -30,9 +30,12 @@ import           Types
 
 
 play_cache_synth :: Inst.SynthDecl Cmd.InstrumentCode
-play_cache_synth = Inst.SynthDecl (InstT.synth UiConfig.play_cache)
-    "play_cache VST, to play the output of offline synthesizers."
-    [(Patch.default_name, inst)]
+play_cache_synth = Inst.SynthDecl
+    { synthd_name = InstT.synth UiConfig.play_cache
+    , synthd_doc = "play_cache VST, to play the output of offline synthesizers."
+    , synthd_patches = [(Patch.default_name, inst)]
+    , synthd_warns = []
+    }
     where
     inst = Inst.Inst
         { inst_backend = Inst.Midi $ Patch.patch (0, 0) Patch.default_name

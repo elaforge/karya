@@ -52,17 +52,24 @@ save_synth app_dir synth_name patches = do
 
 load_synth :: (Patch.Patch -> MidiInst.Code) -> InstT.SynthName -> Text
     -> Path.AppDir -> IO (Maybe MidiInst.Synth)
-load_synth get_code synth_name doc app_dir = do
-    let fname = db_path app_dir (untxt synth_name)
+load_synth get_code synth_name doc app_dir =
     Instrument.Serialize.unserialize fname >>= \case
         Left err -> do
             Log.warn $ "Error loading instrument db " <> showt fname <> ": "
                 <> Text.strip (pretty err)
             return Nothing
         Right (Instrument.Serialize.InstrumentDb _time patch_map) ->
-            return $ Just $ Inst.SynthDecl synth_name doc
-                (map (second make) (Map.toList patch_map))
+            return $ Just $ Inst.SynthDecl
+                { synthd_name = synth_name
+                , synthd_doc = doc
+                , synthd_patches
+                , synthd_warns
+                }
+            where
+            (synthd_patches, synthd_warns) = MidiInst.extract_warns $
+                map (second make) (Map.toList patch_map)
     where
+    fname = db_path app_dir (untxt synth_name)
     make (patch, common) = MidiInst.make_inst $
         (MidiInst.common #= common { Common.common_code = get_code patch }) $
         MidiInst.make_patch patch

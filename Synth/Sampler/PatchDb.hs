@@ -54,9 +54,15 @@ db = Patch.db Config.unsafeSamplerRoot $ concat
 
 -- | Declaration for "Local.Instrument".
 synth :: Inst.SynthDecl Cmd.InstrumentCode
-synth = Inst.SynthDecl Config.samplerName "音 sampler" $
-    map (second make) (Map.toList (Patch._patches db))
+synth = Inst.SynthDecl
+    { synthd_name = Config.samplerName
+    , synthd_doc = "音 sampler"
+    , synthd_patches
+    , synthd_warns
+    }
     where
+    (synthd_patches, synthd_warns) = ImInst.extract_warns $
+        map (second make) (Map.toList (Patch._patches db))
     make p = ImInst.make_inst $
         ImInst.patch#Im.Patch.controls %= update (Patch._effect p) $
         Patch._karyaPatch p
