@@ -147,37 +147,43 @@ instance ToLibrary Derive.ValCall where
 -- * compile
 
 -- | Warnings for shadowed symbols.  ((call_type, module), symbols)
-type Shadowed = ((Text, Module.Module), [Expr.Symbol])
+type Shadowed = ((Text, Module.Module), [(Expr.Symbol, [Derive.CallName])])
+-- type Shadowed = ((Text, Module.Module), [Expr.Symbol])
 
 show_shadowed :: Shadowed -> Text
-show_shadowed ((name, Module.Module module_), calls) = Text.unwords
-    ["shadowed", name, "calls in module", module_ <> ":", pretty calls]
+show_shadowed ((name, Module.Module module_), calls) = Text.unwords $ mconcat
+    [ ["shadowed", name, "calls in module", module_ <> ":"]
+    , [ pretty sym <> ": " <> Text.intercalate "; " (map unname names)
+      | (sym, names) <- calls
+      ]
+    ]
+    where unname (Derive.CallName n) = n
 
 -- | Convert Library to Builtins.  This indexes by module and also gives me
 -- a place to emit warnings about duplicate symbol names.
 compile :: Library -> (Derive.Builtins, [Shadowed])
 compile (Derive.Scopes lgen ltrans ltrack lval) = Logger.runId $ Derive.Scopes
-    <$> compile_scope Derive.call_doc Derive.call_doc Derive.call_doc lgen
-    <*> compile_scope Derive.call_doc Derive.call_doc Derive.call_doc ltrans
-    <*> compile_scope Derive.call_doc Derive.call_doc Derive.call_doc ltrack
-    <*> compile_entries "val" Derive.vcall_doc lval
+    <$> compile_scope lgen
+    <*> compile_scope ltrans
+    <*> compile_scope ltrack
+    <*> compile_entries "val" Derive.vcall_doc Derive.vcall_name lval
     where
-    compile_scope doc1 doc2 doc3 (Derive.Scope note control pitch) =
-        Derive.Scope
-            <$> compile_entries "note" doc1 note
-            <*> compile_entries "control" doc2 control
-            <*> compile_entries "pitch" doc3 pitch
-    compile_entries kind get_doc = fmap Map.fromAscList
-        . traverse (compile1 kind)
+    compile_scope (Derive.Scope note control pitch) = Derive.Scope
+        <$> compile_entries "note" Derive.call_doc Derive.call_name note
+        <*> compile_entries "control" Derive.call_doc Derive.call_name control
+        <*> compile_entries "pitch" Derive.call_doc Derive.call_name pitch
+    compile_entries kind get_doc get_name =
+        fmap Map.fromAscList
+        . traverse (compile1 kind get_name)
         . Lists.keyedGroupSort (Derive.cdoc_module . entry_doc)
         where
         entry_doc (Single _ call) = get_doc call
         entry_doc (Pattern pattern) = Derive.pat_call_doc pattern
-    compile1 kind (module_, entries) = do
+    compile1 kind get_name (module_, entries) = do
         let (singles, patterns) = partition entries
-        let (cmap, dups) = Maps.unique singles
+        let (cmap, dups) = Maps.unique2 singles
         unless (null dups) $
-            Logger.log ((kind, module_), map fst dups)
+            Logger.log ((kind, module_), map (second (map get_name)) dups)
         return $ (module_,) $ Derive.CallMap
             { call_map = cmap
             , call_patterns = patterns

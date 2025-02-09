@@ -122,10 +122,10 @@ postproc_generator name new_doc (Derive.Call _ old_doc func) f = Derive.Call
 
 multiple_calls :: [(Expr.Symbol, [Expr.Symbol])]
     -> [(Expr.Symbol, Derive.Generator Derive.Note)]
-multiple_calls calls =
-    [ (call, multiple_call (Derive.sym_to_call_name call) subcalls)
-    | (call, subcalls) <- calls
-    ]
+multiple_calls calls = do
+    (call, subcalls) <- calls
+    let name = Text.intercalate "-" [sym | Expr.Symbol sym <- subcalls]
+    pure (call, multiple_call (Derive.CallName name) subcalls)
 
 -- | Create a call that just dispatches to other calls.
 multiple_call :: Derive.CallName -> [Expr.Symbol]
