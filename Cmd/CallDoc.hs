@@ -478,7 +478,7 @@ scope :: Map Module.Module (Derive.CallMap (Derive.Call gen))
 scope gen trans track = merge_scope_docs $ concat
     [ convert_modules GeneratorCall Derive.extract_doc gen
     , convert_modules TransformerCall Derive.extract_doc trans
-    , convert_modules TrackCall Derive.extract_track_doc track
+    , convert_modules TrackCall Derive.extract_doc track
     ]
 
 -- | A 'Library.Entry' with the call stripped out and replaced with
@@ -511,7 +511,7 @@ instrument_calls (Derive.Scopes gen trans track vals) =
     [ ("note", [(Just Derive.PrioInstrument, concat
         [ ctype_entries GeneratorCall gen
         , ctype_entries TransformerCall trans
-        , call_map_entries TrackCall Derive.extract_track_doc track
+        , call_map_entries TrackCall Derive.extract_doc track
         ])])
     , ("val", [(Just Derive.PrioInstrument,
         call_map_entries ValCall Derive.extract_val_doc vals)])
@@ -548,8 +548,7 @@ track_sections ttype (Derive.Scopes
     merge3 gen trans track = merged_scope_docs
         [ (GeneratorCall, convert gen)
         , (TransformerCall, convert trans)
-        , (TrackCall,
-            convert_scope (call_map_doc Derive.extract_track_doc) track)
+        , (TrackCall, convert_scope (call_map_doc Derive.extract_doc) track)
         ]
     val_doc = scope_type ValCall $
         convert_scope (call_map_doc Derive.extract_val_doc) val

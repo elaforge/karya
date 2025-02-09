@@ -68,9 +68,9 @@ module Derive.Deriver.Monad (
     , scope_priority, lookup_priority, add_priority, replace_priority
     , DocumentedCall(..)
     , PatternCall(..), pat_call_doc
-    , extract_doc, extract_val_doc, extract_track_doc
+    , extract_doc, extract_val_doc
     -- ** TrackCall
-    , TrackCall(..), track_call
+    , TrackCall, track_call
 
     -- ** constant
     , Constant(..), initial_constant
@@ -893,35 +893,23 @@ extract_doc call = DocumentedCall (call_name call) (call_doc call)
 extract_val_doc :: ValCall -> DocumentedCall
 extract_val_doc vcall = DocumentedCall (vcall_name vcall) (vcall_doc vcall)
 
-extract_track_doc :: TrackCall d -> DocumentedCall
-extract_track_doc tcall = DocumentedCall (tcall_name tcall) (tcall_doc tcall)
-
 -- ** TrackCall
 
-data TrackCall d = TrackCall {
-    tcall_name :: !CallName
-    , tcall_doc :: !CallDoc
-    , tcall_func :: !(TrackCallFunc d)
-    }
+type TrackCall d = Call (TrackCallFunc d)
 type TrackCallFunc d =
     TrackTree.Track -> Deriver (ScoreT.Typed ScoreT.Control, d)
 
-instance Show (TrackCall d) where
-    show tcall = "((TrackCall " <> show (tcall_name tcall) <> "))"
-instance Pretty (TrackCall d) where
-    pretty = pretty . tcall_name
-
 track_call :: Module.Module -> CallName -> Tags.Tags -> Doc.Doc
     -> TrackCallFunc d -> TrackCall d
-track_call module_ name tags doc call = TrackCall
-    { tcall_name = name
-    , tcall_doc = CallDoc
+track_call module_ name tags doc call = Call
+    { call_name = name
+    , call_doc = CallDoc
         { cdoc_module = module_
         , cdoc_tags = tags
         , cdoc_doc = doc
         , cdoc_args = mempty
         }
-    , tcall_func = call
+    , call_func = call
     }
 
 -- ** lookup

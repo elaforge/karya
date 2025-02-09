@@ -180,8 +180,7 @@ common_fields tags common =
         show_calls CallDoc.GeneratorCall Derive.extract_doc gen)
     , ("Note transformers",
         show_calls CallDoc.TransformerCall Derive.extract_doc trans)
-    , ("Track calls",
-        show_calls CallDoc.TrackCall Derive.extract_track_doc track)
+    , ("Track calls", show_calls CallDoc.TrackCall Derive.extract_doc track)
     , ("Val calls", show_calls CallDoc.ValCall Derive.extract_val_doc val)
     -- info
     , ("Doc", doc)

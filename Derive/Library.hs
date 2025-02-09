@@ -159,7 +159,7 @@ compile :: Library -> (Derive.Builtins, [Shadowed])
 compile (Derive.Scopes lgen ltrans ltrack lval) = Logger.runId $ Derive.Scopes
     <$> compile_scope Derive.call_doc Derive.call_doc Derive.call_doc lgen
     <*> compile_scope Derive.call_doc Derive.call_doc Derive.call_doc ltrans
-    <*> compile_scope Derive.tcall_doc Derive.tcall_doc Derive.tcall_doc ltrack
+    <*> compile_scope Derive.call_doc Derive.call_doc Derive.call_doc ltrack
     <*> compile_entries "val" Derive.vcall_doc lval
     where
     compile_scope doc1 doc2 doc3 (Derive.Scope note control pitch) =

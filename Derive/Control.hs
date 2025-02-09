@@ -122,7 +122,7 @@ track_call :: Derive.CallableExpr d => Expr.Symbol -> TrackTree.Track
     -> Derive.Deriver (ScoreT.Typed ScoreT.Control, d)
 track_call sym track = do
     call <- Eval.get_track_call sym
-    Derive.tcall_func call track
+    Derive.call_func call track
 
 -- | Switch 'Derive.RealDurationQuery' to 'Derive.Normal'.  A RealDurationQuery
 -- needs to evaluate until the tempo track of the callee block.  But if I leave
