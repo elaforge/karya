@@ -62,7 +62,7 @@ make from to = Scale.Scale
     to_note = Scale.scale_input_to_note from
 
 doc :: Derive.DocumentedCall
-doc = Derive.extract_val_doc $ interpolated_degree dummy dummy
+doc = Derive.extract_doc $ interpolated_degree dummy dummy
     where
     dummy = Derive.val_call Module.scale "dummy" mempty "" $
         Sig.call0 $ \_args -> return (0 :: Double)

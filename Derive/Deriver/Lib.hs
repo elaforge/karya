@@ -497,7 +497,7 @@ scale_to_call scale convert = PatternCall
 -- | Convert a val call to a pitch call.  This is used so scales can export
 -- their ValCalls to pitch generators.
 val_to_pitch :: ValCall -> Generator Pitch
-val_to_pitch (ValCall name doc vcall) = Call
+val_to_pitch (Call name doc vcall) = Call
     { call_name = name
     , call_doc = doc
     , call_func = generator_func pitch_call

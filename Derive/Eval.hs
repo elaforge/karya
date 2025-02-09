@@ -221,11 +221,11 @@ apply ctx call args = do
     vals <- mapM (eval ctx) args
     let passed = Derive.PassedArgs
             { passed_vals = vals
-            , passed_call_name = Derive.vcall_name call
+            , passed_call_name = Derive.call_name call
             , passed_ctx = ctx
             }
-    Internal.with_stack_call (Derive.vcall_name call) $
-        Derive.vcall_call call passed
+    Internal.with_stack_call (Derive.call_name call) $
+        Derive.call_func call passed
 
 -- * lookup call
 
@@ -409,7 +409,7 @@ apply_pitch pos call = do
     pitch <- Typecheck.typecheck msg pos =<< apply ctx call []
     return $ PSignal.coerce (pitch :: PSignal.Pitch)
     where
-    msg = "apply pitch: " <> showt (Derive.vcall_name call)
+    msg = "apply pitch: " <> showt (Derive.call_name call)
     ctx = Derive.dummy_context pos 0 "<apply_pitch>"
 
 -- | Evaluate a single expression, catching an exception if it throws.

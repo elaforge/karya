@@ -68,7 +68,7 @@ module Derive.Deriver.Monad (
     , scope_priority, lookup_priority, add_priority, replace_priority
     , DocumentedCall(..)
     , PatternCall(..), pat_call_doc
-    , extract_doc, extract_val_doc
+    , extract_doc
     -- ** TrackCall
     , TrackCall, track_call
 
@@ -108,7 +108,7 @@ module Derive.Deriver.Monad (
     , transformer
 
     -- ** val
-    , ValCall(..), make_val_call
+    , ValCall, make_val_call
 
     -- ** cache types
     -- $cache_doc
@@ -890,9 +890,6 @@ data DocumentedCall = DocumentedCall !CallName !CallDoc
 extract_doc :: Call d -> DocumentedCall
 extract_doc call = DocumentedCall (call_name call) (call_doc call)
 
-extract_val_doc :: ValCall -> DocumentedCall
-extract_val_doc vcall = DocumentedCall (vcall_name vcall) (vcall_doc vcall)
-
 -- ** TrackCall
 
 type TrackCall d = Call (TrackCallFunc d)
@@ -1619,28 +1616,11 @@ transformer = make_call
 
 -- ** val
 
-data ValCall = ValCall {
-    vcall_name :: !CallName
-    , vcall_doc :: !CallDoc
-    , vcall_call :: PassedArgs Tagged -> Deriver DeriveT.Val
-    }
-
-instance Show ValCall where
-    show (ValCall name _ _) = "((ValCall " ++ show name ++ "))"
+type ValCall = Call (PassedArgs Tagged -> Deriver DeriveT.Val)
 
 make_val_call :: Module.Module -> CallName -> Tags.Tags -> Doc.Doc
     -> WithArgDoc (PassedArgs Tagged -> Deriver DeriveT.Val) -> ValCall
-make_val_call module_ name tags doc (call, arg_docs) = ValCall
-    { vcall_name = name
-    , vcall_doc = CallDoc
-        { cdoc_module = module_
-        , cdoc_tags = tags
-        , cdoc_doc = doc
-        , cdoc_args = arg_docs
-        }
-    , vcall_call = call
-    }
-
+make_val_call = make_call
 
 -- ** cache types
 

@@ -176,13 +176,13 @@ constant_val module_ name doc val = Derive.val_call module_  name mempty
 -- | Make a new ValCall from an existing one, by mapping over its output.
 modify_vcall :: Derive.ValCall -> Module.Module -> Derive.CallName -> Doc.Doc
     -> (DeriveT.Val -> DeriveT.Val) -> Derive.ValCall
-modify_vcall vcall module_ name doc f = Derive.ValCall
-    { vcall_name = name
-    , vcall_doc = Derive.CallDoc
-        { cdoc_tags = Derive.cdoc_tags (Derive.vcall_doc vcall)
+modify_vcall vcall module_ name doc f = Derive.Call
+    { call_name = name
+    , call_doc = Derive.CallDoc
+        { cdoc_tags = Derive.cdoc_tags (Derive.call_doc vcall)
         , cdoc_module = module_
         , cdoc_doc = doc
-        , cdoc_args = Derive.cdoc_args (Derive.vcall_doc vcall)
+        , cdoc_args = Derive.cdoc_args (Derive.call_doc vcall)
         }
-    , vcall_call = fmap f . Derive.vcall_call vcall
+    , call_func = fmap f . Derive.call_func vcall
     }

@@ -176,12 +176,10 @@ common_fields tags common =
     , ("Call map", if Map.null call_map then "" else pretty call_map)
     -- code
     , ("Cmds", show_cmds code)
-    , ("Note generators",
-        show_calls CallDoc.GeneratorCall Derive.extract_doc gen)
-    , ("Note transformers",
-        show_calls CallDoc.TransformerCall Derive.extract_doc trans)
-    , ("Track calls", show_calls CallDoc.TrackCall Derive.extract_doc track)
-    , ("Val calls", show_calls CallDoc.ValCall Derive.extract_val_doc val)
+    , ("Note generators", show_calls CallDoc.GeneratorCall gen)
+    , ("Note transformers", show_calls CallDoc.TransformerCall trans)
+    , ("Track calls", show_calls CallDoc.TrackCall track)
+    , ("Val calls", show_calls CallDoc.ValCall val)
     -- info
     , ("Doc", doc)
     , ("Tags", show_tags tags)
@@ -189,9 +187,8 @@ common_fields tags common =
     ]
     where
     Derive.Scopes gen trans track val = Cmd.inst_calls code
-    show_calls ctype extract_doc =
-        show_call_bindings . CallDoc.entries ctype . CallDoc.call_map_to_entries
-        . CallDoc.call_map_doc extract_doc
+    show_calls ctype = show_call_bindings . CallDoc.entries ctype
+        . CallDoc.call_map_to_entries . CallDoc.call_map_doc
     Common.Common
         { common_code = code
         , common_environ = env

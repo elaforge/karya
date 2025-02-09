@@ -269,8 +269,8 @@ simple_val_call fname name call_expr =
     expr = call_expr :| []
     call_args sym args = do
         call <- Eval.get_val_call sym
-        Derive.vcall_call call $ args
-            { Derive.passed_call_name = Derive.vcall_name call }
+        Derive.call_func call $ args
+            { Derive.passed_call_name = Derive.call_name call }
 
 broken_val_call :: Derive.CallName -> Text -> Derive.ValCall
 broken_val_call name msg = Derive.make_val_call Module.local name mempty

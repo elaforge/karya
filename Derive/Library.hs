@@ -166,24 +166,26 @@ compile (Derive.Scopes lgen ltrans ltrack lval) = Logger.runId $ Derive.Scopes
     <$> compile_scope lgen
     <*> compile_scope ltrans
     <*> compile_scope ltrack
-    <*> compile_entries "val" Derive.vcall_doc Derive.vcall_name lval
+    <*> compile_entries "val" lval
     where
     compile_scope (Derive.Scope note control pitch) = Derive.Scope
-        <$> compile_entries "note" Derive.call_doc Derive.call_name note
-        <*> compile_entries "control" Derive.call_doc Derive.call_name control
-        <*> compile_entries "pitch" Derive.call_doc Derive.call_name pitch
-    compile_entries kind get_doc get_name =
+        <$> compile_entries "note" note
+        <*> compile_entries "control" control
+        <*> compile_entries "pitch" pitch
+    compile_entries kind =
         fmap Map.fromAscList
-        . traverse (compile1 kind get_name)
+        . traverse (compile1 kind)
         . Lists.keyedGroupSort (Derive.cdoc_module . entry_doc)
         where
-        entry_doc (Single _ call) = get_doc call
+        entry_doc (Single _ call) = Derive.call_doc call
         entry_doc (Pattern pattern) = Derive.pat_call_doc pattern
-    compile1 kind get_name (module_, entries) = do
+    compile1 kind (module_, entries) = do
         let (singles, patterns) = partition entries
         let (cmap, dups) = Maps.unique2 singles
-        unless (null dups) $
-            Logger.log ((kind, module_), map (second (map get_name)) dups)
+        unless (null dups) $ Logger.log
+            ( (kind, module_)
+            , map (second (map Derive.call_name)) dups
+            )
         return $ (module_,) $ Derive.CallMap
             { call_map = cmap
             , call_patterns = patterns

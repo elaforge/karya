@@ -52,7 +52,7 @@ scale = Scale.Scale
     -- keyboard.
     , scale_input_to_note = \_ _ -> Left DeriveT.InvalidInput
     , scale_input_to_nn = Scales.direct_input_to_nn
-    , scale_call_doc = Derive.extract_val_doc $ note_call (Pitch.Note "1/1") id
+    , scale_call_doc = Derive.extract_doc $ note_call (Pitch.Note "1/1") id
     }
 
 note_to_call :: Pitch.Note -> Maybe Derive.ValCall

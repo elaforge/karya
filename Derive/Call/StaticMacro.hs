@@ -126,10 +126,10 @@ eval_term ctx (RValCall call terms) = do
     vals <- mapM (eval_term ctx) terms
     let passed = Derive.PassedArgs
             { passed_vals = vals
-            , passed_call_name = Derive.vcall_name call
+            , passed_call_name = Derive.call_name call
             , passed_ctx = Derive.tag_context ctx
             }
-    Derive.vcall_call call passed
+    Derive.call_func call passed
 
 -- | Substitute the given Vals into the non-'Given' Args.
 substitute_vars :: [DeriveT.Val] -> [Arg] -> ([DeriveT.Val], [ResolvedTerm])
@@ -164,7 +164,7 @@ extract_args (Call call args) = extract (Derive.call_doc call) args
         extract_arg (doc, arg) = case arg of
             Var -> Right [doc]
             Given (Literal _) -> Right []
-            Given (ValCall call args) -> extract (Derive.vcall_doc call) args
+            Given (ValCall call args) -> extract (Derive.call_doc call) args
 
 -- ** doc
 
@@ -184,5 +184,5 @@ arg_doc :: Arg -> Text
 arg_doc (Given (Literal val)) = ShowVal.show_val val
 arg_doc (Given (ValCall call args)) =
     "(" <> Text.unwords (name : map arg_doc args) <> ")"
-    where Derive.CallName name = Derive.vcall_name call
+    where Derive.CallName name = Derive.call_name call
 arg_doc Var = "$"

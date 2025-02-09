@@ -460,13 +460,13 @@ builtins (Derive.Scopes
     [ ("note", scope ngen ntrans ntrack)
     , ("control", scope cgen ctrans ctrack)
     , ("pitch", scope pgen ptrans ptrack)
-    , ("val", convert_modules ValCall Derive.extract_val_doc val)
+    , ("val", convert_modules ValCall val)
     ]
 
-convert_modules :: CallType -> (call -> Derive.DocumentedCall)
-    -> Map mod (Derive.CallMap call) -> [ScopeDoc]
-convert_modules ctype extract_doc = imported_scope_doc ctype
-    . concatMap (call_map_to_entries . call_map_doc extract_doc)
+convert_modules :: CallType -> Map mod (Derive.CallMap (Derive.Call d))
+    -> [ScopeDoc]
+convert_modules ctype = imported_scope_doc ctype
+    . concatMap (call_map_to_entries . call_map_doc)
     . Map.elems
 
 -- | Create docs for generator, transformer, and track calls, and merge and
@@ -476,9 +476,9 @@ scope :: Map Module.Module (Derive.CallMap (Derive.Call gen))
     -> Map Module.Module (Derive.CallMap (Derive.TrackCall track))
     -> [ScopeDoc]
 scope gen trans track = merge_scope_docs $ concat
-    [ convert_modules GeneratorCall Derive.extract_doc gen
-    , convert_modules TransformerCall Derive.extract_doc trans
-    , convert_modules TrackCall Derive.extract_doc track
+    [ convert_modules GeneratorCall gen
+    , convert_modules TransformerCall trans
+    , convert_modules TrackCall track
     ]
 
 -- | A 'Library.Entry' with the call stripped out and replaced with
@@ -495,10 +495,9 @@ entry_doc extract_doc (Library.Single sym call) =
 entry_doc _ (Library.Pattern pattern) =
     Library.Pattern $ pattern { Derive.pat_function = const $ return Nothing }
 
-call_map_doc :: (call -> Derive.DocumentedCall) -> Derive.CallMap call
-    -> CallMap
-call_map_doc extract_doc (Derive.CallMap calls patterns) = Derive.CallMap
-    { call_map = extract_doc <$> calls
+call_map_doc :: Derive.CallMap (Derive.Call d) -> CallMap
+call_map_doc (Derive.CallMap calls patterns) = Derive.CallMap
+    { call_map = Derive.extract_doc <$> calls
     , call_patterns =
         map (\p -> p { Derive.pat_function = const $ return Nothing }) patterns
     }
@@ -509,17 +508,14 @@ call_map_doc extract_doc (Derive.CallMap calls patterns) = Derive.CallMap
 instrument_calls :: Derive.InstrumentCalls -> Document
 instrument_calls (Derive.Scopes gen trans track vals) =
     [ ("note", [(Just Derive.PrioInstrument, concat
-        [ ctype_entries GeneratorCall gen
-        , ctype_entries TransformerCall trans
-        , call_map_entries TrackCall Derive.extract_doc track
+        [ call_map_entries GeneratorCall gen
+        , call_map_entries TransformerCall trans
+        , call_map_entries TrackCall track
         ])])
-    , ("val", [(Just Derive.PrioInstrument,
-        call_map_entries ValCall Derive.extract_val_doc vals)])
+    , ("val", [(Just Derive.PrioInstrument, call_map_entries ValCall vals)])
     ]
     where
-    ctype_entries ctype = call_map_entries ctype Derive.extract_doc
-    call_map_entries ctype extract_doc =
-        entries ctype . call_map_to_entries . call_map_doc extract_doc
+    call_map_entries ctype = entries ctype . call_map_to_entries . call_map_doc
 
 -- ** track doc
 
@@ -546,18 +542,16 @@ track_sections ttype (Derive.Scopes
         ParseTitle.PitchTrack -> ("pitch", merge3 gen_p trans_p track_p)
     where
     merge3 gen trans track = merged_scope_docs
-        [ (GeneratorCall, convert gen)
-        , (TransformerCall, convert trans)
-        , (TrackCall, convert_scope (call_map_doc Derive.extract_doc) track)
+        [ (GeneratorCall, convert_scope gen)
+        , (TransformerCall, convert_scope trans)
+        , (TrackCall, convert_scope track)
         ]
-    val_doc = scope_type ValCall $
-        convert_scope (call_map_doc Derive.extract_val_doc) val
-    convert = convert_scope (call_map_doc Derive.extract_doc)
+    val_doc = scope_type ValCall $ convert_scope val
 
-convert_scope :: (Derive.CallMap call -> CallMap)
-    -> Derive.ScopePriority call -> Derive.ScopePriority Derive.DocumentedCall
-convert_scope convert (Derive.ScopePriority prio_map) =
-    Derive.ScopePriority (convert <$> prio_map)
+convert_scope :: Derive.ScopePriority (Derive.Call d)
+    -> Derive.ScopePriority Derive.DocumentedCall
+convert_scope (Derive.ScopePriority prio_map) =
+    Derive.ScopePriority (call_map_doc <$> prio_map)
 
 -- | Create docs for generator and transformer calls, and merge and sort them.
 merged_scope_docs :: [(CallType, Derive.ScopePriority Derive.DocumentedCall)]

@@ -411,7 +411,7 @@ scale_degree_doc ::
     (PSignal.Scale -> Scale.PitchNn -> Scale.PitchNote -> Derive.ValCall)
     -> Derive.DocumentedCall
 scale_degree_doc scale_degree =
-    Derive.extract_val_doc $ scale_degree PSignal.no_scale err err
+    Derive.extract_doc $ scale_degree PSignal.no_scale err err
     where err _ = Left $ PSignal.PitchError "it was just an example!"
 
 annotate_call_doc :: Set ScoreT.Control -> Doc.Doc -> [(Doc.Doc, Doc.Doc)]
