@@ -17,7 +17,7 @@ rohan_mohra1 = rohan $ date 2025 1 25 $
     where
     a1 = "oUkpk_u___ktktpk"
     a2 = "pi_ipktk".nakatiku
-    a3 = "oUkpk_u__ktktpkn"
+    a3 = "oUkpk_u___ktkpkn"
     b1 = r2 ("oKtk".p'."ktk") -- alternate: r4 "oKtko"
     b2 = "oU__ _oUk"
     b3 = n . r2 "oK__oK_u_pkn" . "oK_oK_oU"

@@ -109,21 +109,22 @@ tir_sivamani = tirmanam $ date 2023 1 20 $ korvaiS adi
     [ __D 2 . tri_ (su "v_pkno") "DD_NN_" -- another 63636
     ]
 
-tir_icarnatic_guhan_kamalakiran :: Korvai
-tir_icarnatic_guhan_kamalakiran =
+tir_icarnatic_guhan_kamalakiran_rupaka :: Korvai
+tir_icarnatic_guhan_kamalakiran_rupaka =
     tirmanam $ date 2023 3 10 $ korvaiS Tala.rupaka_fast
-    -- at 26:00
-    [ tri_ "D_o" (g $ su "ktpkpktp ktpkpk" . "DDk")
-    -- alternate fingering
-    , tri_ "D_o" (g $ su "ktpktpkp tpktpk" . "DDk")
+    [ tri_ "D_o" (g $ su "ktpkpktp ktpkpk" . "DDk") -- at 26:00
+    , tri_ "D_o" (g $ su "ktpktpkp tpktpk" . "DDk") -- alternate fingering
     ]
 
 tir_icarnatic_guhan_kamalakiran_adi :: Korvai
 tir_icarnatic_guhan_kamalakiran_adi = tirmanam $ date 2023 3 10 $ korvaiS adi
+    -- TODO check out sequence at 3:30
+    [ __D 0.5 . tri_ "u__kko" "Nd_Nd_" -- 3:51, also since 222, 123 works
     -- at 1:08:07
-    [ __D 4 . tri2g "D__NNk" "kt_kn_ko_ok_" (su (stride 3 "ktknkook"))
+    , __D 4 . tri2g "D__NNk" "kt_kn_ko_ok_" (su (stride 3 "ktknkook"))
     -- trikalam version at 1:10:30
     ]
+    -- TODO thani at 1:00:00
 
 tir_indian_raga :: Korvai
 tir_indian_raga = tirmanam $ date 2023 3 10 $ korvaiS adi
@@ -141,9 +142,18 @@ tir_misc = tirmanam $ date 2023 3 10 $ korvaiS adi
     , __D 2 . tri_ (su "D_pkno") "DDkDDk" -- 33(3)33(3)33 = 8*3 = 4*6 = 6*4
     ]
 
-
 tir_elaforge :: Korvai
-tir_elaforge = tirmanam $ elaforge $ korvaiS adi
+tir_elaforge = tirmanam $ elaforge $ korvaiV adi
     [ __D 2.5 . trin "v_" (r3 "Nd_") (r2 "Nd_") "Nd_" . v
     -- , __D 5.25 . su (trin "v_" (r3 "Nd_") (r2 "Nd_") "Nd_" . v)
+    , __D 2 . tri123 "D_o" (su "N_ktok") . od
+    , __D 2 . tri123 "D_o" (su p6) . od
+    , __D 4 . __ . tri_ (su "u_pkno") "NN_" . u
     ]
+
+rohan_end :: Korvai
+rohan_end = rohan $ date 2025 2 8 $ korvaiV adi
+    [ join (o.__) (map (\n -> tri_ o (dropM n seq)) [0, 1, 2, 3, 4]) .o.u
+    ]
+    where
+    seq = g $ "pktk".su "kt"
