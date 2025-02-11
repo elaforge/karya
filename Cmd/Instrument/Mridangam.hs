@@ -11,12 +11,12 @@ module Cmd.Instrument.Mridangam (
     , ki, ta, nam, din, dheem, chapu, muru, arai
     , kin, tan
     , tha, thom
-    , gumki -- TODO remove?
+    , palm, fingers, fingertips
     -- * used by pakhawaj
     , make_both, make_code
 ) where
-import           Prelude hiding (min, tan)
-import qualified Data.Char as Char
+import           Prelude hiding (tan)
+import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Cmd.Instrument.CUtil as CUtil
@@ -33,7 +33,8 @@ import qualified Derive.PSignal as PSignal
 
 import qualified Perform.Pitch as Pitch
 import qualified Solkattu.Instrument.Mridangam as Mridangam
-import           Solkattu.Instrument.Mridangam (Valantalai(..), Thoppi(..))
+import           Solkattu.Instrument.Mridangam
+    (Tha(..), Thom(..), Thoppi(..), Valantalai(..))
 
 import           Global
 
@@ -43,21 +44,11 @@ code :: CUtil.Thru -> Pitch.NoteNumber
 code thru natural_nn transform =
     make_code thru pitched_strokes natural_nn transform all_strokes both_calls
 
+-- | (symbol, dispatchTo, bindToKey)
 type BothStroke = (Expr.Symbol, [Expr.Symbol], Maybe Char)
 
--- | Single symbols for two strokes together.  thom+x becomes a capital X,
--- and there are a few ad-hoc capital letters for more common tha+x
--- combinations.
-both_calls :: [BothStroke]
-both_calls = make_both left_notes right_notes special_names
-    [ ("N", 'g'), ("D", 'b')
-    , ("K", 'h'), ("T", 'n')
-    , ("P", 'j'), ("X", 'm')
-    ]
-    where
-    special_names = [("P", ["*", "k"]), ("X", ["*", "t"])]
-        ++ [(sym c, ["o", sym (Char.toLower c)]) | c <- "KTNDUVI"]
-    sym = Expr.Symbol . Text.singleton
+to_sym :: Expr.ToExpr a => a -> Expr.Symbol
+to_sym = Expr.Symbol . Expr.show_val_expr . Expr.to_expr
 
 -- | Strokes which have a pitch, which should change with the sruti.
 pitched_strokes :: [Attrs.Attributes]
@@ -68,80 +59,156 @@ pitched_strokes =
     , dheem
     ]
 
-all_strokes :: [Drums.Stroke]
-all_strokes = left_notes ++ right_notes
+{-
+    dyn=1 is too much for tha.  But maybe the variation should be built in to
+    samples.  So if you say dyn=.75, then do accent for loud ones at 1.
+    I guess the dyn here would have to be relative to global dyn.
+    Since I use valantalai_attrs, I don't have one for light or strong accent.
+    But, I only use Symbols.accent and Symbols.weak now.  So I can have a Light
+    Normal Heavy annotation instead of Dyn.  Is it better?
+    Getting away from the ad-hoc symbols is better, maybe I could even render
+    `^ x` as a lighter `x` eventually.  Or put a numebr in the dyn column,
+    which is more orthogonal, but less readable.
 
--- | The convention is symbols for thoppi, and letters for valantalai.  Also,
--- vowels for open sounds, consonants for closed ones.  Soft strokes look like
--- a simpler version of their equivalent loud strokes.
-left_notes, right_notes :: [Drums.Stroke]
+    Having an arbitrary symbol for (stroke + dyn) is not orthogonal, there's
+    nothing saying they have to be consistent.  Dyn is another dimension not
+    really in solkattu.
+-}
+
+all_strokes :: [Drums.Stroke]
+both_calls :: [BothStroke]
 stops :: Drums.Stops
-(left_notes, right_notes, stops) = (left_notes, right_notes, stops)
+(all_strokes, both_calls, stops) =
+    ( map make (map Left lhs ++ map Right rhs)
+    , concatMap (uncurry make_both) [(lh, rh) | lh <- lhs, rh <- rhs]
+    , stops
+    )
     where
-    left_notes = concat
-        [ group t_closed
-            [ n 'a' "-" tha 0.5
-            , n 'z' "+" tha 0.75
-            , n 'Z' "*" tha 1
-            , n 'A' "*_" (tha <> fingers) 1
-            -- This often alternates with o_.
-            , n 'C' "+_" (tha <> fingertips) 1
+    make_both lh rh =
+        ( to_sym (Mridangam.Both lh rh)
+        , [to_sym lh, to_sym rh]
+        , Map.lookup (Mridangam.Both lh rh) keys
+        ) : case Mridangam.extraCalls lh rh of
+            Nothing -> []
+            Just sym -> [(Expr.Symbol sym, [to_sym lh, to_sym rh], Nothing)]
+    keys = Map.fromList $ map (\(c, s) -> (s, c)) $ concat
+        [ map (second Mridangam.Thoppi)
+            -- This reflects my bias to palm tha, but maybe it should write
+            -- just tha attr, and leave palm or fingers separately configured?
+            [ ('a', Tha Palm) -- TODO dyn 0.5
+            , ('z', Tha Palm)
+            , ('Z', Tha Fingers)
+            , ('X', Tha Fingertips) -- duplicate with 'C'
+            , ('s', Thom Open) -- TODO dyn 0.5
+            , ('x', Thom Open)
+            , ('c', Thom Low)
+            , ('C', Tha Fingertips) -- by analogy with Thom Low
+            , ('v', Thom Up)
             ]
-        , group t_open
-            [ n 's' "." thom 0.5
-            , n 'x' "o" thom 1
-            , n 'd' "._" gumki 0.5
-            , n 'c' "o_" gumki 1
-            , n 'f' "o-" (gumki <> Attrs.medium) 1
-            , n 'g' "o^" (gumki <> Attrs.high) 1
-            , n 'v' "o/" (gumki <> Attrs.up) 1
             -- TODO when I have samples, have 'o 0' to 'o 1' for arbitrary
             -- pitches.
+        , map (second Mridangam.Valantalai)
+            [ ('1', Mi)
+            , ('q', Ki)
+            , ('w', Ta)
+            , ('3', Tan)
+            , ('e', Nam)
+            , ('4', Kin)
+            , ('r', Din)
+            -- This reflects my bias towards MuruChapu, but like palm vs
+            -- fingers tha, maybe it should be left ambiguous?
+            , ('5', MuruChapu)
+            , ('t', AraiChapu)
+            , ('y', Dheem)
+            , (',', Tra)
             ]
+        -- TODO need flam call
+        , [('.', Mridangam.Flam (Tha Palm) Ki)]
+        , map (second (uncurry Mridangam.Both))
+          [ ('g', (Thom Open, Nam))
+          , ('b', (Thom Open, Din))
+          , ('h', (Thom Open, Ki))
+          , ('n', (Thom Open, Ta))
+          , ('j', (Tha Palm, Ki))
+          , ('m', (Tha Palm, Ta))
+          ]
         ]
-    right_notes = concat
-        [ group v_closed
-            -- TODO this should be mi, played with middle finger, but I have no
-            -- sample for it
-            [ n '1' "l" ki 0.5
-            , n 'q' "k" ki 1
-            , n 'w' "t" ta 1
-            ]
-        , group v_sadam
-            [ n '2' "'" min 1
-            , n '3' "^" tan 1
-            , n 'e' "n" nam 1
-            , n '4' "," kin 1
-            , n 'r' "d" din 1
-            ]
-        , group v_chapu
-            [ n '5' "v" (muru <> chapu) 1
-            , n 't' "u" (arai <> chapu) 1
-            ]
-        , group v_dheem [n 'y' "i" dheem 1]
+    make stroke = Drums.Stroke
+        { _name = either to_sym to_sym stroke
+        , _attributes = either thoppi_attrs valantalai_attrs stroke
+        , _char = Map.findWithDefault Drums.no_key
+            (either Mridangam.Thoppi Mridangam.Valantalai stroke) keys
+        , _dynamic = 1
+        , _group = either t_group v_group stroke
+        }
+    rhs = [minBound ..] :: [Mridangam.Valantalai]
+    lhs =
+        [ Tha Palm, Tha Fingertips
+        , Thom Open, Thom Up
+        , Gum
         ]
-
-    -- each group with the groups it stops
-    stops =
-        [ (t_closed, [t_open])
-        , (v_closed, [v_sadam, v_chapu, v_dheem])
-        , (v_sadam, [v_chapu, v_dheem])
-        , (v_chapu, [v_dheem])
-        ]
-    v_closed = "v-closed"
-    v_sadam = "v-sadam"
-    v_chapu = "v-chapu"
-    v_dheem = "v-dheem"
+    t_group = \case
+        Tha {} -> t_closed
+        Thom {} -> t_open
+        Gum -> t_open
+    v_group = \case
+        Ki -> v_closed
+        Ta -> v_closed
+        Tra -> v_closed
+        Mi -> v_closed
+        Nam -> v_meetu
+        Din -> v_meetu
+        AraiChapu -> v_open
+        MuruChapu -> v_open
+        Dheem -> v_open
+        Kin -> v_meetu
+        Tan -> v_meetu
+        Dhe -> v_closed
+        Re -> v_closed
     t_closed = "t-closed"
     t_open = "t-open"
-    group name = map $ \n -> n { Drums._group = name }
-    n = Drums.stroke_dyn
+    v_closed = "v-closed"
+    v_meetu = "v-meetu"
+    v_open = "v-open"
+    stops =
+        [ (t_closed, [t_open])
+        , (v_closed, [v_meetu, v_open])
+        , (v_meetu, [v_open])
+        ]
 
-tha = Attrs.attr "tha"
-thom = Attrs.attr "thom"
+valantalai_attrs :: Mridangam.Valantalai-> Attrs.Attributes
+valantalai_attrs = \case
+    Ki -> ki
+    Ta -> ta
+    Tra -> tra
+    Mi -> mi
+    Nam -> nam
+    Din -> din
+    AraiChapu -> arai <> chapu
+    MuruChapu -> muru <> chapu
+    Dheem -> dheem
+    Kin -> kin
+    Tan -> tan
+    Dhe -> dhe
+    Re -> re
+
+thoppi_attrs :: Mridangam.Thoppi -> Attrs.Attributes
+thoppi_attrs = \case
+    Tha t -> tha <> case t of
+        Palm -> mempty -- could be palm, but let's consider it the default
+        Fingers -> fingers
+        Fingertips -> fingertips
+    Thom t -> case t of
+        Open-> thom
+        Low -> thom <> Attrs.low
+        Up -> thom <> Attrs.up
+    Gum -> gum
+
+-- valantalai
 ki = Attrs.attr "ki"
 ta = Attrs.attr "ta"
-min = Attrs.attr "min" -- like ta or mi, but on meetu so din rings
+tra = Attrs.attr "tra"
+mi = Attrs.attr "mi"
 nam = Attrs.attr "nam"
 din = Attrs.attr "din"
 dheem = Attrs.attr "dheem"
@@ -150,13 +217,18 @@ muru = Attrs.attr "muru"
 arai = Attrs.attr "arai"
 kin = Attrs.attr "kin"
 tan = Attrs.attr "tan"
+dhe = Attrs.attr "dhe"
+re = Attrs.attr "re"
 
-gumki = Attrs.attr "gumki"
+-- thoppi
+tha = Attrs.attr "tha"
+thom = Attrs.attr "thom"
+gum = Attrs.attr "gum"
 
 -- tha variations
+palm = Attrs.attr "palm"
 fingers = Attrs.attr "fingers" -- played with flat fingers, not palm
 fingertips = Attrs.attr "fingertips"
--- TODO roll is roll with fingertips?
 
 
 -- * two-handed pitched drums
@@ -164,7 +236,7 @@ fingertips = Attrs.attr "fingertips"
 -- | Make code for a pitched two-handed drum.  This isn't mridangam-specific.
 make_code :: CUtil.Thru -> [Attrs.Attributes] -> Pitch.NoteNumber
     -> Maybe (Derive.TransformerF Derive.Note) -> [Drums.Stroke]
-    -> [(Expr.Symbol, [Expr.Symbol], Maybe Char)] -> ImInst.Code
+    -> [BothStroke] -> ImInst.Code
 make_code thru pitched_strokes natural_nn transform strokes both = mconcat
     [ ImInst.note_generators generators
     , ImInst.val_calls vals
@@ -184,7 +256,9 @@ make_code thru pitched_strokes natural_nn transform strokes both = mconcat
         ]
         where doc = "Emit the drum's recorded pitch. Use like `#=(natural)`."
     char_to_call = concat
-        [ [(Drums._char n, Drums._name n) | n <- strokes]
+        [ [ (Drums._char n, Drums._name n)
+          | n <- strokes, Drums._char n /= Drums.no_key
+          ]
         , [(char, call) | (call, _, Just char) <- both]
         ]
 
@@ -192,7 +266,7 @@ make_code thru pitched_strokes natural_nn transform strokes both = mconcat
 -- key bindings for a few common ones.
 make_both :: [Drums.Stroke] -> [Drums.Stroke]
     -> [(Expr.Symbol, [Expr.Symbol])] -- ^ special names for pairs
-    -> [(Expr.Symbol, Char)] -> [(Expr.Symbol, [Expr.Symbol], Maybe Char)]
+    -> [(Expr.Symbol, Char)] -> [BothStroke]
 make_both left right special_names keys =
     [ (call, subcalls, lookup call keys)
     | (call, subcalls) <- special_names ++ pairs

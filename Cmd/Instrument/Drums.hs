@@ -48,6 +48,9 @@ stroke char name attrs = Stroke
     , _group = ""
     }
 
+no_key :: Char
+no_key = ' '
+
 stroke_dyn :: Char -> Expr.Symbol -> Attributes -> Signal.Y -> Stroke
 stroke_dyn char name attrs dyn = (stroke char name attrs) { _dynamic = dyn }
 

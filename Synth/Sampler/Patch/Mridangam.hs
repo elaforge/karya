@@ -45,8 +45,8 @@ attributeMap :: Common.AttributeMap Articulation
 attributeMap = Common.attribute_map
     [ (Mridangam.tha, Tha)
     , (Mridangam.thom, Thom)
-    , (Mridangam.gumki, Gumki)
-    , (Mridangam.gumki <> Attrs.up, GumkiUp)
+    , (Mridangam.thom <> Attrs.low, Gumki)
+    , (Mridangam.thom <> Attrs.up, GumkiUp)
     , (Mridangam.ki, Ki)
     , (Mridangam.ta, Ta)
     , (Mridangam.nam, Nam)

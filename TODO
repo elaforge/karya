@@ -6321,7 +6321,33 @@ REPL: repl:
     . https://gitlab.haskell.org/haskell/ghc-api-compat
 
 solkattu:
-  mridangam sync with cmd instrument:
+  + mridangam sync with cmd instrument:
+    - not sure I like xz as trakra
+      . X is p+t conflicts with o + tra
+        I can make it Kt but it's irregular.
+      . Alternative is kt pk, but can't be written in string, and ambiguous
+        when only one space per note.
+      . I could have a trakra precomposed, but still doesn't go into strings.
+    + k has .5 dyn in integrate.
+      . Because I have to have unique char -> (attrs, dyn), since it uses it
+        to map back to strokes.
+      . CUtil.drum_calls must be extended to also be able to write dyn.
+      . Also it should only create a call for the one with dyn=1.
+        This implies the call definition + key is not quite right.
+      . Actually don't need it at all, create calls separately by enumerating!
+      . But, does it support that?
+        , CUtil.drum_calls (zip strokes (map config strokes))
+        , DUtil.multiple_calls [(call, subcalls) | (call, subcalls, _) <- both]
+      . drum_calls :: [(Drums.Stroke, CallConfig)]
+          -> [(Expr.Symbol, Derive.Generator Derive.Note)]
+    * Also means CUtil.drum_calls doesn't notice collisions?
+      . Isn't there a generic way to do that?
+      . It's a per-instrument definition, where are overlaps for those
+        detected?
+      . By the time it's in Common.common_code, it's already a Monad.CallMap,
+        which is Map.  Where does it become that?
+      . MidiInst.Code -> code_library
+    * Can't use 'p' for pattern if it's tha!  DSL uses p5 p6 etc. and 'pat n'
     . Use Stroke -> Mridnagam.notations for symbols
     . But I need a keybinding, use Stroke -> key
     . + becomes p, and I lose - and * for emphasis.  They seem useful though.

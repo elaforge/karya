@@ -43,14 +43,14 @@ import           Types
 library :: Library.Library
 library = Library.generators
     [ ("seq", c_sequence sequence_arg)
-    , ("p", c_pattern)
+    , ("pat", c_pattern)
     , ("tir", c_tirmanam)
 
     -- standard sequences
-    -- dikutarikitataka - There are various other ways to play this.
-    , ("8n", c_sequence (p "n+u+kt+k"))
-    , ("tk", c_sequence (p "k+"))
-    , ("tknk", c_sequence (p "k+n+"))
+    -- nakatarikitataka - dikutarikitataka is also standard: tpupktpk
+    , ("8n", c_sequence (p "npupktpk"))
+    , ("tk", c_sequence (p "kp"))
+    , ("tknk", c_sequence (p "kpnp"))
     ]
     where
     p = pure . parse_sequence
@@ -111,8 +111,6 @@ stretch_to_range (start, end) dur_notes =
     (durs, notes) = unzip dur_notes
     factor = (end - start) / realToFrac (Num.sum durs)
 
--- TODO make this into a Typecheck
--- actually I think I maybe don't support that?
 parse_sequence :: Text -> [Stroke]
 parse_sequence = map parse . Text.unpack
     where

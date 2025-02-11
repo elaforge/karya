@@ -9,7 +9,6 @@ import qualified Data.Map as Map
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.MidiInst as MidiInst
-import qualified Cmd.Instrument.Mridangam as Mridangam
 import qualified Cmd.Instrument.Mridangam as M
 
 import qualified Derive.Attrs as Attrs
@@ -33,7 +32,7 @@ patches =
     patch name strokes = CUtil.pitched_drum_patch strokes $
         MidiInst.named_patch (-24, 24) name []
     code natural_nn = MidiInst.code
-        #= Mridangam.code CUtil.MidiThru natural_nn Nothing
+        #= M.code CUtil.MidiThru natural_nn Nothing
 
 strokes_d, strokes_g :: CUtil.PitchedStrokes
 (strokes_d, _unmapped_strokes_d) = make_strokes Key.gs3
@@ -43,10 +42,10 @@ strokes_d, strokes_g :: CUtil.PitchedStrokes
 
 make_strokes :: Midi.Key
     -> (CUtil.PitchedStrokes, ([Drums.Stroke], [Attrs.Attributes]))
-make_strokes root_nn = CUtil.drum_pitched_strokes Mridangam.all_strokes $
+make_strokes root_nn = CUtil.drum_pitched_strokes M.all_strokes $
     CUtil.make_cc_keymap Key2.c_1 12 root_nn
         [ [M.tha]
-        , [M.thom, M.gumki, M.gumki <> Attrs.up, M.thom <> Attrs.dry]
+        , [M.thom, M.thom <> Attrs.low, M.thom <> Attrs.up, M.thom <> Attrs.dry]
         , [M.ki]
         , [M.ta]
         , [M.nam]
@@ -61,16 +60,16 @@ write_ksp = mapM_ (uncurry Util.write)
     -- Util.drum_mute_ksp ignores the root pitch so I don't need to worry about
     -- 'strokes_g'.
     [ ( "mridangam.ksp.txt"
-      , Util.drum_mute_ksp "mridangam" strokes_d Mridangam.stops
+      , Util.drum_mute_ksp "mridangam" strokes_d M.stops
       )
     , ( "mridangam-old.ksp.txt"
-      , Util.drum_mute_ksp "mridangam" pitched_strokes_old Mridangam.stops
+      , Util.drum_mute_ksp "mridangam" pitched_strokes_old M.stops
       )
     ]
 
 pitched_strokes_old :: CUtil.PitchedStrokes
 (pitched_strokes_old, _pitched_strokes_old) =
-    CUtil.drum_pitched_strokes Mridangam.all_strokes $ Map.fromList $ map make
+    CUtil.drum_pitched_strokes M.all_strokes $ Map.fromList $ map make
     -- left
     [ (M.tha, (Key.g_1, Key.e0))
     , (M.thom, (Key.g0, Key.e1))

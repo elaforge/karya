@@ -41,6 +41,7 @@ test_mridangam = do
     equal logs []
     let extract = mapMaybe Midi.channel_message . DeriveTest.extract_midi_msg
     equal (extract midi)
+        -- 102 2 is CUtil.make_cc_keymap setting thom<>up
         [ Midi.ControlChange 102 2, Midi.NoteOn Key.fs1 127
         , Midi.NoteOn Key.c4 127
         , Midi.NoteOff Key.fs1 127, Midi.NoteOff Key.c4 127

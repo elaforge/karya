@@ -45,6 +45,18 @@ test_sequence = do
     -- hardcoded pattern
     equal (run [(2, 2, "tk")]) ([(2, "+ki"), (3, "+tha")], [])
 
+test_strokes :: Test
+test_strokes = do
+    let run = DeriveTest.extract extract . derive_tracks "" . mkevents
+        extract e = (Score.event_start e, DeriveTest.e_attributes e)
+        mkevents cs = [(t, 0, c) | (t, c) <- zip (Lists.range_ 0 1) cs]
+    equal (run ["k", "t"]) ([(0, "+ki"), (1, "+ta")], [])
+    equal (run ["D", "od"])
+        ([(0, "+thom"), (0, "+din"), (1, "+thom"), (1, "+din")], [])
+    equal (run ["Kt", "x"]) ([(0, "+thom"), (0, "+tra"), (1, "+tra")], [])
+    -- -- or realize kra as f p k
+    -- equal (run ["x", "z"]) ([(0, "+tra"), (1, "+kra")], [])
+
 test_tirmanam :: Test
 test_tirmanam = do
     let run = DeriveTest.extract extract . derive_tracks " | cancel"
@@ -56,7 +68,7 @@ test_tirmanam = do
         ["would have to stretch karvai to -.5t"]
     equal (run [(0, 5, "dur=1 | tir t o")])
         (zip (Lists.range_ 0 1) tathom, [])
-    strings_like (snd $run [(0, 10, "dur=1 | tir t o")])
+    strings_like (snd $ run [(0, 10, "dur=1 | tir t o")])
         ["karvai would have to be 3.5t matras"]
     equal (run [(0, 9, "dur=1 | tir t o")])
         (zip [0, 1, 4, 5, 8] tathom, [])
@@ -64,7 +76,7 @@ test_tirmanam = do
         (zip (Lists.range_ 0 1) (tathom ++ ["+thom"]), [])
 
     strings_like (snd $ run [(0, 10, "dur=1 | tir t o_p")]) ["expected 9\\*1t"]
-    equal (run [(0, 9, "dur=1 | tir t o_+")])
+    equal (run [(0, 9, "dur=1 | tir t o_p")])
         ( [ (0, "+ta"), (1, "+thom"), (3, "+tha"), (4, "+ta"), (5, "+thom")
           , (7, "+tha"), (8, "+ta")
           ]
@@ -95,15 +107,15 @@ test_pattern :: Test
 test_pattern = do
     let run = DeriveTest.extract extract . derive_tracks ""
         extract e = (Score.event_start e, DeriveTest.e_attributes e)
-    equal (run [(2, 5, "p 5")]) (zip (Lists.range_ 2 1) ktkno, [])
-    equal (run [(2, 5, "var=f567-1 | p 5")])
+    equal (run [(2, 5, "pat 5")]) (zip (Lists.range_ 2 1) ktkno, [])
+    equal (run [(2, 5, "var=f567-1 | pat 5")])
         ([(2, "+ki"), (3, "+ta"), (4, "+ki"), (5, "+ki"), (5.5, "+ta"),
             (6, "+thom")], [])
 
     -- infer
-    strings_like (snd $ run [(0, 5, "p _")]) ["can't infer"]
-    equal (run [(0, 5, "dur=1 | p _")]) (zip (Lists.range_ 0 1) ktkno, [])
-    equal (run [(0, 6, "dur=1 | p _")]) (zip [0, 1, 3, 4, 5] ktkno, [])
+    strings_like (snd $ run [(0, 5, "pat _")]) ["can't infer"]
+    equal (run [(0, 5, "dur=1 | pat _")]) (zip (Lists.range_ 0 1) ktkno, [])
+    equal (run [(0, 6, "dur=1 | pat _")]) (zip [0, 1, 3, 4, 5] ktkno, [])
 
 ktkno :: [Text]
 ktkno = ["+ki", "+ta", "+ki", "+nam", "+thom"]

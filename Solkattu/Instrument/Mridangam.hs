@@ -43,6 +43,7 @@ data Valantalai =
     | Ta
     | Tra -- ^ tabla-style tra, quick kita
     | Mi -- ^ light Ki, played with middle finger
+    -- | Min -- ^ middle finger, on meetu?
     | Nam
     | Din
     | AraiChapu -- ^ "half chapu", played covering half the valantalai
@@ -100,6 +101,7 @@ instance Solkattu.Notation Stroke where
                 Kin -> "o" <> cedillaBelow
                 Mi -> "o" <> dotAbove
                 Tan -> "ô"
+                Tra -> "Kt"
                 _ -> Text.toUpper (Solkattu.notationText v)
             , case dir of
                 Open -> ""
@@ -189,33 +191,45 @@ _printStrokes = mapM_ Text.IO.putStrLn $ Texts.columns 2 $ concat
     lhs = [Tha Palm, Tha Fingertips, Thom Open, Thom Up, Gum]
     Strokes { od } = strokes
 
--- | Pretty reproduces the "Derive.Solkattu.Dsl" syntax, which has to be
--- haskell syntax, so it can't use +, and I have to put thoppi first to avoid
--- the keyword @do@.  It would be nice if I could make the tracklang syntax
--- consistent, but maybe not a huge deal at the moment.
+-- | Notation is designed for display only and to be as horizontally concise
+-- as possible, ideally taking just one character.  Tracklang is vertical, so
+-- it has more horizontal space, and I want to be able to type them.
+-- So I don't use the abbreviations for Both.
 instance Expr.ToExpr Stroke where
-    to_expr s = Expr.generator0 $ Expr.Symbol $ case s of
-        Thoppi t -> thoppi t
-        Valantalai v -> Solkattu.notationText v
-        Both t v -> thoppi t <> Solkattu.notationText v
-        -- TODO not supported yet, probably should be (f a b) or something.
-        Flam t v -> thoppi t <> Solkattu.notationText v
-        where
-        thoppi t = case t of
-            Thom Open-> "o"
-            Thom Low -> "o."
-            Thom Up -> "o/"
-            Tha _ -> "+"
-            Gum -> "´"
+    to_expr stroke = case stroke of
+        Thoppi t -> Expr.to_expr t
+        Valantalai v -> Expr.to_expr v
+        Both t v -> call $ Solkattu.notationText t <> Solkattu.notationText v
+        Flam (Tha _) Ki -> call $ Solkattu.notationText stroke
+        Flam t v -> Expr.generator $ Expr.call "f"
+            [ s $ Solkattu.notationText t
+            , s $ Solkattu.notationText v
+            ]
+            where s = Expr.VStr . Expr.Str
+
+-- | For consistency, I use t<>v for all Both, but I also want to understand
+-- the usual solkattu single character abbreviations.
+extraCalls :: Thoppi -> Valantalai -> Maybe Text
+extraCalls t v = case t of
+    Tha Palm | v `elem` [Ki, Ta, AraiChapu, MuruChapu] ->
+        Just $ Solkattu.notationText $ Both t v
+    Thom Open | v `notElem` [Kin, Mi, Tan] ->
+        Just $ Solkattu.notationText $ Both t v
+    _ -> Nothing
+
+instance Expr.ToExpr Valantalai where
+    to_expr = call . Solkattu.notationText
+instance Expr.ToExpr Thoppi where
+    to_expr = call . Solkattu.notationText
+
+call :: Text -> Expr.Expr val
+call = Expr.generator0 . Expr.Symbol
 
 instance Expr.ToExpr (Realize.Stroke Stroke) where
-    to_expr (Realize.Stroke emphasis stroke) = case (emphasis, stroke) of
-        (Realize.Normal, _) -> Expr.to_expr stroke
-        (Realize.Light, Thoppi (Thom Low)) -> "."
-        (Realize.Light, Thoppi (Tha _)) -> "-"
-        (Realize.Heavy, Thoppi (Tha _)) -> "*"
-        (Realize.Light, _) -> Expr.with Symbols.weak stroke
-        (Realize.Heavy, _) -> Expr.with Symbols.accent stroke
+    to_expr (Realize.Stroke emphasis stroke) = case emphasis of
+        Realize.Normal -> Expr.to_expr stroke
+        Realize.Light -> Expr.with Symbols.weak stroke
+        Realize.Heavy -> Expr.with Symbols.accent stroke
 
 data Strokes a = Strokes {
     k :: a
