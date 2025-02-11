@@ -15,7 +15,12 @@
     "Instrument.MakeDb" is used to create the caches that @all_loads@ relies
     on.
 -}
-module App.LoadInstruments where
+module App.LoadInstruments (
+    all_loads, load
+#ifdef TESTING
+    , load_synths
+#endif
+) where
 import           System.FilePath ((</>))
 
 import qualified App.Config as Config
@@ -74,23 +79,26 @@ internal_synths = [Lilypond.Constants.ly_synth Cmd.empty_code]
 
 load :: Path.AppDir -> IO (Inst.Db Cmd.InstrumentCode)
 load app_dir = do
-    loaded <- mapMaybeM ($ app_dir) $
-        Sc.PatchDb.load_synth : map (snd . snd) all_loads
-    let synths = concat
-            [ im_synths
-            , loaded
-            , midi_synths
-            , internal_synths
-            ]
+    (db, warns) <- load_synths app_dir
+    forM_ (synth_warnings ++ warns) $ \msg -> Log.warn $ "inst db: " <> msg
     let annot_fn = Path.to_absolute app_dir Config.local_dir
             </> "instrument_annotations"
     annots <- Parse.parse_annotations annot_fn >>= \case
         -- The parsec error already includes the filename.
-        Left err -> Log.warn (txt err) >> return mempty
-        Right annots -> return annots
-    let (db, warns) = Inst.db synths
-    forM_ (synth_warnings ++ warns) $ \msg -> Log.warn $ "inst db: " <> msg
-    (db, not_found) <- return $ Inst.annotate annots db
+        Left err -> Log.warn (txt err) >> pure mempty
+        Right annots -> pure annots
+    (db, not_found) <- pure $ Inst.annotate annots db
     unless (null not_found) $
         Log.warn $ "annotated instruments not found: " <> pretty not_found
-    return db
+    pure db
+
+load_synths :: Path.AppDir -> IO (Inst.Db Cmd.InstrumentCode, [Text])
+load_synths app_dir = do
+    loaded <- mapMaybeM ($ app_dir) $
+        Sc.PatchDb.load_synth : map (snd . snd) all_loads
+    pure $ Inst.db $ concat
+        [ im_synths
+        , loaded
+        , midi_synths
+        , internal_synths
+        ]
