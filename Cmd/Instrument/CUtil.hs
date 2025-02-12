@@ -69,8 +69,8 @@ insert_call thru char_syms = insert_expr thru (Cmd.WithoutOctave char_to_expr)
 
 strokes_to_calls :: [Drums.Stroke] -> [(Char, Expr.Symbol)]
 strokes_to_calls strokes =
-    [ (Drums._char s, Drums._name s)
-    | s <- strokes, Drums._char s /= Drums.no_key
+    [ (c, Drums._name s)
+    | s <- strokes, Just c <- [Drums._char s]
     ]
 
 -- | Select the flavor of thru to use when inserting an expression.  This

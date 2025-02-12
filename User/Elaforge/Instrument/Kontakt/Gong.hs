@@ -50,7 +50,7 @@ kajar_patch =
         ]
     config = CUtil.call_config { CUtil._tuning_control = Just "kajar-tune" }
     char_to_call = concat
-        [ [(Drums._char s, Drums._name s) | s <- strokes]
+        [ [(c, _name) | Drums.Stroke { _char = Just c, _name } <- strokes]
         , [(char, sym) | (char, sym, _) <- kajar_special]
         ]
     strokes = map fst kajar_pitched_strokes

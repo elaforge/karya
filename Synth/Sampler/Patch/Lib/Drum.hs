@@ -330,7 +330,7 @@ strokeMapTable stops table = StrokeMap
     makeStroke key sym attrs = Drums.Stroke
         { _name = sym
         , _attributes = attrs
-        , _char = key
+        , _char = if key == ' ' then Nothing else Just key
         , _dynamic = 1
         -- Drums._group is for generating 'stopMap' from just Strokes, but
         -- I'm generating it separately here.

@@ -41,7 +41,7 @@ tunggal_strokes = do
     return $ Drums.Stroke
         { _name = to_call note
         , _attributes = attrs
-        , _char = key
+        , _char = if key == ' ' then Nothing else Just key
         , _dynamic = if Attrs.contain attrs Attrs.soft then soft_dyn else 1
         , _group = group
         }

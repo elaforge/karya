@@ -23,10 +23,9 @@ import           Global
 data Stroke = Stroke {
     _name :: !Expr.Symbol
     , _attributes :: !Attributes
-    -- | Bind the stroke to this key in insert mode.  If it is ' ', don't bind
-    -- to a key at all.  This should be called "key", but that's sometimes
-    -- already taken for midi key.
-    , _char :: !Char
+    -- | Bind the stroke to this key in insert mode.  This should be called
+    -- "key", but that's sometimes already taken for midi key.
+    , _char :: !(Maybe Char)
     -- | Scale the dynamic by this value.  This is for drums that have
     -- different symbols for soft strokes.
     , _dynamic :: !Signal.Y
@@ -43,13 +42,10 @@ stroke :: Char -> Expr.Symbol -> Attributes -> Stroke
 stroke char name attrs = Stroke
     { _name = name
     , _attributes = attrs
-    , _char = char
+    , _char = if char == ' ' then Nothing else Just char
     , _dynamic = 1
     , _group = ""
     }
-
-no_key :: Char
-no_key = ' '
 
 stroke_dyn :: Char -> Expr.Symbol -> Attributes -> Signal.Y -> Stroke
 stroke_dyn char name attrs dyn = (stroke char name attrs) { _dynamic = dyn }

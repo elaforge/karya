@@ -136,7 +136,7 @@ stops :: Drums.Stops
     make stroke = Drums.Stroke
         { _name = either to_sym to_sym stroke
         , _attributes = either thoppi_attrs valantalai_attrs stroke
-        , _char = Map.findWithDefault Drums.no_key
+        , _char = Map.lookup
             (either Mridangam.Thoppi Mridangam.Valantalai stroke) keys
         , _dynamic = 1
         , _group = either t_group v_group stroke
@@ -256,9 +256,7 @@ make_code thru pitched_strokes natural_nn transform strokes both = mconcat
         ]
         where doc = "Emit the drum's recorded pitch. Use like `#=(natural)`."
     char_to_call = concat
-        [ [ (Drums._char n, Drums._name n)
-          | n <- strokes, Drums._char n /= Drums.no_key
-          ]
+        [ [(c, _name) | Drums.Stroke { _char = Just c, _name } <- strokes]
         , [(char, call) | (call, _, Just char) <- both]
         ]
 
