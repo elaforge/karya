@@ -85,7 +85,7 @@ patches = map add_doc $
         ]
         where n = Drums.stroke
     kempli_kajar_notes =
-        [ (n 'z' "+"    kempli,                 Key2.d3)
+        [ (n 'z' "*"    kempli,                 Key2.d3)
         , (n 'a' "`O+`" (kempli <> open),       Key2.ds3)
         , (n 'x' "+1"   (kempli <> Attrs.v1),   Key2.f3)
         , (n 'c' "+2"   (kempli <> Attrs.v2),   Key2.g3)

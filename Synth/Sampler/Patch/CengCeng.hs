@@ -75,7 +75,7 @@ rincikStrokeMap = Drum.replaceSoft 0.75 $ Drum.strokeMapTable stops $
     , ('z', "O", Attr $ Attrs.open)
     , ('s', "-", Attr $ Attrs.closed <> soft)
     , ('x', "+", Attr $ Attrs.closed)
-    , ('d', "X", Attr $ Attrs.mute <> soft)
+    , ('d', "x", Attr $ Attrs.mute <> soft)
     , ('c', "X", Attr $ Attrs.mute)
     ] ++
     -- Create articulation associations for per-hand strokes, though there is

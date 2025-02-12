@@ -18,6 +18,7 @@
 module App.LoadInstruments (
     all_loads, load
 #ifdef TESTING
+    , synth_warnings
     , load_synths
 #endif
 ) where
@@ -36,6 +37,8 @@ import qualified Perform.Lilypond.Constants as Lilypond.Constants
 import qualified Perform.Sc.PatchDb as Sc.PatchDb
 import qualified Util.Log as Log
 
+-- Disable these for tests, they pull in stuff like _faust_allocate
+-- which isn't in ghci.
 #include "hsconfig.h"
 #if defined(ENABLE_IM) && !defined(TESTING)
 import qualified Synth.Faust.PatchDb as Faust.PatchDb

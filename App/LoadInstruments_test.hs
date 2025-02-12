@@ -15,3 +15,4 @@ test_warns = do
     -- TODO Fix it:
     -- ["sc-kempli: shadowed note calls in module inst: \"+\": +; +"]
     equal warns []
+    equal LoadInstruments.synth_warnings []
