@@ -54,7 +54,8 @@ test_midi (Right interface) = do
     let open = open_devices interface
     args <- System.Environment.getArgs
     case args of
-        [] -> do
+        [] -> pure ()
+        ["monitor"] -> do
             putStrLn "monitoring (pass arg 'help' for help)"
             (_, read_msg) <- open True rdevs Nothing
             monitor read_msg
@@ -140,7 +141,8 @@ blocking_get read_chan = STM.atomically $ fmap Just (STM.readTChan read_chan)
 
 usage :: String
 usage =
-    "(no arg)             monitor all inputs\n\
+    "(no arg)             print devs and exit\n\
+    \monitor              monitor all inputs\n\
     \record-sysex         save incoming sysex msgs to files\n\
     \send-sysex <out> fn  read a raw sysex from fn and send it to the port\n\
     \monitor <a> <b> ...  monitor input ports 'a' and 'b'\n\

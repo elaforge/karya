@@ -6,9 +6,10 @@
 
 - If you will use MIDI: Set up some internal MIDI devices.  On OS X this means
 going to "Audio MIDI Setup", open up "IAC Driver" and add IAC ports.  I add 4
-and rename them to 1 2 3 4.  You can test MIDI connection with `test_midi`:
-`bin/mk build/opt/test_midi`.  Just run it and it will monitor from the inputs,
-so play your MIDI keyboard if you have one, and make sure events show up.  On
+and rename them to 1 2 3 4.  You have to check the "Device is online" box.
+You can test MIDI connection with `test_midi`:
+`bin/run build/opt/test_midi monitor`.  It will monitor from the inputs, so
+play your MIDI keyboard if you have one, and make sure events show up.  On
 OS X, I recommend "Midi Monitor" for debugging MIDI connections.  On linux,
 JACK provides the MIDI IPC, so you should be able to use something like
 `qjackctl` to connect.
