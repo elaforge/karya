@@ -819,10 +819,15 @@ configureFltk fltkConfig = do
     -- and some defines, which are already in there.  This is extra weird
     -- because gcc passes to the linker via -Wl,xyz while ghc uses -optl=xyz.
     -- But ghc's -optl is not actually the linker, but the compiler.
-    fltkLds <- map wrapLd . filter (/="-pthread") . words <$>
+    fltkLds <- map wrapLd . filter (`notElem` unwanted) . words <$>
         run (Config.fltkConfig localConfig) ["--ldflags"]
     return (fltkVersion, fltkCs, fltkLds)
     where
+    -- ghc doesn't support -weak_framework.  I tried to pass via -optl, but
+    -- then it says "ld: framework not found UniformTypeIdentifiers".
+    -- But, it seems to be unneeded.  fltk uses it in
+    -- Fl_Native_File_Chooser_MAC.mm, which I don't use.
+    unwanted = ["-pthread", "-weak_framework", "UniformTypeIdentifiers"]
     -- fltk-config --cflags started putting -g and -O2 in the flags, which
     -- messes up hsc2hs, which wants only CPP flags.
     wantCflag w = any (\c -> ('-':c:"") `List.isPrefixOf` w) ['I', 'D']
@@ -973,7 +978,7 @@ main = Concurrent.withConcurrentOutput $ Regions.displayConsoleRegions $ do
             need icons
             Util.system "iconutil" ["-c", "icns", "-o", fn, iconset]
         forM_ extractableDocs $ \fn ->
-            fn %> extractDoc (modeConfig Debug)
+            fn %> extractDoc (modeConfig Opt)
         testRules (modeConfig Test)
         profileRules (modeConfig Profile)
         -- Opt in case profiling flags make a difference, but they can't

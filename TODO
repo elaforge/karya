@@ -171,13 +171,16 @@ external:
 
 UNSORTED
   new osx:
-    - doesn't detect MIDI ports
+    * doesn't detect MIDI ports
       . MIDIGetNumberOfSources() returns 0
+      . have to check "online"!
     - windows for seq and logview don't come to front when run
       . try upgrading fltk
+      . now all but seq.app
     - no icons for running processes
-      . try upgrading fltk
-    - warnings on stdout:
+      . Create a dir inside .app seems to force it to refresh?  Still no icon
+        though.
+    / warnings on stdout:
       . try upgrading fltk
       . 2025-02-03 08:38:59.782 seq[4288:10403147] +[IMKClient subclass]:
         chose IMKClient_Modern
@@ -185,6 +188,7 @@ UNSORTED
         subclass]: chose IMKInputSession_Modern
       . 2025-02-03 08:37:33.462 seq[3111:10397365] error messaging the mach
         port for IMKCFRunLoopWakeUpReliable
+      . Apparently a MacOS bug, harmless but noisy.
     - concurrent-output Shake/Progress.hs doesn't work
       . in iterm, what about apple terminal?  Same, must be concurrent-output
     - hold down key repeat doesn't work
@@ -282,7 +286,30 @@ UNSORTED
       to color config.
   - I still have the out of sync problem with ky inst allocs vs UiConfig
   - upgrade to ghc 9.4:
-    + fclabels doesn't like base 4.17
+    new features:
+      9.4:
+        . https://downloads.haskell.org/~ghc/9.4.1/docs/users_guide/9.4.1-notes.html
+        . -fprof-late
+        . Enable -fworker-wrapper-cbv, usually good but not on by default.
+        . -eventlog no longer needed
+        . The load function no longer automatically caches interface files in
+          memory between calls. If you want to use a cache then you can supply
+          one explicitly using the loadWithCache function, with your own
+          implementation or a simple cache created by newIfaceCache.
+        . GhcRepl: GHC.Target has changed
+      9.6:
+        . https://downloads.haskell.org/~ghc/9.6.4/docs/users_guide/9.6.1-notes.html
+        . https://gitlab.haskell.org/ghc/ghc/-/wikis/migration/9.6
+        . Nothing much?
+      9.8:
+        . https://downloads.haskell.org/ghc/9.8.4/docs/users_guide/9.8.1-notes.html
+        . https://github.com/ghc-proposals/ghc-proposals/blob/master/proposals/0425-decl-invis-binders.rst
+        . parallel compiles:
+          https://github.com/ghc-proposals/ghc-proposals/blob/master/proposals/0540-jsem.rst
+      9.10:
+        . https://downloads.haskell.org/ghc/9.10.1-alpha2/docs/users_guide/9.10.1-notes.html
+    * fclabels doesn't like base 4.17
+      . I think they fixed it.
       . Probably due to TH as usual, which I don't even use.
       . easily fixable: https://github.com/sebastiaanvisser/fclabels/issues/44
       . But still it's a liability compared to say microlens.
@@ -293,15 +320,11 @@ UNSORTED
         different?
       . Even optics-core looks crazy.  What if I migrate to DotRecordSyntax
         and remove lenses entirely?
+      . Or write my own little lens library, all I need is get and set!
     + compiling clock:
       error: ld: unknown option: -no_fixup_chains
       . https://github.com/haskell/zlib/issues/53
       . Edit hcs2hs. This is because my OSX is too old.
-    - GhcRepl: GHC.Target has changed
-    - I may have to do GHC.loadWithCache in ReplGhc
-      . Cache provided by newIfaceCache
-      . https://downloads.haskell.org/~ghc/9.4.6/docs/users_guide/9.4.1-notes.html#ghc-library
-    . Enable -fworker-wrapper-cbv, usually good but not on by default.
   ? suddenly new instruments don't get midi, wtf?
     . It was reaper "record monitoring".
     . Since I forget this a lot, can I have some way to remind myself?
