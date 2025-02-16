@@ -183,9 +183,37 @@ in rec {
       }
     else nixpkgs.rubberband;
 
-  # I want some unreleased fixes, for mousewheel and Fl_Image_Surface.
-  fltk =
+  fltk = fltkNew;
+
+  fltkNew =
+    # Upgrade to 1.4.1 release.
     let
+      src = nixpkgs.fetchFromGitHub {
+        owner = "fltk";
+        repo = "fltk";
+        rev = "release-1.4.1";
+        sha256 = "sha256-cm2jskrVrbYEJkGAb/s4Mh+et56//2+ypVEWNdqmhhE=";
+      };
+      name = "fltk-1.4.1";
+    in
+      (nixpkgs.fltk14-minimal.override {
+        withShared = false;
+      }).overrideAttrs (old: {
+        inherit name src;
+        # Rejected Fl_cocoa.mm patch.
+        patches = [];
+        buildInputs = old.buildInputs ++ [
+          # Otherwise:
+          # > source/src/Fl_Native_File_Chooser_MAC.mm: 32:11: fatal error:
+          # 'UniformTypeIdentifiers/UniformTypeIdentifiers.h' file not found
+          nixpkgs.darwin.apple_sdk.frameworks.UniformTypeIdentifiers
+        ];
+        postInstall = "";
+      });
+
+  fltkOld =
+    let
+      # I want some unreleased fixes, for mousewheel and Fl_Image_Surface.
       commit = "84c09ae7b2de0ad9142551ebd4f53a7e113902b4";
       name = "fltk-1.4-${commit}";
       src = builtins.fetchGit {
@@ -193,35 +221,10 @@ in rec {
         rev = commit;
         ref = "master";
       };
-
-      # TODO: new release but won't build with nixpkgs version, rejected
-      # Fl_cocoa.mm patch.
-      # without patch:
-      # > source/src/Fl_Native_File_Chooser_MAC.mm: 32:11: fatal error:
-      # 'UniformTypeIdentifiers/UniformTypeIdentifiers.h' file not found
-
-      # src = nixpkgs.fetchFromGitHub {
-      #   owner = "fltk";
-      #   repo = "fltk";
-      #   rev = "release-1.4.1";
-      #   sha256 = "sha256-cm2jskrVrbYEJkGAb/s4Mh+et56//2+ypVEWNdqmhhE=";
-      # };
-      # name = "fltk-1.4.1";
-
-    # It's 21.11 but winds up being 21.11pre-git which is considered < 21.11
-    in if builtins.compareVersions lib.version "21.10" >= 0 then
+    in
       (nixpkgs.fltk14-minimal.override {
         withShared = false;
-      }).overrideAttrs (old: { inherit name src; })
-    else
-      nixpkgs.fltk14.overrideAttrs (old: {
-        inherit name src;
-        nativeBuildInputs = [nixpkgs.autoconf] ++ old.nativeBuildInputs;
-        # TODO The nixpkgs version has deps on GL, freetype, libtiff, which
-        # I think I can omit.
-        configureFlags = [];
-        # dontUseCmakeConfigure = true; # only necessary for new cmake build
-      });
+      }).overrideAttrs (old: { inherit name src; });
 
   hackageGhc =
     let wantPkg = pkg:
