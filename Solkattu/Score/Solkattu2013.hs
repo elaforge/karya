@@ -225,32 +225,29 @@ k2 chatusram_transition = korvaiS1 adi k1_mridangam $ nadai 5 $
 
 k3s :: Korvai
 k3s = korvaiS adi mridangam $ map (nadai 5)
-    [   dit . __  . tangkita . dit   . tat . din§2 . __
-      . dit . tat . tangkita . dit§4 . tat . din . __
+    [   dit . __  . tangkita.dit   . tat.din§2 . __
+      . dit . tat . tangkita.dit§4 . tat.din . __
       . ta . __ . dit . tat . din . __
       . ta§6.ka.dit.tat.din.__
       . ta.ki.ta.ta.ki§0.ta
       . p6.__.p6.p6.__.p6.p6.p6 -- utarangam
 
-    ,   dit . __  . tangkita . din . __4
-      . dit . tat . tangkita . din . __4
-      . dit . __  . tangkita . din . __
-      . dit . tat . tangkita . din . __
+    ,   dit . __  . tangkita.din.__4
+      . dit . tat . tangkita.din.__4
+      . dit . __  . tangkita.din.__
+      . dit . tat . tangkita.din.__
       . dit . __  . tangkita
       . dit . tat . tangkita
       . tri_ __ p6
     ]
     where
-    tangkita = su (tang . __ . kitataka . tarikitataka)
-    kitataka = ki.ta.tha.ka
-    tarikitataka = ta.ri.kitataka
+    tangkita = su (tang . __ . kita.nakatiku)
     mridangam = makeMridangam
         [ (dit, p&k)
+        , (tang.__.kita, u.__.p.k)
         , (ta.ki.ta, p.k.od)
         , (taka, p.k)
         , (dit.tat, p.k)
-        , (kitataka, p.k.n.p)
-        , (tarikitataka, u.p.k.t.p.k)
         , (din, od)
         , (ta, k)
         ]
