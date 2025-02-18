@@ -89,19 +89,13 @@ data Note = Note {
 note_end :: Note -> TrackTime
 note_end note = note_start note + note_duration note
 
-start = Lens.lens note_start
-    (\f r -> r { note_start = f (note_start r) })
-duration = Lens.lens note_duration
-    (\f r -> r { note_duration = f (note_duration r) })
-text = Lens.lens note_text
-    (\f r -> r { note_text = f (note_text r) })
-controls = Lens.lens note_controls
-    (\f r -> r { note_controls = f (note_controls r) })
-index = Lens.lens note_index
-    (\f r -> r { note_index = f (note_index r) })
+start = Lens.lens note_start (\r a -> r { note_start = a })
+duration = Lens.lens note_duration (\r a -> r { note_duration = a })
+text = Lens.lens note_text (\r a -> r { note_text = a })
+controls = Lens.lens note_controls (\r a -> r { note_controls = a })
+index = Lens.lens note_index (\r a -> r { note_index = a })
 
-end = Lens.lens note_end
-    (\f r -> r { note_start = f (note_end r) - note_duration r })
+end = Lens.lens note_end (\r a -> r { note_start = a - note_duration r })
 
 note_min :: Note -> TrackTime
 note_min n = min (note_start n) (note_end n)

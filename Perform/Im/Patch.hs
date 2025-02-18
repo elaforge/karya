@@ -33,12 +33,10 @@ patch = Patch
     , patch_elements = mempty
     }
 
-controls = Lens.lens patch_controls
-    (\f r -> r { patch_controls = f (patch_controls r) })
+controls = Lens.lens patch_controls (\r a -> r { patch_controls = a })
 attribute_map = Lens.lens patch_attribute_map
-    (\f r -> r { patch_attribute_map = f (patch_attribute_map r) })
-elements = Lens.lens patch_elements
-    (\f r -> r { patch_elements = f (patch_elements r) })
+    (\r a -> r { patch_attribute_map = a })
+elements = Lens.lens patch_elements (\r a -> r { patch_elements = a })
 
 instance Pretty Patch where
     format (Patch controls attr_map elements) = Pretty.record "Patch"

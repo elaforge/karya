@@ -22,7 +22,6 @@ directory
 dlist
 exceptions
 extra
-fclabels
 filepath
 ghc
 ghc-events
@@ -41,6 +40,7 @@ mersenne-random-pure64
 mtl
 network
 old-locale
+optics-core
 parser-combinators
 pcre-heavy
 pcre-light

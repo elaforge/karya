@@ -115,30 +115,22 @@ empty_config = Config
     }
 
 -- Ui.State already has a function called 'namespace'.
-namespace_ = Lens.lens config_namespace
-    (\f r -> r { config_namespace = f (config_namespace r) })
-meta = Lens.lens config_meta
-    (\f r -> r { config_meta = f (config_meta r) })
-root = Lens.lens config_root
-    (\f r -> r { config_root = f (config_root r) })
+namespace_ = Lens.lens config_namespace (\r a -> r { config_namespace = a })
+meta = Lens.lens config_meta (\r a -> r { config_meta = a })
+root = Lens.lens config_root (\r a -> r { config_root = a })
 allocations = Lens.lens config_allocations
-    (\f r -> r { config_allocations = f (config_allocations r) })
-lilypond = Lens.lens config_lilypond
-    (\f r -> r { config_lilypond = f (config_lilypond r) })
-default_ = Lens.lens config_default
-    (\f r -> r { config_default = f (config_default r) })
+    (\r a -> r { config_allocations = a })
+lilypond = Lens.lens config_lilypond (\r a -> r { config_lilypond = a })
+default_ = Lens.lens config_default (\r a -> r { config_default = a })
 saved_views = Lens.lens config_saved_views
-    (\f r -> r { config_saved_views = f (config_saved_views r) })
-ky = Lens.lens config_ky
-    (\f r -> r { config_ky = f (config_ky r) })
-tscore = Lens.lens config_tscore
-    (\f r -> r { config_tscore = f (config_tscore r) })
+    (\r a -> r { config_saved_views = a })
+ky = Lens.lens config_ky (\r a -> r { config_ky = a })
+tscore = Lens.lens config_tscore (\r a -> r { config_tscore = a })
 
 -- | Unwrap the newtype for convenience.
 allocations_map :: Lens Config (Map ScoreT.Instrument Allocation)
 allocations_map = Lens.lens (open . config_allocations)
-    (\f r -> r { config_allocations =
-        Allocations $ f $ open $ config_allocations r })
+    (\r a -> r { config_allocations = Allocations a })
     where open (Allocations a) = a
 
 -- | Insert an allocation into 'config_allocations' while checking it for
@@ -393,19 +385,15 @@ empty_meta = Meta
     , meta_im_performances = mempty
     }
 
-creation = Lens.lens meta_creation
-    (\f r -> r { meta_creation = f (meta_creation r) })
-last_save = Lens.lens meta_last_save
-    (\f r -> r { meta_last_save = f (meta_last_save r) })
-notes = Lens.lens meta_notes
-    (\f r -> r { meta_notes = f (meta_notes r) })
+creation = Lens.lens meta_creation (\r a -> r { meta_creation = a })
+last_save = Lens.lens meta_last_save (\r a -> r { meta_last_save = a })
+notes = Lens.lens meta_notes (\r a -> r { meta_notes = a })
 midi_performances = Lens.lens meta_midi_performances
-    (\f r -> r { meta_midi_performances = f (meta_midi_performances r) })
+    (\r a -> r { meta_midi_performances = a })
 lilypond_performances = Lens.lens meta_lilypond_performances
-    (\f r -> r { meta_lilypond_performances =
-        f (meta_lilypond_performances r) })
+    (\r a -> r { meta_lilypond_performances = a })
 im_performances = Lens.lens meta_im_performances
-    (\f r -> r { meta_im_performances = f (meta_im_performances r) })
+    (\r a -> r { meta_im_performances = a })
 
 type MidiPerformance = Performance (Vector.Vector Midi.WriteMessage)
 type LilypondPerformance = Performance Text
@@ -457,8 +445,7 @@ data Default = Default {
 empty_default :: Default
 empty_default = Default { default_tempo = 1 }
 
-tempo = Lens.lens default_tempo
-    (\f r -> r { default_tempo = f (default_tempo r) })
+tempo = Lens.lens default_tempo (\r a -> r { default_tempo = a })
 
 instance Pretty Config where
     format (Config namespace meta root allocations lily dflt saved_views ky

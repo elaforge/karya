@@ -106,7 +106,7 @@ basicPackages = concat
     , w "attoparsec" -- Derive: tracklang parsing
     , w "old-locale"
     , w "hlibgit2"
-    , [("fclabels", ">=2")]
+    , w "optics-core"
     , w "ghc ghc-paths haskeline terminfo" -- REPL
     -- Derive: score randomization
     , w "mersenne-random-pure64 random-shuffle"

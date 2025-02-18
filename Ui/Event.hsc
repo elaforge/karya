@@ -184,9 +184,7 @@ end :: Event -> ScoreTime
 end e = start e + duration e
 
 end_ :: Lens Event TrackTime
-end_ = Lens.lens end update
-    where
-    update modify event = duration_ #= modify (end event) - start event $ event
+end_ = Lens.lens end (\event t -> duration_ #= t - start event $ event)
 
 range :: Event -> (ScoreTime, ScoreTime)
 range e = (min e, max e)
@@ -211,11 +209,10 @@ event_lens_eq :: (a -> a -> Bool) -> Bool -> (Event -> a)
     -> (a -> Event -> Event) -> Lens.Lens Event a
 event_lens_eq eq set_modified field set = Lens.lens field update
     where
-    update modify event
+    update event val
         | field event `eq` val = event
         | set_modified = modified (set val event)
         | otherwise = set val event
-        where val = modify (field event)
 
 -- ** Orientation
 

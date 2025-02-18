@@ -760,14 +760,11 @@ data ScopesT gen trans track val = Scopes {
     -- that want both generator and transformer versions, and it's convenient
     -- to be able to deal with those together.
 
-s_generator = Lens.lens scopes_generator
-    (\f r -> r { scopes_generator = f (scopes_generator r) })
+s_generator = Lens.lens scopes_generator (\r a -> r { scopes_generator = a })
 s_transformer = Lens.lens scopes_transformer
-    (\f r -> r { scopes_transformer = f (scopes_transformer r) })
-s_track = Lens.lens scopes_track
-    (\f r -> r { scopes_track = f (scopes_track r) })
-s_val = Lens.lens scopes_val
-    (\f r -> r { scopes_val = f (scopes_val r) })
+    (\r a -> r { scopes_transformer = a })
+s_track = Lens.lens scopes_track (\r a -> r { scopes_track = a })
+s_val = Lens.lens scopes_val (\r a -> r { scopes_val = a })
 
 instance (Pretty gen, Pretty trans, Pretty track, Pretty val) =>
         Pretty (ScopesT gen trans track val) where
@@ -793,12 +790,9 @@ data Scope note control pitch = Scope {
     , scope_pitch :: !pitch
     }
 
-s_note = Lens.lens scope_note
-    (\f r -> r { scope_note = f (scope_note r) })
-s_control = Lens.lens scope_control
-    (\f r -> r { scope_control = f (scope_control r) })
-s_pitch = Lens.lens scope_pitch
-    (\f r -> r { scope_pitch = f (scope_pitch r) })
+s_note = Lens.lens scope_note (\r a -> r { scope_note = a })
+s_control = Lens.lens scope_control (\r a -> r { scope_control = a })
+s_pitch = Lens.lens scope_pitch (\r a -> r { scope_pitch = a })
 
 instance (Pretty note, Pretty control, Pretty pitch) =>
         Pretty (Scope note control pitch) where

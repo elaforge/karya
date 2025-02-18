@@ -64,9 +64,8 @@ data Inst code = Inst {
     , inst_common :: !(Common.Common code)
     } deriving (Show)
 
-backend = Lens.lens inst_backend
-    (\f r -> r { inst_backend = f (inst_backend r) })
-common = Lens.lens inst_common (\f r -> r { inst_common = f (inst_common r) })
+backend = Lens.lens inst_backend (\r a -> r { inst_backend = a })
+common = Lens.lens inst_common (\r a -> r { inst_common = a })
 
 instance Pretty code => Pretty (Inst code) where
     format (Inst backend common) = Pretty.record "Inst"
@@ -122,7 +121,7 @@ data Synth code = Synth {
     , synth_insts :: !(Map InstT.Name (Inst code))
     } deriving (Show)
 
-insts = Lens.lens synth_insts (\f r -> r { synth_insts = f (synth_insts r) })
+insts = Lens.lens synth_insts (\r a -> r { synth_insts = a })
 
 instance Pretty code => Pretty (Synth code) where
     format (Synth _ insts) = Pretty.format insts

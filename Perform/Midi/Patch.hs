@@ -97,12 +97,10 @@ data Config = Config {
     , config_settings :: !Settings
     } deriving (Eq, Show, Generics.Generic)
 
-allocation = Lens.lens config_allocation
-    (\f r -> r { config_allocation = f (config_allocation r) })
+allocation = Lens.lens config_allocation (\r a -> r { config_allocation = a })
 initialization = Lens.lens config_initialization
-    (\f r -> r { config_initialization = f (config_initialization r) })
-settings = Lens.lens config_settings
-    (\f r -> r { config_settings = f (config_settings r) })
+    (\r a -> r { config_initialization = a })
+settings = Lens.lens config_settings (\r a -> r { config_settings = a })
 
 config_addrs :: Config -> [Addr]
 config_addrs = map fst . config_allocation
@@ -177,15 +175,12 @@ instance Monoid Settings where
     mappend = (<>)
 
 pitch_bend_range = Lens.lens config_pitch_bend_range
-    (\f r -> r { config_pitch_bend_range = f (config_pitch_bend_range r) })
-decay = Lens.lens config_decay
-    (\f r -> r { config_decay = f (config_decay r) })
-scale = Lens.lens config_scale
-    (\f r -> r { config_scale = f (config_scale r) })
-flags = Lens.lens config_flags
-    (\f r -> r { config_flags = f (config_flags r) })
+    (\r a -> r { config_pitch_bend_range = a })
+decay = Lens.lens config_decay (\r a -> r { config_decay = a })
+scale = Lens.lens config_scale (\r a -> r { config_scale = a })
+flags = Lens.lens config_flags (\r a -> r { config_flags = a })
 control_defaults = Lens.lens config_control_defaults
-    (\f r -> r { config_control_defaults = f (config_control_defaults r) })
+    (\r a -> r { config_control_defaults = a })
 
 -- * Patch
 
@@ -219,17 +214,13 @@ instance Pretty Patch where
             , ("defaults", Pretty.format defaults)
             ]
 
-name = Lens.lens patch_name (\f r -> r { patch_name = f (patch_name r) })
-control_map = Lens.lens patch_control_map
-    (\f r -> r { patch_control_map = f (patch_control_map r) })
-initialize = Lens.lens patch_initialize
-    (\f r -> r { patch_initialize = f (patch_initialize r) })
+name = Lens.lens patch_name (\r a -> r { patch_name = a })
+control_map = Lens.lens patch_control_map (\r a -> r { patch_control_map = a })
+initialize = Lens.lens patch_initialize (\r a -> r { patch_initialize = a })
 attribute_map = Lens.lens patch_attribute_map
-    (\f r -> r { patch_attribute_map = f (patch_attribute_map r) })
-mode_map = Lens.lens patch_mode_map
-    (\f r -> r { patch_mode_map = f (patch_mode_map r) })
-defaults = Lens.lens patch_defaults
-    (\f r -> r { patch_defaults = f (patch_defaults r) })
+    (\r a -> r { patch_attribute_map = a })
+mode_map = Lens.lens patch_mode_map (\r a -> r { patch_mode_map = a })
+defaults = Lens.lens patch_defaults (\r a -> r { patch_defaults = a })
 
 -- | Create a Patch with empty vals, to set them as needed.
 patch :: Control.PbRange -> InstT.Name -> Patch

@@ -46,13 +46,11 @@ data Config = Config {
     } deriving (Eq, Read, Show)
 
 quarter_duration = Lens.lens config_quarter_duration
-    (\f r -> r { config_quarter_duration = f (config_quarter_duration r) })
-quantize = Lens.lens config_quantize
-    (\f r -> r { config_quantize = f (config_quantize r) })
+    (\r a -> r { config_quarter_duration = a })
+quantize = Lens.lens config_quantize (\r a -> r { config_quantize = a })
 dotted_rests = Lens.lens config_dotted_rests
-    (\f r -> r { config_dotted_rests = f (config_dotted_rests r) })
-staves = Lens.lens config_staves
-    (\f r -> r { config_staves = f (config_staves r) })
+    (\r a -> r { config_dotted_rests = a })
+staves = Lens.lens config_staves (\r a -> r { config_staves = a })
 
 data StaffConfig = StaffConfig {
     -- | Set Staff.instrumentName or PianoStaff.instrumentName.
@@ -76,13 +74,12 @@ data StaffConfig = StaffConfig {
     , staff_add_bass_staff :: !Bool
     } deriving (Eq, Read, Show)
 
-long = Lens.lens staff_long (\f r -> r { staff_long = f (staff_long r) })
-short = Lens.lens staff_short (\f r -> r { staff_short = f (staff_short r) })
-code = Lens.lens staff_code (\f r -> r { staff_code = f (staff_code r) })
-display = Lens.lens staff_display
-    (\f r -> r { staff_display = f (staff_display r) })
+long = Lens.lens staff_long (\r a -> r { staff_long = a })
+short = Lens.lens staff_short (\r a -> r { staff_short = a })
+code = Lens.lens staff_code (\r a -> r { staff_code = a })
+display = Lens.lens staff_display (\r a -> r { staff_display = a })
 add_bass_staff = Lens.lens staff_add_bass_staff
-    (\f r -> r { staff_add_bass_staff = f (staff_add_bass_staff r) })
+    (\r a -> r { staff_add_bass_staff = a })
 
 type Instrument = Text
 

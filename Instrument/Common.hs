@@ -55,15 +55,12 @@ data Common code = Common {
     , common_call_map :: !CallMap
     } deriving (Show, Functor)
 
-code = Lens.lens common_code (\f r -> r { common_code = f (common_code r) })
-environ = Lens.lens common_environ
-    (\f r -> r { common_environ = f (common_environ r) })
-tags = Lens.lens common_tags (\f r -> r { common_tags = f (common_tags r) })
-doc = Lens.lens common_doc (\f r -> r { common_doc = f (common_doc r) })
-flags = Lens.lens common_flags (\f r -> r { common_flags = f (common_flags r) })
-call_map = Lens.lens common_call_map
-    (\f r -> r { common_call_map = f (common_call_map r) })
-
+code = Lens.lens common_code (\r a -> r { common_code = a })
+environ = Lens.lens common_environ (\r a -> r { common_environ = a })
+tags = Lens.lens common_tags (\r a -> r { common_tags = a })
+doc = Lens.lens common_doc (\r a -> r { common_doc = a })
+flags = Lens.lens common_flags (\r a -> r { common_flags = a })
+call_map = Lens.lens common_call_map (\r a -> r { common_call_map = a })
 -- | Map attributes to the names of the calls they should map to.  This
 -- is used by the integrator to turn score events into UI events.
 type CallMap = Map Attrs.Attributes Expr.Symbol
@@ -203,14 +200,10 @@ empty_config = Config
     , config_solo = False
     }
 
-cenviron = Lens.lens config_environ
-    (\f r -> r { config_environ = f (config_environ r) })
-controls = Lens.lens config_controls
-    (\f r -> r { config_controls = f (config_controls r) })
-mute = Lens.lens config_mute
-    (\f r -> r { config_mute = f (config_mute r) })
-solo = Lens.lens config_solo
-    (\f r -> r { config_solo = f (config_solo r) })
+cenviron = Lens.lens config_environ (\r a -> r { config_environ = a })
+controls = Lens.lens config_controls (\r a -> r { config_controls = a })
+mute = Lens.lens config_mute (\r a -> r { config_mute = a })
+solo = Lens.lens config_solo (\r a -> r { config_solo = a })
 
 instance Pretty Config where
     format (Config environ controls mute solo) = Pretty.record "Config"

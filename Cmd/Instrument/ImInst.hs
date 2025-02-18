@@ -65,9 +65,8 @@ make_patch p = Patch
     , patch_common = Common.common mempty
     }
 
-patch = Lens.lens patch_patch (\f r -> r { patch_patch = f (patch_patch r) })
-common = Lens.lens patch_common
-    (\f r -> r { patch_common = f (patch_common r) })
+patch = Lens.lens patch_patch (\r a -> r { patch_patch = a })
+common = Lens.lens patch_common (\r a -> r { patch_common = a })
 
 -- | Cause this to have a Dummy backend.  It's a bit sloppy in that the
 -- contents of 'patch_patch' will be ignored, but it's convenient in that

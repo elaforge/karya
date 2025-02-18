@@ -223,9 +223,8 @@ data Patch = Patch {
     , patch_common :: Common.Common Code
     }
 
-patch = Lens.lens patch_patch (\f r -> r { patch_patch = f (patch_patch r) })
-common = Lens.lens patch_common
-    (\f r -> r { patch_common = f (patch_common r) })
+patch = Lens.lens patch_patch (\r a -> r { patch_patch = a })
+common = Lens.lens patch_common (\r a -> r { patch_common = a })
 
 instance Pretty Patch where
     format (Patch patch dummy common) = Pretty.record "Patch"
