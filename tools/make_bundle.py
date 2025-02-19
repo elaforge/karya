@@ -47,17 +47,17 @@ def make_wrapper(binary):
 
 def make_app_dir(app_dir, binary, icon, type):
     bindir = f'{app_dir}/Contents/MacOS'
+    name = os.path.basename(binary)
     run(['rm', '-rf', app_dir])
     os.makedirs(bindir, exist_ok=True)
     os.rename(binary, os.path.join(bindir, os.path.basename(binary)))
     if icon:
         os.makedirs(f'{app_dir}/Contents/Resources', exist_ok=True)
-        run(['cp', icon, f'{app_dir}/Contents/Resources/icon'])
-        icon_info = '<key>CFBundleIconFile</key> <string>icon</string>'
+        run(['cp', icon, f'{app_dir}/Contents/Resources/{name}.icns'])
+        icon_info = f'<key>CFBundleIconFile</key> <string>{name}.icns</string>'
     else:
         icon_info = ''
     with open(f'{app_dir}/Contents/Info.plist', 'w') as fp:
-        name = os.path.basename(binary)
         fp.write(PLIST.format(
             name=name,
             id='elaforge.seq.' + name.replace(' ', '_'),
@@ -76,6 +76,8 @@ PLIST = """\
     <key>CFBundleName</key> <string>{name}</string>
     <key>CFBundlePackageType</key> <string>{type}</string>
     <key>NSHighResolutionCapable</key><true/>
+    <key>CFBundleVersion</key> <string>1.0.0</string>
+    <key>CFBundleShortVersionString</key> <string>1.0.0</string>
     {icon_info}
 </dict>
 </plist>

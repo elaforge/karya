@@ -170,6 +170,14 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
+  - 'p 5' was interpreted as "p" at volume 5, which is then ear destroying
+    . Maybe it overflows 32bit int wav, which is then scramble.
+    . The warning does warn, but it just has seconds into the sample, it
+      doesn't have the original score position.
+    . Also maybe instead of warning, it should mute?  Better than permanent
+      muting, or destroying ears.
+    . Where did that test audio program go?  I was using it to compare samples
+      from... streams or something?
   new osx:
     * doesn't detect MIDI ports
       . MIDIGetNumberOfSources() returns 0
@@ -177,7 +185,7 @@ UNSORTED
     - windows for seq and logview don't come to front when run
       . try upgrading fltk
       . now all but seq.app
-    - no icons for running processes
+    * no icons for running processes
       . Create a dir inside .app seems to force it to refresh?  Still no icon
         though.
     / warnings on stdout:
@@ -195,7 +203,7 @@ UNSORTED
       . turns out I need
         defaults write -g ApplePressAndHoldEnabled -bool false
       . There must be some way for the app to signal that it wants this.
-    - shake compile restarts between windows
+    / shake compile restarts between windows
       . Even with Shake.ChangeDigest it's still doing it!
       . Fixed after exiting and re nix-enter in both, maybe different
         version of... something?
