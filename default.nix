@@ -195,7 +195,7 @@ in rec {
         sha256 = "sha256-cm2jskrVrbYEJkGAb/s4Mh+et56//2+ypVEWNdqmhhE=";
       };
       name = "fltk-1.4.1";
-    in
+    in if isDarwin then
       (nixpkgs.fltk14-minimal.override {
         withShared = false;
       }).overrideAttrs (old: {
@@ -209,7 +209,14 @@ in rec {
           nixpkgs.darwin.apple_sdk.frameworks.UniformTypeIdentifiers
         ];
         postInstall = "";
-      });
+      })
+    else
+      (nixpkgs.fltk14-minimal.override {
+        withShared = false;
+      }).overrideAttrs (old: {
+        inherit name src;
+      })
+    ;
 
   fltkOld =
     let
