@@ -28,7 +28,6 @@ import           Global
 main :: IO ()
 main = PortAudio.initialize $ do
     (flags, (dir, (muted, start))) <- parseArgs =<< Environment.getArgs
-
     (devs, defaultDev) <- StreamAudio.getDevices
     when (List `elem` flags) $ do
         forM_ (map fst devs) $ \dev ->

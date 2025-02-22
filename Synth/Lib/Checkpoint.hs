@@ -30,9 +30,7 @@ import qualified Data.ByteString.Char8 as ByteString.Char8
 import qualified Data.List as List
 import qualified Data.Set as Set
 import qualified Data.Time as Time
-import qualified Data.Vector.Storable as Vector.Storable
 
-import qualified GHC.TypeLits as TypeLits
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import           System.FilePath ((</>))
@@ -41,7 +39,6 @@ import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
 import qualified Util.Files as Files
 import qualified Util.Lists as Lists
-import qualified Util.Streams as Streams
 
 import qualified Derive.Stack as Stack
 import qualified Synth.Lib.AUtil as AUtil
@@ -149,7 +146,7 @@ write emitProgress outputDir trackIds skippedCount chunkSize hashes getState
             Audio.File.writeCheckpoints
                 chunkSize (getFilename outputDir getState) chunkComplete
                 AUtil.outputFormat (extendHashes hashes) $
-                checkLevel emitWarning (fromIntegral skippedCount * chunkSize)
+                Audio.clip emitWarning (fromIntegral skippedCount * chunkSize)
                     maxLevel audio
         return $ case result of
             Left err -> Left err
@@ -161,34 +158,16 @@ write emitProgress outputDir trackIds skippedCount chunkSize hashes getState
         when emitProgress $ emit $ Config.WaveformsCompleted [chunknum]
     emitWarning frame val = liftIO $ emit $ Config.Warn Stack.empty $
         pretty (AUtil.toSeconds frame) <> ": sample " <> pretty val <> " > "
-        <> pretty maxLevel <> ", this may causae a DAW to automute"
-        -- At least Reaper does this.
-    maxLevel = 1.15
+        <> pretty maxLevel <> ", this may destroy your ears or automute"
+    -- TODO will this distort transient peaks that wolud have otherwise been
+    -- fine?
+    maxLevel = 0.75 -- about -2.5 dB
     emit payload = Config.emitMessage $ Config.Message
         { _blockId = Config.pathToBlockId outputDir
         , _trackIds = trackIds
         , _instrument = Config.dirToInstrument outputDir
         , _payload = payload
         }
-
--- | Pass audio stream unchanged, but emit warnings if a abs val of a sample
--- goes over the limit.
-checkLevel :: forall m rate chan. (TypeLits.KnownNat chan, Monad m)
-    => (Audio.Frames -> Audio.Sample -> m ()) -> Audio.Frames -> Audio.Sample
-    -> Audio.Audio m rate chan -> Audio.Audio m rate chan
-checkLevel emitWarning startFrame maxLevel =
-    Audio.apply (Streams.mapAccumL check startFrame)
-    where
-    check frame block = do
-        let peak = blockMax block
-        -- TODO find the actual frame, not just start of block.
-        when (abs peak > maxLevel) $ emitWarning frame peak
-        return (frame + Audio.blockFrames (Proxy @chan) block, block)
-    blockMax = \case
-        Audio.Constant _ val -> val
-        Audio.Block v
-            | Vector.Storable.null v -> 0
-            | otherwise -> Vector.Storable.maximum v
 
 getFilename :: FilePath -> IO State -> (Config.ChunkNum, Note.Hash)
     -> IO FilePath

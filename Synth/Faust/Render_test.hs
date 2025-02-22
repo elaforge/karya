@@ -17,6 +17,7 @@ import qualified System.IO.Unsafe as Unsafe
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as File
 import qualified Util.Lists as Lists
+import qualified Util.Num as Num
 import qualified Util.Test.Testing as Testing
 
 import qualified Derive.ScoreT as ScoreT
@@ -46,7 +47,8 @@ test_write_silent_chunk = do
     let write = Render.write config dir mempty patch
     -- not quite 1 chunk
     io_equal (write [mkNote "test" 0.25 2 42]) (Right (3, 3))
-    io_equal (readSamples1 dir) ([0, 0] ++ replicate 16 42 ++ replicate (8-2) 0)
+    io_equal (readSamples1 dir) $
+        [0, 0] ++ replicate 16 0.42 ++ replicate (8-2) 0
 
     -- TODO disabled, see useLeadingSilence = False.
     -- -- skip 2 chunks
@@ -143,8 +145,12 @@ test_write_controls :: Test
 test_write_controls = do
     dir <- Testing.tmp_dir "write"
     patch <- getPatch "test"
+    -- The "test" patch just writes (pitch / 100) * dyn * gate.
+    -- So I can use it to see what the pitch control was.  Otherwise it's much
+    -- harder to figure out the frequency of a square wave or something.
     let write = Render.write config dir mempty patch
-    let cblocks n = replicate $ fromIntegral (Render._controlSize config) * n
+    let cblocks n = replicate (fromIntegral (Render._controlSize config) * n)
+            . (/100)
 
     let withPitch = Note.withControl Control.pitch . Signal.from_pairs
             . map (first chunkToTime)
@@ -176,8 +182,8 @@ readSamples :: FilePath -> IO [Float]
 readSamples dir = toSamples . File.concat =<< listWavs dir
 
 readSamples1 :: FilePath -> IO [Float]
-readSamples1 dir = map (/2) . toSamples1 . Audio.mixChannels @_ @_ @2
-    . File.concat <$> listWavs dir
+readSamples1 dir = map (Num.roundDigits 2) . map (/2) . toSamples1
+    . Audio.mixChannels @_ @_ @2 . File.concat <$> listWavs dir
 
 listWavs :: FilePath -> IO [FilePath]
 listWavs dir =

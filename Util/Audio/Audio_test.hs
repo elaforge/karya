@@ -93,6 +93,12 @@ test_gain = do
     let f n = concat . toSamples . Audio.gain n . fromSamples
     equal (f 0.5 [[1, 2], [3]]) [0.5, 1, 1.5]
 
+test_clip :: Test
+test_clip = do
+    let f max = concat . toSamples . Audio.clip (\_ _ -> pure ()) 0 max
+            . fromSamples
+    equal (f 0.5 [[1, 0.25], [-1]]) [0.5, 0.25, -0.5]
+
 test_multiply :: Test
 test_multiply = do
     let f a1 a2 = concat $ toSamples $

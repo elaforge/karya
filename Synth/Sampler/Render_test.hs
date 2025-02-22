@@ -67,8 +67,8 @@ test_effect_gain :: Test
 test_effect_gain = do
     (dir, write) <- testEffect
     let note start val = mkNoteEffect dir start "gain" [(0, val)]
-    io_equal (write [note 0 2]) $ Right (2, 2)
-    io_equal (readSamples dir) $ map (*2) triangle
+    io_equal (write [note 0 1.5]) $ Right (2, 2)
+    io_equal (readSamples dir) $ map (*1.5) triangle
 
 test_effect_2notes :: Test
 test_effect_2notes = do
@@ -77,20 +77,21 @@ test_effect_2notes = do
     let zeros n = replicate n 0
     -- 2 notes, and the effect control changes.
 
-    io_equal (write [note 0 2, note 8 3]) (Right (4, 4))
+    io_equal (write [note 0 0.5, note 8 0.75]) (Right (4, 4))
     io_equal (readSamples dir) $ zipWith (+)
-        (map (*2) $ triangle ++ repeat 0)
-        (map (*3) $ zeros 8 ++ triangle)
+        (map (*0.5) $ triangle ++ repeat 0)
+        (map (*0.75) $ zeros 8 ++ triangle)
 
-    io_equal (write [note 0 2, note 8 4]) (Right (2, 4))
+    io_equal (write [note 0 0.5, note 8 0.25]) (Right (2, 4))
     io_equal (readSamples dir) $ zipWith (+)
-        (map (*2) $ triangle ++ repeat 0)
-        (map (*4) $ zeros 8 ++ triangle)
+        (map (*0.5) $ triangle ++ repeat 0)
+        (map (*0.25) $ zeros 8 ++ triangle)
 
-    io_equal (write [note 0 2, note 4 4]) (Right (2, 3))
+    io_equal (write [note 0 0.5, note 4 0.25]) (Right (2, 3))
     io_equal (readSamples dir) $ zipWith (+)
-        (map (*2) (take 4 triangle) ++ map (*4) (drop 4 triangle) ++ repeat 0)
-        (map (*4) $ zeros 4 ++ triangle)
+        (map (*0.5) (take 4 triangle) ++ map (*0.25) (drop 4 triangle)
+            ++ repeat 0)
+        (map (*0.25) $ zeros 4 ++ triangle)
 
 testEffect :: IO (FilePath, [Sample.Note] -> IO (Either Text (Int, Int)))
 testEffect = do
@@ -150,7 +151,7 @@ test_write_freq = do
     -- Freq*2 is half as many samples.
     io_equal (write [mkNote dir 0 0.5]) (Right (1, 1))
     io_equal (length <$> listWavs dir) 1
-    io_equal (readSamples dir) [1, 2, 4, 2]
+    io_equal (readSamples dir) [0.1, 0.2, 0.4, 0.2]
 
 -- Can I do it without the whole directory and file?
 -- I'd have to replace File.readFrom in RenderSample, and with something that
@@ -167,7 +168,8 @@ test_write_ratios = do
     -- libsamplerate writes an extra sample at the start.  I don't really know
     -- why, but it's "documented" as "Calculate samples before first sample in
     -- input array."
-    let expected = [1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 4, 4, 3, 3, 2, 2, 1, 1, 0, 0]
+    let expected = map (/10)
+            [1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 4, 4, 3, 3, 2, 2, 1, 1, 0, 0]
     io_equal (write notes) (Right (5, 5))
     io_equal (readSamples dir) expected
     -- No work, all chunks reused.
@@ -237,9 +239,9 @@ test_resume_at_boundary = do
     (write, dir) <- tmpDb
     let note = mkNoteDur dir
     io_equal (write [note 0 4, note 4 4]) (Right (2, 2))
-    io_equal (readSamples dir) [1, 2, 3, 4, 1, 2, 3, 4]
+    io_equal (readSamples dir) $ map (/10) [1, 2, 3, 4, 1, 2, 3, 4]
     io_equal (write [note 0 4, note 4 2]) (Right (1, 2))
-    io_equal (readSamples dir) [1, 2, 3, 4, 1, 2, 0, 0]
+    io_equal (readSamples dir) $ map (/10) [1, 2, 3, 4, 1, 2, 0, 0]
 
 renderSamples :: [Sample.Note] -> IO [Float]
 renderSamples notes = do
@@ -288,6 +290,7 @@ write_ = writeQuality Resample.ZeroOrderHold Nothing
 
 writeQuality :: Resample.Quality -> Maybe Render.InstrumentEffect
     -> FilePath -> [Sample.Note] -> IO (Either Text (Int, Int))
+    -- ^ (writtenChunks, totalChunks)
 writeQuality quality mbEffect outDir =
     Render.write config outDir mempty mbEffect
     where
@@ -327,7 +330,7 @@ triFilename :: FilePath -> FilePath
 triFilename dbDir = dbDir </> patchDir </> "tri.wav"
 
 triangle :: [Audio.Sample]
-triangle = [1, 2, 3, 4, 3, 2, 1, 0]
+triangle = map (/10) [1, 2, 3, 4, 3, 2, 1, 0]
 
 mkNoteSec :: FilePath -> RealTime -> Double -> Sample.Note
 mkNoteSec dbDir start = mkNote dbDir (AUtil.toFrames start)

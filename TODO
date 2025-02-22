@@ -170,7 +170,7 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
-  - 'p 5' was interpreted as "p" at volume 5, which is then ear destroying
+  * 'p 5' was interpreted as "p" at volume 5, which is then ear destroying
     . Maybe it overflows 32bit int wav, which is then scramble.
     . The warning does warn, but it just has seconds into the sample, it
       doesn't have the original score position.
@@ -178,6 +178,9 @@ UNSORTED
       muting, or destroying ears.
     . Where did that test audio program go?  I was using it to compare samples
       from... streams or something?
+    . Soft limiter?
+    . That's a distortion.  I just want to not destroy ears.  Maybe just do
+      hard clipping at 1 and -1, with warning.
   new osx:
     * doesn't detect MIDI ports
       . MIDIGetNumberOfSources() returns 0

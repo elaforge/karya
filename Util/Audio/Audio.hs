@@ -33,8 +33,9 @@ module Util.Audio.Audio (
     -- * transform
     , apply
     , castRate
-    , take, takeS, mapSamples, gain, multiply
+    , take, takeS, mapSamples
     , takeClose, takeCloseS
+    , gain, multiply, clip
     , pan, panConstant
     -- * mix
     , mix
@@ -67,30 +68,33 @@ module Util.Audio.Audio (
     , module Util.Audio.Audio
 #endif
 ) where
-import Prelude hiding (splitAt, take)
+import           Prelude hiding (splitAt, take)
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Trans.Resource as Resource
+
 import qualified Data.Maybe as Maybe
 import qualified Data.Vector.Storable as V
 import qualified Data.Vector.Storable.Mutable as VM
+
+import qualified GHC.Stack as Stack
 import qualified GHC.TypeLits as TypeLits
 import           GHC.TypeLits (KnownNat)
-import qualified GHC.Stack as Stack
+
 import qualified Streaming as S
 import qualified Streaming.Prelude as S
 
 import           Util.Audio.AudioT (Frames(..))
 import qualified Util.CallStack as CallStack
 import qualified Util.Control as Control
-import qualified Util.Num as Num
 import qualified Util.Lists as Lists
+import qualified Util.Num as Num
+import qualified Util.Pretty as Pretty
+import qualified Util.Streams as Streams
 import qualified Util.Test.ApproxEq as ApproxEq
 import qualified Util.VectorC as VectorC
 
-import qualified Util.Pretty as Pretty
-
-import Global
+import           Global
 
 
 -- * types
@@ -349,6 +353,35 @@ blockMultiply (Constant c1 v1) (Block b2)
     | v1 == 1 = Block b2
     | otherwise = Block $ V.map (*v1) $ V.take c1 b2
 blockMultiply (Block b1) (Block b2) = Block $ V.zipWith (*) b1 b2
+
+-- | Clip samples to the given max/min, and report where it was exceeded.
+clip :: forall m rate chan. (TypeLits.KnownNat chan, Monad m)
+    => (Frames -> Sample -> m ()) -> Frames -> Sample
+    -> Audio m rate chan -> Audio m rate chan
+clip emitWarning startFrame maxLevel =
+    apply (Streams.mapAccumL check startFrame)
+    where
+    check frame block
+        -- TODO find the actual frame, not just start of block.
+        | peak > maxLevel = do
+            emitWarning frame peak
+            pure (nextFrame, blockClip block)
+        | otherwise = pure (nextFrame, block)
+        where
+        peak = blockMax block
+        nextFrame = blockFrames (Proxy @chan) block
+    blockMax = \case
+        Constant _ val -> val
+        Block v
+            | V.null v -> 0
+            | otherwise -> V.maximum (V.map abs v)
+    blockClip = \case
+        Constant c val -> Constant c (clipVal val)
+        Block v -> Block $ V.map clipVal v
+    clipVal v
+        | v > maxLevel = maxLevel
+        | v < -maxLevel = -maxLevel
+        | otherwise = v
 
 -- blockZipWith :: (Sample -> Sample -> Sample) -> Block -> Block -> Block
 -- blockZipWith f (Constant c1 v1) (Constant c2 v2) =
