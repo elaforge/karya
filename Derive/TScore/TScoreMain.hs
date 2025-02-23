@@ -365,7 +365,7 @@ play_im mb_device score_path players play_ctl block_id start events
     let muted = mempty
     Transport.player_started players
     Thread.startLogged "stream_audio" $
-        StreamAudio.play mb_device quit score_path block_id muted start
+        StreamAudio.play False mb_device quit score_path block_id muted start
             `Exception.finally` Transport.player_stopped players
     return ()
     where

@@ -40,7 +40,7 @@ main = PortAudio.initialize $ do
         c <- IO.getLine
         putStrLn $ "got " <> show c <> ", asking streamer to stop"
         Thread.set quit
-    StreamAudio.streamDir mbDev quit muted start dir
+    StreamAudio.streamDir (Verbose `elem` flags) mbDev quit muted start dir
 
 getDevice :: String -> IO StreamAudio.Device
 getDevice name = do
@@ -48,7 +48,7 @@ getDevice name = do
     maybe (errorIO $ "unknown device: " <> showt name) (return . snd) $
         List.find ((==name) . fst) devs
 
-data Flag = List | Device String
+data Flag = List | Device String | Verbose
     deriving (Eq, Show)
 
 options :: [GetOpt.OptDescr Flag]
@@ -56,6 +56,7 @@ options =
     [ GetOpt.Option [] ["list"] (GetOpt.NoArg List) "list output devices"
     , GetOpt.Option [] ["device"] (GetOpt.ReqArg Device "dev")
         "use named device"
+    , GetOpt.Option [] ["verbose"] (GetOpt.NoArg Verbose) "noisy streaming"
     ]
 
 parseArgs :: [String]

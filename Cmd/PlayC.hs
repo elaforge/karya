@@ -423,11 +423,12 @@ play_im_direct_thread :: Transport.PlayControl -> Cmd.PlayDirectArgs -> IO ()
 #ifdef ENABLE_IM
 play_im_direct_thread (Transport.PlayControl quit)
         (Cmd.PlayDirectArgs score_path block_id muted start) =
-    StreamAudio.play Nothing quit score_path block_id muted start
+    StreamAudio.play verbose Nothing quit score_path block_id muted start
 #else
 play_im_direct_thread _ _ =
     errorIO "can't play_im_direct_thread when im is not linked in"
 #endif
+    where verbose = False
 
 -- | Run along the InverseTempoMap and update the play position selection.
 -- Note that this goes directly to the UI through Sync, bypassing the usual

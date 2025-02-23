@@ -38,10 +38,6 @@ import           Synth.Types
 
 type Muted = Set ScoreT.Instrument
 
--- | If true, spam stdout even when run from karya.
-verbose :: Bool
-verbose = True
-
 -- | Stream audio for the give score and block, until done or told to stop.
 --
 -- The audio backend is hardcoded, but perhaps I should get one from
@@ -49,16 +45,16 @@ verbose = True
 --
 -- This is essentially a haskell version of TrackStreamer (Streamer.h) ->
 -- Tracks (Tracks.h)
-play :: Maybe Device -> Thread.Flag -> FilePath -> Id.BlockId
+play :: Bool -> Maybe Device -> Thread.Flag -> FilePath -> Id.BlockId
     -> Muted -> RealTime -> IO ()
-play mbDevice quit scorePath blockId muted start = do
+play verbose mbDevice quit scorePath blockId muted start = do
     config <- Config.getConfig
     let dir = Config.outputDirectory (Config.imDir config) scorePath blockId
-    streamDir mbDevice quit muted start dir
+    streamDir verbose mbDevice quit muted start dir
 
-streamDir :: Maybe Device -> Thread.Flag -> Muted -> RealTime -> FilePath
-    -> IO ()
-streamDir mbDevice quit muted start dir = case mbDevice of
+streamDir :: Bool -> Maybe Device -> Thread.Flag -> Muted -> RealTime
+    -> FilePath -> IO ()
+streamDir verbose mbDevice quit muted start dir = case mbDevice of
     Just Sox -> streamToSox verbose (Thread.wait quit) dir muted start
     Just (PortAudio device) ->
         streamToPortAudio verbose device quit dir muted start
