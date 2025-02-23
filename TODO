@@ -4,6 +4,42 @@ LEGEND
   Use indent folding with indent=2.
 
 current:
+  * get im mridangam going
+    . How to do local play again?
+    . config_im_play_direct
+  + Solkattu.Play
+    . Merge into PlayDb
+    * can't use from ghci due to missing _faust_allocate
+      . Probably due to faustEffect
+      . add build/opt/obj/Synth/Faust/patch_c.cc.o,
+    * now _rubberband_available
+      . add -lrubberband
+      . Need a dynamic rubberband!  No such thing in the macos makefile.
+      . ifdef out rubberband?
+    * now _src_delete
+      . rebuild with shared libs
+    . ghcit build/opt/obj/Synth/Faust/patch_c.cc.o
+      -L/nix/store/az74j3nnkl6na1kfkbg8mszyjkihwpx2-libsamplerate-elaforge/lib
+      -lsamplerate
+    . How did this work before?  Key difference with LSol is works from ghci.
+    . It runs sampler-im as a subprocess, why does it need to link?
+      . Sampler.PatchDb, needs for mridangam-d inst def
+      . I guess because they have config options, which are not separated from
+        the actual implementation.
+      . Faust because EffectC, because it merges in controls.  Ultimately they
+        come from dsp files, so must link.  That said, the controls are just
+        documentation?  Or they are used to select from Score.Events?
+      . Whence the libsamplerate dep?
+        Synth.Audio.Resample
+        Sampler.Render Sampler.RenderSample
+      . It's Patch.Random?
+      . Because it imports Calibrate.
+      . But it uses Axis and string constants that Calibrate does't even use.
+      . But now stream_audio doesn't want to play the file, exits immediately.
+      . Where did that test go!?  It was test_play_cache!  Not for Audio!
+      . Path is wrong, but it doesn't notice ENOENT, probably because it's the
+        stop signal.
+  - LSol to copy from solkattu
   priorities for javanese:
     better ruler
       . line = 4 gatra, gatra = 4 notes (q)
@@ -170,6 +206,12 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
+  - can I use https://hackage.haskell.org/package/symbolize ?
+    . Currently Derive.Parse has memo_table :: Text Expr
+    . This speeds up parsing and shares the exprs, but not the texts in the
+      events.  Also they are normal Texts, not ShortTexts.  Does it matter?
+    . For eval, how much time do I spend looking up Expr.Symbol?
+    . For that matter, where does the eval time go?
   * 'p 5' was interpreted as "p" at volume 5, which is then ear destroying
     . Maybe it overflows 32bit int wav, which is then scramble.
     . The warning does warn, but it just has seconds into the sample, it

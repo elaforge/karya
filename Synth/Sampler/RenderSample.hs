@@ -19,7 +19,11 @@ import           GHC.TypeLits (KnownNat)
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as File
 import qualified Util.Audio.Resample as Resample
+#ifdef TESTING
+import qualified Util.Audio.RubberbandStub as Rubberband
+#else
 import qualified Util.Audio.Rubberband as Rubberband
+#endif
 import qualified Util.Num as Num
 import qualified Util.Segment as Segment
 import qualified Util.Test.ApproxEq as ApproxEq

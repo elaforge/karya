@@ -30,15 +30,6 @@ import           Global
 import           Synth.Types
 
 
-type Axis = Text
-
-pitch, art, dyn, tuning, var :: Axis
-pitch = "pitch"
-art = "art"
-dyn = "dyn"
-tuning = "tuning"
-var = "var"
-
 -- * render
 
 -- create notes with an even dyn spread

@@ -3,7 +3,17 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Low level bindings to the rubberband library.
-module Util.Audio.RubberbandC where
+module Util.Audio.RubberbandC (
+    Option(..)
+    , percussiveOptions
+    , rubberband_new, rubberband_delete
+    , rubberband_study
+    , rubberband_process
+    , rubberband_available
+    , rubberband_retrieve
+    , rubberband_set_expected_input_duration
+    , rubberband_get_samples_required
+) where
 import           Data.Bits ((.|.))
 import           Foreign (Ptr, castPtr)
 import qualified Foreign.C as C
@@ -22,9 +32,6 @@ type Frames = C.CUInt
 
 makeOptions :: [Option] -> C.CInt
 makeOptions = fromIntegral . foldr (.|.) 0 . map fromEnum
-
-defaultOptions :: [Option]
-defaultOptions = []
 
 percussiveOptions :: [Option]
 percussiveOptions = [WindowShort, PhaseIndependent]

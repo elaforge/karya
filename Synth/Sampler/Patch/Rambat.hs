@@ -32,7 +32,6 @@ import qualified Derive.Scale.Legong as Legong
 import qualified Instrument.Common as Common
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Lib.AUtil as AUtil
-import qualified Synth.Sampler.Calibrate as Calibrate
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Patch.Lib.Bali as Lib.Bali
 import           Synth.Sampler.Patch.Lib.Bali (Pitch(..), PitchClass(..))
@@ -286,7 +285,7 @@ articulationFile = \case
 
 -- * util
 
-getVariations :: IO [(FilePath, Map Calibrate.Axis Text)]
+getVariations :: IO [(FilePath, Map Axis Text)]
 getVariations = do
     samples <- (++)
         <$> (mapMaybe (get Umbang) <$> Files.list (dir </> "umbang"))
@@ -294,9 +293,9 @@ getVariations = do
     return
         [ ( dir </> tuningDir tuning </> unparseFilename pitch art dyn var
           , Map.fromList
-            [ (Calibrate.tuning, showt tuning), (Calibrate.pitch, pretty pitch)
-            , (Calibrate.art, showt art), (Calibrate.dyn, showt dyn)
-            , (Calibrate.var, showt var)
+            [ (tuningA, showt tuning), (pitchA, pretty pitch)
+            , (artA, showt art), (dynA, showt dyn)
+            , (varA, showt var)
             ]
           )
         | (tuning, (pitch, art, dyn, var)) <- List.sort samples
@@ -306,6 +305,15 @@ getVariations = do
     tuningDir Isep = "isep"
     dir = Config.unsafeSamplerRoot </> "rambat"
     get tuning fname = (tuning,) <$> parseFilename (FilePath.takeFileName fname)
+
+type Axis = Text
+
+pitchA, artA, dynA, tuningA, varA :: Axis
+pitchA = "pitch"
+artA = "art"
+dynA = "dyn"
+tuningA = "tuning"
+varA = "var"
 
 _getDurations :: IO [((Tuning, Pitch, Dynamic), Audio.Frames)]
 _getDurations = fmap group $ (++)
