@@ -16,3 +16,16 @@ s_25_01_26 = date 2025 1 26 $ elaforge $ sarvalaghu $ korvaiV adi
     ]
     where
     theme = "N,nD_kD_"
+
+s_nnd :: Korvai
+s_nnd = date 2025 2 17 $ elaforge $ sarvalaghu $ korvaiV adi
+    [ sd "onnD_NND_NND_NNo"
+    , sd "onND_NND_NND" . "_nN_oD_o"
+    , sd "_nND_NND_NN" . "pu_kD_pu_k"
+    , sd "_nND_NND_N" . "nnpk"."noD_D_k_"
+    , sd "_nND_NND_NN" . "pnpkpk onpk"
+    , sd "_nND_" . "pnpkpk onpk" . sd "oNND_n"
+    , sd "ND" . "pnpkpk onpk" . "__" . tri_ "o_" "onpk"
+    , sd "pnND_NND_NND_" . su "_oD___oD___o"
+    , sd "DnND_NND_N" . nadai 6 "N____nN__dD__nN__n"
+    ]
