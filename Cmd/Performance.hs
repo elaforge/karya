@@ -37,6 +37,7 @@ import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Maps as Maps
 import qualified Util.Processes as Processes
+import qualified Util.Streams as Streams
 import qualified Util.Thread as Thread
 import qualified Util.Vector
 
@@ -364,7 +365,7 @@ watch_subprocesses root_block_id make_status send_status procs =
 wait_for_subprocesses :: IO () -> Set ScoreT.Instrument -> Set Process
     -> IO Bool
 wait_for_subprocesses ready expected_instruments procs =
-    stream_subprocesses procs $ s_mapAccumL_ check (Set.empty, Set.empty)
+    stream_subprocesses procs $ Streams.mapAccumL_ check (Set.empty, Set.empty)
     where
     check (started, insts) ((cmd, args), ProcessExit code) = do
         unless (code == Processes.ExitCode 0) $
@@ -379,6 +380,7 @@ wait_for_subprocesses ready expected_instruments procs =
                     insts2 = Set.insert (Config._instrument msg) insts
                 Log.debug $ "started: " <> pretty started2
                     <> ", insts: " <> pretty insts2
+                    <> ", expected: " <> pretty expected_instruments
                 when (started2 == procs && insts2 == expected_instruments) ready
                 return (started2, insts2)
             | otherwise -> ignore
@@ -670,16 +672,3 @@ track_instruments events = Map.Lazy.fromAscList . Lists.keyOnSnd instruments_of
             Set.insert (Score.event_instrument event) seen
         | otherwise = seen
         where track_ids = Stack.track_ids_of (Score.event_stack event)
-
--- * util
-
--- | Like `S.mapM_` but with state.
-s_mapAccumL_ :: Monad m => (st -> a -> m st) -> st -> S.Stream (S.Of a) m r
-    -> m r
-s_mapAccumL_ f = go
-    where
-    go st xs = S.next xs >>= \case
-        Left r -> return r
-        Right (x, xs) -> do
-            st <- f st x
-            go st xs
