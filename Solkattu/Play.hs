@@ -5,7 +5,7 @@
 {-# LANGUAGE CPP #-}
 -- | Convert solkattu to audio via karya score, and play it.
 module Solkattu.Play (
-    play_m
+    play_m, print_m
 #ifdef TESTING
     , module Solkattu.Play
 #endif
@@ -17,16 +17,15 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 
-import           System.FilePath ((</>))
-
 import qualified Util.Control as Control
+import qualified Util.Lists as Lists
 import qualified Util.Log as Log
 import qualified Util.Processes as Processes
-import qualified Util.Lists as Lists
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Performance as Performance
+import qualified Cmd.Simple as Simple
 
 import qualified Derive.Controls as Controls
 import qualified Derive.DeriveSaved as DeriveSaved
@@ -63,45 +62,60 @@ import           Types
 
 
 -- | Play mridangam realization for the korvai.
-play_m :: RealTime -> Korvai.Korvai -> IO Bool
+play_m :: RealTime -- ^ akshara dur
+    -> Korvai.Korvai -> IO Bool
 play_m = play_instrument Korvai.IMridangam
     (InstT.Qualified "sampler" "mridangam-d")
-    "# = (natural) | %dyn = .75"
+    "# = (natural) | dyn = .75"
 
-play_instrument :: (Solkattu.Notation stroke,
-        Expr.ToExpr (Realize.Stroke stroke), Ord stroke)
+-- | Show the generated UI state.
+print_m :: RealTime -> Korvai.Korvai -> Either Text Simple.State
+print_m akshara_dur korvai =
+    merge $ dump <$> to_state Korvai.IMridangam
+        (InstT.Qualified "sampler" "mridangam-d") "" akshara_dur korvai
+    where
+    dump state = Ui.eval state Simple.dump_state
+    merge = \case
+        Left s -> Left s
+        Right (Left e) -> Left $ pretty e
+        Right (Right x) -> Right x
+
+play_instrument
+    :: ( Solkattu.Notation stroke, Expr.ToExpr (Realize.Stroke stroke)
+       , Ord stroke
+       )
     => Korvai.Instrument stroke
     -> InstT.Qualified -> Text -> RealTime -> Korvai.Korvai -> IO Bool
 play_instrument instrument im_instrument transform akshara_dur korvai = do
     state <- either errorIO return $
         to_state instrument im_instrument transform akshara_dur korvai
-    (procs, output_dirs) <- derive_to_disk "solkattu" state
-    play_procs procs output_dirs
+    (procs, output_dir) <- derive_to_disk "solkattu" state
+    Log.debug $ "procs: " <> showt procs <> " out_dir: " <> txt output_dir
+    play_procs procs output_dir
 
-play_procs :: [Performance.Process] -> [FilePath] -> IO Bool
+play_procs :: [Performance.Process] -> FilePath -> IO Bool
 play_procs [] _ = return True -- I think this shouldn't happen?
-play_procs procs output_dirs = do
+play_procs procs output_dir = do
     ready <- MVar.newEmptyMVar
     Log.debug $ "start render: " <> pretty procs
     rendering <- Async.async $
         Performance.wait_for_subprocesses (MVar.putMVar ready ())
-            (Set.singleton inst_name)
-            (Set.fromList procs)
+            (Set.fromList [inst_name, metronome_name]) (Set.fromList procs)
     Log.debug "wait for ready"
     MVar.takeMVar ready
-    Log.debug $ Text.unwords $
-        "%" : "build/opt/stream_audio" : map txt output_dirs
-    Processes.call "build/opt/stream_audio" output_dirs
+    Log.debug $ Text.unwords ["%", "build/opt/stream_audio", txt output_dir]
+    Processes.call "build/opt/stream_audio" [output_dir]
     Async.wait rendering
 
 -- | Derive the Ui.State and write the im parts to disk.
-derive_to_disk :: FilePath -> Ui.State -> IO ([Performance.Process], [FilePath])
+derive_to_disk :: FilePath -> Ui.State -> IO ([Performance.Process], FilePath)
 derive_to_disk score_path ui_state = do
     cmd_state <- load_cmd_state
     block_id <- either (errorIO . pretty) return $
         Ui.eval ui_state Ui.get_root_id
     let (events, logs) = derive cmd_state ui_state block_id
     mapM_ Log.write $ filter ((>Log.Debug) . Log.msg_priority) logs
+    putStrLn $ "events: " <> show (length events)
     let im_config = Cmd.config_im (Cmd.state_config cmd_state)
         lookup_inst = either (const Nothing) Just
             . Cmd.state_lookup_instrument ui_state cmd_state
@@ -110,11 +124,9 @@ derive_to_disk score_path ui_state = do
     unless (null non_im) $
         Log.warn $ "non-im events: " <> pretty non_im
     config <- Config.getConfig
-    let out_dir inst = Config.outputDirectory (Config.imDir config) score_path
-            block_id </> untxt (ScoreT.instrument_name inst)
     return
         ( procs
-        , [out_dir inst_name, out_dir metronome_name]
+        , Config.outputDirectory (Config.imDir config) score_path block_id
         )
 
 derive :: Cmd.State -> Ui.State -> BlockId

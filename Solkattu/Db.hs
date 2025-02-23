@@ -4,7 +4,18 @@
 
 {-# LANGUAGE RankNTypes #-}
 -- | Collect korvais into a searchable form.
-module Solkattu.Db where
+module Solkattu.Db (
+    scores
+    , realizeKon, realizeM
+    , recentDates, aroundDate, date, ofType, nameLike, hasInstrument
+    , hasTag, notHasTag, sollus, strokesM
+    , scoreHas, korvaiHas
+    -- * search
+    , searchp
+    , searchM
+    , searchAll
+    , formats, format
+) where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
