@@ -60,7 +60,49 @@
 -}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveTraversable #-}
-module Solkattu.Solkattu where
+module Solkattu.Solkattu (
+    Notation(..)
+    , textNotation
+    , notationText
+    , Note(..)
+    , Group(..)
+    , Reduction(..)
+    , Meta(..)
+    , meta
+    , GroupType(..)
+    , groupTypes
+    , Side(..)
+    , Space(..)
+    , NoteT(..)
+    , Tag(..)
+    , note
+    , solluOf
+    , modifyNote
+    , Pattern(..)
+    , pattern
+    , Karvai(..)
+    , Sollu(..)
+    -- * parseSollus
+    , parseSollus
+    , parseSyllables
+    -- * durations
+    , durationOf
+    , matrasOf
+    , flatDuration
+    -- * functions
+    , cancelKarvai
+    -- * vary
+    , vary
+    , variations
+    , ascending, descending, standard
+    -- * exceptions
+    , Exception(..)
+    , throw
+    , check
+    -- * util
+    , applyModifications
+    , permuteFst
+) where
 import qualified Control.Exception as Exception
 import qualified Control.Monad.State.Strict as State
 import qualified Data.List as List
@@ -507,6 +549,9 @@ instance Show Exception where
 throw :: HasCallStack => Text -> a
 throw = CallStack.throw Exception
 
+check :: HasCallStack => Either Error a -> a
+check = either throw id
+
 -- * util
 
 applyModifications :: (a -> mod -> a) -> [(Int, mod)]
@@ -528,12 +573,6 @@ permuteFst permutations ((k, x) : xs)
     | otherwise =
         [(p, x) : rest | p <- permutations k, rest <- go xs]
     where go = permuteFst permutations
-
-check :: HasCallStack => Either Error a -> a
-check = either throw id
-
-checkMsg :: HasCallStack => Text -> Either Error a -> a
-checkMsg msg = either (throw . ((msg <> ": ") <>)) id
 
 {- NOTE [nested-groups]
 
