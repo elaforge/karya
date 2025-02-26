@@ -1,7 +1,10 @@
 #!/usr/bin/env zsh
 
 objs=(
-    build/test/debug/Util/vectorc.cc.o
+    build/debug/obj/Util/vectorc.cc.o
+    build/debug/obj/Synth/Faust/patch_c.cc.o
 )
 
+set -x
+bin/mk $objs
 exec tools/do-ghci build/debug/ghci-flags $objs "$@"

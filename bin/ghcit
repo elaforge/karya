@@ -3,6 +3,9 @@
 
 objs=(
     build/test/obj/Util/vectorc.cc.o
+    build/test/obj/Synth/Faust/patch_c.cc.o
 )
 
+set -x
+bin/mk $objs
 exec tools/do-ghci build/test/ghci-flags $objs "$@"

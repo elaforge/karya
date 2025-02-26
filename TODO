@@ -7,7 +7,7 @@ current:
   * get im mridangam going
     . How to do local play again?
     . config_im_play_direct
-  + Solkattu.Play
+  * Solkattu.Play
     . Merge into PlayDb
     * can't use from ghci due to missing _faust_allocate
       . Probably due to faustEffect
@@ -39,6 +39,7 @@ current:
       . Where did that test go!?  It was test_play_cache!  Not for Audio!
       . Path is wrong, but it doesn't notice ENOENT, probably because it's the
         stop signal.
+    * link build/opt/obj/Synth/Faust/patch_c.cc.o to ghcit
   - LSol to copy from solkattu
   priorities for javanese:
     better ruler
