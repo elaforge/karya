@@ -7,7 +7,57 @@
 {-# LANGUAGE GADTs #-}
 -- | Tie together generic Solkattu and specific instruments into a single
 -- 'Korvai'.
-module Solkattu.Korvai where
+module Solkattu.Korvai (
+    Sequence, SequenceT
+    , Error
+    , Score(..), Part(..)
+    , tani
+    , scoreKorvais
+    , realizeScore
+    -- * korvai
+    , Korvai(..)
+    , korvai
+    , korvaiInstruments
+    , mridangamKorvai
+    , kendangTunggalKorvai
+    , bolKorvai
+    , index, slice
+    -- ** Instrument
+    , Sections
+    , instrumentSection
+    , instruments
+    , GInstrument(..)
+    , ginstrumentName
+    -- * Section
+    , Section(..)
+    , scoreSections
+    , genericSections
+    , modifySections
+    , addSectionTags
+    , section
+    , inferSections
+    -- * Instrument
+    , Instrument(..)
+    , instrumentName
+    , instToScore
+    -- * realize
+    , Flat
+    , realize
+    , realizeSection
+    -- * transform
+    , mapStrokeRest
+    -- * lint
+    , lint
+    -- * Metadaa
+    , Metadata(..)
+    , Location
+    , withKorvaiMetadata
+    , scoreMetadata
+    , setLocation
+    , inferMetadataS
+    -- * StrokeMaps
+    , StrokeMaps(..)
+) where
 import qualified Data.Either as Either
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe

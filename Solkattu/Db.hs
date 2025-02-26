@@ -15,6 +15,8 @@ module Solkattu.Db (
     , searchM
     , searchAll
     , formats, format
+    -- * write
+    , writeAll
 ) where
 import qualified Data.List as List
 import qualified Data.Map as Map

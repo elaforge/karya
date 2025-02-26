@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Extract Korvai definitions into a list in a generated module.
-module Solkattu.ExtractKorvais where
+module Solkattu.ExtractKorvais (main) where
 import qualified GHC.IO.Encoding as Encoding
 import qualified Data.Map as Map
 import qualified Data.Text as Text
