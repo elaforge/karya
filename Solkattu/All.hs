@@ -40,6 +40,7 @@ import qualified Solkattu.Score.Solkattu2024
 import qualified Solkattu.Score.SolkattuMohra
 import qualified Solkattu.Score.Tabla2023
 import qualified Solkattu.Score.Tabla2024
+import qualified Solkattu.Score.Tabla2025
 
 
 scores :: [Korvai.Score]
@@ -425,4 +426,5 @@ scores = map Korvai.inferMetadataS
     , setLocation ("Solkattu.Score.Tabla2024",157,"to_chalan") $ Single Solkattu.Score.Tabla2024.to_chalan
     , setLocation ("Solkattu.Score.Tabla2024",195,"yt_tihais") $ Single Solkattu.Score.Tabla2024.yt_tihais
     , setLocation ("Solkattu.Score.Tabla2024",203,"c_24_12_02") $ Single Solkattu.Score.Tabla2024.c_24_12_02
+    , setLocation ("Solkattu.Score.Tabla2025",11,"akash1") $ Single Solkattu.Score.Tabla2025.akash1
     ]
