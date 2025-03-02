@@ -26,7 +26,6 @@ import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
 
-import           Global
 import           Synth.Types
 
 

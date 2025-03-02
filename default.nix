@@ -313,7 +313,9 @@ in rec {
       ref = "save-state";
     };
     nativeBuildInputs = with nixpkgs; [autoreconfHook pkgconfig];
-    configureFlags = ["--enable-shared=no" "--enable-static=yes"];
+    # I use the static version, but ghci will require the dynamic one.
+    # I try to avoid having the dep at all, but in case I do, here it is.
+    configureFlags = ["--enable-shared=yes" "--enable-static=yes"];
   };
 
   imDeps = [
