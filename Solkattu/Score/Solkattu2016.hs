@@ -56,7 +56,7 @@ c_16_12_06_sriram1 = date 2016 12 6 $ source "sriram" $ korvaiS adi mridangam $
     dinnaka = group $ din.na.ka.din.na.ka.ta.ka
     kitakina = group $ kita.ki.na.ta.kita.ka
 
-    ta_takadin = mconcat $ expand 3 1 tat_dit
+    ta_takadin = expand 3 1 tat_dit
     tat_dit = tat.dit.ta . su taka . din
     mridangam = makeMridangam
         [ (1^tat, p&k)
@@ -96,7 +96,7 @@ c_16_12_06_sriram2 =
 
 c_16_12_06_janahan1 :: Korvai
 c_16_12_06_janahan1 = date 2016 12 6 $ janahan $ korvaiS1 adi mridangam $ su $
-    tri (mconcat (expand 3 2 theme)) . trin __ (tri p5) (tri p6) (tri p7)
+    tri (expand 3 2 theme) . trin __ (tri p5) (tri p6) (tri p7)
     where
     theme = takadinna.takita.din.__.na
     mridangam = makeMridangam

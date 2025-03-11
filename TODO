@@ -4,6 +4,21 @@ LEGEND
   Use indent folding with indent=2.
 
 current:
+  - what's up with attoparsec linking?
+    . Providing -package attoparsec has error:
+      Derive/C/Prelude/Val.hs:6:1: error:
+          Could not load module ‘Data.Attoparsec.Text’
+          It is a member of the hidden package ‘attoparsec-0.14.4’.
+          You can run ‘:set -package attoparsec’ to expose it.
+          (Note: this unloads all the modules in the current scope.)
+          Locations searched:
+            Data/Attoparsec/Text.hi
+            ...
+    . Missing is fine, in fact don't need -package at all for compiling, but
+      do need them for linking!
+    ? What does --make do?
+      . --make has the same problem.
+    . Cabal uses --package-id, which doesn't seem to have this issue.
   - why does seq window not come to front?
     . test_block does, browser and logview do.
   * get im mridangam going
@@ -152,6 +167,13 @@ usability:
     . default-0:
     . What if I just generated a commented out template example the first
       time?
+    auto_score:
+      . What if I have a feature which is just exactly an order list, which
+        defaults to b1 -- bn?  Maybe it's turn on and automatically make a
+        @score, which is generated from standard-named blocks.  You can edit
+        normally but new blocks will be appended.  No integrate.
+      . For the switch, I could overload config_tscore, prepend '--
+        %auto_score'.
   - Undo not recording during insert causes me to lose stuff.
     . Record in edit mode?  Why not?
 
@@ -400,24 +422,6 @@ UNSORTED
       (62.50, 63.00) -> 62.75
       (74.57, 74.80) (62.57, 62.8)
     . So I'd have to adjust it up.
-  ky instruments section buggy:
-    * LState.ky is not having new instruments I added
-      . Even worse it seems like this causes new allocations to not get saved!
-      . Either LInst.add has to edit the ky, or I have to get rid of it and
-        allow only ky.
-      . Since the source of truth is not ky, I must not privilege it.
-        I originally kept it so I could preserve order and comments.
-        I guess I can still do that, but have to regenerate it each time
-        insteat of the first time only.
-      . To go all-in on instruments in ky, I need to complete the ky-record
-        stuff, then remove UiConfig.config_allocations entirely.  It will
-        exist entirely as the parsed output of ky.
-    - when I add kontakt/wayang-pemade, it says "send: midi inst with no
-      channels"
-      . But it's not a midi inst!
-      . No wait now it works, did I accidentally put loop on before?
-      ? Anyway how does it know the corect backend?
-    * instruments doesn't like empty lines!
   - LPerf.sel_midi gets muted tracks, but more importantly, non selected
     tracks!
     . Can't reproduce the latter.
@@ -562,6 +566,7 @@ UNSORTED
           . But maybe I can take another look at ControlFunction first,
             I still don't like it at all.
       - Experiment to see if megaparsec is just as fast as attoparsec now.
+        . Or flatparse, should be faster.
     notes:
     . Check.parse_instruments -> Parse.p_allocation
       >pno pianoteq/ midi loop1 0 1 2

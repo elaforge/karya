@@ -45,7 +45,7 @@ module Solkattu.Dsl.Notation (
     -- * reduction, expansion
     , reduce3, reduceBy
     , reduceTo, reduceToL, reduceToR
-    , expand
+    , expand, expands
     , replaceStart, replaceEnd
     , (<==), (==>)
     -- * measurement
@@ -409,8 +409,12 @@ reduceToR to by seq = [takeM m seq | m <- Lists.range matras to (-by)]
 
 -- | Start fully reduced, and expand n times by the given duration.
 expand :: (HasCallStack, Pretty sollu) => Int -> FMatra
+    -> SequenceT sollu -> SequenceT sollu
+expand times dur = mconcat . expands times dur
+
+expands :: (HasCallStack, Pretty sollu) => Int -> FMatra
     -> SequenceT sollu -> [SequenceT sollu]
-expand times dur = reverse . take times . reduceToL dur dur
+expands times dur = reverse . take times . reduceToL dur dur
 
 -- | Unlike most other functions that drop from a sequence, this one doesn't
 -- make a group.  Since these are used to construct a new sequence, it seems

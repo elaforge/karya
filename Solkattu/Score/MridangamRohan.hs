@@ -68,7 +68,7 @@ kanda1 = korvaiS Tala.kanda_chapu $
     ]
 
 expand3 :: Sequence -> S.FMatra -> Sequence -> Sequence
-expand3 sep dur pat = join sep (expand 3 dur pat)
+expand3 sep dur pat = join sep (expands 3 dur pat)
 
 kanda2_tisram :: Korvai
 kanda2_tisram = korvaiS Tala.kanda_chapu $ map (nadai 3) $

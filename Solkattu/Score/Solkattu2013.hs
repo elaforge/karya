@@ -417,7 +417,7 @@ t5s = ganesh $ korvaiS adi mridangam $ map (nadai 6 • (purvangam.))
         (taka.ta.din.__ . p5.p5.p5)
     ]
     where
-    purvangam = mconcat $ expand 3 3 (tat.__3.dit.__3.tat.__3.ta.ki.ta.thom.__3)
+    purvangam = expand 3 3 (tat.__3.dit.__3.tat.__3.ta.ki.ta.thom.__3)
     mridangam = makeMridangam
         [ (tat, k)
         , (tat.dit, k.t)
