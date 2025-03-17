@@ -129,7 +129,10 @@ let
   hsBool = b: if b then "True" else "False";
 
   inherit (nixpkgs.stdenv) isDarwin isLinux;
-  localPkgs = import nix/localPkgs.nix { inherit nixpkgs nixpkgs-sys; };
+  localPkgs = import nix/localPkgs.nix {
+    inherit nixpkgs nixpkgs-sys;
+    system = builtins.currentSystem;
+  };
 in rec {
   # Put some things in here for convenience from `nix repl default.nix`.
   inherit nixpkgs ghc hackage;
@@ -229,11 +232,11 @@ in rec {
     # This is a build dep, not a library dep.
     ghc.c2hs
   ] ++ guard isLinux [
-    # TODO for some reason the nixpkgs depends on fftw, but doesn't put it in
-    # nix-support/propagated-build-inputs, which means the insane nixpkgs hooks
-    # magic doesn't get it into NIX_LDFLAGS, which means the gcc wrapper
+    # TODO for some reason the nixpkgs ?? depends on fftw, but doesn't put it
+    # in nix-support/propagated-build-inputs, which means the insane nixpkgs
+    # hooks magic doesn't get it into NIX_LDFLAGS, which means the gcc wrapper
     # doesn't get the -L flag for it.  See NOTE [nix-ldflags]
-    nixpkgs.fftw
+    # nixpkgs.fftw
   ];
 
   mod_to_sexpr = nixpkgs.callPackage nix/mod_to_sexpr.nix {};

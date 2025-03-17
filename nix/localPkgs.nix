@@ -1,7 +1,6 @@
 # Expose my local pkgs definitions.
-{ nixpkgs, nixpkgs-sys }:
+{ nixpkgs, nixpkgs-sys, system }:
 let
-  inherit (nixpkgs.stdenv) isDarwin isLinux;
   faustStuff = import ./faust.nix {};
 
   jacks = {
@@ -27,6 +26,9 @@ let
       # '';
     });
   };
+  # TODO maybe should be endsWith "-darwin", what does stdenv.isDarwin do?
+  isDarwin = system == "aarch64-darwin";
+  isLinux = !isDarwin;
 in rec {
   faust = faustStuff.faust;
 
