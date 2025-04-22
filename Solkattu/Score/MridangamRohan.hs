@@ -288,13 +288,15 @@ rupaka1 = korvaiS Tala.rupaka_tala $
     . "A_ok koNN _oNk D_D_ noD_ nook"
     . "A_ok kook okk_ D_D_ noD_ nook"
     . "u_oo koD_" . su "ktokotok" . "o_o_ koD_" . su "ktokotok"
-    . "N_o_ koD_" . su "ktokotok N____ktok otokN_ot okN_otok"
+    . "N_o_ koD_" . su "ktokotokN___ktokotokN_otokN_otok"
     , "A_kk koD_ D_N_ d_d_ nnd_ d_n_" --
     . "__u_ __u_ __u_ __u_ __u_ _ook"
-    . "A_kk koD_ D_N_ D___ __kt" . su "k_kt_kno"
-    . "D___ __kt" . su "k_kt_kno" . "uu__ __kt " . su "k_kt_kno"
-    . "u___ __kt" . su "k_kt_kno k_t_k_kt _knok_t_ k_kt_kno"
+    . "A_kk koD_ D_N_ D___ __" . k_t_k_kt_kno
+    . "D___ __" . k_t_k_kt_kno . "uu__ __" . k_t_k_kt_kno
+    . "u___ __" . r3 k_t_k_kt_kno
     ]
+    where
+    k_t_k_kt_kno = su (g "k_t_k_kt_kno")
 
 rupaka_korvai1 :: Korvai
 rupaka_korvai1 = korvaiS Tala.rupaka_tala
@@ -323,8 +325,8 @@ rupaka2 = korvaiS Tala.rupaka_tala $
     . "u_u_ dknk" . su "npnd_oN_ u___npnd _oN_u__k" . "doDk"
     , "N_kD _kn_ kd_k n_kd _kn_ kd_k" --
     . "N_kD _kn_ kd_k NokN okNo kNok"
-    . "N_kD _kn_ kd_k" . su "o_ktpko_ ktpko_kt pko_ktpk"
-    , r2 $ "N_kD _kn_ kD_k" . nadai 6 "N_kD_k N_kD_k N_kD_k" --
+    . "N_kD _kn_ kd_k" . r4 (su "o_ktpk")
+    , r2 $ "N_kD_kn_kD_k" . nadai 6 (r3 "N_kD_k") --
     ] ++ map (nadai 6)
     [ "N_kD_k n_kd_k n_kd_k N_kD_k n_kd_k n_kd_k" --
     . "ookD_k n_kd_k n_kd_k ppkd_k n_kd_k n_kd_k"

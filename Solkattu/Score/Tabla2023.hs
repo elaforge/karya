@@ -100,7 +100,7 @@ farmaisi :: Korvai
 farmaisi = akash $ korvaiS1 tintal tablaKinar $ nadai 3 $
     r3 $ g $ r2 "dhadha gena tette" . "takita dha trkt" . "dhadha gena tette"
     . "kran__ kran__" . (nadai 2 "tktr kttk")
-    . r3 (r3 "dha trkt" . "tak kran_ dha__")
+    . r3 (r3 "dha trkt" . "takkran_ dha__")
     -- first finish on 11
 
 tukra1 :: Korvai

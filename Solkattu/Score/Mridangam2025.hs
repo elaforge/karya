@@ -30,18 +30,30 @@ s_nnd = date 2025 2 17 $ elaforge $ sarvalaghu $ korvaiV adi
     , sd "DnND_NND_N" . nadai 6 "N____nN__dD__nN__n"
     ]
 
+e_sarva :: Korvai
+e_sarva = date 2025 3 13 $ elaforge $ sarvalaghu $ korvaiV adi
+    [ "N_D_ND_" . r2 (g "npndpndp") . __ . su ("t_o_ktpk".nakatiku)
+    , "N_D_ND_" . r2 (g "npndpndp") . g "npndp" . "nook"
+    , "N_D_ND_" . r2 (g "npndpndp") . n.su ktok."Tk_D_d"
+    , "N_D_ND_" . r2 (g "npndpndp") . n.su ktok."Tko".on.su ktok
+    , "N_D_ND_" . r2 (g "npndpndp") . n.su "ktokokokou_kou_k"
+    , "N_D_ND_" . r2 (g (su "n_pkn_d_pkn_d_pk")) . g (su "n_pkn_d_pk")
+        . su "n_u_ktok"
+    ]
+
 e_3sequence :: Korvai
 e_3sequence = date 2025 3 6 $ tirmanam $ korvaiV adi $ map (__D 2 .)
     [ tri_ (su "u_pkno") (r2 "NN_")
     , tri123 (su "u_pkno") "NN_"
-    , tri123 "D__" (su p6)
-    , su p5 . "D__" . su (r2 p5) . r2 "D__" . su (r3 p5)
+    , tri123 tanggu (su p6)
+    , trin tanggu (su p5) (su (p6.p7)) (su (p5.p6.p7))
+    , su p5 . tanggu . su (r2 p5) . r2 tanggu . su (r3 p5)
 
-    , tri_ "D__" "koNkok"
-    , reduceTo 3 2 "koNkokD__"
+    , tri_ tanggu "koNkok"
+    , tanggu . reduceTo 3 2 "koNkokD__"
     , tri_ "D__" (sd "kok")
     , "D__" . reduceTo 3 2 "k_o_k_D__"
-    , expand 4 2 "k_o_k_D__"
+    , "D__" . expand 4 2 "k_o_k_D__"
     , "k_o_kD__" . "k_o_kD__D__" . "k_o_k"
     , su "k_o_k" . "D__" . r2 (su "k_o_k") . r2 "D__" . r3 (su "k_o_k")
     ] ++
@@ -57,6 +69,7 @@ e_3sequence = date 2025 3 6 $ tirmanam $ korvaiV adi $ map (__D 2 .)
     -- Yes, I wind up at +2 again!  6*3 = 18 - 16 = 2
     -- So actually 4x
     where
+    tanggu = "D__"
     p3 = sd "kok"
     -- p3 = "koNkok"
     p2 = dropM 2 p3
