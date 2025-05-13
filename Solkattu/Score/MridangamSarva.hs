@@ -198,6 +198,12 @@ rohan_dholak = rohan $ comment "dholak style" $ korvaiV adi
     rh1 = "n__kt_k_"
     rh2 = "kdnk"
 
+sarva_variations :: Korvai
+sarva_variations = korvaiV adi
+    [ r2 $ "n_ddn_ddn_ddn_" . su ",^,d_n_"
+    , r2 $ su $ r3 "npkdpkdp" . "n_pkdpd_"
+    ]
+
 -- * adi melkalam
 
 mel1 :: Korvai

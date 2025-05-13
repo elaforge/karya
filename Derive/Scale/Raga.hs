@@ -298,7 +298,7 @@ melakarta_names =
     , "ramapriya", "gamanasrama", "viswambhari"
 
     , "syamalangi", "shanmukhapriya", "simhendramadhyamam" -- r2 g2
-    , "hemavati", "dharamavai", "nitimati"
+    , "hemavati", "dharmavati", "nitimati"
 
     , "kantamani", "rishabhapriya", "latangi" -- r2 g3
     , "vachaspati" , "mechakalyani", "chitrambhari"

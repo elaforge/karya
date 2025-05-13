@@ -302,7 +302,7 @@ rupaka_korvai1 :: Korvai
 rupaka_korvai1 = korvaiS Tala.rupaka_tala
     [ reduce theme . tri123 "D__" (su p6)
     , reduce theme2 . tri123 "DD_" (su p6)
-    , reduce theme3 . trin "DDD" (su p6) (su (p6.p6)) (su (r6 "kto"))
+    , reduce theme3 . trin "DDD" (su p6) (su (p6.p6)) (su (r6 (g "kto")))
     ]
     where
     reduce = reduce3 1 ø

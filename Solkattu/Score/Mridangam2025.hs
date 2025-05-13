@@ -74,3 +74,8 @@ e_3sequence = date 2025 3 6 $ tirmanam $ korvaiV adi $ map (__D 2 .)
     -- p3 = "koNkok"
     p2 = dropM 2 p3
     p4 = su "_kpk".p3
+
+simple_korvai :: Korvai
+simple_korvai = date 2025 5 2 $ rohan $ korvaiS adi
+    [ tri_ "D_" ("P_" .su ("u_pk".nakatiku)."o_k_") . od.__3 . r3 p7
+    ]
