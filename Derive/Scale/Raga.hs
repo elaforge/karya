@@ -9,13 +9,12 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Ratio as Ratio
 import qualified Data.Set as Set
-import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Vector as Vector
 
 import qualified Util.Doc as Doc
 import qualified Util.Lists as Lists
-import qualified Util.Pretty as Pretty
+import qualified Util.Texts as Texts
 
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.JustScales as JustScales
@@ -307,6 +306,7 @@ melakarta_names =
     , "nasikabhusani", "kosalam", "rasikapriya"
     ]
 
+-- | Try alternate spellings when searching by name.
 alternates :: [([Char], [Char])]
 alternates = concatMap (\(a, b) -> [(a, b), (b, a)])
     [ ("ou", "ow")
@@ -345,14 +345,14 @@ assert_valid_name val@(name, _)
 -- * query
 
 print_all :: IO ()
-print_all = Text.IO.putStr $ show_ragams ragams
+print_all = mapM_ Text.IO.putStrLn $ show_ragams ragams
 
 print_ragams :: Pattern -> IO ()
-print_ragams = Text.IO.putStr . show_ragams . find_ragams
+print_ragams = mapM_ Text.IO.putStrLn . show_ragams . find_ragams
 
 find_by_swarams :: [SwaramP] -> IO ()
 find_by_swarams swarams_ =
-    Text.IO.putStr $ show_ragams $ filter (matches . snd) ragams
+    mapM_ Text.IO.putStrLn $ show_ragams $ filter (matches . snd) ragams
     where
     matches ragam = swarams `Set.isSubsetOf` rswarams
         where
@@ -376,18 +376,16 @@ find_ragams pattern =
         | otherwise = Nothing
     infixes = alternate alternates pattern
 
-show_ragams :: [(Name, Ragam)] -> Text
-show_ragams ragams = Text.unlines $
-    map justify header ++ concatMap show_ragam ragams
+show_ragams :: [(Name, Ragam)] -> [Text]
+show_ragams ragams = Texts.columns 1 $ header ++ concatMap show_ragam ragams
 
-show_ragam :: (Name, Ragam) -> [Text]
-show_ragam (name, ragam) =
-    map justify (Lists.mapHead (++[name]) (show_swarams ragam))
+show_ragam :: (Name, Ragam) -> [[Text]]
+show_ragam (name, ragam) = Lists.mapHead (++[name]) (show_swarams ragam)
 
 header :: [[Text]]
 header =
-    [ map Pretty.improperRatio (all_ratios ++ [2])
-    , ["S", "R1", "R2", "R3", "",   "M1", "M2", "P", "D1", "D2", "D3", "", "S"]
+    -- [ map Pretty.improperRatio (all_ratios ++ [2])
+    [ ["S", "R1", "R2", "R3", "",   "M1", "M2", "P", "D1", "D2", "D3", "", "S"]
     , ["",  "",   "G1", "G2", "G3", "",   "",   "",  "",   "N1", "N2", "N3"]
     ]
 
@@ -397,15 +395,11 @@ show_swarams :: Ragam -> [[Text]]
 show_swarams ragam = lines Up aro ++ maybe [] (lines Down) avaro
     where
     (aro, avaro) = ragam_swarams ragam
-    lines dir = map pad
-        . ((if dir == Up then Lists.mapLast else Lists.mapHead) (<>["S"]))
-        . map line
+    lines dir = add dir . map line
         . Lists.splitBetween (if dir == Up then (>) else (<))
+    add Up = Lists.mapInit (++[""]) . Lists.mapLast (++["S"])
+    add Down = Lists.mapTail (++[""]) . Lists.mapHead (++["S", "<-"])
     line = map cell . Lists.pairSortedOn id swaram_ratio all_ratios . List.sort
     cell = \case
         Lists.Both _ s -> showt (unswaram s)
         _ -> ""
-    pad = take (length all_swarams + 1) . (++ repeat "")
-
-justify :: [Text] -> Text
-justify = Text.unwords . map (Text.justifyLeft 5 ' ')
