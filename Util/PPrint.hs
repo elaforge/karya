@@ -26,6 +26,10 @@ import qualified Util.Strings as Strings
 import           "haskell-src" Language.Haskell.Syntax
 
 
+-- | Adjust by hand to not wrap.  TODO should be an argument.
+maxWidth :: Int
+maxWidth = 80
+
 -- * showable
 
 pprint :: Show a => a -> IO ()
@@ -110,10 +114,10 @@ pprint_mode :: Pretty.Pretty a => a -> String
 pprint_mode = Pretty.prettyPrintStyleMode pp_style Pretty.defaultMode
     where
     pp_style = PrettyPrint.style
-        { PrettyPrint.ribbonsPerLine = 1, PrettyPrint.lineLength = 80 }
+        { PrettyPrint.ribbonsPerLine = 1, PrettyPrint.lineLength = maxWidth }
 
 dedent :: String -> String
 dedent s = unlines $ map (drop indent) slines
     where
-    indent = minimum $ 80 : map (length . takeWhile Char.isSpace) slines
+    indent = minimum $ maxWidth : map (length . takeWhile Char.isSpace) slines
     slines = lines s

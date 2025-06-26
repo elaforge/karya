@@ -181,6 +181,7 @@ not_equal a b
     | otherwise = success $ cmp False
     where cmp = pretty_compare "==" "/=" False a b
 
+-- | Like equal, but show the inequality with a fmt function.
 equal_fmt :: (HasCallStack, Eq a, Show a) => (a -> Text) -> a -> a -> Test
 equal_fmt fmt a b = do
     ok <- equal_ a b
