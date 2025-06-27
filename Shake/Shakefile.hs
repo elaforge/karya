@@ -734,6 +734,9 @@ configure = do
             -- Except for profiling, where it wants "p_dyn" libraries, which
             -- don't seem to exist.
             [ ["-dynamic" | mode /= Profile]
+            -- Omit "In the first argument" etc from type errors.
+            -- In ghc > 9.2?
+            -- , ["-fno-show-error-context"]
             , case mode of
                 Debug -> []
                 Opt -> ["-O"]

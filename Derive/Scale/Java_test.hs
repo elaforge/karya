@@ -8,7 +8,6 @@ import qualified Util.Texts as Texts
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Scale as Scale
-import qualified Derive.Scale.Java as Java
 import qualified Derive.Scale.ScaleTest as ScaleTest
 import qualified Derive.Score as Score
 
