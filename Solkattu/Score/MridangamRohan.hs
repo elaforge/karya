@@ -317,12 +317,12 @@ rupaka2 = korvaiS Tala.rupaka_tala $
     . "N_D_ nkn_ d___ __".p&d."_ nkn_ d_nk"
     . "NkD_ nkn_ d___ __".p&d."_ nkn_ d_nk"
     . su "on_kD_k_" . "NkN_ D___ __D_ NkNo kNok"
-    , "N_nn dknk nndk __nn dknk nndk" --
-    . "N_NN DkNk NNDk __NN DkNk NNDk"
-    , su "n_ktpkn_" . "dknk nndk __nn dknk nndk" --
-    . su "npktpkn_" . "dknk nndk" . su "npnd_pnd _pnd_pnd _pnd_oN_"
-    . "u_u_ dknk nndk" . su "npnd_pnd _pnd_pnd _pnd_oN_"
-    . "u_u_ dknk" . su "npnd_oN_ u___npnd _oN_u__k" . "doDk"
+    , "N_nn d.n. nnd. __nn d.n. nnd." --
+    . "N_NN D.N. NND. __NN D.N. NND."
+    , su "n_ktpkn_" . "d.n. nnd. __nn d.n. nnd." --
+    . su "npktpkn_" . "d.n. nnd." . su "npnd_pnd _pnd_pnd _pnd_oN_"
+    . "u_u_ d.n. nnd." . su "npnd_pnd _pnd_pnd _pnd_oN_"
+    . "u_u_ d.n." . su "npnd_oN_ u___npnd _oN_u__k" . "doDk"
     , "N_kD _kn_ kd_k n_kd _kn_ kd_k" --
     . "N_kD _kn_ kd_k NokN okNo kNok"
     . "N_kD _kn_ kd_k" . r4 (su "o_ktpk")
@@ -361,7 +361,7 @@ rupaka_mohra = mohra $ korvaiS1 Tala.rupaka_tala $ Mohra.make su Mohra.A3
 rupaka_mohra_korvai :: Korvai
 rupaka_mohra_korvai = korvai Tala.rupaka_tala $
     [ x2 $ s $ reduce3 2 ø theme . r3 ("PPP_".p5)
-    , s $ reduce3 2 ø theme . r3 (su "oktku___".p5)
+    , s $ reduce3 2 ø theme . r3 (su "oktpu___".p5)
     , s $ r2 "NkNNdk" . r4 "Nd_"
     , s $ su $ tri_ "N___" nakatiku . tri_ "N_pk" nakatiku
         . nakatiku . r3 "N_ktpk" . "N_o_k_D"
