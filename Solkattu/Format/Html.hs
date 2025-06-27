@@ -24,6 +24,7 @@ import qualified Util.Styled as Styled
 import qualified Util.Texts as Texts
 
 import qualified Solkattu.Format.Format as Format
+import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Metadata as Metadata
 import qualified Solkattu.Realize as Realize
@@ -34,6 +35,14 @@ import qualified Solkattu.Talas as Talas
 
 import           Global
 
+
+-- | How many symbols to break lines on.
+--
+-- On my browser at a "most of the screen" maxWidth, 8*16 = 128 is too crowded.
+-- 4*16 = 64 is a bit loose usually but is good spacing when it's very busy.
+-- Also it's convenient to break tintal into 4 parts, for each anga.
+maxWidth :: Int
+maxWidth = 16 * 4
 
 -- * interface
 
@@ -206,7 +215,10 @@ render instruments abstractions score =
         instName = Korvai.instrumentName inst
 
 htmlPage :: Text -> [Html.Html] -> [Html.Html] -> [Html.Html]
-htmlPage title meta body = htmlHeader title : meta ++ body ++ [htmlFooter]
+htmlPage title meta body = htmlHeader title : meta ++ body
+    ++ [htmlTable Mridangam.legend, htmlFooter]
+    -- TODO This adds it to all html, whether or not it has mridangam, maybe
+    -- I'll clean that up later.
 
 renderAbstraction :: (Solkattu.Notation stroke, Ord stroke)
     => Text -> Korvai.Instrument stroke -> Korvai.Score
@@ -233,6 +245,12 @@ renderAbstraction instName inst score (aname, abstraction) =
             then konnakolFont else instrumentFont
         , _rulerEach = defaultRulerEach
         }
+
+htmlTable :: [([Text], [[Text]])] -> Html.Html
+htmlTable = Html.tag "table" . mconcatMap fmt
+    where
+    fmt (title, rows) = mconcat $ tr "th" title : map (tr "td") rows
+    tr tag row = Html.tag "tr" (mconcatMap (Html.tag tag . Html.html) row)
 
 sectionHtmls :: (Solkattu.Notation stroke, Ord stroke)
     => Korvai.Instrument stroke -> Config -> Korvai.Korvai -> [Html.Html]
@@ -464,11 +482,6 @@ formatAvartanams config toSpeed prevRuler tala =
     . Format.makeGroupsAbstract (_abstraction config)
     . Format.normalizeSpeed toSpeed (Talas.aksharas tala)
     where
-    -- On my browser at a "most of the screen" maxWidth, 8*16 = 128 is too
-    -- crowded.  4*16 = 64 is a bit loose usually but is good spacing
-    -- when it's very busy.  Also it's convenient to break tintal into 4 parts,
-    -- for each anga.
-    maxWidth = 16 * 4
     -- Since html uses a grid, I consider every Symbol the same width.
     symWidth = const 1
 

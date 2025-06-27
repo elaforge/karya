@@ -4,7 +4,6 @@
 module Solkattu.Score.Mridangam2025 where
 import           Prelude hiding ((.))
 
-import           Global
 import           Solkattu.Dsl.Mridangam
 
 

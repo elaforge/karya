@@ -216,6 +216,40 @@ abbreviations xs = msum $ map find abbrs
 instance Pretty Thoppi where pretty = Solkattu.notationText
 instance Pretty Valantalai where pretty = Solkattu.notationText
 
+_printLegend :: IO ()
+_printLegend = mapM_ Text.IO.putStrLn $
+    Texts.columns 2 $ concat [row0 : rows | (row0, rows) <- legend]
+
+legend :: [([Text], [[Text]])]
+legend =
+    [ ("" : map describeT lhs, ["" : map Solkattu.notationText lhs])
+    , ( "" : map describeV rhs
+      , ("" : map Solkattu.notationText rhs) : matrix
+      )
+    ]
+    where
+    matrix = map (map Solkattu.notationText)
+        [Thoppi lh : map (Both lh) rhs | lh <- lhs]
+    rhs = [Ki ..]
+    lhs =
+        [ Tha Palm
+        , Tha Fingertips
+        , Thom Open
+        , Thom Up
+        , Gum
+        ]
+    describeV = \case
+        AraiChapu -> "½chapu"
+        MuruChapu -> "chapu"
+        a -> Text.toLower $ showt a
+    describeT = \case
+        Tha Fingertips -> "fingers"
+        Tha _ -> "tha"
+        Thom Low -> "thom"
+        Thom Open -> "thom"
+        Thom Up -> "gumiki"
+        Gum -> "gum"
+
 _printStrokes :: IO ()
 _printStrokes = mapM_ Text.IO.putStrLn $ Texts.columns 2 $ concat
     [ [ "" : map (t . v) rhs ]
