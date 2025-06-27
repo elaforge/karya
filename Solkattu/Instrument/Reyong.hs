@@ -46,6 +46,9 @@ instance Expr.ToExpr Stroke where
 
 instance Expr.ToExpr (Realize.Stroke Stroke) where to_expr = Realize.toExpr
 
+instance Solkattu.Abbreviations Stroke where
+    abbreviations = const Nothing
+
 data Strokes a = Strokes {
     r1 :: a, r2 :: a, r3 :: a, r4 :: a, i :: a
     , b :: a, o :: a, k :: a, x :: a

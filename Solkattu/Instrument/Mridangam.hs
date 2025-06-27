@@ -6,7 +6,26 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE StrictData #-}
 -- | Realize an abstract solkattu Notes to concrete mridangam 'Note's.
-module Solkattu.Instrument.Mridangam where
+module Solkattu.Instrument.Mridangam (
+    Stroke(..)
+    , Thoppi(..), Valantalai(..), Tha(..), Thom(..)
+    , legend
+    , abbreviations
+    , extraCalls
+    , Strokes(..)
+    , strokes
+    , notes
+    , bothRStrokes
+    , addThoppi
+    -- * fromString
+    , fromString
+    -- * postprocess
+    , postprocess
+    -- * patterns
+    , defaultPatterns
+    , kt_kn_o
+    , families567
+) where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -110,7 +129,13 @@ instance Solkattu.Notation Stroke where
             ]
         Gum -> Solkattu.notationText v <> acute
     notation (Flam t v) = Solkattu.textNotation $ case (t, v) of
-        (Tha _, Ki) -> "z"
+        -- Previous options were "ϕ" and "ϴ", but it's too hard to type.
+        -- Or f and F for "flam", but somehow it looks weird.
+        -- The problem with q Q is that Q is close to O, but I don't actually
+        -- use O, so maybe it's ok?  Also nominally q is another one of those
+        -- "two sounds" consonants, like x.
+        (Tha _, Ki) -> "q"
+        (Thom _, Ki) -> "Q"
         _ -> Solkattu.notationText t <> Solkattu.notationText v
 
 instance Pretty Stroke where pretty = Solkattu.notationText
@@ -164,6 +189,29 @@ instance Solkattu.Notation Valantalai where
         Tan -> "^"
         Dhe -> "h"
         Re -> "r"
+
+instance Solkattu.Abbreviations Stroke where
+    abbreviations = abbreviations
+
+-- I tried making abbreviations just [([stroke], [stroke])], but then
+-- I need a new Eq constraint and it's annoying.  Back to a function.
+abbreviations :: [Stroke] -> Maybe ([Stroke], Int)
+abbreviations xs = msum $ map find abbrs
+    where
+    find (prefix, replacement)
+        | prefix `List.isPrefixOf` xs = Just (replacement, length prefix)
+        | otherwise = Nothing
+    -- Because it's too annoying to incorporate Either Text stroke into
+    -- the rendering pipeline, let's reuse stroke for abbreviations.
+    -- I'll reuse tra kra, even though it makes it ambiguous.
+    abbrs =
+        [ ([k, t], [r])
+        , ([p, k], [pk])
+        , ([o, k], [ok])
+        ]
+    Strokes {..} = strokes
+    pk = Flam (Tha Palm) Ki
+    ok = Flam (Thom Low) Ki
 
 instance Pretty Thoppi where pretty = Solkattu.notationText
 instance Pretty Valantalai where pretty = Solkattu.notationText
@@ -358,8 +406,8 @@ notations = Map.fromList $ (extras++) $ Lists.mapMaybeFst isChar $
     lhs = [Tha Palm, Thom Open]
     rhs = [minBound .. ]
 
-printNotations :: IO ()
-printNotations = mapM_ putStrLn
+_printNotations :: IO ()
+_printNotations = mapM_ putStrLn
     [ [k] <> ": " <> show v
     | (k, v) <- List.sortOn snd (Map.toList notations)
     ]

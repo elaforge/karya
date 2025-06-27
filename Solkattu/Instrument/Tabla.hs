@@ -120,6 +120,9 @@ instance Solkattu.Notation Daya where
         Tu3 -> "ü"
         Tun -> "u"
 
+instance Solkattu.Abbreviations Stroke where
+    abbreviations = const Nothing
+
 data Strokes a = Strokes {
     ka :: a, ge :: a
     , the :: a

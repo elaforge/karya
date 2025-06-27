@@ -81,6 +81,8 @@ instance Expr.ToExpr Bol where
 instance Expr.ToExpr (Realize.Stroke Bol) where
     to_expr = Realize.toExpr
 
+instance Solkattu.Abbreviations Bol where abbreviations = const Nothing
+
 parseBols :: BolT -> Either Error [Maybe Bols]
 parseBols = Solkattu.parseSyllables False allBols
     . Text.replace "|" "" -- TODO this should be an akshara assertion

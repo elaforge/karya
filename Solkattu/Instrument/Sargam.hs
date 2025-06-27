@@ -63,6 +63,9 @@ instance Solkattu.Notation Pitch.Degree where
         fromMaybe (showt pc) (degrees Vector.!? pc)
         where degrees = Vector.fromList $ map Text.singleton "srgmpdn"
 
+instance Solkattu.Abbreviations Stroke where
+    abbreviations = const Nothing
+
 -- COMBINING DOT ABOVE
 dotAbove :: Text
 dotAbove = "\x0307"

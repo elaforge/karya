@@ -429,7 +429,8 @@ realizeScoreKon = Korvai.realizeScore realize
     inst = Korvai.IKonnakol
 
 _printInstrument
-    :: (Solkattu.Notation stroke1, Solkattu.Notation stroke2, Ord stroke1)
+    :: (Solkattu.Notation stroke1, Solkattu.Notation stroke2, Ord stroke1,
+        Solkattu.Abbreviations stroke2)
     => (Realize.Stroke stroke1 -> Maybe (Realize.Stroke stroke2))
     -> Korvai.Instrument stroke1
     -> (Terminal.Config -> Terminal.Config)

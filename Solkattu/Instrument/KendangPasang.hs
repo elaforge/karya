@@ -82,6 +82,8 @@ instance Expr.ToExpr (Realize.Stroke Stroke) where
             _ -> Expr.with Symbols.weak stroke
         Realize.Heavy -> Expr.with Symbols.accent stroke
 
+instance Solkattu.Abbreviations Stroke where abbreviations = const Nothing
+
 data Strokes a = Strokes {
     pk :: a
     , k :: a, p :: a -- ka pak

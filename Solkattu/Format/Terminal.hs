@@ -101,7 +101,8 @@ renderAll abstraction score = concatMap write1 $ Format.scoreInstruments score
 
 -- * format
 
-printInstrument :: (Solkattu.Notation stroke, Ord stroke)
+printInstrument ::
+    (Solkattu.Notation stroke, Solkattu.Abbreviations stroke, Ord stroke)
     => Korvai.Instrument stroke -> Config -> Korvai.Korvai
     -> IO ()
 printInstrument instrument config =
@@ -110,14 +111,15 @@ printInstrument instrument config =
 printKonnakol :: Config -> Korvai.Korvai -> IO ()
 printKonnakol config =
     mapM_ Text.IO.putStrLn . fst
-        . formatInstrument config Korvai.IKonnakol Just
+    . formatInstrument config Korvai.IKonnakol Just
 
 printBol :: Config -> Korvai.Korvai -> IO ()
 printBol config =
     mapM_ Text.IO.putStrLn . fst . formatInstrument config Korvai.IBol Just
 
 formatScore
-    :: (Solkattu.Notation stroke1, Solkattu.Notation stroke2, Ord stroke1)
+    :: (Solkattu.Notation stroke1, Solkattu.Notation stroke2, Ord stroke1,
+        Solkattu.Abbreviations stroke2)
     => Config
     -> Korvai.Instrument stroke1
     -> (Realize.Stroke stroke1 -> Maybe (Realize.Stroke stroke2))
@@ -133,7 +135,8 @@ formatScore config instrument postproc = \case
     formatK = formatInstrument config instrument postproc
 
 formatInstrument
-    :: (Solkattu.Notation stroke1, Solkattu.Notation stroke2, Ord stroke1)
+    :: (Solkattu.Notation stroke1, Solkattu.Notation stroke2, Ord stroke1,
+        Solkattu.Abbreviations stroke2)
     => Config
     -> Korvai.Instrument stroke1
     -> (Realize.Stroke stroke1 -> Maybe (Realize.Stroke stroke2))
@@ -141,7 +144,8 @@ formatInstrument
     -> Korvai.Korvai
     -> ([Text], Bool) -- ^ (lines, hadError)
 formatInstrument config instrument postproc korvai =
-    formatResults config (Korvai.korvaiTala korvai) $ zip (sectionTags korvai) $
+    formatResults config (Korvai.korvaiTala korvai) $
+        zip (sectionTags korvai) $
         map (fmap (first (Korvai.mapStrokeRest postproc))) $
         Format.convertGroups $
         Korvai.realize instrument korvai
@@ -149,13 +153,13 @@ formatInstrument config instrument postproc korvai =
 sectionTags :: Korvai.Korvai -> [Tags.Tags]
 sectionTags = map Korvai.sectionTags . Korvai.genericSections
 
-formatResults :: Solkattu.Notation stroke
+formatResults :: (Solkattu.Abbreviations stroke, Solkattu.Notation stroke)
     => Config -> Talas.Tala
     -> [ ( Tags.Tags
          , Either Error ([Format.Flat stroke], [Realize.Warning])
          )
        ]
-    -> ([Text], Bool)
+    -> ([Text], Bool) -- ^ (lines, hadError)
 formatResults config tala results =
     ( concat . snd . List.mapAccumL show1 (Nothing, 0) . zip [0..] $ results
     , any (Either.isLeft . snd) results
@@ -211,8 +215,8 @@ formatResults config tala results =
         )
     addHeader _ _ showedNumber (_, line) =
         (showedNumber, Text.replicate leader " " <> line)
-    sectionNumber isEnding section = Styled.toText $
-        Styled.bg (Styled.bright color) $
+    sectionNumber isEnding section =
+        Styled.toText $ Styled.bg (Styled.bright color) $
         Text.justifyLeft leader ' ' (showt section <> ":")
         where
         -- Highlight endings specially, seems to be a useful landmark.
@@ -238,8 +242,9 @@ data LineType = Ruler | AvartanamStart | AvartanamContinue
 -- I only emit the first part of the ruler.  Otherwise I'd have to have
 -- a multiple line ruler too, which might be too much clutter.  I'll have to
 -- see how it works out in practice.
-format :: Solkattu.Notation stroke => Config -> PrevRuler
-    -> Talas.Tala -> [Format.Flat stroke]
+format :: forall stroke.
+    (Solkattu.Abbreviations stroke, Solkattu.Notation stroke)
+    => Config -> PrevRuler -> Talas.Tala -> [Format.Flat stroke]
     -> (Int, (PrevRuler, [(LineType, Styled.Styled)]))
 format config prevRuler tala notes =
     (strokeWidth,) $
@@ -263,18 +268,85 @@ format config prevRuler tala notes =
 
     avartanamLines :: [[Line]] -- [avartanam] [[line]] [[[sym]]]
     (avartanamLines, strokeWidth) = case _overrideStrokeWidth config of
-        Just n -> (fmt n width tala notes, n)
-        -- Try with strokeWidth 1.  If it takes <= half the width, then
-        -- we have room to expand to strokeWidth 2.  Without this, notation
-        -- can be unnecessarily cramped.
-        Nothing -> case fmt 1 width tala notes of
-            [line] : _ | lineWidth line <= width `div` 2 ->
-                (fmt 2 width tala notes, 2)
+        Just n -> (fmt n, n)
+        -- Try with strokeWidth 1.  If it takes <= half the width, then we have
+        -- room to expand to strokeWidth 2.  Without this, notation can be
+        -- unnecessarily cramped.
+        Nothing -> case fmt 1 of
+            [line] : _ | lineWidth line <= width `div` 2 -> (fmt 2, 2)
             result -> (result, 1)
-        where fmt = formatLines (_abstraction config)
+        where
+        fmt strokeWidth =
+            formatLines (_abstraction config) strokeWidth width tala $
+            (if strokeWidth == 1 && willBreakRuler width tala notes
+                then abbreviateSequences (Solkattu.abbreviations @stroke)
+                else id) $
+            notes
+            -- strokeWidth=1 doesn't mean letters are adjacent!  Because
+            -- there can be rests in there.  Why though?  Maybe because
+            -- normalizeSpeed never gets negative tempo, but stuff breaks
+            -- when I allow that.
     formatLine :: [Symbol] -> Styled.Styled
     formatLine = mconcat . map formatSymbol
     width = _terminalWidth config
+
+-- | At strokeWidth = 1, each normalize speed note corresponds to one column.
+-- Return true if one avartanam won't fit in terminalWidth.
+--
+-- Only apply abbreviations if willBreakRuler.  Otherwise, something would fit
+-- with strokeWidth = 1, but abbreviation makes it half terminal width, so it
+-- expands, now ruler is broken where it otherwise wouldn't be.
+--
+-- Of course I could do the complete render and see if Format.breakLine
+-- happens, this is hopefully a cheaper imitation of that.
+willBreakRuler :: Int -> Talas.Tala -> [Format.Flat stroke] -> Bool
+willBreakRuler terminalWidth tala notes = length avartanam > terminalWidth
+    where
+    maxSpeed = S.maxSpeed notes
+    flat = S.flattenedNotes $
+        S.normalizeSpeed maxSpeed (Talas.aksharas tala) notes
+    avartanam = case flat of
+        [] -> []
+        (state, _) : _ ->
+            takeWhile ((== S.stateAvartanam state) . S.stateAvartanam . fst)
+                flat
+
+-- | Replace sequences with abbreviations.  This should only happen if it
+-- would avoid splitting the ruler.  This is actually surprisingly complicated
+-- to express.
+abbreviateSequences :: ([stroke] -> Maybe ([stroke], Int))
+    -> [Format.Flat stroke] -> [Format.Flat stroke]
+abbreviateSequences abbreviations notes
+    -- Only abbreviate if doing so made maxSpeed reduce.  In other words,
+    -- if everything at that speed was able to be abbreviated.  Otherwise,
+    -- normalizeSpeed will expand it anyway and we didn't gain from
+    -- abbreviation.  TODO this is hardcoded to 2:1 abbreviation, won't work if
+    -- I ever have a different ratio.
+    | S.maxSpeed abbreviatedNotes == maxSpeed - 1 = abbreviatedNotes
+    | otherwise = notes
+    where
+    abbreviatedNotes = go notes
+    -- This is the same sort of transformation as Realize.
+    go [] = []
+    go (note : notes) = case collect (note : notes) of
+        Nothing -> note : go notes
+        Just (strokes, emphasis, tempo) -> case abbreviations strokes of
+            Nothing -> note : go notes
+            Just (abbr, consumed) ->
+                map make abbr ++ go (drop (consumed - 1) notes)
+            where
+            -- The abbreviated strokes get the attributes of the first of the
+            -- sequence.
+            make = S.FNote (sd tempo) . Realize.Note . Realize.Stroke emphasis
+    collect notes = case fst $ Lists.spanWhile strokeOf notes of
+        (t0, (em0, s0)) : xs | S._speed t0 == maxSpeed ->
+            Just (s0 : map (snd . snd) (takeWhile ((== t0) . fst) xs), em0, t0)
+        _ -> Nothing
+    sd t = t { S._speed = S._speed t - 1 }
+    strokeOf (S.FNote tempo (Realize.Note (Realize.Stroke em s))) =
+        Just (tempo, (em, s))
+    strokeOf _ = Nothing
+    maxSpeed = S.maxSpeed notes
 
 takeHalf :: [[a]] -> [[a]]
 takeHalf [lines] = [take (length lines `div` 2) lines]
@@ -296,8 +368,8 @@ formatRuler =
         append = spaces - Text.length mark - debt
 
 -- | Break into [avartanam], where avartanam = [line].
-formatLines :: Solkattu.Notation stroke => Format.Abstraction -> Int
-    -> Int -> Talas.Tala -> [Format.Flat stroke] -> [[[(S.State, Symbol)]]]
+formatLines :: Solkattu.Notation stroke => Format.Abstraction -> Int -> Int
+    -> Talas.Tala -> [Format.Flat stroke] -> [[[(S.State, Symbol)]]]
 formatLines abstraction strokeWidth width tala notes =
     map (map (Format.mapSnd (spellRests strokeWidth)))
         . Format.formatFinalAvartanam isRest _isOverlappingSymbol
@@ -306,16 +378,16 @@ formatLines abstraction strokeWidth width tala notes =
         . overlapSymbols strokeWidth
         . concatMap (makeSymbols strokeWidth tala angas)
         . Format.makeGroupsAbstract abstraction
-        . Format.normalizeSpeed toSpeed (Talas.aksharas tala)
+        . Format.normalizeSpeed maxSpeed (Talas.aksharas tala)
         $ notes
     where
     angas = Talas.angaSet tala
-    toSpeed = S.maxSpeed notes
+    maxSpeed = S.maxSpeed notes
 
 -- | Replace two rests starting on an even note, with a Realize.doubleRest.
 -- This is an elementary form of rhythmic spelling.
 --
--- But if strokeWidth=1, then replace replace odd _ with ' ', to avoid clutter.
+-- But if strokeWidth=1, then replace odd _ with ' ', to avoid clutter.
 spellRests :: Int -> [Symbol] -> [Symbol]
 spellRests strokeWidth
     | strokeWidth == 1 = map thin . zip [0..]
@@ -362,6 +434,8 @@ overlapSymbols strokeWidth = snd . mapAccumLSnd combine ("", Nothing)
         newText = prefix
             <> snd (Texts.splitAt (Texts.length prefix) (_text sym))
 
+-- | Map strakes to Text, all of which are strokeWidth wide.  Groups are given
+-- their background color.
 makeSymbols :: Solkattu.Notation stroke => Int -> Talas.Tala -> Set Tala.Akshara
     -> Format.NormalizedFlat stroke -> [(S.State, Symbol)]
 makeSymbols strokeWidth tala angas = go

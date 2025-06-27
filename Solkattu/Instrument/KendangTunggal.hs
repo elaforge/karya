@@ -59,6 +59,8 @@ instance Expr.ToExpr (Realize.Stroke Stroke) where
             _ -> Expr.with Symbols.weak stroke
         Realize.Heavy -> Expr.with Symbols.accent stroke
 
+instance Solkattu.Abbreviations Stroke where abbreviations = const Nothing
+
 data Strokes a = Strokes {
     pk :: a, p :: a, t :: a, u :: a, å :: a, k :: a, o :: a , a :: a
     } deriving (Show, Functor)

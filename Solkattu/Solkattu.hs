@@ -64,6 +64,7 @@ module Solkattu.Solkattu (
     Notation(..)
     , textNotation
     , notationText
+    , Abbreviations(abbreviations)
     , Note(..)
     , Group(..)
     , Reduction(..)
@@ -139,6 +140,11 @@ textNotation = (mempty,)
 
 notationText :: Notation a => a -> Text
 notationText = snd . notation
+
+-- | Each stroke type can have abbreviations.  Map more strokes to fewer
+-- strokes, along with the count of strokes consumed.
+class Abbreviations stroke where
+    abbreviations :: [stroke] -> Maybe ([stroke], Int)
 
 type Error = Text
 
@@ -351,6 +357,8 @@ data Sollu =
 
 instance Notation Sollu where notation = textNotation . Text.toLower . showt
 instance Pretty Sollu where pretty = notationText
+
+instance Abbreviations Sollu where abbreviations = const Nothing
 
 -- ** parseSollus
 

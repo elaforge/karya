@@ -45,8 +45,7 @@ show_nested_groups = do
 
 test_format :: Test
 test_format = do
-    let f tala = eFormat . format 80 tala
-            . map (S.FNote S.defaultTempo)
+    let f tala = eFormat . format 80 tala . map (S.FNote S.defaultTempo)
         n4 = [k, t, Realize.Space Solkattu.Rest, n]
         M.Strokes {..} = Realize.Note . Realize.stroke <$> M.strokes
         rupaka = Talas.Carnatic Tala.rupaka_fast
@@ -59,6 +58,55 @@ test_format = do
     let kook = [k, o, o, k]
     equal (f (Talas.Carnatic Tala.kanda_chapu) (take (5*4) (cycle kook)))
         "k o o k k o o k k o o k k o o k k o o k"
+
+test_format_abbreviations :: Test
+test_format_abbreviations = do
+    let f = format 8 (Talas.Carnatic (Tala.beats 2))
+    let on = notes [o, n]
+        ktpk = notes [k, t, p, k]
+        M.Strokes {..} = Realize.Note . Realize.stroke <$> M.strokes
+    let r n = concat . replicate n
+
+    -- Fits on one avartanam.
+    equal_on eFormat (f $ sd on <> r 2 on) "o n onon"
+    -- Split avartanam.
+    equal_on eFormat (f $ r 2 on <> su (on<>on) <> on)
+        "o n o n\n\
+        \onono n"
+    -- Abbreviate instead of splitting.
+    equal_on eFormat (f $ sd on <> su ktpk <> on) "o n xqon"
+    -- Don't abbreviate if I don't need it.
+    equal_on eFormat (f $ sd on <> ktpk) "o n ktpk"
+    equal_on eFormat (f $ r 2 ktpk) "ktpkktpk"
+    equal_on eFormat (f $ ktpk <> r 2 (su ktpk)) "ktpkxqxq"
+    -- Abbreviating ktpk would put it on a half-column.
+    equal_on eFormat
+        (f $ su (notes [n, k, t, p, k, o]) <> notes [n, o, o, n, n])
+        "nktpkon\n\
+        \o o n n"
+    -- maxSpeed is 2
+    equal_on eFormat (f $ on <> su (su ktpk) <> notes [o]) "o n xqo"
+    let f16 = format 16 (Talas.Carnatic (Tala.beats 2))
+    -- No abbreviation if strokeWidth > 1
+    equal_on eFormat (f16 $ on <> su ktpk) "o _ n _ k t p k"
+    -- Only apply abbreviations if willBreakRuler.  Otherwise, something would
+    -- fit with strokeWidth = 1, but abbreviation makes it half terminal width,
+    -- so it expands, now ruler is broken where it otherwise wouldn't be.
+    equal_on eFormat (f16 $ su (r 4 ktpk)) (Text.replicate 4 "ktpk")
+
+notes :: [a] -> [S.Flat g a]
+notes = map $ S.FNote S.defaultTempo
+
+su :: [S.Flat g a] -> [S.Flat g a]
+su = map $ modifySpeed 1
+
+sd :: [S.Flat g a] -> [S.Flat g a]
+sd = map $ modifySpeed (-1)
+
+modifySpeed :: S.Speed -> S.Flat g a -> S.Flat g a
+modifySpeed x = \case
+    S.FNote t n -> S.FNote (t { S._speed = x + S._speed t }) n
+    n -> n
 
 test_format_patterns :: Test
 test_format_patterns = do
@@ -351,12 +399,12 @@ formatInstrument :: Korvai.Korvai -> Text
 formatInstrument = Text.unlines . fst
     . Terminal.formatInstrument Terminal.defaultConfig Korvai.IMridangam Just
 
-format :: Solkattu.Notation stroke => Int -> Talas.Tala
-    -> [S.Flat Solkattu.Meta (Realize.Note stroke)] -> Text
+format :: Int -> Talas.Tala
+    -> [S.Flat Solkattu.Meta (Realize.Note M.Stroke)] -> Text
 format = formatAbstraction Format.defaultAbstraction
 
-formatAbstraction :: Solkattu.Notation stroke => Format.Abstraction -> Int
-    -> Talas.Tala -> [S.Flat Solkattu.Meta (Realize.Note stroke)] -> Text
+formatAbstraction :: Format.Abstraction -> Int
+    -> Talas.Tala -> [S.Flat Solkattu.Meta (Realize.Note M.Stroke)] -> Text
 formatAbstraction abstraction width tala =
     Text.intercalate "\n" . map Text.strip
     . map (Styled.toText . snd) . snd . snd
@@ -382,8 +430,8 @@ stripAnsi = Text.intercalate "\n" . map Text.stripEnd . Text.lines
 
 -- | Replace emphasis with capitals, so spacing is preserved.
 capitalizeEmphasis :: Text -> Text
-capitalizeEmphasis = stripAnsi
-    . Regex.substituteGroups emphasis
+capitalizeEmphasis =
+    stripAnsi . Regex.substituteGroups emphasis
         (\_ [t] -> Text.replace "-" "=" (Text.toUpper t))
 
 emphasis :: Regex.Regex
@@ -426,10 +474,11 @@ realizeP pmap smap = fmap Format.mapGroups
     where
     pattern = Realize.realizePattern $ fromMaybe M.defaultPatterns pmap
 
+adiTala :: Talas.Tala
 adiTala = Talas.Carnatic Tala.adi_tala
 
-formatLines :: Solkattu.Notation stroke => Format.Abstraction -> Int
-    -> Int -> Talas.Tala -> [Format.Flat stroke]
+formatLines :: Format.Abstraction -> Int
+    -> Int -> Talas.Tala -> [Format.Flat M.Stroke]
     -> [[[(S.State, Terminal.Symbol)]]]
 formatLines abstraction strokeWidth width tala notes =
     Terminal.formatLines abstraction strokeWidth width tala notes

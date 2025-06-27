@@ -261,9 +261,11 @@ instrumentSection inst sections = case (inst, sections) of
     (ITabla, KorvaiSections ITabla sections) -> Just sections
     _ -> Nothing
 
+-- | Package up a bunch of classes that must be implemented for each instrument.
 data GInstrument = forall stroke.
-    (Solkattu.Notation stroke, Ord stroke, Expr.ToExpr (Realize.Stroke stroke))
-    => GInstrument (Instrument stroke)
+    ( Solkattu.Notation stroke, Solkattu.Abbreviations stroke, Ord stroke
+    , Expr.ToExpr (Realize.Stroke stroke)
+    ) => GInstrument (Instrument stroke)
 
 instruments :: [GInstrument]
 instruments =

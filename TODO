@@ -239,6 +239,9 @@ UNSORTED
     . I also had trouble seeing highlight on subblocks.
     . One issue is that it's transparent so it can only make darker, but what
       if it was like the xor thing that can be bright on a dark background?
+    . Or put some obvious thing in the ruler?
+    . Or I could put the direction arrow in the middle, on the edge it looks
+      like the one on events.
   - since score render doesn't log, it's unlcear when errors have been cleared
   - can I use https://hackage.haskell.org/package/symbolize ?
     . Currently Derive.Parse has memo_table :: Text Expr
@@ -6684,6 +6687,56 @@ solkattu:
         usual 'x2' 'devel' etc. be overloaded on ToSection.
       . This may require SequenceT to be a newtype instead of type synonym.
   format: output:
+    special notation for sequences
+      . If I have characters for kt, ok, pk, then it's no longer necessary to
+        expand the render.
+      * Decide on characters:
+        . nxϕn <-
+        . nxϴN <-
+      . I still want to use ktpk where it fits, I guess this means I'd have
+        to do another trial render with abbreviations, and go for it only
+        if it avoids an expansion.
+      . But, I only want to avoid expansion if it would mean splitting an
+        avartanam.
+      . I can do the substitution by finding adjacent symbols and replacing
+        them with a double duration one.
+      . Or actually, (speed = n, k), (speed = n, t) -> (speed = n-1, x)
+      . I have to substitute before normalizeSpeed, otherwise rests already
+        put in.  But there is no stroke for sequences, only text.
+      . One way is to just make a stroke for sequnces.  It's sort of bogus in
+        that you would never use it directly, and it has a duration of 2,
+        which is unique.
+      . Another way is to render stroke -> Text, then normalizeSpeed, then
+        symbolize.
+        . This is complicated because I still have to do the rest of the
+          symbolization post makeGroupsAbstract, but I can make an
+          instance Notation ((Styled.Style, Text), Char)
+        . This is similar to replacing stroke with Either Text stroke, but
+          maybe the either is simpler?  I still need style for emphasis,
+          don't need extension though.
+      . I want to make this work for both terminal and html.
+      . How to propagate from the instrument?  I could have
+        Instrument stroke -> Map (stroke, stroke) stroke
+      . No work because of formatInstrument postproc makes a different stroke
+        type.  I have Instrument as a stroke->x but I need the Instrument val.
+      * Ok so `class Abbreviations stroke where abbrevations :: (stroke,
+        stroke) -> Maybe stroke`?
+      . Ok but actually abbreviate is not per-line!  It's only applied to the
+        highest speed strokes.  So condition is do them only for strokeWidth=1
+        and for the speed that renders to 1/2 char.
+      . Also should only be when they fall on a column!
+      * Also should only be to full ktpk ktok
+        . (stroke, stroke) must become [stroke]
+      - Or not though, kto kto kto -> xoxoxo is kind of nice?
+      . Normalize to maxSpeed-1 then apply abbrevations, then accept if there
+        are no 1/2 beats left.
+      . No, normalizeSpeed crashes on speed too low.
+      . So still must apply before normalize.
+      . Only abbreviate if the results will be single column.
+        What determines that?
+        Must be strokeWidth=1 and normalizeSpeed doesn't put in rests.
+        It puts in rests if speed < maxSpeed.
+        So only abbreviate if that reduces the maxSpeed.
     html:
       - rendering has gotten very slow, why?
         . Having entirely separate renders for each abstraction level can't be

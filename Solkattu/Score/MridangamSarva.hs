@@ -467,8 +467,8 @@ sollus = sollu $ korvaiV adi
     , sarvaD_ 5 . su "u_pktpktpu_kt_k_u_pknook"
     , sarvaD_ 6.5 . "rknu".su "ktpk"
     -- from tabla, dha trakra dhet tette dhinna gena
-    , sarvaD_ 6 . "NxzTktpk"
-    , sarvaD_ 5 . "NxzTktpk Inon"
+    , sarvaD_ 6 . "NxqTktpk"
+    , sarvaD_ 5 . "NxqTktpk Inon"
     , sarvaD_ 6 . "NkNoInon"
     ]
     where

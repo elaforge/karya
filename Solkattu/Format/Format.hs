@@ -119,10 +119,30 @@ groupToMeta (Realize.GMeta meta) = meta
 
 -- * normalize speed
 
--- | 'Flat' after 'normalizeSpeed'.
+-- | 'Flat' after 'normalizeSpeed'.  Each element has the same duration.
 type NormalizedFlat stroke =
     S.Flat Solkattu.Meta (S.State, S.Stroke (Realize.Note stroke))
 
+normalizeSpeed :: S.Speed -> Tala.Akshara -> [Flat stroke]
+    -> [NormalizedFlat stroke]
+normalizeSpeed toSpeed talaAksharas =
+    fmap (fmap (fmap normalizeRest)) . S.normalizeSpeed toSpeed talaAksharas
+    . S.filterFlat (not . isAlignment)
+    where
+    isAlignment (Realize.Alignment {}) = True
+    isAlignment _ = False
+
+-- | Rests are special in that S.normalizeSpeed can produce them.  Normalize
+-- them to force them to all be treated the same way.
+normalizeRest :: S.Stroke (Realize.Note a) -> S.Stroke (Realize.Note a)
+normalizeRest (S.Attack (Realize.Space Solkattu.Rest)) = S.Rest
+normalizeRest (S.Sustain (Realize.Space Solkattu.Rest)) = S.Rest
+normalizeRest a = a
+
+-- * makeGroupsAbstract
+
+-- | Replace S.FGroups that match the abstraction level with a Realize.Abstract
+-- placeholder.
 makeGroupsAbstract :: Abstraction
     -> [NormalizedFlat stroke] -> [NormalizedFlat stroke]
 makeGroupsAbstract abstraction = concatMap combine
@@ -166,22 +186,6 @@ makeGroupsAbstractScore abstraction = concatMap combine
         | otherwise = [S.FGroup tempo group (concatMap combine children)]
         where meta = groupToMeta group
     combine n = [n]
-
-normalizeSpeed :: S.Speed -> Tala.Akshara -> [Flat stroke]
-    -> [NormalizedFlat stroke]
-normalizeSpeed toSpeed talaAksharas =
-    fmap (fmap (fmap normalizeRest)) . S.normalizeSpeed toSpeed talaAksharas
-    . S.filterFlat (not . isAlignment)
-    where
-    isAlignment (Realize.Alignment {}) = True
-    isAlignment _ = False
-
--- | Rests are special in that S.normalizeSpeed can produce them.  Normalize
--- them to force them to all be treated the same way.
-normalizeRest :: S.Stroke (Realize.Note a) -> S.Stroke (Realize.Note a)
-normalizeRest (S.Attack (Realize.Space Solkattu.Rest)) = S.Rest
-normalizeRest (S.Sustain (Realize.Space Solkattu.Rest)) = S.Rest
-normalizeRest a = a
 
 -- * tala
 
