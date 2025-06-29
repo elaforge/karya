@@ -52,7 +52,9 @@ attributeMap = Common.attribute_map
     , (Mridangam.nam, Nam)
     , (Mridangam.din, Din)
     , (Mridangam.chapu, Chapu)
-    , (Mridangam.dheem, Dheem)
+    -- dheem changed to dim, but I don't want to change filenames so let's
+    -- map it back just for here.
+    , (Mridangam.dim, Dheem)
     , (Mridangam.kin, Kin)
     , (Mridangam.tan, Tan)
     ]

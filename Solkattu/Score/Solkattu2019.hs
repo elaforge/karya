@@ -48,11 +48,11 @@ c_19_06_17 = date 2019 6 17 $ ganesh $ korvaiS adi mridangam
     ]
     where
     seq = theme 1 . theme 2 . theme 3 . tri p5 . tri p6 . tri p7
-    theme n = takadinna.takita.repeat n taka.dheem.__3
+    theme n = takadinna.takita.repeat n taka.dim.__3
     mridangam = makeMridangam
         [ (takita, n.p.k)
         , (taka, p.k)
-        , (dheem, od)
+        , (dim, od)
         ]
 
 -- n d d n -- 1

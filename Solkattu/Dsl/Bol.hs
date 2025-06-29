@@ -361,7 +361,7 @@ _mridangamStrokes = map (second (map _toMridangam)) _tablaStrokes
 -- Even though there is a direct translation from tabla to mridangam, I don't
 -- want to encode it at some lower level, but leave it in StrokeMaps.  This is
 -- so I can still put in exceptions.  Also there is literal translation where
--- dhi and perhaps tun is dheem, and idiomatic where it should maybe be din.
+-- dhi and perhaps tun is dim, and idiomatic where it should maybe be din.
 _toMridangam :: Tabla.Stroke -> Mridangam.Stroke
 _toMridangam = \case
     Tabla.Both baya daya -> Mridangam.Both (thoppi baya) (valantalai daya)
@@ -377,8 +377,8 @@ _toMridangam = \case
         Tabla.The -> Mridangam.Ki -- could play dhere on mridangam, right?
         Tabla.Na ->  Mridangam.Nam
         Tabla.Ne ->  Mridangam.Ki
-        Tabla.Nhe -> Mridangam.Dheem
-        Tabla.Ran -> Mridangam.Dheem -- or Tan?
+        Tabla.Nhe -> Mridangam.Dim
+        Tabla.Ran -> Mridangam.Dim -- or Tan?
         Tabla.Re ->  Mridangam.Ki
         Tabla.Rhe -> Mridangam.Ta
         Tabla.Tak -> Mridangam.Ki
@@ -389,8 +389,8 @@ _toMridangam = \case
         Tabla.Tin -> Mridangam.Din
         Tabla.Tre -> Mridangam.Ki -- TODO add a mridangam tre
         -- kre turns into Both above, I guess I need flam there too.
-        Tabla.Tu3 -> Mridangam.Dheem
-        Tabla.Tun -> Mridangam.Dheem
+        Tabla.Tu3 -> Mridangam.Dim
+        Tabla.Tun -> Mridangam.Dim
 
 -- | Merge a sequence of left hand strokes with one of right hand strokes.
 -- Both sequences must have the same length and structure.

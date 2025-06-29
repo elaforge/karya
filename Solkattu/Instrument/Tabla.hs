@@ -50,8 +50,8 @@ data Daya =
     | Ti -- te with middle finger, like mi
     | Tin -- din
     | Tre -- tette flam
-    | Tu3 -- dheem, 3 fingers
-    | Tun -- dheem, 1 finger
+    | Tu3 -- dim, 3 fingers
+    | Tun -- dim, 1 finger
     deriving (Eq, Ord, Show)
 
 instance Pretty Stroke where pretty = showt

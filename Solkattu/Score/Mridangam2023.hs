@@ -259,7 +259,7 @@ ta          t       te
 nam         n       na
 din         d       tin
 chapu       u       tA
-dheem       i       tun
+dim         i       tun
 din + thom  D       dha
 
 intro

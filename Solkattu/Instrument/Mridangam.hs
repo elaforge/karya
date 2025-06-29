@@ -67,7 +67,7 @@ data Valantalai =
     | Din
     | AraiChapu -- ^ "half chapu", played covering half the valantalai
     | MuruChapu -- ^ "full chapu", played with just the pinky touching saddam
-    | Dheem
+    | Dim
     | Kin -- ^ ki on meetu
     | Tan -- ^ ta on meetu
     | Dhe -- ^ like tabla dhere
@@ -184,7 +184,7 @@ instance Solkattu.Notation Valantalai where
         Din -> "d"
         AraiChapu -> "u"
         MuruChapu -> "v"
-        Dheem -> "i"
+        Dim -> "i"
         Kin -> ","
         Tan -> "^"
         Dhe -> "h"
@@ -342,7 +342,7 @@ strokes = Strokes
     , d = Valantalai Din
     , u = Valantalai AraiChapu
     , v = Valantalai MuruChapu
-    , i = Valantalai Dheem
+    , i = Valantalai Dim
     , y = Valantalai Kin
     , j = Valantalai Tan
     , p = Thoppi (Tha Palm)

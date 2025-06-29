@@ -38,7 +38,7 @@ sollusText = Map.fromList
     , ("nam", 'n')
     , ("dom", 'o')
     , ("din", 'd')
-    , ("dim", 'D') -- Some of these are dheem, some are od
+    , ("dim", 'D') -- Some of these are dim, some are od
     , ("-", '_')
     ]
 

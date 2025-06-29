@@ -1165,11 +1165,11 @@ c_18_10_06 :: Korvai
 c_18_10_06 = date 2018 10 6 $ tirmanam $
     comment "practice in urukalai/rendaikalai adi, rupaka, kanda, misra" $
     korvaiS1 adi mridangam $
-    __D 2 . reduceBy [0, 2, 5, 7] (dheem.__) (kita.taka.takadinna)
+    __D 2 . reduceBy [0, 2, 5, 7] (dim.__) (kita.taka.takadinna)
     where
     mridangam = makeMridangam
         [ (kita.taka, t.k.o.o)
-        , (dheem, od)
+        , (dim, od)
         ]
 
 c_18_10_22 :: Korvai
@@ -1212,9 +1212,9 @@ tisra_mohra = ganesh $ date 2018 12 7 $
     where
     a1 = gugu.mi.na.dit.__4.tang.__.kita.nakatiku
     a2 = na.ka.dit.__.tang.__.kita.nakatiku
-    b1 = ta.langa.din.__.tat.__.gugu.tat.__.dheem.__3.ka
-    b2 = ta.langa.dheem.__3.ka
-    b3 = tri_ (dheem.__4) (ta.langa.gugu.tat.__)
+    b1 = ta.langa.din.__.tat.__.gugu.tat.__.dim.__3.ka
+    b2 = ta.langa.dim.__3.ka
+    b3 = tri_ (dim.__4) (ta.langa.gugu.tat.__)
     mridangam = makeMridangam
         [ (gugu.mi.na.dit, o.o.k.p.k)
         , (tang.kita, u.p.k)
@@ -1222,6 +1222,6 @@ tisra_mohra = ganesh $ date 2018 12 7 $
         , (talang.ga, p.u.k)
         , (din.tat, o.k)
         , (gugu.tat, o.o.k)
-        , (dheem, od)
+        , (dim, od)
         , (ka, k)
         ]

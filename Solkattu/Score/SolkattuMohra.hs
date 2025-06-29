@@ -60,12 +60,12 @@ c_mohra = ganesh $ korvais adi (mridangam<>kendang) su
     where
     a1 = dit.__4     .tang.__.kita.nakatiku
     a2 = na.ka.dit.__.tang.__.kita.nakatiku
-    b1 = ta.langa.din.__.tat.__.din.__.tat.__.dheem.__4
-    b2 = ta.langa.dheem.__4
-    b3 = tri_ (dheem.__4) (ta.langa.din.__.tat.__)
+    b1 = ta.langa.din.__.tat.__.din.__.tat.__.dim.__4
+    b2 = ta.langa.dim.__4
+    b3 = tri_ (dim.__4) (ta.langa.din.__.tat.__)
 
-    b12 = nadai 3 $ na.kita.takita.takita.dheem.__3
-    b22 = nadai 3 $ takita.dheem.__3
+    b12 = nadai 3 $ na.kita.takita.takita.dim.__3
+    b22 = nadai 3 $ takita.dim.__3
     b32 = nadai 3 $ tri_ tanga (na.kita.takita)
     mridangam = makeMridangam
         [ (dit, k)
@@ -73,7 +73,7 @@ c_mohra = ganesh $ korvais adi (mridangam<>kendang) su
         , (na.ka, n.p)
         , (ta.langa, p.u.__.k)
         , (din.tat, o.k)
-        , (dheem, od)
+        , (dim, od)
 
         , (na.kita, p.k.n)
         , (takita, o.o.k)
@@ -85,7 +85,7 @@ c_mohra = ganesh $ korvais adi (mridangam<>kendang) su
         , (na.ka, t.k)
         , (ta.langa, u.u.__.p)
         , (din.tat, o.p)
-        , (dheem, a)
+        , (dim, a)
 
         , (na.kita, t.a.p)
         , (takita, o.o.p)
@@ -142,9 +142,9 @@ misra1 = date 2019 4 14 $ ganesh $ korvai1 Tala.misra_chapu mridangam id
     where
     a1 = tam.__.taka.nakatiku
     a2 = na.ka.dit.__.tang.__.kita.nakatiku
-    b1 = ta.langa.din.__.tat.__.din.__.tat.__.dheem.__4
-    b2 = ta.langa.dheem.__4
-    b3 = tri_ (dheem.__4) (ta.langa.din.__.tat.__)
+    b1 = ta.langa.din.__.tat.__.din.__.tat.__.dim.__4
+    b2 = ta.langa.dim.__4
+    b3 = tri_ (dim.__4) (ta.langa.din.__.tat.__)
     mridangam = makeMridangam
         [ (tam.taka, on.p.k)
         , (dit, k)
@@ -152,5 +152,5 @@ misra1 = date 2019 4 14 $ ganesh $ korvai1 Tala.misra_chapu mridangam id
         , (na.ka, n.p)
         , (ta.langa, p.u.__.k)
         , (din.tat, o.k)
-        , (dheem, od)
+        , (dim, od)
         ]

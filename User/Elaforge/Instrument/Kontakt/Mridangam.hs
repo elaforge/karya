@@ -51,7 +51,7 @@ make_strokes root_nn = CUtil.drum_pitched_strokes M.all_strokes $
         , [M.nam]
         , [M.din]
         , [M.arai <> M.chapu, M.muru <> M.chapu]
-        , [M.kin, M.dheem]
+        , [M.kin, M.dim]
         , [M.tan]
         ]
 
@@ -80,7 +80,7 @@ pitched_strokes_old :: CUtil.PitchedStrokes
     , (M.nam, (Key.g4, Key.e5))
     , (M.din, (Key.g5, Key.e6))
     , (M.din <> Attrs.v2, (Key.g6, Key.e7))
-    , (M.dheem, (Key.g7, Key.e8))
+    , (M.dim, (Key.g7, Key.e8))
     , (M.arai <> M.chapu, (Key.g8, Key.e9))
     , (M.muru <> M.chapu, (Key.g9, Key.g9))
     ]

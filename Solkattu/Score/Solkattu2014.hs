@@ -154,9 +154,9 @@ c_14_02_27 = date 2014 2 27 $ ganesh $ korvaiS adi mridangam $
         map (nadai 6 • (purvangam.))
     [ spread 3 tdgnt . spread 2 tdgnt . tri_ __ tdgnt
     , spread 3 tdgnt . tri (ta.__.din.__.gin.__.na.__.thom)
-    , tri_ (dheem.__3) (ta.din.__.ta.__.din.__.p5)
-    , tri_ (dheem.__3) (p5.ta.__.din.__.ta.din.__)
-    , p123 p6 (dheem.__3)
+    , tri_ (dim.__3) (ta.din.__.ta.__.din.__.p5)
+    , tri_ (dim.__3) (p5.ta.__.din.__.ta.din.__)
+    , p123 p6 (dim.__3)
 
     , p123 p5 (tat.__3.din.__3)
     , p5.dinga . kp.p5.p5. dinga . kpnp.p5.p5.p5
@@ -168,7 +168,7 @@ c_14_02_27 = date 2014 2 27 $ ganesh $ korvaiS adi mridangam $
     purvangam = tri (ta_katakita.takadinna . din.__6)
     mridangam = makeMridangam $
         [ (ta.din, k.od)
-        , (dheem, u)
+        , (dim, u)
         , (din, od)
         , (tat, k)
         , (dinga, od.__.p)
@@ -215,7 +215,7 @@ c_14_03_26 = date 2014 3 26 $ ganesh $ similarTo "Solkattu2014" "c_14_03_13" $
     ] ++ map sequence [t1, t2, t3, t4, t5]
     where
     -- Same sarva as c_14_03_13.  TODO sarva
-    sequence p = tri_ (dheem.__3) (r3 (p.__) . tri p5)
+    sequence p = tri_ (dim.__3) (r3 (p.__) . tri p5)
     t1 = group $ na.na.na.din
     t2 = group $ su $ dhom.__.taka.taka.din.__
     t3 = group $ su $ tam.__.taka.na.ka.din.__
@@ -229,7 +229,7 @@ c_14_03_26 = date 2014 3 26 $ ganesh $ similarTo "Solkattu2014" "c_14_03_13" $
         , (t4, k.o.o.k.k.o.od.__)
         , (t5, o.k.t.k.n.o.od.__)
         , (ka, k)
-        , (dheem, i)
+        , (dim, i)
         ]
 
 c_14_04_21 :: Korvai
@@ -304,7 +304,7 @@ c_14_06_06 = date 2014 6 6 $ ganesh $ comment "chatusra tisram" $
 
     -- Variation.
     , purvangam2 . tri (tam.__7 . p5)
-    , purvangam2 . tri (nadai 3 (dheem.__4 . tdgnt))
+    , purvangam2 . tri (nadai 3 (dim.__4 . tdgnt))
     ]
     where
     purvangam x1 x2 = spread 3 (tadindintat.din.__3)
@@ -326,7 +326,7 @@ c_14_06_06 = date 2014 6 6 $ ganesh $ comment "chatusra tisram" $
         , (takita.taka.ta, k.p.k.t.p.k)
         , (ki.takadinna, t.k.o.o.k)
         , (tam, u)
-        , (dheem, i)
+        , (dim, i)
 
         , (taka, k.t)
         , (kita.taka, k.t.p.k)

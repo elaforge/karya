@@ -62,7 +62,6 @@ _sollu :: Solkattu.Sollu -> Sequence
 _sollu s = S.singleton $ S.Note (Solkattu.Note (Solkattu.note s))
 
 cham = _sollu Solkattu.Cham
-dheem = _sollu Solkattu.Dheem
 dhom = _sollu Solkattu.Dhom
 di = _sollu Solkattu.Di
 din = _sollu Solkattu.Din

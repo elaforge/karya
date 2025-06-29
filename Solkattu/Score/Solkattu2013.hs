@@ -42,7 +42,7 @@ c_13_08_14 = ganesh $ date 2013 8 14 $ korvaiS adi (mridangam <> kendang)
     ,     group (theme 4 1) . pat7 . tam.__4
       . dropM 4 (theme 4 2) . r2 pat8 . tam.__4
       . dropM 8 (theme 4 3)
-        . trin (dheem . __4) (tri pat9) (tri pat8) (tri pat7)
+        . trin (dim . __4) (tri pat9) (tri pat8) (tri pat7)
     ]
     where
     theme gap1 gap2 = ta . __n gap1 . dit . __n gap1 . takadinna.din
@@ -54,7 +54,7 @@ c_13_08_14 = ganesh $ date 2013 8 14 $ korvaiS adi (mridangam <> kendang)
         -- for pat7 -- pat9
         , (taka, k.p)
         , (tam, u)
-        , (dheem, i)
+        , (dim, i)
         ]
     kendang = makeKendang1
         [ (ta.dit, p.t)
@@ -63,7 +63,7 @@ c_13_08_14 = ganesh $ date 2013 8 14 $ korvaiS adi (mridangam <> kendang)
         -- for pat7 -- pat9
         , (taka, p.k)
         , (tam, a)
-        , (dheem, a)
+        , (dim, a)
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
     pat7 = taka.p5
     pat8 = taka.__.p5
@@ -90,11 +90,11 @@ c_13_10_29 = date 2013 10 29 $ ganesh $ korvaiS adi mridangam
     , nadai 6 sequence
     ]
     where
-    sequence = reduce3 2 ø (tat.__.dit.__.takadinna.dheem.__4)
+    sequence = reduce3 2 ø (tat.__.dit.__.takadinna.dim.__4)
         . tri_ (tam.__6) (p6.p6.p6)
     mridangam = makeMridangam
         [ (tat.dit, k.t)
-        , (dheem, od)
+        , (dim, od)
         , (tam, u)
         ]
 
@@ -111,14 +111,14 @@ c_13_11_12 = date 2013 11 12 $ ganesh $ korvaiS adi mridangam
     [ sequence, nadai 6 sequence ]
     where
     sequence =
-        theme . dropM 2 theme . taka.dheem.__4 . dropM 4 theme
-            . r2 (taka.dheem.__4)
+        theme . dropM 2 theme . taka.dim.__4 . dropM 4 theme
+            . r2 (taka.dim.__4)
             . spread 3 tdgnt . spread 2 tdgnt . tri_ __ tdgnt
-    theme = tat.__.dit.__.takadinna.taka.dheem.__4
+    theme = tat.__.dit.__.takadinna.taka.dim.__4
     mridangam = makeMridangam
         [ (tat.dit, k.t)
         , (taka, p.k)
-        , (dheem, od)
+        , (dim, od)
         ]
 
 c_13_12_11 :: Korvai
@@ -289,10 +289,10 @@ t1s = ganesh $ korvaiS adi mridangam $ map (nadai 6)
 
 t2s :: Korvai
 t2s = ganesh $ korvaiS adi mridangam $ map (nadai 6)
-    [ reduce (tat.__.dit.__.takadinna.dheem.__5) . tri p5
-    , reduce (tat.__.dit.__.takadinna.dheem.__4) . tri p6
-    , reduce (tat.__.dit.__.takadinna.dheem.__3) . tri p7
-    , reduce (tat.__.dit.__.takadinna.dheem.__)  . tri (ta.din.__.p5)
+    [ reduce (tat.__.dit.__.takadinna.dim.__5) . tri p5
+    , reduce (tat.__.dit.__.takadinna.dim.__4) . tri p6
+    , reduce (tat.__.dit.__.takadinna.dim.__3) . tri p7
+    , reduce (tat.__.dit.__.takadinna.dim.__)  . tri (ta.din.__.p5)
     -- TODO takadinna.din!p
     , reduce (tat.__.dit.__.takadinna.din)       . tri (ta.__.din.__.p5)
     , reduce (tat.__.dit.__.takadinna)           . tri (taka.ta.din.__.p5)
@@ -311,7 +311,7 @@ t2s = ganesh $ korvaiS adi mridangam $ map (nadai 6)
         [ (tat.dit, k.t)
         , (taka.din, k.o.o)
         , (taka, k.p)
-        , (dheem, od)
+        , (dim, od)
         , (din, od)
         , (ta.din.ga, k.od.__)
         , (ta.din, k.od)

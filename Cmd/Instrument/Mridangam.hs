@@ -8,7 +8,7 @@ module Cmd.Instrument.Mridangam (
     code
     , stops
     , all_strokes
-    , ki, ta, nam, din, dheem, chapu, muru, arai
+    , ki, ta, nam, din, dim, chapu, muru, arai
     , kin, tan
     , tha, thom
     , palm, fingers, fingertips
@@ -56,7 +56,7 @@ pitched_strokes =
     [ nam, din
     , kin, tan
     , chapu
-    , dheem
+    , dim
     ]
 
 {-
@@ -119,7 +119,7 @@ stops :: Drums.Stops
             -- fingers tha, maybe it should be left ambiguous?
             , ('5', MuruChapu)
             , ('t', AraiChapu)
-            , ('y', Dheem)
+            , ('y', Dim)
             , (',', Tra)
             ]
         -- TODO need flam call
@@ -160,7 +160,7 @@ stops :: Drums.Stops
         Din -> v_meetu
         AraiChapu -> v_open
         MuruChapu -> v_open
-        Dheem -> v_open
+        Dim -> v_open
         Kin -> v_meetu
         Tan -> v_meetu
         Dhe -> v_closed
@@ -186,7 +186,7 @@ valantalai_attrs = \case
     Din -> din
     AraiChapu -> arai <> chapu
     MuruChapu -> muru <> chapu
-    Dheem -> dheem
+    Dim -> dim
     Kin -> kin
     Tan -> tan
     Dhe -> dhe
@@ -211,7 +211,7 @@ tra = Attrs.attr "tra"
 mi = Attrs.attr "mi"
 nam = Attrs.attr "nam"
 din = Attrs.attr "din"
-dheem = Attrs.attr "dheem"
+dim = Attrs.attr "dim"
 chapu = Attrs.attr "chapu"
 muru = Attrs.attr "muru"
 arai = Attrs.attr "arai"
