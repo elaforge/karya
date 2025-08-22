@@ -77,3 +77,21 @@ simple_korvai :: Korvai
 simple_korvai = date 2025 5 2 $ rohan $ korvaiS adi
     [ tri_ "D_" ("P_" .su ("u_pk".nakatiku)."o_k_") . od.__3 . r3 p7
     ]
+
+s_tirmanams :: Korvai
+s_tirmanams = korvaiV adi
+    [ __D 3.75 . "kt_p_k_ no_o_k_" . od.__7 . "kt_pk_no_ok_".od.__6
+        . "ktpk_nook_".od
+    , __.__."kt_p_k_ no_o_k_" . od.__7 . "kt_pk_no_ok_".od.__6
+        . "ktpk_nook_".od.__5 . su ("ktpknook".nakatiku) -- "ktpknook"
+        . od
+    ]
+
+-- kanjira
+{-
+
+    k _ i tktktkkook
+    k _ i tktkikkook
+    k _ u pkn8------npk u pkn8------k _ u pkn8------pu ko k o k D
+    0   .   1   .   2   .   3   .   X   .   0   .   X   .   0   .   |
+-}

@@ -223,14 +223,19 @@ _printLegend = mapM_ Text.IO.putStrLn $
 legend :: [([Text], [[Text]])]
 legend =
     [ ("" : map describeT lhs, ["" : map Solkattu.notationText lhs])
-    , ( "" : map describeV rhs
+    , ( "thp" : map describeV rhs
       , ("" : map Solkattu.notationText rhs) : matrix
+      )
+    , ( ["2x", "kita", "taka", "domka"]
+      , ["spd" : map Solkattu.notationText [Valantalai Tra, pk, ok]]
       )
     ]
     where
     matrix = map (map Solkattu.notationText)
         [Thoppi lh : map (Both lh) rhs | lh <- lhs]
     rhs = [Ki ..]
+    pk = Flam (Tha Palm) Ki
+    ok = Flam (Thom Low) Ki
     lhs =
         [ Tha Palm
         , Tha Fingertips
@@ -239,8 +244,8 @@ legend =
         , Gum
         ]
     describeV = \case
-        AraiChapu -> "½chapu"
-        MuruChapu -> "chapu"
+        AraiChapu -> "½chap"
+        MuruChapu -> "chap"
         a -> Text.toLower $ showt a
     describeT = \case
         Tha Fingertips -> "fingers"
@@ -422,7 +427,7 @@ notations = Map.fromList $ (extras++) $ Lists.mapMaybeFst isChar $
         , map Valantalai rhs
         -- Omit little strokes, they're probably inaudible on Both anyway.
         , [Both lh rh | lh <- lhs, rh <- rhs, rh `notElem` [Mi, Kin, Tan]]
-        , [Flam (Tha Palm) Ki]
+        , [Flam (Tha Palm) Ki, Flam (Thom Low) Ki]
         ]
     where
     -- Two ways to write these, yjl are valid haskell ids, ,^. are not.
