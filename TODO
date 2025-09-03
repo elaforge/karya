@@ -4,6 +4,9 @@ LEGEND
   Use indent folding with indent=2.
 
 current:
+  - add a bpm range annotation to solkattu
+    . This is sort of more dynamic, in that it's to do with my practice,
+      but isn't all of it?
   - what's up with attoparsec linking?
     . Providing -package attoparsec has error:
       Derive/C/Prelude/Val.hs:6:1: error:
@@ -6687,7 +6690,7 @@ solkattu:
         usual 'x2' 'devel' etc. be overloaded on ToSection.
       . This may require SequenceT to be a newtype instead of type synonym.
   format: output:
-    special notation for sequences
+    abbreviation: special notation for sequences:
       . If I have characters for kt, ok, pk, then it's no longer necessary to
         expand the render.
       * Decide on characters:
@@ -6727,7 +6730,7 @@ solkattu:
       . Also should only be when they fall on a column!
       * Also should only be to full ktpk ktok
         . (stroke, stroke) must become [stroke]
-      - Or not though, kto kto kto -> xoxoxo is kind of nice?
+      * Or not though, kto kto kto -> xoxoxo is kind of nice?
       . Normalize to maxSpeed-1 then apply abbrevations, then accept if there
         are no 1/2 beats left.
       . No, normalizeSpeed crashes on speed too low.
@@ -6737,6 +6740,11 @@ solkattu:
         Must be strokeWidth=1 and normalizeSpeed doesn't put in rests.
         It puts in rests if speed < maxSpeed.
         So only abbreviate if that reduces the maxSpeed.
+      - Still not quite, because if the score is written in higher speed,
+        it won't simplify e.g. s2 k_ to s1 k
+        . In fact this might be the source of rendering oddities?  Because
+          if I notate in su it tends to render that way since normalizeSpeed
+          only expands, doesn't contract?
     html:
       - rendering has gotten very slow, why?
         . Having entirely separate renders for each abstraction level can't be

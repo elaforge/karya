@@ -91,7 +91,14 @@ s_tirmanams = korvaiV adi
 {-
 
     k _ i tktktkkook
-    k _ i tktkikkook
+    k _ i tktkikkttkiki i
     k _ u pkn8------npk u pkn8------k _ u pkn8------pu ko k o k D
     0   .   1   .   2   .   3   .   X   .   0   .   X   .   0   .   |
+
+    n8------
+    tkktkktk
+    or if fast, just
+    tktktktk but emphasis takaTArikitataka
+
+    work out timings for say 5m solo, so it's not lopsided
 -}
