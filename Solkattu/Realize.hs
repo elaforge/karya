@@ -17,7 +17,8 @@ module Solkattu.Realize (
     , Stroke(..)
     , Emphasis(..)
     , toExpr
-    , noteOf, strokeOf, stroke, rest, strokeToSequence
+    , noteOf, strokeOf, stroke, rest
+    , strokeToSequence, strokeToSequence2
     , typeName
     , doubleRest
     -- * checkAlignment
@@ -160,6 +161,10 @@ rest = S.Note (Space Solkattu.Rest)
 
 strokeToSequence :: stroke -> S.Sequence g (Solkattu.Note (Stroke stroke))
 strokeToSequence = S.singleton . S.Note . Solkattu.Note . Solkattu.note . stroke
+
+strokeToSequence2 :: Stroke stroke
+    -> S.Sequence g (Solkattu.Note (Stroke stroke))
+strokeToSequence2 = S.singleton . S.Note . Solkattu.Note . Solkattu.note
 
 -- There's no general ToCall instance for Stroke because individual instruments
 -- may have special cases.

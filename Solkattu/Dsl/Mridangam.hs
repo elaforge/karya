@@ -15,6 +15,7 @@ module Solkattu.Dsl.Mridangam (
     , module Solkattu.Dsl.Interactive
 ) where
 import           Prelude hiding ((.))
+import qualified Data.String as String
 import           GHC.Stack (HasCallStack)
 
 import           Solkattu.Dsl.Interactive (diff, diffw)
@@ -22,6 +23,7 @@ import qualified Solkattu.Dsl.Solkattu as Dsl.Solkattu
 import           Solkattu.Dsl.Solkattu
     (merge_, realizeScore, realizeScoreM, (&))
 import qualified Solkattu.Format.Terminal as Terminal
+import qualified Solkattu.Instrument.KendangPasang as KendangPasang
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Realize as Realize
@@ -130,9 +132,7 @@ mapNote = fmap
 -- | Parse a string to mridangam strokes.
 strM :: HasCallStack => String -> Sequence
 strM str = mconcatMap toSeq $ Solkattu.check $ Mridangam.fromString str
-    where
-    toSeq Nothing = __
-    toSeq (Just stroke) = Realize.strokeToSequence stroke
+    where toSeq = maybe __ Realize.strokeToSequence
 
 -- * fragments
 
@@ -165,3 +165,33 @@ kook = k.o.o.k
 nakatiku :: Sequence
 nakatiku = namedT Solkattu.GPattern "8n" (n.p.u.p.k.t.p.k)
     -- also t.p.u.k.t.p.k
+
+-- * kendang
+
+-- Or should I write it as a string wadon and lanang, or a pasang, and then
+-- derive the "tunggal" part from it?
+-- Shouldn't I be able to write KendangPasang, then extract both parts?
+-- Can I use the same preproc I use for kendang -> pasang?
+-- I need same thing only map to mridangam strokes instead of kendang
+-- tunggal.
+-- Those are from sollus though!  So I need the strokes version.
+
+type SequenceK2 = SequenceT (Realize.Stroke KendangPasang.Stroke)
+
+instance String.IsString SequenceK2 where fromString = strK2
+
+-- | Parse a string to mridangam strokes.
+strK2 :: HasCallStack => String -> SequenceK2
+strK2 str = mconcatMap toSeq $ Solkattu.check $ KendangPasang.fromString str
+    where toSeq = maybe __ Realize.strokeToSequence2
+
+-- TODO I can't use _printInstrument because that's a preproc on the strokes
+-- post sollu -> stroke realization, which is id in this case.
+-- But it still expects to go sollu -> stroke1 -> stroke2, but the korvai
+-- is for stroke1!  So this would be a way to realize mridangam to kendang,
+-- not the other way!
+realizeWadon :: SequenceK2 -> Sequence
+realizeWadon = fmap (fmap KendangPasang.toWadonM)
+
+realizeLanang :: SequenceK2 -> Sequence
+realizeLanang = fmap (fmap KendangPasang.toLanangM)

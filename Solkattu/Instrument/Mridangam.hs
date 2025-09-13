@@ -152,10 +152,6 @@ diaeresis = "\x0308"
 cedillaBelow :: Text
 cedillaBelow = "\x0327"
 
--- COMBINING DOT BELOW
-dotBelow :: Text
-dotBelow = "\x0323"
-
 -- COMBINING DOT ABOVE
 dotAbove :: Text
 dotAbove = "\x0307"
@@ -377,30 +373,6 @@ bothStrokes (Valantalai b) (Thoppi a) = Both a b
 bothStrokes a b =
     Solkattu.throw $ "requires thoppi & valantalai: " <> showt (a, b)
 
-val :: Stroke -> Maybe Valantalai
-val (Valantalai s) = Just s
-val (Both _ s) = Just s
-val (Flam _ s) = Just s
-val (Thoppi _) = Nothing
-
-setVal :: Valantalai -> Stroke -> Stroke
-setVal v (Valantalai _) = Valantalai v
-setVal v (Both t _) = Both t v
-setVal v (Flam t _) = Flam t v
-setVal _ (Thoppi t) = Thoppi t
-
-thoppi :: Stroke -> Maybe Thoppi
-thoppi (Thoppi s) = Just s
-thoppi (Both s _) = Just s
-thoppi (Flam s _) = Just s
-thoppi (Valantalai _) = Nothing
-
-setThoppi :: Thoppi -> Stroke -> Stroke
-setThoppi _ (Valantalai v) = Valantalai v
-setThoppi t (Both _ v) = Both t v
-setThoppi t (Flam _ v) = Flam t v
-setThoppi t (Thoppi _) = Thoppi t
-
 addThoppi :: Thoppi -> Stroke -> Stroke
 addThoppi t (Valantalai v) = Both t v
 addThoppi t (Both _ v) = Both t v
@@ -412,10 +384,10 @@ addThoppi t (Thoppi _) = Thoppi t
 fromString :: String -> Either Text [Maybe Stroke]
 fromString = mapMaybeM parse
     where
-    parse c = case c of
+    parse = \case
         ' ' -> Right Nothing
         '_' -> Right $ Just Nothing
-        _ -> case Map.lookup c notations of
+        c -> case Map.lookup c notations of
             Nothing -> Left $ "unknown mridangam stroke: '"
                 <> Text.singleton c <> "'"
             Just s -> Right $ Just $ Just s

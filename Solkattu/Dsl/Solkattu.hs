@@ -165,6 +165,7 @@ nakatiku = namedT Solkattu.GPattern "8n" $
     Solkattu.Standard ^ (taka.tari.kita.taka)
     -- original was (naka.tiku.tari.kita)
     -- also diku.tari.kita.taka
+    -- also taka.tari.kita.taka
 
 takadugutarikita :: Sequence
 takadugutarikita = namedT Solkattu.GPattern "8t" $
