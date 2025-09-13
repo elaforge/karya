@@ -260,7 +260,7 @@ sarva_20_06_12 = date 2020 6 12 $ ganesh $ korvaiS adi
     where
     -- melkalam sarva
     sarva = sarvaD $
-        (inter l (n.d.d.n) .n.n. inter l (d.d.n)) & strM "o_o_o_o_ooo_o_o"
+        (inter l (n.d.d.n) .n.n. inter l (d.d.n)) & "o_o_o_o_ooo_o_o"
         . o & inter l (n.d.d.n.n.d.d.n).l
     begin = od.__.od.__.o.l.on.l
 

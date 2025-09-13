@@ -540,9 +540,9 @@ to_mohra_farans = date 2018 7 2 $ sudhindra $ faran $
     takadinnakitataka = group $ taka.din.na.kttk
     sarva = sarvaD sarvaS
     sarvaS = r4 $ sd $ taka.ta.ta.din.__.taka.din.na.ta.ta.din.__
-    sarvaM = let rh = strM "nknnd_nkdknnd_" in
-          rh & strM "o_ooo_o_o_ooo_"
-        . rh & strM "__ooo_o_o_ooo_"
+    sarvaM = let rh = "nknnd_nkdknnd_" in
+          rh & "o_ooo_o_o_ooo_"
+        . rh & "__ooo_o_o_ooo_"
         . rh & o
         . rh
     mridangam = makeMridangam
@@ -807,9 +807,9 @@ adi_tani1 = date 2018 8 3 $ sudhindra $ korvai adi mridangam
         , (kita.taka, k.t.p.k)
         , (talang.gu, p.u.k)
         , (taka.taka, o.k.o.k)
-        , (sarva2Sollu, let rh = strM "n,nd_nd_" in
-              rh & strM "o_oo_oo_"
-            . rh & strM "__oo_oo_"
+        , (sarva2Sollu, let rh = "n,nd_nd_" in
+              rh & "o_oo_oo_"
+            . rh & "__oo_oo_"
             . rh & o
             . rh)
         , (faran1, o.o.k.t.o.k.t.k)
@@ -888,10 +888,10 @@ e_adi_tisra_misra2 = date 2019 4 14 $ ganesh $
 
         , (tang.kttk, on.k.t.o.k)
         , (sarvaSollu,
-              strM "n_nnd_nd_" & strM "o_ooo_oo_"
-            . strM "n_nnd_n_nnd_" & strM "o_ooo_o_ooo_"
-            . strM "n_nnd_nd_" & o
-            . strM "n_nnd_n_nnd_"
+              "n_nnd_nd_" & "o_ooo_oo_"
+            . "n_nnd_n_nnd_" & "o_ooo_o_ooo_"
+            . "n_nnd_nd_" & o
+            . "n_nnd_n_nnd_"
             )
         ]
 
@@ -934,7 +934,7 @@ e_adi_tisra = exercise $ date 2018 7 30 $ sudhindra $
     din_trktkt = din.__.trkt.kttk.tarikitadiku
     mridangam = makeMridangam
         [ (sarvaSollu, let rh = n.k.n.n.d.__ in
-              rh & strM "o_ooo_" . rh & strM "__ooo_" . rh & o . rh)
+              rh & "o_ooo_" . rh & "__ooo_" . rh & o . rh)
         , (tarikitadiku, n.p.k.t.p.k.t.p.k.t.p.k)
         , (tang.__.gu, od.__.o)
         , (dinnakttk, o.n.k.t.o.k)

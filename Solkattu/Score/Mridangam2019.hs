@@ -74,7 +74,7 @@ e_19_04_15 = date 2019 4 15 $ ganesh $ exercise $
     , rh & r7 (o.__)
     , rh & (o.o.__3.r5 (o.__))
     , rh & (o.o.__3.o.o.__3.r3 (o.__))
-    , rh & strM "o_oo_oo_oo_oo"
+    , rh & "o_oo_oo_oo_oo"
     ]
     where
     rh = r8 $ n.k.t.k
@@ -148,7 +148,7 @@ e_19_05_20b2 = date 2019 5 20 $ ganesh $ korvaiS adi
     t1 = group $ t1_ . od
     sarva = sarvaD sarvaStrokes
     sarvaStrokes = let lh = d.__.n.d.l.d.n.l . d.l.n.d.l.d.n.l
-        in lh & strM "o_oo_oo_o_oo_oo_" . lh & o
+        in lh & "o_oo_oo_o_oo_oo_" . lh & o
 
 e_19_05_20c :: Korvai
 e_19_05_20c = make_nakadit_talang_ga (su $ o.y.j.y.on.__)
@@ -175,7 +175,7 @@ make_nakadit_talang_ga t1_ = date 2019 5 20 $ ganesh $ korvaiS adi
     talang times = group $ su $ o.k . repeat times (n.p.k.__.p.u.__.k)
     sarva = sarvaD sarvaStrokes
     sarvaStrokes = let lh = d.__.n.d.l.d.n.l . d.l.n.d.l.d.n.l
-        in lh & strM "o_oo_oo_o_oo_oo_" . lh & o
+        in lh & "o_oo_oo_o_oo_oo_" . lh & o
 
 e_5x4_4x3 :: Korvai
 e_5x4_4x3 = date 2019 6 3 $ exercise $ ganesh $ korvaiS adi
@@ -187,10 +187,8 @@ e_5x4_4x3 = date 2019 6 3 $ exercise $ ganesh $ korvaiS adi
                       (su (on.y.j.y). nd_kpd)
     , make1 (su $ d.__.p.y.j.y.d.__.p.k.d.__.j.y.j.y)
         (su $ r2 $ d.__.p.y.j.y)
-    , make (strM "n_ndnynd" & strM "o_oo_oo_")
-        (strM "nyndnynd" & strM "o_oo_oo_") (on.y.on.on.od.l)
-    , make (strM "n_ndnynd" & strM "o_oo_oo_")
-        (strM "nyndnynd" & strM "oooo_oo_") (on.y.on.on.od.l)
+    , make ("n_ndnynd" & "o_oo_oo_") ("nyndnynd" & "o_oo_oo_") (on.y.on.on.od.l)
+    , make ("n_ndnynd" & "o_oo_oo_") ("nyndnynd" & "oooo_oo_") (on.y.on.on.od.l)
     ]
     where
     make1 t4 t3 = make t4 t4 t3
@@ -229,7 +227,7 @@ e_19_06_10b = date 2019 6 10 $ ganesh $ exercise $ korvaiS adi $ map su
     x5x4 t1 t2 = r5 t1 . r4 (group t2)
     rh = n.__.l.d.__.l.d.__
     rh' = n.__.l.d.p.l.d.__
-    lh = strM "o__o__o_o"
+    lh = "o__o__o_o"
 
 e_19_06_17 :: Korvai
 e_19_06_17 = date 2019 6 17 $ ganesh $ exercise $ korvaiS adi
@@ -237,7 +235,7 @@ e_19_06_17 = date 2019 6 17 $ ganesh $ exercise $ korvaiS adi
     , t1 (p.k.n.y.d) (p.k.n.y)
     , nadai 6 $
         let rh = __.n.y.d.__.l.d.__.n.y.d.__
-            lh = strM "o__o__o_o__"
+            lh = "o__o__o_o__"
         in lh & rh . lh & rh . p & rh . p & rh
             . lh & rh . lh & rh . p & rh . tri (group (o.n.y.d))
     ]
@@ -360,7 +358,7 @@ c_19_08_26 = date 2019 8 26 $ ganesh $ korvaiS adi $ map (nadai 6)
     [ restD 6 . tri (k.od.__.ktkno)
     , rh o & lh . rh p & lh . rh p . rh o
     , rh o & lh . rh p & lh . t7 p . t7 p . t5 p . t5 o
-    , rh o & lh . t7 __ & strM "o_o_oo" . t7 __ & strM "o_o_oo"
+    , rh o & lh . t7 __ & "o_o_oo" . t7 __ & "o_o_oo"
         . t7 p . t5 p . t5 p . t5 o
     , rh o & lh . rh p & lh . rh p . t75
     , rh o & lh . rh p & lh . rh p . t75'
