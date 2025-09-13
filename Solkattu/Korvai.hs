@@ -551,8 +551,7 @@ instance Monoid Metadata where
     mempty = Metadata Nothing mempty ("", 0, "")
     mappend = (<>)
 
-instance Pretty Metadata where
-    format = Pretty.formatG_
+instance Pretty Metadata where format = Pretty.formatG_
 
 withKorvaiMetadata :: Metadata -> Korvai -> Korvai
 withKorvaiMetadata meta korvai =

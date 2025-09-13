@@ -38,6 +38,7 @@ import qualified Solkattu.Score.Solkattu2020
 import qualified Solkattu.Score.Solkattu2021
 import qualified Solkattu.Score.Solkattu2023
 import qualified Solkattu.Score.Solkattu2024
+import qualified Solkattu.Score.Solkattu2025
 import qualified Solkattu.Score.SolkattuMohra
 import qualified Solkattu.Score.Tabla2023
 import qualified Solkattu.Score.Tabla2024
@@ -179,6 +180,9 @@ scores = map Korvai.inferMetadataS
     , setLocation ("Solkattu.Score.Mridangam2025",31,"e_sarva") $ Single Solkattu.Score.Mridangam2025.e_sarva
     , setLocation ("Solkattu.Score.Mridangam2025",42,"e_3sequence") $ Single Solkattu.Score.Mridangam2025.e_3sequence
     , setLocation ("Solkattu.Score.Mridangam2025",76,"simple_korvai") $ Single Solkattu.Score.Mridangam2025.simple_korvai
+    , setLocation ("Solkattu.Score.Mridangam2025",81,"s_tirmanams") $ Single Solkattu.Score.Mridangam2025.s_tirmanams
+    , setLocation ("Solkattu.Score.Mridangam2025",90,"my_korvai1") $ Single Solkattu.Score.Mridangam2025.my_korvai1
+    , setLocation ("Solkattu.Score.Mridangam2025",96,"my_korvai2") $ Single Solkattu.Score.Mridangam2025.my_korvai2
     , setLocation ("Solkattu.Score.MridangamMohra",13,"rohan_mohra1") $ Single Solkattu.Score.MridangamMohra.rohan_mohra1
     , setLocation ("Solkattu.Score.MridangamRohan",19,"kanda_tani") $ Solkattu.Score.MridangamRohan.kanda_tani
     , setLocation ("Solkattu.Score.MridangamRohan",32,"kanda1") $ Single Solkattu.Score.MridangamRohan.kanda1
@@ -387,6 +391,9 @@ scores = map Korvai.inferMetadataS
     , setLocation ("Solkattu.Score.Solkattu2023",42,"colby1") $ Single Solkattu.Score.Solkattu2023.colby1
     , setLocation ("Solkattu.Score.Solkattu2024",17,"eureka_tani") $ Solkattu.Score.Solkattu2024.eureka_tani
     , setLocation ("Solkattu.Score.Solkattu2024",31,"farans") $ Single Solkattu.Score.Solkattu2024.farans
+    , setLocation ("Solkattu.Score.Solkattu2025",14,"e_kanjira") $ Single Solkattu.Score.Solkattu2025.e_kanjira
+    , setLocation ("Solkattu.Score.Solkattu2025",29,"e_kanjira_patterns") $ Single Solkattu.Score.Solkattu2025.e_kanjira_patterns
+    , setLocation ("Solkattu.Score.Solkattu2025",40,"k_tatdit") $ Single Solkattu.Score.Solkattu2025.k_tatdit
     , setLocation ("Solkattu.Score.SolkattuMohra",55,"c_mohra") $ Single Solkattu.Score.SolkattuMohra.c_mohra
     , setLocation ("Solkattu.Score.SolkattuMohra",95,"c_mohra2") $ Single Solkattu.Score.SolkattuMohra.c_mohra2
     , setLocation ("Solkattu.Score.SolkattuMohra",113,"c_mohra_youtube") $ Single Solkattu.Score.SolkattuMohra.c_mohra_youtube

@@ -76,15 +76,25 @@ e_3sequence = date 2025 3 6 $ tirmanam $ korvaiV adi $ map (__D 2 .)
 simple_korvai :: Korvai
 simple_korvai = date 2025 5 2 $ rohan $ korvaiS adi
     [ tri_ "D_" ("P_" .su ("u_pk".nakatiku)."o_k_") . od.__3 . r3 p7
+    , theme . su "pkno".theme . su "ktktpkno" . theme
+        . __ . r3 p5
     ]
+    where
+    theme = su ("P___u_pk".nakatiku)."o_k_D_"
 
 s_tirmanams :: Korvai
-s_tirmanams = korvaiV adi
-    [ __D 3.75 . "kt_p_k_ no_o_k_" . od.__7 . "kt_pk_no_ok_".od.__6
-        . "ktpk_nook_".od
-    , __.__."kt_p_k_ no_o_k_" . od.__7 . "kt_pk_no_ok_".od.__6
-        . "ktpk_nook_".od.__5 . su ("ktpknook".nakatiku) -- "ktpknook"
+s_tirmanams = elaforge $ tirmanam $ korvaiV adi
+    [ __.__."kt_p_k_ no_o_k_" . od.__7 . "kt_pk_no_ok_".od.__6
+        . "ktpk_nook_".od.__5 . "ktpknook"
         . od
+    , __D 4 . "kookD_ookD_okD_kD"
+    , __D 4 . su ("k_u_ktpkD___" . "u_ktpkD___" . "ktpkD___" . "pkD")
+    ]
+
+k_tatdit :: Korvai
+k_tatdit = date 2025 9 1 $ elaforge $ korvaiS adi
+    [ reduceTo 5 2 "k_t_kookD__" . trin "k_D__" (r3 p5) (r3 p6) (r3 p7)
+        -- 3 avartanams, I want divisible by 4, unless fast tintal
     ]
 
 -- kanjira

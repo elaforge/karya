@@ -38,29 +38,32 @@ e_kanjira_patterns = exercise $ date 2025 6 25 $ korvaiV Tala.any_beats mempty
 -- also sequences in Solkattu2013
 
 k_tatdit :: Korvai
-k_tatdit = date 2025 7 14 $ korvaiV adi mempty
+k_tatdit = date 2025 7 14 $ korvaiV adi mridangam
     [ tri_ "dim___" "tat_dit_takadinna"
-    , __D 2 . trin "dim__" "tat_dit_takadinna" "dit_takadinna" "takadinna"
+    , __D 2 . reduce3 2 "dim__" "tat_dit_takadinna"
     -- , tri123 "tat_dit_takadinna" "dit_takadinna" "takadinna"
     , reduceTo 5 2 "tat_dit_takadinna dim__"
     , reduceTo 7 2 "tat_dit_takadinna dim__"
         . r3 p5 . "_tatdin__"
         . r3 p6 . "_tat_din__"
-        . r3 p7 . "_tat__" -- din
-    -- , reduceTo 7 2 "tat_dit_takadinna dim__"
-    --     . r3 p5 . "_tat_din__"
-    --     . r3 p6 . "_tat_din__"
-    --     . r3 p7 . "_tat_" -- din
+        . r3 p7 . "_tat__".din
     , reduceTo 5 2 "tat_dit_takadinna dim__"
         -- . p5
         . r3 p5 . r3 "tatdin__"
         . r3 p6 . r3 "tat_din__"
         . r3 p7 . r3 "tat__din__" -- din -- minus 5?
-    , reduceTo 5 2 theme2 . tri_ "dim___taka" "tadikata takadinna"
+    , reduceTo 5 2 theme2 . tri_ "dim___taka" "tadikita takadinna"
     ]
     where
     theme2 = "tat_dit_takadinnadin_tat_dim__"
-    -- 15 + 4
+    mridangam = makeMridangam
+        [ (tat.dit, k.t)
+        , (dim, od)
+        , (tat.din, k.od)
+        , (din.tat.dim, od.k.od)
+        , ("tadikita", k.t.p.k)
+        , (ta.ka, p.k)
+        ]
 
 {-
   - dom ka dom dom ka ka ta dit ta dit dom dom ka dom dom ka
