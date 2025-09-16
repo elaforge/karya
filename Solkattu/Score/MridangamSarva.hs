@@ -509,3 +509,10 @@ ganesh_sollus = date 2024 12 1 $ sollu $ korvaiV adi
     , sarvaD_ 6 . su "npk_pu_kpu_kpu_k"
     , sarvaD_ 6 . su (reduceTo 3 1 "kookD_") -- emphasis on each group
     ]
+
+-- Patterns for resuming sarvalaghu.
+reenter :: Korvai
+reenter = date 2025 9 13 $ elaforge $ korvaiV adi
+    [ __D 1.5 . "kkkoD" . su"_ko_N_ktok" . sarvaD_ 4
+    , __D 1.25 . g (su "ktpkpktkno").u.__3.su "n_ktpk" . sarvaD_ 4
+    ]

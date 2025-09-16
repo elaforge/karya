@@ -4,9 +4,6 @@
 module Solkattu.Score.MridangamTranscribe where
 import           Prelude hiding ((.), repeat)
 
-import qualified Solkattu.Format.Html as Html
-import qualified Solkattu.Korvai as Korvai
-
 import           Solkattu.Dsl.Mridangam
 
 
@@ -27,8 +24,10 @@ yt_ramana_balachandran = source "https://www.youtube.com/watch?v=n3HDFlpmI60" $
         . "oono".su"ktok"."n_k_N_D___" . "D_k_K__D__n_ktpk"
         . "n__d__d_k_k_d_pd" . "dpktpk" . "oouououoou"
     ,  "oouoUko_n_K_D___" . "D_k_K__D__N_ktpk"
-        . "n__d__d_k_k_d___" . "n_k_" . su "ktpko_o_ktpko_k_o_ktpko_"
-    , "u__o__N_k_K_D__,N_k_k_d" . __M 25 . tri_ "o_" (k.o.ktpk)
+        -- . "n__d__d_k_k_d___" . "n_k_" . su "ktpko_o_ktpko_k_o_ktpko_"
+        -- . "n__d__d_k_k_d___" . "n_k_" . ktpk.o.o.ktpk.o.k.o.ktpk.o
+        . "n__d__d_k_k_d___" . "n_k_" . "xqooxqokoxqo"
+    -- , "u__o__N_k_K_D__,N_k_k_d" . __M 25 . tri_ "o_" (k.o.ktpk)
     -- , "ou__"
 
     -- n__d__d_ ____d___
@@ -39,7 +38,7 @@ yt_ramana_balachandran = source "https://www.youtube.com/watch?v=n3HDFlpmI60" $
     -- 0 3 3 4
     ]
     where
-    ktpk = su "ktpk"
+    -- ktpk = su "ktpk"
     ktok = su "ktok"
     rh = n.__3.d.__3.d.__6.d.__4
     rho = "N_´D__D_ ____D___"

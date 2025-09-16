@@ -97,20 +97,78 @@ k_tatdit = date 2025 9 1 $ elaforge $ korvaiS adi
         -- 3 avartanams, I want divisible by 4, unless fast tintal
     ]
 
--- kanjira
-{-
-    k _ i tktktkkook
-    k _ i tktkikkttkiki i
-    k _ u pkn8------npk u pkn8------k _ u pkn8------pu ko k o k D
-    0   .   1   .   2   .   3   .   X   .   0   .   X   .   0   .   |
+yella_tani :: Score
+yella_tani = tani
+    [ K yella_sequence
+    , Comment "mohra"
+    , K yella_mohra_korvai
+    , K yella_tirmanam
+    ]
 
-    n8------
-    tkktkktk
-    or if fast, just
-    tktktktk but emphasis takaTArikitataka
+yella_mohra_korvai :: Korvai
+yella_mohra_korvai = date 2025 9 13 $ korvaiS adi
+    [ purvangam . r3 ("u_i_".su"ktkt".o)
+    , purvangam . r3 (su $ "pu_k__".nakatiku)
+    , purvangam . r3 (su $ "pu__kp".nakatiku)
+    , purvangam . r3 (su $ "u___ktkt pkpto_") -- or pktp ktkto
+    ]
+    where
+    purvangam = reduceTo 8 2 ("o_k_D__".p5).p5.p5.od.__3
 
-    work out timings for say 5m solo, so it's not lopsided
--}
+yella_tirmanam :: Korvai
+yella_tirmanam = date 2025 9 13 $ korvaiV adi
+    [ su $ sd (sd "NDDN") . "nod_ktpk".nakatiku
+    . r2 (tri_ "N_pk" nakatiku)
+    . nakatiku . "N_pk".nakatiku . r4 "N_k"
+    ]
+
+yella_sequence :: Korvai
+yella_sequence = date 2025 9 13 $ korvai adi $
+    [ x2 $ s $ "N_D_D_N_".ktpk."D_D_N_" . "N_d_d_n_".su "ktpkd___o_ktktpk"
+    , x2 $ s $ "N_D_D_N_".ktpk."D_D_N_" . "N_d_d_n_".su ("o_ktktpk".nakatiku)
+    , s $ "N_D_D_N_".su ("o_ktktpk".nakatiku) . "N_d_d_n_".su ("o_ktktpk".nakatiku)
+    , s $ tri_ "D___" (su ("o_ktktpk".nakatiku))
+
+    , s $ "N_D_D_N_".ou_k."D_D_N_" . "N_d_d_n_".ou_k.od.__.ou_k.ou_k
+    , s $ "N_D_D_N_".ou_k."D_D_N_" . "N_d_d_n_".n.o.r3 ou_k
+    , s $ "N_D_D_N_".tri_ o ou_k . "N_d_d_n_".tri_ o ou_k
+    , s $ tri_ "N___" (tri_ o ou_k)
+
+    -- madyakalam
+    , x2 $ s $ r4 "N_dD_dD_" . o & r3 "n_dd_dd_" . t_o_faran
+    , s $ "N_dD_dD_" . t_o_faran . "N_dd_dd_" . t_o_faran
+        . tri_ "D___" t_o_faran
+    , x2 $ s $ r2 d_nd . "D_nd_dn_d_nd_" . on.pu_k
+    , s $ r2 (d_nd . "D_nd_" . on.pu_k)
+    -- , s $ r2 ("D_nd_" . on.pu_k) . __4. tri_ "D_" (on.pu_k)
+    , s $ r2 ("D_nd_" . on.pu_k) . __4. tri_ "D_" (on.pu_k)
+    ]
+    ++ nd_k_seq (g (n.o.ktok))
+    ++ nd_k_seq (g (su "kpkD_kD_"))
+    ++ map (s • su)
+    [ r2 (r2 (sd "D__"."ktktpk").nakatiku)
+    , r2 (r2 ("N_pk".nakatiku).nakatiku)
+    , r2 (r2 "npktpk tptkpk".nakatiku)
+    , r4 ("t_o_ktpk".nakatiku) -- volume on nakatiku
+    . r7 "t_o_ktpk".nakatiku
+    . r2 (r3 "t_o_ktpk".nakatiku)
+    . r4 ("t_o_ktpk".nakatiku)
+    . r8 nakatiku
+    ]
+    where
+    nd_k_seq end =
+        [ x2 $ s $ r4 nd_k . o & r3 nd_k' . end
+        , s $ r3 nd_k . end . r3 nd_k' . end
+        , s $ r2 (nd_k . end) . tri_ "D_" end
+        ]
+    nd_k = "ND_k"
+    nd_k' = "nd_k"
+    d_nd = "D_ND_DN_"
+    t_o_faran = su ("t_o_ktpk".nakatiku)
+    ou_k = su "ou_k"
+    pu_k = su "pu_k"
+    ktpk = su "ktpk"
+    ktok = su "ktok"
 
 legong_mridangam :: Korvai
 legong_mridangam = elaforge $ korvai adi

@@ -63,6 +63,7 @@ _sollu s = S.singleton $ S.Note (Solkattu.Note (Solkattu.note s))
 
 cham = _sollu Solkattu.Cham
 dhom = _sollu Solkattu.Dhom
+dom = _sollu Solkattu.Dom
 di = _sollu Solkattu.Di
 din = _sollu Solkattu.Din
 dim = _sollu Solkattu.Dim

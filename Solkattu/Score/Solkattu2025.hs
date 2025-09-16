@@ -65,6 +65,48 @@ k_tatdit = date 2025 7 14 $ korvaiV adi mridangam
         , (ta.ka, p.k)
         ]
 
+yella :: Korvai
+yella = date 2025 9 13 $ korvaiS adi mridangam
+    [ mconcatMap g
+      [ "ta_ga_ ta_kita takajonu ta_ga_"
+      , "ta_gata_kita takajonu ta_ga_"
+      , "ta_ta_kita takajonu ta_ga_"
+      , "tata_kita takajonu ta_ga_"
+      , "ta_kita takajonu ta_ga_"
+      , "takita takajonu ta_ga_"
+      , "taka takajonu ta_ga_"
+      , "ta takajonu ta_ga_"
+      , "takajonu ta_ga_"
+      , "takita ta_ga_"
+      , "takata_ga_"
+      , "tata_ga_"
+      ]
+      . ta__dom_.p5.ktpk        -- 5 5 2
+      . ta__dom_.p5.ktkttrkt    -- 5 5 4
+      . ta__dom_.p5.__.ktkttrkt -- 5 4 (6) +
+      . ta__dom_.p5.__.ktkttrkt
+      . ta__dom_.p5
+    ]
+    -- 2nd time p5 is k t k kto
+    -- 3rd time p5 is upktpkpto_
+    where
+    ta__dom_ = "ta__dom_"
+    ktpk = su "kitataka"
+    ktkttrkt = su "kita kita tarikita"
+    mridangam = makeMridangam
+        [ ("ta_ga_", "k___")
+        , ("takajonu ta_ga_", "kookD___")
+        , ("ta_kita", "k_tk")
+        , ("taka", "kp")
+        , ("ta", k)
+        , (ktpk, "oknp")
+        , (ktkttrkt, "ktktoknp")
+        , (dom, od)
+        , ("takitata_ga_", "ookD___")
+        , ("takata_ga_", "pkD___")
+        , ("tata_ga_", "kD___")
+        ]
+
 {-
   - dom ka dom dom ka ka ta dit ta dit dom dom ka dom dom ka
     ^          ^                           ^
