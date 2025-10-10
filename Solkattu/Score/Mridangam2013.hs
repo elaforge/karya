@@ -114,7 +114,6 @@ more_dinnaginna = date 2024 9 2 $ elaforge $ korvai adi
     dhatidhage = "Nlno"
     dhinnagene = o&i.y.o.k
 
-
 make_dinna :: Sequence -> Sequence -> Sequence -> (Sequence, Sequence)
     -> (Sequence, Sequence) -> [Sequence]
 make_dinna theme_ repl sep (theme1, ptheme1) (theme2, ptheme2) = map su $

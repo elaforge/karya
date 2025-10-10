@@ -148,7 +148,9 @@ tir_elaforge = tirmanam $ elaforge $ korvaiV adi
     -- , __D 5.25 . su (trin "v_" (r3 "Nd_") (r2 "Nd_") "Nd_" . v)
     , __D 2 . tri123 "D_o" (su "N_ktok") . od
     , __D 2 . tri123 "D_o" (su p6) . od
+    , __D 4 . tri_ "D_" "Dnpk"
     , __D 4 . __ . tri_ (su "u_pkno") "NN_" . u
+    , __D 5 . tri_ "D__" "ko"
     ]
 
 rohan_end :: Korvai

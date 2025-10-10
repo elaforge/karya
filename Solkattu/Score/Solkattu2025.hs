@@ -6,36 +6,8 @@
 module Solkattu.Score.Solkattu2025 where
 import           Prelude hiding ((.), (^), repeat)
 
-import qualified Solkattu.Tala as Tala
-
 import           Solkattu.Dsl.Solkattu
 
-
-e_kanjira :: Korvai
-e_kanjira = exercise $ date 2025 6 25 $ korvaiV Tala.any_beats mempty
-    [ taka.dhom.__.taka.taka.dhom.__.taka.taka.taka.dhom
-    , r2 $ dhom.ka.ta.ka.dhom.__4
-    , r4 $ dit.thom.thom.dit -- takadinna, circular motion
-    , dit.thom.thom.dit.su (dit.thom).thom.thom.dit
-    -- thom like open ta
-    , thom.dhom.thom.dhom.taka.taka -- like nakanakadin
-    -- repeated strokes move slightly up and in
-    , dhom.ka.dhom.ka.ka.dhom.dhom.ka
-    , dhom.ka.dhom.dhom.ka.ka.ta.dit.ta.dit.dhom.dhom.ka.dhom.dhom.ka
-    --   ^            ^                             ^
-    ]
-    -- TODO can't do hv on sollus!
-
-e_kanjira_patterns :: Korvai
-e_kanjira_patterns = exercise $ date 2025 6 25 $ korvaiV Tala.any_beats mempty
-    [ r3 $ ka.dit.dit.ka.dhom
-    , r3 $ ka.dit.__.dit.ka.dhom
-    , r3 $ ka.__.dit.__.dit.ka.dhom
-    , r3 $ ka.dit.__.ka.dit.dit.ka.dhom
-    , r3 $ ka.__.dit.__.ka.dit.dit.ka.dhom
-    ]
-
--- also sequences in Solkattu2013
 
 k_tatdit :: Korvai
 k_tatdit = date 2025 7 14 $ korvaiV adi mridangam
@@ -83,9 +55,7 @@ yella = date 2025 9 13 $ korvaiS adi mridangam
       ]
       . ta__dom_.p5.ktpk        -- 5 5 2
       . ta__dom_.p5.ktkttrkt    -- 5 5 4
-      . ta__dom_.p5.__.ktkttrkt -- 5 4 (6) +
-      . ta__dom_.p5.__.ktkttrkt
-      . ta__dom_.p5
+      . tri_ (__.ktkttrkt ) (ta__dom_.p5) -- 5 4 (6) +
     ]
     -- 2nd time p5 is k t k kto
     -- 3rd time p5 is upktpkpto_
@@ -106,17 +76,3 @@ yella = date 2025 9 13 $ korvaiS adi mridangam
         , ("takata_ga_", "pkD___")
         , ("tata_ga_", "kD___")
         ]
-
-{-
-  - dom ka dom dom ka ka ta dit ta dit dom dom ka dom dom ka
-    ^          ^                           ^
-  dhom ka dhom ka ka dhom dhom ka - repeated strokes move slightly up and to
-  right
-
-  tom dom tom dom ta ka ta ka
-  gum after dhom
-  takadinna - dit thom thom dit -- circular motion
-            - dit thom thom dit ditthom thom thom dit
-  fingers slightly curved
-  dhom ka ta ka dhom
--}
