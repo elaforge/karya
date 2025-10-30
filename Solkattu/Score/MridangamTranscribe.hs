@@ -46,3 +46,32 @@ yt_ramana_balachandran = source "https://www.youtube.com/watch?v=n3HDFlpmI60" $
     -- 0    .365    .75     1.5
     -- sometimes he rushes d__d__:
     -- 0   .33     .73
+
+tirmanam_sikkil :: Korvai
+tirmanam_sikkil = tirmanam $ korvaiV adi
+    -- Sikkil Sisters, Dinamani Vamsa - Hari Kamboji - Adi, 3:54
+    [ __D 4 . trin "d__kko" (r4 "Dk_") (r4 (su "D__k__")) (r4 "D_k")
+    -- Or a variation, gradually move k back:
+    , __D 4 . tri_ "d__kko" ("Dk_"."Dk_".su "D__k__"."D_k")
+    -- The actual one sounds like the k moves sort of randomly.
+    , __D 2 . tri123 "D_o" (g "Dk_")
+    -- "Bhajare - Abheri - Adi"
+    , __ . tri2 "D__" (tri_ "D_" "kkoDk") (tri_ "D_" "X_oDk")
+    ]
+    -- To be totally even, have to go to tisram:
+    -- d  .  k  .  _  .  |
+    -- d  .    k.  _  .  |
+    -- d  .     .k _  .  |
+    -- d  .  _  .  k  .  |
+
+peshkar1 :: Korvai
+peshkar1 = date 2025 9 5 $ rohan $ korvaiV adi
+    [ "D__xD`N_p_N_ktpkD__N`kN_Y_n_p_k_"
+    , "__koD`N___koD`N___koD`N_D`N_Y_n_"
+    , "pknpY__qi_n_pkno" . "i,n,_kn_"&"o`o_o_oo" . "i,_kn,"&"o`o_o"."pk"
+    , "doon_kd_Y_k_N__kN_i_k_N__kN_i_k_"
+    , "U__xD`N_ ___kD_N_ ___N_knoY_n_p_n_"
+    , "__koD`N___koD__N_kko?noD_kko?_N_"
+    , "pknpi__qd_n_ pknoIkDnpkN_knpkD`n_"
+    , "__on_kN_Y_k_" . "_D_kD_i_k__D_kD_i_k_"
+    ]

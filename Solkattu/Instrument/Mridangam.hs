@@ -101,7 +101,10 @@ instance Solkattu.Notation Stroke where
             -- These are logically the same, maybe they should use the same
             -- stroke?
             AraiChapu -> "A" <> c
-            MuruChapu -> "Y" <> c
+            -- The rationale is it's like capital I but different.
+            -- It seems fine to use A for both chapus, and in fact not
+            -- distinguish chapu at all.
+            Dim -> "Y" <> c
             _ -> Solkattu.notationText v <> case tha of
                 Fingertips -> diaeresis
                 -- Hopefully this is big enough to not look like screen gunk,
@@ -410,6 +413,7 @@ notations = Map.fromList $ (extras++) $ Lists.mapMaybeFst isChar $
         -- The notation is o/, but that's two characters and I need a single
         -- character for toString.
         , ('/', Thoppi (Thom Up))
+        , ('`', Thoppi Gum)
         , ('?', Both (Thom Up) Din)
         ]
     isChar t = case untxt t of
