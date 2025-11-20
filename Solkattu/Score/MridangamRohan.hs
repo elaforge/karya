@@ -19,18 +19,20 @@ import           Solkattu.Dsl.Mridangam
 kanda_tani :: Score
 kanda_tani = tani
     [ K kanda1
+    , K kanda2
+    , K kanda3
     , Comment "tisram"
-    , K kanda2_tisram
+    , K kanda3_tisram
     , K kanda_korvai3
     , Comment "farans"
-    , K kanda3_farans
+    , K kanda4_farans
     , Comment "mohra"
-    , K kanda4_mohra
+    , K kanda5_mohra
     , K kanda_korvai4
     ]
 
 kanda1 :: Korvai
-kanda1 = korvaiS Tala.kanda_chapu $
+kanda1 = korvaiS Tala.kanda_chapu
     [ "A___ ____ k_o_ D___ k_o_" . "D___ D___ k_o_ D___ ktpk"
     . "o_k_ o_o_ k_o_ D___ k_o_" . "D___ __N_ __N_ __u_ ____"
     , "D___ D___ k_o_ D___ ktpk" . "o_k_ o_o_ k_o_ D___ k_o_"
@@ -40,59 +42,81 @@ kanda1 = korvaiS Tala.kanda_chapu $
     , "__n_ p_k_ k_o_ D___ k_o_" . "D___ D___ k_o_ D___ ktpk"
     . "okk_ o_o_ k_o_ D___ k_o_" . "D___ __N_ __N_ __u_ ____"
     , "A___ n_k_ k_o_ D___ k_o_" . "D___ D___ k_o_ D___ ktpk"
-    . "o_k_ o_o_ k_o_ D___ n___" . "A___ ktkn oktk" . nakatiku
+    . "o_k_ o_o_ k_o_ D___ n___" . "A___" . ktkno
     , "D___ __k_ k_o_ D___ n___" . "D___ D___ k_o_ D___ ktpk"
-    . "okk_ o_o_ k_o_ D___ n___" . "A___ ktkn oktk" . nakatiku
-    , "o_k_ o_o_ k_o_ D___ n___" . "A___ ktkn oktk" . nakatiku
-    , "o_k_ o_o_ k_o_ D___ ktkn" . "oktk".nakatiku."N___ ____"
-    . "ktkn oktk".nakatiku."N_pk" . nakatiku . "N_pk npk_ ____"
+    . "okk_ o_o_ k_o_ D___ n___" . "A___" . ktkno
+    , "o_k_ o_o_ k_o_ D___ n___" . "A___" . ktkno
+    , "o_k_ o_o_ k_o_ D___".ktkno. on.__8
+    . ktkno. "N_pk" . nakatiku . "N_pk npk_ ____"
     , "N___ o___ n_o_ D___ n_o_" . "D___ o_d_ D___ D___ n___"
-    , "A___ ktkn oktk".nakatiku  . "k_kt _kno k___ ____ D___"
-    , "ktpk".r2 (g "k_kt _kno") . "k___ ____ D___ ____ A___"
-    . "ktkn oktk".nakatiku. r3 (g "k__k_kno")
-    , "N___ ____ n_o_ D___ n_o_" . "N___ ____" . expand3 (on.__4) 2 "k_t_kt_kno"
-    , "k___ d_d_ n_k_ n_n_ d_d_" . "n_k_ t_k_ n_k_ n_n_ d_d_"
-    . "n___ d_d_ n_k_ d_n_ d___" . "n_kt kpkt kpkt kpkt kpk_"
-    , "k___ d_d_ n_k_ d_n_ d___" . "nkt_ kpkt kpkt kpkt kpk_"
-    . "k___ d_d_ n_kt kpk_ k___" . "____ __k_ k___ ____ __k_"
-    , "k___ d_d_ n_k_ n_n_ d_d_" . "k___ d_k_ n_kp pk_n d_k_"
-    . "n_k_ d_k_ n_k_ n_n_ d_k_" . "n_k_ d_k_ U_U_ __U_ ____"
-    , "D___ N___ k_d_ __n_ __k_" . "d___ n___ k_d_ __n_ __k_"
-    . "D___ N___ k_d_ __n_ __k_" . p&d.__4.p&d.__4 . "k_d_ __n_ __k_"
-    . "D___ N___ k_d_ __n_ __k_" . "D_N_ kd_n _kd_ n_kd _n_k"
-    , "D___ N___ k_d_ __n_ __k_" . "D_N_ kd_n _kd_ n_kd _n_k"
-    , "D___ N___ k_d_ __n_ __k_" . "D_N_ kd_n _kd_ n_kd _n_k"
-    , "D_N_ kD_N _kd_ __n_ __k_" . "D_N_ kD_N _kd_ __n_ __k_"
-    . "D_N_ kD_N _kd_ __n_ __k_" . "D_N_ kD_N _kd_ __n_ __k_"
-    , "D_N_ kD_N _kD_ N_kD _N_k" . "d_n_ kd_n _kd_ n_kd _n_k"
+    , trin (k.__8.i.__8)
+        (g (u.__4 . ktkno . "k_kt_kno"))
+        (g (u.__4 . ktkno . r2 "k_kt_kno"))
+        (g (u.__4 . ktkno . r3 "k__k_kno"))
+    , "N___ ____ n_o_ D___ n_o_" . on.__8.expand3 (on.__4) 2 "k_t_kt_kno"
     ]
+    where
+    ktkno = "ktknoktk".nakatiku
 
 expand3 :: Sequence -> S.FMatra -> Sequence -> Sequence
 expand3 sep dur pat = join sep (expands 3 dur pat)
 
-kanda2_tisram :: Korvai
-kanda2_tisram = korvaiS Tala.kanda_chapu $ map (nadai 3) $
-    [ r2 ("D_" . tri_ "d_" "n_k") . r3 p5
-    , "u__ D_kN_k D_kNok" . "d__n_k d_kn_kNok"
-    . "D__ D_kN_k D_kook" . "d__n_k d_kn_kNok"
-    . "d__ n_kd_k n_kNok" . "N__k__ ktknpuook"
-    , "D__ D_kN_k D_kNok" . "N__k__ ktknpuook"
-    , "d__ d_kn_k d_kNok" . "N__k__ ktknpuook"
+kanda2 :: Korvai
+kanda2 = korvaiS Tala.kanda_chapu $ map sd
+    [ k.__8 . su "kook" . "D_odDodDod" -- delay on second o
+    , "d_d,n,nnd," & "/_o_/__o/" . rh_&o . krh
+    , rh & "__/_/__o/"  . rh_ & "/_o_/__o/"
+    , "n,tkn"&"/_/".ktok."ND," . rh_ & "/"
+    , rh & "____/__o/" . rh & "/_o_/_o"
+    , n.su (r4 "ktkp").k . krh & "__/_/__o/"
+    , "n,tkn,nnd," & "o_o_/__o/" . rh_ & "/_o"
+    , n.su (r4 "ktkp").k . krh & "__/_/__o/"
+    , n.su (r4 "ktkp").k . "k_d,n".su "ktkp".k."k__n,kk__n,k"
+        . krh & "__/_/__o/"
+    , "N,D,N".ktok."ND," . rh&"o_o_o__oo" . "n,d,"&"_oo".su "U__U__"."U__"
     ]
+    where
+    rh = "n,d,n,nnd,"
+    rh_ = "n_d,n,nnd,"
+    krh = "k_d,n,nnd,"
+    ktok = su "ktok"
+
+kanda3 :: Korvai
+kanda3 = korvaiS Tala.kanda_chapu
+    [ sd $ "N_D_kd_n_k d_n_kd_n_k" . "D_N_kd_n_kA_A_kd_n_k"
+    , sd "D_N_kd_n_k" . "o_o" & r4 "d_n_k"
+    , sd (p&"d_n_kd_n_k") . "o_o" & r4 "d_n_k"
+    , sd "D_N_kd_n_k" . p & r4 "d_n_k"
+    , "D_N_kd_n_k" . sd "d_n_k" . p&"d_n_kd_n_k" . sd "d_n_k"
+    , "D_N_kD_N_k" . sd "D_n_k" . p&"d_n_kd_n_k" . sd "d_n_k"
+    , "o_o__o_o" & r4 "d_n_k" . p & r4 "d_n_k"
+    ]
+
+kanda3_tisram :: Korvai
+kanda3_tisram = korvaiS Tala.kanda_chapu $ map (nadai 3) $
+    [ "o_o" & r3 rh . p & r3 rh . r3 p5
+    , "U__N_kD_kN_kDok"
+    , r2 "D_kn_kd_kn_kDok" . "D_kD_kN_kD_kDok"
+    , o & "d_kn_kd_kn_kd_k" . "d__k__ ktknpuook"
+    , "D_kN_kD_kDokD_kd_kd_k" . "npkk_kn_k" . "d__k__ ktknpuook"
+    , "D_kN_kD_kD_kDok" . "D__k__ ktknpuook"
+    ]
+    where
+    rh = "d_n_k"
 
 kanda_korvai3 :: Korvai
 kanda_korvai3 = korvaiS Tala.kanda_chapu $ map (nadai 3)
-    [ tri (g "k__ ktk npu ook ook N__") . r3 (p5.p7)
+    [ tri (g "k__ ktknpuookookD__") . r3 (p5.p7)
     , tri122
-        (g "k__ktk npu ookoo_oo_")
-        (g "on_ktk npu ookoo_oo_") . r3 (p5.p7)
+        (g "k__ktknpuookoo_oo_")
+        (g "on_ktknpuookoo_oo_") . r3 (p5.p7)
     , tri122
-        (g "k__ktk npu ookookook")
-        (g "on_ktk npu ookookook") . r3 (p5.p7)
+        (g "k__ktknpuookookook")
+        (g "on_ktknpuookookook") . r3 (p5.p7)
     ]
 
-kanda3_farans :: Korvai
-kanda3_farans = korvaiS Tala.kanda_chapu $
+kanda4_farans :: Korvai
+kanda4_farans = korvaiS Tala.kanda_chapu
     [ sd "u__N_N_N_k" . sd "d__n_n_n_k"
     . "u___ __ktktpk" . nakatiku . "d___ __npktpk" . nakatiku
     , "d___ __ktktpkd___ __ktktpkd___ __ktktpkN_k_"
@@ -103,8 +127,8 @@ kanda3_farans = korvaiS Tala.kanda_chapu $
     , "pu_ko_k_pu_ko_ktktpk" . "N_N_pu_ko_pu_ko_pu_k"
     ]
 
-kanda4_mohra :: Korvai
-kanda4_mohra = mohra $ korvaiS1 Tala.kanda_chapu $ Mohra.make id Mohra.A1
+kanda5_mohra :: Korvai
+kanda5_mohra = mohra $ korvaiS1 Tala.kanda_chapu $ Mohra.make id Mohra.A1
     ( sd "ktknok_N_" . "ktktpk"
     , "t_o_ktpk".nakatiku
     , sd "oktknokN_" . "ktktpk"
@@ -114,8 +138,8 @@ kanda4_mohra = mohra $ korvaiS1 Tala.kanda_chapu $ Mohra.make id Mohra.A1
     , tri_ "N___" "pu_ko_k_"
     )
 
-kanda4_mohra_raw :: Korvai
-kanda4_mohra_raw = korvaiS Tala.kanda_chapu $
+kanda5_mohra_raw :: Korvai
+kanda5_mohra_raw = korvaiS Tala.kanda_chapu
     [ "k_t_k_n_ o_k___N_ __kt" . "ktpkt_o_ktpk" . nakatiku
     . "o_k_t_k_ n_o_k_N_ __kt" . "ktpkN_k_o__k N_k_o___"
     , "k_t_k_n_ o_k___N_ __kt" . "ktpkt_o_ktpk" . nakatiku
@@ -127,7 +151,7 @@ kanda4_mohra_raw = korvaiS Tala.kanda_chapu $
     ]
 
 kanda_korvai4 :: Korvai
-kanda_korvai4 = korvai Tala.kanda_chapu $
+kanda_korvai4 = korvai Tala.kanda_chapu
     [ x3 $ s $ reduceTo3 4 2 "p_k_t_k_kto_" . r2 (r2 "D___" . r3 "kto_")
     , s $ "N___ ____ n_o_ D___ n_o_"
     . r3 (g "k_kto_") . "N___" . r3 (g "k_k_kto_") . "N___"

@@ -89,6 +89,9 @@ s_tirmanams = elaforge $ tirmanam $ korvaiV adi
         . od
     , __D 4 . "kookD_ookD_okD_kD"
     , __D 4 . su ("k_u_ktpkD___" . "u_ktpkD___" . "ktpkD___" . "pkD")
+    , __D 3.5 . reduceTo 3 1 "ktpknookD_"
+    -- 3x of the above, with 5m karvai
+    , tri_ "___" (reduceTo 3 1 "ktpknookD_")
     ]
 
 k_tatdit :: Korvai
