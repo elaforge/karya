@@ -397,7 +397,10 @@ test_formatSpeed = do
 
 formatInstrument :: Korvai.Korvai -> Text
 formatInstrument = Text.unlines . fst
-    . Terminal.formatInstrument Terminal.defaultConfig Korvai.IMridangam Just
+    . Terminal.formatInstrument config Korvai.IMridangam Just
+    where
+    -- Tests are written assuming no unwrap.
+    config = Terminal.defaultConfig { Terminal._unwrapAvartanams = False }
 
 format :: Int -> Talas.Tala
     -> [S.Flat Solkattu.Meta (Realize.Note M.Stroke)] -> Text
@@ -413,6 +416,7 @@ formatAbstraction abstraction width tala =
     config = Terminal.defaultConfig
         { Terminal._terminalWidth = width
         , Terminal._abstraction = abstraction
+        , Terminal._unwrapAvartanams = False
         }
 
 eFormat :: Text -> Text

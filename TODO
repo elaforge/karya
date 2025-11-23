@@ -6773,6 +6773,22 @@ solkattu:
       - Can I align by structure?
         . E.g. reductions or tri would line up vertically.
     terminal:
+      * unwrap when 2 or 4 avartanams can fit
+        Terminal.format
+        . Conflicts with expanding it if I have room:
+          Try with strokeWidth 1.  If it takes <= half the width, then we have
+          room to expand to strokeWidth 2.  Without this, notation can be
+          unnecessarily cramped.
+        . I think the kanda chapu is unnecessarily expanded!
+        . Maybe flag _allowMultipleAvartanams
+        . But, maybe I want to do both?  Expand to strokeWidth=2, but still
+          have room for multiple?
+        . This is a thing for chapu talams, since they're so fast.
+        * also need to repeat ruler
+          Note that new section still wraps, so some may not go to the right
+          edge.
+        * is overrideStrokeWidth=1 still getting 2?  Section 8 in kanda_tani
+        - it would also be interesting to force this for 2x adi -> tintal
       - Ruler dispaly is still buggy!  Final ruler doesn't redisplay if the
         last line is short and changed the spacing.
       - The warning carat only lines up if there is only one line.

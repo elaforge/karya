@@ -280,7 +280,9 @@ inferRuler startAkshara tala strokeWidth =
     . map (second ((*strokeWidth) . length))
     . concat . snd . List.mapAccumL insertNadai 0
     . concatMap insertDots
-    . zip (drop startAkshara (Talas.labels tala))
+    -- If _unwrapAvartanams happened, then there will be more than 1 avartanam
+    -- of 'S.State's.
+    . extendRuler startAkshara (Talas.labels tala)
     . dropWhile null
     . Lists.splitBefore onAkshara
     where
@@ -313,6 +315,15 @@ inferRuler startAkshara tala strokeWidth =
         where
         (pre, post) = splitAt (spaces `div` 2) states
         spaces = length states
+
+-- | If _unwrapAvartanams happened, then there will be more than 1 avartanam
+-- of 'S.State's.  But if there just one extra State, this is probably the
+-- final note of a section, which is allowed to go past the end and doesn't
+-- need to change the ruler.
+extendRuler :: Int -> [Text] -> [[S.State]] -> [(Text, [S.State])]
+extendRuler startAkshara labels states =
+    zip (drop startAkshara (if unwrapped then cycle labels else labels)) states
+    where unwrapped = length states > length labels + 1
 
 -- * metadata
 

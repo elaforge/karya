@@ -57,6 +57,8 @@ data Config = Config {
     -- | Omit half of each section.  The assumption is it's the kali half,
     -- and identical to the first half except partially kali.
     , _omitKaliHalf :: Bool
+    -- | If true, try to fit multiple avartanams on one line.
+    , _unwrapAvartanams :: Bool
     } deriving (Eq, Show)
 
 defaultConfig :: Config
@@ -67,6 +69,7 @@ defaultConfig = Config
     , _abstraction = Format.defaultAbstraction
     , _showSectionTags = False
     , _omitKaliHalf = False
+    , _unwrapAvartanams = True
     }
 
 konnakolConfig :: Config
@@ -250,6 +253,7 @@ format config prevRuler tala notes =
     (strokeWidth,) $
     second (concatMap formatAvartanam) $
     Format.pairWithRuler (_rulerEach config) prevRuler tala strokeWidth $
+    (if _unwrapAvartanams config then unwrapAvartanams width else id) $
     if _omitKaliHalf config
         then takeHalf avartanamLines
         else avartanamLines
@@ -289,6 +293,17 @@ format config prevRuler tala notes =
     formatLine :: [Symbol] -> Styled.Styled
     formatLine = mconcat . map formatSymbol
     width = _terminalWidth config
+
+-- | If two avartanams will fit on one line, unwrap them.
+-- This is for fast chapu talams where each avartanam is short.
+-- Since this happens after possibly expanding to 2x, lines will expand for
+-- space before unwrapping.
+unwrapAvartanams :: Int -> [[Line]] -> [[Line]]
+unwrapAvartanams width = go
+    where
+    go ([line1] : [line2] : lines)
+        | lineWidth line1 <= width `div` 2 = [line1 ++ line2] : go lines
+    go lines = lines
 
 -- | At strokeWidth = 1, each normalize speed note corresponds to one column.
 -- Return true if one avartanam won't fit in terminalWidth.
