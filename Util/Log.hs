@@ -193,9 +193,11 @@ data State = State {
 
 -- | Write logs as JSON to the given handle.
 write_json :: IO.Handle -> Msg -> IO ()
-write_json hdl log_msg = do
-    ByteString.Lazy.hPut hdl (serialize log_msg)
+write_json hdl msg = do
+    ByteString.Lazy.hPut hdl (serialize msg)
     ByteString.Lazy.hPut hdl "\n"
+    when (msg_priority msg == Error) $
+        Text.IO.putStrLn (format_msg msg)
 
 -- | Write logs as human-readable text.
 write_formatted :: IO.Handle -> Msg -> IO ()
@@ -334,11 +336,12 @@ class Monad m => LogMonad m where
     write :: Msg -> m ()
 
 instance LogMonad IO where
-    write log_msg = MVar.withMVar global_state $ \(State write_msg prio) ->
-        -- global_state also acts as a lock.
-        when (prio <= msg_priority log_msg) $ do
-            log_msg <- add_time log_msg
-            write_msg log_msg
+    write log_msg = MVar.withMVar global_state $
+        \(State { state_write_msg, state_priority}) ->
+            -- global_state also acts as a lock.
+            when (state_priority <= msg_priority log_msg) $ do
+                log_msg <- add_time log_msg
+                state_write_msg log_msg
 
 -- | Format a msg in a nice user readable way.
 format_msg :: Msg -> Text
