@@ -820,27 +820,32 @@ configureFltk fltkConfig = do
     -- The problem is that I have to pass these flags to both ghc and
     -- gcc/clang.  I'm preprocessing these for ghc, but it's probably incorrect
     -- for gcc.  TODO: fix this, mangle for gcc only on the hs link line.
+    fltkLds <- wrapLd . filter (`notElem` unwanted) . words <$>
+        run (Config.fltkConfig localConfig) ["--ldflags"]
+    return (fltkVersion, fltkCs, fltkLds)
+    where
     -- TODO: newer fltk passes -pthread, which apparently just adds -lpthread
     -- and some defines, which are already in there.  This is extra weird
     -- because gcc passes to the linker via -Wl,xyz while ghc uses -optl=xyz.
     -- But ghc's -optl is not actually the linker, but the compiler.
-    fltkLds <- map wrapLd . filter (`notElem` unwanted) . words <$>
-        run (Config.fltkConfig localConfig) ["--ldflags"]
-    return (fltkVersion, fltkCs, fltkLds)
-    where
-    -- ghc doesn't support -weak_framework.  I tried to pass via -optl, but
-    -- then it says "ld: framework not found UniformTypeIdentifiers".
-    -- But, it seems to be unneeded.  fltk uses it in
-    -- Fl_Native_File_Chooser_MAC.mm, which I don't use.
-    unwanted = ["-pthread", "-weak_framework", "UniformTypeIdentifiers"]
+    unwanted = ["-pthread"]
     -- fltk-config --cflags started putting -g and -O2 in the flags, which
     -- messes up hsc2hs, which wants only CPP flags.
     wantCflag w = any (\c -> ('-':c:"") `List.isPrefixOf` w) ['I', 'D']
     -- I get -Wl,-rpath,/nix/store/... stuff from nix.
     -- TODO probably wrong?  See above.
-    wrapLd flag
-        | "-Wl," `List.isPrefixOf` flag = "-optl=" <> flag
-        | otherwise = flag
+    wrapLd (flag : flags)
+        -- ghc 9.2 supports -framework but not -weak_framework.  This is a
+        -- vaguely newish flag that fltk is using now.  I can make it work
+        -- with -optl, but as of fltk 1.4.4, it's UniformTypeIdentifiers and
+        -- ScreenCaptureKit, and I don't seem to need either.
+        -- UniformTypeIdentifiers is used by Fl_Native_File_Chooser_MAC.mm.
+        | flag == "-weak_framework", _path : flags <- flags =
+            wrapLd flags
+            -- "-optl=" <> flag : "-optl=" <> path : wrapLd flags
+        | "-Wl," `List.isPrefixOf` flag = "-optl=" <> flag : wrapLd flags
+        | otherwise = flag : wrapLd flags
+    wrapLd [] = []
     run cmd args = strip <$> Process.readProcess cmd args ""
 
 -- | Flags used by both ghc and haddock.  This is unlike 'hcFlags', which is
