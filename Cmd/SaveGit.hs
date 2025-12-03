@@ -523,7 +523,7 @@ with_msg _ (Right val) = Right val
 get_user :: IO (Either Text SaveGitT.User)
 get_user = Exception.handle handle $ do
     lines <- Text.lines . txt <$> Process.readProcess "git"
-        ["config", "--get-regexp", "user.(name|email)"] ""
+        ["config", "--get-regexp", "user\\.(name|email)"] ""
     let m = Text.strip <$> Map.fromList (map (Text.break (==' ')) lines)
     return $ case (Map.lookup "user.name" m, Map.lookup "user.email" m) of
         (Just name, Just email)

@@ -27,6 +27,8 @@ import           Data.Map (Map)
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
+import           Data.Text (Text)
+import qualified Data.Text.IO as Text.IO
 import qualified Data.Typeable as Typeable
 
 import qualified Development.Shake as Shake
@@ -1548,7 +1550,23 @@ faustRule = faustSrcDir </> "*.cc" %> \output -> do
     let input = faustCppDir </> nameExt output ".dsp"
     need [input]
     Util.cmdline $ faustCmdline input output
+    -- Newer faust includes min_i and max_i functions, which means I can't
+    -- include them.  So comment them out in the files and include in
+    -- 'faustAll'.
+    liftIO $ modifyFile output $
+        commentOut ("static inline int " `Text.isPrefixOf`)
     Util.system "tools/clear_faust" [dspToName input]
+
+modifyFile :: FilePath -> (Text -> Text) -> IO ()
+modifyFile fname modify =
+    Text.IO.writeFile fname . modify =<< Text.IO.readFile fname
+
+commentOut :: (Text -> Bool) -> Text -> Text
+commentOut unwanted = Text.unlines . map comment . Text.lines
+    where
+    comment line
+        | unwanted line = "// " <> line
+        | otherwise = line
 
 faustCmdline :: FilePath -> FilePath -> Util.Cmdline
 faustCmdline input output =
@@ -1588,9 +1606,10 @@ faustAll dsps extraIncludes = unlines
     -- https://clang.llvm.org/docs/UsersManual.html#pragma-gcc-diagnostic
     , "#pragma GCC diagnostic ignored \"-Wunused-variable\""
     , ""
-    , "// faust expects these to be in scope for whatever reason"
-    , "using std::min;"
-    , "using std::max;"
+    , "// faust puts these in individual files, have to filter out to include"
+    -- TODO: I can get rid of this if I compile instruments individually.
+    , "static inline int max_i(int a, int b) { return (a > b) ? a : b; }"
+    , "static inline int min_i(int a, int b) { return (a < b) ? a : b; }"
     , ""
     , unlines (map ("#include "<>) includes)
     , "static const int all_patches_count = " <> show (length names) <> ";"
