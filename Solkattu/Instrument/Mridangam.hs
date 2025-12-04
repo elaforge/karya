@@ -413,7 +413,7 @@ notations = Map.fromList $ (extras++) $ Lists.mapMaybeFst isChar $
         -- The notation is o/, but that's two characters and I need a single
         -- character for toString.
         , ('/', Thoppi (Thom Up))
-        , ('`', Thoppi Gum)
+        , ('`', Thoppi Gum) -- also ´, but backtick is easier to type
         , ('?', Both (Thom Up) Din)
         ]
     isChar t = case untxt t of
