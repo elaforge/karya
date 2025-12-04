@@ -235,6 +235,8 @@ UNSORTED
     * upgraded to faust 2.81.10 which includes max_i, min_i
       Must I also upgrade the nix one?
     - ld: warning: ignoring duplicate libraries: '-lc++', '-lpthread'
+    - From repl:
+      ld: warning: -single_module is obsolete
     - fltk: ->position() is deprecated in new fltk
   - make selection more obvious, can't see it when clicking on errors
     . I think just make it larger?  Could also put triangle on both sides.

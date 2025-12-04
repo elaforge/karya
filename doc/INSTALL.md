@@ -8,7 +8,9 @@ Install nix and cachix.  I upload build results to `cachix` so if you use
 that you can avoid building them.  Of course if you like building you can
 skip all the `cachix` steps:
 
-    ### Standard nix install, skip if you already have nix:
+    ```sh
+    ### Standard nix install, skip if you already have nix.  Or go to the nix
+    # site and find whatever is current for this:
     bash <(curl -L https://nixos.org/nix/install)
     # On my laptop, nix installed with a max-jobs of 32, which is nuts on a
     # laptop with only 4 cores, and totally wedges it up.
@@ -27,6 +29,7 @@ skip all the `cachix` steps:
 
     ### Actually do the install:
     tools/nix-enter
+    ```
 
 This will download tons of stuff, and drop you in a subshell where that stuff
 is available.  After this you'll need to run `tools/nix-enter` whenever you
@@ -36,8 +39,8 @@ the subshell.
 On OS X, by default you do not even have to install the commandline compiler
 tools, because it will use the ones from nix.
 
-This gets the "everything" build including "im" below.  Since my build file
-is a mess, the non-im build is broken and I don't feel like fixing it at the
+This gets the "everything" build including "im" below.  Since my build file is
+a mess, the non-im build is broken and I don't feel like fixing it at the
 moment.  I'll probably just make the everything build the only build, now that
 nix makes it easy.
 
@@ -75,14 +78,14 @@ Ignore the rest of this file!
 
 ## the traditional way
 
-This is a lot more work than the nix way!
+This is more work than the nix way!  But you won't have to install nix, or run
+`tools/nix-enter` all the time, and you'll have all the haskell stuff globally
+available.
 
 - On OS X, install commandline tools if you haven't already:
     `xcode-select --install`
 
-- Install GHC, either the traditional way or `ghcup` should work.  I'm using
-9.2 now and 8.8 recently, and I've dropped support for previous versions.
-I do not recommend 9.0, it's known to be buggy!
+- Install GHC, either the traditional way or `ghcup`.  I'm using 9.2 now.
 
 - Install [non-haskell dependencies](#non-haskell-dependencies).
 
@@ -114,18 +117,56 @@ not iphone-ly.  Or don't do that.  This is just reminder to myself.
 
 - Install either via package manager or manually:
 
-    - fltk - I use >=1.3.4, but any >=1.3 should work.
-    - libpcre
+Here's my latest experience installing this way on M3 aarch64 OSX, using brew:
 
-    Depending on the package manager, you may have to install -dev variants to
-    get headers.
+  * brew install fltk
+  * brew install pkgconf
+  * brew install portaudio # for bindings-portaudio
+  * brew install pcre # for pcre-light
+  * brew install openssl # for hlibgit2
+  * brew install libsndfile # for hsndfile
+  * brew now installs into /opt by default. Edit ~/.cabal/config to find it:
+    ```
+    extra-include-dirs: /opt/homebrew/include
+    extra-lib-dirs: /opt/homebrew/lib
+    extra-prog-path: /opt/homebrew/bin
+    ```
+  * After running `tools/setup-generic`, which will create
+    Local/ShakeConfig.hs, and put the same paths in it:
+    ```
+    , globalIncludes = ["/opt/homebrew/include"]
+    , globalLibDirs = ["/opt/homebrew/lib"]
+    ```
+  * # if you are not on ghc 9.2.8, let cabal pick new versions
+    rm cabal.project.freeze
+  * cabal build --only-dep
+  * cabal freeze # update cabal.project.freeze if you deleted it
+
+  - Install deps for im:
+  * brew install rubberband # librubberband, for sampler
+  * brew install autoconf automake libtool
+  * git clone https://github.com/elaforge/libsamplerate to /usr/local/src
+    cd libsamplerate && ./configure && make
+  * cabal install cpphs c2hs
+  * brew install faust # for im faust backend
+  * hsc2hs-9.2.8 on aarch64 OSX is broken!  Edit `hsc2hs` directly and put
+    a space in `HSC2HS_EXTRA` between `--cflag` and `--lflag`.
+    Future versions don't seem to have the problem.
+
+I previously had trouble with `hlibgit2` on the `cabal build` line.
+The last time I tried it though, it worked without any changes to
+`cabal.project`.  But if it comes back, for reference, the issue is
+<https://github.com/jwiegley/gitlib/issues/92>. The workaround was to clone
+`gitlab` to `/usr/local/src/hs` and uncomment the line in `cabal.project`.
+
+On Linux, use whatever your distro calls the above packages.
+You may have to install -dev variants to get headers.
 
 - lilypond for the lilypond backend.  This is optional.  If you never try to
-compile a score via lilypond it will never notice you're missing this
-dependency.
+compile a score via lilypond you don't need this.
 
 - The bravura font for music symbols:
-<https://github.com/steinbergmedia/bravura/tree/master/releases> (the main page
+<https://github.com/steinbergmedia/bravura/releases> (the main page
 is <http://www.smufl.org/fonts/>), and Noto for any other kind of symbol:
 <https://www.google.com/get/noto/>.  I don't use fancy symbols very much, so
 they're not essential.  You'll probably get some complaints at startup if
@@ -133,48 +174,26 @@ they're missing, it's harmless to ignore them.  You might see some boxes
 instead of symbols if you use one of the few calls or scales that use non-ASCII
 symbols.
 
-    OS X: `cp *.otf ~/Library/Fonts` or use FontBook to install them.
+  OS X: `cp *.otf ~/Library/Fonts` or use FontBook to install them.
 
-    Linux: `cp *.otf ~/.fonts # or /usr/share/fonts`
+  Linux: `cp *.otf ~/.fonts # or /usr/share/fonts`
 
-    On linux, use `fc-list` to see installed fonts and their names.  For some
+  On linux, use `fc-list` to see installed fonts and their names.  For some
 reason, the fonts on linux sometimes have backslashes in their names, and
 sometimes not.  If there is a complaint at startup about the font not being
 found you might have to edit a font name in `App/Config.hsc`.
 
-## Haskell dependencies
+## haskell stack
 
-You can do this either the cabal v1 way or the v2 way.
-
-### cabal v2 way
-
-Cabal v2 is supposed to replace v1 some day.  It has some problems I'm
-hopefully able to work around.  Firstly, it can't build `hlibgit2` from
-hackage, but can from head.  Or at least it couldn't when I wrote this,
-see https://github.com/jwiegley/gitlib/issues/92
-So clone that to some local directory, and update `cabal.project` to point to
-that path if it's not /usr/local/src.  Then build dependencies with:
-
-    cabal v2-configure
-    cabal v2-build --only-dep
-
-If configure is unhappy about versions, remove `cabal.project.freeze` and
-try again.  Then do `mkmk` and continue the steps documented above.  Hopefully
-this is enough to make it work!
-
-### cabal v1 way
-
-I'm going to call this obsolete and delete it.
-
-### stack way
-
-I removed this because no one ever used it.  There's not much reason to
-use stack any more.
+There was once support for `stack`, but I removed it when no one ever used it.
+It would probably be possible to bring back without too much effort if
+necessary, but cabal v2 seems to be good enough now.
 
 ## 音, Im, Synth
 
 These are all names for the offline synthesizer.  It requires a bunch of extra
-dependencies.  If you did the nix way, then you'll already have them.
+dependencies.  If you did the nix way, then you'll already have them.  The OS X
+install list above also incluse them.
 
 Otherwise, here are old docs for installing by hand, the non-nix way:
 
@@ -185,13 +204,14 @@ conservative distro, the bundled one may be too old.  Install by hand to be
 sure.  I'm using `2.5.34`.
 
 - libsamplerate - I use a local fork, with support for saving and restoring
-state.  Get the `local` branch from
-https://github.com/elaforge/libsamplerate/tree/local and clone to
-`/usr/local/src/libsamplerate`, unless you want mess with config.  Build with
-the usual `./autogen.sh && ./configure && make`.  Don't install, the shakefile
-will link directly to it.  The reason is that it's common to have standard
-libsamplerate installed in /usr/lib or /usr/local/lib, and I don't want to mess
-up your system.
+state
+    - cd /usr/local/src
+    - git clone https://github.com/elaforge/libsamplerate
+    - cd libsamplerate
+    - git checkout save-state
+    - ./autogen.sh && ./configure && make
+    - Don't `make install`!  The shakefile will link directly to it.
+    Otherwise it could replace a standard libsamplerate in /usr/local/lib.
 
     If you cloned someplace other than `/usr/local/src/libsamplerate`, you'll
 need to update Local/ShakeConfig.hs update the `libsamplerate` field with
@@ -204,3 +224,6 @@ the link and compile flags.
 `tools/run_profile` expects `ps2pdf` in the path, which is part of ghostscript.
 It's fine if it's not, but you'll get ps instead of pdf.  Help with heap
 profiling would be very welcome!
+
+`pandoc` is used to convert `.md` to `.html` for docs, but it's big and
+complicated.  Don't need to install if you just read the md files.
