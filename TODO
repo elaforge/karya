@@ -231,7 +231,15 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
+  get rid of hlibgit2 dep?
+    . It's a complicated library with a big unmaintained haskell binding.
+    . Or I could fork and maintain it myself.
+    . What if I switch git save backend to text, and use CLI git?
+    . I could also save only on ^s... but then I don't get undo back.
+    . Will it be slow?
   build on new mac:
+    - __-> Cmd/Ky_test.hs:71 [test_check_cache]
+      Right (Just ([], [])) /= Right Nothing
     * upgraded to faust 2.81.10 which includes max_i, min_i
       Must I also upgrade the nix one?
     - ld: warning: ignoring duplicate libraries: '-lc++', '-lpthread'

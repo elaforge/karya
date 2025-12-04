@@ -85,6 +85,7 @@ get_midi_config db = do
     case takeWhile (/='.') full_host of
         "tammananny" -> return $ Tammananny.midi_config db
         "hobbes" -> return $ Hobbes.midi_config db
+        "groqmac" -> return $ Hobbes.midi_config db
         host -> do
           Log.warn $ "no midi configuration for host: " <> showt host
           return default_midi
