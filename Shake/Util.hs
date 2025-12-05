@@ -233,15 +233,23 @@ platform = case System.Info.os of
 newtype PackageId = PackageId String
     deriving (Eq, Show)
 
-readGhcEnvironment :: IO (Maybe ([FilePath], [PackageId]))
-readGhcEnvironment = do
+readGhcEnvironment :: (Int, Int, Int) -> IO (Maybe ([FilePath], [PackageId]))
+readGhcEnvironment (ver1, ver2, ver3) = do
     fns <- Directory.listDirectory "."
-    case filter (".ghc.environment." `List.isPrefixOf`) fns of
-        [] -> return Nothing
+    case filter envFile fns of
+        [] -> pure Nothing
         [fn] -> Just . Either.partitionEithers
             . Maybe.mapMaybe parseGhcEnvironment . Text.lines <$>
                 Text.IO.readFile fn
         fns -> errorIO $ "multiple .ghc.environment.* files: " <> show fns
+            <> " Delete the extras."
+    where
+    -- They look like .ghc.environment.aarch64-darwin-9.6.7.
+    -- ghc --print-target-platform -> aarch64-apple-darwin
+    -- but too much bother.
+    envFile fn = ".ghc.environment" `List.isPrefixOf` fn
+        && version `List.isSuffixOf` fn
+    version = List.intercalate "." (map show [ver1, ver2, ver3])
 
 parseGhcEnvironment :: Text -> Maybe (Either FilePath PackageId)
 parseGhcEnvironment line = case Text.words line of

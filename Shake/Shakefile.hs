@@ -686,7 +686,7 @@ configure = do
         then maybe
             (Util.errorIO "useCabalV2=True but no .ghc.environment,\
                 \ should have been created by cabal build --only-dep")
-            (return . Just) =<< Util.readGhcEnvironment
+            (return . Just) =<< Util.readGhcEnvironment ghcVersion
         else return Nothing
     -- TODO this breaks if you run from a different directory
     rootDir <- Directory.getCurrentDirectory
