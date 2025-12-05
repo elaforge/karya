@@ -2,8 +2,9 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# OPTIONS_GHC -fno-warn-warnings-deprecations #-} -- Monad.Error
-{-# LANGUAGE GeneralizedNewtypeDeriving, DeriveGeneric, BangPatterns #-}
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {- | Functions for logging.
 
     Log msgs are used to report everything from errors and debug msgs to status
@@ -37,7 +38,6 @@ module Util.Log (
 import           Prelude hiding (error, log)
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.DeepSeq as DeepSeq
-import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Except as Except
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Reader as Reader
@@ -390,8 +390,6 @@ run_id = Identity.runIdentity . run
 instance LogMonad m => LogMonad (State.Strict.StateT s m) where
     write = Trans.lift . write
 instance LogMonad m => LogMonad (State.Lazy.StateT s m) where
-    write = Trans.lift . write
-instance (Error.Error e, LogMonad m) => LogMonad (Error.ErrorT e m) where
     write = Trans.lift . write
 instance LogMonad m => LogMonad (Except.ExceptT e m) where
     write = Trans.lift . write

@@ -404,7 +404,7 @@ UNSORTED
       Read the right one directly, but need to get arch:
       ghc --print-target-platform -> aarch64-apple-darwin
     * -eventlog is deprecated
-    - Control.Monad.Error is gone
+    * Control.Monad.Error is gone
     - No more GHC.backend = GHC.Interpreter
     new features:
       9.4:

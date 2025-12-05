@@ -19,7 +19,6 @@ module Util.Logger (
     , mapLogs
 ) where
 import Prelude hiding (log)
-import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Except as Except
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Reader as Reader
@@ -81,11 +80,6 @@ instance MonadLogger w m => MonadLogger w (Strict.StateT s m) where
     peek = Trans.lift peek
 
 instance MonadLogger w m => MonadLogger w (Lazy.StateT s m) where
-    log = Trans.lift . log
-    peek = Trans.lift peek
-
-instance (Error.Error e, MonadLogger w m) =>
-        MonadLogger w (Error.ErrorT e m) where
     log = Trans.lift . log
     peek = Trans.lift peek
 
