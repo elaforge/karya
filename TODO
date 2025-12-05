@@ -399,7 +399,7 @@ UNSORTED
     - ghc: can't find a package database at
       /Users/elaforge/src/seq/main/dist-newstyle/packagedb/ghc-9.6.7
       . It's in .ghc.environment even though it doesn't exist?
-    - add Functor (Paired a)
+    * add Functor (Paired a)
     - Shakefile: multiple .ghc.environment
       Read the right one directly, but need to get arch:
       ghc --print-target-platform -> aarch64-apple-darwin

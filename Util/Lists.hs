@@ -522,6 +522,12 @@ zipper prev lst@(x:xs) = (prev, lst) : zipper (x:prev) xs
 data Paired a b = First !a | Second !b | Both !a !b
     deriving (Show, Eq)
 
+instance Functor (Paired a) where
+    fmap f paired = case paired of
+        First a -> First a
+        Second b -> Second (f b)
+        Both a b -> Both a (f b)
+
 instance Bifunctor Paired where
     bimap f g paired = case paired of
         First a -> First (f a)
