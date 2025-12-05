@@ -753,7 +753,10 @@ configure = do
             [ ["-rtsopts", "-threaded"]
             -- This has essentially no overhead.  A small initialization
             -- overhead which should go away in 9.4.
-            , ["-eventlog" | Config.enableEventLog localConfig && mode == Opt]
+            , [ "-eventlog"
+              | ghcVersion < (9, 4, 0) && Config.enableEventLog localConfig
+                && mode == Opt
+              ]
             , ["-dynamic" | mode /= Profile]
             , ["-prof" | mode == Profile]
             , map ("-L"<>) (Config.globalLibDirs localConfig)

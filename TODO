@@ -395,7 +395,17 @@ UNSORTED
     . Move EventTrack.cc rank_brightness negative_duration_brightness
       to color config.
   - I still have the out of sync problem with ky inst allocs vs UiConfig
-  - upgrade to ghc 9.4:
+  upgrade to ghc 9.6.7:
+    - ghc: can't find a package database at
+      /Users/elaforge/src/seq/main/dist-newstyle/packagedb/ghc-9.6.7
+      . It's in .ghc.environment even though it doesn't exist?
+    - add Functor (Paired a)
+    - Shakefile: multiple .ghc.environment
+      Read the right one directly, but need to get arch:
+      ghc --print-target-platform -> aarch64-apple-darwin
+    * -eventlog is deprecated
+    - Control.Monad.Error is gone
+    - No more GHC.backend = GHC.Interpreter
     new features:
       9.4:
         . https://downloads.haskell.org/~ghc/9.4.1/docs/users_guide/9.4.1-notes.html
