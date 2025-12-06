@@ -63,11 +63,11 @@ Marklist *m44_set(ScoreTime *last_pos)
     for (int i = 0; i < length; i++) {
         ScoreTime t = ScoreTime(i).multiply(each_mark);
         if (i % 4 == 0) {
-            sprintf(name, "`+2/%d`", i / 4);
+            snprintf(name, sizeof name, "`+2/%d`", i / 4);
             Mark m(1, 3, major, strdup(name), 0, 0);
             marks[i] = PosMark(t, m);
         } else {
-            sprintf(name, "%d.%d", i / 4, i % 4);
+            snprintf(name, sizeof name, "%d.%d", i / 4, i % 4);
             Mark m(2, 2, minor, strdup(name), 0, 0);
             marks[i] = PosMark(t, m);
         }

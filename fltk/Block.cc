@@ -270,7 +270,8 @@ Block::set_ruler_width(int width)
         return;
 
     int x = this->ruler_track->x();
-    this->body.position(x + ruler_track->w(), body.y(), x + width, body.y());
+    this->body.move_intersection(
+        x + ruler_track->w(), body.y(), x + width, body.y());
     this->body.init_sizes();
 }
 

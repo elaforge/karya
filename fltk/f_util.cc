@@ -166,7 +166,7 @@ show_damage(uchar d)
         strcat(buf, "user2+");
     if (*buf)
         buf[strlen(buf)-1] = '\0';
-    sprintf(buf+strlen(buf), "(%d)", d);
+    snprintf(buf+strlen(buf), sizeof buf - strlen(buf), "(%d)", d);
     buf[strlen(buf)] = '\0';
     return buf;
 }

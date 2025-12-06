@@ -128,7 +128,7 @@ TrackTile::floating_open(int tracknum, ScoreTime pos, const char *text,
     this->add(floating_input);
     floating_input->callback(floating_input_cb, static_cast<void *>(this));
     int len = strlen(text);
-    floating_input->position(
+    floating_input->insert_position(
         utf8::bytes(text, len, select_end),
         utf8::bytes(text, len, select_start));
     this->redraw();

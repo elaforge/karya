@@ -240,12 +240,18 @@ UNSORTED
   build on new mac:
     - __-> Cmd/Ky_test.hs:71 [test_check_cache]
       Right (Just ([], [])) /= Right Nothing
+      Check if the old one does a 'reloaded ky: [<score>]' on start
+      But shouldn't it, because it's a non-empty ky?
     * upgraded to faust 2.81.10 which includes max_i, min_i
       Must I also upgrade the nix one?
     - ld: warning: ignoring duplicate libraries: '-lc++', '-lpthread'
     - From repl:
       ld: warning: -single_module is obsolete
-    - fltk: ->position() is deprecated in new fltk
+      . Is ghc adding it?  Maybe a newer version of ghc will omit?
+      . -- We encode this information into the toolchain field
+        ...SupportsSingleModule
+      . But settings does have ("ld supports single module", "NO")
+    * fltk: ->position() is deprecated in new fltk
   - make selection more obvious, can't see it when clicking on errors
     . I think just make it larger?  Could also put triangle on both sides.
     . Or, I could make a brighter section around it, I could also mark
@@ -408,6 +414,11 @@ UNSORTED
     ReplGhc:
       * No more GHC.backend = GHC.Interpreter
       - GHC.Targets needs GHC.targetUnitId :: UnitId
+        . What is the unit-id supposed to be for a local module?
+          Can I pick a dummy?
+        . Wasn't the ghc api stability group going to document changes?
+        . Can't pick arbitrary:
+          Unit unknown to the internal unit environment
     new features:
       9.4:
         . https://downloads.haskell.org/~ghc/9.4.1/docs/users_guide/9.4.1-notes.html

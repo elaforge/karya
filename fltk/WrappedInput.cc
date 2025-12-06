@@ -169,14 +169,15 @@ WrappedInput::handle(int evt)
         if (evt == FL_KEYDOWN) {
             switch (Fl::event_key()) {
             case FL_Up:
-                if (is_first_line(value(), position())) {
-                    this->position(0, Fl::event_state(FL_SHIFT) ? mark() : 0);
+                if (is_first_line(value(), insert_position())) {
+                    this->insert_position(
+                        0, Fl::event_state(FL_SHIFT) ? mark() : 0);
                     handled = true;
                 }
                 break;
             case FL_Down:
-                if (is_last_line(value(), size(), position())) {
-                    this->position(
+                if (is_last_line(value(), size(), insert_position())) {
+                    this->insert_position(
                         size(), Fl::event_state(FL_SHIFT) ? mark() : size());
                     handled = true;
                 }
@@ -328,11 +329,11 @@ WrappedInput::wrap_text()
     }
 
     if (changed) {
-        int pos = this->position();
+        int pos = this->insert_position();
         int mark = this->mark();
         this->value(text);
         // Setting value will destroy the selection, so restore it.
-        this->position(pos, mark);
+        this->insert_position(pos, mark);
     }
     return;
 }

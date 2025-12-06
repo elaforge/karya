@@ -193,7 +193,7 @@ EventTrack::set_title(const char *title)
 {
     title_input.value(title);
     // If it has multiple lines, make sure it always displays the first one.
-    title_input.position(0);
+    title_input.insert_position(0);
 }
 
 
@@ -308,7 +308,7 @@ EventTrack::title_unfocused()
     if (title_input.text_changed())
         MsgCollector::get()->track_title(this, text);
     // If it doesn't fit, always show the beginning.
-    title_input.position(0);
+    title_input.insert_position(0);
     // Winds up at TrackTile::title_input_cb, which will redraw TrackTile
     // since it may have changed size.
     do_callback();

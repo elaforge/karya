@@ -105,11 +105,11 @@ static void
 move_backward(Fl_Input *w, bool shift)
 {
     const char *text = w->value();
-    const char *p = backward_token(text, text + w->position());
+    const char *p = backward_token(text, text + w->insert_position());
     if (shift)
-        w->position(p - text, w->mark());
+        w->insert_position(p - text, w->mark());
     else
-        w->position(p - text);
+        w->insert_position(p - text);
 }
 
 
@@ -117,11 +117,12 @@ static void
 move_forward(Fl_Input *w, bool shift)
 {
     const char *text = w->value();
-    const char *p = forward_token(text + w->size(), text + w->position());
+    const char *p = forward_token(
+        text + w->size(), text + w->insert_position());
     if (shift)
-        w->position(p - text, w->mark());
+        w->insert_position(p - text, w->mark());
     else
-        w->position(p - text);
+        w->insert_position(p - text);
 }
 
 
@@ -129,8 +130,8 @@ static void
 backspace_token(Fl_Input *w)
 {
     const char *text = w->value();
-    const char *p = backward_token(text, text + w->position());
-    w->replace(p - text, w->position(), nullptr);
+    const char *p = backward_token(text, text + w->insert_position());
+    w->replace(p - text, w->insert_position(), nullptr);
 }
 
 bool
