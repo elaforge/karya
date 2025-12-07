@@ -128,9 +128,7 @@ interpreter (Session chan) = do
 
     GHC.runGhcT (Just GHC.Paths.libdir) $ do
         parse_flags args
-        -- obj_allowed must be False, otherwise I get
-        -- Cannot add module Cmd.Repl.Environ to context: not interpreted
-        GHC.setTargets $ map (make_target False) toplevel_modules
+        GHC.setTargets =<< mapM make_target toplevel_modules
         ((result, logs, warns), time_msg) <-
             Thread.timeActionText (reload toplevel_modules)
         let expected = map ((++ ".hs, interpreted") . Lists.replace1 '.' "/")
@@ -258,10 +256,15 @@ collect_logs action = do
     let warns = []
     return (val, reverse logs, warns)
 
+log_action :: IORef.IORef [String] -> Logger.LogAction
+#if GHC_VERSION >= 90601
+-- type LogAction = LogFlags -> MessageClass -> SrcSpan -> SDoc -> IO ()
+log_action logs _ _ _ msg =
+#else
 -- type LogAction = DynFlags -> WarnReason -> Severity -> SrcSpan
 --               -> SDoc -> IO ()
-log_action :: IORef.IORef [String] -> Logger.LogAction
 log_action logs _ _ _ _ msg =
+#endif
     liftIO $ IORef.modifyIORef logs (formatted:)
     where formatted = Outputable.showSDocUnsafe msg
 
@@ -325,7 +328,9 @@ parse_flags args = do
     void $ GHC.setSessionDynFlags $ dflags
         { GHC.ghcMode = GHC.CompManager
         , GHC.ghcLink = GHC.LinkInMemory
-#if GHC_VERSION >= 90201
+#if GHC_VERSION >= 90601
+        , GHC.backend = GHC.interpreterBackend
+#elif GHC_VERSION >= 90201
         , GHC.backend = GHC.Interpreter
 #else
         , GHC.hscTarget = GHC.HscInterpreted
@@ -333,11 +338,26 @@ parse_flags args = do
         , GHC.verbosity = 1
         }
 
-make_target :: Bool -> String -> GHC.Target
-make_target obj_allowed module_name = GHC.Target
+make_target :: GHC.GhcMonad m => String -> m GHC.Target
+
+#if GHC_VERSION >= 90601
+-- guessTarget :: GhcMonad m => String -> Maybe UnitId -> Maybe Phase
+-- -> m Target
+make_target module_name = do
+    target <- GHC.guessTarget module_name Nothing Nothing
+    -- obj_allowed must be False, otherwise I get
+    -- Cannot add module Cmd.Repl.Environ to context: not interpreted
+    -- ghci unsets this if the module name starts with *, so I guess it means
+    -- you can load the .o or must interpret.
+    pure $ target { GHC.targetAllowObjCode = False }
+#else
+
+make_target module_name = pure $ GHC.Target
     { GHC.targetId = GHC.TargetModule (GHC.mkModuleName module_name)
     -- ghci unsets this if the module name starts with *, so I guess it means
     -- you can load the .o or must interpret.
-    , GHC.targetAllowObjCode = obj_allowed
+    , GHC.targetAllowObjCode = False
     , GHC.targetContents = Nothing
     }
+
+#endif

@@ -413,7 +413,7 @@ UNSORTED
     * Control.Monad.Error is gone
     ReplGhc:
       * No more GHC.backend = GHC.Interpreter
-      - GHC.Targets needs GHC.targetUnitId :: UnitId
+      * GHC.Targets needs GHC.targetUnitId :: UnitId
         . What is the unit-id supposed to be for a local module?
           Can I pick a dummy?
         . Wasn't the ghc api stability group going to document changes?
