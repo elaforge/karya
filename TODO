@@ -436,11 +436,9 @@ UNSORTED
         . Nothing much?
       9.8:
         . https://downloads.haskell.org/ghc/9.8.4/docs/users_guide/9.8.1-notes.html
-        . https://github.com/ghc-proposals/ghc-proposals/blob/master/proposals/0425-decl-invis-binders.rst
-        . parallel compiles:
-          https://github.com/ghc-proposals/ghc-proposals/blob/master/proposals/0540-jsem.rst
       9.10:
-        . https://downloads.haskell.org/ghc/9.10.1-alpha2/docs/users_guide/9.10.1-notes.html
+        . https://downloads.haskell.org/~ghc/9.10.3/docs/users_guide/9.10.1-notes.html
+      . https://downloads.haskell.org/ghc/latest/docs/users_guide/9.12.1-notes.html
     * fclabels doesn't like base 4.17
       . I think they fixed it.
       . Probably due to TH as usual, which I don't even use.
