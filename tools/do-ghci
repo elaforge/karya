@@ -3,6 +3,10 @@
 flags=${1?}
 shift
 
+# For some reason, cabal puts this in .ghc.environment, which doesn't exist and
+# makes ghci crash.
+mkdir -p dist-newstyle/packagedb/ghc-9.6.7
+
 args=(
     # Turn off idle time GC, since it causes input lag when lots of modules
     # are loaded.
