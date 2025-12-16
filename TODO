@@ -238,7 +238,7 @@ UNSORTED
     . I could also save only on ^s... but then I don't get undo back.
     . Will it be slow?
   build on new mac:
-    - __-> Cmd/Ky_test.hs:71 [test_check_cache]
+    * __-> Cmd/Ky_test.hs:71 [test_check_cache]
       Right (Just ([], [])) /= Right Nothing
       Check if the old one does a 'reloaded ky: [<score>]' on start
       But shouldn't it, because it's a non-empty ky?
@@ -4809,6 +4809,9 @@ cleanup: bugs:
     . fmt: even more operators and imports
 
 performance:
+  profiling:
+    . experiment with -finfo-table-map and -fdistinct-constructor-tables
+      Also ghc-debug.
   effects / monads:
     Cmd:
       . I use Cmd.M m => ..., which means cmds are all polymorphic, which

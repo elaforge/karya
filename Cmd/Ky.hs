@@ -112,10 +112,10 @@ check_cache lookup_backend prev_cache old_allocs paths ky_text = run $ do
         -- rather than removing all allocations.  This is a bit inconsistent,
         -- but I may have done it this way for historical reasons, since old ky
         -- files won't have instrument sections?
-        Nothing -> return old_allocs
+        Nothing -> pure old_allocs
         Just allocs -> try $
             Instruments.update_ui lookup_backend allocs old_allocs
-    return
+    pure
         ( (builtins, Map.fromList (Ky.def_aliases defs), fingerprint, allocs)
         , logs
         )

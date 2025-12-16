@@ -68,7 +68,8 @@ test_check_cache = do
                     Right $ Just (e_builtins builtins, fnames)
         extract (Just (Cmd.PermanentKy (builtins, _))) =
             Right $ Just (e_builtins builtins, [])
-    io_equal (extract <$> f Nothing "") (Right Nothing)
+    -- empty ky
+    io_equal (extract <$> f Nothing "") (Right (Just ([], [])))
     let define_a = "note generator:\na = +a\n"
     result <- f Nothing define_a
     equal (extract result) (Right (Just (["a"], [])))
