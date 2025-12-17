@@ -173,6 +173,18 @@ yella_sequence = date 2025 9 13 $ korvai adi $
     ktpk = su "ktpk"
     ktok = su "ktok"
 
+s_sketch :: Korvai
+s_sketch = date 2025 12 7 $ korvaiV adi $
+    [ "d_kd_k_d__k_d__k_" . "d_kd_k_kd_k_kd_"
+    , "d_kd_kd_k_d__k_d__k_d_d_kd_kd_k_"
+    , "d_kd_k_d__k_d__k" . "d_kd_k_kd_k_kd_k"
+    , "d_kd_k_kd_k_kd_k" . "d_kd_kdk_kd_dk_k"
+    , "d_kd_k_d__k_d__k" . "_k_kd_kd_k_k_kd_"
+    , "d_kd_k_d___k_d_k" . "d_kd_k_kd_k_kd_k"
+    ]
+    -- messing around with 5s and 7s with an initial theme of
+    -- d_kd_k_d__"
+
 legong_mridangam :: Korvai
 legong_mridangam = elaforge $ korvai adi
     -- TODO mostly beat at end, but inconsistent around repeats

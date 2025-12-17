@@ -305,7 +305,7 @@ UNSORTED
       . 2025-02-03 08:37:33.462 seq[3111:10397365] error messaging the mach
         port for IMKCFRunLoopWakeUpReliable
       . Apparently a MacOS bug, harmless but noisy.
-    - concurrent-output Shake/Progress.hs doesn't work
+    / concurrent-output Shake/Progress.hs doesn't work
       . in iterm, what about apple terminal?  Same, must be concurrent-output
     - hold down key repeat doesn't work
       . turns out I need

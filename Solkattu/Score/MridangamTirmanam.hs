@@ -159,3 +159,8 @@ rohan_end = rohan $ date 2025 2 8 $ korvaiV adi
     ]
     where
     seq = g $ "pktk".su "kt"
+
+reentry :: Korvai
+reentry = date 2025 9 13 $ elaforge $ korvaiV adi
+    [ od.__5 . g (su "ktpkpktkno").u.__3.su "n_ktpk" . r2 "N.dD.dD."
+    ]

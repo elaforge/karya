@@ -49,9 +49,9 @@ import qualified Solkattu.Score.Tabla2025
 scores :: [Korvai.Score]
 scores = map Korvai.inferMetadataS
     [ setLocation ("Solkattu.Score.Kanjira2025",12,"e_sarvalaghu") $ Single Solkattu.Score.Kanjira2025.e_sarvalaghu
-    , setLocation ("Solkattu.Score.Kanjira2025",17,"ta_dit_takadin") $ Single Solkattu.Score.Kanjira2025.ta_dit_takadin
-    , setLocation ("Solkattu.Score.Kanjira2025",35,"dinnaginna1") $ Single Solkattu.Score.Kanjira2025.dinnaginna1
-    , setLocation ("Solkattu.Score.Kanjira2025",43,"dinnaginna2") $ Single Solkattu.Score.Kanjira2025.dinnaginna2
+    , setLocation ("Solkattu.Score.Kanjira2025",19,"ta_dit_takadin") $ Single Solkattu.Score.Kanjira2025.ta_dit_takadin
+    , setLocation ("Solkattu.Score.Kanjira2025",37,"dinnaginna1") $ Single Solkattu.Score.Kanjira2025.dinnaginna1
+    , setLocation ("Solkattu.Score.Kanjira2025",45,"dinnaginna2") $ Single Solkattu.Score.Kanjira2025.dinnaginna2
     , setLocation ("Solkattu.Score.Kendang2020",11,"farans") $ Single Solkattu.Score.Kendang2020.farans
     , setLocation ("Solkattu.Score.Mridangam2013",18,"e_ktkt") $ Single Solkattu.Score.Mridangam2013.e_ktkt
     , setLocation ("Solkattu.Score.Mridangam2013",30,"e_3s_5s") $ Single Solkattu.Score.Mridangam2013.e_3s_5s
@@ -191,8 +191,9 @@ scores = map Korvai.inferMetadataS
     , setLocation ("Solkattu.Score.Mridangam2025",111,"yella_mohra_korvai") $ Single Solkattu.Score.Mridangam2025.yella_mohra_korvai
     , setLocation ("Solkattu.Score.Mridangam2025",121,"yella_tirmanam") $ Single Solkattu.Score.Mridangam2025.yella_tirmanam
     , setLocation ("Solkattu.Score.Mridangam2025",128,"yella_sequence") $ Single Solkattu.Score.Mridangam2025.yella_sequence
-    , setLocation ("Solkattu.Score.Mridangam2025",176,"legong_mridangam") $ Single Solkattu.Score.Mridangam2025.legong_mridangam
-    , setLocation ("Solkattu.Score.Mridangam2025",212,"legong_pasang") $ Single Solkattu.Score.Mridangam2025.legong_pasang
+    , setLocation ("Solkattu.Score.Mridangam2025",176,"s_sketch") $ Single Solkattu.Score.Mridangam2025.s_sketch
+    , setLocation ("Solkattu.Score.Mridangam2025",188,"legong_mridangam") $ Single Solkattu.Score.Mridangam2025.legong_mridangam
+    , setLocation ("Solkattu.Score.Mridangam2025",224,"legong_pasang") $ Single Solkattu.Score.Mridangam2025.legong_pasang
     , setLocation ("Solkattu.Score.MridangamMohra",13,"rohan_mohra1") $ Single Solkattu.Score.MridangamMohra.rohan_mohra1
     , setLocation ("Solkattu.Score.MridangamRohan",19,"kanda_tani") $ Solkattu.Score.MridangamRohan.kanda_tani
     , setLocation ("Solkattu.Score.MridangamRohan",34,"kanda1") $ Single Solkattu.Score.MridangamRohan.kanda1
@@ -277,9 +278,11 @@ scores = map Korvai.inferMetadataS
     , setLocation ("Solkattu.Score.MridangamTirmanam",136,"tir_misc") $ Single Solkattu.Score.MridangamTirmanam.tir_misc
     , setLocation ("Solkattu.Score.MridangamTirmanam",145,"tir_elaforge") $ Single Solkattu.Score.MridangamTirmanam.tir_elaforge
     , setLocation ("Solkattu.Score.MridangamTirmanam",156,"rohan_end") $ Single Solkattu.Score.MridangamTirmanam.rohan_end
+    , setLocation ("Solkattu.Score.MridangamTirmanam",163,"reentry") $ Single Solkattu.Score.MridangamTirmanam.reentry
     , setLocation ("Solkattu.Score.MridangamTranscribe",15,"yt_ramana_balachandran") $ Single Solkattu.Score.MridangamTranscribe.yt_ramana_balachandran
     , setLocation ("Solkattu.Score.MridangamTranscribe",50,"tirmanam_sikkil") $ Single Solkattu.Score.MridangamTranscribe.tirmanam_sikkil
     , setLocation ("Solkattu.Score.MridangamTranscribe",67,"peshkar1") $ Single Solkattu.Score.MridangamTranscribe.peshkar1
+    , setLocation ("Solkattu.Score.MridangamTranscribe",79,"tirmanam1") $ Single Solkattu.Score.MridangamTranscribe.tirmanam1
     , setLocation ("Solkattu.Score.Solkattu2013",20,"c_13_07_23") $ Single Solkattu.Score.Solkattu2013.c_13_07_23
     , setLocation ("Solkattu.Score.Solkattu2013",27,"c_13_08_14") $ Single Solkattu.Score.Solkattu2013.c_13_08_14
     , setLocation ("Solkattu.Score.Solkattu2013",72,"c_yt1") $ Single Solkattu.Score.Solkattu2013.c_yt1

@@ -12,6 +12,8 @@ import           Solkattu.Dsl.Mridangam
 e_sarvalaghu :: Korvai
 e_sarvalaghu = date 2025 9 20 $ ganesh $ korvaiV adi
     [ "k_o_o_o_tko_o_o_" . "k_o_o_o___o_o_o_" -- nddn
+    -- nd_n,nd,n,nd,nxq
+    , r2 $ "ook" . r2 "okook" . su "o_tktk"
     ]
 
 ta_dit_takadin :: Korvai

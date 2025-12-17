@@ -75,3 +75,9 @@ peshkar1 = date 2025 9 5 $ rohan $ korvaiV adi
     , "pknpi__qd_n_ pknoIkDnpkN_knpkD`n_"
     , "__on_kN_Y_k_" . "_D_kD_i_k__D_kD_i_k_"
     ]
+
+tirmanam1 :: Korvai
+tirmanam1 = korvaiV adi
+    -- tabla, from https://www.youtube.com/watch?v=0uN-smnNB_Y 2:15
+    [ "__" . tri_ (d.__6) "d__d_k"
+    ]
