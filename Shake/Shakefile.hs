@@ -1155,7 +1155,8 @@ dispatch modeConfig targets
             -- shakefile runs, but that's probably ok.
             Util.system "rm" ["-rf", build]
             Util.system "mkdir" [build]
-        , ("doc",) $ action $ makeAllDocumentation modeConfig
+        , ("doc",) $ action $ need extractableDocs
+        , ("docs",) $ action $ makeAllDocumentation modeConfig
         , ("haddock",) $ action $ makeHaddock modeConfig
         , ("hlint",) $ action $ hlint (modeConfig Debug)
         , ("md",) $ action $ need . map docToHtml =<< getMarkdown

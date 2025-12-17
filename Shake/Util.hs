@@ -106,7 +106,11 @@ doCmdline fancyOutput keepGoing (abbr, output, cmd_:args) = do
         (exit, ghcNotRequired) <- createProcessConcurrent "nice" (cmd:args)
         when (not keepGoing && exit /= Exit.ExitSuccess) $
             errorIO $ "Failed:\n"
+                -- I want to shorten because otherwise GHC errors are scrolled
+                -- off, but I don't want to when I want to debug the cmdline
+                -- itself.
                 ++ ellipsis 80 (unwords (map quote (cmd : args)))
+                -- ++ (unwords (map quote (cmd : args)))
         return ghcNotRequired
         ) `Exception.onException` do
             timing <- showMetric start
