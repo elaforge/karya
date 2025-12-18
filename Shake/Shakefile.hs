@@ -181,10 +181,9 @@ options args = Shake.shakeOptions
     , Shake.shakeReport = [build </> "report.html"]
     , Shake.shakeProgress =
         if verbose then const (return ()) else Progress.report
-    -- Git branch checkouts change file timestamps, but not contents.
-    -- But ghci only understands timestamp changes, not contents.
-    -- TODO: I heard that 9.4 will fix this
-    , Shake.shakeChange = Shake.ChangeModtime
+    -- Post ghc 9.4, ghc finally works on file contents rather than just
+    -- modtime.
+    , Shake.shakeChange = Shake.ChangeModtimeAndDigestInput
     }
     where
     -- This is stupid, but shake only lets me set options before parsing flags,
