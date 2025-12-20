@@ -85,7 +85,10 @@ class Timing {
 public:
     // Verbosity level, higher is more verbose.  This is a constant so timing
     // calls above it should get removed entirely.
-    enum { level = 2 };
+    enum {
+        // cgrep util::timing for verbosities.
+        level = 0
+    };
     static Timing *get();
     void timing(const char *name, int level);
     void flush();

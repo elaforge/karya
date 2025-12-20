@@ -115,17 +115,9 @@ ghc:
     -dsuppress-module-prefixes -dsuppress-coercions
     -dsuppress-type-applications
     -ddump-to-file -ddump-simpl
-  . Open a feature request ticket with GHC API info.
   . ghc api memory use should get much better in 9.4
     Rather than insert all ModDetails, forget them and just deserialize the
     interface file.
-  . serialize core / stg
-  ask about recompilation avoidance:
-    . use hash instead of mtime? 9.4 ticket 1939
-    - how about put all the flags etc. in .hi instead of the hash, for better
-      reporting?
-      . why not -ddump-hi-diffs?
-      . maybe just do it?
   what is the x-axis on the profile?
     . CPUTime, mutator time
   what about time profile?
