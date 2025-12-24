@@ -7,7 +7,7 @@ current:
   - add a bpm range annotation to solkattu
     . This is sort of more dynamic, in that it's to do with my practice,
       but isn't all of it?
-  - what's up with attoparsec linking?
+  / what's up with attoparsec linking?
     . Providing -package attoparsec has error:
       Derive/C/Prelude/Val.hs:6:1: error:
           Could not load module ‘Data.Attoparsec.Text’
@@ -22,6 +22,7 @@ current:
     ? What does --make do?
       . --make has the same problem.
     . Cabal uses --package-id, which doesn't seem to have this issue.
+    . It's gone, some bug in that version of ghc.
   - why does seq window not come to front?
     . test_block does, browser and logview do.
   * get im mridangam going
