@@ -415,6 +415,10 @@ notations = Map.fromList $ (extras++) $ Lists.mapMaybeFst isChar $
         , ('/', Thoppi (Thom Up))
         , ('`', Thoppi Gum) -- also ´, but backtick is easier to type
         , ('?', Both (Thom Up) Din)
+        -- Can't use n overline because it's actually two chars.
+        -- H looks like N but conflicts with Dhere, but G is a nasal consonant
+        , ('G', Both (Tha Palm) Nam)
+        -- , ('n̅', Both (Tha Palm) Nam)
         ]
     isChar t = case untxt t of
         [c] -> Just c

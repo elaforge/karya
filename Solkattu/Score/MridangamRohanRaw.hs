@@ -17,29 +17,111 @@ import qualified Solkattu.S as S
 import           Global
 
 
-sollusText :: Map Text Char
+{-
+    * export as md
+    * read .md, split on |
+    * assert each line ==8
+    * infer _s for 8 words
+    * map sollus to chars, ignore _
+    * process _:
+        . all 1st speed as-is
+        / can I take kt -> x, pk -> q?
+        . Then if akshara has su, expand to su "" the whole thing.
+    - some will be kandam!
+-}
+
+t0 = parseMd <$> Text.IO.readFile "featuring-fives.md"
+t1 = do
+    ts <- t0
+    Text.IO.putStrLn $ rowsToHs ts
+t2 = map processLine $ take 2 featuringFivesRowsRaw
+t3 = mapM_ pr (zip [0..] t2)
+    where
+    pr (i, s) = Text.IO.putStrLn $ showt i <> " " <> s
+
+realize5s = mapM_ Text.IO.putStrLn $ processLines featuringFivesRowsRaw
+
+parseMd :: Text -> [[Text]]
+parseMd = map toColumns . Text.lines
+    where
+    toColumns = map (Text.strip . Text.replace "|" "") . Text.splitOn " | "
+
+processLines :: [[Text]] -> [Text]
+processLines = linesToHs . map (expandSu . processLine)
+
+linesToHs :: [Text] -> [Text]
+linesToHs =
+    (++ [indent <> "]"])
+        . Lists.mapHeadTail ((indent <>"[ ") <>) ((indent <> ", ")<>)
+    where
+    indent = "    "
+
+-- | If there are ane ()s on the line, expand the whole thing.
+expandSu :: Text -> Text
+expandSu line
+    | Text.strip line == "" = "--"
+    | not $ "(" `Text.isInfixOf` line = quoted line
+    | otherwise =
+        "su " <> quoted
+            (mconcat $ snd $ List.mapAccumL expand False $ Text.unpack line)
+    where
+    quoted line = "\"" <> line <> "\""
+    expand False '(' = (True, "")
+    expand True ')' = (False, "")
+    expand isSu c | c `elem` ['(', ')'] =
+        error $ "unmatched paren: " <> show (isSu, c)
+    expand isSu c
+        | c == ' ' = (isSu, " ")
+        | otherwise = (isSu, Text.singleton c <> if isSu then "" else "_")
+
+processLine :: [Text] -> Text
+processLine = Text.unwords . map (toChars . inferSu) . check
+    where
+    -- Fix dom- to dom -, but _- remains the same.
+    separateRests = Text.replace "- _" "-_" . Text.replace "_ -" "_-"
+        . Text.replace "-" " - "
+    check ws
+        | length ws == 8 = ws
+        | otherwise = error $ "/= 8: " <> show ws
+    inferSu w
+        | length (Text.words w) == 8 = "_" <> w <> "_"
+        | otherwise = w
+    toChars = mconcat . map replace . Text.words . separateRests
+    replace w = mconcat
+        [ if "_" `Text.isPrefixOf` w then "(" else ""
+        , realizeSollu (Text.replace "_" "" w)
+        , if "_" `Text.isSuffixOf` w then ")" else ""
+        ]
+
+rowsToHs :: [[Text]] -> Text
+rowsToHs (row : rows) = Text.unlines $
+    "    [ " <> showt row : map (("    , "<>) . showt) rows ++ ["    ]"]
+rowsToHs [] = ""
+
+sollusText :: Map Text Text
 sollusText = Map.fromList
-    [ ("cha", 'u')
-    , ("cha/ta", 'A') -- pu or pv, also have E Y
-    , ("cha/dom", 'U')
-    , ("di/ta", 'P')
-    , ("ka/ta", 'P')
-    , ("ki/ta", 'P')
-    , ("di/Ta", 'X')
-    , ("ka/Ta", 'X')
-    , ("ki/Ta", 'X')
-    , ("ta", 'p')
-    , ("Ta", 't')
-    , ("tam", 'N')
-    , ("ka", 'k')
-    , ("di", 'k')
-    , ("ki", 'k')
-    , ("lam", 'u')
-    , ("nam", 'n')
-    , ("dom", 'o')
-    , ("din", 'd')
-    , ("dim", 'D') -- Some of these are dim, some are od
-    , ("-", '_')
+    [ ("cha", "u")
+    , ("cha/ta", "A") -- pu or pv, also have E Y
+    , ("cha/dom", "U")
+    , ("di/ta", "P")
+    , ("ka/ta", "P")
+    , ("ki/ta", "P")
+    , ("di/Ta", "X")
+    , ("ka/Ta", "X")
+    , ("ki/Ta", "X")
+    , ("Ta/dom", "T")
+    , ("ta", "p")
+    , ("Ta", "t")
+    , ("tam", "N")
+    , ("ka", "k")
+    , ("di", "k")
+    , ("ki", "k")
+    , ("lam", "u")
+    , ("nam", "n")
+    , ("dom", "o")
+    , ("din", "d")
+    , ("dim", "D") -- Some of these are dim, some are od
+    , ("-", "_")
     ]
 
 cookRaw :: [[Text]] -> IO ()
@@ -114,29 +196,23 @@ nameToNadai = flip Map.lookup $ Map.fromList
     , ("Tisra Nadai", 3)
     ]
 
--- textLength :: Text -> Int
--- textLength = Num.sum . map len . untxt
---     where
---     -- Combining characters don't contribute to the width.  I'm sure it's way
---     -- more complicated than this, but for the moment this seems to work.
---     len c
---         | Char.isMark c = 0
---         | otherwise = 1
-
 realizeAksharaT :: Text -> [Text]
 realizeAksharaT akshara
     | akshara == "" = ["_"]
-    | otherwise = map find $ Text.words $ preproc akshara
+    | otherwise = map realizeSollu $ Text.words $ preproc akshara
     where
     preproc = Text.replace "-" " - " . Text.replace " / " "/"
-    find :: Text -> Text
-    find w = case Map.lookup w sollusText of
-        Just c -> Text.singleton c
-        Nothing -> case split w of
-            [a, b]
-                | b == "ta" -> find a <> overline
-                | b == "dom" -> Text.toUpper (find a)
-            _ -> error $ "unknown: " <> untxt w
+
+realizeSollu :: Text -> Text
+realizeSollu w = case Map.lookup w sollusText of
+    Just c -> c
+    Nothing -> case split w of
+        [a, b]
+            -- TODO except fromString can't parse this, because it's two chars
+            | b == "ta" -> realizeSollu a <> overline
+            | b == "dom" -> Text.toUpper (realizeSollu a)
+        _ -> error $ "unknown sollu: " <> untxt w
+    where
     split = Lists.sortOn (`elem` ["ta", "dom"]) . Text.splitOn "/"
     overline = "\x0305"
 
@@ -191,6 +267,120 @@ realizeAksharaT akshara
         ]
         where Instrument.Mridangam.Strokes {..} = Instrument.Mridangam.notes
 -}
+
+featuringFivesRowsRaw :: [[Text]]
+featuringFivesRowsRaw =
+    [ ["ki Ta ki nam","dom - ki Ta","ki nam dom ki","Ta ki nam dom","- ki Ta ki","nam dom ki Ta","ki nam dom ki","Ta ki nam dom"]
+    , ["_ki Ta ki Ta ta ka ta ka_","dom - _ki Ta ki Ta_","_ta ka ta ka_ dom _ki Ta_","_ki Ta ta ka ta ka_ dom","- _ki Ta ki Ta ta ka_","_ta ka_ dom _ki Ta ki Ta_","_ta ka ta ka_ dom _ki Ta_","_ki Ta ta ka ta ka_ dom"]
+    , ["_dom ka Ta ta cha ta ki Ta_","dom - _dom ki Ta ta_","_cha ta ki Ta_ dom _dom ki_","_Ta ta cha ta ki Ta_ dom","- _dom ki Ta ta cha ta_","_ki Ta_ dom _dom ki Ta ta_","_cha ta ki Ta_ dom _dom ki_","_Ta ta cha ta ki Ta_ dom"]
+    , ["","","","","","","",""]
+    , ["tam din - ka","nam din - ka","nam din - ka","nam din - ka","tam din - ka","nam din - ka","nam din - ka","nam cha - -"]
+    , ["tam din - ka","nam din - ka","nam din - ka","nam din - ka","tam din - ka","nam din - ka","nam din - ka","nam dim - -"]
+    , ["tam din - ka","nam din - ka","nam din - ka","nam dom _ki Ta ta ka_","tam din - ka","nam din - ka","nam din - ka","nam dom _ki Ta ta ka_"]
+    , ["tam din - ka","nam din - ka","nam din - ka","_nam dom_ dom _ki Ta ta ka_","tam din - ka","nam din - ka","nam din - ka","_nam dom_ dom _ki Ta ta ka_"]
+    , ["tam din - ka","nam din - ka","nam din - ka","_Ta di dom dom  di dom dom ka_","tam din - ka","nam din - ka","nam din - ka","_Ta di dom dom  di dom dom ka_"]
+    , ["tam din - ka","nam din - ka","nam din - ka","_dom ka dom dom ka dom dom ka_","tam din - ka","nam din - ka","nam din - ka","_dom ka dom dom ka dom dom ka_"]
+    , ["tam din - ka","nam din - ka","nam din - ka","nam dom _ki Ta ta ka_","tam din - ka","nam din ka -","_ki Ta ki nam dom ka Ta di_","_Ta ta cha ta ki Ta ta ka_"]
+    , ["tam din - ka","nam din ka -","_ki Ta ki nam dom ka Ta di_","_Ta ta cha ta ki Ta ta ka_","tam din - ka","nam din ka -","_ki Ta ki nam dom ka Ta di_","_Ta ta cha ta ki Ta ta ka_"]
+    , ["","","","","","","",""]
+    -- , ["**Arudhi**","","","","","","",""]
+    , ["","","","","","","",""]
+    , ["ka -  _ki Ta ki nam_","_dom ki Ta di Ta ta cha ta_","_ki Ta ta ka di - ki Ta_","_- ka nam dom_ tam -","- - - ka","-  _ki Ta ki nam dom ki_","_Ta di Ta ta cha ta ki Ta_","_ta ka di - ki Ta - ka_"]
+    , ["_nam dom di - ki Ta - ka_","_nam dom_ tam - -","- - ka -","_ki Ta ki nam dom ki Ta di_","_Ta ta cha ta ki Ta ta ka_","_di - ki Ta - ka nam dom_","_di - ki Ta - ka nam dom_","_di - ki Ta - ka nam dom_"]
+    , ["","","","","","","",""]
+    , ["tam - ta ka","nam dom dom ka","Ta di dom dom","nam dom dom ka","Ta dom _ki Ta ta ka_","tam - Ta dom","_ki Ta ta ka_ tam -","Ta dom _ki Ta ta ka_"]
+    , ["","","","","","","",""]
+    , ["tam dom ka tam","ka tam dom ka","tam ka tam dom","ka tam _ki Ta ta ka_","tam dom ka tam","ka tam dom ka","tam ka tam dom","ka tam _ki Ta ta ka_"]
+    , ["tam dom ka tam","ka tam dom ka","tam ka tam dom","ka tam _ki Ta ta ka_","tam dom ka tam","dom ka ki -","Ta - ki -","nam - dom -"]
+    , ["tam dom ka tam","dom ka ki -","Ta - ki -","nam - dom -","tam dom ka tam","dom ka ki -","Ta - ki -","nam - dom -"]
+    , ["","","","","","","",""]
+    -- , ["**Arudhi**","","","","","","",""]
+    , ["","","","","","","",""]
+    , ["ki - - -","dim - - -","ki - - -","nam - - -","dom - - -","ki Ta ka nam","dom din - ki","- - dim -"]
+    , ["- ki - -","nam - - dom","- - ki Ta","ka nam dom din","- ki - Ta","- ka - nam","- dom - ki","Ta ka nam dom"]
+    , ["","","","","","","",""]
+    , ["ki - - -","dim - - -","ki - - -","nam - - -","dom - - -","_ki Ta ki Ta ta ka ta ka_","dom din - ki","- - dim -"]
+    , ["- ki - -","nam - - dom","- - _ki Ta ki Ta_","_ta ka ta ka_ dom din","- ki - Ta","- ka - nam","- dom - _ki Ta_","_ki Ta ta ka ta ka_ dom"]
+    , ["","","","","","","",""]
+    , ["ki - - -","dim - - -","ki - - -","nam - - -","dom - - -","_dom ki Ta ta cha ta ki Ta_","dom din - ki","- - dim -"]
+    , ["- ki - -","nam - - dom","- - _dom ka Ta ta_","_cha ta ki Ta_ dom din","- ki - Ta","- ka - nam","- dom - _dom ki_","_Ta ta cha ta ki Ta_ dom"]
+    , ["","","","","","","",""]
+    , ["tam - ta ka","nam dom dom ka","Ta di dom dom","nam dom dom ka","_ki Ta dom dom_  ka -","dim  - _ki Ta dom dom_","ka - dim -","_ki Ta dom dom_  ka -"]
+    , ["","","","","","","",""]
+    , ["tam - - ta","cha dom dom ka","dim - - ta","cha dom dom ka","dim - - ta","cha dom dom ka","dim - - ta","cha dom dom ka"]
+    -- , ["","","","","","","*Khandam*","*Khandam*"]
+    , ["tam dom dom ta","cha dom dom ka","tam dom dom ta","cha dom dom ka","tam dom dom ta","cha dom dom ka","tam dom ka tam ki","Ta/dom di nam ta ka"]
+    , ["","","","","","","",""]
+    , ["","","","","","","",""]
+    -- , ["","","*Khandam*","*Khandam*","","","*Khandam*","*Khandam*"]
+    , ["tam - - ka","din dom dom ka","tam dom ka tam ki","Ta/dom di nam ta ka","tam - - ka","din dom dom ka","tam dom ka tam ki","Ta/dom di nam ta ka"]
+    , ["","","","","","","",""]
+    -- , ["Khanda Nadai","","","","","","",""]
+    , ["tam dom ka tam ki","Ta/dom di nam ta ka","nam ta ka nam ka","Ta/dom di nam ta ka","tam dom ka tam ki","Ta/dom di nam ta ka","nam ta ka nam ka","Ta/dom di nam ta ka"]
+    , ["tam - tam - ka","din - nam - ka","din - nam - ka","din - nam - ka","tam - tam - ka","din - nam - ka","din - nam - ka","din - nam - ka"]
+    , ["tam - tam - ka","din - nam - ka","ta/nam - ta/nam - ka","din - nam - ka","tam - tam - ka","din - nam - ka","ta/nam - ta/nam - ka","din - nam - ka"]
+    , ["tam - tam - ka","ta/nam - ta/nam - ka","tam - tam - ka","ta/nam - ta/nam - ka","tam - tam - ka","ta/nam - ta/nam - ka","tam - tam - ka","ki Ta ki nam dom"]
+    , ["tam - tam - ka","ta/nam - ta/nam - ka","tam - tam - ka","ki Ta ki nam dom","tam - tam - ka","ta/nam - ta/nam - ka","tam - tam - ka","ki Ta ki nam dom"]
+    , ["ki Ta ki nam dom","din","ki Ta ki nam dom","ki Ta ki nam dom","din","ki Ta ki nam dom","ki Ta ki nam dom","ki Ta ki nam dom"]
+    , ["ki Ta ki nam dom","din","ki Ta ki nam dom","ki Ta ki nam dom","din","ki Ta ki nam dom","ki Ta ki nam dom","ki Ta ki nam dom"]
+    , ["ki Ta ki nam dom","din","ki Ta ki nam dom","ki Ta ki nam dom","din","ki Ta ki nam dom","ki Ta ki nam dom","ki Ta ki nam dom"]
+    , ["","","","","","","",""]
+    , ["tam - tam - ka","ta/nam - ta/nam - ka","tam - tam - ka","ta/nam - ta/nam - ka","tam - tam - ka","ta/nam - ta/nam - ka","tam - tam - ka","ta/nam - ta/nam - ka"]
+    , ["","","","","","","",""]
+    -- , ["**Korvai**","","","","","","",""]
+    , ["","","","","","","",""]
+    , ["ta - di - tam","- - ki Ta ka","nam dom di - tam","- - ki Ta ka","nam dom tam - -","ki Ta ki nam dom","ki Ta ki nam dom","ki Ta ki nam dom"]
+    , ["ta - di - tam","- - ki Ta ka","nam dom di - tam","- - ki Ta ka","nam dom tam - -","ki Ta ki nam dom","ki Ta ki nam dom","ki Ta ki nam dom"]
+    , ["ta - di - tam","- - ki Ta ka","nam dom di - tam","- - ki Ta ka","nam dom tam - -","ki Ta ki nam dom","ki Ta ki nam dom","ki Ta ki nam dom"]
+    , ["","","","","","","",""]
+    -- , ["**Chaturshram**","","","","","","",""]
+    , ["","","","","","","",""]
+    , ["tam - ta ka","nam dom dom ka","Ta di dom dom","nam dom dom ka","- _dom ka_ ka -","din - - _dom ka_","ka - din -","- _dom ka_ ka -"]
+    , ["","","","","","","",""]
+    , ["dom dom dom cha","- dom dom cha","dom dom dom cha","- dom dom cha","ta ta ta cha","- ta ta cha","ta ta ta cha","- ta ta cha"]
+    , ["dom dom dom cha","- ta ta cha","dom dom dom cha","- ta ta cha","dom dom dom cha","- ta ta cha","dom dom dom cha","- ta ta cha"]
+    , ["","","","","","","",""]
+    , ["tam - ta ka din - ta ka","nam dom dom ka din - ta ka","tam - ta ka din - ta ka","nam dom dom ka din - ta ka","tam - ta ka din - ta ka","di dom dom ka din - ta ka","tam - ta ka din - ta ka","di dom dom ka din - ta ka"]
+    , ["tam - ta ka di dom dom ka","tam - ta ka di dom dom ka","tam - ta ka di dom dom ka","tam - ta ka di dom dom ka","di dom dom ka di dom dom ka","tam - di dom dom ka","di dom dom ka tam -","di dom dom ka di dom dom ka"]
+    , ["","","","","","","",""]
+    , ["tam - _ki Ta ta ka_","nam dom _ki Ta ta ka_","tam - _ki Ta ta ka_","nam dom _ki Ta ta ka_","tam - _ki Ta ta ka_","nam dom _ki Ta ta ka_","tam - _ki Ta ta ka_","_Ta ta cha ta ki Ta ta ka_"]
+    , ["tam - _ki Ta ta ka_","nam dom _ki Ta ta ka_","tam - _ki Ta ta ka_","_Ta ta cha ta ki Ta ta ka_","tam - _ki Ta ta ka_","nam dom _ki Ta ta ka_","tam - _ki Ta ta ka_","_Ta ta cha ta ki Ta ta ka_"]
+    , ["tam - _ki Ta ta ka_","_Ta ta cha ta ki Ta ta ka_","tam - _ki Ta ta ka_","_Ta ta cha ta ki Ta ta ka_","_Ta ta cha ta ki Ta ta ka_","tam - _Ta ta cha ta_","_ki Ta ta ka_ tam -","_Ta ta cha ta ki Ta ta ka_"]
+    , ["","","","","","","",""]
+    , ["tam - - _ki Ta_","_ki Ta ta ka_ din -","- _ki Ta ki Ta Ta ka_","tam - ka -","tam - - _ki Ta_","_ki Ta ta ka_ din -","- _ki Ta ki Ta Ta ka_","tam - ka -"]
+    , ["tam - - _ki Ta_","_ki Ta ta ka_ din -","- _ki Ta ki Ta Ta ka_","_Ta ta cha ta ki Ta ta ka_","tam - - _ki Ta_","_ki Ta ta ka_ din -","- _ki Ta ki Ta Ta ka_","_Ta ta cha ta ki Ta ta ka_"]
+    , ["","","","","","","",""]
+    -- , ["**Farans**","","","","","","",""]
+    , ["","","","","","","",""]
+    , ["Ta - dom - ki Ta ta ka","Ta ta cha ta ki Ta ta ka","ta lam - dom ki Ta ta ka","Ta ta cha ta ki Ta ta ka","ta ka dom - tam - ta ka","Ta ta cha ta ki Ta ta ka","tam - ta ka nam dom dom ka","Ta ta cha ta ki Ta ta ka"]
+    , ["tam - ta ka Ta - dom -","ki Ta ta ka tam -","ta ka Ta - dom - ki Ta ta ka","Ta ta cha ta ki Ta ta ka","tam - ta ka Ta ta cha ta","ki Ta ta ka tam - ta ka","Ta ta cha ta ki Ta ta ka","Ta ta cha ta ki Ta ta ka"]
+    , ["ta lam - ka dom- ki Ta","ki Ta ta ka ta lam- ka","dom- ki Ta ki Ta ta ka","Ta ta cha ta ki Ta ta ka","ta lam- ka dom- ta lam","- ka dom - ta lam- ka","dom- ki Ta ki Ta ta ka","Ta ta cha ta ki Ta ta ka"]
+    , ["nam ta ki Ta ta ka nam ta","ki Ta ta ka nam ta ki Ta","ta ka nam ta ki Ta ta ka","Ta ta cha ta ki Ta ta ka","nam- ki Ta ta ka nam -","ki Ta ta ka nam - ki Ta","ta ka nam - ki Ta ta ka","Ta ta cha ta ki Ta ta ka"]
+    , ["Ta ta ki Ta ta ka Ta ta","ki Ta ta ka Ta ta ki Ta","ta ka Ta ta ki Ta ta ka","Ta ta cha ta ki Ta ta ka","tam- ki Ta ta ka tam-","ki Ta ta ka tam - ki Ta","ta ka tam - ki Ta ta ka","Ta ta cha ta ki Ta ta ka"]
+    , ["tam - tam -  ki Ta ta ka","Ta ta cha ta ki Ta ta ka","tam - ka - tam -","tam - tam - ki Ta ta ka","Ta ta cha ta ki Ta ta ka","tam - ka - tam -","tam - tam - ki Ta ta ka","Ta ta cha ta ki Ta ta ka"]
+    , ["","","","","","","",""]
+    -- , ["**Mora**","","","","","","",""]
+    , ["","","","","","","",""]
+    , ["ta - di -","_tam - ta ka Ta ta cha ta_","_ki Ta ta ka_ di -","tam- ta ka Ta ta cha ta","ki Ta ta ka tam - ta ka","Ta ta cha ta ki Ta ta ka","_ta lam - ka_ dom ka","dom ka dom -"]
+    , ["ta - di -","_tam - ta ka Ta ta cha ta_","_ki Ta ta ka_ di -","tam- ta ka Ta ta cha ta","ki Ta ta ka tam - ta ka","Ta ta cha ta ki Ta ta ka","_ta lam - ka_ dom ka","dom ka dom -"]
+    , ["ta - di -","_tam - ta ka Ta ta cha ta_","_ki Ta ta ka_ di -","tam- ta ka Ta ta cha ta","ki Ta ta ka tam - ta ka","Ta ta cha ta ki Ta ta ka","_ta lam - ka_ dom -","di - _tam - ta ka_"]
+    , ["Ta ta cha ta ki Ta ta ka","_ta lam - ka_ dom -","di - _tam - ta ka_","Ta ta cha ta ki Ta ta ka","_ta lam - ka_ dom ka","tam - _ta lam - ka_","dom ka tam -","_ta lam - ka_ dom ka"]
+    , ["","","","","","","",""]
+    -- , ["**Korvai**","","","","","","",""]
+    , ["","","","","","","",""]
+    , ["ta - di -","di dom dom ka","tam - - ki","- Ta - ki","- nam - dom","di - di dom","dom ka tam -","-  ki - Ta"]
+    , ["- ki - nam","- dom di dom","dom ka tam -","- ki - Ta","- ki - nam","- dom dim -","- - ki -","Ta - ki -"]
+    , ["nam - dom dim","- - - ki","- Ta - ki","- nam - dom","ta - di -","di dom dom ka","tam - - ki","- Ta - ki"]
+    , ["- nam - dom","di - di dom","dom ka tam -","-  ki - Ta","- ki - nam","- dom di dom","dom ka tam -","- ki - Ta"]
+    , ["- ki - nam","- dom dim -","- - ki -","Ta - ki -","nam - dom dim","- - - ki","- Ta - ki","- nam - dom"]
+    -- , ["**Third Round in Khandam**","","","","","","",""]
+    , ["ta - di - di","dom dom ka tam -","- ki - Ta -","ki - nam - dom","di - di dom dom","ka tam - -  ki","- Ta - ki -","nam - dom di dom"]
+    , ["dom ka tam - -","ki - Ta - ki","- nam - dom dim","- - - ki -","Ta - ki - nam","- dom dim - -","- ki - Ta -","ki - nam - dom"]
+    , ["","","","","","","",""]
+    -- , ["**Chaturshram**","","","","","","",""]
+    , ["tam - ta ka","nam dom dom ka","Ta di dom dom","nam dom dom ka","_Ta ta cha ta ki Ta ta ka_","tam - _Ta ta cha ta_","_ki Ta ta ka_ tam -","Ta ta cha ta ki Ta ta ka"]
+    , ["Ta ta cha ta ki Ta ta ka","tam _ta ka Ta ta cha ta_","_ki Ta ta ka_ tam _ta ka_","_Ta ta cha ta ki Ta ta ka_","Ta ta cha ta ki Ta ta ka","tam - ki Ta ta ka tam -","ki Ta ta ka  tam - ki Ta","_ta ka_ tam dom ka"]
+    ]
 
 {-
 kandaRowsRaw :: [[Text]]
@@ -569,7 +759,6 @@ misraRowsRaw =
     , ["dim - -", "nam ta cha", "dom dom ka", "nam ta cha", "dom dom ka", "dom dom ka", "dom dom ka"]
     , ["dim - -", "", "", "", "", "", ""]
     ]
--}
 
 rupakaRowsRaw :: [[Text]]
 rupakaRowsRaw =
@@ -673,3 +862,4 @@ rupakaRowsRaw =
     , ["ki Ta ta ka tam ta ka", "Ta ta cha ta ki Ta ta ka", "Ta ta cha ta ki Ta ta ka", "tam - ki Ta ta ka tam -", "ki Ta ta ka  tam - ki Ta", "ta ka tam dom ka"]
     , ["tam", "", "", "", "", ""]
     ]
+-}

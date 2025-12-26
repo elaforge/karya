@@ -204,6 +204,11 @@ sarva_variations = korvaiV adi
     , r2 $ su $ r3 "npkdpkdp" . "n_pkdpd_"
     ]
 
+misc_sollus :: Korvai
+misc_sollus = date 2025 12 12 $ korvaiV adi
+    [ __D 5 . "pn_no_" . "pknno_D"
+    ]
+
 -- * adi melkalam
 
 mel1 :: Korvai

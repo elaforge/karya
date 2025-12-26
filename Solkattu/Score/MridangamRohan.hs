@@ -391,3 +391,114 @@ rupaka_mohra_korvai = korvai Tala.rupaka_tala $
         . nakatiku . r3 "N_ktpk" . "N_o_k_D"
     ]
     where theme = "k_t_".su "ko"."D_N_"
+
+-- * featuring fives
+
+-- replacements:
+-- ktkno -> p5
+-- ktktpkpko -> ktktpktko
+-- tpupktpk -> npupktpk
+
+featuringFives :: Score
+featuringFives = tani
+    [ K featuringFives_start
+    , K featuringFives_kanda
+    , K featuringFives_farans
+    , K featuringFives_mohra
+    , K featuringFives_mohra_korvai
+    ]
+
+featuringFives_start :: Korvai
+featuringFives_start = korvaiS adi $
+    [ "ktkn o_kt knok tkno _ktk nokt knok tkno"
+    . su "ktktpkpk o___ktkt pkpko_kt ktpkpko_ __ktktpk pko_ktkt pkpko_kt ktpkpko_"
+    . su "oktpupkt o___oktp upkto_ok tpupkto_ __oktpup kto_oktp upkto_ok tpupkto_"
+    , "Nd_k nd_k nd_k nd_k Nd_k nd_k nd_k nu__"
+    . "Nd_k nd_k nd_k nd_k Nd_k nd_k nd_k nD__"
+    , su $ "N_d___k_ n_d___k_ n_d___k_ n_o_ktpk N_d___k_ n_d___k_ n_d___k_ n_o_ktpk"
+      . "N_d___k_ n_d___k_ n_d___k_ noo_ktpk N_d___k_ n_d___k_ n_d___k_ noo_ktpk"
+      . "N_d___k_ n_d___k_ n_d___k_ tkookook N_d___k_ n_d___k_ n_d___k_ tkookook"
+      . "N_d___k_ n_d___k_ n_d___k_ okookook N_d___k_ n_d___k_ n_d___k_ okookook"
+      . "N_d___k_ n_d___k_ n_d___k_ n_o_ktpk N_d___k_ n_d_k___ ktknoktk tpupktpk"
+      . "N_d___k_ n_d_k___ ktknoktk tpupktpk N_d___k_ n_d_k___ ktknoktk tpupktpk"
+    -- arudhi
+    , su "k___ktkn oktktpup ktpkk_kt _knoN___ ______k_ __ktknok tktpupkt pkk_kt_k"
+    . su "nok_kt_k noN_____ ____k___ ktknoktk tpupktpk k_kt_kno k_kt_kno k_kt_kno"
+    , su "N___p_k_ n_o_o_k_ t_k_o_o_ n_o_o_k_ t_o_ktpk N___t_o_ ktpkN___ t_o_ktpk"
+    , su "N_o_k_N_ k_N_o_k_ N_k_N_o_ k_N_ktpk N_o_k_N_ k_N_o_k_ N_k_N_o_ k_N_ktpk"
+    . su "N_o_k_N_ k_N_o_k_ N_k_N_o_ k_N_ktpk N_o_k_N_ o_k_k___ t___k___ n___o___"
+    . "NokN okk_ t_k_ n_o_ NokN okk_ t_k_ n_o_"
+    -- arudhi
+    , "k___ D___ k___ n___ o___ ktkn od_k __D_"
+    . "_k__ n__o __kt knod _k_t _k_n _o_k tkno"
+    , su "k_______ D_______ k_______ n_______ o_______ ktktpkpk o_d___k_ ____D___"
+    . su "__k_____ n_____o_ ____ktkt pkpko_d_ __k___t_ __k___n_ __o___kt ktpkpko_"
+    , su "k_______ D_______ k_______ n_______ o_______ oktpupkt o_d___k_ ____D___"
+    . su "__k_____ n_____o_ ____oktp upkto_d_ __k___t_ __k___n_ __o___ok tpupkto_"
+    , su "N___p_k_ n_o_o_k_ t_k_o_o_ n_o_o_k_ ktook___ D___ktoo k___D___ ktook___"
+    , "N__p uook D__p uook D__p uook D__p uook"
+    . "Noop uook Noop uook Noop uook" . nadai 5 "NokNk Tknpk"
+    , "N__k dook" . nadai 5 "NokNk Tknpk" . "N__k dook" . nadai 5 "NokNk Tknpk"
+    ]
+
+featuringFives_kanda :: Korvai
+featuringFives_kanda = korvaiS adi $ map (nadai 5)
+    [ "NokNk Tknpk npknk Tknpk NokNk Tknpk npknk Tknpk"
+    . "N_N_k d_n_k d_n_k d_n_k N_N_k d_n_k d_n_k d_n_k"
+    . "N_N_k d_n_k G_G_k d_n_k N_N_k d_n_k G_G_k d_n_k"
+    . "N_N_k G_G_k N_N_k G_G_k N_N_k G_G_k N_N_k ktkno"
+    . "N_N_k G_G_k N_N_k ktkno N_N_k G_G_k N_N_k ktkno"
+    , r3 "ktkno d____ ktkno ktkno d____ ktkno ktkno ktkno"
+    , "N_N_k G_G_k N_N_k G_G_k N_N_k G_G_k N_N_k G_G_k"
+    -- korvai
+    , r3 "p_k_N __ktk nok_N __ktk noN__ ktkno ktkno ktkno"
+    ]
+
+featuringFives_farans :: Korvai
+featuringFives_farans = korvaiS adi $
+    [ su "N___p_k_ n_o_o_k_ t_k_o_o_ n_o_o_k_ __okk___ d_____ok k___d___ __okk___"
+    --
+    , "ooou _oou ooou _oou pppu _ppu pppu _ppu"
+    , "ooou _ppu ooou _ppu ooou _ppu ooou _ppu"
+    --
+    , su "N_pkd_pk nookd_pk N_pkd_pk nookd_pk N_pkd_pk kookd_pk N_pkd_pk kookd_pk"
+    , su "N_pkkook N_pkkook N_pkkook N_pkkook kookkook N___kook kookN___ kookkook"
+
+    , su "N___ktpk n_o_ktpk N___ktpk n_o_ktpk N___ktpk n_o_ktpk N___ktpk tpupktpk"
+    , su "N___ktpk n_o_ktpk N___ktpk tpupktpk N___ktpk n_o_ktpk N___ktpk tpupktpk"
+    , su "N___ktpk tpupktpk N___ktpk tpupktpk tpupktpk N___tpup ktpkN___ tpupktpk"
+    --
+    , su "N_____kt ktpkd___ __ktkttk N___k___ N_____kt ktpkd___ __ktkttk N___k___"
+    , su "N_____kt ktpkd___ __ktkttk tpupktpk N_____kt ktpkd___ __ktkttk tpupktpk"
+
+    -- farans
+    , su "t_o_ktpk tpupktpk pu_oktpk tpupktpk pko_N_pk tpupktpk N_pknook tpupktpk"
+    , su "N_pkt_o_ ktpkN_ pkt_o_ktpk tpupktpk N_pktpup ktpkN_pk tpupktpk tpupktpk"
+    , su "pu_ko_kt ktpkpu_k o_ktktpk tpupktpk pu_ko_pu _ko_pu_k o_ktktpk tpupktpk"
+    , su "npktpknp ktpknpkt pknpktpk tpupktpk n_ktpkn_ ktpkn_kt pkn_ktpk tpupktpk"
+    , su "tpktpktp ktpktpkt pktpktpk tpupktpk N_ktpkN_ ktpkN_kt pkN_ktpk tpupktpk"
+    , su "N_N_ktpk tpupktpk N_k_N___ N_N_ktpk tpupktpk N_k_N___ N_N_ktpk tpupktpk"
+    ]
+
+featuringFives_mohra :: Korvai
+featuringFives_mohra = korvaiS adi $
+    [ su "p___k___ N_pktpup ktpkk___ N_pktpup ktpkN_pk tpupktpk pu_ko_k_ o_k_o___"
+    , su "p___k___ N_pktpup ktpkk___ N_pktpup ktpkN_pk tpupktpk pu_ko_k_ o_k_o___"
+    , su "p___k___ N_pktpup ktpkk___ N_pktpup ktpkN_pk tpupktpk pu_ko___ k___N_pk"
+    , su "tpupktpk pu_ko___ k___N_pk tpupktpk pu_ko_k_ N___pu_k o_k_N___ pu_ko_k_"
+    ]
+
+featuringFives_mohra_korvai :: Korvai
+featuringFives_mohra_korvai = korvaiS adi $
+    [ "p_k_ kook N__k _t_k _n_o k_ko okN_ _k_t"
+    , "_k_n _oko okN_ _k_t _k_n _oD_ __k_ t_k_"
+    , "n_oD ___k _t_k _n_o p_k_ kook N__k _t_k"
+    , "_n_o k_ko okN_ _k_t _k_n _oko okN_ _k_t"
+    , "_k_n _oD_ __k_ t_k_ n_oD ___k _t_k _n_o"
+
+    , nadai 5 $ "p_k_k ookN_ _k_t_ k_n_o k_koo kN__k _t_k_ n_oko"
+        . "okN__ k_t_k _n_oD ___k_ t_k_n _oD__ _k_t_ k_n_o"
+    -- ending
+    , su "N___p_k_ n_o_o_k_ t_k_o_o_ n_o_o_k_ tpupktpk N___tpup ktpkN___ tpupktpk"
+    , su "tpupktpk N_pktpup ktpkN_pk tpupktpk tpupktpk N_ktpkN_ ktpkN_kt pkN_o_k_"
+    ]
