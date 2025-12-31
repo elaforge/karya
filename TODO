@@ -3,6 +3,35 @@ LEGEND
   ? open question; . note; bug: marks bugs.
   Use indent folding with indent=2.
 
+big rocks:
+  + inst allocation in ky: branch ky-record:
+    Either commit to putting alloc in ky and make it all be there, or
+    abandon it and commit to repl operations.
+  - scales
+    . Heal the Derive.Scale.All and All2 split.  Decide if I want to set scale
+      with scale= or with call `scale ...`.
+    . Also look into if they can be made more efficient, I had a theory about
+      degree calls doing duplicate key work?
+    . Also make it less hacky to parameterize scales, e.g. interpolate.
+      I think all this came up with tuning?
+    . Also decide if I want to use Util.Affine as in JavaScales.
+  - fltk drawing on zoom in: branch fltk-tile-zoom: fltk-cached-text:
+    It's still slow to zoom into big scores.  Do some kind of tiling?
+  - Biggest problem is input lag when editing, or when rerendering.
+    . I haven't been doing enough editing lately to know what it is.  Once
+      I do that, I have to characterize it so it can be reproduced, and
+      then figure out how to fix.
+  - raga-janaka stalled
+  . infer gender damping:
+  - make kendang sampler instrument
+    . Make thru work for it, and refactor thru in general.
+    . refactor thru:
+  tracklang:
+    - I still have a add-time or subtract-time problem, heavily nested
+      structure is quite awkward.  Especially figuring out how to propagate
+      ruler.
+      . tscore appears to offer a higher level way to express this.
+
 current:
   - add a bpm range annotation to solkattu
     . This is sort of more dynamic, in that it's to do with my practice,
@@ -124,6 +153,20 @@ ghc:
   what about time profile?
     . what about entries?
   eventlog format.rst in ghc source tree
+  9.4:
+    . https://downloads.haskell.org/~ghc/9.4.1/docs/users_guide/9.4.1-notes.html
+    . -fprof-late
+    . Enable -fworker-wrapper-cbv, usually good but not on by default.
+    . -eventlog no longer needed
+    . The load function no longer automatically caches interface files in
+      memory between calls. If you want to use a cache then you can supply
+      one explicitly using the loadWithCache function, with your own
+      implementation or a simple cache created by newIfaceCache.
+    . GhcRepl: GHC.Target has changed
+  9.6:
+    . https://downloads.haskell.org/~ghc/9.6.4/docs/users_guide/9.6.1-notes.html
+    . https://gitlab.haskell.org/ghc/ghc/-/wikis/migration/9.6
+    . Nothing much?
 
 usability:
   - Is there a better way to write alternate-endings:
@@ -173,17 +216,6 @@ usability:
   - Undo not recording during insert causes me to lose stuff.
     . Record in edit mode?  Why not?
 
-STATUS
-  - Biggest problem is input lag when editing, or when rerendering.
-    . I haven't been doing enough editing lately to know what it is.  Once
-      I do that, I have to characterize it so it can be reproduced, and
-      then figure out how to fix.
-  - raga-janaka stalled
-  . infer gender damping:
-  - make kendang sampler instrument
-    . Make thru work for it, and refactor thru in general.
-    . refactor thru:
-
 external:
   vim:
     - mark ] is set on the last yanked character. So when you move stuff
@@ -224,6 +256,15 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
+  - bug: ghci GHC.Linker.Loader.dynLoadObjs: Loading temp shared object failed
+    Perhaps ghc 9.6's recompilation avoidance is buggy?
+    I thought I also noticed it not noticing changes in a file.
+  - bug: midi thru: not getting key up?
+    . The first time the window gets focus, I get FL_KEYUPs, but if it loses
+      focus then gets it back, no more FL_KEYUPs.
+    . test_block is the same.
+    . Related to defaults write -g ApplePressAndHoldEnabled -bool false?
+    - Make minimal fltk repro
   get rid of hlibgit2 dep?
     . It's a complicated library with a big unmaintained haskell binding.
     . Or I could fork and maintain it myself.
@@ -246,6 +287,7 @@ UNSORTED
       . But settings does have ("ld supports single module", "NO")
     * fltk: ->position() is deprecated in new fltk
   - make selection more obvious, can't see it when clicking on errors
+    . selections, both insert and subblock position, can be very hard to see
     . I think just make it larger?  Could also put triangle on both sides.
     . Or, I could make a brighter section around it, I could also mark
       timestep that way?  This would be more work, because it's a new
@@ -283,7 +325,7 @@ UNSORTED
     * doesn't detect MIDI ports
       . MIDIGetNumberOfSources() returns 0
       . have to check "online"!
-    - windows for seq and logview don't come to front when run
+    - window for seq doesn't come to front when run
       . try upgrading fltk
       . now all but seq.app
     * no icons for running processes
@@ -374,7 +416,6 @@ UNSORTED
     . Happens even when volume is lower, where is the clipping happening?
     . Actually looks like the sample is distorted, just hard to hear at
       full volume (?)
-  - selections, both insert and subblock position, can be very hard to see
   - subblock position only shows where there are notes
   - infer-negative heuristic should be changeable dynamically
     . Because even gender barung goes to pipilan sometimes.
@@ -394,8 +435,8 @@ UNSORTED
     . Move EventTrack.cc rank_brightness negative_duration_brightness
       to color config.
   - I still have the out of sync problem with ky inst allocs vs UiConfig
-  upgrade to ghc 9.6.7:
-    - ghc: can't find a package database at
+  * upgrade to ghc 9.6.7:
+    * ghc: can't find a package database at
       /Users/elaforge/src/seq/main/dist-newstyle/packagedb/ghc-9.6.7
       . It's in .ghc.environment even though it doesn't exist?
     * add Functor (Paired a)
@@ -445,7 +486,7 @@ UNSORTED
       . Even optics-core looks crazy.  What if I migrate to DotRecordSyntax
         and remove lenses entirely?
       . Or write my own little lens library, all I need is get and set!
-    + compiling clock:
+    * compiling clock:
       error: ld: unknown option: -no_fixup_chains
       . https://github.com/haskell/zlib/issues/53
       . Edit hcs2hs. This is because my OSX is too old.

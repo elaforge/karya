@@ -174,7 +174,7 @@ yella_sequence = date 2025 9 13 $ korvai adi $
     ktok = su "ktok"
 
 s_sketch :: Korvai
-s_sketch = date 2025 12 7 $ korvaiV adi $
+s_sketch = date 2025 12 7 $ elaforge $ korvaiV adi $
     [ "d_kd_k_d__k_d__k_" . "d_kd_k_kd_k_kd_"
     , "d_kd_kd_k_d__k_d__k_d_d_kd_kd_k_"
     , "d_kd_k_d__k_d__k" . "d_kd_k_kd_k_kd_k"
@@ -184,6 +184,14 @@ s_sketch = date 2025 12 7 $ korvaiV adi $
     ]
     -- messing around with 5s and 7s with an initial theme of
     -- d_kd_k_d__"
+
+trichy_reverse :: Korvai
+trichy_reverse = korvaiS adi
+    [ mconcat (reverse $ reduceToL 2 1 theme)
+        . tri_ __ (su p6) . p6 . sd p6
+    ]
+    where
+    theme = su "k_ktkook npk_pu_k"
 
 legong_mridangam :: Korvai
 legong_mridangam = elaforge $ korvai adi

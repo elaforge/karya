@@ -24,11 +24,16 @@ data Mohra = A1 | A2 | A3 deriving (Show, Eq)
 -- | Make a mohra in the standard structure.
 make :: (a -> SequenceT sollu) -> Mohra -> (a, a, a) -> (a, a, a)
     -> SequenceT sollu
-make transform mohra (a1_, a2_, a3_) (b1_, b2_, b3_) =
-    a123.b1 . a123.b1 . a123.b2 . a1.b2 . an.b3
+make transform end2 = makeA transform A1 end2
+
+-- | Make a mohra in the standard structure.
+makeA :: (a -> SequenceT sollu) -> Mohra -> Mohra -> (a, a, a) -> (a, a, a)
+    -> SequenceT sollu
+makeA transform end1 end2 (a1_, a2_, a3_) (b1_, b2_, b3_) =
+    a123.b1 . a123.b1 . a123.b2 . toA end1.b2 . toA end2.b3
     where
     a123 = a1.a2.a3
-    an = case mohra of
+    toA = \case
         A1 -> a1
         A2 -> a2
         A3 -> a3
