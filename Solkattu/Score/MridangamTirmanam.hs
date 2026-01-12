@@ -121,7 +121,7 @@ tir_icarnatic_guhan_kamalakiran_adi = tirmanam $ date 2023 3 10 $ korvaiS adi
     -- TODO check out sequence at 3:30
     [ __D 0.5 . tri_ "u__kko" "Nd_Nd_" -- 3:51, also since 222, 123 works
     -- at 1:08:07
-    , __D 4 . tri2g "D__NNk" "kt_kn_ko_ok_" (su (stride 3 "ktknkook"))
+    , __D 4 . triAABg "D__NNk" "kt_kn_ko_ok_" (su (stride 3 "ktknkook"))
     -- trikalam version at 1:10:30
     ]
     -- TODO thani at 1:00:00
@@ -135,11 +135,14 @@ tir_indian_raga = tirmanam $ date 2023 3 10 $ korvaiS adi
 
 tir_misc :: Korvai
 tir_misc = tirmanam $ date 2023 3 10 $ korvaiS adi
-    [ __D 4 . tri2 "Dk" (su "tkooktok") (su "pu_knook")
+    [ __D 4 . triAAB "Dk" (su "tkooktok") (su "pu_knook")
     , __D 3 . let seq = su "pu_knook" in seq . "D__k".seq."D_kk".seq
     -- from facebook Shiva Ramesh, lalgudi tillana
     , __D 2 . tri123 "D__" (su "N_ktok") -- 3(3)33(3)333
     , __D 2 . tri_ (su "D_pkno") "DDkDDk" -- 33(3)33(3)33 = 8*3 = 4*6 = 6*4
+
+    , __D 2.5 . su (tri_ "D_pk" "npnD_kD_N_k_")
+    , __D 2 . su (tri2 "D__pk" "D__kpnp" "npnD_kD_N_k_")
     ]
 
 tir_elaforge :: Korvai
@@ -162,5 +165,72 @@ rohan_end = rohan $ date 2025 2 8 $ korvaiV adi
 
 reentry :: Korvai
 reentry = date 2025 9 13 $ elaforge $ korvaiV adi
+    -- sequences to re-enter after arrival
     [ od.__5 . g (su "ktpkpktkno").u.__3.su "n_ktpk" . r2 "N.dD.dD."
     ]
+
+-- ? why do these not end on 0.75?
+adi_3_eddupu :: Korvai
+adi_3_eddupu = rohan $ date 2026 1 10 $ korvaiV adi
+    [ "NokN _N_o kN_N __ok N_N_ ___o k"
+    , r3 "kookN_" . r3 p5
+    ]
+
+adi_6_eddupu :: Korvai
+adi_6_eddupu = rohan $ date 2026 1 10 $ korvai adi $ map (eddupu 1.5 • s)
+    -- korvai
+    [ r3 "k_D_k" . tri_ "N_k" (r3 p5) -- TODO ends on 0.5?
+    -- arudhi
+    , su $ "N___" .  r3 p6 . r3 (k.__.p6) . r3 ("k_k_".p6)
+    -- tirmanam
+    , __D 4 . __ . r3 p7
+    , __D 4 . tri_ "D_" p6
+    ]
+
+adi_chatusra :: Korvai
+adi_chatusra = rohan $ date 2026 1 10 $ korvaiV adi
+    -- taka, takatiku, but played kptp instead of kpnp, and slow
+    [ reduce3 2 ("N_k".p5) "k_t_kook" . "N_k" . tri2 "N_kpk" "N_kkptp" p5
+    -- irregular reduction
+    , g "kD_kD_k_k_D__".p5.__ . g "D_kD_k_k_D__".p5.__ . g "kD_k_k_D__"
+        . tri_ __ p5
+    , reduce3 1 ø (su "k_t_k_kto_") . sd p6
+        . su ("k_k_kto_" . "k_kto_") . p6 . su "k_kto_" . su p6
+        . sd p6 . p6 . su p6
+    , tri2 taka takatiku (g "k_tkktkkooko_")
+        . tri2 (od.__.taka) (od.__.takatiku) p5
+    -- expand by repetition ab abb abbb
+    , "kD_kD_" . "k_k_D__" . "kD_kD_" . r2 "k_k_D__" . "kD_kD_" . r3 "k_k_D__"
+        . triAAB ø
+            ("N__D_" . p5 . "N_N_N__D_" . p5)
+            ("N__D_" . p5 . "N__D_" . p5)
+    -- expand with repetition aaa bbb ccc
+    , r3 (oktp."ko_") . r3 ("k_".oktp."ko_") . r3 ("k_k_".oktp."ko_")
+        . tri_ __ (r3 (oktp.p5))
+    -- arudhi
+    , mconcatMap (prefixes ktkno) ["_p_p_k", "_p_p_", "_p_k", "_p_", "__"]
+        . sd p5 . tri_ "N_k" (tri_ __ p5)
+    -- Sankaran reduction with irregular reduction.
+    , su (mconcat $ map g
+        [ "ktooktpknpk_pu_k"
+        , "pktoo  knpk_pu_k"
+        ,   "koo  knpk_pu_k"
+        ,       "oknpk_pu_k"
+        ,         "npk_pu_k"
+        ,           "k_pu_k"
+        ,             "pu_k"
+        ]) . sd p6 . p6 . tri_ __ (su p6)
+    , let ktpk = su (su "ktpk") in
+        tri_ __ (ktpk.d) . tri_ __ (o.ktpk.d) . tri_ __ (o.d.ktpk.d)
+    -- sequence
+    , "N___" . "koD_D_D_n_" . su "ktpk"."okookoD_D_D_u___"
+    . __D 1  . "koD_D_D_n_" . su "ktpk"."okookoD_D_D_u___"
+    . "okoo" . "koD_D_D_n_" . su "ktpk"."okookoooooooD___"
+    . "_npk" . "koD_D_D_n_" . su "ktpk"."okookoD_D_D_u___"
+    , tri_ "o_" (g "N___kook_N_kkook_o_k")
+    ]
+    where
+    ktkno = map g [k, t, k, n, o]
+    oktp = su "oktp"
+    taka = su "kp"
+    takatiku = su "kptp"

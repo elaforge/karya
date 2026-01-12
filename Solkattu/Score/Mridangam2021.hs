@@ -184,7 +184,7 @@ e_21_08_15 = date 2021 8 15 $ ganesh $ korvai adi $
         , s $ seq . otk . r2 (n_ktpk._tk) . n_ktpk
         , s $ seq . otk . n_ktpk._tk._tk.n_ktpk.n_ktpk
         , ending $ tri_ (od.__) (seq . o.__.k.__)
-        , ending $ tsep (seqN 2) (o.k.od.__) (o.__.k.__.od.__) . o.__3.k.__3.od
+        , ending $ tri2 (o.k.od.__) (o.__.k.__.od.__) (seqN 2) . o.__3.k.__3.od
         , ending $ prefixes (map seqN [1, 2, 3]) (o.__.k.__.od.__)
         ]
         where
@@ -192,7 +192,7 @@ e_21_08_15 = date 2021 8 15 $ ganesh $ korvai adi $
         seqN c = otk . on_ktok . repeat c _Tk . repeat c on_ktok
     mk2 = prepare seq ++
         [ ending $ tri_ (od.__) (otk.seq . o.__.k.__)
-        , ending $ tsep (otk.seq) (o.k.od.__) (o.__.k.__.od.__) . o.__3.k.__3.od
+        , ending $ tri2 (o.k.od.__) (o.__.k.__.od.__) (otk.seq) . o.__3.k.__3.od
         ]
         where
         seq = on_ktok . su "oktknook".n.od.k.on_ktok
@@ -200,7 +200,7 @@ e_21_08_15 = date 2021 8 15 $ ganesh $ korvai adi $
         [ s $ otk.seq . otk . closed (seqN 2)
         , ending $ tri_ (od.__) (otk.seq . o.__.k.__)
         , ending $
-            tsep (otk.seqN 2) (o.k.od.__) (o.__.k.__.od.__) . o.__3.k.__3.od
+            tri2 (o.k.od.__) (o.__.k.__.od.__) (otk.seqN 2) . o.__3.k.__3.od
         , ending $ prefixes (map ((otk.) • seqN) [1, 2, 3]) (o.__.k.__.od.__)
         ]
         where
@@ -209,7 +209,7 @@ e_21_08_15 = date 2021 8 15 $ ganesh $ korvai adi $
     mk4 = prepare seq ++
         [ ending $ join (o.__) $ map ((otk.) • seqN) [1, 2, 3]
         , ending $ tri_ (od.__) (otk.seq.su "o_k_okk_")
-        , ending $ tsep (otk.seq) (su "okk_D___") (su "o_k_okk_D___")
+        , ending $ tri2 (su "okk_D___") (su "o_k_okk_D___") (otk.seq)
             . su "o_k_okk_okk_D"
         ]
         where

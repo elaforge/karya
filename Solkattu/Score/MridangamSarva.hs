@@ -521,3 +521,10 @@ reenter = date 2025 9 13 $ elaforge $ korvaiV adi
     [ __D 1.5 . "kkkoD" . su"_ko_N_ktok" . sarvaD_ 4
     , __D 1.25 . g (su "ktpkpktkno").u.__3.su "n_ktpk" . sarvaD_ 4
     ]
+
+sketch_sarva :: Korvai
+sketch_sarva = elaforge $ korvaiV adi
+    [ r3 "pkdn" . su "odpkd_n_" . r2 ("pkdn" . su "pnpkd_n_")
+    , "dpknpnd__" . "pkpnook" . "N_N_Nd_N_Nd_Nd_k"
+    . "pkN_Nd_N_Nd__Nd_" . "N_N_Nd_N_Nd_Nd_k"
+    ]

@@ -265,6 +265,10 @@ UNSORTED
     . test_block is the same.
     . Related to defaults write -g ApplePressAndHoldEnabled -bool false?
     - Make minimal fltk repro
+      test_block does show it.
+      fltk-modifiers.cc doesn't show it.
+    . Doesn't happen with test_block not having tracks.
+      Only happens if there's an insert_track
   get rid of hlibgit2 dep?
     . It's a complicated library with a big unmaintained haskell binding.
     . Or I could fork and maintain it myself.
@@ -6862,8 +6866,12 @@ solkattu:
           edge.
         * is overrideStrokeWidth=1 still getting 2?  Section 8 in kanda_tani
         - it would also be interesting to force this for 2x adi -> tintal
-      - Ruler dispaly is still buggy!  Final ruler doesn't redisplay if the
+      - Ruler display is still buggy!  Final ruler doesn't redisplay if the
         last line is short and changed the spacing.
+        e.g. reduce3 1 ø (su "k_t_k_kto_") ->
+              0:4     1       2       3       X       O       X       O       |
+          2:  k _ t _ k _ k t o _ k _ k _ k t o _ k _ k t o _
+          should end on sam, actually ends on 1:3, or sam - 5
       - The warning carat only lines up if there is only one line.
         . Otherwise I have to divMod i by strokes per line, and use that to
           insert in the formatted output

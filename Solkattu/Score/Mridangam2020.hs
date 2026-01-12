@@ -164,7 +164,7 @@ sarva_20_02_27 = date 2020 2 27 $ ganesh $ korvai adi $
             d_kook = d.__.k.o.o.k
         in r2 (o & r4 d_ktk . d_kook) . r4 (o&d_ktk . d_kook) . r2 (o&d_kook)
     , s $ r4 (o&v.__.k.t.k. r2 (n.k.k.t.k) . n.o.o.k.o)
-    , x3 $ s $ od.__4 . tsep (p5.p5) (u.__5) (i.__5)
+    , x3 $ s $ od.__4 . tri2 (u.__5) (i.__5) (p5.p5)
         . prefixes [ø, kp, kpnp] (group (k.p.k.od.__.p5))
     ]
     where

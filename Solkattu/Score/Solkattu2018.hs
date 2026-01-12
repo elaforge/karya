@@ -266,8 +266,8 @@ c_18_03_28 = date 2018 3 27 $ ganesh $ korvaiS Tala.misra_chapu mridangam
     , sarvaD_ 7 . sarvaD_ 4.5 . tri_ (din.__4) (tat.__.theme)
     , sarvaD_ 7 . sarvaD_ 3 . tri_ (din.__4) (tat.__4.theme)
     , r3 (tat.__4.theme.din.__4.din.__4.na.__4) . sd (tri_ __ p6)
-    , tsep (tat.__4.theme.din.__4.din.__4.na.__6)
-        (tari.kita) (kita.kita.tari.kita)
+    , tri2 (tari.kita) (kita.kita.tari.kita)
+        (tat.__4.theme.din.__4.din.__4.na.__6)
         . tri_ (tat.__4.din.__4) (tri p10)
     ]
     where
