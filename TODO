@@ -32,142 +32,6 @@ big rocks:
       ruler.
       . tscore appears to offer a higher level way to express this.
 
-current:
-  - add a bpm range annotation to solkattu
-    . This is sort of more dynamic, in that it's to do with my practice,
-      but isn't all of it?
-  / what's up with attoparsec linking?
-    . Providing -package attoparsec has error:
-      Derive/C/Prelude/Val.hs:6:1: error:
-          Could not load module ‘Data.Attoparsec.Text’
-          It is a member of the hidden package ‘attoparsec-0.14.4’.
-          You can run ‘:set -package attoparsec’ to expose it.
-          (Note: this unloads all the modules in the current scope.)
-          Locations searched:
-            Data/Attoparsec/Text.hi
-            ...
-    . Missing is fine, in fact don't need -package at all for compiling, but
-      do need them for linking!
-    ? What does --make do?
-      . --make has the same problem.
-    . Cabal uses --package-id, which doesn't seem to have this issue.
-    . It's gone, some bug in that version of ghc.
-  - why does seq window not come to front?
-    . test_block does, browser and logview do.
-  * get im mridangam going
-    . How to do local play again?
-    . config_im_play_direct
-  * Solkattu.Play
-    . Merge into PlayDb
-    * can't use from ghci due to missing _faust_allocate
-      . Probably due to faustEffect
-      . add build/opt/obj/Synth/Faust/patch_c.cc.o,
-    * now _rubberband_available
-      . add -lrubberband
-      . Need a dynamic rubberband!  No such thing in the macos makefile.
-      . ifdef out rubberband?
-    * now _src_delete
-      . rebuild with shared libs
-    . ghcit build/opt/obj/Synth/Faust/patch_c.cc.o
-      -L/nix/store/az74j3nnkl6na1kfkbg8mszyjkihwpx2-libsamplerate-elaforge/lib
-      -lsamplerate
-    . How did this work before?  Key difference with LSol is works from ghci.
-    . It runs sampler-im as a subprocess, why does it need to link?
-      . Sampler.PatchDb, needs for mridangam-d inst def
-      . I guess because they have config options, which are not separated from
-        the actual implementation.
-      . Faust because EffectC, because it merges in controls.  Ultimately they
-        come from dsp files, so must link.  That said, the controls are just
-        documentation?  Or they are used to select from Score.Events?
-      . Whence the libsamplerate dep?
-        Synth.Audio.Resample
-        Sampler.Render Sampler.RenderSample
-      . It's Patch.Random?
-      . Because it imports Calibrate.
-      . But it uses Axis and string constants that Calibrate does't even use.
-      . But now stream_audio doesn't want to play the file, exits immediately.
-      . Where did that test go!?  It was test_play_cache!  Not for Audio!
-      . Path is wrong, but it doesn't notice ENOENT, probably because it's the
-        stop signal.
-    * link build/opt/obj/Synth/Faust/patch_c.cc.o to ghcit
-  * LSol to copy from solkattu
-  priorities for javanese:
-    better ruler
-      . line = 4 gatra, gatra = 4 notes (q)
-      . I want cmd-; to add a gatra.  Then sections is, gongs? or lines?
-        Maybe I don't care about sections so much, because at score level
-        I can use w and b.  So call it lines, but it shouldn't have its own
-        numbers?
-      . Or, what if I did it for gatra?  In that case q is 1/2t which seems
-        awkward.
-      . But if I say w = 1t = gatra, then I have to get up to t32 for ir2
-        panerus, which would make ir4 below even t64.
-      . More convenient if 1 is gatra
-    record samples:
-      + gender panerus
-      - gender barung
-      * slenthem
-      - saron
-      + kenong
-      - gong
-      - gambang?
-      - bonang?
-    infer duration:
-      . next-note still not right for gender barung.  Some notes are clearly
-        intended to merge, while others are counterpoint.  Also gender barung
-        will switch to the pipilan.
-      . What if I go to the Score.event_min of the next note on the same hand?
-        It's weird because this note's duration is the whitespace.
-    - different infer-duration gender barung vs. panerus.
-      . It's two hands so can't put it on a single track title, usual problem
-        with transformers.  In any case, it won't reach across track
-        boundaries.  And in any case I will want to switch heuristics.
-      . So maybe use env var to select heuristic, and an all-purpose infer
-        that looks at that.
-  vocabulary:
-    . pipilan - one melody using two hands
-    . irama:        1/2    1        2    3     4
-                    lancar tanggung dadi wiled rangkep
-             peking 1      2        4    8     16
-    . cengkok: aj aja ngono, ak ayu kuning, dl dualolo
-    . O gong ( ) gong suwukan, ^ kenong, ˇ (caron) kempul
-  ruler:
-    4t = 1 gatra = w
-    1t = 1 note = q
-
-ghc:
-  https://www.well-typed.com/blog/2024/04/ghc-debug-improvements/
-  https://www.well-typed.com/blog/2024/01/ghc-eras-profiling/
-  https://www.well-typed.com/blog/2024/04/choreographing-specialization-pt1/
-  https://www.well-typed.com/blog/2024/06/choreographing-specialization-pt2/
-  . make core easier to read:
-    https://www.youtube.com/watch?v=yRVjR9XcuPU&ab_channel=Tweag
-    -dsuppress-module-prefixes -dsuppress-coercions
-    -dsuppress-type-applications
-    -ddump-to-file -ddump-simpl
-  . ghc api memory use should get much better in 9.4
-    Rather than insert all ModDetails, forget them and just deserialize the
-    interface file.
-  what is the x-axis on the profile?
-    . CPUTime, mutator time
-  what about time profile?
-    . what about entries?
-  eventlog format.rst in ghc source tree
-  9.4:
-    . https://downloads.haskell.org/~ghc/9.4.1/docs/users_guide/9.4.1-notes.html
-    . -fprof-late
-    . Enable -fworker-wrapper-cbv, usually good but not on by default.
-    . -eventlog no longer needed
-    . The load function no longer automatically caches interface files in
-      memory between calls. If you want to use a cache then you can supply
-      one explicitly using the loadWithCache function, with your own
-      implementation or a simple cache created by newIfaceCache.
-    . GhcRepl: GHC.Target has changed
-  9.6:
-    . https://downloads.haskell.org/~ghc/9.6.4/docs/users_guide/9.6.1-notes.html
-    . https://gitlab.haskell.org/ghc/ghc/-/wikis/migration/9.6
-    . Nothing much?
-
 usability:
   - Is there a better way to write alternate-endings:
     . I would want to write variations of the same block, but the ending
@@ -256,9 +120,15 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
+  - add a bpm range annotation to solkattu
+    . This is sort of more dynamic, in that it's to do with my practice,
+      but isn't all of it?
+  - why does seq window not come to front?
+    . test_block does, browser and logview do.
   - bug: ghci GHC.Linker.Loader.dynLoadObjs: Loading temp shared object failed
     Perhaps ghc 9.6's recompilation avoidance is buggy?
     I thought I also noticed it not noticing changes in a file.
+    . Switched to Shake.ChangeDigest to see if it helps.
   - bug: midi thru: not getting key up?
     . The first time the window gets focus, I get FL_KEYUPs, but if it loses
       focus then gets it back, no more FL_KEYUPs.
@@ -276,12 +146,6 @@ UNSORTED
     . I could also save only on ^s... but then I don't get undo back.
     . Will it be slow?
   build on new mac:
-    * __-> Cmd/Ky_test.hs:71 [test_check_cache]
-      Right (Just ([], [])) /= Right Nothing
-      Check if the old one does a 'reloaded ky: [<score>]' on start
-      But shouldn't it, because it's a non-empty ky?
-    * upgraded to faust 2.81.10 which includes max_i, min_i
-      Must I also upgrade the nix one?
     - ld: warning: ignoring duplicate libraries: '-lc++', '-lpthread'
     - From repl:
       ld: warning: -single_module is obsolete
@@ -289,7 +153,6 @@ UNSORTED
       . -- We encode this information into the toolchain field
         ...SupportsSingleModule
       . But settings does have ("ld supports single module", "NO")
-    * fltk: ->position() is deprecated in new fltk
   - make selection more obvious, can't see it when clicking on errors
     . selections, both insert and subblock position, can be very hard to see
     . I think just make it larger?  Could also put triangle on both sides.
@@ -314,62 +177,14 @@ UNSORTED
     . For that matter, where does the eval time go?
     . symbolize can also use pointer compare to look up, but Expr.Symbol
       must also use it in Derive.Library.
-  * 'p 5' was interpreted as "p" at volume 5, which is then ear destroying
-    . Maybe it overflows 32bit int wav, which is then scramble.
-    . The warning does warn, but it just has seconds into the sample, it
-      doesn't have the original score position.
-    . Also maybe instead of warning, it should mute?  Better than permanent
-      muting, or destroying ears.
-    . Where did that test audio program go?  I was using it to compare samples
-      from... streams or something?
-    . Soft limiter?
-    . That's a distortion.  I just want to not destroy ears.  Maybe just do
-      hard clipping at 1 and -1, with warning.
   new osx:
-    * doesn't detect MIDI ports
-      . MIDIGetNumberOfSources() returns 0
-      . have to check "online"!
     - window for seq doesn't come to front when run
       . try upgrading fltk
       . now all but seq.app
-    * no icons for running processes
-      . Create a dir inside .app seems to force it to refresh?  Still no icon
-        though.
-    / warnings on stdout:
-      . try upgrading fltk
-      . 2025-02-03 08:38:59.782 seq[4288:10403147] +[IMKClient subclass]:
-        chose IMKClient_Modern
-      . 2025-02-03 08:38:59.782 seq[4288:10403147] +[IMKInputSession
-        subclass]: chose IMKInputSession_Modern
-      . 2025-02-03 08:37:33.462 seq[3111:10397365] error messaging the mach
-        port for IMKCFRunLoopWakeUpReliable
-      . Apparently a MacOS bug, harmless but noisy.
-    / concurrent-output Shake/Progress.hs doesn't work
-      . in iterm, what about apple terminal?  Same, must be concurrent-output
     - hold down key repeat doesn't work
       . turns out I need
         defaults write -g ApplePressAndHoldEnabled -bool false
       . There must be some way for the app to signal that it wants this.
-    / shake compile restarts between windows
-      . Even with Shake.ChangeDigest it's still doing it!
-      . Fixed after exiting and re nix-enter in both, maybe different
-        version of... something?
-  * CI on osx fails:
-    . generate_run_tests: Derive/C/Prelude/Equal_test.hs: hGetContents: invalid
-      argument (invalid byte sequence)
-    . default encoding?
-    . extract_korvais: Solkattu/Score/Mohra.hs: hGetContents: invalid argument
-      (invalid byte sequence)
-    . But I set to utf8!
-    . It looks like all utf is messed up in general on ghc 9.2 on M4 sequoia.
-    . Paste into ghci gets replacement characters.
-    . It's ghc 9.2, 8.10 doesn't seem to do it.  Also not sure if M4, depends
-      on if CI is M4.  But it's nix ghc 9.2 in both places.
-    * Can I try ghc 9.4?  Or maybe 9.2.5 at least?  Will have to upgrade
-      nixpkgs snapshot.
-    . 9.2.5 fixes it, that particular nixpkgs ghc is broken somehow.
-  / remove midi modifiers?  I never used them.
-    . But it doesn't really add any complexity to have.
   - What if I highlighted >1 in the waveform display?
   - fltk: The dyn=6 problem is showing that track titles are pretty bad.
     . Especially on the right side.
@@ -439,64 +254,6 @@ UNSORTED
     . Move EventTrack.cc rank_brightness negative_duration_brightness
       to color config.
   - I still have the out of sync problem with ky inst allocs vs UiConfig
-  * upgrade to ghc 9.6.7:
-    * ghc: can't find a package database at
-      /Users/elaforge/src/seq/main/dist-newstyle/packagedb/ghc-9.6.7
-      . It's in .ghc.environment even though it doesn't exist?
-    * add Functor (Paired a)
-    * Shakefile: multiple .ghc.environment
-      Read the right one directly, but need to get arch:
-      ghc --print-target-platform -> aarch64-apple-darwin
-    * -eventlog is deprecated
-    * Control.Monad.Error is gone
-    ReplGhc:
-      * No more GHC.backend = GHC.Interpreter
-      * GHC.Targets needs GHC.targetUnitId :: UnitId
-        . What is the unit-id supposed to be for a local module?
-          Can I pick a dummy?
-        . Wasn't the ghc api stability group going to document changes?
-        . Can't pick arbitrary:
-          Unit unknown to the internal unit environment
-    new features:
-      9.4:
-        . https://downloads.haskell.org/~ghc/9.4.1/docs/users_guide/9.4.1-notes.html
-        . -fprof-late
-        . Enable -fworker-wrapper-cbv, usually good but not on by default.
-        . -eventlog no longer needed
-        . The load function no longer automatically caches interface files in
-          memory between calls. If you want to use a cache then you can supply
-          one explicitly using the loadWithCache function, with your own
-          implementation or a simple cache created by newIfaceCache.
-        . GhcRepl: GHC.Target has changed
-      9.6:
-        . https://downloads.haskell.org/~ghc/9.6.4/docs/users_guide/9.6.1-notes.html
-        . https://gitlab.haskell.org/ghc/ghc/-/wikis/migration/9.6
-        . Nothing much?
-      9.8:
-        . https://downloads.haskell.org/ghc/9.8.4/docs/users_guide/9.8.1-notes.html
-      9.10:
-        . https://downloads.haskell.org/~ghc/9.10.3/docs/users_guide/9.10.1-notes.html
-      . https://downloads.haskell.org/ghc/latest/docs/users_guide/9.12.1-notes.html
-    * fclabels doesn't like base 4.17
-      . I think they fixed it.
-      . Probably due to TH as usual, which I don't even use.
-      . easily fixable: https://github.com/sebastiaanvisser/fclabels/issues/44
-      . But still it's a liability compared to say microlens.
-      . Or optics-core, for better errors?
-      . Or inline my own?
-      . Can just bump the version bounds.
-      . But why did I stop Util.MicroLens?  Maybe because the constructor is
-        different?
-      . Even optics-core looks crazy.  What if I migrate to DotRecordSyntax
-        and remove lenses entirely?
-      . Or write my own little lens library, all I need is get and set!
-    * compiling clock:
-      error: ld: unknown option: -no_fixup_chains
-      . https://github.com/haskell/zlib/issues/53
-      . Edit hcs2hs. This is because my OSX is too old.
-  ? suddenly new instruments don't get midi, wtf?
-    . It was reaper "record monitoring".
-    . Since I forget this a lot, can I have some way to remind myself?
   - mridangam-d doesn't seem to want to do sub halfsteps
     . But it's now around d4 (62nn) while 4i is 62.5
       (62.50, 63.00) -> 62.75
@@ -1732,6 +1489,63 @@ UNIFY:
         . Translate the pipeline syntax into that call.
 
 ----------------------------------------------------------------------
+
+ghc:
+  - -fdefer-type-errors is broken in 8.4:
+    https://ghc.haskell.org/trac/ghc/ticket/14963
+    . Seems to be fixed now!  Try it again.
+    . Or not? https://gitlab.haskell.org/ghc/ghc/-/issues/24413
+  https://www.well-typed.com/blog/2024/04/ghc-debug-improvements/
+  https://www.well-typed.com/blog/2024/01/ghc-eras-profiling/
+  https://www.well-typed.com/blog/2024/04/choreographing-specialization-pt1/
+  https://www.well-typed.com/blog/2024/06/choreographing-specialization-pt2/
+  new features:
+    9.4:
+      . https://downloads.haskell.org/~ghc/9.4.1/docs/users_guide/9.4.1-notes.html
+      . -fprof-late
+      . Enable -fworker-wrapper-cbv, usually good but not on by default.
+      . -eventlog no longer needed
+      . The load function no longer automatically caches interface files in
+        memory between calls. If you want to use a cache then you can supply
+        one explicitly using the loadWithCache function, with your own
+        implementation or a simple cache created by newIfaceCache.
+      . GhcRepl: GHC.Target has changed
+    9.6:
+      . https://downloads.haskell.org/~ghc/9.6.4/docs/users_guide/9.6.1-notes.html
+      . https://gitlab.haskell.org/ghc/ghc/-/wikis/migration/9.6
+      . Nothing much?
+    9.8:
+      . https://downloads.haskell.org/ghc/9.8.4/docs/users_guide/9.8.1-notes.html
+    9.10:
+      . https://downloads.haskell.org/~ghc/9.10.3/docs/users_guide/9.10.1-notes.html
+    . https://downloads.haskell.org/ghc/latest/docs/users_guide/9.12.1-notes.html
+  . make core easier to read:
+    https://www.youtube.com/watch?v=yRVjR9XcuPU&ab_channel=Tweag
+    -dsuppress-module-prefixes -dsuppress-coercions
+    -dsuppress-type-applications
+    -ddump-to-file -ddump-simpl
+  . ghc api memory use should get much better in 9.4
+    Rather than insert all ModDetails, forget them and just deserialize the
+    interface file.
+  what is the x-axis on the profile?
+    . CPUTime, mutator time
+  what about time profile?
+    . what about entries?
+  eventlog format.rst in ghc source tree
+  9.4:
+    . https://downloads.haskell.org/~ghc/9.4.1/docs/users_guide/9.4.1-notes.html
+    . -fprof-late
+    . Enable -fworker-wrapper-cbv, usually good but not on by default.
+    . -eventlog no longer needed
+    . The load function no longer automatically caches interface files in
+      memory between calls. If you want to use a cache then you can supply
+      one explicitly using the loadWithCache function, with your own
+      implementation or a simple cache created by newIfaceCache.
+    . GhcRepl: GHC.Target has changed
+  9.6:
+    . https://downloads.haskell.org/~ghc/9.6.4/docs/users_guide/9.6.1-notes.html
+    . https://gitlab.haskell.org/ghc/ghc/-/wikis/migration/9.6
+    . Nothing much?
 
 documentation:
   - strict markdown parser, and extensible:
@@ -6241,39 +6055,6 @@ logview:
   - option to wrap lines or not?
   - hide or display various attrs: date, file, function, ...
 
-ghc-bugs:
-  + ghci: often ghci will load a compiled module interpreted, why?
-    . If I explicitly regenerate the .o file by deleted and rebuilding, it
-      will load it.
-    . Can I do verbose logging to find out why?
-    . It's due to timestamp .o < timestamp .hs, probably caused by git
-      checkouts.  I can fix it with touch.
-    . This is because shake is using the hash.  Just passing --digest-not
-      doesn't recompile everything ghc thinks should be, but maybe it's due to
-      shake's database.
-    . Could I have shake update output timestamps even when it determines that
-      no rebuild is needed?
-    . send mail to shake-build-system
-  - Stale files when loading in ghci.
-    . This has been around forever:
-      WARNING in hptSomeThingsBelowUs
-      missing module User.Elaforge.KeyLayout
-      Probable cause: out-of-date interface files
-    . What exactly does it mean?
-    . I can also get run errors:
-      WARNING in hptSomeThingsBelowUs
-        missing module Solkattu.DslSollu
-      Ok, 81 modules loaded.
-      *Solkattu.Db D> writeHtml
-      <interactive>: fatal:
-          cannot find object file for module ‘Solkattu.DslSollu’
-          while linking an interpreted expression
-    . possible reproduction: sync to 99cfe84a2b4ff4c782ec7c550718c8d235ab5439,
-      compile, sync to 99dfbbd4d45d0f593f2349f52e6643ae4f029a90, reload
-  - -fdefer-type-errors is broken in 8.4:
-    https://ghc.haskell.org/trac/ghc/ticket/14963
-    . Maybe fixed in 8.6?
-
 test: testing:
   - testing audio:
     https://goq2q.net/blog/tech/using-ascii-waveforms-to-test-real-time-audio-code
@@ -7253,6 +7034,49 @@ Derive:
         Alternately, have explicit note-offs, suitable if most notes are
         legato.  Or just omit it, for implicit duration.
       . Notate rests explicitly as dots?  I need a basic pulse then.
+  priorities for javanese:
+    better ruler
+      . line = 4 gatra, gatra = 4 notes (q)
+      . I want cmd-; to add a gatra.  Then sections is, gongs? or lines?
+        Maybe I don't care about sections so much, because at score level
+        I can use w and b.  So call it lines, but it shouldn't have its own
+        numbers?
+      . Or, what if I did it for gatra?  In that case q is 1/2t which seems
+        awkward.
+      . But if I say w = 1t = gatra, then I have to get up to t32 for ir2
+        panerus, which would make ir4 below even t64.
+      . More convenient if 1 is gatra
+    record samples:
+      + gender panerus
+      - gender barung
+      * slenthem
+      - saron
+      + kenong
+      - gong
+      - gambang?
+      - bonang?
+    infer duration:
+      . next-note still not right for gender barung.  Some notes are clearly
+        intended to merge, while others are counterpoint.  Also gender barung
+        will switch to the pipilan.
+      . What if I go to the Score.event_min of the next note on the same hand?
+        It's weird because this note's duration is the whitespace.
+    - different infer-duration gender barung vs. panerus.
+      . It's two hands so can't put it on a single track title, usual problem
+        with transformers.  In any case, it won't reach across track
+        boundaries.  And in any case I will want to switch heuristics.
+      . So maybe use env var to select heuristic, and an all-purpose infer
+        that looks at that.
+    vocabulary:
+      . pipilan - one melody using two hands
+      . irama:        1/2    1        2    3     4
+                      lancar tanggung dadi wiled rangkep
+               peking 1      2        4    8     16
+      . cengkok: aj aja ngono, ak ayu kuning, dl dualolo
+      . O gong ( ) gong suwukan, ^ kenong, ˇ (caron) kempul
+    ruler:
+      4t = 1 gatra = w
+      1t = 1 note = q
 
   - make note call show up on the stack
     . It's transformed_note which uses "note" name, but if I put in
