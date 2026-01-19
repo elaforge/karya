@@ -126,12 +126,16 @@ Block::~Block()
 int
 Block::handle(int evt)
 {
-    if (evt == FL_MOUSEWHEEL) {
+    // if (evt != FL_MOVE)
+    //     DEBUG("Block " << f_util::show_event(evt)
+    //         << " " << f_util::show_widget(Fl::focus()));
+    switch (evt) {
+    case FL_MOUSEWHEEL:
         if (Fl::event_dy()) {
             ScoreTime scroll = this->zoom.to_time(
                 Fl::event_dy() * mousewheel_time_scale);
             ScoreTime old = this->zoom.offset;
-            set_zoom(Zoom(this->zoom.offset + scroll, this->zoom.factor));
+            this->set_zoom(Zoom(this->zoom.offset + scroll, this->zoom.factor));
             if (this->zoom.offset != old)
                 MsgCollector::get()->block(UiMsg::msg_time_scroll, this);
         }
@@ -142,15 +146,9 @@ Block::handle(int evt)
             if (this->get_track_scroll() != old) {
                 MsgCollector::get()->block(UiMsg::msg_track_scroll, this);
             }
-
         }
-        return 1;
-    } else if (evt == FL_FOCUS) {
-        // Signify that Block is a valid focus target.  Otherwise fltk will
-        // try to find the first thing it can give focus to when the window
-        // gets focus, and will find the title input.
-        return 1;
-    } else {
+        return true;
+    default:
         return Fl_Group::handle(evt);
     }
 }
@@ -889,9 +887,11 @@ Block::highlight_focused(bool focused)
     }
 }
 
+
 static void
-highlight_focused(BlockWindow *focus)
+highlight_focused_window(Fl_Window *focus)
 {
+    // Highlight focused window, unhighlight the rest.
     for (Fl_Window *w = Fl::first_window(); w; w = Fl::next_window(w)) {
         BlockWindow *window = dynamic_cast<BlockWindow *>(w);
         if (window) {
@@ -963,32 +963,56 @@ dispatch_to_keycaps(IPoint mouse)
     }
 }
 
+
 int
 BlockWindow::handle(int evt)
 {
+    // if (evt != FL_MOVE)
+    //     DEBUG("Window " << f_util::show_event(evt)
+    //         << " " << f_util::show_widget(Fl::focus()));
     check_focus(evt);
 
+    bool accepted = false;
     switch (evt) {
     case FL_SHOW:
         // Send an initial resize to inform the haskell layer about dimensions.
         MsgCollector::get()->view(UiMsg::msg_resize, this);
-        break;
+        return Fl_Double_Window::handle(evt);
     case FL_FOCUS:
-        highlight_focused(this);
+        highlight_focused_window(this);
         // This is sent *before* the widget becomes Fl::focus().
         MsgCollector::get()->focus(this);
-        // fltk uses this in Fl_Group::handle to give focus to the last widget
-        // that was focused, via an undocumented hack involved a global
-        // fl_oldfocus variable.  Or it doesn't, I can't tell.  fltk conflates
-        // window level and widget level focus so it seems ambiguous.
-        return Fl_Double_Window::handle(evt);
+        return true;
+        // Signify that this window is a valid focus target.  Otherwise fltk
+        // will try to find the first thing it can give focus to when the
+        // window gets focus, and will find the title input.
+        //
+        // However, this also disables the fl_oldfocus hack to remember
+        // which widget had focus to return to it, and resets focus to the
+        // window every time focus returns.
+        //
+        // However, if I send to Fl_Double_Window::handle, then it always finds
+        // the title widget and gives it focus, which is not what I want.  I
+        // want it to restore focus when some text input has it, but not give
+        // new focus to any inputs that didn't previously have it.  In theory
+        // maybe I could preserve saved focus and also allow the window to
+        // get focus like:
+        //
+        // if (savedfocus_ && savedfocus_->take_focus()) {
+        //   return true;  // Restored focus to previously focused child
+        // }
+        //
+        // But savedfocus_ is private, so can't.  So I'll just forget about
+        // the per widget focus and return to the window.  I think that's ok?
     case FL_KEYDOWN:
-    case FL_KEYUP:
         if (this->testing && Fl::event_key() == FL_Escape) {
             // This is kind of dumb, but I'm used to using this to quit
             // test_block.
             this->hide();
+            return true;
         }
+        // fall through
+    case FL_KEYUP:
         // The fact I got it means I have focus.
         MsgCollector::get()->event(evt);
         return true;
@@ -996,19 +1020,19 @@ BlockWindow::handle(int evt)
         IPoint pos = f_util::root_mouse_pos();
         if (!f_util::rect(this).contains(pos))
             dispatch_to_keycaps(pos);
-        break;
     }
-    }
-
-    bool accepted = false;
-    if (evt == FL_PUSH || evt == FL_MOVE || evt == FL_MOUSEWHEEL) {
-        // see if someone else wants it
+    // fall through
+    default:
         accepted = Fl_Double_Window::handle(evt);
     }
+
+    // If it hasn't been handled by the Block directly, and a child didn't
+    // handle it, Block may still handle it.
     if (!accepted) {
         switch (evt) {
         case FL_PUSH:
             // They didn't want it, so they lose focus.
+            // TODO under what circumstance does this happen?
             Fl::focus(this);
             // fall through
         case FL_DRAG: case FL_RELEASE:

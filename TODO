@@ -129,7 +129,7 @@ UNSORTED
     Perhaps ghc 9.6's recompilation avoidance is buggy?
     I thought I also noticed it not noticing changes in a file.
     . Switched to Shake.ChangeDigest to see if it helps.
-  - bug: midi thru: not getting key up?
+  * bug: midi thru: not getting key up?
     . The first time the window gets focus, I get FL_KEYUPs, but if it loses
       focus then gets it back, no more FL_KEYUPs.
     . test_block is the same.
@@ -139,6 +139,32 @@ UNSORTED
       fltk-modifiers.cc doesn't show it.
     . Doesn't happen with test_block not having tracks.
       Only happens if there's an insert_track
+    . Block gets FL_KEYDOWN -> MsgCollector
+      But Track gets FL_KEYUP, which is lost.
+      This happens if I put focus on the track, if I click outside, both go on
+      Block.
+    . fltk-3.11 still does this, so probably OS X version, not fltk.
+    . Block::handle does return 1, and fltk has proper focus.  Just doesn't
+      deliver FL_KEYUP to the focused widget.
+    . FL_FOCUS: Window -> Block -> returns 1
+      FL_ENTER: Window
+      FL_KEYDOWN: Block -> Window
+      FL_KEYUP: Block -> Track
+    . Focus is on the Block, so actually both should go to Block?
+      FL_KEYDOWN goes directly to focused, FL_KEYUP to window.
+      Then why FL_KEYUP to Block, not to Window?
+    . Why do I have separate window and block handle()?  Can I move it all to
+      Block?
+    . Moved, but keys now not being detected?
+      Is Fl_Double_Window::handle(evt) not the same as block.handle(evt)?
+      FL_KEYDOWN goes to Window, then to SHORTCUT, not to Block.
+      Because window winds up with focus, not block.
+      Selecting window, Block gets focus.  After clicking on track,
+      FL_PUSH goes to Window then to Block, and Window
+      gets focus.
+    . I don't want a distiction between Block and Window at all!
+      What if I move ::handle to window, and have none in Block?  It should
+      then inherit Fl_Group.
   get rid of hlibgit2 dep?
     . It's a complicated library with a big unmaintained haskell binding.
     . Or I could fork and maintain it myself.
