@@ -234,3 +234,30 @@ adi_chatusra = rohan $ date 2026 1 10 $ korvaiV adi
     oktp = su "oktp"
     taka = su "kp"
     takatiku = su "kptp"
+
+adi_tirmanams :: Korvai
+adi_tirmanams = rohan $ tirmanam $ date 2026 1 10 $ korvaiV adi
+    [ tri_ "o_" ("k_" . su ("N_pk".nakatiku."npk_k_pk".nakatiku) . "o_k_")
+    , su $ suffixes ("ktooktpk".nakatiku) ["pko_", "pkpko_", "pkpkpko"]
+    , "N_" . r3 (p6 . nadai 6 p6)
+    , __D 7.75 . r3 (tri_ "d_" (su "kook") . su "tp")
+    -- TODO why doesn't the t turn into a k on 2nd reduction?
+    , tri_ "o_" (su $ reduce3 2 ø "k_t_oknpupkto_" . "ktkt")
+    , __D 6 . triAAB "N_" (g "tkoonooko_k_") (g "ko_k_N_ko_k_")
+    , __D 1 . "_kDk DkD__kD_kD_kD__kD__kD__k"
+    , __D 1 . __ . trin "D__" (tri_ od k) (tri_ "D_" k) (tri_ "D__" k)
+    , join "o_" (map (tri_ o) (reduceToL 1 1 ("pktk".su "kt"))) . o
+    ]
+
+adi_mohra :: Korvai
+adi_mohra = rohan $ date 2026 1 10 $ korvaiV adi
+    -- TODO I think these are mohra schemas, but how to complete them?
+    [ "N__k" . su ("N_pk".nakatiku) . "o_k__"
+        . "N__" . su ("N_pk".nakatiku."t_o_ktpk".nakatiku)
+    . "N__k" . su ("N_pk".nakatiku) . "o_k__"
+        . "N__" . su ("N_pk".nakatiku."pu_k")."okoko_"
+    , su $ "__Nd_ou_ __ktktpk npk_k_pk".nakatiku
+         . "__Nd_ou_ __ktktpk" . r2 "__Nd_ou_"
+    , "Nok_ kook _ktk no_k tokt o_ko Tknp k_ko"
+    . "okko ok_kptpk tkno" . r2 (su "pu_k"."oko___")
+    ]
