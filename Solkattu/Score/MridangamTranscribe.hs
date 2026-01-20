@@ -55,8 +55,8 @@ tirmanam_sikkil = tirmanam $ korvaiV adi
     , __D 4 . tri_ "d__kko" ("Dk_"."Dk_".su "D__k__"."D_k")
     -- The actual one sounds like the k moves sort of randomly.
     , __D 2 . tri123 "D_o" (g "Dk_")
-    -- "Bhajare - Abheri - Adi"
-    , __ . tri2 "D__" (tri_ "D_" "kkoDk") (tri_ "D_" "X_oDk")
+    -- "Bhajare - Abheri - Adi", 15:22
+    , __ . triAAB "D__" (tri_ "D_" "kkoDk") (tri_ "D_" "X_oDk")
     ]
     -- To be totally even, have to go to tisram:
     -- d  .  k  .  _  .  |
