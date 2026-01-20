@@ -21,6 +21,7 @@ module Solkattu.Korvai (
     , mridangamKorvai
     , kendangTunggalKorvai
     , bolKorvai
+    , instrumentKorvai
     , index, slice
     -- ** Instrument
     , Sections

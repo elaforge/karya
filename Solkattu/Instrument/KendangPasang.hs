@@ -86,20 +86,32 @@ fillerM = Realize.Stroke Realize.Light (Mridangam.p Mridangam.strokes)
 
 instance Solkattu.Notation Stroke where
     notation = Solkattu.textNotation . \case
-        Plak -> "PL"
+        -- Plak -> "PL"
+        -- Ka -> "k"
+        -- Pak -> "P"
+        -- Kam -> "t"
+        -- Pang -> "T"
+        -- Kum -> "u"
+        -- Pung -> "U"
+        -- PungL -> "Y"
+        -- De -> "a"
+        -- Tut -> "o"
+        Plak -> "P"
         Ka -> "k"
-        Pak -> "P"
+        Pak -> "p"
         Kam -> "t"
-        Pang -> "T"
+        Pang -> "l"
         Kum -> "u"
-        Pung -> "U"
-        PungL -> "Y" -- TODO I think still Ø in tracklang, but hard to type
-        De -> "a"
-        Tut -> "o"
+        Pung -> "y"
+        -- I like Ø from ToExpr, but it's hard to type, and tut no longer o
+        PungL -> "Y"
+        De -> "o"
+        Tut -> "i" -- o is too similar looking to a
 
 instance Pretty Stroke where pretty = Solkattu.notationText
 
 -- | These have to match with "Cmd.Instrument.KendangBali".
+-- TODO harmonize the two notations?
 instance Expr.ToExpr Stroke where
     to_expr = \case
         Plak -> "PL"
@@ -131,7 +143,7 @@ data Strokes a = Strokes {
     , t :: a, l :: a -- kam pang
     , u :: a, y :: a -- kum pung
     , yy :: a -- PungL
-    , a :: a, o :: a -- de tut
+    , o :: a, i :: a -- de tut
     } deriving (Show, Functor)
 
 strokes :: Strokes Stroke
@@ -144,11 +156,9 @@ strokes = Strokes
     , u = Kum
     , y = Pung
     , yy = PungL
-    , a = De
-    , o = Tut
+    , o = De
+    , i = Tut
     }
---   P   T   U Y   O
--- k   t   u     a
 
 -- TODO much copy pasted with Mridangam.fromString, factor it out
 fromString :: String -> Either Text [Maybe (Realize.Stroke Stroke)]
@@ -187,11 +197,11 @@ __ = S.singleton Realize.rest
 
 defaultPatterns :: Realize.PatternMap Stroke
 defaultPatterns = Solkattu.check $ patterns
-    [ (5, o.k.p.l.a)
-    , (6, o.k.__.p.l.a)
-    , (7, o.__.k.__.p.l.a)
-    , (8, o.k.__.p.__.l.__.a)
-    , (9, o.__.k.__.p.__.l.__.a)
+    [ (5, i.k.p.l.o)
+    , (6, i.k.__.p.l.o)
+    , (7, i.__.k.__.p.l.o)
+    , (8, i.k.__.p.__.l.__.o)
+    , (9, i.__.k.__.p.__.l.__.o)
     ]
     where
     Strokes {..} = rnotes
@@ -202,7 +212,7 @@ patterns :: [(S.Matra, SequenceR)]
 patterns = Realize.patternMap . map (first Solkattu.pattern)
 
 nakatiku :: S.Sequence g (Solkattu.Note (Realize.Stroke Stroke))
-nakatiku = t.y.yy.k.p.a.o.k
+nakatiku = t.y.yy.k.p.o.i.k
     where
     Strokes {..} = notes
     (.) = (<>)

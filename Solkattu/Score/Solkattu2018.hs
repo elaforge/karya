@@ -421,10 +421,10 @@ misra_tani1 = date 2018 7 16 $ sudhindra $
         , (din, od)
         ]
     kendang = makeKendang1
-        [ (tam, a)
-        , (taka.jonu, p.a.o.p)
+        [ (tam, o)
+        , (taka.jonu, p.o.i.p)
         , (na, t)
-        , (din, a)
+        , (din, o)
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
 
 misra_tani2 :: Korvai
@@ -469,8 +469,8 @@ misra_to_mohra1a = date 2018 7 2 $ sudhindra $
         ]
     kendang = makeKendang1
         [ (tA0, pk.__.pk.__.k.p.k.t.p.k.p.k)
-        , (tA1, p.__.p.__.p.k.p.p.a.a.k.p.k.a.__.o.a.__.o.__)
-        , (din, a)
+        , (tA1, p.__.p.__.p.k.p.p.o.o.k.p.k.o.__.i.o.__.i.__)
+        , (din, o)
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
 
 misra_to_mohra1b :: Korvai
@@ -507,18 +507,18 @@ misra_to_mohra1b = date 2018 7 2 $ sudhindra $
         , (tam, od)
         ]
     kendang = makeKendang1
-        [ (taka.taka, t.k.t.o)
+        [ (taka.taka, t.k.t.i)
         , (din.kita, u.lt p.k)
-        , (ta.takita.takadinna, t.p.a.a.p.k.p.p)
+        , (ta.takita.takadinna, t.p.o.o.p.k.p.p)
 
-        , (din, a)
+        , (din, o)
         , (tat, u)
         , (tat.dit, u.u)
 
         , (theme0, k.p.k.t.p.k.p.k)
-        , (takadinna, t.a.a.p)
-        , (r3 takadinna, t.a.a.k.p.a.a.k.p.a.a.p)
-        , (tam, a)
+        , (takadinna, t.o.o.p)
+        , (r3 takadinna, t.o.o.k.p.o.o.k.p.o.o.p)
+        , (tam, o)
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
 
 to_mohra_farans :: Korvai
@@ -568,10 +568,10 @@ misra_to_mohra3 = date 2018 7 2 $ sudhindra $
         , (theme2, k.__.t.__.k.__.n.__.p.k.t.k.n.o)
         ]
     kendang = makeKendang1
-        [ (theme, p.__.p.__.t.a.a.u.a.__.o.__.a.__4)
+        [ (theme, p.__.p.__.t.o.o.u.o.__.i.__.o.__4)
         -- TODO similar technique for kendang as for mridangam?
-        -- , (din.na.din.tat.din, k.u.a.o.a)
-        , (theme2, o.__.p.__.k.__.t.__.a.o.p.k.t.a)
+        -- , (din.na.din.tat.din, k.u.o.i.o)
+        , (theme2, i.__.p.__.k.__.t.__.o.i.p.k.t.o)
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
 
 misra_to_mohra4 :: Korvai

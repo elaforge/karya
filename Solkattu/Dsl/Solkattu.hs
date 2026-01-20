@@ -321,19 +321,19 @@ _kendangStrokes1 =
 
 _kendangStrokes2 :: [(Sequence, SequenceR KendangPasang.Stroke)]
 _kendangStrokes2 =
-    [ (thom, a)
+    [ (thom, o)
     , (tang, y)
     , (lang, y)
     , (cham, y)
-    , (talang, a.u)
-    , (takadinna, p.a.o.k)
-    , (tdgnt, o.k.p.l.a)
+    , (talang, o.u)
+    , (takadinna, p.o.i.k)
+    , (tdgnt, i.k.p.l.o)
     , (kp, k.p)
     , (kpnp, k.p.t.l)
-    , (oknp, o.t.l.a)
-    , (ktktoknp, k.p.k.p.o.t.l.a)
+    , (oknp, i.t.l.o)
+    , (ktktoknp, k.p.k.p.i.t.l.o)
     , (nakatiku, KendangPasang.nakatiku)
-    , (takadugutarikita, k.p.a.a.t.l.k.p)
+    , (takadugutarikita, k.p.o.o.t.l.k.p)
     ]
     where KendangPasang.Strokes {..} = KendangPasang.notes
 

@@ -169,17 +169,17 @@ reentry = date 2025 9 13 $ elaforge $ korvaiV adi
     [ od.__5 . g (su "ktpkpktkno").u.__3.su "n_ktpk" . r2 "N.dD.dD."
     ]
 
--- ? why do these not end on 0.75?
-adi_3_eddupu :: Korvai
-adi_3_eddupu = rohan $ date 2026 1 10 $ korvaiV adi
-    [ "NokN _N_o kN_N __ok N_N_ ___o k"
-    , r3 "kookN_" . r3 p5
-    ]
+-- -- ? why do these not end on 0.75?
+-- adi_3_eddupu :: Korvai
+-- adi_3_eddupu = rohan $ date 2026 1 10 $ korvaiV adi
+--     [ "NokN _N_o kN_N __ok N_N_ ___o k"
+--     , r3 "kookN_" . r3 p5
+--     ]
 
 adi_6_eddupu :: Korvai
 adi_6_eddupu = rohan $ date 2026 1 10 $ korvai adi $ map (eddupu 1.5 • s)
     -- korvai
-    [ r3 "k_D_k" . tri_ "N_k" (r3 p5) -- TODO ends on 0.5?
+    [ r3 $ r3 "k_D_k" . tri_ "N_k" (r3 p5) -- x3 to end on 1.5
     -- arudhi
     , su $ "N___" .  r3 p6 . r3 (k.__.p6) . r3 ("k_k_".p6)
     -- tirmanam

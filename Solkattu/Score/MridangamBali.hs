@@ -58,9 +58,9 @@ legong_pasang = korvaiV adi $ interleave pasang
         -- uy - kumpung
         -- oi - de tut?  How about a for strong dag = de + tong?
         -- This would dispense with capitals for consistency.
-        [ "________ _a___o_. _a__o_o. a_ootTao"
-        , "kPkPtTtT Y.a_Y_YY a_o.a_.a kPaoao.a"
-        ]
+        -- [ "________ _a___o_. _a__o_o. a_ootTao"
+        -- , "kPkPtTtT Y.a_Y_YY a_o.a_.a kPaoao.a"
+        -- ]
         -- use o O
         -- [ "________ _o___O_. _o__O_O. o_OOtToO"
         -- , "kPkPtTtT Y.o_Y_YY o_O.o_.o kPoOoO.o"
@@ -70,9 +70,9 @@ legong_pasang = korvaiV adi $ interleave pasang
         -- , "kPkPtTtT Y.+_Y_YY +_o.+_.+ kP+o+o.+"
         -- ]
         -- use o i, all ids
-        -- [ "________ _o___i_. _o__i_i. o_iitloi"
-        -- , "kpkptltl Y.o_Y_YY o_i.o_.o kpoioi.o"
-        -- ]
+        [ "________ _o___i_. _o__i_i. o_iitloi"
+        , "kpkptltl Y.o_Y_YY o_i.o_.o kpoioi.o"
+        ]
 
 interleave :: [SequenceK2] -> [Sequence]
 interleave xs = mconcat [[realizeWadon x, realizeLanang x] | x <- xs]

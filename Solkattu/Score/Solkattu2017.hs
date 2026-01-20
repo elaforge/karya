@@ -119,8 +119,8 @@ c_17_03_20 = date 2017 3 20 $ ganesh $
         , (ga, lt k)
         ]
     kendang = makeKendang1
-        [ (sarva, t.o.o.t)
-        , (theme, p.__.p.k.p.a.o.p.t.o.p.__.o.u.__.p)
+        [ (sarva, t.i.i.t)
+        , (theme, p.__.p.k.p.o.i.p.t.i.p.__.i.u.__.p)
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
     reyong = makeReyong
         [ (sarva, __.__.__.__)
@@ -238,9 +238,9 @@ c_17_05_10 = date 2017 5 10 $ ganesh $ korvaiS1 adi insts $
     kendang = makeKendang1
         [ (ta, p)
         , (kita, p.k)
-        , (takadinna, t.o.o.p)
-        , (dinga, a.__.lt k)
-        , (tdgnt, p.k.t.a.o)
+        , (takadinna, t.i.i.p)
+        , (dinga, o.__.lt k)
+        , (tdgnt, p.k.t.o.i)
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
     sargam = makeSargam []
         [ (ta, s1)
@@ -320,8 +320,8 @@ c_17_06_19 = date 2017 6 19 $ ganesh $ korvaiS1 adi inst $
         ]
     kendang = makeKendang1
         [ (tat.dit, p.t)
-        , (din, a)
-        , (tam, a)
+        , (din, o)
+        , (tam, o)
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
     sargam = makeSargam
         [ (5, su (d_.s.d_.n_) . s.n_.p_)
@@ -437,24 +437,24 @@ c_17_07_13 = date 2017 7 13 $ ganesh $ trikalam $
     kendang = makeKendang1
         [ (ta, p)
         , (kita, t.t)
-        , (taka, p.a)
-        , (taka.din, p.lt a.a)
-        , (din.na, a.p)
+        , (taka, p.o)
+        , (taka.din, p.lt o.o)
+        , (din.na, o.p)
 
-        , (tat.tat.din, o.o.a)
-        , (din.tat.tat, a.o.o)
-        , (tat.tat, o.o)
+        , (tat.tat.din, i.i.o)
+        , (din.tat.tat, o.i.i)
+        , (tat.tat, i.i)
         , (tam, u)
 
-        , (1^(kita.taka), t.lt a.a.p)
+        , (1^(kita.taka), t.lt o.o.p)
 
         -- dintakas
-        , (basic_dintaka, a.p.o.o.p.lt a)
+        , (basic_dintaka, o.p.i.i.p.lt o)
         , (1^taka, p.p)
-        , (din, a)
+        , (din, o)
 
-        , (1^takita, p.o.o)
-        , (dhom, o)
+        , (1^takita, p.i.i)
+        , (dhom, i)
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
 
 c_17_07_19 :: Korvai
@@ -540,17 +540,17 @@ c_17_08_29 = date 2017 8 29 $ ganesh $
         ]
     kendang1 = makeKendang1
         [ (na, t)
-        , (na.dinga, o.u.__.p)
-        , (na.din, o.a)
+        , (na.dinga, i.u.__.p)
+        , (na.din, i.o)
         , (dit, t)
 
-        , (theme1, t.__.t.__.o.u.__.p)
+        , (theme1, t.__.t.__.i.u.__.p)
         , (tat, p)
-        , (tam, o)
-        , (mid^tam, a)
+        , (tam, i)
+        , (mid^tam, o)
 
-        , (theme2, a.p.a.p.a.o.p.lt a.a.p)
-        , (theme3, p.k.t.p.p.k.p.k.p.lt a.a)
+        , (theme2, o.p.o.p.o.i.p.lt o.o.p)
+        , (theme3, p.k.t.p.p.k.p.k.p.lt o.o)
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
 
 c_17_10_23 :: Korvai
@@ -606,15 +606,15 @@ c_17_10_23 = date 2017 10 23 $ ganesh $ koraippu $
         ]
     kendang1 = makeKendang1
         [ (t1_sollu, p.k.__.p.__.k.p)
-        , (tend, p.a.__.o.__.p.__)
-        , (k_pkn, p.__.k.p.t.k.p.t.p . o.p.k.t.a)
-        , (o_okn, a.__.a.p.t.a.p.t.p . o.p.k.t.a)
+        , (tend, p.o.__.i.__.p.__)
+        , (k_pkn, p.__.k.p.t.k.p.t.p . i.p.k.t.o)
+        , (o_okn, o.__.o.p.t.o.p.t.p . i.p.k.t.o)
         , (kitataka, k.t.t.k)
         , (kitakita, p.k.p.k)
-        , (din, a)
+        , (din, o)
         , (tat, p)
-        , (tat.tat.tam.tam, pk.pk.a.a)
-        , (tat.tat.tam, pk.pk.a)
+        , (tat.tat.tam.tam, pk.pk.o.o)
+        , (tat.tat.tam, pk.pk.o)
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
 
 c_20_12_12_kanda :: Korvai
@@ -683,14 +683,14 @@ c_20_12_12_kanda = date 2020 12 12 $ koraippu $
         ]
     kendang1 = makeKendang1
         [ (t1_sollu, p.k.__.p.__.k.p)
-        , (tend, p.a.__.o.__.p.__)
-        , (k_pkn, p.__.p.k.t.p.k.t.p . o.p.k.t.a)
-        , (o_okn, a.__.o.k.t.o.k.t.o . o.p.k.t.a)
-        , (kitataka, o.k.t.a)
+        , (tend, p.o.__.i.__.p.__)
+        , (k_pkn, p.__.p.k.t.p.k.t.p . i.p.k.t.o)
+        , (o_okn, o.__.i.k.t.i.k.t.i . i.p.k.t.o)
+        , (kitataka, i.k.t.o)
         , (kitakita, p.k.p.k)
-        , (din, a)
+        , (din, o)
         , (tat, p)
-        , (tam, a)
+        , (tam, o)
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
 
 {-

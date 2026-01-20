@@ -152,25 +152,25 @@ c_20_10_25 = date 2020 10 25 $ ganesh $ korvai adi (mridangam<>k1<>k2) $
         ]
     k1 = makeKendang1
         [ (kitataka.talanga.taka.taka.talanga,
-            k.t.k.p.o.u.__.k.p.k.p.k.o.u.__.p)
+            k.t.k.p.i.u.__.k.p.k.p.k.i.u.__.p)
         , (kitataka.takataka.takataka.takataka,
-            k.p.k.a. k.p.k.p .k.p.k.p .k.p.k.p)
+            k.p.k.o. k.p.k.p .k.p.k.p .k.p.k.p)
         , (tam.__.kita.takadinna.tam.__.kita.takadinna,
-            a.__.p.t.a.o.p.t.a.__.p.t.a.o.p.t)
+            o.__.p.t.o.i.p.t.o.__.p.t.o.i.p.t)
         , (ta, p)
 
         , (ta.dit.ta.ga, t.p.t.lt k)
         , (tadikita, t.p.k.t)
-        , (dim, a)
-        , (thom, a)
+        , (dim, o)
+        , (thom, o)
 
-        , (sarva_ndd, t.o.o.t . t.t.o.o.t . t.o.o.t . t.o.o.t)
+        , (sarva_ndd, t.i.i.t . t.t.i.i.t . t.i.i.t . t.i.i.t)
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
     k2 = makeKendang2
         [ (ta.dit.ta.ga, t.l.t.l)
         , (ta.di.ki.ta, l.k.p.t)
-        , (dim, a)
-        , (thom, a)
+        , (dim, o)
+        , (thom, o)
         ] where KendangPasang.Strokes {..} = KendangPasang.notes
 
 -- TODO the same as Kendang2020.farans, except this has the unnecessary sollus,
@@ -195,19 +195,19 @@ kendang_farans = faran $ korvaiS adi (k1<>k2) $ map su $ concat
         [ (taka.naka, k.t.k.p) -- alt: p.k.t.k (p.n.p.k)
         , (taka.naka.tiku, k.t.k.p.k.p) -- alt: p.k.t.k.p.k (p.n.p.k . t.k)
 
-        , (ktknpktk, k.p.k.t.p.k.a.k)
-        , (ooknpktk, a.a.k.t.p.k.a.k)
-        , (otknpktk, a.p.k.t.p.k.a.k)
-        , (od__odnpktk, o.__.o.t.p.k.a.k)
+        , (ktknpktk, k.p.k.t.p.k.o.k)
+        , (ooknpktk, o.o.k.t.p.k.o.k)
+        , (otknpktk, o.p.k.t.p.k.o.k)
+        , (od__odnpktk, i.__.i.t.p.k.o.k)
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
     k2 = makeKendang2
         [ (taka.naka, k.p.t.l)
         , (taka.naka.tiku, k.p.t.l.k.p)
 
-        , (ktknpktk, k.p.t.l.k.p.a.o)
-        , (ooknpktk, a.a.p.l.k.p.a.o)
-        , (otknpktk, a.k.p.l.k.p.a.o)
-        , (od__odnpktk, o.__.o.l.k.p.a.o)
+        , (ktknpktk, k.p.t.l.k.p.o.i)
+        , (ooknpktk, o.o.p.l.k.p.o.i)
+        , (otknpktk, o.k.p.l.k.p.o.i)
+        , (od__odnpktk, i.__.i.l.k.p.o.i)
         ] where KendangPasang.Strokes {..} = KendangPasang.notes
     make fill1 fill2 pattern =
         long . long

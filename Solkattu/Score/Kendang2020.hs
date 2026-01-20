@@ -11,37 +11,37 @@ import           Solkattu.Dsl.Kendang
 farans :: Korvai
 farans = faran $ korvaiS adi $ map su $ concat
     [ map (make (t.k.p.k) (t.k.p.k . p.k)) -- (p.n.p.k) (p.n.p.k . t.k)
-        [ k.p.k.t.p.k.a.k -- k.t.k.n.p.k.t.k
-        , a.a.k.t.p.k.a.k -- o.o.k.n.p.k.t.k
-        , a.a.t.t.p.k.a.k -- o.o.n.n.p.k.t.k
-        , a.p.k.t.p.k.a.k -- o.t.k.n.p.k.t.k
-        , o.__.o.t.p.k.a.k -- od.__.od.n.p.k.t.k
-        , o.t.o.t.p.k.a.k -- o.d.o.n.p.k.t.k
-        , o.p.o.t.p.k.a.k -- o.k.o.n.p.k.t.k
-        , pk.p.a.t.p.k.a.k -- o&t.k.o.n.p.k.t.k
-        , p.u.__.t.p.k.a.k -- p.u.__.n.p.k.t.k
-        , o.u.__.t.p.k.a.k -- o.u.__.n.p.k.t.k
+        [ k.p.k.t.p.k.o.k -- k.t.k.n.p.k.t.k
+        , o.o.k.t.p.k.o.k -- o.o.k.n.p.k.t.k
+        , o.o.t.t.p.k.o.k -- o.o.n.n.p.k.t.k
+        , o.p.k.t.p.k.o.k -- o.t.k.n.p.k.t.k
+        , i.__.i.t.p.k.o.k -- od.__.od.n.p.k.t.k
+        , i.t.i.t.p.k.o.k -- o.d.o.n.p.k.t.k
+        , i.p.i.t.p.k.o.k -- o.k.o.n.p.k.t.k
+        , pk.p.o.t.p.k.o.k -- o&t.k.o.n.p.k.t.k
+        , p.u.__.t.p.k.o.k -- p.u.__.n.p.k.t.k
+        , i.u.__.t.p.k.o.k -- o.u.__.n.p.k.t.k
         ]
-    , map (make (o.u.__.k) (o.u.__.k.p.k)) -- (o.u.__.k) (o.u.__.k . t.k)
-        [ o.u.__.p.p.a.o.k
-        , o.u.k.p.p.a.o.k
-        , a.p.o.u.__.k.a.k
-        , a.p.o.u.p.k.a.k
+    , map (make (i.u.__.k) (i.u.__.k.p.k)) -- (o.u.__.k) (o.u.__.k . t.k)
+        [ i.u.__.p.p.o.i.k
+        , i.u.k.p.p.o.i.k
+        , o.p.i.u.__.k.o.k
+        , o.p.i.u.p.k.o.k
         ]
-    , map (make (a.__.p.__) (a.t.p.k.a.k)) --  (o.__.k.__) (o.k.p.k . t.k)
-        [ a.p.a.a.p.a.a.p -- o.k.o.o.k.o.o.k
-        , a.__.p.a.p.a.t.p -- o.__.k.o.k.o.o&t.k
-        , a.a.p.a.p.a.t.p -- o.o.k.o.k.o.o&t.k
-        , a.__.p.k.p.a.t.p -- o.__.k.t.k.o.o&t.k
-        , a.a.p.k.p.a.t.p -- o.o.k.t.k.o.o&t.k
-        , p.__.p.t.p.a.t.p -- k.__.k.t.k.o.o&t.k
-        , p.k.p.t.p.a.t.p -- k.p.k.t.k.o.o&t.k
-        , t.p.k.k.p.a.o.p -- n.k.p.p.k.o.o.k
+    , map (make (o.__.p.__) (o.t.p.k.o.k)) --  (o.__.k.__) (o.k.p.k . t.k)
+        [ o.p.o.o.p.o.o.p -- o.k.o.o.k.o.o.k
+        , o.__.p.o.p.o.t.p -- o.__.k.o.k.o.o&t.k
+        , o.o.p.o.p.o.t.p -- o.o.k.o.k.o.o&t.k
+        , o.__.p.k.p.o.t.p -- o.__.k.t.k.o.o&t.k
+        , o.o.p.k.p.o.t.p -- o.o.k.t.k.o.o&t.k
+        , p.__.p.t.p.o.t.p -- k.__.k.t.k.o.o&t.k
+        , p.k.p.t.p.o.t.p -- k.p.k.t.k.o.o&t.k
+        , t.p.k.k.p.o.i.p -- n.k.p.p.k.o.o.k
         ]
-    -- , [ make (o.o.k.t) (p.k.p.k . t.k) (p.k.o.o.k.t.p.k)
-    , [ make (a.a.p.k) (p.k.p.k.t.k) (p.k.a.a.p.k.t.k)
-      -- , make (n.o.o&k.__) (o&k.__.u.__ . p.k) (n.o.o&k.__.u.__.p.k)
-      , make (t.o.pk.__) (pk.__.u.__.p.k) (t.o.pk.__.u.__.p.k)
+    -- , [ make (i.i.k.t) (p.k.p.k . t.k) (p.k.i.i.k.t.p.k)
+    , [ make (o.o.p.k) (p.k.p.k.t.k) (p.k.o.o.p.k.t.k)
+      -- , make (n.i.i&k.__) (i&k.__.u.__ . p.k) (n.i.i&k.__.u.__.p.k)
+      , make (t.i.pk.__) (pk.__.u.__.p.k) (t.i.pk.__.u.__.p.k)
       ]
     ]
     where

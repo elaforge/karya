@@ -81,15 +81,15 @@ c_mohra = ganesh $ korvais adi (mridangam<>kendang) su
         ]
     kendang = makeKendang1
         [ (dit, pk)
-        , (tang.kita, o.p.k)
+        , (tang.kita, i.p.k)
         , (na.ka, t.k)
         , (ta.langa, u.u.__.p)
-        , (din.tat, o.p)
-        , (dim, a)
+        , (din.tat, i.p)
+        , (dim, o)
 
-        , (na.kita, t.a.p)
-        , (takita, o.o.p)
-        , (tanga, a.__.p)
+        , (na.kita, t.o.p)
+        , (takita, i.i.p)
+        , (tanga, o.__.p)
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
 
 c_mohra2 :: Korvai

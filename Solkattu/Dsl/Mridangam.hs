@@ -129,11 +129,6 @@ mapNote :: (Solkattu.Note Stroke -> Solkattu.Note Stroke)
     -> Sequence -> Sequence
 mapNote = fmap
 
--- | Parse a string to mridangam strokes.
-strM :: HasCallStack => String -> Sequence
-strM str = mconcatMap toSeq $ Solkattu.check $ Mridangam.fromString str
-    where toSeq = maybe __ Realize.strokeToSequence
-
 -- * fragments
 
 -- | Taka and takatiku from solkattu.

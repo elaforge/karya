@@ -27,11 +27,11 @@ instance Solkattu.Notation Stroke where
         Plak -> "P"
         Pak -> "p"
         Pang -> "t"
-        TutL -> "u"
-        DeL -> "å"
+        TutL -> "y"
+        DeL -> "a"
         Ka -> "k"
-        Tut -> "o"
-        De -> "a"
+        Tut -> "i"
+        De -> "o"
 
 instance Pretty Stroke where pretty = Solkattu.notationText
 
@@ -62,7 +62,7 @@ instance Expr.ToExpr (Realize.Stroke Stroke) where
 instance Solkattu.Abbreviations Stroke where abbreviations = const Nothing
 
 data Strokes a = Strokes {
-    pk :: a, p :: a, t :: a, u :: a, å :: a, k :: a, o :: a , a :: a
+    pk :: a, p :: a, t :: a, u :: a, a :: a, k :: a, i :: a , o :: a
     } deriving (Show, Functor)
 
 strokes :: Strokes Stroke
@@ -71,10 +71,10 @@ strokes = Strokes
     , p = Pak
     , t = Pang
     , u = TutL
-    , å = DeL
+    , a = DeL
     , k = Ka
-    , o = Tut
-    , a = De
+    , i = Tut
+    , o = De
     }
 
 notes :: Strokes (S.Sequence g (Solkattu.Note (Realize.Stroke Stroke)))
@@ -92,11 +92,11 @@ __ = S.singleton Realize.rest
 
 defaultPatterns :: Realize.PatternMap Stroke
 defaultPatterns = Solkattu.check $ patterns
-    [ (5, o.p.k.t.a)
-    , (6, o.p.__.k.t.a)
-    , (7, o.__.p.__.k.t.a)
-    , (8, o.p.__.k.__.t.__.a)
-    , (9, o.__.p.__.k.__.t.__.a)
+    [ (5, i.p.k.t.o)
+    , (6, i.p.__.k.t.o)
+    , (7, i.__.p.__.k.t.o)
+    , (8, i.p.__.k.__.t.__.o)
+    , (9, i.__.p.__.k.__.t.__.o)
     ]
     where
     Strokes {..} = rnotes
@@ -104,7 +104,7 @@ defaultPatterns = Solkattu.check $ patterns
 
 -- defaultPatternsEmphasis :: [(Solkattu.Pattern, SequenceM g)]
 -- defaultPatternsEmphasis =
---     map (second (map $ \s -> if s == p then a else s)) defaultPatterns
+--     map (second (map $ \s -> if s == p then o else s)) defaultPatterns
 --     where Strokes {..} = rnotes
 
 patterns :: [(S.Matra, SequenceR)]
@@ -112,7 +112,7 @@ patterns :: [(S.Matra, SequenceR)]
 patterns = Realize.patternMap . map (first Solkattu.pattern)
 
 nakatiku :: S.Sequence g (Solkattu.Note (Realize.Stroke Stroke))
-nakatiku = t.o.u.k.p.a.o.k
+nakatiku = t.i.u.k.p.o.i.k
     where
     Strokes {..} = notes
     (.) = (<>)
