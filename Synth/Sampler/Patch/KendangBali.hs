@@ -63,7 +63,8 @@ data Tuning = Wadon | Lanang
     deriving (Eq, Show)
 
 strokeMap :: Drum.StrokeMap Articulation
-strokeMap = Drum.strokeMap K.stops K.tunggal_strokes attributeMap
+strokeMap = Drum.replaceSoft 0.75 $
+    Drum.strokeMap K.stops K.tunggal_strokes attributeMap
 
 attributeMap :: Common.AttributeMap Articulation
 attributeMap =

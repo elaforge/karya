@@ -341,6 +341,13 @@ addAttributeMap :: Common.AttributeMap art -> StrokeMap art -> StrokeMap art
 addAttributeMap attrs smap = smap { attributeMap = attrs <> smap.attributeMap }
 
 -- | Set dynamic for Attrs.soft and remove it.
+--
+-- I think Attrs.soft was redundant, because the softness is already encoded
+-- in Drums._dynamic.
+--
+-- TODO this is working around inconsistent dyn curves for MIDI vs im.
+-- Perhaps instead e.g. KendangBali.tunggal_strokes should be parameterized
+-- on soft_dyn?  Or I should try to harmonize MIDI and im?
 replaceSoft :: Signal.Y -> StrokeMap art -> StrokeMap art
 replaceSoft dyn smap = smap { strokes = map (first replace) smap.strokes }
     where
