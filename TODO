@@ -120,15 +120,54 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
+  save/bali/bapang-saba
+    - bug: floating_insert called but no open input:  (4o)
+      Happens in kbd entry.
+      I had a floating entry then escaped out?
+    * saba tuning is totally different from mine, can I put it in as a laras?
+      ? I still dislike "tuning" for the umbang/isep, still don't have
+        a better name.
+    - What is Kompiang's tuning, an I put that in?
+      . Like saba, but a little lower.
+    - im playback seems to be cutting off the starts again
+    - No thru for im kendang pasang
+      Known issue: refactor thru:
+    + "-" stroke is too quiet to hear, or gone.
+      I think from unsaved branch
+      Yes, but why do I need replaceSoft?  What is soft otherwise?
+      . It's dyn [0.3, 0.75]
+      . Who interprets that?
+      . It's in tunggal_strokes, built-in to Drums.Stroke.  The problem is
+        that 0.4 as interpreted through MIDI is different than via im.
+      . On one hand, I want to have a consistent useful dyn scale.  On the
+        other, "soft" is a feature of the patch?
+    - waveform display seems broken?
+      Seems to inconsistently miss strokes?
+      They come back when adding a new track, gone again on next update.
+  - LInst.add_im "k" "sampler/kendang-bali-pasang"
+    Cmd/Repl/LInst.hs:260 - switched non-dummy alloc
+      sampler/kendang-bali-pasang (音) to dummy
+    . But it's already dummy?
+    . Because it really should be dummy.  Have to add with LAlloc.kendang_im
+    . This is so complicated.
+    . Would it make sense to replace pasang instruments with simply a flat
+      instrument that acts like it?
+      . But I would want to do score integrate to split into wadon and lanang?
+
   - add a bpm range annotation to solkattu
     . This is sort of more dynamic, in that it's to do with my practice,
       but isn't all of it?
   - why does seq window not come to front?
     . test_block does, browser and logview do.
-  - bug: ghci GHC.Linker.Loader.dynLoadObjs: Loading temp shared object failed
+    . what could possibly be different?
+  + bug: ghci GHC.Linker.Loader.dynLoadObjs: Loading temp shared object failed
+    During interactive linking, GHCi couldn't find the following symbol:
+      dlopen(/var/folders/gm/7n_pzqns7_dd93srd5n4l_2c0000gn/T/ghc74955_0/libghc_20.dylib, 0x0005): symbol not found in flat namespace '_SolkattuziDslziMridangam_closed_closure'
     Perhaps ghc 9.6's recompilation avoidance is buggy?
     I thought I also noticed it not noticing changes in a file.
     . Switched to Shake.ChangeDigest to see if it helps.
+    . It still happens, but it seems now at least if I do a shake build, it
+      fixes it.
   * bug: midi thru: not getting key up?
     . The first time the window gets focus, I get FL_KEYUPs, but if it loses
       focus then gets it back, no more FL_KEYUPs.

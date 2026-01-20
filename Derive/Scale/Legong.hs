@@ -22,7 +22,21 @@
     3i 3o 3e 3u 3a 4i 4o 4e 4u 4a 5i 5o 5e 5u 5a 6i 6o 6e 6u 6a 7i
     @
 -}
-module Derive.Scale.Legong where
+module Derive.Scale.Legong (
+    scales
+    , calung, jegog, kantilan, pemade
+    , penyacah
+    , make_instrument_scale
+    , make_scale_set
+    , complete_instrument_scale
+    , rambat_range
+    , reyong_range
+    , trompong_range
+    , ugal_range
+    , laras
+    , low_pitch, high_pitch
+    , laras_rambat
+) where
 import qualified Data.Map as Map
 import qualified Data.Vector as Vector
 
@@ -162,7 +176,7 @@ data Pitch = I | O | E | Es | U | A | As
 
 laras :: Map Text BaliScales.Laras
 laras = Map.fromList $ Lists.keyOn BaliScales.laras_name $
-    laras_rambat : mcphee
+    laras_rambat : laras_saba : mcphee
 
 laras_rambat :: BaliScales.Laras
 laras_rambat = BaliScales.laras "rambat" low_pitch (extend 3 E)
@@ -208,8 +222,10 @@ laras_rambat = BaliScales.laras "rambat" low_pitch (extend 3 E)
     i = Pitch.add_hz 4
     u = Pitch.add_hz (-4)
 
-allTunings :: [[Pitch.NoteNumber]]
-allTunings =
+-- | Document measurements for different instruments, presumably in the future
+-- these are built in to the samples?
+all_tunings :: [[Pitch.NoteNumber]]
+all_tunings =
     -- rambat u, i,  reyong
     [ [51.03, 51.85, 0]         -- 3e
     , [55.05, 55.67, 0]
@@ -228,6 +244,27 @@ allTunings =
     , [    0,     0, 86.08]
     , [    0,     0, 87.82]
     , [    0,     0, 91.82]
+    ]
+
+-- | From legong saba recordings.
+laras_saba :: BaliScales.Laras
+laras_saba = BaliScales.laras "saba" low_pitch (extend 3 E)
+    "Tuning from Legong Bapang Saba recordings."
+    (map (\nn -> (nn, Pitch.add_hz 4 nn)) legong_saba)
+
+legong_saba :: [Pitch.NoteNumber]
+legong_saba =
+    [ 56.30     -- 3e
+    , 56.30 -- fake 4
+    , 60.24
+    , 60.94
+    , 60.94 -- fake 7
+    , 65.00     -- 4i
+    , 66.15
+    , 68.20
+    , 68.20 -- fake 4
+    , 72.31
+    , 73.40
     ]
 
 -- | Extend down to 3i, which is jegog range.
