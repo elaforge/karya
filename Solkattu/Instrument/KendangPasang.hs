@@ -27,7 +27,9 @@ import qualified Solkattu.Solkattu as Solkattu
 import           Global
 
 
-data Stroke = Plak | Ka | Pak | Kam | Pang | Kum | Pung | PungL | De | Tut
+data Stroke =
+    Plak | Ka | Pak | Kam | Pang | Kum | Pung | PungL
+    | De | DeSoft | Tut
     deriving (Show, Eq, Ord, Enum, Bounded)
 
 toTunggal :: Stroke -> (Maybe T.Stroke, Maybe T.Stroke)
@@ -41,6 +43,7 @@ toTunggal = \case
     Pung -> (Nothing, Just T.Tut)
     PungL -> (Nothing, Just T.TutL)
     De   -> (Just T.De, Just T.Pang)
+    DeSoft -> (Just T.De, Nothing)
     Tut  -> (Nothing, Just T.De)
 
 toWadon :: Realize.Stroke Stroke -> Realize.Stroke T.Stroke
@@ -61,10 +64,16 @@ toMridangam = \case
     Pak  -> (Nothing, Just k)
     Kam  -> (Just n, Nothing)
     Pang -> (Nothing, Just n)
-    Kum  -> (Just d, Nothing) -- ?
+    -- TODO kumpung doesn't really seem to map to din.  Instead it seems like
+    -- kampang should sometimes be dn or nd
+    -- Maybe there isn't a good kumpung on mridangam, but I don't exactly see
+    -- that being used anyway.
+    Kum  -> (Just d, Nothing)
     Pung -> (Nothing, Just d)
     PungL -> (Nothing, Just i)
+    -- TODO only on or od for strong de, not light.
     De   -> (Just o, Just n)
+    DeSoft -> (Just o, Nothing)
     Tut  -> (Nothing, Just o)
     where
     pk = Mridangam.Both (Mridangam.Tha Mridangam.Palm) Mridangam.Ki
@@ -106,6 +115,7 @@ instance Solkattu.Notation Stroke where
         -- I like Ø from ToExpr, but it's hard to type, and tut no longer o
         PungL -> "Y"
         De -> "o"
+        DeSoft -> "."
         Tut -> "i" -- o is too similar looking to a
 
 instance Pretty Stroke where pretty = Solkattu.notationText
@@ -123,6 +133,7 @@ instance Expr.ToExpr Stroke where
         Pung -> "U"
         PungL -> "Ø"
         De -> "+"
+        DeSoft -> "-"
         Tut -> "o"
 
 instance Expr.ToExpr (Realize.Stroke Stroke) where

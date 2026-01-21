@@ -162,6 +162,7 @@ rest = S.Note (Space Solkattu.Rest)
 strokeToSequence :: stroke -> S.Sequence g (Solkattu.Note (Stroke stroke))
 strokeToSequence = S.singleton . S.Note . Solkattu.Note . Solkattu.note . stroke
 
+-- | strokeToSequence but if you are already wrapped in a Stroke.
 strokeToSequence2 :: Stroke stroke
     -> S.Sequence g (Solkattu.Note (Stroke stroke))
 strokeToSequence2 = S.singleton . S.Note . Solkattu.Note . Solkattu.note

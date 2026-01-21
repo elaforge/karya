@@ -6345,6 +6345,15 @@ REPL: repl:
     . https://gitlab.haskell.org/haskell/ghc-api-compat
 
 solkattu:
+  KendangPasang:
+    - Realize to mridangam?
+    - Tweak display to put beats at the end?
+      - Also would have to modify verify to write the notation that way.
+    * I want soft de to render as '.'.  So either do a special render for
+      Light strokes, or make an entirely new stroke.
+      . It is probably also rendered as dag without tong, or as plain 'o' and
+        not 'D', so it's sort of logically a different stroke.
+      . There is already a blanket instance Solkattu.Notation (Stroke stroke)
   + mridangam sync with cmd instrument:
     - not sure I like xz as trakra
       . X is p+t conflicts with o + tra

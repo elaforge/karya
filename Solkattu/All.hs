@@ -12,6 +12,7 @@ import qualified Solkattu.Korvai as Korvai
 import           Solkattu.Korvai (Score(Single), setLocation)
 import qualified Solkattu.Score.Kanjira2025
 import qualified Solkattu.Score.Kendang2020
+import qualified Solkattu.Score.KendangPasang
 import qualified Solkattu.Score.Mridangam2013
 import qualified Solkattu.Score.Mridangam2015
 import qualified Solkattu.Score.Mridangam2016
@@ -54,6 +55,10 @@ scores = map Korvai.inferMetadataS
     , setLocation ("Solkattu.Score.Kanjira2025",37,"dinnaginna1") $ Single Solkattu.Score.Kanjira2025.dinnaginna1
     , setLocation ("Solkattu.Score.Kanjira2025",45,"dinnaginna2") $ Single Solkattu.Score.Kanjira2025.dinnaginna2
     , setLocation ("Solkattu.Score.Kendang2020",11,"farans") $ Single Solkattu.Score.Kendang2020.farans
+    , setLocation ("Solkattu.Score.KendangPasang",41,"bapang_saba_beginning") $ Single Solkattu.Score.KendangPasang.bapang_saba_beginning
+    , setLocation ("Solkattu.Score.KendangPasang",51,"bapang_saba_middle") $ Single Solkattu.Score.KendangPasang.bapang_saba_middle
+    , setLocation ("Solkattu.Score.KendangPasang",72,"bapang_saba_accel") $ Single Solkattu.Score.KendangPasang.bapang_saba_accel
+    , setLocation ("Solkattu.Score.KendangPasang",80,"legong1") $ Single Solkattu.Score.KendangPasang.legong1
     , setLocation ("Solkattu.Score.Mridangam2013",18,"e_ktkt") $ Single Solkattu.Score.Mridangam2013.e_ktkt
     , setLocation ("Solkattu.Score.Mridangam2013",30,"e_3s_5s") $ Single Solkattu.Score.Mridangam2013.e_3s_5s
     , setLocation ("Solkattu.Score.Mridangam2013",41,"dinnagina_sequences") $ Single Solkattu.Score.Mridangam2013.dinnagina_sequences
