@@ -63,11 +63,19 @@ KendangPasang.Strokes {..} = KendangPasang.notes
 -- * interactive utilities
 
 realize, realizep :: Korvai.Korvai -> IO ()
-realize = realizeK id
-realizep = realizeK concrete
+realize = realizeConfig id
+realizep = realizeConfig concrete
 
-realizeK :: (Terminal.Config -> Terminal.Config) -> Korvai.Korvai -> IO ()
-realizeK = Dsl.Solkattu._printInstrument Just Korvai.IKendangPasang
+realizeConfig :: (Terminal.Config -> Terminal.Config) -> Korvai.Korvai -> IO ()
+realizeConfig = Dsl.Solkattu._printInstrument Just Korvai.IKendangPasang
+
+realizeMW :: Korvai.Korvai -> IO ()
+realizeMW = Dsl.Solkattu._printInstrument KendangPasang.toWadonM
+    Korvai.IKendangPasang concrete
+
+realizeML :: Korvai.Korvai -> IO ()
+realizeML = Dsl.Solkattu._printInstrument KendangPasang.toLanangM
+    Korvai.IKendangPasang concrete
 
 -- * strokes
 

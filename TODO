@@ -6346,7 +6346,7 @@ REPL: repl:
 
 solkattu:
   KendangPasang:
-    - Realize to mridangam?
+    * Realize to mridangam?
     - Tweak display to put beats at the end?
       - Also would have to modify verify to write the notation that way.
     * I want soft de to render as '.'.  So either do a special render for

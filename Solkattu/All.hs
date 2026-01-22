@@ -55,10 +55,10 @@ scores = map Korvai.inferMetadataS
     , setLocation ("Solkattu.Score.Kanjira2025",37,"dinnaginna1") $ Single Solkattu.Score.Kanjira2025.dinnaginna1
     , setLocation ("Solkattu.Score.Kanjira2025",45,"dinnaginna2") $ Single Solkattu.Score.Kanjira2025.dinnaginna2
     , setLocation ("Solkattu.Score.Kendang2020",11,"farans") $ Single Solkattu.Score.Kendang2020.farans
-    , setLocation ("Solkattu.Score.KendangPasang",41,"bapang_saba_beginning") $ Single Solkattu.Score.KendangPasang.bapang_saba_beginning
-    , setLocation ("Solkattu.Score.KendangPasang",51,"bapang_saba_middle") $ Single Solkattu.Score.KendangPasang.bapang_saba_middle
-    , setLocation ("Solkattu.Score.KendangPasang",72,"bapang_saba_accel") $ Single Solkattu.Score.KendangPasang.bapang_saba_accel
-    , setLocation ("Solkattu.Score.KendangPasang",80,"legong1") $ Single Solkattu.Score.KendangPasang.legong1
+    , setLocation ("Solkattu.Score.KendangPasang",43,"bapang_saba_beginning") $ Single Solkattu.Score.KendangPasang.bapang_saba_beginning
+    , setLocation ("Solkattu.Score.KendangPasang",56,"bapang_saba_middle") $ Single Solkattu.Score.KendangPasang.bapang_saba_middle
+    , setLocation ("Solkattu.Score.KendangPasang",76,"bapang_saba_accel") $ Single Solkattu.Score.KendangPasang.bapang_saba_accel
+    , setLocation ("Solkattu.Score.KendangPasang",84,"legong1") $ Single Solkattu.Score.KendangPasang.legong1
     , setLocation ("Solkattu.Score.Mridangam2013",18,"e_ktkt") $ Single Solkattu.Score.Mridangam2013.e_ktkt
     , setLocation ("Solkattu.Score.Mridangam2013",30,"e_3s_5s") $ Single Solkattu.Score.Mridangam2013.e_3s_5s
     , setLocation ("Solkattu.Score.Mridangam2013",41,"dinnagina_sequences") $ Single Solkattu.Score.Mridangam2013.dinnagina_sequences
@@ -200,7 +200,6 @@ scores = map Korvai.inferMetadataS
     , setLocation ("Solkattu.Score.Mridangam2025",176,"s_sketch") $ Single Solkattu.Score.Mridangam2025.s_sketch
     , setLocation ("Solkattu.Score.Mridangam2025",188,"trichy_reverse") $ Single Solkattu.Score.Mridangam2025.trichy_reverse
     , setLocation ("Solkattu.Score.MridangamBali",10,"legong_mridangam") $ Single Solkattu.Score.MridangamBali.legong_mridangam
-    , setLocation ("Solkattu.Score.MridangamBali",46,"legong_pasang") $ Single Solkattu.Score.MridangamBali.legong_pasang
     , setLocation ("Solkattu.Score.MridangamMohra",13,"rohan_mohra1") $ Single Solkattu.Score.MridangamMohra.rohan_mohra1
     , setLocation ("Solkattu.Score.MridangamRohan",19,"kanda_tani") $ Solkattu.Score.MridangamRohan.kanda_tani
     , setLocation ("Solkattu.Score.MridangamRohan",34,"kanda1") $ Single Solkattu.Score.MridangamRohan.kanda1

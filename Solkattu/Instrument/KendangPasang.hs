@@ -28,8 +28,13 @@ import           Global
 
 
 data Stroke =
-    Plak | Ka | Pak | Kam | Pang | Kum | Pung | PungL
-    | De | DeSoft | Tut
+    Plak
+    | Ka | Pak
+    | Kam | Pang
+    | Kum | Pung | PungL
+    | De -- ^ dag + tong
+    | DeSoft -- ^ just dag
+    | Tut
     deriving (Show, Eq, Ord, Enum, Bounded)
 
 toTunggal :: Stroke -> (Maybe T.Stroke, Maybe T.Stroke)
@@ -57,8 +62,9 @@ toLanang stroke = maybe filler set $ snd $ toTunggal $ Realize._stroke stroke
 filler :: Realize.Stroke T.Stroke
 filler = Realize.Stroke Realize.Light T.Ka
 
-toMridangam :: Stroke -> (Maybe Mridangam.Stroke, Maybe Mridangam.Stroke)
-toMridangam = \case
+-- | Mridangam for two mridangams.
+toMridangam2 :: Stroke -> (Maybe Mridangam.Stroke, Maybe Mridangam.Stroke)
+toMridangam2 = \case
     Plak -> (Nothing, Just pk)
     Ka   -> (Just k, Nothing)
     Pak  -> (Nothing, Just k)
@@ -71,30 +77,50 @@ toMridangam = \case
     Kum  -> (Just d, Nothing)
     Pung -> (Nothing, Just d)
     PungL -> (Nothing, Just i)
-    -- TODO only on or od for strong de, not light.
-    De   -> (Just o, Just n)
+    De   -> (Just od, Just n)
     DeSoft -> (Just o, Nothing)
     Tut  -> (Nothing, Just o)
     where
     pk = Mridangam.Both (Mridangam.Tha Mridangam.Palm) Mridangam.Ki
     Mridangam.Strokes {..} = Mridangam.strokes
 
-toWadonM :: Realize.Stroke Stroke -> Realize.Stroke Mridangam.Stroke
-toWadonM stroke = maybe fillerM set $ fst $ toMridangam $ Realize._stroke stroke
+-- | Mridangam when paired with kendang.
+toMridangam1 :: Stroke -> (Maybe Mridangam.Stroke, Maybe Mridangam.Stroke)
+toMridangam1 = \case
+    Plak -> (Just pk, Just pk)
+    Ka   -> (Just p, Just p)
+    Pak  -> (Just k, Just k)
+    Kam  -> (Just d, Just d)
+    Pang -> (Just n, Just n)
+    Kum  -> (Just d, Nothing)
+    Pung -> (Nothing, Just d)
+    PungL -> (Nothing, Just i)
+    De   -> (Just od, Just n)
+    DeSoft -> (Just o, Nothing)
+    Tut  -> (Nothing, Just o)
+    where
+    pk = Mridangam.Both (Mridangam.Tha Mridangam.Palm) Mridangam.Ki
+    Mridangam.Strokes {..} = Mridangam.strokes
+
+toWadonM :: Realize.Stroke Stroke -> Maybe (Realize.Stroke Mridangam.Stroke)
+toWadonM stroke =
+    Just $ maybe fillerM set $ fst $ toMridangam1 $ Realize._stroke stroke
     where set s = stroke { Realize._stroke = s }
 
-toLanangM :: Realize.Stroke Stroke -> Realize.Stroke Mridangam.Stroke
+toLanangM :: Realize.Stroke Stroke -> Maybe (Realize.Stroke Mridangam.Stroke)
 toLanangM stroke =
-    maybe fillerM set $ snd $ toMridangam $ Realize._stroke stroke
+    Just $ maybe fillerM set $ snd $ toMridangam1 $ Realize._stroke stroke
     where set s = stroke { Realize._stroke = s }
 
 fillerM :: Realize.Stroke Mridangam.Stroke
-fillerM = Realize.Stroke Realize.Light (Mridangam.p Mridangam.strokes)
+fillerM = Realize.Stroke Realize.Light (Mridangam.k Mridangam.strokes)
 
 -- * strokes
 
 instance Solkattu.Notation Stroke where
     notation = Solkattu.textNotation . \case
+        -- Alternate notation that uses caps for lanang, but is a bit too
+        -- annoying to type.
         -- Plak -> "PL"
         -- Ka -> "k"
         -- Pak -> "P"
@@ -103,8 +129,8 @@ instance Solkattu.Notation Stroke where
         -- Kum -> "u"
         -- Pung -> "U"
         -- PungL -> "Y"
-        -- De -> "a"
-        -- Tut -> "o"
+        -- De -> "o"
+        -- Tut -> "i"
         Plak -> "P"
         Ka -> "k"
         Pak -> "p"
@@ -112,7 +138,7 @@ instance Solkattu.Notation Stroke where
         Pang -> "l"
         Kum -> "u"
         Pung -> "y"
-        -- I like Ø from ToExpr, but it's hard to type, and tut no longer o
+        -- I like Ø from ToExpr, but it's hard to type, and tut is no longer o
         PungL -> "Y"
         De -> "o"
         DeSoft -> "."
@@ -163,7 +189,7 @@ strokes = Strokes
     , k = Ka
     , p = Pak
     , t = Kam
-    , l = Pang -- can't write T, _T too much like rest, don't want 2 letters
+    , l = Pang
     , u = Kum
     , y = Pung
     , yy = PungL

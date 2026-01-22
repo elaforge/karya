@@ -11,13 +11,14 @@ import           Solkattu.Dsl.KendangPasang
     intro
     ~~ | ~<~ | ~~.o | ~~'o |
     agem kanan
-    __ | ~~x | ~~'oo.o   | ~~'oo.o | ~5.o 5.o 5.o | ~~'o 5.o | ~~'o |
+    __ | ~~x | ~~'oo.o | ~~'oo.o | ~5.o 5.o 5.o | ~~'o 5.o | ~~'o |
     agem kiri
-    __ | ~~x | ~~'oo.o   | ~~'o 5.o | ~~'o 5.o | ~~'o |
+    __ | ~~x | ~~'oo.o | ~~'o 5.o | ~~'o 5.o | ~~'o |
     nyregseg
-    ~~ | ~~  | ~~        | ~<~ | ~~.o | ~~ oo.o |
+    ~~ | ~~  | ~~ | ~<~ | ~~.o | ~~ oo.o |
     ngumbang
-    __ | ~~x | ~o 'o.o.o | __ ...~ | ~<~  | ~~.o         | ~~'oo.o |
+    __ | ~~x | ~o 'o.o.o | __ ...~ | ~<~  | ~~.o | ~~'oo.o |
+    [ TODO fill in ]
     __ | ~~x | ~o 'o.o.o | __ ...~ | ~~5 | _ .o 5.o 5.o |
        ~~'oo.o | ~~'oo.o | ~~'oo.o | ~~'o |
     __ .o  | ~~'o | __ o | __ | ~~ | ~<~ | ~~ | ~~ | ~~.o | ~~'oo.o |
@@ -38,20 +39,23 @@ import           Solkattu.Dsl.KendangPasang
     __ | ~~x | ~o 'o.o.o | __ ...~ | ~~5 | _ .o 5.o 5.o | ~~'o |
     slow
 -}
+-- High speed is about 90bpm
 bapang_saba_beginning :: Korvai
 bapang_saba_beginning = korvaiV adi
     -- ~~.o
-    [ sarvaD_ 2 . "ypo_ypo_" . "_yoyo" . su "yo_o_kpkp.".o.__6
-    , __D 1 . "_i_iio".su "io_o"."iio_" . sarvaD_ 2 . su "kpkYY_Y_Ykp_" . __n 3
+    [ sarvaD_ 2 . "ypo_ypo_" . yoyo.__6
+    , i_ii . sarvaD_ 2 . su "kpkYY_Y_Ykp_" . __n 3
     , r2 $ su "pkp.o_kpo_ko_o_kp_kpo_o_i_o_" . "__"
-    , sarvaD_ 1 . r3 "_yo_" . "_yoyo" . su "yo_o_kpkp." . "o__yo_"
-        . "_yoyo" . su "yo_o_kpkp.".o.__6 . __D 1 . "_i_iio".su "io_o"."iio_"
+    , sarvaD_ 1 . r3 "_yo_" . yoyo . "__yo_"
+        . yoyo.__6 . i_ii
     ]
+    where
+    i_ii = __D 1 . "_i_iio".su "io_o"."iio_"
+    yoyo = "_yoyo" . su "yo_o_kpkp.".o
 
 bapang_saba_middle :: Korvai
 bapang_saba_middle = korvaiV adi
-    -- transition
-    [ __D 4 . "_tloitloioiioioi"
+    [ __D 4 . "_tl.itl.i.ii.i.i" -- transition
     , t1a . t2' . t3 . t4 `replaceEnd` angsel
     , r2 t1b . t2 . t3 . t4 `replaceEnd` angsel -- beginning, angsel
     , r2 t1b . t2 . t3 . t4 -- beginning
@@ -59,15 +63,15 @@ bapang_saba_middle = korvaiV adi
     , o_i_o.t1b . t2 . t3 . t4 -- when fast
     ]
     where
-    t1a = "_Y.o_YYYYkpoioi." . o_i_o
-    t1b = "itloioi.o_ptltlo"
-    t2 =  "itlkptloioi.o_o_kpYYYkpo_i_oioi."
-    t2' = "i_tli_ioioi.o_o_kpYYYkpo_iioioi."
-    t3 = o_i_o . "i_.o_i_i.o_YYkpo"
-    t4 = "itlkptltlY.o_" . su "kpkY" . "YYo_i.o_o_iioioi."
-    angsel = g "Yooiokptlooio___"
-    t1c = o_i_o . "itloioi." . su "okpY" . "YYYkpo"
-    o_i_o = "o_i.o___ioi.o___"
+    t1a = "_Y.o_YYYYkp.i.i." . o_i_o
+    t1b = "itl.i.i.o_ptltl."
+    t2 =  "itlkptl.i.i.o_o_kpYYYkpo_i_.i.i."
+    t2' = "i_tli_i.i.i.o_o_kpYYYkpo_ii.i.i."
+    t3 = o_i_o . "i_.o_i_i.o_YYkp."
+    t4 = "itlkptltlY.o_" . su "kpkY" . "YYo_i.o_o_ii.i.i."
+    angsel = g "Y..iokptl..io___"
+    t1c = o_i_o . "itloioi." . su ".kpY" . "YYYkp."
+    o_i_o = "o_i.o___i.i.o___"
 
 bapang_saba_accel :: Korvai
 bapang_saba_accel = korvaiV adi
@@ -90,6 +94,10 @@ legong1 = korvaiV adi
     . "_YYYp.o_iioioi.o" . "__kptltloi.o___i"
     . "iio_iioiiio_iioi" . "tloioi.o_i.o___i"
     . "kpoioi.oY.o_Y_YY" . "o_i.o___iioioi.o"
+
+    , "_kpY_o___Y_o_Y_oYY_io_i.i.o__kp.i"
+    .  "i.i_.i.i.o_kpkpii.i_.i.i.Y_Y_Y.i"
+    .  "kptltl.i__.i.ii.o_o_i_i_.oYYkp.i"
     ]
 
 {-
