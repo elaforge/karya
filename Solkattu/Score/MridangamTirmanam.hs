@@ -261,3 +261,52 @@ adi_mohra = rohan $ date 2026 1 10 $ korvaiV adi
     , "Nok_ kook _ktk no_k tokt o_ko Tknp k_ko"
     . "okko ok_kptpk tkno" . r2 (su "pu_k"."oko___")
     ]
+
+adi_tisra :: Korvai
+adi_tisra = rohan $ date 2026 1 10 $ korvaiV adi $ map (nadai 6)
+    -- arudhi
+    [ sd $ r3 $ sd p6 . k.__.p6 . r3 (k.su p6)
+    -- transition / arudhi
+    , r3 $ "k_otkn".ktpk."d___ kkotkn" . tri_ "d__n" ktpk
+    -- sequence
+    , "onkd_kd_nkd_" . r3 "pnkd_kd_nkd_" . r2 ("onkd_kd_nkd_" . "pnkd_kd_nkd_")
+    . r2 ("onkd_k" . "pnkd_k") . r3 ("onkd" . "pnkd")
+    . r2 ("D_kD_k_t_kd_ __kD_k_t_kd_ D_kD_k_t_kd_" . "TkN".ktpk."TkTkN".ktpk)
+    -- TODO abstract patterns
+    . tri_ (o.__6.u.__6) ("TkN".ktpk."TkTkN".ktpk) . r3 ("TkN".ktpk."TkTkN".ktpk)
+    . r4 ("tkN".ktpk."tktkN".ktpk)
+    . r2 (("TkN".ktpk."TkTkN".ktpk) . ("tkN".ktpk."tktkN".ktpk))
+    . ("TkN".ktpk."TkTkN".ktpk) . r3 ("tkN".ktpk) . r3 ("tktkN".ktpk)
+
+    , t123 "k_pktknpuook" p6 (d.__6) . tri_ (d.__6) (spread 3 ktkno . sd p5 . p5)
+
+    -- arudhi
+    , tri_ "_ooko_" "N___kook" . tri_ "o_o_u_" "_ooko__ooko__ook"
+    , r3 "kookN_k" . r3 ("k_tkn" . su "ktpkpt". o)
+    ]
+    where
+    ktpk = su "ktpk"
+
+-- TODO this is a somewhat common pattern, move to Notation?
+t123 :: Monoid a => a -> a -> a -> a
+t123 pre mid end = pre.mid.end . pre.mid.mid.end . pre.mid.mid.mid.end
+
+adi_kanda :: Korvai
+adi_kanda = rohan $ date 2026 1 10 $ korvaiV adi $ map (nadai 5)
+    [ "k_o" . r2 "N_N_N_k d__" . r2 "N_N_kd__" . r2 "N_kd__"
+        . tri_ "d___" "N_N_N_k"
+    , suffixes ("k_" . su ("N_pk".nakatiku))
+        ["kookN__", "kook_kookN__", "kook_kook_kookN__"]
+        . r3 p5 . tri_ __ p6 . tri_ "D_" p7
+    -- transition / korvai
+    , "NokNk TkNok npk_o N_N_k Noknp kk_oN _N_kN okk_o"
+    . "N_N_k pkk_o N_N_kkk__" . tri_ "N__" "N_N_k"
+    ]
+
+adi_misra :: Korvai
+adi_misra = rohan $ date 2026 1 10 $ korvaiV adi $ map (nadai 7)
+    [ tri_ (o.__7) "k_t_ktk kooknpk" . o.__5 . r3 p7 . "N_k" . r3 ("k_t_".p5)
+    -- cholu
+    , __M (4*7) . r2 (su "N_ktokN_k_T_k_") . "NkDNkTk nkdnkTk"
+    , __M (4*7) . "k_D_kD_ koD_kD_ okD_kD_" . su "ktko" . "D_kD_"
+    ]

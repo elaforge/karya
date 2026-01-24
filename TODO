@@ -6345,6 +6345,7 @@ REPL: repl:
     . https://gitlab.haskell.org/haskell/ghc-api-compat
 
 solkattu:
+  - looks like putting in a group suppresses x q abbreviation
   KendangPasang:
     * Realize to mridangam?
     - Tweak display to put beats at the end?

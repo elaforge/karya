@@ -9,26 +9,24 @@ import           Solkattu.Dsl.KendangPasang
 
 {-
     intro
-    ~~ | ~<~ | ~~.o | ~~'o |
+    ~~ | ~~ | ~~.o | ~~'o |
     agem kanan
     __ | ~~x | ~~'oo.o | ~~'oo.o | ~5.o 5.o 5.o | ~~'o 5.o | ~~'o |
     agem kiri
     __ | ~~x | ~~'oo.o | ~~'o 5.o | ~~'o 5.o | ~~'o |
     nyregseg
-    ~~ | ~~  | ~~ | ~<~ | ~~.o | ~~ oo.o |
+    ~~ | ~~  | ~~ | ~~ | ~~.o | ~~ oo.o |
     ngumbang
-    __ | ~~x | ~o 'o.o.o | __ ...~ | ~<~  | ~~.o | ~~'oo.o |
+    __ | ~~x | ~o 'o.o.o | __ ...~ | ~~  | ~~.o | ~~'oo.o |
     [ TODO fill in ]
     __ | ~~x | ~o 'o.o.o | __ ...~ | ~~5 | _ .o 5.o 5.o |
        ~~'oo.o | ~~'oo.o | ~~'oo.o | ~~'o |
-    __ .o  | ~~'o | __ o | __ | ~~ | ~<~ | ~~ | ~~ | ~~.o | ~~'oo.o |
+    __ .o  | ~~'o | __ o | __ | ~~ | ~~ | ~~ | ~~ | ~~.o | ~~'oo.o |
     __ | ~~x | ~o 'o.o.o | __ ...~ | ~~5 | _ .o 5.o 5.o | ~~'o | _o ~~5 |
-    __ | ~~  | ~o 'o.o.o | __ ...~ | ~<~ | ~~.o | ~~'oo.o |
+    __ | ~~  | ~o 'o.o.o | __ ...~ | ~~ | ~~.o | ~~'oo.o |
     __ | ~~x | ~o 'o.o.o | __ ...~ | ~~5 | _ .o 5.o 5.o | ~~'o |
     slow
--}
 
-{-
     ending
     ~~'oo.o | ~~'oo.o | ~~'oo.o | ~~5.o 5.o | ~~'oo.o |
     __ | ~~ | ~o 'o.o.o | __ ...~ | ~~5 | _ .o 5.o 5.o |
@@ -40,14 +38,17 @@ import           Solkattu.Dsl.KendangPasang
     slow
 -}
 -- High speed is about 90bpm
-bapang_saba_beginning :: Korvai
-bapang_saba_beginning = korvaiV adi
+bapang_saba_angsels :: Korvai
+bapang_saba_angsels = korvaiV adi
     -- ~~.o
-    [ sarvaD_ 2 . "ypo_ypo_" . yoyo.__6
-    , i_ii . sarvaD_ 2 . su "kpkYY_Y_Ykp_" . __n 3
-    , r2 $ su "pkp.o_kpo_ko_o_kp_kpo_o_i_o_" . "__"
-    , sarvaD_ 1 . r3 "_yo_" . yoyo . "__yo_"
-        . yoyo.__6 . i_ii
+    [ sarvaD_ 2 . "ypo_ypo_"    -- ~~.a
+        . yoyo.__6              -- ~~'o
+    , i_ii                      -- __
+        . sarvaD_ 2 . su "kpkYY_Y_Ykp_" . __n 3     -- ~~x
+    , sarvaD_ 2 . su "p_kpo_p_._o_" . __.__         -- ~~'oo.o
+        . su "pkp.o_kpo_ko_o_kp_kpo_p_._o_" . "__"  -- ~~'oo.o
+    , sarvaD_ 1 . r3 "_yo_"     -- ~5.o 5.o 5.o
+        . yoyo . "__yo_"        -- ~~'o 5.o
     ]
     where
     i_ii = __D 1 . "_i_iio".su "io_o"."iio_"
