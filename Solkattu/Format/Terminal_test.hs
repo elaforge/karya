@@ -359,7 +359,7 @@ test_formatNadaiChange = do
             fmap (first
                 (stripAnsi . formatAbstraction mempty 50 (Talas.Carnatic tala)))
             . kRealize tala
-    let sequence = G.su (G.__ <> G.repeat 5 G.p7) <> G.nadai 6 (G.tri G.p7)
+    let sequence = G.su (G.__ <> G.repeat 5 G.p7) <> G.nadai 6 (G.r3 G.p7)
     let (out, warnings) = expect_right $ f Tala.adi_tala sequence
     equal_fmt Text.unlines (Text.lines out)
         [ "0:4     1       2       3       |"

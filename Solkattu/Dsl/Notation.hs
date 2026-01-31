@@ -29,7 +29,7 @@ module Solkattu.Dsl.Notation (
     , dropD, rdropD, takeD, rtakeD
     -- * structures
     , sandi
-    , tri, tri_, tri_nomid, tri123
+    , tri_, tri_nomid, tri123
     , trin, triAAB, triAABg
     , tri2
     -- * sequences
@@ -296,10 +296,6 @@ sandi dropped = dropM_ (matrasOf dropped)
     -- I sandi away part of a sequence I may no longer match strokes, or match
     -- different ones, but at least so far no one does that.
     -- TODO I probably want a non-highlighting group.
-
--- | Repeat thrice, with no karvai.
-tri :: SequenceT sollu -> SequenceT sollu
-tri = tri_ mempty
 
 -- | Repeat thrice, with the given separator.  The _nomid variant doesn't
 -- add the 'mid' tag, which is useful for nested calls.

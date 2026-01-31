@@ -15,7 +15,7 @@ tir_short_adi :: Korvai
 tir_short_adi = tirmanam $ korvaiS adi
     [ __D 1 . tri_ (p&u.__.k.k.o) (on.d.__.on.d.__) . p&u
     , __D 4 . su (tri_ (u.__4) (k.n.o.od.__.od.__3)) . u
-    , __D 4 . __ . tri (od.__ . su2 (p.k.n.p).k.__) . od
+    , __D 4 . __ . r3 (od.__ . su2 (p.k.n.p).k.__) . od
     , __D 7 . tri_ (od.__.k) (su (ktkt.p.kt.p.hv k.t.kt.p.k).od.od.k) . od
     ]
 

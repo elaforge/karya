@@ -175,7 +175,7 @@ c_23_09_21a = date 2023 9 21 $ colby $ tukra $ korvaiV tintal tablaKinar
     , "dhadhadha _ _ dididi _ _ nanana _ _ kat tette dha _ _"
         . "dhadha _ _ didi _ _ nana _ _ kat tette dha _ _"
         . "dha _ di _ na _"
-        . tri "kattette dhadhadha _"
+        . r3 "kattette dhadhadha _"
     ]
     where
     t2 = "dha dha dha di di di na na na" . "kat tette dha"

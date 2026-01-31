@@ -30,7 +30,7 @@ c_14_01_01 = date 2014 1 1 $ ganesh $ korvaiS adi mridangam
     structure gap fill =
              theme . gap . fill
          .kp.theme . gap . fill
-       .kpnp.theme . gap . tri fill
+       .kpnp.theme . gap . r3 fill
     theme = ta.dit.__.ta.din.__.ta.__.din.__.ta.__
     mridangam = makeMridangam
         [ (ta.din, k.od)
@@ -153,19 +153,19 @@ c_14_02_27 :: Korvai
 c_14_02_27 = date 2014 2 27 $ ganesh $ korvaiS adi mridangam $
         map (nadai 6 • (purvangam.))
     [ spread 3 tdgnt . spread 2 tdgnt . tri_ __ tdgnt
-    , spread 3 tdgnt . tri (ta.__.din.__.gin.__.na.__.thom)
+    , spread 3 tdgnt . r3 (ta.__.din.__.gin.__.na.__.thom)
     , tri_ (dim.__3) (ta.din.__.ta.__.din.__.p5)
     , tri_ (dim.__3) (p5.ta.__.din.__.ta.din.__)
     , p123 p6 (dim.__3)
 
     , p123 p5 (tat.__3.din.__3)
     , p5.dinga . kp.p5.p5. dinga . kpnp.p5.p5.p5
-    , tri (tat.dinga . tat.__.dinga.p5)
+    , r3 (tat.dinga . tat.__.dinga.p5)
     , spread 3 (taka.tdgnt) . spread 2 (taka.tdgnt) . taka.tdgnt
     ]
     where
     p123 p sep = trin sep p (p.p) (p.p.p)
-    purvangam = tri (ta_katakita.takadinna . din.__6)
+    purvangam = r3 (ta_katakita.takadinna . din.__6)
     mridangam = makeMridangam $
         [ (ta.din, k.od)
         , (dim, u)
@@ -215,7 +215,7 @@ c_14_03_26 = date 2014 3 26 $ ganesh $ similarTo "Solkattu2014" "c_14_03_13" $
     ] ++ map sequence [t1, t2, t3, t4, t5]
     where
     -- Same sarva as c_14_03_13.  TODO sarva
-    sequence p = tri_ (dim.__3) (r3 (p.__) . tri p5)
+    sequence p = tri_ (dim.__3) (r3 (p.__) . r3 p5)
     t1 = group $ na.na.na.din
     t2 = group $ su $ dhom.__.taka.taka.din.__
     t3 = group $ su $ tam.__.taka.na.ka.din.__
@@ -234,8 +234,8 @@ c_14_03_26 = date 2014 3 26 $ ganesh $ similarTo "Solkattu2014" "c_14_03_13" $
 
 c_14_04_21 :: Korvai
 c_14_04_21 = date 2014 4 21 $ ganesh $ korvaiS adi mridangam $
-    [ tri_ (tam.__3) $ tri (su (dhom.p5).din.__) . tri p5_1
-    , tri_ (tam.__3) $ tri (su (dhom.p5).din.__) . tri p5_2
+    [ tri_ (tam.__3) $ r3 (su (dhom.p5).din.__) . r3 p5_1
+    , tri_ (tam.__3) $ r3 (su (dhom.p5).din.__) . r3 p5_2
     ]
     where
     p5_1 = pattern $ ta.__.tk.tk.din
@@ -303,8 +303,8 @@ c_14_06_06 = date 2014 6 6 $ ganesh $ comment "chatusra tisram" $
         . tri_ thom (su takadinna)
 
     -- Variation.
-    , purvangam2 . tri (tam.__7 . p5)
-    , purvangam2 . tri (nadai 3 (dim.__4 . tdgnt))
+    , purvangam2 . r3 (tam.__7 . p5)
+    , purvangam2 . r3 (nadai 3 (dim.__4 . p5))
     ]
     where
     purvangam x1 x2 = spread 3 (tadindintat.din.__3)

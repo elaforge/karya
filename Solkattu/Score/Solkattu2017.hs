@@ -22,16 +22,16 @@ koraippu_janahan =
     let seq = sequence takita takadinna
     in mconcat
         [ seq 4 . taka.talang.__.ga.taka.din.__.tat.__.thom.__4
-        , seq 3 . tri p5 . thom.__4
-        , seq 2 . tri p6 . thom.__4
-        , seq 1 . tri p7 . thom.__4
+        , seq 3 . r3 p5 . thom.__4
+        , seq 2 . r3 p6 . thom.__4
+        , seq 1 . r3 p7 . thom.__4
         ]
     <> let seq = sequence (nang.kttk) (su nakatiku)
     in mconcat
         [ seq 4 . su nang_kita_nakatiku . taka.din.__.tat.__.thom.__4
-        , seq 3 . tri (su (thom.kita.ka.na.ka.kitataka)) . thom.__4
-        , seq 2 . tri (su nang_kita_nakatiku) . thom.__4
-        , seq 1 . tri (su (nang.__.kitataka.nakatiku)) . thom.__4
+        , seq 3 . r3 (su (thom.kita.ka.na.ka.kitataka)) . thom.__4
+        , seq 2 . r3 (su nang_kita_nakatiku) . thom.__4
+        , seq 1 . r3 (su (nang.__.kitataka.nakatiku)) . thom.__4
         ]
     <> let kitakita = su (kita.kita.taka)
         in sam.tam.__3 . kitakita . tam.__3
@@ -88,8 +88,8 @@ e_spacing = exercise $ korvaiS adi (makeMridangam []) $ map (__sam adi) $
     p7 = t_d_gnt
     p8 = ta.din.__.gin.__.na.__.thom
     p9 = ta.__.din.__.gin.__.na.__.thom
-    arithmetic seq = spread 3 seq . spread 2 seq . tri seq
-    geometric seq = spread 4 seq . spread 2 seq . tri seq
+    arithmetic seq = spread 3 seq . spread 2 seq . r3 seq
+    geometric seq = spread 4 seq . spread 2 seq . r3 seq
 
 c_17_02_06 :: Korvai
 c_17_02_06 = date 2017 2 6 $ ganesh $ korvaiS1 adi mridangam $
@@ -210,7 +210,7 @@ c_17_05_10 = date 2017 5 10 $ ganesh $ korvaiS1 adi insts $
             (.ta.__.kita.takadinna.dinga)
         ++ for ([ta.__n n | n <- [3, 2, 1]]) (.takadinna.dinga)
         ) . reduceTo 3 1 (takadinna.dinga)
-    . tri (spread 4 tdgnt . group tdgnt)
+    . r3 (spread 4 tdgnt . group tdgnt)
 
     -- TODO an alternate way to this is a reduceTo that makes a list,
     -- then zipWith a replacePrefix, e.g.:
@@ -252,7 +252,7 @@ c_17_05_10 = date 2017 5 10 $ ganesh $ korvaiS1 adi insts $
 
 c_17_05_19 :: Korvai
 c_17_05_19 = date 2017 5 15 $ exercise $ korvaiS1 adi mridangam $
-    tri (tri p8 . tri (kita.thom)) . tri p8 . p5
+    r3 (r3 p8 . r3 (kita.thom)) . r3 p8 . p5
     where
     mridangam = makeMridangam [(kita.thom, k.n.o)]
 
@@ -261,7 +261,7 @@ c_17_05_19_janahan =
     date 2017 5 15 $ source "janahan" $ korvaiS1 adi mridangam $
     1^tat_din_din_tam 4 3 . tat_din_din_tam 4 2 . tat_din_din_tam 3 2
         . r2 (tat.__4.tam.__2.ta) . tat.__3
-        . tri (group (takadinna.takita))
+        . r3 (group (takadinna.takita))
     where
     tat_din_din_tam a b =
           tat.__4         .    din.__4.din.__n a . tam.__n b . ta
@@ -338,9 +338,9 @@ c_17_06_19_koraippu :: Korvai
 c_17_06_19_koraippu = date 2017 6 19 $ ganesh $ koraippu $
     korvaiS adi mridangam $ map (restD 2 .)
     [ r2 $ tanga7 . __ . tat.__4.din.__4.din.__4 . kp.tdgnt
-    , r2 $ tri (tat.__4.din.__3) . kp.tdgnt
-    , r2 $ tri (tat.__4) . tri (din.__3) . kp.tdgnt
-    , r2 $ tri (tat.__3) . tri (din.__4) . kp.tdgnt
+    , r2 $ r3 (tat.__4.din.__3) . kp.tdgnt
+    , r2 $ r3 (tat.__4) . r3 (din.__3) . kp.tdgnt
+    , r2 $ r3 (tat.__3) . r3 (din.__4) . kp.tdgnt
 
     -- 6 + 15
     , r2 $ nadai 6 (tanga7.ga) . tat.__5.din.__5.din.__5 . kp.tdgnt
@@ -377,11 +377,11 @@ c_17_07_13 = date 2017 7 13 $ ganesh $ trikalam $
 
     -- tisram
     , map (nadai 6)
-        [ tri (purvangam basic_dintaka)
+        [ r3 (purvangam basic_dintaka)
         , one_avartanam . utarangam basic_dintaka
         ]
-    , (:[]) $ su $ tri (purvangam basic_dintaka)
-        . one_avartanam . tri (utarangam basic_dintaka)
+    , (:[]) $ su $ r3 (purvangam basic_dintaka)
+        . one_avartanam . r3 (utarangam basic_dintaka)
     ]
     where
     purvangam dintaka =
@@ -390,7 +390,7 @@ c_17_07_13 = date 2017 7 13 $ ganesh $ trikalam $
     -- variation: drop kita, so ta.__.kita -> ta.__4
     utarangam dintaka = tri_ (tam.__) $
         ta.__.kita.taka.din.na . dintaka.din.na.tat.__.tat.__
-    utarangam_gap = tri $
+    utarangam_gap = r3 $
         ta.__.kita.taka.din.na.__ . 1^takita.taka.din.na.__ . tat.tat.__.tam.__
     one_avartanam = ta.__4.taka.din.__ . taka.kita.taka.din.__
       . dhom.__.kita.taka.din.__ . dhom.dhom.kita.taka.din.__
@@ -460,7 +460,7 @@ c_17_07_13 = date 2017 7 13 $ ganesh $ trikalam $
 c_17_07_19 :: Korvai
 c_17_07_19 = date 2017 7 19 $ ganesh $ exercise $ korvaiS adi mridangam $
     map mconcat
-    [ [tri (p6 . p5.p5 . dhom_tat_din 2)]
+    [ [r3 (p6 . p5.p5 . dhom_tat_din 2)]
     , [p6 . p5s . dhom_tat_din 2 | p5s <- [p5, p5.p5, p5.p5.p5]]
     , [p6 . p5.p5 . dhom_tat_din n | n <- [1, 2, 3]]
     ]
@@ -476,7 +476,7 @@ c_17_08_21 = date 2017 8 21 $ sudhindra $ tirmanam $ korvaiS adi mridangam $
     [ tri_ (1^tang.__.ga) (kttk.trkt.tk.tat.din.na)
     , tri_ (tang.__.ga) (trkt.tk.tat.din.na)
     , tri_ (tang.__.ga) (su t2)
-    , tri_ (1^tang.__.ga) (tri $ su $ talang.__.ga)
+    , tri_ (1^tang.__.ga) (r3 $ su $ talang.__.ga)
     ]
     where
     t2 = takadinna.takadinna.na.ka.din.na
@@ -495,7 +495,7 @@ c_17_08_29 = date 2017 8 29 $ ganesh $
     korvaiS Tala.misra_chapu (mridangam<>kendang1)
     [ sarvaD_ 7 . sarvaD_ 3   . develop.na.__.din
     , dit.__4 . sarvaD_ 2 . develop . na.__
-    , r2 $ dit.__4 . sarvaD_ 2 . tri develop . na.__
+    , r2 $ dit.__4 . sarvaD_ 2 . r3 develop . na.__
 
     , sequence theme1
     , sequence theme2
@@ -572,14 +572,14 @@ c_17_10_23 = date 2017 10 23 $ ganesh $ koraippu $
         . kitataka.k_pkn.g tend2 . r3 (tat.__.din.__3)
         . kitakita.kitataka.k_pkn.g tend2 . r3 (tat.din.__3)
         . g (spread 3 tdgnt) . g (spread 2 tdgnt)
-        . trin (tat.__.tat.__3.tam.__.tam.__3) (tri p5) (tri p6) (tri p7)
+        . trin (tat.__.tat.__3.tam.__.tam.__3) (r3 p5) (r3 p6) (r3 p7)
     -- alternate endings
     , let tkp = tri_ (su kp) in
         restD 7 . __ . spread 3 tdgnt . spread 2 tdgnt
         . trin (tat.__.tat.__.tam.__3) (tkp p5) (tkp p6) (tkp p7)
     , restD 7 . __ . spread 3 tdgnt . spread 2 tdgnt
         . trin (tat.__.tat.__3.tam.__.tam.__3)
-            (tri p5) (tri (su kp.p5)) (tri (su kpnp.p5))
+            (r3 p5) (r3 (su kp.p5)) (r3 (su kpnp.p5))
     ]
     where
     t1 = g $ t1_sollu.tend
@@ -639,7 +639,7 @@ c_20_12_12_kanda = date 2020 12 12 $ koraippu $
         . kitataka.k_pkn.g tend2 . r3 (tat.__.din.__3)
         . kitakita.kitataka.k_pkn.g tend2 . r3 (tat.din.__3)
         . g (spread 3 tdgnt) . g (spread 2 tdgnt)
-        . trin (tat.__.tat.__3.tam.__.tam.__) (tri p5) (tri p6) (tri p7)
+        . trin (tat.__.tat.__3.tam.__.tam.__) (r3 p5) (r3 p6) (r3 p7)
     ]
     -- karvai 2 + 7 * 2 = 16 = 4 avartanams
     -- 2 + 7 * 7
@@ -714,7 +714,7 @@ c_17_12_11 = date 2017 12 11 $ ganesh $ korvaiS adi mridangam
     theme = kita.kita.taka.naka
         . kita.kita.gu.gu.na.na
         . taka.tiku.kita.__.ki.na.thom
-        . tri (din.__.ta.__.ka.dinga)
+        . r3 (din.__.ta.__.ka.dinga)
         . tat.__.dit
     mridangam = makeMridangam
         [ (kita, k.t)

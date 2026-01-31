@@ -40,7 +40,7 @@ e_24_06_30_koraippu = date 2024 6 30 $ ganesh $ koraippu $ korvaiS adi
     , kor (su "kpk_oD_N_k") 2
     , kor (su "kpnpk_oD_N_k") 1
     , kor p7 0
-    , __D 2 . (p7b.p7).(p7b'.p7').p7b . tri p7
+    , __D 2 . (p7b.p7).(p7b'.p7').p7b . r3 p7
     ]
     where
     kor pat gap = __D 2 . tri_ pat (p7a.__M gap) . tri_ (karv gap) pat

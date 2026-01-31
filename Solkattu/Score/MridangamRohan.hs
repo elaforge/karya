@@ -106,7 +106,7 @@ kanda3_tisram = korvaiS Tala.kanda_chapu $ map (nadai 3) $
 
 kanda_korvai3 :: Korvai
 kanda_korvai3 = korvaiS Tala.kanda_chapu $ map (nadai 3)
-    [ tri (g "k__ ktknpuookookD__") . r3 (p5.p7)
+    [ r3 (g "k__ ktknpuookookD__") . r3 (p5.p7)
     , tri122
         (g "k__ktknpuookoo_oo_")
         (g "on_ktknpuookoo_oo_") . r3 (p5.p7)

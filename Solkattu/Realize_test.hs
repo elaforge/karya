@@ -315,7 +315,7 @@ test_checkAlignmentNadaiChange = do
     -- 5 -_ ki th Tm ta __
     -- 6 di __ ki th tm ta
     -- 7 __ di __ ki th tm
-    let sequence p7 = G.nadai 8 (__ <> G.repeat 5 p7) <> G.nadai 6 (G.tri p7)
+    let sequence p7 = G.nadai 8 (__ <> G.repeat 5 p7) <> G.nadai 6 (G.r3 p7)
     equal (f (sequence (ta <> __ <> di <> __ <> ki <> tha <> thom)))
         (Right Nothing)
     equal (f (sequence G.p7)) (Right Nothing)

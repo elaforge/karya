@@ -18,13 +18,13 @@ c_16_09_28 = date 2016 9 28 $ ganesh $
     . dropM 2 tat_dit_ . tri_ __ (dropM 2 nakataka) . __6
     . dropM 4 tat_dit_ . tri_ __ (dropM 4 nakataka) . __6
 
-    . tri (p6 . kp.p6 . kpnp.p6)
+    . r3 (p6 . kp.p6 . kpnp.p6)
 
     -- TODO the old one kind of looks nicer though...
     -- tat.__.dit.__.kitakina . nakatiku . tri_ __ (na.ka.takadinna.dim) . __6
     --       .dit.__.kitakina . nakatiku . tri_ __       (takadinna.dim) . __6
     --              .kitakina . nakatiku . tri_ __            (taka.dim) . __6
-    -- . tri (p6 . kp.p6 . kpnp.p6)
+    -- . r3 (p6 . kp.p6 . kpnp.p6)
     where
     tat_dit_ = tat.__.dit.__.kitakina . nakatiku
     nakataka = na.ka.takadinna.dim
@@ -46,11 +46,11 @@ c_16_12_06_sriram1 = date 2016 12 6 $ source "sriram" $ korvaiS adi mridangam $
     ]
     where
     purvangam =
-        1^tat.__.1^dit.__ . su (kitakina.nakatiku . tri (dinnaka.takadinna))
+        1^tat.__.1^dit.__ . su (kitakina.nakatiku . r3 (dinnaka.takadinna))
             . din.din.__.tat.tat.__.thom.__
-                .1^dit.__ . su (kitakina.nakatiku . tri dinnaka)
+                .1^dit.__ . su (kitakina.nakatiku . r3 dinnaka)
             . din.__.tat.__.thom.__
-                          . su (kitakina.nakatiku . tri takadinna)
+                          . su (kitakina.nakatiku . r3 takadinna)
             . din.tat.thom.__
 
     dinnaka = group $ din.na.ka.din.na.ka.ta.ka
@@ -78,7 +78,7 @@ c_16_12_06_sriram2 =
       r2 takadinnanakita . f1       . din.__7
     . r2 takadinnanakita . f1.f2    . din.__7
     . r2 takadinnanakita . f1.f2.f3 . 2^din.__7
-    . tri (p5.tam.__ . p5.tam.__.tam.__ . p5)
+    . r3 (p5.tam.__ . p5.tam.__.tam.__ . p5)
     where
     takadinnanakita = group $ takadinna.na.kita
     f1 = group $ din.__.ta.din.__.tat.__
@@ -96,7 +96,7 @@ c_16_12_06_sriram2 =
 
 c_16_12_06_janahan1 :: Korvai
 c_16_12_06_janahan1 = date 2016 12 6 $ janahan $ korvaiS1 adi mridangam $ su $
-    tri (expand 3 2 theme) . trin __ (tri p5) (tri p6) (tri p7)
+    r3 (expand 3 2 theme) . trin __ (r3 p5) (r3 p6) (r3 p7)
     where
     theme = takadinna.takita.din.__.na
     mridangam = makeMridangam
@@ -105,7 +105,7 @@ c_16_12_06_janahan1 = date 2016 12 6 $ janahan $ korvaiS1 adi mridangam $ su $
 
 c_16_12_06_janahan2 :: Korvai
 c_16_12_06_janahan2 = date 2016 12 6 $ janahan $ korvaiS1 adi mridangam $ su $
-    tri theme . tri (dropM 2 theme) . tri (dropM 4 theme)
+    r3 theme . r3 (dropM 2 theme) . r3 (dropM 4 theme)
         . spread 2 tdgnt . p6
         . spread 2 tdgnt . p6 . kp.p6
         . spread 2 tdgnt . p6 . kp.p6 . kpnp.p6

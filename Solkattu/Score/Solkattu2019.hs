@@ -47,7 +47,7 @@ c_19_06_17 = date 2019 6 17 $ ganesh $ korvaiS adi mridangam
     , nadai 6 seq
     ]
     where
-    seq = theme 1 . theme 2 . theme 3 . tri p5 . tri p6 . tri p7
+    seq = theme 1 . theme 2 . theme 3 . r3 p5 . r3 p6 . r3 p7
     theme n = takadinna.takita.repeat n taka.dim.__3
     mridangam = makeMridangam
         [ (takita, n.p.k)
@@ -74,7 +74,7 @@ c_19_07_15 = date 2019 7 15 $ ganesh $ korvai adi mridangam $
         th1 . ta.dinga
         . dropM 2 (rdropM 2 th1) . ta.dinga
         . dropM 4 (rdropM 4 th1)
-        . tri (group (tri_ dinga (ta.dinga.tat.__)))
+        . r3 (group (tri_ dinga (ta.dinga.tat.__)))
     ]
     where
     th0a = su $ tanga.tat.__.dit.__.th0
@@ -132,14 +132,14 @@ e_19_10_14_kandam = date 2019 10 14 $ ganesh $ korvaiS adi mempty $
     [ t1.kp.t1.kpnp.t1
         . spread 4 tdgnt . spread 3 tdgnt . spread 2 tdgnt . tdgnt
     -- 9 purvangam 7 utarangam
-    , tri (spread 3 (ta.din.din.na) . takita)
+    , r3 (spread 3 (ta.din.din.na) . takita)
         . spread 4 tdgnt . spread 2 tdgnt . tdgnt
     , prefixes reduction (dinga.dinga)
         . prefixes reduction (dim.__5)
         . prefixes reduction (dim.__4)
         . prefixes reduction dinga
         . prefixes reduction (din.__)
-        . __.tri takita
+        . __.r3 takita
 
     ]
     where

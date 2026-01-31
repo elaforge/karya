@@ -13,8 +13,8 @@ e_naka = sarvalaghu $ ganesh $ date 2019 3 14 $ korvaiS1 adi $
 
 e_19_03_20 :: Korvai
 e_19_03_20 = ganesh $ date 2019 3 20 $ sarvalaghu $ korvaiV adi $
-    [ t1 . tri t2
-    , t1 . tri t2_tis
+    [ t1 . r3 t2
+    , t1 . r3 t2_tis
     -- 4 on 5, frequently done by Raghu Sir.
     , nadinga 3
     , nadai 5 $ nadinga 4
@@ -58,7 +58,7 @@ e_19_04_01 = sarvalaghu $ ganesh $ date 2019 4 1 $ korvai adi $ map section
         . sd (od.od).on
     initial6 = sd (od.od).on.ook3 . sd (od.od).on. ook3
         . sd (od.od).on
-    ook3 = nadai 6 (tri ook)
+    ook3 = nadai 6 (r3 ook)
     ook = su $ o.o.k
     -- Quick way to get arithmetic progressions:
     -- Factor into low and high.  The low factor is the number of pairs,
@@ -82,7 +82,7 @@ e_19_04_15 = date 2019 4 15 $ ganesh $ exercise $
 e_19_05_06_a :: Korvai
 e_19_05_06_a = date 2019 5 6 $ ganesh $ comment "leads to e_19_05_06" $
     korvaiS adi $ map (nadai 6)
-    [ group t1 . alt t1 . tri (p.n.y.d)
+    [ group t1 . alt t1 . r3 (p.n.y.d)
     , group t1 . r3 (alt t1)
         . r3 (alt (o.n.y.od.__.k.od.__))
         . r3 (alt (o.n.y.od.__.k))
@@ -98,10 +98,10 @@ e_19_05_06_b = date 2019 5 6 $ ganesh $ comment "tisram, built on 7s and 5s" $
     [ p1 . p2 . p3 . p4
     , r3 p1 . a7.a5
       . p1 . a7.a5 . p3 . a7.a5
-      . p1 . tri a7 . tri a5
+      . p1 . r3 a7 . r3 a5
     , r3 p1 . b7.b5
       . p1' . b7.b5 . p1' . b7.b5
-      . p1' . tri b7 . tri b5
+      . p1' . r3 b7 . r3 b5
     , t7.t5e.od.__3 . p3_.t5e.od.__3
         . t7.t5e . p3_.t5e.od.__3
         . tri_ (i.__3) (p5.__.p5)
@@ -159,9 +159,9 @@ make_nakadit_talang_ga t1_ = date 2019 5 20 $ ganesh $ korvaiS adi
     , t1 . sarva 7
     , t1 . sarva 3 . t1 . sarva 3
     , t1 . sarva 1 . t1 . sarva 1 . t1 . sarva 3
-    , tri (t1.__) . k.t1 . sarva 3
+    , r3 (t1.__) . k.t1 . sarva 3
     , t1.__.k .t1.__.t1.__ .t1 . sarva 3
-    , tri $ tri (t1.__) . tri_ __ p5
+    , r3 $ r3 (t1.__) . tri_ __ p5
     , t1 . sarva 3 . t1'.t1 . sarva 2.25
     , r2 $ t1'.t1 . sarva 2.25
     , t1'.t1.k.t1 . sarva 1 . t1 . sarva 3
@@ -237,7 +237,7 @@ e_19_06_17 = date 2019 6 17 $ ganesh $ exercise $ korvaiS adi
         let rh = __.n.y.d.__.l.d.__.n.y.d.__
             lh = "o__o__o_o__"
         in lh & rh . lh & rh . p & rh . p & rh
-            . lh & rh . lh & rh . p & rh . tri (group (o.n.y.d))
+            . lh & rh . lh & rh . p & rh . r3 (group (o.n.y.d))
     ]
     where
     t1 end1 end2 = su $
@@ -251,7 +251,7 @@ c_19_06_24_a = date 2019 6 24 $ ganesh $
     , s $ n6 (d.__8 . t12).d.__8 . su t12
     , s $ n6 (d.__8.t12).d.__4 . su t1 . n6 (d.__4.t1)
     , s $ r2 $ d.__4.su t1 . n6 (d.__4.t1)
-    , s $ n6 $ d.__4.t1.d.__4 . t1 . tri t1
+    , s $ n6 $ d.__4.t1.d.__4 . t1 . r3 t1
     , ending $
         -- TODO I should be able to do this variation automatically with a
         -- replace, see below.
@@ -267,9 +267,9 @@ c_19_06_24_a = date 2019 6 24 $ ganesh $
         . group (mconcatMap (\s -> s.__3.s) ktkno)
         . n6 (group (mconcatMap (\s -> s.__.s) ktkno))
         . n6 (group (mconcatMap (.__) ktkno))
-        -- . n6 (tri_ __ (tri (group (mconcat ktkno))))
+        -- . n6 (tri_ __ (r3 (group (mconcat ktkno))))
         -- . n6 (tri_ __ (trin ø (k.n.o) (k.t.k.n.o) (i.__4.k.n.o)))
-        . n6 (trin __ (tri (k.n.o)) (tri (k.t.k.n.o)) (tri (i.__4.k.n.o)))
+        . n6 (trin __ (r3 (k.n.o)) (r3 (k.t.k.n.o)) (r3 (i.__4.k.n.o)))
     ]
     where
     -- TODO replace (o.__.k.__) with (su (o.__3.o.k.__.o.k))
@@ -288,7 +288,7 @@ c_19_06_24_b = date 2019 6 24 $ ganesh $
     , x2 $ s $ n3 (od.__4 . t12) . n4 (od.__8 . t12)
     , s $ n3 (od.__4 . t12) . n4 (od.__4 . t2) . n3 (od.__.t2)
     , s $ r2 $ od.__4.t2 . n3 (od.__.t2)
-    , s $ n3 $ od.__.t2.od.__.t2 . tri t2
+    , s $ n3 $ od.__.t2.od.__.t2 . r3 t2
     , ending $
         t12.o.__.k.__ . n3 (od.__4.t.k.k.o.o.k.o.__.k.__.od)
         . n4 (__5.t2.o.__.k.__) . n3 (od.__4.o.__.k.__.od.__4)
@@ -296,7 +296,7 @@ c_19_06_24_b = date 2019 6 24 $ ganesh $
         . group (mconcatMap (\s -> s.__3.s) ktkno)
         . n6 (group (mconcatMap (\s -> s.__.s) ktkno))
         . n6 (group (mconcatMap (.__) ktkno))
-        . n6 (tri_ __ (tri (group (mconcat ktkno))))
+        . n6 (tri_ __ (r3 (group (mconcat ktkno))))
     ]
     where
     n3 = nadai 3
@@ -355,7 +355,7 @@ e_19_08_19 = date 2019 8 25 $ ganesh $ exercise $ korvaiS1 adi $
 
 c_19_08_26 :: Korvai
 c_19_08_26 = date 2019 8 26 $ ganesh $ korvaiS adi $ map (nadai 6)
-    [ restD 6 . tri (k.od.__.ktkno)
+    [ restD 6 . r3 (k.od.__.ktkno)
     , rh o & lh . rh p & lh . rh p . rh o
     , rh o & lh . rh p & lh . t7 p . t7 p . t5 p . t5 o
     , rh o & lh . t7 __ & "o_o_oo" . t7 __ & "o_o_oo"

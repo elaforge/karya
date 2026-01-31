@@ -247,7 +247,7 @@ exercises_18_12_19 = tani
 
 e_npkt :: Korvai
 e_npkt = exercise $ ganesh $ korvaiS1 adi $
-    r2 $ su $ r2 (n.p.k . tri (t.p.k)) . nakatiku
+    r2 $ su $ r2 (n.p.k . r3 (t.p.k)) . nakatiku
 
 e_18_12_19 :: Korvai -- 65mm, to 85mm
 e_18_12_19 = exercise $ date 2018 12 19 $ ganesh $ korvai adi $ variations

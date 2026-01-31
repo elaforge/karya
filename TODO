@@ -6345,8 +6345,10 @@ REPL: repl:
     . https://gitlab.haskell.org/haskell/ghc-api-compat
 
 solkattu:
+  - replace tri with r3, and rename tri_ to tri.
   - looks like putting in a group suppresses x q abbreviation
   KendangPasang:
+    - Isn't rendering to text or html.
     * Realize to mridangam?
     - Tweak display to put beats at the end?
       - Also would have to modify verify to write the notation that way.
@@ -6356,12 +6358,6 @@ solkattu:
         not 'D', so it's sort of logically a different stroke.
       . There is already a blanket instance Solkattu.Notation (Stroke stroke)
   + mridangam sync with cmd instrument:
-    - not sure I like xz as trakra
-      . X is p+t conflicts with o + tra
-        I can make it Kt but it's irregular.
-      . Alternative is kt pk, but can't be written in string, and ambiguous
-        when only one space per note.
-      . I could have a trakra precomposed, but still doesn't go into strings.
     + k has .5 dyn in integrate.
       . Because I have to have unique char -> (attrs, dyn), since it uses it
         to map back to strokes.
@@ -6392,6 +6388,8 @@ solkattu:
   bol: tabla:
     format:
       - abbreviate fast terekita as trkt, kitataka as kttk
+        . I think I can do this now that I have x q abbreviation for
+          mridangam?
         . This would let it use non-expanded format, but it's a new thing
           because it would have to know which are ok to compress to 1 and
           which are not.
@@ -6552,6 +6550,20 @@ solkattu:
       . However, I'd want inline strokes without a match to be nonfatal for
         tests, while a normal non-match is still fatal for tests.
   evaluation state:
+    Why do this:
+      . __D doesn't work under nadai.  Since we go by Matra, and Duration is
+        the nadai
+      . All *D functions have the same problem.
+      . Some combinators can fail, e.g. splitM.  It's nicer to fail with
+        Either than impure exception.  I haven't had any practical problems
+        with this though.
+      . I think the only place this comes up in practice is __D to align a
+        sequence.
+      . There is also some tabla stuff about knowing the taal so I can
+        write a single kaliMt that works for all taals.  This is theoretical
+        though, I don't have that much tabla stuff.
+      . But I do have 'kali2 0 16' in Tabla2024.to_chalan broken by nadai 3
+        sequence, it's annoying that those things can't work right.
     ? kali2 0 16 is wrong if there is a nadai change, why?
     . SequenceM is ExceptT Error (ReaderT State)
       . Why do I need this, rather than this being the interpretation of the
@@ -6580,12 +6592,21 @@ solkattu:
     . But, the not working under different nadai kind of makes it useless.
     . Auto kali based on theka would be cool, but in practice I only have
       tintal stuff.  I can also have a per-tala kaliM, though awkward.
-    - rewrite S in terms of SequenceM
-    - if it works, set Solkattu to use it, with State:
-      . { Tala, S.State }
-      . I could even put speed, nadai, stride in there rather than having them
-        be nested.  Is there any benefit?
-      . Would it make it easier or harder to do transformations?
+    . data SequenceM s g a = SequenceM
+          (Except.ExceptT Error (Reader.ReaderT s Identity.Identity)
+              [Note g a])
+      instance Semigroup (SequenceM s g a) where
+          SequenceM a <> SequenceM b = SequenceM $ (++) <$> a <*> b
+      instance Monoid (SequenceM s g a) where
+          mempty = SequenceM $ pure []
+      type Error = Text
+    steps:
+      - rewrite S in terms of SequenceM
+      - if it works, set Solkattu to use it, with State:
+        . { Tala, S.State }
+        . I could even put speed, nadai, stride in there rather than having them
+          be nested.  Is there any benefit?
+        . Would it make it easier or harder to do transformations?
     notes:
       . Duration is supposedly absolute, but it only works at the top level.  So
         it's awkward when everything is in tisram, I do 'map (nadai 6)' and now
@@ -6615,6 +6636,33 @@ solkattu:
         combines those.  E.g. thom becomes pure thom, all transformers become
         fmaps, or monadic if they need the state.
   sections:
+    - sections are annoying due to type change
+      . What I want is to coerce unsectioned Sequence to Section, but leave
+        Section alone.  A ToSection a -> Section with instances for Sequence and
+        Section.
+      . korvai arg is [Section a].  Even if it were ToSection a => [a], they
+        would have to all be the same a.
+      . What if I attach it to Sequence?  Then it's just arbitrary accumulated
+        metadata I have to fish out later.
+      . This means metadata also has to be combined, because arbitrary fragments
+        can contain metadata.  Sequence is no longer just [Note].  It gets an
+        additional metadata that combines with mappend.
+      . I think it has to go in S.hs.  Will this interfere with the idea of
+        propagating Speed info to get __D right?
+      . evaluation state:
+      . That wants to change Sequence to a Reader so it's actually composing
+        functions that take a state argument, so they can e.g. emit a number of
+        rests based on current nadai.
+      . If we combine that with metadata, metadata field is combinded with (<>)
+        while Reader sequence with (>>=).  I think this still works.
+      . Maybe I should do the state change first since it's bigger.
+      pros:
+        . I can get rid of korvaiS and korvaiV.  Now there's no barrier to
+          adding annotations like x2, and no need to `s` everything.
+      cons:
+        . S { metadata :: meta, sequence :: [Note g a] } is more complicated
+          than just newtype over [Note g a].  All combinators in S must
+          change.
     - if I have 'section' get CallStack and put section on each element,
       then I can tag sections with line numbers.
       . This won't work with 'map section', and I want to get rid of noisy

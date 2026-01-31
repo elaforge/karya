@@ -19,10 +19,10 @@ e_20_01_27 :: Korvai
 e_20_01_27 = date 2020 1 27 $ ganesh $ exercise $
     comment "practice for accurate microbeats" $ korvaiS adi mempty
     -- namita dimita dim sequence
-    [ tri_ (din.__.dit.taka) (tri (tang.kttk.dhom.ka) . tang.kttk)
-    , tri_ (din.__.dit.taka) (tri (tang.kttk.su (dugu.dugu)) . tang.kttk)
+    [ tri_ (din.__.dit.taka) (r3 (tang.kttk.dhom.ka) . tang.kttk)
+    , tri_ (din.__.dit.taka) (r3 (tang.kttk.su (dugu.dugu)) . tang.kttk)
     , tri_ (din.__.dit.taka)
-        (tang.kttk . tri (dhom.su (ta.di.__.ki.__.ta.__.thom)))
+        (tang.kttk . r3 (dhom.su (ta.di.__.ki.__.ta.__.thom)))
     ]
 
 c_20_04_03 :: Korvai
@@ -47,13 +47,13 @@ c_20_04_03 = date 2020 4 3 $
     talanga = su $ ta.lang.__.ga
 
     purvangam = -- 4:43
-        t14 . tri (ta.__.ka.thom.__)
-        . t16 . tri (ta.__.thom.__)
-        . t18 . tri (ta.thom.__)
-    utarangam = trin (tri tanga) -- 5:54, optionally, only play first
-        (tri (g (tadingina . tadin_ginaka))) -- 7
-        (tri (g (tadingina . r2 tadin_ginaka))) -- 10
-        (tri (g (tadingina . r3 tadin_ginaka))) -- 13
+        t14 . r3 (ta.__.ka.thom.__)
+        . t16 . r3 (ta.__.thom.__)
+        . t18 . r3 (ta.thom.__)
+    utarangam = trin (r3 tanga) -- 5:54, optionally, only play first
+        (r3 (g (tadingina . tadin_ginaka))) -- 7
+        (r3 (g (tadingina . r2 tadin_ginaka))) -- 10
+        (r3 (g (tadingina . r3 tadin_ginaka))) -- 13
         where
         tadingina = ta.din.gin.na
         tadin_ginaka = su (ta.din.__.gin.na.ka)

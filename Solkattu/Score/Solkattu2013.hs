@@ -19,7 +19,7 @@ import Solkattu.Dsl.Solkattu
 
 c_13_07_23 :: Korvai
 c_13_07_23 = date 2013 7 23 $ ganesh $ korvaiS1 adi mridangam $
-    trin tat_din__ (tri p5) (tri p6) (tri p7)
+    trin tat_din__ (r3 p5) (r3 p6) (r3 p7)
     where
     tat_din__ = tat.__.din.__3
     mridangam = makeMridangam [(tat_din__, k.__.od.__3)]
@@ -32,21 +32,21 @@ c_13_08_14 = ganesh $ date 2013 8 14 $ korvaiS adi (mridangam <> kendang)
     , sarvaD_ 3 . __M 2 . dropM 4 (theme 2 3)
     ,     group (theme 2 1) . p5
       . dropM 2 (theme 2 2) . p6 . p6
-      . dropM 4 (theme 2 3) . tri p7 . tri p6 . tri p5
+      . dropM 4 (theme 2 3) . r3 p7 . r3 p6 . r3 p5
 
     , let ta_din__ = ta.__.din.__.__ in -- from 2013-10-24
           group (theme 3 1) . p5 . ta_din__
       . dropM 3 (theme 3 2) . p6 . p6 . ta_din__
-      . dropM 6 (theme 3 3) . trin ta_din__ (tri p7) (tri p6) (tri p5)
+      . dropM 6 (theme 3 3) . trin ta_din__ (r3 p7) (r3 p6) (r3 p5)
 
     ,     group (theme 4 1) . pat7 . tam.__4
       . dropM 4 (theme 4 2) . r2 pat8 . tam.__4
       . dropM 8 (theme 4 3)
-        . trin (dim . __4) (tri pat9) (tri pat8) (tri pat7)
+        . trin (dim . __4) (r3 pat9) (r3 pat8) (r3 pat7)
     ]
     where
     theme gap1 gap2 = ta . __n gap1 . dit . __n gap1 . takadinna.din
-        . tri (ta . __n gap2 . din . __n gap1)
+        . r3 (ta . __n gap2 . din . __n gap1)
     mridangam = makeMridangam
         [ (ta.dit, k.t)
         , (takadinna.din, k.o.o.k.o)
@@ -181,9 +181,9 @@ k1_2 = make_k1 $ (:[]) $
       sam . k1_a  . __ . ta_din_ . p7
           . k1_a' . __ . ta_din_ . p7
     . sam . k1_a . __ . k1_a' . __
-          . ta_din_ . tri p7
-          . ta_din_ . tri (tadin_ . p7)
-          . ta_din_ . tri (tadin_ . tadin_ . p7)
+          . ta_din_ . r3 p7
+          . ta_din_ . r3 (tadin_ . p7)
+          . ta_din_ . r3 (tadin_ . tadin_ . p7)
     where
     p7 = kp.p5
     ta_din_ = ta.__.din.__
@@ -218,7 +218,7 @@ k2 chatusram_transition = korvaiS1 adi k1_mridangam $ nadai 5 $
     . din.__3 . p5.tam.__4.p6.ta.__.ta.__
     . din.__3 . p5
     . if chatusram_transition
-        then nadai 4 (tri (ta.ta.__.p5))
+        then nadai 4 (r3 (ta.ta.__.p5))
         else tam.__4 . tri_ __5 p6
     -- p6 can also be k-t---ktkto-
     -- development is din_3.p5.ta.__.din
@@ -289,21 +289,21 @@ t1s = ganesh $ korvaiS adi mridangam $ map (nadai 6)
 
 t2s :: Korvai
 t2s = ganesh $ korvaiS adi mridangam $ map (nadai 6)
-    [ reduce (tat.__.dit.__.takadinna.dim.__5) . tri p5
-    , reduce (tat.__.dit.__.takadinna.dim.__4) . tri p6
-    , reduce (tat.__.dit.__.takadinna.dim.__3) . tri p7
-    , reduce (tat.__.dit.__.takadinna.dim.__)  . tri (ta.din.__.p5)
+    [ reduce (tat.__.dit.__.takadinna.dim.__5) . r3 p5
+    , reduce (tat.__.dit.__.takadinna.dim.__4) . r3 p6
+    , reduce (tat.__.dit.__.takadinna.dim.__3) . r3 p7
+    , reduce (tat.__.dit.__.takadinna.dim.__)  . r3 (ta.din.__.p5)
     -- TODO takadinna.din!p
-    , reduce (tat.__.dit.__.takadinna.din)       . tri (ta.__.din.__.p5)
-    , reduce (tat.__.dit.__.takadinna)           . tri (taka.ta.din.__.p5)
-    , reduce (tat.__.dit.__.taka.din)            . tri (taka.__.ta.din.__.p5)
+    , reduce (tat.__.dit.__.takadinna.din)       . r3 (ta.__.din.__.p5)
+    , reduce (tat.__.dit.__.takadinna)           . r3 (taka.ta.din.__.p5)
+    , reduce (tat.__.dit.__.taka.din)            . r3 (taka.__.ta.din.__.p5)
 
-    , reduce (tat.__.dit.__.taka.din) . tri (ta.dinga.p7)
+    , reduce (tat.__.dit.__.taka.din) . r3 (ta.dinga.p7)
     , let tadin_ n = repeat n (ta.din.__) in
       reduce (tat.__.dit.__.taka.din)
         . tadin_ 1 . p5 . tadin_ 2 . p5 . tadin_ 3 . p5
 
-    , reduce (tat.__.dit.__.taka.din) . tri (ta.din.__.p8)
+    , reduce (tat.__.dit.__.taka.din) . r3 (ta.din.__.p8)
     ]
     where
     reduce = reduce3 2 ø
@@ -336,7 +336,7 @@ t3s = ganesh $ korvaiS adi mridangam $ map (nadai 6)
     --       .dit.__.takadinna.__.dinga
     --              .takadinna.__.dinga
     where
-    utarangam p = trin (tang.__.ga) (tri p) (tri_ __ p) (tri_ __3 p)
+    utarangam p = trin (tang.__.ga) (r3 p) (tri_ __ p) (tri_ __3 p)
     variation (a1, a2, a3) (b1, b2, b3) (c1, c2, c3) =
         reduce (tat.__.dit.__.takadinna.__.dinga)
         . trin (tang.__.ga)
@@ -353,19 +353,19 @@ t3s = ganesh $ korvaiS adi mridangam $ map (nadai 6)
 
 t4s2 :: Korvai
 t4s2 = ganesh $ korvaiS adi mridangam $ map (nadai 6)
-    [ purvangam1 . tri (ta.din.__.p5)
+    [ purvangam1 . r3 (ta.din.__.p5)
     , purvangam1 . taka.p5 . ta.din.__.p5 . taka.din.__.p5
 
-    , purvangam2 6 . tri (taka.ta.din.__.p5)
-    , purvangam2 4 . tri (tat.__4.ta.din.__.p5)
-    , purvangam2 2 . tri (ta.__.ga.din.__.ga.p8)
+    , purvangam2 6 . r3 (taka.ta.din.__.p5)
+    , purvangam2 4 . r3 (tat.__4.ta.din.__.p5)
+    , purvangam2 2 . r3 (ta.__.ga.din.__.ga.p8)
     ]
     where
     purvangam1 =
         ta_katakita.takadinna . takita . tam.__6
         . ta_katakita.takadinna . r2 (takita) . tam.__6
         . ta_katakita.takadinna . r3 (takita) . tam.__6
-    purvangam2 gap = tri (ta_katakita.takadinna . takita.__2 . tam.__n gap)
+    purvangam2 gap = r3 (ta_katakita.takadinna . takita.__2 . tam.__n gap)
     mridangam = makeMridangam $
         [ (takita, on.p.k)
         , (tam, od)
@@ -378,13 +378,13 @@ t4s2 = ganesh $ korvaiS adi mridangam $ map (nadai 6)
 
 t4s3 :: Korvai
 t4s3 = ganesh $ korvaiS adi mridangam $ map (nadai 6)
-    [ ta_katakita.takadinna . tri (tat.__3.din.__3) . __7
-        . ta_katakita.takadinna . tri (tat.__.din.__3) . __7
-        . ta_katakita.takadinna . tri (tat.din.__3) . __7
+    [ ta_katakita.takadinna . r3 (tat.__3.din.__3) . __7
+        . ta_katakita.takadinna . r3 (tat.__.din.__3) . __7
+        . ta_katakita.takadinna . r3 (tat.din.__3) . __7
     . trin (lang.__6)
-        (tri (tat.__3.din.__.p5))
-        (tri (tat.__.din.__.p5))
-        (tri (tat.din.__.p5))
+        (r3 (tat.__3.din.__.p5))
+        (r3 (tat.__.din.__.p5))
+        (r3 (tat.din.__.p5))
     ]
     where
     mridangam = makeMridangam $
@@ -434,7 +434,7 @@ t5s = ganesh $ korvaiS adi mridangam $ map (nadai 6 • (purvangam.))
 -- * koraippu
 
 -- lead to misra:
--- tisram: tri (ta ka takitataka nakadit thom) spread 3 tdgnt ...
+-- tisram: r3 (ta ka takitataka nakadit thom) spread 3 tdgnt ...
 -- wait 2, repeat until tan7: od.__.p.k.n.o.o.k
 --
 -- wait 2, tri_ (thom.__0) (takadinna)
@@ -458,7 +458,7 @@ koraippu_misra_no_karvai = koraippu $ ganesh $ korvaiS adi mridangam $ map su
     , mconcatMap (mconcatMap short) [[1, 2], [3, 4], [5, 6], [7, 7]] -- 1 avart
     , group2 [half n . half (min 7 (n+1)) | n <- [1,3..7]] -- 1/2 avartanam
     , r8 (__.p7)
-    , __ . r5 p7 . nadai 3 (tri p7)
+    , __ . r5 p7 . nadai 3 (r3 p7)
     -- to mohra korvai sequence
     ]
     where
@@ -501,14 +501,14 @@ koraippu_misra = koraippu $ ganesh $ korvaiS adi mridangam $ map su
     , mconcatMap (mconcatMap short) [[1, 2], [3, 4], [5, 6], [7, 7]] -- 1 avart
     , group2 [half n . half (min 7 (n+1)) | n <- [1,3..7]] -- 1/2 avartanam
     , r8 (__.p7)
-    , __ . r5 p7 . nadai 3 (tri p7)
+    , __ . r5 p7 . nadai 3 (r3 p7)
     -- to mohra korvai sequence
     ]
     where
     -- 8 + 8*7 (3+2 + 3)
-    long n = __M 8 . tri_ (fill n) tan7 . tri (fill n)
+    long n = __M 8 . tri_ (fill n) tan7 . r3 (fill n)
     -- 4 + 4*7 (1 + 3)
-    short n = __M 4 . tan7 . tri (fill n)
+    short n = __M 4 . tan7 . r3 (fill n)
     half n = __M 2 . tan7 . fill n
     group2 seq = mconcatMap mconcat (Lists.chunked 2 seq)
     fill n = fills !! (n-1) . karvai din

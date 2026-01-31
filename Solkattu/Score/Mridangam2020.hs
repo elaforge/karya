@@ -138,13 +138,13 @@ sarva_20_02_27 = date 2020 2 27 $ ganesh $ korvai adi $
         . o&d_n_nd_n.ktpk . (n.ktok.on.ktpk . su nakatiku)
     , s $ d_N_ND_N.ktpk . n.ktok.on.ktpk.su nakatiku
         . d_n_nd_n.ktpk . n.ktok.on.ktpk.su nakatiku
-    , s $ d_N_ND_N .ktok . o. tri_ __ (tri (ktkt.o))
+    , s $ d_N_ND_N .ktok . o. tri_ __ (r3 (ktkt.o))
     , s $ k.__5.__5.k .d_N_ND_N.ktok . o&d_n_nd_n.ktpk.d_n_nd_n.ktok
         . r2 (d_N_ND_N.ktok)         . o&d_n_nd_n.ktpk.d_n_nd_n.ktok
-    , s $ r2 (d_N_ND_N.ktok) . o & (tri d_n_n . d.__.n.o.p&k)
+    , s $ r2 (d_N_ND_N.ktok) . o & (r3 d_n_n . d.__.n.o.p&k)
     , s $ repeat 2 $ repeat 3 d_n_n . d.__.n.o.p&k
     , s $ repeat 4 $ d_n_n . d.__.n.o.p&k
-    , s $ repeat 3 (d.__.n.o.k&p) . d.__.n.o . tri (group (k.o.o.k.n.p.k))
+    , s $ repeat 3 (d.__.n.o.k&p) . d.__.n.o . r3 (group (k.o.o.k.n.p.k))
 
     , s $ o.__5.__5.k .d_N_ND_N.ktok . o&d_n_nd_n.ktpk.d_n_nd_n.ktok
     , s $ r2 (d_N_ND_N.ktok) . o&d_n_nd_n.ktpk . d.p.k.t.__.k.__.n.__.o
@@ -155,7 +155,7 @@ sarva_20_02_27 = date 2020 2 27 $ ganesh $ korvai adi $
     , s $ r2 $ r2 takitatatakadinna.o.__.k.__ -- 8 2 8 2
     , s $ r2 $ takitatatakadinna.od.__.p.k.__.t.__.k.__.ktkt.o -- (8 3 9) * 2
         -- 2 8 3 999
-    , s $ on.k . takitatatakadinna.od.__.p. tri (k.__.t.__.k.__.ktkt.o)
+    , s $ on.k . takitatatakadinna.od.__.p. r3 (k.__.t.__.k.__.ktkt.o)
     , s $ k.__5 . __M (5*2).__5.k.od.__.k.t.k. r2 (n.k.k.t.k) . n.o.o.k.o
         . r2 (o&v.__.k.t.k. r2 (n.k.k.t.k) . n.o.o.k.o)
     -- tisram in kandam, effectively 7.5 nadai
@@ -209,9 +209,9 @@ sarva_20_05_08 = date 2020 5 8 $ ganesh $ korvai adi
           . n.__.p.k.nakatiku . p.u.__.k.o.__
           . n.__.p.k.nakatiku . r3 (p.u.__.k.o.__.k.__)
     -- mohra korvai -- 2+4 + 2+3 + 3+3 = 17
-    , s $ nadai 6 $ r3 $ k.__.od.__4.pk.od.__3.k.pk.od.__3.tri p5
+    , s $ nadai 6 $ r3 $ k.__.od.__4.pk.od.__3.k.pk.od.__3.r3 p5
     -- alternates, for practice:
-    , s $ nadai 6 $ r3 $ sd (p.k.od.__.k.od.__) . od.__3 . tri p5
+    , s $ nadai 6 $ r3 $ sd (p.k.od.__.k.od.__) . od.__3 . r3 p5
     , s $ nadai 6 $ r3 $ k.__.od.__.pk.od.__.pk.od.__ . tri_ __ p6 -- Also 567
     ]
 
@@ -267,7 +267,7 @@ sarva_20_06_12 = date 2020 6 12 $ ganesh $ korvaiS adi
 sarva_20_06_12_reduction :: Korvai
 sarva_20_06_12_reduction = date 2020 6 12 $ korvaiS adi
     [ nadai 6 $ sarvaD mempty 12
-    , nadai 6 $ sd (sd (tri (kook.od.__3))) . sd (tri (kook.od.__3))
+    , nadai 6 $ sd (sd (r3 (kook.od.__3))) . sd (r3 (kook.od.__3))
         . tri_ (od.__3) kook.k
     ]
 
@@ -288,7 +288,7 @@ sarva_20_06_19 = date 2020 6 19 $ korvaiS adi
     -- 222 333 444
     [ tri_ __ (pk.od) . tri_ __ (k.pk.od) . tri_ __ (k.k.pk.od)
     -- 234 234 234
-    , tri $ trin __ (pk.od) (k.pk.od) (k.k.pk.od)
+    , r3 $ trin __ (pk.od) (k.pk.od) (k.k.pk.od)
 
     , tri_ __ pknpv . tri_ __ (o.pknpv) . tri_ __ (o.v.pknpv)
     , tri_ __ ktpko . tri_ __ (k.ktpko) . tri_ __ (k.k.ktpko)

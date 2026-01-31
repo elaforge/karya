@@ -164,9 +164,9 @@ namita_dimita_seq = korvaiS adi $
     t1 =     group $ n.l.d.od.n.o.od.__
     t1_end = group $ n.l.d.od.n .__.od.l.od.n.__ .od.l.od.n.__ .od.l
     t2 =     group $ su $ on.__.ktpk.p&t.__.k.__.on.__.ktpk
-    t2_end = group $ su $ tri (on.__.ktpk.p&t.__.k.__) . on.__.ktpk
+    t2_end = group $ su $ r3 (on.__.ktpk.p&t.__.k.__) . on.__.ktpk
     t3 =     group $ su $ on.__.ktpk.p.u.__.k.on.__.ktpk
-    t3_end = group $ su $ tri (on.__.ktpk.p.u.__.k) . on.__.ktpk
+    t3_end = group $ su $ r3 (on.__.ktpk.p.u.__.k) . on.__.ktpk
 
     rh = n.l.d.d.l.d.d.l
     lh = o.__3.o.__3.o.__

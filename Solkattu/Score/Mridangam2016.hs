@@ -11,4 +11,4 @@ import Solkattu.Dsl.Mridangam
 
 t_16_11_14 :: Korvai
 t_16_11_14 = date 2016 11 14 $ exercise $ ganesh $ korvaiS1 adi $ nadai 6 $
-    tri (reduce3 1 ø (o&n.p.k.o&d.__)) . o&n.p.k . o&n.p.k.__ . o&n.p.k.__3
+    r3 (reduce3 1 ø (o&n.p.k.o&d.__)) . o&n.p.k . o&n.p.k.__ . o&n.p.k.__3
