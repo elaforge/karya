@@ -163,9 +163,9 @@ writeAll :: FilePath -> Korvai.Score -> IO ()
 writeAll = write Nothing
 
 write :: Maybe [Korvai.GInstrument] -> FilePath -> Korvai.Score -> IO ()
-write instruments fname score =
+write mbInstruments fname score =
     Files.writeLines fname $ map Html.un_html $
-        render instruments defaultAbstractions score
+        render mbInstruments defaultAbstractions score
 
 
 -- * high level
@@ -200,25 +200,25 @@ defaultAbstraction = "patterns"
 -- | Render all 'Abstraction's, with javascript to switch between them.
 render :: Maybe [Korvai.GInstrument] -> [(Text, Format.Abstraction)]
     -> Korvai.Score -> [Html.Html]
-render instruments abstractions score =
+render mbInstruments abstractions score =
     htmlPage title (scoreMetadata score) body
     where
     (_, _, title) = Korvai._location (Korvai.scoreMetadata score)
     body :: [Html.Html]
-    body = concatMap htmlInstrument $
-        fromMaybe (Format.scoreInstruments score) instruments
+    body = concatMap htmlInstrument instruments
+    instruments = fromMaybe (Format.scoreInstruments score) mbInstruments
     htmlInstrument (Korvai.GInstrument inst) =
         "<h3>" <> Html.html instName <> "</h3>"
         : chooseAbstraction abstractions instName
         : concatMap (renderAbstraction instName inst score) abstractions
+        ++ case Korvai.instrumentLegend inst of
+            Nothing -> []
+            Just table -> [htmlTable table]
         where
         instName = Korvai.instrumentName inst
 
 htmlPage :: Text -> [Html.Html] -> [Html.Html] -> [Html.Html]
-htmlPage title meta body = htmlHeader title : meta ++ body
-    ++ [htmlTable Mridangam.legend, htmlFooter]
-    -- TODO This adds it to all html, whether or not it has mridangam, maybe
-    -- I'll clean that up later.
+htmlPage title meta body = htmlHeader title : meta ++ body ++ [htmlFooter]
 
 renderAbstraction :: (Solkattu.Notation stroke, Ord stroke)
     => Text -> Korvai.Instrument stroke -> Korvai.Score

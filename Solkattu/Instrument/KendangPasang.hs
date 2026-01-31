@@ -7,6 +7,7 @@ module Solkattu.Instrument.KendangPasang (
     , toWadon, toLanang
     , toWadonM, toLanangM
     , Strokes(..)
+    , legend
     , fromString
     , notes
     , defaultPatterns
@@ -14,8 +15,10 @@ module Solkattu.Instrument.KendangPasang (
 ) where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
 
 import qualified Util.Lists as Lists
+import qualified Util.Texts as Texts
 import qualified Derive.Expr as Expr
 import qualified Derive.Symbols as Symbols
 import qualified Solkattu.Instrument.KendangTunggal as T
@@ -32,9 +35,11 @@ data Stroke =
     | Ka | Pak
     | Kam | Pang
     | Kum | Pung | PungL
-    | De -- ^ dag + tong
-    | DeSoft -- ^ just dag
+    | De -- ^ soft de
+    | Dag -- ^ strong de + tong
     | Tut
+    -- | Dag | Dug
+    -- | Tak | Tek
     deriving (Show, Eq, Ord, Enum, Bounded)
 
 toTunggal :: Stroke -> (Maybe T.Stroke, Maybe T.Stroke)
@@ -47,8 +52,8 @@ toTunggal = \case
     Kum  -> (Just T.Tut, Nothing)
     Pung -> (Nothing, Just T.Tut)
     PungL -> (Nothing, Just T.TutL)
-    De   -> (Just T.De, Just T.Pang)
-    DeSoft -> (Just T.De, Nothing)
+    Dag   -> (Just T.De, Just T.Pang)
+    De -> (Just T.De, Nothing)
     Tut  -> (Nothing, Just T.De)
 
 toWadon :: Realize.Stroke Stroke -> Realize.Stroke T.Stroke
@@ -77,8 +82,8 @@ toMridangam2 = \case
     Kum  -> (Just d, Nothing)
     Pung -> (Nothing, Just d)
     PungL -> (Nothing, Just i)
-    De   -> (Just od, Just n)
-    DeSoft -> (Just o, Nothing)
+    Dag   -> (Just od, Just n)
+    De -> (Just o, Nothing)
     Tut  -> (Nothing, Just o)
     where
     pk = Mridangam.Both (Mridangam.Tha Mridangam.Palm) Mridangam.Ki
@@ -95,8 +100,8 @@ toMridangam1 = \case
     Kum  -> (Just d, Nothing)
     Pung -> (Nothing, Just d)
     PungL -> (Nothing, Just i)
-    De   -> (Just od, Just n)
-    DeSoft -> (Just o, Nothing)
+    Dag   -> (Just od, Just n)
+    De -> (Just o, Nothing)
     Tut  -> (Nothing, Just o)
     where
     pk = Mridangam.Both (Mridangam.Tha Mridangam.Palm) Mridangam.Ki
@@ -129,7 +134,7 @@ instance Solkattu.Notation Stroke where
         -- Kum -> "u"
         -- Pung -> "U"
         -- PungL -> "Y"
-        -- De -> "o"
+        -- Dag -> "o"
         -- Tut -> "i"
         Plak -> "P"
         Ka -> "k"
@@ -140,11 +145,24 @@ instance Solkattu.Notation Stroke where
         Pung -> "y"
         -- I like Ø from ToExpr, but it's hard to type, and tut is no longer o
         PungL -> "Y"
-        De -> "o"
-        DeSoft -> "."
+        Dag -> "o"
+        De -> "."
         Tut -> "i" -- o is too similar looking to a
+        -- Dag -> "<"
+        -- Dug -> ">"
+        -- Tak -> "["
+        -- Tek -> "]"
 
 instance Pretty Stroke where pretty = Solkattu.notationText
+
+legend :: [([Text], [[Text]])]
+legend = map make rows
+    where
+    make strokes = (map showt strokes, [map Solkattu.notationText strokes])
+    rows =
+        [ [Plak, Ka, Pak, Kam, Pang, Kum, Pung, PungL]
+        , [De, Dag, Tut]
+        ]
 
 -- | These have to match with "Cmd.Instrument.KendangBali".
 -- TODO harmonize the two notations?
@@ -158,8 +176,8 @@ instance Expr.ToExpr Stroke where
         Kum -> "u"
         Pung -> "U"
         PungL -> "Ø"
-        De -> "+"
-        DeSoft -> "-"
+        Dag -> "+"
+        De -> "-"
         Tut -> "o"
 
 instance Expr.ToExpr (Realize.Stroke Stroke) where
@@ -168,7 +186,7 @@ instance Expr.ToExpr (Realize.Stroke Stroke) where
         Realize.Light -> case stroke of
             Pak -> "^"
             Ka -> "."
-            De -> "-"
+            Dag -> "-"
             _ -> Expr.with Symbols.weak stroke
         Realize.Heavy -> Expr.with Symbols.accent stroke
 
@@ -193,7 +211,7 @@ strokes = Strokes
     , u = Kum
     , y = Pung
     , yy = PungL
-    , o = De
+    , o = Dag
     , i = Tut
     }
 
@@ -210,11 +228,9 @@ fromString = mapMaybeM parse
             Just s -> Right $ Just $ Just s
 
 notations :: Map Char (Realize.Stroke Stroke)
-notations = Map.fromList $ (extras++) $ Lists.mapMaybeFst isChar $
+notations = Map.fromList $ Lists.mapMaybeFst isChar $
     Lists.keyOn Solkattu.notationText (map Realize.stroke [minBound ..])
     where
-    extras = [('.', lt De)]
-    lt = Realize.Stroke Realize.Light
     isChar t = case untxt t of
         [c] -> Just c
         _ -> Nothing

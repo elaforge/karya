@@ -6720,7 +6720,7 @@ solkattu:
           if I notate in su it tends to render that way since normalizeSpeed
           only expands, doesn't contract?
     html:
-      - legend is hardcoded for mridangam only
+      * legend is hardcoded for mridangam only
       - rendering has gotten very slow, why?
         . Having entirely separate renders for each abstraction level can't be
           efficient.

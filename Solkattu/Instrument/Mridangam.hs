@@ -222,11 +222,11 @@ _printLegend = mapM_ Text.IO.putStrLn $
 legend :: [([Text], [[Text]])]
 legend =
     [ ("" : map describeT lhs, ["" : map Solkattu.notationText lhs])
-    , ( "thp" : map describeV rhs
+    , ( "" : map describeV rhs
       , ("" : map Solkattu.notationText rhs) : matrix
       )
-    , ( ["2x", "kita", "taka", "domka"]
-      , ["spd" : map Solkattu.notationText [Valantalai Tra, pk, ok]]
+    , ( ["", "kita", "taka", "domka"]
+      , ["2x" : map Solkattu.notationText [Valantalai Tra, pk, ok]]
       )
     ]
     where

@@ -41,6 +41,7 @@ module Solkattu.Korvai (
     , Instrument(..)
     , instrumentName
     , instToScore
+    , instrumentLegend
     -- * realize
     , Flat
     , realize
@@ -378,6 +379,14 @@ instToScore = \case
     ISargam -> Sargam.toScore
     _ -> ToScore.toScore
 
+-- | Table expressed as (headers, rows).
+type Table = ([Text], [[Text]])
+
+instrumentLegend :: Instrument stroke -> Maybe [Table]
+instrumentLegend = \case
+    IMridangam -> Just Mridangam.legend
+    IKendangPasang -> Just KendangPasang.legend
+    _ -> Nothing
 
 -- * realize
 
