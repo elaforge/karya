@@ -55,31 +55,31 @@ e_18_05_25 = exercise $ date 2018 5 25 $ ganesh $ korvai adi $ variations
 tir_18_05_25 :: Korvai
 tir_18_05_25 = tirmanam $ date 2018 5 25 $ ganesh $ korvaiS1 Tala.misra_chapu $
     __sam Tala.misra_chapu $
-        kt.__.k.__.k.__.o.__.o.k.o . tri_ (od.__.p.k.t.k.o) (o.k.o.o.k)
+        kt.__.k.__.k.__.o.__.o.k.o . tri (od.__.p.k.t.k.o) (o.k.o.o.k)
 
 tir_18_06_15 :: Korvai
 tir_18_06_15 = tirmanam $ date 2018 6 15 $ korvai Tala.misra_chapu $
     variations
     -- 42424 as 41414
-    [ sd $ tri_ od (k.o.o.k)
-    , tri_ (od.__) (k.o.o.k . o.__.k.__)
-    , tri_ (od.__) (k.__.o.od.__.k.__.k)
-    , tri_ (od.__) (t.k.o.o.k.o.o.k)
-    , tri_ (od.__) (o.k.o.k.o.u.__.k)
+    [ sd $ tri od (k.o.o.k)
+    , tri (od.__) (k.o.o.k . o.__.k.__)
+    , tri (od.__) (k.__.o.od.__.k.__.k)
+    , tri (od.__) (t.k.o.o.k.o.o.k)
+    , tri (od.__) (o.k.o.k.o.u.__.k)
 
     -- 3x + 2y where x+y = 7, x ends on sam, y = 7 - dur x
-    , restD 4   . sd (tri_ __ (on.on.k.on.on.k))
-    , restD 4.5 . sd (tri_ (od.__) (k.t.k.n.o))
-    , restD 5   . sd (tri_ (od.__3) (k.o.o.k))
-    , restD 5.5 . sd (tri_ (od.__4) (on.on.k))
+    , restD 4   . sd (tri __ (on.on.k.on.on.k))
+    , restD 4.5 . sd (tri (od.__) (k.t.k.n.o))
+    , restD 5   . sd (tri (od.__3) (k.o.o.k))
+    , restD 5.5 . sd (tri (od.__4) (on.on.k))
     -- with fancy takadinna
-    , tri_ (od.__) p4
+    , tri (od.__) p4
     , tri2 (od.__) p4 (od.__)
 
-    , restD 6 . tri_ (od.__.pk) p4
+    , restD 6 . tri (od.__.pk) p4
     , restD 6 . tri2 (od.__.pk) p4 (od.__.o)
 
-    , restD 5  . tri_ (od.__.pk.t.k) p4
+    , restD 5  . tri (od.__.pk.t.k) p4
     , restD 5  . tri2 (od.__.pk.t.k) p4 (od.__4)
     ]
     where
@@ -108,7 +108,7 @@ e_18_06_22 = exercise $ date 2018 6 22 $ korvai adi $ variations
     where
     make p =
           sd (on.od.od.on) . p . sd (od.od.on)
-          . sd (on.d.d.n) . tri_ od p
+          . sd (on.d.d.n) . tri od p
         . sd (on.od.od.on) . p . sd (od.od.on)
           . sd (on.d.d.n) . p.od.p.su od . rtakeM 1 p . su od
                                          . rtakeM 1 p
@@ -116,7 +116,7 @@ e_18_06_22 = exercise $ date 2018 6 22 $ korvai adi $ variations
     -- TODO I need some kind of start offset to express this naturally
     make9 p =
           sd (on.od.od) . shim on . p . sd (od.od.on)
-          . sd (on.d.d) . shim n . tri_ od3 p
+          . sd (on.d.d) . shim n . tri od3 p
         . sd (on.od.od) . shim on . p . sd (od.od.on)
           . sd (on.d.d) . shim n . p.od3.p.su od . rtakeM 1 p . su od
                                                  . rtakeM 1 p
@@ -126,7 +126,7 @@ e_18_06_22 = exercise $ date 2018 6 22 $ korvai adi $ variations
 
     make3 p = nadai 6 $
           s3 (on.od.od) . shim on . su p . s3 (od.od.on)
-        . s3 (on.d.d) . shim n . tri_ od (su p)
+        . s3 (on.d.d) . shim n . tri od (su p)
         where
         s3 = spread 3
         shim s = s.__.su __

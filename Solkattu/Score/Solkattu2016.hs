@@ -14,16 +14,16 @@ c_16_09_28 :: Korvai
 c_16_09_28 = date 2016 9 28 $ ganesh $
     similarTo "Solkattu2016" "c_16_12_06_sriram1" $
     korvaiS1 adi mridangam $ su $
-        group tat_dit_ . tri_ __   (group nakataka) . __6
-    . dropM 2 tat_dit_ . tri_ __ (dropM 2 nakataka) . __6
-    . dropM 4 tat_dit_ . tri_ __ (dropM 4 nakataka) . __6
+        group tat_dit_ . tri __   (group nakataka) . __6
+    . dropM 2 tat_dit_ . tri __ (dropM 2 nakataka) . __6
+    . dropM 4 tat_dit_ . tri __ (dropM 4 nakataka) . __6
 
     . r3 (p6 . kp.p6 . kpnp.p6)
 
     -- TODO the old one kind of looks nicer though...
-    -- tat.__.dit.__.kitakina . nakatiku . tri_ __ (na.ka.takadinna.dim) . __6
-    --       .dit.__.kitakina . nakatiku . tri_ __       (takadinna.dim) . __6
-    --              .kitakina . nakatiku . tri_ __            (taka.dim) . __6
+    -- tat.__.dit.__.kitakina . nakatiku . tri __ (na.ka.takadinna.dim) . __6
+    --       .dit.__.kitakina . nakatiku . tri __       (takadinna.dim) . __6
+    --              .kitakina . nakatiku . tri __            (taka.dim) . __6
     -- . r3 (p6 . kp.p6 . kpnp.p6)
     where
     tat_dit_ = tat.__.dit.__.kitakina . nakatiku
@@ -39,8 +39,8 @@ c_16_09_28 = date 2016 9 28 $ ganesh $
 c_16_12_06_sriram1 :: Korvai
 c_16_12_06_sriram1 = date 2016 12 6 $ source "sriram" $ korvaiS adi mridangam $
     map su $ map (purvangam.)
-    [ tri_ (dim.__4) ta_takadin
-    , tri_ (dim.__4) (su $ p6 . kp.p6 . kpnp.p6)
+    [ tri (dim.__4) ta_takadin
+    , tri (dim.__4) (su $ p6 . kp.p6 . kpnp.p6)
     -- All variations can get kp and kpnp in the karvai, and
     -- 345 345 345 can become 345 345 3333
     ]

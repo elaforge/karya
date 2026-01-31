@@ -43,5 +43,5 @@ farans = date 2024 1 8 $ korvai adi mempty $ map (fmap su)
     , s $ r2 (taka.dugu.kita.taka.nakatiku) . r3 (taka.dugu.kita.taka).nakatiku
         . r5 (g (taka.dugu)).kita.taka.nakatiku
         . r5 (g (taka.dugu)).tat.__.taka.nakatiku
-    , s $ r3 (r2 (tang.__.kita.nakatiku).nakatiku) . tri_ (dim.__4) nakatiku
+    , s $ r3 (r2 (tang.__.kita.nakatiku).nakatiku) . tri (dim.__4) nakatiku
     ]

@@ -56,7 +56,7 @@ c_22_03_02 = date 2022 3 2 $ ganesh $ korvaiS adi
     , make (su (r2 "Nkpknook") . o)
     ]
     where
-    make p9 = tri_ (su p6) (g p9 . "NkD__")
+    make p9 = tri (su p6) (g p9 . "NkD__")
         . su p6.u.__.su (kp.p6).u.__ . su (kpnp.p6)
 
 x_22_07_09 :: Korvai
@@ -75,7 +75,7 @@ x_22_07_09 = elaforge $ comment "solo from dream" $ korvaiS1 adi $
     . su "pkpktpktkpktkp"."___".plak.__ . su "pktkpktk"."p___".plak.plak.__
     . su "pktkpkpktkpkpktk"."p__"
     . lt (su "pktkpktkpktkpktk".su (r6 "pkt").p.__).plak . su (r5 "pkt".__).__
-    . plak.__.tri_ plak (su "pktpkt__") . "__________"
+    . plak.__.tri plak (su "pktpkt__") . "__________"
     -- after a long while do nam
     . hv k.su pk."pkpkkppkpkkp"."NN". __.su pk."pkpkkppkkpk".su pk."pk"
     . hv k.su pk."pkpkkppkpkkp"."NN". __.su pk."pkkp"."NN".__."kkp_kkp"
@@ -93,7 +93,7 @@ s_22_09_25 = sollu $ korvaiS (beats 2) $ map su
     , "kookD_kookD_kook"
     , r2 "o_knookn"
     , "___kpktknkoN_N_k"
-    , "oo_".tri_ "D_" "N_k"
+    , "oo_".tri "D_" "N_k"
     , "ktokn_o_ktoknook"
     , "ktokotokotokotok"
     ]

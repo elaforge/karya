@@ -47,10 +47,10 @@ dinnaginna2 = date 2025 9 20 $ ganesh $ korvaiV adi
     [ sarvaD_ 6 . theme
     , "oko_o_o_".su "tktk"."o_o_o_"."k_o_o_o_" . theme
     , "k_o_o_o_" . theme . "k_o_o_o_" . theme
-    , tri_ (o.__4) theme
+    , tri (o.__4) theme
     , theme.o.__4 . theme.r2 (o.__.dropM 4 theme)
     , theme.o.__4 . theme.o.__ . dropM 4 theme.r2 (o.dropM 6 theme)
-    , tri_ o (theme.me)
+    , tri o (theme.me)
     , trin o theme (theme.me) (theme.me.me)
     ]
     where

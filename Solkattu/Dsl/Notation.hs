@@ -29,7 +29,7 @@ module Solkattu.Dsl.Notation (
     , dropD, rdropD, takeD, rtakeD
     -- * structures
     , sandi
-    , tri_, tri_nomid, tri123
+    , tri, tri_nomid, tri123
     , trin, triAAB, triAABg
     , tri2
     -- * sequences
@@ -299,8 +299,8 @@ sandi dropped = dropM_ (matrasOf dropped)
 
 -- | Repeat thrice, with the given separator.  The _nomid variant doesn't
 -- add the 'mid' tag, which is useful for nested calls.
-tri_, tri_nomid :: SequenceT sollu -> SequenceT sollu -> SequenceT sollu
-tri_ sep a = a <> sep <> a <> trySetTag mid sep <> a
+tri, tri_nomid :: SequenceT sollu -> SequenceT sollu -> SequenceT sollu
+tri sep a = a <> sep <> a <> trySetTag mid sep <> a
 tri_nomid sep a = a <> sep <> a <> sep <> a
 
 tri123 :: SequenceT sollu -> SequenceT sollu -> SequenceT sollu
@@ -320,7 +320,7 @@ triAABg :: SequenceT sollu -> SequenceT sollu -> SequenceT sollu
     -> SequenceT sollu
 triAABg sep ab c = group ab <> sep <> group ab <> trySetTag mid sep <> group c
 
--- | 'tri_' with variable separators.
+-- | 'tri' with variable separators.
 tri2 :: SequenceT sollu -> SequenceT sollu -> SequenceT sollu
     -> SequenceT sollu
 tri2 sep1 sep2 a = a <> sep1 <> a <> sep2 <> a

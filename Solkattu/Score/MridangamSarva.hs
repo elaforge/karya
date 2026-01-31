@@ -149,7 +149,7 @@ rohan_sollus_end = rohan $ sollu $ korvaiV adi
     , __D 7 . su "_upknook"                                 -- 75
     , __D 7 . su "nkktkktk"                                 -- 60
     , __D (6 + 6/8) . su "_np nnoD_ onn"                    -- 60
-    , __D 2.5 . su (__ . tri_ od "npk") . od.__n 10 . su (r3 "npkD") -- 75
+    , __D 2.5 . su (__ . tri od "npk") . od.__n 10 . su (r3 "npkD") -- 75
     , __D 4 . su ("oo_o_oo_" . r2 "___o_oo_" . "o_oo_o_o").od -- 75
     , __D 5 . su ("o___" . r2 (g "ktktpktp") . "ktkt")      -- 85
     , __D 5 . su "pu_ko_k_ pu_ko_k_ n_pu_ko_"               -- 75
@@ -179,9 +179,9 @@ rohan_sollus_end = rohan $ sollu $ korvaiV adi
 sollu_variations :: Korvai
 sollu_variations = sollu $ korvaiV adi
     [ su $ r4 theme
-        . r2 (g "Nkdpn ptkNkdpn") . r2 (g "Nkdpn") . tri_ "d__" "Nk"
+        . r2 (g "Nkdpn ptkNkdpn") . r2 (g "Nkdpn") . tri "d__" "Nk"
         . od.__8.nakatiku
-    , su $ theme . r2 (g "Nkdpn ptkNkdpn") . r2 (g "Nkdpn") . tri_ "d__" "Nk"
+    , su $ theme . r2 (g "Nkdpn ptkNkdpn") . r2 (g "Nkdpn") . tri "d__" "Nk"
         . od
     -- , __D 6 . su "kt_kk_ktkk_oN_k_".od
     ]
@@ -232,7 +232,7 @@ dinna_kitataka = exercise $ sudhindra $ korvaiV adi $
         , repeat 2 (od.__.dinna).dinna
         , repeat 2 (o.k.dinna) . dinna
         , repeat 2 (o.t.k.n.kttk) . dinna
-        , tri_ (o.k) dinna
+        , tri (o.k) dinna
         ]
     kttk = su (k.t.o.k)
     dinna = o.n.kttk
@@ -500,12 +500,12 @@ ganesh_sollus = date 2024 12 1 $ sollu $ korvaiV adi
     [ sarvaD_ 6 . su (r2 ("otkn".su ktok) . o.n.su ktok)
     , sarvaD_ 6 . su "_tpknooknpk_pu_k"
     , sarvaD_ 6 . su "kookkookk_oD_N_k"
-    , sarvaD_ 6 . su ("oo_".tri_ "D_" "N_k")
-    , sarvaD_ 6 . su ("oo_".tri_ "D_" "kpk")
+    , sarvaD_ 6 . su ("oo_".tri "D_" "N_k")
+    , sarvaD_ 6 . su ("oo_".tri "D_" "kpk")
     , sarvaD_ 6 . su "okoTknpktkoTknpk" -- or start with t
     , sarvaD_ 6 . su ("okoTkn".su ktpk."tkoTkn".su ktpk)
-    , sarvaD_ 6 . su (__.tri_ "D__" "ook") -- 5*3
-    , sarvaD_ 4.25 . tri_ (su "u__kno") "NN_" . od
+    , sarvaD_ 6 . su (__.tri "D__" "ook") -- 5*3
+    , sarvaD_ 4.25 . tri (su "u__kno") "NN_" . od
     , sarvaD_ 6.25 . k.u.su (p.k.nakatiku)
     , sarvaD_ 6 . su ("kook".nakatiku."nook")
     , sarvaD_ 6 . su ("kookN_pk".nakatiku)

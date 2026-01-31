@@ -43,7 +43,7 @@ e_24_06_30_koraippu = date 2024 6 30 $ ganesh $ koraippu $ korvaiS adi
     , __D 2 . (p7b.p7).(p7b'.p7').p7b . r3 p7
     ]
     where
-    kor pat gap = __D 2 . tri_ pat (p7a.__M gap) . tri_ (karv gap) pat
+    kor pat gap = __D 2 . tri pat (p7a.__M gap) . tri (karv gap) pat
     karv n = if n <= 0 then mempty else od.__n n
         -- TODO this is one of those karvai filled in with D, which should
         -- disappear when the karvai becomes 0

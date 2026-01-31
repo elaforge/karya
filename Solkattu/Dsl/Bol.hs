@@ -120,10 +120,10 @@ tetekata = namedT Solkattu.GPattern "8n" $
 
 -- * notation
 
--- | Just tri_ flipped, is this easier to read for hindustani, which often
+-- | Just tri flipped, is this easier to read for hindustani, which often
 -- has nested tihais?
 tihai :: Sequence -> Sequence -> Sequence
-tihai seq sep = tri_ (hv sep) seq
+tihai seq sep = tri (hv sep) seq
 
 -- | Experiment for tihais where the 3rd is a variant.
 tihai2 :: Sequence -> Sequence -> Sequence

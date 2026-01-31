@@ -74,7 +74,7 @@ c_19_07_15 = date 2019 7 15 $ ganesh $ korvai adi mridangam $
         th1 . ta.dinga
         . dropM 2 (rdropM 2 th1) . ta.dinga
         . dropM 4 (rdropM 4 th1)
-        . r3 (group (tri_ dinga (ta.dinga.tat.__)))
+        . r3 (group (tri dinga (ta.dinga.tat.__)))
     ]
     where
     th0a = su $ tanga.tat.__.dit.__.th0
@@ -123,7 +123,7 @@ e_19_09_23_kandam = date 2019 9 23 $ ganesh $
     ]
     where
     purvangam = group takadinna.group takadinna.group takita.group tdgnt
-    utarangam = tri_ (ta.__4) $ group $ takita.tdgnt
+    utarangam = tri (ta.__4) $ group $ takita.tdgnt
 
 e_19_10_14_kandam :: Korvai
 e_19_10_14_kandam = date 2019 10 14 $ ganesh $ korvaiS adi mempty $
@@ -157,7 +157,7 @@ c_19_10_28_kandam = date 2019 10 28 $ source "Patri Satish Kumar" $
         [ta.din.__4, r2 (ta.din.__4), r3 (ta.din.__4)]
         . sd p5 . p5
         . kp.sd p5 . kp.p5 . __ . kp.p5
-        . kpnp.sd p5 . tri_ __ (kpnp.p5)
+        . kpnp.sd p5 . tri __ (kpnp.p5)
     ]
     where
     mridangam = makeMridangam
@@ -175,7 +175,7 @@ e_19_11_11_kandam =
         [ ta.takadinna, __.takadinna, __.__.takita
         , __M 3.taka, __M 4.ta, __M 5
         ] p5
-        . tri_ __ p5 . tri_ __ (ta.p5) . tri_ __ (taka.p5)
+        . tri __ p5 . tri __ (ta.p5) . tri __ (taka.p5)
     where
     p5 = group $ nang . su (kita.tari.kita).thom
     mridangam = makeMridangam

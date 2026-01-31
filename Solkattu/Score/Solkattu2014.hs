@@ -48,9 +48,9 @@ c_14_01_14 = date 2014 1 14 $ ganesh $ korvaiS adi mridangam
         . sarvaA_ 4 theme . sarvaA_ 4 (dropM 1 theme)
         . __a 2 theme . __a 2 (dropM 1 theme)
         . __a 2 theme . r2 (__ . dropM 3 theme)
-    , tri_ (tam.__) reduce
+    , tri (tam.__) reduce
     , trin (tam.__) reduce reduce expand
-    , tri_ (tam.__) expand
+    , tri (tam.__) expand
 
     -- date 2014 1 23
     , reduce1 ø . utarangam 4
@@ -131,7 +131,7 @@ c_14_02_20 = date 2014 2 20 $ ganesh $ exercise $ korvaiS adi mridangam $
     ,     r6 sarva . ta_katakita.takadinna
         . r2 (r2 sarva . ta_katakita.takadinna)
         . r4 (ta_katakita.takadinna)
-    ,     tri_ (din.__6) (ta_katakita.takadinna)
+    ,     tri (din.__6) (ta_katakita.takadinna)
         . ta_katakita.takadinna.din.__6 . ta_katakita.takadinna.din.__3
             . taka.takadinna.din.__3
             . taka.takadinna
@@ -152,10 +152,10 @@ c_14_02_20 = date 2014 2 20 $ ganesh $ exercise $ korvaiS adi mridangam $
 c_14_02_27 :: Korvai
 c_14_02_27 = date 2014 2 27 $ ganesh $ korvaiS adi mridangam $
         map (nadai 6 • (purvangam.))
-    [ spread 3 tdgnt . spread 2 tdgnt . tri_ __ tdgnt
+    [ spread 3 tdgnt . spread 2 tdgnt . tri __ tdgnt
     , spread 3 tdgnt . r3 (ta.__.din.__.gin.__.na.__.thom)
-    , tri_ (dim.__3) (ta.din.__.ta.__.din.__.p5)
-    , tri_ (dim.__3) (p5.ta.__.din.__.ta.din.__)
+    , tri (dim.__3) (ta.din.__.ta.__.din.__.p5)
+    , tri (dim.__3) (p5.ta.__.din.__.ta.din.__)
     , p123 p6 (dim.__3)
 
     , p123 p5 (tat.__3.din.__3)
@@ -215,7 +215,7 @@ c_14_03_26 = date 2014 3 26 $ ganesh $ similarTo "Solkattu2014" "c_14_03_13" $
     ] ++ map sequence [t1, t2, t3, t4, t5]
     where
     -- Same sarva as c_14_03_13.  TODO sarva
-    sequence p = tri_ (dim.__3) (r3 (p.__) . r3 p5)
+    sequence p = tri (dim.__3) (r3 (p.__) . r3 p5)
     t1 = group $ na.na.na.din
     t2 = group $ su $ dhom.__.taka.taka.din.__
     t3 = group $ su $ tam.__.taka.na.ka.din.__
@@ -234,8 +234,8 @@ c_14_03_26 = date 2014 3 26 $ ganesh $ similarTo "Solkattu2014" "c_14_03_13" $
 
 c_14_04_21 :: Korvai
 c_14_04_21 = date 2014 4 21 $ ganesh $ korvaiS adi mridangam $
-    [ tri_ (tam.__3) $ r3 (su (dhom.p5).din.__) . r3 p5_1
-    , tri_ (tam.__3) $ r3 (su (dhom.p5).din.__) . r3 p5_2
+    [ tri (tam.__3) $ r3 (su (dhom.p5).din.__) . r3 p5_1
+    , tri (tam.__3) $ r3 (su (dhom.p5).din.__) . r3 p5_2
     ]
     where
     p5_1 = pattern $ ta.__.tk.tk.din
@@ -256,7 +256,7 @@ c_14_04_29 = date 2014 4 29 $ ganesh $ korvaiS adi mridangam $
         -- TODO still not right, t1 after 1^t1 should drop the first thom.
     ] ++ map sequence ts
     where
-    sequence t = tri_ (din.__.takita) (takeM 5 t . takeM 5 t . t)
+    sequence t = tri (din.__.takita) (takeM 5 t . takeM 5 t . t)
     t1 = group $ nang.kttk.din.na.__.di.mi
     t2 = theme (dhom.ka)
     t3 = theme (su (ta.ki.taka))
@@ -291,16 +291,16 @@ c_14_06_06 = date 2014 6 6 $ ganesh $ comment "chatusra tisram" $
         . din.__4 . nadin4.din.__4 . spread 3 tadindintat
 
     , purvangam (tat.__3) (tat.__3.dit.__3)
-        . tri_ (din.__3) (1^ta.ka.__.din.na.__)
+        . tri (din.__3) (1^ta.ka.__.din.na.__)
     , purvangam (taka.ta) (takita.taka.ta)
-        . tri_ dinga (1^ta.ka.__.din.na.__)
+        . tri dinga (1^ta.ka.__.din.na.__)
     , purvangam (taka.ta) (takita.taka.ta)
-        . tri_ dinga (ki.takadinna.__)
+        . tri dinga (ki.takadinna.__)
     -- Pure chatusra tisram.
     , stride 3 $ tadindintat.din.__3
         . su taka . tadindintat.din.__3
         . su (kita.taka) . tadindintat.din.__3
-        . tri_ thom (su takadinna)
+        . tri thom (su takadinna)
 
     -- Variation.
     , purvangam2 . r3 (tam.__7 . p5)

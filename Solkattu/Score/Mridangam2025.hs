@@ -23,7 +23,7 @@ s_nnd = date 2025 2 17 $ elaforge $ sarvalaghu $ korvaiV adi
     , sd "_nND_NND_N" . "nnpk"."noD_D_k_"
     , sd "_nND_NND_NN" . "pnpkpk onpk"
     , sd "_nND_" . "pnpkpk onpk" . sd "oNND_n"
-    , sd "ND" . "pnpkpk onpk" . "__" . tri_ "o_" "onpk"
+    , sd "ND" . "pnpkpk onpk" . "__" . tri "o_" "onpk"
     , sd "pnND_NND_NND_" . su "_oD___oD___o"
     , sd "DnND_NND_N" . nadai 6 "N____nN__dD__nN__n"
     ]
@@ -41,15 +41,15 @@ e_sarva = date 2025 3 13 $ elaforge $ sarvalaghu $ korvaiV adi
 
 e_3sequence :: Korvai
 e_3sequence = date 2025 3 6 $ tirmanam $ korvaiV adi $ map (__D 2 .)
-    [ tri_ (su "u_pkno") (r2 "NN_")
+    [ tri (su "u_pkno") (r2 "NN_")
     , tri123 (su "u_pkno") "NN_"
     , tri123 tanggu (su p6)
     , trin tanggu (su p5) (su (p6.p7)) (su (p5.p6.p7))
     , su p5 . tanggu . su (r2 p5) . r2 tanggu . su (r3 p5)
 
-    , tri_ tanggu "koNkok"
+    , tri tanggu "koNkok"
     , tanggu . reduceTo 3 2 "koNkokD__"
-    , tri_ "D__" (sd "kok")
+    , tri "D__" (sd "kok")
     , "D__" . reduceTo 3 2 "k_o_k_D__"
     , "D__" . expand 4 2 "k_o_k_D__"
     , "k_o_kD__" . "k_o_kD__D__" . "k_o_k"
@@ -59,9 +59,9 @@ e_3sequence = date 2025 3 6 $ tirmanam $ korvaiV adi $ map (__D 2 .)
     -- so, 123, 222, 321 + 3(3)3(3)3
     -- pk koNkok -> koNkok -> Nkok
     -- or su "_kpk"
-    [ trin "D___" (trin "D__" p4 p3 p2) (tri_ "D__" p3) (trin "D__" p2 p3 p4)
-        . __ . tri_ (su "u_pkno") "NN_"
-    , tri_ "i___" (tri_ "D__" "koNkok") . __ . tri_ (su "u_pkno") "NN_"
+    [ trin "D___" (trin "D__" p4 p3 p2) (tri "D__" p3) (trin "D__" p2 p3 p4)
+        . __ . tri (su "u_pkno") "NN_"
+    , tri "i___" (tri "D__" "koNkok") . __ . tri (su "u_pkno") "NN_"
     ]
     -- each one is 6, can I sequence them?
     -- Yes, I wind up at +2 again!  6*3 = 18 - 16 = 2
@@ -75,7 +75,7 @@ e_3sequence = date 2025 3 6 $ tirmanam $ korvaiV adi $ map (__D 2 .)
 
 simple_korvai :: Korvai
 simple_korvai = date 2025 5 2 $ rohan $ korvaiS adi
-    [ tri_ "D_" ("P_" .su ("u_pk".nakatiku)."o_k_") . od.__3 . r3 p7
+    [ tri "D_" ("P_" .su ("u_pk".nakatiku)."o_k_") . od.__3 . r3 p7
     , theme . su "pkno".theme . su "ktktpkno" . theme
         . __ . r3 p5
     ]
@@ -91,7 +91,7 @@ s_tirmanams = elaforge $ tirmanam $ korvaiV adi
     , __D 4 . su ("k_u_ktpkD___" . "u_ktpkD___" . "ktpkD___" . "pkD")
     , __D 3.5 . reduceTo 3 1 "ktpknookD_"
     -- 3x of the above, with 5m karvai
-    , tri_ "___" (reduceTo 3 1 "ktpknookD_")
+    , tri "___" (reduceTo 3 1 "ktpknookD_")
     ]
 
 k_tatdit :: Korvai
@@ -121,7 +121,7 @@ yella_mohra_korvai = date 2025 9 13 $ korvaiS adi
 yella_tirmanam :: Korvai
 yella_tirmanam = date 2025 9 13 $ korvaiV adi
     [ su $ sd (sd "NDDN") . "nod_ktpk".nakatiku
-    . r2 (tri_ "N_pk" nakatiku)
+    . r2 (tri "N_pk" nakatiku)
     . nakatiku . "N_pk".nakatiku . r4 "N_k"
     ]
 
@@ -130,21 +130,20 @@ yella_sequence = date 2025 9 13 $ korvai adi $
     [ x2 $ s $ "N_D_D_N_".ktpk."D_D_N_" . "N_d_d_n_".su "ktpkd___o_ktktpk"
     , x2 $ s $ "N_D_D_N_".ktpk."D_D_N_" . "N_d_d_n_".su ("o_ktktpk".nakatiku)
     , s $ "N_D_D_N_".su ("o_ktktpk".nakatiku) . "N_d_d_n_".su ("o_ktktpk".nakatiku)
-    , s $ tri_ "D___" (su ("o_ktktpk".nakatiku))
+    , s $ tri "D___" (su ("o_ktktpk".nakatiku))
 
     , s $ "N_D_D_N_".ou_k."D_D_N_" . "N_d_d_n_".ou_k.od.__.ou_k.ou_k
     , s $ "N_D_D_N_".ou_k."D_D_N_" . "N_d_d_n_".n.o.r3 ou_k
-    , s $ "N_D_D_N_".tri_ o ou_k . "N_d_d_n_".tri_ o ou_k
-    , s $ tri_ "N___" (tri_ o ou_k)
+    , s $ "N_D_D_N_".tri o ou_k . "N_d_d_n_".tri o ou_k
+    , s $ tri "N___" (tri o ou_k)
 
     -- madyakalam
     , x2 $ s $ r4 "N_dD_dD_" . o & r3 "n_dd_dd_" . t_o_faran
-    , s $ "N_dD_dD_" . t_o_faran . "N_dd_dd_" . t_o_faran
-        . tri_ "D___" t_o_faran
+    , s $ "N_dD_dD_" . t_o_faran . "N_dd_dd_" . t_o_faran . tri "D___" t_o_faran
     , x2 $ s $ r2 d_nd . "D_nd_dn_d_nd_" . on.pu_k
     , s $ r2 (d_nd . "D_nd_" . on.pu_k)
-    -- , s $ r2 ("D_nd_" . on.pu_k) . __4. tri_ "D_" (on.pu_k)
-    , s $ r2 ("D_nd_" . on.pu_k) . __4. tri_ "D_" (on.pu_k)
+    -- , s $ r2 ("D_nd_" . on.pu_k) . __4. tri "D_" (on.pu_k)
+    , s $ r2 ("D_nd_" . on.pu_k) . __4. tri "D_" (on.pu_k)
     ]
     ++ nd_k_seq (g (n.o.ktok))
     ++ nd_k_seq (g (su "kpkD_kD_"))
@@ -162,7 +161,7 @@ yella_sequence = date 2025 9 13 $ korvai adi $
     nd_k_seq end =
         [ x2 $ s $ r4 nd_k . o & r3 nd_k' . end
         , s $ r3 nd_k . end . r3 nd_k' . end
-        , s $ r2 (nd_k . end) . tri_ "D_" end
+        , s $ r2 (nd_k . end) . tri "D_" end
         ]
     nd_k = "ND_k"
     nd_k' = "nd_k"
@@ -187,8 +186,7 @@ s_sketch = date 2025 12 7 $ elaforge $ korvaiV adi $
 
 trichy_reverse :: Korvai
 trichy_reverse = korvaiS adi
-    [ mconcat (reverse $ reduceToL 2 1 theme)
-        . tri_ __ (su p6) . p6 . sd p6
+    [ mconcat (reverse $ reduceToL 2 1 theme) . tri __ (su p6) . p6 . sd p6
     ]
     where
     theme = su "k_ktkook npk_pu_k"

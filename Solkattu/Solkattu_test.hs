@@ -77,7 +77,7 @@ test_vary = do
     equal (f (ta <> di)) ["ta di"]
     equal (f (ta <> G.p6 <> di <> G.p6)) ["ta 6p di 6p"]
     equal (f (ta <> G.p6 <> di <> G.p6 <> G.p6)) ["ta 5p di 6p 7p"]
-    equal (f (G.tri_ ta G.p6 <> di <> G.tri_ ki G.p7))
+    equal (f (G.tri ta G.p6 <> di <> G.tri ki G.p7))
         [ "5p ta 6p mid^ta 7p di 6p ki 7p mid^ki 8p"
         , "5p ta 6p mid^ta 7p di 5p ki 7p mid^ki 9p"
         ]

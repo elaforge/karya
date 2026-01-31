@@ -39,15 +39,15 @@ e_kanda = ganesh $ exercise $ korvaiS adi $ map (nadai 5)
         in o.th . __.th
 
     -- endings
-    , tri_ k (tri_ (k.__.od.__) (g (p.nang_kita.o)))
+    , tri k (tri (k.__.od.__) (g (p.nang_kita.o)))
     , trin k
-        (tri_ (k.__.od.__) (g (p.nang_kita.o)))
-        (tri_ (k.__.od.__) (g (p.nang_kita.o)))
+        (tri (k.__.od.__) (g (p.nang_kita.o)))
+        (tri (k.__.od.__) (g (p.nang_kita.o)))
         (p.nang_kita.o . k.__.od.__ . p. r3 (nang_kita.o))
     , trin k
-        (tri_ (k.__.od.__) (g (p.nang_kita.o)))
-        (tri_ (k.__.od.__) (g (p.nang_kita.o)))
-        (tri_ __5 (g (p.nang_kita.o)))
+        (tri (k.__.od.__) (g (p.nang_kita.o)))
+        (tri (k.__.od.__) (g (p.nang_kita.o)))
+        (tri __5 (g (p.nang_kita.o)))
     ]
     where
     nang_kita = n . su (kt.pk.p.t)
@@ -120,7 +120,7 @@ e_tisram_tdgno :: Korvai
 e_tisram_tdgno = date 2021 4 18 $ ganesh $ exercise $ korvaiS adi $
     map (nadai 6)
     [ repeat 9 (g ktkno) . u.__.p
-    , tri_ __ (g (ktkno.ktkno)) . __. g (ktkno.ktkno) . od.__.od.__.k
+    , tri __ (g (ktkno.ktkno)) . __. g (ktkno.ktkno) . od.__.od.__.k
     ]
 
 e_5s :: Korvai
@@ -183,7 +183,7 @@ e_21_08_15 = date 2021 8 15 $ ganesh $ korvai adi $
         , s $ seq . otk `replaceStart` rh_
         , s $ seq . otk . r2 (n_ktpk._tk) . n_ktpk
         , s $ seq . otk . n_ktpk._tk._tk.n_ktpk.n_ktpk
-        , ending $ tri_ (od.__) (seq . o.__.k.__)
+        , ending $ tri (od.__) (seq . o.__.k.__)
         , ending $ tri2 (o.k.od.__) (o.__.k.__.od.__) (seqN 2) . o.__3.k.__3.od
         , ending $ prefixes (map seqN [1, 2, 3]) (o.__.k.__.od.__)
         ]
@@ -191,14 +191,14 @@ e_21_08_15 = date 2021 8 15 $ ganesh $ korvai adi $
         seq = otk . r2 (on_ktok._Tk) . on_ktok
         seqN c = otk . on_ktok . repeat c _Tk . repeat c on_ktok
     mk2 = prepare seq ++
-        [ ending $ tri_ (od.__) (otk.seq . o.__.k.__)
+        [ ending $ tri (od.__) (otk.seq . o.__.k.__)
         , ending $ tri2 (o.k.od.__) (o.__.k.__.od.__) (otk.seq) . o.__3.k.__3.od
         ]
         where
         seq = on_ktok . su "oktknook".n.od.k.on_ktok
     mk3 = prepare seq ++
         [ s $ otk.seq . otk . closed (seqN 2)
-        , ending $ tri_ (od.__) (otk.seq . o.__.k.__)
+        , ending $ tri (od.__) (otk.seq . o.__.k.__)
         , ending $
             tri2 (o.k.od.__) (o.__.k.__.od.__) (otk.seqN 2) . o.__3.k.__3.od
         , ending $ prefixes (map ((otk.) • seqN) [1, 2, 3]) (o.__.k.__.od.__)
@@ -208,7 +208,7 @@ e_21_08_15 = date 2021 8 15 $ ganesh $ korvai adi $
         seqN c = on_ktok . su (repeat c (g "oktkno") . repeat c (g "oktk"))
     mk4 = prepare seq ++
         [ ending $ join (o.__) $ map ((otk.) • seqN) [1, 2, 3]
-        , ending $ tri_ (od.__) (otk.seq.su "o_k_okk_")
+        , ending $ tri (od.__) (otk.seq.su "o_k_okk_")
         , ending $ tri2 (su "okk_D___") (su "o_k_okk_D___") (otk.seq)
             . su "o_k_okk_okk_D"
         ]
@@ -240,7 +240,7 @@ e_21_10_10 = date 2021 10 10 $ ganesh $ korvai adi
     , s $ su $ "dpn," . r5 "doN," . "do" . g (on.__.ktok) . r8 "dpn,"
     , s $ su $ r2 $ r4 "doN," . r4 "dpn,"
     , s $ su $ r4 $ r2 "doN," . r2 "dpn,"
-    , ending $ su $ r4 "doN,dpn," . tri_ "d_pk" (g "doN,doN,")
+    , ending $ su $ r4 "doN,dpn," . tri "d_pk" (g "doN,doN,")
     ]
     where
     rho = rh & "oo_o_oo_o_oo_o"

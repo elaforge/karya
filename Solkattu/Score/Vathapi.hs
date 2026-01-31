@@ -22,7 +22,7 @@ fill0 = korvaiS1 adi $ su $ repeat 2 $
     repeat 4 (k.t.k.t.o.__) . n.p.u.p.k.t.o.__
     -- repeat 4 (ta.ri.ki.ta.thom.__) . (di.ku.ta.ri.ki.ta.thom.__)
 
-tir1 = korvaiS1 adi $ restD 2 . tri_ (od.__.o) (su (ktkt.pk).od.od.k) . od
+tir1 = korvaiS1 adi $ restD 2 . tri (od.__.o) (su (ktkt.pk).od.od.k) . od
     -- tarikitataka tat din na thom __ ga
 
     -- anupallavi
@@ -73,8 +73,8 @@ sarva5 = korvaiS1 adi $ su $
     -- hamsadhwani booshita hErambam ||
 
 
-tir2 = korvaiS1 adi $ restD 1 . __. tri_ (od.__.k) (su (p.kt.p.kt.pk) . od.od.k)
-tir3 = korvaiS1 adi $ __n 3 . tri_ (od.__.k) (su (p.kt.p.ktkt.pk) . od.od.k)
+tir2 = korvaiS1 adi $ restD 1 . __. tri (od.__.k) (su (p.kt.p.kt.pk) . od.od.k)
+tir3 = korvaiS1 adi $ __n 3 . tri (od.__.k) (su (p.kt.p.ktkt.pk) . od.od.k)
     -- od.__.k instead of od.__.o, since it starts with p
     -- kitataka tarikitataka tat din na tang __ ga
-tir4 = korvaiS1 adi $ tri_ (od.__.o) (su (ktkt.p.kt.p.ktkt.pk) . od.od.k)
+tir4 = korvaiS1 adi $ tri (od.__.o) (su (ktkt.p.kt.p.ktkt.pk) . od.od.k)

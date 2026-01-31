@@ -6345,7 +6345,7 @@ REPL: repl:
     . https://gitlab.haskell.org/haskell/ghc-api-compat
 
 solkattu:
-  - replace tri with r3, and rename tri_ to tri.
+  * replace tri with r3, and rename tri_ to tri.
   - looks like putting in a group suppresses x q abbreviation
   KendangPasang:
     - Isn't rendering to text or html.
@@ -6443,13 +6443,6 @@ solkattu:
     . Maybe it comes down to how common is Up vs Gum.
       If ´ is really so annoying, then I could use `, or even ', is that
       otherwise used?
-  notation conveniences:
-    / mark karvai groups automatically?  I don't have to highlight it.
-      . If I'm not going to highlight, why bother?
-    / Then I can make tri like r3, but groups the sequence, as does tri_.
-      . Find existing uses and delete group, or ensure group make sense.
-      . Only apply group if it's not already a group (or pattern or whatever).
-      . Should repeat also group?
   - replace is useful to express variations
     . e.g. Mridangam2019.c_19_06_24_a
     . This can perhaps solve "reduction with irregular bits" and
@@ -6464,7 +6457,7 @@ solkattu:
     . Still the problem of long text for events remains.  Maybe I can open vi
       for individual events?
   - can I highlight karvais?  I guess I have to infer when they are, e.g.
-    tri_ can put the group on, or join, though maybe it should be called
+    tri can put the group on, or join, though maybe it should be called
     karvai to emphasize that.
     . Or maybe it's enough that the non-karvai is highlighted.
   David Nelson mridangam transcriptions:
@@ -6862,8 +6855,8 @@ solkattu:
         . Well, if I turn nakatiku into a named group, I need some place to
           attach the name.  In that case, why not Pattern Name Matras?
     / support tags on patterns, e.g. (2^p5, [something else])
-  - Mark for variations, e.g. mark a 'tri_ x 345' for 345.x.345.x.3333.
-    end4 (tri_ x (p6, tk.p6, tknk.p6)) -> can play final as p6.p6.p6.p6
+  - Mark for variations, e.g. mark a 'tri x 345' for 345.x.345.x.3333.
+    end4 (tri x (p6, tk.p6, tknk.p6)) -> can play final as p6.p6.p6.p6
     . Variation markers put a branch in the realization, so now I have
       multiple realizations, and I need some way to not just enumerate
       them, but choose a certain path.

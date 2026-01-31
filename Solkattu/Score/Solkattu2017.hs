@@ -93,7 +93,7 @@ e_spacing = exercise $ korvaiS adi (makeMridangam []) $ map (__sam adi) $
 
 c_17_02_06 :: Korvai
 c_17_02_06 = date 2017 2 6 $ ganesh $ korvaiS1 adi mridangam $
-    tri_ (din.__.p6.p6) (takita.dinga.din.__.ta.__.ka.__)
+    tri (din.__.p6.p6) (takita.dinga.din.__.ta.__.ka.__)
     where
     mridangam = makeMridangam
         [ (takita.dinga.din, k.p.k.od.__.k.od)
@@ -106,7 +106,7 @@ c_17_03_20 = date 2017 3 20 $ ganesh $
     comment "Trichy Sankaran plays in Laya Vinyas, adi talam solo, 1:54." $
     korvaiS1 adi (mridangam <> kendang <> reyong) $ su $
         sarvaD sarva (6 * 2) . theme
-        . reduceTo 4 2 theme . sd (sd p6) . sd p6 . tri_ (__.__) p6
+        . reduceTo 4 2 theme . sd (sd p6) . sd p6 . tri (__.__) p6
     where
     sarva = sd $ na.din.din.na
     theme = strS "tat_taka takadinna nakadit_ talang_ga"
@@ -140,7 +140,7 @@ c_17_09_25 = ganesh $ date 2017 9 25 $ similarTo "Solkattu2017" "c_17_03_20" $
     theme = tat.__.taka.takadinna.na.ka.dit.__.talang.__.ga
     theme_ = tat.__.taka.takadinna.na.ka.dit.__.2^ta.lang.__.__
     variants = [tat.__, diku, thom.thom, thom.__]
-    sequence = reduceTo 4 2 theme . sd (sd p6) . sd p6 . tri_ (__2.ga) p6
+    sequence = reduceTo 4 2 theme . sd (sd p6) . sd p6 . tri (__2.ga) p6
     mridangam = makeMridangam
         [ (tat, k)
         , (taka, k.t)
@@ -164,7 +164,7 @@ c_17_04_04 = date 2017 4 4 $ source "subash chandran" $
     purvangam = tat.__3 . din.__3 . tadimi
               . ta.taka. din.__3 . tadimi
     utarangam n p p2 = g (spread 4 p) . g (spread 3 p) . g (spread 2 p)
-        . tri_ (din.__n n) (g p2)
+        . tri (din.__n n) (g p2)
     tadimi = ta.di.mi.ta.takadinna
     mridangam = makeMridangam
         [ (tat.din, k.od)
@@ -188,8 +188,8 @@ c_17_04_23 = date 2017 4 23 $ ganesh $ korvaiS adi mridangam $
     ]
     where
     r32111 ns = g (spread 3 ns) . g (spread 2 ns) . r3 (g ns)
-    purvangam = tri_ (din.__3) (g (ta.__3.ta.takadinna))
-        . sandi (g (ta.takadinna)) (tri_ (din.__2) (g (ta.takadinna)))
+    purvangam = tri (din.__3) (g (ta.__3.ta.takadinna))
+        . sandi (g (ta.takadinna)) (tri (din.__2) (g (ta.takadinna)))
     utarangam p7 p7' = mconcat
         [ sd p7 . p7 . su end
         | end <- [p7', p7'.p7', p7'.p7'.p7']
@@ -283,7 +283,7 @@ c_17_05_19_janahan =
 c_17_06_02_janahan :: Korvai
 c_17_06_02_janahan = tirmanam $ date 2017 6 2 $ source "janahan" $
         korvaiS1 adi mridangam $
-    __D 2 . tri_ (din.kttk) (group (din.din.tk.din.din.tat))
+    __D 2 . tri (din.kttk) (group (din.din.tk.din.din.tat))
     where
     mridangam = makeMridangam
         [ (din, od)
@@ -388,7 +388,7 @@ c_17_07_13 = date 2017 7 13 $ ganesh $ trikalam $
         ta.__.kita.taka.din.__.tat.__.tat.__.din.__2 . 1^kttk
         . dintaka . din.__.tat.__.tat.__.tam.__4
     -- variation: drop kita, so ta.__.kita -> ta.__4
-    utarangam dintaka = tri_ (tam.__) $
+    utarangam dintaka = tri (tam.__) $
         ta.__.kita.taka.din.na . dintaka.din.na.tat.__.tat.__
     utarangam_gap = r3 $
         ta.__.kita.taka.din.na.__ . 1^takita.taka.din.na.__ . tat.tat.__.tam.__
@@ -473,10 +473,10 @@ c_17_07_19 = date 2017 7 19 $ ganesh $ exercise $ korvaiS adi mridangam $
 c_17_08_21 :: Korvai
 c_17_08_21 = date 2017 8 21 $ sudhindra $ tirmanam $ korvaiS adi mridangam $
     map (__sam adi)
-    [ tri_ (1^tang.__.ga) (kttk.trkt.tk.tat.din.na)
-    , tri_ (tang.__.ga) (trkt.tk.tat.din.na)
-    , tri_ (tang.__.ga) (su t2)
-    , tri_ (1^tang.__.ga) (r3 $ su $ talang.__.ga)
+    [ tri (1^tang.__.ga) (kttk.trkt.tk.tat.din.na)
+    , tri (tang.__.ga) (trkt.tk.tat.din.na)
+    , tri (tang.__.ga) (su t2)
+    , tri (1^tang.__.ga) (r3 $ su $ talang.__.ga)
     ]
     where
     t2 = takadinna.takadinna.na.ka.din.na
@@ -503,9 +503,9 @@ c_17_08_29 = date 2017 8 29 $ ganesh $
     ]
     where
     sequence t =
-        tri_ (tat.__4.tam.__8) (t4.t3.t2)
-        . sandi (t3.t2) (tri_ (tat.__4.tam.__8) (t3.t2))
-        . sandi t2      (tri_ (tat.__.tam.__8) (tri_nomid (tat.__4.tam.__4) t2))
+        tri (tat.__4.tam.__8) (t4.t3.t2)
+        . sandi (t3.t2) (tri (tat.__4.tam.__8) (t3.t2))
+        . sandi t2      (tri (tat.__.tam.__8) (tri_nomid (tat.__4.tam.__4) t2))
         . tat.__.tam
         where [t4, t3, t2] = take 3 $ reduceToL 0 2 t
     -- (4  3  2)  2  4
@@ -574,7 +574,7 @@ c_17_10_23 = date 2017 10 23 $ ganesh $ koraippu $
         . g (spread 3 tdgnt) . g (spread 2 tdgnt)
         . trin (tat.__.tat.__3.tam.__.tam.__3) (r3 p5) (r3 p6) (r3 p7)
     -- alternate endings
-    , let tkp = tri_ (su kp) in
+    , let tkp = tri (su kp) in
         restD 7 . __ . spread 3 tdgnt . spread 2 tdgnt
         . trin (tat.__.tat.__.tam.__3) (tkp p5) (tkp p6) (tkp p7)
     , restD 7 . __ . spread 3 tdgnt . spread 2 tdgnt

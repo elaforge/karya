@@ -27,7 +27,7 @@ yt_ramana_balachandran = source "https://www.youtube.com/watch?v=n3HDFlpmI60" $
         -- . "n__d__d_k_k_d___" . "n_k_" . su "ktpko_o_ktpko_k_o_ktpko_"
         -- . "n__d__d_k_k_d___" . "n_k_" . ktpk.o.o.ktpk.o.k.o.ktpk.o
         . "n__d__d_k_k_d___" . "n_k_" . "xqooxqokoxqo"
-    -- , "u__o__N_k_K_D__,N_k_k_d" . __M 25 . tri_ "o_" (k.o.ktpk)
+    -- , "u__o__N_k_K_D__,N_k_k_d" . __M 25 . tri "o_" (k.o.ktpk)
     -- , "ou__"
 
     -- n__d__d_ ____d___
@@ -52,11 +52,11 @@ tirmanam_sikkil = tirmanam $ korvaiV adi
     -- Sikkil Sisters, Dinamani Vamsa - Hari Kamboji - Adi, 3:54
     [ __D 4 . trin "d__kko" (r4 "Dk_") (r4 (su "D__k__")) (r4 "D_k")
     -- Or a variation, gradually move k back:
-    , __D 4 . tri_ "d__kko" ("Dk_"."Dk_".su "D__k__"."D_k")
+    , __D 4 . tri "d__kko" ("Dk_"."Dk_".su "D__k__"."D_k")
     -- The actual one sounds like the k moves sort of randomly.
     , __D 2 . tri123 "D_o" (g "Dk_")
     -- "Bhajare - Abheri - Adi", 15:22
-    , __ . triAAB "D__" (tri_ "D_" "kkoDk") (tri_ "D_" "X_oDk")
+    , __ . triAAB "D__" (tri "D_" "kkoDk") (tri "D_" "X_oDk")
     ]
     -- To be totally even, have to go to tisram:
     -- d  .  k  .  _  .  |
@@ -79,5 +79,5 @@ peshkar1 = date 2025 9 5 $ rohan $ korvaiV adi
 tirmanam1 :: Korvai
 tirmanam1 = korvaiV adi
     -- tabla, from https://www.youtube.com/watch?v=0uN-smnNB_Y 2:15
-    [ "__" . tri_ (d.__6) "d__d_k"
+    [ "__" . tri (d.__6) "d__d_k"
     ]

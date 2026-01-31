@@ -19,9 +19,9 @@ e_20_01_27 :: Korvai
 e_20_01_27 = date 2020 1 27 $ ganesh $ exercise $
     comment "practice for accurate microbeats" $ korvaiS adi mempty
     -- namita dimita dim sequence
-    [ tri_ (din.__.dit.taka) (r3 (tang.kttk.dhom.ka) . tang.kttk)
-    , tri_ (din.__.dit.taka) (r3 (tang.kttk.su (dugu.dugu)) . tang.kttk)
-    , tri_ (din.__.dit.taka)
+    [ tri (din.__.dit.taka) (r3 (tang.kttk.dhom.ka) . tang.kttk)
+    , tri (din.__.dit.taka) (r3 (tang.kttk.su (dugu.dugu)) . tang.kttk)
+    , tri (din.__.dit.taka)
         (tang.kttk . r3 (dhom.su (ta.di.__.ki.__.ta.__.thom)))
     ]
 
@@ -108,7 +108,7 @@ c_20_10_25 = date 2020 10 25 $ ganesh $ korvai adi (mridangam<>k1<>k2) $
         , g (ta.__. din.__3.gin.__. na.__3.thom.__)
 
         , sd p5 . p5 . sd p5 . r2 p5 . sd p5
-        , tri_ __ (r3 p5)
+        , tri __ (r3 p5)
         ]
     ending7 = r4 "tadit_ta_ga_" . "tadi_ki_ta_taka_din_na_dim"
     ending6 = r3 "tadit_ta_ga" . "tadit_taga_" . "tadi_kita_taka_dinna_dim"

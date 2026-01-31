@@ -13,7 +13,7 @@ haripriya = date 2023 3 10 $ comment "from facebook" $ korvaiS1 adi mridangam $
     su (dim.__.tarikita.taka.nakatiku.dim.__4
     . dim.__.taka.nakatiku.dim.__4
     . nakatiku.dim.__4)
-    . spread 3 tdgnt . spread 2 tdgnt . tri_ __ (g (r3 tdgnt))
+    . spread 3 tdgnt . spread 2 tdgnt . tri __ (g (r3 tdgnt))
     where
     mridangam = makeMridangam
         [ (dim, od)

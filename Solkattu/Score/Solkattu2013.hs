@@ -72,8 +72,8 @@ c_13_08_14 = ganesh $ date 2013 8 14 $ korvaiS adi (mridangam <> kendang)
 c_yt1 :: Korvai
 c_yt1 = source "youtube" $ korvaiS adi mridangam $
     -- TODO ... `replace` (tat.__.tam.__4) (taka.tam.__4)
-    [ su $ reduceTo 4 2 theme . tri_ (tam.__) (r3 p6)
-    , su $ reduceTo 4 2 theme . tri_ (tam.__) (p5.p6.p7)
+    [ su $ reduceTo 4 2 theme . tri (tam.__) (r3 p6)
+    , su $ reduceTo 4 2 theme . tri (tam.__) (p5.p6.p7)
     , su $ reduceTo 4 2 theme . trin (tam.__) (r3 p5) (r3 p6) (r3 p7)
     ]
     where
@@ -91,7 +91,7 @@ c_13_10_29 = date 2013 10 29 $ ganesh $ korvaiS adi mridangam
     ]
     where
     sequence = reduce3 2 ø (tat.__.dit.__.takadinna.dim.__4)
-        . tri_ (tam.__6) (p6.p6.p6)
+        . tri (tam.__6) (p6.p6.p6)
     mridangam = makeMridangam
         [ (tat.dit, k.t)
         , (dim, od)
@@ -100,7 +100,7 @@ c_13_10_29 = date 2013 10 29 $ ganesh $ korvaiS adi mridangam
 
 c_13_11_05 :: Korvai
 c_13_11_05 = date 2013 11 5 $ ganesh $ korvaiS1 adi mridangam $
-    tri_ (tam.__4) theme
+    tri (tam.__4) theme
     . theme . tam.__4 . theme . tam.__3 . su p6.tam.__3 . su p6
     where
     theme = su $ p5.p5.p6
@@ -113,7 +113,7 @@ c_13_11_12 = date 2013 11 12 $ ganesh $ korvaiS adi mridangam
     sequence =
         theme . dropM 2 theme . taka.dim.__4 . dropM 4 theme
             . r2 (taka.dim.__4)
-            . spread 3 tdgnt . spread 2 tdgnt . tri_ __ tdgnt
+            . spread 3 tdgnt . spread 2 tdgnt . tri __ tdgnt
     theme = tat.__.dit.__.takadinna.taka.dim.__4
     mridangam = makeMridangam
         [ (tat.dit, k.t)
@@ -194,9 +194,9 @@ k1_3 = make_k1 $ (:[]) $
       k1_a  . __ . tata_dindin_ . p6 . __
     . k1_a' . __ . tata_dindin_ . kp.p6 . __
     . k1_a . __ . k1_a' . __ . tata_dindin_
-    . tri_ __ (kpnp.p6)
-    . tri_ __ (kp.p6)
-    . tri_ __ p6
+    . tri __ (kpnp.p6)
+    . tri __ (kp.p6)
+    . tri __ p6
     where
     tata_dindin_ = ta.__.ta.__3.din.__.din.__3
 
@@ -219,7 +219,7 @@ k2 chatusram_transition = korvaiS1 adi k1_mridangam $ nadai 5 $
     . din.__3 . p5
     . if chatusram_transition
         then nadai 4 (r3 (ta.ta.__.p5))
-        else tam.__4 . tri_ __5 p6
+        else tam.__4 . tri __5 p6
     -- p6 can also be k-t---ktkto-
     -- development is din_3.p5.ta.__.din
 
@@ -238,7 +238,7 @@ k3s = korvaiS adi mridangam $ map (nadai 5)
       . dit . tat . tangkita.din.__
       . dit . __  . tangkita
       . dit . tat . tangkita
-      . tri_ __ p6
+      . tri __ p6
     ]
     where
     tangkita = su (tang . __ . kita.nakatiku)
@@ -278,7 +278,7 @@ t1s = ganesh $ korvaiS adi mridangam $ map (nadai 6)
     , reduce (tat.__.dit.__.taka.din)              . utarangam p9
     ]
     where
-    utarangam = tri_ (tang.__.ga)
+    utarangam = tri (tang.__.ga)
     reduce = reduce3 2 ø
     mridangam = makeMridangam
         [ (tat.dit, k.t)
@@ -336,7 +336,7 @@ t3s = ganesh $ korvaiS adi mridangam $ map (nadai 6)
     --       .dit.__.takadinna.__.dinga
     --              .takadinna.__.dinga
     where
-    utarangam p = trin (tang.__.ga) (r3 p) (tri_ __ p) (tri_ __3 p)
+    utarangam p = trin (tang.__.ga) (r3 p) (tri __ p) (tri __3 p)
     variation (a1, a2, a3) (b1, b2, b3) (c1, c2, c3) =
         reduce (tat.__.dit.__.takadinna.__.dinga)
         . trin (tang.__.ga)
@@ -437,12 +437,12 @@ t5s = ganesh $ korvaiS adi mridangam $ map (nadai 6 • (purvangam.))
 -- tisram: r3 (ta ka takitataka nakadit thom) spread 3 tdgnt ...
 -- wait 2, repeat until tan7: od.__.p.k.n.o.o.k
 --
--- wait 2, tri_ (thom.__0) (takadinna)
+-- wait 2, tri (thom.__0) (takadinna)
 --      . r2 (ta.__3.ta.takadinna)
 
 misra_lead :: Korvai -- but add one akshara, so it lands on 1.
 misra_lead = korvaiS1 adi mridangam $ su $
-    __M 8 . tri_ (tam.__) takadinna
+    __M 8 . tri (tam.__) takadinna
     . r2 (ta.__3.ta.takadinna)
     . trin (tam.__3) (ta.din.na) (r2 (ta.din.na)) (r3 (ta.din.na))
     where
@@ -464,10 +464,10 @@ koraippu_misra_no_karvai = koraippu $ ganesh $ korvaiS adi mridangam $ map su
     where
     group2 seq = mconcatMap mconcat (Lists.chunked 2 seq)
     -- 8 + 8*7 (3+2 + 3)
-    long n = din.__8 . tri_ (gap n . fill n) tan7
-        . gap n . tri_ (karvai n) (fill n)
+    long n = din.__8 . tri (gap n . fill n) tan7
+        . gap n . tri (karvai n) (fill n)
     -- 4 + 4*7 (1 + 3)
-    short n = din.__4 . tan7 . gap n . tri_ (karvai n) (fill n)
+    short n = din.__4 . tan7 . gap n . tri (karvai n) (fill n)
     half n = din.__2 . tan7 . gap n . fill n
 
     gap n = __n (7-n+1)
@@ -506,7 +506,7 @@ koraippu_misra = koraippu $ ganesh $ korvaiS adi mridangam $ map su
     ]
     where
     -- 8 + 8*7 (3+2 + 3)
-    long n = __M 8 . tri_ (fill n) tan7 . r3 (fill n)
+    long n = __M 8 . tri (fill n) tan7 . r3 (fill n)
     -- 4 + 4*7 (1 + 3)
     short n = __M 4 . tan7 . r3 (fill n)
     half n = __M 2 . tan7 . fill n

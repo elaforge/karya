@@ -82,7 +82,7 @@ dinnagina_sequences = date 2013 9 11 $
         let theme = "otknpk" . r2 "Tknpk"
             me = g "onpk"
         in
-        Misc.replaceAt 6 (su $ tri_ (od.__) (theme.me)) $
+        Misc.replaceAt 6 (su $ tri (od.__) (theme.me)) $
         Misc.replaceAt 7 (su $ trin (od.__) theme (theme.me) (theme.me.me)) $
         make_dinna theme o od
             ("_Tknpk", "_Xknpk") ("", "")
@@ -91,7 +91,7 @@ dinnagina_sequences = date 2013 9 11 $
             me = g $ o.n_ktpk
             n_ktpk = su "n_ktpk"
         in
-        Misc.replaceAt 6 (su $ tri_ (od.__) (theme.me)) $
+        Misc.replaceAt 6 (su $ tri (od.__) (theme.me)) $
         Misc.replaceAt 7 (su $ trin (od.__) theme (theme.me) (theme.me.me)) $
         make_dinna theme o od ("_Tk".n_ktpk, "_Xk".n_ktpk) ("", "")
     , dateS 2024 9 8 $ s $ mconcat $ make_dinna
@@ -160,7 +160,7 @@ namita_dimita_seq = korvaiS adi $
           (lh&rh) . (lh&rh) . o&rh . t
         . (lh&rh) . t . o&rh . t
         . r4 t
-        . tri_ (od.__.k.p.k) end
+        . tri (od.__.k.p.k) end
     t1 =     group $ n.l.d.od.n.o.od.__
     t1_end = group $ n.l.d.od.n .__.od.l.od.n.__ .od.l.od.n.__ .od.l
     t2 =     group $ su $ on.__.ktpk.p&t.__.k.__.on.__.ktpk

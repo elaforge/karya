@@ -11,7 +11,7 @@ import           Solkattu.Dsl.Solkattu
 
 k_tatdit :: Korvai
 k_tatdit = date 2025 7 14 $ korvaiV adi mridangam
-    [ tri_ "dim___" "tat_dit_takadinna"
+    [ tri "dim___" "tat_dit_takadinna"
     , __D 2 . reduce3 2 "dim__" "tat_dit_takadinna"
     -- , tri123 "tat_dit_takadinna" "dit_takadinna" "takadinna"
     , reduceTo 5 2 "tat_dit_takadinna dim__"
@@ -24,7 +24,7 @@ k_tatdit = date 2025 7 14 $ korvaiV adi mridangam
         . r3 p5 . r3 "tatdin__"
         . r3 p6 . r3 "tat_din__"
         . r3 p7 . r3 "tat__din__" -- din -- minus 5?
-    , reduceTo 5 2 theme2 . tri_ "dim___taka" "tadikita takadinna"
+    , reduceTo 5 2 theme2 . tri "dim___taka" "tadikita takadinna"
     ]
     where
     theme2 = "tat_dit_takadinnadin_tat_dim__"
@@ -55,7 +55,7 @@ yella = date 2025 9 13 $ korvaiS adi mridangam
       ]
       . ta__dom_.p5.ktpk        -- 5 5 2
       . ta__dom_.p5.ktkttrkt    -- 5 5 4
-      . tri_ (__.ktkttrkt ) (ta__dom_.p5) -- 5 4 (6) +
+      . tri (__.ktkttrkt ) (ta__dom_.p5) -- 5 4 (6) +
     ]
     -- 2nd time p5 is k t k kto
     -- 3rd time p5 is upktpkpto_

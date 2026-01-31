@@ -138,7 +138,7 @@ kanda5_mohra = mohra $ korvaiS1 Tala.kanda_chapu $ Mohra.make id Mohra.A1
     )
     ( "N_k_o__kN_k_o___"
     , sd "oko_"
-    , tri_ "N___" "pu_ko_k_"
+    , tri "N___" "pu_ko_k_"
     )
 
 kanda5_mohra_raw :: Korvai
@@ -189,7 +189,7 @@ misra1 = korvaiS Tala.misra_chapu
     . "kookokookokook" . "k__D__N_N_D_nk"
     . "kookokookokook" . "kkoD__NkNkD_nk"
     . "kookokookokook"
-    . tri_ o (su "kookkook")
+    . tri o (su "kookkook")
     . tri123 o (su "kook")
     , sd $ (u.__4) . r6 (u.__3).u.__ . su ("n_pk" . su nakatiku)
     . "D_nnd___d_nnd_" . "u_nnd_n_d_nnd_"
@@ -245,9 +245,9 @@ misra2_tisram = korvaiS Tala.misra_chapu $
 
 misra_korvai3 :: Korvai
 misra_korvai3 = korvaiS Tala.misra_chapu $ map (nadai 3) $
-    [ r3 theme . tri_ (od.__6) p6
-    , tri122 theme (ton theme) . tri_ (u.__6) p6 -- p6 = kt_k_kto
-    , tri122 theme2 (ton theme2) . tri_ (u.__6) p6
+    [ r3 theme . tri (od.__6) p6
+    , tri122 theme (ton theme) . tri (u.__6) p6 -- p6 = kt_k_kto
+    , tri122 theme2 (ton theme2) . tri (u.__6) p6
     ]
     where
     theme  = g "k__ ktk npu ook ook N__"
@@ -390,7 +390,7 @@ rupaka_mohra_korvai = korvai Tala.rupaka_tala $
     [ x2 $ s $ reduce3 2 ø theme . r3 ("PPP_".p5)
     , s $ reduce3 2 ø theme . r3 (su "oktpu___".p5)
     , s $ r2 "NkNNdk" . r4 "Nd_"
-    , s $ su $ tri_ "N___" nakatiku . tri_ "N_pk" nakatiku
+    , s $ su $ tri "N___" nakatiku . tri "N_pk" nakatiku
         . nakatiku . r3 "N_ktpk" . "N_o_k_D"
     ]
     where theme = "k_t_".su "ko"."D_N_"
@@ -420,7 +420,7 @@ featuringFives_start = korvaiS adi $
     . nd_k ("ktknoktk".nakatiku) . nd_k ("ktknoktk".nakatiku)
     , trin (on.__5) (arudhiA 1) (arudhiA 2) (arudhiA 3)
 
-    , "N_pk nook tkoo nook" . tri_ "N_" (su "t_o_ktpk")
+    , "N_pk nook tkoo nook" . tri "N_" (su "t_o_ktpk")
     , r2 $ "NokN kNok NkNo" . su "k_N_ktpk"
     , "NokN kNok NkNo" . su "k_N_ktpk" . "NokN okk_t_k_n_o_"
     . "NokN okk_ t_k_ n_o_ NokN okk_ t_k_ n_o_"
@@ -429,7 +429,7 @@ featuringFives_start = korvaiS adi $
     , arudhiB (su "ktktpkpto_")
     , arudhiB (su "oktpupkto_")
 
-    , "N_pk nook tkoo nook" . tri_ "D_" (su "ktook___")
+    , "N_pk nook tkoo nook" . tri "D_" (su "ktook___")
     , "N__p uook D__p uook D__p uook D__p uook"
     . "Noop uook Noop uook Noop uook" . nadai 5 "NokNk Tknpk"
     , "N__k dook" . nadai 5 "NokNk Tknpk" . "N__k dook" . nadai 5 "NokNk Tknpk"
@@ -490,19 +490,19 @@ featuringFives_mohra = mohra $ korvaiS1 adi $ Mohra.makeA id Mohra.A3 Mohra.A1
     )
     ( su "pu_ko_k_o_k_o___"
     , su "pu_ko___"
-    , tri_ "N_" (su "pu_ko_k_")
+    , tri "N_" (su "pu_ko_k_")
     )
 
 featuringFives_mohra_korvai :: Korvai
 featuringFives_mohra_korvai = korvaiS adi
-    [ r2 (reduce3 2 "k_t_k_n_o" theme . tri_ (od.__4) "k_t_k_n_o")
-    , nadai 5 $ reduce3 2 "k_t_k_n_o" theme . tri_ (od.__4) "k_t_k_n_o"
+    [ r2 (reduce3 2 "k_t_k_n_o" theme . tri (od.__4) "k_t_k_n_o")
+    , nadai 5 $ reduce3 2 "k_t_k_n_o" theme . tri (od.__4) "k_t_k_n_o"
     ]
     where
     theme = "p_k_kookN__"
 
 featuringFives_end :: Korvai
 featuringFives_end = korvaiS adi $
-    [ "N_pk nook tkoo nook" . tri_ "N_" (su nakatiku)
-    , su $ tri_ "N_pk" nakatiku . nakatiku . r3 "N_ktpk" . sd "Nok"
+    [ "N_pk nook tkoo nook" . tri "N_" (su nakatiku)
+    , su $ tri "N_pk" nakatiku . nakatiku . r3 "N_ktpk" . sd "Nok"
     ]

@@ -47,7 +47,7 @@ kon_35_kanda, kon_35_misra :: Korvai
     where
     make tala = date 2021 2 21 $ ganesh $ exercise $ korvaiS tala mempty $
         map (nadai 3)
-        [ tri_ tanga (tdktt_ .kp.tdktt_ .kpnp.tdktt_)
+        [ tri tanga (tdktt_ .kp.tdktt_ .kpnp.tdktt_)
         , let p123 = tdktt_.kp.tdktt_.kpnp.tdktt_
           in p123.tanga.p123.tanga . kpnp.tdktt_.kp.tdktt_.tdktt_
         , trin tanga (r3 tdktt_) (r3 (kp.tdktt_)) (r3 (kpnp.tdktt_))
@@ -115,7 +115,7 @@ c_mohra_korvai = ganesh $ mohraKorvai $ korvaiS1 adi mridangam $ mconcat
     , nadai 6 $
         r2 (g (ta.din.__.ta.__.din.__.p5))
         . g (ta.din.__.ta.__.din.__)
-        . tri_ __ (g p5)
+        . tri __ (g p5)
     ]
     where
     mridangam = makeMridangam
@@ -140,11 +140,11 @@ e_21_04_25 = date 2021 4 25 $ ganesh $ korvaiS adi mridangam
         , ta.__8   .din.__8    . r3 (g $ su "kitatarikita".thom) -- 4
         , ta.__6   .din.__6    . r3 (g $ su "tarikita".thom) -- 3
         , ta.__4   .din.__4    . r3 (g $ su kita.thom) -- 2
-        ] . __ . tri_ __ p7
+        ] . __ . tri __ p7
     ]
     where
-    purvangam = sd $ tri_ (din.__3) (g (ta.__3.ta.takadinna))
-        . sandi (ta.takadinna) (tri_ (din.__) (g (ta.takadinna)))
+    purvangam = sd $ tri (din.__3) (g (ta.__3.ta.takadinna))
+        . sandi (ta.takadinna) (tri (din.__) (g (ta.takadinna)))
     spread32111 seq = g (spread 3 seq) . g (spread 2 seq) . r3 (g seq)
     tdgnt3 = g $ ta.__3.din.__3.gin.__3.na.__3.thom.__
     t7 = g $ tat.__.dit.__.su tarikita.thom

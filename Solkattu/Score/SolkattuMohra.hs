@@ -62,11 +62,11 @@ c_mohra = ganesh $ korvais adi (mridangam<>kendang) su
     a2 = na.ka.dit.__.tang.__.kita.nakatiku
     b1 = ta.langa.din.__.tat.__.din.__.tat.__.dim.__4
     b2 = ta.langa.dim.__4
-    b3 = tri_ (dim.__4) (ta.langa.din.__.tat.__)
+    b3 = tri (dim.__4) (ta.langa.din.__.tat.__)
 
     b12 = nadai 3 $ na.kita.takita.takita.dim.__3
     b22 = nadai 3 $ takita.dim.__3
-    b32 = nadai 3 $ tri_ tanga (na.kita.takita)
+    b32 = nadai 3 $ tri tanga (na.kita.takita)
     mridangam = makeMridangam
         [ (dit, k)
         , (tang.kita, u.p.k)
@@ -101,7 +101,7 @@ c_mohra2 = janahan $ korvai1 adi mridangam su (a1, a2, a3) (b1, b2, b3)
     a3 = dit.tang . a_
     b1 = repeat 3 (ta.ga.ta.ga) . dhom.__4
     b2 = ta.ga.ta.ga . dhom.__4
-    b3 = tri_ (dhom.__4) $ repeat 2 (ta.ga.ta.ga)
+    b3 = tri (dhom.__4) $ repeat 2 (ta.ga.ta.ga)
     mridangam = makeMridangam
         [ (dit, t)
         , (tang, o)
@@ -121,7 +121,7 @@ c_mohra_youtube = source "Melakkaveri Balaji" $
     a3 = ka.dhom.ta.ka.ta .__.ki.ta . nakatiku
     b1 = taka . tang.__3.ga . tang.__3.ga . tang.__3.ga . tang.__
     b2 = taka . tang.__3.ga.tang.__
-    b3 = taka . tri_ (tang.__.kitataka) (tang.__3.ga.din.__)
+    b3 = taka . tri (tang.__.kitataka) (tang.__3.ga.din.__)
     mridangam = makeMridangam
         [ (dhom.ta.ka.ta, o.k.p.u)
         , (ki.ta, p.k)
@@ -144,7 +144,7 @@ misra1 = date 2019 4 14 $ ganesh $ korvai1 Tala.misra_chapu mridangam id
     a2 = na.ka.dit.__.tang.__.kita.nakatiku
     b1 = ta.langa.din.__.tat.__.din.__.tat.__.dim.__4
     b2 = ta.langa.dim.__4
-    b3 = tri_ (dim.__4) (ta.langa.din.__.tat.__)
+    b3 = tri (dim.__4) (ta.langa.din.__.tat.__)
     mridangam = makeMridangam
         [ (tam.taka, on.p.k)
         , (dit, k)

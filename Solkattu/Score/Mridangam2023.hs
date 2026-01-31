@@ -150,7 +150,7 @@ mohra_bs = date 2023 3 30 $ korvaiS adi
         . "o_k_u_pk".nakatiku . r2 ("N_pk".nakatiku).nakatiku
     , "k_t_kD_k_D_" . "ktk".su "kn" . o.__
     . "i_kD_k_D_"  . "ktk".su "kn" . o.__
-    . nadai 6 (tri_ p5 "kD_k_D_" . tri_ __ p5)
+    . nadai 6 (tri p5 "kD_k_D_" . tri __ p5)
     ]
     where
     a1 = "K___u_pk".nakatiku
@@ -185,14 +185,14 @@ tihais = korvaiS adi
     ]
 
 tihai :: Sequence -> Sequence -> Sequence
-tihai seq sep = tri_ (hv sep) seq
+tihai seq sep = tri (hv sep) seq
 
 n_dd_dd :: Korvai
 n_dd_dd = korvaiS adi
     [ rh . end . rh . end
     , r4 end
     , r2 end . "N.dDn_" . r2 "D.Dn_"
-    , tri_ "D_kpk" (g ("N.dDn_" . r2 "D.Dn_" . "D_"))
+    , tri "D_kpk" (g ("N.dDn_" . r2 "D.Dn_" . "D_"))
     ]
     where
     rh  = "N.dD.dD_"

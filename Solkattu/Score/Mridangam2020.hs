@@ -12,7 +12,7 @@ import           Solkattu.Dsl.Mridangam
 
 e_20_02_24 :: Korvai
 e_20_02_24 = date 2020 2 24 $ ganesh $ tirmanam $ korvaiS1 adi $
-    tri_ (od.__4) (su ktok.t.o.su (ktok.kook))
+    tri (od.__4) (su ktok.t.o.su (ktok.kook))
 
 e_20_03_27 :: Korvai
 e_20_03_27 = date 2020 2 27 $ source "anand" $ exercise $ korvaiS adi $
@@ -138,7 +138,7 @@ sarva_20_02_27 = date 2020 2 27 $ ganesh $ korvai adi $
         . o&d_n_nd_n.ktpk . (n.ktok.on.ktpk . su nakatiku)
     , s $ d_N_ND_N.ktpk . n.ktok.on.ktpk.su nakatiku
         . d_n_nd_n.ktpk . n.ktok.on.ktpk.su nakatiku
-    , s $ d_N_ND_N .ktok . o. tri_ __ (r3 (ktkt.o))
+    , s $ d_N_ND_N .ktok . o. tri __ (r3 (ktkt.o))
     , s $ k.__5.__5.k .d_N_ND_N.ktok . o&d_n_nd_n.ktpk.d_n_nd_n.ktok
         . r2 (d_N_ND_N.ktok)         . o&d_n_nd_n.ktpk.d_n_nd_n.ktok
     , s $ r2 (d_N_ND_N.ktok) . o & (r3 d_n_n . d.__.n.o.p&k)
@@ -212,7 +212,7 @@ sarva_20_05_08 = date 2020 5 8 $ ganesh $ korvai adi
     , s $ nadai 6 $ r3 $ k.__.od.__4.pk.od.__3.k.pk.od.__3.r3 p5
     -- alternates, for practice:
     , s $ nadai 6 $ r3 $ sd (p.k.od.__.k.od.__) . od.__3 . r3 p5
-    , s $ nadai 6 $ r3 $ k.__.od.__.pk.od.__.pk.od.__ . tri_ __ p6 -- Also 567
+    , s $ nadai 6 $ r3 $ k.__.od.__.pk.od.__.pk.od.__ . tri __ p6 -- Also 567
     ]
 
 -- n d d n enters gradually
@@ -268,7 +268,7 @@ sarva_20_06_12_reduction :: Korvai
 sarva_20_06_12_reduction = date 2020 6 12 $ korvaiS adi
     [ nadai 6 $ sarvaD mempty 12
     , nadai 6 $ sd (sd (r3 (kook.od.__3))) . sd (r3 (kook.od.__3))
-        . tri_ (od.__3) kook.k
+        . tri (od.__3) kook.k
     ]
 
 sarva_20_06_19_endings :: Korvai
@@ -286,12 +286,12 @@ sarva_20_06_19_endings = date 2020 6 19 $ korvaiS adi
 sarva_20_06_19 :: Korvai
 sarva_20_06_19 = date 2020 6 19 $ korvaiS adi
     -- 222 333 444
-    [ tri_ __ (pk.od) . tri_ __ (k.pk.od) . tri_ __ (k.k.pk.od)
+    [ tri __ (pk.od) . tri __ (k.pk.od) . tri __ (k.k.pk.od)
     -- 234 234 234
     , r3 $ trin __ (pk.od) (k.pk.od) (k.k.pk.od)
 
-    , tri_ __ pknpv . tri_ __ (o.pknpv) . tri_ __ (o.v.pknpv)
-    , tri_ __ ktpko . tri_ __ (k.ktpko) . tri_ __ (k.k.ktpko)
+    , tri __ pknpv . tri __ (o.pknpv) . tri __ (o.v.pknpv)
+    , tri __ ktpko . tri __ (k.ktpko) . tri __ (k.k.ktpko)
     ]
     where
     pknpv = su (su (p.k.n.p)).v
@@ -354,8 +354,7 @@ tani_exercise = date 2020 7 3 $ exercise $ korvai adi
         . r3 (t.k.o.o.ktpk) . nakatiku
         . t.k . r5 (o.o.kt).pk . nakatiku
         . t.k . r4 (o.o.kt).o.o.k.__.pk . nakatiku
-    , s $ su $ r3 (r2 (on.__.pk.nakatiku).nakatiku)
-        . tri_ (od.__4) nakatiku
+    , s $ su $ r3 (r2 (on.__.pk.nakatiku).nakatiku) . tri (od.__4) nakatiku
     , commentS "mohra" $ s mempty
     ]
 
@@ -372,7 +371,7 @@ e_20_11_01_npk = date 2020 11 1 $ exercise $
     , pat (o.o.k.o.od.__)
     ]
     where
-    pat karvai = nadai 6 $ su $ r4 npk . tri_ karvai npk
+    pat karvai = nadai 6 $ su $ r4 npk . tri karvai npk
     npk = g (n.pk.r3 (t.pk))
 
 sketch_20_11_08 :: Korvai
