@@ -6348,7 +6348,7 @@ solkattu:
   * replace tri with r3, and rename tri_ to tri.
   - looks like putting in a group suppresses x q abbreviation
   KendangPasang:
-    - Isn't rendering to text or html.
+    * Isn't rendering to text or html.
     * Realize to mridangam?
     - Tweak display to put beats at the end?
       - Also would have to modify verify to write the notation that way.
@@ -6720,6 +6720,7 @@ solkattu:
           if I notate in su it tends to render that way since normalizeSpeed
           only expands, doesn't contract?
     html:
+      - legend is hardcoded for mridangam only
       - rendering has gotten very slow, why?
         . Having entirely separate renders for each abstraction level can't be
           efficient.

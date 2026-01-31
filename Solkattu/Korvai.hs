@@ -274,6 +274,7 @@ instruments =
     , GInstrument IBol
     , GInstrument IMridangam
     , GInstrument IKendangTunggal
+    , GInstrument IKendangPasang
     , GInstrument IReyong
     , GInstrument ISargam
     , GInstrument ITabla
