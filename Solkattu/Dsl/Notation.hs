@@ -124,6 +124,8 @@ __n n = repeat (n-1) __
 
 __D :: HasCallStack => Duration -> SequenceT sollu
 __D dur = __M (dToM2 (S._nadai S.defaultTempo) dur)
+    -- TODO this is wrong, I have to pick a nadai so I pick the default, but
+    -- of course it could be wrong.
 
 __M :: S.Matra -> SequenceT sollu
 __M matras = repeat matras __

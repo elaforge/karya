@@ -8,34 +8,38 @@ import           Solkattu.Dsl.KendangPasang
 
 
 {-
-    intro
-    ~~ | ~~ | ~~.o | ~~'o |
+    __ | ~~ | ~~.o | ~~'o |
     agem kanan
-    __ | ~~x | ~~'oo.o | ~~'oo.o | ~5.o 5.o 5.o | ~~'o 5.o | ~~'o |
+    __ | ~~x | ~~'oo.o | ~~'oo.o | ~4.o 4.o 4.o | ~~'o 4.o | ~~'o |
     agem kiri
-    __ | ~~x | ~~'oo.o | ~~'o 5.o | ~~'o 5.o | ~~'o |
+    __ | ~~x | ~~'oo.o | ~~'o 4.o | ~~'o 4.o | ~~'o |
     nyregseg
-    ~~ | ~~  | ~~ | ~~ | ~~.o | ~~ oo.o |
+    ~~ | ~~  | ~~ | ~~ | ~~.o | ~~'oo.o | tap
     ngumbang
-    __ | ~~x | ~o 'o.o.o | __ ...~ | ~~  | ~~.o | ~~'oo.o |
-    [ TODO fill in ]
-    __ | ~~x | ~o 'o.o.o | __ ...~ | ~~5 | _ .o 5.o 5.o |
-       ~~'oo.o | ~~'oo.o | ~~'oo.o | ~~'o |
-    __ .o  | ~~'o | __ o | __ | ~~ | ~~ | ~~ | ~~ | ~~.o | ~~'oo.o |
-    __ | ~~x | ~o 'o.o.o | __ ...~ | ~~5 | _ .o 5.o 5.o | ~~'o | _o ~~5 |
-    __ | ~~  | ~o 'o.o.o | __ ...~ | ~~ | ~~.o | ~~'oo.o |
-    __ | ~~x | ~o 'o.o.o | __ ...~ | ~~5 | _ .o 5.o 5.o | ~~'o |
+    __ | ~~ | ~o 'o.o.o | __ ...~ | ~~ | ~~.o | ~~'oo.o | tap
+    duduk
+    ~~'oo.o | ~~'oo.o | ~~'o |            stand
+    __ .o  | ~~'o | __ o | _~ | ~~ | ~~ | ~~ | ~~ | ~~.o | ~~'oo.o | motorcycle
+    __ | ~~ | ~o 'o.o.o | __ ...~ | ~~4 | _ .o 4.o 4.o | ~~'o | _o ~~4 | pop up
+                 egel2 (wiggle)
+    __ | ~~ | ~~ | ~~x | ~~.o 4.o | ~~'o | ~~.o 4.o | ~~'oo.o | tap
+    ngumbang circles
+    __ | ~~ | ~o 'o.o.o | __ ...~ | ~~.o | ~~'o |
+
     slow
 
-    ending
-    ~~'oo.o | ~~'oo.o | ~~'oo.o | ~~5.o 5.o | ~~'oo.o |
-    __ | ~~ | ~o 'o.o.o | __ ...~ | ~~5 | _ .o 5.o 5.o |
-       ~~'oo.o | ~~'oo.o | ~~'oo.o | ~~'o 5.o | ~~ oo.o |
-    __ | ~~ | ~o 'o.o.o | __ ...~ | ~~5 | _ .o 5.o 5.o | ~~'o | _o ~~5 |
-    __ | ~~ | ~~ | ~~x | ~~.o 5.o | ~~'o | ~~.o | ~~'oo.o |
-    __ | ~~  | ~o 'o.o.o | __ ...~ | ~~ | ~~.o 5.o | ~~'oo.o |
-    __ | ~~x | ~o 'o.o.o | __ ...~ | ~~5 | _ .o 5.o 5.o | ~~'o |
-    slow
+    ~~'oo.o | ~~'oo.o | ~~'oo.o | ~~4.o 4.o | ~~'oo.o | motorcycle
+    [ repeat from motorcycle above ]
+    __ | ~~ | ~o 'o.o.o | __ ...~ | ~~4 | _ .o 4.o 4.o | ~~'o | _o ~~4 | pop up
+                 egel2 (wiggle)  ngumbang circles
+    __ | ~~ | ~~ | ~~x | ~~.o 4.o | ~~'o | ~~.o 4.o | ~~'oo.o | tap
+    __ | ~~ | ~o 'o.o.o | __ ...~ | ~~.o | ~~'o |
+
+    _ ‗     = 1 rest 2 rest
+    t l     = kam pang
+    k p     = ka pak
+    i . o   = tut de dag
+    Y       = pung
 -}
 -- High speed is about 90bpm
 bapang_saba_angsels :: Korvai
@@ -57,11 +61,11 @@ bapang_saba_angsels = korvaiV adi
 bapang_saba_middle :: Korvai
 bapang_saba_middle = korvaiV adi
     [ __D 4 . "_tl.itl.i.ii.i.i" -- transition
-    , t1a . t2' . t3 . t4 `replaceEnd` angsel
-    , r2 t1b . t2 . t3 . t4 `replaceEnd` angsel -- beginning, angsel
-    , r2 t1b . t2 . t3 . t4 -- beginning
-    , t1c . t2 . t3 . t4 -- when slow
-    , o_i_o.t1b . t2 . t3 . t4 -- when fast
+    , t1a       . t2' . t3 . t4 `replaceEnd` angsel
+    , r2 t1b    . t2  . t3 . t4 `replaceEnd` angsel -- beginning, angsel
+    , r2 t1b    . t2  . t3 . t4 -- beginning
+    , t1c       . t2  . t3 . t4 -- when slow, melody up
+    , o_i_o.t1b . t2  . t3 . t4 -- when fast
     ]
     where
     t1a = "_Y.o_YYYYkp.i.i." . o_i_o

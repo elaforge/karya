@@ -528,3 +528,10 @@ sketch_sarva = elaforge $ korvaiV adi
     , "dpknpnd__" . "pkpnook" . "N_N_Nd_N_Nd_Nd_k"
     . "pkN_Nd_N_Nd__Nd_" . "N_N_Nd_N_Nd_Nd_k"
     ]
+
+c_2026_01_27 :: Korvai
+c_2026_01_27 = elaforge $ date 2026 1 27 $ korvaiV adi
+    [ r3 "nd.nd.n." . su "p,^,d_". "nd.n."
+    , r3 "nd.nd.n." . su "p,^,d_p,". "d.n."
+    , r2 "nd.nd.n." . "nd.nd" . su "p,^,d_p,^,d_p,"."d.n."
+    ]
