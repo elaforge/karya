@@ -180,6 +180,16 @@ to_chalan = date 2024 12 29 $ colby $ chalan $ lucknow $
     , kali2 (-4) 48 $ dhin_dha_redha.tet_dha_redha
         . r2 "dhina_" . r2 "dhatidha_" . r2 "gena dhagena dhina gena"
         . "__trkt dhinagena dhatidhage dhinagena"
+    , kali2 (-4) 32 $ dhin_dha_redha . tet_dha_redha .  "dhina_dhatidha_"
+        . "gena dhagena dhina gena" . "trkt dhina gena" . "dhatidha gena"
+        . "dha__dha__gena" . "dhati dhagena dhati dhage dhina gena"
+    , dhin_dha_redha . "tet_dha_"
+        . "trkt dhina gena" . "dhateka" . "dha_redha_"
+        . "trkt dhina gena" . "dhateka" . "dha_redha_"
+                            . "dhateka" . "dha_redha_"
+                            . "dhateka" . "dha_redha_"
+                                        . "dha_redha_"
+                                        . "dha_redha"
     ]
     where
     kal = kali2 0 16

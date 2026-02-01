@@ -24,7 +24,6 @@ import qualified Util.Styled as Styled
 import qualified Util.Texts as Texts
 
 import qualified Solkattu.Format.Format as Format
-import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Metadata as Metadata
 import qualified Solkattu.Realize as Realize

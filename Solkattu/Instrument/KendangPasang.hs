@@ -15,10 +15,8 @@ module Solkattu.Instrument.KendangPasang (
 ) where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
-import qualified Data.Text.IO as Text.IO
 
 import qualified Util.Lists as Lists
-import qualified Util.Texts as Texts
 import qualified Derive.Expr as Expr
 import qualified Derive.Symbols as Symbols
 import qualified Solkattu.Instrument.KendangTunggal as T

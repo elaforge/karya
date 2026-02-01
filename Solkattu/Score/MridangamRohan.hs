@@ -579,12 +579,11 @@ adi_tirmanams :: Korvai
 adi_tirmanams = rohan $ tirmanam $ date 2026 1 10 $ korvaiV adi
     [ tri "o_" ("k_" . su ("N_pk".nakatiku."npk_k_pk".nakatiku) . "o_k_")
     , su $ suffixes ("ktooktpk".nakatiku) ["pko_", "pkpko_", "pkpkpko"]
-    , "N_" . r3 (p6 . nadai 6 p6)
+    , "N_" . r3 (p6 . nadai 6 p6) -- 30 matras can also go in kanda chapu
     , __D 7.75 . r3 (tri "d_" (su "kook") . su "tp")
     -- TODO why doesn't the t turn into a k on 2nd reduction?
     , tri "o_" (su $ reduce3 2 ø "k_t_oknpupkto_" . "ktkt")
     , __D 6 . triAAB "N_" (g "tkoonooko_k_") (g "ko_k_N_ko_k_")
-    , __D 1 . "_kDk DkD__kD_kD_kD__kD__kD__k"
     , __D 1 . __ . trin "D__" (tri od k) (tri "D_" k) (tri "D__" k)
     , join "o_" (map (tri o) (reduceToL 1 1 ("pktk".su "kt"))) . o
     ]
@@ -609,15 +608,19 @@ adi_tisra = rohan $ date 2026 1 10 $ korvaiV adi $ map (nadai 6)
     -- transition / arudhi
     , r3 $ "k_otkn".ktpk."d___ kkotkn" . tri "d__n" ktpk
     -- sequence
-    , "onkd_kd_nkd_" . r3 "pnkd_kd_nkd_" . r2 ("onkd_kd_nkd_" . "pnkd_kd_nkd_")
-    . r2 ("onkd_k" . "pnkd_k") . r3 ("onkd" . "pnkd")
-    . r2 ("D_kD_k_t_kd_ __kD_k_t_kd_ D_kD_k_t_kd_" . "TkN".ktpk."TkTkN".ktpk)
-    -- TODO abstract patterns
-    . tri (o.__6.u.__6) ("TkN".ktpk."TkTkN".ktpk) . r3 ("TkN".ktpk."TkTkN".ktpk)
-    . r4 ("tkN".ktpk."tktkN".ktpk)
-    . r2 (("TkN".ktpk."TkTkN".ktpk) . ("tkN".ktpk."tktkN".ktpk))
-    . ("TkN".ktpk."TkTkN".ktpk) . r3 ("tkN".ktpk) . r3 ("tktkN".ktpk)
-
+    , let
+        onkd = "onkd_kd_nkd_"
+        pnkd = "pnkd_kd_nkd_"
+        tknxq = "TkN".ktpk."TkTkN".ktpk
+        tknxq_ = "tkN".ktpk."tktkN".ktpk
+        in
+        onkd . r3 pnkd . r2 (onkd . pnkd)
+        . r2 (takeM 6 onkd . takeM 6 pnkd)
+        . r3 (takeM 4 onkd . takeM 4 pnkd)
+        . r2 ("D_kD_k_t_kd_ __kD_k_t_kd_ D_kD_k_t_kd_" . tknxq)
+    . tri (o.__6.u.__6) tknxq . r3 tknxq
+    . r4 tknxq_ . r2 (tknxq . tknxq_)
+    . tknxq . r3 (takeM 5 tknxq_) . r3 (dropM 5 tknxq_)
     , t123 "k_pktknpuook" p6 (d.__6) . tri (d.__6) (spread 3 ktkno . sd p5 . p5)
 
     -- arudhi
@@ -626,10 +629,6 @@ adi_tisra = rohan $ date 2026 1 10 $ korvaiV adi $ map (nadai 6)
     ]
     where
     ktpk = su "ktpk"
-
--- TODO this is a somewhat common pattern, move to Notation?
-t123 :: Monoid a => a -> a -> a -> a
-t123 pre mid end = pre.mid.end . pre.mid.mid.end . pre.mid.mid.mid.end
 
 adi_kanda :: Korvai
 adi_kanda = rohan $ date 2026 1 10 $ korvaiV adi $ map (nadai 5)
@@ -646,7 +645,27 @@ adi_kanda = rohan $ date 2026 1 10 $ korvaiV adi $ map (nadai 5)
 adi_misra :: Korvai
 adi_misra = rohan $ date 2026 1 10 $ korvaiV adi $ map (nadai 7)
     [ tri (o.__7) "k_t_ktk kooknpk" . o.__5 . r3 p7 . "N_k" . r3 ("k_t_".p5)
-    -- cholu
+    -- sollu
     , __M (4*7) . r2 (su "N_ktokN_k_T_k_") . "NkDNkTk nkdnkTk"
     , __M (4*7) . "k_D_kD_ koD_kD_ okD_kD_" . su "ktko" . "D_kD_"
     ]
+
+-- * transcribe
+
+-- Fancy up of adi_tisra !! 2
+tisra_sequence :: Korvai
+tisra_sequence = rohan $ date 2026 1 20 $ korvaiV adi $ map (nadai 6)
+    [ k_t_kd "D_kD" . k_t_kd ø . k_t_kd "kpk" . k_t_kd ø
+        -- last on, fit into 2, what is that?  nadai 9 or 4.5?
+    , k_t_kd "Ptk" . k_t_kd "npk" . k_t_kd "Npk" . r2 "on,d" . "okon,"
+    , k_t_kd "D_" . k_t_kd "kpk" . k_t_kd ø . "TnNxQTkTkNxQ"
+    -- etc.
+    ]
+    where
+    k_t_kd prefix = replaceStart prefix "__kd_k_t_kd_"
+
+-- * util
+
+-- TODO this is a somewhat common pattern, move to Notation?
+t123 :: Monoid a => a -> a -> a -> a
+t123 pre mid end = pre.mid.end . pre.mid.mid.end . pre.mid.mid.mid.end

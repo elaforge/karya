@@ -151,7 +151,8 @@ c_20_10_25 = date 2020 10 25 $ ganesh $ korvai adi (mridangam<>k1<>k2) $
         , (thom, o)
         ]
     k1 = makeKendang1
-        [ (kitataka.talanga.taka.taka.talanga,
+        [ (sarva_ndd, t.i.i.t . t.t.i.i.t . t.i.i.t . t.i.i.t)
+        , (kitataka.talanga.taka.taka.talanga,
             k.t.k.p.i.u.__.k.p.k.p.k.i.u.__.p)
         , (kitataka.takataka.takataka.takataka,
             k.p.k.o. k.p.k.p .k.p.k.p .k.p.k.p)
@@ -164,13 +165,24 @@ c_20_10_25 = date 2020 10 25 $ ganesh $ korvai adi (mridangam<>k1<>k2) $
         , (dim, o)
         , (thom, o)
 
-        , (sarva_ndd, t.i.i.t . t.t.i.i.t . t.i.i.t . t.i.i.t)
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
     k2 = makeKendang2
-        [ (ta.dit.ta.ga, t.l.t.l)
+        -- TODO just a copy of makeKendang1, do I really need a separate
+        -- kendang tunggal?
+        [ (sarva_ndd, t.i.i.t . t.t.i.i.t . t.i.i.t . t.i.i.t)
+        , (kitataka.talanga.taka.taka.talanga,
+            k.t.k.p.i.u.__.k.p.k.p.k.i.u.__.p)
+        , (kitataka.takataka.takataka.takataka,
+            k.p.k.o. k.p.k.p .k.p.k.p .k.p.k.p)
+        , (tam.__.kita.takadinna.tam.__.kita.takadinna,
+            o.__.p.t.o.i.p.t.o.__.p.t.o.i.p.t)
+        , (ta, p)
+
+        , (ta.dit.ta.ga, t.l.t.l)
         , (ta.di.ki.ta, l.k.p.t)
         , (dim, o)
         , (thom, o)
+
         ] where KendangPasang.Strokes {..} = KendangPasang.notes
 
 -- TODO the same as Kendang2020.farans, except this has the unnecessary sollus,
