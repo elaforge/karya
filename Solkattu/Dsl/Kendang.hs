@@ -10,6 +10,8 @@ module Solkattu.Dsl.Kendang (
     , module Solkattu.Dsl.Interactive
 ) where
 import           Prelude hiding ((.))
+import qualified Data.String as String
+import           GHC.Stack (HasCallStack)
 
 import           Solkattu.Dsl.Interactive (diff, diffw)
 import qualified Solkattu.Dsl.Solkattu as Dsl.Solkattu
@@ -29,6 +31,16 @@ type Sequence = SequenceT Stroke
 type Stroke = Realize.Stroke KendangTunggal.Stroke
 type Section = Korvai.Section Sequence
 
+instance String.IsString Sequence where
+    fromString = strM
+
+-- | Parse a string to strokes. TODO copy paste with Dsl.Mridangam
+strM :: HasCallStack => String -> Sequence
+strM str = mconcatMap toSeq $ Solkattu.check $ KendangTunggal.fromString str
+    where
+    toSeq Nothing = __
+    toSeq (Just stroke) = Realize.strokeToSequence2 stroke
+
 korvai :: Tala.Tala -> [Section] -> Korvai.Korvai
 korvai tala = Korvai.kendangTunggalKorvai tala KendangTunggal.defaultPatterns
 
@@ -38,6 +50,9 @@ korvai1 tala section = korvai tala [section]
 -- | Infer Section types, as init is development, last is ending.
 korvaiS :: Tala.Tala -> [Sequence] -> Korvai.Korvai
 korvaiS tala = korvai tala • Korvai.inferSections
+
+korvaiV :: Tala.Tala -> [Sequence] -> Korvai.Korvai
+korvaiV tala = korvai tala • map section
 
 korvaiS1 :: Tala.Tala -> Sequence -> Korvai.Korvai
 korvaiS1 tala sequence = korvaiS tala [sequence]

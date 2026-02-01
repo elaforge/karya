@@ -630,6 +630,18 @@ adi_tisra = rohan $ date 2026 1 10 $ korvaiV adi $ map (nadai 6)
     where
     ktpk = su "ktpk"
 
+-- Fancy up of adi_tisra !! 2
+tisra_sequence :: Korvai
+tisra_sequence = rohan $ date 2026 1 20 $ korvaiV adi $ map (nadai 6)
+    [ k_t_kd "D_kD" . k_t_kd ø . k_t_kd "kpk" . k_t_kd ø
+        -- last on, fit into 2, what is that?  nadai 9 or 4.5?
+    , k_t_kd "Ptk" . k_t_kd "npk" . k_t_kd "Npk" . r2 "on,d" . "okon,"
+    , k_t_kd "D_" . k_t_kd "kpk" . k_t_kd ø . "TnNxQTkTkNxQ"
+    -- etc.
+    ]
+    where
+    k_t_kd prefix = replaceStart prefix "__kd_k_t_kd_"
+
 adi_kanda :: Korvai
 adi_kanda = rohan $ date 2026 1 10 $ korvaiV adi $ map (nadai 5)
     [ "k_o" . r2 "N_N_N_k d__" . r2 "N_N_kd__" . r2 "N_kd__"
@@ -651,18 +663,6 @@ adi_misra = rohan $ date 2026 1 10 $ korvaiV adi $ map (nadai 7)
     ]
 
 -- * transcribe
-
--- Fancy up of adi_tisra !! 2
-tisra_sequence :: Korvai
-tisra_sequence = rohan $ date 2026 1 20 $ korvaiV adi $ map (nadai 6)
-    [ k_t_kd "D_kD" . k_t_kd ø . k_t_kd "kpk" . k_t_kd ø
-        -- last on, fit into 2, what is that?  nadai 9 or 4.5?
-    , k_t_kd "Ptk" . k_t_kd "npk" . k_t_kd "Npk" . r2 "on,d" . "okon,"
-    , k_t_kd "D_" . k_t_kd "kpk" . k_t_kd ø . "TnNxQTkTkNxQ"
-    -- etc.
-    ]
-    where
-    k_t_kd prefix = replaceStart prefix "__kd_k_t_kd_"
 
 -- * util
 

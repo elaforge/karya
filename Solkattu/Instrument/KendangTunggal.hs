@@ -5,20 +5,24 @@
 {-# LANGUAGE RecordWildCards, DeriveFunctor #-}
 -- | Realize an abstract solkattu sequence to concrete kendang 'Note's.
 module Solkattu.Instrument.KendangTunggal where
+import qualified Data.Map as Map
+import qualified Data.Text as Text
+
+import qualified Util.Lists as Lists
 import qualified Derive.Expr as Expr
 import qualified Derive.Symbols as Symbols
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 
-import Global
+import           Global
 
 
 data Stroke =
     Plak -- both
     | Pak | Pang | TutL | DeL -- left
-    | Ka | Tut | De -- right
-    deriving (Eq, Ord, Show)
+    | Ka | Tut | De | Dag -- right
+    deriving (Eq, Enum, Bounded, Ord, Show)
 
 -- * strokes
 
@@ -31,7 +35,8 @@ instance Solkattu.Notation Stroke where
         DeL -> "a"
         Ka -> "k"
         Tut -> "i"
-        De -> "o"
+        De -> "."
+        Dag -> "o"
 
 instance Pretty Stroke where pretty = Solkattu.notationText
 
@@ -45,7 +50,8 @@ instance Expr.ToExpr Stroke where
         DeL -> "`O+`"
         Ka -> ".."
         Tut -> "o"
-        De -> "+"
+        De -> "-"
+        Dag -> "+"
 
 -- TODO unify with User.Elaforge.Instrument.Kontakt.KendangBali.Stroke
 instance Expr.ToExpr (Realize.Stroke Stroke) where
@@ -76,6 +82,26 @@ strokes = Strokes
     , i = Tut
     , o = De
     }
+
+-- TODO much copy pasted with Mridangam.fromString, factor it out
+fromString :: String -> Either Text [Maybe (Realize.Stroke Stroke)]
+fromString = mapMaybeM parse
+    where
+    parse = \case
+        ' ' -> Right Nothing
+        '_' -> Right $ Just Nothing
+        c -> case Map.lookup c notations of
+            Nothing -> Left $ "unknown kendang stroke: '"
+                <> Text.singleton c <> "'"
+            Just s -> Right $ Just $ Just s
+
+notations :: Map Char (Realize.Stroke Stroke)
+notations = Map.fromList $ Lists.mapMaybeFst isChar $
+    Lists.keyOn Solkattu.notationText (map Realize.stroke [minBound ..])
+    where
+    isChar t = case untxt t of
+        [c] -> Just c
+        _ -> Nothing
 
 notes :: Strokes (S.Sequence g (Solkattu.Note (Realize.Stroke Stroke)))
 notes = Realize.strokeToSequence <$> strokes

@@ -33,7 +33,7 @@ type Section = Korvai.Section Sequence
 instance String.IsString Sequence where
     fromString = strM
 
--- | Parse a string to mridangam strokes.
+-- | Parse a string to strokes. TODO copy paste with Dsl.Mridangam
 strM :: HasCallStack => String -> Sequence
 strM str = mconcatMap toSeq $ Solkattu.check $ KendangPasang.fromString str
     where

@@ -2,14 +2,16 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Solkattu.Score.Kendang2020 where
+module Solkattu.Score.KendangTunggal where
 import           Prelude hiding ((.), repeat)
+
+import qualified Solkattu.Tala as Tala
 
 import           Solkattu.Dsl.Kendang
 
 
 farans :: Korvai
-farans = faran $ korvaiS adi $ map su $ concat
+farans = faran $ korvaiV adi $ map su $ concat
     [ map (make (t.k.p.k) (t.k.p.k . p.k)) -- (p.n.p.k) (p.n.p.k . t.k)
         [ k.p.k.t.p.k.o.k -- k.t.k.n.p.k.t.k
         , o.o.k.t.p.k.o.k -- o.o.k.n.p.k.t.k
@@ -53,3 +55,12 @@ farans = faran $ korvaiS adi $ map su $ concat
         where
         long = group pattern . nakatiku
         short = takeM 6 pattern
+
+exercise1 :: Korvai
+exercise1 = exercise $ date 2026 1 25 $ korvaiV Tala.any_beats
+    [ r4 "kipp" -- TODO kipp or ippk?  Last does seem to start on i.
+    , r4 "kipkpp"
+    , r4 "kipkppkp"
+    , "ipkppkpkip.o_kpi_kp.o_kpkpkpkppk"
+    ]
+    -- Should this be u for kum?

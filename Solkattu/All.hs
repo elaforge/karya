@@ -11,8 +11,8 @@ module Solkattu.All where
 import qualified Solkattu.Korvai as Korvai
 import           Solkattu.Korvai (Score(Single), setLocation)
 import qualified Solkattu.Score.Kanjira2025
-import qualified Solkattu.Score.Kendang2020
 import qualified Solkattu.Score.KendangPasang
+import qualified Solkattu.Score.KendangTunggal
 import qualified Solkattu.Score.Mridangam2013
 import qualified Solkattu.Score.Mridangam2015
 import qualified Solkattu.Score.Mridangam2016
@@ -54,11 +54,12 @@ scores = map Korvai.inferMetadataS
     , setLocation ("Solkattu.Score.Kanjira2025",19,"ta_dit_takadin") $ Single Solkattu.Score.Kanjira2025.ta_dit_takadin
     , setLocation ("Solkattu.Score.Kanjira2025",37,"dinnaginna1") $ Single Solkattu.Score.Kanjira2025.dinnaginna1
     , setLocation ("Solkattu.Score.Kanjira2025",45,"dinnaginna2") $ Single Solkattu.Score.Kanjira2025.dinnaginna2
-    , setLocation ("Solkattu.Score.Kendang2020",11,"farans") $ Single Solkattu.Score.Kendang2020.farans
     , setLocation ("Solkattu.Score.KendangPasang",45,"bapang_saba_angsels") $ Single Solkattu.Score.KendangPasang.bapang_saba_angsels
     , setLocation ("Solkattu.Score.KendangPasang",61,"bapang_saba_middle") $ Single Solkattu.Score.KendangPasang.bapang_saba_middle
     , setLocation ("Solkattu.Score.KendangPasang",81,"bapang_saba_accel") $ Single Solkattu.Score.KendangPasang.bapang_saba_accel
     , setLocation ("Solkattu.Score.KendangPasang",89,"legong1") $ Single Solkattu.Score.KendangPasang.legong1
+    , setLocation ("Solkattu.Score.KendangTunggal",13,"farans") $ Single Solkattu.Score.KendangTunggal.farans
+    , setLocation ("Solkattu.Score.KendangTunggal",59,"exercise1") $ Single Solkattu.Score.KendangTunggal.exercise1
     , setLocation ("Solkattu.Score.Mridangam2013",18,"e_ktkt") $ Single Solkattu.Score.Mridangam2013.e_ktkt
     , setLocation ("Solkattu.Score.Mridangam2013",30,"e_3s_5s") $ Single Solkattu.Score.Mridangam2013.e_3s_5s
     , setLocation ("Solkattu.Score.Mridangam2013",41,"dinnagina_sequences") $ Single Solkattu.Score.Mridangam2013.dinnagina_sequences
