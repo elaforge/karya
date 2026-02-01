@@ -56,7 +56,7 @@ peek_msg msgp = do
 peek_context :: Ptr UiMsg.UiMsg -> IO (UiMsg.Context, Maybe ViewId)
 peek_context msgp = do
     focusp <- (#peek UiMsg, context.focus) msgp :: IO (Ptr PtrMap.CView)
-    focus <- lookup_id focusp
+    ctx_focus <- lookup_id focusp
     viewp <- (#peek UiMsg, context.view) msgp :: IO (Ptr PtrMap.CView)
     view <- lookup_id viewp
 
@@ -64,9 +64,15 @@ peek_context msgp = do
     tracknum <- int <$> (#peek UiMsg, context.tracknum) msgp :: IO Int
     has_pos <- toBool <$> ((#peek UiMsg, context.has_pos) msgp :: IO CChar)
     cpos <- (#peek UiMsg, context.pos) msgp
-    let track = decode_track track_type tracknum has_pos cpos
-        is_floating_input = track_type == (#const UiMsg::track_floating_input)
-    return (UiMsg.Context focus track is_floating_input, view)
+    pure
+        ( UiMsg.Context
+            { ctx_focus
+            , ctx_track = decode_track track_type tracknum has_pos cpos
+            , ctx_floating_input =
+                track_type == (#const UiMsg::track_floating_input)
+            }
+        , view
+        )
     where
     lookup_id p
         | p == nullPtr = return Nothing

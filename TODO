@@ -120,10 +120,27 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
+  * bug: floating_insert called but no open input:  (4o)
+    Happens in kbd entry.
+    . TrackTile::floating_insert(const char *text) when no floating_input.
+      Sync.floating_input state (Cmd.FloatingInsert text) =
+      NoteEntry.floating_input_insert when Cmd.state_floating_input
+    . So it's out of sync with the UI.
+      True when Cmd.FloatingInput, False when
+      UiMsg.UiUpdate _ (UiMsg.UpdateInput {}) and UiMsg.ctx_floating_input ctx
+    . So this happens if the floating input closes, but doesn't send the
+      UiUpdate.
+    . I can prevent the state desync by sending floating status on every UiMsg
+      like with focus.
+    . But this means I'm losing an update, how?
+      Update sent when track_type == UiMsg::track_floating_input
+      MsgCollector::floating_input
+      TrackTile::floating_close, but only if text_changed().
+      Is that not a problem?  Enable msg logging.
+    . It does get stuck on!  But why isn't it a problem?
+      It is!  Kbd entry doesn't work.
+    . Always sending fixes it.  But I should also send on every update?
   save/bali/bapang-saba
-    - bug: floating_insert called but no open input:  (4o)
-      Happens in kbd entry.
-      I had a floating entry then escaped out?
     * saba tuning is totally different from mine, can I put it in as a laras?
       ? I still dislike "tuning" for the umbang/isep, still don't have
         a better name.
@@ -6165,11 +6182,6 @@ test: testing:
       performance.  Mostly because just one more allocation is probably not a
       big deal, but also maybe if I inline the interpretation function then
       the allocation goes away.
-  / delete build/test/tmp on every test run to avoid test contamination
-    . test/run_tests will clear it out, but sometimes I run them directly
-    . But this is pretty much limited to expecting a file in a certain
-      place, which pretty much only Perform.Im.Convert does.  Tests that
-      create tmp files should use Testing.unique_tmp_dir.
   property: hedgehog: quickcheck:
     - Port quickchecks to hedgehog.
     . https://www.youtube.com/watch?v=z2ete8VZnZY&app=desktop
@@ -6739,7 +6751,6 @@ solkattu:
           emit a long underscore or double underscore?
       - Decrease font size for higher speed.
       - I shoud be able to display nested groups.
-      / use JS to switch between konnakol and mridangam
       db ideas:
         - similar_to should be a link
         / source should be a link, click on it to see everything from that

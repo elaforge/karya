@@ -141,10 +141,11 @@ TrackTile::floating_close()
     if (!this->floating_input)
         return;
     floating_input->unwrap();
-    // TODO previously I'd send a msg_input even if there was no change, but
-    // with nullptr.  Why?  Now I don't send it at all if there was no change.
-    if (floating_input->text_changed())
-        MsgCollector::get()->floating_input(this, floating_input->value());
+    // Send a UiMsg::track_floating_input even when there is no change.
+    // Cmd.State relies on this to keep Cmd.state_floating_input up to date.
+    MsgCollector::get()->floating_input(
+        this,
+        floating_input->text_changed() ? floating_input->value() : nullptr);
     this->remove(floating_input);
     floating_input->hide();
     // This function can be called from the callback, and you can't delete
