@@ -168,3 +168,8 @@ reentry = date 2025 9 13 $ elaforge $ korvaiV adi
     -- sequences to re-enter after arrival
     [ od.__5 . g (su "ktpkpktkno").u.__3.su "n_ktpk" . r2 "N.dD.dD."
     ]
+
+tir_transcribe :: Korvai
+tir_transcribe = date 2026 2 5 $ tirmanam $ korvaiV adi
+    [ __M 3 . su (prefixes ["pk_", "pkpk_", "pkpkpk_"] (r3 "N_kD_"))
+    ]

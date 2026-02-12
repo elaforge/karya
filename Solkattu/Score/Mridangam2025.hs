@@ -105,7 +105,7 @@ yella_tani = tani
     [ K yella_sequence
     , Comment "mohra"
     , K yella_mohra_korvai
-    , K yella_tirmanam
+    , K yella_ending
     ]
 
 yella_mohra_korvai :: Korvai
@@ -118,8 +118,8 @@ yella_mohra_korvai = date 2025 9 13 $ korvaiS adi
     where
     purvangam = reduceTo 8 2 ("o_k_D__".p5).p5.p5.od.__3
 
-yella_tirmanam :: Korvai
-yella_tirmanam = date 2025 9 13 $ korvaiV adi
+yella_ending :: Korvai
+yella_ending = date 2025 9 13 $ korvaiV adi
     [ su $ sd (sd "NDDN") . "nod_ktpk".nakatiku
     . r2 (tri "N_pk" nakatiku)
     . nakatiku . "N_pk".nakatiku . r4 "N_k"

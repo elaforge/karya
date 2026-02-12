@@ -416,6 +416,14 @@ thani_24_03_26 = date 2024 3 26 $ sarvalaghu $ korvaiV Tala.rupaka_fast $ map su
         . r5 "tknd,dnk" . su (r2 "N_ktok") . "ok"
     ]
 
+s_rupaka :: Korvai
+s_rupaka = date 2026 2 5 $ sarvalaghu $ korvaiV Tala.rupaka_fast
+    [ "D_oknoD_D_N_"
+    , "u___kktknook"
+    , "nddnddndd" . su "np"."nd"
+    , su (r3 "n_d_^,^,")
+    ]
+
 {-
     These are easier to transcribe and read as plain text.  Maybe there
     should be yet another entry mechanism, or maybe I just leave them as

@@ -662,7 +662,21 @@ adi_misra = rohan $ date 2026 1 10 $ korvaiV adi $ map (nadai 7)
     , __M (4*7) . "k_D_kD_ koD_kD_ okD_kD_" . su "ktko" . "D_kD_"
     ]
 
--- * transcribe
+kanda_chapu :: Korvai
+kanda_chapu = rohan $ date 2026 1 10 $ korvaiV Tala.kanda_chapu
+    -- irregular reduction
+    [ "p_k_kooko_k_o___ k_kooko_k_o_ k_kooko_k_o___"
+    . "oko_k_o___ o_k_o___" . "k_o___o___" . tri "N___N___" (r3 p6)
+    ]
+
+misra_3_eddupu :: Korvai
+misra_3_eddupu = rohan $ date 2026 1 10 $ korvaiV Tala.misra_chapu
+    [ sd $ (r3 "kotknpk") . "k_p_kt_p_k" . "k_p_kn_p_k" . "o_p_k"
+        . sd p5 . r3 p5
+    , tri "D___" p6 . sd "pp_D_"
+    . tri "D___" ("k_".p6) . sd (r2 "pp_D_")
+    . tri "D___" ("k_k_".p6) . sd (r3 "pp_D_") . __D 3
+    ]
 
 -- * util
 

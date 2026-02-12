@@ -78,9 +78,9 @@ get = snd . (scores !!)
 
 -- * predicates
 
-s_sarvalaghu :: IO ()
-s_sarvalaghu = searchM
-    [ ofType "sarvalaghu", hasTag "tala" "adi", notHasTag "nadai" "4"
+s_sarvalaghu :: Text -> IO ()
+s_sarvalaghu tala = searchM
+    [ ofType "sarvalaghu", hasTag "tala" tala
     , notHasTag "source" "elaforge"
     ]
 
@@ -115,9 +115,7 @@ hasTag tag val score =
         Metadata.scoreTag tag score ++ Metadata.sectionTag tag score
 
 notHasTag :: Text -> Text -> Korvai.Score -> Bool
-notHasTag tag val score =
-    any (not . (val `Text.isInfixOf`)) $
-        Metadata.scoreTag tag score ++ Metadata.sectionTag tag score
+notHasTag tag val = not . hasTag tag val
 
 -- | "na na nadin" - like grep, but skips whitespace.  But, it doesn't
 -- highlight the matches like grep can.

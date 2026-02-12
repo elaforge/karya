@@ -16,24 +16,27 @@ import           Solkattu.Dsl.KendangPasang
     nyregseg
     ~~ | ~~  | ~~ | ~~ | ~~.o | ~~'oo.o | tap
     ngumbang
-    __ | ~~ | ~o 'o.o.o | __ ...~ | ~~ | ~~.o | ~~'oo.o | tap
+    __ | ~~ | ~o 'o.o.o | __ ...~ | ~~ | ~~.o | ~~'oo.o |
     duduk
     ~~'oo.o | ~~'oo.o | ~~'o |            stand
     __ .o  | ~~'o | __ o | _~ | ~~ | ~~ | ~~ | ~~ | ~~.o | ~~'oo.o | motorcycle
+    swimming
     __ | ~~ | ~o 'o.o.o | __ ...~ | ~~4 | _ .o 4.o 4.o | ~~'o | _o ~~4 | pop up
                  egel2 (wiggle)
     __ | ~~ | ~~ | ~~x | ~~.o 4.o | ~~'o | ~~.o 4.o | ~~'oo.o | tap
     ngumbang circles
-    __ | ~~ | ~o 'o.o.o | __ ...~ | ~~.o | ~~'o |
+    __ | ~~ | ~o 'o.o.o | __ ...~ | ~~ | ~~.o | ~~'o |
 
     slow
 
     ~~'oo.o | ~~'oo.o | ~~'oo.o | ~~4.o 4.o | ~~'oo.o | motorcycle
-    [ repeat from motorcycle above ]
+    swimming
     __ | ~~ | ~o 'o.o.o | __ ...~ | ~~4 | _ .o 4.o 4.o | ~~'o | _o ~~4 | pop up
-                 egel2 (wiggle)  ngumbang circles
+                 egel2 (wiggle)
     __ | ~~ | ~~ | ~~x | ~~.o 4.o | ~~'o | ~~.o 4.o | ~~'oo.o | tap
-    __ | ~~ | ~o 'o.o.o | __ ...~ | ~~.o | ~~'o |
+    ngumbang circles
+    __ | ~~ | ~o 'o.o.o | __ ...~ | ~~ | ~~.o | ~~'oo.o |
+    __ | ~~ | ~o 'o.o.o | __ ...~ | ~~4 | _ .o 4.o 4.o | ~~ | ~~.o | ~~'o |
 
     _ ‗     = 1 rest 2 rest
     t l     = kam pang
