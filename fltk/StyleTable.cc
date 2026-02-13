@@ -8,22 +8,25 @@
 
 #include "StyleTable.h"
 
+// The default is really big to make it obviously wrong.
+static const EventStyle missing_style(
+    FL_HELVETICA, 24, Color::black, Color::white);
 
 const EventStyle *
 StyleTable::get(StyleId id) const
 {
-    ASSERT(id < stable.size());
-    return &stable[id];
+    if (id < stable.size())
+        return &stable[id];
+    else
+        return &missing_style;
 }
 
 
 void
 StyleTable::put(StyleId id, const EventStyle &style)
 {
-    // The default is really big to make it obviously wrong.
-    static EventStyle deflt(FL_HELVETICA, 24, Color::black, Color::white);
     while (id >= stable.size()) {
-        stable.push_back(deflt);
+        stable.push_back(missing_style);
     }
     stable[id] = style;
 }
