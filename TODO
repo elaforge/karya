@@ -120,6 +120,34 @@ external:
     . using tscore, especially standalone
 
 UNSORTED
+  - im still has the bug where deleting a track won't delete the files?
+    . No it does, but leaves empty directories.
+    . Maybe GC can clear out a directory with no ###.wav?
+  - how to use self streaming?
+    called play_im_direct
+    im_play_direct <- Cmd.gets $ Cmd.config_im_play_direct . Cmd.state_config
+    LCmd.im_play_direct
+    How could I have found this easier?
+  * no sound from break
+    . It plays but it's all quiet.  But there is track waveform, whence that?
+    . It's from the wav but why does it not look empty?  Just very quiet?
+    . Other im works, it's just break.
+    . It's the envelope, constant 1 works.
+    . Util.dynEnvelope, but it seems like Signal.clip_after is incorrect for
+      constant!?
+  - why did a 0 signal show up like a waveform in the track?
+    . It happens when Signal.from_pairs [(15.75, 1), (16, 0)]
+  - track waveform scale
+    . Could I have a scale marking on track waveform so I can get a sense of
+      volume?
+  OverloadedRecordDot:
+    - in Cmd?
+  - repl: can I turn off type error context:
+    . In the expression:
+      In an equation for `_compileParsedExpr':
+    . It's just ReplGhc stuff.
+    . Or maybe just ad-hoc filter it out.
+  - osx: how to disable that "reopen windows" feature?
   * bug: floating_insert called but no open input:  (4o)
     Happens in kbd entry.
     . TrackTile::floating_insert(const char *text) when no floating_input.
@@ -170,13 +198,15 @@ UNSORTED
     . Would it make sense to replace pasang instruments with simply a flat
       instrument that acts like it?
       . But I would want to do score integrate to split into wadon and lanang?
-
-  - add a bpm range annotation to solkattu
-    . This is sort of more dynamic, in that it's to do with my practice,
-      but isn't all of it?
   - why does seq window not come to front?
     . test_block does, browser and logview do.
     . what could possibly be different?
+    - Can I strip it down to just display the block?
+      Browser uses Util.Fltk, seq uses its own thing.  Could I port seq to
+      Util.Fltk?
+      . What is the difference?
+      . ask claude? what would it take to port @App/Main.hs to use
+        @Util/Fltk.hs like @Instrument/Browser.hs does?
   + bug: ghci GHC.Linker.Loader.dynLoadObjs: Loading temp shared object failed
     During interactive linking, GHCi couldn't find the following symbol:
       dlopen(/var/folders/gm/7n_pzqns7_dd93srd5n4l_2c0000gn/T/ghc74955_0/libghc_20.dylib, 0x0005): symbol not found in flat namespace '_SolkattuziDslziMridangam_closed_closure'
@@ -409,6 +439,108 @@ UNSORTED
       . It would be more explicit to include them both in `ky` or something,
         and be able to comment / uncomment.
   + inst allocation in ky: branch ky-record:
+    decision:
+      - reduce to just >name [ms] -- qualified/ 1 2 3
+        Only mute/solo are synced.  Generate it each time, no comments.
+      . Wait except tscore uses this!  This is probably how I started down
+        this road in the first place.
+      . In tscore it's the complete allocation, and you just can't express
+        the fancy stuff.  So this is pulling in the direction of all in text.
+      . Ok so what if I keep the format the same, but simplify the merging.
+    notes:
+      Currently it's a bad state, it's semi parsed.
+        ? What's the problem?
+          I think it's 2 way sync, from UiConfig to ky, and ky back.
+        . If I add with LInst.add_inst, then I have to generate the line.
+      Can I make ky canonical for the bits it covers?
+        . Instead of generating it in Ky.get_ky, just have it directly from
+          UiConfig.ky.
+      . Do I need Common.config_environ if I can already do the same with
+        instrument transformers?  Same for ControlValMap.
+        Not quite, because I have dummy pasangan instruments with environ,
+        they would have to be injected into the transform: section somehow.
+      . The original reason was to more easily mute/solo.
+        But then add_inst wouldn't add new ones, and converse.
+        And it seemed like it would be neat to show stuff about instrumenst.
+        And it seemed compelling to have all the alloc data right there in
+        text, where I could have comments etc.  I could easily switch by
+        commenting/uncommenting.  Also don't need separate .inst files, or
+        rather that they become text.
+        If I can serialize it for save, why can't I serialize to text?
+        `dump` does this, but it's not 2 way, e.g. scale is stand-in.
+        But there's lots of complicated stuff, and it would all need to be
+        reflected into a json-esque format.
+      all text problems:
+        . The plan was to make a generic Record like JSON and then a separate
+          parser out of that.
+        . Complicated though, two levels of parser.
+        . I also had doubts because LInst provides a typed modification
+          interface, it seemed hard to remember some complicated data
+          structure.  I could create a skeleton for new instruments, but
+          the majority is unused.
+        . I could have both with an unparser, but now it also needs to
+          preserve comments to do 2 way sync.
+        ? REnv?
+        ? config_scale
+      . So there are two paths:
+        . Continue to pursue all in text.
+        . Back out and either delete the instruments section entirely, or
+          see if I can support just mute/solo.
+
+      . Does Ky.merge_instruments not work?
+      . I want some of it to be in ky, where ky is canonical.  So no need
+        to unparse, the UiConfig version is just a parsed version of ky.
+        , alloc_qualified :: !InstT.Qualified
+        , alloc_config :: !Common.Config
+        , alloc_backend :: !Backend
+        data Backend = Midi !Patch.Config | Im | Sc | Dummy !Text
+        Midi.Patch.Config
+          + config_allocation :: ![(Addr, Maybe Voices)]
+          - config_initialization :: !(Maybe Initialization)
+          . config_settings :: !Settings
+        Midi.Patch.Settings
+          - config_flags :: !(Maybe (Set Flag))
+          - config_scale :: !(Maybe Scale)
+          - config_decay :: !(Maybe RealTime)
+          - config_pitch_bend_range :: !(Maybe Control.PbRange)
+          - config_control_defaults :: !(Maybe ScoreT.ControlValMap)
+        Common.Config:
+          - config_environ :: !REnv.Environ
+          - config_controls :: !ScoreT.ControlValMap
+          + config_mute :: !Bool
+          + config_solo :: !Bool
+
+        >pno [ms] pianoteq/ midi loop1 0 1 2
+        >tmb [ms] faust/tambura4 im
+        >osc [ms] sc/inst sc
+        >dum [ms] kontakt/sc-calung-pasang dummy
+        This is name, solo/mute, qualified, backend, allocation
+
+        >pno [ms] pianoteq/ midi loop1 0 1 2
+          { environ:
+            { -inst-bottom: (pitch 4 0)
+            , -inst-top: (pitch 4 6)
+            , +tuning: umbang
+            }
+          }
+
+      . Some of the instrument config is in ky:
+        >pno pianoteq/ midi loop1 0 1 2
+        >tmb faust/tambura4 im
+        >osc sc/inst sc
+        >dum kontakt/sc-calung-pasang dummy
+        instruments:
+        >calung kontakt/sc-calung-pasang    (dummy)
+          { +inst-polos: calung-p
+          , +inst-sangsih: calung-s
+          }
+        >calung-p kontakt/sc-calung loop1 [3]
+          { -inst-bottom: (pitch 4 0)
+          , -inst-top: (pitch 4 6)
+          , +tuning: umbang
+          }
+          >m-d kontakt/mridangam-d loop2 [3] {mute}
+
     * implement Record type and parser
     / I'll probably need to parse and unparse comments too:
       . commented out lines for unset config
@@ -1573,6 +1705,7 @@ UNIFY:
 ----------------------------------------------------------------------
 
 ghc:
+  . https://discourse.haskell.org/t/the-haskell-debugger-for-ghc-9-14/13499
   - -fdefer-type-errors is broken in 8.4:
     https://ghc.haskell.org/trac/ghc/ticket/14963
     . Seems to be fixed now!  Try it again.
@@ -6357,6 +6490,9 @@ REPL: repl:
     . https://gitlab.haskell.org/haskell/ghc-api-compat
 
 solkattu:
+  - add a bpm range annotation
+    . This is sort of more dynamic, in that it's to do with my practice,
+      but isn't all of it?
   * replace tri with r3, and rename tri_ to tri.
   - looks like putting in a group suppresses x q abbreviation
   KendangPasang:

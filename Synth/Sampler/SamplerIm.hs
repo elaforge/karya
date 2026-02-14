@@ -447,8 +447,8 @@ makeSampleNote emitMessage mbEffect prevStart (Right sample, logs, note) = do
         Right dur | dur <= 0 -> do
             -- Omit samples with 0 duration.  This can happen naturally if they
             -- have 0 volume.
-            emitMessage $ Config.Warn (Note.stack note)
-                "sample with <=0 duration"
+            emitMessage $ Config.Warn (Note.stack note) $
+                "sample with 0 envelope: " <> pretty sample
             return Nothing
         -- The notes should have been sorted prior to serialization.
         _ | Note.start note < prevStart -> do

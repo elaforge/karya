@@ -168,6 +168,8 @@ test_num_clip_after = do
     equal (f 2 [(0, 0), (2, 0), (2, 2)]) [(0, 0)]
     equal (f 2 [(0, 0), (4, 4)]) [(0, 0), (2, 2)]
     equal (f 2 [(2, 1)]) []
+    let f2 = Segment.num_clip_after False
+    equal (at (f2 2 (Segment.constant 1)) 0) (Just 1)
 
 test_drop_before_clip_before :: Test
 test_drop_before_clip_before = do
@@ -314,6 +316,9 @@ gen_signal :: Hedgehog.Gen Segment.NumSignal
 gen_signal = from_pairs . Lists.sortOn fst <$> gen_samples
 
 -- * util
+
+at :: Segment.NumSignal -> X -> Maybe Y
+at = Segment.at Segment.num_interpolate
 
 large_y :: Y
 large_y = RealTime.to_seconds large

@@ -248,6 +248,9 @@ from_samples =
     drop_coincident (s1:sn) = s1 : drop_coincident sn
     drop_coincident [] = []
 
+from_samples_raw :: V.Vector v (Sample y) => [Sample y] -> Signal v y
+from_samples_raw = Signal 0 . V.fromList
+
 to_samples :: V.Vector v (Sample y) => Signal v y -> [Sample y]
 to_samples = \case
     Constant y -> [Sample beginning y]
@@ -267,6 +270,10 @@ to_samples_desc = \case
 
 from_pairs :: V.Vector v (Sample y) => [(X, y)] -> Signal v y
 from_pairs = from_samples . map (uncurry Sample)
+
+-- | from_pairs without the sanity checking.
+from_pairs_raw :: V.Vector v (Sample y) => [(X, y)] -> Signal v y
+from_pairs_raw = from_samples_raw . map (uncurry Sample)
 
 to_pairs :: V.Vector v (Sample y) => Signal v y -> [(X, y)]
 to_pairs = map TimeVector.to_pair . to_samples
@@ -491,7 +498,7 @@ clip_after :: V.Vector v (Sample y) => Interpolate y -> X -> Signal v y
     -> Signal v y
 clip_after interpolate x = \case
     Signal offset v -> signal offset $ clip_after_v interpolate (x - offset) v
-    Constant y -> singleton x y
+    Constant y -> from_pairs_raw [(beginning, y), (x, y)]
 
 clip_after_v :: V.Vector v (Sample y) => Interpolate y -> X
     -> v (Sample y) -> v (Sample y)
@@ -512,12 +519,16 @@ num_clip_after keep_last x = \case
         | [Sample x0 _] <- V.toList clipped, x0 == x -> empty
         | otherwise -> Signal offset clipped
         where clipped = num_clip_after_v keep_last (x - offset) v
-    Constant y -> singleton x y
+    sig@(Constant y)
+        | keep_last -> from_pairs_raw [(beginning, y), (x, y)]
+        | otherwise -> sig
 
 -- | 'clip_after' specialized for 'Y'.  Since it has Eq, it can do an
 -- additional optimization.
 num_clip_after_v :: Bool -- ^ if False, inhibit the optimization that omits
-    -- the end sample if it's a flat line
+    -- the end sample if it's a flat line.  If you are going to splice
+    -- another signal afterwards, you need the final sample.  If you are
+    -- not, you can save a reallocation by omitting the final sample.
     -> X -> TimeVector.Unboxed -> TimeVector.Unboxed
 num_clip_after_v keep_last x vec = case segment_at_v Types.Negative x vec of
     Nothing -> vec

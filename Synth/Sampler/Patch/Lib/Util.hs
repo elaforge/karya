@@ -23,8 +23,6 @@ import qualified Derive.Attrs as Attrs
 import qualified Instrument.Common as Common
 import qualified Perform.Im.Patch as Im.Patch
 import qualified Perform.Pitch as Pitch
-import qualified Perform.RealTime as RealTime
-
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Control as Control
@@ -33,6 +31,7 @@ import qualified Synth.Shared.Signal as Signal
 import qualified Synth.Shared.Thru as Thru
 
 import           Global
+import           Synth.Types
 
 
 data SampleFormat = Wav | Flac deriving (Eq, Show)
@@ -206,26 +205,31 @@ velToDyn = (/127) . fromIntegral
 
 -- ** envelope
 
-dynEnvelope :: Signal.Y -> RealTime.RealTime -> Note.Note -> Signal.Signal
+-- | Get the dynamic signal and impose a release on it.
+dynEnvelope :: Signal.Y -> RealTime -> Note.Note -> Signal.Signal
 dynEnvelope minDyn releaseTime note =
+    dynEnvelopeSig minDyn releaseTime (Note.start note) (Note.end note)
+        (Map.findWithDefault mempty Control.dynamic (Note.controls note))
+
+dynEnvelopeSig :: Signal.Y -> RealTime -> RealTime -> RealTime -> Signal.Signal
+    -> Signal.Signal
+dynEnvelopeSig minDyn releaseTime start end dyn =
     env <> Signal.from_pairs [(end, Signal.at env end), (end + releaseTime, 0)]
     where
-    end = Note.end note
     env = Signal.scalar_scale minDyn $
-        Signal.drop_before (Note.start note) $
-        Signal.clip_after (Note.end note) $
-        Map.findWithDefault mempty Control.dynamic $
-        Note.controls note
+        Signal.drop_before start $
+        Signal.clip_after end $
+        dyn
 
 -- | Simple sustain-release envelope.
-sustainRelease :: Dyn -> RealTime.RealTime -> Note.Note -> Signal.Signal
+sustainRelease :: Dyn -> RealTime -> Note.Note -> Signal.Signal
 sustainRelease dyn releaseTime note = Signal.from_pairs
     [ (Note.start note, dyn), (Note.end note, dyn)
     , (Note.end note + releaseTime, 0)
     ]
 
 -- | Simple release envelope.
-triggerRelease :: Dyn -> RealTime.RealTime -> Note.Note -> Signal.Signal
+triggerRelease :: Dyn -> RealTime -> Note.Note -> Signal.Signal
 triggerRelease dyn releaseTime note = Signal.from_pairs
     [ (Note.start note, dyn)
     , (Note.start note + releaseTime, 0)

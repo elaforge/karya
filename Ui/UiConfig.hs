@@ -84,13 +84,7 @@ data Config = Config {
     -- a program with a more absolute notion of time, like a DAW.
     , config_root :: !(Maybe BlockId)
 
-    -- | Instrument allocations.
     , config_allocations :: !Allocations
-        -- TODO I'm not a big fan of this name, since it's generic and not
-        -- obviously related to instruments.  However the previous name,
-        -- 'aliases', was too and I somehow lived through that.  I tried
-        -- 'instruments', but it seemed too easy to confuse with
-        -- 'ScoreT.Instrument'.
     , config_lilypond :: !Lilypond.Config
     , config_default :: !Default
     , config_saved_views :: !SavedViews
@@ -191,6 +185,11 @@ verify_backends_match backend alloc = case (alloc_backend alloc, backend) of
     _ -> Just $ "allocation type " <> backend_name (alloc_backend alloc)
         <> " /= instrument type " <> Inst.backend_name backend
 
+-- TODO I'm not a big fan of this name, since it's generic and not
+-- obviously related to instruments.  However the previous name,
+-- 'aliases', was too and I somehow lived through that.  I tried
+-- 'instruments', but it seemed too easy to confuse with
+-- 'ScoreT.Instrument'.  But in ky, it's in the instruments: section.
 newtype Allocations = Allocations (Map ScoreT.Instrument Allocation)
     deriving (Eq, Show, Pretty, Semigroup, Monoid)
 
