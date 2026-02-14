@@ -4,6 +4,7 @@
 
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE StrictData #-}
 -- | This is like the @sample@ patch, but with special support for breaking up
 -- beats and naming them.
 module Synth.Sampler.Patch.Break (
@@ -68,7 +69,7 @@ patches = map make allBreaks
             }
         , Patch._karyaPatch =
             ImInst.doc #= Doc.Doc
-                ("Inferred BPM: " <> Num.showFloat 2 (breakBpm break)) $
+                ("BPM: " <> Num.showFloat 2 (_bpm break)) $
             ImInst.code #= (call_code <> drum_code) $
             ImInst.make_patch $ Im.Patch.patch
                 { Im.Patch.patch_controls = mconcat
@@ -93,7 +94,7 @@ patches = map make allBreaks
                 [(beat, stroke) | (beat, stroke, _) <- _beats break]
         thru = Util.imThruFunction dir (convert sample (_pitchAdjust break))
         beatMap = makeBeatMap break
-        breakCall = c_break (breakBpm break) beatMap (_perMeasure break)
+        breakCall = c_break (_bpm break) beatMap (_perMeasure break)
     dir = "break"
 
 -- * cmd
@@ -285,6 +286,7 @@ findFrame beats beat = case at of
 
 type Measure = Int
 type Beat = Ratio.Ratio Int
+type BPM = Double
 type Frame = Int
 type Stroke = Text
 
@@ -327,13 +329,13 @@ showBpms break =
     Text.unlines . (++[last strokes, bpm]) . map fmt . zip strokes . breakBpms $
         break
     where
-    bpm = "Inferred BPM: " <> Num.showFloat 2 (breakBpm break)
+    bpm = "Inferred BPM: " <> Num.showFloat 2 (inferBpm break)
     fmt (stroke, bpm) =
         Text.justifyLeft 8 ' ' stroke <> " - " <> Num.showFloat 2 bpm
     strokes = [stroke | (_, stroke, _) <- _beats break]
 
-breakBpm :: Break -> Double
-breakBpm = centralMean . breakBpms
+inferBpm :: Break -> BPM
+inferBpm = centralMean . breakBpms
 
 -- | Try to get a good mean by discarding outliers.
 centralMean :: [Double] -> Double
@@ -345,6 +347,10 @@ centralMean bpms = mean $ filter (not . outlier) bpms
     low = minimum bpms
     high = maximum bpms
 
+beatToBpm :: Double -> BPM
+beatToBpm beat = 1 / beat * 60
+
+-- | Guess bpms based on the distance between each named position.
 breakBpms :: Break -> [Double]
 breakBpms break = map guess . pairs . Map.toAscList . makeBeatMap $ break
     where
@@ -357,20 +363,27 @@ breakBpms break = map guess . pairs . Map.toAscList . makeBeatMap $ break
 
 data Break = Break {
     _name :: Text
-    , _beats :: ![((Measure, Beat), Stroke, Frame)]
-    , _perMeasure :: !Beat
-    , _increment :: !Beat
-    , _pitchAdjust :: !Pitch.NoteNumber
+    , _beats :: [((Measure, Beat), Stroke, Frame)]
+    , _perMeasure :: Beat -- ^ how many beats in one measure
+    , _bpm :: BPM
+    , _increment :: Beat
+    -- | Relative pitch offset.  This changes the base speed.
+    , _pitchAdjust :: Pitch.NoteNumber
     } deriving (Show)
 
-makeBreak :: Text -> Beat -> [(Beat, Stroke, Frame)] -> Break
-makeBreak name perMeasure beats = Break
+makeBreak :: Text -> Beat -> Maybe BPM -> [(Beat, Stroke, Frame)] -> Break
+makeBreak name perMeasure mbBpm beats = addBpm $ Break
     { _name = name
+    , _bpm = fromMaybe 0 mbBpm
     , _beats = labelStrokes (addMeasures beats)
     , _perMeasure = perMeasure
     , _increment = 1/2
     , _pitchAdjust = 0
     }
+    where
+    addBpm break
+        | _bpm break == 0 = break { _bpm = inferBpm break }
+        | otherwise = break
 
 pitchAdjust :: Pitch.NoteNumber -> Break -> Break
 pitchAdjust nn break = break { _pitchAdjust = nn }
@@ -384,7 +397,7 @@ allBreaks :: [Break]
 allBreaks = [medeski, amen, massaker1, massaker2]
 
 medeski :: Break
-medeski = makeBreak "medeski" 8
+medeski = makeBreak "medeski" 8 (Just 138.53)
     [ (1,   bd, 0)
     , (2,   sn, 20296)
     , (3.5, bd, 49024)
@@ -420,7 +433,7 @@ medeski = makeBreak "medeski" 8
     ]
 
 amen :: Break
-amen = makeBreak "amen" 4
+amen = makeBreak "amen" 4 Nothing
     [ (1,   bd, 0)
     , (2,   sn, 19594)
     , (3.5, bd, 48536)
@@ -439,7 +452,7 @@ amen = makeBreak "amen" 4
     ]
 
 massaker1 :: Break
-massaker1 = pitchAdjust (-12) $ makeBreak "massaker1" 4
+massaker1 = pitchAdjust (-12) $ makeBreak "massaker1" 4 Nothing
     [ (1,   bd, 0)
     , (2,   sn, 7880)
     , (3.5, bd, 19790)
@@ -451,7 +464,7 @@ massaker1 = pitchAdjust (-12) $ makeBreak "massaker1" 4
     ]
 
 massaker2 :: Break
-massaker2 = pitchAdjust (-12) $ makeBreak "massaker2" 4
+massaker2 = pitchAdjust (-12) $ makeBreak "massaker2" 4 Nothing
     [ (1,   bd, 0)
     , (2,   bd, 7682)
     , (3,   sn, 15530)
