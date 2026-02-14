@@ -47,6 +47,10 @@ enum { MIN_PIXEL = -10000, MAX_PIXEL = 10000 };
 // This is enough to fix -x00 for a control track.
 static const int minimum_suggested_width = 29;
 
+// Scale waveform by at most this much.  It's limited so inaudible stuff
+// doesn't confusingly look like it should be audible.
+static const float max_peak_scale = 2.0;
+
 
 // TrackSignal //////////
 
@@ -786,7 +790,8 @@ get_next_start(
 void
 EventTrack::Body::draw_waveforms(int min_y, int max_y, ScoreTime start)
 {
-    const float amplitude_scale = max_peak == 0 ? 1 : 1 / max_peak;
+    const float amplitude_scale = std::min(
+        max_peak_scale, max_peak == 0 ? 1 : 1 / max_peak);
     if (peak_entries.empty())
         return;
 

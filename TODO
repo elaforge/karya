@@ -135,11 +135,19 @@ UNSORTED
     . It's the envelope, constant 1 works.
     . Util.dynEnvelope, but it seems like Signal.clip_after is incorrect for
       constant!?
-  - why did a 0 signal show up like a waveform in the track?
-    . It happens when Signal.from_pairs [(15.75, 1), (16, 0)]
-  - track waveform scale
+  * track waveform scale
+    ? why did a 0 signal show up like a waveform in the track?
+      . It happens when Signal.from_pairs [(15.75, 1), (16, 0)]
+      . Signal is 0 until after the sample.  How does it happen that the wav
+        is all 0 but shows up in the track?
+      . Is this constant 0 or interpolated?  If it's interpolated, why doesn't
+        it get louder?
+      . It does, but too slowly to hear.  This is just the waveform autoscaling.
     . Could I have a scale marking on track waveform so I can get a sense of
       volume?
+    . Or what if I draw the envelope in there?
+    . It's EventTrack::Body::draw_waveforms amplitude_scale, from max_peak
+    . Other programs don't do this, they just display directly?
   OverloadedRecordDot:
     - in Cmd?
   - repl: can I turn off type error context:

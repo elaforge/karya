@@ -15,7 +15,6 @@ import           Types
 
 -- * config
 
-
 -- | Temporarily set 'Cmd.config_im_play_direct', see
 -- 'App.StaticConfig.im_play_direct' to set it permanently.
 im_play_direct :: Cmd.M m => m Bool
