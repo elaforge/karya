@@ -4,6 +4,7 @@
 
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE StrictData #-}
 -- | This is like the @sample@ patch, but with special support for breaking up
 -- beats and naming them.
@@ -57,9 +58,9 @@ import           Global
 patches :: [Patch.Patch]
 patches = map make allBreaks
     where
-    make break = (Patch.patch ("break-" <> _name break))
+    make break = (Patch.patch ("break-" <> break.name))
         { Patch._dir = dir
-        , Patch._convert = convert sample (_pitchAdjust break)
+        , Patch._convert = convert sample break.pitchAdjust
         , Patch._allFilenames = Set.fromList [sample]
         , Patch._effect = Just $ (Patch.effect "comb")
             { Patch._toEffectControl = Map.fromList
@@ -69,7 +70,7 @@ patches = map make allBreaks
             }
         , Patch._karyaPatch =
             ImInst.doc #= Doc.Doc
-                ("BPM: " <> Num.showFloat 2 (_bpm break)) $
+                ("BPM: " <> Num.showFloat 2 break.bpm) $
             ImInst.code #= (call_code <> drum_code) $
             ImInst.make_patch $ Im.Patch.patch
                 { Im.Patch.patch_controls = mconcat
@@ -82,19 +83,19 @@ patches = map make allBreaks
                 }
         }
         where
-        sample = untxt $ _name break <> ".wav"
+        sample = untxt $ break.name <> ".wav"
         call_code = ImInst.note_generators $ ("n", breakCall Nothing) :
             [ (Expr.Symbol stroke, breakCall (Just frame))
-            | (_, stroke, frame) <- _beats break
+            | (_, stroke, frame) <- break.beats
             ]
         drum_code = ImInst.cmd $ CUtil.insert_expr thru
-            (lookupStroke (_increment break) (_perMeasure break) strokeMap)
+            (lookupStroke break.increment break.perMeasure strokeMap)
             where
             strokeMap = Map.fromList
-                [(beat, stroke) | (beat, stroke, _) <- _beats break]
-        thru = Util.imThruFunction dir (convert sample (_pitchAdjust break))
+                [(beat, stroke) | (beat, stroke, _) <- break.beats]
+        thru = Util.imThruFunction dir (convert sample break.pitchAdjust)
         beatMap = makeBeatMap break
-        breakCall = c_break (_bpm break) beatMap (_perMeasure break)
+        breakCall = c_break break.bpm beatMap break.perMeasure
     dir = "break"
 
 -- * cmd
@@ -166,7 +167,7 @@ data BpmMode = Pitch | Stretch
 
 -- | Take a beat arg or named start time, and look up the corresponding start
 -- offset.
-c_break :: Double -> Map Beat Frame -> Beat -> Maybe Frame
+c_break :: BPM -> Map Beat Frame -> Beat -> Maybe Frame
     -> Derive.Generator Derive.Note
 c_break naturalBpm beatMap perMeasure mbFrame =
     Derive.generator Module.instrument "break" mempty doc $
@@ -213,7 +214,7 @@ withControl :: Control.Control -> Signal.Y -> Derive.Deriver a
 withControl control =
     Derive.with_constant_control (Controls.from_shared control)
 
-adjustBpm :: Double -> Double -> BpmMode
+adjustBpm :: BPM -> BPM -> BpmMode
     -> (Pitch.NoteNumber, Derive.Deriver a -> Derive.Deriver a)
 adjustBpm naturalBpm bpm = \case
     Pitch -> (bpmPitchAdjust naturalBpm bpm, id)
@@ -221,7 +222,7 @@ adjustBpm naturalBpm bpm = \case
 
 -- bpm to *2 means +12
 -- bpm / naturalBpm = 2 => ratio
-bpmPitchAdjust :: Double -> Double -> Pitch.NoteNumber
+bpmPitchAdjust :: BPM -> BPM -> Pitch.NoteNumber
 bpmPitchAdjust naturalBpm bpm = Sample.ratioToPitch $ bpm / naturalBpm
 
 maxBeat :: Map Beat frame -> Beat -> Int
@@ -311,8 +312,8 @@ labelStrokes = map $ \((measure, beat), stroke, frame) ->
 
 makeBeatMap :: Break -> Map Beat Frame
 makeBeatMap break = Map.fromList
-    [ (fromIntegral (measure-1) * _perMeasure break + beat, frame)
-    | ((measure, beat), _, frame) <- _beats break
+    [ (fromIntegral (measure-1) * break.perMeasure + beat, frame)
+    | ((measure, beat), _, frame) <- break.beats
     ]
 
 -- * bpm
@@ -320,19 +321,20 @@ makeBeatMap break = Map.fromList
 -- | For use from ghci.
 _printBpms :: IO ()
 _printBpms = forM_ allBreaks $ \break -> do
-    Text.IO.putStrLn $ "---- " <> _name break
+    Text.IO.putStrLn $ "---- " <> break.name
     Text.IO.putStrLn $ showBpms break
 
 -- | Get inferred bpm from each stroke.
 showBpms :: Break -> Text
 showBpms break =
-    Text.unlines . (++[last strokes, bpm]) . map fmt . zip strokes . breakBpms $
-        break
+    Text.unlines . (++[last strokes, inferredBpm, bpm])
+        . map fmt . zip strokes . breakBpms $ break
     where
-    bpm = "Inferred BPM: " <> Num.showFloat 2 (inferBpm break)
+    inferredBpm = "Inferred BPM: " <> Num.showFloat 2 (inferBpm break)
+    bpm = "BPM: " <> Num.showFloat 2 break.bpm
     fmt (stroke, bpm) =
         Text.justifyLeft 8 ' ' stroke <> " - " <> Num.showFloat 2 bpm
-    strokes = [stroke | (_, stroke, _) <- _beats break]
+    strokes = [stroke | (_, stroke, _) <- break.beats]
 
 inferBpm :: Break -> BPM
 inferBpm = centralMean . breakBpms
@@ -351,42 +353,40 @@ beatToBpm :: Double -> BPM
 beatToBpm beat = 1 / beat * 60
 
 -- | Guess bpms based on the distance between each named position.
-breakBpms :: Break -> [Double]
+breakBpms :: Break -> [BPM]
 breakBpms break = map guess . pairs . Map.toAscList . makeBeatMap $ break
     where
     guess ((beat0, frame0), (beat1, frame1)) = (60/) $
         (fromIntegral (frame1 - frame0) / realToFrac (beat1 - beat0))
             / fromIntegral Config.samplingRate
             * ratioAdjust
-    ratioAdjust = Sample.relativePitchToRatio (_pitchAdjust break)
+    ratioAdjust = Sample.relativePitchToRatio break.pitchAdjust
     pairs xs = zip xs (drop 1 xs)
 
 data Break = Break {
-    _name :: Text
-    , _beats :: [((Measure, Beat), Stroke, Frame)]
-    , _perMeasure :: Beat -- ^ how many beats in one measure
-    , _bpm :: BPM
-    , _increment :: Beat
+    name :: Text
+    , beats :: [((Measure, Beat), Stroke, Frame)]
+    , perMeasure :: Beat -- ^ how many beats in one measure
+    , bpm :: BPM
+    , increment :: Beat
     -- | Relative pitch offset.  This changes the base speed.
-    , _pitchAdjust :: Pitch.NoteNumber
+    , pitchAdjust :: Pitch.NoteNumber
     } deriving (Show)
 
-makeBreak :: Text -> Beat -> Maybe BPM -> [(Beat, Stroke, Frame)] -> Break
-makeBreak name perMeasure mbBpm beats = addBpm $ Break
-    { _name = name
-    , _bpm = fromMaybe 0 mbBpm
-    , _beats = labelStrokes (addMeasures beats)
-    , _perMeasure = perMeasure
-    , _increment = 1/2
-    , _pitchAdjust = 0
+makeBreak :: Text -> Beat -> Pitch.NoteNumber -> Maybe BPM
+    -> [(Beat, Stroke, Frame)] -> Break
+makeBreak name perMeasure pitchAdjust mbBpm beats = addBpm $ Break
+    { name
+    , beats = labelStrokes (addMeasures beats)
+    , perMeasure
+    , bpm = fromMaybe 0 mbBpm
+    , increment = 1/2
+    , pitchAdjust
     }
     where
     addBpm break
-        | _bpm break == 0 = break { _bpm = inferBpm break }
+        | break.bpm == 0 = break { bpm = inferBpm break }
         | otherwise = break
-
-pitchAdjust :: Pitch.NoteNumber -> Break -> Break
-pitchAdjust nn break = break { _pitchAdjust = nn }
 
 bd, sn, hh :: Stroke
 bd = "bd"
@@ -397,7 +397,7 @@ allBreaks :: [Break]
 allBreaks = [medeski, amen, massaker1, massaker2]
 
 medeski :: Break
-medeski = makeBreak "medeski" 8 (Just 138.53)
+medeski = makeBreak "medeski" 8 0 (Just 138.53)
     [ (1,   bd, 0)
     , (2,   sn, 20296)
     , (3.5, bd, 49024)
@@ -433,7 +433,7 @@ medeski = makeBreak "medeski" 8 (Just 138.53)
     ]
 
 amen :: Break
-amen = makeBreak "amen" 4 Nothing
+amen = makeBreak "amen" 4 0 Nothing
     [ (1,   bd, 0)
     , (2,   sn, 19594)
     , (3.5, bd, 48536)
@@ -452,7 +452,7 @@ amen = makeBreak "amen" 4 Nothing
     ]
 
 massaker1 :: Break
-massaker1 = pitchAdjust (-12) $ makeBreak "massaker1" 4 Nothing
+massaker1 = makeBreak "massaker1" 4 (-12) Nothing
     [ (1,   bd, 0)
     , (2,   sn, 7880)
     , (3.5, bd, 19790)
@@ -464,7 +464,7 @@ massaker1 = pitchAdjust (-12) $ makeBreak "massaker1" 4 Nothing
     ]
 
 massaker2 :: Break
-massaker2 = pitchAdjust (-12) $ makeBreak "massaker2" 4 Nothing
+massaker2 = makeBreak "massaker2" 4 (-12) Nothing
     [ (1,   bd, 0)
     , (2,   bd, 7682)
     , (3,   sn, 15530)

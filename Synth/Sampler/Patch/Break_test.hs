@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE OverloadedRecordDot #-}
 module Synth.Sampler.Patch.Break_test where
 import qualified Data.Map as Map
 
@@ -14,12 +15,11 @@ import           Util.Test
 
 test_lookupStroke :: Test
 test_lookupStroke = do
-    let f octave char = pretty <$> Cmd.note_entry_lookup octave char m
-            where
-            m = Break.lookupStroke (Break._increment break)
-                (Break._perMeasure break) strokeMap
+    let f octave char =
+            pretty <$> Cmd.note_entry_lookup octave char
+                (Break.lookupStroke break.increment break.perMeasure strokeMap)
         strokeMap = Map.fromList
-            [(beat, stroke) | (beat, stroke, _) <- Break._beats break]
+            [(beat, stroke) | (beat, stroke, _) <- break.beats]
         break = Break.medeski
         c1 = ';'
         c2 = '\''
