@@ -10,11 +10,10 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.Lazy as Lazy
 
-import qualified Text.Printf as Printf
-
 import qualified Util.Doc as Doc
 import qualified Util.Format as Format
 import qualified Util.Lists as Lists
+import qualified Util.Texts as Texts
 
 import qualified Cmd.CallDoc as CallDoc
 import qualified Cmd.Cmd as Cmd
@@ -158,20 +157,21 @@ midi_fields name patch =
 
 show_attribute_map :: Midi.Patch.AttributeMap -> Text
 show_attribute_map (Common.AttributeMap table) =
-    Text.unlines $ map fmt (Lists.sortOn (low_key . snd) table)
+    -- TODO browser uses a variable width font, so this doesn't actually line
+    -- up.  I would have to either use fixed width, or have explicit columns
+    -- via html.
+    Text.unlines $ Texts.columns 2 $
+        map fmt (Lists.sortOn (low_key . snd) table)
     where
-    attrs = map (prettys . fst) table
-    longest = fromMaybe 0 $ Lists.maximum (map length attrs)
     -- If this instrument uses a keymap, it's easier to read the attribute map
     -- if I put it in keymap order.
     low_key (_, Just (Midi.Patch.UnpitchedKeymap k)) = Just k
     low_key (_, Just (Midi.Patch.PitchedKeymap k _ _)) = Just k
     low_key (_, Nothing) = Nothing
-    -- TODO use Texts
-    fmt (attrs, (keyswitches, maybe_keymap)) =
-        -- Still not quite right for lining up columns.
-        txt (Printf.printf "%-*s\t" longest (prettys attrs))
-            <> pretty keyswitches <> maybe "" ((" "<>) . pretty) maybe_keymap
+    fmt (attrs, (keyswitches, mb_keymap)) =
+        [ pretty attrs
+        , pretty keyswitches <> maybe "" ((" "<>) . pretty) mb_keymap
+        ]
 
 show_mode_map :: Midi.Patch.ModeMap -> Text
 show_mode_map (Midi.Patch.ModeMap table) = Text.unlines
@@ -200,10 +200,8 @@ im_patch_fields :: Im.Patch.Patch -> [(Text, Text)]
 im_patch_fields (Im.Patch.Patch controls attr_map elements) =
     [ ("Attributes", Text.intercalate ", " $ map pretty $
         Common.mapped_attributes attr_map)
-    , ("Controls", Text.unlines
-        [ pretty control <> "\t" <> doc
-        | (control, doc) <- Map.toAscList controls
-        ])
+    , ("Controls", Text.unlines $ Texts.columns 2
+        [[pretty control, doc] | (control, doc) <- Map.toAscList controls])
     , ("Elements", Text.unwords (Set.toList elements))
     ]
 
