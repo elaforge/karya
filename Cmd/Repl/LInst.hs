@@ -17,6 +17,7 @@ import qualified Util.Texts as Texts
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Info as Info
+import qualified Cmd.Perf as Perf
 import qualified Cmd.Repl.Util as Util
 import           Cmd.Repl.Util (Instrument)
 import qualified Cmd.Save as Save
@@ -33,6 +34,7 @@ import qualified Derive.Typecheck as Typecheck
 
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
+import qualified Instrument.InstDoc as InstDoc
 import qualified Instrument.InstT as InstT
 
 import qualified Midi.Interface as Interface
@@ -167,6 +169,26 @@ show_scale scale = "scale " <> Patch.scale_name scale <> " "
 -- | Instrument allocations.
 allocations :: Ui.M m => m UiConfig.Allocations
 allocations = Ui.config#UiConfig.allocations <#> Ui.get
+
+doc :: Cmd.M m => m Text
+doc = instrument_doc =<< Cmd.require "no instrument" =<< sel_instrument
+
+sel_instrument :: Cmd.M m => m (Maybe ScoreT.Instrument)
+sel_instrument = justm environ $ \env ->
+    pure $ Env.maybe_val EnvKey.instrument env
+
+environ :: Cmd.M m => m (Maybe Env.Environ)
+environ = Perf.lookup_environ =<< Selection.track
+
+instrument_doc :: Cmd.M m => ScoreT.Instrument -> m Text
+instrument_doc inst_name = do
+    alloc <- get_instrument_allocation inst_name
+    let qualified = UiConfig.alloc_qualified alloc
+    inst <- Cmd.get_qualified qualified
+    pure $ InstDoc.info_of qualified synth_doc inst tags
+    where
+    tags = []
+    synth_doc = ""
 
 -- * add and remove
 

@@ -135,7 +135,7 @@ show_info chan win db qualified = Fltk.action chan $ BrowserC.set_info win info
         let InstT.Qualified synth_name inst_name = qualified
         synth <- Inst.lookup_synth synth_name (db_db db)
         inst <- Map.lookup inst_name (Inst.synth_insts synth)
-        return $ InstDoc.info_of qualified synth inst tags
+        return $ InstDoc.info_of qualified (Inst.synth_doc synth) inst tags
     tags = fromMaybe [] $ Search.tags_of (db_index db) qualified
 
 -- | Send the chosen instrument to the sequencer.  This will send

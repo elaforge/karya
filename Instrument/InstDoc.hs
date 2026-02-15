@@ -33,12 +33,12 @@ import qualified Perform.Sc.Patch as Sc.Patch
 import           Global
 
 
-info_of :: InstT.Qualified -> Inst.Synth code -> Cmd.Inst -> [Tag.Tag] -> Text
-info_of qualified synth (Inst.Inst backend common) tags = mconcat
-    [ Text.intercalate " -- "
+info_of :: InstT.Qualified -> Text -> Cmd.Inst -> [Tag.Tag] -> Text
+info_of qualified synth_doc (Inst.Inst backend common) tags = mconcat
+    [ Text.intercalate " -- " $ filter (not . Text.null)
         [ synth_name
         , if Text.null inst_name then "*" else inst_name
-        , Inst.synth_doc synth
+        , synth_doc
         , Inst.backend_name backend
         ]
     , "\n\n"

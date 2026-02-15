@@ -1654,8 +1654,8 @@ get_alloc_qualified = get_qualified . UiConfig.alloc_qualified
 -- | Look up an instrument that might not be allocated.
 lookup_qualified :: M m => InstT.Qualified -> m (Maybe Inst)
 lookup_qualified qualified = do
-    config <- gets state_config
-    return $ inst_lookup qualified (config_instrument_db config)
+    db <- gets (config_instrument_db . state_config)
+    pure $ inst_lookup qualified db
 
 get_lookup_backend :: State -> InstT.Qualified -> Maybe Inst.Backend
 get_lookup_backend state qualified = Inst.inst_backend <$>

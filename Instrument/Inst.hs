@@ -116,8 +116,7 @@ newtype Db code = Db (Map InstT.SynthName (Synth code))
     deriving (Show, Pretty)
 
 data Synth code = Synth {
-    -- | Full name, just for documentation.
-    synth_doc :: !Text
+    synth_doc :: !Text -- ^ Full name, just for documentation.
     , synth_insts :: !(Map InstT.Name (Inst code))
     } deriving (Show)
 

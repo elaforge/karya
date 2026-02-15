@@ -452,7 +452,6 @@ make_status inv_tempo wants_waveform im_dir score_path adjust0 play_multiplier
             <> ": " <> err
     where
     status = ImStatus . Msg.ImStatus block_id wanted_track_ids
-
     wanted_track_ids = Set.filter wants_waveform track_ids
     make_waveform chunknum = do
         (start, ratios) <- chunk_ratios to_score
